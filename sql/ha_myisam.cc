@@ -576,7 +576,6 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   }
 
   if (!optimize ||
-      //memcmp(file->state, & share->state.state, sizeof(MI_STATUS_INFO)) ||
       ((file->state->del || share->state.split != file->state->records) &&
        (!(param.testflag & T_QUICK) ||
 	!(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))))
@@ -635,7 +634,12 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 			       STATE_CRASHED_ON_REPAIR);
       file->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
     }
-    //file->save_state=file->s->state.state;
+    /*
+      the following 'if', thought conceptually wrong,
+      is a useful optimization nevertheless.
+    */
+    if (file->state != &file->s->state.state);
+      file->s->state.state = *file->state;
     if (file->s->base.auto_key)
       update_auto_increment_key(&param, file, 1);
     if (optimize_done)
@@ -914,7 +918,7 @@ void ha_myisam::info(uint flag)
     if (table->key_parts)
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) info.rec_per_key,
-	     sizeof(ulong)*table->key_parts);
+	     sizeof(table->key_info[0].rec_per_key)*table->key_parts);
     raid_type=info.raid_type;
     raid_chunks=info.raid_chunks;
     raid_chunksize=info.raid_chunksize;
@@ -1014,7 +1018,7 @@ void ha_myisam::update_create_info(HA_CREATE_INFO *create_info)
 }
 
 
-int ha_myisam::create(const char *name, register TABLE *table,
+int ha_myisam::create(const char *name, register TABLE *table_arg,
 		      HA_CREATE_INFO *info)
 {
   int error;
@@ -1026,20 +1030,20 @@ int ha_myisam::create(const char *name, register TABLE *table,
   MI_KEYDEF *keydef;
   MI_COLUMNDEF *recinfo,*recinfo_pos;
   HA_KEYSEG *keyseg;
-  uint options=table->db_options_in_use;
+  uint options=table_arg->db_options_in_use;
   DBUG_ENTER("ha_myisam::create");
 
   type=HA_KEYTYPE_BINARY;				// Keep compiler happy
   if (!(my_multi_malloc(MYF(MY_WME),
-			&recinfo,(table->fields*2+2)*sizeof(MI_COLUMNDEF),
-			&keydef, table->keys*sizeof(MI_KEYDEF),
+			&recinfo,(table_arg->fields*2+2)*sizeof(MI_COLUMNDEF),
+			&keydef, table_arg->keys*sizeof(MI_KEYDEF),
 			&keyseg,
-			((table->key_parts + table->keys) * sizeof(HA_KEYSEG)),
+			((table_arg->key_parts + table_arg->keys) * sizeof(HA_KEYSEG)),
 			0)))
     DBUG_RETURN(1);
 
-  pos=table->key_info;
-  for (i=0; i < table->keys ; i++, pos++)
+  pos=table_arg->key_info;
+  for (i=0; i < table_arg->keys ; i++, pos++)
   {
     keydef[i].flag= (pos->flags & (HA_NOSAME | HA_FULLTEXT | HA_SPATIAL));
     keydef[i].key_alg=pos->algorithm == HA_KEY_ALG_UNDEF ?
@@ -1084,7 +1088,7 @@ int ha_myisam::create(const char *name, register TABLE *table,
       {
 	keydef[i].seg[j].null_bit=field->null_bit;
 	keydef[i].seg[j].null_pos= (uint) (field->null_ptr-
-					   (uchar*) table->record[0]);
+					   (uchar*) table_arg->record[0]);
       }
       else
       {
@@ -1102,19 +1106,19 @@ int ha_myisam::create(const char *name, register TABLE *table,
 	keydef[i].seg[j].flag|=HA_BLOB_PART;
 	/* save number of bytes used to pack length */
 	keydef[i].seg[j].bit_start= (uint) (field->pack_length() -
-					    table->blob_ptr_size);
+					    table_arg->blob_ptr_size);
       }
     }
     keyseg+=pos->key_parts;
   }
 
   recpos=0; recinfo_pos=recinfo;
-  while (recpos < (uint) table->reclength)
+  while (recpos < (uint) table_arg->reclength)
   {
     Field **field,*found=0;
-    minpos=table->reclength; length=0;
+    minpos=table_arg->reclength; length=0;
 
-    for (field=table->field ; *field ; field++)
+    for (field=table_arg->field ; *field ; field++)
     {
       if ((fieldpos=(*field)->offset()) >= recpos &&
 	  fieldpos <= minpos)
@@ -1160,7 +1164,7 @@ int ha_myisam::create(const char *name, register TABLE *table,
     {
       recinfo_pos->null_bit=found->null_bit;
       recinfo_pos->null_pos= (uint) (found->null_ptr-
-				  (uchar*) table->record[0]);
+				  (uchar*) table_arg->record[0]);
     }
     else
     {
@@ -1175,13 +1179,13 @@ int ha_myisam::create(const char *name, register TABLE *table,
   }
   MI_CREATE_INFO create_info;
   bzero((char*) &create_info,sizeof(create_info));
-  create_info.max_rows=table->max_rows;
-  create_info.reloc_rows=table->min_rows;
+  create_info.max_rows=table_arg->max_rows;
+  create_info.reloc_rows=table_arg->min_rows;
   create_info.auto_increment=(info->auto_increment_value ?
 			      info->auto_increment_value -1 :
 			      (ulonglong) 0);
-  create_info.data_file_length= ((ulonglong) table->max_rows *
-				 table->avg_row_length);
+  create_info.data_file_length= ((ulonglong) table_arg->max_rows *
+				 table_arg->avg_row_length);
   create_info.raid_type=info->raid_type;
   create_info.raid_chunks= (info->raid_chunks ? info->raid_chunks :
 			    RAID_DEFAULT_CHUNKS);
@@ -1191,7 +1195,7 @@ int ha_myisam::create(const char *name, register TABLE *table,
   create_info.index_file_name=info->index_file_name;
 
   error=mi_create(fn_format(buff,name,"","",2+4),
-		  table->keys,keydef,
+		  table_arg->keys,keydef,
 		  (uint) (recinfo_pos-recinfo), recinfo,
 		  0, (MI_UNIQUEDEF*) 0,
 		  &create_info,

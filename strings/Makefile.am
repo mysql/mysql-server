@@ -24,11 +24,11 @@ if ASSEMBLER_x86
 ASRCS		= strings-x86.s longlong2str-x86.s
 CSRCS		= bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c atof.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-czech.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-latin1_de.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-win1250ch.c ctype-bin.c
 else
-if ASSEMBLER_sparc
+if ASSEMBLER_sparc32
 # These file MUST all be on the same line!! Otherwise automake
 # generats a very broken makefile
-ASRCS		= bmove_upp-sparc.s strappend-sparc.s strend-sparc.s strinstr-sparc.s strmake-sparc.s strmov-sparc.s strnmov-sparc.s strstr-sparc.s strxmov-sparc.s
-CSRCS		= strcont.c strfill.c strcend.c is_prefix.c longlong2str.c bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c atof.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-czech.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-latin1_de.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-win1250ch.c ctype-bin.c
+ASRCS		= bmove_upp-sparc.s strappend-sparc.s strend-sparc.s strinstr-sparc.s strmake-sparc.s strmov-sparc.s strnmov-sparc.s strstr-sparc.s
+CSRCS		= strcont.c strfill.c strcend.c is_prefix.c longlong2str.c bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c atof.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c strnlen.c strxmov.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-czech.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-latin1_de.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-win1250ch.c ctype-bin.c
 else
 #no assembler
 ASRCS		=
@@ -68,8 +68,11 @@ conf_to_src_LDFLAGS= @NOINST_LDFLAGS@
 if ASSEMBLER
 # On Linux gcc can compile the assembly files
 %.o	: %.s
-	$(AS) -o $@ $<
+	$(AS) $(ASFLAGS) -o $@ $<
 endif
+
+str_test: str_test.c $(LIBRARIES)
+	$(LINK) $(FLAGS) -DMAIN $(srcdir)/str_test.c $(LDADD) $(LIBS)
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

@@ -56,6 +56,10 @@ Created 2/16/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "que0que.h"
 
+ibool           srv_start_has_been_called  = FALSE;
+
+ulint           srv_sizeof_trx_t_in_ha_innodb_cc;
+
 ibool           srv_startup_is_before_trx_rollback_phase = FALSE;
 ibool           srv_is_being_started = FALSE;
 ibool           srv_was_started      = FALSE;
@@ -515,7 +519,7 @@ srv_calc_high32(
 }
 
 /*************************************************************************
-Creates or opens the log files. */
+Creates or opens the log files and closes them. */
 static
 ulint
 open_or_create_log_file(
@@ -640,7 +644,7 @@ open_or_create_log_file(
 }
 
 /*************************************************************************
-Creates or opens database data files. */
+Creates or opens database data files and closes them. */
 static
 ulint
 open_or_create_data_files(
@@ -960,35 +964,90 @@ innobase_start_or_create_for_mysql(void)
 "InnoDB: !!!!!!!!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!!!!!!!\n"); 
 #endif
 
+        if (srv_sizeof_trx_t_in_ha_innodb_cc != (ulint)sizeof(trx_t)) {
+	        fprintf(stderr,
+  "InnoDB: Error: trx_t size is %lu in ha_innodb.cc but %lu in srv0start.c\n"
+  "InnoDB: Check that pthread_mutex_t is defined in the same way in these\n"
+  "InnoDB: compilation modules. Cannot continue.\n",
+		  srv_sizeof_trx_t_in_ha_innodb_cc, (ulint)sizeof(trx_t));
+		return(DB_ERROR);
+	}
+
+	/* Since InnoDB does not currently clean up all its internal data
+	   structures in MySQL Embedded Server Library server_end(), we
+	   print an error message if someone tries to start up InnoDB a
+	   second time during the process lifetime. */
+
+	if (srv_start_has_been_called) {
+	        fprintf(stderr,
+"InnoDB: Error:startup called second time during the process lifetime.\n"
+"InnoDB: In the MySQL Embedded Server Library you cannot call server_init()\n"
+"InnoDB: more than once during the process lifetime.\n");
+	}
+
+	srv_start_has_been_called = TRUE;
+
 	log_do_write = TRUE;
 /*	yydebug = TRUE; */
 
 	srv_is_being_started = TRUE;
         srv_startup_is_before_trx_rollback_phase = TRUE;
+	os_aio_use_native_aio = FALSE;
 
-	if (0 == ut_strcmp(srv_unix_file_flush_method_str, "fdatasync")) {
+#ifdef __WIN__
+	if (os_get_os_version() == OS_WIN95
+	    || os_get_os_version() == OS_WIN31
+	    || os_get_os_version() == OS_WINNT) {
+
+	  	/* On Win 95, 98, ME, Win32 subsystem for Windows 3.1,
+		and NT use simulated aio. In NT Windows provides async i/o,
+		but when run in conjunction with InnoDB Hot Backup, it seemed
+		to corrupt the data files. */
+
+	  	os_aio_use_native_aio = FALSE;
+	} else {
+	  	/* On Win 2000 and XP use async i/o */
+	  	os_aio_use_native_aio = TRUE;
+	}
+#endif	
+        if (srv_file_flush_method_str == NULL) {
+        	/* These are the default options */
+
+		srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
+
+		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
+#ifndef __WIN__        
+	} else if (0 == ut_strcmp(srv_file_flush_method_str, "fdatasync")) {
 	  	srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
 
-	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str, "O_DSYNC")) {
+	} else if (0 == ut_strcmp(srv_file_flush_method_str, "O_DSYNC")) {
 	  	srv_unix_file_flush_method = SRV_UNIX_O_DSYNC;
 
-	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str,
+	} else if (0 == ut_strcmp(srv_file_flush_method_str,
 				  "littlesync")) {
 	  	srv_unix_file_flush_method = SRV_UNIX_LITTLESYNC;
 
-	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str, "nosync")) {
+	} else if (0 == ut_strcmp(srv_file_flush_method_str, "nosync")) {
 	  	srv_unix_file_flush_method = SRV_UNIX_NOSYNC;
+#else
+	} else if (0 == ut_strcmp(srv_file_flush_method_str, "normal")) {
+	  	srv_win_file_flush_method = SRV_WIN_IO_NORMAL;
+	  	os_aio_use_native_aio = FALSE;
+
+	} else if (0 == ut_strcmp(srv_file_flush_method_str, "unbuffered")) {
+	  	srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
+	  	os_aio_use_native_aio = FALSE;
+
+	} else if (0 == ut_strcmp(srv_file_flush_method_str,
+							"async_unbuffered")) {
+	  	srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;	
+#endif
 	} else {
 	  	fprintf(stderr, 
           	"InnoDB: Unrecognized value %s for innodb_flush_method\n",
-          				srv_unix_file_flush_method_str);
+          				srv_file_flush_method_str);
 	  	return(DB_ERROR);
 	}
-
-	/*
-	printf("srv_unix set to %lu\n", srv_unix_file_flush_method);
-	*/
-	os_aio_use_native_aio = srv_use_native_aio;
 
 	err = srv_boot();
 
@@ -999,34 +1058,15 @@ innobase_start_or_create_for_mysql(void)
 
 	/* Restrict the maximum number of file i/o threads */
 	if (srv_n_file_io_threads > SRV_MAX_N_IO_THREADS) {
+
 		srv_n_file_io_threads = SRV_MAX_N_IO_THREADS;
 	}
 
-#if !(defined(WIN_ASYNC_IO) || defined(POSIX_ASYNC_IO))
-	/* In simulated aio we currently have use only for 4 threads */
-
-	os_aio_use_native_aio = FALSE;
-
-	srv_n_file_io_threads = 4;
-#endif
-
-#ifdef __WIN__
-	if (os_get_os_version() == OS_WIN95
-	    || os_get_os_version() == OS_WIN31) {
-
-	  	/* On Win 95, 98, ME, and Win32 subsystem for Windows 3.1 use
-	     	simulated aio */
-
-	  	os_aio_use_native_aio = FALSE;
-	  	srv_n_file_io_threads = 4;
-	} else {
-	  	/* On NT and Win 2000 always use aio */
-	  	os_aio_use_native_aio = TRUE;
-	}
-#endif
-	os_aio_use_native_aio = FALSE;
-	
 	if (!os_aio_use_native_aio) {
+ 		/* In simulated aio we currently have use only for 4 threads */
+
+		srv_n_file_io_threads = 4;
+
 		os_aio_init(8 * SRV_N_PENDING_IOS_PER_THREAD
 						* srv_n_file_io_threads,
 					srv_n_file_io_threads,
@@ -1047,15 +1087,6 @@ innobase_start_or_create_for_mysql(void)
 	
 	lock_sys_create(srv_lock_table_size);
 
-#ifdef POSIX_ASYNC_IO
-	if (os_aio_use_native_aio) {
-		/* There is only one thread per async io array:
-		one for ibuf i/o, one for log i/o, one for ordinary reads,
-		one for ordinary writes; we need only 4 i/o threads */
-
-		srv_n_file_io_threads = 4;
-	}
-#endif
 	/* Create i/o-handler threads: */
 
 	for (i = 0; i < srv_n_file_io_threads; i++) {
@@ -1365,7 +1396,7 @@ innobase_start_or_create_for_mysql(void)
 	if (0 != os_fast_mutex_trylock(&srv_os_test_mutex)) {
 	        fprintf(stderr,
 "InnoDB: Error: pthread_mutex_trylock returns an unexpected value on\n"
-		  "InnoDB: success! Cannot continue.\n");
+"InnoDB: success! Cannot continue.\n");
 	        exit(1);
 	}
 
@@ -1375,11 +1406,17 @@ innobase_start_or_create_for_mysql(void)
 
 	os_fast_mutex_unlock(&srv_os_test_mutex);
 
-	if (srv_print_verbose_log)
-	{
-	  ut_print_timestamp(stderr);
-	  fprintf(stderr, "  InnoDB: Started\n");
+	if (srv_print_verbose_log) {
+	  	ut_print_timestamp(stderr);
+	  	fprintf(stderr, "  InnoDB: Started\n");
 	}
+
+	if (srv_force_recovery > 0) {
+		fprintf(stderr,
+		"InnoDB: !!! innodb_force_recovery is set to %lu !!!\n",
+			srv_force_recovery);
+	}	
+
 	return((int) DB_SUCCESS);
 }
 

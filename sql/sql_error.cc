@@ -51,13 +51,22 @@ This file contains the implementation of error and warnings related
   SYNOPSIS
     mysql_reset_errors()
     thd			Thread handle
+
+  IMPLEMENTATION
+    Don't reset warnings if this has already been called for this query.
+    This may happen if one gets a warning during the parsing stage,
+    in which case push_warnings() has already called this function.
 */  
 
 void mysql_reset_errors(THD *thd)
 {
-  free_root(&thd->warn_root,MYF(0));
-  bzero((char*) thd->warn_count, sizeof(thd->warn_count));
-  thd->warn_list.empty();
+  if (thd->query_id != thd->warn_id)
+  {
+    thd->warn_id= thd->query_id;
+    free_root(&thd->warn_root,MYF(0));
+    bzero((char*) thd->warn_count, sizeof(thd->warn_count));
+    thd->warn_list.empty();
+  }
 }
 
 
@@ -75,6 +84,9 @@ void mysql_reset_errors(THD *thd)
 void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, uint code,
 		  const char *msg)
 {
+  if (thd->query_id != thd->warn_id)
+    mysql_reset_errors(thd);
+
   if (thd->warn_list.elements < thd->variables.max_error_count)
   {
     /*
@@ -115,7 +127,7 @@ static const char *warning_level_names[]= {"Note", "Warning", "Error", "?"};
 my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 {  
   List<Item> field_list;
-  DBUG_ENTER("mysqld_show_errors");
+  DBUG_ENTER("mysqld_show_warnings");
 
   field_list.push_back(new Item_empty_string("Level", 7));
   field_list.push_back(new Item_int("Code",0,4));

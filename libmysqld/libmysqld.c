@@ -49,6 +49,10 @@
 static my_bool	mysql_client_init=0;
 uint		mysql_port=0;
 my_string	mysql_unix_port=0;
+const char *sql_protocol_names_lib[] =
+{ "TCP", "SOCKET", "PIPE", "MEMORY",NullS };
+TYPELIB sql_protocol_typelib = {array_elements(sql_protocol_names_lib)-1,"",
+			   sql_protocol_names_lib};
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_TRANSACTIONS | CLIENT_PROTOCOL_41)
 
@@ -433,11 +437,15 @@ mysql_free_result(MYSQL_RES *result)
 ****************************************************************************/
 
 static const char *default_options[]=
-{"port","socket","compress","password","pipe", "timeout", "user",
- "init-command", "host", "database", "debug", "return-found-rows",
- "ssl_key" ,"ssl_cert" ,"ssl_ca" ,"ssl_capath",
- "character-set-dir", "default-character-set",
- NullS
+{
+  "port","socket","compress","password","pipe", "timeout", "user",
+  "init-command", "host", "database", "debug", "return-found-rows",
+  "ssl-key" ,"ssl-cert" ,"ssl-ca" ,"ssl-capath",
+  "character-sets-dir", "default-character-set", "interactive-timeout",
+  "connect-timeout", "local-infile", "disable-local-infile",
+  "replication-probe", "enable-reads-from-master", "repl-parse-query",
+  "ssl-cipher","protocol", "shared_memory_base_name",
+  NullS
 };
 
 static TYPELIB option_types={array_elements(default_options)-1,
@@ -471,6 +479,9 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	  opt_arg=end+1;
 	  *end=0;				/* Remove '=' */
 	}
+	/* Change all '_' in variable name to '-' */
+	for (end= *option ; *(end= strcend(end,'_')) ; )
+	  *end= '-';
 	switch (find_type(*option+2,&option_types,2)) {
 	case 1:				/* port */
 	  if (opt_arg)
@@ -494,8 +505,9 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	  }
 	  break;
 	case 5:				/* pipe */
-	  options->named_pipe=1;	/* Force named pipe */
+          options->protocol = MYSQL_PROTOCOL_PIPE;
 	  break;
+	case 20:			/* connect_timeout */
 	case 6:				/* timeout */
 	  if (opt_arg)
 	    options->connect_timeout=atoi(opt_arg);
@@ -538,6 +550,7 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	case 14:
 	case 15:
 	case 16:
+	case 26:
 	  break;
 	case 17:			/* charset-lib */
 	  my_free(options->charset_dir,MYF(MY_ALLOW_ZERO_PTR));
@@ -546,6 +559,15 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	case 18:
 	  my_free(options->charset_name,MYF(MY_ALLOW_ZERO_PTR));
           options->charset_name = my_strdup(opt_arg, MYF(MY_WME));
+	  break;
+	case 19:				/* Interactive-timeout */
+	case 21:				/* client_local_files */
+	case 22:
+	case 23:				/* Replication options */
+	case 24:
+	case 25:
+	case 27:				/* Protocol */
+	case 28:				/* Shared memory */
 	  break;
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));
@@ -1789,7 +1811,13 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
     mysql->options.compress=1;			/* Remember for connect */
     break;
   case MYSQL_OPT_NAMED_PIPE:
-    mysql->options.named_pipe=1;		/* Force named pipe */
+    mysql->options.protocol=MYSQL_PROTOCOL_PIPE; /* Force named pipe */
+    break;
+  case MYSQL_OPT_LOCAL_INFILE:			/* Allow LOAD DATA LOCAL ?*/
+    if (!arg || test(*(uint*) arg))
+      mysql->options.client_flag|= CLIENT_LOCAL_FILES;
+    else
+      mysql->options.client_flag&= ~CLIENT_LOCAL_FILES;
     break;
   case MYSQL_INIT_COMMAND:
     my_free(mysql->options.init_command,MYF(MY_ALLOW_ZERO_PTR));
@@ -1810,6 +1838,11 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
   case MYSQL_SET_CHARSET_NAME:
     my_free(mysql->options.charset_name,MYF(MY_ALLOW_ZERO_PTR));
     mysql->options.charset_name=my_strdup(arg,MYF(MY_WME));
+    break;
+  case MYSQL_OPT_PROTOCOL:
+    mysql->options.protocol= *(uint*) arg;
+    break;
+  case MYSQL_SHARED_MEMORY_BASE_NAME:
     break;
   default:
     DBUG_RETURN(-1);

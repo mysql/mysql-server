@@ -254,6 +254,18 @@ public:
 };
 
 
+class Item_func_int_div :public Item_num_op
+{
+public:
+  Item_func_int_div(Item *a,Item *b) :Item_num_op(a,b)
+  { hybrid_type=INT_RESULT; }
+  double val() { return (double) val_int(); }
+  longlong val_int();
+  const char *func_name() const { return "DIV"; }
+  void fix_length_and_dec();
+};
+
+
 class Item_func_mod :public Item_num_op
 {
 public:
@@ -742,6 +754,7 @@ public:
     bool res= udf.fix_fields(thd, tables, this, arg_count, args);
     used_tables_cache= udf.used_tables_cache;
     const_item_cache= udf.const_item_cache;
+    fixed= 1;
     return res;
   }
   Item_result result_type () const { return udf.result_type(); }
@@ -906,7 +919,7 @@ public:
 class Item_func_get_user_var :public Item_func
 {
   LEX_STRING name;
-  user_var_entry *entry;
+  user_var_entry *var_entry;
   bool const_var_flag;
 
 public:

@@ -91,7 +91,7 @@
 
 
 enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
-      OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT};
+      OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT, OPT_SKIP_SAFEMALLOC};
 
 static int record = 0, opt_sleep=0;
 static char *db = 0, *pass=0;
@@ -1850,6 +1850,9 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's', "Suppress all normal output. Synonym for --quiet.",
    (gptr*) &silent, (gptr*) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"skip-safemalloc", OPT_SKIP_SAFEMALLOC,
+   "Don't use the memory allocation checking", 0, 0, 0, GET_NO_ARG, NO_ARG,
+   0, 0, 0, 0, 0, 0},
   {"sleep", 'T', "Sleep always this many seconds on sleep commands",
    (gptr*) &opt_sleep, (gptr*) &opt_sleep, 0, GET_INT, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
@@ -1948,6 +1951,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'F':
     if (read_server_arguments(argument))
       die(NullS);
+    break;
+  case OPT_SKIP_SAFEMALLOC:
+#ifdef SAFEMALLOC
+    sf_malloc_quick=1;
+#endif
     break;
   case 'V':
     print_version();
@@ -2323,6 +2331,7 @@ static void var_from_env(const char* name, const char* def_val)
 static void init_var_hash()
 {
   VAR* v;
+  DBUG_ENTER("init_var_hash");
   if (hash_init(&var_hash, system_charset_info, 
                 1024, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
@@ -2332,6 +2341,7 @@ static void init_var_hash()
   var_from_env("BIG_TEST", opt_big_test ? "1" : "0");
   v=var_init(0,"MAX_TABLES", 0, (sizeof(ulong) == 4) ? "31" : "63",0);
   hash_insert(&var_hash, (byte*)v);
+  DBUG_VOID_RETURN;
 }
 
 

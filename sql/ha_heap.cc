@@ -245,7 +245,7 @@ int ha_heap::create(const char *name, TABLE *table,
 {
   uint key, parts, mem_per_row= 0;
   uint auto_key= 0, auto_key_type= 0;
-  ulong max_rows;
+  ha_rows max_rows;
   HP_KEYDEF *keydef;
   HA_KEYSEG *seg;
   char buff[FN_REFLEN];
@@ -310,8 +310,8 @@ int ha_heap::create(const char *name, TABLE *table,
     }
   }
   mem_per_row+= MY_ALIGN(table->reclength + 1, sizeof(char*));
-  max_rows = (ulong) (current_thd->variables.max_heap_table_size /
-		      mem_per_row);
+  max_rows = (ha_rows) (current_thd->variables.max_heap_table_size /
+			mem_per_row);
   HP_CREATE_INFO hp_create_info;
   hp_create_info.auto_key= auto_key;
   hp_create_info.auto_key_type= auto_key_type;
@@ -319,9 +319,9 @@ int ha_heap::create(const char *name, TABLE *table,
 				  create_info->auto_increment_value - 1 : 0);
   error= heap_create(fn_format(buff,name,"","",4+2),
 		     table->keys,keydef, table->reclength,
-		     ((table->max_rows < max_rows && table->max_rows) ? 
-		     table->max_rows : max_rows),
-		     table->min_rows, &hp_create_info);
+		     (ulong) ((table->max_rows < max_rows && table->max_rows) ? 
+			      table->max_rows : max_rows),
+		     (ulong) table->min_rows, &hp_create_info);
   my_free((gptr) keydef, MYF(0));
   if (file)
     info(HA_STATUS_NO_LOCK | HA_STATUS_CONST | HA_STATUS_VARIABLE);

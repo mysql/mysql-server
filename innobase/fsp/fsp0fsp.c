@@ -769,6 +769,8 @@ fsp_init_file_page_low(
 #endif
 	page = buf_frame_align(ptr);
 
+	buf_block_align(page)->check_index_page_at_flush = FALSE;	
+	
 #ifdef UNIV_BASIC_LOG_DEBUG	
 /*	printf("In log debug version: Erase the contents of the file page\n");
 */
@@ -1097,7 +1099,7 @@ fsp_fill_free_list(
 
 			/* Initialize the ibuf page in a separate
 			mini-transaction because it is low in the latching
-			order, and we must be able to release the its latch
+			order, and we must be able to release its latch
 			before returning from the fsp routine */
 			
 			mtr_start(&ibuf_mtr);
@@ -1264,7 +1266,12 @@ fsp_alloc_free_page(
 
 	free = xdes_find_bit(descr, XDES_FREE_BIT, TRUE,
 						hint % FSP_EXTENT_SIZE, mtr);
-	ut_a(free != ULINT_UNDEFINED);
+	if (free == ULINT_UNDEFINED) {
+
+		ut_print_buf(((byte*)descr) - 500, 1000);
+
+		ut_a(0);
+	}
 
 	xdes_set_bit(descr, XDES_FREE_BIT, free, FALSE, mtr);
 
@@ -1412,7 +1419,12 @@ fsp_free_extent(
 
 	descr = xdes_get_descriptor_with_space_hdr(header, space, page, mtr);
 
-	ut_a(xdes_get_state(descr, mtr) != XDES_FREE);
+	if (xdes_get_state(descr, mtr) == XDES_FREE) {
+
+		ut_print_buf(((byte*)descr) - 500, 1000);
+
+		ut_a(0);
+	}
 
 	xdes_init(descr, mtr);
 
@@ -1523,6 +1535,10 @@ fsp_alloc_seg_inode_page(
 
 	page = buf_page_get(space, page_no, RW_X_LATCH, mtr);	
 
+	buf_block_align(page)->check_index_page_at_flush = FALSE;
+
+	fil_page_set_type(page, FIL_PAGE_INODE);
+	
 	buf_page_dbg_add_level(page, SYNC_FSP_PAGE);
 
 	for (i = 0; i < FSP_SEG_INODES_PER_PAGE; i++) {
@@ -2298,6 +2314,8 @@ fseg_alloc_free_page_low(
 		fseg_mark_page_used(seg_inode, space, ret_page, mtr);
 	}
 
+	buf_reset_check_index_page_at_flush(space, ret_page);
+	
 	return(ret_page);	
 }
 

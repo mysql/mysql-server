@@ -38,6 +38,14 @@
 #define HAVE_ERRNO_AS_DEFINE
 #endif /* __CYGWIN__ */
 
+/* Macros to make switching between C and C++ mode easier */
+#ifdef __cplusplus
+#define C_MODE_START    extern "C" {
+#define C_MODE_END	}
+#else
+#define C_MODE_START
+#define C_MODE_END
+#endif
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
 #include <config-win.h>
@@ -119,7 +127,12 @@
 #define _H_STRINGS
 #define _SYS_STREAM_H
 /* #define _AIX32_CURSES */	/* XXX: this breaks AIX 4.3.3 (others?). */
-#endif
+#define ulonglong2double(A) my_ulonglong2double(A)
+#define my_off_t2double(A)  my_ulonglong2double(A)
+C_MODE_START
+double my_ulonglong2double(unsigned long long A);
+C_MODE_END
+#endif /* _AIX */
 
 #ifdef HAVE_BROKEN_SNPRINTF	/* HPUX 10.20 don't have this defined */
 #undef HAVE_SNPRINTF
@@ -127,6 +140,10 @@
 #ifdef HAVE_BROKEN_PREAD	/* These doesn't work on HPUX 11.x */
 #undef HAVE_PREAD
 #undef HAVE_PWRITE
+#endif
+#if defined(HAVE_BROKEN_INLINE) && !defined(__cplusplus)
+#undef inline
+#define inline
 #endif
 
 #ifdef UNDEF_HAVE_GETHOSTBYNAME_R		/* For OSF4.x */
@@ -240,7 +257,7 @@
 #ifdef DONT_USE_FINITE		/* HPUX 11.x has is_finite() */
 #undef HAVE_FINITE
 #endif
-#if defined(HPUX) && defined(_LARGEFILE64_SOURCE) && defined(THREAD)
+#if defined(HPUX10) && defined(_LARGEFILE64_SOURCE) && defined(THREAD)
 /* Fix bug in setrlimit */
 #undef setrlimit
 #define setrlimit cma_setrlimit64
@@ -376,7 +393,9 @@ typedef int	my_socket;	/* File descriptor for sockets */
 #endif
 /* Type for fuctions that handles signals */
 #define sig_handler RETSIGTYPE
+C_MODE_START
 typedef void	(*sig_return)();/* Returns type from signal */
+C_MODE_END
 #if defined(__GNUC__) && !defined(_lint)
 typedef char	pchar;		/* Mixed prototypes can take char */
 typedef char	puchar;		/* Mixed prototypes can take char */
@@ -390,8 +409,10 @@ typedef int	pbool;		/* Mixed prototypes can't take char */
 typedef int	pshort;		/* Mixed prototypes can't take short int */
 typedef double	pfloat;		/* Mixed prototypes can't take float */
 #endif
+C_MODE_START
 typedef int	(*qsort_cmp)(const void *,const void *);
 typedef int	(*qsort_cmp2)(void*, const void *,const void *);
+C_MODE_END
 #ifdef HAVE_mit_thread
 #define qsort_t void
 #undef QSORT_TYPE_IS_VOID
@@ -1029,13 +1050,4 @@ typedef union {
 #define statistic_add(V,C,L)       (V)+=(C)
 #endif
 
-/* Macros to make switching between C and C++ mode easier */
-#ifdef __cplusplus
-#define C_MODE_START    extern "C" {
-#define C_MODE_END	}
-#else
-#define C_MODE_START
-#define C_MODE_END
-#endif
-
-#endif /* _global_h */
+#endif /* my_global_h */

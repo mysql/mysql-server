@@ -347,9 +347,19 @@ mem_hash_remove(
 								NULL, NULL);
 	if (error) {
 	   printf("Inconsistency in memory heap or buffer n:o %lu created\n",
-								node->nth_heap);
+							node->nth_heap);
 	   printf("in %s line %lu and tried to free in %s line %lu.\n",
 	  			node->file_name, node->line, file_name, line);
+
+	   printf(
+	   "Hex dump of 400 bytes around memory heap first block start:\n");
+
+	   ut_print_buf((byte*)(node->heap) - 200, 400);
+
+	   printf("\nDump of the mem heap:\n");
+
+	   mem_heap_validate_or_print(node->heap, NULL, TRUE, &error, &size,
+								NULL, NULL);
 	   ut_error;
 	}
 

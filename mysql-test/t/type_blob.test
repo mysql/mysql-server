@@ -1,8 +1,34 @@
 #
+# Basic cleanup
+#
+drop table if exists t1,t2,t3,t4,t5,t6,t7;
+
+#
+# Check syntax for creating BLOB/TEXT
+#
+
+CREATE TABLE t1 (a blob, b text, c blob(250), d text(70000), e text(70000000));
+show columns from t1;
+CREATE TABLE t2 (a char(257), b varchar(70000) binary, c varchar(70000000));
+show columns from t2;
+create table t3 (a long, b long byte);
+show create TABLE t3;
+drop table t1,t2,t3
+
+#
+# Check errors with blob
+#
+
+--error 1074
+CREATE TABLE t1 (a char(257) default "hello");
+--error 1101
+CREATE TABLE t2 (a blob default "hello");
+drop table if exists t1,t2;
+
+#
 # test of full join with blob
 #
 
-drop table if exists t1,t2,t3,t4,t5,t6,t7;
 create table t1 (nr int(5) not null auto_increment,b blob,str char(10), primary key (nr));
 insert into t1 values (null,"a","A");
 insert into t1 values (null,"bbb","BBB");
