@@ -1,17 +1,73 @@
+slave stop;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+slave start;
+use test;
+drop table if exists t1,t3;
+create table t1 (word char(20) not null);
+load data infile '../../std_data/words.dat' into table t1;
+set password = password('foo');
+set password = password('');
+create table t3(n int);
+insert into t3 values(1),(2);
+use test;
+select * from t3;
 n
 1
 2
+select sum(length(word)) from t1;
 sum(length(word))
 71
+drop table t1,t3;
+reset master;
+reset slave;
+drop table if exists t1,t2;
+create table t1(n int);
+ insert into t1 values(10);
+ insert into t1 values(9);
+ insert into t1 values(8);
+ insert into t1 values(7);
+ insert into t1 values(6);
+ insert into t1 values(5);
+ insert into t1 values(4);
+ insert into t1 values(3);
+ insert into t1 values(2);
+ insert into t1 values(1);
+create table t2(id int);
+insert into t2 values(connection_id());
+create temporary table t1_temp(n int);
+insert into t1_temp select get_lock('crash_lock%20C', 1) from t2;
+ update t1 set n = n + get_lock('crash_lock%20C', 2);
+select (@id := id) - id from t2;
 (@id := id) - id
 0
+kill @id;
+drop table t2;
+Server shutdown in progress
+set sql_slave_skip_counter=1;
+slave start;
+select count(*) from t1;
 count(*)
 10
+drop table t1;
+create table t1 (n int);
+insert into t1 values(3456);
+use mysql;
+insert into user (Host, User, Password)
+VALUES ("10.10.10.%", "blafasel2", password("blafasel2"));
+select select_priv,user from mysql.user where user = 'blafasel2';
 select_priv	user
 N	blafasel2
+update user set Select_priv = "Y" where User="blafasel2";
+select select_priv,user from mysql.user where user = 'blafasel2';
 select_priv	user
 Y	blafasel2
+use test;
+select n from t1;
 n
 3456
+select select_priv,user from mysql.user where user = 'blafasel2';
 select_priv	user
 Y	blafasel2
+drop table t1;

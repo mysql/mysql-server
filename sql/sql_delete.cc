@@ -274,6 +274,8 @@ multi_delete::initialize_tables(JOIN *join)
       /* We are going to delete from this table */
       walk->table=tab->table;
       walk=walk->next;
+      if (tab == join->join_tab)
+	tab->table->no_keyread=1;
     }
   }
 }
@@ -309,7 +311,6 @@ bool multi_delete::send_data(List<Item> &values)
       continue;
 
     table->file->position(table->record[0]);
-    int rl = table->file->ref_length;
     
     if (secure_counter < 0)
     {
@@ -354,6 +355,10 @@ void multi_delete::send_error(uint errcode,const char *err)
 {
   /* First send error what ever it is ... */
   ::send_error(&thd->net,errcode,err);
+
+  /* reset used flags */
+  delete_tables->table->no_keyread=0;
+
   /* If nothing deleted return */
   if (!deleted)
     return;
@@ -397,7 +402,6 @@ int multi_delete::do_deletes (bool from_send_error)
        table_being_deleted=table_being_deleted->next, counter++)
   { 
     TABLE *table = table_being_deleted->table;
-    int rl = table->file->ref_length;
     if (tempfiles[counter]->get(table))
     {
       error=1;
@@ -452,6 +456,9 @@ bool multi_delete::send_eof()
 {
   thd->proc_info="deleting from reference tables";
   int error = do_deletes(false);
+
+  /* reset used flags */
+  delete_tables->table->no_keyread=0;
 
   thd->proc_info="end";
   if (error && error != -1)

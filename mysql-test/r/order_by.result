@@ -1,3 +1,39 @@
+drop table if exists t1,t2,t3;
+CREATE TABLE t1 (
+id int(6) DEFAULT '0' NOT NULL,
+idservice int(5),
+clee char(20) NOT NULL,
+flag char(1),
+KEY id (id),
+PRIMARY KEY (clee)
+);
+INSERT INTO t1 VALUES (2,4,'6067169d','Y');
+INSERT INTO t1 VALUES (2,5,'606716d1','Y');
+INSERT INTO t1 VALUES (2,1,'606717c1','Y');
+INSERT INTO t1 VALUES (3,1,'6067178d','Y');
+INSERT INTO t1 VALUES (2,6,'60671515','Y');
+INSERT INTO t1 VALUES (2,7,'60671569','Y');
+INSERT INTO t1 VALUES (2,3,'dd','Y');
+CREATE TABLE t2 (
+id int(6) DEFAULT '0' NOT NULL auto_increment,
+description varchar(40) NOT NULL,
+idform varchar(40),
+ordre int(6) unsigned DEFAULT '0' NOT NULL,
+image varchar(60),
+PRIMARY KEY (id),
+KEY id (id,ordre)
+);
+INSERT INTO t2 VALUES (1,'Emettre un appel d''offres','en_construction.html',10,'emettre.gif');
+INSERT INTO t2 VALUES (2,'Emettre des soumissions','en_construction.html',20,'emettre.gif');
+INSERT INTO t2 VALUES (7,'Liste des t2','t2_liste_form.phtml',51060,'link.gif');
+INSERT INTO t2 VALUES (8,'Consulter les soumissions','consulter_soumissions.phtml',200,'link.gif');
+INSERT INTO t2 VALUES (9,'Ajouter un type de materiel','typeMateriel_ajoute_form.phtml',51000,'link.gif');
+INSERT INTO t2 VALUES (10,'Lister/modifier un type de materiel','typeMateriel_liste_form.phtml',51010,'link.gif');
+INSERT INTO t2 VALUES (3,'Créer une fiche de client','clients_ajoute_form.phtml',40000,'link.gif');
+INSERT INTO t2 VALUES (4,'Modifier des clients','en_construction.html',40010,'link.gif');
+INSERT INTO t2 VALUES (5,'Effacer des clients','en_construction.html',40020,'link.gif');
+INSERT INTO t2 VALUES (6,'Ajouter un service','t2_ajoute_form.phtml',51050,'link.gif');
+select t1.id,t1.idservice,t2.ordre,t2.description  from t1, t2 where t1.id = 2   and t1.idservice = t2.id  order by t2.ordre;
 id	idservice	ordre	description
 2	1	10	Emettre un appel d'offres
 2	3	40000	Créer une fiche de client
@@ -5,34 +41,53 @@ id	idservice	ordre	description
 2	5	40020	Effacer des clients
 2	6	51050	Ajouter un service
 2	7	51060	Liste des t2
+drop table t1,t2;
+create table t1 (first char(10),last char(10));
+insert into t1 values ("Michael","Widenius");
+insert into t1 values ("Allan","Larsson");
+insert into t1 values ("David","Axmark");
+select concat(first," ",last) as name from t1 order by name;
 name
 Allan Larsson
 David Axmark
 Michael Widenius
+select concat(last," ",first) as name from t1 order by name;
 name
 Axmark David
 Larsson Allan
 Widenius Michael
+drop table t1;
+create table t1 (i int);
+insert into t1 values(1),(2),(1),(2),(1),(2),(3);
+select distinct i from t1;
 i
 1
 2
 3
+select distinct i from t1 order by rand(5);
 i
 1
 3
 2
+select distinct i from t1 order by i desc;
 i
 3
 2
 1
+select distinct i from t1 order by 1-i;
 i
 3
 2
 1
+select distinct i from t1 order by mod(i,2),i;
 i
 2
 1
 3
+drop table t1;
+create table t1 (id int not null,col1 int not null,col2 int not null,index(col1));
+insert into t1 values(1,2,2),(2,2,1),(3,1,2),(4,1,1),(5,1,4),(6,2,3),(7,3,1),(8,2,4);
+select * from t1 order by col1,col2;
 id	col1	col2
 4	1	1
 3	1	2
@@ -42,6 +97,7 @@ id	col1	col2
 6	2	3
 8	2	4
 7	3	1
+select col1 from t1 order by id;
 col1
 2
 2
@@ -51,6 +107,7 @@ col1
 2
 3
 2
+select col1 as id from t1 order by t1.id;
 id
 1
 1
@@ -60,6 +117,7 @@ id
 2
 2
 3
+select concat(col1) as id from t1 order by t1.id;
 id
 2
 2
@@ -69,21 +127,75 @@ id
 2
 3
 2
+drop table t1;
+CREATE TABLE t1 (id int auto_increment primary key,aika varchar(40),aikakentta  timestamp);
+insert into t1 (aika) values ('Keskiviikko');
+insert into t1 (aika) values ('Tiistai');
+insert into t1 (aika) values ('Maanantai');
+insert into t1 (aika) values ('Sunnuntai');
+SELECT FIELD(SUBSTRING(t1.aika,1,2),'Ma','Ti','Ke','To','Pe','La','Su') AS test FROM t1 ORDER by test;
 test
 1
 2
 3
 7
+drop table t1;
+CREATE TABLE t1
+(
+a          int unsigned       NOT NULL,
+b          int unsigned       NOT NULL,
+c          int unsigned       NOT NULL,
+UNIQUE(a),
+INDEX(b),
+INDEX(c)
+);
+CREATE TABLE t2
+(
+c          int unsigned       NOT NULL,
+i          int unsigned       NOT NULL,
+INDEX(c)
+);
+CREATE TABLE t3
+(
+c          int unsigned       NOT NULL,
+v          varchar(64),
+INDEX(c)
+);
+INSERT INTO t1 VALUES (1,1,1);
+INSERT INTO t1 VALUES (2,1,2);
+INSERT INTO t1 VALUES (3,2,1);
+INSERT INTO t1 VALUES (4,2,2);
+INSERT INTO t2 VALUES (1,50);
+INSERT INTO t2 VALUES (2,25);
+INSERT INTO t3 VALUES (1,'123 Park Place');
+INSERT INTO t3 VALUES (2,'453 Boardwalk');
+SELECT    a,b,if(b = 1,i,if(b = 2,v,''))
+FROM      t1
+LEFT JOIN t2 USING(c)
+LEFT JOIN t3 ON t3.c = t1.c;
 a	b	if(b = 1,i,if(b = 2,v,''))
 1	1	50
 2	1	25
 3	2	123 Park Place
 4	2	453 Boardwalk
+SELECT    a,b,if(b = 1,i,if(b = 2,v,''))
+FROM      t1
+LEFT JOIN t2 USING(c)
+LEFT JOIN t3 ON t3.c = t1.c
+ORDER BY a;
 a	b	if(b = 1,i,if(b = 2,v,''))
 1	1	50
 2	1	25
 3	2	123 Park Place
 4	2	453 Boardwalk
+drop table t1,t2,t3;
+create table t1 (ID int not null primary key, TransactionID int not null);
+insert into t1 (ID, TransactionID) values  (1,  87), (2,  89), (3,  92), (4,  94), (5,  486), (6,  490), (7,  753), (9,  828), (10, 832), (11, 834), (12, 840);
+create table t2 (ID int not null primary key, GroupID int not null);
+insert into t2 (ID, GroupID) values (87,  87), (89,  89), (92,  92), (94,  94), (486, 486), (490, 490),(753, 753), (828, 828), (832, 832), (834, 834), (840, 840);
+create table t3 (ID int not null primary key, DateOfAction date not null);
+insert into t3 (ID, DateOfAction) values  (87,  '1999-07-19'), (89,  '1999-07-19'), (92,  '1999-07-19'), (94,  '1999-07-19'), (486, '1999-07-18'), (490, '2000-03-27'), (753, '2000-03-28'), (828, '1999-07-27'), (832, '1999-07-27'),(834, '1999-07-27'), (840, '1999-07-27');
+select t3.DateOfAction, t1.TransactionID from t1 join t2 join t3 where t2.ID = t1.TransactionID and t3.ID = t2.GroupID order by t3.DateOfAction, t1.TransactionID;
 DateOfAction	TransactionID
 1999-07-18	486
 1999-07-19	87
@@ -96,6 +208,7 @@ DateOfAction	TransactionID
 1999-07-27	840
 2000-03-27	490
 2000-03-28	753
+select t3.DateOfAction, t1.TransactionID from t1 join t2 join t3 where t2.ID = t1.TransactionID and t3.ID = t2.GroupID order by t1.TransactionID,t3.DateOfAction;
 DateOfAction	TransactionID
 1999-07-19	87
 1999-07-19	89
@@ -108,15 +221,57 @@ DateOfAction	TransactionID
 1999-07-27	832
 1999-07-27	834
 1999-07-27	840
+drop table t1,t2,t3;
+drop table if exists t1;
+CREATE TABLE t1 (
+member_id int(11) NOT NULL auto_increment,
+inschrijf_datum varchar(20) NOT NULL default '',
+lastchange_datum varchar(20) NOT NULL default '',
+nickname varchar(20) NOT NULL default '',
+password varchar(8) NOT NULL default '',
+voornaam varchar(30) NOT NULL default '',
+tussenvoegsels varchar(10) NOT NULL default '',
+achternaam varchar(50) NOT NULL default '',
+straat varchar(100) NOT NULL default '',
+postcode varchar(10) NOT NULL default '',
+wijk varchar(40) NOT NULL default '',
+plaats varchar(50) NOT NULL default '',
+telefoon varchar(10) NOT NULL default '',
+geboortedatum date NOT NULL default '0000-00-00',
+geslacht varchar(5) NOT NULL default '',
+email varchar(80) NOT NULL default '',
+uin varchar(15) NOT NULL default '',
+homepage varchar(100) NOT NULL default '',
+internet varchar(15) NOT NULL default '',
+scherk varchar(30) NOT NULL default '',
+favo_boek varchar(50) NOT NULL default '',
+favo_tijdschrift varchar(50) NOT NULL default '',
+favo_tv varchar(50) NOT NULL default '',
+favo_eten varchar(50) NOT NULL default '',
+favo_muziek varchar(30) NOT NULL default '',
+info text NOT NULL,
+ipnr varchar(30) NOT NULL default '',
+PRIMARY KEY  (member_id)
+) TYPE=MyISAM PACK_KEYS=1;
+insert into t1 (member_id) values (1),(2),(3);
+select member_id, nickname, voornaam FROM t1
+ORDER by lastchange_datum DESC LIMIT 2;
 member_id	nickname	voornaam
 1		
 2		
+drop table t1;
+create table t1 (a int not null, b int, c varchar(10), key (a, b, c));
+insert into t1 values (1, NULL, NULL), (1, NULL, 'b'), (1, 1, NULL), (1, 1, 'b'), (1, 1, 'b'), (2, 1, 'a'), (2, 1, 'b'), (2, 2, 'a'), (2, 2, 'b'), (2, 3, 'c'),(1,3,'b');
+explain select * from t1 where (a = 1 and b is null and c = 'b') or (a > 2) order by a desc;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	range	a	a	20	NULL	2	where used; Using index
+select * from t1 where (a = 1 and b is null and c = 'b') or (a > 2) order by a desc;
 a	b	c
 1	NULL	b
+explain select * from t1 where a >= 1 and a < 3 order by a desc;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	range	a	a	4	NULL	10	where used; Using index
+select * from t1 where a >= 1 and a < 3 order by a desc;
 a	b	c
 2	3	c
 2	2	b
@@ -129,8 +284,10 @@ a	b	c
 1	1	NULL
 1	NULL	b
 1	NULL	NULL
+explain select * from t1 where a = 1 order by a desc, b desc;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ref	a	a	4	const	5	where used; Using index; Using filesort
+select * from t1 where a = 1 order by a desc, b desc;
 a	b	c
 1	3	b
 1	1	NULL
@@ -138,25 +295,37 @@ a	b	c
 1	1	b
 1	NULL	NULL
 1	NULL	b
+explain select * from t1 where a = 1 and b is null order by a desc, b desc;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ref	a	a	9	const,const	2	where used; Using index; Using filesort
+select * from t1 where a = 1 and b is null order by a desc, b desc;
 a	b	c
 1	NULL	NULL
 1	NULL	b
+explain select * from t1 where a >= 1 and a < 3 and b >0 order by a desc,b desc;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	range	a	a	9	NULL	8	where used; Using index; Using filesort
+explain select * from t1 where a = 2 and b >0 order by a desc,b desc;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	range	a	a	9	NULL	5	where used; Using index
+explain select * from t1 where a = 2 and b is null order by a desc,b desc;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ref	a	a	9	const,const	1	where used; Using index; Using filesort
+explain select * from t1 where a = 2 and (b is null or b > 0) order by a
+desc,b desc;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	range	a	a	9	NULL	6	where used; Using index
+explain select * from t1 where a = 2 and b > 0 order by a desc,b desc;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	range	a	a	9	NULL	5	where used; Using index
+explain select * from t1 where a = 2 and b < 2 order by a desc,b desc;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	range	a	a	9	NULL	2	where used; Using index; Using filesort
+alter table t1 modify b int not null, modify c varchar(10) not null;
+explain select * from t1 order by a, b, c;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	index	NULL	a	18	NULL	11	Using index
+select * from t1 order by a, b, c;
 a	b	c
 1	0	
 1	0	b
@@ -169,8 +338,10 @@ a	b	c
 2	2	a
 2	2	b
 2	3	c
+explain select * from t1 order by a desc, b desc, c desc;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	index	NULL	a	18	NULL	11	Using index
+select * from t1 order by a desc, b desc, c desc;
 a	b	c
 2	3	c
 2	2	b
@@ -183,21 +354,27 @@ a	b	c
 1	1	
 1	0	b
 1	0	
+explain select * from t1 where (a = 1 and b = 1 and c = 'b') or (a > 2) order by a desc;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	range	a	a	18	NULL	3	where used; Using index
+select * from t1 where (a = 1 and b = 1 and c = 'b') or (a > 2) order by a desc;
 a	b	c
 1	1	b
 1	1	b
+explain select * from t1 where a < 2 and b <= 1 order by a desc, b desc;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	range	a	a	4	NULL	6	where used; Using index
+select * from t1 where a < 2 and b <= 1 order by a desc, b desc;
 a	b	c
 1	1	b
 1	1	b
 1	1	
 1	0	b
 1	0	
+select count(*) from t1 where a < 5 and b > 0;
 count(*)
 9
+select * from t1 where a < 5 and b > 0 order by a desc,b desc;
 a	b	c
 2	3	c
 2	2	b
@@ -208,8 +385,10 @@ a	b	c
 1	1	b
 1	1	b
 1	1	
+explain select * from t1 where a between 1 and 3 and b <= 1 order by a desc, b desc;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	range	a	a	8	NULL	10	where used; Using index
+select * from t1 where a between 1 and 3 and b <= 1 order by a desc, b desc;
 a	b	c
 2	1	b
 2	1	a
@@ -218,8 +397,10 @@ a	b	c
 1	1	
 1	0	b
 1	0	
+explain select * from t1 where a between 0 and 1 order by a desc, b desc;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	range	a	a	4	NULL	5	where used; Using index
+select * from t1 where a between 0 and 1 order by a desc, b desc;
 a	b	c
 1	3	b
 1	1	b
@@ -227,6 +408,31 @@ a	b	c
 1	1	
 1	0	b
 1	0	
+drop table t1;
+CREATE TABLE t1 (
+gid int(10) unsigned NOT NULL auto_increment,
+cid smallint(5) unsigned NOT NULL default '0',
+PRIMARY KEY  (gid),
+KEY component_id (cid)
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES (103853,108),(103867,108),(103962,108),(104505,108),(104619,108),(104620,108);
+ALTER TABLE t1 add skr int(10) not null;
+CREATE TABLE t2 (
+gid int(10) unsigned NOT NULL default '0',
+uid smallint(5) unsigned NOT NULL default '1',
+sid tinyint(3) unsigned NOT NULL default '1',
+PRIMARY KEY  (gid),
+KEY uid (uid),
+KEY status_id (sid)
+) TYPE=MyISAM;
+INSERT INTO t2 VALUES (103853,250,5),(103867,27,5),(103962,27,5),(104505,117,5),(104619,75,5),(104620,15,5);
+CREATE TABLE t3 (
+uid smallint(6) NOT NULL auto_increment,
+PRIMARY KEY  (uid)
+) TYPE=MyISAM;
+INSERT INTO t3 VALUES (1),(15),(27),(75),(117),(250);
+ALTER TABLE t3 add skr int(10) not null;
+select t1.gid, t2.sid, t3.uid from t2, t1, t3 where t2.gid = t1.gid and t2.uid = t3.uid order by t3.uid, t1.gid;
 gid	sid	uid
 104620	5	15
 103867	5	27
@@ -234,6 +440,7 @@ gid	sid	uid
 104619	5	75
 104505	5	117
 103853	5	250
+select t1.gid, t2.sid, t3.uid from t3, t2, t1 where t2.gid = t1.gid and t2.uid = t3.uid order by t3.uid, t1.gid;
 gid	sid	uid
 104620	5	15
 103867	5	27
@@ -241,20 +448,26 @@ gid	sid	uid
 104619	5	75
 104505	5	117
 103853	5	250
+EXPLAIN select t1.gid, t2.sid, t3.uid from t3, t2, t1 where t2.gid = t1.gid and t2.uid = t3.uid order by t1.gid, t3.uid;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	index	PRIMARY	PRIMARY	4	NULL	6	Using index
 t2	eq_ref	PRIMARY,uid	PRIMARY	4	t1.gid	1	
 t3	eq_ref	PRIMARY	PRIMARY	2	t2.uid	1	where used; Using index
+EXPLAIN SELECT t1.gid, t3.uid from t1, t3 where t1.gid = t3.uid order by t1.gid,t3.skr;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	index	PRIMARY	PRIMARY	4	NULL	6	Using index
 t3	eq_ref	PRIMARY	PRIMARY	2	t1.gid	1	where used
+EXPLAIN SELECT t1.gid, t2.sid, t3.uid from t2, t1, t3 where t2.gid = t1.gid and t2.uid = t3.uid order by t3.uid, t1.gid;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	index	PRIMARY	PRIMARY	4	NULL	6	Using index; Using temporary; Using filesort
 t2	eq_ref	PRIMARY,uid	PRIMARY	4	t1.gid	1	
 t3	eq_ref	PRIMARY	PRIMARY	2	t2.uid	1	where used; Using index
+EXPLAIN SELECT t1.gid, t3.uid from t1, t3 where t1.gid = t3.uid order by t3.skr,t1.gid;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	index	PRIMARY	PRIMARY	4	NULL	6	Using index; Using temporary; Using filesort
 t3	eq_ref	PRIMARY	PRIMARY	2	t1.gid	1	where used
+EXPLAIN SELECT t1.gid, t3.uid from t1, t3 where t1.skr = t3.uid order by t1.gid,t3.skr;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort
 t3	eq_ref	PRIMARY	PRIMARY	2	t1.skr	1	where used
+drop table t1,t2,t3;

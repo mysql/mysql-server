@@ -1,15 +1,29 @@
+select 0<=>0,0.0<=>0.0,"A"<=>"A",NULL<=>NULL;
 0<=>0	0.0<=>0.0	"A"<=>"A"	NULL<=>NULL
 1	1	1	1
+select 1<=>0,0<=>NULL,NULL<=>0;
 1<=>0	0<=>NULL	NULL<=>0
 0	0	0
+select 1.0<=>0.0,0.0<=>NULL,NULL<=>0.0;
 1.0<=>0.0	0.0<=>NULL	NULL<=>0.0
 0	0	0
+select "A"<=>"B","A"<=>NULL,NULL<=>"A";
 "A"<=>"B"	"A"<=>NULL	NULL<=>"A"
 0	0	0
+drop table if exists t1,t2;
+create table t1 (id int, value int);
+create table t2 (id int, value int);
+insert into t1 values (1,null);
+insert into t2 values (1,null);
+select t1.*, t2.*, t1.value<=>t2.value from t1, t2 where t1.id=t2.id and t1.id=1;
 id	value	id	value	t1.value<=>t2.value
 1	NULL	1	NULL	1
+select * from t1 where id <=>id;
 id	value
 1	NULL
+select * from t1 where value <=> value;
 id	value
 1	NULL
+select * from t1 where id <=> value or value<=>id;
 id	value
+drop table t1,t2;

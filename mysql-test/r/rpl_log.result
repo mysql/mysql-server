@@ -1,3 +1,20 @@
+slave stop;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+slave start;
+slave stop;
+reset master;
+reset slave;
+reset master;
+drop table if exists t1;
+create table t1(n int not null auto_increment primary key);
+insert into t1 values (NULL);
+drop table t1;
+create table t1 (word char(20) not null);
+load data infile '../../std_data/words.dat' into table t1;
+drop table t1;
+show binlog events;
 Log_name	Pos	Event_type	Server_id	Log_seq	Info
 master-bin.001	4	Start	1	1	Server ver: $VERSION, Binlog ver: 2
 master-bin.001	79	Query	1	2	use test; create table t1(n int not null auto_increment primary key)
@@ -8,13 +25,21 @@ master-bin.001	311	Query	1	6	use test; create table t1 (word char(20) not null)
 master-bin.001	386	Create_file	1	7	db=test;table=t1;file_id=1;block_len=81
 master-bin.001	556	Exec_load	1	8	;file_id=1
 master-bin.001	579	Query	1	9	use test; drop table t1
+show binlog events from 79 limit 1;
 Log_name	Pos	Event_type	Server_id	Log_seq	Info
 master-bin.001	79	Query	1	2	use test; create table t1(n int not null auto_increment primary key)
+show binlog events from 79 limit 2;
 Log_name	Pos	Event_type	Server_id	Log_seq	Info
 master-bin.001	79	Query	1	2	use test; create table t1(n int not null auto_increment primary key)
 master-bin.001	172	Intvar	1	3	INSERT_ID=1
+show binlog events from 79 limit 2,1;
 Log_name	Pos	Event_type	Server_id	Log_seq	Info
 master-bin.001	200	Query	1	4	use test; insert into t1 values (NULL)
+flush logs;
+create table t1 (n int);
+insert into t1 values (1);
+drop table t1;
+show binlog events;
 Log_name	Pos	Event_type	Server_id	Log_seq	Info
 master-bin.001	4	Start	1	1	Server ver: $VERSION, Binlog ver: 2
 master-bin.001	79	Query	1	2	use test; create table t1(n int not null auto_increment primary key)
@@ -27,17 +52,22 @@ master-bin.001	556	Exec_load	1	8	;file_id=1
 master-bin.001	579	Query	1	9	use test; drop table t1
 master-bin.001	627	Rotate	1	10	master-bin.002;pos=4
 master-bin.001	668	Stop	1	11	
+show binlog events in 'master-bin.002';
 Log_name	Pos	Event_type	Server_id	Log_seq	Info
 master-bin.002	4	Start	1	1	Server ver: $VERSION, Binlog ver: 2
 master-bin.002	79	Query	1	2	use test; create table t1 (n int)
 master-bin.002	137	Query	1	3	use test; insert into t1 values (1)
 master-bin.002	197	Query	1	4	use test; drop table t1
+show master logs;
 Log_name
 master-bin.001
 master-bin.002
+slave start;
+show master logs;
 Log_name
 slave-bin.001
 slave-bin.002
+show binlog events in 'slave-bin.001' from 4;
 Log_name	Pos	Event_type	Server_id	Log_seq	Info
 slave-bin.001	4	Start	2	1	Server ver: $VERSION, Binlog ver: 2
 slave-bin.001	79	Slave	2	3	host=127.0.0.1,port=$MASTER_MYPORT,log=master-bin.001,pos=4
@@ -51,21 +81,33 @@ slave-bin.001	618	Exec_load	1	8	;file_id=1
 slave-bin.001	641	Query	1	9	use test; drop table t1
 slave-bin.001	689	Rotate	1	4	slave-bin.002;pos=4; forced by master
 slave-bin.001	729	Stop	2	5	
+show binlog events in 'slave-bin.002' from 4;
 Log_name	Pos	Event_type	Server_id	Log_seq	Info
 slave-bin.002	4	Start	2	1	Server ver: $VERSION, Binlog ver: 2
 slave-bin.002	79	Slave	2	10	host=127.0.0.1,port=$MASTER_MYPORT,log=master-bin.002,pos=4
 slave-bin.002	132	Query	1	2	use test; create table t1 (n int)
 slave-bin.002	190	Query	1	3	use test; insert into t1 values (1)
 slave-bin.002	250	Query	1	4	use test; drop table t1
+show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Last_log_seq
 127.0.0.1	root	$MASTER_MYPORT	1	master-bin.002	245	Yes			0		0	4
+show new master for slave with master_log_file='master-bin.001' and
+master_log_pos=4 and master_log_seq=1 and master_server_id=1;
 Log_name	Log_pos
 slave-bin.001	132
+show new master for slave with master_log_file='master-bin.001' and
+master_log_pos=79 and master_log_seq=2 and master_server_id=1;
 Log_name	Log_pos
 slave-bin.001	225
+show new master for slave with master_log_file='master-bin.001' and
+master_log_pos=311 and master_log_seq=6 and master_server_id=1;
 Log_name	Log_pos
 slave-bin.001	439
+show new master for slave with master_log_file='master-bin.002' and
+master_log_pos=4 and master_log_seq=1 and master_server_id=1;
 Log_name	Log_pos
 slave-bin.002	132
+show new master for slave with master_log_file='master-bin.002' and
+master_log_pos=137 and master_log_seq=3 and master_server_id=1;
 Log_name	Log_pos
 slave-bin.002	250

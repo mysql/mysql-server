@@ -1,22 +1,40 @@
+drop table if exists t1,t2,t3;
+create table t1(id1 int not null auto_increment primary key, t char(12));
+create table t2(id2 int not null, t char(12));
+create table t3(id3 int not null, t char(12), index(id3));
+delete t1.*, t2.*, t3.*  from t1,t2,t3 where t1.id1 = t2.id2 and t2.id2 = t3.id3  and t1.id1 > 9500;
+check table t1, t2, t3;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 test.t2	check	status	OK
 test.t3	check	status	OK
+select count(*) from t1 where id1 > 9500;
 count(*)
 0
+select count(*) from t2 where id2 > 9500;
 count(*)
 0
+select count(*) from t3 where id3 > 9500;
 count(*)
 0
+delete t1, t2, t3  from t1,t2,t3 where t1.id1 = t2.id2 and t2.id2 = t3.id3  and t1.id1 > 500;
+select count(*) from t1 where id1 > 500;
 count(*)
 0
+select count(*) from t2 where id2 > 500;
 count(*)
 0
+select count(*) from t3 where id3 > 500;
 count(*)
 0
+delete t1, t2, t3  from t1,t2,t3 where t1.id1 = t2.id2 and t2.id2 = t3.id3  and t1.id1 > 0;
+select count(*) from t1 where id1;
 count(*)
 0
+select count(*) from t2 where id2;
 count(*)
 0
+select count(*) from t3 where id3;
 count(*)
 0
+drop table t1,t2,t3;

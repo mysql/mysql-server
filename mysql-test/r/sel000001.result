@@ -1,2 +1,7 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (s CHAR(20) PRIMARY KEY, id INT);
+INSERT INTO t1 VALUES ('cat', 1), ('mouse', 3), ('dog', 2), ('snake', 77);
+SELECT s, id FROM t1 WHERE s = 'mouse';
 s	id
 mouse	3
+drop table t1;

@@ -46,6 +46,7 @@ public:
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
   bool have_rev_func() const { return rev_functype() != UNKNOWN_FUNC; }
   void print(String *str) { Item_func::print_op(str); }
+  bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
 };
 
 
@@ -459,7 +460,10 @@ public:
   Item_func_isnotnull(Item *a) :Item_bool_func(a) {}
   longlong val_int();
   enum Functype functype() const { return ISNOTNULL_FUNC; }
-  void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=0; }
+  void fix_length_and_dec()
+  {
+    decimals=0; max_length=1; maybe_null=0;
+  }
   const char *func_name() const { return "isnotnull"; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
 };

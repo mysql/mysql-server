@@ -12,11 +12,14 @@
  * modified is included with the above copyright notice.
  *
  */
-#include "my_global.h"
-#include "my_pthread.h"
+#include "embedded_priv.h"
 #include "sys/types.h"
 #include "../regex/regex.h"
 #include "my_sys.h"
+
+/*
+  The following is needed to not cause conflicts when we include mysqld.cc
+*/
 
 #define main main1
 #define mysql_unix_port mysql_inix_port1
@@ -24,7 +27,6 @@
 #define net_read_timeout net_read_timeout1
 #define net_write_timeout net_write_timeout1
 #define changeable_vars changeable_vars1
-//#define mysql_tmpdir mysql_tmpdir1
 
 extern "C"
 {
@@ -35,38 +37,21 @@ extern "C"
 
 class THD;
 
-static int 
-check_connections1(THD * thd);
-
-static bool 
-check_user(THD *thd, enum_server_command command,const char *user, const char *passwd, const char *db, bool check_count);
-
-static int
-check_connections2(THD * thd);
-
-extern void free_defaults(char ** argv);
-void free_defaults_internal(char ** argv){if (argv) free_defaults(argv);}
+static int check_connections1(THD * thd);
+static int check_connections2(THD * thd);
+static bool check_user(THD *thd, enum_server_command command,
+		       const char *user, const char *passwd, const char *db,
+		       bool check_count);
+void free_defaults_internal(char ** argv) {if (argv) free_defaults(argv);}
 #define free_defaults free_defaults_internal
 
-char mysql_data_home[FN_REFLEN];
-char * get_mysql_data_home(){return mysql_data_home;};
-#define mysql_data_home mysql_data_home_internal
 #include "../sql/mysqld.cc"
 
 #define SCRAMBLE_LENGTH 8
-extern "C" {
+C_MODE_START
 
-/*
-void
-free_defaults(char ** argv) {};
-void
-load_defaults(const char *, const char **, int *, char ***) {};
-*/
-
-char *
-get_mysql_home(){ return mysql_home;};
-char *
-get_mysql_real_data_home(){ return mysql_real_data_home;};
+char * get_mysql_home(){ return mysql_home;};
+char * get_mysql_real_data_home(){ return mysql_real_data_home;};
 
 
 bool lib_dispatch_command(enum enum_server_command command, NET *net,
@@ -82,9 +67,7 @@ bool lib_dispatch_command(enum enum_server_command command, NET *net,
 }
 
 
-
-void 
-lib_connection_phase(NET * net, int phase)
+void lib_connection_phase(NET * net, int phase)
 {
   THD * thd;
   thd = (THD *)(net->vio->dest_thd);
@@ -98,7 +81,9 @@ lib_connection_phase(NET * net, int phase)
     }
   }
 }
-}
+C_MODE_END
+
+
 void start_embedded_conn1(NET * net)
 {
   THD * thd = new THD;
@@ -116,7 +101,6 @@ void start_embedded_conn1(NET * net)
   if (v)
   {
     v -> dest_thd = thd;
-    /* v -> dest_net = &thd->net;	XXX: Probably not needed? */
   } 
   thd->net.vio = v;
   if (thd->store_globals())
@@ -256,7 +240,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
     send_error(net,ER_OUT_OF_RESOURCES);
     return 1;
   }
-  thd->master_access=acl_getroot(thd->host, thd->ip, thd->user,
+  thd->master_access=acl_getroot(thd, thd->host, thd->ip, thd->user,
 				 passwd, thd->scramble, &thd->priv_user,
 				 protocol_version == 9 ||
 				 !(thd->client_capabilities &
@@ -307,10 +291,14 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 }
 
 
-extern "C"{
-void mysql_server_init(int argc, const char **argv, const char **groups)
+extern "C"
 {
-  char hostname[FN_REFLEN];
+
+static my_bool inited, org_my_init_done;
+
+int mysql_server_init(int argc, char **argv, char **groups)
+{
+  char glob_hostname[FN_REFLEN];
 
   /* This mess is to allow people to call the init function without
    * having to mess with a fake argv */
@@ -318,7 +306,7 @@ void mysql_server_init(int argc, const char **argv, const char **groups)
   char ***argvp;
   int fake_argc = 1;
   char *fake_argv[] = { (char *)"", 0 };
-  const char *fake_groups[] = { "server", 0 };
+  const char *fake_groups[] = { "server", "embedded", 0 };
   if (argc)
   {
     argcp = &argc;
@@ -330,11 +318,22 @@ void mysql_server_init(int argc, const char **argv, const char **groups)
     argvp = (char ***) &fake_argv;
   }
   if (!groups)
-      groups = fake_groups;
+      groups = (char**) fake_groups;
 
   my_umask=0660;		// Default umask for new files
   my_umask_dir=0700;		// Default umask for new directories
-  MY_INIT((char *)"mysqld_server");	// init my_sys library & pthreads
+
+  /* Only call MY_INIT() if it hasn't been called before */
+  if (!inited)
+  {
+    inited=1;
+    org_my_init_done=my_init_done;
+  }
+  if (!org_my_init_done)
+  {
+    MY_INIT((char *)"mysql_embedded");	// init my_sys library & pthreads
+  }
+
   tzset();			// Set tzname
 
   start_time=time((time_t*) 0);
@@ -343,49 +342,34 @@ void mysql_server_init(int argc, const char **argv, const char **groups)
   {
     struct tm tm_tmp;
     localtime_r(&start_time,&tm_tmp);
-    strmov(time_zone,tzname[tm_tmp.tm_isdst == 1 ? 1 : 0]);
+    strmov(time_zone,tzname[tm_tmp.tm_isdst != 0 ? 1 : 0]);
   }
 #else
   {
     struct tm *start_tm;
     start_tm=localtime(&start_time);
-    strmov(time_zone=tzname[start_tm->tm_isdst == 1 ? 1 : 0]);
+    strmov(time_zone,tzname[start_tm->tm_isdst != 0 ? 1 : 0]);
   }
 #endif
 #endif
 
-  if (gethostname(hostname,sizeof(hostname)-4) < 0)
-    strmov(hostname,"mysql");
-  strmov(pidfile_name,hostname);
-  strmov(strcend(pidfile_name,'.'),".pid");	// Add extension
-#ifdef DEMO_VERSION
-  strcat(server_version,"-demo");
-#endif
-#ifdef SHAREWARE_VERSION
-  strcat(server_version,"-shareware");
-#endif
+  if (gethostname(glob_hostname,sizeof(glob_hostname)-4) < 0)
+    strmov(glob_hostname,"mysql");
 #ifndef DBUG_OFF
   strcat(server_version,"-debug");
 #endif
-  strcat(server_version,"-library-ver");
-#ifdef _CUSTOMSTARTUPCONFIG_
-  if (_cust_check_startup())
-  {
-    /* _cust_check_startup will report startup failure error */
-    exit( 1 );
-  }
-#endif
-  load_defaults("my", groups, argcp, argvp);
+  strcat(server_version,"-embedded");
+  load_defaults("my", (const char **) groups, argcp, argvp);
   defaults_argv=*argvp;
   mysql_tmpdir=getenv("TMPDIR");	/* Use this if possible */
-#ifdef __WIN__
+#if defined( __WIN__) || defined(OS2)
   if (!mysql_tmpdir)
     mysql_tmpdir=getenv("TEMP");
   if (!mysql_tmpdir)
     mysql_tmpdir=getenv("TMP");
 #endif
   if (!mysql_tmpdir || !mysql_tmpdir[0])
-    mysql_tmpdir=strdup((char*) P_tmpdir);
+    mysql_tmpdir=(char*) P_tmpdir;		/* purecov: inspected */
   set_options();
   get_options(*argcp, *argvp);
 
@@ -426,23 +410,20 @@ void mysql_server_init(int argc, const char **argv, const char **groups)
   (void) pthread_cond_init(&COND_slave_start, NULL);
 
   if (set_default_charset_by_name(default_charset, MYF(MY_WME)))
-    unireg_abort(1);
+  {
+    mysql_server_end();
+    return 1;
+  }
   charsets_list = list_charsets(MYF(MY_COMPILED_SETS|MY_CONFIG_SETS));
 
-
-  if (!(opt_specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_setprio(pthread_self(),CONNECT_PRIOR);
   /* Parameter for threads created for connections */
   (void) pthread_attr_init(&connection_attrib);
   (void) pthread_attr_setdetachstate(&connection_attrib,
 				     PTHREAD_CREATE_DETACHED);
   pthread_attr_setstacksize(&connection_attrib,thread_stack);
-
-  if (!(opt_specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_attr_setprio(&connection_attrib,WAIT_PRIOR);
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
 
-#ifdef SET_RLIMIT_NOFILE
+#if defined( SET_RLIMIT_NOFILE) || defined( OS2)
   /* connections and databases neads lots of files */
   {
     uint wanted_files=10+(uint) max(max_connections*5,
@@ -467,64 +448,57 @@ void mysql_server_init(int argc, const char **argv, const char **groups)
 #ifdef USE_REGEX
   regex_init();
 #endif
-  select_thread=pthread_self();
-  select_thread_in_use=1;
+  if (use_temp_pool && bitmap_init(&temp_pool,1024))
+  {
+    mysql_server_end();
+    return 1;
+  }
 
   /*
   ** We have enough space for fiddling with the argv, continue
   */
   umask(((~my_umask) & 0666));
-//  strcpy(mysql_real_data_home, "/usr/local");
-  //if (my_setwd(mysql_real_data_home,MYF(MY_WME)))
-  //{
-  //  unireg_abort(1);				/* purecov: inspected */
-  //}
-  //mysql_data_home[0]=FN_CURLIB;		// all paths are relative from here
-  //mysql_data_home[1]=0;
-
-  strcpy(get_mysql_data_home(), mysql_real_data_home);
-
-  //server_init();
   table_cache_init();
   hostname_cache_init();
   sql_cache_init();
   randominit(&sql_rand,(ulong) start_time,(ulong) start_time/2);
   reset_floating_point_exceptions();
   init_thr_lock();
+  init_slave_list();
 
   /* Setup log files */
   if (opt_log)
-    open_log(&mysql_log, hostname, opt_logname, ".log", LOG_NORMAL);
+    open_log(&mysql_log, glob_hostname, opt_logname, ".log", LOG_NORMAL);
   if (opt_update_log)
-    open_log(&mysql_update_log, hostname, opt_update_logname, "",
+  {
+    open_log(&mysql_update_log, glob_hostname, opt_update_logname, "",
 	     LOG_NEW);
+    using_update_log=1;
+  }
   if (opt_bin_log)
   {
-    if(server_id)
-      {
-	if (!opt_bin_logname)
-	  {
-	    char tmp[FN_REFLEN];
-	    strnmov(tmp,hostname,FN_REFLEN-5);
-	    strmov(strcend(tmp,'.'),"-bin");
-	    opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
-	  }
-	mysql_bin_log.set_index_file_name(opt_binlog_index_name);
-	open_log(&mysql_bin_log, hostname, opt_bin_logname, "-bin",
-		 LOG_BIN);
-      }
-    else
-      sql_print_error("Server id is not set - binary logging disabled");
+    if (!opt_bin_logname)
+    {
+      char tmp[FN_REFLEN];
+      strmake(tmp,glob_hostname,FN_REFLEN-5);
+      strmov(strcend(tmp,'.'),"-bin");
+      opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
+    }
+    mysql_bin_log.set_index_file_name(opt_binlog_index_name);
+    open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
+	     LOG_BIN);
+    using_update_log=1;
   }
   
   if (opt_slow_log)
-    open_log(&mysql_slow_log, hostname, opt_slow_logname, "-slow.log",
+    open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
 	     LOG_NORMAL);
   if (ha_init())
   {
     sql_print_error("Can't init databases");
     exit(1);
   }
+  ha_key_cache();
 #ifdef HAVE_MLOCKALL
   if (locked_in_memory && !geteuid())
   {
@@ -555,120 +529,73 @@ void mysql_server_init(int argc, const char **argv, const char **groups)
     sql_print_error("Can't create thread-keys");
     exit(1);
   }
-  //init_signals();
-  opt_noacl = 1;
+  opt_noacl = 1;				// No permissions
   if (acl_init(opt_noacl))
   {
-    select_thread_in_use=0;
-    (void) pthread_kill(signal_thread,MYSQL_KILL_SIGNAL);
-    exit(1);
+    mysql_server_end();
+    return 1;
   }
-  if (!opt_noacl)
-    (void) grant_init();
 
 #ifdef HAVE_DLOPEN
   if (!opt_noacl)
     udf_init();
 #endif
 
-  if (opt_bootstrap)
-  {
-    int error=bootstrap(stdin);
-    end_thr_alarm();				// Don't allow alarms
-    unireg_abort(error ? 1 : 0);
-  }
-  if (opt_init_file)
-  {
-    if (read_init_file(opt_init_file))
-    {
-      end_thr_alarm();				// Don't allow alarms
-      unireg_abort(1);
-    }
-  }
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
-  if (flush_time && flush_time != ~(ulong) 0L)
+  if (
+#ifdef HAVE_BERKELEY_DB
+      !berkeley_skip ||
+#endif
+      (flush_time && flush_time != ~(ulong) 0L))
   {
     pthread_t hThread;
     if (pthread_create(&hThread,&connection_attrib,handle_manager,0))
+    {
       sql_print_error("Warning: Can't create thread to manage maintenance");
+      mysql_server_end();
+      return 1;
+    }
   }
-
-  // slave thread
-  if(master_host)
-  {
-    if(server_id)
-      {
-	pthread_t hThread;
-	if(!opt_skip_slave_start &&
-	   pthread_create(&hThread, &connection_attrib, handle_slave, 0))
-	  sql_print_error("Warning: Can't create thread to handle slave");
-      }
-    else
-      sql_print_error("Server id is not set, slave thread will not be started");
-  }
-
-  //printf(ER(ER_READY),my_progname,server_version,"");
-  //printf("%s initialized.\n", server_version);
-  fflush(stdout);
+  return 0;
 }
+
 
 void mysql_server_end()
 {
-  /* (void) pthread_attr_destroy(&connection_attrib); */
-
-  DBUG_PRINT("quit",("Exiting main thread"));
-
-#ifdef EXTRA_DEBUG
-  sql_print_error("Before Lock_thread_count");
+  clean_up(0);
+#ifdef THREAD
+  /* Don't call my_thread_end() if the application is using MY_INIT() */
+  if (!org_my_init_done)
+    my_thread_end();
 #endif
-  (void) pthread_mutex_lock(&LOCK_thread_count);
-  select_thread_in_use=0;			// For close_connections
-  (void) pthread_cond_broadcast(&COND_thread_count);
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
-#ifdef EXTRA_DEBUG
-  sql_print_error("After lock_thread_count");
-#endif
-
-//  /* Wait until cleanup is done */
-//  (void) pthread_mutex_lock(&LOCK_thread_count);
-//  while (!ready_to_exit)
-//  {
-//    pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
-//  }
-//  (void) pthread_mutex_unlock(&LOCK_thread_count);
-  unireg_end(0);
-  my_thread_end();
 }
 
 my_bool mysql_thread_init()
 {
 #ifdef THREAD
-    return my_thread_init();
+  return my_thread_init();
 #else
-    return 0;
+  return 0;
 #endif
 }
 
 void mysql_thread_end()
 {
 #ifdef THREAD
-    my_thread_end();
+  my_thread_end();
 #endif
 }
 
 void start_embedded_connection(NET * net)
 {
-    start_embedded_conn1(net);
+  start_embedded_conn1(net);
 }
-//====================================================================
-}
-int embedded_do_command(NET * net)
+
+void end_embedded_connection(NET * net)
 {
-    THD * thd = (THD *) net ->vio;
-    do_command(thd);	
-    return 0;
+  THD *thd = (THD *) net->vio->dest_thd;
+  delete thd;
 }
 
-
-
+} /* extern "C" */

@@ -27,36 +27,10 @@
 #include <mysql_com.h>
 
 #include <errno.h>
-#include <assert.h>
 #include <violite.h>
 #include <my_sys.h>
 #include <my_net.h>
 #include <m_string.h>
-#ifdef HAVE_POLL
-#include <sys/poll.h>
-#endif
-#ifdef HAVE_SYS_IOCTL_H
-#include <sys/ioctl.h>
-#endif
-
-#if defined(__EMX__)
-#define ioctlsocket ioctl
-#endif	/* defined(__EMX__) */
-
-#if defined(MSDOS) || defined(__WIN__)
-#ifdef __WIN__
-#undef errno
-#undef EINTR
-#undef EAGAIN
-#define errno WSAGetLastError()
-#define EINTR  WSAEINTR
-#define EAGAIN WSAEINPROGRESS
-#endif /* __WIN__ */
-#define O_NONBLOCK 1    /* For emulation of fcntl() */
-#endif
-#ifndef EWOULDBLOCK
-#define EWOULDBLOCK EAGAIN
-#endif
 
 #ifndef __WIN__
 #define HANDLE void *
@@ -76,7 +50,7 @@ void vio_delete(Vio* vio)
 
 int vio_errno(Vio *vio __attribute__((unused)))
 {
-  return errno;			/* On Win32 this mapped to WSAGetLastError() */
+  return socket_errno;		/* On Win32 this mapped to WSAGetLastError() */
 }
 
 
@@ -129,7 +103,7 @@ int vio_write(Vio * vio, const gptr buf, int size)
 #ifndef DBUG_OFF
   if (r < 0)
   {
-    DBUG_PRINT("vio_error", ("Got error on write: %d",errno));
+    DBUG_PRINT("vio_error", ("Got error on write: %d",socket_errno));
   }
 #endif /* DBUG_OFF */
   DBUG_PRINT("exit", ("%d", r));
@@ -137,7 +111,7 @@ int vio_write(Vio * vio, const gptr buf, int size)
 }
 
 
-int vio_blocking(Vio * vio, my_bool set_blocking_mode)
+int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode)
 {
   int r=0;
   DBUG_ENTER("vio_blocking");
@@ -242,8 +216,9 @@ int vio_keepalive(Vio* vio, my_bool set_keep_alive)
 my_bool
 vio_should_retry(Vio * vio __attribute__((unused)))
 {
-  int en = errno;
-  return en == EAGAIN || en == EINTR || en == EWOULDBLOCK;
+  int en = socket_errno;
+  return (en == SOCKET_EAGAIN || en == SOCKET_EINTR ||
+	  en == SOCKET_EWOULDBLOCK);
 }
 
 
@@ -271,7 +246,7 @@ int vio_close(Vio * vio)
   }
   if (r)
   {
-    DBUG_PRINT("vio_error", ("close() failed, error: %d",errno));
+    DBUG_PRINT("vio_error", ("close() failed, error: %d",socket_errno));
     /* FIXME: error handling (not critical for MySQL) */
   }
   vio->type= VIO_CLOSED;
@@ -310,7 +285,7 @@ my_bool vio_peer_addr(Vio * vio, char *buf)
     if (getpeername(vio->sd, (struct sockaddr *) (& (vio->remote)),
 		    &addrLen) != 0)
     {
-      DBUG_PRINT("exit", ("getpeername, error: %d", errno));
+      DBUG_PRINT("exit", ("getpeername, error: %d", socket_errno));
       DBUG_RETURN(1);
     }
     my_inet_ntoa(vio->remote.sin_addr,buf);

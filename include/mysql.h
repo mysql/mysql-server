@@ -26,10 +26,8 @@
 #undef __WIN__
 #endif
 
-#ifndef MYSQL_SERVER
 #ifdef	__cplusplus
 extern "C" {
-#endif
 #endif
   
 #ifndef _global_h				/* If not standard header */
@@ -48,32 +46,15 @@ typedef char my_bool;
 #endif
 typedef char * gptr;
 
-#ifndef ST_USED_MEM_DEFINED
-#define ST_USED_MEM_DEFINED
-typedef struct st_used_mem {			/* struct for once_alloc */
-  struct st_used_mem *next;			/* Next block in use */
-  unsigned int	left;				/* memory left in block  */
-  unsigned int	size;				/* size of block */
-} USED_MEM;
-typedef struct st_mem_root {
-  USED_MEM *free;
-  USED_MEM *used;
-  USED_MEM *pre_alloc;
-  unsigned int	min_malloc;
-  unsigned int	block_size;
-
-  void (*error_handler)(void);
-} MEM_ROOT;
-#endif
-
 #ifndef my_socket_defined
 #ifdef __WIN__
 #define my_socket SOCKET
 #else
 typedef int my_socket;
-#endif
-#endif
-#endif
+#endif /* __WIN__ */
+#endif /* my_socket_defined */
+#endif /* _global_h */
+
 #include "mysql_com.h"
 #include "mysql_version.h"
 
@@ -90,12 +71,14 @@ extern char *mysql_unix_port;
 typedef struct st_mysql_field {
   char *name;			/* Name of column */
   char *table;			/* Table of column if column was a field */
+  char *org_table;		/* Org table name if table was an alias */
+  char *db;			/* Database for table */
   char *def;			/* Default value (set by mysql_list_fields) */
-  enum enum_field_types type;	/* Type of field. Se mysql_com.h for types */
-  unsigned int length;		/* Width of column */
-  unsigned int max_length;	/* Max width of selected set */
+  unsigned long length;		/* Width of column */
+  unsigned long max_length;	/* Max width of selected set */
   unsigned int flags;		/* Div flags */
   unsigned int decimals;	/* Number of decimals in field */
+  enum enum_field_types type;	/* Type of field. Se mysql_com.h for types */
 } MYSQL_FIELD;
 
 typedef char **MYSQL_ROW;		/* return data as array of strings */
@@ -118,6 +101,24 @@ typedef struct st_mysql_rows {
 
 typedef MYSQL_ROWS *MYSQL_ROW_OFFSET;	/* offset to current row */
 
+#ifndef ST_USED_MEM_DEFINED
+#define ST_USED_MEM_DEFINED
+typedef struct st_used_mem {			/* struct for once_alloc */
+  struct st_used_mem *next;			/* Next block in use */
+  unsigned int	left;				/* memory left in block  */
+  unsigned int	size;				/* size of block */
+} USED_MEM;
+typedef struct st_mem_root {
+  USED_MEM *free;
+  USED_MEM *used;
+  USED_MEM *pre_alloc;
+  unsigned int	min_malloc;
+  unsigned int	block_size;
+
+  void (*error_handler)(void);
+} MEM_ROOT;
+#endif
+
 typedef struct st_mysql_data {
   my_ulonglong rows;
   unsigned int fields;
@@ -134,6 +135,7 @@ struct st_mysql_options {
   char *ssl_cert;				/* PEM cert file */
   char *ssl_ca;					/* PEM CA file */
   char *ssl_capath;				/* PEM directory of CA-s? */
+  char *ssl_cipher;				/* cipher to use */
   my_bool use_ssl;				/* if to use SSL or not */
   my_bool compress,named_pipe;
  /*
@@ -175,25 +177,30 @@ typedef struct st_mysql {
   gptr		connector_fd;		/* ConnectorFd for SSL */
   char		*host,*user,*passwd,*unix_socket,*server_version,*host_info,
 		*info,*db;
+  struct charset_info_st *charset;
+  MYSQL_FIELD	*fields;
+  MEM_ROOT	field_alloc;
+  my_ulonglong affected_rows;
+  my_ulonglong insert_id;		/* id if insert on table with NEXTNR */
+  my_ulonglong extra_info;		/* Used by mysqlshow */
+  unsigned long thread_id;		/* Id for connection in server */
+  unsigned long packet_length;
   unsigned int	port,client_flag,server_capabilities;
   unsigned int	protocol_version;
   unsigned int	field_count;
   unsigned int 	server_status;
-  unsigned long thread_id;		/* Id for connection in server */
-  my_ulonglong affected_rows;
-  my_ulonglong insert_id;		/* id if insert on table with NEXTNR */
-  my_ulonglong extra_info;		/* Used by mysqlshow */
-  unsigned long packet_length;
+  unsigned int  server_language;
+  struct st_mysql_options options;
   enum mysql_status status;
-  MYSQL_FIELD	*fields;
-  MEM_ROOT	field_alloc;
   my_bool	free_me;		/* If free in mysql_close */
   my_bool	reconnect;		/* set to 1 if automatic reconnect */
-  struct st_mysql_options options;
   char	        scramble_buff[9];
-  struct charset_info_st *charset;
-  unsigned int  server_language;
 
+ /*
+   Set if this is the original connection, not a master or a slave we have
+   added though mysql_rpl_probe() or mysql_set_master()/ mysql_add_slave()
+ */
+  my_bool rpl_pivot;
   /* pointers to the master, and the next slave
     connections, points to itself if lone connection  */
   struct st_mysql* master, *next_slave;
@@ -201,41 +208,60 @@ typedef struct st_mysql {
   struct st_mysql* last_used_slave; /* needed for round-robin slave pick */
  /* needed for send/read/store/use result to work correctly with replication */
   struct st_mysql* last_used_con;
- /*
-   Set if this is the original connection, not a master or a slave we have
-   added though mysql_rpl_probe() or mysql_set_master()/ mysql_add_slave()
- */
-  my_bool rpl_pivot;
 } MYSQL;
 
 
 typedef struct st_mysql_res {
   my_ulonglong row_count;
-  unsigned int	field_count, current_field;
   MYSQL_FIELD	*fields;
   MYSQL_DATA	*data;
   MYSQL_ROWS	*data_cursor;
-  MEM_ROOT	field_alloc;
-  MYSQL_ROW	row;			/* If unbuffered read */
-  MYSQL_ROW	current_row;		/* buffer to current row */
   unsigned long *lengths;		/* column lengths of current row */
   MYSQL		*handle;		/* for unbuffered reads */
-  my_bool	eof;			/* Used my mysql_fetch_row */
+  MEM_ROOT	field_alloc;
+  unsigned int	field_count, current_field;
+  MYSQL_ROW	row;			/* If unbuffered read */
+  MYSQL_ROW	current_row;		/* buffer to current row */
+  my_bool	eof;			/* Used by mysql_fetch_row */
 } MYSQL_RES;
 
+#define MAX_MYSQL_MANAGER_ERR 256  
+#define MAX_MYSQL_MANAGER_MSG 256
 
+#define MANAGER_OK           200
+#define MANAGER_INFO         250
+#define MANAGER_ACCESS       401
+#define MANAGER_CLIENT_ERR   450
+#define MANAGER_INTERNAL_ERR 500
+
+
+  
+typedef struct st_mysql_manager
+{
+  Vio* vio;
+  char *host,*user,*passwd;
+  unsigned int port;
+  my_bool free_me;
+  my_bool eof;
+  int cmd_status;
+  int last_errno;
+  char* net_buf,*net_buf_pos,*net_data_end;
+  int net_buf_size;
+  char last_error[MAX_MYSQL_MANAGER_ERR];
+} MYSQL_MANAGER;
+  
 /* Set up and bring down the server; to ensure that applications will
  * work when linked against either the standard client library or the
  * embedded server library, these functions should be called. */
-void mysql_server_init(int argc, const char **argv, const char **groups);
-void mysql_server_end();
+int mysql_server_init(int argc, char **argv, char **groups);
+void mysql_server_end(void);
 
 /* Set up and bring down a thread; these function should be called
  * for each thread in an application which opens at least one MySQL
  * connection.  All uses of the connection(s) should be between these
  * function calls. */
-my_bool mysql_thread_init();
-void mysql_thread_end();
+my_bool mysql_thread_init(void);
+void mysql_thread_end(void);
 
 /* Functions to get information from the MYSQL and MYSQL_RES structures */
 /* Should definitely be used if one uses shared libraries */
@@ -261,7 +287,7 @@ const char * STDCALL mysql_character_set_name(MYSQL *mysql);
 MYSQL *		STDCALL mysql_init(MYSQL *mysql);
 int		STDCALL mysql_ssl_set(MYSQL *mysql, const char *key,
 				      const char *cert, const char *ca,
-				      const char *capath);
+				      const char *capath, const char *cipher);
 int		STDCALL mysql_ssl_clear(MYSQL *mysql);
 my_bool		STDCALL mysql_change_user(MYSQL *mysql, const char *user, 
 					  const char *passwd, const char *db);
@@ -276,20 +302,20 @@ void		STDCALL mysql_close(MYSQL *sock);
 int		STDCALL mysql_select_db(MYSQL *mysql, const char *db);
 int		STDCALL mysql_query(MYSQL *mysql, const char *q);
 int		STDCALL mysql_send_query(MYSQL *mysql, const char *q,
-					 unsigned int length);
+					 unsigned long length);
 int		STDCALL mysql_read_query_result(MYSQL *mysql);
 int		STDCALL mysql_real_query(MYSQL *mysql, const char *q,
-					unsigned int length);
+					unsigned long length);
 /* perform query on master */
 int		STDCALL mysql_master_query(MYSQL *mysql, const char *q,
-					unsigned int length);
+					unsigned long length);
 int		STDCALL mysql_master_send_query(MYSQL *mysql, const char *q,
-					unsigned int length);
+					unsigned long length);
 /* perform query on slave */  
 int		STDCALL mysql_slave_query(MYSQL *mysql, const char *q,
-					unsigned int length);
+					unsigned long length);
 int		STDCALL mysql_slave_send_query(MYSQL *mysql, const char *q,
-					unsigned int length);
+					unsigned long length);
 
 /*
   enable/disable parsing of all queries to decide if they go on master or
@@ -368,7 +394,18 @@ char *		STDCALL mysql_odbc_escape_string(MYSQL *mysql,
 						  unsigned long *length));
 void 		STDCALL myodbc_remove_escape(MYSQL *mysql,char *name);
 unsigned int	STDCALL mysql_thread_safe(void);
-
+MYSQL_MANAGER*  STDCALL mysql_manager_init(MYSQL_MANAGER* con);  
+MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
+					      const char* host,
+					      const char* user,
+					      const char* passwd,
+					      unsigned int port);
+void            STDCALL mysql_manager_close(MYSQL_MANAGER* con);
+int             STDCALL mysql_manager_command(MYSQL_MANAGER* con,
+						const char* cmd, int cmd_len);
+int             STDCALL mysql_manager_fetch_line(MYSQL_MANAGER* con,
+						  char* res_buf,
+						 int res_buf_size);
 #define mysql_reload(mysql) mysql_refresh((mysql),REFRESH_GRANT)
 
 #ifdef USE_OLD_FUNCTIONS
@@ -376,14 +413,21 @@ MYSQL *		STDCALL mysql_connect(MYSQL *mysql, const char *host,
 				      const char *user, const char *passwd);
 int		STDCALL mysql_create_db(MYSQL *mysql, const char *DB);
 int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
+#define	 mysql_reload(mysql) mysql_refresh((mysql),REFRESH_GRANT)
+#define HAVE_MYSQL_REAL_CONNECT
 #endif
 
-#define HAVE_MYSQL_REAL_CONNECT
+/*
+  The following functions are mainly exported because of mysqlbinlog;
+  They are not for general usage
+*/
 
-#ifndef MYSQL_SERVER  
+int simple_command(MYSQL *mysql,enum enum_server_command command,
+		   const char *arg, unsigned long length, my_bool skipp_check);
+unsigned long net_safe_read(MYSQL* mysql);
+
 #ifdef	__cplusplus
 }
 #endif
-#endif
 
-#endif
+#endif /* _mysql_h */

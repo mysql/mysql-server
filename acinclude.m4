@@ -663,7 +663,7 @@ if test "$cpu_vendor" = "AuthenticAMD"; then
     fi
 elif test "$cpu_vendor" = "GenuineIntel"; then
     if test $cpu_family>=6; then
-      cpu_set=" pentiumpro pentium i486 i386";
+      cpu_set="pentiumpro pentium i486 i386";
     elif test $cpu_family=5; then
       cpu_set="pentium i486 i386";
     elif test $cpu_family=4; then
@@ -682,16 +682,15 @@ done
 if test "$mysql_cv_cpu" = "unknown"
 then
   CFLAGS="$ac_save_CFLAGS"
-      AC_MSG_RESULT(none)
+  AC_MSG_RESULT(none)
 else
-      AC_MSG_RESULT($mysql_cv_cpu)
+  AC_MSG_RESULT($mysql_cv_cpu)
 fi
 ]))
 
 AC_DEFUN(MYSQL_CHECK_VIO, [
   AC_ARG_WITH([vio],
-              [\
-  --with-vio          Include the Virtual IO support],
+              [  --with-vio              Include the Virtual IO support],
               [vio="$withval"],
               [vio=no])
 
@@ -708,30 +707,55 @@ AC_DEFUN(MYSQL_CHECK_VIO, [
   AC_SUBST([vio_libs])
 ])
 
+AC_DEFUN(MYSQL_FIND_OPENSSL, [
+ for d in /usr/ssl/include /usr/local/ssl/include /usr/include/openssl \
+/usr/include/ssl /opt/ssl/include /opt/openssl/include ; do
+  if test -f $d/ssl.h  ; then
+    OPENSSL_INCLUDE=$d
+  fi
+ done
+
+ for d in /usr/ssl/lib /usr/local/ssl/lib /usr/lib/openssl \
+/usr/lib /opt/ssl/lib /opt/openssl/lib ; do
+  if test -f $d/libssl.a ; then
+    OPENSSL_LIB=$d
+  fi
+ done
+
+ if test -z "$OPENSSL_LIB" -o -z "$OPENSSL_INCLUDE" ; then
+   echo "Could not find an installation of OpenSSL"
+   if test -n "$OPENSSL_LIB" ; then
+    if test "$IS_LINUX" = "true"; then
+      echo "Looks like you've forgotted to install OpenSSL development RPM"
+    fi
+   fi
+  exit 1
+ fi
+
+])
 
 AC_DEFUN(MYSQL_CHECK_OPENSSL, [
 AC_MSG_CHECKING(for OpenSSL)
   AC_ARG_WITH([openssl],
-              [\
-  --with-openssl          Include the OpenSSL support],
+              [  --with-openssl          Include the OpenSSL support],
               [openssl="$withval"],
               [openssl=no])
 
+  openssl_libs=""
+  openssl_includes=""
   if test "$openssl" = "yes"
   then
-    if test -n "$vio_dir"
-    then
-      AC_MSG_RESULT(yes)
-      openssl_libs="-lssl -lcrypto -L/usr/local/ssl/lib"
-      openssl_includes="-I/usr/local/ssl/include"
-    else
-      AC_MSG_ERROR([OpenSSL requires Virtual IO support (--with-vio)])
-    fi
+    MYSQL_FIND_OPENSSL
+    #force VIO use
+    vio_dir="vio"
+    vio_libs="../vio/libvio.la"
+    AC_DEFINE(HAVE_VIO)
+    AC_MSG_RESULT(yes)
+    openssl_libs="-L$OPENSSL_LIB -lssl -lcrypto"
+    openssl_includes="-I$OPENSSL_INCLUDE"
     AC_DEFINE(HAVE_OPENSSL)
   else
     AC_MSG_RESULT(no)
-    openssl_libs=""
-    openssl_includes=""
   fi
   NON_THREADED_CLIENT_LIBS="$NON_THREADED_CLIENT_LIBS $openssl_libs"
   AC_SUBST(openssl_libs)
@@ -750,23 +774,27 @@ dnl Call MYSQL_CHECK_ORBIT even if mysqlfs == no, so that @orbit_*@
 dnl get substituted.
   MYSQL_CHECK_ORBIT
 
+  AC_MSG_CHECKING(if we should build MySQLFS)
+  fs_dirs=""
   if test "$mysqlfs" = "yes"
   then
     if test -n "$orbit_exec_prefix"
     then
       fs_dirs=fs
+      AC_MSG_RESULT([yes])
     else
-      AC_MSG_ERROR([mysqlfs requires ORBit, the CORBA ORB])
+      AC_MSG_RESULT(disabled because ORBIT, the CORBA ORB, was not found)
     fi
   else
-    fs_dirs=
+    AC_MSG_RESULT([no])
   fi
   AC_SUBST([fs_dirs])
 ])
 
 AC_DEFUN(MYSQL_CHECK_ORBIT, [
 AC_MSG_CHECKING(for ORBit)
-if test `which orbit-config`
+orbit_config_path=`which orbit-config`
+if test -n "$orbit_config_path"
 then
   orbit_exec_prefix=`orbit-config --exec-prefix`
   orbit_includes=`orbit-config --cflags server`
@@ -852,6 +880,7 @@ dnl echo "DBG2: [$mode] bdb='$bdb'; incl='$bdb_includes'; lib='$bdb_libs'"
     no )
       bdb_includes=
       bdb_libs=
+      bdb_libs_with_path=
       ;;
     supplied-two )
       MYSQL_CHECK_INSTALLED_BDB([$bdb_includes], [$bdb_libs])
@@ -881,6 +910,7 @@ dnl echo "DBG2: [$mode] bdb='$bdb'; incl='$bdb_includes'; lib='$bdb_libs'"
           esac
          bdb_includes=
          bdb_libs=
+	 bdb_libs_with_path=
           ;;
       esac
       ;;
@@ -909,6 +939,7 @@ dnl echo "DBG3: [$mode] bdb='$bdb'; incl='$bdb_includes'; lib='$bdb_libs'"
 
   AC_SUBST(bdb_includes)
   AC_SUBST(bdb_libs)
+  AC_SUBST(bdb_libs_with_path)
 ])
 
 AC_DEFUN([MYSQL_CHECK_INSTALLED_BDB], [
@@ -929,6 +960,7 @@ dnl echo ["MYSQL_CHECK_INSTALLED_BDB ($1) ($2)"]
         MYSQL_TOP_BUILDDIR([lib])
         bdb_includes="-I$inc"
         bdb_libs="-L$lib -ldb"
+        bdb_libs_with_path="$lib/libdb.a"
       ])
       LDFLAGS="$save_LDFLAGS"
     else
@@ -957,6 +989,7 @@ dnl echo ["MYSQL_CHECK_BDB_DIR ($1)"]
         MYSQL_TOP_BUILDDIR([dir])
         bdb_includes="-I$dir/build_unix"
         bdb_libs="-L$dir/build_unix -ldb"
+	bdb_libs_with_path="$dir/build_unix/libdb.a"
       else
         bdb_dir_ok="$bdb_version_ok"
       fi
@@ -1053,9 +1086,9 @@ dnl ---------------------------------------------------------------------------
 AC_DEFUN([MYSQL_CHECK_INNODB], [
   AC_ARG_WITH([innodb],
               [\
-  --with-innodb         Use Innodb],
+  --without-innodb        Do not include the InnoDB table handler],
               [innodb="$withval"],
-              [innodb=no])
+              [innodb=yes])
 
   AC_MSG_CHECKING([for Innodb])
 
@@ -1068,6 +1101,7 @@ AC_DEFUN([MYSQL_CHECK_INNODB], [
       AC_DEFINE(HAVE_INNOBASE_DB)
       have_innodb="yes"
       innodb_includes="-I../innobase/include"
+      innodb_system_libs=""
 dnl Some libs are listed several times, in order for gcc to sort out
 dnl circular references.
       innodb_libs="\
@@ -1108,7 +1142,7 @@ dnl circular references.
  \$(top_builddir)/innobase/os/libos.a\
  \$(top_builddir)/innobase/ut/libut.a"
 
-      AC_CHECK_LIB(rt, aio_read, [innodb_libs="$innodb_libs -lrt"])
+      AC_CHECK_LIB(rt, aio_read, [innodb_system_libs="-lrt"])
       ;;
     * )
       AC_MSG_RESULT([Not using Innodb])
@@ -1117,6 +1151,7 @@ dnl circular references.
 
   AC_SUBST(innodb_includes)
   AC_SUBST(innodb_libs)
+  AC_SUBST(innodb_system_libs)
 ])
 
 dnl ---------------------------------------------------------------------------
@@ -1131,7 +1166,7 @@ dnl ---------------------------------------------------------------------------
 AC_DEFUN([MYSQL_CHECK_GEMINI], [
   AC_ARG_WITH([gemini],
               [\
-  --with-gemini[=DIR] Use Gemini DB located in DIR],
+  --with-gemini[=DIR]     Use Gemini DB located in DIR],
               [gemini="$withval"],
               [gemini=no])
 
@@ -1152,8 +1187,7 @@ dnl echo "DBG_GEM1: gemini='$gemini'"
       gemini_libs="\
  ../gemini/api/libapi.a\
  ../gemini/db/libdb.a\
- ../gemini/dbut/libdbut.a\
- ../gemini/vst/libvst.a"
+ ../gemini/dbut/libdbut.a"
       AC_MSG_RESULT([Using Gemini DB])
       ;;
   esac
@@ -1251,7 +1285,7 @@ changequote([, ])dnl
 AC_DEFUN(AC_SYS_LARGEFILE,
   [AC_REQUIRE([AC_CANONICAL_HOST])
    AC_ARG_ENABLE(largefile,
-     [  --disable-large-files   Omit support for large files])
+     [  --disable-largefile     Omit support for large files])
    if test "$enable_largefile" != no; then
      AC_CHECK_TOOL(GETCONF, getconf)
      AC_SYS_LARGEFILE_FLAGS(CFLAGS)

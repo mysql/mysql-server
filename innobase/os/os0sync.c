@@ -422,7 +422,6 @@ os_mutex_free(
 #endif
 }
 
-#ifndef _WIN32
 /*************************************************************
 Initializes an operating system fast mutex semaphore. */
 
@@ -472,4 +471,3 @@ os_fast_mutex_free(
 
 #endif
 }
-#endif

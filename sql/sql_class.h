@@ -51,6 +51,7 @@ typedef struct st_log_info
   ~st_log_info() { pthread_mutex_destroy(&lock);}
 } LOG_INFO;
 
+class Log_event;
 
 class MYSQL_LOG {
  private:

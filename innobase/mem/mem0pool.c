@@ -170,7 +170,11 @@ mem_pool_create(
 	
 	pool = ut_malloc(sizeof(mem_pool_t));
 
-	pool->buf = ut_malloc(size);
+	/* We do not set the memory to zero (FALSE) in the pool,
+	but only when allocated at a higher level in mem0mem.c.
+	This is to avoid masking useful Purify warnings. */
+
+	pool->buf = ut_malloc_low(size, FALSE);
 	pool->size = size;
 
 	mutex_create(&(pool->mutex));

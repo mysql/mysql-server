@@ -36,7 +36,7 @@ ulong myisam_recover_options= HA_RECOVER_NONE;
 /* bits in myisam_recover_options */
 const char *myisam_recover_names[] =
 { "DEFAULT", "BACKUP", "FORCE", "QUICK", NullS};
-TYPELIB myisam_recover_typelib= {array_elements(myisam_recover_names),"",
+TYPELIB myisam_recover_typelib= {array_elements(myisam_recover_names)-1,"",
 				 myisam_recover_names};
 
 
@@ -374,13 +374,13 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
   char* backup_dir = thd->lex.backup_dir;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
   char* table_name = table->real_name;
+  int error;
+  const char* errmsg;
   DBUG_ENTER("restore");
 
-  if (!fn_format(src_path, table_name, backup_dir, MI_NAME_DEXT, 4 + 64))
+  if (fn_format_relative_to_data_home(src_path, table_name, backup_dir,
+				      MI_NAME_DEXT))
     DBUG_RETURN(HA_ADMIN_INVALID);
-
-  int error = 0;
-  const char* errmsg = "";
 
   if (my_copy(src_path, fn_format(dst_path, table->path, "",
 				  MI_NAME_DEXT, 4), MYF(MY_WME)))
@@ -404,7 +404,7 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
     param.db_name    = table->table_cache_key;
     param.table_name = table->table_name;
     param.testflag = 0;
-    mi_check_print_error(&param,errmsg, errno );
+    mi_check_print_error(&param,errmsg, my_errno);
     DBUG_RETURN(error);
   }
 }
@@ -415,41 +415,47 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
   char* backup_dir = thd->lex.backup_dir;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
   char* table_name = table->real_name;
-  int error = 0;
-  const char* errmsg = "";
+  int error;
+  const char *errmsg;
+  DBUG_ENTER("ha_myisam::backup");
+
+  if (fn_format_relative_to_data_home(dst_path, table_name, backup_dir,
+				      reg_ext))
+  {
+    errmsg = "Failed in fn_format() for .frm file: errno = %d";
+    error = HA_ADMIN_INVALID;
+    goto err;
+  }
   
-  if (!fn_format(dst_path, table_name, backup_dir, reg_ext, 4 + 64))
-    {
-      errmsg = "Failed in fn_format() for .frm file: errno = %d";
-      error = HA_ADMIN_INVALID;
-      goto err;
-    }
-  
-  if (my_copy(fn_format(src_path, table->path,"", reg_ext, 4),
-	     dst_path,
-	     MYF(MY_WME | MY_HOLD_ORIGINAL_MODES )))
+  if (my_copy(fn_format(src_path, table->path,"", reg_ext, MY_UNPACK_FILENAME),
+	      dst_path,
+	      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES)))
   {
     error = HA_ADMIN_FAILED;
     errmsg = "Failed copying .frm file: errno = %d";
     goto err;
   }
 
-  if (!fn_format(dst_path, table_name, backup_dir, MI_NAME_DEXT, 4 + 64))
-    {
-      errmsg = "Failed in fn_format() for .MYD file: errno = %d";
-      error = HA_ADMIN_INVALID;
-      goto err;
-    }
+  /* Change extension */
+  if (!fn_format(dst_path, dst_path, "", MI_NAME_DEXT,
+		 MY_REPLACE_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH))
+  {
+    errmsg = "Failed in fn_format() for .MYD file: errno = %d";
+    error = HA_ADMIN_INVALID;
+    goto err;
+  }
 
-  if (my_copy(fn_format(src_path, table->path,"", MI_NAME_DEXT, 4),
+  if (my_copy(fn_format(src_path, table->path,"", MI_NAME_DEXT,
+			MY_UNPACK_FILENAME),
 	      dst_path,
-	      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES ))  )
-    {
-      errmsg = "Failed copying .MYD file: errno = %d";
-      error= HA_ADMIN_FAILED;
-      goto err;
-    }
-  return HA_ADMIN_OK;
+	      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES)))
+  {
+    errmsg = "Failed copying .MYD file: errno = %d";
+    error= HA_ADMIN_FAILED;
+    goto err;
+  }
+  DBUG_RETURN(HA_ADMIN_OK);
+
  err:
   {
     MI_CHECK param;
@@ -459,8 +465,8 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
     param.db_name    = table->table_cache_key;
     param.table_name = table->table_name;
     param.testflag = 0;
-    mi_check_print_error(&param,errmsg, errno );
-    return error;
+    mi_check_print_error(&param,errmsg, my_errno);
+    DBUG_RETURN(error);
   }
 }
 

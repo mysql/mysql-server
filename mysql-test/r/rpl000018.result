@@ -1,5 +1,13 @@
+reset slave;
+slave start;
+show master logs;
 Log_name
 master-bin.001
 master-bin.002
+drop table if exists t1;
+create table t1(n int);
+insert into t1 values (3351);
+select * from t1;
 n
 3351
+drop table t1;

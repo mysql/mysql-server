@@ -73,7 +73,7 @@ sub get_server
   { $server= new db_interbase($host,$database); }
   else
   {
-      die "Unknown sql server name used: $name\nUse one of: Access, Adabas, AdabasD, Empress, FrontBase, Oracle, Informix, DB2, mSQL, Mimer, MS-SQL, MySQL, Pg, Solid or Sybase.\nIf the connection is done trough ODBC the name must end with _ODBC\n";
+      die "Unknown sql server name used: $name\nUse one of: Access, Adabas, AdabasD, Empress, FrontBase, Oracle, Informix, InterBase, DB2, mSQL, Mimer, MS-SQL, MySQL, Pg, Solid or Sybase.\nIf the connection is done trough ODBC the name must end with _ODBC\n";
   }
   if ($name =~ /_ODBC$/i || defined($odbc) && $odbc)
   {
@@ -200,6 +200,7 @@ sub new
       $main::opt_create_options =~ /type=gemini/i)
   {
     $limits{'working_blobs'}	= 0; # Blobs not implemented yet
+    $limits{'max_tables'}	= 500;
   }
 
   return $self;
@@ -2961,7 +2962,7 @@ sub new
   bless $self;
 
   $self->{'cmp_name'}		= "interbase";
-  $self->{'data_source'}	= "DBI:InterBase:database=$database";
+  $self->{'data_source'}	= "DBI:InterBase:database=$database:ib_dialect=3";
   $self->{'limits'}		= \%limits;
   $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "blob";

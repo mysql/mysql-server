@@ -1,4 +1,5 @@
 source include/master-slave.inc;
+eval_result;
 connection master;
 use test;
 drop table if exists t1;

@@ -18,7 +18,7 @@
   Lock databases against read or write.
 */
 
-#include "mymrgdef.h"
+#include "myrg_def.h"
 
 int myrg_lock_database(
 MYRG_INFO *info,

@@ -20,6 +20,7 @@
 #endif
 
 #include "mysql_priv.h"
+#ifdef HAVE_ISAM
 #include <m_ctype.h>
 #include <myisampack.h>
 #include "ha_isam.h"
@@ -388,3 +389,4 @@ ha_rows ha_isam::records_in_range(int inx,
 				       end_key,end_key_len,
 				       end_search_flag);
 }
+#endif /* HAVE_ISAM */

@@ -25,14 +25,10 @@ drop table if exists t1,t2;
 !$1164 create table t1 (a int not null auto_increment,primary key (a)) type=heap;
 !$1163 create table t1 (a int not null,b text) type=heap;
 !$1171 create table t1 (a int ,primary key(a)) type=heap;
-!$1121 create table t1 (a int,b text, index(a)) type=isam;
-!$1073 create table t1 (a int,b text, index(b)) type=isam;
 drop table if exists t1;
 
-!$1075 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=isam;
 !$1164 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=heap;
 !$1171 create table t1 (ordid int(8), primary key (ordid));
-!$1121 create table t1 (ordid int(8), unique (ordid)) type=isam;
 
 -- error 1044,1
 create table not_existing_database.test (a int);

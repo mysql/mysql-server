@@ -31,15 +31,16 @@
 #include <winsock.h>
 #endif
 #include <my_global.h>
+#include <mysql.h>
+#include <mysql_embed.h>
 #include <mysql_com.h>
-#include <violite.h>
+#include <mysqld_error.h>
 #include <my_sys.h>
 #include <m_string.h>
-#include "mysql.h"
-#include "mysqld_error.h"
+#include <my_net.h>
+#include <violite.h>
 #include <signal.h>
 #include <errno.h>
-#include <sys/types.h>
 
 #ifdef MYSQL_SERVER
 ulong max_allowed_packet=65536;
@@ -59,20 +60,9 @@ ulong net_write_timeout= NET_WRITE_TIMEOUT;
 #endif
 ulong net_buffer_length=8192;	/* Default length. Enlarged if necessary */
 
-#if !defined(__WIN__) && !defined(MSDOS)
-#include <sys/socket.h>
-#else
+#if defined(__WIN__) || defined(MSDOS)
 #undef MYSQL_SERVER			/* Win32 can't handle interrupts */
 #endif
-#if !defined(MSDOS) && !defined(__WIN__) && !defined(HAVE_BROKEN_NETINET_INCLUDES) && !defined(__BEOS__)
-#include <netinet/in_systm.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#if !defined(alpha_linux_port)
-#include <netinet/tcp.h>
-#endif
-#endif
-#include "mysqld_error.h"
 #ifdef MYSQL_SERVER
 #include "my_pthread.h"
 #include "thr_alarm.h"
@@ -89,7 +79,7 @@ extern ulong mysqld_net_retry_count;
 typedef my_bool thr_alarm_t;
 typedef my_bool ALARM;
 #define thr_alarm_init(A) (*(A))=0
-#define thr_alarm_in_use(A) (*(A)!= 0)
+#define thr_alarm_in_use(A) (*(A) != 0)
 #define thr_end_alarm(A)
 #define thr_alarm(A,B,C) local_thr_alarm((A),(B),(C))
 inline int local_thr_alarm(my_bool *A,int B __attribute__((unused)),ALARM *C __attribute__((unused)))
@@ -129,7 +119,7 @@ int my_net_init(NET *net, Vio* vio)
   net->no_send_ok = 0;
   net->error=0; net->return_errno=0; net->return_status=0;
   net->timeout=(uint) net_read_timeout;		/* Timeout for read */
-  net->pkt_nr=0;
+  net->pkt_nr=net->compress_pkt_nr=0;
   net->write_pos=net->read_pos = net->buff;
   net->last_error[0]=0;
   net->compress=0; net->reading_or_writing=0;
@@ -190,7 +180,7 @@ static my_bool net_realloc(NET *net, ulong length)
 void net_clear(NET *net)
 {
 #ifndef EXTRA_DEBUG
-  int count;
+  int count;					/* One may get 'unused' warn */
   bool is_blocking=vio_is_blocking(net->vio);
   if (is_blocking)
     vio_blocking(net->vio, FALSE);
@@ -204,7 +194,7 @@ void net_clear(NET *net)
       vio_blocking(net->vio, TRUE);
   }
 #endif /* EXTRA_DEBUG */
-  net->pkt_nr=0;				/* Ready for new command */
+  net->pkt_nr=net->compress_pkt_nr=0;		/* Ready for new command */
   net->write_pos=net->buff;
 }
 
@@ -217,9 +207,12 @@ int net_flush(NET *net)
   if (net->buff != net->write_pos)
   {
     error=net_real_write(net,(char*) net->buff,
-			 (uint) (net->write_pos - net->buff));
+			 (ulong) (net->write_pos - net->buff));
     net->write_pos=net->buff;
   }
+  /* Sync packet number if using compression */
+  if (net->compress)
+    net->pkt_nr=net->compress_pkt_nr;
   DBUG_RETURN(error);
 }
 
@@ -248,7 +241,7 @@ my_net_write(NET *net,const char *packet,ulong len)
   {
     const ulong z_size = MAX_THREE_BYTES;
     int3store(buff, z_size);
-    buff[3]= (net->compress) ? 0 : (uchar) (net->pkt_nr++);
+    buff[3]= net->pkt_nr++;
     if (net_write_buff(net, (char*) buff, NET_HEADER_SIZE) ||
 	net_write_buff(net, packet, z_size))
       return 1;
@@ -257,7 +250,7 @@ my_net_write(NET *net,const char *packet,ulong len)
   }
   /* Write last packet */
   int3store(buff,len);
-  buff[3]= (net->compress) ? 0 : (uchar) (net->pkt_nr++);
+  buff[3]= net->pkt_nr++;
   if (net_write_buff(net,(char*) buff,NET_HEADER_SIZE))
     return 1;
   return net_write_buff(net,packet,len);
@@ -275,7 +268,7 @@ my_net_write(NET *net,const char *packet,ulong len)
 int
 net_write_command(NET *net,uchar command,const char *packet,ulong len)
 {
-  uint length=len+1;				/* 1 extra byte for command */
+  ulong length=len+1;				/* 1 extra byte for command */
   uchar buff[NET_HEADER_SIZE+1];
   uint header_size=NET_HEADER_SIZE+1;
   buff[4]=command;				/* For first packet */
@@ -287,7 +280,7 @@ net_write_command(NET *net,uchar command,const char *packet,ulong len)
     do
     {
       int3store(buff, MAX_THREE_BYTES);
-      buff[3]= (net->compress) ? 0 : (uchar) (net->pkt_nr++);
+      buff[3]= net->pkt_nr++;
       if (net_write_buff(net,(char*) buff, header_size) ||
 	  net_write_buff(net,packet,len))
 	return 1;
@@ -299,7 +292,7 @@ net_write_command(NET *net,uchar command,const char *packet,ulong len)
     len=length;					/* Data left to be written */
   }
   int3store(buff,length);
-  buff[3]= (net->compress) ? 0 : (uchar) (net->pkt_nr++);
+  buff[3]= net->pkt_nr++;
   return test(net_write_buff(net,(char*) buff,header_size) ||
 	      net_write_buff(net,packet,len) || net_flush(net));
 }
@@ -312,7 +305,7 @@ net_write_command(NET *net,uchar command,const char *packet,ulong len)
 static int
 net_write_buff(NET *net,const char *packet,ulong len)
 {
-  uint left_length=(uint) (net->buff_end - net->write_pos);
+  ulong left_length=(ulong) (net->buff_end - net->write_pos);
 
   while (len > left_length)
   {
@@ -338,7 +331,7 @@ net_write_buff(NET *net,const char *packet,ulong len)
 int
 net_real_write(NET *net,const char *packet,ulong len)
 {
-  int length;
+  long int length;
   char *pos,*end;
   thr_alarm_t alarmed;
 #if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2)
@@ -378,7 +371,7 @@ net_real_write(NET *net,const char *packet,ulong len)
     }
     int3store(&b[NET_HEADER_SIZE],complen);
     int3store(b,len);
-    b[3]=(uchar) (net->pkt_nr++);
+    b[3]=(uchar) (net->compress_pkt_nr++);
     len+= header_length;
     packet= (char*) b;
   }
@@ -396,7 +389,7 @@ net_real_write(NET *net,const char *packet,ulong len)
   pos=(char*) packet; end=pos+len;
   while (pos != end)
   {
-    if ((int) (length=vio_write(net->vio,pos,(int) (end-pos))) <= 0)
+    if ((long) (length=vio_write(net->vio,pos,(ulong) (end-pos))) <= 0)
     {
       my_bool interrupted = vio_should_retry(net->vio);
 #if (!defined(__WIN__) && !defined(__EMX__) && !defined(OS2))
@@ -496,7 +489,7 @@ static void my_net_skip_rest(NET *net, ulong remain, thr_alarm_t *alarmed)
     if ((int) (length=vio_read(net->vio,(char*) net->buff,remain)) <= 0L)
     {
       my_bool interrupted = vio_should_retry(net->vio);
-      if (!thr_got_alarm(alarmed) && interrupted)
+      if (!thr_got_alarm(&alarmed) && interrupted)
       {					/* Probably in MIT threads */
 	if (retry_count++ < RETRY_COUNT)
 	  continue;
@@ -516,7 +509,7 @@ static void my_net_skip_rest(NET *net, ulong remain, thr_alarm_t *alarmed)
   This function reallocates the net->buff buffer if necessary.
 */
 
-static uint
+static ulong
 my_real_read(NET *net, ulong *complen)
 {
   uchar *pos;
@@ -627,9 +620,9 @@ my_real_read(NET *net, ulong *complen)
 	  if (net->buff[net->where_b] != (uchar) 255)
 	  {
 	    DBUG_PRINT("error",
-		       ("Packets out of order (Found: %d, expected %d)",
+		       ("Packets out of order (Found: %d, expected %u)",
 			(int) net->buff[net->where_b + 3],
-			(uint) (uchar) net->pkt_nr));
+			net->pkt_nr));
 #ifdef EXTRA_DEBUG
 	    fprintf(stderr,"Packets out of order (Found: %d, expected %d)\n",
 		    (int) net->buff[net->where_b + 3],
@@ -642,7 +635,7 @@ my_real_read(NET *net, ulong *complen)
 #endif
 	  goto end;
 	}
-	net->pkt_nr++;
+	net->compress_pkt_nr= ++net->pkt_nr;
 #ifdef HAVE_COMPRESS
 	if (net->compress)
 	{
@@ -710,7 +703,7 @@ my_net_read(NET *net)
     if (len == MAX_THREE_BYTES)
     {
       /* First packet of a multi-packet.  Concatenate the packets */
-      int save_pos = net->where_b;
+      ulong save_pos = net->where_b;
       ulong total_length=0;
       do
       {
@@ -820,8 +813,8 @@ my_net_read(NET *net)
 
     net->read_pos=      net->buff+ first_packet_offset + NET_HEADER_SIZE;
     net->buf_length=    buf_length;
-    net->remain_in_buf= buf_length - start_of_packet;
-    len = ((uint) (start_of_packet - first_packet_offset) - NET_HEADER_SIZE -
+    net->remain_in_buf= (ulong) (buf_length - start_of_packet);
+    len = ((ulong) (start_of_packet - first_packet_offset) - NET_HEADER_SIZE -
            multi_byte_packet);
     net->save_char= net->read_pos[len];	/* Must be saved */
     net->read_pos[len]=0;		/* Safeguard for mysql_use_result */

@@ -18,9 +18,10 @@
 #define _MYSQL_PRIV_H
 
 #include <my_global.h>
+#include "mysql_embed.h"
 #include <my_sys.h>
 #include <m_string.h>
-#include "mysql_version.h"
+#include <mysql_version.h>
 #include <hash.h>
 #include <signal.h>
 #include <thr_lock.h>
@@ -70,7 +71,6 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define HASH_PASSWORD_LENGTH	16
 #define HOST_CACHE_SIZE		128
 #define MAX_ACCEPT_RETRY	10	// Test accept this many times
-#define MAX_BLOB_WIDTH		8192	// Default width for blob
 #define MAX_FIELDS_BEFORE_HASH	32
 #define USER_VARS_HASH_SIZE     16
 #define STACK_MIN_SIZE		8192	// Abort if less stack during eval.
@@ -188,6 +188,19 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define MODE_ONLY_FULL_GROUP_BY	32
 
 #define RAID_BLOCK_SIZE 1024
+
+// Sync points allow us to force the server to reach a certain line of code
+// and block there until the client tells the server it is ok to go on.
+// The client tells the server to block with SELECT GET_LOCK()
+// and unblocks it with SELECT RELEASE_LOCK(). Used for debugging difficult
+// concurrency problems
+#ifdef EXTRA_DEBUG
+#define DBUG_SYNC_POINT(lock_name,lock_timeout) \
+ debug_sync_point(lock_name,lock_timeout)
+void debug_sync_point(const char* lock_name, uint lock_timeout);
+#else
+#define DBUG_SYNC_POINT(lock_name,lock_timeout)
+#endif
 
 /* BINLOG_DUMP options */
 
@@ -504,11 +517,13 @@ void init_errmessage(void);
 void sql_perror(const char *message);
 void sql_print_error(const char *format,...)
 	        __attribute__ ((format (printf, 1, 2)));
+bool fn_format_relative_to_data_home(my_string to, const char *name,
+				     const char *dir, const char *extension);
 
 extern uint32 server_id;
-extern char mysql_data_home[2],server_version[SERVER_VERSION_LENGTH],
+extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 	    max_sort_char, mysql_real_data_home[];
-extern my_string mysql_unix_port,mysql_tmpdir;
+extern my_string mysql_tmpdir;
 extern const char *first_keyword, *localhost, *delayed_user;
 extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables,
 	     created_tmp_tables, created_tmp_disk_tables,
@@ -522,7 +537,7 @@ extern ulong filesort_merge_passes;
 extern ulong select_range_check_count, select_range_count, select_scan_count;
 extern ulong select_full_range_join_count,select_full_join_count,
 			 slave_open_temp_tables;
-extern uint test_flags,select_errors,mysql_port,ha_open_options;
+extern uint test_flags,select_errors,ha_open_options;
 extern ulong thd_startup_options, slow_launch_threads, slow_launch_time;
 extern time_t start_time;
 extern const char *command_name[];
@@ -540,7 +555,7 @@ extern pthread_cond_t COND_refresh,COND_thread_count, COND_binlog_update,
                       COND_slave_stopped, COND_slave_start;
 extern pthread_attr_t connection_attrib;
 extern bool opt_endinfo, using_udf_functions, locked_in_memory,
-            opt_using_transactions, use_temp_pool;
+            opt_using_transactions, use_temp_pool, mysql_embedded;
 extern char f_fyllchar;
 extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
 	     ha_read_key_count, ha_read_next_count, ha_read_prev_count,

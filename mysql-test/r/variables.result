@@ -1,14 +1,26 @@
+set @`test`=1,@TEST=3,@select=2,@t5=1.23456;
+select @test,@`select`,@TEST,@not_used;
 @test	@`select`	@TEST	@not_used
 1	2	3	NULL
+set @test_int=10,@test_double=1e-10,@test_string="abcdeghi",@test_string2="abcdefghij",@select=NULL;
+select @test_int,@test_double,@test_string,@test_string2,@select;
 @test_int	@test_double	@test_string	@test_string2	@select
 10	1e-10	abcdeghi	abcdefghij	NULL
+set @test_int="hello",@test_double="hello",@test_string="hello",@test_string2="hello";
+select @test_int,@test_double,@test_string,@test_string2;
 @test_int	@test_double	@test_string	@test_string2
 hello	hello	hello	hello
+set @test_int="hellohello",@test_double="hellohello",@test_string="hellohello",@test_string2="hellohello";
+select @test_int,@test_double,@test_string,@test_string2;
 @test_int	@test_double	@test_string	@test_string2
 hellohello	hellohello	hellohello	hellohello
+set @test_int=null,@test_double=null,@test_string=null,@test_string2=null;
+select @test_int,@test_double,@test_string,@test_string2;
 @test_int	@test_double	@test_string	@test_string2
 NULL	NULL	NULL	NULL
+select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 @t1:=(@t2:=1)+@t3:=4	@t1	@t2	@t3
 5	5	1	4
+select @t5;
 @t5
 1.23456

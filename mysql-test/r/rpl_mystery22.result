@@ -1,4 +1,23 @@
+drop table if exists t1;
+slave stop;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+slave start;
+create table t1(n int auto_increment primary key);
+insert into t1 values (2);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+delete from t1 where n = 2;
+slave start;
+slave stop;
+create table t2(n int);
+drop table t2;
+insert into t1 values(NULL);
+slave start;
+select * from t1;
 n
 1
 2
 3
+drop table t1;

@@ -1,3 +1,21 @@
+drop table if exists t1,t2,t3;
+CREATE TABLE t1 (id int,facility char(20));
+CREATE TABLE t2 (facility char(20));
+INSERT INTO t1 VALUES (NULL,NULL);
+INSERT INTO t1 VALUES (-1,'');
+INSERT INTO t1 VALUES (0,'');
+INSERT INTO t1 VALUES (1,'/L');
+INSERT INTO t1 VALUES (2,'A01');
+INSERT INTO t1 VALUES (3,'ANC');
+INSERT INTO t1 VALUES (4,'F01');
+INSERT INTO t1 VALUES (5,'FBX');
+INSERT INTO t1 VALUES (6,'MT');
+INSERT INTO t1 VALUES (7,'P');
+INSERT INTO t1 VALUES (8,'RV');
+INSERT INTO t1 VALUES (9,'SRV');
+INSERT INTO t1 VALUES (10,'VMT');
+INSERT INTO t2 SELECT DISTINCT FACILITY FROM t1;
+select id from t1 group by id;
 id
 NULL
 -1
@@ -12,6 +30,7 @@ NULL
 8
 9
 10
+select * from t1 order by id;
 id	facility
 NULL	NULL
 -1	
@@ -26,6 +45,7 @@ NULL	NULL
 8	RV
 9	SRV
 10	VMT
+select id-5,facility from t1 order by "id-5";
 id-5	facility
 NULL	NULL
 -6	
@@ -40,6 +60,7 @@ NULL	NULL
 3	RV
 4	SRV
 5	VMT
+select id,concat(facility) from t1 group by id ;
 id	concat(facility)
 NULL	NULL
 -1	
@@ -54,6 +75,7 @@ NULL	NULL
 8	RV
 9	SRV
 10	VMT
+select id+0 as a,max(id),concat(facility) as b from t1 group by a order by b desc,a;
 a	max(id)	b
 10	10	VMT
 9	9	SRV
@@ -68,9 +90,11 @@ a	max(id)	b
 -1	-1	
 0	0	
 NULL	NULL	NULL
+select id >= 0 and id <= 5 as grp,count(*) from t1 group by grp;
 grp	count(*)
 0	7
 1	6
+SELECT DISTINCT FACILITY FROM t1;
 FACILITY
 NULL
 
@@ -84,6 +108,7 @@ P
 RV
 SRV
 VMT
+SELECT FACILITY FROM t2;
 FACILITY
 NULL
 
@@ -97,52 +122,157 @@ P
 RV
 SRV
 VMT
+SELECT count(*) from t1,t2 where t1.facility=t2.facility;
 count(*)
 12
+select count(facility) from t1;
 count(facility)
 12
+select count(*) from t1;
 count(*)
 13
+select count(*) from t1 where facility IS NULL;
 count(*)
 1
+select count(*) from t1 where facility = NULL;
 count(*)
 0
+select count(*) from t1 where facility IS NOT NULL;
 count(*)
 12
+select count(*) from t1 where id IS NULL;
 count(*)
 1
+select count(*) from t1 where id IS NOT NULL;
 count(*)
 12
+drop table t1,t2;
+CREATE TABLE t1 (UserId int(11) DEFAULT '0' NOT NULL);
+INSERT INTO t1 VALUES (20);
+INSERT INTO t1 VALUES (27);
+SELECT UserId FROM t1 WHERE Userid=22;
 UserId
+SELECT UserId FROM t1 WHERE UserId=22 group by Userid;
 UserId
+SELECT DISTINCT UserId FROM t1 WHERE UserId=22 group by Userid;
 UserId
+SELECT DISTINCT UserId FROM t1 WHERE UserId=22;
 UserId
+drop table t1;
+CREATE TABLE t1 (a int(10) unsigned not null primary key,b int(10) unsigned);
+INSERT INTO t1 VALUES (1,1),(2,1);
+CREATE TABLE t2 (a int(10) unsigned not null, key (A));
+INSERT INTO t2 VALUES (1),(2);
+CREATE TABLE t3 (a int(10) unsigned, key(A), b text);
+INSERT INTO t3 VALUES (1,'1'),(2,'2');
+SELECT DISTINCT t3.b FROM t3,t2,t1 WHERE t3.a=t1.b AND t1.a=t2.a;
 b
 1
+INSERT INTO t2 values (1),(2),(3);
+INSERT INTO t3 VALUES (1,'1'),(2,'2'),(1,'1'),(2,'2');
+explain SELECT distinct t3.a FROM t3,t2,t1 WHERE t3.a=t1.b AND t1.a=t2.a;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t3	index	a	a	5	NULL	6	Using index; Using temporary
 t2	index	a	a	4	NULL	5	Using index; Distinct
 t1	eq_ref	PRIMARY	PRIMARY	4	t2.a	1	where used; Distinct
+SELECT distinct t3.a FROM t3,t2,t1 WHERE t3.a=t1.b AND t1.a=t2.a;
 a
 1
+create temporary table t4 select * from t3;
+insert into t3 select * from t4;
+insert into t4 select * from t3;
+insert into t3 select * from t4;
+insert into t4 select * from t3;
+insert into t3 select * from t4;
+insert into t4 select * from t3;
+insert into t3 select * from t4;
+explain select distinct t1.a from t1,t3 where t1.a=t3.a;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	index	PRIMARY	PRIMARY	4	NULL	2	Using index; Using temporary
 t3	ref	a	a	5	t1.a	10	Using index; Distinct
+select distinct t1.a from t1,t3 where t1.a=t3.a;
 a
 1
 2
+select distinct 1 from t1,t3 where t1.a=t3.a;
 1
 1
+drop table t1,t2,t3,t4;
+CREATE TABLE t1 (name varchar(255));
+INSERT INTO t1 VALUES ('aa'),('ab'),('ac'),('ad'),('ae');
+SELECT DISTINCT * FROM t1 LIMIT 2;
 name
 aa
 ab
+SELECT DISTINCT name FROM t1 LIMIT 2;
 name
 aa
 ab
+SELECT DISTINCT 1 FROM t1 LIMIT 2;
 1
 1
+drop table t1;
+CREATE TABLE t1 (
+ID int(11) NOT NULL auto_increment,
+NAME varchar(75) DEFAULT '' NOT NULL,
+LINK_ID int(11) DEFAULT '0' NOT NULL,
+PRIMARY KEY (ID),
+KEY NAME (NAME),
+KEY LINK_ID (LINK_ID)
+);
+INSERT INTO t1 (ID, NAME, LINK_ID) VALUES (1,'Mike',0),(2,'Jack',0),(3,'Bill',0);
+CREATE TABLE t2 (
+ID int(11) NOT NULL auto_increment,
+NAME varchar(150) DEFAULT '' NOT NULL,
+PRIMARY KEY (ID),
+KEY NAME (NAME)
+);
+SELECT DISTINCT
+t2.id AS key_link_id,
+t2.name AS link
+FROM t1
+LEFT JOIN t2 ON t1.link_id=t2.id
+GROUP BY t1.id
+ORDER BY link;
 key_link_id	link
 NULL	NULL
+drop table t1,t2;
+create table t1 (
+id		int not null,
+name	tinytext not null,
+unique	(id)
+);
+create table t2 (
+id		int not null,
+idx		int not null,
+unique	(id, idx)
+);
+create table t3 (
+id		int not null,
+idx		int not null,
+unique	(id, idx)
+);
+insert into t1 values (1,'yes'), (2,'no');
+insert into t2 values (1,1);
+insert into t3 values (1,1);
+EXPLAIN
+SELECT DISTINCT
+t1.id
+from
+t1
+straight_join
+t2
+straight_join
+t3
+straight_join
+t1 as j_lj_t2 left join t2 as t2_lj
+on j_lj_t2.id=t2_lj.id
+straight_join
+t1 as j_lj_t3 left join t3 as t3_lj
+on j_lj_t3.id=t3_lj.id
+WHERE
+((t1.id=j_lj_t2.id AND t2_lj.id IS NULL) OR (t1.id=t2.id AND t2.idx=2))
+AND ((t1.id=j_lj_t3.id AND t3_lj.id IS NULL) OR (t1.id=t3.id AND t3.idx=2));
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	index	id	id	4	NULL	2	Using index; Using temporary
 t2	index	id	id	8	NULL	1	Using index; Distinct
@@ -151,25 +281,58 @@ j_lj_t2	index	id	id	4	NULL	2	where used; Using index; Distinct
 t2_lj	index	id	id	8	NULL	1	where used; Using index; Distinct
 j_lj_t3	index	id	id	4	NULL	2	where used; Using index; Distinct
 t3_lj	index	id	id	8	NULL	1	where used; Using index; Distinct
+SELECT DISTINCT
+t1.id
+from
+t1
+straight_join
+t2
+straight_join
+t3
+straight_join
+t1 as j_lj_t2 left join t2 as t2_lj
+on j_lj_t2.id=t2_lj.id
+straight_join
+t1 as j_lj_t3 left join t3 as t3_lj
+on j_lj_t3.id=t3_lj.id
+WHERE
+((t1.id=j_lj_t2.id AND t2_lj.id IS NULL) OR (t1.id=t2.id AND t2.idx=2))
+AND ((t1.id=j_lj_t3.id AND t3_lj.id IS NULL) OR (t1.id=t3.id AND t3.idx=2));
 id
 2
+drop table t1,t2,t3;
+drop table if exists t1;
+create table t1 (a int not null, b int not null, t time);
+insert into t1 values (1,1,"00:06:15"),(1,2,"00:06:15"),(1,2,"00:30:15"),(1,3,"00:06:15"),(1,3,"00:30:15");
+select a,sec_to_time(sum(time_to_sec(t))) from t1 group by a,b;
 a	sec_to_time(sum(time_to_sec(t)))
 1	00:06:15
 1	00:36:30
 1	00:36:30
+select distinct a,sec_to_time(sum(time_to_sec(t))) from t1 group by a,b;
 a	sec_to_time(sum(time_to_sec(t)))
 1	00:06:15
 1	00:36:30
+create table t2 (a int not null primary key, b int);
+insert into t2 values (1,1),(2,2),(3,3);
+select t1.a,sec_to_time(sum(time_to_sec(t))) from t1 left join t2 on (t1.b=t2.a) group by t1.a,t2.b;
 a	sec_to_time(sum(time_to_sec(t)))
 1	00:06:15
 1	00:36:30
 1	00:36:30
+select distinct t1.a,sec_to_time(sum(time_to_sec(t))) from t1 left join t2 on (t1.b=t2.a) group by t1.a,t2.b;
 a	sec_to_time(sum(time_to_sec(t)))
 1	00:06:15
 1	00:36:30
+drop table t1,t2;
+create table t1 (a int not null,b char(5), c text);
+insert into t1 (a) values (1),(2),(3),(4),(1),(2),(3),(4);
+select distinct a from t1 group by b,a having a > 2 order by a desc;
 a
 4
 3
+select distinct a,c from t1 group by b,c,a having a > 2 order by a desc;
 a	c
 4	NULL
 3	NULL
+drop table t1;

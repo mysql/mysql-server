@@ -1059,11 +1059,11 @@ int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, byte *buf)
     } while (left_length);
 
     info->update|= HA_STATE_AKTIV;	/* We have a aktive record */
-    VOID(_mi_writeinfo(info,0));
+    fast_mi_writeinfo(info);
     DBUG_RETURN(_mi_rec_unpack(info,buf,info->rec_buff,block_info.rec_len) !=
 		MY_FILE_ERROR ? 0 : -1);
   }
-  VOID(_mi_writeinfo(info,0));
+  fast_mi_writeinfo(info);
   DBUG_RETURN(-1);			/* Wrong data to read */
 
 panic:
@@ -1393,8 +1393,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
   } while (left_len);
 
   info->update|= HA_STATE_AKTIV | HA_STATE_KEY_CHANGED;
-  if (share->r_locks == 0 && share->w_locks == 0)
-    VOID(_mi_writeinfo(info,0));
+  fast_mi_writeinfo(info);
   if (_mi_rec_unpack(info,buf,info->rec_buff,block_info.rec_len) !=
       MY_FILE_ERROR)
     DBUG_RETURN(0);

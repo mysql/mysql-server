@@ -1,12 +1,30 @@
+use test;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (
+a int(11) NOT NULL auto_increment,
+b text,
+c varchar(254) default NULL,
+PRIMARY KEY (a),
+FULLTEXT KEY bb(b),
+FULLTEXT KEY cc(c),
+FULLTEXT KEY a(b,c)
+);
+INSERT INTO t1 VALUES (1,'lala lolo lili','oooo aaaa pppp');
+INSERT INTO t1 VALUES (2,'asdf fdsa','lkjh fghj');
+INSERT INTO t1 VALUES (3,'qpwoei','zmxnvb');
+SELECT a, MATCH  b  AGAINST ('lala lkjh') FROM t1;
 a	MATCH  b  AGAINST ('lala lkjh')
-1	0.67003107070923
+1	0.67003110026735
 2	0
 3	0
+SELECT a, MATCH  c  AGAINST ('lala lkjh') FROM t1;
 a	MATCH  c  AGAINST ('lala lkjh')
 1	0
-2	0.67756325006485
+2	0.67756324121582
 3	0
+SELECT a, MATCH b,c AGAINST ('lala lkjh') FROM t1;
 a	MATCH b,c AGAINST ('lala lkjh')
-1	0.64840710163116
-2	0.66266459226608
+1	0.64840710366884
+2	0.66266459031789
 3	0
+drop table t1;

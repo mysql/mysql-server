@@ -1,8 +1,22 @@
+slave stop;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+slave start;
+drop table if exists t1;
+CREATE TABLE t1 (name varchar(64), age smallint(3));
+INSERT INTO  t1 SET name='Andy', age=31;
+INSERT t1 SET name='Jacob', age=2;
+INSERT into t1 SET name='Caleb', age=1;
+ALTER TABLE t1 ADD id int(8) ZEROFILL AUTO_INCREMENT PRIMARY KEY;
+select * from t1;
 name	age	id
 Andy	31	00000001
 Jacob	2	00000002
 Caleb	1	00000003
+select * from t1;
 name	age	id
 Andy	31	00000001
 Jacob	2	00000002
 Caleb	1	00000003
+drop table t1;

@@ -22,7 +22,7 @@ pkglib_LIBRARIES =	libmystrings.a
 # Exact one of ASSEMBLER_X
 if ASSEMBLER_x86
 ASRCS		= strings-x86.s longlong2str-x86.s
-CSRCS		= bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c atof.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c strxmov.c bmove_upp.c strappend.c strcont.c strend.c strfill.c strcend.c is_prefix.c strstr.c strinstr.c strmake.c strnmov.c strmov.c longlong2str.c llstr.c ctype.c strnlen.c
+CSRCS		= bfill.c bmove.c bmove512.c bchange.c strxnmov.c int2str.c str2int.c r_strinstr.c atof.c bcmp.c strtol.c strtoul.c strtoll.c strtoull.c llstr.c ctype.c strnlen.c
 else
 if ASSEMBLER_sparc
 # These file MUST all be on the same line!! Otherwise automake
@@ -43,7 +43,7 @@ noinst_PROGRAMS = conf_to_src
 # Default charset definitions
 EXTRA_DIST =		ctype-big5.c ctype-czech.c ctype-euc_kr.c \
                         ctype-gb2312.c ctype-gbk.c ctype-sjis.c \
-                        ctype-tis620.c ctype-ujis.c \
+                        ctype-tis620.c ctype-ujis.c ctype-latin1_de.c \
                         ctype_autoconf.c \
                         strto.c strings-x86.s longlong2str-x86.s \
 			strxmov.c bmove_upp.c strappend.c strcont.c strend.c \

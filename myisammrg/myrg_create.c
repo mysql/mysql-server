@@ -16,14 +16,15 @@
 
 /* Create a MYMERGE_-file */
 
-#include "mymrgdef.h"
+#include "myrg_def.h"
 
 	/* create file named 'name' and save filenames in it
 	   table_names should be NULL or a vector of string-pointers with
 	   a NULL-pointer last
 	   */
 
-int myrg_create(const char *name, const char **table_names, my_bool fix_names)
+int myrg_create(const char *name, const char **table_names,
+                uint insert_method, my_bool fix_names)
 {
   int save_errno;
   uint errpos;
@@ -49,6 +50,13 @@ int myrg_create(const char *name, const char **table_names, my_bool fix_names)
 		   MYF(MY_WME | MY_NABP)))
 	goto err;
     }
+  }
+  if (insert_method != MERGE_INSERT_DISABLED)
+  {
+    end=strxmov(buff,"#INSERT_METHOD=",
+		get_type(&merge_insert_method,insert_method-1),"\n",NullS);
+    if (my_write(file,buff,(uint) (end-buff),MYF(MY_WME | MY_NABP)))
+        goto err;
   }
   if (my_close(file,MYF(0)))
     goto err;

@@ -1,33 +1,55 @@
+create table t1 (name char(20) not null, primary key (name));
+create table t2 (name char(20) binary not null, primary key (name));
+insert into t1 values ("å");
+insert into t1 values ("ä");
+insert into t1 values ("ö");
+insert into t2 select * from t1;
+select * from t1 order by name;
 name
 å
 ä
 ö
+select concat("*",name,"*") from t1 order by 1;
 concat("*",name,"*")
 *å*
 *ä*
 *ö*
+select min(name),min(concat("*",name,"*")),max(name),max(concat("*",name,"*")) from t1;
 min(name)	min(concat("*",name,"*"))	max(name)	max(concat("*",name,"*"))
 å	*å*	ö	*ö*
+select * from t2 order by name;
 name
 ä
 å
 ö
+select concat("*",name,"*") from t2 order by 1;
 concat("*",name,"*")
 *ä*
 *å*
 *ö*
+select min(name),min(concat("*",name,"*")),max(name),max(concat("*",name,"*")) from t2;
 min(name)	min(concat("*",name,"*"))	max(name)	max(concat("*",name,"*"))
 ä	*ä*	ö	*ö*
+select name from t1 where name between 'Ä' and 'Ö';
 name
 ä
 ö
+select name from t2 where name between 'ä' and 'ö';
 name
 ä
 å
 ö
+select name from t2 where name between 'Ä' and 'Ö';
 name
+drop table t1,t2;
+create table t1 (a char(10) not null, b char(10) binary not null,index (a));
+insert into t1 values ("hello ","hello "),("hello2 ","hello2 ");
+select * from t1 where a="hello ";
 a	b
 hello	hello
+select * from t1 where b="hello ";
 a	b
+select * from t1 where b="hello";
 a	b
 hello	hello
+drop table t1;

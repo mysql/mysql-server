@@ -454,8 +454,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 	/* Some things that this system doesn't have */
 
 #define ONLY_OWN_DATABASES	/* We are using only databases by monty */
-#define NO_PISAM		/* Not needed anymore */
-#define NO_MISAM		/* Not needed anymore */
+#define HAVE_ISAM		/* TO BE DELETED */
 #define NO_HASH			/* Not needed anymore */
 #ifdef __WIN__
 #define NO_DIR_LIBRARY		/* Not standar dir-library */
@@ -655,6 +654,7 @@ typedef off_t os_off_t;
 #define socket_errno	WSAGetLastError()
 #define SOCKET_EINTR	WSAEINTR 
 #define SOCKET_EAGAIN	WSAEINPROGRESS
+#define SOCKET_EWOULDBLOCK WSAEINPROGRESS
 #define SOCKET_ENFILE	ENFILE
 #define SOCKET_EMFILE	EMFILE
 #elif defined(OS2)
@@ -964,6 +964,15 @@ typedef union {
 #define thread_safe_sub(V,C,L)     (V)-=(C)
 #define statistic_increment(V,L)   (V)++
 #define statistic_add(V,C,L)       (V)+=(C)
+#endif
+
+/* Macros to make switching between C and C++ mode easier */
+#ifdef __cplusplus
+#define C_MODE_START    extern "C" {
+#define C_MODE_END	}
+#else
+#define C_MODE_START
+#define C_MODE_END
 #endif
 
 #endif /* _global_h */

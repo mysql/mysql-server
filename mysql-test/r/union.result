@@ -1,3 +1,9 @@
+drop table if exists t1,t2,t3;
+CREATE TABLE t1 (a int not null, b char (10) not null);
+insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
+CREATE TABLE t2 (a int not null, b char (10) not null);
+insert into t2 values (3,'c'),(4,'d'),(5,'f'),(6,'e');
+select a,b from t1 union select a,b from t2;
 a	b
 1	a
 2	b
@@ -5,6 +11,7 @@ a	b
 4	d
 5	f
 6	e
+select a,b from t1 union all select a,b from t2;
 a	b
 1	a
 2	b
@@ -14,6 +21,7 @@ a	b
 4	d
 5	f
 6	e
+select a,b from t1 union all select a,b from t2 order by b;
 a	b
 1	a
 2	b
@@ -23,6 +31,7 @@ a	b
 4	d
 6	e
 5	f
+select a,b from t1 union all select a,b from t2 union select 7,'g';
 a	b
 1	a
 2	b
@@ -33,6 +42,7 @@ a	b
 5	f
 6	e
 7	g
+select 0,'#' union select a,b from t1 union all select a,b from t2 union select 7,'gg';
 0	#
 0	#
 1	a
@@ -44,10 +54,12 @@ a	b
 5	f
 6	e
 7	g
+select a,b from t1 union select a,b from t1;
 a	b
 1	a
 2	b
 3	c
+select 't1',b,count(*) from t1 group by b UNION select 't2',b,count(*) from t2 group by b;
 t1	b	count(*)
 t1	a	1
 t1	b	1
@@ -56,17 +68,63 @@ t2	c	1
 t2	d	1
 t2	e	1
 t2	f	1
+explain select a,b from t1 union all select a,b from t2;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ALL	NULL	NULL	NULL	NULL	4	
 t2	ALL	NULL	NULL	NULL	NULL	4	
+select a,b from t1 into outfile 'skr' union select a,b from t2;
+Wrong usage of UNION and INTO
+select a,b from t1 order by a union select a,b from t2;
+Wrong usage of UNION and ORDER BY
+insert into t3 select a from t1 order by a union select a from t2;
+Wrong usage of UNION and ORDER BY
+create table t3 select a,b from t1 union select a from t2;
+The used SELECT statements have a different number of columns
+select a,b from t1 union select a from t2;
+The used SELECT statements have a different number of columns
+select * from t1 union select a from t2;
+The used SELECT statements have a different number of columns
+select a from t1 union select * from t2;
+The used SELECT statements have a different number of columns
+create table t3 select a,b from t1 union all select a,b from t2;
+insert into t3 select a,b from t1 union all select a,b from t2;
+replace into t3 select a,b as c from t1 union all select a,b from t2;
+drop table t1,t2,t3;
+CREATE TABLE t1 (
+`pseudo` char(35) NOT NULL default '',
+`pseudo1` char(35) NOT NULL default '',
+`same` tinyint(1) unsigned NOT NULL default '1',
+PRIMARY KEY  (`pseudo1`),
+KEY `pseudo` (`pseudo`)
+) TYPE=MyISAM;
+INSERT INTO t1 (pseudo,pseudo1,same) VALUES ('joce', 'testtt', 1),('joce', 'tsestset', 1),('dekad', 'joce', 1);
+SELECT pseudo FROM t1 WHERE pseudo1='joce' UNION SELECT pseudo FROM t1 WHERE pseudo='joce';
 pseudo
 dekad
 joce
+SELECT pseudo1 FROM t1 WHERE pseudo1='joce' UNION SELECT pseudo1 FROM t1 WHERE pseudo='joce';
 pseudo1
 joce
 testtt
 tsestset
+SELECT * FROM t1 WHERE pseudo1='joce' UNION SELECT * FROM t1 WHERE pseudo='joce' order by pseudo desc,pseudo1 desc;
 pseudo	pseudo1	same
 joce	tsestset	1
 joce	testtt	1
 dekad	joce	1
+SELECT pseudo1 FROM t1 WHERE pseudo='joce' UNION SELECT pseudo FROM t1 WHERE pseudo1='joce';
+pseudo1
+testtt
+tsestset
+dekad
+SELECT pseudo1 FROM t1 WHERE pseudo='joce' UNION ALL SELECT pseudo FROM t1 WHERE pseudo1='joce';
+pseudo1
+testtt
+tsestset
+dekad
+SELECT pseudo1 FROM t1 WHERE pseudo='joce' UNION SELECT 1;
+pseudo1
+testtt
+tsestset
+1
+drop table t1;

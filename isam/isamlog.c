@@ -400,11 +400,7 @@ static int examine_log(my_string file_name, char **table_names)
 	}
 	to=isam_file_name;
 	if (filepath)
-	{
-	  strmov(isam_file_name,filepath);
-	  convert_dirname(isam_file_name);
-	  to=strend(isam_file_name);
-	}
+	  to=convert_dirname(isam_file_name, filepath, NullS);
 	strmov(to,pos);
 	fn_ext(isam_file_name)[0]=0;	/* Remove extension */
       }

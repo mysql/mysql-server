@@ -3,8 +3,8 @@
 echo "This scripts updates the mysql.user, mysql.db, mysql.host and the"
 echo "mysql.func table to MySQL 3.22.14 and above."
 echo ""
-echo "This is needed if you want to use the new GRANT functions or"
-echo "want to use the more secure passwords."
+echo "This is needed if you want to use the new GRANT functions,"
+echo "CREATE AGGREAGATE FUNCTION or want to use the more secure passwords in 3.23"
 echo ""
 echo "If you get Access denied errors, you should run this script again"
 echo "and give the MySQL root user password as a argument!"
@@ -15,13 +15,12 @@ host="localhost"
 # Fix old password format, add File_priv and func table
 echo ""
 echo "If your tables are already up to date or partially up to date you will"
-echo "get some warnings about 'Duplicated column name' or"
-echo "'Table 'func' already exists'. You can safely ignore these!"
+echo "get some warnings about 'Duplicated column name'. You can safely ignore these!"
 
 @bindir@/mysql -f --user=root --password="$root_password" --host="$host" mysql <<END_OF_DATA
 alter table user change password password char(16) NOT NULL;
 alter table user add File_priv enum('N','Y') NOT NULL;
-CREATE TABLE func (
+CREATE TABLE if not exists func (
   name char(64) DEFAULT '' NOT NULL,
   ret tinyint(1) DEFAULT '0' NOT NULL,
   dl char(128) DEFAULT '' NOT NULL,
@@ -57,6 +56,13 @@ END_OF_DATA
   echo ""
 fi
 
+echo "Adding columns needed by GRANT .. REQUIRE (openssl)"
+echo "You can ignore any Duplicate column errors"
+@bindir@/mysql --user=root --password="$root_password" --host="$host" mysql <<END_OF_DATA
+ALTER TABLE user ADD ssl_type enum('NONE','ANY','X509', 'SPECIFIED') DEFAULT 'NONE' NOT NULL, ADD ssl_cipher BLOB NOT NULL, ADD x509_issuer BLOB NOT NULL, ADD x509_subject BLOB NOT NULL
+END_OF_DATA
+echo ""
+
 #
 # Create tables_priv and columns_priv if they don't exists
 #
@@ -64,7 +70,7 @@ fi
 echo "Creating the new table and column privilege tables"
 
 @bindir@/mysql -f --user=root --password="$root_password"  --host="$host" mysql <<END_OF_DATA
-CREATE TABLE tables_priv (
+CREATE TABLE IF NOT EXISTS tables_priv (
   Host char(60) DEFAULT '' NOT NULL,
   Db char(60) DEFAULT '' NOT NULL,
   User char(16) DEFAULT '' NOT NULL,
@@ -75,7 +81,7 @@ CREATE TABLE tables_priv (
   Column_priv set('Select','Insert','Update','References') DEFAULT '' NOT NULL,
   PRIMARY KEY (Host,Db,User,Table_name)
 );
-CREATE TABLE columns_priv (
+CREATE TABLE IF NOT EXISTS columns_priv (
   Host char(60) DEFAULT '' NOT NULL,
   Db char(60) DEFAULT '' NOT NULL,
   User char(16) DEFAULT '' NOT NULL,
@@ -97,6 +103,7 @@ echo "You can ignore any errors from this"
 @bindir@/mysql -f --user=root --password="$root_password"  --host="$host" mysql <<END_OF_DATA
 ALTER TABLE columns_priv change Type Column_priv set('Select','Insert','Update','References') DEFAULT '' NOT NULL;
 END_OF_DATA
+echo ""
 
 #
 # Add the new 'type' column to the func table.
@@ -108,3 +115,14 @@ echo "You can ignore any Duplicate column errors"
 @bindir@/mysql --user=root --password=$root_password mysql <<EOF
 alter table func add type enum ('function','aggregate') NOT NULL;
 EOF
+echo ""
+
+echo "Converting all privilege tables to MyISAM format"
+@bindir@/mysql -f --user=root --password="$root_password"  --host="$host" mysql <<END_OF_DATA
+ALTER TABLE user type=MyISAM;
+ALTER TABLE db type=MyISAM;
+ALTER TABLE host type=MyISAM;
+ALTER TABLE func type=MyISAM;
+ALTER TABLE columns_priv type=MyISAM;
+ALTER TABLE tables_priv type=MyISAM;
+END_OF_DATA

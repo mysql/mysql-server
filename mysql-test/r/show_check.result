@@ -1,95 +1,145 @@
-Table	Op	Msg_type	Msg_text
-test.t1	optimize	status	OK
-Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
-test.t2	check	error	The handler for the table doesn't support check/repair
-Table	Op	Msg_type	Msg_text
-test.t1	repair	status	OK
-test.t2	repair	error	The handler for the table doesn't support check/repair
-Table	Op	Msg_type	Msg_text
-test.t2	check	error	The handler for the table doesn't support check/repair
-test.t1	check	status	OK
-Table	Op	Msg_type	Msg_text
-test.t2	check	error	Table 't2' was not locked with LOCK TABLES
-test.t1	check	status	OK
-Field	Type	Null	Key	Default	Extra
-a	int(11)		PRI	0	
-b	int(11)		MUL	0	
-c	int(11)			0	
-Field	Type	Null	Key	Default	Extra	Privileges
-a	int(11)		PRI	0		select,insert,update,references
-b	int(11)		MUL	0		select,insert,update,references
-c	int(11)			0		select,insert,update,references
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
-t1	0	PRIMARY	1	a	A	4	NULL	NULL	
-t1	1	b	1	b	A	1	NULL	NULL	
-t1	1	b	2	c	A	4	NULL	NULL	
+drop table if exists t1,t2;
+create table t1 (a int not null primary key, b int not null,c int not null, key(b,c));
+insert into t1 values (1,2,2),(2,2,3),(3,2,4),(4,2,4);
+check table t1 type=fast;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	Table is already up to date
+check table t1 type=fast;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	Table is already up to date
+check table t1 type=changed;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+insert into t1 values (5,5,5);
+check table t1 type=changed;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+check table t1 type=medium;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+check table t1 type=extended;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+show index from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
 t1	0	PRIMARY	1	a	A	5	NULL	NULL	
 t1	1	b	1	b	A	1	NULL	NULL	
 t1	1	b	2	c	A	5	NULL	NULL	
+insert into t1 values (5,5,5);
+Duplicate entry '5' for key 1
+optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
+optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	Table is already up to date
+drop table t1;
+show variables like "wait_timeout%";
 Variable_name	Value
 wait_timeout	28800
+show variables like "this_doesn't_exists%";
 Variable_name	Value
+show table status from test like "this_doesn't_exists%";
 Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Create_options	Comment
+show databases;
 Database
 mysql
 test
+show databases like "test%";
 Database (test%)
 test
+create table t1 (f1 int not null, f2 int not null, f3 int not null, f4 int not null, primary key(f1,f2,f3,f4));
+insert into t1 values (1,1,1,0),(1,1,2,0),(1,1,3,0),(1,2,1,0),(1,2,2,0),(1,2,3,0),(1,3,1,0),(1,3,2,0),(1,3,3,0),(1,1,1,1),(1,1,2,1),(1,1,3,1),(1,2,1,1),(1,2,2,1),(1,2,3,1),(1,3,1,1),(1,3,2,1),(1,3,3,1);
+analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
+show index from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
 t1	0	PRIMARY	1	f1	A	1	NULL	NULL	
 t1	0	PRIMARY	2	f2	A	3	NULL	NULL	
 t1	0	PRIMARY	3	f3	A	9	NULL	NULL	
 t1	0	PRIMARY	4	f4	A	18	NULL	NULL	
+repair table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
+show index from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
 t1	0	PRIMARY	1	f1	A	1	NULL	NULL	
 t1	0	PRIMARY	2	f2	A	3	NULL	NULL	
 t1	0	PRIMARY	3	f3	A	9	NULL	NULL	
 t1	0	PRIMARY	4	f4	A	18	NULL	NULL	
+drop table t1;
+create temporary table t1 (a int not null);
+show create table t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `a` int(11) NOT NULL default '0'
 ) TYPE=MyISAM
+alter table t1 rename t2;
+show create table t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
   `a` int(11) NOT NULL default '0'
 ) TYPE=MyISAM
+drop table t2;
+create table t1 (
+test_set set( 'val1', 'val2', 'val3' ) not null default '',
+name char(20) default 'O''Brien'
+  ) comment = 'it\'s a table' ;
+show create table t1 ;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `test_set` set('val1','val2','val3') NOT NULL default '',
   `name` char(20) default 'O''Brien'
 ) TYPE=MyISAM COMMENT='it''s a table'
+drop table t1;
+create table t1 (a int not null, unique aa (a));
+show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0',
   UNIQUE KEY `aa` (`a`)
 ) TYPE=MyISAM
+drop table t1;
+create table t1 (a int not null, primary key (a));
+show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0',
   PRIMARY KEY  (`a`)
 ) TYPE=MyISAM
+drop table t1;
+flush tables;
+show open tables;
 Database	Table	In_use	Name_locked
+create table t1(n int);
+insert into t1 values (1);
+show open tables;
 Database	Table	In_use	Name_locked
 test	t1	0	0
+drop table t1;
+create table t1 (a int not null, b VARCHAR(10), INDEX (b) ) AVG_ROW_LENGTH=10 CHECKSUM=1 COMMENT="test" TYPE=MYISAM MIN_ROWS=10 MAX_ROWS=100 PACK_KEYS=1 DELAY_KEY_WRITE=1 ROW_FORMAT=fixed;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0',
+  `b` char(10) default NULL,
+  KEY `b` (`b`)
+) TYPE=MyISAM MIN_ROWS=10 MAX_ROWS=100 AVG_ROW_LENGTH=10 PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED COMMENT='test'
+alter table t1 MAX_ROWS=200 ROW_FORMAT=dynamic PACK_KEYS=0;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0',
+  `b` varchar(10) default NULL,
+  KEY `b` (`b`)
+) TYPE=MyISAM MIN_ROWS=10 MAX_ROWS=200 AVG_ROW_LENGTH=10 PACK_KEYS=0 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=DYNAMIC COMMENT='test'
+ALTER TABLE t1 AVG_ROW_LENGTH=0 CHECKSUM=0 COMMENT="" MIN_ROWS=0 MAX_ROWS=0 PACK_KEYS=DEFAULT DELAY_KEY_WRITE=0 ROW_FORMAT=default;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0',
+  `b` varchar(10) default NULL,
+  KEY `b` (`b`)
+) TYPE=MyISAM
+drop table t1;

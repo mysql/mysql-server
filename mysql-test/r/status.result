@@ -1,6 +1,19 @@
+flush status;
+show status like 'Table_lock%';
 Variable_name	Value
 Table_locks_immediate	0
 Table_locks_waited	0
+SET SQL_LOG_BIN=0;
+drop table if exists t1;
+create table t1(n int) type=myisam;
+insert into t1 values(1);
+lock tables t1 read;
+unlock tables;
+lock tables t1 read;
+update t1 set n = 3;
+unlock tables;
+show status like 'Table_lock%';
 Variable_name	Value
 Table_locks_immediate	3
 Table_locks_waited	1
+drop table t1;

@@ -1,4 +1,6 @@
+select last_insert_id(345);
 last_insert_id(345)
 345
+select @@IDENTITY,last_insert_id();
 @@IDENTITY	last_insert_id()
 345	345

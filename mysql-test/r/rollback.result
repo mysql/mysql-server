@@ -1,3 +1,12 @@
+drop table if exists t1;
+create table t1 (n int not null primary key) type=myisam;
+begin work;
+insert into t1 values (4);
+insert into t1 values (5);
+rollback;
+Warning:  Some non-transactional changed tables couldn't be rolled back
+select * from t1;
 n
 4
 5
+drop table t1;

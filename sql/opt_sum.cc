@@ -305,7 +305,7 @@ static bool find_range_key(TABLE_REF *ref, Field* field, COND *cond)
       key>>=1;
     ref->key_length=0;
     ref->key=idx;
-    if (field->part_of_key & ((table_map) 1 << idx))
+    if (field->part_of_key & ((key_map) 1 << idx))
     {
       table->key_read=1;
       table->file->extra(HA_EXTRA_KEYREAD);
@@ -350,7 +350,7 @@ static bool find_range_key(TABLE_REF *ref, Field* field, COND *cond)
       {
 	ref->key_length= (uint) (key_ptr-ref->key_buff);
 	ref->key=idx;
-	if (field->part_of_key & ((table_map) 1 << idx))
+	if (field->part_of_key & ((key_map) 1 << idx))
 	{
 	  table->key_read=1;
 	  table->file->extra(HA_EXTRA_KEYREAD);

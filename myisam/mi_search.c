@@ -105,14 +105,15 @@ int _mi_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   }
   else
   {
-    if (nextflag & SEARCH_FIND && (!(keyinfo->flag & HA_NOSAME)
-                                   || key_len) && nod_flag)
+    if ((nextflag & SEARCH_FIND) && nod_flag &&
+	((keyinfo->flag & (HA_NOSAME | HA_NULL_PART)) != HA_NOSAME ||
+	 key_len != USE_WHOLE_KEY))
     {
       if ((error=_mi_search(info,keyinfo,key,key_len,SEARCH_FIND,
                             _mi_kpos(nod_flag,keypos))) >= 0 ||
           my_errno != HA_ERR_KEY_NOT_FOUND)
         DBUG_RETURN(error);
-      info->last_keypage= HA_OFFSET_ERROR;              /* Buffer not in memory */
+      info->last_keypage= HA_OFFSET_ERROR;              /* Buffer not in mem */
     }
   }
   if (pos != info->last_keypage)
@@ -281,8 +282,6 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   LINT_INIT(saved_vseg);
 
   t_buff[0]=0;                                  /* Avoid bugs */
-  if (!(nextflag & (SEARCH_FIND | SEARCH_NO_FIND | SEARCH_LAST)))
-    key_len=USE_WHOLE_KEY;
   end= page+mi_getint(page);
   nod_flag=mi_test_if_nod(page);
   page+=2+nod_flag;
@@ -475,11 +474,11 @@ my_off_t _mi_kpos(uint nod_flag, uchar *after_key)
   switch (nod_flag) {
 #if SIZEOF_OFF_T > 4
   case 7:
-    return mi_uint7korr(after_key)*MI_KEY_BLOCK_LENGTH;
+    return mi_uint7korr(after_key)*MI_MIN_KEY_BLOCK_LENGTH;
   case 6:
-    return mi_uint6korr(after_key)*MI_KEY_BLOCK_LENGTH;
+    return mi_uint6korr(after_key)*MI_MIN_KEY_BLOCK_LENGTH;
   case 5:
-    return mi_uint5korr(after_key)*MI_KEY_BLOCK_LENGTH;
+    return mi_uint5korr(after_key)*MI_MIN_KEY_BLOCK_LENGTH;
 #else
   case 7:
     after_key++;
@@ -489,13 +488,13 @@ my_off_t _mi_kpos(uint nod_flag, uchar *after_key)
     after_key++;
 #endif
   case 4:
-    return ((my_off_t) mi_uint4korr(after_key))*MI_KEY_BLOCK_LENGTH;
+    return ((my_off_t) mi_uint4korr(after_key))*MI_MIN_KEY_BLOCK_LENGTH;
   case 3:
-    return ((my_off_t) mi_uint3korr(after_key))*MI_KEY_BLOCK_LENGTH;
+    return ((my_off_t) mi_uint3korr(after_key))*MI_MIN_KEY_BLOCK_LENGTH;
   case 2:
-    return (my_off_t) (mi_uint2korr(after_key)*MI_KEY_BLOCK_LENGTH);
+    return (my_off_t) (mi_uint2korr(after_key)*MI_MIN_KEY_BLOCK_LENGTH);
   case 1:
-    return (uint) (*after_key)*MI_KEY_BLOCK_LENGTH;
+    return (uint) (*after_key)*MI_MIN_KEY_BLOCK_LENGTH;
   case 0:                                       /* At leaf page */
   default:                                      /* Impossible */
     return(HA_OFFSET_ERROR);
@@ -507,7 +506,7 @@ my_off_t _mi_kpos(uint nod_flag, uchar *after_key)
 
 void _mi_kpointer(register MI_INFO *info, register uchar *buff, my_off_t pos)
 {
-  pos/=MI_KEY_BLOCK_LENGTH;
+  pos/=MI_MIN_KEY_BLOCK_LENGTH;
   switch (info->s->base.key_reflength) {
 #if SIZEOF_OFF_T > 4
   case 7: mi_int7store(buff,pos); break;
@@ -717,10 +716,7 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
   double d_1,d_2;
   uint next_key_length;
 
-  if (!(nextflag & (SEARCH_FIND | SEARCH_NO_FIND | SEARCH_LAST)))
-    key_length=USE_WHOLE_KEY;
   *diff_pos=0;
-
   for ( ; (int) key_length >0 ; key_length=next_key_length, keyseg++)
   {
     uchar *end;
@@ -1452,7 +1448,7 @@ int _mi_search_next(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       info->page_changed ||
       (info->int_keytree_version != keyinfo->version &&
        (info->int_nod_flag || info->buff_used)))
-    DBUG_RETURN(_mi_search(info,keyinfo,key,key_length,
+    DBUG_RETURN(_mi_search(info,keyinfo,key, USE_WHOLE_KEY,
                            nextflag | SEARCH_SAVE_BUFF, pos));
 
   if (info->buff_used)
@@ -1465,17 +1461,17 @@ int _mi_search_next(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 
   /* Last used buffer is in info->buff */
   nod_flag=mi_test_if_nod(info->buff);
-  memcpy(lastkey,key,key_length);
 
   if (nextflag & SEARCH_BIGGER)                                 /* Next key */
   {
     my_off_t tmp_pos=_mi_kpos(nod_flag,info->int_keypos);
     if (tmp_pos != HA_OFFSET_ERROR)
     {
-      if ((error=_mi_search(info,keyinfo,key,key_length,
+      if ((error=_mi_search(info,keyinfo,key, USE_WHOLE_KEY,
                             nextflag | SEARCH_SAVE_BUFF, tmp_pos)) <=0)
         DBUG_RETURN(error);
     }
+    memcpy(lastkey,key,key_length);
     if (!(info->lastkey_length=(*keyinfo->get_key)(keyinfo,nod_flag,
                                                    &info->int_keypos,lastkey)))
       DBUG_RETURN(-1);
@@ -1489,12 +1485,14 @@ int _mi_search_next(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     if (!info->int_keypos)
       DBUG_RETURN(-1);
     if (info->int_keypos == info->buff+2)
-      DBUG_RETURN(_mi_search(info,keyinfo,key,key_length,
+      DBUG_RETURN(_mi_search(info,keyinfo,key, USE_WHOLE_KEY,
                              nextflag | SEARCH_SAVE_BUFF, pos));
-    if ((error=_mi_search(info,keyinfo,key,0,nextflag | SEARCH_SAVE_BUFF,
+    if ((error=_mi_search(info,keyinfo,key, USE_WHOLE_KEY,
+			  nextflag | SEARCH_SAVE_BUFF,
                           _mi_kpos(nod_flag,info->int_keypos))) <= 0)
       DBUG_RETURN(error);
 
+    /* QQ: We should be able to optimize away the following call */
     if (! _mi_get_last_key(info,keyinfo,info->buff,lastkey,
                            info->int_keypos,&info->lastkey_length))
       DBUG_RETURN(-1);
