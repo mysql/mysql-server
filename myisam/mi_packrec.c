@@ -43,7 +43,7 @@
   pos+= *pos
 
 
-static void read_huff_table(MI_BIT_BUFF *bit_buff,MI_DECODE_TREE *decode_tree,
+static uint read_huff_table(MI_BIT_BUFF *bit_buff,MI_DECODE_TREE *decode_tree,
 			    uint16 **decode_table,byte **intervall_buff,
 			    uint16 *tmp_buff);
 static void make_quick_table(uint16 *to_table,uint16 *decode_table,
@@ -146,12 +146,12 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
   {
     if (!my_errno)
       my_errno=HA_ERR_END_OF_FILE;
-    DBUG_RETURN(1);
+    goto err0;
   }
   if (memcmp((byte*) header,(byte*) myisam_pack_file_magic,4))
   {
     my_errno=HA_ERR_WRONG_IN_RECORD;
-    DBUG_RETURN(1);
+    goto err0;
   }
   share->pack.header_length=	uint4korr(header+4);
   share->min_pack_length=(uint) uint4korr(header+8);
@@ -173,7 +173,7 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
 	my_malloc((uint) (trees*sizeof(MI_DECODE_TREE)+
 			  intervall_length*sizeof(byte)),
 		  MYF(MY_WME))))
-    DBUG_RETURN(1);
+    goto err0;
   intervall_buff=(byte*) (share->decode_trees+trees);
 
   length=(uint) (elements*2+trees*(1 << myisam_quick_table_bits));
@@ -183,7 +183,7 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
 		  MYF(MY_WME | MY_ZEROFILL))))
   {
     my_free((gptr) share->decode_trees,MYF(0));
-    DBUG_RETURN(1);
+    goto err1;
   }
   tmp_buff=share->decode_tables+length;
   disk_cache=(byte*) (tmp_buff+512);
@@ -194,7 +194,7 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
   {
     my_free((gptr) share->decode_trees,MYF(0));
     my_free((gptr) share->decode_tables,MYF(0));
-    DBUG_RETURN(1);
+    goto err2;
   }
 
   huff_tree_bits=max_bit(trees ? trees-1 : 0);
@@ -213,8 +213,9 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
   skip_to_next_byte(&bit_buff);
   decode_table=share->decode_tables;
   for (i=0 ; i < trees ; i++)
-    read_huff_table(&bit_buff,share->decode_trees+i,&decode_table,
-		    &intervall_buff,tmp_buff);
+    if (read_huff_table(&bit_buff,share->decode_trees+i,&decode_table,
+                        &intervall_buff,tmp_buff))
+      goto err3;
   decode_table=(uint16*)
     my_realloc((gptr) share->decode_tables,
 	       (uint) ((byte*) decode_table - (byte*) share->decode_tables),
@@ -224,8 +225,7 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
     share->decode_tables=decode_table;
     for (i=0 ; i < trees ; i++)
       share->decode_trees[i].table=ADD_TO_PTR(share->decode_trees[i].table,
-					      diff,
-					      uint16*);
+                                              diff, uint16*);
   }
 
 	/* Fix record-ref-length for keys */
@@ -242,19 +242,24 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
   }
 
   if (bit_buff.error || bit_buff.pos < bit_buff.end)
-  {					/* info_length was wrong */
-    my_errno=HA_ERR_WRONG_IN_RECORD;
-    my_free((gptr) share->decode_trees,MYF(0));
-    my_free((gptr) share->decode_tables,MYF(0));
-    DBUG_RETURN(1);
-  }
+    goto err3;
+
   DBUG_RETURN(0);
+
+err3:
+  my_errno=HA_ERR_WRONG_IN_RECORD;
+err2:
+  my_free((gptr) share->decode_tables,MYF(0));
+err1:
+  my_free((gptr) share->decode_trees,MYF(0));
+err0:
+  DBUG_RETURN(1);
 }
 
 
 	/* Read on huff-code-table from datafile */
 
-static void read_huff_table(MI_BIT_BUFF *bit_buff, MI_DECODE_TREE *decode_tree,
+static uint read_huff_table(MI_BIT_BUFF *bit_buff, MI_DECODE_TREE *decode_tree,
 			    uint16 **decode_table, byte **intervall_buff,
 			    uint16 *tmp_buff)
 {
@@ -298,6 +303,8 @@ static void read_huff_table(MI_BIT_BUFF *bit_buff, MI_DECODE_TREE *decode_tree,
   if (! intervall_length)
   {
     table_bits=find_longest_bitstream(tmp_buff);
+    if (table_bits == (uint) ~0)
+      return 1;
     if (table_bits > myisam_quick_table_bits)
       table_bits=myisam_quick_table_bits;
     next_free_offset= (1 << table_bits);
@@ -315,7 +322,7 @@ static void read_huff_table(MI_BIT_BUFF *bit_buff, MI_DECODE_TREE *decode_tree,
     bit_buff->pos+=intervall_length;
     bit_buff->bits=0;
   }
-  return;
+  return 0;
 }
 
 
@@ -393,9 +400,13 @@ static uint copy_decode_table(uint16 *to_pos, uint offset,
 static uint find_longest_bitstream(uint16 *table)
 {
   uint length=1,length2;
+  if (*table > 512)
+    return ~0;
   if (!(*table & IS_CHAR))
     length=find_longest_bitstream(table+ *table)+1;
   table++;
+  if (*table > 512)
+    return ~0;
   if (!(*table & IS_CHAR))
   {
     length2=find_longest_bitstream(table+ *table)+1;
