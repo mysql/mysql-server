@@ -196,7 +196,9 @@ public:
       Bit = NDB_TYPE_BIT,          ///< Bit, length specifies no of bits
       Longvarchar = NDB_TYPE_LONG_VARCHAR,  ///< Length bytes: 2, little-endian
       Longvarbinary = NDB_TYPE_LONG_VARBINARY, ///< Length bytes: 2, little-endian
-      Time = NDB_TYPE_TIME         ///< Time without date
+      Time = NDB_TYPE_TIME,        ///< Time without date
+      Year = NDB_TYPE_YEAR,   ///< Year 1901-2155 (1 byte)
+      Timestamp = NDB_TYPE_TIMESTAMP  ///< Unix time
     };
 
     /** 
