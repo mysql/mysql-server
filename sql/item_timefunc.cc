@@ -49,16 +49,16 @@ bool get_interval_info(const char *str,uint length,uint count,
 {
   const char *end=str+length;
   uint i;
-  while (str != end && !isdigit(*str))
+  while (str != end && !my_isdigit(system_charset_info,*str))
     str++;
 
   for (i=0 ; i < count ; i++)
   {
     long value;
-    for (value=0; str != end && isdigit(*str) ; str++)
+    for (value=0; str != end && my_isdigit(system_charset_info,*str) ; str++)
       value=value*10L + (long) (*str - '0');
     values[i]= value;
-    while (str != end && !isdigit(*str))
+    while (str != end && !my_isdigit(system_charset_info,*str))
       str++;
     if (str == end && i != count-1)
     {
@@ -289,7 +289,7 @@ static bool get_interval_value(Item *args,interval_type int_type,
     /* record negative intervalls in t->neg */
     str=res->ptr();
     const char *end=str+res->length();
-    while (str != end && isspace(*str))
+    while (str != end && my_isspace(system_charset_info,*str))
       str++;
     if (str != end && *str == '-')
     {

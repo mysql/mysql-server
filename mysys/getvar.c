@@ -58,14 +58,15 @@ my_bool set_changeable_var(my_string str,CHANGEABLE_VAR *vars)
       longlong num;
 
       /* Skip end space from variable */
-      for (var_end=end ; end > str && isspace(var_end[-1]) ; var_end--) ;
+      for (var_end=end ; end > str && my_isspace(system_charset_info, var_end[-1]) ; var_end--) ;
       length=(uint) (var_end-str);
       /* Skip start space from argument */
-      for (end++ ; isspace(*end) ; end++) ;
+      for (end++ ; my_isspace(system_charset_info, *end) ; end++) ;
 
       for (var=vars,found=0 ; (name=var->name) ; var++)
       {
-	if (!my_casecmp(name,str,length))
+        /* BAR TODO: remove system_charset_info */
+	if (!my_strncasecmp(system_charset_info,name,str,length))
 	{
 	  found=var; found_count++;
 	  if (!name[length])
@@ -93,7 +94,7 @@ my_bool set_changeable_var(my_string str,CHANGEABLE_VAR *vars)
 	num*=1024L*1024L;
       else if (endchar == 'g' || endchar == 'G')
 	num*=1024L*1024L*1024L;
-      else if (!isdigit(endchar))
+      else if (!my_isdigit(system_charset_info, endchar))
       {
 	fprintf(stderr,"Unknown prefix used for variable value '%s'\n",str);
 	DBUG_RETURN(1);

@@ -17,7 +17,6 @@
 #include "mysys_priv.h"
 #include "my_static.h"
 #include "mysys_err.h"
-#include "m_ctype.h"
 #include <m_string.h>
 #include <m_ctype.h>
 #ifdef THREAD
@@ -50,7 +49,7 @@ my_bool my_init_done=0;
 static ulong atoi_octal(const char *str)
 {
   long int tmp;
-  while (*str && isspace(*str))
+  while (*str && my_isspace(system_charset_info, *str))
     str++;
   str2int(str,
 	  (*str == '0' ? 8 : 10),		/* Octalt or decimalt */

@@ -198,7 +198,9 @@ int mbcharlen_sjis(uint c)
 
 #define sjiscode(c,d)	((((uint) (uchar)(c)) << 8) | (uint) (uchar) (d))
 
-int my_strnncoll_sjis(const uchar *s1, int len1, const uchar *s2, int len2)
+int my_strnncoll_sjis(CHARSET_INFO *cs,
+                      const uchar *s1, uint len1,
+                      const uchar *s2, uint len2)
 {
   const uchar *e1 = s1 + len1;
   const uchar *e2 = s2 + len2;
@@ -221,13 +223,9 @@ int my_strnncoll_sjis(const uchar *s1, int len1, const uchar *s2, int len2)
   return len1 - len2;
 }
 
-int my_strcoll_sjis(const uchar *s1, const uchar *s2)
-{
-  return (uint) my_strnncoll_sjis(s1,(uint) strlen((char*) s1),
-				  s2,(uint) strlen((char*) s2));
-}
-
-int my_strnxfrm_sjis(uchar *dest, const uchar *src, int len, int srclen)
+int my_strnxfrm_sjis(CHARSET_INFO *cs,
+                     uchar *dest, uint len,
+                     const uchar *src, uint srclen)
 {
   uchar *d_end = dest + len;
   uchar *s_end = (uchar*) src + srclen;
@@ -242,12 +240,6 @@ int my_strnxfrm_sjis(uchar *dest, const uchar *src, int len, int srclen)
   }
   return srclen;
 }
-
-int my_strxfrm_sjis(uchar *dest, const uchar *src, int len)
-{
-  return my_strnxfrm_sjis(dest, src, len, (uint) strlen((char*) src));
-}
-
 
 /*
 ** Calculate min_str and max_str that ranges a LIKE string.
@@ -270,9 +262,10 @@ int my_strxfrm_sjis(uchar *dest, const uchar *src, int len)
 #define wild_one '_'
 #define wild_many '%'
 
-my_bool my_like_range_sjis(const char *ptr,uint ptr_length,pchar escape,
-                      uint res_length, char *min_str,char *max_str,
-                      uint *min_length,uint *max_length)
+my_bool my_like_range_sjis(CHARSET_INFO *cs,
+                           const char *ptr,uint ptr_length,pchar escape,
+                           uint res_length, char *min_str,char *max_str,
+                           uint *min_length,uint *max_length)
 {
   const char *end=ptr+ptr_length;
   char *min_org=min_str;

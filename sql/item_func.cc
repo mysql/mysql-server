@@ -991,7 +991,8 @@ longlong Item_func_find_in_set::val_int()
       const char *pos= f_pos;
       while (pos != f_end)
       {
-	if (toupper(*str) != toupper(*pos))
+	if (my_toupper(find->charset(),*str) != 
+            my_toupper(find->charset(),*pos))
 	  goto not_found;
 	str++;
 	pos++;

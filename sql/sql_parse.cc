@@ -692,7 +692,8 @@ pthread_handler_decl(handle_bootstrap,arg)
   while (fgets(buff, thd->net.max_packet, file))
   {
     uint length=(uint) strlen(buff);
-    while (length && (isspace(buff[length-1]) || buff[length-1] == ';'))
+    while (length && (my_isspace(system_charset_info, buff[length-1]) || 
+           buff[length-1] == ';'))
       length--;
     buff[length]=0;
     thd->current_tablenr=0;
@@ -917,13 +918,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     packet_length--;				// Remove end null
     /* Remove garage at start and end of query */
-    while (isspace(packet[0]) && packet_length > 0)
+    while (my_isspace(system_charset_info,packet[0]) && packet_length > 0)
     {
       packet++;
       packet_length--;
     }
     char *pos=packet+packet_length;		// Point at end null
-    while (packet_length > 0 && (pos[-1] == ';' || isspace(pos[-1])))
+    while (packet_length > 0 && 
+           (pos[-1] == ';' || my_isspace(system_charset_info,pos[-1])))
     {
       pos--;
       packet_length--;
@@ -2261,7 +2263,8 @@ mysql_execute_command(void)
 	if (user->password.str &&
 	    (strcmp(thd->user,user->user.str) ||
 	     user->host.str &&
-	     my_strcasecmp(user->host.str, thd->host_or_ip)))
+	     my_strcasecmp(system_charset_info, 
+                           user->host.str, thd->host_or_ip)))
 	{
 	  if (check_access(thd, UPDATE_ACL, "mysql",0,1))
 	    goto error;
@@ -3112,8 +3115,8 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   ptr->name=alias_str;
   if (lower_case_table_names)
   {
-    casedn_str(ptr->db);
-    casedn_str(table->table.str);
+    my_casedn_str(system_charset_info,ptr->db);
+    my_casedn_str(system_charset_info,table->table.str);
   }
   ptr->real_name=table->table.str;
   ptr->lock_type=flags;

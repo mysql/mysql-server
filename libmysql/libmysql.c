@@ -1282,8 +1282,8 @@ STDCALL mysql_rpl_query_type(const char* q, int len)
   for(; q < q_end; ++q)
   {
     char c;
-    if (isalpha(c=*q))
-      switch(tolower(c))
+    if (my_isalpha(system_charset_info,c=*q))
+      switch(my_tolower(system_charset_info,c))
        {
        case 'i':  /* insert */
        case 'u':  /* update or unlock tables */
@@ -1292,9 +1292,11 @@ STDCALL mysql_rpl_query_type(const char* q, int len)
        case 'a':  /* alter */
 	 return MYSQL_RPL_MASTER;
        case 'c':  /* create or check */
-	 return tolower(q[1]) == 'h' ? MYSQL_RPL_ADMIN : MYSQL_RPL_MASTER ;
+	 return my_tolower(system_charset_info,q[1]) == 'h' ? MYSQL_RPL_ADMIN : 
+	                                                      MYSQL_RPL_MASTER;
        case 's': /* select or show */
-	 return tolower(q[1]) == 'h' ? MYSQL_RPL_ADMIN : MYSQL_RPL_SLAVE;
+	 return my_tolower(system_charset_info,q[1]) == 'h' ? MYSQL_RPL_ADMIN :
+	                                                      MYSQL_RPL_SLAVE;
        case 'f': /* flush */
        case 'r': /* repair */
        case 'g': /* grant */

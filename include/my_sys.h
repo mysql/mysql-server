@@ -563,11 +563,7 @@ extern void allow_break(void);
 #endif
 
 extern void my_remember_signal(int signal_number,sig_handler (*func)(int));
-extern void caseup(my_string str,uint length);
-extern void casedn(my_string str,uint length);
-extern void caseup_str(my_string str);
-extern void casedn_str(my_string str);
-extern void case_sort(my_string str,uint length);
+extern void case_sort(CHARSET_INFO *cs, my_string str,uint length);
 extern uint dirname_part(my_string to,const char *name);
 extern uint dirname_length(const char *name);
 #define base_name(A) (A+dirname_length(A))
@@ -592,18 +588,14 @@ extern my_string my_path(my_string to,const char *progname,
 extern my_string my_load_path(my_string to, const char *path,
 			      const char *own_path_prefix);
 extern int wild_compare(const char *str,const char *wildstr);
-extern my_string my_strcasestr(const char *src,const char *suffix);
-extern int my_strcasecmp(const char *s,const char *t);
-extern int my_strsortcmp(const char *s,const char *t);
-extern int my_casecmp(const char *s,const char *t,uint length);
-extern int my_sortcmp(const char *s,const char *t,uint length);
-extern int my_sortncmp(const char *s,uint s_len, const char *t,uint t_len);
+extern int my_sortcmp(CHARSET_INFO *cs, const char *s,const char *t,uint length);
+extern int my_sortncmp(CHARSET_INFO *cs, const char *s,uint s_len, const char *t,uint t_len);
 extern WF_PACK *wf_comp(my_string str);
 extern int wf_test(struct wild_file_pack *wf_pack,const char *name);
 extern void wf_end(struct wild_file_pack *buffer);
 extern size_s stripp_sp(my_string str);
 extern void get_date(my_string to,int timeflag,time_t use_time);
-extern void soundex(my_string out_pntr, my_string in_pntr,pbool remove_garbage);
+extern void soundex(CHARSET_INFO *, my_string out_pntr, my_string in_pntr,pbool remove_garbage);
 extern int init_record_cache(RECORD_CACHE *info,uint cachesize,File file,
 			     uint reclength,enum cache_type type,
 			     pbool use_async_io);

@@ -145,12 +145,7 @@ public:
   virtual void set_key_image(char *buff,uint length)
     { set_image(buff,length); }
   inline int cmp_image(char *buff,uint length)
-    {
-      if (binary())
-	return memcmp(ptr,buff,length);
-      else
-	return my_casecmp(ptr,buff,length);
-    }
+    { return memcmp(ptr,buff,length); }
   inline longlong val_int_offset(uint row_offset)
     {
       ptr+=row_offset;
@@ -241,6 +236,8 @@ public:
 
 
 class Field_str :public Field {
+protected:
+  CHARSET_INFO *field_charset;
 public:
   Field_str(char *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
 	    uchar null_bit_arg, utype unireg_check_arg,
@@ -248,12 +245,20 @@ public:
 	    struct st_table *table_arg)
     :Field(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
 	   unireg_check_arg, field_name_arg, table_arg)
-    {}
+    { field_charset=default_charset_info; }
   Item_result result_type () const { return STRING_RESULT; }
   uint decimals() const { return NOT_FIXED_DEC; }
   friend class create_field;
   void make_field(Send_field *);
   uint size_of() const { return sizeof(*this); }
+  inline int cmp_image(char *buff,uint length)
+    {
+      if (binary())
+	return memcmp(ptr,buff,length);
+      else
+	return my_strncasecmp(field_charset,ptr,buff,length);
+  }
+
 };
 
 

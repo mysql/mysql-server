@@ -237,9 +237,9 @@ void init_slave_skip_errors(char* arg)
     exit(1);
   }
   use_slave_mask = 1;
-  for (;isspace(*arg);++arg)
+  for (;my_isspace(system_charset_info,*arg);++arg)
     /* empty */;
-  if (!my_casecmp(arg,"all",3))
+  if (!my_strncasecmp(system_charset_info,arg,"all",3))
   {
     bitmap_set_all(&slave_error_mask);
     return;
@@ -251,7 +251,7 @@ void init_slave_skip_errors(char* arg)
       break;
     if (err_code < MAX_SLAVE_ERROR)
        bitmap_set_bit(&slave_error_mask,(uint)err_code);
-    while (!isdigit(*p) && *p)
+    while (!my_isdigit(system_charset_info,*p) && *p)
       p++;
   }
 }
@@ -492,7 +492,8 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
     {
       TABLE_RULE_ENT* e ;
       get_dynamic(a, (gptr)&e, i);
-      if (!wild_case_compare(key, key_end, (const char*)e->db,
+      if (!wild_case_compare(system_charset_info, key, key_end, 
+                            (const char*)e->db,
 			    (const char*)(e->db + e->key_len),'\\'))
 	return e;
     }

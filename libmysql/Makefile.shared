@@ -41,7 +41,7 @@ mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
 			strcend.lo bcmp.lo \
 			bchange.lo bmove.lo bmove_upp.lo longlong2str.lo \
 			strtoull.lo strtoll.lo llstr.lo \
-			ctype.lo $(LTCHARSET_OBJS)
+			ctype.lo ctype-simple.lo ctype-mb.lo $(LTCHARSET_OBJS)
 mystringsextra= 	strto.c
 dbugobjects =		dbug.lo # IT IS IN SAFEMALLOC.C sanity.lo
 mysysheaders =		mysys_priv.h my_static.h

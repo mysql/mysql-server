@@ -42,7 +42,7 @@ uint nr_of_decimals(const char *str)
   if ((str=strchr(str,'.')))
   {
     const char *start= ++str;
-    for ( ; isdigit(*str) ; str++) ;
+    for ( ; my_isdigit(system_charset_info,*str) ; str++) ;
     return (uint) (str-start);
   }
   return 0;
@@ -1268,9 +1268,9 @@ extern "C" {
 extern const char *soundex_map;		// In mysys/static.c
 }
 
-static char get_scode(char *ptr)
+static char get_scode(CHARSET_INFO *cs,char *ptr)
 {
-  uchar ch=toupper(*ptr);
+  uchar ch=my_toupper(cs,*ptr);
   if (ch < 'A' || ch > 'Z')
   {
 					// Thread extended alfa (country spec)
@@ -1292,21 +1292,21 @@ String *Item_func_soundex::val_str(String *str)
   char *to= (char *) tmp_value.ptr();
   char *from= (char *) res->ptr(), *end=from+res->length();
 
-  while (from != end && isspace(*from)) // Skip pre-space
+  while (from != end && my_isspace(str->charset(),*from)) // Skip pre-space
     from++; /* purecov: inspected */
   if (from == end)
     return &empty_string;		// No alpha characters.
-  *to++ = toupper(*from);		// Copy first letter
-  last_ch = get_scode(from);		// code of the first letter
+  *to++ = my_toupper(str->charset(),*from);// Copy first letter
+  last_ch = get_scode(str->charset(),from);// code of the first letter
 					// for the first 'double-letter check.
 					// Loop on input letters until
 					// end of input (null) or output
 					// letter code count = 3
   for (from++ ; from < end ; from++)
   {
-    if (!isalpha(*from))
+    if (!my_isalpha(str->charset(),*from))
       continue;
-    ch=get_scode(from);
+    ch=get_scode(str->charset(),from);
     if ((ch != '0') && (ch != last_ch)) // if not skipped or double
     {
        *to++ = ch;			// letter, copy to output

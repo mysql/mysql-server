@@ -863,7 +863,7 @@ static void set_user(const char *user)
   {
     // allow a numeric uid to be used
     const char *pos;
-    for (pos=user; isdigit(*pos); pos++) ;
+    for (pos=user; my_isdigit(system_charset_info,*pos); pos++) ;
     if (*pos)					// Not numeric id
     {
       fprintf(stderr,"Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
@@ -3769,7 +3769,7 @@ static void get_options(int argc,char **argv)
 	    exit(1);
 	  }
 	val = p--;
-	while(isspace(*p) && p > optarg) *p-- = 0;
+	while(my_isspace(system_charset_info,*p) && p > optarg) *p-- = 0;
 	if(p == optarg)
 	  {
 	    fprintf(stderr,
@@ -3778,7 +3778,7 @@ static void get_options(int argc,char **argv)
 	  }
 	*val = 0;
 	val += 2;
-	while(*val && isspace(*val)) *val++;
+	while(*val && my_isspace(system_charset_info,*val)) *val++;
 	if (!*val)
 	  {
 	    fprintf(stderr,
@@ -3937,7 +3937,7 @@ static void get_options(int argc,char **argv)
       have_symlink=SHOW_OPTION_DISABLED;
       break;
     case (int) OPT_BIND_ADDRESS:
-      if (optarg && isdigit(optarg[0]))
+      if (optarg && my_isdigit(system_charset_info,optarg[0]))
       {
 	my_bind_addr = (ulong) inet_addr(optarg);
       }
@@ -4409,7 +4409,8 @@ static ulong find_bit_type(const char *x, TYPELIB *bit_lib)
       j=pos;
       while (j != end)
       {
-	if (toupper(*i++) != toupper(*j++))
+	if (my_toupper(system_charset_info,*i++) != 
+            my_toupper(system_charset_info,*j++))
 	  goto skipp;
       }
       found_int=bit;

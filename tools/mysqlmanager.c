@@ -402,8 +402,8 @@ static int exec_line(struct manager_thd* thd,char* buf,char* buf_end)
 {
   char* p=buf;
   struct manager_cmd* cmd;
-  for (;p<buf_end && !isspace(*p);p++)
-    *p=tolower(*p);
+  for (;p<buf_end && !my_isspace(system_charset_info,*p);p++)
+    *p=my_tolower(system_charset_info,*p);
   log_info("Command '%s'", buf);
   if (!(cmd=lookup_cmd(buf,(int)(p-buf))))
   {
@@ -413,7 +413,7 @@ static int exec_line(struct manager_thd* thd,char* buf,char* buf_end)
       thd->fatal=1;
     return 1;
   }
-  for (;p<buf_end && isspace(*p);p++);
+  for (;p<buf_end && my_isspace(system_charset_info,*p);p++);
   return cmd->handler_func(thd,p,buf_end);
 }
 
@@ -691,7 +691,7 @@ HANDLE_DECL(handle_query)
   int num_fields,i,ident_len;
   char* ident,*query;
   query=ident=args_start;
-  while (!isspace(*query))
+  while (!my_isspace(system_charset_info,*query))
     query++;
   if (query == ident)
   {
@@ -699,7 +699,7 @@ HANDLE_DECL(handle_query)
     goto err;
   }
   ident_len=(int)(query-ident);
-  while (query<args_end && isspace(*query))
+  while (query<args_end && my_isspace(system_charset_info,*query))
     query++;
   if (query == args_end)
   {
@@ -976,7 +976,7 @@ static int authenticate(struct manager_thd* thd)
   for (buf=thd->cmd_buf,p=thd->user,p_end=p+MAX_USER_NAME;
        buf<buf_end && (c=*buf) && p<p_end; buf++,p++)
   {
-    if (isspace(c))
+    if (my_isspace(system_charset_info,c))
     {
       *p=0;
       break;
@@ -989,7 +989,7 @@ static int authenticate(struct manager_thd* thd)
   if (!(u=(struct manager_user*)hash_search(&user_hash,thd->user,
 					    (uint)(p-thd->user))))
     return 1;
-  for (;isspace(*buf) && buf<buf_end;buf++) /* empty */;
+  for (;my_isspace(system_charset_info,*buf) && buf<buf_end;buf++) /* empty */;
 
   my_MD5Init(&context);
   my_MD5Update(&context,(uchar*) buf,(uint)(buf_end-buf));
@@ -1596,9 +1596,9 @@ static void manager_exec_free(void* e)
 
 static int hex_val(char c)
 {
-  if (isdigit(c))
+  if (my_isdigit(system_charset_info,c))
     return c-'0';
-  c=tolower(c);
+  c=my_tolower(system_charset_info,c);
   return c-'a'+10;
 }
 

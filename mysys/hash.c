@@ -129,7 +129,9 @@ static uint calc_hashnr_caseup(const byte *key,uint length)
   register uint nr=1, nr2=4;
   while (length--)
   {
-    nr^= (((nr & 63)+nr2)*((uint) (uchar) toupper(*key++)))+ (nr << 8);
+    /* BAR TODO: remove default_charset_info */
+    nr^= (((nr & 63)+nr2)*
+         ((uint) (uchar) my_toupper(default_charset_info, *key++)))+ (nr << 8);
     nr2+=3;
   }
   return((uint) nr);
@@ -271,9 +273,10 @@ static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length)
 {
   uint rec_keylength;
   byte *rec_key=hash_key(hash,pos->data,&rec_keylength,1);
+  /* BAR TODO: remove default_charset_info */
   return (length && length != rec_keylength) ||
     (hash->flags & HASH_CASE_INSENSITIVE ?
-     my_casecmp(rec_key,key,rec_keylength) :
+     my_strncasecmp(default_charset_info, rec_key,key,rec_keylength) :
      memcmp(rec_key,key,rec_keylength));
 }
 

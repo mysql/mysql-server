@@ -513,9 +513,8 @@ static void make_sortkey(register SORTPARAM *param,
                 from=param->tmp_buffer;
               }
               uint tmp_length=my_strnxfrm(default_charset_info,
-                                          to,(unsigned char *) from,
-                                          sort_field->length,
-                                          length);
+                                          to,sort_field->length,
+                                          (unsigned char *) from, length);
               if (tmp_length < sort_field->length)
                 bzero((char*) to+tmp_length,sort_field->length-tmp_length);
             }
@@ -527,7 +526,7 @@ static void make_sortkey(register SORTPARAM *param,
               memcpy(to,res->ptr(),length);
             bzero((char *)to+length,diff);
             if (!item->binary)
-              case_sort((char*) to,length);
+              case_sort(default_charset_info, (char*) to,length);
 #ifdef USE_STRCOLL
           }
 #endif
@@ -925,7 +924,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
 	sortorder->length=sortorder->field->pack_length();
 #ifdef USE_STRCOLL
 	if (use_strcoll(default_charset_info) && !sortorder->field->binary())
-	  sortorder->length= sortorder->length*MY_STRXFRM_MULTIPLY;
+	  sortorder->length= sortorder->length*default_charset_info->strxfrm_multiply;
 #endif
       }
       if (sortorder->field->maybe_null())
@@ -938,7 +937,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
 	sortorder->length=sortorder->item->max_length;
 #ifdef USE_STRCOLL
 	if (use_strcoll(default_charset_info) && !sortorder->item->binary)
-	  sortorder->length= sortorder->length*MY_STRXFRM_MULTIPLY;
+	  sortorder->length= sortorder->length*default_charset_info->strxfrm_multiply;
 #endif
 	break;
       case INT_RESULT:
