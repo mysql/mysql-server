@@ -22,6 +22,7 @@
 #include "sql_repl.h"
 #include "repl_failsafe.h"
 #include "stacktrace.h"
+#include "mysqld_suffix.h"
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif
@@ -191,22 +192,6 @@ inline void reset_floating_point_exceptions()
 extern "C" int gethostname(char *name, int namelen);
 #endif
 
-/* Set prefix for windows binary */
-#ifdef __WIN__
-#undef MYSQL_SERVER_SUFFIX
-#ifdef __NT__
-#if defined(HAVE_BERKELEY_DB)
-#define MYSQL_SERVER_SUFFIX "-max-nt"
-#else
-#define MYSQL_SERVER_SUFFIX "-nt"
-#endif /* ...DB */
-#elif defined(HAVE_BERKELEY_DB)
-#define MYSQL_SERVER_SUFFIX "-max"
-#else
-#define MYSQL_SERVER_SUFFIX ""
-#endif /* __NT__ */
-#endif /* __WIN__ */
-
 
 /* Constants */
 
@@ -335,7 +320,7 @@ const char *opt_date_time_formats[3];
 
 char *language_ptr, *default_collation_name, *default_character_set_name;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
-char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
+char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
 char *my_bind_addr_str;
 const char **errmesg;			/* Error messages */
@@ -489,6 +474,7 @@ static void start_signal_handler(void);
 extern "C" pthread_handler_decl(signal_hand, arg);
 static void mysql_init_variables(void);
 static void get_options(int argc,char **argv);
+static void set_server_version(void);
 static int init_thread_environment();
 static char *get_relative_path(const char *path);
 static void fix_paths(void);
@@ -2108,18 +2094,11 @@ static int init_common_variables(const char *conf_file_name, int argc,
   strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
-#ifndef DBUG_OFF
-  if (!*(MYSQL_SERVER_SUFFIX))
-    strmov(strend(server_version),"-debug");
-  else
-#endif
-    strmov(strend(server_version),MYSQL_SERVER_SUFFIX);
-
   load_defaults(conf_file_name, groups, &argc, &argv);
   defaults_argv=argv;
   get_options(argc,argv);
-  if (opt_log || opt_update_log || opt_slow_log || opt_bin_log)
-    strcat(server_version,"-log");
+  set_server_version();
+
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
 		     server_version, SYSTEM_TYPE,MACHINE_TYPE));
 
@@ -2603,14 +2582,14 @@ You should consider changing lower_case_table_names to 1 or 2",
     switch (server_id) {
     case 1:
       sql_print_error("\
-Warning: You have enabled the binary log, but you haven't set server-id:\n\
-Updates will be logged to the binary log, but connections to slaves will\n\
-not be accepted.");
+Warning: You have enabled the binary log, but you haven't set server-id to \
+a non-zero value: we force server id to 1; updates will be logged to the \
+binary log, but connections from slaves will not be accepted.");
       break;
     case 2:
       sql_print_error("\
-Warning: You should set server-id to a non-0 value if master_host is set.\n\
-The server will not act as a slave.");
+Warning: You should set server-id to a non-0 value if master_host is set; \
+we force server id to 2, but this MySQL server will not act as a slave.");
       break;
     }
 #endif
@@ -4947,6 +4926,7 @@ struct show_var_st status_vars[]= {
 
 static void print_version(void)
 {
+  set_server_version();
   printf("%s  Ver %s for %s on %s (%s)\n",my_progname,
 	 server_version,SYSTEM_TYPE,MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }
@@ -5825,6 +5805,29 @@ static void get_options(int argc,char **argv)
       init_global_datetime_format(TIMESTAMP_DATETIME,
 				  &global_system_variables.datetime_format))
     exit(1);
+}
+
+
+/*
+  Create version name for running mysqld version
+  We automaticly add suffixes -debug, -embedded and -log to the version
+  name to make the version more descriptive.
+  (MYSQL_SERVER_SUFFIX is set by the compilation environment)
+*/
+
+static void set_server_version(void)
+{
+  char *end= strxmov(server_version, MYSQL_SERVER_VERSION,
+                     MYSQL_SERVER_SUFFIX, NullS);
+#ifdef EMBEDDED_LIBRARY
+  end= strmov(end, "-embedded");
+#endif
+#ifndef DBUG_OFF
+  if (!strstr(MYSQL_SERVER_SUFFIX, "-debug"))
+    end= strmov(end, "-debug");
+#endif
+  if (opt_log || opt_update_log || opt_slow_log || opt_bin_log)
+    strmov(end, "-log");                        // This may slow down system
 }
 
 
