@@ -268,7 +268,7 @@ typedef struct st_table TABLE;
 struct st_foreign_key_info;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
 
-/* Forward declaration for Condition Pushdown to Handler (CPDH) */
+/* Forward declaration for condition pushdown to storage engine */
 typedef struct Item COND;
 
 typedef struct st_ha_check_opt
@@ -625,7 +625,24 @@ public:
  /*
    Condition pushdown to storage engines
  */
+
+/*
+  Push a condition to storage engine for evaluation during table
+  and index scans. The conditions should be stored on a stack
+  for possibly storing several conditions. The stack can be popped
+  by calling cond_pop, handler::extra(HA_EXTRA_RESET) (handler::reset())
+  should clear the stack.
+  The condition can be traversed using Item::traverse_cond
+  RETURN
+    NULL The condition was supported by the handler and will be evaluated
+         for each row found during the scan
+    cond The condition was not supported and all rows will be returned from
+         the scan for evaluation (and thus not saved on stack)
+*/
  virtual const COND *cond_push(const COND *cond) { return cond; };
+/*
+  Pop the top condition from the condition stack of the handler instance.
+*/
  virtual void cond_pop() { return; };
 };
 

@@ -51,10 +51,10 @@ static const char *ha_ndb_ext=".ndb";
 #define ERR_PRINT(err) \
   DBUG_PRINT("error", ("%d  message: %s", err.code, err.message))
 
-#define ERR_RETURN(err)		         \
-{				         \
+#define ERR_RETURN(err)                  \
+{                                        \
   const NdbError& tmp= err;              \
-  ERR_PRINT(tmp);		         \
+  ERR_PRINT(tmp);                        \
   DBUG_RETURN(ndb_to_mysql_error(&tmp)); \
 }
 
@@ -82,10 +82,10 @@ static void free_share(NDB_SHARE *share);
 
 static int packfrm(const void *data, uint len, const void **pack_data, uint *pack_len);
 static int unpackfrm(const void **data, uint *len,
-		     const void* pack_data);
+                     const void* pack_data);
 
 static int ndb_get_table_statistics(Ndb*, const char *, 
-				    struct Ndb_statistics *);
+                                    struct Ndb_statistics *);
 
 // Util thread variables
 static pthread_t ndb_util_thread;
@@ -187,8 +187,8 @@ static int ndb_to_mysql_error(const NdbError *err)
   {
     // Push the NDB error message as warning
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-			ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
-			err->code, err->message, "NDB");
+                        ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                        err->code, err->message, "NDB");
   }
   if (err_map[i].my_err == -1)
     return err->code;
@@ -206,8 +206,8 @@ int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans)
     return 0;
 #endif
   return trans->execute(NdbTransaction::NoCommit,
-			NdbTransaction::AbortOnError,
-			h->m_force_send);
+                        NdbTransaction::AbortOnError,
+                        h->m_force_send);
 }
 
 inline
@@ -219,8 +219,8 @@ int execute_commit(ha_ndbcluster *h, NdbTransaction *trans)
     return 0;
 #endif
   return trans->execute(NdbTransaction::Commit,
-			NdbTransaction::AbortOnError,
-			h->m_force_send);
+                        NdbTransaction::AbortOnError,
+                        h->m_force_send);
 }
 
 inline
@@ -232,8 +232,8 @@ int execute_commit(THD *thd, NdbTransaction *trans)
     return 0;
 #endif
   return trans->execute(NdbTransaction::Commit,
-			NdbTransaction::AbortOnError,
-			thd->variables.ndb_force_send);
+                        NdbTransaction::AbortOnError,
+                        thd->variables.ndb_force_send);
 }
 
 inline
@@ -245,8 +245,8 @@ int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans)
     return 0;
 #endif
   return trans->execute(NdbTransaction::NoCommit,
-			NdbTransaction::AO_IgnoreError,
-			h->m_force_send);
+                        NdbTransaction::AO_IgnoreError,
+                        h->m_force_send);
 }
 
 /*
@@ -300,8 +300,8 @@ void ha_ndbcluster::records_update()
   DBUG_ENTER("ha_ndbcluster::records_update");
   struct Ndb_table_local_info *info= (struct Ndb_table_local_info *)m_table_info;
   DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
-		      ((const NDBTAB *)m_table)->getTableId(),
-		      info->no_uncommitted_rows_count));
+                      ((const NDBTAB *)m_table)->getTableId(),
+                      info->no_uncommitted_rows_count));
   //  if (info->records == ~(ha_rows)0)
   {
     Ndb *ndb= get_ndb();
@@ -344,8 +344,8 @@ void ha_ndbcluster::no_uncommitted_rows_init(THD *thd)
     info->no_uncommitted_rows_count= 0;
     info->records= ~(ha_rows)0;
     DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
-			((const NDBTAB *)m_table)->getTableId(),
-			info->no_uncommitted_rows_count));
+                        ((const NDBTAB *)m_table)->getTableId(),
+                        info->no_uncommitted_rows_count));
   }
   DBUG_VOID_RETURN;
 }
@@ -359,8 +359,8 @@ void ha_ndbcluster::no_uncommitted_rows_update(int c)
     (struct Ndb_table_local_info *)m_table_info;
   info->no_uncommitted_rows_count+= c;
   DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
-		      ((const NDBTAB *)m_table)->getTableId(),
-		      info->no_uncommitted_rows_count));
+                      ((const NDBTAB *)m_table)->getTableId(),
+                      info->no_uncommitted_rows_count));
   DBUG_VOID_RETURN;
 }
 
@@ -378,7 +378,7 @@ void ha_ndbcluster::no_uncommitted_rows_reset(THD *thd)
   Take care of the error that occured in NDB
   
   RETURN
-    0	No error
+    0   No error
     #   The mapped error code
 */
 
@@ -397,7 +397,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
     NDBDICT *dict= ndb->getDictionary();
     DBUG_PRINT("info", ("invalidateTable %s", m_tabname));
     dict->invalidateTable(m_tabname);
-    table->s->version= 0L;		/* Free when thread is ready */
+    table->s->version= 0L;              /* Free when thread is ready */
     break;
   }
   default:
@@ -405,7 +405,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
   }
   res= ndb_to_mysql_error(&err);
   DBUG_PRINT("info", ("transformed ndbcluster error %d to mysql error %d", 
-		      err.code, res));
+                      err.code, res));
   if (res == HA_ERR_FOUND_DUPP_KEY)
     m_dupkey= table->s->primary_key;
   
@@ -419,7 +419,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
  */
 
 bool ha_ndbcluster::get_error_message(int error, 
-				      String *buf)
+                                      String *buf)
 {
   DBUG_ENTER("ha_ndbcluster::get_error_message");
   DBUG_PRINT("enter", ("error: %d", error));
@@ -483,11 +483,11 @@ static inline bool ndb_supported_type(enum_field_types type)
 */
 
 bool ha_ndbcluster::set_hidden_key(NdbOperation *ndb_op,
-				   uint fieldnr, const byte *field_ptr)
+                                   uint fieldnr, const byte *field_ptr)
 {
   DBUG_ENTER("set_hidden_key");
   DBUG_RETURN(ndb_op->equal(fieldnr, (char*)field_ptr,
-			    NDB_HIDDEN_PRIMARY_KEY_LENGTH) != 0);
+                            NDB_HIDDEN_PRIMARY_KEY_LENGTH) != 0);
 }
 
 
@@ -541,28 +541,28 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
       pack_len= sizeof(empty_field);
       field_ptr= (byte *)&empty_field;
       if (field->is_null())
-	empty_field= 0;
+        empty_field= 0;
       else
-	empty_field= 1;
+        empty_field= 1;
     }
     if (! (field->flags & BLOB_FLAG))
     {
       if (field->type() != MYSQL_TYPE_BIT)
       {
-	if (field->is_null())
-	  // Set value to NULL
-	  DBUG_RETURN((ndb_op->setValue(fieldnr, 
-					(char*)NULL, pack_len) != 0));
-	// Common implementation for most field types
-	DBUG_RETURN(ndb_op->setValue(fieldnr, 
-				     (char*)field_ptr, pack_len) != 0);
+        if (field->is_null())
+          // Set value to NULL
+          DBUG_RETURN((ndb_op->setValue(fieldnr, 
+                                        (char*)NULL, pack_len) != 0));
+        // Common implementation for most field types
+        DBUG_RETURN(ndb_op->setValue(fieldnr, 
+                                     (char*)field_ptr, pack_len) != 0);
       }
       else // if (field->type() == MYSQL_TYPE_BIT)
       {
-	longlong bits= field->val_int();
+        longlong bits= field->val_int();
  
-	// Round up bit field length to nearest word boundry
-	pack_len= ((pack_len + 3) >> 2) << 2;
+        // Round up bit field length to nearest word boundry
+        pack_len= ((pack_len + 3) >> 2) << 2;
         DBUG_ASSERT(pack_len <= 8);
         if (field->is_null())
           // Set value to NULL
@@ -570,13 +570,13 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
         DBUG_PRINT("info", ("bit field"));
         DBUG_DUMP("value", (char*)&bits, pack_len);
 #ifdef WORDS_BIGENDIAN
-	if (pack_len < 5)
-	{
-	  DBUG_RETURN(ndb_op->setValue(fieldnr, 
-				       ((char*)&bits)+4, pack_len) != 0);
-	}
+        if (pack_len < 5)
+        {
+          DBUG_RETURN(ndb_op->setValue(fieldnr, 
+                                       ((char*)&bits)+4, pack_len) != 0);
+        }
 #endif
-	DBUG_RETURN(ndb_op->setValue(fieldnr, (char*)&bits, pack_len) != 0);
+        DBUG_RETURN(ndb_op->setValue(fieldnr, (char*)&bits, pack_len) != 0);
       }
     }
     // Blob type
@@ -604,7 +604,7 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
       DBUG_DUMP("value", (char*)blob_ptr, min(blob_len, 26));
 
       if (set_blob_value)
-	*set_blob_value= TRUE;
+        *set_blob_value= TRUE;
       // No callback needed to write value
       DBUG_RETURN(ndb_blob->setValue(blob_ptr, blob_len) != 0);
     }
@@ -712,17 +712,17 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
     {
       DBUG_ASSERT(field->ptr != NULL);
       if (! (field->flags & BLOB_FLAG))
-      {	
+      { 
         if (field->type() != MYSQL_TYPE_BIT)
         {
-	  byte *field_buf;
-	  if (field->pack_length() != 0)
-	    field_buf= buf + (field->ptr - table->record[0]);
-	  else
-	    field_buf= (byte *)&dummy_buf;
-	  m_value[fieldnr].rec= ndb_op->getValue(fieldnr, 
-						 field_buf);
-	}
+          byte *field_buf;
+          if (field->pack_length() != 0)
+            field_buf= buf + (field->ptr - table->record[0]);
+          else
+            field_buf= (byte *)&dummy_buf;
+          m_value[fieldnr].rec= ndb_op->getValue(fieldnr, 
+                                                 field_buf);
+        }
         else // if (field->type() == MYSQL_TYPE_BIT)
         {
           m_value[fieldnr].rec= ndb_op->getValue(fieldnr);
@@ -812,7 +812,7 @@ int ha_ndbcluster::get_metadata(const char *path)
     */
     error= 0;
     if (readfrm(path, &data, &length) ||
-	packfrm(data, length, &pack_data, &pack_length))
+        packfrm(data, length, &pack_data, &pack_length))
     {
       my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
       my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
@@ -820,24 +820,24 @@ int ha_ndbcluster::get_metadata(const char *path)
     }
     
     if ((pack_length != tab->getFrmLength()) || 
-	(memcmp(pack_data, tab->getFrmData(), pack_length)))
+        (memcmp(pack_data, tab->getFrmData(), pack_length)))
     {
       if (!invalidating_ndb_table)
       {
-	DBUG_PRINT("info", ("Invalidating table"));
-	dict->invalidateTable(m_tabname);
-	invalidating_ndb_table= TRUE;
+        DBUG_PRINT("info", ("Invalidating table"));
+        dict->invalidateTable(m_tabname);
+        invalidating_ndb_table= TRUE;
       }
       else
       {
-	DBUG_PRINT("error", 
-		   ("metadata, pack_length: %d getFrmLength: %d memcmp: %d", 
-		    pack_length, tab->getFrmLength(),
-		    memcmp(pack_data, tab->getFrmData(), pack_length)));      
-	DBUG_DUMP("pack_data", (char*)pack_data, pack_length);
-	DBUG_DUMP("frm", (char*)tab->getFrmData(), tab->getFrmLength());
-	error= 3;
-	invalidating_ndb_table= FALSE;
+        DBUG_PRINT("error", 
+                   ("metadata, pack_length: %d getFrmLength: %d memcmp: %d", 
+                    pack_length, tab->getFrmLength(),
+                    memcmp(pack_data, tab->getFrmData(), pack_length)));      
+        DBUG_DUMP("pack_data", (char*)pack_data, pack_length);
+        DBUG_DUMP("frm", (char*)tab->getFrmData(), tab->getFrmLength());
+        error= 3;
+        invalidating_ndb_table= FALSE;
       }
     }
     else
@@ -858,8 +858,8 @@ int ha_ndbcluster::get_metadata(const char *path)
 }
 
 static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
-				       const NDBINDEX *index,
-				       KEY *key_info)
+                                       const NDBINDEX *index,
+                                       KEY *key_info)
 {
   DBUG_ENTER("fix_unique_index_attr_order");
   unsigned sz= index->getNoOfIndexColumns();
@@ -885,8 +885,8 @@ static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
       const NdbDictionary::Column *c= index->getColumn(j);
       if (strncmp(field_name, c->getName(), name_sz) == 0)
       {
-	data.unique_index_attrid_map[i]= j;
-	break;
+        data.unique_index_attrid_map[i]= j;
+        break;
       }
     }
     DBUG_ASSERT(data.unique_index_attrid_map[i] != 255);
@@ -917,40 +917,40 @@ int ha_ndbcluster::build_index_list(TABLE *tab, enum ILBP phase)
     {
       strxnmov(unique_index_name, FN_LEN, index_name, unique_suffix, NullS);
       DBUG_PRINT("info", ("Created unique index name \'%s\' for index %d",
-			  unique_index_name, i));
+                          unique_index_name, i));
     }
     // Create secondary indexes if in create phase
     if (phase == ILBP_CREATE)
     {
       DBUG_PRINT("info", ("Creating index %u: %s", i, index_name));      
       switch (idx_type){
-	
+        
       case PRIMARY_KEY_INDEX:
-	// Do nothing, already created
-	break;
+        // Do nothing, already created
+        break;
       case PRIMARY_KEY_ORDERED_INDEX:
-	error= create_ordered_index(index_name, key_info);
-	break;
+        error= create_ordered_index(index_name, key_info);
+        break;
       case UNIQUE_ORDERED_INDEX:
-	if (!(error= create_ordered_index(index_name, key_info)))
-	  error= create_unique_index(unique_index_name, key_info);
-	break;
+        if (!(error= create_ordered_index(index_name, key_info)))
+          error= create_unique_index(unique_index_name, key_info);
+        break;
       case UNIQUE_INDEX:
-	if (!(error= check_index_fields_not_null(i)))
-	  error= create_unique_index(unique_index_name, key_info);
-	break;
+        if (!(error= check_index_fields_not_null(i)))
+          error= create_unique_index(unique_index_name, key_info);
+        break;
       case ORDERED_INDEX:
-	error= create_ordered_index(index_name, key_info);
-	break;
+        error= create_ordered_index(index_name, key_info);
+        break;
       default:
-	DBUG_ASSERT(FALSE);
-	break;
+        DBUG_ASSERT(FALSE);
+        break;
       }
       if (error)
       {
-	DBUG_PRINT("error", ("Failed to create index %u", i));
-	drop_table();
-	break;
+        DBUG_PRINT("error", ("Failed to create index %u", i));
+        drop_table();
+        break;
       }
     }
     // Add handles to index objects
@@ -1002,9 +1002,9 @@ int ha_ndbcluster::check_index_fields_not_null(uint inx)
       Field* field= key_part->field;
       if (field->maybe_null())
       {
-	my_printf_error(ER_NULL_COLUMN_IN_INDEX,ER(ER_NULL_COLUMN_IN_INDEX),
-			MYF(0),field->field_name);
-	DBUG_RETURN(ER_NULL_COLUMN_IN_INDEX);
+        my_printf_error(ER_NULL_COLUMN_IN_INDEX,ER(ER_NULL_COLUMN_IN_INDEX),
+                        MYF(0),field->field_name);
+        DBUG_RETURN(ER_NULL_COLUMN_IN_INDEX);
       }
     }
   
@@ -1140,7 +1140,7 @@ int ha_ndbcluster::set_primary_key(NdbOperation *op, const byte *key)
     char buf[256];
     shrink_varchar(field, ptr, buf);
     if (set_ndb_key(op, field, 
-		    key_part->fieldnr-1, ptr))
+                    key_part->fieldnr-1, ptr))
       ERR_RETURN(op->getNdbError());
     key += key_part->store_length;
   }
@@ -1159,7 +1159,7 @@ int ha_ndbcluster::set_primary_key_from_old_data(NdbOperation *op, const byte *o
   {
     Field* field= key_part->field;
     if (set_ndb_key(op, field, 
-		    key_part->fieldnr-1, old_data+key_part->offset))
+                    key_part->fieldnr-1, old_data+key_part->offset))
       ERR_RETURN(op->getNdbError());
   }
   DBUG_RETURN(0);
@@ -1185,8 +1185,8 @@ int ha_ndbcluster::set_primary_key(NdbOperation *op)
 
 int 
 ha_ndbcluster::set_index_key(NdbOperation *op, 
-			     const KEY *key_info, 
-			     const byte * key_ptr)
+                             const KEY *key_info, 
+                             const byte * key_ptr)
 {
   DBUG_ENTER("ha_ndbcluster::set_index_key");
   uint i;
@@ -1219,11 +1219,11 @@ int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
   {
     Field *field= table->field[i];
     if ((thd->query_id == field->query_id) ||
-	((field->flags & PRI_KEY_FLAG)) || 
-	m_retrieve_all_fields)
+        ((field->flags & PRI_KEY_FLAG)) || 
+        m_retrieve_all_fields)
     {      
       if (get_ndb_value(op, field, i, buf))
-	ERR_RETURN(op->getNdbError());
+        ERR_RETURN(op->getNdbError());
     } 
     else 
     {
@@ -1332,10 +1332,10 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
   {
     Field *field= table->field[i];
     if (!((field->flags & PRI_KEY_FLAG) ||
-	  (thd->query_id == field->query_id)))
+          (thd->query_id == field->query_id)))
     {
       if (get_ndb_value(op, field, i, new_data))
-	ERR_RETURN(trans->getNdbError());
+        ERR_RETURN(trans->getNdbError());
     }
   }
   
@@ -1356,7 +1356,7 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
   {
     Field *field= table->field[i];
     if (!((field->flags & PRI_KEY_FLAG) ||
-	  (thd->query_id == field->query_id)))
+          (thd->query_id == field->query_id)))
     {
       m_value[i].ptr= NULL;
     }
@@ -1398,7 +1398,7 @@ int ha_ndbcluster::peek_row()
 */
 
 int ha_ndbcluster::unique_index_read(const byte *key,
-				     uint key_len, byte *buf)
+                                     uint key_len, byte *buf)
 {
   int res;
   NdbTransaction *trans= m_active_trans;
@@ -1410,7 +1410,7 @@ int ha_ndbcluster::unique_index_read(const byte *key,
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
   if (!(op= trans->getNdbIndexOperation((NDBINDEX *) 
-					m_index[active_index].unique_index, 
+                                        m_index[active_index].unique_index, 
                                         (const NDBTAB *) m_table)) ||
       op->readTuple(lm) != 0)
     ERR_RETURN(trans->getNdbError());
@@ -1448,7 +1448,7 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
     if (m_ops_pending && m_blobs_pending)
     {
       if (execute_no_commit(this,trans) != 0)
-	DBUG_RETURN(ndb_err(trans));
+        DBUG_RETURN(ndb_err(trans));
       m_ops_pending= 0;
       m_blobs_pending= FALSE;
     }
@@ -1463,29 +1463,29 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
       // 2: No more cached records
       
       /*
-	Before fetching more rows and releasing lock(s),
-	all pending update or delete operations should 
-	be sent to NDB
+        Before fetching more rows and releasing lock(s),
+        all pending update or delete operations should 
+        be sent to NDB
       */
       DBUG_PRINT("info", ("ops_pending: %d", m_ops_pending));    
       if (m_ops_pending)
       {
-	if (m_transaction_on)
-	{
-	  if (execute_no_commit(this,trans) != 0)
-	    DBUG_RETURN(-1);
-	}
-	else
-	{
-	  if  (execute_commit(this,trans) != 0)
-	    DBUG_RETURN(-1);
-	  if(trans->restart() != 0)
-	  {
-	    DBUG_ASSERT(0);
-	    DBUG_RETURN(-1);
-	  }
-	}
-	m_ops_pending= 0;
+        if (m_transaction_on)
+        {
+          if (execute_no_commit(this,trans) != 0)
+            DBUG_RETURN(-1);
+        }
+        else
+        {
+          if  (execute_commit(this,trans) != 0)
+            DBUG_RETURN(-1);
+          if(trans->restart() != 0)
+          {
+            DBUG_ASSERT(0);
+            DBUG_RETURN(-1);
+          }
+        }
+        m_ops_pending= 0;
       }
       contact_ndb= (check == 2);
     }
@@ -1544,8 +1544,8 @@ inline int ha_ndbcluster::next_result(byte *buf)
 */
 
 int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
-			      const key_range *keys[2],
-			      uint range_no)
+                              const key_range *keys[2],
+                              uint range_no)
 {
   const KEY *const key_info= table->key_info + active_index;
   const uint key_parts= key_info->key_parts;
@@ -1665,7 +1665,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
           DBUG_PRINT("error", ("key %d unknown flag %d", j, p.key->flag));
           DBUG_ASSERT(false);
           // Stop setting bounds but continue with what we have
-	  op->end_of_bound(range_no);
+          op->end_of_bound(range_no);
           DBUG_RETURN(0);
         }
       }
@@ -1701,13 +1701,13 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 
         // Set bound if not cancelled via type -1
         if (p.bound_type != -1)
-	{
+        {
           const char* ptr= p.bound_ptr;
           char buf[256];
           shrink_varchar(field, ptr, buf);
           if (op->setBound(i, p.bound_type, ptr))
             ERR_RETURN(op->getNdbError());
-	}
+        }
       }
     }
 
@@ -1722,8 +1722,8 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 */
 
 int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
-				      const key_range *end_key,
-				      bool sorted, bool descending, byte* buf)
+                                      const key_range *end_key,
+                                      bool sorted, bool descending, byte* buf)
 {  
   int res;
   bool restart;
@@ -1744,9 +1744,9 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     NdbOperation::LockMode lm=
       (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
     if (!(op= trans->getNdbIndexScanOperation((NDBINDEX *)
-					      m_index[active_index].index, 
-					      (const NDBTAB *) m_table)) ||
-	op->readTuples(lm, 0, parallelism, sorted, descending))
+                                              m_index[active_index].index, 
+                                              (const NDBTAB *) m_table)) ||
+        op->readTuples(lm, 0, parallelism, sorted, descending))
       ERR_RETURN(trans->getNdbError());
     m_active_cursor= op;
   } else {
@@ -1755,7 +1755,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     
     DBUG_ASSERT(op->getSorted() == sorted);
     DBUG_ASSERT(op->getLockMode() == 
-		(NdbOperation::LockMode)get_ndb_lock_type(m_lock.type));
+                (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type));
     if(op->reset_bounds(m_force_send))
       DBUG_RETURN(ndb_err(m_active_trans));
   }
@@ -1879,7 +1879,7 @@ int ha_ndbcluster::write_row(byte *record)
   {
     Field *field= table->field[i];
     if (!(field->flags & PRI_KEY_FLAG) &&
-	set_ndb_value(op, field, i, &set_blob_value))
+        set_ndb_value(op, field, i, &set_blob_value))
     {
       m_skip_auto_increment= TRUE;
       ERR_RETURN(op->getNdbError());
@@ -1902,31 +1902,31 @@ int ha_ndbcluster::write_row(byte *record)
   {
     // Send rows to NDB
     DBUG_PRINT("info", ("Sending inserts to NDB, "\
-			"rows_inserted:%d, bulk_insert_rows: %d", 
-			(int)m_rows_inserted, (int)m_bulk_insert_rows));
+                        "rows_inserted:%d, bulk_insert_rows: %d", 
+                        (int)m_rows_inserted, (int)m_bulk_insert_rows));
 
     m_bulk_insert_not_flushed= FALSE;
     if (m_transaction_on)
     {
       if (execute_no_commit(this,trans) != 0)
       {
-	m_skip_auto_increment= TRUE;
-	no_uncommitted_rows_execute_failure();
-	DBUG_RETURN(ndb_err(trans));
+        m_skip_auto_increment= TRUE;
+        no_uncommitted_rows_execute_failure();
+        DBUG_RETURN(ndb_err(trans));
       }
     }
     else
     {
       if (execute_commit(this,trans) != 0)
       {
-	m_skip_auto_increment= TRUE;
-	no_uncommitted_rows_execute_failure();
-	DBUG_RETURN(ndb_err(trans));
+        m_skip_auto_increment= TRUE;
+        no_uncommitted_rows_execute_failure();
+        DBUG_RETURN(ndb_err(trans));
       }
       if(trans->restart() != 0)
       {
-	DBUG_ASSERT(0);
-	DBUG_RETURN(-1);
+        DBUG_ASSERT(0);
+        DBUG_RETURN(-1);
       }
     }
   }
@@ -1935,11 +1935,11 @@ int ha_ndbcluster::write_row(byte *record)
     Ndb *ndb= get_ndb();
     Uint64 next_val= (Uint64) table->next_number_field->val_int() + 1;
     DBUG_PRINT("info", 
-	       ("Trying to set next auto increment value to %lu",
+               ("Trying to set next auto increment value to %lu",
                 (ulong) next_val));
     if (ndb->setAutoIncrementValue((const NDBTAB *) m_table, next_val, TRUE))
       DBUG_PRINT("info", 
-		 ("Setting next auto increment value to %u", next_val));  
+                 ("Setting next auto increment value to %u", next_val));  
   }
   m_skip_auto_increment= TRUE;
 
@@ -1950,7 +1950,7 @@ int ha_ndbcluster::write_row(byte *record)
 /* Compare if a key in a row has changed */
 
 int ha_ndbcluster::key_cmp(uint keynr, const byte * old_row,
-			   const byte * new_row)
+                           const byte * new_row)
 {
   KEY_PART_INFO *key_part=table->key_info[keynr].key_part;
   KEY_PART_INFO *end=key_part+table->key_info[keynr].key_parts;
@@ -1960,22 +1960,22 @@ int ha_ndbcluster::key_cmp(uint keynr, const byte * old_row,
     if (key_part->null_bit)
     {
       if ((old_row[key_part->null_offset] & key_part->null_bit) !=
-	  (new_row[key_part->null_offset] & key_part->null_bit))
-	return 1;
+          (new_row[key_part->null_offset] & key_part->null_bit))
+        return 1;
     }
     if (key_part->key_part_flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART))
     {
 
       if (key_part->field->cmp_binary((char*) (old_row + key_part->offset),
-				      (char*) (new_row + key_part->offset),
-				      (ulong) key_part->length))
-	return 1;
+                                      (char*) (new_row + key_part->offset),
+                                      (ulong) key_part->length))
+        return 1;
     }
     else
     {
       if (memcmp(old_row+key_part->offset, new_row+key_part->offset,
-		 key_part->length))
-	return 1;
+                 key_part->length))
+        return 1;
     }
   }
   return 0;
@@ -2053,7 +2053,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   else
   {  
     if (!(op= trans->getNdbOperation((const NDBTAB *) m_table)) ||
-	op->updateTuple() != 0)
+        op->updateTuple() != 0)
       ERR_RETURN(trans->getNdbError());  
     
     if (table->s->primary_key == MAX_KEY) 
@@ -2069,13 +2069,13 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       DBUG_DUMP("key", (char*)rec->aRef(), NDB_HIDDEN_PRIMARY_KEY_LENGTH);
       
       if (set_hidden_key(op, no_fields, rec->aRef()))
-	ERR_RETURN(op->getNdbError());
+        ERR_RETURN(op->getNdbError());
     } 
     else 
     {
       int res;
       if ((res= set_primary_key_from_old_data(op, old_data)))
-	DBUG_RETURN(res);
+        DBUG_RETURN(res);
     }
   }
 
@@ -2085,7 +2085,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
     Field *field= table->field[i];
     if (((thd->query_id == field->query_id) || m_retrieve_all_fields) &&
         (!(field->flags & PRI_KEY_FLAG)) &&
-	set_ndb_value(op, field, i))
+        set_ndb_value(op, field, i))
       ERR_RETURN(op->getNdbError());
   }
 
@@ -2136,7 +2136,7 @@ int ha_ndbcluster::delete_row(const byte *record)
   {
     
     if (!(op=trans->getNdbOperation((const NDBTAB *) m_table)) || 
-	op->deleteTuple() != 0)
+        op->deleteTuple() != 0)
       ERR_RETURN(trans->getNdbError());
     
     no_uncommitted_rows_update(-1);
@@ -2150,15 +2150,15 @@ int ha_ndbcluster::delete_row(const byte *record)
       DBUG_ASSERT(rec != NULL);
       
       if (set_hidden_key(op, no_fields, rec->aRef()))
-	ERR_RETURN(op->getNdbError());
+        ERR_RETURN(op->getNdbError());
     } 
     else 
     {
       int res;
       if ((res= (m_primary_key_update ?
-		 set_primary_key_from_old_data(op, record)
-		 : set_primary_key(op))))
-	  return res;  
+                 set_primary_key_from_old_data(op, record)
+                 : set_primary_key(op))))
+          return res;  
     }
   }
   
@@ -2175,7 +2175,7 @@ int ha_ndbcluster::delete_row(const byte *record)
 
   SYNOPSIS
     unpack_record()
-    buf			Buffer to store read row
+    buf                 Buffer to store read row
 
   NOTE
     The data for each row is read directly into the
@@ -2211,9 +2211,9 @@ void ha_ndbcluster::unpack_record(byte* buf)
           if (pack_len < 5)
           {
             DBUG_PRINT("info", ("bit field H'%.8X", 
-				(*value).rec->u_32_value()));
+                                (*value).rec->u_32_value()));
             ((Field_bit *) *field)->store((longlong) 
-					  (*value).rec->u_32_value());
+                                          (*value).rec->u_32_value());
           }
           else
           {
@@ -2221,7 +2221,7 @@ void ha_ndbcluster::unpack_record(byte* buf)
                                 *(Uint32 *)(*value).rec->aRef(),
                                 *((Uint32 *)(*value).rec->aRef()+1)));
             ((Field_bit *) *field)->store((longlong)
-					  (*value).rec->u_64_value());          }
+                                          (*value).rec->u_64_value());          }
         }
       }
       else
@@ -2231,10 +2231,10 @@ void ha_ndbcluster::unpack_record(byte* buf)
 #ifndef DBUG_OFF
         int ret= 
 #endif
-	  ndb_blob->getNull(isNull);
+          ndb_blob->getNull(isNull);
         DBUG_ASSERT(ret == 0);
         if (isNull)
-	  (*field)->set_null(row_offset);
+          (*field)->set_null(row_offset);
       }
     }
   }
@@ -2364,8 +2364,8 @@ check_null_in_key(const KEY* key_info, const byte *key, uint key_len)
 }
 
 int ha_ndbcluster::index_read(byte *buf,
-			      const byte *key, uint key_len, 
-			      enum ha_rkey_function find_flag)
+                              const byte *key, uint key_len, 
+                              enum ha_rkey_function find_flag)
 {
   DBUG_ENTER("ha_ndbcluster::index_read");
   DBUG_PRINT("enter", ("active_index: %u, key_len: %u, find_flag: %d", 
@@ -2380,7 +2380,7 @@ int ha_ndbcluster::index_read(byte *buf,
     if (find_flag == HA_READ_KEY_EXACT && key_info->key_length == key_len)
     {
       if(m_active_cursor && (error= close_scan()))
-	DBUG_RETURN(error);
+        DBUG_RETURN(error);
       DBUG_RETURN(pk_read(key, key_len, buf));
     }
     else if (type == PRIMARY_KEY_INDEX)
@@ -2391,10 +2391,10 @@ int ha_ndbcluster::index_read(byte *buf,
   case UNIQUE_ORDERED_INDEX:
   case UNIQUE_INDEX:
     if (find_flag == HA_READ_KEY_EXACT && key_info->key_length == key_len &&
-	!check_null_in_key(key_info, key, key_len))
+        !check_null_in_key(key_info, key, key_len))
     {
       if(m_active_cursor && (error= close_scan()))
-	DBUG_RETURN(error);
+        DBUG_RETURN(error);
       DBUG_RETURN(unique_index_read(key, key_len, buf));
     }
     else if (type == UNIQUE_INDEX)
@@ -2432,8 +2432,8 @@ int ha_ndbcluster::index_read(byte *buf,
 
 
 int ha_ndbcluster::index_read_idx(byte *buf, uint index_no, 
-			      const byte *key, uint key_len, 
-			      enum ha_rkey_function find_flag)
+                              const byte *key, uint key_len, 
+                              enum ha_rkey_function find_flag)
 {
   statistic_increment(current_thd->status_var.ha_read_key_count, &LOCK_status);
   DBUG_ENTER("ha_ndbcluster::index_read_idx");
@@ -2447,7 +2447,7 @@ int ha_ndbcluster::index_next(byte *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_next");
   statistic_increment(current_thd->status_var.ha_read_next_count,
-		      &LOCK_status);
+                      &LOCK_status);
   DBUG_RETURN(next_result(buf));
 }
 
@@ -2456,7 +2456,7 @@ int ha_ndbcluster::index_prev(byte *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_prev");
   statistic_increment(current_thd->status_var.ha_read_prev_count,
-		      &LOCK_status);
+                      &LOCK_status);
   DBUG_RETURN(next_result(buf));
 }
 
@@ -2465,7 +2465,7 @@ int ha_ndbcluster::index_first(byte *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_first");
   statistic_increment(current_thd->status_var.ha_read_first_count,
-		      &LOCK_status);
+                      &LOCK_status);
   // Start the ordered index scan and fetch the first row
 
   // Only HA_READ_ORDER indexes get called by index_first
@@ -2488,9 +2488,9 @@ int ha_ndbcluster::index_read_last(byte * buf, const byte * key, uint key_len)
 
 inline
 int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
-					   const key_range *end_key,
-					   bool eq_r, bool sorted,
-					   byte* buf)
+                                           const key_range *end_key,
+                                           bool eq_r, bool sorted,
+                                           byte* buf)
 {
   KEY* key_info;
   int error= 1; 
@@ -2502,11 +2502,11 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
   case PRIMARY_KEY_INDEX:
     key_info= table->key_info + active_index;
     if (start_key && 
-	start_key->length == key_info->key_length &&
-	start_key->flag == HA_READ_KEY_EXACT)
+        start_key->length == key_info->key_length &&
+        start_key->flag == HA_READ_KEY_EXACT)
     {
       if(m_active_cursor && (error= close_scan()))
-	DBUG_RETURN(error);
+        DBUG_RETURN(error);
       error= pk_read(start_key->key, start_key->length, buf);      
       DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
     }
@@ -2515,11 +2515,11 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
   case UNIQUE_INDEX:
     key_info= table->key_info + active_index;
     if (start_key && start_key->length == key_info->key_length &&
-	start_key->flag == HA_READ_KEY_EXACT && 
-	!check_null_in_key(key_info, start_key->key, start_key->length))
+        start_key->flag == HA_READ_KEY_EXACT && 
+        !check_null_in_key(key_info, start_key->key, start_key->length))
     {
       if(m_active_cursor && (error= close_scan()))
-	DBUG_RETURN(error);
+        DBUG_RETURN(error);
       error= unique_index_read(start_key->key, start_key->length, buf);
       DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
     }
@@ -2535,17 +2535,17 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
 
 
 int ha_ndbcluster::read_range_first(const key_range *start_key,
-				    const key_range *end_key,
-				    bool eq_r, bool sorted)
+                                    const key_range *end_key,
+                                    bool eq_r, bool sorted)
 {
   byte* buf= table->record[0];
   DBUG_ENTER("ha_ndbcluster::read_range_first");
   
   DBUG_RETURN(read_range_first_to_buf(start_key,
-				      end_key,
-				      eq_r, 
-				      sorted,
-				      buf));
+                                      end_key,
+                                      eq_r, 
+                                      sorted,
+                                      buf));
 }
 
 int ha_ndbcluster::read_range_next()
@@ -2616,7 +2616,7 @@ int ha_ndbcluster::rnd_next(byte *buf)
 {
   DBUG_ENTER("rnd_next");
   statistic_increment(current_thd->status_var.ha_read_rnd_next_count,
-		      &LOCK_status);
+                      &LOCK_status);
 
   if (!m_active_cursor)
     DBUG_RETURN(full_table_scan(buf));
@@ -2635,7 +2635,7 @@ int ha_ndbcluster::rnd_pos(byte *buf, byte *pos)
 {
   DBUG_ENTER("rnd_pos");
   statistic_increment(current_thd->status_var.ha_read_rnd_count,
-		      &LOCK_status);
+                      &LOCK_status);
   // The primary key for the record is stored in pos
   // Perform a pk_read using primary key "index"
   DBUG_RETURN(pk_read(pos, ref_length, buf));  
@@ -2717,9 +2717,9 @@ void ha_ndbcluster::info(uint flag)
     if (m_table_info)
     {
       if (m_ha_not_exact_count)
-	records= 100;
+        records= 100;
       else
-	records_update();
+        records_update();
     }
     else
     {
@@ -2728,16 +2728,16 @@ void ha_ndbcluster::info(uint flag)
       Ndb *ndb= get_ndb();
       struct Ndb_statistics stat;
       if (current_thd->variables.ndb_use_exact_count &&
-	  ndb_get_table_statistics(ndb, m_tabname, &stat) == 0)
+          ndb_get_table_statistics(ndb, m_tabname, &stat) == 0)
       {
-	mean_rec_length= stat.row_size;
-	data_file_length= stat.fragment_memory;
-	records= stat.row_count;
+        mean_rec_length= stat.row_size;
+        data_file_length= stat.fragment_memory;
+        records= stat.row_count;
       }
       else
       {
-	mean_rec_length= 0;
-	records= 100;
+        mean_rec_length= 0;
+        records= 100;
       }
     }
   }
@@ -2857,8 +2857,8 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     m_ignore_dup_key= FALSE;
     break;
   case HA_EXTRA_RETRIEVE_ALL_COLS:    /* Retrieve all columns, not just those
-					 where field->query_id is the same as
-					 the current query id */
+                                         where field->query_id is the same as
+                                         the current query id */
     DBUG_PRINT("info", ("HA_EXTRA_RETRIEVE_ALL_COLS"));
     m_retrieve_all_fields= TRUE;
     break;
@@ -2983,7 +2983,7 @@ double ha_ndbcluster::scan_time()
   DBUG_ENTER("ha_ndbcluster::scan_time()");
   double res= rows2double(records*1000);
   DBUG_PRINT("exit", ("table: %s value: %f", 
-		      m_tabname, res));
+                      m_tabname, res));
   DBUG_RETURN(res);
 }
 
@@ -3085,13 +3085,13 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         trans= ndb->startTransaction();
         if (trans == NULL)
           ERR_RETURN(ndb->getNdbError());
-	no_uncommitted_rows_reset(thd);
+        no_uncommitted_rows_reset(thd);
         thd->transaction.stmt.ndb_tid= trans;
       } 
       else 
       { 
         if (!thd->transaction.all.ndb_tid)
-	{
+        {
           // Not autocommit transaction
           // A "master" transaction ha not been started yet
           DBUG_PRINT("trans",("starting transaction, all"));
@@ -3099,7 +3099,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
           trans= ndb->startTransaction();
           if (trans == NULL)
             ERR_RETURN(ndb->getNdbError());
-	  no_uncommitted_rows_reset(thd);
+          no_uncommitted_rows_reset(thd);
 
           /*
             If this is the start of a LOCK TABLE, a table look 
@@ -3108,7 +3108,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
             Check if it should be read or write lock
            */
           if (thd->options & (OPTION_TABLE_LOCK))
-	  {
+          {
             //lockThisTable();
             DBUG_PRINT("info", ("Locking the table..." ));
           }
@@ -3151,7 +3151,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       const NDBTAB *tab;
       void *tab_info;
       if (!(tab= dict->getTable(m_tabname, &tab_info)))
-	ERR_RETURN(dict->getNdbError());
+        ERR_RETURN(dict->getNdbError());
       DBUG_PRINT("info", ("Table schema version: %d", tab->getObjectVersion()));
       m_table= (void *)tab;
       m_table_info= tab_info;
@@ -3588,7 +3588,7 @@ static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
     no_fragments= (max_rows*acc_row_size)/acc_fragment_size+1;
 #else
     no_fragments= ((max_rows*acc_row_size)/acc_fragment_size+1
-		   +1/*correct rounding*/)/2;
+                   +1/*correct rounding*/)/2;
 #endif
   }
   {
@@ -3598,8 +3598,8 @@ static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
     {
       ftype= NDBTAB::FragAllLarge;
       if (no_fragments > 4*no_nodes)
-	push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
-		     "Ndb might have problems storing the max amount of rows specified");
+        push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                     "Ndb might have problems storing the max amount of rows specified");
     }
     else if (no_fragments > no_nodes)
       ftype= NDBTAB::FragAllMedium;
@@ -3610,8 +3610,8 @@ static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
 }
 
 int ha_ndbcluster::create(const char *name, 
-			  TABLE *form, 
-			  HA_CREATE_INFO *info)
+                          TABLE *form, 
+                          HA_CREATE_INFO *info)
 {
   NDBTAB tab;
   NDBCOL col;
@@ -3657,7 +3657,7 @@ int ha_ndbcluster::create(const char *name,
     Field *field= form->field[i];
     DBUG_PRINT("info", ("name: %s, type: %u, pack_length: %d", 
                         field->field_name, field->real_type(),
-			field->pack_length()));
+                        field->pack_length()));
     if ((my_errno= create_ndb_column(col, field, info)))
       DBUG_RETURN(my_errno);
     tab.addColumn(col);
@@ -3695,10 +3695,10 @@ int ha_ndbcluster::create(const char *name,
       NdbDictionary::Column * col= tab.getColumn(i);
       int size= pk_length + (col->getPartSize()+3)/4 + 7;
       if(size > NDB_MAX_TUPLE_SIZE_IN_WORDS && 
-	 (pk_length+7) < NDB_MAX_TUPLE_SIZE_IN_WORDS)
+         (pk_length+7) < NDB_MAX_TUPLE_SIZE_IN_WORDS)
       {
-	size= NDB_MAX_TUPLE_SIZE_IN_WORDS - pk_length - 7;
-	col->setPartSize(4*size);
+        size= NDB_MAX_TUPLE_SIZE_IN_WORDS - pk_length - 7;
+        col->setPartSize(4*size);
       }
       /**
        * If size > NDB_MAX and pk_length+7 >= NDB_MAX
@@ -3740,14 +3740,14 @@ int ha_ndbcluster::create(const char *name,
 
 
 int ha_ndbcluster::create_ordered_index(const char *name, 
-					KEY *key_info)
+                                        KEY *key_info)
 {
   DBUG_ENTER("ha_ndbcluster::create_ordered_index");
   DBUG_RETURN(create_index(name, key_info, FALSE));
 }
 
 int ha_ndbcluster::create_unique_index(const char *name, 
-				       KEY *key_info)
+                                       KEY *key_info)
 {
 
   DBUG_ENTER("ha_ndbcluster::create_unique_index");
@@ -3760,8 +3760,8 @@ int ha_ndbcluster::create_unique_index(const char *name,
  */
 
 int ha_ndbcluster::create_index(const char *name, 
-				KEY *key_info,
-				bool unique)
+                                KEY *key_info,
+                                bool unique)
 {
   Ndb *ndb= get_ndb();
   NdbDictionary::Dictionary *dict= ndb->getDictionary();
@@ -3953,11 +3953,11 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_table(NULL),
   m_table_info(NULL),
   m_table_flags(HA_REC_NOT_IN_SEQ |
-		HA_NULL_IN_KEY |
-		HA_AUTO_PART_KEY |
-		HA_NO_PREFIX_CHAR_KEYS |
-		HA_NEED_READ_RANGE_BUFFER |
-		HA_CAN_BIT_FIELD),
+                HA_NULL_IN_KEY |
+                HA_AUTO_PART_KEY |
+                HA_NO_PREFIX_CHAR_KEYS |
+                HA_NEED_READ_RANGE_BUFFER |
+                HA_CAN_BIT_FIELD),
   m_share(0),
   m_use_write(FALSE),
   m_ignore_dup_key(FALSE),
@@ -4177,7 +4177,7 @@ void ndbcluster_close_connection(THD *thd)
  */
 
 int ndbcluster_discover(THD* thd, const char *db, const char *name,
-			const void** frmblob, uint* frmlen)
+                        const void** frmblob, uint* frmlen)
 {
   uint len;
   const void* data;
@@ -4256,7 +4256,7 @@ int ndbcluster_table_exists(THD* thd, const char *db, const char *name)
 
 
 extern "C" byte* tables_get_key(const char *entry, uint *length,
-				my_bool not_used __attribute__((unused)))
+                                my_bool not_used __attribute__((unused)))
 {
   *length= strlen(entry);
   return (byte*) entry;
@@ -4264,7 +4264,7 @@ extern "C" byte* tables_get_key(const char *entry, uint *length,
 
 
 int ndbcluster_find_files(THD *thd,const char *db,const char *path,
-			  const char *wild, bool dir, List<char> *files)
+                          const char *wild, bool dir, List<char> *files)
 {
   DBUG_ENTER("ndbcluster_find_files");
   DBUG_PRINT("enter", ("db: %s", db));
@@ -4284,18 +4284,18 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
   // List tables in NDB
   NDBDICT *dict= ndb->getDictionary();
   if (dict->listObjects(list, 
-			NdbDictionary::Object::UserTable) != 0)
+                        NdbDictionary::Object::UserTable) != 0)
     ERR_RETURN(dict->getNdbError());
 
   if (hash_init(&ndb_tables, system_charset_info,list.count,0,0,
-		(hash_get_key)tables_get_key,0,0))
+                (hash_get_key)tables_get_key,0,0))
   {
     DBUG_PRINT("error", ("Failed to init HASH ndb_tables"));
     DBUG_RETURN(-1);
   }
 
   if (hash_init(&ok_tables, system_charset_info,32,0,0,
-		(hash_get_key)tables_get_key,0,0))
+                (hash_get_key)tables_get_key,0,0))
   {
     DBUG_PRINT("error", ("Failed to init HASH ok_tables"));
     hash_free(&ndb_tables);
@@ -4316,11 +4316,11 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
     {
       if (lower_case_table_names)
       {
-	if (wild_case_compare(files_charset_info, t.name, wild))
-	  continue;
+        if (wild_case_compare(files_charset_info, t.name, wild))
+          continue;
       }
       else if (wild_compare(t.name,wild,0))
-	continue;
+        continue;
     }
     DBUG_PRINT("info", ("Inserting %s into ndb_tables hash", t.name));     
     my_hash_insert(&ndb_tables, (byte*)thd->strdup(t.name));
@@ -4342,7 +4342,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
     
     // File is not in NDB, check for .ndb file with this name
     (void)strxnmov(name, FN_REFLEN, 
-		   mysql_data_home,"/",db,"/",file_name,ha_ndb_ext,NullS);
+                   mysql_data_home,"/",db,"/",file_name,ha_ndb_ext,NullS);
     DBUG_PRINT("info", ("Check access for %s", name));
     if (access(name, F_OK))
     {
@@ -4394,10 +4394,10 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
       table_list.db= (char*) db;
       table_list.alias= table_list.table_name= (char*)file_name;
       (void)mysql_rm_table_part2(thd, &table_list, 
-				 /* if_exists */ TRUE, 
-				 /* drop_temporary */ FALSE, 
-				 /* drop_view */ FALSE,
-				 /* dont_log_query*/ TRUE);
+                                 /* if_exists */ TRUE, 
+                                 /* drop_temporary */ FALSE, 
+                                 /* drop_view */ FALSE,
+                                 /* dont_log_query*/ TRUE);
     }
   }
 
@@ -4442,7 +4442,7 @@ bool ndbcluster_init()
        new Ndb_cluster_connection(opt_ndbcluster_connectstring)) == 0)
   {
     DBUG_PRINT("error",("Ndb_cluster_connection(%s)",
-			opt_ndbcluster_connectstring));
+                        opt_ndbcluster_connectstring));
     goto ndbcluster_init_error;
   }
 
@@ -4462,8 +4462,8 @@ bool ndbcluster_init()
   {
     connect_callback();
     DBUG_PRINT("info",("NDBCLUSTER storage engine at %s on port %d",
-		       g_ndb_cluster_connection->get_connected_host(),
-		       g_ndb_cluster_connection->get_connected_port()));
+                       g_ndb_cluster_connection->get_connected_host(),
+                       g_ndb_cluster_connection->get_connected_port()));
     g_ndb_cluster_connection->wait_until_ready(10,0);
   } 
   else if(res == 1)
@@ -4477,10 +4477,10 @@ bool ndbcluster_init()
     {
       char buf[1024];
       DBUG_PRINT("info",
-		 ("NDBCLUSTER storage engine not started, "
-		  "will connect using %s",
-		  g_ndb_cluster_connection->
-		  get_connectstring(buf,sizeof(buf))));
+                 ("NDBCLUSTER storage engine not started, "
+                  "will connect using %s",
+                  g_ndb_cluster_connection->
+                  get_connectstring(buf,sizeof(buf))));
     }
 #endif
   }
@@ -4744,7 +4744,7 @@ uint8 ha_ndbcluster::table_cache_type()
 
 
 uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
-			 Uint64 *commit_count)
+                         Uint64 *commit_count)
 {
   DBUG_ENTER("ndb_get_commitcount");
 
@@ -4754,12 +4754,12 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
     char name[FN_REFLEN];
     NDB_SHARE *share;
     (void)strxnmov(name, FN_REFLEN,
-		   "./",dbname,"/",tabname,NullS);
+                   "./",dbname,"/",tabname,NullS);
     DBUG_PRINT("info", ("name: %s", name));
     pthread_mutex_lock(&ndbcluster_mutex);
     if (!(share=(NDB_SHARE*) hash_search(&ndbcluster_open_tables,
-				   (byte*) name,
-				   strlen(name))))
+                                   (byte*) name,
+                                   strlen(name))))
     {
       pthread_mutex_unlock(&ndbcluster_mutex);
       DBUG_RETURN(1);
@@ -4816,8 +4816,8 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
 
 static my_bool
 ndbcluster_cache_retrieval_allowed(THD *thd,
-				   char *full_name, uint full_name_len,
-				   ulonglong *engine_data)
+                                   char *full_name, uint full_name_len,
+                                   ulonglong *engine_data)
 {
   DBUG_ENTER("ndbcluster_cache_retrieval_allowed");
 
@@ -4827,7 +4827,7 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
   char *tabname= dbname+strlen(dbname)+1;
 
   DBUG_PRINT("enter",("dbname=%s, tabname=%s, autocommit=%d",
-		      dbname, tabname, is_autocommit));
+                      dbname, tabname, is_autocommit));
 
   if (!is_autocommit)
     DBUG_RETURN(FALSE);
@@ -4838,7 +4838,7 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
     DBUG_RETURN(FALSE);
   }
   DBUG_PRINT("info", ("*engine_data=%llu, commit_count=%llu",
-		      *engine_data, commit_count));
+                      *engine_data, commit_count));
   if (*engine_data != commit_count)
   {
     *engine_data= commit_count; /* invalidate */
@@ -4875,15 +4875,15 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
 
 my_bool
 ha_ndbcluster::register_query_cache_table(THD *thd,
-					  char *full_name, uint full_name_len,
-					  qc_engine_callback *engine_callback,
-					  ulonglong *engine_data)
+                                          char *full_name, uint full_name_len,
+                                          qc_engine_callback *engine_callback,
+                                          ulonglong *engine_data)
 {
   DBUG_ENTER("ha_ndbcluster::register_query_cache_table");
 
   bool is_autocommit= !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
   DBUG_PRINT("enter",("dbname=%s, tabname=%s, is_autocommit=%d",
-		      m_dbname,m_tabname,is_autocommit));
+                      m_dbname,m_tabname,is_autocommit));
   if (!is_autocommit)
     DBUG_RETURN(FALSE);
 
@@ -4910,7 +4910,7 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
  */
 
 static byte* ndbcluster_get_key(NDB_SHARE *share,uint *length,
-				my_bool not_used __attribute__((unused)))
+                                my_bool not_used __attribute__((unused)))
 {
   *length=share->table_name_length;
   return (byte*) share->table_name;
@@ -4943,9 +4943,9 @@ static NDB_SHARE* get_share(const char *table_name)
     }
   }
   DBUG_PRINT("share", 
-	     ("table_name: %s, length: %d, use_count: %d, commit_count: %d", 
-	      share->table_name, share->table_name_length, share->use_count, 
-	      share->commit_count));
+             ("table_name: %s, length: %d, use_count: %d, commit_count: %d", 
+              share->table_name, share->table_name_length, share->use_count, 
+              share->commit_count));
 
   share->use_count++;
   pthread_mutex_unlock(&ndbcluster_mutex);
@@ -4987,7 +4987,7 @@ struct frm_blob_struct
 
 
 static int packfrm(const void *data, uint len, 
-		   const void **pack_data, uint *pack_len)
+                   const void **pack_data, uint *pack_len)
 {
   int error;
   ulong org_len, comp_len;
@@ -5029,7 +5029,7 @@ err:
 
 
 static int unpackfrm(const void **unpack_data, uint *unpack_len,
-		    const void *pack_data)
+                    const void *pack_data)
 {
    const frm_blob_struct *blob= (frm_blob_struct*)pack_data;
    byte *data;
@@ -5037,12 +5037,12 @@ static int unpackfrm(const void **unpack_data, uint *unpack_len,
    DBUG_ENTER("unpackfrm");
    DBUG_PRINT("enter", ("pack_data: %x", pack_data));
 
-   complen=	uint4korr((char*)&blob->head.complen);
-   orglen=	uint4korr((char*)&blob->head.orglen);
-   ver=		uint4korr((char*)&blob->head.ver);
+   complen=     uint4korr((char*)&blob->head.complen);
+   orglen=      uint4korr((char*)&blob->head.orglen);
+   ver=         uint4korr((char*)&blob->head.ver);
  
    DBUG_PRINT("blob",("ver: %d complen: %d orglen: %d",
- 		     ver,complen,orglen));
+                     ver,complen,orglen));
    DBUG_DUMP("blob->data", (char*) blob->data, complen);
  
    if (ver != 1)
@@ -5068,7 +5068,7 @@ static int unpackfrm(const void **unpack_data, uint *unpack_len,
 static 
 int
 ndb_get_table_statistics(Ndb* ndb, const char * table,
-			 struct Ndb_statistics * ndbstat)
+                         struct Ndb_statistics * ndbstat)
 {
   DBUG_ENTER("ndb_get_table_statistics");
   DBUG_PRINT("enter", ("table: %s", table));
@@ -5097,8 +5097,8 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     pOp->getValue(NdbDictionary::Column::FRAGMENT_MEMORY, (char*)&mem);
     
     check= pTrans->execute(NdbTransaction::NoCommit,
-			   NdbTransaction::AbortOnError,
-			   TRUE);
+                           NdbTransaction::AbortOnError,
+                           TRUE);
     if (check == -1)
       break;
     
@@ -5111,7 +5111,7 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
       sum_rows+= rows;
       sum_commits+= commits;
       if (sum_row_size < size)
-	sum_row_size= size;
+        sum_row_size= size;
       sum_mem+= mem;
     }
     
@@ -5128,7 +5128,7 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     ndbstat->fragment_memory= sum_mem;
 
     DBUG_PRINT("exit", ("records: %u commits: %u row_size: %d mem: %d",
-			sum_rows, sum_commits, sum_row_size, sum_mem));
+                        sum_rows, sum_commits, sum_row_size, sum_mem));
     DBUG_RETURN(0);
   } while(0);
 
@@ -5152,7 +5152,7 @@ int ha_ndbcluster::write_ndb_file()
   DBUG_PRINT("enter", ("db: %s, name: %s", m_dbname, m_tabname));
 
   (void)strxnmov(path, FN_REFLEN, 
-		 mysql_data_home,"/",m_dbname,"/",m_tabname,ha_ndb_ext,NullS);
+                 mysql_data_home,"/",m_dbname,"/",m_tabname,ha_ndb_ext,NullS);
 
   if ((file=my_create(path, CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {
@@ -5165,10 +5165,10 @@ int ha_ndbcluster::write_ndb_file()
 
 int
 ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
-				      KEY_MULTI_RANGE *ranges, 
-				      uint range_count,
-				      bool sorted, 
-				      HANDLER_BUFFER *buffer)
+                                      KEY_MULTI_RANGE *ranges, 
+                                      uint range_count,
+                                      bool sorted, 
+                                      HANDLER_BUFFER *buffer)
 {
   DBUG_ENTER("ha_ndbcluster::read_multi_range_first");
   
@@ -5185,10 +5185,10 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
      */
     m_disable_multi_read= true;
     DBUG_RETURN(handler::read_multi_range_first(found_range_p, 
-						ranges, 
-						range_count,
-						sorted, 
-						buffer));
+                                                ranges, 
+                                                range_count,
+                                                sorted, 
+                                                buffer));
   }
 
   m_disable_multi_read= false;
@@ -5236,13 +5236,13 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     {
       multi_range_curr->range_flag |= UNIQUE_RANGE;
       if ((op= m_active_trans->getNdbOperation(tab)) && 
-	  !op->readTuple(lm) && 
-	  !set_primary_key(op, multi_range_curr->start_key.key) &&
-	  !define_read_attrs(curr, op) &&
-	  (op->setAbortOption(AO_IgnoreError), true))
-	curr += reclength;
+          !op->readTuple(lm) && 
+          !set_primary_key(op, multi_range_curr->start_key.key) &&
+          !define_read_attrs(curr, op) &&
+          (op->setAbortOption(AO_IgnoreError), true))
+        curr += reclength;
       else
-	ERR_RETURN(op ? op->getNdbError() : m_active_trans->getNdbError());
+        ERR_RETURN(op ? op->getNdbError() : m_active_trans->getNdbError());
       break;
     }
     break;
@@ -5251,62 +5251,62 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     {
       multi_range_curr->range_flag |= UNIQUE_RANGE;
       if ((op= m_active_trans->getNdbIndexOperation(unique_idx, tab)) && 
-	  !op->readTuple(lm) && 
-	  !set_index_key(op, key_info, multi_range_curr->start_key.key) &&
-	  !define_read_attrs(curr, op) &&
-	  (op->setAbortOption(AO_IgnoreError), true))
-	curr += reclength;
+          !op->readTuple(lm) && 
+          !set_index_key(op, key_info, multi_range_curr->start_key.key) &&
+          !define_read_attrs(curr, op) &&
+          (op->setAbortOption(AO_IgnoreError), true))
+        curr += reclength;
       else
-	ERR_RETURN(op ? op->getNdbError() : m_active_trans->getNdbError());
+        ERR_RETURN(op ? op->getNdbError() : m_active_trans->getNdbError());
       break;
     }
     case PRIMARY_KEY_ORDERED_INDEX:
       if (multi_range_curr->start_key.length == key_info->key_length &&
-	  multi_range_curr->start_key.flag == HA_READ_KEY_EXACT)
-	goto pk;
+          multi_range_curr->start_key.flag == HA_READ_KEY_EXACT)
+        goto pk;
       goto range;
     case UNIQUE_ORDERED_INDEX:
       if (multi_range_curr->start_key.length == key_info->key_length &&
-	  multi_range_curr->start_key.flag == HA_READ_KEY_EXACT &&
-	  !check_null_in_key(key_info, multi_range_curr->start_key.key,
-			     multi_range_curr->start_key.length))
-	goto sk;
+          multi_range_curr->start_key.flag == HA_READ_KEY_EXACT &&
+          !check_null_in_key(key_info, multi_range_curr->start_key.key,
+                             multi_range_curr->start_key.length))
+        goto sk;
       goto range;
     case ORDERED_INDEX: {
   range:
       multi_range_curr->range_flag &= ~(uint)UNIQUE_RANGE;
       if (scanOp == 0)
       {
-	if (m_multi_cursor)
-	{
-	  scanOp= m_multi_cursor;
-	  DBUG_ASSERT(scanOp->getSorted() == sorted);
-	  DBUG_ASSERT(scanOp->getLockMode() == 
-		      (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type));
-	  if(scanOp->reset_bounds(m_force_send))
-	    DBUG_RETURN(ndb_err(m_active_trans));
-	  
-	  end_of_buffer -= reclength;
-	}
-	else if ((scanOp= m_active_trans->getNdbIndexScanOperation(idx, tab)) 
-		 &&!scanOp->readTuples(lm, 0, parallelism, sorted, false, true)
-		 &&!generate_scan_filter(m_cond_stack, scanOp)
-		 &&!define_read_attrs(end_of_buffer-reclength, scanOp))
-	{
-	  m_multi_cursor= scanOp;
-	  m_multi_range_cursor_result_ptr= end_of_buffer-reclength;
-	}
-	else
-	{
-	  ERR_RETURN(scanOp ? scanOp->getNdbError() : 
-		     m_active_trans->getNdbError());
-	}
+        if (m_multi_cursor)
+        {
+          scanOp= m_multi_cursor;
+          DBUG_ASSERT(scanOp->getSorted() == sorted);
+          DBUG_ASSERT(scanOp->getLockMode() == 
+                      (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type));
+          if(scanOp->reset_bounds(m_force_send))
+            DBUG_RETURN(ndb_err(m_active_trans));
+          
+          end_of_buffer -= reclength;
+        }
+        else if ((scanOp= m_active_trans->getNdbIndexScanOperation(idx, tab)) 
+                 &&!scanOp->readTuples(lm, 0, parallelism, sorted, false, true)
+                 &&!generate_scan_filter(m_cond_stack, scanOp)
+                 &&!define_read_attrs(end_of_buffer-reclength, scanOp))
+        {
+          m_multi_cursor= scanOp;
+          m_multi_range_cursor_result_ptr= end_of_buffer-reclength;
+        }
+        else
+        {
+          ERR_RETURN(scanOp ? scanOp->getNdbError() : 
+                     m_active_trans->getNdbError());
+        }
       }
 
       const key_range *keys[2]= { &multi_range_curr->start_key, 
-				  &multi_range_curr->end_key };
+                                  &multi_range_curr->end_key };
       if ((res= set_bounds(scanOp, keys, multi_range_curr-ranges)))
-	DBUG_RETURN(res);
+        DBUG_RETURN(res);
       break;
     }
     case(UNDEFINED_INDEX):
@@ -5370,7 +5370,7 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
     if (multi_range_curr->range_flag & UNIQUE_RANGE)
     {
       if (op->getNdbError().code == 0)
-	goto found_next;
+        goto found_next;
       
       op= m_active_trans->getNextCompletedOperation(op);
       m_multi_range_result_ptr += reclength;
@@ -5381,49 +5381,49 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
       DBUG_MULTI_RANGE(1);
       if ((res= fetch_next(m_multi_cursor)) == 0)
       {
-	DBUG_MULTI_RANGE(2);
-	range_no= m_multi_cursor->get_range_no();
-	goto found;
+        DBUG_MULTI_RANGE(2);
+        range_no= m_multi_cursor->get_range_no();
+        goto found;
       } 
       else
       {
-	goto close_scan;
+        goto close_scan;
       }
     }
     else if (m_multi_cursor && multi_range_sorted)
     {
       if (m_active_cursor && (res= fetch_next(m_multi_cursor)))
       {
-	DBUG_MULTI_RANGE(3);
-	goto close_scan;
+        DBUG_MULTI_RANGE(3);
+        goto close_scan;
       }
       
       range_no= m_multi_cursor->get_range_no();
       uint current_range_no= multi_range_curr - m_multi_ranges;
       if ((uint) range_no == current_range_no)
       {
-	DBUG_MULTI_RANGE(4);
+        DBUG_MULTI_RANGE(4);
         // return current row
-	goto found;
+        goto found;
       }
       else if (range_no > (int)current_range_no)
       {
-	DBUG_MULTI_RANGE(5);
-	// wait with current row
-	m_active_cursor= 0;
-	continue;
+        DBUG_MULTI_RANGE(5);
+        // wait with current row
+        m_active_cursor= 0;
+        continue;
       }
       else 
       {
-	DBUG_MULTI_RANGE(6);
-	// First fetch from cursor
-	DBUG_ASSERT(range_no == -1);
-	if((res= m_multi_cursor->nextResult(true)))
-	{
-	  goto close_scan;
-	}
-	multi_range_curr--; // Will be increased in for-loop
-	continue;
+        DBUG_MULTI_RANGE(6);
+        // First fetch from cursor
+        DBUG_ASSERT(range_no == -1);
+        if((res= m_multi_cursor->nextResult(true)))
+        {
+          goto close_scan;
+        }
+        multi_range_curr--; // Will be increased in for-loop
+        continue;
       }
     }
     else /** m_multi_cursor == 0 */
@@ -5458,10 +5458,10 @@ close_scan:
    * Read remaining ranges
    */
   DBUG_RETURN(read_multi_range_first(multi_range_found_p, 
-				     multi_range_curr,
-				     multi_range_end - multi_range_curr, 
-				     multi_range_sorted,
-				     multi_range_buffer));
+                                     multi_range_curr,
+                                     multi_range_end - multi_range_curr, 
+                                     multi_range_sorted,
+                                     multi_range_buffer));
   
 found:
   /**
@@ -5517,8 +5517,8 @@ ha_ndbcluster::setup_recattr(const NdbRecAttr* curr)
 
 char*
 ha_ndbcluster::update_table_comment(
-			        /* out: table comment + additional */
-        const char*	comment)/* in:  table comment defined by user */
+                                /* out: table comment + additional */
+        const char*     comment)/* in:  table comment defined by user */
 {
   uint length= strlen(comment);
   if(length > 64000 - 3)
@@ -5549,8 +5549,8 @@ ha_ndbcluster::update_table_comment(
   }
 
   snprintf(str,fmt_len_plus_extra,fmt,comment,
-	   length > 0 ? " ":"",
-	   tab->getReplicaCount());
+           length > 0 ? " ":"",
+           tab->getReplicaCount());
   return str;
 }
 
@@ -5626,7 +5626,7 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
 
     /* Iterate through the  open files list */
     List_iterator_fast<NDB_SHARE> it(util_open_tables);
-    while (share= it++)
+    while ((share= it++))
     {
       /* Split tab- and dbname */
       char buf[FN_REFLEN];
@@ -5677,6 +5677,23 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
 /*
   Condition pushdown
 */
+/*
+  Push a condition to ndbcluster storage engine for evaluation 
+  during table   and index scans. The conditions will be stored on a stack
+  for possibly storing several conditions. The stack can be popped
+  by calling cond_pop, handler::extra(HA_EXTRA_RESET) (handler::reset())
+  will clear the stack.
+  The current implementation supports arbitrary AND/OR nested conditions
+  with comparisons between columns and constants (including constant
+  expressions and function calls) and the following comparison operators:
+  =, !=, >, >=, <, <=, "is null", and "is not null".
+  
+  RETURN
+    NULL The condition was supported and will be evaluated for each 
+    row found during the scan
+    cond The condition was not supported and all rows will be returned from
+         the scan for evaluation (and thus not saved on stack)
+*/
 const 
 COND* 
 ha_ndbcluster::cond_push(const COND *cond) 
@@ -5702,7 +5719,9 @@ ha_ndbcluster::cond_push(const COND *cond)
   DBUG_RETURN(cond); 
 }
 
-inline
+/*
+  Pop the top condition from the condition stack of the handler instance.
+*/
 void 
 ha_ndbcluster::cond_pop() 
 { 
@@ -5714,6 +5733,9 @@ ha_ndbcluster::cond_pop()
   }
 }
 
+/*
+  Clear the condition stack
+*/
 void
 ha_ndbcluster::cond_clear()
 {
@@ -5724,6 +5746,12 @@ ha_ndbcluster::cond_clear()
   DBUG_VOID_RETURN;
 }
 
+/*
+  Serialize the item tree into a linked list represented by Ndb_cond
+  for fast generation of NbdScanFilter. Adds information such as
+  position of fields that is not directly available in the Item tree.
+  Also checks if condition is supported.
+*/
 void ndb_serialize_cond(const Item *item, void *arg)
 {
   Ndb_cond_traverse_context *context= (Ndb_cond_traverse_context *) arg;
@@ -5747,14 +5775,14 @@ void ndb_serialize_cond(const Item *item, void *arg)
     case(Item::DECIMAL_ITEM):
       break;
     default:
-      *context->supported_ptr= FALSE;
+      context->supported= FALSE;
       break;
     }
 
     DBUG_VOID_RETURN;
   }
   
-  if (*context->supported_ptr)
+  if (context->supported)
   {
     Ndb_cond_stack *ndb_stack= context->stack_ptr;
     Ndb_cond *prev_cond= context->cond_ptr;
@@ -5774,437 +5802,441 @@ void ndb_serialize_cond(const Item *item, void *arg)
     else
       switch(item->type()) {
       case(Item::FIELD_ITEM): {
-	Item_field *field_item= (Item_field *) item;
-	Field *field= field_item->field;
-	enum_field_types type= field->type();
-	/*
-	  Check that the field is part of the table of the handler
-	  instance and that we expect a field with of this result type.
-	*/
-	if (context->table == field->table)
-	{	
-	  const NDBTAB *tab= (const NDBTAB *) context->ndb_table;
-	  DBUG_PRINT("info", ("FIELD_ITEM"));
-	  DBUG_PRINT("info", ("table %s", tab->getName()));
-	  DBUG_PRINT("info", ("column %s", field->field_name));
-	  DBUG_PRINT("info", ("result type %d", field->result_type()));
-	  
-	  // Check that we are expecting a field and with the correct
-	  // result type
-	  if(context->expecting(Item::FIELD_ITEM) &&
-	     (context->expecting_field_result(field->result_type()) ||
-	      // Date and year can be written as strings
-	      (type == MYSQL_TYPE_TIME ||
-	       type == MYSQL_TYPE_DATE || 
-	       type == MYSQL_TYPE_YEAR ||
-	       type == MYSQL_TYPE_DATETIME)
-	      ? context->expecting_field_result(STRING_RESULT) : true)
-	     // Bit fields no yet supported in scan filter
-	     && type != MYSQL_TYPE_BIT)
-	  {
-	    const NDBCOL *col= tab->getColumn(field->field_name);
-	    DBUG_ASSERT(col);
-	    curr_cond->ndb_item= new Ndb_item(field, col->getColumnNo());
-	    context->dont_expect(Item::FIELD_ITEM);
-	    context->expect_no_field_result();
-	    if (context->expect_mask)
-	    {
-	      // We have not seen second argument yet
-	      if (type == MYSQL_TYPE_TIME ||
-		  type == MYSQL_TYPE_DATE || 
-		  type == MYSQL_TYPE_YEAR ||
-		  type == MYSQL_TYPE_DATETIME)
-	      {
-		context->expect_only(Item::STRING_ITEM);
-		context->expect(Item::INT_ITEM);
-	      }
-	      else
-		switch(field->result_type()) {
-		case(STRING_RESULT):
-		  // Expect char string or binary string
-		  context->expect_only(Item::STRING_ITEM);
-		  context->expect(Item::VARBIN_ITEM);
-		  break;
-		case(REAL_RESULT):
-		  context->expect_only(Item::REAL_ITEM);
-		  context->expect(Item::DECIMAL_ITEM);
-		  break;
-		case(INT_RESULT):
-		  context->expect_only(Item::INT_ITEM);
-		  context->expect(Item::VARBIN_ITEM);
-		  break;
-		case(DECIMAL_RESULT):
-		  context->expect_only(Item::DECIMAL_ITEM);
-		  context->expect(Item::REAL_ITEM);
-		  break;
-		default:
-		  break;
-		}
-	    }
-	    break;
-	  }
-	}
-	*context->supported_ptr= FALSE;
-	break;
+        Item_field *field_item= (Item_field *) item;
+        Field *field= field_item->field;
+        enum_field_types type= field->type();
+        /*
+          Check that the field is part of the table of the handler
+          instance and that we expect a field with of this result type.
+        */
+        if (context->table == field->table)
+        {       
+          const NDBTAB *tab= (const NDBTAB *) context->ndb_table;
+          DBUG_PRINT("info", ("FIELD_ITEM"));
+          DBUG_PRINT("info", ("table %s", tab->getName()));
+          DBUG_PRINT("info", ("column %s", field->field_name));
+          DBUG_PRINT("info", ("result type %d", field->result_type()));
+          
+          // Check that we are expecting a field and with the correct
+          // result type
+          if(context->expecting(Item::FIELD_ITEM) &&
+             (context->expecting_field_result(field->result_type()) ||
+              // Date and year can be written as strings
+              (type == MYSQL_TYPE_TIME ||
+               type == MYSQL_TYPE_DATE || 
+               type == MYSQL_TYPE_YEAR ||
+               type == MYSQL_TYPE_DATETIME)
+              ? context->expecting_field_result(STRING_RESULT) : true)
+             // Bit fields no yet supported in scan filter
+             && type != MYSQL_TYPE_BIT)
+          {
+            const NDBCOL *col= tab->getColumn(field->field_name);
+            DBUG_ASSERT(col);
+            curr_cond->ndb_item= new Ndb_item(field, col->getColumnNo());
+            context->dont_expect(Item::FIELD_ITEM);
+            context->expect_no_field_result();
+            if (context->expect_mask)
+            {
+              // We have not seen second argument yet
+              if (type == MYSQL_TYPE_TIME ||
+                  type == MYSQL_TYPE_DATE || 
+                  type == MYSQL_TYPE_YEAR ||
+                  type == MYSQL_TYPE_DATETIME)
+              {
+                context->expect_only(Item::STRING_ITEM);
+                context->expect(Item::INT_ITEM);
+              }
+              else
+                switch(field->result_type()) {
+                case(STRING_RESULT):
+                  // Expect char string or binary string
+                  context->expect_only(Item::STRING_ITEM);
+                  context->expect(Item::VARBIN_ITEM);
+                  break;
+                case(REAL_RESULT):
+                  context->expect_only(Item::REAL_ITEM);
+                  context->expect(Item::DECIMAL_ITEM);
+                  break;
+                case(INT_RESULT):
+                  context->expect_only(Item::INT_ITEM);
+                  context->expect(Item::VARBIN_ITEM);
+                  break;
+                case(DECIMAL_RESULT):
+                  context->expect_only(Item::DECIMAL_ITEM);
+                  context->expect(Item::REAL_ITEM);
+                  break;
+                default:
+                  break;
+                }
+            }
+            break;
+          }
+        }
+        context->supported= FALSE;
+        break;
       }
       case(Item::FUNC_ITEM): {
-	Item_func *func_item= (Item_func *) item;
+        Item_func *func_item= (Item_func *) item;
 
-	context->expect_nothing();
-	switch(func_item->functype()) {
-	case(Item_func::EQ_FUNC): {
-	  DBUG_PRINT("info", ("EQ_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
-	  context->expect(Item::STRING_ITEM);
-	  context->expect(Item::INT_ITEM);
-	  context->expect(Item::REAL_ITEM);
-	  context->expect(Item::DECIMAL_ITEM);
-	  context->expect(Item::VARBIN_ITEM);
-	  context->expect(Item::FIELD_ITEM);
-	  context->expect_field_result(STRING_RESULT);
-	  context->expect_field_result(REAL_RESULT);
-	  context->expect_field_result(INT_RESULT);
-	  context->expect_field_result(DECIMAL_RESULT);
-	  break;
-	}
-	case(Item_func::NE_FUNC): {
-	  DBUG_PRINT("info", ("NE_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
-	  context->expect(Item::STRING_ITEM);
-	  context->expect(Item::INT_ITEM);
-	  context->expect(Item::REAL_ITEM);
-	  context->expect(Item::DECIMAL_ITEM);
-	  context->expect(Item::VARBIN_ITEM);
-	  context->expect(Item::FIELD_ITEM);
-	  context->expect_field_result(STRING_RESULT);
-	  context->expect_field_result(REAL_RESULT);
-	  context->expect_field_result(INT_RESULT);
-	  context->expect_field_result(DECIMAL_RESULT);
-	  break;
-	}
-	case(Item_func::LT_FUNC): {
-	  DBUG_PRINT("info", ("LT_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
-	  context->expect(Item::STRING_ITEM);
-	  context->expect(Item::INT_ITEM);
-	  context->expect(Item::REAL_ITEM);
-	  context->expect(Item::DECIMAL_ITEM);
-	  context->expect(Item::VARBIN_ITEM);
-	  context->expect(Item::FIELD_ITEM);
-	  context->expect_field_result(STRING_RESULT);
-	  context->expect_field_result(REAL_RESULT);
-	  context->expect_field_result(INT_RESULT);
-	  context->expect_field_result(DECIMAL_RESULT);
-	  break;
-	}
-	case(Item_func::LE_FUNC): {
-	  DBUG_PRINT("info", ("LE_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
-	  context->expect(Item::STRING_ITEM);
-	  context->expect(Item::INT_ITEM);
-	  context->expect(Item::REAL_ITEM);
-	  context->expect(Item::DECIMAL_ITEM);
-	  context->expect(Item::VARBIN_ITEM);
-	  context->expect(Item::FIELD_ITEM);
-	  context->expect_field_result(STRING_RESULT);
-	  context->expect_field_result(REAL_RESULT);
-	  context->expect_field_result(INT_RESULT);
-	  context->expect_field_result(DECIMAL_RESULT);
-	  break;
-	}
-	case(Item_func::GE_FUNC): {
-	  DBUG_PRINT("info", ("GE_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
-	  context->expect(Item::STRING_ITEM);
-	  context->expect(Item::INT_ITEM);
-	  context->expect(Item::REAL_ITEM);
-	  context->expect(Item::DECIMAL_ITEM);
-	  context->expect(Item::VARBIN_ITEM);
-	  context->expect(Item::FIELD_ITEM);
-	  context->expect_field_result(STRING_RESULT);
-	  context->expect_field_result(REAL_RESULT);
-	  context->expect_field_result(INT_RESULT);
-	  context->expect_field_result(DECIMAL_RESULT);
-	  break;
-	}
-	case(Item_func::GT_FUNC): {
-	  DBUG_PRINT("info", ("GT_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
-	  context->expect(Item::STRING_ITEM);
-	  context->expect(Item::REAL_ITEM);
-	  context->expect(Item::DECIMAL_ITEM);
-	  context->expect(Item::INT_ITEM);
-	  context->expect(Item::VARBIN_ITEM);
-	  context->expect(Item::FIELD_ITEM);
-	  context->expect_field_result(STRING_RESULT);
-	  context->expect_field_result(REAL_RESULT);
-	  context->expect_field_result(INT_RESULT);
-	  context->expect_field_result(DECIMAL_RESULT);
-	  break;
-	}
-	case(Item_func::LIKE_FUNC): {
-	  DBUG_PRINT("info", ("LIKE_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
-	  context->expect(Item::STRING_ITEM);
-	  *context->supported_ptr= FALSE; // Currently not supported
-	  break;
-	}
-	case(Item_func::NOTLIKE_FUNC): {
-	  DBUG_PRINT("info", ("NOTLIKE_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
-	  context->expect(Item::STRING_ITEM);
-	  *context->supported_ptr= FALSE; // Currently not supported
-	  break;
-	}
-	case(Item_func::ISNULL_FUNC): {
-	  DBUG_PRINT("info", ("ISNULL_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());      
-	  context->expect(Item::FIELD_ITEM);
-	  context->expect_field_result(STRING_RESULT);
-	  context->expect_field_result(REAL_RESULT);
-	  context->expect_field_result(INT_RESULT);
-	  context->expect_field_result(DECIMAL_RESULT);
-	  break;
-	}
-	case(Item_func::ISNOTNULL_FUNC): {
-	  DBUG_PRINT("info", ("ISNOTNULL_FUNC"));      
-	  curr_cond->ndb_item= new Ndb_item(func_item->functype());     
-	  context->expect(Item::FIELD_ITEM);
-	  context->expect_field_result(STRING_RESULT);
-	  context->expect_field_result(REAL_RESULT);
-	  context->expect_field_result(INT_RESULT);
-	  context->expect_field_result(DECIMAL_RESULT);
-	  break;
-	}
-	case(Item_func::UNKNOWN_FUNC): {
-	  DBUG_PRINT("info", ("UNKNOWN_FUNC %s", 
-			      func_item->const_item()?"const":""));  
-	  DBUG_PRINT("info", ("result type %d", func_item->result_type()));
-	  if (func_item->const_item())
-	    switch(func_item->result_type()) {
-	    case(STRING_RESULT): {
-	      NDB_ITEM_QUALIFICATION q;
-	      q.value_type= Item::STRING_ITEM;
-	      curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);      
-	      if (context->expect_field_result_mask)
-	      {
-		// We have not seen the field argument yet
-		context->expect_only(Item::FIELD_ITEM);
-		context->expect_only_field_result(STRING_RESULT);
-	      }
-	      else
-		context->expect_nothing();
+        context->expect_nothing();
+        switch(func_item->functype()) {
+        case(Item_func::EQ_FUNC): {
+          DBUG_PRINT("info", ("EQ_FUNC"));      
+          curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+          context->expect(Item::STRING_ITEM);
+          context->expect(Item::INT_ITEM);
+          context->expect(Item::REAL_ITEM);
+          context->expect(Item::DECIMAL_ITEM);
+          context->expect(Item::VARBIN_ITEM);
+          context->expect(Item::FIELD_ITEM);
+          context->expect_field_result(STRING_RESULT);
+          context->expect_field_result(REAL_RESULT);
+          context->expect_field_result(INT_RESULT);
+          context->expect_field_result(DECIMAL_RESULT);
+          break;
+        }
+        case(Item_func::NE_FUNC): {
+          DBUG_PRINT("info", ("NE_FUNC"));      
+          curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+          context->expect(Item::STRING_ITEM);
+          context->expect(Item::INT_ITEM);
+          context->expect(Item::REAL_ITEM);
+          context->expect(Item::DECIMAL_ITEM);
+          context->expect(Item::VARBIN_ITEM);
+          context->expect(Item::FIELD_ITEM);
+          context->expect_field_result(STRING_RESULT);
+          context->expect_field_result(REAL_RESULT);
+          context->expect_field_result(INT_RESULT);
+          context->expect_field_result(DECIMAL_RESULT);
+          break;
+        }
+        case(Item_func::LT_FUNC): {
+          DBUG_PRINT("info", ("LT_FUNC"));      
+          curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+          context->expect(Item::STRING_ITEM);
+          context->expect(Item::INT_ITEM);
+          context->expect(Item::REAL_ITEM);
+          context->expect(Item::DECIMAL_ITEM);
+          context->expect(Item::VARBIN_ITEM);
+          context->expect(Item::FIELD_ITEM);
+          context->expect_field_result(STRING_RESULT);
+          context->expect_field_result(REAL_RESULT);
+          context->expect_field_result(INT_RESULT);
+          context->expect_field_result(DECIMAL_RESULT);
+          break;
+        }
+        case(Item_func::LE_FUNC): {
+          DBUG_PRINT("info", ("LE_FUNC"));      
+          curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+          context->expect(Item::STRING_ITEM);
+          context->expect(Item::INT_ITEM);
+          context->expect(Item::REAL_ITEM);
+          context->expect(Item::DECIMAL_ITEM);
+          context->expect(Item::VARBIN_ITEM);
+          context->expect(Item::FIELD_ITEM);
+          context->expect_field_result(STRING_RESULT);
+          context->expect_field_result(REAL_RESULT);
+          context->expect_field_result(INT_RESULT);
+          context->expect_field_result(DECIMAL_RESULT);
+          break;
+        }
+        case(Item_func::GE_FUNC): {
+          DBUG_PRINT("info", ("GE_FUNC"));      
+          curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+          context->expect(Item::STRING_ITEM);
+          context->expect(Item::INT_ITEM);
+          context->expect(Item::REAL_ITEM);
+          context->expect(Item::DECIMAL_ITEM);
+          context->expect(Item::VARBIN_ITEM);
+          context->expect(Item::FIELD_ITEM);
+          context->expect_field_result(STRING_RESULT);
+          context->expect_field_result(REAL_RESULT);
+          context->expect_field_result(INT_RESULT);
+          context->expect_field_result(DECIMAL_RESULT);
+          break;
+        }
+        case(Item_func::GT_FUNC): {
+          DBUG_PRINT("info", ("GT_FUNC"));      
+          curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+          context->expect(Item::STRING_ITEM);
+          context->expect(Item::REAL_ITEM);
+          context->expect(Item::DECIMAL_ITEM);
+          context->expect(Item::INT_ITEM);
+          context->expect(Item::VARBIN_ITEM);
+          context->expect(Item::FIELD_ITEM);
+          context->expect_field_result(STRING_RESULT);
+          context->expect_field_result(REAL_RESULT);
+          context->expect_field_result(INT_RESULT);
+          context->expect_field_result(DECIMAL_RESULT);
+          break;
+        }
+        case(Item_func::LIKE_FUNC): {
+          DBUG_PRINT("info", ("LIKE_FUNC"));      
+          curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+          context->expect(Item::STRING_ITEM);
+          context->supported= FALSE; // Currently not supported
+          break;
+        }
+        case(Item_func::NOTLIKE_FUNC): {
+          DBUG_PRINT("info", ("NOTLIKE_FUNC"));      
+          curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+          context->expect(Item::STRING_ITEM);
+          context->supported= FALSE; // Currently not supported
+          break;
+        }
+        case(Item_func::ISNULL_FUNC): {
+          DBUG_PRINT("info", ("ISNULL_FUNC"));      
+          curr_cond->ndb_item= new Ndb_item(func_item->functype());      
+          context->expect(Item::FIELD_ITEM);
+          context->expect_field_result(STRING_RESULT);
+          context->expect_field_result(REAL_RESULT);
+          context->expect_field_result(INT_RESULT);
+          context->expect_field_result(DECIMAL_RESULT);
+          break;
+        }
+        case(Item_func::ISNOTNULL_FUNC): {
+          DBUG_PRINT("info", ("ISNOTNULL_FUNC"));      
+          curr_cond->ndb_item= new Ndb_item(func_item->functype());     
+          context->expect(Item::FIELD_ITEM);
+          context->expect_field_result(STRING_RESULT);
+          context->expect_field_result(REAL_RESULT);
+          context->expect_field_result(INT_RESULT);
+          context->expect_field_result(DECIMAL_RESULT);
+          break;
+        }
+        case(Item_func::UNKNOWN_FUNC): {
+          DBUG_PRINT("info", ("UNKNOWN_FUNC %s", 
+                              func_item->const_item()?"const":""));  
+          DBUG_PRINT("info", ("result type %d", func_item->result_type()));
+          if (func_item->const_item())
+            switch(func_item->result_type()) {
+            case(STRING_RESULT): {
+              NDB_ITEM_QUALIFICATION q;
+              q.value_type= Item::STRING_ITEM;
+              curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);      
+              if (context->expect_field_result_mask)
+              {
+                // We have not seen the field argument yet
+                context->expect_only(Item::FIELD_ITEM);
+                context->expect_only_field_result(STRING_RESULT);
+              }
+              else
+                context->expect_nothing();
 
-	      // Skip any arguments since we will evaluate function instead
-	      DBUG_PRINT("info", ("Skip until end of arguments marker"));
-	      context->skip= func_item->argument_count();
-	      break;
-	    }
-	    case(REAL_RESULT): {
-	      NDB_ITEM_QUALIFICATION q;
-	      q.value_type= Item::REAL_ITEM;
-	      curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-	      if (context->expect_field_result_mask) 
-	      {
-		// We have not seen the field argument yet
-		context->expect_only(Item::FIELD_ITEM);
-		context->expect_only_field_result(REAL_RESULT);
-	      }
-	      else
-		context->expect_nothing();
+              // Skip any arguments since we will evaluate function instead
+              DBUG_PRINT("info", ("Skip until end of arguments marker"));
+              context->skip= func_item->argument_count();
+              break;
+            }
+            case(REAL_RESULT): {
+              NDB_ITEM_QUALIFICATION q;
+              q.value_type= Item::REAL_ITEM;
+              curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
+              if (context->expect_field_result_mask) 
+              {
+                // We have not seen the field argument yet
+                context->expect_only(Item::FIELD_ITEM);
+                context->expect_only_field_result(REAL_RESULT);
+              }
+              else
+                context->expect_nothing();
 
-	      // Skip any arguments since we will evaluate function instead
-	      DBUG_PRINT("info", ("Skip until end of arguments marker"));
-	      context->skip= func_item->argument_count();
-	      break;
-	    }
-	    case(INT_RESULT): {
-	      NDB_ITEM_QUALIFICATION q;
-	      q.value_type= Item::INT_ITEM;
-	      curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-	      if (context->expect_field_result_mask) 
-	      {
-		// We have not seen the field argument yet
-		context->expect_only(Item::FIELD_ITEM);
-		context->expect_only_field_result(INT_RESULT);
-	      }
-	      else
-		context->expect_nothing();
-	      
-	      // Skip any arguments since we will evaluate function instead
-	      DBUG_PRINT("info", ("Skip until end of arguments marker"));
-	      context->skip= func_item->argument_count();
-	      break;
-	    }
-	    case(DECIMAL_RESULT): {
-	      NDB_ITEM_QUALIFICATION q;
-	      q.value_type= Item::DECIMAL_ITEM;
-	      curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-	      if (context->expect_field_result_mask) 
-	      {
-		// We have not seen the field argument yet
-		context->expect_only(Item::FIELD_ITEM);
-		context->expect_only_field_result(DECIMAL_RESULT);
-	      }
-	      else
-		context->expect_nothing();
+              // Skip any arguments since we will evaluate function instead
+              DBUG_PRINT("info", ("Skip until end of arguments marker"));
+              context->skip= func_item->argument_count();
+              break;
+            }
+            case(INT_RESULT): {
+              NDB_ITEM_QUALIFICATION q;
+              q.value_type= Item::INT_ITEM;
+              curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
+              if (context->expect_field_result_mask) 
+              {
+                // We have not seen the field argument yet
+                context->expect_only(Item::FIELD_ITEM);
+                context->expect_only_field_result(INT_RESULT);
+              }
+              else
+                context->expect_nothing();
+              
+              // Skip any arguments since we will evaluate function instead
+              DBUG_PRINT("info", ("Skip until end of arguments marker"));
+              context->skip= func_item->argument_count();
+              break;
+            }
+            case(DECIMAL_RESULT): {
+              NDB_ITEM_QUALIFICATION q;
+              q.value_type= Item::DECIMAL_ITEM;
+              curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
+              if (context->expect_field_result_mask) 
+              {
+                // We have not seen the field argument yet
+                context->expect_only(Item::FIELD_ITEM);
+                context->expect_only_field_result(DECIMAL_RESULT);
+              }
+              else
+                context->expect_nothing();
 
-	      // Skip any arguments since we will evaluate function instead
-	      DBUG_PRINT("info", ("Skip until end of arguments marker"));
-	      context->skip= func_item->argument_count();
-	      break;
-	    }
-	    default:
-	      break;
-	    }
-	  else
-	    // Function does not return constant expression
-	    *context->supported_ptr= FALSE;
-	  break;
-	}
-	default: {
-	  DBUG_PRINT("info", ("Found func_item of type %d", 
-			      func_item->functype()));
-	  *context->supported_ptr= FALSE;
-	}
-	}
-	break;
+              // Skip any arguments since we will evaluate function instead
+              DBUG_PRINT("info", ("Skip until end of arguments marker"));
+              context->skip= func_item->argument_count();
+              break;
+            }
+            default:
+              break;
+            }
+          else
+            // Function does not return constant expression
+            context->supported= FALSE;
+          break;
+        }
+        default: {
+          DBUG_PRINT("info", ("Found func_item of type %d", 
+                              func_item->functype()));
+          context->supported= FALSE;
+        }
+        }
+        break;
       }
       case(Item::STRING_ITEM):
-	DBUG_PRINT("info", ("STRING_ITEM")); 
-	if (context->expecting(Item::STRING_ITEM)) 
-	{
-	  char buff[256];
-	  String str(buff,(uint32) sizeof(buff), system_charset_info);
-	  str.length(0);
-	  Item_string *string_item= (Item_string *) item;
-	  DBUG_PRINT("info", ("value \"%s\"", 
-			      string_item->val_str(&str)->ptr()));
-	  NDB_ITEM_QUALIFICATION q;
-	  q.value_type= Item::STRING_ITEM;
-	  curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);      
-	  if (context->expect_field_result_mask)
-	  {
-	    // We have not seen the field argument yet
-	    context->expect_only(Item::FIELD_ITEM);
-	    context->expect_only_field_result(STRING_RESULT);
-	  }
-	  else 
-	    context->expect_nothing();
-	}
-	else
-	  *context->supported_ptr= FALSE;
-	break;
+        DBUG_PRINT("info", ("STRING_ITEM")); 
+        if (context->expecting(Item::STRING_ITEM)) 
+        {
+#ifndef DBUG_OFF
+          char buff[256];
+          String str(buff,(uint32) sizeof(buff), system_charset_info);
+          str.length(0);
+          Item_string *string_item= (Item_string *) item;
+          DBUG_PRINT("info", ("value \"%s\"", 
+                              string_item->val_str(&str)->ptr()));
+#endif
+          NDB_ITEM_QUALIFICATION q;
+          q.value_type= Item::STRING_ITEM;
+          curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);      
+          if (context->expect_field_result_mask)
+          {
+            // We have not seen the field argument yet
+            context->expect_only(Item::FIELD_ITEM);
+            context->expect_only_field_result(STRING_RESULT);
+          }
+          else 
+            context->expect_nothing();
+        }
+        else
+          context->supported= FALSE;
+        break;
       case(Item::INT_ITEM): 
-	DBUG_PRINT("info", ("INT_ITEM"));
-	if (context->expecting(Item::INT_ITEM)) 
-	{
-	  Item_int *int_item= (Item_int *) item;      
-	  DBUG_PRINT("info", ("value %d", int_item->value));
-	  NDB_ITEM_QUALIFICATION q;
-	  q.value_type= Item::INT_ITEM;
-	  curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-	  if (context->expect_field_result_mask) 
-	  {
-	    // We have not seen the field argument yet
-	    context->expect_only(Item::FIELD_ITEM);
-	    context->expect_only_field_result(INT_RESULT);
-	  }
-	  else
-	    context->expect_nothing();
-	}
-	else
-	  *context->supported_ptr= FALSE;
-	break;
+        DBUG_PRINT("info", ("INT_ITEM"));
+        if (context->expecting(Item::INT_ITEM)) 
+        {
+          Item_int *int_item= (Item_int *) item;      
+          DBUG_PRINT("info", ("value %d", int_item->value));
+          NDB_ITEM_QUALIFICATION q;
+          q.value_type= Item::INT_ITEM;
+          curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
+          if (context->expect_field_result_mask) 
+          {
+            // We have not seen the field argument yet
+            context->expect_only(Item::FIELD_ITEM);
+            context->expect_only_field_result(INT_RESULT);
+          }
+          else
+            context->expect_nothing();
+        }
+        else
+          context->supported= FALSE;
+        break;
       case(Item::REAL_ITEM):
-	DBUG_PRINT("info", ("REAL_ITEM %s"));
-	if (context->expecting(Item::REAL_ITEM)) 
-	{
-	  Item_float *float_item= (Item_float *) item;      
-	  DBUG_PRINT("info", ("value %f", float_item->value));
-	  NDB_ITEM_QUALIFICATION q;
-	  q.value_type= Item::REAL_ITEM;
-	  curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-	  if (context->expect_field_result_mask) 
-	  {
-	    // We have not seen the field argument yet
-	    context->expect_only(Item::FIELD_ITEM);
-	    context->expect_only_field_result(REAL_RESULT);
-	  }
-	  else
-	    context->expect_nothing();
-	}
-	else
-	  *context->supported_ptr= FALSE;
-	break;
+        DBUG_PRINT("info", ("REAL_ITEM %s"));
+        if (context->expecting(Item::REAL_ITEM)) 
+        {
+          Item_float *float_item= (Item_float *) item;      
+          DBUG_PRINT("info", ("value %f", float_item->value));
+          NDB_ITEM_QUALIFICATION q;
+          q.value_type= Item::REAL_ITEM;
+          curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
+          if (context->expect_field_result_mask) 
+          {
+            // We have not seen the field argument yet
+            context->expect_only(Item::FIELD_ITEM);
+            context->expect_only_field_result(REAL_RESULT);
+          }
+          else
+            context->expect_nothing();
+        }
+        else
+          context->supported= FALSE;
+        break;
       case(Item::VARBIN_ITEM):
-	DBUG_PRINT("info", ("VARBIN_ITEM"));
-	if (context->expecting(Item::VARBIN_ITEM)) 
-	{
-	  char buff[256];
-	  String str(buff,(uint32) sizeof(buff), system_charset_info);
-	  str.length(0);
-	  Item_hex_string *varbin_item= (Item_hex_string *) item;      
-	  DBUG_PRINT("info", ("value \"%s\"", 
-			      varbin_item->val_str(&str)->ptr()));
-	  NDB_ITEM_QUALIFICATION q;
-	  q.value_type= Item::VARBIN_ITEM;
-	  curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);      
-	  if (context->expect_field_result_mask)
-	  {
-	    // We have not seen the field argument yet
-	    context->expect_only(Item::FIELD_ITEM);
-	    context->expect_only_field_result(STRING_RESULT);
-	  }
-	  else
-	    context->expect_nothing();
-	}
-	else
-	  *context->supported_ptr= FALSE;
-	break;
+        DBUG_PRINT("info", ("VARBIN_ITEM"));
+        if (context->expecting(Item::VARBIN_ITEM)) 
+        {
+#ifndef DBUG_OFF
+          char buff[256];
+          String str(buff,(uint32) sizeof(buff), system_charset_info);
+          str.length(0);
+          Item_hex_string *varbin_item= (Item_hex_string *) item;      
+          DBUG_PRINT("info", ("value \"%s\"", 
+                              varbin_item->val_str(&str)->ptr()));
+#endif
+          NDB_ITEM_QUALIFICATION q;
+          q.value_type= Item::VARBIN_ITEM;
+          curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);      
+          if (context->expect_field_result_mask)
+          {
+            // We have not seen the field argument yet
+            context->expect_only(Item::FIELD_ITEM);
+            context->expect_only_field_result(STRING_RESULT);
+          }
+          else
+            context->expect_nothing();
+        }
+        else
+          context->supported= FALSE;
+        break;
       case(Item::DECIMAL_ITEM):
-	DBUG_PRINT("info", ("DECIMAL_ITEM %s"));
-	if (context->expecting(Item::DECIMAL_ITEM)) 
-	{
-	  Item_decimal *decimal_item= (Item_decimal *) item;      
-	  DBUG_PRINT("info", ("value %f", decimal_item->val_real()));
-	  NDB_ITEM_QUALIFICATION q;
-	  q.value_type= Item::DECIMAL_ITEM;
-	  curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-	  if (context->expect_field_result_mask) 
-	  {
-	    // We have not seen the field argument yet
-	    context->expect_only(Item::FIELD_ITEM);
-	    context->expect_only_field_result(REAL_RESULT);
-	    context->expect_field_result(DECIMAL_RESULT);
-	  }
-	  else
-	    context->expect_nothing();
-	}
-	else
-	  *context->supported_ptr= FALSE;
-	break;
+        DBUG_PRINT("info", ("DECIMAL_ITEM %s"));
+        if (context->expecting(Item::DECIMAL_ITEM)) 
+        {
+          Item_decimal *decimal_item= (Item_decimal *) item;      
+          DBUG_PRINT("info", ("value %f", decimal_item->val_real()));
+          NDB_ITEM_QUALIFICATION q;
+          q.value_type= Item::DECIMAL_ITEM;
+          curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
+          if (context->expect_field_result_mask) 
+          {
+            // We have not seen the field argument yet
+            context->expect_only(Item::FIELD_ITEM);
+            context->expect_only_field_result(REAL_RESULT);
+            context->expect_field_result(DECIMAL_RESULT);
+          }
+          else
+            context->expect_nothing();
+        }
+        else
+          context->supported= FALSE;
+        break;
       case(Item::COND_ITEM): {
-	Item_cond *cond_item= (Item_cond *) item;
-	switch(cond_item->functype()) {
-	case(Item_func::COND_AND_FUNC):
-	  DBUG_PRINT("info", ("COND_AND_FUNC"));
-	  curr_cond->ndb_item= new Ndb_item(cond_item->functype());      
-	  break;
-	case(Item_func::COND_OR_FUNC):
-	  DBUG_PRINT("info", ("COND_OR_FUNC"));
-	  curr_cond->ndb_item= new Ndb_item(cond_item->functype());      
-	  break;
-	default:
-	  DBUG_PRINT("info", ("COND_ITEM %d", cond_item->functype()));
-	  *context->supported_ptr= FALSE;
-	  break;
-	}
-	break;
+        Item_cond *cond_item= (Item_cond *) item;
+        switch(cond_item->functype()) {
+        case(Item_func::COND_AND_FUNC):
+          DBUG_PRINT("info", ("COND_AND_FUNC"));
+          curr_cond->ndb_item= new Ndb_item(cond_item->functype());      
+          break;
+        case(Item_func::COND_OR_FUNC):
+          DBUG_PRINT("info", ("COND_OR_FUNC"));
+          curr_cond->ndb_item= new Ndb_item(cond_item->functype());      
+          break;
+        default:
+          DBUG_PRINT("info", ("COND_ITEM %d", cond_item->functype()));
+          context->supported= FALSE;
+          break;
+        }
+        break;
       }
       default: {
-	DBUG_PRINT("info", ("Found item of type %d", item->type()));
-	*context->supported_ptr= FALSE;
+        DBUG_PRINT("info", ("Found item of type %d", item->type()));
+        context->supported= FALSE;
       }
       }
   }
@@ -6217,18 +6249,16 @@ ha_ndbcluster::serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond)
 {
   DBUG_ENTER("serialize_cond");
   Item *item= (Item *) cond;
-  bool supported= TRUE;
-  Ndb_cond_traverse_context context(table, (void *)m_table, 
-				    &supported, ndb_cond);
+  Ndb_cond_traverse_context context(table, (void *)m_table, ndb_cond);
   item->traverse_cond(&ndb_serialize_cond, (void *) &context, Item::PREFIX);
-  DBUG_PRINT("info", ("The pushed condition is %ssupported", (supported)?"":"not "));
+  DBUG_PRINT("info", ("The pushed condition is %ssupported", (context.supported)?"":"not "));
 
-  DBUG_RETURN(supported);
+  DBUG_RETURN(context.supported);
 }
 
 int
 ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond, 
-					   NdbScanFilter *filter)
+                                           NdbScanFilter *filter)
 {
   DBUG_ENTER("build_scan_filter_predicate");  
   switch(cond->ndb_item->type) {
@@ -6239,264 +6269,266 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
     switch(cond->ndb_item->qualification.function_type) {
     case(Item_func::EQ_FUNC): {
       if (!cond->next->next)
-	break;
+        break;
       Ndb_item *b= cond->next->next->ndb_item;
       Ndb_item *value= 
-	(a->type == NDB_VALUE)? a
-	: (b->type == NDB_VALUE)? b
-	: NULL;
+        (a->type == NDB_VALUE)? a
+        : (b->type == NDB_VALUE)? b
+        : NULL;
       Ndb_item *field= 
-	(a->type == NDB_FIELD)? a
-	: (b->type == NDB_FIELD)? b
-	: NULL;
+        (a->type == NDB_FIELD)? a
+        : (b->type == NDB_FIELD)? b
+        : NULL;
       if (!value || !field) break;
       // Save value in right format for the field type
       value->save_in_field(field);
       DBUG_PRINT("info", ("Generating EQ filter"));
       if (filter->cmp(NdbScanFilter::COND_EQ, 
-		      field->get_field_no(),
-		      field->get_val(),
-		      field->pack_length()) == -1)
-	DBUG_RETURN(1);
+                      field->get_field_no(),
+                      field->get_val(),
+                      field->pack_length()) == -1)
+        DBUG_RETURN(1);
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
     case(Item_func::NE_FUNC): {
       if (!cond->next->next)
-	break;
+        break;
       Ndb_item *b= cond->next->next->ndb_item;
       Ndb_item *value= 
-	(a->type == NDB_VALUE)? a
-	: (b->type == NDB_VALUE)? b
-	: NULL;
+        (a->type == NDB_VALUE)? a
+        : (b->type == NDB_VALUE)? b
+        : NULL;
       Ndb_item *field= 
-	(a->type == NDB_FIELD)? a
-	: (b->type == NDB_FIELD)? b
-	: NULL;
+        (a->type == NDB_FIELD)? a
+        : (b->type == NDB_FIELD)? b
+        : NULL;
       if (!value || !field) break;
       // Save value in right format for the field type
       value->save_in_field(field);
       DBUG_PRINT("info", ("Generating NE filter"));
       if (filter->cmp(NdbScanFilter::COND_NE, 
-		      field->get_field_no(),
-		      field->get_val(),
-		      field->pack_length()) == -1)
-	DBUG_RETURN(1);
+                      field->get_field_no(),
+                      field->get_val(),
+                      field->pack_length()) == -1)
+        DBUG_RETURN(1);
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
     case(Item_func::LT_FUNC): {
       if (!cond->next->next)
-	break;
+        break;
       Ndb_item *b= cond->next->next->ndb_item;
       Ndb_item *value= 
-	(a->type == NDB_VALUE)? a
-	: (b->type == NDB_VALUE)? b
-	: NULL;
+        (a->type == NDB_VALUE)? a
+        : (b->type == NDB_VALUE)? b
+        : NULL;
       Ndb_item *field= 
-	(a->type == NDB_FIELD)? a
-	: (b->type == NDB_FIELD)? b
-	: NULL;
+        (a->type == NDB_FIELD)? a
+        : (b->type == NDB_FIELD)? b
+        : NULL;
       if (!value || !field) break;
       // Save value in right format for the field type
       value->save_in_field(field);
       if (a == field)
       {
-	DBUG_PRINT("info", ("Generating LT filter")); 
-	if (filter->cmp(NdbScanFilter::COND_LT, 
-			field->get_field_no(),
-			field->get_val(),
-			field->pack_length()) == -1)
-	  DBUG_RETURN(1);
+        DBUG_PRINT("info", ("Generating LT filter")); 
+        if (filter->cmp(NdbScanFilter::COND_LT, 
+                        field->get_field_no(),
+                        field->get_val(),
+                        field->pack_length()) == -1)
+          DBUG_RETURN(1);
       }
       else
       {
-	DBUG_PRINT("info", ("Generating GT filter")); 
-	if (filter->cmp(NdbScanFilter::COND_GT, 
-			field->get_field_no(),
-			field->get_val(),
-			field->pack_length()) == -1)
-	  DBUG_RETURN(1);
+        DBUG_PRINT("info", ("Generating GT filter")); 
+        if (filter->cmp(NdbScanFilter::COND_GT, 
+                        field->get_field_no(),
+                        field->get_val(),
+                        field->pack_length()) == -1)
+          DBUG_RETURN(1);
       }
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
     case(Item_func::LE_FUNC): {
       if (!cond->next->next)
-	break;
+        break;
       Ndb_item *b= cond->next->next->ndb_item;
       Ndb_item *value= 
-	(a->type == NDB_VALUE)? a
-	: (b->type == NDB_VALUE)? b
-	: NULL;
+        (a->type == NDB_VALUE)? a
+        : (b->type == NDB_VALUE)? b
+        : NULL;
       Ndb_item *field= 
-	(a->type == NDB_FIELD)? a
-	: (b->type == NDB_FIELD)? b
-	: NULL;
+        (a->type == NDB_FIELD)? a
+        : (b->type == NDB_FIELD)? b
+        : NULL;
       if (!value || !field) break;
       // Save value in right format for the field type
       value->save_in_field(field);
       if (a == field)
       {
-	DBUG_PRINT("info", ("Generating LE filter")); 
-	if (filter->cmp(NdbScanFilter::COND_LE, 
-			field->get_field_no(),
-			field->get_val(),
-			field->pack_length()) == -1)
-	  DBUG_RETURN(1);	
+        DBUG_PRINT("info", ("Generating LE filter")); 
+        if (filter->cmp(NdbScanFilter::COND_LE, 
+                        field->get_field_no(),
+                        field->get_val(),
+                        field->pack_length()) == -1)
+          DBUG_RETURN(1);       
       }
       else
       {
-	DBUG_PRINT("info", ("Generating GE filter")); 
-	if (filter->cmp(NdbScanFilter::COND_GE, 
-			field->get_field_no(),
-			field->get_val(),
-			field->pack_length()) == -1)
-	  DBUG_RETURN(1);
+        DBUG_PRINT("info", ("Generating GE filter")); 
+        if (filter->cmp(NdbScanFilter::COND_GE, 
+                        field->get_field_no(),
+                        field->get_val(),
+                        field->pack_length()) == -1)
+          DBUG_RETURN(1);
       }
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
     case(Item_func::GE_FUNC): {
       if (!cond->next->next)
-	break;
+        break;
       Ndb_item *b= cond->next->next->ndb_item;
       Ndb_item *value= 
-	(a->type == NDB_VALUE)? a
-	: (b->type == NDB_VALUE)? b
-	: NULL;
+        (a->type == NDB_VALUE)? a
+        : (b->type == NDB_VALUE)? b
+        : NULL;
       Ndb_item *field= 
-	(a->type == NDB_FIELD)? a
-	: (b->type == NDB_FIELD)? b
-	: NULL;
+        (a->type == NDB_FIELD)? a
+        : (b->type == NDB_FIELD)? b
+        : NULL;
       if (!value || !field) break;
       // Save value in right format for the field type
       value->save_in_field(field);
       if (a == field)
       {
-	DBUG_PRINT("info", ("Generating GE filter")); 
-	if (filter->cmp(NdbScanFilter::COND_GE, 
-			field->get_field_no(),
-			field->get_val(),
-			field->pack_length()) == -1)
-	  DBUG_RETURN(1);
+        DBUG_PRINT("info", ("Generating GE filter")); 
+        if (filter->cmp(NdbScanFilter::COND_GE, 
+                        field->get_field_no(),
+                        field->get_val(),
+                        field->pack_length()) == -1)
+          DBUG_RETURN(1);
       }
       else
       {
-	DBUG_PRINT("info", ("Generating LE filter")); 
-	if (filter->cmp(NdbScanFilter::COND_LE, 
-			field->get_field_no(),
-			field->get_val(),
-			field->pack_length()) == -1)
-	  DBUG_RETURN(1);
+        DBUG_PRINT("info", ("Generating LE filter")); 
+        if (filter->cmp(NdbScanFilter::COND_LE, 
+                        field->get_field_no(),
+                        field->get_val(),
+                        field->pack_length()) == -1)
+          DBUG_RETURN(1);
       }
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
     case(Item_func::GT_FUNC): {
       if (!cond->next->next)
-	break;
+        break;
       Ndb_item *b= cond->next->next->ndb_item;
       Ndb_item *value= 
-	(a->type == NDB_VALUE)? a
-	: (b->type == NDB_VALUE)? b
-	: NULL;
+        (a->type == NDB_VALUE)? a
+        : (b->type == NDB_VALUE)? b
+        : NULL;
       Ndb_item *field= 
-	(a->type == NDB_FIELD)? a
-	: (b->type == NDB_FIELD)? b
-	: NULL;
+        (a->type == NDB_FIELD)? a
+        : (b->type == NDB_FIELD)? b
+        : NULL;
       if (!value || !field) break;
       // Save value in right format for the field type
       value->save_in_field(field);
       if (a == field)
       {
-	DBUG_PRINT("info", ("Generating GT filter"));
-	if (filter->cmp(NdbScanFilter::COND_GT, 
-			field->get_field_no(),
-			field->get_val(),
-			field->pack_length()) == -1)
-	  DBUG_RETURN(1);
+        DBUG_PRINT("info", ("Generating GT filter"));
+        if (filter->cmp(NdbScanFilter::COND_GT, 
+                        field->get_field_no(),
+                        field->get_val(),
+                        field->pack_length()) == -1)
+          DBUG_RETURN(1);
       }
       else
       {
-	DBUG_PRINT("info", ("Generating LT filter"));
-	if (filter->cmp(NdbScanFilter::COND_LT, 
-			field->get_field_no(),
-			field->get_val(),
-			field->pack_length()) == -1)
-	  DBUG_RETURN(1);
+        DBUG_PRINT("info", ("Generating LT filter"));
+        if (filter->cmp(NdbScanFilter::COND_LT, 
+                        field->get_field_no(),
+                        field->get_val(),
+                        field->pack_length()) == -1)
+          DBUG_RETURN(1);
       }
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
     case(Item_func::LIKE_FUNC): {
       if (!cond->next->next)
-	break;
+        break;
       Ndb_item *b= cond->next->next->ndb_item;
       Ndb_item *value= 
-	(a->type == NDB_VALUE)? a
-	: (b->type == NDB_VALUE)? b
-	: NULL;
+        (a->type == NDB_VALUE)? a
+        : (b->type == NDB_VALUE)? b
+        : NULL;
       Ndb_item *field= 
-	(a->type == NDB_FIELD)? a
-	: (b->type == NDB_FIELD)? b
-	: NULL;
+        (a->type == NDB_FIELD)? a
+        : (b->type == NDB_FIELD)? b
+        : NULL;
       if (!value || !field) break;
       if (value->qualification.value_type != Item::STRING_ITEM) break;
       // Save value in right format for the field type
       value->save_in_field(field);
       DBUG_PRINT("info", ("Generating LIKE filter: like(%d,%s,%d)", 
-			  field->get_field_no(), field->get_val(), 
-			  field->pack_length()));
+                          field->get_field_no(), field->get_val(), 
+                          field->pack_length()));
       /*
       if (filter->like(field->get_field_no(),
                        field->get_val(),
-		       field->pack_length()) == -1)
-	DBUG_RETURN(1);
+                       field->pack_length()) == -1)
+        DBUG_RETURN(1);
       */
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
     case(Item_func::NOTLIKE_FUNC): {
       if (!cond->next->next)
-	break;
+        break;
       Ndb_item *b= cond->next->next->ndb_item;
       Ndb_item *value= 
-	(a->type == NDB_VALUE)? a
-	: (b->type == NDB_VALUE)? b
-	: NULL;
+        (a->type == NDB_VALUE)? a
+        : (b->type == NDB_VALUE)? b
+        : NULL;
       Ndb_item *field= 
-	(a->type == NDB_FIELD)? a
-	: (b->type == NDB_FIELD)? b
-	: NULL;
+        (a->type == NDB_FIELD)? a
+        : (b->type == NDB_FIELD)? b
+        : NULL;
       if (!value || !field) break;
       if (value->qualification.value_type != Item::STRING_ITEM) break;
       // Save value in right format for the field type
       value->save_in_field(field);
       DBUG_PRINT("info", ("Generating NOTLIKE filter: notlike(%d,%s,%d)", 
-			  field->get_field_no(), field->get_val(), 
-			  field->pack_length()));
+                          field->get_field_no(), field->get_val(), 
+                          field->pack_length()));
       /*
       if (filter->notlike(field->get_field_no(),
-			  field->get_val(), field->pack_length()) == -1)
-	DBUG_RETURN(1);
+                          field->get_val(), field->pack_length()) == -1)
+        DBUG_RETURN(1);
       */
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
     case(Item_func::ISNULL_FUNC):
-      if (a->type == NDB_FIELD) {
-	DBUG_PRINT("info", ("Generating ISNULL filter"));
-	if (filter->isnull(a->get_field_no()) == -1)
-	  DBUG_RETURN(1);
+      if (a->type == NDB_FIELD) 
+      {
+        DBUG_PRINT("info", ("Generating ISNULL filter"));
+        if (filter->isnull(a->get_field_no()) == -1)
+          DBUG_RETURN(1);
       }
       cond= cond->next->next;
       DBUG_RETURN(0);
     case(Item_func::ISNOTNULL_FUNC): {
-      if (a->type == NDB_FIELD) {
-	DBUG_PRINT("info", ("Generating ISNOTNULL filter"));
-	if (filter->isnotnull(a->get_field_no()) == -1)
-	  DBUG_RETURN(1);	  
+      if (a->type == NDB_FIELD) 
+      {
+        DBUG_PRINT("info", ("Generating ISNOTNULL filter"));
+        if (filter->isnotnull(a->get_field_no()) == -1)
+          DBUG_RETURN(1);         
       }
       cond= cond->next->next;
       DBUG_RETURN(0);
@@ -6517,44 +6549,45 @@ int
 ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
 {
   DBUG_ENTER("build_scan_filter_group");
+  if (!cond) DBUG_RETURN(1);
   switch(cond->ndb_item->type) {
   case(NDB_FUNCTION):
     switch(cond->ndb_item->qualification.function_type) {
     case(Item_func::COND_AND_FUNC): {
       DBUG_PRINT("info", ("Generating AND group"));
       if (filter->begin(NdbScanFilter::AND) == -1)
-	DBUG_RETURN(1);
+        DBUG_RETURN(1);
       cond= cond->next;
       do
       {
-	if (build_scan_filter_group(cond, filter))
-	  DBUG_RETURN(1);
+        if (build_scan_filter_group(cond, filter))
+          DBUG_RETURN(1);
       } while (cond && cond->ndb_item->type != NDB_END_COND);
       if (cond) cond= cond->next;
       if (filter->end() == -1)
-	DBUG_RETURN(1);
+        DBUG_RETURN(1);
       DBUG_PRINT("info", ("End of AND group"));
       break;
     }
     case(Item_func::COND_OR_FUNC): {
       DBUG_PRINT("info", ("Generating OR group"));
       if (filter->begin(NdbScanFilter::OR) == -1)
-	DBUG_RETURN(1);
+        DBUG_RETURN(1);
       cond= cond->next;
       do
       {
-	if (build_scan_filter_group(cond, filter))
-	  DBUG_RETURN(1);
+        if (build_scan_filter_group(cond, filter))
+          DBUG_RETURN(1);
       } while (cond && cond->ndb_item->type != NDB_END_COND);
       if (cond) cond= cond->next;
       if (filter->end() == -1)
-	DBUG_RETURN(1);
+        DBUG_RETURN(1);
       DBUG_PRINT("info", ("End of OR group"));
       break;
     }
     default:
       if (build_scan_filter_predicate(cond, filter))
-	DBUG_RETURN(1);
+        DBUG_RETURN(1);
     }
     break;
   default: {
@@ -6593,7 +6626,7 @@ ha_ndbcluster::build_scan_filter(Ndb_cond * &cond, NdbScanFilter *filter)
 
 int
 ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
-				    NdbScanOperation *op)
+                                    NdbScanOperation *op)
 {
   DBUG_ENTER("generate_scan_filter");
   if (ndb_cond_stack)
@@ -6604,19 +6637,19 @@ ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
     if (ndb_cond_stack->next) {
       multiple_cond= TRUE;
       if (filter.begin() == -1)
-	DBUG_RETURN(1);	
+        DBUG_RETURN(1); 
     }
     for (Ndb_cond_stack *stack= ndb_cond_stack; 
-	 (stack); 
-	 stack= stack->next)
+         (stack); 
+         stack= stack->next)
       {
-	Ndb_cond *cond= stack->ndb_cond;
+        Ndb_cond *cond= stack->ndb_cond;
 
-	if (build_scan_filter(cond, &filter))
-	{
-	  DBUG_PRINT("info", ("build_scan_filter failed"));
-	  DBUG_RETURN(1);
-	}
+        if (build_scan_filter(cond, &filter))
+        {
+          DBUG_PRINT("info", ("build_scan_filter failed"));
+          DBUG_RETURN(1);
+        }
       }
     if (multiple_cond && filter.end() == -1)
       DBUG_RETURN(1);
