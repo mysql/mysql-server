@@ -537,7 +537,7 @@ Queries from Twin Project
 * Twin pool::                   Find all non-distributed twins
 * Twin event::                  Show a table on twin pair status
 
-MySQL server functions
+MySQL Server Functions
 
 * Languages::                   What languages are supported by @strong{MySQL}?
 * Table size::                  How big @strong{MySQL} tables can be
@@ -831,14 +831,14 @@ Credits
 
 MySQL change history
 
-* News-4.0.x::                  Changes in release 4.0 (development release)
+* News-4.0.x::                  Changes in release 4.0.x (Development; Alpha)
 * News-3.23.x::                 Changes in release 3.23.x (Recommended; Gamma)
-* News-3.22.x::                 Changes in release 3.22.x (Still supported)
+* News-3.22.x::                 Changes in release 3.22.x (Older; Still supported)
 * News-3.21.x::                 Changes in release 3.21.x
 * News-3.20.x::                 Changes in release 3.20.x
 * News-3.19.x::                 Changes in release 3.19.x
 
-Changes in release 4.0 (Alpha)
+Changes in release 4.0.x (Development; Alpha)
 
 * News-4.0.0::                  Changes in release 4.0.0
 
@@ -2189,14 +2189,11 @@ Apart from the following links, you can find and download a lot of
 @subheading Tutorials and Manuals
 @itemize @bullet
 
-@c just forwards to the devshed link below.. (jcole)
-@c @item @uref{http://www.devshed.com/resource/advanced/mysql/index.html, A
-@c beginner's tutorial of how to start using @strong{MySQL}}
-
-@item @uref{http://www.4t2.com/mysql. German MySQL maling list}
+@item @uref{http://www.4t2.com/mysql}@*
 Information about the German MySQL mailing list.
 
-@item @uref{http://www.bitmover.com:8888//home/bk/mysql, MySQL bitkeeper repository}
+@item @uref{http://www.bitmover.com:8888//home/bk/mysql}@*
+Web access to the @strong{MySQL} BitKeeper repository.
 
 @item @uref{http://www.analysisandsolutions.com/code/mybasic.htm}@*
 Beginners @strong{MySQL} Tutorial on how to install and set up
@@ -2316,12 +2313,11 @@ A free report writer in Java
 MySQLExport - Export of @strong{MySQL} create statements and data in a lot of
 different formats (SQL, HTML, CVS, text, ZIP, GZIP...)
 
-@item @uref{http://dlabs.4t2.com, M2D}
-A MySQL-ADmin-client for windows. It supports administration of
+@item @uref{http://dlabs.4t2.com}@*
+M2D, a MySQL-ADmin-client for windows. It supports administration of
 MySQL-Databases, creating of new DBs and tables, editing etc.
 
-@item @uref{http://www.scibit.com/Products/Software/Utils/Mascon.asp,
-Mascon home page}.
+@item @uref{http://www.scibit.com/Products/Software/Utils/Mascon.asp}@*
 Mascon is a powerful Win32 GUI for the administering MySQL server databases.
 @end itemize
 
@@ -2330,8 +2326,10 @@ Mascon is a powerful Win32 GUI for the administering MySQL server databases.
 @c FIX add the rest (at least a couple more Linuxes)
 
 @itemize @bullet
-@item @uref{http://www.suse.com/}
-SuSE Linux (Suse 6.1 and above)
+@item @uref{http://www.suse.com/}@*
+SuSE Linux (6.1 and above)
+@item @uref{http://www.redhat.com/}@*
+RedHat Linux (7.0 and above)
 @end itemize
 
 @subheading Web Development Tools that Support @strong{MySQL}
@@ -2698,7 +2696,7 @@ Database Jump Site
 @item @uref{http://black.hole-in-the.net/guy/webdb/}@*
 Homepage of the webdb-l (Web Databases) mailing list.
 
-@item @uref{http://www.symbolstone.org/technology/perl/DBI/index.html}
+@item @uref{http://www.symbolstone.org/technology/perl/DBI/index.html}@*
 Perl @code{DBI}/@code{DBD} modules homepage.
 
 @item @uref{http://www.student.uni-koeln.de/cygwin/}@*
@@ -2716,10 +2714,10 @@ forums for Computer Professionals.  Features include automatic e-mail
 notification of responses, a links library, and member confidentiality
 guaranteed.
 
-@item @uref{http://www.public.asu.edu/~peterjn/btree/, B-tree paper}
+@item @uref{http://www.public.asu.edu/~peterjn/btree/}@*
 B-Trees: Balanced Tree Data Structures
 
-@item @uref{http://www.fit.qut.edu.au/~maire/baobab/lecture/sld001.htm, B-tree lecture}
+@item @uref{http://www.fit.qut.edu.au/~maire/baobab/lecture/sld001.htm}@*
 A lecture about B-Trees
 @end itemize
 
@@ -3410,7 +3408,7 @@ Note that a single @strong{MySQL} license covers any number of CPUs and
 of clients that connect to the server in any way.
 
 @node Products that use MySQL, ISP, Licensing examples, Licensing examples
-@subsection Selling Products that use @strong{MySQL}
+@subsection Selling Products that use MySQL
 
 To determine whether or not you need a @strong{MySQL} license when
 selling your application, you should ask whether the proper functioning
@@ -3454,7 +3452,7 @@ don't need a license.
 @end itemize
 
 @node ISP, Web server, Products that use MySQL, Licensing examples
-@subsection ISP @strong{MySQL} Services
+@subsection ISP MySQL Services
 
 @cindex ISP services
 @cindex services, ISP
@@ -3482,7 +3480,7 @@ it is patched correctly.
 @cindex web server, running
 @cindex running, a web server
 @node Web server,  , ISP, Licensing examples
-@subsection Running a Web Server Using @strong{MySQL}
+@subsection Running a Web Server Using MySQL
 
 If you use @strong{MySQL} in conjunction with a Web server on Unix, you
 don't have to pay for a license.
@@ -3498,7 +3496,7 @@ enterprise.
 @cindex support costs
 @cindex prices, licensing and support
 @node Cost, Support, Licensing examples, Licensing and Support
-@section @strong{MySQL} Licensing and Support Costs
+@section MySQL Licensing and Support Costs
 
 @menu
 * Payment information::         Payment information
@@ -8964,7 +8962,7 @@ The expected results are shown in the @file{./tests/auto_increment.res} file.
 @end enumerate
 
 @node mysql_install_db, Starting server, Post-installation, Post-installation
-@subsection Problems Running @code{mysql_install_db}
+@subsection Problems Running mysql_install_db
 @cindex @code{mysql_install_db} script
 @cindex scripts, @code{mysql_install_db}
 
@@ -25100,7 +25098,7 @@ group by
 @cindex functions, server
 @cindex server functions
 @node Server, Replication, Tutorial, Top
-@chapter MySQL server functions
+@chapter MySQL Server Functions
 
 @menu
 * Languages::                   What languages are supported by @strong{MySQL}?
@@ -27037,7 +27035,7 @@ can be used to find the relevant rows when scanning the table.
 
 @cindex indexes, uses for
 @node MySQL indexes, Query Speed, Data size, Performance
-@section How @strong{MySQL} Uses Indexes
+@section How MySQL Uses Indexes
 
 Indexes are used to find rows with a specific value of one column
 fast. Without an index @strong{MySQL} has to start with the first record
@@ -37369,13 +37367,13 @@ detail in the PHP manual.
 @section MySQL C++ APIs
 
 Two APIs are available in the @strong{MySQL}
-@uref{http://www.mysql.com/Contrib/,Contrib directory}.
+@uref{http://www.mysql.com/Downloads/Contrib/,Contrib directory}.
 
 @cindex Python APIs
 @node Python, Tcl, Cplusplus, Clients
 @section MySQL Python APIs
 
-The @strong{MySQL} @uref{http://www.mysql.com/Contrib/,Contrib directory}
+The @strong{MySQL} @uref{http://www.mysql.com/Downloads/Contrib/,Contrib directory}
 contains a Python
 interface written by Joseph Skinner.
 
@@ -37389,7 +37387,7 @@ You can also use the Python interface to iODBC to access a
 
 @uref{http://www.binevolve.com/~tdarugar/tcl-sql/, Tcl at binevolve}.
 The
-@uref{http://www.mysql.com/Contrib,Contrib directory} contains a Tcl
+@uref{http://www.mysql.com/Downloads/Contrib,Contrib directory} contains a Tcl
 interface that is based on msqltcl 1.50.
 
 @cindex databases, MySQL vs. others
@@ -39502,7 +39500,7 @@ Vio interface (foundation for the the encrypted client/server protocol).
 @item
 Replication.
 @item
-@code{SHOW TABLE CREATE}.
+@code{SHOW CREATE TABLE}.
 @item
 mod_mysql_include
 @item
@@ -39516,7 +39514,7 @@ mysql-bench
 @item
 @strong{MySQL} test suite
 @item
-Our web master.
+Our webmaster.
 @end itemize
 
 @item Miguel Solórzano
@@ -39546,6 +39544,10 @@ Added keys to the @code{MERGE} library.
 Proofreading and editing this fine manual.
 @item
 @code{ALTER TABLE ... ORDER BY ...}.
+@item
+@code{UPDATE ... ORDER BY ...}.
+@item
+@code{DELETE ... ORDER BY ...}.
 @end itemize
 
 @item John Dean
@@ -39811,31 +39813,31 @@ find on the
 this means that the version has not yet been released!
 
 @menu
-* News-4.0.x::                  Changes in release 4.0 (development version)
+* News-4.0.x::                  Changes in release 4.0.x (Development; Alpha)
 * News-3.23.x::                 Changes in release 3.23.x (Recommended; Gamma)
-* News-3.22.x::                 Changes in release 3.22.x (Still supported)
+* News-3.22.x::                 Changes in release 3.22.x (Older; Still supported)
 * News-3.21.x::                 Changes in release 3.21.x
 * News-3.20.x::                 Changes in release 3.20.x
 * News-3.19.x::                 Changes in release 3.19.x
 @end menu
 
 @node News-4.0.x, News-3.23.x, News, News
-@appendixsec Changes in release 4.0 (Alpha)
+@appendixsec Changes in release 4.0.x (Development; Alpha)
 
 We have now started to work on MySQL 4.0.  We will update this section
 as we add new features so that other can follow our development.
 Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @menu
-* News-4.0.0::                  Changes in release 4.0
+* News-4.0.0::                  Changes in release 4.0.0
 @end menu
 
 @node News-4.0.0,  , News-4.0.x, News-4.0.x
-@appendixsubsec Changes in release 4.0
+@appendixsubsec Changes in release 4.0.0
 
 @itemize @bullet
 @item
-Added @code{ORDER BY} to @code{DELETE}.
+Added @code{ORDER BY} syntax to @code{UPDATE} and @code{DELETE}.
 @end itemize
 
 @node News-3.23.x, News-3.22.x, News-4.0.x, News
@@ -39892,10 +39894,10 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.30
 @itemize @bullet
 @item
-Fixed a bug from 3.23.29 when allocation the shared structure needed
+Fixed a bug from 3.23.29 when allocating the shared structure needed
 for BDB tables.
 @item
-Changed mysqld_mult.sh to use configure variables. Patch by
+Changed @file{mysqld_multi.sh} to use configure variables. Patch by
 Christopher McCrory.
 @item
 Added fixing of include files for Solaris 2.8.
@@ -39912,10 +39914,10 @@ Fixed bug when running two simultaneous @code{SHOW LOGS} queries.
 @appendixsubsec Changes in release 3.23.29
 @itemize @bullet
 @item
-Configure updates for Tru64, large file support and better TCP wrappers
+Configure updates for Tru64, large file support, and better TCP wrapper
 support. By Albert Chin-A-Young.
 @item
-Fixed bug in <=> operator.
+Fixed bug in @code{<=>} operator.
 @item
 Fixed bug in @code{REPLACE} with BDB tables.
 @item
@@ -39937,7 +39939,7 @@ the whole @code{WHERE} part.
 Changed drop table to first drop the tables and then the @code{.frm} file.
 @item
 Fixed a bug in the hostname cache which caused @code{mysqld} to report the
-hostname as '' in some error messages.
+hostname as @code{''} in some error messages.
 @item
 Fixed a bug with @code{HEAP} type tables; the variable
 @code{max_heap_table_size} wasn't used. Now either @code{MAX_ROWS} or
@@ -39954,7 +39956,7 @@ Added support for @code{auto_increment} on sub fields for BDB tables.
 Added @code{ANALYZE} of BDB tables.
 @item
 Store in BDB tables the number of rows; This helps to optimize queries
-when we need an approximation of the number of row.
+when we need an approximation of the number of rows.
 @item
 If we get an error in a multi-row statement, we now only rollback the
 last statement, not the entire transaction.
@@ -39969,7 +39971,7 @@ Added status variable @code{Slave_open_temp_tables}.
 Added variables @code{binlog_cache_size} and @code{max_binlog_cache_size} to
 @code{mysqld}.
 @item
-Made @code{DROP TABLE}, @code{RENAME TABLE}, @code{CREATE INDEX} and
+@code{DROP TABLE}, @code{RENAME TABLE}, @code{CREATE INDEX} and
 @code{DROP INDEX} are now transaction endpoints.
 @item
 If you do a @code{DROP DATABASE} on a symbolic linked database, both
@@ -39978,7 +39980,7 @@ the link and the original database is deleted.
 Fixed that @code{DROP DATABASE} works on OS/2.
 @item
 Fixed bug when doing a @code{SELECT DISTINCT ... table1 LEFT JOIN
-table2..} when table2 was empty.
+table2 ...} when table2 was empty.
 @item
 Added @code{--abort-slave-event-count} and
 @code{--disconnect-slave-event-count} options to @code{mysqld} for
@@ -39996,9 +39998,10 @@ Tim Bunce @email{Tim.Bunce@@ig.co.uk} for modifying @file{mysql.server} to
 easily handle hosts running many @code{mysqld} processes.
 @item
 @file{safe_mysqld}, @file{mysql.server}, and @file{mysql_install_db} have
-been modified to use mysql_print_defaults instead of various hacks to read
-the @file{my.cnf} files.  In addition, the handling of various paths has been
-made more consistent with how @code{mysqld} handles them by default.
+been modified to use @code{mysql_print_defaults} instead of various hacks 
+to read the @file{my.cnf} files.  In addition, the handling of various 
+paths has been made more consistent with how @code{mysqld} handles them 
+by default.
 @item
 Automatically remove Berkeley DB transaction logs that no longer are in
 use.
@@ -40007,7 +40010,7 @@ Fixed bug with several @code{FULLTEXT} indexes in one table.
 @item
 Added a warning if number of rows changes on @code{REPAIR}/@code{OPTIMIZE}.
 @item
-Applied patches for OS2 by @code{Yuri Dario}.
+Applied patches for OS/2 by @code{Yuri Dario}.
 @item
 @code{FLUSH TABLES table_name} didn't always flush the index tree
 properly to disk.
@@ -41512,7 +41515,7 @@ Added @code{mysqld} option @code{--default-table-type}.
 @end itemize
 
 @node News-3.22.x, News-3.21.x, News-3.23.x, News
-@appendixsec Changes in release 3.22.x
+@appendixsec Changes in release 3.22.x (Older; Still supported)
 
 The 3.22 version has faster and safer connect code and a lot of new nice
 enhancements.  The reason for not including these changes in the 3.21 version
@@ -44607,7 +44610,7 @@ tell us what you want to have done more quickly. @xref{Licensing and Support}.
 @node TODO MySQL 4.0, TODO future, TODO, TODO
 @appendixsec Things that should be in 4.0
 
-We plan to make @strong{MySQL} Version 4.0 a 'quick' release where we only
+We plan to make @strong{MySQL} Version 4.0 a ``quick'' release where we only
 add some new stuff to enable others to help us with developing new features
 into Version 4.1.  The @strong{MySQL} 4.0 version should only take us about
 a month to make after which we want to stabilize it and start working on
@@ -44639,7 +44642,7 @@ The @code{mysqld} will support all standard @strong{MySQL} features and
 one can use it in a threaded client to run different queries in each
 thread.
 @item
-@code{SHOW DATABASE} should only show the database which you have some kind
+@code{SHOW DATABASES} should only show the database which you have some kind
 of access privilege to.
 @item
 Online backup with very low performance penalty.  The online backup will
@@ -44680,10 +44683,6 @@ Fail safe replication.
 Subqueries.
 @code{select id from t where grp in (select grp from g where u > 100)}
 @item
-@code{INSERT SQL_CONCURRENT ...};  This will force the insert to happen at the
-end of the data file if the table is in use by an select to allow
-concurrent inserts.
-@item
 Don't allow more than a defined number of threads to run MyISAM recover
 at the same time.
 @item
@@ -44697,14 +44696,14 @@ Port of @strong{MySQL} to BeOS.
 @item
 Link the @code{myisampack} code into the server.
 @item
-Add a temporary key buffer cache during @code{insert/delete/update} so that we
+Add a temporary key buffer cache during @code{INSERT/DELETE/UPDATE} so that we
 can gracefully recover if the index file gets full.
 @item
 If you perform an @code{ALTER TABLE} on a table that is symlinked to another
 disk, create temporary tables on this disk.
 @item
-Implement a date/datetime type that handles time zone information properly,
-so that dealing with dates in different time zones is easier.
+Implement a @code{DATE/DATETIME} type that handles time zone information
+properly, so that dealing with dates in different time zones is easier.
 @item
 FreeBSD and MIT-pthreads;  Do sleeping threads take CPU?
 @item
@@ -44753,9 +44752,6 @@ without reading results or give a nice error message when one does this.
 Optimize @code{BIT} type to take 1 bit (now @code{BIT} takes 1 char).
 @item
 Check why MIT-pthreads @code{ctime()} doesn't work on some FreeBSD systems.
-@item
-Add @code{ORDER BY} to @code{UPDATE}. This would be handy with functions like:
-@code{generate_id(start,step)}.
 @item
 Add an @code{IMAGE} option to @code{LOAD DATA INFILE} to not update
 @code{TIMESTAMP} and @code{AUTO_INCREMENT} fields.
