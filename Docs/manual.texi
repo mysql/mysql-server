@@ -46054,6 +46054,12 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed slave to replicate from 3.23 master
+@item
+Misc replication fixes/cleanup
+@item
+Got shutdown to work on MacOS X
+@item
 Added @file{myisam/ft_dump} utility for low-level inspection
 of @code{FULLTEXT} indexes.
 @item
