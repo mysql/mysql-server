@@ -2650,7 +2650,8 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
       m_use_write= TRUE;
     } else 
     {
-      m_ignore_dup_key_not_supported= TRUE;
+      if (table->keys)
+        m_ignore_dup_key_not_supported= TRUE;
     }
     break;
   case HA_EXTRA_NO_IGNORE_DUP_KEY:
