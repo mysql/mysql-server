@@ -144,8 +144,9 @@ while test $# -gt 0; do
       SLEEP_TIME=`$ECHO "$1" | $SED -e "s;--sleep=;;"`
       ;;
     --mysqld=*)
-       TMP=`$ECHO "$1" | $SED -e "s;--mysqld-=;"`
-       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $TMP"
+       TMP=`$ECHO "$1" | $SED -e "s;--mysqld=;;"`
+       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT $TMP"
+       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT $TMP"
        ;;
     --gcov )
       if [ x$BINARY_DIST = x1 ] ; then
@@ -163,12 +164,14 @@ while test $# -gt 0; do
       fi
       DO_GDB=1
       USE_RUNNING_SERVER=""
+      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-stack"
       ;;
     --ddd )
       if [ x$BINARY_DIST = x1 ] ; then
 	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with -gdb option"
       fi
       DO_DDD=1
+      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-stack"
       USE_RUNNING_SERVER=""
       ;;
     --skip-*)
@@ -436,12 +439,10 @@ start_master()
     	    --server-id=1 \
             --basedir=$MY_BASEDIR \
 	    --port=$MASTER_MYPORT \
-	    --exit-info=256 \
             --datadir=$MASTER_MYDDIR \
 	    --pid-file=$MASTER_MYPID \
 	    --socket=$MASTER_MYSOCK \
             --log=$MASTER_MYLOG --default-character-set=latin1 \
-	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
 	    --language=english \
             --innodb_data_file_path=ibdata1:50M \
