@@ -1833,6 +1833,7 @@ slave:
 	    lex->type = 0;
 	    /* We'll use mi structure for UNTIL options */
 	    bzero((char*) &lex->mi, sizeof(lex->mi));
+            /* If you change this code don't forget to update SLAVE START too */
           }
           slave_until
           {}
@@ -1841,6 +1842,7 @@ slave:
 	    LEX *lex=Lex;
             lex->sql_command = SQLCOM_SLAVE_STOP;
 	    lex->type = 0;
+            /* If you change this code don't forget to update SLAVE STOP too */
           }
 	| SLAVE START_SYM slave_thread_opts
          {
