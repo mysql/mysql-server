@@ -1848,7 +1848,7 @@ trx_recover_for_mysql(
 	ulint	len)		/* in: number of slots in xid_list */
 {
 	trx_t*	trx;
-	int	num_of_transactions = 0;
+	int	count = 0;
 
 	ut_ad(xid_list);
 	ut_ad(len);
@@ -1866,7 +1866,16 @@ trx_recover_for_mysql(
 
 	while (trx) {
 		if (trx->conc_state == TRX_PREPARED) {
-			xid_list[num_of_transactions] = trx->xid;
+			xid_list[count].formatID = trx->xid.formatID;
+			xid_list[count].gtrid_length = trx->xid.gtrid_length;
+			xid_list[count].bqual_length = trx->xid.bqual_length;
+
+			memcpy(xid_list[count].data,
+					trx->xid.data,
+					trx->xid.gtrid_length + 
+					trx->xid.bqual_length);
+
+			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
 "InnoDB: Transaction %lu %lu in prepared state after recovery\n",
@@ -1877,9 +1886,9 @@ trx_recover_for_mysql(
 "InnoDB: Transaction contains changes to %lu rows\n",
 			(ulong)ut_conv_dulint_to_longlong(trx->undo_no));
 
-			num_of_transactions++;
+			count++;
 		
-			if ((uint)num_of_transactions == len ) {
+			if ((uint)count == len ) {
 				break;
 			}
 		}
@@ -1891,9 +1900,9 @@ trx_recover_for_mysql(
 
 	fprintf(stderr,
 		"InnoDB: %d transactions in prepare state after recovery\n",
-		num_of_transactions);
+		count);
 
-	return (num_of_transactions);			
+	return (count);			
 }
 
 /***********************************************************************
