@@ -321,3 +321,4 @@ sql-bench/innotest1b
 sql-bench/innotest2
 sql-bench/innotest2a
 sql-bench/innotest2b
+depcomp
