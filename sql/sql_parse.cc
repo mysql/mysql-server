@@ -4723,7 +4723,6 @@ bool st_select_lex::init_nested_join(THD *thd)
   embedding= ptr;
   join_list= &nested_join->join_list;
   join_list->empty();
-  nested_join->used_tables= nested_join->not_null_tables= (table_map) 0;
   DBUG_RETURN(0);
 }
 
