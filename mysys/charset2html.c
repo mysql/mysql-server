@@ -93,9 +93,21 @@ static void print_cs(CHARSET_INFO *cs)
     		ch[i].ctp & _MY_B ? "B" : "",
     		ch[i].ctp & _MY_X ? "X" : "");
     
-    printf("<TD>&#%d;",ch[i].uni);
-    printf("<TD>&#%d;",ch[i].low);
-    printf("<TD>&#%d;",ch[i].upp);
+    if ((ch[i].uni >= 0x80) && (ch[i].uni <= 0x9F))
+    {
+      /* 
+       Control characters 0x0080..0x009F are dysplayed by some
+       browers as if they were letters. Don't print them to
+       avoid confusion.
+      */
+      printf("<TD>ctrl<TD>ctrl<TD>ctrl");
+    }
+    else
+    {
+      printf("<TD>&#%d;",ch[i].uni);
+      printf("<TD>&#%d;",ch[i].low);
+      printf("<TD>&#%d;",ch[i].upp);
+    }
     printf("</TR>\n");
     srt=ch[i].srt;
   }
