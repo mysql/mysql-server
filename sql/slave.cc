@@ -36,6 +36,7 @@ bool wild_do_table_inited = 0, wild_ignore_table_inited = 0;
 bool table_rules_on = 0;
 uint32 slave_skip_counter = 0; 
 static TABLE* save_temporary_tables = 0;
+THD* slave_thd = 0;
 // when slave thread exits, we need to remember the temporary tables so we
 // can re-use them on slave start
 
@@ -1157,7 +1158,7 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
-  thd = new THD; // note that contructor of THD uses DBUG_ !
+  slave_thd = thd = new THD; // note that contructor of THD uses DBUG_ !
   thd->set_time();
   DBUG_ENTER("handle_slave");
 
@@ -1347,6 +1348,7 @@ position %s",
   pthread_cond_broadcast(&COND_slave_stopped); // tell the world we are done
   pthread_mutex_unlock(&LOCK_slave);
   net_end(&thd->net); // destructor will not free it, because we are weird
+  slave_thd = 0;
   delete thd;
   my_thread_end();
 #ifndef DBUG_OFF
@@ -1376,8 +1378,13 @@ static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
   }
   
   if(!slave_was_killed)
-   mysql_log.write(thd, COM_CONNECT_OUT, "%s@%s:%d",
+    {
+      mysql_log.write(thd, COM_CONNECT_OUT, "%s@%s:%d",
 		  mi->user, mi->host, mi->port);
+#ifdef STOP_IO_WITH_FD_CLOSE
+      thd->set_active_fd(vio_fd(mysql->net.vio));
+#endif      
+    }
   
   return slave_was_killed;
 }
@@ -1404,11 +1411,16 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
   }
 
   if(!slave_was_killed)
-    sql_print_error("Slave: reconnected to master '%s@%s:%d',\
+    {
+     sql_print_error("Slave: reconnected to master '%s@%s:%d',\
 replication resumed in log '%s' at position %s", glob_mi.user,
 		    glob_mi.host, glob_mi.port,
 		    RPL_LOG_NAME,
 		    llstr(glob_mi.pos,llbuff));
+#ifdef STOP_IO_WITH_FD_CLOSE
+      thd->set_active_fd(vio_fd(mysql->net.vio));
+#endif      
+    }
 
   return slave_was_killed;
 }

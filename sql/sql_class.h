@@ -21,6 +21,8 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include <thr_alarm.h>
+
 class Query_log_event;
 class Load_log_event;
 
@@ -256,6 +258,10 @@ public:
 #ifndef __WIN__
   sigset_t signals,block_signals;
 #endif
+#ifdef STOP_IO_WITH_FD_CLOSE
+  int active_fd;
+  pthread_mutex_t active_fd_lock;
+#endif  
   ulonglong  next_insert_id,last_insert_id,current_insert_id;
   ha_rows select_limit,offset_limit,default_select_limit,cuted_fields,
           max_join_size,sent_row_count;
@@ -284,6 +290,51 @@ public:
   THD();
   ~THD();
   bool store_globals();
+#ifdef STOP_IO_WITH_FD_CLOSE
+  inline void set_active_fd(int fd)
+  {
+    pthread_mutex_lock(&active_fd_lock);
+    active_fd = fd;
+    pthread_mutex_unlock(&active_fd_lock);
+  }
+  inline void clear_active_fd()
+  {
+    pthread_mutex_lock(&active_fd_lock);
+    active_fd = -1;
+    pthread_mutex_unlock(&active_fd_lock);
+  }
+  inline void close_active_fd()
+  {
+    pthread_mutex_lock(&active_fd_lock);
+    if(active_fd >= 0)
+      {
+	my_close(active_fd, MYF(MY_WME));
+        active_fd = -1;
+      }
+    pthread_mutex_unlock(&active_fd_lock);
+  }
+#endif  
+  inline void prepare_to_die()
+  {
+    thr_alarm_kill(real_id);
+    killed = 1;
+#ifdef STOP_IO_WITH_FD_CLOSE
+    close_active_fd();
+#endif    
+    if (mysys_var)
+      {
+	pthread_mutex_lock(&mysys_var->mutex);
+	if (!system_thread)		// Don't abort locks
+	  mysys_var->abort=1;
+	if (mysys_var->current_mutex)
+	  {
+	    pthread_mutex_lock(mysys_var->current_mutex);
+	    pthread_cond_broadcast(mysys_var->current_cond);
+	    pthread_mutex_unlock(mysys_var->current_mutex);
+	  }
+	pthread_mutex_unlock(&mysys_var->mutex);
+      }
+  }
   inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
 			  const char* msg)
   {
