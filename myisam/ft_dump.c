@@ -14,21 +14,45 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Written by Sergei A. Golubchik, who has a shared copyright to this code */
+/* Written by Sergei A. Golubchik, who has a shared copyright to this code
+   added support for long options (my_getopt) 22.5.2002 by Jani Tolonen */
 
 #include "ftdefs.h"
-#include <getopt.h>
+#include <my_getopt.h>
 
 static void get_options(int argc,char *argv[]);
-static void usage(char *argv[]);
+static void usage();
 static void complain(int val);
 
-static int count=0, stats=0, dump=0, verbose=0, lstats=0;
+static int count=0, stats=0, dump=0, lstats=0;
+static my_bool verbose;
 static char *query=NULL;
 static uint lengths[256];
 
 #define MAX_LEN (HA_FT_MAXLEN+10)
 #define HOW_OFTEN_TO_WRITE 10000
+
+static struct my_option my_long_options[] =
+{
+  {"dump", 'd', "Dump index (incl. data offsets and word weights)",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"stats", 's', "Report global stats",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Be verbose",
+   (gptr*) &verbose, (gptr*) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"count", 'c', "Calculate per-word stats (counts and global weights)",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"length", 'l', "Report length distribution",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"execute", 'e', "Execute given query", (gptr*) &query, (gptr*) &query, 0,
+   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"help", 'h', "Display help and exit",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"help", '?', "Synonym for -h",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+
 
 int main(int argc,char *argv[])
 {
@@ -52,7 +76,7 @@ int main(int argc,char *argv[])
     setbuf(stdout,NULL);
 
   if (argc-optind < 2)
-    usage(argv);
+    usage();
 
   if (!(info=mi_open(argv[optind],2,HA_OPEN_ABORT_IF_LOCKED)))
     goto err;
@@ -184,44 +208,59 @@ err:
   return 0;
 }
 
-const char *options="dslcvh";
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument __attribute__((unused)))
+{
+  switch(optid) {
+  case 'd':
+    dump=1; 
+    complain(count || query);
+    break;
+  case 's': 
+    stats=1; 
+    complain(query!=0);
+    break;
+  case 'c': 
+    count= 1;
+    complain(dump || query);
+    break;
+  case 'l': 
+    lstats=1;
+    complain(query!=0);
+    break;
+  case 'e':
+    complain(dump || count || stats);
+    break;
+  case '?':
+  case 'h':
+    usage();
+  }
+  return 0;
+}
 
 static void get_options(int argc, char *argv[])
 {
-  int c;
+  int ho_error;
 
-  while ((c=getopt(argc,argv,options)) != -1)
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
   {
-    switch(c) {
-    case 'd': dump=1; complain(count || query); break;
-    case 's': stats=1; complain(query!=0); break;
-    case 'v': verbose=1; break;
-    case 'c': count=1; complain(dump || query); break;
-    case 'l': lstats=1; complain(query!=0); break;
-    case 'e': query=my_strdup(optarg,MYF(MY_FAE)); complain(dump || count || stats); break;
-    case '?':
-    case 'h':
-    default:
-      usage(argv);
-    }
+    printf("%s: handle_options() failed with error %d\n", my_progname,
+	   ho_error);
+    exit(1);
   }
-  return;
 } /* get options */
 
-static void usage(char *argv[])
+
+static void usage()
 {
-  printf("\n\
-Use: %s [-%s] <table_name> <index_no>\n\
-\n\
--d      Dump index (incl. data offsets and word weights)\n\
--s      Report global stats\n\
--c      Calculate per-word stats (counts and global weights)\n\
--l      Report length distribution\n\
--v      Be verbose\n\
--h      This text\n\
-", *argv, options);
+  printf("Use: ft_dump <table_name> <index_no>\n");
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
   exit(1);
 }
+
 
 static void complain(int val) /* Kinda assert :-)  */
 {
