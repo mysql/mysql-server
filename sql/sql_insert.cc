@@ -112,14 +112,13 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
                  List<Item> &update_values,
                  enum_duplicates duplic)
 {
-  int error;
+  int error, res;
   /*
     log_on is about delayed inserts only.
     By default, both logs are enabled (this won't cause problems if the server
     runs without --log-update or --log-bin).
   */
   int log_on= DELAYED_LOG_UPDATE | DELAYED_LOG_BIN ;
-
   bool transactional_table, log_delayed, bulk_insert;
   uint value_count;
   ulong counter = 1;
@@ -143,15 +142,20 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     if we are told to replace duplicates, the insert cannot be concurrent
     delayed insert changed to regular in slave thread
    */
+#ifdef EMBEDDED_LIBRARY
+  if (lock_type == TL_WRITE_DELAYED)
+    lock_type=TL_WRITE;
+#else
   if ((lock_type == TL_WRITE_DELAYED &&
        ((specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) ||
 	thd->slave_thread || !thd->variables.max_insert_delayed_threads)) ||
       (lock_type == TL_WRITE_CONCURRENT_INSERT && duplic == DUP_REPLACE) ||
       (duplic == DUP_UPDATE))
     lock_type=TL_WRITE;
+#endif
   table_list->lock_type= lock_type;
 
-  int res;
+#ifndef EMBEDDED_LIBRARY
   if (lock_type == TL_WRITE_DELAYED)
   {
     if (thd->locked_tables)
@@ -180,6 +184,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
   }
   else
+#endif /* EMBEDDED_LIBRARY */
     res= open_and_lock_tables(thd, table_list);
   if (res)
     DBUG_RETURN(-1);
@@ -297,12 +302,14 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	break;
       }
     }
+#ifndef EMBEDDED_LIBRARY
     if (lock_type == TL_WRITE_DELAYED)
     {
       error=write_delayed(thd,table,duplic,query, thd->query_length, log_on);
       query=0;
     }
     else
+#endif
       error=write_record(table,&info);
     if (error)
       break;
@@ -323,6 +330,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     Now all rows are inserted.  Time to update logs and sends response to
     user
   */
+#ifndef EMBEDDED_LIBRARY
   if (lock_type == TL_WRITE_DELAYED)
   {
     if (!error)
@@ -334,6 +342,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     query_cache_invalidate3(thd, table_list, 1);
   }
   else
+#endif
   {
     if (bulk_insert)
     {
@@ -430,8 +439,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   DBUG_RETURN(0);
 
 abort:
+#ifndef EMBEDDED_LIBRARY
   if (lock_type == TL_WRITE_DELAYED)
     end_delayed_insert(thd);
+#endif
   free_underlaid_joins(thd, &thd->lex->select_lex);
   table->insert_values=0;
   DBUG_RETURN(-1);
@@ -602,6 +613,8 @@ static int check_null_fields(THD *thd __attribute__((unused)),
   Handling of delayed inserts
   A thread is created for each table that one uses with the DELAYED attribute.
 *****************************************************************************/
+
+#ifndef EMBEDDED_LIBRARY
 
 class delayed_row :public ilink {
 public:
@@ -1391,8 +1404,7 @@ bool delayed_insert::handle_inserts(void)
   pthread_mutex_lock(&mutex);
   DBUG_RETURN(1);
 }
-
-
+#endif /* EMBEDDED_LIBRARY */
 
 /***************************************************************************
   Store records in INSERT ... SELECT *
@@ -1669,7 +1681,9 @@ void select_create::abort()
 
 #ifdef __GNUC__
 template class List_iterator_fast<List_item>;
+#ifndef EMBEDDED_LIBRARY
 template class I_List<delayed_insert>;
 template class I_List_iterator<delayed_insert>;
 template class I_List<delayed_row>;
-#endif
+#endif /* EMBEDDED_LIBRARY */
+#endif /* __GNUC__ */

@@ -284,8 +284,10 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     if (!found)
       if_wait_for_refresh=0;			// Nothing to wait for
   }
+#ifndef EMBEDDED_LIBRARY
   if (!tables)
     kill_delayed_threads();
+#endif
   if (if_wait_for_refresh)
   {
     /*

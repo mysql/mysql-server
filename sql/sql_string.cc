@@ -794,10 +794,14 @@ copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
   const uchar *from_end= (const uchar*) from+from_length;
   char *to_start= to;
   uchar *to_end= (uchar*) to+to_length;
+  int (*mb_wc)(struct charset_info_st *, my_wc_t *, const uchar *,
+	       const uchar *) = from_cs->cset->mb_wc;
+  int (*wc_mb)(struct charset_info_st *, my_wc_t, uchar *s, uchar *e)=
+    to_cs->cset->wc_mb;
 
   while (1)
   {
-    if ((cnvres= from_cs->cset->mb_wc(from_cs, &wc, (uchar*) from,
+    if ((cnvres= (*mb_wc)(from_cs, &wc, (uchar*) from,
 				      from_end)) > 0)
       from+= cnvres;
     else if (cnvres == MY_CS_ILSEQ)
@@ -809,7 +813,7 @@ copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
       break;					// Impossible char.
 
 outp:
-    if ((cnvres= to_cs->cset->wc_mb(to_cs, wc, (uchar*) to, to_end)) > 0)
+    if ((cnvres= (*wc_mb)(to_cs, wc, (uchar*) to, to_end)) > 0)
       to+= cnvres;
     else if (cnvres == MY_CS_ILUNI && wc != '?')
     {
@@ -821,6 +825,7 @@ outp:
   }
   return (uint32) (to - to_start);
 }
+
 
 void String::print(String *str)
 {
