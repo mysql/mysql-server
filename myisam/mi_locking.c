@@ -88,22 +88,10 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	  share->changed=0;
 	  if (myisam_flush)
 	  {
-#if defined(__WIN__)
-	    if (_commit(share->kfile))
-	      error=errno;
-	    if (_commit(info->dfile))
-	      error=errno;
-#elif defined(HAVE_FDATASYNC)
-	    if (fdatasync(share->kfile))
-	      error=errno;
-	    if (fdatasync(share->dfile))
-	      error=errno;
-#elif defined(HAVE_FSYNC)
-	    if (fsync(share->kfile))
-	      error=errno;
-	    if (fsync(share->dfile))
-	      error=errno;
-#endif
+	    if (my_sync(share->kfile, MYF(0)))
+	      error= my_errno;
+	    if (my_sync(info->dfile, MYF(0)))
+	      error= my_errno;
 	  }
 	  else
 	    share->not_flushed=1;

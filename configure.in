@@ -1817,7 +1817,7 @@ AC_CHECK_FUNCS(alarm bmove \
  pthread_attr_create pthread_getsequence_np pthread_attr_setstacksize \
  pthread_attr_getstacksize \
  pthread_condattr_create rwlock_init pthread_rwlock_rdlock \
- fchmod getpass getpassphrase initgroups mlockall)
+ fsync fdatasync fchmod getpass getpassphrase initgroups mlockall)
 
 CFLAGS="$ORG_CFLAGS"
 

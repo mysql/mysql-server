@@ -47,7 +47,7 @@ libmysys_a_SOURCES =	my_init.c my_getwd.c mf_getdate.c\
 			my_delete.c my_rename.c my_redel.c my_tempnam.c \
 			my_chsize.c my_lread.c my_lwrite.c my_clock.c \
 			my_quick.c my_lockmem.c my_static.c \
-			my_getopt.c my_mkdir.c \
+			my_sync.c my_getopt.c my_mkdir.c \
 			default.c my_compress.c checksum.c raid.cc \
 			my_net.c my_semaphore.c my_port.c  my_sleep.c \
 			my_vsnprintf.c charset.c my_bitmap.c my_bit.c md5.c \
