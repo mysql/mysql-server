@@ -8,6 +8,17 @@ Created 1/16/1996 Heikki Tuuri
 
 #include "mach0data.h"
 
+/**********************************************************************
+Determines whether the given character set is of variable length.
+
+NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
+this function, you MUST change also the prototype here! */
+extern
+ibool
+innobase_is_mb_cset(
+/*================*/
+	ulint	cset);	/* in: MySQL charset-collation code */
+
 /*************************************************************************
 Sets a data type structure. */
 UNIV_INLINE
@@ -293,7 +304,13 @@ dtype_get_fixed_size(
 	case DATA_FLOAT:
 	case DATA_DOUBLE:
 	case DATA_MYSQL:
-			return(dtype_get_len(type));
+			if ((type->prtype & DATA_BINARY_TYPE)
+					|| !innobase_is_mb_cset(
+					dtype_get_charset_coll(
+						type->prtype))) {
+				return(dtype_get_len(type));
+			}
+			/* fall through for variable-length charsets */
 	case DATA_VARCHAR:
 	case DATA_BINARY:
 	case DATA_DECIMAL:
