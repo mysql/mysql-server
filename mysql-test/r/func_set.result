@@ -56,3 +56,12 @@ id	elt(two.val,'one','two')
 2	one
 4	two
 drop table t1,t2;
+select find_in_set(binary 'a',binary 'A,B,C');
+find_in_set(binary 'a',binary 'A,B,C')
+0
+select find_in_set('a',binary 'A,B,C');
+find_in_set('a',binary 'A,B,C')
+0
+select find_in_set(binary 'a', 'A,B,C');
+find_in_set(binary 'a', 'A,B,C')
+0
