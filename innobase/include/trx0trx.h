@@ -173,10 +173,10 @@ their transaction objects for a recovery. */
 
 int
 trx_recover_for_mysql(
-/*=================*/
+/*==================*/
 				/* out: number of prepared transactions */
 	XID*    xid_list, 	/* in/out: prepared transactions */
-	uint	len);		/* in: number of slots in xid_list */
+	ulint	len);		/* in: number of slots in xid_list */
 
 /***********************************************************************
 This function is used to commit one X/Open XA distributed transaction
