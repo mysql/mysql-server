@@ -24835,6 +24835,17 @@ in its own lock table and rolls back the transaction. If you use
 than InnoDB in the same transaction, then a deadlock may arise which
 InnoDB cannot notice. In cases like this the timeout is useful to
 resolve the situation.
+@item @code{innodb_unix_file_flush_method} @tab
+(Available from 3.23.39 up.)
+The default value for this is @code{fdatasync}.
+Another option is @code{O_DSYNC}.
+Options @code{littlesync} and @code{nosync} have the
+risk that in an operating system crash or a power outage you may easily
+end up with a half-written database page, and you have to do a recovery
+from a backup. See the section "InnoDB performance tuning", item 6, below
+for tips on how to set this parameter. If you are happy with your database
+performance it is wisest not to specify this parameter at all, in which
+case it will get the default value.
 @end multitable
  
 @node InnoDB init, Using InnoDB tables, InnoDB start, InnoDB
@@ -24954,6 +24965,46 @@ add @file{.frm} files to your InnoDB database manually: use
 InnoDB has its own internal data dictionary, and you will get problems
 if the @strong{MySQL} @file{.frm} files are out of 'sync' with the InnoDB
 internal data dictionary.
+
+@subsubsection Converting MyISAM tables to InnoDB
+
+InnoDB does not have a special optimization for separate index creation.
+Therefore it does not pay to export and import the table and create indexes
+afterwards.
+The fastest way to alter a table to InnoDB is to do the inserts
+directly to an InnoDB table, that is, use @code{ALTER TABLE ... TYPE=INNODB},
+or create an empty InnoDB table with identical definitions and insert
+the rows with @code{INSERT INTO ... SELECT * FROM ...}.
+
+To get better control over the insertion process, it may be good to insert
+big tables in pieces:
+
+@example
+INSERT INTO newtable SELECT * FROM oldtable WHERE yourkey > something
+                                             AND yourkey <= somethingelse;
+@end example
+
+After all data has been inserted you can rename the tables.
+
+During the conversion of big tables you should set the InnoDB
+buffer pool size big 
+to reduce disk i/o. Not bigger than 80 % of the physical memory, though.
+You should set InnoDB log files big, and also the log buffer large.
+
+Make sure you do not run out of tablespace: InnoDB tables take a lot
+more space than MyISAM tables. If an @code{ALTER TABLE} runs out
+of space, it will start a rollback, and that can take hours if it is
+disk-bound.
+In inserts InnoDB uses the insert buffer to merge secondary index records
+to indexes in batches. That saves a lot of disk i/o. In rollback no such
+mechanism is used, and the rollback can take 30 times longer than the
+insertion.
+
+In the case of a runaway rollback, if you do not have valuable data in your
+database,
+it is better that you kill the database process and delete all InnoDB data
+and log files and all InnoDB table @file{.frm} files, and start
+your job again, rather than wait for millions of disk i/os to complete.
 
 @node Adding and removing, Backing up, Using InnoDB tables, InnoDB
 @subsection Adding and removing InnoDB data and log files
@@ -25355,6 +25406,103 @@ set by the SQL statement may be preserved. This is because InnoDB
 stores row locks in a format where it cannot afterwards know which was
 set by which SQL statement.
 
+@subsection Performance tuning tips
+
+@strong{1.}
+If the Unix @file{top} or the Windows @file{Task Manager} shows that
+the CPU usage percentage with your workload is less than 70 %,
+your workload is probably
+disk-bound. Maybe you are making too many transaction commits, or the
+buffer pool is too small.
+Making the buffer pool bigger can help, but do not set
+it bigger than 80 % of physical memory.
+
+@strong{2.}
+Wrap several modifications into one transaction. InnoDB must
+flush the log to disk at each transaction commit, if that transaction
+made modifications to the database. Since the rotation speed of a disk
+is typically
+at most 167 revolutions/second, that constrains the number of commits
+to the same 167/second if the disk does not fool the operating system.
+
+@strong{3.}
+If you can afford the loss of some latest committed transactions, you can
+set the @file{my.cnf} parameter @code{innodb_flush_log_at_trx_commit}
+to zero. InnoDB tries to flush the log anyway once in a second,
+though the flush is not guaranteed.
+
+@strong{4.}
+Make your log files big, even as big as the buffer pool. When InnoDB
+has written the log files full, it has to write the modified contents
+of the buffer pool to disk in a checkpoint. Small log files will cause many
+unnecessary disk writes. The drawback in big log files is that recovery
+time will be longer.
+
+@strong{5.}
+Also the log buffer should be quite big, say 8 MB.
+
+@strong{6.} (Relevant from 3.23.39 up.)
+In some versions of Linux and other Unixes flushing files to disk with the Unix
+@code{fdatasync} and other similar methods is surprisingly slow.
+The default method InnoDB uses is the @code{fdatasync} function.
+If you are not satisfied with the database write performance, you may
+try setting @code{innodb_unix_file_flush_method} in @file{my.cnf}
+to @code{O_DSYNC}, though O_DSYNC seems to be slower on most systems.
+You can also try setting it to @code{littlesync}, which means that
+InnoDB does not call the file flush for every write it does to a
+file, but only
+in log flush at transaction commits and data file flush at a checkpoint.
+The drawback in @code{littlesync} is that if the operating system
+crashes, you can easily end up with a half-written database page,
+and you have to
+do a recovery from a backup. With @code{nosync} you have even less safety:
+InnoDB will only flush the database files to disk at database shutdown
+
+@strong{7.} In importing data to InnoDB, make sure that MySQL does not have
+@code{autocommit=1} on. Then every insert requires a log flush to disk.
+Put before your plain SQL import file line
+
+@example
+set autocommit=0;
+@end example
+
+and after it
+
+@example
+commit;
+@end example
+
+If you use the @file{mysqldump} option @code{--opt}, you will get dump
+files which are fast to import also to an InnoDB table, even without wrapping
+them to the above @code{set autocommit=0; ... commit;} wrappers.
+
+@strong{8.}
+Beware of big rollbacks of mass inserts: InnoDB uses the insert buffer
+to save disk i/o in inserts, but in a corresponding rollback no such
+mechanism is used. A disk-bound rollback can take 30 times the time
+of the corresponding insert. Killing the database process will not
+help because the rollback will start again at the database startup. The
+only way to get rid of a runaway rollback is to increase the buffer pool
+so that the rollback becomes CPU-bound and runs fast, or delete the whole
+InnoDB database.
+
+@strong{9.}
+Beware also of other big disk-bound operations.
+Use @code{DROP TABLE}
+or @code{TRUNCATE} (from MySQL-4.0 up) to empty a table, not
+@code{DELETE FROM yourtable}.
+
+@strong{10.}
+Use the multi-line @code{INSERT} to reduce
+communication overhead between the client and the server if you need
+to insert many rows:
+
+@example
+INSERT INTO yourtable VALUES (1, 2), (5, 5);
+@end example
+
+This tip is of course valid for inserts into any table type, not just InnoDB.
+
 @node Implementation, Table and index, InnoDB transaction model, InnoDB
 @subsection Implementation of multiversioning
 
@@ -25707,6 +25855,11 @@ they roll back the corresponding SQL statement.
 @subsection Some restrictions on InnoDB tables
 
 @itemize @bullet
+
+@item @code{SHOW TABLE STATUS} does not give accurate statistics
+on InnoDB tables, except for the physical size reserved by the table.
+The row count is only a rough estimate used in SQL optimization.
+
 @item
 If you try to create an unique index on a prefix of a column you will get an
 error:
@@ -25755,7 +25908,7 @@ files your operating system supports. Support for > 4 GB files will
 be added to InnoDB in a future version.
 @item
 The maximum tablespace size is 4 billion database pages. This is also
-the maximum size for a table.
+the maximum size for a table. The minimum tablespace size is 10 MB.
 @end itemize
 
 @node InnoDB contact information,  , InnoDB restrictions, InnoDB
