@@ -85,6 +85,11 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     fragPtr.p->m_fragOff = req->fragOff;
     fragPtr.p->m_fragId = req->fragId;
     fragPtr.p->m_numAttrs = req->noOfAttr;
+    fragPtr.p->m_tupIndexFragPtrI = req->tupIndexFragPtrI;
+    fragPtr.p->m_tupTableFragPtrI[0] = req->tupTableFragPtrI[0];
+    fragPtr.p->m_tupTableFragPtrI[1] = req->tupTableFragPtrI[1];
+    fragPtr.p->m_accTableFragPtrI[0] = req->accTableFragPtrI[0];
+    fragPtr.p->m_accTableFragPtrI[1] = req->accTableFragPtrI[1];
     // add the fragment to the index
     indexPtr.p->m_fragId[indexPtr.p->m_numFrags] = req->fragId;
     indexPtr.p->m_fragPtrI[indexPtr.p->m_numFrags] = fragPtr.i;
