@@ -71,7 +71,7 @@ show status like 'key_blocks_used';
 # Following results differs on 64 and 32 bit systems because of different
 # pointer sizes, which takes up different amount of space in key cache
 
---replace_result 1812 KEY_BLOCKS_UNUSED 1793 KEY_BLOCKS_UNUSED 1674 KEY_BLOCKS_UNUSED 1818 KEY_BLOCKS_UNUSED
+--replace_result 1812 KEY_BLOCKS_UNUSED 1793 KEY_BLOCKS_UNUSED 1674 KEY_BLOCKS_UNUSED 1818 KEY_BLOCKS_UNUSED 1824 KEY_BLOCKS_UNUSED
 show status like 'key_blocks_unused';
 
 insert into t1 values (1, 'qqqq'), (11, 'yyyy');
@@ -84,7 +84,7 @@ update t1 set p=2 where p=1;
 update t2 set i=2 where i=1;
 
 show status like 'key_blocks_used';
---replace_result 1808 KEY_BLOCKS_UNUSED 1789 KEY_BLOCKS_UNUSED 1670 KEY_BLOCKS_UNUSED 1814 KEY_BLOCKS_UNUSED
+--replace_result 1808 KEY_BLOCKS_UNUSED 1789 KEY_BLOCKS_UNUSED 1670 KEY_BLOCKS_UNUSED 1814 KEY_BLOCKS_UNUSED 1820 KEY_BLOCKS_UNUSED
 show status like 'key_blocks_unused';
 
 cache index t1 key (`primary`) in keycache1;
@@ -146,7 +146,7 @@ cache index t1,t2 in default;
 drop table t1,t2,t3;
 
 show status like 'key_blocks_used';
---replace_result 1812 KEY_BLOCKS_UNUSED 1793 KEY_BLOCKS_UNUSED 1674 KEY_BLOCKS_UNUSED 1818 KEY_BLOCKS_UNUSED
+--replace_result 1812 KEY_BLOCKS_UNUSED 1793 KEY_BLOCKS_UNUSED 1674 KEY_BLOCKS_UNUSED 1818 KEY_BLOCKS_UNUSED 1824 KEY_BLOCKS_UNUSED
 show status like 'key_blocks_unused';
 
 # Cleanup
