@@ -25,6 +25,13 @@
 /****************************************************************************
  * Section names
  ****************************************************************************/
+
+const ConfigInfo::AliasPair
+ConfigInfo::m_sectionNameAliases[]={
+  {"API", "MYSQLD"},
+  {0, 0}
+};
+
 const char* 
 ConfigInfo::m_sectionNames[]={
   "SYSTEM",
@@ -2061,6 +2068,14 @@ ConfigInfo::isSection(const char * section) const {
     if(!strcmp(section, m_sectionNames[i])) return true;
   }
   return false;
+}
+
+const char*
+ConfigInfo::getAlias(const char * section) const {
+  for (int i = 0; m_sectionNameAliases[i].name != 0; i++)
+    if(!strcmp(section, m_sectionNameAliases[i].alias))
+      return m_sectionNameAliases[i].name;
+  return 0;
 }
 
 bool

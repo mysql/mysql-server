@@ -61,6 +61,11 @@ public:
     Uint64         _max;
   };
 
+  struct AliasPair{
+    const char * name;
+    const char * alias;
+  };
+
   /**
    * Entry for one section rule
    */
@@ -100,6 +105,7 @@ public:
    *   @note Result is not defined if section/name are wrong!
    */
   bool verify(const Properties* secti, const char* fname, Uint64 value) const;
+  const char* getAlias(const char*) const;
   bool isSection(const char*) const;
 
   const char*  getDescription(const Properties * sec, const char* fname) const;
@@ -123,6 +129,7 @@ private:
   static const ParamInfo   m_ParamInfo[];
   static const int         m_NoOfParams;
   
+  static const AliasPair   m_sectionNameAliases[];
   static const char*       m_sectionNames[];
   static const int         m_noOfSectionNames;
 
