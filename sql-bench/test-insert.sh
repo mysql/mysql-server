@@ -1285,7 +1285,7 @@ for ($i=0 ; $i< 256; $i++)
     or die "Got error $DBI::errstr with query: update bench1 set field5=1 where field1=$i\n";
 }
 $end_time=new Benchmark;
-print "Time for update_of_key (256): " .
+print "Time for update_of_primary_key_many_keys (256): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
 if ($server->small_rollback_segment())

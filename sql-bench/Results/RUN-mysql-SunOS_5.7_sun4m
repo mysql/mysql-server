@@ -1,6 +1,6 @@
 Benchmark DBD suite: 2.10
 Date of test:        2000-12-17 17:44:49
-Running tests on:    SunOS 5.7 Sparcstation-10, sun4m 2xcpu: TI,TMS390Z55 (mid 8 impl 0x0 ver 0x1 clock 40MHz)
+Running tests on:    TI,TMS390Z55 (mid 8 impl 0x0 ver 0x1 clock 40MHz)
 Arguments:           -O key_buffer=!6M
 Comments:            gcc 2.95, 196M memory
 Limits from:         
@@ -86,8 +86,9 @@ select_range_prefix                  181.00   55.31   26.09    0.00   25010
 select_simple                         19.00    4.00    6.52    0.00   10000 
 select_simple_join                    21.00    7.16    3.20    0.00     500 
 update_big                           384.00    0.01    0.00    0.00      10 
-update_of_key                        624.00   33.71   29.06    0.00   50256 
+update_of_key                        275.00   33.49   28.89    0.00   50000 
 update_of_key_big                    209.00    0.30    0.33    0.00     501 
+update_of_primary_key_many_keys      349.00    0.22    0.17    0.00     256 
 update_with_key                     1136.00  171.26  157.65    0.00  300000 
 wisc_benchmark                        42.00   17.93    7.18    0.00     114 
 TOTALS                              40688.00 5188.04 3327.69    0.00 1946237 ++++++++++++

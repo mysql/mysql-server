@@ -52,8 +52,8 @@ done
 
 for i in extra/comp_err extra/replace extra/perror extra/resolveip \
  extra/my_print_defaults isam/isamchk isam/pack_isam myisam/myisamchk myisam/myisampack sql/mysqld sql/mysqlbinlog \
- client/mysql sql/mysqld client/mysqlshow client/mysqladmin client/mysqldump \
- client/mysqlimport client/mysqltest \
+ client/mysql sql/mysqld sql/mysqld.sym.gz client/mysqlshow \
+ client/mysqladmin client/mysqldump client/mysqlimport client/mysqltest \
  client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin client/.libs/mysqldump client/.libs/mysqlimport client/.libs/mysqltest
 do
   cp -p $i $BASE/bin
@@ -70,13 +70,13 @@ rm -f $BASE/share/mysql/Makefile* $BASE/share/mysql/*/*.OLD
 rm -rf $BASE/share/SCCS  $BASE/share/*/SCCS 
 
 cp -p mysql-test/mysql-test-run mysql-test/install_test_db $BASE/mysql-test/
+cp -p mysql-test/create-test-result $BASE/mysql-test
 cp -p mysql-test/README $BASE/mysql-test/README
 cp -p mysql-test/include/*.inc $BASE/mysql-test/include
 cp -p mysql-test/std_data/*.dat  mysql-test/std_data/*.frm \
       mysql-test/std_data/*.MRG  $BASE/mysql-test/std_data
 cp -p mysql-test/t/*.test mysql-test/t/*.opt $BASE/mysql-test/t
 cp -p mysql-test/r/*.result mysql-test/r/*.require $BASE/mysql-test/r
-cp -p mysql-test/README* mysql-test/mysql-test-run mysql-test/create-test-result mysql-test/install_test_db mysql-test/mysql-test-run $BASE/mysql-test
 
 cp -p scripts/* $BASE/bin
 rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh $BASE/bin/mysql_install_db $BASE/bin/make_binary_distribution $BASE/bin/setsomevars $BASE/support-files/Makefile* $BASE/support-files/*.sh

@@ -80,8 +80,9 @@ select_range_prefix                 24419.00    9.69    0.80    0.00   25000 ++
 select_simple                          4.00    2.96    0.45    0.00   10000 
 select_simple_join                     3.00    0.69    0.04    0.00     500 
 update_big                          1894.00    0.02    0.00    0.00      10 
-update_of_key                       3624.00   15.41    3.10    0.00   50256 
+update_of_key                       2460.00   15.33    3.09    0.00   50000 
 update_of_key_big                    444.00    0.20    0.00    0.00     501 
+update_of_primary_key_many_keys     1164.00    0.08    0.01    0.00     256 
 update_with_key                     14806.00   89.73   16.29    0.00  300000 
 wisc_benchmark                        18.00    3.04    0.25    0.00     114 
 TOTALS                              130055.00  832.98  125.55    0.00 1844991 ++++++++++
