@@ -1859,9 +1859,10 @@ bool uses_only_table_name_fields(Item *item, TABLE_LIST *table)
     Item **child;
     Item **item_end= (item_func->arguments()) + item_func->argument_count();
     for (child= item_func->arguments(); child != item_end; child++)
+    {
       if (!uses_only_table_name_fields(*child, table))
         return 0;
-    return 1;
+    }
   }
   else if (item->type() == Item::FIELD_ITEM)
   {
@@ -1871,19 +1872,16 @@ bool uses_only_table_name_fields(Item *item, TABLE_LIST *table)
     ST_FIELD_INFO *field_info= schema_table->fields_info;
     const char *field_name1= field_info[schema_table->idx_field1].field_name;
     const char *field_name2= field_info[schema_table->idx_field2].field_name;
-    if(table->table != item_field->field->table ||
-       (cs->coll->strnncollsp(cs, (uchar *) field_name1, strlen(field_name1),
-                              (uchar *) item_field->field_name, 
-                              strlen(item_field->field_name)) &&
-        cs->coll->strnncollsp(cs, (uchar *) field_name2, strlen(field_name2),
-                              (uchar *) item_field->field_name, 
-                              strlen(item_field->field_name))))
+    if (table->table != item_field->field->table ||
+        (cs->coll->strnncollsp(cs, (uchar *) field_name1, strlen(field_name1),
+                               (uchar *) item_field->field_name, 
+                               strlen(item_field->field_name), 0) &&
+         cs->coll->strnncollsp(cs, (uchar *) field_name2, strlen(field_name2),
+                               (uchar *) item_field->field_name, 
+                               strlen(item_field->field_name), 0)))
       return 0;
-    else
-      return 1;
   }
-  else
-    return 1;
+  return 1;
 }
 
 

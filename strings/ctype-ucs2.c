@@ -137,6 +137,9 @@ static void my_hash_sort_ucs2(CHARSET_INFO *cs, const uchar *s, uint slen,
   int res;
   const uchar *e=s+slen;
 
+  while (e > s+1 && e[-1] == ' ' && e[-2] == '\0')
+    e-= 2;
+
   while ((s < e) && (res=my_ucs2_uni(cs,&wc, (uchar *)s, (uchar*)e)) >0)
   {
     int plane = (wc>>8) & 0xFF;
@@ -247,14 +250,16 @@ static int my_strnncoll_ucs2(CHARSET_INFO *cs,
 
 static int my_strnncollsp_ucs2(CHARSET_INFO *cs __attribute__((unused)),
                                const uchar *s, uint slen,
-                               const uchar *t, uint tlen)
+                               const uchar *t, uint tlen,
+                               my_bool diff_if_only_endspace_difference
+			       __attribute__((unused)))
 {
   const uchar *se, *te;
   uint minlen;
 
   /* extra safety to make sure the lengths are even numbers */
-  slen= (slen >> 1) << 1;
-  tlen= (tlen >> 1) << 1;
+  slen&= ~1;
+  tlen&= ~1;
 
   se= s + slen;
   te= t + tlen;
@@ -1354,8 +1359,10 @@ int my_strnncoll_ucs2_bin(CHARSET_INFO *cs,
 
 static int my_strnncollsp_ucs2_bin(CHARSET_INFO *cs, 
                                    const uchar *s, uint slen, 
-                                   const uchar *t, uint tlen)
+                                   const uchar *t, uint tlen,
+                                   my_bool diff_if_only_endspace_difference)
 {
+  /* TODO: Needs to be fixed to handle end space! */
   return my_strnncoll_ucs2_bin(cs,s,slen,t,tlen,0);
 }
 
@@ -1444,8 +1451,14 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
     }
     if (ptr[0] == '\0' && ptr[1] == w_many)	/* '%' in SQL */
     {
-      *min_length= (uint) (min_str - min_org);
-      *max_length=res_length;
+      /*
+        Calculate length of keys:
+        'a\0\0... is the smallest possible string when we have space expand
+        a\ff\ff... is the biggest possible string
+      */
+      *min_length= ((cs->state & MY_CS_BINSORT) ? (uint) (min_str - min_org) :
+                    res_length);
+      *max_length= res_length;
       do {
         *min_str++ = 0;
 	*min_str++ = 0;
@@ -1457,7 +1470,6 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
     *min_str++= *max_str++ = ptr[0];
     *min_str++= *max_str++ = ptr[1];
   }
-  *min_length= *max_length = (uint) (min_str - min_org);
 
   /* Temporary fix for handling w_one at end of string (key compression) */
   {
@@ -1469,13 +1481,15 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
     }
   }
   
+  *min_length= *max_length = (uint) (min_str - min_org);
   while (min_str + 1 < min_end)
   {
     *min_str++ = *max_str++ = '\0';
-    *min_str++ = *max_str++ = ' ';	/* Because if key compression */
+    *min_str++ = *max_str++ = ' ';      /* Because if key compression */
   }
   return 0;
 }
+
 
 static MY_COLLATION_HANDLER my_collation_ucs2_general_ci_handler =
 {

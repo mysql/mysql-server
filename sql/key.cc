@@ -106,13 +106,20 @@ void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length)
     {
       char *pos;
       ulong blob_length= ((Field_blob*) key_part->field)->get_length();
-      key_length-= 2;
+      key_length-= HA_KEY_BLOB_LENGTH;
       ((Field_blob*) key_part->field)->get_ptr(&pos);
       length=min(key_length, key_part->length);
       set_if_smaller(blob_length, length);
       int2store(to_key, (uint) blob_length);
-      to_key+= 2;					// Skip length info
+      to_key+= HA_KEY_BLOB_LENGTH;			// Skip length info
       memcpy(to_key, pos, blob_length);
+    }
+    else if (key_part->key_part_flag & HA_VAR_LENGTH_PART)
+    {
+      key_length-= HA_KEY_BLOB_LENGTH;
+      length= min(key_length, key_part->length);
+      key_part->field->get_key_image(to_key, length, Field::itRAW);
+      to_key+= HA_KEY_BLOB_LENGTH;
     }
     else
     {
@@ -166,11 +173,18 @@ void key_restore(byte *to_record, byte *from_key, KEY *key_info,
     if (key_part->key_part_flag & HA_BLOB_PART)
     {
       uint blob_length= uint2korr(from_key);
-      from_key+= 2;
-      key_length-= 2;
+      from_key+= HA_KEY_BLOB_LENGTH;
+      key_length-= HA_KEY_BLOB_LENGTH;
       ((Field_blob*) key_part->field)->set_ptr((ulong) blob_length,
 					       (char*) from_key);
       length= key_part->length;
+    }
+    else if (key_part->key_part_flag & HA_VAR_LENGTH_PART)
+    {
+      key_length-= HA_KEY_BLOB_LENGTH;
+      length= min(key_length, key_part->length);
+      key_part->field->set_key_image(from_key, length);
+      from_key+= HA_KEY_BLOB_LENGTH;
     }
     else
     {
@@ -226,9 +240,9 @@ bool key_cmp_if_same(TABLE *table,const byte *key,uint idx,uint key_length)
       }
       key++;
     }
-    if (key_part->key_part_flag & (HA_BLOB_PART | HA_VAR_LENGTH))
+    if (key_part->key_part_flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART))
     {
-      if (key_part->field->key_cmp(key, key_part->length+ HA_KEY_BLOB_LENGTH))
+      if (key_part->field->key_cmp(key, key_part->length))
 	return 1;
       length=key_part->length+HA_KEY_BLOB_LENGTH;
     }
@@ -248,7 +262,7 @@ bool key_cmp_if_same(TABLE *table,const byte *key,uint idx,uint key_length)
         }
 	if (cs->coll->strnncollsp(cs,
                                   (const uchar*) key, length,
-                                  (const uchar*) pos, char_length))
+                                  (const uchar*) pos, char_length, 0))
 	  return 1;
       }
       else if (memcmp(key,table->record[0]+key_part->offset,length))

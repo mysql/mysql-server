@@ -116,7 +116,7 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 Insert_priv	enum('N','Y')	utf8_bin			N		select,insert,update,references	
 show full columns from v1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-c	char(64)	utf8_general_ci					select,insert,update,references	
+c	varchar(64)	utf8_general_ci					select,insert,update,references	
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
@@ -433,24 +433,25 @@ information_schema.tables) union select version from
 information_schema.tables;
 s1
 9
+10
 drop table t1;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
 character_sets	CREATE TEMPORARY TABLE `character_sets` (
-  `CHARACTER_SET_NAME` char(30) NOT NULL default '',
-  `DESCRIPTION` char(60) NOT NULL default '',
-  `DEFAULT_COLLATE_NAME` char(60) NOT NULL default '',
+  `CHARACTER_SET_NAME` varchar(30) NOT NULL default '',
+  `DESCRIPTION` varchar(60) NOT NULL default '',
+  `DEFAULT_COLLATE_NAME` varchar(60) NOT NULL default '',
   `MAXLEN` bigint(3) NOT NULL default '0'
-) ENGINE=HEAP DEFAULT CHARSET=utf8 MAX_ROWS=2282
+) ENGINE=HEAP DEFAULT CHARSET=utf8 MAX_ROWS=2252
 set names latin2;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
 character_sets	CREATE TEMPORARY TABLE `character_sets` (
-  `CHARACTER_SET_NAME` char(30) NOT NULL default '',
-  `DESCRIPTION` char(60) NOT NULL default '',
-  `DEFAULT_COLLATE_NAME` char(60) NOT NULL default '',
+  `CHARACTER_SET_NAME` varchar(30) NOT NULL default '',
+  `DESCRIPTION` varchar(60) NOT NULL default '',
+  `DEFAULT_COLLATE_NAME` varchar(60) NOT NULL default '',
   `MAXLEN` bigint(3) NOT NULL default '0'
-) ENGINE=HEAP DEFAULT CHARSET=utf8 MAX_ROWS=2282
+) ENGINE=HEAP DEFAULT CHARSET=utf8 MAX_ROWS=2252
 set names latin1;
 create table t1 select * from information_schema.CHARACTER_SETS
 where CHARACTER_SET_NAME like "latin1";
@@ -461,9 +462,9 @@ alter table t1 default character set utf8;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `CHARACTER_SET_NAME` char(30) NOT NULL default '',
-  `DESCRIPTION` char(60) NOT NULL default '',
-  `DEFAULT_COLLATE_NAME` char(60) NOT NULL default '',
+  `CHARACTER_SET_NAME` varchar(30) NOT NULL default '',
+  `DESCRIPTION` varchar(60) NOT NULL default '',
+  `DEFAULT_COLLATE_NAME` varchar(60) NOT NULL default '',
   `MAXLEN` bigint(3) NOT NULL default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 drop table t1;
@@ -490,22 +491,22 @@ create table t115 as select table_name, column_name, column_type
 from information_schema.columns where table_name = 'proc';
 select * from t115;
 table_name	column_name	column_type
-proc	db	varchar(64)
-proc	name	varchar(64)
+proc	db	char(64)
+proc	name	char(64)
 proc	type	enum('FUNCTION','PROCEDURE')
-proc	specific_name	varchar(64)
+proc	specific_name	char(64)
 proc	language	enum('SQL')
 proc	sql_data_access	enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA')
 proc	is_deterministic	enum('YES','NO')
 proc	security_type	enum('INVOKER','DEFINER')
 proc	param_list	blob
-proc	returns	varchar(64)
+proc	returns	char(64)
 proc	body	blob
-proc	definer	varchar(77)
+proc	definer	char(77)
 proc	created	timestamp
 proc	modified	timestamp
 proc	sql_mode	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO')
-proc	comment	varchar(64)
+proc	comment	char(64)
 drop table t115;
 create view vk as select count(*) from information_schema.tables a;
 select * from vk;
