@@ -136,10 +136,10 @@ static int binlog_rollback(THD *thd, bool all)
   DBUG_ASSERT(all || !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)));
   DBUG_ASSERT(mysql_bin_log.is_open() && my_b_tell(trans_log));
   /*
-     Update the binary log with a BEGIN/ROLLBACK block if we have
-     cached some queries and we updated some non-transactional
-     table. Such cases should be rare (updating a
-     non-transactional table inside a transaction...)
+    Update the binary log with a BEGIN/ROLLBACK block if we have
+    cached some queries and we updated some non-transactional
+    table. Such cases should be rare (updating a
+    non-transactional table inside a transaction...)
   */
   if (unlikely(thd->options & OPTION_STATUS_NO_TRANS_UPDATE))
   {
@@ -920,6 +920,13 @@ bool MYSQL_LOG::reset_logs(THD* thd)
   */
   pthread_mutex_lock(&LOCK_log);
   pthread_mutex_lock(&LOCK_index);
+  /*
+    The following mutex is needed to ensure that no threads call
+    'delete thd' as we would then risk missing a 'rollback' from this
+    thread. If the transaction involved MyISAM tables, it should go
+    into binlog even on rollback.
+  */
+  (void) pthread_mutex_lock(&LOCK_thread_count);
 
   /* Save variables so that we can reopen the log */
   save_name=name;
@@ -953,6 +960,7 @@ bool MYSQL_LOG::reset_logs(THD* thd)
   my_free((gptr) save_name, MYF(0));
 
 err:
+  (void) pthread_mutex_unlock(&LOCK_thread_count);
   pthread_mutex_unlock(&LOCK_index);
   pthread_mutex_unlock(&LOCK_log);
   DBUG_RETURN(error);
@@ -1601,7 +1609,8 @@ bool MYSQL_LOG::write(Log_event* event_info)
         {
           thd->ha_data[binlog_hton.slot]= trans_log= (IO_CACHE *)
             my_malloc(sizeof(IO_CACHE), MYF(MY_ZEROFILL));
-          if (!trans_log || open_cached_file(trans_log, mysql_tmpdir, LOG_PREFIX,
+          if (!trans_log || open_cached_file(trans_log, mysql_tmpdir,
+                                             LOG_PREFIX,
                                              binlog_cache_size, MYF(MY_WME)))
           {
             my_free((gptr)trans_log, MYF(MY_ALLOW_ZERO_PTR));
@@ -1610,13 +1619,15 @@ bool MYSQL_LOG::write(Log_event* event_info)
           }
           trans_log->end_of_file= max_binlog_cache_size;
           trans_register_ha(thd,
-              thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN),
-              &binlog_hton);
+                            thd->options & (OPTION_NOT_AUTOCOMMIT |
+                                            OPTION_BEGIN),
+                            &binlog_hton);
         }
         else if (!my_b_tell(trans_log))
           trans_register_ha(thd,
-              thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN),
-              &binlog_hton);
+                            thd->options & (OPTION_NOT_AUTOCOMMIT |
+                                            OPTION_BEGIN),
+                            &binlog_hton);
         file= trans_log;
       }
       else if (trans_log && my_b_tell(trans_log))
@@ -1631,8 +1642,8 @@ bool MYSQL_LOG::write(Log_event* event_info)
     */
 
     /*
-    1. Write first log events which describe the 'run environment'
-    of the SQL command
+      1. Write first log events which describe the 'run environment'
+      of the SQL command
     */
 
     if (thd)
@@ -1656,12 +1667,12 @@ bool MYSQL_LOG::write(Log_event* event_info)
       {
 	char buf[200];
         int written= my_snprintf(buf, sizeof(buf)-1,
-                    "SET ONE_SHOT CHARACTER_SET_CLIENT=%u,\
+                                 "SET ONE_SHOT CHARACTER_SET_CLIENT=%u,\
 COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
-                             (uint) thd->variables.character_set_client->number,
-                             (uint) thd->variables.collation_connection->number,
-                             (uint) thd->variables.collation_database->number,
-                             (uint) thd->variables.collation_server->number);
+                                 (uint) thd->variables.character_set_client->number,
+                                 (uint) thd->variables.collation_connection->number,
+                                 (uint) thd->variables.collation_database->number,
+                                 (uint) thd->variables.collation_server->number);
 	Query_log_event e(thd, buf, written, 0, FALSE);
 	if (e.write(file))
 	  goto err;
@@ -1804,9 +1815,9 @@ uint MYSQL_LOG::next_file_id()
   IMPLEMENTATION
     - To support transaction over replication, we wrap the transaction
       with BEGIN/COMMIT or BEGIN/ROLLBACK in the binary log.
-      We want to write a BEGIN/ROLLBACK block when a non-transactional table was
-      updated in a transaction which was rolled back. This is to ensure that the
-      same updates are run on the slave.
+      We want to write a BEGIN/ROLLBACK block when a non-transactional table
+      was updated in a transaction which was rolled back. This is to ensure
+      that the same updates are run on the slave.
 */
 
 bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
@@ -2475,15 +2486,13 @@ int TC_LOG_MMAP::open(const char *opt_name)
   DBUG_ASSERT(TC_LOG_PAGE_SIZE % tc_log_page_size == 0);
 
   fn_format(logname,opt_name,mysql_data_home,"",MY_UNPACK_FILENAME);
-  fd= my_open(logname, O_RDWR, MYF(0));
-  if (fd == -1)
+  if ((fd= my_open(logname, O_RDWR, MYF(0))) < 0)
   {
     if (my_errno != ENOENT)
       goto err;
     if (using_heuristic_recover())
       return 1;
-    fd= my_create(logname, O_RDWR, 0, MYF(MY_WME));
-    if (fd == -1)
+    if ((fd= my_create(logname, O_RDWR, 0, MYF(MY_WME))) < 0)
       goto err;
     inited=1;
     file_length= opt_tc_log_size;
@@ -2821,7 +2830,7 @@ int TC_LOG_MMAP::recover()
   */
   if (data[sizeof(tc_log_magic)] != total_ha_2pc)
   {
-    sql_print_error("Recovery failed! You must have enabled "
+    sql_print_error("Recovery failed! You must enable "
                     "exactly %d storage engines that support "
                     "two-phase commit protocol",
                     data[sizeof(tc_log_magic)]);
@@ -2930,14 +2939,15 @@ int TC_LOG_BINLOG::open(const char *opt_name)
     if (! fdle.is_valid())
       goto err;
 
-    for (error= 0; !error ;)
+    do
     {
-      strnmov(log_name, log_info.log_file_name, sizeof(log_name));
-      if ((error= find_next_log(&log_info, 1)) != LOG_INFO_EOF)
-      {
-        sql_print_error("find_log_pos() failed (error: %d)", error);
-        goto err;
-      }
+      strmake(log_name, log_info.log_file_name, sizeof(log_name)-1);
+    } while (!(error= find_next_log(&log_info, 1)));
+
+    if (error !=  LOG_INFO_EOF)
+    {
+      sql_print_error("find_log_pos() failed (error: %d)", error);
+      goto err;
     }
 
     if ((file= open_binlog(&log, log_name, &errmsg)) < 0)
