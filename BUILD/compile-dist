@@ -43,5 +43,6 @@ fi
   --with-berkeley-db \
   --with-innodb \
   --enable-thread-safe-client \
+  --with-extra-charsets=complex \
   --with-ndbcluster
 make
