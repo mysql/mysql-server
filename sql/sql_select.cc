@@ -2988,6 +2988,7 @@ join_free(JOIN *join)
     else
     {
       for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
+      {
 	delete tab->select;
 	delete tab->quick;
 	x_free(tab->cache.buff);

@@ -171,10 +171,21 @@ select numeropost as a FROM t1 GROUP BY (SELECT 1 FROM t1 HAVING a=1);
 SELECT numeropost,maxnumrep FROM t1 WHERE exists (SELECT 1 FROM t2 WHERE (mot='joce') AND date >= '2002-10-21' AND t1.numeropost = t2.topic) ORDER BY maxnumrep DESC LIMIT 0, 20;
 -- error 1054
 SELECT (SELECT 1) as a FROM (SELECT 1 FROM t1 HAVING a=1);
-drop table t1, t2;
+-- error 1054
+SELECT 1 IN (SELECT 1 FROM t2 HAVING a);
+SELECT * from t2 where topic IN (SELECT topic FROM t2 GROUP BY date);
+SELECT * from t2 where topic IN (SELECT topic FROM t2 GROUP BY date HAVING topic < 4100);
+SELECT * from t2 where topic IN (SELECT SUM(topic) FROM t1);
+SELECT * from t2 where topic = any (SELECT topic FROM t2 GROUP BY date);
+SELECT * from t2 where topic = any (SELECT topic FROM t2 GROUP BY date HAVING topic < 4100);
+SELECT * from t2 where topic = any (SELECT SUM(topic) FROM t1);
+SELECT * from t2 where topic = all (SELECT topic FROM t2 GROUP BY date);
+SELECT * from t2 where topic = all (SELECT topic FROM t2 GROUP BY date HAVING topic < 4100);
+SELECT * from t2 where topic = all (SELECT SUM(topic) FROM t2);
+SELECT * from t2 where topic <> any (SELECT SUM(topic) FROM t2);
+drop table t1,t2;
 
 #forumconthardwarefr7
-drop table if exists t1;
 CREATE TABLE `t1` (
   `numeropost` mediumint(8) unsigned NOT NULL auto_increment,
   `maxnumrep` int(10) unsigned NOT NULL default '0',
@@ -215,26 +226,7 @@ INSERT INTO t1 (numeropost,numreponse,pseudo) VALUES (1,1,'joce'),(1,2,'joce'),(
 EXPLAIN SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM t1 WHERE numeropost='1');
 EXPLAIN SELECT MAX(numreponse) FROM t1 WHERE numeropost='1';
 EXPLAIN SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT MAX(numreponse) FROM t1 WHERE numeropost='1');
-SELECT 1 IN (SELECT 1 FROM t1 HAVING a);
-SELECT * from t1 where topic IN (SELECT topic FROM t1 GROUP BY date);
-SELECT * from t1 where topic IN (SELECT topic FROM t1 GROUP BY date HAVING topic < 4100);
-SELECT * from t1 where topic IN (SELECT SUM(topic) FROM t1);
-SELECT * from t1 where topic = any (SELECT topic FROM t1 GROUP BY date);
-SELECT * from t1 where topic = any (SELECT topic FROM t1 GROUP BY date HAVING topic < 4100);
-SELECT * from t1 where topic = any (SELECT SUM(topic) FROM t1);
-SELECT * from t1 where topic = all (SELECT topic FROM t1 GROUP BY date);
-SELECT * from t1 where topic = all (SELECT topic FROM t1 GROUP BY date HAVING topic < 4100);
-SELECT * from t1 where topic = all (SELECT SUM(topic) FROM t1);
-SELECT * from t1 where topic <> any (SELECT SUM(topic) FROM t1);
-CREATE TABLE `t2` (
-  `numeropost` mediumint(8) unsigned NOT NULL auto_increment,
-  `maxnumrep` int(10) unsigned NOT NULL default '0',
-  PRIMARY KEY  (`numeropost`),
-  UNIQUE KEY `maxnumrep` (`maxnumrep`)) TYPE=MyISAM ROW_FORMAT=FIXED;
-
-INSERT INTO t2 (numeropost,maxnumrep) VALUES (40143,1),(43506,2);
-SELECT SQL_CALC_FOUND_ROWS numeropost,maxnumrep FROM t2 WHERE numeropost IN (SELECT topic FROM t1 WHERE pseudo='joce' AND date >= '2002-10-06') ORDER BY maxnumrep DESC LIMIT 0,20;
-drop table t1,t2;
+drop table t1;
 
 CREATE TABLE t1 (a int(1));
 INSERT INTO t1 VALUES (1);
