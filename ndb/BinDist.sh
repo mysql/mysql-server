@@ -50,7 +50,6 @@ include/mgmapi/mgmapi.h
 include/mgmapi/mgmapi_debug.h
 include/ndbapi/
 include/ndbapi/ndbapi_limits.h
-include/ndbapi/AttrType.hpp
 include/ndbapi/Ndb.hpp
 include/ndbapi/NdbApi.hpp
 include/ndbapi/NdbConnection.hpp

@@ -17,8 +17,8 @@
 
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
-#include "NdbSchemaOp.hpp"
-#include "NdbSchemaCon.hpp" 
+//#include "NdbSchemaOp.hpp"
+//#include "NdbSchemaCon.hpp" 
 #include "NdbOperation.hpp"
 #include "NdbConnection.hpp"
 #include "NdbRecAttr.hpp"
@@ -72,8 +72,8 @@ Ndb::Ndb( const char* aDataBase , const char* aDataBaseSchema) :
   theOpIdleList(NULL),
   theScanOpIdleList(NULL),
   theIndexOpIdleList(NULL),
-  theSchemaConIdleList(NULL),
-  theSchemaConToNdbList(NULL),
+//  theSchemaConIdleList(NULL),
+//  theSchemaConToNdbList(NULL),
   theTransactionList(NULL),
   theConnectionArray(NULL),
   theRecAttrIdleList(NULL),
@@ -207,8 +207,8 @@ Ndb::~Ndb()
 
   NdbMutex_Unlock(&createNdbMutex);
   
-  if (theSchemaConToNdbList != NULL)
-    closeSchemaTransaction(theSchemaConToNdbList);
+//  if (theSchemaConToNdbList != NULL)
+//    closeSchemaTransaction(theSchemaConToNdbList);
   while ( theConIdleList != NULL )
     freeNdbCon();
   while ( theSignalIdleList != NULL )

@@ -62,6 +62,7 @@
 #include <NdbMain.h>
 #include <NdbTest.hpp>
 #include <NDBT_Error.hpp>
+#include <NdbSchemaCon.hpp>
 
 #define PKSIZE 1
 #define FOREVER 1
@@ -151,7 +152,6 @@ static void UpdateArray(int *attrValue)
   int attrCount = 0;
   int opCount = 0;
   int sizeCount = 0;
-  int Index = 0;
   int* pValue = attrValue;
 
   for (tableCount = 0; tableCount < tNoOfTables; tableCount++) {
@@ -179,7 +179,6 @@ static void Compare(int* attrValue, int* readValue)
   int attrCount = 0;
   int OpCount = 0;
   int first = 0;
-  int sizeCount = 0;
 
   for (tableCount = 0; tableCount < tNoOfTables; tableCount++) {
     for (attrCount = 0; attrCount < tNoOfAttributes-1; attrCount++) {
@@ -592,19 +591,14 @@ flexScanThread(void* ThreadData)
   ThreadNdb* pThreadData = (ThreadNdb*)ThreadData;
   unsigned int thread_no = pThreadData->ThreadNo;
   unsigned int thread_base = (thread_no * 2000000) + (tNodeId * 26000);
-  int NrOfScannedRecords = 0;
   int tThreadResult = 0;
   Ndb*			MyNdb = NULL;
-  NdbConnection		*MyTransaction = NULL;
-  NdbOperation*		MyOperation[MAXTABLES];
   int                   check = 0;
   StartType	      	tType = stLast;
   int*                  pkValue = NULL;
   int*			attrValue = NULL;
   int*			readValue = NULL;
   int                   AllocSize = 0;
-  NdbRecAttr*           tTmp = NULL;
-  OperationType opType;
   
   AllocSize = tNoOfTables * (tNoOfAttributes-1) * tNoOfOperations * 
     tAttributeSize * sizeof(int);
@@ -770,15 +764,15 @@ static int createTables(Ndb* pMyNdb)
     do {
       i++;
       ndbout << endl << "Creating " << tableName[i - 1] << "..." << endl;
-      
-      MySchemaTransaction = pMyNdb->startSchemaTransaction();
+
+      MySchemaTransaction = NdbSchemaCon::startSchemaTrans(pMyNdb);      
       if( MySchemaTransaction == NULL ) {
 	return (-1);
       } // if
 
       MySchemaOp = MySchemaTransaction->getNdbSchemaOp();	
       if( MySchemaOp == NULL ) {
-	pMyNdb->closeSchemaTransaction(MySchemaTransaction);
+	NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
 	return (-1);
       } // if
 
@@ -800,14 +794,14 @@ static int createTables(Ndb* pMyNdb)
 				      ,40);		// Nr of Pages
 #endif		     
       if (check == -1) {
-	pMyNdb->closeSchemaTransaction(MySchemaTransaction);
+	NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
 	return -1;
       } // if
       
       check = MySchemaOp->createAttribute( (char*)attrName[0], TupleKey, 32, PKSIZE,
 					   UnSigned, MMBased, NotNullAttribute );
       if (check == -1) {
-	pMyNdb->closeSchemaTransaction(MySchemaTransaction);
+	NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
 	return -1;
       } // if
       
@@ -815,7 +809,7 @@ static int createTables(Ndb* pMyNdb)
 	check = MySchemaOp->createAttribute( (char*)attrName[j], NoKey, 32, tAttributeSize,
 					     UnSigned, MMBased, NotNullAttribute );
 	if (check == -1) {
-	  pMyNdb->closeSchemaTransaction(MySchemaTransaction);
+	  NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
 	  return -1;
 	} // if
       } // for
@@ -825,7 +819,7 @@ static int createTables(Ndb* pMyNdb)
 	ndbout << "Probably, " << tableName[i - 1] << " already exist" << endl;
       } // if
       
-      pMyNdb->closeSchemaTransaction(MySchemaTransaction);
+      NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
     } while (tNoOfTables > i);
   }
 
@@ -1058,7 +1052,6 @@ static int insertRows(Ndb* pNdb, // NDB object
   int attrCount = 0;
   NdbConnection* MyTransaction = NULL;
   NdbOperation* MyOperations[MAXTABLES] = {NULL};
-  int Index = 0;
   int opCount = 0;
   
   for (opCount = 0; opCount < tNoOfOperations; opCount++) {
@@ -1099,7 +1092,7 @@ static int insertRows(Ndb* pNdb, // NDB object
 	} // if
 	
 	for (attrCount = 0; attrCount < tNoOfAttributes - 1; attrCount++) {
-	  Index = tableCount * (tNoOfAttributes - 1) * tNoOfOperations * tAttributeSize +
+	  int Index = tableCount * (tNoOfAttributes - 1) * tNoOfOperations * tAttributeSize +
 	    attrCount * tNoOfOperations * tAttributeSize + opCount * tAttributeSize;
 	  check = MyOperations[tableCount]->
 	    setValue((char*)attrName[attrCount + 1],

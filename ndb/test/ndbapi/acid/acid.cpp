@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <NdbApi.hpp>
+#include <NdbSchemaCon.hpp>
 #include <NdbMutex.h>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
@@ -230,7 +231,6 @@ extern "C" void* NdbThreadFuncInsert(void* pArg)
     VerifyMethodInt(pNdbOperationW, setValue(c_szWarehouseSum, nWarehouseSum));
     int iExec = pNdbConnection->execute(Commit);
     int iError = pNdbConnection->getNdbError().code;
-    CommitStatusType cs = pNdbConnection->commitStatus();
 
     if(iExec<0 && iError!=0 && iError!=266 && iError!=630) {
       ReportMethodInt(iExec, pNdbConnection, "pNdbConnection", "execute(Commit)", __FILE__, __LINE__);
@@ -285,7 +285,6 @@ extern "C" void* NdbThreadFuncUpdate(void* pArg)
     VerifyMethodInt(pNdbOperationW, setValue(c_szWarehouseSum, nWarehouseSum));
     int iExec = pNdbConnection->execute(Commit);
     int iError = pNdbConnection->getNdbError().code;
-    CommitStatusType cs = pNdbConnection->commitStatus();
 
     if(iExec<0 && iError!=0 && iError!=266 && iError!=626) {
       ReportMethodInt(iExec, pNdbConnection, "pNdbConnection", "execute(Commit)", __FILE__, __LINE__);
@@ -333,7 +332,6 @@ extern "C" void* NdbThreadFuncDelete(void* pArg)
     }
     int iExec = pNdbConnection->execute(Commit);
     int iError = pNdbConnection->getNdbError().code;
-    CommitStatusType cs = pNdbConnection->commitStatus();
 
     if(iExec<0 && iError!=0 && iError!=266 && iError!=626) {
       ReportMethodInt(iExec, pNdbConnection, "pNdbConnection", "execute(Commit)", __FILE__, __LINE__);
@@ -389,7 +387,7 @@ extern "C" void* NdbThreadFuncRead(void* pArg)
     }
     int iExec = pNdbConnection->execute(Commit);
     int iError = pNdbConnection->getNdbError().code;
-    CommitStatusType cs = pNdbConnection->commitStatus();
+    
     if(iExec<0 && iError!=0 && iError!=266 && iError!=626) {
       ReportMethodInt(iExec, pNdbConnection, "pNdbConnection", "execute(Commit)", __FILE__, __LINE__);
     }
@@ -465,8 +463,7 @@ NDB_COMMAND(acid, "acid", "acid", "acid", 65535)
   VerifyMethodInt(pNdb, init());
   VerifyMethodInt(pNdb, waitUntilReady());
 
-  NdbSchemaCon* pNdbSchemaCon = NULL ;
-  VerifyMethodPtr(pNdbSchemaCon, pNdb, startSchemaTransaction());
+  NdbSchemaCon* pNdbSchemaCon= NdbSchemaCon::startSchemaTrans(pNdb);
   if(!pNdbSchemaCon){
     ndbout <<"startSchemaTransaction failed, exiting now" << endl ;
     delete pNdb ;
@@ -497,9 +494,9 @@ NDB_COMMAND(acid, "acid", "acid", "acid", 65535)
   VerifyMethodInt(pNdbSchemaOp, createAttribute(c_szWarehouseSum, NoKey, 32, 1, UnSigned, MMBased, false));
   VerifyMethodInt(pNdbSchemaOp, createAttribute(c_szWarehouseCount, NoKey, 32, 1, UnSigned, MMBased, false));
   VerifyMethodInt(pNdbSchemaCon, execute());
-  VerifyMethodVoid(pNdb, closeSchemaTransaction(pNdbSchemaCon));
+  NdbSchemaCon::closeSchemaTrans(pNdbSchemaCon);
 
-  VerifyMethodPtr(pNdbSchemaCon, pNdb, startSchemaTransaction());
+  pNdbSchemaCon= NdbSchemaCon::startSchemaTrans(pNdb);
   VerifyMethodPtr(pNdbSchemaOp, pNdbSchemaCon, getNdbSchemaOp());
 #if defined NDB_OSE || defined NDB_SOFTOSE
   VerifyMethodInt(pNdbSchemaOp, createTable(
@@ -526,7 +523,7 @@ NDB_COMMAND(acid, "acid", "acid", "acid", 65535)
   VerifyMethodInt(pNdbSchemaOp, createAttribute(c_szDistrictSum, NoKey, 32, 1, UnSigned, MMBased, false));
   VerifyMethodInt(pNdbSchemaOp, createAttribute(c_szDistrictCount, NoKey, 32, 1, UnSigned, MMBased, false));
   VerifyMethodInt(pNdbSchemaCon, execute());
-  VerifyMethodVoid(pNdb, closeSchemaTransaction(pNdbSchemaCon));
+  NdbSchemaCon::closeSchemaTrans(pNdbSchemaCon);
   g_pNdbMutex = NdbMutex_Create();
   NdbMutex_Lock(g_pNdbMutex);
 

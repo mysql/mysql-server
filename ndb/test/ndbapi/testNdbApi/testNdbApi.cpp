@@ -23,8 +23,8 @@
 #include <Vector.hpp>
 #include <random.h>
 #include <NdbTick.h>
-#include <AttrType.hpp>
 
+#define MAX_NDB_OBJECTS 32678
 
 #define CHECK(b) if (!(b)) { \
   ndbout << "ERR: "<< step->getName() \
@@ -79,7 +79,7 @@ int runTestMaxNdb(NDBT_Context* ctx, NDBT_Step* step){
     
     ndbout << i << " ndb objects created" << endl;
     
-    if (l > 0 && i != oldi && init != MAX_NO_THREADS){
+    if (l > 0 && i != oldi && init != MAX_NDB_OBJECTS){
       ndbout << l << ": not as manyNdb objects created" << endl
 	     << i << " != " << oldi << endl;
       result =  NDBT_FAILED;

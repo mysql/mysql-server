@@ -18,10 +18,9 @@
 #define NdbOperation_H
 
 #include <ndb_types.h>
-
-#include <AttrType.hpp>
-#include <NdbError.hpp>
-#include <NdbReceiver.hpp>
+#include "ndbapi_limits.h"
+#include "NdbError.hpp"
+#include "NdbReceiver.hpp"
 
 class Ndb;
 class NdbApiSignal;
@@ -835,6 +834,22 @@ public:
 
   /** @} *********************************************************************/
 
+  /**
+   * Type of operation
+   */
+  enum OperationType { 
+    ReadRequest = 0,              ///< Read operation
+    UpdateRequest = 1,            ///< Update Operation
+    InsertRequest = 2,            ///< Insert Operation
+    DeleteRequest = 3,            ///< Delete Operation
+    WriteRequest = 4,             ///< Write Operation
+    ReadExclusive = 5,            ///< Read exclusive
+    OpenScanRequest,              ///< Scan Operation
+    OpenRangeScanRequest,         ///< Range scan operation
+    NotDefined2,                  ///< Internal for debugging
+    NotDefined                    ///< Internal for debugging
+  };
+
 protected:
 /******************************************************************************
  * These are the methods used to create and delete the NdbOperation objects.
@@ -865,11 +880,27 @@ protected:
 
   NdbOperation*	    next();	        // Get next pointer		       
 
+  enum OperationStatus{ 
+    Init,                       
+    OperationDefined,
+    TupleKeyDefined,
+    GetValue,
+    SetValue,
+    ExecInterpretedValue,
+    SetValueInterpreted,
+    FinalGetValue,
+    SubroutineExec,
+    SubroutineEnd,
+    SetBound,
+    WaitResponse,
+    WaitCommitResponse,
+    Finished,
+    ReceiveFinished
+  };
+
   OperationStatus   Status();	         	// Read the status information
   
   void		    Status(OperationStatus);    // Set the status information
-  
-  OperationType	    RequestType();
 
   void		    NdbCon(NdbConnection*);	// Set reference to connection
   						// object.
@@ -878,8 +909,6 @@ protected:
                                                 // connected to
 					      	// the operations object.      
   void		    setStartIndicator();
-
-  void		    setCommitIndicator(CommitType aCommitType);
 
 /******************************************************************************
  * The methods below is the execution part of the NdbOperation
@@ -1013,18 +1042,13 @@ protected:
   Uint32	    theCurrRecAI_Len;	 // The currently received length   
   Uint32	    theAI_ElementLen;	 // How many words long is this element 
   Uint32*	    theCurrElemPtr;   	 // The current pointer to the element  
-  //Uint32	    theTableId;		 // Table id.     
-  //Uint32	    theAccessTableId;	 // The id of table for initial access, 
-                                         // changed by NdbIndexOperation
-  //Uint32	    theSchemaVersion;	 // The schema version on the table.  
   class NdbTableImpl* m_currentTable;      // The current table
   class NdbTableImpl* m_accessTable;
 
   // Set to TRUE when a tuple key attribute has been defined. 
-  // A tuple key is allowed to consist of 64 attributes.
-  Uint32	    theTupleKeyDefined[MAXNROFTUPLEKEY][3];
+  Uint32	    theTupleKeyDefined[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY][3];
 
-  Uint32	    theTotalNrOfKeyWordInSignal;     // The total number of	
+  Uint32	    theTotalNrOfKeyWordInSignal;     // The total number of
   						     // keyword in signal.
 
   Uint32	    theTupKeyLen;	   // Length of the tuple key in words
@@ -1094,16 +1118,6 @@ NdbOperation::setStartIndicator()
   theStartIndicator = 1;
 }
 
-#if 0
-inline
-void
-NdbOperation::setCommitIndicator(CommitType aTypeOfCommit)
-{
-  theCommitIndicator = 1;
-  theCommitType = (Uint8)aTypeOfCommit;
-}
-#endif
-
 inline
 int
 NdbOperation::getNdbErrorLine()
@@ -1145,7 +1159,7 @@ Parameters:     aStatus:  The status.
 Remark:         Sets Operation status. 
 ******************************************************************************/
 inline
-OperationStatus			
+NdbOperation::OperationStatus			
 NdbOperation::Status()
 {
   return theStatus;
@@ -1176,18 +1190,6 @@ void
 NdbOperation::NdbCon(NdbConnection* aNdbCon)
 {
   theNdbCon = aNdbCon;
-}
-
-/******************************************************************************
-OperationType		RequestType();
-
-Remark:        Return the request typ of the operation..
-******************************************************************************/
-inline
-OperationType
-NdbOperation::RequestType()
-{
-  return theOperationType;
 }
 
 inline

@@ -16,23 +16,30 @@
 
 
 /*****************************************************************************
-Name:          NdbSchemaOp.C
+Name:          NdbSchemaOp.cpp
 Include:
 Link:
 Author:        UABMNST Mona Natterkvist UAB/B/SD
                EMIKRON Mikael Ronstrom                         
-Date:          020826
-Version:       2.0
+Date:          040524
+Version:       3.0
 Description:   Interface between application and NDB
 Documentation: Handles createTable and createAttribute calls
 
 Adjust:  980125  UABMNST   First version.
          020826  EMIKRON   New version for new DICT
+         040524  Magnus Svensson - Adapted to not be included in public NdbApi
+                                   unless the user wants to use it.
+
+  NOTE: This file is only used as a compatibility layer for old test programs,
+        New programs should use NdbDictionary.hpp
 *****************************************************************************/
 #include <assert.h>
 #include "NdbSchemaOp.hpp"
 #include "NdbSchemaCon.hpp"
 #include "API.hpp"
+
+
 
 /*****************************************************************************
 NdbSchemaOp(Ndb* aNdb, Table* aTable);
@@ -203,3 +210,11 @@ NdbSchemaOp::init(NdbSchemaCon* aSchemaCon)
   theSchemaCon = aSchemaCon;
   return 0;
 }//NdbSchemaOp::init()
+
+
+const NdbError &
+NdbSchemaOp::getNdbError() const
+{
+   return theSchemaCon->getNdbError();
+}
+

@@ -16,7 +16,6 @@
 
 #include <ndb_global.h>
 #include <ndb_limits.h>
-#include <AttrType.hpp>
 #include "TransporterFacade.hpp"
 #include "ClusterMgr.hpp"
 #include <IPCConfig.hpp>

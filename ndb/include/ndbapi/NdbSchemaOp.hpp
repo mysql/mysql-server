@@ -16,14 +16,126 @@
 
 #ifndef NdbSchemaOp_H
 #define NdbSchemaOp_H
+
+#include <NdbDictionary.hpp>
+
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
 
-#include "NdbDictionary.hpp"
-#include "AttrType.hpp"
-#include "NdbSchemaCon.hpp"
+  /**
+   * Type of attribute
+   *
+   * NOTE! AttrType is deprecated, use NdbDictionary::Column::Type instead!
+   */
+  enum AttrType { 
+    Signed,           ///< Attributes of this type can be read with:
+                      ///< NdbRecAttr::int64_value, 
+                      ///< NdbRecAttr::int32_value,
+                      ///< NdbRecAttr::short_value, 
+                      ///< NdbRecAttr::char_value
+    UnSigned,         ///< Attributes of this type can be read with:
+                      ///< NdbRecAttr::u_64_value, 
+                      ///< NdbRecAttr::u_32_value,
+                      ///< NdbRecAttr::u_short_value, 
+                      ///< NdbRecAttr::u_char_value
+    Float,            ///< Attributes of this type can be read with:
+                      ///< NdbRecAttr::float_value and 
+                      ///< NdbRecAttr::double_value
+    String,           ///< Attributes of this type can be read with:
+                      ///< NdbRecAttr::aRef, 
+                      ///< NdbRecAttr::getAttributeObject
+    NoAttrTypeDef     ///< Used for debugging only
+  };
 
-class NdbApiSignal;
+
+  /**
+   * @deprecated
+   */
+  enum NullAttributeType { 
+    NoNullTypeDefined = -1,
+    NotNullAttribute, 
+    NullAttribute,
+    AttributeDefined 
+  };
+  /**
+   * Indicates whether the attribute is part of a primary key or not
+   */
+  enum KeyType { 
+    Undefined = -1,               ///< Used for debugging only
+    NoKey,                        ///< Attribute is not part of primary key 
+                                  ///< or tuple identity
+    TupleKey,                     ///< Attribute is part of primary key
+    TupleId                       ///< Attribute is part of tuple identity 
+                                  ///< (This type of attribute is created 
+                                  ///< internally, and should not be 
+                                  ///< manually created.)
+  };
+  /**
+   * Indicate whether the attribute should be stored on disk or not
+   */
+  enum StorageMode { 
+    MMBased = 0,                  ///< Main memory 
+    DiskBased = 1,                ///< Disk (Not yet supported.)
+    NoStorageTypeDef              ///< Used for debugging only
+  };
+  
+  /**
+   * Where attribute is stored.
+   *
+   * This is used to indicate whether a primary key
+   * should only be stored in the index storage and not in the data storage
+   * or if it should be stored in both places.
+   * The first alternative makes the attribute take less space, 
+   * but makes it impossible to scan using attribute.
+   *
+   * @note  Use NormalStorageAttribute for most cases.
+   *        (IndexStorageAttribute should only be used on primary key 
+   *        attributes and only if you do not want to scan using the attribute.)
+   */
+  enum StorageAttributeType { 
+    NoStorageAttributeTypeDefined = -1,  ///< <i>Missing explanation</i>
+    IndexStorageAttribute,               ///< Attribute is only stored in 
+                                         ///< index storage (ACC)
+    NormalStorageAttribute               ///< Attribute values are stored 
+                                         ///< both in the index (ACC) and 
+                                         ///< in the data storage (TUP)
+  };
+  
+  
+  /**
+   *  Type of fragmentation used for a table
+   */
+  enum FragmentType { 
+    Default = 0,                  ///<  (All is default!)
+    Single = 1,                   ///< Only one fragment
+    All = 2,                      ///< Default value.  One fragment per node group
+    DistributionGroup = 3,        ///< Distribution Group used for fragmentation.
+                                  ///< One fragment per node group
+    DistributionKey = 4,          ///< Distribution Key used for fragmentation.
+                                  ///< One fragment per node group.
+    AllLarge = 5,                 ///< Sixten fragments per node group.
+    DGroupLarge = 6,              ///< Distribution Group used for fragmentation.
+                                  ///< Sixten fragments per node group
+    DKeyLarge = 7                 ///< Distribution Key used for fragmentation.
+                                  ///< Sixten fragments per node group
+  };
+  
+  /**
+   *  Type of table or index.
+   */
+  enum TableType {
+    UndefTableType = 0,
+    SystemTable = 1,              ///< Internal.Table cannot be updated by user
+    UserTable = 2,                  ///< Normal application table
+    UniqueHashIndex = 3,          ///< Unique un-ordered hash index
+    HashIndex = 4,                ///< Non-unique un-ordered hash index
+    UniqueOrderedIndex = 5,       ///< Unique ordered index
+    OrderedIndex = 6              ///< Non-unique ordered index
+  };
+
+
+class NdbSchemaCon;
 class Ndb;
+  
 
 /** 
  * @class NdbSchemaOp
@@ -41,8 +153,10 @@ class NdbSchemaOp
 {
   friend class Ndb;
   friend class NdbSchemaCon;
-  
+
 public:
+
+  
   /**
    * Create a new table in the database.
    * 
@@ -184,7 +298,6 @@ public:
 				int aMemoryType = 1,
 				bool aStoredTable = true);
 
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /** 
    * This is the old function declaration, don't use.
    *
@@ -211,7 +324,6 @@ public:
                        aMemoryType, 
                        (aStoredTable == 1 ? true : false));
   }
-#endif
 
   /**
    * Add a new attribute to a database table.
@@ -367,7 +479,6 @@ public:
                       bool aAutoIncrement = false,
                       const char* aDefaultValue = 0);
 
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * @deprecated do not use!
    */
@@ -394,19 +505,8 @@ public:
 			   aDistributionGroup,
 			   aDistributionGroupNoOfBits);
   }
-#endif
-  
-  /**
-   * Get the last error which occurred during the transaction.
-   *
-   * If an error occured (NdbSchemaCon::execute returned -1 or 
-   * NdbSchemaCon::getNdbSchemaOp returned NULL), then this method
-   * retrieves the error object containing information about 
-   * the error.
-   *
-   * @return Error object containing information about last error.
-   */				
-  const NdbError & getNdbError() const; 
+
+  const NdbError & getNdbError() const;
 
 protected:
 
@@ -440,17 +540,48 @@ protected:
   Ndb*			theNdb;		// Point back to the Ndb object.      
   NdbSchemaCon* 	theSchemaCon;	// Point back to the connection object.
   
+
   class NdbDictionary::Table * m_currentTable;
 };
 
-inline
-const NdbError &
-NdbSchemaOp::getNdbError() const
-{
-  return theSchemaCon->getNdbError();
-}
 
+/**
+ * Get old attribute type from new type
+ * 
+ * NOTE! attrType is deprecated, use getType instead!
+ *
+ * @return Type of attribute: { Signed, UnSigned, Float,a String }
+ */
+inline 
+AttrType 
+convertColumnTypeToAttrType(NdbDictionary::Column::Type _type)
+{      
+  
+  switch(_type){
+  case NdbDictionary::Column::Bigint:
+  case NdbDictionary::Column::Int:
+    return Signed;
+  case NdbDictionary::Column::Bigunsigned:
+  case NdbDictionary::Column::Unsigned:
+    return UnSigned;
+  case NdbDictionary::Column::Float:
+  case NdbDictionary::Column::Decimal:
+  case NdbDictionary::Column::Double:
+    return Float;
+  case NdbDictionary::Column::Char:
+  case NdbDictionary::Column::Varchar:
+  case NdbDictionary::Column::Binary:
+  case NdbDictionary::Column::Varbinary:
+    return String;
+  case NdbDictionary::Column::Datetime:
+  case NdbDictionary::Column::Timespec:
+  case NdbDictionary::Column::Undefined:
+  default:
+    return NoAttrTypeDef;
+  }
+}
 #endif
+
 #endif
 
 
