@@ -393,7 +393,7 @@ SQL_SELECT::~SQL_SELECT()
 #undef index					// Fix for Unixware 7
 
 QUICK_SELECT::QUICK_SELECT(THD *thd, TABLE *table, uint key_nr, bool no_alloc)
-  :dont_free(0),error(0),index(key_nr),max_used_key_length(0),
+  :dont_free(0),sorted(0),error(0),index(key_nr),max_used_key_length(0),
    used_key_parts(0), head(table), it(ranges),range(0)
 {
   if (!no_alloc)
