@@ -731,7 +731,7 @@ public:
   void setAbortOption(Int8 ao) { m_abortOption = ao; }
   
   /**
-   * Set/get distribution/partition key
+   * Set/get partition key
    */
   void setPartitionId(Uint32 id);
   void setPartitionHash(Uint32 key);
