@@ -38,7 +38,7 @@
 # as such, and clarify ones such as "mediumint" with comments such as
 # "3-byte int" or "same as xxx".
 
-$version="1.58";
+$version="1.59";
 
 use DBI;
 use Getopt::Long;
@@ -253,6 +253,9 @@ check_and_report("\` as identifier quote",'quote_ident_with_`',[],
 		 'select `A` from crash_me',[],"1",0);
 check_and_report("[] as identifier quote",'quote_ident_with_[',[],
 		 'select [A] from crash_me',[],"1",0);
+report('Double "" in identifiers as "','quote_ident_with_dbl_"',
+        'create table crash_me1 ("abc""d" integer)',
+	'drop table crash_me1');		 
 
 report("Column alias","column_alias","select a as ab from crash_me");
 report("Table alias","table_alias","select b.a from crash_me as b");
@@ -301,6 +304,7 @@ try_and_report("LIMIT number of rows","select_limit",
 	       ["with TOP",
 		"select TOP 1 * from crash_me"]);
 report("SELECT with LIMIT #,#","select_limit2", "select * from crash_me limit 1,1");
+report("SELECT with LIMIT # OFFSET #","select_limit3", "select * from crash_me limit 1 offset 1");
 
 # The following alter table commands MUST be kept together!
 if ($dbh->do("create table crash_q (a integer, b integer,c1 CHAR(10))"))
@@ -433,6 +437,9 @@ report("hex strings (x'1ace')","hex_strings","select x'1ace' $end_query");
 
 report_result("Value of logical operation (1=1)","logical_value",
 	      "select (1=1) $end_query");
+
+report_result("Value of TRUE","value_of_true","select TRUE $end_query");
+report_result("Value of FALSE","value_of_false","select FALSE $end_query");
 
 $logical_value= $limits{'logical_value'};
 
@@ -584,7 +591,7 @@ print "$limits{'query_size'}\n";
 	      "int not null identity,unique(q)",
 	      # postgres types
 	      "box","bool","circle","polygon","point","line","lseg","path",
-	      "interval", "serial", "inet", "cidr", "macaddr",
+	      "interval", "inet", "cidr", "macaddr",
 
 	      # oracle types
 	      "varchar2(16)","nvarchar2(16)","number(9,2)","number(9)",
@@ -769,7 +776,6 @@ try_and_report("Automatic row id", "automatic_rowid",
    ["CURRENT_DATE","current_date","current_date",0,2],
    ["CURRENT_TIME","current_time","current_time",0,2],
    ["CURRENT_TIMESTAMP","current_timestamp","current_timestamp",0,2],
-   ["CURRENT_USER","current_user","current_user",0,2],
    ["EXTRACT","extract_sql","extract(minute from timestamp '2000-02-23 18:43:12.987')",43,0],
    ["LOCALTIME","localtime","localtime",0,2],
    ["LOCALTIMESTAMP","localtimestamp","localtimestamp",0,2],
@@ -778,11 +784,8 @@ try_and_report("Automatic row id", "automatic_rowid",
    ["NULLIF with numbers","nullif_num","NULLIF(NULLIF(1,2),1)",undef(),4],
    ["OCTET_LENGTH","octet_length","octet_length('abc')",3,0],
    ["POSITION","position","position('ll' in 'hello')",3,0],
-   ["SESSION_USER","session_user","session_user",0,2],
-   ["SYSTEM_USER","system_user","system_user",0,2],
    ["TRIM","trim","trim(trailing from trim(LEADING FROM ' abc '))","abc",3],
    ["UPPER","upper","UPPER('abc')","ABC",1],
-   ["USER","user","user"],
    ["concatenation with ||","concat_as_||","'abc' || 'def'","abcdef",1],
    );
 
@@ -960,7 +963,60 @@ try_and_report("Automatic row id", "automatic_rowid",
    ["automatic num->string convert","auto_num2string","concat('a',2)","a2",1],
    ["automatic string->num convert","auto_string2num","'1'+2",3,0],
    ["concatenation with +","concat_as_+","'abc' + 'def'","abcdef",1],
+   ["SUBSTR (2 arg)",'substr2arg',"substr('abcd',2)",'bcd',1],  #sapdb func
+   ["SUBSTR (3 arg)",'substr3arg',"substr('abcd',2,2)",'bc',1],
+   ["LFILL (3 arg)",'lfill3arg',"lfill('abcd','.',6)",'..abcd',1],
+   ["RFILL (3 arg)",'rfill3arg',"rfill('abcd','.',6)",'abcd..',1],
+   ["RPAD (4 arg)",'rpad4arg',"rpad('abcd',2,'+-',8)",'abcd+-+-',1],
+   ["LPAD (4 arg)",'rpad4arg',"lpad('abcd',2,'+-',8)",'+-+-abcd',1],
+   ["SAPDB compatible TRIM (1 arg)",'trim1arg',"trim(' abcd ')",'abcd',1],
+   ["SAPDB compatible TRIM (2 arg)",'trim2arg',"trim('..abcd..','.')",'abcd',1],
+   ["LTRIM (2 arg)",'ltrim2arg',"ltrim('..abcd..','.')",'abcd..',1],
+   ["RTRIM (2 arg)",'rtrim2arg',"rtrim('..abcd..','.')",'..abcd',1],
+   ["EXPAND",'expand2arg',"expand('abcd',6)",'abcd  ',0],
+   ["REPLACE (2 arg) ",'replace2arg',"replace('AbCd','bC')",'Ad',1],
+   ["MAPCHAR",'mapchar',"mapchar('Aâ')",'Aa',1],
+   ["ALPHA",'alpha',"alpha('Aâ',2)",'AA',1],
+   ["ASCII in string cast",'ascii_string',"ascii('a')",'a',1],
+   ["EBCDIC in string cast",'ebcdic_string',"ebcdic('a')",'a',1],
+   ["TRUNC (1 arg)",'trunc1arg',"trunc(222.6)",222,0],
+   ["NOROUND",'noround',"noround(222.6)",222.6,0],
+   ["FIXED",'fixed',"fixed(222.6666,10,2)",'222.67',0],
+   ["FLOAT",'float',"float(6666.66,4)",6667,0],
+   ["LENGTH",'length',"length(1)",2,0],
+   ["INDEX",'index',"index('abcdefg','cd',1,1)",3,0],
+   ["ADDDATE",'adddate',"ADDDATE('20021201',3)",'20021204',0],
+   ["SUBDATE",'subdate',"SUBDATE('20021204',3)",'20021201',0],
+   ["DATEDIFF (2 arg)",'datediff2arg',"DATEDIFF('20021204','20021201')",'3',0], # sapdb
+   ["DAYOFWEEK with sapdb internal date as arg",'dayofweek_sapdb',"DAYOFWEEK('19630816')",'5',0],
+   ["WEEKOFYEAR",'weekofyear',"WEEKOFYEAR('19630816')",'33',0],
+   ["DAYOFMONTH with sapdb internal date as arg",'dayofmonth_sapdb',"dayofmonth('19630816')",'16',0],
+   ["DAYOFYEAR  with sapdb internal date as arg",'dayofyear_sapdb',"DAYOFYEAR('19630816')",'228',0],
+   ["MAKEDATE",'makedate',"MAKEDATE(1963,228)",'19630816',0],
+   ["DAYNAME  with sapdb internal date as arg",'dayname_sapdb',"DAYNAME('19630816')",'Friday',0],
+   ["MONTHNAME with sapdb internal date as arg",'monthname_sapdb',"MONTHNAME('19630816')",'August',0],
+   ["ADDTIME",'addtime',"ADDTIME('00200212','00000300')",'00200215',0],
+   ["SUBTIME",'subdate',"SUBDATE('00200215','00000300')",'00200212',0],
+   ["TIMEDIFF",'timediff',"TIMEDIFF('00200215','00200212')",'00000003',0],
+   ["MAKETIME",'maketime',"MAKETIME(20,02,12)",'00200212',0],
+   ["YEAR with sapdb internal date as arg",'year_sapdb',"YEAR('20021201')",'2002',0],
+   ["MONTH with sapdb internal date as arg",'month_sapdb',"MONTH('20021201')",'12',0],
+   ["DAY",'day',"DAY('20021201')",1,0],
+   ["HOUR with sapdb internal time as arg",'hour_sapdb',"HOUR('00200212')",20,0],
+   ["MINUTE with sapdb internal time as arg",'minute_sapdb',"MINUTE('00200212')",2,0],
+   ["SECOND with sapdb internal time as arg",'second_sapdb',"SECOND('00200212')",12,0],
+   ["MICROSECOND",'microsecond',"MICROSECOND('19630816200212111111')",'111111',0],
+   ["TIMESTAMP",'timestamp',"timestamp('19630816','00200212')",'19630816200212000000',0],
+   ["TIME",'time',"time('00200212')",'00200212',0],
+   ["DATE",'date',"date('19630816')",'19630816',0],
+   ["VALUE",'value',"value(NULL,'WALRUS')",'WALRUS',0],
+   ["DECODE",'decode',"DECODE('S-103','T72',1,'S-103',2,'Leopard',3)",2,0],
+   ["NUM",'num',"NUM('2123')",2123,0],
+   ["CHAR (conversation date)",'char_date',"CHAR(DATE('19630816'),EUR)",'16.08.1963',0],
+   ["CHR (any type to string)",'chr_str',"CHR(67)",'67',0],
+   ["HEX",'hex',"HEX('A')",41,0],
    );
+
 
 @sql_group_functions=
   (
@@ -1129,6 +1185,20 @@ else
 {
   print "\n";
 }
+
+
+if ($limits{'func_extra_noround'} eq 'yes')
+{
+  report("Ignoring NOROUND","ignoring_noround",
+  "create table crash_q (a int)",
+  "insert into crash_q values(noround(10.22))",
+  "drop table crash_q $drop_attr"); 
+}
+
+check_parenthesis("func_sql_","CURRENT_USER");
+check_parenthesis("func_sql_","SESSION_USER");
+check_parenthesis("func_sql_","SYSTEM_USER");
+check_parenthesis("func_sql_","USER");
 
 
 report("LIKE on numbers","like_with_number",
@@ -1561,19 +1631,29 @@ if (!defined($limits{"transactions"}))
 {
   my ($limit,$type);
   $limit="transactions";
+  $limit_r="rollback_metadata";
   print "$limit: ";
   foreach $type (('', 'type=bdb', 'type=innodb', 'type=gemini'))
   {
     undef($limits{$limit});
-    last if (!report_trans($limit,
+    if (!report_trans($limit,
 			   [create_table("crash_q",["a integer not null"],[],
 					 $type),
 			    "insert into crash_q values (1)"],
 			   "select * from crash_q",
 			   "drop table crash_q $drop_attr"
-			  ));
+			  ))
+     {
+       report_rollback($limit_r,
+              [create_table("crash_q",["a integer not null"],[],
+				 $type)],
+			    "insert into crash_q values (1)",
+			   "drop table crash_q $drop_attr" );
+     last;
+     };
   }
   print "$limits{$limit}\n";
+  print "$limit_r: $limits{$limit_r}\n";
 }
 
 report("atomic updates","atomic_updates",
@@ -1644,13 +1724,28 @@ report("Column constraints","constraint_check",
        "create table crash_q (a int check (a>0))",
        "drop table crash_q $drop_attr");
 
+report("Ignoring column constraints","ignoring_constraint_check",
+       "create table crash_q (a int check (a>0))",
+       "insert into crash_q values(0)",
+       "drop table crash_q $drop_attr") if ($limits{'constraint_check'} eq 'yes');
+
 report("Table constraints","constraint_check_table",
        "create table crash_q (a int ,b int, check (a>b))",
        "drop table crash_q $drop_attr");
 
-report("Named constraints","constraint_check",
+report("Ignoring table constraints","ignoring_constraint_check_table",
+       "create table crash_q (a int ,b int, check (a>b))",
+       "insert into crash_q values(0,0)",
+       "drop table crash_q $drop_attr") if ($limits{'constraint_check_table'} eq 'yes');
+
+report("Named constraints","constraint_check_named",
        "create table crash_q (a int ,b int, constraint abc check (a>b))",
        "drop table crash_q $drop_attr");
+
+report("Ignoring named constraints","ignoring_constraint_check_named",
+       "create table crash_q (a int ,b int, constraint abc check (a>b))",
+       "insert into crash_q values(0,0)",
+       "drop table crash_q $drop_attr") if ($limits{'constraint_check_named'} eq 'yes');
 
 report("NULL constraint (SyBase style)","constraint_null",
        "create table crash_q (a int null)",
@@ -2018,7 +2113,7 @@ $key="safe_decimal_arithmetic";
 if (!defined($limits{$key}))
 {
    print "$prompt=";
-   save_incomplete($limit,$prompt);	
+   save_incomplete($key,$prompt);	
    if (!safe_query($server->create("crash_me_a",["a decimal(10,2)","b decimal(10,2)"]))) 
      {
        print DBI->errstr();
@@ -2045,6 +2140,53 @@ if (!defined($limits{$key}))
   print "$prompt=$limits{$key} (cached)\n";
 }
 
+# Check where is null values in sorted recordset
+if (!safe_query($server->create("crash_me_n",["i integer","r integer"]))) 
+ {
+   print DBI->errstr();
+   die "Can't create table 'crash_me_n' $DBI::errstr\n";
+ };
+assert("insert into crash_me_n (i) values(1)");
+assert("insert into crash_me_n values(2,2)");
+assert("insert into crash_me_n values(3,3)");
+assert("insert into crash_me_n values(4,4)");
+assert("insert into crash_me_n (i) values(5)");
+
+$key = "position_of_null";
+$prompt ="Where is null values in sorted recordset";
+if (!defined($limits{$key}))
+{
+ save_incomplete($key,$prompt);	
+ print "$prompt=";
+ $sth=$dbh->prepare("select r from crash_me_n order by r ");
+ $sth->execute;
+ $limit= detect_null_position($sth);
+ $sth->finish;
+ print "$limit\n";
+ save_config_data($key,$limit,$prompt);
+} else {
+  print "$prompt=$limits{$key} (cache)\n";
+}
+
+$key = "position_of_null_desc";
+$prompt ="Where is null values in sorted recordset (DESC)";
+if (!defined($limits{$key}))
+{
+ save_incomplete($key,$prompt);	
+ print "$prompt=";
+ $sth=$dbh->prepare("select r from crash_me_n order by r desc");
+ $sth->execute;
+ $limit= detect_null_position($sth);
+ $sth->finish;
+ print "$limit\n";
+ save_config_data($key,$limit,$prompt);
+} else {
+  print "$prompt=$limits{$key} (cache)\n";
+}
+
+
+assert("drop table  crash_me_n $drop_attr");
+
 
 #
 # End of test
@@ -2058,6 +2200,41 @@ print "reconnected $reconnect_count times\n";
 $dbh->disconnect || warn $dbh->errstr;
 save_all_config_data();
 exit 0;
+
+# Check where is nulls in the sorted result (for)
+# it expects exactly 5 rows in the result
+
+sub detect_null_position
+{
+  my $sth = shift;
+  my ($z,$r1,$r2,$r3,$r4,$r5);
+ $r1 = $sth->fetchrow_array;
+ $r2 = $sth->fetchrow_array;
+ $r3 = $sth->fetchrow_array;
+ $r4 = $sth->fetchrow_array;
+ $r5 = $sth->fetchrow_array;
+ return "first" if ( !defined($r1) && !defined($r2) && defined($r3));
+ return "last" if ( !defined($r5) && !defined($r4) && defined($r3));
+ return "random";
+}
+
+sub check_parenthesis {
+ my $prefix=shift;
+ my $fn=shift;
+ my $resultat='no';
+ my $param_name=$prefix.lc($fn);
+ 
+ save_incomplete($param_name,$fn);
+ if (safe_query("select $fn $end_query") == 1)
+  {
+    $resultat="yes";
+  } 
+  elsif ( safe_query("select $fn() $end_query") == 1)   
+  {    
+    $resultat="with_parenthesis";
+  }
+  save_config_data($param_name,$resultat,$fn);
+}
 
 sub usage
 {
@@ -2561,10 +2738,10 @@ sub report_result
   {
     save_incomplete($limit,$prompt);
     $error=safe_query_result($query,"1",2);
-    save_config_data($limit,$error ? "not supported" : $last_result,$prompt);
+    save_config_data($limit,$error ? "not supported" :$last_result,$prompt);
   }
   print "$limits{$limit}\n";
-  return $limits{$limit} ne "no";
+  return $limits{$limit} ne "not supported";
 }
 
 sub report_trans
@@ -2578,17 +2755,12 @@ sub report_trans
     {
       if (safe_query(\@$queries))
       {
-	  $rc = $dbh->rollback;
-	  if ($rc) {
-	    $dbh->{AutoCommit} = 1;
+	  $dbh->rollback;
+          $dbh->{AutoCommit} = 1;
 	    if (safe_query_result($check,"","")) {
 	      save_config_data($limit,"yes",$limit);
 	    }
 	    safe_query($clear);
-	  } else {
-	    $dbh->{AutoCommit} = 1;
-	    save_config_data($limit,"error",$limit);
-	  }
       } else {
         save_config_data($limit,"error",$limit);
       }
@@ -2600,6 +2772,39 @@ sub report_trans
     }
     safe_query($clear);
   }
+  return $limits{$limit} ne "yes";
+}
+
+sub report_rollback
+{
+  my ($limit,$queries,$check,$clear)=@_;
+  if (!defined($limits{$limit}))
+  {
+    save_incomplete($limit,$prompt);
+    eval {undef($dbh->{AutoCommit})};
+    if (!$@)
+    {
+      if (safe_query(\@$queries))
+      {
+	  $dbh->rollback;
+           $dbh->{AutoCommit} = 1;
+           if (safe_query($check)) {
+	      save_config_data($limit,"no",$limit);
+	    }  else  {
+	      save_config_data($limit,"yes",$limit);
+	    };
+	    safe_query($clear);
+      } else {
+        save_config_data($limit,"error",$limit);
+      }
+    }
+    else
+    {
+      save_config_data($limit,"error",$limit);
+    }
+    safe_query($clear);
+  }
+  $dbh->{AutoCommit} = 1;
   return $limits{$limit} ne "yes";
 }
 
@@ -2929,7 +3134,7 @@ sub read_config_data
       {
 	if ($key !~ /restart/i)
 	{
-	  $limits{$key}=$limit;
+	  $limits{$key}=$limit eq "null"? undef : $limit;
 	  $prompts{$key}=length($prompt) ? substr($prompt,2) : "";
 	  delete $limits{'restart'};
 	}
@@ -2959,7 +3164,8 @@ sub save_config_data
   return if (defined($limits{$key}) && $limits{$key} eq $limit);
   if (!defined($limit) || $limit eq "")
   {
-    die "Undefined limit for $key\n";
+#    die "Undefined limit for $key\n";
+     $limit = 'null'; 
   }
   print CONFIG_FILE "$key=$limit\t# $prompt\n";
   $limits{$key}=$limit;
@@ -3611,6 +3817,7 @@ sub check_query
 {
   return undef;
 }
+
 
 
 ### TODO:
