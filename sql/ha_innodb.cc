@@ -2159,6 +2159,8 @@ get_innobase_type_from_mysql_type(
 					} else {
 						return(DATA_MYSQL);
 					}
+                case FIELD_TYPE_NEWDECIMAL:
+                                        return(DATA_BINARY);
 		case FIELD_TYPE_LONG:
 		case FIELD_TYPE_LONGLONG:
 		case FIELD_TYPE_TINY:
@@ -5771,7 +5773,7 @@ ha_innobase::store_lock(
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 
-	if ((lock_type == TL_READ && thd->in_lock_tables) ||
+	if ((lock_type == TL_READ && thd->in_lock_tables) ||           
 	    (lock_type == TL_READ_HIGH_PRIORITY && thd->in_lock_tables) ||
 	    lock_type == TL_READ_WITH_SHARED_LOCKS ||
 	    lock_type == TL_READ_NO_INSERT ||
@@ -5794,8 +5796,27 @@ ha_innobase::store_lock(
 		unexpected if an obsolete consistent read view would be
 		used. */
 
-		prebuilt->select_lock_type = LOCK_S;
-		prebuilt->stored_select_lock_type = LOCK_S;
+		if (srv_locks_unsafe_for_binlog &&
+		    prebuilt->trx->isolation_level != TRX_ISO_SERIALIZABLE &&
+		    (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT) &&
+		    thd->lex->sql_command != SQLCOM_SELECT &&
+		    thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
+		    thd->lex->sql_command != SQLCOM_DELETE_MULTI ) {
+
+			/* In case we have innobase_locks_unsafe_for_binlog
+			option set and isolation level of the transaction
+			is not set to serializable and MySQL is doing
+			INSERT INTO...SELECT without FOR UPDATE or IN
+			SHARE MODE we use consistent read for select. 
+			Similarly, in case of DELETE...SELECT and
+			UPDATE...SELECT when these are not multi table.*/
+
+			prebuilt->select_lock_type = LOCK_NONE;
+			prebuilt->stored_select_lock_type = LOCK_NONE;
+		} else {
+			prebuilt->select_lock_type = LOCK_S;
+			prebuilt->stored_select_lock_type = LOCK_S;
+		}
 
 	} else if (lock_type != TL_IGNORE) {
 
@@ -6181,8 +6202,9 @@ innobase_query_is_update(void)
 /***********************************************************************
 This function is used to prepare X/Open XA distributed transaction   */
 
-int innobase_xa_prepare(
-/*====================*/
+int 
+innobase_xa_prepare(
+/*================*/
 			/* out: 0 or error number */
 	THD*	thd,	/* in: handle to the MySQL thread of the user
 			whose XA transaction should be prepared */
@@ -6245,12 +6267,13 @@ int innobase_xa_prepare(
 /***********************************************************************
 This function is used to recover X/Open XA distributed transactions   */
 
-int innobase_xa_recover(
+int 
+innobase_xa_recover(
+/*================*/
 				/* out: number of prepared transactions 
 				stored in xid_list */
 	XID*    xid_list, 	/* in/out: prepared transactions */
 	uint	len)		/* in: number of slots in xid_list */
-/*====================*/
 {
 	if (len == 0 || xid_list == NULL) {
 		return 0;
@@ -6263,8 +6286,9 @@ int innobase_xa_recover(
 This function is used to commit one X/Open XA distributed transaction
 which is in the prepared state */
 
-int innobase_commit_by_xid(
-/*=======================*/
+int 
+innobase_commit_by_xid(
+/*===================*/
 			/* out: 0 or error number */
 	XID*	xid)	/*  in: X/Open XA Transaction Identification */
 {
@@ -6285,7 +6309,9 @@ int innobase_commit_by_xid(
 This function is used to rollback one X/Open XA distributed transaction
 which is in the prepared state */
 
-int innobase_rollback_by_xid(
+int 
+innobase_rollback_by_xid(
+/*=====================*/
 			/* out: 0 or error number */
 	XID	*xid)	/* in : X/Open XA Transaction Idenfification */
 {
@@ -6300,36 +6326,4 @@ int innobase_rollback_by_xid(
 	}
 }
 
-/***********************************************************************
-This function is used to test commit/rollback of XA transactions */
-
-int innobase_xa_end(
-/*================*/
-	THD*	thd)	/* in: MySQL thread handle of the user for whom
-			transactions should be recovered */
-{
-        DBUG_ENTER("innobase_xa_end");
-
-	XID trx_list[100];
-	int trx_num, trx_num_max = 100;
-	int i;
-	XID xid;
-
-	while((trx_num = innobase_xa_recover(trx_list, trx_num_max))) {
-
-		for(i=0;i < trx_num; i++) {
-			xid = trx_list[i];
-
-			if ( i % 2) {
-				innobase_commit_by_xid(&xid);
-			} else {
-				innobase_rollback_by_xid(&xid);
-			}
-		}
-	}
-
-	free(trx_list);
-
-	DBUG_RETURN(0);
-}
 #endif /* HAVE_INNOBASE_DB */

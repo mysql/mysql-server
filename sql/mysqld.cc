@@ -261,11 +261,12 @@ bool opt_large_files= sizeof(my_off_t) > 4;
 bool opt_help= 0;
 bool opt_verbose= 0;
 
-arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
+arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 {{&Arg_comparator::compare_string,     &Arg_comparator::compare_e_string},
  {&Arg_comparator::compare_real,       &Arg_comparator::compare_e_real},
  {&Arg_comparator::compare_int_signed, &Arg_comparator::compare_e_int},
- {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row}};
+ {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row},
+ {&Arg_comparator::compare_decimal,    &Arg_comparator::compare_e_decimal}};
 
 
 /* Global variables */
@@ -372,6 +373,7 @@ const char *sql_mode_str="OFF";
 const char *in_left_expr_name= "<left expr>";
 /* name of additional condition */
 const char *in_additional_cond= "<IN COND>";
+my_decimal decimal_zero;
 /* classes for comparation parsing/processing */
 Eq_creator eq_creator;
 Ne_creator ne_creator;
@@ -2384,6 +2386,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
 				 char **argv, const char **groups)
 {
   umask(((~my_umask) & 0666));
+  my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();			// Set tzname
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
@@ -3376,39 +3379,34 @@ int main(int argc, char **argv)
 	return 0;
       }
     }
-    else if (argc >= 4)
+    else if (argc == 4 || argc == 5)
     {
-      const char *defaults_file = "--defaults-file";
-      const char *service = "--local-service";
-      char extra_opt[FN_REFLEN] = "";  
+      /*
+        This may seem strange, because we handle --local-service while
+        preserving 4.1's behavior of allowing any one other argument that is
+        passed to the service on startup. (The assumption is that this is
+        --defaults-file=file, but that was not enforced in 4.1, so we don't
+        enforce it here.)
+      */
+      char *extra_opt= NULL;
       char *account_name = NULL;
-      char *option;
       int index;
       for (index = 3; index < argc; index++)
       {
-        option= argv[index];
-        /* 
-          Install an optional service with optional config file
-          mysqld --install-manual mysqldopt --defaults-file=c:\miguel\my.ini
-        */
-        if (strncmp(option, defaults_file, strlen(defaults_file)) == 0)
-        {
-          strmov(extra_opt, option);	  
-        }
-        else
-        /* 
-          Install an optional service as local service
-          mysqld --install-manual mysqldopt --local-service
-        */
-        if (strncmp(option, service, strlen(service)) == 0)
+        if (strncmp(argv[index], "--local-service", 15) == 0)
         {
           account_name=(char*)malloc(27);
           strmov(account_name, "NT AUTHORITY\\LocalService\0");
         }
+        else
+        {
+          extra_opt= argv[index];
+        }
       }
 
-      if (!default_service_handling(argv, argv[2], argv[2], file_path, extra_opt, account_name))
-        return 0;
+      if (argc != 5 || account_name)
+        if (!default_service_handling(argv, argv[2], argv[2], file_path, extra_opt, account_name))
+          return 0;
     }
     else if (argc == 1 && Service.IsService(MYSQL_SERVICENAME))
     {
