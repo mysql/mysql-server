@@ -6795,6 +6795,7 @@ keyword:
 	| FIRST_SYM		{}
 	| FIXED_SYM		{}
 	| FLUSH_SYM		{}
+	| FRAC_SECOND_SYM	{}
 	| GEOMETRY_SYM		{}
 	| GEOMETRYCOLLECTION	{}
 	| GET_FORMAT		{}
