@@ -173,9 +173,6 @@ void ThreadConfig::ipControlLoop()
 // until all buffers are empty or until we have executed 2048 signals.
 //--------------------------------------------------------------------
     globalScheduler.doJob();
-
-    globalScheduler.sendPacked();
-
   }//while
 
   globalData.incrementWatchDogCounter(6);
