@@ -906,6 +906,7 @@ int my_wc_mb_tis620(CHARSET_INFO *cs  __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
+    NULL,		/* init */
     my_strnncoll_tis620,
     my_strnncollsp_tis620,
     my_strnxfrm_tis620,
@@ -918,6 +919,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+    NULL,		/* init */
     NULL,		/* ismbchar  */
     my_mbcharlen_8bit,	/* mbcharlen */
     my_numchars_8bit,
@@ -959,8 +961,8 @@ CHARSET_INFO my_charset_tis620_thai_ci=
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     NULL,		/* sort_order_big*/
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     4,			/* strxfrm_multiply */
     1,			/* mbminlen   */
     1,			/* mbmaxlen  */
@@ -985,8 +987,8 @@ CHARSET_INFO my_charset_tis620_bin=
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     NULL,		/* sort_order_big*/
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     1,			/* mbminlen   */
     1,			/* mbmaxlen  */

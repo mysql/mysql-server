@@ -333,6 +333,7 @@ skip:
 
 MY_COLLATION_HANDLER my_collation_8bit_bin_handler =
 {
+    NULL,			/* init */
     my_strnncoll_binary,
     my_strnncoll_binary,
     my_strnxfrm_bin,
@@ -346,6 +347,7 @@ MY_COLLATION_HANDLER my_collation_8bit_bin_handler =
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+    NULL,			/* init */
     NULL,			/* ismbchar      */
     my_mbcharlen_8bit,		/* mbcharlen     */
     my_numchars_8bit,
@@ -386,8 +388,8 @@ CHARSET_INFO my_charset_bin =
     NULL,			/* tab_to_uni    */
     NULL,			/* tab_from_uni  */
     NULL,			/* sort_order_big*/
-    "",
-    "",
+    NULL,			/* state_map    */
+    NULL,			/* ident_map    */
     1,				/* strxfrm_multiply */
     1,				/* mbminlen      */
     1,				/* mbmaxlen      */

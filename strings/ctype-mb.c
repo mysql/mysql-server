@@ -512,6 +512,7 @@ static int my_wildcmp_mb_bin(CHARSET_INFO *cs,
 
 MY_COLLATION_HANDLER my_collation_mb_bin_handler =
 {
+    NULL,		/* init */
     my_strnncoll_mb_bin,
     my_strnncoll_mb_bin,
     my_strnxfrm_mb_bin,

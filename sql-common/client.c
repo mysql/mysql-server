@@ -63,7 +63,6 @@ my_bool	net_flush(NET *net);
 #include "mysqld_error.h"
 #include "errmsg.h"
 #include <violite.h>
-#include <assert.h>
 #if defined(THREAD) && !defined(__WIN__)
 #include <my_pthread.h>				/* because of signal()	*/
 #endif /* defined(THREAD) && !defined(__WIN__) */

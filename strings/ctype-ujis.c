@@ -8423,6 +8423,7 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
+    NULL,		/* init */
     my_strnncoll_simple,/* strnncoll    */
     my_strnncollsp_simple,
     my_strnxfrm_simple,	/* strnxfrm     */
@@ -8435,14 +8436,15 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+    NULL,		/* init */
     ismbchar_ujis,
     mbcharlen_ujis,
     my_numchars_mb,
     my_charpos_mb,
     my_well_formed_len_mb,
     my_lengthsp_8bit,
-    my_mb_wc_euc_jp,	 /* mb_wc       */
-    my_wc_mb_euc_jp,	 /* wc_mb       */
+    my_mb_wc_euc_jp,	/* mb_wc       */
+    my_wc_mb_euc_jp,	/* wc_mb       */
     my_caseup_str_mb,
     my_casedn_str_mb,
     my_caseup_mb,
@@ -8476,13 +8478,13 @@ CHARSET_INFO my_charset_ujis_japanese_ci=
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     NULL,		/* sort_order_big*/
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
     0,			/* min_sort_char */
-    0,			/* max_sort_char */
+    255,		/* max_sort_char */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -8503,13 +8505,13 @@ CHARSET_INFO my_charset_ujis_bin=
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     NULL,		/* sort_order_big*/
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
     0,			/* min_sort_char */
-    0,			/* max_sort_char */
+    255,		/* max_sort_char */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };

@@ -123,7 +123,6 @@ extern	void bmove_align(gptr dst,const gptr src,uint len);
 #endif
 
 #ifdef HAVE_purify
-#include <assert.h>
 #define memcpy_overlap(A,B,C) \
 DBUG_ASSERT((A) <= (B) || ((B)+(C)) <= (A)); \
 bmove((byte*) (A),(byte*) (B),(size_t) (C));
