@@ -3626,6 +3626,24 @@ unsent_create_error:
 		     first_table ? 0 : 1, 0))
       goto error;
 
+    if (thd->user)				// If not replication
+    {
+      LEX_USER *user;
+      List_iterator <LEX_USER> user_list(lex->users_list);
+      while ((user=user_list++))
+      {
+	if (user->password.str &&
+	    strcmp(thd->user, user->user.str) ||
+	    user->host.str &&
+	    my_strcasecmp(system_charset_info,
+			  user->host.str, thd->host_or_ip))
+	{
+	  if (check_access(thd, UPDATE_ACL, "mysql", 0, 1, 0))
+	    goto error;
+	  break;			// We are allowed to do changes
+	}
+      }
+    }
     if (specialflag & SPECIAL_NO_RESOLVE)
     {
       LEX_USER *user;
