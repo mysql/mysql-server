@@ -39,25 +39,23 @@ SUPERCLEANFILES =	mysql_version.h my_config.h
 DISTCLEANFILES =	sched.h $(SUPERCLEANFILES)
 
 clean:
-	$(RM) -f readline/*
+	$(RM) -fr readline
 distclean:
-	$(RM) -f readline/*
+	$(RM) -fr readline
 
 all-local:		my_config.h
 
 # Since we include my_config.h it better exist from the beginning
 link_sources:
 	$(CP) ../config.h my_config.h
-	$(RM) -fr readline/*
-	-mkdir readline
+	-$(RM) -fr readline
 	@readline_h_ln_cmd@
 
 # Keep automake happy 
 
 my_config.h: ../config.h
 	$(CP) ../config.h my_config.h
-	$(RM) -fr readline/*
-	-mkdir readline
+	-$(RM) -fr readline
 	@readline_h_ln_cmd@
 
 # These files should not be included in distributions since they are
