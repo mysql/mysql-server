@@ -1104,11 +1104,8 @@ TransporterRegistry::setIOState(NodeId nodeId, IOState state) {
 static void * 
 run_start_clients_C(void * me)
 {
-  my_thread_init();
   ((TransporterRegistry*) me)->start_clients_thread();
-  my_thread_end();
-  NdbThread_Exit(0);
-  return me;
+  return 0;
 }
 
 // Run by kernel thread

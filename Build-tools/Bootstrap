@@ -214,7 +214,7 @@ if (-d $target_dir)
 		@stat= stat("$target_dir/configure.in");
 		my $mtime= $stat[9];
 		my ($sec,$min,$hour,$mday,$mon,$year) = localtime($mtime);
-		my $mtime= sprintf("%04d%-02d-%02d-%02d:%02d", $year+1900, $mon+1, $mday, $hour, $min);
+		my $mtime= sprintf("%04d-%02d-%02d-%02d:%02d", $year+1900, $mon+1, $mday, $hour, $min);
 
 		&logger("Renaming $target_dir to $target_dir-$mtime");
 		$command= "mv ";

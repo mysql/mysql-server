@@ -16,7 +16,7 @@
 
 # Process this file with automake to create Makefile.in
 
-noinst_LTLIBRARIES=libz.la
+pkglib_LTLIBRARIES=libz.la
 
 noinst_HEADERS= crc32.h deflate.h inffast.h inffixed.h inflate.h \
 		inftrees.h trees.h zconf.h zlib.h zutil.h

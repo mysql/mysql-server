@@ -1758,9 +1758,12 @@ String *Item_func_elt::val_str(String *str)
 void Item_func_make_set::split_sum_func(THD *thd, Item **ref_pointer_array,
 					List<Item> &fields)
 {
-  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
+  if (item->type() != SUM_FUNC_ITEM &&
+      (item->with_sum_func ||
+       (item->used_tables() & PSEUDO_TABLE_BITS)))
     item->split_sum_func(thd, ref_pointer_array, fields);
-  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
+  else if (item->type() == SUM_FUNC_ITEM ||
+           (item->used_tables() && item->type() != REF_ITEM))
   {
     uint el= fields.elements;
     ref_pointer_array[el]=item;
@@ -2614,18 +2617,13 @@ String *Item_func_quote::val_str(String *str)
   for (from= (char*) arg->ptr(), end= from + arg_length; from < end; from++)
     new_length+= get_esc_bit(escmask, (uchar) *from);
 
-  /*
-    We have to use realloc() instead of alloc() as we want to keep the
-    old result in arg
-  */
-  if (arg->realloc(new_length))
+  if (tmp_value.alloc(new_length))
     goto null;
 
   /*
-    As 'arg' and 'str' may be the same string, we must replace characters
-    from the end to the beginning
+    We replace characters from the end to the beginning
   */
-  to= (char*) arg->ptr() + new_length - 1;
+  to= (char*) tmp_value.ptr() + new_length - 1;
   *to--= '\'';
   for (start= (char*) arg->ptr(),end= start + arg_length; end-- != start; to--)
   {
@@ -2653,10 +2651,10 @@ String *Item_func_quote::val_str(String *str)
     }
   }
   *to= '\'';
-  arg->length(new_length);
-  str->set_charset(collation.collation);
+  tmp_value.length(new_length);
+  tmp_value.set_charset(collation.collation);
   null_value= 0;
-  return arg;
+  return &tmp_value;
 
 null:
   null_value= 1;
