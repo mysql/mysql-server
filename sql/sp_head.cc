@@ -499,6 +499,7 @@ sp_head::execute(THD *thd)
 	ip= hip;
 	ret= 0;
 	ctx->clear_handler();
+	ctx->in_handler= TRUE;
 	continue;
       }
     }
@@ -1586,18 +1587,39 @@ int
 sp_instr_hreturn::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_hreturn::execute");
-  thd->spcont->restore_variables(m_frame);
-  *nextp= thd->spcont->pop_hstack();
+  if (m_dest)
+    *nextp= m_dest;
+  else
+  {
+    thd->spcont->restore_variables(m_frame);
+    *nextp= thd->spcont->pop_hstack();
+  }
+  thd->spcont->in_handler= FALSE;
   DBUG_RETURN(0);
 }
 
 void
 sp_instr_hreturn::print(String *str)
 {
-  str->reserve(12);
+  str->reserve(16);
   str->append("hreturn ");
   str->qs_append(m_frame);
+  if (m_dest)
+    str->qs_append(m_dest);
 }
+
+uint
+sp_instr_hreturn::opt_mark(sp_head *sp)
+{
+  if (m_dest)
+    return sp_instr_jump::opt_mark(sp);
+  else
+  {
+    marked= 1;
+    return UINT_MAX;
+  }
+}
+
 
 //
 // sp_instr_cpush

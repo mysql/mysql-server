@@ -5,7 +5,7 @@
 # Make sure we don't have any procedures left.
 delete from mysql.proc;
 
-# A test "global" procedures, i.e. not belonging to any database.
+# A test of "global" procedures, i.e. not belonging to any database.
 create function .f1() returns int return 1;
 create procedure .p1() select 1, database();
 create procedure p1() select 2, database();
@@ -649,6 +649,22 @@ drop procedure bug2653_2|
 create procedure bug4344() drop procedure bug4344|
 --error 1357
 create procedure bug4344() drop function bug4344|
+
+#
+# BUG#3294: Stored procedure crash if table dropped before use
+# (Actually, when an error occurs within an error handler.)
+--disable_warnings
+drop procedure if exists bug3294|
+--enable_warnings
+create procedure bug3294()
+begin
+  declare continue handler for sqlexception drop table t5;
+  drop table t5;
+end|
+
+--error 1051
+call bug3294()|
+drop procedure bug3294|
 
 
 drop table t1|
