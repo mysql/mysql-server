@@ -163,7 +163,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       
       // the file must be:
       if (!((stat_info.st_mode & S_IROTH) == S_IROTH &&  // readable by others
+#ifndef __EMX__
 	    (stat_info.st_mode & S_IFLNK) != S_IFLNK && // and not a symlink
+#endif
 	    ((stat_info.st_mode & S_IFREG) == S_IFREG ||
 	     (stat_info.st_mode & S_IFIFO) == S_IFIFO)))
       {

@@ -156,6 +156,13 @@ set_winsize (tty)
   if (ioctl (tty, TIOCGWINSZ, &w) == 0)
       (void) ioctl (tty, TIOCSWINSZ, &w);
 }
+#else
+static void
+set_winsize (tty)
+     int tty;
+{
+// dummy function, required by other code. What should be doing?
+}
 #endif /* TIOCGWINSZ */
 
 #if defined (NEW_TTY_DRIVER)

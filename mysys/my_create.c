@@ -20,7 +20,7 @@
 #include <my_dir.h>
 #include "mysys_err.h"
 #include <errno.h>
-#if defined(MSDOS) || defined(__WIN__)
+#if defined(MSDOS) || defined(__WIN__) || defined(__EMX__)
 #include <share.h>
 #endif
 
@@ -42,13 +42,13 @@ File my_create(const char *FileName, int CreateFlags, int access_flags,
   DBUG_PRINT("my",("Name: '%s' CreateFlags: %d  AccessFlags: %d  MyFlags: %d",
 		   FileName, CreateFlags, access_flags, MyFlags));
 
-#if !defined(NO_OPEN_3)
+#if !defined(NO_OPEN_3) && !defined(__EMX__)
   fd = open((my_string) FileName, access_flags | O_CREAT,
 	    CreateFlags ? CreateFlags : my_umask);
 #elif defined(VMS)
   fd = open((my_string) FileName, access_flags | O_CREAT, 0,
 	    "ctx=stm","ctx=bin");
-#elif defined(MSDOS) || defined(__WIN__)
+#elif defined(MSDOS) || defined(__WIN__) || defined(__EMX__)
   if (access_flags & O_SHARE)
     fd = sopen((my_string) FileName, access_flags | O_CREAT | O_BINARY,
 	       SH_DENYNO, MY_S_IREAD | MY_S_IWRITE);

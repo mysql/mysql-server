@@ -428,19 +428,26 @@ end_thread:
   return(0);					/* purecov: deadcode */
 }
 
+/*
+  Execute commands from bootstrap_file.
+  Used when creating the initial grant tables
+*/
 
-int handle_bootstrap(THD *thd,FILE *file)
+pthread_handler_decl(handle_bootstrap,arg)
 {
+  THD *thd=(THD*) arg;
+  FILE *file=bootstrap_file;
+  char *buff;
   DBUG_ENTER("handle_bootstrap");
+
+  pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd;
 
-  if (init_thr_lock() ||
-      my_pthread_setspecific_ptr(THR_THD,  thd) ||
-      my_pthread_setspecific_ptr(THR_MALLOC, &thd->mem_root) ||
-      my_pthread_setspecific_ptr(THR_NET,  &thd->net))
+  if (my_thread_init() || thd->store_globals())
   {
     close_connection(&thd->net,ER_OUT_OF_RESOURCES);
-    DBUG_RETURN(-1);
+    thd->fatal_error=1;
+    goto end;
   }
   thd->mysys_var=my_thread_var;
   thd->dbug_thread_id=my_thread_id();
@@ -455,8 +462,9 @@ int handle_bootstrap(THD *thd,FILE *file)
 
   thd->proc_info=0;
   thd->version=refresh_version;
+  thd->priv_user=thd->user="boot";
 
-  char *buff= (char*) thd->net.buff;
+  buff= (char*) thd->net.buff;
   init_sql_alloc(&thd->mem_root,8192,8192);
   while (fgets(buff, thd->net.max_packet, file))
   {
@@ -470,13 +478,20 @@ int handle_bootstrap(THD *thd,FILE *file)
     mysql_parse(thd,thd->query,length);
     close_thread_tables(thd);			// Free tables
     if (thd->fatal_error)
-    {
-      DBUG_RETURN(-1);
-    }
+      break;
     free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
   }
-  free_root(&thd->mem_root,MYF(0));
-  DBUG_RETURN(0);
+  thd->priv_user=thd->user=0;
+
+  /* thd->fatal_error should be set in case something went wrong */
+end:
+  (void) pthread_mutex_lock(&LOCK_thread_count);
+  thread_count--;
+  (void) pthread_cond_broadcast(&COND_thread_count);
+  (void) pthread_mutex_unlock(&LOCK_thread_count);
+  my_thread_end();
+  pthread_exit(0);
+  DBUG_RETURN(0);				// Never reached
 }
 
 

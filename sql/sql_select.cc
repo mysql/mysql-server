@@ -3520,6 +3520,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     {
       Field *field=(*group->item)->tmp_table_field();
       bool maybe_null=(*group->item)->maybe_null;
+      key_part_info->null_bit=0;
       key_part_info->field=  field;
       key_part_info->offset= field->offset();
       key_part_info->length= (uint16) field->pack_length();
@@ -3581,6 +3582,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     keyinfo->name=(char*) "tmp";
     if (null_count)
     {
+      key_part_info->null_bit=0;
       key_part_info->offset=0;
       key_part_info->length=(null_count+7)/8;
       key_part_info->field=new Field_string((char*) table->record[0],
@@ -3596,6 +3598,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     for (i=0,reg_field=table->field; i < field_count;
 	 i++, reg_field++, key_part_info++)
     {
+      key_part_info->null_bit=0;
       key_part_info->field=    *reg_field;
       key_part_info->offset=   (*reg_field)->offset();
       key_part_info->length=   (uint16) (*reg_field)->pack_length();

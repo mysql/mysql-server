@@ -80,7 +80,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
 	   global_read_lock(0)
 {
   proc_info="login";
-  host=user=db=query=ip=0;
+  host=user=priv_user=db=query=ip=0;
   locked=killed=count_cuted_fields=some_tables_deleted=no_errors=password=
     query_start_used=0;
   query_length=col_access=0;
