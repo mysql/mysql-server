@@ -1515,6 +1515,23 @@ String *Item_func_decode::val_str(String *str)
 }
 
 
+Item *Item_func_sysconst::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_string *conv;
+  uint conv_errors;
+  String tmp, cstr, *ostr= val_str(&tmp);
+  cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
+  if (conv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
+                                             cstr.charset(),
+                                             collation.derivation)))
+  {
+    return NULL;
+  }
+  conv->str_value.copy();
+  return conv;
+}
+
+
 String *Item_func_database::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);

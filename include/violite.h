@@ -37,7 +37,12 @@ enum enum_vio_type
   VIO_TYPE_SSL, VIO_TYPE_SHARED_MEMORY
 };
 
-Vio*	vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost);
+
+#define VIO_LOCALHOST 1                         /* a localhost connection */
+#define VIO_BUFFERED_READ 2                     /* use buffered read */
+#define VIO_READ_BUFFER_SIZE 16384              /* size of read buffer */
+
+Vio*	vio_new(my_socket sd, enum enum_vio_type type, uint flags);
 #ifdef __WIN__
 Vio* vio_new_win32pipe(HANDLE hPipe);
 Vio* vio_new_win32shared_memory(NET *net,HANDLE handle_file_map,
@@ -57,8 +62,9 @@ int vio_close_pipe(Vio * vio);
 void	vio_delete(Vio* vio);
 int	vio_close(Vio* vio);
 void    vio_reset(Vio* vio, enum enum_vio_type type,
-                  my_socket sd, HANDLE hPipe, my_bool localhost);
+                  my_socket sd, HANDLE hPipe, uint flags);
 int	vio_read(Vio *vio, gptr	buf, int size);
+int     vio_read_buff(Vio *vio, gptr buf, int size);
 int	vio_write(Vio *vio, const gptr buf, int size);
 int	vio_blocking(Vio *vio, my_bool onoff, my_bool *old_mode);
 my_bool	vio_is_blocking(Vio *vio);
@@ -135,7 +141,7 @@ int vio_close_shared_memory(Vio * vio);
 }
 #endif
 
-#if defined(HAVE_VIO) && !defined(DONT_MAP_VIO)
+#if !defined(DONT_MAP_VIO)
 #define vio_delete(vio) 			(vio)->viodelete(vio)
 #define vio_errno(vio)	 			(vio)->vioerrno(vio)
 #define vio_read(vio, buf, size) 		(vio)->read(vio,buf,size)
@@ -150,7 +156,7 @@ int vio_close_shared_memory(Vio * vio);
 #define vio_peer_addr(vio, buf, prt)		(vio)->peer_addr(vio, buf, prt)
 #define vio_in_addr(vio, in)			(vio)->in_addr(vio, in)
 #define vio_timeout(vio, seconds)			(vio)->timeout(vio, seconds)
-#endif /* defined(HAVE_VIO) && !defined(DONT_MAP_VIO) */
+#endif /* !defined(DONT_MAP_VIO) */
 
 /* This enumerator is used in parser - should be always visible */
 enum SSL_type
@@ -175,7 +181,10 @@ struct st_vio
   struct sockaddr_in	remote;		/* Remote internet address */
   enum enum_vio_type	type;		/* Type of connection */
   char			desc[30];	/* String description */
-#ifdef HAVE_VIO
+  char                  *read_buffer;   /* buffer for vio_read_buff */
+  char                  *read_pos;      /* start of unfetched data in the
+                                           read buffer */
+  char                  *read_end;      /* end of unfetched data */
   /* function pointers. They are similar for socket/SSL/whatever */
   void    (*viodelete)(Vio*);
   int     (*vioerrno)(Vio*);
@@ -203,6 +212,5 @@ struct st_vio
   char    *shared_memory_pos;
   NET     *net;
 #endif /* HAVE_SMEM */
-#endif /* HAVE_VIO */
 };
 #endif /* vio_violite_h_ */

@@ -293,13 +293,13 @@ public:
   {
     char buf[FN_REFLEN];
     return open(generate_name(log_name, ".log", 0, buf),
-                LOG_NORMAL, 0, WRITE_CACHE, 0, 0, 0);
+                LOG_NORMAL, 0, APPEND_CACHE, 0, 0, 0);
   }
   bool open_slow_log(const char *log_name)
   {
     char buf[FN_REFLEN];
     return open(generate_name(log_name, "-slow.log", 0, buf),
-                LOG_NORMAL, 0, WRITE_CACHE, 0, 0, 0);
+                LOG_NORMAL, 0, APPEND_CACHE, 0, 0, 0);
   }
   bool open_index_file(const char *index_file_name_arg,
                        const char *log_name);
@@ -926,6 +926,15 @@ typedef I_List<Item_change_record> Item_change_list;
 
 
 /*
+  Type of prelocked mode.
+  See comment for THD::prelocked_mode for complete description.
+*/
+
+enum prelocked_mode_type {NON_PRELOCKED= 0, PRELOCKED= 1,
+                          PRELOCKED_UNDER_LOCK_TABLES= 2};
+
+
+/*
   For each client connection we create a separate thread with THD serving as
   a thread/connection descriptor
 */
@@ -1025,7 +1034,13 @@ public:
     See also lock_tables() for details.
   */
   MYSQL_LOCK	*lock;				/* Current locks */
-  MYSQL_LOCK	*locked_tables;			/* Tables locked with LOCK */
+  /*
+    Tables that were locked with explicit or implicit LOCK TABLES.
+    (Implicit LOCK TABLES happens when we are prelocking tables for
+     execution of statement which uses stored routines. See description
+     THD::prelocked_mode for more info.)
+  */
+  MYSQL_LOCK	*locked_tables;
   HASH		handler_tables_hash;
   /*
     One thread can hold up to one named user-level lock. This variable
@@ -1192,8 +1207,6 @@ public:
   sp_rcontext *spcont;		// SP runtime context
   sp_cache   *sp_proc_cache;
   sp_cache   *sp_func_cache;
-  bool       shortcut_make_view; /* Don't do full mysql_make_view()
-				    during pre-opening of tables. */
 
   /*
     If we do a purge of binary logs, log index info of the threads
@@ -1208,6 +1221,31 @@ public:
     my_bool my_bool_value;
     long    long_value;
   } sys_var_tmp;
+
+  /*
+    prelocked_mode_type enum and prelocked_mode member are used for
+    indicating whenever "prelocked mode" is on, and what type of
+    "prelocked mode" is it.
+
+    Prelocked mode is used for execution of queries which explicitly
+    or implicitly (via views or triggers) use functions, thus may need
+    some additional tables (mentioned in query table list) for their
+    execution.
+
+    First open_tables() call for such query will analyse all functions
+    used by it and add all additional tables to table its list. It will
+    also mark this query as requiring prelocking. After that lock_tables()
+    will issue implicit LOCK TABLES for the whole table list and change
+    thd::prelocked_mode to non-0. All queries called in functions invoked
+    by the main query will use prelocked tables. Non-0 prelocked_mode
+    will also surpress mentioned analysys in those queries thus saving
+    cycles. Prelocked mode will be turned off once close_thread_tables()
+    for the main query will be called.
+
+    Note: Since not all "tables" present in table list are really locked
+    thd::relocked_mode does not imply thd::locked_tables.
+  */
+  prelocked_mode_type prelocked_mode;
 
   THD();
   ~THD();

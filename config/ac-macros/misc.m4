@@ -594,22 +594,13 @@ AC_MSG_RESULT($ac_cv_conv_longlong_to_float)
 ])
 
 AC_DEFUN([MYSQL_CHECK_VIO], [
-  AC_ARG_WITH([vio],
-              [  --with-vio              Include the Virtual IO support],
-              [vio="$withval"],
-              [vio=no])
-
-  if test "$vio" = "yes"
-  then
-    vio_dir="vio"
-    vio_libs="../vio/libvio.la"
-    AC_DEFINE(HAVE_VIO, 1)
-  else
-    vio_dir=""
-    vio_libs=""
-  fi
-  AC_SUBST([vio_dir])
-  AC_SUBST([vio_libs])
+dnl
+dnl we always use vio: no need for special defines 
+dnl
+  AC_DEFINE([HAVE_VIO_READ_BUFF], [1],
+            [Define to enable buffered read. This works only if syscalls
+            read/recv return as soon as there is some data in the kernel
+            buffer, no matter how big the given buffer is.])
 ])
 
 # Local version of _AC_PROG_CXX_EXIT_DECLARATION that does not
