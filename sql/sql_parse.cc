@@ -2727,7 +2727,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     if (!(thd->master_access & SELECT_ACL) &&
 	(db && (!thd->db || strcmp(db,thd->db))))
       db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
-			thd->priv_user, db, 0); /* purecov: inspected */
+			thd->priv_user, db, test(want_access & GRANT_ACL));
     *save_priv=thd->master_access | db_access;
     DBUG_RETURN(FALSE);
   }
@@ -2747,7 +2747,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
   if (db && (!thd->db || strcmp(db,thd->db)))
     db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
-		      thd->priv_user, db, 0); /* purecov: inspected */
+		      thd->priv_user, db, test(want_access & GRANT_ACL));
   else
     db_access=thd->db_access;
   // Remove SHOW attribute and access rights we already have
