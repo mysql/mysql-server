@@ -347,7 +347,7 @@ a	1
 hello	1
 drop table t1;
 create table t1 (a text, key (a(300)));
-Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the table handler doesn't support unique sub keys
+Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the store engine doesn't support unique sub keys
 create table t1 (a text, key (a(255)));
 drop table t1;
 CREATE TABLE t1 (
