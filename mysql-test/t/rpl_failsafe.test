@@ -1,0 +1,5 @@
+source include/master-slave.inc;
+connection master;
+show variables like 'rpl_recovery_rank';
+connection slave;
+show variables like 'rpl_recovery_rank';
