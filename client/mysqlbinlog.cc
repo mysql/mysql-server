@@ -781,9 +781,11 @@ static int check_master_version(MYSQL* mysql,
   if (mysql_query(mysql, "SELECT VERSION()") ||
       !(res = mysql_store_result(mysql)))
   {
+    char errmsg[FN_REFLEN];
+
+    strmake(errmsg, mysql_error(mysql), sizeof(errmsg) - 1);
     mysql_close(mysql);
-    die("Error checking master version: %s",
-		    mysql_error(mysql));
+    die("Error checking master version: %s", errmsg);
   }
   if (!(row = mysql_fetch_row(res)))
   {
