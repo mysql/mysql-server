@@ -54,7 +54,7 @@ int mi_rprev(MI_INFO *info, byte *buf, int inx)
 
   if (!error)
   {
-    while (info->lastpos > info->state->data_file_length)
+    while (info->lastpos >= info->state->data_file_length)
     {
       /* Skip rows that are inserted by other threads since we got a lock */
       if  ((error=_mi_search_next(info,share->keyinfo+inx,info->lastkey,

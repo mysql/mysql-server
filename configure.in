@@ -746,7 +746,7 @@ case $SYSTEM_TYPE in
     ;;
   *bsdi*)
     echo "Adding fix for BSDI"
-    CFLAGS="$CFLAGS -D__BSD__"
+    CFLAGS="$CFLAGS -D__BSD__ -DHAVE_BROKEN_REALPATH"
     AC_DEFINE_UNQUOTED(SOCKOPT_OPTLEN_TYPE, size_t)
     ;;
    *sgi-irix6*)
