@@ -509,7 +509,7 @@ public:
   PREP_STMT	*last_prepared_stmt;
 #ifndef DBUG_OFF
   uint dbug_sentry; // watch out for memory corruption
-#endif  
+#endif
   struct st_my_thread_var *mysys_var;
   enum enum_server_command command;
   uint32     server_id;
@@ -531,9 +531,9 @@ public:
     THD_TRANS stmt;			// Trans for current statement
     uint bdb_lock_count;
 
-    /* 
+    /*
        Tables changed in transaction (that must be invalidated in query cache).
-       List contain only transactional tables, that not invalidated in query 
+       List contain only transactional tables, that not invalidated in query
        cache (instead of full list of changed in transaction tables).
     */
     CHANGED_TABLE_LIST* changed_tables;
@@ -551,7 +551,7 @@ public:
 #endif
 #ifdef SIGNAL_WITH_VIO_CLOSE
   Vio* active_vio;
-#endif  
+#endif
   /*
     next_insert_id is set on SET INSERT_ID= #. This is used as the next
     generated auto_increment value in handler.cc
@@ -573,9 +573,9 @@ public:
              sent_row_count, examined_row_count;
   table_map  used_tables;
   USER_CONN *user_connect;
-  CHARSET_INFO *db_charset;   
+  CHARSET_INFO *db_charset;
   List<TABLE> temporary_tables_should_be_free; // list of temporary tables
-  List	     <MYSQL_ERROR> warn_list;  
+  List	     <MYSQL_ERROR> warn_list;
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
   uint	     total_warn_count;
   ulong	     query_id, warn_id, version, options, thread_id, col_access;
@@ -609,6 +609,7 @@ public:
   bool       prepare_command;
   bool	     tmp_table_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
+  bool       slow_command;
 
   /*
     If we do a purge of binary logs, log index info of the threads

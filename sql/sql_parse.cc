@@ -1185,10 +1185,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     Commands which will always take a long time should be marked with
     this so that they will not get logged to the slow query log
   */
-  bool slow_command=FALSE;
   DBUG_ENTER("dispatch_command");
 
   thd->command=command;
+  thd->slow_command=FALSE;
   thd->set_time();
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query_id=query_id;
@@ -1224,7 +1224,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     uint tbl_len= *(uchar*) (packet + db_len + 1);
 
     statistic_increment(com_other, &LOCK_status);
-    slow_command= TRUE;
+    thd->slow_command= TRUE;
     db= thd->alloc(db_len + tbl_len + 2);
     tbl_name= strmake(db, packet + 1, db_len)+1;
     strmake(tbl_name, packet + db_len + 2, tbl_len);
@@ -1345,14 +1345,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     while (!thd->killed && !thd->is_fatal_error && thd->lex.found_colon)
     {
       char *packet= thd->lex.found_colon;
-      /* 
+      /*
         Multiple queries exits, execute them individually
       */
       if (thd->lock || thd->open_tables || thd->derived_tables)
-        close_thread_tables(thd);		
+        close_thread_tables(thd);
 
       ulong length= thd->query_length-(ulong)(thd->lex.found_colon-thd->query);
-      
+
       /* Remove garbage at start of query */
       while (my_isspace(thd->charset(), *packet) && length > 0)
       {
@@ -1463,7 +1463,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_BINLOG_DUMP:
     {
       statistic_increment(com_other,&LOCK_status);
-      slow_command = TRUE;
+      thd->slow_command = TRUE;
       if (check_global_access(thd, REPL_SLAVE_ACL))
 	break;
       mysql_log.write(thd,command, 0);
@@ -1606,7 +1606,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->end_time();				// Set start time
 
   /* If not reading from backup and if the query took too long */
-  if (!slow_command && !thd->user_time) // do not log 'slow_command' queries
+  if (!thd->slow_command && !thd->user_time) // do not log 'slow_command' queries
   {
     thd->proc_info="logging slow query";
 
@@ -1947,6 +1947,7 @@ mysql_execute_command(THD *thd)
 	check_table_access(thd,SELECT_ACL, tables,0) ||
 	check_global_access(thd, FILE_ACL))
       goto error; /* purecov: inspected */
+    thd->slow_command=TRUE;
     res = mysql_backup_table(thd, tables);
 
     break;
@@ -1957,6 +1958,7 @@ mysql_execute_command(THD *thd)
 	check_table_access(thd, INSERT_ACL, tables,0) ||
 	check_global_access(thd, FILE_ACL))
       goto error; /* purecov: inspected */
+    thd->slow_command=TRUE;
     res = mysql_restore_table(thd, tables);
     break;
   }
@@ -1974,7 +1976,7 @@ mysql_execute_command(THD *thd)
     if (check_db_used(thd, tables) ||
 	check_access(thd, INDEX_ACL, tables->db,
                      &tables->grant.privilege, 0, 0))
-      goto error; 
+      goto error;
     res = mysql_preload_keys(thd, tables);
     break;
   }
@@ -2173,6 +2175,7 @@ mysql_execute_command(THD *thd)
     if (grant_option && check_grant(thd,INDEX_ACL,tables))
       goto error;
 #endif
+    thd->slow_command=TRUE;
     if (end_active_trans(thd))
       res= -1;
     else
@@ -2263,6 +2266,7 @@ mysql_execute_command(THD *thd)
 	res= -1;
       else
       {
+        thd->slow_command=TRUE;
 	res= mysql_alter_table(thd, select_lex->db, lex->name,
 			       &lex->create_info,
 			       tables, lex->create_list,
@@ -2352,6 +2356,7 @@ mysql_execute_command(THD *thd)
     if (check_db_used(thd,tables) ||
 	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables,0))
       goto error; /* purecov: inspected */
+    thd->slow_command=TRUE;
     res = mysql_repair_table(thd, tables, &lex->check_opt);
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
@@ -2368,8 +2373,9 @@ mysql_execute_command(THD *thd)
   case SQLCOM_CHECK:
   {
     if (check_db_used(thd,tables) ||
- 	check_table_access(thd, SELECT_ACL | EXTRA_ACL , tables,0))
+	check_table_access(thd, SELECT_ACL | EXTRA_ACL , tables,0))
       goto error; /* purecov: inspected */
+    thd->slow_command=TRUE;
     res = mysql_check_table(thd, tables, &lex->check_opt);
     break;
   }
@@ -2378,6 +2384,7 @@ mysql_execute_command(THD *thd)
     if (check_db_used(thd,tables) ||
 	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables,0))
       goto error; /* purecov: inspected */
+    thd->slow_command=TRUE;
     res = mysql_analyze_table(thd, tables, &lex->check_opt);
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
@@ -2398,6 +2405,7 @@ mysql_execute_command(THD *thd)
     if (check_db_used(thd,tables) ||
 	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables,0))
       goto error; /* purecov: inspected */
+    thd->slow_command=TRUE;
     if (specialflag & (SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC))
     {
       /* Use ALTER TABLE */
