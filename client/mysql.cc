@@ -903,7 +903,6 @@ static bool add_line(String &buffer,char *line,char *in_string)
       continue;
 #ifdef USE_MB
     int l;
-/*    if ((l = ismbchar(pos, pos+MBMAXLEN))) {  Wei He: I think it's wrong! */
     if (use_mb(default_charset_info) &&
         (l = my_ismbchar(default_charset_info, pos, strend))) {
 	while (l--)
