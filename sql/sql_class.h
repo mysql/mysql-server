@@ -1109,6 +1109,13 @@ public:
     unit= u;
     return 0;
   }
+  /*
+    Because of peculiarities of prepared statements protocol
+    we need to know number of columns in the result set (if
+    there is a result set) apart from sending columns metadata.
+  */
+  virtual uint field_count(List<Item> &fields) const
+  { return fields.elements; }
   virtual bool send_fields(List<Item> &list,uint flag)=0;
   virtual bool send_data(List<Item> &items)=0;
   virtual bool initialize_tables (JOIN *join=0) { return 0; }
@@ -1123,6 +1130,20 @@ public:
 };
 
 
+/*
+  Base class for select_result descendands which intercept and
+  transform result set rows. As the rows are not sent to the client,
+  sending of result set metadata should be suppressed as well.
+*/
+
+class select_result_interceptor: public select_result
+{
+public:
+  uint field_count(List<Item> &fields) const { return 0; }
+  bool send_fields(List<Item> &fields, uint flag) { return FALSE; }
+};
+
+
 class select_send :public select_result {
 public:
   select_send() {}
@@ -1132,7 +1153,7 @@ public:
 };
 
 
-class select_to_file :public select_result {
+class select_to_file :public select_result_interceptor {
 protected:
   sql_exchange *exchange;
   File file;
@@ -1144,7 +1165,6 @@ public:
   select_to_file(sql_exchange *ex) :exchange(ex), file(-1),row_count(0L)
   { path[0]=0; }
   ~select_to_file();
-  bool send_fields(List<Item> &list, uint flag) { return 0; }
   void send_error(uint errcode,const char *err);
   bool send_eof();
   void cleanup();
@@ -1171,7 +1191,7 @@ public:
 };
 
 
-class select_insert :public select_result {
+class select_insert :public select_result_interceptor {
  public:
   TABLE *table;
   List<Item> *fields;
@@ -1187,8 +1207,6 @@ class select_insert :public select_result {
   }
   ~select_insert();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list, uint flag)
-  { return 0; }
   bool send_data(List<Item> &items);
   void send_error(uint errcode,const char *err);
   bool send_eof();
@@ -1271,7 +1289,7 @@ public:
   }
 };
 
-class select_union :public select_result {
+class select_union :public select_result_interceptor {
  public:
   TABLE *table;
   COPY_INFO info;
@@ -1280,8 +1298,6 @@ class select_union :public select_result {
   select_union(TABLE *table_par);
   ~select_union();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list, uint flag)
-  { return 0; }
   bool send_data(List<Item> &items);
   bool send_eof();
   bool flush();
@@ -1289,13 +1305,12 @@ class select_union :public select_result {
 };
 
 /* Base subselect interface class */
-class select_subselect :public select_result
+class select_subselect :public select_result_interceptor
 {
 protected:
   Item_subselect *item;
 public:
   select_subselect(Item_subselect *item);
-  bool send_fields(List<Item> &list, uint flag) { return 0; };
   bool send_data(List<Item> &items)=0;
   bool send_eof() { return 0; };
 };
@@ -1432,7 +1447,7 @@ public:
 };
 
 
-class multi_delete :public select_result
+class multi_delete :public select_result_interceptor
 {
   TABLE_LIST *delete_tables, *table_being_deleted;
   Unique **tempfiles;
@@ -1445,8 +1460,6 @@ public:
   multi_delete(THD *thd, TABLE_LIST *dt, uint num_of_tables);
   ~multi_delete();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list,
- 		   uint flag) { return 0; }
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
@@ -1455,7 +1468,7 @@ public:
 };
 
 
-class multi_update :public select_result
+class multi_update :public select_result_interceptor
 {
   TABLE_LIST *all_tables, *update_tables, *table_being_updated;
   THD *thd;
@@ -1474,7 +1487,6 @@ public:
 	       List<Item> *values, enum_duplicates handle_duplicates);
   ~multi_update();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list, uint flag) { return 0; }
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
@@ -1483,7 +1495,7 @@ public:
 };
 
 
-class select_dumpvar :public select_result {
+class select_dumpvar :public select_result_interceptor {
   ha_rows row_count;
 public:
   List<LEX_STRING> var_list;
@@ -1491,7 +1503,6 @@ public:
   select_dumpvar(void)  { var_list.empty(); vars.empty(); row_count=0;}
   ~select_dumpvar() {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_fields(List<Item> &list, uint flag) {return 0;}
   bool send_data(List<Item> &items);
   bool send_eof();
   void cleanup();
