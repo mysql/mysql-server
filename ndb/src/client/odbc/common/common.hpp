@@ -19,7 +19,7 @@
 
 // misc defs
 
-#ifdef NDB_GCC
+#ifdef NDB_GCC // only for odbc
 #define PRINTFLIKE(i,j)	__attribute__ ((format (printf, i, j)))
 #else
 #define PRINTFLIKE(i,j)
