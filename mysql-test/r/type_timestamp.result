@@ -369,7 +369,7 @@ create table t1 (a timestamp null, b timestamp null);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` timestamp NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `a` timestamp NULL default NULL,
   `b` timestamp NULL default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values (NULL, NULL);
@@ -378,7 +378,22 @@ insert into t1 values ();
 select * from t1;
 a	b
 NULL	NULL
-2001-09-09 04:46:57	NULL
+NULL	NULL
+drop table t1;
+create table t1 (a timestamp null default current_timestamp on update current_timestamp, b timestamp null);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` timestamp NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `b` timestamp NULL default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values (NULL, NULL);
+SET TIMESTAMP=1000000018;
+insert into t1 values ();
+select * from t1;
+a	b
+NULL	NULL
+2001-09-09 04:46:58	NULL
 drop table t1;
 create table t1 (a timestamp null default null, b timestamp null default '2003-01-01 00:00:00');
 show create table t1;
