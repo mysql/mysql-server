@@ -3668,7 +3668,6 @@ mysql_new_select(LEX *lex, bool move_down)
     unit->link_prev= 0;
     unit->return_to= lex->current_select;
     select_lex->include_down(unit);
-    // TODO: assign resolve_mode for fake subquery after merging with new tree
   }
   else
   {
@@ -3688,6 +3687,7 @@ mysql_new_select(LEX *lex, bool move_down)
       fake->make_empty_select();
       fake->linkage= GLOBAL_OPTIONS_TYPE;
       fake->select_limit= lex->thd->variables.select_limit;
+      fake->resolve_mode= SELECT_LEX::SELECT_MODE;
     }
   }
 
