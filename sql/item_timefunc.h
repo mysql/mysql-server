@@ -809,3 +809,21 @@ public:
     max_length=MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
   }
 };
+
+class Item_func_last_day :public Item_str_func
+{
+public:
+  Item_func_last_day(Item *a) :Item_str_func(a) {}
+  String *val_str(String *str);
+  const char *func_name() const { return "last_day"; }
+  enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
+  void fix_length_and_dec()
+  { 
+    decimals=0;
+    max_length=MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+  }
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+    return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
+  }
+};

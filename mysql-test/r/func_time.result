@@ -468,6 +468,23 @@ select date_add(time,INTERVAL 1 SECOND) from t1;
 date_add(time,INTERVAL 1 SECOND)
 2006-07-08 00:00:01
 drop table t1;
+select last_day('2000-02-05') as f1, last_day('2002-12-31') as f2,
+last_day('2003-03-32') as f3, last_day('2003-04-01') as f4,
+last_day('2001-01-01 01:01:01') as f5, last_day(NULL),
+last_day('2001-02-12');
+f1	f2	f3	f4	f5	last_day(NULL)	last_day('2001-02-12')
+2000-02-29	2002-12-31	NULL	2003-04-30	2001-01-31	NULL	2001-02-28
+create table t1 select last_day('2000-02-05') as a;
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	date			0000-00-00	
+select * from t1;
+a
+2000-02-29
+drop table t1;
+select last_day('2000-02-05');
+last_day('2000-02-05')
+2000-02-29
 select strcmp(date_sub(localtimestamp(), interval 3 hour), utc_timestamp())=0;
 strcmp(date_sub(localtimestamp(), interval 3 hour), utc_timestamp())=0
 1

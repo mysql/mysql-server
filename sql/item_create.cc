@@ -707,3 +707,8 @@ Item *create_func_str_to_date(Item* a,Item* b)
 {
   return new Item_func_str_to_date(a, b);
 }
+
+Item *create_func_last_day(Item *a)
+{
+  return new Item_func_last_day(a);
+}
