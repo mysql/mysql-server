@@ -175,7 +175,7 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   /* If running in safe sql mode, don't allow updates without keys */
   if (!table->quick_keys)
   {
-    thd->options|=OPTION_NO_INDEX_USED;
+    thd->lex.options|=OPTION_NO_INDEX_USED;
     if ((thd->options & OPTION_SAFE_UPDATES) && limit == HA_POS_ERROR)
     {
       delete select;

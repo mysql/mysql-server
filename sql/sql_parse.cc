@@ -826,7 +826,8 @@ bool do_command(THD *thd)
   if (!thd->user_time)
   {
     if ((ulong) (thd->start_time - thd->time_after_lock) > long_query_time ||
-	((thd->options & (OPTION_NO_INDEX_USED | OPTION_NO_GOOD_INDEX_USED)) &&
+	((thd->lex.options &
+	  (OPTION_NO_INDEX_USED | OPTION_NO_GOOD_INDEX_USED)) &&
 	 (specialflag & SPECIAL_LONG_LOG_FORMAT)))
     {
       long_query_count++;
@@ -855,7 +856,7 @@ mysql_execute_command(void)
 {
   int	res=0;
   THD	*thd=current_thd;
-  LEX	*lex=current_lex;
+  LEX	*lex= &thd->lex;
   TABLE_LIST *tables=(TABLE_LIST*) lex->table_list.first;
   DBUG_ENTER("mysql_execute_command");
 
