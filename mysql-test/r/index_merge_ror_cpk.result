@@ -41,7 +41,7 @@ pk1	pk2	key1	key2	pktail1ok	pktail2ok	pktail3bad	pktail4bad	pktail5bad	pk2copy	b
 1	19	0	0	0	0	0	0	0	19	0	filler-data-19	filler2
 explain select pk1,pk2 from t1 where key1 = 10 and key2=10 and 2*pk1+1 < 2*96+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	key1,key2	key1,key2	4,4	NULL	1	Using where; Using index
+1	SIMPLE	t1	index_merge	key1,key2	key1,key2	4,4	NULL	1	Using intersect(key1,key2); Using where; Using index
 select pk1,pk2 from t1 where key1 = 10 and key2=10 and 2*pk1+1 < 2*96+1;
 pk1	pk2
 95	50
@@ -59,13 +59,19 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	key1	key1	4	const	101	Using where
 explain select * from t1 where pk1 < 7500 and key1 = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	PRIMARY,key1	key1,PRIMARY	4,4	NULL	38	Using where
+1	SIMPLE	t1	index_merge	PRIMARY,key1	key1,PRIMARY	4,4	NULL	38	Using intersect(key1,PRIMARY); Using where
 explain select * from t1 where pktail1ok=1 and key1=10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	key1,pktail1ok	key1,pktail1ok	4,4	NULL	1	Using where
+1	SIMPLE	t1	index_merge	key1,pktail1ok	key1,pktail1ok	4,4	NULL	1	Using intersect(key1,pktail1ok); Using where
 explain select * from t1 where pktail2ok=1 and key1=10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	key1,pktail2ok	key1,pktail2ok	4,4	NULL	1	Using where
+1	SIMPLE	t1	index_merge	key1,pktail2ok	key1,pktail2ok	4,4	NULL	1	Using intersect(key1,pktail2ok); Using where
+select '  The following is actually a deficiency, it uses sort_union currently:' as 'note:';
+note:
+  The following is actually a deficiency, it uses sort_union currently:
+explain select * from t1 where (pktail2ok=1 and pk1< 50000) or key1=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	PRIMARY,key1,pktail2ok	pktail2ok,key1	8,4	NULL	199	Using sort_union(pktail2ok,key1); Using where
 explain select * from t1 where pktail3bad=1 and key1=10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	key1,pktail3bad	pktail3bad	4	const	98	Using where
@@ -77,7 +83,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	key1,pktail5bad	pktail5bad	4	const	99	Using where
 explain select pk1,pk2,key1,key2 from t1 where key1 = 10 and key2=10 limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	key1,key2	key1,key2	4,4	NULL	1	Using where; Using index
+1	SIMPLE	t1	index_merge	key1,key2	key1,key2	4,4	NULL	1	Using intersect(key1,key2); Using where; Using index
 select pk1,pk2,key1,key2 from t1 where key1 = 10 and key2=10 limit 10;
 pk1	pk2	key1	key2
 95	50	10	10

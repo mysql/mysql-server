@@ -2,7 +2,7 @@
 #  ROR-index_merge tests. 
 #
 --disable_warnings
-drop table if exists  t1,t0;
+drop table if exists  t0,t1,t2;
 --enable_warnings
 --disable_query_log
 create table t1
@@ -213,3 +213,37 @@ explain select st_a from t1
 
 drop table t0,t1;
 
+# 'Partially' covered fields test
+
+create table t2 (
+  a char(10),
+  b char(10),
+  filler1 char(255),
+  filler2 char(255),
+  key(a(5)),
+  key(b(5))
+);
+
+--disable_query_log
+let $1=8;
+while ($1)
+{
+  eval insert into t2 values (repeat(char($1+64), 8),repeat(char($1+64), 8),'filler1', 'filler2');
+  dec $1;
+}
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+--enable_query_log
+
+# The table row buffer is reused. Fill it with rows that don't match.
+select count(a) from t2 where a='BBBBBBBB';
+select count(a) from t2 where b='BBBBBBBB';
+
+# BUG#1: 
+explain select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
+select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
+select count(a) from t2 ignore index(a,b) where a='AAAAAAAA' and b='AAAAAAAA';
+
+insert into t2 values ('ab', 'ab', 'uh', 'oh');
+explain select a from t2 where a='ab';
+drop table t2;

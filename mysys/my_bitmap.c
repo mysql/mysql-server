@@ -28,6 +28,9 @@
     * when both arguments are bitmaps, they must be of the same size
     * bitmap_intersect() is an exception :)
       (for for Bitmap::intersect(ulonglong map2buff))
+  
+  If THREAD is defined all bitmap operations except bitmap_init/bitmap_free 
+  are thread-safe.
 
   TODO:
   Make assembler THREAD safe versions of these using test-and-set instructions
@@ -332,29 +335,36 @@ void bitmap_union(MY_BITMAP *map, const MY_BITMAP *map2)
 
 
 /*
-  Get number of set bits in the bitmap 
+  SYNOPSIS
+    bitmap_bits_set()
+      map
+  RETURN
+    Number of set bits in the bitmap.
 */
+
 uint bitmap_bits_set(const MY_BITMAP *map)
 {  
-  uchar *m= map->bitmap,
-        *end= map->bitmap+map->bitmap_size;
+  uchar *m= map->bitmap;
+  uchar *end= m + map->bitmap_size;
   uint res= 0;
 
   DBUG_ASSERT(map->bitmap);
-
   bitmap_lock((MY_BITMAP *)map);
   while (m < end)
   {
     res+= my_count_bits_ushort(*m++);
   }
-
   bitmap_unlock((MY_BITMAP *)map);
   return res;
 }
 
 
 /* 
-  Return number of first zero bit or MY_BIT_NONE if all bits are set.
+  SYNOPSIS
+    bitmap_get_first()
+      map
+  RETURN 
+    Number of first unset bit in the bitmap or MY_BIT_NONE if all bits are set.
 */
 
 uint bitmap_get_first(const MY_BITMAP *map)

@@ -199,19 +199,7 @@ public:
   void store(uint length,char **min_key,uint min_key_flag,
 	     char **max_key, uint max_key_flag)
   {
-    if ((min_flag & GEOM_FLAG) ||
-        (!(min_flag & NO_MIN_RANGE) &&
-	!(min_key_flag & (NO_MIN_RANGE | NEAR_MIN))))
-    {
-      if (maybe_null && *min_value)
-      {
-	**min_key=1;
-	bzero(*min_key+1,length);
-      }
-      else
-	memcpy(*min_key,min_value,length+(int) maybe_null);
-      (*min_key)+= length+(int) maybe_null;
-    }
+    store_min(length, min_key, min_key_flag);
     if (!(max_flag & NO_MAX_RANGE) &&
 	!(max_key_flag & (NO_MAX_RANGE | NEAR_MAX)))
     {
@@ -298,6 +286,7 @@ public:
 
 class SEL_IMERGE;
 
+
 class SEL_TREE :public Sql_alloc
 {
 public:
@@ -319,7 +308,7 @@ public:
   
   /* The members below are filled/used only after get_mm_tree is done */
   key_map ror_scans_map;   /* bitmask of ROR scan-able elements in keys */
-  uint    n_ror_scans;
+  uint    n_ror_scans;     /* number of set bits in ror_scans_map */
 
   struct st_ror_scan_info **ror_scans;     /* list of ROR key scans */
   struct st_ror_scan_info **ror_scans_end; /* last ROR scan */
@@ -330,7 +319,8 @@ public:
 typedef struct st_qsel_param {
   THD	*thd;
   TABLE *table;
-  KEY_PART *key_parts,*key_parts_end,*key[MAX_KEY];
+  KEY_PART *key_parts,*key_parts_end;
+  KEY_PART *key[MAX_KEY]; /* First key parts of keys used in the query */
   MEM_ROOT *mem_root;
   table_map prev_tables,read_tables,current_table;
   uint baseflag, max_key_part, range_count;
@@ -353,7 +343,8 @@ typedef struct st_qsel_param {
   uint *imerge_cost_buff;     /* buffer for index_merge cost estimates */
   uint imerge_cost_buff_size; /* size of the buffer */
   
-  bool is_ror_scan; /* true if last checked tree->key can be used for ROR-scan */
+ /* true if last checked tree->key can be used for ROR-scan */ 
+  bool is_ror_scan; 
 } PARAM;
 
 class TABLE_READ_PLAN;
@@ -625,7 +616,6 @@ int imerge_list_or_list(PARAM *param,
   RETURN
     0     OK, result is stored in *im1.
     other Error
-  
 */
 
 int imerge_list_or_tree(PARAM *param, 
@@ -767,11 +757,12 @@ QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(THD *thd_param,
   :cur_quick_it(quick_selects),pk_quick_select(NULL),unique(NULL),
    thd(thd_param)
 {
+  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT");
   index= MAX_KEY;
   head= table;
-  reset_called= false;
   bzero(&read_record, sizeof(read_record));
   init_sql_alloc(&alloc,1024,0);
+  DBUG_VOID_RETURN;
 }
 
 int QUICK_INDEX_MERGE_SELECT::init()
@@ -785,11 +776,7 @@ int QUICK_INDEX_MERGE_SELECT::reset()
 {
   int result;
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::reset");
-  if (reset_called)
-    DBUG_RETURN(0);
-
-  reset_called= true;
-  result = cur_quick_select->reset() || prepare_unique();
+  result= cur_quick_select->reset() || prepare_unique();
   DBUG_RETURN(result);
 }
 
@@ -810,10 +797,12 @@ QUICK_INDEX_MERGE_SELECT::push_quick_back(QUICK_RANGE_SELECT *quick_sel_range)
 
 QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT()
 {
+  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT");
   delete unique;
   quick_selects.delete_elements();
   delete pk_quick_select;
   free_root(&alloc,MYF(0));
+  DBUG_VOID_RETURN;
 }
 
 
@@ -821,8 +810,7 @@ QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(THD *thd_param,
                                                        TABLE *table,
                                                        bool retrieve_full_rows,
                                                        MEM_ROOT *parent_alloc)
-  : cpk_quick(NULL), thd(thd_param), reset_called(false), 
-    need_to_fetch_row(retrieve_full_rows)
+  : cpk_quick(NULL), thd(thd_param), need_to_fetch_row(retrieve_full_rows)
 {
   index= MAX_KEY;
   head= table;  
@@ -835,28 +823,50 @@ QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(THD *thd_param,
                                 head->file->ref_length);
 }
 
+
+/* 
+  Do post-constructor initialization.
+  SYNOPSIS
+    QUICK_ROR_INTERSECT_SELECT::init()
+  
+  RETURN
+    0      OK
+    other  Error code
+*/
+
 int QUICK_ROR_INTERSECT_SELECT::init()
 {
-  /* Check if last_rowid was allocated in ctor */
+  /* Check if last_rowid was successfully allocated in ctor */
   return !last_rowid;
 }
 
 
 /*
-  Init this quick select to be a ROR child scan. 
-  NOTE
-    QUICK_ROR_INTERSECT_SELECT::reset() may choose not to call this function
-    but reuse its handler object for doing one of range scans. It duplicates
-    a part of this function' code.
+  Initialize this quick select to be a ROR-merged scan.
+
+  SYNOPSIS
+    QUICK_RANGE_SELECT::init_ror_merged_scan()
+      reuse_handler If true, use head->file, otherwise create a separate
+                    handler object
+
+  NOTES
+    This function creates and prepares for subsequent use a separate handler
+    object if it can't reuse head->file. The reason for this is that during 
+    ROR-merge several key scans are performed simultaneously, and a single
+    handler is only capable of preserving context of a single key scan.
+
+    In ROR-merge the quick select doing merge does full records retrieval, 
+    merged quick selects read only keys.
+     
   RETURN 
     0  ROR child scan initialized, ok to use.
     1  error
 */
 
-int QUICK_RANGE_SELECT::init_ror_child_scan(bool reuse_handler)
+int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
 {
   handler *save_file= file;
-  DBUG_ENTER("QUICK_RANGE_SELECT::init_ror_child_scan");
+  DBUG_ENTER("QUICK_RANGE_SELECT::init_ror_merged_scan");
   
   if (reuse_handler)
   {
@@ -894,7 +904,7 @@ int QUICK_RANGE_SELECT::init_ror_child_scan(bool reuse_handler)
     file->close();
     goto failure;
   }
-  free_file=  true;
+  free_file= true;
   last_rowid= file->ref;
   DBUG_RETURN(0);
 
@@ -903,32 +913,42 @@ failure:
   DBUG_RETURN(1);
 }
 
-int QUICK_ROR_INTERSECT_SELECT::init_ror_child_scan(bool reuse_handler)
+
+/*
+  Initialize this quick select to be a part of a ROR-merged scan.
+  SYNOPSIS
+    QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan()
+      reuse_handler If true, use head->file, otherwise create separate
+                    handler object.
+  RETURN 
+    0     OK
+    other error code
+*/
+int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
 {
   List_iterator_fast<QUICK_RANGE_SELECT> quick_it(quick_selects);
   QUICK_RANGE_SELECT* quick;
-  DBUG_ENTER("QUICK_ROR_INTERSECT_SELECT::init_ror_child_scan");
+  DBUG_ENTER("QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan");
 
   /* Initialize all merged "children" quick selects */
-  quick_it.rewind();
   DBUG_ASSERT(!(need_to_fetch_row && !reuse_handler));
   if (!need_to_fetch_row && reuse_handler)
   {
     quick= quick_it++;
     /* 
-      There is no use for this->file. Reuse it for first of merged range 
+      There is no use of this->file. Use it for the first of merged range
       selects.
     */
-    if (quick->init_ror_child_scan(true))
+    if (quick->init_ror_merged_scan(true))
       DBUG_RETURN(1);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
   }
   while((quick= quick_it++))
   {
-    if (quick->init_ror_child_scan(false))
+    if (quick->init_ror_merged_scan(false))
       DBUG_RETURN(1);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
-    /* Share the same record structure in intersect*/
+    /* All merged scans share the same record buffer in intersection. */
     quick->record= head->record[0];
   }
 
@@ -940,27 +960,44 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_child_scan(bool reuse_handler)
   DBUG_RETURN(0);
 }
 
+
+/* 
+  Initialize quick select for row retrieval.
+  SYNOPSIS
+    reset()
+  RETURN
+    0      OK
+    other  Error code
+*/
+
 int QUICK_ROR_INTERSECT_SELECT::reset()
 {
   int result;
   DBUG_ENTER("QUICK_ROR_INTERSECT_SELECT::reset");
-  result= init_ror_child_scan(true);
+  result= init_ror_merged_scan(true);
   DBUG_RETURN(result);
 }
+
+
+/*
+  Add a merged quick select to this ROR-intersection quick select.
+  
+  SYNOPSIS
+    QUICK_ROR_INTERSECT_SELECT::push_quick_back()
+      quick Quick select to be added. The quick select must return
+            rows in rowid order.
+  NOTES
+    This call can only be made before init() is called.
+    
+  RETURN
+    false OK    
+    true  Out of memory.
+*/
 
 bool 
 QUICK_ROR_INTERSECT_SELECT::push_quick_back(QUICK_RANGE_SELECT *quick)
 {
-  bool res;
-  if (head->file->primary_key_is_clustered() && 
-      quick->index == head->primary_key)
-  {
-    cpk_quick= quick;
-    res= 0;
-  }
-  else
-    res= quick_selects.push_back(quick);
-  return res;
+  return quick_selects.push_back(quick);
 }
 
 QUICK_ROR_INTERSECT_SELECT::~QUICK_ROR_INTERSECT_SELECT()
@@ -974,7 +1011,7 @@ QUICK_ROR_INTERSECT_SELECT::~QUICK_ROR_INTERSECT_SELECT()
 
 QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(THD *thd_param,
                                                TABLE *table)
-  : thd(thd_param), reset_called(false)
+  : thd(thd_param)
 {
   index= MAX_KEY;
   head= table;
@@ -983,6 +1020,17 @@ QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(THD *thd_param,
   init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
   my_pthread_setspecific_ptr(THR_MALLOC,&alloc);
 }
+
+
+/*
+  Do post-constructor initialization.
+  SYNOPSIS
+    QUICK_ROR_UNION_SELECT::init()
+  
+  RETURN
+    0      OK
+    other  Error code
+*/
 
 int QUICK_ROR_UNION_SELECT::init()
 {
@@ -1000,8 +1048,11 @@ int QUICK_ROR_UNION_SELECT::init()
   return 0;
 }
 
+
 /*
-  Comparison function to be used by priority queue.
+  Comparison function to be used QUICK_ROR_UNION_SELECT::queue priority 
+  queue.
+
   SYNPOSIS
     QUICK_ROR_UNION_SELECT::queue_cmp()
       arg   Pointer to QUICK_ROR_UNION_SELECT
@@ -1010,10 +1061,21 @@ int QUICK_ROR_UNION_SELECT::init()
 */
 int QUICK_ROR_UNION_SELECT::queue_cmp(void *arg, byte *val1, byte *val2)
 {
-  QUICK_ROR_UNION_SELECT *self= (QUICK_ROR_UNION_SELECT*)arg;    
+  QUICK_ROR_UNION_SELECT *self= (QUICK_ROR_UNION_SELECT*)arg;
   return self->head->file->cmp_ref(((QUICK_SELECT_I*)val1)->last_rowid,
                                    ((QUICK_SELECT_I*)val2)->last_rowid);
 }
+
+
+/* 
+  Initialize quick select for row retrieval.
+  SYNOPSIS
+    reset()
+  
+  RETURN
+    0      OK
+    other  Error code
+*/
 
 int QUICK_ROR_UNION_SELECT::reset()
 {
@@ -1028,7 +1090,7 @@ int QUICK_ROR_UNION_SELECT::reset()
   List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
   while ((quick= it++))
   {
-    if (quick->init_ror_child_scan(false))
+    if (quick->init_ror_merged_scan(false))
       DBUG_RETURN(1);    
     if ((error= quick->get_next()))
     {
@@ -1245,13 +1307,33 @@ public:
   double read_cost; 
   ha_rows records; /* estimate of #rows to be examined */
 
+  /* 
+    If true, the scan returns rows in rowid order. This is used only for 
+    scans that can be both ROR and non-ROR.
+  */
   bool is_ror;
-  /* Create quck select for this plan */
+  
+  /*
+    Create quick select for this plan.
+    SYNOPSIS
+     make_quick()
+       param               Parameter from test_quick_select
+       retrieve_full_rows  If true, created quick select will do full record
+                           retrieval.
+       parent_alloc        Memory pool to use, if any.
+    
+    NOTES
+      retrieve_full_rows is ignored by some implementations.
+    
+    RETURN 
+      created quick select
+      NULL on any error.
+  */
   virtual QUICK_SELECT_I *make_quick(PARAM *param,
                                      bool retrieve_full_rows,
                                      MEM_ROOT *parent_alloc=NULL) = 0;
 
-  /* Table read plans are allocated on MEM_ROOT and must not be deleted */
+  /* Table read plans are allocated on MEM_ROOT and are never deleted */
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr,size_t size) {}
@@ -1262,11 +1344,19 @@ class TRP_ROR_UNION;
 class TRP_INDEX_MERGE;
 
 
+/*
+  Plan for a QUICK_RANGE_SELECT scan. 
+  TRP_RANGE::make_quick ignores retrieve_full_rows parameter because
+  QUICK_RANGE_SELECT doesn't distinguish between 'index only' scans and full
+  record retrieval scans.
+*/
+
 class TRP_RANGE : public TABLE_READ_PLAN
 {
 public:
-  SEL_ARG *key;
-  uint     key_idx; /* key number in param->keys */
+  SEL_ARG *key; /* set of intervals to be used in "range" method retrieval */
+  uint     key_idx; /* key number in PARAM::key */
+
   TRP_RANGE(SEL_ARG *key_arg, uint idx_arg) 
    : key(key_arg), key_idx(idx_arg)
   {}
@@ -1276,7 +1366,6 @@ public:
   {
     DBUG_ENTER("TRP_RANGE::make_quick");
     QUICK_RANGE_SELECT *quick;
-    /* ignore retrieve_full_rows there as it is set/used elsewhere */
     if ((quick= get_quick_select(param, key_idx, key, parent_alloc)))
     {
       quick->records= records;
@@ -1286,45 +1375,68 @@ public:
   }
 };
 
+
+/* Plan for QUICK_ROR_INTERSECT_SELECT scan. */
+
 class TRP_ROR_INTERSECT : public TABLE_READ_PLAN
 {
 public:
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows, 
                              MEM_ROOT *parent_alloc);
+  
+  /* Array of pointers to ROR range scans used in this intersection */
   struct st_ror_scan_info **first_scan;
-  struct st_ror_scan_info **last_scan;
+  struct st_ror_scan_info **last_scan; /* End of the above array */
+  struct st_ror_scan_info *cpk_scan;  /* Clustered PK scan, if there is one */
   bool is_covering; /* true if no row retrieval phase is necessary */
-  double index_scan_costs;
+  double index_scan_costs; /* SUM(cost(index_scan)) */
 };
 
+
 /* 
-  ROR-union is currently never covering.
+  Plan for QUICK_ROR_UNION_SELECT scan.
+  QUICK_ROR_UNION_SELECT always retrieves full rows, so retrieve_full_rows
+  is ignored by make_quick. 
 */
+
 class TRP_ROR_UNION : public TABLE_READ_PLAN
 {
 public:
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows, 
                              MEM_ROOT *parent_alloc);
-  TABLE_READ_PLAN **first_ror;  
-  TABLE_READ_PLAN **last_ror;
-  
+  TABLE_READ_PLAN **first_ror; /* array of ptrs to plans for merged scans */
+  TABLE_READ_PLAN **last_ror;  /* end of the above array */
 };
+
+
+/*
+  Plan for QUICK_INDEX_MERGE_SELECT scan.
+  QUICK_ROR_INTERSECT_SELECT always retrieves full rows, so retrieve_full_rows
+  is ignored by make_quick. 
+*/
 
 class TRP_INDEX_MERGE : public TABLE_READ_PLAN
 {
 public:
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows, 
                              MEM_ROOT *parent_alloc);
-  TRP_RANGE **range_scans;
-  TRP_RANGE **range_scans_end;
+  TRP_RANGE **range_scans; /* array of ptrs to plans of merged scans */
+  TRP_RANGE **range_scans_end; /* end of the array */
 };
 
 
 /* 
-  Fill param->needed_fields with bitmap of fields used in the query
-  NOTE
-    Do not put clustered PK members into it as they are implicitly present in
-    all keys.
+  Fill param->needed_fields with bitmap of fields used in the query.
+  SYNOPSIS 
+    fill_used_fields_bitmap()
+      param Parameter from test_quick_select function.
+      
+  NOTES
+    Clustered PK members are not put into the bitmap as they are implicitly
+    present in all keys (and it is impossible to avoid reading them).
+  RETURN 
+    0  Ok 
+    1  Out of memory. 
 */
 
 static int fill_used_fields_bitmap(PARAM *param)
@@ -1348,6 +1460,7 @@ static int fill_used_fields_bitmap(PARAM *param)
   pk= param->table->primary_key;
   if (param->table->file->primary_key_is_clustered() && pk != MAX_KEY)
   {
+    /* The table uses clustered PK and it is not internally generated */
     KEY_PART_INFO *key_part= param->table->key_info[pk].key_part;
     KEY_PART_INFO *key_part_end= key_part + 
                                  param->table->key_info[pk].key_parts;
@@ -1361,28 +1474,39 @@ static int fill_used_fields_bitmap(PARAM *param)
 
 
 /*
-  Test if a key can be used in different ranges
+  Test if a key can be used in different ranges 
 
   SYNOPSIS
-   SQL_SELECT::test_quick_select(thd,keys_to_use, prev_tables,
-                                 limit, force_quick_range)
+    SQL_SELECT::test_quick_select()
+      thd               Current thread
+      keys_to_use       Keys to use for range retrieval
+      prev_tables       Tables assumed to be already read when the scan is
+                        performed (but not read at the moment of this call)
+      limit             Query limit 
+      force_quick_range Prefer to use range (instead of full table scan) even 
+                        if it is more expensive. 
 
-   Updates the following in the select parameter:
-     needed_reg - Bits for keys with may be used if all prev regs are read
-     quick      - Parameter to use when reading records.
+  NOTES
+    Updates the following in the select parameter:
+      needed_reg - Bits for keys with may be used if all prev regs are read
+      quick      - Parameter to use when reading records.
    
-   In the table struct the following information is updated:
-     quick_keys - Which keys can be used
-     quick_rows - How many rows the key matches
+    In the table struct the following information is updated:
+      quick_keys - Which keys can be used
+      quick_rows - How many rows the key matches
 
- RETURN VALUES
-  -1 if impossible select
-   0 if can't use quick_select
-   1 if found usable range
+  TODO
+   Check if this function really needs to modify keys_to_use, and change the
+   code to pass it by reference if it doesn't.
 
- TODO
-   check if the function really needs to modify keys_to_use, and change the
-   code to pass it by reference if not
+   In addition to force_quick_range other means can be (an usually are) used 
+   to make this function prefer range over full table scan. Figure out if
+   force_quick_range is really needed.
+   
+  RETURN
+   -1 if impossible select (i.e. certainly no rows will be selected)
+    0 if can't use quick_select
+    1 if found usable ranges and quick select has been successfully created.
 */
 
 int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
@@ -1393,6 +1517,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   uint idx;
   double scan_time;
   DBUG_ENTER("test_quick_select");
+  printf("\nQUERY: %s\n", thd->query);
   DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
 		      keys_to_use.to_ulonglong(), (ulong) prev_tables,
 		      (ulong) const_tables));
@@ -1485,6 +1610,18 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     }
     param.key_parts_end=key_parts;
 
+    /* Calculate cost of full index read for the shortest covering index */
+    if (!head->used_keys.is_clear_all())
+    {           
+      int key_for_use= find_shortest_key(head, &head->used_keys);
+      double key_read_time= get_index_only_read_time(&param, records, 
+                                                     key_for_use);      
+      DBUG_PRINT("info",  ("'all'+'using index' scan will be using key %d, "
+                           "read time %g", key_for_use, key_read_time));
+      if (key_read_time < read_time)
+        read_time= key_read_time;
+    }
+          
     if ((tree=get_mm_tree(&param,cond)))
     {
       if (tree->type == SEL_TREE::IMPOSSIBLE)
@@ -1499,8 +1636,6 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
         /* 
           It is possible to use a quick select (but maybe it would be slower
           than 'all' table scan).
-          Btw, tree type SEL_TREE::INDEX_MERGE was not introduced 
-          intentionally.
         */
         if (tree->merges.is_empty())
         {
@@ -1522,7 +1657,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
           {
             /* 
               Get best non-covering ROR-intersection plan and prepare data for 
-              building covering ROR-intersection
+              building covering ROR-intersection.
             */
             if ((new_trp= get_best_ror_intersect(&param, tree, false, 
                                                  best_read_time, 
@@ -1550,25 +1685,6 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
           LINT_INIT(new_conj_trp); /* no empty index_merge lists possible */
           DBUG_PRINT("info",("No range reads possible,"
                              " trying to construct index_merge"));
-          
-          /* 
-            Calculate cost of 'all'+index_only scan if it is possible. 
-            It is possible that table can be read in two ways:
-             a) 'all' + index_only
-             b) index_merge without index_only.
-          */
-          if (!head->used_keys.is_clear_all())
-          {           
-            int key_for_use= find_shortest_key(head, &head->used_keys);
-            ha_rows total_table_records= (0 == head->file->records)? 1 : 
-                                          head->file->records;
-            read_time = get_index_only_read_time(&param, total_table_records,
-                                                 key_for_use);
-            DBUG_PRINT("info", 
-                       ("'all'+'using index' scan will be using key %d, "
-                        "read time %g", key_for_use, read_time));
-          }
-
           List_iterator_fast<SEL_IMERGE> it(tree->merges);
           while ((imerge= it++))
           {
@@ -1579,8 +1695,9 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
           }
           best_trp= best_conj_trp;
         }
+        my_pthread_setspecific_ptr(THR_MALLOC, old_root);
 
-        my_pthread_setspecific_ptr(THR_MALLOC, old_root);        
+        /* If we got a read plan, create a quick select from it. */
         if (best_trp)
         {
           records= best_trp->records;
@@ -1589,7 +1706,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
             delete quick;
             quick= NULL;
           }
-        }        
+        } 
       }
     }
     my_pthread_setspecific_ptr(THR_MALLOC, old_root);
@@ -1608,19 +1725,22 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 
 
 /* 
-  Get cost of 'sweep' full row retrieveal of #records rows.
+  Get cost of 'sweep' full records retrieval.
+  SYNOPSIS
+    get_sweep_read_cost()
+      param            Parameter from test_quick_select
+      records          # of records to be retrieved 
   RETURN
-    0 - ok 
-    1 - sweep is more expensive then full table scan.
+    cost of sweep  
 */
 
-bool get_sweep_read_cost(const PARAM *param, ha_rows records, double* cost,
-                          double index_reads_cost, double max_cost)
+double get_sweep_read_cost(const PARAM *param, ha_rows records)
 {
+  double result;
   if (param->table->file->primary_key_is_clustered())
   {
-    *cost= param->table->file->read_time(param->table->primary_key, 
-                                         records, records);
+    result= param->table->file->read_time(param->table->primary_key,
+                                          records, records);
   }
   else
   {    
@@ -1630,8 +1750,8 @@ bool get_sweep_read_cost(const PARAM *param, ha_rows records, double* cost,
       n_blocks * (1.0 - pow(1.0 - 1.0/n_blocks, rows2double(records)));
     if (busy_blocks < 1.0)
       busy_blocks= 1.0;
-    DBUG_PRINT("info",("sweep: nblocks= %g, busy_blocks=%g index_blocks=%g",
-                       n_blocks, busy_blocks, index_reads_cost));
+    DBUG_PRINT("info",("sweep: nblocks=%g, busy_blocks=%g", n_blocks, 
+                       busy_blocks));
     /*
       Disabled: Bail out if # of blocks to read is bigger than # of blocks in 
       table data file.
@@ -1642,7 +1762,7 @@ bool get_sweep_read_cost(const PARAM *param, ha_rows records, double* cost,
     if (!join || join->tables == 1)
     {
       /* No join, assume reading is done in one 'sweep' */
-      *cost= busy_blocks*(DISK_SEEK_BASE_COST + 
+      result= busy_blocks*(DISK_SEEK_BASE_COST + 
                           DISK_SEEK_PROP_COST*n_blocks/busy_blocks);
     }
     else
@@ -1651,11 +1771,11 @@ bool get_sweep_read_cost(const PARAM *param, ha_rows records, double* cost,
         Possibly this is a join with source table being non-last table, so
         assume that disk seeks are random here.
       */
-      *cost = busy_blocks;
+      result= busy_blocks;
     }
   }
-  DBUG_PRINT("info",("returning cost=%g", *cost));
-  return 0;
+  DBUG_PRINT("info",("returning cost=%g", result));
+  return result;
 }
 
 
@@ -1663,15 +1783,11 @@ bool get_sweep_read_cost(const PARAM *param, ha_rows records, double* cost,
   Get best plan for a SEL_IMERGE disjunctive expression.
   SYNOPSIS
     get_best_disjunct_quick()
-      param
-      imerge
+      param     Parameter from check_quick_select function
+      imerge    Expression to use
       read_time Don't create scans with cost > read_time
-  RETURN 
-    read plan
-    NULL - OOM or no read scan could be built.
   
   NOTES
-
     index_merge cost is calculated as follows:
     index_merge_cost = 
       cost(index_reads) +         (see #1)
@@ -1723,11 +1839,14 @@ bool get_sweep_read_cost(const PARAM *param, ha_rows records, double* cost,
   ROR-union cost is calculated in the same way index_merge, but instead of 
   Unique a priority queue is used. 
      
+  RETURN 
+    Created read plan
+    NULL - Out of memory or no read scan could be built.
 */
 
 static
 TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
-                                           double read_time)
+                                         double read_time)
 {
   SEL_TREE **ptree;
   TRP_INDEX_MERGE *imerge_trp= NULL;
@@ -1823,12 +1942,11 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   }
 
   /* Calculate cost(rowid_to_row_scan) */
-  if (get_sweep_read_cost(param, non_cpk_scan_records, &sweep_cost, 
-                           blocks_in_index_read, read_time))
-    goto build_ror_index_merge;
-  imerge_cost += sweep_cost;
+  imerge_cost += get_sweep_read_cost(param, non_cpk_scan_records);
   DBUG_PRINT("info",("index_merge cost with rowid-to-row scan: %g", 
                      imerge_cost));
+  if (imerge_cost > read_time)
+    goto build_ror_index_merge;
 
   /* Add Unique operations cost */
   unique_calc_buff_size= 
@@ -1923,7 +2041,7 @@ skip_to_ror_scan:
   /* 
     rows to retrieve= 
       SUM(rows_in_scan_i) - table_rows * PROD(rows_in_scan_i / table_rows).
-    This is valid because index_merge constructuion guarantees that conditions
+    This is valid because index_merge construction guarantees that conditions
     in disjunction do not share key parts.
   */
   roru_total_records -= (ha_rows)(roru_intersect_part*
@@ -1937,14 +2055,12 @@ skip_to_ror_scan:
     See get_merge_buffers_cost function for queue_use_cost formula derivation.
   */
   
-  if (get_sweep_read_cost(param, roru_total_records, &sweep_cost, 
-                           roru_index_costs, read_time))
-    DBUG_RETURN(NULL);
   double roru_total_cost;
   roru_total_cost= roru_index_costs +  
                    rows2double(roru_total_records)*log(n_child_scans) / 
-                   (TIME_FOR_COMPARE_ROWID * M_LN2) +
-                   sweep_cost;  
+                   (TIME_FOR_COMPARE_ROWID * M_LN2) + 
+                   get_sweep_read_cost(param, roru_total_records);
+
   DBUG_PRINT("info", ("ROR-union: cost %g, %d members", roru_total_cost, 
                       n_child_scans));
   TRP_ROR_UNION* roru;
@@ -1965,10 +2081,9 @@ skip_to_ror_scan:
 
 /*
   Calculate cost of 'index only' scan for given index and number of records.
-    (We can resolve this by only reading through this key.)
 
   SYNOPSIS
-    get_whole_index_read_time()
+    get_index_only_read_time()
       param    parameters structure
       records  #of records to read
       keynr    key to read
@@ -1992,35 +2107,40 @@ inline double get_index_only_read_time(const PARAM* param, ha_rows records,
 
 typedef struct st_ror_scan_info
 {
-  uint      idx;   /* # of used key in param->keys */
-  uint      keynr; /* # of used key in table */
-  ha_rows   records;
-  SEL_ARG   *sel_arg;
-  /* Fields used in the query and covered by this ROR scan */
+  uint      idx;      /* # of used key in param->keys */
+  uint      keynr;    /* # of used key in table */
+  ha_rows   records;  /* estimate of # records this scan will return */
+
+  /* Set of intervals over key fields that will be used for row retrieval. */
+  SEL_ARG   *sel_arg; 
+
+  /* Fields used in the query and covered by this ROR scan. */
   MY_BITMAP covered_fields;  
-  uint      used_fields_covered;
-  int       key_rec_length; /* length of key record with rowid */
+  uint      used_fields_covered; /* # of set bits in covered_fields */ 
+  int       key_rec_length; /* length of key record (including rowid) */
 
   /*
-    Array of 
-     #rows(keypart_1=c1 AND ... AND key_part_i=c_i) / 
-     #rows(keypart_1=c1 AND ... AND key_part_{i+1}=c_{i+1}) values
-  */
-  double    *key_part_rows;
-  double    index_read_cost;
-  uint      first_uncovered_field;
-  uint      key_components;
-}ROR_SCAN_INFO;
+    Cost of reading all index records with values in sel_arg intervals set
+    (assuming there is no need to access full table records)
+  */ 
+  double    index_read_cost; 
+  uint      first_uncovered_field; /* first unused bit in covered_fields */
+  uint      key_components; /* # of parts in the key */
+} ROR_SCAN_INFO;
 
 
 /*
-  Create ROR_SCAN_INFO* structure for condition sel_arg on key idx.
+  Create ROR_SCAN_INFO* structure with a single ROR scan on index idx using 
+  sel_arg set of intervals.
+  
   SYNOPSIS
     make_ror_scan()
-      param
-      idx   index of key in param->keys
+      param    Parameter from test_quick_select function
+      idx      Index of key in param->keys
+      sel_arg  Set of intervals for a given key
   RETURN
-    NULL - OOM.
+    NULL - out of memory 
+    ROR scan structure containing a scan for {idx, sel_arg}
 */
 
 static
@@ -2049,10 +2169,6 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
                   param->fields_bitmap_size*8, false))
     DBUG_RETURN(NULL);
   bitmap_clear_all(&ror_scan->covered_fields);
-  if (!(ror_scan->key_part_rows= 
-        (double*)alloc_root(param->mem_root, sizeof(double)*
-                            param->table->key_info[keynr].key_parts)))
-    DBUG_RETURN(NULL);
   
   KEY_PART_INFO *key_part= param->table->key_info[keynr].key_part;
   KEY_PART_INFO *key_part_end= key_part + 
@@ -2069,50 +2185,23 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
   ror_scan->index_read_cost= 
     get_index_only_read_time(param, param->table->quick_rows[ror_scan->keynr],
                              ror_scan->keynr);
-  /* 
-    Calculate # rows estimates for 
-      (key_part1=c1)
-      (key_part1=c1 AND key_part2=c2) 
-      ...and so on
-  */
-  char key_val[MAX_KEY_LENGTH+MAX_FIELD_WIDTH]; /* values of current key */
-  char *key_ptr= key_val;
-  ha_rows records;
-  ha_rows prev_records= param->table->file->records;
-  double *rows_diff= ror_scan->key_part_rows;
-  key_part= param->table->key_info[keynr].key_part;
-  SEL_ARG *arg= ror_scan->sel_arg;
-  /*
-    We have #rows estimate already for first key part, so do first loop 
-    iteration separately:
-  */
-  arg->store_min(key_part->length, &key_ptr, 0);
-  prev_records= param->table->quick_rows[ror_scan->keynr]; 
-  *(rows_diff++)= rows2double(prev_records) / param->table->file->records;
-  arg=arg->next_key_part; 
-  for(; arg; ++key_part, arg= arg->next_key_part)
-  {    
-    arg->store_min(key_part->length, &key_ptr, 0);
-    records= 
-      param->table->file->records_in_range(ror_scan->keynr,
-                                           (byte*)key_val, key_ptr - key_val,
-                                           HA_READ_KEY_EXACT,
-                                           (byte*)key_val, key_ptr - key_val,
-                                           HA_READ_AFTER_KEY);
-    if (records == HA_POS_ERROR)
-      return NULL; /* shouldn't happen actually */
-    *(rows_diff++)= rows2double(records) / rows2double(prev_records);
-    prev_records= records;
-  }
   DBUG_RETURN(ror_scan);
 }
 
 
-/*
-  Order ROR_SCAN_INFO** by 
-    E(#records_matched) * key_record_length
+/* 
+  Compare two ROR_SCAN_INFO** by  E(#records_matched) * key_record_length.
+  SYNOPSIS
+    cmp_ror_scan_info()
+      a ptr to first compared value
+      b ptr to second compared value
+
+  RETURN
+   -1 a < b  
+    0 a = b
+    1 a > b
 */
-int cmp_ror_scan_info(ROR_SCAN_INFO** a, ROR_SCAN_INFO** b)
+static int cmp_ror_scan_info(ROR_SCAN_INFO** a, ROR_SCAN_INFO** b)
 {
   double val1= rows2double((*a)->records) * (*a)->key_rec_length;
   double val2= rows2double((*b)->records) * (*b)->key_rec_length;
@@ -2120,12 +2209,22 @@ int cmp_ror_scan_info(ROR_SCAN_INFO** a, ROR_SCAN_INFO** b)
 }
 
 /*
-  Order ROR_SCAN_INFO** by 
+  Compare two ROR_SCAN_INFO** by 
    (#covered fields in F desc, 
     #components asc,           
     number of first not covered component asc)
+
+  SYNOPSIS
+    cmp_ror_scan_info_covering()
+      a ptr to first compared value
+      b ptr to second compared value
+
+  RETURN
+   -1 a < b  
+    0 a = b
+    1 a > b
 */
-int cmp_ror_scan_info_covering(ROR_SCAN_INFO** a, ROR_SCAN_INFO** b)
+static int cmp_ror_scan_info_covering(ROR_SCAN_INFO** a, ROR_SCAN_INFO** b)
 {
   if ((*a)->used_fields_covered > (*b)->used_fields_covered)
     return -1;
@@ -2160,10 +2259,37 @@ typedef struct
   */
   double records_fract;
   ha_rows index_records; /* sum(#records to look in indexes) */
-}ROR_INTERSECT_INFO;
+} ROR_INTERSECT_INFO;
 
 
-/* Allocate a ROR_INTERSECT and initialize it to contain zero scans */
+/*
+  Re-initialize an allocated intersect info to contain zero scans.
+  SYNOPSIS
+    info Intersection info structure to re-initialize.
+*/
+
+static void ror_intersect_reinit(ROR_INTERSECT_INFO *info)
+{
+  info->is_covering= false;
+  info->index_scan_costs= 0.0f;
+  info->records_fract= 1.0f;
+  bitmap_clear_all(&info->covered_fields);
+}
+
+/*
+  Allocate a ROR_INTERSECT_INFO and initialize it to contain zero scans.
+
+  SYNOPSIS
+    ror_intersect_init() 
+      param         Parameter from test_quick_select 
+      is_index_only If true, set ROR_INTERSECT_INFO to be covering
+  
+  RETURN
+    allocated structure
+    NULL on error
+*/
+
+static
 ROR_INTERSECT_INFO* ror_intersect_init(const PARAM *param, bool is_index_only)
 {
   ROR_INTERSECT_INFO *info;
@@ -2172,42 +2298,46 @@ ROR_INTERSECT_INFO* ror_intersect_init(const PARAM *param, bool is_index_only)
                                               sizeof(ROR_INTERSECT_INFO))))
     return NULL;
   info->param= param;
-  info->is_covering= is_index_only;
-  info->index_scan_costs= 0.0f;
-  info->records_fract= 1.0f;
-
   if (!(buf= (uchar*)alloc_root(param->mem_root, param->fields_bitmap_size)))
     return NULL;
   if (bitmap_init(&info->covered_fields, buf, param->fields_bitmap_size*8,
                   false))
     return NULL;
-  bitmap_clear_all(&info->covered_fields);
+  ror_intersect_reinit(info);
   return info;
 }
 
+
 /*
-  Check if it makes sense to add a ROR scan to ROR-intersection, and if yes 
-  update parameters of ROR-intersection, including its cost.
+  Check if adding a ROR scan to a ROR-intersection reduces its cost of 
+  ROR-intersection and if yes, update parameters of ROR-intersection,
+  including its cost.
 
-  RETURN
-    true   ROR scan added to ROR-intersection, cost updated.
-    false  It doesn't make sense to add this ROR scan to this ROR-intersection.
+  SYNOPSIS
+    ror_intersect_add()
+      param        Parameter from test_quick_select 
+      info         ROR-intersection structure to add the scan to.
+      ror_scan     ROR scan info to add.
+      is_cpk_scan  If true, add the scan as CPK scan (this can be inferred
+                   from other parameters and is passed separately only to
+                   avoid duplicating the inference code)
   
-  NOTE 
-    Adding a ROR scan to ROR-intersect "makes sense" iff selectivt
+  NOTES
+    Adding a ROR scan to ROR-intersect "makes sense" iff the cost of ROR-
+    intersection decreases. The cost of ROR-intersection is caclulated as
+    follows:
 
-    Cost of ROR-intersection is calulated as follows:
-     cost= SUM_i(key_scan_cost_i) + cost_of_full_rows_retrieval
+    cost= SUM_i(key_scan_cost_i) + cost_of_full_rows_retrieval
  
     if (union of indexes used covers all needed fields)
       cost_of_full_rows_retrieval= 0;
     else
     {
       cost_of_full_rows_retrieval= 
-        cost_of_sweep_read(E(rows_to_retrive), rows_in_table);
+        cost_of_sweep_read(E(rows_to_retrieve), rows_in_table);
     }
 
-    E(rows_to_retrive) is calulated as follows: 
+    E(rows_to_retrieve) is caclulated as follows: 
     Suppose we have a condition on several keys
     cond=k_11=c_11 AND k_12=c_12 AND ...  // parts of first key 
          k_21=c_21 AND k_22=c_22 AND ...  // parts of second key 
@@ -2233,13 +2363,13 @@ ROR_INTERSECT_INFO* ror_intersect_init(const PARAM *param, bool is_index_only)
     save R to be cond and proceed to recursion step.
 
     Recursion step:
-    We have set of fixed fields/satisfied conditions) F, probability P(F),
+    We have a set of fixed fields/satisfied conditions) F, probability P(F),
     and remaining conjunction R
     Pick next key part on current key and its condition "k_ij=c_ij".
     We will add "k_ij=c_ij" into F and update P(F).
-    Lets denote k_ij as t,  R = t AND R1, where i1 may still contain t. Then
+    Lets denote k_ij as t,  R = t AND R1, where R1 may still contain t. Then
 
-     P((t AND R1)|F) = P(t|F) * P(R1|t|F) = P(t|F) * P(R|(t AND F)) (2)
+     P((t AND R1)|F) = P(t|F) * P(R1|t|F) = P(t|F) * P(R1|(t AND F)) (2)
 
     (where '|' mean conditional probability, not "or")
 
@@ -2253,72 +2383,153 @@ ROR_INTERSECT_INFO* ror_intersect_init(const PARAM *param, bool is_index_only)
      P(t|F) = P(t|(fields_before_t_in_key AND other_fields)) = 
           = P(t|fields_before_t_in_key).
 
-     P(t|fields_before_t_in_key)= #distinct_values(fields_before_t_in_key) / 
-                                  #distinct_values(fields_before_t_in_key, t)
+     P(t|fields_before_t_in_key) = #records(fields_before_t_in_key) /
+                                   #records(fields_before_t_in_key, t)
     
-    The second multiplier is calculated by applying this step recusively. 
+    The second multiplier is calculated by applying this step recursively. 
 
-    This function applies recursion steps for all fixed key members of 
-    one key, accumulating sets of covered fields and 
-    The very first step described is done as recursion step with 
-    P(fixed fields)=1 and empty set of fixed fields.
+  IMPLEMENTATION
+    This function calculates the result of application of the "recursion step"
+    described above for all fixed key members of a single key, accumulating set
+    of covered fields, selectivity, etc.
+
+    The calculation is conducted as follows: 
+    Lets denote #records(keypart1, ... keypartK) as n_k. We need to calculate
+    
+     n_{k1}      n_{k_2}
+    --------- * ---------  * .... (3)
+     n_{k1-1}    n_{k2_1} 
+
+    where k1,k2,... are key parts which fields were not yet marked as fixed 
+    ( this is result of application of option b) of the recursion step for 
+      parts of a single key).  
+    Since it is reasonable to expect that most of the fields are not marked 
+    as fixed, we calcualate (3) as 
+
+                                  n_{i1}      n_{i_2}
+    (3) = n_{max_key_part}  / (   --------- * ---------  * ....  )
+                                  n_{i1-1}    n_{i2_1} 
+      
+    where i1,i2, .. are key parts that were already marked as fixed. 
+    
+    In order to minimize number of expensive records_in_range calls we group
+    and reduce adjacent fractions.
+ 
+  RETURN
+    true   ROR scan added to ROR-intersection, cost updated.
+    false  It doesn't make sense to add this ROR scan to this ROR-intersection.
 */
 
-bool ror_intersect_add(ROR_INTERSECT_INFO *info, ROR_SCAN_INFO* ror_scan)
+bool ror_intersect_add(const PARAM *param, ROR_INTERSECT_INFO *info,
+                       ROR_SCAN_INFO* ror_scan, bool is_cpk_scan=false)
 {
   int i;
   SEL_ARG *sel_arg;
   KEY_PART_INFO *key_part= 
     info->param->table->key_info[ror_scan->keynr].key_part;
   double selectivity_mult= 1.0;
+  char key_val[MAX_KEY_LENGTH+MAX_FIELD_WIDTH]; /* key values tuple */
+
   DBUG_ENTER("ror_intersect_add");  
   DBUG_PRINT("info", ("Current selectivity= %g", info->records_fract)); 
   DBUG_PRINT("info", ("Adding scan on %s", 
                       info->param->table->key_info[ror_scan->keynr].name));
+  SEL_ARG *tuple_arg= NULL;
+  char *key_ptr= key_val;
+  bool cur_covered, prev_covered=
+     bitmap_is_set(&info->covered_fields, key_part->fieldnr);
+
+  ha_rows prev_records= param->table->file->records;
+
   for(i= 0, sel_arg= ror_scan->sel_arg; sel_arg; 
       i++, sel_arg= sel_arg->next_key_part)
   {
-    if (!bitmap_is_set(&info->covered_fields, (key_part + i)->fieldnr))
+    cur_covered= bitmap_is_set(&info->covered_fields, (key_part + i)->fieldnr);
+    if (cur_covered != prev_covered)
     {
-      /*
-        P(t|F) = P(t|(fields_before_t_in_key AND other_fields)) =
-               = P(t|fields_before_t_in_key).
-      */
-      selectivity_mult *= ror_scan->key_part_rows[i];
+      /* create (part1val, ..., part{n-1}val) tuple. */
+      {
+        if (!tuple_arg)
+        {
+          tuple_arg= ror_scan->sel_arg;
+          tuple_arg->store_min(key_part->length, &key_ptr, 0); 
+        }
+        while (tuple_arg->next_key_part != sel_arg)
+        {
+          tuple_arg= tuple_arg->next_key_part; 
+          tuple_arg->store_min(key_part->length, &key_ptr, 0); 
+        }
+      } 
+      ha_rows records;
+      records= param->table->file->
+                 records_in_range(ror_scan->keynr,
+                                  (byte*)key_val, key_ptr - key_val, 
+                                  HA_READ_KEY_EXACT,
+                                  (byte*)key_val, key_ptr - key_val,
+                                  HA_READ_AFTER_KEY);
+      if (cur_covered)
+      {
+        /* uncovered -> covered */
+        double tmp= rows2double(records)/rows2double(prev_records);
+        printf("  Selectivity multiplier: %g\n", tmp);
+        DBUG_PRINT("info", ("Selectivity multiplier: %g", tmp));
+        selectivity_mult *= tmp;
+        prev_records= HA_POS_ERROR;
+      }
+      else
+      {
+        /* covered -> uncovered */
+        prev_records= records; 
+      }
     }
+    else printf("no change, skipping\n");
+    prev_covered= cur_covered;
   }
+  if (!prev_covered)
+  {
+    double tmp= rows2double(param->table->quick_rows[ror_scan->keynr]) / 
+                rows2double(prev_records);
+    DBUG_PRINT("info", ("Selectivity multiplier: %g", tmp));
+    selectivity_mult *= tmp; 
+  }
+
   if (selectivity_mult == 1.0)
   {
     /* Don't add this scan if it doesn't improve selectivity. */
-    DBUG_PRINT("info", ("This scan doesn't improve selectivity.")); 
+    DBUG_PRINT("info", ("The scan doesn't improve selectivity."));
     DBUG_RETURN(false);
   }
+
   info->records_fract *= selectivity_mult;
-
-  bitmap_union(&info->covered_fields, &ror_scan->covered_fields);
-
-  ha_rows scan_records= info->param->table->quick_rows[ror_scan->keynr];
-  info->index_scan_costs += ror_scan->index_read_cost;
-
+  ha_rows cur_scan_records= info->param->table->quick_rows[ror_scan->keynr];  
+  if (is_cpk_scan)
+  {    
+    info->index_scan_costs += rows2double(cur_scan_records)*
+                              TIME_FOR_COMPARE_ROWID;
+  }
+  else
+  {
+    info->index_records += cur_scan_records;
+    info->index_scan_costs += ror_scan->index_read_cost;
+    bitmap_union(&info->covered_fields, &ror_scan->covered_fields);
+  }
+  
   if (!info->is_covering && bitmap_is_subset(&info->param->needed_fields,
                                              &info->covered_fields))
   {
     DBUG_PRINT("info", ("ROR-intersect is covering now"));
-    /* ROR-intersect became covering */ 
     info->is_covering= true;
   }
   
-  info->index_records += scan_records;
+  printf("  records: %g\n", rows2double(param->table->file->records) *
+        info->records_fract);
   info->total_cost= info->index_scan_costs;
   if (!info->is_covering)
   {
     ha_rows table_recs= info->param->table->file->records;
-    double sweep_cost;
-    get_sweep_read_cost(info->param, 
-                         (ha_rows)(table_recs*info->records_fract), 
-                         &sweep_cost, info->index_scan_costs, DBL_MAX);
-
-    info->total_cost += sweep_cost;
+    info->total_cost += 
+      get_sweep_read_cost(info->param, 
+                          (ha_rows)(info->records_fract*table_recs));
   }
   DBUG_PRINT("info", ("New selectivity= %g", info->records_fract)); 
   DBUG_PRINT("info", ("New cost= %g, %scovering", info->total_cost, 
@@ -2326,24 +2537,23 @@ bool ror_intersect_add(ROR_INTERSECT_INFO *info, ROR_SCAN_INFO* ror_scan)
   DBUG_RETURN(true);
 }
 
+
 /* 
   Get best ROR-intersection plan using non-covering ROR-intersection search 
   algorithm. The returned plan may be covering.
 
   SYNOPSIS
     get_best_ror_intersect()
-      param
-      tree
+      param            Parameter from test_quick_select function.
+      tree             Transformed restriction condition to be used to look
+                       for ROR scans.
       force_index_only If true, don't calculate costs of full rows retrieval.
       read_time        Do not return read plans with cost > read_time.
       are_all_covering [out] set to true if union of all scans covers all 
                        fields needed by the query (and it is possible to build
                        a covering ROR-intersection)
-  RETURN
-    ROR-intersection table read plan 
-    NULL if OOM or no plan found.
 
-  NOTE
+  NOTES
     get_key_scans_params must be called before for the same SEL_TREE before 
     this function can be called.
     
@@ -2383,6 +2593,10 @@ bool ror_intersect_add(ROR_INTERSECT_INFO *info, ROR_SCAN_INFO* ror_scan)
     Clustered PK scan has special handling in ROR-intersection: it is not used
     to retrieve rows, instead its condition is used to filter row references 
     we get from scans on other keys.
+
+  RETURN
+    ROR-intersection table read plan 
+    NULL if out of memory or no suitable plan found.
 */
 
 static
@@ -2398,20 +2612,34 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   if (tree->n_ror_scans < 2)
     DBUG_RETURN(NULL);
 
-  /* Collect ROR-able SEL_ARGs and create ROR_SCAN_INFO for each of them */
+  /*
+    Collect ROR-able SEL_ARGs and create ROR_SCAN_INFO for each of them.
+    Also find and save clustered PK scan if there is one.
+  */
   ROR_SCAN_INFO **cur_ror_scan;
+  ROR_SCAN_INFO *cpk_scan= NULL;
+  bool cpk_scan_used= false;
   if (!(tree->ror_scans= (ROR_SCAN_INFO**)alloc_root(param->mem_root,
                                                      sizeof(ROR_SCAN_INFO*)*
                                                      param->keys)))
     return NULL;
-  
+  uint cpk_no= (param->table->file->primary_key_is_clustered())?
+               param->table->primary_key : MAX_KEY;
+ 
   for (idx= 0, cur_ror_scan= tree->ror_scans; idx < param->keys; idx++)
   {
+    ROR_SCAN_INFO *scan;
     if (!tree->ror_scans_map.is_set(idx))
       continue;
-    if (!(*cur_ror_scan= make_ror_scan(param, idx, tree->keys[idx])))
+    if (!(scan= make_ror_scan(param, idx, tree->keys[idx])))
       return NULL;
-    cur_ror_scan++;
+    if (param->real_keynr[idx] == cpk_no)
+    {
+      cpk_scan= scan;
+      tree->n_ror_scans--;
+    }
+    else
+      *(cur_ror_scan++)= scan;
   }
 
   tree->ror_scans_end= cur_ror_scan;
@@ -2421,7 +2649,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   /*
     Ok, [ror_scans, ror_scans_end) is array of ptrs to initialized 
     ROR_SCAN_INFOs.
-    Get a minimal key scan using an approximate algorithm.
+    Now, get a minimal key scan using an approximate algorithm.
   */
   qsort(tree->ror_scans, tree->n_ror_scans, sizeof(ROR_SCAN_INFO*),
         (qsort_cmp)cmp_ror_scan_info);
@@ -2452,12 +2680,14 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   LINT_INIT(best_index_scan_costs);
 
   cur_ror_scan= tree->ror_scans;
+  /* Start with one scan */
+  intersect_scans_best= intersect_scans;
   while (cur_ror_scan != tree->ror_scans_end && !intersect->is_covering)
   {
     /* S= S + first(R); */
-    if (ror_intersect_add(intersect, *cur_ror_scan))
+    if (ror_intersect_add(param, intersect, *cur_ror_scan))
       *(intersect_scans_end++)= *cur_ror_scan; 
-    /* R= R-first(R); */
+    /* R= R - first(R); */
     cur_ror_scan++;
     
     if (intersect->total_cost < min_cost)
@@ -2471,17 +2701,47 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
       best_index_scan_costs= intersect->index_scan_costs;
     }
   }
-
-  /* Ok, return ROR-intersect plan if we have found one */
+  
+  DBUG_EXECUTE("info",print_ror_scans_arr(param->table,
+                                          "best ROR-intersection",
+                                          intersect_scans,
+                                          intersect_scans_best););
+  
   *are_all_covering= intersect->is_covering;
   uint best_num= intersect_scans_best - intersect_scans;  
-  TRP_ROR_INTERSECT *trp= NULL;
-  if (intersect_scans_best && best_num > 1)
+  /*
+    Ok, found the best ROR-intersection of non-CPK key scans.
+    Check if we should add a CPK scan.
+    
+    If the obtained ROR-intersection is covering, it doesn't make sense 
+    to add CPK scan - Clustered PK contains all fields and if we're doing
+    CPK scan doing other CPK scans will only add more overhead.
+  */
+  if (cpk_scan && !intersect->is_covering)
   {
-    DBUG_EXECUTE("info",print_ror_scans_arr(param->table,
-                                            "used for ROR-intersect",
-                                            intersect_scans,
-                                            intersect_scans_best););
+    /*
+      Handle the special case: ROR-intersect(PRIMARY, key1) is 
+      the best, but cost(range(key1)) > cost(best_non_ror_range_scan)
+    */
+    if (best_num == 0)
+    { 
+      ror_intersect_reinit(intersect);
+      if (!ror_intersect_add(param, intersect, cpk_scan))
+        DBUG_RETURN(NULL); /* shouldn't happen actually actually */
+      *(intersect_scans_end++)= *cur_ror_scan;
+      best_num++;
+    }
+
+    if (ror_intersect_add(param, intersect, cpk_scan))
+      cpk_scan_used= true;
+    best_rows= (ha_rows)(intersect->records_fract* 
+                         rows2double(param->table->file->records));
+  }
+
+  /* Ok, return ROR-intersect plan if we have found one */
+  TRP_ROR_INTERSECT *trp= NULL;
+  if (best_num > 1 || cpk_scan_used)
+  {
     if (!(trp= new (param->mem_root) TRP_ROR_INTERSECT))
       DBUG_RETURN(trp);
     if (!(trp->first_scan= 
@@ -2494,7 +2754,8 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     trp->read_cost= min_cost;
     trp->records= best_rows? best_rows : 1;
     trp->index_scan_costs= best_index_scan_costs;
-  }  
+    trp->cpk_scan= cpk_scan;
+  } 
   DBUG_RETURN(trp);
 }
 
@@ -2503,15 +2764,15 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   Get best covering ROR-intersection.
   SYNOPSIS
     get_best_covering_ror_intersect()
-      param
-      tree      SEL_TREE
-      read_time Dont return table read plans with cost > read_time.
+      param     Parameter from test_quick_select function.
+      tree      SEL_TREE with sets of intervals for different keys.
+      read_time Don't return table read plans with cost > read_time.
 
   RETURN 
     Best covering ROR-intersection plan 
     NULL if no plan found.
 
-  NOTE
+  NOTES
     get_best_ror_intersect must be called for a tree before calling this
     function for it. 
     This function invalidates tree->ror_scans member values.
@@ -2563,7 +2824,6 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
   ha_rows records=0;
   bool all_covered;  
   
-  /* Start will all scans and remove one by one until */
   DBUG_PRINT("info", ("Building covering ROR-intersection"));
   DBUG_EXECUTE("info", print_ror_scans_arr(param->table,
                                            "building covering ROR-I",
@@ -2805,11 +3065,22 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(PARAM *param,
         DBUG_RETURN(NULL);
       }
     }
+    if (cpk_scan)
+    {
+      if (!(quick= get_quick_select(param, cpk_scan->idx,
+                                    cpk_scan->sel_arg, alloc)))
+      {
+        delete quick_intrsect;
+        DBUG_RETURN(NULL);
+      }
+      quick_intrsect->cpk_quick= quick;
+    }
     quick_intrsect->records= records; 
     quick_intrsect->read_time= read_cost;
   }
   DBUG_RETURN(quick_intrsect);
 }
+
 
 QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param, 
                                           bool retrieve_full_rows,
@@ -2820,8 +3091,8 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
   QUICK_SELECT_I *quick;
   DBUG_ENTER("TRP_ROR_UNION::make_quick");
   /* 
-    It is currently impossible to construct a ROR-union that will 
-    not retrieve full rows, ingore retrieve_full_rows.
+    It is impossible to construct a ROR-union that will not retrieve full 
+    rows, ignore retrieve_full_rows parameter.
   */
   if ((quick_roru= new QUICK_ROR_UNION_SELECT(param->thd, param->table)))
   {
@@ -4248,7 +4519,7 @@ SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key,SEL_ARG *par)
 }
 
 
-	/* Test that the proporties for a red-black tree holds */
+	/* Test that the properties for a red-black tree hold */
 
 #ifdef EXTRA_DEBUG
 int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
@@ -4336,13 +4607,26 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
 #endif
 
 
+/*
+  Calculate estimate of number records that will be retrieved by a range
+  scan on given index using given SEL_ARG intervals tree.
+  SYNOPSIS
+    check_quick_select
+      param  Parameter from test_quick_select
+      idx    Number of index to use in PARAM::key SEL_TREE::key
+      tree   Transformed selection condition, tree->key[idx] holds intervals
+             tree to be used for scanning.
+  NOTES
+    param->is_ror_scan is set to reflect if the key scan is a ROR (see 
+    is_key_scan_ror function for more info)
+    param->table->quick_*, param->range_count (and maybe others) are 
+    updated with data of given key scan, see check_quick_keys for details.
+    
+  RETURN 
+    Estimate # of records to be retrieved.
+    HA_POS_ERROR if estimate calculation failed due to table handler problems. 
 
-/*****************************************************************************
-** Check how many records we will find by using the found tree
-** NOTE
-**  param->table->quick_* and param->range_count (and maybe others) are 
-**  updated with data of given key scan.
-*****************************************************************************/
+*/
 
 static ha_rows
 check_quick_select(PARAM *param,uint idx,SEL_ARG *tree)
@@ -4396,30 +4680,40 @@ check_quick_select(PARAM *param,uint idx,SEL_ARG *tree)
 }
 
 
-/* 
+/*
+  Recursively calculate estimate of # rows that will be retrieved by 
+  key scan on key idx. 
   SYNOPSIS
     check_quick_keys()
-      param
-      idx          key to use, its number in list of used keys (that is, 
-                   param->real_keynr[idx] holds the key number in table)
-      
-      key_tree     SEL_ARG tree which cost is calculated.
-      min_key      buffer with min key value tuple
-      min_key_flag 
-      max_key      buffer with max key value tuple
+      param         Parameter from test_quick select function.
+      idx           Number of key to use in PARAM::keys in list of used keys 
+                    (param->real_keynr[idx] holds the key number in table)
+      key_tree      SEL_ARG tree being examined.
+      min_key       Buffer with partial min key value tuple
+      min_key_flag  
+      max_key       Buffer with partial max key value tuple
       max_key_flag
 
-  NOTE
-    The function does the recursive descent on the tree via left, right, and
-    next_key_part edges. The #rows estimates are calculated at the leaf nodes.
+  NOTES
+    The function does the recursive descent on the tree via SEL_ARG::left, 
+    SEL_ARG::right, and SEL_ARG::next_key_part edges. The #rows estimates 
+    are calculated using records_in_range calls at the leaf nodes and then
+    summed.
 
-    param->min_key and param->max_key are used to hold key segment values.
+    param->min_key and param->max_key are used to hold prefixes of key value
+    tuples.
 
     The side effects are:
+    
     param->max_key_part is updated to hold the maximum number of key parts used
       in scan minus 1.
-    param->range_count is updated.
-    param->is_ror_scan is updated.
+   
+    param->range_count is incremented if the function finds a range that 
+      wasn't counted by the caller.
+    
+    param->is_ror_scan is cleared if the function detects that the key scan is
+      not a Rowid-Ordered Retrieval scan ( see comments for is_key_scan_ror
+      function for description of which key scans are ROR scans)
 */
 
 static ha_rows
@@ -4432,6 +4726,12 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
   param->max_key_part=max(param->max_key_part,key_tree->part);
   if (key_tree->left != &null_element)
   {
+    /*
+      There are at least two intervals for current key part, i.e. condition
+      was converted to something like
+        (keyXpartY less/equals c1) OR (keyXpartY more/equals c2).
+      This is not a ROR scan if the key is not Clustered Primary Key.
+    */
     param->is_ror_scan= false;
     records=check_quick_keys(param,idx,key_tree->left,min_key,min_key_flag,
 			     max_key,max_key_flag);
@@ -4441,11 +4741,24 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
 
   uint tmp_min_flag,tmp_max_flag,keynr;
   char *tmp_min_key=min_key,*tmp_max_key=max_key;
-
+  
   key_tree->store(param->key[idx][key_tree->part].part_length,
 		  &tmp_min_key,min_key_flag,&tmp_max_key,max_key_flag);
   uint min_key_length= (uint) (tmp_min_key- param->min_key);
   uint max_key_length= (uint) (tmp_max_key- param->max_key);
+
+  if (param->is_ror_scan)
+  {
+    /* 
+      If the index doesn't cover entire key, mark the scan as non-ROR scan.
+      (TODO sergeyp: investigate if we could do better here)
+    */
+    uint16 fieldnr= param->table->key_info[param->real_keynr[idx]].
+                    key_part[key_tree->part].fieldnr - 1;
+    if (param->table->field[fieldnr]->key_length() != 
+        param->key[idx][key_tree->part].part_length)
+      param->is_ror_scan= false;
+  }
 
   if (key_tree->next_key_part &&
       key_tree->next_key_part->part == key_tree->part+1 &&
@@ -4461,7 +4774,10 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
       goto end;					// Ugly, but efficient
     }
     else
+    {
+      /* The interval for current key part is not c1 <= keyXpartY <= c1 */
       param->is_ror_scan= false;
+    }
 
     tmp_min_flag=key_tree->min_flag;
     tmp_max_flag=key_tree->max_flag;
@@ -4493,6 +4809,15 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
   {
     if (param->is_ror_scan)
     {
+      /*
+        If we get here, the condition on the key was converted to form
+        "(keyXpart1 = c1) AND ... AND (keyXpart{key_tree->part - 1} = cN) AND
+          somecond(keyXpart{key_tree->part})"
+        Check if
+          somecond is "keyXpart{key_tree->part} = const" and
+          uncovered "tail" of KeyX parts is either empty or is identical to
+          first members of clustered primary key.
+      */
       if (!(min_key_length == max_key_length &&
             !memcmp(min_key,max_key, (uint) (tmp_max_key - max_key)) &&
             !key_tree->min_flag && !key_tree->max_flag && 
@@ -4530,6 +4855,12 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
   records+=tmp;
   if (key_tree->right != &null_element)
   {
+    /*
+      There are at least two intervals for current key part, i.e. condition
+      was converted to something like
+        (keyXpartY less/equals c1) OR (keyXpartY more/equals c2).
+      This is not a ROR scan if the key is not Clustered Primary Key.
+    */
     param->is_ror_scan= false;
     tmp=check_quick_keys(param,idx,key_tree->right,min_key,min_key_flag,
 			 max_key,max_key_flag);
@@ -4540,11 +4871,46 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
   return records;
 }
 
+
 /*
-  Check if key scan on key keynr with first nparts key parts fixed is a
-  ROR scan. This function doesn't handle clustered PK scans or HASH index 
-  scans.
+  Check if key scan on given index with equality conditions on first n key 
+  parts is a ROR scan.
+
+  SYNOPSIS
+    is_key_scan_ror()
+      param  Parameter from test_quick_select 
+      keynr  Number of key in the table. The key must not be a clustered
+             primary key.
+      nparts Number of first key parts for which equality conditions
+             are present.
+    
+  NOTES
+    ROR (Rowid Ordered Retrieval) key scan is a key scan that produces
+    ordered sequence of rowids (ha_xxx::cmp_ref is the comparison function)
+    
+    An index scan is a ROR scan if it is done using a condition in form
+
+        "key1_1=c_1 AND ... AND key1_n=c_n"  (1)
+    
+    where the index is defined on (key1_1, ..., key1_N [,a_1, ..., a_n])
+
+    and the table has a clustered Primary Key 
+
+    PRIMARY KEY(a_1, ..., a_n, b1, ..., b_k) with first key parts being 
+    identical to uncovered parts ot the key being scanned (2)
+    
+    Scans on HASH indexes are not ROR scans, 
+    any range scan on clustered primary key is ROR scan  (3)
+
+    Check (1) is made in check_quick_keys()
+    Check (3) is made check_quick_select()
+    Check (2) is made by this function.
+
+  RETURN 
+    true  If the scan is ROR-scan
+    false otherwise
 */
+
 static bool is_key_scan_ror(PARAM *param, uint keynr, uint8 nparts)
 {
   KEY *table_key= param->table->key_info + keynr;
@@ -4564,7 +4930,8 @@ static bool is_key_scan_ror(PARAM *param, uint keynr, uint8 nparts)
   for(;(key_part!=key_part_end) && (pk_part != pk_part_end); 
       ++key_part, ++pk_part)
   {
-    if (key_part->field != pk_part->field)
+    if ((key_part->field != pk_part->field) || 
+        (key_part->length != pk_part->length))
       return false; 
   }
   return (key_part == key_part_end);
@@ -4573,17 +4940,26 @@ static bool is_key_scan_ror(PARAM *param, uint keynr, uint8 nparts)
 
 /*
   Create a QUICK_RANGE_SELECT from given key and SEL_ARG tree for that key.
-  This uses it's own malloc tree.
+  
   SYNOPSIS
     get_quick_select()
       param 
-      idx          index of used key in param->key.
+      idx          Index of used key in param->key.
       key_tree     SEL_ARG tree for the used key 
-      parent_alloc if not NULL, use it to allocate memory for 
+      parent_alloc If not NULL, use it to allocate memory for 
                    quick select data. Otherwise use quick->alloc.
+  
+  RETURN 
+    NULL on error
+    otherwise created quick select
 
-  The caller should call QUICK_SELCT::init for returned quick select
+  NOTES
+    The caller must call QUICK_SELCT::init for returned quick select
+
+    CAUTION! This function may change THR_MALLOC to a MEM_ROOT which will be 
+    deallocated when the returned quick select is deleted.
 */
+
 QUICK_RANGE_SELECT *
 get_quick_select(PARAM *param,uint idx,SEL_ARG *key_tree,
                  MEM_ROOT *parent_alloc)
@@ -5008,15 +5384,23 @@ int QUICK_INDEX_MERGE_SELECT::get_next()
 
 
 /*
+  Retrieve next record.  
+  SYNOPSIS
+     QUICK_ROR_INTERSECT_SELECT::get_next()  
+  
   NOTES
-    Invariant on enter/exit: all intersected selects have retrieved index 
-    records with rowid <= some_rowid_val and no intersected select has 
+    Invariant on enter/exit: all intersected selects have retrieved all index
+    records with rowid <= some_rowid_val and no intersected select has
     retrieved any index records with rowid > some_rowid_val.
     We start fresh and loop until we have retrieved the same rowid in each of
     the key scans or we got an error.
 
     If a Clustered PK scan is present, it is used only to check if row 
-    satisfies its conditions (and never used for row retrieval).
+    satisfies its condition (and never used for row retrieval).
+
+  RETURN
+   0     - Ok
+   other - Error code if any error occurred.
 */
 
 int QUICK_ROR_INTERSECT_SELECT::get_next()
@@ -5090,10 +5474,18 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
 
 
 /* 
+  Retrieve next record.  
+  SYNOPSIS
+    QUICK_ROR_UNION_SELECT::get_next()
+  
   NOTES
     Enter/exit invariant: 
     For each quick select in the queue a {key,rowid} tuple has been 
     retrieved but the corresponding row hasn't been passed to output.
+
+  RETURN 
+   0     - Ok
+   other - Error code if any error occurred.
 */
 
 int QUICK_ROR_UNION_SELECT::get_next()
@@ -5107,7 +5499,7 @@ int QUICK_ROR_UNION_SELECT::get_next()
   {
     if (!queue.elements)
       DBUG_RETURN(HA_ERR_END_OF_FILE);
-    /* Ok, we have a queue with > 1 scans */
+    /* Ok, we have a queue with >= 1 scans */
 
     quick= (QUICK_SELECT_I*)queue_top(&queue);
     memcpy(cur_rowid, quick->last_rowid, rowid_length);
@@ -5548,8 +5940,78 @@ bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range_arg,
 #endif
 
 
-void QUICK_RANGE_SELECT::fill_keys_and_lengths(String *key_names, 
-                                               String *used_lengths)
+void QUICK_RANGE_SELECT::add_info_string(String *str)
+{
+  KEY *key_info= head->key_info + index;
+  str->append(key_info->name);
+}
+
+void QUICK_INDEX_MERGE_SELECT::add_info_string(String *str)
+{
+  QUICK_RANGE_SELECT *quick;
+  bool first= true;
+  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
+  str->append("sort_union(");
+  while ((quick= it++))
+  {
+    if (!first)
+      str->append(',');
+    else
+      first= false;
+    quick->add_info_string(str);
+  }
+  if (pk_quick_select)
+  {
+    str->append(',');
+    pk_quick_select->add_info_string(str);
+  }
+  str->append(')');
+}
+
+void QUICK_ROR_INTERSECT_SELECT::add_info_string(String *str)
+{
+  bool first= true; 
+  QUICK_RANGE_SELECT *quick;
+  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
+  str->append("intersect(");
+  while ((quick= it++))
+  {
+    KEY *key_info= head->key_info + quick->index;
+    if (!first)
+      str->append(',');
+    else 
+      first= false;
+    str->append(key_info->name);
+  }
+  if (cpk_quick)
+  {
+    KEY *key_info= head->key_info + cpk_quick->index;
+    str->append(',');
+    str->append(key_info->name);
+  }
+  str->append(')');
+}
+
+void QUICK_ROR_UNION_SELECT::add_info_string(String *str)
+{
+  bool first= true; 
+  QUICK_SELECT_I *quick;
+  List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
+  str->append("union(");
+  while ((quick= it++))
+  {
+    if (!first)
+      str->append(',');
+    else
+      first= false;
+    quick->add_info_string(str);
+  }
+  str->append(')');
+}
+
+
+void QUICK_RANGE_SELECT::add_keys_and_lengths(String *key_names, 
+                                              String *used_lengths)
 {
   char buf[64];
   uint length;
@@ -5559,22 +6021,27 @@ void QUICK_RANGE_SELECT::fill_keys_and_lengths(String *key_names,
   used_lengths->append(buf, length);
 }
 
-void QUICK_INDEX_MERGE_SELECT::fill_keys_and_lengths(String *key_names,
-                                                     String *used_lengths)
+void QUICK_INDEX_MERGE_SELECT::add_keys_and_lengths(String *key_names,
+                                                    String *used_lengths)
 {
   char buf[64];
   uint length;
+  bool first= true;
   QUICK_RANGE_SELECT *quick;
+  
   List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
   while ((quick= it++))
   {
-    KEY *key_info= head->key_info + quick->index;
-    if (key_names->length())
+    if (first)
+      first= false;
+    else
+    {
       key_names->append(',');
-    key_names->append(key_info->name);
-
-    if (used_lengths->length())
       used_lengths->append(',');
+    }
+      
+    KEY *key_info= head->key_info + quick->index;
+    key_names->append(key_info->name);
     length= longlong2str(quick->max_used_key_length, buf, 10) - buf;
     used_lengths->append(buf, length);
   }
@@ -5589,8 +6056,8 @@ void QUICK_INDEX_MERGE_SELECT::fill_keys_and_lengths(String *key_names,
   }
 }
 
-void QUICK_ROR_INTERSECT_SELECT::fill_keys_and_lengths(String *key_names,
-                                                       String *used_lengths)
+void QUICK_ROR_INTERSECT_SELECT::add_keys_and_lengths(String *key_names,
+                                                      String *used_lengths)
 {
   char buf[64];
   uint length;
@@ -5600,17 +6067,18 @@ void QUICK_ROR_INTERSECT_SELECT::fill_keys_and_lengths(String *key_names,
   while ((quick= it++))
   {
     KEY *key_info= head->key_info + quick->index;
-    if (!first)
-      key_names->append(',');
-    key_names->append(key_info->name);
-
     if (first)
       first= false;
     else
+    {
+      key_names->append(',');
       used_lengths->append(',');
+    }
+    key_names->append(key_info->name);
     length= longlong2str(quick->max_used_key_length, buf, 10) - buf;
     used_lengths->append(buf, length);
   }
+  
   if (cpk_quick)
   {
     KEY *key_info= head->key_info + cpk_quick->index;
@@ -5622,8 +6090,8 @@ void QUICK_ROR_INTERSECT_SELECT::fill_keys_and_lengths(String *key_names,
   }
 }
 
-void QUICK_ROR_UNION_SELECT::fill_keys_and_lengths(String *key_names,
-                                                   String *used_lengths)
+void QUICK_ROR_UNION_SELECT::add_keys_and_lengths(String *key_names,
+                                                  String *used_lengths)
 {
   bool first= true; 
   QUICK_SELECT_I *quick;
@@ -5637,7 +6105,7 @@ void QUICK_ROR_UNION_SELECT::fill_keys_and_lengths(String *key_names,
       used_lengths->append(',');
       key_names->append(',');
     }
-    quick->fill_keys_and_lengths(key_names, used_lengths);
+    quick->add_keys_and_lengths(key_names, used_lengths);
   }
 }
 
@@ -5850,7 +6318,7 @@ void QUICK_ROR_UNION_SELECT::dbug_dump(int indent, bool verbose)
 #endif
 
 /*****************************************************************************
-** Instansiate templates
+** Instantiate templates
 *****************************************************************************/
 
 #ifdef __GNUC__

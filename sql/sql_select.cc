@@ -10077,7 +10077,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   select_result *result=join->result;
   Item *item_null= new Item_null();
   CHARSET_INFO *cs= &my_charset_latin1;
-  int quick_type= -1;
+  int quick_type;
   DBUG_ENTER("select_describe");
   DBUG_PRINT("info", ("Select 0x%lx, type %s, message %s",
 		      (ulong)join->select_lex, join->select_lex->type,
@@ -10104,17 +10104,20 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     {
       JOIN_TAB *tab=join->join_tab+i;
       TABLE *table=tab->table;
-      char buff[512],*buff_ptr=buff;
+      char buff[512]; 
       char buff1[512], buff2[512], buff3[512];
       char keylen_str_buf[64];
       char derived_name[64];
+      String extra(buff, sizeof(buff),cs);
       String tmp1(buff1,sizeof(buff1),cs);
       String tmp2(buff2,sizeof(buff2),cs);
       String tmp3(buff3,sizeof(buff3),cs);
+      extra.length(0);
       tmp1.length(0);
       tmp2.length(0);
       tmp3.length(0);
 
+      quick_type= -1;
       item_list.empty();
       item_list.push_back(new Item_int((int32)
 				       join->select_lex->select_number));
@@ -10165,7 +10168,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       else
 	item_list.push_back(item_null);
 
-      /* Build key,key_len, and ref values and add them to item_list */
+      /* Build "key", "key_len", and "ref" values and add them to item_list */
       if (tab->ref.key_parts)
       {
 	KEY *key_info=table->key_info+ tab->ref.key;
@@ -10200,7 +10203,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       else if (tab->select && tab->select->quick)
       {
-        tab->select->quick->fill_keys_and_lengths(&tmp2, &tmp3);
+        tab->select->quick->add_keys_and_lengths(&tmp2, &tmp3);
 	item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length(),cs));
 	item_list.push_back(new Item_string(tmp3.ptr(),tmp3.length(),cs));
 	item_list.push_back(item_null);
@@ -10211,9 +10214,11 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(item_null);
 	item_list.push_back(item_null);
       }
+      /* Add "rows" field to item_list. */
       item_list.push_back(new Item_int((longlong) (ulonglong)
 				       join->best_positions[i]. records_read,
 				       21));
+      /* Build "Extra" field and add it to item_list. */
       my_bool key_read=table->key_read;
       if (tab->type == JT_NEXT && table->used_keys.is_set(tab->index))
 	key_read=1;
@@ -10225,38 +10230,51 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(new Item_string(tab->info,strlen(tab->info),cs));
       else
       {
+        if (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
+            quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
+            quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
+        {
+          extra.append("; Using ");
+          tab->select->quick->add_info_string(&extra);
+        }
 	if (tab->select)
 	{
 	  if (tab->use_quick == 2)
 	  {
             char buf[MAX_KEY/8+1];
-	    sprintf(buff_ptr,"; Range checked for each record (index map: 0x%s)",
-                tab->keys.print(buf));
-	    buff_ptr=strend(buff_ptr);
+            extra.append("; Range checked for each record (index map: 0x");
+            extra.append(tab->keys.print(buf));
+            extra.append(')');
 	  }
 	  else
-	    buff_ptr=strmov(buff_ptr,"; Using where");
+            extra.append("; Using where");
 	}
 	if (key_read)
-	  buff_ptr= strmov(buff_ptr,"; Using index");
+	  extra.append("; Using index");
 	if (table->reginfo.not_exists_optimize)
-	  buff_ptr= strmov(buff_ptr,"; Not exists");
+	  extra.append("; Not exists");
 	if (need_tmp_table)
 	{
 	  need_tmp_table=0;
-	  buff_ptr= strmov(buff_ptr,"; Using temporary");
+	  extra.append("; Using temporary");
 	}
 	if (need_order)
 	{
 	  need_order=0;
-	  buff_ptr= strmov(buff_ptr,"; Using filesort");
+	  extra.append("; Using filesort");
 	}
 	if (distinct & test_all_bits(used_tables,thd->used_tables))
-	  buff_ptr= strmov(buff_ptr,"; Distinct");
-	if (buff_ptr == buff)
-	  buff_ptr+= 2;				// Skip inital "; "
-	item_list.push_back(new Item_string(buff+2,(uint) (buff_ptr - buff)-2,
-					    cs));
+	  extra.append("; Distinct");
+        
+        /* Skip initial "; "*/
+        const char *str= extra.ptr();
+        uint32 len= extra.length();
+        if (len)
+        {
+          str += 2;
+          len -= 2;
+        }
+	item_list.push_back(new Item_string(str, len, cs));
       }
       // For next iteration
       used_tables|=table->map;
