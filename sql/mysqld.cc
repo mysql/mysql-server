@@ -297,6 +297,7 @@ ulong select_range_check_count, select_range_count, select_scan_count;
 ulong select_full_range_join_count,select_full_join_count;
 ulong specialflag=0,opened_tables=0,created_tmp_tables=0,
       created_tmp_disk_tables=0;
+ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections,max_used_connections,
       max_connect_errors, max_user_connections = 0;
 ulong thread_id=1L,current_pid;
@@ -4719,6 +4720,8 @@ The minimum value for this variable is 4096.",
 struct show_var_st status_vars[]= {
   {"Aborted_clients",          (char*) &aborted_threads,        SHOW_LONG},
   {"Aborted_connects",         (char*) &aborted_connects,       SHOW_LONG},
+  {"Binlog_cache_disk_use",    (char*) &binlog_cache_disk_use,  SHOW_LONG},
+  {"Binlog_cache_use",         (char*) &binlog_cache_use,       SHOW_LONG},
   {"Bytes_received",           (char*) &bytes_received,         SHOW_LONG},
   {"Bytes_sent",               (char*) &bytes_sent,             SHOW_LONG},
   {"Com_admin_commands",       (char*) &com_other,		SHOW_LONG},
@@ -5013,6 +5016,7 @@ static void mysql_init_variables(void)
   filesort_merge_passes= select_range_check_count= select_range_count= 0;
   select_scan_count= select_full_range_join_count= select_full_join_count= 0;
   specialflag= opened_tables= created_tmp_tables= created_tmp_disk_tables= 0;
+  binlog_cache_use=  binlog_cache_disk_use= 0;
   max_used_connections= slow_launch_threads = 0;
   max_sort_char= 0;
   mysqld_user= mysqld_chroot= opt_init_file= opt_bin_logname = 0;
