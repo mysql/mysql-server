@@ -24,6 +24,12 @@
 
 #include "mysys_priv.h"
 #include <m_string.h>
+
+/* HPUX 11.0 doesn't allow us to change the environ pointer */
+#ifdef HPUX11
+#undef HAVE_TEMPNAM
+#endif
+
 #include "my_static.h"
 #include "mysys_err.h"
 

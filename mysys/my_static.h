@@ -57,7 +57,7 @@ extern const char *soundex_map;
 extern USED_MEM* my_once_root_block;
 extern uint	 my_once_extra;
 
-#ifndef HAVE_TEMPNAM
+#if !defined(HAVE_TEMPNAM) || defined(HPUX11)
 extern int	_my_tempnam_used;
 #endif
 
