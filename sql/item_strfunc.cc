@@ -326,7 +326,10 @@ void Item_func_concat::fix_length_and_dec()
     if (set_charset(charset(), coercibility,
 		args[i]->charset(), args[i]->coercibility))
     {
-      my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	     charset()->name,coercion_name(coercibility),
+	     args[i]->charset()->name,coercion_name(args[i]->coercibility),
+	     func_name());
       break;
     }
   }
@@ -630,7 +633,10 @@ void Item_func_concat_ws::fix_length_and_dec()
     if (set_charset(charset(), coercibility,
 		args[i]->charset(), args[i]->coercibility))
     {
-      my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	     charset()->name,coercion_name(coercibility),
+	     args[i]->charset()->name,coercion_name(args[i]->coercibility),
+	     func_name());
       break;
     }
   }
@@ -1288,6 +1294,18 @@ String *Item_func_trim::val_str(String *str)
 
 void Item_func_password::fix_length_and_dec()
 {
+  /*
+    If PASSWORD() was called with only one argument, it depends on a random
+    number so we need to save this random number into the binary log.
+    If called with two arguments, it is repeatable.
+  */
+  if (arg_count == 1)
+  {
+    THD *thd= current_thd;
+    thd->rand_used= 1;
+    thd->rand_saved_seed1= thd->rand.seed1;
+    thd->rand_saved_seed2= thd->rand.seed2;
+  } 
   max_length= get_password_length(use_old_passwords);
 }
 
@@ -1457,12 +1475,13 @@ String *Item_func_user::val_str(String *str)
 {
   THD          *thd=current_thd;
   CHARSET_INFO *cs= default_charset();
-  const char   *host=thd->host ? thd->host : thd->ip ? thd->ip : "";
+  const char   *host= thd->host_or_ip;
+  uint		res_length;
+
   // For system threads (e.g. replication SQL thread) user may be empty
   if (!thd->user)
     return &empty_string;
-  uint32       res_length=(strlen(thd->user)+strlen(host)+3) * cs->mbmaxlen;
-// it is +3 , because 1 for each string and 1 for '@' sign
+  res_length= (strlen(thd->user)+strlen(host)+2) * cs->mbmaxlen;
 
   if (str->alloc(res_length))
   {
@@ -1611,7 +1630,10 @@ void Item_func_elt::fix_length_and_dec()
       if (set_charset(charset(), coercibility,
 		      args[i]->charset(), args[i]->coercibility))
       {
-        my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+        my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	     charset()->name,coercion_name(coercibility),
+	     args[i]->charset()->name,coercion_name(args[i]->coercibility),
+	     func_name());
         break;
       }
     }
@@ -2955,8 +2977,9 @@ String *Item_func_compress::val_str(String *str)
     null_value= 1;
     return 0;
   }
-  
-  int4store(buffer.c_ptr(),res->length() & 0x3FFFFFFF);
+
+  char *tmp= buffer.c_ptr();	// int4store is a macro; avoid side effects
+  int4store(tmp, res->length() & 0x3FFFFFFF);
 
   /* This is for the stupid char fields which trim ' ': */
   char *last_char= ((char*)body)+new_size-1;

@@ -5476,9 +5476,9 @@ create_field::create_field(Field *old_field,Field *orig_field)
     char buff[MAX_FIELD_WIDTH],*pos;
     String tmp(buff,sizeof(buff), charset);
 
-    /* Get the value from record[2] (the default value row) */
+    /* Get the value from default_values */
     my_ptrdiff_t diff= (my_ptrdiff_t) (orig_field->table->rec_buff_length*2);
-    orig_field->move_field(diff);		// Points now at record[2]
+    orig_field->move_field(diff);		// Points now at default_values
     bool is_null=orig_field->is_real_null();
     orig_field->val_str(&tmp,&tmp);
     orig_field->move_field(-diff);		// Back to record[0]

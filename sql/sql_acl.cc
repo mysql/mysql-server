@@ -1281,7 +1281,7 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
     my_error(ER_PASSWORD_NO_MATCH,MYF(0));	/* purecov: deadcode */
     DBUG_RETURN(1);				/* purecov: deadcode */
   }
-  store_record(table,1);
+  store_record(table,record[1]);
   table->field[2]->store(new_password,(uint) strlen(new_password), &my_charset_latin1);
   if ((error=table->file->update_row(table->record[1],table->record[0])))
   {
@@ -1372,7 +1372,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       goto end;
     }
     old_row_exists = 0;
-    restore_record(table,2);	// cp empty row from record[2]
+    restore_record(table,default_values);	// cp empty row from default_values
     table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
     table->field[1]->store(combo.user.str,combo.user.length, &my_charset_latin1);
     table->field[2]->store(password,(uint) strlen(password), &my_charset_latin1);
@@ -1380,7 +1380,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   else
   {
     old_row_exists = 1;
-    store_record(table,1);			// Save copy for update
+    store_record(table,record[1]);			// Save copy for update
     if (combo.password.str)			// If password given
       table->field[2]->store(password,(uint) strlen(password), &my_charset_latin1);
   }
@@ -1455,7 +1455,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       We should NEVER delete from the user table, as a uses can still
       use mysqld even if he doesn't have any privileges in the user table!
     */
-    if (cmp_record(table,1) &&
+    if (cmp_record(table,record[1]) &&
 	(error=table->file->update_row(table->record[1],table->record[0])))
     {						// This should never happen
       table->file->print_error(error,MYF(0));	/* purecov: deadcode */
@@ -1539,7 +1539,7 @@ static int replace_db_table(TABLE *table, const char *db,
       goto abort;
     }
     old_row_exists = 0;
-    restore_record(table,2);			// cp empty row from record[2]
+    restore_record(table,default_values);			// cp empty row from default_values
     table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
     table->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
     table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
@@ -1547,7 +1547,7 @@ static int replace_db_table(TABLE *table, const char *db,
   else
   {
     old_row_exists = 1;
-    store_record(table,1);
+    store_record(table,record[1]);
   }
 
   store_rights=get_rights_for_db(rights);
@@ -1827,7 +1827,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	continue; /* purecov: inspected */
       }
       old_row_exists = 0;
-      restore_record(table,2);				// Get empty record
+      restore_record(table,default_values);				// Get empty record
       key_restore(table,key,0,key_length);
       table->field[4]->store(xx->column.ptr(),xx->column.length(), &my_charset_latin1);
     }
@@ -1841,7 +1841,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
       else
 	privileges |= tmp;
       old_row_exists = 1;
-      store_record(table,1);			// copy original row
+      store_record(table,record[1]);			// copy original row
     }
 
     table->field[6]->store((longlong) get_rights_for_column(privileges));
@@ -1895,7 +1895,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
     {
       ulong privileges = (ulong) table->field[6]->val_int();
       privileges=fix_rights_for_column(privileges);
-      store_record(table,1);
+      store_record(table,record[1]);
 
       if (privileges & rights)	// is in this record the priv to be revoked ??
       {
@@ -1970,12 +1970,12 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
     DBUG_RETURN(-1);				/* purecov: deadcode */
   }
 
-  restore_record(table,2);			// Get empty record
+  restore_record(table,default_values);			// Get empty record
   table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
   table->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
   table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
   table->field[3]->store(table_name,(uint) strlen(table_name), &my_charset_latin1);
-  store_record(table,1);			// store at pos 1
+  store_record(table,record[1]);			// store at pos 1
 
   if (table->file->index_read_idx(table->record[0],0,
 				  (byte*) table->field[0]->ptr,0,
@@ -1995,7 +1995,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
       DBUG_RETURN(-1);				/* purecov: deadcode */
     }
     old_row_exists = 0;
-    restore_record(table,1);			// Get saved record
+    restore_record(table,record[1]);			// Get saved record
   }
 
   store_table_rights= get_rights_for_table(rights);
@@ -2003,7 +2003,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   if (old_row_exists)
   {
     ulong j,k;
-    store_record(table,1);
+    store_record(table,record[1]);
     j = (ulong) table->field[6]->val_int();
     k = (ulong) table->field[7]->val_int();
 
@@ -2516,7 +2516,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
   rw_rdlock(&LOCK_grant);
   for (table=tables; table ;table=table->next)
   {
-    if (!(~table->grant.privilege & want_access))
+    if (!(~table->grant.privilege & want_access) || table->derived)
     {
       table->grant.want_privilege=0;
       continue;					// Already checked

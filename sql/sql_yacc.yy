@@ -381,6 +381,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	WHERE
 %token	WITH
 %token	WRITE_SYM
+%token  NO_WRITE_TO_BINLOG
 %token	X509_SYM
 %token	XOR
 %token	COMPRESSED_SYM
@@ -582,7 +583,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <num>
 	type int_type real_type order_dir opt_field_spec lock_option
 	udf_type if_exists opt_local opt_table_options table_options
-	table_option opt_if_not_exists opt_var_type opt_var_ident_type
+	table_option opt_if_not_exists opt_no_write_to_binlog opt_var_type opt_var_ident_type
 	delete_option opt_temporary all_or_any opt_distinct
 
 %type <ulong_num>
@@ -909,7 +910,13 @@ create2:
      	    if (!(lex->name= (char *)$2))
               YYABORT;
     	  }
-  	  ;
+	| '(' LIKE table_ident ')'
+      	  {
+      	    LEX *lex=Lex;
+     	    if (!(lex->name= (char *)$3))
+              YYABORT;
+    	  }
+          ;
 
 create3:
 	/* empty */ {}
@@ -1712,10 +1719,11 @@ backup:
         };
 
 repair:
-	REPAIR table_or_tables
+	REPAIR opt_no_write_to_binlog table_or_tables
 	{
 	   LEX *lex=Lex;
 	   lex->sql_command = SQLCOM_REPAIR;
+           lex->no_write_to_binlog= $2;
 	   lex->check_opt.init();
 	}
 	table_list opt_mi_repair_type
@@ -1736,10 +1744,11 @@ mi_repair_type:
         | USE_FRM      { Lex->check_opt.sql_flags|= TT_USEFRM; };
 
 analyze:
-	ANALYZE_SYM table_or_tables
+	ANALYZE_SYM opt_no_write_to_binlog table_or_tables
 	{
 	   LEX *lex=Lex;
 	   lex->sql_command = SQLCOM_ANALYZE;
+           lex->no_write_to_binlog= $2;
 	   lex->check_opt.init();
 	}
 	table_list opt_mi_check_type
@@ -1773,14 +1782,21 @@ mi_check_type:
 	| CHANGED  { Lex->check_opt.flags|= T_CHECK_ONLY_CHANGED; };
 
 optimize:
-	OPTIMIZE table_or_tables
+	OPTIMIZE opt_no_write_to_binlog table_or_tables
 	{
 	   LEX *lex=Lex;
 	   lex->sql_command = SQLCOM_OPTIMIZE;
+           lex->no_write_to_binlog= $2;        
 	   lex->check_opt.init();
 	}
 	table_list opt_mi_check_type
 	{}
+	;
+
+opt_no_write_to_binlog:
+	/* empty */        { $$= 0; }
+	| NO_WRITE_TO_BINLOG  { $$= 1; }
+	| LOCAL_SYM  { $$= 1; }
 	;
 
 rename:
@@ -2174,12 +2190,12 @@ simple_expr:
 	| '@' ident_or_text SET_VAR expr
 	  {
 	    $$= new Item_func_set_user_var($2,$4);
-	    Lex->uncacheable();;
+	    Lex->uncacheable();
 	  }
 	| '@' ident_or_text
 	  {
 	    $$= new Item_func_get_user_var($2);
-	    Lex->uncacheable();;
+	    Lex->uncacheable();
 	  }
 	| '@' '@' opt_var_ident_type ident_or_text
 	  {
@@ -2227,6 +2243,8 @@ simple_expr:
 	  { $$= new Item_func_conv_charset3($3,$7,$5); }
 	| DEFAULT '(' simple_ident ')'
 	  { $$= new Item_default_value($3); }
+	| VALUES '(' simple_ident ')'
+	  { $$= new Item_insert_value($3); }
 	| FUNC_ARG0 '(' ')'
 	  { $$= ((Item*(*)(void))($1.symbol->create_func))();}
 	| FUNC_ARG1 '(' expr ')'
@@ -2276,7 +2294,7 @@ simple_expr:
 	| ENCRYPT '(' expr ')'
 	  {
 	    $$= new Item_func_encrypt($3);
-	    Lex->uncacheable();;
+	    Lex->uncacheable();
 	  }
 	| ENCRYPT '(' expr ',' expr ')'   { $$= new Item_func_encrypt($3,$5); }
 	| DECODE_SYM '(' expr ',' TEXT_STRING_literal ')'
@@ -3730,10 +3748,11 @@ opt_describe_column:
 /* flush things */
 
 flush:
-	FLUSH_SYM
+	FLUSH_SYM opt_no_write_to_binlog
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_FLUSH; lex->type=0;
+          lex->no_write_to_binlog= $2; 
 	}
 	flush_options
 	{}

@@ -193,7 +193,6 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   uint	w_locks,r_locks,tot_locks;	/* Number of read/write locks */
   uint	blocksize;			/* blocksize of keyfile */
   myf write_flag;
-  int	rnd;				/* rnd-counter */
   enum data_file_type data_file_type;
   my_bool  changed,			/* If changed since lock */
     global_changed,			/* If changed since open */

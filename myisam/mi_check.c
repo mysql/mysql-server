@@ -3117,7 +3117,8 @@ int sort_ft_buf_flush(MI_SORT_PARAM *sort_param)
   SORT_INFO *sort_info=sort_param->sort_info;
   SORT_KEY_BLOCKS *key_block=sort_info->key_block;
   MYISAM_SHARE *share=sort_info->info->s;
-  uint val_off, val_len, error;
+  uint val_off, val_len;
+  int error;
   SORT_FT_BUF *ft_buf=sort_info->ft_buf;
   uchar *from, *to;
 
@@ -3126,14 +3127,17 @@ int sort_ft_buf_flush(MI_SORT_PARAM *sort_param)
   to=ft_buf->lastkey+val_off;
 
   if (ft_buf->buf)
-  { /* flushing first-level tree */
-    error=sort_insert_key(sort_param,key_block,ft_buf->lastkey,HA_OFFSET_ERROR);
+  {
+    /* flushing first-level tree */
+    error=sort_insert_key(sort_param,key_block,ft_buf->lastkey,
+			  HA_OFFSET_ERROR);
     for (from=to+val_len;
          !error && from < ft_buf->buf;
          from+= val_len)
     {
       memcpy(to, from, val_len);
-      error=sort_insert_key(sort_param,key_block,ft_buf->lastkey,HA_OFFSET_ERROR);
+      error=sort_insert_key(sort_param,key_block,ft_buf->lastkey,
+			    HA_OFFSET_ERROR);
     }
     return error;
   }

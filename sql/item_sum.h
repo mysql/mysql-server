@@ -643,21 +643,20 @@ class Item_func_group_concat : public Item_sum
  public:
   String result;
   String *separator;
-  uint show_elements;
   TREE tree_base;
   TREE *tree;
   TABLE *table;
-  int arg_count_order;
-  int arg_count_field;
-  int arg_show_fields;
-  int distinct;
   Item **expr;
   ORDER **order;
-  bool tree_mode;
-  int count_cut_values;
-  ulong group_concat_max_len;
-  bool warning_for_row;
   TABLE_LIST *tables_list;
+  ulong group_concat_max_len;
+  uint show_elements;
+  uint arg_count_order;
+  uint arg_count_field;
+  uint arg_show_fields;
+  uint count_cut_values;
+  bool tree_mode, distinct;
+  bool warning_for_row;
   bool always_null;
   /*
     Following is 0 normal object and pointer to original one for copy 
@@ -665,7 +664,7 @@ class Item_func_group_concat : public Item_sum
   */
   Item_func_group_concat *original;
   
-  Item_func_group_concat(int is_distinct,List<Item> *is_select,
+  Item_func_group_concat(bool is_distinct,List<Item> *is_select,
                          SQL_LIST *is_order,String *is_separator);
 			 
   Item_func_group_concat(THD *thd, Item_func_group_concat &item)
@@ -675,20 +674,20 @@ class Item_func_group_concat : public Item_sum
      warning(item.warning),
      warning_available(item.warning_available),
      separator(item.separator),
-     show_elements(item.show_elements),
      tree(item.tree),      
      table(item.table),
+     expr(item.expr),
+     order(item.order),
+     tables_list(item.tables_list),
+     group_concat_max_len(item.group_concat_max_len),
+     show_elements(item.show_elements),
      arg_count_order(item.arg_count_order),
      arg_count_field(item.arg_count_field),
      arg_show_fields(item.arg_show_fields),
-     distinct(item.distinct),
-     expr(item.expr),
-     order(item.order),
-     tree_mode(0),
      count_cut_values(item.count_cut_values),
-     group_concat_max_len(item.group_concat_max_len),
+     tree_mode(0),
+     distinct(item.distinct),
      warning_for_row(item.warning_for_row),
-     tables_list(item.tables_list),
      original(&item)
     {
      quick_group = 0;

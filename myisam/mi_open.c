@@ -427,10 +427,6 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 
     share->kfile=kfile;
     share->this_process=(ulong) getpid();
-    share->rnd= (int)	 share->this_process;	/* rnd-counter for splits */
-#ifndef DBUG_OFF
-    share->rnd=0;				/* To make things repeatable */
-#endif
     share->last_process= share->state.process;
     share->base.key_parts=key_parts;
     share->base.all_key_parts=key_parts+unique_key_parts;

@@ -50,7 +50,7 @@ Variable_name	Value
 max_join_size	100
 show global variables like 'max_join_size';
 Variable_name	Value
-max_join_size	HA_POS_ERROR
+max_join_size	10
 set GLOBAL max_join_size=2000;
 show global variables like 'max_join_size';
 Variable_name	Value

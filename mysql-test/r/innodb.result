@@ -165,7 +165,7 @@ level	id	parent_id
 1	1007	101
 optimize table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	error	The handler for the table doesn't support optimize
+test.t1	optimize	error	The storage enginge for the table doesn't support optimize
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	id	A	#	NULL	NULL		BTREE	
@@ -189,7 +189,7 @@ create table t1 (a int) type=innodb;
 insert into t1 values (1), (2);
 optimize table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	error	The handler for the table doesn't support optimize
+test.t1	optimize	error	The storage enginge for the table doesn't support optimize
 delete from t1 where a = 1;
 select * from t1;
 a
@@ -208,7 +208,7 @@ create index skr on t1 (a);
 insert into t1 values (3,""), (4,"testing");
 analyze table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	error	The handler for the table doesn't support analyze
+test.t1	analyze	error	The storage enginge for the table doesn't support analyze
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	skr	1	a	A	3	NULL	NULL	YES	BTREE	
@@ -724,7 +724,7 @@ world	2
 hello	1
 optimize table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	error	The handler for the table doesn't support optimize
+test.t1	optimize	error	The storage enginge for the table doesn't support optimize
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	a	A	2	NULL	NULL		BTREE	
@@ -800,7 +800,7 @@ id	id3
 UNLOCK TABLES;
 DROP TABLE t1;
 create table t1 (a char(20), unique (a(5))) type=innodb;
-Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the table handler doesn't support unique sub keys
+Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the store engine doesn't support unique sub keys
 create table t1 (a char(20), index (a(5))) type=innodb;
 show create table t1;
 Table	Create Table
@@ -1214,4 +1214,33 @@ col1
 1
 2
 3
+drop table t1,t2;
+CREATE TABLE t1 (
+`id` int(10) unsigned NOT NULL auto_increment,
+`id_object` int(10) unsigned default '0',
+`id_version` int(10) unsigned NOT NULL default '1',
+label varchar(100) NOT NULL default '',
+`description` text,
+PRIMARY KEY  (`id`),
+KEY `id_object` (`id_object`),
+KEY `id_version` (`id_version`)
+) TYPE=InnoDB;
+INSERT INTO t1 VALUES("6", "3382", "9", "Test", NULL), ("7", "102", "5", "Le Pekin (Test)", NULL),("584", "1794", "4", "Test de resto", NULL),("837", "1822", "6", "Test 3", NULL),("1119", "3524", "1", "Societe Test", NULL),("1122", "3525", "1", "Fournisseur Test", NULL);
+CREATE TABLE t2 (
+`id` int(10) unsigned NOT NULL auto_increment,
+`id_version` int(10) unsigned NOT NULL default '1',
+PRIMARY KEY  (`id`),
+KEY `id_version` (`id_version`)
+) TYPE=InnoDB;
+INSERT INTO t2 VALUES("3524", "1"),("3525", "1"),("1794", "4"),("102", "5"),("1822", "6"),("3382", "9");
+SELECT t2.id, t1.label FROM t2 INNER JOIN
+(SELECT t1.id_object as id_object FROM t1 WHERE t1.label LIKE '%test%') AS lbl 
+ON (t2.id = lbl.id_object) INNER JOIN t1 ON (t2.id = t1.id_object);
+id	label
+3382	Fournisseur Test
+102	Fournisseur Test
+1794	Fournisseur Test
+1822	Fournisseur Test
+3524	Fournisseur Test
+3525	Fournisseur Test
 drop table t1,t2;
