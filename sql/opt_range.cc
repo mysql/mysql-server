@@ -7030,8 +7030,12 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
                        cur_group_key_parts, tree, cur_index_tree,
                        cur_quick_prefix_records, have_min, have_max,
                        &cur_read_cost, &cur_records);
-
-    if (cur_read_cost < best_read_cost)
+    /*
+      If cur_read_cost is lower than best_read_cost use cur_index.
+      Do not compare doubles directly because they may have different
+      representations (64 vs. 80 bits).
+    */
+    if (cur_read_cost < best_read_cost - (DBL_EPSILON * cur_read_cost))
     {
       index_info= cur_index_info;
       index= cur_index;
