@@ -338,14 +338,7 @@ int mysql_update(THD *thd,
     This must be before binlog writing and ha_autocommit_...
   */
   if (updated)
-  {
     query_cache_invalidate3(thd, table_list, 1);
-  }
-  if (thd->lock)
-  {
-    mysql_unlock_tables(thd, thd->lock);
-    thd->lock=0;
-  }
 
   transactional_table= table->file->has_transactions();
   log_delayed= (transactional_table || table->tmp_table);
@@ -366,6 +359,12 @@ int mysql_update(THD *thd,
   {
     if (ha_autocommit_or_rollback(thd, error >= 0))
       error=1;
+  }
+
+  if (thd->lock)
+  {
+    mysql_unlock_tables(thd, thd->lock);
+    thd->lock=0;
   }
 
   delete select;

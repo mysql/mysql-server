@@ -481,8 +481,10 @@ bool multi_delete::send_eof()
   /* reset used flags */
   thd->proc_info="end";
 
-  /* We must invalidate the query cache before binlog writing and
-  ha_autocommit_... */
+  /*
+    We must invalidate the query cache before binlog writing and
+    ha_autocommit_...
+  */
   if (deleted)
     query_cache_invalidate3(thd, delete_tables, 1);
 
