@@ -241,6 +241,9 @@ public:
    *        i.e. objects that has been cloned.
    */
   ~NdbRecAttr();    
+
+public:
+  const NdbRecAttr* next() const;
 private:
   NdbRecAttr();
 
@@ -252,7 +255,7 @@ private:
   void init();                  /* Initialise object when allocated     */
 
   void next(NdbRecAttr* aRecAttr);
-  NdbRecAttr* next() const;
+  NdbRecAttr* next();
 
   int setup(const class NdbDictionary::Column* col, char* aValue);
   int setup(const class NdbColumnImpl* anAttrInfo, char* aValue);
@@ -401,6 +404,13 @@ NdbRecAttr::next(NdbRecAttr* aRecAttr)
 
 inline
 NdbRecAttr*
+NdbRecAttr::next()
+{
+  return theNext;
+}
+
+inline
+const NdbRecAttr*
 NdbRecAttr::next() const
 {
   return theNext;

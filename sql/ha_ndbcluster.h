@@ -230,7 +230,7 @@ class ha_ndbcluster: public handler
   NDB_SHARE *m_share;
   NDB_INDEX_DATA  m_index[MAX_KEY];
   // NdbRecAttr has no reference to blob
-  typedef union { NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
+  typedef union { const NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   bool m_use_write;
   bool m_ignore_dup_key;
@@ -259,7 +259,8 @@ class ha_ndbcluster: public handler
   byte* m_multi_range_result_ptr;
   uint m_multi_range_defined_count;
   const NdbOperation* m_current_multi_operation;
-  
+  int setup_recattr(const NdbRecAttr*);
+
   void set_rec_per_key();
   void records_update();
   void no_uncommitted_rows_execute_failure();

@@ -1109,17 +1109,17 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
   if (!(op= trans->getNdbOperation((const NDBTAB *) m_table)) || 
       op->readTuple(lm) != 0)
     ERR_RETURN(trans->getNdbError());
-
-    int res;
-    if ((res= set_primary_key_from_old_data(op, old_data)))
-      ERR_RETURN(trans->getNdbError());
-    
+  
+  int res;
+  if ((res= set_primary_key_from_old_data(op, old_data)))
+    ERR_RETURN(trans->getNdbError());
+  
   // Read all unreferenced non-key field(s)
   for (i= 0; i < no_fields; i++) 
   {
     Field *field= table->field[i];
-    if (!(field->flags & PRI_KEY_FLAG) &&
-	(thd->query_id != field->query_id))
+    if (!((field->flags & PRI_KEY_FLAG) ||
+	  (thd->query_id == field->query_id)))
     {
       if (get_ndb_value(op, field, i, new_data))
 	ERR_RETURN(trans->getNdbError());
@@ -1135,6 +1135,20 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
   // The value have now been fetched from NDB  
   unpack_record(new_data);
   table->status= 0;     
+
+  /**
+   * restore m_value
+   */
+  for (i= 0; i < no_fields; i++) 
+  {
+    Field *field= table->field[i];
+    if (!((field->flags & PRI_KEY_FLAG) ||
+	  (thd->query_id == field->query_id)))
+    {
+      m_value[i].ptr= NULL;
+    }
+  }
+  
   DBUG_RETURN(0);
 }
 
@@ -1931,7 +1945,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       // Require that the PK for this record has previously been 
       // read into m_value
       uint no_fields= table->fields;
-      NdbRecAttr* rec= m_value[no_fields].rec;
+      const NdbRecAttr* rec= m_value[no_fields].rec;
       DBUG_ASSERT(rec);
       DBUG_DUMP("key", (char*)rec->aRef(), NDB_HIDDEN_PRIMARY_KEY_LENGTH);
       
@@ -2013,7 +2027,7 @@ int ha_ndbcluster::delete_row(const byte *record)
       // This table has no primary key, use "hidden" primary key
       DBUG_PRINT("info", ("Using hidden key"));
       uint no_fields= table->fields;
-      NdbRecAttr* rec= m_value[no_fields].rec;
+      const NdbRecAttr* rec= m_value[no_fields].rec;
       DBUG_ASSERT(rec != NULL);
       
       if (set_hidden_key(op, no_fields, rec->aRef()))
@@ -2057,6 +2071,8 @@ void ha_ndbcluster::unpack_record(byte* buf)
   Field **field, **end;
   NdbValue *value= m_value;
   DBUG_ENTER("unpack_record");
+
+  end = table->field + table->fields;
   
   // Set null flag(s)
   bzero(buf, table->null_bytes);
@@ -2082,7 +2098,7 @@ void ha_ndbcluster::unpack_record(byte* buf)
       }
     }
   }
-
+  
 #ifndef DBUG_OFF
   // Read and print all values that was fetched
   if (table->primary_key == MAX_KEY)
@@ -2091,7 +2107,7 @@ void ha_ndbcluster::unpack_record(byte* buf)
     int hidden_no= table->fields;
     const NDBTAB *tab= (const NDBTAB *) m_table;
     const NDBCOL *hidden_col= tab->getColumn(hidden_no);
-    NdbRecAttr* rec= m_value[hidden_no].rec;
+    const NdbRecAttr* rec= m_value[hidden_no].rec;
     DBUG_ASSERT(rec);
     DBUG_PRINT("hidden", ("%d: %s \"%llu\"", hidden_no, 
                           hidden_col->getName(), rec->u_64_value()));
@@ -2613,7 +2629,7 @@ void ha_ndbcluster::position(const byte *record)
     // No primary key, get hidden key
     DBUG_PRINT("info", ("Getting hidden key"));
     int hidden_no= table->fields;
-    NdbRecAttr* rec= m_value[hidden_no].rec;
+    const NdbRecAttr* rec= m_value[hidden_no].rec;
     const NDBTAB *tab= (const NDBTAB *) m_table;  
     const NDBCOL *hidden_col= tab->getColumn(hidden_no);
     DBUG_ASSERT(hidden_col->getPrimaryKey() && 
@@ -4998,6 +5014,7 @@ found:
    */
   * multi_range_found_p= multi_ranges + multi_range_curr;
   memcpy(table->record[0], m_multi_range_result_ptr, reclength);
+  setup_recattr(m_active_cursor->getOperation()->getFirstRecAttr());
   unpack_record(table->record[0]);
   table->status= 0;     
   DBUG_RETURN(0);
@@ -5009,13 +5026,37 @@ found_next:
    */
   * multi_range_found_p= multi_ranges + multi_range_curr;
   memcpy(table->record[0], m_multi_range_result_ptr, reclength);
+  setup_recattr(op->getFirstRecAttr());
   unpack_record(table->record[0]);
-  table->status= 0;     
-
+  table->status= 0;
+  
   multi_range_curr++;
-  op= m_active_trans->getNextCompletedOperation(op);
+  m_current_multi_operation= m_active_trans->getNextCompletedOperation(op);
   m_multi_range_result_ptr += reclength;
   DBUG_RETURN(0);
+}
+
+int
+ha_ndbcluster::setup_recattr(const NdbRecAttr* curr)
+{
+  DBUG_ENTER("setup_recattr");
+
+  Field **field, **end;
+  NdbValue *value= m_value;
+  
+  end = table->field + table->fields;
+  
+  for (field= table->field; field < end; field++, value++)
+  {
+    if ((* value).ptr)
+    {
+      DBUG_ASSERT(curr != 0);
+      (* value).rec = curr;
+      curr = curr->next();
+    }
+  }
+  
+  return 0;
 }
 
 #endif /* HAVE_NDBCLUSTER_DB */
