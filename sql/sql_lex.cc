@@ -154,6 +154,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->ignore_space=test(thd->sql_mode & MODE_IGNORE_SPACE);
   lex->slave_thd_opt=0;
   lex->sql_command=SQLCOM_END;
+  lex->safe_to_cache_query= 1;
   bzero(&lex->mi,sizeof(lex->mi));
   return lex;
 }
@@ -182,7 +183,7 @@ static int find_keyword(LEX *lex, uint len, bool function)
   udf_func *udf;
   if (function && using_udf_functions && (udf=find_udf((char*) tok, len)))
   {
-    lex->thd->safe_to_cache_query=0;
+    lex->safe_to_cache_query=0;
     lex->yylval->udf=udf;
     switch (udf->returns) {
     case STRING_RESULT:
