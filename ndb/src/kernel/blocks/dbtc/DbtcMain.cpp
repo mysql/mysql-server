@@ -65,6 +65,7 @@
 #include <signaldata/DictTabInfo.hpp>
 
 #include <NdbOut.hpp>
+#include <DebuggerNames.hpp>
 
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
@@ -260,6 +261,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
     tcConnectptr.i = Tdata0;
     apiConnectptr.i = Tdata1;
     ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+    apiConnectptr.p->counter--;
     sendAbortedAfterTimeout(signal, 1);
     return;
   case TcContinueB::ZHANDLE_FAILED_API_NODE_REMOVE_MARKERS:
@@ -6039,7 +6041,8 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr)
 	<< " H'" << apiConnectptr.p->transid[1] << "] " << dec 
 	<< "Time-out in state = " << apiConnectptr.p->apiConnectstate
 	<< " apiConnectptr.i = " << apiConnectptr.i 
-	<< " - exec: " << apiConnectptr.p->m_exec_flag);
+	<< " - exec: " << apiConnectptr.p->m_exec_flag
+	<< " - place: " << c_apiConTimer_line[apiConnectptr.i]);
   switch (apiConnectptr.p->apiConnectstate) {
   case CS_STARTED:
     if(apiConnectptr.p->lqhkeyreqrec == apiConnectptr.p->lqhkeyconfrec){
@@ -6300,9 +6303,8 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 	warningEvent(buf);
 	ndbout_c(buf);
 	ndbrequire(false);
-	releaseAbortResources(signal);
-        return;
-      }//if
+      }
+      releaseAbortResources(signal);
       return;
     }//if
     TloopCount++;
@@ -6313,6 +6315,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
       // away the job buffer.
       /*------------------------------------------------------------------*/
       setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+      apiConnectptr.p->counter++;
       signal->theData[0] = TcContinueB::ZABORT_TIMEOUT_BREAK;
       signal->theData[1] = tcConnectptr.i;
       signal->theData[2] = apiConnectptr.i;      
@@ -10039,7 +10042,8 @@ void Dbtc::releaseAbortResources(Signal* signal)
     }//if
 
   }
-  setApiConTimer(apiConnectptr.i, 0, __LINE__);
+  setApiConTimer(apiConnectptr.i, 0, 
+		 100000+c_apiConTimer_line[apiConnectptr.i]);
   if (apiConnectptr.p->apiFailState == ZTRUE) {
     jam();
     handleApiFailState(signal, apiConnectptr.i);
@@ -11326,6 +11330,8 @@ void Dbtc::execTCKEYCONF(Signal* signal)
   }
   const UintR TconnectIndex = indexOp->connectionIndex;
   ApiConnectRecord * const regApiPtr = &apiConnectRecord[TconnectIndex];
+  apiConnectptr.p = regApiPtr;
+  apiConnectptr.i = TconnectIndex;
   switch(indexOp->indexOpState) {
   case(IOS_NOOP): {
     jam();
