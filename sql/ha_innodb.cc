@@ -313,6 +313,35 @@ convert_error_code_to_mysql(
 }
 
 /*****************************************************************
+If you want to print a thd that is not associated with the current thread,
+you must call this function before reserving the InnoDB kernel_mutex, to
+protect MySQL from setting thd->query NULL. If you print a thd of the current
+thread, we know that MySQL cannot modify thd->query, and it is not necessary
+to call this. Call innobase_mysql_end_print_arbitrary_thd() after you release
+the kernel_mutex.
+NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
+function! */
+extern "C"
+void
+innobase_mysql_prepare_print_arbitrary_thd(void)
+/*============================================*/
+{
+	VOID(pthread_mutex_lock(&LOCK_thread_count));
+}
+
+/*****************************************************************
+Relases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
+NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
+function! */
+extern "C"
+void
+innobase_mysql_end_print_arbitrary_thd(void)
+/*========================================*/
+{
+	VOID(pthread_mutex_unlock(&LOCK_thread_count));
+}
+
+/*****************************************************************
 Prints info of a THD object (== user session thread) to the
 standard output. NOTE that /mysql/innobase/trx/trx0trx.c must contain
 the prototype for this function! */
@@ -328,15 +357,6 @@ innobase_mysql_print_thd(
 	char		buf[301];
 
         thd = (const THD*) input_thd;
-
-/* We cannot use LOCK_thread_count to protect this operation because we own
-the InnoDB kernel_mutex when we enter this function, but in freeing of a
-THD object, MySQL first reserves LOCK_thread_count and AFTER THAT InnoDB
-reserves kernel_mutex when freeing the trx object => a deadlock can occur.
-The solution is for MySQL to use a separate mutex to protect thd->query and
-thd->query_len. Someone should do that! This bug has been here for 3 years!
-
-	VOID(pthread_mutex_lock(&LOCK_thread_count)); */
 
   	fprintf(f, "MySQL thread id %lu, query id %lu",
 		thd->thread_id, thd->query_id);
@@ -367,14 +387,16 @@ thd->query_len. Someone should do that! This bug has been here for 3 years!
 		len = thd->query_length;
 
 		if (len > 300) {
-			len = 300;	/* A TEMPORARY SOLUTION: print at most
+			len = 300;	/* ADDITIONAL SAFETY: print at most
 					300 chars to reduce the probability of
-					a seg fault in a race */
+					a seg fault if there is a race in
+					thd->query_len in MySQL; on May 13,
+					2004 we do not know */
 		}
 		
 		for (i = 0; i < len && s[i]; i++);
 
-		memcpy(buf, s, i);	/* use memcpy to reduce the timeframe
+		memcpy(buf, s, i);	/* Use memcpy to reduce the timeframe
 					for a race, compared to fwrite() */
 		buf[300] = '\0';
 
@@ -383,8 +405,6 @@ thd->query_len. Someone should do that! This bug has been here for 3 years!
 	}
 
 	putc('\n', f);
-
-/*	VOID(pthread_mutex_unlock(&LOCK_thread_count)); */
 }
 
 /*************************************************************************
