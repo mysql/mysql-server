@@ -9952,7 +9952,7 @@ for this is that negative numbers caused problems when wrapping from -1 to 0.
 @code{AUTO_INCREMENT} is now for MyISAM tables handled at a lower level and
 is much faster than before. For MyISAM tables old numbers are also not reused
 anymore, even if you delete some rows from the table.
-@item @code{INNER}, @code{DELAYED}, @code{RIGHT}, @code{CASE}, @code{THEN}, @code{WHEN}, @code{ELSE}, @code{END} and @code{WHEN} are now reserved words.
+@item @code{CASE}, @code{DELAYED}, @code{ELSE}, @code{END}, @code{FULLTEXT}, @code{INNER}, @code{RIGHT}, @code{THEN} and @code{WHEN} are now reserved words.
 @item @code{FLOAT(X)} is now a true floating-point type and not a value with
 a fixed number of decimals.
 @item When declaring @code{DECIMAL(length,dec)} the length argument no
@@ -15813,6 +15813,10 @@ mysql> SELECT CASE BINARY "B" when "a" then 1 when "b" then 2 END;
        -> NULL
 @end example
 @end table
+
+The type of the return value (@code{INTEGER}, @code{DOUBLE} or
+@code{STRING}) is the same as the type of the first returned value (the
+expression after the first @code{THEN}).
 
 @findex mathematical functions
 @findex functions, mathematical
@@ -30619,11 +30623,11 @@ utility. @xref{Table types}.
 In the following text we will talk about @code{myisamchk}, but everything
 also applies to the old @code{isamchk}.
 
-You can use the @code{myisamchk} utility to get information about your database
-tables, check and repair them, or optimize them.  The following sections
-describe how to invoke @code{myisamchk} (including a description of its
-options), how to set up a table maintenance schedule, and how to use
-@code{myisamchk} to perform its various functions.
+You can use the @code{myisamchk} utility to get information about your
+database tables, check and repair them, or optimize them.  The following
+sections describe how to invoke @code{myisamchk} (including a
+description of its options), how to set up a table maintenance schedule,
+and how to use @code{myisamchk} to perform its various functions.
 
 You can, in most cases, also use the command @code{OPTIMIZE TABLES} to
 optimize and repair tables, but this is not as fast or reliable (in case
@@ -30713,9 +30717,9 @@ the file or that has died without closing the file properly.
 
 If you @code{mysqld} is running, you must force a sync/close of all
 tables with @code{FLUSH TABLES} and ensure that no one is using the
-tables while you are running @code{myisamchk}.  In MySQL Version 3.23 the easiest
-way to avoid this problem is to use @code{CHECK TABLE} instead of
-@code{myisamchk} to check tables.
+tables while you are running @code{myisamchk}.  In @strong{MySQL} Version 3.23
+the easiest way to avoid this problem is to use @code{CHECK TABLE}
+instead of @code{myisamchk} to check tables.
 
 @cindex options, @code{myisamchk}
 @cindex @code{myisamchk}, options
@@ -30740,9 +30744,30 @@ for myisamchk can be examined with @code{myisamchk --help}:
 @item decode_bits @tab 9
 @end multitable
 
-@code{key_buffer_size} is only used when you check the table with @code{-e} or
-repair it with @code{-o}.
-@code{sort_buffer_size} is used when you repair the table with @code{-r}.
+@code{sort_buffer_size} is used when the keys are reparied by sorting
+keys, which is the normal case when you use @code{--recover}.
+
+@code{key_buffer_size} is used when you are checking the table with
+@code{--extended-check} or when the keys are repaired by inserting key
+row by row in to the table (like when doing normal inserts). Repairing
+through the key buffer is used in the following cases:
+
+@itemize @bullet
+@item
+If you use @code{--safe-recover}.
+@item
+If you are using a @code{FULLTEXT} index.
+@item
+If the temporary files needed to sort the keys would be more than twice
+as big as when creating the key file directly.  This is often the case
+when you have big @code{CHAR}, @code{VARCHAR} or @code{TEXT} keys as the
+sort needs to store the whole keys during sorting. If you have lots
+of temporary space and you can force @code{myisamchk} to repair by sorting
+you can use the @code{--sort-recover} option.
+@end itemize
+
+Reparing through the key buffer takes much less disk space than using
+sorting, but is also much slower.
 
 If you want a faster repair, set the above variables to about 1/4 of your
 available memory.  You can set both variables to big values, as only one
@@ -30851,6 +30876,11 @@ space than @code{-r}. Normally one should always first repair with
 
 If you have lots of memory, you should increase the size of
 @code{key_buffer_size}!
+@item -n or --sort-recover
+Force @code{myisamchk} to use sorting to resolve the keys even if the
+temporary files should be very big.  This will not have any effect if you have
+fulltext keys in the table.
+
 @item --character-sets-dir=...
 Directory where character sets are stored.
 @item --set-character-set=name
@@ -30933,8 +30963,9 @@ Space for the new index file that replaces the old one. The old
 index file is truncated at start, so one usually ignore this space.
 This space is needed on the same disk as the original index file!
 @item
-When using @code{--repair} (but not when using @code{--safe-repair}, you
-will need space for a sort buffer for:
+When using @code{--recover} or @code{--sort-recover}
+(but not when using @code{--safe-recover}, you will need space for a
+sort buffer for:
 @code{(largest_key + row_pointer_length)*number_of_rows * 2}.
 You can check the length of the keys and the row_pointer_length with
 @code{myisamchk -dv table}.
@@ -30943,7 +30974,7 @@ This space is allocated on the temporary disk (specified by @code{TMPDIR} or
 @end itemize
 
 If you have a problem with disk space during repair, you can try to use
-@code{--safe-repair} instead of @code{--repair}.
+@code{--safe-recover} instead of @code{--recover}.
 
 @cindex maintaining, tables
 @cindex tables, maintenance regimen
@@ -39486,6 +39517,8 @@ javascript, 2d/3d graphics, and PHP3/MySQL. All pages are generated from
 a database.
 @c Added 990614; EMAIL: downey@image.dk (Rune Madsen)
 
+@item @uref{http://www.softwarezrus.com/, Softwarezrus.com}
+Ecommerce site that is selling computers.
 @end itemize
 
 @cindex consultants, list of
@@ -39782,6 +39815,10 @@ OLEDB handler for @code{MySQL}. By SWsoft.
 Examples and documentation for MyOLEDB. By SWsoft.
 @item @uref{http://www.mysql.com/Downloads/Win32/Myoledb.zip, Myoledb.zip}
 Source for MyOLEDB. By SWsoft.
+@item @uref{http://www.mysql.com/Downloads/Win32/MyOLEDB.chm, MyOLEDB.chm}
+Help files for MyOLEDB.
+@item @uref{http://www.mysql.com/Downloads/Win32/libmyodbc.zip, libmyodbc.zip}
+Static MyODBC library used for build MyOLEDB. Based on MyODBC code.
 @end itemize
 
 @cindex C++
@@ -40949,6 +40986,13 @@ not yet 100 % confident in this code.
 @node News-3.23.33, News-3.23.32, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.33
 @itemize bullet
+@item
+Fixed 'no found rows' bug in @code{MyISAM} tables when a @code{BLOB} was
+first part of a multi-part key.
+@item
+Fixed bug where @code{CASE} didn't work with @code{GROUP BY}.
+@item
+Added option @code{--sort-recover} to @code{myisamchk}.
 @item
 @code{myisamchk -S} and @code{OPTIMIZE TABLE} now works on Windows.
 @item

@@ -37,7 +37,8 @@ int mi_delete_table(const char *name)
 #ifdef USE_RAID
   {
     MI_INFO *info;
-    if (!(info=mi_open(name, O_RDONLY, 0)))
+    /* we use 'open_for_repair' to be able to delete a crashed table */
+    if (!(info=mi_open(name, O_RDONLY, HA_OPEN_FOR_REPAIR)))
       DBUG_RETURN(my_errno);
     raid_type =      info->s->base.raid_type;
     raid_chunks =    info->s->base.raid_chunks;

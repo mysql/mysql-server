@@ -2,6 +2,8 @@
 # Testing of CASE
 #
 
+drop table if exists t1;
+
 select CASE "b" when "a" then 1 when "b" then 2 END;
 select CASE "c" when "a" then 1 when "b" then 2 END;
 select CASE "c" when "a" then 1 when "b" then 2 ELSE 3 END;
@@ -19,3 +21,12 @@ select (case 1/0 when "a" then "true" END) | 0;
 select (case 1/0 when "a" then "true" END) + 0.0;
 select case when 1>0 then "TRUE" else "FALSE" END;
 select case when 1<0 then "TRUE" else "FALSE" END;
+
+#
+# Test bug when using GROUP BY on CASE
+#
+create table t1 (a int);
+insert into t1 values(1),(2),(3),(4);
+select case a when 1 then 2 when 2 then 3 else 0 end as fcase, count(*) from t1 group by fcase;
+select case a when 1 then "one" when 2 then "two" else "nothing" end as fcase, count(*) from t1 group by fcase;
+drop table t1;

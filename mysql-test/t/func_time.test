@@ -1,6 +1,8 @@
 #
 # time functions
 #
+drop table if exists t1,t2;
+
 select from_days(to_days("960101")),to_days(960201)-to_days("19960101"),to_days(date_add(curdate(), interval 1 day))-to_days(curdate()),weekday("1997-11-29");
 select period_add("9602",-12),period_diff(199505,"9404") ;
 select now()-now(),weekday(curdate())-weekday(now()),unix_timestamp()-unix_timestamp(now());
@@ -99,9 +101,21 @@ select extract(MINUTE FROM "10:11:12");
 select extract(MINUTE_SECOND FROM "10:11:12");
 select extract(SECOND FROM "1999-01-02 10:11:12");
 
-drop table if exists t1;
 create table t1 (ctime varchar(20));
 insert into t1 values ('2001-01-12 12:23:40');
 select ctime, hour(ctime) from t1;
 drop table t1;
 
+#
+# Test bug with monthname() and NULL
+#
+
+create table t1 (id int);
+create table t2 (id int, date date);
+insert into t1 values (1);
+insert into t2 values (1, "0000-00-00");
+insert into t1 values (2);
+insert into t2 values (2, "2000-01-01");
+select monthname(date) from t1 inner join t2 on t1.id = t2.id;
+select monthname(date) from t1 inner join t2 on t1.id = t2.id order by t1.id;
+drop table t1,t2;
