@@ -342,6 +342,11 @@ void my_xml_set_leave_handler(MY_XML_PARSER *p, int (*action)(MY_XML_PARSER *p, 
   p->leave=action;
 }
 
+void my_xml_set_user_data(MY_XML_PARSER *p, void *user_data)
+{
+  p->user_data=user_data;
+}
+
 const char *my_xml_error_string(MY_XML_PARSER *p)
 {
   return p->errstr;
