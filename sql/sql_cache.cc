@@ -615,8 +615,8 @@ void query_cache_abort(NET *net)
       query_cache.free_query(query_block);
     }
     net->query_cache_query=0;
+    DBUG_EXECUTE("check_querycache",query_cache.check_integrity(1););
     STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
-    DBUG_EXECUTE("check_querycache",query_cache.check_integrity(0););
   }
   DBUG_VOID_RETURN;
 }
@@ -1153,6 +1153,8 @@ void Query_cache::flush()
     flush_cache();
     DUMP(this);
   }
+
+  DBUG_EXECUTE("check_querycache",query_cache.check_integrity(1););
   STRUCT_UNLOCK(&structure_guard_mutex);
   DBUG_VOID_RETURN;
 }
@@ -2407,13 +2409,15 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 
 void Query_cache::pack_cache()
 {
+  DBUG_ENTER("Query_cache::pack_cache");
   STRUCT_LOCK(&structure_guard_mutex);
+  DBUG_EXECUTE("check_querycache",query_cache.check_integrity(1););
+
   byte *border = 0;
   Query_cache_block *before = 0;
   ulong gap = 0;
   my_bool ok = 1;
   Query_cache_block *block = first_block;
-  DBUG_ENTER("Query_cache::pack_cache");
   DUMP(this);
 
   if (first_block)
@@ -2438,6 +2442,8 @@ void Query_cache::pack_cache()
     }
     DUMP(this);
   }
+
+  DBUG_EXECUTE("check_querycache",query_cache.check_integrity(1););
   STRUCT_UNLOCK(&structure_guard_mutex);
   DBUG_VOID_RETURN;
 }
@@ -2502,22 +2508,14 @@ my_bool Query_cache::move_by_type(byte **border,
 
     Query_cache_block_table *nlist_root = new_block->table(0);
     nlist_root->n = 0;
-    if (tnext == list_root)
-    {
-      nlist_root->next = nlist_root;
-      nlist_root->prev = nlist_root;
-    }
-    else
-    {
-      nlist_root->next = tnext;
-      tnext->prev = nlist_root;
-    }
-    if (tprev != list_root)
-    {
-      nlist_root->prev = tnext;
-      tprev->next = nlist_root;
-    }
-
+    nlist_root->next = tnext;
+    tnext->prev = nlist_root;
+    nlist_root->prev = tprev;
+    tprev->next = nlist_root;
+    DBUG_PRINT("qcache",
+	       ("list_root: 0x%lx tnext 0x%lx tprev 0x%lx tprev->next 0x%lx tnext->prev 0x%lx",
+		(ulong) list_root, (ulong) tnext, (ulong) tprev,
+		(ulong)tprev->next, (ulong)tnext->prev));
     /*
       Go through all queries that uses this table and change them to
       point to the new table object
@@ -3076,10 +3074,23 @@ my_bool Query_cache::check_integrity(bool not_locked)
     case Query_cache_block::TABLE:
       if (in_list(tables_blocks[block->table()->type()], block, "tables"))
 	result = 1;
+      if (in_table_list(block->table(0),  block->table(0), "table list root"))
+	result = 1;
       break;
     case Query_cache_block::QUERY:
       if (in_list(queries_blocks, block, "query"))
 	result = 1;
+      for (TABLE_COUNTER_TYPE j=0; j < block->n_tables; j++)
+      {
+	Query_cache_block_table *block_table = block->table(j);
+	Query_cache_block_table *block_table_root = 
+	  (Query_cache_block_table *) 
+	  (((byte*)block_table->parent) -
+	   ALIGN_SIZE(sizeof(Query_cache_block_table)));
+	
+    	if (in_table_list(block_table, block_table_root, "table list"))
+    	  result = 1;
+      }
       break;
     case Query_cache_block::RES_INCOMPLETE:
       // This type of block can be not lincked yet (in multithread environment)
@@ -3337,6 +3348,87 @@ err1:
     }
     block = block->next;
   } while (block != root);
+err2:
+  return result;
+}
+
+void dump_node(Query_cache_block_table * node, 
+	       const char * call, const char * descr)
+{
+  DBUG_PRINT("qcache", ("%s: %s: node: 0x%lx", call, descr, (ulong) node));
+  DBUG_PRINT("qcache", ("%s: %s: node block: 0x%lx",
+			call, descr, (ulong) node->block()));
+  DBUG_PRINT("qcache", ("%s: %s: next: 0x%lx", call, descr,
+			(ulong) node->next));
+  DBUG_PRINT("qcache", ("%s: %s: prev: 0x%lx", call, descr,
+			(ulong) node->prev));
+}
+
+my_bool Query_cache::in_table_list(Query_cache_block_table * root,
+				   Query_cache_block_table * point,
+				   const char *name)
+{
+  my_bool result = 0;
+  Query_cache_block_table *table = point;
+  dump_node(root, name, "parameter root");
+  //back
+  do
+  {
+    dump_node(table, name, "list element << ");
+    if (table->prev->next != table)
+    {
+      DBUG_PRINT("error",
+		 ("table 0x%lx(0x%lx) in list '%s' 0x%lx(0x%lx) is incorrect linked, prev table 0x%lx(0x%lx) refered as next to 0x%lx(0x%lx) (check from 0x%lx(0x%lx))",
+		  (ulong) table, (ulong) table->block(), name, 
+		  (ulong) root, (ulong) root->block(),
+		  (ulong) table->prev, (ulong) table->prev->block(),
+		  (ulong) table->prev->next, 
+		  (ulong) table->prev->next->block(),
+		  (ulong) point, (ulong) point->block()));
+      //back trace
+      for(; table != point; table = table->next)
+	    DBUG_PRINT("error", ("back trace 0x%lx(0x%lx)", 
+				 (ulong) table, (ulong) table->block()));
+      result = 1;
+      goto err1;
+    }
+    table = table->prev;
+  } while (table != root && table != point);
+  if (table != root)
+  {
+    DBUG_PRINT("error",
+	       ("table 0x%lx(0x%lx) (0x%lx(0x%lx)<-->0x%lx(0x%lx)) not owned by list '%s' 0x%lx(0x%lx)",
+		(ulong) table, (ulong) table->block(),
+		(ulong) table->prev, (ulong) table->prev->block(),
+		(ulong) table->next, (ulong) table->next->block(),
+		name, (ulong) root, (ulong) root->block()));
+    return 1;
+  }
+err1:
+  // forward
+  table = point;
+  do
+  {
+    dump_node(table, name, "list element >> ");
+    if (table->next->prev != table)
+    {
+      DBUG_PRINT("error",
+		 ("table 0x%lx(0x%lx) in list '%s' 0x%lx(0x%lx) is incorrect linked, next table 0x%lx(0x%lx) refered as prev to 0x%lx(0x%lx) (check from 0x%lx(0x%lx))",
+		  (ulong) table, (ulong) table->block(),
+		  name, (ulong) root, (ulong) root->block(),
+		  (ulong) table->next, (ulong) table->next->block(),
+		  (ulong) table->next->prev,
+		  (ulong) table->next->prev->block(),
+		  (ulong) point, (ulong) point->block()));
+      //back trace
+      for (; table != point; table = table->prev)
+	    DBUG_PRINT("error", ("back trace 0x%lx(0x%lx)",
+				 (ulong) table, (ulong) table->block()));
+      result = 1;
+      goto err2;
+    }
+    table = table->next;
+  } while (table != root);
 err2:
   return result;
 }
