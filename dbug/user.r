@@ -1,8 +1,13 @@
 .\"           @(#)user.r      1.13 10/29/86
 .\"
+.\" 2004-10-29: documented features implemented since 10/29/86
+.\"             formatting cleanup
+.\"                                               - Sergei Golubchik
+.\"
 .\"           DBUG (Macro Debugger Package) nroff source
 .\"
 .\"           nroff -mm user.r >user.t
+.\"           groff -mm user.r >user.ps
 .\"
 .\" ===================================================
 .\"
@@ -196,7 +201,9 @@ Figure 1 is an example of this type of primitive debugging
 technique.
 .DS I N
 .SP 2
+\fC
 .so example1.r
+\fR
 .SP 2
 .ll -5
 .ce
@@ -222,7 +229,9 @@ C preprocessor.
 Figure 2 is an example of all three techniques.
 .DS I N
 .SP 2
+\fC
 .so example2.r
+\fR
 .SP 2
 .ll -5
 .ce
@@ -255,7 +264,9 @@ like an arbitrary and unreasonable restriction.
 Figure 3 is an example of this usage.
 .DS I N
 .SP 2
+\fC
 .so example3.r
+\fR
 .SP 2
 .ll -5
 .ce
@@ -281,7 +292,9 @@ program is implemented recursively.
 Figure 4 is the main function for this factorial program.
 .DS I N
 .SP 2
+\fC
 .so main.r
+\fR
 .SP 2
 .ll -5
 .ce
@@ -346,7 +359,7 @@ All of these macros will be fully explained in subsequent sections.
 To use the debugger, the factorial program is invoked with a command
 line of the form:
 .DS CB N
-factorial -#d:t 1 2 3
+\fCfactorial -#d:t 1 2 3
 .DE
 The 
 .B main
@@ -373,6 +386,7 @@ by an optional comma separated list of arguments specific
 to the given flag.
 Some examples are:
 .DS CB N
+\fC
 -#d:t:o
 -#d,in,out:f,main:F:L
 .DE
@@ -391,7 +405,9 @@ Note that this is not necessarily the best way to do factorials
 and error conditions are ignored completely.
 .DS I N
 .SP 2
+\fC
 .so factorial.r
+\fR
 .SP 2
 .ll -5
 .ce
@@ -421,7 +437,7 @@ To build the factorial program on a
 system, compile and
 link with the command:
 .DS CB N
-cc -o factorial main.c factorial.c -ldbug
+\fCcc -o factorial main.c factorial.c -ldbug
 .DE
 The "-ldbug" argument tells the loader to link in the
 runtime support modules for the
@@ -429,18 +445,20 @@ runtime support modules for the
 package.
 Executing the factorial program with a command of the form:
 .DS CB N
-factorial 1 2 3 4 5
+\fCfactorial 1 2 3 4 5
 .DE
 generates the output shown in figure 6.
 .DS I N
 .SP 2
+\fC
 .so output1.r
+\fR
 .SP 2
 .ll -5
 .ce
 Figure 6
 .ce
-factorial 1 2 3 4 5
+\fCfactorial 1 2 3 4 5
 .ll +5
 .SP 2
 .DE
@@ -449,16 +467,18 @@ factorial 1 2 3 4 5
 Function level tracing is enabled by passing the debugger
 the 't' flag in the debug control string.
 Figure 7 is the output resulting from the command
-"factorial\ -#t:o\ 3\ 2".
+"factorial\ -#t:o\ 2\ 3".
 .DS I N
 .SP 2
+\fC
 .so output2.r
+\fR
 .SP 2
 .ll -5
 .ce
 Figure 7
 .ce
-factorial -#t:o 3 2
+\fCfactorial -#t:o 2 3
 .ll +5
 .SP 2
 .DE
@@ -510,7 +530,7 @@ output instead, via the 'o' flag character.
 Note that no 'o' implies the default (standard error), a 'o' 
 with no arguments means standard output, and a 'o' 
 with an argument means used the named file.
-I.E, "factorial\ -#t:o,logfile\ 3\ 2" would write the trace
+i.e, "factorial\ -#t:o,logfile\ 3\ 2" would write the trace
 output in "logfile".
 Because of 
 .B UNIX
@@ -566,13 +586,15 @@ to a single macro with a huge format string.
 Figure 8 shows the output for default tracing and debug.
 .DS I N
 .SP 2
+\fC
 .so output3.r
+\fR
 .SP 2
 .ll -5
 .ce
 Figure 8
 .ce
-factorial -#d:t:o 3
+\fCfactorial -#d:t:o 3
 .ll +5
 .SP 2
 .DE
@@ -591,13 +613,15 @@ To demonstrate selection of specific macros for output, figure
 the debug control string "-#d,result:o".
 .DS I N
 .SP 2
+\fC
 .so output4.r
+\fR
 .SP 2
 .ll -5
 .ce
 Figure 9
 .ce
-factorial -#d,result:o 4
+\fCfactorial -#d,result:o 4
 .ll +5
 .SP 2
 .DE
@@ -613,13 +637,15 @@ The 'F' flag enables printing of the source file name and the 'L'
 flag enables printing of the source file line number.
 .DS I N
 .SP 2
+\fC
 .so output5.r
+\fR
 .SP 2
 .ll -5
 .ce
 Figure 10
 .ce
-factorial -#d:f,factorial:F:L:o 3
+\fCfactorial -#d:f,factorial:F:L:o 3
 .ll +5
 .SP 2
 .DE
@@ -671,7 +697,7 @@ will cause warning messages from the
 .I dbug
 package runtime support module.
 .SP 1
-EX:\ DBUG_ENTER\ ("main");
+EX:\ \fCDBUG_ENTER\ ("main");\fR
 .SP 1
 .LI DBUG_RETURN\ 
 Used at each exit point of a function containing a 
@@ -693,16 +719,16 @@ DBUG_ENTER
 macro, and the compiler will complain
 if the macros are actually used (expanded).
 .SP 1
-EX:\ DBUG_RETURN\ (value);
+EX:\ \fCDBUG_RETURN\ (value);\fR
 .br
-EX:\ DBUG_VOID_RETURN;
+EX:\ \fCDBUG_VOID_RETURN;\fR
 .SP 1
 .LI DBUG_PROCESS\ 
 Used to name the current process being executed.
 A typical argument for this macro is "argv[0]", though
 it will be perfectly happy with any other string.
 .SP 1
-EX:\ DBUG_PROCESS\ (argv[0]);
+EX:\ \fCDBUG_PROCESS\ (argv[0]);\fR
 .SP 1
 .LI DBUG_PUSH\ 
 Sets a new debugger state by pushing the current
@@ -720,11 +746,11 @@ The proper usage is to pass a pointer to the first character
 .B after
 the "-#" string.
 .SP 1
-EX:\ DBUG_PUSH\ (\&(argv[i][2]));
+EX:\ \fCDBUG_PUSH\ (\&(argv[i][2]));\fR
 .br
-EX:\ DBUG_PUSH\ ("d:t");
+EX:\ \fCDBUG_PUSH\ ("d:t");\fR
 .br
-EX:\ DBUG_PUSH\ ("");
+EX:\ \fCDBUG_PUSH\ ("");\fR
 .SP 1
 .LI DBUG_POP\ 
 Restores the previous debugger state by popping the state stack.
@@ -734,7 +760,7 @@ The
 DBUG_POP 
 macro has no arguments.
 .SP 1
-EX:\ DBUG_POP\ ();
+EX:\ \fCDBUG_POP\ ();\fR
 .SP 1
 .LI DBUG_FILE\ 
 The 
@@ -744,7 +770,7 @@ stream.
 It is used in the same manner as the symbols "stdout" and "stderr"
 in the standard I/O package.
 .SP 1
-EX:\ fprintf\ (DBUG_FILE,\ "Doing my own I/O!\n");
+EX:\ \fCfprintf\ (DBUG_FILE,\ "Doing\ my\ own\ I/O!\\n");\fR
 .SP 1
 .LI DBUG_EXECUTE\ 
 The DBUG_EXECUTE macro is used to execute any arbitrary C code.
@@ -754,9 +780,19 @@ This macro must be used cautiously because, like the
 DBUG_PRINT 
 macro,
 it is automatically selected by default whenever the 'd' flag has
-no argument list (I.E., a "-#d:t" control string).
+no argument list (i.e., a "-#d:t" control string).
 .SP 1
-EX:\ DBUG_EXECUTE\ ("abort",\ abort\ ());
+EX:\ \fCDBUG_EXECUTE\ ("status",\ print_status\ ());\fR
+.SP 1
+.LI DBUG_EXECUTE_IF\ 
+Works like DBUG_EXECUTE macro, but the code is
+.B not
+executed "by default", if the keyword is not explicitly listed in
+the 'd' flag. Used to conditionally execute "dangerous" actions, e.g
+to crash the program testing how recovery works, or to introduce an
+artificial delay checking for race conditions.
+.SP 1
+EX:\ \fCDBUG_EXECUTE_IF\ ("crashme",\ abort\ ());\fR
 .SP 1
 .LI DBUG_N\ 
 These macros, where N is in the range 2-5, are currently obsolete
@@ -773,11 +809,20 @@ and
 .B must
 be enclosed in parenthesis.
 .SP 1
-EX:\ DBUG_PRINT\ ("eof",\ ("end\ of\ file\ found"));
+EX:\ \fCDBUG_PRINT\ ("eof",\ ("end\ of\ file\ found"));\fR
 .br
-EX:\ DBUG_PRINT\ ("type",\ ("type\ is\ %x", type));
+EX:\ \fCDBUG_PRINT\ ("type",\ ("type\ is\ %x", type));\fR
 .br
-EX:\ DBUG_PRINT\ ("stp",\ ("%x\ ->\ %s", stp, stp\ ->\ name));
+EX:\ \fCDBUG_PRINT\ ("stp",\ ("%x\ ->\ %s", stp, stp\ ->\ name));\fR
+.SP 1
+.LI DBUG_DUMP\ 
+Used to dump a memory block in hex via the "fprintf" library function on the
+current debug stream, DBUG_FILE.
+The first argument is a debug keyword, the second is a pointer to
+a memory to dump, the third is a number of bytes to dump.
+.SP 1
+EX: \fCDBUG_DBUG\ ("net",\ packet,\ len);\fR
+.SP 1
 .LI DBUG_SETJMP\ 
 Used in place of the setjmp() function to first save the current
 debugger state and then execute the standard setjmp call.
@@ -786,7 +831,8 @@ DBUG_LONGJMP macro is used to invoke the standard longjmp() call.
 Currently all instances of DBUG_SETJMP must occur within the
 same function and at the same function nesting level.
 .SP 1
-EX:\ DBUG_SETJMP\ (env);
+EX: \fCDBUG_SETJMP\ (env);\fR
+.SP 1
 .LI DBUG_LONGJMP\ 
 Used in place of the longjmp() function to first restore the
 previous debugger state at the time of the last DBUG_SETJMP
@@ -797,7 +843,38 @@ It would be possible to maintain separate DBUG_SETJMP and DBUG_LONGJMP
 pairs by having the debugger runtime support module use the first
 argument to differentiate the pairs.
 .SP 1
-EX:\ DBUG_LONGJMP\ (env,val);
+EX: \fCDBUG_LONGJMP\ (env,val);\fR
+.SP 1
+.LI DBUG_LOCK_FILE\ 
+Used in multi-threaded environment to lock DBUG_FILE stream.
+It can be used, for example, in functions that need to write something to a
+debug stream more than in one fprintf() call and want to ensure that no other
+thread will write something in between.
+.SP 1
+EX:\fC
+.br
+  DBUG_LOCK_FILE;
+.br
+  fprintf (DBUG_FILE, "a=[");
+.br
+  for (int i=0; i < a_length; i++)
+.br
+    fprintf (DBUG_FILE, "0x%03x ", a[i]);
+.br
+  fprintf (DBUG_FILE, "]");
+.br
+  DBUG_UNLOCK_FILE;\fR
+.SP 1
+.LI DBUG_UNLOCK_FILE\ 
+Unlocks DBUG_FILE stream, that was locked with a DBUG_LOCK_FILE.
+.LI DBUG_ASSERT\ 
+This macro just does a regular assert(). The difference is that it will be
+disabled by DBUG_OFF togeher with the
+.I dbug
+library. So there will be no need to disable asserts separately with NDEBUG.
+.SP 1
+EX:\ \fCDBUG_ASSERT(\ a\ >\ 0);\fR
+.SP 1
 .LE
 
 .SK
@@ -815,6 +892,16 @@ and the flag characters which enable or disable them.
 Argument lists enclosed in '[' and ']' are optional.
 .SP 2
 .BL 22
+.LI a[,file]
+Redirect the debugger output stream and append it to the specified file.
+The default output stream is stderr.
+A null argument list causes output to be redirected to stdout.
+Double the colon, if you want it in the path
+.SP 1
+EX: \fCa,C::\\tmp\\log\fR
+.LI A[,file]
+Like 'a[,file]' but close and reopen file after each write. It helps to get
+a complete log file in case of crashes.
 .LI d[,keywords]
 Enable output from macros with specified keywords.
 A null list of keywords implies that all keywords are selected.
@@ -828,6 +915,14 @@ A null list of functions implies that all functions are selected.
 .LI F
 Mark each debugger output line with the name of the source file
 containing the macro causing the output.
+.LI i
+Mark each debugger output line with the PID of the current process.
+.LI g,[functions]
+Enable profiling for the specified list of functions.
+By default profiling is enabled for all functions.
+See
+.B PROFILING\ WITH\ DBUG
+below.
 .LI L
 Mark each debugger output line with the source file line number of
 the macro causing the output.
@@ -838,9 +933,9 @@ Sequentially number each debugger output line starting at 1.
 This is useful for reference purposes when debugger output is
 interspersed with program output.
 .LI o[,file]
-Redirect the debugger output stream to the specified file.
-The default output stream is stderr.
-A null argument list causes output to be redirected to stdout.
+Like 'a[,file]' but overwrite old file, do not append.
+.LI O[,file]
+Like 'A[,file]' but overwrite old file, do not append.
 .LI p[,processes]
 Limit debugger actions to the specified processes.
 A null list implies all processes.
@@ -865,11 +960,89 @@ Most useful with
 .B DBUG_PUSH 
 macros used to temporarily alter the
 debugger state.
+.LI S
+When compiled with
+.I safemalloc
+this flag forces "sanity" memory checks (for overwrites/underwrites)
+on each
+.B DBUG_ENTER
+and
+.B DBUG_RETURN.
 .LI t[,N]
 Enable function control flow tracing.
 The maximum nesting depth is specified by N, and defaults to
 200.
 .LE
+.SK
+.B
+PROFILING WITH DBUG
+.R
+
+.P
+With
+.I dbug
+one can do profiling in a machine independent fashion,
+without a need for profiled version of system libraries.
+For this,
+.I dbug
+can write out a file
+called
+.B dbugmon.out
+(by default).  This is an ascii file containing lines of the form:
+.DS CB N
+\fC<function-name> E <time-entered>
+<function-name> X <time-exited>
+.DE
+
+.P
+A second program (\fBanalyze\fR) reads this file, and produces a report on
+standard output.
+
+.P
+Profiling is enabled through the 
+.B g
+flag.  It can take a list of
+function names for which profiling is enabled.  By default, it
+profiles all functions.
+
+.P
+The profile file is opened for appending.  This
+is in order that one can run a program several times, and get the
+sum total of all the times, etc.
+
+.P
+An example of the report generated follows:
+.DS CB N
+\fC
+            Profile of Execution
+            Execution times are in milliseconds
+
+                Calls                        Time
+                -----                        ----
+            Times   Percentage   Time Spent    Percentage
+Function    Called  of total     in Function   of total    Importance
+========    ======  ==========   ===========   ==========  ==========
+factorial        5       83.33            30       100.00        8333
+main             1       16.67             0         0.00           0
+========    ======  ==========   ===========   ==========
+Totals           6      100.00            30       100.00
+.DE
+.P
+As you can see, it's quite self-evident.  The 
+.B Importance
+column is a
+metric obtained by multiplying the percentage of the calls and the percentage
+of the time.  Functions with higher 'importance' benefit the most from
+being sped up.
+
+.P
+As a limitation - setjmp/longjmp, or child processes, are ignored
+for the time being. Also, profiling does not work
+in a multi-threaded environment.
+
+.P
+Profiling code is (c) Binayak Banerjee.
+
 .SK
 .B
 HINTS AND MISCELLANEOUS
@@ -934,4 +1107,4 @@ The most common problem is multiply allocated memory.
 .\" .DE nroff dident like this. davida 900108
 .CS
 
-
+.\" vim:filetype=nroff

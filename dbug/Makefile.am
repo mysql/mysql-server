@@ -15,43 +15,52 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
-INCLUDES =		@MT_INCLUDES@ -I$(top_srcdir)/include
-LDADD =			libdbug.a ../strings/libmystrings.a
-pkglib_LIBRARIES =	libdbug.a
-noinst_HEADERS =	dbug_long.h
-libdbug_a_SOURCES =	dbug.c sanity.c
-EXTRA_DIST =		example1.c example2.c example3.c \
-			user.r monty.doc readme.prof \
-			main.c factorial.c dbug_analyze.c
+INCLUDES =              @MT_INCLUDES@ -I$(top_srcdir)/include
+LDADD =                 libdbug.a ../mysys/libmysys.a ../strings/libmystrings.a
+pkglib_LIBRARIES =      libdbug.a
+noinst_HEADERS =        dbug_long.h
+libdbug_a_SOURCES =     dbug.c sanity.c
+EXTRA_DIST =            example1.c example2.c example3.c \
+                        user.r monty.doc readme.prof dbug_add_tags.pl \
+                        main.c factorial.c dbug_analyze.c
+NROFF_INC =             example1.r example2.r example3.r main.r \
+                        factorial.r output1.r output2.r output3.r \
+                        output4.r output5.r
+
 
 # Must be linked with libs that are not compiled yet
-extra_progs: factorial dbug_analyze
+noinst_PROGRAMS =       factorial dbug_analyze
+factorial_SOURCES =     main.c factorial.c
+dbug_analyze_SOURCES =  dbug_analyze.c
 
-factorial: main.o factorial.o
-	@rm -f factorial
-	$(LINK) main.o factorial.o -lmysys
+all:            user.t user.ps
 
-dbug_analyze: dbug_analyze.o
-	@rm -f dbug_analyze
-	$(LINK) dbug_analyze.o -lmysys
+user.t:         user.r $(NROFF_INC)
+		nroff -mm user.r > $@
 
-user.t:		user.r $(NROFF_INC)
-		nroff -cm user.r > $@
+user.ps:	user.r $(NROFF_INC)
+		groff -mm user.r > $@
 
-output1.r:	$(PROGRAM)
-		factorial 1 2 3 4 5 | cat > $@
+output1.r:      factorial
+		./factorial 1 2 3 4 5 | cat > $@
 
-output2.r:	$(PROGRAM)
-		factorial -\#t:o 2 3 | cat >$@
+output2.r:      factorial
+		./factorial -\#t:o 2 3 | cat >$@
 
-output3.r:	$(PROGRAM)
-		factorial -\#d:t:o 3 | cat >$@
+output3.r:      factorial
+		./factorial -\#d:t:o 3 | cat >$@
 
-output4.r:	$(PROGRAM)
-		factorial -\#d,result:o 4 | cat >$@
+output4.r:      factorial
+		./factorial -\#d,result:o 4 | cat >$@
 
-output5.r:	$(PROGRAM)
-		factorial -\#d:f,factorial:F:L:o 3 | cat >$@
+output5.r:      factorial
+		./factorial -\#d:f,factorial:F:L:o 3 | cat >$@
+.c.r:
+		@RM@ -f $@
+		@SED@ -e 's!\\!\\\\!g' $< > $@
+
+clean:
+		@RM@ -f $(NROFF_INC) user.t user.ps
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

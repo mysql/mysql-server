@@ -21,8 +21,7 @@
  *	all copies and derivative works.  Thank you.			      *
  *									      *
  *	The author makes no warranty of any kind  with	respect  to  this     *
- *	product  and  explicitly disclaims any implied warranties of mer-     *ct_lex.table_list.first=0;
-  thd->lex.selec
+ *      product  and  explicitly disclaims any implied warranties of mer-     *
  *	chantability or fitness for any particular purpose.		      *
  *									      *
  ******************************************************************************
@@ -60,8 +59,8 @@
  *
  *	Michael Widenius:
  *	DBUG_DUMP	- To dump a block of memory.
- *	PUSH_FLAG "O"	- To be used insted of "o" if we don't
- *			  want flushing (for slow systems)
+ *      PUSH_FLAG "O"   - To be used insted of "o" if we
+ *                        want flushing after each write
  *	PUSH_FLAG "A"	- as 'O', but we will append to the out file instead
  *			  of creating a new one.
  *	Check of malloc on entry/exit (option "S")
@@ -930,7 +929,7 @@ void _db_doprnt_ (const char *format,...)
 /*
  *  FUNCTION
  *
- *	      _db_dump_    dump a string until '\0' is found
+ *            _db_dump_    dump a string in hex
  *
  *  SYNOPSIS
  *
@@ -1204,6 +1203,33 @@ static BOOLEAN DoProfile ()
 }
 #endif
 
+/*
+ *  FUNCTION
+ *
+ *      _db_strict_keyword_     test keyword for member of keyword list
+ *
+ *  SYNOPSIS
+ *
+ *      BOOLEAN _db_strict_keyword_ (keyword)
+ *      char *keyword;
+ *
+ *  DESCRIPTION
+ *
+ *      Similar to _db_keyword_, but keyword is NOT accepted if keyword list
+ *      is empty. Used in DBUG_EXECUTE_IF() - for actions that must not be
+ *      executed by default.
+ *
+ *      Returns TRUE if keyword accepted, FALSE otherwise.
+ *
+ */
+
+BOOLEAN _db_strict_keyword_ (
+const char *keyword)
+{
+  if (stack -> keywords == NULL)
+    return FALSE;
+  return _db_keyword_ (keyword);
+}
 
 /*
  *  FUNCTION

@@ -13,6 +13,7 @@ char *argv[];
 #if defined(HAVE_PTHREAD_INIT) && defined(THREAD)
   pthread_init();			/* Must be called before DBUG_ENTER */
 #endif
+  my_thread_global_init();
   {
     DBUG_ENTER ("main");
     DBUG_PROCESS (argv[0]);
