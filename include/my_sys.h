@@ -208,7 +208,7 @@ extern long lCurMemory,lMaxMemory;	/* from safemalloc */
 
 extern ulong	my_default_record_cache_size;
 extern my_bool NEAR my_disable_locking,NEAR my_disable_async_io,
-       NEAR my_disable_flush_key_blocks;
+               NEAR my_disable_flush_key_blocks, NEAR my_disable_symlinks;
 extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
 extern char *defaults_extra_file;
