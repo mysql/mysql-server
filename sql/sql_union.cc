@@ -215,8 +215,6 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     select_limit_cnt= sl->select_limit+sl->offset_limit;
     if (select_limit_cnt < sl->select_limit)
       select_limit_cnt= HA_POS_ERROR;		// no limit
-    if (select_limit_cnt == HA_POS_ERROR || sl->braces)
-      sl->options&= ~OPTION_FOUND_ROWS;
 
     can_skip_order_by= is_union &&
                        (!sl->braces || select_limit_cnt == HA_POS_ERROR);
@@ -342,7 +340,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       if (arena->is_stmt_prepare())
       {
 	/* prepare fake select to initialize it correctly */
-	ulong options_tmp= init_prepare_fake_select_lex(thd);
+	(void) init_prepare_fake_select_lex(thd);
 	if (!(fake_select_lex->join= new JOIN(thd, item_list, thd->options,
 					      result)))
 	{
@@ -447,21 +445,14 @@ int st_select_lex_unit::exec()
 	if (select_limit_cnt < sl->select_limit)
 	  select_limit_cnt= HA_POS_ERROR;		// no limit
 
-	/*
-	  When using braces, SQL_CALC_FOUND_ROWS affects the whole query.
-	  We don't calculate found_rows() per union part
-	*/
-	if (select_limit_cnt == HA_POS_ERROR || sl->braces)
-	  sl->options&= ~OPTION_FOUND_ROWS;
-	else 
-	{
-	  /*
-	    We are doing an union without braces.  In this case
-	    SQL_CALC_FOUND_ROWS should be done on all sub parts
-	  */
-	  sl->options|= found_rows_for_union;
-	}
-	sl->join->select_options=sl->options;
+        /*
+          When using braces, SQL_CALC_FOUND_ROWS affects the whole query:
+          we don't calculate found_rows() per union part.
+          Otherwise, SQL_CALC_FOUND_ROWS should be done on all sub parts.
+        */
+        sl->join->select_options= 
+          (select_limit_cnt == HA_POS_ERROR || sl->braces) ?
+          sl->options & ~OPTION_FOUND_ROWS : sl->options | found_rows_for_union;
 	res= sl->join->optimize();
       }
       if (!res)
@@ -493,7 +484,8 @@ int st_select_lex_unit::exec()
       }
       /* Needed for the following test and for records_at_start in next loop */
       table->file->info(HA_STATUS_VARIABLE);
-      if (found_rows_for_union & sl->options)
+      if (found_rows_for_union && !sl->braces && 
+          select_limit_cnt != HA_POS_ERROR)
       {
 	/*
 	  This is a union without braces. Remember the number of rows that

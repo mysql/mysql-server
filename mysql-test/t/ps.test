@@ -485,3 +485,14 @@ execute stmt;
 deallocate prepare stmt;
 drop table t1, t2;
 
+
+#
+# Bug #6089: FOUND_ROWS returns wrong values when no table/view is used 
+#
+
+prepare stmt from "SELECT SQL_CALC_FOUND_ROWS 'foo' UNION SELECT 'bar' LIMIT 0";
+execute stmt;
+SELECT FOUND_ROWS();
+execute stmt;                                                                   
+SELECT FOUND_ROWS();                                                            
+deallocate prepare stmt;

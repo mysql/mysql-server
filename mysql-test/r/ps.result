@@ -482,3 +482,15 @@ execute stmt;
 pnum
 deallocate prepare stmt;
 drop table t1, t2;
+prepare stmt from "SELECT SQL_CALC_FOUND_ROWS 'foo' UNION SELECT 'bar' LIMIT 0";
+execute stmt;
+foo
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+2
+execute stmt;
+foo
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+2
+deallocate prepare stmt;
