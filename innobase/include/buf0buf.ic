@@ -501,6 +501,7 @@ buf_frame_get_modify_clock(
 	return(block->modify_clock);
 }
 
+#ifdef UNIV_SYNC_DEBUG
 /***********************************************************************
 Increments the bufferfix count. */
 UNIV_INLINE
@@ -519,7 +520,7 @@ buf_block_buf_fix_inc_debug(
 
 	block->buf_fix_count++;
 }
-
+#else /* UNIV_SYNC_DEBUG */
 /***********************************************************************
 Increments the bufferfix count. */
 UNIV_INLINE
@@ -530,7 +531,7 @@ buf_block_buf_fix_inc(
 {
 	block->buf_fix_count++;
 }
-
+#endif /* UNIV_SYNC_DEBUG */
 /**********************************************************************
 Returns the control block of a file page, NULL if not found. */
 UNIV_INLINE

@@ -1540,21 +1540,6 @@ buf_page_io_complete(
 "InnoDB: Error: page n:o stored in the page read in is %lu, should be %lu!\n",
 				read_page_no, block->offset);
 		}
-#ifdef notdefined
-		if (block->offset != 0 && read_page_no == 0) {
-			/* Check that the page is really uninited */
-
-			for (i = 0; i < UNIV_PAGE_SIZE; i++) {
-
-				if (*((block->frame) + i) != '\0') {
-					fprintf(stderr,
-"InnoDB: Error: page n:o in the page read in is 0, but page %lu is inited!\n",
-						block->offset);
-					break;
-				}
-			}
-		}
-#endif
 		/* From version 3.23.38 up we store the page checksum
 		   to the 4 first bytes of the page end lsn field */
 

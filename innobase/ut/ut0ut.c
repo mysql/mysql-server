@@ -13,6 +13,7 @@ Created 5/11/1994 Heikki Tuuri
 #endif
 
 #include <stdarg.h>
+#include <string.h>
 
 #include "ut0sort.h"
 

@@ -1386,10 +1386,12 @@ row_create_table_for_mysql(
 		 "UNIV_MEM_DEBUG defined in univ.i and the server must be\n"
 		 "quiet because allocation from a mem heap is not protected\n"
 		 "by any semaphore.\n");
-
+#ifdef UNIV_MEM_DEBUG
 		ut_a(mem_validate());
-		      
 		printf("Memory validated\n");
+#else /* UNIV_MEM_DEBUG */
+		puts("Memory NOT validated (recompile with UNIV_MEM_DEBUG)");
+#endif /* UNIV_MEM_DEBUG */
 	}
 
 	heap = mem_heap_create(512);
