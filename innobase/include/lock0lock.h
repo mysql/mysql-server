@@ -463,17 +463,32 @@ lock_rec_hash(
 	ulint	space,	/* in: space */
 	ulint	page_no);/* in: page number */
 /*************************************************************************
-Gets the table covered by an IX or IS table lock, if there are no
-other locks on the table. */
+Gets the source table of an ALTER TABLE transaction.  The table must be
+covered by an IX or IS table lock. */
 
 dict_table_t*
-lock_get_table(
-/*===========*/
-			/* out: the table covered by the lock,
-			or NULL if it is not an IX or IS table lock,
-			or there are other locks on the table */
-	lock_t*	lock,	/* in: lock */
-	ulint*	mode);	/* out: lock mode of table */
+lock_get_src_table(
+/*===============*/
+				/* out: the source table of transaction,
+				if it is covered by an IX or IS table lock;
+				dest if there is no source table, and
+				NULL if the transaction is locking more than
+				two tables or an inconsistency is found */
+	trx_t*		trx,	/* in: transaction */
+	dict_table_t*	dest,	/* in: destination of ALTER TABLE */
+	ulint*		mode);	/* out: lock mode of the source table */
+/*************************************************************************
+Determine if the given table is exclusively "owned" by the given
+transaction, i.e., transaction holds LOCK_IX and possibly LOCK_AUTO_INC
+on the table. */
+
+ibool
+lock_table_exclusive(
+/*=================*/
+				/* out: TRUE if table is only locked by trx,
+				with LOCK_IX, and possibly LOCK_AUTO_INC */
+	dict_table_t*	table,	/* in: table */
+	trx_t*		trx);	/* in: transaction */
 /*************************************************************************
 Checks that a transaction id is sensible, i.e., not in the future. */
 

@@ -2325,29 +2325,44 @@ ha_innobase::write_row(
 		intermediate COMMIT, since writes by other transactions are
 		being blocked by a MySQL table lock TL_WRITE_ALLOW_READ. */
 
-		dict_table_t*	table;
+		dict_table_t*	src_table;
 		ibool		mode;
 
 		num_write_row = 0;
 
 		/* Commit the transaction.  This will release the table
 		locks, so they have to be acquired again. */
-		switch (prebuilt->trx->mysql_n_tables_locked) {
-		case 1:
+
+		/* Altering an InnoDB table */
+		/* Get the source table. */
+		src_table = lock_get_src_table(
+				prebuilt->trx, prebuilt->table, &mode);
+		if (!src_table) {
+		no_commit:
+			/* Unknown situation: do not commit */
+			/*
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB error: ALTER TABLE is holding lock"
+				" on %lu tables!\n",
+				prebuilt->trx->mysql_n_tables_locked);
+			*/
+			;
+		} else if (src_table == prebuilt->table) {
+			/* Source table is not in InnoDB format:
+			no need to re-acquire locks on it. */
+
 			/* Altering to InnoDB format */
 			innobase_commit(user_thd, prebuilt->trx);
 			/* Note that this transaction is still active. */
 			user_thd->transaction.all.innodb_active_trans = 1;
 			/* We will need an IX lock on the destination table. */
 		        prebuilt->sql_stat_start = TRUE;
-			break;
-		case 2:
-			/* Altering an InnoDB table */
-			ut_a(UT_LIST_GET_LEN(prebuilt->trx->trx_locks) >= 2);
-			table = lock_get_table(
-				UT_LIST_GET_FIRST(prebuilt->trx->trx_locks),
-				&mode);
-			if (!table) {
+		} else {
+			/* Ensure that there are no other table locks than
+			LOCK_IX and LOCK_AUTO_INC on the destination table. */
+			if (!lock_is_table_exclusive(prebuilt->table,
+							prebuilt->trx)) {
 				goto no_commit;
 			}
 
@@ -2357,21 +2372,9 @@ ha_innobase::write_row(
 			/* Note that this transaction is still active. */
 			user_thd->transaction.all.innodb_active_trans = 1;
 			/* Re-acquire the table lock on the source table. */
-			row_lock_table_for_mysql(prebuilt, table, mode);
+			row_lock_table_for_mysql(prebuilt, src_table, mode);
 			/* We will need an IX lock on the destination table. */
 		        prebuilt->sql_stat_start = TRUE;
-			break;
-		default:
-		no_commit:
-			/* Unknown situation: do nothing (no commit) */
-			/*
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB error: ALTER TABLE is holding lock"
-				" on %lu tables!\n",
-				prebuilt->trx->mysql_n_tables_locked);
-			*/
-			break;
 		}
 	}
 
