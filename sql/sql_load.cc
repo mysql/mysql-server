@@ -165,7 +165,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   else
   {
-    read_file_from_client=0;
 #ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
     ex->file_name+=dirname_length(ex->file_name);
 #endif
