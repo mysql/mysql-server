@@ -1510,7 +1510,7 @@ err:
 
 int log_loaded_block(IO_CACHE* file)
 {
-  LOAD_FILE_INFO* lf_info;
+  LOAD_FILE_INFO *lf_info;
   uint block_len ;
 
   /* file->request_pos contains position where we started last read */
@@ -1532,7 +1532,7 @@ int log_loaded_block(IO_CACHE* file)
   {
     Create_file_log_event c(lf_info->thd,lf_info->ex,lf_info->db,
 			    lf_info->table_name, *lf_info->fields,
-			    lf_info->handle_dup, buffer,
+			    lf_info->handle_dup, lf_info->ignore, buffer,
 			    block_len, lf_info->log_delayed);
     mysql_bin_log.write(&c);
     lf_info->wrote_create_file = 1;

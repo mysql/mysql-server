@@ -152,15 +152,22 @@ languages and applications need to dynamically load and use MySQL.
 
 %package Max
 Release: %{release}
-Summary: MySQL - server with Berkeley DB, RAID and UDF support
+Summary: MySQL - server with extended functionality
 Group: Applications/Databases
 Provides: mysql-Max
 Obsoletes: mysql-Max
 Requires: MySQL-server >= 4.0
 
 %description Max 
-Optional MySQL server binary that supports additional features like
-Berkeley DB, RAID and User Defined Functions (UDFs).
+Optional MySQL server binary that supports additional features like:
+
+ - Berkeley DB Storage Engine
+ - Archive Storage Engine
+ - CSV Storage Engine
+ - Example Storage Engine
+ - MyISAM RAID
+ - User Defined Functions (UDFs).
+
 To activate this binary, just install this package in addition to
 the standard MySQL package.
 
@@ -273,6 +280,9 @@ BuildMySQL "--enable-shared \
 		--with-berkeley-db \
 		--with-innodb \
 		--with-raid \
+		--with-archive \
+		--with-csv-storage-engine \
+		--with-example-storage-engine \
 		--with-embedded-server \
 		--with-server-suffix='-Max'"
 
@@ -594,6 +604,12 @@ fi
 
 - ISAM and merge storage engines were purged. As well as appropriate
   tools and manpages (isamchk and isamlog)
+
+* Thu Dec 31 2004 Lenz Grimmer <lenz@mysql.com>
+
+- enabled the "Archive" storage engine for the max binary
+- enabled the "CSV" storage engine for the max binary
+- enabled the "Example" storage engine for the max binary
 
 * Thu Aug 26 2004 Lenz Grimmer <lenz@mysql.com>
 
