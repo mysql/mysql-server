@@ -48,7 +48,7 @@ require "$pwd/server-cfg" || die "Can't read Configuration file: $!\n";
 
 $opt_server="mysql"; $opt_host="localhost"; $opt_database="test";
 $opt_dir="limits";
-$opt_user=$opt_password="";$opt_verbose="";
+$opt_user=$opt_password="";$opt_verbose=1;
 $opt_debug=$opt_help=$opt_Information=$opt_restart=$opt_force=$opt_quick=0;
 $opt_log_all_queries=$opt_fix_limit_file=$opt_batch_mode=$opt_version=0;
 $opt_db_start_cmd="";           # the db server start command
@@ -855,10 +855,6 @@ try_and_report("Automatic row id", "automatic_rowid",
    ["NOW","now","now()",0,2],           # Any value is acceptable
    ["CURDATE","curdate","curdate()",0,2],
    ["CURTIME","curtime","curtime()",0,2],
-   ["HOUR","hour","hour('12:13:14')",12,0],
-   ["ANSI HOUR","hour_time","hour(TIME '12:13:14')",12,0],
-   ["MINUTE","minute","minute('12:13:14')",13,0],
-   ["SECOND","second","second('12:13:14')",14,0],
    ["TIMESTAMPADD","timestampadd",
     "timestampadd(SQL_TSI_SECOND,1,'1997-01-01 00:00:00')",
     "1997-01-01 00:00:01",1],
@@ -943,7 +939,6 @@ try_and_report("Automatic row id", "automatic_rowid",
    ["ROOT","root","root(4)",2,0], # informix
    ["ROUND(1 arg)","round1","round(5.63)","6",0],
    ["RPAD","rpad","rpad('hi',4,'??')",'hi??',3],
-   ["SEC_TO_TIME","sec_to_time","sec_to_time(5001)","01:23:21",1],
    ["SINH","sinh","sinh(1)","1.17520119",0], # oracle hyperbolic sine of n
    ["STR","str","str(123.45,5,1)",123.5,3],
    ["STRCMP","strcmp","strcmp('abc','adc')",-1,0],
@@ -957,7 +952,6 @@ try_and_report("Automatic row id", "automatic_rowid",
    ["TAIL","tail","tail('ABCDEFG',3)","EFG",0],
    ["TANH","tanh","tanh(1)","0.462117157",0], 
       # oracle hyperbolic tangent of n
-   ["TIME_TO_SEC","time_to_sec","time_to_sec('01:23:21')","5001",0],
    ["TRANSLATE","translate","translate('abc','bc','de')",'ade',3],
    ["TRIM; Many char extension",
      "trim_many_char","trim(':!' FROM ':abc!')","abc",3],
@@ -992,21 +986,10 @@ try_and_report("Automatic row id", "automatic_rowid",
    ["FLOAT",'float',"float(6666.66,4)",6667,0],
    ["LENGTH",'length',"length(1)",2,0],
    ["INDEX",'index',"index('abcdefg','cd',1,1)",3,0],
-   ["ADDTIME",'addtime',"ADDTIME('00200212','00000300')",'00200215',0],
-   ["SUBTIME",'subtime',"SUBTIME('00200215','00000300')",'00200212',0],
-   ["TIMEDIFF",'timediff',"TIMEDIFF('00200215','00200212')",'00000003',0],
-   ["MAKETIME",'maketime',"MAKETIME(20,02,12)",'00200212',0],
-   ["HOUR with sapdb internal time as arg",
-       'hour_sapdb',"HOUR('00200212')",20,0],
-   ["MINUTE with sapdb internal time as arg",
-       'minute_sapdb',"MINUTE('00200212')",2,0],
-   ["SECOND with sapdb internal time as arg",
-       'second_sapdb',"SECOND('00200212')",12,0],
    ["MICROSECOND",'microsecond',
       "MICROSECOND('19630816200212111111')",'111111',0],
    ["TIMESTAMP",'timestamp',
       "timestamp('19630816','00200212')",'19630816200212000000',0],
-   ["TIME",'time',"time('00200212')",'00200212',0],
    ["VALUE",'value',"value(NULL,'WALRUS')",'WALRUS',0],
    ["DECODE",'decode',"DECODE('S-103','T72',1,'S-103',2,'Leopard',3)",2,0],
    ["NUM",'num',"NUM('2123')",2123,0],
@@ -1497,6 +1480,137 @@ if ($limits{'type_sql_date'} eq 'yes')
     }
     
     safe_query("drop table crash_me_d $drop_attr");    
+    
+}
+
+if ($limits{'type_sql_time'} eq 'yes')
+{  # 
+   # Checking the format of date in result. 
+   
+    safe_query("drop table crash_me_t $drop_attr");
+    assert("create table crash_me_t (a time)");
+    # find the example of time
+    my $timeexample;
+    if ($limits{'func_sql_current_time'} eq 'yes') {
+     $timeexample='CURRENT_TIME';
+    } 
+    elsif ($limits{'func_odbc_curtime'} eq 'yes') {
+     $timeexample='curtime()';
+    } 
+    elsif ($limits{'func_sql_localtime'} eq 'yes') {
+	$timeexample='localtime';
+    }
+    elsif ($limits{'func_odbc_now'} eq 'yes') {
+	$timeexample='now()';
+    } else {
+	#try to guess 
+	$timeexample="'02:55:12'";
+    } ;
+    
+    my $key = 'time_format_inresult';
+    my $prompt = "Time format in result";
+    if (! safe_query_l('time_format_inresult',
+       "insert into crash_me_t values($timeexample) "))
+    { 
+	die "Cannot insert time ($timeexample):".$last_error; 
+    };
+    my $sth= $dbh->prepare("select a from crash_me_t");
+    add_log('time_format_inresult',"< select a from crash_me_t");
+    $sth->execute;
+    $_= $sth->fetchrow_array;
+    add_log('time_format_inresult',"> $_");
+    safe_query_l($key,"delete from crash_me_t");   
+    if (/\d{2}:\d{2}:\d{2}/){ save_config_data($key,"iso",$prompt);} 
+    elsif (/\d{2}\.\d{2}\.\d{2}/){ save_config_data($key,"euro",$prompt);}
+    elsif (/\d{2}:\d{2}\s+(AM|PM)/i){ save_config_data($key,"usa",$prompt);}
+    elsif (/\d{8}$/){ save_config_data($key,"HHHHMMSS",$prompt);}
+    elsif (/\d{4}$/){ save_config_data($key,"HHMMSS",$prompt);}
+    else  { save_config_data($key,"unknown",$prompt);};
+    $sth->finish;
+
+    check_and_report("Supports HH:MM:SS (ISO) time format","time_format_ISO",
+		     [ "insert into crash_me_t(a)  values ('20:08:16')"],
+		     "select a from crash_me_t",
+		     ["delete from crash_me_t"],
+		     make_time_r(20,8,16),1);
+
+    check_and_report("Supports HH.MM.SS (EUR) time format","time_format_EUR",
+		     [ "insert into crash_me_t(a) values ('20.08.16')"],
+		     "select a from crash_me_t",
+		     ["delete from crash_me_t"],
+		     make_time_r(20,8,16),1);
+
+    check_and_report("Supports HHHHmmSS time format",
+	 "time_format_HHHHMMSS",
+	 [ "insert into crash_me_t(a) values ('00200816')"],
+	 "select a from crash_me_t",
+	 ["delete from crash_me_t"],
+	 make_time_r(20,8,16),1);
+
+    check_and_report("Supports HHmmSS time format",
+	 "time_format_HHHHMMSS",
+	 [ "insert into crash_me_t(a) values ('200816')"],
+	 "select a from crash_me_t",
+	 ["delete from crash_me_t"],
+	 make_time_r(20,8,16),1);
+	 
+    check_and_report("Supports HH:MM:SS (AM|PM) time format",
+	 "time_format_USA",
+	 [ "insert into crash_me_t(a) values ('08:08:16 PM')"],
+	 "select a from crash_me_t",
+	 ["delete from crash_me_t"],
+	 make_time_r(20,8,16),1);	 
+    
+    my $insert_query ='insert into crash_me_t values('.
+        make_time(20,8,16).')';
+    safe_query($insert_query);
+    
+    foreach $fn ( (
+            ["HOUR","hour","hour('".make_time(12,13,14)."')",12,0],
+            ["ANSI HOUR","hour_time","hour(TIME '".make_time(12,13,14)."')",12,0],
+            ["MINUTE","minute","minute('".make_time(12,13,14)."')",13,0],
+            ["SECOND","second","second('".make_time(12,13,14)."')",14,0]
+
+    ))
+    {
+	$prompt='Function '.$fn->[0];
+	$key='func_odbc_'.$fn->[1];
+	add_log($key,"< ".$insert_query);
+	check_and_report($prompt,$key,
+			 [],"select ".$fn->[2]." $end_query",[],
+			 $fn->[3],$fn->[4]
+			 );
+	
+    };
+#    safe_query(['delete from crash_me_t', 
+#		'insert into crash_me_t values('.make_time(20,8,16).')']);
+    foreach $fn ((
+         ["TIME_TO_SEC","time_to_sec","time_to_sec('".
+	          make_time(1,23,21)."')","5001",0],
+         ["SEC_TO_TIME","sec_to_time","sec_to_time(5001)",
+	      make_time_r(01,23,21),1],
+         ["ADDTIME",'addtime',"ADDTIME('".make_time(20,2,12).
+	    "','".make_time(0,0,3)."')",make_time_r(20,2,15),0],
+         ["SUBTIME",'subtime',"SUBTIME('".make_time(20,2,15)
+	          ."','".make_time(0,0,3)."')",make_time_r(20,2,12),0],
+         ["TIMEDIFF",'timediff',"TIMEDIFF('".make_time(20,2,15)."','".
+	 make_time(20,2,12)."')",make_time_r(0,0,3),0],
+         ["MAKETIME",'maketime',"MAKETIME(20,02,12)",make_time_r(20,2,12),0],
+         ["TIME",'time',"time('".make_time(20,2,12)."')",make_time_r(20,2,12),0]
+    ))
+    {
+	$prompt='Function '.$fn->[0];
+	$key='func_extra_'.$fn->[1];
+	my $qry="select ".$fn->[2]." $end_query";
+	my $result=$fn->[3];
+	check_and_report($prompt,$key,
+			 [],$qry,[],
+			 $result,$fn->[4]
+			 );
+	
+    }
+    
+    safe_query("drop table crash_me_t $drop_attr");    
     
 }
 
