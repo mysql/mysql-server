@@ -287,6 +287,9 @@ enum ha_base_keytype {
 #define HA_ERR_ROW_IS_REFERENCED 152     /* Cannot delete a parent row */
 #define HA_ERR_NO_SAVEPOINT	 153     /* No savepoint with that name */
 #define HA_ERR_NON_UNIQUE_BLOCK_SIZE 154 /* Non unique key block size */
+#define HA_ERR_OLD_METADATA      155  /* The frm file on disk is old */
+#define HA_ERR_TABLE_EXIST       156  /* The table existed in storage engine */
+#define HA_ERR_NO_CONNECTION     157  /* Could not connect to storage engine */
 
 	/* Other constants */
 

@@ -59,6 +59,9 @@
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
 #endif
+#ifdef HAVE_NDBCLUSTER_DB
+#include "ha_ndbcluster.h"
+#endif
 
 static HASH system_variable_hash;
 const char *bool_type_names[]= { "OFF", "ON", NullS };
@@ -638,6 +641,7 @@ struct show_var_st init_vars[]= {
   {"have_crypt",	      (char*) &have_crypt,		    SHOW_HAVE},
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",		      (char*) &have_isam,		    SHOW_HAVE},
+  {"have_ndbcluster",         (char*) &have_ndbcluster,             SHOW_HAVE},
   {"have_openssl",	      (char*) &have_openssl,		    SHOW_HAVE},
   {"have_query_cache",        (char*) &have_query_cache,            SHOW_HAVE},
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
