@@ -1049,13 +1049,13 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
 
 bool sys_var_rand_seed1::update(THD *thd, set_var *var)
 {
-  thd->rand.seed1=var->value->val_int();
+  thd->rand.seed1= (ulong) var->value->val_int();
   return 0;
 }
 
 bool sys_var_rand_seed2::update(THD *thd, set_var *var)
 {
-  thd->rand.seed2=var->value->val_int();
+  thd->rand.seed2= (ulong) var->value->val_int();
   return 0;
 }
 

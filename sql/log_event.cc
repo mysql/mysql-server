@@ -1969,8 +1969,8 @@ int Intvar_log_event::exec_event(struct st_relay_log_info* rli)
 
 int Rand_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  thd->rand.seed1 = seed1;
-  thd->rand.seed2 = seed2;
+  thd->rand.seed1 = (ulong) seed1;
+  thd->rand.seed2 = (ulong) seed2;
   rli->inc_pending(get_event_len());
   return 0;
 }

@@ -192,7 +192,7 @@ longlong Item_func_week::val_int()
   TIME ltime;
   if (get_arg0_date(&ltime,0))
     return 0;
-  week_format= args[1]->val_int();
+  week_format= (uint) args[1]->val_int();
   return (longlong) calc_week(&ltime, 
 			      (week_format & 2) != 0,
 			      (week_format & 1) == 0,
