@@ -520,14 +520,14 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
   else
     trans= &thd->transaction.stmt;
 
-#ifndef DBUG_OFF
   handlerton **ht=trans->ht;
   while (*ht)
   {
-    DBUG_ASSERT(*ht != ht_arg);
+    if (*ht == ht_arg)
+      DBUG_VOID_RETURN;  /* already registered, return */
     ht++;
   }
-#endif
+
   trans->ht[trans->nht++]=ht_arg;
   trans->no_2pc|=(ht_arg->prepare==0);
   if (thd->transaction.xid.is_null())
