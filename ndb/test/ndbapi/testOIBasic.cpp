@@ -624,6 +624,11 @@ struct Con {
   Con() :
     m_ndb(0), m_dic(0), m_tx(0), m_op(0),
     m_scanop(0), m_indexscanop(0), m_resultset(0), m_scanmode(ScanNo), m_errtype(ErrNone) {}
+
+  ~Con(){
+    if(m_tx) closeTransaction();
+  }
+
   int connect();
   void disconnect();
   int startTransaction();
@@ -674,7 +679,8 @@ Con::disconnect()
 int
 Con::startTransaction()
 {
-  assert(m_ndb != 0 && m_tx == 0);
+  assert(m_ndb != 0);
+  if(m_tx) closeTransaction();
   CHKCON((m_tx = m_ndb->startTransaction()) != 0, *this);
   return 0;
 }
@@ -824,7 +830,7 @@ Con::printerror(NdbOut& out)
     if (m_tx) {
       if ((code = m_tx->getNdbError().code) != 0) {
         LL0(++any << " con: error " << m_tx->getNdbError());
-        if (code == 266 || code == 274 || code == 296 || code == 297)
+        if (code == 266 || code == 274 || code == 296 || code == 297 || code == 499)
           m_errtype = ErrDeadlock;
       }
       if (m_op && m_op->getNdbError().code != 0) {
@@ -2295,7 +2301,7 @@ scanupdatetable(Par par)
   // updating trans
   Con con2;
   con2.m_ndb = con.m_ndb;
-  CHK(con2.startBuddyTransaction(con) == 0);
+  CHK(con2.startTransaction(con) == 0);
   while (1) {
     int ret;
     CHK((ret = con.nextScanResult()) == 0 || ret == 1);
@@ -2341,7 +2347,7 @@ scanupdateindex(Par par, const ITab& itab, const BSet& bset)
   // updating trans
   Con con2;
   con2.m_ndb = con.m_ndb;
-  CHK(con2.startBuddyTransaction(con) == 0);
+  CHK(con2.startTransaction(con) == 0);
   while (1) {
     int ret;
     CHK((ret = con.nextScanResult()) == 0 || ret == 1);
