@@ -3179,7 +3179,8 @@ enum options {
   OPT_BDB_CACHE_SIZE,
   OPT_BDB_LOG_BUFFER_SIZE,
   OPT_BDB_MAX_LOCK,
-  OPT_ERROR_LOG_FILE
+  OPT_ERROR_LOG_FILE,
+  OPT_DEFAULT_WEEK_FORMAT
 };
 
 
@@ -3988,6 +3989,11 @@ replicating a LOAD DATA INFILE command",
    (gptr*) &global_system_variables.net_wait_timeout,
    (gptr*) &max_system_variables.net_wait_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
+  { "default-week-format", OPT_DEFAULT_WEEK_FORMAT,
+    "The default week format used by WEEK() functions.",
+    (gptr*) &global_system_variables.default_week_format, 
+    (gptr*) &max_system_variables.default_week_format, 
+    0, GET_ULONG, REQUIRED_ARG, 0, 0, 3L, 0, 1, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
