@@ -183,7 +183,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   my_errno=errno;
   if (dirp)
     (void) closedir(dirp);
-  if (MyFlags & (MY_FAE+MY_WME))
+  if (MyFlags & (MY_FAE | MY_WME))
     my_error(EE_DIR,MYF(ME_BELL+ME_WAITTANG),path,my_errno);
   DBUG_RETURN((MY_DIR *) NULL);
 } /* my_dir */

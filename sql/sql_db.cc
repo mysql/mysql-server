@@ -31,7 +31,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
 
 /* db-name is already validated when we come here */
 
-int mysql_create_db(THD *thd, char *db, uint create_options)
+int mysql_create_db(THD *thd, char *db, uint create_options, bool silent)
 {
   char	 path[FN_REFLEN+16];
   MY_DIR *dirp;
@@ -56,9 +56,8 @@ int mysql_create_db(THD *thd, char *db, uint create_options)
     my_dirend(dirp);
     if (!(create_options & HA_LEX_CREATE_IF_NOT_EXISTS))
     {
-      if (thd)
-        net_printf(&thd->net,ER_DB_CREATE_EXISTS,db);
-      error = 1;
+      my_error(ER_DB_CREATE_EXISTS,MYF(0),db);
+      error = -1;
       goto exit;
     }
     result = 0;
@@ -68,14 +67,13 @@ int mysql_create_db(THD *thd, char *db, uint create_options)
     strend(path)[-1]=0;				// Remove last '/' from path
     if (my_mkdir(path,0777,MYF(0)) < 0)
     {
-      if (thd)
-        net_printf(&thd->net,ER_CANT_CREATE_DB,db,my_errno);
-      error = 1;
+      my_error(ER_CANT_CREATE_DB,MYF(0),db,my_errno);
+      error = -1;
       goto exit;
     }
   }
 
-  if (thd)
+  if (!silent)
   {
     if (!thd->query)
     {
@@ -124,7 +122,7 @@ static TYPELIB known_extentions=
 */
 
 
-int mysql_rm_db(THD *thd,char *db,bool if_exists)
+int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 {
   long deleted=0;
   int error = 0;
@@ -144,16 +142,15 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists)
   (void) sprintf(path,"%s/%s",mysql_data_home,db);
   unpack_dirname(path,path);			// Convert if not unix
   /* See if the directory exists */
-  if (!(dirp = my_dir(path,MYF(MY_WME | MY_DONT_SORT))))
+  if (!(dirp = my_dir(path,MYF(MY_DONT_SORT))))
   {
-    if (thd)
+    if (!if_exists)
     {
-      if (!if_exists)
-	net_printf(&thd->net,ER_DB_DROP_EXISTS,db);
-      else 
-	send_ok(&thd->net,0);
+      error= -1;
+      my_error(ER_DB_DROP_EXISTS,MYF(0),db);
     }
-    error = !if_exists;
+    else if (!silent)
+      send_ok(&thd->net,0);
     goto exit;
   }
   remove_db_from_cache(db);
@@ -161,24 +158,27 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists)
   error = -1;
   if ((deleted=mysql_rm_known_files(thd, dirp, db, path,0)) >= 0 && thd)
   {
-    if (!thd->query)
+    if (!silent)
     {
-      thd->query = path;
-      thd->query_length = (uint) (strxmov(path,"drop database ", db, NullS)-
-				  path);
+      if (!thd->query)
+      {
+	thd->query = path;
+	thd->query_length = (uint) (strxmov(path,"drop database ", db, NullS)-
+				    path);
+      }
+      mysql_update_log.write(thd, thd->query, thd->query_length);
+      if (mysql_bin_log.is_open())
+      {
+	Query_log_event qinfo(thd, thd->query);
+	mysql_bin_log.write(&qinfo);
+      }
+      if (thd->query == path)
+      {
+	thd->query = 0; // just in case
+	thd->query_length = 0;
+      }
+      send_ok(&thd->net,(ulong) deleted);
     }
-    mysql_update_log.write(thd, thd->query, thd->query_length);
-    if (mysql_bin_log.is_open())
-    {
-      Query_log_event qinfo(thd, thd->query);
-      mysql_bin_log.write(&qinfo);
-    }
-    if (thd->query == path)
-    {
-      thd->query = 0; // just in case
-      thd->query_length = 0;
-    }
-    send_ok(&thd->net,(ulong) deleted);
     error = 0;
   }
 
