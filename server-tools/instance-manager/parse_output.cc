@@ -36,6 +36,10 @@
   DESCRIPTION
 
     Parse output of the "command". Find the "word" and return the next one
+
+  RETURN
+    0 - ok
+    1 - error occured
 */
 
 int parse_output_and_get_value(const char *command, const char *word,
@@ -49,7 +53,8 @@ int parse_output_and_get_value(const char *command, const char *word,
 
   wordlen= strlen(word);
 
-  output= popen(command, "r");
+  if ((output= popen(command, "r")) == NULL)
+    goto err;
 
   /*
     We want fully buffered stream. We also want system to
@@ -69,15 +74,18 @@ int parse_output_and_get_value(const char *command, const char *word,
       these are '/', '-' and '.' in the path expressions and filenames)
     */
     get_word((const char **) &linep, &lineword_len, NONSPACE);
-    if (!strncmp(word, linep, wordlen) && *result != '\0')
+    if (!strncmp(word, linep, wordlen))
     {
       /*
         If we have found the word, return the next one. This is usually
         an option value.
       */
+      linep+= lineword_len;                     /* swallow the previous one */
       get_word((const char **) &linep, &lineword_len, NONSPACE);
-      DBUG_ASSERT(result_len > lineword_len);
+      if (result_len <= lineword_len)
+        goto err;
       strncpy(result, linep, lineword_len);
+      result[lineword_len]= '\0';
       goto pclose;
     }
   }
@@ -87,4 +95,7 @@ pclose:
     return 1;
 
   return 0;
+
+err:
+  return 1;
 }
