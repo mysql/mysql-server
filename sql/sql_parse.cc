@@ -1521,11 +1521,6 @@ mysql_execute_command(void)
       if (error)
 	goto error;
     }
-    if (strlen(tables->real_name) > NAME_LEN)
-    {
-      net_printf(&thd->net,ER_WRONG_TABLE_NAME,tables->real_name);
-      break;
-    }
     LOCK_ACTIVE_MI;
     // fetch_master_table will send the error to the client on failure
     if (!fetch_master_table(thd, tables->db, tables->real_name,
