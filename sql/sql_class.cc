@@ -222,7 +222,7 @@ THD::THD()
 
   init();
   /* Initialize sub structures */
-  init_alloc_root(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
+  init_sql_alloc(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, &my_charset_bin, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
@@ -258,7 +258,7 @@ THD::THD()
     transaction.trans_log.end_of_file= max_binlog_cache_size;
   }
 #endif
-  init_alloc_root(&transaction.mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+  init_sql_alloc(&transaction.mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
   {
     ulong tmp=sql_rnd_with_mutex();
     randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
@@ -1421,7 +1421,7 @@ Item_arena::Item_arena(bool init_mem_root)
   state(CONVENTIONAL_EXECUTION)
 {
   if (init_mem_root)
-    init_alloc_root(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+    init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
 }
 
 
