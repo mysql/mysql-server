@@ -135,11 +135,14 @@ class ha_ndbcluster: public handler
  private:
   int alter_table_name(const char *from, const char *to);
   int drop_table();
-  int create_index(const char *name, KEY *key_info);
+  int create_index(const char *name, KEY *key_info, bool unique);
+  int create_ordered_index(const char *name, KEY *key_info);
+  int create_unique_index(const char *name, KEY *key_info);
   int initialize_autoincrement(const void* table);
   int get_metadata(const char* path);
   void release_metadata();
   const char* get_index_name(uint idx_no) const;
+  const char* get_unique_index_name(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
   
@@ -193,6 +196,7 @@ class ha_ndbcluster: public handler
   THR_LOCK_DATA m_lock;
   NDB_SHARE *m_share;
   NDB_INDEX_TYPE  m_indextype[MAX_KEY];
+  const char*  m_unique_index_name[MAX_KEY];
   NdbRecAttr *m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   bool m_use_write;
 };
