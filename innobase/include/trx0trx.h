@@ -315,7 +315,7 @@ struct trx_struct{
 	ulint		magic_n;
 	/* All the next fields are protected by the kernel mutex, except the
 	undo logs which are protected by undo_mutex */
-	char*		op_info;	/* English text describing the
+	const char*	op_info;	/* English text describing the
 					current operation, or an empty
 					string */
 	ulint		type;		/* TRX_USER, TRX_PURGE */
@@ -358,7 +358,7 @@ struct trx_struct{
 	char**		mysql_query_str;/* pointer to the field in mysqld_thd
 					which contains the pointer to the
 					current SQL query string */
-	char*		mysql_log_file_name;
+	const char*	mysql_log_file_name;
 					/* if MySQL binlog is used, this field
 					contains a pointer to the latest file
 					name; this is NULL if binlog is not
@@ -366,7 +366,7 @@ struct trx_struct{
 	ib_longlong	mysql_log_offset;/* if MySQL binlog is used, this field
 					contains the end offset of the binlog
 					entry */
-	char*		mysql_master_log_file_name;
+	const char*	mysql_master_log_file_name;
 					/* if the database server is a MySQL
 					replication slave, we have here the
 					master binlog name up to which
