@@ -44847,7 +44847,9 @@ table for a different site you are working on, but the table is just a
 bit different (that is - fields in different order, etc.).
 By Steve Shreeve.
 @item @uref{http://www.mysql.com/Downloads/Contrib/oracledump, oracledump}
-Perl program to convert Oracle databases to @strong{MySQL}. By Johan Andersson.
+Perl program to convert Oracle databases to @strong{MySQL}. Has same
+output format as mysqldump. By Johan Andersson.
+
 @item @uref{http://www.mysql.com/Downloads/Contrib/excel2mysql, excel2mysql}
 Perl program to import Excel spreadsheets into a @strong{MySQL} database. By Stephen Hurd @email{shurd@@sk.sympatico.ca}
 
