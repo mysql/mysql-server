@@ -8289,7 +8289,7 @@ Dblqh::readPrimaryKeys(ScanRecord *scanP, TcConnectionrec *tcConP, Uint32 *dst)
     tableId = tFragPtr.p->tabRef;
   }
 
-  int ret = c_tup->accReadPk(tableId, fragId, fragPageId, pageIndex, dst);
+  int ret = c_tup->accReadPk(tableId, fragId, fragPageId, pageIndex, dst, false);
   if(0)
     ndbout_c("readPrimaryKeys(table: %d fragment: %d [ %d %d ] -> %d",
 	     tableId, fragId, fragPageId, pageIndex, ret);

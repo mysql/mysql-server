@@ -78,14 +78,19 @@ row_sel_sec_rec_is_for_clust_rec(
         ulint           n;
         ulint           i;
 	dtype_t*	cur_type;
-	mem_heap_t*	heap;
-	ulint*		clust_offs;
-	ulint*		sec_offs;
+	mem_heap_t*	heap		= NULL;
+	ulint		clust_offsets_[100]
+					= { 100, };
+	ulint		sec_offsets_[10]
+					= { 10, };
+	ulint*		clust_offs	= clust_offsets_;
+	ulint*		sec_offs	= sec_offsets_;
+	ibool		is_equal	= TRUE;
 
-	heap = mem_heap_create(100);
-	clust_offs = rec_get_offsets(clust_rec, clust_index,
-						 ULINT_UNDEFINED, heap);
-	sec_offs = rec_get_offsets(sec_rec, sec_index, ULINT_UNDEFINED, heap);
+	clust_offs = rec_get_offsets(clust_rec, clust_index, clust_offs,
+						ULINT_UNDEFINED, &heap);
+	sec_offs = rec_get_offsets(sec_rec, sec_index, sec_offs,
+						ULINT_UNDEFINED, &heap);
 
         n = dict_index_get_n_ordering_defined_by_user(sec_index);
 
@@ -113,13 +118,16 @@ row_sel_sec_rec_is_for_clust_rec(
                 if (0 != cmp_data_data(dict_col_get_type(col),
                                         clust_field, clust_len,
                                         sec_field, sec_len)) {
-			mem_heap_free(heap);
-                        return(FALSE);
+			is_equal = FALSE;
+			goto func_exit;
                 }
         }
 
-	mem_heap_free(heap);
-        return(TRUE);
+func_exit:
+	if (heap) {
+		mem_heap_free(heap);
+	}
+	return(is_equal);
 }
 
 /*************************************************************************
@@ -612,13 +620,13 @@ row_sel_get_clust_rec(
 	rec_t*		clust_rec;
 	rec_t*		old_vers;
 	ulint		err;
-	mem_heap_t*	heap;
-	ulint*		offsets;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
 
-	heap = mem_heap_create(100);
 	offsets = rec_get_offsets(rec,
 				btr_pcur_get_btr_cur(&plan->pcur)->index,
-				ULINT_UNDEFINED, heap);
+				offsets, ULINT_UNDEFINED, &heap);
 	
 	row_build_row_ref_fast(plan->clust_ref, plan->clust_map, rec, offsets);
 
@@ -654,8 +662,8 @@ row_sel_get_clust_rec(
 		goto func_exit;
 	}
 
-	offsets = rec_reget_offsets(clust_rec, index,
-					offsets, ULINT_UNDEFINED, heap);
+	offsets = rec_get_offsets(clust_rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
 
 	if (!node->read_view) {
 		/* Try to place a lock on the index record */
@@ -677,8 +685,7 @@ row_sel_get_clust_rec(
 
 		if (err != DB_SUCCESS) {
 
-			mem_heap_free(heap);
-			return(err);
+			goto err_exit;
 		}
 	} else {
 		/* This is a non-locking consistent read: if necessary, fetch
@@ -693,8 +700,7 @@ row_sel_get_clust_rec(
 					clust_rec, &old_vers, mtr);
 			if (err != DB_SUCCESS) {
 
-				mem_heap_free(heap);
-				return(err);
+				goto err_exit;
 			}
 
 			clust_rec = old_vers;
@@ -731,9 +737,12 @@ row_sel_get_clust_rec(
 					UT_LIST_GET_FIRST(plan->columns));
 func_exit:
 	*out_rec = clust_rec;
-
-	mem_heap_free(heap);
-	return(DB_SUCCESS);
+	err = DB_SUCCESS;
+err_exit:
+	if (heap) {
+		mem_heap_free(heap);
+	}
+	return(err);
 }
 
 /*************************************************************************
@@ -975,8 +984,10 @@ row_sel_try_search_shortcut(
 {
 	dict_index_t*	index;
 	rec_t*		rec;
-	mem_heap_t*	heap;
-	ulint*		offsets;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
+	ulint		ret;
 
 	index = plan->index;
 
@@ -1010,43 +1021,46 @@ row_sel_try_search_shortcut(
 	/* This is a non-locking consistent read: if necessary, fetch
 	a previous version of the record */
 			
-	heap = mem_heap_create(100);
-	offsets = rec_get_offsets(rec, index, ULINT_UNDEFINED, heap);
+	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
 	if (index->type & DICT_CLUSTERED) {
 		if (!lock_clust_rec_cons_read_sees(rec, index, offsets,
 							node->read_view)) {
-			mem_heap_free(heap);
-			return(SEL_RETRY);
+			ret = SEL_RETRY;
+			goto func_exit;
 		}
 	} else if (!lock_sec_rec_cons_read_sees(rec, index, node->read_view)) {
 
-		mem_heap_free(heap);
-		return(SEL_RETRY);
+		ret = SEL_RETRY;
+		goto func_exit;
 	}
 
 	/* Test deleted flag. Fetch the columns needed in test conditions. */
 
 	row_sel_fetch_columns(index, rec, offsets,
 				UT_LIST_GET_FIRST(plan->columns));
-	mem_heap_free(heap);
 
 	if (rec_get_deleted_flag(rec, plan->table->comp)) {
 
-		return(SEL_EXHAUSTED);
+		ret = SEL_EXHAUSTED;
+		goto func_exit;
 	}
 
 	/* Test the rest of search conditions */
 	
 	if (!row_sel_test_other_conds(plan)) {
 
-		return(SEL_EXHAUSTED);
+		ret = SEL_EXHAUSTED;
+		goto func_exit;
 	}
 
 	ut_ad(plan->pcur.latch_mode == node->latch_mode);
 
 	plan->n_rows_fetched++;
-
+func_exit:
+	if (heap) {
+		mem_heap_free(heap);
+	}
 	return(SEL_FOUND);
 }
 
@@ -1095,8 +1109,9 @@ row_sel(
 					to the next non-clustered record */
 	ulint		found_flag;
 	ulint		err;
-	mem_heap_t*	heap				= mem_heap_create(100);
-	ulint*		offsets				= NULL;
+	mem_heap_t*	heap				= NULL;
+	ulint		offsets_[100]			= { 100, };
+	ulint*		offsets				= offsets_;
 
 	ut_ad(thr->run_node == node);
 
@@ -1253,8 +1268,8 @@ rec_loop:
 
 			rec_t*	next_rec = page_rec_get_next(rec);
 			ulint	lock_type;
-			offsets = rec_reget_offsets(next_rec, index,
-					offsets, ULINT_UNDEFINED, heap);
+			offsets = rec_get_offsets(next_rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
 
 			if (srv_locks_unsafe_for_binlog) {
 				lock_type = LOCK_REC_NOT_GAP;
@@ -1295,8 +1310,8 @@ rec_loop:
 		not used. */
 
 		ulint	lock_type;
-		offsets = rec_reget_offsets(rec, index,
-					offsets, ULINT_UNDEFINED, heap);
+		offsets = rec_get_offsets(rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
 
 		if (srv_locks_unsafe_for_binlog) {
 			lock_type = LOCK_REC_NOT_GAP;
@@ -1369,8 +1384,7 @@ rec_loop:
 	/* PHASE 3: Get previous version in a consistent read */
 
 	cons_read_requires_clust_rec = FALSE;
-	offsets = rec_reget_offsets(rec, index,
-					offsets, ULINT_UNDEFINED, heap);
+	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
 	if (consistent_read) {
 		/* This is a non-locking consistent read: if necessary, fetch
@@ -1403,8 +1417,8 @@ rec_loop:
 				}
 
 				rec = old_vers;
-				offsets = rec_reget_offsets(rec, index,
-					offsets, ULINT_UNDEFINED, heap);
+				offsets = rec_get_offsets(rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
 			}
 		} else if (!lock_sec_rec_cons_read_sees(rec, index,
 							node->read_view)) {
@@ -1635,8 +1649,8 @@ next_table_no_mtr:
 			rw_lock_s_unlock(&btr_search_latch);
 		}
 
-		mem_heap_free(heap);
-		return(DB_SUCCESS);
+		err = DB_SUCCESS;
+		goto func_exit;
 	}
 
 	node->fetch_table++;
@@ -1669,7 +1683,7 @@ table_exhausted:
 
 table_exhausted_no_mtr:
 	if (node->fetch_table == 0) {
-		mem_heap_free(heap);
+		err = DB_SUCCESS;
 
 		if (node->is_aggregate && !node->aggregate_already_fetched) {
 
@@ -1683,7 +1697,7 @@ table_exhausted_no_mtr:
 				rw_lock_s_unlock(&btr_search_latch);
 			}
 		
-			return(DB_SUCCESS);
+			goto func_exit;
 		}
 
 		node->state = SEL_NODE_NO_MORE_ROWS;
@@ -1694,7 +1708,7 @@ table_exhausted_no_mtr:
 			rw_lock_s_unlock(&btr_search_latch);
 		}
 		
-		return(DB_SUCCESS);
+		goto func_exit;
 	}
 
 	node->fetch_table--;
@@ -1718,8 +1732,8 @@ stop_for_a_while:
 	mtr_commit(&mtr);
 		
 	ut_ad(sync_thread_levels_empty_gen(TRUE));
-	mem_heap_free(heap);
-	return(DB_SUCCESS);
+	err = DB_SUCCESS;
+	goto func_exit;
 
 commit_mtr_for_a_while:
 	/* Stores the cursor position and commits &mtr; this is used if
@@ -1754,7 +1768,10 @@ lock_wait_or_error:
 		
 	ut_ad(sync_thread_levels_empty_gen(TRUE));
 
-	mem_heap_free(heap);
+func_exit:
+	if (heap) {
+		mem_heap_free(heap);
+	}
 	return(err);
 }
 
@@ -2197,7 +2214,7 @@ row_sel_store_row_id_to_prebuilt(
 		fprintf(stderr, "\n"
 "InnoDB: Field number %lu, record:\n",
 			(ulong) dict_index_get_sys_col_pos(index, DATA_ROW_ID));
-		rec_print(stderr, index_rec, offsets);
+		rec_print_new(stderr, index_rec, offsets);
 		putc('\n', stderr);
 		ut_error;
 	}
@@ -2496,8 +2513,9 @@ row_sel_get_clust_rec_for_mysql(
 	rec_t*		old_vers;
 	ulint		err;
 	trx_t*		trx;
-	mem_heap_t*	heap		= mem_heap_create(100);
-	ulint*		offsets		= NULL;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
 
 	*out_rec = NULL;
 	trx = thr_get_trx(thr);
@@ -2537,14 +2555,10 @@ row_sel_get_clust_rec_for_mysql(
 			dict_index_name_print(stderr, trx, sec_index);
 			fputs("\n"
 				"InnoDB: sec index record ", stderr);
-			offsets = rec_get_offsets(rec, sec_index,
-							ULINT_UNDEFINED, heap);
-			rec_print(stderr, rec, offsets);
+			rec_print(stderr, rec, sec_index);
 			fputs("\n"
 				"InnoDB: clust index record ", stderr);
-			offsets = rec_reget_offsets(clust_rec, clust_index,
-					offsets, ULINT_UNDEFINED, heap);
-			rec_print(stderr, clust_rec, offsets);
+			rec_print(stderr, clust_rec, clust_index);
 			putc('\n', stderr);
 			trx_print(stderr, trx);
 
@@ -2557,8 +2571,8 @@ row_sel_get_clust_rec_for_mysql(
 		goto func_exit;
 	}
 
-	offsets = rec_get_offsets(clust_rec, clust_index,
-					ULINT_UNDEFINED, heap);
+	offsets = rec_get_offsets(clust_rec, clust_index, offsets,
+					ULINT_UNDEFINED, &heap);
 
 	if (prebuilt->select_lock_type != LOCK_NONE) {
 		/* Try to place a lock on the index record; we are searching
@@ -2571,8 +2585,7 @@ row_sel_get_clust_rec_for_mysql(
 					LOCK_REC_NOT_GAP, thr);
 		if (err != DB_SUCCESS) {
 
-			mem_heap_free(heap);
-			return(err);
+			goto err_exit;
 		}
 	} else {
 		/* This is a non-locking consistent read: if necessary, fetch
@@ -2594,8 +2607,7 @@ row_sel_get_clust_rec_for_mysql(
 						
 			if (err != DB_SUCCESS) {
 
-				mem_heap_free(heap);
-				return(err);
+				goto err_exit;
 			}
 
 			clust_rec = old_vers;
@@ -2637,8 +2649,12 @@ func_exit:
 		btr_pcur_store_position(prebuilt->clust_pcur, mtr);
 	}
 
-	mem_heap_free(heap);
-	return(DB_SUCCESS);
+	err = DB_SUCCESS;
+err_exit:
+	if (heap) {
+		mem_heap_free(heap);
+	}
+	return(err);
 }
 
 /************************************************************************
@@ -2809,8 +2825,8 @@ row_sel_try_search_shortcut_for_mysql(
 				/* out: SEL_FOUND, SEL_EXHAUSTED, SEL_RETRY */
 	rec_t**		out_rec,/* out: record if found */
 	row_prebuilt_t*	prebuilt,/* in: prebuilt struct */
-	ulint**		offsets,/* in/out: for rec_reget_offsets(*out_rec) */
-	mem_heap_t*	heap,	/* in: heap for rec_reget_offsets() */
+	ulint**		offsets,/* in/out: for rec_get_offsets(*out_rec) */
+	mem_heap_t**	heap,	/* in/out: heap for rec_get_offsets() */
 	mtr_t*		mtr)	/* in: started mtr */
 {
 	dict_index_t*	index		= prebuilt->index;
@@ -2849,8 +2865,8 @@ row_sel_try_search_shortcut_for_mysql(
 	/* This is a non-locking consistent read: if necessary, fetch
 	a previous version of the record */
 
-	*offsets = rec_reget_offsets(rec, index,
-					*offsets, ULINT_UNDEFINED, heap);
+	*offsets = rec_get_offsets(rec, index, *offsets,
+					ULINT_UNDEFINED, heap);
 
 	if (!lock_clust_rec_cons_read_sees(rec, index,
 				*offsets, trx->read_view)) {
@@ -2915,7 +2931,6 @@ row_search_for_mysql(
 	ibool		moved;
 	ibool		cons_read_requires_clust_rec;
 	ibool		was_lock_wait;
-	ulint		ret;
 	ulint		shortcut;
 	ibool		unique_search			= FALSE;
 	ibool		unique_search_from_clust_index	= FALSE;
@@ -2931,8 +2946,9 @@ row_search_for_mysql(
 	ulint		cnt				= 0;
 	ulint		next_offs;
 	mtr_t		mtr;
-	mem_heap_t*	heap;
-	ulint*		offsets				= NULL;
+	mem_heap_t*	heap				= NULL;
+	ulint		offsets_[100]			= { 100, };
+	ulint*		offsets				= offsets_;
 	
 	ut_ad(index && pcur && search_tuple);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
@@ -3023,9 +3039,8 @@ row_search_for_mysql(
 			prebuilt->n_rows_fetched++;
 
 			srv_n_rows_read++;
-			trx->op_info = "";
-
-			return(DB_SUCCESS);
+			err = DB_SUCCESS;
+			goto func_exit;
 		}
 
 		if (prebuilt->fetch_cache_first > 0
@@ -3034,9 +3049,9 @@ row_search_for_mysql(
 		    	/* The previous returned row was popped from the fetch
 		    	cache, but the cache was not full at the time of the
 		    	popping: no more rows can exist in the result set */
-		    
-			trx->op_info = "";
-		    	return(DB_RECORD_NOT_FOUND);
+
+			err = DB_RECORD_NOT_FOUND;
+			goto func_exit;
 		}
 		
 		prebuilt->n_rows_fetched++;
@@ -3080,13 +3095,12 @@ row_search_for_mysql(
 
 		if (direction != 0 && !prebuilt->used_in_HANDLER) {
         
-			trx->op_info = "";
-			return(DB_RECORD_NOT_FOUND);
+			err = DB_RECORD_NOT_FOUND;
+			goto func_exit;
 		}
 	}
 
 	mtr_start(&mtr);
-	heap = mem_heap_create(100);
 
 	/*-------------------------------------------------------------*/
 	/* PHASE 2: Try fast adaptive hash index search if possible */
@@ -3132,7 +3146,7 @@ row_search_for_mysql(
 			}
 #endif
 			shortcut = row_sel_try_search_shortcut_for_mysql(&rec,
-					prebuilt, &offsets, heap, &mtr);
+					prebuilt, &offsets, &heap, &mtr);
 			if (shortcut == SEL_FOUND) {
 #ifdef UNIV_SEARCH_DEBUG
 				ut_a(0 == cmp_dtuple_rec(search_tuple,
@@ -3163,12 +3177,10 @@ row_search_for_mysql(
 					trx->has_search_latch = FALSE;
 				}    	
 				
-				trx->op_info = "";
-				
 				/* NOTE that we do NOT store the cursor
 				position */
-				mem_heap_free(heap);
-				return(DB_SUCCESS);
+				err = DB_SUCCESS;
+				goto func_exit;
 			
 			} else if (shortcut == SEL_EXHAUSTED) {
 
@@ -3186,13 +3198,11 @@ row_search_for_mysql(
 					trx->has_search_latch = FALSE;
 				}
 
-				trx->op_info = "";
-
 				/* NOTE that we do NOT store the cursor
 				position */
 
-				mem_heap_free(heap);
-				return(DB_RECORD_NOT_FOUND);
+				err = DB_RECORD_NOT_FOUND;
+				goto func_exit;
 			}
 shortcut_fails_too_big_rec:
 			mtr_commit(&mtr);
@@ -3334,9 +3344,9 @@ rec_loop:
 			we do not lock gaps. Supremum record is really
 			a gap and therefore we do not set locks there. */
 			
-			if (srv_locks_unsafe_for_binlog == FALSE) {
-				offsets = rec_reget_offsets(rec, index,
-					offsets, ULINT_UNDEFINED, heap);
+			if (!srv_locks_unsafe_for_binlog) {
+				offsets = rec_get_offsets(rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
 				err = sel_set_rec_lock(rec, index, offsets,
 						prebuilt->select_lock_type,
 						LOCK_ORDINARY, thr);
@@ -3406,8 +3416,7 @@ rec_loop:
 		}
 	}
 
-	offsets = rec_reget_offsets(rec, index,
-					offsets, ULINT_UNDEFINED, heap);
+	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
 	if (srv_force_recovery > 0) {
 		if (!rec_validate(rec, offsets)
@@ -3464,7 +3473,7 @@ rec_loop:
 
 			btr_pcur_store_position(pcur, &mtr);
 
-			ret = DB_RECORD_NOT_FOUND;
+			err = DB_RECORD_NOT_FOUND;
 			/* ut_print_name(stderr, index->name);
 			fputs(" record not found 3\n", stderr); */
 			
@@ -3498,7 +3507,7 @@ rec_loop:
 
 			btr_pcur_store_position(pcur, &mtr);
 
-			ret = DB_RECORD_NOT_FOUND;
+			err = DB_RECORD_NOT_FOUND;
 			/* ut_print_name(stderr, index->name);
 			fputs(" record not found 4\n", stderr); */
 
@@ -3644,11 +3653,11 @@ rec_loop:
 
 	if (prebuilt->need_to_access_clustered) {
 		ut_ad(rec == clust_rec || index == clust_index);
-		offsets = rec_reget_offsets(rec, clust_index,
-					offsets, ULINT_UNDEFINED, heap);
+		offsets = rec_get_offsets(rec, clust_index, offsets,
+						ULINT_UNDEFINED, &heap);
 	} else {
-		offsets = rec_reget_offsets(rec, index,
-					offsets, ULINT_UNDEFINED, heap);
+		offsets = rec_get_offsets(rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
 	}
 
 	/* We found a qualifying row */
@@ -3694,8 +3703,8 @@ rec_loop:
 		}
 
 		if (prebuilt->clust_index_was_generated) {
-			offsets = rec_reget_offsets(index_rec, index, offsets,
-							ULINT_UNDEFINED, heap);
+			offsets = rec_get_offsets(index_rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
 			row_sel_store_row_id_to_prebuilt(prebuilt, index_rec,
 							index, offsets);
 		}
@@ -3717,7 +3726,7 @@ got_row:
 		btr_pcur_store_position(pcur, &mtr);
 	}
 
-	ret = DB_SUCCESS;
+	err = DB_SUCCESS;
 
 	goto normal_return;
 
@@ -3756,9 +3765,9 @@ next_rec:
 		btr_pcur_store_position(pcur, &mtr);
 
 		if (match_mode != 0) {
-			ret = DB_RECORD_NOT_FOUND;
+			err = DB_RECORD_NOT_FOUND;
 		} else {
-			ret = DB_END_OF_INDEX;
+			err = DB_END_OF_INDEX;
 		}
 
 		goto normal_return;
@@ -3797,10 +3806,7 @@ lock_wait_or_error:
 /*	fputs("Using ", stderr);
 	dict_index_name_print(stderr, index);
 	fprintf(stderr, " cnt %lu ret value %lu err\n", cnt, err); */
-	trx->op_info = "";
-
-	mem_heap_free(heap);
-	return(err);
+	goto func_exit;
 
 normal_return:
 	/*-------------------------------------------------------------*/
@@ -3811,20 +3817,22 @@ normal_return:
 	if (prebuilt->n_fetch_cached > 0) {
 		row_sel_pop_cached_row_for_mysql(buf, prebuilt);
 
-		ret = DB_SUCCESS;
+		err = DB_SUCCESS;
 	}
 
 /*	fputs("Using ", stderr);
 	dict_index_name_print(stderr, index);
 	fprintf(stderr, " cnt %lu ret value %lu err\n", cnt, err); */
-	if (ret == DB_SUCCESS) {
+	if (err == DB_SUCCESS) {
 		srv_n_rows_read++;
 	}
 
+func_exit:
 	trx->op_info = "";
-
-	mem_heap_free(heap);
-	return(ret);
+	if (heap) {
+		mem_heap_free(heap);
+	}
+	return(err);
 }
 
 /***********************************************************************

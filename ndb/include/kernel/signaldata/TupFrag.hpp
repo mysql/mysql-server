@@ -145,7 +145,8 @@ public:
   STATIC_CONST( SignalLength = 2 );
   enum ErrorCode {
     NoError = 0,
-    InvalidCharset = 743
+    InvalidCharset = 743,
+    TooManyBitsUsed = 831
   };
 private:
   Uint32 userPtr;

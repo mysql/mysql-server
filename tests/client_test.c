@@ -243,6 +243,7 @@ static void client_connect()
     fprintf(stdout, "\n Check the connection options using --help or -?\n");
     exit(1);
   }
+  mysql->reconnect= 1;
 
   if (!opt_silent)
     fprintf(stdout, " OK");
@@ -1057,6 +1058,7 @@ static my_bool thread_query(char *query)
     error= 1;
     goto end;
   }
+  l_mysql->reconnect= 1;
   if (mysql_query(l_mysql, (char *)query))
   {
      fprintf(stderr, "Query failed (%s)\n", mysql_error(l_mysql));
@@ -4481,6 +4483,7 @@ static void test_stmt_close()
     myerror("connection failed");
     exit(1);
   }
+  lmysql->reconnect= 1;
   if (!opt_silent)
     fprintf(stdout, " OK");
 
@@ -5372,6 +5375,7 @@ DROP TABLE IF EXISTS test_multi_tab";
     fprintf(stdout, "\n connection failed(%s)", mysql_error(mysql_local));
     exit(1);
   }
+  mysql_local->reconnect= 1;
 
   rc= mysql_query(mysql_local, query);
   myquery(rc);
@@ -5480,6 +5484,7 @@ static void test_prepare_multi_statements()
     fprintf(stderr, "\n connection failed(%s)", mysql_error(mysql_local));
     exit(1);
   }
+  mysql_local->reconnect= 1;
   strmov(query, "select 1; select 'another value'");
   stmt= mysql_simple_prepare(mysql_local, query);
   check_stmt_r(stmt);
@@ -7012,6 +7017,7 @@ static void test_prepare_grant()
       mysql_close(lmysql);
       exit(1);
     }
+    lmysql->reconnect= 1;
     if (!opt_silent)
       fprintf(stdout, " OK");
 
@@ -7457,6 +7463,7 @@ static void test_drop_temp()
       mysql_close(lmysql);
       exit(1);
     }
+    lmysql->reconnect= 1;
     if (!opt_silent)
       fprintf(stdout, " OK");
 

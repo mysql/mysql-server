@@ -284,86 +284,25 @@ rec_init_offsets(
 
 /**********************************************************
 The following function determines the offsets to each field
-in the record.  The offsets are returned in an array of
-ulint, with [0] being the number of fields (n), [1] being the
-extra size (if REC_OFFS_COMPACT is set, the record is in the new
-format), and [2]..[n+1] being the offsets past the end of
-fields 0..n, or to the beginning of fields 1..n+1.  When the
-high-order bit of the offset at [n+1] is set (REC_OFFS_SQL_NULL),
-the field n is NULL.  When the second high-order bit of the offset
-at [n+1] is set (REC_OFFS_EXTERNAL), the field n is being stored
-externally. */
+in the record.  It can reuse a previously returned array. */
 
 ulint*
-rec_get_offsets(
-/*============*/
-				/* out: the offsets */
-	rec_t*		rec,	/* in: physical record */
-	dict_index_t*	index,	/* in: record descriptor */
-	ulint		n_fields,/* in: maximum number of initialized fields
-				(ULINT_UNDEFINED if all fields) */
-	mem_heap_t*	heap)	/* in: memory heap */
-{
-	ulint*	offsets;
-	ulint	n;
-
-	ut_ad(rec);
-	ut_ad(index);
-	ut_ad(heap);
-
-	if (index->table->comp) {
-		switch (rec_get_status(rec)) {
-		case REC_STATUS_ORDINARY:
-			n = dict_index_get_n_fields(index);
-			break;
-		case REC_STATUS_NODE_PTR:
-			n = dict_index_get_n_unique_in_tree(index) + 1;
-			break;
-		case REC_STATUS_INFIMUM:
-		case REC_STATUS_SUPREMUM:
-			/* infimum or supremum record */
-			n = 1;
-			break;
-		default:
-			ut_error;
-			return(NULL);
-		}
-	} else {
-		n = rec_get_n_fields_old(rec);
-	}
-
-	if (n_fields < n) {
-		n = n_fields;
-	}
-
-	offsets = mem_heap_alloc(heap,
-		(n + (1 + REC_OFFS_HEADER_SIZE)) * sizeof(ulint));
-
-	offsets[0] = n;
-
-	rec_init_offsets(rec, index, offsets);
-	return(offsets);
-}
-
-/**********************************************************
-The following function determines the offsets to each field
-in the record.  It differs from rec_get_offsets() by trying to
-reuse a previously returned array. */
-
-ulint*
-rec_reget_offsets(
-/*==============*/
+rec_get_offsets_func(
+/*=================*/
 				/* out: the new offsets */
 	rec_t*		rec,	/* in: physical record */
 	dict_index_t*	index,	/* in: record descriptor */
-	ulint*		offsets,/* in: array of offsets
-				from rec_get_offsets()
-				or rec_reget_offsets(), or NULL */
+	ulint*		offsets,/* in: array consisting of offsets[0]
+				allocated elements, or an array from
+				rec_get_offsets(), or NULL */
 	ulint		n_fields,/* in: maximum number of initialized fields
 				(ULINT_UNDEFINED if all fields) */
-	mem_heap_t*	heap)	/* in: memory heap */
+	mem_heap_t**	heap,	/* in/out: memory heap */
+	const char*	file,	/* in: file name where called */
+	ulint		line)	/* in: line number where called */
 {
 	ulint	n;
+	ulint	size;
 
 	ut_ad(rec);
 	ut_ad(index);
@@ -394,13 +333,18 @@ rec_reget_offsets(
 		n = n_fields;
 	}
 
-	if (!offsets || rec_offs_n_fields(offsets) < n) {
-		offsets = mem_heap_alloc(heap,
-			(n + (1 + REC_OFFS_HEADER_SIZE)) * sizeof(ulint));
+	size = (n + (1 + REC_OFFS_HEADER_SIZE)) * sizeof(ulint);
+
+	if (!offsets || rec_offs_get_n_alloc(offsets) < size) {
+		if (!*heap) {
+			*heap = mem_heap_create_func(size,
+				NULL, MEM_HEAP_DYNAMIC, file, line);
+		}
+		offsets = mem_heap_alloc(*heap, size);
+		rec_offs_set_n_alloc(offsets, size);
 	}
 
-	offsets[0] = n;
-
+	rec_offs_set_n_fields(offsets, n);
 	rec_init_offsets(rec, index, offsets);
 	return(offsets);
 }
@@ -722,14 +666,16 @@ rec_get_size(
 	rec_t*		rec,	/* in: physical record */
 	dict_index_t*	index)	/* in: record descriptor */
 {
-	mem_heap_t*	heap
-			= mem_heap_create(100);
-	ulint*		offsets
-			= rec_get_offsets(rec, index, ULINT_UNDEFINED, heap);
-	ulint		size
-			= rec_offs_size(offsets);
+	mem_heap_t*	heap	= NULL;
+	ulint		offsets_[100 + REC_OFFS_HEADER_SIZE]
+				= { 100, };
+	ulint*		offsets	= rec_get_offsets(rec, index, offsets_,
+				ULINT_UNDEFINED, &heap);
+	ulint		size	= rec_offs_size(offsets);
 
-	mem_heap_free(heap);
+	if (heap) {
+		mem_heap_free(heap);
+	}
 	return(size);
 }
 
@@ -1032,10 +978,15 @@ rec_convert_dtuple_to_rec(
 
 #ifdef UNIV_DEBUG
 	{
-		mem_heap_t*	heap = mem_heap_create(100);
-		ut_ad(rec_validate(rec,
-			rec_get_offsets(rec, index, ULINT_UNDEFINED, heap)));
-		mem_heap_free(heap);
+		mem_heap_t*	heap	= NULL;
+		ulint		offsets_[100 + REC_OFFS_HEADER_SIZE]
+					= { 100, };
+		const ulint*	offsets	= rec_get_offsets(rec, index,
+					offsets_, ULINT_UNDEFINED, &heap);
+		ut_ad(rec_validate(rec, offsets));
+		if (heap) {
+			mem_heap_free(heap);
+		}
 	}
 #endif /* UNIV_DEBUG */
 	return(rec);
@@ -1059,9 +1010,11 @@ rec_copy_prefix_to_dtuple(
 	ulint		len;
 	byte*		buf = NULL;
 	ulint		i;
-	ulint*		offsets;
+	ulint		offsets_[100 + REC_OFFS_HEADER_SIZE]
+				= { 100, };
+	ulint*		offsets	= offsets_;
 
-	offsets = rec_get_offsets(rec, index, n_fields, heap);
+	offsets = rec_get_offsets(rec, index, offsets, n_fields, &heap);
 
 	ut_ad(rec_validate(rec, offsets));
 	ut_ad(dtuple_check_typed(tuple));
@@ -1406,8 +1359,8 @@ rec_print_old(
 Prints a physical record. */
 
 void
-rec_print(
-/*======*/
+rec_print_new(
+/*==========*/
 	FILE*		file,	/* in: file where to print */
 	rec_t*		rec,	/* in: physical record */
 	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
@@ -1415,6 +1368,8 @@ rec_print(
 	const byte*	data;
 	ulint		len;
 	ulint		i;
+
+	ut_ad(rec_offs_validate(rec, NULL, offsets));
 
 	if (!rec_offs_comp(offsets)) {
 		rec_print_old(file, rec);
@@ -1452,4 +1407,31 @@ rec_print(
 	putc('\n', file);
 
 	rec_validate(rec, offsets);
+}
+
+/*******************************************************************
+Prints a physical record. */
+
+void
+rec_print(
+/*======*/
+	FILE*		file,	/* in: file where to print */
+	rec_t*		rec,	/* in: physical record */
+	dict_index_t*	index)	/* in: record descriptor */
+{
+	ut_ad(index);
+
+	if (!index->table->comp) {
+		rec_print_old(file, rec);
+		return;
+	} else {
+		mem_heap_t*	heap	= NULL;
+		ulint		offsets_[100 + REC_OFFS_HEADER_SIZE]
+					= { 100, };
+		rec_print_new(file, rec, rec_get_offsets(rec, index, offsets_,
+						ULINT_UNDEFINED, &heap));
+		if (heap) {
+			mem_heap_free(heap);
+		}
+	}
 }

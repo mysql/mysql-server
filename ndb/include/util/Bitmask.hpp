@@ -811,36 +811,43 @@ public:
 };
 
 inline void
-BitmaskImpl::getField(unsigned size, const Uint32 data[],
+BitmaskImpl::getField(unsigned size, const Uint32 src[],
 		      unsigned pos, unsigned len, Uint32 dst[])
 {
-  assert(len > 0);
   assert(pos + len < (size << 5));
-  Uint32 word = pos >> 5;
+  
+  src += (pos >> 5);
   Uint32 offset = pos & 31;
+  * dst = (* src >> offset) & (len >= 32 ? ~0 : (1 << len) - 1);
+  
   if(offset + len <= 32)
   {
-    dst[0] = (data[word] >> offset) & ((1 << len) - 1);
     return;
   }
-  getFieldImpl(data, pos, len, dst);
+  Uint32 used = (32 - offset);
+  assert(len > used);
+  getFieldImpl(src+1, used & 31, len-used, dst+(used >> 5));
 }
 
 inline void
-BitmaskImpl::setField(unsigned size, Uint32 data[],
+BitmaskImpl::setField(unsigned size, Uint32 dst[],
 		      unsigned pos, unsigned len, const Uint32 src[])
 {
-  assert(len > 0);
   assert(pos + len < (size << 5));
-  Uint32 word = pos >> 5;
+
+  dst += (pos >> 5);
   Uint32 offset = pos & 31;
-  Uint32 mask = ((1 << len) - 1) << offset;
-  data[word] = (data[word] & ~mask) | ((src[0] << offset) & mask);
+  Uint32 mask = (len >= 32 ? ~0 : (1 << len) - 1) << offset;
+  
+  * dst = (* dst & ~mask) | ((*src << offset) & mask);
+  
   if(offset + len <= 32)
   {
     return;
   }
-  setFieldImpl(data, pos, len, src);
+  Uint32 used = (32 - offset);
+  assert(len > used);
+  setFieldImpl(dst+1, used & 31, len-used, src+(used >> 5));
 }
 
 

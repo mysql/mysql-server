@@ -753,7 +753,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 			  regTabPtr->noOfKeyAttr,
 			  keyBuffer,
 			  ZATTR_BUFFER_SIZE,
-			  true);
+			  false);
   ndbrequire(ret != -1);
   noPrimKey= ret;
 
@@ -796,7 +796,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 			    numAttrsToRead,
 			    mainBuffer,
 			    ZATTR_BUFFER_SIZE,
-			    true);
+			    false);
     ndbrequire(ret != -1);
     noMainWords= ret;
   } else {
@@ -822,7 +822,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 			    numAttrsToRead,
 			    copyBuffer,
 			    ZATTR_BUFFER_SIZE,
-			    true);
+			    false);
 
     ndbrequire(ret != -1);
     noCopyWords = ret;

@@ -91,7 +91,7 @@ static int ndb_get_table_statistics(Ndb*, const char *,
   Dummy buffer to read zero pack_length fields
   which are mapped to 1 char
 */
-static byte dummy_buf[1];
+static uint32 dummy_buf;
 
 /*
   Error handling functions
@@ -471,11 +471,15 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
   if (ndb_supported_type(field->type()))
   {
     // ndb currently does not support size 0
-    const byte *empty_field= "";
+    uint32 empty_field;
     if (pack_len == 0)
     {
-      pack_len= 1;
-      field_ptr= empty_field;
+      pack_len= sizeof(empty_field);
+      field_ptr= (byte *)&empty_field;
+      if (field->is_null())
+	empty_field= 0;
+      else
+	empty_field= 1;
     }
     if (! (field->flags & BLOB_FLAG))
     {
@@ -624,7 +628,7 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
 	if (field->pack_length() != 0)
 	  field_buf= buf + (field->ptr - table->record[0]);
 	else
-	  field_buf= dummy_buf;
+	  field_buf= (byte *)&dummy_buf;
         m_value[fieldnr].rec= ndb_op->getValue(fieldnr, 
 					       field_buf);
         DBUG_RETURN(m_value[fieldnr].rec == NULL);
@@ -2255,6 +2259,11 @@ void ha_ndbcluster::print_results()
       fprintf(DBUG_FILE, "Var\t'%.*s'", field->pack_length(), value);
       break;
     }
+    case NdbDictionary::Column::Bit: {
+      const char *value= (char *) field->ptr;
+      fprintf(DBUG_FILE, "Bit\t'%.*s'", field->pack_length(), value);
+      break;
+    }
     case NdbDictionary::Column::Datetime: {
       Uint64 value= (Uint64) *field->ptr;
       fprintf(DBUG_FILE, "Datetime\t%llu", value);
@@ -3340,16 +3349,22 @@ static int create_ndb_column(NDBCOL &col,
     break;
   // Char types
   case MYSQL_TYPE_STRING:      
-    if (field->flags & BINARY_FLAG)
+    if (field->pack_length() == 0)
+    {
+      col.setType(NDBCOL::Bit);
+      col.setLength(1);
+    }
+    else if (field->flags & BINARY_FLAG)
+    {
       col.setType(NDBCOL::Binary);
-    else {
+      col.setLength(field->pack_length());
+    }
+    else
+    {
       col.setType(NDBCOL::Char);
       col.setCharset(cs);
-    }
-    if (field->pack_length() == 0)
-      col.setLength(1); // currently ndb does not support size 0
-    else
       col.setLength(field->pack_length());
+    }
     break;
   case MYSQL_TYPE_VAR_STRING:
     if (field->flags & BINARY_FLAG)

@@ -1587,8 +1587,24 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     port=mysql->options.port;
   if (!unix_socket)
     unix_socket=mysql->options.unix_socket;
+  
+  /*
+    By default we don't reconnect because it could silently corrupt data (after
+    reconnection you potentially lose table locks, user variables, session
+    variables (transactions but they are specifically dealt with in
+    mysql_reconnect()).
+    This is a change: < 5.0.3 mysql->reconnect was set to 1 by default.
+    How this change impacts existing apps:
+    - existing apps which relyed on the default will see a behaviour change;
+    they will have to set reconnect=1 after mysql_real_connect().
+    - existing apps which explicitely asked for reconnection (the only way they
+    could do it was by setting mysql.reconnect to 1 after mysql_real_connect())
+    will not see a behaviour change.
+    - existing apps which explicitely asked for no reconnection
+    (mysql.reconnect=0) will not see a behaviour change.
+  */
+  mysql->reconnect= 0;
 
-  mysql->reconnect=1;				/* Reconnect as default */
   mysql->server_status=SERVER_STATUS_AUTOCOMMIT;
 
   /*
@@ -2161,6 +2177,7 @@ my_bool mysql_reconnect(MYSQL *mysql)
     strmov(mysql->net.sqlstate, tmp_mysql.net.sqlstate);
     DBUG_RETURN(1);
   }
+  tmp_mysql.reconnect= 1;
   tmp_mysql.free_me= mysql->free_me;
   /* Don't free options as these are now used in tmp_mysql */
   bzero((char*) &mysql->options,sizeof(mysql->options));

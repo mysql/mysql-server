@@ -169,6 +169,9 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
       case NdbDictionary::Column::Bigunsigned:
 	out << r.u_64_value();
 	break;
+      case NdbDictionary::Column::Bit:
+	out << hex << "H'" << r.u_32_value() << dec;
+	break;
       case NdbDictionary::Column::Unsigned:
 	out << r.u_32_value();
 	break;

@@ -567,7 +567,8 @@ btr_page_get_father_for_rec(
 	btr_cur_t	cursor;
 	rec_t*		node_ptr;
 	dict_index_t*	index;
-	ulint*		offsets;
+	ulint		offsets_[100] = { 100, };
+	ulint*		offsets	= offsets_;
 
 	ut_ad(mtr_memo_contains(mtr, dict_tree_get_lock(tree),
 							MTR_MEMO_X_LOCK));
@@ -591,7 +592,8 @@ btr_page_get_father_for_rec(
 				BTR_CONT_MODIFY_TREE, &cursor, 0, mtr);
 
 	node_ptr = btr_cur_get_rec(&cursor);
-	offsets = rec_get_offsets(node_ptr, index, ULINT_UNDEFINED, heap);
+	offsets = rec_get_offsets(node_ptr, index, offsets,
+						ULINT_UNDEFINED, &heap);
 
 	if (btr_node_ptr_get_child_page_no(node_ptr, offsets) !=
                                                 buf_frame_get_page_no(page)) {
@@ -609,13 +611,13 @@ btr_page_get_father_for_rec(
 			(ulong)
 			btr_node_ptr_get_child_page_no(node_ptr, offsets),
 			(ulong) buf_frame_get_page_no(page));
-		offsets = rec_reget_offsets(page_rec_get_next(
+		offsets = rec_get_offsets(page_rec_get_next(
 				page_get_infimum_rec(page)), index,
-				offsets, ULINT_UNDEFINED, heap);
+				offsets, ULINT_UNDEFINED, &heap);
 		page_rec_print(page_rec_get_next(page_get_infimum_rec(page)),
 					offsets);
-		offsets = rec_reget_offsets(node_ptr, index, offsets,
-					ULINT_UNDEFINED, heap);
+		offsets = rec_get_offsets(node_ptr, index, offsets,
+					ULINT_UNDEFINED, &heap);
 		page_rec_print(node_ptr, offsets);
 
 		fputs(
@@ -1231,7 +1233,7 @@ btr_page_get_sure_split_rec(
 	ins_rec = btr_cur_get_rec(cursor);
 	rec = page_get_infimum_rec(page);
 
-	heap = mem_heap_create(100);
+	heap = NULL;
 	offsets = NULL;
 
 	/* We start to include records to the left half, and when the
@@ -1256,8 +1258,8 @@ btr_page_get_sure_split_rec(
 			/* Include tuple */
 			incl_data += insert_size;
 		} else {
-			offsets = rec_reget_offsets(rec, cursor->index,
-					offsets, ULINT_UNDEFINED, heap);
+			offsets = rec_get_offsets(rec, cursor->index,
+					offsets, ULINT_UNDEFINED, &heap);
 			incl_data += rec_offs_size(offsets);
 		}
 
@@ -1280,12 +1282,16 @@ btr_page_get_sure_split_rec(
 					next_rec = page_rec_get_next(rec);
 				}
 				if (next_rec != page_get_supremum_rec(page)) {
-					mem_heap_free(heap);
+					if (heap) {
+						mem_heap_free(heap);
+					}
 					return(next_rec);
 				}
                     	}
 
-			mem_heap_free(heap);
+			if (heap) {
+				mem_heap_free(heap);
+			}
 			return(rec);
 		}
 	}
@@ -1367,8 +1373,8 @@ btr_page_insert_fits(
 		/* In this loop we calculate the amount of reserved
 		space after rec is removed from page. */
 
-		offs = rec_reget_offsets(rec, cursor->index, offs,
-						ULINT_UNDEFINED, heap);
+		offs = rec_get_offsets(rec, cursor->index, offs,
+						ULINT_UNDEFINED, &heap);
 
 		total_data -= rec_offs_size(offs);
 		total_n_recs--;
@@ -1459,7 +1465,7 @@ btr_attach_half_pages(
 	ut_a(page_is_comp(page) == page_is_comp(new_page));
 
 	/* Create a memory heap where the data tuple is stored */
-	heap = mem_heap_create(100);
+	heap = mem_heap_create(1024);
 
 	/* Based on split direction, decide upper and lower pages */
 	if (direction == FSP_DOWN) {
@@ -1478,7 +1484,7 @@ btr_attach_half_pages(
 		btr_node_ptr_set_child_page_no(node_ptr,
 			rec_get_offsets(node_ptr,
 					UT_LIST_GET_FIRST(tree->tree_indexes),
-					ULINT_UNDEFINED, heap),
+					NULL, ULINT_UNDEFINED, &heap),
 			lower_page_no, mtr);
 		mem_heap_empty(heap);
 	} else {
@@ -1656,8 +1662,8 @@ func_start:
 	thus reducing the tree latch contention. */
 
 	if (split_rec) {
-		offsets = rec_reget_offsets(split_rec, cursor->index,
-						offsets, n_uniq, heap);
+		offsets = rec_get_offsets(split_rec, cursor->index, offsets,
+							n_uniq, &heap);
 
 		insert_will_fit = btr_page_insert_fits(cursor,
 					split_rec, offsets, tuple, heap);
@@ -1700,8 +1706,8 @@ func_start:
 		insert_page = right_page;
 
 	} else {
-		offsets = rec_reget_offsets(first_rec, cursor->index,
-						offsets, n_uniq, heap);
+		offsets = rec_get_offsets(first_rec, cursor->index,
+						offsets, n_uniq, &heap);
 
 		if (cmp_dtuple_rec(tuple, first_rec, offsets) >= 0) {
 
@@ -2091,14 +2097,18 @@ btr_compress(
 	if (is_left) {
 		btr_node_ptr_delete(tree, page, mtr);
 	} else {
-		mem_heap_t*	heap = mem_heap_create(100);
+		mem_heap_t*	heap		= NULL;
+		ulint		offsets_[100]	= { 100, };
 		/* Replace the address of the old child node (= page) with the 
 		address of the merge page to the right */
 
 		btr_node_ptr_set_child_page_no(node_ptr,
 				rec_get_offsets(node_ptr, cursor->index,
-				ULINT_UNDEFINED, heap), right_page_no, mtr);
-		mem_heap_free(heap);
+				offsets_, ULINT_UNDEFINED, &heap),
+				right_page_no, mtr);
+		if (heap) {
+			mem_heap_free(heap);
+		}
 		btr_node_ptr_delete(tree, merge_page, mtr);
 	}
 	
@@ -2312,8 +2322,8 @@ btr_print_recursive(
 	page_t*		page,	/* in: index page */
 	ulint		width,	/* in: print this many entries from start
 				and end */
-	mem_heap_t*	heap,	/* in: heap for rec_reget_offsets() */
-	ulint**		offsets,/* in/out: buffer for rec_reget_offsets() */
+	mem_heap_t**	heap,	/* in/out: heap for rec_get_offsets() */
+	ulint**		offsets,/* in/out: buffer for rec_get_offsets() */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	page_cur_t	cursor;
@@ -2350,8 +2360,8 @@ btr_print_recursive(
 
 			node_ptr = page_cur_get_rec(&cursor);
 
-			*offsets = rec_reget_offsets(node_ptr, index,
-					*offsets, ULINT_UNDEFINED, heap);
+			*offsets = rec_get_offsets(node_ptr, index, *offsets,
+					ULINT_UNDEFINED, heap);
 			child = btr_node_ptr_get_child(node_ptr,
 					*offsets, &mtr2);
 			btr_print_recursive(tree, child, width,
@@ -2362,8 +2372,6 @@ btr_print_recursive(
 		page_cur_move_to_next(&cursor);
 		i++;
 	}
-
-	mem_heap_free(heap);
 }
 
 /******************************************************************
@@ -2378,8 +2386,10 @@ btr_print_tree(
 {
 	mtr_t		mtr;
 	page_t*		root;
-	mem_heap_t*	heap	= mem_heap_create(100);
-	ulint*		offsets	= NULL;
+	mem_heap_t*	heap	= NULL;
+	ulint		offsets_[100]
+				= { 100, };
+	ulint*		offsets	= offsets_;
 
 	fputs("--------------------------\n"
 		"INDEX TREE PRINT\n", stderr);
@@ -2388,8 +2398,10 @@ btr_print_tree(
 
 	root = btr_root_get(tree, &mtr);
 
-	btr_print_recursive(tree, root, width, heap, &offsets, &mtr);
-	mem_heap_free(heap);
+	btr_print_recursive(tree, root, width, &heap, &offsets, &mtr);
+	if (heap) {
+		mem_heap_free(heap);
+	}
 
 	mtr_commit(&mtr);
 
@@ -2435,7 +2447,7 @@ btr_check_node_ptr(
 	ut_a(cmp_dtuple_rec(node_ptr_tuple, node_ptr,
 			rec_get_offsets(node_ptr,
 			dict_tree_find_index(tree, node_ptr),
-			ULINT_UNDEFINED, heap)) == 0);
+			NULL, ULINT_UNDEFINED, &heap)) == 0);
 
 	mem_heap_free(heap);
 
@@ -2476,8 +2488,10 @@ btr_index_rec_validate(
 	ulint		n;
 	ulint		i;
 	page_t*		page;
-	mem_heap_t*	heap;
-	ulint*		offsets;
+	mem_heap_t*	heap	= NULL;
+	ulint		offsets_[100]
+				= { 100, };
+	ulint*		offsets	= offsets_;
 
 	page = buf_frame_align(rec);
 	
@@ -2496,22 +2510,17 @@ btr_index_rec_validate(
 		fprintf(stderr, "InnoDB: has %lu fields, should have %lu\n",
 			(ulong) rec_get_n_fields_old(rec), (ulong) n);
 
-		if (!dump_on_error) {
+		if (dump_on_error) {
+			buf_page_print(page);
 
-			return(FALSE);
+			fputs("InnoDB: corrupt record ", stderr);
+			rec_print_old(stderr, rec);
+			putc('\n', stderr);
 		}
-
-		buf_page_print(page);
-
-		fputs("InnoDB: corrupt record ", stderr);
-		rec_print_old(stderr, rec);
-		putc('\n', stderr);
-
 		return(FALSE);
 	}
 
-	heap = mem_heap_create(100);
-	offsets = rec_get_offsets(rec, index, ULINT_UNDEFINED, heap);
+	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
 	for (i = 0; i < n; i++) {
 		dtype_t*	type = dict_index_get_nth_type(index, i);
@@ -2536,23 +2545,23 @@ btr_index_rec_validate(
 "InnoDB: field %lu len is %lu, should be %lu\n",
 				(ulong) i, (ulong) len, (ulong) dtype_get_fixed_size(type));
 
-			if (!dump_on_error) {
-				mem_heap_free(heap);
-				return(FALSE);
+			if (dump_on_error) {
+				buf_page_print(page);
+
+				fputs("InnoDB: corrupt record ", stderr);
+				rec_print_new(stderr, rec, offsets);
+				putc('\n', stderr);
 			}
-
-			buf_page_print(page);
-
-			fputs("InnoDB: corrupt record ", stderr);
-			rec_print(stderr, rec, offsets);
-			putc('\n', stderr);
-
-			mem_heap_free(heap);
+			if (heap) {
+				mem_heap_free(heap);
+			}
 			return(FALSE);
 		}
 	}
 
-	mem_heap_free(heap);
+	if (heap) {
+		mem_heap_free(heap);
+	}
 	return(TRUE);			
 }
 
@@ -2677,8 +2686,8 @@ btr_validate_level(
 		page_cur_move_to_next(&cursor);
 
 		node_ptr = page_cur_get_rec(&cursor);
-		offsets = rec_reget_offsets(node_ptr, index,
-					offsets, ULINT_UNDEFINED, heap);
+		offsets = rec_get_offsets(node_ptr, index, offsets,
+					ULINT_UNDEFINED, &heap);
 		page = btr_node_ptr_get_child(node_ptr, offsets, &mtr);
 	}
 
@@ -2722,10 +2731,10 @@ loop:
 		rec = page_rec_get_prev(page_get_supremum_rec(page));
 		right_rec = page_rec_get_next(
 					page_get_infimum_rec(right_page));
-		offsets = rec_reget_offsets(rec, index,
-					offsets, ULINT_UNDEFINED, heap);
-		offsets2 = rec_reget_offsets(right_rec, index,
-					offsets2, ULINT_UNDEFINED, heap);
+		offsets = rec_get_offsets(rec, index,
+					offsets, ULINT_UNDEFINED, &heap);
+		offsets2 = rec_get_offsets(right_rec, index,
+					offsets2, ULINT_UNDEFINED, &heap);
 		if (cmp_rec_rec(rec, right_rec, offsets, offsets2,
 			dict_index_get_n_fields(index),
 			index) >= 0) {
@@ -2740,16 +2749,12 @@ loop:
 
 			fputs("InnoDB: record ", stderr);
 			rec = page_rec_get_prev(page_get_supremum_rec(page));
-			offsets	= rec_reget_offsets(rec, index,
-					offsets, ULINT_UNDEFINED, heap);
-			rec_print(stderr, rec, offsets);
+			rec_print(stderr, rec, index);
 			putc('\n', stderr);
 			fputs("InnoDB: record ", stderr);
 			rec = page_rec_get_next(page_get_infimum_rec(
 						right_page));
-			offsets	= rec_reget_offsets(rec, index,
-					offsets, ULINT_UNDEFINED, heap);
-			rec_print(stderr, rec, offsets);
+			rec_print(stderr, rec, index);
 			putc('\n', stderr);
 
 	  		ret = FALSE;
@@ -2768,8 +2773,8 @@ loop:
 	
 		node_ptr = btr_page_get_father_node_ptr(tree, page, &mtr);
 		father_page = buf_frame_align(node_ptr);
-		offsets	= rec_reget_offsets(node_ptr, index,
-					offsets, ULINT_UNDEFINED, heap);
+		offsets	= rec_get_offsets(node_ptr, index,
+					offsets, ULINT_UNDEFINED, &heap);
 
 		if (btr_node_ptr_get_child_page_no(node_ptr, offsets) !=
 						buf_frame_get_page_no(page)
@@ -2785,7 +2790,7 @@ loop:
 			buf_page_print(page);
 
 			fputs("InnoDB: node ptr ", stderr);
-			rec_print(stderr, node_ptr, offsets);
+			rec_print_new(stderr, node_ptr, offsets);
 
 			fprintf(stderr, "\n"
 				"InnoDB: node ptr child page n:o %lu\n",
@@ -2796,9 +2801,7 @@ loop:
 			rec = btr_page_get_father_for_rec(tree, page,
 				page_rec_get_prev(page_get_supremum_rec(page)),
 				&mtr);
-			offsets = rec_reget_offsets(rec, index,
-					offsets, ULINT_UNDEFINED, heap);
-			rec_print(stderr, rec, offsets);
+			rec_print(stderr, rec, index);
 			putc('\n', stderr);
 		   	ret = FALSE;
 
@@ -2806,8 +2809,8 @@ loop:
 		}
 
 		if (btr_page_get_level(page, &mtr) > 0) {
-			offsets	= rec_reget_offsets(node_ptr, index,
-					offsets, ULINT_UNDEFINED, heap);
+			offsets	= rec_get_offsets(node_ptr, index,
+					offsets, ULINT_UNDEFINED, &heap);
 		
 			node_ptr_tuple = dict_tree_build_node_ptr(
 					tree,
@@ -2829,11 +2832,9 @@ loop:
 				fputs("InnoDB: Error: node ptrs differ"
 					" on levels > 0\n"
 					"InnoDB: node ptr ", stderr);
-				rec_print(stderr, node_ptr, offsets);
+				rec_print_new(stderr, node_ptr, offsets);
 				fputs("InnoDB: first rec ", stderr);
-				offsets = rec_reget_offsets(first_rec, index,
-					offsets, ULINT_UNDEFINED, heap);
-				rec_print(stderr, first_rec, offsets);
+				rec_print(stderr, first_rec, index);
 				putc('\n', stderr);
 		   		ret = FALSE;
 

@@ -488,7 +488,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SHOW FIELDS FROM  t1;
 Field	Type	Null	Key	Default	Extra
-latin1_f	char(32)				
+latin1_f	char(32)	NO			
 ALTER TABLE t1 CHANGE latin1_f 
 latin1_f CHAR(32) CHARACTER SET latin1 COLLATE latin1_bin;
 SHOW CREATE TABLE t1;

@@ -125,6 +125,7 @@ int main(int argc, char **argv)
     fprintf(stderr,"%s: %s\n",my_progname,mysql_error(&mysql));
     exit(1);
   }
+  mysql.reconnect= 1;
 
   switch (argc)
   {

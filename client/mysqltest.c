@@ -540,7 +540,6 @@ static void free_used_memory()
   mysql_server_end();
   if (ps_protocol)
     ps_free_reg();
-  my_end(MY_CHECK_ERROR);
   DBUG_VOID_RETURN;
 }
 
@@ -558,6 +557,7 @@ static void die(const char* fmt, ...)
   }
   va_end(args);
   free_used_memory();
+  my_end(MY_CHECK_ERROR);
   exit(1);
 }
 
@@ -570,6 +570,7 @@ static void abort_not_supported_test()
   if (!silent)
     printf("skipped\n");
   free_used_memory();
+  my_end(MY_CHECK_ERROR);
   exit(2);
 }
 
@@ -668,6 +669,7 @@ static int check_result(DYNAMIC_STRING* ds, const char* fname,
 {
   int error = 0;
   int res=dyn_string_cmp(ds, fname);
+  DBUG_ENTER("check_result");
 
   if (res && require_option)
     abort_not_supported_test();
@@ -687,7 +689,7 @@ static int check_result(DYNAMIC_STRING* ds, const char* fname,
   }
   if (error)
     reject_dump(fname, ds->str, ds->length);
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -1627,6 +1629,7 @@ int safe_connect(MYSQL* con, const char* host, const char* user,
     }
     sleep(CON_RETRY_SLEEP);
   }
+  con->reconnect= 1; /* TODO: change this to 0 in future versions */
   return con_error;
 }
 
@@ -1841,7 +1844,10 @@ int read_line(char* buf, int size)
       cur_file--;
       lineno--;
       if (cur_file == file_stack)
+      {
+        DBUG_PRINT("info", ("end of file"));
 	DBUG_RETURN(1);
+      }
       continue;
     }
 
@@ -2011,7 +2017,6 @@ int read_query(struct st_query** q_ptr)
   q->query_buf= q->query= 0;
   if (read_line(read_query_buf, sizeof(read_query_buf)))
   {
-    DBUG_PRINT("warning",("too long query"));
     DBUG_RETURN(1);
   }
    DBUG_PRINT("info", ("query: %s", read_query_buf));
@@ -3366,8 +3371,6 @@ int main(int argc, char **argv)
   my_bool require_file=0, q_send_flag=0, abort_flag= 0;
   char save_file[FN_REFLEN];
   MY_INIT(argv[0]);
-  {
-  DBUG_ENTER("main");
 
   /* Use all time until exit if no explicit 'start_timer' */
   timer_start= timer_now();
@@ -3394,6 +3397,8 @@ int main(int argc, char **argv)
   *block_ok = 1;
   init_dynamic_string(&ds_res, "", 0, 65536);
   parse_args(argc, argv);
+
+  DBUG_PRINT("info",("result_file: '%s'", result_file ? result_file : ""));
   if (mysql_server_init(embedded_server_arg_count,
 			embedded_server_args,
 			(char**) embedded_server_groups))
@@ -3659,9 +3664,9 @@ int main(int argc, char **argv)
   if (!got_end_timer)
     timer_output();				/* No end_timer cmd, end it */
   free_used_memory();
+  my_end(MY_CHECK_ERROR);
   exit(error ? 1 : 0);
   return error ? 1 : 0;				/* Keep compiler happy */
-  }
 }
 
 

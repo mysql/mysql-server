@@ -4394,6 +4394,7 @@ replication resumed in log '%s' at position %s", mi->user,
     thd->set_active_vio(mysql->net.vio);
 #endif      
   }
+  mysql->reconnect= 1;
   DBUG_PRINT("exit",("slave_was_killed: %d", slave_was_killed));
   DBUG_RETURN(slave_was_killed);
 }

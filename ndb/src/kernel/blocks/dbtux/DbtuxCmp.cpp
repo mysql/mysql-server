@@ -18,24 +18,26 @@
 #include "Dbtux.hpp"
 
 /*
- * Search key vs node prefix or entry
+ * Search key vs node prefix or entry.
  *
  * The comparison starts at given attribute position.  The position is
  * updated by number of equal initial attributes found.  The entry data
  * may be partial in which case CmpUnknown may be returned.
+ *
+ * The attributes are normalized and have variable size given in words.
  */
 int
 Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, ConstData searchKey, ConstData entryData, unsigned maxlen)
 {
   const unsigned numAttrs = frag.m_numAttrs;
   const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
-  // number of words of attribute data left
-  unsigned len2 = maxlen;
   // skip to right position in search key only
   for (unsigned i = 0; i < start; i++) {
     jam();
     searchKey += AttributeHeaderSize + searchKey.ah().getDataSize();
   }
+  // number of words of entry data left
+  unsigned len2 = maxlen;
   int ret = 0;
   while (start < numAttrs) {
     if (len2 <= AttributeHeaderSize) {
@@ -47,18 +49,20 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, ConstData searchKey, Cons
     if (! searchKey.ah().isNULL()) {
       if (! entryData.ah().isNULL()) {
         jam();
-        // current attribute
+        // verify attribute id
         const DescAttr& descAttr = descEnt.m_descAttr[start];
-        // full data size
-        const unsigned size1 = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
-        ndbrequire(size1 != 0 && size1 == entryData.ah().getDataSize());
-        const unsigned size2 = min(size1, len2);
+        ndbrequire(searchKey.ah().getAttributeId() == descAttr.m_primaryAttrId);
+        ndbrequire(entryData.ah().getAttributeId() == descAttr.m_primaryAttrId);
+        // sizes
+        const unsigned size1 = searchKey.ah().getDataSize();
+        const unsigned size2 = min(entryData.ah().getDataSize(), len2);
         len2 -= size2;
         // compare
         NdbSqlUtil::Cmp* const cmp = c_sqlCmp[start];
         const Uint32* const p1 = &searchKey[AttributeHeaderSize];
         const Uint32* const p2 = &entryData[AttributeHeaderSize];
-        ret = (*cmp)(0, p1, p2, size1, size2);
+        const bool full = (maxlen == MaxAttrDataSize);
+        ret = (*cmp)(0, p1, size1 << 2, p2, size2 << 2, full);
         if (ret != 0) {
           jam();
           break;
@@ -104,6 +108,8 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, ConstData searchKey, Cons
  * 0    a >= 2 and b >  3       yes             +1
  * 1    a <= 2 and b <= 3       no              +1
  * 1    a <= 2 and b <  3       yes             -1
+ *
+ * The attributes are normalized and have variable size given in words.
  */
 int
 Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigned boundCount, ConstData entryData, unsigned maxlen)
@@ -127,21 +133,21 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
     if (! boundInfo.ah().isNULL()) {
       if (! entryData.ah().isNULL()) {
         jam();
-        // current attribute
-        const unsigned index = boundInfo.ah().getAttributeId();
+        // verify attribute id
+        const Uint32 index = boundInfo.ah().getAttributeId();
         ndbrequire(index < frag.m_numAttrs);
         const DescAttr& descAttr = descEnt.m_descAttr[index];
         ndbrequire(entryData.ah().getAttributeId() == descAttr.m_primaryAttrId);
-        // full data size
+        // sizes
         const unsigned size1 = boundInfo.ah().getDataSize();
-        ndbrequire(size1 != 0 && size1 == entryData.ah().getDataSize());
-        const unsigned size2 = min(size1, len2);
+        const unsigned size2 = min(entryData.ah().getDataSize(), len2);
         len2 -= size2;
         // compare
         NdbSqlUtil::Cmp* const cmp = c_sqlCmp[index];
         const Uint32* const p1 = &boundInfo[AttributeHeaderSize];
         const Uint32* const p2 = &entryData[AttributeHeaderSize];
-        int ret = (*cmp)(0, p1, p2, size1, size2);
+        const bool full = (maxlen == MaxAttrDataSize);
+        int ret = (*cmp)(0, p1, size1 << 2, p2, size2 << 2, full);
         if (ret != 0) {
           jam();
           return ret;

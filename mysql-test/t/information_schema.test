@@ -34,8 +34,8 @@ select table_name from information_schema.TABLES
 where table_schema = "testtets" and table_name like "t%";
 
 select * from information_schema.STATISTICS where TABLE_SCHEMA = "testtets";
-show keys * where TABLE_SCHEMA Like "test%";
-show keys where INDEX_NAME = "a_data";
+show keys * from t3 where TABLE_SCHEMA Like "test%";
+show keys from t3 where INDEX_NAME = "a_data";
 
 show tables like 't%';
 --replace_column 15 # 16 #
@@ -48,7 +48,7 @@ show full columns from mysql.db like "Insert%";
 show full columns from v1;
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a";
-show columns * where table_name = "t1";
+show columns * from testtets.t1 where table_name = "t1";
 
 drop view v1;
 drop tables testtets.t4, testtets.t1, t2, t3;
@@ -198,7 +198,7 @@ create procedure px5 ()
 begin
 declare v int;
 declare c cursor for select version from
-information_schema.tables;
+information_schema.tables where table_schema <> 'information_schema';
 open c;
 fetch c into v;
 select v;
@@ -250,10 +250,6 @@ from information_schema.columns where table_name = 'proc';
 select * from t115;
 drop table t115;
 
-create view vk as select count(*) from information_schema.tables a;
-select * from vk;
-drop view vk;
-
 delimiter //;
 create procedure p108 () begin declare c cursor for select data_type
 from information_schema.columns;  open c; open c; end;//
@@ -274,3 +270,19 @@ TABLE_NAME= "vo";
 select * from information_schema.KEY_COLUMN_USAGE where
 TABLE_NAME= "vo"; 
 drop view vo;
+
+select TABLE_NAME,TABLE_TYPE,ENGINE
+from information_schema.tables 
+where table_schema='information_schema' limit 2;
+show tables from information_schema like "t%";
+
+--error 1007
+create database information_schema;
+use information_schema;
+show full tables like "T%";
+--error 1109
+create table t1(a int);
+use test;
+show tables;
+use information_schema;
+show tables like "T%";

@@ -67,6 +67,16 @@ rec_get_n_fields_old(
 			/* out: number of data fields */
 	rec_t*	rec);	/* in: physical record */
 /**********************************************************
+The following function is used to get the number of fields
+in a record. */
+UNIV_INLINE
+ulint
+rec_get_n_fields(
+/*=============*/
+				/* out: number of data fields */
+	rec_t*		rec,	/* in: physical record */
+	dict_index_t*	index);	/* in: record descriptor */
+/**********************************************************
 The following function is used to get the number of records
 owned by the previous directory record. */
 UNIV_INLINE
@@ -188,45 +198,28 @@ rec_get_1byte_offs_flag(
 	rec_t*	rec);	/* in: physical record */
 /**********************************************************
 The following function determines the offsets to each field
-in the record.  The offsets are returned in an array of
-ulint, with [0] being the number of fields (n), [1] being the
-extra size (if REC_OFFS_COMPACT is set, the record is in the new
-format), and [2]..[n+1] being the offsets past the end of
-fields 0..n, or to the beginning of fields 1..n+1.  When the
-high-order bit of the offset at [n+1] is set (REC_OFFS_SQL_NULL),
-the field n is NULL.  When the second high-order bit of the offset
-at [n+1] is set (REC_OFFS_EXTERNAL), the field n is being stored
-externally. */
+in the record.  It can reuse a previously allocated array. */
 
 ulint*
-rec_get_offsets(
-/*============*/
-				/* out: the offsets */
-	rec_t*		rec,	/* in: physical record */
-	dict_index_t*	index,	/* in: record descriptor */
-	ulint		n_fields,/* in: maximum number of initialized fields
-				(ULINT_UNDEFINED if all fields) */
-	mem_heap_t*	heap);	/* in: memory heap */
-/**********************************************************
-The following function determines the offsets to each field
-in the record.  It differs from rec_get_offsets() by trying to
-reuse a previously returned array. */
-
-ulint*
-rec_reget_offsets(
-/*==============*/
+rec_get_offsets_func(
+/*=================*/
 				/* out: the new offsets */
 	rec_t*		rec,	/* in: physical record */
 	dict_index_t*	index,	/* in: record descriptor */
-	ulint*		offsets,/* in: array of offsets
-				from rec_get_offsets()
-				or rec_reget_offsets(), or NULL */
+	ulint*		offsets,/* in: array consisting of offsets[0]
+				allocated elements, or an array from
+				rec_get_offsets(), or NULL */
 	ulint		n_fields,/* in: maximum number of initialized fields
 				(ULINT_UNDEFINED if all fields) */
-	mem_heap_t*	heap);	/* in: memory heap */
+	mem_heap_t**	heap,	/* in/out: memory heap */
+	const char*	file,	/* in: file name where called */
+	ulint		line);	/* in: line number where called */
+
+#define rec_get_offsets(rec,index,offsets,n,heap)	\
+	rec_get_offsets_func(rec,index,offsets,n,heap,__FILE__,__LINE__)
 
 /****************************************************************
-Validates offsets returned by rec_get_offsets() or rec_reget_offsets(). */
+Validates offsets returned by rec_get_offsets(). */
 UNIV_INLINE
 ibool
 rec_offs_validate(
@@ -234,8 +227,7 @@ rec_offs_validate(
 				/* out: TRUE if valid */
 	rec_t*		rec,	/* in: record or NULL */
 	dict_index_t*	index,	/* in: record descriptor or NULL */
-	const ulint*	offsets);/* in: array returned by rec_get_offsets()
-				or rec_reget_offsets() */
+	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /****************************************************************
 Updates debug data in offsets, in order to avoid bogus
 rec_offs_validate() failures. */
@@ -243,10 +235,9 @@ UNIV_INLINE
 void
 rec_offs_make_valid(
 /*================*/
-	const rec_t*	rec,	/* in: record */
-	const dict_index_t* index,/* in: record descriptor */
-	ulint*		offsets);/* in: array returned by rec_get_offsets()
-				or rec_reget_offsets() */
+	rec_t*		rec,	/* in: record */
+	dict_index_t*	index,/* in: record descriptor */
+	ulint*		offsets);/* in: array returned by rec_get_offsets() */
 
 /****************************************************************
 The following function is used to get a pointer to the nth
@@ -551,7 +542,15 @@ rec_print_old(
 /*==========*/
 	FILE*		file,	/* in: file where to print */
 	rec_t*		rec);	/* in: physical record */
+/*******************************************************************
+Prints a physical record. */
 
+void
+rec_print_new(
+/*==========*/
+	FILE*		file,	/* in: file where to print */
+	rec_t*		rec,	/* in: physical record */
+	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /*******************************************************************
 Prints a physical record. */
 
@@ -560,7 +559,7 @@ rec_print(
 /*======*/
 	FILE*		file,	/* in: file where to print */
 	rec_t*		rec,	/* in: physical record */
-	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
+	dict_index_t*	index);	/* in: record descriptor */
 
 #define REC_INFO_BITS		6	/* This is single byte bit-field */
 

@@ -227,10 +227,12 @@ page_mem_alloc(
 	rec = page_header_get_ptr(page, PAGE_FREE);
 
 	if (rec) {
-		mem_heap_t*	heap
-			= mem_heap_create(100);
-		const ulint*	offsets
-			= rec_get_offsets(rec, index, ULINT_UNDEFINED, heap);
+		mem_heap_t*	heap		= NULL;
+		ulint		offsets_[100]	= { 100, };
+		ulint*		offsets		= offsets_;
+
+		offsets = rec_get_offsets(rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
 
 		if (rec_offs_size(offsets) >= need) {
 			page_header_set_ptr(page, PAGE_FREE,
@@ -245,11 +247,15 @@ page_mem_alloc(
 			*heap_no = rec_get_heap_no(rec, page_is_comp(page));
 
 			block = rec_get_start(rec, offsets);
-			mem_heap_free(heap);
+			if (heap) {
+				mem_heap_free(heap);
+			}
 			return(block);
 		}
 
-		mem_heap_free(heap);
+		if (heap) {
+			mem_heap_free(heap);
+		}
 	}
 
 	/* Could not find space from the free list, try top of heap */
@@ -374,7 +380,8 @@ page_create(
 
 	rec_set_n_owned(infimum_rec, comp, 1);
 	rec_set_heap_no(infimum_rec, comp, 0);
-	offsets = rec_get_offsets(infimum_rec, index, ULINT_UNDEFINED, heap);
+	offsets = rec_get_offsets(infimum_rec, index, NULL,
+						ULINT_UNDEFINED, &heap);
 
 	heap_top = rec_get_end(infimum_rec, offsets);
 
@@ -396,8 +403,8 @@ page_create(
 	rec_set_n_owned(supremum_rec, comp, 1);
 	rec_set_heap_no(supremum_rec, comp, 1);
 
-	offsets = rec_reget_offsets(supremum_rec, index,
-					offsets, ULINT_UNDEFINED, heap);
+	offsets = rec_get_offsets(supremum_rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
 	heap_top = rec_get_end(supremum_rec, offsets);
 
 	ut_ad(heap_top ==
@@ -711,8 +718,9 @@ page_delete_rec_list_end(
 	last_rec = page_rec_get_prev(sup);
 
 	if ((size == ULINT_UNDEFINED) || (n_recs == ULINT_UNDEFINED)) {
-		mem_heap_t*	heap	= mem_heap_create(100);
-		ulint*		offsets	= NULL;
+		mem_heap_t*	heap		= NULL;
+		ulint		offsets_[100]	= { 100, };
+		ulint*		offsets		= offsets_;
 		/* Calculate the sum of sizes and the number of records */
 		size = 0;
 		n_recs = 0;
@@ -720,8 +728,8 @@ page_delete_rec_list_end(
 
 		while (rec2 != sup) {
 			ulint	s;
-			offsets = rec_reget_offsets(rec2, index,
-					offsets, ULINT_UNDEFINED, heap);
+			offsets = rec_get_offsets(rec2, index, offsets,
+						ULINT_UNDEFINED, &heap);
 			s = rec_offs_size(offsets);
 			ut_ad(rec2 - page + s - rec_offs_extra_size(offsets)
 				< UNIV_PAGE_SIZE);
@@ -732,7 +740,9 @@ page_delete_rec_list_end(
 			rec2 = page_rec_get_next(rec2);
 		}
 
-		mem_heap_free(heap);
+		if (heap) {
+			mem_heap_free(heap);
+		}
 	}
 
 	ut_ad(size < UNIV_PAGE_SIZE);
@@ -1213,7 +1223,7 @@ page_rec_print(
 	ibool	comp	= page_is_comp(buf_frame_align(rec));
 
 	ut_a(comp == rec_offs_comp(offsets));
-	rec_print(stderr, rec, offsets);
+	rec_print_new(stderr, rec, offsets);
 	fprintf(stderr,
      		"            n_owned: %lu; heap_no: %lu; next rec: %lu\n",
 		(ulong) rec_get_n_owned(rec, comp),
@@ -1276,11 +1286,11 @@ page_print_list(
 	page_cur_t	cur;
 	ulint		count;
 	ulint		n_recs;
-	mem_heap_t*	heap;
-	ulint*		offsets	= NULL;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
 
 	ut_a(page_is_comp(page) == index->table->comp);
-	heap = mem_heap_create(100);
 
 	fprintf(stderr,
 		"--------------------------------\n"
@@ -1292,8 +1302,8 @@ page_print_list(
 	page_cur_set_before_first(page, &cur);
 	count = 0;
 	for (;;) {
-		offsets = rec_reget_offsets(cur.rec, index,
-					offsets, ULINT_UNDEFINED, heap);
+		offsets = rec_get_offsets(cur.rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
 		page_rec_print(cur.rec, offsets);
 
 		if (count == pr_n) {
@@ -1314,8 +1324,8 @@ page_print_list(
 		page_cur_move_to_next(&cur);
 
 		if (count + pr_n >= n_recs) {	
-			offsets = rec_reget_offsets(cur.rec, index,
-					offsets, ULINT_UNDEFINED, heap);
+			offsets = rec_get_offsets(cur.rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
 			page_rec_print(cur.rec, offsets);
 		}
 		count++;	
@@ -1326,7 +1336,9 @@ page_print_list(
 		"--------------------------------\n",
 		(ulong) (count + 1));
 
-	mem_heap_free(heap);
+	if (heap) {
+		mem_heap_free(heap);
+	}
 }	
 
 /*******************************************************************
@@ -1680,7 +1692,7 @@ page_validate(
 		goto func_exit2;
 	}
 
-	heap = mem_heap_create(UNIV_PAGE_SIZE);
+	heap = mem_heap_create(UNIV_PAGE_SIZE + 200);
 	
 	/* The following buffer is used to check that the
 	records in the page record heap do not overlap */
@@ -1720,8 +1732,8 @@ page_validate(
 
 	for (;;) {
 		rec = cur.rec;
-		offsets = rec_reget_offsets(rec, index,
-					offsets, ULINT_UNDEFINED, heap);
+		offsets = rec_get_offsets(rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
 
 		if (comp && page_rec_is_user_rec(rec)
 				&& rec_get_node_ptr_flag(rec)
@@ -1744,9 +1756,9 @@ page_validate(
 					(ulong) buf_frame_get_page_no(page));
 				dict_index_name_print(stderr, NULL, index);
 				fputs("\nInnoDB: previous record ", stderr);
-				rec_print(stderr, old_rec, old_offsets);
+				rec_print_new(stderr, old_rec, old_offsets);
 				fputs("\nInnoDB: record ", stderr);
-				rec_print(stderr, rec, offsets);
+				rec_print_new(stderr, rec, offsets);
 				putc('\n', stderr);
 				
 				goto func_exit;
@@ -1852,8 +1864,8 @@ page_validate(
 	rec = page_header_get_ptr(page, PAGE_FREE);
 
 	while (rec != NULL) {
-		offsets = rec_reget_offsets(rec, index,
-					offsets, ULINT_UNDEFINED, heap);
+		offsets = rec_get_offsets(rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
 		if (!page_rec_validate(rec, offsets)) {
 
 			goto func_exit;
