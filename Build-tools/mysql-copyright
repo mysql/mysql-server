@@ -12,11 +12,12 @@ use Getopt::Long;
 
 $opt_help    = 0;
 $opt_version = 0;
+$opt_verbose = 0;
 $opt_target  = "mysql-copyright-target-";
 $opt_target .= `date +%d%m%y-%H%M%S`;
 chop $opt_target;
 
-GetOptions("help","version","target=s") || error();
+GetOptions("help","version","target=s", "verbose") || error();
 
 # fix the directory prefix for target dir
 
@@ -68,15 +69,12 @@ sub main
     }
     # if the distfile is mysql-3.22.22-alpha.tar.gz, then
     # distname is 'mysql-3.22.22-alpha' and suffix '.tar.gz'
-    print "distfile $distfile\n";
     if ($distfile =~
       m/^($REG_BASENAME)([\-\_])($REG_VERSION){1}([\.\-\+]\w+\-\w+)?[\.\-\+](.*)?$/xo) 
     {
       $distname= $1.$2.$3;
-      print "distname $distname\n";
       $suffix= $5;
       $fileext = $6;
-      print "suffix $suffix fileext $fileext\n";
       $newdistname= $1."com".$2.$3;
       $newdistname .= $suffix if $win_flag;
     }
@@ -84,8 +82,6 @@ sub main
     chomp($destdir= `tar ztf ../$distfile | head -1`);
     # remove slash from the end
     $destdir= substr($destdir, 0, -1);
-		print "destdir: $destdir\n";
-		print "distname: $distname\n";
     
     if ("$destdir" ne "$distname")
     {
@@ -110,24 +106,32 @@ sub main
     # remove readline subdir and update configure accordingly
     system("rm -rf $destdir/cmd-line-utils/readline");
     if ($win_flag) {
-      #`(cd $destdir)`;
-      'cd $destdir';
+      chdir("$destdir") or (print "$! Unable to change directory to $destdir!\n" && exit(0));
     } else {
-      unlink ("$destdir/configure") or die "Can't delete $destdir/configure: $!\n";
-      `(cd $destdir ; sed -e 's!\ cmd-line-utils\/readline\/Makefile\ dnl!!g' < configure.in > configure.in.new)`;
-      rename ("$destdir/configure.in.new","$destdir/configure.in") or die "Can't rename $destdir/configure.in.new: $!\n";;
-      `(cd $destdir ; autoconf)`;
+      chdir("$destdir");
+      unlink ("configure") or die "Can't delete $destdir/configure: $!\n";
+      open(CONFIGURE,"<configure.in") or die "$! Unable to open configure.in to read from!\n";
+      undef $/;
+      my $configure = <CONFIGURE>;
+      close(CONFIGURE);
+      $configure =~ s|cmd\-line\-utils/readline/Makefile dnl\n?||g;
+      open(CONFIGURE,">configure.in") or die "$! Unable to open configure.in to write to!\n";
+      print CONFIGURE $configure;
+      close(CONFIGURE);
+      `autoconf`;
+      if (! -f "configure") {
+        print "\"./configure\" was not produced, exiting!\n";
+        exit(0);
+      }
     }
 
     # fix file copyrights
     &fix_usage_copyright();
     &add_copyright();
     
-    #chdir("..");
-    my $cwd = `pwd`;
-    print "current dir is $cwd\n" ;
     # rename the directory with new distribution name
-    print "renaming $destdir $newdistname\n"; 
+    chdir("$WD/$dir");
+    print "renaming $destdir $newdistname\n" if $opt_verbose; 
     rename($destdir, $newdistname);
     
     # tar the new distribution
@@ -137,9 +141,20 @@ sub main
   
     # remove temporary directory
     chdir($WD) or print "$! Unable to move up one dir\n";
-    print "deleting temp dir $dir\n"; 
-    if (-d "$WD/$dir") {
-      system("rm -rf $WD/$dir") or print "$! Unable to delete $WD/$dir!\n";
+    `cd $WD`;
+    my $cwd = getcwd();
+    print "current dir is $cwd\n" if $opt_verbose ;
+    if (-e $dir) {
+      print "Trying to delete $dir\n" if $opt_verbose;
+      if ( system("rm -rf $dir")){ 
+        print "$! Unable to delete $dir!\n";
+      }
+    }
+    if (-e $opt_target) {
+      print "Trying to delete $opt_target\n" if $opt_verbose;
+      if ( system("rm -rf $opt_target")) {
+        print "$! Unable to delete $opt_target!\n";
+      }
     }
 
   }
@@ -157,7 +172,7 @@ sub fix_usage_copyright
   foreach my $Cfile (@Cfiles)
   {
     chop $Cfile;
-    `replace "This is free software," "This is commercial software," "and you are welcome to modify and redistribute it under the GPL license" "please see the file MySQLEULA.txt for details" -- "$Cfile"`;
+    `replace "This is free software," "This is commercial software," "and you are welcome to modify and redistribute it under the GPL license" "please see the file MySQLEULA.txt for details" -- "$Cfile"` if -f $Cfile; 
   }
 }
 
