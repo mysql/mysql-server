@@ -410,7 +410,13 @@ ClusterMgr::reportConnected(NodeId nodeId){
   theNode.connected = true;
   theNode.hbSent = 0;
   theNode.hbCounter = 0;
-  
+
+  /**
+   * make sure the node itself is marked connected even
+   * if first API_REGCONF has not arrived
+   */
+  theNode.m_state.m_connected_nodes.set(nodeId);
+
   if (theNode.m_info.m_type != NodeInfo::REP) {
     theNode.hbFrequency = 0;
   }
