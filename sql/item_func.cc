@@ -2299,7 +2299,6 @@ Item *get_system_var(LEX_STRING name)
 longlong Item_func_is_free_lock::val_int()
 {
   String *res=args[0]->val_str(&value);
-  struct timespec abstime;
   THD *thd=current_thd;
   ULL *ull;
   int error=0;
