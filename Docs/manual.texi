@@ -219,7 +219,7 @@ The @code{mysqlbug} script should be used to generate bug reports.
 For source distributions, the @code{mysqlbug} script can be found in the
 @file{scripts} directory.  For binary distributions, @code{mysqlbug} can
 be found in the @file{bin} directory. If you have found a sensitive
-security bug in MySQL, you should send an email to
+security bug in MySQL, you should send an e-mail to
 @email{security@@mysql.com}.
 
 @cindex errors, reporting
@@ -239,7 +239,7 @@ MySQL, see @ref{MySQL-Books}.
 @menu
 * MySQL and MySQL AB::          MySQL, MySQL AB, and Open Source
 * MySQL Information Sources::   MySQL Information Sources
-* Licensing and Support::       MySQL Licensing and Support
+* Licensing and Support::       MySQL Support and Licensing
 * Compatibility::               How Standards-compatible Is MySQL?
 * Comparisons::                 How MySQL Compares to Other Databases
 * TODO::                        MySQL and the future (The TODO)
@@ -317,15 +317,15 @@ us.
 
 MySQL is very fast, reliable, and easy to use.  If that is what
 you are looking for, you should give it a try.  MySQL also has a
-very practical set of features developed in very close cooperation with
+practical set of features developed in close cooperation with
 our users.  You can find a performance comparison of MySQL
 to some other database managers on our benchmark page.
 @xref{MySQL Benchmarks}.
 
-MySQL was originally developed to handle very large databases
+MySQL was originally developed to handle large databases
 much faster than existing solutions and has been successfully used in
 highly demanding production environments for several years.  Though
-under constant development, MySQL today offers a rich and very
+under constant development, MySQL today offers a rich and
 useful set of functions.  The connectivity, speed, and security make
 MySQL highly suited for accessing databases on the Internet.
 
@@ -366,16 +366,20 @@ to the MySQL server source code and the MySQL trademark.
 A significant amount of revenues from our services goes to developing 
 MySQL.  @xref{What-is}.
 
+@menu
+* Contact information::         Contact information
+@end menu
+
 MySQL AB has been profitable providing MySQL from the start.
 We don't get any outside funding, but have earned all our money ourselves.
 
-We are searching after partners that would like to support our development 
-of MySQL so that we could accelerate the development pace.  If you
-are interested in doing this, you can email @email{partner@@mysql.com} about 
-this!
+We are searching for partners that would like to support our development 
+of MySQL so that we can accelerate the pace of development.  If you
+are interested in doing this, please e-mail @email{partner@@mysql.com}!
 
-MySQL AB has currently 20+ people
-(@uref{http://www.mysql.com/development/team.html}) on its payroll and is growing rapidly.
+MySQL AB currently has over twenty people
+(@uref{http://www.mysql.com/development/team.html})
+on its payroll and is growing rapidly.
 
 
 Our main sources of income are:
@@ -385,21 +389,21 @@ Our main sources of income are:
 Commercial high quality support for MySQL provided by the 
 MySQL developers themselves.  If you are interested in purchasing
 a support contract, please visit @uref{https://order.mysql.com/} to view our
-support options or to order support.
+support options and order support.
 
 @item
 Consulting services.  We have developers and consultants in 12 countries
 and partners in many other countries that can help you with almost any
 MySQL related issues.  If you need consulting services, please
-email a good description of your needs to @email{info@@mysql.com}!  If we
+e-mail a good description of your needs to @email{info@@mysql.com}!  If we
 can't handle this ourselves we can usually find a partner or a developer
 that can help you with your problems.
 
 @item
-We sell licenses for using MySQL as an embedded database.
-@xref{Cost}.  If you have a commercial product for which you need a fast,
+Licensing MySQL for use as an embedded database.  @xref{Licensing policy}.
+If you have a commercial product for which you need a fast,
 high quality database, but you can't afford to make your product Open Source,
-you can buy the right to use the MySQL server under a normal
+you can buy the right to use the MySQL server under a
 commercial copyright.  If you are interested in this you can buy
 MySQL licenses at @uref{https://order.mysql.com/} or contact us
 at @email{licensing@@mysql.com}.
@@ -407,26 +411,26 @@ at @email{licensing@@mysql.com}.
 @item
 Advertising. @uref{http://www.mysql.com/} is a very popular web site with
 more than 10,000,000 page views per months (January 2001).  By putting a
-banner on this you are guaranteed to reach a lot of potential customers
-in the Open source, Linux and database community. If you are interested
-in this email @email{advertising@@mysql.com}.
+banner on this site you are guaranteed to reach a lot of potential customers
+in the open source, Linux and database communities. If you are interested
+in this e-mail @email{advertising@@mysql.com}.
 
 @item
 We are building a partner program to be able to provide MySQL
 services in every country.  If you are interested in becoming a partner
 of MySQL AB please visit
-@uref{http://www.mysql.com/information/partners.html} or email
+@uref{http://www.mysql.com/information/partners.html} or e-mail
 @email{partner@@mysql.com}.
 
 @item
 We provide MySQL training through our partner programs.  For more
-information, please email @email{info@@mysql.com}.
+information, please e-mail @email{info@@mysql.com}.
 
 @item
 The MySQL brand has, since 1995, been associated with speed and
 reliability, and is known to be something you can depend upon.  If you are
 interested in using the MySQL trademark in your marketing, you
-can email @email{info@@mysql.com} about this.
+can e-mail @email{info@@mysql.com} about this.
 @end itemize
 
 The MySQL core values show our dedication to MySQL and
@@ -436,13 +440,13 @@ We want MySQL to be:
 
 @itemize @bullet
 @item
-The best and the most used database in the world.
+The best and the most widely used database in the world.
 @item
 Available and affordable for all.
 @item
 Easy to use.
 @item
-Continuously improved while remaining fast and safe.
+Continuously improving while remaining fast and safe.
 @item
 Fun to use and improve.
 @item
@@ -459,12 +463,55 @@ Aim to be good citizens.
 @item
 Prefer partners that share our values and mind-set.
 @item
-Answer mail and give support.
+Answer e-mail and provide support.
 @item
 Are a virtual company, networking with others.
 @item
 Work against software patents.
 @end itemize
+
+@node Contact information,  , What is MySQL AB, What is MySQL AB
+@subsubsection Contact Information
+
+@cindex contact information
+@cindex licensing, contact information
+@cindex advertising, contact information
+@cindex employment, contact information
+@cindex partnering with MySQL
+@cindex employment with MySQL
+@cindex jobs at MySQL
+
+For commercial licensing, please contact the MySQL licensing
+team.  The much preferred method is by e-mail to
+@email{licensing@@mysql.com}.  Fax is also possible but handling of
+these may take much longer (Fax +46-8-729 69 05).
+
+If you represent a business that is interested in partnering with
+MySQL, please send e-mail to @email{partner@@mysql.com}.
+
+For timely, precise answers to technical questions about MySQL
+you should @uref{https://order.mysql.com/, order} one of our
+@uref{http://www.mysql.com/support/arrangements/types.html, support contracts}.
+MySQL support is provided by the MySQL developers so the
+standard is extremely high.
+
+If you are interested in placing a banner advertisement on our Web site,
+please send e-mail to @email{advertising@@mysql.com}.
+
+If you are interested in any of the jobs listed in our
+@uref{http://www.mysql.com/development/jobs/, jobs} section, please send e-mail
+to @email{jobs@@mysql.com}.
+
+For general discussion amongst our many users, please direct your attention to
+the appropriate @uref{http://www.mysql.com/documentation/lists.html, mailing
+list}.
+
+For general information inquires, please send e-mail to
+@email{info@@mysql.com}.
+
+For questions or comments about the workings or content of the Web site,
+please send e-mail to @email{webmaster@@mysql.com}.
+
 
 
 @node Manual-info, Manual conventions, What is MySQL AB, MySQL and MySQL AB
@@ -550,7 +597,7 @@ shell> setenv VARNAME value
 shell> some_command
 @end example
 
-Often, database, table, and column names must be substituted into commands.  To
+Often database, table, and column names must be substituted into commands.  To
 indicate that such substitution is necessary, this manual uses
 @code{db_name}, @code{tbl_name} and @code{col_name}.  For example, you might
 see a statement like this:
@@ -933,10 +980,10 @@ using this with good results.
 @item BDB Tables -- Beta
 The Berkeley DB code is very stable, but we are still improving the interface
 between MySQL and BDB tables, so it will take some time before this
-is as tested as the other table types.
+is tested as well as the other table types.
 
 @item InnoDB Tables -- Beta
-This is a recent addition to @code{MySQL}. They appear to work good and
+This is a recent addition to @code{MySQL}. They appear to work well and
 can be used after some initial testing.
 
 @item Automatic recovery of MyISAM tables - Beta
@@ -944,15 +991,15 @@ This only affects the new code that checks if the table was closed properly
 on open and executes an automatic check/repair of the table if it wasn't.
 
 @item MERGE tables -- Beta / Gamma
-The usage of keys on @code{MERGE} tables is still not that tested.  The
-other part of the @code{MERGE} code is quite well tested.
+The usage of keys on @code{MERGE} tables is still not well tested.  The
+other parts of the @code{MERGE} code are quite well tested.
 
 @item FULLTEXT -- Beta
 Text search seems to work, but is still not widely used.
 
 @end table
 
-MySQL AB provides e-mail support for paying customers, but the 
+MySQL AB provides high-quality support for paying customers, but the 
 MySQL mailing list usually provides answers to common questions.
 Bugs are usually fixed right away with a patch; for serious bugs, there is
 almost always a new release.
@@ -1598,8 +1645,8 @@ FutureForum Web Discussion Software.
 
 @table @asis
 @item @uref{http://www.supportwizard.com/}
-SupportWizard; Interactive helpdesk on the Web (This product includes a
-licensed copy of MySQL.)
+SupportWizard; Interactive helpdesk on the Web. This product includes a
+licensed copy of MySQL.
 
 @item @uref{http://www.sonork.com/}
 Sonork,  Instant Messenger that is not only Internet oriented.  It's 
@@ -1664,7 +1711,7 @@ A free report writer in Java
 
 @item @uref{http://www.javaframework.de}
 MySQLExport - Export of MySQL create statements and data in a lot of
-different formats (SQL, HTML, CVS, text, ZIP, GZIP...)
+different formats (SQL, HTML, CVS, text, ZIP, GZIP...).
 
 @item @uref{http://dlabs.4t2.com}
 M2D, a MySQL Administration client for Windows.  M2D supports 
@@ -1712,7 +1759,7 @@ SmartWorker is a platform for Web application development.
 
 @item @uref{http://xsp.lentus.se/}
 XSP: e(X)tendible (S)erver (P)ages and is a HTML embedded tag language
-written in Java (previously known as XTAGS.)
+written in Java (previously known as XTAGS).
 
 @cindex dbServ
 @item @uref{http://www.dbServ.de/}
@@ -2033,9 +2080,6 @@ Stopbit - A technology news site using MySQL and PHP.
 KDE based calendar manager - The calendar manager has both single user
 (file based) and multi-user (MySQL database) support.
 
-@item @uref{http://tim.desert.net/~tim/imger/}
-Example of storing/retrieving images with MySQL and CGI.
-
 @item @uref{http://www.penguinservices.com/scripts}
 Online shopping cart system.
 
@@ -2112,7 +2156,7 @@ some guidelines as to how to use them.
 @subsubsection The MySQL Mailing Lists
 
 @cindex mailing lists
-@cindex email lists
+@cindex e-mail lists
 
 To subscribe to the main MySQL mailing list, send a message to the
 electronic mail address @email{mysql-subscribe@@lists.mysql.com}.
@@ -2242,15 +2286,15 @@ guarantee the quality on these.
 @table @code
 @item @email{mysql-france-subscribe@@yahoogroups.com} A French mailing list
 @item @email{list@@tinc.net} A Korean mailing list
-Email @code{subscribe mysql your@@email.address} to this list.
+Email @code{subscribe mysql your@@e-mail.address} to this list.
 @item @email{mysql-de-request@@lists.4t2.com} A German mailing list
-Email @code{subscribe mysql-de your@@email.address} to this list.
+Email @code{subscribe mysql-de your@@e-mail.address} to this list.
 You can find information about this mailing list at
 @uref{http://www.4t2.com/mysql}.
 @item @email{mysql-br-request@@listas.linkway.com.br} A Portugese mailing list
-Email @code{subscribe mysql-br your@@email.address} to this list.
+Email @code{subscribe mysql-br your@@e-mail.address} to this list.
 @item @email{mysql-alta@@elistas.net} A Spanish mailing list
-Email @code{subscribe mysql your@@email.address} to this list.
+Email @code{subscribe mysql your@@e-mail.address} to this list.
 @end table
 
 
@@ -2320,7 +2364,7 @@ missing, please include it with your message!  Please read this section
 carefully and make sure that all the information described here is included
 in your report.
 
-@cindex bug reports, email address
+@cindex bug reports, e-mail address
 The normal place to report bugs and problems is
 @email{mysql@@lists.mysql.com}.  If you can make a test case that clearly
 demonstrates the bug, you should post it to the @email{bugs@@lists.mysql.com}
@@ -2619,38 +2663,133 @@ Many users don't read mail with a browser!
 
 
 @node Licensing and Support, Compatibility, MySQL Information Sources, Introduction
-@section MySQL Licensing and Support
+@section MySQL Support and Licensing
 
 @cindex licensing terms
 @cindex support terms
 
 @menu
-* Licensing policy::            MySQL licensing policy
+* Support::                     Support offered by MySQL AB
 * Copyright::                   Copyrights used by MySQL
+* Licensing policy::            MySQL licensing policy
 * Licensing examples::          Example licensing situations
-* Cost::                        MySQL licensing and support costs
-* Support::                     Types of commercial support
+* Payment information::         Payment information
 @end menu
 
-This section describes MySQL support and licensing
-arrangements:
+This section describes MySQL support and licensing arrangements:
 
 @itemize @bullet
+
+@item Support costs and benefits
+(@pxref{Support})
 
 @item The copyrights under which MySQL is distributed
 (@pxref{Copyright})
 
+@item When and why you should license MySQL
+(@pxref{Licensing policy})
+
 @item Sample situations illustrating when a license is required
 (@pxref{Licensing examples})
 
-@item Support costs (@pxref{Cost}) and support benefits
-(@pxref{Support})
+@item How to make payments
+(@pxref{Payment information})
 
-@item Commercial licensing costs
 @end itemize
 
 
-@node Licensing policy, Copyright, Licensing and Support, Licensing and Support
+@node Support, Copyright, Licensing and Support, Licensing and Support
+@subsection Support offered by MySQL AB
+
+@cindex support, types
+@cindex types, of support
+@cindex commercial support, types
+@cindex costs, licensing and support
+@cindex licensing costs
+@cindex support costs
+@cindex prices, licensing and support
+
+MySQL AB offers several support options.  A description
+of what each level of support includes is given at
+@uref{http://www.mysql.com/support/arrangements/types.html}.  As
+a support customer, you have access to the people who develop the
+MySQL source code.  The standard is high for both quality and
+speed.
+
+Our current support and license prices are available from our
+web site.  For options and pricing, and to order support and
+licenses, please see
+@uref{https://order.mysql.com/}.
+
+A license is not a support agreement and includes very minimal
+support.  This means that we try to answer any questions relevant
+to installation.  If the answer is in the documentation, we will
+direct you to the appropriate section.  If you have not purchased
+a license or support, we will simply direct you to the freely
+available public resources.
+
+We consider reliability to be crucial to MySQL's success, and
+fixing bugs is important to us.  If you discover a bug that can
+be repeated reliably, we will fix it in any case.  But if you pay
+for support we will also notify you about the fix status instead
+of just fixing it in a later release.
+
+
+@node Copyright, Licensing policy, Support, Licensing and Support
+@subsection Copyrights Used by MySQL
+
+@cindex copyrights
+
+@menu
+* Copyright changes::           Possible future copyright changes
+@end menu
+
+There are several different copyrights on the MySQL distribution:
+
+@enumerate
+@item
+The MySQL-specific source needed to build the @code{mysqlclient}
+library is licensed under the @code{LGPL} and the programs in the
+@file{client} directory are under the @code{GPL}. Each file states at
+the beginning which license it is under.
+
+@item The client library, and the GNU @code{getopt} library, are covered
+by the ``GNU LIBRARY GENERAL PUBLIC LICENSE.''  @xref{LGPL license}.
+
+@item Some parts of the source (the @code{regexp} library) are covered
+by a Berkeley-style copyright.
+
+@item
+All the source in the server, and the GNU @code{readline} library,
+are covered by the ``GNU GENERAL PUBLIC LICENSE.''  @xref{GPL license}. 
+This is also available as the file @file{COPYING} in the distributions.
+
+@end enumerate
+
+One goal is that the SQL client library should be free enough that it is
+possible to add MySQL support into commercial products
+without a license.  For this reason, we chose the LGPL license for the
+client code.
+@cindex licensing, free
+@cindex free licensing
+
+This means that you can use MySQL for free with any program that uses
+any of the free software licenses.  MySQL is also free for any end
+user for his own or company usage.
+
+However, if you use MySQL for something important to you, you may
+want to help secure its development by purchasing licenses or a support
+contract.  @xref{Support}.
+
+
+@node Copyright changes,  , Copyright, Copyright
+@subsubsection Copyright Changes
+
+Version 3.22 of MySQL is still using a more strict license.  
+See the documentation for that version for more information.
+
+
+@node Licensing policy, Licensing examples, Copyright, Licensing and Support
 @subsection MySQL Licensing Policy
 
 @cindex licensing policy
@@ -2660,12 +2799,6 @@ arrangements:
 
 The formal terms of the GPL license can be found at @ref{GPL license}.
 Basically, our licensing policy and interpretation of the GPL is as follows:
-
-Note that older versions of MySQL are still using a more
-@uref{http://www.mysql.com/support/arrangements/mypl.html, strict license}. 
-See the documentation for that version for more information. If you need a 
-commercial MySQL license, because the GPL license doesn't suit your
-application, you can buy one at @uref{https://order.mysql.com/}.
 
 For normal internal use, MySQL costs nothing.  You do not have
 to pay us if you do not want to.
@@ -2694,23 +2827,24 @@ source code for your copy of the MySQL server, as defined in
 the GPL license.
 @end itemize
 
-A license is @strong{NOT} required if:
+A license is @strong{not} required if:
 
 @itemize @minus
 
 @item
-You do not need a license to include the client code in commercial
-programs.  The client part of MySQL licensed with the
+You include the MySQL client code in a commercial
+program.  The client part of MySQL is licensed under the
 LGPL @code{GNU Library General Public License}.  The @code{mysql} command-line
-client includes code from the @code{readline} library that is under
-the @code{GPL}.
+client does include code from the @code{readline} library that is under
+the @code{GPL}, however.
 
-@item
+@end itemize
+
 If your use of MySQL does not require a license, but you
 like MySQL and want to encourage further development, you are
 certainly welcome to purchase a license or MySQL support anyway.
+@xref{Support}.
 
-@item
 If you use MySQL in a commercial context such that you profit by 
 its use, we ask that you further the development of MySQL by 
 purchasing some level of support.  We feel that if MySQL helps 
@@ -2718,14 +2852,18 @@ your business, it is reasonable to ask that you help MySQL.
 (Otherwise, if you ask us support questions, you are not only using for 
 free something into which we've put a lot a work, you're asking us to 
 provide free support, too.)
-@end itemize
+
+Note that older versions of MySQL are still using a more
+@uref{http://www.mysql.com/support/arrangements/mypl.html, strict license}.
+See the documentation for the specific version for more
+information.
 
 For circumstances under which a MySQL license is required, you
 need a license per machine that runs the @code{mysqld} server.  However,
 a multiple-CPU machine counts as a single machine, and there is no
 restriction on the number of MySQL servers that run on one
 machine, or on the number of clients concurrently connected to a server
-running on that machine!
+running on that machine.
 
 If you have any questions as to whether or not a license is required for
 your particular use of MySQL, please read this again and then
@@ -2737,61 +2875,7 @@ is to use the license form on MySQL's secure server at
 discussed in @ref{Payment information}.
 
 
-@node Copyright, Licensing examples, Licensing policy, Licensing and Support
-@subsection Copyrights Used by MySQL
-
-@cindex copyrights
-
-@menu
-* Copyright changes::           Possible future copyright changes
-@end menu
-
-There are several different copyrights on the MySQL distribution:
-
-@enumerate
-@item
-The MySQL-specific source needed to build the
-@code{mysqlclient} library is licensed under the @code{LGPL} and
-programs in the @file{client} directory is GPL. Each file has a header
-that shows which copyright is used for that file.
-
-@item The client library and the (GNU @code{getopt}) library are covered
-by the ``GNU LIBRARY GENERAL PUBLIC LICENSE.''  @xref{LGPL license}.
-
-@item Some parts of the source (the @code{regexp} library) are covered
-by a Berkeley-style copyright.
-
-@item
-All the source in the server and the (GNU @code{readline}) library
-is covered by the ``GNU GENERAL PUBLIC LICENSE.''  @xref{GPL license}. 
-This is also available as the file @file{COPYING} in the distributions.
-
-@end enumerate
-
-One goal is that the SQL client library should be free enough that it is
-possible to add MySQL support into commercial products
-without a license.  For this reason, we chose the LGPL license for the
-client code.
-@cindex licensing, free
-@cindex free licensing
-
-This means that you can use MySQL for free with any program that uses
-any of the free software licenses.  MySQL is also free for any end
-user for his own or company usage.
-
-However, if you use MySQL for something important to you, you may
-want to help secure its development by purchasing licenses or a support
-contract.  @xref{Support}.
-
-
-@node Copyright changes,  , Copyright, Copyright
-@subsubsection Copyright Changes
-
-Version 3.22 of MySQL is still using a more strict license.  
-See the documentation for that version for more information.
-
-
-@node Licensing examples, Cost, Copyright, Licensing and Support
+@node Licensing examples, Payment information, Licensing policy, Licensing and Support
 @subsection Example Licensing Situations
 
 @menu
@@ -2876,12 +2960,12 @@ will be able to solve the problem for them (in some cases with the help
 from the MySQL development team).
 
 All ISPs that want to keep themselves up-to-date should subscribe
-to our @code{announce} mailing list so that they can be aware of fatal issues
+to our @code{announce} mailing list so that they can be aware of critical issues
 that may be relevant for their MySQL installations.
 
 Note that if the ISP doesn't have a license for MySQL,
 it should give its customers at least read access to the source of
-the MySQL installation so that its customer can verify that
+the MySQL installation so that its customers can verify that
 it is patched correctly.
 
 
@@ -2891,7 +2975,7 @@ it is patched correctly.
 @cindex web server, running
 @cindex running, a web server
 
-If you use MySQL in conjunction with a Web server on Unix, you
+If you use MySQL in conjunction with a Web server, you
 don't have to pay for a license.
 
 This is true even if you run a commercial Web server that uses
@@ -2900,97 +2984,22 @@ version yourself.  However, in this case we would like you to purchase
 MySQL support, because MySQL is helping your enterprise.
 
 
-@node Cost, Support, Licensing examples, Licensing and Support
-@subsection MySQL Licensing and Support Costs
-
-@cindex costs, licensing and support
-@cindex licensing costs
-@cindex support costs
-@cindex prices, licensing and support
-
-@menu
-* Payment information::         Payment information
-* Contact information::         Contact information
-@end menu
-
-Our current license prices are shown below. To make a purchase, please visit
-@uref{https://order.mysql.com/}.
-
-If you pay by credit card, the currency is EURO (European Union Euro) so the
-prices will differ slightly.
-
-@multitable @columnfractions .3 .3 .3
-@item @strong{Number of licenses} @tab @strong{Per copy}
-@item 1-9                @tab 230 EURO
-@item 10-24              @tab 138 EURO
-@item 25-49              @tab 117 EURO
-@item 50-99              @tab 102 EURO
-@item 100-249            @tab  91 EURO
-@item 250-499            @tab  76 EURO
-@item 500-999            @tab  66 EURO
-@end multitable
-
-For high volume (OEM) purchases, please contact
-@email{sales@@mysql.com}.
-
-For OEM purchases, you must act as the middle-man for eventual problems
-or extension requests from your users.  We also require that OEM
-customers have at least an extended e-mail support contract.  Note that
-OEM licenses only apply for products where the user doesn't have direct
-access to the MySQL server (embedded system).  In other words,
-the MySQL server should only be used with the application
-that was supplied you.
-
-If you have a low-margin, high-volume product, you can always talk to us
-about other terms (for example, a percent of the sale price).  If you do,
-please be informative about your product, pricing, market, and any other
-information that may be relevant.
-
-A full-price license is not a support agreement and includes very minimal
-support.  This means that we try to answer any relevant questions.  If the
-answer is in the documentation, we will direct you to the appropriate
-section.  If you have not purchased a license or support, we probably will
-not answer at all.
-
-If you discover what we consider a real bug, we are likely to fix it in
-any case.  But if you pay for support we will notify you about the fix
-status instead of just fixing it in a later release.
-
-More comprehensive support is sold separately.  Descriptions of what each
-level of support includes are given in @ref{Support}.  Costs for the various
-types of commercial support are shown below.  Support level prices are in
-EURO (European Union Euro).  One EURO is about 1.06 USD.
-
-@multitable @columnfractions .5 .5
-@item @strong{Type of support}  @tab @strong{Cost per year}
-@item Basic e-mail support. @xref{Basic email support}. @tab EURO 200
-@item Extended e-mail support @xref{Extended email support}. @tab EURO 1000
-@item Login support @xref{Login support}.            @tab EURO 2000
-@item Extended login support @xref{Extended login support}.  @tab EURO 5000
-@item Telephone support @xref{Telephone support}.  @tab EURO 12000
-@end multitable
-
-You may upgrade from any lower level of support to a higher level of
-support for the difference in price between the two support levels.
-
-We do also provide telephone support (mostly emergency support but also
-24/7 support).  This support option doesn't however have a fixed price
-but is negotiated for case to case.  If you are interested in this option
-you can email @email{sales@@mysql.com} and tell us about your needs.
-
-Note that as our sales staff is very busy, it may take some time until
-your request is handled.  Our support staff does however always answer
-promptly to support questions!
-
-
-@node Payment information, Contact information, Cost, Cost
-@subsubsection Payment information
+@node Payment information, , Licensing examples, Licensing and Support
+@subsection Payment information
 
 @cindex payment information
 
-Currently we can take SWIFT payments, checks, or credit cards.
+The most efficient way to pay for support and licenses is through
+@uref{https://order.mysql.com/, MySQL AB's secure license form}.
+Please check this site for the latest support options and
+pricing details.
 
-Payment should be made to:
+Also, we can take SWIFT payments, checks, or credit cards.
+
+@itemize @bullet
+
+@item
+SWIFT payments should be made to:
 
 @example
 Postgirot Bank AB
@@ -3006,9 +3015,10 @@ Account number: 96 77 06 - 3
 
 Specify: license and/or support and your name and e-mail address.
 
-In Europe and Japan you can use EuroGiro (that should be less expensive) to the
-same account.
+In Europe and Japan you can use EuroGiro (which should be less
+expensive) to the same account.
 
+@item
 If you want to pay by check, make it payable to ``MySQL Finland AB'' and
 mail it to the address below:
 
@@ -3018,342 +3028,19 @@ BOX 6434, Torsgatan 21
 11382 STOCKHOLM, SWEDEN
 @end example
 
-If you want to pay by credit card over the Internet, you can use
-@uref{https://order.mysql.com/, MySQL AB's secure license form}.
-
+@item
 You can also print a copy of the license form, fill it in, and send it by fax
 to:
 
 +46-8-729 69 05
 
+@item
 If you want us to bill you, you can use the license form and write ``bill
 us'' in the comment field.  You can also mail a message to
 @email{sales@@mysql.com} (@strong{not} @code{mysql@@lists.mysql.com}!)
 with your company information and ask us to bill you.
 
-
-@node Contact information,  , Payment information, Cost
-@subsubsection Contact Information
-
-@cindex contact information
-@cindex licensing, contact information
-@cindex advertising, contact information
-@cindex employment, contact information
-@cindex partnering with MySQL
-@cindex employment with MySQL
-@cindex jobs at MySQL
-
-For commercial licensing, please contact the MySQL licensing
-team.  The much preferred method is by e-mail to
-@email{licensing@@mysql.com}.  Fax is also possible but handling of
-these may take much longer (Fax +46-8-729 69 05).
-
-If you represent a business that is interested in partnering with
-MySQL, please send e-mail to @email{partner@@mysql.com}.
-
-For timely, precise answers to technical questions about MySQL
-you should @uref{https://order.mysql.com/, order} one of our
-@uref{http://www.mysql.com/support/arrangements/types.html, support contracts}.
-MySQL support is provided by the MySQL developers so the
-standard is extremely high.
-
-If you are interested in placing a banner advertisement on our Web site,
-please send e-mail to @email{advertising@@mysql.com}.
-
-If you are interested in any of the jobs listed in our
-@uref{http://www.mysql.com/development/jobs/, jobs} section, please send e-mail
-to @email{jobs@@mysql.com}.
-
-For general discussion amongst our many users, please direct your attention to
-the appropriate @uref{http://www.mysql.com/documentation/lists.html, mailing
-list}.
-
-For general information inquires, please send e-mail to
-@email{info@@mysql.com}.
-
-For questions or comments about the workings or content of the Web site,
-please send e-mail to @email{webmaster@@mysql.com}.
-
-
-@node Support,  , Cost, Licensing and Support
-@subsection Types of Commercial Support
-
-@cindex support, types
-@cindex types, of support
-@cindex commercial support, types
-
-@menu
-* Basic email support::         Basic email support
-* Extended email support::      Extended email support
-* Login support::               Login support
-* Extended login support::      Extended login support
-* Telephone support::           Telephone support
-* Table handler support::       Support for other table handlers
-@end menu
-
-The following is true of all support options:
-
-@itemize @bullet
-@item
-The support is per year.
-@item
-We will fix, or provide a reasonable workaround for any repeatable bug.
-@item
-We will give a reasonable effort to find and fix any other MySQL related bug.
-@item
-The higher level of support contract the more effort we will put into finding
-a solution to your problems.
-@item
-The following is true for all support contracts except Basic email support:
-
-For non-bug related things, like helping you optimize your queries or
-your system, extending MySQL with new functionality, etc., we charge 200
-EURO/hour, which is deducted from your support contract.  In other words,
-if you have login support (2000 EURO), you can expect us to work up to
-10 hours to help you with things like this.
 @end itemize
-
-
-@node Basic email support, Extended email support, Support, Support
-@subsubsection Basic E-mail Support
-
-@cindex email, technical support
-@cindex technical support, by email
-
-Basic e-mail support is a very inexpensive support option and should be
-thought of more as a way to support our development of MySQL
-than as a real support option.  We at MySQL do give a lot of free
-support in all the different MySQL lists, and the money we get from
-basic e-mail support is largely used to make this possible.
-
-At this support level, the MySQL mailing lists are the preferred
-means of communication.  Questions normally should be mailed to the primary
-mailing list (@email{mysql@@lists.mysql.com}) or one of the other regular
-lists (for example, @email{win32@@lists.mysql.com} for Windows-related
-MySQL questions), as someone else already may have experienced and
-solved the problem you have.  @xref{Asking questions}.
-
-However, by purchasing basic e-mail support, you also have access to the
-support address @email{mysql-support@@mysql.com}, which is not available
-as part of the minimal support that you get by purchasing a MySQL
-license.  This means that for especially critical questions, you can 
-cross-post your message to @email{mysql-support@@mysql.com}.  (If the 
-message contains sensitive data, you should post only to 
-@email{mysql-support@@mysql.com}.)
-
-@strong{REMEMBER!} to ALWAYS include your registration number and expiration 
-date when you send a message to @email{mysql-support@@mysql.com}.
-
-Note that if you have encountered a critical, repeatable bug, and follow
-the rules outlined in the manual section of how to report bugs and send
-it to @email{bugs@@lists.mysql.com}, we promise to try to fix this as
-soon as possible, regardless of your support level!  @xref{Bug reports}.
-
-Basic e-mail support includes the following types of service:
-
-@itemize @bullet
-@item
-If your question is already answered in the manual, we will inform you of the
-correct section in which you can find the answer.  If the answer is not in
-the manual, we will point you in the right direction to solve your problem.
-
-@item
-We guarantee a timely answer for your e-mail messages.  We can't guarantee
-that we can solve any problem, but at least you will receive an answer if we
-can contact you by e-mail.
-
-@item
-We will help with unexpected problems when you install MySQL from a
-binary distribution on supported platforms.  This level of support does not
-cover installing MySQL from a source distribution.  Supported
-platforms are those for which MySQL is known to work.
-@xref{Which OS}.
-
-@item
-We will help you with bugs and missing features.  Any bugs that are found are
-fixed for the next MySQL release.  If the bug is critical for
-you, we will mail you a patch for it as soon the bug is fixed.  Critical
-bugs always have the highest priority for us, and we ensure that they are
-fixed as soon as possible.
-
-@item
-Your suggestions for the further development of MySQL will be
-taken into consideration.  By taking email support you have already
-helped the further development of MySQL.  If you want to have
-more input, upgrade to a higher level of support.
-
-@item
-If you want us to help optimize your system, you must upgrade to a
-higher level of support.
-@end itemize
-
-
-@node Extended email support, Login support, Basic email support, Support
-@subsubsection Extended E-mail Support
-
-@cindex extended email support
-
-Extended e-mail support includes everything in basic e-mail support with
-these additions:
-
-@itemize @bullet
-@item
-Your e-mail will be dealt with before mail from basic e-mail support users and
-non-registered users.
-
-@item
-Your suggestions for the further development of MySQL will
-receive strong consideration.  Simple extensions that suit the basic
-goals of MySQL are implemented in a matter of days.  By taking
-extended e-mail support you have already helped the further development
-of MySQL.
-
-@item
-Typical situations that are covered by extended e-mail support are:
-
-@itemize @minus
-@item
-We will answer and (within reason) solve questions that relate to possible
-bugs in MySQL.  As soon as the bug is found and corrected, we
-will mail a patch for it.
-
-@item
-We will help with unexpected problems when you install MySQL from a
-source or binary distribution on supported platforms.
-
-@item
-We will answer questions about missing features and offer hints how to work
-around them.
-
-@item
-We will provide hints on optimizing @code{mysqld} for your situation.
-@end itemize
-
-@item
-You are allowed to influence the priority of items on the MySQL
-TODO List.  @xref{TODO}.  This will ensure that the features you really need
-will be implemented sooner than they might be otherwise.
-@end itemize
-
-
-@node Login support, Extended login support, Extended email support, Support
-@subsubsection Login Support
-
-@cindex login support
-
-Login support includes everything in extended e-mail support with
-these additions:
-
-@itemize @bullet
-@item
-Your e-mail will be dealt with even before e-mail from extended e-mail
-support users.
-
-@item
-Your suggestions for the further development of MySQL will
-be taken into very high consideration.  Realistic extensions that can be
-implemented in a couple of hours and that suit the basic goals of
-MySQL will be implemented as soon as possible.
-
-@item
-If you have a very specific problem, we can try to log in on your system
-to solve the problem ``in place.''
-
-@item
-Like any database vendor, we can't guarantee that we can rescue any data from
-crashed tables, but if the worst happens, we will help you rescue as much as
-possible.  MySQL has proven itself very reliable, but anything is
-possible due to circumstances beyond our control (for example, if your system
-crashes or someone kills the server by executing a @code{kill -9} command).
-
-@item
-We will provide hints on optimizing your system and your queries.
-
-@item
-You are allowed to call a MySQL developer (in moderation) and
-discuss your MySQL-related problems.  This option is however
-only to be used as a last result during an emergency after we have
-failed to grasp the total problem with email.  To make efficient
-use of our time we need to first get all facts about the problem,
-before talking on phone, to be able to work as efficiently as possible on
-solving the problem.
-@end itemize
-
-
-@node Extended login support, Telephone support, Login support, Support
-@subsubsection Extended Login Support
-
-Extended login support includes everything in login support with these
-additions:
-
-@itemize @bullet
-@item
-Your e-mail has the highest possible priority.
-
-@item
-We will actively examine your system and help you optimize it and your
-queries.  We may also optimize and/or extend MySQL to better
-suit your needs.
-
-@item
-You may also request special extensions just for you.  For example:
-@example
-mysql> select MY_FUNC(col1,col2) from table;
-@end example
-
-@item
-We will provide a binary distribution of all important MySQL
-releases for your system, as long as we can get an account on a
-similar system.  In the worst case, we may require access to your system
-to be able to create a binary distribution.
-
-@item
-If you can provide accommodations and pay for traveler fares, you can
-even get a MySQL developer to visit you and offer you help with
-your troubles.  Extended login support entitles you to one personal
-encounter per year, but we are always very flexible towards our
-customers!  If the visit takes 16 hours or more, the first 8 hours is
-without charge.  For the hours above 8 hours, you will be charged with a
-rate that is at least 20 % less than our standard rates.
-@end itemize
-
-
-@node Telephone support, Table handler support, Extended login support, Support
-@subsubsection Telephone Support
-
-Telephone support includes everything in extended login support with
-these additions:
-
-@itemize @bullet
-@item
-We will provide you with a dynamic web page showing the current list of
-@code{MySQL} developers that you can phone when you have a critical
-problem.
-@item
-For non critical problem, you can request a MySQL developer to
-phone back within 48 hours to discuss @code{MySQL} related issues.
-@end itemize
-
-
-@node Table handler support,  , Telephone support, Support
-@subsubsection Support for other table handlers
-
-@cindex support, BDB Tables
-@cindex support, InnoDB Tables
-
-To get support for @code{BDB} tables, @code{InnoDB} tables you have
-to pay an additional 30% on the standard support price for each of
-the table handlers you would like to have support for.
-
-We at @code{MySQL AB} will help you create a proper bug report for the
-table handler and submit it to the developers for the specific table
-handler.  We will also do our best to ensure that you will get a timely
-answer or solution from the developers of the table handler.
-
-Even if we are quite confident that we can solve most problems within a
-timely manner, we can't guarantee a quick solution for any problems you
-can get with the different table handlers.  We will however do our best
-to help you get the problem solved.
 
 
 @node Compatibility, Comparisons, Licensing and Support, Introduction
@@ -4346,7 +4033,7 @@ characters in database, table and column names.
 @item
 @code{DELETE FROM merge_table} used without a @code{WHERE}
 will only clear the mapping for the table, not delete everything in the
-mapped tables
+mapped tables.
 
 @item
 You cannot build in another directory when using
@@ -6648,7 +6335,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 
 @c @item
 @c EMAIL: melo@co.telenet.pt (Pedro Melo)
-@c Temp out of service (email from Pedro)
+@c Temp out of service (e-mail from Pedro)
 @c @image{Flags/portugal} Portugal [IP] @
 @c @uref{http://mysql.ip.pt, WWW}
 
@@ -8333,7 +8020,7 @@ You can examine the change history for the tree with all the diffs by using
 @code{bk sccstool}.  If you see some funny diffs or code that you have a
 question about, do not hesitate to send e-mail to
 @email{internals@@lists.mysql.com}.  Also, if you think you have a better idea
-on how to do something, send an email to the same address with a patch.
+on how to do something, send an e-mail to the same address with a patch.
 @code{bk diffs} will produce a patch for you after you have made changes
 to the source. If you do not have the time to code your idea, just send
 a description.
@@ -9125,7 +8812,7 @@ correctly, check the log file to see if you can find out why.  Log files
 are located in the data directory (typically
 @file{/usr/local/mysql/data} for a binary distribution,
 @file{/usr/local/var} for a source distribution,
-@file{\mysql\data\mysql.err} on Windows.)  Look in the data directory for
+@file{\mysql\data\mysql.err} on Windows).  Look in the data directory for
 files with names of the form @file{host_name.err} and
 @file{host_name.log} where @code{host_name} is the name of your server
 host.  Then check the last few lines of these files:
@@ -11630,7 +11317,7 @@ the IBM C compiler).
 If you are using @code{gcc} or @code{egcs} to compile MySQL, you
 @strong{MUST} use the @code{-fno-exceptions} flag, as the exception
 handling in @code{gcc}/@code{egcs} is not thread safe!  (This is tested with
-@code{egcs} 1.1.).  There are also some known problems with IBM's assembler,
+@code{egcs} 1.1.)  There are also some known problems with IBM's assembler,
 which may cause it to generate bad code when used with gcc.
 
 We recommend the following @code{configure} line with @code{egcs} and
@@ -11897,7 +11584,7 @@ Please submit a full bug report.
 To fix this you should change to the @code{sql} directory and do a ``cut
 and paste'' of the last @code{gcc} line, but change @code{-O3} to
 @code{-O0} (or add @code{-O0} immediately after @code{gcc} if you don't
-have any @code{-O} option on your compile line.)  After this is done you
+have any @code{-O} option on your compile line).  After this is done you
 can just change back to the top-level directly and run @code{make}
 again.
 
@@ -14248,7 +13935,7 @@ You don't need foreign keys to join 2 tables.
 
 The only thing MySQL doesn't do is @code{CHECK} to make sure that
 the keys you use really exist in the table(s) you're referencing and it
-doesn't automatically delete rows from table with a foreign key
+doesn't automatically delete rows from a table with a foreign key
 definition. If you use your keys like normal, it'll work just fine:
 
 
@@ -14330,8 +14017,8 @@ SELECT s.* FROM persons p, shirts s
 @cindex keys, searching on two
 
 MySQL doesn't yet optimize when you search on two different
-keys combined with @code{OR} (Searching on one key with different @code{OR}
-parts is optimized quite good):
+keys combined with @code{OR} (searching on one key with different @code{OR}
+parts is optimized quite well):
 
 @example
 SELECT field1_index, field2_index FROM test_table WHERE field1_index = '1'
@@ -14340,7 +14027,7 @@ OR  field2_index = '1'
 
 The reason is that we haven't yet had time to come up with an efficient
 way to handle this in the general case. (The @code{AND} handling is,
-in comparison, now completely general and works very well).
+in comparison, now completely general and works very well.)
 
 For the moment you can solve this very efficiently by using a
 @code{TEMPORARY} table. This type of optimization is also very good if
@@ -14356,7 +14043,7 @@ SELECT * from tmp;
 DROP TABLE tmp;
 @end example
 
-The above way to solve this query is in effect an @code{UNION} of two queries.
+The above way to solve this query is in effect a @code{UNION} of two queries.
 
 
 @node Calculating days,  , Searching on two keys, Examples
@@ -14868,7 +14555,7 @@ also set this explicitely to @code{""} if you want to disable this
 option. If this option is used, @code{mysqld} will on open check if the
 table is marked as crashed or if if the table wasn't closed properly.
 (The last option only works if you are running with
-@code{--skip-locking}).  If this is the case @code{mysqld} will run
+@code{--skip-locking}.)  If this is the case @code{mysqld} will run
 check on the table. If the table was corrupted, @code{mysqld} will
 attempt to repair it.
 
@@ -14926,7 +14613,7 @@ command, if the user doesn't have @code{INSERT} privilege to the
 @item --skip-concurrent-insert
 Turn off the ability to select and insert at the same time on @code{MyISAM}
 tables. (This is only to be used if you think you have found a bug in this
-feature).
+feature.)
 
 @item --skip-delay-key-write
 Ignore the @code{delay_key_write} option for all tables.
@@ -15601,7 +15288,7 @@ shell> tcpdump -l -i eth0 -w - src or dst port 3306 | strings
 @end example
 
 (This works under Linux and should work with small modifications under
-other systems).  Warning: If you do not see data this doesn't always
+other systems.)  Warning: If you do not see data this doesn't always
 actually mean that it is encrypted. If you need high security, you should
 consult with a security expert.
 @end itemize
@@ -15679,8 +15366,8 @@ For more details, see @ref{Changing MySQL user, , Changing MySQL
 user}.
 
 @item
-Don't support symlinks to tables (This can be disabled with the
-@code{--skip-symlink} option. This is especially important if you run
+Don't support symlinks to tables (this can be disabled with the
+@code{--skip-symlink} option). This is especially important if you run
 @code{mysqld} as root as anyone that has write access to the mysqld data
 directories could then delete any file in the system!
 @xref{Symbolic links to tables}.
@@ -16126,7 +15813,7 @@ currently executing queries, including queries that set or change passwords.
 Privileges on the @code{mysql} database can be used to change passwords
 and other access privilege information.  (Passwords are stored
 encrypted, so a malicious user cannot simply read them to know the plain
-text password).  If they can access the @code{mysql.user} password
+text password.)  If they can access the @code{mysql.user} password
 column, they can use it to log into the MySQL server
 for the given user.  (With sufficient privileges, the same user can
 replace a password with a different one.)
@@ -16322,7 +16009,7 @@ MySQL does not store passwords in plaintext form for anyone to
 see.  Rather, the password supplied by a user who is attempting to
 connect is encrypted (using the @code{PASSWORD()} function). The
 encrypted password is then used when the client/server is checking if
-the password is correct (This is done without the encrypted password
+the password is correct. (This is done without the encrypted password
 ever traveling over the connection.)  Note that from MySQL's
 point of view the encrypted password is the REAL password, so you should
 not give anyone access to it!  In particular, don't give normal users
@@ -17969,8 +17656,8 @@ you executed @code{mysqldump}.
 If you have to restore something, try to recover your tables using
 @code{REPAIR TABLE} or @code{myisamchk -r} first.  That should work in
 99.9% of all cases.  If @code{myisamchk} fails, try the following
-procedure: (This will only work if you have started MySQL with
-@code{--log-update}. @xref{Update log}.):
+procedure (this will only work if you have started MySQL with
+@code{--log-update}, @pxref{Update log}):
 
 @enumerate
 @item
@@ -18155,18 +17842,18 @@ the indexes and not in the data part.  All of the above check types
 checks the indexes throughly and should thus find most errors.
 
 If you just want to check a table that you assume is ok, you should use
-no check options or the @code{QUICK} option. The later should be used
+no check options or the @code{QUICK} option. The latter should be used
 when you are in a hurry and can take the very small risk that
-@code{QUICK} didn't find an error in the data file (In most cases
+@code{QUICK} didn't find an error in the data file. (In most cases
 MySQL should find, under normal usage, any error in the data
 file. If this happens then the table will be marked as 'corrupted',
-in which case the table can't be used until it's repaired).
+in which case the table can't be used until it's repaired.)
 
 @code{FAST} and @code{CHANGED} are mostly intended to be used from a
 script (for example to be executed from cron) if you want to check your
 table from time to time. In most cases you @code{FAST} is to be prefered
 over @code{CHANGED}.  (The only case when it isn't is when you suspect a
-bug you have found a bug in the @code{MyISAM} code.).
+bug you have found a bug in the @code{MyISAM} code.)
 
 @code{EXTENDED} is only to be used after you have run a normal check but
 still get strange errors from a table when MySQL tries to
@@ -18626,7 +18313,7 @@ index file is truncated at start, so one usually ignore this space.
 This space is needed on the same disk as the original index file!
 @item
 When using @code{--recover} or @code{--sort-recover}
-(but not when using @code{--safe-recover}, you will need space for a
+(but not when using @code{--safe-recover}), you will need space for a
 sort buffer for:
 @code{(largest_key + row_pointer_length)*number_of_rows * 2}.
 You can check the length of the keys and the row_pointer_length with
@@ -19490,7 +19177,7 @@ error message @code{Host ... is blocked}.  When more than
 connection to the MySQL server, MySQL assumes
 something is wrong and blocks the host from further connection requests.
 Flushing the host tables allows the host to attempt to connect
-again. @xref{Blocked host}.) You can start @code{mysqld} with
+again. @xref{Blocked host}. You can start @code{mysqld} with
 @code{-O max_connection_errors=999999999} to avoid this error message.
 
 @item @code{LOGS} @tab Closes and reopens all log files.
@@ -20716,7 +20403,7 @@ Assign an unique number to it.
 
 @item
 Create the file @file{sql/share/charsets/MYSET.conf}.
-(You can use @file{sql/share/charsets/latin1.conf} as a base for this).
+(You can use @file{sql/share/charsets/latin1.conf} as a base for this.)
 
 The syntax for the file very simple:
 
@@ -21281,7 +20968,7 @@ shell> mysql -u root -S /tmp/mysql.sock -proot_password -e
 @xref{Privileges}.
 @end example
 You will have to do the above for each @code{mysqld} running in each
-data directory, that you have (just change the socket, -S=...)
+data directory, that you have (just change the socket, -S=...).
 @item
 @code{pid-file} is very important, if you are using @code{safe_mysqld}
 to start @code{mysqld} (e.g. --mysqld=safe_mysqld) Every @code{mysqld}
@@ -21317,7 +21004,7 @@ more flexibility.  The order in which the @code{mysqlds} are started or
 stopped depends on the order in which they appear in the config file.
 @item
 When you want to refer to a certain group using GNR with this program,
-just use the number in the end of the group name ( [mysqld# <== ).
+just use the number in the end of the group name ([mysqld# <== ).
 @item
 You may want to use option '--user' for @code{mysqld}, but in order to
 do this you need to be root when you start the @code{mysqld_multi}
@@ -22088,7 +21775,7 @@ Continue even if we get a SQL error.
 @cindex @code{no-named-commands}, @code{mysql} option
 @item -g, --no-named-commands
 Named commands are disabled. Use \* form only, or use named commands
-only in the beginning of a line ending with a semicolon (;). Since
+only in the beginning of a line ending with a semicolon (@samp{;}). Since
 Version 10.9, the client now starts with this option ENABLED by default!
 With the -g option, long format commands will still work from the first
 line, however.
@@ -22742,7 +22429,7 @@ tables.
 output. The above line will be added otherwise, if --databases or
 --all-databases option was given.
 @item -t, --no-create-info
-Don't write table creation information (The @code{CREATE TABLE} statement.)
+Don't write table creation information (the @code{CREATE TABLE} statement).
 @item -d, --no-data
 Don't write any row information for the table.  This is very useful if you
 just want to get a dump of the structure for a table!
@@ -23192,7 +22879,7 @@ switch to a new log) by executing @code{FLUSH LOGS}. @xref{FLUSH}.
 @code{mysqld} writes all errors to the stderr, which the
 @code{safe_mysqld} script redirects to a file called
 @code{'hostname'.err}.  (On Windows, @code{mysqld} writes this directly
-to @file{\mysql\data\mysql.err}).
+to @file{\mysql\data\mysql.err}.)
 
 This contains information indicating when @code{mysqld} was started and
 stopped and also any critical errors found when running.  If @code{mysqld}
@@ -23444,7 +23131,7 @@ The above command does the following:
 @itemize @bullet
 @item
 If standard logging (@code{--log}) or slow query logging
-(@code{--log-slow-queries}) is used, closes and reopens the log file.
+(@code{--log-slow-queries}) is used, closes and reopens the log file
 (@file{mysql.log} and @file{`hostname`-slow.log} as default).
 @item
 If update logging (@code{--log-update}) is used, closes the update log and
@@ -23504,7 +23191,7 @@ Starting in Version 3.23.15, MySQL supports one-way replication
 internally. One server acts as the master, while the other acts as the
 slave. Note that one server could play the roles of master in one pair
 and slave in the other. The master server keeps a binary log of updates
-(@xref{Binary log}.) and an index file to binary logs to keep track of
+(@pxref{Binary log}) and an index file to binary logs to keep track of
 log rotation.  The slave, upon connecting, informs the master where it
 left off since the last successfully propagated update, catches up on
 the updates, and then blocks and waits for the master to notify it of
@@ -23525,7 +23212,7 @@ master. @xref{Backup}.
 
 MySQL replication is based on the server keeping track of all
 changes to your database (updates, deletes, etc) in the binary
-log. (@xref{Binary log}.) and the slave server(s) reading the saved
+log (@pxref{Binary log}) and the slave server(s) reading the saved
 queries from the master server's binary log so that the slave can
 execute the same queries on its copy of the data.
 
@@ -25339,7 +25026,7 @@ To help MySQL optimize queries better, run @code{myisamchk
 --analyze} on a table after it has been loaded with relevant data. This
 updates a value for each index part that indicates the average number of
 rows that have the same value.  (For unique indexes, this is always 1,
-of course.).  MySQL will use this to decide which index to
+of course.)  MySQL will use this to decide which index to
 choose when you connect two tables with 'a non-constant expression'.
 You can check the result from the @code{analyze} run by doing @code{SHOW
 INDEX FROM table_name} and examining the @code{Cardinality} column.
@@ -26442,7 +26129,7 @@ would be available.  Some of the cases where this happens are:
 @item
 If the use of the index would require MySQL to access more
 than 30 % of the rows in the table.  (In this case a table scan is
-probably much faster, as this will require us to do much fewer seeks).
+probably much faster, as this will require us to do much fewer seeks.)
 Note that if such a query uses @code{LIMIT} to only retrieve
 part of the rows, MySQL will use an index anyway, as it can
 much more quickly find the few rows to return in the result.
@@ -26510,7 +26197,7 @@ supported. See @ref{Fulltext Search} for details.
 
 MySQL can create indexes on multiple columns.  An index may
 consist of up to 15 columns. (On @code{CHAR} and @code{VARCHAR} columns you
-can also use a prefix of the column as a part of an index).
+can also use a prefix of the column as a part of an index.)
 
 A multiple-column index can be considered a sorted array containing values
 that are created by concatenating the values of the indexed columns.
@@ -26920,7 +26607,7 @@ when we tested them, neither was sufficiently bug free to allow
 MySQL to be compiled with optimizations on.
 
 When you compile MySQL you should only include support for the
-character sets that you are going to use. (Option @code{--with-charset=xxx}).
+character sets that you are going to use. (Option @code{--with-charset=xxx}.)
 The standard MySQL binary distributions are compiled with support
 for all character sets.
 
@@ -26943,7 +26630,7 @@ the resulting binary can be up to 4 % faster.
 @item
 If you connect using TCP/IP rather than Unix sockets, the result is 7.5%
 slower on the same computer. (If you are connection to @code{localhost},
-MySQL will, by default, use sockets).
+MySQL will, by default, use sockets.)
 
 @item
 If you connect using TCP/IP from another computer over a 100M Ethernet,
@@ -27644,7 +27331,7 @@ A tab character.
 ASCII(26) (Control-Z).  This character can be encoded to allow you to
 go around the problem that ASCII(26) stands for END-OF-FILE on Windows.
 (ASCII(26) will cause problems if you try to use
-@code{mysql database < filename}).
+@code{mysql database < filename}.)
 
 @findex \\ (escape)
 @findex escape (\\)
@@ -28447,7 +28134,7 @@ are @code{1901} to @code{2155}, @code{0000} in the 4-digit year format,
 and 1970-2069 if you use the 2-digit format (70-69).  MySQL displays
 @code{YEAR} values in @code{YYYY} format, but allows you to assign values to
 @code{YEAR} columns using either strings or numbers. (The @code{YEAR} type is
-new in MySQL Version 3.22.). @xref{YEAR}.
+new in MySQL Version 3.22.) @xref{YEAR}.
 
 @tindex NATIONAL CHAR
 @tindex NCHAR
@@ -29084,7 +28771,7 @@ You can specify @code{TIME} values in a variety of formats:
 @itemize @bullet
 @item
 As a string in @code{'D HH:MM:SS.fraction'} format.  (Note that
-MySQL doesn't yet store the fraction for the time column).  One
+MySQL doesn't yet store the fraction for the time column.)  One
 can also use one of the following ``relaxed'' syntax:
 
 @code{HH:MM:SS.fraction}, @code{HH:MM:SS}, @code{HH:MM}, @code{D HH:MM:SS},
@@ -34028,7 +33715,7 @@ you create a table.  A temporary table will automatically be deleted if a
 connection dies and the name is per connection.  This means that two different
 connections can both use the same temporary table name without conflicting
 with each other or with an existing table of the same name. (The existing table
-is hidden until the temporary table is deleted).
+is hidden until the temporary table is deleted.)
 
 In MySQL Version 3.23 or later, you can use the keywords
 @code{IF NOT EXISTS} so that an error does not occur if the table already
@@ -34284,13 +33971,13 @@ many numbers that are the same.  Prefix compression means that every
 key needs one extra byte to indicate how many bytes of the previous key are
 the same for the next key (note that the pointer to the row is stored
 in high-byte-first-order directly after the key, to improve
-compression.)  This means that if you have many equal keys on two rows
+compression).  This means that if you have many equal keys on two rows
 in a row, all following 'same' keys will usually only take 2 bytes
 (including the pointer to the row).  Compare this to the ordinary case
 where the following keys will take storage_size_for_key +
 pointer_size (usually 4).  On the other hand, if all keys are
 totally different, you will lose 1 byte per key, if the key isn't a
-key that can have @code{NULL} values (In this case the packed key length will
+key that can have @code{NULL} values. (In this case the packed key length will
 be stored in the same byte that is used to mark if a key is @code{NULL}.)
 
 @item
@@ -34832,7 +34519,7 @@ columns.
 
 For @code{CHAR} and @code{VARCHAR} columns, indexes can be created that
 use only part of a column, using @code{col_name(length)} syntax.  (On
-@code{BLOB} and @code{TEXT} columns the length is required). The
+@code{BLOB} and @code{TEXT} columns the length is required.) The
 statement shown below creates an index using the first 10 characters of
 the @code{name} column:
 
@@ -35387,7 +35074,7 @@ The argument to @code{AGAINST} must be a constant string.
 
 Unfortunately, full-text search has no user-tunable parameters yet,
 although adding some is very high on the TODO.  However, if you have a 
-MySQL source distribution (@xref{Installing source}.), you can 
+MySQL source distribution (@pxref{Installing source}), you can 
 somewhat alter the full-text search behavior.
 
 Note that full-text search was carefully tuned for the best searching
@@ -35529,7 +35216,7 @@ You can convert tables between different types with the @code{ALTER
 TABLE} statement. @xref{ALTER TABLE, , @code{ALTER TABLE}}.
 
 Note that MySQL supports two different kinds of
-tables. Transaction-safe tables (@code{BDB}, @code{InnoDB}
+tables: transaction-safe tables (@code{BDB} and @code{InnoDB})
 and not transaction-safe tables (@code{HEAP}, @code{ISAM},
 @code{MERGE}, and @code{MyISAM}).
 
@@ -36057,9 +35744,9 @@ In other words, the only ways this can go out of sync are:
 The @code{MyISAM} tables are copied without a @code{LOCK} and
 @code{FLUSH TABLES}.
 @item
-MySQL has crashed between an update and the final close
+MySQL has crashed between an update and the final close.
 (Note that the table may still be ok, as MySQL always issues writes
-for everything between each statement).
+for everything between each statement.)
 @item
 Someone has done a @code{myisamchk --repair} or @code{myisamchk
 --update-state}on a table that was in use by @code{mysqld}.
@@ -36403,7 +36090,7 @@ problem.  As this is a two stage operation, any problems with BDB tables
 may take a little longer for us to fix than for other table handlers.
 However, as the BerkeleyDB code itself has been used by many other
 applications than MySQL, we don't envision any big problems with
-this.  @xref{Table handler support}.
+this.  @xref{Support}.
 
 
 @node BDB install, BDB start, BDB overview, BDB
@@ -39035,13 +38722,13 @@ same order as they appear in the @strong{MyODBC} connect screen:
 @item 32 @tab Simulate a ODBC 1.0 driver in some context.
 @item 64 @tab Ignore use of database name in 'database.table.column'.
 @item 128 @tab Force use of ODBC manager cursors (experimental).
-@item 256 @tab Disable the use of extended fetch (experimental)
+@item 256 @tab Disable the use of extended fetch (experimental).
 @item 512 @tab Pad CHAR fields to full column length.
 @item 1024 @tab SQLDescribeCol() will return fully qualifed column names
 @item 2048 @tab Use the compressed server/client protocol
 @item 4096 @tab Tell server to ignore space after function name and before @code{'('} (needed by PowerBuilder).  This will make all function names keywords!
 @item 8192 @tab Connect with named pipes to a @code{mysqld} server running on NT.
-@item 16384 @tab Change LONGLONG columns to INT columns (Some applications can't handle LONGLONG).
+@item 16384 @tab Change LONGLONG columns to INT columns (some applications can't handle LONGLONG).
 @item 32768 @tab Return 'user' as Table_qualifier and Table_owner from SQLTables (experimental)
 @item 65536 @tab Read parameters from the @code{client} and @code{odbc} groups from @file{my.cnf} 
 @item 131072 @tab Add some extra safety checks (should not bee needed but...)
@@ -39497,7 +39184,7 @@ likely it is that we can fix the problem!
 * C API function overview::     C API Function Overview
 * C API functions::             C API Function Descriptions
 * C Thread functions::          C Thread Functions
-* C Embedded Server functions:: C Embedded Server functions.  C Embedded Server Functions
+* C Embedded Server functions:: C Embedded Server Functions
 * C API problems::              Common questions and problems when using the C API
 * Building clients::            Building Client Programs
 * Threaded clients::            How to Make a Threaded Client
@@ -43032,7 +42719,7 @@ Two APIs are available in the MySQL
 
 You can compile the MySQL Windows source with Borland C++ 5.02.
 (The Windows source includes only projects for Microsoft VC++, for
-Borland C++ you have to do the project files yourself).
+Borland C++ you have to do the project files yourself.)
 
 One known problem with Borland C++ is that it uses a different structure
 alignment than VC++.  This means that you will run into problems if you
@@ -43231,7 +42918,7 @@ you are using @code{--with-mysqld-ldflags=-all-static} If you want to
 use an UDF that needs to access symbols from @code{mysqld} (like the
 @code{methaphone} example in @file{sql/udf_example.cc} that uses
 @code{default_charset_info}), you must link the program with
-@code{-rdynamic}.  (see @code{man dlopen}).
+@code{-rdynamic} (see @code{man dlopen}).
 
 For each function that you want to use in SQL statements, you should define
 corresponding C (or C++) functions.  In the discussion below, the name
@@ -43732,7 +43419,7 @@ can take a look at @code{Item_func_mod::fix_length_and_dec} for a
 typical example of how to do this.
 @end enumerate
 
-All functions must be thread safe (In other words, don't use any global or
+All functions must be thread safe (in other words, don't use any global or
 static variables in the functions without protecting them with mutexes).
 
 If you want to return @code{NULL}, from @code{::val()}, @code{::val_int()}
@@ -43962,7 +43649,7 @@ The tests are located in @code{mysql-test/t/*.test}
 A test case consists of @code{;} terminated statements and is similar to the
 input of @code{mysql} command line client.  A statement by default is a query
 to be sent to MySQL server, unless it is recognized as internal
-command ( eg. @code{sleep} ).
+command (eg. @code{sleep}).
 
 @item
 All queries that produce results, e.g. @code{SELECT}, @code{SHOW},
@@ -44836,7 +44523,7 @@ number 256 to affect the number of file descriptors available to
 @code{ulimit} (and @code{open-files-limit}) can increase the number of
 file descriptors, but only up to the limit imposed by the operating
 system. There is also a 'hard' limit that can only be overrided if you
-start @code{safe_mysqld} or @code{mysqld} as root (Just remember that
+start @code{safe_mysqld} or @code{mysqld} as root (just remember that
 you need to also use the @code{--user=..} option in this case).  If you
 need to increase the OS limit on the number of file descriptors
 available to each process, consult the documentation for your operating
@@ -46099,7 +45786,7 @@ the MySQL database
 @item @uref{http://io.incluso.com, Ionline - online publication:} MySQL,
 PHP, Java, Web programming, DB development
 
-@item @uref{http://www.baboo.com, BaBoo(Browse and bookmark). Free Web-based bookmark manager and Calendar}
+@item @uref{http://www.baboo.com, BaBoo (Browse and Bookmark). Free Web-based bookmark manager and Calendar}
 
 @item @uref{http://www.courses.pjc.cc.fl.us/Schedule/index.php, Course
 Schedule System at Pensacola Junior College}
@@ -46443,7 +46130,7 @@ MySQL C++ API. By Satish @email{spitfire@@pn3.vsnl.net.in}. Inspired
 by Roland Haenel's C++ API and Ed Carp's MyC library.
 
 @item @uref{http://www.mysql.com/download_mysql++.html, mysql++}
-MySQL C++ API (More than just a wrapper library.) Originally by
+MySQL C++ API (more than just a wrapper library). Originally by
 @email{kevina@@clark.net}. Nowadays maintained by Sinisa at MySQL AB.
 
 @item @uref{http://nelsonjr.homepage.com/NJrAPI,NJrAPI}
@@ -47193,7 +46880,7 @@ handlers with index compression and different record formats).
 The @code{HEAP} library. A memory table system with our superior full dynamic
 hashing. In use since 1981 and published around 1984.
 @item
-The @code{replace} program (look into it, it's COOL!).
+The @code{replace} program (take a look at it, it's @strong{COOL}!).
 @item
 @strong{MyODBC}, the ODBC driver for Windows95.
 @item
@@ -47225,7 +46912,7 @@ Lots of testing of new features.
 @item
 Our in-house ``free'' software lawyer.
 @item
-Mailing list maintainer (who never has the time to do it right...)
+Mailing list maintainer (who never has the time to do it right...).
 @item
 Our original portability code (more than 10 years old now). Nowadays
 only some parts of @code{mysys} are left.
@@ -47261,9 +46948,9 @@ Maintainer of mysql++.
 @item
 Our security expert.
 @item
-Vio interface (The foundation for the encrypted client/server protocol).
+Vio interface (the foundation for the encrypted client/server protocol).
 @item
-MySQL Filesystem (A way to use MySQL databases as files
+MySQL Filesystem (a way to use MySQL databases as files
 and directories).
 @item
 The CASE Expression.
@@ -47354,7 +47041,7 @@ Jonas Norrman - Handles licensing questions sent to @email{info@@mysql.com}.
 @item
 Erik Granberg - Handles MySQL partners (and a lot of other stuff).
 @item
-Allan Larsson (The BOSS for TCX DataKonsult AB).
+Allan Larsson (the BOSS for TCX DataKonsult AB).
 @end table
 
 
@@ -48207,7 +47894,7 @@ Fixed bug when thread creation failed (could happen when doing a LOT
 of connections in a short time).
 @item
 Fixed some problems with @code{FLUSH TABLES} and @code{TEMPORARY} tables.
-(Problem with freeing the key cache and error @code{Can't reopen table...}).
+(Problem with freeing the key cache and error @code{Can't reopen table...}.)
 @item
 Fixed a problem in Innobase with other character sets than @code{latin1}
 and another problem when using many columns.
@@ -48229,7 +47916,7 @@ Fixed a bug in @code{CONCAT_WS()} where it returned wrong results.
 @item
 Changed @code{CREATE ... INSERT} and @code{INSERT ... SELECT} to not
 allow concurrent inserts as this could make the binary log hard to repeat.
-(Concurrent inserts are enabled if you are not using the binary or update log).
+(Concurrent inserts are enabled if you are not using the binary or update log.)
 @item
 Changed some macros to be able to use fast mutex with glibc 2.2.
 @end itemize
@@ -49158,8 +48845,8 @@ More variables in @code{SHOW SLAVE STATUS} and @code{SHOW MASTER STATUS}.
 @item
 @code{SLAVE STOP} now will not return until the slave thread actually exits.
 @item
-Full text search via the @code{MATCH} function and @code{FULLTEXT} index type.
-(For MyISAM files).  This makes @code{FULLTEXT} a reserved word.
+Full text search via the @code{MATCH} function and @code{FULLTEXT} index type
+(for MyISAM files).  This makes @code{FULLTEXT} a reserved word.
 @end itemize
 
 
@@ -49232,13 +48919,13 @@ Fixed @code{chown} warning in @code{safe_mysqld}.
 Fixed a bug in @code{ORDER BY} that was introduced in 3.23.19.
 @item
 Only optimize the @code{DELETE FROM tbl_name} to do a drop+create of
-the table if we are in @code{AUTOCOMMIT} mode.  (Needed for BDB tables).
+the table if we are in @code{AUTOCOMMIT} mode (needed for BDB tables).
 @item
 Added extra checks to avoid index corruption when the @code{ISAM}/@code{MyISAM}
 index files gets full during an @code{INSERT}/@code{UPDATE}.
 @item
 @code{myisamchk} didn't correctly update row checksum when used with
-@code{-ro} (This only gave an warning in subsequent runs).
+@code{-ro} (this only gave an warning in subsequent runs).
 @item
 Fixed bug in @code{REPAIR TABLE} so that it works with tables without indexes.
 @item
@@ -49341,7 +49028,7 @@ Added 4 sample @code{my.cnf} example files in the @file{support-files}
 directory.
 @item
 Fixed @code{duplicated key} problem when doing big @code{GROUP BY}'s.
-(This bug was probably introduced in 3.23.15).
+(This bug was probably introduced in 3.23.15.)
 @item
 Changed syntax for @code{INNER JOIN} to match ANSI SQL.
 @item
@@ -49644,7 +49331,7 @@ Added variables @code{select_limit} and @code{max_join_size} to @code{mysql}.
 Added sql variables: @code{SQL_MAX_JOIN_SIZE} and @code{SQL_SAFE_UPDATES}.
 @item
 Added @code{READ LOCAL} lock that doesn't lock the table for concurrent
-inserts. (This is used by @code{mysqldump}).
+inserts. (This is used by @code{mysqldump}.)
 @item
 Changed that @code{LOCK TABLES ... READ} doesn't anymore allow concurrent
 inserts.
@@ -49705,7 +49392,7 @@ is many keys to choose from.
 @item
 Changed optimizer to prefer a range key instead of a ref key when the
 range key can uses more columns than the ref key (which only can use
-columns with =).  For example, the following type of queries should now
+columns with @code{=}).  For example, the following type of queries should now
 be faster: @code{SELECT * from key_part_1=const and key_part_2 > const2}
 @item
 Fixed bug that a change of all @code{VARCHAR} columns to @code{CHAR} columns
@@ -50008,7 +49695,7 @@ an empty value list to insert a row in which each column is set to its
 default value.
 @item
 Changed @code{SUBSTRING(text FROM pos)} to conform to ANSI SQL. (Before this
-construct returned the rightmost 'pos' characters).
+construct returned the rightmost 'pos' characters.)
 @item
 @code{SUM()} with @code{GROUP BY} returned 0 on some systems.
 @item
@@ -50180,7 +49867,7 @@ You can specify a netmask using the @code{IP/NETMASK} syntax.
 @item
 If you compare a @code{NOT NULL DATE/DATETIME} column with @code{IS
 NULL}, this is changed to a compare against @code{0} to satisfy some ODBC
-applications.  (By @email{shreeve@@uci.edu}).
+applications.  (By @email{shreeve@@uci.edu}.)
 @item
 @code{NULL IN (...)} now returns @code{NULL} instead of @code{0}.  This will
 ensure that @code{null_column NOT IN (...)} doesn't match
@@ -50457,7 +50144,7 @@ Fixed core dump with empty @code{BLOB/TEXT} column to @code{REVERSE()}.
 Extended @code{/*! */} with version numbers.
 @item
 Changed @code{SUBSTRING(text FROM pos)} to conform to ANSI SQL. (Before this
-construct returned the rightmost 'pos' characters).
+construct returned the rightmost 'pos' characters.)
 @item
 Fixed problem with @code{LOCK TABLES} combined with @code{DELETE FROM table}
 @item
@@ -50578,7 +50265,7 @@ Fixed a problem with @code{Host '...' is not allowed to connect to this MySQL
 server} after one had inserted a new MySQL user with a @code{GRANT}
 command.
 @item
-Changed to use @code{TCP_NODELAY} also on Linux (Should give faster TCP/IP
+Changed to use @code{TCP_NODELAY} also on Linux (should give faster TCP/IP
 connections).
 @end itemize
 
@@ -50856,7 +50543,7 @@ Changed @code{+}, @code{-} (sign and minus), @code{*}, @code{/}, @code{%},
 Fixed a bug in @code{ALTER TABLE} that caused @code{mysqld} to crash.
 @item
 MySQL now always reports the conflicting key values when a
-duplicate key entry occurs. (Before this was only reported for @code{INSERT}).
+duplicate key entry occurs. (Before this was only reported for @code{INSERT}.)
 @item
 New syntax: @code{INSERT INTO tbl_name SET col_name=value, col_name=value, ...}
 @item
@@ -51596,7 +51283,7 @@ Fixed problem in range optimizer (core dump) for a very complex query.
 Fixed problem when using @code{MIN(integer)} or @code{MAX(integer)} in
 @code{GROUP BY}.
 @item
-Fixed bug on Alpha when using integer keys. (Other keys worked on Alpha).
+Fixed bug on Alpha when using integer keys. (Other keys worked on Alpha.)
 @item
 Fixed bug in @code{WEEK("XXXX-xx-01")}.
 @end itemize
@@ -52306,7 +51993,7 @@ Added @code{--pid-file=#} option to @code{mysqld}.
 @item
 Added date formatting to @code{FROM_UNIXTIME()}, originally by Zeev Suraski.
 @item
-Fixed bug in @code{BETWEEN} in range optimizer (Did only test = of the first
+Fixed bug in @code{BETWEEN} in range optimizer (did only test = of the first
 argument).
 @item
 Added machine-dependent files for MIT-pthreads i386-SCO. There is probably
@@ -53918,8 +53605,8 @@ Copy on demand is in many case much better than page or row level
 locking; The worst case does, however, use much more memory than
 when using normal locks.
 
-Instead of using row level locks one can use application level locks.
-(Like get_lock/release_lock in MySQL).  This works of course
+Instead of using row level locks one can use application level locks
+(like get_lock/release_lock in MySQL).  This works of course
 only in well-behaved applications.
 
 In many cases one can do an educated guess which locking type is best
@@ -54432,7 +54119,7 @@ Unireg is currently only available in Swedish and Finnish.
 
 The price tag for Unireg is 10,000 Swedish kr (about $1500 US), but this
 includes support. Unireg is distributed as a binary. (But all the ISAM
-sources can be found in MySQL). Usually we compile the binary for the
+sources can be found in MySQL.) Usually we compile the binary for the
 customer at their site.
 
 All new development is concentrated to MySQL.
