@@ -1972,6 +1972,11 @@ mysql_execute_command(void)
     if (thd->select_limit < select_lex->select_limit)
       thd->select_limit= HA_POS_ERROR;		// No limit
 
+    if (check_dup(tables->db, tables->real_name, tables->next))
+    {
+      /* Using same table for INSERT and SELECT */
+      select_lex->options |= OPTION_BUFFER_RESULT;
+    }
     {
       /* TODO: Delete the following loop when locks is set by sql_yacc */
       TABLE_LIST *table;
@@ -2478,9 +2483,11 @@ mysql_execute_command(void)
     res = mysql_ha_close(thd, tables);
     break;
   case SQLCOM_HA_READ:
-    /* there is no need to check for table permissions here, because
-       if a user has no permissions to read a table, he won't be
-       able to open it (with SQLCOM_HA_OPEN) in the first place. */
+    /*
+      There is no need to check for table permissions here, because
+      if a user has no permissions to read a table, he won't be
+      able to open it (with SQLCOM_HA_OPEN) in the first place.
+    */
     if (check_db_used(thd,tables))
       goto error;
     res = mysql_ha_read(thd, tables, lex->ha_read_mode, lex->backup_dir,
@@ -2898,10 +2905,7 @@ void mysql_init_multi_delete(LEX *lex)
   lex->sql_command =  SQLCOM_DELETE_MULTI;
   mysql_init_select(lex);
   lex->select->select_limit=lex->thd->select_limit=HA_POS_ERROR;
-  lex->auxilliary_table_list=lex->select_lex.table_list;
-  lex->select->table_list.elements=0; 
-  lex->select->table_list.first=0;
-  lex->select->table_list.next= (byte**) &(lex->select->table_list.first);
+  lex->select->table_list.save_and_clear(&lex->auxilliary_table_list);
 }
 
 
@@ -3386,22 +3390,10 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
 	 tables ;
 	 tables=tables->next)
     {
-      if (ptr->db_length == tables->db_length && !memcmp(ptr->db, tables->db, ptr->db_length))
+      if (!strcmp(alias_str,tables->alias) && !strcmp(ptr->db, tables->db))
       {
-	if ((thd->lex.sql_command & (SQLCOM_INSERT_SELECT | SQLCOM_REPLACE_SELECT))
-	    && (tables->lock_type & (TL_WRITE_CONCURRENT_INSERT |  
-				     TL_WRITE_LOW_PRIORITY |    TL_WRITE_DELAYED | 
-				     TL_WRITE)))
-	{
-	  if (ptr->real_name_length == tables->real_name_length &&
-	      !memcmp(ptr->real_name, tables->real_name,ptr->real_name_length))
-	    thd->lex.select->options |= OPTION_BUFFER_RESULT;
-	}
-	else if (!strcmp(alias_str,tables->alias))
-	{
-	  net_printf(&thd->net,ER_NONUNIQ_TABLE,alias_str); /* purecov: tested */
-	  DBUG_RETURN(0);				/* purecov: tested */
-	}
+	net_printf(&thd->net,ER_NONUNIQ_TABLE,alias_str); /* purecov: tested */
+	DBUG_RETURN(0);				/* purecov: tested */
       }
     }
   }

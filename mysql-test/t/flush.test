@@ -10,6 +10,8 @@ connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 connection con1;
 drop table if exists t1;
+drop database if exists mysqltest;
+
 create temporary table t1(n int not null primary key);
 drop table if exists t2;
 create table t2(n int);
@@ -44,7 +46,6 @@ reap;
 
 #test if drop database will wait until we release the global read lock
 connection con1;
-drop database if exists mysqltest;
 create database mysqltest;
 create table mysqltest.t1(n int);
 insert into mysqltest.t1 values (23);
@@ -66,4 +67,3 @@ connection con2;
 insert into t1 values (345);
 select * from t1;
 drop table t1;
-

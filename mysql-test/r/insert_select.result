@@ -566,4 +566,24 @@ a
 5
 5
 5
+insert into t1 select * from t1,t1;
+Not unique table/alias: 't1'
+drop table t1,t2;
+create table t1 (a int not null primary key, b char(10));
+create table t2 (a int not null, b char(10));
+insert into t1 values (1,"t1:1"),(3,"t1:3");
+insert into t2 values (2,"t2:2"), (3,"t2:3");
+insert into t1 select * from t2;
+Duplicate entry '3' for key 1
+select * from t1;
+a	b
+1	t1:1
+3	t1:3
+2	t2:2
+replace into t1 select * from t2;
+select * from t1;
+a	b
+1	t1:1
+3	t2:3
+2	t2:2
 drop table t1,t2;

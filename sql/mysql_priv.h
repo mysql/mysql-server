@@ -253,6 +253,17 @@ typedef struct st_sql_list {
     next= next_ptr;
     *next=0;
   }
+  inline void save_and_clear(struct st_sql_list *save)
+  {
+    *save= *this;
+    empty();
+  }
+  inline void push_front(struct st_sql_list *save)
+  {
+    *save->next= first;				/* link current list last */
+    first= save->first;
+    elements+= save->elements;
+  }
 } SQL_LIST;
 
 

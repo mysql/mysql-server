@@ -1,5 +1,4 @@
 drop table if exists t1;
-drop table if exists t1;
 --error 1051;
 drop table t1;
 create table t1(n int);
@@ -26,7 +25,6 @@ create database mysqltest;
 drop database mysqltest;
 
 # test drop/create database and FLUSH TABLES WITH READ LOCK
-drop database if exists mysqltest;
 flush tables with read lock;
 --error 1209,1223;
 create database mysqltest;
