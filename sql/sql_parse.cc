@@ -1199,6 +1199,29 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     mysql_log.write(thd,command,"%s",thd->query);
     DBUG_PRINT("query",("%-.4096s",thd->query));
     mysql_parse(thd,thd->query, thd->query_length);
+
+    while (!thd->fatal_error && thd->lex.found_colon)
+    {
+      /* 
+        Multiple queries exits, execute them individually
+      */
+      if (thd->lock || thd->open_tables || thd->derived_tables)
+        close_thread_tables(thd);		
+
+      uint length= thd->query_length-(uint)(thd->lex.found_colon-thd->query);
+      
+      /* Remove garbage at start of query */
+      char *packet= thd->lex.found_colon;
+      while (my_isspace(system_charset_info,packet[0]) && length > 0)
+      {
+        packet++;
+        length--;
+      }
+      thd->query= packet;
+      thd->query_length= length;
+      mysql_parse(thd, packet, length);
+    }
+
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),WAIT_PRIOR);
     DBUG_PRINT("info",("query ready"));
@@ -1426,14 +1449,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       mysql_slow_log.write(thd, thd->query, thd->query_length, start_of_query);
     }
   }
-  if (command == COM_QUERY && thd->lex.found_colon)
-  {
-    /* 
-      Multiple queries exits, execute them individually
-    */
-    uint length= thd->query_length-(uint)(thd->lex.found_colon-thd->query)+1;
-    dispatch_command(command, thd, thd->lex.found_colon, length);
-  }  
   thd->proc_info="cleaning up";
   VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
   thd->proc_info=0;
@@ -1464,7 +1479,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 bool alloc_query(THD *thd, char *packet, ulong packet_length)
 {
   packet_length--;				// Remove end null
-  /* Remove garage at start and end of query */
+  /* Remove garbage at start and end of query */
   while (my_isspace(system_charset_info,packet[0]) && packet_length > 0)
   {
     packet++;
