@@ -281,6 +281,8 @@ myisam/mi_test_all
 myisam/myisamchk
 myisam/myisamlog
 myisam/myisampack
+myisam/test1.MYD
+myisam/test1.MYI
 mysql-test/gmon.out
 mysql-test/install_test_db
 mysql-test/mysql-test-run
