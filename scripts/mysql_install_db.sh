@@ -325,7 +325,7 @@ $i_f
 $c_t
 $c_c
 END_OF_DATA
-    cat fill_func_tables.sql
+    cat fill_help_tables.sql
 ) | eval "$execdir/mysqld $defaults --bootstrap --skip-grant-tables \
          --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb $args" 
 then
