@@ -429,7 +429,7 @@ struct tm *localtime_r(const time_t *clock, struct tm *res);
 
 #endif /* defined(__WIN__) */
 
-#if defined(HPUX) && !defined(DONT_REMAP_PTHREAD_FUNCTIONS)
+#if defined(HPUX10) && !defined(DONT_REMAP_PTHREAD_FUNCTIONS)
 #undef pthread_cond_timedwait
 #define pthread_cond_timedwait(a,b,c) my_pthread_cond_timedwait((a),(b),(c))
 int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
@@ -582,9 +582,13 @@ extern int pthread_dummy(int);
 
 #define THREAD_NAME_SIZE 10
 #if defined(__ia64__)
-#define DEFAULT_THREAD_STACK	(128*1024)
+/*
+  MySQL can survive with 32K, but some glibc libraries require > 128K stack
+  To resolve hostnames
+*/
+#define DEFAULT_THREAD_STACK	(192*1024L)
 #else
-#define DEFAULT_THREAD_STACK	(64*1024)
+#define DEFAULT_THREAD_STACK	(192*1024)
 #endif
 
 struct st_my_thread_var
