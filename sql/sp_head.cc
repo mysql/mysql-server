@@ -1153,9 +1153,25 @@ sp_instr_stmt::~sp_instr_stmt()
 int
 sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
+  char *query;
+  uint32 query_length;
   DBUG_ENTER("sp_instr_stmt::execute");
   DBUG_PRINT("info", ("command: %d", m_lex->sql_command));
-  int res= exec_stmt(thd, m_lex);
+  int res;
+
+  query= thd->query;
+  query_length= thd->query_length;
+  if (!(res= alloc_query(thd, m_query.str, m_query.length+1)))
+  {
+    if (query_cache_send_result_to_client(thd,
+					  thd->query, thd->query_length) <= 0)
+    {
+      res= exec_stmt(thd, m_lex);
+      query_cache_end_of_result(thd);
+    }
+    thd->query= query;
+    thd->query_length= query_length;
+  }
   *nextp = m_ip+1;
   DBUG_RETURN(res);
 }

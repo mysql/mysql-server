@@ -1719,10 +1719,10 @@ show processlist;
 end|
 call bug4902_2()|
 Id	User	Host	db	Command	Time	State	Info
-#	root	localhost	test	Query	#	NULL	call bug4902_2()
+#	root	localhost	test	Query	#	NULL	show processlist
 call bug4902_2()|
 Id	User	Host	db	Command	Time	State	Info
-#	root	localhost	test	Query	#	NULL	call bug4902_2()
+#	root	localhost	test	Query	#	NULL	show processlist
 drop procedure bug4902_2|
 drop table if exists t3|
 create procedure bug4904()
@@ -1849,6 +1849,51 @@ select @x|
 NULL
 delete from t1|
 drop procedure bug4941|
+drop procedure if exists bug3583|
+create procedure bug3583()
+begin
+declare c int;
+select * from t1;
+select count(*) into c from t1;
+select c;
+end|
+insert into t1 values ("x", 3), ("y", 5)|
+set @x = @@query_cache_size|
+set global query_cache_size = 10*1024*1024|
+flush status|
+flush query cache|
+show status like 'Qcache_hits'|
+Variable_name	Value
+Qcache_hits	0
+call bug3583()|
+id	data
+x	3
+y	5
+c
+2
+show status like 'Qcache_hits'|
+Variable_name	Value
+Qcache_hits	0
+call bug3583()|
+id	data
+x	3
+y	5
+c
+2
+call bug3583()|
+id	data
+x	3
+y	5
+c
+2
+show status like 'Qcache_hits'|
+Variable_name	Value
+Qcache_hits	2
+set global query_cache_size = @x|
+flush status|
+flush query cache|
+delete from t1|
+drop procedure bug3583|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)

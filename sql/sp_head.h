@@ -88,6 +88,7 @@ public:
   my_bool m_simple_case;	// TRUE if parsing simple case, FALSE otherwise
   my_bool m_multi_results;	// TRUE if a procedure with SELECT(s)
   my_bool m_in_handler;		// TRUE if parser in a handler body
+  uchar *m_tmp_query;		// Temporary pointer to sub query string
   uint m_old_cmq;		// Old CLIENT_MULTI_QUERIES value
   st_sp_chistics *m_chistics;
   ulong m_sql_mode;		// For SHOW CREATE
@@ -314,9 +315,14 @@ class sp_instr_stmt : public sp_instr
 
 public:
 
+  LEX_STRING m_query;		// For thd->query
+
   sp_instr_stmt(uint ip, sp_pcontext *ctx)
     : sp_instr(ip, ctx), m_lex(NULL)
-  {}
+  {
+    m_query.str= 0;
+    m_query.length= 0;
+  }
 
   virtual ~sp_instr_stmt();
 

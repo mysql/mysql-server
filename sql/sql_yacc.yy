@@ -1788,17 +1788,21 @@ sp_opt_default:
 
 sp_proc_stmt:
 	  {
-	    Lex->sphead->reset_lex(YYTHD);
+	    LEX *lex= Lex;
+
+	    lex->sphead->reset_lex(YYTHD);
+	    lex->sphead->m_tmp_query= lex->tok_start;
 	  }
 	  statement
 	  {
 	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
 
 	    if ((lex->sql_command == SQLCOM_SELECT && !lex->result) ||
 	        sp_multi_results_command(lex->sql_command))
 	    {
 	      /* We maybe have one or more SELECT without INTO */
-	      lex->sphead->m_multi_results= TRUE;
+	      sp->m_multi_results= TRUE;
 	    }
 	    if (lex->sql_command == SQLCOM_CHANGE_DB)
 	    { /* "USE db" doesn't work in a procedure */
@@ -1819,22 +1823,31 @@ sp_proc_stmt:
                 especially triggers a tremendously, but it's nothing we 
                 can do about this at the moment.
               */
-	      if (lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
+	      if (sp->m_type != TYPE_ENUM_PROCEDURE)
 	      {
 		send_error(YYTHD, ER_SP_BADSTATEMENT);
 		YYABORT;
 	      }
 	      else
 	      {
-		sp_instr_stmt *i=new sp_instr_stmt(lex->sphead->instructions(),
+		sp_instr_stmt *i=new sp_instr_stmt(sp->instructions(),
 						   lex->spcont);
 
+		/* Extract the query statement from the tokenizer:
+                   The end is either lex->tok_end or tok->ptr. */
+		if (lex->ptr - lex->tok_end > 1)
+		  i->m_query.length= lex->ptr - sp->m_tmp_query;
+		else
+		  i->m_query.length= lex->tok_end - sp->m_tmp_query;
+		i->m_query.str= strmake_root(&YYTHD->mem_root,
+					     (char *)sp->m_tmp_query,
+					     i->m_query.length);
 		i->set_lex(lex);
-		lex->sphead->add_instr(i);
+		sp->add_instr(i);
 		lex->sp_lex_in_use= TRUE;
 	      }
             }
-	    lex->sphead->restore_lex(YYTHD);
+	    sp->restore_lex(YYTHD);
           }
 	| RETURN_SYM expr
 	  {
@@ -6482,6 +6495,7 @@ simple_ident:
 	    }
 	    $$ = (Item*) new Item_splocal($1, spv->offset);
             lex->variables_used= 1;
+	    lex->safe_to_cache_query=0;
 	  }
 	  else
 	  {
