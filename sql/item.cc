@@ -2908,24 +2908,30 @@ uint32 Item_type_holder::display_length(Item *item)
 
 Field *Item_type_holder::make_field_by_type(TABLE *table)
 {
-  if (fld_type == MYSQL_TYPE_ENUM || fld_type == MYSQL_TYPE_SET)
+  /*
+    The field functions defines a field to be not null if null_ptr is not 0
+  */
+  uchar *null_ptr= maybe_null ? (uchar*) "" : 0;
+  switch (fld_type)
   {
+  case MYSQL_TYPE_ENUM:
     DBUG_ASSERT(enum_set_typelib);
-    /*
-      The field functions defines a field to be not null if null_ptr is not 0
-    */
-    uchar *null_ptr= maybe_null ? (uchar*) "" : 0;
-
-    if (fld_type == MYSQL_TYPE_ENUM)
-      return new Field_enum((char *) 0, max_length, null_ptr, 0,
-		 Field::NONE, name,
-		 table, get_enum_pack_length(enum_set_typelib->count),
-		 enum_set_typelib, collation.collation);
-    else
-      return new Field_set((char *) 0, max_length, null_ptr, 0,
-		 Field::NONE, name,
-		 table, get_set_pack_length(enum_set_typelib->count),
-		 enum_set_typelib, collation.collation);
+    return new Field_enum((char *) 0, max_length, null_ptr, 0,
+                          Field::NONE, name,
+                          table, get_enum_pack_length(enum_set_typelib->count),
+                          enum_set_typelib, collation.collation);
+  case MYSQL_TYPE_SET:
+    DBUG_ASSERT(enum_set_typelib);
+    return new Field_set((char *) 0, max_length, null_ptr, 0,
+                         Field::NONE, name,
+                         table, get_set_pack_length(enum_set_typelib->count),
+                         enum_set_typelib, collation.collation);
+  case MYSQL_TYPE_VAR_STRING:
+    table->db_create_options|= HA_OPTION_PACK_RECORD;
+    return new Field_string(max_length, maybe_null, name, table,
+                            collation.collation);
+  default:
+    break;
   }
   return tmp_table_field_from_field_type(table);
 }
