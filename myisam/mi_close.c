@@ -36,7 +36,7 @@ int mi_close(register MI_INFO *info)
   if (info->lock_type == F_EXTRA_LCK)
     info->lock_type=F_UNLCK;			/* HA_EXTRA_NO_USER_CHANGE */
 
-  if (share->reopen == 1)
+  if (share->reopen == 1 && share->kfile >= 0)
     _mi_decrement_open_count(info);
 
   if (info->lock_type != F_UNLCK)
