@@ -17,6 +17,8 @@
 
 /* This file defines all spatial functions */
 
+#ifdef HAVE_SPATIAL
+
 #ifdef __GNUC__
 #pragma interface			/* gcc class implementation */
 #endif
@@ -338,3 +340,12 @@ public:
   const char *func_name() const { return "srid"; }
   void fix_length_and_dec() { max_length= 10; }
 };
+
+#define GEOM_NEW(obj_constructor) new obj_constructor
+
+#else /*HAVE_SPATIAL*/
+
+#define GEOM_NEW(obj_constructor) NULL
+
+#endif
+

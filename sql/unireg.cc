@@ -471,7 +471,12 @@ static bool pack_fields(File file,List<create_field> &create_fields)
     buff[12]= (uchar) field->interval_id;
     buff[13]= (uchar) field->sql_type; 
     if (field->sql_type == FIELD_TYPE_GEOMETRY)
+    {
       buff[14]= (uchar) field->geom_type;
+#ifndef HAVE_SPATIAL
+      DBUG_ASSERT(0);                           // Should newer happen
+#endif
+    }
     else if (field->charset) 
       buff[14]= (uchar) field->charset->number;
     else
