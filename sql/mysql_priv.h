@@ -29,7 +29,12 @@
 #undef write  /* remove pthread.h macro definition for EMX */
 #endif
 
+#ifdef BIG_JOINS
+typedef ulonglong table_map;		/* Used for table bits in join */
+#else
 typedef ulong table_map;		/* Used for table bits in join */
+#endif /* BIG_JOINS */
+
 typedef ulong key_map;			/* Used for finding keys */
 typedef ulong key_part_map;		/* Used for finding key parts */
 
