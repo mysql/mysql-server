@@ -90,10 +90,7 @@ while test $# -gt 0; do
 done
 
 echo "Removing old MySQL packages"
-rm -rf $rpmdir/BUILD/mysql-*
-rm -f $rpmdir/SOURCES/mysql-*
-rm -f $rpmdir/SRPMS/MySQL-*
-rm -f $rpmdir/SPEC/mysql-*
+rm -f $bpath/NEW-RPMS/MySQL-*rpm
 
 if [ ! -d "$logdir" ]; then
  echo "$logdir does not exist, creating"
@@ -111,6 +108,12 @@ log=$logdir/Log-RPM-`date +%y%m%d-%H%M`
 
 (
 set -x
+# remove old stuff
+rm -rf $rpmdir/BUILD/mysql-*
+rm -f $rpmdir/SOURCES/mysql-*
+rm -f $rpmdir/SRPMS/MySQL-*
+rm -f $rpmdir/SPEC/mysql-*
+
 # Copy MySQL source and spec files
 
 #Sasha: I left the scp stuff commented out instead of deleted to make it

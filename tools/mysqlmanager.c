@@ -21,27 +21,25 @@
  **/
 
 #include <my_global.h>
-#include <my_sys.h>
-#include <m_string.h>
+#include <my_pthread.h>
 #include <mysql.h>
 #include <mysql_version.h>
-#include <m_ctype.h>
-#include <my_config.h>
-#include <my_dir.h>
-#include <hash.h>
 #include <mysqld_error.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <my_sys.h>
+#include <my_dir.h>
+#include <m_string.h>
+#include <m_ctype.h>
+#include <hash.h>
 #include <getopt.h>
 #include <stdarg.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
 #include <errno.h>
 #include <violite.h>
-#include <my_pthread.h>
 #include <md5.h>
+#include <signal.h>
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
 
 #define MANAGER_VERSION "1.0"
 #define MANAGER_GREETING "MySQL Server Management Daemon v. 1.0" 
