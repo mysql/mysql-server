@@ -1203,7 +1203,7 @@ sp_proc_stmt:
 	    if (lex->sql_command == SQLCOM_SELECT && !lex->result)
 	    {
 	      /* We maybe have one or more SELECT without INTO */
-	      lex->sphead->m_multi_query= TRUE;
+	      lex->sphead->m_multi_results= TRUE;
 	    }
 	    /* Don't add an instruction for empty SET statements.
 	    ** (This happens if the SET only contained local variables,

@@ -3309,9 +3309,9 @@ mysql_execute_command(THD *thd)
 	my_bool nsok= thd->net.no_send_ok;
 	thd->net.no_send_ok= TRUE;
 #endif
-	if (sp->m_multi_query)
+	if (sp->m_multi_results)
 	{
-	  if (! (thd->client_capabilities & CLIENT_MULTI_QUERIES))
+	  if (! (thd->client_capabilities & CLIENT_MULTI_RESULTS))
 	  {
 	    send_error(thd, ER_SP_BADSELECT);
 #ifndef EMBEDDED_LIBRARY
@@ -3328,7 +3328,7 @@ mysql_execute_command(THD *thd)
 #ifndef EMBEDDED_LIBRARY
 	thd->net.no_send_ok= nsok;
 #endif
-	if (sp->m_multi_query)
+	if (sp->m_multi_results)
 	{
 	  if (! smrx)
 	    thd->server_status &= ~SERVER_MORE_RESULTS_EXISTS;
