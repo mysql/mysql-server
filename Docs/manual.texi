@@ -44280,6 +44280,9 @@ into account the current character set of the connection. The result is placed
 in @code{to} and a terminating null byte is appended.  Characters
 encoded are @code{NUL} (ASCII 0), @samp{\n}, @samp{\r}, @samp{\},
 @samp{'}, @samp{"}, and Control-Z (@pxref{Literals}).
+(Strictly speaking, MySQL requires only that backslash and the quote
+character used to quote the string in the query be escaped.  This function
+quotes the other characters to make them easier to read in log files.)
 
 The string pointed to by @code{from} must be @code{length} bytes long.  You
 must allocate the @code{to} buffer to be at least @code{length*2+1} bytes
