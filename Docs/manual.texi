@@ -40504,20 +40504,20 @@ Finland
 @cindex tables, @code{Berkeley DB}
 
 @menu
-* BDB overview::                Overview of BDB Tables
-* BDB install::                 Installing BDB
-* BDB start::                   BDB startup options
+* BDB overview::                Overview of @code{BDB} Tables
+* BDB install::                 Installing @code{BDB}
+* BDB start::                   @code{BDB} startup options
 * BDB characteristics::         Characteristics of @code{BDB} tables:
-* BDB TODO::                    Things we need to fix for BDB in the near future:
+* BDB TODO::                    Things we need to fix for @code{BDB} in the near future:
 * BDB portability::             Operating systems supported by @code{BDB}
-* BDB restrictions::            Restrictions on BDB Tables
-* BDB errors::                  Errors That May Occur When Using BDB Tables
+* BDB restrictions::            Restrictions on @code{BDB} Tables
+* BDB errors::                  Errors That May Occur When Using @code{BDB} Tables
 @end menu
 
 @node BDB overview, BDB install, BDB, BDB
-@subsection Overview of BDB Tables
+@subsection Overview of @code{BDB} Tables
 
-Support for BDB tables is included in the MySQL source distribution
+Support for @code{BDB} tables is included in the MySQL source distribution
 starting from Version 3.23.34 and is activated in the MySQL-Max
 binary.
 
@@ -40525,18 +40525,18 @@ BerkeleyDB, available at @uref{http://www.sleepycat.com/} has provided
 MySQL with a transactional table handler.  By using BerkeleyDB
 tables, your tables may have a greater chance of surviving crashes, and also
 provides @code{COMMIT} and @code{ROLLBACK} on transactions.  The
-MySQL source distribution comes with a BDB distribution that has a
+MySQL source distribution comes with a @code{BDB} distribution that has a
 couple of small patches to make it work more smoothly with MySQL.
 You can't use a non-patched @code{BDB} version with MySQL.
 
 We at MySQL AB are working in close cooperation with Sleepycat to
 keep the quality of the MySQL/BDB interface high.
 
-When it comes to supporting BDB tables, we are committed to help our
+When it comes to supporting @code{BDB} tables, we are committed to help our
 users to locate the problem and help creating a reproducable test case
-for any problems involving BDB tables.  Any such test case will be
+for any problems involving @code{BDB} tables.  Any such test case will be
 forwarded to Sleepycat who in turn will help us find and fix the
-problem.  As this is a two stage operation, any problems with BDB tables
+problem.  As this is a two stage operation, any problems with @code{BDB} tables
 may take a little longer for us to fix than for other table handlers.
 However, as the BerkeleyDB code itself has been used by many other
 applications than MySQL, we don't envision any big problems with
@@ -40544,7 +40544,7 @@ this.  @xref{Support}.
 
 
 @node BDB install, BDB start, BDB overview, BDB
-@subsection Installing BDB
+@subsection Installing @code{BDB}
 
 If you have downloaded a binary version of MySQL that includes
 support for BerkeleyDB, simply follow the instructions for installing a
@@ -40570,7 +40570,7 @@ soon.
 
 
 @node BDB start, BDB characteristics, BDB install, BDB
-@subsection BDB startup options
+@subsection @code{BDB} startup options
 
 If you are running with @code{AUTOCOMMIT=0} then your changes in @code{BDB}
 tables will not be updated until you execute @code{COMMIT}.  Instead of commit
@@ -40583,33 +40583,33 @@ committed until you execute @code{COMMIT} (or decide to @code{ROLLBACK}
 the changes).
 
 The following options to @code{mysqld} can be used to change the behaviour of
-BDB tables:
+@code{BDB} tables:
 
 @multitable @columnfractions .25 .55
 @item @strong{Option} @tab @strong{Description}
-@item @code{--bdb-home=directory} @tab  Base directory for BDB tables. This should be the same directory you use for --datadir.
-@item @code{--bdb-lock-detect=#} @tab  Berkeley lock detect. One of (DEFAULT, OLDEST, RANDOM, or YOUNGEST).
+@item @code{--bdb-home=directory} @tab  Base directory for @code{BDB} tables.  This should be the same directory you use for @code{--datadir}.
+@item @code{--bdb-lock-detect=#} @tab  Berkeley lock detect. One of (@code{DEFAULT}, @code{OLDEST}, @code{RANDOM}, or @code{YOUNGEST}).
 @item @code{--bdb-logdir=directory} @tab Berkeley DB log file directory.
 @item @code{--bdb-no-sync} @tab Don't synchronously flush logs.
 @item @code{--bdb-no-recover} @tab Don't start Berkeley DB in recover mode.
 @item @code{--bdb-shared-data} @tab Start Berkeley DB in multi-process mode (Don't use @code{DB_PRIVATE} when initialising Berkeley DB)
 @item @code{--bdb-tmpdir=directory} @tab Berkeley DB temporary file directory.
-@item @code{--skip-bdb} @tab Disable usage of BDB tables.
+@item @code{--skip-bdb} @tab Disable usage of @code{BDB} tables.
 @item @code{-O bdb_max_lock=1000} @tab Set the maximum number of locks possible. @xref{SHOW VARIABLES}.
 @end multitable
 
 If you use @code{--skip-bdb}, MySQL will not initialise the
 Berkeley DB library and this will save a lot of memory. Of course,
 you cannot use @code{BDB} tables if you are using this option.  If you try
-to create a BDB table, MySQL will instead create a MyISAM table.
+to create a @code{BDB} table, MySQL will instead create a @code{MyISAM} table.
 
 Normally you should start @code{mysqld} without @code{--bdb-no-recover} if you
-intend to use BDB tables.  This may, however, give you problems when you
-try to start @code{mysqld} if the BDB log files are corrupted. @xref{Starting
+intend to use @code{BDB} tables.  This may, however, give you problems when you
+try to start @code{mysqld} if the @code{BDB} log files are corrupted. @xref{Starting
 server}.
 
 With @code{bdb_max_lock} you can specify the maximum number of locks
-(10000 by default) you can have active on a BDB table. You should
+(10000 by default) you can have active on a @code{BDB} table. You should
 increase this if you get errors of type @code{bdb: Lock table is out of
 available locks} or @code{Got error 12 from ...}  when you have do long
 transactions or when @code{mysqld} has to examine a lot of rows to
@@ -40625,11 +40625,12 @@ You may also want to change @code{binlog_cache_size} and
 
 @itemize @bullet
 @item
-To be able to rollback transactions BDB maintain log files.  For maximum
+To be able to rollback transactions, the @code{BDB} handler maintains log
+files.  For maximum
 performance you should place these on another disk than your databases
 by using the @code{--bdb-logdir} option.
 @item
-MySQL performs a checkpoint each time a new BDB log
+MySQL performs a checkpoint each time a new @code{BDB} log
 file is started, and removes any log files that are not needed for
 current transactions.  One can also run @code{FLUSH LOGS} at any time
 to checkpoint the Berkeley DB tables.
@@ -40637,11 +40638,11 @@ to checkpoint the Berkeley DB tables.
 For disaster recovery, one should use table backups plus
 MySQL's binary log. @xref{Backup}.
 
-@strong{Warning}: If you delete old log files that are in use, BDB will
+@strong{Warning}: If you delete old log files that are in use, @code{BDB} will
 not be able to do recovery at all and you may lose data if something
 goes wrong.
 @item
-MySQL requires a @code{PRIMARY KEY} in each BDB table to be
+MySQL requires a @code{PRIMARY KEY} in each @code{BDB} table to be
 able to refer to previously read rows. If you don't create one,
 MySQL will create an maintain a hidden @code{PRIMARY KEY} for
 you.  The hidden key has a length of 5 bytes and is incremented for each
@@ -40667,25 +40668,26 @@ Internal locking in @code{BDB} tables is done on page level.
 @code{SELECT COUNT(*) FROM table_name} is slow as @code{BDB} tables doesn't
 maintain a count of the number of rows in the table.
 @item
-Scanning is slower than with @code{MyISAM} tables as one has data in BDB
+Scanning is slower than with @code{MyISAM} tables as one has data in
+@code{BDB}
 tables stored in B-trees and not in a separate datafile.
 @item
 The application must always be prepared to handle cases where
 any change of a @code{BDB} table may make an automatic rollback and any
 read may fail with a deadlock error.
 @item
-Keys are not compressed to previous keys as with ISAM or MyISAM
+Keys are not compressed to previous keys as with @code{ISAM} or @code{MyISAM}
 tables. In other words, the key information will take a little more
-space in @code{BDB} tables compared to MyISAM tables which don't use
+space in @code{BDB} tables compared to @code{MyISAM} tables which don't use
 @code{PACK_KEYS=0}.
 @item
-There is often holes in the BDB table to allow you to insert new rows in
-the middle of the key tree.  This makes BDB tables somewhat larger than
-MyISAM tables.
+There are often holes in the @code{BDB} table to allow you to insert new rows in
+the middle of the key tree.  This makes @code{BDB} tables somewhat larger than
+@code{MyISAM} tables.
 @item
 The optimiser needs to know an approximation of the number of rows in
 the table.  MySQL solves this by counting inserts and
-maintaining this in a separate segment in each BDB table.  If you don't
+maintaining this in a separate segment in each @code{BDB} table.  If you don't
 issue a lot of @code{DELETE} or @code{ROLLBACK} statements, this number
 should be accurate enough for the MySQL optimiser, but as MySQL
 only stores the number on close, it may be incorrect if MySQL dies
@@ -40702,16 +40704,17 @@ wait for enough free disk before continuing.
 
 
 @node BDB TODO, BDB portability, BDB characteristics, BDB
-@subsection Things we need to fix for BDB in the near future:
+@subsection Things we need to fix for @code{BDB} in the near future:
 
 @itemize @bullet
 @item
-It's very slow to open many BDB tables at the same time. If you are
-going to use BDB tables, you should not have a very big table cache
+It's very slow to open many @code{BDB} tables at the same time. If you are
+going to use @code{BDB} tables, you should not have a very big table cache
 (like >256) and you should use @code{--no-auto-rehash} with the @code{mysql}
 client.  We plan to partly fix this in 4.0.
 @item
-@code{SHOW TABLE STATUS} doesn't yet provide that much information for BDB
+@code{SHOW TABLE STATUS} doesn't yet provide that much information for
+@code{BDB}
 tables.
 @item
 Optimise performance.
@@ -40723,7 +40726,7 @@ Change to not use page locks at all when we are scanning tables.
 @node BDB portability, BDB restrictions, BDB TODO, BDB
 @subsection Operating systems supported by @code{BDB}
 
-If you after having built MySQL with support for BDB tables get
+If you after having built MySQL with support for @code{BDB} tables get
 the following error in the log file when you start @code{mysqld}:
 
 @example
@@ -40732,12 +40735,12 @@ Can't init dtabases
 @end example
 
 This means that @code{BDB} tables are not supported for your architecture.
-In this case you have to rebuild MySQL without BDB table support.
+In this case you have to rebuild MySQL without @code{BDB} table support.
 
 Note: The following list is not complete; we will update it as we
 receive more information about this.
 
-Currently we know that BDB tables works with the following operating
+Currently we know that @code{BDB} tables work with the following operating
 system.
 
 @itemize @bullet
@@ -40761,29 +40764,29 @@ Max OS X
 @end itemize
 
 @node BDB restrictions, BDB errors, BDB portability, BDB
-@subsection Restrictions on BDB Tables
+@subsection Restrictions on @code{BDB} Tables
 
-Here follows the restrictions you have when using BDB tables:
+Here follows the restrictions you have when using @code{BDB} tables:
 
 @itemize @bullet
 @item
-BDB tables store in the @file{.db} file the path to the file as it was
+@code{BDB} tables store in the @file{.db} file the path to the file as it was
 created.
 This was done to be able to detect locks in a multi-user
 environment that supports symlinks).
 
-The effect of this is that BDB tables are not movable between directories!
+The effect of this is that @code{BDB} tables are not movable between directories!
 @item
-When taking backups of BDB tables, you have to either use
+When taking backups of @code{BDB} tables, you have to either use
 @code{mysqldump} or take a backup of all @code{table_name.db} files and
-the BDB log files.  The BDB log files are the files in the base data
+the @code{BDB} log files.  The @code{BDB} log files are the files in the base data
 directory named @code{log.XXXXXXXXXX} (ten digits);
-The BDB table handler stores unfinished transactions in the log files
+The @code{BDB} table handler stores unfinished transactions in the log files
 and requires these to be present when @code{mysqld} starts.
 @end itemize
 
 @node BDB errors,  , BDB restrictions, BDB
-@subsection Errors That May Occur When Using BDB Tables
+@subsection Errors That May Occur When Using @code{BDB} Tables
 
 @itemize @bullet
 @item
@@ -40794,9 +40797,9 @@ starting @code{mysqld}:
 bdb:  Ignoring log file: .../log.XXXXXXXXXX: unsupported log version #
 @end example
 it means that the new @code{BDB} version doesn't support the old log
-file format.  In this case you have to delete all @code{BDB} log BDB
-from your database directory (the files that has the format
-@code{log.XXXXXXXXXX} ) and restart @code{mysqld}.  We would also
+file format.  In this case you have to delete all @code{BDB} logs
+from your database directory (the files with names that have the format
+@code{log.XXXXXXXXXX}) and restart @code{mysqld}.  We would also
 recommend you to do a @code{mysqldump --opt} of your old @code{BDB}
 tables, delete the old table and restore the dump.
 @item
@@ -50981,7 +50984,7 @@ MySQL 3.23!
 
 Note that the above doesn't mean that replication or Berkeley DB don't
 work.  We have done a lot of testing of all code, including replication
-and BDB without finding any problems.  It only means that not as many
+and @code{BDB} without finding any problems.  It only means that not as many
 users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
@@ -51087,7 +51090,7 @@ Fixed bug with slave net read timeouting
 @item
 Fixed a core-dump bug with @code{MERGE} tables and @code{MAX()} function.
 @item
-Fixed bug in @code{ALTER TABLE} with BDB tables.
+Fixed bug in @code{ALTER TABLE} with @code{BDB} tables.
 @item
 Fixed bug when logging @code{LOAD DATA INFILE} to binary log with no 
 active database.
@@ -51130,8 +51133,8 @@ Fixed bug in @code{DROP DATABASE} with symlinked directory.
 Fixed optimisation problem with @code{DATETIME} and value outside
 @code{DATETIME} range.
 @item
-Removed Sleepycat's BDB doc files from the source tree, as they're not
-needed (MySQL covers BDB in its own documentation).
+Removed Sleepycat's @code{BDB} doc files from the source tree, as they're not
+needed (MySQL covers @code{BDB} in its own documentation).
 @item
 Fixed MIT-pthreads to compile with @code{glibc} 2.2 (needed for
 @code{make dist}).
