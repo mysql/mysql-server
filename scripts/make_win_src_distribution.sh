@@ -259,6 +259,12 @@ do
 done
 
 #
+# Fix some windows files
+#
+
+./extra/replace std:: "" -- $BASE/sql/sql_yacc.cpp
+
+#
 # Initialize the initial data directory
 #
 
