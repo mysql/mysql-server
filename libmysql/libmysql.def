@@ -81,7 +81,6 @@ EXPORTS
 	mysql_stmt_param_count
 	mysql_stmt_param_metadata
 	mysql_ping
-	mysql_prepare
 	mysql_stmt_result_metadata
 	mysql_query
 	mysql_read_query_result
@@ -114,6 +113,9 @@ EXPORTS
 	mysql_thread_safe
 	mysql_use_result
 	mysql_warning_count
+	mysql_stmt_sqlstate
+	mysql_sqlstate
+	mysql_get_server_version
 	net_buffer_length
 	set_dynamic
 	strcend
