@@ -44,8 +44,13 @@ BackupConsumer::create_table_string(const TableS & table,
     case NdbDictionary::Column::Float:
       pos += sprintf(buf+pos, "%s", "float");
       break;
+    case NdbDictionary::Column::Olddecimal:
     case NdbDictionary::Column::Decimal:
       pos += sprintf(buf+pos, "%s", "decimal");
+      break;
+    case NdbDictionary::Column::Olddecimalunsigned:
+    case NdbDictionary::Column::Decimalunsigned:
+      pos += sprintf(buf+pos, "%s", "decimal unsigned");
       break;
     case NdbDictionary::Column::Char:
       pos += sprintf(buf+pos, "%s", "char");
