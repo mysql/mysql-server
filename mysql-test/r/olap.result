@@ -27,30 +27,30 @@ TV	India	1999	100
 TV	India	2000	200
 TV	United States	1999	150
 TV	United States	2000	150
-Calculator	India	0	75
-Calculator	United States	0	200
-Computer	India	0	2400
-Computer	United States	0	4500
-TV	India	0	300
-TV	United States	0	300
-Calculator	ALL	1999	50
-Calculator	ALL	2000	225
-Computer	ALL	1999	2700
-Computer	ALL	2000	4200
-TV	ALL	1999	250
-TV	ALL	2000	350
-ALL	India	1999	1300
-ALL	India	2000	1475
-ALL	United States	1999	1700
-ALL	United States	2000	3300
-Calculator	ALL	0	275
-Computer	ALL	0	6900
-TV	ALL	0	600
-ALL	India	0	2775
-ALL	United States	0	5000
-ALL	ALL	1999	3000
-ALL	ALL	2000	4775
-ALL	ALL	0	7775
+Calculator	India	NULL	75
+Calculator	United States	NULL	200
+Computer	India	NULL	2400
+Computer	United States	NULL	4500
+TV	India	NULL	300
+TV	United States	NULL	300
+Calculator	NULL	1999	50
+Calculator	NULL	2000	225
+Computer	NULL	1999	2700
+Computer	NULL	2000	4200
+TV	NULL	1999	250
+TV	NULL	2000	350
+NULL	India	1999	1300
+NULL	India	2000	1475
+NULL	United States	1999	1700
+NULL	United States	2000	3300
+Calculator	NULL	NULL	275
+Computer	NULL	NULL	6900
+TV	NULL	NULL	600
+NULL	India	NULL	2775
+NULL	United States	NULL	5000
+NULL	NULL	1999	3000
+NULL	NULL	2000	4775
+NULL	NULL	NULL	7775
 explain select product, country , year, sum(profit) from sales group by product, country, year with cube;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 sales	ALL	NULL	NULL	NULL	NULL	14	Using temporary; Using filesort
@@ -74,13 +74,13 @@ TV	India	1999	100
 TV	India	2000	200
 TV	United States	1999	150
 TV	United States	2000	150
-ALL	India	1999	1300
-ALL	India	2000	1475
-ALL	United States	1999	1700
-ALL	United States	2000	3300
-ALL	ALL	1999	3000
-ALL	ALL	2000	4775
-ALL	ALL	0	7775
+NULL	India	1999	1300
+NULL	India	2000	1475
+NULL	United States	1999	1700
+NULL	United States	2000	3300
+NULL	NULL	1999	3000
+NULL	NULL	2000	4775
+NULL	NULL	NULL	7775
 explain select product, country , year, sum(profit) from sales group by product, country, year with rollup;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 sales	ALL	NULL	NULL	NULL	NULL	14	Using temporary; Using filesort
@@ -100,30 +100,30 @@ TV	India	1999	100
 TV	India	2000	200
 TV	United States	1999	150
 TV	United States	2000	150
-Calculator	India	0	75
-Calculator	United States	0	200
-Computer	India	0	2400
-Computer	United States	0	4500
-TV	India	0	300
-TV	United States	0	300
-Calculator	ALL	1999	50
-Calculator	ALL	2000	225
-Computer	ALL	1999	2700
-Computer	ALL	2000	4200
-TV	ALL	1999	250
-TV	ALL	2000	350
-ALL	India	1999	1300
-ALL	India	2000	1475
-ALL	United States	1999	1700
-ALL	United States	2000	3300
-Calculator	ALL	0	275
-Computer	ALL	0	6900
-TV	ALL	0	600
-ALL	India	0	2775
-ALL	United States	0	5000
-ALL	ALL	1999	3000
-ALL	ALL	2000	4775
-ALL	ALL	0	7775
+Calculator	India	NULL	75
+Calculator	United States	NULL	200
+Computer	India	NULL	2400
+Computer	United States	NULL	4500
+TV	India	NULL	300
+TV	United States	NULL	300
+Calculator	NULL	1999	50
+Calculator	NULL	2000	225
+Computer	NULL	1999	2700
+Computer	NULL	2000	4200
+TV	NULL	1999	250
+TV	NULL	2000	350
+NULL	India	1999	1300
+NULL	India	2000	1475
+NULL	United States	1999	1700
+NULL	United States	2000	3300
+Calculator	NULL	NULL	275
+Computer	NULL	NULL	6900
+TV	NULL	NULL	600
+NULL	India	NULL	2775
+NULL	United States	NULL	5000
+NULL	NULL	1999	3000
+NULL	NULL	2000	4775
+NULL	NULL	NULL	7775
 Calculator	India	2000	75
 Calculator	United States	1999	50
 Calculator	United States	2000	150
