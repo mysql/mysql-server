@@ -6404,7 +6404,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @itemize @bullet
 
 @item
-@c EMAIL: sl@iuinfo.tuwien.ac.at (Tony Sprinzl)
+@c EMAIL: Antonin.Sprinzl@tuwien.ac.at (Tony Sprinzl)
 @image{Flags/austria} Austria [Univ. of Technology/Vienna] @
 @uref{http://gd.tuwien.ac.at/db/mysql/, WWW}
 @uref{ftp://gd.tuwien.ac.at/db/mysql/, FTP}
