@@ -3490,7 +3490,7 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     if (field->decimals >= 31)
 #undef NOT_FIXED_DEC
     {
-      sprintf(buff, "%-*.*g", (int) param->buffer_length, width, value);
+      sprintf(buff, "%-*.*g", (int) min(330, param->buffer_length), width, value);
       end= strcend(buff, ' ');
       *end= 0;
     }
