@@ -733,6 +733,8 @@ JOIN::exec()
 				  HA_POS_ERROR : unit->select_limit_cnt,
 				  0))))
       order=0;
+    if (procedure)
+      (void)result->prepare(fields_list, unit);
     select_describe(this, need_tmp,
 		    order != 0 && !skip_sort_order,
 		    select_distinct);
