@@ -210,7 +210,13 @@ static ulong get_param_length(uchar **packet, ulong len)
   if (len < 5)
     return 0;
   (*packet)+=9; // Must be 254 when here 
-  /* TODO: why uint4korr here? (should be uint8korr) */
+  /*
+    In our client-server protocol all numbers bigger than 2^24
+    stored as 8 bytes with uint8korr. Here we always know that
+    parameter length is less than 2^4 so don't look at the second
+    4 bytes. But still we need to obey the protocol hence 9 in the
+    assignment above.
+  */
   return (ulong) uint4korr(pos+1);
 }
 #else

@@ -801,7 +801,7 @@ public:
   /* scramble - random string sent to client on handshake */
   char	     scramble[SCRAMBLE_LENGTH+1];
 
-  bool       slave_thread;
+  bool       slave_thread, one_shot_set;
   bool	     locked, some_tables_deleted;
   bool       last_cuted_field;
   bool	     no_errors, password, is_fatal_error;
@@ -932,7 +932,7 @@ public:
     net.last_errno= 0;
     net.report_error= 0;
   }
-  inline bool vio_ok() const { return net.vio; }
+  inline bool vio_ok() const { return net.vio != 0; }
 #else
   void clear_error();
   inline bool vio_ok() const { return true; }

@@ -77,7 +77,6 @@ extern char *mysql_unix_port;
 #define IS_NUM_FIELD(f)	 ((f)->flags & NUM_FLAG)
 #define INTERNAL_NUM_FIELD(f) (((f)->type <= FIELD_TYPE_INT24 && ((f)->type != FIELD_TYPE_TIMESTAMP || (f)->length == 14 || (f)->length == 8)) || (f)->type == FIELD_TYPE_YEAR)
 
-#define HAVE_DEPRECATED_411_API 1
 
 typedef struct st_mysql_field {
   char *name;                 /* Name of column */
@@ -711,6 +710,7 @@ void STDCALL mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong offset);
 my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt);
 my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt);
 my_ulonglong STDCALL mysql_stmt_insert_id(MYSQL_STMT *stmt);
+unsigned int STDCALL mysql_stmt_field_count(MYSQL_STMT *stmt);
 
 my_bool STDCALL mysql_commit(MYSQL * mysql);
 my_bool STDCALL mysql_rollback(MYSQL * mysql);

@@ -197,7 +197,7 @@ int main(int argc,char *argv[])
     for (code=1 ; code < sys_nerr ; code++)
     {
       if (sys_errlist[code][0])
-      {						/* Skipp if no error-text */
+      {						/* Skip if no error-text */
 	printf("%3d = %s\n",code,sys_errlist[code]);
       }
     }

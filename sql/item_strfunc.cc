@@ -2097,10 +2097,8 @@ String *Item_func_lpad::val_str(String *str)
     count-= pad_char_length;
   }
   if (count > 0)
-  {
-    pad->length(pad->charpos(count));
-    str->append(*pad);
-  }
+    str->append(pad->ptr(), pad->charpos(count), collation.collation);
+
   str->append(*res);
   null_value= 0;
   return str;

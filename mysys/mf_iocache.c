@@ -800,7 +800,7 @@ int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
     {						/* Fix if skipped bytes */
       if (info->aio_read_pos + read_length < info->pos_in_file)
       {
-	read_length=0;				/* Skipp block */
+	read_length=0;				/* Skip block */
 	next_pos_in_file=info->pos_in_file;
       }
       else
@@ -894,7 +894,7 @@ int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
     if (aioread(info->file,read_buffer,(int) max_length,
 		(my_off_t) next_pos_in_file,MY_SEEK_SET,
 		&info->aio_result.result))
-    {						/* Skipp async io */
+    {						/* Skip async io */
       my_errno=errno;
       DBUG_PRINT("error",("got error: %d, aio_result: %d from aioread, async skipped",
 			  errno, info->aio_result.result.aio_errno));

@@ -761,7 +761,7 @@ uint _mi_get_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
 	}
 	if (keyseg->flag & HA_NULL_PART)
 	{
-	  key++;				/* Skipp null marker*/
+	  key++;				/* Skip null marker*/
 	  start++;
 	}
 
@@ -1395,7 +1395,7 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
     if (prev_key && !*prev_key++)
       org_key=prev_key=0;                       /* Can't pack against prev */
     else if (org_key)
-      org_key++;                                /* Skipp NULL */
+      org_key++;                                /* Skip NULL */
   }
   else
     s_temp->store_not_null=0;
