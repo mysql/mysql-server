@@ -1781,7 +1781,7 @@ static int init_dumping(char *database)
     if (opt_databases || opt_alldbs)
     {
       /*
-	length of table name * 2 (if name contain quotas), 2 quotas and 0
+	length of table name * 2 (if name contains quotes), 2 quotes and 0
       */
       char quoted_database_buf[64*2+3];
       char *qdatabase= quote_name(database,quoted_database_buf,opt_quoted);
