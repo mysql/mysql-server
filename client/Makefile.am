@@ -27,6 +27,7 @@ bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow \
  mysqldump mysqlimport mysqltest mysqlbinlog mysqlmanagerc mysqlmanager-pwgen
 noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h \
 				client_priv.h
+mysqladmin_SOURCES =		mysqladmin.cc
 mysql_SOURCES =			mysql.cc readline.cc sql_string.cc completion_hash.cc
 mysqladmin_SOURCES =		mysqladmin.cc
 mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ $(LDADD) $(CXXLDFLAGS)
