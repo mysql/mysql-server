@@ -1,25 +1,77 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
 use Getopt::Long;
-$opt_distribution=$opt_user=$opt_result=$opt_config_options=$opt_config_env="";
-$opt_dbd_options=$opt_perl_options=$opt_make_options=$opt_suffix="";
+
+@config_options= ();
+@make_options= ();
+
+$opt_distribution=$opt_user=$opt_config_env="";
+$opt_dbd_options=$opt_perl_options=$opt_config_options=$opt_make_options=$opt_suffix="";
 $opt_tmp=$opt_version_suffix="";
-$opt_help=$opt_Information=$opt_delete=$opt_debug=$opt_stage=$opt_rsh_mail=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_no_mysqltest=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=0;
+$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=0;
 $opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=0;
 
-GetOptions("Information","help","distribution=s","user=s","result=s","delete","no-test","no-mysqltest","perl-files=s","debug","config-options=s","config-env=s","stage=i","rsh-mail","with-low-memory","fast-benchmark","tmp=s","static-client","static-server","static-perl","no-perl","local-perl","perl-options=s","make-options=s","sur","with-small-disk","dbd-options=s","tcpip","suffix=s","build-thread=i","innodb","bdb","raid","libwrap","use-old-distribution","enable-shared","no-crash-me","no-strip","version-suffix=s", "with-other-libc=s") || usage();
+GetOptions(
+	"bdb",
+	"build-thread=i",
+	"config-env=s",
+	"config-options=s" => \@config_options,
+	"dbd-options=s",
+	"debug",
+	"delete",
+	"distribution=s",
+	"enable-shared",
+	"fast-benchmark",
+	"help|Information",
+	"innodb",
+	"libwrap",
+	"local-perl",
+	"make-options=s" => \@make_options,
+	"no-crash-me",
+	"no-perl",
+	"no-strip",
+	"no-test|no-mysqltest",
+	"perl-files=s",
+	"perl-options=s",
+	"raid",
+	"stage=i",
+	"static-client",
+	"static-perl",
+	"static-server",
+	"suffix=s",
+	"sur",
+	"tcpip",
+	"tmp=s",
+	"use-old-distribution",
+	"user=s",
+	"version-suffix=s",
+	"with-low-memory",
+	"with-other-libc=s",
+	"with-small-disk",
+) || usage();
 
-usage() if ($opt_help || $opt_Information);
+usage() if ($opt_help);
 usage() if (!$opt_distribution);
 
-if (($opt_innodb || $opt_bdb) && $opt_version_suffix eq "")
+if ($opt_bdb && $opt_version_suffix eq "")
 {
   $opt_version_suffix="-max";
 }
 
+if (@make_options > 0)
+{
+	chomp(@make_options);
+	$opt_make_options= join(" ", @make_options);
+}
+
+if (@config_options > 0)
+{
+	chomp(@config_options);
+	$opt_config_options= join(" ", @config_options);
+}
+
 chomp($host=`hostname`);
 $full_host_name=$host;
-info("Compiling MySQL$opt_version_suffix at $host$suffix, stage: $opt_stage\n");
 $connect_option= ($opt_tcpip ? "--host=$host" : "");
 $host =~ /^([^.-]*)/;
 $host=$1 . $opt_suffix;
@@ -62,7 +114,6 @@ else
 }
 $bench_tmpdir="$opt_tmp/my_build-$host";
 $ENV{'PATH'}= "$pwd/$host/bin:" . $ENV{'PATH'}; 
-$rsh=which("rcmd","rsh");
 $make=which("gmake","make");	# Can't use -j here!
 $tar=which("gtar","tar");
 $sendmail=find("/usr/lib/sendmail","/usr/sbin/sendmail");
@@ -87,6 +138,8 @@ select LOG;
 $|=1;
 select STDOUT;
 $|=1;
+
+info("Compiling MySQL$opt_version_suffix at $host$opt_suffix, stage: $opt_stage\n");
 
 if (-x "$host/bin/mysqladmin")
 {
@@ -141,47 +194,32 @@ if ($opt_stage == 0 && ! $opt_use_old_distribution)
 }
 
 safe_cd("$pwd/$host/$ver");
+
+#
+# Configure the sources
+#
 if ($opt_stage <= 1)
 {
-  $opt_config_options.=" --with-low-memory" if ($opt_with_low_memory);
-  # Fix files if this is in another timezone than work.mysql.com
+  # Fix files if this is in another timezone than the build host
   unlink("config.cache");
   unlink("bdb/build_unix/config.cache");
   unlink("innobase/config.cache");
   log_system("$make clean") if ($opt_use_old_distribution);
-  if ($opt_static_server)
-  {
-    $opt_config_options.=" --with-mysqld-ldflags=-all-static";
-  }
-  if ($opt_static_client)
-  {
-    $opt_config_options.=" --with-client-ldflags=-all-static";
-  }
+  $opt_config_options.= " --disable-shared" if (!$opt_enable_shared); # Default for binary versions
+  $opt_config_options.= " --with-berkeley-db" if ($opt_bdb);
+  $opt_config_options.= " --with-client-ldflags=-all-static" if ($opt_static_client);
+  $opt_config_options.= " --with-innodb" if ($opt_innodb);
+  $opt_config_options.= " --with-libwrap" if ($opt_libwrap);
+  $opt_config_options.= " --with-low-memory" if ($opt_with_low_memory);
+  $opt_config_options.= " --with-mysqld-ldflags=-all-static" if ($opt_static_server);
+  $opt_config_options.= " --with-raid" if ($opt_raid);
+
   if ($opt_with_other_libc)
   {
-    $opt_with_other_libc= "--with-other-libc=$opt_with_other_libc";
-    $opt_config_options.= " $opt_with_other_libc";
+    $opt_with_other_libc= " --with-other-libc=$opt_with_other_libc";
+    $opt_config_options.= $opt_with_other_libc;
   }
-  if (!$opt_enable_shared)
-  {
-    $opt_config_options.= " --disable-shared"; # Default for binary versions
-  }
-  if ($opt_bdb)
-  {
-    $opt_config_options.= " --with-berkeley-db"
-  }
-  if ($opt_raid)
-  {
-    $opt_config_options.= " --with-raid"
-  }
-  if ($opt_innodb)
-  {
-    $opt_config_options.= " --with-innodb"
-  }
-  if ($opt_libwrap)
-  {
-    $opt_config_options.= " --with-libwrap"
-  }
+
   check_system("$opt_config_env ./configure --prefix=/usr/local/mysql --with-comment=\"Official MySQL$opt_version_suffix binary\" --with-extra-charsets=complex --with-server-suffix=\"$opt_version_suffix\" --enable-thread-safe-client --enable-local-infile $opt_config_options","Thank you for choosing MySQL");
   if (-d "$pwd/$host/include-mysql")
   {
@@ -189,6 +227,9 @@ if ($opt_stage <= 1)
   }
 }
 
+#
+# Compile the binaries
+#
 if ($opt_stage <= 2)
 {
   my ($command);
@@ -199,16 +240,15 @@ if ($opt_stage <= 2)
 }
 
 #
-# Create a binary distrubtion
+# Create the binary distribution
 #
 if ($opt_stage <= 3)
 {
-  my ($flags);
+  my $flags= "";
   log_system("rm -fr mysql-3* mysql-4* $pwd/$host/*.tar.gz");
   log_system("nm -n sql/mysqld | gzip -9 -v 2>&1 > sql/mysqld.sym.gz | cat");
 
-  $flags="";
-  $flags.="--no-strip" if ($opt_no_strip);
+  $flags.= "--no-strip" if ($opt_no_strip);
   check_system("scripts/make_binary_distribution --tmp=$opt_tmp --suffix=$opt_suffix $flags",".tar.gz created");
   safe_system("mv mysql*.tar.gz $pwd/$host");
   if (-f "client/.libs/mysqladmin")
@@ -222,15 +262,15 @@ if ($opt_stage <= 3)
   safe_system("$make clean") if ($opt_with_small_disk);
 }
 
-#
-# Unpack and test the binary distrubtion
-#
-
 $tar_file=<$pwd/$host/*.tar.gz>;
 if (!defined($tar_file))
 {
   $tar_file=<$pwd/$host/*.tgz>;
 }
+
+#
+# Unpack the binary distribution
+#
 if ($opt_stage <= 4 && !$opt_no_test)
 {
   rm_all(<$pwd/$host/test/*>);
@@ -243,15 +283,19 @@ $ver=$1;
 $test_dir="$pwd/$host/test/$ver";
 $ENV{"LD_LIBRARY_PATH"}= "$test_dir/lib:" . $ENV{"LD_LIBRARY_PATH"};
 
-if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
+#
+# Run the test suite
+#
+if ($opt_stage <= 5 && !$opt_no_test)
 {
   system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   safe_cd("${test_dir}/mysql-test");
   check_system("./mysql-test-run --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --sleep=10", "tests were successful");
 }
 
+#
 # Start the server if we are going to run any of the benchmarks
-
+#
 if (!$opt_no_test)
 {
   my $extra;
@@ -273,7 +317,9 @@ if (!$opt_no_test)
   sleep(2);
 }
 
-
+#
+# Compile and install the required Perl modules
+#
 if ($opt_stage <= 7 && $opt_perl_files && !$opt_no_perl && !$opt_no_test)
 {
   safe_cd($test_dir);
@@ -306,7 +352,9 @@ if ($opt_stage <= 7 && $opt_perl_files && !$opt_no_perl && !$opt_no_test)
   }
 }
 
-
+#
+# Run crash-me test
+#
 if ($opt_stage <= 8 && !$opt_no_test && !$opt_no_crash_me)
 {
   safe_cd("$test_dir/sql-bench");
@@ -314,6 +362,9 @@ if ($opt_stage <= 8 && !$opt_no_test && !$opt_no_crash_me)
   safe_system("perl ./crash-me --force --batch-mode $connect_option");
 }
 
+#
+# Run sql-bench Benchmarks
+#
 if ($opt_stage <= 9 && !$opt_no_test)
 {
   safe_cd("$test_dir/sql-bench");
@@ -328,11 +379,6 @@ if ($opt_stage <= 9 && !$opt_no_test)
   {
     check_system("perl ./run-all-tests --log --suffix=\"_innodb\" --die-on-errors $connect_option $tmp --create-option=\"type=innodb\"","RUN-mysql");
   }
-}
-
-if ($opt_stage <= 10 && $opt_result)
-{
-  safe_system("rcp $pwd/$host/*.tar.gz $opt_result");
 }
 
 rm_all($bench_tmpdir);
@@ -353,57 +399,105 @@ $0  version 1.4
 
 $0 takes the following options:
 
+--bdb
+Compile with support for Berkeley DB tables
+
+--config-env <environment for configure>
+To set up the environment, like 'CC=cc CXX=gcc CXXFLAGS=-O3'
+
+--config-options <options>
+To add some extra options to configure (e.g. '--with-perl=yes')
+
+--dbd-options <options>
+Options for Makefile.PL when configuring msql-mysql-modules.
+
+--debug
+Print all shell commands on stdout.
+
+--delete
+Delete the distribution file.
+
+--distribution <distribution_file>
+Name of the MySQL source distribution file.
+
+--enable-shared
+Compile with shared libraries
+
+--fast-benchmark
+Run fast benchmark only to speed up testing
+
 --help or --Information
 Show this help
 
 --innodb
 Compile with support for Innodb tables
 
---bdb
-Compile with support for Berkeley DB tables
+--libwrap
+Compile with TCP wrapper support
 
---user 'user_name'
-Mail 'user_name'\@mysql.com if something went wrong.
-If user is empty then no mail is sent.
+--local-perl
+Install Perl modules locally
 
---distribution 'distribution_file'
-Name of the MySQL distribution file.
+--make-options <options>
+Options to make after configure. (Like 'CXXLD=gcc')
 
---result 'result_dir'
-Send binary distribution to result_dir
+--no-crash-me
+Do not run the "crash-me" test
 
---no-delete
-Do not delete the distribution file.
+--no-strip
+Do not strip the binaries included in the binary distribution
+
+--no-test
+Do not run any tests
 
 --perl-files=list of files
 Compile and install the given perl modules.
 
---no-test
-Don not run crash-me or the benchmarks.
+--perl-options <options>
+Build Perl modules with the additional options
 
---config-options 'some extra configure options'
-To add some extra options, like '--with-perl=yes'
+--raid
+Compile with RAID support
 
---config-env 'environment for configure'
-To set up the environment, like 'CC=cc CXX=gcc CXXFLAGS=-O3'
+--stage (1-6)
+Start script from some specific point.
 
---dbd-options 'options'
-Options for Makefile.PL when configuring msql-mysql-modules.
+--static-client
+Build statically linked client binaries
 
---make-options 'options'
-Options to make after configure. (Like 'CXXLD=gcc')
+--static-perl
+Build statically linked Perl modules
+
+--static-server
+Build statically linked server binary
+
+--tcpip
+Connect to the server to be tested via TCP/IP instead of socket
+
+--tmp <directory>
+Use a different temporary directory than /tmp
+
+--use-old-distribution
+Do not clean up the build environment and extract a fresh source
+distribution, use an existing one instead.
+
+--user <user_name>
+Mail 'user_name'\@mysql.com if something went wrong.
+If user is empty then no mail is sent.
 
 --version-suffix suffix
-Can be used to set a suffix (normally 'com' or '-max') for a distribution
+Set name suffix (e.g. 'com' or '-max') for a distribution
 
 --with-low-memory
 Use less memory when compiling.
 
--- stage (1-6)
-Start script from some specific point.
+--with-other-libc <path to libc>
+Link against libc and other standard libraries installed in the specified
+non-standard location overriding default.
 
--- debug
-Print all shell commands on stdout.
+--with-small-disk
+Clean up the build environment before testing the binary distribution
+(to save disk space)
 EOF
 exit 1;
 } 
@@ -411,7 +505,7 @@ exit 1;
 sub abort
 {
   my($message)=@_;
-  my($command,$mail_header_file);
+  my($mail_header_file);
   print LOG "\n$message\n";
   print "$host: $message\n" if ($opt_debug);
   close LOG;
@@ -424,9 +518,8 @@ sub abort
     print TMP "To: $email\n";
     print TMP "Subject: MySQL compilation failed again\n\n";
     close TMP;
-    $command=($opt_rsh_mail) ? "$rsh analytik" : "";
     system("tail -30 $log > $log.mail");
-    system("cat $mail_header_file $log.mail | $command $sendmail -t -f $email");
+    system("cat $mail_header_file $log.mail | $sendmail -t -f $email");
     unlink($mail_header_file);
     unlink("$log.mail");
   }
