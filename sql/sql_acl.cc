@@ -551,21 +551,19 @@ static ulong get_sort(uint count,...)
     uint chars= 0;
     uint wild_pos= 0;           /* first wildcard position */
 
-    if (start= str)
+    if ((start= str))
     {
       for (; *str ; str++)
       {
 	if (*str == wild_many || *str == wild_one || *str == wild_prefix)
         {
-          wild_pos= str - start + 1;
+          wild_pos= (uint) (str - start) + 1;
           break;
         }
-	else
-	  chars++;
+        chars= 128;                             // Marker that chars existed
       }
     }
-    sort= (sort << 8) + (wild_pos ? (wild_pos > 127 ? 127 : wild_pos) : 
-                                    (chars ? 128 : 0));
+    sort= (sort << 8) + (wild_pos ? min(wild_pos, 127) : chars);
   }
   va_end(args);
   return sort;

@@ -1732,8 +1732,8 @@ bool Item_func_in::nulls_in_row()
 static int srtcmp_in(CHARSET_INFO *cs, const String *x,const String *y)
 {
   return cs->coll->strnncollsp(cs,
-                        (unsigned char *) x->ptr(),x->length(),
-			(unsigned char *) y->ptr(),y->length());
+                               (uchar *) x->ptr(),x->length(),
+                               (uchar *) y->ptr(),y->length());
 }
 
 
