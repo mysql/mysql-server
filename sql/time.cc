@@ -496,7 +496,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   }
   if (str != end && current_thd->count_cuted_fields)
   {
-    for ( ; str != end ; str++)
+    for (; str != end ; str++)
     {
       if (!isspace(*str))
       {

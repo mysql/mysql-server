@@ -381,11 +381,15 @@ safe_query("select $tables_cols from mysql.tables_priv where user = '$opt_user'"
 safe_query("select $columns_cols from mysql.columns_priv where user = '$opt_user'");
 
 #
-# Test IDENTIFIED BY
-#
+# Clear up privileges to make future tests easier
 
 safe_query("delete from user where user='$opt_user'");
 safe_query("flush privileges");
+
+#
+# Test IDENTIFIED BY
+#
+
 safe_query("grant ALL PRIVILEGES on $opt_database.test to $user identified by 'dummy',  ${opt_user}\@127.0.0.1 identified by 'dummy2'");
 user_connect(0,"dummy");
 safe_query("grant SELECT on $opt_database.* to $user identified by ''");
@@ -402,6 +406,33 @@ safe_query("grant FILE on *.* to $user");
 safe_query("insert into $opt_database.test3 values (1)");
 user_connect(0);
 user_query("select * into outfile '$tmp_table' from $opt_database.test3");
+safe_query("revoke SELECT on $opt_database.test3 from $user");
+safe_query("revoke FILE from *.* from $user");
+safe_query("drop table $opt_database.test3");
+
+#
+# Test privileges needed for LOCK TABLES
+#
+
+safe_query("create table $opt_database.test3 (a int)");
+user_connect(0);
+user_query("select * into outfile '$tmp_table' from $opt_database.test3",1);
+safe_query("grant SELECT on $opt_database.test3 to $user");
+user_connect(0);
+user_query("LOCK TABLES $opt_database.test3",1);
+safe_query("grant INSERT,UPDATE,DELETE on $opt_database.test3 to $user");
+user_connect(0);
+user_query("LOCK TABLES $opt_database.test3");
+safe_query("revoke SELECT, INSERT,UPDATE,DELETE on $opt_database.test3 from $user");
+safe_query("grant SELECT,INSERT,UPDATE,DELETE on $opt_database.* to $user");
+user_connect(0);
+user_query("LOCK TABLES $opt_database.test3");
+safe_query("revoke SELECT, INSERT,UPDATE,DELETE on $opt_database.* from $user");
+safe_query("grant SELECT,INSERT,UPDATE,DELETE on *.* to $user");
+user_connect(0);
+user_query("LOCK TABLES $opt_database.test3");
+user_query("UNLOCK TABLES");
+safe_query("revoke SELECT, INSERT,UPDATE,DELETE on *.* from $user");
 
 #
 # Clean up things

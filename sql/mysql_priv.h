@@ -48,7 +48,7 @@ char *sql_strmake(const char *str,uint len);
 gptr sql_memdup(const void * ptr,unsigned size);
 void sql_element_free(void *ptr);
 void kill_one_thread(THD *thd, ulong id);
-int net_request_file(NET* net, const char* fname);
+bool net_request_file(NET* net, const char* fname);
 char* query_table_status(THD *thd,const char *db,const char *table_name);
 
 #define x_free(A)	{ my_free((gptr) (A),MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR)); }
@@ -200,18 +200,20 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 
 #define RAID_BLOCK_SIZE 1024
 
-// Sync points allow us to force the server to reach a certain line of code
-// and block there until the client tells the server it is ok to go on.
-// The client tells the server to block with SELECT GET_LOCK()
-// and unblocks it with SELECT RELEASE_LOCK(). Used for debugging difficult
-// concurrency problems
 #ifdef EXTRA_DEBUG
+/*
+  Sync points allow us to force the server to reach a certain line of code
+  and block there until the client tells the server it is ok to go on.
+  The client tells the server to block with SELECT GET_LOCK()
+  and unblocks it with SELECT RELEASE_LOCK(). Used for debugging difficult
+  concurrency problems
+*/
 #define DBUG_SYNC_POINT(lock_name,lock_timeout) \
  debug_sync_point(lock_name,lock_timeout)
 void debug_sync_point(const char* lock_name, uint lock_timeout);
 #else
 #define DBUG_SYNC_POINT(lock_name,lock_timeout)
-#endif
+#endif /* EXTRA_DEBUG */
 
 /* BINLOG_DUMP options */
 
@@ -376,9 +378,6 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 		       HA_CREATE_INFO *create_info,
 		       List<create_field> &fields, List<Key> &keys,
 		       bool tmp_table, bool no_log);
-// no_log is needed for the case of CREATE TABLE ... SELECT , as the logging
-// will be done later in sql_insert.cc
-
 TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 			       const char *db, const char *name,
 			       List<create_field> *extra_fields,

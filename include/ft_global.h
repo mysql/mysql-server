@@ -30,7 +30,8 @@ extern "C" {
 #define HA_FT_MAXLEN 254
 
 typedef struct st_ft_info FT_INFO;
-struct _ft_vft {
+struct _ft_vft
+{
   int       (*read_next)(FT_INFO *, char *);
   float     (*find_relevance)(FT_INFO *, byte *, uint);
   void      (*close_search)(FT_INFO *);
@@ -39,7 +40,8 @@ struct _ft_vft {
 };
 
 #ifndef FT_CORE
-struct st_ft_info {
+struct st_ft_info
+{
   struct _ft_vft *please; /* INTERCAL style :-) */
 };
 #endif

@@ -15,53 +15,50 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
- * [This posting refers to an article entitled "oops, corrupted memory
- * again!" in net.lang.c.  I am posting it here because it is source.]
- *
- * My tool for approaching this problem is to build another level of data
- * abstraction on top of malloc() and free() that implements some checking.
- * This does a number of things for you:
- *	- Checks for overruns and underruns on allocated data
- *	- Keeps track of where in the program the memory was malloc'ed
- *	- Reports on pieces of memory that were not free'ed
- *	- Records some statistics such as maximum memory used
- *	- Marks newly malloc'ed and newly free'ed memory with special values
- * You can use this scheme to:
- *	- Find bugs such as overrun, underrun, etc because you know where
- *	  a piece of data was malloc'ed and where it was free'ed
- *	- Find bugs where memory was not free'ed
- *	- Find bugs where newly malloc'ed memory is used without initializing
- *	- Find bugs where newly free'ed memory is still used
- *	- Determine how much memory your program really uses
- *	- and other things
- */
-
-/*
- * To implement my scheme you must have a C compiler that has __LINE__ and
- * __FILE__ macros.  If your compiler doesn't have these then (a) buy another:
- * compilers that do are available on UNIX 4.2bsd based systems and the PC,
- * and probably on other machines; or (b) change my scheme somehow.  I have
- * recomendations on both these points if you would like them (e-mail please).
- *
- * There are 4 functions in my package:
- *	char *NEW( uSize )	Allocate memory of uSize bytes
- *				(equivalent to malloc())
- *	char *REA( pPtr, uSize) Allocate memory of uSize bytes, move data and
- *				free pPtr.
- *				(equivalent to realloc())
- *	FREE( pPtr )		Free memory allocated by NEW
- *				(equivalent to free())
- *	TERMINATE(file)		End system, report errors and stats on file
- * I personally use two more functions, but have not included them here:
- *	char *STRSAVE( sPtr )	Save a copy of the string in dynamic memory
- *	char *RENEW( pPtr, uSize )
- *				(equivalent to realloc())
- */
-
-/*
  * Memory sub-system, written by Bjorn Benson
    Fixed to use my_sys scheme by Michael Widenius
- */
+
+  [This posting refers to an article entitled "oops, corrupted memory
+  again!" in net.lang.c.  I am posting it here because it is source.]
+
+  My tool for approaching this problem is to build another level of data
+  abstraction on top of malloc() and free() that implements some checking.
+  This does a number of things for you:
+	- Checks for overruns and underruns on allocated data
+	- Keeps track of where in the program the memory was malloc'ed
+	- Reports on pieces of memory that were not free'ed
+	- Records some statistics such as maximum memory used
+	- Marks newly malloc'ed and newly free'ed memory with special values
+  You can use this scheme to:
+	- Find bugs such as overrun, underrun, etc because you know where
+	  a piece of data was malloc'ed and where it was free'ed
+	- Find bugs where memory was not free'ed
+	- Find bugs where newly malloc'ed memory is used without initializing
+	- Find bugs where newly free'ed memory is still used
+	- Determine how much memory your program really uses
+	- and other things
+
+  To implement my scheme you must have a C compiler that has __LINE__ and
+  __FILE__ macros.  If your compiler doesn't have these then (a) buy another:
+  compilers that do are available on UNIX 4.2bsd based systems and the PC,
+  and probably on other machines; or (b) change my scheme somehow.  I have
+  recomendations on both these points if you would like them (e-mail please).
+
+  There are 4 functions in my package:
+	char *NEW( uSize )	Allocate memory of uSize bytes
+				(equivalent to malloc())
+	char *REA( pPtr, uSize) Allocate memory of uSize bytes, move data and
+				free pPtr.
+				(equivalent to realloc())
+	FREE( pPtr )		Free memory allocated by NEW
+				(equivalent to free())
+	TERMINATE(file)		End system, report errors and stats on file
+  I personally use two more functions, but have not included them here:
+	char *STRSAVE( sPtr )	Save a copy of the string in dynamic memory
+	char *RENEW( pPtr, uSize )
+				(equivalent to realloc())
+
+*/
 
 #ifndef SAFEMALLOC
 #define SAFEMALLOC			/* Get protos from my_sys */
@@ -87,11 +84,12 @@ pthread_t shutdown_th,main_th,signal_th;
 #define lSpecialValue	tInt._lSpecialValue
 
 #ifndef PEDANTIC_SAFEMALLOC
-static int sf_malloc_tampered = 0; /* set to 1 after TERMINATE() if we had
-				    to fiddle with cNewCount and the linked
-				    list of blocks so that _sanity() will
-				    not fuss when it is not supposed to
-				 */
+/*
+  Set to 1 after TERMINATE() if we had to fiddle with cNewCount and
+  the linked list of blocks so that _sanity() will not fuss when it
+  is not supposed to
+*/
+static int sf_malloc_tampered = 0;
 #endif
 				   
 
@@ -102,37 +100,37 @@ static int check_ptr(const char *where, byte *ptr, const char *sFile,
 static int _checkchunk(struct remember *pRec, const char *sFile, uint uLine);
 
 /*
- *	Note: both these refer to the NEW'ed
- *	data only.  They do not include
- *	malloc() roundoff or the extra
- *	space required by the remember
- *	structures.
- */
+  Note: both these refer to the NEW'ed data only.  They do not include
+  malloc() roundoff or the extra space required by the remember
+  structures.
+*/
 
-#define ALLOC_VAL	(uchar) 0xA5	/* NEW'ed memory is filled with this */
-				/* value so that references to it will	 */
-				/* end up being very strange.		 */
-#define FREE_VAL	(uchar) 0x8F	/* FREE'ed memory is filled with this */
-				/* value so that references to it will	 */
-				/* also end up being strange.		 */
-
+/*
+  NEW'ed memory is filled with this value so that references to it will
+  end up being very strange.
+*/
+#define ALLOC_VAL	(uchar) 0xA5
+/*
+  FEEE'ed memory is filled with this value so that references to it will
+  end up being very strange.
+*/
+#define FREE_VAL	(uchar) 0x8F
 #define MAGICKEY	0x14235296	/* A magic value for underrun key */
+
+/*
+  Warning: do not change the MAGICEND? values to something with the
+  high bit set.  Various C compilers (like the 4.2bsd one) do not do
+  the sign extension right later on in this code and you will get
+  erroneous errors.
+*/
+
 #define MAGICEND0	0x68		/* Magic values for overrun keys  */
 #define MAGICEND1	0x34		/*		"		  */
 #define MAGICEND2	0x7A		/*		"		  */
 #define MAGICEND3	0x15		/*		"		  */
 
- /* Warning: do not change the MAGICEND? values to */
- /* something with the high bit set.  Various C    */
- /* compilers (like the 4.2bsd one) do not do the  */
- /* sign extension right later on in this code and */
- /* you will get erroneous errors.		  */
 
-
-/*
- * gptr _mymalloc( uint uSize, my_string sFile, uint uLine, MyFlags )
- *	Allocate some memory.
- */
+/* Allocate some memory. */
 
 gptr _mymalloc (uint uSize, const char *sFile, uint uLine, myf MyFlags)
 {
@@ -144,9 +142,10 @@ gptr _mymalloc (uint uSize, const char *sFile, uint uLine, myf MyFlags)
     if (!sf_malloc_quick)
       (void) _sanity (sFile, uLine);
 
-    if(uSize + lCurMemory > safemalloc_mem_limit)
+    if (uSize + lCurMemory > safemalloc_mem_limit)
       pTmp = 0;
     else
+    {
        /* Allocate the physical memory */
        pTmp = (struct remember *) malloc (
 		sizeof (struct irem)			/* remember data  */
@@ -155,7 +154,7 @@ gptr _mymalloc (uint uSize, const char *sFile, uint uLine, myf MyFlags)
 		+ 4					/* overrun mark   */
 		+ sf_malloc_endhunc
 		);
-
+    }
     /* Check if there isn't anymore memory avaiable */
     if (pTmp == NULL)
     {
@@ -225,9 +224,9 @@ gptr _mymalloc (uint uSize, const char *sFile, uint uLine, myf MyFlags)
 }
 
 /*
- *  Allocate some new memory and move old memoryblock there.
- *  Free then old memoryblock
- */
+  Allocate some new memory and move old memoryblock there.
+  Free then old memoryblock
+*/
 
 gptr _myrealloc (register gptr pPtr, register uint uSize,
 		 const char *sFile, uint uLine, myf MyFlags)
@@ -258,7 +257,7 @@ gptr _myrealloc (register gptr pPtr, register uint uSize,
     DBUG_RETURN((gptr) NULL);
   }
 
-  if ((ptr=_mymalloc(uSize,sFile,uLine,MyFlags)))	/* Allocate new area */
+  if ((ptr=_mymalloc(uSize,sFile,uLine,MyFlags))) /* Allocate new area */
   {
     uSize=min(uSize,pRec-> uDataSize);		/* Move as much as possibly */
     memcpy((byte*) ptr,pPtr,(size_t) uSize);	/* Copy old data */
@@ -275,10 +274,7 @@ gptr _myrealloc (register gptr pPtr, register uint uSize,
 } /* _myrealloc */
 
 
-/*
- * void _myfree( my_string pPtr, my_string sFile, uint uLine, myf myflags)
- *	Deallocate some memory.
- */
+/* Deallocate some memory. */
 
 void _myfree (gptr pPtr, const char *sFile, uint uLine, myf myflags)
 {
@@ -297,12 +293,14 @@ void _myfree (gptr pPtr, const char *sFile, uint uLine, myf myflags)
   pRec = (struct remember *) ((byte*) pPtr-sizeof(struct irem)-
 			      sf_malloc_prehunc);
 
-  /* Check to make sure that we have a real remember structure	*/
-  /* Note: this test could fail for four reasons:		*/
-  /*	(1) The memory was already free'ed			*/
-  /*	(2) The memory was never new'ed				*/
-  /*	(3) There was an underrun				*/
-  /*	(4) A stray pointer hit this location			*/
+  /*
+    Check to make sure that we have a real remember structure.
+    Note: this test could fail for four reasons:
+    	(1) The memory was already free'ed
+	(2) The memory was never new'ed
+	(3) There was an underrun
+	(4) A stray pointer hit this location
+  */
 
   if (*((long*) ((char*) &pRec -> lSpecialValue+sf_malloc_prehunc))
       != MAGICKEY)
@@ -379,9 +377,9 @@ static int check_ptr(const char *where, byte *ptr, const char *sFile,
 #ifdef THREAD
 static int legal_leak(struct remember* pPtr)
 {
- return pthread_self() == pPtr->thread_id || main_th == pPtr->thread_id
-	    || shutdown_th == pPtr->thread_id
-   || signal_th == pPtr->thread_id;
+  /* TODO: This code needs to be made more general */
+  return (pthread_self() == pPtr->thread_id || main_th == pPtr->thread_id ||
+	  shutdown_th == pPtr->thread_id || signal_th == pPtr->thread_id);
 }
 #else
 static int legal_leak(struct remember* pPtr)
@@ -391,9 +389,9 @@ static int legal_leak(struct remember* pPtr)
 #endif
 
 /*
- * TERMINATE(FILE *file)
- *	Report on all the memory pieces that have not been
- *	free'ed as well as the statistics.
+  TERMINATE(FILE *file)
+    Report on all the memory pieces that have not been
+    free'ed as well as the statistics.
  */
 
 void TERMINATE (FILE *file)
@@ -460,8 +458,10 @@ void TERMINATE (FILE *file)
     DBUG_PRINT("safe",("cNewCount: %d",cNewCount));
   }
 
-  /* Report on all the memory that was allocated with NEW	 */
-  /* but not free'ed with FREE.				 */
+  /*
+    Report on all the memory that was allocated with NEW
+    but not free'ed with FREE.
+  */
 
   if ((pPtr=pRememberRoot))
   {

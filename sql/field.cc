@@ -141,7 +141,7 @@ bool test_if_int(const char *str,int length)
     str++;
   if (str == end)
     return 0;					// Error: Empty string
-  for ( ; str != end ; str++)
+  for (; str != end ; str++)
   {
     if (!isdigit(*str))
     {
@@ -204,7 +204,7 @@ static bool test_if_real(const char *str,int length)
       length--; str++;
     }
   }
-  for ( ; length ; length--, str++)
+  for (; length ; length--, str++)
   {						// Allow end space
     if (!isspace(*str))
       return 0;
@@ -3336,9 +3336,9 @@ void Field_datetime::sql_type(String &res) const
 void Field_string::store(const char *from,uint length)
 {
 #ifdef USE_TIS620
-  if(!binary_flag) {
+  if (!binary_flag) {
     ThNormalize((uchar *)ptr, field_length, (uchar *)from, length);
-    if(length < field_length) {
+    if (length < field_length) {
       bfill(ptr + length, field_length - length, ' ');
     }
   }
@@ -3540,7 +3540,7 @@ uint Field_string::max_packed_col_length(uint max_length)
 void Field_varstring::store(const char *from,uint length)
 {
 #ifdef USE_TIS620
-  if(!binary_flag)
+  if (!binary_flag)
   {
     ThNormalize((uchar *) ptr+2, field_length, (uchar *) from, length);
   }
@@ -3869,7 +3869,7 @@ void Field_blob::store(const char *from,uint len)
     if (table->copy_blobs || len <= MAX_FIELD_WIDTH)
     {						// Must make a copy
 #ifdef USE_TIS620
-      if(!binary_flag)
+      if (!binary_flag)
       {
 	/* If there isn't enough memory, use original string */
 	if ((th_ptr=(char * ) my_malloc(sizeof(char) * len,MYF(0))))
@@ -4489,7 +4489,7 @@ ulonglong find_set(TYPELIB *lib,const char *x,uint length)
     for (;;)
     {
       const char *pos=start;
-      for ( ; pos != end && *pos != field_separator ; pos++) ;
+      for (; pos != end && *pos != field_separator ; pos++) ;
       uint find=find_enum(lib,start,(uint) (pos-start));
       if (!find)
 	error=1;

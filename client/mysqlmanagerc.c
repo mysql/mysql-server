@@ -138,6 +138,8 @@ int parse_args(int argc, char **argv)
 
   return 0;
 }
+
+
 int main(int argc, char** argv)
 {
   MY_INIT(argv[0]);
@@ -147,7 +149,7 @@ int main(int argc, char** argv)
   if (!(manager=mysql_manager_init(0)))
     die("Failed in mysql_manager_init()");
   if (!mysql_manager_connect(manager,host,user,pass,port))
-    die("Could not connect to MySQL manager: %s(%d)",manager->last_error,
+    die("Could not connect to MySQL manager: %s (%d)",manager->last_error,
 	manager->last_errno);
   for (;!feof(fp);)
   {
@@ -157,11 +159,11 @@ int main(int argc, char** argv)
     if (!quiet)
       fprintf(fp_out,"<<%s",buf);
     if (mysql_manager_command(manager,buf,strlen(buf)))
-      die("Error in command: %s(%d)",manager->last_error,manager->last_errno);
+      die("Error in command: %s (%d)",manager->last_error,manager->last_errno);
     while (!manager->eof)
     {
       if (mysql_manager_fetch_line(manager,buf,sizeof(buf)))
-	die("Error fetching result line: %s(%d)", manager->last_error,
+	die("Error fetching result line: %s (%d)", manager->last_error,
 	    manager->last_errno);
       if (!quiet)
         fprintf(fp_out,">>%s\n",buf);

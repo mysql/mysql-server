@@ -358,7 +358,7 @@ berkeley_cmp_packed_key(DB *file, const DBT *new_key, const DBT *saved_key)
   KEY_PART_INFO *key_part= key->key_part, *end=key_part+key->key_parts;
   uint key_length=new_key->size;
 
-  for ( ; key_part != end && (int) key_length > 0; key_part++)
+  for (; key_part != end && (int) key_length > 0; key_part++)
   {
     int cmp;
     if (key_part->null_bit)
@@ -396,7 +396,7 @@ berkeley_cmp_fix_length_key(DB *file, const DBT *new_key, const DBT *saved_key)
   KEY_PART_INFO *key_part= key->key_part, *end=key_part+key->key_parts;
   uint key_length=new_key->size;
 
-  for ( ; key_part != end && (int) key_length > 0 ; key_part++)
+  for (; key_part != end && (int) key_length > 0 ; key_part++)
   {
     int cmp;
     if ((cmp=key_part->field->pack_cmp(new_key_ptr,saved_key_ptr,0)))
@@ -417,7 +417,7 @@ berkeley_key_cmp(TABLE *table, KEY *key_info, const char *key, uint key_length)
   KEY_PART_INFO *key_part= key_info->key_part,
 		*end=key_part+key_info->key_parts;
 
-  for ( ; key_part != end && (int) key_length > 0; key_part++)
+  for (; key_part != end && (int) key_length > 0; key_part++)
   {
     int cmp;
     if (key_part->null_bit)
@@ -561,7 +561,7 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
       ref_length=0;
       KEY_PART_INFO *key_part= table->key_info[primary_key].key_part;
       KEY_PART_INFO *end=key_part+table->key_info[primary_key].key_parts;
-      for ( ; key_part != end ; key_part++)
+      for (; key_part != end ; key_part++)
 	ref_length+= key_part->field->max_packed_col_length(key_part->length);
       share->fixed_length_primary_key=
 	(ref_length == table->key_info[primary_key].key_length);
@@ -701,7 +701,7 @@ void ha_berkeley::unpack_key(char *record, DBT *key, uint index)
 		*end=key_part+key_info->key_parts;
 
   char *pos=(char*) key->data;
-  for ( ; key_part != end; key_part++)
+  for (; key_part != end; key_part++)
   {
     if (key_part->null_bit)
     {
@@ -747,7 +747,7 @@ DBT *ha_berkeley::create_key(DBT *key, uint keynr, char *buff,
 
   key->data=buff;
   key->app_private= key_info;
-  for ( ; key_part != end && key_length > 0; key_part++)
+  for (; key_part != end && key_length > 0; key_part++)
   {
     if (key_part->null_bit)
     {
@@ -925,7 +925,7 @@ int ha_berkeley::key_cmp(uint keynr, const byte * old_row,
   KEY_PART_INFO *key_part=table->key_info[keynr].key_part;
   KEY_PART_INFO *end=key_part+table->key_info[keynr].key_parts;
 
-  for ( ; key_part != end ; key_part++)
+  for (; key_part != end ; key_part++)
   {
     if (key_part->null_bit)
     {
@@ -1584,7 +1584,7 @@ DBT *ha_berkeley::get_pos(DBT *to, byte *pos)
     KEY_PART_INFO *key_part=table->key_info[primary_key].key_part;
     KEY_PART_INFO *end=key_part+table->key_info[primary_key].key_parts;
 
-    for ( ; key_part != end ; key_part++)
+    for (; key_part != end ; key_part++)
       pos+=key_part->field->packed_col_length((char*) pos,key_part->length);
     to->size= (uint) (pos- (byte*) to->data);
   }

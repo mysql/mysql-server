@@ -14,16 +14,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Returnerar en pekare till filnamnets extension. */
 
 #include "mysys_priv.h"
 #include <m_string.h>
 
-	/* Return a pointerto the extension of the filename
-	   The pointer points at the extension character (normally '.'))
-	   If there isn't any extension, the pointer points at the end
-	   NULL of the filename
-	*/
+/*
+  Return a pointerto the extension of the filename
+  The pointer points at the extension character (normally '.'))
+  If there isn't any extension, the pointer points at the end
+  ASCII(0) of the filename.
+*/
 
 my_string fn_ext(const char *name)
 {

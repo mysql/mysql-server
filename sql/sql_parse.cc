@@ -101,7 +101,7 @@ static void  test_signal(int sig_ptr)
 static void init_signals(void)
 {
   int signals[7] = {SIGINT,SIGILL,SIGFPE,SIGSEGV,SIGTERM,SIGBREAK,SIGABRT } ;
-  for(int i=0 ; i < 7 ; i++)
+  for (int i=0 ; i < 7 ; i++)
     signal( signals[i], test_signal) ;
 }
 #endif
@@ -2216,8 +2216,8 @@ mysql_execute_command(void)
     }
     if (check_db_used(thd,tables) || end_active_trans(thd))
       goto error;
-    if (check_table_access(thd, SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL , tables) 
-	|| (grant_option && check_grant(thd,SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL,tables)))
+    if (check_table_access(thd, SELECT_ACL | INSERT_ACL | UPDATE_ACL |
+			   DELETE_ACL, tables))
       goto error;
     thd->in_lock_tables=1;
     thd->options|= OPTION_TABLE_LOCK;

@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
 
   my_errno=0;
   i=0;
-  while(create_record(record,df))
+  while (create_record(record,df))
   {
     error=mi_write(file,record);
     if (error)
@@ -94,24 +94,28 @@ int main(int argc, char *argv[])
   if (!(file=mi_open(filename,2,0))) goto err;
   if (!silent)
     printf("- Reading rows with key\n");
-  for(i=1;create_record(record,qf);i++) {
+  for (i=1;create_record(record,qf);i++)
+  {
     FT_DOCLIST *result;
     double w;
     int t, err;
 
     result=ft_nlq_init_search(file,0,blob_record,(uint) strlen(blob_record),1);
-    if(!result) {
+    if (!result)
+    {
       printf("Query %d failed with errno %3d\n",i,my_errno);
       goto err;
     }
     if (!silent)
       printf("Query %d. Found: %d.\n",i,result->ndocs);
-    for(j=0;(err=ft_nlq_read_next(result, read_record))==0;j++) {
+    for (j=0;(err=ft_nlq_read_next(result, read_record))==0;j++)
+    {
       t=uint2korr(read_record);
       w=ft_nlq_get_relevance(result);
       printf("%d %.*s %f\n",i,t,read_record+2,w);
-      }
-    if(err != HA_ERR_END_OF_FILE) {
+    }
+    if (err != HA_ERR_END_OF_FILE)
+    {
       printf("ft_read_next %d failed with errno %3d\n",j,my_errno);
       goto err;
     }
@@ -134,24 +138,28 @@ static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
-  switch(optid) {
+  switch (optid) {
   case 's':
-    if(stopwordlist && stopwordlist!=ft_precompiled_stopwords) break;
+    if (stopwordlist && stopwordlist != ft_precompiled_stopwords)
+      break;
     {
       FILE *f; char s[HA_FT_MAXLEN]; int i=0,n=SWL_INIT;
 
-      if(!(stopwordlist=(const char**) malloc(n*sizeof(char *))))
+      if (!(stopwordlist=(const char**) malloc(n*sizeof(char *))))
 	print_error(1,"malloc(%d)",n*sizeof(char *));
-      if(!(f=fopen(argument,"r")))
+      if (!(f=fopen(argument,"r")))
 	print_error(1,"fopen(%s)",argument);
-      while(!feof(f)) {
-	if(!(fgets(s,HA_FT_MAXLEN,f)))
+      while (!feof(f))
+      {
+	if (!(fgets(s,HA_FT_MAXLEN,f)))
 	  print_error(1,"fgets(s,%d,%s)",HA_FT_MAXLEN,argument);
-	if(!(stopwordlist[i++]=strdup(s)))
+	if (!(stopwordlist[i++]=strdup(s)))
 	  print_error(1,"strdup(%s)",s);
-	if(i>=n) {
+	if (i >= n)
+	{
 	  n+=SWL_PLUS;
-	  if(!(stopwordlist=(const char**) realloc((char*) stopwordlist,n*sizeof(char *))))
+	  if (!(stopwordlist=(const char**) realloc((char*) stopwordlist,
+						    n*sizeof(char *))))
 	    print_error(1,"realloc(%d)",n*sizeof(char *));
 	}
       }
@@ -160,7 +168,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       break;
     }
   case 'q': silent=1; break;
-  case 'S': if(stopwordlist==ft_precompiled_stopwords) stopwordlist=NULL; break;
+  case 'S': if (stopwordlist==ft_precompiled_stopwords) stopwordlist=NULL; break;
   case '#':
     DEBUGGER_ON;
     DBUG_PUSH (argument);
@@ -174,6 +182,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   return 0;
 }
 
+
 static void get_options(int argc, char *argv[])
 {
   int ho_error;
@@ -181,24 +190,29 @@ static void get_options(int argc, char *argv[])
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
 
-  if(!(d_file=argv[optind])) print_error(1,"No d_file");
-  if(!(df=fopen(d_file,"r")))
+  if (!(d_file=argv[optind])) print_error(1,"No d_file");
+  if (!(df=fopen(d_file,"r")))
     print_error(1,"fopen(%s)",d_file);
-  if(!(q_file=argv[optind+1])) print_error(1,"No q_file");
-  if(!(qf=fopen(q_file,"r")))
+  if (!(q_file=argv[optind+1])) print_error(1,"No q_file");
+  if (!(qf=fopen(q_file,"r")))
     print_error(1,"fopen(%s)",q_file);
   return;
 } /* get options */
 
+
 static int create_record(char *pos, FILE *file)
-{ uint tmp; char *ptr;
+{
+  uint tmp; char *ptr;
 
   bzero((char *)pos,MAX_REC_LENGTH);
 
   /* column 1 - VARCHAR */
-  if(!(fgets(pos+2,MAX_REC_LENGTH-32,file)))
+  if (!(fgets(pos+2,MAX_REC_LENGTH-32,file)))
   {
-    if(feof(file)) return 0; else print_error(1,"fgets(docid) - 1");
+    if (feof(file))
+      return 0;
+    else
+      print_error(1,"fgets(docid) - 1");
   }
   tmp=(uint) strlen(pos+2)-1;
   int2store(pos,tmp);
@@ -206,7 +220,7 @@ static int create_record(char *pos, FILE *file)
 
   /* column 2 - BLOB */
 
-  if(!(fgets(blob_record,MAX_BLOB_LENGTH,file)))
+  if (!(fgets(blob_record,MAX_BLOB_LENGTH,file)))
     print_error(1,"fgets(docid) - 2");
   tmp=(uint) strlen(blob_record);
   int4store(pos,tmp);

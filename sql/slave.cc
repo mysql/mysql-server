@@ -221,8 +221,8 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
     *errmsg="Could not find target log during relay log initialization";
     goto err;
   }
-  strnmov(rli->relay_log_name,rli->linfo.log_file_name,
-	  sizeof(rli->relay_log_name));
+  strmake(rli->relay_log_name,rli->linfo.log_file_name,
+	  sizeof(rli->relay_log_name)-1);
   // to make end_io_cache(&rli->cache_buf) safe in all cases
   if (!rli->inited)
     bzero((char*) &rli->cache_buf, sizeof(IO_CACHE)); 
@@ -315,7 +315,7 @@ int purge_relay_logs(RELAY_LOG_INFO* rli, bool just_reset, const char** errmsg)
     error=1;
     goto err;
   }
-  strnmov(rli->relay_log_name,rli->linfo.log_file_name,
+  strmake(rli->relay_log_name,rli->linfo.log_file_name,
 	  sizeof(rli->relay_log_name)-1);
   // Just first log with magic number and nothing else
   rli->log_space_total= BIN_LOG_HEADER_SIZE;
@@ -635,7 +635,7 @@ int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec)
 static void free_string_array(DYNAMIC_ARRAY *a)
 {
   uint i;
-  for(i = 0; i < a->elements; i++)
+  for (i = 0; i < a->elements; i++)
     {
       char* p;
       get_dynamic(a, (gptr) &p, i);
@@ -2656,8 +2656,8 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
 	}
 	rli->relay_log_pos = BIN_LOG_HEADER_SIZE;
 	rli->pending=0;
-	strnmov(rli->relay_log_name,rli->linfo.log_file_name,
-		sizeof(rli->relay_log_name));
+	strmake(rli->relay_log_name,rli->linfo.log_file_name,
+		sizeof(rli->relay_log_name)-1);
 	flush_relay_log_info(rli);
       }
 	

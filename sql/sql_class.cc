@@ -286,17 +286,18 @@ inline static void list_include(CHANGED_TABLE_LIST** prev,
 }
 
 /* add table to list of changed in transaction tables */
+
 void THD::add_changed_table(TABLE *table)
 {
-  DBUG_ENTER("THD::add_changed_table (table)");
+  DBUG_ENTER("THD::add_changed_table(table)");
 
   DBUG_ASSERT((options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)) &&
-		table->file->has_transactions());
+	      table->file->has_transactions());
 
   CHANGED_TABLE_LIST** prev = &transaction.changed_tables;
   CHANGED_TABLE_LIST* curr = transaction.changed_tables;
 
-  for(; curr; prev = &(curr->next), curr = curr->next)
+  for (; curr; prev = &(curr->next), curr = curr->next)
   {
     int cmp =  (long)curr->key_length - (long)table->key_length;
     if (cmp < 0)
@@ -313,7 +314,8 @@ void THD::add_changed_table(TABLE *table)
       {
 	list_include(prev, curr, changed_table_dup(table));
 	DBUG_PRINT("info", 
-		   ("key_length %u %u", table->key_length, (*prev)->key_length));
+		   ("key_length %u %u", table->key_length,
+		    (*prev)->key_length));
 	DBUG_VOID_RETURN;
       }
       else if (cmp == 0)
@@ -324,9 +326,11 @@ void THD::add_changed_table(TABLE *table)
     }
   }
   *prev = changed_table_dup(table);
-  DBUG_PRINT("info", ("key_length %u %u", table->key_length, (*prev)->key_length));
+  DBUG_PRINT("info", ("key_length %u %u", table->key_length,
+		      (*prev)->key_length));
   DBUG_VOID_RETURN;
 }
+
 
 CHANGED_TABLE_LIST* THD::changed_table_dup(TABLE *table)
 {
@@ -603,7 +607,7 @@ bool select_export::send_data(List<Item> &items)
 	  bfill(space,sizeof(space),' ');
 	}
 	uint length=item->max_length-used_length;
-	for ( ; length > sizeof(space) ; length-=sizeof(space))
+	for (; length > sizeof(space) ; length-=sizeof(space))
 	{
 	  if (my_b_write(&cache,(byte*) space,sizeof(space)))
 	    goto err;

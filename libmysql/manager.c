@@ -54,9 +54,6 @@
 #endif
 
 #define RES_BUF_SHIFT 5
-#ifndef __WIN__
-#define SOCKET_ERROR -1
-#endif
 #define NET_BUF_SIZE  2048
 
 MYSQL_MANAGER*  STDCALL mysql_manager_init(MYSQL_MANAGER* con)
@@ -101,7 +98,7 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
   if (!passwd)
     passwd="";
 
-  if ((sock=(my_socket)socket(AF_INET,SOCK_STREAM,0)) == SOCKET_ERROR)
+  if ((sock=(my_socket)socket(AF_INET,SOCK_STREAM,0)) == INVALID_SOCKET)
   {
     con->last_errno=errno;
     strmov(con->last_error,"Cannot create socket");
@@ -185,6 +182,7 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
   strmov(con->user,user);
   strmov(con->passwd,passwd);
   return con;
+
 err:
   {
     my_bool free_me=con->free_me;
@@ -195,17 +193,19 @@ err:
   return 0;
 }
 
-void            STDCALL mysql_manager_close(MYSQL_MANAGER* con)
+void STDCALL mysql_manager_close(MYSQL_MANAGER* con)
 {
-  my_free((gptr)con->host,MYF(MY_ALLOW_ZERO_PTR));
-  /* no need to free con->user and con->passwd, because they were
-     allocated in my_multimalloc() along with con->host, freeing
-     con->hosts frees the whole block
+  /*
+    No need to free con->user and con->passwd, because they were
+    allocated in my_multimalloc() along with con->host, freeing
+    con->hosts frees the whole block
   */
+  my_free((gptr)con->host,MYF(MY_ALLOW_ZERO_PTR));
   net_end(&con->net);
   if (con->free_me)
     my_free((gptr)con,MYF(0));
 }
+
 
 int STDCALL mysql_manager_command(MYSQL_MANAGER* con,const char* cmd,
 				  int cmd_len)
@@ -222,8 +222,9 @@ int STDCALL mysql_manager_command(MYSQL_MANAGER* con,const char* cmd,
   return 0;
 }
 
-int  STDCALL mysql_manager_fetch_line(MYSQL_MANAGER* con, char* res_buf,
-						 int res_buf_size)
+
+int STDCALL mysql_manager_fetch_line(MYSQL_MANAGER* con, char* res_buf,
+				     int res_buf_size)
 {
   char* res_buf_end=res_buf+res_buf_size;
   char* net_buf=(char*) con->net.read_pos, *net_buf_end;
@@ -252,7 +253,7 @@ int  STDCALL mysql_manager_fetch_line(MYSQL_MANAGER* con, char* res_buf,
   res_buf_end[-1]=0;
   for (;net_buf<net_buf_end && res_buf < res_buf_end;res_buf++,net_buf++)
   {
-    if((*res_buf=*net_buf) == '\r')
+    if ((*res_buf=*net_buf) == '\r')
     {
       *res_buf=0;
       break;

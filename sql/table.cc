@@ -922,7 +922,7 @@ ulong next_io_size(register ulong pos)
 
 void append_unescaped(String *res,const char *pos)
 {
-  for ( ; *pos ; pos++)
+  for (; *pos ; pos++)
   {
     switch (*pos) {
     case 0:				/* Must be escaped for 'mysql' */

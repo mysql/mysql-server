@@ -16,9 +16,7 @@
 
 
 /* Update of records 
-
    Multi-table updates were introduced by Monty and Sinisa <sinisa@mysql.com>
-
 */
 
 #include "mysql_priv.h"
@@ -347,7 +345,7 @@ int mysql_update(THD *thd,
 }
 
 /***************************************************************************
-** update  multiple tables from join 
+  Update multiple tables from join 
 ***************************************************************************/
 
 multi_update::multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> &fs, 		 
@@ -363,7 +361,7 @@ multi_update::multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> &fs,
   for (TABLE_LIST *dt=ut ; dt ; dt=dt->next,counter++)
   {
     TABLE *table=ut->table;
-//    (void) ut->table->file->extra(HA_EXTRA_NO_KEYREAD);
+    // (void) ut->table->file->extra(HA_EXTRA_NO_KEYREAD);
     dt->table->used_keys=0;
     if (table->timestamp_field)
     {
@@ -402,10 +400,14 @@ multi_update::prepare(List<Item> &values)
       }
     }
   }
-// Here I have to connect fields with tables and only update tables that need to be updated ...
+  /*
+    Here I have to connect fields with tables and only update tables that
+    need to be updated.
+    I calculate num_updated and fill-up table_sequence
+    Set table_list->shared  to true or false, depending on whether table is
+    to be updated or not
+  */
 
-// I calculate num_updated and fill-up table_sequence
-// Set table_list->shared  to true or false, depending on whether table is to be updated or not
   Item_field *item;
   List_iterator<Item> it(fields);
   num_fields=fields.elements;
@@ -414,7 +416,8 @@ multi_update::prepare(List<Item> &values)
   while ((item= (Item_field *)it++))
   {
     unsigned int counter=0;
-    for (table_ref=update_tables;  table_ref; table_ref=table_ref->next, counter++)
+    for (table_ref=update_tables;  table_ref;
+	 table_ref=table_ref->next, counter++)
     {
       if (table_ref->table == item->field->table && !table_ref->shared)
       {
@@ -422,7 +425,8 @@ multi_update::prepare(List<Item> &values)
 	table_ref->shared=1;
 	if (!not_trans_safe && !table_ref->table->file->has_transactions())
 	  not_trans_safe=true;
-	table_ref->table->no_keyread=1; // to be moved if initialize_tables has to be used
+	// to be moved if initialize_tables has to be used
+	table_ref->table->no_keyread=1;
 	break;
       }
     }
@@ -440,8 +444,10 @@ multi_update::prepare(List<Item> &values)
     DBUG_RETURN(1);
   }
 
-// Here, I have to allocate the array of temporary tables
-// I have to treat a case of num_updated=1 differently in send_data() method. 
+  /*
+    Here, I have to allocate the array of temporary tables
+    I have to treat a case of num_updated=1 differently in send_data() method.
+  */
   if (num_updated > 1)
   {
     tmp_tables = (TABLE **) sql_calloc(sizeof(TABLE *) * (num_updated - 1));
@@ -453,7 +459,7 @@ multi_update::prepare(List<Item> &values)
     {
       if (!table_ref->shared) 
 	continue;
-// Here we have to add row offset as an additional field ...
+      // Here we have to add row offset as an additional field ...
       if (!(temp_fields = (List_item *)sql_calloc(sizeof(List_item))))
       {
 	error = 1; // A proper error message is due here 
@@ -470,13 +476,15 @@ multi_update::prepare(List<Item> &values)
       {
 	Field_string offset(table_ref->table->file->ref_length,false,"offset",table_ref->table,true);
 	temp_fields->push_front(new Item_field(((Field *)&offset)));
-// Here I make tmp tables
+	// Here I make tmp tables
 	int cnt=counter-1;
 	TMP_TABLE_PARAM tmp_table_param;
 	bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
 	tmp_table_param.field_count=temp_fields->elements;
-	if (!(tmp_tables[cnt]=create_tmp_table(thd, &tmp_table_param, *temp_fields,
-						   (ORDER*) 0, 1, 0, 0, TMP_TABLE_ALL_COLUMNS)))
+	if (!(tmp_tables[cnt]=create_tmp_table(thd, &tmp_table_param,
+					       *temp_fields,
+					       (ORDER*) 0, 1, 0, 0,
+					       TMP_TABLE_ALL_COLUMNS)))
 	{
 	  error = 1; // A proper error message is due here 
 	  DBUG_RETURN(1);
@@ -498,7 +506,8 @@ multi_update::prepare(List<Item> &values)
 void
 multi_update::initialize_tables(JOIN *join)
 {
-/*   We skip it as it only makes a mess ...........
+/* 
+   We skip it as it only makes a mess ...........
   TABLE_LIST *walk;
   table_map tables_to_update_from=0;
   for (walk= update_tables ; walk ; walk=walk->next)
@@ -546,7 +555,7 @@ bool multi_update::send_data(List<Item> &values)
   List<Item> real_values(values);
   for (uint counter = 0; counter < fields.elements; counter++)
     real_values.pop();
-// We have skipped fields ....
+  // We have skipped fields ....
   if (num_updated == 1)
   {
     for (table_being_updated=update_tables ;
@@ -560,7 +569,7 @@ bool multi_update::send_data(List<Item> &values)
       if (table->status & (STATUS_NULL_ROW | STATUS_UPDATED))
 	return 0;
       table->file->position(table->record[0]);
-// Only one table being updated receives a completely different treatment
+      // Only one table being updated receives a completely different treatment
       table->status|= STATUS_UPDATED;
       store_record(table,1); 
       if (fill_record(fields,real_values))
@@ -596,7 +605,7 @@ bool multi_update::send_data(List<Item> &values)
 	if (*int_ptr++ == (uint) (secure_counter + 1))
 	  values_by_table.push_back(item);
       }
-// Here I am breaking values as per each table    
+      // Here I am breaking values as per each table    
       if (secure_counter < 0)
       {
 	table->status|= STATUS_UPDATED;
@@ -639,13 +648,13 @@ void multi_update::send_error(uint errcode,const char *err)
   ::send_error(&thd->net,errcode,err);
 
   /* reset used flags */
-//  update_tables->table->no_keyread=0;
+  //  update_tables->table->no_keyread=0;
 
   /* If nothing updated return */
   if (!updated)
     return;
 
-  /* Somthing alredy updated consequently we have to invalidate cache */
+  /* Something already updated so we have to invalidate cache */
   query_cache_invalidate3(thd, update_tables, 1);
 
   /* Below can happen when thread is killed early ... */

@@ -21,12 +21,14 @@
 
 /* search with natural language queries */
 
-typedef struct ft_doc_rec {
+typedef struct ft_doc_rec
+{
   my_off_t  dpos;
   double    weight;
 } FT_DOC;
 
-struct st_ft_info {
+struct st_ft_info
+{
   struct _ft_vft *please;
   MI_INFO  *info;
   int       ndocs;
@@ -34,7 +36,8 @@ struct st_ft_info {
   FT_DOC    doc[1];
 };
 
-typedef struct st_all_in_one {
+typedef struct st_all_in_one
+{
   MI_INFO    *info;
   uint	      keynr;
   CHARSET_INFO *charset;
@@ -44,7 +47,8 @@ typedef struct st_all_in_one {
   TREE	      dtree;
 } ALL_IN_ONE;
 
-typedef struct st_ft_superdoc {
+typedef struct st_ft_superdoc
+{
     FT_DOC   doc;
     FT_WORD *word_ptr;
     double   tmp_weight;
@@ -92,7 +96,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   r=_mi_search(aio->info, aio->keyinfo, aio->keybuff, keylen,
 	       SEARCH_FIND | SEARCH_PREFIX, aio->key_root);
 
-  while(!r)
+  while (!r)
   {
     if (_mi_compare_text(aio->charset,
 			 aio->info->lastkey,keylen,
@@ -116,11 +120,12 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
     sdoc.doc.dpos=aio->info->lastpos;
 
     /* saving document matched into dtree */
-    if(!(selem=tree_insert(&aio->dtree, &sdoc, 0))) return 1;
+    if (!(selem=tree_insert(&aio->dtree, &sdoc, 0)))
+      return 1;
 
     sptr=(FT_SUPERDOC *)ELEMENT_KEY((&aio->dtree), selem);
 
-    if(selem->count==1) /* document's first match */
+    if (selem->count==1) /* document's first match */
       sptr->doc.weight=0;
     else
       sptr->doc.weight+=sptr->tmp_weight*sptr->word_ptr->weight;
@@ -144,31 +149,35 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 		     aio->info->lastkey_length, SEARCH_BIGGER,
 		     aio->key_root);
   }
-  if(doc_cnt) {
+  if (doc_cnt)
+  {
     word->weight*=GWS_IN_USE;
-    if(word->weight < 0) word->weight=0;
+    if (word->weight < 0)
+      word->weight=0;
   }
-
   return 0;
 }
+
 
 static int walk_and_copy(FT_SUPERDOC *from,
 			 uint32 count __attribute__((unused)), FT_DOC **to)
 {
-    from->doc.weight+=from->tmp_weight*from->word_ptr->weight;
-    (*to)->dpos=from->doc.dpos;
-    (*to)->weight=from->doc.weight;
-    (*to)++;
-    return 0;
+  from->doc.weight+=from->tmp_weight*from->word_ptr->weight;
+  (*to)->dpos=from->doc.dpos;
+  (*to)->weight=from->doc.weight;
+  (*to)++;
+  return 0;
 }
+
 
 static int FT_DOC_cmp(FT_DOC *a, FT_DOC *b)
 {
-    return sgn(b->weight - a->weight);
+  return sgn(b->weight - a->weight);
 }
 
+
 FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
-                                 uint query_len, my_bool presort)
+			    uint query_len, my_bool presort)
 {
   TREE	     allocated_wtree, *wtree=&allocated_wtree;
   ALL_IN_ONE  aio;
@@ -196,15 +205,16 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
             NULL, NULL);
 
   ft_parse_init(&allocated_wtree, aio.charset);
-  if(ft_parse(&allocated_wtree,query,query_len))
+  if (ft_parse(&allocated_wtree,query,query_len))
     goto err;
 
-  if(tree_walk(wtree, (tree_walk_action)&walk_and_match, &aio,
-	     left_root_right))
+  if (tree_walk(wtree, (tree_walk_action)&walk_and_match, &aio,
+		left_root_right))
     goto err2;
 
   dlist=(FT_INFO *)my_malloc(sizeof(FT_INFO)+
-                     sizeof(FT_DOC)*(aio.dtree.elements_in_tree-1),MYF(0));
+			     sizeof(FT_DOC)*(aio.dtree.elements_in_tree-1),
+			     MYF(0));
   if(!dlist)
     goto err2;
 
@@ -214,10 +224,10 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
   dlist->info=aio.info;
   dptr=dlist->doc;
 
-  tree_walk(&aio.dtree, (tree_walk_action)&walk_and_copy,
-                                   &dptr, left_root_right);
+  tree_walk(&aio.dtree, (tree_walk_action) &walk_and_copy,
+	    &dptr, left_root_right);
 
-  if(presort)
+  if (presort)
     qsort(dlist->doc, dlist->ndocs, sizeof(FT_DOC), (qsort_cmp)&FT_DOC_cmp);
 
 err2:
@@ -228,6 +238,7 @@ err:
   info->lastpos=saved_lastpos;
   return dlist;
 }
+
 
 int ft_nlq_read_next(FT_INFO *handler, char *record)
 {
@@ -249,6 +260,7 @@ int ft_nlq_read_next(FT_INFO *handler, char *record)
   }
   return my_errno;
 }
+
 
 float ft_nlq_find_relevance(FT_INFO *handler,
 			    byte *record __attribute__((unused)),
@@ -276,15 +288,18 @@ float ft_nlq_find_relevance(FT_INFO *handler,
     return 0.0;
 }
 
+
 void ft_nlq_close_search(FT_INFO *handler)
 {
   my_free((gptr)handler,MYF(0));
 }
 
+
 float ft_nlq_get_relevance(FT_INFO *handler)
 {
   return (float) handler->doc[handler->curdoc].weight;
 }
+
 
 void ft_nlq_reinit_search(FT_INFO *handler)
 {

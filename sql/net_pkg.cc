@@ -87,9 +87,9 @@ void send_warning(NET *net, uint sql_errno, const char *err)
   DBUG_VOID_RETURN;
 }
 
-/**
-** write error package and flush to client
-** It's a little too low level, but I don't want to allow another buffer
+/*
+   Write error package and flush to client
+   It's a little too low level, but I don't want to allow another buffer
 */
 /* VARARGS3 */
 
@@ -339,9 +339,9 @@ bool net_store_data(String* packet, I_List<i_string>* str_list)
   I_List_iterator<i_string> it(*str_list);
   i_string* s;
 
-  while((s=it++))
+  while ((s=it++))
   {
-    if(tmp.length())
+    if (tmp.length())
       tmp.append(',');
     tmp.append(s->ptr);
   }

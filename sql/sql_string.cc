@@ -615,7 +615,7 @@ int wild_case_compare(const char *str,const char *str_end,
     {						// Found wild_many
       wildstr++;
       /* Remove any '%' and '_' from the wild search string */
-      for ( ; wildstr != wildend ; wildstr++)
+      for (; wildstr != wildend ; wildstr++)
       {
 	if (*wildstr == wild_many)
 	  continue;
@@ -744,7 +744,7 @@ int wild_compare(const char *str,const char *str_end,
     {						// Found wild_many
       wildstr++;
       /* Remove any '%' and '_' from the wild search string */
-      for ( ; wildstr != wildend ; wildstr++)
+      for (; wildstr != wildend ; wildstr++)
       {
 	if (*wildstr == wild_many)
 	  continue;

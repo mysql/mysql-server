@@ -343,7 +343,7 @@ int main(int argc,char *argv[])
   signal(SIGINT, mysql_end);			// Catch SIGINT to clean up
 
   /*
-  **  Run in interactive mode like the ingres/postgres monitor
+    Run in interactive mode like the ingres/postgres monitor
   */
 
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
@@ -357,7 +357,7 @@ int main(int argc,char *argv[])
   initialize_readline(my_progname);
   if (!status.batch && !quick && !opt_html && !opt_xml)
   {
-    /*read-history from file, default ~/.mysql_history*/
+    /* read-history from file, default ~/.mysql_history*/
     if (getenv("MYSQL_HISTFILE"))
       histfile=my_strdup(getenv("MYSQL_HISTFILE"),MYF(MY_WME));
     else if (getenv("HOME"))
@@ -438,7 +438,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0},
   {"auto-rehash", OPT_AUTO_REHASH,
    "Enable automatic rehashing. One doesn't need to use 'rehash' to get table and field completion, but startup and reconnecting may take a longer time. Disable with --disable-auto-rehash.",
-   (gptr*) &rehash, (gptr*) &rehash, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &rehash, (gptr*) &rehash, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"no-auto-rehash", 'A',
    "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect. WARNING: options deprecated; use --disable-auto-rehash instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -488,7 +488,7 @@ static struct my_option my_long_options[] =
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"line-numbers", OPT_LINE_NUMBERS, "Write line numbers for errors.",
    (gptr*) &line_numbers, (gptr*) &line_numbers, 0, GET_BOOL,
-   NO_ARG, 0, 0, 0, 0, 0, 0},  
+   NO_ARG, 1, 0, 0, 0, 0, 0},  
   {"skip-line-numbers", 'L', "Don't write line number for errors. WARNING: -L is deprecated, use long version of this option instead.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef __WIN__
@@ -590,7 +590,7 @@ static void usage(int version)
   if (version)
     return;
   printf("\
-Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB\n\
+Copyright (C) 2002 MySQL AB\n\
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL license\n");
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
@@ -827,8 +827,10 @@ static int read_lines(bool execute_commands)
 		       line[0] == 0))
       continue;					// Skip comment lines
 
-    /* Check if line is a mysql command line */
-    /* (We want to allow help, print and clear anywhere at line start */
+    /*
+      Check if line is a mysql command line
+      (We want to allow help, print and clear anywhere at line start
+    */
     if (execute_commands && (named_cmds || glob_buffer.is_empty()) 
 	&& !in_string && (com=find_command(line,0)))
     {
@@ -1011,20 +1013,20 @@ static bool add_line(String &buffer,char *line,char *in_string)
   return 0;
 }
 
-/* **************************************************************** */
-/*								    */
-/*		    Interface to Readline Completion		    */
-/*								    */
-/* **************************************************************** */
+/*****************************************************************
+	    Interface to Readline Completion
+******************************************************************/
 
 #ifdef HAVE_READLINE
 
 static char *new_command_generator(char *text, int);
 static char **new_mysql_completion (char *text, int start, int end);
 
-/* Tell the GNU Readline library how to complete.  We want to try to complete
-   on command names if this is the first word in the line, or on filenames
-   if not. */
+/*
+  Tell the GNU Readline library how to complete.  We want to try to complete
+  on command names if this is the first word in the line, or on filenames
+  if not.
+*/
 
 char **no_completion (char *text __attribute__ ((unused)),
 		      char *word __attribute__ ((unused)))
@@ -1043,11 +1045,12 @@ static void initialize_readline (char *name)
   rl_completion_entry_function=(Function *) no_completion;
 }
 
-/* Attempt to complete on the contents of TEXT.  START and END show the
-   region of TEXT that contains the word to complete.  We can use the
-   entire line in case we want to do some simple parsing.  Return the
-   array of matches, or NULL if there aren't any. */
-
+/*
+  Attempt to complete on the contents of TEXT.  START and END show the
+  region of TEXT that contains the word to complete.  We can use the
+  entire line in case we want to do some simple parsing.  Return the
+  array of matches, or NULL if there aren't any.
+*/
 
 static char **new_mysql_completion (char *text,
 				    int start __attribute__((unused)),
@@ -1067,67 +1070,72 @@ static char *new_command_generator(char *text,int state)
   static entry *e;
   static uint i;
 
-  if (!state) {
+  if (!state)
     textlen=(uint) strlen(text);
-  }
 
-  if (textlen>0) { /* lookup in the hash */
-    if (!state) {
+  if (textlen>0)
+  {						/* lookup in the hash */
+    if (!state)
+    {
       uint len;
 
       b = find_all_matches(&ht,text,(uint) strlen(text),&len);
-      if (!b) {
+      if (!b)
 	return NullS;
-      }
       e = b->pData;
     }
 
-    while (e) {
+    if (e)
+    {
       ptr= strdup(e->str);
       e = e->pNext;
       return ptr;
     }
-  } else { /* traverse the entire hash, ugly but works */
+  }
+  else
+  { /* traverse the entire hash, ugly but works */
 
-    if (!state) {
-      i=0;
+    if (!state)
+    {
       /* find the first used bucket */
-      while (i<ht.nTableSize) {
-	if (ht.arBuckets[i]) {
+      for (i=0 ; i < ht.nTableSize ; i++)
+      {
+	if (ht.arBuckets[i])
+	{
 	  b = ht.arBuckets[i];
 	  e = b->pData;
 	  break;
 	}
-	i++;
       }
     }
     ptr= NullS;
-    while (e && !ptr) { /* find valid entry in bucket */
-      if ((uint) strlen(e->str)==b->nKeyLength) {
+    while (e && !ptr)
+    {					/* find valid entry in bucket */
+      if ((uint) strlen(e->str) == b->nKeyLength)
 	ptr = strdup(e->str);
-      }
       /* find the next used entry */
       e = e->pNext;
-      if (!e) { /* find the next used bucket */
+      if (!e)
+      { /* find the next used bucket */
 	b = b->pNext;
-	if (!b) {
-	  i++;
-	  while (i<ht.nTableSize) {
-	    if (ht.arBuckets[i]) {
+	if (!b)
+	{
+	  for (i++ ; i<ht.nTableSize; i++)
+	  {
+	    if (ht.arBuckets[i])
+	    {
 	      b = ht.arBuckets[i];
 	      e = b->pData;
 	      break;
 	    }
-	    i++;
 	  }
-	} else {
-	  e = b->pData;
 	}
+	else
+	  e = b->pData;
       }
     }
-    if (ptr) {
+    if (ptr)
       return ptr;
-    }
   }
   return NullS;
 }
@@ -1262,7 +1270,6 @@ You can turn off this feature to get a quicker startup with -A\n\n");
   DBUG_VOID_RETURN;
 }
 
-
 	/* for gnu readline */
 
 #ifndef HAVE_INDEX
@@ -1294,13 +1301,15 @@ char *rindex(const char *s,pchar c)
 #endif
 #endif /* HAVE_READLINE */
 
+
 static int reconnect(void)
 {
   if (!status.batch)
   {
     put_info("No connection. Trying to reconnect...",INFO_INFO);
     (void) com_connect((String *) 0, 0);
-    if(rehash) com_rehash(NULL, NULL);
+    if (rehash)
+      com_rehash(NULL, NULL);
   }
   if (!connected)
     return put_info("Can't connect to the server\n",INFO_ERROR);
@@ -1347,10 +1356,10 @@ com_clear(String *buffer,char *line __attribute__((unused)))
 
 
 /*
-** Execute command
-** Returns: 0  if ok
-**	    -1 if not fatal error
-**	    1  if fatal error
+  Execute command
+  Returns: 0  if ok
+          -1 if not fatal error
+	  1  if fatal error
 */
 
 
@@ -1368,7 +1377,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
     old_buffer.copy();
   }
 
-	/* Remove garbage for nicer messages */
+  /* Remove garbage for nicer messages */
   LINT_INIT(buff[0]);
   remove_cntrl(*buffer);
 
@@ -1511,10 +1520,9 @@ static void end_pager()
 static void init_tee()
 {
   if (opt_outfile)
-    end_tee();
+    end_tee();					// This resets opt_outfile
   if (!(OUTFILE= my_fopen(outfile, O_APPEND | O_WRONLY, MYF(MY_WME))))
   {
-    opt_outfile= 0;
     init_pager();
     return;
   }
@@ -1867,7 +1875,7 @@ com_notee(String *buffer __attribute__((unused)),
 }
 
 /*
-** Sorry, this command is not available in Windows.
+  Sorry, this command is not available in Windows.
 */
 
 #ifndef __WIN__
@@ -1923,7 +1931,7 @@ com_nopager(String *buffer __attribute__((unused)),
 
 
 /*
-** Sorry, you can't send the result to an editor in Win32
+  Sorry, you can't send the result to an editor in Win32
 */
 
 #ifndef __WIN__
@@ -1999,9 +2007,11 @@ com_shell(String *buffer, char *line __attribute__((unused)))
     put_info("Usage: \\! shell-command", INFO_ERROR);
     return -1;
   }
-  /* The output of the shell command does not
-     get directed to the pager or the outfile */
-  if(system(shell_cmd) == -1)
+  /*
+    The output of the shell command does not
+    get directed to the pager or the outfile
+  */
+  if (system(shell_cmd) == -1)
   {
     put_info(strerror(errno), INFO_ERROR, errno);
     return -1;
@@ -2397,7 +2407,7 @@ put_info(const char *str,INFO_TYPE info_type,uint error)
     }
     if (info_type == INFO_ERROR)
     {
-      if(!opt_nobeep)
+      if (!opt_nobeep)
 	putchar('\007');		      	/* This should make a bell */
       vidattr(A_STANDOUT);
       if (error)
@@ -2541,18 +2551,20 @@ static void mysql_end_timer(ulong start_time,char *buff)
   strmov(strend(buff),")");
 }
 
-static const char* construct_prompt() {
+static const char* construct_prompt()
+{
   //erase the old prompt
   processed_prompt.free();
   //get the date struct
   time_t  lclock = time(NULL);
   struct tm *t = localtime(&lclock);
   //parse thru the settings for the prompt
-  for (char *c = current_prompt;*c;*c++) {
-    if (*c != PROMPT_CHAR) {
+  for (char *c = current_prompt; *c ; *c++)
+  {
+    if (*c != PROMPT_CHAR)
 	processed_prompt.append(*c);
-    }
-    else {
+    else
+    {
       switch (*++c) {
       case '\0':
 	//stop it from going beyond if ends with %
@@ -2674,13 +2686,16 @@ static const char* construct_prompt() {
   return processed_prompt.ptr();
 }
 
-static void add_int_to_prompt(int toadd) {
+
+static void add_int_to_prompt(int toadd)
+{
   char buffer[16];
   int10_to_str(toadd,buffer,10);
   processed_prompt.append(buffer);
 }
 
-static void init_username() {
+static void init_username()
+{
   my_free(full_username,MYF(MY_ALLOW_ZERO_PTR));
   my_free(part_username,MYF(MY_ALLOW_ZERO_PTR));
 
@@ -2688,22 +2703,21 @@ static void init_username() {
   LINT_INIT(result);
   if (!mysql_query(&mysql,"select USER()") &&
       (result=mysql_use_result(&mysql)))
-    {
-      MYSQL_ROW cur=mysql_fetch_row(result);
-      full_username=my_strdup(cur[0],MYF(MY_WME));
-      part_username=my_strdup(strtok(cur[0],"@"),MYF(MY_WME));
-      (void) mysql_fetch_row(result);		// Read eof
-    }
+  {
+    MYSQL_ROW cur=mysql_fetch_row(result);
+    full_username=my_strdup(cur[0],MYF(MY_WME));
+    part_username=my_strdup(strtok(cur[0],"@"),MYF(MY_WME));
+    (void) mysql_fetch_row(result);		// Read eof
+  }
 }
 
-static int
-com_prompt(String *buffer, char *line __attribute__((unused))) {
+static int com_prompt(String *buffer, char *line)
+{
+  char *ptr=strchr(line, ' ');
   prompt_counter = 0;
   my_free(current_prompt,MYF(MY_ALLOW_ZERO_PTR));
-  current_prompt=my_strdup(strchr(line, ' ') ? 
-			   strchr(line, ' ')+1 : 
-			   default_prompt,MYF(MY_WME));
-  if (!strchr(line, ' '))
+  current_prompt=my_strdup(ptr ? ptr+1 : default_prompt,MYF(MY_WME));
+  if (!ptr)
     tee_fprintf(stdout, "Returning to default PROMPT of %s\n", default_prompt);
   else
     tee_fprintf(stdout, "PROMPT set to '%s'\n", current_prompt);

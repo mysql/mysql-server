@@ -198,7 +198,7 @@ cleanup:
 
 
 /***************************************************************************
-** delete multiple tables from join 
+  Delete multiple tables from join 
 ***************************************************************************/
 
 #define MEM_STRIP_BUF_SIZE sortbuff_size
@@ -357,7 +357,7 @@ void multi_delete::send_error(uint errcode,const char *err)
   if (!deleted)
     DBUG_VOID_RETURN;
 
-  /* Somthing alredy deleted consequently we have to invalidate cache */
+  /* Something already deleted so we have to invalidate cache */
   query_cache_invalidate3(thd, delete_tables, 1);
 
   /* Below can happen when thread is killed early ... */
@@ -436,6 +436,8 @@ int multi_delete::do_deletes(bool from_send_error)
 
 
 /*
+  Send ok to the client
+
   return:  0 sucess
 	   1 error
 */
@@ -484,7 +486,7 @@ bool multi_delete::send_eof()
 
 
 /***************************************************************************
-* TRUNCATE TABLE
+  TRUNCATE TABLE
 ****************************************************************************/
 
 /*
@@ -527,9 +529,9 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     if ((error= (int) !(open_temporary_table(thd, path, table_list->db,
 					     table_list->real_name, 1))))
       (void) rm_temporary_table(table_type, path);
-    /* Sasha: if we return here we will not have binloged the truncation and
-       we will not send_ok() to the client. Yes, we do need better coverage
-       testing, this bug has been here for a few months :-).
+    /*
+      Sasha: if we return here we will not have binloged the truncation and
+      we will not send_ok() to the client.
     */
     goto end; 
   }

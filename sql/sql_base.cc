@@ -691,6 +691,7 @@ void wait_for_refresh(THD *thd)
   pthread_mutex_unlock(&thd->mysys_var->mutex);
 }
 
+
 TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("reopen_name_locked_table");

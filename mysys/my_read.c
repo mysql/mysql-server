@@ -19,13 +19,22 @@
 #include <errno.h>
 
 
-	/* Read a chunk of bytes from a file  */
+/*
+  Read a chunk of bytes from a file with retry's if needed
+
+  The parameters are:
+    File descriptor
+    Buffer to hold at least Count bytes
+    Bytes to read
+    Flags on what to do on error
+
+    Return:
+      -1 on error
+      0  if flag has bits MY_NABP or MY_FNABP set
+      N  number of bytes read.
+*/
 
 uint my_read(File Filedes, byte *Buffer, uint Count, myf MyFlags)
-				/* File descriptor */
-				/* Buffer must be at least count bytes */
-				/* Max number of bytes returnd */
-				/* Flags on what to do on error */
 {
   uint readbytes,save_count;
   DBUG_ENTER("my_read");

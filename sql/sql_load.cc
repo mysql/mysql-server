@@ -285,7 +285,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	  info.records-info.copied,thd->cuted_fields);
   send_ok(&thd->net,info.copied+info.deleted,0L,name);
   // on the slave thd->query is never initialized
-  if(!thd->slave_thread)
+  if (!thd->slave_thread)
     mysql_update_log.write(thd,thd->query,thd->query_length);
 
   if (!using_transactions)
@@ -435,7 +435,7 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
     {						// Last record
       if (sql_field == (Item_field*) fields.head())
 	break;
-      for ( ; sql_field ; sql_field=(Item_field*) it++)
+      for (; sql_field ; sql_field=(Item_field*) it++)
       {
 	sql_field->field->set_null();
 	sql_field->field->reset();
@@ -475,8 +475,10 @@ READ_INFO::unescape(char chr)
 }
 
 
-	/* Read a line using buffering */
-	/* If last line is empty (in line mode) then it isn't outputed */
+/*
+  Read a line using buffering
+  If last line is empty (in line mode) then it isn't outputed
+*/
 
 
 READ_INFO::READ_INFO(File file_par, uint tot_length, String &field_term,
@@ -535,10 +537,11 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, String &field_term,
     }
     else 
     {
-      /* init_io_cache() will not initialize read_function member
-	 if the cache is READ_NET. The reason is explained in
-	 mysys/mf_iocache.c. So we work around the problem with a
-	 manual assignment
+      /*
+	init_io_cache() will not initialize read_function member
+	if the cache is READ_NET. The reason is explained in
+	mysys/mf_iocache.c. So we work around the problem with a
+	manual assignment
       */
       if (get_it_from_net)
 	cache.read_function = _my_b_net_read;

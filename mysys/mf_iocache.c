@@ -73,11 +73,12 @@ init_functions(IO_CACHE* info, enum cache_type type)
 {
   switch (type) {
   case READ_NET:
-    /* must be initialized by the caller. The problem is that
-       _my_b_net_read has to be defined in sql directory because of
-       the dependency on THD, and therefore cannot be visible to
-       programs that link against mysys but know nothing about THD, such
-       as myisamchk
+    /*
+      Must be initialized by the caller. The problem is that
+      _my_b_net_read has to be defined in sql directory because of
+      the dependency on THD, and therefore cannot be visible to
+      programs that link against mysys but know nothing about THD, such
+      as myisamchk
     */
     break;
   case SEQ_READ_APPEND:

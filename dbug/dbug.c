@@ -706,10 +706,11 @@ char ***_sframep_ __attribute__((unused)))
   if (!_no_db_)
   {
     int save_errno=errno;
-    /* Sasha: the test below is so we could call functions with DBUG_ENTER
-       before my_thread_init(). I needed this because I suspected corruption
-       of a block allocated by my_thread_init() itself, so I wanted to use
-       my_malloc()/my_free() in my_thread_init()/my_thread_end()
+    /*
+      Sasha: the test below is so we could call functions with DBUG_ENTER
+      before my_thread_init(). I needed this because I suspected corruption
+      of a block allocated by my_thread_init() itself, so I wanted to use
+      my_malloc()/my_free() in my_thread_init()/my_thread_end()
     */
     if (!(state=code_state()))
       return;

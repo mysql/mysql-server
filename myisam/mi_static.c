@@ -42,8 +42,10 @@ my_off_t myisam_max_extra_temp_length= MI_MAX_TEMP_LENGTH;
 my_off_t myisam_max_temp_length= MAX_FILE_SIZE;
 ulong    myisam_bulk_insert_tree_size=8192*1024;
 
-/* read_vec[] is used for converting between P_READ_KEY.. and SEARCH_ */
-/* Position is , == , >= , <= , > , < */
+/*
+  read_vec[] is used for converting between P_READ_KEY.. and SEARCH_
+  Position is , == , >= , <= , > , <
+*/
 
 uint NEAR myisam_read_vec[]=
 {

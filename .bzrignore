@@ -471,3 +471,4 @@ vio/test-sslserver
 vio/viotest-ssl
 mysys/getopt.c
 mysys/getopt1.c
+scripts/mysql_secure_installation

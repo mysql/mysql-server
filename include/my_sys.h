@@ -245,16 +245,20 @@ typedef struct wild_file_pack	/* Struct to hold info when selecting files */
 
 typedef struct st_typelib {	/* Different types saved here */
   uint count;			/* How many types */
-  const char *name;			/* Name of typelib */
+  const char *name;		/* Name of typelib */
   const char **type_names;
 } TYPELIB;
 
-enum cache_type {READ_CACHE,WRITE_CACHE,
-		 SEQ_READ_APPEND /* sequential read or append */,
-		 READ_FIFO,
-		 READ_NET,WRITE_NET};
-enum flush_type { FLUSH_KEEP, FLUSH_RELEASE, FLUSH_IGNORE_CHANGED,
-		  FLUSH_FORCE_WRITE};
+enum cache_type
+{
+  READ_CACHE,WRITE_CACHE,
+  SEQ_READ_APPEND		/* sequential read or append */,
+  READ_FIFO, READ_NET,WRITE_NET};
+
+enum flush_type
+{
+  FLUSH_KEEP, FLUSH_RELEASE, FLUSH_IGNORE_CHANGED, FLUSH_FORCE_WRITE
+};
 
 typedef struct st_record_cache	/* Used when cacheing records */
 {
@@ -270,9 +274,11 @@ typedef struct st_record_cache	/* Used when cacheing records */
   enum cache_type type;
 } RECORD_CACHE;
 
-enum file_type { UNOPEN = 0, FILE_BY_OPEN, FILE_BY_CREATE,
-		 STREAM_BY_FOPEN, STREAM_BY_FDOPEN, FILE_BY_MKSTEMP,
-		 FILE_BY_DUP };
+enum file_type
+{
+  UNOPEN = 0, FILE_BY_OPEN, FILE_BY_CREATE, STREAM_BY_FOPEN, STREAM_BY_FDOPEN,
+  FILE_BY_MKSTEMP, FILE_BY_DUP
+};
 
 extern struct my_file_info
 {
@@ -284,14 +290,16 @@ extern struct my_file_info
 } my_file_info[MY_NFILE];
 
 
-typedef struct st_dynamic_array {
+typedef struct st_dynamic_array
+{
   char *buffer;
   uint elements,max_element;
   uint alloc_increment;
   uint size_of_element;
 } DYNAMIC_ARRAY;
 
-typedef struct st_dynamic_string {
+typedef struct st_dynamic_string
+{
   char *str;
   uint length,max_length,alloc_increment;
 } DYNAMIC_STRING;
@@ -453,8 +461,8 @@ my_off_t my_b_append_tell(IO_CACHE* info);
 #define my_b_bytes_in_cache(info) (uint) (*(info)->current_end - \
 					  *(info)->current_pos)
 
-
-typedef struct st_changeable_var {
+typedef struct st_changeable_var
+{
   const char *name;			/* Name of variable */
   long *varptr;				/* Pointer to variable */
   long def_value,			/* Default value */

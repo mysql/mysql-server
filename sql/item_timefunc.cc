@@ -683,7 +683,7 @@ String *Item_func_date_format::val_str(String *str)
   /* Create the result string */
   const char *ptr=format->ptr();
   const char *end=ptr+format->length();
-  for ( ; ptr != end ; ptr++)
+  for (; ptr != end ; ptr++)
   {
     if (*ptr != '%' || ptr+1 == end)
       str->append(*ptr);
@@ -691,7 +691,7 @@ String *Item_func_date_format::val_str(String *str)
     {
       switch (*++ptr) {
       case 'M':
-	if(!l_time.month)
+	if (!l_time.month)
 	{
 	  null_value=1;
 	  return 0;
@@ -699,7 +699,7 @@ String *Item_func_date_format::val_str(String *str)
 	str->append(month_names[l_time.month-1]);
 	break;
       case 'b':
-	if(!l_time.month)
+	if (!l_time.month)
 	{
 	  null_value=1;
 	  return 0;
@@ -707,7 +707,7 @@ String *Item_func_date_format::val_str(String *str)
 	str->append(month_names[l_time.month-1].ptr(),3);
 	break;
       case 'W':
-	if(date_or_time)
+	if (date_or_time)
 	{
 	  null_value=1;
 	  return 0;
@@ -716,7 +716,7 @@ String *Item_func_date_format::val_str(String *str)
 	str->append(day_names[weekday]);
 	break;
       case 'a':
-	if(date_or_time)
+	if (date_or_time)
 	{
 	  null_value=1;
 	  return 0;
@@ -725,7 +725,7 @@ String *Item_func_date_format::val_str(String *str)
 	str->append(day_names[weekday].ptr(),3);
 	break;
       case 'D':
-	if(date_or_time)
+	if (date_or_time)
 	{
 	  null_value=1;
 	  return 0;
@@ -791,7 +791,7 @@ String *Item_func_date_format::val_str(String *str)
 	str->append(intbuff);
 	break;
       case 'j':
-	if(date_or_time)
+	if (date_or_time)
 	{
 	  null_value=1;
 	  return 0;

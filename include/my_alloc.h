@@ -18,18 +18,23 @@
    Data structures for mysys/my_alloc.c (root memory allocator)
 */
 
-#ifndef ST_USED_MEM_DEFINED
-#define ST_USED_MEM_DEFINED
-typedef struct st_used_mem {	   /* struct for once_alloc (block) */
+#ifndef _my_alloc_h
+#define _my_alloc_h
+
+typedef struct st_used_mem
+{				   /* struct for once_alloc (block) */
   struct st_used_mem *next;	   /* Next block in use */
   unsigned int	left;		   /* memory left in block  */
   unsigned int	size;		   /* size of block */
 } USED_MEM;
-typedef struct st_mem_root {
+
+
+typedef struct st_mem_root
+{
   USED_MEM *free;                  /* blocks with free memory in it */
   USED_MEM *used;                  /* blocks almost without free memory */
   USED_MEM *pre_alloc;             /* preallocated block */
-  /* if block have less memory it will be put in 'used' list*/
+  /* if block have less memory it will be put in 'used' list */
   unsigned int	min_malloc;
   unsigned int	block_size;        /* initial block size */
   unsigned int	block_num;         /* allocated blocks counter */

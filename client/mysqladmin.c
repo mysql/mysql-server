@@ -24,7 +24,7 @@
 #endif
 
 #define ADMIN_VERSION "8.35"
-#define MAX_MYSQL_VAR 64
+#define MAX_MYSQL_VAR 128
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
 
@@ -40,9 +40,12 @@ static uint tcp_port = 0, option_wait = 0, option_silent=0;
 static ulong opt_connect_timeout, opt_shutdown_timeout;
 static my_string unix_port=0;
 
-/* When using extended-status relatively, ex_val_max_len is the estimated
-   maximum length for any relative value printed by extended-status. The
-   idea is to try to keep the length of output as short as possible. */
+/*
+  When using extended-status relatively, ex_val_max_len is the estimated
+  maximum length for any relative value printed by extended-status. The
+  idea is to try to keep the length of output as short as possible.
+*/
+
 static uint ex_val_max_len[MAX_MYSQL_VAR];
 static my_bool ex_status_printed = 0; /* First output is not relative. */
 static uint ex_var_count, max_var_length, max_val_length;
@@ -235,17 +238,12 @@ int main(int argc,char *argv[])
 {
   int error, ho_error;
   MYSQL mysql;
-  char **commands;
-  char** save_argv;
+  char **commands, **save_argv;
+
   MY_INIT(argv[0]);
   mysql_init(&mysql);
   load_defaults("my",load_default_groups,&argc,&argv);
-  save_argv = argv;
-  /* Sasha: with the change to handle_options() we now need to do this fix
-     with save_argv in all client utilities. The problem is that
-     handle_options may modify argv, and that wreaks havoc with
-     free_defaults()
-  */
+  save_argv = argv;				/* Save for free_defaults */
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
 
@@ -444,8 +442,10 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     {
       char pidfile[FN_REFLEN];
       my_bool got_pidfile=0;
-      /* Only wait for pidfile on local connections */
-      /* If pidfile doesn't exist, continue without pid file checking */
+      /*
+	Only wait for pidfile on local connections
+	If pidfile doesn't exist, continue without pid file checking
+      */
       if (mysql->unix_socket)
 	got_pidfile= !get_pidfile(mysql, pidfile);
       if (mysql_shutdown(mysql))

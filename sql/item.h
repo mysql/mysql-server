@@ -118,7 +118,10 @@ public:
   double val_result();
   longlong val_int_result();
   String *str_result(String* tmp);
-  bool send(THD *thd, String *str_arg) { return result_field->send(thd,str_arg); }
+  bool send(THD *thd, String *str_arg)
+  {
+    return result_field->send(thd,str_arg);
+  }
   void make_field(Send_field *field);
   bool fix_fields(THD *,struct st_table_list *);
   bool save_in_field(Field *field);

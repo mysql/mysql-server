@@ -1502,10 +1502,11 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
     thd->ull=0;
   }
 
-  /* if the lock has not been aquired by some client, we do not want to
-     create an entry for it, since we immediately release the lock. In
-     this case, we will not be waiting, but rather, just waste CPU and
-     memory on the whole deal
+  /*
+    If the lock has not been aquired by some client, we do not want to
+    create an entry for it, since we immediately release the lock. In
+    this case, we will not be waiting, but rather, just waste CPU and
+    memory on the whole deal
   */
   if (!(ull= ((ULL*) hash_search(&hash_user_locks,lock_name,
 				 lock_name_len))))
@@ -1515,8 +1516,10 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
   }
   ull->count++;
 
-  /* structure is now initialized.  Try to get the lock */
-  /* Set up control struct to allow others to abort locks */
+  /*
+    Structure is now initialized.  Try to get the lock.
+    Set up control struct to allow others to abort locks
+  */
   thd->proc_info="User lock";
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &ull->cond;
@@ -1603,8 +1606,10 @@ longlong Item_func_get_lock::val_int()
   }
   ull->count++;
 
-  /* structure is now initialized.  Try to get the lock */
-  /* Set up control struct to allow others to abort locks */
+  /*
+    Structure is now initialized.  Try to get the lock.
+    Set up control struct to allow others to abort locks.
+  */
   thd->proc_info="User lock";
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &ull->cond;
@@ -1645,10 +1650,11 @@ longlong Item_func_get_lock::val_int()
 
 
 /*
-** Release a user level lock.
-** Returns 1 if lock released
-** 0 if lock wasn't held
-** NULL if no such lock
+  Release a user level lock.
+  Return:
+    1 if lock released
+    0 if lock wasn't held
+    (SQL) NULL if no such lock
 */
 
 longlong Item_func_release_lock::val_int()
@@ -1716,6 +1722,7 @@ longlong Item_func_benchmark::val_int()
   }
   return 0;
 }
+
 
 #define extra_size sizeof(double)
 
@@ -1980,6 +1987,7 @@ void Item_func_get_user_var::print(String *str)
   str->append(')');
 }
 
+
 bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
 {
   /* Assume we don't have rtti */
@@ -2087,10 +2095,11 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
   maybe_null=1;
   join_key=0;
 
-  /* const_item is assumed in quite a bit of places, so it would be difficult
-     to remove;  If it would ever to be removed, this should include
-     modifications to find_best and auto_close as complement to auto_init code
-     above.
+  /*
+    const_item is assumed in quite a bit of places, so it would be difficult
+    to remove;  If it would ever to be removed, this should include
+    modifications to find_best and auto_close as complement to auto_init code
+    above.
    */
   if (Item_func::fix_fields(thd,tlist) || !const_item())
   {
@@ -2110,7 +2119,7 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
   }
   /* check that all columns come from the same table */
   if (count_bits(used_tables_cache) != 1)
-      key=NO_SUCH_KEY;
+    key=NO_SUCH_KEY;
   const_item_cache=0;
   table=((Item_field *)fields.head())->field->table;
   table->fulltext_searched=1;
@@ -2123,6 +2132,7 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
 
   return 0;
 }
+
 
 bool Item_func_match::fix_index()
 {
@@ -2200,16 +2210,15 @@ err:
     return 0;
   }
   my_printf_error(ER_FT_MATCHING_KEY_NOT_FOUND,
-               ER(ER_FT_MATCHING_KEY_NOT_FOUND),MYF(0));
+		  ER(ER_FT_MATCHING_KEY_NOT_FOUND),MYF(0));
   return 1;
 }
 
+
 bool Item_func_match::eq(const Item *item, bool binary_cmp) const
 {
-  if (item->type() != FUNC_ITEM)
-    return 0;
-
-  if (func_name() != ((Item_func*)item)->func_name())
+  if (item->type() != FUNC_ITEM ||
+      func_name() != ((Item_func*)item)->func_name())
     return 0;
 
   Item_func_match *ifm=(Item_func_match*) item;
@@ -2221,6 +2230,7 @@ bool Item_func_match::eq(const Item *item, bool binary_cmp) const
   return 0;
 }
 
+
 double Item_func_match::val()
 {
   if (ft_handler == NULL)
@@ -2230,14 +2240,13 @@ double Item_func_match::val()
   {
     if (table->file->ft_handler)
       return ft_handler->please->get_relevance(ft_handler);
-
     join_key=0;
   }
 
   if (key == NO_SUCH_KEY)
   {
-    String *a=concat->val_str(&value);
-    if ((null_value= (a==0)))
+    String *a= concat->val_str(&value);
+    if ((null_value= (a == 0)))
       return 0;
     return ft_handler->please->find_relevance(ft_handler,
 					      (byte *)a->ptr(), a->length());
@@ -2245,6 +2254,7 @@ double Item_func_match::val()
   else
     return ft_handler->please->find_relevance(ft_handler, record, 0);
 }
+
 
 /***************************************************************************
   System variables

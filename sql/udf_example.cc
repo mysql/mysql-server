@@ -271,7 +271,7 @@ char *metaphon(UDF_INIT *initid, UDF_ARGS *args, char *result,
    *  characters and converting to uppercase.
    *-------------------------------------------------------*/
 
-  for ( n = ntrans + 1, n_end = ntrans + sizeof(ntrans)-2;
+  for (n = ntrans + 1, n_end = ntrans + sizeof(ntrans)-2;
 	word != w_end && n < n_end; word++ )
     if ( isalpha ( *word ))
       *n++ = toupper ( *word );
@@ -324,7 +324,7 @@ char *metaphon(UDF_INIT *initid, UDF_ARGS *args, char *result,
 
   KSflag = 0; /* state flag for KS translation */
 
-  for ( metaph_end = result + MAXMETAPH, n_start = n;
+  for (metaph_end = result + MAXMETAPH, n_start = n;
 	n <= n_end && result < metaph_end; n++ )
   {
 
@@ -402,7 +402,7 @@ char *metaphon(UDF_INIT *initid, UDF_ARGS *args, char *result,
 		n[2] != 'G' ) ?
 	      (char)'J' : (char)'K';
 	  else
-	    if( n[1] == 'H'   &&
+	    if ( n[1] == 'H'   &&
 		!NOGHTOF( *( n - 3 )) &&
 		*( n - 4 ) != 'H')
 	      *result++ = 'F';
@@ -440,7 +440,7 @@ char *metaphon(UDF_INIT *initid, UDF_ARGS *args, char *result,
 
 	case 'T':  /* TIO, TIA = X ("sh" sound) */
 	  /* TH = 0, ("th" sound ) */
-	  if( *( n  + 1 ) == 'I' && ( n[2] == 'O'
+	  if ( *( n  + 1 ) == 'I' && ( n[2] == 'O'
 				      || n[2] == 'A') )
 	    *result++ = 'X';
 	  else

@@ -29,7 +29,7 @@
 /**************************************************************/
 
 void _mi_ft_segiterator_init(MI_INFO *info, uint keynr, const byte *record,
-    FT_SEG_ITERATOR *ftsi)
+			     FT_SEG_ITERATOR *ftsi)
 {
   ftsi->num=info->s->keyinfo[keynr].keysegs-FT_SEGS;
   ftsi->seg=info->s->keyinfo[keynr].seg;
@@ -37,7 +37,7 @@ void _mi_ft_segiterator_init(MI_INFO *info, uint keynr, const byte *record,
 }
 
 void _mi_ft_segiterator_dummy_init(const byte *record, uint len,
-    FT_SEG_ITERATOR *ftsi)
+				   FT_SEG_ITERATOR *ftsi)
 {
   ftsi->num=1;
   ftsi->seg=0;
@@ -45,12 +45,13 @@ void _mi_ft_segiterator_dummy_init(const byte *record, uint len,
   ftsi->len=len;
 }
 
-/* This function breaks convention "return 0 in success"
-   but it's easier to use like this
+/*
+  This function breaks convention "return 0 in success"
+  but it's easier to use like this
 
-      while(_mi_ft_segiterator())
+     while(_mi_ft_segiterator())
 
-   so "1" means "OK", "0" means "EOF"
+  so "1" means "OK", "0" means "EOF"
 */
 
 uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
@@ -68,7 +69,7 @@ uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
   if (ftsi->seg->flag & HA_VAR_LENGTH)
   {
     ftsi->len=uint2korr(ftsi->pos);
-    ftsi->pos+=2;					 /* Skip VARCHAR length */
+    ftsi->pos+=2;				 /* Skip VARCHAR length */
     set_if_smaller(ftsi->len,ftsi->seg->length);
     return 1;
   }
@@ -84,7 +85,9 @@ uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
   return 1;
 }
 
+
 /* parses a document i.e. calls ft_parse for every keyseg */
+
 uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record)
 {
   FT_SEG_ITERATOR ftsi;
@@ -92,10 +95,11 @@ uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record)
 
   ft_parse_init(parsed, info->s->keyinfo[keynr].seg->charset);
   while (_mi_ft_segiterator(&ftsi))
+  {
     if (ftsi.pos)
       if (ft_parse(parsed, (byte *)ftsi.pos, ftsi.len))
         return 1;
-
+  }
   return 0;
 }
 
@@ -117,32 +121,33 @@ static int _mi_ft_store(MI_INFO *info, uint keynr, byte *keybuf,
 {
   uint key_length;
 
-  while(wlist->pos)
+  for (; wlist->pos; wlist++)
   {
     key_length=_ft_make_key(info,keynr,keybuf,wlist,filepos);
     if (_mi_ck_write(info,keynr,(uchar*) keybuf,key_length))
       return 1;
-    wlist++;
    }
    return 0;
 }
 
-static int _mi_ft_erase(MI_INFO *info, uint keynr, byte *keybuf, FT_WORD *wlist, my_off_t filepos)
+static int _mi_ft_erase(MI_INFO *info, uint keynr, byte *keybuf,
+			FT_WORD *wlist, my_off_t filepos)
 {
   uint key_length, err=0;
 
-  while(wlist->pos)
+  for (; wlist->pos; wlist++)
   {
     key_length=_ft_make_key(info,keynr,keybuf,wlist,filepos);
     if (_mi_ck_delete(info,keynr,(uchar*) keybuf,key_length))
       err=1;
-    wlist++;
    }
    return err;
 }
 
-/* compares an appropriate parts of two WORD_KEY keys directly out of records */
-/* returns 1 if they are different */
+/*
+  Compares an appropriate parts of two WORD_KEY keys directly out of records
+  returns 1 if they are different
+*/
 
 #define THOSE_TWO_DAMN_KEYS_ARE_REALLY_DIFFERENT 1
 #define GEE_THEY_ARE_ABSOLUTELY_IDENTICAL	 0
@@ -154,7 +159,7 @@ int _mi_ft_cmp(MI_INFO *info, uint keynr, const byte *rec1, const byte *rec2)
   _mi_ft_segiterator_init(info, keynr, rec1, &ftsi1);
   _mi_ft_segiterator_init(info, keynr, rec2, &ftsi2);
 
-  while(_mi_ft_segiterator(&ftsi1) && _mi_ft_segiterator(&ftsi2))
+  while (_mi_ft_segiterator(&ftsi1) && _mi_ft_segiterator(&ftsi2))
   {
     if ((ftsi1.pos != ftsi2.pos) &&
         (!ftsi1.pos || !ftsi2.pos ||
@@ -165,7 +170,9 @@ int _mi_ft_cmp(MI_INFO *info, uint keynr, const byte *rec1, const byte *rec2)
   return GEE_THEY_ARE_ABSOLUTELY_IDENTICAL;
 }
 
+
 /* update a document entry */
+
 int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
                   const byte *oldrec, const byte *newrec, my_off_t pos)
 {
@@ -215,7 +222,9 @@ err0:
   return error;
 }
 
+
 /* adds a document to the collection */
+
 int _mi_ft_add(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
 	       my_off_t pos)
 {
@@ -230,7 +239,9 @@ int _mi_ft_add(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
   return error;
 }
 
+
 /* removes a document from the collection */
+
 int _mi_ft_del(MI_INFO *info, uint keynr, byte *keybuf, const byte *record,
 	       my_off_t pos)
 {

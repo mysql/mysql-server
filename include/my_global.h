@@ -14,8 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* This is the main include file that should included 'first' in every
-   C file. */
+/* This is the include file that should be included 'first' in every C file. */
 
 #ifndef _global_h
 #define _global_h
@@ -50,16 +49,6 @@
 #undef inline				/* fix configure problem */
 #endif
 #endif /* _WIN32... */
-
-/* sometimes we want to make sure that the variable is not put into
-   a register in debugging mode so we can see its value in the core
-*/
-
-#ifndef DBUG_OFF
-#define dbug_volatile volatile
-#else
-#define dbug_volatile
-#endif
 
 /*
   The macros below are borrowed from include/linux/compiler.h in the
@@ -106,7 +95,7 @@
 #ifndef _POSIX_PTHREAD_SEMANTICS
 #define _POSIX_PTHREAD_SEMANTICS /* We want posix threads */
 #endif
-/* was #if defined(HAVE_LINUXTHREADS) || defined(HAVE_DEC_THREADS) || defined(HPUX) */
+
 #if !defined(SCO)
 #define _REENTRANT	1	/* Some thread libraries require this */
 #endif
@@ -275,10 +264,6 @@
 #define DONT_USE_MYSQL_PWD 1
 #endif
 
-/* #define USE_some_charset 1 was deprecated by changes to configure */
-/* my_ctype my_to_upper, my_to_lower, my_sort_order gain theit right value */
-/* automagically during configuration */
-
 /* Does the system remember a signal handler after a signal ? */
 #ifndef HAVE_BSD_SIGNALS
 #define DONT_REMEMBER_SIGNAL
@@ -348,9 +333,11 @@ typedef unsigned short ushort;
 
 /* From old s-system.h */
 
-/* Support macros for non ansi & other old compilers. Since such
-   things are no longer supported we do nothing. We keep then since
-   some of our code may still be needed to upgrade old customers. */
+/*
+  Support macros for non ansi & other old compilers. Since such
+  things are no longer supported we do nothing. We keep then since
+  some of our code may still be needed to upgrade old customers.
+*/
 #define _VARARGS(X) X
 #define _STATIC_VARARGS(X) X
 #define _PC(X)	X
@@ -468,12 +455,16 @@ typedef SOCKET_SIZE_TYPE size_socket;
 /* #define FN_NO_CASE_SENCE   */
 /* #define FN_UPPER_CASE TRUE */
 
-/* Io buffer size; Must be a power of 2 and a multiple of 512. May be
-   smaller what the disk page size. This influences the speed of the
-   isam btree library. eg to big to slow. */
+/*
+  Io buffer size; Must be a power of 2 and a multiple of 512. May be
+  smaller what the disk page size. This influences the speed of the
+  isam btree library. eg to big to slow.
+*/
 #define IO_SIZE			4096
-/* How much overhead does malloc have. The code often allocates
-   something like 1024-MALLOC_OVERHEAD bytes */
+/*
+  How much overhead does malloc have. The code often allocates
+  something like 1024-MALLOC_OVERHEAD bytes
+*/
 #ifdef SAFEMALLOC
 #define MALLOC_OVERHEAD (8+24+4)
 #else
@@ -488,7 +479,6 @@ typedef SOCKET_SIZE_TYPE size_socket;
 
 	/* Some things that this system doesn't have */
 
-#define ONLY_OWN_DATABASES	/* We are using only databases by monty */
 #define NO_HASH			/* Not needed anymore */
 #ifdef __WIN__
 #define NO_DIR_LIBRARY		/* Not standar dir-library */
@@ -532,11 +522,6 @@ extern double		my_atof(const char*);
 
 #if !defined(HAVE_mit_thread) && !defined(HAVE_STRTOK_R)
 #define strtok_r(A,B,C) strtok((A),(B))
-#endif
-
-#ifdef HAVE_LINUXTHREADS
-/* #define pthread_sigmask(A,B,C) sigprocmask((A),(B),(C)) */
-/* #define sigset(A,B) signal((A),(B)) */
 #endif
 
 /* Remove some things that mit_thread break or doesn't support */
@@ -589,8 +574,10 @@ extern double		my_atof(const char*);
 #define FLT_MAX		((float)3.40282346638528860e+38)
 #endif
 
-/* Max size that must be added to a so that we know Size to make
-   adressable obj. */
+/*
+  Max size that must be added to a so that we know Size to make
+  adressable obj.
+*/
 typedef long		my_ptrdiff_t;
 #define MY_ALIGN(A,L)	(((A) + (L) - 1) & ~((L) - 1))
 #define ALIGN_SIZE(A)	MY_ALIGN((A),sizeof(double))
@@ -648,21 +635,23 @@ error "Neither int or long is of 4 bytes width"
 #endif
 
 #if !defined(HAVE_ULONG) && !defined(HAVE_LINUXTHREADS) && !defined(__USE_MISC)
-typedef unsigned long	ulong;	/* Short for unsigned long */
+typedef unsigned long	ulong;		  /* Short for unsigned long */
 #endif
 #ifndef longlong_defined
 #if defined(HAVE_LONG_LONG) && SIZEOF_LONG != 8
 typedef unsigned long long int ulonglong; /* ulong or unsigned long long */
 typedef long long int	longlong;
 #else
-typedef unsigned long	ulonglong;	/* ulong or unsigned long long */
+typedef unsigned long	ulonglong;	  /* ulong or unsigned long long */
 typedef long		longlong;
 #endif
 #endif
 
 #ifdef USE_RAID
-/* The following is done with a if to not get problems with pre-processors
-   with late define evaluation */
+/*
+  The following is done with a if to not get problems with pre-processors
+  with late define evaluation
+*/
 #if SIZEOF_OFF_T == 4
 #define SYSTEM_SIZEOF_OFF_T 4
 #else
@@ -727,8 +716,10 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #define INT32(v)	(int32) (v)
 #define MYF(v)		(myf) (v)
 
-/* Defines to make it possible to prioritize register assignments. No
-   longer needed with moder compilers */
+/*
+  Defines to make it possible to prioritize register assignments. No
+  longer that important with modern compilers.
+*/
 #ifndef USING_X
 #define reg1 register
 #define reg2 register
@@ -746,6 +737,17 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #define reg14 register
 #define reg15 register
 #define reg16 register
+#endif
+
+/*
+  Sometimes we want to make sure that the variable is not put into
+  a register in debugging mode so we can see its value in the core
+*/
+
+#ifndef DBUG_OFF
+#define dbug_volatile volatile
+#else
+#define dbug_volatile
 #endif
 
 /* Defines for time function */
@@ -769,8 +771,8 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #endif
 
 /*
-** Define-funktions for reading and storing in machine independent format
-**  (low byte first)
+  Define-funktions for reading and storing in machine independent format
+  (low byte first)
 */
 
 /* Optimized store functions for Intel x86 */
@@ -943,9 +945,11 @@ typedef union {
 
 #endif /* sint2korr */
 
-/* Define-funktions for reading and storing in machine format from/to
-   short/long to/from some place in memory V should be a (not
-   register) variable, M is a pointer to byte */
+/*
+  Define-funktions for reading and storing in machine format from/to
+  short/long to/from some place in memory V should be a (not
+  register) variable, M is a pointer to byte
+*/
 
 #ifdef WORDS_BIGENDIAN
 

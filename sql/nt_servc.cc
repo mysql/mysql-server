@@ -501,11 +501,9 @@ BOOL NTService::IsService(LPCSTR ServiceName)
  -------------------------------------------------------------------------- */
 BOOL NTService::got_service_option(char **argv, char *service_option)
 {
-  char *option = argv[1];
-  
-  while (*option)
-   if (!strcmp(option++, service_option))
-    return TRUE;
-  
+  char *option;
+  for (option= argv[1]; *option; option++)
+    if (!strcmp(option, service_option))
+      return TRUE;
   return FALSE;
 }

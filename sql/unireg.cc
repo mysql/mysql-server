@@ -105,7 +105,7 @@ int rea_create_table(my_string file_name,
   fileinfo[26]= (uchar) test((create_info->max_rows == 1) &&
 			     (create_info->min_rows == 1) && (keys == 0));
   int2store(fileinfo+28,key_info_length);
-  strnmov((char*) forminfo+47,create_info->comment ? create_info->comment : "",
+  strmake((char*) forminfo+47,create_info->comment ? create_info->comment : "",
 	  60);
   forminfo[46]=(uchar) strlen((char*)forminfo+47);	// Length of comment
 

@@ -22,8 +22,10 @@ class Table_ident;
 class sql_exchange;
 class LEX_COLUMN;
 
-// The following hack is needed because mysql_yacc.cc does not define
-// YYSTYPE before including this file
+/*
+  The following hack is needed because mysql_yacc.cc does not define
+  YYSTYPE before including this file
+*/
 
 #ifdef MYSQL_YACC
 #define LEX_YYSTYPE void *
@@ -94,20 +96,24 @@ typedef List<Item> List_item;
 
 typedef struct st_lex_master_info
 {
-  char* host, *user, *password,*log_file_name;
+  char *host, *user, *password, *log_file_name;
   uint port, connect_retry;
   ulonglong pos;
   ulong server_id;
-  char* relay_log_name;
+  char *relay_log_name;
   ulong relay_log_pos;
 } LEX_MASTER_INFO;
 
 
-enum sub_select_type {UNSPECIFIED_TYPE,UNION_TYPE, INTERSECT_TYPE, EXCEPT_TYPE, NOT_A_SELECT};
+enum sub_select_type
+{
+  UNSPECIFIED_TYPE, UNION_TYPE, INTERSECT_TYPE, EXCEPT_TYPE, NOT_A_SELECT
+};
 
 /* The state of the lex parsing for selects */
 
-typedef struct st_select_lex {
+typedef struct st_select_lex
+{
   enum sub_select_type linkage;
   char *db,*db1,*table1,*db2,*table2;		/* For outer join using .. */
   Item *where,*having;
@@ -126,7 +132,8 @@ typedef struct st_select_lex {
 } SELECT_LEX;
 
 
-class Set_option :public Sql_alloc {
+class Set_option :public Sql_alloc
+{
 public:
   const char *name;
   Item *item;
@@ -140,7 +147,8 @@ public:
 
 /* The state of the lex parsing. This is saved in the THD struct */
 
-typedef struct st_lex {
+typedef struct st_lex
+{
   uint	 yylineno,yytoklen;			/* Simulate lex */
   LEX_YYSTYPE yylval;
   SELECT_LEX select_lex, *select;

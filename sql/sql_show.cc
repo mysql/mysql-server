@@ -116,7 +116,7 @@ int mysqld_show_open_tables(THD *thd,const char *wild)
   if (!(open_list=list_open_tables(thd,wild)) && thd->fatal_error)
     DBUG_RETURN(-1);
 
-  for ( ; open_list ; open_list=open_list->next)
+  for (; open_list ; open_list=open_list->next)
   {
     thd->packet.length(0);
     net_store_data(&thd->packet,convert, open_list->db);
@@ -1301,7 +1301,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
 	  net_store_data(&packet2,"NONE" );
 	  break;
 	}
-	switch(SSL_CTX_get_session_cache_mode(ssl_acceptor_fd->ssl_context_))
+	switch (SSL_CTX_get_session_cache_mode(ssl_acceptor_fd->ssl_context_))
 	{
           case SSL_SESS_CACHE_OFF:
             net_store_data(&packet2,"OFF" );

@@ -508,7 +508,7 @@ my_bool Query_cache_query::try_lock_writing()
 void Query_cache_query::lock_reading()
 {
   MUTEX_LOCK(&clients_guard);
-  if ( ++clients == 1 )
+  if (++clients == 1)
     SEM_LOCK(&lock);
   MUTEX_UNLOCK(&clients_guard);
 }
@@ -961,7 +961,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   // Check access;
   block_table= query_block->table(0);
   block_table_end= block_table+query_block->n_tables;
-  for ( ; block_table != block_table_end; block_table++)
+  for (; block_table != block_table_end; block_table++)
   {
     TABLE_LIST table_list;
     bzero((char*) &table_list,sizeof(table_list));
@@ -1040,7 +1040,7 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
 
       using_transactions = using_transactions &&
 	(thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN));
-      for ( ; tables_used; tables_used=tables_used->next)
+      for (; tables_used; tables_used=tables_used->next)
       {
 	DBUG_ASSERT(!using_transactions || tables_used->table!=0);
 	if (using_transactions && 
@@ -1069,7 +1069,7 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
     if (query_cache_size > 0)
     {
       DUMP(this);
-      for ( ; tables_used; tables_used=tables_used->next)
+      for (; tables_used; tables_used=tables_used->next)
       {
 	invalidate_table((byte*) tables_used->key, tables_used->key_length);
 	DBUG_PRINT("qcache", (" db %s, table %s", tables_used->key,
@@ -1188,15 +1188,17 @@ void Query_cache::pack(ulong join_limit, uint iteration_limit)
 
 void Query_cache::destroy()
 {
-  if ( !initialized )
+  DBUG_ENTER("Query_cache::destroy");
+  if (!initialized)
   {
     DBUG_PRINT("qcache", ("Query Cache not initialized"));
-    return;
   }
-  DBUG_ENTER("Query_cache::destroy");
-  free_cache(1);
-  pthread_mutex_destroy(&structure_guard_mutex);
-  initialized = 0;
+  else
+  {
+    free_cache(1);
+    pthread_mutex_destroy(&structure_guard_mutex);
+    initialized = 0;
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -2138,8 +2140,10 @@ void Query_cache::split_block(Query_cache_block *block, ulong len)
   new_block->pnext->pprev = new_block;
 
   if (block->type == Query_cache_block::FREE)
+  {
     // if block was free then it already joined with all free neighbours
     insert_into_free_memory_list(new_block);
+  }
   else
     free_memory_block(new_block);
 
@@ -2870,7 +2874,7 @@ void Query_cache::bins_dump()
 {
   uint i;
   
-  if ( !initialized )
+  if (!initialized)
   {
     DBUG_PRINT("qcache", ("Query Cache not initialized"));
     return;
@@ -2911,8 +2915,7 @@ void Query_cache::bins_dump()
 
 void Query_cache::cache_dump()
 {
-
-  if ( !initialized )
+  if (!initialized)
   {
     DBUG_PRINT("qcache", ("Query Cache not initialized"));
     return;
@@ -2939,7 +2942,7 @@ void Query_cache::cache_dump()
 void Query_cache::queries_dump()
 {
 
-  if ( !initialized )
+  if (!initialized)
   {
     DBUG_PRINT("qcache", ("Query Cache not initialized"));
     return;
@@ -3001,8 +3004,7 @@ void Query_cache::queries_dump()
 
 void Query_cache::tables_dump()
 {
-
-  if ( !initialized )
+  if (!initialized)
   {
     DBUG_PRINT("qcache", ("Query Cache not initialized"));
     return;
@@ -3072,8 +3074,8 @@ my_bool Query_cache::check_integrity(bool not_locked)
     // Check memory allocation
     if (block->pnext == first_block) // Is it last block?
     {
-      if ( ((byte*)block) + block->length != 
-	   ((byte*)first_block) + query_cache_size )
+      if (((byte*)block) + block->length != 
+	  ((byte*)first_block) + query_cache_size)
       {
 	DBUG_PRINT("error", 
 		   ("block 0x%lx, type %u, ended at 0x%lx, but cache ended at 0x%lx",
@@ -3093,16 +3095,16 @@ my_bool Query_cache::check_integrity(bool not_locked)
 		    (ulong) ((byte*)block->pnext)));
       }
     if (block->type == Query_cache_block::FREE)
-      free+=block->length;
+      free+= block->length;
     else
-      used+=block->length;
+      used+= block->length;
     switch(block->type) {
     case Query_cache_block::FREE:
     {
       Query_cache_memory_bin *bin = *((Query_cache_memory_bin **)
 				      block->data());
       //is it correct pointer?
-      if ( ((byte*)bin) < ((byte*)bins) ||
+      if (((byte*)bin) < ((byte*)bins) ||
 	  ((byte*)bin) >= ((byte*)first_block))
       {
 	DBUG_PRINT("error", 
@@ -3153,7 +3155,7 @@ my_bool Query_cache::check_integrity(bool not_locked)
     case Query_cache_block::RESULT:
     {
       Query_cache_block * query_block = block->result()->parent();
-      if ( ((byte*)query_block) < ((byte*)first_block) ||
+      if (((byte*)query_block) < ((byte*)first_block) ||
 	  ((byte*)query_block) >= (((byte*)first_block) + query_cache_size))
       {
 	DBUG_PRINT("error", 
@@ -3305,7 +3307,7 @@ my_bool Query_cache::in_blocks(Query_cache_block * point)
 		  (ulong) block->pprev->pnext,
 		  (ulong) point));
       //back trace
-      for(; block != point; block = block->pnext)
+      for (; block != point; block = block->pnext)
 	    DBUG_PRINT("error", ("back trace 0x%lx", (ulong) block));
       result = 1;
       goto err1;
@@ -3333,7 +3335,7 @@ err1:
 		  (ulong) block->pnext->pprev,
 		  (ulong) point));
       //back trace
-      for(; block != point; block = block->pprev)
+      for (; block != point; block = block->pprev)
 	    DBUG_PRINT("error", ("back trace 0x%lx", (ulong) block));
       result = 1;
       goto err2;
@@ -3362,7 +3364,7 @@ my_bool Query_cache::in_list(Query_cache_block * root,
 		  (ulong) block->prev->next,
 		  (ulong) point));
       //back trace
-      for(; block != point; block = block->next)
+      for (; block != point; block = block->next)
 	    DBUG_PRINT("error", ("back trace 0x%lx", (ulong) block));
       result = 1;
       goto err1;
@@ -3436,7 +3438,7 @@ my_bool Query_cache::in_table_list(Query_cache_block_table * root,
 		  (ulong) table->prev->next->block(),
 		  (ulong) point, (ulong) point->block()));
       //back trace
-      for(; table != point; table = table->next)
+      for (; table != point; table = table->next)
 	    DBUG_PRINT("error", ("back trace 0x%lx(0x%lx)", 
 				 (ulong) table, (ulong) table->block()));
       result = 1;

@@ -15,8 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
-** Functions to handle initializating and allocationg of all mysys & debug
-** thread variables.
+  Functions to handle initializating and allocationg of all mysys & debug
+  thread variables.
 */
 
 #include "mysys_priv.h"
@@ -43,10 +43,6 @@ pthread_mutexattr_t my_fast_mutexattr;
 #ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
 pthread_mutexattr_t my_errchk_mutexattr;
 #endif
-
-/* FIXME  Note.  TlsAlloc does not set an auto destructor, so
-	the function my_thread_global_free must be called from
-	somewhere before final exit of the library */
 
 my_bool my_thread_global_init(void)
 {
@@ -85,6 +81,7 @@ my_bool my_thread_global_init(void)
 #endif
   return my_thread_init();
 }
+
 
 void my_thread_global_end(void)
 {
@@ -158,6 +155,7 @@ end:
   return error;
 }
 
+
 void my_thread_end(void)
 {
   struct st_my_thread_var *tmp=my_thread_var;
@@ -204,8 +202,9 @@ struct st_my_thread_var *_my_thread_var(void)
   return tmp;
 }
 
+
 /****************************************************************************
-** Get name of current thread.
+  Get name of current thread.
 ****************************************************************************/
 
 #define UNKNOWN_THREAD -1

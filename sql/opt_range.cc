@@ -885,7 +885,7 @@ get_mm_parts(PARAM *param,Field *field, Item_func::Functype type,Item *value,
   if (value &&
       value->used_tables() & ~(param->prev_tables | param->read_tables))
     DBUG_RETURN(0);
-  for ( ; key_part != end ; key_part++)
+  for (; key_part != end ; key_part++)
   {
     if (field->eq(key_part->field))
     {
