@@ -637,7 +637,7 @@ extern int pthread_dummy(int);
   MySQL can survive with 32K, but some glibc libraries require > 128K stack
   To resolve hostnames
 */
-#define DEFAULT_THREAD_STACK	(192*1024L)
+#define DEFAULT_THREAD_STACK	(256*1024L)
 #else
 #define DEFAULT_THREAD_STACK	(192*1024)
 #endif
@@ -689,12 +689,12 @@ extern pthread_t shutdown_th, main_th, signal_th;
 #define thread_safe_add(V,C,L) (pthread_mutex_lock((L)), (V)+=(C), pthread_mutex_unlock((L)))
 #define thread_safe_sub(V,C,L) \
         (pthread_mutex_lock((L)), (V)-=(C), pthread_mutex_unlock((L)))
-#if defined (__GNUC__) || defined (__cplusplus)
-static inline bool thread_safe_dec_and_test(ulong V, pthread_mutex_t *L)
+#ifdef __cplusplus
+static inline bool thread_safe_dec_and_test(ulong &V, pthread_mutex_t *L)
 {
   ulong res;
   pthread_mutex_lock(L);
-  res=V--;
+  res=--V;
   pthread_mutex_unlock(L);
   return res==0;
 }

@@ -99,6 +99,7 @@ row_mysql_store_col_in_innobase_format(
 					as dfield is used! */
 	ulint		col_len,	/* in: MySQL column length */
 	ulint		type,		/* in: data type */
+	bool		comp,		/* in: TRUE=compact format */
 	ulint		is_unsigned);	/* in: != 0 if unsigned integer type */
 /********************************************************************
 Handles user errors and lock waits detected by the database engine. */
@@ -458,6 +459,10 @@ struct mysql_row_templ_struct {
 					numbers DATA_CHAR... */
 	ulint	charset;		/* MySQL charset-collation code
 					of the column, or zero */
+	ulint	mbminlen;		/* minimum length of a char, in bytes,
+					or zero if not a char type */
+	ulint	mbmaxlen;		/* maximum length of a char, in bytes,
+					or zero if not a char type */
 	ulint	is_unsigned;		/* if a column type is an integer
 					type and this field is != 0, then
 					it is an unsigned integer type */

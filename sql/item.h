@@ -121,8 +121,7 @@ public:
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
-  static void operator delete(void *ptr,size_t size, MEM_ROOT *mem_root)
-  { TRASH(ptr, size); }
+  static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
 
   enum Type {FIELD_ITEM, FUNC_ITEM, SUM_FUNC_ITEM, STRING_ITEM,
 	     INT_ITEM, REAL_ITEM, NULL_ITEM, VARBIN_ITEM,
@@ -277,6 +276,16 @@ public:
       TRUE value is true (not equal to 0)
   */
   bool val_bool();
+  /* Helper functions, see item_sum.cc */
+  String *val_string_from_real(String *str);
+  String *val_string_from_int(String *str);
+  String *val_string_from_decimal(String *str);
+  my_decimal *val_decimal_from_real(my_decimal *decimal_value);
+  my_decimal *val_decimal_from_int(my_decimal *decimal_value);
+  my_decimal *val_decimal_from_string(my_decimal *decimal_value);
+  longlong val_int_from_decimal();
+  double val_real_from_decimal();
+
   virtual Field *get_tmp_table_field() { return 0; }
   virtual Field *tmp_table_field(TABLE *t_arg) { return 0; }
   virtual const char *full_name() const { return name ? name : "???"; }
@@ -454,14 +463,17 @@ public:
   longlong val_int();
   String *val_str(String *sp);
   my_decimal *val_decimal(my_decimal *);
-  inline bool is_null();
+  bool is_null();
   void print(String *str);
 
   inline void make_field(Send_field *field)
   {
     Item *it= this_item();
 
-    it->set_name(m_name.str, m_name.length, system_charset_info);
+    if (name)
+      it->set_name(name, strlen(name), system_charset_info);
+    else
+      it->set_name(m_name.str, m_name.length, system_charset_info);
     it->make_field(field);
   }
 
@@ -983,7 +995,7 @@ public:
   Item *new_item() 
   {
     return new Item_string(name, str_value.ptr(), 
-    			   str_value.length(), &my_charset_bin);
+    			   str_value.length(), collation.collation);
   }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   String *const_string() { return &str_value; }

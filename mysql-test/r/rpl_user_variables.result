@@ -76,35 +76,35 @@ abcn1n2
 NULL
 NULL
 NULL
-show binlog events from 95;
+show binlog events from 96;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	95	Query	1	186	use `test`; create table t1(n char(30))
-slave-bin.000001	186	User var	2	229	@`i1`=12345678901234
-slave-bin.000001	229	User var	2	272	@`i2`=-12345678901234
-slave-bin.000001	272	User var	2	315	@`i3`=0
-slave-bin.000001	315	User var	2	358	@`i4`=-1
-slave-bin.000001	358	Query	1	470	use `test`; insert into t1 values (@i1), (@i2), (@i3), (@i4)
-slave-bin.000001	470	User var	2	509	@`r1`=12.5
-slave-bin.000001	509	User var	2	548	@`r2`=-12.5
-slave-bin.000001	548	Query	1	646	use `test`; insert into t1 values (@r1), (@r2)
-slave-bin.000001	646	User var	2	695	@`s1`=_latin1 0x5468697320697320612074657374 COLLATE latin1_swedish_ci
-slave-bin.000001	695	User var	2	730	@`s2`=_latin1 "" COLLATE latin1_swedish_ci
-slave-bin.000001	730	User var	2	772	@`s3`=_latin1 0x61626327646566 COLLATE latin1_swedish_ci
-slave-bin.000001	772	User var	2	814	@`s4`=_latin1 0x6162635C646566 COLLATE latin1_swedish_ci
-slave-bin.000001	814	User var	2	856	@`s5`=_latin1 0x61626327646566 COLLATE latin1_swedish_ci
-slave-bin.000001	856	Query	1	975	use `test`; insert into t1 values (@s1), (@s2), (@s3), (@s4), (@s5)
-slave-bin.000001	975	User var	2	1001	@`n1`=NULL
-slave-bin.000001	1001	Query	1	1092	use `test`; insert into t1 values (@n1)
-slave-bin.000001	1092	User var	2	1118	@`n2`=NULL
-slave-bin.000001	1118	Query	1	1209	use `test`; insert into t1 values (@n2)
-slave-bin.000001	1209	Query	1	1326	use `test`; insert into t1 values (@a:=0), (@a:=@a+1), (@a:=@a+1)
-slave-bin.000001	1326	User var	2	1368	@`a`=2
-slave-bin.000001	1368	Query	1	1469	use `test`; insert into t1 values (@a+(@b:=@a+1))
-slave-bin.000001	1469	User var	2	1506	@`q`=_latin1 0x616263 COLLATE latin1_swedish_ci
-slave-bin.000001	1506	Query	1	1639	use `test`; insert t1 values (@q), (@q:=concat(@q, 'n1')), (@q:=concat(@q, 'n2'))
-slave-bin.000001	1639	User var	2	1681	@`a`=5
-slave-bin.000001	1681	Query	1	1776	use `test`; insert into t1 values (@a),(@a)
-slave-bin.000001	1776	User var	2	1801	@`a`=NULL
-slave-bin.000001	1801	Query	1	1903	use `test`; insert into t1 values (@a),(@a),(@a*5)
+slave-bin.000001	96	Query	1	187	use `test`; create table t1(n char(30))
+slave-bin.000001	187	User var	2	230	@`i1`=12345678901234
+slave-bin.000001	230	User var	2	273	@`i2`=-12345678901234
+slave-bin.000001	273	User var	2	316	@`i3`=0
+slave-bin.000001	316	User var	2	359	@`i4`=-1
+slave-bin.000001	359	Query	1	471	use `test`; insert into t1 values (@i1), (@i2), (@i3), (@i4)
+slave-bin.000001	471	User var	2	510	@`r1`=12.5
+slave-bin.000001	510	User var	2	549	@`r2`=-12.5
+slave-bin.000001	549	Query	1	647	use `test`; insert into t1 values (@r1), (@r2)
+slave-bin.000001	647	User var	2	696	@`s1`=_latin1 0x5468697320697320612074657374 COLLATE latin1_swedish_ci
+slave-bin.000001	696	User var	2	731	@`s2`=_latin1 "" COLLATE latin1_swedish_ci
+slave-bin.000001	731	User var	2	773	@`s3`=_latin1 0x61626327646566 COLLATE latin1_swedish_ci
+slave-bin.000001	773	User var	2	815	@`s4`=_latin1 0x6162635C646566 COLLATE latin1_swedish_ci
+slave-bin.000001	815	User var	2	857	@`s5`=_latin1 0x61626327646566 COLLATE latin1_swedish_ci
+slave-bin.000001	857	Query	1	976	use `test`; insert into t1 values (@s1), (@s2), (@s3), (@s4), (@s5)
+slave-bin.000001	976	User var	2	1002	@`n1`=NULL
+slave-bin.000001	1002	Query	1	1093	use `test`; insert into t1 values (@n1)
+slave-bin.000001	1093	User var	2	1119	@`n2`=NULL
+slave-bin.000001	1119	Query	1	1210	use `test`; insert into t1 values (@n2)
+slave-bin.000001	1210	Query	1	1327	use `test`; insert into t1 values (@a:=0), (@a:=@a+1), (@a:=@a+1)
+slave-bin.000001	1327	User var	2	1369	@`a`=2
+slave-bin.000001	1369	Query	1	1470	use `test`; insert into t1 values (@a+(@b:=@a+1))
+slave-bin.000001	1470	User var	2	1507	@`q`=_latin1 0x616263 COLLATE latin1_swedish_ci
+slave-bin.000001	1507	Query	1	1640	use `test`; insert t1 values (@q), (@q:=concat(@q, 'n1')), (@q:=concat(@q, 'n2'))
+slave-bin.000001	1640	User var	2	1682	@`a`=5
+slave-bin.000001	1682	Query	1	1777	use `test`; insert into t1 values (@a),(@a)
+slave-bin.000001	1777	User var	2	1802	@`a`=NULL
+slave-bin.000001	1802	Query	1	1904	use `test`; insert into t1 values (@a),(@a),(@a*5)
 drop table t1;
 stop slave;

@@ -78,7 +78,6 @@ public:
   virtual void update_field()=0;
   virtual bool keep_field_type(void) const { return 0; }
   virtual void fix_length_and_dec() { maybe_null=1; null_value=1; }
-  my_decimal *val_decimal(my_decimal *);
   virtual const char *func_name() const { return "?"; }
   virtual Item *result_item(Field *field)
     { return new Item_field(field);}
@@ -93,7 +92,6 @@ public:
   virtual bool setup(THD *thd) {return 0;}
   virtual void make_unique() {}
   Item *get_tmp_table_item(THD *thd);
-  virtual int scale() { return decimals; }
   virtual Field *create_tmp_field(bool group, TABLE *table,
                                   uint convert_blob_length);
 
@@ -129,6 +127,7 @@ public:
   Item_sum_int(THD *thd, Item_sum_int *item) :Item_sum_num(thd, item) {}
   double val_real() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
   String *val_str(String*str);
+  my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec()
   { decimals=0; max_length=21; maybe_null=null_value=0; }
@@ -176,6 +175,7 @@ class Item_sum_sum_distinct :public Item_sum_sum
   Unique *tree;
   byte *dec_bin_buff;
   my_decimal tmp_dec;
+  uint key_length;
 private:
   Item_sum_sum_distinct(THD *thd, Item_sum_sum_distinct *item);
 public:
@@ -451,7 +451,9 @@ public:
   Item_std_field(Item_sum_std *item);
   enum Type type() const { return FIELD_STD_ITEM; }
   double val_real();
+  my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type () const { return REAL_RESULT; }
+  enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE;}
 };
 
 /*
@@ -472,6 +474,7 @@ class Item_sum_std :public Item_sum_variance
   const char *func_name() const { return "std"; }
   Item *copy_or_same(THD* thd);
   enum Item_result result_type () const { return REAL_RESULT; }
+  enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE;}
 };
 
 // This class is a string or number function depending on num_func
@@ -650,6 +653,7 @@ class Item_sum_udf_float :public Item_udf_sum
   }
   double val_real();
   String *val_str(String*str);
+  my_decimal *val_decimal(my_decimal *);
   void fix_length_and_dec() { fix_num_length_and_dec(); }
   Item *copy_or_same(THD* thd);
 };
@@ -667,6 +671,7 @@ public:
   double val_real()
     { DBUG_ASSERT(fixed == 1); return (double) Item_sum_udf_int::val_int(); }
   String *val_str(String*str);
+  my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec() { decimals=0; max_length=21; }
   Item *copy_or_same(THD* thd);
@@ -697,10 +702,12 @@ public:
     return res ? my_strntoll(res->charset(),res->ptr(),res->length(),10,
                              (char**) 0, &err_not_used) : (longlong) 0;
   }
+  my_decimal *val_decimal(my_decimal *dec);
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec();
   Item *copy_or_same(THD* thd);
 };
+
 
 class Item_sum_udf_decimal :public Item_udf_sum
 {
@@ -863,6 +870,10 @@ class Item_func_group_concat : public Item_sum
       return (longlong) 0;
     end_ptr= (char*) res->ptr()+ res->length();
     return my_strtoll10(res->ptr(), &end_ptr, &error);
+  }
+  my_decimal *val_decimal(my_decimal *decimal_value)
+  {
+    return val_decimal_from_string(decimal_value);
   }
   String* val_str(String* str);
   Item *copy_or_same(THD* thd);

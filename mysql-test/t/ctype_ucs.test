@@ -338,7 +338,7 @@ create table t2 (c char(30)) charset=ucs2;
 set @v=convert('abc' using ucs2);
 reset master;
 insert into t2 values (@v);
-show binlog events from 95;
+show binlog events from 96;
 # more important than SHOW BINLOG EVENTS, mysqlbinlog (where we
 # absolutely need variables names to be quoted and strings to be
 # escaped).
@@ -392,3 +392,24 @@ SET collation_connection='ucs2_general_ci';
 SET NAMES latin1;
 SET collation_connection='ucs2_bin';
 -- source include/ctype_filesort.inc
+
+SET NAMES latin1;
+#
+# Bug#8235
+#
+# This bug also helped to find another problem that
+# INSERT of a UCS2 string containing a negative number
+# into a unsigned int column didn't produce warnings.
+# This test covers both problems.
+#
+SET collation_connection='ucs2_swedish_ci';
+CREATE TABLE t1 (Field1 int(10) default '0');
+# no warnings, negative numbers are allowed
+INSERT INTO t1 VALUES ('-1');
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (Field1 int(10) unsigned default '0');
+# this should generate a "Data truncated" warning
+INSERT INTO t1 VALUES ('-1');
+DROP TABLE t1;
+SET NAMES latin1;

@@ -47,19 +47,6 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
            fname);
 }
 
-uint nr_of_decimals(const char *str)
-{
-  if (strchr(str,'e') || strchr(str,'E'))
-    return NOT_FIXED_DEC;
-  if ((str=strchr(str,'.')))
-  {
-    const char *start= ++str;
-    for (; my_isdigit(system_charset_info,*str) ; str++) ;
-    return (uint) (str-start);
-  }
-  return 0;
-}
-
 
 double Item_str_func::val_real()
 {
@@ -1665,7 +1652,8 @@ String *Item_func_format::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   double nr= args[0]->val_real();
-  uint32 diff,length,str_length;
+  int diff;
+  uint32 length, str_length;
   uint dec;
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
@@ -1690,9 +1678,12 @@ String *Item_func_format::val_str(String *str)
       pos[0]= pos[-(int) diff];
     while (diff)
     {
-      pos[0]=pos[-(int) diff]; pos--;
-      pos[0]=pos[-(int) diff]; pos--;
-      pos[0]=pos[-(int) diff]; pos--;
+      *pos= *(pos - diff);
+      pos--;
+      *pos= *(pos - diff);
+      pos--;
+      *pos= *(pos - diff);
+      pos--;
       pos[0]=',';
       pos--;
       diff--;

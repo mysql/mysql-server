@@ -384,8 +384,8 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived,
   {
     TABLE *table, *next;
     /*
-      Close all derived tables generated from questions like
-      SELECT * from (select * from t1))
+      Close all derived tables generated in queries like
+      SELECT * FROM (SELECT * FROM t1)
     */
     for (table= thd->derived_tables ; table ; table= next)
     {
@@ -405,6 +405,18 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived,
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
+  /*
+    assume handlers auto-commit (if some doesn't - transaction handling
+    in MySQL should be redesigned to support it; it's a big change,
+    and it's not worth it - better to commit explicitly only writing
+    transactions, read-only ones should better take care of themselves.
+    saves some work in 2pc too)
+    see also sql_parse.cc - dispatch_command()
+  */
+  bzero(&thd->transaction.stmt, sizeof(thd->transaction.stmt));
+  if (!thd->active_transaction())
+    thd->transaction.xid.null();
+
   /* VOID(pthread_sigmask(SIG_SETMASK,&thd->block_signals,NULL)); */
   if (!lock_in_use)
     VOID(pthread_mutex_lock(&LOCK_open));
@@ -496,57 +508,57 @@ void close_temporary(TABLE *table,bool delete_table)
 void close_temporary_tables(THD *thd)
 {
   TABLE *table,*next;
-  char *query, *name_in_query, *end;
-  uint greatest_key_length= 0;
+  char *query, *end;
+  uint query_buf_size; 
+  bool found_user_tables = 0;
 
   if (!thd->temporary_tables)
     return;
   
-  /*
-    We write a DROP TEMPORARY TABLE for each temp table left, so that our
-    replication slave can clean them up. Not one multi-table DROP TABLE binlog
-    event: this would cause problems if slave uses --replicate-*-table.
-  */
   LINT_INIT(end);
+  query_buf_size= 50;   // Enough for DROP ... TABLE IF EXISTS
 
-  /* We'll re-use always same buffer so make it big enough for longest name */
   for (table=thd->temporary_tables ; table ; table=table->next)
-    greatest_key_length= max(greatest_key_length, table->s->key_length);
+    /*
+      We are going to add 4 ` around the db/table names, so 1 does not look
+      enough; indeed it is enough, because table->key_length is greater (by 8,
+      because of server_id and thread_id) than db||table.
+    */
+    query_buf_size+= table->s->key_length+1;
 
-  if ((query = alloc_root(thd->mem_root, greatest_key_length+50)))
+  if ((query = alloc_root(thd->mem_root, query_buf_size)))
     // Better add "if exists", in case a RESET MASTER has been done
-    name_in_query= strmov(query, "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `");
+    end=strmov(query, "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ");
 
   for (table=thd->temporary_tables ; table ; table=next)
   {
-    /*
-      In we are OOM for 'query' this is not fatal. We skip temporary tables
-      not created directly by the user.
-    */
-    if (query && mysql_bin_log.is_open() && (table->s->table_name[0] != '#'))
+    if (query) // we might be out of memory, but this is not fatal
     {
-      /*
-        Here we assume table_cache_key always starts
-        with \0 terminated db name
-      */
-      end = strxmov(name_in_query, table->s->db, "`.`",
-                    table->s->table_name, "`", NullS);
-      Query_log_event qinfo(thd, query, (ulong)(end-query), 0, FALSE);
-      /*
-        Imagine the thread had created a temp table, then was doing a SELECT, and
-        the SELECT was killed. Then it's not clever to mark the statement above as
-        "killed", because it's not really a statement updating data, and there
-        are 99.99% chances it will succeed on slave. And, if thread is
-        killed now, it's not clever either.
-        If a real update (one updating a persistent table) was killed on the
-        master, then this real update will be logged with error_code=killed,
-        rightfully causing the slave to stop.
-      */
-      qinfo.error_code= 0;
-      mysql_bin_log.write(&qinfo);
+      // skip temporary tables not created directly by the user
+      if (table->s->table_name[0] != '#')
+	found_user_tables = 1;
+      end = strxmov(end,"`",table->s->db,"`.`",
+                    table->s->table_name,"`,", NullS);
     }
     next=table->next;
     close_temporary(table);
+  }
+  if (query && found_user_tables && mysql_bin_log.is_open())
+  {
+    /* The -1 is to remove last ',' */
+    thd->clear_error();
+    Query_log_event qinfo(thd, query, (ulong)(end-query)-1, 0, FALSE);
+    /*
+      Imagine the thread had created a temp table, then was doing a SELECT, and
+      the SELECT was killed. Then it's not clever to mark the statement above as
+      "killed", because it's not really a statement updating data, and there
+      are 99.99% chances it will succeed on slave.
+      If a real update (one updating a persistent table) was killed on the
+      master, then this real update will be logged with error_code=killed,
+      rightfully causing the slave to stop.
+    */
+    qinfo.error_code= 0;
+    mysql_bin_log.write(&qinfo);
   }
   thd->temporary_tables=0;
 }
@@ -1824,7 +1836,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
     -1 - error
 
   NOTE
-    The lock will automaticly be freed by close_thread_tables()
+    The lock will automaticaly be freed by close_thread_tables()
 */
 
 int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
@@ -1851,7 +1863,7 @@ int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
     TRUE  - error
 
   NOTE
-    The lock will automaticly be freed by close_thread_tables()
+    The lock will automaticaly be freed by close_thread_tables()
 */
 
 bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
@@ -3400,8 +3412,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
               thd->restore_backup_item_arena(arena, &backup);
             if (*conds && !(*conds)->fixed)
             {
-              if (!(*conds)->fixed &&
-                  (*conds)->fix_fields(thd, tables, conds))
+              if ((*conds)->fix_fields(thd, tables, conds))
                 goto err_no_arena;
             }
           }
@@ -3413,8 +3424,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
               thd->restore_backup_item_arena(arena, &backup);
             if (embedded->on_expr && !embedded->on_expr->fixed)
             {
-              if (!embedded->on_expr->fixed &&
-                  embedded->on_expr->fix_fields(thd, tables, &embedded->on_expr))
+              if (embedded->on_expr->fix_fields(thd, tables,
+                                                &embedded->on_expr))
                 goto err_no_arena;
             }
           }
@@ -3586,8 +3597,18 @@ static void mysql_rm_tmp_tables(void)
 ** and afterwards delete those marked unused.
 */
 
-void remove_db_from_cache(const my_string db)
+void remove_db_from_cache(const char *db)
 {
+  char name_buff[NAME_LEN+1];
+  if (db && lower_case_table_names)
+  {
+    /*
+      convert database to lower case for comparision.
+    */
+    strmake(name_buff, db, sizeof(name_buff)-1);
+    my_casedn_str(files_charset_info, name_buff);
+    db= name_buff;
+  }
   for (uint idx=0 ; idx < open_cache.records ; idx++)
   {
     TABLE *table=(TABLE*) hash_element(&open_cache,idx);

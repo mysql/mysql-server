@@ -141,7 +141,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->view_prepare_mode= FALSE;
   lex->derived_tables= 0;
   lex->lock_option= TL_READ;
-  lex->found_colon= 0;
+  lex->found_semicolon= 0;
   lex->safe_to_cache_query= 1;
   lex->time_zone_tables_used= 0;
   lex->leaf_tables_insert= lex->proc_table= lex->query_tables= 0;
@@ -296,7 +296,18 @@ static char *get_text(LEX *lex)
       found_escape=1;
       if (lex->ptr == lex->end_of_query)
 	return 0;
-      yySkip();
+#ifdef USE_MB
+      int l;
+      if (use_mb(cs) &&
+          (l = my_ismbchar(cs,
+                           (const char *)lex->ptr,
+                           (const char *)lex->end_of_query))) {
+          lex->ptr += l;
+          continue;
+      }
+      else
+#endif
+        yySkip();
     }
     else if (c == sep)
     {
@@ -324,6 +335,10 @@ static char *get_text(LEX *lex)
       else
       {
 	uchar *to;
+
+        /* Re-use found_escape for tracking state of escapes */
+        found_escape= 0;
+
 	for (to=start ; str != end ; str++)
 	{
 #ifdef USE_MB
@@ -337,7 +352,8 @@ static char *get_text(LEX *lex)
 	      continue;
 	  }
 #endif
-	  if (!(lex->thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) &&
+	  if (!found_escape &&
+              !(lex->thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) &&
               *str == '\\' && str+1 != end)
 	  {
 	    switch(*++str) {
@@ -364,15 +380,20 @@ static char *get_text(LEX *lex)
 	      *to++= '\\';		// remember prefix for wildcard
 	      /* Fall through */
 	    default:
-	      *to++ = *str;
+              found_escape= 1;
+              str--;
 	      break;
 	    }
 	  }
-	  else if (*str == sep)
-	    *to++= *str++;		// Two ' or "
+	  else if (!found_escape && *str == sep)
+          {
+            found_escape= 1;
+          }
 	  else
+          {
 	    *to++ = *str;
-
+            found_escape= 0;
+          }
 	}
 	*to=0;
 	lex->yytoklen=(uint) (to-start);
@@ -949,7 +970,7 @@ int yylex(void *arg, void *yythd)
             (thd->command != COM_PREPARE))
         {
 	  lex->safe_to_cache_query= 0;
-          lex->found_colon=    (char*) lex->ptr;
+          lex->found_semicolon=(char*) lex->ptr;
           thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
           lex->next_state=     MY_LEX_END;
           return (END_OF_INPUT);
@@ -1733,6 +1754,12 @@ bool st_lex::can_not_use_merged()
   {
   case SQLCOM_CREATE_VIEW:
   case SQLCOM_SHOW_CREATE:
+  /*
+    SQLCOM_SHOW_FIELDS is necessary to make 
+    information schema tables working correctly with views.
+    see get_schema_tables_result function
+  */
+  case SQLCOM_SHOW_FIELDS:
     return TRUE;
   default:
     return FALSE;

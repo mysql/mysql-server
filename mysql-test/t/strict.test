@@ -13,6 +13,9 @@ DROP TABLE IF EXISTS t1;
 
 CREATE TABLE t1 (col1 date);
 INSERT INTO t1 VALUES('2004-01-01'),('0000-10-31'),('2004-02-29');
+
+# All test cases expected to fail should return 
+#      SQLSTATE 22007 <invalid date value>
 --error 1292
 INSERT INTO t1 VALUES('2004-0-31');
 --error 1292
@@ -94,6 +97,9 @@ set @@sql_mode='ansi,traditional';
 
 CREATE TABLE t1 (col1 datetime);
 INSERT INTO t1 VALUES('2004-10-31 15:30:00'),('0000-10-31 15:30:00'),('2004-02-29 15:30:00');
+
+# All test cases expected to fail should return 
+#      SQLSTATE 22007 <invalid datetime value>
 --error 1292
 INSERT INTO t1 VALUES('2004-0-31 15:30:00');
 --error 1292
@@ -102,6 +108,8 @@ INSERT INTO t1 VALUES('2004-10-0 15:30:00');
 INSERT INTO t1 VALUES('2004-09-31 15:30:00');
 --error 1292
 INSERT INTO t1 VALUES('2004-10-32 15:30:00');
+--error 1292
+INSERT INTO t1 VALUES('2003-02-29 15:30:00');
 --error 1292
 INSERT INTO t1 VALUES('2004-13-15 15:30:00');
 --error 1292
@@ -116,6 +124,9 @@ drop table t1;
 
 CREATE TABLE t1 (col1 timestamp);
 INSERT INTO t1 VALUES('2004-10-31 15:30:00'),('2004-02-29 15:30:00');
+
+# All test cases expected to fail should return 
+#      SQLSTATE 22007 <invalid datetime value>
 # Standard says we should return ok, but we can't as this is out of range
 --error 1292
 INSERT INTO t1 VALUES('0000-10-31 15:30:00');
@@ -127,6 +138,8 @@ INSERT INTO t1 VALUES('2004-10-0 15:30:00');
 INSERT INTO t1 VALUES('2004-09-31 15:30:00');
 --error 1292
 INSERT INTO t1 VALUES('2004-10-32 15:30:00');
+--error 1292
+INSERT INTO t1 VALUES('2003-02-29 15:30:00');
 --error 1292
 INSERT INTO t1 VALUES('2004-13-15 15:30:00');
 --error 1292
@@ -162,6 +175,290 @@ INSERT INTO t1 VALUES('0000-00-00 00:00:00');
 set @@sql_mode='ansi,traditional';
 SELECT * FROM t1;
 DROP TABLE t1;
+
+
+#### Test INSERT with STR_TO_DATE into DATE/DATETIME/TIMESTAMP
+
+CREATE TABLE t1 (col1 date, col2 datetime, col3 timestamp);
+
+INSERT INTO t1 (col1) VALUES (STR_TO_DATE('15.10.2004','%d.%m.%Y'));
+INSERT INTO t1 (col2) VALUES (STR_TO_DATE('15.10.2004 10.15','%d.%m.%Y %H.%i'));
+INSERT INTO t1 (col3) VALUES (STR_TO_DATE('15.10.2004 10.15','%d.%m.%Y %H.%i'));
+
+## Test INSERT with STR_TO_DATE into DATE
+#       All test cases expected to fail should return 
+#       SQLSTATE 22007 <invalid date value>
+
+INSERT INTO t1 (col1) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
+
+--error 1292
+INSERT INTO t1 (col1) VALUES(STR_TO_DATE('31.0.2004 15.30','%d.%m.%Y %H.%i'));
+--error 1292
+INSERT INTO t1 (col1) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
+--error 1292
+INSERT INTO t1 (col1) VALUES(STR_TO_DATE('31.9.2004 15.30','%d.%m.%Y %H.%i'));
+
+# deactivated because of Bug#5902
+# Bug#5902: Traditional mode: STR_TO_DATE changes invalid value rather than rejecting
+#--error 1292
+#INSERT INTO t1 (col1) VALUES(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
+
+--error 1292
+INSERT INTO t1 (col1) VALUES(STR_TO_DATE('29.02.2003 15.30','%d.%m.%Y %H.%i'));
+
+# deactivated because of Bug#5902
+# Bug#5902: Traditional mode: STR_TO_DATE changes invalid value rather than rejecting
+#--error 1292
+#INSERT INTO t1 (col1) VALUES(STR_TO_DATE('15.13.2004 15.30','%d.%m.%Y %H.%i'));
+
+--error 1292
+INSERT INTO t1 (col1) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
+
+## Test INSERT with STR_TO_DATE into DATETIME
+#       All test cases expected to fail should return 
+#       SQLSTATE 22007 <invalid datetime value>
+
+INSERT INTO t1 (col2) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
+
+--error 1292
+INSERT INTO t1 (col2) VALUES(STR_TO_DATE('31.0.2004 15.30','%d.%m.%Y %H.%i'));
+--error 1292
+INSERT INTO t1 (col2) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
+--error 1292
+INSERT INTO t1 (col2) VALUES(STR_TO_DATE('31.9.2004 15.30','%d.%m.%Y %H.%i'));
+
+# deactivated because of Bug#5902
+# Bug#5902: Traditional mode: STR_TO_DATE changes invalid value rather than rejecting
+#--error 1292
+#INSERT INTO t1 (col2) VALUES(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
+
+--error 1292
+INSERT INTO t1 (col2) VALUES(STR_TO_DATE('29.02.2003 15.30','%d.%m.%Y %H.%i'));
+
+# deactivated because of Bug#5902
+# Bug#5902: Traditional mode: STR_TO_DATE changes invalid value rather than rejecting
+#--error 1292
+#INSERT INTO t1 (col2) VALUES(STR_TO_DATE('15.13.2004 15.30','%d.%m.%Y %H.%i'));
+#--error 1292
+#INSERT INTO t1 (col2) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
+
+## Test INSERT with STR_TO_DATE into TIMESTAMP
+#       All test cases expected to fail should return 
+#       SQLSTATE 22007 <invalid datetime value>
+
+--error 1292
+INSERT INTO t1 (col3) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
+--error 1292
+INSERT INTO t1 (col3) VALUES(STR_TO_DATE('31.0.2004 15.30','%d.%m.%Y %H.%i'));
+--error 1292
+INSERT INTO t1 (col3) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
+--error 1292
+INSERT INTO t1 (col3) VALUES(STR_TO_DATE('31.9.2004 15.30','%d.%m.%Y %H.%i'));
+
+# deactivated because of Bug#5902
+# Bug#5902: Traditional mode: STR_TO_DATE changes invalid value rather than rejecting
+#--error 1292
+#INSERT INTO t1 (col3) VALUES(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
+
+--error 1292
+INSERT INTO t1 (col3) VALUES(STR_TO_DATE('29.02.2003 15.30','%d.%m.%Y %H.%i'));
+
+# deactivated because of Bug#5902
+# Bug#5902: Traditional mode: STR_TO_DATE changes invalid value rather than rejecting
+#--error 1292
+#INSERT INTO t1 (col3) VALUES(STR_TO_DATE('15.13.2004 15.30','%d.%m.%Y %H.%i'));
+
+--error 1292
+INSERT INTO t1 (col3) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
+
+drop table t1;
+
+
+#### Test INSERT with CAST AS DATE/DATETIME into DATE/DATETIME/TIMESTAMP
+
+CREATE TABLE t1 (col1 date, col2 datetime, col3 timestamp);
+
+INSERT INTO t1 (col1) VALUES (CAST('2004-10-15' AS DATE));
+INSERT INTO t1 (col2) VALUES (CAST('2004-10-15 10:15' AS DATETIME));
+INSERT INTO t1 (col3) VALUES (CAST('2004-10-15 10:15' AS DATETIME));
+
+
+## Test INSERT with CAST AS DATE into DATE
+#       All test cases expected to fail should return 
+#       SQLSTATE 22007 <invalid date value>
+INSERT INTO t1 (col1) VALUES(CAST('0000-10-31' AS DATE));
+
+--error 1292
+INSERT INTO t1 (col1) VALUES(CAST('2004-10-0' AS DATE));
+--error 1292
+INSERT INTO t1 (col1) VALUES(CAST('2004-0-10' AS DATE));
+
+# deactivated because of Bug#8294
+# Bug#8294 Traditional: Misleading error message for invalid CAST to DATE
+# --error 1292
+# INSERT INTO t1 (col1) VALUES(CAST('2004-9-31' AS DATE));
+# --error 1292
+# INSERT INTO t1 (col1) VALUES(CAST('2004-10-32' AS DATE));
+# --error 1292
+# INSERT INTO t1 (col1) VALUES(CAST('2003-02-29' AS DATE));
+# --error 1292
+# INSERT INTO t1 (col1) VALUES(CAST('2004-13-15' AS DATE));
+
+# deactivated because of Bug#6145
+#  Bug#6145: Traditional: CONVERT and CAST should reject zero DATE values
+#--error 1292
+#INSERT INTO t1 (col1) VALUES(CAST('0000-00-00' AS DATE));
+
+## Test INSERT with CAST AS DATETIME into DATETIME
+#       All test cases expected to fail should return 
+#       SQLSTATE 22007 <invalid datetime value>
+INSERT INTO t1 (col2) VALUES(CAST('0000-10-31 15:30' AS DATETIME));
+
+--error 1292
+INSERT INTO t1 (col2) VALUES(CAST('2004-10-0 15:30' AS DATETIME));
+--error 1292
+INSERT INTO t1 (col2) VALUES(CAST('2004-0-10 15:30' AS DATETIME));
+
+# deactivated because of Bug#8294
+# Bug#8294 Traditional: Misleading error message for invalid CAST to DATE
+#--error 1292
+#INSERT INTO t1 (col2) VALUES(CAST('2004-9-31 15:30' AS DATETIME));
+#--error 1292
+#INSERT INTO t1 (col2) VALUES(CAST('2004-10-32 15:30' AS DATETIME));
+#--error 1292
+#INSERT INTO t1 (col2) VALUES(CAST('2003-02-29 15:30' AS DATETIME));
+#--error 1292
+#INSERT INTO t1 (col2) VALUES(CAST('2004-13-15 15:30' AS DATETIME));
+
+# deactivated because of Bug#6145
+# Bug#6145: Traditional: CONVERT and CAST should reject zero DATE values
+#--error 1292
+#INSERT INTO t1 (col2) VALUES(CAST('0000-00-00' AS DATETIME));
+
+## Test INSERT with CAST AS DATETIME into TIMESTAMP
+#       All test cases expected to fail should return 
+#       SQLSTATE 22007 <invalid datetime value>
+!$1292
+INSERT INTO t1 (col3) VALUES(CAST('0000-10-31 15:30' AS DATETIME));
+-- should return OK
+-- We accept this to be a failure
+
+--error 1292
+INSERT INTO t1 (col3) VALUES(CAST('2004-10-0 15:30' AS DATETIME));
+--error 1292
+INSERT INTO t1 (col3) VALUES(CAST('2004-0-10 15:30' AS DATETIME));
+-- should return SQLSTATE 22007 <invalid datetime value>
+
+# deactivated because of Bug#8294
+# Bug#8294 Traditional: Misleading error message for invalid CAST to DATE
+#--error 1292
+#INSERT INTO t1 (col3) VALUES(CAST('2004-9-31 15:30' AS DATETIME));
+#--error 1292
+#INSERT INTO t1 (col3) VALUES(CAST('2004-10-32 15:30' AS DATETIME));
+#--error 1292
+#INSERT INTO t1 (col3) VALUES(CAST('2003-02-29 15:30' AS DATETIME));
+#--error 1292
+#INSERT INTO t1 (col3) VALUES(CAST('2004-13-15 15:30' AS DATETIME));
+
+# deactivated because of Bug#6145
+# Bug#6145: Traditional: CONVERT and CAST should reject zero DATE values
+#--error 1292
+#INSERT INTO t1 (col3) VALUES(CAST('0000-00-00' AS DATETIME));
+
+drop table t1;
+
+
+#### Test INSERT with CONVERT to DATE/DATETIME into DATE/DATETIME/TIMESTAMP
+
+CREATE TABLE t1 (col1 date, col2 datetime, col3 timestamp);
+
+INSERT INTO t1 (col1) VALUES (CONVERT('2004-10-15',DATE));
+INSERT INTO t1 (col2) VALUES (CONVERT('2004-10-15 10:15',DATETIME));
+INSERT INTO t1 (col3) VALUES (CONVERT('2004-10-15 10:15',DATETIME));
+
+
+## Test INSERT with CONVERT to DATE into DATE
+#       All test cases expected to fail should return 
+#       SQLSTATE 22007 <invalid date value>
+INSERT INTO t1 (col1) VALUES(CONVERT('0000-10-31' , DATE));
+
+--error 1292
+INSERT INTO t1 (col1) VALUES(CONVERT('2004-10-0' , DATE));
+--error 1292
+INSERT INTO t1 (col1) VALUES(CONVERT('2004-0-10' , DATE));
+
+# deactivated because of Bug#8294
+# Bug#8294 Traditional: Misleading error message for invalid CAST to DATE
+#--error 1292
+#INSERT INTO t1 (col1) VALUES(CONVERT('2004-9-31' , DATE));
+#--error 1292
+#INSERT INTO t1 (col1) VALUES(CONVERT('2004-10-32' , DATE));
+#--error 1292
+#INSERT INTO t1 (col1) VALUES(CONVERT('2003-02-29' , DATE));
+#--error 1292
+#INSERT INTO t1 (col1) VALUES(CONVERT('2004-13-15',DATE));
+
+# deactivated because of Bug#6145
+# Bug#6145: Traditional: CONVERT and CAST should reject zero DATE values
+#--error 1292
+#INSERT INTO t1 (col1) VALUES(CONVERT('0000-00-00',DATE));
+
+## Test INSERT with CONVERT to DATETIME into DATETIME
+#       All test cases expected to fail should return 
+#       SQLSTATE 22007 <invalid datetime value>
+INSERT INTO t1 (col2) VALUES(CONVERT('0000-10-31 15:30',DATETIME));
+
+--error 1292
+INSERT INTO t1 (col2) VALUES(CONVERT('2004-10-0 15:30',DATETIME));
+--error 1292
+INSERT INTO t1 (col2) VALUES(CONVERT('2004-0-10 15:30',DATETIME));
+
+# deactivated because of Bug#8294
+# Bug#8294 Traditional: Misleading error message for invalid CAST to DATE
+#--error 1292
+#INSERT INTO t1 (col2) VALUES(CONVERT('2004-9-31 15:30',DATETIME));
+#--error 1292
+#INSERT INTO t1 (col2) VALUES(CONVERT('2004-10-32 15:30',DATETIME));
+#--error 1292
+#INSERT INTO t1 (col2) VALUES(CONVERT('2003-02-29 15:30',DATETIME));
+#--error 1292
+#INSERT INTO t1 (col2) VALUES(CONVERT('2004-13-15 15:30',DATETIME));
+
+# Bug#6145: Traditional: CONVERT and CAST should reject zero DATE values
+#--error 1292
+#INSERT INTO t1 (col2) VALUES(CONVERT('0000-00-00',DATETIME));
+
+## Test INSERT with CONVERT to DATETIME into DATETIME
+#       All test cases expected to fail should return 
+#       SQLSTATE 22007 <invalid datetime value>
+!$1292
+INSERT INTO t1 (col3) VALUES(CONVERT('0000-10-31 15:30',DATETIME));
+-- should return OK
+-- We accept this to be a failure
+
+--error 1292
+INSERT INTO t1 (col3) VALUES(CONVERT('2004-10-0 15:30',DATETIME));
+--error 1292
+INSERT INTO t1 (col3) VALUES(CONVERT('2004-0-10 15:30',DATETIME));
+
+# deactivated because of Bug#8294
+# Bug#8294 Traditional: Misleading error message for invalid CAST to DATE
+#--error 1292
+#INSERT INTO t1 (col3) VALUES(CONVERT('2004-9-31 15:30',DATETIME));
+#--error 1292
+#INSERT INTO t1 (col3) VALUES(CONVERT('2004-10-32 15:30',DATETIME));
+#--error 1292
+#INSERT INTO t1 (col3) VALUES(CONVERT('2003-02-29 15:30',DATETIME));
+#--error 1292
+#INSERT INTO t1 (col3) VALUES(CONVERT('2004-13-15 15:30',DATETIME));
+
+# deactivated because of Bug#6145
+# Bug#6145: Traditional: CONVERT and CAST should reject zero DATE values
+#--error 1292
+#INSERT INTO t1 (col3) VALUES(CONVERT('0000-00-00',DATETIME));
+
+drop table t1;
+
 
 # Test INSERT with TINYINT
 
@@ -569,12 +866,12 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (col1 CHAR(5), col2 VARCHAR(6));
 INSERT INTO t1 VALUES ('hello', 'hello'),('he', 'he'),('hello   ', 'hello ');
---error 1400
+--error 1406
 INSERT INTO t1 (col1) VALUES ('hellobob');
 --error 1265
 INSERT INTO t1 (col2) VALUES ('hellobob');
 INSERT INTO t1 (col2) VALUES ('hello  ');
---error 1400
+--error 1406
 UPDATE t1 SET col1 ='hellobob' WHERE col1 ='he';
 --error 1265
 UPDATE t1 SET col2 ='hellobob' WHERE col2 ='he';

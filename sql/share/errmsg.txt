@@ -5306,6 +5306,18 @@ ER_CANNOT_USER
 	eng "Operation %s failed for %.256s"
 	ger "Das Kommando %s scheiterte für %.256s"
 	norwegian-ny "Operation %s failed for '%.256s'"
+ER_XAER_NOTA XAE04
+        eng "XAER_NOTA: Unknown XID"
+ER_XAER_INVAL XAE05
+        eng "XAER_INVAL: Invalid arguments (or unsupported command)"
+ER_XAER_RMFAIL XAE07
+        eng "XAER_RMFAIL: The command cannot be executed in the %.64s state"
+ER_XAER_OUTSIDE XAE09
+        eng "XAER_OUTSIDE: Some work is done outside global transaction"
+ER_XAER_RMERR XAE03
+        eng "XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency"
+ER_XA_RBROLLBACK XA100
+        eng "XA_RBROLLBACK: Transaction branch was rolled back"
 ER_NONEXISTING_PROC_GRANT 42000 
 	eng "There is no such grant defined for user '%-.32s' on host '%-.64s' on routine '%-.64s'"
 ER_PROC_AUTO_GRANT_FAIL
