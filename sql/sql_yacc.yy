@@ -669,7 +669,10 @@ change:
 	  LEX *lex = Lex;
 	  lex->sql_command = SQLCOM_CHANGE_MASTER;
 	  bzero((char*) &lex->mi, sizeof(lex->mi));
-        } master_defs;
+        }
+       master_defs
+	{}
+       ;
 
 master_defs:
        master_def
@@ -742,7 +745,7 @@ create:
 	  lex->create_info.db_type= (enum db_type) lex->thd->variables.table_type;
 	}
 	create2
-
+	  {}
 	| CREATE opt_unique_or_fulltext INDEX ident ON table_ident
 	  {
 	    LEX *lex=Lex;
@@ -1181,7 +1184,9 @@ alter:
           lex->alter_keys_onoff=LEAVE_AS_IS;
           lex->simple_alter=1;
 	}
-	alter_list;
+	alter_list
+	{}
+	;
  
 alter_list:
         | alter_list_item
@@ -1352,7 +1357,9 @@ repair:
 	   lex->sql_command = SQLCOM_REPAIR;
 	   lex->check_opt.init();
 	}
-	table_list opt_mi_repair_type;
+	table_list opt_mi_repair_type
+	{}
+	;
 
 opt_mi_repair_type:
 	/* empty */ { Lex->check_opt.flags = T_MEDIUM; }
@@ -1374,7 +1381,9 @@ analyze:
 	   lex->sql_command = SQLCOM_ANALYZE;
 	   lex->check_opt.init();
 	}
-	table_list opt_mi_check_type;
+	table_list opt_mi_check_type
+	{}
+	;
 
 check:
 	CHECK_SYM table_or_tables
@@ -1383,7 +1392,9 @@ check:
 	   lex->sql_command = SQLCOM_CHECK;
 	   lex->check_opt.init();
 	}
-	table_list opt_mi_check_type;
+	table_list opt_mi_check_type
+	{}
+	;
 
 opt_mi_check_type:
 	/* empty */ { Lex->check_opt.flags = T_MEDIUM; }
@@ -1407,14 +1418,18 @@ optimize:
 	   lex->sql_command = SQLCOM_OPTIMIZE;
 	   lex->check_opt.init();
 	}
-	table_list opt_mi_check_type;
+	table_list opt_mi_check_type
+	{}
+	;
 
 rename:
 	RENAME table_or_tables
 	{
 	   Lex->sql_command=SQLCOM_RENAME_TABLE;
 	}
-	table_to_table_list;
+	table_to_table_list
+	{}
+	;
 
 table_to_table_list:
 	table_to_table
@@ -2297,6 +2312,7 @@ limit_clause:
 	    }
 	  }
 	  limit_options
+	  {}
 	  ;
 
 limit_options:
@@ -2398,7 +2414,10 @@ do:	DO_SYM
 	  if (!(lex->insert_list = new List_item))
 	    YYABORT;
 	}
-	values;
+	values
+	{}
+	;
+
 /*
   Drop : delete tables or index
 */
@@ -2464,6 +2483,7 @@ insert:
 	  set_lock_for_tables($3);
 	}
 	insert_field_spec
+	{}
 	;
 
 replace:
@@ -2478,6 +2498,7 @@ replace:
 	  set_lock_for_tables($3);
 	}
 	insert_field_spec
+	{}
 	;
 
 insert_lock_option:
@@ -2655,13 +2676,15 @@ single_multi:
 	    YYABORT;
 	}
 	where_clause opt_order_clause
-	delete_limit_clause
+	delete_limit_clause {}
 	| table_wild_list
 	  { mysql_init_multi_delete(Lex); }
           FROM join_table_list where_clause
 	| FROM table_wild_list
 	  { mysql_init_multi_delete(Lex); }
-	  USING join_table_list where_clause;
+	  USING join_table_list where_clause
+	  {}
+	;
 
 table_wild_list:
 	  table_wild_one {}
@@ -2713,7 +2736,9 @@ opt_table_sym:
  
 /* Show things */
 
-show:	SHOW { Lex->wild=0;} show_param;
+show:	SHOW { Lex->wild=0;} show_param
+	{}
+	;
 
 show_param:
 	DATABASES wild
@@ -2851,7 +2876,7 @@ describe:
 	  if (!add_table_to_list($2, NULL,0))
 	    YYABORT;
 	}
-	opt_describe_column
+	opt_describe_column {}
 	| describe_command select
           { Lex->select_lex.options|= SELECT_DESCRIBE; };
 
@@ -2875,14 +2900,16 @@ flush:
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_FLUSH; lex->type=0;
 	}
-	flush_options;
+	flush_options
+	{}
+	;
 
 flush_options:
 	flush_options ',' flush_option
 	| flush_option;
 
 flush_option:
-	table_or_tables	{ Lex->type|= REFRESH_TABLES; } opt_table_list
+	table_or_tables	{ Lex->type|= REFRESH_TABLES; } opt_table_list {}
 	| TABLES WITH READ_SYM LOCK_SYM { Lex->type|= REFRESH_TABLES | REFRESH_READ_LOCK; }
 	| QUERY_SYM CACHE_SYM { Lex->type|= REFRESH_QUERY_CACHE_FREE; }
 	| HOSTS_SYM	{ Lex->type|= REFRESH_HOSTS; }
@@ -2903,7 +2930,10 @@ reset:
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_RESET; lex->type=0;
-	} reset_options;
+	} reset_options
+	{}
+	;
+
 reset_options:
 	reset_options ',' reset_option
 	| reset_option;
@@ -3309,7 +3339,9 @@ set:
 	  lex->option_type=OPT_DEFAULT;
 	  lex->var_list.empty();
 	}
-	option_value_list;
+	option_value_list
+	{}
+	;
 
 opt_option:
 	/* empty */ {}
@@ -3432,7 +3464,9 @@ lock:
 	{
 	  Lex->sql_command=SQLCOM_LOCK_TABLES;
 	}
-	table_lock_list;
+	table_lock_list
+	{}
+	;
 
 table_or_tables:
 	TABLE_SYM
@@ -3529,7 +3563,9 @@ revoke:
 	  lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
 	  bzero((char*) &lex->mqh, sizeof(lex->mqh));
 	}
-	grant_privileges ON opt_table FROM user_list;
+	grant_privileges ON opt_table FROM user_list
+	{}
+	;
 
 grant:
 	GRANT
@@ -3545,7 +3581,9 @@ grant:
 	  bzero(&(lex->mqh),sizeof(lex->mqh));
 	}
 	grant_privileges ON opt_table TO_SYM user_list
-	require_clause grant_options;
+	require_clause grant_options
+	{}
+	;
 
 grant_privileges:
 	grant_privilege_list {}
@@ -3557,10 +3595,10 @@ grant_privilege_list:
 	| grant_privilege_list ',' grant_privilege;
 
 grant_privilege:
-	SELECT_SYM 	{ Lex->which_columns = SELECT_ACL;} opt_column_list
-	| INSERT	{ Lex->which_columns = INSERT_ACL;} opt_column_list
-	| UPDATE_SYM	{ Lex->which_columns = UPDATE_ACL; } opt_column_list
-	| REFERENCES	{ Lex->which_columns = REFERENCES_ACL;} opt_column_list
+	SELECT_SYM 	{ Lex->which_columns = SELECT_ACL;} opt_column_list {}
+	| INSERT	{ Lex->which_columns = INSERT_ACL;} opt_column_list {}
+	| UPDATE_SYM	{ Lex->which_columns = UPDATE_ACL; } opt_column_list {}
+	| REFERENCES	{ Lex->which_columns = REFERENCES_ACL;} opt_column_list {}
 	| DELETE_SYM	{ Lex->grant |= DELETE_ACL;}
 	| USAGE		{}
 	| INDEX		{ Lex->grant |= INDEX_ACL;}
@@ -3781,7 +3819,8 @@ grant_option:
 	};
 
 begin:
-	BEGIN_SYM   { Lex->sql_command = SQLCOM_BEGIN;} opt_work;
+	BEGIN_SYM   { Lex->sql_command = SQLCOM_BEGIN;} opt_work {}
+	;
 
 opt_work:
 	/* empty */ {}
@@ -3822,7 +3861,7 @@ union_list:
 	    YYABORT;
 	  lex->select->linkage=UNION_TYPE;
 	} 
-	select_init
+	select_init {}
 	;
 
 union_opt:
