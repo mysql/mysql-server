@@ -32,10 +32,12 @@ static void init_variables(const struct my_option *options);
 static int setval (const struct my_option *opts, char *argument,
 		   my_bool set_maximum_value);
 
-#define DISABLE_OPTION_COUNT      2
+#define DISABLE_OPTION_COUNT      2 /* currently 'skip' and 'disable' below */
 
+/* 'disable'-option prefixes must be in the beginning, DISABLE_OPTION_COUNT
+   is the number of disabling prefixes */
 static const char *special_opt_prefix[]=
-{"skip", "disable", "enable", "maximum", 0};
+{"skip", "disable", "enable", "maximum", "loose", 0};
 
 char *disabled_my_option= (char*) "0";
 
@@ -69,7 +71,8 @@ int handle_options(int *argc, char ***argv,
 					     char *))
 {
   uint opt_found, argvpos= 0, length, spec_len, i;
-  my_bool end_of_options= 0, must_be_var, set_maximum_value, special_used;
+  my_bool end_of_options= 0, must_be_var, set_maximum_value, special_used,
+          option_is_loose;
   char *progname= *(*argv), **pos, *optend, *prev_found;
   const struct my_option *optp;
   int error;
@@ -88,6 +91,7 @@ int handle_options(int *argc, char ***argv,
       must_be_var=       0;
       set_maximum_value= 0;
       special_used=      0;
+      option_is_loose=   0;
 
       cur_arg++;		/* skip '-' */
       if (*cur_arg == 'O')
@@ -177,7 +181,7 @@ int handle_options(int *argc, char ***argv,
 	  if (!must_be_var)
 	  {
 	    if (optend)
-	      must_be_var= 1;
+	      must_be_var= 1; /* option is followed by an argument */
 	    for (i= 0; special_opt_prefix[i]; i++)
 	    {
 	      spec_len= strlen(special_opt_prefix[i]);
@@ -189,6 +193,8 @@ int handle_options(int *argc, char ***argv,
 		*/
 		special_used= 1;
 		cur_arg+= (spec_len + 1);
+		if (!compare_strings(special_opt_prefix[i], "loose", 5))
+		  option_is_loose= 1;
 		if ((opt_found= findopt(cur_arg, length - (spec_len + 1),
 					&optp, &prev_found)))
 		{
@@ -219,14 +225,23 @@ int handle_options(int *argc, char ***argv,
 	    if (must_be_var)
 	    {
 	      fprintf(stderr,
-		      "%s: unknown variable '%s'\n", progname, cur_arg);
-	      return ERR_UNKNOWN_VARIABLE;
+		      "%s: %s: unknown variable '%s'\n", progname,
+		      option_is_loose ? "WARNING" : "ERROR", cur_arg);
+	      if (!option_is_loose)
+		return ERR_UNKNOWN_VARIABLE;
 	    }
 	    else
 	    {
 	      fprintf(stderr,
-		      "%s: unknown option '--%s'\n", progname, cur_arg);
-	      return ERR_UNKNOWN_OPTION;
+		      "%s: %s: unknown option '--%s'\n", progname,
+		      option_is_loose ? "WARNING" : "ERROR", cur_arg);
+	      if (!option_is_loose)
+		return ERR_UNKNOWN_OPTION;
+	    }
+	    if (option_is_loose)
+	    {
+	      (*argc)--;
+	      continue;
 	    }
 	  }
 	}
@@ -245,11 +260,11 @@ int handle_options(int *argc, char ***argv,
 	    return ERR_AMBIGUOUS_OPTION;
 	  }
 	}
-	if (must_be_var && !optp->value)
+	if (must_be_var && (!optp->value || optp->var_type == GET_BOOL))
 	{
-	  fprintf(stderr, "%s: argument '%s' is not a variable\n",
-		  progname, *pos);
-	  return ERR_MUST_BE_VARIABLE;
+	  fprintf(stderr, "%s: option '%s' cannot take an argument\n",
+		  progname, optp->name);
+	  return ERR_NO_ARGUMENT_ALLOWED;
 	}
 	if (optp->arg_type == NO_ARG)
 	{

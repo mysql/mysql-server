@@ -35,7 +35,7 @@
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 */
 
-#define DUMP_VERSION "9.02"
+#define DUMP_VERSION "9.03"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -192,8 +192,9 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port", 'P', "Port number to use for connection.", 0, 0, 0, GET_LONG,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
+   (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
+   0},
   {"quick", 'q', "Don't buffer query, dump directly to stdout.",
    (gptr*) &quick, (gptr*) &quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"quote-names",'Q', "Quote table and column names with a `",
@@ -224,15 +225,15 @@ static struct my_option my_long_options[] =
    (gptr*) &where, (gptr*) &where, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"xml", 'X', "Dump a database as well formed XML.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  { "max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
+  {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
     (gptr*) &max_allowed_packet, (gptr*) &max_allowed_packet, 0,
-    GET_LONG, REQUIRED_ARG, 24*1024*1024, 4096, 512*1024L*1024L,
+    GET_ULONG, REQUIRED_ARG, 24*1024*1024, 4096, 512*1024L*1024L,
     MALLOC_OVERHEAD, 1024, 0},
-  { "net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
+  {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
     (gptr*) &net_buffer_length, (gptr*) &net_buffer_length, 0,
-    GET_LONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 16*1024L*1024L,
+    GET_ULONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 16*1024L*1024L,
     MALLOC_OVERHEAD-1024, 1024, 0},
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 static const char *load_default_groups[]= { "mysqldump","client",0 };
