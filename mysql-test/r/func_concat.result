@@ -26,3 +26,9 @@ FROM t1 GROUP BY new LIMIT 1;
 number	alpha	new
 1413006	idlfmv	1413006<------------------>idlfmv
 drop table t1;
+create table t1 (a char(4), b double, c date, d tinyint(4));
+insert into t1 values ('AAAA', 105, '2003-03-01', 1);
+select * from t1 where concat(A,C,B,D) = 'AAAA2003-03-011051';
+a	b	c	d
+AAAA	105	2003-03-01	1
+drop table t1;
