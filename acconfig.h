@@ -69,6 +69,9 @@
    this with 6 arguments */
 #undef HAVE_GLIBC2_STYLE_GETHOSTBYNAME_R
 
+/* Define if int8, int16 and int32 types exist */
+#undef HAVE_INT_8_16_32
+
 /* Define if we have GNU readline */
 #undef HAVE_LIBREADLINE
 

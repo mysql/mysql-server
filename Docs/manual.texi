@@ -6687,8 +6687,8 @@ Automatic detection of @code{xlC} is missing from Autoconf, so a
 @strong{MySQL}: (The example uses the IBM compiler)
 
 @example
-shell> CC="xlc_r" CFLAGS="-ma -O3 -qstrict -DHAVE_INT_8_16_32" \
-       CXX="xlC_r" CXXFLAGS="-ma -O3 -qstrict -DHAVE_INT_8_16_32" \
+shell> CC="xlc_r" CFLAGS="-ma -O3 -qstrict" \
+       CXX="xlC_r" CXXFLAGS="-ma -O3 -qstrict" \
        ./configure
 @end example
 
@@ -6704,9 +6704,9 @@ handling in @code{gcc}/@code{egcs} is not thread-safe!  (This is tested with
 
 @example
 shell> CC=gcc \
-       CFLAGS="-DHAVE_INT_8_16_32" \
+       CFLAGS="" \
        CXX=gcc \
-       CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti -DHAVE_INT_8_16_32" \" \
+       CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti" \" \
        ./configure --prefix=/usr/local/mysql --with-debug --with-low-memory
 @end example
 
