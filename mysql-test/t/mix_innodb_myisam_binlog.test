@@ -35,7 +35,6 @@ begin;
 insert into t1 values(2);
 insert into t2 select * from t1;
 # should say some changes to non-transact1onal tables couldn't be rolled back
---error 1196
 rollback;
 
 show binlog events from 79;
@@ -49,7 +48,6 @@ insert into t1 values(3);
 savepoint my_savepoint;
 insert into t1 values(4);
 insert into t2 select * from t1;
---error 1196
 rollback to savepoint my_savepoint;
 commit;
 
@@ -64,7 +62,6 @@ insert into t1 values(5);
 savepoint my_savepoint;
 insert into t1 values(6);
 insert into t2 select * from t1;
---error 1196
 rollback to savepoint my_savepoint;
 insert into t1 values(7);
 commit;

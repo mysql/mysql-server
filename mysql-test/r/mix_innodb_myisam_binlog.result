@@ -19,7 +19,8 @@ begin;
 insert into t1 values(2);
 insert into t2 select * from t1;
 rollback;
-Warning:  Some non-transactional changed tables couldn't be rolled back
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
 show binlog events from 79;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
 master-bin.000001	79	Query	1	79	use `test`; BEGIN
@@ -35,7 +36,8 @@ savepoint my_savepoint;
 insert into t1 values(4);
 insert into t2 select * from t1;
 rollback to savepoint my_savepoint;
-Warning:  Some non-transactional changed tables couldn't be rolled back
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
 commit;
 show binlog events from 79;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
@@ -55,7 +57,8 @@ savepoint my_savepoint;
 insert into t1 values(6);
 insert into t2 select * from t1;
 rollback to savepoint my_savepoint;
-Warning:  Some non-transactional changed tables couldn't be rolled back
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
 insert into t1 values(7);
 commit;
 select a from t1 order by a;
