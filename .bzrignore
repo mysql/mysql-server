@@ -335,3 +335,5 @@ innobase/stamp-h1
 stamp-h1
 configure.lineno
 innobase/configure.lineno
+sql/udf_example.so
+scripts/make_win_src_distribution
