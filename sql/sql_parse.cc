@@ -1181,6 +1181,10 @@ mysql_execute_command(void)
     res=mysql_do(thd, *lex->insert_list);
     break;
 
+  case SQLCOM_EMPTY_QUERY:
+    send_ok(&thd->net);
+    break;
+
   case SQLCOM_PURGE:
     {
       if (check_process_priv(thd))
