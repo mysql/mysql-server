@@ -155,6 +155,40 @@ public:
   bool is_null() { return 1; }
 };
 
+class Item_param :public Item
+{
+public:    
+  longlong int_value;
+  double   real_value;
+  enum Item_result item_result_type;
+  enum Type item_type;
+  enum enum_field_types buffer_type;
+  my_bool long_data_supplied;
+
+  Item_param(char *name_par=0){ 
+    name= name_par ? name_par : (char*) "?";
+    long_data_supplied = false;
+    item_type = STRING_ITEM; item_result_type = STRING_RESULT;
+  }
+  enum Type type() const { return item_type; }
+  double val();
+  longlong val_int();
+  String *val_str(String*);
+  void make_field(Send_field *field);
+  bool save_in_field(Field *field);
+  void set_null();
+  void set_int(longlong i);
+  void set_double(float i);
+  void set_double(double i);
+  void set_value(const char *str, uint length);  
+  void set_long_str(const char *str, ulong length);
+  void set_long_binary(const char *str, ulong length);
+  void set_longdata(const char *str, ulong length);
+  void set_long_end(); 
+  enum Item_result result_type () const
+  { return item_result_type; }  
+  Item *new_item() { return new Item_param(name); }
+};
 
 class Item_int :public Item
 {

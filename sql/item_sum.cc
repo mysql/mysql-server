@@ -60,8 +60,9 @@ void Item_sum::make_field(Send_field *tmp_field)
 		     result_type() == REAL_RESULT ? FIELD_TYPE_DOUBLE :
 		     FIELD_TYPE_VAR_STRING);
   }
-  tmp_field->table_name=(char*)"";
-  tmp_field->col_name=name;
+  tmp_field->db_name=(char*)"";
+  tmp_field->org_table_name=tmp_field->table_name=(char*)"";
+  tmp_field->org_col_name=tmp_field->col_name=name;
 }
 
 void Item_sum::print(String *str)

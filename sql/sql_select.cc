@@ -126,8 +126,6 @@ static bool store_record_in_cache(JOIN_CACHE *cache);
 static void reset_cache(JOIN_CACHE *cache);
 static void read_cached_record(JOIN_TAB *tab);
 static bool cmp_buffer_with_ref(JOIN_TAB *tab);
-static int setup_group(THD *thd,TABLE_LIST *tables,List<Item> &fields,
-		       List<Item> &all_fields, ORDER *order, bool *hidden);
 static bool setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 			     List<Item> &all_fields,ORDER *new_order);
 static ORDER *create_distinct_group(ORDER *order, List<Item> &fields);
@@ -6456,7 +6454,7 @@ int setup_order(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 }
 
 
-static int
+int
 setup_group(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 	    List<Item> &all_fields, ORDER *order, bool *hidden_group_fields)
 {

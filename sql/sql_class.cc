@@ -140,6 +140,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   command=COM_CONNECT;
   set_query_id=1;
   default_select_limit= HA_POS_ERROR;
+  max_error_count=max_warning_count=MYSQL_DEFAULT_ERROR_COUNT;
   max_join_size=  ((::max_join_size != ~ (ulong) 0L) ? ::max_join_size :
 		   HA_POS_ERROR);
   db_access=NO_ACCESS;
@@ -147,6 +148,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   /* Initialize sub structures */
   bzero((char*) &mem_root,sizeof(mem_root));
   bzero((char*) &transaction.mem_root,sizeof(transaction.mem_root));
+  bzero((char*) &con_root,sizeof(con_root));
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
@@ -223,6 +225,7 @@ THD::~THD()
   safeFree(db);
   safeFree(ip);
   free_root(&mem_root,MYF(0));
+  free_root(&con_root,MYF(0));
   free_root(&transaction.mem_root,MYF(0));
   mysys_var=0;					// Safety (shouldn't be needed)
 #ifdef SIGNAL_WITH_VIO_CLOSE

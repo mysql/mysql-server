@@ -279,8 +279,10 @@ void Field_num::add_zerofill_and_unsigned(String &res) const
 
 void Field_num::make_field(Send_field *field)
 {
+  field->db_name=table->table_cache_key ? table->table_cache_key : ""; 
+  field->org_table_name=table->real_name;
   field->table_name=table_name;
-  field->col_name=field_name;
+  field->col_name=field->org_col_name=field_name;
   field->length=field_length;
   field->type=type();
   field->flags=table->maybe_null ? (flags & ~NOT_NULL_FLAG) : flags;
@@ -290,8 +292,10 @@ void Field_num::make_field(Send_field *field)
 
 void Field_str::make_field(Send_field *field)
 {
+  field->db_name=table->table_cache_key ? table->table_cache_key : ""; 
+  field->org_table_name=table->real_name;
   field->table_name=table_name;
-  field->col_name=field_name;
+  field->col_name=field->org_col_name=field_name;
   field->length=field_length;
   field->type=type();
   field->flags=table->maybe_null ? (flags & ~NOT_NULL_FLAG) : flags;
