@@ -26,6 +26,8 @@
       must be within bitmap size
     * bitmap_set_prefix() is an exception - one can use ~0 to set all bits
     * when both arguments are bitmaps, they must be of the same size
+    * bitmap_intersect() is an exception :)
+      (for for Bitmap::intersect(ulonglong map2buff))
 
   TODO:
   Make assembler THREAD safe versions of these using test-and-set instructions
@@ -244,16 +246,23 @@ my_bool bitmap_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2)
 void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2)
 {
   uchar *to=map->bitmap, *from=map2->bitmap, *end;
+  uint len=map->bitmap_size, len2=map2->bitmap;
 
-  DBUG_ASSERT(map->bitmap && map2->bitmap &&
-              map->bitmap_size==map2->bitmap_size);
+  DBUG_ASSERT(map->bitmap && map2->bitmap);
   bitmap_lock(map);
   bitmap_lock(map2);
 
-  end= to+map->bitmap_size;
+  end= to+min(len,len2);
 
   while (to < end)
     *to++ &= *from++;
+
+  if (len2 < len)
+  {
+    end+=len-len2;
+    while (to < end)
+      *to++=0;
+  }
 
   bitmap_unlock(map2);
   bitmap_unlock(map);
