@@ -261,11 +261,12 @@ bool opt_large_files= sizeof(my_off_t) > 4;
 bool opt_help= 0;
 bool opt_verbose= 0;
 
-arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
+arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 {{&Arg_comparator::compare_string,     &Arg_comparator::compare_e_string},
  {&Arg_comparator::compare_real,       &Arg_comparator::compare_e_real},
  {&Arg_comparator::compare_int_signed, &Arg_comparator::compare_e_int},
- {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row}};
+ {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row},
+ {&Arg_comparator::compare_decimal,    &Arg_comparator::compare_e_decimal}};
 
 
 /* Global variables */
@@ -372,6 +373,7 @@ const char *sql_mode_str="OFF";
 const char *in_left_expr_name= "<left expr>";
 /* name of additional condition */
 const char *in_additional_cond= "<IN COND>";
+my_decimal decimal_zero;
 /* classes for comparation parsing/processing */
 Eq_creator eq_creator;
 Ne_creator ne_creator;
@@ -2384,6 +2386,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
 				 char **argv, const char **groups)
 {
   umask(((~my_umask) & 0666));
+  my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();			// Set tzname
 
   max_system_variables.pseudo_thread_id= (ulong)~0;

@@ -61,6 +61,7 @@ int compare_longlong2(void* cmp_arg __attribute__((unused)),
 int compare_ulonglong(const ulonglong *s, const ulonglong *t);
 int compare_ulonglong2(void* cmp_arg __attribute__((unused)),
 		       const ulonglong *s, const ulonglong *t);
+int compare_decimal2(int* len, const char *s, const char *t);
 Procedure *proc_analyse_init(THD *thd, ORDER *param, select_result *result,
 			     List<Item> &field_list);
 void free_string(String*);
@@ -140,6 +141,36 @@ public:
   String *std(String *s __attribute__((unused)),
 	      ha_rows rows __attribute__((unused)))
   { return (String*) 0; }
+};
+
+
+int collect_decimal(char *element, element_count count,
+                    TREE_INFO *info);
+
+class field_decimal :public field_info
+{
+  my_decimal min_arg, max_arg;
+  my_decimal sum[2], sum_sqr[2];
+  int cur_sum;
+  int bin_size;
+public:
+  field_decimal(Item* a, analyse* b) :field_info(a,b)
+  {
+    bin_size= my_decimal_get_binary_size(a->max_length, a->decimals);
+    init_tree(&tree, 0, 0, bin_size, (qsort_cmp2)compare_decimal2,
+              0, 0, (void *)&bin_size);
+  };
+
+  void	 add();
+  void	 get_opt_type(String*, ha_rows);
+  String *get_min_arg(String *);
+  String *get_max_arg(String *);
+  String *avg(String *s, ha_rows rows);
+  friend int collect_decimal(char *element, element_count count,
+                             TREE_INFO *info);
+  tree_walk_action collect_enum()
+  { return (tree_walk_action) collect_decimal; }
+  String *std(String *s, ha_rows rows);
 };
 
 
