@@ -46,6 +46,9 @@ static const int max_transactions= 256;
 // Default value for prefetch of autoincrement values
 static const ha_rows autoincrement_prefetch= 32;
 
+// connectstring to cluster if given by mysqld
+const char *ndbcluster_connectstring= 0;
+
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
 
 
@@ -3375,6 +3378,12 @@ int ndb_discover_tables()
 bool ndbcluster_init()
 {
   DBUG_ENTER("ndbcluster_init");
+  // Set connectstring if specified
+  if (ndbcluster_connectstring != 0)
+  {
+    DBUG_PRINT("connectstring", ("%s", ndbcluster_connectstring));     
+    Ndb::setConnectString(ndbcluster_connectstring);
+  }
   // Create a Ndb object to open the connection  to NDB
   g_ndb= new Ndb("sys");
   if (g_ndb->init() != 0)

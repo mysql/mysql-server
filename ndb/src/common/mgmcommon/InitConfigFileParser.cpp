@@ -31,7 +31,6 @@ static void require(bool v) { if(!v) abort();}
 //  Ctor / Dtor
 //****************************************************************************
 InitConfigFileParser::InitConfigFileParser(){
-  
   m_info = new ConfigInfo();
 }
 
@@ -111,7 +110,6 @@ InitConfigFileParser::parseConfig(FILE * file) {
 			"of configuration file.");
 	return 0;
       }
-      
       snprintf(ctx.fname, sizeof(ctx.fname), section); free(section);
       ctx.type             = InitConfigFileParser::DefaultSection;
       ctx.m_sectionLineno  = ctx.m_lineno;
@@ -132,7 +130,6 @@ InitConfigFileParser::parseConfig(FILE * file) {
 			"of configuration file.");
 	return 0;
       }
-
       snprintf(ctx.fname, sizeof(ctx.fname), section);
       free(section);
       ctx.type             = InitConfigFileParser::Section;
@@ -162,7 +159,6 @@ InitConfigFileParser::parseConfig(FILE * file) {
     ctx.reportError("Could not store section of configuration file.");
     return 0;
   }
-  
   for(size_t i = 0; ConfigInfo::m_ConfigRules[i].m_configRule != 0; i++){
     ctx.type             = InitConfigFileParser::Undefined;
     ctx.m_currentSection = 0;
@@ -378,7 +374,7 @@ bool InitConfigFileParser::convertStringToUint64(const char* s,
 
   errno = 0;
   char* p;
-  long long v = strtoll(s, &p, 10);
+  long long v = strtoll(s, &p, log10base);
   if (errno != 0)
     return false;
   
@@ -536,20 +532,18 @@ InitConfigFileParser::storeSection(Context& ctx){
   if(ctx.type == InitConfigFileParser::Section){
     for(int i = 0; i<m_info->m_NoOfRules; i++){
       const ConfigInfo::SectionRule & rule = m_info->m_SectionRules[i];
-      if(!strcmp(rule.m_section, "*") || !strcmp(rule.m_section, ctx.fname))
-	if(!(* rule.m_sectionRule)(ctx, rule.m_ruleData))
+      if(!strcmp(rule.m_section, "*") || !strcmp(rule.m_section, ctx.fname)){
+	if(!(* rule.m_sectionRule)(ctx, rule.m_ruleData)){
 	  return false;
+	}
+      }
     }
   }
-  
   if(ctx.type == InitConfigFileParser::DefaultSection)
     require(ctx.m_defaults->put(ctx.pname, ctx.m_currentSection));
-  
   if(ctx.type == InitConfigFileParser::Section)
     require(ctx.m_config->put(ctx.pname, ctx.m_currentSection));
-  
   delete ctx.m_currentSection; ctx.m_currentSection = NULL;
-  
   return true;
 }
 

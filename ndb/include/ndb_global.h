@@ -3,7 +3,6 @@
 #define NDBGLOBAL_H
 
 #include <my_global.h>
-#define NDB_BASE_PORT 2200
 
 /** signal & SIG_PIPE */
 #include <my_alarm.h>

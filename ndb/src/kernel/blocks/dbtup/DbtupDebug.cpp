@@ -405,3 +405,7 @@ operator<<(NdbOut& out, const Dbtup::Th& th)
   return out;
 }
 #endif
+
+#ifdef VM_TRACE
+template class Vector<Chunk>;
+#endif
