@@ -44,7 +44,7 @@ public:
    *   Constructor
    *   @param mgmtSrvr: Management server to use when executing commands
    */
-  CommandInterpreter(const char *);
+  CommandInterpreter(const char *, int verbose);
   ~CommandInterpreter();
   
   /**
@@ -94,6 +94,7 @@ private:
    */
   void executeHelp(char* parameters);
   void executeShow(char* parameters);
+  void executeConnect(char* parameters);
   void executePurge(char* parameters);
   void executeShutdown(char* parameters);
   void executeRun(char* parameters);
@@ -153,7 +154,7 @@ private:
 
   NdbMgmHandle m_mgmsrv;
   bool connected;
-  const char *host;
+  int m_verbose;
   int try_reconnect;
 #ifdef HAVE_GLOBAL_REPLICATION  
   NdbRepHandle m_repserver;
@@ -170,9 +171,9 @@ private:
 #include "ndb_mgmclient.hpp"
 #include "ndb_mgmclient.h"
 
-Ndb_mgmclient::Ndb_mgmclient(const char *host)
+Ndb_mgmclient::Ndb_mgmclient(const char *host,int verbose)
 {
-  m_cmd= new CommandInterpreter(host);
+  m_cmd= new CommandInterpreter(host,verbose);
 }
 Ndb_mgmclient::~Ndb_mgmclient()
 {
@@ -276,6 +277,7 @@ static const char* helpText =
 "REP CONNECT <host:port>                Connect to REP server on host:port\n"
 #endif
 "PURGE STALE SESSIONS                   Reset reserved nodeid's in the mgmt server\n"
+"CONNECT                                Connect to management server (reconnect if already connected)\n"
 "QUIT                                   Quit management client\n"
 ;
 
@@ -374,20 +376,22 @@ convert(const char* s, int& val) {
 /*
  * Constructor
  */
-CommandInterpreter::CommandInterpreter(const char *_host) 
+CommandInterpreter::CommandInterpreter(const char *_host,int verbose) 
+  : m_verbose(verbose)
 {
   m_mgmsrv = ndb_mgm_create_handle();
   if(m_mgmsrv == NULL) {
     ndbout_c("Cannot create handle to management server.");
+    exit(-1);
+  }
+  if (ndb_mgm_set_connectstring(m_mgmsrv, _host))
+  {
     printError();
+    exit(-1);
   }
 
   connected = false;
   try_reconnect = 0;
-  if (_host)
-    host= my_strdup(_host,MYF(MY_WME));
-  else
-    host= 0;
 #ifdef HAVE_GLOBAL_REPLICATION
   rep_host = NULL;
   m_repserver = NULL;
@@ -402,8 +406,6 @@ CommandInterpreter::~CommandInterpreter()
 {
   connected = false;
   ndb_mgm_destroy_handle(&m_mgmsrv);
-  my_free((char *)host,MYF(MY_ALLOW_ZERO_PTR));
-  host = NULL;
 }
 
 static bool 
@@ -438,17 +440,15 @@ bool
 CommandInterpreter::connect() 
 {
   if(!connected) {
-    int tries = try_reconnect; // tries == 0 => infinite
-    while(!connected) {
-      if(ndb_mgm_connect(m_mgmsrv, host) == -1) {
-	ndbout << "Cannot connect to management server (" << host << ").";
-	tries--;
-	if (tries == 0)
-	  break;
-	ndbout << "Retrying in 5 seconds." << endl;
-	NdbSleep_SecSleep(5);
-      } else
-	connected = true;
+    if(!ndb_mgm_connect(m_mgmsrv, try_reconnect-1, 5, 1))
+    {
+      connected = true;
+      if (m_verbose)
+      {
+	printf("Connected to Management Server at: %s:%d\n",
+	       ndb_mgm_get_connected_host(m_mgmsrv),
+	       ndb_mgm_get_connected_port(m_mgmsrv));
+      }
     }
   }
   return connected;
@@ -457,7 +457,7 @@ CommandInterpreter::connect()
 bool 
 CommandInterpreter::disconnect() 
 {
-  if (ndb_mgm_disconnect(m_mgmsrv) == -1) {
+  if (connected && (ndb_mgm_disconnect(m_mgmsrv) == -1)) {
     ndbout_c("Could not disconnect from management server");
     printError();
   }
@@ -471,18 +471,21 @@ CommandInterpreter::disconnect()
 int 
 CommandInterpreter::execute(const char *_line, int _try_reconnect) 
 {
+  DBUG_ENTER("CommandInterpreter::execute");
+  DBUG_PRINT("info",("line=\"%s\"",_line));
+
   if (_try_reconnect >= 0)
     try_reconnect=_try_reconnect;
   char * line;
   if(_line == NULL) {
     //   ndbout << endl;
-    return false;
+    DBUG_RETURN(false);
   }
   line = my_strdup(_line,MYF(MY_WME));
   My_auto_ptr<char> ptr(line);
   
   if (emptyString(line)) {
-    return true;
+    DBUG_RETURN(true);
   }
   
   for (unsigned int i = 0; i < strlen(line); ++i) {
@@ -496,41 +499,49 @@ CommandInterpreter::execute(const char *_line, int _try_reconnect)
   if (strcmp(firstToken, "HELP") == 0 ||
       strcmp(firstToken, "?") == 0) {
     executeHelp(allAfterFirstToken);
-    return true;
+    DBUG_RETURN(true);
   }
-  else if (strcmp(firstToken, "SHOW") == 0) {
+  else if (strcmp(firstToken, "CONNECT") == 0) {
+    executeConnect(allAfterFirstToken);
+    DBUG_RETURN(true);
+  }
+
+  if (!connect())
+    DBUG_RETURN(true);
+
+  if (strcmp(firstToken, "SHOW") == 0) {
     executeShow(allAfterFirstToken);
-    return true;
+    DBUG_RETURN(true);
   }
   else if (strcmp(firstToken, "SHUTDOWN") == 0) {
     executeShutdown(allAfterFirstToken);
-    return true;
+    DBUG_RETURN(true);
   }
   else if (strcmp(firstToken, "CLUSTERLOG") == 0){
     executeClusterLog(allAfterFirstToken);
-    return true;
+    DBUG_RETURN(true);
   }
   else if(strcmp(firstToken, "START") == 0 &&
 	  allAfterFirstToken != NULL &&
 	  strncmp(allAfterFirstToken, "BACKUP", sizeof("BACKUP") - 1) == 0){
     executeStartBackup(allAfterFirstToken);
-    return true;
+    DBUG_RETURN(true);
   }
   else if(strcmp(firstToken, "ABORT") == 0 &&
 	  allAfterFirstToken != NULL &&
 	  strncmp(allAfterFirstToken, "BACKUP", sizeof("BACKUP") - 1) == 0){
     executeAbortBackup(allAfterFirstToken);
-    return true;
+    DBUG_RETURN(true);
   }
   else if (strcmp(firstToken, "PURGE") == 0) {
     executePurge(allAfterFirstToken);
-    return true;
+    DBUG_RETURN(true);
   } 
 #ifdef HAVE_GLOBAL_REPLICATION
   else if(strcmp(firstToken, "REPLICATION") == 0 ||
 	  strcmp(firstToken, "REP") == 0) {
     executeRep(allAfterFirstToken);
-    return true;
+    DBUG_RETURN(true);
   }
 #endif // HAVE_GLOBAL_REPLICATION
   else if(strcmp(firstToken, "ENTER") == 0 &&
@@ -538,14 +549,14 @@ CommandInterpreter::execute(const char *_line, int _try_reconnect)
 	  strncmp(allAfterFirstToken, "SINGLE USER MODE ", 
 		  sizeof("SINGLE USER MODE") - 1) == 0){
     executeEnterSingleUser(allAfterFirstToken);
-    return true;
+    DBUG_RETURN(true);
   }
   else if(strcmp(firstToken, "EXIT") == 0 &&
 	  allAfterFirstToken != NULL &&
 	  strncmp(allAfterFirstToken, "SINGLE USER MODE ", 
 		  sizeof("SINGLE USER MODE") - 1) == 0){
     executeExitSingleUser(allAfterFirstToken);
-    return true;
+    DBUG_RETURN(true);
   }
   else if (strcmp(firstToken, "ALL") == 0) {
     analyseAfterFirstToken(-1, allAfterFirstToken);
@@ -554,7 +565,7 @@ CommandInterpreter::execute(const char *_line, int _try_reconnect)
 	  strcmp(firstToken, "EXIT") == 0 ||
 	  strcmp(firstToken, "BYE") == 0) && 
 	  allAfterFirstToken == NULL){
-    return false;
+    DBUG_RETURN(false);
   } else {
     /**
      * First token should be a digit, node ID
@@ -564,18 +575,18 @@ CommandInterpreter::execute(const char *_line, int _try_reconnect)
     if (! convert(firstToken, nodeId)) {
       ndbout << "Invalid command: " << line << endl;
       ndbout << "Type HELP for help." << endl << endl;
-      return true;
+      DBUG_RETURN(true);
     }
 
     if (nodeId < 0) {
       ndbout << "Invalid node ID: " << firstToken << "." << endl;
-      return true;
+      DBUG_RETURN(true);
     }
     
     analyseAfterFirstToken(nodeId, allAfterFirstToken);
     
   }
-  return true;
+  DBUG_RETURN(true);
 }
 
 
@@ -704,7 +715,6 @@ CommandInterpreter::executeForAll(const char * cmd, ExecuteFunction fun,
     ndbout_c("Trying to start all nodes of system.");
     ndbout_c("Use ALL STATUS to see the system start-up phases.");
   } else {
-    connect();
     struct ndb_mgm_cluster_state *cl= ndb_mgm_get_status(m_mgmsrv);
     if(cl == 0){
       ndbout_c("Unable get status from management server");
@@ -838,8 +848,6 @@ CommandInterpreter::executeHelp(char* parameters)
 void
 CommandInterpreter::executeShutdown(char* parameters) 
 { 
-  connect();
-
   ndb_mgm_cluster_state *state = ndb_mgm_get_status(m_mgmsrv);
   if(state == NULL) {
     ndbout_c("Could not get status");
@@ -991,7 +999,6 @@ CommandInterpreter::executePurge(char* parameters)
 
   int i;
   char *str;
-  connect();
   
   if (ndb_mgm_purge_stale_sessions(m_mgmsrv, &str)) {
     ndbout_c("Command failed");
@@ -1011,7 +1018,6 @@ void
 CommandInterpreter::executeShow(char* parameters) 
 { 
   int i;
-  connect();
   if (emptyString(parameters)) {
     ndbout << "Cluster Configuration" << endl
 	   << "---------------------" << endl;
@@ -1099,6 +1105,12 @@ CommandInterpreter::executeShow(char* parameters)
   }
 }
 
+void
+CommandInterpreter::executeConnect(char* parameters) 
+{
+  disconnect();
+  connect();
+}
 
 //*****************************************************************************
 //*****************************************************************************
@@ -1106,7 +1118,6 @@ void
 CommandInterpreter::executeClusterLog(char* parameters) 
 {
   int i;
-  connect();
   if (parameters != 0 && strlen(parameters) != 0) {
     enum ndb_mgm_clusterlog_level severity = NDB_MGM_CLUSTERLOG_ALL;
     int isOk = true;
@@ -1252,7 +1263,6 @@ CommandInterpreter::executeClusterLog(char* parameters)
 void
 CommandInterpreter::executeStop(int processId, const char *, bool all) 
 {
-  connect();
   int result = 0;
   if(all) {
     result = ndb_mgm_stop(m_mgmsrv, 0, 0);
@@ -1274,7 +1284,6 @@ CommandInterpreter::executeStop(int processId, const char *, bool all)
 void
 CommandInterpreter::executeEnterSingleUser(char* parameters) 
 {
-  connect();
   strtok(parameters, " ");
   struct ndb_mgm_reply reply;
   char* id = strtok(NULL, " ");
@@ -1301,7 +1310,6 @@ CommandInterpreter::executeEnterSingleUser(char* parameters)
 void 
 CommandInterpreter::executeExitSingleUser(char* parameters) 
 {
-  connect();
   int result = ndb_mgm_exit_single_user(m_mgmsrv, 0);
   if (result != 0) {
     ndbout_c("Exiting single user mode failed.");
@@ -1316,7 +1324,6 @@ void
 CommandInterpreter::executeStart(int processId, const char* parameters,
 				 bool all) 
 {
-  connect();
   int result;
   if(all) {
     result = ndb_mgm_start(m_mgmsrv, 0, 0);
@@ -1340,7 +1347,6 @@ void
 CommandInterpreter::executeRestart(int processId, const char* parameters,
 				   bool all) 
 {
-  connect();
   int result;
   int nostart = 0;
   int initialstart = 0;
@@ -1390,7 +1396,6 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
     ndbout << "Expected argument" << endl;
     return;
   }
-  connect();
 
   Uint32 no = 0;
   int pars[25];
@@ -1430,7 +1435,6 @@ CommandInterpreter::executeStatus(int processId,
     return;
   }
 
-  connect();
   ndb_mgm_node_status status;
   Uint32 startPhase, version;
   bool system;
@@ -1481,7 +1485,6 @@ void
 CommandInterpreter::executeLogLevel(int processId, const char* parameters, 
 				    bool all) 
 {
-  connect();
   (void) all;
   
   BaseString tmp(parameters);
@@ -1537,7 +1540,6 @@ void CommandInterpreter::executeError(int processId,
     return;
   }
 
-  connect();
   // Copy parameters since strtok will modify it
   char* newpar = my_strdup(parameters,MYF(MY_WME)); 
   My_auto_ptr<char> ap1(newpar);
@@ -1601,7 +1603,6 @@ void
 CommandInterpreter::executeLog(int processId,
 			       const char* parameters, bool all) 
 {
-  connect();
   struct ndb_mgm_reply reply;
   Vector<const char *> blocks;
   if (! parseBlockSpecification(parameters, blocks)) {
@@ -1669,7 +1670,6 @@ CommandInterpreter::executeTestOn(int processId,
     ndbout << "No parameters expected to this command." << endl;
     return;
   }
-  connect();
   struct ndb_mgm_reply reply;
   int result = ndb_mgm_start_signallog(m_mgmsrv, processId, &reply);
   if (result != 0) {
@@ -1688,7 +1688,6 @@ CommandInterpreter::executeTestOff(int processId,
     ndbout << "No parameters expected to this command." << endl;
     return;
   }
-  connect();
   struct ndb_mgm_reply reply;
   int result = ndb_mgm_stop_signallog(m_mgmsrv, processId, &reply);
   if (result != 0) {
@@ -1810,8 +1809,6 @@ CommandInterpreter::executeEventReporting(int processId,
     ndbout << "Expected argument" << endl;
     return;
   }
-  connect();
-
   BaseString tmp(parameters);
   Vector<BaseString> spec;
   tmp.split(spec, "=");
@@ -1862,7 +1859,6 @@ CommandInterpreter::executeEventReporting(int processId,
 void
 CommandInterpreter::executeStartBackup(char* /*parameters*/) 
 {
-  connect();
   struct ndb_mgm_reply reply;
   unsigned int backupId;
 
@@ -1909,8 +1905,6 @@ CommandInterpreter::executeStartBackup(char* /*parameters*/)
 void
 CommandInterpreter::executeAbortBackup(char* parameters) 
 {
-  connect();
-
   strtok(parameters, " ");
   struct ndb_mgm_reply reply;
   char* id = strtok(NULL, "\0");
@@ -1964,7 +1958,6 @@ CommandInterpreter::executeRep(char* parameters)
     return;
   }
 
-  connect();
   char * line = my_strdup(parameters,MYF(MY_WME));
   My_auto_ptr<char> ap1((char*)line);
   char * firstToken = strtok(line, " ");

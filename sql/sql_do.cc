@@ -29,6 +29,7 @@ int mysql_do(THD *thd, List<Item> &values)
     DBUG_RETURN(-1);
   while ((value = li++))
     value->val_int();
+  free_underlaid_joins(thd, &thd->lex->select_lex);
   thd->clear_error(); // DO always is OK
   send_ok(thd);
   DBUG_RETURN(0);

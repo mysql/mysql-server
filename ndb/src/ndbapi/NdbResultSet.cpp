@@ -44,10 +44,10 @@ void  NdbResultSet::init()
 {
 }
 
-int NdbResultSet::nextResult(bool fetchAllowed)
+int NdbResultSet::nextResult(bool fetchAllowed, bool forceSend)
 {
   int res;
-  if ((res = m_operation->nextResult(fetchAllowed)) == 0) {
+  if ((res = m_operation->nextResult(fetchAllowed, forceSend)) == 0) {
     // handle blobs
     NdbBlob* tBlob = m_operation->theBlobList;
     while (tBlob != 0) {
@@ -67,9 +67,9 @@ int NdbResultSet::nextResult(bool fetchAllowed)
   return res;
 }
 
-void NdbResultSet::close()
+void NdbResultSet::close(bool forceSend)
 {
-  m_operation->closeScan();
+  m_operation->closeScan(forceSend);
 }
 
 NdbOperation* 
@@ -98,6 +98,6 @@ NdbResultSet::deleteTuple(NdbConnection * takeOverTrans){
 }
 
 int
-NdbResultSet::restart(){
-  return m_operation->restart();
+NdbResultSet::restart(bool forceSend){
+  return m_operation->restart(forceSend);
 }

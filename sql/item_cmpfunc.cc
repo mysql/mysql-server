@@ -2364,11 +2364,12 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       return 0;
     }
     int error;
-    if ((error=regcomp(&preg,res->c_ptr(),
-		       (cmp_collation.collation->state & MY_CS_BINSORT) ?
-		       REG_EXTENDED | REG_NOSUB :
-		       REG_EXTENDED | REG_NOSUB | REG_ICASE,
-		       cmp_collation.collation)))
+    if ((error= regcomp(&preg,res->c_ptr(),
+                        ((cmp_collation.collation->state & MY_CS_BINSORT) ||
+                         (cmp_collation.collation->state & MY_CS_CSSORT)) ?
+                         REG_EXTENDED | REG_NOSUB :
+                         REG_EXTENDED | REG_NOSUB | REG_ICASE,
+                        cmp_collation.collation)))
     {
       (void) regerror(error,&preg,buff,sizeof(buff));
       my_printf_error(ER_REGEXP_ERROR,ER(ER_REGEXP_ERROR),MYF(0),buff);
@@ -2416,10 +2417,11 @@ longlong Item_func_regex::val_int()
 	regex_compiled=0;
       }
       if (regcomp(&preg,res2->c_ptr(),
-		  (cmp_collation.collation->state & MY_CS_BINSORT) ?
-		  REG_EXTENDED | REG_NOSUB :
-		  REG_EXTENDED | REG_NOSUB | REG_ICASE,
-		  cmp_collation.collation))
+                  ((cmp_collation.collation->state & MY_CS_BINSORT) ||
+                   (cmp_collation.collation->state & MY_CS_CSSORT)) ?
+                   REG_EXTENDED | REG_NOSUB :
+                   REG_EXTENDED | REG_NOSUB | REG_ICASE,
+                   cmp_collation.collation))
       {
 	null_value=1;
 	return 0;

@@ -1,7 +1,7 @@
 Next QMGR 1
 Next NDBCNTR 1000
 Next NDBFS 2000
-Next DBACC 3001
+Next DBACC 3002
 Next DBTUP 4013
 Next DBLQH 5042
 Next DBDICT 6006
@@ -393,6 +393,7 @@ Failed Create Table:
 --------------------
 7173: Create table failed due to not sufficient number of fragment or
       replica records.
+3001: Fail create 1st fragment
 4007 12001: Fail create 1st fragment
 4008 12002: Fail create 2nd fragment
 4009 12003: Fail create 1st attribute in 1st fragment
