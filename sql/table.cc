@@ -1058,9 +1058,21 @@ ulong next_io_size(register ulong pos)
 } /* next_io_size */
 
 
-	/* Store in String an SQL quoted string */
+/*
+  Store an SQL quoted string.
 
-void append_unescaped(String *res,const char *pos, uint length)
+  SYNOPSIS  
+    append_unescaped()
+    res		result String
+    pos		string to be quoted
+    length	it's length
+
+  NOTE
+    This function works correctly with utf8 or single-byte charset strings.
+    May fail with some multibyte charsets though.
+*/
+
+void append_unescaped(String *res, const char *pos, uint length)
 {
   const char *end= pos+length;
   res->append('\'');
