@@ -22,6 +22,7 @@
 #include "sql_repl.h"
 #include "repl_failsafe.h"
 #include "stacktrace.h"
+#include "mysys_err.h"
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif
@@ -345,7 +346,7 @@ uint mysql_port;
 uint test_flags = 0, select_errors=0, dropping_tables=0,ha_open_options=0;
 uint volatile thread_count=0, thread_running=0, kill_cached_threads=0,
 	      wake_thread=0;
-ulong thd_startup_options=(OPTION_UPDATE_LOG | OPTION_AUTO_IS_NULL |
+ulong thd_startup_options=(OPTION_AUTO_IS_NULL |
 			   OPTION_BIN_LOG | OPTION_QUOTE_SHOW_CREATE );
 uint protocol_version=PROTOCOL_VERSION;
 struct system_variables global_system_variables;
@@ -911,7 +912,6 @@ void clean_up(bool print_message)
 
   mysql_log.cleanup();
   mysql_slow_log.cleanup();
-  mysql_update_log.cleanup();
   mysql_bin_log.cleanup();
 
 #ifdef HAVE_REPLICATION
@@ -2177,9 +2177,55 @@ static int init_server_components()
 	     LOG_NORMAL);
   if (opt_update_log)
   {
-    open_log(&mysql_update_log, glob_hostname, opt_update_logname, "",
-	     NullS, LOG_NEW);
-    using_update_log=1;
+    /*
+      Update log is removed since 5.0. But we still accept the option.
+      The idea is if the user already uses the binlog and the update log,
+      we completely ignore any option/variable related to the update log, like
+      if the update log did not exist. But if the user uses only the update log, 
+      then we translate everything into binlog for him (with warnings).
+      Implementation of the above :
+      - If mysqld is started with --log-update and --log-bin,
+      ignore --log-update (print a warning), push a warning when SQL_LOG_UPDATE
+      is used, and turn off --sql-bin-update-same.
+      This will completely ignore SQL_LOG_UPDATE
+      - If mysqld is started with --log-update only,
+      change it to --log-bin (with the filename passed to log-update,
+      plus '-bin') (print a warning), push a warning when SQL_LOG_UPDATE is
+      used, and turn on --sql-bin-update-same.
+      This will translate SQL_LOG_UPDATE to SQL_LOG_BIN.
+
+      Note that we tell the user that --sql-bin-update-same is deprecated and
+      does nothing, and we don't take into account if he used this option or
+      not; but internally we give this variable a value to have the behaviour we
+      want (i.e. have SQL_LOG_UPDATE influence SQL_LOG_BIN or not).
+      As sql-bin-update-same, log-update and log-bin cannot be changed by the user 
+      after starting the server (they are not variables), the user will not
+      later interfere with the settings we do here.
+    */
+    if (opt_bin_log)
+    {
+      opt_sql_bin_update= 0;
+      sql_print_error("The update log is no longer supported by MySQL in \
+version 5.0 and above. It is replaced by the binary log.");
+    }
+    else
+    {
+      opt_sql_bin_update= 1;
+      opt_bin_log= 1;
+      if (opt_update_logname)
+      {
+        // as opt_bin_log==0, no need to free opt_bin_logname
+        if (!(opt_bin_logname= my_strdup(opt_update_logname, MYF(MY_WME))))
+          exit(EXIT_OUT_OF_MEMORY);
+        sql_print_error("The update log is no longer supported by MySQL in \
+version 5.0 and above. It is replaced by the binary log. Now starting MySQL \
+with --log-bin='%s' instead.",opt_bin_logname);
+      }
+      else
+        sql_print_error("The update log is no longer supported by MySQL in \
+version 5.0 and above. It is replaced by the binary log. Now starting MySQL \
+with --log-bin instead.");
+    }
   }
   if (opt_slow_log)
     open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
@@ -3659,7 +3705,8 @@ struct my_option my_long_options[] =
    (gptr*) &myisam_log_filename, (gptr*) &myisam_log_filename, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-update", OPT_UPDATE_LOG,
-   "Log updates to file.# where # is a unique number if not given.",
+   "The update log is deprecated since version 5.0, is replaced by the binary \
+log and this option justs turns on --log-bin instead.",
    (gptr*) &opt_update_logname, (gptr*) &opt_update_logname, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-slow-queries", OPT_SLOW_QUERY_LOG,
@@ -3910,9 +3957,9 @@ struct my_option my_long_options[] =
    (gptr*) &mysql_unix_port, (gptr*) &mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"sql-bin-update-same", OPT_SQL_BIN_UPDATE_SAME,
-   "If set, setting SQL_LOG_BIN to a value will automatically set SQL_LOG_UPDATE to the same value and vice versa.",
-   (gptr*) &opt_sql_bin_update, (gptr*) &opt_sql_bin_update, 0, GET_BOOL,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
+   "The update log is deprecated since version 5.0, is replaced by the binary \
+log and this option does nothing anymore.",
+   0, 0, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"sql-mode", OPT_SQL_MODE,
    "Syntax: sql-mode=option[,option[,option...]] where option can be one of: REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, SERIALIZE, ONLY_FULL_GROUP_BY, NO_UNSIGNED_SUBTRACTION.",
    (gptr*) &sql_mode_str, (gptr*) &sql_mode_str, 0, GET_STR, REQUIRED_ARG, 0,
