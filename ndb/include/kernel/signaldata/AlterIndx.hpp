@@ -181,6 +181,7 @@ public:
   enum ErrorCode {
     NoError = 0,
     Busy = 701,
+    NotMaster = 702,
     IndexNotFound = 4243,
     IndexExists = 4244,
     BadRequestType = 4247,
