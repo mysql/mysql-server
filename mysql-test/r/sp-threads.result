@@ -1,0 +1,25 @@
+use test;
+drop table if exists t1;
+create table t1 (s1 int, s2 int, s3 int);
+create procedure bug4934()
+begin
+insert into t1 values (1,0,1);
+end//
+use test;
+call bug4934();
+select * from t1;
+s1	s2	s3
+1	0	1
+drop table t1;
+create table t1 (s1 int, s2 int, s3 int);
+drop procedure bug4934;
+create procedure bug4934()
+begin
+end//
+select * from t1;
+s1	s2	s3
+call bug4934();
+select * from t1;
+s1	s2	s3
+drop table t1;
+drop procedure bug4934;
