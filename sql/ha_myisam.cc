@@ -643,7 +643,7 @@ bool ha_myisam::activate_all_index(THD *thd)
 		      T_CREATE_MISSING_KEYS | T_TRUST_HEADER);
     param.myf_rw&= ~MY_WAIT_IF_FULL;
     param.sort_buffer_length=  myisam_sort_buffer_size;
-    param.opt_rep_quick++;
+    param.opt_rep_quick++;			// Don't copy data file
     param.tmpdir=mysql_tmpdir;
 
     error=repair(thd,param,0) != HA_ADMIN_OK;
