@@ -2902,11 +2902,12 @@ void Field_double::sql_type(String &res) const
  */
 
 Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
+                                 uchar *null_ptr_arg, uchar null_bit_arg,
 				 enum utype unireg_check_arg,
 				 const char *field_name_arg,
 				 struct st_table *table_arg,
 				 CHARSET_INFO *cs)
-  :Field_str(ptr_arg, 19, (uchar*) 0,0,
+  :Field_str(ptr_arg, 19, null_ptr_arg, null_bit_arg,
 	     unireg_check_arg, field_name_arg, table_arg, cs)
 {
   /* For 4.0 MYD and 4.0 InnoDB compatibility */
@@ -2922,23 +2923,33 @@ Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
 
 
 /*
-    Sets TABLE::timestamp_default_now and TABLE::timestamp_on_update_now 
-    members according to unireg type of this TIMESTAMP field.
-  
-  SYNOPSIS
-    Field_timestamp::set_timestamp_offsets()
-  
-*/
-void Field_timestamp::set_timestamp_offsets()
-{
-  ulong timestamp= (ulong) (ptr - (char*) table->record[0]) + 1;
-  
-  DBUG_ASSERT(table->timestamp_field == this && unireg_check != NONE);
+  Get auto-set type for TIMESTAMP field.
 
-  table->timestamp_default_now= 
-    (unireg_check == TIMESTAMP_UN_FIELD)? 0 : timestamp;
-  table->timestamp_on_update_now= 
-    (unireg_check == TIMESTAMP_DN_FIELD)? 0 : timestamp;
+  SYNOPSIS
+    get_auto_set_type()
+
+  DESCRIPTION
+    Returns value indicating during which operations this TIMESTAMP field
+    should be auto-set to current timestamp.
+*/
+timestamp_auto_set_type Field_timestamp::get_auto_set_type() const
+{
+  switch (unireg_check)
+  {
+  case TIMESTAMP_DN_FIELD:
+    return TIMESTAMP_AUTO_SET_ON_INSERT;
+  case TIMESTAMP_UN_FIELD:
+    return TIMESTAMP_AUTO_SET_ON_UPDATE;
+  case TIMESTAMP_DNUN_FIELD:
+    return TIMESTAMP_AUTO_SET_ON_BOTH;
+  default:
+    /*
+      Normally this function should not be called for TIMESTAMPs without
+      auto-set property.
+    */
+    DBUG_ASSERT(0);
+    return TIMESTAMP_NO_AUTO_SET;
+  }
 }
 
 
@@ -3237,6 +3248,7 @@ void Field_timestamp::sql_type(String &res) const
 void Field_timestamp::set_time()
 {
   long tmp= (long) table->in_use->query_start();
+  set_notnull();
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -5917,8 +5929,9 @@ Field *make_field(char *ptr, uint32 field_length,
 			      f_is_zerofill(pack_flag) != 0,
 			      f_is_dec(pack_flag) == 0);
   case FIELD_TYPE_TIMESTAMP:
-    return new Field_timestamp(ptr,field_length,
-			       unireg_check, field_name, table, field_charset);
+    return new Field_timestamp(ptr,field_length, null_pos, null_bit,
+                               unireg_check, field_name, table,
+                               field_charset);
   case FIELD_TYPE_YEAR:
     return new Field_year(ptr,field_length,null_pos,null_bit,
 			  unireg_check, field_name, table);
