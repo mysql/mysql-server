@@ -50,7 +50,12 @@ public:
   enum utype  { NONE,DATE,SHIELD,NOEMPTY,CASEUP,PNR,BGNR,PGNR,YES,NO,REL,
 		CHECK,EMPTY,UNKNOWN_FIELD,CASEDN,NEXT_NUMBER,INTERVAL_FIELD,
 		BIT_FIELD, TIMESTAMP_FIELD,CAPITALIZE,BLOB_FIELD};
-
+  enum geometry_type
+  {
+    GEOM_GEOMETRY = 0, GEOM_POINT = 1, GEOM_LINESTRING = 2, GEOM_POLYGON = 3,
+    GEOM_MULTIPOINT = 4, GEOM_MULTILINESTRING = 5, GEOM_MULTIPOLYGON = 6,
+    GEOM_GEOMETRYCOLLECTION = 7
+  };
   enum imagetype { itRAW, itMBR};
   
   utype		unireg_check;
@@ -931,15 +936,20 @@ public:
 
 class Field_geom :public Field_blob {
 public:
+  enum geometry_type geom_type;
+  
   Field_geom(char *ptr_arg, uchar *null_ptr_arg, uint null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
-	     struct st_table *table_arg,uint blob_pack_length)
+	     struct st_table *table_arg,uint blob_pack_length,
+	     enum geometry_type geom_type_arg)
      :Field_blob(ptr_arg, null_ptr_arg, null_bit_arg, unireg_check_arg, 
-                 field_name_arg, table_arg, blob_pack_length,&my_charset_bin) {}
+                 field_name_arg, table_arg, blob_pack_length,&my_charset_bin)
+  { geom_type= geom_type_arg; }
   Field_geom(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-	     struct st_table *table_arg)
+	     struct st_table *table_arg, enum geometry_type geom_type_arg)
      :Field_blob(len_arg, maybe_null_arg, field_name_arg,
-                 table_arg, &my_charset_bin) {}
+                 table_arg, &my_charset_bin)
+  { geom_type= geom_type_arg; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_VARBINARY; }
   enum_field_types type() const { return FIELD_TYPE_GEOMETRY; }
   void sql_type(String &str) const;
@@ -1033,6 +1043,7 @@ public:
   Field::utype unireg_check;
   TYPELIB *interval;			// Which interval to use
   CHARSET_INFO *charset;
+  Field::geometry_type geom_type;
   Field *field;				// For alter table
 
   uint8 row,col,sc_length,interval_id;	// For rea_create_table
@@ -1086,6 +1097,7 @@ Field *make_field(char *ptr, uint32 field_length,
 		  uchar *null_pos, uchar null_bit,
 		  uint pack_flag, enum_field_types field_type,
 		  CHARSET_INFO *cs,
+		  Field::geometry_type geom_type,
 		  Field::utype unireg_check,
 		  TYPELIB *interval, const char *field_name,
 		  struct st_table *table);

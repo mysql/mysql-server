@@ -371,6 +371,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     uint pack_flag, interval_nr, unireg_type, recpos, field_length;
     enum_field_types field_type;
     CHARSET_INFO *charset=NULL;
+    Field::geometry_type geom_type= Field::GEOM_GEOMETRY;
     LEX_STRING comment;
 
     if (new_frm_ver == 3)
@@ -384,9 +385,19 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
       uint comment_length=uint2korr(strpos+15);
       field_type=(enum_field_types) (uint) strpos[13];
-      if (!(charset=get_charset((uint) strpos[14], MYF(0))))
-	charset= (outparam->table_charset ? outparam->table_charset: 
+
+      // charset and geometry_type share the same byte in frm
+      if (field_type == FIELD_TYPE_GEOMETRY)
+      {
+	geom_type= (Field::geometry_type) strpos[14];
+	charset= &my_charset_bin;
+      }
+      else
+      {
+        if (!(charset=get_charset((uint) strpos[14], MYF(0))))
+	  charset= (outparam->table_charset ? outparam->table_charset: 
 		  default_charset_info);
+      }
       if (!comment_length)
       {
 	comment.str= (char*) "";
@@ -420,6 +431,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 		 pack_flag,
 		 field_type,
 		 charset,
+		 geom_type,
 		 (Field::utype) MTYP_TYPENR(unireg_type),
 		 (interval_nr ?
 		  outparam->intervals+interval_nr-1 :

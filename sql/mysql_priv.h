@@ -565,7 +565,8 @@ bool add_field_to_list(THD *thd, char *field_name, enum enum_field_types type,
 		       char *length, char *decimal,
 		       uint type_modifier,
 		       Item *default_value, Item *comment,
-		       char *change, TYPELIB *interval,CHARSET_INFO *cs);
+		       char *change, TYPELIB *interval,CHARSET_INFO *cs,
+		       uint uint_geom_type);
 void store_position_for_column(const char *name);
 bool add_to_list(THD *thd, SQL_LIST &list,Item *group,bool asc=0);
 void add_join_on(TABLE_LIST *b,Item *expr);

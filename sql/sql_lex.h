@@ -449,6 +449,7 @@ typedef struct st_lex
   create_field	      *last_field;
   Item *default_value, *comment;
   CHARSET_INFO *thd_charset;
+  uint uint_geom_type;
   LEX_USER *grant_user;
   gptr yacc_yyss,yacc_yyvs;
   THD *thd;
