@@ -36,6 +36,7 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
+#ifdef HAVE_UCA_COLLATIONS
 
 #define MY_UCA_NPAGES 256
 #define MY_UCA_NCHARS 256
@@ -8990,4 +8991,6 @@ CHARSET_INFO my_charset_utf8_persian_uca_ci=
     &my_collation_any_uca_handler
 };
 
-#endif
+#endif /* HAVE_CHARSET_utf8 */
+
+#endif /* HAVE_UCA_COLLATIONS */
