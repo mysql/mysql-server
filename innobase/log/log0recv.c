@@ -1437,7 +1437,7 @@ loop:
 
 /* This page is allocated from the buffer pool and used in the function
 below */
-page_t* recv_backup_application_page	= NULL;
+static page_t* recv_backup_application_page	= NULL;
 
 /***********************************************************************
 Applies log records in the hash table to a backup. */

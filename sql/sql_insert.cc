@@ -948,7 +948,8 @@ public:
     thd.current_tablenr=0;
     thd.version=refresh_version;
     thd.command=COM_DELAYED_INSERT;
-    thd.lex->current_select= 0; /* for my_message_sql */
+    thd.lex->current_select= 0; 		// for my_message_sql
+    thd.lex->sql_command= SQLCOM_INSERT;        // For innodb::store_lock()
 
     bzero((char*) &thd.net, sizeof(thd.net));		// Safety
     bzero((char*) &table_list, sizeof(table_list));	// Safety

@@ -416,7 +416,7 @@ page_create(
 
 	mem_heap_free(heap);
 
-	/* 4. INITIALIZE THE PAGE HEADER */
+	/* 4. INITIALIZE THE PAGE */
 
 	page_header_set_field(page, PAGE_N_DIR_SLOTS, 2);
 	page_header_set_ptr(page, PAGE_HEAP_TOP, heap_top);
@@ -428,7 +428,9 @@ page_create(
 	page_header_set_field(page, PAGE_N_DIRECTION, 0);
 	page_header_set_field(page, PAGE_N_RECS, 0);
 	page_set_max_trx_id(page, ut_dulint_zero);
-	
+	memset(heap_top, 0, UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START
+						- (heap_top - page));
+
 	/* 5. SET POINTERS IN RECORDS AND DIR SLOTS */
 
 	/* Set the slots to point to infimum and supremum. */
@@ -829,12 +831,18 @@ page_delete_rec_list_start(
 {
 	page_cur_t	cur1;
 	ulint		log_mode;
+	ulint		offsets_[100]	= { 100, };
+	ulint*		offsets		= offsets_;
+	mem_heap_t*	heap		= NULL;
+	byte		type;
 
-	page_delete_rec_list_write_log(page, rec, index,
-			index->table->comp
-			? MLOG_COMP_LIST_START_DELETE
-			: MLOG_LIST_START_DELETE,
-			mtr);
+	if (index->table->comp) {
+		type = MLOG_COMP_LIST_START_DELETE;
+	} else {
+		type = MLOG_LIST_START_DELETE;
+	}
+
+	page_delete_rec_list_write_log(page, rec, index, type, mtr);
 
 	page_cur_set_before_first(page, &cur1);
 
@@ -850,8 +858,13 @@ page_delete_rec_list_start(
 	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 
 	while (page_cur_get_rec(&cur1) != rec) {
+		offsets = rec_get_offsets(page_cur_get_rec(&cur1), index,
+					offsets, ULINT_UNDEFINED, &heap);
+		page_cur_delete_rec(&cur1, index, offsets, mtr);
+	}
 
-		page_cur_delete_rec(&cur1, index, mtr);
+	if (heap) {
+		mem_heap_free(heap);
 	}
 
 	/* Restore log mode */

@@ -69,7 +69,7 @@ int User::init(const char *line)
 
   return 0;
 err:
-  log_error("error parsing user and password at line %d", line);
+  log_error("error parsing user and password at line %s", line);
   return 1;
 }
 
@@ -128,9 +128,10 @@ int User_map::load(const char *password_file_name)
 
   if ((file= my_fopen(password_file_name, O_RDONLY | O_BINARY, MYF(0))) == 0)
   {
-    log_error("can't open password file %s: errno=%d, %s", password_file_name,
+    /* Probably the password file wasn't specified. Try to leave without it */
+    log_info("[WARNING] can't open password file %s: errno=%d, %s", password_file_name,
               errno, strerror(errno));
-    return 1;
+    return 0;
   }
 
   while (fgets(line, sizeof(line), file))
