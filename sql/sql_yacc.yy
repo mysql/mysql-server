@@ -245,7 +245,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  RELAY_LOG_POS_SYM
 %token	MATCH
 %token	MAX_ROWS
+%token  MAX_CONNECTIONS_PER_HOUR
 %token  MAX_QUERIES_PER_HOUR
+%token  MAX_UPDATES_PER_HOUR
 %token	MEDIUM_SYM
 %token	MERGE_SYM
 %token	MIN_ROWS
@@ -289,6 +291,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	RENAME
 %token	REPEATABLE_SYM
 %token	REQUIRE_SYM
+%token  RESOURCES
 %token  RESTORE_SYM
 %token	RESTRICT
 %token	REVOKE
@@ -3046,7 +3049,9 @@ keyword:
 	| MASTER_USER_SYM	{}
 	| MASTER_PASSWORD_SYM	{}
 	| MASTER_CONNECT_RETRY_SYM	{}
+	| MAX_CONNECTIONS_PER_HOUR       {}
 	| MAX_QUERIES_PER_HOUR  {}
+	| MAX_UPDATES_PER_HOUR  {}
 	| MEDIUM_SYM		{}
 	| MERGE_SYM		{}
 	| MINUTE_SYM		{}
@@ -3080,6 +3085,7 @@ keyword:
 	| REPAIR		{}
 	| REPEATABLE_SYM	{}
 	| RESET_SYM		{}
+	| RESOURCES		{}
 	| RESTORE_SYM		{}
 	| ROLLBACK_SYM		{}
 	| ROWS_SYM		{}
@@ -3449,7 +3455,7 @@ grant:
 	  lex->select->db=0;
 	  lex->ssl_type=SSL_TYPE_NONE;
 	  lex->ssl_cipher=lex->x509_subject=lex->x509_issuer=0;
-	  lex->mqh=0;	
+	  bzero(&(lex->mqh),sizeof(lex->mqh));
 	}
 	grant_privileges ON opt_table TO_SYM user_list
 	require_clause grant_options;
@@ -3649,10 +3655,18 @@ grant_option_list:
 
 grant_option:
 	GRANT OPTION { Lex->grant |= GRANT_ACL;}
-        | MAX_QUERIES_PER_HOUR EQ NUM
+        | MAX_QUERIES_PER_HOUR EQ ULONG_NUM
         {
-	  Lex->mqh=atoi($3.str);
-	};
+	  Lex->mqh.questions=$3;
+	}
+        | MAX_UPDATES_PER_HOUR EQ ULONG_NUM
+        {
+	  Lex->mqh.updates=$3;
+	}
+        | MAX_CONNECTIONS_PER_HOUR EQ ULONG_NUM
+        {
+	  Lex->mqh.connections=$3;
+	}
 
 begin:
 	BEGIN_SYM   { Lex->sql_command = SQLCOM_BEGIN;} opt_work;
