@@ -91,6 +91,7 @@ NDB_MAIN(ndb_kernel){
      * Parent
      */
     catchsigs(true);
+
     int status = 0;
     while(waitpid(child, &status, 0) != child);
     if(WIFEXITED(status)){
@@ -112,6 +113,13 @@ NDB_MAIN(ndb_kernel){
 	globalData.theRestartFlag = perform_start;
 	break;
       default:
+	if(theConfig->stopOnError()){
+	  /**
+	   * Error shutdown && stopOnError()
+	   */
+	  exit(0);
+	}
+	// Fall-through
       case NRT_DoStart_Restart:
 	theConfig->setInitialStart(false);
 	globalData.theRestartFlag = perform_start;
