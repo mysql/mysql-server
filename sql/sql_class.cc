@@ -801,6 +801,15 @@ void select_export::send_error(uint errcode, const char *err)
 
 bool select_export::send_eof()
 {
+  /* This mimics select_send::send_eof(), which unlocks this way.
+   * It appears to be necessary, since tables aren't unlock after
+   * selects otherwise.
+   */
+  if (thd->lock)
+  {
+    mysql_unlock_tables(thd, thd->lock);
+    thd->lock=0;
+  }
   int error=test(end_io_cache(&cache));
   if (my_close(file,MYF(MY_WME)))
     error=1;
@@ -911,6 +920,15 @@ void select_dump::send_error(uint errcode,const char *err)
 
 bool select_dump::send_eof()
 {
+  /* This mimics select_send::send_eof(), which unlocks this way.
+   * It appears to be necessary, since tables aren't unlock after
+   * selects otherwise.
+   */
+  if (thd->lock)
+  {
+    mysql_unlock_tables(thd, thd->lock);
+    thd->lock=0;
+  }
   int error=test(end_io_cache(&cache));
   if (my_close(file,MYF(MY_WME)))
     error=1;

@@ -14,16 +14,28 @@ create table t1 (
         data int not null
 );
 
+
 # Single statement, no params.
 create procedure foo42()
   insert into test.t1 values ("foo", 42);
+
+call foo42();
+select * from t1;
+delete from t1;
+drop procedure foo42;
+
 
 # Single statement, two IN params.
 create procedure bar(x char(16), y int)
   insert into test.t1 values (x, y);
 
-# Now for multiple statements...
+call bar("bar", 666);
+select * from t1;
+delete from t1;
+# Don't drop procedure yet...
 
+
+# Now for multiple statements...
 delimiter |;
 
 # Two statements.
@@ -32,6 +44,12 @@ begin
   insert into test.t1 values (x1, y);
   insert into test.t1 values (x2, y);
 end|
+
+call two("one", "two", 3)|
+select * from t1|
+delete from t1|
+drop procedure two|
+
 
 # Simple test of local variables and SET.
 create procedure locset(x char(16), y int)
@@ -42,6 +60,12 @@ begin
   insert into test.t1 values (x, z2);
 end|
 
+call locset("locset", 19)|
+select * from t1|
+delete from t1|
+drop procedure locset|
+
+
 # The peculiar (non-standard) mixture of variables types in SET.
 create procedure mixset(x char(16), y int)
 begin
@@ -50,6 +74,13 @@ begin
   set @z = y, z = 666, max_join_size = 100;
   insert into test.t1 values (x, z);
 end|
+
+call mixset("mixset", 19)|
+show variables like 'max_join_size'|
+select id,data,@z from t1|
+delete from t1|
+drop procedure mixset|
+
 
 # Multiple CALL statements, one with OUT parameter.
 create procedure zip(x char(16), y int)
@@ -65,6 +96,13 @@ begin
   declare z int;
   set z = x+1, y = z;
 end|
+
+call zip("zip", 99)|
+select * from t1|
+delete from t1|
+drop procedure zip|
+drop procedure zap|
+drop procedure bar|
 
 
 # INOUT test
@@ -82,6 +120,13 @@ end|
 
 create procedure inc(inout io int)
   set io = io + 1|
+
+call iotest("io1", "io2", 1)|
+select * from t1|
+delete from t1|
+drop procedure iotest|
+drop procedure inc2|
+drop procedure inc|
 
 
 # Call-by-value test
@@ -103,8 +148,14 @@ begin
   insert into test.t1 values ("cbv2", y1);
 end|
 
+call cbv1()|
+select * from t1|
+delete from t1|
+drop procedure cbv1|
+drop procedure cbv2|
 
-# Minimal tests of the flow control construts
+
+# Basic tests of the flow control constructs
 
 # Just test on 'x'...
 create procedure a0(x int)
@@ -113,12 +164,24 @@ while x do
   insert into test.t1 values ("a0", x);
 end while|
 
+call a0(3)|
+select * from t1|
+delete from t1|
+drop procedure a0|
+
+
 # The same, but with a more traditional test.
 create procedure a(x int)
 while x > 0 do
   set x = x-1;
   insert into test.t1 values ("a", x);
 end while|
+
+call a(3)|
+select * from t1|
+delete from t1|
+drop procedure a|
+
 
 # REPEAT
 create procedure b(x int)
@@ -127,16 +190,24 @@ repeat
   set x = x-1;
 until x = 0 end repeat|
 
+call b(3)|
+select * from t1|
+delete from t1|
+drop procedure b|
+
+
 # Check that repeat isn't parsed the wrong way
 create procedure b2(x int)
 repeat(select 1 into outfile 'b2');
   insert into test.t1 values (repeat("b2",3), x);
   set x = x-1;
 until x = 0 end repeat|
+
 # We don't actually want to call it.
 drop procedure b2|
 
-# Btw, this should generate an error
+
+# Btw, this should generate an error (for now; this might change in the future)
 --error 1259
 create procedure b3(x int)
 repeat
@@ -144,6 +215,7 @@ repeat
   insert into test.t1 values (repeat("b3",3), x);
   set x = x-1;
 until x = 0 end repeat|
+
 
 # Labelled WHILE with ITERATE (pointless really)
 create procedure c(x int)
@@ -154,6 +226,12 @@ hmm: while x > 0 do
   insert into test.t1 values ("x", x);
 end while hmm|
 
+call c(3)|
+select * from t1|
+delete from t1|
+drop procedure c|
+
+
 # Labelled WHILE with LEAVE
 create procedure d(x int)
 hmm: while x > 0 do
@@ -162,6 +240,12 @@ hmm: while x > 0 do
   leave hmm;
   insert into test.t1 values ("x", x);
 end while hmm|
+
+call d(3)|
+select * from t1|
+delete from t1|
+drop procedure d|
+
 
 # LOOP, with simple IF statement
 create procedure e(x int)
@@ -173,6 +257,12 @@ foo: loop
   set x = x-1;
 end loop foo|
 
+call e(3)|
+select * from t1|
+delete from t1|
+drop procedure e|
+
+
 # A full IF statement
 create procedure f(x int)
 if x < 0 then
@@ -182,6 +272,14 @@ elseif x = 0 then
 else
   insert into test.t1 values ("f", 2);
 end if|
+
+call f(-2)|
+call f(0)|
+call f(4)|
+select * from t1|
+delete from t1|
+drop procedure f|
+
 
 # This form of CASE is really just syntactic sugar for IF-ELSEIF-...
 create procedure g(x int)
@@ -194,6 +292,14 @@ else
   insert into test.t1 values ("g", 2);
 end case|
 
+call g(-42)|
+call g(0)|
+call g(1)|
+select * from t1|
+delete from t1|
+drop procedure g|
+
+
 # The "simple CASE"
 create procedure h(x int)
 case x
@@ -205,6 +311,56 @@ else
   insert into test.t1 values ("h?", x);
 end case|
 
+call h(0)|
+call h(1)|
+call h(17)|
+select * from t1|
+delete from t1|
+drop procedure h|
+
+
+# A "real" procedure example
+
+--disable_warnings
+drop table if exists fac|
+--enable_warnings
+create table fac (n int unsigned not null primary key, f bigint unsigned)|
+
+create procedure ifac(n int unsigned)
+begin
+  declare i int unsigned;
+  set i = 1;
+  if n > 20 then
+    set n = 20;
+  end if;
+  while i <= n do
+    begin
+      declare f bigint unsigned;
+      set f = 0;       # Temp. fix, this should not be needed in the future.
+      call fac(i, f);
+      insert into test.fac values (i, f);
+      set i = i + 1;
+    end;
+  end while;
+end|
+
+create procedure fac(n int unsigned, out f bigint unsigned)
+begin
+  set f = 1;
+  while n > 1 do
+    set f = f * n;
+    set n = n - 1;
+  end while;
+end|
+
+call ifac(20)|
+select * from fac|
+drop table fac|
+drop procedure ifac|
+drop procedure fac|
+
+
+# SELECT INTO local variables
 create procedure into_test(x char(16), y int)
 begin
   insert into test.t1 values (x, y);
@@ -212,7 +368,13 @@ begin
   insert into test.t1 values (concat(x, "2"), y+2);
 end|
 
-# Test INTO with a mix of local and global variables
+call into_test("into", 100)|
+select * from t1|
+delete from t1|
+drop procedure into_test|
+
+
+# SELECT INTO with a mix of local and global variables
 create procedure into_test2(x char(16), y int)
 begin
   insert into test.t1 values (x, y);
@@ -220,114 +382,56 @@ begin
   insert into test.t1 values (concat(x, "2"), y+2);
 end|
 
+call into_test2("into", 100)|
+select id,data,@z from t1|
+delete from t1|
+drop procedure into_test2|
+
+
+# These two (and the two procedures above) caused an assert() to fail in
+# sql_base.cc:lock_tables() at some point.
+
+create procedure into_outfile(x char(16), y int)
+begin
+  insert into test.t1 values (x, y);
+  select * into outfile "/tmp/spout" from test.t1;
+  insert into test.t1 values (concat(x, "2"), y+2);
+end|
+
+system rm -f /tmp/spout|
+call into_outfile("ofile", 1)|
+system rm -f /tmp/spout|
+delete from t1|
+drop procedure into_outfile|
+
+create procedure into_dumpfile(x char(16), y int)
+begin
+  insert into test.t1 values (x, y);
+  select * into dumpfile "/tmp/spdump" from test.t1 limit 1;
+  insert into test.t1 values (concat(x, "2"), y+2);
+end|
+
+system rm -f /tmp/spdump|
+call into_dumpfile("dfile", 1)|
+system rm -f /tmp/spdump|
+delete from t1|
+drop procedure into_dumpfile|
+
+
+create procedure create_select(x char(16), y int)
+begin
+  insert into test.t1 values (x, y);
+  create table test.t2 select * from test.t1;
+  insert into test.t2 values (concat(x, "2"), y+2);
+end|
+
+# This doesn't work right now. It suffers from the same problem as the ones
+# above, but the fix caused create.test to hang. :-(
+#call create_select("cs", 90)|
+#select * from t1, t2|
+#delete from t1|
+#drop table t2|
+drop procedure create_select|
+
 delimiter ;|
-
-# Now, the CALL tests...
-call foo42();
-select * from t1;
-delete from t1;
-
-call bar("bar", 666);
-select * from t1;
-delete from t1;
-
-call two("one", "two", 3);
-select * from t1;
-delete from t1;
-
-call locset("locset", 19);
-select * from t1;
-delete from t1;
-
-call mixset("mixset", 19);
-show variables like 'max_join_size';
-select id,data,@z from t1;
-delete from t1;
-
-call zip("zip", 99);
-select * from t1;
-delete from t1;
-
-call iotest("io1", "io2", 1);
-select * from t1;
-delete from t1;
-
-call cbv1();
-select * from t1;
-delete from t1;
-
-call a0(3);
-select * from t1;
-delete from t1;
-
-call a(3);
-select * from t1;
-delete from t1;
-
-call b(3);
-select * from t1;
-delete from t1;
-
-call c(3);
-select * from t1;
-delete from t1;
-
-call d(3);
-select * from t1;
-delete from t1;
-
-call e(3);
-select * from t1;
-delete from t1;
-
-call f(-2);
-call f(0);
-call f(4);
-select * from t1;
-delete from t1;
-
-call g(-42);
-call g(0);
-call g(1);
-select * from t1;
-delete from t1;
-
-call h(0);
-call h(1);
-call h(17);
-select * from t1;
-delete from t1;
-
-call into_test("into", 100);
-select * from t1;
-delete from t1;
-
-call into_test2("into", 100);
-select id,data,@z from t1;
-delete from t1;
-
-drop procedure foo42;
-drop procedure bar;
-drop procedure two;
-drop procedure locset;
-drop procedure mixset;
-drop procedure zip;
-drop procedure zap;
-drop procedure iotest;
-drop procedure inc2;
-drop procedure inc;
-drop procedure cbv1;
-drop procedure cbv2;
-drop procedure a0;
-drop procedure a;
-drop procedure b;
-drop procedure c;
-drop procedure d;
-drop procedure e;
-drop procedure f;
-drop procedure g;
-drop procedure h;
-drop procedure into_test;
-drop procedure into_test2;
-
 drop table t1;
