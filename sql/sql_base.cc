@@ -3047,15 +3047,15 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
                                  &not_used_field_index, TRUE))
         {
           Item *item= iterator->item(thd);
+          if (!found++)
+            (void) it->replace(item);		// Replace '*'
+          else
+            it->after(item);
 	  if (view && !thd->lex->current_select->no_wrap_view_item)
 	  {
 	    item= new Item_ref(it->ref(), tables->view_name.str,
 			       field_name);
 	  }
-          if (!found++)
-            (void) it->replace(item);		// Replace '*'
-          else
-            it->after(item);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
           if (any_privileges)
           {
