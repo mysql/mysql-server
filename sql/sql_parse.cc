@@ -6001,15 +6001,15 @@ static bool check_multi_update_lock(THD *thd)
     Ensure that we have UPDATE or SELECT privilege for each table
     The exact privilege is checked in mysql_multi_update()
   */
-  for (table= tables ; table ; table= table->next)
+  for (table= tables ; table ; table= table->next_local)
   {
-    TABLE_LIST *save= table->next;
-    table->next= 0;
+    TABLE_LIST *save= table->next_local;
+    table->next_local= 0;
     if ((check_access(thd, UPDATE_ACL, table->db, &table->grant.privilege,0,1) ||
         (grant_option && check_grant(thd, UPDATE_ACL, table,0,1,1))) &&
 	check_one_table_access(thd, SELECT_ACL, table))
 	goto error;
-    table->next= save;
+    table->next_local= save;
   }
     
   if (mysql_multi_update_prepare(thd))
