@@ -49838,7 +49838,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Fixed a bug that made the pager option in the mysql client non-functional.
+Fixed a bug that made the pager option in the @code{mysql} client
+non-functional.
 @item
 Added full @code{AUTO_INCREMENT} support to @code{MERGE} tables.
 @item
@@ -49862,7 +49863,7 @@ as a synonym for bitwise @code{XOR}.
 Added function @code{IS_FREE_LOCK("lock_name")}.
 Based on code contributed by Hartmut Holzgraefe @email{hartmut@@six.de}.
 @item
-Removed @code{mysql_ssl_clear()}, as it was not needed.
+Removed @code{mysql_ssl_clear()} from C API, as it was not needed.
 @item
 @code{DECIMAL} and @code{NUMERIC} types can now read exponential numbers.
 @item
@@ -49881,7 +49882,7 @@ consistent dump of @code{InnoDB} tables.
 @item
 Fixed bug in @code{innodb_log_group_home_dir} in @code{SHOW VARIABLES}.
 @item
-Fixed a bug in optimiser with merge tables when non-uniques values are 
+Fixed a bug in optimiser with merge tables when non-unique values are 
 used in summing up (causing crashes).
 @item
 Fixed a bug in optimiser when a range specified makes index grouping
@@ -49916,7 +49917,7 @@ Fixed bug in @code{DROP DATABASE} with symlink.
 @item
 Fixed crash in @code{REPAIR ... USE_FRM}.
 @item
-Fixed bug in @code{EXPLAIN} with @code{LIMIT offset != 0}
+Fixed bug in @code{EXPLAIN} with @code{LIMIT offset != 0}.
 @item
 Fixed bug in phrase operator @code{"..."} in boolean full-text search.
 @item
