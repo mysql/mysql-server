@@ -161,6 +161,9 @@ const int ConfigInfo::m_NoOfRules = sizeof(m_SectionRules)/sizeof(SectionRule);
 /****************************************************************************
  * Config Rules declarations
  ****************************************************************************/
+static bool sanity_checks(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+			  struct InitConfigFileParser::Context &ctx, 
+			  const char * rule_data);
 static bool add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 				 struct InitConfigFileParser::Context &ctx, 
 				 const char * rule_data);
@@ -173,6 +176,7 @@ static bool check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&section
 
 const ConfigInfo::ConfigRule 
 ConfigInfo::m_ConfigRules[] = {
+  { sanity_checks, 0 },
   { add_node_connections, 0 },
   { add_server_ports, 0 },
   { check_node_vs_replicas, 0 },
@@ -2959,6 +2963,29 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
 }
 
 static bool
+sanity_checks(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+	      struct InitConfigFileParser::Context &ctx, 
+	      const char * rule_data)
+{
+  Uint32 db_nodes = 0;
+  Uint32 mgm_nodes = 0;
+  Uint32 api_nodes = 0;
+  if (!ctx.m_userProperties.get("DB", &db_nodes)) {
+    ctx.reportError("At least one database node should be defined in config file");
+    return false;
+  }
+  if (!ctx.m_userProperties.get("MGM", &mgm_nodes)) {
+    ctx.reportError("At least one management server node should be defined in config file");
+    return false;
+  }
+  if (!ctx.m_userProperties.get("API", &api_nodes)) {
+    ctx.reportError("At least one application node (for the mysqld) should be defined in config file");
+    return false;
+  }
+  return true;
+}
+
+static bool
 add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 		   struct InitConfigFileParser::Context &ctx, 
 		   const char * rule_data)
@@ -3091,7 +3118,9 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
 {
   Uint32 db_nodes = 0;
   Uint32 replicas = 0;
-  ctx.m_userProperties.get("DB", &db_nodes);
+  if (!ctx.m_userProperties.get("DB", &db_nodes)) {
+    return true;
+  }
   ctx.m_userProperties.get("NoOfReplicas", &replicas);
   if((db_nodes % replicas) != 0){
     ctx.reportError("Invalid no of db nodes wrt no of replicas.\n"
