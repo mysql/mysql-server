@@ -940,3 +940,6 @@ ndbcluster-1186/ndb_3_out.log
 ndbcluster-1186/ndbcluster.pid
 ndb/tools/ndb_restore
 ac_available_languages_fragment
+libmysqld/ha_archive.cc
+libmysqld/ha_example.cc
+libmysqld/ha_tina.cc
