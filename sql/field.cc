@@ -301,7 +301,8 @@ Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
 	     utype unireg_check_arg, const char *field_name_arg,
 	     struct st_table *table_arg)
   :ptr(ptr_arg),null_ptr(null_ptr_arg),
-   table(table_arg),table_name(table_arg ? table_arg->table_name : 0),
+   table(table_arg),orig_table(table_arg),
+   table_name(table_arg ? table_arg->table_name : 0),
    field_name(field_name_arg),
    query_id(0), key_start(0), part_of_key(0), part_of_sortkey(0),
    unireg_check(unireg_check_arg),
@@ -349,9 +350,10 @@ void Field_num::add_zerofill_and_unsigned(String &res) const
 void Field_num::make_field(Send_field *field)
 {
   /* table_cache_key is not set for temp tables */
-  field->db_name=table->table_cache_key ? table->table_cache_key : ""; 
-  field->org_table_name=table->real_name;
-  field->table_name=table_name;
+  field->db_name= (orig_table->table_cache_key ? orig_table->table_cache_key :
+		   "");
+  field->org_table_name= orig_table->real_name;
+  field->table_name= orig_table->table_name;
   field->col_name=field->org_col_name=field_name;
   field->charsetnr= charset()->number;
   field->length=field_length;
@@ -364,9 +366,10 @@ void Field_num::make_field(Send_field *field)
 void Field_str::make_field(Send_field *field)
 {
   /* table_cache_key is not set for temp tables */
-  field->db_name=table->table_cache_key ? table->table_cache_key : ""; 
-  field->org_table_name=table->real_name;
-  field->table_name=table_name;
+  field->db_name= (orig_table->table_cache_key ? orig_table->table_cache_key :
+		   "");
+  field->org_table_name= orig_table->real_name;
+  field->table_name= orig_table->table_name;
   field->col_name=field->org_col_name=field_name;
   field->charsetnr= charset()->number;
   field->length=field_length;

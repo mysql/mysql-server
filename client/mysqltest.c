@@ -129,7 +129,7 @@ static CHARSET_INFO *charset_info= &my_charset_latin1;
 static int embedded_server_arg_count=0;
 static char *embedded_server_args[MAX_SERVER_ARGS];
 
-static my_bool display_result_vertically= FALSE;
+static my_bool display_result_vertically= FALSE, display_metadata= FALSE;
 
 static const char *embedded_server_groups[] = {
   "server",
@@ -215,6 +215,7 @@ Q_WAIT_FOR_SLAVE_TO_STOP,
 Q_REQUIRE_VERSION,
 Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
 Q_ENABLE_INFO, Q_DISABLE_INFO,
+Q_ENABLE_METADATA, Q_DISABLE_METADATA,
 Q_EXEC, Q_DELIMITER,
 Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
 Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
@@ -289,6 +290,8 @@ const char *command_names[]=
   "disable_warnings",
   "enable_info",
   "disable_info",
+  "enable_metadata",
+  "disable_metadata",
   "exec",
   "delimiter",
   "vertical_results",
@@ -1677,7 +1680,7 @@ void my_ungetc(int c)
 
 my_bool end_of_query(int c)
 {
-  uint i,j;
+  uint i;
   char tmp[MAX_DELIMITER];
 
   if (c != *delimiter)
@@ -2220,7 +2223,8 @@ static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
 int run_query(MYSQL* mysql, struct st_query* q, int flags)
 {
   MYSQL_RES* res= 0;
-  int i, error= 0, err= 0, counter= 0;
+  uint i;
+  int error= 0, err= 0, counter= 0;
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING ds_tmp;
   DYNAMIC_STRING eval_query;
@@ -2347,17 +2351,59 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     {
       if (res)
       {
+	MYSQL_FIELD *field, *field_end;
+	uint num_fields= mysql_num_fields(res);
 
+	if (display_metadata)
+	{
+	  dynstr_append(ds,"Catalog\tDatabase\tTable\tTable_alias\tColumn\tColumn_alias\tName\tType\tLength\tMax length\tIs_null\tFlags\tDecimals\n");
+	  for (field= mysql_fetch_fields(res), field_end= field+num_fields ;
+	       field < field_end ;
+	       field++)
+	  {
+	    char buff[22];
+	    dynstr_append_mem(ds, field->catalog, field->catalog_length);
+	    dynstr_append_mem(ds, "\t", 1);
+	    dynstr_append_mem(ds, field->db, field->db_length);
+	    dynstr_append_mem(ds, "\t", 1);
+	    dynstr_append_mem(ds, field->org_table, field->org_table_length);
+	    dynstr_append_mem(ds, "\t", 1);
+	    dynstr_append_mem(ds, field->table, field->table_length);
+	    dynstr_append_mem(ds, "\t", 1);
+	    dynstr_append_mem(ds, field->org_name, field->org_name_length);
+	    dynstr_append_mem(ds, "\t", 1);
+	    dynstr_append_mem(ds, field->name, field->name_length);
+	    dynstr_append_mem(ds, "\t", 1);
+	    int10_to_str((int) field->type, buff, 10);
+	    dynstr_append(ds, buff);
+	    dynstr_append_mem(ds, "\t", 1);
+	    int10_to_str((int) field->length, buff, 10);
+	    dynstr_append(ds, buff);
+	    dynstr_append_mem(ds, "\t", 1);
+	    int10_to_str((int) field->max_length, buff, 10);
+	    dynstr_append(ds, buff);
+	    dynstr_append_mem(ds, "\t", 1);
+	    dynstr_append_mem(ds, (char*) (IS_NOT_NULL(field->flags) ?
+					   "N" : "Y"), 1);
+	    dynstr_append_mem(ds, "\t", 1);
+
+	    int10_to_str((int) field->flags, buff, 10);
+	    dynstr_append(ds, buff);
+	    dynstr_append_mem(ds, "\t", 1);
+	    int10_to_str((int) field->decimals, buff, 10);
+	    dynstr_append(ds, buff);
+	    dynstr_append_mem(ds, "\n", 1);
+	  }
+	}
 	if (!display_result_vertically)
 	{
-	  int num_fields= mysql_num_fields(res);
-	  MYSQL_FIELD *fields= mysql_fetch_fields(res);
+	  field= mysql_fetch_fields(res);
 	  for (i = 0; i < num_fields; i++)
 	  {
 	    if (i)
 	      dynstr_append_mem(ds, "\t", 1);
-	    replace_dynstr_append_mem(ds, fields[i].name,
-				      strlen(fields[i].name));
+	    replace_dynstr_append_mem(ds, field[i].name,
+				      strlen(field[i].name));
 	  }
 	  dynstr_append_mem(ds, "\n", 1);
 	}
@@ -2622,6 +2668,8 @@ int main(int argc, char **argv)
       case Q_DISABLE_WARNINGS:   disable_warnings=1; break;
       case Q_ENABLE_INFO:    	 disable_info=0; break;
       case Q_DISABLE_INFO:   	 disable_info=1; break;
+      case Q_ENABLE_METADATA:    display_metadata=1; break;
+      case Q_DISABLE_METADATA: 	 display_metadata=0; break;
       case Q_SOURCE: do_source(q); break;
       case Q_SLEEP: do_sleep(q, 0); break;
       case Q_REAL_SLEEP: do_sleep(q, 1); break;
