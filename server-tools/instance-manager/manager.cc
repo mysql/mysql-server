@@ -18,8 +18,6 @@
 
 #include <my_global.h>
 #include <signal.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 #include "thread_repository.h"
 #include "listener.h"
