@@ -214,8 +214,9 @@ SHOW_COMP_OPTION have_symlink=SHOW_OPTION_YES;
 static bool opt_skip_slave_start = 0; // if set, slave is not autostarted
 static bool opt_do_pstack = 0;
 static ulong opt_specialflag=SPECIAL_ENGLISH;
-static my_socket unix_sock= INVALID_SOCKET,ip_sock= INVALID_SOCKET;
 static ulong back_log,connect_timeout,concurrency;
+static ulong opt_myisam_block_size;
+static my_socket unix_sock= INVALID_SOCKET,ip_sock= INVALID_SOCKET;
 static my_string opt_logname=0,opt_update_logname=0,
        opt_binlog_index_name = 0,opt_slow_logname=0;
 static char mysql_home[FN_REFLEN],pidfile_name[FN_REFLEN];
@@ -242,15 +243,10 @@ static char **defaults_argv,time_zone[30];
 static const char *default_table_type_name;
 static char glob_hostname[FN_REFLEN];
 
+#include "sslopt-vars.h"
 #ifdef HAVE_OPENSSL
-static bool opt_use_ssl = FALSE;
-static char *opt_ssl_key = 0;
-static char *opt_ssl_cert = 0;
-static char *opt_ssl_ca = 0;
-static char *opt_ssl_capath = 0;
 struct st_VioSSLAcceptorFd * ssl_acceptor_fd = 0;
 #endif /* HAVE_OPENSSL */
-
 
 I_List <i_string_pair> replicate_rewrite_db;
 I_List<i_string> replicate_do_db, replicate_ignore_db;
@@ -290,7 +286,7 @@ uint master_port = MYSQL_PORT, master_connect_retry = 60;
 uint report_port = MYSQL_PORT;
 bool master_ssl = 0;
 
-ulong max_tmp_tables,max_heap_table_size;
+ulong max_tmp_tables,max_heap_table_size,master_retry_count=0;
 ulong bytes_sent = 0L, bytes_received = 0L;
 
 bool opt_endinfo,using_udf_functions,low_priority_updates, locked_in_memory;
@@ -315,10 +311,16 @@ ulong slow_launch_threads = 0;
 ulong myisam_max_sort_file_size, myisam_max_extra_sort_file_size;
   
 char mysql_real_data_home[FN_REFLEN],
-     mysql_data_home[2],language[LIBLEN],reg_ext[FN_EXTLEN],
+     language[LIBLEN],reg_ext[FN_EXTLEN],
      default_charset[LIBLEN],mysql_charsets_dir[FN_REFLEN], *charsets_list,
      blob_newline,f_fyllchar,max_sort_char,*mysqld_user,*mysqld_chroot,
      *opt_init_file;
+#ifndef EMBEDDED_LIBRARY
+char mysql_data_home_buff[2], *mysql_data_home=mysql_data_home_buff;
+#else
+char *mysql_data_home=mysql_real_data_home;
+#endif
+
 char *opt_bin_logname = 0; // this one needs to be seen in sql_parse.cc
 char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
 const char *first_keyword="first";
@@ -342,7 +344,7 @@ ulong opt_sql_mode = 0L;
 const char *sql_mode_names[] =
 { "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
   "SERIALIZE","ONLY_FULL_GROUP_BY", NullS };
-TYPELIB sql_mode_typelib= {array_elements(sql_mode_names),"",
+TYPELIB sql_mode_typelib= {array_elements(sql_mode_names)-1,"",
 			   sql_mode_names};
 
 MY_BITMAP temp_pool;
@@ -682,11 +684,8 @@ static sig_handler print_signal_warning(int sig)
 void unireg_end(int signal_number __attribute__((unused)))
 {
   clean_up();
-#if defined(EMBEDDED_LIBRARY)
-  exit(0);			// XXX QQ: this is a temporary hack (I hope)
-#else
+  my_thread_end();
   pthread_exit(0);				// Exit is in main thread
-#endif
 }
 
 
@@ -695,6 +694,7 @@ void unireg_abort(int exit_code)
   if (exit_code)
     sql_print_error("Aborting\n");
   clean_up(); /* purecov: inspected */
+  my_thread_end();
   exit(exit_code); /* purecov: inspected */
 }
 
@@ -725,6 +725,7 @@ void clean_up(bool print_message)
   my_free(opt_ssl_cert,MYF(MY_ALLOW_ZERO_PTR));
   my_free(opt_ssl_ca,MYF(MY_ALLOW_ZERO_PTR));
   my_free(opt_ssl_capath,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_ssl_cipher,MYF(MY_ALLOW_ZERO_PTR));
   opt_ssl_key=opt_ssl_cert=opt_ssl_ca=opt_ssl_capath=0;
 #endif /* HAVE_OPENSSL */
   free_defaults(defaults_argv);
@@ -736,14 +737,13 @@ void clean_up(bool print_message)
   free_max_user_conn();
   end_slave_list();
 
-#ifndef __WIN__
+#if !defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
 #endif
   if (print_message)
     sql_print_error(ER(ER_SHUTDOWN_COMPLETE),my_progname);
   x_free((gptr) my_errmsg[ERRMAPP]);	/* Free messages */
-  my_thread_end();
 
   /* Tell main we are ready */
   (void) pthread_mutex_lock(&LOCK_thread_count);
@@ -1712,7 +1712,7 @@ int main(int argc, char **argv)
   if (opt_use_ssl)
   {
     ssl_acceptor_fd = new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
-					   opt_ssl_ca, opt_ssl_capath);
+			   opt_ssl_ca, opt_ssl_capath, opt_ssl_cipher);
     DBUG_PRINT("info",("ssl_acceptor_fd: %p",ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
       opt_use_ssl=0;
@@ -1738,7 +1738,7 @@ int main(int argc, char **argv)
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
 
 #if defined( SET_RLIMIT_NOFILE) || defined( OS2)
-  /* connections and databases neads lots of files */
+  /* connections and databases needs lots of files */
   {
     uint wanted_files=10+(uint) max(max_connections*5,
 				    max_connections+table_cache_size*2);
@@ -1788,10 +1788,6 @@ int main(int argc, char **argv)
   init_thr_lock();
   init_slave_list();
   
-  /* Fix varibles that are base 1024*1024 */
-  myisam_max_temp_length= (my_off_t) min(((ulonglong) myisam_max_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
-  myisam_max_extra_temp_length= (my_off_t) min(((ulonglong) myisam_max_extra_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
-
   /* Setup log files */
   if (opt_log)
     open_log(&mysql_log, glob_hostname, opt_logname, ".log", LOG_NORMAL);
@@ -1802,17 +1798,18 @@ int main(int argc, char **argv)
     using_update_log=1;
   }
 
-  //make sure slave thread gets started
-  // if server_id is set, valid master.info is present, and master_host has
-  // not been specified
-  if(server_id && !master_host)
-    {
-      char fname[FN_REFLEN+128];
-      MY_STAT stat_area;
-      fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
-      if(my_stat(fname, &stat_area, MYF(0)) && !init_master_info(&glob_mi))
-        master_host = glob_mi.host;
-    }
+  /*
+    make sure slave thread gets started if server_id is set,
+    valid master.info is present, and master_host has not been specified
+  */
+  if (server_id && !master_host)
+  {
+    char fname[FN_REFLEN+128];
+    MY_STAT stat_area;
+    fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
+    if (my_stat(fname, &stat_area, MYF(0)) && !init_master_info(&glob_mi))
+      master_host = glob_mi.host;
+  }
 
   if (opt_bin_log && !server_id)
   {
@@ -1906,7 +1903,7 @@ The server will not act as a slave.");
     (void) pthread_kill(signal_thread,MYSQL_KILL_SIGNAL);
 #ifndef __WIN__
     if (!opt_bootstrap)
-      (void) my_delete(pidfile_name,MYF(MY_WME));	// Not neaded anymore
+      (void) my_delete(pidfile_name,MYF(MY_WME));	// Not needed anymore
 #endif
     exit(1);
   }
@@ -2046,7 +2043,7 @@ The server will not act as a slave.");
   {
     if(start_mode)
     {
-      if (WaitForSingleObject(hEventShutdown,INFINITE)==WAIT_OBJECT_0)
+      if (WaitForSingleObject(hEventShutdown,1000)==WAIT_TIMEOUT)
         Service.Stop();
     }
     else
@@ -2576,10 +2573,9 @@ enum options {
 	       OPT_MASTER_HOST,             OPT_MASTER_USER,
                OPT_MASTER_PASSWORD,         OPT_MASTER_PORT,
                OPT_MASTER_INFO_FILE,        OPT_MASTER_CONNECT_RETRY,
-#ifdef HAVE_OPENSSL
+	       OPT_MASTER_RETRY_COUNT,
 	       OPT_MASTER_SSL,             OPT_MASTER_SSL_KEY,
 	       OPT_MASTER_SSL_CERT,            
-#endif /* HAVE_OPESSSL*/ 
                OPT_SQL_BIN_UPDATE_SAME,     OPT_REPLICATE_DO_DB,      
                OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
                OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
@@ -2686,12 +2682,11 @@ static struct option long_options[] = {
   {"master-password",       required_argument, 0, (int) OPT_MASTER_PASSWORD},
   {"master-port",           required_argument, 0, (int) OPT_MASTER_PORT},
   {"master-connect-retry",  required_argument, 0, (int) OPT_MASTER_CONNECT_RETRY},
+  {"master-retry-count",    required_argument, 0, (int) OPT_MASTER_RETRY_COUNT},
   {"master-info-file",      required_argument, 0, (int) OPT_MASTER_INFO_FILE},
-#ifdef HAVE_OPENSSL  
   {"master-ssl",      	    optional_argument, 0, (int) OPT_MASTER_SSL},
   {"master-ssl-key",        optional_argument, 0, (int) OPT_MASTER_SSL_KEY},
   {"master-ssl-cert",       optional_argument, 0, (int) OPT_MASTER_SSL_CERT},
-#endif  
   {"myisam-recover",	    optional_argument, 0, (int) OPT_MYISAM_RECOVER},
   {"memlock",		    no_argument,       0, (int) OPT_MEMLOCK},
     // needs to be available for the test case to pass in non-debugging mode
@@ -2888,6 +2883,9 @@ CHANGEABLE_VAR changeable_vars[] = {
       ~0L, 1, ~0L, 0, 1 },
   { "myisam_bulk_insert_tree_size", (long*) &myisam_bulk_insert_tree_size,
       8192*1024, 4, ~0L, 0, 1 },
+  { "myisam_block_size", 	(long*) &opt_myisam_block_size,
+      MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH, MI_MAX_KEY_BLOCK_LENGTH,
+    0, MI_MIN_KEY_BLOCK_LENGTH },
   { "myisam_max_extra_sort_file_size",
     (long*) &myisam_max_extra_sort_file_size,
     (long) (MI_MAX_TEMP_LENGTH/(1024L*1024L)), 0, ~0L, 0, 1 },
@@ -3110,21 +3108,29 @@ struct show_var_st status_vars[]= {
   {"Sort_rows",		       (char*) &filesort_rows,	        SHOW_LONG},
   {"Sort_scan",		       (char*) &filesort_scan_count,    SHOW_LONG},
 #ifdef HAVE_OPENSSL
-  {"SSL_CTX_sess_accept",      (char*) 0,  			SHOW_SSL_CTX_SESS_ACCEPT},
-  {"SSL_CTX_sess_accept_good", (char*) 0,  			SHOW_SSL_CTX_SESS_ACCEPT_GOOD},
-  {"SSL_CTX_sess_accept_renegotiate", (char*) 0, 		SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE},
-  {"SSL_CTX_sess_cb_hits",     (char*) 0,			SHOW_SSL_CTX_SESS_CB_HITS},
-  {"SSL_CTX_sess_number",      (char*) 0,			SHOW_SSL_CTX_SESS_NUMBER},
-  {"SSL_CTX_get_session_cache_mode", (char*) 0,			SHOW_SSL_CTX_GET_SESSION_CACHE_MODE},
-  {"SSL_CTX_sess_get_cache_size", (char*) 0,			SHOW_SSL_CTX_SESS_GET_CACHE_SIZE},
-  {"SSL_CTX_get_verify_mode",  (char*) 0,			SHOW_SSL_CTX_GET_VERIFY_MODE},
-  {"SSL_CTX_get_verify_depth", (char*) 0,			SHOW_SSL_CTX_GET_VERIFY_DEPTH},
-  {"SSL_get_verify_mode",      (char*) 0,			SHOW_SSL_GET_VERIFY_MODE},
-  {"SSL_get_verify_depth",     (char*) 0,			SHOW_SSL_GET_VERIFY_DEPTH},
-  {"SSL_session_reused",       (char*) 0,			SHOW_SSL_SESSION_REUSED},
-  {"SSL_get_version",          (char*) 0,  			SHOW_SSL_GET_VERSION},
-  {"SSL_get_cipher",           (char*) 0,  			SHOW_SSL_GET_CIPHER},
-  {"SSL_get_default_timeout",  (char*) 0,  			SHOW_SSL_GET_DEFAULT_TIMEOUT},
+  {"ssl_accepts",              (char*) 0,  			SHOW_SSL_CTX_SESS_ACCEPT},
+  {"ssl_finished_accepts",     (char*) 0,  			SHOW_SSL_CTX_SESS_ACCEPT_GOOD},
+  {"ssl_finished_connects",    (char*) 0,  			SHOW_SSL_CTX_SESS_CONNECT_GOOD},
+  {"ssl_accept_renegotiates",  (char*) 0, 			SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE},
+  {"ssl_connect_renegotiates", (char*) 0, 		        SHOW_SSL_CTX_SESS_CONNECT_RENEGOTIATE},
+  {"ssl_callback_cache_hits",  (char*) 0,			SHOW_SSL_CTX_SESS_CB_HITS},
+  {"ssl_session_cache_hits",   (char*) 0,		 	SHOW_SSL_CTX_SESS_HITS},
+  {"ssl_session_cache_misses", (char*) 0,		 	SHOW_SSL_CTX_SESS_MISSES},
+  {"ssl_session_cache_timeouts", (char*) 0,		 	SHOW_SSL_CTX_SESS_TIMEOUTS},
+  {"ssl_used_session_cache_entries",(char*) 0,			SHOW_SSL_CTX_SESS_NUMBER},
+  {"ssl_client_connects",      (char*) 0,			SHOW_SSL_CTX_SESS_CONNECT},
+  {"ssl_session_cache_overflows", (char*) 0,		 	SHOW_SSL_CTX_SESS_CACHE_FULL},
+  {"ssl_session_cache_size",   (char*) 0,		 	SHOW_SSL_CTX_SESS_GET_CACHE_SIZE},
+  {"ssl_session_cache_mode",   (char*) 0,			SHOW_SSL_CTX_GET_SESSION_CACHE_MODE},
+  {"ssl_sessions_reused",      (char*) 0,			SHOW_SSL_SESSION_REUSED},
+  {"ssl_ctx_verify_mode",      (char*) 0,			SHOW_SSL_CTX_GET_VERIFY_MODE},
+  {"ssl_ctx_verify_depth",     (char*) 0,			SHOW_SSL_CTX_GET_VERIFY_DEPTH},
+  {"ssl_verify_mode",          (char*) 0,			SHOW_SSL_GET_VERIFY_MODE},
+  {"ssl_verify_depth",         (char*) 0,			SHOW_SSL_GET_VERIFY_DEPTH},
+  {"ssl_version",   	       (char*) 0,  			SHOW_SSL_GET_VERSION},
+  {"ssl_cipher",               (char*) 0,  			SHOW_SSL_GET_CIPHER},
+  {"ssl_cipher_list",          (char*) 0,  			SHOW_SSL_GET_CIPHER_LIST},
+  {"ssl_default_timeout",      (char*) 0,  			SHOW_SSL_GET_DEFAULT_TIMEOUT},
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
@@ -3964,7 +3970,6 @@ static void get_options(int argc,char **argv)
     case OPT_MASTER_PORT:
       master_port= atoi(optarg);
       break;
-#ifdef HAVE_OPENSSL
     case OPT_MASTER_SSL:
       master_ssl=atoi(optarg);
       break;
@@ -3974,7 +3979,6 @@ static void get_options(int argc,char **argv)
     case OPT_MASTER_SSL_CERT:
       master_ssl_cert=optarg;
       break;
-#endif /* HAVE_OPENSSL */
     case OPT_REPORT_HOST:
       report_host=optarg;
       break;
@@ -3989,6 +3993,9 @@ static void get_options(int argc,char **argv)
       break;
     case OPT_MASTER_CONNECT_RETRY:
       master_connect_retry= atoi(optarg);
+      break;
+    case OPT_MASTER_RETRY_COUNT:
+      master_retry_count= atoi(optarg);
       break;
     case OPT_SAFE_SHOW_DB:
       opt_safe_show_db=1;
@@ -4023,6 +4030,12 @@ static void get_options(int argc,char **argv)
   /* To be deleted in MySQL 4.0 */
   if (!record_rnd_cache_size)
     record_rnd_cache_size=my_default_record_cache_size;
+
+  /* Fix variables that are base 1024*1024 */
+  myisam_max_temp_length= (my_off_t) min(((ulonglong) myisam_max_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
+  myisam_max_extra_temp_length= (my_off_t) min(((ulonglong) myisam_max_extra_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
+
+  myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);
 }
 
 

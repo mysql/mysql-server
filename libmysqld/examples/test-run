@@ -43,6 +43,7 @@ usage: $0 [-g|-h|-r] [test-name ...]
 EOF
 }
 
+init_args=""
 while test $# -gt 0
 do
     arg=
@@ -56,6 +57,7 @@ do
         -h | --help | -\? ) usage; exit 0;;
         -l | --list ) list=1 ; shift ;;
         -r | --run ) run="${cr}run"; shift;;
+        --debug)     init_args="$init_args --debug" ; shift ;;
         -s | --start=* )
             test $argset -eq 0 && { shift; arg="$1"; }
             start="$arg"
@@ -103,7 +105,7 @@ do
         echo "test '$b' doesn't exist" >&2
         continue
     }
-    args="-v -S /tmp/mysql.sock -R $r -x $t test"
+    args="$init_args -v -S /tmp/mysql.sock -R $r -x $t test"
     echo "set args $args$run" > test-gdbinit
     #if false && test -n "$run"
     if test -n "$run" -o $gdb -eq 1

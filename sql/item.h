@@ -43,6 +43,7 @@ public:
   my_bool maybe_null;			/* If item may be null */
   my_bool null_value;			/* if item is null */
   my_bool binary;
+  my_bool unsigned_flag;
   my_bool with_sum_func;
 
 

@@ -663,7 +663,7 @@ if test "$cpu_vendor" = "AuthenticAMD"; then
     fi
 elif test "$cpu_vendor" = "GenuineIntel"; then
     if test $cpu_family>=6; then
-      cpu_set=" pentiumpro pentium i486 i386";
+      cpu_set="pentiumpro pentium i486 i386";
     elif test $cpu_family=5; then
       cpu_set="pentium i486 i386";
     elif test $cpu_family=4; then
@@ -682,15 +682,15 @@ done
 if test "$mysql_cv_cpu" = "unknown"
 then
   CFLAGS="$ac_save_CFLAGS"
-      AC_MSG_RESULT(none)
+  AC_MSG_RESULT(none)
 else
-      AC_MSG_RESULT($mysql_cv_cpu)
+  AC_MSG_RESULT($mysql_cv_cpu)
 fi
 ]))
 
 AC_DEFUN(MYSQL_CHECK_VIO, [
   AC_ARG_WITH([vio],
-              [  --with-vio          Include the Virtual IO support],
+              [  --with-vio              Include the Virtual IO support],
               [vio="$withval"],
               [vio=no])
 
@@ -715,6 +715,8 @@ AC_MSG_CHECKING(for OpenSSL)
               [openssl="$withval"],
               [openssl=no])
 
+  openssl_libs=""
+  openssl_includes=""
   if test "$openssl" = "yes"
   then
     if test -n "$vio_dir"
@@ -722,14 +724,12 @@ AC_MSG_CHECKING(for OpenSSL)
       AC_MSG_RESULT(yes)
       openssl_libs="-L/usr/local/ssl/lib -lssl -lcrypto"
       openssl_includes="-I/usr/local/ssl/include"
+      AC_DEFINE(HAVE_OPENSSL)
     else
-      AC_MSG_ERROR([OpenSSL requires Virtual IO support (--with-vio)])
+      AC_MSG_RESULT(disabled because --with-vio wasn not used)
     fi
-    AC_DEFINE(HAVE_OPENSSL)
   else
     AC_MSG_RESULT(no)
-    openssl_libs=""
-    openssl_includes=""
   fi
   NON_THREADED_CLIENT_LIBS="$NON_THREADED_CLIENT_LIBS $openssl_libs"
   AC_SUBST(openssl_libs)
@@ -748,23 +748,27 @@ dnl Call MYSQL_CHECK_ORBIT even if mysqlfs == no, so that @orbit_*@
 dnl get substituted.
   MYSQL_CHECK_ORBIT
 
+  AC_MSG_CHECKING(if we should build MySQLFS)
+  fs_dirs=""
   if test "$mysqlfs" = "yes"
   then
     if test -n "$orbit_exec_prefix"
     then
       fs_dirs=fs
+      AC_MSG_RESULT([yes])
     else
-      AC_MSG_ERROR([mysqlfs requires ORBit, the CORBA ORB])
+      AC_MSG_RESULT(disabled because ORBIT, the CORBA ORB, was not found)
     fi
   else
-    fs_dirs=
+    AC_MSG_RESULT([no])
   fi
   AC_SUBST([fs_dirs])
 ])
 
 AC_DEFUN(MYSQL_CHECK_ORBIT, [
 AC_MSG_CHECKING(for ORBit)
-if test `which orbit-config`
+orbit_config_path=`which orbit-config`
+if test -n "$orbit_config_path"
 then
   orbit_exec_prefix=`orbit-config --exec-prefix`
   orbit_includes=`orbit-config --cflags server`
@@ -1051,9 +1055,9 @@ dnl ---------------------------------------------------------------------------
 AC_DEFUN([MYSQL_CHECK_INNODB], [
   AC_ARG_WITH([innodb],
               [\
-  --with-innodb         Use Innodb],
+  --without-innodb        Do not include the InnoDB table handler],
               [innodb="$withval"],
-              [innodb=no])
+              [innodb=yes])
 
   AC_MSG_CHECKING([for Innodb])
 
@@ -1129,7 +1133,7 @@ dnl ---------------------------------------------------------------------------
 AC_DEFUN([MYSQL_CHECK_GEMINI], [
   AC_ARG_WITH([gemini],
               [\
-  --with-gemini[=DIR] Use Gemini DB located in DIR],
+  --with-gemini[=DIR]     Use Gemini DB located in DIR],
               [gemini="$withval"],
               [gemini=no])
 
@@ -1248,7 +1252,7 @@ changequote([, ])dnl
 AC_DEFUN(AC_SYS_LARGEFILE,
   [AC_REQUIRE([AC_CANONICAL_HOST])
    AC_ARG_ENABLE(largefile,
-     [  --disable-large-files   Omit support for large files])
+     [  --disable-largefile     Omit support for large files])
    if test "$enable_largefile" != no; then
      AC_CHECK_TOOL(GETCONF, getconf)
      AC_SYS_LARGEFILE_FLAGS(CFLAGS)

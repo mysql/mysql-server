@@ -24,7 +24,7 @@ static ulong const days_at_timestart=719528;	/* daynr at 1970.01.01 */
 uchar *days_in_month= (uchar*) "\037\034\037\036\037\036\037\037\036\037\036\037";
 
 
-	/* Init some variabels neaded when using my_local_time */
+	/* Init some variabels needed when using my_local_time */
 	/* Currently only my_time_zone is inited */
 
 static long my_time_zone=0;

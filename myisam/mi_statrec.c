@@ -181,8 +181,7 @@ int _mi_read_static_record(register MI_INFO *info, register my_off_t pos,
 
     error=my_pread(info->dfile,(char*) record,info->s->base.reclength,
 		   pos,MYF(MY_NABP)) != 0;
-    if (info->s->r_locks == 0 && info->s->w_locks == 0)
-      VOID(_mi_writeinfo(info,0));
+    fast_mi_writeinfo(info);
     if (! error)
     {
       if (!*record)
@@ -195,7 +194,7 @@ int _mi_read_static_record(register MI_INFO *info, register my_off_t pos,
     }
     return(-1);					/* Error on read */
   }
-  VOID(_mi_writeinfo(info,0));			/* No such record */
+  fast_mi_writeinfo(info);			/* No such record */
   return(-1);
 }
 
@@ -257,7 +256,7 @@ int _mi_read_rnd_static_record(MI_INFO *info, byte *buf,
     DBUG_PRINT("test",("filepos: %ld (%ld)  records: %ld  del: %ld",
 		       filepos/share->base.reclength,filepos,
 		       info->state->records, info->state->del));
-    VOID(_mi_writeinfo(info,0));
+    fast_mi_writeinfo(info);
     DBUG_RETURN(my_errno=HA_ERR_END_OF_FILE);
   }
   info->lastpos= filepos;

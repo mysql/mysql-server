@@ -187,6 +187,11 @@ void ha_myisammrg::info(uint flag)
 
 int ha_myisammrg::extra(enum ha_extra_function operation)
 {
+  /* As this is just a mapping, we don't have to force the underlying
+     tables to be closed */
+  if (operation == HA_EXTRA_FORCE_REOPEN ||
+      operation == HA_EXTRA_PREPARE_FOR_DELETE)
+    return 0;
   return myrg_extra(file,operation);
 }
 
@@ -285,8 +290,7 @@ void ha_myisammrg::append_create_info(String *packet)
   if (file->merge_insert_method != MERGE_INSERT_DISABLED)
   {
     packet->append(" INSERT_METHOD=",15);
-    const char *tmp = get_type(&merge_insert_method,file->merge_insert_method);
-    packet->append(tmp);
+    packet->append(get_type(&merge_insert_method,file->merge_insert_method-1));
   }
   packet->append(" UNION=(",8);
   MYRG_TABLE *table,*first;

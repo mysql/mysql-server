@@ -210,7 +210,7 @@ if [ $? != 0 ]; then
  tail $log
 fi 
 
-if [ ! x$local_build=x1 ]; then
+if [ x$local_build != x1 ]; then
 
  # Build perl RPM (we currently need to be root to do this and that is
  # not possible)
@@ -228,5 +228,3 @@ if [ ! x$local_build=x1 ]; then
  #scp $owner@$bmachine:$rpmdir/SRPMS/Perl*-*.rpm $bpath/NEW-RPMS
 fi 
 )  > $log 2>&1
-
-
