@@ -89,8 +89,10 @@ protected:
 	      const char *lHostName,
 	      const char *rHostName, 
 	      int r_port,
+	      bool isMgmConnection,
 	      NodeId lNodeId,
-	      NodeId rNodeId, 
+	      NodeId rNodeId,
+	      NodeId serverNodeId,
 	      int byteorder, 
 	      bool compression, 
 	      bool checksum, 
@@ -132,6 +134,12 @@ protected:
   Packer m_packer;  
 
 private:
+
+  /**
+   * means that we transform an MGM connection into
+   * a transporter connection
+   */
+  bool isMgmConnection;
 
   SocketClient *m_socket_client;
 
