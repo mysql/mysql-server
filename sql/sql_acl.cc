@@ -297,8 +297,7 @@ int acl_init(bool dont_read_acl_tables)
 	  user.access|=REFERENCES_ACL | INDEX_ACL | ALTER_ACL;
       }
       /* Convert old privileges */
-      if (user.access)
-	user.access|= LOCK_TABLES_ACL | CREATE_TMP_ACL | SHOW_DB_ACL;
+      user.access|= LOCK_TABLES_ACL | CREATE_TMP_ACL | SHOW_DB_ACL;
       if (user.access & FILE_ACL)
 	user.access|= REPL_CLIENT_ACL | REPL_SLAVE_ACL;
       if (user.access & PROCESS_ACL)
