@@ -9886,7 +9886,7 @@ CHARSET_INFO my_charset_gbk =
     28,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */
     "gbk",		/* cs name    */
-    "gbk",		/* name */
+    "gbk_chinese_ci",	/* name */
     "",			/* comment    */
     ctype_gbk,
     to_lower_gbk,
