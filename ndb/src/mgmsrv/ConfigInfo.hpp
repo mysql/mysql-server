@@ -27,8 +27,8 @@
  * A MANDATORY parameters must be specified in the config file
  * An UNDEFINED parameter may or may not be specified in the config file
  */
-static const char* MANDATORY = (char*)~(UintPtr)0;     // Default value for mandatory params.
-static const char* UNDEFINED = 0; // Default value for undefined params.
+static const char* MANDATORY = (char*)~(UintPtr)0;// Default value for mandatory params.
+static const char* UNDEFINED = 0;                 // Default value for undefined params.
 
 /**
  * @class  ConfigInfo

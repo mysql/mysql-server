@@ -63,7 +63,7 @@
 
 static const char table_name_separator =  '/';
 
-#ifdef NDB_VC98
+#if defined(_AIX) || defined(NDB_VC98)
 #define STATIC_CONST(x) enum { x }
 #else
 #define STATIC_CONST(x) static const Uint32 x
