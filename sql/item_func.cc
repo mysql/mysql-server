@@ -110,8 +110,8 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     */
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
-      if ((*arg)->check_cols(allowed_arg_cols) ||
-	  (*arg)->fix_fields(thd, tables, arg))
+      if ((*arg)->fix_fields(thd, tables, arg) ||
+	  (*arg)->check_cols(allowed_arg_cols))
 	return 1;				/* purecov: inspected */
       if ((*arg)->maybe_null)
 	maybe_null=1;
@@ -1323,7 +1323,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 	 arg != arg_end ;
 	 arg++,i++)
     {
-      if ((*arg)->check_cols(1) || (*arg)->fix_fields(thd, tables, arg))
+      if ((*arg)->fix_fields(thd, tables, arg) || (*arg)->check_cols(1))
 	return 1;
       if ((*arg)->binary())
 	func->set_charset(my_charset_bin);
@@ -2331,7 +2331,7 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
 
   while ((item=li++))
   {
-    if (item->check_cols(1) || item->fix_fields(thd, tlist, li.ref()))
+    if (item->fix_fields(thd, tlist, li.ref()) || item->check_cols(1))
       return 1;
     if (item->type() == Item::REF_ITEM)
       li.replace(item= *((Item_ref *)item)->ref);

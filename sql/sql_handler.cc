@@ -106,7 +106,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   }
   tables->table=table;
 
-  if (cond && (cond->check_cols(1) || cond->fix_fields(thd, tables, &cond)))
+  if (cond && (cond->fix_fields(thd, tables, &cond) || cond->check_cols(1)))
     return -1;
 
   /* InnoDB needs to know that this table handle is used in the HANDLER */
