@@ -497,7 +497,7 @@ MySQL Table Types
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
 * GEMINI::                      GEMINI tables
-* INNOBASE::                    INNOBASE tables
+* INNODB::                      INNODB tables
 
 MyISAM Tables
 
@@ -527,12 +527,12 @@ GEMINI Tables
 * GEMINI features::             
 * GEMINI TODO::                 
 
-INNOBASE Tables
+INNODB Tables
 
-* INNOBASE overview::           
-* INNOBASE start::              INNOBASE startup options
-* Using INNOBASE tables::       Using INNOBASE tables
-* INNOBASE restrictions::       Some restrictions on @code{INNOBASE} tables:
+* INNODB overview::           
+* INNODB start::              INNODB startup options
+* Using INNODB tables::       Using INNODB tables
+* INNODB restrictions::       Some restrictions on @code{INNODB} tables:
 
 MySQL Tutorial
 
@@ -2209,7 +2209,7 @@ The Berkeley DB code is very stable, but we are still improving the interface
 between @strong{MySQL} and BDB tables, so it will take some time before this
 is as tested as the other table types.
 
-@item Innobase Tables -- Alpha
+@item Innodb Tables -- Alpha
 This is a very recent addition to @code{MySQL} and is not very tested yet.
 
 @item Automatic recovery of MyISAM tables - Beta
@@ -4129,12 +4129,12 @@ phone back within 48 hours to discuss @code{MySQL} related issues.
 @end itemize
 
 @cindex support, BDB Tables
-@cindex support, INNOBASE Tables
+@cindex support, INNODB Tables
 @cindex support, GEMINI Tables
 @node Table handler support,  , Telephone support, Support
 @subsection Support for other table handlers
 
-To get support for @code{BDB} tables, @code{INNOBASE} tables or
+To get support for @code{BDB} tables, @code{INNODB} tables or
 @code{GEMINI} tables you have to pay an additional 30% on the standard
 support price for each of the table handlers you would like to have
 support for.
@@ -5072,7 +5072,7 @@ extra options that you may want to use:
 
 @itemize @bullet
 @item --with-berkeley-db
-@item --with-innobase
+@item --with-innodb
 @item --with-raid
 @item --with-libwrap
 @item --with-named-z-lib  (This is done for some of the binaries)
@@ -9807,8 +9807,8 @@ yourself with the different BDB specific startup options.  @xref{BDB start}.
 If you are using Gemini tables, refer to the Gemini-specific startup options.
 @xref{GEMINI start}.
 
-If you are using Innobase tables, refer to the Innobase-specific startup
-options.  @xref{INNOBASE start}.
+If you are using Innodb tables, refer to the Innodb-specific startup
+options.  @xref{INNODB start}.
 
 @node Automatic start, Command-line options, Starting server, Post-installation
 @subsection Starting and Stopping MySQL Automatically
@@ -11220,7 +11220,7 @@ issue. For those of our users who are concerned with or have wondered
 about transactions vis-a-vis @strong{MySQL}, there is a ``@strong{MySQL}
 way'' as we have outlined above.  For those where safety is more
 important than speed, we recommend them to use the @code{BDB},
-@code{GEMINI} or @code{INNOBASE} tables for all their critical
+@code{GEMINI} or @code{INNODB} tables for all their critical
 data. @xref{Table types}.
 
 One final note: We are currently working on a safe replication schema
@@ -11448,11 +11448,11 @@ Entry level SQL92. ODBC levels 0-2.
 @cindex updating, tables
 @cindex @code{BDB} tables
 @cindex @code{GEMINI} tables
-@cindex @code{INNOBASE} tables
+@cindex @code{INNODB} tables
 
 The following mostly applies only for @code{ISAM}, @code{MyISAM}, and
 @code{HEAP} tables. If you only use transaction-safe tables (@code{BDB},
-@code{GEMINI} or @code{INNOBASE} tables) in an an update, you can do
+@code{GEMINI} or @code{INNODB} tables) in an an update, you can do
 @code{COMMIT} and @code{ROLLBACK} also with @strong{MySQL}.
 @xref{COMMIT}.
 
@@ -18469,7 +18469,7 @@ reference_option:
         RESTRICT | CASCADE | SET NULL | NO ACTION | SET DEFAULT
 
 table_options:
-	TYPE = @{BDB | HEAP | ISAM | INNOBASE | MERGE | MYISAM @}
+	TYPE = @{BDB | HEAP | ISAM | INNODB | MERGE | MYISAM @}
 or	AUTO_INCREMENT = #
 or	AVG_ROW_LENGTH = #
 or	CHECKSUM = @{0 | 1@}
@@ -18711,7 +18711,7 @@ The different table types are:
 @item GEMINI @tab Transaction-safe tables with row-level locking @xref{GEMINI}.
 @item HEAP @tab The data for this table is only stored in memory. @xref{HEAP}.
 @item ISAM @tab The original table handler. @xref{ISAM}.
-@item INNOBASE @tab Transaction-safe tables with row locking. @xref{INNOBASE}.
+@item INNODB @tab Transaction-safe tables with row locking. @xref{INNODB}.
 @item MERGE @tab A collection of MyISAM tables used as one table. @xref{MERGE}.
 @item MyISAM @tab The new binary portable table handler that is replacing ISAM. @xref{MyISAM}.
 @end multitable
@@ -21124,7 +21124,7 @@ The following columns are returned:
 @item @code{Comment} @tab The comment used when creating the table (or some information why @strong{MySQL} couldn't access the table information).
 @end multitable
 
-@code{INNOBASE} tables will report the free space in the tablespace
+@code{INNODB} tables will report the free space in the tablespace
 in the table comment.
 
 @node SHOW STATUS, SHOW VARIABLES, SHOW TABLE STATUS, SHOW
@@ -21330,7 +21330,7 @@ differ somewhat:
 | flush_time              | 0                         |
 | have_bdb                | YES                       |
 | have_gemini             | NO                        |
-| have_innobase           | YES                       |
+| have_innodb             | YES                       |
 | have_raid               | YES                       |
 | have_ssl                | NO                        |
 | init_file               |                           |
@@ -21517,9 +21517,9 @@ if @code{--skip-bdb} is used.
 @item @code{have_gemini}
 @code{YES} if @code{mysqld} supports Gemini tables. @code{DISABLED}
 if @code{--skip-gemini} is used.
-@item @code{have_innobase}
-@code{YES} if @code{mysqld} supports Innobase tables. @code{DISABLED}
-if @code{--skip-innobase} is used.
+@item @code{have_innodb}
+@code{YES} if @code{mysqld} supports Innodb tables. @code{DISABLED}
+if @code{--skip-innodb} is used.
 @item @code{have_raid}
 @code{YES} if @code{mysqld} supports the @code{RAID} option.
 @item @code{have_ssl}
@@ -22278,7 +22278,7 @@ as soon as you execute an update, @strong{MySQL} will store the update on
 disk.
 
 If you are using transactions safe tables (like @code{BDB},
-@code{INNOBASE} or @code{GEMINI}), you can put @strong{MySQL} into
+@code{INNODB} or @code{GEMINI}), you can put @strong{MySQL} into
 non-@code{autocommit} mode with the following command:
 
 @example
@@ -23105,7 +23105,7 @@ used them.
 @cindex @code{GEMINI} table type
 @cindex @code{HEAP} table type
 @cindex @code{ISAM} table type
-@cindex @code{INNOBASE} table type
+@cindex @code{INNODB} table type
 @cindex @code{MERGE} table type
 @cindex MySQL table types
 @cindex @code{MyISAM} table type
@@ -23116,7 +23116,7 @@ used them.
 As of @strong{MySQL} Version 3.23.6, you can choose between three basic
 table formats (@code{ISAM}, @code{HEAP} and @code{MyISAM}.  Newer
 @strong{MySQL} may support additional table type (@code{BDB},
-@code{GEMINI} or @code{INNOBASE}), depending on how you compile it.
+@code{GEMINI} or @code{INNODB}), depending on how you compile it.
  
 When you create a new table, you can tell @strong{MySQL} which table
 type it should use for the table.  @strong{MySQL} will always create a
@@ -23131,7 +23131,7 @@ You can convert tables between different types with the @code{ALTER
 TABLE} statement. @xref{ALTER TABLE, , @code{ALTER TABLE}}.
 
 Note that @strong{MySQL} supports two different kinds of
-tables. Transaction-safe tables (@code{BDB}, @code{INNOBASE} or
+tables. Transaction-safe tables (@code{BDB}, @code{INNODB} or
 @code{GEMINI}) and not transaction-safe tables (@code{HEAP}, @code{ISAM},
 @code{MERGE}, and @code{MyISAM}).
 
@@ -23174,7 +23174,7 @@ of both worlds.
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
 * GEMINI::                      GEMINI tables
-* INNOBASE::                    INNOBASE tables
+* INNODB::                    INNODB tables
 @end menu
 
 @node MyISAM, MERGE, Table types, Table types
@@ -24084,7 +24084,7 @@ not trivial).
 @end itemize
 
 @cindex tables, @code{GEMINI}
-@node GEMINI, INNOBASE, BDB, Table types
+@node GEMINI, INNODB, BDB, Table types
 @section GEMINI Tables
 
 @menu
@@ -24165,168 +24165,168 @@ limited by @code{gemini_connection_limit}.  The default is 100 users.
 
 NuSphere is working on removing these limitations.
 
-@node INNOBASE,  , GEMINI, Table types
-@section INNOBASE Tables
+@node INNODB,  , GEMINI, Table types
+@section INNODB Tables
 
 @menu
-* INNOBASE overview::           
-* INNOBASE start::              INNOBASE startup options
-* Using INNOBASE tables::       Using INNOBASE tables
-* INNOBASE restrictions::       Some restrictions on @code{INNOBASE} tables:
+* INNODB overview::           
+* INNODB start::              INNODB startup options
+* Using INNODB tables::       Using INNODB tables
+* INNODB restrictions::       Some restrictions on @code{INNODB} tables:
 @end menu
 
-@node INNOBASE overview, INNOBASE start, INNOBASE, INNOBASE
-@subsection INNOBASE Tables overview
+@node INNODB overview, INNODB start, INNODB, INNODB
+@subsection INNODB Tables overview
 
-Innobase tables are included in the @strong{MySQL} source distribution
+Innodb tables are included in the @strong{MySQL} source distribution
 starting from 3.23.34 and will be activated in the @strong{MySQL}-max
 binary.
 
 If you have downloaded a binary version of @strong{MySQL} that includes
-support for Innobase, simply follow the instructions for
+support for Innodb, simply follow the instructions for
 installing a binary version of @strong{MySQL}. @xref{Installing binary}.
 
-To compile @strong{MySQL} with Innobase support, download @strong{MySQL}
+To compile @strong{MySQL} with Innodb support, download @strong{MySQL}
 3.23.34 or newer and configure @code{MySQL} with the
-@code{--with-innobase} option. @xref{Installing source}.
+@code{--with-innodb} option. @xref{Installing source}.
 
 @example
 cd /path/to/source/of/mysql-3.23.34
-./configure --with-innobase
+./configure --with-innodb
 @end example
 
-Innobase provides @strong{MySQL} with a transaction safe table handler with
-commit, rollback, and crash recovery capabilities.  Innobase does
+Innodb provides @strong{MySQL} with a transaction safe table handler with
+commit, rollback, and crash recovery capabilities.  Innodb does
 locking on row level, and also provides an Oracle-style consistent
 non-locking read in @code{SELECTS}, which increases transaction
-concurrency. There is neither need for lock escalation in Innobase,
-because row level locks in Innobase fit in very small space.
+concurrency. There is neither need for lock escalation in Innodb,
+because row level locks in Innodb fit in very small space.
 
-Innobase is a table handler that is under the GNU GPL License Version 2
-(of June 1991). In the source distribution of @strong{MySQL}, Innobase
+Innodb is a table handler that is under the GNU GPL License Version 2
+(of June 1991). In the source distribution of @strong{MySQL}, Innodb
 appears as a subdirectory.
 
-@node INNOBASE start, Using INNOBASE tables, INNOBASE overview, INNOBASE
-@subsection INNOBASE startup options
+@node INNODB start, Using INNODB tables, INNODB overview, INNODB
+@subsection INNODB startup options
 
-To use Innobase tables you must specify configuration parameters
+To use Innodb tables you must specify configuration parameters
 in the @strong{MySQL} configuration file in the @code{[mysqld]} section of
 the configuration file. Below is an example of possible configuration
-parameters in my.cnf for Innobase:
+parameters in my.cnf for Innodb:
 
 @example
-innobase_data_home_dir = /usr/local/mysql/var
-innobase_log_group_home_dir = /usr/local/mysql/var
-innobase_log_arch_dir = /usr/local/mysql/var
-innobase_data_file_path = ibdata1:25M;ibdata2:37M;ibdata3:100M;ibdata4:300M
-set-variable = innobase_mirrored_log_groups=1
-set-variable = innobase_log_files_in_group=3
-set-variable = innobase_log_file_size=5M
-set-variable = innobase_log_buffer_size=8M
-innobase_flush_log_at_trx_commit=1
-innobase_log_archive=0
-set-variable = innobase_buffer_pool_size=16M
-set-variable = innobase_additional_mem_pool_size=2M
-set-variable = innobase_file_io_threads=4
-set-variable = innobase_lock_wait_timeout=50
+innodb_data_home_dir = /usr/local/mysql/var
+innodb_log_group_home_dir = /usr/local/mysql/var
+innodb_log_arch_dir = /usr/local/mysql/var
+innodb_data_file_path = ibdata1:25M;ibdata2:37M;ibdata3:100M;ibdata4:300M
+set-variable = innodb_mirrored_log_groups=1
+set-variable = innodb_log_files_in_group=3
+set-variable = innodb_log_file_size=5M
+set-variable = innodb_log_buffer_size=8M
+innodb_flush_log_at_trx_commit=1
+innodb_log_archive=0
+set-variable = innodb_buffer_pool_size=16M
+set-variable = innodb_additional_mem_pool_size=2M
+set-variable = innodb_file_io_threads=4
+set-variable = innodb_lock_wait_timeout=50
 @end example
 
 The meanings of the configuration parameters are the following:
 
 @multitable @columnfractions .30 .70
-@item @code{innobase_data_home_dir} @tab
-The common part of the directory path for all innobase data files.
-@item @code{innobase_data_file_path} @tab
+@item @code{innodb_data_home_dir} @tab
+The common part of the directory path for all innodb data files.
+@item @code{innodb_data_file_path} @tab
 Paths to individual data files and their sizes. The full directory path
-to each data file is acquired by concatenating innobase_data_home_dir to
+to each data file is acquired by concatenating innodb_data_home_dir to
 the paths specified here. The file sizes are specified in megabytes,
 hence the 'M' after the size specification above. Do not set a file size
 bigger than 4000M, and on most operating systems not bigger than 2000M.
-innobase_mirrored_log_groups Number of identical copies of log groups we
+innodb_mirrored_log_groups Number of identical copies of log groups we
 keep for the database. Currently this should be set to 1.
-@item @code{innobase_log_group_home_dir} @tab
-Directory path to Innobase log files.
-@item @code{innobase_log_files_in_group} @tab
-Number of log files in the log group. Innobase writes to the files in a
+@item @code{innodb_log_group_home_dir} @tab
+Directory path to Innodb log files.
+@item @code{innodb_log_files_in_group} @tab
+Number of log files in the log group. Innodb writes to the files in a
 circular fashion.  Value 3 is recommended here.
-@item @code{innobase_log_file_size} @tab
+@item @code{innodb_log_file_size} @tab
 Size of each log file in a log group in megabytes. Sensible values range
 from 1M to the size of the buffer pool specified below. The bigger the
 value, the less checkpoint flush activity is needed in the buffer pool,
 saving disk i/o. But bigger log files also mean that recovery will be
 slower in case of a crash. File size restriction as for a data file.
-@item @code{innobase_log_buffer_size} @tab
-The size of the buffer which Innobase uses to write log to the log files
+@item @code{innodb_log_buffer_size} @tab
+The size of the buffer which Innodb uses to write log to the log files
 on disk.  Sensible values range from 1M to half the combined size of log
 files. A big log buffer allows large transactions to run without a need
 to write the log to disk until the transaction commit. Thus, if you have
 big transactions, making the log buffer big will save disk i/o.
-@item @code{innobase_flush_log_at_trx_commit} @tab
+@item @code{innodb_flush_log_at_trx_commit} @tab
 Normally this is set to 1, meaning that at a transaction commit the log
 is flushed to disk, and the modifications made by the transaction become
 permanent, and survive a database crash. If you are willing to
 compromise this safety, and you are running small transactions, you may
 set this to 0 to reduce disk i/o to the logs.
-@item @code{innobase_log_arch_dir} @tab
+@item @code{innodb_log_arch_dir} @tab
 The directory where fully written log files would be archived if we used
 log archiving.  The value of this parameter should currently be set the
-same as @code{innobase_log_group_home_dir}.
-@item  @code{innobase_log_archive} @tab
+same as @code{innodb_log_group_home_dir}.
+@item  @code{innodb_log_archive} @tab
 This value should currently be set to 0.  As recovery from a backup is
 done by @strong{MySQL} using its own log files, there is currently no need
-to archive Innobase log files.
-@item @code{innobase_buffer_pool_size} @tab
-The size of the memory buffer Innobase uses to cache data and indexes of
+to archive Innodb log files.
+@item @code{innodb_buffer_pool_size} @tab
+The size of the memory buffer Innodb uses to cache data and indexes of
 its tables.  The bigger you set this the less disk i/o is needed to
 access data in tables. On a dedicated database server you may set this
 parameter up to 90 % of the machine physical memory size. Do not set it
 too large, though, because competition of the physical memory may cause
 paging in the operating system.
-@item @code{innobase_additional_mem_pool_size} @tab
-Size of a memory pool Innobase uses to store data dictionary information
+@item @code{innodb_additional_mem_pool_size} @tab
+Size of a memory pool Innodb uses to store data dictionary information
 and other internal data structures. A sensible value for this might be
 2M, but the more tables you have in your application the more you will
-need to allocate here. If Innobase runs out of memory in this pool, it
+need to allocate here. If Innodb runs out of memory in this pool, it
 will start to allocate memory from the operating system, and write
 warning messages to the @strong{MySQL} error log.
 
-@item @code{innobase_file_io_threads} @tab
-Number of file i/o threads in Innobase. Normally, this should be 4, but
+@item @code{innodb_file_io_threads} @tab
+Number of file i/o threads in Innodb. Normally, this should be 4, but
 on Windows NT disk i/o may benefit from a larger number.
-@item @code{innobase_lock_wait_timeout} @tab
-Timeout in seconds an Innobase transaction may wait for a lock before
-being rolled back.  Innobase automatically detects transaction deadlocks
+@item @code{innodb_lock_wait_timeout} @tab
+Timeout in seconds an Innodb transaction may wait for a lock before
+being rolled back.  Innodb automatically detects transaction deadlocks
 in its own lock table and rolls back the transaction. If you use
 @code{LOCK TABLES} command, or other transaction safe table handlers
-than Innobase in the same transaction, then a deadlock may arise which
-Innobase cannot notice. In cases like this the timeout is useful to
+than Innodb in the same transaction, then a deadlock may arise which
+Innodb cannot notice. In cases like this the timeout is useful to
 resolve the situation.
 @end multitable
 
-@node Using INNOBASE tables, INNOBASE restrictions, INNOBASE start, INNOBASE
-@subsection Using INNOBASE tables
+@node Using INNODB tables, INNODB restrictions, INNODB start, INNODB
+@subsection Using INNODB tables
 
-Technically, Innobase is a database backend placed under @strong{MySQL}.
-Innobase has its own buffer pool for caching data and indexes in main
-memory. Innobase stores its tables and indexes in a tablespace, which
+Technically, Innodb is a database backend placed under @strong{MySQL}.
+Innodb has its own buffer pool for caching data and indexes in main
+memory. Innodb stores its tables and indexes in a tablespace, which
 may consist of several files. This is different from, for example,
 @code{MyISAM} tables where each table is stored as a separate file.
 
-To create a table in the Innobase format you must specify
-@code{TYPE = INNOBASE} in the table creation SQL command:
+To create a table in the Innodb format you must specify
+@code{TYPE = INNODB} in the table creation SQL command:
 
 @example
-CREATE TABLE CUSTOMERS (A INT, B CHAR (20), INDEX (A)) TYPE = INNOBASE;
+CREATE TABLE CUSTOMERS (A INT, B CHAR (20), INDEX (A)) TYPE = INNODB;
 @end example
 
 A consistent non-locking read is the default locking behavior when you
-do a @code{SELECT} from an Innobase table. For a searched update and an
+do a @code{SELECT} from an Innodb table. For a searched update and an
 insert row level exclusive locking is performed.
 
-You can query the amount of free space in the Innobase tablespace (=
+You can query the amount of free space in the Innodb tablespace (=
 data files you specified in my.cnf) by issuing the table status command
 of @strong{MySQL} for any table you have created with @code{TYPE =
-INNOBASE}.  Then the amount of free space in the tablespace appears in
+INNODB}.  Then the amount of free space in the tablespace appears in
 the table comment section in the output of SHOW. An example:
 
 @example
@@ -24334,45 +24334,45 @@ SHOW TABLE STATUS FROM TEST LIKE 'CUSTOMER'
 @end example
 
 if you have created a table of name CUSTOMER in a database you have named
-TEST. Note that the statistics SHOW gives about Innobase tables
+TEST. Note that the statistics SHOW gives about Innodb tables
 are only approximate: they are used in SQL optimization. Table and
 index reserved sizes in bytes are accurate, though.
 
-NOTE: DROP DATABASE does not currently work for Innobase tables!
+NOTE: DROP DATABASE does not currently work for Innodb tables!
 You must drop the tables individually.
 
 Note that in addition to your tables, the rollback segment uses space
 from the tablespace.
 
-Since Innobase is a multiversioned database, it must keep information
+Since Innodb is a multiversioned database, it must keep information
 of old versions of rows in the tablespace. This information is stored
 in a data structure called a rollback segment, like in Oracle. In contrast
 to Oracle, you do not need to configure the rollback segment in any way in
-Innobase. If you issue SELECTs, which by default do a consistent read in
-Innobase, remember to commit your transaction regularly. Otherwise
+Innodb. If you issue SELECTs, which by default do a consistent read in
+Innodb, remember to commit your transaction regularly. Otherwise
 the rollback segment will grow because it has to preserve the information
-needed for further consistent reads in your transaction: in Innobase
+needed for further consistent reads in your transaction: in Innodb
 all consistent reads within one transaction will see the same timepoint
 snapshot of the database: the reads are also 'consistent' with
 respect to each other. 
 
-Some Innobase errors: If you run out of file space in the tablespace,
+Some Innodb errors: If you run out of file space in the tablespace,
 you will get the @strong{MySQL} 'Table is full' error. If you want to
 make your tablespace bigger, you have to shut down @strong{MySQL} and 
 add a new datafile specification to @file{my.conf}, to the 
-@code{innobase_data_file_path} parameter.
+@code{innodb_data_file_path} parameter.
 
 A transaction deadlock or a timeout in a lock wait will give 'Table handler
 error 1000000'.
 
-Contact information of Innobase Oy, producer of the Innobase engine:
+Contact information of Innobase Oy, producer of the Innodb engine:
 
 Website: @uref{http://www.innobase.fi}.
 
 @email{Heikki.Tuuri@@innobase.inet.fi}
 @example
 phone: 358-9-6969 3250 (office) 358-40-5617367 (mobile)
-Innobase Oy Inc.
+Innodb Oy Inc.
 World Trade Center Helsinki
 Aleksanterinkatu 17
 P.O.Box 800
@@ -24380,8 +24380,8 @@ P.O.Box 800
 Finland
 @end example
 
-@node INNOBASE restrictions,  , Using INNOBASE tables, INNOBASE
-@subsection Some restrictions on @code{INNOBASE} tables:
+@node INNODB restrictions,  , Using INNODB tables, INNODB
+@subsection Some restrictions on @code{INNODB} tables:
 
 @itemize @bullet
 @item
@@ -24392,9 +24392,9 @@ rows, one by one, which isn't that fast.
 @item
 The maximum blob size is 8000 bytes.
 @item
-Before dropping a database with @code{INNOBASE} tables one has to drop
+Before dropping a database with @code{INNODB} tables one has to drop
 the individual tables first.  If one doesn't do that, the space in the
-Innobase table space will not be reclaimed.
+Innodb table space will not be reclaimed.
 @end itemize
 
 @cindex tutorial
@@ -31297,8 +31297,8 @@ mysqldump --all-databases > all_databases.sql
 @code{mysqlhotcopy} is a perl script that uses @code{LOCK TABLES},
 @code{FLUSH TABLES} and @code{cp} or @code{scp} to quickly make a backup
 of a database.  It's the fastest way to make a backup of the database,
-but it can only be run on the same machine where the database directories
-are.
+of single tables but it can only be run on the same machine where the
+database directories are.
 
 @example
 mysqlhotcopy db_name [/path/to/new_directory]
@@ -42773,7 +42773,7 @@ A new ISAM library which is tuned for SQL and supports large files.
 @item @strong{BerkeleyDB} or @strong{BDB}
 Uses the Berkeley DB library from Sleepycat Software to implement 
 transaction-safe tables.  
-@item @strong{Innobase}
+@item @strong{Innodb}
 A transaction-safe table handler that supports row level locking, and many
 Oracle-like features.
 @c change "three" to "four" above when uncommenting this
@@ -42848,6 +42848,11 @@ not yet 100% confident in this code.
 @node News-3.23.37, News-3.23.36, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.37
 @itemize @bullet
+@item
+Changed @code{INNOBASE} to @code{INNODB} (because the @code{INNOBASE}
+name was already used). Note that all @code{configure} options and
+@code{mysqld} start options are now using @code{innodb} instead of
+@code{innobase}.
 @item
 Fixed bug when using indexes on @code{CHAR(255) NULL} columns.
 @item
@@ -48184,6 +48189,19 @@ Check why MIT-pthreads @code{ctime()} doesn't work on some FreeBSD systems.
 @item
 Add an @code{IMAGE} option to @code{LOAD DATA INFILE} to not update
 @code{TIMESTAMP} and @code{AUTO_INCREMENT} fields.
+@item
+Added @code{LOAD DATE INFILE.. UPDATE} syntax.
+@itemize @bullet
+@item
+For tables with primary keys, if the data contains the primary key,
+entries matching that primary key are updated from the remainder of the
+columns. However, columns MISSING from the incoming data feed are not
+touched.
+@item
+For tables tables with primary keys that are missing some part of the key
+in the incoming data stream, or that have no primary key, the feed is
+treated as a @code{LOAD DATA INFILE ... REPLACE INTO} is now.
+@end itemize
 @item
 Make @code{LOAD DATA INFILE} understand syntax like:
 @example
