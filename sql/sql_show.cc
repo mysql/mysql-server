@@ -531,7 +531,6 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 }
 
 
-#ifdef HAVE_BERKELEY_DB
 int
 mysqld_show_logs(THD *thd)
 {
@@ -546,13 +545,14 @@ mysqld_show_logs(THD *thd)
   if (send_fields(thd,field_list,1))
     DBUG_RETURN(1);
 
+#ifdef HAVE_BERKELEY_DB
   if (berkeley_show_logs(thd))
     DBUG_RETURN(1);
+#endif
 
   send_eof(&thd->net);
   DBUG_RETURN(0);
 }
-#endif
 
 
 int
