@@ -70,8 +70,6 @@
    tonu@mysql.com & monty@mysql.com
 */
 
-#if defined(USE_RAID) && !defined(MYSQL_CLIENT)
-
 #ifdef __GNUC__
 #pragma implementation				// gcc: Class implementation
 #endif
@@ -80,6 +78,8 @@
 #include <my_dir.h>
 #include <m_string.h>
 #include <assert.h>
+
+#if defined(USE_RAID) && !defined(MYSQL_CLIENT)
 
 #define RAID_SEEK_DONE ~(off_t) 0
 #define RAID_SIZE_UNKNOWN ~(my_off_t) 0
