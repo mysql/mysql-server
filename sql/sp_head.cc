@@ -846,12 +846,36 @@ sp_head::backpatch(sp_label_t *lab)
   List_iterator_fast<bp_t> li(m_backpatch);
 
   while ((bp= li++))
-    if (bp->lab == lab)
+  {
+    if (bp->lab == lab ||
+	(bp->lab->type == SP_LAB_REF &&
+	 my_strcasecmp(system_charset_info, bp->lab->name, lab->name) == 0))
     {
-      sp_instr_jump *i= static_cast<sp_instr_jump *>(bp->instr);
+      sp_scope_t sdiff;
 
-      i->set_destination(dest);
+      if (bp->lab->type == SP_LAB_REF)
+	bp->lab= lab;
+      m_pcont->diff_scopes(0, &sdiff);
+      bp->instr->backpatch(dest, sdiff.hndlrs, sdiff.curs);
     }
+  }
+}
+
+int
+sp_head::check_backpatch(THD *thd)
+{
+  bp_t *bp;
+  List_iterator_fast<bp_t> li(m_backpatch);
+
+  while ((bp= li++))
+  {
+    if (bp->lab->type == SP_LAB_REF)
+    {
+      net_printf(thd, ER_SP_LILABEL_MISMATCH, "GOTO", bp->lab->name);
+      return -1;
+    }
+  }
+  return 0;
 }
 
 void
@@ -1199,8 +1223,9 @@ sp_instr_jump::print(String *str)
 uint
 sp_instr_jump::opt_mark(sp_head *sp)
 {
-  marked= 1;
   m_dest= opt_shortcut_jump(sp);
+  if (m_dest != m_ip+1)		/* Jumping to following instruction? */
+    marked= 1;
   m_optdest= sp->get_instr(m_dest);
   return m_dest;
 }

@@ -82,7 +82,7 @@ drop procedure if exists foo|
 --error 1304
 show create procedure foo|
 
-# LEAVE/ITERATE with no match
+# LEAVE/ITERATE/GOTO with no match
 --error 1307
 create procedure foo()
 foo: loop
@@ -97,6 +97,11 @@ end loop|
 create procedure foo()
 foo: begin
   iterate foo;
+end|
+--error 1307
+create procedure foo()
+begin
+  goto foo;
 end|
 
 # Redefining label

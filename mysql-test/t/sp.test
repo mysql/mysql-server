@@ -468,6 +468,65 @@ delete from t1|
 drop procedure i|
 
 
+# The non-standard GOTO, for compatibility
+#
+# QQQ The "label" syntax is temporary.
+# QQQ This is no nearly enough, more tests are needed
+#
+create procedure j()
+begin
+  declare y int;
+
+label a;
+  select * from t1;
+  select count(*) into y from t1;
+  if y > 2 then
+    goto b;
+  end if;
+  insert into t1 values ("j", y);
+  goto a;
+label b;
+end|
+
+call j()|
+
+drop procedure j|
+
+# With dummy handlers, just to test restore of contexts with jumps
+create procedure k(a int)
+begin
+  declare x int default 0;
+  declare continue handler for sqlstate '42S98' set x = 1;
+
+label a;
+  select * from t1;
+b:
+  while x < 2 do
+    begin
+      declare continue handler for sqlstate '42S99' set x = 2;
+
+      if a = 0 then
+        set x = x + 1;
+        iterate b;
+      elseif a = 1 then
+        leave b;
+      elseif a = 2 then
+        set a = 1;
+        goto a;
+      end if;
+    end;
+  end while b;
+
+  select * from t1;
+end|
+
+call k(0)|
+call k(1)|
+call k(2)|
+
+drop procedure k|
+delete from t1|
+
 # SELECT with one of more result set sent back to the clinet
 insert into t1 values ("foo", 3), ("bar", 19)|
 insert into t2 values ("x", 9, 4.1), ("y", -1, 19.2), ("z", 3, 2.2)|
@@ -1725,9 +1784,9 @@ create procedure bug4902_2()
 begin
   show processlist;
 end|
---replace_column 1 #
+--replace_column 1 # 6 #
 call bug4902_2()|
---replace_column 1 #
+--replace_column 1 # 6 #
 call bug4902_2()|
 drop procedure bug4902_2|
 
