@@ -85,7 +85,8 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
     /* Handler didn't support fast delete; Delete rows one by one */
   }
 
-  table->used_keys=table->quick_keys=0;		// Can't use 'only index'
+  table->used_keys.clear_all();
+  table->quick_keys.clear_all();		// Can't use 'only index'
   select=make_select(table,0,0,conds,&error);
   if (error)
     DBUG_RETURN(-1);
@@ -98,7 +99,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   }
 
   /* If running in safe sql mode, don't allow updates without keys */
-  if (!table->quick_keys)
+  if (table->quick_keys.is_clear_all())
   {
     thd->lex.select_lex.options|=QUERY_NO_INDEX_USED;
     if (safe_update && !using_limit)
@@ -292,7 +293,7 @@ multi_delete::initialize_tables(JOIN *join)
       walk=walk->next;
       /* Don't use KEYREAD optimization on this table */
       tbl->no_keyread=1;
-      tbl->used_keys= 0;
+      tbl->used_keys.clear_all();
       if (tbl->file->has_transactions())
 	log_delayed= transactional_tables= 1;
       else if (tbl->tmp_table != NO_TMP_TABLE)

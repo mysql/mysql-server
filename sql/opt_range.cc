@@ -304,7 +304,7 @@ static ha_rows check_quick_keys(PARAM *param,uint index,SEL_ARG *key_tree,
 static QUICK_SELECT *get_quick_select(PARAM *param,uint index,
 				      SEL_ARG *key_tree);
 #ifndef DBUG_OFF
-static void print_quick(QUICK_SELECT *quick,key_map needed_reg);
+static void print_quick(QUICK_SELECT *quick,const key_map& needed_reg);
 #endif
 static SEL_TREE *tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
 static SEL_TREE *tree_or(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
@@ -363,7 +363,6 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 
 SQL_SELECT::SQL_SELECT() :quick(0),cond(0),free_cond(0)
 {
-  quick_keys=0; needed_reg=0;
   my_b_clear(&file);
 }
 
@@ -584,18 +583,18 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
   uint idx;
   double scan_time;
   DBUG_ENTER("test_quick_select");
-  DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
+/*  DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
 		      (ulong) keys_to_use, (ulong) prev_tables,
-		      (ulong) const_tables));
+		      (ulong) const_tables));*/
 
   delete quick;
   quick=0;
-  needed_reg=0; quick_keys=0;
+  needed_reg.clear_all(); quick_keys.clear_all();
   if (!cond || (specialflag & SPECIAL_SAFE_MODE) && ! force_quick_range ||
       !limit)
     DBUG_RETURN(0); /* purecov: inspected */
   if (!((basflag= head->file->table_flags()) & HA_KEYPOS_TO_RNDPOS) &&
-      keys_to_use == (uint) ~0 || !keys_to_use)
+      keys_to_use.is_set_all() || keys_to_use.is_clear_all())
     DBUG_RETURN(0);				/* Not smart database */
   records=head->file->records;
   if (!records)
@@ -611,8 +610,8 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
 
   DBUG_PRINT("info",("Time to scan table: %g", read_time));
 
-  keys_to_use&=head->keys_in_use_for_query;
-  if (keys_to_use)
+  keys_to_use.intersect(head->keys_in_use_for_query);
+  if (!keys_to_use.is_clear_all())
   {
     MEM_ROOT *old_root,alloc;
     SEL_TREE *tree;
@@ -645,7 +644,7 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
 
     for (idx=0 ; idx < head->keys ; idx++)
     {
-      if (!(keys_to_use & ((key_map) 1L << idx)))
+      if (!keys_to_use.is_set(idx))
 	continue;
       KEY *key_info= &head->key_info[idx];
       if (key_info->flags & HA_FULLTEXT)
@@ -661,7 +660,7 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
 	key_parts->null_bit= key_info->key_part[part].null_bit;
 	if (key_parts->field->type() == FIELD_TYPE_BLOB)
 	  key_parts->part_length+=HA_KEY_BLOB_LENGTH;
-        key_parts->image_type = 
+        key_parts->image_type =
           (key_info->flags & HA_SPATIAL) ? Field::itMBR : Field::itRAW;
       }
       param.real_keynr[param.keys++]=idx;
@@ -692,11 +691,11 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
 	    uint keynr= param.real_keynr[idx];
 	    if ((*key)->type == SEL_ARG::MAYBE_KEY ||
 		(*key)->maybe_flag)
-	        needed_reg|= (key_map) 1 << keynr;
+	        needed_reg.set_bit(keynr);
 
 	    found_records=check_quick_select(&param, idx, *key);
 	    if (found_records != HA_POS_ERROR && found_records > 2 &&
-		head->used_keys & ((table_map) 1 << keynr) &&
+		head->used_keys.is_set(keynr) &&
 		(head->file->index_flags(keynr) & HA_KEY_READ_ONLY))
 	    {
 	      /*
@@ -2100,7 +2099,7 @@ check_quick_select(PARAM *param,uint idx,SEL_ARG *tree)
   if (records != HA_POS_ERROR)
   {
     uint key=param->real_keynr[idx];
-    param->table->quick_keys|= (key_map) 1 << key;
+    param->table->quick_keys.set_bit(key);
     param->table->quick_rows[key]=records;
     param->table->quick_key_parts[key]=param->max_key_part+1;
   }
@@ -2841,17 +2840,18 @@ print_key(KEY_PART *key_part,const char *key,uint used_length)
   }
 }
 
-static void print_quick(QUICK_SELECT *quick,key_map needed_reg)
+static void print_quick(QUICK_SELECT *quick,const key_map& needed_reg)
 {
   QUICK_RANGE *range;
+  char buf[MAX_KEY/8+1];
   DBUG_ENTER("print_param");
   if (! _db_on_ || !quick)
     DBUG_VOID_RETURN;
 
   List_iterator<QUICK_RANGE> li(quick->ranges);
   DBUG_LOCK_FILE;
-  fprintf(DBUG_FILE,"Used quick_range on key: %d (other_keys: %lu):\n",
-	  quick->index, (ulong) needed_reg);
+  fprintf(DBUG_FILE,"Used quick_range on key: %d (other_keys: %s):\n",
+	  quick->index, needed_reg.print(buf));
   while ((range=li++))
   {
     if (!(range->flag & NO_MIN_RANGE))

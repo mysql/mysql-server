@@ -930,7 +930,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       protocol->store((const char*) pos, system_charset_info);
       protocol->store(table->file->index_type(i), system_charset_info);
       /* Comment */
-      if (!(table->keys_in_use & ((key_map) 1 << i)))
+      if (!table->keys_in_use.is_set(i))
 	protocol->store("disabled",8, system_charset_info);
       else
         protocol->store("", 0, system_charset_info);

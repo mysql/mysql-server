@@ -2100,7 +2100,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.character_set_results= default_charset_info;
   global_system_variables.character_set_client= default_charset_info;
 
-  if (use_temp_pool && bitmap_init(&temp_pool,1024,1))
+  if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
     return 1;
   return 0;
 }

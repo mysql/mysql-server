@@ -841,7 +841,7 @@ int ha_berkeley::write_row(byte * record)
     ulong thd_options = table->in_use ? table->in_use->options : 0;
     for (uint retry=0 ; retry < berkeley_trans_retry ; retry++)
     {
-      key_map changed_keys = 0;
+      key_map changed_keys;
       if (using_ignore && (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
       {
 	if ((error=txn_begin(db_env, transaction, &sub_trans, 0))) /* purecov: deadcode */
@@ -852,7 +852,7 @@ int ha_berkeley::write_row(byte * record)
 							key_buff, record),
 			    &row, key_type[primary_key])))
       {
-	changed_keys |= (key_map) 1 << primary_key;
+	changed_keys.set_bit(primary_key);
 	for (uint keynr=0 ; keynr < table->keys ; keynr++)
 	{
 	  if (keynr == primary_key)
@@ -865,7 +865,7 @@ int ha_berkeley::write_row(byte * record)
 	    last_dup_key=keynr;
 	    break;
 	  }
-	  changed_keys |= (key_map) 1 << keynr;
+	  changed_keys.set_bit(keynr);
 	}
       }
       else
@@ -1087,7 +1087,7 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
   sub_trans = transaction;
   for (uint retry=0 ; retry < berkeley_trans_retry ; retry++)
   {
-    key_map changed_keys = 0;
+    key_map changed_keys;
     if (using_ignore &&	(thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
     {
       if ((error=txn_begin(db_env, transaction, &sub_trans, 0))) /* purecov: deadcode */
@@ -1120,7 +1120,7 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
 	    }
 	    DBUG_RETURN(error);			// Fatal error /* purecov: inspected */
 	  }
-	  changed_keys |= (key_map)1 << keynr;
+	  changed_keys.set_bit(keynr);
 	  if ((error=key_file[keynr]->put(key_file[keynr], sub_trans,
 					  create_key(&key, keynr, key_buff2,
 						     new_row),
@@ -1258,7 +1258,7 @@ int ha_berkeley::delete_row(const byte * record)
     DBUG_RETURN((error)); /* purecov: inspected */
   create_key(&prim_key, primary_key, key_buff, record);
   if (hidden_primary_key)
-    keys|= (key_map) 1 << primary_key;
+    keys.set_bit(primary_key);
 
   /* Subtransactions may be used in order to retry the delete in
      case we get a DB_LOCK_DEADLOCK error. */
