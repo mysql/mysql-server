@@ -629,13 +629,16 @@ MgmtSrvr::start()
     if (!check_start())
       return false;
   }
-  theFacade = TransporterFacade::start_instance
-    (_ownNodeId,(ndb_mgm_configuration*)_config->m_configValues);
-  
+  theFacade= TransporterFacade::theFacadeInstance = new TransporterFacade();
   if(theFacade == 0) {
-    DEBUG("MgmtSrvr.cpp: theFacade is NULL.");
+    DEBUG("MgmtSrvr.cpp: theFacade == 0.");
     return false;
   }  
+  if ( theFacade->start_instance
+       (_ownNodeId, (ndb_mgm_configuration*)_config->m_configValues) < 0) {
+    DEBUG("MgmtSrvr.cpp: TransporterFacade::start_instance < 0.");
+    return false;
+  }
 
   MGM_REQUIRE(_blockNumber == 1);
 
@@ -2295,7 +2298,7 @@ MgmtSrvr::signalReceivedNotification(void* mgmtSrvr,
 //****************************************************************************
 //****************************************************************************
 void 
-MgmtSrvr::nodeStatusNotification(void* mgmSrv, NodeId nodeId, 
+MgmtSrvr::nodeStatusNotification(void* mgmSrv, Uint32 nodeId, 
 				 bool alive, bool nfComplete)
 {
   if(!(!alive && nfComplete))

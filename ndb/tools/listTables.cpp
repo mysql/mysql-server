@@ -22,12 +22,13 @@
  */
 
 #include <ndb_global.h>
+#include <my_sys.h>
 #include <getarg.h>
 
 #include <NdbApi.hpp>
 #include <NDBT.hpp>
 
-
+static Ndb_cluster_connection *ndb_cluster_connection= 0;
 static Ndb* ndb = 0;
 static NdbDictionary::Dictionary* dic = 0;
 static int _unqualified = 0;
@@ -49,16 +50,32 @@ fatal(char const* fmt, ...)
 }
 
 static void
+fatal_dict(char const* fmt, ...)
+{
+    va_list ap;
+    char buf[500];
+    va_start(ap, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    ndbout << buf;
+    if (dic)
+      ndbout << " - " << dic->getNdbError();
+    ndbout << endl;
+    NDBT_ProgramExit(NDBT_FAILED);
+    exit(1);
+}
+
+static void
 list(const char * tabname, 
      NdbDictionary::Object::Type type)
 {
     NdbDictionary::Dictionary::List list;
     if (tabname == 0) {
 	if (dic->listObjects(list, type) == -1)
-	    fatal("listObjects");
+	    fatal_dict("listObjects");
     } else {
 	if (dic->listIndexes(list, tabname) == -1)
-	    fatal("listIndexes");
+	    fatal_dict("listIndexes");
     }
     if (ndb->usingFullyQualifiedNames())
        ndbout_c("%-5s %-20s %-8s %-7s %-12s %-8s %s", "id", "type", "state", "logging", "database", "schema", "name");
@@ -145,12 +162,17 @@ list(const char * tabname,
     }
 }
 
+#ifndef DBUG_OFF
+const char *debug_option= 0;
+#endif
+
 int main(int argc, const char** argv){
   int _loops = 1;
   const char* _tabname = NULL;
   const char* _dbname = "TEST_DB";
   int _type = 0;
   int _help = 0;
+  const char* _connect_str = NULL;
   
   struct getargs args[] = {
     { "loops", 'l', arg_integer, &_loops, "loops", 
@@ -161,6 +183,13 @@ int main(int argc, const char** argv){
       "Name of database table is in"}, 
     { "type", 't', arg_integer, &_type, "type", 
       "Type of objects to show, see NdbDictionary.hpp for numbers(default = 0)" },
+    { "connect-string", 'c', arg_string, &_connect_str,
+      "Set connect string for connecting to ndb_mgmd. <constr>=\"host=<hostname:port>[;nodeid=<id>]\". Overides specifying entries in NDB_CONNECTSTRING and config file",
+      "<constr>" },
+#ifndef DBUG_OFF
+    { "debug", 0, arg_string, &debug_option,
+      "Specify debug options e.g. d:t:i:o,out.trace", "options" },
+#endif
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
@@ -179,10 +208,18 @@ int main(int argc, const char** argv){
   }
   _tabname = argv[optind];
   
-  ndb = new Ndb(_dbname);
+#ifndef DBUG_OFF
+  my_init();
+  if (debug_option)
+    DBUG_PUSH(debug_option);
+#endif
+
+  ndb_cluster_connection = new Ndb_cluster_connection(_connect_str);
+  ndb = new Ndb(ndb_cluster_connection, _dbname);
   ndb->useFullyQualifiedNames(!_unqualified);
   if (ndb->init() != 0)
     fatal("init");
+  ndb_cluster_connection->connect();
   if (ndb->waitUntilReady(30) < 0)
     fatal("waitUntilReady");
   dic = ndb->getDictionary();

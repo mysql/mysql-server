@@ -14,6 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
 #include "NdbImpl.hpp"
 #include <NdbReceiver.hpp>
 #include "NdbDictionaryImpl.hpp"
@@ -35,10 +36,12 @@ NdbReceiver::NdbReceiver(Ndb *aNdb) :
  
 NdbReceiver::~NdbReceiver()
 {
+  DBUG_ENTER("NdbReceiver::~NdbReceiver");
   if (m_id != NdbObjectIdMap::InvalidId) {
     m_ndb->theNdbObjectIdMap->unmap(m_id, this);
   }
   delete[] m_rows;
+  DBUG_VOID_RETURN;
 }
 
 void

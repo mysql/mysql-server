@@ -605,6 +605,7 @@ NdbDictionaryImpl::~NdbDictionaryImpl()
   }
 }
 
+#if 0
 void 
 initDict(NdbDictionary::Dictionary & d)
 {
@@ -624,6 +625,7 @@ NdbDictionaryImpl::setTransporter(class TransporterFacade * tf)
   
   return false;
 }
+#endif
 
 bool
 NdbDictionaryImpl::setTransporter(class Ndb* ndb, 
@@ -643,6 +645,7 @@ NdbDictionaryImpl::getIndexTable(NdbIndexImpl * index,
   return getTable(m_ndb.externalizeTableName(internalName));
 }
 
+#if 0
 bool
 NdbDictInterface::setTransporter(class TransporterFacade * tf)
 {
@@ -666,11 +669,11 @@ NdbDictInterface::setTransporter(class TransporterFacade * tf)
 
   return true;
 }
+#endif
 
 bool
 NdbDictInterface::setTransporter(class Ndb* ndb, class TransporterFacade * tf)
 {
-  m_blockNumber = -1;
   m_reference = ndb->getReference();
   m_transporter = tf;
   m_waiter.m_mutex = tf->theMutexPtr;
@@ -680,10 +683,6 @@ NdbDictInterface::setTransporter(class Ndb* ndb, class TransporterFacade * tf)
 
 NdbDictInterface::~NdbDictInterface()
 {
-  if (m_transporter != NULL){
-    if (m_blockNumber != -1)
-      m_transporter->close(m_blockNumber, 0);
-  }
 }
 
 void 
@@ -770,7 +769,7 @@ NdbDictInterface::execSignal(void* dictImpl,
 }
 
 void
-NdbDictInterface::execNodeStatus(void* dictImpl, NodeId aNode,
+NdbDictInterface::execNodeStatus(void* dictImpl, Uint32 aNode,
 				 bool alive, bool nfCompleted)
 {
   NdbDictInterface * tmp = (NdbDictInterface*)dictImpl;
