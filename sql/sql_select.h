@@ -402,10 +402,9 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
 			     int error, bool ignore_last_dupp_error);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);
 Field* create_tmp_field_from_field(THD *thd, Field* org_field,
-				   Item *item, TABLE *table,
-				   bool modify_item,
-				   uint convert_blob_length);
-
+                                   const char *name, TABLE *table,
+                                   Item_field *item, uint convert_blob_length);
+                                                                      
 /* functions from opt_sum.cc */
 bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
 int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds);
