@@ -1062,7 +1062,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
   if (field->key_type() == HA_KEYTYPE_VARTEXT)
     copies= 2;
   str= str2= (char*) alloc_root(param->mem_root,
-				(key_part->part_length+maybe_null)*copies);
+				(key_part->part_length+maybe_null)*copies+1);
   if (!str)
     DBUG_RETURN(0);
   if (maybe_null)
@@ -1078,16 +1078,15 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
     uint length= uint2korr(str+maybe_null);
     char *end;
     str2= str+ key_part->part_length + maybe_null;
-    /* remove end space.  The 2 is for the packed length */
-    while (length > 0 && str[length+2+maybe_null-1] == ' ')
+    /* remove end space */
+    while (length > 0 && str[length+HA_KEY_BLOB_LENGTH+maybe_null-1] == ' ')
       length--;
     int2store(str+maybe_null, length);
     /* Create key that is space filled */
-    memcpy(str2, str, length+2+maybe_null);
-    end= str2+ maybe_null + key_part->part_length;
-    for (char *pos= str2+ 2+ length + maybe_null; pos < end ; pos++)
-      *pos++= ' ';
-    int2store(str2+maybe_null, key_part->part_length);
+    memcpy(str2, str, length + HA_KEY_BLOB_LENGTH + maybe_null);
+    bfill(str2+ length+ HA_KEY_BLOB_LENGTH +maybe_null,
+	  key_part->part_length-length - HA_KEY_BLOB_LENGTH, ' ');
+    int2store(str2+maybe_null, key_part->part_length - HA_KEY_BLOB_LENGTH);
   }
   if (!(tree=new SEL_ARG(field,str,str2)))
     DBUG_RETURN(0);		// out of memory

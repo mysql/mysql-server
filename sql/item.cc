@@ -117,6 +117,14 @@ bool Item::get_time(TIME *ltime)
   return 0;
 }
 
+Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
+		       const char *field_name_par)
+  :db_name(db_name_par),table_name(table_name_par),field_name(field_name_par)
+{
+  name = (char*) field_name_par;
+}
+
+
 Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
 {
   set_field(f);
