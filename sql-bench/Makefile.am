@@ -34,8 +34,7 @@ EXTRA_DIST =		$(EXTRA_SCRIPTS)
 
 dist-hook:
 	mkdir -p $(distdir)/Data/ATIS $(distdir)/Data/Wisconsin \
-		 $(distdir)/Results $(distdir)/Results-linux \
-		 $(distdir)/Results-win32 \
+		 $(distdir)/Results  $(distdir)/Results-win32 \
 		 $(distdir)/limits $(distdir)/Comments
 	$(INSTALL_DATA) $(srcdir)/Data/ATIS/*.* $(distdir)/Data/ATIS
 	$(INSTALL_DATA) $(srcdir)/Data/Wisconsin/*.* $(distdir)/Data/Wisconsin
@@ -50,7 +49,6 @@ install-data-local:
 		 $(DESTDIR)$(benchdir)/Data/ATIS \
 		 $(DESTDIR)$(benchdir)/Data/Wisconsin \
 		 $(DESTDIR)$(benchdir)/Results \
-		 $(DESTDIR)$(benchdir)/Results-linux \
 		 $(DESTDIR)$(benchdir)/Results-win32 \
 		 $(DESTDIR)$(benchdir)/limits \
 		 $(DESTDIR)$(benchdir)/Comments
@@ -58,7 +56,6 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/Data/ATIS/*.* $(DESTDIR)$(benchdir)/Data/ATIS
 	$(INSTALL_DATA) $(srcdir)/Data/Wisconsin/*.* $(DESTDIR)$(benchdir)/Data/Wisconsin
 	$(INSTALL_DATA) $(srcdir)/Results/*-* $(DESTDIR)$(benchdir)/Results
-	$(INSTALL_DATA) $(srcdir)/Results-linux/*-* $(DESTDIR)$(benchdir)/Results-linux
 	$(INSTALL_DATA) $(srcdir)/Results-win32/*-* $(DESTDIR)$(benchdir)/Results-win32
 	$(INSTALL_DATA) $(srcdir)/limits/*.* $(DESTDIR)$(benchdir)/limits
 	$(INSTALL_DATA) $(srcdir)/Comments/*.* $(DESTDIR)$(benchdir)/Comments
