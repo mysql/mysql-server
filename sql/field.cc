@@ -4167,6 +4167,42 @@ uint32 Field_blob::get_length(const char *pos)
 }
 
 
+/*
+  Put a blob length field into a record buffer.
+
+  SYNOPSIS
+    Field_blob::put_length()
+    pos                         Pointer into the record buffer.
+    length                      The length value to put.
+
+  DESCRIPTION
+    Depending on the maximum length of a blob, its length field is
+    put into 1 to 4 bytes. This is a property of the blob object,
+    described by 'packlength'.
+
+  RETURN
+    nothing
+*/
+
+void Field_blob::put_length(char *pos, uint32 length)
+{
+  switch (packlength) {
+  case 1:
+    *pos= (char) length;
+    break;
+  case 2:
+    int2store(pos, length);
+    break;
+  case 3:
+    int3store(pos, length);
+    break;
+  case 4:
+    int4store(pos, length);
+    break;
+  }
+}
+
+
 void Field_blob::store(const char *from,uint len)
 {
   if (!len)
@@ -4523,6 +4559,50 @@ char *Field_blob::pack_key(char *to, const char *from, uint max_length)
   }
   ptr=save;					// Restore org row pointer
   return to+length;
+}
+
+
+/*
+  Unpack a blob key into a record buffer.
+
+  SYNOPSIS
+    Field_blob::unpack_key()
+    to                          Pointer into the record buffer.
+    from                        Pointer to the packed key.
+    max_length                  Key length limit from key description.
+
+  DESCRIPTION
+    A blob key has a maximum size of 64K-1.
+    In its packed form, the length field is one or two bytes long,
+    depending on 'max_length'.
+    Depending on the maximum length of a blob, its length field is
+    put into 1 to 4 bytes. This is a property of the blob object,
+    described by 'packlength'.
+    Blobs are internally stored apart from the record buffer, which
+    contains a pointer to the blob buffer.
+
+  RETURN
+    Pointer into 'from' past the last byte copied from packed key.
+*/
+
+const char *Field_blob::unpack_key(char *to, const char *from, uint max_length)
+{
+  /* get length of the blob key */
+  uint32 length= *((uchar*) from++);
+  if (max_length > 255)
+    length+= (*((uchar*) from++)) << 8;
+
+  /* put the length into the record buffer */
+  put_length(to, length);
+
+  /* put the address of the blob buffer or NULL */
+  if (length)
+    memcpy_fixed(to + packlength, &from, sizeof(from));
+  else
+    bzero(to + packlength, sizeof(from));
+
+  /* point to first byte of next field in 'from' */
+  return from + length;
 }
 
 /* Create a packed key that will be used for storage from a MySQL key */
