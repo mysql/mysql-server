@@ -204,7 +204,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 	reinit_io_cache(&tempfile,READ_CACHE,0L,0,0))
       goto err;					/* purecov: inspected */
     if (!no_messages)
-      puts("  - Last merge and dumping keys\n"); /* purecov: tested */
+      printf("  - Last merge and dumping keys\n"); /* purecov: tested */
     if (merge_index(info,keys,sort_keys,dynamic_element(&buffpek,0,BUFFPEK *),
                     maxbuffer,&tempfile))
       goto err;					/* purecov: inspected */
@@ -219,6 +219,8 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
     uint     keyno=info->key;
     uint     key_length, ref_length=index->s->rec_reflength;
 
+    if (!no_messages)
+      printf("  - Adding exceptions\n"); /* purecov: tested */
     if (flush_io_cache(&tempfile_for_exceptions) ||
 	reinit_io_cache(&tempfile_for_exceptions,READ_CACHE,0L,0,0))
       goto err;

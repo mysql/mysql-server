@@ -276,7 +276,7 @@ static struct my_option my_long_options[] =
    "Direct output to a given file. This option should be used in MSDOS, because it prevents new line '\\n' from being converted to '\\r\\n' (carriage return + line feed).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
-  {"shared_memory_base_name", OPT_SHARED_MEMORY_BASE_NAME,
+  {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -604,7 +604,7 @@ static int get_options(int *argc, char ***argv)
   md_result_file= stdout;
   load_defaults("my",load_default_groups,argc,argv);
 
-  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option, 0)))
     exit(ho_error);
 
   *mysql_params->p_max_allowed_packet= opt_max_allowed_packet;

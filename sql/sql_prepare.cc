@@ -132,7 +132,7 @@ find_prepared_statement(THD *thd, ulong id, const char *where,
 {
   Statement *stmt= thd->stmt_map.find(id);
 
-  if (stmt == 0 || stmt->type() != (int)Item_arena::PREPARED_STATEMENT)
+  if (stmt == 0 || stmt->type() != Item_arena::PREPARED_STATEMENT)
   {
     char llbuf[22];
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), 22, llstr(id, llbuf), where);
@@ -1619,7 +1619,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     {
       sl->prep_where= sl->where;
     }
-    stmt->state= (int)Prepared_statement::PREPARED;
+    stmt->state= Item_arena::PREPARED;
   }
 
   DBUG_RETURN(!stmt);
@@ -1630,7 +1630,8 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
 static void reset_stmt_for_execute(Prepared_statement *stmt)
 {
   THD *thd= stmt->thd;
-  SELECT_LEX *sl= stmt->lex->all_selects_list;
+  LEX *lex= stmt->lex;
+  SELECT_LEX *sl= lex->all_selects_list;
 
   for (; sl; sl= sl->next_select_in_list())
   {
@@ -1678,7 +1679,9 @@ static void reset_stmt_for_execute(Prepared_statement *stmt)
       unit->reinit_exec_mechanism();
     }
   }
-  stmt->lex->current_select= &stmt->lex->select_lex;
+  lex->current_select= &lex->select_lex;
+  if (lex->result)
+    lex->result->cleanup();
 }
 
 
@@ -1733,7 +1736,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   DBUG_PRINT("exec_query:", ("%s", stmt->query));
 
   /* Check if we got an error when sending long data */
-  if (stmt->state == (int)Item_arena::ERROR)
+  if (stmt->state == Item_arena::ERROR)
   {
     send_error(thd, stmt->last_errno, stmt->last_error);
     DBUG_VOID_RETURN;
@@ -1850,7 +1853,7 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
     transformations of the query tree (i.e. negations elimination).
     This should be done permanently on the parse tree of this statement.
   */
-  if (stmt->state == (int)Item_arena::PREPARED)
+  if (stmt->state == Item_arena::PREPARED)
     thd->current_arena= stmt;
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -1863,10 +1866,10 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
   /* Free Items that were created during this execution of the PS. */
   free_items(thd->free_list);
   thd->free_list= 0;
-  if (stmt->state == (int)Item_arena::PREPARED)
+  if (stmt->state == Item_arena::PREPARED)
   {
     thd->current_arena= thd;
-    stmt->state= (int)Item_arena::EXECUTED;
+    stmt->state= Item_arena::EXECUTED;
   }
   cleanup_items(stmt->free_list);
   reset_stmt_params(stmt);
@@ -1905,7 +1908,7 @@ void mysql_stmt_reset(THD *thd, char *packet)
                                       SEND_ERROR)))
     DBUG_VOID_RETURN;
 
-  stmt->state= (int)Item_arena::PREPARED;
+  stmt->state= Item_arena::PREPARED;
 
   /* 
     Clear parameters from data which could be set by 
@@ -1993,7 +1996,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   if (param_number >= stmt->param_count)
   {
     /* Error will be sent in execute call */
-    stmt->state= (int)Item_arena::ERROR;
+    stmt->state= Item_arena::ERROR;
     stmt->last_errno= ER_WRONG_ARGUMENTS;
     sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS),
             "mysql_stmt_send_long_data");
@@ -2009,7 +2012,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   if (param->set_longdata(thd->extra_data, thd->extra_length))
 #endif
   {
-    stmt->state= (int)Item_arena::ERROR;
+    stmt->state= Item_arena::ERROR;
     stmt->last_errno= ER_OUTOFMEMORY;
     sprintf(stmt->last_error, ER(ER_OUTOFMEMORY), 0);
   }
@@ -2053,6 +2056,7 @@ void Prepared_statement::setup_set_params()
 Prepared_statement::~Prepared_statement()
 {
   free_items(free_list);
+  delete lex->result;
 }
 
 

@@ -1560,8 +1560,8 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   if (open_tables(thd, tables_buff, &counter) ||
       lock_tables(thd, tables_buff, counter))
   {
-    sql_print_error("Warning: Can't open and lock time zone table: %s "
-                    "trying to live without them", thd->net.last_error);
+    sql_print_warning("Can't open and lock time zone table: %s "
+                      "trying to live without them", thd->net.last_error);
     /* We will try emulate that everything is ok */
     return_val= time_zone_tables_exist= 0;
     goto end_with_setting_default_tz;
@@ -1740,8 +1740,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   if (!(alloc_buff= alloc_root(&tz_storage, sizeof(TIME_ZONE_INFO) +
                                tz_name->length() + 1)))
   {
-    sql_print_error("Error: Out of memory while loading time zone "
-                    "description");
+    sql_print_error("Out of memory while loading time zone description");
     return 0;
   }
   tz_info= (TIME_ZONE_INFO *)alloc_buff;
@@ -1757,7 +1756,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     Let us find out time zone id by its name (there is only one index
     and it is specifically for this purpose).
   */
-  table= tz_tables->table; 
+  table= tz_tables->table;
   tz_tables= tz_tables->next;
   table->field[0]->store(tz_name->ptr(), tz_name->length(), &my_charset_latin1);
   /*
@@ -1770,7 +1769,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   if (table->file->index_read(table->record[0], (byte*)table->field[0]->ptr,
                               0, HA_READ_KEY_EXACT))
   {
-    sql_print_error("Error: Can't find description of time zone.");
+    sql_print_error("Can't find description of time zone.");
     goto end;
   }
 
@@ -1783,7 +1782,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     understand whenever this timezone uses leap seconds (again we are
     using the only index in this table).
   */
-  table= tz_tables->table; 
+  table= tz_tables->table;
   tz_tables= tz_tables->next;
   table->field[0]->store((longlong)tzid);
   (void)table->file->ha_index_init(0);
@@ -1791,7 +1790,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   if (table->file->index_read(table->record[0], (byte*)table->field[0]->ptr,
                               0, HA_READ_KEY_EXACT))
   {
-    sql_print_error("Error: Can't find description of time zone.");
+    sql_print_error("Can't find description of time zone.");
     goto end;
   }
 
@@ -1810,7 +1809,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     only for our time zone guess what are we doing?
     Right - using special index.
   */
-  table= tz_tables->table; 
+  table= tz_tables->table;
   tz_tables= tz_tables->next;
   table->field[0]->store((longlong)tzid);
   (void)table->file->ha_index_init(0);
@@ -1948,8 +1947,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
 #endif
                                sizeof(TRAN_TYPE_INFO) * tz_info->typecnt)))
   {
-    sql_print_error("Error: Out of memory while loading time zone "
-                    "description");
+    sql_print_error("Out of memory while loading time zone description");
     goto end;
   }
 
@@ -1974,12 +1972,12 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   */
   if (tz_info->typecnt < 1)
   {
-    sql_print_error("Error: loading time zone without transition types");
+    sql_print_error("loading time zone without transition types");
     goto end;
   }
   if (prepare_tz_info(tz_info, &tz_storage))
   {
-    sql_print_error("Error: Unable to build mktime map for time zone");
+    sql_print_error("Unable to build mktime map for time zone");
     goto end;
   }
 
@@ -1991,7 +1989,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
                             &my_charset_latin1),
        my_hash_insert(&tz_names, (const byte *)tmp_tzname)))
   {
-    sql_print_error("Error: Out of memory while loading time zone");
+    sql_print_error("Out of memory while loading time zone");
     goto end;
   }
 
@@ -2158,20 +2156,21 @@ my_tz_find(const String * name, TABLE_LIST *tz_tables)
       if (!(result_tz= new (&tz_storage) Time_zone_offset(offset)) ||
           my_hash_insert(&offset_tzs, (const byte *) result_tz))
       {
+        result_tz= 0;
         sql_print_error("Fatal error: Out of memory "
                         "while setting new time zone");
-        result_tz= 0;
       }
     }
-  } else {
+  }
+  else
+  {
+    result_tz= 0;
     if ((tmp_tzname= (TZ_NAMES_ENTRY *)hash_search(&tz_names,
                                                    (const byte *)name->ptr(),
                                                    name->length())))
       result_tz= tmp_tzname->tz;
-    else if(time_zone_tables_exist)
+    else if (time_zone_tables_exist)
       result_tz= tz_load_from_open_tables(name, tz_tables);
-    else
-      result_tz= 0;
   }
 
   VOID(pthread_mutex_unlock(&tz_LOCK));

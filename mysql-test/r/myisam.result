@@ -412,7 +412,6 @@ aaa.
 aaa   .
 select concat(a,'.') from t1 where binary a='aaa';
 concat(a,'.')
-aaa   .
 aaa.
 update t1 set a='bbb' where a='aaa';
 select concat(a,'.') from t1;
@@ -429,6 +428,22 @@ select * from t1 where a='807780' and b='477' and c='165';
 a	b	c
 807780	477	165
 drop table t1;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 't1'
+CREATE TABLE t1 (a varchar(150) NOT NULL, KEY (a));
+INSERT t1 VALUES ("can \tcan");
+INSERT t1 VALUES ("can   can");
+INSERT t1 VALUES ("can");
+SELECT * FROM t1;
+a
+can 	can
+can
+can   can
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
 create table t1 (a blob);
 insert into t1 values('a '),('a');
 select concat(a,'.') from t1 where a='a';

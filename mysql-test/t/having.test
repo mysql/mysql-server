@@ -121,3 +121,4 @@ select
 from t1 a left join t3 b on a.id=b.order_id 
 group by a.id, a.description 
 having (a.description is not null) and (c=0);
+drop table t1,t2,t3;

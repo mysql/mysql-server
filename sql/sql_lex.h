@@ -633,7 +633,7 @@ typedef struct st_lex
     list of those tables after they are opened.
   */
   TABLE_LIST *time_zone_tables_used;
-  st_lex() {}
+  st_lex();
   inline void uncacheable(uint8 cause)
   {
     safe_to_cache_query= 0;

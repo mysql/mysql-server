@@ -58,3 +58,10 @@ ERROR 42000: Not unique table/alias: 'C'
 drop table t1, t2;
 show tables;
 Tables_in_test
+create table t1 (a int);
+select TEST.t1.* from TEST.t1;
+a
+alter table t1 rename to T1;
+select TEST.t1.* from TEST.t1;
+a
+drop table t1;
