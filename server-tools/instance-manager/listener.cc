@@ -24,6 +24,7 @@
 #include <mysql.h>
 #include <violite.h>
 #include <sys/un.h>
+#include <sys/stat.h>
 
 #include "thread_registry.h"
 #include "options.h"

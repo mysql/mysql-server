@@ -42,24 +42,18 @@ liboptions_a_SOURCES= options.h options.cc priv.h priv.cc
 # MySQL sometimes uses symlinks to reuse code 
 # All symlinked files are grouped in libnet.a
 
-nodist_libnet_a_SOURCES= net_serv.cc client_settings.h client.c errmsg.c
+nodist_libnet_a_SOURCES= net_serv.cc client_settings.h
 libnet_a_LIBADD= $(top_builddir)/sql/password.$(OBJEXT) \
 	$(top_builddir)/sql/pack.$(OBJEXT) \
-	$(top_builddir)/sql/sql_state.$(OBJEXT)
+	$(top_builddir)/sql/sql_state.$(OBJEXT) \
+	$(top_builddir)/sql/mini_client_errors.$(OBJEXT)\
+	$(top_builddir)/sql/client.$(OBJEXT)
 
-CLEANFILES= net_serv.cc client.c client_settings.h errmsg.c
+CLEANFILES= net_serv.cc client_settings.h
 
 net_serv.cc: Makefile
 	rm -f $(srcdir)/net_serv.cc
 	@LN_CP_F@ $(top_srcdir)/sql/net_serv.cc $(srcdir)/net_serv.cc
-
-client.c: Makefile
-	rm -f $(srcdir)/client.c
-	@LN_CP_F@ $(top_srcdir)/sql-common/client.c $(srcdir)/client.c
-
-errmsg.c: Makefile
-	rm -f $(srcdir)/errmsg.c
-	@LN_CP_F@ $(top_srcdir)/libmysql/errmsg.c $(srcdir)/errmsg.c
 
 client_settings.h: Makefile
 	rm -f $(srcdir)/client_settings.h
@@ -74,7 +68,6 @@ mysqlmanager_SOURCES=	command.cc command.h mysqlmanager.cc \
 			mysql_connection.h mysql_connection.cc \
 			user_map.h user_map.cc \
 			messages.h messages.cc \
-			$(top_srcdir)/sql/sql_string.cc \
 			commands.h commands.cc \
 			factory.h factory.cc \
 			instance.h instance.cc \

@@ -79,7 +79,7 @@ static struct my_option my_long_options[] =
     (gptr *) &Options::socket_file_name, (gptr *) &Options::socket_file_name,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
-  { "bind_address", OPT_BIND_ADDRESS, "Bind address to use for connection.",
+  { "bind-address", OPT_BIND_ADDRESS, "Bind address to use for connection.",
     (gptr *) &Options::bind_address, (gptr *) &Options::bind_address,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
@@ -93,24 +93,24 @@ static struct my_option my_long_options[] =
     (gptr *) &Options::password_file_name,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
-  { "default_mysqld_path", OPT_MYSQLD_PATH, "Where to look for MySQL"
+  { "default-mysqld-path", OPT_MYSQLD_PATH, "Where to look for MySQL"
                                             " Server binary.",
     (gptr *) &Options::default_mysqld_path, (gptr *) &Options::default_mysqld_path,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
-  { "default_admin_user", OPT_DEFAULT_ADMIN_USER, "Username to shutdown MySQL"
+  { "default-admin-user", OPT_DEFAULT_ADMIN_USER, "Username to shutdown MySQL"
                                            " instances.",
                    (gptr *) &Options::default_admin_user,
                    (gptr *) &Options::default_admin_user,
                    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
-  { "default_admin_password", OPT_DEFAULT_ADMIN_PASSWORD, "Password to"
+  { "default-admin-password", OPT_DEFAULT_ADMIN_PASSWORD, "Password to"
                                             "shutdown MySQL instances.",
                    (gptr *) &Options::default_admin_password,
                    (gptr *) &Options::default_admin_password,
                    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
-  { "monitoring_interval", OPT_MONITORING_INTERVAL, "Interval to monitor instances"
+  { "monitoring-interval", OPT_MONITORING_INTERVAL, "Interval to monitor instances"
                                             " in seconds.",
                    (gptr *) &Options::monitoring_interval,
                    (gptr *) &Options::monitoring_interval,

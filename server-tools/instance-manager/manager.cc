@@ -90,6 +90,7 @@ void manager(const Options &options)
   sigemptyset(&mask);
   sigaddset(&mask, SIGINT);
   sigaddset(&mask, SIGTERM);
+  sigaddset(&mask, SIGPIPE);
   sigaddset(&mask, SIGHUP);
   /*
     We want this signal to be blocked in all theads but the signal
@@ -158,6 +159,8 @@ void manager(const Options &options)
     making the list. And they in their turn need alarms for timeout suppport.
   */
   guardian_thread.start();
+
+  signal(SIGPIPE, SIG_IGN);
 
   while (!shutdown_complete)
   {
