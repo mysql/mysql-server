@@ -3221,12 +3221,12 @@ static void read_binary_time(MYSQL_TIME *tm, uchar **pos)
     tm->second_part= (length > 8) ? (ulong) sint4korr(to+8) : 0;
 
     tm->year= tm->month= 0;
-    tm->time_type= MYSQL_TIMESTAMP_TIME;
 
     *pos+= length;
   }
   else
     set_zero_time(tm);
+  tm->time_type= MYSQL_TIMESTAMP_TIME;
 }
 
 static void read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
@@ -3251,12 +3251,12 @@ static void read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
     else
       tm->hour= tm->minute= tm->second= 0;
     tm->second_part= (length > 7) ? (ulong) sint4korr(to+7) : 0;
-    tm->time_type= MYSQL_TIMESTAMP_DATETIME;
 
     *pos+= length;
   }
   else
     set_zero_time(tm);
+  tm->time_type= MYSQL_TIMESTAMP_DATETIME;
 }
 
 static void read_binary_date(MYSQL_TIME *tm, uchar **pos)
@@ -3273,12 +3273,12 @@ static void read_binary_date(MYSQL_TIME *tm, uchar **pos)
     tm->hour= tm->minute= tm->second= 0;
     tm->second_part= 0;
     tm->neg= 0;
-    tm->time_type= MYSQL_TIMESTAMP_DATE;
 
     *pos+= length;
   }
   else
     set_zero_time(tm);
+  tm->time_type= MYSQL_TIMESTAMP_DATE;
 }
 
 
