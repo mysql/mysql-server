@@ -415,7 +415,7 @@ struct show_var_st init_vars[]= {
   {"ft_min_word_len",         (char*) &ft_min_word_len,             SHOW_LONG},
   {"ft_max_word_len",         (char*) &ft_max_word_len,             SHOW_LONG},
   {"ft_max_word_len_for_sort",(char*) &ft_max_word_len_for_sort,    SHOW_LONG},
-  {"ft_stopword_file",        (char*) &ft_stopword_file,            SHOW_CHAR},
+  {"ft_stopword_file",        (char*) &ft_stopword_file,            SHOW_CHAR_PTR},
   {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",	      	      (char*) &have_isam,		    SHOW_HAVE},
