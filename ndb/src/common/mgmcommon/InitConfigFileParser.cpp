@@ -305,7 +305,7 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
     }
     if (!m_info->verify(ctx.m_currentInfo, fname, value_int)) {
       ctx.reportError("Illegal value %s for parameter %s.\n"
-		      "Legal values are between %d and %d", value, fname,
+		      "Legal values are between %Lu and %Lu", value, fname,
 		      m_info->getMin(ctx.m_currentInfo, fname), 
 		      m_info->getMax(ctx.m_currentInfo, fname));
       return false;
