@@ -2,7 +2,7 @@
 # Test of unions
 #
 
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 CREATE TABLE t1 (a int not null, b char (10) not null);
 insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
 CREATE TABLE t2 (a int not null, b char (10) not null);
@@ -25,5 +25,6 @@ select a,b from t1 into outfile 'skr' union select a,b from t2;
 select a,b from t1 order by a union select a,b from t2;
 --error 1215
 select a,b from t1 union select a from t2;
-
-drop table t1,t2;
+create table t3 select a,b from t1 union all select a,b from t2;
+insert into t3 select a,b from t1 union all select a,b from t2;
+drop table t1,t2,t3;
