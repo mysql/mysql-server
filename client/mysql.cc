@@ -2842,6 +2842,10 @@ com_status(String *buffer __attribute__((unused)),
   if (connected)
   {
     tee_fprintf(stdout, "\nConnection id:\t\t%lu\n",mysql_thread_id(&mysql));
+    /* 
+      Don't remove "limit 1", 
+      it is protection againts SQL_SELECT_LIMIT=0
+    */
     if (!mysql_query(&mysql,"select DATABASE(), USER() limit 1") &&
 	(result=mysql_use_result(&mysql)))
     {
@@ -2886,7 +2890,11 @@ com_status(String *buffer __attribute__((unused)),
   if ((id= mysql_insert_id(&mysql)))
     tee_fprintf(stdout, "Insert id:\t\t%s\n", llstr(id, buff));
 
-  if (!mysql_query(&mysql,"select @@character_set_client, @@character_set_connection, @@character_set_server, @@character_set_database") &&
+  /* 
+    Don't remove "limit 1", 
+    it is protection againts SQL_SELECT_LIMIT=0
+  */
+  if (!mysql_query(&mysql,"select @@character_set_client, @@character_set_connection, @@character_set_server, @@character_set_database limit 1") &&
       (result=mysql_use_result(&mysql)))
   {
     MYSQL_ROW cur=mysql_fetch_row(result);
