@@ -91,7 +91,10 @@ CASE WHEN 1 THEN 'a' ELSE 1.0 END AS c5,
 CASE WHEN 1 THEN 1.0 ELSE 'a' END AS c6,
 CASE WHEN 1 THEN  1  ELSE 1.0 END AS c7,
 CASE WHEN 1 THEN 1.0 ELSE  1  END AS c8,
-CASE WHEN 1 THEN 1.0 END AS c9
+CASE WHEN 1 THEN 1.0 END AS c9,
+CASE WHEN 1 THEN 0.1e1 else 0.1 END AS c10,
+CASE WHEN 1 THEN 0.1e1 else 1 END AS c11,
+CASE WHEN 1 THEN 0.1e1 else '1' END AS c12
 ;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -100,11 +103,14 @@ t1	CREATE TABLE `t1` (
   `c2` varchar(1) character set latin1 collate latin1_danish_ci NOT NULL default '',
   `c3` varbinary(1) NOT NULL default '',
   `c4` varbinary(1) NOT NULL default '',
-  `c5` varbinary(3) NOT NULL default '',
-  `c6` varbinary(3) NOT NULL default '',
-  `c7` double(3,1) NOT NULL default '0.0',
-  `c8` double(3,1) NOT NULL default '0.0',
-  `c9` double(3,1) default NULL
+  `c5` varbinary(4) NOT NULL default '',
+  `c6` varbinary(4) NOT NULL default '',
+  `c7` decimal(5,1) NOT NULL default '0.0',
+  `c8` decimal(5,1) NOT NULL default '0.0',
+  `c9` decimal(5,1) default NULL,
+  `c10` double NOT NULL default '0',
+  `c11` double NOT NULL default '0',
+  `c12` varbinary(5) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SELECT CASE 
@@ -146,11 +152,11 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `COALESCE(1)` int(1) NOT NULL default '0',
-  `COALESCE(1.0)` double(3,1) NOT NULL default '0.0',
+  `COALESCE(1.0)` decimal(5,1) NOT NULL default '0.0',
   `COALESCE('a')` varchar(1) NOT NULL default '',
-  `COALESCE(1,1.0)` double(3,1) NOT NULL default '0.0',
+  `COALESCE(1,1.0)` decimal(5,1) NOT NULL default '0.0',
   `COALESCE(1,'1')` varbinary(1) NOT NULL default '',
-  `COALESCE(1.1,'1')` varbinary(3) NOT NULL default '',
+  `COALESCE(1.1,'1')` varbinary(4) NOT NULL default '',
   `COALESCE('a' COLLATE latin1_bin,'b')` varchar(1) character set latin1 collate latin1_bin NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;

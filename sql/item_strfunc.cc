@@ -49,6 +49,8 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
 
 uint nr_of_decimals(const char *str)
 {
+  if (strchr(str,'e') || strchr(str,'E'))
+    return NOT_FIXED_DEC;
   if ((str=strchr(str,'.')))
   {
     const char *start= ++str;
@@ -1784,10 +1786,9 @@ void Item_func_make_set::split_sum_func(THD *thd, Item **ref_pointer_array,
            (item->used_tables() && item->type() != REF_ITEM))
   {
     uint el= fields.elements;
-    ref_pointer_array[el]=item;
+    ref_pointer_array[el]= item;
     Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
     fields.push_front(item);
-    ref_pointer_array[el]= item;
     thd->change_item_tree(&item, new_item);
   }
   Item_str_func::split_sum_func(thd, ref_pointer_array, fields);
@@ -1803,7 +1804,7 @@ void Item_func_make_set::fix_length_and_dec()
   
   for (uint i=0 ; i < arg_count ; i++)
     max_length+=args[i]->max_length;
-  
+
   used_tables_cache|=	  item->used_tables();
   not_null_tables_cache&= item->not_null_tables();
   const_item_cache&=	  item->const_item();

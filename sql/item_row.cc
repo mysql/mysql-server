@@ -100,10 +100,9 @@ void Item_row::split_sum_func(THD *thd, Item **ref_pointer_array,
              (item->used_tables() && item->type() != REF_ITEM))
     {
       uint el= fields.elements;
-      ref_pointer_array[el]=*arg;
+      ref_pointer_array[el]= *arg;
       Item *new_item= new Item_ref(ref_pointer_array + el, 0, (*arg)->name);
       fields.push_front(*arg);
-      ref_pointer_array[el]= *arg;
       thd->change_item_tree(arg, new_item);
     }
   }
