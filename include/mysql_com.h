@@ -80,6 +80,7 @@ enum enum_server_command {COM_SLEEP,COM_QUIT,COM_INIT_DB,COM_QUERY,
 /* RESET (remove all queries) from query cache */
 #define REFRESH_QUERY_CACHE	65536
 #define REFRESH_QUERY_CACHE_FREE 0x20000L /* pack query cache */
+#define REFRESH_DES_KEY_FILE	0x40000L
 
 #define CLIENT_LONG_PASSWORD	1	/* new more secure passwords */
 #define CLIENT_FOUND_ROWS	2	/* Found instead of affected rows */

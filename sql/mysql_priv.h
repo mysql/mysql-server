@@ -263,7 +263,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
 bool mysql_change_db(THD *thd,const char *name);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 void mysql_init_select(LEX *lex);
-void mysql_new_select(LEX *lex);
+bool mysql_new_select(LEX *lex);
 void init_max_user_conn(void);
 void free_max_user_conn(void);
 pthread_handler_decl(handle_one_connection,arg);
@@ -405,9 +405,11 @@ struct st_des_keyschedule
 {
   des_key_schedule ks1, ks2, ks3;
 };
-extern struct st_des_keyschedule des_keyschedule[9];
+extern char *des_key_file;
+extern struct st_des_keyschedule des_keyschedule[10];
 extern uint des_default_key;
-void load_des_key_file(const char *file_name);
+extern pthread_mutex_t LOCK_des_key_file;
+bool load_des_key_file(const char *file_name);
 #endif /* HAVE_OPENSSL */
 
 /* sql_list.c */
