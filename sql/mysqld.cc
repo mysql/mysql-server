@@ -874,7 +874,7 @@ void clean_up(bool print_message)
     udf_free();
 #endif
   (void) ha_panic(HA_PANIC_CLOSE);	/* close all tables and logs */
-  end_key_cache();
+  end_key_cache(&dflt_keycache,1);
   end_thr_alarm(1);			/* Free allocated memory */
 #ifdef USE_RAID
   end_raid();
