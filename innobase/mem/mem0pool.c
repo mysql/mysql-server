@@ -259,19 +259,6 @@ mem_pool_fill_free_list(
 		/* We come here when we have run out of space in the
 		memory pool: */
 
-		if (mem_out_of_mem_err_msg_count % 1000000000 == 0) {
-			/* We do not print the message every time: */
-
-	    		ut_print_timestamp(stderr);
-			
-			fprintf(stderr,
-	"  InnoDB: Out of memory in additional memory pool.\n"
-	"InnoDB: InnoDB will start allocating memory from the OS.\n"
-	"InnoDB: You may get better performance if you configure a bigger\n"
-        "InnoDB: value in the MySQL my.cnf file for\n"
-	"InnoDB: innodb_additional_mem_pool_size.\n");
-     		}
-
 		mem_out_of_mem_err_msg_count++;
      
 		return(FALSE);

@@ -171,7 +171,10 @@ net_printf(THD *thd, uint errcode, ...)
   {
     if (thd->bootstrap)
     {
-      /* In bootstrap it's ok to print on stderr */
+      /*
+	In bootstrap it's ok to print on stderr
+	This may also happen when we get an error from a slave thread
+      */
       fprintf(stderr,"ERROR: %d  %s\n",errcode,text_pos);
       thd->fatal_error=1;
     }
