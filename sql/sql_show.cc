@@ -1147,8 +1147,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
             races with query_length
           */
           uint length= min(max_query_length, tmp->query_length);
-          thd_info->query=(char*) thd->memdup(tmp->query,length+1);
-          thd_info->query[length]=0;
+          thd_info->query=(char*) thd->strmake(tmp->query,length);
         }
         thread_infos.append(thd_info);
       }

@@ -1067,6 +1067,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       packet_length--;
     }
     /* We must allocate some extra memory for query cache */
+    thd->query_length= 0;                       // Extra safety: Avoid races
     if (!(thd->query= (char*) thd->memdup_w_gap((gptr) (packet),
 						packet_length,
 						thd->db_length+2+
@@ -2982,8 +2983,8 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 {
   DBUG_ENTER("mysql_parse");
 
-  mysql_init_query(thd);
   thd->query_length = length;
+  mysql_init_query(thd);
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex=lex_start(thd, (uchar*) inBuf, length);
