@@ -239,8 +239,9 @@ enum enum_shutdown_level {
   */
   SHUTDOWN_WAIT_CRITICAL_BUFFERS= 10, /* flush MyISAM buffs (no corruption) */
   SHUTDOWN_WAIT_ALL_BUFFERS= 20, /* flush InnoDB buffers */
-  SHUTDOWN_WAIT_TRANSACTIONS= 30, /* wait for existing trans to finish */
-  SHUTDOWN_WAIT_CONNECTIONS= 40 /* wait for existing connections to finish */
+  SHUTDOWN_WAIT_STATEMENTS= 30,
+  SHUTDOWN_WAIT_TRANSACTIONS= 40, /* wait for existing trans to finish */
+  SHUTDOWN_WAIT_CONNECTIONS= 50 /* wait for existing connections to finish */
 };
 
 /* options for mysql_set_option */
