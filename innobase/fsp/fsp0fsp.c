@@ -2709,10 +2709,52 @@ fseg_free_page_low(
 		return;
 	}
 
+/*
+	fprintf(stderr,
+"InnoDB: InnoDB is freeing space %lu page %lu,\n"
+"InnoDB: which belongs to descr seg %lu %lu\n"
+"InnoDB: segment %lu %lu.\n",
+		   space, page,
+		   ut_dulint_get_high(
+			mtr_read_dulint(descr + XDES_ID, MLOG_8BYTES, mtr)),
+		   ut_dulint_get_low(
+			mtr_read_dulint(descr + XDES_ID, MLOG_8BYTES, mtr)),
+		   ut_dulint_get_high(
+		     mtr_read_dulint(seg_inode + FSEG_ID, MLOG_8BYTES, mtr)),
+		   ut_dulint_get_low(
+		     mtr_read_dulint(seg_inode + FSEG_ID, MLOG_8BYTES, mtr)));
+*/
 	/* If we get here, the page is in some extent of the segment */	
-	ut_a(0 == ut_dulint_cmp(
+	if (0 != ut_dulint_cmp(
 		mtr_read_dulint(descr + XDES_ID, MLOG_8BYTES, mtr),
-		mtr_read_dulint(seg_inode + FSEG_ID, MLOG_8BYTES, mtr)));
+		mtr_read_dulint(seg_inode + FSEG_ID, MLOG_8BYTES, mtr))) {
+
+		ut_sprintf_buf(errbuf, descr, 40);
+		fprintf(stderr,
+"InnoDB: Dump of the tablespace extent descriptor: %s\n", errbuf);
+		ut_sprintf_buf(errbuf, seg_inode, 40);
+		fprintf(stderr,
+"InnoDB: Dump of the segment inode: %s\n", errbuf);
+
+	        fprintf(stderr,
+"InnoDB: Serious error: InnoDB is trying to free space %lu page %lu,\n"
+"InnoDB: which does not belong to segment %lu %lu but belongs\n"
+"InnoDB: to segment %lu %lu.\n",
+		   space, page,
+		   ut_dulint_get_high(
+			mtr_read_dulint(descr + XDES_ID, MLOG_8BYTES, mtr)),
+		   ut_dulint_get_low(
+			mtr_read_dulint(descr + XDES_ID, MLOG_8BYTES, mtr)),
+		   ut_dulint_get_high(
+		     mtr_read_dulint(seg_inode + FSEG_ID, MLOG_8BYTES, mtr)),
+		   ut_dulint_get_low(
+		     mtr_read_dulint(seg_inode + FSEG_ID, MLOG_8BYTES, mtr)));
+
+		fprintf(stderr,
+"InnoDB: If the InnoDB recovery crashes here, see section 6.1\n"
+"InnoDB: of http://www.innodb.com/ibman.html about forcing recovery.\n");
+		   ut_a(0);
+	}
 
 	not_full_n_used = mtr_read_ulint(seg_inode + FSEG_NOT_FULL_N_USED,
 							MLOG_4BYTES, mtr);

@@ -33,6 +33,11 @@ log_t*	log_sys	= NULL;
 ibool	log_do_write = TRUE;
 ibool	log_debug_writes = FALSE;
 
+/* These control how often we print warnings if the last checkpoint is too
+old */
+ibool	log_has_printed_chkp_warning = FALSE;
+time_t	log_last_warning_time;
+
 /* Pointer to this variable is used as the i/o-message when we do i/o to an
 archive */
 byte	log_archive_io;
@@ -299,6 +304,7 @@ log_close(void)
 	dulint	oldest_lsn;
 	dulint	lsn;
 	log_t*	log	= log_sys;
+	ulint	checkpoint_age;
 
 	ut_ad(mutex_own(&(log->mutex)));
 
@@ -322,8 +328,34 @@ log_close(void)
 		log->check_flush_or_checkpoint = TRUE;
 	}
 
-	if (ut_dulint_minus(lsn, log->last_checkpoint_lsn)
-					<= log->max_modified_age_async) {
+	checkpoint_age = ut_dulint_minus(lsn, log->last_checkpoint_lsn);
+
+	if (checkpoint_age >= log->log_group_capacity) {
+		/* TODO: split btr_store_big_rec_extern_fields() into small
+		steps so that we can release all latches in the middle, and
+		call log_free_check() to ensure we never write over log written
+		after the latest checkpoint. In principle, we should split all
+		big_rec operations, but other operations are smaller. */
+
+		if (!log_has_printed_chkp_warning
+		    || difftime(time(NULL), log_last_warning_time) > 15) {
+
+		        log_has_printed_chkp_warning = TRUE;
+			log_last_warning_time = time(NULL);
+			
+		        ut_print_timestamp(stderr);
+			fprintf(stderr,
+"  InnoDB: ERROR: the age of the last checkpoint is %lu,\n"
+"InnoDB: which exceeds the log group capacity %lu.\n"
+"InnoDB: If you are using big BLOB or TEXT rows, you must set the\n"
+"InnoDB: combined size of log files at least 10 times bigger than the\n"
+"InnoDB: largest such row.\n",
+			checkpoint_age, log->log_group_capacity);
+		}
+	}
+
+	if (checkpoint_age <= log->max_modified_age_async) {
+
 		goto function_exit;
 	}
 
@@ -332,8 +364,7 @@ log_close(void)
 	if (ut_dulint_is_zero(oldest_lsn)
 	    || (ut_dulint_minus(lsn, oldest_lsn)
 					> log->max_modified_age_async)
-	    || (ut_dulint_minus(lsn, log->last_checkpoint_lsn)
-					> log->max_checkpoint_age_async)) {
+	    || checkpoint_age > log->max_checkpoint_age_async) {
 
 		log->check_flush_or_checkpoint = TRUE;
 	}
@@ -551,7 +582,6 @@ log_calc_max_ages(void)
 			the database server */
 {
 	log_group_t*	group;
-	ulint		n_threads;
 	ulint		margin;
 	ulint		free;
 	ibool		success		= TRUE;
@@ -560,8 +590,6 @@ log_calc_max_ages(void)
 	ulint		smallest_archive_margin;
 
 	ut_ad(!mutex_own(&(log_sys->mutex)));
-
-	n_threads = srv_get_n_threads();
 
 	mutex_enter(&(log_sys->mutex));
 
@@ -590,12 +618,15 @@ log_calc_max_ages(void)
 		group = UT_LIST_GET_NEXT(log_groups, group);
 	}
 	
+	/* Add extra safety */
+	smallest_capacity = smallest_capacity - smallest_capacity / 10;
+
 	/* For each OS thread we must reserve so much free space in the
 	smallest log group that it can accommodate the log entries produced
 	by single query steps: running out of free log space is a serious
 	system error which requires rebooting the database. */
 	
-	free = LOG_CHECKPOINT_FREE_PER_THREAD * n_threads
+	free = LOG_CHECKPOINT_FREE_PER_THREAD * (10 + srv_thread_concurrency)
 						+ LOG_CHECKPOINT_EXTRA_FREE;
 	if (free >= smallest_capacity / 2) {
 		success = FALSE;
@@ -606,6 +637,10 @@ log_calc_max_ages(void)
 	}
 
 	margin = ut_min(margin, log_sys->adm_checkpoint_interval);
+
+	margin = margin - margin / 10;	/* Add still some extra safety */
+
+	log_sys->log_group_capacity = smallest_capacity;
 
 	log_sys->max_modified_age_async = margin
 				- margin / LOG_POOL_PREFLUSH_RATIO_ASYNC;
@@ -626,7 +661,7 @@ failure:
 
 	if (!success) {
 		fprintf(stderr,
-	  "Error: log file group too small for the number of threads\n");
+"InnoDB: Error: log file group too small for innodb_thread_concurrency\n");
 	}
 
 	return(success);
@@ -3109,6 +3144,28 @@ log_check_log_recs(
 	mem_free(buf1);
 			
 	return(TRUE);
+}
+
+/**********************************************************
+Peeks the current lsn. */
+
+ibool
+log_peek_lsn(
+/*=========*/
+			/* out: TRUE if success, FALSE if could not get the
+			log system mutex */
+	dulint*	lsn)	/* out: if returns TRUE, current lsn is here */
+{
+	if (0 == mutex_enter_nowait(&(log_sys->mutex), (char*)__FILE__,
+								__LINE__)) {
+	        *lsn = log_sys->lsn;
+
+		mutex_exit(&(log_sys->mutex));
+
+		return(TRUE);
+	}
+
+	return(FALSE);
 }
 
 /**********************************************************

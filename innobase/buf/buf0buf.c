@@ -34,6 +34,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "dict0dict.h"
 #include "log0recv.h"
+#include "log0log.h"
 #include "trx0undo.h"
 #include "srv0srv.h"
 
@@ -273,6 +274,7 @@ buf_page_is_corrupted(
 	ulint	old_checksum;
 	ulint	checksum_field;
 	ulint	old_checksum_field;
+	dulint	current_lsn;
 
 	if (mach_read_from_4(read_buf + FIL_PAGE_LSN + 4)
 	     != mach_read_from_4(read_buf + UNIV_PAGE_SIZE
@@ -284,6 +286,27 @@ buf_page_is_corrupted(
 		return(TRUE);
 	}
 
+#ifndef UNIV_HOTBACKUP
+	if (recv_lsn_checks_on && log_peek_lsn(&current_lsn)) {
+		if (ut_dulint_cmp(current_lsn,
+				  mach_read_from_8(read_buf + FIL_PAGE_LSN))
+				 < 0) {
+			ut_print_timestamp(stderr);
+
+			fprintf(stderr,
+"  InnoDB: Error: page %lu log sequence number %lu %lu\n"
+"InnoDB: is in the future! Current system log sequence number %lu %lu.\n"
+"InnoDB: Your database may be corrupt.\n",
+		        mach_read_from_4(read_buf + FIL_PAGE_OFFSET),
+			ut_dulint_get_high(
+				mach_read_from_8(read_buf + FIL_PAGE_LSN)),
+			ut_dulint_get_low(
+				mach_read_from_8(read_buf + FIL_PAGE_LSN)),
+			ut_dulint_get_high(current_lsn),
+			ut_dulint_get_low(current_lsn));
+		}
+	}
+#endif
 	old_checksum = buf_calc_page_old_checksum(read_buf);
 
 	old_checksum_field = mach_read_from_4(read_buf + UNIV_PAGE_SIZE
