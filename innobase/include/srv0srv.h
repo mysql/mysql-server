@@ -48,6 +48,9 @@ extern dulint	srv_archive_recovery_limit_lsn;
 
 extern ulint	srv_lock_wait_timeout;
 
+extern char*    srv_unix_file_flush_method_str;
+extern ulint    srv_unix_file_flush_method;
+
 extern ibool    srv_set_thread_priorities;
 extern int      srv_query_thread_priority;
 
@@ -99,6 +102,13 @@ typedef struct srv_sys_struct	srv_sys_t;
 
 /* The server system */
 extern srv_sys_t*	srv_sys;
+
+/* Alternatives for fiel flush option in Unix; see the InnoDB manual about
+what these mean */
+#define SRV_UNIX_FDATASYNC   1
+#define SRV_UNIX_O_DSYNC     2
+#define SRV_UNIX_LITTLESYNC  3
+#define SRV_UNIX_NOSYNC      4
 
 /*************************************************************************
 Boots Innobase server. */

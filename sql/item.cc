@@ -75,7 +75,7 @@ bool Item::get_date(TIME *ltime,bool fuzzydate)
   char buff[40];
   String tmp(buff,sizeof(buff)),*res;
   if (!(res=val_str(&tmp)) ||
-      str_to_TIME(res->ptr(),res->length(),ltime,0) == TIMESTAMP_NONE)
+      str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate) == TIMESTAMP_NONE)
   {
     bzero((char*) ltime,sizeof(*ltime));
     return 1;
