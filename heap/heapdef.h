@@ -79,8 +79,9 @@ extern int hp_rec_key_cmp(HP_KEYDEF *keydef,const byte *rec1,
 extern int hp_key_cmp(HP_KEYDEF *keydef,const byte *rec,
 		      const byte *key);
 extern void hp_make_key(HP_KEYDEF *keydef,byte *key,const byte *rec);
-extern void hp_rb_make_key(HP_KEYDEF *keydef, byte *key, 
+extern uint hp_rb_make_key(HP_KEYDEF *keydef, byte *key, 
 			   const byte *rec, byte *recpos);
+extern uint hp_rb_key_length(HP_KEYDEF *keydef, const byte *key);
 extern my_bool hp_if_null_in_key(HP_KEYDEF *keyinfo, const byte *record);
 extern int hp_close(register HP_INFO *info);
 extern void hp_clear(HP_SHARE *info);

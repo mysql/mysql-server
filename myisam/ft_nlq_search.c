@@ -93,9 +93,9 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 
   while(!r)
   {
-    if (_mi_compare_text(default_charset_info,
-			 aio->info->lastkey,keylen,
-			 aio->keybuff,keylen,0)) break;
+    if (mi_compare_text(default_charset_info,
+			aio->info->lastkey,keylen,
+			aio->keybuff,keylen,0)) break;
 
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
 #ifdef EVAL_RUN

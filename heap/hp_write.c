@@ -93,25 +93,25 @@ int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *record,
 {
   heap_rb_param custom_arg;
 
-  info->last_pos = NULL; /* For heap_rnext/heap_rprev */
-  hp_rb_make_key(keyinfo, info->recbuf, record, recpos);
-  custom_arg.keyseg = keyinfo->seg;
-  custom_arg.key_length = keyinfo->length;
+  info->last_pos= NULL; /* For heap_rnext/heap_rprev */
+  custom_arg.keyseg= keyinfo->seg;
+  custom_arg.key_length= hp_rb_make_key(keyinfo, info->recbuf, record, recpos);
   if ((keyinfo->flag & HA_NOSAME) &&
       (!(keyinfo->flag & HA_NULL_PART_KEY) ||
        !hp_if_null_in_key(keyinfo, record)))
   {
-    custom_arg.search_flag = SEARCH_FIND | SEARCH_SAME;
+    custom_arg.search_flag= SEARCH_FIND | SEARCH_SAME;
     if (tree_search_key(&keyinfo->rb_tree, info->recbuf, info->parents, 
 	&info->last_pos, 0, &custom_arg))
     {
-      my_errno = HA_ERR_FOUND_DUPP_KEY;
+      my_errno= HA_ERR_FOUND_DUPP_KEY;
       return 1;
     }
   }
-  custom_arg.search_flag = SEARCH_SAME;
-  return tree_insert(&keyinfo->rb_tree, (void*)info->recbuf, keyinfo->length + 
-                     sizeof(byte*), &custom_arg) ? 0 : 1;
+  custom_arg.search_flag= SEARCH_SAME;
+  return tree_insert(&keyinfo->rb_tree, (void*)info->recbuf,
+		     custom_arg.key_length + sizeof(byte*),
+		     &custom_arg) ? 0 : 1;
 }
 
 	/* Find where to place new record */
