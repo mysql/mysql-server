@@ -2068,9 +2068,6 @@ Fatal error running LOAD DATA INFILE on table '%s'. Default database: '%s'",
 
   TODO
     - Remove all active user locks
-    - If we have an active transaction at this point, the master died
-      in the middle while writing the transaction to the binary log.
-      In this case we should stop the slave.
 */
 
 int Start_log_event::exec_event(struct st_relay_log_info* rli)
@@ -2098,8 +2095,10 @@ int Start_log_event::exec_event(struct st_relay_log_info* rli)
     break;
  case BINLOG_FORMAT_323_GEQ_57 : 
     /* Can distinguish, based on the value of 'created' */
-    if (created) /* this was generated at master startup*/
-      close_temporary_tables(thd);
+    if (!created) 
+      break;
+    /* otherwise this was generated at master startup*/  
+    close_temporary_tables(thd);
     break;
   default :
     /* this case is impossible */
@@ -2156,10 +2155,28 @@ int Stop_log_event::exec_event(struct st_relay_log_info* rli)
     We can't rotate the slave as this will cause infinitive rotations
     in a A -> B -> A setup.
 
+  NOTES
+    As a transaction NEVER spans on 2 or more binlogs:
+    if we have an active transaction at this point, the master died while
+    writing the transaction to the binary log, i.e. while flushing the binlog
+    cache to the binlog. As the write was started, the transaction had been
+    committed on the master, so we lack of information to replay this
+    transaction on the slave; all we can do is stop with error.
+    If we didn't detect it, then positions would start to become garbage (as we
+    are incrementing rli->relay_log_pos whereas we are in a transaction: the new
+    rli->relay_log_pos will be
+    relay_log_pos of the BEGIN + size of the Rotate event = garbage.
+
+    Since MySQL 4.0.14, the master ALWAYS sends a Rotate event when it starts
+    sending the next binlog, so we are sure to receive a Rotate event just
+    after the end of the "dead master"'s binlog; so this exec_event() is the
+    right place to catch the problem. If we would wait until
+    Start_log_event::exec_event() it would be too late, rli->relay_log_pos would
+    already be garbage.
+
   RETURN VALUES
     0	ok
- */
-  
+*/
 
 int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
 {
@@ -2167,6 +2184,18 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
   DBUG_ENTER("Rotate_log_event::exec_event");
 
   pthread_mutex_lock(&rli->data_lock);
+
+  if (rli->inside_transaction)
+  {
+    slave_print_error(rli, 0,
+                      "there is an unfinished transaction in the relay log \
+(could find neither COMMIT nor ROLLBACK in the relay log); it could be that \
+the master died while writing the transaction to its binary log. Now the slave \
+is rolling back the transaction.");
+    pthread_mutex_unlock(&rli->data_lock);
+    DBUG_RETURN(1);
+  }
+
   memcpy(log_name, new_log_ident, ident_len+1);
   rli->master_log_pos = pos;
   rli->relay_log_pos += get_event_len();
