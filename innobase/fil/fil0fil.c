@@ -2572,11 +2572,30 @@ fil_load_single_table_tablespace(
 
 	        fprintf(stderr,
 "InnoDB: Error: could not open single-table tablespace file\n"
-"InnoDB: %s!\n", filepath);
+"InnoDB: %s!\n"
+"InnoDB: We do no continue crash recovery, because the table will become\n"
+"InnoDB: corrupt if we cannot apply the log records in the InnoDB log to it.\n"
+"InnoDB: To fix the problem and start mysqld:\n"
+"InnoDB: 1) If there is a permission problem in the file and mysqld cannot\n"
+"InnoDB: open the file, you should modify the permissions.\n"
+"InnoDB: 2) If the table is not needed, or you can restore it from a backup,\n"
+"InnoDB: then you can remove the .ibd file, and InnoDB will do a normal\n"
+"InnoDB: crash recovery and ignore that table.\n"
+"InnoDB: 3) If the file system or the disk is broken, and you cannot remove\n"
+"InnoDB: the .ibd file, you can set innodb_force_recovery > 0 in my.cnf\n"
+"InnoDB: and force InnoDB to continue crash recovery here.\n", filepath);
 
 		ut_free(filepath);
 
-		return;
+		if (srv_force_recovery > 0) {
+			fprintf(stderr,
+"InnoDB: innodb_force_recovery was set to %lu. Continuing crash recovery\n"
+"InnoDB: even though we cannot access the .ibd file of this table.\n",
+							srv_force_recovery);
+			return;
+		}
+
+		exit(1);
 	}
 
 	success = os_file_get_size(file, &size_low, &size_high);
@@ -2587,13 +2606,35 @@ fil_load_single_table_tablespace(
 
 	        fprintf(stderr,
 "InnoDB: Error: could not measure the size of single-table tablespace file\n"
-"InnoDB: %s!\n", filepath);
+"InnoDB: %s!\n"
+"InnoDB: We do no continue crash recovery, because the table will become\n"
+"InnoDB: corrupt if we cannot apply the log records in the InnoDB log to it.\n"
+"InnoDB: To fix the problem and start mysqld:\n"
+"InnoDB: 1) If there is a permission problem in the file and mysqld cannot\n"
+"InnoDB: access the file, you should modify the permissions.\n"
+"InnoDB: 2) If the table is not needed, or you can restore it from a backup,\n"
+"InnoDB: then you can remove the .ibd file, and InnoDB will do a normal\n"
+"InnoDB: crash recovery and ignore that table.\n"
+"InnoDB: 3) If the file system or the disk is broken, and you cannot remove\n"
+"InnoDB: the .ibd file, you can set innodb_force_recovery > 0 in my.cnf\n"
+"InnoDB: and force InnoDB to continue crash recovery here.\n", filepath);
 
 		os_file_close(file);
 		ut_free(filepath);
 
-		return;
+		if (srv_force_recovery > 0) {
+			fprintf(stderr,
+"InnoDB: innodb_force_recovery was set to %lu. Continuing crash recovery\n"
+"InnoDB: even though we cannot access the .ibd file of this table.\n",
+							srv_force_recovery);
+			return;
+		}
+
+		exit(1);
 	}
+
+	/* TODO: What to do in other cases where we cannot access an .ibd
+	file during a crash recovery? */
 
 	/* Every .ibd file is created >= 4 pages in size. Smaller files
 	cannot be ok. */
