@@ -23,7 +23,8 @@
 #include <m_ctype.h>
 #include "my_dir.h"
 
-static void mark_as_dependent(SELECT_LEX *last, SELECT_LEX *current,
+static void mark_as_dependent(THD *thd,
+			      SELECT_LEX *last, SELECT_LEX *current,
 			      Item_ident *item);
 
 /*****************************************************************************
@@ -810,17 +811,29 @@ bool Item_ref_null_helper::get_date(TIME *ltime, bool fuzzydate)
 
   SYNOPSIS
     mark_as_dependent()
+    thd - thread handler
     last - select from which current item depend
     current  - current select
     item - item which should be marked
 */
 
-static void mark_as_dependent(SELECT_LEX *last, SELECT_LEX *current,
+static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
 			      Item_ident *item)
 {
   // store pointer on SELECT_LEX from wich item is dependent
   item->depended_from= last;
   current->mark_as_dependent(last);
+  if (thd->lex.describe)
+  {
+    char warn_buff[MYSQL_ERRMSG_SIZE];
+    sprintf(warn_buff, ER(ER_WARN_FIELD_RESOLVED),
+	    (item->db_name?item->db_name:""), (item->db_name?".":""),
+	    (item->table_name?item->table_name:""), (item->table_name?".":""),
+	    item->field_name,
+	    current->select_number, last->select_number);
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+		 ER_WARN_FIELD_RESOLVED, warn_buff);
+  }
 }
 
 
@@ -902,12 +915,12 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	if (rf->fix_fields(thd, tables, ref) || rf->check_cols(1))
 	  return 1;
 
-	mark_as_dependent(last, cursel, rf);
+	mark_as_dependent(thd, last, cursel, rf);
 	return 0;
       }
       else
       {
-	mark_as_dependent(last, cursel, this);
+	mark_as_dependent(thd, last, cursel, this);
 	if (last->having_fix_field)
 	{
 	  Item_ref *rf;
@@ -1379,7 +1392,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	Item_field* fld;
 	if (!((*reference)= fld= new Item_field(tmp)))
 	  return 1;
-	mark_as_dependent(last, thd->lex.current_select, fld);
+	mark_as_dependent(thd, last, thd->lex.current_select, fld);
 	return 0;
       }
       else
@@ -1390,7 +1403,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 		   "forward reference in item list");
 	  return -1;
 	}
-	mark_as_dependent(last, thd->lex.current_select,
+	mark_as_dependent(thd, last, thd->lex.current_select,
 			  this);
 	ref= last->ref_pointer_array + counter;
       }
