@@ -6852,8 +6852,7 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   TabRecord* regTabDesc = tabRecord;
   jamEntry();
   ptrCheckGuard(tabPtr, ttabFileSize, regTabDesc);
-  hashValue = hashValue >> tabPtr.p->kvalue;
-  Uint32 fragId = tabPtr.p->mask & hashValue;
+  Uint32 fragId = hashValue & tabPtr.p->mask;
   ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_ACTIVE);
   if (fragId < tabPtr.p->hashpointer) {
     jam();
