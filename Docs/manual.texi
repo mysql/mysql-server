@@ -46940,6 +46940,9 @@ database with InnoDB tables.
 @item
 Fixed that @code{mysql_info()} returns 0 for 'Duplicates' when using
 @code{INSERT DELAYED IGNORE}.
+@item
+Added @code{-DHAVE_BROKEN_REALPATH} to the Mac OS X (darwin) compile
+options in @file{configure.in} to fix a failure under high load.
 @end itemize
 
 @node News-3.23.51, News-3.23.50, News-3.23.52, News-3.23.x
@@ -49690,7 +49693,7 @@ All C client API macros are now functions to make shared libraries more
 reliable. Because of this, you can no longer call @code{mysql_num_fields()} on
 a @code{MYSQL} object, you must use @code{mysql_field_count()} instead.
 @item
-Added use of @code{LIBEWRAP};  Patch by Henning P . Schmiedehausen.
+Added use of @code{LIBWRAP};  Patch by Henning P . Schmiedehausen.
 @item
 Don't allow @code{AUTO_INCREMENT} for other than numerical columns.
 @item
