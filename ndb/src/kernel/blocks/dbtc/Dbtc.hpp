@@ -33,6 +33,7 @@
 #include <signaldata/TrigAttrInfo.hpp>
 #include <signaldata/TcIndx.hpp>
 #include <signaldata/TransIdAI.hpp>
+#include <signaldata/EventReport.hpp>
 #include <trigger_definitions.h>
 #include <SignalCounter.hpp>
 
@@ -1671,16 +1672,40 @@ private:
 
   ApiConnectRecordPtr tmpApiConnectptr;
   UintR tcheckGcpId;
-  UintR cconcurrentOp;
 
-  UintR cattrinfoCount;
-  UintR ctransCount;
-  UintR ccommitCount;
-  UintR creadCount;
-
-  UintR csimpleReadCount;
-  UintR cwriteCount;
-  UintR cabortCount;
+  struct TransCounters {
+    enum { Off, Timer, Started } c_trans_status;
+    UintR cattrinfoCount;
+    UintR ctransCount;
+    UintR ccommitCount;
+    UintR creadCount;
+    UintR csimpleReadCount;
+    UintR cwriteCount;
+    UintR cabortCount;
+    UintR cconcurrentOp;
+    Uint32 c_scan_count;
+    Uint32 c_range_scan_count;
+    void reset () { 
+      cattrinfoCount = ctransCount = ccommitCount = creadCount =
+	csimpleReadCount = cwriteCount = cabortCount =
+	c_scan_count = c_range_scan_count = 0; 
+    }
+    Uint32 report(Signal* signal){
+      signal->theData[0] = EventReport::TransReportCounters;
+      signal->theData[1] = ctransCount;
+      signal->theData[2] = ccommitCount;
+      signal->theData[3] = creadCount;
+      signal->theData[4] = csimpleReadCount;
+      signal->theData[5] = cwriteCount;
+      signal->theData[6] = cattrinfoCount;
+      signal->theData[7] = cconcurrentOp;
+      signal->theData[8] = cabortCount;
+      signal->theData[9] = c_scan_count;
+      signal->theData[10] = c_range_scan_count;
+      return 11;
+    }
+  } c_counters;
+  
   Uint16 cownNodeid;
   Uint16 terrorCode;
 
