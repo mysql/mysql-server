@@ -35,9 +35,6 @@ pthread_mutex_t THR_LOCK_malloc,THR_LOCK_open,THR_LOCK_keycache,
 #ifndef HAVE_LOCALTIME_R
 pthread_mutex_t LOCK_localtime_r;
 #endif
-#ifdef __WIN__
-pthread_mutex_t THR_LOCK_thread;
-#endif
 
 /* FIXME  Note.  TlsAlloc does not set an auto destructor, so
 	the function my_thread_global_free must be called from
@@ -60,7 +57,7 @@ my_bool my_thread_global_init(void)
   pthread_mutex_init(&THR_LOCK_net,NULL);
   pthread_mutex_init(&THR_LOCK_charset,NULL);
 #ifdef __WIN__
-  pthread_mutex_init(&THR_LOCK_thread,NULL);
+  win_pthread_init();
 #endif
 #ifndef HAVE_LOCALTIME_R
   pthread_mutex_init(&LOCK_localtime_r,NULL);
@@ -78,7 +75,7 @@ void my_thread_global_end(void)
 static long thread_id=0;
 
 /*
-  We can't use mutex_locks here if we re using windows as
+  We can't use mutex_locks here if we are using windows as
   we may have compiled the program with SAFE_MUTEX, in which
   case the checking of mutex_locks will not work until
   the pthread_self thread specific variable is initialized.
