@@ -335,6 +335,17 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
 }
 
 /**
+ * Returns true if connected
+ */
+extern "C"
+int ndb_mgm_is_connected(NdbMgmHandle handle)
+{
+  if(!handle)
+    return 0;
+  return handle->connected;
+}
+
+/**
  * Connect to a management server
  */
 extern "C"
