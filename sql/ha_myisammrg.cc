@@ -67,15 +67,15 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
   if (!(test_if_locked & HA_OPEN_WAIT_IF_LOCKED))
     myrg_extra(file,HA_EXTRA_WAIT_LOCK,0);
 
-  if (table->reclength != mean_rec_length && mean_rec_length)
+  if (table->s->reclength != mean_rec_length && mean_rec_length)
   {
     DBUG_PRINT("error",("reclength: %d  mean_rec_length: %d",
-			table->reclength, mean_rec_length));
+			table->s->reclength, mean_rec_length));
     goto err;
   }
 #if !defined(BIG_TABLES) || SIZEOF_OFF_T == 4
   /* Merge table has more than 2G rows */
-  if (table->crashed)
+  if (table->s->crashed)
     goto err;
 #endif
   return (0);
@@ -241,14 +241,14 @@ void ha_myisammrg::info(uint flag)
 #if !defined(BIG_TABLES) || SIZEOF_OFF_T == 4
   if ((info.records >= (ulonglong) 1 << 32) ||
       (info.deleted >= (ulonglong) 1 << 32))
-    table->crashed=1;
+    table->s->crashed= 1;
 #endif
   data_file_length=info.data_file_length;
   errkey  = info.errkey;
-  table->keys_in_use.set_prefix(table->keys);
-  table->db_options_in_use    = info.options;
-  table->is_view=1;
-  mean_rec_length=info.reclength;
+  table->s->keys_in_use.set_prefix(table->s->keys);
+  table->s->db_options_in_use= info.options;
+  table->s->is_view= 1;
+  mean_rec_length= info.reclength;
   block_size=0;
   update_time=0;
 #if SIZEOF_OFF_T > 4
@@ -258,10 +258,10 @@ void ha_myisammrg::info(uint flag)
 #endif
   if (flag & HA_STATUS_CONST)
   {
-    if (table->key_parts && info.rec_per_key)
+    if (table->s->key_parts && info.rec_per_key)
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) info.rec_per_key,
-	     sizeof(table->key_info[0].rec_per_key)*table->key_parts);
+	     sizeof(table->key_info[0].rec_per_key)*table->s->key_parts);
   }
 }
 
@@ -361,7 +361,7 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
       if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
 	goto err;
       split_file_name(open_table->table->filename, &db, &name);
-      if (!(ptr->real_name= thd->strmake(name.str, name.length)))
+      if (!(ptr->table_name= thd->strmake(name.str, name.length)))
 	goto err;
       if (db.length && !(ptr->db= thd->strmake(db.str, db.length)))
 	goto err;
@@ -388,35 +388,36 @@ err:
 int ha_myisammrg::create(const char *name, register TABLE *form,
 			 HA_CREATE_INFO *create_info)
 {
-  char buff[FN_REFLEN],**table_names,**pos;
+  char buff[FN_REFLEN];
+  const char **table_names, **pos;
   TABLE_LIST *tables= (TABLE_LIST*) create_info->merge_list.first;
   THD *thd= current_thd;
   DBUG_ENTER("ha_myisammrg::create");
 
-  if (!(table_names= (char**) thd->alloc((create_info->merge_list.elements+1)*
-					 sizeof(char*))))
+  if (!(table_names= (const char**)
+        thd->alloc((create_info->merge_list.elements+1) * sizeof(char*))))
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   for (pos= table_names; tables; tables= tables->next_local)
   {
-    char *table_name;
+    const char *table_name;
     TABLE **tbl= 0;
     if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
-      tbl= find_temporary_table(thd, tables->db, tables->real_name);
+      tbl= find_temporary_table(thd, tables->db, tables->table_name);
     if (!tbl)
     {
       uint length= my_snprintf(buff,FN_REFLEN,"%s%s/%s",
 			       mysql_real_data_home,
-			       tables->db, tables->real_name);
+			       tables->db, tables->table_name);
       if (!(table_name= thd->strmake(buff, length)))
 	DBUG_RETURN(HA_ERR_OUT_OF_MEM);
     }
     else
-      table_name=(*tbl)->path;
+      table_name= (*tbl)->s->path;
     *pos++= table_name;
   }
   *pos=0;
   DBUG_RETURN(myrg_create(fn_format(buff,name,"","",2+4+16),
-			  (const char **) table_names,
+			  table_names,
                           create_info->merge_insert_method,
                           (my_bool) 0));
 }
@@ -436,7 +437,7 @@ void ha_myisammrg::append_create_info(String *packet)
   packet->append(" UNION=(",8);
   MYRG_TABLE *open_table,*first;
 
-  current_db= table->table_cache_key;
+  current_db= table->s->db;
   db_length=  strlen(current_db);
 
   for (first=open_table=file->open_tables ;

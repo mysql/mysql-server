@@ -1092,7 +1092,11 @@ NdbTransaction::getNdbIndexScanOperation(const char* anIndexName,
 {
   NdbIndexImpl* index = 
     theNdb->theDictionary->getIndex(anIndexName, aTableName);
+  if (index == 0)
+    return 0;
   NdbTableImpl* table = theNdb->theDictionary->getTable(aTableName);
+  if (table == 0)
+    return 0;
 
   return getNdbIndexScanOperation(index, table);
 }

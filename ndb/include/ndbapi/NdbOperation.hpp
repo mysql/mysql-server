@@ -59,10 +59,17 @@ public:
    */
   
   enum LockMode {
-    LM_Read = 0,
-    LM_Exclusive = 1,
-    LM_CommittedRead = 2,
+    LM_Read                 ///< Read with shared lock
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    = 0
+#endif
+    ,LM_Exclusive           ///< Read with exclusive lock
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    = 1
+#endif
+    ,LM_CommittedRead       ///< Ignore locks, read last committed value
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    = 2,
     LM_Dirty = 2
 #endif
   };

@@ -2128,7 +2128,7 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 			       const char *db_arg, const char *table_name_arg,
 			       List<Item> &fields_arg,
 			       enum enum_duplicates handle_dup,
-			       bool using_trans)
+			       bool ignore, bool using_trans)
   :Log_event(thd_arg, !thd_arg->tmp_table_used ?
 	     0 : LOG_EVENT_THREAD_SPECIFIC_F, using_trans),
    thread_id(thd_arg->thread_id),
@@ -2166,9 +2166,6 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
   sql_ex.empty_flags= 0;
 
   switch (handle_dup) {
-  case DUP_IGNORE:
-    sql_ex.opt_flags|= IGNORE_FLAG;
-    break;
   case DUP_REPLACE:
     sql_ex.opt_flags|= REPLACE_FLAG;
     break;
@@ -2176,6 +2173,8 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
   case DUP_ERROR:
     break;	
   }
+  if (ignore)
+    sql_ex.opt_flags|= IGNORE_FLAG;
 
   if (!ex->field_term->length())
     sql_ex.empty_flags |= FIELD_TERM_EMPTY;
@@ -2496,7 +2495,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     TABLE_LIST tables;
     bzero((char*) &tables,sizeof(tables));
     tables.db = thd->db;
-    tables.alias = tables.real_name = (char*)table_name;
+    tables.alias = tables.table_name = (char*) table_name;
     tables.lock_type = TL_WRITE;
     tables.updating= 1;
 
@@ -2511,37 +2510,41 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     {
       char llbuff[22];
       enum enum_duplicates handle_dup;
+      bool ignore= 0;
       /*
         Make a simplified LOAD DATA INFILE query, for the information of the
         user in SHOW PROCESSLIST. Note that db is known in the 'db' column.
       */
       if ((load_data_query= (char *) my_alloca(18 + strlen(fname) + 14 +
-                                               strlen(tables.real_name) + 8)))
+                                               strlen(tables.table_name) + 8)))
       {
         thd->query_length= (uint)(strxmov(load_data_query,
                                           "LOAD DATA INFILE '", fname,
-                                          "' INTO TABLE `", tables.real_name,
+                                          "' INTO TABLE `", tables.table_name,
                                           "` <...>", NullS) - load_data_query);
         thd->query= load_data_query;
       }
       if (sql_ex.opt_flags & REPLACE_FLAG)
 	handle_dup= DUP_REPLACE;
       else if (sql_ex.opt_flags & IGNORE_FLAG)
-        handle_dup= DUP_IGNORE;
+      {
+        ignore= 1;
+        handle_dup= DUP_ERROR;
+      }
       else
       {
         /*
 	  When replication is running fine, if it was DUP_ERROR on the
-          master then we could choose DUP_IGNORE here, because if DUP_ERROR
+          master then we could choose IGNORE here, because if DUP_ERROR
           suceeded on master, and data is identical on the master and slave,
-          then there should be no uniqueness errors on slave, so DUP_IGNORE is
+          then there should be no uniqueness errors on slave, so IGNORE is
           the same as DUP_ERROR. But in the unlikely case of uniqueness errors
           (because the data on the master and slave happen to be different
 	  (user error or bug), we want LOAD DATA to print an error message on
 	  the slave to discover the problem.
 
           If reading from net (a 3.23 master), mysql_load() will change this
-          to DUP_IGNORE.
+          to IGNORE.
         */
         handle_dup= DUP_ERROR;
       }
@@ -2575,8 +2578,8 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 	*/
 	thd->net.pkt_nr = net->pkt_nr;
       }
-      if (mysql_load(thd, &ex, &tables, field_list, handle_dup, net != 0,
-		     TL_WRITE, 0))
+      if (mysql_load(thd, &ex, &tables, field_list, handle_dup, ignore,
+                     net != 0, TL_WRITE))
 	thd->query_error = 1;
       if (thd->cuted_fields)
       {
@@ -3495,8 +3498,9 @@ Create_file_log_event::
 Create_file_log_event(THD* thd_arg, sql_exchange* ex,
 		      const char* db_arg, const char* table_name_arg,
 		      List<Item>& fields_arg, enum enum_duplicates handle_dup,
+                      bool ignore,
 		      char* block_arg, uint block_len_arg, bool using_trans)
-  :Load_log_event(thd_arg,ex,db_arg,table_name_arg,fields_arg,handle_dup,
+  :Load_log_event(thd_arg,ex,db_arg,table_name_arg,fields_arg,handle_dup, ignore,
 		  using_trans),
    fake_base(0), block(block_arg), event_buf(0), block_len(block_len_arg),
    file_id(thd_arg->file_id = mysql_bin_log.next_file_id())

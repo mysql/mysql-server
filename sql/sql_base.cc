@@ -49,8 +49,8 @@ extern "C" byte *table_cache_key(const byte *record,uint *length,
 				 my_bool not_used __attribute__((unused)))
 {
   TABLE *entry=(TABLE*) record;
-  *length=entry->key_length;
-  return (byte*) entry->table_cache_key;
+  *length= entry->s->key_length;
+  return (byte*) entry->s->table_cache_key;
 }
 
 bool table_cache_init(void)
@@ -148,20 +148,21 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
   {
     OPEN_TABLE_LIST *table;
     TABLE *entry=(TABLE*) hash_element(&open_cache,idx);
+    TABLE_SHARE *share= entry->s;
 
-    DBUG_ASSERT(entry->real_name);
-    if ((!entry->real_name))			// To be removed
+    DBUG_ASSERT(share->table_name);
+    if ((!share->table_name))			// To be removed
       continue;					// Shouldn't happen
     if (wild)
     {
-      strxmov(name,entry->table_cache_key,".",entry->real_name,NullS);
+      strxmov(name,share->table_cache_key,".",share->table_name,NullS);
       if (wild_compare(name,wild,0))
 	continue;
     }
 
     /* Check if user has SELECT privilege for any column in the table */
-    table_list.db= (char*) entry->table_cache_key;
-    table_list.real_name= entry->real_name;
+    table_list.db=        (char*) share->db;
+    table_list.table_name= (char*) share->table_name;
     table_list.grant.privilege=0;
 
     if (check_table_access(thd,SELECT_ACL | EXTRA_ACL,&table_list,1))
@@ -169,8 +170,8 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
     /* need to check if we haven't already listed it */
     for (table= open_list  ; table ; table=table->next)
     {
-      if (!strcmp(table->table,entry->real_name) &&
-	  !strcmp(table->db,entry->table_cache_key))
+      if (!strcmp(table->table,share->table_name) &&
+	  !strcmp(table->db,entry->s->db))
       {
 	if (entry->in_use)
 	  table->in_use++;
@@ -182,15 +183,15 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
     if (table)
       continue;
     if (!(*start_list = (OPEN_TABLE_LIST *)
-	  sql_alloc(sizeof(**start_list)+entry->key_length)))
+	  sql_alloc(sizeof(**start_list)+share->key_length)))
     {
       open_list=0;				// Out of memory
       break;
     }
     strmov((*start_list)->table=
 	   strmov(((*start_list)->db= (char*) ((*start_list)+1)),
-		  entry->table_cache_key)+1,
-	   entry->real_name);
+		  entry->s->db)+1,
+	   entry->s->table_name);
     (*start_list)->in_use= entry->in_use ? 1 : 0;
     (*start_list)->locked= entry->locked_by_name ? 1 : 0;
     start_list= &(*start_list)->next;
@@ -287,7 +288,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     bool found=0;
     for (TABLE_LIST *table= tables; table; table= table->next_local)
     {
-      if (remove_table_from_cache(thd, table->db, table->real_name, 1))
+      if (remove_table_from_cache(thd, table->db, table->table_name, 1))
 	found=1;
     }
     if (!found)
@@ -319,7 +320,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
       for (uint idx=0 ; idx < open_cache.records ; idx++)
       {
 	TABLE *table=(TABLE*) hash_element(&open_cache,idx);
-	if ((table->version) < refresh_version && table->db_stat)
+	if ((table->s->version) < refresh_version && table->db_stat)
 	{
 	  found=1;
 	  pthread_cond_wait(&COND_refresh,&LOCK_open);
@@ -337,7 +338,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     thd->in_lock_tables=0;
     /* Set version for table */
     for (TABLE *table=thd->open_tables; table ; table= table->next)
-      table->version=refresh_version;
+      table->s->version= refresh_version;
   }
   VOID(pthread_mutex_unlock(&LOCK_open));
   if (if_wait_for_refresh)
@@ -439,7 +440,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   DBUG_ASSERT(table->file->inited == handler::NONE);
 
   *table_ptr=table->next;
-  if (table->version != refresh_version ||
+  if (table->s->version != refresh_version ||
       thd->version != refresh_version || !table->db_stat)
   {
     VOID(hash_delete(&open_cache,(byte*) table));
@@ -447,9 +448,9 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   }
   else
   {
-    if (table->flush_version != flush_version)
+    if (table->s->flush_version != flush_version)
     {
-      table->flush_version=flush_version;
+      table->s->flush_version= flush_version;
       table->file->extra(HA_EXTRA_FLUSH);
     }
     else
@@ -477,8 +478,8 @@ void close_temporary(TABLE *table,bool delete_table)
 {
   DBUG_ENTER("close_temporary");
   char path[FN_REFLEN];
-  db_type table_type=table->db_type;
-  strmov(path,table->path);
+  db_type table_type=table->s->db_type;
+  strmov(path,table->s->path);
   free_io_cache(table);
   closefrm(table);
   my_free((char*) table,MYF(0));
@@ -507,7 +508,7 @@ void close_temporary_tables(THD *thd)
       enough; indeed it is enough, because table->key_length is greater (by 8,
       because of server_id and thread_id) than db||table.
     */
-    query_buf_size+= table->key_length+1;
+    query_buf_size+= table->s->key_length+1;
 
   if ((query = alloc_root(thd->mem_root, query_buf_size)))
     // Better add "if exists", in case a RESET MASTER has been done
@@ -518,14 +519,10 @@ void close_temporary_tables(THD *thd)
     if (query) // we might be out of memory, but this is not fatal
     {
       // skip temporary tables not created directly by the user
-      if (table->real_name[0] != '#')
+      if (table->s->table_name[0] != '#')
 	found_user_tables = 1;
-      /*
-        Here we assume table_cache_key always starts
-        with \0 terminated db name
-      */
-      end = strxmov(end,"`",table->table_cache_key,"`.`",
-                    table->real_name,"`,", NullS);
+      end = strxmov(end,"`",table->s->db,"`.`",
+                    table->s->table_name,"`,", NullS);
     }
     next=table->next;
     close_temporary(table);
@@ -579,14 +576,14 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
   {
     for (; table; table= *(TABLE_LIST **) ((char*) table + offset))
     {
-      if ((table->table == 0 || table->table->tmp_table == NO_TMP_TABLE) &&
+      if ((table->table == 0 || table->table->s->tmp_table == NO_TMP_TABLE) &&
           ((!strcmp(table->db, db_name) &&
-            !strcmp(table->real_name, table_name)) ||
+            !strcmp(table->table_name, table_name)) ||
            (table->view &&
             !my_strcasecmp(table_alias_charset,
-                           table->table->table_cache_key, db_name) &&
+                           table->db, db_name) &&
             !my_strcasecmp(table_alias_charset,
-                           table->table->table_name, table_name))))
+                           table->table->alias, table_name))))
         break;
     }
   }
@@ -594,12 +591,12 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
   {
     for (; table; table= *(TABLE_LIST **) ((char*) table + offset))
     {
-      if ((table->table == 0 || table->table->tmp_table == NO_TMP_TABLE) &&
+      if ((table->table == 0 || table->table->s->tmp_table == NO_TMP_TABLE) &&
           ((!strcmp(table->db, db_name) &&
-            !strcmp(table->real_name, table_name)) ||
+            !strcmp(table->table_name, table_name)) ||
            (table->view &&
-            !strcmp(table->table->table_cache_key, db_name) &&
-            !strcmp(table->table->table_name, table_name))))
+            !strcmp(table->table->s->db, db_name) &&
+            !strcmp(table->table->alias, table_name))))
         break;
     }
   }
@@ -625,27 +622,27 @@ TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
   DBUG_ENTER("unique_table");
   DBUG_PRINT("enter", ("table alias: %s", table->alias));
   TABLE_LIST *res;
-  const char *d_name= table->db, *t_name= table->real_name;
+  const char *d_name= table->db, *t_name= table->table_name;
   char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
   /* temporary table is always unique */
-  if (table->table && table->table->tmp_table != NO_TMP_TABLE)
+  if (table->table && table->table->s->tmp_table != NO_TMP_TABLE)
     return 0;
   if (table->view)
   {
     /* it is view and table opened */
     if (lower_case_table_names)
     {
-      strmov(t_name_buff, table->table->table_name);
+      strmov(t_name_buff, table->table->alias);
       my_casedn_str(files_charset_info, t_name_buff);
       t_name= t_name_buff;
-      strmov(d_name_buff, table->table->table_cache_key);
+      strmov(d_name_buff, table->table->s->db);
       my_casedn_str(files_charset_info, d_name_buff);
       d_name= d_name_buff;
     }
     else
     {
-      d_name= table->table->table_cache_key;
-      t_name= table->table->table_name;
+      d_name= table->table->s->db;
+      t_name= table->table->alias;
     }
   }
 
@@ -677,8 +674,8 @@ TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name)
   prev= &thd->temporary_tables;
   for (table=thd->temporary_tables ; table ; table=table->next)
   {
-    if (table->key_length == key_length &&
-	!memcmp(table->table_cache_key,key,key_length))
+    if (table->s->key_length == key_length &&
+	!memcmp(table->s->table_cache_key,key,key_length))
       return prev;
     prev= &table->next;
   }
@@ -706,22 +703,26 @@ bool close_temporary_table(THD *thd, const char *db, const char *table_name)
   Prepares a table cache key, which is the concatenation of db, table_name and
   thd->slave_proxy_id, separated by '\0'.
 */
+
 bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
 			    const char *table_name)
 {
   char *key;
+  TABLE_SHARE *share= table->s;
+
   if (!(key=(char*) alloc_root(&table->mem_root,
 			       (uint) strlen(db)+
 			       (uint) strlen(table_name)+6+4)))
     return 1;				/* purecov: inspected */
-  table->key_length=(uint)
-    (strmov((table->real_name=strmov(table->table_cache_key=key,
-				     db)+1),
-	    table_name) - table->table_cache_key)+1;
-  int4store(key+table->key_length,thd->server_id);
-  table->key_length += 4;
-  int4store(key+table->key_length,thd->variables.pseudo_thread_id);
-  table->key_length += 4;
+  share->key_length= (uint)
+    (strmov(((char*) share->table_name= strmov(share->table_cache_key= key,
+                                              db)+1),
+	    table_name) - share->table_cache_key)+1;
+  share->db= share->table_cache_key;
+  int4store(key+share->key_length, thd->server_id);
+  share->key_length+= 4;
+  int4store(key+share->key_length, thd->variables.pseudo_thread_id);
+  share->key_length+= 4;
   return 0;
 }
 
@@ -752,15 +753,16 @@ static void relink_unused(TABLE *table)
 TABLE *unlink_open_table(THD *thd, TABLE *list, TABLE *find)
 {
   char key[MAX_DBKEY_LENGTH];
-  uint key_length=find->key_length;
+  uint key_length= find->s->key_length;
   TABLE *start=list,**prev,*next;
   prev= &start;
-  memcpy(key,find->table_cache_key,key_length);
+
+  memcpy(key, find->s->table_cache_key, key_length);
   for (; list ; list=next)
   {
     next=list->next;
-    if (list->key_length == key_length &&
-	!memcmp(list->table_cache_key,key,key_length))
+    if (list->s->key_length == key_length &&
+	!memcmp(list->s->table_cache_key, key, key_length))
     {
       if (thd->locked_tables)
 	mysql_lock_remove(thd, thd->locked_tables,list);
@@ -811,12 +813,13 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   DBUG_ENTER("reopen_name_locked_table");
   if (thd->killed)
     DBUG_RETURN(0);
-  TABLE* table;
+  TABLE *table;
+  TABLE_SHARE *share;
   if (!(table = table_list->table))
     DBUG_RETURN(0);
 
   char* db = thd->db ? thd->db : table_list->db;
-  char* table_name = table_list->real_name;
+  char* table_name = table_list->table_name;
   char	key[MAX_DBKEY_LENGTH];
   uint	key_length;
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
@@ -824,8 +827,8 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   pthread_mutex_lock(&LOCK_open);
   if (open_unireg_entry(thd, table, db, table_name, table_name, 0,
                         thd->mem_root) ||
-      !(table->table_cache_key =memdup_root(&table->mem_root,(char*) key,
-					    key_length)))
+      !(table->s->table_cache_key= memdup_root(&table->mem_root, (char*) key,
+                                               key_length)))
   {
     delete table->triggers;
     closefrm(table);
@@ -833,9 +836,11 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
     DBUG_RETURN(0);
   }
 
-  table->key_length=key_length;
-  table->version=0;
-  table->flush_version=0;
+  share= table->s;
+  share->db= share->table_cache_key;
+  share->key_length=key_length;
+  share->version=0;
+  share->flush_version=0;
   table->in_use = thd;
   check_unused();
   pthread_mutex_unlock(&LOCK_open);
@@ -846,8 +851,8 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   table->const_table=0;
   table->outer_join= table->null_row= table->maybe_null= table->force_index= 0;
   table->status=STATUS_NO_RECORD;
-  table->keys_in_use_for_query= table->keys_in_use;
-  table->used_keys= table->keys_for_keyread;
+  table->keys_in_use_for_query= share->keys_in_use;
+  table->used_keys= share->keys_for_keyread;
   DBUG_RETURN(table);
 }
 
@@ -877,7 +882,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   if (thd->killed)
     DBUG_RETURN(0);
   key_length= (uint) (strmov(strmov(key, table_list->db)+1,
-			     table_list->real_name)-key)+1;
+			     table_list->table_name)-key)+1;
   int4store(key + key_length, thd->server_id);
   int4store(key + key_length + 4, thd->variables.pseudo_thread_id);
 
@@ -885,13 +890,13 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   {
     for (table= thd->temporary_tables; table ; table=table->next)
     {
-      if (table->key_length == key_length + TMP_TABLE_KEY_EXTRA &&
-	  !memcmp(table->table_cache_key, key,
+      if (table->s->key_length == key_length + TMP_TABLE_KEY_EXTRA &&
+	  !memcmp(table->s->table_cache_key, key,
 		  key_length + TMP_TABLE_KEY_EXTRA))
       {
 	if (table->query_id == thd->query_id)
 	{
-	  my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->table_name);
+	  my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
 	  DBUG_RETURN(0);
 	}
 	table->query_id= thd->query_id;
@@ -907,9 +912,9 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   {						// Using table locks
     for (table=thd->open_tables; table ; table=table->next)
     {
-      if (table->key_length == key_length &&
-	  !memcmp(table->table_cache_key,key,key_length) &&
-	  !my_strcasecmp(system_charset_info, table->table_name, alias) &&
+      if (table->s->key_length == key_length &&
+	  !memcmp(table->s->table_cache_key,key,key_length) &&
+	  !my_strcasecmp(system_charset_info, table->alias, alias) &&
 	  table->query_id != thd->query_id)
       {
 	table->query_id=thd->query_id;
@@ -925,7 +930,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     {
       char path[FN_REFLEN];
       strxnmov(path, FN_REFLEN, mysql_data_home, "/", table_list->db, "/",
-               table_list->real_name, reg_ext, NullS);
+               table_list->table_name, reg_ext, NullS);
       (void) unpack_filename(path, path);
       if (mysql_frm_type(path) == FRMTYPE_VIEW)
       {
@@ -933,7 +938,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         table= &tab;
         VOID(pthread_mutex_lock(&LOCK_open));
         if (open_unireg_entry(thd, table, table_list->db,
-                              table_list->real_name,
+                              table_list->table_name,
                               alias, table_list, mem_root))
         {
           table->next=table->prev=table;
@@ -972,7 +977,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
        table && table->in_use ;
        table = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
   {
-    if (table->version != refresh_version)
+    if (table->s->version != refresh_version)
     {
       /*
       ** There is a refresh in progress for this table
@@ -1004,6 +1009,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   }
   else
   {
+    TABLE_SHARE *share;
     /* Free cache if too big */
     while (open_cache.records > table_cache_size && unused_tables)
       VOID(hash_delete(&open_cache,(byte*) unused_tables)); /* purecov: tested */
@@ -1014,11 +1020,12 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       VOID(pthread_mutex_unlock(&LOCK_open));
       DBUG_RETURN(NULL);
     }
-    if (open_unireg_entry(thd, table, table_list->db, table_list->real_name,
+    if (open_unireg_entry(thd, table, table_list->db, table_list->table_name,
 			  alias, table_list, mem_root) ||
 	(!table_list->view && 
-	 !(table->table_cache_key= memdup_root(&table->mem_root, (char*) key,
-					       key_length))))
+	 !(table->s->table_cache_key= memdup_root(&table->mem_root,
+                                                  (char*) key,
+                                                  key_length))))
     {
       table->next=table->prev=table;
       free_cache_entry(table);
@@ -1031,9 +1038,11 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       VOID(pthread_mutex_unlock(&LOCK_open));
       DBUG_RETURN(0); // VIEW
     }
-    table->key_length=key_length;
-    table->version=refresh_version;
-    table->flush_version=flush_version;
+    share= table->s;
+    share->db=            share->table_cache_key;
+    share->key_length=    key_length;
+    share->version=       refresh_version;
+    share->flush_version= flush_version;
     DBUG_PRINT("info", ("inserting table %p into the cache", table));
     VOID(my_hash_insert(&open_cache,(byte*) table));
   }
@@ -1051,16 +1060,14 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
  reset:
   if (thd->lex->need_correct_ident())
     table->alias_name_used= my_strcasecmp(table_alias_charset,
-                                          table->real_name, alias);
+                                          table->s->table_name, alias);
   /* Fix alias if table name changes */
-  if (strcmp(table->table_name, alias))
+  if (strcmp(table->alias, alias))
   {
     uint length=(uint) strlen(alias)+1;
-    table->table_name= (char*) my_realloc(table->table_name,length,
-					  MYF(MY_WME));
-    memcpy(table->table_name,alias,length);
-    for (uint i=0 ; i < table->fields ; i++)
-      table->field[i]->table_name=table->table_name;
+    table->alias= (char*) my_realloc((char*) table->alias, length,
+                                     MYF(MY_WME));
+    memcpy((char*) table->alias, alias, length);
   }
   /* These variables are also set in reopen_table() */
   table->tablenr=thd->current_tablenr++;
@@ -1068,9 +1075,9 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->const_table=0;
   table->outer_join= table->null_row= table->maybe_null= table->force_index= 0;
   table->status=STATUS_NO_RECORD;
-  table->keys_in_use_for_query= table->keys_in_use;
+  table->keys_in_use_for_query= table->s->keys_in_use;
   table->insert_values= 0;
-  table->used_keys= table->keys_for_keyread;
+  table->used_keys= table->s->keys_for_keyread;
   if (table->timestamp_field)
     table->timestamp_field_type= table->timestamp_field->get_auto_set_type();
   table_list->updatable= 1; // It is not derived table nor non-updatable VIEW
@@ -1086,8 +1093,8 @@ TABLE *find_locked_table(THD *thd, const char *db,const char *table_name)
 
   for (TABLE *table=thd->open_tables; table ; table=table->next)
   {
-    if (table->key_length == key_length &&
-	!memcmp(table->table_cache_key,key,key_length))
+    if (table->s->key_length == key_length &&
+	!memcmp(table->s->table_cache_key,key,key_length))
       return table;
   }
   return(0);
@@ -1104,9 +1111,9 @@ TABLE *find_locked_table(THD *thd, const char *db,const char *table_name)
 bool reopen_table(TABLE *table,bool locked)
 {
   TABLE tmp;
-  char *db=table->table_cache_key;
-  char *table_name=table->real_name;
-  bool error=1;
+  char *db= table->s->table_cache_key;
+  const char *table_name= table->s->table_name;
+  bool error= 1;
   Field **field;
   uint key,part;
   DBUG_ENTER("reopen_table");
@@ -1114,24 +1121,25 @@ bool reopen_table(TABLE *table,bool locked)
 #ifdef EXTRA_DEBUG
   if (table->db_stat)
     sql_print_error("Table %s had a open data handler in reopen_table",
-		    table->table_name);
+		    table->alias);
 #endif
   if (!locked)
     VOID(pthread_mutex_lock(&LOCK_open));
   safe_mutex_assert_owner(&LOCK_open);
 
   if (open_unireg_entry(table->in_use, &tmp, db, table_name,
-			table->table_name, 0, table->in_use->mem_root))
+			table->alias, 0, table->in_use->mem_root))
     goto end;
   free_io_cache(table);
 
-  if (!(tmp.table_cache_key= memdup_root(&tmp.mem_root,db,
-					 table->key_length)))
+  if (!(tmp.s->table_cache_key= memdup_root(&tmp.mem_root,db,
+                                            table->s->key_length)))
   {
     delete tmp.triggers;
     closefrm(&tmp);				// End of memory
     goto end;
   }
+  tmp.s->db= tmp.s->table_cache_key;
 
   /* This list copies variables set by open_table */
   tmp.tablenr=		table->tablenr;
@@ -1141,16 +1149,16 @@ bool reopen_table(TABLE *table,bool locked)
   tmp.null_row=		table->null_row;
   tmp.maybe_null=	table->maybe_null;
   tmp.status=		table->status;
-  tmp.keys_in_use_for_query= tmp.keys_in_use;
-  tmp.used_keys= 	tmp.keys_for_keyread;
+  tmp.keys_in_use_for_query= tmp.s->keys_in_use;
+  tmp.used_keys= 	tmp.s->keys_for_keyread;
   tmp.force_index=	tmp.force_index;
 
   /* Get state */
-  tmp.key_length=	table->key_length;
+  tmp.s->key_length=	table->s->key_length;
   tmp.in_use=    	table->in_use;
   tmp.reginfo.lock_type=table->reginfo.lock_type;
-  tmp.version=		refresh_version;
-  tmp.tmp_table=	table->tmp_table;
+  tmp.s->version=	refresh_version;
+  tmp.s->tmp_table=	table->s->tmp_table;
   tmp.grant=		table->grant;
 
   /* Replace table in open list */
@@ -1161,16 +1169,17 @@ bool reopen_table(TABLE *table,bool locked)
   if (table->file)
     VOID(closefrm(table));		// close file, free everything
 
-  *table=tmp;
+  *table= tmp;
+  table->s= &table->share_not_to_be_used;
   table->file->change_table_ptr(table);
 
-  DBUG_ASSERT(table->table_name);
+  DBUG_ASSERT(table->alias);
   for (field=table->field ; *field ; field++)
   {
     (*field)->table= (*field)->orig_table= table;
-    (*field)->table_name=table->table_name;
+    (*field)->table_name= &table->alias;
   }
-  for (key=0 ; key < table->keys ; key++)
+  for (key=0 ; key < table->s->keys ; key++)
     for (part=0 ; part < table->key_info[key].usable_key_parts ; part++)
       table->key_info[key].key_part[part].field->table= table;
   VOID(pthread_cond_broadcast(&COND_refresh));
@@ -1194,8 +1203,8 @@ bool close_data_tables(THD *thd,const char *db, const char *table_name)
   TABLE *table;
   for (table=thd->open_tables; table ; table=table->next)
   {
-    if (!strcmp(table->real_name,table_name) &&
-	!strcmp(table->table_cache_key,db))
+    if (!strcmp(table->s->table_name, table_name) &&
+	!strcmp(table->s->db, db))
     {
       mysql_lock_remove(thd, thd->locked_tables,table);
       table->file->close();
@@ -1240,7 +1249,7 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
     next=table->next;
     if (!tables || (!db_stat && reopen_table(table,1)))
     {
-      my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->table_name);
+      my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
       VOID(hash_delete(&open_cache,(byte*) table));
       error=1;
     }
@@ -1252,7 +1261,7 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
 	*tables_ptr++= table;			// need new lock on this
       if (in_refresh)
       {
-	table->version=0;
+	table->s->version=0;
 	table->locked_by_flush=0;
       }
     }
@@ -1291,11 +1300,11 @@ void close_old_data_files(THD *thd, TABLE *table, bool abort_locks,
   bool found=send_refresh;
   for (; table ; table=table->next)
   {
-    if (table->version != refresh_version)
+    if (table->s->version != refresh_version)
     {
       found=1;
       if (!abort_locks)				// If not from flush tables
-	table->version = refresh_version;	// Let other threads use table
+	table->s->version= refresh_version;	// Let other threads use table
       if (table->db_stat)
       {
 	if (abort_locks)
@@ -1325,8 +1334,8 @@ bool table_is_used(TABLE *table, bool wait_for_name_lock)
 {
   do
   {
-    char *key= table->table_cache_key;
-    uint key_length=table->key_length;
+    char *key= table->s->table_cache_key;
+    uint key_length= table->s->key_length;
     for (TABLE *search=(TABLE*) hash_search(&open_cache,
 					    (byte*) key,key_length) ;
 	 search ;
@@ -1334,7 +1343,7 @@ bool table_is_used(TABLE *table, bool wait_for_name_lock)
     {
       if (search->locked_by_flush ||
 	  search->locked_by_name && wait_for_name_lock ||
-	  search->db_stat && search->version < refresh_version)
+	  search->db_stat && search->s->version < refresh_version)
 	return 1;				// Table is used
     }
   } while ((table=table->next));
@@ -1381,11 +1390,11 @@ bool drop_locked_tables(THD *thd,const char *db, const char *table_name)
   TABLE *table,*next,**prev;
   bool found=0;
   prev= &thd->open_tables;
-  for (table=thd->open_tables; table ; table=next)
+  for (table= thd->open_tables; table ; table=next)
   {
     next=table->next;
-    if (!strcmp(table->real_name,table_name) &&
-	!strcmp(table->table_cache_key,db))
+    if (!strcmp(table->s->table_name, table_name) &&
+	!strcmp(table->s->db, db))
     {
       mysql_lock_remove(thd, thd->locked_tables,table);
       VOID(hash_delete(&open_cache,(byte*) table));
@@ -1420,8 +1429,8 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
   TABLE *table;
   for (table= thd->open_tables; table ; table= table->next)
   {
-    if (!strcmp(table->real_name,table_name) &&
-	!strcmp(table->table_cache_key,db))
+    if (!strcmp(table->s->table_name,table_name) &&
+	!strcmp(table->s->db, db))
     {
       mysql_lock_abort(thd,table);
       break;
@@ -1475,7 +1484,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
                      thd->open_options, entry, table_desc, mem_root))))
 
   {
-    if (!entry->crashed)
+    if (!entry->s || !entry->s->crashed)
     {
       /*
         Frm file could not be found on disk
@@ -1496,7 +1505,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
     TABLE_LIST table_list;
     bzero((char*) &table_list, sizeof(table_list)); // just for safe
     table_list.db=(char*) db;
-    table_list.real_name=(char*) name;
+    table_list.table_name=(char*) name;
 
     safe_mutex_assert_owner(&LOCK_open);
 
@@ -1663,9 +1672,9 @@ int open_tables(THD *thd, TABLE_LIST *start, uint *counter)
 	for (TABLE_LIST *tmp= start; tmp; tmp= tmp->next_global)
 	{
 	  /* Close normal (not temporary) changed tables */
-	  if (tmp->table && ! tmp->table->tmp_table)
+	  if (tmp->table && ! tmp->table->s->tmp_table)
 	  {
-	    if (tmp->table->version != refresh_version ||
+	    if (tmp->table->s->version != refresh_version ||
 		! tmp->table->db_stat)
 	    {
 	      VOID(hash_delete(&open_cache,(byte*) tmp->table));
@@ -1724,7 +1733,7 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
   if ((int) lock_type >= (int) TL_WRITE_ALLOW_READ &&
       (int) table->reginfo.lock_type < (int) TL_WRITE_ALLOW_READ)
   {
-    my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0),table->table_name);
+    my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0),table->alias);
     DBUG_RETURN(1);
   }
   if ((error=table->file->start_stmt(thd)))
@@ -1911,7 +1920,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count)
   {
     DBUG_ASSERT(thd->lock == 0);	// You must lock everything at once
     TABLE **start,**ptr;
-    if (!(ptr=start=(TABLE**) sql_alloc(sizeof(TABLE*)*count)))
+    if (!(ptr=start=(TABLE**) thd->alloc(sizeof(TABLE*)*count)))
       return -1;
     for (table= tables; table; table= table->next_global)
     {
@@ -1947,6 +1956,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list)
 {
   TABLE *tmp_table;
+  TABLE_SHARE *share;
   DBUG_ENTER("open_temporary_table");
 
   /*
@@ -1971,20 +1981,22 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
     DBUG_RETURN(0);
   }
 
+  share= tmp_table->s;
   tmp_table->reginfo.lock_type=TL_WRITE;	 // Simulate locked
-  tmp_table->tmp_table = (tmp_table->file->has_transactions() ? 
-			  TRANSACTIONAL_TMP_TABLE : TMP_TABLE);
-  tmp_table->table_cache_key=(char*) (tmp_table+1);
-  tmp_table->key_length= (uint) (strmov((tmp_table->real_name=
-					 strmov(tmp_table->table_cache_key,db)
-					 +1), table_name)
-				 - tmp_table->table_cache_key)+1;
-  int4store(tmp_table->table_cache_key + tmp_table->key_length,
-	    thd->server_id);
-  tmp_table->key_length += 4;
-  int4store(tmp_table->table_cache_key + tmp_table->key_length,
+  share->tmp_table= (tmp_table->file->has_transactions() ? 
+                     TRANSACTIONAL_TMP_TABLE : TMP_TABLE);
+  share->table_cache_key= (char*) (tmp_table+1);
+  share->db= share->table_cache_key;
+  share->key_length= (uint) (strmov(((char*) (share->table_name=
+                                              strmov(share->table_cache_key,
+                                                     db)+1)),
+                                    table_name) -
+                             share->table_cache_key) +1;
+  int4store(share->table_cache_key + share->key_length, thd->server_id);
+  share->key_length+= 4;
+  int4store(share->table_cache_key + share->key_length,
 	    thd->variables.pseudo_thread_id);
-  tmp_table->key_length += 4;
+  share->key_length+= 4;
 
   if (link_in_list)
   {
@@ -2089,7 +2101,12 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
 	  DBUG_RETURN(WRONG_GRANT);
 #endif
         if (thd->lex->current_select->no_wrap_view_item)
-          *ref= trans[i].item;
+	{
+	  if (register_tree_change)
+	    thd->change_item_tree(ref, trans[i].item);
+	  else
+            *ref= trans[i].item;
+	}
         else
         {
           Item_ref *item_ref= new Item_ref(&trans[i].item,
@@ -2098,6 +2115,8 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
           /* as far as Item_ref have defined reference it do not need tables */
           if (register_tree_change && item_ref)
             thd->change_item_tree(ref, item_ref);
+	  else if (item_ref)
+	    *ref= item_ref;
         }
 	DBUG_RETURN((Field*) view_ref_found);
       }
@@ -2151,13 +2170,13 @@ Field *find_field_in_real_table(THD *thd, TABLE *table,
   uint cached_field_index= *cached_field_index_ptr;
 
   /* We assume here that table->field < NO_CACHED_FIELD_INDEX = UINT_MAX */
-  if (cached_field_index < table->fields &&
+  if (cached_field_index < table->s->fields &&
       !my_strcasecmp(system_charset_info, 
                      table->field[cached_field_index]->field_name, name))
     field_ptr= table->field + cached_field_index;
-  else if (table->name_hash.records)
-    field_ptr= (Field**)hash_search(&table->name_hash,(byte*) name,
-                                    length);
+  else if (table->s->name_hash.records)
+    field_ptr= (Field**) hash_search(&table->s->name_hash, (byte*) name,
+                                     length);
   else
   {
     if (!(field_ptr= table->field))
@@ -2193,8 +2212,8 @@ Field *find_field_in_real_table(THD *thd, TABLE *table,
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_grants && check_grant_column(thd, &table->grant,
-					 table->table_cache_key,
-					 table->real_name, name, length))
+					 table->s->db,
+					 table->s->table_name, name, length))
     return WRONG_GRANT;
 #endif
   return field;
@@ -2247,15 +2266,15 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   if (item->cached_table)
   {
     /*
-      This shortcut is used by prepared statements. We assuming that 
-      TABLE_LIST *tables is not changed during query execution (which 
-      is true for all queries except RENAME but luckily RENAME doesn't 
+      This shortcut is used by prepared statements. We assuming that
+      TABLE_LIST *tables is not changed during query execution (which
+      is true for all queries except RENAME but luckily RENAME doesn't
       use fields...) so we can rely on reusing pointer to its member.
       With this optimization we also miss case when addition of one more
-      field makes some prepared query ambiguous and so erroneous, but we 
+      field makes some prepared query ambiguous and so erroneous, but we
       accept this trade off.
     */
-    if (item->cached_table->table)
+    if (item->cached_table->table && !item->cached_table->view)
     {
       found= find_field_in_real_table(thd, item->cached_table->table,
 				      name, length,
@@ -2268,7 +2287,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     else
     {
       TABLE_LIST *table= item->cached_table;
-      Field *find= find_field_in_table(thd, table, name, item->name, length,
+      found= find_field_in_table(thd, table, name, item->name, length,
 				       ref,
 				       (table->table &&
 					test(table->table->grant.
@@ -2304,8 +2323,10 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     bool found_table=0;
     for (; tables; tables= tables->next_local)
     {
+      /* TODO; Ensure that db and tables->db always points to something ! */
       if (!my_strcasecmp(table_alias_charset, tables->alias, table_name) &&
-	  (!db || !tables->db ||  !tables->db[0] || !strcmp(db,tables->db)))
+	  (!db || !db[0] || !tables->db ||  !tables->db[0] ||
+           !strcmp(db,tables->db)))
       {
 	found_table=1;
 	Field *find= find_field_in_table(thd, tables, name, item->name,
@@ -2391,9 +2412,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     {
       if (field == WRONG_GRANT)
 	return (Field*) 0;
-      item->cached_table= tables;
-      if (!tables->cacheable_table)
-	item->cached_table= 0;
+      item->cached_table= (!tables->cacheable_table || found) ? 0 : tables;
       if (found)
       {
 	if (!thd->where)			// Returns first found
@@ -2812,7 +2831,7 @@ bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
       tablenr= 0;
     }
     setup_table_map(table, table_list, tablenr);
-    table->used_keys= table->keys_for_keyread;
+    table->used_keys= table->s->keys_for_keyread;
     if (table_list->use_index)
     {
       key_map map;
@@ -2876,12 +2895,13 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
   map->clear_all();
   while ((name=it++))
   {
-    if (table->keynames.type_names == 0 ||
-        (pos= find_type(&table->keynames, name->ptr(), name->length(), 1)) <=
+    if (table->s->keynames.type_names == 0 ||
+        (pos= find_type(&table->s->keynames, name->ptr(),
+                        name->length(), 1)) <=
         0)
     {
       my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0),
-               name->c_ptr(), table->real_name);
+               name->c_ptr(), table->s->table_name);
       map->set_all();
       return 1;
     }
@@ -2946,6 +2966,7 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
     TABLE_LIST *last;
     TABLE_LIST *embedding;
     TABLE *table= tables->table;
+    bool alias_used= 0;
 
     if (!table_name || (!my_strcasecmp(table_alias_charset, table_name,
 				       tables->alias) &&
@@ -2972,7 +2993,8 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
 	  DBUG_ASSERT(table != 0);
           table_iter.set(tables);
           if (check_grant_all_columns(thd, SELECT_ACL, &table->grant,
-                                      table->table_cache_key, table->real_name,
+                                      table->s->db,
+                                      table->s->table_name,
                                       &table_iter))
             goto err;
         }
@@ -3018,6 +3040,8 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
       {
         iterator= &view_iter;
 	view= 1;
+	alias_used= my_strcasecmp(table_alias_charset,
+				  tables->table_name, tables->alias);
       }
       else
       {
@@ -3039,15 +3063,19 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
                                  &not_used_field_index, TRUE))
         {
           Item *item= iterator->item(thd);
+	  if (view && !thd->lex->current_select->no_wrap_view_item)
+	  {
+            /*
+              as far as we have view, then item point to view_iter, so we
+              can use it directly for this view specific operation
+            */
+	    item= new Item_ref(view_iter.item_ptr(), tables->view_name.str,
+                               field_name);
+	  }
           if (!found++)
             (void) it->replace(item);		// Replace '*'
           else
             it->after(item);
-	  if (view && !thd->lex->current_select->no_wrap_view_item)
-	  {
-	    item= new Item_ref(it->ref(), tables->view_name.str,
-			       field_name);
-	  }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
           if (any_privileges)
           {
@@ -3066,7 +3094,7 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
             else
             {
               db= tables->db;
-              tab= tables->real_name;
+              tab= tables->table_name;
             }
             if (!tables->schema_table && 
                 !(fld->have_privileges= (get_column_grant(thd,
@@ -3101,9 +3129,15 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
         else if (allocate_view_names &&
                  thd->lex->current_select->first_execution)
         {
-          Item_field *item= new Item_field(thd->strdup(tables->view_db.str),
-                                           thd->strdup(tables->view_name.str),
-                                           thd->strdup(field_name));
+	  Item_field *item;
+	  if (alias_used)
+	    item= new Item_field(0,
+				 thd->strdup(tables->alias),
+				 thd->strdup(field_name));
+	  else
+	    item= new Item_field(thd->strdup(tables->view_db.str),
+				 thd->strdup(tables->view_name.str),
+				 thd->strdup(field_name));
           /*
             during cleunup() this item will be put in list to replace
             expression from VIEW
@@ -3117,7 +3151,7 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
 	fields marked in setup_tables during fix_fields of view columns
       */
       if (table)
-	table->used_fields=table->fields;
+	table->used_fields= table->s->fields;
     }
   }
   if (found)
@@ -3314,7 +3348,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
               thd->restore_backup_item_arena(arena, &backup);
             if (embedded->on_expr && !embedded->on_expr->fixed)
             {
-              if (embedded->on_expr->fix_fields(thd, tables, &table->on_expr))
+              if (embedded->on_expr->fix_fields(thd, tables,
+                                                &embedded->on_expr))
                 goto err_no_arena;
             }
           }
@@ -3491,14 +3526,14 @@ void remove_db_from_cache(const my_string db)
   for (uint idx=0 ; idx < open_cache.records ; idx++)
   {
     TABLE *table=(TABLE*) hash_element(&open_cache,idx);
-    if (!strcmp(table->table_cache_key,db))
+    if (!strcmp(table->s->db, db))
     {
-      table->version=0L;			/* Free when thread is ready */
+      table->s->version= 0L;			/* Free when thread is ready */
       if (!table->in_use)
 	relink_unused(table);
     }
   }
-  while (unused_tables && !unused_tables->version)
+  while (unused_tables && !unused_tables->s->version)
     VOID(hash_delete(&open_cache,(byte*) unused_tables));
 }
 
@@ -3543,7 +3578,7 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
        table = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
   {
     THD *in_use;
-    table->version=0L;			/* Free when thread is ready */
+    table->s->version= 0L;			/* Free when thread is ready */
     if (!(in_use=table->in_use))
     {
       DBUG_PRINT("info",("Table was not in use"));
@@ -3583,7 +3618,7 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
     else
       result= result || return_if_owned_by_thd;
   }
-  while (unused_tables && !unused_tables->version)
+  while (unused_tables && !unused_tables->s->version)
     VOID(hash_delete(&open_cache,(byte*) unused_tables));
   DBUG_RETURN(result);
 }

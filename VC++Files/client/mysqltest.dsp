@@ -67,8 +67,8 @@ LINK32=link.exe
 # PROP Output_Dir ".\classic"
 # PROP Intermediate_Dir ".\classic"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MT /I "../include" /I "../" /W3 /Ob1 /G6 /D "_CONSOLE" /D "_WINDOWS" /D "LICENSE=Commercial" /D "DBUG_OFF" /D "NDEBUG" /D "_MBCS" /GF /Gy /Fp".\classic/mysqltest.pch" /Fo".\classic/" /Fd".\classic/" /c /GX 
-# ADD CPP /nologo /MT /I "../include" /I "../" /W3 /Ob1 /G6 /D "_CONSOLE" /D "_WINDOWS" /D "LICENSE=Commercial" /D "DBUG_OFF" /D "NDEBUG" /D "_MBCS" /GF /Gy /Fp".\classic/mysqltest.pch" /Fo".\classic/" /Fd".\classic/" /c /GX 
+# ADD BASE CPP /nologo /MT /I "../include" /I "../regex" /I "../" /W3 /Ob1 /G6 /D "_CONSOLE" /D "_WINDOWS" /D "LICENSE=Commercial" /D "DBUG_OFF" /D "NDEBUG" /D "_MBCS" /GF /Gy /Fp".\classic/mysqltest.pch" /Fo".\classic/" /Fd".\classic/" /c /GX 
+# ADD CPP /nologo /MT /I "../include" /I "../regex" /I "../" /W3 /Ob1 /G6 /D "_CONSOLE" /D "_WINDOWS" /D "LICENSE=Commercial" /D "DBUG_OFF" /D "NDEBUG" /D "_MBCS" /GF /Gy /Fp".\classic/mysqltest.pch" /Fo".\classic/" /Fd".\classic/" /c /GX 
 # ADD BASE MTL /nologo /tlb".\classic\mysqltest.tlb" /win32 
 # ADD MTL /nologo /tlb".\classic\mysqltest.tlb" /win32 
 # ADD BASE RSC /l 1033 /d "NDEBUG" 
@@ -77,8 +77,8 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo 
 # ADD BSC32 /nologo 
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib /nologo /out:"..\client_classic\mysqltest.exe" /incremental:no /libpath:"..\lib_release\" /pdb:".\classic\mysqltest.pdb" /pdbtype:sept /subsystem:console /MACHINE:I386
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib /nologo /out:"..\client_classic\mysqltest.exe" /incremental:no /libpath:"..\lib_release\" /pdb:".\classic\mysqltest.pdb" /pdbtype:sept /subsystem:console /MACHINE:I386
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib /nologo /out:"..\client_classic\mysqltest.exe" /incremental:no /libpath:"..\lib_release\" /pdb:".\classic\mysqltest.pdb" /pdbtype:sept /subsystem:console /MACHINE:I386
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib /nologo /out:"..\client_classic\mysqltest.exe" /incremental:no /libpath:"..\lib_release\" /pdb:".\classic\mysqltest.pdb" /pdbtype:sept /subsystem:console /MACHINE:I386
 
 !ELSEIF  "$(CFG)" == "mysqltest - Win32 Release"
 
@@ -92,8 +92,8 @@ LINK32=link.exe
 # PROP Output_Dir ".\release"
 # PROP Intermediate_Dir ".\release"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MT /I "../include" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_CONSOLE" /D "_WINDOWS" /D "NDEBUG" /D "_MBCS" /GF /Gy /Fp".\release/mysqltest.pch" /Fo".\release/" /Fd".\release/" /c /GX 
-# ADD CPP /nologo /MT /I "../include" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_CONSOLE" /D "_WINDOWS" /D "NDEBUG" /D "_MBCS" /GF /Gy /Fp".\release/mysqltest.pch" /Fo".\release/" /Fd".\release/" /c /GX 
+# ADD BASE CPP /nologo /MT /I "../include" /I "../regex" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_CONSOLE" /D "_WINDOWS" /D "NDEBUG" /D "_MBCS" /GF /Gy /Fp".\release/mysqltest.pch" /Fo".\release/" /Fd".\release/" /c /GX 
+# ADD CPP /nologo /MT /I "../include" /I "../regex" /I "../" /W3 /Ob1 /G6 /D "DBUG_OFF" /D "_CONSOLE" /D "_WINDOWS" /D "NDEBUG" /D "_MBCS" /GF /Gy /Fp".\release/mysqltest.pch" /Fo".\release/" /Fd".\release/" /c /GX 
 # ADD BASE MTL /nologo /tlb".\release\mysqltest.tlb" /win32 
 # ADD MTL /nologo /tlb".\release\mysqltest.tlb" /win32 
 # ADD BASE RSC /l 1033 /d "NDEBUG" 
@@ -102,8 +102,8 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo 
 # ADD BSC32 /nologo 
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib /nologo /out:"..\client_release\mysqltest.exe" /incremental:no /libpath:"..\lib_release\" /pdb:".\release\mysqltest.pdb" /pdbtype:sept /subsystem:console /MACHINE:I386
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib /nologo /out:"..\client_release\mysqltest.exe" /incremental:no /libpath:"..\lib_release\" /pdb:".\release\mysqltest.pdb" /pdbtype:sept /subsystem:console /MACHINE:I386
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib /nologo /out:"..\client_release\mysqltest.exe" /incremental:no /libpath:"..\lib_release\" /pdb:".\release\mysqltest.pdb" /pdbtype:sept /subsystem:console /MACHINE:I386
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib /nologo /out:"..\client_release\mysqltest.exe" /incremental:no /libpath:"..\lib_release\" /pdb:".\release\mysqltest.pdb" /pdbtype:sept /subsystem:console /MACHINE:I386
 
 !ENDIF
 

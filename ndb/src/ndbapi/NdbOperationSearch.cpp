@@ -57,8 +57,16 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
                          const char* aValuePassed, 
                          Uint32 aVariableKeyLen)
 {
-  register Uint32 tAttrId;
+  DBUG_ENTER("NdbOperation::equal_impl");
+  DBUG_PRINT("enter", ("col=%s op=%d val=0x%x len=%u",
+                       tAttrInfo->m_name.c_str(),
+                       theOperationType,
+                       aValuePassed, aVariableKeyLen));
+  if (aValuePassed != NULL)
+    DBUG_DUMP("value", (char*)aValuePassed, aVariableKeyLen);
   
+  register Uint32 tAttrId;
+
   Uint32 tData;
   Uint32 tKeyInfoPosition;
   const char* aValue = aValuePassed;
@@ -120,7 +128,9 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
     theTupleKeyDefined[i][1] = tKeyInfoPosition; 
     theTupleKeyDefined[i][2] = true;
 
+    OperationType tOpType = theOperationType;
     Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
+
     {
       /************************************************************************
        * Check if the pointer of the value passed is aligned on a 4 byte 
@@ -176,7 +186,6 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
     }//if
 #endif
 
-    OperationType tOpType = theOperationType;
     /**************************************************************************
      *	If the operation is an insert request and the attribute is stored then
      *      we also set the value in the stored part through putting the 
@@ -231,7 +240,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 	  } else {
 	    theStatus = SetValue;
 	  }//if
-	  return 0;
+	  DBUG_RETURN(0);
 	} else if ((tOpType == ReadRequest) || (tOpType == DeleteRequest) ||
 		   (tOpType == ReadExclusive)) {
 	  theStatus = GetValue;
@@ -242,42 +251,42 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
               assert(c != 0);
               if (c->getBlobType()) {
                 if (getBlobHandle(theNdbCon, c) == NULL)
-                  return -1;
+                  DBUG_RETURN(-1);
               }
             }
           }
-	  return 0;
+	  DBUG_RETURN(0);
 	} else if ((tOpType == InsertRequest) || (tOpType == WriteRequest)) {
 	  theStatus = SetValue;
-	  return 0;
+	  DBUG_RETURN(0);
 	} else {
 	  setErrorCodeAbort(4005);
-	  return -1;
+	  DBUG_RETURN(-1);
 	}//if
-	return 0;
+	DBUG_RETURN(0);
       }//if
     } else {
-      return -1;
+      DBUG_RETURN(-1);
     }//if
-    return 0;
+    DBUG_RETURN(0);
   }
   
   if (aValue == NULL) {
     // NULL value in primary key
     setErrorCodeAbort(4505);
-    return -1;
+    DBUG_RETURN(-1);
   }//if
   
   if ( tAttrInfo == NULL ) {      
     // Attribute name not found in table
     setErrorCodeAbort(4004);
-    return -1;
+    DBUG_RETURN(-1);
   }//if
 
   if (theStatus == GetValue || theStatus == SetValue){
     // All pk's defined
     setErrorCodeAbort(4225);
-    return -1;
+    DBUG_RETURN(-1);
   }//if
 
   ndbout_c("theStatus: %d", theStatus);
@@ -285,19 +294,19 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
   // If we come here, set a general errorcode
   // and exit
   setErrorCodeAbort(4200);
-  return -1;
+  DBUG_RETURN(-1);
 
  equal_error1:
   setErrorCodeAbort(4205);
-  return -1;
+  DBUG_RETURN(-1);
 
  equal_error2:
   setErrorCodeAbort(4206);
-  return -1;
+  DBUG_RETURN(-1);
 
  equal_error3:
   setErrorCodeAbort(4209);
-  return -1;
+  DBUG_RETURN(-1);
 }
 
 /******************************************************************************

@@ -139,6 +139,14 @@ ib_time_t
 ut_time(void);
 /*=========*/
 /**************************************************************
+Returns system time. */
+
+void
+ut_usectime(
+/*========*/
+	ulint*	sec,	/* out: seconds since the Epoch */
+	ulint*	ms);	/* out: microseconds since the Epoch+*sec */
+/**************************************************************
 Returns the difference of two times in seconds. */
 
 double

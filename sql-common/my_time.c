@@ -382,8 +382,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   }
   l_time->neg= 0;
 
-  if (year_length == 2 && i >= format_position[1] && i >=format_position[2] &&
-      (l_time->month || l_time->day))
+  if (year_length == 2 && not_zero_date)
     l_time->year+= (l_time->year < YY_PART_YEAR ? 2000 : 1900);
 
   if (!not_zero_date && (flags & TIME_NO_ZERO_DATE))
@@ -911,14 +910,14 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
     goto err;
   if (nr <= (YY_PART_YEAR-1)*10000L+1231L)
   {
-    nr= (nr+20000000L)*1000000L;                 // YYMMDD, year: 2000-2069
+    nr= (nr+20000000L)*1000000L;                 /* YYMMDD, year: 2000-2069 */
     goto ok;
   }
   if (nr < (YY_PART_YEAR)*10000L+101L)
     goto err;
   if (nr <= 991231L)
   {
-    nr= (nr+19000000L)*1000000L;                 // YYMMDD, year: 1970-1999
+    nr= (nr+19000000L)*1000000L;                 /* YYMMDD, year: 1970-1999 */
     goto ok;
   }
   if (nr < 10000101L)
@@ -932,13 +931,13 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
     goto err;
   if (nr <= (YY_PART_YEAR-1)*LL(10000000000)+LL(1231235959))
   {
-    nr= nr+LL(20000000000000);                   // YYMMDDHHMMSS, 2000-2069
+    nr= nr+LL(20000000000000);                   /* YYMMDDHHMMSS, 2000-2069 */
     goto ok;
   }
   if (nr <  YY_PART_YEAR*LL(10000000000)+ LL(101000000))
     goto err;
   if (nr <= LL(991231235959))
-    nr= nr+LL(19000000000000);		// YYMMDDHHMMSS, 1970-1999
+    nr= nr+LL(19000000000000);		/* YYMMDDHHMMSS, 1970-1999 */
 
  ok:
   part1=(long) (nr/LL(1000000));

@@ -194,8 +194,8 @@ bool Item_func::agg_arg_charsets(DTCollation &coll,
     }
     if ((*arg)->type() == FIELD_ITEM)
       ((Item_field *)(*arg))->no_const_subst= 1;
-    conv->fix_fields(thd, 0, &conv);
     *arg= conv;
+    conv->fix_fields(thd, 0, arg);
   }
   if (arena)
     thd->restore_backup_item_arena(arena, &backup);
@@ -3224,7 +3224,7 @@ bool Item_func_match::fix_index()
   if (key == NO_SUCH_KEY)
     return 0;
 
-  for (keynr=0 ; keynr < table->keys ; keynr++)
+  for (keynr=0 ; keynr < table->s->keys ; keynr++)
   {
     if ((table->key_info[keynr].flags & HA_FULLTEXT) &&
         (table->keys_in_use_for_query.is_set(keynr)))

@@ -193,10 +193,10 @@ void grant_reload(THD *thd);
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
 		 uint show_command, uint number, bool dont_print_error);
 bool check_grant_column (THD *thd, GRANT_INFO *grant,
-			 char *db_name, char *table_name,
+			 const char *db_name, const char *table_name,
 			 const char *name, uint length, uint show_command=0);
 bool check_grant_all_columns(THD *thd, ulong want_access, GRANT_INFO *grant,
-                             char* db_name, char *table_name,
+                             const char* db_name, const char *table_name,
                              Field_iterator *fields);
 bool check_grant_procedure(THD *thd, ulong want_access, 
 			   TABLE_LIST *procs, bool no_error);

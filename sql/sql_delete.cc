@@ -68,8 +68,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     DBUG_RETURN(TRUE);
   }
 
-  if (thd->lex->duplicates == DUP_IGNORE)
-    select_lex->no_error= 1;
+  select_lex->no_error= thd->lex->ignore;
 
   /*
     Test if the user wants to delete all rows and deletion doesn't have
@@ -233,7 +232,7 @@ cleanup:
 
   delete select;
   transactional_table= table->file->has_transactions();
-  log_delayed= (transactional_table || table->tmp_table);
+  log_delayed= (transactional_table || table->s->tmp_table);
   /*
     We write to the binary log even if we deleted no row, because maybe the
     user is using this command to ensure that a table is clean on master *and
@@ -308,7 +307,7 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
   }
   if (unique_table(table_list, table_list->next_global))
   {
-    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
+    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
     DBUG_RETURN(TRUE);
   }
   select_lex->fix_prepare_information(thd, conds);
@@ -367,7 +366,7 @@ bool mysql_multi_delete_prepare(THD *thd)
         check_key_in_view(thd, target_tbl->correspondent_table))
     {
       my_error(ER_NON_UPDATABLE_TABLE, MYF(0),
-               target_tbl->real_name, "DELETE");
+               target_tbl->table_name, "DELETE");
       DBUG_RETURN(TRUE);
     }
     /*
@@ -382,10 +381,10 @@ bool mysql_multi_delete_prepare(THD *thd)
     {
       if (un->first_select()->linkage != DERIVED_TABLE_TYPE &&
           un->check_updateable(target_tbl->correspondent_table->db,
-                               target_tbl->correspondent_table->real_name))
+                               target_tbl->correspondent_table->table_name))
       {
         my_error(ER_UPDATE_TABLE_USED, MYF(0),
-                 target_tbl->correspondent_table->real_name);
+                 target_tbl->correspondent_table->table_name);
         DBUG_RETURN(TRUE);
       }
     }
@@ -446,7 +445,7 @@ multi_delete::initialize_tables(JOIN *join)
       tbl->used_keys.clear_all();
       if (tbl->file->has_transactions())
 	log_delayed= transactional_tables= 1;
-      else if (tbl->tmp_table != NO_TMP_TABLE)
+      else if (tbl->s->tmp_table != NO_TMP_TABLE)
 	log_delayed= 1;
       else
 	normal_tables= 1;
@@ -718,19 +717,19 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   bzero((char*) &create_info,sizeof(create_info));
   /* If it is a temporary table, close and regenerate it */
   if (!dont_send_ok && (table_ptr=find_temporary_table(thd,table_list->db,
-						       table_list->real_name)))
+						       table_list->table_name)))
   {
     TABLE *table= *table_ptr;
     table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
-    db_type table_type=table->db_type;
-    strmov(path,table->path);
+    db_type table_type= table->s->db_type;
+    strmov(path, table->s->path);
     *table_ptr= table->next;			// Unlink table from list
     close_temporary(table,0);
     *fn_ext(path)=0;				// Remove the .frm extension
     ha_create_table(path, &create_info,1);
     // We don't need to call invalidate() because this table is not in cache
     if ((error= (int) !(open_temporary_table(thd, path, table_list->db,
-					     table_list->real_name, 1))))
+					     table_list->table_name, 1))))
       (void) rm_temporary_table(table_type, path);
     /*
       If we return here we will not have logged the truncation to the bin log
@@ -740,7 +739,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   }
 
   (void) sprintf(path,"%s/%s/%s%s",mysql_data_home,table_list->db,
-		 table_list->real_name,reg_ext);
+		 table_list->table_name,reg_ext);
   fn_format(path,path,"","",4);
 
   if (!dont_send_ok)
@@ -749,7 +748,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     if ((table_type=get_table_type(path)) == DB_TYPE_UNKNOWN)
     {
       my_error(ER_NO_SUCH_TABLE, MYF(0),
-               table_list->db, table_list->real_name);
+               table_list->db, table_list->table_name);
       DBUG_RETURN(TRUE);
     }
     if (!ha_supports_generate(table_type))

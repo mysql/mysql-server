@@ -36,11 +36,6 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       ;;
   esac
 
-  AC_ARG_WITH([ndb-shm],
-              [
-  --with-ndb-shm        Include the NDB Cluster shared memory transporter],
-              [ndb_shm="$withval"],
-              [ndb_shm=no])
   AC_ARG_WITH([ndb-test],
               [
   --with-ndb-test       Include the NDB Cluster ndbapi test programs],
@@ -61,23 +56,15 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   --with-ndb-port-base  Base port for NDB Cluster transporters],
               [ndb_port_base="$withval"],
               [ndb_port_base="default"])
+  AC_ARG_WITH([ndb-debug],
+              [
+  --without-ndb-debug   Disable special ndb debug features],
+              [ndb_debug="$withval"],
+              [ndb_debug="default"])
                                                                                 
   AC_MSG_CHECKING([for NDB Cluster options])
   AC_MSG_RESULT([])
                                                                                 
-  have_ndb_shm=no
-  case "$ndb_shm" in
-    yes )
-      AC_MSG_RESULT([-- including shared memory transporter])
-      AC_DEFINE([NDB_SHM_TRANSPORTER], [1],
-                [Including Ndb Cluster DB shared memory transporter])
-      have_ndb_shm="yes"
-      ;;
-    * )
-      AC_MSG_RESULT([-- not including shared memory transporter])
-      ;;
-  esac
-
   have_ndb_test=no
   case "$ndb_test" in
     yes )
@@ -97,6 +84,24 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       ;;
     * )
       AC_MSG_RESULT([-- not including ndbapi and mgmapi documentation])
+      ;;
+  esac
+
+  case "$ndb_debug" in
+    yes )
+      AC_MSG_RESULT([-- including ndb extra debug options])
+      have_ndb_debug="yes"
+      ;;
+    full )
+      AC_MSG_RESULT([-- including ndb extra extra debug options])
+      have_ndb_debug="full"
+      ;;
+    no )
+      AC_MSG_RESULT([-- not including ndb extra debug options])
+      have_ndb_debug="no"
+      ;;
+    * )
+      have_ndb_debug="default"
       ;;
   esac
 
