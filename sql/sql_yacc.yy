@@ -1477,8 +1477,8 @@ select_init:
             SELECT_LEX * sel=Select;
 	    sel->braces=true;
             /* select in braces, can't contain global parameters */
-            ((SELECT_LEX_UNIT*)sel->master)->global_parameters=
-              sel->master;
+            sel->master_unit()->global_parameters=
+              	sel->master_unit();
           } union_opt
 
 
@@ -2186,8 +2186,8 @@ join_table:
         | '(' SELECT_SYM select_part3 ')' opt_table_alias 
 	{
 	  LEX *lex=Lex;
-	  SELECT_LEX_UNIT *unit= (SELECT_LEX_UNIT*) lex->select->master;
-	  lex->select= (SELECT_LEX*) unit->master;
+	  SELECT_LEX_UNIT *unit= lex->select->master_unit();
+	  lex->select= unit->outer_select();
 	  if (!($$= add_table_to_list(new Table_ident(unit),
 	                              $5,0,TL_UNLOCK)))
 	    YYABORT;
@@ -2325,7 +2325,7 @@ order_clause:
 	  LEX *lex=Lex;
 	  if (lex->sql_command == SQLCOM_MULTI_UPDATE)
 	    YYABORT;
-	  lex->select->sort_default=1;
+	  /*lex->select->sort_default=1;*/
 	} order_list
 
 order_list:
@@ -3859,13 +3859,13 @@ optional_order_or_limit:
     LEX *lex=Lex;
     if (!lex->select->braces)
      YYABORT;
-    ((SELECT_LEX_UNIT*)lex->select->master)->global_parameters= 
-      lex->select->master;
+    lex->select->master_unit()->global_parameters= 
+      lex->select->master_unit();
     /*
       Following type conversion looks like hack, but all that need SELECT_LEX 
       fields always check linkage type.
     */
-    lex->select= (SELECT_LEX*)lex->select->master;
+    lex->select= (SELECT_LEX*)lex->select->master_unit();
     lex->select->select_limit=lex->thd->default_select_limit;
   }
   opt_order_clause limit_clause
@@ -3898,5 +3898,5 @@ subselect_end:
   ')'
   {
     LEX *lex=Lex;
-    lex->select = (SELECT_LEX*)lex->select->master->master;
+    lex->select = lex->select->outer_select();
   }

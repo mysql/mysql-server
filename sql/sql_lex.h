@@ -186,11 +186,15 @@ enum sub_select_type {UNSPECIFIED_TYPE,UNION_TYPE, INTERSECT_TYPE,
     Base class for st_select_lex (SELECT_LEX) & 
     st_select_lex_unit (SELECT_LEX_UNIT)
 */
-struct st_select_lex_node {
-  enum sub_select_type linkage;
+class st_select_lex_node {
+protected:
   st_select_lex_node *next, **prev,   /* neighbor list */
     *master, *slave,                  /* vertical links */
     *link_next, **link_prev;          /* list of whole SELECT_LEX */
+public:
+  ulong options;
+  enum sub_select_type linkage;
+  //uint sort_default;
   SQL_LIST order_list;                /* ORDER clause */
   ha_rows select_limit, offset_limit; /* LIMIT clause parameters */
   void init_query();
@@ -207,9 +211,10 @@ private:
    SELECT_LEX_UNIT - unit of selects (UNION, INTERSECT, ...) group 
    SELECT_LEXs
 */
-struct st_lex;
-struct st_select_lex;
-struct st_select_lex_unit: public st_select_lex_node {
+class st_lex;
+class st_select_lex;
+class st_select_lex_unit: public st_select_lex_node {
+public:
   /*
     Pointer to 'last' select or pointer to unit where stored
     global parameters for union
@@ -219,8 +224,11 @@ struct st_select_lex_unit: public st_select_lex_node {
   ha_rows select_limit_cnt, offset_limit_cnt;
   void init_query();
   bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);
+  st_select_lex* outer_select() { return (st_select_lex*) master; }
   st_select_lex* first_select() { return (st_select_lex*) slave; }
   st_select_lex_unit* next_unit() { return (st_select_lex_unit*) next; }
+
+  friend void mysql_init_query(THD *thd);
 private:
   bool create_total_list_n_last_return(THD *thd, st_lex *lex,
 				       TABLE_LIST ***result);
@@ -230,10 +238,10 @@ typedef struct st_select_lex_unit SELECT_LEX_UNIT;
 /*
   SELECT_LEX - store information of parsed SELECT_LEX statment
 */
-struct st_select_lex: public st_select_lex_node {
+class st_select_lex: public st_select_lex_node {
+public:
   char *db, *db1, *table1, *db2, *table2;      	/* For outer join using .. */
   Item *where, *having;                         /* WHERE & HAVING clauses */
-  ulong options;
   List<List_item>     expr_list;
   List<List_item>     when_list;                /* WHEN clause */
   SQL_LIST	      table_list, group_list;   /* FROM & GROUP BY clauses */
@@ -241,14 +249,32 @@ struct st_select_lex: public st_select_lex_node {
   List<String>        interval_list, use_index, *use_index_ptr,
 		      ignore_index, *ignore_index_ptr;
   List<Item_func_match> ftfunc_list;
-  uint in_sum_expr, sort_default;
+  uint in_sum_expr;
   bool	create_refs, 
     braces,   /* SELECT ... UNION (SELECT ... ) <- this braces */
     depended; /* depended from outer select subselect */
   void init_query();
   void init_select();
-  st_select_lex* outer_select() { return (st_select_lex*) master->master; }
+  st_select_lex_unit* master_unit() { return (st_select_lex_unit*) master; }
+  st_select_lex_unit* first_inner_unit() 
+  { 
+    return (st_select_lex_unit*) slave; 
+  }
+  st_select_lex* outer_select() 
+  { 
+    return (st_select_lex*) master_unit()->outer_select(); 
+  }
   st_select_lex* next_select() { return (st_select_lex*) next; }
+  st_select_lex*  next_select_in_list() 
+  {
+    return (st_select_lex*) link_next;
+  }
+  st_select_lex_node** next_select_in_list_addr()
+  {
+    return &link_next;
+  }
+
+  friend void mysql_init_query(THD *thd);
 };
 typedef struct st_select_lex SELECT_LEX;
 
