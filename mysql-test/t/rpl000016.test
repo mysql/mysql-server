@@ -26,14 +26,33 @@ select * from t1;
 connection master;
 flush logs;
 drop table if exists t2;
-create table t2(m int);
+create table t2(m int not null primary key);
 insert into t2 values (34),(67),(123);
+save_master_pos;
 flush logs;
 show master logs;
+#now lets make some duplicate key mess and see if we can recover from it
+#first insert a value on the slave
+connection slave;
+sync_with_master;
+insert into t2 values(1234);
+#same value on the master
+connection master;
+save_master_pos;
+insert into t2 values(1234);
+connection slave;
+sync_with_master;
+#the slave may have already stopped, so we ignore the error
+!slave stop;
+#restart slave skipping one event
+set sql_slave_skip_counter=1;
+slave start;
+connection master;
 save_master_pos;
 #let slave catch up
 connection slave;
 sync_with_master;
+show slave status;
 connection master;
 purge master logs to 'master-bin.003';
 show master logs;
@@ -43,6 +62,23 @@ connection slave;
 sync_with_master;
 show slave status;
 select * from t2;
-drop table if exists t1,t2;
 connection master;
-drop table if exists t1,t2;
+let $1=100;
+drop table if exists t3;
+create table t3 (n int);
+while ($1)
+{
+ insert into t3 values(4);
+ dec $1;
+}
+show master logs;
+save_master_pos;
+connection slave;
+sync_with_master;
+select count(*) from t3 where n = 4;
+#clean up
+connection master;
+drop table if exists t1,t2,t3;
+save_master_pos;
+connection slave;
+sync_with_master;

@@ -22,6 +22,7 @@
 #define YYMAXDEPTH 3200				/* Because of 64K stack */
 #define Lex current_lex
 #include "mysql_priv.h"
+#include "slave.h"  
 #include "sql_acl.h"
 #include "lex_symbol.h"
 #include <myisam.h>
@@ -408,6 +409,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SQL_AUTO_IS_NULL
 %token	SQL_SAFE_UPDATES
 %token  SQL_QUOTE_SHOW_CREATE
+%token  SQL_SLAVE_SKIP_COUNTER
 
 %left   SET_VAR
 %left	OR_OR_CONCAT OR
@@ -2662,6 +2664,15 @@ option_value:
 	     if (item->fix_fields(current_thd,0) || item->update())
 		YYABORT;
 	  }
+         | SQL_SLAVE_SKIP_COUNTER equal ULONG_NUM
+          {
+	    pthread_mutex_lock(&LOCK_slave);
+	    if(slave_running)
+	      send_error(&current_thd->net, ER_SLAVE_MUST_STOP);
+	    else
+	      slave_skip_counter = $3;
+	    pthread_mutex_unlock(&LOCK_slave);
+          }
 
 text_or_password:
 	TEXT_STRING { $$=$1.str;}

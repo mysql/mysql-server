@@ -200,3 +200,8 @@
 "Table '%-.64s' is marked as crashed and last (automatic?) repair failed",
 "Warning:  Some non-transactional changed tables couldn't be rolled back",
 "Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage. Increase this mysqld variable and try again',
+"This operation cannot be performed with a running slave, run SLAVE STOP first",
+"This operation requires a running slave, configure slave and do SLAVE START",
+"The server is not configured as slave, fix in config file or with CHANGE MASTER TO",
+"Could not initialize master info structure, check permisions on master.info",
+"Could not create slave thread, check system resources",
