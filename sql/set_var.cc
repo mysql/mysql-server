@@ -86,6 +86,7 @@ static void fix_myisam_max_extra_sort_file_size(THD *thd, enum_var_type type);
 static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
 static void fix_max_binlog_size(THD *thd, enum_var_type type);
 static void fix_max_relay_log_size(THD *thd, enum_var_type type);
+static void fix_max_connections(THD *thd, enum_var_type type);
 
 /*
   Variable definition list
@@ -147,7 +148,8 @@ sys_var_long_ptr	sys_max_binlog_size("max_binlog_size",
 					    &max_binlog_size,
                                             fix_max_binlog_size);
 sys_var_long_ptr	sys_max_connections("max_connections",
-					    &max_connections);
+					    &max_connections,
+                                            fix_max_connections);
 sys_var_long_ptr	sys_max_connect_errors("max_connect_errors",
 					       &max_connect_errors);
 sys_var_long_ptr	sys_max_delayed_threads("max_delayed_threads",
@@ -661,7 +663,7 @@ static void fix_max_join_size(THD *thd, enum_var_type type)
       thd->options&= ~OPTION_BIG_SELECTS;
   }
 }
-  
+
 
 /*
   If one doesn't use the SESSION modifier, the isolation level
@@ -714,7 +716,7 @@ static void fix_key_buffer_size(THD *thd, enum_var_type type)
 }
 
 
-void fix_delay_key_write(THD *thd, enum_var_type type)
+extern void fix_delay_key_write(THD *thd, enum_var_type type)
 {
   switch ((enum_delay_key_write) delay_key_write_options) {
   case DELAY_KEY_WRITE_NONE:
@@ -730,7 +732,7 @@ void fix_delay_key_write(THD *thd, enum_var_type type)
   }
 }
 
-void fix_max_binlog_size(THD *thd, enum_var_type type)
+static void fix_max_binlog_size(THD *thd, enum_var_type type)
 {
   DBUG_ENTER("fix_max_binlog_size");
   DBUG_PRINT("info",("max_binlog_size=%lu max_relay_log_size=%lu",
@@ -741,7 +743,7 @@ void fix_max_binlog_size(THD *thd, enum_var_type type)
   DBUG_VOID_RETURN;
 }
 
-void fix_max_relay_log_size(THD *thd, enum_var_type type)
+static void fix_max_relay_log_size(THD *thd, enum_var_type type)
 {
   DBUG_ENTER("fix_max_relay_log_size");
   DBUG_PRINT("info",("max_binlog_size=%lu max_relay_log_size=%lu",
@@ -749,6 +751,13 @@ void fix_max_relay_log_size(THD *thd, enum_var_type type)
   active_mi->rli.relay_log.set_max_size(max_relay_log_size ?
                                         max_relay_log_size: max_binlog_size);
   DBUG_VOID_RETURN;
+}
+
+#include <thr_alarm.h>
+static void
+fix_max_connections(THD *thd, enum_var_type type)
+{
+  resize_thr_alarm(max_connections);
 }
 
 bool sys_var_long_ptr::update(THD *thd, set_var *var)
@@ -1504,7 +1513,7 @@ int set_var::check(THD *thd)
   {
     my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), var->name);
     return -1;
-  }    
+  }
   return var->check(thd, this) ? -1 : 0;
 }
 

@@ -49,6 +49,7 @@ int init_queue(QUEUE *queue,uint max_elements,uint offset_to_key,
 int reinit_queue(QUEUE *queue,uint max_elements,uint offset_to_key,
                  pbool max_at_top, queue_compare compare,
                  void *first_cmp_arg);
+int resize_queue(QUEUE *queue, uint max_elements);
 void delete_queue(QUEUE *queue);
 void queue_insert(QUEUE *queue,byte *element);
 byte *queue_remove(QUEUE *queue,uint idx);

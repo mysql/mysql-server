@@ -26,7 +26,7 @@
 
 /* We have to define 'enum options' identical in all files to keep OS2 happy */
 
-enum options { OPT_CHARSETS_DIR=256, OPT_DEFAULT_CHARSET,
+enum options_client { OPT_CHARSETS_DIR=256, OPT_DEFAULT_CHARSET,
 	       OPT_PAGER, OPT_NOPAGER, OPT_TEE, OPT_NOTEE,
 	       OPT_LOW_PRIORITY, OPT_AUTO_REPAIR, OPT_COMPRESS,
 	       OPT_DROP, OPT_LOCKS, OPT_KEYWORDS, OPT_DELAYED, OPT_OPTIMIZE,

@@ -51,9 +51,9 @@ parse_arguments() {
         ;;
 
       # these two might have been set in a [mysqld_safe] section of my.cnf
-      # they get passed via environment variables to mysqld_safe
-      --socket=*)  MYSQL_UNIX_PORT=`echo "$arg" | sed -e "s;--socket=;;"` ;;
-      --port=*)    MYSQL_TCP_PORT=`echo "$arg" | sed -e "s;--port=;;"` ;;
+      # they are added to mysqld command line to override settings from my.cnf
+      --socket=*)  mysql_unix_port=`echo "$arg" | sed -e "s;--socket=;;"` ;;
+      --port=*)    mysql_tcp_port=`echo "$arg" | sed -e "s;--port=;;"` ;;
 
       # mysqld_safe-specific options - must be set in my.cnf ([mysqld_safe])!
       --ledir=*)   ledir=`echo "$arg" | sed -e "s;--ledir=;;"` ;;
@@ -114,8 +114,7 @@ else
   ledir=@libexecdir@
 fi
 
-MYSQL_UNIX_PORT=${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}
-MYSQL_TCP_PORT=${MYSQL_TCP_PORT:-@MYSQL_TCP_PORT@}
+safe_mysql_unix_port=${mysql_unix_port:-${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}}
 user=@MYSQLD_USER@
 niceness=0
 
@@ -171,9 +170,14 @@ else
 fi
 test -z "$err_log"  && err_log=$DATADIR/`@HOSTNAME@`.err
 
-export MYSQL_UNIX_PORT
-export MYSQL_TCP_PORT
-
+if test -n "$mysql_unix_port"
+then
+  args="--socket=$mysql_unix_port $args"
+fi
+if test -n "$mysql_tcp_port"
+then
+  args="--port=$mysql_tcp_port $args"
+fi
 
 if test $niceness -eq 0
 then
@@ -296,7 +300,7 @@ echo "Starting $MYSQLD daemon with databases from $DATADIR"
 echo "`date +'%y%m%d %H:%M:%S  mysqld started'`" >> $err_log
 while true
 do
-  rm -f $MYSQL_UNIX_PORT $pid_file	# Some extra safety
+  rm -f $safe_mysql_unix_port $pid_file	# Some extra safety
   if test -z "$args"
   then
     $NOHUP_NICENESS $ledir/$MYSQLD $defaults --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR $USER_OPTION --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ >> $err_log 2>&1
