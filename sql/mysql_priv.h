@@ -710,6 +710,8 @@ extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
 extern my_bool opt_safe_show_db, opt_local_infile, lower_case_table_names;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern my_bool opt_enable_named_pipe;
+extern char *shared_memory_base_name;
+extern bool opt_enable_shared_memory;
 extern char f_fyllchar;
 
 extern MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
