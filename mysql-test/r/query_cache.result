@@ -581,3 +581,21 @@ show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
 drop table t1;
+create table t1 (a int);
+insert into t1 values (1),(2);
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+select * from t1;
+a
+1
+2
+SET OPTION SQL_SELECT_LIMIT=1;
+select * from t1;
+a
+1
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+SET OPTION SQL_SELECT_LIMIT=DEFAULT;
+drop table t1;
