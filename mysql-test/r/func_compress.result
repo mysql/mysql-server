@@ -7,11 +7,6 @@ length(@test_compress_string)
 select uncompress(compress(@test_compress_string));
 uncompress(compress(@test_compress_string))
 string for test compress function aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 
-select uncompress(@test_compress_string);
-uncompress(@test_compress_string)
-NULL
-Warnings:
-Error	1254	Too big size of uncompressed data. The maximum size is 8192. (probably, length of uncompressed data was corrupted)
 select uncompressed_length(compress(@test_compress_string))=length(@test_compress_string);
 uncompressed_length(compress(@test_compress_string))=length(@test_compress_string)
 1
@@ -33,3 +28,15 @@ select concat('|',c,'|') from t1;
 concat('|',c,'|')
 |d|
 drop table t1;
+select compress("");
+compress("")
+
+select uncompress("");
+uncompress("")
+
+select uncompress(compress(""));
+uncompress(compress(""))
+
+select uncompressed_length("");
+uncompressed_length("")
+0

@@ -646,7 +646,13 @@ Item *create_func_point(Item *a, Item *b)
   return new Item_func_point(a, b);
 }
 
-#ifdef HAVE_COMPRESS
+#if !defined(HAVE_COMPRESS)
+
+Item *create_func_compress           (Item*a __attribute__((unused))){return 0;}
+Item *create_func_uncompress         (Item*a __attribute__((unused))){return 0;}
+Item *create_func_uncompressed_length(Item*a __attribute__((unused))){return 0;}
+
+#else
 
 Item *create_func_compress(Item* a)
 {
