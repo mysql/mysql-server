@@ -182,13 +182,6 @@ static const int dig2bytes[DIG_PER_DEC1+1]={0, 1, 1, 2, 2, 3, 3, 3, 4, 4};
           (to)=a;                                                       \
         } while(0)
 
-#define MAKE_ZERO(dec)  do {                                            \
-                          dec->buf[0]=0;                                \
-                          dec->intg=1;                                  \
-                          dec->frac=0;                                  \
-                          dec->sign=0;                                  \
-                        } while(0)
-
 /*
   Convert decimal to its printable string representation
 
@@ -291,18 +284,23 @@ int decimal2string(decimal *from, char *to, int *to_len)
   Convert string to decimal
 
   SYNOPSIS
-    string2decimal()
+    str2decl()
       from    - value to convert
       to      - decimal where where the result will be stored
                 to->buf and to->len must be set.
       end     - if not NULL, *end will be set to the char where
                 conversion ended
+      fixed   - use to->intg, to->frac as limits for input number
+
+  NOTE
+    to->intg and to->frac can be modified even when fixed=1
+    (but only decreased, in this case)
 
   RETURN VALUE
-    E_DEC_OK/E_DEC_TRUNCATED/E_DEC_OVERFLOW/E_DEC_BAD_NUM;
+    E_DEC_OK/E_DEC_TRUNCATED/E_DEC_OVERFLOW/E_DEC_BAD_NUM/E_DEC_OOM
 */
 
-int string2decimal(char *from, decimal *to, char **end)
+static int str2dec(char *from, decimal *to, char **end, my_bool fixed)
 {
   char *s=from, *s1;
   int i, intg, frac, error, intg1, frac1;
@@ -334,14 +332,34 @@ int string2decimal(char *from, decimal *to, char **end)
   if (frac+intg == 0)
     return E_DEC_BAD_NUM;
 
-  intg1=ROUND_UP(intg);
-  frac1=ROUND_UP(frac);
-  FIX_INTG_FRAC_ERROR(to->len, intg1, frac1, error);
-  if (unlikely(error))
+  if (fixed)
   {
-    frac=frac1*DIG_PER_DEC1;
-    if (error == E_DEC_OVERFLOW)
-      intg=intg1*DIG_PER_DEC1;
+    if (frac > to->frac)
+    {
+      error=E_DEC_TRUNCATED;
+      frac=to->frac;
+    }
+    if (intg > to->intg)
+    {
+      error=E_DEC_OVERFLOW;
+      intg=to->intg;
+    }
+    intg1=ROUND_UP(intg);
+    frac1=ROUND_UP(frac);
+    if (intg1+frac1 > to->len)
+      return E_DEC_OOM;
+  }
+  else
+  {
+    intg1=ROUND_UP(intg);
+    frac1=ROUND_UP(frac);
+    FIX_INTG_FRAC_ERROR(to->len, intg1, frac1, error);
+    if (unlikely(error))
+    {
+      frac=frac1*DIG_PER_DEC1;
+      if (error == E_DEC_OVERFLOW)
+        intg=intg1*DIG_PER_DEC1;
+    }
   }
   to->intg=intg;
   to->frac=frac;
@@ -379,6 +397,16 @@ int string2decimal(char *from, decimal *to, char **end)
     *buf=x*powers10[DIG_PER_DEC1-i];
 
   return error;
+}
+
+int string2decimal(char *from, decimal *to, char **end)
+{
+  return str2dec(from, to, end, 0);
+}
+
+int string2decimal_fixed(char *from, decimal *to, char **end)
+{
+  return str2dec(from, to, end, 1);
 }
 
 /*
@@ -766,8 +794,8 @@ int decimal_bin_size(int precision, int scale)
 
   SYNOPSIS
     decimal_round()
-      dec     - decimal to round,
-                also, it's where the result will be stored
+      from    - decimal to round,
+      to      - result buffer. from==to is allowed
       scale   - to what position to round. can be negative!
       mode    - round to nearest even or truncate
 
@@ -779,44 +807,57 @@ int decimal_bin_size(int precision, int scale)
     E_DEC_OK/E_DEC_TRUNCATED
 */
 
-int decimal_round(decimal *dec, int scale, dec_round_mode mode)
+int decimal_round(decimal *from, decimal *to, int scale, dec_round_mode mode)
 {
-  int frac0=ROUND_UP(scale), frac1=ROUND_UP(dec->frac),
-      intg0=ROUND_UP(dec->intg), error=E_DEC_OK, len=dec->len;
-  dec1 *buf=dec->buf, x, y, carry=0;
+  int frac0=ROUND_UP(scale), frac1=ROUND_UP(from->frac),
+      intg0=ROUND_UP(from->intg), error=E_DEC_OK, len=to->len;
+  dec1 *buf0=from->buf, *buf1=to->buf, x, y, carry=0;
 
-  DBUG_ASSERT(intg0+frac1 <= len);
-  if (frac0 > frac1)
+  if (unlikely(frac0+intg0 > len))
   {
-    if (frac0+intg0 > len)
-    {
-      frac0=len-intg0;
-      scale=frac0*DIG_PER_DEC1;
-      error=E_DEC_TRUNCATED;
-    }
-    buf+=intg0+frac1;
-    while (frac0-- > frac1)
-      *buf++=0;
-    goto done;
+    frac0=len-intg0;
+    scale=frac0*DIG_PER_DEC1;
+    error=E_DEC_TRUNCATED;
   }
-  if (scale >= dec->frac)
-    goto done; /* nothing to do */
 
-  if (scale+dec->intg <=0)
+  if (scale+from->intg <=0)
   {
-    MAKE_ZERO(dec);
+    decimal_make_zero(to);
     return E_DEC_OK;
   }
 
+  if (to != from)
+  {
+    dec1 *end=buf0+intg0+min(frac1, frac0);
+    while (buf0 < end)
+      *buf1++ = *buf0++;
+    buf0=from->buf;
+    buf1=to->buf;
+    to->sign=from->sign;
+    to->intg=min(from->intg, len*DIG_PER_DEC1);
+  }
+
+  if (frac0 > frac1)
+  {
+    buf1+=intg0+frac1;
+    while (frac0-- > frac1)
+      *buf1++=0;
+    goto done;
+  }
+
+  if (scale >= from->frac)
+    goto done; /* nothing to do */
+
   DBUG_ASSERT(frac0+intg0 > 0);
-  buf+=intg0+frac0-1;
+  buf0+=intg0+frac0-1;
+  buf1+=intg0+frac0-1;
   if (scale == frac0*DIG_PER_DEC1)
   {
     if (mode != TRUNCATE)
     {
-      x=buf[1]/DIG_MASK;
-      if (x > 5 || (x == 5 && *buf & 1))
-        (*buf)++;
+      x=buf0[1]/DIG_MASK;
+      if (x > 5 || (x == 5 && *buf0 & 1))
+        (*buf1)++;
     }
   }
   else
@@ -824,23 +865,23 @@ int decimal_round(decimal *dec, int scale, dec_round_mode mode)
     int pos=frac0*DIG_PER_DEC1-scale-1;
     if (mode != TRUNCATE)
     {
-      x=*buf / powers10[pos];
+      x=*buf1 / powers10[pos];
       y=x % 10;
       if (y > 5 || (y == 5 && (x/10) & 1))
         x+=10;
-      *buf=x*powers10[pos]-y;
+      *buf1=x*powers10[pos]-y;
     }
     else
-      *buf=(*buf/powers10[pos+1])*powers10[pos+1];
+      *buf1=(*buf1/powers10[pos+1])*powers10[pos+1];
   }
-  if (*buf > DIG_BASE)
+  if (*buf1 > DIG_BASE)
   {
     carry=1;
-    *buf-=DIG_BASE;
-    while (carry && buf >= dec->buf)
+    *buf1-=DIG_BASE;
+    while (carry && buf1 >= to->buf)
     {
-      ADD(*buf, *buf, 0, carry);
-      buf--;
+      ADD(*buf1, *buf1, 0, carry);
+      buf1--;
     }
     if (unlikely(carry))
     {
@@ -851,17 +892,17 @@ int decimal_round(decimal *dec, int scale, dec_round_mode mode)
         scale=frac0*DIG_PER_DEC1;
         error=E_DEC_TRUNCATED; /* XXX */
       }
-      for (buf=dec->buf+frac0+intg0; buf > dec->buf; buf--)
+      for (buf1=to->buf+frac0+intg0; buf1 > to->buf; buf1--)
       {
-        buf[0]=buf[-1];
+        buf1[0]=buf1[-1];
       }
-      *buf=1;
+      *buf1=1;
     }
   }
   if (scale<0) scale=0;
 
 done:
-  dec->frac=scale;
+  to->frac=scale;
   return error;
 }
 
@@ -878,6 +919,11 @@ done:
       param   - extra param to the operation. unused for '+', '-', '*'
                 scale increment for '/'
 
+  NOTE
+    returned valued may be larger than the actual buffer requred
+    in the operation, as decimal_result_size, by design, operates on
+    precision/scale values only and not on the actual decimal number
+
   RETURN VALUE
     size of to->buf array in dec1 elements. to get size in bytes
     multiply by sizeof(dec1)
@@ -890,17 +936,8 @@ int decimal_result_size(decimal *from1, decimal *from2, char op, int param)
     return ROUND_UP(max(from1->intg, from2->intg)) +
            ROUND_UP(max(from1->frac, from2->frac));
   case '+':
-    {
-      int intg1=from1->intg, intg2=from2->intg, intg0=max(intg1, intg2);
-      dec1 x;
-      /* is there a need for extra word because of carry ? */
-      x=intg1 > intg2 ? from1->buf[0] :
-        intg2 > intg1 ? from2->buf[0] :
-        from1->buf[0] + from2->buf[0] ;
-      if (unlikely(x > DIG_MASK*9)) /* yes, there is */
-        intg0+=DIG_PER_DEC1;
-      return ROUND_UP(intg0) + ROUND_UP(max(from1->frac, from2->frac));
-    }
+    return ROUND_UP(max(from1->intg, from2->intg)+1) +
+           ROUND_UP(max(from1->frac, from2->frac));
   case '*':
     return ROUND_UP(from1->intg+from2->intg)+
            ROUND_UP(from1->frac)+ROUND_UP(from2->frac);
@@ -1027,7 +1064,7 @@ static int do_sub(decimal *from1, decimal *from2, decimal *to)
       {
         if (to == 0) /* decimal_cmp() */
           return 0;
-        MAKE_ZERO(to);
+        decimal_make_zero(to);
         return E_DEC_OK;
       }
   }
@@ -1238,7 +1275,7 @@ static int do_div_mod(decimal *from1, decimal *from2,
   }
   if (prec1 <= 0)
   { /* short-circuit everything: from1 == 0 */
-    MAKE_ZERO(to);
+    decimal_make_zero(to);
     return E_DEC_OK;
   }
   for (i=(prec1-1) % DIG_PER_DEC1; *buf1 < powers10[i--]; prec1--) ;
@@ -1418,7 +1455,7 @@ static int do_div_mod(decimal *from1, decimal *from2,
     {
       if (unlikely(-intg0 >= to->len))
       {
-        MAKE_ZERO(to);
+        decimal_make_zero(to);
         error=E_DEC_TRUNCATED;
         goto done;
       }
@@ -1762,9 +1799,9 @@ void test_ro(char *s1, int n, dec_round_mode mode)
   sprintf(s, "%s('%s', %d)", (mode == TRUNCATE ? "truncate" : "round"),
                              s1, n);
   string2decimal(s1, &a, 0);
-  res=decimal_round(&a, n, mode);
+  res=decimal_round(&a, &b, n, mode);
   printf("%-40s => res=%d    ", s, res);
-  print_decimal(&a);
+  print_decimal(&b);
   printf("\n");
 }
 
