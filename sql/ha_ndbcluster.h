@@ -63,6 +63,19 @@ typedef struct st_ndbcluster_share {
   uint table_name_length,use_count;
 } NDB_SHARE;
 
+/*
+  Place holder for ha_ndbcluster thread specific data
+*/
+
+class Thd_ndb {
+ public:
+  Thd_ndb();
+  ~Thd_ndb();
+  Ndb *ndb;
+  ulong count;
+  uint lock_count;
+};
+
 class ha_ndbcluster: public handler
 {
  public:
@@ -147,8 +160,8 @@ class ha_ndbcluster: public handler
   void start_bulk_insert(ha_rows rows);
   int end_bulk_insert();
 
-  static Ndb* seize_ndb();
-  static void release_ndb(Ndb* ndb);
+  static Thd_ndb* seize_thd_ndb();
+  static void release_thd_ndb(Thd_ndb* thd_ndb);
   uint8 table_cache_type() { return HA_CACHE_TBL_NOCACHE; }
     
  private:

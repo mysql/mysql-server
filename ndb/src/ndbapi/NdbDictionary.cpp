@@ -688,6 +688,11 @@ NdbDictionary::Dictionary::getTable(const char * name, void **data){
   return 0;
 }
 
+void NdbDictionary::Dictionary::set_local_table_data_size(unsigned sz)
+{
+  m_impl.m_local_table_data_size= sz;
+}
+
 const NdbDictionary::Table * 
 NdbDictionary::Dictionary::getTable(const char * name){
   return getTable(name, 0);

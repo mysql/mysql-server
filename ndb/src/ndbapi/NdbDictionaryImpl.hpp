@@ -400,6 +400,7 @@ public:
   
   const NdbError & getNdbError() const;
   NdbError m_error;
+  Uint32 m_local_table_data_size;
 
   LocalDictCache m_localHash;
   GlobalDictCache * m_globalHash;
