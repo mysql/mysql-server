@@ -2082,7 +2082,7 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 
   while ((item=it++))
   {
-    if (item->type() == Item::FIELD_ITEM &&
+    if (item->type() == Item::FIELD_ITEM && ((Item_field*) item)->field_name &&
 	((Item_field*) item)->field_name[0] == '*')
     {
       uint elem= fields.elements;

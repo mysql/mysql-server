@@ -36,6 +36,8 @@ class Item_subselect :public Item_result_field
   my_bool engine_owner; /* Is this item owner of engine */
   my_bool value_assigned; /* value already assigned to subselect */
 protected:
+  /* substitution instead of subselect in case of optimization */
+  Item *substitution;
   /* engine that perform execution of subselect (single select or union) */
   subselect_engine *engine; 
   /* allowed number of columns (1 for single value subqueries) */
@@ -45,6 +47,7 @@ public:
   Item_subselect();
   Item_subselect(Item_subselect *item)
   {
+    substitution= item->substitution;
     null_value= item->null_value;
     decimals= item->decimals;
     max_columns= item->max_columns;
@@ -213,6 +216,7 @@ public:
   virtual bool depended()= 0; /* depended from outer select */
   enum Item_result type() { return res_type; }
   virtual bool check_loop(uint id)= 0;
+  virtual void exclude()= 0;
 };
 
 class subselect_single_select_engine: public subselect_engine
@@ -232,6 +236,7 @@ public:
   uint cols();
   bool depended();
   bool check_loop(uint id);
+  void exclude();
 };
 
 class subselect_union_engine: public subselect_engine
@@ -248,4 +253,5 @@ public:
   uint cols();
   bool depended();
   bool check_loop(uint id);
+  void exclude();
 };
