@@ -11638,7 +11638,7 @@ of applicable attacks: eavesdropping, altering, playback, and denial of
 service. We do not cover all aspects of availability and fault tolerance
 here.
 
-@strong{MySQL} uses Access Control Lists (ACLs) security for all
+@strong{MySQL} uses security based on Access Control Lists (ACLs) for all
 connections, queries, and other operations that a user may attempt to
 perform. There is also some support for SSL-encrypted connections
 between @strong{MySQL} clients and servers. Many of the concepts
@@ -11651,12 +11651,12 @@ When running @strong{MySQL}, follow these guidelines whenever possible:
 @item
 DON'T EVER GIVE ANYONE (EXCEPT THE @strong{MySQL} ROOT USER) ACCESS TO THE
 mysql.user TABLE!  The encrypted password is the real password in
-@strong{MySQL}. If you know this for one user you can easily login as
+@strong{MySQL}. If you know this for one user, you can easily log in as
 him if you have access to his 'host'.
 
 @item
 Learn the @strong{MySQL} access privilege system. The @code{GRANT} and
-@code{REVOKE} commands are used for restricting access to @strong{MySQL}. Do
+@code{REVOKE} commands are used for controlling access to @strong{MySQL}. Do
 not grant any more privileges than necessary. Never grant privileges to all
 hosts.
 
@@ -11664,8 +11664,9 @@ Checklist:
 @itemize @minus
 @item
 Try @code{mysql -u root}. If you are able to connect successfully to the
-server without being asked for a password, you have problems. Any user (not
-just root) can connect to your @strong{MySQL} server with full privileges!
+server without being asked for a password, you have problems. Anyone
+can connect to your @strong{MySQL} server as the @strong{MySQL}
+@code{root} user with full privileges!
 Review the @strong{MySQL} installation instructions, paying particular
 attention to the item about setting a @code{root} password.
 @item
@@ -11703,8 +11704,8 @@ server_host 3306} from some remote machine, where
 @code{server_host} is the hostname of your @strong{MySQL}
 server. If you get a connection and some garbage characters, the port is
 open, and should be closed on your firewall or router, unless you really
-have a good reason to keep it open. If @code{telnet} just hangs,
-everything is OK, the port is blocked.
+have a good reason to keep it open. If @code{telnet} just hangs or the
+connection is refused, everything is OK; the port is blocked.
 @end itemize
 
 @item
@@ -11722,14 +11723,14 @@ available data that it need not be protected. This is incorrect. At least
 denial-of-service type attacks can be performed on such
 databases. The simplest way to protect from this type of attack is to use
 apostrophes around the numeric constants: @code{SELECT * FROM table
-WHERE ID='234'} instead of @code{SELECT * FROM table WHERE ID=234}.
+WHERE ID='234'} rather than @code{SELECT * FROM table WHERE ID=234}.
 @strong{MySQL} automatically converts this string to a number and
 strips all non-numeric symbols from it.
 
 Checklist:
 @itemize @minus
 @item
-All WWW applications:
+All Web applications:
 @itemize @bullet
 @item
 Try to enter @samp{'} and @samp{"} in all your Web forms. If you get any kind
@@ -11771,7 +11772,7 @@ Users of @strong{MySQL}++:
 @item
 Users of Perl DBI:
 @itemize @bullet
-@item Check out the @code{quote()} method.
+@item Check out the @code{quote()} method or use placeholders.
 @end itemize
 @end itemize
 
@@ -11883,7 +11884,7 @@ in and check things even if all normal connections are in use.
 Don't give the @strong{file} privilege to all users.  Any user that has this
 privilege can write a file anywhere in the file system with the privileges of
 the @code{mysqld} daemon!  To make this a bit safer, all files generated with
-@code{SELECT ... INTO OUTFILE} are readable to everyone, and you can't
+@code{SELECT ... INTO OUTFILE} are readable to everyone, and you cannot
 overwrite existing files.
 
 @tindex /etc/passwd
@@ -11938,10 +11939,12 @@ systems that use MIT-pthreads, because the MIT-pthreads package doesn't
 support Unix sockets.
 
 @item --skip-show-database
-@code{SHOW DATABASE} command doesn't return anything.
+With this option, the
+@code{SHOW DATABASES} statement doesn't return anything.
 
 @item --safe-show-database
-@code{SHOW DATABASE} only returns databases for which the user has
+With this option,
+@code{SHOW DATABASES} returns only those databases for which the user has
 some kind of privilege.
 
 @end table
