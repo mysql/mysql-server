@@ -3030,8 +3030,16 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
       DBUG_RETURN(1);
     }
     memcpy(tmp_buf,buf,event_len);
-    tmp_buf[event_len]=0; // Create_file constructor wants null-term buffer
+    /*
+      Create_file constructor wants a 0 as last char of buffer, this 0 will
+      serve as the string-termination char for the file's name (which is at the
+      end of the buffer)
+      We must increment event_len, otherwise the event constructor will not see
+      this end 0, which leads to segfault.
+    */
+    tmp_buf[event_len++]=0;
     buf = (const char*)tmp_buf;
+    int4store(buf+EVENT_LEN_OFFSET, event_len);
   }
   /*
     This will transform LOAD_EVENT into CREATE_FILE_EVENT, ask the master to
@@ -3079,7 +3087,11 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
     DBUG_ASSERT(tmp_buf);
     int error = process_io_create_file(mi,(Create_file_log_event*)ev);
     delete ev;
-    mi->master_log_pos += event_len;
+    /*
+      We had incremented event_len, but now when it is used to calculate the
+      position in the master's log, we must use the original value.
+    */
+    mi->master_log_pos += --event_len;
     DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
     pthread_mutex_unlock(&mi->data_lock);
     my_free((char*)tmp_buf, MYF(0));
