@@ -232,7 +232,7 @@ page_mem_alloc(
 
 	if (rec) {
 		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[100];
+		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		ulint*		offsets		= offsets_;
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -467,7 +467,7 @@ page_copy_rec_list_end_no_locks(
 	page_cur_t	cur2;
 	rec_t*		sup;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -568,7 +568,7 @@ page_copy_rec_list_start(
 	page_cur_t	cur2;
 	rec_t*		old_end;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -750,7 +750,7 @@ page_delete_rec_list_end(
 
 	if ((size == ULINT_UNDEFINED) || (n_recs == ULINT_UNDEFINED)) {
 		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[100];
+		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		ulint*		offsets		= offsets_;
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 		/* Calculate the sum of sizes and the number of records */
@@ -835,7 +835,7 @@ page_delete_rec_list_start(
 {
 	page_cur_t	cur1;
 	ulint		log_mode;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	mem_heap_t*	heap		= NULL;
 	byte		type;
@@ -1331,7 +1331,7 @@ page_print_list(
 	ulint		count;
 	ulint		n_recs;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 

@@ -420,7 +420,7 @@ btr_search_update_hash_ref(
 	    && (block->curr_n_bytes == info->n_bytes)
 	    && (block->curr_side == info->side)) {
 		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[100];
+		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	    	rec = btr_cur_get_rec(cursor);
@@ -553,7 +553,7 @@ btr_search_check_guess(
 	ulint		bytes;
 	int		cmp;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	ibool		success		= FALSE;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
@@ -1100,7 +1100,7 @@ btr_search_build_page_hash_index(
 	rec_t**		recs;
 	ulint		i;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -1344,7 +1344,7 @@ btr_search_update_hash_on_delete(
 	ulint		fold;
 	dulint		tree_id;
 	ibool		found;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	mem_heap_t*	heap		= NULL;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -1456,7 +1456,7 @@ btr_search_update_hash_on_insert(
 	ulint		side;
 	ibool		locked		= FALSE;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -1596,7 +1596,7 @@ btr_search_validate(void)
 	ibool		ok		= TRUE;
 	ulint		i;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 	
