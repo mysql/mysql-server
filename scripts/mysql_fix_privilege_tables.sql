@@ -99,3 +99,38 @@ ADD Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
 ALTER TABLE host
 ADD Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,
 ADD Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
+
+#
+# Create some possible missing tables
+#
+CREATE TABLE IF NOT EXISTS help_topic (
+help_topic_id int unsigned not null,
+name varchar(64) not null,
+help_category_id smallint unsigned not null,
+description text not null,
+example text not null,
+url varchar(128) not null,
+primary key (help_topic_id), unique index (name)
+) comment='help topics';
+
+CREATE TABLE IF NOT EXISTS help_category (
+help_category_id smallint unsigned not null,
+name varchar(64) not null,
+parent_category_id smallint unsigned null,
+url varchar(128) not null,
+primary key (help_category_id),
+unique index (name)
+) comment='help categories';
+
+CREATE TABLE IF NOT EXISTS help_relation (
+help_topic_id int unsigned not null references help_topic,
+help_keyword_id  int unsigned not null references help_keyword,
+primary key (help_keyword_id, help_topic_id)
+) comment='keyword-topic relation';
+
+CREATE TABLE IF NOT EXISTS help_keyword (
+help_keyword_id int unsigned not null,
+name varchar(64) not null,
+primary key (help_keyword_id),
+unique index (name)
+) comment='help keywords';

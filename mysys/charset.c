@@ -21,9 +21,18 @@
 #include <my_dir.h>
 #include <my_xml.h>
 
+typedef struct
+{
+  int		nchars;
+  MY_UNI_IDX	uidx;
+} uni_idx;
+
+#define PLANE_SIZE	0x100
+#define PLANE_NUM	0x100
+#define PLANE_NUMBER(x)	(((x)>>8) % PLANE_NUM)
+
 
 /*
-
   The code below implements this functionality:
   
     - Initializing charset related structures
@@ -37,6 +46,7 @@ my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2)
 {
   return ((cs1 == cs2) || !strcmp(cs1->csname,cs2->csname));
 }
+
 
 static void set_max_sort_char(CHARSET_INFO *cs)
 {
@@ -110,36 +120,20 @@ static void init_state_maps(CHARSET_INFO *cs)
   state_map[(uchar)'x']= state_map[(uchar)'X']= (uchar) MY_LEX_IDENT_OR_HEX;
   state_map[(uchar)'b']= state_map[(uchar)'b']= (uchar) MY_LEX_IDENT_OR_BIN;
   state_map[(uchar)'n']= state_map[(uchar)'N']= (uchar) MY_LEX_IDENT_OR_NCHAR;
-
-
 }
+
 
 static void simple_cs_init_functions(CHARSET_INFO *cs)
 {
-  
   if (cs->state & MY_CS_BINSORT)
-  {
     cs->coll= &my_collation_8bit_bin_handler;
-  }
   else
-  {
     cs->coll= &my_collation_8bit_simple_ci_handler;
-  }
   
   cs->cset= &my_charset_8bit_handler;
   cs->mbmaxlen    = 1;
 }
 
-
-typedef struct
-{
-  int		nchars;
-  MY_UNI_IDX	uidx;
-} uni_idx;
-
-#define PLANE_SIZE	0x100
-#define PLANE_NUM	0x100
-#define PLANE_NUMBER(x)	(((x)>>8) % PLANE_NUM)
 
 static int pcmp(const void * f, const void * s)
 {
@@ -401,82 +395,13 @@ char *get_charsets_dir(char *buf)
 CHARSET_INFO *all_charsets[256];
 CHARSET_INFO *default_charset_info = &my_charset_latin1;
 
-static void add_compiled_collation(CHARSET_INFO *cs)
+void add_compiled_collation(CHARSET_INFO *cs)
 {
   all_charsets[cs->number]= cs;
   cs->state|= MY_CS_AVAILABLE;
 }
 
 
-static my_bool init_compiled_charsets(myf flags __attribute__((unused)))
-{
-  CHARSET_INFO *cs;
-
-  add_compiled_collation(&my_charset_bin);
-  
-  add_compiled_collation(&my_charset_latin1);
-  add_compiled_collation(&my_charset_latin1_bin);
-  add_compiled_collation(&my_charset_latin1_german2_ci);
-
-#ifdef HAVE_CHARSET_big5
-  add_compiled_collation(&my_charset_big5_chinese_ci);
-  add_compiled_collation(&my_charset_big5_bin);
-#endif
-
-#ifdef HAVE_CHARSET_cp1250
-  add_compiled_collation(&my_charset_cp1250_czech_ci);
-#endif
-
-#ifdef HAVE_CHARSET_latin2
-  add_compiled_collation(&my_charset_latin2_czech_ci);
-#endif
-
-#ifdef HAVE_CHARSET_euckr
-  add_compiled_collation(&my_charset_euckr_korean_ci);
-  add_compiled_collation(&my_charset_euckr_bin);
-#endif
-
-#ifdef HAVE_CHARSET_gb2312
-  add_compiled_collation(&my_charset_gb2312_chinese_ci);
-  add_compiled_collation(&my_charset_gb2312_bin);
-#endif
-
-#ifdef HAVE_CHARSET_gbk
-  add_compiled_collation(&my_charset_gbk_chinese_ci);
-  add_compiled_collation(&my_charset_gbk_bin);
-#endif
-
-#ifdef HAVE_CHARSET_sjis
-  add_compiled_collation(&my_charset_sjis_japanese_ci);
-  add_compiled_collation(&my_charset_sjis_bin);
-#endif
-
-#ifdef HAVE_CHARSET_tis620
-  add_compiled_collation(&my_charset_tis620_thai_ci);
-  add_compiled_collation(&my_charset_tis620_bin);
-#endif
-
-#ifdef HAVE_CHARSET_ucs2
-  add_compiled_collation(&my_charset_ucs2_general_ci);
-  add_compiled_collation(&my_charset_ucs2_bin);
-#endif
-
-#ifdef HAVE_CHARSET_ujis
-  add_compiled_collation(&my_charset_ujis_japanese_ci);
-  add_compiled_collation(&my_charset_ujis_bin);
-#endif
-
-#ifdef HAVE_CHARSET_utf8
-  add_compiled_collation(&my_charset_utf8_general_ci);
-  add_compiled_collation(&my_charset_utf8_bin);
-#endif
-
-  /* Copy compiled charsets */
-  for (cs=compiled_charsets; cs->name; cs++)
-    add_compiled_collation(cs);
-  
-  return FALSE;
-}
 
 #ifdef __NETWARE__
 my_bool STDCALL init_available_charsets(myf myflags)
