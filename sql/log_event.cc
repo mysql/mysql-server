@@ -923,15 +923,15 @@ void Query_log_event::print(FILE* file, bool short_form, char* last_db)
 	    (ulong) thread_id, (ulong) exec_time, error_code);
   }
 
-  bool same_db = 0;
+  bool different_db= 1;
 
   if (db && last_db)
   {
-    if (!(same_db = !memcmp(last_db, db, db_len + 1)))
+    if (different_db= memcmp(last_db, db, db_len + 1))
       memcpy(last_db, db, db_len + 1);
   }
   
-  if (db && db[0] && !same_db)
+  if (db && db[0] && different_db)
     fprintf(file, "use %s;\n", db);
   end=int10_to_str((long) when, strmov(buff,"SET TIMESTAMP="),10);
   *end++=';';
@@ -960,8 +960,10 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     position to store is of the END of the current log event.
   */
 #if MYSQL_VERSION_ID < 50000
-  rli->future_group_master_log_pos= log_pos + get_event_len();
+  rli->future_group_master_log_pos= log_pos + get_event_len() -
+    (rli->mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
 #else
+  /* In 5.0 we store the end_log_pos in the relay log so no problem */
   rli->future_group_master_log_pos= log_pos;
 #endif
   clear_all_errors(thd, rli);
@@ -1165,6 +1167,11 @@ int Start_log_event::exec_event(struct st_relay_log_info* rli)
 {
   DBUG_ENTER("Start_log_event::exec_event");
 
+  /*
+    If the I/O thread has not started, mi->old_format is BINLOG_FORMAT_CURRENT
+    (that's what the MASTER_INFO constructor does), so the test below is not
+    perfect at all.
+  */
   switch (rli->mi->old_format) {
   case BINLOG_FORMAT_CURRENT:
     /* 
@@ -1542,14 +1549,21 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db,
 	    thread_id, exec_time);
   }
 
-  bool same_db = 0;
+  bool different_db= 1;
   if (db && last_db)
   {
-    if (!(same_db = !memcmp(last_db, db, db_len + 1)))
+    /*
+      If the database is different from the one of the previous statement, we
+      need to print the "use" command, and we update the last_db.
+      But if commented, the "use" is going to be commented so we should not
+      update the last_db.
+    */
+    if ((different_db= memcmp(last_db, db, db_len + 1)) &&
+        !commented)
       memcpy(last_db, db, db_len + 1);
   }
   
-  if (db && db[0] && !same_db)
+  if (db && db[0] && different_db)
     fprintf(file, "%suse %s;\n", 
             commented ? "# " : "",
             db);
@@ -1667,7 +1681,8 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   if (!use_rli_only_for_errors)
   {
 #if MYSQL_VERSION_ID < 50000
-    rli->future_group_master_log_pos= log_pos + get_event_len();
+    rli->future_group_master_log_pos= log_pos + get_event_len() -
+      (rli->mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
 #else
     rli->future_group_master_log_pos= log_pos;
 #endif
@@ -3138,9 +3153,11 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
   */
 
 #if MYSQL_VERSION_ID < 40100
-    rli->future_master_log_pos= log_pos + get_event_len();
+    rli->future_master_log_pos= log_pos + get_event_len() -
+      (rli->mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
 #elif MYSQL_VERSION_ID < 50000
-    rli->future_group_master_log_pos= log_pos + get_event_len();
+    rli->future_group_master_log_pos= log_pos + get_event_len() -
+      (rli->mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
 #else
     rli->future_group_master_log_pos= log_pos;
 #endif

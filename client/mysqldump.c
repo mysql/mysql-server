@@ -859,11 +859,11 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
   {
     if ((*row)[i])
     {
-      fputs(" ", xml_file);
+      fputc(' ', xml_file);
       print_quoted_xml(xml_file, field->name, field->name_length);
       fputs("=\"", xml_file);
       print_quoted_xml(xml_file, (*row)[i], lengths[i]);
-      fputs("\"", xml_file);
+      fputc('"', file);
     }
   }
   fputs(" />\n", xml_file);
@@ -1413,12 +1413,12 @@ static void dumpTable(uint numFields, char *table)
 		  fputs("Aborting dump (out of memory)",stderr);
 		  safe_exit(EX_EOM);
 		}
-		dynstr_append(&extended_row,"\'");
+		dynstr_append(&extended_row,"'");
 		extended_row.length +=
 		  mysql_real_escape_string(&mysql_connection,
 					   &extended_row.str[extended_row.length],row[i],length);
 		extended_row.str[extended_row.length]='\0';
-		dynstr_append(&extended_row,"\'");
+		dynstr_append(&extended_row,"'");
 	      }
 	      else
 	      {
@@ -1432,9 +1432,9 @@ static void dumpTable(uint numFields, char *table)
 		  if (field->type == FIELD_TYPE_DECIMAL)
 		  {
 		    /* add " signs around */
-		    dynstr_append(&extended_row, "\"");
+		    dynstr_append(&extended_row, "'");
 		    dynstr_append(&extended_row, ptr);
-		    dynstr_append(&extended_row, "\"");
+		    dynstr_append(&extended_row, "'");
 		  }
 		  else
 		    dynstr_append(&extended_row, ptr);
@@ -1442,7 +1442,7 @@ static void dumpTable(uint numFields, char *table)
 	      }
 	    }
 	    else
-	      dynstr_append(&extended_row,"\'\'");
+	      dynstr_append(&extended_row,"''");
 	  }
 	  else if (dynstr_append(&extended_row,"NULL"))
 	  {
@@ -1486,9 +1486,9 @@ static void dumpTable(uint numFields, char *table)
 	      else if (field->type == FIELD_TYPE_DECIMAL)
 	      {
 		/* add " signs around */
-		fputs("\"", md_result_file);
+		fputc('\'', md_result_file);
 		fputs(ptr, md_result_file);
-		fputs("\"", md_result_file);
+		fputc('\'', md_result_file);
 	      }
 	      else
 		fputs(ptr, md_result_file);

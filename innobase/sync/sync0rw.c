@@ -169,6 +169,7 @@ rw_lock_free(
 	mutex_exit(&rw_lock_list_mutex);
 }
 
+#ifdef UNIV_DEBUG
 /**********************************************************************
 Checks that the rw-lock has been initialized and that there are no
 simultaneous shared and exclusive locks. */
@@ -196,6 +197,7 @@ rw_lock_validate(
 
 	return(TRUE);
 }
+#endif /* UNIV_DEBUG */
 
 /**********************************************************************
 Lock an rw-lock in shared mode for the current thread. If the rw-lock is
@@ -237,9 +239,9 @@ lock_loop:
 	}
 
 	if (srv_print_latch_waits) {
-		printf(
-	"Thread %lu spin wait rw-s-lock at %lx cfile %s cline %lu rnds %lu\n",
-		(ulong) os_thread_pf(os_thread_get_curr_id()), (ulong) lock,
+		fprintf(stderr,
+	"Thread %lu spin wait rw-s-lock at %p cfile %s cline %lu rnds %lu\n",
+		(ulong) os_thread_pf(os_thread_get_curr_id()), lock,
 		lock->cfile_name, (ulong) lock->cline, (ulong) i);
 	}
 
@@ -267,10 +269,10 @@ lock_loop:
 		mutex_exit(rw_lock_get_mutex(lock));
 
 		if (srv_print_latch_waits) {
-			printf(
-		"Thread %lu OS wait rw-s-lock at %lx cfile %s cline %lu\n",
-			(ulong) os_thread_pf(os_thread_get_curr_id()),
-		        (ulong) lock, lock->cfile_name, (ulong) lock->cline);
+			fprintf(stderr,
+		"Thread %lu OS wait rw-s-lock at %p cfile %s cline %lu\n",
+				os_thread_pf(os_thread_get_curr_id()),
+		        lock, lock->cfile_name, (ulong) lock->cline);
 		}
 
 		rw_s_system_call_count++;
@@ -486,9 +488,9 @@ lock_loop:
 	}	
 
 	if (srv_print_latch_waits) {
-		printf(
-	"Thread %lu spin wait rw-x-lock at %lx cfile %s cline %lu rnds %lu\n",
-		(ulong) os_thread_pf(os_thread_get_curr_id()), (ulong) lock,
+		fprintf(stderr,
+	"Thread %lu spin wait rw-x-lock at %p cfile %s cline %lu rnds %lu\n",
+			os_thread_pf(os_thread_get_curr_id()), lock,
 		lock->cfile_name, (ulong) lock->cline, (ulong) i);
 	}
 
@@ -519,9 +521,9 @@ lock_loop:
 	mutex_exit(rw_lock_get_mutex(lock));
 
 	if (srv_print_latch_waits) {
-		printf(
-		"Thread %lu OS wait for rw-x-lock at %lx cfile %s cline %lu\n",
-		(ulong) os_thread_pf(os_thread_get_curr_id()), (ulong) lock,
+		fprintf(stderr,
+		"Thread %lu OS wait for rw-x-lock at %p cfile %s cline %lu\n",
+			os_thread_pf(os_thread_get_curr_id()), lock,
 		lock->cfile_name, (ulong) lock->cline);
 	}
 
@@ -764,9 +766,9 @@ rw_lock_list_print_info(void)
 	
 	mutex_enter(&rw_lock_list_mutex);
 
-	printf("-------------\n");
-	printf("RW-LATCH INFO\n");
-	printf("-------------\n");
+	fputs("-------------\n"
+		"RW-LATCH INFO\n"
+		"-------------\n", stderr);
 
 	lock = UT_LIST_GET_FIRST(rw_lock_list);
 
@@ -780,12 +782,12 @@ rw_lock_list_print_info(void)
 		    || (rw_lock_get_reader_count(lock) != 0)
 		    || (rw_lock_get_waiters(lock) != 0)) {
 
-			printf("RW-LOCK: %lx ", (ulint)lock);
+			fprintf(stderr, "RW-LOCK: %p ", lock);
 
 			if (rw_lock_get_waiters(lock)) {
-				printf(" Waiters for the lock exist\n");
+				fputs(" Waiters for the lock exist\n", stderr);
 			} else {
-				printf("\n");
+				putc('\n', stderr);
 			}
 		    
 			info = UT_LIST_GET_FIRST(lock->debug_list);
@@ -799,7 +801,7 @@ rw_lock_list_print_info(void)
 		lock = UT_LIST_GET_NEXT(list, lock);
 	}
 
-	printf("Total number of rw-locks %ld\n", count);
+	fprintf(stderr, "Total number of rw-locks %ld\n", count);
 	mutex_exit(&rw_lock_list_mutex);
 }
 
@@ -809,22 +811,23 @@ Prints debug info of an rw-lock. */
 void
 rw_lock_print(
 /*==========*/
-	rw_lock_t*	lock __attribute__((unused)))	/* in: rw-lock */
+	rw_lock_t*	lock)	/* in: rw-lock */
 {
 	rw_lock_debug_t* info;
 	
-	printf("-------------\n");
-	printf("RW-LATCH INFO\n");
-	printf("RW-LATCH: %lx ", (ulint)lock);
+	fprintf(stderr,
+		"-------------\n"
+		"RW-LATCH INFO\n"
+		"RW-LATCH: %p ", lock);
 
 	if ((rw_lock_get_writer(lock) != RW_LOCK_NOT_LOCKED)
 	    || (rw_lock_get_reader_count(lock) != 0)
 	    || (rw_lock_get_waiters(lock) != 0)) {
 
 		if (rw_lock_get_waiters(lock)) {
-			printf(" Waiters for the lock exist\n");
+			fputs(" Waiters for the lock exist\n", stderr);
 		} else {
-			printf("\n");
+			putc('\n', stderr);
 		}
 		    
 		info = UT_LIST_GET_FIRST(lock->debug_list);
@@ -847,22 +850,22 @@ rw_lock_debug_print(
 
 	rwt 	  = info->lock_type;	
 			
-	printf("Locked: thread %ld file %s line %ld  ",
+	fprintf(stderr, "Locked: thread %ld file %s line %ld  ",
 		(ulong) os_thread_pf(info->thread_id), info->file_name,
 	        (ulong) info->line);
 	if (rwt == RW_LOCK_SHARED) {
-		printf("S-LOCK");
+		fputs("S-LOCK", stderr);
 	} else if (rwt == RW_LOCK_EX) {
-		printf("X-LOCK");
+		fputs("X-LOCK", stderr);
 	} else if (rwt == RW_LOCK_WAIT_EX) {
-		printf("WAIT X-LOCK");
+		fputs("WAIT X-LOCK", stderr);
 	} else {
 		ut_error;
 	}
 	if (info->pass != 0) {
-		printf(" pass value %lu", (ulong) info->pass);
+		fprintf(stderr, " pass value %lu", (ulong) info->pass);
 	}
-	printf("\n");
+	putc('\n', stderr);
 }
 
 /*******************************************************************

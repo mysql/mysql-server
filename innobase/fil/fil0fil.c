@@ -86,7 +86,7 @@ the count drops to zero. */
 /* When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and ibbackup it is not the default
 directory, and we must set the base file path explicitly */
-char*	fil_path_to_mysql_datadir	= (char*)".";
+const char*	fil_path_to_mysql_datadir	= (char*)".";
 
 ulint	fil_n_pending_log_flushes		= 0;
 ulint	fil_n_pending_tablespace_flushes	= 0;
@@ -399,7 +399,6 @@ fil_node_create(
 	fil_system_t*	system	= fil_system;
 	fil_node_t*	node;
 	fil_space_t*	space;
-	char*		name2;
 
 	ut_a(system);
 	ut_a(name);
@@ -408,11 +407,7 @@ fil_node_create(
 
 	node = mem_alloc(sizeof(fil_node_t));
 
-	name2 = mem_alloc(ut_strlen(name) + 1);
-
-	ut_strcpy(name2, name);
-
-	node->name = name2;
+	node->name = mem_strdup(name);
 	node->open = FALSE;
 
 	ut_a(!is_raw || srv_start_raw_disk_in_use);
@@ -433,7 +428,7 @@ fil_node_create(
 		fprintf(stderr,
 "  InnoDB: Error: Could not find tablespace %lu for\n"
 "InnoDB: file %s from the tablespace memory cache.\n", (ulong) id, name);
-		mem_free(name2);
+		mem_free(node->name);
 
 		mem_free(node);
 
@@ -816,7 +811,6 @@ fil_space_create(
 {
 	fil_system_t*	system		= fil_system;
 	fil_space_t*	space;	
-	char*		name2;
 	ulint		namesake_id;
 try_again:
 	/*printf(
@@ -881,11 +875,7 @@ try_again:
 
 	space = mem_alloc(sizeof(fil_space_t));
 
-	name2 = mem_alloc(ut_strlen(name) + 1);
-
-	ut_strcpy(name2, name);
-
-	space->name = name2;
+	space->name = mem_strdup(name);
 	space->id = id;
 
 	system->tablespace_version++;
@@ -3726,7 +3716,7 @@ fil_aio_wait(
 	ut_ad(fil_validate());
 
 	if (os_aio_use_native_aio) {
-		srv_io_thread_op_info[segment] = (char *) "handle native aio";
+		srv_set_io_thread_op_info(segment, "native aio handle");
 #ifdef WIN_ASYNC_IO
 		ret = os_aio_windows_handle(segment, 0, (void**) &fil_node,
 					    &message, &type);
@@ -3737,7 +3727,7 @@ fil_aio_wait(
 		ut_error;
 #endif
 	} else {
-		srv_io_thread_op_info[segment] =(char *)"handle simulated aio";
+		srv_set_io_thread_op_info(segment, "simulated aio handle");
 
 		ret = os_aio_simulated_handle(segment, (void**) &fil_node,
 	                                               &message, &type);
@@ -3745,7 +3735,7 @@ fil_aio_wait(
 	
 	ut_a(ret);
 
-	srv_io_thread_op_info[segment] = (char *) "complete io for fil node";
+	srv_set_io_thread_op_info(segment, "complete io for fil node");
 
 	mutex_enter(&(system->mutex));
 
@@ -3762,11 +3752,10 @@ fil_aio_wait(
 	open, and use a special i/o thread to serve insert buffer requests. */
 
 	if (buf_pool_is_block(message)) {
-		srv_io_thread_op_info[segment] =
-		  (char *) "complete io for buf page";
+		srv_set_io_thread_op_info(segment, "complete io for buf page");
 		buf_page_io_complete(message);
 	} else {
-		srv_io_thread_op_info[segment] =(char *) "complete io for log";
+		srv_set_io_thread_op_info(segment, "complete io for log");
 		log_io_complete(message);
 	}
 }
@@ -3847,7 +3836,9 @@ retry:
 
 			mutex_exit(&(system->mutex));
 
-			/* printf("Flushing to file %s\n", node->name); */
+			/* fprintf(stderr, "Flushing to file %s\n",
+				node->name); */
+
 			os_file_flush(file);		
 
 			mutex_enter(&(system->mutex));

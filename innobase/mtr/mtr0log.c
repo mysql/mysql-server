@@ -54,15 +54,15 @@ mlog_write_initial_log_record(
 	byte*	log_ptr;
 
 	ut_ad(type <= MLOG_BIGGEST_TYPE);
+	ut_ad(type > MLOG_8BYTES);
 
 	if (ptr < buf_pool->frame_zero || ptr >= buf_pool->high_end) {
 		fprintf(stderr,
-	"InnoDB: Error: trying to write to a stray memory location %lx\n",
-			(ulong) ptr);
+	"InnoDB: Error: trying to write to a stray memory location %p\n", ptr);
 		ut_error;
 	}
 
-	log_ptr = mlog_open(mtr, 20);
+	log_ptr = mlog_open(mtr, 11);
 
 	/* If no logging is requested, we may return now */
 	if (log_ptr == NULL) {
@@ -95,6 +95,7 @@ mlog_parse_initial_log_record(
 	}
 
 	*type = (byte)((ulint)*ptr & ~MLOG_SINGLE_REC_FLAG);
+	ut_ad(*type <= MLOG_BIGGEST_TYPE);
 
 	ptr++;
 
@@ -220,8 +221,7 @@ mlog_write_ulint(
 	
 	if (ptr < buf_pool->frame_zero || ptr >= buf_pool->high_end) {
 		fprintf(stderr,
-	"InnoDB: Error: trying to write to a stray memory location %lx\n",
-			(ulong) ptr);
+	"InnoDB: Error: trying to write to a stray memory location %p\n", ptr);
 		ut_error;
 	}
 
@@ -234,7 +234,7 @@ mlog_write_ulint(
 		mach_write_to_4(ptr, val);
 	}
 
-	log_ptr = mlog_open(mtr, 30);
+	log_ptr = mlog_open(mtr, 11 + 2 + 5);
 	
 	/* If no logging is requested, we may return now */
 	if (log_ptr == NULL) {
@@ -267,8 +267,7 @@ mlog_write_dulint(
 
 	if (ptr < buf_pool->frame_zero || ptr >= buf_pool->high_end) {
 		fprintf(stderr,
-	"InnoDB: Error: trying to write to a stray memory location %lx\n",
-			(ulong) ptr);
+	"InnoDB: Error: trying to write to a stray memory location %p\n", ptr);
 		ut_error;
 	}
 
@@ -276,7 +275,7 @@ mlog_write_dulint(
 
 	mach_write_to_8(ptr, val);
 
-	log_ptr = mlog_open(mtr, 30);
+	log_ptr = mlog_open(mtr, 11 + 2 + 9);
 	
 	/* If no logging is requested, we may return now */
 	if (log_ptr == NULL) {
@@ -311,8 +310,7 @@ mlog_write_string(
 
 	if (ptr < buf_pool->frame_zero || ptr >= buf_pool->high_end) {
 		fprintf(stderr,
-	"InnoDB: Error: trying to write to a stray memory location %lx\n",
-			(ulong) ptr);
+	"InnoDB: Error: trying to write to a stray memory location %p\n", ptr);
 		ut_error;
 	}
 	ut_ad(ptr && mtr);

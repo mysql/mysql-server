@@ -361,6 +361,52 @@ void init_slave_skip_errors(const char* arg)
   }
 }
 
+void st_relay_log_info::inc_pending(ulonglong val)
+{
+  pending += val;
+}
+
+/* TODO: this probably needs to be fixed */
+void st_relay_log_info::inc_pos(ulonglong val, ulonglong log_pos, bool skip_lock)
+{
+  if (!skip_lock)
+    pthread_mutex_lock(&data_lock);
+  relay_log_pos += val+pending;
+  pending = 0;
+  if (log_pos)
+#if MYSQL_VERSION_ID < 50000
+    /*
+      If the event was converted from a 3.23 format, get_event_len() has
+      grown by 6 bytes (at least for most events, except LOAD DATA INFILE
+      which is already a big problem for 3.23->4.0 replication); 6 bytes is
+      the difference between the header's size in 4.0 (LOG_EVENT_HEADER_LEN)
+      and the header's size in 3.23 (OLD_HEADER_LEN). Note that using
+      mi->old_format will not help if the I/O thread has not started yet.
+      Yes this is a hack but it's just to make 3.23->4.x replication work;
+      3.23->5.0 replication is working much better.
+      
+      The line "mi->old_format ? : " below should NOT BE MERGED to 5.0 which
+      already works. But it SHOULD be merged to 4.1.
+    */
+    master_log_pos= log_pos + val -
+      (mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
+#endif
+  pthread_cond_broadcast(&data_cond);
+  if (!skip_lock)
+    pthread_mutex_unlock(&data_lock);
+}
+
+/*
+  thread safe read of position - not needed if we are in the slave thread,
+  but required otherwise as var is a longlong
+*/
+void st_relay_log_info::read_pos(ulonglong& var)
+{
+  pthread_mutex_lock(&data_lock);
+  var = relay_log_pos;
+  pthread_mutex_unlock(&data_lock);
+}
+
 void st_relay_log_info::close_temporary_tables()
 {
   TABLE *table,*next;
@@ -3473,8 +3519,16 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
       DBUG_RETURN(1);
     }
     memcpy(tmp_buf,buf,event_len);
-    tmp_buf[event_len]=0; // Create_file constructor wants null-term buffer
+    /*
+      Create_file constructor wants a 0 as last char of buffer, this 0 will
+      serve as the string-termination char for the file's name (which is at the
+      end of the buffer)
+      We must increment event_len, otherwise the event constructor will not see
+      this end 0, which leads to segfault.
+    */
+    tmp_buf[event_len++]=0;
     buf = (const char*)tmp_buf;
+    int4store(buf+EVENT_LEN_OFFSET, event_len);
   }
   /*
     This will transform LOAD_EVENT into CREATE_FILE_EVENT, ask the master to
@@ -3520,7 +3574,11 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
     DBUG_ASSERT(tmp_buf);
     int error = process_io_create_file(mi,(Create_file_log_event*)ev);
     delete ev;
-    mi->master_log_pos += event_len;
+    /*
+      We had incremented event_len, but now when it is used to calculate the
+      position in the master's log, we must use the original value.
+    */
+    mi->master_log_pos += --event_len;
     DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
     pthread_mutex_unlock(&mi->data_lock);
     my_free((char*)tmp_buf, MYF(0));

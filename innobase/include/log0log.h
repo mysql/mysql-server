@@ -366,7 +366,6 @@ Writes a buffer to a log file group. */
 void
 log_group_write_buf(
 /*================*/
-	ulint		type,		/* in: LOG_FLUSH or LOG_RECOVER */
 	log_group_t*	group,		/* in: log group */
 	byte*		buf,		/* in: buffer */
 	ulint		len,		/* in: buffer len; must be divisible
@@ -513,8 +512,7 @@ Prints info of the log. */
 void
 log_print(
 /*======*/
-	char*	buf,	/* in/out: buffer where to print */
-	char*	buf_end);/* in: buffer end */
+	FILE*	file);	/* in: file where to print */
 /**********************************************************
 Peeks the current lsn. */
 
