@@ -1478,7 +1478,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   alias= (lower_case_table_names == 2) ? table_list->alias : table_name;
 
   db=table_list->db;
-  if (!new_db || !strcmp(new_db,db))
+  if (!new_db || !strcmp(new_db, db))
     new_db=db;
   used_fields=create_info->used_fields;
   
@@ -1490,8 +1490,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (new_name)
   {
     strmov(new_name_buff,new_name);
-    strmov(new_alias= new_alias_buff, new_name);
-    fn_same(new_name_buff,table_name,3);
     if (lower_case_table_names)
     {
       if (lower_case_table_names != 2)
@@ -1501,11 +1499,18 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       }
       casedn_str(new_name);
     }
-    if ((lower_case_table_names &&
-	 !my_strcasecmp(new_name_buff,table_name)) ||
-	(!lower_case_table_names &&
+    if (new_db == db &&
+        (lower_case_table_names &&
+	 !my_strcasecmp(new_name_buff,table_name) ||
+	 !lower_case_table_names &&
 	 !strcmp(new_name_buff,table_name)))
-      new_alias= new_name= table_name;	// No change. Make later check easier
+    {
+      /*
+        Source and destination table names are equal: make later check
+        easier.
+      */
+      new_alias= new_name= table_name;
+    }
     else
     {
       if (table->tmp_table)

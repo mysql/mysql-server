@@ -350,3 +350,11 @@ t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE
 t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE	
 t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE	disabled
 DROP TABLE t1;
+name
+current
+name
+mysqltest
+name
+current
+name
+mysqltest
