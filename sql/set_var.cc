@@ -3282,8 +3282,14 @@ ulong fix_sql_mode(ulong sql_mode)
   */
 
   if (sql_mode & MODE_ANSI)
+  {
     sql_mode|= (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-		MODE_IGNORE_SPACE | MODE_ONLY_FULL_GROUP_BY);
+		MODE_IGNORE_SPACE);
+    /* 
+      MODE_ONLY_FULL_GROUP_BY removed from ANSI mode because it is currently
+      overly restrictive (see BUG#8510).
+    */
+  }
   if (sql_mode & MODE_ORACLE)
     sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
 		MODE_IGNORE_SPACE |
