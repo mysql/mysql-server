@@ -193,28 +193,23 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
     {                                           /* Return databases */
 #ifdef USE_SYMDIR
       char *ext;
+      char buff[FN_REFLEN];
       if (my_use_symdir && !strcmp(ext=fn_ext(file->name), ".sym"))
       {
 	/* Only show the sym file if it points to a directory */
-	char buff[FN_REFLEN], *end;
-	MY_STAT status;
+	char *end;
         *ext=0;                                 /* Remove extension */
 	unpack_dirname(buff, file->name);
 	end= strend(buff);
 	if (end != buff && end[-1] == FN_LIBCHAR)
 	  end[-1]= 0;				// Remove end FN_LIBCHAR
-	if (!my_stat(buff, &status, MYF(0)) ||
-	    !MY_S_ISDIR(status.st_mode) ||
-            (wild && wild_compare(file->name, wild, 0)))
-	  continue;
-      }
-      else
+        if (!my_stat(buff, file->mystat, MYF(0)))
+               continue;
+       }
 #endif
-      {
         if (file->name[0] == '.' || !MY_S_ISDIR(file->mystat->st_mode) ||
             (wild && wild_compare(file->name,wild, 0)))
           continue;
-      }
     }
     else
     {
