@@ -194,6 +194,9 @@ static struct my_option my_long_options[] =
   {"force", 'f',
    "Restart with -r if there are any errors in the table. States will be updated as with --update-state.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"HELP", 'H',
+   "Display this help and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?',
    "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -216,8 +219,14 @@ static struct my_option my_long_options[] =
   {"recover", 'r',
    "Can fix almost anything except unique keys that aren't unique.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"paraller-recover", 'p',
+   "Same as '-r' but creates all the keys in parallel",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"safe-recover", 'o',
    "Uses old recovery method; Slower than '-r' but can handle a couple of cases where '-r' reports that it can't fix the data file.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"sort-recover", 'n',
+   "Force recovering with sorting even if the temporary file was very big.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"start-check-pos", OPT_START_CHECK_POS,
    "No help available.",
@@ -244,9 +253,6 @@ static struct my_option my_long_options[] =
    (gptr*) &check_param.opt_sort_key,
    (gptr*) &check_param.opt_sort_key,
    0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"sort-recover", 'n',
-   "Force recovering with sorting even if the temporary file was very big.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't',
    "Path for temporary files.",
    (gptr*) &check_param.tmpdir,
@@ -514,6 +520,11 @@ get_one_option(int optid,
     if (argument != disabled_my_option)
       check_param.testflag|= T_REP_BY_SORT;
     break;
+  case 'p':
+    check_param.testflag&= ~T_REP_ANY;
+    if (argument != disabled_my_option)
+      check_param.testflag|= T_REP_PARALLEL;
+    break;
   case 'o':
     check_param.testflag&= ~T_REP_ANY;
     check_param.force_sort= 0;
@@ -616,6 +627,9 @@ get_one_option(int optid,
     check_param.start_check_pos= strtoull(argument, NULL, 0);
     break;
 #endif
+  case 'H':
+    my_print_help(my_long_options);
+    exit(0);
   case '?':
     usage();
     exit(0);
@@ -864,8 +878,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	if (tmp != share->state.key_map)
 	  info->update|=HA_STATE_CHANGED;
       }
-      if (rep_quick && chk_del(param, info,
-			       param->testflag & ~T_VERBOSE))
+      if (rep_quick && chk_del(param, info, param->testflag & ~T_VERBOSE))
       {
 	if (param->testflag & T_FORCE_CREATE)
 	{
@@ -881,14 +894,17 @@ static int myisamchk(MI_CHECK *param, my_string filename)
       }
       if (!error)
       {
-	if ((param->testflag & T_REP_BY_SORT) &&
+	if ((param->testflag & (T_REP_BY_SORT | T_REP_PARALLEL)) &&
 	    (share->state.key_map ||
 	     (rep_quick && !param->keys_in_use && !recreate)) &&
 	    mi_test_if_sort_rep(info, info->state->records,
 				info->s->state.key_map,
 				param->force_sort))
 	{
-	  error=mi_repair_by_sort(param,info,filename,rep_quick);
+          if (param->testflag & T_REP_BY_SORT)
+            error=mi_repair_by_sort(param,info,filename,rep_quick);
+          else
+            error=mi_repair_parallel(param,info,filename,rep_quick);
 	  state_updated=1;
 	}
 	else if (param->testflag & T_REP_ANY)
