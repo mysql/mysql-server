@@ -1350,8 +1350,11 @@ static int init_dumping(char *database)
         if (mysql_query(sock, qbuf) || !(dbinfo = mysql_store_result(sock)))
         {
           /* Old server version, dump generic CREATE DATABASE */
-	  fprintf(md_result_file,"\nCREATE DATABASE /*!32312 IF NOT EXISTS*/ %s;\n",
-		database);
+	  fprintf(md_result_file,
+		  "\nCREATE DATABASE /*!32312 IF NOT EXISTS*/ %s%s%s;\n",
+		  (opt_quoted ? "`" : ""),
+		  database,
+		  (opt_quoted ? "`" : ""));
 	}
 	else
         {
