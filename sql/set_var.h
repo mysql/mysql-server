@@ -779,7 +779,7 @@ public:
   } save_result;
   LEX_STRING base;			/* for structs */
 
-  set_var(enum_var_type type_arg, sys_var *var_arg, LEX_STRING *base_name_arg,
+  set_var(enum_var_type type_arg, sys_var *var_arg, const LEX_STRING *base_name_arg,
 	  Item *value_arg)
     :var(var_arg), type(type_arg), base(*base_name_arg)
   {

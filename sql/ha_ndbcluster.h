@@ -74,6 +74,8 @@ class Thd_ndb {
   Ndb *ndb;
   ulong count;
   uint lock_count;
+  NdbTransaction *all;
+  NdbTransaction *stmt;
   int error;
 };
 
@@ -286,13 +288,8 @@ private:
 
 extern struct show_var_st ndb_status_variables[];
 
-bool ndbcluster_init(void);
+handlerton *ndbcluster_init(void);
 bool ndbcluster_end(void);
-
-int ndbcluster_commit(THD *thd, void* ndb_transaction);
-int ndbcluster_rollback(THD *thd, void* ndb_transaction);
-
-void ndbcluster_close_connection(THD *thd);
 
 int ndbcluster_discover(THD* thd, const char* dbname, const char* name,
 			const void** frmblob, uint* frmlen);
