@@ -92,6 +92,7 @@ END-INFO-DIR-ENTRY
 
 @end iftex
 
+
 @node Top, Introduction, (dir), (dir)
 
 @c @ifhtml
@@ -141,13 +142,16 @@ distribution for that version.
 
 @end menu
 
+
+
+
+@node Introduction, Installing, Top, Top
+@chapter General Information About MySQL
+
 @cindex overview
 @cindex general information
 @cindex online location of manual
 @cindex manual, online location
-
-@node Introduction, Installing, Top, Top
-@chapter General Information About MySQL
 
 This is the @strong{MySQL} reference manual; it documents @strong{MySQL}
 Version @value{mysql_version}.  As @strong{MySQL} is work in progress,
@@ -245,6 +249,7 @@ see @ref{General-SQL}.  For books that focus more specifically on
 * TODO::                        
 @end menu
 
+
 @node MySQL and MySQL AB, MySQL Information Sources, Introduction, Introduction
 @section MySQL, MySQL AB, and Open Source
 
@@ -259,6 +264,7 @@ see @ref{General-SQL}.  For books that focus more specifically on
 * Table size::                  
 * Year 2000 compliance::        Year 2000 compliance
 @end menu
+
 
 @node What-is, What is MySQL AB, MySQL and MySQL AB, MySQL and MySQL AB
 @subsection What Is MySQL
@@ -350,6 +356,7 @@ language already supports @strong{MySQL}.
 @cindex goals of MySQL
 The official way to pronounce @strong{MySQL} is ``My Ess Que Ell'' (not
 MY-SEQUEL). But we try to avoid correcting people who say MY-SEQUEL.
+
 
 @node What is MySQL AB, Manual-info, What-is, MySQL and MySQL AB
 @subsection What Is MySQL AB
@@ -463,6 +470,7 @@ Are a virtual company, networking with others.
 Work against software patents.
 @end itemize
 
+
 @node Manual-info, Manual conventions, What is MySQL AB, MySQL and MySQL AB
 @subsection About This Manual
 
@@ -479,6 +487,7 @@ and @code{dvips}.  The PDF version is produced with @code{pdftex}.
 This manual is written and maintained by David Axmark, Michael (Monty)
 Widenius, Jeremy Cole, and Paul DuBois.  For other contributors,
 see @ref{Credits}.
+
 
 @node Manual conventions, History, Manual-info, MySQL and MySQL AB
 @subsection Conventions Used in This Manual
@@ -603,6 +612,7 @@ alternatives are listed within braces (@samp{@{} and @samp{@}}):
 @example
 @{DESCRIBE | DESC@} tbl_name @{col_name | wild@}
 @end example
+
 
 @node History, Features, Manual conventions, MySQL and MySQL AB
 @subsection History of MySQL
@@ -789,9 +799,11 @@ information about databases, tables, and indexes.  The @code{EXPLAIN} command
 can be used to determine how the optimizer resolves a query.
 @end itemize
 
-@cindex stability
+
 @node Stability, Table size, Features, MySQL and MySQL AB
 @subsection How Stable Is MySQL?
+
+@cindex stability
 
 This section addresses the questions ``How stable is @strong{MySQL}?'' and 
 ``Can I depend on @strong{MySQL} in this project?''  We will try to clarify
@@ -948,6 +960,7 @@ Text search seems to work, but is still not widely used.
 Bugs are usually fixed right away with a patch; for serious bugs, there is
 almost always a new release.
 
+
 @node Table size, Year 2000 compliance, Stability, MySQL and MySQL AB
 @subsection How Big Can MySQL Tables Be?
 
@@ -1003,6 +1016,7 @@ files by using the @code{RAID} option. @xref{CREATE TABLE}.
 Another solution can be the included MERGE library, which allows you to
 handle a collection of identical tables as one. @xref{MERGE, MERGE
 tables}.
+
 
 @node Year 2000 compliance,  , Table size, MySQL and MySQL AB
 @subsection Year 2000 Compliance
@@ -1103,6 +1117,7 @@ provide unambiguous input.  See @ref{Y2K issues} for @strong{MySQL}'s rules
 for dealing with ambiguous date input data (data containing 2-digit year
 values).
 
+
 @node MySQL Information Sources, Licensing and Support, MySQL and MySQL AB, Introduction
 @section MySQL Information Sources
 
@@ -1115,6 +1130,7 @@ values).
 * Useful Links::                
 * Questions::                   
 @end menu
+
 
 @node MySQL-Books, General-SQL, MySQL Information Sources, MySQL Information Sources
 @subsection Books About MySQL
@@ -1468,6 +1484,7 @@ A complete reference to DBI.
 @end itemize
 @*
 
+
 @node General-SQL, Useful Links, MySQL-Books, MySQL Information Sources
 @subsection General SQL Information and Tutorials
 
@@ -1496,6 +1513,7 @@ Alameda, CA USA
 
 A SQL tutorial is available on the net at
 http://w3.one.net/~jhoffman/sqltut.htm
+
 
 @node Useful Links, Questions, General-SQL, MySQL Information Sources
 @subsection Useful MySQL-related Links
@@ -2085,6 +2103,7 @@ require that you show a @strong{MySQL} logo somewhere if you wish your
 site to be added.  It is okay to have it on a ``used tools'' page or 
 something similar.
 
+
 @node Questions,  , Useful Links, MySQL Information Sources
 @subsection MySQL Mailing Lists
 
@@ -2100,6 +2119,7 @@ something similar.
 
 This section introduces you to the @strong{MySQL} mailing lists, and gives
 some guidelines as to how to use them.
+
 
 @node Mailing-list, Asking questions, Questions, Questions
 @subsubsection The MySQL Mailing Lists
@@ -2246,6 +2266,7 @@ Email @code{subscribe mysql-br your@@email.address} to this list.
 Email @code{subscribe mysql your@@email.address} to this list.
 @end table
 
+
 @node Asking questions, Bug reports, Mailing-list, Questions
 @subsubsection Asking Questions or Reporting Bugs
 
@@ -2279,6 +2300,7 @@ If you can't find an answer in the manual or the archives, check with your
 local @strong{MySQL} expert.  If you still can't find an answer to your
 question, go ahead and read the next section about how to send mail to
 @email{mysql@@lists.mysql.com}.
+
 
 @node Bug reports, Answering questions, Asking questions, Questions
 @subsubsection How to Report Bugs or Problems
@@ -2587,6 +2609,7 @@ it is considered good etiquette to summarize the answers and send the
 summary to the mailing list so that others may have the benefit of
 responses you received that helped you solve your problem!
 
+
 @node Answering questions,  , Bug reports, Questions
 @subsubsection Guidelines for Answering Question on the Mailing List
 
@@ -2606,6 +2629,7 @@ obliged to quote the entire original message.
 
 Please don't post mail messages from your browser with HTML mode turned on!
 Many users don't read mail with a browser!
+
 
 @node Licensing and Support, Compatibility, MySQL Information Sources, Introduction
 @section MySQL Licensing and Support
@@ -2637,6 +2661,7 @@ arrangements:
 
 @item Commercial licensing costs
 @end itemize
+
 
 @node Licensing policy, Copyright, Licensing and Support, Licensing and Support
 @subsection MySQL Licensing Policy
@@ -2724,6 +2749,7 @@ is to use the license form on @strong{MySQL}'s secure server at
 @uref{https://order.mysql.com/}.  Other forms of payment are
 discussed in @ref{Payment information}.
 
+
 @node Copyright, Licensing examples, Licensing policy, Licensing and Support
 @subsection Copyrights Used by MySQL
 
@@ -2770,11 +2796,13 @@ However, if you use @strong{MySQL} for something important to you, you may
 want to help secure its development by purchasing licenses or a support
 contract.  @xref{Support}.
 
+
 @node Copyright changes,  , Copyright, Copyright
 @subsubsection Copyright Changes
 
 Version 3.22 of @strong{MySQL} is still using a more strict license.  
 See the documentation for that version for more information.
+
 
 @node Licensing examples, Cost, Copyright, Licensing and Support
 @subsection Example Licensing Situations
@@ -2796,6 +2824,7 @@ involve providing @strong{MySQL} as an integral part of a product.
 Note that a single @strong{MySQL} license covers any number of CPUs and
 @code{mysqld} servers on a machine!  There is no artificial limit on the
 number of clients that connect to the server in any way.
+
 
 @node Products that use MySQL, ISP, Licensing examples, Licensing examples
 @subsubsection Selling Products that use MySQL
@@ -2841,6 +2870,7 @@ don't need a license.
 
 @end itemize
 
+
 @node ISP, Web server, Products that use MySQL, Licensing examples
 @subsubsection ISP MySQL Services
 
@@ -2867,6 +2897,7 @@ it should give its customers at least read access to the source of
 the @strong{MySQL} installation so that its customer can verify that
 it is patched correctly.
 
+
 @node Web server,  , ISP, Licensing examples
 @subsubsection Running a Web Server Using MySQL
 
@@ -2880,6 +2911,7 @@ This is true even if you run a commercial Web server that uses
 @strong{MySQL}, because you are not selling an embedded @strong{MySQL}
 version yourself.  However, in this case we would like you to purchase
 @strong{MySQL} support, because @strong{MySQL} is helping your enterprise.
+
 
 @node Cost, Support, Licensing examples, Licensing and Support
 @subsection MySQL Licensing and Support Costs
@@ -2963,6 +2995,7 @@ Note that as our sales staff is very busy, it may take some time until
 your request is handled.  Our support staff does however always answer
 promptly to support questions!
 
+
 @node Payment information, Contact information, Cost, Cost
 @subsubsection Payment information
 
@@ -3011,6 +3044,7 @@ us'' in the comment field.  You can also mail a message to
 @email{sales@@mysql.com} (@strong{not} @code{mysql@@lists.mysql.com}!)
 with your company information and ask us to bill you.
 
+
 @node Contact information,  , Payment information, Cost
 @subsubsection Contact Information
 
@@ -3053,6 +3087,7 @@ For general information inquires, please send e-mail to
 For questions or comments about the workings or content of the Web site,
 please send e-mail to @email{webmaster@@mysql.com}.
 
+
 @node Support,  , Cost, Licensing and Support
 @subsection Types of Commercial Support
 
@@ -3090,6 +3125,7 @@ EURO/hour, which is deducted from your support contract.  In other words,
 if you have login support (2000 EURO), you can expect us to work up to
 10 hours to help you with things like this.
 @end itemize
+
 
 @node Basic email support, Extended email support, Support, Support
 @subsubsection Basic E-mail Support
@@ -3164,6 +3200,7 @@ If you want us to help optimize your system, you must upgrade to a
 higher level of support.
 @end itemize
 
+
 @node Extended email support, Login support, Basic email support, Support
 @subsubsection Extended E-mail Support
 
@@ -3211,6 +3248,7 @@ TODO List.  @xref{TODO}.  This will ensure that the features you really need
 will be implemented sooner than they might be otherwise.
 @end itemize
 
+
 @node Login support, Extended login support, Extended email support, Support
 @subsubsection Login Support
 
@@ -3254,6 +3292,7 @@ before talking on phone, to be able to work as efficiently as possible on
 solving the problem.
 @end itemize
 
+
 @node Extended login support, Telephone support, Login support, Support
 @subsubsection Extended Login Support
 
@@ -3291,6 +3330,7 @@ without charge.  For the hours above 8 hours, you will be charged with a
 rate that is at least 20 % less than our standard rates.
 @end itemize
 
+
 @node Telephone support, Table handler support, Extended login support, Support
 @subsubsection Telephone Support
 
@@ -3306,6 +3346,7 @@ problem.
 For non critical problem, you can request a @strong{MySQL} developer to
 phone back within 48 hours to discuss @code{MySQL} related issues.
 @end itemize
+
 
 @node Table handler support,  , Telephone support, Support
 @subsubsection Support for other table handlers
@@ -3326,6 +3367,7 @@ Even if we are quite confident that we can solve most problems within a
 timely manner, we can't guarantee a quick solution for any problems you
 can get with the different table handlers.  We will however do our best
 to help you get the problem solved.
+
 
 @node Compatibility, Comparisons, Licensing and Support, Introduction
 @section How Standards-compatible Is MySQL?
@@ -3350,6 +3392,7 @@ This section describes how @strong{MySQL} relates to the ANSI SQL standards.
 will find out what they are, and how to use them.  You will also find 
 information about functionality missing from @strong{MySQL}, and how to work 
 around some differences.  
+
 
 @node Extensions to ANSI, Differences from ANSI, Compatibility, Compatibility
 @subsection MySQL Extensions to ANSI SQL92
@@ -3596,6 +3639,7 @@ SELECT @@t1:=(@@t2:=1)+@@t3:=4,@@t1,@@t2,@@t3;
 
 @end itemize
 
+
 @node Differences from ANSI, ANSI mode, Extensions to ANSI, Compatibility
 @subsection MySQL Differences Compared to ANSI SQL92
 
@@ -3623,6 +3667,7 @@ This is because we don't think it's good to have to evaluate a lot of
 extra conditions in this case.
 @end itemize
 
+
 @node ANSI mode, Missing functions, Differences from ANSI, Compatibility
 @subsection Running MySQL in ANSI Mode
 
@@ -3649,6 +3694,7 @@ The default transaction isolation level is @code{SERIALIZABLE}.
 @xref{SET TRANSACTION}.
 @end itemize
 
+
 @node Missing functions, Standards, ANSI mode, Compatibility
 @subsection Functionality Missing from MySQL
 
@@ -3672,6 +3718,7 @@ list in this manual. @xref{TODO}.
 * Missing Views::               Views
 * Missing comments::            @samp{--} as the start of a comment
 @end menu
+
 
 @node Missing Sub-selects, Missing SELECT INTO TABLE, Missing functions, Missing functions
 @subsubsection Sub-selects
@@ -3730,6 +3777,7 @@ prompt> mysql --skip-column-names mydb < myscript.sql | mysql mydb
 be available in Version 4.0.  You can now use the function @code{IN()} in
 other contexts, however.
 
+
 @node Missing SELECT INTO TABLE, Missing Transactions, Missing Sub-selects, Missing functions
 @subsubsection @code{SELECT INTO TABLE}
 
@@ -3747,6 +3795,7 @@ tblTemp1.fldOrder_ID > 100;
 
 Alternatively, you can use @code{SELECT INTO OUTFILE...} or @code{CREATE
 TABLE ... SELECT} to solve your problem.
+
 
 @node Missing Transactions, Missing Triggers, Missing SELECT INTO TABLE, Missing functions
 @subsubsection Transactions
@@ -3863,13 +3912,13 @@ that we believe to be better than any commercial replication system we
 know of. This system will work most reliably under the atomic
 operations, non-transactional, paradigm. Stay tuned.
 
+
 @node Missing Triggers, Missing Foreign Keys, Missing Transactions, Missing functions
 @subsubsection Stored Procedures and Triggers
 
 @cindex stored procedures and triggers, defined
 @cindex procedures, stored
 @cindex triggers, stored
-
 
 A stored procedure is a set of SQL commands that can be compiled and stored
 in the server. Once this has been done, clients don't need to keep reissuing
@@ -3889,6 +3938,7 @@ handle stored procedures, but without triggers. Triggers usually slow
 down everything, even queries for which they are not needed.
 
 To see when @strong{MySQL} might get stored procedures, see @ref{TODO}.
+
 
 @node Missing Foreign Keys, Broken Foreign KEY, Missing Triggers, Missing functions
 @subsubsection Foreign Keys
@@ -3933,6 +3983,7 @@ coded to avoid them.
 @menu
 * Broken Foreign KEY::          Reasons NOT to use foreign keys constraints
 @end menu
+
 
 @node Broken Foreign KEY, Missing Views, Missing Foreign Keys, Missing functions
 @subsubsection Reasons NOT to Use Foreign Keys constraints
@@ -3990,6 +4041,7 @@ connection was made. The current @file{.frm} file format does not have
 any place for it.  At a later stage we will implement the foreign key
 constraints for application that can't easily be coded to avoid them.
 
+
 @node Missing Views, Missing comments, Broken Foreign KEY, Missing functions
 @subsubsection Views
 
@@ -4011,6 +4063,7 @@ implementation of views).
 One doesn't need views in @strong{MySQL} to restrict access to columns
 as @strong{MySQL} has a very sophisticated privilege
 system. @xref{Privilege system}.
+
 
 @node Missing comments,  , Missing Views, Missing functions
 @subsubsection @samp{--} as the Start of a Comment
@@ -4074,10 +4127,12 @@ Change them back with this command:
 shell> replace " #" " --" -- text-file-with-funny-comments.sql
 @end example
 
+
 @node Standards, Commit-rollback, Missing functions, Compatibility
 @subsection What Standards Does MySQL Follow?
 
 Entry level SQL92. ODBC levels 0-2.
+
 
 @node Commit-rollback, Bugs, Standards, Compatibility
 @subsection How to Cope Without @code{COMMIT}/@code{ROLLBACK}
@@ -4212,6 +4267,7 @@ You can think of it as @strong{MySQL} changed the above query to:
 @example
 UPDATE tbl_name SET row_flag=1 WHERE id=ID and row_flag <> 1;
 @end example
+
 
 @node Bugs,  , Commit-rollback, Compatibility
 @subsection Known errors and design deficiencies in MySQL
@@ -4455,6 +4511,7 @@ decimals.
 
 For platform-specific bugs, see the sections about compiling and porting.
 
+
 @node Comparisons, TODO, Compatibility, Introduction
 @section How MySQL Compares to Other Databases
 
@@ -4476,6 +4533,7 @@ to be an error, please contact us about it at @email{docs@@mysql.com}.
 For a list of all supported limits, functions, and types, see the
 @code{crash-me} Web page at 
 @uref{http://www.mysql.com/information/crash-me.php}.
+
 
 @node Compare mSQL, Compare PostgreSQL, Comparisons, Comparisons
 @subsection How MySQL Compares to @code{mSQL}
@@ -4669,6 +4727,7 @@ For example, it changes instances of @code{msqlConnect()} to
 * Syntax differences::          
 @end menu
 
+
 @node Using mSQL tools, Protocol differences, Compare mSQL, Compare mSQL
 @subsubsection How to Convert @code{mSQL} Tools for MySQL
 
@@ -4714,6 +4773,7 @@ Some incompatibilities exist as a result of @strong{MySQL} supporting
 multiple connections to the server from the same process.
 @end itemize
 
+
 @node Protocol differences, Syntax differences, Using mSQL tools, Compare mSQL
 @subsubsection How @code{mSQL} and MySQL Client/Server Communications Protocols Differ
 
@@ -4751,6 +4811,7 @@ If a connection is idle for 8 hours, the server closes the connection.
 @menu
 * Syntax differences::          
 @end menu
+
 
 @node Syntax differences,  , Protocol differences, Compare mSQL
 @subsubsection How @code{mSQL} 2.0 SQL Syntax Differs from MySQL
@@ -4973,6 +5034,7 @@ can offer, you should use @code{PostgreSQL}.
 * MySQL-PostgreSQL features::   
 * MySQL-PostgreSQL benchmarks::  
 @end menu
+
 
 @node MySQL-PostgreSQL goals, MySQL-PostgreSQL features, Compare PostgreSQL, Compare PostgreSQL
 @subsubsection MySQL and PostgreSQL development strategies
@@ -5241,6 +5303,7 @@ in this section.
 * MySQL-PostgreSQL benchmarks::  
 @end menu
 
+
 @node MySQL-PostgreSQL benchmarks,  , MySQL-PostgreSQL features, Compare PostgreSQL
 @subsubsection Benchmarking MySQL and PostgreSQL
 
@@ -5462,6 +5525,7 @@ We are working on an even better benchmark suite, including much better
 documentation of what the individual tests really do and how to add more
 tests to the suite.
 
+
 @node TODO,  , Comparisons, Introduction
 @section MySQL and the future (The TODO)
 
@@ -5483,6 +5547,7 @@ tell us what you want to have done more quickly. @xref{Licensing and Support}.
 The plan is that we in the future will support the full ANSI SQL99
 standard, but with a lot of useful extensions. The challenge is to do
 this without sacrifying the speed or compromise the code.
+
 
 @node TODO MySQL 4.0, TODO future, TODO, TODO
 @subsection Things that should be in 4.0
@@ -5568,6 +5633,7 @@ of @code{analyze} is run on all sub tables.
 @item
 @code{SET SQL_DEFAULT_TABLE_TYPE=[MyISAM | INNODB | BDB | HEAP]}.
 @end itemize
+
 
 @node TODO future, TODO sometime, TODO MySQL 4.0, TODO
 @subsection Things that must be done in the real near future
@@ -5850,6 +5916,7 @@ if it exists and @code{INSERT} a new row if the row didn't exist.
 (Like @code{REPLACE} works with @code{INSERT} / @code{DELETE})
 @end itemize
 
+
 @node TODO sometime, TODO unplanned, TODO future, TODO
 @subsection Things that have to be done sometime
 
@@ -5945,6 +6012,7 @@ one must also handle the possible deadlocks this change will introduce.
 
 Time is given according to amount of work, not real time.
 
+
 @node TODO unplanned,  , TODO sometime, TODO
 @subsection Some things we don't have any plans to do
 
@@ -5952,6 +6020,9 @@ Time is given according to amount of work, not real time.
 @item
 Nothing;  In the long run we plan to be fully ANSI 92 / ANSI 99 compliant.
 @end itemize
+
+
+
 
 @node Installing, Tutorial, Introduction, Top
 @chapter MySQL Installation
@@ -6000,6 +6071,7 @@ procedures apply whether you install @strong{MySQL} using a binary or
 source distribution.
 @end itemize
 
+
 @node Quick Standard Installation, General Installation Issues, Installing, Installing
 @section Quick Standard Installation of MySQL
 
@@ -6008,6 +6080,7 @@ source distribution.
 * Linux-RPM::                   
 * Windows installation::        
 @end menu
+
 
 @node Linux-RPM, Windows installation, Quick Standard Installation, Quick Standard Installation
 @subsection Installing MySQL on Linux
@@ -6083,6 +6156,7 @@ and you should now be able to start using @strong{MySQL}.
 
 If something goes wrong, you can find more information in the binary
 installation chapter. @xref{Installing binary}.
+
 
 @node Windows installation,  , Linux-RPM, Quick Standard Installation
 @subsection Installing MySQL on Windows
@@ -6172,6 +6246,7 @@ options that must be specified in your @file{my.ini} file! @xref{InnoDB start}.
 * Many versions::               
 * MySQL binaries::              
 @end menu
+
 
 @node Getting MySQL, Which OS, General Installation Issues, General Installation Issues
 @subsection How to Get MySQL
@@ -7125,6 +7200,7 @@ forth more effort into testing on and optimizing for that particular platform.
 We are just stating our observations to help you make a
 decision on which platform to use @strong{MySQL} on in your setup.
 
+
 @node Which version, Installation layouts, Which OS, General Installation Issues
 @subsection Which MySQL Version to Use
 
@@ -7306,6 +7382,7 @@ Another test is that we use the newest @strong{MySQL} version in our internal
 production environment, on at least one machine.  We have more than 100
 gigabytes of data to work with.
 
+
 @node Installation layouts, Many versions, Which version, General Installation Issues
 @subsection Installation Layouts
 
@@ -7371,6 +7448,7 @@ The header file and library directories are @file{include/mysql} and
 You can create your own binary installation from a compiled source
 distribution by executing the script @file{scripts/make_binary_distribution}.
 
+
 @node Many versions, MySQL binaries, Installation layouts, General Installation Issues
 @subsection How and When Updates Are Released
 
@@ -7432,6 +7510,7 @@ and things that ``must be done.''  ``Somewhat frozen'' means that we may
 add small things that ``almost surely will not affect anything that's
 already working.''
 
+
 @node MySQL binaries,  , Many versions, General Installation Issues
 @subsection MySQL Binaries Compiled by MySQL AB
 
@@ -7490,6 +7569,7 @@ Beginning with Version 3.22, the RPMs are generated by us at
 If you want to compile a debug version of @strong{MySQL}, you should add
 @code{--with-debug} or @code{--with-debug=full} to the above configure lines
 and remove any @code{-fomit-frame-pointer} options.
+
 
 @node Installing source, Post-installation, General Installation Issues, Installing
 @section Installing a MySQL Source Distribution
@@ -7564,6 +7644,7 @@ of getting a solution to your problem!  You will find @code{mysqlbug} in the
 * Compilation problems::        
 * MIT-pthreads::                
 @end menu
+
 
 @node Quick install, Applying patches, Installing source, Installing source
 @subsection Quick Installation Overview
@@ -7744,6 +7825,7 @@ running.  @xref{Multiple servers}.
 
 @xref{Post-installation}.
 
+
 @node Applying patches, configure options, Quick install, Installing source
 @subsection Applying Patches
 
@@ -7784,6 +7866,7 @@ You may need to bring down any currently running server before you run
 @code{make install}.  (Use @code{mysqladmin shutdown} to do this.)  Some
 systems do not allow you to install a new version of a program if it replaces
 the version that is currently executing.
+
 
 @node configure options, Installing source tree, Applying patches, Installing source
 @subsection Typical @code{configure} Options
@@ -8007,6 +8090,7 @@ system-specific section of this manual.
 @xref{Operating System Specific Notes}.
 @end itemize
 
+
 @node Installing source tree, Compilation problems, configure options, Installing source
 @subsection Installing from the Development Source Tree
 
@@ -8107,6 +8191,7 @@ a description.
 @code{bk helptool}.
 
 @end enumerate
+
 
 @node Compilation problems, MIT-pthreads, Installing source tree, Installing source
 @subsection Problems Compiling?
@@ -8328,6 +8413,7 @@ If you need to debug @code{mysqld} or a @strong{MySQL} client, run
 @code{configure} with the @code{--with-debug} option, then recompile and
 link your clients with the new client library.  @xref{Debugging client}.
 @end itemize
+
 
 @node MIT-pthreads,  , Compilation problems, Installing source
 @subsection MIT-pthreads Notes
@@ -8695,6 +8781,7 @@ shell> BINDIR/mysql -vvf test < ./tests/auto_increment.tst
 The expected results are shown in the @file{./tests/auto_increment.res} file.
 @end enumerate
 
+
 @node mysql_install_db, Starting server, Post-installation, Post-installation
 @subsection Problems Running @code{mysql_install_db}
 @cindex @code{mysql_install_db} script
@@ -8806,6 +8893,7 @@ From @code{mysql}, manually execute the SQL commands in
 flush-privileges} or @code{mysqladmin reload} afterward to tell the server to
 reload the grant tables.
 @end table
+
 
 @node Starting server, Automatic start, mysql_install_db, Post-installation
 @subsection Problems Starting the MySQL Server
@@ -8965,8 +9053,10 @@ options.  @xref{InnoDB start}.
 If you are using BDB (Berkeley DB) tables, you should familiarize
 yourself with the different BDB specific startup options.  @xref{BDB start}.
 
+
 @node Automatic start,  , Starting server, Post-installation
 @subsection Starting and Stopping MySQL Automatically
+
 @cindex starting, the server automatically
 @cindex stopping, the server
 @cindex server, starting and stopping
@@ -9040,6 +9130,7 @@ read from option files:
 
 @xref{Option files}.
 
+
 @node Upgrade, Operating System Specific Notes, Post-installation, Installing
 @section Upgrading/Downgrading MySQL
 
@@ -9085,6 +9176,7 @@ dumping core after you upgrade @strong{MySQL}.
 * Upgrading-from-3.20::         Upgrading from a 3.20 version to 3.21
 * Upgrading-to-arch::           Upgrading to another architecture
 @end menu
+
 
 @node Upgrading-from-3.22, Upgrading-from-3.21, Upgrade, Upgrade
 @subsection Upgrading From Version 3.22 to Version 3.23
@@ -9211,6 +9303,7 @@ on an @code{AND/OR} expression as @code{NOT NULL} = @code{NULL}.
 than the length argument.
 @end itemize
 
+
 @node Upgrading-from-3.21, Upgrading-from-3.20, Upgrading-from-3.22, Upgrade
 @subsection Upgrading from Version 3.21 to Version 3.22
 
@@ -9242,8 +9335,10 @@ The @code{mysqld} variable @code{key_buffer} has changed names to
 @code{key_buffer_size}, but you can still use the old name in your
 startup files.
 
+
 @node Upgrading-from-3.20, Upgrading-to-arch, Upgrading-from-3.21, Upgrade
 @subsection Upgrading from Version 3.20 to Version 3.21
+
 @cindex upgrading, 3.20 to 3.21
 
 If you are running a version older than Version 3.20.28 and want to
@@ -9310,6 +9405,7 @@ The parameters to @code{LOCATE()} have been swapped.
 There are some new reserved words. The most notable are @code{DATE},
 @code{TIME}, and @code{TIMESTAMP}.
 @end itemize
+
 
 @node Upgrading-to-arch,  , Upgrading-from-3.20, Upgrade
 @subsection Upgrading to Another Architecture
@@ -9406,6 +9502,7 @@ After you import the @code{mysql} database on the new machine, execute
 @code{mysqladmin flush-privileges} so that the server reloads the grant table
 information.
 
+
 @node Operating System Specific Notes,  , Upgrade, Installing
 @section Operating System Specific Notes
 
@@ -9420,6 +9517,7 @@ information.
 * BeOS::                        
 * Novell Netware::              
 @end menu
+
 
 @node Linux, Windows, Operating System Specific Notes, Operating System Specific Notes
 @subsection Linux Notes (All Linux Versions)
@@ -9686,6 +9784,7 @@ The following @code{configure} line should work with @code{fcc/FCC}:
 CC=fcc CFLAGS="-O -K fast -K lib -K omitfp -Kpreex -D_GNU_SOURCE -DCONST=const -DNO_STRTOLL_PROTO" CXX=FCC CXXFLAGS="-O -K fast -K lib  -K omitfp -K preex --no_exceptions --no_rtti -D_GNU_SOURCE -DCONST=const -Dalloca=__builtin_alloca -DNO_STRTOLL_PROTO '-D_EXTERN_INLINE=static __inline'" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared --with-low-memory
 @end example
 
+
 @node Binary notes-Linux, Linux-x86, Linux, Linux
 @subsubsection Linux Notes for Binary Distributions
 
@@ -9765,6 +9864,7 @@ your clients or use sockets, if you are running the database server
 and clients on the same machine.  We hope that the @code{Linux 2.4}
 kernel will fix this problem in the future.
 
+
 @node Linux-x86, Linux-SPARC, Binary notes-Linux, Linux
 @subsubsection Linux x86 Notes
 
@@ -9826,6 +9926,7 @@ You can avoid using @file{libg++.a} by running @code{configure} like this:
 shell> CXX=gcc ./configure
 @end example
 
+
 @node Linux-SPARC, Linux-Alpha, Linux-x86, Linux
 @subsubsection Linux SPARC Notes
 
@@ -9841,6 +9942,7 @@ This patch is against the Linux distribution @file{sparclinux-2.0.30.tar.gz}
 that is available at @code{vger.rutgers.edu} (a version of Linux that was
 never merged with the official 2.0.30).  You must also install LinuxThreads 
 Version 0.6 or newer.
+
 
 @node Linux-Alpha, Linux-PowerPC, Linux-SPARC, Linux
 @subsubsection Linux Alpha Notes
@@ -9888,11 +9990,13 @@ resulting image will core dump at start.  In other words, @strong{DON'T}
 use @code{--with-mysqld-ldflags=-all-static} with @code{gcc}.
 @end itemize
 
+
 @node Linux-PowerPC, Linux-MIPS, Linux-Alpha, Linux
 @subsubsection Linux PowerPC Notes
 
 @strong{MySQL} should work on MkLinux with the newest @code{glibc} package
 (tested with @code{glibc} 2.0.7).
+
 
 @node Linux-MIPS, Linux-IA64, Linux-PowerPC, Linux
 @subsubsection Linux MIPS Notes
@@ -9901,6 +10005,7 @@ To get @strong{MySQL} to work on Qube2, (Linux Mips), you need the
 newest @code{glibc} libraries (@code{glibc-2.0.7-29C2} is known to
 work).  You must also use the @code{egcs} C++ compiler
 (@code{egcs-1.0.2-9}, @code{gcc 2.95.2} or newer).
+
 
 @node Linux-IA64,  , Linux-MIPS, Linux
 @subsubsection Linux IA64 Notes
@@ -9948,6 +10053,7 @@ with the @strong{MySQL} Windows distribution.
 * Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
 @end menu
 
+
 @node Win95 start, NT start, Windows, Windows
 @subsubsection Starting MySQL on Windows 95 or Windows 98
 
@@ -9994,6 +10100,7 @@ The last option is to start @code{mysqld} with @code{--standalone
 --debug}.  In this case @code{mysqld} will write a log file
 @file{C:\mysqld.trace} that should contain the reason why @code{mysqld}
 doesn't start. @xref{Making trace files}.
+
 
 @node NT start, Windows running, Win95 start, Windows
 @subsubsection Starting MySQL on Windows NT or Windows 2000
@@ -10084,6 +10191,7 @@ C:\> C:\mysql\bin\mysqld --standalone --debug
 The last version gives you a debug trace in @file{C:\mysqld.trace}.
 @xref{Making trace files}.
 
+
 @node Windows running, Windows and SSH, NT start, Windows
 @subsubsection Running MySQL on Windows
 
@@ -10169,9 +10277,11 @@ With the current @strong{MySQL} versions you can easily add new users
 and change privileges with @code{GRANT} and @code{REVOKE} commands.
 @xref{GRANT}.
 
-@c FIX this is ugly, real ugly.
+
 @node Windows and SSH, Windows symbolic links, Windows running, Windows
 @subsubsection Connecting to a Remote MySQL from Windows with SSH
+
+@c FIX this is ugly, real ugly.
 
 @cindex SSH
 @cindex connecting, remotely with SSH
@@ -10214,6 +10324,7 @@ for the @strong{MySQL} host server --- not @code{yourmysqlservername}.
 
 You should now have an ODBC connection to @strong{MySQL}, encrypted using SSH. 
 
+
 @node Windows symbolic links, Windows compiling, Windows and SSH, Windows
 @subsubsection Splitting Data Across Different Disks on Windows
 
@@ -10253,6 +10364,7 @@ In @strong{MySQL} 4.0 we will enable symlinks by default. Then you
 should instead use the @code{skip-symlink} option if you want to
 disable this.
 
+
 @node Windows compiling, Windows vs Unix, Windows symbolic links, Windows
 @subsubsection Compiling MySQL Clients on Windows
 
@@ -10275,6 +10387,7 @@ with the static @file{mysqlclient.lib} library.
 
 Note that as the mysqlclient libraries are compiled as threaded libraries,
 you should also compile your code to be multi-threaded!
+
 
 @node Windows vs Unix,  , Windows compiling, Windows
 @subsubsection MySQL-Windows Compared to Unix MySQL
@@ -10656,6 +10769,7 @@ symbolic link to it named @file{/etc/rc3.d/S99mysql.server}.
 * Solaris x86::                 
 @end menu
 
+
 @node Solaris 2.7, Solaris x86, Solaris, Solaris
 @subsubsection Solaris 2.7/2.8 Notes
 
@@ -10864,6 +10978,7 @@ crash when @code{make} tries to run @code{lint} on C++ files.
 * OpenBSD 2.8::                 OpenBSD 2.8 Notes
 @end menu
 
+
 @node OpenBSD 2.5, OpenBSD 2.8, OpenBSD, BSD Notes
 @subsubsection OpenBSD 2.5 Notes
 
@@ -10873,6 +10988,7 @@ with the following options:
 @example
 CFLAGS=-pthread CXXFLAGS=-pthread ./configure --with-mit-threads=no
 @end example
+
 
 @node OpenBSD 2.8, BSDI, OpenBSD 2.5, BSD Notes
 @subsubsection OpenBSD 2.8 Notes
@@ -10892,6 +11008,7 @@ usage, and crashes.
 * BSDI3::                       BSD/OS 3.x notes
 * BSDI4::                       BSD/OS 4.x notes
 @end menu
+
 
 @node BSDI2, BSDI3, BSDI, BSD Notes
 @subsubsection BSD/OS Version 2.x Notes
@@ -10916,6 +11033,7 @@ If you are using @code{gcc}, you may also use have to use the
 
 If you get problems with the current date in @strong{MySQL}, setting the
 @code{TZ} variable will probably help.  @xref{Environment variables}.
+
 
 @node BSDI3, BSDI4, BSDI2, BSD Notes
 @subsubsection BSD/OS Version 3.x Notes
@@ -10956,6 +11074,7 @@ you should try using @code{ulimit -v 80000} and run @code{make} again.
 If this doesn't work and you are using @code{bash}, try switching to
 @code{csh} or @code{sh}; some BSDI users have reported problems with
 @code{bash} and @code{ulimit}.
+
 
 @node BSDI4,  , BSDI3, BSD Notes
 @subsubsection BSD/OS Version 4.x Notes
@@ -11813,6 +11932,7 @@ If you want to use @code{gcc}, you must use @code{gcc} 2.95.2 or newer.
 * OS/2::                        
 @end menu
 
+
 @node OS/2, BeOS, Other Unix Notes, Operating System Specific Notes
 @subsection OS/2 Notes
 
@@ -11897,6 +12017,8 @@ We are interested in finding someone to do a port, and we will help them
 with any technical questions they may have while doing the port.
 
 
+
+
 @node Tutorial, MySQL Database Administration, Installing, Top
 @chapter Introduction to MySQL: A MySQL Tutorial
 
@@ -11945,6 +12067,7 @@ create the database and the tables it contains.
 Because this chapter is tutorial in nature, many details are necessarily left
 out.  Consult the relevant sections of the manual for more
 information on the topics covered here.
+
 
 @node Connecting-disconnecting, Entering queries, Tutorial, Tutorial
 @section Connecting to and Disconnecting from the Server
@@ -12008,6 +12131,7 @@ You can also disconnect by pressing Control-D.
 
 Most examples in the following sections assume you are connected to the
 server.  They indicate this by the @code{mysql>} prompt.
+
 
 @node Entering queries, Database use, Connecting-disconnecting, Tutorial
 @section Entering Queries
@@ -12235,6 +12359,7 @@ containing @code{QUIT}!  This can be quite confusing, especially if you
 don't know that you need to supply the terminating quote before you can
 cancel the current command.
 
+
 @node Database use, Getting information, Entering queries, Tutorial
 @section Creating and Using a Database
 
@@ -12327,6 +12452,7 @@ mysql> GRANT ALL ON menagerie.* TO your_mysql_name;
 where @code{your_mysql_name} is the @strong{MySQL} user name assigned to
 you.
 
+
 @node Creating database, Creating tables, Database use, Database use
 @subsection Creating and Selecting a Database
 
@@ -12374,6 +12500,7 @@ option, you must do so with no intervening space (for example, as
 @code{-pmypassword}, not as @code{-p mypassword}).  However, putting your
 password on the command line is not recommended, because doing so exposes it
 to snooping by other users logged in on your machine.
+
 
 @node Creating tables, Loading tables, Creating database, Database use
 @subsection Creating a Table
@@ -12480,6 +12607,7 @@ mysql> DESCRIBE pet;
 You can use @code{DESCRIBE} any time, for example, if you forget the names of
 the columns in your table or what types they are.
 
+
 @node Loading tables, Retrieving data, Creating tables, Database use
 @subsection Loading Data into a Table
 
@@ -12554,6 +12682,7 @@ typing involved to load
 your records initially using several @code{INSERT} statements rather
 than a single @code{LOAD DATA} statement.
 
+
 @node Retrieving data,  , Loading tables, Database use
 @subsection Retrieving Information from a Table
 
@@ -12588,6 +12717,7 @@ columns, or @code{*} to indicate ``all columns.'' @code{which_table}
 indicates the table from which you want to retrieve data.  The @code{WHERE}
 clause is optional.  If it's present, @code{conditions_to_satisfy} specifies
 conditions that rows must satisfy to qualify for retrieval.
+
 
 @node Selecting all, Selecting rows, Retrieving data, Retrieving data
 @subsubsection Selecting All Data
@@ -12646,6 +12776,7 @@ you're usually more interested in answering a particular question, in which
 case you specify some constraints on the information you want.  Let's look at
 some selection queries in terms of questions about your pets that they
 answer.
+
 
 @node Selecting rows, Selecting columns, Selecting all, Retrieving data
 @subsubsection Selecting Particular Rows
@@ -12724,6 +12855,7 @@ mysql> SELECT * FROM pet WHERE (species = "cat" AND sex = "m")
 | Buffy | Harold | dog     | f    | 1989-05-13 | NULL  |
 +-------+--------+---------+------+------------+-------+
 @end example
+
 
 @node Selecting columns, Sorting rows, Selecting rows, Retrieving data
 @subsubsection Selecting Particular Columns
@@ -12808,6 +12940,7 @@ mysql> SELECT name, species, birth FROM pet
 +--------+---------+------------+
 @end example
 
+
 @node Sorting rows, Date calculations, Selecting columns, Retrieving data
 @subsubsection Sorting Rows
 
@@ -12884,6 +13017,7 @@ mysql> SELECT name, species, birth FROM pet ORDER BY species, birth DESC;
 Note that the @code{DESC} keyword applies only to the column name immediately
 preceding it (@code{birth}); @code{species} values are still sorted in
 ascending order.
+
 
 @node Date calculations, Working with NULL, Sorting rows, Retrieving data
 @subsubsection Date Calculations
@@ -13058,6 +13192,7 @@ Note that @code{MONTH} returns a number between 1 and 12. And
 addition has to be after the @code{MOD()} otherwise we would go from
 November (11) to January (1).
 
+
 @node Working with NULL, Pattern matching, Date calculations, Retrieving data
 @subsubsection Working with @code{NULL} Values
 
@@ -13097,6 +13232,7 @@ The default truth value from a boolean operation is 1.
 This special treatment of @code{NULL} is why, in the previous section, it
 was necessary to determine which animals are no longer alive using
 @code{death IS NOT NULL} instead of @code{death != NULL}.
+
 
 @node Pattern matching, Counting rows, Working with NULL, Retrieving data
 @subsubsection Pattern Matching
@@ -13296,6 +13432,7 @@ mysql> SELECT * FROM pet WHERE name REGEXP "^.@{5@}$";
 +-------+--------+---------+------+------------+-------+
 @end example
 
+
 @node Counting rows, Multiple tables, Pattern matching, Retrieving data
 @subsubsection Counting Rows
 
@@ -13435,6 +13572,7 @@ mysql> SELECT species, sex, COUNT(*) FROM pet
 +---------+------+----------+
 @end example
 
+
 @node Multiple tables,  , Counting rows, Retrieving data
 @subsubsection Using More Than one Table
 
@@ -13556,6 +13694,7 @@ In this query, we specify aliases for the table name in order
 to refer to the columns and keep straight which instance of the table
 each column reference is associated with.
 
+
 @node Getting information, Examples, Database use, Tutorial
 @section Getting Information About Databases and Tables
 
@@ -13620,6 +13759,7 @@ indexed, and @code{Default} specifies the column's default value.
 
 If you have indexes on a table,
 @code{SHOW INDEX FROM tbl_name} produces information about them.
+
 
 @node Examples, Batch mode, Getting information, Tutorial
 @section Examples of Common Queries
@@ -13686,6 +13826,7 @@ mysql> SELECT * FROM shop;
 * Calculating days::            
 @end menu
 
+
 @node example-Maximum-column, example-Maximum-row, Examples, Examples
 @subsection The Maximum Value for a Column
 
@@ -13700,6 +13841,7 @@ SELECT MAX(article) AS article FROM shop
 |       4 |
 +---------+
 @end example
+
 
 @node example-Maximum-row, example-Maximum-column-group, example-Maximum-column, Examples
 @subsection The Row Holding the Maximum of a Certain Column
@@ -13742,6 +13884,7 @@ LIMIT 1
 @strong{NOTE}:  If there are several most expensive articles (for example, each 19.95)
 the @code{LIMIT} solution shows only one of them!
 
+
 @node example-Maximum-column-group, example-Maximum-column-group-row, example-Maximum-row, Examples
 @subsection Maximum of Column per Group
 
@@ -13761,6 +13904,7 @@ GROUP BY article
 |    0004 | 19.95 |
 +---------+-------+
 @end example
+
 
 @node example-Maximum-column-group-row, example-user-variables, example-Maximum-column-group, Examples
 @subsection The Rows Holding the Group-wise Maximum of a Certain Field
@@ -13833,6 +13977,7 @@ GROUP BY article;
 The last example can, of course, be made a bit more efficient by doing the
 splitting of the concatenated column in the client.
 
+
 @node example-user-variables, example-Foreign keys, example-Maximum-column-group-row, Examples
 @subsection Using user variables
 
@@ -13854,6 +13999,7 @@ select * from shop where price=@@min_price or price=@@max_price;
 |    0004 | D      | 19.95 |
 +---------+--------+-------+
 @end example
+
 
 @node example-Foreign keys, Searching on two keys, example-user-variables, Examples
 @subsection Using Foreign Keys
@@ -13938,6 +14084,7 @@ SELECT s.* FROM persons p, shirts s
 +----+-------+--------+-------+
 @end example
 
+
 @node Searching on two keys, Calculating days, example-Foreign keys, Examples
 @subsection Searching on Two Keys
 
@@ -13974,6 +14121,7 @@ DROP TABLE tmp;
 
 The above way to solve this query is in effect an @code{UNION} of two queries.
 
+
 @node Calculating days,  , Searching on two keys, Examples
 @subsection Calculating visits per day
 
@@ -14003,6 +14151,7 @@ Which returns:
 
 The above calculates how many different days was used for a given
 year/month combination, with automatic removal of duplicate entries.
+
 
 @node Batch mode, Twin, Examples, Tutorial
 @section Using @code{mysql} in Batch Mode
@@ -14106,6 +14255,7 @@ If you want to get the interactive output format in batch mode, use
 @code{mysql -t}.  To echo to the output the commands that are executed, use
 @code{mysql -vvv}.
 
+
 @node Twin, Apache, Batch mode, Tutorial
 @section Queries from Twin Project
 
@@ -14143,6 +14293,7 @@ database.
 * Twin pool::                   Find all non-distributed twins
 * Twin event::                  Show a table on twin pair status
 @end menu
+
 
 @node Twin pool, Twin event, Twin, Twin
 @subsection Find all Non-distributed Twins
@@ -14267,6 +14418,7 @@ The current number of records in the tables used above:
 @item @code{postal_groups}	@tab 100
 @end multitable
 
+
 @node Twin event,  , Twin pool, Twin
 @subsection Show a Table on Twin Pair Status
 
@@ -14325,6 +14477,8 @@ FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 @end example
 
 
+
+
 @node MySQL Database Administration, MySQL Optimization, Tutorial, Top
 @chapter MySQL Database Administration
 
@@ -14352,6 +14506,7 @@ FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 * Installing many servers::     
 * Multiple servers::            
 @end menu
+
 
 @node Command-line options, Option files, Configuring MySQL, Configuring MySQL
 @subsection mysqld Command-line Options
@@ -14867,6 +15022,7 @@ argument to @code{safe_mysqld}.
 * Multiple servers::            
 @end menu
 
+
 @node Multiple servers,  , Installing many servers, Configuring MySQL
 @subsection Running Multiple MySQL Servers on the Same Machine
 
@@ -15325,6 +15481,7 @@ If you want to restrict the number of connections for a single user, you
 can do this by setting the @code{max_user_connections} variable in
 @code{mysqld}.
 @end itemize
+
 
 @node Privileges options, What Privileges, Security, Privilege system
 @subsection Startup Options for @code{mysqld} Concerning Security
@@ -17756,6 +17913,7 @@ make a lot of changes to a table)
 * Optimization::                
 @end menu
 
+
 @node myisamchk syntax, myisamchk general options, Table maintenance, Table maintenance
 @subsubsection @code{myisamchk} Invocation Syntax
 
@@ -18028,6 +18186,7 @@ of duplicate keys
 Unpack file packed with myisampack.
 @end table
 
+
 @node myisamchk other options, myisamchk memory, myisamchk repair options, Table maintenance
 @subsubsection Other Options for @code{myisamchk}
 
@@ -18057,6 +18216,7 @@ To find out a table's index numbers, use @code{SHOW INDEX}, which shows a
 table's indexes in the same order that @code{myisamchk} sees them.  Indexes are
 numbered beginning with 1.
 @end table
+
 
 @node myisamchk memory, Crash recovery, myisamchk other options, Table maintenance
 @subsubsection @code{myisamchk} Memory Usage
@@ -18851,6 +19011,7 @@ information and a description of what it means.
 * SHOW::                        
 @end menu
 
+
 @node OPTIMIZE TABLE, ANALYZE TABLE, Database Administration, Database Administration
 @subsection @code{OPTIMIZE TABLE} Syntax
 
@@ -19050,6 +19211,7 @@ write is aborted with an disk full error message.
 @menu
 * SHOW::                        
 @end menu
+
 
 @node SHOW,  , KILL, Database Administration
 @subsection @code{SHOW} Syntax
@@ -22924,6 +23086,7 @@ it is preferred that you use @code{CHANGE MASTER TO} command.
 * Replication Problems::        
 @end menu
 
+
 @node Replication Features, Replication Options, Replication HOWTO, Replication
 @subsection Replication Features and Known Problems
 
@@ -23709,6 +23872,8 @@ isolate it into a separate test case first. Then report the problem to
 @email{bugs@@lists.mysql.com} with as much info as possible.
 
 
+
+
 @node MySQL Optimization, Reference, MySQL Database Administration, Top
 @chapter MySQL Optimization
 
@@ -23776,6 +23941,7 @@ for most systems, but one should be aware of it.
 * MySQL Benchmarks::            
 * Custom Benchmarks::           
 @end menu
+
 
 @node Design Limitations, Portability, Optimize Overview, Optimize Overview
 @subsection MySQL Design Limitations/Tradeoffs
@@ -23868,6 +24034,7 @@ until things get back to normal.
 In this case the table creation information should contain information
 of the initial size of the cache and how often the table should normally
 be refreshed.
+
 
 @node Internal use, MySQL Benchmarks, Portability, Optimize Overview
 @subsection What Have We Used MySQL For?
@@ -24668,6 +24835,7 @@ mysql> SELECT ... FROM tbl_name ORDER BY key_part1,key_part2,... ;
 mysql> SELECT ... FROM tbl_name ORDER BY key_part1 DESC,key_part2 DESC,... ;
 @end example
 
+
 @node DISTINCT optimization, LEFT JOIN optimization, Where optimizations, Query Speed
 @subsection How MySQL Optimizes @code{DISTINCT}
 
@@ -24791,6 +24959,7 @@ to check the query and to get the column types of the result columns.
 The size of temporary tables uses the @code{LIMIT #} to calculate how much
 space is needed to resolve the query.
 @end itemize
+
 
 @node Insert speed, Update speed, LIMIT optimization, Query Speed
 @subsection Speed of @code{INSERT} Queries
@@ -25139,6 +25308,7 @@ from the data, you should not lose anything by using @code{DELAY_KEY_WRITE}.
 * Table locking::               
 @end menu
 
+
 @node Internal locking, Table locking, Locking Issues, Locking Issues
 @subsection How MySQL Locks Tables
 
@@ -25327,6 +25497,7 @@ option to @code{DELETE} may help. @xref{DELETE, , @code{DELETE}}.
 * Creating many tables::        
 * Open tables::                 
 @end menu
+
 
 @node Design, Data size, Optimizing Database Structure, Optimizing Database Structure
 @subsection Design Choices
@@ -25625,6 +25796,7 @@ much more quickly find the few rows to return in the result.
 * Open tables::                 
 @end menu
 
+
 @node Indexes, Multiple-column indexes, MySQL indexes, Optimizing Database Structure
 @subsection Column Indexes
 
@@ -25838,6 +26010,7 @@ between all threads.
 * DNS::                         
 * SET OPTION::                  
 @end menu
+
 
 @node System, Server parameters, Optimizing the Server, Optimizing the Server
 @subsection System/Compile Time and Startup Parameter Tuning
@@ -26420,6 +26593,7 @@ with the update log.
 * SET TRANSACTION::             
 @end menu
 
+
 @node SET TRANSACTION,  , SET OPTION, SET OPTION
 @subsubsection @code{SET TRANSACTION} Syntax
 
@@ -26539,6 +26713,7 @@ with the noatime flag.
 @menu
 * Symbolic links::              
 @end menu
+
 
 @node Symbolic links,  , Disk issues, Disk issues
 @subsection Using Symbolic Links
