@@ -994,13 +994,6 @@ int do_sync_with_master2(const char* p)
   if (rpl_parse)
     mysql_enable_rpl_parse(mysql);
 
-#ifndef TO_BE_REMOVED
-  /*
-    We need this because wait_for_pos() only waits for the relay log,
-    which doesn't guarantee that the slave has executed the statement.
-  */
-  my_sleep(2*1000000L);
-#endif
   return 0;
 }
 
@@ -2484,6 +2477,7 @@ int main(int argc, char** argv)
       }
       case Q_COMMENT:				/* Ignore row */
       case Q_COMMENT_WITH_COMMAND:
+	break;
       case Q_PING:
 	(void) mysql_ping(&cur_con->mysql);
 	break;

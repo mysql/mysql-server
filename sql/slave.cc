@@ -322,17 +322,37 @@ int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
 {
   int error=0;
   DBUG_ENTER("purge_relay_logs");
+
+  /*
+    Even if rli->inited==0, we still try to empty rli->master_log_* variables.
+    Indeed, rli->inited==0 does not imply that they already are empty.
+    It could be that slave's info initialization partly succeeded : 
+    for example if relay-log.info existed but *relay-bin*.*
+    have been manually removed, init_relay_log_info reads the old 
+    relay-log.info and fills rli->master_log_*, then init_relay_log_info
+    checks for the existence of the relay log, this fails and
+    init_relay_log_info leaves rli->inited to 0.
+    In that pathological case, rli->master_log_pos* will be properly reinited
+    at the next START SLAVE (as RESET SLAVE or CHANGE
+    MASTER, the callers of purge_relay_logs, will delete bogus *.info files
+    or replace them with correct files), however if the user does SHOW SLAVE
+    STATUS before START SLAVE, he will see old, confusing rli->master_log_*.
+    In other words, we reinit rli->master_log_* for SHOW SLAVE STATUS 
+    to display fine in any case.
+  */
+
+  rli->master_log_name[0]= 0;
+  rli->master_log_pos= 0;
+  rli->pending= 0;
+
   if (!rli->inited)
-    DBUG_RETURN(0); /* successfully do nothing */
+    DBUG_RETURN(0);
 
   DBUG_ASSERT(rli->slave_running == 0);
   DBUG_ASSERT(rli->mi->slave_running == 0);
 
   rli->slave_skip_counter=0;
   pthread_mutex_lock(&rli->data_lock);
-  rli->pending=0;
-  rli->master_log_name[0]=0;
-  rli->master_log_pos=0;			// 0 means uninitialized
   if (rli->relay_log.reset_logs(thd))
   {
     *errmsg = "Failed during log reset";
@@ -1193,8 +1213,9 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
     if (init_relay_log_pos(rli,NullS,BIN_LOG_HEADER_SIZE,0 /* no data lock */,
 			   &msg))
       goto err;
-    rli->master_log_pos = 0;			// uninitialized
-    rli->info_fd = info_fd;
+    rli->master_log_name[0]= 0;
+    rli->master_log_pos= 0;		
+    rli->info_fd= info_fd;
   }
   else // file exists
   {

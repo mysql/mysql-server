@@ -463,6 +463,14 @@ bool select_send::send_data(List<Item> &items)
   String *packet= &thd->packet;
   DBUG_ENTER("send_data");
 
+#ifdef HAVE_INNOBASE_DB
+  /* We may be passing the control from mysqld to the client: release the
+     InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
+     by thd */
+  if (thd->transaction.all.innobase_tid)
+    ha_release_temporary_latches(thd);
+#endif
+
   if (thd->offset_limit)
   {						// using limit offset,count
     thd->offset_limit--;
@@ -486,6 +494,14 @@ bool select_send::send_data(List<Item> &items)
 
 bool select_send::send_eof()
 {
+#ifdef HAVE_INNOBASE_DB
+  /* We may be passing the control from mysqld to the client: release the
+     InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
+     by thd */
+  if (thd->transaction.all.innobase_tid)
+    ha_release_temporary_latches(thd);
+#endif
+
   /* Unlock tables before sending packet to gain some speed */
   if (thd->lock)
   {
