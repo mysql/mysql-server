@@ -1073,6 +1073,18 @@ void Item_func_in::update_used_tables()
   const_item_cache&=item->const_item();
 }
 
+void Item_func_in::split_sum_func(List<Item> &fields)
+{
+  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
+    item->split_sum_func(fields);
+  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
+  {
+    fields.push_front(item);
+    item=new Item_ref((Item**) fields.head_ref(),0,item->name);
+  }  
+  Item_func::split_sum_func(fields);
+}
+
 
 longlong Item_func_bit_or::val_int()
 {
@@ -1289,15 +1301,15 @@ longlong Item_cond_or::val_int()
 Item *and_expressions(Item *a, Item *b, Item **org_item)
 {
   if (!a)
-    return (*org_item= b);
+    return (*org_item= (Item*) b);
   if (a == *org_item)
   {
     Item_cond *res;
-    if ((res= new Item_cond_and(a, b)))
+    if ((res= new Item_cond_and(a, (Item*) b)))
       res->used_tables_cache= a->used_tables() | b->used_tables();
     return res;
   }
-  if (((Item_cond_and*) a)->add(b))
+  if (((Item_cond_and*) a)->add((Item*) b))
     return 0;
   ((Item_cond_and*) a)->used_tables_cache|= b->used_tables();
   return a;
