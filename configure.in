@@ -359,6 +359,9 @@ else
     *darwin*)
       FIND_PROC="$PS -uaxww | grep mysqld | grep \" \$\$PID \" > /dev/null"
       ;;
+    *cygwin*)
+      FIND_PROC="$PS -e | grep mysqld | grep \" \$\$PID \" > /dev/null"
+      ;;
     *)
       AC_MSG_ERROR([Could not find the right ps switches. Which OS is this ?. See the Installation chapter in the Reference Manual.])
   esac
@@ -724,7 +727,7 @@ int main()
 # Some system specific hacks
 #
 
-MAX_C_OPTIMIZE="-O6"
+MAX_C_OPTIMIZE="-O3"
 
 case $SYSTEM_TYPE in
   *solaris2.7*)
@@ -827,6 +830,15 @@ case $SYSTEM_TYPE in
       echo "Adding defines for AIX"
       CFLAGS="$CFLAGS -Wa,-many -DUNDEF_HAVE_INITGROUPS"
       CXXFLAGS="$CXXFLAGS -Wa,-many -DUNDEF_HAVE_INITGROUPS"
+    ;;
+dnl Is this the right match for DEC OSF on alpha?
+    *dec-osf*)
+      if test "$ac_cv_prog_gcc" = "yes" && test "$host_cpu" = "alpha"
+      then
+	  echo "Adding defines for DEC OSF on alpha"
+	  CFLAGS="$CFLAGS -mieee"
+	  CXXFLAGS="$CXXFLAGS -mieee"
+      fi
     ;;
 esac
 
@@ -1135,8 +1147,16 @@ else
 fi
 #---END:
 
-# for user definable functions (must be checked after threads on AIX)
+# Check for dlopen, needed for user definable functions
+# This must be checked after threads on AIX
+# We only need this for mysqld, not for the clients.
+
+my_save_LIBS="$LIBS"
+LIBS=""
 AC_CHECK_LIB(dl,dlopen)
+LIBDL=$LIBS
+LIBS="$my_save_LIBS"
+AC_SUBST(LIBDL)
 
 # System characteristics
 AC_SYS_RESTARTABLE_SYSCALLS
@@ -1366,8 +1386,8 @@ AC_CHECK_FUNCS(alarm bmove \
  sigset sigthreadmask pthread_sigmask pthread_setprio pthread_setprio_np \
  pthread_setschedparam pthread_attr_setprio pthread_attr_setschedparam \
  pthread_attr_create pthread_getsequence_np pthread_attr_setstacksize \
- pthread_condattr_create rwlock_init pthread_rwlock_rdlock \
- dlopen dlerror fchmod getpass getpassphrase initgroups mlockall)
+ pthread_condattr_create rwlock_init pthread_rwlock_rdlock pthread_yield\
+ fchmod getpass getpassphrase initgroups mlockall)
 
 # Sanity check: We chould not have any fseeko symbol unless
 # large_file_support=yes
@@ -1377,6 +1397,11 @@ then
   AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!");
 fi]
 )
+
+my_save_LIBS="$LIBS"
+LIBS="$LIBS $LIBDL"
+AC_CHECK_FUNCS(dlopen dlerror)
+LIBS="$my_save_LIBS"
 
 # Check definition of gethostbyaddr_r (glibc2 defines this with 8 arguments)
 ac_save_CXXFLAGS="$CXXFLAGS"
@@ -1659,10 +1684,11 @@ AC_ARG_WITH(bench,
 
 if test "$with_bench" = "yes"
 then
-  bench_dirs="sql-bench mysql-test"
+  bench_dirs="sql-bench"
 else
   bench_dirs=""
 fi
+bench_dirs="$bench_dirs mysql-test"
 AC_SUBST(bench_dirs)
 
 # Don't build readline, i have it already

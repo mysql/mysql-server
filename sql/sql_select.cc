@@ -178,8 +178,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       setup_fields(thd,tables,fields,1,&all_fields) ||
       setup_conds(thd,tables,&conds) ||
       setup_order(thd,tables,fields,all_fields,order) ||
-      setup_group(thd,tables,fields,all_fields,group,&hidden_group_fields) ||
-      setup_ftfuncs(thd,tables,ftfuncs))
+      setup_group(thd,tables,fields,all_fields,group,&hidden_group_fields))
     DBUG_RETURN(-1);				/* purecov: inspected */
 
   if (having)
@@ -191,6 +190,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     if (having->with_sum_func)
       having->split_sum_func(all_fields);
   }
+  if (setup_ftfuncs(thd,tables,ftfuncs)) /* should be after having->fix_fields */
+    DBUG_RETURN(-1);
   /*
     Check if one one uses a not constant column with group functions
     and no GROUP BY.

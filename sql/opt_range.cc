@@ -924,6 +924,8 @@ get_mm_leaf(Field *field,KEY_PART *key_part,
     String tmp(buff1,sizeof(buff1)),*res;
     uint length,offset,min_length,max_length;
 
+    if (!field->optimize_range())
+      DBUG_RETURN(0);				// Can't optimize this
     if (!(res= value->val_str(&tmp)))
       DBUG_RETURN(&null_element);
 
@@ -971,7 +973,8 @@ get_mm_leaf(Field *field,KEY_PART *key_part,
                                   max_str+maybe_null,&min_length,&max_length);
       else
 #endif
-        like_error=like_range(res->ptr(),res->length(),wild_prefix,field_length,
+        like_error=like_range(res->ptr(),res->length(),wild_prefix,
+			      field_length,
                               min_str+offset,max_str+offset,
                               max_sort_char,&min_length,&max_length);
     }

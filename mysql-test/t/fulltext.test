@@ -42,7 +42,10 @@ ticket2.id = ttxt.ticket
 WHERE t1.id = ticket2.ticket and match(ttxt.inhalt) against ('foobar');
 
 INSERT INTO t1 VALUES (3,3);
-select t1.id FROM t2 as ttxt,t1 INNER JOIN t1 as ticket2 ON ticket2.id = ttxt.ticket WHERE t1.id = ticket2.ticket and match(ttxt.inhalt) against ('foobar');
+select t1.id FROM t2 as ttxt,t1
+INNER JOIN t1 as ticket2 ON ticket2.id = ttxt.ticket
+WHERE t1.id = ticket2.ticket and
+      match(ttxt.inhalt) against ('foobar');
 
 # Check that we get 'fulltext' index in SHOW CREATE
 
@@ -52,5 +55,10 @@ show create table t2;
 # check for bug reported by Stephan Skusa
 
 select * from t2 where MATCH inhalt AGAINST (NULL);
+
+# MATCH in HAVING (pretty useless, but still it should work)
+
+select * from t2 where  MATCH inhalt AGAINST ('foobar');
+select * from t2 having MATCH inhalt AGAINST ('foobar');
 
 drop table t1,t2;

@@ -384,12 +384,16 @@ my_bool STDCALL mc_mysql_reconnect(MYSQL *mysql)
   MYSQL tmp_mysql;
   DBUG_ENTER("mc_mysql_reconnect");
 
+  if (!mysql->reconnect)
+    DBUG_RETURN(1);
+
   mc_mysql_init(&tmp_mysql);
   tmp_mysql.options=mysql->options;
   if (!mc_mysql_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
 			  mysql->db, mysql->port, mysql->unix_socket,
 			  mysql->client_flag))
     {
+      tmp_mysql.reconnect=0;
       mc_mysql_close(&tmp_mysql); 
       DBUG_RETURN(1);
     }
@@ -793,6 +797,7 @@ mc_mysql_close(MYSQL *mysql)
     {
       mc_free_old_query(mysql);
       mysql->status=MYSQL_STATUS_READY; /* Force command */
+      mysql->reconnect=0;
       mc_simple_command(mysql,COM_QUIT,NullS,0,1);
       mc_end_server(mysql);
     }

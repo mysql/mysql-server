@@ -298,8 +298,8 @@ public:
 
 class Item_ref :public Item_ident
 {
-  Item **ref;
 public:
+  Item **ref;
   Item_ref(char *db_par,char *table_name_par,char *field_name_par)
     :Item_ident(db_par,table_name_par,field_name_par),ref(0) {}
   Item_ref(Item **item, char *table_name_par,char *field_name_par)

@@ -1961,12 +1961,15 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
 
   while ((item=li++))
   {
-    if (item->type() != Item::FIELD_ITEM || item->fix_fields(thd,tlist) ||
-	!item->used_tables())
+    if (item->fix_fields(thd,tlist))
+      return 1;
+    if (item->type() == Item::REF_ITEM)
+      li.replace(item= *((Item_ref *)item)->ref);
+    if (item->type() != Item::FIELD_ITEM || !item->used_tables())
       return 1;
     used_tables_cache|=item->used_tables();
   }
-  /* check that all columns comes from the same table */
+  /* check that all columns come from the same table */
   if (count_bits(used_tables_cache) != 1)
     return 1;
   const_item_cache=0;
