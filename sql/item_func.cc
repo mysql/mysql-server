@@ -2023,7 +2023,7 @@ void Item_func_set_user_var::update_hash(void *ptr, uint length,
       my_free(entry->value,MYF(0));
     entry->value=0;
     entry->length=0;
-    collation.set(cs, dv);
+    entry->collation.set(cs, dv);
   }
   else
   {
