@@ -827,10 +827,7 @@ int ha_ndbcluster::get_ndb_lock_type(enum thr_lock_type type)
   if (type == TL_WRITE_ALLOW_WRITE)
     return NdbOperation::LM_Exclusive;
   else if (uses_blob_value(retrieve_all_fields))
-    /*
-      TODO use a new scan mode to read + lock + keyinfo
-    */
-    return NdbOperation::LM_Exclusive;
+    return NdbOperation::LM_Read;
   else
     return NdbOperation::LM_CommittedRead;
 }
