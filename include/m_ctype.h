@@ -180,6 +180,7 @@ extern const char *compiled_charset_name(uint charset_number);
 #define	_B	0100	/* Blank */
 #define	_X	0200	/* heXadecimal digit */
 
+#ifndef HIDE_OLD_CTYPE
 #define my_ctype	(default_charset_info->ctype)
 #define my_to_upper	(default_charset_info->to_upper)
 #define my_to_lower	(default_charset_info->to_lower)
@@ -201,6 +202,8 @@ extern const char *compiled_charset_name(uint charset_number);
 #define	isprint(c)	((my_ctype+1)[(uchar) (c)] & (_P | _U | _L | _N | _B))
 #define	isgraph(c)	((my_ctype+1)[(uchar) (c)] & (_P | _U | _L | _N))
 #define	iscntrl(c)	((my_ctype+1)[(uchar) (c)] & _C)
+#endif
+
 #define	isascii(c)	(!((c) & ~0177))
 #define	toascii(c)	((c) & 0177)
 
@@ -208,6 +211,8 @@ extern const char *compiled_charset_name(uint charset_number);
 #undef ctype
 #endif /* ctype */
 
+#define my_toupper(s,c)	(char) ((s)->to_upper[(uchar) (c)])
+#define my_tolower(s,c)	(char) ((s)->to_lower[(uchar) (c)])
 #define	my_isalpha(s, c)  (((s)->ctype+1)[(uchar) (c)] & (_U | _L))
 #define	my_isupper(s, c)  (((s)->ctype+1)[(uchar) (c)] & _U)
 #define	my_islower(s, c)  (((s)->ctype+1)[(uchar) (c)] & _L)

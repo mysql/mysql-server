@@ -133,7 +133,7 @@ int eflags;
 
 	if ((size_t) g->nstates <= CHAR_BIT*sizeof(states1) &&
 	    !(eflags&REG_LARGE))
-		return(smatcher(g, (char *)str, nmatch, pmatch, eflags));
+		return(smatcher(preg->charset, g, (char *)str, nmatch, pmatch, eflags));
 	else
-		return(lmatcher(g, (char *)str, nmatch, pmatch, eflags));
+		return(lmatcher(preg->charset, g, (char *)str, nmatch, pmatch, eflags));
 }
