@@ -73,7 +73,7 @@ public:
    *
    * For equality, it is better to use BoundEQ instead of the equivalent
    * pair of BoundLE and BoundGE.  This is especially true when table
-   * distribution key is an initial part of the index key.
+   * partition key is an initial part of the index key.
    *
    * The sets of lower and upper bounds must be on initial sequences of
    * index keys.  All but possibly the last bound must be non-strict.
