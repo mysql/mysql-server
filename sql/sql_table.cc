@@ -2610,7 +2610,9 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       }
       else
       {
-	if (!access(fn_format(new_name_buff,new_name_buff,new_db,reg_ext,0),
+	char dir_buff[FN_REFLEN];
+	strxnmov(dir_buff, FN_REFLEN, mysql_real_data_home, new_db, NullS);
+	if (!access(fn_format(new_name_buff,new_name_buff,dir_buff,reg_ext,0),
 		    F_OK))
 	{
 	  /* Table will be closed in do_command() */
