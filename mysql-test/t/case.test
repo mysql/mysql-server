@@ -41,3 +41,25 @@ create table t1 (row int not null, col int not null, val varchar(255) not null);
 insert into t1 values (1,1,'orange'),(1,2,'large'),(2,1,'yellow'),(2,2,'medium'),(3,1,'green'),(3,2,'small');
 select max(case col when 1 then val else null end) as color from t1 group by row;
 drop table t1;
+
+#
+# COALESCE is a CASE abbrevation:
+#
+# COALESCE(v1,v2) == CASE WHEN v1 IS NOT NULL THEN v1 ELSE v2 END
+#
+# COALESCE(V1, V2, . . . ,Vn ) =  
+#     CASE WHEN V1 IS NOT NULL THEN V1 ELSE COALESCE (V2, . . . ,Vn) END
+#
+# Check COALESCE argument types aggregation
+
+SET NAMES latin1;
+--error 1265
+CREATE TABLE t1 SELECT COALESCE(_latin1'a',_latin2'a');
+--error 1265
+CREATE TABLE t1 SELECT COALESCE('a' COLLATE latin1_swedish_ci,'b' COLLATE latin1_bin);
+CREATE TABLE t1 SELECT 
+ COALESCE(1), COALESCE(1.0),COALESCE('a'),
+ COALESCE(1,1.0), COALESCE(1,'1'),COALESCE(1.1,'1'),
+ COALESCE('a' COLLATE latin1_bin,'b');
+SHOW CREATE TABLE t1;
+DROP TABLE t1;

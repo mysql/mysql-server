@@ -318,8 +318,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     error= -1;				// Error on read
     goto err;
   }
-  sprintf(name,ER(ER_LOAD_INFO),info.records,info.deleted,
-	  info.records-info.copied,thd->cuted_fields);
+  sprintf(name, ER(ER_LOAD_INFO), (ulong) info.records, (ulong) info.deleted,
+	  (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
   send_ok(thd,info.copied+info.deleted,0L,name);
   // on the slave thd->query is never initialized
   if (!thd->slave_thread)
