@@ -1,0 +1,24 @@
+connect (master,localhost,root,,test,0,var/tmp/mysql.sock);
+connect (slave,localhost,root,,test,0,var/tmp/mysql-slave.sock);
+connection master;
+reset master;
+show master status;
+connection slave;
+reset slave;
+show slave status;
+change master to master_host='127.0.0.1';
+show slave status;
+change master to master_host='127.0.0.1',master_user='root',
+ master_password='',master_port=9306;
+show slave status;
+slave start;
+show slave status;
+connection master;
+drop table if exists foo;
+create table foo (n int);
+insert into foo values (10),(45),(90);
+connection slave;
+sleep 0.3;
+select * from foo;
+
+

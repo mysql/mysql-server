@@ -515,7 +515,8 @@ int start_slave(THD* thd , bool net_report)
 	    {
 	      err = "cannot create slave thread";
 	    }
-	  pthread_cond_wait(&COND_slave_start, &LOCK_slave);
+	  while(!slave_running) // slave might already be running by now
+	   pthread_cond_wait(&COND_slave_start, &LOCK_slave);
 	}
       else
 	err = "Master host not set, or server id not configured";
@@ -552,7 +553,9 @@ int stop_slave(THD* thd, bool net_report )
     // do not abort the slave in the middle of a query, so we do not set
     // thd->killed for the slave thread
     thd->proc_info = "waiting for slave to die";
-    pthread_cond_wait(&COND_slave_stopped, &LOCK_slave);
+    while(slave_running) // we may miss slave start broadcast, if it starts
+      // very quickly
+     pthread_cond_wait(&COND_slave_stopped, &LOCK_slave);
   }
   else
     err = "Slave is not running";
@@ -633,7 +636,8 @@ int change_master(THD* thd)
       abort_slave = 1;
       thr_alarm_kill(slave_real_id);
       thd->proc_info = "waiting for slave to die";
-      pthread_cond_wait(&COND_slave_stopped, &LOCK_slave); // wait until done
+      while(slave_running)
+       pthread_cond_wait(&COND_slave_stopped, &LOCK_slave); // wait until done
     }
   pthread_mutex_unlock(&LOCK_slave);
   thd->proc_info = "changing master";
