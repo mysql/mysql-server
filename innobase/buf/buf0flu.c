@@ -189,7 +189,7 @@ buf_flush_write_complete(
 		buf_pool->LRU_flush_ended++;
 	}
 
-	/* 	printf("n pending flush %lu\n",
+	/* fprintf(stderr, "n pending flush %lu\n",
 		buf_pool->n_flush[block->flush_type]); */
 
 	if ((buf_pool->n_flush[block->flush_type] == 0)
@@ -411,8 +411,8 @@ buf_flush_write_block_low(
 	ut_ad(!ut_dulint_is_zero(block->newest_modification));
 
 #ifdef UNIV_LOG_DEBUG
-	printf(
-	"Warning: cannot force log to disk in the log debug version!\n");
+	fputs("Warning: cannot force log to disk in the log debug version!\n",
+		stderr);
 #else
 	/* Force the log to the disk before writing the modified block */
 	log_write_up_to(block->newest_modification, LOG_WAIT_ALL_GROUPS, TRUE);
@@ -489,8 +489,9 @@ buf_flush_try_page(
 		}
 
 		if (buf_debug_prints) {
-			printf("Flushing page space %lu, page no %lu \n",
-					block->space, block->offset);
+			fprintf(stderr,
+				"Flushing page space %lu, page no %lu \n",
+				block->space, block->offset);
 		}
 
 		buf_flush_write_block_low(block);
@@ -548,7 +549,7 @@ buf_flush_try_page(
 		rw_lock_s_lock_gen(&(block->lock), BUF_IO_WRITE);
 
 		if (buf_debug_prints) {
-			printf(
+			fprintf(stderr,
 			"Flushing single page space %lu, page no %lu \n",
 						block->space, block->offset);
 		}
@@ -592,7 +593,7 @@ buf_flush_try_neighbors(
 		high = offset + 1;
 	}
 
-	/* printf("Flush area: low %lu high %lu\n", low, high); */
+	/* fprintf(stderr, "Flush area: low %lu high %lu\n", low, high); */
 	
 	if (high > fil_space_get_size(space)) {
 		high = fil_space_get_size(space);
@@ -739,7 +740,7 @@ buf_flush_batch(
 				page_count +=
 					buf_flush_try_neighbors(space, offset,
 								flush_type);
-				/* printf(
+				/* fprintf(stderr,
 				"Flush type %lu, page no %lu, neighb %lu\n",
 				flush_type, offset,
 				page_count - old_page_count); */
@@ -779,15 +780,12 @@ buf_flush_batch(
 	buf_flush_buffered_writes();
 
 	if (buf_debug_prints && page_count > 0) {
-		if (flush_type == BUF_FLUSH_LRU) {
-			printf("Flushed %lu pages in LRU flush\n",
-						page_count);
-		} else if (flush_type == BUF_FLUSH_LIST) {
-			printf("Flushed %lu pages in flush list flush\n",
-						page_count);
-		} else {
-			ut_error;
-		}
+		ut_a(flush_type == BUF_FLUSH_LRU
+			|| flush_type == BUF_FLUSH_LIST);
+		fprintf(stderr, flush_type == BUF_FLUSH_LRU
+			? "Flushed %lu pages in LRU flush\n"
+			: "Flushed %lu pages in flush list flush\n",
+			page_count);
 	}
 	
 	return(page_count);

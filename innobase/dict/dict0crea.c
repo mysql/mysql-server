@@ -25,11 +25,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "trx0roll.h"
 #include "usr0sess.h"
 
-/* Maximum lengths of identifiers in MySQL, in bytes */
-#define MAX_TABLE_NAME_LEN	64
-#define MAX_COLUMN_NAME_LEN	64
-#define MAX_IDENTIFIER_LEN	255
-
 /*********************************************************************
 Based on a table object, this function builds the entry to be inserted
 in the SYS_TABLES system table. */
@@ -1105,7 +1100,7 @@ dict_create_add_foreigns_to_dictionary(
 	ulint		number	= start_id + 1;
 	ulint		len;
 	ulint		error;
-	char*		ebuf	= dict_foreign_err_buf;
+	FILE*		ef	= dict_foreign_err_file;
 	ulint		i;
 	char*		sql;
 	char*		sqlend;
@@ -1223,14 +1218,17 @@ loop:
 
 	if (error == DB_DUPLICATE_KEY) {
 		mutex_enter(&dict_foreign_err_mutex);
-		ut_sprintf_timestamp(ebuf);
-		ut_a(strlen(ebuf) < DICT_FOREIGN_ERR_BUF_LEN
-			- MAX_TABLE_NAME_LEN - MAX_IDENTIFIER_LEN - 201);
-		sprintf(ebuf + strlen(ebuf),
-" Error in foreign key constraint creation for table %s.\n"
-"A foreign key constraint of name %s\n"
-"already exists (note that internally InnoDB adds 'databasename/'\n"
-"in front of the user-defined constraint name).\n", table->name, foreign->id);
+		rewind(ef);
+		ut_print_timestamp(ef);
+		fputs(" Error in foreign key constraint creation for table ",
+			ef);
+		ut_print_name(ef, table->name);
+		fputs(".\nA foreign key constraint of name ", ef);
+		ut_print_name(ef, foreign->id);
+		fputs("\nalready exists."
+			"  (Note that internally InnoDB adds 'databasename/'\n"
+			"in front of the user-defined constraint name).\n",
+			ef);
 
 		mutex_exit(&dict_foreign_err_mutex);
 
@@ -1243,12 +1241,12 @@ loop:
 			"InnoDB: internal error number %lu\n", error);
 
 		mutex_enter(&dict_foreign_err_mutex);
-		ut_sprintf_timestamp(ebuf);
-		ut_a(strlen(ebuf) < DICT_FOREIGN_ERR_BUF_LEN
-			- MAX_TABLE_NAME_LEN - 124);
-		sprintf(ebuf + strlen(ebuf),
-" Internal error in foreign key constraint creation for table %s.\n"
-"See the MySQL .err log in the datadir for more information.\n", table->name);
+		ut_print_timestamp(ef);
+		fputs(" Internal error in foreign key constraint creation"
+			" for table ", ef);
+		ut_print_name(ef, table->name);
+		fputs(".\n"
+	"See the MySQL .err log in the datadir for more information.\n", ef);
 		mutex_exit(&dict_foreign_err_mutex);
 
 		return(error);

@@ -331,19 +331,23 @@ dict_print_info_on_foreign_keys(
 				a format suitable to be inserted into
 				a CREATE TABLE, otherwise in the format
 				of SHOW TABLE STATUS */
-	char*		str,	/* in/out: pointer to a string */
-	ulint		len,	/* in: space in str available for info */
+	FILE*		file,	/* in: file where to print */
 	dict_table_t*	table);	/* in: table */
 /**************************************************************************
-Sprintfs to a string info on a foreign key of a table in a format suitable
-for CREATE TABLE. */
-
-char*
+Outputs info on a foreign key of a table in a format suitable for
+CREATE TABLE. */
+void
 dict_print_info_on_foreign_key_in_create_format(
 /*============================================*/
-                                /* out: how far in buf we printed */
-	dict_foreign_t*	foreign,/* in: foreign key constraint */
-	char*		buf);	/* in: buffer of at least 5000 bytes */
+	FILE*		file,	/* in: file where to print */
+	dict_foreign_t*	foreign);/* in: foreign key constraint */
+/************************************************************************
+Displays the names of the index and the table. */
+void
+dict_index_name_print(
+/*==================*/
+	FILE*			file,	/* in: output stream */
+	const dict_index_t*	index);	/* in: index to print */
 /************************************************************************
 Gets the first index on the table (the clustered index). */
 UNIV_INLINE
@@ -846,13 +850,9 @@ dict_tables_have_same_db(
 	const char*	name2);	/* in: table name in the form
 				dbname '/' tablename */
 
-/* The following len must be at least 10000 bytes! */
-#define DICT_FOREIGN_ERR_BUF_LEN	10000
-
 /* Buffers for storing detailed information about the latest foreign key
 and unique key errors */
-extern char*	dict_foreign_err_buf;
-extern char*	dict_unique_err_buf;
+extern FILE*	dict_foreign_err_file;
 extern mutex_t	dict_foreign_err_mutex; /* mutex protecting the buffers */
 
 extern dict_sys_t*	dict_sys;	/* the dictionary system */

@@ -217,9 +217,9 @@ buf_block_align(
 	    || block >= buf_pool->blocks + buf_pool->max_size) {
 
 		fprintf(stderr,
-"InnoDB: Error: trying to access a stray pointer %lx\n"
-"InnoDB: buf pool start is at %lx, number of pages %lu\n", (ulint)ptr,
-			(ulint)frame_zero, buf_pool->max_size);
+"InnoDB: Error: trying to access a stray pointer %p\n"
+"InnoDB: buf pool start is at %p, number of pages %lu\n", ptr,
+			frame_zero, buf_pool->max_size);
 		ut_error;
 	}
 
@@ -251,9 +251,9 @@ buf_block_align_low(
 	    || block >= buf_pool->blocks + buf_pool->max_size) {
 
 		fprintf(stderr,
-"InnoDB: Error: trying to access a stray pointer %lx\n"
-"InnoDB: buf pool start is at %lx, number of pages %lu\n", (ulint)ptr,
-			(ulint)frame_zero, buf_pool->max_size);
+"InnoDB: Error: trying to access a stray pointer %p\n"
+"InnoDB: buf pool start is at %p, number of pages %lu\n", ptr,
+			frame_zero, buf_pool->max_size);
 		ut_error;
 	}
 
@@ -280,9 +280,9 @@ buf_frame_align(
 	    || ((ulint)frame > (ulint)(buf_pool_get_nth_block(buf_pool,
 					buf_pool->max_size - 1)->frame))) {
 		fprintf(stderr,
-"InnoDB: Error: trying to access a stray pointer %lx\n"
-"InnoDB: buf pool start is at %lx, number of pages %lu\n", (ulint)ptr,
-			(ulint)(buf_pool->frame_zero), buf_pool->max_size);
+"InnoDB: Error: trying to access a stray pointer %p\n"
+"InnoDB: buf pool start is at %p, number of pages %lu\n", ptr,
+			buf_pool->frame_zero, buf_pool->max_size);
 		ut_error;
 	}
 

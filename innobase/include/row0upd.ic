@@ -84,9 +84,11 @@ upd_field_set_field_no(
 
 	if (field_no >= dict_index_get_n_fields(index)) {
 		fprintf(stderr,
-		"InnoDB: Error: trying to access field %lu in table %s\n"
-		"InnoDB: index %s, but index has only %lu fields\n",
-		field_no, index->table_name, index->name,
+			"InnoDB: Error: trying to access field %lu in ",
+			field_no);
+		dict_index_name_print(stderr, index);
+		fprintf(stderr, "\n"
+			"InnoDB: but index only has %lu fields\n",
 		dict_index_get_n_fields(index));
 	}
 

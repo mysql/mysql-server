@@ -1408,8 +1408,9 @@ fil_flush(
 			will not crash or trap even if we pass a handle
 			to a closed file below in os_file_flush! */
 
-			/* printf("Flushing to file %s\n", node->name); */
-			
+			/* fprintf(stderr, "Flushing to file %s\n",
+				node->name); */
+
 			os_file_flush(file);
 			
 			mutex_enter(&(system->mutex));

@@ -443,8 +443,7 @@ Prints info of the aio arrays. */
 void
 os_aio_print(
 /*=========*/
-	char*	buf,	/* in/out: buffer where to print */
-	char*	buf_end);/* in: buffer end */
+	FILE*	file);	/* in: file where to print */
 /**************************************************************************
 Refreshes the statistics used to print per-second averages. */
 

@@ -269,7 +269,7 @@ void
 trx_sys_print_mysql_binlog_offset(void);
 /*===================================*/
 /*********************************************************************
-Prints to stdout the MySQL binlog info in the system header if the
+Prints to stderr the MySQL binlog info in the system header if the
 magic number shows it valid. */
 
 void

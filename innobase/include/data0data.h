@@ -326,16 +326,7 @@ The following function prints the contents of a tuple. */
 void
 dtuple_print(
 /*=========*/
-	dtuple_t*	tuple);	/* in: tuple */
-/**************************************************************
-The following function prints the contents of a tuple to a buffer. */
-
-ulint
-dtuple_sprintf(
-/*===========*/
-				/* out: printed length in bytes */
-	char*		buf,	/* in: print buffer */
-	ulint		buf_len,/* in: buf length in bytes */
+	FILE*		f,	/* in: output stream */
 	dtuple_t*	tuple);	/* in: tuple */
 /******************************************************************
 Moves parts of long fields in entry to the big record vector so that

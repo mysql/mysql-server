@@ -165,8 +165,8 @@ mlog_write_initial_log_record_fast(
 
 	if (space != 0 || offset > 0x8FFFFFFF) {
 	        fprintf(stderr,
-	"InnoDB: error: buffer page pointer %lx has nonsensical space id %lu\n"
-	"InnoDB: or page no %lu\n", (ulint)ptr, space, offset);
+	"InnoDB: error: buffer page pointer %p has nonsensical space id %lu\n"
+	"InnoDB: or page no %lu\n", ptr, space, offset);
 	        ut_error;
 	}
 
@@ -178,7 +178,8 @@ mlog_write_initial_log_record_fast(
 	mtr->n_log_recs++;
 
 #ifdef UNIV_LOG_DEBUG
-/*	printf("Adding to mtr log record type %lu space %lu page no %lu\n",
+/*	fprintf(stderr,
+		"Adding to mtr log record type %lu space %lu page no %lu\n",
 						type, space, offset); */
 #endif
 

@@ -158,7 +158,7 @@ row_purge_remove_clust_if_poss(
 	ibool	success;
 	ulint	n_tries	= 0;
 	
-/*	printf("Purge: Removing clustered record\n"); */
+/*	fputs("Purge: Removing clustered record\n", stderr); */
 
 	success = row_purge_remove_clust_if_poss_low(node, BTR_MODIFY_LEAF);
 	if (success) {
@@ -212,7 +212,7 @@ row_purge_remove_sec_if_poss_low(
 	if (!found) {
 		/* Not found */
 
-		/* printf("PURGE:........sec entry not found\n"); */
+		/* fputs("PURGE:........sec entry not found\n", stderr); */
 		/* dtuple_print(entry); */
 
 		btr_pcur_close(&pcur);
@@ -281,7 +281,7 @@ row_purge_remove_sec_if_poss(
 	ibool	success;
 	ulint	n_tries		= 0;
 	
-/*	printf("Purge: Removing secondary record\n"); */
+/*	fputs("Purge: Removing secondary record\n", stderr); */
 
 	success = row_purge_remove_sec_if_poss_low(node, index, entry,
 							BTR_MODIFY_LEAF);

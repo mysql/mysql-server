@@ -212,7 +212,7 @@ os_file_get_last_error(void)
 		ut_print_timestamp(stderr);
 	     	fprintf(stderr,
   "  InnoDB: Operating system error number %lu in a file operation.\n"
-  "InnoDB: See http://www.innodb.com/ibman.html for installation help.\n",
+  "InnoDB: See http://www.innodb.com/ibman.php for installation help.\n",
 		err);
 
 		if (err == ERROR_PATH_NOT_FOUND) {
@@ -227,7 +227,7 @@ os_file_get_last_error(void)
   "InnoDB: of the same name as a data file.\n"); 
 		} else {
 			 fprintf(stderr,
-  "InnoDB: See section 13.2 at http://www.innodb.com/ibman.html\n"
+  "InnoDB: See section 13.2 at http://www.innodb.com/ibman.php\n"
   "InnoDB: about operating system error numbers.\n");
 		}
 	}
@@ -251,7 +251,7 @@ os_file_get_last_error(void)
 
 	     	fprintf(stderr,
   "  InnoDB: Operating system error number %lu in a file operation.\n"
-  "InnoDB: See http://www.innodb.com/ibman.html for installation help.\n",
+  "InnoDB: See http://www.innodb.com/ibman.php for installation help.\n",
 		err);
 
 		if (err == ENOENT) {
@@ -270,7 +270,7 @@ os_file_get_last_error(void)
 			 }
 
 			 fprintf(stderr,
-  "InnoDB: See also section 13.2 at http://www.innodb.com/ibman.html\n"
+  "InnoDB: See also section 13.2 at http://www.innodb.com/ibman.php\n"
   "InnoDB: about operating system error numbers.\n");
 		}
 	}
@@ -733,7 +733,7 @@ try_again:
 	        ut_error;
 	}
 
-/*	printf("Opening file %s, mode %s, type %s, purpose %s\n",
+/*	fprintf(stderr, "Opening file %s, mode %s, type %s, purpose %s\n",
 			       name, mode_str, type_str, purpose_str); */
 #ifdef O_SYNC
         /* We let O_SYNC only affect log files; note that we map O_DSYNC to
@@ -742,7 +742,7 @@ try_again:
 	if (type == OS_LOG_FILE
 	    && srv_unix_file_flush_method == SRV_UNIX_O_DSYNC) {
 
-/*		printf("Using O_SYNC for file %s\n", name); */
+/*		fprintf(stderr, "Using O_SYNC for file %s\n", name); */
 
 	        create_flag = create_flag | O_SYNC;
 	}
@@ -752,7 +752,7 @@ try_again:
 	if (type != OS_LOG_FILE
 	    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
 
-/*		printf("Using O_DIRECT for file %s\n", name); */
+/*		fprintf(stderr, "Using O_DIRECT for file %s\n", name); */
 
 	        create_flag = create_flag | O_DIRECT;
 	}
@@ -1025,7 +1025,7 @@ os_file_flush(
 #ifdef HAVE_FDATASYNC
 	ret = fdatasync(file);
 #else
-/*	printf("Flushing to file %lu\n", (ulint)file); */
+/*	fprintf(stderr, "Flushing to file %p\n", file); */
 	ret = fsync(file);
 #endif
 	os_n_fsyncs++;
@@ -1382,7 +1382,7 @@ retry:
 		fprintf(stderr,
 "  InnoDB: Error: File pointer positioning to file %s failed at\n"
 "InnoDB: offset %lu %lu. Operating system error number %lu.\n"
-"InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
+"InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.php\n"
 "InnoDB: what the error number means.\n",
 			name, offset_high, offset,
 			(ulint)GetLastError());
@@ -1440,7 +1440,7 @@ retry:
 		}
 
 		fprintf(stderr,
-"InnoDB: See also section 13.2 at http://www.innodb.com/ibman.html\n"
+"InnoDB: See also section 13.2 at http://www.innodb.com/ibman.php\n"
 "InnoDB: about operating system error numbers.\n");
 
 		os_has_said_disk_full = TRUE;
@@ -1475,7 +1475,7 @@ retry:
 		}
 
 		fprintf(stderr,
-"InnoDB: See also section 13.2 at http://www.innodb.com/ibman.html\n"
+"InnoDB: See also section 13.2 at http://www.innodb.com/ibman.php\n"
 "InnoDB: about operating system error numbers.\n");
 
 		os_has_said_disk_full = TRUE;
@@ -1593,7 +1593,7 @@ os_aio_init(
 	n_write_segs = (n_segments - 2) / 2;
 	n_read_segs = n_segments - 2 - n_write_segs;
 	
-	/* printf("Array n per seg %lu\n", n_per_seg); */
+	/* fprintf(stderr, "Array n per seg %lu\n", n_per_seg); */
 
 	os_aio_ibuf_array = os_aio_array_create(n_per_seg, 1);
 
@@ -1944,7 +1944,8 @@ loop:
 			SIGRTMIN + 1 + os_aio_get_array_no(array);
 			/* TODO: How to choose the signal numbers? */
 /*
-	printf("AIO signal number %lu\n", (ulint) control->aio_sigevent.sigev_signo);
+	fprintf(stderr, "AIO signal number %lu\n",
+		(ulint) control->aio_sigevent.sigev_signo);
 */
 	control->aio_sigevent.sigev_value.sival_ptr = slot;
 #endif
@@ -2198,7 +2199,7 @@ try_again:
 #elif defined(POSIX_ASYNC_IO)
 			slot->control.aio_lio_opcode = LIO_READ;
 			err = (ulint) aio_read(&(slot->control));
-			printf("Starting Posix aio read %lu\n", err);
+			fprintf(stderr, "Starting POSIX aio read %lu\n", err);
 #endif
 		} else {
 			if (!wake_later) {
@@ -2215,7 +2216,7 @@ try_again:
 #elif defined(POSIX_ASYNC_IO)
 			slot->control.aio_lio_opcode = LIO_WRITE;
 			err = (ulint) aio_write(&(slot->control));
-			printf("Starting Posix aio write %lu\n", err);
+			fprintf(stderr, "Starting POSIX aio write %lu\n", err);
 #endif
 		} else {
 			if (!wake_later) {
@@ -2411,7 +2412,7 @@ os_aio_posix_handle(
 	pthread_sigmask(0, NULL, &thr_sigset);
 
 	for (i = 32 ; i < 40; i++) {
-	  printf("%lu : %lu %lu\n", (ulint)i,
+		fprintf(stderr, "%lu : %lu %lu\n", (ulint)i,
 		 (ulint)sigismember(&proc_sigset, i),
 		 (ulint)sigismember(&thr_sigset, i));
 	}
@@ -2426,7 +2427,7 @@ os_aio_posix_handle(
 		return(FALSE);
 	}
 	
-	printf("Handling Posix aio\n");
+	fputs("Handling POSIX aio\n", stderr);
 
 	array = os_aio_get_array_from_no(array_no);
 
@@ -2719,9 +2720,9 @@ consecutive_loop:
 	ut_a(ret);
 	srv_set_io_thread_op_info(global_segment, "file i/o done");
 
-/* printf("aio: %lu consecutive %lu:th segment, first offs %lu blocks\n",
-			n_consecutive, global_segment, slot->offset
-					/ UNIV_PAGE_SIZE); */
+/* fprintf(stderr,
+	"aio: %lu consecutive %lu:th segment, first offs %lu blocks\n",
+	n_consecutive, global_segment, slot->offset / UNIV_PAGE_SIZE); */
 
 	if (slot->type == OS_FILE_READ && n_consecutive > 1) {
 		/* Copy the combined buffer to individual buffers */
@@ -2847,8 +2848,7 @@ Prints info of the aio arrays. */
 void
 os_aio_print(
 /*=========*/
-	char*	buf,	/* in/out: buffer where to print */
-	char*	buf_end)/* in: buffer end */
+	FILE*	file)	/* in: file where to print */
 {
 	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;
@@ -2858,18 +2858,13 @@ os_aio_print(
 	double		avg_bytes_read;
 	ulint		i;
 
-	if (buf_end - buf < 1200) {
-
-		return;
-	}
-
 	for (i = 0; i < srv_n_file_io_threads; i++) {
-		buf += sprintf(buf, "I/O thread %lu state: %s (%s)\n", i,
+		fprintf(file, "I/O thread %lu state: %s (%s)\n", i,
 					srv_io_thread_op_info[i],
 					srv_io_thread_function[i]);
 	}
 
-	buf += sprintf(buf, "Pending normal aio reads:");
+	fputs("Pending normal aio reads:", file);
 
 	array = os_aio_read_array;
 loop:
@@ -2887,21 +2882,20 @@ loop:
 	
 		if (slot->reserved) {
 			n_reserved++;
-			/* printf("Reserved slot, messages %lx %lx\n",
-					(ulint)slot->message1,
-					(ulint)slot->message2);
-			*/			ut_a(slot->len > 0);
+			/* fprintf(stderr, "Reserved slot, messages %p %p\n",
+				slot->message1, slot->message2); */
+			ut_a(slot->len > 0);
 		}
 	}
 
 	ut_a(array->n_reserved == n_reserved);
 
-	buf += sprintf(buf, " %lu", n_reserved);
+	fprintf(file, " %lu", n_reserved);
 	
 	os_mutex_exit(array->mutex);
 
 	if (array == os_aio_read_array) {
-		buf += sprintf(buf, ", aio writes:");
+		fputs(", aio writes:", file);
 	
 		array = os_aio_write_array;
 
@@ -2909,40 +2903,38 @@ loop:
 	}
 
 	if (array == os_aio_write_array) {
-		buf += sprintf(buf, ",\n ibuf aio reads:");
+		fputs(",\n ibuf aio reads:", file);
 		array = os_aio_ibuf_array;
 
 		goto loop;
 	}
 
 	if (array == os_aio_ibuf_array) {
-		buf += sprintf(buf, ", log i/o's:");
+		fputs(", log i/o's:", file);
 		array = os_aio_log_array;
 
 		goto loop;
 	}
 
 	if (array == os_aio_log_array) {
-		buf += sprintf(buf, ", sync i/o's:");		
+		fputs(", sync i/o's:", file);
 		array = os_aio_sync_array;
 
 		goto loop;
 	}
 
-	buf += sprintf(buf, "\n");
-	
+	putc('\n', file);
 	current_time = time(NULL);
 	time_elapsed = 0.001 + difftime(current_time, os_last_printout);
 
-	buf += sprintf(buf,
-		"Pending flushes (fsync) log: %lu; buffer pool: %lu\n",
-	       fil_n_pending_log_flushes, fil_n_pending_tablespace_flushes);
-	buf += sprintf(buf,
+	fprintf(file,
+		"Pending flushes (fsync) log: %lu; buffer pool: %lu\n"
 		"%lu OS file reads, %lu OS file writes, %lu OS fsyncs\n",
+		fil_n_pending_log_flushes, fil_n_pending_tablespace_flushes,
 		os_n_file_reads, os_n_file_writes, os_n_fsyncs);
 
 	if (os_file_n_pending_preads != 0 || os_file_n_pending_pwrites != 0) {
-	        buf += sprintf(buf,
+		fprintf(file,
 		    "%lu pending preads, %lu pending pwrites\n",
 		    os_file_n_pending_preads, os_file_n_pending_pwrites);
 	}
@@ -2954,7 +2946,7 @@ loop:
 				(os_n_file_reads - os_n_file_reads_old);
 	}
 
-	buf += sprintf(buf,
+	fprintf(file,
 "%.2f reads/s, %lu avg bytes/read, %.2f writes/s, %.2f fsyncs/s\n",
 		(os_n_file_reads - os_n_file_reads_old)
 		/ time_elapsed,

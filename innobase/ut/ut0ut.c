@@ -19,6 +19,16 @@ Created 5/11/1994 Heikki Tuuri
 
 ibool	ut_always_false	= FALSE;
 
+/*********************************************************************
+Get the quote character to be used in SQL identifiers.
+This definition must match the one in sql/ha_innodb.cc! */
+
+char
+mysql_get_identifier_quote_char(void);
+/*=================================*/
+				/* out: quote character to be
+				used in SQL identifiers */
+
 /************************************************************
 Uses vsprintf to emulate sprintf so that the function always returns
 the printed length. Apparently in some old SCO Unixes sprintf did not
@@ -139,7 +149,7 @@ ut_print_timestamp(
 }
 
 /**************************************************************
-Sprintfs a timestamp to a buffer. */
+Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
 
 void
 ut_sprintf_timestamp(
@@ -232,7 +242,7 @@ ut_delay(
 	}
 
 	if (ut_always_false) {
-		printf("%lu", j);
+		ut_always_false = (ibool) j;
 	}
 	
 	return(j);
@@ -244,78 +254,29 @@ Prints the contents of a memory buffer in hex and ascii. */
 void
 ut_print_buf(
 /*=========*/
-	byte*	buf,	/* in: memory buffer */
-	ulint 	len)	/* in: length of the buffer */
+	FILE*		file,	/* in: file where to print */
+	const byte*	buf,	/* in: memory buffer */
+	ulint		len)	/* in: length of the buffer */
 {
-	byte*	data;
-	ulint	i;
+	const byte*	data;
+	ulint		i;
 
-	printf(" len %lu; hex ", len);
-			
-	data = buf;
+	fprintf(file, " len %lu; hex ", len);
 
-	for (i = 0; i < len; i++) {
-		printf("%02lx", (ulint)*data);
-		data++;
+	for (data = buf, i = 0; i < len; i++) {
+		fprintf(file, "%02lx", (ulint)*data++);
 	}
 
-	printf("; asc ");
-
-	data = buf;
-
-	for (i = 0; i < len; i++) {
-		if (isprint((int)(*data))) {
-			printf("%c", (char)*data);
-		}
-		data++;
-	}
-
-	printf(";");
-}
-
-/*****************************************************************
-Prints the contents of a memory buffer in hex and ascii. */
-
-ulint
-ut_sprintf_buf(
-/*===========*/
-			/* out: printed length in bytes */
-	char*	str,	/* in: buffer to print to */
-	byte*	buf,	/* in: memory buffer */
-	ulint 	len)	/* in: length of the buffer */
-{
-	byte*	data;
-	ulint	n;
-	ulint	i;
-
-	n = 0;
-	
-	n += sprintf(str + n, " len %lu; hex ", len);
-			
-	data = buf;
-
-	for (i = 0; i < len; i++) {
-		n += sprintf(str + n, "%02lx", (ulint)*data);
-		data++;
-	}
-
-	n += sprintf(str + n, "; asc ");
+	fputs("; asc ", file);
 
 	data = buf;
 
 	for (i = 0; i < len; i++) {
-		if (isprint((int)(*data))) {
-			n += sprintf(str + n, "%c", (char)*data);
-		} else {
-			n += sprintf(str + n, ".");
-		}
-		
-		data++;
+		int	c = (int) *data++;
+		putc(isprint(c) ? c : ' ', file);
 	}
 
-	n += sprintf(str + n, ";");
-
-	return(n);
+	putc(';', file);
 }
 
 /****************************************************************
@@ -351,3 +312,64 @@ ut_2_power_up(
 	return(res);
 }
 
+
+/**************************************************************************
+Outputs a NUL-terminated string, quoted as an SQL identifier. */
+
+void
+ut_print_name(
+/*==========*/
+	FILE*		f,	/* in: output stream */
+	const char*	name)	/* in: name to print */
+{
+	ut_print_namel(f, name, strlen(name));
+}
+
+/**************************************************************************
+Outputs a fixed-length string, quoted as an SQL identifier. */
+
+void
+ut_print_namel(
+/*==========*/
+	FILE*		f,	/* in: output stream */
+	const char*	name,	/* in: name to print */
+	ulint		namelen)/* in: length of name */
+{
+	const char*	s = name;
+	const char*	e = s + namelen;
+	char		q = mysql_get_identifier_quote_char();
+	putc(q, f);
+	while (s < e) {
+		int	c = *s++;
+		if (c == q) {
+			putc(c, f);
+		}
+		putc(c, f);
+	}
+	putc(q, f);
+}
+
+/**************************************************************************
+Catenate files. */
+
+void
+ut_copy_file(
+/*=========*/
+	FILE*	dest,	/* in: output file */
+	FILE*	src)	/* in: input file to be appended to output */
+{
+	long	len = ftell(src);
+	char	buf[4096];
+
+	rewind(src);
+	do {
+		size_t	maxs =
+			len < (long) sizeof buf ? (size_t) len : sizeof buf;
+		size_t	size = fread(buf, 1, maxs, src);
+		fwrite(buf, 1, size, dest);
+		len -= size;
+		if (size < maxs) {
+			break;
+		}
+	} while (len > 0);
+}

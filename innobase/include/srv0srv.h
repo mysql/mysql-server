@@ -32,6 +32,11 @@ at a time */
 /* This is set to TRUE if the MySQL user has set it in MySQL */
 extern ibool	srv_lower_case_table_names;
 
+/* Mutex for locking srv_monitor_file */
+extern mutex_t	srv_monitor_file_mutex;
+/* Temporary file for innodb monitor output */
+extern FILE*	srv_monitor_file;
+
 /* Server parameters which are read from the initfile */
 
 extern char*	srv_data_home;
@@ -368,13 +373,12 @@ srv_error_monitor_thread(
 	void*	arg);	/* in: a dummy parameter required by
 			os_thread_create */
 /**********************************************************************
-Sprintfs to a buffer the output of the InnoDB Monitor. */
+Outputs to a file the output of the InnoDB Monitor. */
 
 void
-srv_sprintf_innodb_monitor(
-/*=======================*/
-	char*	buf,	/* in/out: buffer which must be at least 4 kB */
-	ulint	len);	/* in: length of the buffer */
+srv_printf_innodb_monitor(
+/*======================*/
+	FILE*	file);	/* in: output stream */
 
 
 /* Types for the threads existing in the system. Threads of types 4 - 9

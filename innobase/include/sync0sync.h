@@ -119,16 +119,14 @@ Prints wait info of the sync system. */
 void
 sync_print_wait_info(
 /*=================*/
-	char*	buf,		/* in/out: buffer where to print */
-	char*	buf_end);	/* in: buffer end */
+	FILE*	file);		/* in: file where to print */
 /***********************************************************************
 Prints info of the sync system. */
 
 void
 sync_print(
 /*=======*/
-	char*	buf,		/* in/out: buffer where to print */
-	char*	buf_end);	/* in: buffer end */
+	FILE*	file);		/* in: file where to print */
 /**********************************************************************
 Checks that the mutex has been initialized. */
 

@@ -264,18 +264,13 @@ Prints info of a hash table. */
 void
 ha_print_info(
 /*==========*/
-	char*		buf,	/* in/out: buffer where to print */
-	char*		buf_end,/* in: buffer end */
+	FILE*		file,	/* in: file where to print */
 	hash_table_t*	table)	/* in: hash table */
 {
 	hash_cell_t*	cell;
 	ulint		cells	= 0;
 	ulint		n_bufs;
 	ulint		i;
-	
-	if (buf_end - buf < 200) {
-		return;
-	}
 
 	for (i = 0; i < hash_get_n_cells(table); i++) {
 
@@ -287,8 +282,9 @@ ha_print_info(
 		}
 	}
 
-	buf += sprintf(buf,
-"Hash table size %lu, used cells %lu", hash_get_n_cells(table), cells);
+	fprintf(file,
+		"Hash table size %lu, used cells %lu",
+		hash_get_n_cells(table), cells);
 
 	if (table->heaps == NULL && table->heap != NULL) {
 
@@ -301,6 +297,6 @@ ha_print_info(
 			n_bufs++;
 		}
 				
-	        buf += sprintf(buf, ", node heap has %lu buffer(s)\n", n_bufs);
+		fprintf(file, ", node heap has %lu buffer(s)\n", n_bufs);
 	}
 }	

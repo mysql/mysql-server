@@ -352,9 +352,9 @@ spin_loop:
 	}
 
 	if (srv_print_latch_waits) {
-		printf(
-	"Thread %lu spin wait mutex at %lx cfile %s cline %lu rnds %lu\n",
-		os_thread_pf(os_thread_get_curr_id()), (ulint)mutex,
+		fprintf(stderr,
+	"Thread %lu spin wait mutex at %p cfile %s cline %lu rnds %lu\n",
+		os_thread_pf(os_thread_get_curr_id()), mutex,
 				mutex->cfile_name, mutex->cline, i);
 	}
 
@@ -412,9 +412,10 @@ spin_loop:
 #endif
 
 		if (srv_print_latch_waits) {
-			printf(
-			"Thread %lu spin wait succeeds at 2: mutex at %lx\n",
-			os_thread_pf(os_thread_get_curr_id()), (ulint)mutex);
+			fprintf(stderr,
+				"Thread %lu spin wait succeeds at 2:"
+				" mutex at %p\n",
+				os_thread_pf(os_thread_get_curr_id()), mutex);
 		}
 		
                 return;
@@ -430,9 +431,9 @@ spin_loop:
 	Now there is no risk of infinite wait on the event. */
 
 	if (srv_print_latch_waits) {
-		printf(
-	"Thread %lu OS wait mutex at %lx cfile %s cline %lu rnds %lu\n",
-		os_thread_pf(os_thread_get_curr_id()), (ulint)mutex,
+		fprintf(stderr,
+	"Thread %lu OS wait mutex at %p cfile %s cline %lu rnds %lu\n",
+		os_thread_pf(os_thread_get_curr_id()), mutex,
 			mutex->cfile_name, mutex->cline, i);
 	}
 	
@@ -552,9 +553,9 @@ mutex_list_print_info(void)
 	os_thread_id_t	thread_id;
 	ulint		count		= 0;
 
-	printf("----------\n");
-	printf("MUTEX INFO\n");
-	printf("----------\n");
+	fputs("----------\n"
+		"MUTEX INFO\n"
+		"----------\n", stderr);
 
 	mutex_enter(&mutex_list_mutex);
 
@@ -566,16 +567,16 @@ mutex_list_print_info(void)
 		if (mutex_get_lock_word(mutex) != 0) {
 		    	mutex_get_debug_info(mutex, &file_name, &line,
 								&thread_id);
-		 	printf(
-			"Locked mutex: addr %lx thread %ld file %s line %ld\n",
-		    		(ulint)mutex, os_thread_pf(thread_id),
+			fprintf(stderr,
+			"Locked mutex: addr %p thread %ld file %s line %ld\n",
+				mutex, os_thread_pf(thread_id),
 				file_name, line);
 		}
 
 		mutex = UT_LIST_GET_NEXT(list, mutex);
 	}
 
-	printf("Total number of mutexes %ld\n", count);
+	fprintf(stderr, "Total number of mutexes %ld\n", count);
 	
 	mutex_exit(&mutex_list_mutex);
 }
@@ -733,12 +734,14 @@ sync_thread_levels_g(
 				lock = slot->latch;
 				mutex = slot->latch;
 
-				printf(
+				fprintf(stderr,
 	"InnoDB error: sync levels should be > %lu but a level is %lu\n",
 				limit, slot->level);
 
 				if (mutex->magic_n == MUTEX_MAGIC_N) {
-	printf("Mutex created at %s %lu\n", mutex->cfile_name,
+					fprintf(stderr,
+						"Mutex created at %s %lu\n",
+						mutex->cfile_name,
 						mutex->cline);
 
 					if (mutex_get_lock_word(mutex) != 0) {
@@ -819,9 +822,6 @@ sync_thread_levels_empty_gen(
 	sync_level_t*	arr;
 	sync_thread_t*	thread_slot;
 	sync_level_t*	slot;
-	rw_lock_t*	lock;
-	mutex_t*	mutex;
-	char*		buf;
 	ulint		i;
 
 	if (!sync_order_checks_on) {
@@ -850,13 +850,7 @@ sync_thread_levels_empty_gen(
 				(slot->level != SYNC_DICT
 				&& slot->level != SYNC_DICT_OPERATION))) {
 
-			lock = slot->latch;
-			mutex = slot->latch;
 			mutex_exit(&sync_thread_mutex);
-
-			buf = mem_alloc(20000);
-			
-			sync_print(buf, buf + 18000);
 			ut_error;
 
 			return(FALSE);
@@ -1211,19 +1205,14 @@ Prints wait info of the sync system. */
 void
 sync_print_wait_info(
 /*=================*/
-	char*	buf,		/* in/out: buffer where to print */
-	char*	buf_end)	/* in: buffer end */
+	FILE*	file)		/* in: file where to print */
 {
 #ifdef UNIV_SYNC_DEBUG
-	printf("Mutex exits %lu, rws exits %lu, rwx exits %lu\n",
+	fprintf(stderr, "Mutex exits %lu, rws exits %lu, rwx exits %lu\n",
 		mutex_exit_count, rw_s_exit_count, rw_x_exit_count);
 #endif
-	if (buf_end - buf < 500) {
 
-		return;
-	}
-
-	sprintf(buf,
+	fprintf(file,
 "Mutex spin waits %lu, rounds %lu, OS waits %lu\n"
 "RW-shared spins %lu, OS waits %lu; RW-excl spins %lu, OS waits %lu\n",
 			mutex_spin_wait_count, mutex_spin_round_count,
@@ -1238,8 +1227,7 @@ Prints info of the sync system. */
 void
 sync_print(
 /*=======*/
-	char*	buf,		/* in/out: buffer where to print */
-	char*	buf_end)	/* in: buffer end */
+	FILE*	file)		/* in: file where to print */
 {
 #ifdef UNIV_SYNC_DEBUG
 	mutex_list_print_info();
@@ -1247,9 +1235,7 @@ sync_print(
 	rw_lock_list_print_info();
 #endif /* UNIV_SYNC_DEBUG */
 
-	sync_array_print_info(buf, buf_end, sync_primary_wait_array);
+	sync_array_print_info(file, sync_primary_wait_array);
 
-	buf = buf + strlen(buf);
-
-	sync_print_wait_info(buf, buf_end);
+	sync_print_wait_info(file);
 }
