@@ -1,20 +1,79 @@
 #!/bin/sh
 
+#
+# Copyright (C) 2004 MySQL AB
+# For a more info consult the file COPYRIGHT distributed with this file.
+#
+# This script converts any old privilege tables to privilege tables suitable
+# for MySQL 4.0.
+#
+# You can safely ignore all 'Duplicate column' and 'Unknown column' errors"
+# as this just means that your tables where already up to date.
+# This script is safe to run even if your tables are already up to date!
+#
+# On windows you should do 'mysql --force < mysql_fix_privilege_tables.sql' 
+# instead of this script
+#
+# Usage:
+#    mysql_fix_privilege_tables
+#     - fix tables for host "localhost" as "root" with no password
+#    mysql_fix_privilege_tables <password>
+#     - fix tables for host "localhost" as "root" with <password>
+#    mysql_fix_privilege_tables --sql-only
+#     - output sql-script to file /usr/share/mysql/echo_stderr
+#    mysql_fix_privilege_tables OPTIONS
+#     - fix tables on connection with OPTIONS
+#
+# where OPTIONS are 
+#   --host=<host>
+#   --port=<port>
+#   --socket=<socket>
+#   --user=<user>
+#   --password=<password>
+#   --database=<database>
+
 root_password="$1"
 host="localhost"
 user="root"
+port=""
+socket=""
+comment=""
+database="mysql"
 
-if test -z "$1" ; then
-  cmd="@bindir@/mysql -f --user=$user --host=$host mysql"
-else
-  root_password="$1"
-  cmd="@bindir@/mysql -f --user=$user --password=$root_password --host=$host mysql"
-fi
+# read all the options
+parse_arguments() 
+{
+  for arg do
+    case "$arg" in
+      --sql-only) cmd="/usr/share/mysql/echo_stderr" ;;
+      --port=*) port=`echo "$arg" | sed -e "s;--port=;;"` ;;
+      --user=*) user=`echo "$arg" | sed -e "s;--user=;;"` ;;
+      --host=*) host=`echo "$arg" | sed -e "s;--host=;;"` ;;
+      --socket=*) socket=`echo "$arg" | sed -e "s;--socket=;;"` ;;
+      --password=*) root_password=`echo "$arg" | sed -e "s;--password=;;"` ;;
+      --database=*) database=`echo "$arg" | sed -e "s;--database=;;"` ;;
+      *)
+        echo "Unknown argument '$arg'"
+        exit 1
+      ;;
+    esac
+  done
+}
+								
+parse_arguments "$@"
 
-# Debian addition
-if [ "$1" = "--sql-only" ]; then
-  root_password=""
-  cmd="/usr/share/mysql/echo_stderr"
+if test -z "$cmd"; then
+  cmd="@bindir@/mysql -f --user=$user --host=$host"
+  if test ! -z "$root_password"; then
+    cmd="$cmd --password=$root_password"
+  fi
+  if test ! -z "$port"; then
+    cmd="$cmd --port=$port"
+  fi
+  if test ! -z "$socket"; then
+    cmd="$cmd --socket=$socket"
+  fi
+  cmd="$cmd $database"
 fi
 
 echo "This scripts updates the mysql.user, mysql.db, mysql.host and the"
@@ -200,4 +259,23 @@ add Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
 alter table host
 add Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,
 add Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
+END_OF_DATA
+
+#
+# Fix the new bugs discovered by new tests (for Bug #2874 Grant table bugs ) 
+#
+$cmd <<END_OF_DATA
+alter table db change Db Db char(64) binary DEFAULT '' NOT NULL;
+alter table host change Db Db char(64) binary DEFAULT '' NOT NULL;
+alter table user change password Password char(16) binary NOT NULL, change max_questions max_questions int(11) unsigned DEFAULT 0  NOT NULL;
+alter table tables_priv change Db Db char(64) binary DEFAULT '' NOT NULL, change Host Host char(60) binary DEFAULT '' NOT NULL, change User User char(16) binary DEFAULT '' NOT NULL, change Table_name Table_name char(64) binary DEFAULT '' NOT NULL;
+alter table tables_priv add KEY Grantor (Grantor);
+alter table columns_priv change Db Db char(64) binary DEFAULT '' NOT NULL, change Host Host char(60) binary DEFAULT '' NOT NULL, change User User char(16) binary DEFAULT '' NOT NULL, change Table_name Table_name char(64) binary DEFAULT '' NOT NULL, change Column_name Column_name char(64) binary DEFAULT '' NOT NULL;
+  
+alter table db comment='Database privileges';
+alter table host comment='Host privileges;  Merged with database privileges';
+alter table user comment='Users and global privileges';
+alter table func comment='User defined functions';
+alter table tables_priv comment='Table privileges';
+alter table columns_priv comment='Column privileges';
 END_OF_DATA
