@@ -30,6 +30,7 @@
 
 #include "TransporterDefinitions.hpp"
 #include <SocketServer.hpp>
+#include <SocketClient.hpp>
 
 #include <NdbTCP.h>
 
@@ -110,6 +111,11 @@ public:
    * after a connect from client, perform connection using correct transporter
    */
   bool connect_server(NDB_SOCKET_TYPE sockfd);
+
+  /**
+   * use a mgmd connection to connect as a transporter
+   */
+  NDB_SOCKET_TYPE connect_ndb_mgmd(SocketClient *sc);
 
   /**
    * Remove all transporters

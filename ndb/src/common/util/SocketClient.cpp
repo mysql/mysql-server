@@ -60,27 +60,6 @@ SocketClient::init()
   return true;
 }
 
-/**
- * SocketClient::connect_without_auth()
- *
- * Temporarily disables authentication and connects.
- * This is useful if you're trying to change what this
- * SocketClient object is for (e.g. from mgm to ndb)
- */
-
-NDB_SOCKET_TYPE
-SocketClient::connect_without_auth()
-{
-  SocketAuthenticator *tmp;
-  NDB_SOCKET_TYPE retval;
-  tmp= m_auth;
-  m_auth= NULL;
-  retval= connect();
-  m_auth= tmp;
-
-  return retval;
-}
-
 NDB_SOCKET_TYPE
 SocketClient::connect()
 {
