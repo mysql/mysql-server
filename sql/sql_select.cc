@@ -972,10 +972,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 			  group ? group : order,
 			  select_limit, 
 			  thd->select_limit))
-    {
-      if (!join.join_tab[join.const_tables].select->quick)
-	goto err;
-    }
+      goto err;
   }
   join.having=having;				// Actually a parameter
   thd->proc_info="Sending data";
