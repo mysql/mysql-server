@@ -2699,10 +2699,11 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
 {
   TABLE_LIST *table;
   char *user = thd->priv_user;
+  DBUG_ENTER("check_grant");
 
   want_access &= ~thd->master_access;
   if (!want_access)
-    return 0;					// ok
+    DBUG_RETURN(0);                             // ok
 
   rw_rdlock(&LOCK_grant);
   for (table= tables; table && number--; table= table->next)
@@ -2739,7 +2740,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     }
   }
   rw_unlock(&LOCK_grant);
-  return 0;
+  DBUG_RETURN(0);
 
 err:
   rw_unlock(&LOCK_grant);
@@ -2770,7 +2771,7 @@ err:
 	       thd->host_or_ip,
 	       table ? table->real_name : "unknown");
   }
-  return 1;
+  DBUG_RETURN(1);
 }
 
 

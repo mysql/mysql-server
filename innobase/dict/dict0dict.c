@@ -527,8 +527,10 @@ dict_index_contains_col_or_prefix(
 }
 
 /************************************************************************
-Looks for a matching field in an index. The column and the prefix len have
-to be the same. */
+Looks for a matching field in an index. The column has to be the same. The
+column in index must be complete, or must contain a prefix longer than the
+column in index2. That is, we must be able to construct the prefix in index2
+from the prefix in index. */
 
 ulint
 dict_index_get_nth_field_pos(
@@ -556,7 +558,9 @@ dict_index_get_nth_field_pos(
 		field = dict_index_get_nth_field(index, pos);
 
 		if (field->col == field2->col
-		    && field->prefix_len == field2->prefix_len) {
+		    && (field->prefix_len == 0
+			|| (field->prefix_len >= field2->prefix_len
+			    && field2->prefix_len != 0))) {
 
 			return(pos);
 		}
@@ -2114,7 +2118,8 @@ dict_foreign_error_report(
 		fputs("\nThe index in the foreign key in table is ", file);
 		ut_print_name(file, NULL, fk->foreign_index->name);
 		fputs(
-"See http://www.innodb.com/ibman.php for correct foreign key definition.\n",
+"\nSee http://dev.mysql.com/doc/mysql/en/InnoDB_foreign_key_constraints.html\n"
+"for correct foreign key definition.\n",
 		file);
 	}
 	mutex_exit(&dict_foreign_err_mutex);
@@ -2589,7 +2594,9 @@ dict_strip_comments(
 	char*		str;
 	const char*	sptr;
 	char*		ptr;
-	
+ 	/* unclosed quote character (0 if none) */
+ 	char		quote	= 0;
+
 	str = mem_alloc(strlen(sql_string) + 1);
 
 	sptr = sql_string;
@@ -2604,8 +2611,18 @@ scan_more:
 
 			return(str);
 		}
-		
-		if (*sptr == '#'
+
+		if (*sptr == quote) {
+			/* Closing quote character: do not look for
+			starting quote or comments. */
+			quote = 0;
+		} else if (quote) {
+			/* Within quotes: do not look for
+			starting quotes or comments. */
+		} else if (*sptr == '"' || *sptr == '`') {
+			/* Starting quote: remember the quote character. */
+			quote = *sptr;
+		} else if (*sptr == '#'
 		    || (0 == memcmp("-- ", sptr, 3))) {
 			for (;;) {
 				/* In Unix a newline is 0x0A while in Windows
@@ -2620,9 +2637,7 @@ scan_more:
 
 				sptr++;
 			}
-		}
-
-		if (*sptr == '/' && *(sptr + 1) == '*') {
+		} else if (!quote && *sptr == '/' && *(sptr + 1) == '*') {
 			for (;;) {
 				if (*sptr == '*' && *(sptr + 1) == '/') {
 
@@ -2950,7 +2965,8 @@ col_loop1:
 		ut_print_name(ef, NULL, name);
 		fprintf(ef, " where the columns appear\n"
 "as the first columns. Constraint:\n%s\n"
-"See http://www.innodb.com/ibman.php for correct foreign key definition.\n",
+"See http://dev.mysql.com/doc/mysql/en/InnoDB_foreign_key_constraints.html\n"
+"for correct foreign key definition.\n",
 			start_of_latest_foreign);
 		mutex_exit(&dict_foreign_err_mutex);
 
@@ -3215,7 +3231,8 @@ try_find_index:
 "Cannot find an index in the referenced table where the\n"
 "referenced columns appear as the first columns, or column types\n"
 "in the table and the referenced table do not match for constraint.\n"
-"See http://www.innodb.com/ibman.php for correct foreign key definition.\n",
+"See http://dev.mysql.com/doc/mysql/en/InnoDB_foreign_key_constraints.html\n"
+"for correct foreign key definition.\n",
 				start_of_latest_foreign);
 			mutex_exit(&dict_foreign_err_mutex);
 
