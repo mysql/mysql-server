@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -918,7 +918,7 @@ int dump_leaf(byte* key, uint32 count __attribute__((unused)),
 }
 
 
-void Item_sum_count_distinct::no_rows_in_result()
+Item_sum_count_distinct::~Item_sum_count_distinct()
 {
   if (table)
     free_tmp_table(current_thd, table);

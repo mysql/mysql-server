@@ -607,7 +607,9 @@ report_stats () {
         $ECHO "http://www.mysql.com/doc/M/y/MySQL_test_suite.html"
     fi
 
-    #
+    if test -z "$USE_RUNNING_SERVER"
+    then
+
     # Report if there was any fatal warnings/errors in the log files
     #
     $RM -f $MY_LOG_DIR/warnings $MY_LOG_DIR/warnings.tmp
@@ -629,6 +631,7 @@ report_stats () {
     then
       echo "WARNING: Got errors/warnings while running tests. Please examine"
       echo "$MY_LOG_DIR/warnings for details."
+    fi
     fi
 }
 
