@@ -323,12 +323,14 @@ THD::~THD()
 #endif
 
   DBUG_PRINT("info", ("freeing host"));
+#ifndef EMBEDDED_LIBRARY
   if (host != my_localhost)			// If not pointer to constant
     safeFree(host);
   if (user != delayed_user)
     safeFree(user);
-  safeFree(db);
   safeFree(ip);
+#endif
+  safeFree(db);
   free_root(&warn_root,MYF(0));
   free_root(&transaction.mem_root,MYF(0));
   mysys_var=0;					// Safety (shouldn't be needed)
@@ -693,39 +695,53 @@ select_export::~select_export()
   thd->sent_row_count=row_count;
 }
 
-int
-select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+
+static int create_file(THD *thd, char *path, sql_exchange *exchange,
+		       File *file, IO_CACHE *cache)
 {
-  char path[FN_REFLEN];
-  uint option=4;
-  bool blob_flag=0;
-  unit= u;
+  uint option= 4;
+
 #ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
-  option|=1;					// Force use of db directory
+  option|= 1;					// Force use of db directory
 #endif
-  if ((uint) strlen(exchange->file_name) + NAME_LEN >= FN_REFLEN)
-    strmake(path,exchange->file_name,FN_REFLEN-1);
-  (void) fn_format(path,exchange->file_name, thd->db ? thd->db : "", "",
+  (void) fn_format(path, exchange->file_name, thd->db ? thd->db : "", "",
 		   option);
-  if (!access(path,F_OK))
+  if (!access(path, F_OK))
   {
     my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
     return 1;
   }
   /* Create the file world readable */
-  if ((file=my_create(path, 0666, O_WRONLY, MYF(MY_WME))) < 0)
+  if ((*file= my_create(path, 0666, O_WRONLY, MYF(MY_WME))) < 0)
     return 1;
 #ifdef HAVE_FCHMOD
-  (void) fchmod(file,0666);			// Because of umask()
+  (void) fchmod(*file, 0666);			// Because of umask()
 #else
-  (void) chmod(path,0666);
+  (void) chmod(path, 0666);
 #endif
-  if (init_io_cache(&cache,file,0L,WRITE_CACHE,0L,1,MYF(MY_WME)))
+  if (init_io_cache(cache, *file, 0L, WRITE_CACHE, 0L, 1, MYF(MY_WME)))
   {
-    my_close(file,MYF(0));
-    file= -1;
+    my_close(*file, MYF(0));
+    my_delete(path, MYF(0));  // Delete file on error, it was just created 
+    *file= -1;
+    end_io_cache(cache);
     return 1;
   }
+  return 0;
+}
+
+
+int
+select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+{
+  char path[FN_REFLEN];
+  bool blob_flag=0;
+  unit= u;
+  if ((uint) strlen(exchange->file_name) + NAME_LEN >= FN_REFLEN)
+    strmake(path,exchange->file_name,FN_REFLEN-1);
+
+  if (create_file(thd, path, exchange, &file, &cache))
+    return 1;
   /* Check if there is any blobs in data */
   {
     List_iterator_fast<Item> li(list);
@@ -899,7 +915,6 @@ err:
 void select_export::send_error(uint errcode, const char *err)
 {
   ::send_error(thd,errcode,err);
-  (void) end_io_cache(&cache);
   (void) my_close(file,MYF(0));
   file= -1;
 }
@@ -936,33 +951,9 @@ int
 select_dump::prepare(List<Item> &list __attribute__((unused)),
 		     SELECT_LEX_UNIT *u)
 {
-  uint option=4;
   unit= u;
-#ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
-  option|=1;					// Force use of db directory
-#endif
-  (void) fn_format(path,exchange->file_name, thd->db ? thd->db : "", "",
-		   option);
-  if (!access(path,F_OK))
-  {
-    my_error(ER_FILE_EXISTS_ERROR,MYF(0),exchange->file_name);
+  if (create_file(thd, path, exchange, &file, &cache))
     return 1;
-  }
-  /* Create the file world readable */
-  if ((file=my_create(path, 0666, O_WRONLY, MYF(MY_WME))) < 0)
-    return 1;
-#ifdef HAVE_FCHMOD
-  (void) fchmod(file,0666);			// Because of umask()
-#else
-  (void) chmod(path,0666);
-#endif
-  if (init_io_cache(&cache,file,0L,WRITE_CACHE,0L,1,MYF(MY_WME)))
-  {
-    my_close(file,MYF(0));
-    my_delete(path,MYF(0));
-    file= -1;
-    return 1;
-  }
   return 0;
 }
 
@@ -1009,9 +1000,7 @@ err:
 void select_dump::send_error(uint errcode,const char *err)
 {
   ::send_error(thd,errcode,err);
-  (void) end_io_cache(&cache);
   (void) my_close(file,MYF(0));
-  (void) my_delete(path,MYF(0));		// Delete file on error
   file= -1;
 }
 
@@ -1037,7 +1026,7 @@ bool select_singlerow_subselect::send_data(List<Item> &items)
   Item_singlerow_subselect *it= (Item_singlerow_subselect *)item;
   if (it->assigned())
   {
-      my_message(ER_SUBQUERY_NO_1_ROW, ER(ER_SUBQUERY_NO_1_ROW), MYF(0));
+    my_message(ER_SUBQUERY_NO_1_ROW, ER(ER_SUBQUERY_NO_1_ROW), MYF(0));
     DBUG_RETURN(1);
   }
   if (unit->offset_limit_cnt)

@@ -271,7 +271,7 @@ uint my_charpos_mb(CHARSET_INFO *cs __attribute__((unused)),
     b+= (mblen= my_ismbchar(cs,b,e)) ? mblen : 1;
     pos--;
   }
-  return b-b0;
+  return pos ? e+2-b0 : b-b0;
 }
 
 uint my_instr_mb(CHARSET_INFO *cs,

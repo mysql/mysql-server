@@ -24,3 +24,7 @@ CREATE TABLE tables_priv (Host char(60) binary DEFAULT '' NOT NULL, Db char(64) 
 
 CREATE TABLE columns_priv (Host char(60) binary DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Table_name char(64) binary DEFAULT '' NOT NULL, Column_name char(64) binary DEFAULT '' NOT NULL, Timestamp timestamp(14), Column_priv set('Select','Insert','Update','References') DEFAULT '' NOT NULL, PRIMARY KEY (Host,Db,User,Table_name,Column_name)) comment='Column privileges';
 
+CREATE TABLE help_topic (help_topic_id int unsigned NOT NULL, name varchar(64) NOT NULL, help_category_id smallint unsigned NOT NULL, description text NOT NULL, example text NOT NULL, url varchar(128) NOT NULL, primary key (help_topic_id), unique index (name))comment='help topics';
+CREATE TABLE help_category (help_category_id smallint unsigned NOT NULL, name varchar(64) NOT NULL, parent_category_id smallint unsigned null, url varchar(128) NOT NULL, primary key (help_category_id), unique index (name)) comment='help categories';
+CREATE TABLE help_keyword (help_keyword_id int unsigned NOT NULL, name varchar(64) NOT NULL, primary key  (help_keyword_id), unique index (name)) comment='help keywords';
+CREATE TABLE help_relation (help_topic_id int unsigned NOT NULL references help_topic, help_keyword_id  int unsigned NOT NULL references help_keyword, primary key (help_keyword_id, help_topic_id)) comment='keyword-topic relation';

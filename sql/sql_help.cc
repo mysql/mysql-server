@@ -274,9 +274,9 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
 
   DBUG_ENTER("get_topics_for_keyword");
   
-  if ((iindex_topic= find_type((char*) "PRIMARY",
+  if ((iindex_topic= find_type((char*) primary_key_name,
 			       &topics->keynames, 1+2)-1)<0 ||
-      (iindex_relations= find_type((char*) "PRIMARY",
+      (iindex_relations= find_type((char*) primary_key_name,
 				   &relations->keynames, 1+2)-1)<0)
   {
     send_error(thd,ER_CORRUPT_HELP_DB);
@@ -686,7 +686,7 @@ int mysqld_help(THD *thd, const char *mask)
     goto end;
   }
   /* Init tables and fields to be usable from items */
-  setup_tables(tables);
+  setup_tables(tables, 0);
   memcpy((char*) used_fields, (char*) init_used_fields, sizeof(used_fields)); 
   if (init_fields(thd, tables, used_fields, array_elements(used_fields)))
   {

@@ -461,7 +461,8 @@ static char *remove_end_comment(char *ptr)
       else if (quote == *ptr)
 	quote= 0;
     }
-    if (!quote && *ptr == '#') /* We are not inside a comment */
+    /* We are not inside a comment */
+    if (!quote && (*ptr == '#' || *ptr == ';'))
     {
       *ptr= 0;
       return ptr;

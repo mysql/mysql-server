@@ -4567,17 +4567,19 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
   }
   else
   {
+    bool was_conversion;
     char buff[80];
     String tmpstr(buff,sizeof(buff), &my_charset_bin);
+
     /* Convert character set if nesessary */
-    if (use_conversion(cs, field_charset))
+    if ((was_conversion= use_conversion(cs, field_charset)))
     { 
       tmpstr.copy(from, length, cs, field_charset);
       from= tmpstr.ptr();
       length=  tmpstr.length();
     }
     Field_blob::store_length(length);
-    if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
+    if (was_conversion || table->copy_blobs || length <= MAX_FIELD_WIDTH)
     {						// Must make a copy
       if (from != value.ptr())			// For valgrind
       {
@@ -5609,16 +5611,16 @@ create_field::create_field(Field *old_field,Field *orig_field)
         case  3: sql_type= FIELD_TYPE_MEDIUM_BLOB; break;
         default: sql_type= FIELD_TYPE_LONG_BLOB; break;
       }
-      length /= charset->mbmaxlen;		// QQ: Probably not needed
+      length=(length+charset->mbmaxlen-1)/charset->mbmaxlen; // QQ: Probably not needed
       break;
     case FIELD_TYPE_STRING:
     case FIELD_TYPE_VAR_STRING:
-      length /= charset->mbmaxlen;
+      length=(length+charset->mbmaxlen-1)/charset->mbmaxlen;
       break;
     default:
       break;
   }
-  
+
   decimals= old_field->decimals();
   if (sql_type == FIELD_TYPE_STRING)
   {

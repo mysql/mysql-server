@@ -481,8 +481,8 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   /* Fix key->name and key_part->field */
   if (key_parts)
   {
-    uint primary_key=(uint) (find_type((char*) "PRIMARY",&outparam->keynames,
-				       3)-1);
+    uint primary_key=(uint) (find_type((char*) primary_key_name,
+				       &outparam->keynames, 3) - 1);
     uint ha_option=outparam->file->table_flags();
     keyinfo=outparam->key_info;
     key_part=keyinfo->key_part;
