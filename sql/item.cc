@@ -497,15 +497,13 @@ bool Item_asterisk_remover::fix_fields(THD *thd,
 		thd->fatal_error= 1; // can't create Item => out of memory
 	    }
 	    else
-	      my_message(ER_SUBSELECT_NO_1_COL, ER(ER_SUBSELECT_NO_1_COL),
-			 MYF(0));
+	      my_error(ER_CARDINALITY_COL, MYF(0), 1);
 	  }
 	  else
 	    my_error(ER_BAD_TABLE_ERROR, MYF(0), fitem->table_name);
 	}
 	else
-	  my_message(ER_SUBSELECT_NO_1_COL, ER(ER_SUBSELECT_NO_1_COL),
-		     MYF(0));
+	  my_error(ER_CARDINALITY_COL, MYF(0), 1);
       else
 	my_error(ER_NO_TABLES_USED, MYF(0));
     }   
