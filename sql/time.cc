@@ -81,6 +81,10 @@ long my_gmt_sec(TIME *t, long *my_timezone)
     I couldn't come up with a better way to get a repeatable result :(
 
     We can't use mktime() as it's buggy on many platforms and not thread safe.
+
+    Note: this code assumes that our time_t estimation is not too far away
+    from real value (we assume that localtime_r(tmp) will return something
+    within 24 hrs from t) which is probably true for all current time zones.
   */
   tmp=(time_t) (((calc_daynr((uint) t->year,(uint) t->month,(uint) t->day) -
 		  (long) days_at_timestart)*86400L + (long) t->hour*3600L +
@@ -93,7 +97,8 @@ long my_gmt_sec(TIME *t, long *my_timezone)
   for (loop=0;
        loop < 2 &&
 	 (t->hour != (uint) l_time->tm_hour ||
-	  t->minute != (uint) l_time->tm_min);
+          t->minute != (uint) l_time->tm_min ||
+          t->second != (uint) l_time->tm_sec);
        loop++)
   {					/* One check should be enough ? */
     /* Get difference in days */
@@ -103,15 +108,22 @@ long my_gmt_sec(TIME *t, long *my_timezone)
     else if (days > 1)
       days= -1;
     diff=(3600L*(long) (days*24+((int) t->hour - (int) l_time->tm_hour)) +
-	  (long) (60*((int) t->minute - (int) l_time->tm_min)));
+          (long) (60*((int) t->minute - (int) l_time->tm_min)) +
+          (long) ((int) t->second - (int) l_time->tm_sec));
     current_timezone+= diff+3600;		// Compensate for -3600 above
     tmp+= (time_t) diff;
     localtime_r(&tmp,&tm_tmp);
     l_time=&tm_tmp;
   }
   /*
-    Fix that if we are in the not existing daylight saving time hour
-    we move the start of the next real hour
+    Fix that if we are in the non existing daylight saving time hour
+    we move the start of the next real hour.
+
+    This code doesn't handle such exotical thing as time-gaps whose length
+    is more than one hour or non-integer (latter can theoretically happen
+    if one of seconds will be removed due leap correction, or because of
+    general time correction like it happened for Africa/Monrovia time zone
+    in year 1972).
   */
   if (loop == 2 && t->hour != (uint) l_time->tm_hour)
   {
@@ -121,7 +133,8 @@ long my_gmt_sec(TIME *t, long *my_timezone)
     else if (days > 1)
       days= -1;
     diff=(3600L*(long) (days*24+((int) t->hour - (int) l_time->tm_hour))+
-	  (long) (60*((int) t->minute - (int) l_time->tm_min)));
+	  (long) (60*((int) t->minute - (int) l_time->tm_min)) +
+          (long) ((int) t->second - (int) l_time->tm_sec));
     if (diff == 3600)
       tmp+=3600 - t->minute*60 - t->second;	// Move to next hour
     else if (diff == -3600)
