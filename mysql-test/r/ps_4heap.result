@@ -47,7 +47,7 @@ c29= 'longblob', c30= 'longtext', c31='two', c32= 'tuesday';
 commit ;
 test_sequence
 ------ simple select tests ------
-prepare stmt1 from ' select * from t9 ' ;
+prepare stmt1 from ' select * from t9 order by c1 ' ;
 execute stmt1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t9	t9	c1	c1	1	4	1	N	49155	0	63
