@@ -489,8 +489,8 @@ void Item_in_subselect::single_value_transformer(THD *thd,
 		      sl->order_list.elements + sl->group_list.elements);
       item= (*func)(expr, new Item_ref_null_helper(this,
 						   sl->ref_pointer_array,
-						   (char *)"<no matter>",
-						   (char*)"<result>"));
+						   (char *)"<ref>",
+						   this->full_name()));
       sl->having= and_items(sl->having, item);
     }
     else

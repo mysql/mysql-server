@@ -3181,6 +3181,7 @@ mysql_init_query(THD *thd)
   thd->sent_row_count= thd->examined_row_count= 0;
   thd->is_fatal_error= thd->rand_used= 0;
   thd->server_status &= ~SERVER_MORE_RESULTS_EXISTS;
+  thd->tmp_table_used= 0;
   if (opt_bin_log)
     reset_dynamic(&thd->user_var_events);
 

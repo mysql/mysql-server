@@ -641,168 +641,183 @@ x	y
 drop table t1, t2, t3;
 SELECT * FROM (SELECT 1) b WHERE 1 IN (SELECT *);
 No tables used
-CREATE TABLE t (id int(11) default NULL, KEY id (id)) TYPE=MyISAM CHARSET=latin1;
-INSERT INTO t VALUES (1),(2);
-SELECT * FROM t WHERE id IN (SELECT 1);
+CREATE TABLE t2 (id int(11) default NULL, KEY id (id)) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t2 VALUES (1),(2);
+SELECT * FROM t2 WHERE id IN (SELECT 1);
 id
 1
-EXPLAIN SELECT * FROM t WHERE id IN (SELECT 1);
+EXPLAIN SELECT * FROM t2 WHERE id IN (SELECT 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t	ref	id	id	5	const	1	Using where; Using index
+1	PRIMARY	t2	ref	id	id	5	const	1	Using where; Using index
 Warnings:
 Note	1247	Select 2 was reduced during optimisation
-SELECT * FROM t WHERE id IN (SELECT 1 UNION SELECT 3);
+SELECT * FROM t2 WHERE id IN (SELECT 1 UNION SELECT 3);
 id
 1
-SELECT * FROM t WHERE id IN (SELECT 1+(select 1));
+SELECT * FROM t2 WHERE id IN (SELECT 1+(select 1));
 id
 2
-EXPLAIN SELECT * FROM t WHERE id IN (SELECT 1+(select 1));
+EXPLAIN SELECT * FROM t2 WHERE id IN (SELECT 1+(select 1));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t	ref	id	id	5	const	1	Using where; Using index
+1	PRIMARY	t2	ref	id	id	5	const	1	Using where; Using index
 3	SUBSELECT	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1247	Select 3 was reduced during optimisation
 Note	1247	Select 2 was reduced during optimisation
-EXPLAIN SELECT * FROM t WHERE id IN (SELECT 1 UNION SELECT 3);
+EXPLAIN SELECT * FROM t2 WHERE id IN (SELECT 1 UNION SELECT 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t	index	NULL	id	5	NULL	2	Using where; Using index
+1	PRIMARY	t2	index	NULL	id	5	NULL	2	Using where; Using index
 2	DEPENDENT SUBSELECT	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-SELECT * FROM t WHERE id IN (SELECT 5 UNION SELECT 3);
+SELECT * FROM t2 WHERE id IN (SELECT 5 UNION SELECT 3);
 id
-SELECT * FROM t WHERE id IN (SELECT 5 UNION SELECT 2);
+SELECT * FROM t2 WHERE id IN (SELECT 5 UNION SELECT 2);
 id
 2
-INSERT INTO t VALUES ((SELECT * FROM t));
-You can't specify target table 't' for update in FROM clause
-SELECT * FROM t;
+INSERT INTO t2 VALUES ((SELECT * FROM t2));
+You can't specify target table 't2' for update in FROM clause
+SELECT * FROM t2;
 id
 1
 2
 CREATE TABLE t1 (id int(11) default NULL, KEY id (id)) TYPE=MyISAM CHARSET=latin1;
 INSERT INTO t1 values (1),(1);
-UPDATE t SET id=(SELECT * FROM t1);
+UPDATE t2 SET id=(SELECT * FROM t1);
 Subselect returns more than 1 record
-drop table t, t1;
-create table t (a int);
-insert into t values (1),(2),(3);
-select 1 IN (SELECT * from t);
-1 IN (SELECT * from t)
+drop table t2, t1;
+create table t1 (a int);
+insert into t1 values (1),(2),(3);
+select 1 IN (SELECT * from t1);
+1 IN (SELECT * from t1)
 1
-select 10 IN (SELECT * from t);
-10 IN (SELECT * from t)
+select 10 IN (SELECT * from t1);
+10 IN (SELECT * from t1)
 0
-select NULL IN (SELECT * from t);
-NULL IN (SELECT * from t)
+select NULL IN (SELECT * from t1);
+NULL IN (SELECT * from t1)
 NULL
-update t set a=NULL where a=2;
-select 1 IN (SELECT * from t);
-1 IN (SELECT * from t)
+update t1 set a=NULL where a=2;
+select 1 IN (SELECT * from t1);
+1 IN (SELECT * from t1)
 1
-select 3 IN (SELECT * from t);
-3 IN (SELECT * from t)
+select 3 IN (SELECT * from t1);
+3 IN (SELECT * from t1)
 1
-select 10 IN (SELECT * from t);
-10 IN (SELECT * from t)
+select 10 IN (SELECT * from t1);
+10 IN (SELECT * from t1)
 NULL
-select 1 > ALL (SELECT * from t);
-1 > ALL (SELECT * from t)
+select 1 > ALL (SELECT * from t1);
+1 > ALL (SELECT * from t1)
 0
-select 10 > ALL (SELECT * from t);
-10 > ALL (SELECT * from t)
+select 10 > ALL (SELECT * from t1);
+10 > ALL (SELECT * from t1)
 NULL
-select 1 > ANY (SELECT * from t);
-1 > ANY (SELECT * from t)
+select 1 > ANY (SELECT * from t1);
+1 > ANY (SELECT * from t1)
 NULL
-select 10 > ANY (SELECT * from t);
-10 > ANY (SELECT * from t)
+select 10 > ANY (SELECT * from t1);
+10 > ANY (SELECT * from t1)
 1
-drop table t;
-create table t (a varchar(20));
-insert into t values ('A'),('BC'),('DEF');
-select 'A' IN (SELECT * from t);
-'A' IN (SELECT * from t)
+drop table t1;
+create table t1 (a varchar(20));
+insert into t1 values ('A'),('BC'),('DEF');
+select 'A' IN (SELECT * from t1);
+'A' IN (SELECT * from t1)
 1
-select 'XYZS' IN (SELECT * from t);
-'XYZS' IN (SELECT * from t)
+select 'XYZS' IN (SELECT * from t1);
+'XYZS' IN (SELECT * from t1)
 0
-select NULL IN (SELECT * from t);
-NULL IN (SELECT * from t)
+select NULL IN (SELECT * from t1);
+NULL IN (SELECT * from t1)
 NULL
-update t set a=NULL where a='BC';
-select 'A' IN (SELECT * from t);
-'A' IN (SELECT * from t)
+update t1 set a=NULL where a='BC';
+select 'A' IN (SELECT * from t1);
+'A' IN (SELECT * from t1)
 1
-select 'DEF' IN (SELECT * from t);
-'DEF' IN (SELECT * from t)
+select 'DEF' IN (SELECT * from t1);
+'DEF' IN (SELECT * from t1)
 1
-select 'XYZS' IN (SELECT * from t);
-'XYZS' IN (SELECT * from t)
+select 'XYZS' IN (SELECT * from t1);
+'XYZS' IN (SELECT * from t1)
 NULL
-select 'A' > ALL (SELECT * from t);
-'A' > ALL (SELECT * from t)
+select 'A' > ALL (SELECT * from t1);
+'A' > ALL (SELECT * from t1)
 0
-select 'XYZS' > ALL (SELECT * from t);
-'XYZS' > ALL (SELECT * from t)
+select 'XYZS' > ALL (SELECT * from t1);
+'XYZS' > ALL (SELECT * from t1)
 NULL
-select 'A' > ANY (SELECT * from t);
-'A' > ANY (SELECT * from t)
+select 'A' > ANY (SELECT * from t1);
+'A' > ANY (SELECT * from t1)
 NULL
-select 'XYZS' > ANY (SELECT * from t);
-'XYZS' > ANY (SELECT * from t)
+select 'XYZS' > ANY (SELECT * from t1);
+'XYZS' > ANY (SELECT * from t1)
 1
-drop table t;
-create table t (a float);
-insert into t values (1.5),(2.5),(3.5);
-select 1.5 IN (SELECT * from t);
-1.5 IN (SELECT * from t)
+drop table t1;
+create table t1 (a float);
+insert into t1 values (1.5),(2.5),(3.5);
+select 1.5 IN (SELECT * from t1);
+1.5 IN (SELECT * from t1)
 1
-select 10.5 IN (SELECT * from t);
-10.5 IN (SELECT * from t)
+select 10.5 IN (SELECT * from t1);
+10.5 IN (SELECT * from t1)
 0
-select NULL IN (SELECT * from t);
-NULL IN (SELECT * from t)
+select NULL IN (SELECT * from t1);
+NULL IN (SELECT * from t1)
 NULL
-update t set a=NULL where a=2.5;
-select 1.5 IN (SELECT * from t);
-1.5 IN (SELECT * from t)
+update t1 set a=NULL where a=2.5;
+select 1.5 IN (SELECT * from t1);
+1.5 IN (SELECT * from t1)
 1
-select 3.5 IN (SELECT * from t);
-3.5 IN (SELECT * from t)
+select 3.5 IN (SELECT * from t1);
+3.5 IN (SELECT * from t1)
 1
-select 10.5 IN (SELECT * from t);
-10.5 IN (SELECT * from t)
+select 10.5 IN (SELECT * from t1);
+10.5 IN (SELECT * from t1)
 NULL
-select 1.5 > ALL (SELECT * from t);
-1.5 > ALL (SELECT * from t)
+select 1.5 > ALL (SELECT * from t1);
+1.5 > ALL (SELECT * from t1)
 0
-select 10.5 > ALL (SELECT * from t);
-10.5 > ALL (SELECT * from t)
+select 10.5 > ALL (SELECT * from t1);
+10.5 > ALL (SELECT * from t1)
 NULL
-select 1.5 > ANY (SELECT * from t);
-1.5 > ANY (SELECT * from t)
+select 1.5 > ANY (SELECT * from t1);
+1.5 > ANY (SELECT * from t1)
 NULL
-select 10.5 > ANY (SELECT * from t);
-10.5 > ANY (SELECT * from t)
+select 10.5 > ANY (SELECT * from t1);
+10.5 > ANY (SELECT * from t1)
 1
-explain select (select a+1) from t;
+explain select (select a+1) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
 Warnings:
 Note	1247	Select 2 was reduced during optimisation
-select (select a+1) from t;
+select (select a+1) from t1;
 (select a+1)
 2.5
 NULL
 4.5
-drop table t;
-create table t (a float);
-select 10.5 IN (SELECT * from t LIMIT 1);
+drop table t1;
+CREATE TABLE t1 (a int(11) NOT NULL default '0', PRIMARY KEY  (a));
+CREATE TABLE t2 (a int(11) default '0', INDEX (a));
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t2 VALUES (1),(2),(3);
+SELECT t1.a, t1.a in (select t2.a from t2) FROM t1;
+a	t1.a in (select t2.a from t2)
+1	1
+2	1
+3	1
+4	0
+explain SELECT t1.a, t1.a in (select t2.a from t2) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	4	Using index
+2	DEPENDENT SUBSELECT	t2	index	NULL	a	5	NULL	3	Using where; Using index
+drop table t1,t2;
+create table t1 (a float);
+select 10.5 IN (SELECT * from t1 LIMIT 1);
 This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
-select 10.5 IN (SELECT * from t LIMIT 1 UNION SELECT 1.5);
+select 10.5 IN (SELECT * from t1 LIMIT 1 UNION SELECT 1.5);
 This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
-drop table t;
+drop table t1;
 create table t1 (a int, b int, c varchar(10));
 create table t2 (a int);
 insert into t1 values (1,2,'a'),(2,3,'b'),(3,4,'c');
@@ -899,20 +914,20 @@ INSERT INTO t1 VALUES (1);
 UPDATE t1 SET i=i+1 WHERE i=(SELECT MAX(i));
 Invalid use of group function
 drop table t1;
-CREATE TABLE t (a int(1));
-EXPLAIN SELECT (SELECT RAND() FROM t) FROM t;
+CREATE TABLE t1 (a int(1));
+EXPLAIN SELECT (SELECT RAND() FROM t1) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t	system	NULL	NULL	NULL	NULL	0	const row not found
-2	UNCACHEABLE SUBSELECT	t	system	NULL	NULL	NULL	NULL	0	const row not found
-EXPLAIN SELECT (SELECT ENCRYPT('test') FROM t) FROM t;
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	UNCACHEABLE SUBSELECT	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+EXPLAIN SELECT (SELECT ENCRYPT('test') FROM t1) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t	system	NULL	NULL	NULL	NULL	0	const row not found
-2	UNCACHEABLE SUBSELECT	t	system	NULL	NULL	NULL	NULL	0	const row not found
-EXPLAIN SELECT (SELECT BENCHMARK(1,1) FROM t) FROM t;
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	UNCACHEABLE SUBSELECT	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+EXPLAIN SELECT (SELECT BENCHMARK(1,1) FROM t1) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t	system	NULL	NULL	NULL	NULL	0	const row not found
-2	UNCACHEABLE SUBSELECT	t	system	NULL	NULL	NULL	NULL	0	const row not found
-drop table t;
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	UNCACHEABLE SUBSELECT	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+drop table t1;
 CREATE TABLE `t1` (
 `mot` varchar(30) character set latin1 NOT NULL default '',
 `topic` mediumint(8) unsigned NOT NULL default '0',

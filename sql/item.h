@@ -102,6 +102,7 @@ public:
   virtual void save_in_result_field(bool no_conversions) {}
   virtual void no_rows_in_result() {}
   virtual Item *copy_or_same(THD *thd) { return this; }
+  virtual Item *real_item() { return this; }
   virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
   virtual bool binary() const
@@ -468,9 +469,10 @@ class Item_ref :public Item_ident
 public:
   Field *result_field;				/* Save result here */
   Item **ref;
-  Item_ref(char *db_par,char *table_name_par,char *field_name_par)
+  Item_ref(const char *db_par, const char *table_name_par,
+	   const char *field_name_par)
     :Item_ident(db_par,table_name_par,field_name_par),ref(0) {}
-  Item_ref(Item **item, char *table_name_par,char *field_name_par)
+  Item_ref(Item **item, const char *table_name_par, const char *field_name_par)
     :Item_ident(NullS,table_name_par,field_name_par),ref(item) {}
   // Constructor need to process subselect with temporary tables (see Item)
   Item_ref(THD *thd, Item_ref &item)
@@ -521,6 +523,7 @@ public:
   {
     (*ref)->save_in_field(result_field, no_conversions);
   }
+  Item *real_item() { return *ref; }
 };
 
 class Item_in_subselect;
@@ -530,7 +533,7 @@ protected:
   Item_in_subselect* owner;
 public:
   Item_ref_null_helper(Item_in_subselect* master, Item **item,
-		       char *table_name_par, char *field_name_par):
+		       const char *table_name_par, const char *field_name_par):
     Item_ref(item, table_name_par, field_name_par), owner(master) {}
   double val();
   longlong val_int();

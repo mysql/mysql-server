@@ -262,7 +262,7 @@ public:
 
 class Item_func_old_password :public Item_str_func
 {
-  char tmp_value[16]; /* old password length */
+  char tmp_value[17]; /* old password length +1 */
 public:
   Item_func_old_password(Item *a) :Item_str_func(a) {}
   String *val_str(String *);

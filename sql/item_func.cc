@@ -120,10 +120,10 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       used_tables_cache|=(*arg)->used_tables();
       const_item_cache&= (*arg)->const_item();
     }
-    if (result_type() == STRING_RESULT)
-      set_charset((*args)->charset());
   }
   fix_length_and_dec();
+  if (result_type() == STRING_RESULT)
+    set_charset((*args)->charset());
   fixed= 1;
   return 0;
 }

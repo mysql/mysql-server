@@ -550,6 +550,7 @@ public:
   bool       query_error, bootstrap, cleanup_done;
   bool	     volatile killed;
   bool       prepare_command;
+  bool	     tmp_table_used;
 
   /*
     If we do a purge of binary logs, log index info of the threads

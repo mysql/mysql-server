@@ -26,7 +26,7 @@
 */
 
 Item_row::Item_row(List<Item> &arg):
-  Item(), used_tables_cache(0), array_holder(1), const_item_cache(1)
+  Item(), used_tables_cache(0), array_holder(1), const_item_cache(1), with_null(0)
 {
 
   //TODO: think placing 2-3 component items in item (as it done for function)

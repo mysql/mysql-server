@@ -766,7 +766,7 @@ int Query_log_event::write_data(IO_CACHE* file)
 #ifndef MYSQL_CLIENT
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans)
-  :Log_event(thd_arg, !thd_arg->lex.tmp_table_used ? 
+  :Log_event(thd_arg, !thd_arg->tmp_table_used ? 
 	     0 : LOG_EVENT_THREAD_SPECIFIC_F, using_trans), 
    data_buf(0), query(query_arg),
    db(thd_arg->db), q_len((uint32) query_length),

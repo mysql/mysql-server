@@ -63,8 +63,7 @@ my_bool simple_command(MYSQL *mysql,enum enum_server_command command,
   }
 
   /* Clear result variables */
-  thd->net.last_error[0]=0;
-  thd->net.last_errno=0;
+  thd->clear_error();
   mysql->affected_rows= ~(my_ulonglong) 0;
 
   thd->store_globals();				// Fix if more than one connect
