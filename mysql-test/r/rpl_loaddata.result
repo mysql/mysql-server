@@ -25,6 +25,3 @@ drop table t3;
 create table t1(a int, b int, unique(b));
 insert into t1 values(1,10);
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
-show status like 'slave_running';
-Variable_name	Value
-Slave_running	OFF
