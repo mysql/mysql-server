@@ -15,7 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>	/* Needed for mkdir(2) */
-#include <signal.h>
 
 #include "CPCD.hpp"
 #include "APIService.hpp"
