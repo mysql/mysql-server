@@ -616,8 +616,8 @@ typedef unsigned long	ulong;	/* Short for unsigned long */
 #endif
 #ifndef longlong_defined
 #if defined(HAVE_LONG_LONG) && SIZEOF_LONG != 8
-typedef unsigned long long ulonglong;	/* ulong or unsigned long long */
-typedef long long	longlong;
+typedef unsigned long long int ulonglong; /* ulong or unsigned long long */
+typedef long long int longlong;
 #else
 typedef unsigned long	ulonglong;	/* ulong or unsigned long long */
 typedef long		longlong;
