@@ -1225,7 +1225,7 @@ pathnames.  Example: ``The distribution is installed under the
 
 @item @samp{c}
 Constant-width font with surrounding quotes is also used to indicate
-character sequences.  Example: ``To specify a wildcard, use the @samp{%}
+character sequences.  Example: ``To specify a wild card, use the @samp{%}
 character.''
 
 @item @emph{italic}
@@ -1284,7 +1284,7 @@ mysql> SELECT author_name FROM biblio_db.author_list;
 @end example
 
 SQL statements may be written in uppercase or lowercase.  When this manual
-shows a SQL statement, uppercase is used for particular keywords if those
+shows an SQL statement, uppercase is used for particular keywords if those
 keywords are under discussion (to emphasize them) and lowercase is used for
 the rest of the statement.  For example, you might see the following in a
 discussion of the @code{SELECT} statement:
@@ -1943,7 +1943,7 @@ Publisher Sybex 510 523 8233
 Alameda, CA USA
 @end example
 
-A SQL tutorial is available on the net at
+An SQL tutorial is available on the net at
 http://www.geocities.com/SiliconValley/Vista/2207/sql1.html.
 
 @c A nice german 404 error. (jcole)
@@ -2394,7 +2394,7 @@ A Contact Database using @strong{MySQL} and PHP.
 Web based interface and Community Calender with PHP.
 
 @item @uref{http://www.odbsoft.com/cook/sources.htm}@*
-Perl package to generate html from a SQL table structure and for generating
+Perl package to generate html from an SQL table structure and for generating
 SQL statements from an html form.
 
 @item @uref{http://www.gusnet.cx/proj/telsql/}@*
@@ -5227,7 +5227,8 @@ work.  @code{libg++} is not needed when using @code{gcc}.  @code{gcc}
 C++ files, such as @file{sql/sql_base.cc}. If you only have @code{gcc} 2.7.x,
 you must upgrade your @code{gcc} to be able to compile @strong{MySQL}.
 
-@code{gcc} >= 2.95.2 is recommended when compiling @strong{MySQL} 3.23.x.
+@code{gcc} >= 2.95.2 is recommended when compiling @strong{MySQL}
+Version 3.23.x.
 
 @item
 A good @code{make} program.  GNU @code{make} is always recommended and is
@@ -7637,7 +7638,7 @@ the DCE libraries while you compile @code{gcc} 2.95!
 @node HP-UX 11.x, Mac OS X, HP-UX 10.20, Source install system issues
 @subsection HP-UX Version 11.x Notes
 
-For HPUX Version 11.x we recommend @strong{MySQL} 3.23.15 or later.
+For HPUX Version 11.x we recommend @strong{MySQL} Version 3.23.15 or later.
 
 If you are using @code{gcc} 2.95.1 on a unpatched HPUX 11.x system,
 you will get the error:
@@ -10439,7 +10440,7 @@ In @strong{MySQL} Version 3.23 you can, however, use:
 The following discussion only concerns you if you are running a @strong{MySQL}
 version earlier than Version 3.23:
 
-If you have a SQL program in a text file that contains @samp{--} comments
+If you have an SQL program in a text file that contains @samp{--} comments
 you should use:
 
 @example
@@ -10850,7 +10851,7 @@ mysql> FLUSH PRIVILEGES;
 Don't run the @strong{MySQL} daemon as the UNIX @code{root} user.
 It is very dangerous as any user with @code{FILE} privileges will be able to
 create files
-as @code{root} (e.g. @code{~root/.bashrc}). To prevent this
+as @code{root} (for example, @code{~root/.bashrc}). To prevent this
 @code{mysqld} will refuse to run as @code{root} unless it is specified
 directly via @code{--user=root} option.
 
@@ -10989,7 +10990,7 @@ one used during the UNIX login process.  See the descriptions of the
 @code{PASSWORD()} and @code{ENCRYPT()} functions in @ref{Miscellaneous
 functions}.  Note that even if the password is stored 'scrambled', and
 knowing your 'scrambled' password is enough to be able to connect to
-the the @strong{MySQL} server!
+the @strong{MySQL} server!
 @end itemize
 
 @node Connecting, Password security, User names, Privilege system
@@ -11540,7 +11541,7 @@ to indicate the local host.
 
 @item
 @cindex wildcards, in @code{mysql.user} table
-You can use the wild card characters @samp{%} and @samp{_} in the @code{Host}
+You can use the wild-card characters @samp{%} and @samp{_} in the @code{Host}
 field.
 
 @item
@@ -11569,7 +11570,7 @@ In the above example all IP:s in the interval 192.58.197.0 -
 
 @item
 @cindex anonymous user
-Wild card characters are not allowed in the @code{User} field, but you can
+Wild-card characters are not allowed in the @code{User} field, but you can
 specify a blank value, which matches any name.  If the @code{user} table
 entry that matches an incoming connection has a blank user name, the user is
 considered to be the anonymous user (the user with no name), rather than the
@@ -11611,14 +11612,14 @@ connections:
 @item @code{'144.155.166.0/24'} @tab @code{'fred'} @tab Same as previous example
 @end multitable
 
-Because you can use IP wild card values in the @code{Host} field (for example,
+Because you can use IP wild-card values in the @code{Host} field (for example,
 @code{'144.155.166.%'} to match every host on a subnet), there is the
 possibility that someone might try to exploit this capability by naming a
 host @code{144.155.166.somewhere.com}.  To foil such attempts, @strong{MySQL}
 disallows matching on hostnames that start with digits and a dot. Thus, if
 you have a host named something like @code{1.2.foo.com}, its name will never
 match the @code{Host} column of the grant tables.  Only an IP number can
-match an IP wild card value.
+match an IP wild-card value.
 
 An incoming connection may be matched by more than one entry in the
 @code{user} table.  For example, a connection from @code{thomas.loc.gov} by
@@ -11738,7 +11739,7 @@ Values in the scope fields may be specified as follows:
 
 @itemize @bullet
 @item
-The wild card characters @samp{%} and @samp{_} can be used in the @code{Host}
+The wild-card characters @samp{%} and @samp{_} can be used in the @code{Host}
 and @code{Db} fields of either table.
 
 @item
@@ -11778,7 +11779,7 @@ follows:
 
 @itemize @bullet
 @item
-The wild card characters @samp{%} and @samp{_}
+The wild-card characters @samp{%} and @samp{_}
 can be used in the @code{Host} field of either table.
 
 @item
@@ -12715,14 +12716,14 @@ A backslash (@samp{\}) character.
 @item \%
 A @samp{%} character. This is used to search for literal instances of
 @samp{%} in contexts where @samp{%} would otherwise be interpreted
-as a wild card character. @xref{String comparison functions}.
+as a wild-card character. @xref{String comparison functions}.
 
 @findex _ (wild card character)
 @findex Wild card character (_)
 @item \_
 A @samp{_} character. This is used to search for literal instances of
 @samp{_} in contexts where @samp{_} would otherwise be interpreted
-as a wild card character. @xref{String comparison functions}.
+as a wild-card character. @xref{String comparison functions}.
 @end table
 
 Note that if you use @samp{\%} or @samp{\_} in some string contexts, these
@@ -13264,8 +13265,8 @@ numbers.
 @tindex YEAR
 @item YEAR[(2|4)]
 
-A year in 2- or 4- digit formats (default is 4-digit).  The allowable values
-are @code{1901} to @code{2155}, and @code{0000} in the 4-digit year format,
+A year in 2- or 4-digit format (default is 4-digit).  The allowable values
+are @code{1901} to @code{2155}, @code{0000} in the 4-digit year format,
 and 1970-2069 if you use the 2-digit format (70-69).  @strong{MySQL} displays
 @code{YEAR} values in @code{YYYY} format, but allows you to assign values to
 @code{YEAR} columns using either strings or numbers. (The @code{YEAR} type is
@@ -13527,7 +13528,7 @@ of an integral value in parentheses following the base keyword for the
 type (for example, @code{INT(4)}).  This optional width specification is
 used to left-pad the display of values whose width is less than the
 width specified for the column, but does not constrain the range of
-values which can be stored in the column, nor the number of digits that
+values that can be stored in the column, nor the number of digits that
 will be displayed for values whose width exceeds that specified for the
 column.  When used in conjunction with the optional extension attribute
 @code{ZEROFILL}, the default padding of spaces is replaced with zeroes.
@@ -14231,9 +14232,10 @@ communications buffers.  You can change the message buffer size, but you must
 do so on both the server and client ends. @xref{Server parameters}.
 @end itemize
 
-Note that each @code{BLOB} or @code{TEXT} value is represented internally by
-a separately allocated object. This is in contrast to all other column types,
-for which storage is allocated once per column when the table is opened.
+Note that each @code{BLOB} or @code{TEXT} value is represented
+internally by a separately allocated object. This is in contrast to all
+other column types, for which storage is allocated once per column when
+the table is opened.
 
 @tindex ENUM
 @node ENUM, SET, BLOB, String types
@@ -14563,7 +14565,7 @@ statement, @strong{MySQL} reports the table structure using the equivalent
 @node Functions, CREATE DATABASE, Column types, Reference
 @section Functions for Use in @code{SELECT} and @code{WHERE} Clauses
 
-A @code{select_expression} or @code{where_definition} in a SQL statement
+A @code{select_expression} or @code{where_definition} in an SQL statement
 can consist of any expression using the functions described below.
 
 An expression that contains @code{NULL} always produces a @code{NULL} value
@@ -14636,8 +14638,8 @@ mysql> select (1+2)*3;
 @subsection Normal Arithmetic Operations
 
 The usual arithmetic operators are available.  Note that in the case of
-@samp{-}, @samp{+}, and @samp{*}, the result is calculated with @code{BIGINT}
-(64-bit) precision if both arguments are integers!
+@samp{-}, @samp{+}, and @samp{*}, the result is calculated with
+@code{BIGINT} (64-bit) precision if both arguments are integers!
 
 @cindex operations, arithmetic
 @cindex arithmetic expressions
@@ -15081,7 +15083,7 @@ comparison is performed in case-sensitive fashion.
 @item expr LIKE pat [ESCAPE 'escape-char']
 Pattern matching using
 SQL simple regular expression comparison. Returns @code{1} (TRUE) or @code{0}
-(FALSE).  With @code{LIKE} you can use the following two wild card characters
+(FALSE).  With @code{LIKE} you can use the following two wild-card characters
 in the pattern:
 
 @multitable @columnfractions .1 .9
@@ -15096,7 +15098,7 @@ mysql> select 'David!' LIKE '%D%v%';
         -> 1
 @end example
 
-To test for literal instances of a wild card character, precede the character
+To test for literal instances of a wild-card character, precede the character
 with the escape character.  If you don't specify the @code{ESCAPE} character,
 @samp{\} is assumed:
 
@@ -15221,7 +15223,7 @@ mysql> select BINARY "a" = "A";
         -> 0
 @end example
 
-@code{BINARY} was introduced in @strong{MySQL} 3.23.0.
+@code{BINARY} was introduced in @strong{MySQL} Version 3.23.0.
 @end table
 
 @findex control flow functions
@@ -15293,8 +15295,9 @@ may not be what you expect.  In the second case, the comparison tests the
 original floating-point value to see whether it is non-zero.  The result
 of the comparison is used as an integer.
 
-The default return type of @code{IF()} (which may matter when it is stored into
-a temporary table) is calculated in @strong{MySQL} Version 3.23 as follows:
+The default return type of @code{IF()} (which may matter when it is
+stored into a temporary table) is calculated in @strong{MySQL} Version
+3.23 as follows:
 
 @multitable @columnfractions .55 .45
 @item @strong{Expression} @tab @strong{Return value}
@@ -18423,7 +18426,7 @@ in cases where it takes a long time to send the result set to the client.
 with @code{GROUP BY} or @code{DISTINCT} to tell the optimizer that the
 result set will be small.  In this case, @strong{MySQL} will use fast
 temporary tables to store the resulting table instead of using sorting. In
-@strong{MySQL} 3.23 this shouldn't normally be needed.
+@strong{MySQL} Version 3.23 this shouldn't normally be needed.
 
 @item
 @code{STRAIGHT_JOIN} forces the optimizer to join the tables in the order in
@@ -18614,7 +18617,7 @@ is always read before the right table. This can be used for those (few)
 cases where the join optimizer puts the tables in the wrong order.
 
 @item
-As of @strong{MySQL} 3.23.12, you can give hints about which
+As of @strong{MySQL} Version 3.23.12, you can give hints about which
 index @strong{MySQL} should use when retrieving information from a
 table. This is useful if @code{EXPLAIN} shows that @strong{MySQL} is
 using the wrong index.  By specifying @code{USE INDEX (key_list)}, you
@@ -18953,7 +18956,7 @@ host to the server host.  On the other hand, you do not need the
 @strong{file} privilege to load local files.
 
 @c old version
-If you are using @strong{MySQL} before 3.23.24 you can't read from a
+If you are using @strong{MySQL} before Version 3.23.24 you can't read from a
 FIFO with @code{LOAD DATA INFILE}; If you need to read from a FIFO (for
 example the output from gunzip), use @code{LOAD DATA LOCAL INFILE}
 instead.
@@ -19218,7 +19221,7 @@ the list just given.
 For input, if the @code{FIELDS ESCAPED BY} character is not empty, occurrences
 of that character are stripped and the following character is taken literally
 as part of a field value.  The exceptions are an escaped @samp{0} or
-@samp{N} (e.g., @code{\0} or @code{\N} if the escape character is
+@samp{N} (for example, @code{\0} or @code{\N} if the escape character is
 @samp{\}).  These sequences are interpreted as ASCII @code{0} (a zero-valued
 byte) and @code{NULL}.  See below for the rules on @code{NULL} handling.
 
@@ -19433,8 +19436,8 @@ In @strong{MySQL} 3.22 or later, the C API function @code{mysql_info()}
 returns the number of rows that were matched and updated and the number of
 warnings that occurred during the @code{UPDATE}.
 
-In @strong{MySQL} 3.23 you can use @code{LIMIT #} to ensure that only a given
-number of rows are changed.
+In @strong{MySQL} Version 3.23 you can use @code{LIMIT #} to ensure that
+only a given number of rows are changed.
 
 @findex USE
 @node USE, FLUSH, UPDATE, Reference
@@ -19572,7 +19575,7 @@ or SHOW CREATE TABLE table_name
 @code{SHOW} provides information about databases, tables, columns or
 status information about the server. If the @code{LIKE wild} part is
 used, the @code{wild} string can be a string that uses the SQL @samp{%}
-and @samp{_} wild card characters.
+and @samp{_} wild-card characters.
 
 @findex SHOW DATABASES
 @findex SHOW TABLES
@@ -20186,7 +20189,7 @@ information of how to tune the above variables. @xref{Server parameters}.
 also get this information using the @code{mysqladmin processlist}
 command.  If you have the @strong{process} privilege, you can see all
 threads.  Otherwise, you can see only your own threads.  @xref{KILL, ,
-@code{KILL}}.  If you don't use the the @code{FULL} option, then only
+@code{KILL}}.  If you don't use the @code{FULL} option, then only
 the first 100 characters of each query will be shown.
 
 @cindex privileges, display
@@ -20341,7 +20344,7 @@ BY} on.
 @item Where used
 A @code{WHERE} clause will be used to restrict which rows will be
 matched against the next table or sent to the client.  If you don't have
-this information and the the table is of type @code{ALL} or @code{index}
+this information and the table is of type @code{ALL} or @code{index}
 you may have something wrong in your query (if you don't intend to
 fetch/examine all rows from the table).
 @end table
@@ -20569,7 +20572,7 @@ the @code{FROM} clause.
 
 @code{DESCRIBE} provides information about a table's columns.  @code{col_name}
 may be a column name or a string containing the SQL @samp{%} and @samp{_}
-wild card characters.
+wild-card characters.
 
 If the column types are different than you expect them to be based on a
 @code{CREATE TABLE} statement, note that @strong{MySQL} sometimes
@@ -20948,8 +20951,8 @@ In order to accommodate granting rights to users from arbitrary hosts,
 @strong{MySQL} supports specifying the @code{user_name} value in the form
 @code{user@@host}.  If you want to specify a @code{user} string
 containing special characters (such as @samp{-}), or a @code{host} string
-containing special characters or wild card characters (such as @samp{%}), you
-can quote the user or host name (e.g., @code{'test-user'@@'test-hostname'}).
+containing special characters or wild-card characters (such as @samp{%}), you
+can quote the user or host name (for example, @code{'test-user'@@'test-hostname'}).
 
 You can specify wild cards in the hostname.  For example,
 @code{user@@"%.loc.gov"} applies to @code{user} for any host in the
@@ -21018,7 +21021,7 @@ table is created if needed. When all privileges for the database have been
 removed with @code{REVOKE}, this entry is deleted.
 
 If a user doesn't have any privileges on a table, the table is not displayed
-when the user requests a list of tables (e.g., with a @code{SHOW TABLES}
+when the user requests a list of tables (for example, with a @code{SHOW TABLES}
 statement).
 
 The @code{WITH GRANT OPTION} clause gives the user the ability to give
@@ -21138,7 +21141,7 @@ operations!
 
 Note that you can only add an index on a column that can have @code{NULL}
 values or on a @code{BLOB}/@code{TEXT} column if you are using
-@strong{MySQL} version 3.23.2 or newer and are using the @code{MyISAM}
+@strong{MySQL} Version 3.23.2 or newer and are using the @code{MyISAM}
 table type.
 
 For more information about how @strong{MySQL} uses indexes, see
@@ -21146,7 +21149,7 @@ For more information about how @strong{MySQL} uses indexes, see
 
 @code{FULLTEXT} indexes can index only @code{VARCHAR} and
 @code{TEXT} columns, and only in @code{MyISAM} tables. @code{FULLTEXT} indexes
-are available in @strong{MySQL} 3.23.23 and later.
+are available in @strong{MySQL} Version 3.23.23 and later.
 @ref{MySQL full-text search}.
 
 @findex DROP INDEX
@@ -21231,7 +21234,7 @@ A user-definable function (UDF) is a way to extend @strong{MySQL} with a new
 function that works like native (built in) @strong{MySQL} functions such as
 @code{ABS()} and @code{CONCAT()}.
 
-@code{AGGREGATE} is a new option for @strong{MySQL} 3.23.  An
+@code{AGGREGATE} is a new option for @strong{MySQL} Version 3.23.  An
 @code{AGGREGATE} function works exactly like a native @strong{MySQL}
 @code{GROUP} function like @code{SUM} or @code{COUNT()}.
 
@@ -21375,7 +21378,7 @@ used them.
 @node Table types, Tutorial, Reference, Top
 @chapter MySQL table types
 
-As of @strong{MySQL} 3.23.6, you can choose between three basic
+As of @strong{MySQL} Version 3.23.6, you can choose between three basic
 table formats. When you create a new table, you can tell @strong{MySQL}
 which table type it should use for the table.  @strong{MySQL} will
 always create a @code{.frm} file to hold the table and column
@@ -21436,7 +21439,7 @@ of both worlds.
 @node MyISAM, MERGE, Table types, Table types
 @section MyISAM tables
 
-@code{MyISAM} is the default table type in @strong{MySQL} 3.23. It's
+@code{MyISAM} is the default table type in @strong{MySQL} Version 3.23. It's
 based on the @code{ISAM} code and has a lot of useful extensions.
 
 The index is stored in a file with the @code{.MYI} (MYIndex) extension
@@ -21782,7 +21785,7 @@ Can be uncompressed with @code{myisamchk}.
 @node MERGE, ISAM, MyISAM, Table types
 @section MERGE tables
 
-@code{MERGE} tables are new in @strong{MySQL} 3.23.25; The code is still
+@code{MERGE} tables are new in @strong{MySQL} Version 3.23.25; The code is still
 in alpha, but should stabilize soon!  The one thing that is currently
 missing is a way from the SQL prompt to say which tables are part of the
 @code{MERGE} table.
@@ -22027,9 +22030,9 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 Berkeley DB (@uref{http://www.sleepycat.com}) has provided
 @strong{MySQL} with a transaction safe table handler. This will survive
 crashes and also provides @code{COMMIT} and @code{ROLLBACK} on
-transactions. In order to build MySQL 3.23.x (BDB support first appeared
-in 3.23.15) with support for @code{BDB} tables, you will need Berkeley
-DB 3.1.14 or newer which can be downloaded from
+transactions. In order to build MySQL Version 3.23.x (BDB support first
+appeared in Version 3.23.15) with support for @code{BDB} tables, you
+will need Berkeley DB 3.1.14 or newer which can be downloaded from
 @uref{http://www.mysql.com/downloads/mysql-3.23.html}; or also from
 Sleepycat's download page at
 @uref{http://www.sleepycat.com/download.html}.
@@ -22098,7 +22101,7 @@ you.  The hidden key has a length of 5 bytes and is incremented for each
 insert attempt.
 @item
 If all columns you access in a @code{BDB} tables is part of the same index or
-part of the the primary key then @strong{MySQL} can execute the query
+part of the primary key then @strong{MySQL} can execute the query
 without having to access the actual row.  In a @code{MyISAM} table the
 above holds only if the columns are part of the same index.
 @item
@@ -22298,7 +22301,7 @@ This query illustrates several things about @code{mysql}:
 
 @itemize @bullet
 @item
-A command normally consists of a SQL statement followed by a semicolon.
+A command normally consists of an SQL statement followed by a semicolon.
 (There are some exceptions where a semicolon is not needed.  @code{QUIT},
 mentioned earlier, is one of them.  We'll get to others later.)
 
@@ -22604,7 +22607,7 @@ ORDER BY price DESC
 LIMIT 1
 @end example
 
-@strong{Note}:  If there are several most expensive articles (e.g. each 19.95)
+@strong{Note}:  If there are several most expensive articles (for example, each 19.95)
 the @code{LIMIT} solution shows only one of them!
 
 @node example-Maximum-column-group, example-Maximum-column-group-row, example-Maximum-row, Examples
@@ -22944,7 +22947,7 @@ Enter password: ********
 
 Note that @code{menagerie} is not your password on the command just shown.
 If you want to supply your password on the command line after the @code{-p}
-option, you must do so with no intervening space (e.g., as
+option, you must do so with no intervening space (for example, as
 @code{-pmypassword}, not as @code{-p mypassword}).  However, putting your
 password on the command line is not recommended, because doing so exposes it
 to snooping by other users logged in on your machine.
@@ -23815,7 +23818,7 @@ mysql> SELECT * FROM pet WHERE name REGEXP "[wW]";
 Because a regular expression pattern matches if it occurs anywhere in the
 value, it is not necessary in the previous query to put a wild card on either
 side of the pattern to get it to match the entire value like it would be if
-you used a SQL pattern.
+you used an SQL pattern.
 
 To find names containing exactly five characters, use @samp{^} and @samp{$}
 to match the beginning and end of the name, and five instances of @samp{.}
@@ -24111,7 +24114,7 @@ each column reference is associated with.
 
 
 What if you forget the name of a database or table, or what the structure of
-a given table is (e.g., what its columns are called)?  @strong{MySQL}
+a given table is (for example, what its columns are called)?  @strong{MySQL}
 addresses this problem through several statements that provide information
 about the databases and tables it supports.
 
@@ -24542,7 +24545,7 @@ default character set in use to the client.  The client will switch to
 use this character set for this connection.
 
 One should use @code{mysql_real_escape_string()} when escaping strings
-for a SQL query.  @code{mysql_real_escape_string()} is identical to the
+for an SQL query.  @code{mysql_real_escape_string()} is identical to the
 old @code{mysql_escape_string()} function, except that it takes the MYSQL
 connection handle as the first parameter.
 
@@ -24732,8 +24735,8 @@ the size in bytes of the largest character in the set.
 @section How big MySQL tables can be
 
 @strong{MySQL} 3.22 has a 4G limit on table size. With the new
-@code{MyISAM} in @strong{MySQL} 3.23 the maximum table size is pushed up
-to 8 million terabytes (2 ^ 63 bytes).
+@code{MyISAM} in @strong{MySQL} Version 3.23 the maximum table size is
+pushed up to 8 million terabytes (2 ^ 63 bytes).
 
 Note however that operating systems have their own file size
 limits. Here are some examples:
@@ -24804,7 +24807,7 @@ sending a part of the non-updating queries to the replica server. Of
 course this only works if non-updating queries dominate, but that is the
 normal case.
 
-Starting in 3.23.15, @strong{MySQL} supports one-way replication
+Starting in Version 3.23.15, @strong{MySQL} supports one-way replication
 internally. One server acts as the master, while the other acts as the
 slave. Note that one server could play the roles of master in one pair
 and slave in the other. The master server keeps a binary log of updates
@@ -24843,9 +24846,9 @@ system:
 
 @itemize @bullet
 @item
-Upgrade both slave and master to 3.23.15 or higher. We recommend that
+Upgrade both slave and master to Version 3.23.15 or higher. We recommend that
 you always use the latest 3.23 version on both the slave and the
-master. While 3.23 is in beta, the versions may be not backwards
+master. While Version 3.23 is in beta, the versions may be not backwards
 compatible. In addition, the newer version will fix some bugs and add
 new features. Please, do not report bugs until you have verified that
 the problem is present in the latest release.
@@ -24856,9 +24859,9 @@ only doing replication, you don't need to grant him other privileges.
 @item
 Take a snapshot of all the tables/databases on the master that could
 possibly be involved in the update queries before taking the next step.
-Starting in version 3.23.21, there is a command that allows you to
+Starting in Version 3.23.21, there is a command that allows you to
 take a snapshot of a table on the master and copy it to the slave, called
-@code{LOAD TABLE FROM MASTER}. Until 3.23.23, though, it has a serious
+@code{LOAD TABLE FROM MASTER}. Until Version 3.23.23, though, it has a serious
 bug, and we recommend that you should not use it until you have upgraded .
 
 @item
@@ -24879,7 +24882,7 @@ master-password=<replication user password>
 
 replacting the values in <> with what is relevant to your system.
 
-Starting in version 3.23.26, you must also have on both master and
+Starting in Version 3.23.26, you must also have on both master and
 slave
 
 @example
@@ -24920,20 +24923,20 @@ Temporary tables will not work if the  table with the same name
 now the only thing you can do is turn off logging of the trouble
 queries with @code{SET SQL_LOG_BIN=0}
 @item
-Starting in 3.23.26, it is safe to connect servers in a circular
+Starting in Version 3.23.26, it is safe to connect servers in a circular
 master-slave relationship with @code{log-slave-updates} enabled.
 Note, however, that many queries will not work right in this kind of
 setup unless your client code is written to take care of the potential
 problems that can happen from updates that occur in different sequence
-on different servers. Note that the log format has changed in 3.23.26
+on different servers. Note that the log format has changed in Version 3.23.26
 so that pre-3.23.26 slaves will not be able to read it.
 @item
 If the query on the slave gets an error, the slave thread will
 terminate, and a message will appear in @code{.err} file. You should
 then connect to the slave manually, fix the cause of the error
 (eg. non-existent table), and then run @code{SLAVE START} sql command (
-available starting in 3.23.16, in 3.23.15 you will have to restart the
-server).
+available starting in Version 3.23.16, in Version, 3.23.15 you will have
+to restart the server).
 @item
 If connection to the master is lost, the slave will retry immediately,
 and then in case of failure every @code{master-connect-retry} (default
@@ -24949,40 +24952,41 @@ tolerance will be greatly increased if you have a good UPS.
 If the master is listening on a non-standard port, you will also need to
 specify this with @code{master-port} parameter in @code{my.cnf} .
 @item
-In 3.23.15,all of the tables and databases will be replicated. Starting
-in 3.23.16, you can restrict replication to a set of databases with
-@code{replicate-do-db} directives in @code{my.cnf} or just excluse a set
-of databases with @code{replicate-ignore-db}. Note that up until
-3.23.23 there was a bug that did not properly deal with @code{LOAD DATA
-INFILE} if you did it in a database that was excluded from replication.
+In Version 3.23.15, all of the tables and databases will be
+replicated. Starting in Version 3.23.16, you can restrict replication to
+a set of databases with @code{replicate-do-db} directives in
+@code{my.cnf} or just excluse a set of databases with
+@code{replicate-ignore-db}. Note that up until Version 3.23.23 there was a bug
+that did not properly deal with @code{LOAD DATA INFILE} if you did it in
+a database that was excluded from replication.
 @item
-Starting in 3.23.16, @code{SET SQL_LOG_BIN = 0} will turn off
+Starting in Version 3.23.16, @code{SET SQL_LOG_BIN = 0} will turn off
 replication (binary) logging on the master, and @code{SET SQL_LOG_BIN =
 1} will turn in back on - you must have the process privilege to do
 this.
 @item
-Starting in 3.23.19 you can clean up stale replication leftovers when
+Starting in Version 3.23.19 you can clean up stale replication leftovers when
 something goes wrong and you want a clean start with @code{FLUSH MASTER}
-and @code{FLUSH SLAVE} commands. In 3.23.26 we have renamed them to
+and @code{FLUSH SLAVE} commands. In Version 3.23.26 we have renamed them to
 @code{RESET MASTER} and @code{RESET SLAVE} respectively to clarify
 what they do. The old @code{FLUSH} variants still work, though for
 compatibility.
 
 @item
-Starting in 3.23.21 you can use LOAD TABLE FROM MASTER for network
+Starting in Version 3.23.21 you can use LOAD TABLE FROM MASTER for network
 backup and to set up replication initially.
 @item
-Starting in 3.23.23, you can change masters with @code{CHANGE MASTER
+Starting in Version 3.23.23, you can change masters with @code{CHANGE MASTER
 TO }
 @item
-Starting in 3.23.23, you tell the master that updates in certain
+Starting in Version 3.23.23, you tell the master that updates in certain
 databases should not be logged to the binary log with @code{binlog-ignore-db}
 @item
-Starting in 3.23.26, you can use @code{replicate-rewrite-db} to tell
+Starting in Version 3.23.26, you can use @code{replicate-rewrite-db} to tell
 the slave to apply updates from one database on the master to the one
 with a different name on the slave
 @item
-Starting in 3.23.28, you can use @code{PURGE MASTER LOGS TO 'log-name'}
+Starting in Version 3.23.28, you can use @code{PURGE MASTER LOGS TO 'log-name'}
 to get rid of old logs while the slave is running
 @end itemize
 
@@ -24990,7 +24994,7 @@ to get rid of old logs while the slave is running
 @section Replication Options in my.cnf
 
 The table below explains the replications options in @code{my.cnf} . All
-of the are available starting in 3.23.15 unless indicated otherwise.
+of the are available starting in Version 3.23.15 unless indicated otherwise.
 
 @multitable @columnfractions .3 .7
 
@@ -25003,9 +25007,9 @@ location. Note that if you give it a parameter with an extention
 (eg. @code{log-bin=/mysql/logs/replication.log} ) versions up to
 3.23.24 will not work right during replication if you do
 @code{FLUSH LOGS} . The problem is fixed
-in 3.23.25. If you are using this kind of log name, @code{FLUSH LOGS}
+in Version 3.23.25. If you are using this kind of log name, @code{FLUSH LOGS}
 will be ignored on binlog. To clear the log, run @code{FLUSH MASTER},
-and do not forget to run @code{FLUSH SLAVE} on all slaves. In 3.23.26
+and do not forget to run @code{FLUSH SLAVE} on all slaves. In Version 3.23.26
 and later versions you should use @code{RESET MASTER} and @code{RESET
 SLAVE}
 
@@ -25192,11 +25196,11 @@ command line. (Slave)
 @item @code{SHOW SLAVE STATUS}
  @tab Provides status info on essential parameters of the slave thread. (Slave)
 @item @code{SHOW MASTER LOGS}
- @tab Only available starting in 3.23.28. Lists the binary logs on the master. You should use this command
+ @tab Only available starting in Version 3.23.28. Lists the binary logs on the master. You should use this command
 prior to @code{PURGE MASTER LOGS TO} to find out how far you should go.
 
 @item @code{PURGE MASTER LOGS TO 'logname'} 
- @tab  Available starting in 3.23.28. Deletes all the 
+ @tab  Available starting in Version 3.23.28. Deletes all the 
 replication logs that are listed in the log
 index as being prior to the specified log, and removed them from the
 log index, so that the given log now becomes first. Example:
@@ -25253,14 +25257,14 @@ it up from @code{pthread_cond_wait()}.  In the meantime, the slave
 could have opened another connection, which resulted in another
 @code{Binlog_Dump} thread.
 
-The above problem should not be present in 3.23.26 and later versions.
-In 3.23.26 we added @code{server-id} to each replication server, and
+The above problem should not be present in Version 3.23.26 and later versions.
+In Version 3.23.26 we added @code{server-id} to each replication server, and
 now all the old zombie threads are killed on the master when a new replication thread
 connects from the same slave
 
 @strong{Q}: How do I rotate replication logs?
 
-@strong{A}: In 3.23.28 you should use @code{PURGE MASTER LOGS TO} 
+@strong{A}: In Version 3.23.28 you should use @code{PURGE MASTER LOGS TO} 
 command after determining which logs can be deleted, and optionally
 backing them up first. In earlier versions the process is much more
 painful, and cannot be safely done without stopping all the slaves in
@@ -25281,7 +25285,7 @@ all the updates, the slave will be able to catch up once it is up and
 can connect.
 
 We plan to make post 3.23.26 versions to be backwards compatible
-for replication down to 3.23.26, so upgrade should be just a matter
+for replication down to Version 3.23.26, so upgrade should be just a matter
 of plug and play. Of course, as one joke goes, plug and play works
 usually only 50% of the time - just the plug part. We hope to do much
 better than that, though.
@@ -26206,7 +26210,7 @@ For @code{BDB} tables, @strong{MySQL} only uses table locking of you
 explicitely lock the table with @code{LOCK TABLES} or execute an command that
 will modify every row in the table, like @code{ALTER TABLE}.
 
-In @strong{MySQL} 3.23.7 and above, you can insert rows into
+In @strong{MySQL} Version 3.23.7 and above, you can insert rows into
 @code{MyISAM} tables at the same time as other threads are reading from
 the table.  Note that currently this only works if there are no holes after
 deleted rows in the table at the time the insert is made.
@@ -26224,7 +26228,7 @@ queries against a specific table. (You can change this by using
 LOW_PRIORITY with the statement that does the update or
 @code{HIGH_PRIORITY} with the @code{SELECT} statement.
 
-Starting from @strong{MySQL 3.23.7} one can use the
+Starting from @strong{MySQL Version 3.23.7} one can use the
 @code{max_write_lock_count} variable to force @strong{MySQL} to
 temporary give all @code{SELECT} statements, that waits for a table, a
 higher priority after a specific number of inserts on a table.
@@ -26394,7 +26398,7 @@ SELECT MIN(key_part2),MAX(key_part2) FROM table_name where key_part1=10
 
 @item
 Sort or group a table if the sorting or grouping is done on a leftmost
-prefix of a usable key (e.g., @code{ORDER BY key_part_1,key_part_2 }). The
+prefix of a usable key (for example, @code{ORDER BY key_part_1,key_part_2 }). The
 key is read in reverse order if all key parts are followed by @code{DESC}.
 
 The index can also be used even if the @code{ORDER BY} doesn't match gthe index
@@ -26460,7 +26464,7 @@ leftmost prefixes of @code{(col1,col2,col3)}.
 @cindex indexes, and @code{LIKE}
 @cindex wildcards, and @code{LIKE}
 @strong{MySQL} also uses indexes for @code{LIKE} comparisons if the argument
-to @code{LIKE} is a constant string that doesn't start with a wild card
+to @code{LIKE} is a constant string that doesn't start with a wild-card
 character.  For example, the following @code{SELECT} statements use indexes:
 
 @example
@@ -26478,8 +26482,9 @@ mysql> select * from tbl_name where key_col LIKE "%Patrick%";
 mysql> select * from tbl_name where key_col LIKE other_col;
 @end example
 
-In the first statement, the @code{LIKE} value begins with a wildcard character.
-In the second statement, the @code{LIKE} value is not a constant.
+In the first statement, the @code{LIKE} value begins with a wild-card
+character.  In the second statement, the @code{LIKE} value is not a
+constant.
 
 @findex IS NULL, and indexes
 @cindex indexes, and @code{IS NULL}
@@ -26489,7 +26494,7 @@ is an index.
 @strong{MySQL} normally uses the index that finds least number of rows. An
 index is used for columns that you compare with the following operators:
 @code{=}, @code{>}, @code{>=}, @code{<}, @code{<=}, @code{BETWEEN} and a
-@code{LIKE} with a non-wildcard prefix like @code{'something%'}.
+@code{LIKE} with a non-wild-card prefix like @code{'something%'}.
 
 Any index that doesn't span all @code{AND} levels in the @code{WHERE} clause
 is not used to optimize the query. In other words:  To be able to use an
@@ -27172,7 +27177,7 @@ information about the last shown banner for users that doesn't have
 cookies).
 @item
 Columns with identical information in different tables should be
-declared identical and have identical names. Before version 3.23 you
+declared identical and have identical names. Before Version 3.23 you
 got slow joins otherwise.
 
 Try to keep the names simple (use @code{name} instead of
@@ -27397,7 +27402,7 @@ results. We would have used PHP or mod_perl instead but they were
 not available at that time.
 
 For graphical data we wrote a simple tool in @code{C} that can produce
-GIFs based on the result of a SQL query (with some processing of the
+GIFs based on the result of an SQL query (with some processing of the
 result). This is also dynamically executed from the Perl script that
 parses the @code{HTML} files.
 
@@ -27420,7 +27425,7 @@ our systems.
 
 We are also experimenting with Intel-Linux to be able to get more CPU
 power cheaper. Now that we have the binary portable database format (new
-in 3.23) we will start to use this for some parts of the application.
+in Version 3.23) we will start to use this for some parts of the application.
 
 Our initial feelings are that Linux will perform much better on low to
 medium load but Solaris will perform better when you start to get a
@@ -27656,7 +27661,7 @@ to a log file.
 @code{mysql} is a simple SQL shell (with GNU @code{readline} capabilities).
 It supports interactive and non-interactive use. When used interactively,
 query results are presented in an ASCII-table format. When used
-non-interactively (e.g., as a filter), the result is presented in
+non-interactively (for example, as a filter), the result is presented in
 tab-separated format.  (The output format can be changed using command-line
 options.)  You can run scripts simply like this:
 
@@ -27670,7 +27675,7 @@ If you have problems due to insufficient memory in the client, use the
 retrieve the result set.
 
 Using @code{mysql} is very easy;  Just start it as follows
-@code{mysql database} or @code{mysql --user=user_name --password=your_password database}. Type a SQL statement, end it with @samp{;}, @samp{\g} or @samp{\G}
+@code{mysql database} or @code{mysql --user=user_name --password=your_password database}. Type an SQL statement, end it with @samp{;}, @samp{\g} or @samp{\G}
 and press return/enter.
 
 @cindex command line options
@@ -27817,7 +27822,7 @@ ego     (\G)    Send command to mysql server; Display result vertically
 print   (\p)    Print current command
 quit    (\q)    Quit mysql
 rehash  (\#)    Rebuild completion hash
-source  (\.)    Execute a SQL script file. Takes a file name as an argument
+source  (\.)    Execute an SQL script file. Takes a file name as an argument
 status  (\s)    Get status information from the server
 use     (\u)    Use another database. Takes database name as argument
 @end example
@@ -27829,7 +27834,7 @@ connection and the server you are using. If you are running in the
 the @code{mysql} variables that affects your queries.
 
 @cindex @code{safe-mode} command
-A useful startup option for beginners (introduced in @strong{MySQL} 3.23.11) is
+A useful startup option for beginners (introduced in @strong{MySQL} Version 3.23.11) is
 @code{--safe-mode} (or @code{--i-am-a-dummy} for users that has at some
 time done a @code{DELETE FROM table_name} but forgot the @code{WHERE}
 clause.  When using this option, @code{mysql} sends the following
@@ -28018,7 +28023,7 @@ meaning as the corresponding clauses for @code{LOAD DATA INFILE}.
 @item -F, --flush-logs
 Flush log file in the @strong{MySQL} server before starting the dump.
 @item -f, --force,
-Continue even if we get a SQL error during a table dump.
+Continue even if we get an SQL error during a table dump.
 @item -h, --host=..
 Dump data from the @strong{MySQL} server on the named host. The default host
 is @code{localhost}.
@@ -28298,8 +28303,8 @@ are shown.
 Note that in newer @strong{MySQL} versions you only see those
 database/tables/columns for which you have some privileges.
 
-If the last argument contains a shell or SQL wildcard (@code{*}, @code{?},
-@code{%} or @code{_}) then only what's matched by the wildcard is shown.
+If the last argument contains a shell or SQL wild-card (@code{*}, @code{?},
+@code{%} or @code{_}) then only what's matched by the wild card is shown.
 This may cause some confusion when you try to display the columns for a
 table with a @code{_} as in this case @code{mysqlshow} only shows you
 the table names that matches the pattern.  This is easily fixed by
@@ -28706,7 +28711,7 @@ to start using the new table.
 @node Table maintenance, Maintenance regimen, Maintenance, Maintenance
 @section Using @code{myisamchk} for table maintenance and crash recovery
 
-Starting with @strong{MySQL} 3.23.13, you can check MyISAM tables with the
+Starting with @strong{MySQL} Version 3.23.13, you can check MyISAM tables with the
 @code{CHECK TABLE} command. @xref{CHECK TABLE}.  You can repair tables
 with the @code{REPAIR TABLE} command. @xref{REPAIR TABLE}.
 
@@ -28777,7 +28782,7 @@ by specifying the path to the directory:
 shell> myisamchk /path/to/database_dir/*.MYI
 @end example
 
-You can even check all tables in all databases by specifying a wildcard
+You can even check all tables in all databases by specifying a wild card
 with the path to the @strong{MySQL} data directory:
 
 @example
@@ -28805,7 +28810,7 @@ the file or that has died without closing the file properly.
 
 If you @code{mysqld} is running, you must force a sync/close of all
 tables with @code{FLUSH TABLES} and ensure that no one is using the
-tables while you are running @code{myisamchk}.  In MySQL 3.23 the easiest
+tables while you are running @code{myisamchk}.  In MySQL Version 3.23 the easiest
 way to avoid this problem is to use @code{CHECK TABLE} instead of
 @code{myisamchk} to check tables.
 
@@ -29043,7 +29048,7 @@ If you have a problem with disk space during repair, you can try to use
 @node Maintenance regimen, Table-info, Table maintenance, Maintenance
 @section Setting up a table maintenance regimen
 
-Starting with @strong{MySQL} 3.23.13, you can check MyISAM tables with the
+Starting with @strong{MySQL} Version 3.23.13, you can check MyISAM tables with the
 @code{CHECK TABLE} command. @xref{CHECK TABLE}.  You can repair tables
 with the @code{REPAIR TABLE} command. @xref{REPAIR TABLE}.
 
@@ -29578,7 +29583,7 @@ that @code{mysqld} runs as (and to you, because you need to access the files
 you are checking).  If it turns out you need to modify files, they must also
 be writable by you.
 
-If you are using @strong{MySQL} 3.23.16 and above you can (and should) use the
+If you are using @strong{MySQL} Version 3.23.16 and above you can (and should) use the
 @code{CHECK} and @code{REPAIR} commands to check and repair @code{MyISAM}
 tables. @xref{CHECK TABLE}. @xref{REPAIR TABLE}.
 
@@ -29837,7 +29842,7 @@ functions.  Consult this file to see how UDF calling conventions work.
 For each function that you want to use in SQL statements, you should define
 corresponding C (or C++) functions.  In the discussion below, the name
 ``xxx'' is used for an example function name.  To distinquish between SQL and
-C/C++ usage, @code{XXX()} (uppercase) indicates a SQL function call, and
+C/C++ usage, @code{XXX()} (uppercase) indicates an SQL function call, and
 @code{xxx()} (lowercase) indicates a C/C++ function call.
 
 The C/C++ functions that you write to implement the inferface for
@@ -29881,7 +29886,7 @@ The deinitialization function for @code{xxx()}.  It should deallocate any
 memory allocated by the initialization function.
 @end table
 
-When a SQL statement invokes @code{XXX()}, @strong{MySQL} calls the
+When an SQL statement invokes @code{XXX()}, @strong{MySQL} calls the
 initialization function @code{xxx_init()} to let it perform any required
 setup, such as argument checking or memory allocation.  If @code{xxx_init()}
 returns an error, the SQL statement is aborted with an error message and the
@@ -30245,7 +30250,7 @@ The procedure for adding a new native function is described below.  Note that
 you cannot add native functions to a binary distribution because the procedure
 involves modifying @strong{MySQL} source code.  You must compile
 @strong{MySQL} yourself from a source distribution.  Also note that if you
-migrate to another version of @strong{MySQL} (e.g., when a new version is
+migrate to another version of @strong{MySQL} (for example, when a new version is
 released), you will need to repeat the procedure with the new version.
 
 To add a new native @strong{MySQL} function, follow these steps:
@@ -30310,7 +30315,7 @@ In @strong{MySQL}, you can define a procedure in C++ that can access and
 modify the data in a query before it is sent to the client.  The modification
 can be done on row by row or @code{GROUP BY} level.
 
-We have created an example procedure in @strong{MySQL} 3.23 to
+We have created an example procedure in @strong{MySQL} Version 3.23 to
 show you what can be done.
 
 @menu
@@ -30553,7 +30558,7 @@ Microsoft MDAC (@code{Microsoft Data Access Components}) from
 @uref{http://www.microsoft.com/data}.  This will fix the bug in Access
 that when you export data to @strong{MySQL}, the table and column names
 aren't specified.  Another way to around this bug is to upgrade to
-MyODBC 2.50.33 and @strong{MySQL} 3.23.x, which together provides a
+MyODBC Version 2.50.33 and @strong{MySQL} Version 3.23.x, which together provides a
 workaround for this bug!
 
 Note that if you are using @strong{MySQL} 3.22, you must to apply the
@@ -31399,7 +31404,7 @@ shell> mysqladmin -h `hostname` version
 @end example
 @item Someone has removed the Unix socket that @code{mysqld} uses (default
 @file{/tmp/mysqld.sock}).  You might have a @code{cron} job that removes the
-@strong{MySQL} socket (e.g., a job that removes old files from the @file{/tmp}
+@strong{MySQL} socket (for example, a job that removes old files from the @file{/tmp}
 directory).  You can always run @code{mysqladmin version} and
 check that the socket @code{mysqladmin} is trying to use really exists.
 The fix in this case is to change the @code{cron} job to not remove
@@ -31588,7 +31593,7 @@ query. @xref{SET OPTION, , @code{SET OPTION}}.
 You can also start @code{mysqld} with the @code{--big-tables} option.
 This is exactly the same as using @code{SQL_BIG_TABLES} for all queries.
 
-In @strong{MySQL} 3.23 in-memory temporary tables will automaticly be
+In @strong{MySQL} Version 3.23 in-memory temporary tables will automatically be
 converted to a disk based @code{MyISAM} table after the table size gets
 bigger than @code{tmp_table_size}.
 
@@ -31942,7 +31947,7 @@ shell> /path/to/safe_mysqld &
 @tindex Environment variable, UMASK_DIR
 By default @strong{MySQL} will create database and @code{RAID}
 directories with permission type 0700.  You can modify this behaviour by
-setting the the @code{UMASK_DIR} variable. If you set this, new
+setting the @code{UMASK_DIR} variable. If you set this, new
 directories are created with the combined @code{UMASK} and
 @code{UMASK_DIR}. For example, if you want to give group access to
 all new directories, you can do:
@@ -31953,7 +31958,7 @@ shell> export UMASK_DIR
 shell> /path/to/safe_mysqld &
 @end example
 
-In @strong{MySQL} 3.23.25 and above, @strong{MySQL} assumes that the
+In @strong{MySQL} Version 3.23.25 and above, @strong{MySQL} assumes that the
 value for @code{UMASK} and @code{UMASK_DIR} is in octal if it starts
 with a zero.
 
@@ -32393,7 +32398,7 @@ Drop or rename @code{old_table}
 @section Database replication with update log
 
 Now that master-slave internal replication is available starting in
-3.23.15, this is the recommended way. @xref{Replication}.
+Version 3.23.15, this is the recommended way. @xref{Replication}.
 
 However, it is still possible to replicate a database by using the
 update log. @xref{Update log}. This requires one database that acts as a
@@ -32439,7 +32444,7 @@ backup. To get a consistent backup, do a @code{LOCK TABLES} on the
 relevant tables. @xref{LOCK TABLES, , @code{LOCK TABLES}}. You only need a
 read lock; this allows other threads to continue to query the tables while
 you are making a copy of the files in the database directory. If you want to
-make a SQL level backup of a table, you can use @code{SELECT INTO OUTFILE}.
+make an SQL level backup of a table, you can use @code{SELECT INTO OUTFILE}.
 
 Another way to backup a database is to use the @code{mysqldump} program:
 @xref{mysqldump}.
@@ -33011,11 +33016,11 @@ Returns the error number for the most recently invoked @strong{MySQL} function.
 Returns the error message for the most recently invoked @strong{MySQL} function.
 
 @item @strong{mysql_real_escape_string()} @tab
-Escapes special characters in a string for use in a SQL statement taking
+Escapes special characters in a string for use in an SQL statement taking
 into account the current charset of the connection.
 
 @item @strong{mysql_escape_string()} @tab
-Escapes special characters in a string for use in a SQL statement.
+Escapes special characters in a string for use in an SQL statement.
 
 @item @strong{mysql_fetch_field()} @tab
 Returns the type of the next table field.
@@ -33096,13 +33101,13 @@ Checks whether or not the connection to the server is working, reconnecting
 as necessary.
 
 @item @strong{mysql_query()} @tab
-Executes a SQL query specified as a null-terminated string.
+Executes an SQL query specified as a null-terminated string.
 
 @item @strong{mysql_real_connect()} @tab
 Connects to a @strong{MySQL} server.
 
 @item @strong{mysql_real_query()} @tab
-Executes a SQL query specified as a counted string.
+Executes an SQL query specified as a counted string.
 
 @item @strong{mysql_reload()} @tab
 Tells the server to reload the grant tables.
@@ -33159,7 +33164,7 @@ specified as a null-terminated string whereas @code{mysql_real_query()}
 expects a counted string.  If the string contains binary data (which may
 include null bytes), you must use @code{mysql_real_query()}.
 
-For each non-@code{SELECT} query (e.g., @code{INSERT}, @code{UPDATE},
+For each non-@code{SELECT} query (for example, @code{INSERT}, @code{UPDATE},
 @code{DELETE}), you can find out how many rows were affected (changed)
 by calling @code{mysql_affected_rows()}.
 
@@ -33447,7 +33452,7 @@ become the default (current) database on the connection specified by
 @code{mysql}.  In subsequent queries, this database is the default for
 table references that do not include an explicit database specifier.
 
-This function was introduced in @strong{MySQL} 3.23.3.
+This function was introduced in @strong{MySQL} Version 3.23.3.
 
 @code{mysql_change_user()} fails unless the connected user can be
 authenticated or if he doesn't have permission to use the database.  In
@@ -33523,7 +33528,7 @@ None.
 Creates the database named by the @code{db} parameter.
 
 This function is deprecated.  It is preferable to use @code{mysql_query()}
-to issue a SQL @code{CREATE DATABASE} statement instead.
+to issue an SQL @code{CREATE DATABASE} statement instead.
 
 @subsubheading Return values
 
@@ -33616,7 +33621,7 @@ mysql_debug("d:t:O,/tmp/client.trace");
 Drops the database named by the @code{db} parameter.
 
 This function is deprecated.  It is preferable to use @code{mysql_query()}
-to issue a SQL @code{DROP DATABASE} statement instead.
+to issue an SQL @code{DROP DATABASE} statement instead.
 
 @subsubheading Return values
 
@@ -34379,7 +34384,7 @@ An unknown error occurred.
 
 Returns a result set consisting of database names on the server that match
 the simple regular expression specified by the @code{wild} parameter.
-@code{wild} may contain the wildcard characters @samp{%} or @samp{_}, or may
+@code{wild} may contain the wild-card characters @samp{%} or @samp{_}, or may
 be a @code{NULL} pointer to match all databases.  Calling
 @code{mysql_list_dbs()} is similar to executing the query @code{SHOW
 databases [LIKE wild]}.
@@ -34415,7 +34420,7 @@ An unknown error occurred.
 
 Returns a result set consisting of field names in the given table that match
 the simple regular expression specified by the @code{wild} parameter.
-@code{wild} may contain the wildcard characters @samp{%} or @samp{_}, or may
+@code{wild} may contain the wild-card characters @samp{%} or @samp{_}, or may
 be a @code{NULL} pointer to match all fields.  Calling
 @code{mysql_list_fields()} is similar to executing the query @code{SHOW
 COLUMNS FROM tbl_name [LIKE wild]}.
@@ -34483,7 +34488,7 @@ An unknown error occurred.
 
 Returns a result set consisting of table names in the current database that
 match the simple regular expression specified by the @code{wild} parameter.
-@code{wild} may contain the wildcard characters @samp{%} or @samp{_}, or may
+@code{wild} may contain the wild-card characters @samp{%} or @samp{_}, or may
 be a @code{NULL} pointer to match all tables.  Calling
 @code{mysql_list_tables()} is similar to executing the query @code{SHOW
 tables [LIKE wild]}.
@@ -34909,7 +34914,7 @@ try reconnecting to the server before giving up.
 
 Encodes the string in @code{from} to an escaped SQL string, taking into
 account the current charset of the connection, that can be sent to the
-server in a SQL statement, places the result in @code{to}, and adds a
+server in an SQL statement, places the result in @code{to}, and adds a
 terminating null byte.  Characters encoded are @code{NUL} (ASCII 0),
 @samp{\n}, @samp{\r}, @samp{\}, @samp{'}, @samp{"} and Control-Z
 (@pxref{Literals}).
@@ -35008,7 +35013,7 @@ Asks the @strong{MySQL} server to reload the grant tables. The
 connected user must have the @strong{reload} privilege.
 
 This function is deprecated.  It is preferable to use @code{mysql_query()}
-to issue a SQL @code{FLUSH PRIVILEGES} statement instead.
+to issue an SQL @code{FLUSH PRIVILEGES} statement instead.
 
 @subsubheading Return values
 
@@ -35333,7 +35338,7 @@ large).
 The data couldn't be read (an error occurred on the connection).
 
 @item
-The query returned no data (e.g., it was an @code{INSERT}, @code{UPDATE}
+The query returned no data (for example, it was an @code{INSERT}, @code{UPDATE}
 or @code{DELETE}).
 @end itemize
 
@@ -35578,9 +35583,9 @@ Installation instructions for @strong{MySQL} Perl support are given in
 @multitable @columnfractions .3 .7
 @item @code{connect} @tab Establishes a connection to a database server.
 @item @code{disconnect} @tab Disconnects from the database server.
-@item @code{prepare} @tab Prepares a SQL statement for execution.
+@item @code{prepare} @tab Prepares an SQL statement for execution.
 @item @code{execute} @tab Executes prepared statements.
-@item @code{do}      @tab Prepares and executes a SQL statement.
+@item @code{do}      @tab Prepares and executes an SQL statement.
 @item @code{quote}   @tab Quotes string or @code{BLOB} values to be inserted.
 @item @code{fetchrow_array} @tab Fetches the next row as an array of fields.
 @item @code{fetchrow_arrayref} @tab Fetches next row as a reference array of fields.
@@ -35713,7 +35718,7 @@ $rc = $dbh->disconnect;
 @findex DBI->prepare()
 @findex prepare() DBI method
 @item prepare($statement)
-Prepares a SQL statement for execution by the database engine
+Prepares an SQL statement for execution by the database engine
 and returns a statement handle @code{($sth)} which you can use to invoke
 the @code{execute} method.
 Typically you handle @code{SELECT} statements (and @code{SELECT}-like statements
@@ -35744,7 +35749,7 @@ $rv = $sth->execute
 @findex DBI->do()
 @findex do() DBI method
 @item do($statement)
-The @code{do} method prepares and executes a SQL statement and returns the
+The @code{do} method prepares and executes an SQL statement and returns the
 number of rows affected.  If no rows are affected, @code{do} returns
 @code{"0E0"}, which Perl treats as zero but regards as true.  This method is
 generally used for non-@code{SELECT} statements which cannot be prepared in
@@ -36512,7 +36517,7 @@ Create a @code{SEQUENCE} on a table and select the @code{_seq} column.
 @table @code
 @item @strong{MySQL}
 Add a @code{PRIMARY KEY} or @code{UNIQUE} key to the table and use this.
-New in 3.23.11: If the @code{PRIMARY} or @code{UNIQUE} key consists of only one
+New in Version 3.23.11: If the @code{PRIMARY} or @code{UNIQUE} key consists of only one
 column and this is of type integer, one can also refer to it as
 @code{_rowid}.
 @item mSQL
@@ -36568,7 +36573,7 @@ sorting in ASCII order.
 @item @strong{MySQL}
 @code{LIKE} is a case-insensitive or case-sensitive operator, depending on
 the columns involved. If possible, @strong{MySQL} uses indexes if the
-@code{LIKE} argument doesn't start with a wildcard character.
+@code{LIKE} argument doesn't start with a wild-card character.
 @item mSQL
 Use @code{CLIKE}.
 @end table
@@ -36686,7 +36691,7 @@ working on the @strong{MySQL} code.
 @node MySQL threads, MySQL full-text search, MySQL internals, MySQL internals
 @section MySQL threads
 
-The @strong{MySQL} server creates the the following threads:
+The @strong{MySQL} server creates the following threads:
 
 @itemize @bullet
 @item
@@ -36727,7 +36732,7 @@ DELAYED} threads.
 @node MySQL full-text search,  , MySQL threads, MySQL internals
 @section MySQL full-text search
 
-Since version 3.23.23, @strong{MySQL} has support for full-text indexing
+Since Version 3.23.23, @strong{MySQL} has support for full-text indexing
 and searching. Full-text index in @strong{MySQL} is an
 index of type @code{FULLTEXT}. @code{FULLTEXT} indexes can be created from
 @code{VARCHAR} and @code{TEXT} columns at @code{CREATE TABLE} time or added
@@ -37513,7 +37518,7 @@ Windows GUI (binary only) to administrate a database, by David B. Mansel,
 
 @item @uref{http://www.mysql.com/Downloads/Win32/netadmin.zip, netadmin.zip}
 An administrator tool for @strong{MySQL} on Windows 95/98 and Windows NT
-4.0. Only tested with @strong{MySQL} 3.23.5 - 3.23.7. Written using the
+4.0. Only tested with @strong{MySQL} Version 3.23.5 - 3.23.7. Written using the
 Tmysql components.
 
 You can write queries and show tables, indexes, table syntax and
@@ -37634,10 +37639,10 @@ Originally written to implement a simple fast low-overhead banner-rotation syste
 By Sasha Pachev.
 
 @item @uref{http://www.odbsoft.com/cook/sources.htm}
-This package has various functions for generating html code from a SQL
+This package has various functions for generating html code from an SQL
 table structure and for generating SQL statements (Select, Insert,
 Update, Delete) from an html form. You can build a complete forms
-interface to a SQL database (query, add, update, delete) without any
+interface to an SQL database (query, add, update, delete) without any
 programming!  By Marc Beneteau, @email{marc@@odbsoft.com}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/sqlhtml.tar.gz, sqlhtml.tar.gz}
@@ -37646,7 +37651,7 @@ SQL/HTML is an HTML database manager for @strong{MySQL} using @code{DBI} 1.06.
 @item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-3.0.21.tar.gz, UdmSearch 3.0.22 (stable version)}
 @item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-3.1.3.tar.gz, UdmSearch 3.1.3 (development version)}
 @item @uref{http://search.mnoGo.ru, UdmSearch home page}
-A SQL-based search engine for Internet. By
+An SQL-based search engine for Internet. By
 Alexander I. Barkov @email{bar@@izhcom.ru}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/wmtcl.doc, wmtcl.doc}
@@ -37812,7 +37817,7 @@ By Steve Shreeve.
 
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/emacs-sql-mode.tar.gz, emacs-sql-mode.tar.gz}
-Raw port of a SQL mode for XEmacs. Supports completion. Original by
+Raw port of an SQL mode for XEmacs. Supports completion. Original by
 Peter D. Pezaris @email{pez@@atlantic2.sbi.com} and partial
 @strong{MySQL} port by David Axmark.
 
@@ -38027,7 +38032,7 @@ Win32 port with Borland compiler.  @code{mysqlshutdown.exe} and
 @item David J. Hughes
 For the effort to make a shareware SQL database. We at TcX started with
 @code{mSQL}, but found that it couldn't satisfy our purposes so instead we
-wrote a SQL interface to our application builder Unireg.  @code{mysqladmin}
+wrote an SQL interface to our application builder Unireg.  @code{mysqladmin}
 and @code{mysql} are programs that were largely influenced by their
 @code{mSQL} counterparts. We have put a lot of effort into making the
 @strong{MySQL} syntax a superset of @code{mSQL}. Many of the APIs ideas are
@@ -38258,9 +38263,9 @@ tables.  The 3.23 release also includes support for database
 replication between a master and many slaves.
 
 We are not adding any more new features that are likely to break any
-old code in @strong{MySQL} 3.23, so we recommend that you use this
+old code in @strong{MySQL} Version 3.23, so we recommend that you use this
 version.  The replication and BerkeleyDB code is still under development,
-though, so 3.23 is not released as a stable version yet.
+though, so Version 3.23 is not released as a stable version yet.
 
 @menu
 * News-3.23.28::                Changes in release 3.23.28
@@ -41363,7 +41368,7 @@ New portable benchmark suite with @code{DBD}, with test results from
 @code{mSQL} 2.0.3, @strong{MySQL}, PostgreSQL 6.2.1 and Solid server 2.2.
 @item
 @code{crash-me} is now included with the benchmarks; This is a Perl program
-designed to find as many limits as possible in a SQL server. Tested with
+designed to find as many limits as possible in an SQL server. Tested with
 @code{mSQL}, PostgreSQL, Solid and @strong{MySQL}.
 @item
 Fixed bug in range-optimizer that crashed @strong{MySQL} on some queries.
@@ -42629,7 +42634,7 @@ Because @strong{MySQL} allows you to work with table types that doesn't
 support transactions (and thus can't @code{rollback} data) some things
 behaves a little different in @strong{MySQL} than in other SQL servers:
 (This is just to ensure that @strong{MySQL} never need to do a rollback
-for a SQL command).  This may be a little akward at times as column
+for an SQL command).  This may be a little akward at times as column
 values must be checked in the application, but this will actually give
 you a nice speed increase as it allows @strong{MySQL} to do some
 optimizations that otherwice would be very hard to do.
@@ -43833,7 +43838,7 @@ mysql> select "gheisa" REGEXP "^[^a-dXYZ]+$";   -> 0
 The sequence of characters of that collating element. The sequence is a
 single element of the bracket expression's list. A bracket expression
 containing a multi-character collating element can thus match more than
-one character, e.g., if the collating sequence includes a @code{ch}
+one character, for example, if the collating sequence includes a @code{ch}
 collating element, then the regular expression @code{[[.ch.]]*c} matches the
 first five characters of @code{chchcc}.
 
