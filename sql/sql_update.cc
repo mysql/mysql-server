@@ -416,8 +416,6 @@ int mysql_multi_update(THD *thd,
 		    (ORDER *)NULL,
 		    options | SELECT_NO_JOIN_CACHE,
 		    result, unit, select_lex, 0);
-
-end:
   delete result;
   DBUG_RETURN(res);
 }
@@ -631,7 +629,6 @@ bool multi_update::send_data(List<Item> &not_used_values)
   TABLE_LIST *cur_table;
   DBUG_ENTER("multi_update::send_data");
 
-  found++;
   for (cur_table= update_tables; cur_table ; cur_table= cur_table->next)
   {
     TABLE *table= cur_table->table;
@@ -647,6 +644,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
       store_record(table,1);
       if (fill_record(*fields_for_table[offset], *values_for_table[offset]))
 	DBUG_RETURN(1);
+      found++;
       if (compare_record(table, thd->query_id))
       {
 	int error;
@@ -673,7 +671,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
       int error;
       TABLE *tmp_table= tmp_tables[offset];
       fill_record(tmp_table->field+1, *values_for_table[offset]);
-
+      found++;
       /* Store pointer to row */
       memcpy((char*) tmp_table->field[0]->ptr,
 	     (char*) table->file->ref, table->file->ref_length);
@@ -772,7 +770,6 @@ int multi_update::do_updates(bool from_send_error)
 	  continue;				// May happen on dup key
 	goto err;
       }
-      found++;
       if ((local_error= table->file->rnd_pos(table->record[0], ref_pos)))
 	goto err;
       table->status|= STATUS_UPDATED;

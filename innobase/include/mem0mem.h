@@ -127,16 +127,18 @@ mem_heap_create_func(
 	ulint	line		/* in: line where created */
 	);
 /*********************************************************************
-NOTE: Use the corresponding macro instead of this function.
-Frees the space occupied by a memory heap. */
+NOTE: Use the corresponding macro instead of this function. Frees the space
+occupied by a memory heap. In the debug version erases the heap memory
+blocks. */
 UNIV_INLINE
 void
 mem_heap_free_func(
 /*===============*/
-	mem_heap_t*   	heap,		/* in, own: heap to be freed */
-	char*  		file_name,	/* in: file name where freed */
-	ulint   	line		/* in: line where freed */
-);
+	mem_heap_t*   	heap,  		/* in, own: heap to be freed */
+	char*  		file_name __attribute__((unused)),
+					/* in: file name where freed */
+	ulint    	line  __attribute__((unused)));
+					/* in: line where freed */
 /*******************************************************************
 Allocates n bytes of memory from a memory heap. */
 UNIV_INLINE

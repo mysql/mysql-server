@@ -207,7 +207,7 @@ static char **opt_argv;
 #else
 #define MYSQL_SERVER_SUFFIX ""
 #endif /* __NT__ */
-#endif
+#endif /* __WIN__ */
 
 #ifdef HAVE_BERKELEY_DB
 SHOW_COMP_OPTION have_berkeley_db=SHOW_OPTION_YES;
@@ -248,6 +248,12 @@ SHOW_COMP_OPTION have_query_cache=SHOW_OPTION_NO;
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
 
 bool opt_large_files= sizeof(my_off_t) > 4;
+#if SIZEOF_OFF_T > 4 && defined(BIG_TABLES)
+#define GET_HA_ROWS GET_ULL
+#else
+#define GET_HA_ROWS GET_ULONG
+#endif
+
 
 /*
   Variables to store startup options
@@ -3793,8 +3799,13 @@ struct my_option my_long_options[] =
   {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
    "If set to 1 table names are stored in lowercase on disk and table names will be case-insensitive.",
    (gptr*) &lower_case_table_names,
-   (gptr*) &lower_case_table_names, 0,
-   GET_BOOL, NO_ARG, IF_WIN(1,0), 0, 1, 0, 1, 0},
+   (gptr*) &lower_case_table_names, 0, GET_BOOL, NO_ARG,
+#ifdef FN_NO_CASE_SENCE
+    1
+#else
+    0
+#endif
+   , 0, 1, 0, 1, 0},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
    "Max packetlength to send/receive from to server.",
    (gptr*) &global_system_variables.max_allowed_packet,
@@ -3833,7 +3844,7 @@ struct my_option my_long_options[] =
   {"max_join_size", OPT_MAX_JOIN_SIZE,
    "Joins that are probably going to read more than max_join_size records return an error.",
    (gptr*) &global_system_variables.max_join_size,
-   (gptr*) &max_system_variables.max_join_size, 0, GET_ULONG, REQUIRED_ARG,
+   (gptr*) &max_system_variables.max_join_size, 0, GET_HA_ROWS, REQUIRED_ARG,
    ~0L, 1, ~0L, 0, 1, 0},
   {"max_prepared_statements", OPT_MAX_PREP_STMT,
    "Max number of prepared_statements for a thread",
@@ -4234,12 +4245,12 @@ static void set_options(void)
 		 sizeof(mysql_real_data_home)-1);
 
   /* Set default values for some variables */
-  global_system_variables.table_type=DB_TYPE_MYISAM;
-  global_system_variables.tx_isolation=ISO_REPEATABLE_READ;
+  global_system_variables.table_type=   DB_TYPE_MYISAM;
+  global_system_variables.tx_isolation= ISO_REPEATABLE_READ;
   global_system_variables.select_limit= (ulonglong) HA_POS_ERROR;
-  max_system_variables.select_limit= (ulong) HA_POS_ERROR;
+  max_system_variables.select_limit=    (ulonglong) HA_POS_ERROR;
   global_system_variables.max_join_size= (ulonglong) HA_POS_ERROR;
-  max_system_variables.max_join_size= (ulonglong) HA_POS_ERROR;
+  max_system_variables.max_join_size=   (ulonglong) HA_POS_ERROR;
 
 #ifdef __WIN__
   /* Allow Win32 users to move MySQL anywhere */

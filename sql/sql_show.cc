@@ -1270,6 +1270,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     THD *tmp;
     while ((tmp=it++))
     {
+      struct st_my_thread_var *mysys_var;
       if ((tmp->net.vio || tmp->system_thread) &&
           (!user || (tmp->user && !strcmp(tmp->user,user))))
       {
@@ -1286,8 +1287,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
-        if (tmp->mysys_var)
-          pthread_mutex_lock(&tmp->mysys_var->mutex);
+        if ((mysys_var= tmp->mysys_var))
+          pthread_mutex_lock(&mysys_var->mutex);
         thd_info->proc_info= (char*) (tmp->killed ? "Killed" : 0);
         thd_info->state_info= (char*) (tmp->locked ? "Locked" :
                                        tmp->net.reading_or_writing ?
@@ -1299,8 +1300,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
                                        tmp->mysys_var &&
                                        tmp->mysys_var->current_cond ?
                                        "Waiting on cond" : NullS);
-        if (tmp->mysys_var)
-          pthread_mutex_unlock(&tmp->mysys_var->mutex);
+        if (mysys_var)
+          pthread_mutex_unlock(&mysys_var->mutex);
 
 #if !defined(DONT_USE_THR_ALARM) && ! defined(SCO)
         if (pthread_kill(tmp->real_id,0))
@@ -1439,6 +1440,9 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
         break;
       case SHOW_LONGLONG:
 	end= longlong10_to_str(*(longlong*) value, buff, 10);
+	break;
+      case SHOW_HA_ROWS:
+        end= longlong10_to_str((longlong) *(ha_rows*) value, buff, 10);
         break;
       case SHOW_BOOL:
 	end= strmov(buff, *(bool*) value ? "ON" : "OFF");

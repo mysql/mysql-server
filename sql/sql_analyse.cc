@@ -403,7 +403,6 @@ void field_real::add()
     length= my_sprintf(buff, (buff, "%-.*f", (int) decs, num));
 #endif
 
-
     // We never need to check further than this
     end = buff + length - 1 - decs + max_notzero_dec_len;
 

@@ -107,9 +107,6 @@ enum ha_extra_function {
   HA_EXTRA_IGNORE_DUP_KEY,		/* Dup keys don't rollback everything*/
   HA_EXTRA_NO_IGNORE_DUP_KEY,
   HA_EXTRA_DONT_USE_CURSOR_TO_UPDATE,	/* Cursor will not be used for update */
-  HA_EXTRA_BULK_INSERT_BEGIN,
-  HA_EXTRA_BULK_INSERT_FLUSH,		/* Flush one index */
-  HA_EXTRA_BULK_INSERT_END,
   HA_EXTRA_PREPARE_FOR_DELETE,
   HA_EXTRA_PREPARE_FOR_UPDATE		/* Remove read cache if problems */
 };

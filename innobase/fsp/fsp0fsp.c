@@ -2479,20 +2479,20 @@ try_again:
 	n_free = n_free_list_ext + n_free_up;
 
 	if (alloc_type == FSP_NORMAL) {
-		/* We reserve 1 extent + 4 % of the space size to undo logs
-		and 1 extent + 1 % to cleaning operations; NOTE: this source
+		/* We reserve 1 extent + 0.5 % of the space size to undo logs
+		and 1 extent + 0.5 % to cleaning operations; NOTE: this source
 		code is duplicated in the function below! */
 
-		reserve = 2 + ((size / FSP_EXTENT_SIZE) * 5) / 100;
+		reserve = 2 + ((size / FSP_EXTENT_SIZE) * 2) / 200;
 
 		if (n_free <= reserve + n_ext) {
 
 			goto try_to_extend;
 		}
 	} else if (alloc_type == FSP_UNDO) {
-		/* We reserve 1 % of the space size to cleaning operations */
+		/* We reserve 0.5 % of the space size to cleaning operations */
 
-		reserve = 1 + ((size / FSP_EXTENT_SIZE) * 1) / 100;
+		reserve = 1 + ((size / FSP_EXTENT_SIZE) * 1) / 200;
 
 		if (n_free <= reserve + n_ext) {
 
@@ -2572,11 +2572,11 @@ fsp_get_available_space_in_free_extents(
 	
 	n_free = n_free_list_ext + n_free_up;
 
-	/* We reserve 1 extent + 4 % of the space size to undo logs
-	and 1 extent + 1 % to cleaning operations; NOTE: this source
+	/* We reserve 1 extent + 0.5 % of the space size to undo logs
+	and 1 extent + 0.5 % to cleaning operations; NOTE: this source
 	code is duplicated in the function above! */
 
-	reserve = 2 + ((size / FSP_EXTENT_SIZE) * 5) / 100;
+	reserve = 2 + ((size / FSP_EXTENT_SIZE) * 2) / 200;
 
 	if (reserve > n_free) {
 		return(0);

@@ -507,6 +507,7 @@ check_connections(THD *thd)
     {
       vio_in_addr(net->vio,&thd->remote.sin_addr);
       thd->host=ip_to_hostname(&thd->remote.sin_addr,&connect_errors);
+      thd->host[strnlen(thd->host, HOSTNAME_LENGTH)]= 0;
       if (connect_errors > max_connect_errors)
 	return(ER_HOST_IS_BLOCKED);
     }
@@ -523,6 +524,7 @@ check_connections(THD *thd)
     thd->ip=0;
     bzero((char*) &thd->remote,sizeof(struct sockaddr));
   }
+  /* Ensure that wrong hostnames doesn't cause buffer overflows */
   vio_keepalive(net->vio, TRUE);
 
   ulong pkt_len=0;
@@ -753,7 +755,7 @@ pthread_handler_decl(handle_one_connection,arg)
       goto end_thread;
     }
 
-    if ((ulong) thd->variables.max_join_size == (ulonglong) HA_POS_ERROR)
+    if (thd->variables.max_join_size == HA_POS_ERROR)
       thd->options |= OPTION_BIG_SELECTS;
     if (thd->client_capabilities & CLIENT_COMPRESS)
       net->compress=1;				// Use compression
@@ -829,7 +831,7 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
 
 #endif
 
-  if ((ulong) thd->variables.max_join_size == (ulonglong) HA_POS_ERROR)
+  if (thd->variables.max_join_size == HA_POS_ERROR)
     thd->options |= OPTION_BIG_SELECTS;
 
   thd->proc_info=0;
@@ -958,6 +960,12 @@ bool do_command(THD *thd)
      DBUG_PRINT("info",("Got error reading command from socket %s",
 			vio_description(net->vio) ));
     return TRUE;
+  }
+  else if (!packet_length)
+  {
+    send_error(net,net->last_errno,NullS);
+    net->error=0;
+    DBUG_RETURN(FALSE);
   }
   else
   {
@@ -1243,6 +1251,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       }
       if (lower_case_table_names)
 	my_casedn_str(files_charset_info, db);
+      if (check_access(thd,DROP_ACL,db,0,1))
+	break;
       if (thd->locked_tables || thd->active_transaction())
       {
 	send_error(thd,ER_LOCK_OR_ACTIVE_TRANSACTION);
@@ -1283,10 +1293,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (check_global_access(thd,RELOAD_ACL))
 	break;
       mysql_log.write(thd,command,NullS);
-      if (reload_acl_and_cache(thd, options, (TABLE_LIST*) 0))
-	send_error(thd,0);
-      else
-	send_eof(thd);
+      /* error sending is deferred to reload_acl_and_cache */
+      reload_acl_and_cache(thd, options, (TABLE_LIST*) 0) ;
       break;
     }
   case COM_SHUTDOWN:
@@ -1860,6 +1868,24 @@ mysql_execute_command(THD *thd)
     break;
   }
   case SQLCOM_SLAVE_STOP:
+  /*
+    If the client thread has locked tables, a deadlock is possible.
+    Assume that
+    - the client thread does LOCK TABLE t READ.
+    - then the master updates t.
+    - then the SQL slave thread wants to update t,
+      so it waits for the client thread because t is locked by it.
+    - then the client thread does SLAVE STOP.
+      SLAVE STOP waits for the SQL slave thread to terminate its
+      update t, which waits for the client thread because t is locked by it.
+    To prevent that, refuse SLAVE STOP if the
+    client thread has locked tables
+  */
+  if (thd->locked_tables || thd->active_transaction())
+  {
+    send_error(&thd->net,ER_LOCK_OR_ACTIVE_TRANSACTION);
+    break;
+  }
   {
     LOCK_ACTIVE_MI;
     stop_slave(thd,active_mi,1/* net report*/);
@@ -2653,10 +2679,8 @@ mysql_execute_command(THD *thd)
   case SQLCOM_RESET:
     if (check_global_access(thd,RELOAD_ACL) || check_db_used(thd, tables))
       goto error;
-    if (reload_acl_and_cache(thd, lex->type, tables))
-      send_error(thd,0);
-    else
-      send_ok(thd);
+    /* error sending is deferred to reload_acl_and_cache */
+    reload_acl_and_cache(thd, lex->type, tables) ;
     break;
   case SQLCOM_KILL:
     kill_one_thread(thd,lex->thread_id);
@@ -3669,10 +3693,15 @@ void add_join_natural(TABLE_LIST *a,TABLE_LIST *b)
   b->natural_join=a;
 }
 
+
+/*
+  Reload/resets privileges and the different caches
+*/
+
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
 {
   bool result=0;
-
+  bool error_already_sent=0;
   select_errors=0;				/* Write if more errors */
   if (options & REFRESH_GRANT)
   {
@@ -3730,11 +3759,29 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
  {
    LOCK_ACTIVE_MI;
    if (reset_slave(thd, active_mi))
+   {
      result=1;
+     /*
+       reset_slave() sends error itself.
+       If it didn't, one would either change reset_slave()'s prototype, to
+       pass *errorcode and *errmsg to it when it's called or
+       change reset_slave to use my_error() to register the error.
+     */
+     error_already_sent=1;
+   }
    UNLOCK_ACTIVE_MI;
  }
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh(thd,(LEX_USER *) NULL);
+
+ if (thd && !error_already_sent)
+ {
+   if (result)
+     send_error(&thd->net,0);
+   else
+     send_ok(&thd->net);
+ }
+
  return result;
 }
 
