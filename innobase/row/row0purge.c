@@ -429,7 +429,18 @@ skip_secondaries:
 			index = dict_table_get_first_index(node->table);
 
 			mtr_x_lock(dict_tree_get_lock(index->tree), &mtr);
+
+			/* NOTE: we must also acquire an X-latch to the
+			root page of the tree. We will need it when we
+			free pages from the tree. If the tree is of height 1,
+			the tree X-latch does NOT protect the root page,
+			because it is also a leaf page. Since we will have a
+			latch on an undo log page, we would break the
+			latching order if we would only later latch the
+			root page of such a tree! */
 			
+			btr_root_get(index->tree, &mtr);
+
 			/* We assume in purge of externally stored fields
 			that the space id of the undo log record is 0! */
 

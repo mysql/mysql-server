@@ -260,7 +260,7 @@ t3	CREATE TABLE `t3` (
   `othr` int(11) NOT NULL default '0'
 ) TYPE=MRG_MyISAM CHARSET=latin1 UNION=(t1,t2)
 drop table t3,t2,t1;
-create table t1 (a int not null) type=merge;
+create table t1 (a int not null, key(a)) type=merge;
 select * from t1;
 a
 drop table t1;
@@ -536,7 +536,7 @@ INSERT INTO t2 VALUES (1,2), (2,2);
 CREATE TABLE t3 (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  KEY a (a,b)) TYPE=MRG_MyISAM UNION=(t1,t2);
 select max(b) from t3 where a = 2;
 max(b)
-NULL
+2
 select max(b) from t1 where a = 2;
 max(b)
 1

@@ -2311,6 +2311,7 @@ EOF
 
   if test X"$have_innodb" = Xyes
   then
+    innodb_conf_flags=""
     sql_server_dirs="$sql_server_dirs innobase"
     echo "CONFIGURING FOR INNODB" 
     if test ! -d "innobase"; then
@@ -2323,7 +2324,11 @@ EOF
 	/* ) rel_srcdir="$srcdir" ;;
 	* )  rel_srcdir="../$srcdir" ;;
     esac
-    (cd innobase && sh $rel_srcdir/innobase/configure) \
+    if test "x$enable_dependency_tracking" == xno
+    then
+      innodb_conf_flags=--disable-dependency-tracking
+    fi
+    (cd innobase && sh $rel_srcdir/innobase/configure $innodb_conf_flags) \
     || AC_MSG_ERROR([could not configure INNODB])
 
     echo "END OF INNODB CONFIGURATION"

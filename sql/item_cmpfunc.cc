@@ -1898,7 +1898,7 @@ Item_func_regex::~Item_func_regex()
   Precomputation dependent only on pattern_len.
 **********************************************************************/
 
-void Item_func_like::turboBM_compute_suffixes(int* suff)
+void Item_func_like::turboBM_compute_suffixes(int *suff)
 {
   const int   plm1 = pattern_len - 1;
   int            f = 0;
@@ -1940,8 +1940,8 @@ void Item_func_like::turboBM_compute_suffixes(int* suff)
 	if (i < g)
 	  g = i; // g = min(i, g)
 	f = i;
-	while (g >= 0 && likeconv(cs, pattern[g]) ==
-	       likeconv(cs, pattern[g + plm1 - f]))
+	while (g >= 0 &&
+	       likeconv(cs, pattern[g]) == likeconv(cs, pattern[g + plm1 - f]))
 	  g--;
 	suff[i] = f - g;
       }
@@ -1955,12 +1955,12 @@ void Item_func_like::turboBM_compute_suffixes(int* suff)
    Precomputation dependent only on pattern_len.
 **********************************************************************/
 
-void Item_func_like::turboBM_compute_good_suffix_shifts(int* suff)
+void Item_func_like::turboBM_compute_good_suffix_shifts(int *suff)
 {
   turboBM_compute_suffixes(suff);
 
-  int* end = bmGs + pattern_len;
-  int* k;
+  int *end = bmGs + pattern_len;
+  int *k;
   for (k = bmGs; k < end; k++)
     *k = pattern_len;
 
@@ -1974,14 +1974,14 @@ void Item_func_like::turboBM_compute_good_suffix_shifts(int* suff)
     {
       for (tmp = plm1 - i; j < tmp; j++)
       {
-	int* tmp2 = bmGs + j;
+	int *tmp2 = bmGs + j;
 	if (*tmp2 == pattern_len)
 	  *tmp2 = tmp;
       }
     }
   }
 
-  int* tmp2;
+  int *tmp2;
   for (tmp = plm1 - i; j < tmp; j++)
   {
     tmp2 = bmGs + j;
@@ -2014,12 +2014,12 @@ void Item_func_like::turboBM_compute_bad_character_shifts()
   if (binary())
   {
     for (j = 0; j < plm1; j++)
-      bmBc[pattern[j]] = plm1 - j;
+      bmBc[(uint) (uchar) pattern[j]] = plm1 - j;
   }
   else
   {
     for (j = 0; j < plm1; j++)
-      bmBc[likeconv(cs,pattern[j])] = plm1 - j;
+      bmBc[(uint) likeconv(cs,pattern[j])] = plm1 - j;
   }
 }
 
@@ -2038,27 +2038,27 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   int u     = 0;
   CHARSET_INFO	*cs=system_charset_info;	// QQ Needs to be fixed
 
-  const int plm1  = pattern_len - 1;
-  const int tlmpl =    text_len - pattern_len;
+  const int plm1=  pattern_len - 1;
+  const int tlmpl= text_len - pattern_len;
 
   /* Searching */
   if (binary())
   {
     while (j <= tlmpl)
     {
-      register int i = plm1;
+      register int i= plm1;
       while (i >= 0 && pattern[i] == text[i + j])
       {
 	i--;
 	if (i == plm1 - shift)
-	  i -= u;
+	  i-= u;
       }
       if (i < 0)
 	return 1;
 
       register const int v = plm1 - i;
       turboShift = u - v;
-      bcShift    = bmBc[text[i + j]] - plm1 + i;
+      bcShift    = bmBc[(uint) (uchar) text[i + j]] - plm1 + i;
       shift      = max(turboShift, bcShift);
       shift      = max(shift, bmGs[i]);
       if (shift == bmGs[i])
@@ -2069,7 +2069,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
 	  shift = max(shift, u + 1);
 	u = 0;
       }
-      j += shift;
+      j+= shift;
     }
     return 0;
   }
@@ -2082,14 +2082,14 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
       {
 	i--;
 	if (i == plm1 - shift)
-	  i -= u;
+	  i-= u;
       }
       if (i < 0)
 	return 1;
 
       register const int v = plm1 - i;
       turboShift = u - v;
-      bcShift    = bmBc[likeconv(cs, text[i + j])] - plm1 + i;
+      bcShift    = bmBc[(uint) likeconv(cs, text[i + j])] - plm1 + i;
       shift      = max(turboShift, bcShift);
       shift      = max(shift, bmGs[i]);
       if (shift == bmGs[i])
@@ -2100,7 +2100,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
 	  shift = max(shift, u + 1);
 	u = 0;
       }
-      j += shift;
+      j+= shift;
     }
     return 0;
   }

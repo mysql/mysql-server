@@ -233,7 +233,18 @@ trx_free(
 /*=====*/
 	trx_t*	trx)	/* in, own: trx object */
 {
+        char      err_buf[1000];
+
 	ut_ad(mutex_own(&kernel_mutex));
+
+	if (trx->declared_to_be_inside_innodb) {
+	        ut_print_timestamp(stderr);
+	        trx_print(err_buf, trx);
+
+	        fprintf(stderr,
+"  InnoDB: Error: Freeing a trx which is declared to be processing\n"
+"InnoDB: inside InnoDB.\n%s\n", err_buf);
+	}
 
 	ut_a(trx->magic_n == TRX_MAGIC_N);
 
@@ -1506,10 +1517,10 @@ trx_print(
 
 #ifdef UNIV_LINUX
         buf += sprintf(buf, ", process no %lu", trx->mysql_process_no);
-#else
+#endif
         buf += sprintf(buf, ", OS thread id %lu",
 		       os_thread_pf(trx->mysql_thread_id));
-#endif
+
 	if (ut_strlen(trx->op_info) > 0) {
 		buf += sprintf(buf, " %s", trx->op_info);
 	}
@@ -1517,6 +1528,11 @@ trx_print(
   	if (trx->type != TRX_USER) {
     		buf += sprintf(buf, " purge trx");
   	}
+
+	if (trx->declared_to_be_inside_innodb) {
+	        buf += sprintf(buf, ", thread declared inside InnoDB %lu",
+			       trx->n_tickets_to_enter_innodb);
+	}
 
 	buf += sprintf(buf, "\n");
   	
