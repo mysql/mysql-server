@@ -70,28 +70,40 @@ then
 TERMCAP_LIB=termcap
 fi
 
-# Allow for selecting GCC, but must be 2nd parameter
-if [ $# -gt 1 -a "$2" = "-GCC" ]
-then
-	NDB_COMPILER=GCC
-fi
+# defaults
+NDB_VERSION=DEBUG
+PACKAGE=
+VERSION=
+
+parse_arguments() {
+  for arg do
+    case "$arg" in
+      -GCC)       NDB_COMPILER=GCC ;;
+      -R)         NDB_VERSION=RELEASE ;;
+      -D)         NDB_VERSION=DEBUG ;;
+      --PACKAGE=*) PACKAGE=`echo "$arg" | sed -e "s;--PACKAGE=;;"` ;;
+      --VERSION=*) VERSION=`echo "$arg" | sed -e "s;--VERSION=;;"` ;;
+      *)
+        echo "Unknown argument '$arg'"
+        exit 1
+        ;;
+    esac
+  done
+}
+
+parse_arguments "$@"
 
 (
 	echo "# This file was automatically generated `date`"
 	echo "NDB_OS       := $NDB_OS"
 	echo "NDB_ARCH     := $NDB_ARCH"
 	echo "NDB_COMPILER := $NDB_COMPILER"
-
-	if [ $# -gt 0 -a "$1" = "-R" ]
-	then
-		echo "NDB_VERSION  := RELEASE"
-	else
-		echo "NDB_VERSION  := DEBUG"
-	fi
-
+	echo "NDB_VERSION  := $NDB_VERSION"
 	echo "NDB_SCI      := $NDB_SCI"
 	echo "NDB_ODBC     := $NDB_ODBC"
 	echo "TERMCAP_LIB  := $TERMCAP_LIB"
+	echo "PACKAGE      := $PACKAGE"
+	echo "VERSION      := $VERSION"
 ) > $NDB_TOP/config/config.mk
 
 exit 0
