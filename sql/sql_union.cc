@@ -33,7 +33,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   TABLE *table;
   int describe=(lex->select_lex.options & SELECT_DESCRIBE) ? 1 : 0;
   int res;
-  bool fr=false;
+  bool found_rows_for_union=false;
   TABLE_LIST result_table_list;
   TABLE_LIST *first_table=(TABLE_LIST *)lex->select_lex.table_list.first;
   TMP_TABLE_PARAM tmp_table_param;
@@ -61,7 +61,10 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     */
     lex_sl= sl;
     order=  (ORDER *) lex_sl->order_list.first;
-    fr = lex->select_lex.options & OPTION_FOUND_ROWS && !describe && sl->select_limit && sl->select_limit != HA_POS_ERROR;
+    found_rows_for_union = lex->select_lex.options & OPTION_FOUND_ROWS && !describe && sl->select_limit;
+    if (found_rows_for_union)
+      lex->select_lex.options ^=  OPTION_FOUND_ROWS;
+// This is done to eliminate unnecessary slowing down of the first query 
     if (!order || !describe) 
       last_sl->next=0;				// Remove this extra element
   }
@@ -200,7 +203,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 		       item_list, NULL, (describe) ? 0 : order,
 		       (ORDER*) NULL, NULL, (ORDER*) NULL,
 		       thd->options, result);
-      if (fr && !res)
+      if (found_rows_for_union && !res)
 	thd->limit_found_rows = (ulonglong)table->file->records;
     }
   }
