@@ -96,7 +96,7 @@
 "Az osszes mezo nem torolheto az ALTER TABLE-lel. Hasznalja a DROP TABLE-t helyette",
 "A DROP '%-.64s' nem lehetseges. Ellenorizze, hogy a mezo/kulcs letezik-e",
 "Rekordok: %ld  Duplikalva: %ld  Warnings: %ld",
-"INSERT TABLE '%-.64s' nem engedelyezett a FROM table listabol",
+"You can't specify target table '%-.64s' for update in FROM clause",
 "Ervenytelen szal (thread) id: %lu",
 "A %lu thread-nek mas a tulajdonosa",
 "Nincs hasznalt tabla",
@@ -251,3 +251,4 @@
 "Reference '%-.64s' not supported (%s)",
 "Every derived table must have it's own alias"
 "Select %u was reduced during optimisation",
+"Table '%-.64s' from one of SELECT's can not be used  in %-.32s"

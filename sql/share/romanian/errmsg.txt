@@ -98,7 +98,7 @@
 "Nu poti sterge toate coloanele cu ALTER TABLE. Foloseste DROP TABLE in schimb",
 "Nu pot sa DROP '%-.64s'. Verifica daca coloana/cheia exista",
 "Recorduri: %ld  Duplicate: %ld  Atentionari (warnings): %ld",
-"INSERT TABLE '%-.64s' nu este permis in lista FROM de tabele",
+"You can't specify target table '%-.64s' for update in FROM clause",
 "Id-ul: %lu thread-ului este necunoscut",
 "Nu sinteti proprietarul threadului %lu",
 "Nici o tabela folosita",
@@ -253,3 +253,4 @@
 "Reference '%-.64s' not supported (%s)",
 "Every derived table must have it's own alias"
 "Select %u was reduced during optimisation",
+"Table '%-.64s' from one of SELECT's can not be used  in %-.32s"

@@ -94,7 +94,7 @@
 "You can't delete all columns with ALTER TABLE. Use DROP TABLE instead",
 "Can't DROP '%-.64s'. Check that column/key exists",
 "Records: %ld  Duplicates: %ld  Warnings: %ld",
-"INSERT TABLE '%-.64s' isn't allowed in FROM table list",
+"You can't specify target table '%-.64s' for update in FROM clause",
 "Unknown thread id: %lu",
 "You are not owner of thread %lu",
 "No tables used",
@@ -247,5 +247,6 @@
 "Cyclic reference on subqueries",
 "Converting column '%s' from %s to %s",
 "Reference '%-.64s' not supported (%s)",
-"Every derived table must have it's own alias"
+"Every derived table must have it's own alias",
 "Select %u was reduced during optimisation",
+"Table '%-.64s' from one of SELECT's can not be used  in %-.32s"

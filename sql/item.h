@@ -98,6 +98,7 @@ public:
   // Row emulation
   virtual uint cols() { return 1; }
   virtual Item* el(uint i) { return this; }
+  virtual Item** addr(uint i) { return 0; }
   virtual bool check_cols(uint c);
 };
 
