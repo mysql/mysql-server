@@ -532,3 +532,24 @@ t1	CREATE TABLE `t1` (
   `replace(_latin2'abcd',_latin2'b',_latin2'B')` char(4) character set latin2 NOT NULL default ''
 ) TYPE=MyISAM CHARSET=latin1
 drop table t1;
+select SUBSTR('abcdefg',3,2);
+SUBSTR('abcdefg',3,2)
+cd
+select SUBSTRING('abcdefg',3,2);
+SUBSTRING('abcdefg',3,2)
+cd
+select SUBSTR('abcdefg',-3,2) FROM DUAL;
+SUBSTR('abcdefg',-3,2)
+ef
+select SUBSTR('abcdefg',-1,5) FROM DUAL;
+SUBSTR('abcdefg',-1,5)
+g
+select SUBSTR('abcdefg',0,0) FROM DUAL;
+SUBSTR('abcdefg',0,0)
+
+select SUBSTR('abcdefg',-1,-1) FROM DUAL;
+SUBSTR('abcdefg',-1,-1)
+
+select SUBSTR('abcdefg',1,-1) FROM DUAL;
+SUBSTR('abcdefg',1,-1)
+
