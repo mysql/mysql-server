@@ -61,6 +61,9 @@ MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
 GCOV_MSG=/tmp/mysqld-gcov.out #gcov output
 GCOV_ERR=/tmp/mysqld-gcov.err  
 
+MASTER_RUNNING=0
+SLAVE_RUNNING=0
+
 [ -d $MY_TMP_DIR ]  || mkdir -p $MY_TMP_DIR
 
 [ -z $COLUMNS ] && COLUMNS=80
@@ -140,6 +143,7 @@ if [ "$1" = "-force" ] ; then
  FORCE=1
  shift 1
 fi
+
 
 if [ "$1" = "-record" ] ; then
  RECORD=1
@@ -304,6 +308,7 @@ gcov_collect () {
 
 start_master()
 {
+    [ x$MASTER_RUNNING = 1 ] && return
     cd $BASEDIR # for gcov
     #start master
     master_args="--no-defaults --log-bin=master-bin \
@@ -330,12 +335,19 @@ start_master()
 start_slave()
 {
     [ x$SKIP_SLAVE = x1 ] && return
-    slave_args="--no-defaults --server-id=2 \
-	    --master-user=root \
+    [ x$SLAVE_RUNNING = 1 ] && return
+    if [ -z $SLAVE_MASTER_INFO ] ; then
+      master_info="--master-user=root \
 	    --master-connect-retry=1 \
 	    --master-host=127.0.0.1 \
 	    --master-port=$MASTER_MYPORT \
-	    --exit-info=256 \
+	    --server-id=2"
+   else
+     master_info=$SLAVE_MASTER_INFO
+   fi	    
+    
+    slave_args="--no-defaults $master_info \
+    	    --exit-info=256 \
 	    --log-bin=slave-bin --log-slave-updates \
             --basedir=$MY_BASEDIR \
             --datadir=$SLAVE_MYDDIR \
@@ -413,14 +425,8 @@ mysql_stop ()
 
 mysql_restart () {
 
-    return 1
     mysql_stop
-    res=$?
-    [ $res != 1 ] && echo_notok && error "Stopping mysqld"
-
     mysql_start
-    res=$?
-    [ $res != 1 ] && echo_notok && error "Starting mysqld"
 
     return 1
 }
@@ -438,6 +444,7 @@ run_testcase ()
  tname=`$ECHO $tname | $CUT -d . -f 1`
  master_opt_file=$TESTDIR/$tname-master.opt
  slave_opt_file=$TESTDIR/$tname-slave.opt
+ slave_master_info_file=$TESTDIR/$tname-slave-master-info.opt
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
  if [ x$RECORD = x1 ]; then
   extra_flags="-r"
@@ -451,27 +458,41 @@ run_testcase ()
   stop_master
   start_master
  else
-  if [ ! -z EXTRA_MASTER_OPT ] || [ x$MASTER_RUNNING != x1 ] ;
+  if [ ! -z $EXTRA_MASTER_OPT ] || [ x$MASTER_RUNNING != x1 ] ;
   then
     EXTRA_MASTER_OPT=""
     stop_master
     start_master
   fi  
  fi
-
+ do_slave_restart=0
+ 
  if [ -f $slave_opt_file ] ;
  then
   EXTRA_SLAVE_OPT=`cat $slave_opt_file`
-  stop_slave
-  start_slave
+  do_slave_restart=1
  else
-  if [ ! -z EXTRA_SLAVE_OPT ] || [ x$SLAVE_RUNNING != x1 ] ;
+  if [ ! -z $EXTRA_SLAVE_OPT ] || [ x$SLAVE_RUNNING != x1 ] ;
   then
     EXTRA_SLAVE_OPT=""
-    stop_slave
-    start_slave
-    
+    do_slave_restart=1    
   fi  
+ fi
+
+ if [ -f $slave_master_info_file ] ; then
+   SLAVE_MASTER_INFO=`cat $slave_master_info_file`
+   do_slave_restart=1
+ else
+  if [ ! -z $SLAVE_MASTER_INFO ] || [ x$SLAVE_RUNNING != x1 ] ;
+  then
+    SLAVE_MASTER_INFO=""
+    do_slave_restart=1    
+  fi  
+ fi
+
+ if [ x$do_slave_restart = x1 ] ; then
+  stop_slave
+  start_slave
  fi
 
  cd $MYSQL_TEST_DIR
