@@ -20,6 +20,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
+#define EXTRA_DEBUG
 
 void init_alloc_root(MEM_ROOT *mem_root, uint block_size, uint pre_alloc_size)
 {
