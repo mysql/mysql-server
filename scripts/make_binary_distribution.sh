@@ -88,7 +88,7 @@ do
 done
 
 for i in COPYING COPYING.LIB README Docs/INSTALL-BINARY \
-         MySQLEULA.txt LICENSE.doc README.NW
+         EXCEPTIONS-CLIENT MySQLEULA.txt LICENSE.doc README.NW
 do
   if [ -f $i ]
   then

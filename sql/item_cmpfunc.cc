@@ -2459,7 +2459,7 @@ void Item_func_like::turboBM_compute_suffixes(int *suff)
 
   *splm1 = pattern_len;
 
-  if (cs == &my_charset_bin)
+  if (!cs->sort_order)
   {
     int i;
     for (i = pattern_len - 2; i >= 0; i--)
@@ -2562,7 +2562,7 @@ void Item_func_like::turboBM_compute_bad_character_shifts()
   for (i = bmBc; i < end; i++)
     *i = pattern_len;
 
-  if (cs == &my_charset_bin)
+  if (!cs->sort_order)
   {
     for (j = 0; j < plm1; j++)
       bmBc[(uint) (uchar) pattern[j]] = plm1 - j;
@@ -2593,7 +2593,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   const int tlmpl= text_len - pattern_len;
 
   /* Searching */
-  if (cs == &my_charset_bin)
+  if (!cs->sort_order)
   {
     while (j <= tlmpl)
     {

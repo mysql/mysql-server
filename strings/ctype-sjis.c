@@ -4615,7 +4615,7 @@ CHARSET_INFO my_charset_sjis_bin=
     ctype_sjis,
     to_lower_sjis,
     to_upper_sjis,
-    sort_order_sjis,
+    NULL,		/* sort_order   */
     NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */

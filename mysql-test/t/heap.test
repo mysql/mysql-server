@@ -150,3 +150,17 @@ INSERT into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11);
 DELETE from t1 where a < 100;
 SELECT * from t1;
 DROP TABLE t1;
+
+#
+# Bug#4411 Server hangs when trying to SELECT MAX(id) from an empty HEAP table
+#
+CREATE TABLE `job_titles` (
+  `job_title_id` int(6) unsigned NOT NULL default '0',
+  `job_title` char(18) NOT NULL default '',
+  PRIMARY KEY  (`job_title_id`),
+  UNIQUE KEY `job_title_id` (`job_title_id`,`job_title`)
+) ENGINE=HEAP;
+
+SELECT MAX(job_title_id) FROM job_titles;
+
+DROP TABLE job_titles;
