@@ -86,6 +86,7 @@ public:
     NoMoreAttributeRecords = 708,
     AttributeNameTwice = 720,
     TableAlreadyExist = 721,
+    InvalidArraySize = 736,
     ArraySizeTooBig = 737,
     RecordTooBig = 738,
     InvalidPrimaryKeySize  = 739,
