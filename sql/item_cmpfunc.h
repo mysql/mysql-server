@@ -275,8 +275,7 @@ public:
   longlong val_int();
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref)
   {
-    return (item->check_cols(1) || 
-	    item->fix_fields(thd, tlist, &item) || 
+    return (item->fix_fields(thd, tlist, &item) || item->check_cols(1) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }
   void fix_length_and_dec();

@@ -101,8 +101,8 @@ public:
   void update_used_tables();
   bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
-    return (separator->check_cols(1) ||
-	    separator->fix_fields(thd, tlist, &separator) ||
+    return (separator->fix_fields(thd, tlist, &separator) ||
+	    separator->check_cols(1) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }
   const char *func_name() const { return "concat_ws"; }
@@ -382,8 +382,8 @@ public:
   String *val_str(String *str);
   bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
-    return (item->check_cols(1) ||
-	    item->fix_fields(thd, tlist, &item) ||
+    return (item->fix_fields(thd, tlist, &item) ||
+	    item->check_cols(1) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }
   void fix_length_and_dec();
@@ -415,8 +415,8 @@ public:
   String *val_str(String *str);
   bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
-    return (item->check_cols(1) ||
-	    item->fix_fields(thd, tlist, &item) ||
+    return (item->fix_fields(thd, tlist, &item) ||
+	    item->check_cols(1) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }
   void fix_length_and_dec();

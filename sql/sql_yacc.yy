@@ -3572,7 +3572,7 @@ kill:
 	KILL_SYM expr
 	{
 	  LEX *lex=Lex;
-	  if ($2->check_cols(1) || $2->fix_fields(lex->thd, 0, &$2))
+	  if ($2->fix_fields(lex->thd, 0, &$2) || $2->check_cols(1))
 	  {
 	    send_error(lex->thd, ER_SET_CONSTANTS_ONLY);
 	    YYABORT;

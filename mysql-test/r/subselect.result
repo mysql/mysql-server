@@ -120,6 +120,8 @@ SELECT (SELECT 1.5,2,'a') = ROW(1.5,'c','a');
 SELECT (SELECT 1.5,'c','a') = ROW(1.5,2,'a');
 (SELECT 1.5,'c','a') = ROW(1.5,2,'a')
 0
+SELECT (SELECT * FROM (SELECT 'test' a,'test' b) a);
+Cardinality error (more/less than 1 columns)
 create table t1 (a int);
 create table t2 (a int, b int);
 create table t3 (a int);
