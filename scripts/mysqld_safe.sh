@@ -52,11 +52,7 @@ parse_arguments() {
 
       # mysqld_safe-specific options - must be set in my.cnf ([mysqld_safe])!
       --ledir=*)   ledir=`echo "$arg" | sed -e "s;--ledir=;;"` ;;
-      # err-log should be removed in 5.0
-      --err-log=*) err_log=`echo "$arg" | sed -e "s;--err-log=;;"` ;;
       --log-error=*) err_log=`echo "$arg" | sed -e "s;--log-error=;;"` ;;
-      # QQ The --open-files should be removed in 5.0
-      --open-files=*) open_files=`echo "$arg" | sed -e "s;--open-files=;;"` ;;
       --open-files-limit=*) open_files=`echo "$arg" | sed -e "s;--open-files-limit=;;"` ;;
       --core-file-size=*) core_file_size=`echo "$arg" | sed -e "s;--core-file-size=;;"` ;;
       --timezone=*) TZ=`echo "$arg" | sed -e "s;--timezone=;;"` ; export TZ; ;;
@@ -94,7 +90,7 @@ then
   DATADIR=$MY_BASEDIR_VERSION/data
   if test -z "$defaults"
   then
-    defaults="--defaults-extra-file=$MY_BASEDIR_VERSION/data/my.cnf"
+    defaults="--defaults-extra-file=$DATADIR/my.cnf"
   fi
 # Check if this is a 'moved install directory'
 elif test -f ./var/mysql/db.frm -a -f ./share/mysql/english/errmsg.sys -a \
@@ -106,8 +102,17 @@ then
 else
   MY_BASEDIR_VERSION=@prefix@
   DATADIR=@localstatedir@
+  if test -z "$MYSQL_HOME"
+  then 
+    MYSQL_HOME=$DATADIR                 # Installation in a not common path
+  fi
   ledir=@libexecdir@
 fi
+if test -z "$MYSQL_HOME"
+then 
+  MYSQL_HOME=$MY_BASEDIR_VERSION
+fi
+export MYSQL_HOME
 
 user=@MYSQLD_USER@
 niceness=0

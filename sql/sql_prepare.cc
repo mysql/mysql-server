@@ -906,6 +906,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     DBUG_RETURN(TRUE);
   }
 
+
   if ((values= its++))
   {
     uint value_count;
@@ -927,6 +928,16 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     value_count= values->elements;
     its.rewind();
 
+    res= TRUE;
+
+    if (table_list->lock_type == TL_WRITE_DELAYED &&
+        !(table_list->table->file->table_flags() & HA_CAN_INSERT_DELAYED))
+    {
+      my_error(ER_ILLEGAL_HA, MYF(0), (table_list->view ?
+                                       table_list->view_name.str :
+                                       table_list->real_name));
+      goto error;
+    }
     while ((values= its++))
     {
       counter++;
@@ -940,7 +951,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     }
   }
 
-  res= 0;
+  res= FALSE;
 error:
   lex->unit.cleanup();
   /* insert_values is cleared in open_table */

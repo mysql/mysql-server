@@ -329,63 +329,6 @@ delete from mysql.user where user='mysqltest_1';
 drop database mysqltest;
 
 #
-# QUERY CACHE options for VIEWs
-#
-set GLOBAL query_cache_size=1355776;
-flush status;
-create table t1 (a int, b int);
-
-# queries with following views should not be in query cache
-create view v1 (c,d) as select sql_no_cache a,b from t1;
-create view v2 (c,d) as select a+rand(),b from t1;
-show status like "Qcache_queries_in_cache";
-show status like "Qcache_inserts";
-show status like "Qcache_hits";
-select * from v1;
-select * from v2;
-show status like "Qcache_queries_in_cache";
-show status like "Qcache_inserts";
-show status like "Qcache_hits";
-select * from v1;
-select * from v2;
-show status like "Qcache_queries_in_cache";
-show status like "Qcache_inserts";
-show status like "Qcache_hits";
-
-drop view v1,v2;
-
-# SQL_CACHE option
-set query_cache_type=demand;
-flush status;
-# query with view will be cached, but direct acess to table will not
-create view v1 (c,d) as select sql_cache a,b from t1;
-show status like "Qcache_queries_in_cache";
-show status like "Qcache_inserts";
-show status like "Qcache_hits";
-select * from v1;
-show status like "Qcache_queries_in_cache";
-show status like "Qcache_inserts";
-show status like "Qcache_hits";
-select * from t1;
-show status like "Qcache_queries_in_cache";
-show status like "Qcache_inserts";
-show status like "Qcache_hits";
-select * from v1;
-show status like "Qcache_queries_in_cache";
-show status like "Qcache_inserts";
-show status like "Qcache_hits";
-select * from t1;
-show status like "Qcache_queries_in_cache";
-show status like "Qcache_inserts";
-show status like "Qcache_hits";
-drop view v1;
-set query_cache_type=default;
-
-drop table t1;
-set GLOBAL query_cache_size=default;
-
-
-#
 # DISTINCT option for VIEW
 #
 create table t1 (a int);
