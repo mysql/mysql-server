@@ -46,7 +46,7 @@ SELECT 1 FROM (SELECT 1 as a) as b HAVING (SELECT a)=1;
 1
 1
 SELECT (SELECT 1), a;
-Unknown column 'a' in 'field list'
+Unknown column 'a' in 'checking transformed subquery'
 SELECT 1 as a FROM (SELECT 1) as b HAVING (SELECT a)=1;
 a
 1
@@ -672,7 +672,6 @@ id
 EXPLAIN SELECT * FROM t2 WHERE id IN (SELECT 1+(select 1));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ref	id	id	5	const	1	Using where; Using index
-3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1247	Select 3 was reduced during optimisation
 Note	1247	Select 2 was reduced during optimisation
@@ -1012,7 +1011,7 @@ CREATE TABLE t1 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(1) NOT NULL default '0'
+  `a` bigint(17) NOT NULL default '0'
 ) TYPE=MyISAM CHARSET=latin1
 drop table t1;
 create table t1 (a int);
