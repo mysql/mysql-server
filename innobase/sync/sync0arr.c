@@ -48,6 +48,8 @@ struct sync_cell_struct {
         void*           wait_object;    /* pointer to the object the
                                         thread is waiting for; if NULL
                                         the cell is free for use */
+	mutex_t*	old_wait_mutex;	/* the latest wait mutex in cell */
+	rw_lock_t*	old_wait_rw_lock;/* the latest wait rw-lock in cell */
         ulint		request_type;	/* lock type requested on the
         				object */
 	char*		file;		/* in debug version file where
@@ -353,6 +355,13 @@ sync_array_reserve_cell(
 			cell->thread = os_thread_get_curr_id();
 
 			cell->wait_object = object;
+
+			if (type == SYNC_MUTEX) {
+				cell->old_wait_mutex = object;
+			} else {
+				cell->old_wait_rw_lock = object;
+			}
+				
 			cell->request_type = type;
 			cell->waiting = FALSE;
 			
@@ -448,7 +457,9 @@ sync_array_cell_print(
 			difftime(time(NULL), cell->reservation_time));
 
 	if (type == SYNC_MUTEX) {
-		mutex = (mutex_t*)cell->wait_object;
+		/* We use old_wait_mutex in case the cell has already
+		been freed meanwhile */
+		mutex = cell->old_wait_mutex;
 
 		fprintf(file,
 		"Mutex at %lx created file %s line %lu, lock var %lu\n",
@@ -466,7 +477,7 @@ sync_array_cell_print(
 			fprintf(file, "S-lock on");
 		}
 
-		rwlock = (rw_lock_t*)cell->wait_object;
+		rwlock = cell->old_wait_rw_lock;
 
 		fprintf(file, " RW-latch at %lx created in file %s line %lu\n",
 			(ulint)rwlock, rwlock->cfile_name, rwlock->cline);

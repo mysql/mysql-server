@@ -3472,14 +3472,18 @@ lock_print_info(void)
 	ulint	i;
 	mtr_t	mtr;
 
+	printf("Trx id counter %lu %lu\n", 
+		ut_dulint_get_high(trx_sys->max_trx_id),
+		ut_dulint_get_low(trx_sys->max_trx_id));
+
 	printf(
-	"Purge done for all trx's with n:o < %lu %lu, undo n:o < %lu %lu\n",
+	"Purge done for trx's n:o < %lu %lu undo n:o < %lu %lu\n",
 		ut_dulint_get_high(purge_sys->purge_trx_no),
 		ut_dulint_get_low(purge_sys->purge_trx_no),
 		ut_dulint_get_high(purge_sys->purge_undo_no),
 		ut_dulint_get_low(purge_sys->purge_undo_no));
 	
-	lock_mutex_enter_kernel();		
+	lock_mutex_enter_kernel();
 
 	printf("Total number of lock structs in row lock hash table %lu\n",
 						lock_get_n_rec_locks());

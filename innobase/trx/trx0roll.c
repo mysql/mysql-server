@@ -45,6 +45,8 @@ trx_general_rollback_for_mysql(
 	que_thr_t*	thr;
 	roll_node_t*	roll_node;
 
+	trx_start_if_not_started(trx);
+
 	heap = mem_heap_create(512);
 
 	roll_node = roll_node_create(heap);
@@ -108,6 +110,8 @@ trx_rollback_for_mysql(
 
 	err = trx_general_rollback_for_mysql(trx, FALSE, NULL);
 
+	trx_mark_sql_stat_end(trx);
+
 	/* Tell Innobase server that there might be work for
 	utility threads: */
 
@@ -144,7 +148,7 @@ trx_rollback_last_sql_stat_for_mysql(
 	err = trx_general_rollback_for_mysql(trx, TRUE,
 						&(trx->last_sql_stat_start));
 	trx_mark_sql_stat_end(trx);
-	
+
 	/* Tell Innobase server that there might be work for
 	utility threads: */
 
@@ -229,8 +233,9 @@ loop:
 
 	ut_a(thr == que_fork_start_command(fork, SESS_COMM_EXECUTE, 0));
 	
-	fprintf(stderr, "InnoDB: Rolling back trx no %lu\n",
-						ut_dulint_get_low(trx->id));
+	fprintf(stderr, "InnoDB: Rolling back trx with id %lu %lu\n",
+					ut_dulint_get_high(trx->id),
+					ut_dulint_get_low(trx->id));
 	mutex_exit(&kernel_mutex);
 
 	if (trx->dict_operation) {
@@ -246,7 +251,7 @@ loop:
 		mutex_exit(&kernel_mutex);
 
 		fprintf(stderr,
-		"InnoDB: Waiting rollback of trx no %lu to end\n",
+		"InnoDB: Waiting for rollback of trx id %lu to end\n",
 						ut_dulint_get_low(trx->id));
 		os_thread_sleep(100000);
 
@@ -272,7 +277,8 @@ loop:
 		mutex_exit(&(dict_sys->mutex));
 	}
 
-	fprintf(stderr, "InnoDB: Rolling back of trx no %lu completed\n",
+	fprintf(stderr, "InnoDB: Rolling back of trx id %lu %lu completed\n",
+					ut_dulint_get_high(trx->id),
 					ut_dulint_get_low(trx->id));
 	mem_heap_free(heap);
 

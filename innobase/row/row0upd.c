@@ -700,7 +700,7 @@ row_upd_build_difference_binary(
 	ulint		i;
 
 	/* This function is used only for a clustered index */
-	ut_ad(index->type & DICT_CLUSTERED);
+	ut_a(index->type & DICT_CLUSTERED);
 
 	update = upd_create(dtuple_get_n_fields(entry), heap);
 
@@ -718,10 +718,14 @@ row_upd_build_difference_binary(
 		/* NOTE: we compare the fields as binary strings!
 		(No collation) */
 
-		if ((rec_get_nth_field_extern_bit(rec, i)
-		    != upd_ext_vec_contains(ext_vec, n_ext_vec, i))
-		    || ((i != trx_id_pos) && (i != roll_ptr_pos)
-			&& !dfield_data_is_binary_equal(dfield, len, data))) {
+		if (i == trx_id_pos || i == roll_ptr_pos) {
+
+			goto skip_compare;
+		}
+		
+		if (rec_get_nth_field_extern_bit(rec, i)
+		    != upd_ext_vec_contains(ext_vec, n_ext_vec, i)
+		    || !dfield_data_is_binary_equal(dfield, len, data)) {
 
 			upd_field = upd_get_nth_field(update, n_diff);
 
@@ -737,6 +741,8 @@ row_upd_build_difference_binary(
 				
 			n_diff++;
 		}
+skip_compare:
+		;
 	}
 
 	update->n_fields = n_diff;
@@ -1011,13 +1017,13 @@ row_upd_sec_index_entry(
 	ibool		found;
 	dict_index_t*	index;
 	dtuple_t*	entry;
-	mtr_t		mtr;
 	btr_pcur_t	pcur;
 	btr_cur_t*	btr_cur;
 	mem_heap_t*	heap;
 	rec_t*		rec;
-	char*           err_buf;
 	ulint		err	= DB_SUCCESS;
+	mtr_t		mtr;
+	char           	err_buf[1000];
 	
 	index = node->index;
 	
@@ -1038,12 +1044,10 @@ row_upd_sec_index_entry(
 	rec = btr_cur_get_rec(btr_cur);
 
 	if (!found) {
-	  	err_buf = mem_alloc(1000);
-	  	dtuple_sprintf(err_buf, 900, entry);
-
 	  	fprintf(stderr, "InnoDB: error in sec index entry update in\n"
 		  	"InnoDB: index %s table %s\n", index->name,
 		  	index->table->name);
+	  	dtuple_sprintf(err_buf, 900, entry);
 	  	fprintf(stderr, "InnoDB: tuple %s\n", err_buf);
 
 	  	rec_sprintf(err_buf, 900, rec);
@@ -1054,8 +1058,6 @@ row_upd_sec_index_entry(
 	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
 
 		trx_print(thr_get_trx(thr));
-
-	  	mem_free(err_buf);
 	} else {
  	  	/* Delete mark the old index record; it can already be
           	delete marked if we return after a lock wait in
@@ -1620,6 +1622,8 @@ row_upd_step(
 	
 	trx = thr_get_trx(thr);
 
+	trx_start_if_not_started(trx);
+
 	node = thr->run_node;
 	
 	sel_node = node->select;
@@ -1637,8 +1641,6 @@ row_upd_step(
 		if (!node->has_clust_rec_x_lock) {
 			/* It may be that the current session has not yet
 			started its transaction, or it has been committed: */
-
-			trx_start_if_not_started(thr_get_trx(thr));
 
 			err = lock_table(0, node->table, LOCK_IX, thr);
 

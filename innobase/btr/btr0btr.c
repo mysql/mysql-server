@@ -21,7 +21,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "lock0lock.h"
 #include "ibuf0ibuf.h"
 
-/*
+/**
 Node pointers
 -------------
 Leaf pages of a B-tree contain the index records stored in the
@@ -2255,12 +2255,16 @@ btr_index_rec_validate(
 	ulint	len;
 	ulint	n;
 	ulint	i;
+	char	err_buf[1000];
 	
 	n = dict_index_get_n_fields(index);
 
 	if (rec_get_n_fields(rec) != n) {
 		fprintf(stderr, "Record has %lu fields, should have %lu\n",
 				rec_get_n_fields(rec), n);
+
+		rec_sprintf(err_buf, 900, rec);
+	  	fprintf(stderr, "InnoDB: record %s\n", err_buf);
 
 		return(FALSE);
 	}
@@ -2275,6 +2279,9 @@ btr_index_rec_validate(
 			fprintf(stderr,
 			"Record field %lu len is %lu, should be %lu\n",
 				i, len, dtype_get_fixed_size(type));
+
+			rec_sprintf(err_buf, 900, rec);
+	  		fprintf(stderr, "InnoDB: record %s\n", err_buf);
 
 			return(FALSE);
 		}
@@ -2330,7 +2337,6 @@ btr_validate_level(
 	ulint		level)	/* in: level number */
 {
 	ulint		space;
-	mtr_t		mtr;
 	page_t*		page;
 	page_t*		right_page;
 	page_t*		father_page;
@@ -2344,6 +2350,8 @@ btr_validate_level(
 	dtuple_t*	node_ptr_tuple;
 	ibool		ret	= TRUE;
 	dict_index_t*	index;
+	mtr_t		mtr;
+	char		err_buf[1000];
 	
 	mtr_start(&mtr);
 
@@ -2382,9 +2390,9 @@ loop:
 	if (level == 0) {
 		if (!btr_index_page_validate(page, index)) {
  			fprintf(stderr,
-			"Error in page %lu in index %s\n",
-				buf_frame_get_page_no(page), index->name);
-
+				"Error in page %lu in index %s, level %lu\n",
+				buf_frame_get_page_no(page), index->name,
+								level);
 			ret = FALSE;
 		}
 	}
@@ -2402,12 +2410,32 @@ loop:
 
 		right_page = btr_page_get(space, right_page_no, RW_X_LATCH,
 									&mtr);
-		ut_a(cmp_rec_rec(page_rec_get_prev(page_get_supremum_rec(page)),
+		if (cmp_rec_rec(page_rec_get_prev(page_get_supremum_rec(page)),
 			page_rec_get_next(page_get_infimum_rec(right_page)),
-			UT_LIST_GET_FIRST(tree->tree_indexes)) < 0);
+			UT_LIST_GET_FIRST(tree->tree_indexes)) >= 0) {
+
+ 			fprintf(stderr,
+			"InnoDB: Error on pages %lu and %lu in index %s\n",
+				buf_frame_get_page_no(page),
+				right_page_no,
+				index->name);
+
+			fprintf(stderr,
+			"InnoDB: records in wrong order on adjacent pages\n");
+
+			rec_sprintf(err_buf, 900,
+				page_rec_get_prev(page_get_supremum_rec(page)));
+	  		fprintf(stderr, "InnoDB: record %s\n", err_buf);
+
+			rec_sprintf(err_buf, 900,
+			page_rec_get_next(page_get_infimum_rec(right_page)));
+	  		fprintf(stderr, "InnoDB: record %s\n", err_buf);
+
+	  		ret = FALSE;
+	  	}
 	}
 	
-	if ((level > 0) && (left_page_no == FIL_NULL)) {
+	if (level > 0 && left_page_no == FIL_NULL) {
 		ut_a(REC_INFO_MIN_REC_FLAG & rec_get_info_bits(
 			page_rec_get_next(page_get_infimum_rec(page))));
 	}
@@ -2418,8 +2446,38 @@ loop:
 	
 		node_ptr = btr_page_get_father_node_ptr(tree, page, &mtr);
 
-		ut_a(node_ptr == btr_page_get_father_for_rec(tree, page,
-			page_rec_get_prev(page_get_supremum_rec(page)), &mtr));
+		if (btr_node_ptr_get_child_page_no(node_ptr) !=
+						buf_frame_get_page_no(page)
+		   || node_ptr != btr_page_get_father_for_rec(tree, page,
+		   	page_rec_get_prev(page_get_supremum_rec(page)),
+								&mtr)) {
+ 			fprintf(stderr,
+			"InnoDB: Error on page %lu in index %s\n",
+				buf_frame_get_page_no(page),
+				index->name);
+
+			fprintf(stderr,
+			"InnoDB: node pointer to the page is wrong\n");
+
+			rec_sprintf(err_buf, 900, node_ptr);
+				
+	  		fprintf(stderr, "InnoDB: node ptr %s\n", err_buf);
+
+			fprintf(stderr,
+				"InnoDB: node ptr child page n:o %lu\n",
+				btr_node_ptr_get_child_page_no(node_ptr));
+
+			rec_sprintf(err_buf, 900,
+			 	btr_page_get_father_for_rec(tree, page,
+		   	 	page_rec_get_prev(page_get_supremum_rec(page)),
+					&mtr));
+
+	  		fprintf(stderr, "InnoDB: record on page %s\n",
+								err_buf);
+		   	ret = FALSE;
+
+		   	goto node_ptr_fails;
+		}
 
 		father_page = buf_frame_align(node_ptr);
 
@@ -2431,7 +2489,33 @@ loop:
 					page_rec_get_next(
 						page_get_infimum_rec(page)),
 						0, heap);
-			ut_a(cmp_dtuple_rec(node_ptr_tuple, node_ptr) == 0);
+
+			if (cmp_dtuple_rec(node_ptr_tuple, node_ptr) != 0) {
+
+	 			fprintf(stderr,
+				  "InnoDB: Error on page %lu in index %s\n",
+					buf_frame_get_page_no(page),
+					index->name);
+
+	  			fprintf(stderr,
+                	"InnoDB: Error: node ptrs differ on levels > 0\n");
+							
+				rec_sprintf(err_buf, 900, node_ptr);
+				
+	  			fprintf(stderr, "InnoDB: node ptr %s\n",
+								err_buf);
+				rec_sprintf(err_buf, 900,
+				  page_rec_get_next(
+					page_get_infimum_rec(page)));
+				
+	  			fprintf(stderr, "InnoDB: first rec %s\n",
+								err_buf);
+		   		ret = FALSE;
+				mem_heap_free(heap);
+
+		   		goto node_ptr_fails;
+			}
+
 			mem_heap_free(heap);
 		}
 
@@ -2454,21 +2538,51 @@ loop:
 			if (page_rec_get_next(node_ptr) !=
 					page_get_supremum_rec(father_page)) {
 
-				ut_a(right_node_ptr ==
-						page_rec_get_next(node_ptr));
+				if (right_node_ptr !=
+						page_rec_get_next(node_ptr)) {
+					ret = FALSE;
+					fprintf(stderr,
+			"InnoDB: node pointer to the right page is wrong\n");
+
+	 				fprintf(stderr,
+				  "InnoDB: Error on page %lu in index %s\n",
+					buf_frame_get_page_no(page),
+					index->name);
+				}
 			} else {
 				right_father_page = buf_frame_align(
 							right_node_ptr);
 							
-				ut_a(right_node_ptr == page_rec_get_next(
+				if (right_node_ptr != page_rec_get_next(
 					   		page_get_infimum_rec(
-							right_father_page)));
-				ut_a(buf_frame_get_page_no(right_father_page)
-				   == btr_page_get_next(father_page, &mtr));
+							right_father_page))) {
+					ret = FALSE;
+					fprintf(stderr,
+			"InnoDB: node pointer 2 to the right page is wrong\n");
+
+	 				fprintf(stderr,
+				  "InnoDB: Error on page %lu in index %s\n",
+					buf_frame_get_page_no(page),
+					index->name);
+				}
+
+				if (buf_frame_get_page_no(right_father_page)
+				   != btr_page_get_next(father_page, &mtr)) {
+
+					ret = FALSE;
+					fprintf(stderr,
+			"InnoDB: node pointer 3 to the right page is wrong\n");
+
+	 				fprintf(stderr,
+				  "InnoDB: Error on page %lu in index %s\n",
+					buf_frame_get_page_no(page),
+					index->name);
+				}
 			}					
 		}
 	}
 
+node_ptr_fails:
 	mtr_commit(&mtr);
 
 	if (right_page_no != FIL_NULL) {

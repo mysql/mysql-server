@@ -410,9 +410,9 @@ buf_flush_try_page(
 		block->io_fix = BUF_IO_WRITE;
 		block->flush_type = flush_type;
 
-		if (buf_pool->n_flush[block->flush_type] == 0) {
+		if (buf_pool->n_flush[flush_type] == 0) {
 
-			os_event_reset(buf_pool->no_flush[block->flush_type]);
+			os_event_reset(buf_pool->no_flush[flush_type]);
 		}
 
 		(buf_pool->n_flush[flush_type])++;
@@ -459,6 +459,11 @@ buf_flush_try_page(
 
 		block->io_fix = BUF_IO_WRITE;
 		block->flush_type = flush_type;
+
+		if (buf_pool->n_flush[flush_type] == 0) {
+
+			os_event_reset(buf_pool->no_flush[flush_type]);
+		}
 
 		(buf_pool->n_flush[flush_type])++;
 
@@ -609,7 +614,7 @@ buf_flush_batch(
 	ut_ad((flush_type == BUF_FLUSH_LRU) || (flush_type == BUF_FLUSH_LIST)); 
 	ut_ad((flush_type != BUF_FLUSH_LIST) ||
 					sync_thread_levels_empty_gen(TRUE));
-	      
+
 	mutex_enter(&(buf_pool->mutex));
 
 	if ((buf_pool->n_flush[flush_type] > 0)

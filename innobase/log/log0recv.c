@@ -61,7 +61,11 @@ buffer pool before the pages have been recovered to the up-to-date state */
 /* Recovery is running and no operations on the log files are allowed
 yet: the variable name is misleading */
 
-ibool		recv_no_ibuf_operations = FALSE;
+ibool	recv_no_ibuf_operations = FALSE;
+
+/* the following counter is used to decide when to print info on
+log scan */
+ulint	recv_scan_print_counter	= 0;
 
 /************************************************************
 Creates the recovery system. */
@@ -1812,10 +1816,19 @@ recv_scan_log_recs(
 	*group_scanned_lsn = scanned_lsn;
 
 	if (more_data) {
-		fprintf(stderr, 
+		recv_scan_print_counter++;
+
+		if (recv_scan_print_counter < 10
+		    || (recv_scan_print_counter % 10 == 0)) {
+			fprintf(stderr, 
 "InnoDB: Doing recovery: scanned up to log sequence number %lu %lu\n",
 				ut_dulint_get_high(*group_scanned_lsn),
 				ut_dulint_get_low(*group_scanned_lsn));
+			if (recv_scan_print_counter == 10) {
+				fprintf(stderr,
+"InnoDB: After this prints a line for every 10th scan sweep:\n");
+			}
+		}
 
 		/* Try to parse more log records */
 
@@ -1909,6 +1922,15 @@ recv_recovery_from_checkpoint_start(
 
 		recv_sys_create();
 		recv_sys_init();
+	}
+
+	if (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO) {
+		fprintf(stderr,
+		"InnoDB: The user has set SRV_FORCE_NO_LOG_REDO on\n");
+		fprintf(stderr,
+		"InnoDB: Skipping log redo\n");
+		
+		return(DB_SUCCESS);
 	}
 
 	sync_order_checks_on = TRUE;
@@ -2028,10 +2050,8 @@ recv_recovery_from_checkpoint_start(
 	while (group) {		
 		old_scanned_lsn = recv_sys->scanned_lsn;
 
-		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-			recv_group_scan_log_recs(group, &contiguous_lsn,
+		recv_group_scan_log_recs(group, &contiguous_lsn,
 							&group_scanned_lsn);
-		}
 
 		group->scanned_lsn = group_scanned_lsn;
 		
@@ -2124,7 +2144,10 @@ recv_recovery_from_checkpoint_finish(void)
 
 	/* Apply the hashed log records to the respective file pages */
 	
-	recv_apply_hashed_log_recs(TRUE);
+	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
+
+		recv_apply_hashed_log_recs(TRUE);
+	}
 
 	if (log_debug_writes) {
 		fprintf(stderr,

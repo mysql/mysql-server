@@ -537,13 +537,13 @@ trx_purge_truncate_history(void)
 	/* We play safe and set the truncate limit at most to the purge view
 	low_limit number, though this is not necessary */
 
-	if (ut_dulint_cmp(limit_trx_no, (purge_sys->view)->low_limit_no) >= 0) {
-		limit_trx_no = (purge_sys->view)->low_limit_no;
+	if (ut_dulint_cmp(limit_trx_no, purge_sys->view->low_limit_no) >= 0) {
+		limit_trx_no = purge_sys->view->low_limit_no;
 		limit_undo_no = ut_dulint_zero;
 	}
 
 	ut_ad((ut_dulint_cmp(limit_trx_no,
-				(purge_sys->view)->low_limit_no) <= 0));
+				purge_sys->view->low_limit_no) <= 0));
 
 	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
 
@@ -565,7 +565,7 @@ trx_purge_truncate_if_arr_empty(void)
 {
 	ut_ad(mutex_own(&(purge_sys->mutex)));
 
-	if ((purge_sys->arr)->n_used == 0) {
+	if (purge_sys->arr->n_used == 0) {
 
 		trx_purge_truncate_history();
 
@@ -783,7 +783,7 @@ trx_purge_get_next_rec(
 	ut_ad(mutex_own(&(purge_sys->mutex)));
 	ut_ad(purge_sys->next_stored);
 
-	space = (purge_sys->rseg)->space;
+	space = purge_sys->rseg->space;
 	page_no = purge_sys->page_no;
 	offset = purge_sys->offset;
 
@@ -936,7 +936,7 @@ trx_purge_fetch_next_rec(
 	}		
 
 	if (ut_dulint_cmp(purge_sys->purge_trx_no,
-				(purge_sys->view)->low_limit_no) >= 0) {
+				purge_sys->view->low_limit_no) >= 0) {
 		purge_sys->state = TRX_STOP_PURGE;
 	
 		trx_purge_truncate_if_arr_empty();
@@ -1071,4 +1071,29 @@ trx_purge(void)
 	}
 
 	return(purge_sys->n_pages_handled - old_pages_handled);
+}
+
+/**********************************************************************
+Prints information of the purge system to stderr. */
+
+void
+trx_purge_sys_print(void)
+/*=====================*/
+{
+	fprintf(stderr, "InnoDB: Purge system view:\n");
+	read_view_print(purge_sys->view);
+
+	fprintf(stderr, "InnoDB: Purge trx n:o %lu %lu, undo n_o %lu %lu\n",
+			ut_dulint_get_high(purge_sys->purge_trx_no),
+			ut_dulint_get_low(purge_sys->purge_trx_no),
+			ut_dulint_get_high(purge_sys->purge_undo_no),
+			ut_dulint_get_low(purge_sys->purge_undo_no));
+	fprintf(stderr,
+	"InnoDB: Purge next stored %lu, page_no %lu, offset %lu,\n"
+	"InnoDB: Purge hdr_page_no %lu, hdr_offset %lu\n",
+		purge_sys->next_stored,
+		purge_sys->page_no,
+		purge_sys->offset,
+		purge_sys->hdr_page_no,
+		purge_sys->hdr_offset);
 }

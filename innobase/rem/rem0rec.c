@@ -451,24 +451,31 @@ rec_validate(
 			/* out: TRUE if ok */
 	rec_t*	rec)	/* in: physical record */
 {
-	ulint	i;
 	byte*	data;
 	ulint	len;
 	ulint	n_fields;
 	ulint	len_sum		= 0;
 	ulint	sum		= 0;
+	ulint	i;
 
 	ut_a(rec);
 	n_fields = rec_get_n_fields(rec);
 
 	if ((n_fields == 0) || (n_fields > REC_MAX_N_FIELDS)) {
-		ut_a(0);
+		fprintf(stderr, "InnoDB: Error: record has %lu fields\n",
+								n_fields);
+		return(FALSE);
 	}
 	
 	for (i = 0; i < n_fields; i++) {
 		data = rec_get_nth_field(rec, i, &len);
 		
-		ut_a((len < UNIV_PAGE_SIZE) || (len == UNIV_SQL_NULL));
+		if (!((len < UNIV_PAGE_SIZE) || (len == UNIV_SQL_NULL))) {
+			fprintf(stderr,
+			"InnoDB: Error: record field %lu len %lu\n", i,
+								len);
+			return(FALSE);
+		}	
 
 		if (len != UNIV_SQL_NULL) {
 			len_sum += len;
@@ -481,7 +488,12 @@ rec_validate(
 		}
 	}
 
-	ut_a(len_sum == (ulint)(rec_get_end(rec) - rec));
+	if (len_sum != (ulint)(rec_get_end(rec) - rec)) {
+		fprintf(stderr,
+		"InnoDB: Error: record len should be %lu, len %lu\n",
+				len_sum, (ulint)(rec_get_end(rec) - rec));
+		return(FALSE);
+	}	
 
 	rec_dummy = sum; /* This is here only to fool the compiler */
 

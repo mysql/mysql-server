@@ -2024,7 +2024,7 @@ ibuf_insert_low(
 	ulint		n_stored;
 	ulint		bits;
 	
-	ut_ad(!(index->type & (DICT_UNIQUE | DICT_CLUSTERED)));
+	ut_a(!(index->type & (DICT_UNIQUE | DICT_CLUSTERED)));
 	ut_ad(dtuple_check_typed(entry));
 
 	do_merge = FALSE;

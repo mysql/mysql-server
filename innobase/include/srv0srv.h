@@ -15,6 +15,7 @@ Created 10/10/1995 Heikki Tuuri
 #include "os0sync.h"
 #include "com0com.h"
 #include "que0types.h"
+#include "trx0types.h"
 
 
 /* When this event is set the lock timeout and InnoDB monitor
@@ -64,6 +65,8 @@ extern ulint	srv_lock_wait_timeout;
 extern char*    srv_unix_file_flush_method_str;
 extern ulint    srv_unix_file_flush_method;
 extern ulint	srv_force_recovery;
+extern ulint	srv_thread_concurrency;
+extern ibool	srv_fast_shutdown;
 
 extern ibool	srv_use_doublewrite_buf;
 
@@ -81,6 +84,9 @@ extern ibool	srv_print_innodb_monitor;
 extern ibool    srv_print_innodb_lock_monitor;
 extern ibool    srv_print_innodb_tablespace_monitor;
 extern ibool    srv_print_innodb_table_monitor;
+
+extern ibool	srv_lock_timeout_and_monitor_active;
+extern ibool	srv_error_monitor_active; 
 
 extern ulint	srv_n_spin_wait_rounds;
 extern ulint	srv_spin_wait_delay;
@@ -159,7 +165,11 @@ of lower numbers are included. */
 #define SRV_FORCE_NO_IBUF_MERGE	4	/* prevent also ibuf operations:
 					if they would cause a crash, better
 					not do them */
-#define SRV_FORCE_NO_LOG_REDO	5	/* do not do the log roll-forward
+#define	SRV_FORCE_NO_UNDO_LOG_SCAN 5	/* do not look at undo logs when
+					starting the database: InnoDB will
+					treat even incomplete transactions
+					as committed */
+#define SRV_FORCE_NO_LOG_REDO	6	/* do not do the log roll-forward
 					in connection with recovery */
 					
 /*************************************************************************
@@ -234,6 +244,29 @@ mutex, for performace reasons). */
 void
 srv_active_wake_master_thread(void);
 /*===============================*/
+/*************************************************************************
+Puts an OS thread to wait if there are too many concurrent threads
+(>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
+
+void
+srv_conc_enter_innodb(
+/*==================*/
+	trx_t*	trx);	/* in: transaction object associated with the
+			thread */
+/*************************************************************************
+This lets a thread enter InnoDB regardless of the number of threads inside
+InnoDB. This must be called when a thread ends a lock wait. */
+
+void
+srv_conc_force_enter_innodb(void);
+/*=============================*/
+/*************************************************************************
+This must be called when a thread exits InnoDB. This must also be called
+when a thread goes to wait for a lock. */
+
+void
+srv_conc_exit_innodb(void);
+/*======================*/
 /*******************************************************************
 Puts a MySQL OS thread to wait for a lock to be released. */
 

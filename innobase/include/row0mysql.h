@@ -342,6 +342,12 @@ struct row_prebuilt_struct {
 					the row id: in this case this flag
 					is set to TRUE */
 	dict_index_t*	index;		/* current index for a search, if any */
+	ulint		read_just_key;	/* set to 1 when MySQL calls
+					ha_innobase::extra with the
+					argument HA_EXTRA_KEYREAD; it is enough
+					to read just columns defined in
+					the index (i.e., no read of the
+					clustered index record necessary) */
 	ulint		template_type;	/* ROW_MYSQL_WHOLE_ROW, 
 					ROW_MYSQL_REC_FIELDS,
 					ROW_MYSQL_DUMMY_TEMPLATE, or

@@ -455,12 +455,25 @@ row_build_row_ref_in_tuple(
 	ulint		pos;
 	ulint		i;
 	
-	ut_ad(ref && index && rec);
+	ut_a(ref && index && rec);
 	
 	table = index->table;
+
+	if (!table) {
+		fprintf(stderr, "InnoDB: table %s for index %s not found\n",
+				index->table_name, index->name);
+		ut_a(0);
+	}
 	
 	clust_index = dict_table_get_first_index(table);
-
+	
+	if (!clust_index) {
+		fprintf(stderr,
+                "InnoDB: clust index for table %s for index %s not found\n",
+				index->table_name, index->name);
+		ut_a(0);
+	}
+	
 	ref_len = dict_index_get_n_unique(clust_index);
 
 	ut_ad(ref_len == dtuple_get_n_fields(ref));
@@ -554,6 +567,8 @@ row_search_on_row_ref(
 	ut_ad(dtuple_check_typed(ref));
 
 	index = dict_table_get_first_index(table);
+
+	ut_a(dtuple_get_n_fields(ref) == dict_index_get_n_unique(index));
 
 	btr_pcur_open(index, ref, PAGE_CUR_LE, mode, pcur, mtr);
 	

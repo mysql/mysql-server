@@ -261,6 +261,15 @@ void
 dict_table_print_by_name(
 /*=====================*/
 	char*	name);
+/**************************************************************************
+Sprintfs to a string info on foreign keys of a table. */
+
+void
+dict_print_info_on_foreign_keys(
+/*============================*/
+	char*		str,	/* in/out: pointer to a string */
+	ulint		len,	/* in: space in str available for info */
+	dict_table_t*	table);	/* in: table */
 /************************************************************************
 Gets the first index on the table (the clustered index). */
 UNIV_INLINE

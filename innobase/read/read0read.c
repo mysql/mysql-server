@@ -38,8 +38,8 @@ read_view_create_low(
 /*************************************************************************
 Makes a copy of the oldest existing read view, with the exception that also
 the creating trx of the oldest view is set as not visible in the 'copied'
-view. Opens a new view if no views currently exist. The view must be
-closed with ..._close. This is used in purge. */
+view. Opens a new view if no views currently exist. The view must be closed
+with ..._close. This is used in purge. */
 
 read_view_t*
 read_view_oldest_copy_or_open_new(
@@ -160,7 +160,7 @@ read_view_open_now(
 
 			/* NOTE that a transaction whose trx number is <
 			trx_sys->max_trx_id can still be active, if it is
-			in the middle of the commit! Note that when a
+			in the middle of its commit! Note that when a
 			transaction starts, we initialize trx->no to
 			ut_dulint_max. */
 		
@@ -199,3 +199,37 @@ read_view_close(
 
 	UT_LIST_REMOVE(view_list, trx_sys->view_list, view);
 } 
+
+/*************************************************************************
+Prints a read view to stderr. */
+
+void
+read_view_print(
+/*============*/
+	read_view_t*	view)	/* in: read view */
+{
+	ulint	n_ids;
+	ulint	i;
+	
+	fprintf(stderr, "Read view low limit trx n:o %lu %lu\n",
+			ut_dulint_get_high(view->low_limit_no),
+			ut_dulint_get_low(view->low_limit_no));
+
+	fprintf(stderr, "Read view up limit trx id %lu %lu\n",
+			ut_dulint_get_high(view->up_limit_id),
+			ut_dulint_get_low(view->up_limit_id));		
+
+	fprintf(stderr, "Read view low limit trx id %lu %lu\n",
+			ut_dulint_get_high(view->low_limit_id),
+			ut_dulint_get_low(view->low_limit_id));
+
+	fprintf(stderr, "Read view individually stored trx ids:\n");
+
+	n_ids = view->n_trx_ids;
+
+	for (i = 0; i < n_ids; i++) {
+		fprintf(stderr, "Read view trx id %lu %lu\n",
+			ut_dulint_get_high(read_view_get_nth_trx_id(view, i)),
+			ut_dulint_get_low(read_view_get_nth_trx_id(view, i)));
+	}
+}

@@ -235,7 +235,7 @@ os_file_handle_error(
 	   fprintf(stderr,
 	   "InnoDB: Cannot continue operation.\n"
 	   "InnoDB: Disk is full. Try to clean the disk to free space.\n"
-	   "InnoDB: Delete possible created file and restart.\n");
+	   "InnoDB: Delete a possible created file and restart.\n");
 
 		exit(1);
 
@@ -453,8 +453,17 @@ os_file_get_size(
 
 	return(TRUE);
 #else
-	*size = (ulint) lseek(file, 0, SEEK_END);
-	*size_high = 0;
+	off_t	offs;
+
+	offs = lseek(file, 0, SEEK_END);
+
+	if (sizeof(off_t) > 4) {
+	        *size = (ulint)(offs & 0xFFFFFFFF);
+		*size_high = (ulint)((offs / (256 * 256)) / (256 * 256));
+	} else {
+		*size = (ulint) offs;
+		*size_high = 0;
+	}
 	
 	return(TRUE);	
 #endif
@@ -474,17 +483,19 @@ os_file_set_size(
 				size */
 	ulint		size_high)/* in: most significant 32 bits of size */
 {
-	ulint   offset;
-	ulint   n_bytes;
-	ulint	low;
-	ibool	ret;
-	ibool	retry;
-	ulint   i;
-	byte*   buf;
+	ib_longlong	offset;
+	ib_longlong	low;
+	ulint   	n_bytes;
+	ibool		ret;
+	ibool		retry;
+	byte*   	buf;
+	ulint   	i;
+
+	ut_a(((((size / 256) / 256) / 256) / 256) == 0);
 
 try_again:
 	/* We use a very big 8 MB buffer in writing because Linux may be
-	extremely slow in fdatasync on 1 MB writes */
+	extremely slow in fsync on 1 MB writes */
 
 	buf = ut_malloc(UNIV_PAGE_SIZE * 512);
 
@@ -494,21 +505,19 @@ try_again:
 	}
 
 	offset = 0;
-	low = size;
-#if (UNIV_WORD_SIZE == 8)
-	low = low + (size_high << 32);
-#else
-	UT_NOT_USED(size_high);
-#endif
+	low = (ib_longlong)size + (((ib_longlong)size_high)
+					* 256) * 256 * 256 * 256;
 	while (offset < low) {
 	        if (low - offset < UNIV_PAGE_SIZE * 512) {
-	                 n_bytes = low - offset;
+	        	n_bytes = (ulint)(low - offset);
 	        } else {
-	                 n_bytes = UNIV_PAGE_SIZE * 512;
+	        	n_bytes = UNIV_PAGE_SIZE * 512;
 	        }
 	  
-	        ret = os_file_write(name, file, buf, offset, 0, n_bytes);
-
+	        ret = os_file_write(name, file, buf,
+				(ulint)(offset & 0xFFFFFFFF),
+				(ulint)((((offset / 256) / 256) / 256) / 256),
+				n_bytes);
 	        if (!ret) {
 			ut_free(buf);
 	         	goto error_handling;
@@ -582,7 +591,6 @@ os_file_flush(
 #endif
 }
 
-
 #ifndef __WIN__
 /***********************************************************************
 Does a synchronous read operation in Posix. */
@@ -594,9 +602,29 @@ os_file_pread(
 	os_file_t	file,	/* in: handle to a file */
 	void*		buf,	/* in: buffer where to read */
 	ulint		n,	/* in: number of bytes to read */	
-	ulint		offset)	/* in: offset from where to read */
+	ulint		offset,	/* in: least significant 32 bits of file
+				offset from where to read */
+	ulint		offset_high) /* in: most significant 32 bits of
+				offset */
 {
-        off_t     offs = (off_t)offset;
+        off_t	offs;
+
+	ut_a(((((offset / 256) / 256) / 256) / 256) == 0);
+        
+        /* If off_t is > 4 bytes in size, then we assume we can pass a
+	64-bit address */
+
+        if (sizeof(off_t) > 4) {
+        	offs = (off_t)offset + ((((off_t)offset_high)
+        				* 256) * 256 * 256 * 256);
+        } else {
+        	offs = (off_t)offset;
+
+        	if (offset_high > 0) {
+        		fprintf(stderr,
+			"InnoDB: Error: file read at offset > 4 GB\n");
+		}
+        }
 
 	os_n_file_reads++;
 
@@ -639,10 +667,30 @@ os_file_pwrite(
 	os_file_t	file,	/* in: handle to a file */
 	void*		buf,	/* in: buffer from where to write */
 	ulint		n,	/* in: number of bytes to write */	
-	ulint		offset)	/* in: offset where to write */
+	ulint		offset,	/* in: least significant 32 bits of file
+				offset where to write */
+	ulint		offset_high) /* in: most significant 32 bits of
+				offset */
 {
 	ssize_t	ret;
-	off_t   offs    = (off_t)offset;
+        off_t	offs;
+
+	ut_a(((((offset / 256) / 256) / 256) / 256) == 0);
+
+        /* If off_t is > 4 bytes in size, then we assume we can pass a
+	64-bit address */
+
+        if (sizeof(off_t) > 4) {
+        	offs = (off_t)offset + ((((off_t)offset_high)
+        				* 256) * 256 * 256 * 256);
+        } else {
+        	offs = (off_t)offset;
+
+        	if (offset_high > 0) {
+        		fprintf(stderr,
+			"InnoDB: Error: file write at offset > 4 GB\n");
+		}
+        }
 
 	os_n_file_writes++;
 
@@ -724,6 +772,8 @@ os_file_read(
 	ibool		retry;
 	ulint		i;
 	
+	ut_a(((((offset / 256) / 256) / 256) / 256) == 0);
+
 	os_n_file_reads++;
 
 try_again:	
@@ -758,14 +808,9 @@ try_again:
 #else
 	ibool	retry;
 	ssize_t	ret;
-	
-#if (UNIV_WORD_SIZE == 8)
-	offset = offset + (offset_high << 32);
-#else
-	UT_NOT_USED(offset_high);
-#endif	
+
 try_again:
-	ret = os_file_pread(file, buf, n, offset);
+	ret = os_file_pread(file, buf, n, offset, offset_high);
 
 	if ((ulint)ret == n) {
 
@@ -811,6 +856,8 @@ os_file_write(
 	ibool		retry;
 	ulint		i;
 
+	ut_a(((((offset / 256) / 256) / 256) / 256) == 0);
+
 	os_n_file_writes++;
 try_again:	
 	ut_ad(file);
@@ -852,13 +899,8 @@ try_again:
 	ibool	retry;
 	ssize_t	ret;
 	
-#if (UNIV_WORD_SIZE == 8)
-	offset = offset + (offset_high << 32);
-#else
-	UT_NOT_USED(offset_high);
-#endif	
 try_again:
-	ret = os_file_pwrite(file, buf, n, offset);
+	ret = os_file_pwrite(file, buf, n, offset, offset_high);
 
 	if ((ulint)ret == n) {
 		return(TRUE);
@@ -1321,8 +1363,8 @@ os_aio_simulated_wake_handler_thread(
 				arrays */
 {
 	os_aio_array_t*	array;
-	ulint		segment;
 	os_aio_slot_t*	slot;
+	ulint		segment;
 	ulint		n;
 	ulint		i;
 
@@ -1424,6 +1466,7 @@ os_aio(
 	ibool		retry;
 	ulint		wake_later;
 
+	ut_a(((((offset / 256) / 256) / 256) / 256) == 0);
 	ut_ad(file);
 	ut_ad(buf);
 	ut_ad(n > 0);
@@ -1817,7 +1860,8 @@ restart:
 
 	n_consecutive = 0;
 
-	/* Look for an i/o request at the lowest offset in the array */
+	/* Look for an i/o request at the lowest offset in the array
+	(we ignore the high 32 bits of the offset in these heuristics) */
 
 	lowest_offset = ULINT_MAX;
 	
