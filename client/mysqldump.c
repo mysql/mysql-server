@@ -154,7 +154,7 @@ static struct my_option my_long_options[] =
   {"first-slave", 'x', "Locks all tables across all databases.",
    (gptr*) &opt_first_slave, (gptr*) &opt_first_slave, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"flush-logs", 'F', "Flush logs file in server before starting dump.",
+  {"flush-logs", 'F', "Flush logs file in server before starting dump. Note that if you use this option in combination with the --all-databases (or -A) option, the logs will be flushed for each database dumped.",
    (gptr*) &flush_logs, (gptr*) &flush_logs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"force", 'f', "Continue even if we get an sql-error.",
