@@ -17,11 +17,12 @@
 #include <NdbSleep.h>
 #include <HugoAsynchTransactions.hpp>
 
-HugoAsynchTransactions::HugoAsynchTransactions(const NdbDictionary::Table& _tab):
-  HugoTransactions(_tab),
-  transactionsCompleted(0),
-  numTransactions(0),
-  transactions(NULL){
+HugoAsynchTransactions::HugoAsynchTransactions(const NdbDictionary::Table& _t)
+  : HugoTransactions(_t),
+    transactionsCompleted(0),
+    numTransactions(0),
+    transactions(NULL)
+{
 }
 
 HugoAsynchTransactions::~HugoAsynchTransactions(){

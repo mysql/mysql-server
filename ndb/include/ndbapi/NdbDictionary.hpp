@@ -754,8 +754,6 @@ public:
       Undefined = 0,          ///< Undefined object type (initial value)
       UniqueHashIndex = 3,    ///< Unique un-ordered hash index 
                               ///< (only one currently supported)
-      HashIndex = 4,          ///< Non-unique un-ordered hash index
-      UniqueOrderedIndex = 5, ///< Unique ordered index
       OrderedIndex = 6        ///< Non-unique ordered index
     };
 
