@@ -713,7 +713,7 @@ static void print_res_header(MYSQL_RES *result)
   putchar('|');
   while ((field = mysql_fetch_field(result)))
   {
-    printf(" %-*s|",field->max_length+1,field->name);
+    printf(" %-*s|",(int) field->max_length+1,field->name);
   }
   putchar('\n');
   print_res_top(result);

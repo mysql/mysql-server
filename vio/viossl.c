@@ -34,31 +34,6 @@
 #include <my_sys.h>
 #include <my_net.h>
 #include <m_string.h>
-#ifdef HAVE_POLL
-#include <sys/poll.h>
-#endif
-#ifdef HAVE_SYS_IOCTL_H
-#include <sys/ioctl.h>
-#endif
-
-#if defined(__EMX__)
-#define ioctlsocket ioctl
-#endif	/* defined(__EMX__) */
-
-#if defined(MSDOS) || defined(__WIN__)
-#ifdef __WIN__
-#undef errno
-#undef EINTR
-#undef EAGAIN
-#define errno WSAGetLastError()
-#define EINTR  WSAEINTR
-#define EAGAIN WSAEINPROGRESS
-#endif /* __WIN__ */
-#define O_NONBLOCK 1    /* For emulation of fcntl() */
-#endif
-#ifndef EWOULDBLOCK
-#define EWOULDBLOCK EAGAIN
-#endif
 
 #ifndef __WIN__
 #define HANDLE void *
@@ -83,7 +58,7 @@ report_errors()
   if (!any_ssl_error) {
     DBUG_PRINT("info", ("No OpenSSL errors."));
   }
-  DBUG_PRINT("info", ("BTW, errno=%d", errno));
+  DBUG_PRINT("info", ("BTW, errno=%d", scoket_errno));
   DBUG_VOID_RETURN;
 }
 
@@ -102,7 +77,7 @@ void vio_ssl_delete(Vio * vio)
 
 int vio_ssl_errno(Vio *vio __attribute__((unused)))
 {
-  return errno;			/* On Win32 this mapped to WSAGetLastError() */
+  return socket_errno;	/* On Win32 this mapped to WSAGetLastError() */
 }
 
 
@@ -195,8 +170,9 @@ int vio_ssl_keepalive(Vio* vio, my_bool set_keep_alive)
 my_bool
 vio_ssl_should_retry(Vio * vio __attribute__((unused)))
 {
-  int en = errno;
-  return en == EAGAIN || en == EINTR || en == EWOULDBLOCK;
+  int en = socket_errno;
+  return (en == SOCKET_EAGAIN || en == SOCKET_EINTR ||
+	  en == SOCKET_EWOULDBLOCK);
 }
 
 
@@ -217,7 +193,7 @@ int vio_ssl_close(Vio * vio)
     r= -1;
   if (r)
   {
-    DBUG_PRINT("error", ("close() failed, error: %d",errno));
+    DBUG_PRINT("error", ("close() failed, error: %d",socket_errno));
     report_errors();
     /* FIXME: error handling (not critical for MySQL) */
   }
@@ -257,7 +233,7 @@ my_bool vio_ssl_peer_addr(Vio * vio, char *buf)
     if (getpeername(vio->sd, (struct sockaddr *) (& (vio->remote)),
 		    &addrLen) != 0)
     {
-      DBUG_PRINT("exit", ("getpeername, error: %d", errno));
+      DBUG_PRINT("exit", ("getpeername, error: %d", socket_errno));
       DBUG_RETURN(1);
     }
     /* FIXME */

@@ -1756,13 +1756,6 @@ PHP: A server-side HTML-embedded scripting language.
 The Midgard Application Server; a powerful Web development environment
 based on MySQL and PHP.
 
-@item @uref{http://www.smartworker.org}
-SmartWorker is a platform for Web application development.
-
-@item @uref{http://xsp.lentus.se/}
-XSP: e(X)tendible (S)erver (P)ages and is a HTML embedded tag language
-written in Java (previously known as XTAGS).
-
 @cindex dbServ
 @item @uref{http://www.dbServ.de/}
 dbServ is an extension to a web server to integrate database output into
@@ -1784,27 +1777,11 @@ ForwardSQL: HTML interface to manipulate MySQL databases.
 @item @uref{http://www.daa.com.au/~james/www-sql/}
 WWW-SQL: Display database information.
 
-@item @uref{http://www.minivend.com/minivend/}
-Minivend: A Web shopping cart.
-
 @item @uref{http://www.heitml.com/}
 HeiTML: A server-side extension of HTML and a 4GL language at the same time.
 
-@item @uref{http://www.metahtml.com/}
-Metahtml: A Dynamic Programming Language for WWW Applications.
-
-@item @uref{http://www.binevolve.com/}
-VelocityGen for Perl and Tcl.
-
 @item @uref{http://hawkeye.net/}
 Hawkeye Internet Server Suite.
-
-@item @uref{http://www.fastflow.com/}
-Network Database Connection For Linux
-
-@item @uref{http://www.wdbi.net/}
-WDBI: Web browser as a universal front end to databases which supports
-MySQL well.
 
 @item @uref{http://www.webgroove.com/}
 WebGroove Script: HTML compiler and server-side scripting language.
@@ -1818,17 +1795,8 @@ How to use MySQL with ColdFusion on Solaris.
 @item @uref{http://calistra.com/MySQL/}
 Calistra's ODBC MySQL Administrator.
 
-@cindex Webmerger
-@item @uref{http://www.webmerger.com}
-Webmerger -  This CGI tool interprets files and generates dynamic output
-based on a set of simple tags.  Ready-to-run drivers for MySQL and
-PostgreSQL through ODBC.
-
 @item @uref{http://phpclub.net/}
 PHPclub - Tips and tricks for PHP.
-
-@item @uref{http://www.penguinservices.com/scripts}
-MySQL and Perl Scripts.
 
 @item @uref{http://www.widgetchuck.com}
 The Widgetchuck; Web Site Tools and Gadgets
@@ -1846,12 +1814,6 @@ and selectable table content reviewing.
 
 @item @uref{http://www.omnis-software.com/products/studio/studio.html}
 OMNIS Studio is a rapid application development (RAD) tool.
-
-@cindex Web+
-@item @uref{http://www.webplus.com}
-talentsoft Web+ 4.6 - a powerful and comprehensive development language for
-use in creating web-based client/server applications without writing
-complicated, low-level, and time-consuming CGI programs.
 @end table
 
 @subheading Database Design Tools with MySQL Support
@@ -1921,9 +1883,6 @@ qpopmysql - A patch to allow POP3 authentication from a MySQL
 database.  There's also a link to Paul Khavkine's patch for Procmail to
 allow any MTA to deliver to users in a MySQL database.
 
-@item @uref{http://www.pbc.ottawa.on.ca}
-Visual Basic class generator for Active X.
-
 @item @uref{http://www.essencesw.com/Software/mysqllib.html}
 New Client libraries for the Mac OS Classic (Macintosh).
 
@@ -1986,9 +1945,6 @@ A consulting company which mentions MySQL in the right company.
 PMP Computer Solutions.  Database developers using MySQL and
 @code{mSQL}.
 
-@item @uref{http://www.aewa.org/}
-Airborne Early Warning Association.
-
 @item @uref{http://www.dedserius.com/y2kmatrix/}
 Y2K tester.
 @end table
@@ -2008,11 +1964,11 @@ EasySQL: An ODBC-like driver manager.
 @item @uref{http://www.lightlink.com/hessling/rexxsql.html}
 A REXX interface to SQL databases.
 
-@item @uref{http://www.mytcl.cx/}
-Tcl interface based on tcl-sql with many bugfixes.
+@c @item @uref{http://www.mytcl.cx/}
+@c Tcl interface based on tcl-sql with many bugfixes.
 
 @item @uref{http://www.binevolve.com/~tdarugar/tcl-sql/}
-Tcl interface.
+Tcl interface for MySQL.
 
 @item @uref{http://www.contrib.andrew.cmu.edu/~shadow/sql.html}
 SQL Reference Page with a lot of interesting links.
@@ -2027,12 +1983,6 @@ SQL Reference Page with a lot of interesting links.
 @item @uref{http://www.little6.com/about/linux/}
 Little6 Inc., An online contract and job finding site that is powered by
 MySQL, PHP3, and Linux.
-
-@c Added 990521
-@c EMAIL: nh@delec.com (Hillbrecht Nicole)
-@item @uref{http://www.delec.com/is/products/prep/examples/BookShelf/index.html}
-DELECis - A tool that makes it very easy to create an automatically generated
-table documentation. They have used MySQL as an example.
 
 @c Added 990521
 @c EMAIL: info@worldrecords.com (Jim Rota)
@@ -2056,31 +2006,12 @@ Basic telephone database using @code{DBI}/@code{DBD}.
 @item @uref{http://tecfa.unige.ch/guides/java/staf2x/ex/jdbc/coffee-break}
 JDBC examples by Daniel K. Schneider.
 
-@item @uref{http://www.spade.com/linux/howto/PostgreSQL-HOWTO-41.html}
-SQL BNF
-
 @item @uref{http://www.ooc.com/}
 Object Oriented Concepts Inc; CORBA applications with examples in source.
-
-@item @uref{http://www.pbc.ottawa.on.ca/}
-DBWiz; Includes an example of how to manage cursors in VB.
-
-@cindex Pluribus
-@item @uref{http://keilor.cs.umass.edu/pluribus/}
-Pluribus is a free search engine that learns to improve
-the quality of its results over time.  Pluribus works by recording
-which pages a user prefers among those returned for a query.  A user
-votes for a page by selecting it; Pluribus then uses that knowledge
-to improve the quality of the results when someone else submits the
-same (or similar) query.  Uses PHP and MySQL.
 
 @c EMAIL: paul@sword.damocles.com (Paul Bannister)
 @item @uref{http://www.stopbit.com/}
 Stopbit - A technology news site using MySQL and PHP.
-
-@item @uref{http://www.linuxsupportline.com/~kalendar/}
-KDE based calendar manager - The calendar manager has both single user
-(file based) and multi-user (MySQL database) support.
 
 @item @uref{http://www.penguinservices.com/scripts}
 Online shopping cart system.
@@ -2099,9 +2030,6 @@ as BLOBs.  All other information is stored on the shared MySQL server.
 @subheading General Database Links
 
 @table @asis
-@item @uref{http://www.pcslink.com/~ej/dbweb.html}
-Database Jump Site
-
 @item @uref{http://black.hole-in-the.net/guy/webdb/}
 Homepage of the webdb-l (Web Databases) mailing list.
 
@@ -2110,10 +2038,6 @@ Perl @code{DBI}/@code{DBD} modules homepage.
 
 @item @uref{http://www.student.uni-koeln.de/cygwin/}
 Cygwin tools.  Unix on top of Windows.
-
-@item @uref{http://dbasecentral.com/}
-dbasecentral.com; Development and distribution of powerful and easy-to-use
-database applications and systems.
 
 @cindex Tek-Tips forums
 @cindex forums, Tek-Tips
@@ -8979,7 +8903,13 @@ version 4.0;
 @item
 The old C API functions @code{mysql_drop_db}, @code{mysql_create_db} and
 @code{mysql_connect} are not supported anymore, unless one compiles
-MySQL with @code{USE_OLD_FUNCTIONS}.
+MySQL with @code{USE_OLD_FUNCTIONS}.   Instead of doing this, one should
+change the client to use the new 4.0 API.
+@item
+In the @code{MYSQL_FIELD} structure, @code{length} and @code{max_length} has
+changed from @code{unsigned int} to @code{unsigned long}. This should not
+cause any other problems than some warnings if you use these to
+@code{printf()} type function.
 @item
 You should use @code{TRUNCATE TABLE} when you want to delete all rows
 from a table and you don't care of how many rows where deleted.
@@ -45800,8 +45730,6 @@ support MySQL}
 @item @uref{http://www.webhosters.com, WebHosters - A Guide to WWW Providers}
 
 @item @uref{http://online.dn.ru, Internet information server}
-
-@item @uref{http://www.stopbit.com, A technology news site}
 
 @item @uref{http://www.worldnetla.net, WorldNet Communications - An Internet Services Provider}
 
