@@ -221,7 +221,7 @@ const char *sql_mode_names[] =
   "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40", "ANSI",
   "NO_AUTO_VALUE_ON_ZERO", "NO_BACKSLASH_ESCAPES", "STRICT_TRANS_TABLES", "STRICT_ALL_TABLES",
   "NO_ZERO_IN_DATE", "NO_ZERO_DATE", "ALLOW_INVALID_DATES", "ERROR_FOR_DIVISION_BY_ZERO",
-  "TRADITIONAL", "NO_AUTO_CREATE_USER",
+  "TRADITIONAL", "NO_AUTO_CREATE_USER", "BROKEN_NOT",
   NullS
 };
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
@@ -5402,6 +5402,9 @@ struct show_var_st status_vars[]= {
    SHOW_LONG_STATUS},
   {"Handler_write",            (char*) offsetof(STATUS_VAR, ha_write_count),
    SHOW_LONG_STATUS},
+#ifdef HAVE_INNOBASE_DB
+  {"Innodb_",                  (char*) &innodb_status_variables, SHOW_VARS},
+#endif /*HAVE_INNOBASE_DB*/
   {"Key_blocks_not_flushed",   (char*) &dflt_key_cache_var.global_blocks_changed,
    SHOW_KEY_CACHE_LONG},
   {"Key_blocks_unused",        (char*) &dflt_key_cache_var.blocks_unused,

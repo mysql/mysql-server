@@ -1180,3 +1180,11 @@ select count(*) from t1 where x = 18446744073709551601;
 
 drop table t1;
 
+# Test for testable InnoDB status variables. This test
+# uses previous ones(pages_created, rows_deleted, ...).
+show status like "Innodb_buffer_pool_pages_total";
+show status like "Innodb_page_size";
+show status like "Innodb_rows_deleted";
+show status like "Innodb_rows_inserted";
+show status like "Innodb_rows_read";
+show status like "Innodb_rows_updated";

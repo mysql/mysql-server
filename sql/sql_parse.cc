@@ -1220,7 +1220,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   thd->free_list = 0;
   thd->query_length=(uint) strlen(tbl_name);
   thd->query = tbl_name;
-  if ((error = mysqld_dump_create_info(thd, table, -1)))
+  if ((error = mysqld_dump_create_info(thd, table_list, -1)))
   {
     my_error(ER_GET_ERRNO, MYF(0), my_errno);
     goto err;
@@ -4651,7 +4651,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
   - SET uses tot_length.
 */
 void calculate_interval_lengths(THD *thd, TYPELIB *interval,
-                                uint *max_length, uint *tot_length)
+                                uint32 *max_length, uint32 *tot_length)
 {
   const char **pos;
   uint *len;
@@ -4663,7 +4663,7 @@ void calculate_interval_lengths(THD *thd, TYPELIB *interval,
     *len= (uint) strip_sp((char*) *pos);
     uint length= cs->cset->numchars(cs, *pos, *pos + *len);
     *tot_length+= length;
-    set_if_bigger(*max_length, length);
+    set_if_bigger(*max_length, (uint32)length);
   }
 }
 
@@ -4994,7 +4994,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       if (new_field->pack_length > 4)
 	new_field->pack_length=8;
       new_field->interval=interval;
-      uint dummy_max_length;
+      uint32 dummy_max_length;
       calculate_interval_lengths(thd, interval,
                                  &dummy_max_length, &new_field->length);
       new_field->length+= (interval->count - 1);
@@ -5024,7 +5024,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       new_field->interval=interval;
       new_field->pack_length=interval->count < 256 ? 1 : 2; // Should be safe
 
-      uint dummy_tot_length;
+      uint32 dummy_tot_length;
       calculate_interval_lengths(thd, interval,
                                  &new_field->length, &dummy_tot_length);
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);

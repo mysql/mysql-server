@@ -48,7 +48,7 @@ SYM_GROUP sym_group_rtree= {"RTree keys", "HAVE_RTREE_KEYS"};
 */
 
 static SYMBOL symbols[] = {
-  { "&&",		SYM(AND_SYM)},
+  { "&&",		SYM(AND_AND_SYM)},
   { "<",		SYM(LT)},
   { "<=",		SYM(LE)},
   { "<>",		SYM(NE)},
@@ -334,7 +334,7 @@ static SYMBOL symbols[] = {
   { "NEXT",		SYM(NEXT_SYM)},
   { "NO",		SYM(NO_SYM)},
   { "NONE",		SYM(NONE_SYM)},
-  { "NOT",		SYM(NOT)},
+  { "NOT",		SYM(NOT_SYM)},
   { "NO_WRITE_TO_BINLOG",  SYM(NO_WRITE_TO_BINLOG)},
   { "NULL",		SYM(NULL_SYM)},
   { "NUMERIC",		SYM(NUMERIC_SYM)},
@@ -489,6 +489,7 @@ static SYMBOL symbols[] = {
   { "UNICODE",	        SYM(UNICODE_SYM)},
   { "UNION",	        SYM(UNION_SYM)},
   { "UNIQUE",		SYM(UNIQUE_SYM)},
+  { "UNKNOWN",		SYM(UNKNOWN_SYM)},
   { "UNLOCK",		SYM(UNLOCK_SYM)},
   { "UNSIGNED",		SYM(UNSIGNED)},
   { "UNTIL",		SYM(UNTIL_SYM)},
@@ -523,7 +524,7 @@ static SYMBOL symbols[] = {
   { "YEAR",		SYM(YEAR_SYM)},
   { "YEAR_MONTH",	SYM(YEAR_MONTH_SYM)},
   { "ZEROFILL",		SYM(ZEROFILL)},
-  { "||",		SYM(OR_OR_CONCAT)}
+  { "||",		SYM(OR_OR_SYM)}
 };
 
 

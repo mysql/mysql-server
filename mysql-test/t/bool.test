@@ -20,6 +20,16 @@ SELECT * FROM t1 where (1 AND a)=0;
 SELECT * FROM t1 where (1 AND a)=1;
 SELECT * FROM t1 where (1 AND a) IS NULL;
 
+# WL#638 - Behaviour of NOT does not follow SQL specification
+set sql_mode='broken_not';
+select * from t1 where not a between 2 and 3;
+set sql_mode=default;
+select * from t1 where not a between 2 and 3;
+
+# SQL boolean tests
+select a, a is false, a is true, a is unknown from t1;
+select a, a is not false, a is not true, a is not unknown from t1;
+
 # Verify that NULL optimisation works in AND clause:
 SET @a=0, @b=0;
 SELECT * FROM t1 WHERE NULL AND (@a:=@a+1);
