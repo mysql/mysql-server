@@ -53,6 +53,30 @@ rw_lock_t	dict_operation_lock;	/* table create, drop, etc. reserve
 /* Identifies generated InnoDB foreign key names */
 static char	dict_ibfk[] = "_ibfk_";
 
+/**********************************************************************
+Compares NUL-terminated UTF-8 strings case insensitively.
+
+NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
+this function, you MUST change also the prototype here! */
+extern
+int
+innobase_strcasecmp(
+/*================*/
+				/* out: 0 if a=b, <0 if a<b, >1 if a>b */
+	const char*	a,	/* in: first string to compare */
+	const char*	b);	/* in: second string to compare */
+
+/**********************************************************************
+Makes all characters in a NUL-terminated UTF-8 string lower case.
+
+NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
+this function, you MUST change also the prototype here! */
+extern
+void
+innobase_casedn_str(
+/*================*/
+	char*	a);	/* in/out: string to put in lower case */
+
 /**************************************************************************
 Adds a column to the data dictionary hash table. */
 static
@@ -2066,7 +2090,7 @@ dict_foreign_find_index(
 					break;
 				}
 
-				if (0 != ut_cmp_in_lower_case(columns[i],
+				if (0 != innobase_strcasecmp(columns[i],
 								col_name)) {
 				  	break;
 				}
@@ -2436,7 +2460,7 @@ dict_scan_col(
 
 			col = dict_table_get_nth_col(table, i);
 
-			if (0 == ut_cmp_in_lower_case(col->name, *name)) {
+			if (0 == innobase_strcasecmp(col->name, *name)) {
 		    		/* Found */
 
 		    		*success = TRUE;
@@ -2528,30 +2552,19 @@ dict_scan_table_name(
 
 	table_name_len = strlen(table_name);
 
+	/* Copy database_name, '/', table_name, '\0' */
 	ref = mem_heap_alloc(heap, database_name_len + table_name_len + 2);
-
-#ifdef __WIN__
-	ut_cpy_in_lower_case(ref, database_name, database_name_len);
-#else
+	memcpy(ref, database_name, database_name_len);
+	ref[database_name_len] = '/';
+	memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
+#ifndef __WIN__
 	if (srv_lower_case_table_names) {
-		ut_cpy_in_lower_case(ref, database_name, database_name_len);
-	} else {
-		memcpy(ref, database_name, database_name_len);
+#endif /* !__WIN__ */
+		/* The table name is always put to lower case on Windows. */
+		innobase_casedn_str(ref);
+#ifndef __WIN__
 	}
-#endif
-	(ref)[database_name_len] = '/';
-
-#ifdef __WIN__
-	ut_cpy_in_lower_case(ref + database_name_len + 1,
-					table_name, table_name_len + 1);
-#else
-	if (srv_lower_case_table_names) {
-		ut_cpy_in_lower_case(ref + database_name_len + 1,
-					table_name, table_name_len + 1);
-	} else {
-		strcpy(ref + database_name_len + 1, table_name);
-	}
-#endif
+#endif /* !__WIN__ */
 
 	*success = TRUE;
 	*ref_name = ref;
