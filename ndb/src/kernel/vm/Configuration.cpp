@@ -521,7 +521,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
   }
 
-  noOfDataPages = (dataMem / 8192);
+  noOfDataPages = (dataMem / 32768);
   noOfIndexPages = (indexMem / 8192);
 
   for(unsigned j = 0; j<LogLevel::LOGLEVEL_CATEGORIES; j++){
