@@ -10540,7 +10540,7 @@ you back a string that looks like "000514676700", with a format of
 xxyyyyyymmss where xx and ss are always 0's, yyyyyy is a unique system
 id and mm is the id of the CPU Planar. A chart of these values can be
 found at
-@uref{http://www.rs6000.ibm.com/doc_link/en_US/a_doc_lib/cmds/aixcmds5/uname.htm}.
+@uref{http://publib.boulder.ibm.com/doc_link/en_US/a_doc_lib/cmds/aixcmds5/uname.htm}.
 This will give you a machine type and a machine model you can use to
 determine what type of cpu you have.
 
