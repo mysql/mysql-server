@@ -794,18 +794,15 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
       DBUG_RETURN(new SEL_TREE(SEL_TREE::ALWAYS));
     DBUG_RETURN(new SEL_TREE(SEL_TREE::IMPOSSIBLE));
   }
+
   table_map ref_tables=cond->used_tables();
-  if (ref_tables & ~(param->prev_tables | param->read_tables |
-		     param->current_table))
-    DBUG_RETURN(0);				// Can't be calculated yet
   if (cond->type() != Item::FUNC_ITEM)
   {						// Should be a field
     if (ref_tables & param->current_table)
       DBUG_RETURN(0);
     DBUG_RETURN(new SEL_TREE(SEL_TREE::MAYBE));
   }
-  if (!(ref_tables & param->current_table))
-    DBUG_RETURN(new SEL_TREE(SEL_TREE::MAYBE)); // This may be false or true
+
   Item_func *cond_func= (Item_func*) cond;
   if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
     DBUG_RETURN(0);				// Can't be calculated
@@ -846,6 +843,12 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
     }
     DBUG_RETURN(0);				// Can't optimize this IN
   }
+
+  if (ref_tables & ~(param->prev_tables | param->read_tables |
+		     param->current_table))
+    DBUG_RETURN(0);				// Can't be calculated yet
+  if (!(ref_tables & param->current_table))
+    DBUG_RETURN(new SEL_TREE(SEL_TREE::MAYBE)); // This may be false or true
 
   /* check field op const */
   /* btw, ft_func's arguments()[0] isn't FIELD_ITEM.  SerG*/
