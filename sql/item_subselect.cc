@@ -651,7 +651,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       select_lex->item_list.empty();
       select_lex->item_list.push_back(item);
 
-      if (item->fix_fields(thd, join->tables_list, )select_lex->item_list.head_ref())
+      if (item->fix_fields(thd, join->tables_list,
+			   select_lex->item_list.head_ref()))
 	goto err;
 
       subs= new Item_singlerow_subselect(select_lex);
