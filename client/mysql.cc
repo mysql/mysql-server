@@ -2645,7 +2645,8 @@ com_status(String *buffer __attribute__((unused)),
       (void) mysql_fetch_row(result);		// Read eof
     }
 #ifdef HAVE_OPENSSL
-    if (mysql.net.vio->ssl_ && SSL_get_cipher(mysql.net.vio->ssl_))
+    if (mysql.net.vio && mysql.net.vio->ssl_ &&
+	SSL_get_cipher(mysql.net.vio->ssl_))
       tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n",
 		  SSL_get_cipher(mysql.net.vio->ssl_));
     else
@@ -2924,12 +2925,11 @@ static void mysql_end_timer(ulong start_time,char *buff)
 
 static const char* construct_prompt()
 {
-  //erase the old prompt
-  processed_prompt.free();
-  //get the date struct
-  time_t  lclock = time(NULL);
+  processed_prompt.free();			// Erase the old prompt
+  time_t  lclock = time(NULL);			// Get the date struct
   struct tm *t = localtime(&lclock);
-  //parse thru the settings for the prompt
+
+  /* parse thru the settings for the prompt */
   for (char *c = current_prompt; *c ; *c++)
   {
     if (*c != PROMPT_CHAR)
@@ -2938,8 +2938,7 @@ static const char* construct_prompt()
     {
       switch (*++c) {
       case '\0':
-	//stop it from going beyond if ends with %
-	c--;
+	c--;			// stop it from going beyond if ends with %
 	break;
       case 'c':
 	add_int_to_prompt(++prompt_counter);

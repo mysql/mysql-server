@@ -20,6 +20,11 @@ select 1 XOR 1, 1 XOR 0, 0 XOR 1, 0 XOR 0, NULL XOR 1, 1 XOR NULL, 0 XOR NULL;
 select 10 % 7, 10 mod 7, 10 div 3;
 select (1 << 64)-1, ((1 << 64)-1) DIV 1, ((1 << 64)-1) DIV 2;
 
+create table t1 (a int);
+insert t1 values (1);
+select * from t1 where 1 xor 1;
+drop table t1;
+
 #
 # Coercibility
 #

@@ -1,11 +1,11 @@
-#!/my/gnu/bin/perl -w -*- perl -*-
+#!/usr/bin/perl -w -*- perl -*-
 # Generate text files from top directory from the manual.
 
 $from = shift(@ARGV);
 $fnode = shift(@ARGV);
 $tnode = shift(@ARGV);
 
-open(IN, "$from") || die;
+open(IN, "$from") || die "Cannot open $from: $!";
 
 $in = 0;
 
@@ -19,7 +19,7 @@ while (<IN>)
     }
     elsif (/^File: mysql.info/ || (/^/))
     {
-      # Just Skip node begginigs
+      # Just Skip node beginnings
     }
     else
     {
@@ -38,3 +38,6 @@ while (<IN>)
 }
 
 close(IN);
+
+die "Could not find node \"$tnode\"" if ($in == 1);
+exit 0;

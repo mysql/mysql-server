@@ -156,6 +156,7 @@ extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 /* Array of English strings describing the current state of an
 i/o handler thread */
 extern char* srv_io_thread_op_info[];
+extern char* srv_io_thread_function[];
 
 typedef struct srv_sys_struct	srv_sys_t;
 
@@ -170,6 +171,7 @@ what these mean */
 #define SRV_UNIX_O_DSYNC     2
 #define SRV_UNIX_LITTLESYNC  3
 #define SRV_UNIX_NOSYNC      4
+#define SRV_UNIX_O_DIRECT    5
 
 /* Alternatives for file i/o in Windows */
 #define SRV_WIN_IO_NORMAL		1

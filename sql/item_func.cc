@@ -175,7 +175,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   Item **arg,**arg_end;
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
 
-  used_tables_cache=0;
+  used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
 
   if (thd && check_stack_overrun(thd,buff))
@@ -194,8 +194,9 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	maybe_null=1;
       
       with_sum_func= with_sum_func || item->with_sum_func;
-      used_tables_cache|=item->used_tables();
-      const_item_cache&= item->const_item();
+      used_tables_cache|=     item->used_tables();
+      not_null_tables_cache|= item->not_null_tables();
+      const_item_cache&=      item->const_item();
     }
   }
   fix_length_and_dec();
@@ -251,6 +252,13 @@ table_map Item_func::used_tables() const
 {
   return used_tables_cache;
 }
+
+
+table_map Item_func::not_null_tables() const
+{
+  return not_null_tables_cache;
+}
+
 
 void Item_func::print(String *str)
 {
@@ -2118,6 +2126,7 @@ bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
   if (Item_func::fix_fields(thd, tables, ref) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
     return 1;
+  entry->type= cached_result_type;
   entry->update_query_id=thd->query_id;
   return 0;
 }
@@ -2675,6 +2684,9 @@ double Item_func_match::val()
   DBUG_ENTER("Item_func_match::val");
   if (ft_handler == NULL)
     DBUG_RETURN(-1.0);
+
+  if (table->null_row) /* NULL row from an outer join */
+    return 0.0;
 
   if (join_key)
   {

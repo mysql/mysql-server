@@ -216,7 +216,7 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
   thd->db=0;
   thd->db_length=0;
   USER_RESOURCES ur;
-  char tmp_passwd[SCRAMBLE41_LENGTH];
+  char tmp_passwd[SCRAMBLE41_LENGTH+1];
   DBUG_ENTER("check_user");
   
   /*
@@ -304,10 +304,11 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
 		  db ? db : (char*) "");
   thd->db_access=0;
   /* Don't allow user to connect if he has done too many queries */
-  if ((ur.questions || ur.updates || ur.connections) &&
+  if ((ur.questions || ur.updates || ur.connections || max_user_connections) &&
       get_or_create_user_conn(thd,user,thd->host_or_ip,&ur))
     DBUG_RETURN(1);
-  if (thd->user_connect && thd->user_connect->user_resources.connections &&
+  if (thd->user_connect && ((thd->user_connect->user_resources.connections) ||
+			    max_user_connections) && 
       check_for_max_user_connections(thd, thd->user_connect))
     DBUG_RETURN(1);
 
@@ -356,7 +357,7 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc)
   DBUG_ENTER("check_for_max_user_connections");
 
   if (max_user_connections &&
-      (max_user_connections <=  (uint) uc->connections))
+      (max_user_connections <  (uint) uc->connections))
   {
     net_printf(thd,ER_TOO_MANY_USER_CONNECTIONS, uc->user);
     error=1;
@@ -567,7 +568,10 @@ check_connections(THD *thd)
 #if !defined(HAVE_SYS_UN_H) || defined(HAVE_mit_thread)
     /* Fast local hostname resolve for Win32 */
     if (!strcmp(thd->ip,"127.0.0.1"))
-      thd->host=(char*) localhost;
+    {
+      thd->host= (char*) localhost;
+      thd->host_or_ip= localhost;
+    }
     else
 #endif
     {
@@ -694,6 +698,11 @@ check_connections(THD *thd)
   if (thd->client_capabilities & CLIENT_SSL)
   {
     /* Do the SSL layering. */
+    if (!ssl_acceptor_fd)
+    {
+      inc_host_errors(&thd->remote.sin_addr);
+      return(ER_HANDSHAKE_ERROR);
+    }
     DBUG_PRINT("info", ("IO layer change in progress..."));
     if (sslaccept(ssl_acceptor_fd, net->vio, thd->variables.net_wait_timeout))
     {
@@ -1444,7 +1453,8 @@ restore_user:
       pos = uint4korr(packet);
       flags = uint2korr(packet + 4);
       thd->server_id=0; /* avoid suicide */
-      kill_zombie_dump_threads(slave_server_id = uint4korr(packet+6));
+      if ((slave_server_id= uint4korr(packet+6))) // mysqlbinlog.server_id==0
+	kill_zombie_dump_threads(slave_server_id);
       thd->server_id = slave_server_id;
       mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos, flags);
       unregister_slave(thd,1,1);
@@ -1503,9 +1513,10 @@ restore_user:
 	    opened_tables,refresh_version, cached_tables(),
 	    uptime ? (float)thd->query_id/(float)uptime : 0);
 #ifdef SAFEMALLOC
-    if (lCurMemory)				// Using SAFEMALLOC
+    if (sf_malloc_cur_memory)				// Using SAFEMALLOC
       sprintf(strend(buff), "  Memory in use: %ldK  Max memory used: %ldK",
-	      (lCurMemory+1023L)/1024L,(lMaxMemory+1023L)/1024L);
+	      (sf_malloc_cur_memory+1023L)/1024L,
+	      (sf_malloc_max_memory+1023L)/1024L);
  #endif
     VOID(my_net_write(net, buff,(uint) strlen(buff)));
     VOID(net_flush(net));
@@ -1670,7 +1681,11 @@ mysql_execute_command(THD *thd)
       given and the table list says the query should not be replicated
     */
     if (table_rules_on && tables && !tables_ok(thd,tables))
+    {
+      /* we warn the slave SQL thread */
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       DBUG_VOID_RETURN;
+    }
 #ifndef TO_BE_DELETED
     /*
        This is a workaround to deal with the shortcoming in 3.23.44-3.23.46
@@ -1710,14 +1725,8 @@ mysql_execute_command(THD *thd)
       }
     }
   }
-  if ((&lex->select_lex != lex->all_selects_list &&
-       lex->unit.create_total_list(thd, lex, &tables, 0)) 
-#ifdef HAVE_REPLICATION
-      ||
-      (table_rules_on && tables && thd->slave_thread &&
-       !tables_ok(thd,tables))
-#endif
-      )
+  if (&lex->select_lex != lex->all_selects_list &&
+      lex->unit.create_total_list(thd, lex, &tables, 0))
     DBUG_VOID_RETURN;
   
   /*
@@ -2445,13 +2454,15 @@ mysql_execute_command(THD *thd)
 
     if (find_real_table_in_list(tables->next, tables->db, tables->real_name))
     {
-      net_printf(thd,ER_UPDATE_TABLE_USED,tables->real_name);
-      DBUG_VOID_RETURN;
+      /* Using same table for INSERT and SELECT */
+      select_lex->options |= OPTION_BUFFER_RESULT;
     }
 
     /* Skip first table, which is the table we are inserting in */
     lex->select_lex.table_list.first=
       (byte*) (((TABLE_LIST *) lex->select_lex.table_list.first)->next);
+    lex->select_lex.resolve_mode= SELECT_LEX::NOMATTER_MODE;
+
     if (!(res=open_and_lock_tables(thd, tables)))
     {
       if ((result=new select_insert(tables->table,&lex->field_list,
@@ -2684,6 +2695,14 @@ mysql_execute_command(THD *thd)
       }
       if (check_access(thd,SELECT_ACL,db,&thd->col_access))
 	goto error;				/* purecov: inspected */
+      if (!thd->col_access && check_grant_db(thd,db))
+      {
+	net_printf(&thd->net,ER_DBACCESS_DENIED_ERROR,
+		   thd->priv_user,
+		   thd->priv_host,
+		   db);
+	goto error;
+      }
       /* grant is checked in mysqld_show_tables */
       if (select_lex->options & SELECT_DESCRIBE)
         res= mysqld_extend_show_tables(thd,db,
@@ -2842,7 +2861,10 @@ mysql_execute_command(THD *thd)
     if (thd->slave_thread && 
 	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
 	 !db_ok_with_wild_table(lex->name)))
+    {
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
+    }
 #endif
     if (check_access(thd,CREATE_ACL,lex->name,0,1))
       break;
@@ -2867,7 +2889,10 @@ mysql_execute_command(THD *thd)
     if (thd->slave_thread && 
 	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
 	 !db_ok_with_wild_table(lex->name)))
+    {
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
+    }
 #endif
     if (check_access(thd,DROP_ACL,lex->name,0,1))
       break;
@@ -3105,8 +3130,12 @@ mysql_execute_command(THD *thd)
     res = mysql_ha_close(thd, tables);
     break;
   case SQLCOM_HA_READ:
-    if (check_db_used(thd,tables) ||
-	check_table_access(thd,SELECT_ACL, tables))
+    /*
+      There is no need to check for table permissions here, because
+      if a user has no permissions to read a table, he won't be
+      able to open it (with SQLCOM_HA_OPEN) in the first place.
+    */
+    if (check_db_used(thd,tables))
       goto error;
     res = mysql_ha_read(thd, tables, lex->ha_read_mode, lex->backup_dir,
 			lex->insert_list, lex->ha_rkey_mode, select_lex->where,
@@ -3161,6 +3190,23 @@ mysql_execute_command(THD *thd)
     else
       res= -1;
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    break;
+  case SQLCOM_ROLLBACK_TO_SAVEPOINT:
+    if (!ha_rollback_to_savepoint(thd, lex->savepoint_name))
+    {
+      if (thd->options & OPTION_STATUS_NO_TRANS_UPDATE)
+	send_warning(&thd->net,ER_WARNING_NOT_COMPLETE_ROLLBACK,0);
+      else
+	send_ok(&thd->net);
+    }
+    else
+      res= -1;
+    break;
+  case SQLCOM_SAVEPOINT:
+    if (!ha_savepoint(thd, lex->savepoint_name))
+      send_ok(&thd->net);
+    else
+      res= -1;
     break;
   default:					/* Impossible */
     send_ok(thd);
@@ -3612,8 +3658,7 @@ void mysql_init_multi_delete(LEX *lex)
   mysql_init_select(lex);
   lex->select_lex.select_limit= lex->unit.select_limit_cnt=
     HA_POS_ERROR;
-  lex->auxilliary_table_list= lex->select_lex.table_list;
-  lex->select_lex.table_list.empty();
+  lex->select->table_list.save_and_clear(&lex->auxilliary_table_list);
 }
 
 
@@ -4273,6 +4318,11 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   }
   if (options & REFRESH_LOG)
   {
+    /*
+      Flush the normal query log, the update log, the binary log,
+      the slow query log, and the relay log (if it exists).
+    */
+
     /* 
      Writing this command to the binlog may result in infinite loops when doing
      mysqlbinlog|mysql, and anyway it does not really make sense to log it
@@ -4282,6 +4332,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     mysql_log.new_file(1);
     mysql_update_log.new_file(1);
     mysql_bin_log.new_file(1);
+    mysql_slow_log.new_file(1);
 #ifdef HAVE_REPLICATION
     if (expire_logs_days)
     {
@@ -4289,8 +4340,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       if (purge_time >= 0)
 	mysql_bin_log.purge_logs_before_date(purge_time);
     }
+    LOCK_ACTIVE_MI;
+    rotate_relay_log(active_mi);
+    UNLOCK_ACTIVE_MI;
 #endif
-    mysql_slow_log.new_file(1);
     if (ha_flush_logs())
       result=1;
     if (flush_error_log())

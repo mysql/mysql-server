@@ -136,7 +136,14 @@ row_build_index_entry(
 		dfield2 = dtuple_get_nth_field(row, dict_col_get_no(col));
 
 		dfield_copy(dfield, dfield2);
-		dfield->col_no = dict_col_get_no(col);
+
+		/* If a column prefix index, take only the prefix */
+		if (ind_field->prefix_len > 0
+		    && dfield_get_len(dfield2) != UNIV_SQL_NULL
+		    && dfield_get_len(dfield2) > ind_field->prefix_len) {
+			
+			dfield_set_len(dfield, ind_field->prefix_len);
+		}
 	}
 
 	ut_ad(dtuple_check_typed(entry));
@@ -146,8 +153,7 @@ row_build_index_entry(
 
 /***********************************************************************
 An inverse function to dict_row_build_index_entry. Builds a row from a
-record in a clustered index. NOTE that externally stored (often big)
-fields are always copied to heap. */
+record in a clustered index. */
 
 dtuple_t*
 row_build(
@@ -172,6 +178,7 @@ row_build(
 {
 	dtuple_t*	row;
 	dict_table_t*	table;
+	dict_field_t*	ind_field;
 	dict_col_t*	col;
 	dfield_t*	dfield;
 	ulint		n_fields;
@@ -204,19 +211,24 @@ row_build(
 	dict_table_copy_types(row, table);
 
 	for (i = 0; i < n_fields; i++) {
+	        ind_field = dict_index_get_nth_field(index, i);
 
-		col = dict_field_get_col(dict_index_get_nth_field(index, i));
-		dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
-		field = rec_get_nth_field(rec, i, &len);
+		if (ind_field->prefix_len == 0) {
 
-		if (type == ROW_COPY_ALSO_EXTERNALS
-	            && rec_get_nth_field_extern_bit(rec, i)) {
+		        col = dict_field_get_col(ind_field);
+			dfield = dtuple_get_nth_field(row,
+						dict_col_get_no(col));
+			field = rec_get_nth_field(rec, i, &len);
 
-			field = btr_rec_copy_externally_stored_field(rec,
-							i, &len, heap);
+			if (type == ROW_COPY_ALSO_EXTERNALS
+			    && rec_get_nth_field_extern_bit(rec, i)) {
+
+			        field = btr_rec_copy_externally_stored_field(
+							rec, i, &len, heap);
+			}
+
+			dfield_set_data(dfield, field, len);
 		}
-
-		dfield_set_data(dfield, field, len);
 	}
 
 	ut_ad(dtuple_check_typed(row));
@@ -371,7 +383,6 @@ row_build_row_ref(
 	dict_table_t*	table;
 	dict_index_t*	clust_index;
 	dfield_t*	dfield;
-	dict_col_t*	col;
 	dtuple_t*	ref;
 	byte*		field;
 	ulint		len;
@@ -403,24 +414,13 @@ row_build_row_ref(
 	for (i = 0; i < ref_len; i++) {
 		dfield = dtuple_get_nth_field(ref, i);
 
-		col = dict_field_get_col(
-				dict_index_get_nth_field(clust_index, i));
-		pos = dict_index_get_nth_col_pos(index, dict_col_get_no(col));
+		pos = dict_index_get_nth_field_pos(index, clust_index, i);
 
-		if (pos != ULINT_UNDEFINED) {	
-			field = rec_get_nth_field(rec, pos, &len);
+		ut_a(pos != ULINT_UNDEFINED);
+	
+		field = rec_get_nth_field(rec, pos, &len);
 
-			dfield_set_data(dfield, field, len);
-		} else {
-			ut_ad(table->type == DICT_TABLE_CLUSTER_MEMBER);
-			ut_ad(i == table->mix_len);
-
-			dfield_set_data(dfield,
-				 mem_heap_alloc(heap, table->mix_id_len),
-							table->mix_id_len);
-			ut_memcpy(dfield_get_data(dfield), table->mix_id_buf,
-							table->mix_id_len);
-		}	
+		dfield_set_data(dfield, field, len);
 	}
 
 	ut_ad(dtuple_check_typed(ref));
@@ -448,7 +448,6 @@ row_build_row_ref_in_tuple(
 	dict_table_t*	table;
 	dict_index_t*	clust_index;
 	dfield_t*	dfield;
-	dict_col_t*	col;
 	byte*		field;
 	ulint		len;
 	ulint		ref_len;
@@ -483,19 +482,13 @@ row_build_row_ref_in_tuple(
 	for (i = 0; i < ref_len; i++) {
 		dfield = dtuple_get_nth_field(ref, i);
 
-		col = dict_field_get_col(
-				dict_index_get_nth_field(clust_index, i));
-		pos = dict_index_get_nth_col_pos(index, dict_col_get_no(col));
+		pos = dict_index_get_nth_field_pos(index, clust_index, i);
 
-		if (pos != ULINT_UNDEFINED) {	
-			field = rec_get_nth_field(rec, pos, &len);
+		ut_a(pos != ULINT_UNDEFINED);
+			
+		field = rec_get_nth_field(rec, pos, &len);
 
-			dfield_set_data(dfield, field, len);
-		} else {
-			ut_ad(table->type == DICT_TABLE_CLUSTER_MEMBER);
-			ut_ad(i == table->mix_len);
-			ut_a(0);
-		}	
+		dfield_set_data(dfield, field, len);
 	}
 
 	ut_ad(dtuple_check_typed(ref));
@@ -517,6 +510,7 @@ row_build_row_ref_from_row(
 				directly into data of this row */
 {
 	dict_index_t*	clust_index;
+	dict_field_t*	field;
 	dfield_t*	dfield;
 	dfield_t*	dfield2;
 	dict_col_t*	col;
@@ -533,13 +527,21 @@ row_build_row_ref_from_row(
 	
 	for (i = 0; i < ref_len; i++) {
 		dfield = dtuple_get_nth_field(ref, i);
-
-		col = dict_field_get_col(
-				dict_index_get_nth_field(clust_index, i));
-
+		
+		field = dict_index_get_nth_field(clust_index, i);
+		
+		col = dict_field_get_col(field);
+				
 		dfield2 = dtuple_get_nth_field(row, dict_col_get_no(col));
 
 		dfield_copy(dfield, dfield2);
+
+		if (field->prefix_len > 0
+		    && dfield->len != UNIV_SQL_NULL
+		    && dfield->len > field->prefix_len) {
+
+		        dfield->len = field->prefix_len;
+		}
 	}
 
 	ut_ad(dtuple_check_typed(ref));

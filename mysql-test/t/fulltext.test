@@ -14,7 +14,7 @@ INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
         ('Full-text search in MySQL', 'implements vector space model');
 
 # nl search
- 
+
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 select * from t1 where MATCH(a,b) AGAINST ("indexes");
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
@@ -22,6 +22,20 @@ select * from t1 where MATCH(a,b) AGAINST ("only");
 
 # UNION of fulltext's
 select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
+
+
+# add_ft_keys() tests
+
+explain select * from t1 where MATCH(a,b) AGAINST ("collections");
+explain select * from t1 where MATCH(a,b) AGAINST ("collections")>0;
+explain select * from t1 where MATCH(a,b) AGAINST ("collections")>1;
+explain select * from t1 where MATCH(a,b) AGAINST ("collections")>=0;
+explain select * from t1 where MATCH(a,b) AGAINST ("collections")>=1;
+explain select * from t1 where 0<MATCH(a,b) AGAINST ("collections");
+explain select * from t1 where 1<MATCH(a,b) AGAINST ("collections");
+explain select * from t1 where 0<=MATCH(a,b) AGAINST ("collections");
+explain select * from t1 where 1<=MATCH(a,b) AGAINST ("collections");
+explain select * from t1 where MATCH(a,b) AGAINST ("collections")>0 and a like '%ll%';
 
 # boolean search
 
@@ -49,6 +63,10 @@ select * from t1 where MATCH a,b AGAINST ('"text i"' IN BOOLEAN MODE);
 
 select * from t1 where MATCH a AGAINST ("search" IN BOOLEAN MODE);
 select * from t1 where MATCH b AGAINST ("sear*" IN BOOLEAN MODE);
+
+# UNION of fulltext's
+
+select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
 
 #update/delete with fulltext index
 
@@ -176,7 +194,7 @@ select * from t1 where match (a) against ('aaaa');
 drop table t1;
 
 #
-# bug 283 by jocelyn fournier <joc@presence-pc.com>
+# bug #283 by jocelyn fournier <joc@presence-pc.com>
 # FULLTEXT index on a TEXT filed converted to a CHAR field doesn't work anymore
 # 
 
@@ -186,3 +204,17 @@ select ref_mag from t1 where match ref_mag against ('+test' in boolean mode);
 alter table t1 change ref_mag ref_mag char (255) not null;
 select ref_mag from t1 where match ref_mag against ('+test' in boolean mode);
 drop table t1;
+
+#
+# bug #942: JOIN
+#
+
+create table t1 (t1_id int(11) primary key, name varchar(32));
+insert into t1 values (1, 'data1');
+insert into t1 values (2, 'data2');
+create table t2 (t2_id int(11) primary key, t1_id int(11), name varchar(32));
+insert into t2 values (1, 1, 'xxfoo');
+insert into t2 values (2, 1, 'xxbar');
+insert into t2 values (3, 1, 'xxbuz');
+select * from t1 join t2 using(`t1_id`) where match (t1.name, t2.name) against('xxfoo' in boolean mode);
+drop table t1,t2;

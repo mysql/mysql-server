@@ -51,7 +51,7 @@ int check_binlog_magic(IO_CACHE* log, const char** errmsg)
 }
 
 static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
-			     const char**errmsg)
+                             ulonglong position, const char**errmsg)
 {
   char header[LOG_EVENT_HEADER_LEN], buf[ROTATE_HEADER_LEN];
   memset(header, 0, 4); // when does not matter
@@ -68,9 +68,7 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
   int4store(header + LOG_POS_OFFSET, 0);
   
   packet->append(header, sizeof(header));
-  /* We need to split the next statement because of problem with cxx */
-  int4store(buf,4); // tell slave to skip magic number
-  int4store(buf+4,0);
+  int8store(buf+R_POS_OFFSET,position);
   packet->append(buf, ROTATE_HEADER_LEN);
   packet->append(p,ident_len);
   if (my_net_write(net, (char*)packet->ptr(), packet->length()))
@@ -159,10 +157,18 @@ File open_binlog(IO_CACHE *log, const char *log_file_name,
   File file;
   DBUG_ENTER("open_binlog");
 
-  if ((file = my_open(log_file_name, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0 ||
-      init_io_cache(log, file, IO_SIZE*2, READ_CACHE, 0, 0,
+  if ((file = my_open(log_file_name, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0)
+  {
+    sql_print_error("Failed to open log (\
+file '%s', errno %d)", log_file_name, my_errno);
+    *errmsg = "Could not open log file";	// This will not be sent
+    goto err;
+  }
+  if (init_io_cache(log, file, IO_SIZE*2, READ_CACHE, 0, 0,
 		    MYF(MY_WME | MY_DONT_CHECK_FILESIZE)))
   {
+    sql_print_error("Failed to create a cache on log (\
+file '%s')", log_file_name);
     *errmsg = "Could not open log file";	// This will not be sent
     goto err;
   }
@@ -258,22 +264,20 @@ bool log_in_use(const char* log_name)
 
 int purge_error_message(THD* thd, int res)
 {
-  const char* errmsg = 0;
+  const char *errmsg= 0;
 
-  switch(res)  {
+  switch (res)  {
   case 0: break;
-  case LOG_INFO_EOF:	 errmsg = "Target log not found in binlog index"; break;
-  case LOG_INFO_IO:	 errmsg = "I/O error reading log index file"; break;
-  case LOG_INFO_INVALID: errmsg = "Server configuration does not permit \
-binlog purge"; break;
-  case LOG_INFO_SEEK:	errmsg = "Failed on fseek()"; break;
-  case LOG_INFO_PURGE_NO_ROTATE: errmsg = "Cannot purge unrotatable log";
+  case LOG_INFO_EOF:	errmsg= "Target log not found in binlog index"; break;
+  case LOG_INFO_IO:	errmsg= "I/O error reading log index file"; break;
+  case LOG_INFO_INVALID:
+    errmsg= "Server configuration does not permit binlog purge"; break;
+  case LOG_INFO_SEEK:	errmsg= "Failed on fseek()"; break;
+  case LOG_INFO_MEM:	errmsg= "Out of memory"; break;
+  case LOG_INFO_FATAL:	errmsg= "Fatal error during purge"; break;
+  case LOG_INFO_IN_USE: errmsg= "A purgeable log is in use, will not purge";
     break;
-  case LOG_INFO_MEM:	errmsg = "Out of memory"; break;
-  case LOG_INFO_FATAL:	errmsg = "Fatal error during purge"; break;
-  case LOG_INFO_IN_USE: errmsg = "A purgeable log is in use, will not purge";
-    break;
-  default:		errmsg = "Unknown error during purge"; break;
+  default:		errmsg= "Unknown error during purge"; break;
   }
 
   if (errmsg)
@@ -281,19 +285,24 @@ binlog purge"; break;
     send_error(thd, 0, errmsg);
     return 1;
   }
-  else
-    send_ok(thd);
+  send_ok(thd);
   return 0;
 }
+
 
 int purge_master_logs(THD* thd, const char* to_log)
 {
   char search_file_name[FN_REFLEN];
+  if (!mysql_bin_log.is_open())
+  {
+    send_ok();
+    return 0;
+  }
 
   mysql_bin_log.make_log_name(search_file_name, to_log);
-  int res = mysql_bin_log.purge_logs(search_file_name, 0, 1, 1, NULL);
-
-  return purge_error_message(thd, res);
+  return purge_error_message(thd,
+			     mysql_bin_log.purge_logs(search_file_name, 0, 1,
+						      1, NULL);
 }
 
 
@@ -385,17 +394,31 @@ impossible position";
   */
   packet->set("\0", 1, &my_charset_bin);
 
-  // if we are at the start of the log
-  if (pos == BIN_LOG_HEADER_SIZE)
+  /*
+    Before 4.0.14 we called fake_rotate_event below only if 
+    (pos == BIN_LOG_HEADER_SIZE), because if this is false then the slave
+    already knows the binlog's name.
+    Now we always call fake_rotate_event; if the slave already knew the log's
+    name (ex: CHANGE MASTER TO MASTER_LOG_FILE=...) this is useless but does
+    not harm much. It is nice for 3.23 (>=.58) slaves which test Rotate events
+    to see if the master is 4.0 (then they choose to stop because they can't
+    replicate 4.0); by always calling fake_rotate_event we are sure that
+    3.23.58 and newer will detect the problem as soon as replication starts
+    (BUG#198).
+    Always calling fake_rotate_event makes sending of normal
+    (=from-binlog) Rotate events a priori unneeded, but it is not so simple:
+    the 2 Rotate events are not equivalent, the normal one is before the Stop
+    event, the fake one is after. If we don't send the normal one, then the
+    Stop event will be interpreted (by existing 4.0 slaves) as "the master
+    stopped", which is wrong. So for safety, given that we want minimum
+    modification of 4.0, we send the normal and fake Rotates.
+  */
+  if (fake_rotate_event(net, packet, log_file_name, pos, &errmsg))
   {
-    // tell the client log name with a fake rotate_event
-    if (fake_rotate_event(net, packet, log_file_name, &errmsg))
-    {
-      my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
-      goto err;
-    }
-    packet->set("\0", 1, &my_charset_bin);
+    my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+    goto err;
   }
+  packet->set("\0", 1, &my_charset_bin);
 
   while (!net->error && net->vio != 0 && !thd->killed)
   {
@@ -514,6 +537,11 @@ Increase max_allowed_packet on master";
 
 	case LOG_READ_EOF:
 	  DBUG_PRINT("wait",("waiting for data in binary log"));
+	  if (thd->server_id==0) // for mysqlbinlog (mysqlbinlog.server_id==0)
+	  {
+	    pthread_mutex_unlock(log_lock);
+	    goto end;
+	  }
 	  if (!thd->killed)
 	  {
 	    /* Note that the following call unlocks lock_log */
@@ -588,10 +616,12 @@ Increase max_allowed_packet on master";
       end_io_cache(&log);
       (void) my_close(file, MYF(MY_WME));
 
-      // fake Rotate_log event just in case it did not make it to the log
-      // otherwise the slave make get confused about the offset
+      /*
+        Even if the previous log contained a Rotate_log_event, we still fake
+        one.
+      */
       if ((file=open_binlog(&log, log_file_name, &errmsg)) < 0 ||
-	  fake_rotate_event(net, packet, log_file_name, &errmsg))
+	  fake_rotate_event(net, packet, log_file_name, BIN_LOG_HEADER_SIZE, &errmsg))
       {
 	my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
 	goto err;
@@ -601,6 +631,7 @@ Increase max_allowed_packet on master";
     }
   }
 
+end:
   end_io_cache(&log);
   (void)my_close(file, MYF(MY_WME));
 
@@ -611,7 +642,7 @@ Increase max_allowed_packet on master";
   pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_VOID_RETURN;
 
- err:
+err:
   thd->proc_info = "waiting to finalize termination";
   end_io_cache(&log);
   /*
@@ -774,9 +805,15 @@ int reset_slave(THD *thd, MASTER_INFO* mi)
 			       &errmsg)))
     goto err;
   
-  // Clear master's log coordinates (only for good display of SHOW SLAVE STATUS)
-  mi->master_log_name[0]= 0;
-  mi->master_log_pos= BIN_LOG_HEADER_SIZE;
+  /*
+    Clear master's log coordinates and reset host/user/etc to the values
+    specified in mysqld's options (only for good display of SHOW SLAVE STATUS;
+    next init_master_info() (in start_slave() for example) would have set them
+    the same way; but here this is for the case where the user does SHOW SLAVE
+    STATUS; before doing START SLAVE;
+  */
+  init_master_info_with_options(mi);
+  clear_last_slave_error(&mi->rli);
   // close master_info_file, relay_log_info_file, set mi->inited=rli->inited=0
   end_master_info(mi);
   // and delete these two files
@@ -801,6 +838,25 @@ err:
   DBUG_RETURN(error);
 }
 
+/*
+
+  Kill all Binlog_dump threads which previously talked to the same slave
+  ("same" means with the same server id). Indeed, if the slave stops, if the
+  Binlog_dump thread is waiting (pthread_cond_wait) for binlog update, then it
+  will keep existing until a query is written to the binlog. If the master is
+  idle, then this could last long, and if the slave reconnects, we could have 2
+  Binlog_dump threads in SHOW PROCESSLIST, until a query is written to the
+  binlog. To avoid this, when the slave reconnects and sends COM_BINLOG_DUMP,
+  the master kills any existing thread with the slave's server id (if this id is
+  not zero; it will be true for real slaves, but false for mysqlbinlog when it
+  sends COM_BINLOG_DUMP to get a remote binlog dump).
+
+  SYNOPSIS
+    kill_zombie_dump_threads()
+    slave_server_id     the slave's server id
+
+*/
+  
 
 void kill_zombie_dump_threads(uint32 slave_server_id)
 {
@@ -852,7 +908,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   // TODO: see if needs re-write
   if (init_master_info(mi, master_info_file, relay_log_info_file, 0))
   {
-    send_error(thd, 0, "Could not initialize master info");
+    send_error(thd, ER_MASTER_INFO);
     unlock_slave_threads(mi);
     DBUG_RETURN(1);
   }
@@ -862,16 +918,21 @@ int change_master(THD* thd, MASTER_INFO* mi)
     and we have the hold on the run locks which will keep all threads that
     could possibly modify the data structures from running
   */
+
+  /*
+    If the user specified host or port without binlog or position, 
+    reset binlog's name to FIRST and position to 4.
+  */ 
+
   if ((lex_mi->host || lex_mi->port) && !lex_mi->log_file_name && !lex_mi->pos)
   {
-    // if we change host or port, we must reset the postion
     mi->master_log_name[0] = 0;
     mi->master_log_pos= BIN_LOG_HEADER_SIZE;
   }
 
   if (lex_mi->log_file_name)
     strmake(mi->master_log_name, lex_mi->log_file_name,
-	    sizeof(mi->master_log_name));
+	    sizeof(mi->master_log_name)-1);
   if (lex_mi->pos)
   {
     mi->master_log_pos= lex_mi->pos;
@@ -879,11 +940,11 @@ int change_master(THD* thd, MASTER_INFO* mi)
   DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
 
   if (lex_mi->host)
-    strmake(mi->host, lex_mi->host, sizeof(mi->host));
+    strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
   if (lex_mi->user)
-    strmake(mi->user, lex_mi->user, sizeof(mi->user));
+    strmake(mi->user, lex_mi->user, sizeof(mi->user)-1);
   if (lex_mi->password)
-    strmake(mi->password, lex_mi->password, sizeof(mi->password));
+    strmake(mi->password, lex_mi->password, sizeof(mi->password)-1);
   if (lex_mi->port)
     mi->port = lex_mi->port;
   if (lex_mi->connect_retry)
@@ -936,13 +997,25 @@ int change_master(THD* thd, MASTER_INFO* mi)
   }
   mi->rli.group_master_log_pos = mi->master_log_pos;
   DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+  /* If changing RELAY_LOG_FILE or RELAY_LOG_POS, this will be nonsense: */
+  mi->rli.master_log_pos = mi->master_log_pos;
   strmake(mi->rli.group_master_log_name,mi->master_log_name,
 	  sizeof(mi->rli.group_master_log_name)-1);
   if (!mi->rli.group_master_log_name[0]) // uninitialized case
     mi->rli.group_master_log_pos=0;
 
   pthread_mutex_lock(&mi->rli.data_lock);
-  mi->rli.abort_pos_wait++;
+  mi->rli.abort_pos_wait++; /* for MASTER_POS_WAIT() to abort */
+  /* Clear the error, for a clean start. */
+  clear_last_slave_error(&mi->rli);
+  /*
+    If we don't write new coordinates to disk now, then old will remain in
+    relay-log.info until START SLAVE is issued; but if mysqld is shutdown
+    before START SLAVE, then old will remain in relay-log.info, and will be the
+    in-memory value at restart (thus causing errors, as the old relay log does
+    not exist anymore).
+  */
+  flush_relay_log_info(&mi->rli);
   pthread_cond_broadcast(&mi->data_cond);
   pthread_mutex_unlock(&mi->rli.data_lock);
 
@@ -1112,7 +1185,7 @@ int show_binlog_info(THD* thd)
 
 
 /*
-  Send a lost of all binary logs to client
+  Send a list of all binary logs to client
 
   SYNOPSIS
     show_binlogs()
@@ -1125,7 +1198,6 @@ int show_binlog_info(THD* thd)
 
 int show_binlogs(THD* thd)
 {
-  const char *errmsg;
   IO_CACHE *index_file;
   char fname[FN_REFLEN];
   NET* net = &thd->net;
@@ -1138,8 +1210,8 @@ int show_binlogs(THD* thd)
   if (!mysql_bin_log.is_open())
   {
     //TODO:  Replace with ER() error message
-    errmsg= "You are not using binary logging";
-    goto err_with_msg;
+    send_error(net, 0, "You are not using binary logging");
+    return 1;
   }
 
   field_list.push_back(new Item_empty_string("Log_name", 255));
@@ -1164,8 +1236,6 @@ int show_binlogs(THD* thd)
   send_eof(thd);
   DBUG_RETURN(0);
 
-err_with_msg:
-  send_error(thd, ER_UNKNOWN_ERROR, errmsg);
 err:
   mysql_bin_log.unlock_index();
   DBUG_RETURN(1);

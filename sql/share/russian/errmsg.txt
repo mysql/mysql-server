@@ -240,6 +240,7 @@
 "Неверное использование или в неверном месте указан '%s'",
 "Эта версия MySQL пока еще не поддерживает '%s'",
 "Получена неисправимая ошибка %d: '%-.128s' от головного сервера в процессе выборки данных из двоичного журнала",
+"Slave SQL thread ignored the query because of replicate-*-table rules",
 "Wrong foreign key definition for '%-.64s': %s",
 "Key reference and table reference doesn't match",
 "Ошибка мощьности множества (больше/меньше %d колонок)",

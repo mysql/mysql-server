@@ -99,10 +99,7 @@ CREATE TABLE t2 (
 INSERT INTO t2 VALUES (3,2,11,12,5400,7800);
 INSERT INTO t2 VALUES (4,2,25,12,6500,11200);
 INSERT INTO t2 VALUES (5,1,37,6,10000,12000);
-
-select a.id, b.category as catid, b.state as stateid, b.county as
-countyid from t1 a, t2 b where (a.token =
-'a71250b7ed780f6ef3185bfffe027983') and (a.count = b.id);
+select a.id, b.category as catid, b.state as stateid, b.county as countyid from t1 a, t2 b ignore index (primary) where (a.token ='a71250b7ed780f6ef3185bfffe027983') and (a.count = b.id);
 select a.id, b.category as catid, b.state as stateid, b.county as
 countyid from t1 a, t2 b where (a.token =
 'a71250b7ed780f6ef3185bfffe027983') and (a.count = b.id) order by a.id;

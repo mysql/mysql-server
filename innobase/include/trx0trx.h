@@ -381,7 +381,8 @@ struct trx_struct{
 					replication slave, we have here the
 					master binlog name up to which
 					replication has processed; otherwise
-					this is a pointer to a null character */
+					this is a pointer to a null
+					character */
 	ib_longlong	mysql_master_log_pos;
 					/* if the database server is a MySQL
 					replication slave, this is the
@@ -500,6 +501,10 @@ struct trx_struct{
 	/*------------------------------*/
 	mem_heap_t*	read_view_heap;	/* memory heap for the read view */
 	read_view_t*	read_view;	/* consistent read view or NULL */
+	/*------------------------------*/
+	UT_LIST_BASE_NODE_T(trx_named_savept_t) 
+			trx_savepoints;	/* savepoints set with SAVEPOINT ...,
+					oldest first */
 	/*------------------------------*/
 	mutex_t		undo_mutex;	/* mutex protecting the fields in this
 					section (down to undo_no_arr), EXCEPT

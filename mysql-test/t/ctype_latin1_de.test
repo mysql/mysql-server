@@ -37,6 +37,10 @@ select strcmp('ßa','ss'),strcmp('ssa','ß'),strcmp('sssb','sßa'),strcmp('ß','s');
 select strcmp('u','öa'),strcmp('u','ö');
 
 #
+# overlapping combo's
+#
+select strcmp('sä', 'ßa'), strcmp('aä', 'äx');
+#
 # Some other simple tests with the current character set
 #
 

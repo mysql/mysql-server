@@ -66,41 +66,46 @@ GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, CREATE TE
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
 flush privileges;
-grant usage on test.* to user@localhost with grant option;
-show grants for user@localhost;
-Grants for user@localhost
-GRANT USAGE ON *.* TO 'user'@'localhost'
-GRANT USAGE ON `test`.* TO 'user'@'localhost' WITH GRANT OPTION
-grant ALL PRIVILEGES on *.* to drop_user2@localhost with GRANT OPTION;
-show grants for drop_user2@localhost;
-Grants for drop_user2@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'drop_user2'@'localhost' WITH GRANT OPTION
-revoke all privileges, grant from drop_user2@localhost;
-drop user drop_user2@localhost;
-grant ALL PRIVILEGES on *.* to drop_user@localhost with GRANT OPTION;
-grant ALL PRIVILEGES on test.* to drop_user@localhost with GRANT OPTION;
-grant select(a) on test.t1 to drop_user@localhost;
-show grants for drop_user@localhost;
-Grants for drop_user@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
-GRANT ALL PRIVILEGES ON `test`.* TO 'drop_user'@'localhost' WITH GRANT OPTION
-GRANT SELECT (a) ON `test`.`t1` TO 'drop_user'@'localhost'
-revoke all privileges, grant from drop_user@localhost;
-show grants for drop_user@localhost;
-Grants for drop_user@localhost
-GRANT USAGE ON *.* TO 'drop_user'@'localhost'
-drop user drop_user@localhost;
-revoke all privileges, grant from drop_user@localhost;
-ERROR HY000: Can't revoke all privileges, grant for one or more of the requested users
-grant select(a) on test.t1 to drop_user1@localhost;
-grant select on test.t1 to drop_user2@localhost;
-grant select on test.* to drop_user3@localhost;
-grant select on *.* to drop_user4@localhost;
-drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
-drop_user4@localhost;
-ERROR HY000: Can't drop one or more of the requested users
-revoke all privileges, grant from drop_user1@localhost, drop_user2@localhost,
-drop_user3@localhost, drop_user4@localhost;
-drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
-drop_user4@localhost;
+grant usage on test.* to mysqltest_1@localhost with grant option;
+show grants for mysqltest_1@localhost;
+Grants for mysqltest_1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
+GRANT USAGE ON `mysqltest`.* TO 'mysqltest_1'@'localhost' WITH GRANT OPTION
+GRANT USAGE ON `test`.* TO 'mysqltest_1'@'localhost' WITH GRANT OPTION
+delete from mysql.user where user='mysqltest_1';
+delete from mysql.db where user='mysqltest_1';
+delete from mysql.tables_priv where user='mysqltest_1';
+delete from mysql.columns_priv where user='mysqltest_1';
+flush privileges;
+create table t1 (a int);
+GRANT select,update,insert on t1 to mysqltest_1@localhost;
+GRANT select (a), update (a),insert(a), references(a) on t1 to mysqltest_1@localhost;
+show grants for mysqltest_1@localhost;
+Grants for mysqltest_1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
+GRANT SELECT, SELECT (a), INSERT, INSERT (a), UPDATE, UPDATE (a), REFERENCES (a) ON `test`.`t1` TO 'mysqltest_1'@'localhost'
+select table_priv,column_priv from mysql.tables_priv where user="mysqltest_1";
+table_priv	column_priv
+Select,Insert,Update	Select,Insert,Update,References
+REVOKE select (a), update on t1 from mysqltest_1@localhost;
+show grants for mysqltest_1@localhost;
+Grants for mysqltest_1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
+GRANT SELECT, INSERT, INSERT (a), REFERENCES (a) ON `test`.`t1` TO 'mysqltest_1'@'localhost'
+REVOKE insert,insert (a) on t1 from mysqltest_1@localhost;
+GRANT references on t1 to mysqltest_1@localhost;
+show grants for mysqltest_1@localhost;
+Grants for mysqltest_1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
+GRANT SELECT, REFERENCES, REFERENCES (a) ON `test`.`t1` TO 'mysqltest_1'@'localhost'
+select table_priv,column_priv from mysql.tables_priv where user="mysqltest_1";
+table_priv	column_priv
+Select,References	References
+delete from mysql.user where user='mysqltest_1';
+delete from mysql.db where user='mysqltest_1';
+delete from mysql.tables_priv where user='mysqltest_1';
+delete from mysql.columns_priv where user='mysqltest_1';
+flush privileges;
 drop table t1;
+GRANT FILE on mysqltest.*  to mysqltest_1@localhost;
+Wrong usage of DB GRANT and GLOBAL PRIVILEGES

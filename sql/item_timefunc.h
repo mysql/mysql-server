@@ -516,6 +516,7 @@ class Item_extract :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "extract"; }
   void fix_length_and_dec();
+  bool eq(const Item *item, bool binary_cmp) const;
 };
 
 

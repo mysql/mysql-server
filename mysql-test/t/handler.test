@@ -99,3 +99,16 @@ handler t1 read first limit 2,2;
 delete from t1 limit 3;
 handler t1 read first;
 drop table t1;
+
+#
+#test for #751
+#
+create table t1(a int, index(a));
+insert into t1 values (1), (2), (3);
+handler t1 open;
+--error 1054
+handler t1 read a=(W);
+--error 1210
+handler t1 read a=(a);
+drop table t1;
+

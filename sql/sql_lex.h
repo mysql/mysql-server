@@ -61,7 +61,9 @@ enum enum_sql_command {
   SQLCOM_CREATE_FUNCTION, SQLCOM_DROP_FUNCTION,
   SQLCOM_REVOKE,SQLCOM_OPTIMIZE, SQLCOM_CHECK, SQLCOM_PRELOAD_KEYS,
   SQLCOM_FLUSH, SQLCOM_KILL,  SQLCOM_ANALYZE,
-  SQLCOM_ROLLBACK, SQLCOM_COMMIT, SQLCOM_SLAVE_START, SQLCOM_SLAVE_STOP,
+  SQLCOM_ROLLBACK, SQLCOM_ROLLBACK_TO_SAVEPOINT,
+  SQLCOM_COMMIT, SQLCOM_SAVEPOINT,
+  SQLCOM_SLAVE_START, SQLCOM_SLAVE_STOP,
   SQLCOM_BEGIN, SQLCOM_LOAD_MASTER_TABLE, SQLCOM_CHANGE_MASTER,
   SQLCOM_RENAME_TABLE, SQLCOM_BACKUP_TABLE, SQLCOM_RESTORE_TABLE,
   SQLCOM_RESET, SQLCOM_PURGE, SQLCOM_PURGE_BEFORE, SQLCOM_SHOW_BINLOGS,
@@ -487,9 +489,10 @@ typedef struct st_lex
   List<List_item>     many_values;
   List<set_var_base>  var_list;
   List<Item>          param_list;
-  SQL_LIST	      proc_list, auxilliary_table_list;
+  SQL_LIST	      proc_list, auxilliary_table_list, save_list;
   TYPELIB	      *interval;
   create_field	      *last_field;
+  char		      *savepoint_name;		// Transaction savepoint id
   Item *default_value, *comment;
   uint uint_geom_type;
   LEX_USER *grant_user;

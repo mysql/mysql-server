@@ -35,7 +35,7 @@ protected:
   uint allowed_arg_cols;
 public:
   uint arg_count;
-  table_map used_tables_cache;
+  table_map used_tables_cache, not_null_tables_cache;
   bool const_item_cache;
   enum Functype { UNKNOWN_FUNC,EQ_FUNC,EQUAL_FUNC,NE_FUNC,LT_FUNC,LE_FUNC,
 		  GE_FUNC,GT_FUNC,FT_FUNC,
@@ -107,6 +107,7 @@ public:
   ~Item_func() {} /* Nothing to do; Items are freed automaticly */
   bool fix_fields(THD *,struct st_table_list *, Item **ref);
   table_map used_tables() const;
+  table_map not_null_tables() const;
   void update_used_tables();
   bool eq(const Item *item, bool binary_cmp) const;
   virtual optimize_type select_optimize() const { return OPTIMIZE_NONE; }
@@ -767,6 +768,7 @@ public:
     return res;
   }
   Item_result result_type () const { return udf.result_type(); }
+  table_map not_null_tables() const { return 0; }
 };
 
 
@@ -1004,6 +1006,7 @@ public:
   }
   enum Functype functype() const { return FT_FUNC; }
   void update_used_tables() {}
+  table_map not_null_tables() const { return 0; }
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   bool eq(const Item *, bool binary_cmp) const;
   longlong val_int() { return val()!=0.0; }

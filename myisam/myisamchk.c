@@ -172,7 +172,7 @@ static struct my_option my_long_options[] =
    "Check table for errors.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"check-only-changed", 'C',
-   "Check only tables that have changed since last check.",
+   "Check only tables that have changed since last check. It also applies to other requested actions (e.g. --analyze will be ignored if the table is already analyzed).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"correct-checksum", OPT_CORRECT_CHECKSUM,
    "Correct checksum information for table.",
@@ -194,7 +194,7 @@ static struct my_option my_long_options[] =
    "If used when checking a table, ensure that the table is 100 percent consistent, which will take a long time. If used when repairing a table, try to recover every possible row from the data file. Normally this will also find a lot of garbage rows; Don't use this option with repair if you are not totally desperate.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"fast", 'F',
-   "Check only tables that haven't been closed properly.",
+   "Check only tables that haven't been closed properly. It also applies to other requested actions (e.g. --analyze will be ignored if the table is already analyzed).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f',
    "Restart with -r if there are any errors in the table. States will be updated as with --update-state.",
@@ -892,10 +892,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
       param->error_printed=0;
       goto end2;
     }
-    share->w_locks++;				/* Mark for writeinfo */
-    share->tot_locks++;
-    info->lock_type= F_EXTRA_LCK;		/* Simulate as locked */
-    info->tmp_lock_type=lock_type;
+    mi_lock_database(info, F_EXTRA_LCK);
     datafile=info->dfile;
 
     if (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX))
@@ -1071,8 +1068,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
     VOID(lock_file(param, share->kfile,0L,F_UNLCK,"indexfile",filename));
     info->update&= ~HA_STATE_CHANGED;
   }
-  share->w_locks--;
-  share->tot_locks--;
+  mi_lock_database(info, F_UNLCK);
 end2:
   if (mi_close(info))
   {
@@ -1423,6 +1419,12 @@ static int mi_sort_records(MI_CHECK *param,
   {
     mi_check_print_error(param,"Can't sort table '%s' on FULLTEXT key %d",
 		name,sort_key+1);
+    param->error_printed=0;
+    DBUG_RETURN(-1);
+  }
+  if (share->data_file_type == COMPRESSED_RECORD)
+  {
+    mi_check_print_error(param,"Can't sort read-only table '%s'", name);
     param->error_printed=0;
     DBUG_RETURN(-1);
   }

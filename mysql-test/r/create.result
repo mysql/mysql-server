@@ -310,3 +310,5 @@ t1	CREATE TABLE `t1` (
 ) TYPE=MyISAM CHARSET=latin1
 SET SESSION table_type=default;
 drop table t1;
+create table t1 select x'4132';
+drop table t1;

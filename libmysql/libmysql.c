@@ -47,8 +47,12 @@
 #include <sys/select.h>
 #endif
 #endif
+#ifdef HAVE_POLL
+#include <sys/poll.h>
+#endif
+#endif /* !defined(MSDOS) && !defined(__WIN__) */
 #ifdef HAVE_SYS_UN_H
-#  include <sys/un.h>
+#include <sys/un.h>
 #endif
 #if defined(THREAD) && !defined(__WIN__)
 #include <my_pthread.h>				/* because of signal()	*/

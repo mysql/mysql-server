@@ -38,12 +38,14 @@ $opt_export_only= undef;
 $opt_help= $opt_verbose= 0;
 $opt_log= undef;
 $opt_mail= "";
+$opt_revision= undef;
 $opt_suffix= "";
 $opt_test= undef;
 $opt_skip_check= undef;
 $opt_skip_manual= undef;
 $opt_win_dist= undef;
 $version= "unknown";
+$major=$minor=$release=0;
 
 GetOptions(
 	"build-command|b=s",
@@ -151,6 +153,7 @@ if (!$opt_dry_run)
 	{
 		m/^AM_INIT_AUTOMAKE\(mysql, ([1-9]\.[0-9]{1,2}\.[0-9]{1,2}.*)\)/;
     $version= $1;
+		($major, $minor, $release) = split(/\./,$version);
 	}
 	&logger("Found version string: $version");
 
@@ -220,7 +223,7 @@ if (defined $opt_changelog)
 	{
 		if (!$opt_revision)
 		{
-			$revision= `bk changes -t -d':REV:' -n $REPO | head -1`;
+			$revision= `bk changes -t -d':REV:::TAG:' -n $REPO | grep mysql-$major.$minor | head -1 | cut -f1 -d ":"`;
 		}
 		else
 		{
