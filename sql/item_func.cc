@@ -855,9 +855,13 @@ void Item_func_min_max::fix_length_and_dec()
       maybe_null=0;
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
     if (i==0)
-      set_charset(args[i]->charset());
-    else if (args[i]->charset() == &my_charset_bin)
-      set_charset(&my_charset_bin);
+      set_charset(args[i]->charset(), args[i]->coercibility);
+    else if (set_charset(charset(), coercibility, 
+			args[i]->charset(), args[i]->coercibility))
+    {
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+      break;
+    }
   }
 }
 
@@ -909,6 +913,7 @@ String *Item_func_min_max::val_str(String *str)
 	}
       }
     }
+    res->set_charset(charset());
     return res;
   }
   case ROW_RESULT:
