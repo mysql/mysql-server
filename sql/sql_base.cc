@@ -422,11 +422,48 @@ void close_temporary(TABLE *table,bool delete_table)
 void close_temporary_tables(THD *thd)
 {
   TABLE *table,*next;
+  uint init_query_buf_size = 11, query_buf_size; // "drop table "
+  char* query, *p;
+  LINT_INIT(p);
+  query_buf_size = init_query_buf_size;
+  
+  for (table=thd->temporary_tables ; table ; table=table->next)
+  {
+    query_buf_size += table->key_length;
+    
+  }
+
+  if(query_buf_size == init_query_buf_size)
+    return; // no tables to close
+  
+  if((query = alloc_root(&thd->mem_root, query_buf_size)))
+    {
+      memcpy(query, "drop table ", init_query_buf_size);
+      p = query + init_query_buf_size;
+    }
+  
   for (table=thd->temporary_tables ; table ; table=next)
   {
+    if(query) // we might be out of memory, but this is not fatal
+      {
+	p = strmov(p,table->table_cache_key); // here we assume it always starts
+	// with \0 terminated db name
+	*p++ = '.';
+	p = strmov(p,table->table_name);
+	*p++ = ',';
+      }
     next=table->next;
     close_temporary(table);
   }
+  if(query && mysql_bin_log.is_open())
+    {
+      uint save_query_len = thd->query_length;
+      *--p = 0;
+      thd->query_length = (uint)(p-query);
+      Query_log_event qinfo(thd, query);
+      mysql_bin_log.write(&qinfo);
+      thd->query_length = save_query_len;
+    }
   thd->temporary_tables=0;
 }
 
@@ -437,6 +474,9 @@ TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name)
   uint	key_length= (uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
   TABLE *table,**prev;
 
+  *((ulong*)(key+key_length)) = thd->slave_proxy_id;
+  key_length += 4;
+  
   prev= &thd->temporary_tables;
   for (table=thd->temporary_tables ; table ; table=table->next)
   {
@@ -457,21 +497,25 @@ bool close_temporary_table(THD *thd, const char *db, const char *table_name)
   table= *prev;
   *prev= table->next;
   close_temporary(table);
+  if(thd->slave_thread)
+    --slave_open_temp_tables;
   return 0;
 }
 
-bool rename_temporary_table(TABLE *table, const char *db,
+bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
 			    const char *table_name)
 {
   char *key;
   if (!(key=(char*) alloc_root(&table->mem_root,
 			       (uint) strlen(db)+
-			       (uint) strlen(table_name)+2)))
+			       (uint) strlen(table_name)+6)))
     return 1;				/* purecov: inspected */
   table->key_length=(uint)
     (strmov((table->real_name=strmov(table->table_cache_key=key,
 				     db)+1),
 	    table_name) - table->table_cache_key)+1;
+  *((ulong*)(key+table->key_length)) = thd->slave_proxy_id;
+  table->key_length += 4;
   return 0;
 }
 
@@ -624,8 +668,10 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     *refresh=0;
   if (thd->killed)
     DBUG_RETURN(0);
-  key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
-
+  key_length= (uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
+  *((ulong*)(key + key_length)) = thd->slave_proxy_id;
+  key_length += 4;
+  
   for (table=thd->temporary_tables; table ; table=table->next)
   {
     if (table->key_length == key_length &&
@@ -1339,8 +1385,14 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 {
   TABLE *tmp_table;
   DBUG_ENTER("open_temporary_table");
+  
+  // the extra size in my_malloc() is for table_cache_key
+  //  4 bytes for master thread id if we are in the slave
+  //  1 byte to terminate db
+  //  1 byte to terminate table_name
+  // total of 6 extra bytes in my_malloc in addition to table/db stuff
   if (!(tmp_table=(TABLE*) my_malloc(sizeof(*tmp_table)+(uint) strlen(db)+
-				     (uint) strlen(table_name)+2,
+				     (uint) strlen(table_name)+6,
 				     MYF(MY_WME))))
     DBUG_RETURN(0);				/* purecov: inspected */
 
@@ -1361,10 +1413,16 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   tmp_table->key_length= (uint) (strmov(strmov(tmp_table->table_cache_key,db)
 					+1, table_name)
 				 - tmp_table->table_cache_key)+1;
+  *((ulong*)(tmp_table->table_cache_key + tmp_table->key_length)) =
+	thd->slave_proxy_id;
+  tmp_table->key_length += 4;
+  
   if (link_in_list)
   {
     tmp_table->next=thd->temporary_tables;
     thd->temporary_tables=tmp_table;
+    if(thd->slave_thread)
+      ++slave_open_temp_tables;
   }
   DBUG_RETURN(tmp_table);
 }
