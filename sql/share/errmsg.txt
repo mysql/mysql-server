@@ -5276,7 +5276,7 @@ ER_NO_GROUP_FOR_PROC
 	eng "Select must have a group with this procedure"
 ER_ORDER_WITH_PROC  
 	eng "Can't use ORDER clause with this procedure"
-ER_LOGING_PROHIBIT_CHANGING_OF  
+ER_LOGGING_PROHIBIT_CHANGING_OF  
 	eng "Binary logging and replication forbid changing the global server %s"
 ER_NO_FILE_MAPPING  
 	eng "Can't map file: %-.64s, errno: %d"
