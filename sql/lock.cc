@@ -117,7 +117,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd,TABLE **tables,uint count)
       thd->proc_info=0;
       break;
     }
-    thd->proc_info=0;
+    thd->proc_info="Table lock";
     thd->locked=1;
     if (thr_multi_lock(sql_lock->locks,sql_lock->lock_count))
     {
@@ -136,6 +136,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd,TABLE **tables,uint count)
       thd->locked=0;
       break;
     }
+    thd->proc_info=0;
 
     /* some table was altered or deleted. reopen tables marked deleted */
     mysql_unlock_tables(thd,sql_lock);
@@ -145,6 +146,7 @@ retry:
     if (wait_for_tables(thd))
       break;					// Couldn't open tables
   }
+  thd->proc_info=0;
   if (thd->killed)
   {
     my_error(ER_SERVER_SHUTDOWN,MYF(0));
