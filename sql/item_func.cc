@@ -192,6 +192,8 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     }
   }
   fix_length_and_dec();
+  if (thd && thd->net.last_errno) // An error inside fix_length_and_dec accured
+    return 1;
   fixed= 1;
   return 0;
 }
