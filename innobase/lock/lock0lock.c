@@ -14,6 +14,8 @@ Created 5/7/1996 Heikki Tuuri
 
 #include "usr0sess.h"
 #include "trx0purge.h"
+#include "dict0mem.h"
+#include "trx0sys.h"
 
 /* Restricts the length of search we will do in the waits-for
 graph of transactions */
@@ -3416,8 +3418,9 @@ lock_release_off_kernel(
 /*====================*/
 	trx_t*	trx)	/* in: transaction */
 {
-	ulint	count;
-	lock_t*	lock;
+	dict_table_t*	table;
+	ulint		count;
+	lock_t*		lock;
 
 	ut_ad(mutex_own(&kernel_mutex));
 
@@ -3434,6 +3437,19 @@ lock_release_off_kernel(
 			lock_rec_dequeue_from_page(lock);
 		} else {
 			ut_ad(lock_get_type(lock) == LOCK_TABLE);
+
+			if (lock_get_mode(lock) != LOCK_IS
+			    && (trx->insert_undo || trx->update_undo)) {
+
+				/* The trx may have modified the table.
+				We block the use of the MySQL query cache
+				for all currently active transactions. */
+
+				table = lock->un_member.tab_lock.table;
+			
+				table->query_cache_inv_trx_id =
+							trx_sys->max_trx_id;
+			}
 
 			lock_table_dequeue(lock);
 		}

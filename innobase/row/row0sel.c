@@ -30,6 +30,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "pars0sym.h"
 #include "pars0pars.h"
 #include "row0mysql.h"
+#include "read0read.h"
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
@@ -3112,6 +3113,59 @@ normal_return:
 	}
 
 	trx->op_info = (char *) "";
+
+	return(ret);
+}
+
+/***********************************************************************
+Checks if MySQL at the moment is allowed for this table to retrieve a
+consistent read result, or store it to the query cache. */
+
+ibool
+row_search_check_if_query_cache_permitted(
+/*======================================*/
+				/* out: TRUE if storing or retrieving from
+				the query cache is permitted */
+	trx_t*	trx,		/* in: transaction object */
+	char*	norm_name)	/* in: concatenation of database name, '/'
+				char, table name */
+{
+	dict_table_t*	table;
+	ibool		ret 	= FALSE;
+
+	table = dict_table_get(norm_name, trx);
+
+	if (table == NULL) {
+
+		return(FALSE);
+	}
+
+	mutex_enter(&kernel_mutex);
+
+	/* Start the transaction if it is not started yet */
+
+	trx_start_if_not_started_low(trx);
+
+	/* If there are locks on the table or some trx has invalidated the
+	cache up to our trx id, then ret = FALSE.
+	We do not check what type locks there are on the table, though only
+	IX type locks actually would require ret = FALSE. */
+
+	if (UT_LIST_GET_LEN(table->locks) == 0
+	    && ut_dulint_cmp(trx->id, table->query_cache_inv_trx_id) >= 0) {
+
+		ret = TRUE;
+		
+		/* Assign a read view for the transaction if it does not yet
+		have one */
+
+		if (!trx->read_view) {
+			trx->read_view = read_view_open_now(trx,
+						trx->read_view_heap);
+		}
+	}
+	
+	mutex_exit(&kernel_mutex);
 
 	return(ret);
 }
