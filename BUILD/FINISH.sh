@@ -17,19 +17,24 @@ cd innobase
 aclocal; autoheader; aclocal; automake; autoconf
 cd ..
 
-CFLAGS=\"$cflags\" CXX=gcc CXXFLAGS=\"$cxxflags\" $configure
+CFLAGS=\"$cflags\" CXX=gcc CXXFLAGS=\"$cxxflags\" $configure"
+
+if [ -z "$just_configure" ]
+then
+  commands="$commands
 
 $make $AM_MAKEFLAGS"
 
-if [ "x$strip" = "xyes" ]
-then
-  commands="$commands
+  if [ "x$strip" = "xyes" ]
+  then
+    commands="$commands
 
 mkdir -p tmp
 nm --numeric-sort sql/mysqld  > tmp/mysqld.sym
 objdump -d sql/mysqld > tmp/mysqld.S
 strip sql/mysqld"
-fi  
+  fi
+fi
 
 if test -z "$nonono"
 then

@@ -5,18 +5,25 @@ then
 fi
 
 nonono=
-case "$1" in
--n | --just-print ) nonono=1; shift ;;
--h | --help ) cat <<EOF; exit 0 ;;
+just_configure=
+while test $# -gt 0
+do
+  case "$1" in
+  -c | --just-configure ) just_configure=1; shift ;;
+  -n | --just-print ) nonono=1; shift ;;
+  -h | --help ) cat <<EOF; exit 0 ;;
 Usage: $0 [-h|-n] [configure-options]
   -h, --help              Show this help message.
   -n, --just-print        Don't actually run any commands; just print them.
+  -c, --just-configure    Stop after running configure.
 
 Any other options will be passed directly to configure.
 
 Note:  this script is intended for internal use by MySQL developers.
 EOF
-esac
+  * ) break ;;
+  esac
+done
 
 set -e
 
