@@ -3231,12 +3231,12 @@ static void read_binary_time(MYSQL_TIME *tm, uchar **pos)
     tm->second_part= (length > 8) ? (ulong) sint4korr(to+8) : 0;
 
     tm->year= tm->month= 0;
-    tm->time_type= MYSQL_TIMESTAMP_TIME;
 
     *pos+= length;
   }
   else
     set_zero_time(tm);
+  tm->time_type= MYSQL_TIMESTAMP_TIME;
 }
 
 static void read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
@@ -3261,12 +3261,12 @@ static void read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
     else
       tm->hour= tm->minute= tm->second= 0;
     tm->second_part= (length > 7) ? (ulong) sint4korr(to+7) : 0;
-    tm->time_type= MYSQL_TIMESTAMP_DATETIME;
 
     *pos+= length;
   }
   else
     set_zero_time(tm);
+  tm->time_type= MYSQL_TIMESTAMP_DATETIME;
 }
 
 static void read_binary_date(MYSQL_TIME *tm, uchar **pos)
@@ -3283,12 +3283,12 @@ static void read_binary_date(MYSQL_TIME *tm, uchar **pos)
     tm->hour= tm->minute= tm->second= 0;
     tm->second_part= 0;
     tm->neg= 0;
-    tm->time_type= MYSQL_TIMESTAMP_DATE;
 
     *pos+= length;
   }
   else
     set_zero_time(tm);
+  tm->time_type= MYSQL_TIMESTAMP_DATE;
 }
 
 
@@ -3566,28 +3566,8 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
       Convert time value  to string and delegate the rest to
       fetch_string_with_conversion:
     */
-    char buff[25];
-    uint length;
-
-    switch (time->time_type) {
-    case MYSQL_TIMESTAMP_DATE:
-      length= my_sprintf(buff,(buff, "%04d-%02d-%02d",
-                               time->year, time->month, time->day));
-      break;
-    case MYSQL_TIMESTAMP_DATETIME:
-      length= my_sprintf(buff,(buff, "%04d-%02d-%02d %02d:%02d:%02d",
-                               time->year, time->month, time->day,
-                               time->hour, time->minute, time->second));
-      break;
-    case MYSQL_TIMESTAMP_TIME:
-      length= my_sprintf(buff, (buff, "%02d:%02d:%02d",
-                                time->hour, time->minute, time->second));
-      break;
-    default:
-      length= 0;
-      buff[0]='\0';
-      break;
-    }
+    char buff[MAX_DATE_STRING_REP_LENGTH];
+    uint length= my_TIME_to_str(time, buff);
     /* Resort to string conversion */
     fetch_string_with_conversion(param, (char *)buff, length);
     break;
