@@ -34,6 +34,8 @@
 #include <openssl/des.h>
 #endif /* HAVE_OPENSSL */
 #include "md5.h"
+#include "sha1.h"
+#include "my_aes.h"
 
 String empty_string("");
 
@@ -98,6 +100,112 @@ void Item_func_md5::fix_length_and_dec()
 {
    max_length=32;
 }
+
+
+String *Item_func_sha::val_str(String *str)
+{
+  String * sptr= args[0]->val_str(str);
+  if (sptr)  /* If we got value different from NULL */
+  {
+    SHA1_CONTEXT context;  /* Context used to generate SHA1 hash */
+    /* Temporary buffer to store 160bit digest */
+    uint8_t digest[SHA1_HASH_SIZE];
+    sha1_reset(&context);  /* We do not have to check for error here */
+    /* No need to check error as the only case would be too long message */
+    sha1_input(&context,(const unsigned char *) sptr->ptr(), sptr->length());
+    /* Ensure that memory is free and we got result */
+    if ( !( str->alloc(SHA1_HASH_SIZE*2) || (sha1_result(&context,digest)) ) )
+    {
+      sprintf((char *) str->ptr(),
+      "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\
+%02x%02x%02x%02x%02x%02x%02x%02x",
+           digest[0], digest[1], digest[2], digest[3],
+           digest[4], digest[5], digest[6], digest[7],
+           digest[8], digest[9], digest[10], digest[11],
+           digest[12], digest[13], digest[14], digest[15],
+           digest[16], digest[17], digest[18], digest[19]);
+	   
+      str->length((uint)  SHA1_HASH_SIZE*2);
+      null_value=0;
+      return str;
+    }
+  }    
+  null_value=1;
+  return 0;
+}
+
+void Item_func_sha::fix_length_and_dec()
+{
+   max_length=SHA1_HASH_SIZE*2; // size of hex representation of hash
+}
+
+
+/* Implementation of AES encryption routines */
+
+String *Item_func_aes_encrypt::val_str(String *str)
+{
+  String * sptr = args[0]->val_str(str); // String to encrypt
+  String tmp_value;  // required to handle  second parameter
+  String * key= args[1]->val_str(&tmp_value); // key
+  int aes_length;
+  if (sptr && key) // we need both arguments to be not NULL
+  {
+    null_value=0;
+    aes_length=my_aes_get_size(sptr->length()); // calculate result length
+    
+    if ( !str->alloc(aes_length) )  // Ensure that memory is free
+    {
+      // finally encrypt directly to allocated buffer.
+      if (my_aes_encrypt(sptr->ptr(),sptr->length(),str->ptr(),key->ptr(),
+                     key->length()) == aes_length)
+      {		     
+       // we have to get expected result length
+       str->length((uint) aes_length);
+       return str;
+      }
+    }
+  }
+  null_value=1;
+  return 0;
+}
+
+void Item_func_aes_encrypt::fix_length_and_dec()
+{
+   max_length=my_aes_get_size(args[0]->max_length);
+}
+
+
+String *Item_func_aes_decrypt::val_str(String *str)
+{
+  String * sptr= args[0]->val_str(str); // String to decrypt
+  String tmp_value; // temporary string required for parsing
+  String * key=  args[1]->val_str(&tmp_value); // key
+  int length;        // original length after decrypt
+  if (sptr && key)  // Need to have both arguments not NULL
+  {
+    null_value=0;
+    if ( !str->alloc(sptr->length()) )  // Ensure that memory is free
+    {
+      // finally decencrypt directly to allocated buffer.
+      length=my_aes_decrypt(sptr->ptr(),sptr->length(),str->ptr(),
+                            key->ptr(),key->length());
+      if (length>=0)  // if we got correct data data
+      {      
+        str->length((uint) length);
+        return str;
+      }
+    }
+  }
+  // Bad parameters. No memory or bad data will all go here
+  null_value=1;
+  return 0;
+}
+
+void Item_func_aes_decrypt::fix_length_and_dec()
+{
+   max_length=args[0]->max_length;
+}
+
 
 /*
 ** Concatinate args with the following premissess
