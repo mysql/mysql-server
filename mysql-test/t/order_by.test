@@ -373,3 +373,11 @@ SET @id=0;
 UPDATE t1 SET a=0 ORDER BY (a=@id), b;
 DROP TABLE t1;
 
+#
+# Bug when doing an order by on a 1 byte string (Bug #2147)
+#
+
+CREATE TABLE t1 (  id smallint(6) unsigned NOT NULL default '0',  menu tinyint(4) NOT NULL default '0',  KEY id (id),  KEY menu (menu)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (11384, 2),(11392, 2);
+SELECT id FROM t1 WHERE id <11984 AND menu =2 ORDER BY id DESC LIMIT 1 ;
+drop table t1;

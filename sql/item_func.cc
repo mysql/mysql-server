@@ -1782,17 +1782,25 @@ char *ull_get_key(const ULL *ull,uint *length,
   return (char*) ull->key;
 }
 
+
+static bool item_user_lock_inited= 0;
+
 void item_user_lock_init(void)
 {
   pthread_mutex_init(&LOCK_user_locks,MY_MUTEX_INIT_SLOW);
   hash_init(&hash_user_locks,system_charset_info,
 	    16,0,0,(hash_get_key) ull_get_key,NULL,0);
+  item_user_lock_inited= 1;
 }
 
 void item_user_lock_free(void)
 {
-  hash_free(&hash_user_locks);
-  pthread_mutex_destroy(&LOCK_user_locks);
+  if (item_user_lock_inited)
+  {
+    item_user_lock_inited= 0;
+    hash_free(&hash_user_locks);
+    pthread_mutex_destroy(&LOCK_user_locks);
+  }
 }
 
 void item_user_lock_release(ULL *ull)
@@ -2452,7 +2460,7 @@ Item_func_get_user_var::val_str(String *str)
 {
   DBUG_ENTER("Item_func_get_user_var::val_str");
   if (!var_entry)
-    return (String*) 0;				// No such variable
+    DBUG_RETURN((String*) 0);			// No such variable
   DBUG_RETURN(var_entry->val_str(&null_value, str, decimals));
 }
 

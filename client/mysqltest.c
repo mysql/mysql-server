@@ -2154,7 +2154,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   DYNAMIC_STRING ds_tmp;
   DYNAMIC_STRING eval_query;
   char* query;
-  int query_len;
+  int query_len, got_error_on_send= 0;
   DBUG_ENTER("run_query");
   
   if (q->type != Q_EVAL)
@@ -2179,9 +2179,13 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   else
     ds= &ds_res;
 
-  if ((flags & QUERY_SEND) && mysql_send_query(mysql, query, query_len))
-    die("At line %u: unable to send query '%s'(mysql_errno=%d,errno=%d)",
-	start_lineno, query, mysql_errno(mysql), errno);
+  if (flags & QUERY_SEND)
+  {
+    got_error_on_send= mysql_send_query(mysql, query, query_len);
+    if (got_error_on_send && !q->expected_errno[0])
+      die("At line %u: unable to send query '%s' (mysql_errno=%d , errno=%d)",
+	  start_lineno, query, mysql_errno(mysql), errno);
+  }
 
   do
   {
@@ -2194,9 +2198,10 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     if (!(flags & QUERY_REAP))
       DBUG_RETURN(0);
 
-    if ((!counter && (*mysql->methods->read_query_result)(mysql)) ||
-	(!(last_result= res= mysql_store_result(mysql)) &&
-	 mysql_field_count(mysql)))
+    if (got_error_on_send ||
+	(!counter && (*mysql->methods->read_query_result)(mysql)) ||
+	 (!(last_result= res= mysql_store_result(mysql)) &&
+	  mysql_field_count(mysql)))
     {
       if (q->require_file)
       {
