@@ -1861,6 +1861,7 @@ send_result_message:
       TABLE_LIST *save_next= table->next;
       table->next= 0;
       result_code= mysql_recreate_table(thd, table, 0);
+      close_thread_tables(thd);
       if (!result_code) // recreation went ok
       {
         if ((table->table= open_ltable(thd, table, lock_type)) &&
