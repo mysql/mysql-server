@@ -2010,7 +2010,8 @@ mysql_execute_command(void)
     if (check_db_used(thd,tables) || check_table_access(thd,SELECT_ACL, tables))
       goto error;
     res = mysql_ha_read(thd, tables, lex->ha_read_mode,
-	            lex->backup_dir, lex->insert_list, lex->ha_rkey_mode);
+	            lex->backup_dir, lex->insert_list, lex->ha_rkey_mode,
+	            lex->select_limit, lex->offset_limit);
     break;
 
   case SQLCOM_BEGIN:

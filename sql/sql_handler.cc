@@ -38,9 +38,13 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables)
   return 0;
 }
 
+static enum enum_ha_read_modes rkey_to_rnext[]= 
+    { RNEXT, RNEXT, RPREV, RNEXT, RPREV, RNEXT, RPREV };
+    
 int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     enum enum_ha_read_modes mode, char *keyname, List<Item> *key_expr,
-    enum ha_rkey_function ha_rkey_mode)
+    enum ha_rkey_function ha_rkey_mode,
+    ha_rows select_limit,ha_rows offset_limit)
 {
   int err;
   TABLE *table=find_table_by_name(thd, tables->db, tables->name);
@@ -71,81 +75,93 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   
   table->file->index_init(keyno);
   
-  switch(mode)
+  if (select_limit == thd->default_select_limit) select_limit=1;
+
+  select_limit+=offset_limit;  
+  for (uint num_rows=0; num_rows < select_limit; num_rows++)
   {
-    case RFIRST:
-       err=table->file->index_first(table->record[0]);
-       break;
-    case RLAST:
-       err=table->file->index_last(table->record[0]);
-       break;
-    case RNEXT:
-       err=table->file->index_next(table->record[0]);
-       break;
-    case RPREV:
-        err=table->file->index_prev(table->record[0]);
-        break;
-    case RKEY:
-      {
-        KEY *keyinfo=table->key_info+keyno;
-	uint key_len=0, i;
-	byte *key, *buf;
-	if (key_expr->elements > keyinfo->key_parts)
-	{
-	   my_printf_error(ER_TOO_MANY_KEY_PARTS,ER(ER_TOO_MANY_KEY_PARTS),
-	       MYF(0),keyinfo->key_parts);
-           return -1;
-	}
-	for (i=0; i < key_expr->elements; i++)
-	  key_len+=keyinfo->key_part[i].store_length;
-	if (!(key=sql_calloc(ALIGN_SIZE(key_len))))
-	{
-	  send_error(&thd->net,ER_OUTOFMEMORY);
-	  exit(-1); 
-	}
-        List_iterator<Item> it_ke(*key_expr);
-      	for (i=0, buf=key; i < key_expr->elements; i++)
-	{
-          uint maybe_null= test(keyinfo->key_part[i].null_bit);
-	  store_key_item ski=store_key_item(keyinfo->key_part[i].field,
-	      (char*)buf+maybe_null,maybe_null ? (char*) buf : 0,
-	      keyinfo->key_part[i].length, it_ke++);
-	  ski.copy();
-	  buf+=keyinfo->key_part[i].store_length;
-	}
-        err=table->file->index_read(table->record[0],
-	    key,key_len,ha_rkey_mode);
-        break;
-      }
-    default:
-	send_error(&thd->net,ER_ILLEGAL_HA);
-        exit(-1); 
-  }
-  
-  if (err && err != HA_ERR_KEY_NOT_FOUND && err != HA_ERR_END_OF_FILE)
-  {
-    sql_print_error("mysql_ha_read: Got error %d when reading table",
-                      err);
-    table->file->print_error(err,MYF(0));
-    return -1;
-  }
-  send_fields(thd,list,1);
-  if (!err)
-  {
-    String *packet = &thd->packet;
-    Item *item;
-    packet->length(0);
-    it.rewind();
-    while ((item=it++))
+    switch(mode)
     {
-      if (item->send(packet))
+      case RFIRST:
+	 err=table->file->index_first(table->record[0]);
+	 mode=RNEXT;
+	 break;
+      case RLAST:
+	 err=table->file->index_last(table->record[0]);
+	 mode=RPREV;
+	 break;
+      case RNEXT:
+	 err=table->file->index_next(table->record[0]);
+	 break;
+      case RPREV:
+	  err=table->file->index_prev(table->record[0]);
+	  break;
+      case RKEY:
+	{
+	  KEY *keyinfo=table->key_info+keyno;
+	  uint key_len=0, i;
+	  byte *key, *buf;
+	  if (key_expr->elements > keyinfo->key_parts)
+	  {
+	     my_printf_error(ER_TOO_MANY_KEY_PARTS,ER(ER_TOO_MANY_KEY_PARTS),
+		 MYF(0),keyinfo->key_parts);
+             return -1;
+	  }
+	  for (i=0; i < key_expr->elements; i++)
+	    key_len+=keyinfo->key_part[i].store_length;
+	  if (!(key=sql_calloc(ALIGN_SIZE(key_len))))
+	  {
+	    send_error(&thd->net,ER_OUTOFMEMORY);
+	    return -1; 
+	  }
+	  List_iterator<Item> it_ke(*key_expr);
+	  for (i=0, buf=key; i < key_expr->elements; i++)
+	  {
+            uint maybe_null= test(keyinfo->key_part[i].null_bit);
+	    store_key_item ski=store_key_item(keyinfo->key_part[i].field,
+		(char*)buf+maybe_null,maybe_null ? (char*) buf : 0,
+		keyinfo->key_part[i].length, it_ke++);
+	    ski.copy();
+	    buf+=keyinfo->key_part[i].store_length;
+	  }
+	  err=table->file->index_read(table->record[0],
+	      key,key_len,ha_rkey_mode);
+	  mode=rkey_to_rnext[(int)ha_rkey_mode];
+	  break;
+	}
+      default:
+	  send_error(&thd->net,ER_ILLEGAL_HA);
+	  return -1; 
+    }
+
+    if (err && err != HA_ERR_KEY_NOT_FOUND && err != HA_ERR_END_OF_FILE)
+    {
+      sql_print_error("mysql_ha_read: Got error %d when reading table",
+                	err);
+      table->file->print_error(err,MYF(0));
+      return -1;
+    }
+    if (num_rows>=offset_limit)
+    {
+      if (num_rows==offset_limit) send_fields(thd,list,1);
+      if (!err)
       {
-        packet->free();				// Free used
-        my_error(ER_OUT_OF_RESOURCES,MYF(0));
-        return -1;
+	String *packet = &thd->packet;
+	Item *item;
+	packet->length(0);
+	it.rewind();
+	while ((item=it++))
+	{
+	  if (item->send(packet))
+	  {
+	    packet->free();				// Free used
+	    my_error(ER_OUT_OF_RESOURCES,MYF(0));
+	    return -1;
+	  }
+	}
+	my_net_write(&thd->net, (char*)packet->ptr(), packet->length());
       }
     }
-    my_net_write(&thd->net, (char*)packet->ptr(), packet->length());
   }
   send_eof(&thd->net);
   return 0;
