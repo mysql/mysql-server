@@ -433,6 +433,11 @@ if [ x$SOURCE_DIST = x1 ] ; then
  else
    MYSQL_DUMP="$BASEDIR/client/mysqldump --no-defaults -uroot --socket=$MASTER_MYSOCK"
  fi
+ if [ -f "$BASEDIR/client/.libs/mysqlbinlog" ] ; then
+   MYSQL_BINLOG="$BASEDIR/client/.libs/mysqlbinlog"
+ else
+   MYSQL_BINLOG="$BASEDIR/client/mysqlbinlog"
+ fi
  if [ -n "$STRACE_CLIENT" ]; then
   MYSQL_TEST="strace -o $MYSQL_TEST_DIR/var/log/mysqltest.strace $MYSQL_TEST"
  fi
@@ -455,6 +460,7 @@ else
  fi
  MYSQL_TEST="$BASEDIR/bin/mysqltest"
  MYSQL_DUMP="$BASEDIR/bin/mysqldump --no-defaults -uroot --socket=$MASTER_MYSOCK"
+ MYSQL_BINLOG="$BASEDIR/bin/mysqlbinlog"
  MYSQLADMIN="$BASEDIR/bin/mysqladmin"
  WAIT_PID="$BASEDIR/bin/mysql_waitpid"
  MYSQL_MANAGER="$BASEDIR/bin/mysqlmanager"
@@ -473,6 +479,7 @@ else
 fi
 
 export MYSQL_DUMP
+export MYSQL_BINLOG
 
 if [ -z "$MASTER_MYSQLD" ]
 then
