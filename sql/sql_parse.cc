@@ -1461,7 +1461,6 @@ mysql_execute_command(THD *thd)
   int	res= 0;
   LEX	*lex= &thd->lex;
   TABLE_LIST *tables= (TABLE_LIST*) lex->select_lex.table_list.first;
-  TABLE_LIST *cursor;
   SELECT_LEX *select_lex= &lex->select_lex;
   SELECT_LEX_UNIT *unit= &lex->unit;
   DBUG_ENTER("mysql_execute_command");
@@ -1803,7 +1802,6 @@ mysql_execute_command(THD *thd)
       }
       if (tables->next)
       {
-	TABLE_LIST *table;
 	if (check_table_access(thd, SELECT_ACL, tables->next))
 	  goto error;				// Error message is given
       }
