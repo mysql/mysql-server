@@ -60,6 +60,8 @@ public:
   { return store_longlong((longlong) from, 0); }
   inline  bool store(ulonglong from)
   { return store_longlong((longlong) from, 1); }
+  inline bool store(String *str)
+  { return store(str->c_ptr(),str->length(),str->charset()); }
 
   virtual bool prepare_for_send(List<Item> *item_list) 
   {

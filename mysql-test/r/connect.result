@@ -4,6 +4,7 @@ columns_priv
 db
 func
 help_category
+help_keyword
 help_relation
 help_topic
 host
@@ -19,6 +20,7 @@ columns_priv
 db
 func
 help_category
+help_keyword
 help_relation
 help_topic
 host
@@ -34,6 +36,7 @@ columns_priv
 db
 func
 help_category
+help_keyword
 help_relation
 help_topic
 host
