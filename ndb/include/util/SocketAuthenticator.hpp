@@ -14,24 +14,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef NDB_CONFIG_H
-#define NDB_CONFIG_H
+#ifndef SOCKET_AUTHENTICATOR_HPP
+#define SOCKET_AUTHENTICATOR_HPP
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
+class SocketAuthenticator
+{
+public:
+  virtual ~SocketAuthenticator() {};
+  virtual bool client_authenticate(int sockfd) = 0;
+  virtual bool server_authenticate(int sockfd) = 0;
+};
 
-char* NdbConfig_NdbCfgName(int with_ndb_home);
-char* NdbConfig_ErrorFileName(int node_id);
-char* NdbConfig_ClusterLogFileName(int node_id);
-char* NdbConfig_SignalLogFileName(int node_id);
-char* NdbConfig_TraceFileName(int node_id, int file_no);
-char* NdbConfig_NextTraceFileName(int node_id);
-char* NdbConfig_PidFileName(int node_id);
-char* NdbConfig_StdoutFileName(int node_id);
+class SocketAuthSimple : public SocketAuthenticator
+{
+  const char *m_passwd;
+  const char *m_username;
+public:
+  SocketAuthSimple(const char *username, const char *passwd);
+  virtual ~SocketAuthSimple();
+  virtual bool client_authenticate(int sockfd);
+  virtual bool server_authenticate(int sockfd);
+};
 
-#ifdef	__cplusplus
-}
-#endif
-
-#endif
+#endif // SOCKET_AUTHENTICATOR_HPP

@@ -362,7 +362,7 @@ void Cmvmi::execCLOSE_COMREQ(Signal* signal)
       sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
       
       globalTransporterRegistry.setIOState(i, HaltIO);
-      globalTransporterRegistry.setPerformState(i, PerformDisconnect);
+      globalTransporterRegistry.do_disconnect(i);
 
       /**
        * Cancel possible event subscription
@@ -390,7 +390,7 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
 
   const Uint32 len = signal->getLength();
   if(len == 2){
-    globalTransporterRegistry.setPerformState(tStartingNode, PerformConnect);
+    globalTransporterRegistry.do_connect(tStartingNode);
     globalTransporterRegistry.setIOState(tStartingNode, HaltIO);
 
     //-----------------------------------------------------
@@ -405,7 +405,7 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
       jam();
       if (i != getOwnNodeId() && getNodeInfo(i).m_type == tData2){
 	jam();
-	globalTransporterRegistry.setPerformState(i, PerformConnect);
+	globalTransporterRegistry.do_connect(i);
 	globalTransporterRegistry.setIOState(i, HaltIO);
 	
 	signal->theData[0] = EventReport::CommunicationOpened;
@@ -456,34 +456,21 @@ void Cmvmi::execDISCONNECT_REP(Signal *signal)
   const NodeInfo::NodeType type = getNodeInfo(hostId).getType();
   ndbrequire(type != NodeInfo::INVALID);
   
-  if (globalTransporterRegistry.performState(hostId) != PerformDisconnect) {
+  if(type == NodeInfo::DB || globalData.theStartLevel == NodeState::SL_STARTED){
     jam();
-
-    // -------------------------------------------------------------------
-    // We do not report the disconnection when disconnection is already ongoing.
-    // This reporting should be looked into but this secures that we avoid
-    // crashes due to too quick re-reporting of disconnection.
-    // -------------------------------------------------------------------
-    if(type == NodeInfo::DB || globalData.theStartLevel == NodeState::SL_STARTED){
-      jam();
-      DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
-      rep->nodeId = hostId;
-      rep->err = errNo;
-      sendSignal(QMGR_REF, GSN_DISCONNECT_REP, signal, 
-		 DisconnectRep::SignalLength, JBA);
-      globalTransporterRegistry.setPerformState(hostId, PerformDisconnect);
-    } else if(globalData.theStartLevel == NodeState::SL_CMVMI ||
-	      globalData.theStartLevel == NodeState::SL_STARTING) {
-      /**
-       * Someone disconnected during cmvmi period
-       */
-      if(type == NodeInfo::MGM){
-	jam();
-	globalTransporterRegistry.setPerformState(hostId, PerformConnect);
-      } else {
-	globalTransporterRegistry.setPerformState(hostId, PerformDisconnect);
-      }
-    }
+    DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
+    rep->nodeId = hostId;
+    rep->err = errNo;
+    sendSignal(QMGR_REF, GSN_DISCONNECT_REP, signal, 
+	       DisconnectRep::SignalLength, JBA);
+  } else if((globalData.theStartLevel == NodeState::SL_CMVMI ||
+	     globalData.theStartLevel == NodeState::SL_STARTING)
+	    && type == NodeInfo::MGM) {
+    /**
+     * Someone disconnected during cmvmi period
+     */
+    jam();
+    globalTransporterRegistry.do_connect(hostId);
   }
 
   signal->theData[0] = EventReport::Disconnected;
@@ -522,7 +509,8 @@ void Cmvmi::execCONNECT_REP(Signal *signal){
       /**
        * Dont allow api nodes to connect
        */
-      globalTransporterRegistry.setPerformState(hostId, PerformDisconnect);
+      abort();
+      globalTransporterRegistry.do_disconnect(hostId);
     }
   }
   
@@ -756,8 +744,8 @@ Cmvmi::execSTART_ORD(Signal* signal) {
      */
     for(unsigned int i = 1; i < MAX_NODES; i++ ){
       if (getNodeInfo(i).m_type == NodeInfo::MGM){ 
-        if(globalTransporterRegistry.performState(i) != PerformIO){
-          globalTransporterRegistry.setPerformState(i, PerformConnect);
+        if(!globalTransporterRegistry.is_connected(i)){
+          globalTransporterRegistry.do_connect(i);
           globalTransporterRegistry.setIOState(i, NoHalt);
         }
       }
@@ -783,7 +771,7 @@ Cmvmi::execSTART_ORD(Signal* signal) {
     // without any connected nodes.   
     for(unsigned int i = 1; i < MAX_NODES; i++ ){
       if (i != getOwnNodeId() && getNodeInfo(i).m_type != NodeInfo::MGM){
-        globalTransporterRegistry.setPerformState(i, PerformDisconnect);
+        globalTransporterRegistry.do_disconnect(i);
         globalTransporterRegistry.setIOState(i, HaltIO);
       }
     }
@@ -1062,29 +1050,10 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       if(nodeTypeStr == 0)
 	continue;
 
-      const char* actionStr = "";
-      switch (globalTransporterRegistry.performState(i)){
-      case PerformNothing:
-        actionStr = "does nothing";
-        break;
-      case PerformIO:
-        actionStr = "is connected";
-        break;
-      case PerformConnect:
-        actionStr = "is trying to connect";
-        break;
-      case PerformDisconnect:
-        actionStr = "is trying to disconnect";
-        break;
-      case RemoveTransporter:
-        actionStr = "will be removed";
-        break;
-      }
-
       infoEvent("Connection to %d (%s) %s", 
                 i, 
                 nodeTypeStr,
-                actionStr);
+                globalTransporterRegistry.getPerformStateString(i));
     }
   }
   

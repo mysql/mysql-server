@@ -29,6 +29,7 @@ class ClusterMgr;
 class ArbitMgr;
 class IPCConfig;
 struct ndb_mgm_configuration;
+class ConfigRetriever;
 
 class Ndb;
 class NdbApiSignal;
@@ -56,6 +57,7 @@ public:
   static TransporterFacade* instance();
   static TransporterFacade* start_instance(int, const ndb_mgm_configuration*);
   static TransporterFacade* start_instance(const char *connectString);
+  static void close_configuration();
   static void stop_instance();
   
   /**
@@ -110,7 +112,6 @@ public:
 
   // Close this block number
   int close_local(BlockNumber blockNumber);
-  void setState(Uint32 aNodeId, PerformState aState);
 
 private:
   /**
@@ -219,6 +220,7 @@ public:
   NdbMutex* theMutexPtr;
 private:
   static TransporterFacade* theFacadeInstance;
+  static ConfigRetriever *s_config_retriever;
 
 public:
   GlobalDictCache m_globalDictCache;

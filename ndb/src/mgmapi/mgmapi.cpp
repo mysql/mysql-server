@@ -24,6 +24,7 @@
 
 #include <NdbOut.hpp>
 #include <SocketServer.hpp>
+#include <SocketClient.hpp>
 #include <Parser.hpp>
 #include <OutputStream.hpp>
 #include <InputStream.hpp>
@@ -318,8 +319,8 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
     /**
      * Print some info about why the parser returns NULL
      */
-//    ndbout << " status=" << ctx.m_status << ", curr="
-//	   << ctx.m_currentToken << endl;
+    //ndbout << " status=" << ctx.m_status << ", curr="
+    //<< ctx.m_currentToken << endl;
   } 
 #ifdef MGMAPI_LOG
   else {
@@ -362,30 +363,11 @@ ndb_mgm_connect(NdbMgmHandle handle, const char * mgmsrv)
   /**
    * Do connect
    */
-  const NDB_SOCKET_TYPE sockfd = socket(AF_INET, SOCK_STREAM, 0);
-  if (sockfd == NDB_INVALID_SOCKET) {
-    SET_ERROR(handle, NDB_MGM_ILLEGAL_SOCKET, "");
-    return -1;
-  }
-  
-  struct sockaddr_in servaddr;
-  memset(&servaddr, 0, sizeof(servaddr));
-  servaddr.sin_family = AF_INET;
-  servaddr.sin_port = htons(handle->port);
-  // Convert ip address presentation format to numeric format
-  const int res1 = Ndb_getInAddr(&servaddr.sin_addr, handle->hostname);
-  if (res1 != 0) {
-    DEBUG("Ndb_getInAddr(...) == -1");
-    setError(handle, EINVAL, __LINE__, "Invalid hostname/address");
-    return -1;
-  }
-  
-  const int res2 = connect(sockfd, (struct sockaddr*) &servaddr, 
-			   sizeof(servaddr));
-  if (res2 == -1) {
-    NDB_CLOSE_SOCKET(sockfd);
-    setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__, "Unable to connect to %s", 
-	     mgmsrv);
+  SocketClient s(handle->hostname, handle->port);
+  const NDB_SOCKET_TYPE sockfd = s.connect();
+  if (sockfd < 0) {
+    setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
+	     "Unable to connect to %s", mgmsrv);
     return -1;
   }
   
@@ -1521,6 +1503,55 @@ ndb_mgm_get_configuration(NdbMgmHandle handle, unsigned int version) {
 
   delete prop;
   return 0;
+}
+
+extern "C"
+int
+ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, unsigned *pnodeid, int nodetype)
+{
+
+  CHECK_HANDLE(handle, 0);
+  CHECK_CONNECTED(handle, 0);
+
+  Properties args;
+  args.put("version", version);
+  args.put("nodetype", nodetype);
+  args.put("nodeid", *pnodeid);
+  args.put("user", "mysqld");
+  args.put("password", "mysqld");
+  args.put("public key", "a public key");
+
+  const ParserRow<ParserDummy> reply[]= {
+    MGM_CMD("get nodeid reply", NULL, ""),
+      MGM_ARG("nodeid", Int, Optional, "Error message"),
+      MGM_ARG("result", String, Mandatory, "Error message"),
+    MGM_END()
+  };
+  
+  const Properties *prop;
+  prop= ndb_mgm_call(handle, reply, "get nodeid", &args);
+  
+  if(prop == NULL) {
+    SET_ERROR(handle, EIO, "Unable to alloc nodeid");
+    return -1;
+  }
+
+  int res= -1;
+  do {
+    const char * buf;
+    if(!prop->get("result", &buf) || strcmp(buf, "Ok") != 0){
+      ndbout_c("ERROR Message: %s\n", buf);
+      break;
+    }
+    if(!prop->get("nodeid", pnodeid) != 0){
+      ndbout_c("ERROR Message: <nodeid Unspecified>\n");
+      break;
+    }
+    res= 0;
+  }while(0);
+
+  delete prop;
+  return res;
 }
 
 /*****************************************************************************

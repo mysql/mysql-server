@@ -71,7 +71,7 @@ NdbBackup::getFileSystemPathForNode(int _node_id){
    */
   ConfigRetriever cr;
 
-  ndb_mgm_configuration * p = cr.getConfig(host, port, 0);
+  ndb_mgm_configuration * p = cr.getConfig(host, port, 0, NODE_TYPE_API);
   if(p == 0){
     const char * s = cr.getErrorString();
     if(s == 0)
@@ -154,7 +154,7 @@ NdbBackup::execRestore(bool _restore_data,
 
 #endif
 
-  snprintf(buf, 255, "ndb_restore -c \"nodeid=%d;host=%s\" -n %d -b %d %s %s .", 
+  snprintf(buf, 255, "valgrind --leak-check=yes -v ndb_restore -c \"nodeid=%d;host=%s\" -n %d -b %d %s %s .", 
 	   ownNodeId,
 	   addr,
 	   _node_id, 

@@ -19,6 +19,9 @@
 
 #include <ndb_global.h>
 
+#include <SocketClient.hpp>
+
+#include <TransporterRegistry.hpp>
 #include <TransporterCallback.hpp>
 #include "TransporterDefinitions.hpp"
 #include "Packer.hpp"
@@ -40,8 +43,9 @@ public:
    * None blocking
    *    Use isConnected() to check status
    */
-  virtual void doConnect();
-  
+  bool connect_client();
+  bool connect_server(NDB_SOCKET_TYPE socket);
+
   /**
    * Blocking
    */
@@ -60,14 +64,17 @@ public:
    */
   NodeId getRemoteNodeId() const;
 
-
   /**
-   * Set callback object
+   * Local (own) Node Id
    */
-  void setCallbackObject(void * callback);
+  NodeId getLocalNodeId() const;
 
 protected:
-  Transporter(NodeId lNodeId,
+  Transporter(TransporterRegistry &,
+	      const char *lHostName,
+	      const char *rHostName, 
+	      int r_port,
+	      NodeId lNodeId,
 	      NodeId rNodeId, 
 	      int byteorder, 
 	      bool compression, 
@@ -78,58 +85,59 @@ protected:
    * Blocking, for max timeOut milli seconds
    *   Returns true if connect succeded
    */
-  virtual bool connectImpl(Uint32 timeOut) = 0;
+  virtual bool connect_server_impl(NDB_SOCKET_TYPE sockfd) = 0;
+  virtual bool connect_client_impl(NDB_SOCKET_TYPE sockfd) = 0;
   
   /**
    * Blocking
    */
   virtual void disconnectImpl() = 0;
   
-  const NodeId localNodeId;
+  /**
+   * Remote host name/and address
+   */
+  char remoteHostName[256];
+  char localHostName[256];
+  struct in_addr remoteHostAddress;
+  struct in_addr localHostAddress;
+
+  const unsigned int m_r_port;
+
   const NodeId remoteNodeId;
+  const NodeId localNodeId;
   
+  const bool isServer;
+
   unsigned createIndex;
   
   int byteOrder;
   bool compressionUsed;
   bool checksumUsed;
   bool signalIdUsed;
-  Packer m_packer;
-  
+  Packer m_packer;  
 
 private:
-  /**
-   * Thread and mutex for connect
-   */
-  NdbThread* theThreadPtr;
-  friend void* runConnect(void * me);
+
+  SocketClient *m_socket_client;
 
 protected:
-  /**
-   * Error reporting from connect thread(s)
-   */
-  void reportThreadError(NodeId nodeId, 
-			 TransporterError errorCode);
   Uint32 getErrorCount();
-  TransporterError getThreadError();
-  void   resetThreadError();
-  TransporterError _threadError;
-  Uint32 _timeOutMillis;
-  Uint32 _errorCount;
+  Uint32 m_errorCount;
+  Uint32 m_timeOutMillis;
 
-protected:  
-  NdbMutex* theMutexPtr;
-  bool _connected;     // Are we connected
-  bool _connecting;    // Connect thread is running
-  bool _disconnecting; // We are disconnecting
+protected:
+  bool m_connected;     // Are we connected
 
-  void * callbackObj;
+  TransporterRegistry &m_transporter_registry;
+  void *get_callback_obj() { return m_transporter_registry.callbackObj; };
+  void report_disconnect(int err){m_transporter_registry.report_disconnect(remoteNodeId,err);};
+  void report_error(enum TransporterError err){reportError(get_callback_obj(),remoteNodeId,err);};
 };
 
 inline
 bool
 Transporter::isConnected() const {
-  return _connected;
+  return m_connected;
 }
 
 inline
@@ -138,42 +146,17 @@ Transporter::getRemoteNodeId() const {
   return remoteNodeId;
 }
 
-inline 
-void 
-Transporter::reportThreadError(NodeId nodeId, TransporterError errorCode)
-{
-#if 0
-  ndbout_c("Transporter::reportThreadError (NodeId: %d, Error code: %d)",
-	   nodeId, errorCode);
-#endif
-  _threadError = errorCode;
-  _errorCount++;
-}
-
 inline
-TransporterError 
-Transporter::getThreadError(){
-  return _threadError;
+NodeId
+Transporter::getLocalNodeId() const {
+  return remoteNodeId;
 }
 
 inline
 Uint32
 Transporter::getErrorCount()
 { 
-  return _errorCount;
-}
-
-inline 
-void 
-Transporter::resetThreadError()
-{
-  _threadError = TE_NO_ERROR;
-}
-
-inline 
-void
-Transporter::setCallbackObject(void * callback) {
-  callbackObj = callback;
+  return m_errorCount;
 }
 
 #endif // Define of Transporter_H

@@ -1704,6 +1704,7 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo)
   sendSignal(DBTC_REF, GSN_API_FAILREQ, signal, 2, JBA);
   sendSignal(DBDICT_REF, GSN_API_FAILREQ, signal, 2, JBA);
   sendSignal(SUMA_REF, GSN_API_FAILREQ, signal, 2, JBA);
+
   /**
    * GREP also need the information that an API node 
    * (actually a REP node) has failed.
@@ -1978,8 +1979,10 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
       apiRegConf->nodeState.dynamicId = -dynamicId;
     }
   }
+  apiRegConf->nodeState.m_connected_nodes.assign(c_connectedNodes);
+
   sendSignal(ref, GSN_API_REGCONF, signal, ApiRegConf::SignalLength, JBB);
-  
+
   if ((getNodeState().startLevel == NodeState::SL_STARTED ||
        getNodeState().getSingleUserMode())
       && apiNodePtr.p->phase == ZAPI_INACTIVE) {

@@ -138,6 +138,7 @@ Configuration::Configuration()
   _fsPath = 0;
   _initialStart = false;
   _daemonMode = false;
+  m_config_retriever= 0;
 }
 
 Configuration::~Configuration(){
@@ -146,6 +147,18 @@ Configuration::~Configuration(){
 
   if(_fsPath != NULL)
     free(_fsPath);
+
+  if (m_config_retriever) {
+    delete m_config_retriever;
+  }
+}
+
+void
+Configuration::closeConfiguration(){
+  if (m_config_retriever) {
+    delete m_config_retriever;
+  }
+  m_config_retriever= 0;
 }
 
 void
@@ -153,7 +166,12 @@ Configuration::setupConfiguration(){
   /**
    * Fetch configuration from management server
    */
-  ConfigRetriever cr;
+  if (m_config_retriever) {
+    delete m_config_retriever;
+  }
+  m_config_retriever= new ConfigRetriever();
+  ConfigRetriever &cr= *m_config_retriever;
+
   cr.setConnectString(_connectString);
   stopOnError(true); 
   ndb_mgm_configuration * p = cr.getConfig(NDB_VERSION, NODE_TYPE_DB);
