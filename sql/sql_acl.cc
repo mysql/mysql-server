@@ -1613,6 +1613,7 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
   List_iterator <LEX_USER> str_list (user_list);
   LEX_USER *Str;
   TABLE_LIST tables[3];
+  bool create_new_users=0;
   DBUG_ENTER("mysql_table_grant");
 
   if (!initialized)
@@ -1680,6 +1681,8 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
     DBUG_RETURN(-1);				/* purecov: deadcode */
   }
 
+  if (!revoke_grant)
+    create_new_users= test_if_create_new_users(thd);
   int result=0;
   pthread_mutex_lock(&LOCK_grant);
   MEM_ROOT *old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
@@ -1705,8 +1708,7 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
 			    *Str,
 			    0,
 			   revoke_grant ? 'N' : 'Y',
-			   (revoke_grant ? 0 :
-			    test_if_create_new_users(thd))))
+			   create_new_users))
     {
       result= -1;				// Remember error
       continue;					// Add next user
