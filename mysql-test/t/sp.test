@@ -35,6 +35,9 @@ drop procedure foo42;
 create procedure u()
   use sptmp;
 
+--disable_warnings
+drop database if exists sptmp;
+--enable_warnings
 create database sptmp;
 use test;
 call u();

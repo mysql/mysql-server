@@ -27,29 +27,19 @@
 #include "sp_head.h"
 
 sp_pcontext::sp_pcontext()
-  : m_params(0), m_framesize(0), m_i(0), m_genlab(0)
+  : Sql_alloc(), m_params(0), m_framesize(0), m_genlab(0)
 {
-  m_pvar_size = 16;
-  m_pvar = (sp_pvar_t *)my_malloc(m_pvar_size * sizeof(sp_pvar_t), MYF(MY_WME));
-  if (m_pvar)
-    memset(m_pvar, 0, m_pvar_size * sizeof(sp_pvar_t));
+  VOID(my_init_dynamic_array(&m_pvar, sizeof(sp_pvar_t *), 16, 8));
   m_label.empty();
 }
 
 void
-sp_pcontext::grow()
+sp_pcontext::destroy()
 {
-  uint sz = m_pvar_size + 8;
-  sp_pvar_t *a = (sp_pvar_t *)my_realloc((char *)m_pvar,
-					 sz * sizeof(sp_pvar_t),
-					 MYF(MY_WME | MY_ALLOW_ZERO_PTR));
-
-  if (a)
-  {
-    m_pvar_size = sz;
-    m_pvar = a;
-  }
+  delete_dynamic(&m_pvar);
+  m_label.empty();
 }
+
 
 /* This does a linear search (from newer to older variables, in case
 ** we have shadowed names).
@@ -61,19 +51,20 @@ sp_pcontext::grow()
 sp_pvar_t *
 sp_pcontext::find_pvar(LEX_STRING *name)
 {
-  uint i = m_i;
+  uint i = m_pvar.elements;
 
   while (i-- > 0)
   {
-    uint len= (m_pvar[i].name.length > name->length ?
-	       m_pvar[i].name.length : name->length);
+    sp_pvar_t *p= find_pvar(i);
+    uint len= (p->name.length > name->length ?
+	       p->name.length : name->length);
 
     if (my_strncasecmp(system_charset_info,
 		       name->str,
-		       m_pvar[i].name.str,
+		       p->name.str,
 		       len) == 0)
     {
-      return m_pvar + i;
+      return p;
     }
   }
   return NULL;
@@ -83,26 +74,26 @@ void
 sp_pcontext::push(LEX_STRING *name, enum enum_field_types type,
 		  sp_param_mode_t mode)
 {
-  if (m_i >= m_pvar_size)
-    grow();
-  if (m_i < m_pvar_size)
+  sp_pvar_t *p= (sp_pvar_t *)sql_alloc(sizeof(sp_pvar_t));
+
+  if (p)
   {
-    if (m_i == m_framesize)
+    if (m_pvar.elements == m_framesize)
       m_framesize += 1;
-    m_pvar[m_i].name.str= name->str;
-    m_pvar[m_i].name.length= name->length,
-    m_pvar[m_i].type= type;
-    m_pvar[m_i].mode= mode;
-    m_pvar[m_i].offset= m_i;
-    m_pvar[m_i].isset= (mode == sp_param_out ? FALSE : TRUE);
-    m_i += 1;
+    p->name.str= name->str;
+    p->name.length= name->length;
+    p->type= type;
+    p->mode= mode;
+    p->offset= m_pvar.elements;
+    p->isset= (mode == sp_param_out ? FALSE : TRUE);
+    insert_dynamic(&m_pvar, (gptr)&p);
   }
 }
 
 sp_label_t *
 sp_pcontext::push_label(char *name, uint ip)
 {
-  sp_label_t *lab = (sp_label_t *)my_malloc(sizeof(sp_label_t), MYF(MY_WME));
+  sp_label_t *lab = (sp_label_t *)sql_alloc(sizeof(sp_label_t));
 
   if (lab)
   {

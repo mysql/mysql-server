@@ -52,21 +52,15 @@ public:
   List<char *> m_tables;	// Used tables.
 #endif
 
-  static void *operator new(size_t size)
-  {
-    return (void*) sql_alloc((uint) size);
-  }
-
-  static void operator delete(void *ptr, size_t size)
-  {
-    /* Empty */
-  }
-
   sp_head(LEX_STRING *name, LEX *lex);
 
   int
   create(THD *thd);
   
+  // Free memory
+  void
+  destroy();
+
   int
   execute_function(THD *thd, Item **args, uint argcount, Item **resp);
 
@@ -134,11 +128,13 @@ private:
   inline sp_instr *
   get_instr(uint i)
   {
-    sp_instr *in= NULL;
+    sp_instr *ip;
 
     if (i < m_instr.elements)
-      get_dynamic(&m_instr, (gptr)&in, i);
-    return in;
+      get_dynamic(&m_instr, (gptr)&ip, i);
+    else
+      ip= NULL;
+    return ip;
   }
 
   int
