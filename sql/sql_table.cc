@@ -2416,8 +2416,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   query_cache_invalidate3(thd, table_list, 0);
 
 end_temporary:
-  sprintf(tmp_name,ER(ER_INSERT_INFO),(ulong) (copied+deleted),
-	  (ulong) deleted, thd->cuted_fields);
+  sprintf(tmp_name, ER(ER_INSERT_INFO), (ulong) (copied + deleted),
+	  (ulong) deleted, (ulong) thd->cuted_fields);
   send_ok(thd,copied+deleted,0L,tmp_name);
   thd->some_tables_deleted=0;
   DBUG_RETURN(0);
