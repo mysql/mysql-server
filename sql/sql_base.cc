@@ -919,10 +919,10 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     {
       if (table->s->key_length == key_length &&
 	  !memcmp(table->s->table_cache_key,key,key_length) &&
-	  !my_strcasecmp(system_charset_info, table->alias, alias) &&
-	  table->query_id != thd->query_id)
+	  !my_strcasecmp(system_charset_info, table->alias, alias))
       {
-	table->query_id=thd->query_id;
+	if (table->query_id != thd->query_id)
+	  table->query_id=thd->query_id;
         DBUG_PRINT("info",("Using locked table"));
 	goto reset;
       }

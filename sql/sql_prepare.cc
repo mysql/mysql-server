@@ -1541,9 +1541,11 @@ static int check_prepared_statement(Prepared_statement *stmt,
   if (lex->sql_command != SQLCOM_CREATE_PROCEDURE &&
       lex->sql_command != SQLCOM_CREATE_SPFUNCTION)
   {
-    /* the error is print inside */
-    if (sp_cache_functions(thd, lex))
-      DBUG_RETURN(1);
+    /* The error is printed inside */
+    if (sp_cache_routines(thd, lex, TYPE_ENUM_FUNCTION))
+      DBUG_RETURN(-1);
+    if (sp_cache_routines(thd, lex, TYPE_ENUM_PROCEDURE))
+      DBUG_RETURN(-1);
   }
 
   switch (sql_command) {
