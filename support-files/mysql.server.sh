@@ -137,7 +137,7 @@ case "$mode" in
          then echo " done"
       fi
       # delete lock for RedHat / SuSE
-      if test -e /var/lock/subsys/mysql
+      if test -f /var/lock/subsys/mysql
       then
         rm /var/lock/subsys/mysql
       fi

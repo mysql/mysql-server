@@ -99,7 +99,7 @@ static void berkeley_print_error(const char *db_errpfx, char *buffer);
 static byte* bdb_get_key(BDB_SHARE *share,uint *length,
 			 my_bool not_used __attribute__((unused)));
 static BDB_SHARE *get_share(const char *table_name, TABLE *table);
-static int free_share(BDB_SHARE *share, TABLE *table);
+static int free_share(BDB_SHARE *share, TABLE *table, uint hidden_primary_key);
 static int write_status(DB *status_block, char *buff, uint length);
 static void update_status(BDB_SHARE *share, TABLE *table);
 static void berkeley_noticecall(DB_ENV *db_env, db_notices notice);
@@ -465,7 +465,7 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
   {
     if ((error=db_create(&file, db_env, 0)))
     {
-      free_share(share,table);
+      free_share(share,table, hidden_primary_key);
       my_free(rec_buff,MYF(0));
       my_free(alloc_ptr,MYF(0));
       my_errno=error;
@@ -482,7 +482,7 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 					   2 | 4),
 			   "main", DB_BTREE, open_mode,0))))
     {
-      free_share(share,table);
+      free_share(share,table, hidden_primary_key);
       my_free(rec_buff,MYF(0));
       my_free(alloc_ptr,MYF(0));
       my_errno=error;
@@ -550,12 +550,11 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 
 int ha_berkeley::close(void)
 {
-  uint keys=table->keys + test(hidden_primary_key);
   DBUG_ENTER("ha_berkeley::close");
 
   my_free(rec_buff,MYF(MY_ALLOW_ZERO_PTR));
   my_free(alloc_ptr,MYF(MY_ALLOW_ZERO_PTR));
-  DBUG_RETURN(free_share(share,table));
+  DBUG_RETURN(free_share(share,table, hidden_primary_key));
 }
 
 
@@ -796,18 +795,23 @@ int ha_berkeley::write_row(byte * record)
   }
   else
   {
+    DB_TXN *sub_trans = transaction;
+    ulong thd_options = table->in_use->options;
     for (uint retry=0 ; retry < berkeley_trans_retry ; retry++)
     {
-      uint keynr;
-      DB_TXN *sub_trans;
-      if ((error=txn_begin(db_env, transaction, &sub_trans, 0)))
-	break;
-      DBUG_PRINT("trans",("starting subtransaction"));
+      key_map changed_keys = 0;
+      if (using_ignore && (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
+      {
+	if ((error=txn_begin(db_env, transaction, &sub_trans, 0)))
+	  break;
+	DBUG_PRINT("trans",("starting subtransaction"));
+      }
       if (!(error=file->put(file, sub_trans, create_key(&prim_key, primary_key,
 							key_buff, record),
 			    &row, key_type[primary_key])))
       {
-	for (keynr=0 ; keynr < table->keys ; keynr++)
+	changed_keys |= (key_map) 1 << primary_key;
+	for (uint keynr=0 ; keynr < table->keys ; keynr++)
 	{
 	  if (keynr == primary_key)
 	    continue;
@@ -819,26 +823,47 @@ int ha_berkeley::write_row(byte * record)
 	    last_dup_key=keynr;
 	    break;
 	  }
+	  changed_keys |= (key_map) 1 << keynr;
 	}
       }
       else
 	last_dup_key=primary_key;
-      if (!error)
+      if (error)
+      {
+	/* Remove inserted row */
+	DBUG_PRINT("error",("Got error %d",error));
+	if (using_ignore)
+	{
+	  int new_error = 0;
+	  if (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS)
+	  {
+	    DBUG_PRINT("trans",("aborting subtransaction"));
+	    new_error=txn_abort(sub_trans);
+	  }
+	  else if (changed_keys)
+	  {
+	    new_error = 0;
+	    for (uint keynr=0; changed_keys; keynr++, changed_keys >>= 1)
+	    {
+	      if (changed_keys & 1)
+	      {
+		if ((new_error = remove_key(sub_trans, keynr, record,
+					    (DBT*) 0, &prim_key)))
+		  break;
+	      }
+	    }
+	  }
+	  if (new_error)
+	  {
+	    error=new_error;			// This shouldn't happen
+	    break;
+	  }
+	}
+      }
+      else if (using_ignore && (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
       {
 	DBUG_PRINT("trans",("committing subtransaction"));
 	error=txn_commit(sub_trans, 0);
-      }
-      else
-      {
-	/* Remove inserted row */
-	int new_error;
-	DBUG_PRINT("error",("Got error %d",error));
-	DBUG_PRINT("trans",("aborting subtransaction"));
-	if ((new_error=txn_abort(sub_trans)))
-	{
-	  error=new_error;			// This shouldn't happen
-	  break;
-	}
       }
       if (error != DB_LOCK_DEADLOCK)
 	break;
@@ -1126,7 +1151,7 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
   packed_record may be NULL if the key is unique
 */
 
-int ha_berkeley::remove_key(DB_TXN *sub_trans, uint keynr, const byte *record,
+int ha_berkeley::remove_key(DB_TXN *trans, uint keynr, const byte *record,
 			    DBT *packed_record,
 			    DBT *prim_key)
 {
@@ -1139,7 +1164,7 @@ int ha_berkeley::remove_key(DB_TXN *sub_trans, uint keynr, const byte *record,
       HA_NOSAME || keynr == primary_key)
   {						// Unique key
     dbug_assert(keynr == primary_key || prim_key->data != key_buff2);
-    error=key_file[keynr]->del(key_file[keynr], sub_trans,
+    error=key_file[keynr]->del(key_file[keynr], trans,
 			       keynr == primary_key ?
 			       prim_key :
 			       create_key(&key, keynr, key_buff2, record),
@@ -1154,7 +1179,7 @@ int ha_berkeley::remove_key(DB_TXN *sub_trans, uint keynr, const byte *record,
     */
     dbug_assert(keynr != primary_key && prim_key->data != key_buff2);
     DBC *tmp_cursor;
-    if (!(error=file->cursor(key_file[keynr], sub_trans, &tmp_cursor, 0)))
+    if (!(error=file->cursor(key_file[keynr], trans, &tmp_cursor, 0)))
     {
       if (!(error=cursor->c_get(tmp_cursor,
 			       (keynr == primary_key ?
@@ -1178,10 +1203,10 @@ int ha_berkeley::remove_key(DB_TXN *sub_trans, uint keynr, const byte *record,
 /* Delete all keys for new_record */
 
 int ha_berkeley::remove_keys(DB_TXN *trans, const byte *record,
-			     DBT *new_record, DBT *prim_key, key_map keys,
-			     int result)
+			     DBT *new_record, DBT *prim_key, key_map keys)
 {
-  for (uint keynr=0 ; keys  ;keynr++, keys>>=1)
+  int result = 0;
+  for (uint keynr=0; keys; keynr++, keys>>=1)
   {
     if (keys & 1)
     {
@@ -1189,8 +1214,7 @@ int ha_berkeley::remove_keys(DB_TXN *trans, const byte *record,
       if (new_error)
       {
 	result=new_error;			// Return last error
-	if (trans)
-	  break;				// Let rollback correct things
+	break;					// Let rollback correct things
       }
     }
   }
@@ -1203,6 +1227,7 @@ int ha_berkeley::delete_row(const byte * record)
   int error;
   DBT row, prim_key;
   key_map keys=table->keys_in_use;
+  ulong thd_options = table->in_use->options;
   DBUG_ENTER("delete_row");
   statistic_increment(ha_delete_count,&LOCK_status);
 
@@ -1212,30 +1237,39 @@ int ha_berkeley::delete_row(const byte * record)
   if (hidden_primary_key)
     keys|= (key_map) 1 << primary_key;
 
+  /* Subtransactions may be used in order to retry the delete in
+     case we get a DB_LOCK_DEADLOCK error. */
+  DB_TXN *sub_trans = transaction;
   for (uint retry=0 ; retry < berkeley_trans_retry ; retry++)
   {
-    DB_TXN *sub_trans;
-    if ((error=txn_begin(db_env, transaction, &sub_trans, 0)))
-      break;
-    DBUG_PRINT("trans",("starting sub transaction"));
-    if (!error)
-      error=remove_keys(sub_trans, record, &row, &prim_key, keys,0);
-    if (!error)
+    if (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS)
+    {
+      if ((error=txn_begin(db_env, transaction, &sub_trans, 0)))
+	break;
+      DBUG_PRINT("trans",("starting sub transaction"));
+    }
+    error=remove_keys(sub_trans, record, &row, &prim_key, keys);
+    if (!error && (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
     {
       DBUG_PRINT("trans",("ending sub transaction"));
       error=txn_commit(sub_trans, 0);
     }
     if (error)
     {
-      /* retry */
-      int new_error;
       DBUG_PRINT("error",("Got error %d",error));
-      DBUG_PRINT("trans",("aborting subtransaction"));
-      if ((new_error=txn_abort(sub_trans)))
+      if (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS)
       {
-	error=new_error;			// This shouldn't happen
-	break;
+	/* retry */
+	int new_error;
+	DBUG_PRINT("trans",("aborting subtransaction"));
+	if ((new_error=txn_abort(sub_trans)))
+	{
+	  error=new_error;			// This shouldn't happen
+	  break;
+	}
       }
+      else
+	break;					// No retry - return error
     }
     if (error != DB_LOCK_DEADLOCK)
       break;
@@ -2058,16 +2092,17 @@ static BDB_SHARE *get_share(const char *table_name, TABLE *table)
   return share;
 }
 
-static int free_share(BDB_SHARE *share, TABLE *table)
+static int free_share(BDB_SHARE *share, TABLE *table, uint hidden_primary_key)
 {
   int error, result = 0;
+  uint keys=table->keys + test(hidden_primary_key);
   pthread_mutex_lock(&bdb_mutex);
   if (!--share->use_count)
   {
     DB **key_file = share->key_file;
     update_status(share,table);
     /* this does share->file->close() implicitly */
-    for (uint i=0; i < table->keys; i++)
+    for (uint i=0; i < keys; i++)
     {
       if (key_file[i] && (error=key_file[i]->close(key_file[i],0)))
 	result=error;
