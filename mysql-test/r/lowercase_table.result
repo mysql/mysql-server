@@ -13,3 +13,15 @@ show tables like 't_';
 Tables_in_test (t_)
 t3
 drop table t3;
+create table t1 (a int);
+select count(*) from T1;
+count(*)
+0
+select count(*) from t1;
+count(*)
+0
+select count(T1.a) from t1;
+Unknown table 'T1' in field list
+select count(bags.a) from t1 as Bags;
+Unknown table 'bags' in field list
+drop table t1;

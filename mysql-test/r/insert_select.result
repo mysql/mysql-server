@@ -65,3 +65,15 @@ INSERT INTO t1 (numeropost,icone,contenu,pseudo,date,signature,ip)
 SELECT 1718,icone,contenu,pseudo,date,signature,ip FROM t2
 WHERE numeropost=9 ORDER BY numreponse ASC;
 DROP TABLE IF EXISTS t1,t2;
+create table t1(a int, unique(a));
+insert into t1 values(2);
+create table t2(a int);
+insert into t2 values(1),(2);
+reset master;
+insert into t1 select * from t2;
+Duplicate entry '2' for key 1
+show binlog events;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.001	4	Start	1	4	Server ver: VERSION, Binlog ver: 3
+master-bin.001	79	Query	1	79	use test; insert into t1 select * from t2
+drop table t1, t2;

@@ -4324,6 +4324,7 @@ keyword:
 	| SHARE_SYM		{}
 	| SHUTDOWN		{}
 	| SLAVE			{}
+	| SOUNDS_SYM		{}
 	| SQL_CACHE_SYM		{}
 	| SQL_BUFFER_RESULT	{}
 	| SQL_NO_CACHE_SYM	{}
@@ -4348,8 +4349,8 @@ keyword:
 	| VARIABLES		{}
 	| VALUE_SYM		{}
 	| WORK_SYM		{}
+	| X509_SYM		{}
 	| YEAR_SYM		{}
-	| SOUNDS_SYM            {}
 	;
 
 /* Option functions */

@@ -13,12 +13,15 @@ DB=test
 DBPASSWD=
 VERBOSE=""
 USE_MANAGER=0
-TZ=GMT-3; export TZ # for UNIX_TIMESTAMP tests to work
+MY_TZ=GMT-3
+TZ=$MY_TZ; export TZ # for UNIX_TIMESTAMP tests to work
 
 #++
 # Program Definitions
 #--
 
+LC_COLLATE=C
+export LC_COLLATE
 PATH=/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin:/usr/openwin/bin:/usr/bin/X11:$PATH
 MASTER_40_ARGS="--rpl-recovery-rank=1 --init-rpl-role=master"
 
@@ -1163,9 +1166,18 @@ run_testcase ()
    if [ -f $master_opt_file ] ;
    then
      EXTRA_MASTER_OPT=`$CAT $master_opt_file | $SED -e "s;\\$MYSQL_TEST_DIR;$MYSQL_TEST_DIR;"`
+     case "$EXTRA_MASTER_OPT" in
+       --timezone=*)
+	 TZ=`$ECHO "$EXTRA_MASTER_OPT" | $SED -e "s;--timezone=;;"`
+	 export TZ
+	 # Note that this must be set to space, not "" for test-reset to work
+	 EXTRA_MASTER_OPT=" "
+	 ;;
+     esac
      stop_master
      echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
      start_master
+     TZ=$MY_TZ; export TZ
    else
      if [ ! -z "$EXTRA_MASTER_OPT" ] || [ x$MASTER_RUNNING != x1 ] || [ -f $master_init_script ]
      then
