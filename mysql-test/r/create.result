@@ -262,7 +262,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0'
-) TYPE=HEAP
+) TYPE=HEAP CHARSET=latin1
 drop table t1;
 SET SESSION table_type="gemini";
 SELECT @@table_type;
@@ -273,6 +273,6 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0'
-) TYPE=MyISAM
+) TYPE=MyISAM CHARSET=latin1
 SET SESSION table_type=default;
 drop table t1;
