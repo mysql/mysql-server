@@ -105,7 +105,7 @@ Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
 		       const char *field_name_par)
   :changed_during_fix_field(0), db_name(db_name_par),
    table_name(table_name_par), field_name(field_name_par),
-   depended_from(0)
+   cached_field_index(-1), depended_from(0)
 {
   name = (char*) field_name_par;
 }
@@ -117,6 +117,7 @@ Item_ident::Item_ident(THD *thd, Item_ident *item)
    db_name(item->db_name),
    table_name(item->table_name),
    field_name(item->field_name),
+   cached_field_index(item->cached_field_index),
    depended_from(item->depended_from)
 {}
 
