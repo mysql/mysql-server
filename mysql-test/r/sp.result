@@ -801,6 +801,17 @@ avg	0	4.4
 delete from t1;
 delete from t2;
 drop procedure bug1874;
+drop table if exists table_1;
+create table t3 (column_1_0 int);
+create procedure bug1653()
+update t3 set column_1 = 0;
+call bug1653();
+ERROR 42S22: Unknown column 'column_1' in 'field list'
+drop table t3;
+create table t3 (column_1 int);
+call bug1653();
+drop procedure bug1653;
+drop table t3;
 drop table if exists fac;
 create table fac (n int unsigned not null primary key, f bigint unsigned);
 create procedure ifac(n int unsigned)
@@ -948,6 +959,51 @@ drop procedure opp;
 drop procedure ip;
 show procedure status like '%p%';
 Name	Type	Creator	Modified	Created	Suid	Comment
+drop table if exists fib;
+create table fib ( f bigint unsigned not null );
+insert into fib values (1), (1);
+create procedure fib(n int unsigned)
+begin
+if n > 0 then
+begin
+declare x, y bigint unsigned;
+declare c cursor for select f from fib order by f desc limit 2;
+open c;
+fetch c into y;
+fetch c into x;
+close c;
+insert into fib values (x+y);
+call fib(n-1);
+end;
+end if;
+end;
+call fib(20);
+select * from fib order by f asc;
+f
+1
+1
+2
+3
+5
+8
+13
+21
+34
+55
+89
+144
+233
+377
+610
+987
+1597
+2584
+4181
+6765
+10946
+17711
+drop table fib;
+drop procedure fib;
 create procedure bar(x char(16), y int)
 comment "111111111111" sql security invoker
 insert into test.t1 values (x, y);

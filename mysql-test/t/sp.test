@@ -815,6 +815,11 @@ delete from t2|
 drop table t3|
 drop procedure cur2|
 
+
+#
+# Test cases for old bugs
+#
+
 #
 # BUG#822
 #
@@ -898,7 +903,6 @@ select @1, @2|
 drop table t70|
 drop procedure bug1656|
 
-
 #
 # BUG#1862
 #
@@ -919,7 +923,6 @@ call bug1862()|
 select * from t3|
 drop table t3|
 drop procedure bug1862|
-
 
 #
 # BUG#1874
@@ -944,6 +947,26 @@ select * from t2|
 delete from t1|
 delete from t2|
 drop procedure bug1874|
+
+#
+# BUG#1653
+#
+--disable_warnings
+drop table if exists table_1|
+--enable_warnings
+create table t3 (column_1_0 int)|
+
+create procedure bug1653()
+  update t3 set column_1 = 0|
+
+--error 1054
+call bug1653()|
+drop table t3|
+create table t3 (column_1 int)|
+call bug1653()|
+
+drop procedure bug1653|
+drop table t3|
 
 
 #
@@ -1071,7 +1094,47 @@ drop procedure ip|
 --replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
 show procedure status like '%p%'|
 
+
+# Fibonacci, for recursion test. (Yet Another Numerical series :)
+
+--disable_warnings
+drop table if exists fib|
+--enable_warnings
+create table fib ( f bigint unsigned not null )|
+
+insert into fib values (1), (1)|
+
+# We deliberately do it the awkward way, fetching the last two
+# values from the table, in order to exercise various statements
+# and table accesses at each turn.
+create procedure fib(n int unsigned)
+begin
+  if n > 0 then
+    begin
+      declare x, y bigint unsigned;
+      declare c cursor for select f from fib order by f desc limit 2;
+
+      open c;
+      fetch c into y;
+      fetch c into x;
+      close c;
+      insert into fib values (x+y);
+      call fib(n-1);
+    end;
+  end if;
+end|
+
+call fib(20)|
+
+select * from fib order by f asc|
+drop table fib|
+drop procedure fib|
+
+
+#
 # Comment & suid
+#
+
 create procedure bar(x char(16), y int)
  comment "111111111111" sql security invoker
  insert into test.t1 values (x, y)|
