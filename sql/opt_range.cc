@@ -2513,8 +2513,25 @@ QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, TABLE_REF *ref)
       key_part->part_length+=HA_KEY_BLOB_LENGTH;
     key_part->null_bit=     key_info->key_part[part].null_bit;
   }
-  if (!quick->ranges.push_back(range))
-    return quick;
+  if (quick->ranges.push_back(range))
+    goto err;
+
+  if (ref->null_ref_key)
+  {
+    QUICK_RANGE *null_range;
+
+    *ref->null_ref_key= 1;		// Set null byte then create a range
+    if (!(null_range= new QUICK_RANGE(ref->key_buff, ref->key_length,
+				      ref->key_buff, ref->key_length,
+				      EQ_RANGE)))
+      goto err;
+    *ref->null_ref_key= 0;		// Clear null byte
+    /* Do we need to do something with key_parts here? Looks like we don't */
+    if (quick->ranges.push_back(null_range))
+      goto err;
+  }
+
+  return quick;
 
 err:
   delete quick;
