@@ -193,6 +193,8 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
   thd->db_length=0;
   USER_RESOURCES ur;
 
+  if (passwd[0] && strlen(passwd) != SCRAMBLE_LENGTH)
+    return 1;
   if (!(thd->user = my_strdup(user, MYF(0))))
   {
     send_error(thd,ER_OUT_OF_RESOURCES);
@@ -419,7 +421,7 @@ end:
 }
 
 
-static void reset_mqh(THD *thd, LEX_USER *lu, bool get_them=false)
+static void reset_mqh(THD *thd, LEX_USER *lu, bool get_them= 0)
 {
 
   (void) pthread_mutex_lock(&LOCK_user_conn);
@@ -593,8 +595,6 @@ check_connections(THD *thd)
   char *user=   (char*) net->read_pos+5;
   char *passwd= strend(user)+1;
   char *db=0;
-  if (passwd[0] && strlen(passwd) != SCRAMBLE_LENGTH)
-    return ER_HANDSHAKE_ERROR;
   if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
     db=strend(passwd)+1;
   if (thd->client_capabilities & CLIENT_INTERACTIVE)
@@ -1914,59 +1914,24 @@ mysql_execute_command(THD *thd)
       DBUG_VOID_RETURN;
     }
     {
-      multi_update  *result;
-      uint table_count;
-      TABLE_LIST *auxi;
-      const char *msg=0;
-
-      for (auxi= (TABLE_LIST*) tables, table_count=0 ; auxi ; auxi=auxi->next)
-	table_count++;
-
+      const char *msg= 0;
       if (select_lex->order_list.elements)
-	msg="ORDER BY";
+	msg= "ORDER BY";
       else if (select_lex->select_limit && select_lex->select_limit !=
 	       HA_POS_ERROR)
-	msg="LIMIT";
+	msg= "LIMIT";
       if (msg)
       {
 	net_printf(thd, ER_WRONG_USAGE, "UPDATE", msg);
 	res= 1;
 	break;
       }
-
-      tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
-      if ((res=open_and_lock_tables(thd,tables)))
-	break;
-      unit->select_limit_cnt= HA_POS_ERROR;
-      if (!setup_fields(thd,tables,select_lex->item_list,1,0,0) &&
-	  !setup_fields(thd,tables,lex->value_list,0,0,0) &&
-	  !thd->fatal_error &&
-	  (result=new multi_update(thd,tables,select_lex->item_list,
-				   lex->duplicates, table_count)))
-      {
-	List <Item> total_list;
-	List_iterator <Item> field_list(select_lex->item_list);
-	List_iterator <Item> value_list(lex->value_list);
-	Item *item;
-	while ((item=field_list++))
-	  total_list.push_back(item);
-	while ((item=value_list++))
-	  total_list.push_back(item);
-
-	res= mysql_select(thd, tables, total_list,
-			  select_lex->where,
-			  (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
-			  (ORDER *)NULL,
-			  select_lex->options | thd->options |
-			  SELECT_NO_JOIN_CACHE,
-			  result, unit, select_lex, 0);
-	delete result;
-	if (thd->net.report_error)
-	  res= -1;
-      }
-      else
-	res= -1;					// Error is not sent
-      close_thread_tables(thd);
+      res= mysql_multi_update(thd,tables,
+			      &select_lex->item_list,
+			      &lex->value_list,
+			      select_lex->where,
+			      select_lex->options,
+			      lex->duplicates, unit, select_lex);
     }
     break;
   case SQLCOM_REPLACE:
@@ -3022,16 +2987,6 @@ mysql_parse(THD *thd, char *inBuf, uint length)
 }
 
 
-inline static void
-link_in_list(SQL_LIST *list,byte *element,byte **next)
-{
-  list->elements++;
-  (*list->next)=element;
-  list->next=next;
-  *next=0;
-}
-
-
 /*****************************************************************************
 ** Store field definition for create
 ** Return 0 if ok
@@ -3344,7 +3299,7 @@ void store_position_for_column(const char *name)
 }
 
 bool
-add_proc_to_list(Item *item)
+add_proc_to_list(THD* thd, Item *item)
 {
   ORDER *order;
   Item	**item_ptr;
@@ -3355,7 +3310,7 @@ add_proc_to_list(Item *item)
   *item_ptr= item;
   order->item=item_ptr;
   order->free_me=0;
-  link_in_list(&current_lex->proc_list,(byte*) order,(byte**) &order->next);
+  thd->lex.proc_list.link_in_list((byte*) order,(byte**) &order->next);
   return 0;
 }
 
@@ -3409,7 +3364,7 @@ bool add_to_list(SQL_LIST &list,Item *item,bool asc)
   order->asc = asc;
   order->free_me=0;
   order->used=0;
-  link_in_list(&list,(byte*) order,(byte**) &order->next);
+  list.link_in_list((byte*) order,(byte**) &order->next);
   DBUG_RETURN(0);
 }
 
@@ -3500,7 +3455,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(Table_ident *table,
       }
     }
   }
-  link_in_list(&table_list, (byte*) ptr, (byte**) &ptr->next);
+  table_list.link_in_list((byte*) ptr, (byte**) &ptr->next);
   DBUG_RETURN(ptr);
 }
 

@@ -1576,11 +1576,14 @@ void Field_medium::sql_type(String &res) const
 
 int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
 {
+  char *end;
   while (len && my_isspace(system_charset_info,*from))
   {
     len--; from++;
   }
   long tmp;
+  String tmp_str(from,len);
+  from= tmp_str.c_ptr();			// Add end null if needed
   int error= 0;
   errno=0;
   if (unsigned_flag)
@@ -1592,12 +1595,13 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
       error= 1;
     }
     else
-      tmp=(long) my_strntoul(cs,from,len,NULL,10);
+      tmp=(long) my_strntoul(cs,from,len,&end,10);
   }
   else
-    tmp=my_strntol(cs,from,len,NULL,10);
-  if (errno || current_thd->count_cuted_fields && !test_if_int(from,len))
-  {
+    tmp=my_strntol(cs,from,len,&end,10);
+  if (errno ||
+      (from+len != end && current_thd->count_cuted_fields &&
+       !test_if_int(from,len)))
     current_thd->cuted_fields++;
     error= 1;
   }
@@ -1821,11 +1825,14 @@ void Field_long::sql_type(String &res) const
 
 int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
 {
+  char *end;
   while (len && my_isspace(system_charset_info,*from))
   {						// For easy error check
     len--; from++;
   }
   longlong tmp;
+  String tmp_str(from,len);
+  from= tmp_str.c_ptr();			// Add end null if needed
   int error= 0;
   errno=0;
   if (unsigned_flag)
@@ -1837,15 +1844,14 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
       error= 1;
     }
     else
-      tmp=(longlong) my_strntoull(cs,from,len,NULL,10);
+      tmp=(longlong) my_strntoull(cs,from,len,&end,10);
   }
   else
-    tmp=my_strntoll(cs,from,len,NULL,10);
-  if (errno || current_thd->count_cuted_fields && !test_if_int(from,len))
-  {
-    current_thd->cuted_fields++;
-    error= 1;
-  }
+    tmp=my_strntoll(cs,from,len,&end,10);
+  if (errno ||
+      (from+len != end && current_thd->count_cuted_fields &&
+       !test_if_int(from,len)))
+      current_thd->cuted_fields++;
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {

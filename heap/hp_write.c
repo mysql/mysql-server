@@ -61,9 +61,13 @@ int heap_write(HP_INFO *info, const byte *record)
   info->current_ptr=pos;
   info->current_hash_ptr=0;
   info->update|=HA_STATE_AKTIV;
+#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+  DBUG_EXECUTE("check_heap",heap_check_heap(info, 0););
+#endif
   if (share->auto_key)
     heap_update_auto_increment(info, record);
   DBUG_RETURN(0);
+
 err:
   DBUG_PRINT("info",("Duplicate key: %d", keydef - share->keydef));
   info->errkey= keydef - share->keydef;
@@ -83,6 +87,7 @@ err:
   *((byte**) pos)=share->del_link;
   share->del_link=pos;
   pos[share->reclength]=0;			/* Record deleted */
+
   DBUG_RETURN(my_errno);
 } /* heap_write */
 

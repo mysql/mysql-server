@@ -445,6 +445,8 @@ void init_io_cache_share(IO_CACHE *info, IO_CACHE_SHARE *s, uint num_threads)
   s->active=0; /* to catch errors */
   info->share=s;
   info->read_function=_my_b_read_r;
+  /* Ensure that the code doesn't use pointer to the IO_CACHE object */
+  info->current_pos= info->current_end= 0;
 }
 
 /*

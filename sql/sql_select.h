@@ -115,7 +115,8 @@ typedef struct st_position {			/* Used in find_best */
 
 /* Param to create temporary tables when doing SELECT:s */
 
-class TMP_TABLE_PARAM {
+class TMP_TABLE_PARAM :public Sql_alloc
+{
  public:
   List<Item> copy_funcs;
   List_iterator_fast<Item> copy_funcs_it;
@@ -321,12 +322,12 @@ class store_key_field: public store_key
       copy_field.set(to_field,from_field,0);
     }
   }
- bool copy()
- {
-   copy_field.do_copy(&copy_field);
-   return err != 0;
- }
- const char *name() const { return field_name; }
+  bool copy()
+  {
+    copy_field.do_copy(&copy_field);
+    return err != 0;
+  }
+  const char *name() const { return field_name; }
 };
 
 
@@ -343,8 +344,7 @@ public:
   {}
   bool copy()
   {
-    (void) item->save_in_field(to_field);
-    return err != 0;
+    return item->save_in_field(to_field, 1) || err != 0;
   }
   const char *name() const { return "func"; }
 };
@@ -367,7 +367,8 @@ public:
     if (!inited)
     {
       inited=1;
-      (void)item->save_in_field(to_field);
+      if (item->save_in_field(to_field, 1))
+	err= 1;
     }
     return err != 0;
   }
@@ -375,3 +376,4 @@ public:
 };
 
 bool cp_buffer_from_ref(TABLE_REF *ref);
+bool error_if_full_join(JOIN *join);

@@ -6,7 +6,7 @@ select 1 | NULL,1 & NULL,1+NULL,1-NULL;
 NULL	NULL	NULL	NULL
 select NULL=NULL,NULL<>NULL,IFNULL(NULL,1.1)+0,IFNULL(NULL,1) | 0;
 NULL=NULL	NULL<>NULL	IFNULL(NULL,1.1)+0	IFNULL(NULL,1) | 0
-NULL	NULL	1.1	1
+NULL	NULL	1	1
 select strcmp("a",NULL),(1<NULL)+0.0,NULL regexp "a",null like "a%","a%" like null;
 strcmp("a",NULL)	(1<NULL)+0.0	NULL regexp "a"	null like "a%"	"a%" like null
 NULL	NULL	NULL	NULL	NULL
@@ -56,3 +56,20 @@ indexed_field
 NULL
 NULL
 DROP TABLE t1;
+create table t1 (a int, b int) type=myisam;
+insert into t1 values(20,null);
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a;
+b	ifnull(t2.b,"this is null")
+NULL	this is null
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a order by 1;
+b	ifnull(t2.b,"this is null")
+NULL	this is null
+insert into t1 values(10,null);
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a order by 1;
+b	ifnull(t2.b,"this is null")
+NULL	this is null
+NULL	this is null
+drop table t1;

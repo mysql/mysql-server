@@ -75,7 +75,7 @@ static int make_new_olap_select(LEX *lex, SELECT_LEX *select_lex, List<Item> new
 	    !strcmp(((Item_field*)new_item)->table_name,iif->table_name) &&
 	    !strcmp(((Item_field*)new_item)->field_name,iif->field_name))
 	{
-	  not_found=false;
+	  not_found= 0;
 	  ((Item_field*)new_item)->db_name=iif->db_name;
 	  Item_field *new_one=new Item_field(iif->db_name, iif->table_name, iif->field_name);
 	  privlist.push_back(new_one);
@@ -151,7 +151,7 @@ int handle_olaps(LEX *lex, SELECT_LEX *select_lex)
     if (cursor->do_redirect)
     {
       cursor->table= ((TABLE_LIST*) cursor->table)->table;
-      cursor->do_redirect=false;
+      cursor->do_redirect= 0;
     }
   }
 
