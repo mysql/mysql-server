@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#include "m_ctype.h"
+
 /* === regex2.h === */
 #ifdef _WIN64
 typedef __int64 regoff_t;
@@ -17,6 +19,7 @@ typedef struct {
 	size_t re_nsub;		/* number of parenthesized subexpressions */
 	const char *re_endp;	/* end pointer for REG_PEND */
 	struct re_guts *re_g;	/* none of your business :-) */
+	CHARSET_INFO *charset;	/* For ctype things */
 } regex_t;
 typedef struct {
 	regoff_t rm_so;		/* start of match */
@@ -25,7 +28,7 @@ typedef struct {
 
 
 /* === regcomp.c === */
-extern int regcomp(regex_t *, const char *, int);
+extern int regcomp(regex_t *, const char *, int, CHARSET_INFO *charset);
 #define	REG_BASIC	0000
 #define	REG_EXTENDED	0001
 #define	REG_ICASE	0002

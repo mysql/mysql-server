@@ -8,7 +8,12 @@ create table t1 (n int not null primary key) type=myisam;
 begin work;
 insert into t1 values (4);
 insert into t1 values (5);
-# Should give an error
-!$1196 rollback;
+rollback;
+select @@warning_count;
+select @@error_count;
+show warnings;
+show errors;
 select * from t1;
+select @@warning_count;
+show warnings;
 drop table t1;

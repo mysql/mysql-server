@@ -44,7 +44,7 @@ static void unlink_blobs(register TABLE *table);
   Resets form->time_stamp if a timestamp value is set
 */
 
-static int
+int
 check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 		    List<Item> &values, ulong counter)
 {
@@ -335,7 +335,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
 
   if (values_list.elements == 1 && (!(thd->options & OPTION_WARNINGS) ||
 				    !thd->cuted_fields))
-    send_ok(&thd->net,info.copied+info.deleted,id);
+    send_ok(thd,info.copied+info.deleted,id);
   else
   {
     char buff[160];
@@ -347,7 +347,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
     else
       sprintf(buff,ER(ER_INSERT_INFO),info.records,info.deleted,
 	      thd->cuted_fields);
-    ::send_ok(&thd->net,info.copied+info.deleted,(ulonglong)id,buff);
+    ::send_ok(thd,info.copied+info.deleted,(ulonglong)id,buff);
   }
   DBUG_RETURN(0);
 
@@ -669,7 +669,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	delete tmp;
 	thd->fatal_error=1;
 	pthread_mutex_unlock(&LOCK_delayed_create);
-	net_printf(&thd->net,ER_CANT_CREATE_THREAD,error);
+	net_printf(thd,ER_CANT_CREATE_THREAD,error);
 	DBUG_RETURN(0);
       }
 
@@ -1274,10 +1274,11 @@ bool delayed_insert::handle_inserts(void)
 ***************************************************************************/
 
 int
-select_insert::prepare(List<Item> &values)
+select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("select_insert::prepare");
 
+  unit= u;
   save_time_stamp=table->time_stamp;
   if (check_insert_fields(thd,table,*fields,values,1))
     DBUG_RETURN(1);
@@ -1310,9 +1311,9 @@ select_insert::~select_insert()
 
 bool select_insert::send_data(List<Item> &values)
 {
-  if (thd->offset_limit)
+  if (unit->offset_limit_cnt)
   {						// using limit offset,count
-    thd->offset_limit--;
+    unit->offset_limit_cnt--;
     return 0;
   }
   if (fields->elements)
@@ -1333,7 +1334,7 @@ bool select_insert::send_data(List<Item> &values)
 
 void select_insert::send_error(uint errcode,const char *err)
 {
-  ::send_error(&thd->net,errcode,err);
+  ::send_error(thd,errcode,err);
   table->file->extra(HA_EXTRA_NO_CACHE);
   table->file->activate_all_index(thd);
   ha_rollback_stmt(thd);
@@ -1359,7 +1360,7 @@ bool select_insert::send_eof()
   if (error)
   {
     table->file->print_error(error,MYF(0));
-    ::send_error(&thd->net);
+    ::send_error(thd);
     return 1;
   }
   else
@@ -1373,7 +1374,7 @@ bool select_insert::send_eof()
 	      thd->cuted_fields);
     if (last_insert_id)
       thd->insert_id(last_insert_id);		// For update log
-    ::send_ok(&thd->net,info.copied,last_insert_id,buff);
+    ::send_ok(thd,info.copied,last_insert_id,buff);
     mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
@@ -1391,10 +1392,11 @@ bool select_insert::send_eof()
 ***************************************************************************/
 
 int
-select_create::prepare(List<Item> &values)
+select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("select_create::prepare");
 
+  unit= u;
   table=create_table_from_items(thd, create_info, db, name,
 				extra_fields, keys, &values, &lock);
   if (!table)
@@ -1424,9 +1426,9 @@ select_create::prepare(List<Item> &values)
 
 bool select_create::send_data(List<Item> &values)
 {
-  if (thd->offset_limit)
+  if (unit->offset_limit_cnt)
   {						// using limit offset,count
-    thd->offset_limit--;
+    unit->offset_limit_cnt--;
     return 0;
   }
   fill_record(field,values);

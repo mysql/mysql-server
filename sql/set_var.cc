@@ -24,8 +24,9 @@
   - Use one of the 'sys_var... classes from set_var.h or write a specific
     one for the variable type.
   - Define it in the 'variable definition list' in this file.
-  - If the variable should be changeable, it should be added to the
-    'list of all variables' list in this file.
+  - If the variable should be changeable or one should be able to access it
+    with @@variable_name, it should be added to the 'list of all variables'
+    list in this file.
   - If the variable should be changed from the command line, add a definition
     of it in the my_option structure list in mysqld.dcc
   - If the variable should show up in 'show variables' add it to the
@@ -82,6 +83,8 @@ static void fix_net_retry_count(THD *thd, enum_var_type type);
 static void fix_max_join_size(THD *thd, enum_var_type type);
 static void fix_query_cache_size(THD *thd, enum_var_type type);
 static void fix_key_buffer_size(THD *thd, enum_var_type type);
+static byte *get_error_count(THD *thd);
+static byte *get_warning_count(THD *thd);
 
 /*
   Variable definition list
@@ -147,6 +150,8 @@ sys_var_long_ptr	sys_max_connect_errors("max_connect_errors",
 					       &max_connect_errors);
 sys_var_long_ptr	sys_max_delayed_threads("max_delayed_threads",
 						&max_insert_delayed_threads);
+sys_var_thd_ulong	sys_max_error_count("max_error_count",
+					    &SV::max_error_count);
 sys_var_thd_ulong	sys_max_heap_table_size("max_heap_table_size",
 						&SV::max_heap_table_size);
 sys_var_thd_ulong	sys_max_join_size("max_join_size",
@@ -157,6 +162,8 @@ sys_var_thd_ulong	sys_sql_max_join_size("sql_max_join_size",
 					      &SV::max_join_size,
 					      fix_max_join_size);
 #endif
+sys_var_thd_ulong	sys_max_prep_stmt_count("max_prepared_statements",
+						&SV::max_prep_stmt_count);
 sys_var_thd_ulong	sys_max_sort_length("max_sort_length",
 					    &SV::max_sort_length);
 sys_var_long_ptr	sys_max_user_connections("max_user_connections",
@@ -220,8 +227,6 @@ sys_var_thd_ulong	sys_tmp_table_size("tmp_table_size",
 					   &SV::tmp_table_size);
 sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 					     &SV::net_wait_timeout);
-
-
 /*
   Variables that are bits in THD
 */
@@ -283,6 +288,15 @@ static sys_var_timestamp	sys_timestamp("timestamp");
 static sys_var_last_insert_id	sys_last_insert_id("last_insert_id");
 static sys_var_last_insert_id	sys_identity("identity");
 static sys_var_insert_id	sys_insert_id("insert_id");
+static sys_var_readonly		sys_error_count("error_count",
+						OPT_SESSION,
+						SHOW_LONG,
+						get_error_count);
+static sys_var_readonly		sys_warning_count("warning_count",
+						  OPT_SESSION,
+						  SHOW_LONG,
+						  get_warning_count);
+
 /* alias for last_insert_id() to be compatible with Sybase */
 static sys_var_slave_skip_counter sys_slave_skip_counter("sql_slave_skip_counter");
 
@@ -311,6 +325,7 @@ sys_var *sys_variables[]=
   &sys_delayed_insert_limit,
   &sys_delayed_insert_timeout,
   &sys_delayed_queue_size,
+  &sys_error_count,
   &sys_flush,
   &sys_flush_time,
   &sys_foreign_key_checks,
@@ -333,8 +348,10 @@ sys_var *sys_variables[]=
   &sys_max_connect_errors,
   &sys_max_connections,
   &sys_max_delayed_threads,
+  &sys_max_error_count,
   &sys_max_heap_table_size,
   &sys_max_join_size,
+  &sys_max_prep_stmt_count,
   &sys_max_sort_length,
   &sys_max_tmp_tables,
   &sys_max_user_connections,
@@ -375,7 +392,8 @@ sys_var *sys_variables[]=
   &sys_timestamp,
   &sys_tmp_table_size,
   &sys_tx_isolation,
-  &sys_unique_checks
+  &sys_unique_checks,
+  &sys_warning_count
 };
 
 
@@ -465,9 +483,11 @@ struct show_var_st init_vars[]= {
   {sys_max_binlog_size.name,    (char*) &sys_max_binlog_size,	    SHOW_SYS},
   {sys_max_connections.name,    (char*) &sys_max_connections,	    SHOW_SYS},
   {sys_max_connect_errors.name, (char*) &sys_max_connect_errors,    SHOW_SYS},
+  {sys_max_error_count.name,	(char*) &sys_max_error_count,	    SHOW_SYS},
   {sys_max_delayed_threads.name,(char*) &sys_max_delayed_threads,   SHOW_SYS},
   {sys_max_heap_table_size.name,(char*) &sys_max_heap_table_size,   SHOW_SYS},
   {sys_max_join_size.name,	(char*) &sys_max_join_size,	    SHOW_SYS},
+  {sys_max_prep_stmt_count.name,(char*) &sys_max_prep_stmt_count,   SHOW_SYS},
   {sys_max_sort_length.name,	(char*) &sys_max_sort_length,	    SHOW_SYS},
   {sys_max_user_connections.name,(char*) &sys_max_user_connections, SHOW_SYS},
   {sys_max_tmp_tables.name,	(char*) &sys_max_tmp_tables,   	    SHOW_SYS},
@@ -793,7 +813,7 @@ byte *sys_var_thd_bool::value_ptr(THD *thd, enum_var_type type)
 bool sys_var::check_enum(THD *thd, set_var *var, TYPELIB *enum_names)
 {
   char buff[80], *value;
-  String str(buff,sizeof(buff)), *res;
+  String str(buff, sizeof(buff), system_charset_info), *res;
 
   if (var->value->result_type() == STRING_RESULT)
   {
@@ -831,6 +851,10 @@ err:
 
   We have to use netprintf() instead of my_error() here as this is
   called on the parsing stage.
+
+  TODO:
+    With prepared statements/stored procedures this has to be fixed
+    to create an item that gets the current value at fix_fields() stage.
 */
 
 Item *sys_var::item(THD *thd, enum_var_type var_type)
@@ -839,7 +863,7 @@ Item *sys_var::item(THD *thd, enum_var_type var_type)
   {
     if (var_type != OPT_DEFAULT)
     {
-      net_printf(&thd->net,
+      net_printf(thd,
 		 var_type == OPT_GLOBAL ? ER_LOCAL_VARIABLE :
 		 ER_GLOBAL_VARIABLE, name);
       return 0;
@@ -857,10 +881,10 @@ Item *sys_var::item(THD *thd, enum_var_type var_type)
   case SHOW_CHAR:
   {
     char *str= (char*) value_ptr(thd, var_type);
-    return new Item_string(str,strlen(str));
+    return new Item_string(str, strlen(str), system_charset_info);
   }
   default:
-    net_printf(&thd->net, ER_VAR_CANT_BE_READ, name);
+    net_printf(thd, ER_VAR_CANT_BE_READ, name);
   }
   return 0;
 }
@@ -918,7 +942,7 @@ bool sys_var_thd_conv_charset::check(THD *thd, set_var *var)
 {
   CONVERT *tmp;
   char buff[80];
-  String str(buff,sizeof(buff)), *res;
+  String str(buff,sizeof(buff), system_charset_info), *res;
 
   if (!var->value)					// Default value
   {
@@ -1100,6 +1124,21 @@ static bool set_log_update(THD *thd, set_var *var)
   return 0;
 }
 
+static byte *get_warning_count(THD *thd)
+{
+  thd->sys_var_tmp.long_value=
+    (thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_NOTE] +
+     thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_WARN]);
+  return (byte*) &thd->sys_var_tmp.long_value;
+}
+
+static byte *get_error_count(THD *thd)
+{
+  thd->sys_var_tmp.long_value= 
+    thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_ERROR];
+  return (byte*) &thd->sys_var_tmp.long_value;
+}
+
 
 /****************************************************************************
   Main handling of variables:
@@ -1161,7 +1200,8 @@ void set_var_init()
 {
   extern struct my_option my_long_options[];	// From mysqld
 
-  hash_init(&system_variable_hash,array_elements(sys_variables),0,0,
+  hash_init(&system_variable_hash, system_charset_info,
+	    array_elements(sys_variables),0,0,
 	    (hash_get_key) get_sys_var_length,0, HASH_CASE_INSENSITIVE);
   sys_var **var, **end;
   for (var= sys_variables, end= sys_variables+array_elements(sys_variables) ;
@@ -1213,7 +1253,7 @@ sys_var *find_sys_var(const char *str, uint length)
 				       length ? length :
 				       strlen(str));
   if (!var)
-    net_printf(&current_thd->net, ER_UNKNOWN_SYSTEM_VARIABLE, (char*) str);
+    net_printf(current_thd, ER_UNKNOWN_SYSTEM_VARIABLE, (char*) str);
   return var;
 }
 
@@ -1285,7 +1325,7 @@ int set_var::check(THD *thd)
     return 0;
   }
 
-  if (value->fix_fields(thd,0))
+  if (value->fix_fields(thd, 0, &value))
     return -1;
   if (var->check_update_type(value->result_type()))
   {
@@ -1314,7 +1354,7 @@ int set_var::update(THD *thd)
 
 int set_var_user::check(THD *thd)
 {
-  return user_var_item->fix_fields(thd,0) ? -1 : 0;
+  return user_var_item->fix_fields(thd,0, (Item**) 0) ? -1 : 0;
 }
 
 

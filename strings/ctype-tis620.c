@@ -49,6 +49,8 @@
 #include "m_ctype.h"
 #include "t_ctype.h"
 
+#ifdef HAVE_CHARSET_tis620
+
 static uchar* thai2sortable(const uchar *tstr,uint len);
 
 #define BUFFER_MULTIPLY 4
@@ -535,7 +537,9 @@ static uchar* thai2sortable(const uchar * tstr,uint len)
    Arg: 2 Strings and it compare length
    Ret: strcmp result
 */
-int my_strnncoll_tis620(const uchar * s1, int len1, const uchar * s2, int len2)
+int my_strnncoll_tis620(CHARSET_INFO *cs __attribute__((unused)),
+                        const uchar * s1, uint len1, 
+                        const uchar * s2, uint len2)
 {
   uchar *tc1, *tc2;
   int i;
@@ -551,7 +555,9 @@ int my_strnncoll_tis620(const uchar * s1, int len1, const uchar * s2, int len2)
    Arg: Destination buffer, source string, dest length and source length
    Ret: Conveted string size
 */
-int my_strnxfrm_tis620(uchar * dest, const uchar * src, int len, int srclen)
+int my_strnxfrm_tis620(CHARSET_INFO *cs __attribute__((unused)),
+                       uchar * dest, uint len,
+                       const uchar * src, uint srclen)
 {
   uint bufSize;
   uchar *tmp;
@@ -607,7 +613,8 @@ int my_strxfrm_tis620(uchar * dest, const uchar * src, int len)
 #define wild_one '_'
 #define wild_many '%'
 
-my_bool my_like_range_tis620(const char *ptr, uint ptr_length, pchar escape,
+my_bool my_like_range_tis620(CHARSET_INFO *cs __attribute__((unused)),
+                       const char *ptr, uint ptr_length, pchar escape,
 		       uint res_length, char *min_str, char *max_str,
 		       uint *min_length, uint *max_length)
 {
@@ -677,3 +684,5 @@ void ThNormalize(uchar* ptr, uint field_length, const uchar* from, uint length)
     }
   }
 }
+
+#endif

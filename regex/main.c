@@ -74,7 +74,7 @@ char *argv[];
 		exit(status);
 	}
 
-	err = regcomp(&re, argv[optind++], copts);
+	err = regcomp(&re, argv[optind++], copts, default_charset_info);
 	if (err) {
 		len = regerror(err, &re, erbuf, sizeof(erbuf));
 		fprintf(stderr, "error %s, %d/%d `%s'\n",
@@ -226,7 +226,7 @@ int opts;			/* may not match f1 */
 	strcpy(f0copy, f0);
 	re.re_endp = (opts&REG_PEND) ? f0copy + strlen(f0copy) : NULL;
 	fixstr(f0copy);
-	err = regcomp(&re, f0copy, opts);
+	err = regcomp(&re, f0copy, opts, default_charset_info);
 	if (err != 0 && (!opt('C', f1) || err != efind(f2))) {
 		/* unexpected error or wrong error */
 		len = regerror(err, &re, erbuf, sizeof(erbuf));

@@ -24,6 +24,7 @@ void unireg_init(ulong options)
 {
   uint i;
   double nr;
+  CHARSET_INFO *cs;
   DBUG_ENTER("unireg_init");
 
   MYSYS_PROGRAM_DONT_USE_CURSES();
@@ -52,17 +53,6 @@ void unireg_init(ulong options)
   }
   specialflag|=options;			/* Set options from argv */
 
-  // The following is needed because of like optimization in select.cc
-
-  uchar max_char=my_sort_order[(uchar) max_sort_char];
-  for (i = 0; i < 256; i++)
-  {
-    if ((uchar) my_sort_order[i] > max_char)
-    {
-      max_char=(uchar) my_sort_order[i];
-	max_sort_char= (char) i;
-    }
-  }
   thread_stack_min=thread_stack - STACK_MIN_SIZE;
   DBUG_VOID_RETURN;
 }

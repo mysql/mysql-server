@@ -192,8 +192,9 @@ int key_cmp(TABLE *table,const byte *key,uint idx,uint key_length)
       if (!(key_part->key_type & (FIELDFLAG_NUMBER+FIELDFLAG_BINARY+
 				  FIELDFLAG_PACK)))
       {
-	if (my_sortcmp((char*) key,(char*) table->record[0]+key_part->offset,
-		       length))
+        /* BAR TODO: I'm not sure this should be system_charset_info */
+	if (my_sortcmp(system_charset_info,(char*) key,
+		       (char*) table->record[0]+key_part->offset,length))
 	  return 1;
       }
       else if (memcmp(key,table->record[0]+key_part->offset,length))

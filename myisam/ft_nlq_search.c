@@ -98,9 +98,10 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 
   while (!r)
   {
-    if (_mi_compare_text(aio->charset,
-			 aio->info->lastkey,keylen,
-			 aio->keybuff,keylen,0)) break;
+    if (mi_compare_text(aio->charset,
+			aio->info->lastkey,keylen,
+			aio->keybuff,keylen,0))
+     break;
 
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
 #ifdef EVAL_RUN
@@ -120,7 +121,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
     sdoc.doc.dpos=aio->info->lastpos;
 
     /* saving document matched into dtree */
-    if (!(selem=tree_insert(&aio->dtree, &sdoc, 0)))
+    if (!(selem=tree_insert(&aio->dtree, &sdoc, 0, aio->dtree.custom_arg)))
       return 1;
 
     sptr=(FT_SUPERDOC *)ELEMENT_KEY((&aio->dtree), selem);

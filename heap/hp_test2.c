@@ -26,7 +26,7 @@
 #define SAFEMALLOC
 #endif
 
-#include "heapdef.h"		/* Because of _hp_find_block */
+#include "heapdef.h"		/* Because of hp_find_block */
 #include <signal.h>
 
 #define MAX_RECORDS 100000
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
   const char *filename,*filename2;
   HP_INFO *file,*file2;
   HP_KEYDEF keyinfo[MAX_KEYS];
-  HP_KEYSEG keyseg[MAX_KEYS*5];
+  HA_KEYSEG keyseg[MAX_KEYS*5];
   HEAP_PTR position;
   MY_INIT(argv[0]);		/* init my_sys library & pthreads */
   LINT_INIT(position);
@@ -77,45 +77,53 @@ int main(int argc, char *argv[])
   keyinfo[0].seg=keyseg;
   keyinfo[0].keysegs=1;
   keyinfo[0].flag= 0;
+  keyinfo[0].algorithm= HA_KEY_ALG_HASH;
   keyinfo[0].seg[0].type=HA_KEYTYPE_BINARY;
   keyinfo[0].seg[0].start=0;
   keyinfo[0].seg[0].length=6;
   keyinfo[0].seg[0].null_bit=0;
+  keyinfo[0].seg[0].charset=default_charset_info;
   keyinfo[1].seg=keyseg+1;
   keyinfo[1].keysegs=2;
   keyinfo[1].flag=0;
+  keyinfo[1].algorithm= HA_KEY_ALG_HASH;
   keyinfo[1].seg[0].type=HA_KEYTYPE_BINARY;
   keyinfo[1].seg[0].start=7;
   keyinfo[1].seg[0].length=6;
   keyinfo[1].seg[0].null_bit=0;
+  keyinfo[1].seg[0].charset=default_charset_info;
   keyinfo[1].seg[1].type=HA_KEYTYPE_TEXT;
   keyinfo[1].seg[1].start=0;			/* key in two parts */
   keyinfo[1].seg[1].length=6;
   keyinfo[1].seg[1].null_bit=0;
+  keyinfo[1].seg[1].charset=default_charset_info;
   keyinfo[2].seg=keyseg+3;
   keyinfo[2].keysegs=1;
   keyinfo[2].flag=HA_NOSAME;
+  keyinfo[2].algorithm= HA_KEY_ALG_HASH;
   keyinfo[2].seg[0].type=HA_KEYTYPE_BINARY;
   keyinfo[2].seg[0].start=12;
   keyinfo[2].seg[0].length=8;
   keyinfo[2].seg[0].null_bit=0;
+  keyinfo[2].seg[0].charset=default_charset_info;
+  keyinfo[3].seg=keyseg+4;
   keyinfo[3].keysegs=1;
   keyinfo[3].flag=HA_NOSAME;
-  keyinfo[3].seg=keyseg+4;
+  keyinfo[3].algorithm= HA_KEY_ALG_HASH;
   keyinfo[3].seg[0].type=HA_KEYTYPE_BINARY;
   keyinfo[3].seg[0].start=37;
   keyinfo[3].seg[0].length=1;
   keyinfo[3].seg[0].null_bit=1;
   keyinfo[3].seg[0].null_pos=38;
+  keyinfo[3].seg[0].charset=default_charset_info;
 
   bzero((char*) key1,sizeof(key1));
   bzero((char*) key3,sizeof(key3));
 
   printf("- Creating heap-file\n");
-  if (heap_create(filename))
-    goto err;
-  if (!(file=heap_open(filename,2,keys,keyinfo,reclength,(ulong) flag*100000L,
-		       (ulong) recant/2)))
+  if (heap_create(filename,keys,keyinfo,reclength,(ulong) flag*100000L, 
+		(ulong) recant/2) ||
+      !(file= heap_open(filename, 2)))
     goto err;
   signal(SIGINT,endprog);
 
@@ -167,14 +175,14 @@ int main(int argc, char *argv[])
     if (j != 0)
     {
       sprintf(key,"%6d",j);
-      if (heap_rkey(file,record,0,key))
+      if (heap_rkey(file,record,0,key,6,0))
       {
 	printf("can't find key1: \"%s\"\n",key);
 	goto err;
       }
 #ifdef NOT_USED
-      if (file->current_ptr == _hp_find_block(&file->s->block,0) ||
-	  file->current_ptr == _hp_find_block(&file->s->block,1))
+      if (file->current_ptr == hp_find_block(&file->s->block,0) ||
+	  file->current_ptr == hp_find_block(&file->s->block,1))
 	continue;			/* Don't remove 2 first records */
 #endif
       if (heap_delete(file,record))
@@ -227,7 +235,7 @@ int main(int argc, char *argv[])
       if (!key1[j])
 	continue;
       sprintf(key,"%6d",j);
-      if (heap_rkey(file,record,0,key))
+      if (heap_rkey(file,record,0,key,6,0))
       {
 	printf("can't find key1: \"%s\"\n",key);
 	goto err;
@@ -277,7 +285,7 @@ int main(int argc, char *argv[])
       printf("- Read first key - next - delete - next -> last\n");
     DBUG_PRINT("progpos",("first - next - delete - next -> last"));
 
-    if (heap_rkey(file,record,0,key))
+    if (heap_rkey(file,record,0,key,6,0))
       goto err;
     if (heap_rnext(file,record3)) goto err;
     if (heap_delete(file,record3)) goto err;
@@ -306,7 +314,7 @@ int main(int argc, char *argv[])
     if (!silent)
       printf("- Read last key - delete - prev - prev - opt_delete - prev -> first\n");
 
-    if (heap_rlast(file,record3)) goto err;
+    if (heap_rlast(file,record3,0)) goto err;
     if (heap_delete(file,record3)) goto err;
     key_check-=atoi(record3);
     key1[atoi(record+keyinfo[0].seg[0].start)]--;
@@ -501,7 +509,7 @@ int main(int argc, char *argv[])
   }
   printf("- Read through all keys with first-next-last-prev\n");
   ant=0;
-  for (error=heap_rkey(file,record,0,key) ;
+  for (error=heap_rkey(file,record,0,key,6,0);
       ! error ;
        error=heap_rnext(file,record))
     ant++;
@@ -513,7 +521,7 @@ int main(int argc, char *argv[])
   }
 
   ant=0;
-  for (error=heap_rlast(file,record) ;
+  for (error=heap_rlast(file,record,0) ;
       ! error ;
       error=heap_rprev(file,record))
   {
@@ -530,7 +538,7 @@ int main(int argc, char *argv[])
   if (testflag == 4) goto end;
 
   printf("- Reading through all rows through keys\n");
-  if (!(file2=heap_open(filename,2,0,0,0,0,0)))
+  if (!(file2=heap_open(filename, 2)))
     goto err;
   if (heap_scan_init(file))
     goto err;
@@ -538,7 +546,7 @@ int main(int argc, char *argv[])
   {
     if (error == 0)
     {
-      if (heap_rkey(file2,record2,2,record+keyinfo[2].seg[0].start))
+      if (heap_rkey(file2,record2,2,record+keyinfo[2].seg[0].start,8,0))
       {
 	printf("can't find key3: \"%.8s\"\n",
 	       record+keyinfo[2].seg[0].start);
@@ -549,7 +557,8 @@ int main(int argc, char *argv[])
   heap_close(file2);
 
   printf("- Creating output heap-file 2\n");
-  if (!(file2=heap_open(filename2,2,1,keyinfo,reclength,0L,0L)))
+  if (heap_create(filename2,1,keyinfo,reclength,0L,0L) ||
+      !(file2= heap_open(filename2, 2)))
     goto err;
 
   printf("- Copying and removing records\n");

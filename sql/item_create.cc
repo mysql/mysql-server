@@ -96,6 +96,11 @@ Item *create_func_cot(Item* a)
 			   new Item_func_tan(a));
 }
 
+Item *create_func_crc32(Item* a)
+{
+  return new Item_func_crc32(a);
+}
+
 Item *create_func_date_format(Item* a,Item *b)
 {
   return new Item_func_date_format(a,b,0);
@@ -242,7 +247,7 @@ Item *create_func_lpad(Item* a, Item *b, Item *c)
 
 Item *create_func_ltrim(Item* a)
 {
-  return new Item_func_ltrim(a,new Item_string(" ",1));
+  return new Item_func_ltrim(a,new Item_string(" ",1,default_charset_info));
 }
 
 Item *create_func_md5(Item* a)
@@ -324,7 +329,7 @@ Item *create_func_rpad(Item* a, Item *b, Item *c)
 
 Item *create_func_rtrim(Item* a)
 {
-  return new Item_func_rtrim(a,new Item_string(" ",1));
+  return new Item_func_rtrim(a,new Item_string(" ",1,default_charset_info));
 }
 
 Item *create_func_sec_to_time(Item* a)
@@ -349,7 +354,7 @@ Item *create_func_sha(Item* a)
     
 Item *create_func_space(Item *a)
 {
-  return new Item_func_repeat(new Item_string(" ",1),a);
+  return new Item_func_repeat(new Item_string(" ",1,default_charset_info),a);
 }
 
 Item *create_func_soundex(Item* a)
@@ -394,7 +399,9 @@ Item *create_func_ucase(Item* a)
 
 Item *create_func_version(void)
 {
-  return new Item_string(NullS,server_version, (uint) strlen(server_version));
+  return new Item_string(NullS,server_version, 
+			 (uint) strlen(server_version),
+			 default_charset_info);
 }
 
 Item *create_func_weekday(Item* a)
@@ -443,4 +450,159 @@ Item *create_func_is_free_lock(Item* a)
 Item *create_func_quote(Item* a)
 {
   return new Item_func_quote(a);
+}
+
+Item *create_func_geometry_from_text(Item* a)
+{
+  return new Item_func_geometry_from_text(a);
+}
+
+Item *create_func_as_text(Item* a)
+{
+  return new Item_func_as_text(a);
+}
+
+Item *create_func_startpoint(Item* a)
+{
+  return new Item_func_spatial_decomp(a, Item_func::SP_STARTPOINT);
+}
+
+Item *create_func_endpoint(Item* a)
+{
+  return new Item_func_spatial_decomp(a, Item_func::SP_ENDPOINT);
+}
+
+Item *create_func_exteriorring(Item* a)
+{
+  return new Item_func_spatial_decomp(a, Item_func::SP_EXTERIORRING);
+}
+
+Item *create_func_pointn(Item* a, Item* b)
+{
+  return new Item_func_spatial_decomp_n(a,b,Item_func::SP_POINTN);
+}
+
+Item *create_func_interiorringn(Item* a, Item* b)
+{
+  return new Item_func_spatial_decomp_n(a,b,Item_func::SP_INTERIORRINGN);
+}
+
+Item *create_func_geometryn(Item* a, Item* b)
+{
+  return new Item_func_spatial_decomp_n(a,b,Item_func::SP_GEOMETRYN);
+}
+
+Item *create_func_centroid(Item* a)
+{
+  return new Item_func_centroid(a);
+}
+
+Item *create_func_envelope(Item* a)
+{
+  return new Item_func_envelope(a);
+}
+
+Item *create_func_equals(Item* a, Item* b)
+{
+  return new Item_func_spatial_rel(a, b, Item_func::SP_EQUALS_FUNC);
+}
+
+Item *create_func_disjoint(Item* a, Item* b)
+{
+  return new Item_func_spatial_rel(a, b, Item_func::SP_DISJOINT_FUNC);
+}
+
+Item *create_func_intersects(Item* a, Item* b)
+{
+  return new Item_func_spatial_rel(a, b, Item_func::SP_INTERSECTS_FUNC);
+}
+
+Item *create_func_touches(Item* a, Item* b)
+{
+  return new Item_func_spatial_rel(a, b, Item_func::SP_TOUCHES_FUNC);
+}
+
+Item *create_func_crosses(Item* a, Item* b)
+{
+  return new Item_func_spatial_rel(a, b, Item_func::SP_CROSSES_FUNC);
+}
+
+Item *create_func_within(Item* a, Item* b)
+{
+  return new Item_func_spatial_rel(a, b, Item_func::SP_WITHIN_FUNC);
+}
+
+Item *create_func_contains(Item* a, Item* b)
+{
+  return new Item_func_spatial_rel(a, b, Item_func::SP_CONTAINS_FUNC);
+}
+
+Item *create_func_overlaps(Item* a, Item* b)
+{
+  return new Item_func_spatial_rel(a, b, Item_func::SP_OVERLAPS_FUNC);
+}
+
+Item *create_func_isempty(Item* a)
+{
+  return new Item_func_isempty(a);
+}
+
+Item *create_func_issimple(Item* a)
+{
+  return new Item_func_issimple(a);
+}
+
+Item *create_func_isclosed(Item* a)
+{
+  return new Item_func_isclosed(a);
+}
+
+Item *create_func_geometry_type(Item* a)
+{
+  return new Item_func_geometry_type(a);
+}
+
+Item *create_func_dimension(Item* a)
+{
+  return new Item_func_dimension(a);
+}
+
+Item *create_func_x(Item* a)
+{
+  return new Item_func_x(a);
+}
+
+Item *create_func_y(Item* a)
+{
+  return new Item_func_y(a);
+}
+
+Item *create_func_numpoints(Item* a)
+{
+  return new Item_func_numpoints(a);
+}
+
+Item *create_func_numinteriorring(Item* a)
+{
+  return new Item_func_numinteriorring(a);
+}
+
+Item *create_func_numgeometries(Item* a)
+{
+  return new Item_func_numgeometries(a);
+}
+
+Item *create_func_area(Item* a)
+{
+  return new Item_func_area(a);
+}
+
+Item *create_func_glength(Item* a)
+{
+  return new Item_func_glength(a);
+}
+
+Item *create_func_point(Item* a, Item* b)
+{
+  return new Item_func_point(a,b);
 }

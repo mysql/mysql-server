@@ -687,7 +687,8 @@ static HUFF_COUNTS *init_huff_count(N_INFO *info,my_off_t records)
 	  (type == FIELD_NORMAL ||
 	   type == FIELD_SKIP_ZERO))
 	count[i].max_zero_fill= count[i].field_length;
-      init_tree(&count[i].int_tree,0,0,-1,(qsort_cmp2) compare_tree,0,NULL,NULL);
+      init_tree(&count[i].int_tree,0,0,-1,(qsort_cmp2) compare_tree,0,
+		NULL, NULL);
       if (records)
 	count[i].tree_pos=count[i].tree_buff =
 	  my_malloc(count[i].field_length > 1 ? tree_buff_length : 2,
@@ -765,7 +766,8 @@ static int get_statistic(MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 	if (count->tree_buff)
 	{
 	  global_count=count;
-	  if (!(element=tree_insert(&count->int_tree,pos,0)) ||
+	  if (!(element=tree_insert(&count->int_tree, pos, 0,
+	  			    count->int_tree.custom_arg)) ||
 	      ((element->count == 1 &&
 	       count->tree_buff + tree_buff_length <
 	       count->tree_pos + count->field_length) ||
@@ -1736,7 +1738,8 @@ static int compress_isam_file(MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 	  break;
 	case FIELD_INTERVALL:
 	  global_count=count;
-	  pos=(byte*) tree_search(&count->int_tree,start_pos);
+	  pos=(byte*) tree_search(&count->int_tree, start_pos,
+	  			  count->int_tree.custom_arg);
 	  intervall=(uint) (pos - count->tree_buff)/field_length;
 	  write_bits(tree->code[intervall],(uint) tree->code_len[intervall]);
 	  start_pos=end_pos;

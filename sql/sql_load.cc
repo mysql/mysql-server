@@ -292,7 +292,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   sprintf(name,ER(ER_LOAD_INFO),info.records,info.deleted,
 	  info.records-info.copied,thd->cuted_fields);
-  send_ok(&thd->net,info.copied+info.deleted,0L,name);
+  send_ok(thd,info.copied+info.deleted,0L,name);
   // on the slave thd->query is never initialized
   if (!thd->slave_thread)
     mysql_update_log.write(thd,thd->query,thd->query_length);
@@ -367,7 +367,7 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
 	    field->field_length)
 	  length=field->field_length;
 	save_chr=pos[length]; pos[length]='\0'; // Safeguard aganst malloc
-	field->store((char*) pos,length);
+	field->store((char*) pos,length,default_charset_info);
 	pos[length]=save_chr;
 	if ((pos+=length) > read_info.row_end)
 	  pos= read_info.row_end;	/* Fills rest with space */
@@ -436,7 +436,7 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
       }
       field->set_notnull();
       read_info.row_end[0]=0;			// Safe to change end marker
-      field->store((char*) read_info.row_start,length);
+      field->store((char*) read_info.row_start,length,default_charset_info);
     }
     if (read_info.error)
       break;
