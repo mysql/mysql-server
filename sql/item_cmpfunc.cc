@@ -2086,6 +2086,7 @@ void Item_cond::traverse_cond(Item_cond_traverser traverser,
     {
       item->traverse_cond(traverser, arg, order);
     }
+    (*traverser)(NULL, arg);
     break;
   case(POSTFIX):
     while ((item= li++))

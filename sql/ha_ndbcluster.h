@@ -64,7 +64,8 @@ typedef struct st_ndbcluster_share {
 typedef enum ndb_item_type {
   NDB_VALUE = 0,   // Qualified more with Item::Type
   NDB_FIELD = 1,   // Qualified from table definition
-  NDB_FUNCTION = 2 // Qualified from Item_func::Functype
+  NDB_FUNCTION = 2,// Qualified from Item_func::Functype
+  NDB_END_COND = 3 // End marker for condition group
 } NDB_ITEM_TYPE;
 
 typedef union ndb_item_qualification {
@@ -93,12 +94,12 @@ typedef union ndb_item_value {
 
 class Ndb_item {
  public:
+  Ndb_item(NDB_ITEM_TYPE item_type);
   Ndb_item(NDB_ITEM_TYPE item_type, 
 	   NDB_ITEM_QUALIFICATION item_qualification,
 	   const Item *item_value);
   Ndb_item(longlong int_value);
   Ndb_item(double real_value);
-  Ndb_item();
   Ndb_item(Field *field, int column_no);
   Ndb_item(Item_func::Functype func_type);
   ~Ndb_item();
@@ -376,13 +377,13 @@ class ha_ndbcluster: public handler
   */
   void cond_clear();
   bool serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond);
-  Ndb_cond * build_scan_filter_predicate(Ndb_cond* cond, 
-					 NdbScanFilter* filter);
-  Ndb_cond * build_scan_filter_group(Ndb_cond* cond, 
-				     NdbScanFilter* filter);
-  void build_scan_filter(Ndb_cond* cond, NdbScanFilter* filter);
-  void generate_scan_filter(Ndb_cond_stack* cond_stack, 
-			    NdbScanOperation* op);
+  int build_scan_filter_predicate(Ndb_cond* &cond, 
+				  NdbScanFilter* filter);
+  int build_scan_filter_group(Ndb_cond* &cond, 
+			      NdbScanFilter* filter);
+  int build_scan_filter(Ndb_cond* &cond, NdbScanFilter* filter);
+  int generate_scan_filter(Ndb_cond_stack* cond_stack, 
+			   NdbScanOperation* op);
 
   friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*);
