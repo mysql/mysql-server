@@ -1911,8 +1911,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
         /* Should have been checked in resolve_ref_in_select_and_group(). */
         DBUG_ASSERT(*ref && (*ref)->fixed);
 
-	Item_ref *rf= new Item_ref(last->ref_pointer_array + counter,
-                                   (char *)table_name, (char *)field_name);
+	Item_ref *rf= new Item_ref(ref, (char *)table_name, (char *)field_name);
 	if (!rf)
 	  return TRUE;
         thd->change_item_tree(reference, rf);
@@ -2864,7 +2863,7 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
           if (from_field != view_ref_found)
           {
             Item_field* fld;
-            if (!(fld= new Item_field(tmp)))
+            if (!(fld= new Item_field(from_field)))
               return TRUE;
             thd->change_item_tree(reference, fld);
             mark_as_dependent(thd, last, thd->lex->current_select, fld);
