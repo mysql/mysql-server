@@ -264,7 +264,28 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
 					sizeof(char*))))
     DBUG_RETURN(1);
   for (pos=table_names ; tables ; tables=tables->next)
-    *pos++= tables->real_name;
+  {
+    char *table_name;
+    if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+    {
+      TABLE **tbl=find_temporary_table(current_thd,
+          tables->db, tables->real_name);
+      if (!tbl)
+      {
+        table_name=sql_alloc(1+
+            my_snprintf(buff,FN_REFLEN,"%s/%s/%s",mysql_real_data_home,
+                        tables->db, tables->real_name));
+        if (!table_name)
+          DBUG_RETURN(1);
+        strcpy(table_name, buff);
+      }
+      else
+        table_name=(*tbl)->path;
+    }
+    else
+      table_name=tables->real_name;
+    *pos++= table_name;
+  }
   *pos=0;
   DBUG_RETURN(myrg_create(fn_format(buff,name,"","",2+4+16),
 			  (const char **) table_names, (my_bool) 0));
