@@ -256,11 +256,87 @@ static void setup_param_double(Item_param *param, uchar **pos)
   *pos+= 8;
 }
 
+static void setup_param_time(Item_param *param, uchar **pos)
+{
+  ulong length;
+
+  if ((length= get_param_length(pos)))
+  {
+    uchar *to= *pos;
+    TIME  tm;   
+    
+    tm.second_part= (length > 8 ) ? (ulong) sint4korr(to+7): 0;
+
+    tm.day=    (ulong) sint4korr(to+1);
+    tm.hour=   (uint) to[5];
+    tm.minute= (uint) to[6];
+    tm.second= (uint) to[7];
+
+    tm.year= tm.month= 0;
+    tm.neg= (bool)to[0];
+
+    param->set_time(&tm, TIMESTAMP_TIME);
+  }
+  *pos+= length;
+}
+
+static void setup_param_datetime(Item_param *param, uchar **pos)
+{
+  uint length= get_param_length(pos);
+ 
+  if (length)
+  {
+    uchar *to= *pos;
+    TIME  tm;
+    
+    tm.second_part= (length > 7 ) ? (ulong) sint4korr(to+7): 0;
+    
+    if (length > 4)
+    {
+      tm.hour=   (uint) to[4];
+      tm.minute= (uint) to[5];
+      tm.second= (uint) to[6];
+    }
+    else
+      tm.hour= tm.minute= tm.second= 0;
+    
+    tm.year=   (uint) sint2korr(to);
+    tm.month=  (uint) to[2];
+    tm.day=    (uint) to[3];
+    tm.neg=    0;
+
+    param->set_time(&tm, TIMESTAMP_FULL);
+  }
+  *pos+= length;
+}
+
+static void setup_param_date(Item_param *param, uchar **pos)
+{
+  ulong length;
+ 
+  if ((length= get_param_length(pos)))
+  {
+    uchar *to= *pos;
+    TIME tm;
+
+    tm.year =  (uint) sint2korr(to);
+    tm.month=  (uint) to[2];
+    tm.day= (uint) to[3];
+
+    tm.hour= tm.minute= tm.second= 0;
+    tm.second_part= 0;
+    tm.neg= 0;
+
+    param->set_time(&tm, TIMESTAMP_DATE);
+  }
+  *pos+= length;
+}
+
 static void setup_param_str(Item_param *param, uchar **pos)
 {
-  ulong len=get_param_length(pos);
+  ulong len= get_param_length(pos);
   param->set_value((const char *)*pos, len);
-  *pos+=len;        
+  *pos+= len;        
 }
 
 static void setup_param_functions(Item_param *param, uchar param_type)
@@ -289,6 +365,19 @@ static void setup_param_functions(Item_param *param, uchar param_type)
   case FIELD_TYPE_DOUBLE:
     param->setup_param_func= setup_param_double;
     param->item_result_type = REAL_RESULT;
+    break;
+  case FIELD_TYPE_TIME:
+    param->setup_param_func= setup_param_time;
+    param->item_result_type = STRING_RESULT;
+    break;
+  case FIELD_TYPE_DATE:
+    param->setup_param_func= setup_param_date;
+    param->item_result_type = STRING_RESULT;
+    break;
+  case FIELD_TYPE_DATETIME:
+  case FIELD_TYPE_TIMESTAMP:
+    param->setup_param_func= setup_param_datetime;
+    param->item_result_type = STRING_RESULT;
     break;
   default:
     param->setup_param_func= setup_param_str;
