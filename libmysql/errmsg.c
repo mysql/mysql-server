@@ -49,7 +49,8 @@ const char *client_errors[]=
   "Error on SHOW SLAVE STATUS:",
   "Error on SHOW SLAVE HOSTS:",
   "Error connecting to slave:",
-  "Error connecting to master:"
+  "Error connecting to master:",
+  "SSL connection error"
 };
 
 /* Start of code added by Roberto M. Serqueira - martinsc@uol.com.br - 05.24.2001 */
@@ -82,7 +83,8 @@ const char *client_errors[]=
   "Error on SHOW SLAVE STATUS:",
   "Error on SHOW SLAVE HOSTS:",
   "Error connecting to slave:",
-  "Error connecting to master:"
+  "Error connecting to master:",
+  "SSL connection error"
 };
 
 #else /* ENGLISH */
@@ -113,7 +115,8 @@ const char *client_errors[]=
   "Error on SHOW SLAVE STATUS:",
   "Error on SHOW SLAVE HOSTS:",
   "Error connecting to slave:",
-  "Error connecting to master:"
+  "Error connecting to master:",
+  "SSL connection error"
 };
 #endif
 
