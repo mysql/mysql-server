@@ -52,7 +52,7 @@ diff -r -c --exclude=*.info* glibc-2.2.4/nss/nsswitch.c glibc-2.2.4-new/nss/nssw
         while (isspace (line[0]))
   	++line;
 ***************
-*** 510,522 ****
+522
         if (name == line)
   	return result;
   
@@ -86,7 +86,7 @@ diff -r -c --exclude=*.info* glibc-2.2.4/nss/nsswitch.c glibc-2.2.4-new/nss/nssw
         if (new_service == NULL)
   	return result;
   
-!       *((char *) __mempcpy (new_service->name, name, name_alloc_len)) = '\0';
+!       *((char *) __mempcpy (new_service->name, name, name_alloc_len-1)) = '\0';
   
         /* Set default actions.  */
         new_service->actions[2 + NSS_STATUS_TRYAGAIN] = NSS_ACTION_CONTINUE;
