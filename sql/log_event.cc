@@ -2428,6 +2428,11 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   thd->query_length= 0;                         // Should not be needed
   thd->query_error= 0;
   clear_all_errors(thd, rli);
+  /*
+    Usually mysql_init_query() is called by mysql_parse(), but we need it here
+    as the present method does not call mysql_parse().
+  */
+  mysql_init_query(thd, 0, 0);
   if (!use_rli_only_for_errors)
   {
     /* Saved for InnoDB, see comment in Query_log_event::exec_event() */
@@ -2457,6 +2462,13 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = query_id++;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
+    /*
+      Initing thd->row_count is not necessary in theory as this variable has no
+      influence in the case of the slave SQL thread (it is used to generate a
+      "data truncated" warning but which is absorbed and never gets to the
+      error log); still we init it to avoid a Valgrind message.
+    */
+    mysql_reset_errors(thd);
 
     TABLE_LIST tables;
     bzero((char*) &tables,sizeof(tables));
