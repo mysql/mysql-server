@@ -14,14 +14,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Descript, check and repair of ISAM tables */
+/* Descript, check and repair of MyISAM tables */
 
 #include "ftdefs.h"
 #include <m_ctype.h>
 #include <stdarg.h>
 #include <getopt.h>
 #include <assert.h>
-#ifdef HAVE_SYS_VADVICE_H
+#ifdef HAVE_SYS_VADVISE_H
 #include <sys/vadvise.h>
 #endif
 #ifdef HAVE_SYS_MMAN_H
