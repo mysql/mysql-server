@@ -376,6 +376,7 @@ sp_head::reset_lex(THD *thd)
   /* We must reset ptr and end_of_query again */
   sublex->ptr= m_lex->ptr;
   sublex->end_of_query= m_lex->end_of_query;
+  sublex->tok_start= m_lex->tok_start;
   /* And keep the SP stuff too */
   sublex->sphead= m_lex->sphead;
   sublex->spcont= m_lex->spcont;
