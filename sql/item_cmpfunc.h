@@ -449,17 +449,19 @@ public:
   void update_used_tables()
   {
     if (!args[0]->maybe_null)
-      used_tables_cache=0;			/* is always false */
+    {
+      used_tables_cache= 0;			/* is always false */
+      cached_value= (longlong) 0;
+    }
     else
     {
       args[0]->update_used_tables();
-      used_tables_cache=args[0]->used_tables();
-    }
-    if (!used_tables_cache)
-    {
-      /* Remember if the value is always NULL or never NULL */
-      args[0]->val();
-      cached_value= args[0]->null_value ? (longlong) 1 : (longlong) 0;
+      if (!(used_tables_cache=args[0]->used_tables()))
+      {
+	/* Remember if the value is always NULL or never NULL */
+	args[0]->val();
+	cached_value= args[0]->null_value ? (longlong) 1 : (longlong) 0;
+      }
     }
   }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
