@@ -6441,7 +6441,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c removed 991020 (no DNS entry). New name 991026. Added 991121
 @c Statistics at http://mirror.borsen.dk/
-@c EMAIL: mirrorman@borsen.dk  (Michael Kyed)
+@c EMAIL: guru@borsen.dk (Jesper Angelo)
 @image{Flags/denmark} Denmark [Borsen] @
 @uref{ http://mysql.borsen.dk/, WWW}
 
