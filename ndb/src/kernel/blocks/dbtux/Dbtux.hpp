@@ -446,6 +446,9 @@ private:
     Uint32 m_nodeList;          // node cache of current operation
     Uint32 m_nodeFree;          // one node pre-allocated for insert
     DLList<ScanOp> m_scanList;  // current scans on this fragment
+    Uint32 m_tupIndexFragPtrI;
+    Uint32 m_tupTableFragPtrI[2];
+    Uint32 m_accTableFragPtrI[2];
     union {
     Uint32 nextPool;
     };
@@ -981,8 +984,13 @@ Dbtux::Frag::Frag(ArrayPool<ScanOp>& scanOpPool) :
   m_tree(),
   m_nodeList(RNIL),
   m_nodeFree(RNIL),
-  m_scanList(scanOpPool)
+  m_scanList(scanOpPool),
+  m_tupIndexFragPtrI(RNIL)
 {
+  m_tupTableFragPtrI[0] = RNIL;
+  m_tupTableFragPtrI[1] = RNIL;
+  m_accTableFragPtrI[0] = RNIL;
+  m_accTableFragPtrI[1] = RNIL;
 }
 
 inline

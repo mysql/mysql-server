@@ -407,8 +407,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       lockReq->userRef = reference();
       lockReq->tableId = scan.m_tableId;
       lockReq->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
-      // should cache this at fragment create
-      lockReq->fragPtrI = RNIL;
+      lockReq->fragPtrI = frag.m_accTableFragPtrI[ent.m_fragBit];
       const Uint32* const buf32 = static_cast<Uint32*>(keyPar.m_data);
       const Uint64* const buf64 = reinterpret_cast<const Uint64*>(buf32);
       lockReq->hashValue = md5_hash(buf64, keyPar.m_size);

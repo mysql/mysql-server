@@ -199,7 +199,7 @@ Dbtux::tupReadAttrs(Signal* signal, const Frag& frag, ReadPar& readPar)
   req->requestInfo = 0;
   req->tableId = frag.m_tableId;
   req->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
-  req->fragPtrI = RNIL;
+  req->fragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
   req->tupAddr = ent.m_tupAddr;
   req->tupVersion = ent.m_tupVersion;
   req->pageId = RNIL;
@@ -246,7 +246,7 @@ Dbtux::tupReadKeys(Signal* signal, const Frag& frag, ReadPar& readPar)
   req->requestInfo = TupReadAttrs::ReadKeys;
   req->tableId = frag.m_tableId;
   req->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
-  req->fragPtrI = RNIL;
+  req->fragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
   req->tupAddr = ent.m_tupAddr;
   req->tupVersion = RNIL; // not used
   req->pageId = RNIL;
@@ -284,7 +284,7 @@ Dbtux::tupStoreTh(Signal* signal, const Frag& frag, NodeHandlePtr nodePtr, Store
   req->errorCode = RNIL;
   req->tableId = frag.m_indexId;
   req->fragId = frag.m_fragId;
-  req->fragPtrI = RNIL;
+  req->fragPtrI = frag.m_tupIndexFragPtrI;
   req->tupAddr = nodePtr.p->m_addr;
   req->tupVersion = 0;
   req->pageId = nodePtr.p->m_loc.m_pageId;
