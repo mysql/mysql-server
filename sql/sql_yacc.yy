@@ -153,6 +153,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	CASCADE
 %token	CHECKSUM_SYM
 %token	CHECK_SYM
+%token	CIPHER
 %token	COMMITTED_SYM
 %token	COLUMNS
 %token	COLUMN_SYM
@@ -206,6 +207,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	IN_SYM
 %token  ISOLATION
 %token	ISAM_SYM
+%token	ISSUER
 %token	JOIN_SYM
 %token	KEYS
 %token	KEY_SYM
@@ -271,6 +273,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	RELOAD
 %token	RENAME
 %token	REPEATABLE_SYM
+%token	REQUIRE_SYM
 %token  RESTORE_SYM
 %token	RESTRICT
 %token	REVOKE
@@ -284,6 +287,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	STARTING
 %token	STATUS_SYM
 %token	STRAIGHT_JOIN
+%token	SUBJECT_SYM
 %token	TABLES
 %token	TABLE_SYM
 %token	TEMPORARY
@@ -3380,6 +3384,19 @@ column_list_id:
 	  else
 	    lex->columns.push_back(new LEX_COLUMN (*new_str,lex->which_columns));
 	}
+
+
+require_clause: /* empty */
+	| REQUIRE_SYM require_list { /* do magic */}
+
+require_list: require_list_element AND require_list
+	{ /* do magic */}
+	| require_list_element {/*do magic*/}
+
+require_list_element: SUBJECT_SYM TEXT_STRING
+	| ISSUER TEXT_STRING
+ 	| CIPHER TEXT_STRING
+
 
 grant_option:
 	/* empty */ {}
