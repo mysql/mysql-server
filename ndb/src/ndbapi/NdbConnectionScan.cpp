@@ -97,7 +97,7 @@ NdbConnection::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
       theScanningOp->execCLOSE_SCAN_REP();
       return 0;
     }
-    
+
     for(Uint32 i = 0; i<len; i += 3){
       Uint32 opCount, totalLen;
       Uint32 ptrI = * ops++;
@@ -109,24 +109,12 @@ NdbConnection::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
       void * tPtr = theNdb->int2void(ptrI);
       assert(tPtr); // For now
       NdbReceiver* tOp = theNdb->void2rec(tPtr);
-      if (tOp && tOp->checkMagicNumber()){
-	if(tOp->execSCANOPCONF(tcPtrI, totalLen, opCount)){
-	  /**
-	   *
-	   */
-	  theScanningOp->receiver_delivered(tOp);
-	} else if(info == ScanTabConf::EndOfData){
+      if (tOp && tOp->checkMagicNumber())
+      {
+	if (tcPtrI == RNIL && opCount == 0)
 	  theScanningOp->receiver_completed(tOp);
-	}
-      }
-    }
-    if (conf->requestInfo & ScanTabConf::EndOfData) {
-      if(theScanningOp->m_ordered)
-	theScanningOp->m_api_receivers_count = 0;
-      if(theScanningOp->m_api_receivers_count + 
-	 theScanningOp->m_conf_receivers_count +
-	 theScanningOp->m_sent_receivers_count){
-	abort();
+	else if (tOp->execSCANOPCONF(tcPtrI, totalLen, opCount))
+	  theScanningOp->receiver_delivered(tOp);
       }
     }
     return 0;
