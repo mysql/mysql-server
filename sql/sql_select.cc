@@ -773,9 +773,9 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
   DBUG_ENTER("make_join_statistics");
 
   table_count=join->tables;
-  stat=(JOIN_TAB*) sql_calloc(sizeof(JOIN_TAB)*table_count);
-  stat_ref=(JOIN_TAB**) sql_alloc(sizeof(JOIN_TAB*)*MAX_TABLES);
-  table_vector=(TABLE**) sql_alloc(sizeof(TABLE**)*(table_count*2));
+  stat=(JOIN_TAB*) join->thd->calloc(sizeof(JOIN_TAB)*table_count);
+  stat_ref=(JOIN_TAB**) join->thd->alloc(sizeof(JOIN_TAB*)*MAX_TABLES);
+  table_vector=(TABLE**) join->thd->alloc(sizeof(TABLE**)*(table_count*2));
   if (!stat || !stat_ref || !table_vector)
     DBUG_RETURN(1);				// Eom /* purecov: inspected */
   select=0;
@@ -1832,7 +1832,7 @@ get_best_combination(JOIN *join)
 
   table_count=join->tables;
   if (!(join->join_tab=join_tab=
-	(JOIN_TAB*) sql_alloc(sizeof(JOIN_TAB)*table_count)))
+	(JOIN_TAB*) join->thd->alloc(sizeof(JOIN_TAB)*table_count)))
     return TRUE;
 
   join->const_tables=0;				/* for checking */
@@ -2056,8 +2056,8 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   TABLE **tableptr;
   JOIN_TAB *join_tab;
 
-  if (!(tableptr=(TABLE**) sql_alloc(sizeof(TABLE*))) ||
-      !(join_tab=(JOIN_TAB*) sql_alloc(sizeof(JOIN_TAB))))
+  if (!(tableptr=(TABLE**) join->thd->alloc(sizeof(TABLE*))) ||
+      !(join_tab=(JOIN_TAB*) join->thd->alloc(sizeof(JOIN_TAB))))
     return TRUE;
   join->join_tab=join_tab;
   join->table=tableptr; tableptr[0]=tmp_table;

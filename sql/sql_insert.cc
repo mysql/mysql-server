@@ -1215,14 +1215,19 @@ void select_insert::send_error(uint errcode,const char *err)
   ::send_error(&thd->net,errcode,err);
   table->file->extra(HA_EXTRA_NO_CACHE);
   table->file->activate_all_index(thd);
+  ha_rollback(thd);
 }
 
 
 bool select_insert::send_eof()
 {
-  int error;
-  if ((error=table->file->extra(HA_EXTRA_NO_CACHE)) ||
-      (error=table->file->activate_all_index(thd)))
+  int error,error2;
+  if (!(error=table->file->extra(HA_EXTRA_NO_CACHE)))
+    error=table->file->activate_all_index(thd);
+  if ((error2=ha_autocommit_or_rollback(thd,error)) && ! error)
+    error=error2;
+
+  if (error)
   {
     table->file->print_error(error,MYF(0));
     ::send_error(&thd->net);

@@ -275,7 +275,7 @@ Is there anything special to do when upgrading/downgrading MySQL?
 How standards-compatible is MySQL?
 
 * Extensions to ANSI::          @strong{MySQL} extensions to ANSI SQL92
-* Ansi mode::                   Running @strong{MySQL} in ANSI mode
+* Ansi mode::                   Runnning @strong{MySQL} in ANSI mode
 * Differences from ANSI::       @strong{MySQL} differences compared to ANSI SQL92
 * Missing functions::           Functionality missing from @strong{MySQL}
 * Standards::                   What standards does @strong{MySQL} follow?
@@ -323,6 +323,7 @@ MySQL language reference
 * DROP DATABASE::               @code{DROP DATABASE} syntax
 * CREATE TABLE::                @code{CREATE TABLE} syntax
 * ALTER TABLE::                 @code{ALTER TABLE} syntax
+* RENAME TABLE::                
 * DROP TABLE::                  @code{DROP TABLE} syntax
 * OPTIMIZE TABLE::              @code{OPTIMIZE TABLE} syntax
 * CHECK TABLE::                 @code{CHECK TABLE} syntax
@@ -608,7 +609,7 @@ Using @code{MySQL} with some common programs
 
 Problems and common errors
 
-* What is crashing::            How to determine what is causing problems
+* What is crashing::            How to determinate what is causing problems
 * Crashing::                    What to do if @strong{MySQL} keeps crashing
 * Link errors::                 Problems when linking with the @strong{MySQL} client library
 * Common errors::               Some common errors when using @strong{MySQL}
@@ -647,7 +648,7 @@ Some common errors when using MySQL
 
 Solving some common problems with MySQL
 
-* Log Replication::             Database replication with update log
+* Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
@@ -720,7 +721,7 @@ C API function descriptions
 * mysql_store_result::          @code{mysql_store_result()}
 * mysql_thread_id::             @code{mysql_thread_id()}
 * mysql_use_result::            @code{mysql_use_result()}
-* NULL mysql_store_result::     Why is it that after @code{mysql_query()} returns success, @code{mysql_store_result()} sometimes returns @code{NULL}?
+* NULL mysql_store_result::     Why is it that after @code{mysql_query()} returns success, @code{mysql_store_result()} sometimes returns @code{NULL?}
 * Query results::               What results can I get from a query?
 * Getting unique ID::           How can I get the unique ID for the last inserted row?
 * C API linking problems::      Problems linking with the C API
@@ -1826,7 +1827,7 @@ Apart from the following links, you can find and download a lot of
 @strong{MySQL} programs, tools and APIs from the
 @uref{http://www.mysql.com/Contrib/, Contrib directory}.
 
-@subheading Tutorials and manuals
+@subheading Tutorials and Manuals
 @itemize @bullet
 
 @c just forwards to the devshed link below.. (jcole)
@@ -2026,6 +2027,11 @@ reviewing.
 @item
 @uref{http://www.omnis-software.com/products/studio/studio.html, OMNIS}
 OMNIS Studio is a rapid application development (RAD) tool.
+@item
+@uref{http://www.webplus.com, talentsoft Web+ 4.6}
+Web+ is a powerful and comprehensive development language for use in
+creating web-based client/server applications without writing complicated,
+low-level and time-consuming CGI programs.
 @end itemize
 
 @subheading Database design tools with MySQL support
@@ -8959,6 +8965,7 @@ comparisons to be done according to the ASCII order used on the
 @strong{MySQL} maps each database to a directory under the @strong{MySQL}
 data directory, and tables within a database to filenames in the database
 directory.
+
 This has two implications:
 
 @itemize @minus
@@ -9015,11 +9022,12 @@ Use of @code{TEMPORARY} or @code{IF NOT EXISTS} with @code{CREATE TABLE}.
 Use of @code{COUNT(DISTINCT list)} where 'list' is more than one element.
 
 @item
-Use of @code{CHANGE col_name}, @code{DROP col_name} or @code{DROP INDEX}
-in an @code{ALTER TABLE} statement. @xref{ALTER TABLE, , @code{ALTER TABLE}}.
+Use of @code{CHANGE col_name}, @code{DROP col_name} or @code{DROP
+INDEX}, @code{IGNORE} or @code{RENAME} in an @code{ALTER TABLE}
+statement. @xref{ALTER TABLE, , @code{ALTER TABLE}}.
 
 @item
-Use of @code{IGNORE} in an @code{ALTER TABLE} statement.
+Use of @code{RENAME TABLE}. @xref{RENAME TABLE, , @code{RENAME TABLE}}.
 
 @item
 Use of multiple @code{ADD}, @code{ALTER}, @code{DROP} or @code{CHANGE}
@@ -11636,6 +11644,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to be able to run
 * DROP DATABASE::               @code{DROP DATABASE} syntax
 * CREATE TABLE::                @code{CREATE TABLE} syntax
 * ALTER TABLE::                 @code{ALTER TABLE} syntax
+* RENAME TABLE::                
 * DROP TABLE::                  @code{DROP TABLE} syntax
 * OPTIMIZE TABLE::              @code{OPTIMIZE TABLE} syntax
 * CHECK TABLE::                 @code{CHECK TABLE} syntax
@@ -15973,15 +15982,16 @@ mysql> select COUNT(*) from student;
 @findex COUNT(DISTINCT)
 @findex DISTINCT
 @item COUNT(DISTINCT expr,[expr...])
-Returns a count of the number of different values.
+Returns a count of the number of different not @code{NULL} values.
 
 @example
 mysql> select COUNT(DISTINCT results) from student;
 @end example
 
-In @strong{MySQL} you can get the number of distinct expressions combinations
-by giving a list of expressions.  In ANSI SQL you would have to do a
-concatenation of all expressions inside @code{CODE(DISTINCT ..)}.
+In @strong{MySQL} you can get the number of distinct expressions
+combinations that doesn't contain NULL by giving a list of expressions.
+In ANSI SQL you would have to do a concatenation of all expressions
+inside @code{CODE(DISTINCT ..)}.
 
 @findex AVG()
 @item AVG(expr)
@@ -16547,7 +16557,7 @@ Certain other column type changes may occur if you compress a table
 using @code{myisampack}. @xref{Compressed format}.
 
 @findex ALTER TABLE
-@node ALTER TABLE, DROP TABLE, CREATE TABLE, Reference
+@node ALTER TABLE, RENAME TABLE, CREATE TABLE, Reference
 @section @code{ALTER TABLE} syntax
 
 @example
@@ -16565,7 +16575,7 @@ alter_specification:
   or    DROP [COLUMN] col_name
   or    DROP PRIMARY KEY
   or    DROP INDEX index_name
-  or    RENAME [AS] new_tbl_name
+  or    RENAME [TO] new_tbl_name
   or    table_options
 @end example
 
@@ -16621,9 +16631,10 @@ INDEX} are @strong{MySQL} extensions to ANSI SQL92.
 The optional word @code{COLUMN} is a pure noise word and can be omitted.
 
 @item
-If you use @code{ALTER TABLE tbl_name RENAME AS new_name} without any other
+If you use @code{ALTER TABLE tbl_name RENAME TO new_name} without any other
 options, @strong{MySQL} simply renames the files that correspond to the table
 @code{tbl_name}.  There is no need to create the temporary table.
+@xref{RENAME TABLE,, @code{RENAME TABLE}}.
 
 @item
 @code{create_definition} clauses use the same syntax for @code{ADD} and
@@ -16775,8 +16786,47 @@ sequence number be executing @code{SET INSERT_ID=#} before
 
 See also @xref{ALTER TABLE problems, , @code{ALTER TABLE} problems}.
 
+@findex RENAME TABLE
+@node RENAME TABLE, DROP TABLE, ALTER TABLE, Reference
+@section @code{RENAME TABLE} syntax
+
+@example
+RENAME TABLE tbl_name as new_table_name[, tbl_name2 as new_table_name2,...]
+@end example
+
+The rename is done atomic, which means that if no other thread can
+access any of the tables while the rename is running. This makes it
+possible to replace a table with an empty one:
+
+@example
+CREATE TABLE new_table (...);
+RENAME TABLE old_table TO backup_table, new_table as old_table;
+@end example
+
+The rename is done from left to right, which means that if you want to
+swap two tables names, you have to do:
+
+@example
+RENAME TABLE old_table TO backup_table, new_table as old_table, backup_table as old_table;
+@end example
+
+Is long as two databases are on the same disk you can also do a rename
+from a database to another:
+
+@example
+RENAME TABLE current_database.table_name TO other_database.table_name;
+@end example
+
+When you execute @code{RENAME}, you can't have any locked tables or active
+transactions.  You must also have the @code{ALTER TABLE} privilege on both
+the old and the new table.
+
+If @strong{MySQL} encounters any errors in a multiple table rename, it
+will do a reverse rename for all renamed tables to get everything back
+to the original state.
+
 @findex DROP TABLE
-@node DROP TABLE, OPTIMIZE TABLE, ALTER TABLE, Reference
+@node DROP TABLE, OPTIMIZE TABLE, RENAME TABLE, Reference
 @section @code{DROP TABLE} syntax
 
 @example
@@ -19172,9 +19222,8 @@ may be a column name or a string containing the SQL @samp{%} and @samp{_}
 wildcard characters.
 
 If the column types are different than you expect them to be based on a
-@code{CREATE TABLE} statement, note that @strong{MySQL} sometimes changes column
-types.
-@xref{Silent column changes}.
+@code{CREATE TABLE} statement, note that @strong{MySQL} sometimes
+changes column types.  @xref{Silent column changes}.
 
 @cindex Oracle compatibility
 @cindex Compatibility, with Oracle
@@ -35350,6 +35399,10 @@ and will soon be declared beta, gamma and release.
 @appendixsubsec Changes in release 3.23.23
 @itemize @bullet
 @item
+Added atomic @code{RENAME} command.
+@item
+Don't count entries with @code{NULL} in @code{COUNT(DISTINCT ..)}.
+@item
 Changed @code{ALTER TABLE}, @code{LOAD DATA INFILE} on empty tables and
 @code{INSERT ... SELECT...} on empty tables to create non-unique indexs
 in a separate batch with sorting. This will make the above calls much
@@ -35372,7 +35425,9 @@ that don't have the @code{pthread_rwlock_rdlock} code.
 When deleting rows with a non-unique key in a HEAP table, all rows weren't 
 always deleted.
 @item
-Fixed that BDB tables work on part keys.
+Fixed that @code{SELECT} on part keys works with BDB tables.
+@item
+Fixed that @code{INSERT INTO bdb_table  ... SELECT} works with BDB tables.
 @item
 Check table now updates key statistics for the table.
 @item
@@ -35382,10 +35437,17 @@ will not be marked to be analyzed until they are updated in any way with
 3.23.23 or newer.  For older tables, you have to do @code{CHECK TABLE}
 to update the key distribution.
 @item
+Fixed some minor privilege problems with @code{CHECK}, @code{ANALYZE},
+@code{REPAIR} and @code{SHOW CREATE} commands.
+@item
 Added @code{CHANGE MASTER TO} command
 @item
 Added @code{FAST}, @code{QUICK} @code{EXTENDED} check types to
 @code{CHECK TABLES}.
+@item
+Changed @code{myisamchk} so that @code{--fast} and
+@code{--check-changed-tables} are also honored with @code{--sort-index} and
+@code{--analyze}.
 @item
 Fixed fatal bug in @code{LOAD TABLE FROM MASTER} that did not lock the table during index re-build
 @item
@@ -38130,7 +38192,7 @@ Added new commands @code{CREATE DATABASE db_name} and @code{DROP
 DATABASE db_name}.
 @item
 Added @code{RENAME} option to @code{ALTER TABLE}: @code{ALTER TABLE name
-RENAME AS new_name}.
+RENAME TO new_name}.
 @item
 @code{make_binary_distribution} now includes @file{libgcc.a} in
 @file{libmysqlclient.a}. This should make linking work for people who don't
@@ -39474,7 +39536,7 @@ Fail safe replication.
 @item
 Optimize, test and document transactions safe tables
 @item
-@code{RENAME table as table, table as table [,...]}
+@code{RENAME table to table, table to table [,...]}
 @item
 Allow users to change startup options.
 @item
@@ -39656,6 +39718,13 @@ A logfile analyzer that could parsed out information about which tables
 are hit most often, how often multi-table joins are executed, etc.  It
 should help users identify areas or table design that could be optimized
 to execute much more efficient queries.
+@item
+Add @code{SUM(DISTINCT)}
+@item
+Add @code{ANY()},@code{EVERY()} and @code{SOME()} group functions. In
+ANSI SQL these only works on boolean columns, but we can extend these to
+work on any columns/expressions by applying: value == 0 -> FALSE and
+value <> 0 -> TRUE.
 @end itemize
 
 @node TODO sometime, TODO unplanned, TODO future, TODO

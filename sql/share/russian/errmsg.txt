@@ -196,3 +196,4 @@
 "Net error reading from master",
 "Net error writing to master",
 "FULLTEXT индекс, соответствующий заданному списку столбцов, не найден",
+"Can't execute the given command because you have active locked tables or an active transaction",
