@@ -1878,7 +1878,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   {
     /*
       By sending this very specific reply server asks us to send scrambled
-      password in old format. The reply contains scramble_323.
+      password in old format.
     */
     scramble_323(buff, mysql->scramble, passwd);
     if (my_net_write(net, buff, SCRAMBLE_LENGTH_323 + 1) || net_flush(net))
