@@ -1564,6 +1564,8 @@ private:
 
   Uint32 c_errorInsert3000_TableId;
   Uint32 cSrUndoRecords[5];
+
+  Uint32 c_no_fragment_allocated;
 };
 
 #endif
