@@ -106,7 +106,8 @@ void Item_bool_func2::fix_length_and_dec()
     {
       if (convert_constant_item(field,&args[1]))
       {
-	arg_store.set_compare_func(this, INT_RESULT); // Works for all types.
+	cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
+			 INT_RESULT); // Works for all types.
 	return;
       }
     }
@@ -118,7 +119,8 @@ void Item_bool_func2::fix_length_and_dec()
     {
       if (convert_constant_item(field,&args[0]))
       {
-	arg_store.set_compare_func(this, INT_RESULT); // Works for all types.
+	cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
+			 INT_RESULT); // Works for all types.
 	return;
       }
     }
@@ -133,8 +135,8 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
 				1:0];
   if (type == ROW_RESULT)
   {
-    uint n= args[0]->cols();
-    if (n != args[1]->cols())
+    uint n= (*a)->cols();
+    if (n != (*b)->cols())
     {
       my_error(ER_CARDINALITY_COL, MYF(0), n);
       comparators= 0;
@@ -142,11 +144,7 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
     }
     if ((comparators= (Arg_comparator *) sql_alloc(sizeof(Arg_comparator)*n)))
       for (uint i=0; i < n; i++)
-      {
-	comparators[i].set_arg(0, args[0]->el(i));
-	comparators[i].set_arg(1, args[1]->el(i));
-	comparators[i].set_compare_func(owner);
-      }
+	comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i));
     else
     {
       my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
@@ -160,9 +158,9 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
 int Arg_comparator::compare_string()
 {
   String *res1,*res2;
-  if ((res1= args[0]->val_str(&owner->tmp_value1)))
+  if ((res1= (*a)->val_str(&owner->tmp_value1)))
   {
-    if ((res2= args[1]->val_str(&owner->tmp_value2)))
+    if ((res2= (*b)->val_str(&owner->tmp_value2)))
     {
       owner->null_value= 0;
       return owner->binary() ? stringcmp(res1,res2) : sortcmp(res1,res2);
@@ -175,8 +173,8 @@ int Arg_comparator::compare_string()
 int Arg_comparator::compare_e_string()
 {
   String *res1,*res2;
-  res1= args[0]->val_str(&owner->tmp_value1);
-  res2= args[1]->val_str(&owner->tmp_value2);
+  res1= (*a)->val_str(&owner->tmp_value1);
+  res2= (*b)->val_str(&owner->tmp_value2);
   if (!res1 || !res2)
     return test(res1 == res2);
   return (owner->binary() ? test(stringcmp(res1, res2) == 0) :
@@ -186,11 +184,11 @@ int Arg_comparator::compare_e_string()
 
 int Arg_comparator::compare_real()
 {
-  double val1= args[0]->val();
-  if (!args[0]->null_value)
+  double val1= (*a)->val();
+  if (!(*a)->null_value)
   {
-    double val2= args[1]->val();
-    if (!args[1]->null_value)
+    double val2= (*b)->val();
+    if (!(*b)->null_value)
     {
       owner->null_value= 0;
       if (val1 < val2)	return -1;
@@ -204,20 +202,20 @@ int Arg_comparator::compare_real()
 
 int Arg_comparator::compare_e_real()
 {
-  double val1= args[0]->val();
-  double val2= args[1]->val();
-  if (args[0]->null_value || args[1]->null_value)
-    return test(args[0]->null_value && args[1]->null_value);
+  double val1= (*a)->val();
+  double val2= (*b)->val();
+  if ((*a)->null_value || (*b)->null_value)
+    return test((*a)->null_value && (*b)->null_value);
   return test(val1 == val2);
 }
 
 int Arg_comparator::compare_int()
 {
-  longlong val1= args[0]->val_int();
-  if (!args[0]->null_value)
+  longlong val1= (*a)->val_int();
+  if (!(*a)->null_value)
   {
-    longlong val2= args[1]->val_int();
-    if (!args[1]->null_value)
+    longlong val2= (*b)->val_int();
+    if (!(*b)->null_value)
     {
       owner->null_value= 0;
       if (val1 < val2)	return -1;
@@ -231,10 +229,10 @@ int Arg_comparator::compare_int()
 
 int Arg_comparator::compare_e_int()
 {
-  longlong val1= args[0]->val_int();
-  longlong val2= args[1]->val_int();
-  if (args[0]->null_value || args[1]->null_value)
-    return test(args[0]->null_value && args[1]->null_value);
+  longlong val1= (*a)->val_int();
+  longlong val2= (*b)->val_int();
+  if ((*a)->null_value || (*b)->null_value)
+    return test((*a)->null_value && (*b)->null_value);
   return test(val1 == val2);
 }
 
@@ -242,7 +240,7 @@ int Arg_comparator::compare_e_int()
 int Arg_comparator::compare_row()
 {
   int res= 0;
-  uint n= args[0]->cols();
+  uint n= (*a)->cols();
   for (uint i= 0; i<n; i++)
   {
     if ((res= comparators[i].compare()))
@@ -256,7 +254,7 @@ int Arg_comparator::compare_row()
 int Arg_comparator::compare_e_row()
 {
   int res= 0;
-  uint n= args[0]->cols();
+  uint n= (*a)->cols();
   for (uint i= 0; i<n; i++)
   {
     if ((res= comparators[i].compare()))
@@ -268,7 +266,7 @@ int Arg_comparator::compare_e_row()
 
 longlong Item_func_eq::val_int()
 {
-  int value= arg_store.compare();
+  int value= cmp.compare();
   return value == 0 ? 1 : 0;
 }
 
@@ -283,39 +281,39 @@ void Item_func_equal::fix_length_and_dec()
 
 longlong Item_func_equal::val_int()
 {
-  return arg_store.compare();
+  return cmp.compare();
 }
 
 longlong Item_func_ne::val_int()
 {
-  int value= arg_store.compare();
+  int value= cmp.compare();
   return value != 0 && !null_value ? 1 : 0;
 }
 
 
 longlong Item_func_ge::val_int()
 {
-  int value= arg_store.compare();
+  int value= cmp.compare();
   return value >= 0 ? 1 : 0;
 }
 
 
 longlong Item_func_gt::val_int()
 {
-  int value= arg_store.compare();
+  int value= cmp.compare();
   return value > 0 ? 1 : 0;
 }
 
 longlong Item_func_le::val_int()
 {
-  int value= arg_store.compare();
+  int value= cmp.compare();
   return value <= 0 && !null_value ? 1 : 0;
 }
 
 
 longlong Item_func_lt::val_int()
 {
-  int value= arg_store.compare();
+  int value= cmp.compare();
   return value < 0 && !null_value ? 1 : 0;
 }
 
@@ -664,7 +662,7 @@ double
 Item_func_nullif::val()
 {
   double value;
-  if (!arg_store.compare() || null_value)
+  if (!cmp.compare() || null_value)
   {
     null_value=1;
     return 0.0;
@@ -678,7 +676,7 @@ longlong
 Item_func_nullif::val_int()
 {
   longlong value;
-  if (!arg_store.compare() || null_value)
+  if (!cmp.compare() || null_value)
   {
     null_value=1;
     return 0;
@@ -692,7 +690,7 @@ String *
 Item_func_nullif::val_str(String *str)
 {
   String *res;
-  if (!arg_store.compare() || null_value)
+  if (!cmp.compare() || null_value)
   {
     null_value=1;
     return 0;
