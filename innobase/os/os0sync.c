@@ -68,9 +68,10 @@ os_event_create(
 	os_fast_mutex_init(&(event->os_mutex));
 
 #if defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10)
-	pthread_cond_init(&(event->cond_var), pthread_condattr_default);
+	ut_a(0 == pthread_cond_init(&(event->cond_var),
+					pthread_condattr_default));
 #else
-	pthread_cond_init(&(event->cond_var), NULL);
+	ut_a(0 == pthread_cond_init(&(event->cond_var), NULL));
 #endif
 	event->is_set = FALSE;
 
@@ -130,7 +131,7 @@ os_event_set(
 		/* Do nothing */
 	} else {
 		event->is_set = TRUE;
-		pthread_cond_broadcast(&(event->cond_var));
+		ut_a(0 == pthread_cond_broadcast(&(event->cond_var)));
 	}
 
 	os_fast_mutex_unlock(&(event->os_mutex));
@@ -182,7 +183,7 @@ os_event_free(
 	ut_a(event);
 
 	os_fast_mutex_free(&(event->os_mutex));
-	pthread_cond_destroy(&(event->cond_var));
+	ut_a(0 == pthread_cond_destroy(&(event->cond_var)));
 
 	ut_free(event);
 #endif
