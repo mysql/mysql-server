@@ -42847,6 +42847,15 @@ of several databases simultaneously. By Innovative-IT Development AB.
 @item @uref{http://www.mysql.com/downloads/gui-clients.html, MySQLGUI}
 The @strong{MySQL} GUI client homepage. By Sinisa at @strong{MySQL AB}.
 
+@item @uref{http://www.mysql.com/downloads/gui-clients.html, MySQL navigator}
+MySQL Navigator is MySQL database server GUI client program. The purpose
+of MySQL Navigator is to provide a useful client interface to MySQL
+database servers, whilst supporting multiple operating systems and
+languages. You can currently import/export database, enter queries, get
+result sets, edit scripts, run scripts, add, alter, and delete users,
+and retrieve client and server information. GPL.
+@uref{http://sql.kldp.org/mysql, Home page for MySQL Navigator}.
+
 @item @uref{http://www.mysql.com/Downloads/Win32/secman.zip,  MySQL Security GUI}
 A user and security management GUI for @strong{MySQL} on Windows. 
 By Martin Jeremic.
