@@ -596,7 +596,6 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 	sql_print_error(ER(ER_ERROR_ON_WRITE),name,error);
       }
       va_end(args);
-      VOID(pthread_mutex_unlock(&LOCK_log));
     }
     VOID(pthread_mutex_unlock(&LOCK_log));
     return error != 0;

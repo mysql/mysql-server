@@ -7,11 +7,11 @@ CREATE TABLE test2 (incr int not null, othr int not null, primary key(incr));
 CREATE TABLE test3 (incr int not null, othr int not null, primary key(incr))
 TYPE=MERGE UNION=(test1,test2);
 
-@r/3.23/mrg000001.dummy.result SELECT * from test3;
+@r/mrg000001.dummy.result SELECT * from test3;
 
 INSERT INTO test1 VALUES ( 1,10),( 3,53),( 5,21),( 7,12),( 9,17);
 INSERT INTO test2 VALUES ( 2,24),( 4,33),( 6,41),( 8,26),( 0,32);
 INSERT INTO test1 VALUES (11,20),(13,43),(15,11),(17,22),(19,37);
 INSERT INTO test2 VALUES (12,25),(14,31),(16,42),(18,27),(10,30);
 
-@r/3.23/mrg000001.result SELECT * from test3 where incr in (1,2,3,4) order by othr;
+@r/mrg000001.result SELECT * from test3 where incr in (1,2,3,4) order by othr;

@@ -408,3 +408,5 @@ BitKeeper/etc/config
 BitKeeper/tmp/CONTENTS
 BitKeeper/tmp/patch
 BitKeeper/tmp/pid
+mysql-test/var/lib/test/test3.frm
+mysql-test/var/lib/test/test3.MRG
