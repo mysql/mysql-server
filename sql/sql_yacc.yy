@@ -920,8 +920,13 @@ create3:
 	    LEX *lex=Lex;
 	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	    mysql_init_select(lex);
+	    lex->current_select->parsing_place= SELECT_LEX_NODE::SELECT_LIST;
           }
-          select_options select_item_list opt_select_from union_clause {}
+          select_options select_item_list
+	  {
+	    Select->parsing_place= SELECT_LEX_NODE::NO_MATTER;
+	  }
+	  opt_select_from union_clause {}
           ;
 
 opt_as:
@@ -1879,8 +1884,13 @@ select_part2:
 	    lex->lock_option= TL_READ; /* Only for global SELECT */
 	  if (sel->linkage != UNION_TYPE)
 	    mysql_init_select(lex);
+	  lex->current_select->parsing_place= SELECT_LEX_NODE::SELECT_LIST;
 	}
-	select_options select_item_list select_into select_lock_type;
+	select_options select_item_list
+	{
+	  Select->parsing_place= SELECT_LEX_NODE::NO_MATTER;
+	}
+	select_into select_lock_type;
 
 select_into:
 	opt_limit_clause {}
@@ -2930,10 +2940,15 @@ where_clause:
 
 having_clause:
 	/* empty */
-	| HAVING { Select->select_lex()->create_refs= 1; } expr
+	| HAVING
+	  {
+	    Select->select_lex()->parsing_place= SELECT_LEX_NODE::IN_HAVING;
+          }
+	  expr
 	  {
 	    SELECT_LEX *sel= Select->select_lex();
-	    sel->having= $3; sel->create_refs=0;
+	    sel->having= $3;
+	    sel->parsing_place= SELECT_LEX_NODE::NO_MATTER;
 	    if ($3)
 	      $3->top_level_item();
 	  }
@@ -3361,8 +3376,13 @@ insert_values:
 				SQLCOM_INSERT_SELECT : SQLCOM_REPLACE_SELECT);
 	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	    mysql_init_select(lex);
+	    lex->current_select->parsing_place= SELECT_LEX_NODE::SELECT_LIST;
 	  }
-	  select_options select_item_list opt_select_from select_lock_type
+	  select_options select_item_list
+	  {
+	    Select->parsing_place= SELECT_LEX_NODE::NO_MATTER;
+	  }
+	  opt_select_from select_lock_type
           union_clause {}
 	;
 
@@ -4043,7 +4063,10 @@ simple_ident:
 	ident
 	{
 	  SELECT_LEX_NODE *sel=Select;
-	  $$ = !sel->create_refs || sel->get_in_sum_expr() > 0 ? (Item*) new Item_field(NullS,NullS,$1.str) : (Item*) new Item_ref(NullS,NullS,$1.str);
+	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
+	       sel->get_in_sum_expr() > 0) ?
+              (Item*) new Item_field(NullS,NullS,$1.str) :
+	      (Item*) new Item_ref(NullS,NullS,$1.str);
 	}
 	| ident '.' ident
 	{
@@ -4056,7 +4079,10 @@ simple_ident:
 			    ER(ER_TABLENAME_NOT_ALLOWED_HERE),
 			    MYF(0), $1.str, thd->where);
 	  }
-	  $$ = !sel->create_refs || sel->get_in_sum_expr() > 0 ? (Item*) new Item_field(NullS,$1.str,$3.str) : (Item*) new Item_ref(NullS,$1.str,$3.str);
+	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
+	       sel->get_in_sum_expr() > 0) ?
+	      (Item*) new Item_field(NullS,$1.str,$3.str) :
+	      (Item*) new Item_ref(NullS,$1.str,$3.str);
 	}
 	| '.' ident '.' ident
 	{
@@ -4069,7 +4095,10 @@ simple_ident:
 			    ER(ER_TABLENAME_NOT_ALLOWED_HERE),
 			    MYF(0), $2.str, thd->where);
 	  }
-	  $$ = !sel->create_refs || sel->get_in_sum_expr() > 0 ? (Item*) new Item_field(NullS,$2.str,$4.str) : (Item*) new Item_ref(NullS,$2.str,$4.str);
+	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
+	       sel->get_in_sum_expr() > 0) ?
+	      (Item*) new Item_field(NullS,$2.str,$4.str) :
+              (Item*) new Item_ref(NullS,$2.str,$4.str);
 	}
 	| ident '.' ident '.' ident
 	{
@@ -4082,7 +4111,14 @@ simple_ident:
 			    ER(ER_TABLENAME_NOT_ALLOWED_HERE),
 			    MYF(0), $3.str, thd->where);
 	  }
-	  $$ = !sel->create_refs || sel->get_in_sum_expr() > 0 ? (Item*) new Item_field((YYTHD->client_capabilities & CLIENT_NO_SCHEMA ? NullS :$1.str),$3.str,$5.str) : (Item*) new Item_ref((YYTHD->client_capabilities & CLIENT_NO_SCHEMA ? NullS :$1.str),$3.str,$5.str);
+	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
+	       sel->get_in_sum_expr() > 0) ?
+	      (Item*) new Item_field((YYTHD->client_capabilities &
+				      CLIENT_NO_SCHEMA ? NullS : $1.str),
+				     $3.str, $5.str) :
+	      (Item*) new Item_ref((YYTHD->client_capabilities &
+				    CLIENT_NO_SCHEMA ? NullS : $1.str),
+                                   $3.str, $5.str);
 	};
 
 

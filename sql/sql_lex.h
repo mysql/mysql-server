@@ -77,7 +77,6 @@ enum enum_sql_command {
   SQLCOM_END
 };
 
-
 typedef List<Item> List_item;
 
 typedef struct st_lex_master_info
@@ -191,6 +190,13 @@ protected:
     *master, *slave,                  /* vertical links */
     *link_next, **link_prev;          /* list of whole SELECT_LEX */
 public:
+  enum enum_parsing_place
+  {
+    NO_MATTER,
+    IN_HAVING,
+    SELECT_LIST
+  };
+
   ulong options;
   enum sub_select_type linkage;
   SQL_LIST order_list;                /* ORDER clause */
@@ -200,8 +206,9 @@ public:
   // Arrays of pointers to top elements of all_fields list
   Item **ref_pointer_array;
 
-  uint with_sum_func;   /* sum function indicator and number of it */
-  bool create_refs;
+  uint select_items;    /* number of items in select_list */
+  enum_parsing_place parsing_place; /* where we are parsing expression */
+  bool with_sum_func;   /* sum function indicator */
   bool dependent;	/* dependent from outer select subselect */
   bool uncacheable;     /* result of this query can't be cached */
   bool no_table_names_allowed; /* used for global order by */
