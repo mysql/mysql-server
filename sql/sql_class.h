@@ -174,6 +174,9 @@ typedef struct st_user_var_events
   uint charset_number;
 } BINLOG_USER_VAR_EVENT;
 
+#define RP_LOCK_LOG_IS_ALREADY_LOCKED 1
+#define RP_FORCE_ROTATE               2
+
 class Log_event;
 
 /*
@@ -300,7 +303,7 @@ public:
   }
   bool open_index_file(const char *index_file_name_arg,
                        const char *log_name);
-  void new_file(bool need_lock= 1);
+  void new_file(bool need_lock);
   bool write(THD *thd, enum enum_server_command command,
 	     const char *format,...);
   bool write(THD *thd, const char *query, uint query_length,
@@ -319,6 +322,7 @@ public:
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
   int update_log_index(LOG_INFO* linfo, bool need_update_threads);
+  void rotate_and_purge(uint flags);
   int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);
