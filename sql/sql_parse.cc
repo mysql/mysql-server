@@ -2154,7 +2154,8 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
 		      thd->priv_user, db); /* purecov: inspected */
   else
     db_access=thd->db_access;
-  want_access &= ~EXTRA_ACL;			// Remove SHOW attribute
+  // Remove SHOW attribute and access rights we already have
+  want_access &= ~(thd->master_access | EXTRA_ACL);
   db_access= ((*save_priv=(db_access | thd->master_access)) & want_access);
 
   /* grant_option is set if there exists a single table or column grant */
