@@ -689,12 +689,12 @@ int Item_param::save_in_field(Field *field, bool no_conversions)
   if (item_result_type == INT_RESULT)
   {
     longlong nr=val_int();
-    return (field->store(nr)) ? -1 : 0;
+    return field->store(nr);
   }
   if (item_result_type == REAL_RESULT)
   {
     double nr=val();    
-    return (field->store(nr)) ? -1 : 0; 
+    return field->store(nr); 
   }  
   if (item_is_time)
   {

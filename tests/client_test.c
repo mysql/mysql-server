@@ -8205,7 +8205,6 @@ static void test_subqueries()
   MYSQL_STMT *stmt;
   int rc, i;
   const char *query= "SELECT (SELECT SUM(a+b) FROM t2 where t1.b=t2.b GROUP BY t1.a LIMIT 1) as scalar_s, exists (select 1 from t2 where t2.a/2=t1.a) as exists_s, a in (select a+3 from t2) as in_s, (a-1,b-1) in (select a,b from t2) as in_row_s FROM t1, (select a x, b y from t2) tt WHERE x=a";
-  /* const char *query= "SELECT (SELECT SUM(a+b) FROM t2 where t1.b=t2.b GROUP BY t1.a LIMIT 1) as scalar_s, exists (select 1 from t2 where t2.a/2=t1.a) as exists_s, a in (select a+3 from t2) as in_s FROM t1, (select a x, b y from t2) tt WHERE x=a"; */
 
   myheader("test_subquery");
   
@@ -8822,7 +8821,8 @@ static void test_insert_select()
 {
   MYSQL_STMT *stmt_insert, *stmt_select;
   char *query;
-  int rc, i;
+  int rc;
+  uint i;
   myheader("test_insert_select");
 
   rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1, t2");
@@ -8862,6 +8862,48 @@ static void test_insert_select()
   myquery(rc);
 }
 
+
+static void test_bind_nagative()
+{
+  MYSQL_STMT *stmt_insert;
+  char *query;
+  int rc;
+  MYSQL_BIND      bind[1];
+  long            my_val = 0L;
+  long            my_length = 0L;
+  long            my_null = 0L;
+  myheader("test_insert_select");
+
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"create temporary table t1 (c1 int unsigned)");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"INSERT INTO t1 VALUES (1),(-1)");
+  myquery(rc);
+
+  query= (char*)"INSERT INTO t1 VALUES (?)";
+  stmt_insert= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt_insert);
+
+  /* bind parameters */
+  bind[0].buffer_type = FIELD_TYPE_LONG;
+  bind[0].buffer = (char *)&my_val;
+  bind[0].length = &my_length;
+  bind[0].is_null = (char*)&my_null;
+
+  rc= mysql_bind_param(stmt_insert, bind);
+  mystmt(stmt_insert,rc);
+
+  my_val = -1;
+  rc= mysql_execute(stmt_insert);
+  mystmt(stmt_insert, rc);
+
+  mysql_stmt_close(stmt_insert);
+  rc= mysql_query(mysql,"drop table t1");
+  myquery(rc);
+}
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -9129,6 +9171,7 @@ int main(int argc, char **argv)
     test_do_set();	    /* DO & SET commands test BUG#3393 */
     test_multi();	    /* test of multi delete & update */
     test_insert_select();   /* test INSERT ... SELECT */
+    test_bind_nagative();   /* bind negative to unsigned BUG#3223 */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);
