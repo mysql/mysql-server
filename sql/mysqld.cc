@@ -1539,14 +1539,13 @@ void mysql_down_server_cb(void *, void *)
 
 // destroy callback resources
 void mysql_cb_destroy(void *)
-{
-  UnRegisterEventNotification(eh);  // cleanup down event notification
+{  
+  UnRegisterEventNotification(eh);  // cleanup down event notification    	  
   NX_UNWRAP_INTERFACE(ref);
-
-  /* Deregister NSS volume deactivation event */
-  NX_UNWRAP_INTERFACE(refneb);
+  /* Deregister NSS volume deactivation event */  
+  NX_UNWRAP_INTERFACE(refneb);  	
   if (neb_consumer_id)
-    UnRegisterConsumer(neb_consumer_id, NULL);	
+    UnRegisterConsumer(neb_consumer_id, NULL);
 }
 
 
@@ -1665,6 +1664,7 @@ ulong neb_event_callback(struct EventBlock *eblock)
       nw_panic = TRUE;
       event_flag= TRUE;
       kill_server(0);
+ 
     }
   }
   return 0;
@@ -1738,8 +1738,8 @@ static void init_signals(void)
   for (uint i=0 ; i < sizeof(signals)/sizeof(int) ; i++)
     signal(signals[i], kill_server);
   mysql_cb_init();  // initialize callbacks
-}
 
+}
 
 static void start_signal_handler(void)
 {
@@ -2262,7 +2262,13 @@ extern "C" pthread_handler_decl(handle_shutdown,arg)
 #endif
 
 
-const char *load_default_groups[]= { "mysqld","server",MYSQL_BASE_VERSION,0,0};
+const char *load_default_groups[]= { 
+#ifdef HAVE_NDBCLUSTER_DB
+"mysql_cluster",
+#endif
+"mysqld","server",MYSQL_BASE_VERSION,0,0};
+static const int load_default_groups_sz=
+sizeof(load_default_groups)/sizeof(load_default_groups[0]);
 
 bool open_log(MYSQL_LOG *log, const char *hostname,
 	      const char *opt_name, const char *extension,
@@ -2884,6 +2890,7 @@ int win_main(int argc, char **argv)
 int main(int argc, char **argv)
 #endif
 {
+
   DEBUGGER_OFF;
 
   MY_INIT(argv[0]);		// init my_sys library & pthreads
@@ -3079,7 +3086,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #endif /* __NT__ */
 
   /* (void) pthread_attr_destroy(&connection_attrib); */
-
+  
   DBUG_PRINT("quit",("Exiting main thread"));
 
 #ifndef __WIN__
@@ -3129,6 +3136,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #endif
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+ 
   exit(0);
   return(0);					/* purecov: deadcode */
 }
@@ -3256,7 +3264,7 @@ int main(int argc, char **argv)
 	  and we are now stuck with it.
 	*/
 	if (my_strcasecmp(system_charset_info, argv[1],"mysql"))
-	  load_default_groups[3]= argv[1];
+	  load_default_groups[load_default_groups_sz-2]= argv[1];
         start_mode= 1;
         Service.Init(argv[1], mysql_service);
         return 0;
@@ -3277,7 +3285,7 @@ int main(int argc, char **argv)
 	opt_argv=argv;
 	start_mode= 1;
 	if (my_strcasecmp(system_charset_info, argv[2],"mysql"))
-	  load_default_groups[3]= argv[2];
+	  load_default_groups[load_default_groups_sz-2]= argv[2];
 	Service.Init(argv[2], mysql_service);
 	return 0;
       }
@@ -6257,6 +6265,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_berkeley_db= SHOW_OPTION_YES;
     else
       have_berkeley_db= SHOW_OPTION_DISABLED;
+#else
+    if (opt_bdb)
+      sql_print_warning("this binary does not contain BDB storage engine");
 #endif
     break;
   case OPT_ISAM:
@@ -6265,6 +6276,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_isam= SHOW_OPTION_YES;
     else
       have_isam= SHOW_OPTION_DISABLED;
+#else
+    if (opt_isam)
+      sql_print_warning("this binary does not contain ISAM storage engine");
 #endif
     break;
   case OPT_NDBCLUSTER:
@@ -6273,6 +6287,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_ndbcluster= SHOW_OPTION_YES;
     else
       have_ndbcluster= SHOW_OPTION_DISABLED;
+#else
+    if (opt_ndbcluster)
+      sql_print_warning("this binary does not contain NDBCLUSTER storage engine");
 #endif
     break;
   case OPT_INNODB:
@@ -6281,6 +6298,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_innodb= SHOW_OPTION_YES;
     else
       have_innodb= SHOW_OPTION_DISABLED;
+#else
+    if (opt_innodb)
+      sql_print_warning("this binary does not contain INNODB storage engine");
 #endif
     break;
   case OPT_INNODB_DATA_FILE_PATH:
