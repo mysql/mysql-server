@@ -1,0 +1,19 @@
+source include/master-slave.inc;
+--disable_warnings
+drop database if exists mysqltest1;
+--enable_warnings
+create database mysqltest1;
+
+use mysqltest1;
+create table t1 (a int);
+insert into t1 values(9);
+select * from mysqltest1.t1;
+sync_slave_with_master;
+show databases like 'mysqltest1'; # should be empty
+select * from test.t1;
+# cleanup
+connection master;
+drop table t1;
+drop database mysqltest1;
+sync_slave_with_master;
+
