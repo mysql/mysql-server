@@ -78,11 +78,13 @@ while ($1)
  dec $1;
 }
 show master logs;
+show master status;
 save_master_pos;
 connection slave;
 slave stop;
 slave start;
 sync_with_master;
+show slave status;
 select count(*) from t3 where n = 4;
 #clean up
 connection master;

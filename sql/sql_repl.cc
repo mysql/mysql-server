@@ -352,6 +352,10 @@ sweepstakes if you report the bug";
       case LOG_READ_BOGUS: 
 	errmsg = "bogus data in log event";
 	break;
+      case LOG_READ_TOO_LARGE: 
+	errmsg = "log event entry exceeded max_allowed_packet -\
+ increase max_allowed_packet on master";
+	break;
       case LOG_READ_IO:
 	errmsg = "I/O error reading log event";
 	break;

@@ -31,6 +31,7 @@
 #define LOG_READ_IO     -3
 #define LOG_READ_MEM    -5
 #define LOG_READ_TRUNC  -6
+#define LOG_READ_TOO_LARGE -7
 
 #define LOG_EVENT_OFFSET 4
 #define BINLOG_VERSION    1
@@ -42,7 +43,6 @@
   + sizeof(uint32) + 2 + sizeof(uint32))
 #define EVENT_LEN_OFFSET     9
 #define EVENT_TYPE_OFFSET    4
-#define MAX_EVENT_LEN        4*1024*1024 
 #define QUERY_EVENT_OVERHEAD  (LOG_EVENT_HEADER_LEN+QUERY_HEADER_LEN)
 #define ROTATE_EVENT_OVERHEAD LOG_EVENT_HEADER_LEN
 #define LOAD_EVENT_OVERHEAD   (LOG_EVENT_HEADER_LEN+LOAD_HEADER_LEN+sizeof(sql_ex_info))
