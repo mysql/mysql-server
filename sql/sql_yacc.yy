@@ -784,7 +784,7 @@ opt_table_options:
 
 table_options:
 	table_option	{ $$=$1; }
-	| table_option table_options { $$= $1 | $2 }
+	| table_option table_options { $$= $1 | $2; }
 
 table_option:
 	TEMPORARY	{ $$=HA_LEX_CREATE_TMP_TABLE; }
@@ -2836,7 +2836,7 @@ literal:
 	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }
 	| NULL_SYM	{ $$ =	new Item_null();
 			  Lex->next_state=STATE_OPERATOR_OR_IDENT;}
-	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length)};
+	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length);}
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }
 	| TIMESTAMP text_literal { $$ = $2; }
