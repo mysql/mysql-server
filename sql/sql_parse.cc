@@ -768,8 +768,8 @@ bool do_command(THD *thd)
       thread_safe_increment(com_other,&LOCK_thread_count);
       slow_command = TRUE;
       char* data = packet + 1;
-      uint db_len = *data;
-      uint tbl_len = *(data + db_len + 1);
+      uint db_len = *(uchar *)data;
+      uint tbl_len = *(uchar *)(data + db_len + 1);
       char* db = sql_alloc(db_len + tbl_len + 2);
       memcpy(db, data + 1, db_len);
       char* tbl_name = db + db_len;
