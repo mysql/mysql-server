@@ -17,6 +17,7 @@
 	/* Functions to handle space-packed-records and blobs */
 
 #include "myisamdef.h"
+#include <assert.h>
 
 /* Enough for comparing if number is zero */
 static char zero_string[]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
