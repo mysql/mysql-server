@@ -21,6 +21,7 @@ have disables the InnoDB inlining in this file. */
 /* TODO list for the InnoDB handler in 5.0:
   - Remove the flag trx->active_trans and look at the InnoDB
     trx struct state field
+  - fix savepoint functions to use savepoint storage area
   - Find out what kind of problems the OS X case-insensitivity causes to
     table and database names; should we 'normalize' the names like we do
     in Windows?
@@ -157,6 +158,7 @@ static int innobase_savepoint(THD* thd, void *savepoint);
 static int innobase_release_savepoint(THD* thd, void *savepoint);
 
 static handlerton innobase_hton = {
+  "InnoDB",
   0,				/* slot */
   sizeof(trx_named_savept_t),	/* savepoint size. TODO: use it */
   innobase_close_connection,
