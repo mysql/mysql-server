@@ -2654,7 +2654,7 @@ server.");
   /* We must set dflt_key_cache in case we are using ISAM tables */
   dflt_key_cache= sql_key_cache;
 
-#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
+#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT) && !defined(EMBEDDED_LIBRARY)
   if (locked_in_memory && !getuid())
   {
     if (seteuid(0) == -1)
