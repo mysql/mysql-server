@@ -1179,7 +1179,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
     int insert_res = write_row(new_data);
     if (!insert_res)
     {
-      DBUG_PRINT("info", ("delete succeded"));
+      DBUG_PRINT("info", ("insert succeded"));
       int delete_res = delete_row(old_data);
       if (!delete_res)
       {
@@ -2211,8 +2211,11 @@ int ndbcluster_commit(THD *thd, void *ndb_transaction)
   if (trans->execute(Commit) != 0)
   {
     const NdbError err= trans->getNdbError();
+    const NdbOperation *error_op= trans->getNdbErrorOperation();
     ERR_PRINT(err);     
     res= ndb_to_mysql_error(&err);
+    if (res != -1)
+      ndbcluster_print_error(res, error_op);
   }
   ndb->closeTransaction(trans);    
   DBUG_RETURN(res);
@@ -2238,8 +2241,11 @@ int ndbcluster_rollback(THD *thd, void *ndb_transaction)
   if (trans->execute(Rollback) != 0)
   {
     const NdbError err= trans->getNdbError();
+    const NdbOperation *error_op= trans->getNdbErrorOperation();
     ERR_PRINT(err);     
     res= ndb_to_mysql_error(&err);
+    if (res != -1) 
+      ndbcluster_print_error(res, error_op);
   }
   ndb->closeTransaction(trans);
   DBUG_RETURN(0);
@@ -2964,13 +2970,17 @@ bool ndbcluster_end()
   static handler method ndbcluster_commit
   and ndbcluster_rollback
 */
-void ndbcluster_print_error(int error)
+
+void ndbcluster_print_error(int error, const NdbOperation *error_op)
 {
   DBUG_ENTER("ndbcluster_print_error");
   TABLE tab;
-  tab.table_name = NULL;
+  const char *tab_name= (error_op) ? error_op->getTableName() : "";
+  tab.table_name= (char *) tab_name;
   ha_ndbcluster error_handler(&tab);
+  tab.file= &error_handler;
   error_handler.print_error(error, MYF(0));
+  DBUG_VOID_RETURN
 }
 
 /*
