@@ -1314,7 +1314,11 @@ static int mysql_test_multiupdate(Prepared_statement *stmt,
   int res;
   if ((res= multi_update_precheck(stmt->thd, tables)))
     return res;
-  return select_like_statement_test(stmt, tables, &mysql_multi_update_prepare);
+  /*
+    here we do not pass tables for opening, tables will be opened and locked
+    by mysql_multi_update_prepare
+  */
+  return select_like_statement_test(stmt, 0, &mysql_multi_update_prepare);
 }
 
 
