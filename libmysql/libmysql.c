@@ -136,7 +136,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   }
 #ifdef THREAD
   else
-    my_thread_init();         /* Init if new thread */
+    result= (int)my_thread_init();         /* Init if new thread */
 #endif
   return result;
 }
