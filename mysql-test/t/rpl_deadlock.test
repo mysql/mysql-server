@@ -68,7 +68,7 @@ show slave status;
 # 2) Test lock wait timeout
 
 stop slave;
-change master to master_log_pos=401; # the BEGIN log event
+change master to master_log_pos=534; # the BEGIN log event
 begin;
 select * from t2 for update; # hold lock
 start slave;
@@ -89,7 +89,7 @@ set global max_relay_log_size=0;
 
 # This is really copy-paste of 2) of above
 stop slave;
-change master to master_log_pos=401;
+change master to master_log_pos=534;
 begin;
 select * from t2 for update;
 start slave;
