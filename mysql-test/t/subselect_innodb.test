@@ -129,8 +129,19 @@ drop table t1, t2;
 #
 # possible early unlock
 #
-CREATE TABLE t1 ( id INT NOT NULL auto_increment, date1 DATE, coworkerid INT, description VARCHAR(255), sum_used DOUBLE, sum_remaining DOUBLE, comments VARCHAR(255), PRIMARY KEY(id)) engine=innodb;
+CREATE TABLE t1 (
+  id INT NOT NULL auto_increment,
+  date1 DATE, coworkerid INT,
+  description VARCHAR(255),
+  sum_used DOUBLE,
+  sum_remaining DOUBLE,
+  comments VARCHAR(255),
+  PRIMARY KEY(id)
+) engine=innodb;
 insert into t1 values (NULL, '1999-01-01', 1,'test', 22, 33, 'comment'), (NULL, '1999-01-01', 1,'test', 22, 33, 'comment'), (NULL, '1999-01-01', 1,'test', 22, 33, 'comment'), (NULL, '1998-01-01', 1,'test', 22, 33, 'comment'), (NULL, '1998-01-01', 1,'test', 22, 33, 'comment'), (NULL, '2004-01-01', 1,'test', 22, 33, 'comment'), (NULL, '2004-01-01', 1,'test', 22, 33, 'comment');
-SELECT DISTINCT (SELECT sum(sum_used) FROM t1 WHERE sum_used > 0 AND year(date1) <= '2004') as somallontvangsten, (SELECT sum(sum_used) FROM t1 WHERE sum_used < 0 AND year(date1) <= '2004') as somalluitgaven FROM t1;
+SELECT DISTINCT
+ (SELECT sum(sum_used) FROM t1 WHERE sum_used > 0 AND year(date1) <= '2004') as somallontvangsten,
+ (SELECT sum(sum_used) FROM t1 WHERE sum_used < 0 AND year(date1) <= '2004') as somalluitgaven
+ FROM t1;
 select * from t1;
 drop table t1;
