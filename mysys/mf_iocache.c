@@ -441,10 +441,11 @@ void init_io_cache_share(IO_CACHE *info, IO_CACHE_SHARE *s, uint num_threads)
   DBUG_ASSERT(info->type == READ_CACHE);
   pthread_mutex_init(&s->mutex, MY_MUTEX_INIT_FAST);
   pthread_cond_init (&s->cond, 0);
-  s->count=num_threads-1;
-  s->active=0; /* to catch errors */
+  s->total=s->count=num_threads-1;
+  s->active=0;
   info->share=s;
   info->read_function=_my_b_read_r;
+  info->current_pos= info->current_end= 0;
 }
 
 /*
@@ -454,32 +455,37 @@ void init_io_cache_share(IO_CACHE *info, IO_CACHE_SHARE *s, uint num_threads)
 */
 void remove_io_thread(IO_CACHE *info)
 {
-  pthread_mutex_lock(&info->share->mutex);
-  if (! info->share->count--)
-    pthread_cond_signal(&info->share->cond);
-  pthread_mutex_unlock(&info->share->mutex);
+  IO_CACHE_SHARE *s=info->share;
+
+  pthread_mutex_lock(&s->mutex);
+  s->total--;
+  if (! s->count--)
+    pthread_cond_signal(&s->cond);
+  pthread_mutex_unlock(&s->mutex);
 }
 
-static int lock_io_cache(IO_CACHE *info)
+static int lock_io_cache(IO_CACHE *info, my_off_t pos)
 {
-  pthread_mutex_lock(&info->share->mutex);
-  if (!info->share->count)
+  int total;
+  IO_CACHE_SHARE *s=info->share;
+
+  pthread_mutex_lock(&s->mutex);
+  if (!s->count)
+  {
+    s->count=s->total;
+    return 1;
+  }
+
+  total=s->total;
+  s->count--;
+  while (!s->active || s->active->pos_in_file < pos)
+    pthread_cond_wait(&s->cond, &s->mutex);
+
+  if (s->total < total)
     return 1;
 
-  --(info->share->count);
-  pthread_cond_wait(&info->share->cond, &info->share->mutex);
-  /*
-    count can be -1 here, if one thread was removed (remove_io_thread)
-    while all others were locked (lock_io_cache).
-    If this is the case, this thread behaves as if count was 0 from the
-    very beginning, that is returns 1 and does not unlock the mutex.
-  */
-  if (++(info->share->count))
-  {
-    pthread_mutex_unlock(&info->share->mutex);
-    return 0;
-  }
-  return 1;
+  pthread_mutex_unlock(&s->mutex);
+  return 0;
 }
 
 static void unlock_io_cache(IO_CACHE *info)
@@ -530,7 +536,7 @@ int _my_b_read_r(register IO_CACHE *info, byte *Buffer, uint Count)
       info->error=(int) read_len;
       DBUG_RETURN(1);
     }
-    if (lock_io_cache(info))
+    if (lock_io_cache(info, pos_in_file))
     {
       info->share->active=info;
       if (info->seek_not_done)             /* File touched, do seek */
@@ -1130,19 +1136,15 @@ int end_io_cache(IO_CACHE *info)
   DBUG_ENTER("end_io_cache");
 
 #ifdef THREAD
+  /*
+    if IO_CACHE is shared between several threads, only one
+    thread needs to call end_io_cache() - just as init_io_cache()
+    should be called only once and then memcopy'ed
+  */
   if (info->share)
   {
-#ifdef SAFE_MUTEX
-  /* simple protection against multi-close: destroying share first */
-    if (pthread_cond_destroy (&info->share->cond) |
-        pthread_mutex_destroy(&info->share->mutex))
-    {
-      DBUG_RETURN(1);
-    }
-#else
     pthread_cond_destroy (&info->share->cond);
     pthread_mutex_destroy(&info->share->mutex);
-#endif
     info->share=0;
   }
 #endif

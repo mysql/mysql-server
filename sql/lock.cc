@@ -117,7 +117,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd,TABLE **tables,uint count)
       thd->proc_info=0;
       break;
     }
-    thd->proc_info=0;
+    thd->proc_info="Table lock";
     thd->locked=1;
     if (thr_multi_lock(sql_lock->locks,sql_lock->lock_count))
     {
@@ -136,6 +136,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd,TABLE **tables,uint count)
       thd->locked=0;
       break;
     }
+    thd->proc_info=0;
 
     /* some table was altered or deleted. reopen tables marked deleted */
     mysql_unlock_tables(thd,sql_lock);
@@ -145,6 +146,7 @@ retry:
     if (wait_for_tables(thd))
       break;					// Couldn't open tables
   }
+  thd->proc_info=0;
   if (thd->killed)
   {
     my_error(ER_SERVER_SHUTDOWN,MYF(0));
@@ -308,6 +310,25 @@ void mysql_lock_abort(THD *thd, TABLE *table)
       thr_abort_locks(locked->locks[i]->lock);
     my_free((gptr) locked,MYF(0));
   }
+}
+
+
+/* Abort one thread / table combination */
+
+void mysql_lock_abort_for_thread(THD *thd, TABLE *table)
+{
+  MYSQL_LOCK *locked;
+  TABLE *write_lock_used;
+  DBUG_ENTER("mysql_lock_abort_for_thread");
+
+  if ((locked = get_lock_data(thd,&table,1,1,&write_lock_used)))
+  {
+    for (uint i=0; i < locked->lock_count; i++)
+      thr_abort_locks_for_thread(locked->locks[i]->lock,
+				 table->in_use->real_id);
+    my_free((gptr) locked,MYF(0));
+  }
+  DBUG_VOID_RETURN;
 }
 
 

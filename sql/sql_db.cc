@@ -78,9 +78,9 @@ int mysql_create_db(THD *thd, char *db, uint create_options, bool silent)
     if (!thd->query)
     {
       /* The client used the old obsolete mysql_create_db() call */
-      thd->query = path;
-      thd->query_length = (uint) (strxmov(path,"create database `", db, "`",
-					  NullS) - path);
+      thd->query_length= (uint) (strxmov(path,"create database `", db, "`",
+					 NullS) - path);
+      thd->query= path;
     }
     {
       mysql_update_log.write(thd,thd->query, thd->query_length);
@@ -92,8 +92,9 @@ int mysql_create_db(THD *thd, char *db, uint create_options, bool silent)
     }
     if (thd->query == path)
     {
-      thd->query = 0; // just in case
-      thd->query_length = 0;
+      VOID(pthread_mutex_lock(&LOCK_thread_count));
+      thd->query= 0;
+      VOID(pthread_mutex_unlock(&LOCK_thread_count));
     }
     send_ok(&thd->net, result);
   }
@@ -167,9 +168,10 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     {
       if (!thd->query)
       {
-	thd->query = path;
-	thd->query_length = (uint) (strxmov(path,"drop database ", db, NullS)-
-				    path);
+	thd->query_length= (uint) (strxmov(path,"drop database `", db, "`",
+					   NullS)-
+				   path);
+	thd->query= path;
       }
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
@@ -179,8 +181,9 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       }
       if (thd->query == path)
       {
-	thd->query = 0; // just in case
-	thd->query_length = 0;
+	VOID(pthread_mutex_lock(&LOCK_thread_count));
+	thd->query= 0;
+	VOID(pthread_mutex_unlock(&LOCK_thread_count));
       }
       send_ok(&thd->net,(ulong) deleted);
     }
@@ -348,8 +351,6 @@ bool mysql_change_db(THD *thd,const char *name)
     x_free(dbname);
     DBUG_RETURN(1);
   }
-  if (lower_case_table_names)
-    casedn_str(dbname);
   DBUG_PRINT("info",("Use database: %s", dbname));
   if (test_all_bits(thd->master_access,DB_ACLS))
     db_access=DB_ACLS;
@@ -383,8 +384,6 @@ bool mysql_change_db(THD *thd,const char *name)
   }
   send_ok(&thd->net);
   x_free(thd->db);
-  if (lower_case_table_names)
-    casedn_str(dbname);
   thd->db=dbname;
   thd->db_length=db_length;
   thd->db_access=db_access;

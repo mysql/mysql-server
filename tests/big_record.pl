@@ -1,58 +1,69 @@
 #!/usr/bin/perl
 
-# This is a test with stores big records in a blob
+# This is a test with stores big records in a blob.
 # Note that for the default test the mysql server should have been
-# started with at least 'mysqld -O max_allowed_packet=200k'
-
-$host= shift || "";
-$test_db="test";
-$opt_user=$opt_password="";
+# started with at least 'mysqld -O max_allowed_packet=30M' and you should have
+# at least 256M memory in your computer.
 
 use DBI;
-$|= 1;				# Autoflush
+use Getopt::Long;
 
-$table="test_big_record";
-$rows=20;			# Test of blobs up to ($rows-1)*10000+1 bytes
+$opt_host="";
+$opt_user=$opt_password="";
+$opt_db="test";
+$opt_rows=200;			# Test of blobs up to ($rows-1)*100000+1 bytes
+$opt_compress=0;
+$opt_table="test_big_record";
+
+GetOptions("host=s","db=s","user=s", "password=s", "table=s", "rows=i",
+	   "compress") || die "Aborted";
 
 print "Connection to database $test_db\n";
 
-$dbh = DBI->connect("DBI:mysql:$test_db:$host",$opt_user,$opt_password) || die "Can't connect: $DBI::errstr\n";
+$extra_options="";
+$extra_options.=":mysql_compression=1" if ($opt_compress);
 
-$dbh->do("drop table if exists $table");
+$dbh = DBI->connect("DBI:mysql:$opt_db:$host$extra_options",$opt_user,$opt_password) || die "Can't connect: $DBI::errstr\n";
 
-print "Creating table $table\n";
+$dbh->do("drop table if exists $opt_table");
+
+print "Creating table $opt_table\n";
 
 ($dbh->do("\
-CREATE TABLE $table (
+CREATE TABLE $opt_table (
   auto int(5) unsigned NOT NULL DEFAULT '0' auto_increment,
-  test mediumblob,
+  test longblob,
   PRIMARY KEY (auto))"))  or die $DBI::errstr;
 
-print "Inserting $rows records\n";
+print "Inserting $opt_rows records\n";
 
-for ($i=0 ; $i < $rows ; $i++)
+$|=1;	# Flush output to stdout to be able to monitor process
+
+for ($i=0 ; $i < $opt_rows ; $i++)
 {
-  $tmp= chr(65+$i) x ($i*10000+1);
+  $tmp= chr(65+($i % 16)) x ($i*100000+1);
+  print $i," ",length($tmp),"\n";
   $tmp= $dbh->quote($tmp);
-  $dbh->do("insert into $table (test) values ($tmp)") or die $DBI::errstr;
+  $dbh->do("insert into $opt_table (test) values ($tmp)") or die $DBI::errstr;
 }
 
-print "Testing records\n";
+print "Reading records\n";
 
-$sth=$dbh->prepare("select * from $table") or die $dbh->errstr;
+$sth=$dbh->prepare("select * from $opt_table", { "mysql_use_result" => 1}) or die $dbh->errstr;
+
 $sth->execute() or die $sth->errstr;
 
 $i=0;
 while (($row = $sth->fetchrow_arrayref))
 {
   print $row->[0]," ",length($row->[1]),"\n";
-  die "Record $i had wrong data in blob" if ($row->[1] ne (chr(65+$i)) x ($i*10000+1));
+  die "Record $i had wrong data in blob" if ($row->[1] ne (chr(65+($i % 16)) x ($i*100000+1)));
   $i++;
 }
 
-die "Didn't get all rows from server" if ($i != $rows);
+die "Didn't get all rows from server" if ($i != $opt_rows);
 
-$dbh->do("drop table $table") or die $DBI::errstr;
+$dbh->do("drop table $opt_table") or die $DBI::errstr;
 
 print "Test ok\n";
 exit 0;

@@ -123,6 +123,7 @@ int nisam_extra(N_INFO *info, enum ha_extra_function function)
     }
 #endif
     if (!(info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED)))
+    {
       if (!(init_io_cache(&info->rec_cache,info->dfile,0,
 			 WRITE_CACHE,info->s->state.data_file_length,
 			 (pbool) (info->lock_type != F_UNLCK),
@@ -131,7 +132,12 @@ int nisam_extra(N_INFO *info, enum ha_extra_function function)
 	info->opt_flag|=WRITE_CACHE_USED;
 	info->update&= ~HA_STATE_ROW_CHANGED;
       }
+    }
     break;
+  case HA_EXTRA_PREPARE_FOR_UPDATE:
+    if (info->s->data_file_type != DYNAMIC_RECORD)
+      break;
+    /* Remove read/write cache if dynamic rows */
   case HA_EXTRA_NO_CACHE:
     if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
     {

@@ -62,6 +62,7 @@ int heap_scan(register HP_INFO *info, byte *record)
   }
   if (!info->current_ptr[share->reclength])
   {
+    DBUG_PRINT("warning",("Found deleted record"));
     info->update= HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND;
     DBUG_RETURN(my_errno=HA_ERR_RECORD_DELETED);
   }

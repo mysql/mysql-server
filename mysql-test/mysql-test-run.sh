@@ -19,7 +19,7 @@ TZ=GMT-3; export TZ # for UNIX_TIMESTAMP tests to work
 # Program Definitions
 #--
 
-PATH=/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin:/usr/openwin/bin:/usr/bin/X11
+PATH=/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin:/usr/openwin/bin:/usr/bin/X11:$PATH
 MASTER_40_ARGS="--rpl-recovery-rank=1 --init-rpl-role=master"
 
 # Standard functions
@@ -47,13 +47,17 @@ which ()
 
 sleep_until_file_deleted ()
 {
-  file=$1
+  pid=$1;
+  file=$2
   loop=$SLEEP_TIME_FOR_DELETE
   while (test $loop -gt 0)
   do
     if [ ! -r $file ]
     then
-      sleep $SLEEP_TIME_AFTER_RESTART
+      if test $pid != "0"
+      then
+        wait_for_pid $pid
+      fi
       return
     fi
     sleep 1
@@ -79,6 +83,14 @@ sleep_until_file_created ()
   exit 1;
 }
 
+# For the future
+
+wait_for_pid()
+{
+  pid=$1
+  #$WAIT_PID pid $SLEEP_TIME_FOR_DELETE
+}
+
 # No paths below as we can't be sure where the program is!
 
 SED=sed
@@ -94,6 +106,7 @@ TAIL=tail
 ECHO=echo # use internal echo if possible
 EXPR=expr # use internal if possible
 FIND=find
+GREP=grep
 if test $? != 0; then exit 1; fi
 PRINTF=printf
 RM=rm
@@ -152,6 +165,7 @@ TOT_TEST=0
 USERT=0
 SYST=0
 REALT=0
+FAST_START=""
 MYSQL_TMP_DIR=$MYSQL_TEST_DIR/var/tmp
 SLAVE_LOAD_TMPDIR=../../var/tmp #needs to be same length to test logging
 RES_SPACE="      "
@@ -205,6 +219,7 @@ while test $# -gt 0; do
     --slave-binary=*)
       SLAVE_MYSQLD=`$ECHO "$1" | $SED -e "s;--slave-binary=;;"` ;;
     --local)   USE_RUNNING_SERVER="" ;;
+    --extern)   USE_RUNNING_SERVER="1" ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --local-master)
       MASTER_MYPORT=3306;
@@ -314,8 +329,9 @@ while test $# -gt 0; do
       VALGRIND="valgrind --alignment=8 --leak-check=yes"
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc"
-      SLEEP_TIME_AFTER_RESTART=120
+      SLEEP_TIME_AFTER_RESTART=10
       SLEEP_TIME_FOR_DELETE=120
+      USE_RUNNING_SERVER=""
       ;;
     --valgrind-options=*)
       TMP=`$ECHO "$1" | $SED -e "s;--valgrind-options=;;"`
@@ -330,10 +346,14 @@ while test $# -gt 0; do
       ;;
     --debug)
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
-       --debug=d:t:i:O,$MYSQL_TEST_DIR/var/log/master.trace"
+       --debug=d:t:i:A,$MYSQL_TEST_DIR/var/log/master.trace"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT \
-       --debug=d:t:i:O,$MYSQL_TEST_DIR/var/log/slave.trace"
-      EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT --debug"
+       --debug=d:t:i:A,$MYSQL_TEST_DIR/var/log/slave.trace"
+      EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT \
+       --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqltest.trace"
+      ;;
+    --fast)
+      FAST_START=1
       ;;
     -- )  shift; break ;;
     --* ) $ECHO "Unrecognized option: $1"; exit 1 ;;
@@ -403,6 +423,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
  fi
 
  MYSQLADMIN="$BASEDIR/client/mysqladmin"
+ WAIT_PID="$BASEDIR/extra/mysql_waitpid"
  MYSQL_MANAGER_CLIENT="$BASEDIR/client/mysqlmanagerc"
  MYSQL_MANAGER="$BASEDIR/tools/mysqlmanager"
  MYSQL_MANAGER_PWGEN="$BASEDIR/client/mysqlmanager-pwgen"
@@ -419,6 +440,7 @@ else
  fi
  MYSQL_TEST="$BASEDIR/bin/mysqltest"
  MYSQLADMIN="$BASEDIR/bin/mysqladmin"
+ WAIT_PID="$BASEDIR/bin/mysql_waitpid"
  MYSQL_MANAGER="$BASEDIR/bin/mysqlmanager"
  MYSQL_MANAGER_CLIENT="$BASEDIR/bin/mysqlmanagerc"
  MYSQL_MANAGER_PWGEN="$BASEDIR/bin/mysqlmanager-pwgen"
@@ -586,6 +608,33 @@ report_stats () {
 	$ECHO "If you want to report this error, please read first the documentation at"
         $ECHO "http://www.mysql.com/doc/M/y/MySQL_test_suite.html"
     fi
+
+    if test -z "$USE_RUNNING_SERVER"
+    then
+
+    # Report if there was any fatal warnings/errors in the log files
+    #
+    $RM -f $MY_LOG_DIR/warnings $MY_LOG_DIR/warnings.tmp
+    # Remove some non fatal warnings from the log files
+    $SED -e 's!Warning:  Table:.* on delete!!g' \
+         $MY_LOG_DIR/*.err > $MY_LOG_DIR/warnings.tmp
+
+    found_error=0
+    # Find errors
+    for i in "^Warning:" "^Error:" "^==.* at 0x"
+    do
+      if `$GREP "$i" $MY_LOG_DIR/warnings.tmp >> $MY_LOG_DIR/warnings`
+      then
+        found_error=1
+      fi
+    done
+    $RM -f $MY_LOG_DIR/warnings.tmp
+    if [ $found_error = "1" ]
+    then
+      echo "WARNING: Got errors/warnings while running tests. Please examine"
+      echo "$MY_LOG_DIR/warnings for details."
+    fi
+    fi
 }
 
 mysql_install_db () {
@@ -731,12 +780,19 @@ EOF
 
 manager_term()
 {
-  ident=$1
-  shift
+  pid=$1
+  ident=$2
   if [ $USE_MANAGER = 0 ] ; then
-    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock -O \
-    connect_timeout=5 -O shutdown_timeout=20 shutdown >> $MYSQL_MANAGER_LOG 2>&1
-    return
+    # Shutdown time must be high as slave may be in reconnect
+    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock --connect_timeout=5 --shutdown_timeout=70 shutdown >> $MYSQL_MANAGER_LOG 2>&1
+    res=$?
+    # Some systems require an extra connect
+    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock --connect_timeout=1 ping >> $MYSQL_MANAGER_LOG 2>&1
+    if test $res = 0
+    then
+      wait_for_pid $pid
+    fi
+    return $res
   fi
   $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT --user=$MYSQL_MANAGER_USER \
    --password=$MYSQL_MANAGER_PW  --port=$MYSQL_MANAGER_PORT <<EOF
@@ -755,8 +811,8 @@ start_master()
   $RM -f $MASTER_MYDDIR/log.*
   # Remove stale binary logs
   $RM -f $MYSQL_TEST_DIR/var/log/master-bin.*
-  # Remove old master.info files
-  $RM -f $MYSQL_TEST_DIR/var/master-data/master.info
+  # Remove old master.info and relay-log.info files
+  $RM -f $MYSQL_TEST_DIR/var/master-data/master.info $MYSQL_TEST_DIR/var/master-data/relay-log.info
 
   #run master initialization shell script if one exists
 
@@ -850,8 +906,8 @@ start_slave()
   [ x$SKIP_SLAVE = x1 ] && return
   eval "this_slave_running=\$SLAVE$1_RUNNING"
   [ x$this_slave_running = 1 ] && return
-  #when testing fail-safe replication, we will have more than one slave
-  #in this case, we start secondary slaves with an argument
+  # When testing fail-safe replication, we will have more than one slave
+  # in this case, we start secondary slaves with an argument
   slave_ident="slave$1"
   if [ -n "$1" ] ;
   then
@@ -860,7 +916,7 @@ start_slave()
    slave_port=`expr $SLAVE_MYPORT + $1`
    slave_log="$SLAVE_MYLOG.$1"
    slave_err="$SLAVE_MYERR.$1"
-   slave_datadir="var/$slave_ident-data/"
+   slave_datadir="$SLAVE_MYDDIR/../$slave_ident-data/"
    slave_pid="$MYRUN_DIR/mysqld-$slave_ident.pid"
    slave_sock="$SLAVE_MYSOCK-$1"
   else
@@ -875,7 +931,7 @@ start_slave()
  fi
   # Remove stale binary logs and old master.info files
   $RM -f $MYSQL_TEST_DIR/var/log/$slave_ident-*bin.*
-  $RM -f $MYSQL_TEST_DIR/$slave_datadir/master.info
+  $RM -f $slave_datadir/master.info $slave_datadir/relay-log.info
 
   #run slave initialization shell script if one exists
   if [ -f "$slave_init_script" ] ;
@@ -959,9 +1015,12 @@ EOF
 
 mysql_start ()
 {
-  $ECHO "Starting MySQL daemon"
-  start_master
-  start_slave
+# We should not start the deamon here as we don't know the argumens
+# for the test.  Better to let the test start the deamon
+
+#  $ECHO "Starting MySQL daemon"
+#  start_master
+#  start_slave
   cd $MYSQL_TEST_DIR
   return 1
 }
@@ -978,12 +1037,13 @@ stop_slave ()
   fi
   if [ x$this_slave_running = x1 ]
   then
-    manager_term $slave_ident
+    pid=`$CAT $slave_pid`
+    manager_term $pid $slave_ident
     if [ $? != 0 ] && [ -f $slave_pid ]
     then # try harder!
       $ECHO "slave not cooperating with mysqladmin, will try manual kill"
-      kill `$CAT $slave_pid`
-      sleep_until_file_deleted $slave_pid
+      kill $pid
+      sleep_until_file_deleted $pid $slave_pid
       if [ -f $slave_pid ] ; then
         $ECHO "slave refused to die. Sending SIGKILL"
         kill -9 `$CAT $slave_pid`
@@ -1002,12 +1062,13 @@ stop_master ()
 {
   if [ x$MASTER_RUNNING = x1 ]
   then
-    manager_term master
+    pid=`$CAT $MASTER_MYPID`
+    manager_term $pid master
     if [ $? != 0 ] && [ -f $MASTER_MYPID ]
     then # try harder!
       $ECHO "master not cooperating with mysqladmin, will try manual kill"
-      kill `$CAT $MASTER_MYPID`
-      sleep_until_file_deleted $MASTER_MYPID
+      kill $pid
+      sleep_until_file_deleted $pid $MASTER_MYPID
       if [ -f $MASTER_MYPID ] ; then
         $ECHO "master refused to die. Sending SIGKILL"
         kill -9 `$CAT $MASTER_MYPID`
@@ -1058,10 +1119,8 @@ run_testcase ()
  slave_opt_file=$TESTDIR/$tname-slave.opt
  master_init_script=$TESTDIR/$tname-master.sh
  slave_init_script=$TESTDIR/$tname-slave.sh
- slave_master_info_file=$TESTDIR/$tname-slave-master-info.opt
+ slave_master_info_file=$TESTDIR/$tname.slave-mi
  echo $tname > $CURRENT_TEST
- echo "CURRENT_TEST: $tname" >> $SLAVE_MYERR
- echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
  if [ $USE_MANAGER = 1 ] ; then
   many_slaves=`$EXPR \( $tname : rpl_failsafe \) != 0`
@@ -1098,13 +1157,17 @@ run_testcase ()
    then
      EXTRA_MASTER_OPT=`$CAT $master_opt_file | $SED -e "s;\\$MYSQL_TEST_DIR;$MYSQL_TEST_DIR;"`
      stop_master
+     echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
      start_master
    else
      if [ ! -z "$EXTRA_MASTER_OPT" ] || [ x$MASTER_RUNNING != x1 ] ;
      then
        EXTRA_MASTER_OPT=""
        stop_master
+       echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
        start_master
+     else
+       echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
      fi
    fi
 
@@ -1134,7 +1197,10 @@ run_testcase ()
 
    if [ x$do_slave_restart = x1 ] ; then
      stop_slave
+     echo "CURRENT_TEST: $tname" >> $SLAVE_MYERR
      start_slave
+   else
+     echo "CURRENT_TEST: $tname" >> $SLAVE_MYERR
    fi
    if [ x$many_slaves = x1 ]; then
     start_slave 1
@@ -1228,14 +1294,19 @@ run_testcase ()
 
 if [ -z "$USE_RUNNING_SERVER" ]
 then
-  # Ensure that no old mysqld test servers are running
-  $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
-  $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
-  $MYSQLADMIN --no-defaults --host=$hostname --port=$MASTER_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
-  $MYSQLADMIN --no-defaults --host=$hostname --port=$SLAVE_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
-  $MYSQLADMIN --no-defaults --host=$hostname --port=`expr $SLAVE_MYPORT + 1` -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
-  sleep_until_file_deleted $MASTER_MYPID
-  sleep_until_file_deleted $SLAVE_MYPID
+  if [ -z "$FAST_START" ]
+  then
+    # Ensure that no old mysqld test servers are running
+    $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+    $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+    $MYSQLADMIN --no-defaults --host=$hostname --port=$MASTER_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+    $MYSQLADMIN --no-defaults --host=$hostname --port=$SLAVE_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+    $MYSQLADMIN --no-defaults --host=$hostname --port=`expr $SLAVE_MYPORT + 1` -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+    sleep_until_file_deleted 0 $MASTER_MYPID
+    sleep_until_file_deleted 0 $SLAVE_MYPID
+  else
+    rm $MASTER_MYPID $SLAVE_MYPID
+  fi
 
   # Kill any running managers
   if [ -f "$MANAGER_PID_FILE" ]

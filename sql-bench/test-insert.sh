@@ -21,10 +21,11 @@
 # $opt_loop_count rows in random order
 #
 # changes made for Oracle compatibility
-# - $limits{'func_odbc_mod'} is OK from crash-me, but it fails here so set we
+# - $limits->{'func_odbc_mod'} is OK from crash-me, but it fails here so set we
 #   set it to 0 in server-cfg
-# - the default server config runs out of rollback segments, so I added a couple
-#   of disconnect/connects to reset
+# - the default server config runs out of rollback segments, so we added a
+#   couple of disconnect/connects to reset
+#
 ##################### Standard benchmark inits ##############################
 
 use DBI;
@@ -111,7 +112,7 @@ do_many($dbh,$server->create("bench1",
 			      "id3 int NOT NULL",
 			      "dummy1 char(30)"],
 			     ["primary key (id,id2)",
-			     "index index_id3 (id3)"]));
+			     "index ix_id3 (id3)"]));
 
 if ($opt_lock_tables)
 {
@@ -1288,9 +1289,9 @@ if (($opt_fast || $opt_fast_insert) && $server->{'limits'}->{'insert_multi_value
   {
     $id= $i & 127;
     $rand=$random[$i];
-    $tmp="($id,$id,$rand," . ($i & 32766) . ",'ABCDEF$rand',0,";
+    $tmp="($id,$id,$rand," . ($i & 32766) . ",'ABCDEF$rand',0,$rand,$rand.0,";
 
-    for ($j=6; $j <= $fields ; $j++)
+    for ($j=8; $j <= $fields ; $j++)
     {
       $tmp.= ($types[$j] == 0) ? "$rand," : "'$rand',";
     }
@@ -1314,9 +1315,9 @@ else
     $id= $i & 127;
     $rand=$random[$i];
     $query="insert into bench1 values ($id,$id,$rand," . ($i & 32767) .
-      ",'ABCDEF$rand',0,";
+      ",'ABCDEF$rand',0,$rand,$rand.0,";
 
-    for ($j=6; $j <= $fields ; $j++)
+    for ($j=8; $j <= $fields ; $j++)
     {
       $query.= ($types[$j] == 0) ? "$rand," : "'$rand',";
     }

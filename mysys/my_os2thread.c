@@ -61,10 +61,9 @@ static pthread_handler_decl(pthread_start,param)
   win_pthread_self=((struct pthread_map *) param)->pthreadself;
   pthread_mutex_unlock(&THR_LOCK_thread);
   free((char*) param);			  /* Free param from create */
-  //pthread_exit((void*) (*func)(func_param));
+  /* pthread_exit((void*) (*func)(func_param)); */
   (*func)(func_param);
   DBUG_RETURN(0);
-  //return 0;				  /* Safety */
 }
 
 

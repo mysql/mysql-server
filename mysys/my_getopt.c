@@ -300,7 +300,8 @@ int handle_options(int *argc, char ***argv,
 	      */
 	    *((my_bool*) optp->value)= 	(my_bool) (!optend || *optend == '1');
 	    (*argc)--;	    
-	    continue; /* For GET_BOOL get_one_option() shouldn't be called */
+	    get_one_option(optp->id, optp, argument);
+	    continue;
 	  }
 	  argument= optend;
 	}
@@ -348,7 +349,8 @@ int handle_options(int *argc, char ***argv,
 	      if (optp->var_type == GET_BOOL && optp->arg_type == NO_ARG)
 	      {
 		*((my_bool*) optp->value)= (my_bool) 1;
-		continue; /* For GET_BOOL get_one_option() shouldn't be called */
+		get_one_option(optp->id, optp, argument);
+		continue;
 	      }
 	      else if (optp->arg_type == REQUIRED_ARG ||
 		       optp->arg_type == OPT_ARG)
@@ -572,7 +574,7 @@ static longlong eval_num_suffix (char *argument, int *error, char *option_name)
   In case of an error, set error value in *err.
 */
 
-longlong getopt_ll (char *arg, const struct my_option *optp, int *err)
+static longlong getopt_ll(char *arg, const struct my_option *optp, int *err)
 {
   longlong num;
   
@@ -596,7 +598,7 @@ longlong getopt_ll (char *arg, const struct my_option *optp, int *err)
   values.
 */
 
-static ulonglong getopt_ull (char *arg, const struct my_option *optp, int *err)
+static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err)
 {
   ulonglong num;
 

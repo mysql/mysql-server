@@ -229,8 +229,13 @@ void thr_end_alarm(thr_alarm_t *alarmed)
 			  (long) *alarmed));
   }
   if (alarm_aborted && !alarm_queue.elements)
+  {
     delete_queue(&alarm_queue);
-  pthread_mutex_unlock(&LOCK_alarm);
+    pthread_mutex_unlock(&LOCK_alarm);
+    pthread_mutex_destroy(&LOCK_alarm);
+  }
+  else
+    pthread_mutex_unlock(&LOCK_alarm);
   pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
   DBUG_VOID_RETURN;
 }
@@ -367,19 +372,25 @@ static sig_handler process_alarm_part2(int sig __attribute__((unused)))
 void end_thr_alarm(void)
 {
   DBUG_ENTER("end_thr_alarm");
-  pthread_mutex_lock(&LOCK_alarm);
   if (!alarm_aborted)
-  {
+  {    
+    my_bool deleted=0;
+    pthread_mutex_lock(&LOCK_alarm);
     DBUG_PRINT("info",("Resheduling %d waiting alarms",alarm_queue.elements));
     alarm_aborted=1;				/* mark aborted */
     if (!alarm_queue.elements)
+    {
+      deleted= 1;
       delete_queue(&alarm_queue);
+    }
     if (pthread_equal(pthread_self(),alarm_thread))
       alarm(1);					/* Shut down everything soon */
     else
       reschedule_alarms();
+    pthread_mutex_unlock(&LOCK_alarm);
+    if (deleted)
+      pthread_mutex_destroy(&LOCK_alarm);
   }
-  pthread_mutex_unlock(&LOCK_alarm);
   DBUG_VOID_RETURN;
 }
 
@@ -391,6 +402,8 @@ void end_thr_alarm(void)
 void thr_alarm_kill(pthread_t thread_id)
 {
   uint i;
+  if (alarm_aborted)
+    return;
   pthread_mutex_lock(&LOCK_alarm);
   for (i=0 ; i < alarm_queue.elements ; i++)
   {

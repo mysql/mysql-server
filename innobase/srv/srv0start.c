@@ -529,6 +529,9 @@ open_or_create_log_file(
 					new database */
 	ibool*	log_file_created,	/* out: TRUE if new log file
 					created */
+	ibool	log_file_has_been_opened,/* in: TRUE if a log file has been
+					opened before: then it is an error
+					to try to create another log file */
 	ulint	k,			/* in: log group number */
 	ulint	i)			/* in: log file number in group */
 {
@@ -574,19 +577,27 @@ open_or_create_log_file(
 		    || size_high != srv_calc_high32(srv_log_file_size)) {
 		    	
 			fprintf(stderr,
-			"InnoDB: Error: log file %s is of different size\n"
-			"InnoDB: than specified in the .cnf file!\n", name);
+"InnoDB: Error: log file %s is of different size %lu %lu bytes\n"
+"InnoDB: than specified in the .cnf file %lu %lu bytes!\n",
+				name, size_high, size,
+				srv_calc_high32(srv_log_file_size),
+				srv_calc_low32(srv_log_file_size));
 				
 			return(DB_ERROR);
 		}					
 	} else {
 		*log_file_created = TRUE;
-					
+
 	    	ut_print_timestamp(stderr);
 
 		fprintf(stderr,
 		"  InnoDB: Log file %s did not exist: new to be created\n",
 									name);
+		if (log_file_has_been_opened) {
+
+			return(DB_ERROR);
+		}
+
 		fprintf(stderr, "InnoDB: Setting log file %s size to %lu MB\n",
 			             name, srv_log_file_size
 			>> (20 - UNIV_PAGE_SIZE_SHIFT));
@@ -762,8 +773,13 @@ open_or_create_data_files(
 				    	       rounded_size_pages)) {
 				    	       	
 						fprintf(stderr,
-			"InnoDB: Error: data file %s is of a different size\n"
-			"InnoDB: than specified in the .cnf file!\n", name);	
+"InnoDB: Error: auto-extending data file %s is of a different size\n"
+"InnoDB: %lu pages (rounded down to MB) than specified in the .cnf file:\n"
+"InnoDB: initial %lu pages, max %lu (relevant if non-zero) pages!\n",
+		  name, rounded_size_pages,
+		  srv_data_file_sizes[i], srv_last_file_size_max);
+
+						return(DB_ERROR);
 					}
 				    	     
 				    	srv_data_file_sizes[i] =
@@ -774,8 +790,11 @@ open_or_create_data_files(
 						!= srv_data_file_sizes[i]) {
 
 					fprintf(stderr,
-			"InnoDB: Error: data file %s is of a different size\n"
-			"InnoDB: than specified in the .cnf file!\n", name);
+"InnoDB: Error: data file %s is of a different size\n"
+"InnoDB: %lu pages (rounded down to MB)\n"
+"InnoDB: than specified in the .cnf file %lu pages!\n", name,
+						rounded_size_pages,
+						srv_data_file_sizes[i]);
 				
 					return(DB_ERROR);
 				}
@@ -1160,7 +1179,8 @@ innobase_start_or_create_for_mysql(void)
 		for (i = 0; i < srv_n_log_files; i++) {
 
 			err = open_or_create_log_file(create_new_db,
-						&log_file_created, k, i);
+						&log_file_created,
+						log_opened, k, i);
 			if (err != DB_SUCCESS) {
 
 				return((int) err);
@@ -1406,6 +1426,10 @@ innobase_start_or_create_for_mysql(void)
 
 	os_fast_mutex_unlock(&srv_os_test_mutex);
 
+#if defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
+	os_fast_mutex_free(&srv_os_test_mutex);  /* all platforms? */
+#endif /* __NETWARE__ */
+
 	if (srv_print_verbose_log) {
 	  	ut_print_timestamp(stderr);
 	  	fprintf(stderr, "  InnoDB: Started\n");
@@ -1452,12 +1476,28 @@ innobase_shutdown_for_mysql(void)
 		srv_conc_n_threads);
 	}
 
+#if defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
+	/*
+	  TODO: Fix this temporary solution
+	  We are having a race condition occure with io_handler_thread threads.
+	  When they yield in os_aio_simulated_handle during shutdown, this
+	  thread was able to free the memory early.
+	*/
+	os_thread_yield();
+
+	/* TODO: Where should this be called? */
+	srv_free();
+
+	/* TODO: Where should this be called? */
+	srv_general_free();
+#endif
 	/*
 	TODO: We should exit the i/o-handler and other utility threads
 	before freeing all memory. Now this can potentially cause a seg
 	fault!
 	*/
-#ifdef NOT_WORKING_YET
+#if defined(NOT_WORKING_YET) || defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
+        /* NetWare requires this free */
         ut_free_all_mem();
 #endif 
 

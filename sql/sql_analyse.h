@@ -297,13 +297,16 @@ protected:
 public:
   uint max_tree_elements, max_treemem;
 
-  analyse(select_result *res) :Procedure(res, PROC_NO_SORT), rows(0),
-    output_str_length(0) {}
+  analyse(select_result *res) :Procedure(res, PROC_NO_SORT), f_info(0),
+    rows(0), output_str_length(0) {}
 
   ~analyse()
-  { 
-    for (field_info **f=f_info; f != f_end; f++)
-      delete (*f);
+  {
+    if (f_info)
+    {
+      for (field_info **f=f_info; f != f_end; f++)
+	delete (*f);
+    }
   }
   virtual void add() {}
   virtual bool change_columns(List<Item> &fields);

@@ -38,7 +38,8 @@ int myrg_extra(MYRG_INFO *info,enum ha_extra_function function,
   }
   else
   {
-    if (function == HA_EXTRA_NO_CACHE || function == HA_EXTRA_RESET)
+    if (function == HA_EXTRA_NO_CACHE || function == HA_EXTRA_RESET ||
+	function == HA_EXTRA_PREPARE_FOR_UPDATE)
       info->cache_in_use=0;
     if (function == HA_EXTRA_RESET || function == HA_EXTRA_RESET_STATE)
     {

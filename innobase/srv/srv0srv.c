@@ -1700,7 +1700,62 @@ srv_general_init(void)
 	thr_local_init();
 }
 
+
+#if defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
+/* NetWare requires some cleanup of mutexes */
+
+/*************************************************************************
+Deinitializes the synchronization primitives, memory system, and the thread
+local storage. */
+
+void
+srv_general_free(void)
+/*==================*/
+{
+  sync_close();
+}
+#endif /* __NETWARE__ */
+
+
 /*======================= InnoDB Server FIFO queue =======================*/
+
+#if defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
+/* NetWare requires some cleanup of mutexes */
+
+/*************************************************************************
+Deinitializes the server. */
+
+void
+srv_free(void)
+/*==========*/
+{
+  srv_conc_slot_t* conc_slot;
+  srv_slot_t* slot;
+  ulint i;
+
+  for (i = 0; i < OS_THREAD_MAX_N; i++)
+  {
+    slot = srv_table_get_nth_slot(i);
+    os_event_free(slot->event);
+  }
+
+  /* TODO: free(srv_sys->threads); */
+
+  for (i = 0; i < OS_THREAD_MAX_N; i++)
+  {
+    slot = srv_mysql_table + i;
+    os_event_free(slot->event);
+  }
+
+  /* TODO: free(srv_mysql_table); */
+
+  for (i = 0; i < OS_THREAD_MAX_N; i++)
+  {
+    conc_slot = srv_conc_slots + i;
+    os_event_free(conc_slot->event);
+  }
+}
+#endif /* __NETWARE__ */
 
 /*************************************************************************
 Puts an OS thread to wait if there are too many concurrent threads
@@ -1715,6 +1770,7 @@ srv_conc_enter_innodb(
 	ibool			has_slept	= FALSE;
 	srv_conc_slot_t*	slot;
 	ulint			i;
+	char                    err_buf[1000];
 
 	if (srv_thread_concurrency >= 500) {
 		/* Disable the concurrency check */
@@ -1732,6 +1788,16 @@ srv_conc_enter_innodb(
 	}
 retry:
 	os_fast_mutex_lock(&srv_conc_mutex);
+
+	if (trx->declared_to_be_inside_innodb) {
+	        ut_print_timestamp(stderr);
+
+	        trx_print(err_buf, trx);
+
+	        fprintf(stderr,
+"  InnoDB: Error: trying to declare trx to enter InnoDB, but\n"
+"InnoDB: it already is declared.\n%s\n", err_buf);
+	}
 
 	if (srv_conc_n_threads < (lint)srv_thread_concurrency) {
 
@@ -1803,7 +1869,11 @@ retry:
 	/* Go to wait for the event; when a thread leaves InnoDB it will
 	release this thread */
 
+	trx->op_info = "waiting in InnoDB queue";
+
 	os_event_wait(slot->event);
+
+	trx->op_info = "";
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 

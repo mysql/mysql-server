@@ -228,7 +228,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   if (uniques)
   {
     max_key_block_length= myisam_block_size;
-    max_key_length=	  MI_UNIQUE_HASH_LENGTH;
+    max_key_length=	  MI_UNIQUE_HASH_LENGTH + pointer;
   }
 
   for (i=0, keydef=keydefs ; i < keys ; i++ , keydef++)
@@ -304,7 +304,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       if (keydef->flag & HA_BINARY_PACK_KEY)
 	options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
 
-      if (keydef->flag & HA_AUTO_KEY)
+      if (keydef->flag & HA_AUTO_KEY && ci->with_auto_increment)
 	share.base.auto_key=i+1;
       for (j=0, keyseg=keydef->seg ; j < keydef->keysegs ; j++, keyseg++)
       {

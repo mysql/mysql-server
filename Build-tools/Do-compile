@@ -8,7 +8,7 @@ use Getopt::Long;
 $opt_distribution=$opt_user=$opt_config_env="";
 $opt_dbd_options=$opt_perl_options=$opt_config_options=$opt_make_options=$opt_suffix="";
 $opt_tmp=$opt_version_suffix="";
-$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_debug=0;
+$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=0;
 $opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=0;
 
 GetOptions(
@@ -30,7 +30,9 @@ GetOptions(
 	"no-crash-me",
 	"no-perl",
 	"no-strip",
-	"no-test|no-mysqltest",
+	"no-test",
+	"no-mysqltest",
+	"no-benchmark",
 	"perl-files=s",
 	"perl-options=s",
 	"raid",
@@ -73,13 +75,17 @@ if (@config_env > 0)
 }
 
 chomp($host=`hostname`);
+chomp($uname=`uname`);
 $full_host_name=$host;
 $connect_option= ($opt_tcpip ? "--host=$host" : "");
 $host =~ /^([^.-]*)/;
 $host=$1 . $opt_suffix;
 $email="$opt_user\@mysql.com";
-$pwd = `pwd`; chomp($pwd);
-$log="$pwd/Logs/$host$opt_version_suffix.log";
+chomp($pwd = `pwd`);
+$VER= `basename $opt_distribution`; chop $VER;
+$VER=~ /mysql.*-([1-9]\.[0-9]{1,2}\.[0-9]{1,2}.*)\.tar*/; $version=$1;
+($major, $minor, $release) = split(/\./,$version);
+$log="$pwd/Logs/$host-$major.$minor$opt_version_suffix.log";
 $opt_distribution =~ /(mysql[^\/]*)\.tar/;
 $ver=$1;
 $gcc_version=which("gcc");
@@ -127,6 +133,7 @@ $ENV{'MYSQL_UNIX_PORT'}=$mysql_unix_port="$opt_tmp/mysql$opt_suffix.build";
 $ENV{"PERL5LIB"}="$pwd/$host/perl5:$pwd/$host/perl5/site_perl";
 $slave_port=$mysql_tcp_port+16;
 $manager_port=$mysql_tcp_port+1;
+$mysqladmin_args="--no-defaults -u root --connect_timeout=5 --shutdown_timeout=20";
 
 if ($opt_stage == 0)
 {
@@ -142,19 +149,26 @@ select STDOUT;
 $|=1;
 
 info("Compiling MySQL$opt_version_suffix at $host$opt_suffix, stage: $opt_stage\n");
+log_timestamp();
 
 if (-x "$host/bin/mysqladmin")
 {
-  log_system("$host/bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown");
-  log_system("$host/bin/mysqladmin --no-defaults -u root -P $mysql_tcp_port -h $host -s shutdown");
-  log_system("$host/bin/mysqladmin --no-defaults -u root -P $slave_port -h $host -s shutdown");
-  log_system("$host/bin/mysqladmin --no-defaults -u root -P 9306 -h $host -s shutdown");
-  log_system("$host/bin/mysqladmin --no-defaults -u root -P 9307 -h $host -s shutdown");
+  log_system("$host/bin/mysqladmin $mysqladmin_args -S $mysql_unix_port -s shutdown");
+  log_system("$host/bin/mysqladmin $mysqladmin_args -P $mysql_tcp_port -h $host -s shutdown");
+  log_system("$host/bin/mysqladmin $mysqladmin_args -P $slave_port -h $host -s shutdown");
+  log_system("$host/bin/mysqladmin $mysqladmin_args -P 9306 -h $host -s shutdown");
+  log_system("$host/bin/mysqladmin $mysqladmin_args -P 9307 -h $host -s shutdown");
 }
 kill_all("mysqlmanager");
+#
+# Kill all old processes that are in the build directories
+# This is to find any old mysqld servers left from previous builds
+kill_all("$pwd/host/mysql");
+kill_all("$pwd/host/test");
 
 if ($opt_stage == 0)
 {
+  log_timestamp();
   print "$host: Removing old distribution\n" if ($opt_debug);
   if (!$opt_use_old_distribution)
   {
@@ -203,6 +217,7 @@ safe_cd("$pwd/$host/$ver");
 if ($opt_stage <= 1)
 {
   # Fix files if this is in another timezone than the build host
+  log_timestamp();
   unlink("config.cache");
   unlink("bdb/build_unix/config.cache");
   unlink("innobase/config.cache");
@@ -246,6 +261,7 @@ if ($opt_stage <= 1)
 if ($opt_stage <= 2)
 {
   my ($command);
+  log_timestamp();
   unlink($opt_distribution) if ($opt_delete && !$opt_use_old_distribution);
   $command=$make;
   $command.= " $opt_make_options" if (defined($opt_make_options) && $opt_make_options ne "");
@@ -258,6 +274,7 @@ if ($opt_stage <= 2)
 if ($opt_stage <= 3)
 {
   my $flags= "";
+  log_timestamp();
   log_system("rm -fr mysql-3* mysql-4* $pwd/$host/*.tar.gz");
   log_system("nm -n sql/mysqld | gzip -9 -v 2>&1 > sql/mysqld.sym.gz | cat");
 
@@ -286,6 +303,7 @@ if (!defined($tar_file))
 #
 if ($opt_stage <= 4 && !$opt_no_test)
 {
+  log_timestamp();
   rm_all(<$pwd/$host/test/*>);
   safe_cd("$pwd/$host/test");
   safe_system("gunzip < $tar_file | $tar xf -");
@@ -294,13 +312,15 @@ if ($opt_stage <= 4 && !$opt_no_test)
 $tar_file =~ /(mysql[^\/]*)\.tar/;
 $ver=$1;
 $test_dir="$pwd/$host/test/$ver";
-$ENV{"LD_LIBRARY_PATH"}= "$test_dir/lib:" . $ENV{"LD_LIBRARY_PATH"};
-
+$ENV{"LD_LIBRARY_PATH"}= ("$test_dir/lib" .
+			  (defined($ENV{"LD_LIBRARY_PATH"}) ?
+			   ":" . $ENV{"LD_LIBRARY_PATH"} : ""));
 #
 # Run the test suite
 #
-if ($opt_stage <= 5 && !$opt_no_test)
+if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 {
+  log_timestamp();
   system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   safe_cd("${test_dir}/mysql-test");
   check_system("./mysql-test-run --warnings --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
@@ -309,11 +329,11 @@ if ($opt_stage <= 5 && !$opt_no_test)
 #
 # Start the server if we are going to run any of the benchmarks
 #
-if (!$opt_no_test)
+if (!$opt_no_test && !$opt_no_benchmark)
 {
   my $extra;
   safe_cd($test_dir);
-  log_system("./bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown") || info("There was no mysqld running\n");
+  log_system("./bin/mysqladmin $mysqladmin_args -S $mysql_unix_port -s shutdown") || info("There was no mysqld running\n");
   sleep(2);
   log_system("rm -f  ./data/mysql/*");
   check_system("scripts/mysql_install_db --no-defaults --skip-locking","https://order");
@@ -333,8 +353,10 @@ if (!$opt_no_test)
 #
 # Compile and install the required Perl modules
 #
-if ($opt_stage <= 7 && $opt_perl_files && !$opt_no_perl && !$opt_no_test)
+if ($opt_stage <= 7 && $opt_perl_files && !$opt_no_perl && !$opt_no_test &&
+    !$opt_no_benchmark)
 {
+  log_timestamp();
   safe_cd($test_dir);
   rm_all("perl");
   safe_system("mkdir perl");
@@ -370,6 +392,7 @@ if ($opt_stage <= 7 && $opt_perl_files && !$opt_no_perl && !$opt_no_test)
 #
 if ($opt_stage <= 8 && !$opt_no_test && !$opt_no_crash_me)
 {
+  log_timestamp();
   safe_cd("$test_dir/sql-bench");
   log_system("rm -f limits/mysql.cfg");
   safe_system("perl ./crash-me --force --batch-mode $connect_option");
@@ -378,8 +401,9 @@ if ($opt_stage <= 8 && !$opt_no_test && !$opt_no_crash_me)
 #
 # Run sql-bench Benchmarks
 #
-if ($opt_stage <= 9 && !$opt_no_test)
+if ($opt_stage <= 9 && !$opt_no_test && !$opt_no_benchmark)
 {
+  log_timestamp();
   safe_cd("$test_dir/sql-bench");
   log_system("rm -f output/*");
   $tmp= $opt_fast_benchmark ? "--fast --user root --small-test" : "";
@@ -399,7 +423,7 @@ if ($opt_stage <= 9 && !$opt_no_test)
 rm_all($bench_tmpdir);
 rm_all("$opt_tmp") if ($new_opt_tmp);
 
-log_system("$pwd/$host/bin/mysqladmin --no-defaults -S $mysql_unix_port -u root shutdown");
+log_system("$pwd/$host/bin/mysqladmin $mysqladmin_args -S $mysql_unix_port shutdown");
 print LOG "ok\n";
 close LOG;
 print "$host: ok\n";
@@ -410,7 +434,7 @@ exit 0;
 sub usage
 {
 print <<EOF;
-$0  version 1.4
+$0  version 1.5
 
 $0 takes the following options:
 
@@ -463,7 +487,13 @@ Do not run the "crash-me" test
 Do not strip the binaries included in the binary distribution
 
 --no-test
-Do not run any tests
+Do not run any tests.
+
+--no-benchmark
+Do not run the benchmark test (written in perl)
+
+--no-mysqltest
+Do not run the the mysql-test-run test (Same as 'make test')
 
 --perl-files=list of files
 Compile and install the given perl modules.
@@ -526,22 +556,22 @@ sub abort
   my($mail_header_file);
   print LOG "\n$message\n";
   print "$host: $message\n" if ($opt_debug);
+  print LOG "Aborting\n";
   close LOG;
 
   if ($opt_user)
   {
     $mail_header_file="$opt_tmp/do-command.$$";
     open(TMP,">$mail_header_file");
-    print TMP "From: mysql\@$full_host_name\n";
+    print TMP "From: mysqldev\@$full_host_name\n";
     print TMP "To: $email\n";
-    print TMP "Subject: $ver$opt_version_suffix compilation failed\n\n";
+    print TMP "Subject: $host($uname): $ver$opt_version_suffix compilation failed\n\n";
     close TMP;
     system("tail -n 40 $log > $log.mail");
     system("cat $mail_header_file $log.mail | $sendmail -t -f $email");
     unlink($mail_header_file);
     unlink("$log.mail");
   }
-  print LOG "Aborting\n";
   exit 1;
 }
 
@@ -683,9 +713,10 @@ sub rm_all
 sub kill_all
 {
   my ($pattern) = @_;
-  my ($USER,$BSD,$LINUX, $pscmd, $user, $pid);
+  my ($USER,$BSD,$LINUX, $pscmd, $user, $os, $pid);
   $user=$ENV{'USER'};
-  $BSD = -f '/vmunix' || $ENV{"OS"} eq "SunOS4" || $^O eq 'darwin';
+  $os=defined($ENV{'OS'}) ? $ENV{'OS'} : "unknown";
+  $BSD = -f '/vmunix' || $os eq "SunOS4" || $^O eq 'darwin';
   $LINUX = $^O eq 'linux';
   $pscmd = $BSD ? "/bin/ps -auxww" : $LINUX ? "/bin/ps axuw" : "/bin/ps -ef";
 
@@ -701,7 +732,7 @@ sub kill_all
   {
     chop($cand);
     ($pid_user, $pid) = split(' ', $cand);
-    next if $pid == $$;
+    next if $pid eq $$;
     next process if (! ($cand =~ $pattern) || $pid_user ne $user);
     print LOG "Killing $_\n";
     &killpid($pid);
@@ -723,4 +754,15 @@ sub killpid
     return if kill(0, $pid) == 0;
   }
   print LOG "$pid will not die!\n";
+}
+
+#
+# return the current date as a string (YYYY-MM-DD HH:MM:SS)
+#
+sub log_timestamp
+{
+  my @ta=localtime(time());
+  print LOG sprintf("%4d-%02d-%02d %02d:%02d:%02d\n",
+		    $ta[5]+1900, $ta[4]+1, $ta[3], $ta[2], $ta[1], $ta[0]);
+
 }

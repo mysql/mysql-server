@@ -1241,7 +1241,7 @@ static void handle_child(int __attribute__((unused)) sig)
   signal(SIGCHLD,handle_child);
 }
 
-struct manager_thd* manager_thd_new(Vio* vio)
+static struct manager_thd* manager_thd_new(Vio* vio)
 {
   struct manager_thd* tmp;
   if (!(tmp=(struct manager_thd*)my_malloc(sizeof(*tmp),

@@ -1,4 +1,34 @@
 drop table if exists t1,t2,t3;
+CREATE TABLE t1 (S1 INT);
+CREATE TABLE t2 (S1 INT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+SELECT * FROM t1 JOIN t2;
+S1	S1
+1	2
+SELECT * FROM t1 INNER JOIN t2;
+S1	S1
+1	2
+SELECT * from t1 JOIN t2 USING (S1);
+S1	S1
+SELECT * FROM t1 INNER JOIN t2 USING (S1);
+S1	S1
+SELECT * from t1 CROSS JOIN t2;
+S1	S1
+1	2
+SELECT * from t1 LEFT JOIN t2 USING(S1);
+S1	S1
+1	NULL
+SELECT * from t1 LEFT JOIN t2 ON(t2.S1=2);
+S1	S1
+1	2
+SELECT * from t1 RIGHT JOIN t2 USING(S1);
+S1	S1
+NULL	2
+SELECT * from t1 RIGHT JOIN t2 ON(t1.S1=1);
+S1	S1
+1	2
+drop table t1,t2;
 create table t1 (id int primary key);
 create table t2 (id int);
 insert into t1 values (75);
@@ -14,8 +44,7 @@ insert into t1 values (101);
 insert into t1 values (105);
 insert into t1 values (106);
 insert into t1 values (107);
-insert into t2 values (107);
-insert into t2 values (75);
+insert into t2 values (107),(75),(1000);
 select t1.id, t2.id from t1, t2 where t2.id = t1.id;
 id	id
 107	107
@@ -28,6 +57,16 @@ select t1.id, count(t2.id) from t1,t2 where t2.id = t1.id group by t2.id;
 id	count(t2.id)
 75	1
 107	1
+select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0 where t2.id=75 and t1.id is null;
+id	id
+NULL	75
+explain select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0 where t2.id=75 and t1.id is null;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	const	PRIMARY	NULL	NULL	NULL	1	Impossible ON condition
+t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain select t1.id, t2.id from t1, t2 where t2.id = t1.id and t1.id <0 and t1.id > 0;
+Comment
+Impossible WHERE noticed after reading const tables
 drop table t1,t2;
 CREATE TABLE t1 (
 id int(11) NOT NULL auto_increment,

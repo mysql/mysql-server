@@ -85,6 +85,22 @@ public:
 };
 
 
+class sys_var_ulonglong_ptr :public sys_var
+{
+public:
+  ulonglong *value;
+  sys_var_ulonglong_ptr(const char *name_arg, ulonglong *value_ptr)
+    :sys_var(name_arg),value(value_ptr) {}
+  sys_var_ulonglong_ptr(const char *name_arg, ulonglong *value_ptr,
+		       sys_after_update_func func)
+    :sys_var(name_arg,func), value(value_ptr) {}
+  bool update(THD *thd, set_var *var);
+  void set_default(THD *thd, enum_var_type type);
+  SHOW_TYPE type() { return SHOW_LONGLONG; }
+  byte *value_ptr(THD *thd, enum_var_type type) { return (byte*) value; }
+};
+
+
 class sys_var_bool_ptr :public sys_var
 {
 public:
@@ -191,6 +207,24 @@ public:
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
   SHOW_TYPE type() { return SHOW_LONG; }
+  byte *value_ptr(THD *thd, enum_var_type type);
+};
+
+
+class sys_var_thd_ha_rows :public sys_var_thd
+{
+public:
+  ha_rows SV::*offset;
+  sys_var_thd_ha_rows(const char *name_arg, ha_rows SV::*offset_arg)
+    :sys_var_thd(name_arg), offset(offset_arg)
+  {}
+  sys_var_thd_ha_rows(const char *name_arg, ha_rows SV::*offset_arg,
+		      sys_after_update_func func)
+    :sys_var_thd(name_arg,func), offset(offset_arg)
+  {}
+  bool update(THD *thd, set_var *var);
+  void set_default(THD *thd, enum_var_type type);
+  SHOW_TYPE type() { return SHOW_HA_ROWS; }
   byte *value_ptr(THD *thd, enum_var_type type);
 };
 

@@ -23,8 +23,6 @@
 
 */
 
-
-
 #ifdef __GNUC__
 #pragma implementation				// gcc: Class implementation
 #endif
@@ -507,10 +505,11 @@ SEL_ARG *SEL_ARG::last()
   return next_arg;
 }
 
+
 /*
   Check if a compare is ok, when one takes ranges in account
   Returns -2 or 2 if the ranges where 'joined' like  < 2 and >= 2
- */
+*/
 
 static int sel_cmp(Field *field, char *a,char *b,uint8 a_flag,uint8 b_flag)
 {
@@ -605,12 +604,14 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
     records++;					/* purecov: inspected */
   scan_time=(double) records / TIME_FOR_COMPARE+1;
   read_time=(double) head->file->scan_time()+ scan_time + 1.0;
+  if (head->force_index)
+    scan_time= read_time= DBL_MAX;
   if (limit < records)
     read_time=(double) records+scan_time+1;	// Force to use index
   else if (read_time <= 2.0 && !force_quick_range)
     DBUG_RETURN(0);				/* No need for quick select */
 
-  DBUG_PRINT("info",("Time to scan table: %ld",(long) read_time));
+  DBUG_PRINT("info",("Time to scan table: %g", read_time));
 
   keys_to_use&=head->keys_in_use_for_query;
   if (keys_to_use)
@@ -936,8 +937,11 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
     if (!(res= value->val_str(&tmp)))
       DBUG_RETURN(&null_element);
 
-    // Check if this was a function. This should have be optimized away
-    // in the sql_select.cc
+    /*
+      TODO:
+      Check if this was a function. This should have be optimized away
+      in the sql_select.cc
+    */
     if (res != &tmp)
     {
       tmp.copy(*res);				// Get own copy
@@ -1017,27 +1021,19 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
       type != Item_func::EQUAL_FUNC)
     DBUG_RETURN(0);				// Can't optimize this
 
-  /* We can't always use indexes when comparing a string index to a number */
-  /* cmp_type() is checked to allow compare of dates to numbers */
+  /*
+    We can't always use indexes when comparing a string index to a number
+    cmp_type() is checked to allow compare of dates to numbers
+  */
   if (field->result_type() == STRING_RESULT &&
       value->result_type() != STRING_RESULT &&
       field->cmp_type() != value->result_type())
     DBUG_RETURN(0);
 
-  if (value->save_in_field(field))
+  if (value->save_in_field(field, 1))
   {
-    // TODO; Check if we can we remove the following block.
-    if (type == Item_func::EQUAL_FUNC)
-    {
-      /* convert column_name <=> NULL -> column_name IS NULL */
-      // Get local copy of key
-      char *str= (char*) alloc_root(param->mem_root,1);
-      if (!*str)
-	DBUG_RETURN(0);
-      *str = 1;
-      DBUG_RETURN(new SEL_ARG(field,str,str));
-    }
-    DBUG_RETURN(&null_element);			// NULL is never true
+    /* This happens when we try to insert a NULL field in a not null column */
+    DBUG_RETURN(&null_element);			// cmp with NULL is never true
   }
   // Get local copy of key
   char *str= (char*) alloc_root(param->mem_root,
@@ -1045,7 +1041,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
   if (!str)
     DBUG_RETURN(0);
   if (maybe_null)
-    *str=0;					// Not NULL
+    *str= (char) field->is_real_null();		// Set to 1 if null
   field->get_key_image(str+maybe_null,key_part->part_length);
   if (!(tree=new SEL_ARG(field,str,str)))
     DBUG_RETURN(0);
@@ -2547,8 +2543,7 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_SELECT *q, uint used_key_parts)
   for (r = it++; r; r = it++)
   {
     rev_ranges.push_front(r);
-    if (not_read_after_key && range_reads_after_key(r) ||
-	test_if_null_range(r,used_key_parts))
+    if (not_read_after_key && range_reads_after_key(r))
     {
       it.rewind();				// Reset range
       error = HA_ERR_UNSUPPORTED;
@@ -2709,6 +2704,7 @@ bool QUICK_SELECT_DESC::range_reads_after_key(QUICK_RANGE *range_arg)
 
 /* True if we are reading over a key that may have a NULL value */
 
+#ifdef NOT_USED
 bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range_arg,
 					   uint used_key_parts)
 {
@@ -2754,6 +2750,7 @@ bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range_arg,
       return 1;					// Covers null part
   return 0;
 }
+#endif
 
 
 /*****************************************************************************

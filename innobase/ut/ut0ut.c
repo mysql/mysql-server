@@ -197,7 +197,6 @@ ut_get_year_month_day(
   	*month = (ulint)cal_tm.wMonth;
   	*day = (ulint)cal_tm.wDay;
 #else
-  	struct tm  cal_tm;
   	struct tm* cal_tm_ptr;
   	time_t     tm;
 
@@ -262,7 +261,7 @@ ut_print_buf(
 	data = buf;
 
 	for (i = 0; i < len; i++) {
-		if (isprint((char)(*data))) {
+		if (isprint((int)(*data))) {
 			printf("%c", (char)*data);
 		}
 		data++;
@@ -302,7 +301,7 @@ ut_sprintf_buf(
 	data = buf;
 
 	for (i = 0; i < len; i++) {
-		if (isprint((char)(*data))) {
+		if (isprint((int)(*data))) {
 			n += sprintf(str + n, "%c", (char)*data);
 		} else {
 			n += sprintf(str + n, ".");

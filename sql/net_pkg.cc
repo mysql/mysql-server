@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -134,7 +134,10 @@ net_printf(NET *net, uint errcode, ...)
   {
     if (thd && thd->bootstrap)
     {
-      /* In bootstrap it's ok to print on stderr */
+      /*
+	In bootstrap it's ok to print on stderr
+	This may also happen when we get an error from a slave thread
+      */
       fprintf(stderr,"ERROR: %d  %s\n",errcode,text_pos);
       thd->fatal_error=1;
     }
@@ -222,7 +225,7 @@ net_store_length(char *pkg, ulonglong length)
   }
   *packet++=254;
   int8store(packet,length);
-  return (char*) packet+9;
+  return (char*) packet+8;
 }
 
 char *
@@ -280,8 +283,8 @@ bool
 net_store_data(String *packet,const char *from,uint length)
 {
   ulong packet_length=packet->length();
-  if (packet_length+5+length > packet->alloced_length() &&
-      packet->realloc(packet_length+5+length))
+  if (packet_length+9+length > packet->alloced_length() &&
+      packet->realloc(packet_length+9+length))
     return 1;
   char *to=(char*) net_store_length((char*) packet->ptr()+packet_length,
 				    (ulonglong) length);
@@ -297,6 +300,10 @@ net_store_data(String *packet,const char *from)
 {
   uint length=(uint) strlen(from);
   uint packet_length=packet->length();
+  /*
+    3 is the longest coding for storing a string with the used
+    net_store_length() function. We use 5 here 'just in case'
+  */
   if (packet_length+5+length > packet->alloced_length() &&
       packet->realloc(packet_length+5+length))
     return 1;

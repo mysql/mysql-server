@@ -12,6 +12,8 @@
 
 trap '' 1 2 3 15			# we shouldn't let anyone kill us
 
+umask 007
+
 defaults=
 case "$1" in
     --no-defaults|--defaults-file=*|--defaults-extra-file=*)
@@ -45,11 +47,13 @@ parse_arguments() {
 
       # mysqld_safe-specific options - must be set in my.cnf ([mysqld_safe])!
       --ledir=*)   ledir=`echo "$arg" | sed -e "s;--ledir=;;"` ;;
+      # err-log should be removed in 5.0
       --err-log=*) err_log=`echo "$arg" | sed -e "s;--err-log=;;"` ;;
-      # QQ The --open-files should be removed
+      --log-error=*) err_log=`echo "$arg" | sed -e "s;--log-error=;;"` ;;
+      # QQ The --open-files should be removed in 5.0
       --open-files=*) open_files=`echo "$arg" | sed -e "s;--open-files=;;"` ;;
       --open-files-limit=*) open_files=`echo "$arg" | sed -e "s;--open-files-limit=;;"` ;;
-      --core-file-size=*) core_file_size=`echo "$arg" | sed -e "s;--core_file_size=;;"` ;;
+      --core-file-size=*) core_file_size=`echo "$arg" | sed -e "s;--core-file-size=;;"` ;;
       --timezone=*) TZ=`echo "$arg" | sed -e "s;--timezone=;;"` ; export TZ; ;;
       --mysqld=*)   MYSQLD=`echo "$arg" | sed -e "s;--mysqld=;;"` ;;
       --mysqld-version=*)
@@ -307,7 +311,6 @@ do
 	I=`expr $I + 1`
     done
   fi
-
   echo "`date +'%y%m%d %H:%M:%S'`  mysqld restarted" | tee -a $err_log
 done
 

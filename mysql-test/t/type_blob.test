@@ -1,3 +1,7 @@
+# This test can't be run with running server (--extern) as this uses
+# load_file() on a file in the tree.
+#
+
 #
 # test of full join with blob
 #
@@ -248,4 +252,14 @@ create table t1 (foobar tinyblob not null, boggle smallint not null, key (foobar
 insert into t1 values ('fish', 10),('bear', 20);
 select foobar, boggle from t1 where foobar = 'fish';
 select foobar, boggle from t1 where foobar = 'fish' and boggle = 10;
+drop table t1;
+
+#
+# Bug when blob is updated
+#
+
+create table t1 (id integer auto_increment unique,imagem LONGBLOB not null);
+insert into t1 (id) values (1);
+update t1 set imagem=load_file('../../std_data/words.dat') where id=1;
+select if(imagem is null, "ERROR", "OK"),length(imagem) from t1 where id = 1;
 drop table t1;

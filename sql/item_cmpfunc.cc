@@ -48,7 +48,7 @@ static bool convert_constant_item(Field *field, Item **item)
 {
   if ((*item)->const_item() && (*item)->type() != Item::INT_ITEM)
   {
-    if (!(*item)->save_in_field(field) &&
+    if (!(*item)->save_in_field(field, 1) &&
 	!((*item)->null_value))
     {
       Item *tmp=new Item_int_with_ref(field->val_int(), *item);
@@ -293,6 +293,19 @@ void Item_func_interval::fix_length_and_dec()
   }
   maybe_null=0; max_length=2;
   used_tables_cache|=item->used_tables();
+  with_sum_func= with_sum_func || item->with_sum_func;
+}
+
+void Item_func_interval::split_sum_func(List<Item> &fields)
+{
+  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
+    item->split_sum_func(fields);
+  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
+  {
+    fields.push_front(item);
+    item= new Item_ref((Item**) fields.head_ref(), 0, item->name);
+  }
+  Item_int_func::split_sum_func(fields);
 }
 
 /*
@@ -444,14 +457,28 @@ longlong Item_func_between::val_int()
   return 0;
 }
 
+static Item_result item_store_type(Item_result a,Item_result b)
+{
+  if (a == STRING_RESULT || b == STRING_RESULT)
+    return STRING_RESULT;
+  else if (a == REAL_RESULT || b == REAL_RESULT)
+    return REAL_RESULT;
+  else
+    return INT_RESULT;
+}
+
 void
 Item_func_ifnull::fix_length_and_dec()
 {
   maybe_null=args[1]->maybe_null;
   max_length=max(args[0]->max_length,args[1]->max_length);
   decimals=max(args[0]->decimals,args[1]->decimals);
-  cached_result_type=args[0]->result_type();
+  if ((cached_result_type=item_store_type(args[0]->result_type(),
+					  args[1]->result_type())) !=
+      REAL_RESULT)
+    decimals= 0;
 }
+
 
 double
 Item_func_ifnull::val()
@@ -713,8 +740,9 @@ String *Item_func_case::val_str(String *str)
     null_value=1;
     return 0;
   }
+  null_value= 0;
   if (!(res=item->val_str(str)))
-    null_value=1;
+    null_value= 1;
   return res;
 }
 
@@ -766,15 +794,43 @@ Item_func_case::fix_fields(THD *thd,TABLE_LIST *tables)
   {
     used_tables_cache|=(first_expr)->used_tables();
     const_item_cache&= (first_expr)->const_item();
+    with_sum_func= with_sum_func || (first_expr)->with_sum_func;
   }
   if (else_expr)
   {
     used_tables_cache|=(else_expr)->used_tables();
     const_item_cache&= (else_expr)->const_item();
+    with_sum_func= with_sum_func || (else_expr)->with_sum_func;
   }
   if (!else_expr || else_expr->maybe_null)
     maybe_null=1;				// The result may be NULL
   return 0;
+}
+
+void Item_func_case::split_sum_func(List<Item> &fields)
+{
+  if (first_expr)
+  {
+    if (first_expr->with_sum_func && first_expr->type() != SUM_FUNC_ITEM)
+      first_expr->split_sum_func(fields);
+    else if (first_expr->used_tables() || first_expr->type() == SUM_FUNC_ITEM)
+    {
+      fields.push_front(first_expr);
+      first_expr= new Item_ref((Item**) fields.head_ref(), 0,
+			       first_expr->name);
+    }
+  }
+  if (else_expr)
+  {
+    if (else_expr->with_sum_func && else_expr->type() != SUM_FUNC_ITEM)
+      else_expr->split_sum_func(fields);
+    else if (else_expr->used_tables() || else_expr->type() == SUM_FUNC_ITEM)
+    {
+      fields.push_front(else_expr);
+      else_expr= new Item_ref((Item**) fields.head_ref(), 0, else_expr->name);
+    }
+  }
+  Item_func::split_sum_func(fields);
 }
 
 void Item_func_case::update_used_tables()
@@ -1059,6 +1115,18 @@ void Item_func_in::update_used_tables()
   const_item_cache&=item->const_item();
 }
 
+void Item_func_in::split_sum_func(List<Item> &fields)
+{
+  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
+    item->split_sum_func(fields);
+  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
+  {
+    fields.push_front(item);
+    item= new Item_ref((Item**) fields.head_ref(), 0, item->name);
+  }  
+  Item_func::split_sum_func(fields);
+}
+
 
 longlong Item_func_bit_or::val_int()
 {
@@ -1275,15 +1343,15 @@ longlong Item_cond_or::val_int()
 Item *and_expressions(Item *a, Item *b, Item **org_item)
 {
   if (!a)
-    return (*org_item= b);
+    return (*org_item= (Item*) b);
   if (a == *org_item)
   {
     Item_cond *res;
-    if ((res= new Item_cond_and(a, b)))
+    if ((res= new Item_cond_and(a, (Item*) b)))
       res->used_tables_cache= a->used_tables() | b->used_tables();
     return res;
   }
-  if (((Item_cond_and*) a)->add(b))
+  if (((Item_cond_and*) a)->add((Item*) b))
     return 0;
   ((Item_cond_and*) a)->used_tables_cache|= b->used_tables();
   return a;
@@ -1341,12 +1409,16 @@ longlong Item_func_like::val_int()
 
 Item_func::optimize_type Item_func_like::select_optimize() const
 {
-  if (args[1]->type() == STRING_ITEM)
+  if (args[1]->const_item())
   {
-    if (((Item_string *) args[1])->str_value[0] != wild_many)
+    String* res2= args[1]->val_str((String *)&tmp_value2);
+
+    if (!res2)
+      return OPTIMIZE_NONE;
+
+    if (*res2->ptr() != wild_many)
     {
-      if ((args[0]->result_type() != STRING_RESULT) ||
-	  ((Item_string *) args[1])->str_value[0] != wild_one)
+      if (args[0]->result_type() != STRING_RESULT || *res2->ptr() != wild_one)
 	return OPTIMIZE_OP;
     }
   }
@@ -1511,12 +1583,12 @@ Item_func_regex::~Item_func_regex()
   Precomputation dependent only on pattern_len.
 **********************************************************************/
 
-void Item_func_like::turboBM_compute_suffixes(int* suff)
+void Item_func_like::turboBM_compute_suffixes(int *suff)
 {
   const int   plm1 = pattern_len - 1;
   int            f = 0;
   int            g = plm1;
-  int* const splm1 = suff + plm1;
+  int *const splm1 = suff + plm1;
 
   *splm1 = pattern_len;
 
@@ -1552,7 +1624,8 @@ void Item_func_like::turboBM_compute_suffixes(int* suff)
 	if (i < g)
 	  g = i; // g = min(i, g)
 	f = i;
-	while (g >= 0 && likeconv(pattern[g]) == likeconv(pattern[g + plm1 - f]))
+	while (g >= 0 &&
+	       likeconv(pattern[g]) == likeconv(pattern[g + plm1 - f]))
 	  g--;
 	suff[i] = f - g;
       }
@@ -1566,12 +1639,12 @@ void Item_func_like::turboBM_compute_suffixes(int* suff)
    Precomputation dependent only on pattern_len.
 **********************************************************************/
 
-void Item_func_like::turboBM_compute_good_suffix_shifts(int* suff)
+void Item_func_like::turboBM_compute_good_suffix_shifts(int *suff)
 {
   turboBM_compute_suffixes(suff);
 
-  int* end = bmGs + pattern_len;
-  int* k;
+  int *end = bmGs + pattern_len;
+  int *k;
   for (k = bmGs; k < end; k++)
     *k = pattern_len;
 
@@ -1585,14 +1658,14 @@ void Item_func_like::turboBM_compute_good_suffix_shifts(int* suff)
     {
       for (tmp = plm1 - i; j < tmp; j++)
       {
-	int* tmp2 = bmGs + j;
+	int *tmp2 = bmGs + j;
 	if (*tmp2 == pattern_len)
 	  *tmp2 = tmp;
       }
     }
   }
 
-  int* tmp2;
+  int *tmp2;
   for (tmp = plm1 - i; j < tmp; j++)
   {
     tmp2 = bmGs + j;
@@ -1613,19 +1686,23 @@ void Item_func_like::turboBM_compute_good_suffix_shifts(int* suff)
 
 void Item_func_like::turboBM_compute_bad_character_shifts()
 {
-  int*   i;
-  int* end = bmBc + alphabet_size;
+  int *i;
+  int *end = bmBc + alphabet_size;
   for (i = bmBc; i < end; i++)
     *i = pattern_len;
 
   int j;
   const int plm1 = pattern_len - 1;
   if (binary)
+  {
     for (j = 0; j < plm1; j++)
-      bmBc[pattern[j]] = plm1 - j;
+      bmBc[(uint) (uchar) pattern[j]] = plm1 - j;
+  }
   else
+  {
     for (j = 0; j < plm1; j++)
-      bmBc[likeconv(pattern[j])] = plm1 - j;
+      bmBc[(uint) likeconv(pattern[j])] = plm1 - j;
+  }
 }
 
 
@@ -1642,27 +1719,27 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   int j     = 0;
   int u     = 0;
 
-  const int plm1  = pattern_len - 1;
-  const int tlmpl =    text_len - pattern_len;
+  const int plm1=  pattern_len - 1;
+  const int tlmpl= text_len - pattern_len;
 
   /* Searching */
   if (binary)
   {
     while (j <= tlmpl)
     {
-      register int i = plm1;
+      register int i= plm1;
       while (i >= 0 && pattern[i] == text[i + j])
       {
 	i--;
 	if (i == plm1 - shift)
-	  i -= u;
+	  i-= u;
       }
       if (i < 0)
-	return true;
+	return 1;
 
       register const int v = plm1 - i;
       turboShift = u - v;
-      bcShift    = bmBc[text[i + j]] - plm1 + i;
+      bcShift    = bmBc[(uint) (uchar) text[i + j]] - plm1 + i;
       shift      = max(turboShift, bcShift);
       shift      = max(shift, bmGs[i]);
       if (shift == bmGs[i])
@@ -1673,9 +1750,9 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
 	  shift = max(shift, u + 1);
 	u = 0;
       }
-      j += shift;
+      j+= shift;
     }
-    return false;
+    return 0;
   }
   else
   {
@@ -1686,14 +1763,14 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
       {
 	i--;
 	if (i == plm1 - shift)
-	  i -= u;
+	  i-= u;
       }
       if (i < 0)
-	return true;
+	return 1;
 
       register const int v = plm1 - i;
       turboShift = u - v;
-      bcShift    = bmBc[likeconv(text[i + j])] - plm1 + i;
+      bcShift    = bmBc[(uint) likeconv(text[i + j])] - plm1 + i;
       shift      = max(turboShift, bcShift);
       shift      = max(shift, bmGs[i]);
       if (shift == bmGs[i])
@@ -1704,9 +1781,9 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
 	  shift = max(shift, u + 1);
 	u = 0;
       }
-      j += shift;
+      j+= shift;
     }
-    return false;
+    return 0;
   }
 }
 

@@ -43,8 +43,8 @@
   thd->open_tables=thd->handler_tables; \
   thd->handler_tables=tmp; }
 
-static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
-				      const char *table_name);
+static TABLE **find_table_ptr_by_name(THD *thd,const char *db,
+				      const char *table_name, bool is_alias);
 
 int mysql_ha_open(THD *thd, TABLE_LIST *tables)
 {
@@ -68,7 +68,7 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables)
 
 int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
 {
-  TABLE **ptr=find_table_ptr_by_name(thd, tables->db, tables->alias);
+  TABLE **ptr=find_table_ptr_by_name(thd, tables->db, tables->alias, 1);
 
   if (*ptr)
   {
@@ -87,6 +87,14 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
   return 0;
 }
 
+int mysql_ha_closeall(THD *thd, TABLE_LIST *tables)
+{
+  TABLE **ptr=find_table_ptr_by_name(thd, tables->db, tables->real_name, 0);
+  if (*ptr)
+    close_thread_table(thd, ptr);
+  return 0;
+}
+
 static enum enum_ha_read_modes rkey_to_rnext[]=
     { RNEXT, RNEXT, RPREV, RNEXT, RPREV, RNEXT, RPREV };
 
@@ -97,7 +105,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     ha_rows select_limit,ha_rows offset_limit)
 {
   int err, keyno=-1;
-  TABLE *table=*find_table_ptr_by_name(thd, tables->db, tables->alias);
+  TABLE *table=*find_table_ptr_by_name(thd, tables->db, tables->alias, 1);
   if (!table)
   {
     my_printf_error(ER_UNKNOWN_TABLE,ER(ER_UNKNOWN_TABLE),MYF(0),
@@ -108,6 +116,8 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 
   if (cond && cond->fix_fields(thd,tables))
     return -1;
+
+  table->file->init_table_handle_for_HANDLER(); // Only InnoDB requires it
 
   if (keyname)
   {
@@ -128,8 +138,6 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 
   insert_fields(thd,tables,tables->db,tables->alias,&it);
 
-  table->file->init_table_handle_for_HANDLER(); // Only InnoDB requires it
-
   select_limit+=offset_limit;
   send_fields(thd,list,1);
 
@@ -139,14 +147,19 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   if (!lock)
      goto err0; // mysql_lock_tables() printed error message already
 
+  table->file->init_table_handle_for_HANDLER(); // Only InnoDB requires it
+
   for (num_rows=0; num_rows < select_limit; )
   {
     switch(mode) {
     case RFIRST:
-      err=keyname ?
-	table->file->index_first(table->record[0]) :
-	table->file->rnd_init(1) ||
-	table->file->rnd_next(table->record[0]);
+      if (keyname)
+        err=table->file->index_first(table->record[0]);
+      else
+      {
+	if (!(err=table->file->rnd_init(1)))
+          err=table->file->rnd_next(table->record[0]);
+      }
       mode=RNEXT;
       break;
     case RLAST:
@@ -180,10 +193,10 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       Item *item;
       for (key_len=0 ; (item=it_ke++) ; key_part++)
       {
-	item->save_in_field(key_part->field);
+	item->save_in_field(key_part->field, 1);
 	key_len+=key_part->store_length;
       }
-      if (!(key= (byte*) sql_calloc(ALIGN_SIZE(key_len))))
+      if (!(key= (byte*) thd->calloc(ALIGN_SIZE(key_len))))
       {
 	send_error(&thd->net,ER_OUTOFMEMORY);
 	goto err;
@@ -248,17 +261,8 @@ err0:
   return -1;
 }
 
-/**************************************************************************
-   2Monty: It could easily happen, that the following service functions are
-   already defined somewhere in the code, but I failed to find them.
-   If this is the case, just say a word and I'll use old functions here.
-**************************************************************************/
-
-/* Note: this function differs from find_locked_table() because we're looking
-   here for alias, not real table name
- */
 static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
-				      const char *alias)
+				      const char *table_name, bool is_alias)
 {
   int dblen;
   TABLE **ptr;
@@ -271,9 +275,10 @@ static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
   for (TABLE *table=*ptr; table ; table=*ptr)
   {
     if (!memcmp(table->table_cache_key, db, dblen) &&
-        !my_strcasecmp(table->table_name,alias))
+        !my_strcasecmp((is_alias ? table->table_name : table->real_name),table_name))
       break;
     ptr=&(table->next);
   }
   return ptr;
 }
+

@@ -604,11 +604,11 @@ btr_cur_open_at_index_side(
 			page_cur_set_after_last(page, page_cursor);
 		}
 
-		if (estimate) {
-			btr_cur_add_path_info(cursor, height, root_height);
-		}
-
 		if (height == 0) {
+		        if (estimate) {
+			        btr_cur_add_path_info(cursor, height,
+						      root_height);
+		        }
 
 			break;
 		}
@@ -619,6 +619,10 @@ btr_cur_open_at_index_side(
 			page_cur_move_to_next(page_cursor);
 		} else {
 			page_cur_move_to_prev(page_cursor);
+		}
+
+		if (estimate) {
+			btr_cur_add_path_info(cursor, height, root_height);
 		}
 
 		height--;
@@ -3180,7 +3184,7 @@ btr_store_big_rec_extern_fields(
 
 	ut_ad(mtr_memo_contains(local_mtr, dict_tree_get_lock(index->tree),
 							MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(local_mtr, buf_block_align(data),
+	ut_ad(mtr_memo_contains(local_mtr, buf_block_align(rec),
 							MTR_MEMO_PAGE_X_FIX));	
 	ut_a(index->type & DICT_CLUSTERED);
 							
@@ -3315,7 +3319,13 @@ void
 btr_free_externally_stored_field(
 /*=============================*/
 	dict_index_t*	index,		/* in: index of the data, the index
-					tree MUST be X-latched */
+					tree MUST be X-latched; if the tree
+					height is 1, then also the root page
+					must be X-latched! (this is relevant
+					in the case this function is called
+					from purge where 'data' is located on
+					an undo log page, not an index
+					page) */
 	byte*		data,		/* in: internally stored data
 					+ reference to the externally
 					stored part */

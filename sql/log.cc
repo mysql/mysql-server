@@ -97,8 +97,15 @@ MYSQL_LOG::MYSQL_LOG()
 
 MYSQL_LOG::~MYSQL_LOG()
 {
+  cleanup();
+}
+
+void MYSQL_LOG::cleanup()
+{
   if (inited)
   {
+    close(1);
+    inited= 0;
     (void) pthread_mutex_destroy(&LOCK_log);
     (void) pthread_mutex_destroy(&LOCK_index);
     (void) pthread_cond_destroy(&update_cond);
@@ -654,7 +661,12 @@ int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli)
 		    rli->linfo.log_file_name);
     goto err;
   }
+  /*
+    Reset position to current log.  This involves setting both of the
+    position variables:
+  */
   rli->relay_log_pos = BIN_LOG_HEADER_SIZE;
+  rli->pending = 0;
   strmake(rli->relay_log_name,rli->linfo.log_file_name,
 	  sizeof(rli->relay_log_name)-1);
 
@@ -1053,40 +1065,44 @@ bool MYSQL_LOG::write(Log_event* event_info)
       No check for auto events flag here - this write method should
       never be called if auto-events are enabled
     */
-    if (thd && thd->last_insert_id_used)
+    if (thd)
     {
-      Intvar_log_event e(thd,(uchar)LAST_INSERT_ID_EVENT,thd->last_insert_id);
-      e.set_log_pos(this);
-      if (thd->server_id)
-        e.server_id = thd->server_id;
-      if (e.write(file))
-	goto err;
-    }
-    if (thd && thd->insert_id_used)
-    {
-      Intvar_log_event e(thd,(uchar)INSERT_ID_EVENT,thd->last_insert_id);
-      e.set_log_pos(this);
-      if (thd->server_id)
-        e.server_id = thd->server_id;
-      if (e.write(file))
-	goto err;
-    }
-    if (thd && thd->rand_used)
-    {
-      Rand_log_event e(thd,thd->rand_saved_seed1,thd->rand_saved_seed2);
-      e.set_log_pos(this);
-      if (e.write(file))
-	goto err;
-    }
-    if (thd && thd->variables.convert_set)
-    {
-      char buf[1024] = "SET CHARACTER SET ";
-      char* p = strend(buf);
-      p = strmov(p, thd->variables.convert_set->name);
-      Query_log_event e(thd, buf, (ulong)(p - buf), 0);
-      e.set_log_pos(this);
-      if (e.write(file))
-	goto err;
+      if (thd->last_insert_id_used)
+      {
+	Intvar_log_event e(thd,(uchar) LAST_INSERT_ID_EVENT,
+			   thd->current_insert_id);
+	e.set_log_pos(this);
+	if (thd->server_id)
+	  e.server_id = thd->server_id;
+	if (e.write(file))
+	  goto err;
+      }
+      if (thd->insert_id_used)
+      {
+	Intvar_log_event e(thd,(uchar) INSERT_ID_EVENT,thd->last_insert_id);
+	e.set_log_pos(this);
+	if (thd->server_id)
+	  e.server_id = thd->server_id;
+	if (e.write(file))
+	  goto err;
+      }
+      if (thd->rand_used)
+      {
+	Rand_log_event e(thd,thd->rand_saved_seed1,thd->rand_saved_seed2);
+	e.set_log_pos(this);
+	if (e.write(file))
+	  goto err;
+      }
+      if (thd->variables.convert_set)
+      {
+	char buf[256], *p;
+	p= strmov(strmov(buf, "SET CHARACTER SET "),
+		  thd->variables.convert_set->name);
+	Query_log_event e(thd, buf, (ulong) (p - buf), 0);
+	e.set_log_pos(this);
+	if (e.write(file))
+	  goto err;
+      }
     }
     event_info->set_log_pos(this);
     if (event_info->write(file) ||
@@ -1106,8 +1122,20 @@ bool MYSQL_LOG::write(Log_event* event_info)
 
     if (file == &log_file)
     {
-      error = ha_report_binlog_offset_and_commit(thd, log_file_name,
+      /*
+	LOAD DATA INFILE in AUTOCOMMIT=1 mode writes to the binlog
+	chunks also before it is successfully completed. We only report
+	the binlog write and do the commit inside the transactional table
+	handler if the log event type is appropriate.
+      */
+
+      if (event_info->get_type_code() == QUERY_EVENT
+          || event_info->get_type_code() == EXEC_LOAD_EVENT)
+      {
+	error = ha_report_binlog_offset_and_commit(thd, log_file_name,
                                                  file->pos_in_file);
+      }
+
       should_rotate= (my_b_tell(file) >= (my_off_t) max_binlog_size); 
     }
 
@@ -1150,7 +1178,7 @@ uint MYSQL_LOG::next_file_id()
 
   NOTE
     - We only come here if there is something in the cache.
-    - The thing in the cache is always a complete transcation
+    - The thing in the cache is always a complete transaction
     - 'cache' needs to be reinitialized after this functions returns.
 
   IMPLEMENTATION
@@ -1218,6 +1246,13 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
 					    log_file.pos_in_file)))
       goto err;
     signal_update();
+    if (my_b_tell(&log_file) >= (my_off_t) max_binlog_size)
+    {
+      pthread_mutex_lock(&LOCK_index);
+      new_file(0); // inside mutex
+      pthread_mutex_unlock(&LOCK_index);
+    }
+
   }
   VOID(pthread_mutex_unlock(&LOCK_log));
   DBUG_RETURN(0);
@@ -1402,6 +1437,10 @@ void MYSQL_LOG:: wait_for_update(THD* thd)
 		at once after close, in which case we don't want to
 		close the index file.
 		We only write a 'stop' event to the log if exiting is set
+
+  NOTES
+    One can do an open on the object at once after doing a close.
+    The internal structures are not freed until cleanup() is called
 */
 
 void MYSQL_LOG::close(bool exiting)
@@ -1539,4 +1578,50 @@ void sql_perror(const char *message)
 #else
   perror(message);
 #endif
+}
+
+bool flush_error_log()
+{
+  bool result=0;
+  if (opt_error_log)
+  {
+    char err_renamed[FN_REFLEN], *end;
+    end= strmake(err_renamed,log_error_file,FN_REFLEN-4);
+    strmov(end, "-old");
+#ifdef __WIN__
+    char err_temp[FN_REFLEN+4];
+    /*
+     On Windows is necessary a temporary file for to rename
+     the current error file.
+    */
+    strmov(strmov(err_temp, err_renamed),"-tmp");
+    (void) my_delete(err_temp, MYF(0)); 
+    if (freopen(err_temp,"a+",stdout))
+    {
+      freopen(err_temp,"a+",stderr);
+      (void) my_delete(err_renamed, MYF(0));
+      my_rename(log_error_file,err_renamed,MYF(0));
+      if (freopen(log_error_file,"a+",stdout))
+        freopen(log_error_file,"a+",stderr);
+      int fd, bytes;
+      char buf[IO_SIZE];
+      if ((fd = my_open(err_temp, O_RDONLY, MYF(0))) >= 0)
+      {
+        while ((bytes = (int) my_read(fd, (byte*) buf, IO_SIZE, MYF(0))) > 0)
+             my_fwrite(stderr, (byte*) buf, (uint) strlen(buf),MYF(0));
+        my_close(fd, MYF(0));
+      }
+      (void) my_delete(err_temp, MYF(0)); 
+    }
+    else
+     result= 1;
+#else
+   my_rename(log_error_file,err_renamed,MYF(0));
+   if (freopen(log_error_file,"a+",stdout))
+     freopen(log_error_file,"a+",stderr);
+   else
+     result= 1;
+#endif
+  }
+   return result;
 }

@@ -4,17 +4,18 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 4.0.5-beta)
+AM_INIT_AUTOMAKE(mysql, 4.0.12)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
 DOT_FRM_VERSION=6
 # See the libtool docs for information on how to do shared lib versions.
-SHARED_LIB_VERSION=11:0:0
+SHARED_LIB_VERSION=12:0:0
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
 MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|-.*$||"`
+MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|[[a-z]]*-.*$||"`
 MYSQL_BASE_VERSION=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|\.[[^.]]*$||"`
 F_PART=`echo $MYSQL_BASE_VERSION | sed -e "s|\.||g"| sed -e "s|[a-zA-Z]\+||"|sed -e "s|^\(..\)$|\\10|"`
 L_PART=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|^[[0-9]]\.[[0-9]]*\.||" | sed -e "s|^\(.\)$|0\\1|" | sed -e "s|[[a-z]]||"`
@@ -37,9 +38,18 @@ rm -f $AVAILABLE_LANGUAGES_ERRORS_RULES
 for i in $AVAILABLE_LANGUAGES
 do
   AVAILABLE_LANGUAGES_ERRORS="$AVAILABLE_LANGUAGES_ERRORS $i/errmsg.sys"
+  case $host_os in
+    netware* | modesto*)
+      echo "$i/errmsg.sys: $i/errmsg.txt
+	\$(top_builddir)/extra/comp_err.linux \$^ $i/errmsg.sys" \
+      >> $AVAILABLE_LANGUAGES_ERRORS_RULES
+      ;;
+    *)
   echo "$i/errmsg.sys: $i/errmsg.txt
 	\$(top_builddir)/extra/comp_err \$^ $i/errmsg.sys" \
     >> $AVAILABLE_LANGUAGES_ERRORS_RULES
+      ;;
+  esac
 done
 
 #####
@@ -129,18 +139,38 @@ AC_PROG_CXX
 AC_PROG_CPP
 
 # Print version of CC and CXX compiler (if they support --version)
-CC_VERSION=`$CC --version`
+case $SYSTEM_TYPE in
+  *netware*)
+CC_VERSION=`$CC -version | grep -i version`
+    ;;
+  *)
+CC_VERSION=`$CC --version | sed 1q`
+    ;;
+esac
 if test $? -eq "0"
 then
   AC_MSG_CHECKING("C Compiler version");
   AC_MSG_RESULT("$CC $CC_VERSION")
+else
+CC_VERSION=""
 fi
-CXX_VERSION=`$CXX --version`
+case $SYSTEM_TYPE in
+  *netware*)
+CXX_VERSION=`$CXX -version | grep -i version`
+    ;;
+  *)
+CXX_VERSION=`$CXX --version | sed 1q`
+    ;;
+esac
 if test $? -eq "0"
 then
   AC_MSG_CHECKING("C++ compiler version");
   AC_MSG_RESULT("$CXX $CXX_VERSION")
+else
+CXX_VERSION=""
 fi
+AC_SUBST(CXX_VERSION)
+AC_SUBST(CC_VERSION)
 
 # Fix for sgi gcc / sgiCC which tries to emulate gcc
 if test "$CC" = "sgicc"
@@ -179,6 +209,11 @@ AC_CHECK_PROG(DVIS,      tex,    manual.dvi)
 AC_MSG_CHECKING("return type of sprintf")
 
 #check the return type of sprintf
+case $SYSTEM_TYPE in
+  *netware*)
+    AC_DEFINE(SPRINTF_RETURNS_INT) AC_MSG_RESULT("int")
+    ;;
+  *)
 AC_TRY_RUN([
   int main()
     {
@@ -198,11 +233,13 @@ AC_DEFINE(SPRINTF_RETURNS_INT) AC_MSG_RESULT("int"),
      char buf[6];
      if((char*)sprintf(buf,s) == buf + strlen(s))
        return 0;
-     return -1;  
+     return -1;
    }
 ], AC_DEFINE(SPRINTF_RETURNS_PTR) AC_MSG_RESULT("ptr"),
  AC_DEFINE(SPRINTF_RETURNS_GARBAGE) AC_MSG_RESULT("garbage")))
-   	
+    ;;
+esac
+
 
 # option, cache_name, variable,
 # code to execute if yes, code to exectute if fail
@@ -354,9 +391,11 @@ dnl Find paths to some shell programs
 AC_PATH_PROG(LN, ln, ln)
 # This must be able to take a -f flag like normal unix ln.
 AC_PATH_PROG(LN_CP_F, ln, ln)
+if ! ( expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null ); then
 # If ln -f does not exists use -s (AFS systems)
 if test -n "$LN_CP_F"; then
   LN_CP_F="$LN_CP_F -s"
+fi
 fi
 
 AC_PATH_PROG(MV, mv, mv)
@@ -421,6 +460,9 @@ else
       ;;
     *cygwin*)
       FIND_PROC="$PS -e | grep mysqld | grep \" \$\$PID \" > /dev/null"
+      ;;
+    *netware* | *modesto*)
+      FIND_PROC=
       ;;
     *)
       AC_MSG_ERROR([Could not find the right ps switches. Which OS is this ?. See the Installation chapter in the Reference Manual.])
@@ -660,7 +702,7 @@ AC_ARG_WITH(mysqld-user,
 AC_SUBST(MYSQLD_USER)
 
 # If we should allow LOAD DATA LOCAL
-AC_MSG_CHECKING(if we should should enable LOAD DATA LOCAL by default)
+AC_MSG_CHECKING(If we should should enable LOAD DATA LOCAL by default)
 AC_ARG_ENABLE(local-infile,
     [  --enable-local-infile   Enable LOAD DATA LOCAL INFILE (default: disabled)],
     [ ENABLED_LOCAL_INFILE=$enableval ],
@@ -846,6 +888,11 @@ fi
 NON_THREADED_CLIENT_LIBS="$LIBS"
 
 AC_MSG_CHECKING([for int8])
+case $SYSTEM_TYPE in
+  *netware)
+    AC_MSG_RESULT([no])
+    ;;
+  *)
 AC_TRY_RUN([
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -866,12 +913,15 @@ int main()
 }
 ], AC_DEFINE(HAVE_INT_8_16_32) AC_MSG_RESULT([yes]), AC_MSG_RESULT([no])
 )
+    ;;
+esac
 
 #
 # Some system specific hacks
 #
 
 MAX_C_OPTIMIZE="-O3"
+MAX_CXX_OPTIMIZE="-O3"
 
 case $SYSTEM_TYPE in
   *solaris2.7*)
@@ -937,8 +987,10 @@ case $SYSTEM_TYPE in
     # Fixes for HPUX 11.0 compiler
     if test "$ac_cv_prog_gcc" = "no"
     then
-      CFLAGS="$CFLAGS +DD64 -DHAVE_BROKEN_INLINE"
-      CXXFLAGS="$CXXFLAGS +DD64 +O2"
+      CFLAGS="$CFLAGS -DHAVE_BROKEN_INLINE"
+      CXXFLAGS="$CXXFLAGS +O2"
+      MAX_C_OPTIMIZE=""
+      MAX_CXX_OPTIMIZE=""
     fi
     ;;
   *rhapsody*)
@@ -956,8 +1008,8 @@ case $SYSTEM_TYPE in
   *darwin5*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      CFLAGS="$CFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
-      CXXFLAGS="$CXXFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ"
+      CFLAGS="$CFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH -DFN_NO_CASE_SENCE"
+      CXXFLAGS="$CXXFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DFN_NO_CASE_SENCE"
       MAX_C_OPTIMIZE="-O"
       with_named_curses=""
     fi
@@ -965,14 +1017,15 @@ case $SYSTEM_TYPE in
   *darwin6*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      CFLAGS="$CFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
-      CXXFLAGS="$CXXFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ"
+      CFLAGS="$CFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH -DFN_NO_CASE_SENCE"
+      CXXFLAGS="$CXXFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DFN_NO_CASE_SENCE"
       MAX_C_OPTIMIZE="-O"
     fi
     ;;
   *freebsd*)
     echo "Adding fix for interrupted reads"
-    CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000"
+    CFLAGS="$CFLAGS -DHAVE_BROKEN_REALPATH"
+    CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000 -DHAVE_BROKEN_REALPATH"
     ;;
   *netbsd*)
     echo "Adding flag -Dunix"
@@ -1010,6 +1063,110 @@ dnl Is this the right match for DEC OSF on alpha?
       # gethostbyname_r is deprecated and doesn't work ok on OSF1
       CFLAGS="$CFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
       CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
+    ;;
+  *netware*)
+    # No need for curses library so set it to null
+    with_named_curses=""
+
+    # No thread library - in LibC
+    with_named_thread=""
+    
+    #
+    # Edit Makefile.in files.
+    #
+    echo -n "configuring Makefile.in files for NetWare... "
+    for file in sql/Makefile.in libmysql/Makefile.in libmysql_r/Makefile.in sql/share/Makefile.in strings/Makefile.in client/Makefile.in
+    do
+    # echo "#### $file ####"
+      filedir="`dirname $file`"
+      filebase="`basename $file`"
+      filesed=$filedir/$filebase.sed
+      #
+      # Backup and always use original file
+      #
+      if test -f $file.bk
+      then
+        cp -fp $file.bk $file
+      else
+        cp -fp $file $file.bk
+      fi
+      case $file in
+        sql/Makefile.in)
+          # Use gen_lex_hash.linux instead of gen_lex_hash
+          # Add library dependencies to mysqld_DEPENDENCIES
+          lib_DEPENDENCIES="\$(bdb_libs_with_path) \$(innodb_libs) \$(pstack_libs) \$(innodb_system_libs) \$(openssl_libs)"
+          cat > $filesed << EOF
+s,\(^.*\$(MAKE) gen_lex_hash\),#\1,
+s,\(\./gen_lex_hash\),\1.linux,
+s%\(mysqld_DEPENDENCIES = \) %\1$lib_DEPENDENCIES %
+EOF
+          ;;
+        sql/share/Makefile.in)
+          cat > $filesed << EOF
+s,\(extra/comp_err\),\1.linux,
+EOF
+          ;;
+        libmysql/Makefile.in)
+          cat > $filesed << EOF
+s,\(\./conf_to_src\)\( \$(top_srcdir)\),\1.linux\2,
+s,\(: conf_to_src\),\1.linux,
+EOF
+          ;;
+        libmysql_r/Makefile.in)
+          cat > $filesed << EOF
+s,\(\./conf_to_src\)\( \$(top_srcdir)\),\1.linux\2,
+s,\(: conf_to_src\),\1.linux,
+EOF
+          ;;
+        strings/Makefile.in)
+          cat > $filesed << EOF
+s,\(\./conf_to_src\)\( \$(top_srcdir)\),\1.linux\2,
+s,\(: conf_to_src\),\1.linux,
+EOF
+          ;;
+        client/Makefile.in)
+          #
+          cat > $filesed << EOF
+s,libmysqlclient.la,.libs/libmysqlclient.a,
+EOF
+          ;;
+      esac
+      if `sed -f $filesed $file > $file.nw`;\
+      then
+        mv -f $file.nw $file
+        rm -f $filesed
+      else
+        exit 1
+      fi
+      # wait for file system changes to complete
+      sleep 1
+    done
+    echo "done"
+
+    #
+    # Make sure the following files are writable.
+    #
+    # When the files are retrieved from some source code control systems they are read-only.
+    #
+    echo -n "making sure specific build files are writable... "
+    for file in \
+        Docs/include.texi \
+        Docs/mysql.info \
+        Docs/manual.txt \
+        Docs/manual_toc.html \
+        Docs/manual.html \
+        Docs/INSTALL-BINARY \
+        INSTALL-SOURCE \
+        COPYING \
+        COPYING.LIB \
+        MIRRORS
+    do
+      if test -e $file; then
+        chmod +w $file
+      fi
+    done
+    echo "done"
+
     ;;
 esac
 
@@ -1226,7 +1383,7 @@ then
 #	CC="$CC -Kthread -DOpenUNIX8";
 #	CXX="$CXX -Kthread -DOpenUNIX8";
 	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
-	CXX="$CXX -Kthread -DUNIXWARE_7";
+	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
       fi
       AC_MSG_RESULT("yes")
     else
@@ -1378,7 +1535,12 @@ LIBS="$my_save_LIBS"
 AC_SUBST(LIBDL)
 
 # System characteristics
+case $SYSTEM_TYPE in
+  *netware* | *modesto*) ;;
+  *)
 AC_SYS_RESTARTABLE_SYSCALLS
+    ;;
+esac
 
 # Build optimized or debug version ?
 # First check for gcc and g++
@@ -1396,11 +1558,18 @@ if test "$ac_cv_prog_cxx_g" = "yes"
 then
   DEBUG_CXXFLAGS="-g"
   DEBUG_OPTIMIZE_CXX="-O"
-  OPTIMIZE_CXXFLAGS="-O3"
+  OPTIMIZE_CXXFLAGS="$MAX_CXX_OPTIMIZE"
 else
   DEBUG_CXXFLAGS="-g"
   DEBUG_OPTIMIZE_CXX=""
   OPTIMIZE_CXXFLAGS="-O"
+fi
+
+if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
+  DEBUG_CFLAGS="$DEBUG_CFLAGS -DDEBUG -sym internal,codeview4"
+  DEBUG_CXXFLAGS="$DEBUG_CXXFLAGS -DDEBUG -sym internal,codeview4"
+  OPTIMIZE_CFLAGS="$OPTIMIZE_CFLAGS -DNDEBUG"
+  OPTIMIZE_CXXFLAGS="$OPTIMIZE_CXXFLAGS -DNDEBUG"
 fi
 
 AC_ARG_WITH(debug,
@@ -1550,12 +1719,14 @@ MYSQL_CHECK_FP_EXCEPT
 # Do the c++ compiler have a bool type
 MYSQL_CXX_BOOL
 # Check some common bugs with gcc 2.8.# on sparc
+if ! ( expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null ); then
 MYSQL_CHECK_LONGLONG_TO_FLOAT
 if test "$ac_cv_conv_longlong_to_float" != "yes"
 then
   AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
 If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
 again]);
+fi
 fi
 MYSQL_PTHREAD_YIELD
 
@@ -1625,6 +1796,7 @@ AC_CHECK_FUNCS(alarm bmove \
  sigset sigthreadmask pthread_sigmask pthread_setprio pthread_setprio_np \
  pthread_setschedparam pthread_attr_setprio pthread_attr_setschedparam \
  pthread_attr_create pthread_getsequence_np pthread_attr_setstacksize \
+ pthread_attr_getstacksize \
  pthread_condattr_create rwlock_init pthread_rwlock_rdlock \
  fchmod getpass getpassphrase initgroups mlockall)
 
@@ -1977,6 +2149,11 @@ AC_ARG_WITH(readline,
     [ with_readline=$withval ],
     [ with_readline=yes ]
     )
+if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
+    # For NetWare, do not need readline
+    readline_dir=""
+    readline_link=""
+else
 if test "$with_readline" = "yes"
 then
   readline_dir="readline"
@@ -1986,6 +2163,7 @@ else
   # there readline may be a shared library.
   readline_dir=""
   readline_link="-lreadline"
+fi
 fi
 AC_SUBST(readline_dir)
 AC_SUBST(readline_link)
@@ -2022,7 +2200,9 @@ AC_ARG_WITH(extra-charsets,
 
 AC_MSG_CHECKING("character sets")
 
-if test "$extra_charsets" = none; then
+if test "$extra_charsets" = no; then
+  CHARSETS=""
+elif test "$extra_charsets" = none; then
   CHARSETS=""
 elif test "$extra_charsets" = complex; then
   CHARSETS=`/bin/ls -1 $srcdir/strings/ctype-*.c | \
@@ -2258,11 +2438,21 @@ AC_SUBST(CLIENT_LIBS)
 AC_SUBST(sql_client_dirs)
 AC_SUBST(linked_client_targets)
 
+# If configuring for NetWare, set up to link sources from and build the netware directory
+netware_dir=
+linked_netware_sources=
+if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
+  netware_dir="netware"
+  linked_netware_sources="linked_netware_sources"
+fi
+AC_SUBST(netware_dir)
+AC_SUBST(linked_netware_sources)
+
 if test "$with_server" = "yes" -o "$THREAD_SAFE_CLIENT" != "no"
 then
   AC_DEFINE(THREAD)
   # Avoid _PROGRAMS names
-  THREAD_LPROGRAMS="test_thr_alarm test_thr_lock"
+  THREAD_LPROGRAMS="test_thr_alarm\$(EXEEXT) test_thr_lock\$(EXEEXT)"
   AC_SUBST(THREAD_LPROGRAMS)
   THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o"
   AC_SUBST(THREAD_LOBJECTS)
@@ -2349,6 +2539,7 @@ EOF
 
   if test X"$have_innodb" = Xyes
   then
+    innodb_conf_flags=""
     sql_server_dirs="$sql_server_dirs innobase"
     echo "CONFIGURING FOR INNODB" 
     if test ! -d "innobase"; then
@@ -2361,7 +2552,11 @@ EOF
 	/* ) rel_srcdir="$srcdir" ;;
 	* )  rel_srcdir="../$srcdir" ;;
     esac
-    (cd innobase && sh $rel_srcdir/innobase/configure) \
+    if test "x$enable_dependency_tracking" == xno
+    then
+      innodb_conf_flags=--disable-dependency-tracking
+    fi
+    (cd innobase && sh $rel_srcdir/innobase/configure --host=$host $innodb_conf_flags) \
     || AC_MSG_ERROR([could not configure INNODB])
 
     echo "END OF INNODB CONFIGURATION"
@@ -2388,7 +2583,7 @@ EOF
     echo ""
     echo "Configuring MIT Pthreads"
     # We will never install so installation paths are not needed.
-    (cd mit-pthreads; sh ./configure)
+    (cd mit-pthreads && sh ./configure) || exit 1
     echo "End of MIT Pthreads configuration"
     echo ""
     LIBS="$MT_LD_ADD $LIBS"
@@ -2418,21 +2613,32 @@ AC_SUBST(GXX)
 #Remove TOOLS_LIBS, because this is included in LIBRARIES
 #AC_SUBST(TOOLS_LIBS)
 
+# Set configuration options for make_binary_distribution
+case $SYSTEM_TYPE in
+  *netware*)
+    MAKE_BINARY_DISTRIBUTION_OPTIONS=--no-strip
+    ;;
+  *)
+    MAKE_BINARY_DISTRIBUTION_OPTIONS=
+    ;;
+esac
+AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
+
 # Output results
-AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
- strings/Makefile regex/Makefile heap/Makefile \
- bdb/Makefile \
- myisam/Makefile myisammrg/Makefile \
- os2/Makefile os2/include/Makefile os2/include/sys/Makefile \
- man/Makefile BUILD/Makefile readline/Makefile vio/Makefile \
- libmysql_r/Makefile libmysqld/Makefile libmysqld/examples/Makefile \
- libmysql/Makefile client/Makefile \
- pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile \
- merge/Makefile dbug/Makefile scripts/Makefile \
- include/Makefile sql-bench/Makefile tools/Makefile \
- tests/Makefile Docs/Makefile support-files/Makefile \
- mysql-test/Makefile \
- include/mysql_version.h
+AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
+ strings/Makefile regex/Makefile heap/Makefile dnl
+ bdb/Makefile dnl
+ myisam/Makefile myisammrg/Makefile dnl
+ os2/Makefile os2/include/Makefile os2/include/sys/Makefile dnl
+ man/Makefile BUILD/Makefile readline/Makefile vio/Makefile dnl
+ libmysql_r/Makefile libmysqld/Makefile libmysqld/examples/Makefile dnl
+ libmysql/Makefile client/Makefile dnl
+ pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile dnl
+ merge/Makefile dbug/Makefile scripts/Makefile dnl
+ include/Makefile sql-bench/Makefile tools/Makefile dnl
+ tests/Makefile Docs/Makefile support-files/Makefile dnl
+ support-files/MacOSX/Makefile mysql-test/Makefile dnl
+ include/mysql_version.h dnl
  , , [
   test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h
  ])

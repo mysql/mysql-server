@@ -231,7 +231,7 @@ public:
   double val() { return (double) val_int(); }
   const char *func_name() const { return "date"; }
   void fix_length_and_dec() { decimals=0; max_length=10; }
-  bool save_in_field(Field *to);
+  bool save_in_field(Field *to, bool no_conversions);
   void make_field(Send_field *tmp_field)
   {
     init_make_field(tmp_field,FIELD_TYPE_DATE);
@@ -316,7 +316,7 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   double val()	     { return (double) value; }
   longlong val_int() { return value; }
-  bool save_in_field(Field *to);
+  bool save_in_field(Field *to, bool no_conversions);
   String *val_str(String *str)
   { str_value.set(buff,buff_length); return &str_value; }
   const char *func_name() const { return "now"; }
@@ -410,6 +410,7 @@ public:
   unsigned int size_of() { return sizeof(*this);}  
 };
 
+
 class Item_extract :public Item_int_func
 {
   const interval_type int_type;
@@ -424,14 +425,24 @@ class Item_extract :public Item_int_func
   unsigned int size_of() { return sizeof(*this);}  
 };
 
+
 class Item_typecast :public Item_str_func
 {
 public:
   Item_typecast(Item *a) :Item_str_func(a) {}
+  const char *func_name() const { return "char"; }
   String *val_str(String *a)
   { a=args[0]->val_str(a); null_value=args[0]->null_value; return a; }
   void fix_length_and_dec() { max_length=args[0]->max_length; }
   void print(String *str);
+};
+
+
+class Item_char_typecast :public Item_typecast
+{
+public:
+  Item_char_typecast(Item *a) :Item_typecast(a) {}
+  void fix_length_and_dec() { binary=0; max_length=args[0]->max_length; }
 };
 
 
@@ -450,6 +461,7 @@ public:
   }  
 };
 
+
 class Item_time_typecast :public Item_typecast
 {
 public:
@@ -464,6 +476,7 @@ public:
     return (!t_arg) ? result_field : new Field_time(maybe_null, name, t_arg);
   }
 };
+
 
 class Item_datetime_typecast :public Item_typecast
 {

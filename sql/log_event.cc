@@ -206,11 +206,27 @@ Log_event::Log_event(const char* buf, bool old_format)
 
 int Log_event::exec_event(struct st_relay_log_info* rli)
 {
-  if (rli)					// QQ When is this not true ?
+  /*
+    rli is null when (as far as I (Guilhem) know)
+    the caller is
+    Load_log_event::exec_event *and* that one is called from
+    Execute_load_log_event::exec_event. 
+    In this case, we don't do anything here ;
+    Execute_load_log_event::exec_event will call Log_event::exec_event
+    again later with the proper rli.
+    Strictly speaking, if we were sure that rli is null
+    only in the case discussed above, 'if (rli)' is useless here.
+    But as we are not 100% sure, keep it for now.
+  */
+  if (rli)  
   {
-    rli->inc_pos(get_event_len(),log_pos);
-    DBUG_ASSERT(rli->sql_thd != 0);
-    flush_relay_log_info(rli);
+    if (rli->inside_transaction)
+      rli->inc_pending(get_event_len());
+    else
+    {
+      rli->inc_pos(get_event_len(),log_pos);
+      flush_relay_log_info(rli);
+    }
   }
   return 0;
 }
@@ -572,6 +588,15 @@ err:
     sql_print_error("Error in Log_event::read_log_event(): '%s', \
 data_len=%d,event_type=%d",error,data_len,head[EVENT_TYPE_OFFSET]);
     my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
+    /*
+      The SQL slave thread will check if file->error<0 to know
+      if there was an I/O error. Even if there is no "low-level" I/O errors
+      with 'file', any of the high-level above errors is worrying
+      enough to stop the SQL thread now ; as we are skipping the current event,
+      going on with reading and successfully executing other events can
+      only corrupt the slave's databases. So stop.
+    */
+    file->error= -1;
   }
   return res;
 }
@@ -956,14 +981,14 @@ int Rand_log_event::write_data(IO_CACHE* file)
 #ifdef MYSQL_CLIENT
 void Rand_log_event::print(FILE* file, bool short_form, char* last_db)
 {
-  char llbuff[22];
+  char llbuff[22],llbuff2[22];
   if (!short_form)
   {
     print_header(file);
     fprintf(file, "\tRand\n");
   }
   fprintf(file, "SET @@RAND_SEED1=%s, @@RAND_SEED2=%s;\n",
-	  llstr(seed1, llbuff),llstr(seed2, llbuff));
+	  llstr(seed1, llbuff),llstr(seed2, llbuff2));
   fflush(file);
 }
 #endif
@@ -1186,8 +1211,8 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
 {
   uint data_len;
   char* buf_end = (char*)buf + event_len;
-  const char* data_head = buf + ((old_format) ?
-				 OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN);
+  uint header_len= old_format ? OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN;
+  const char* data_head = buf + header_len;
   thread_id = uint4korr(data_head + L_THREAD_ID_OFFSET);
   exec_time = uint4korr(data_head + L_EXEC_TIME_OFFSET);
   skip_lines = uint4korr(data_head + L_SKIP_LINES_OFFSET);
@@ -1196,7 +1221,7 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   num_fields = uint4korr(data_head + L_NUM_FIELDS_OFFSET);
 	  
   int body_offset = ((buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
-		     LOAD_HEADER_LEN + OLD_HEADER_LEN :
+		     LOAD_HEADER_LEN + header_len :
 		     get_data_body_offset());
   
   if ((int) event_len < body_offset)
@@ -1686,10 +1711,11 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
 
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
-    thd->query = (char*)query;
     thd->set_time((time_t)when);
     thd->current_tablenr = 0;
+    thd->query_length= q_len;
     VOID(pthread_mutex_lock(&LOCK_thread_count));
+    thd->query = (char*)query;
     thd->query_id = query_id++;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
     thd->query_error = 0;			// clear error
@@ -1707,6 +1733,19 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
       mysql_log.write(thd,COM_QUERY,"%s",thd->query);
       DBUG_PRINT("query",("%s",thd->query));
       mysql_parse(thd, thd->query, q_len);
+
+      /*
+	Set a flag if we are inside an transaction so that we can restart
+	the transaction from the start if we are killed
+
+	This will only be done if we are supporting transactional tables
+	in the slave.
+      */
+      if (!strcmp(thd->query,"BEGIN"))
+	rli->inside_transaction= opt_using_transactions;
+      else if (!strcmp(thd->query,"COMMIT"))
+	rli->inside_transaction=0;
+
       if ((expected_error != (actual_error = thd->net.last_errno)) &&
 	  expected_error &&
 	  !ignored_error_code(actual_error) &&
@@ -1731,7 +1770,9 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     else
     {
       // master could be inconsistent, abort and tell DBA to check/fix it
+      VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->db = thd->query = 0;
+      VOID(pthread_mutex_unlock(&LOCK_thread_count));
       thd->variables.convert_set = 0;
       close_thread_tables(thd);
       free_root(&thd->mem_root,0);
@@ -1739,7 +1780,9 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     }
   }
   thd->db= 0;				// prevent db from being freed
+  VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query= 0;			// just to be sure
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
   // assume no convert for next query unless set explictly
   thd->variables.convert_set = 0;
   close_thread_tables(thd);
@@ -1756,12 +1799,39 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   return Log_event::exec_event(rli); 
 }
 
+/*
+  Does the data loading job when executing a LOAD DATA on the slave
 
-int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
+  SYNOPSIS
+    Load_log_event::exec_event
+      net  
+      rli                             
+      use_rli_only_for_errors	  - if set to 1, rli is provided to 
+                                  Load_log_event::exec_event only for this 
+				  function to have RPL_LOG_NAME and 
+				  rli->last_slave_error, both being used by 
+				  error reports. rli's position advancing
+				  is skipped (done by the caller which is
+				  Execute_load_log_event::exec_event).
+				  - if set to 0, rli is provided for full use,
+				  i.e. for error reports and position
+				  advancing.
+
+  DESCRIPTION
+    Does the data loading job when executing a LOAD DATA on the slave
+ 
+  RETURN VALUE
+    0           Success                                                 
+    1    	Failure
+*/
+
+int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli, 
+			       bool use_rli_only_for_errors)
 {
   init_sql_alloc(&thd->mem_root, 8192,0);
   thd->db = rewrite_db((char*)db);
-  thd->query = 0;
+  DBUG_ASSERT(thd->query == 0);
+  thd->query = 0;				// Should not be needed
   thd->query_error = 0;
 	    
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
@@ -1777,6 +1847,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
     tables.db = thd->db;
     tables.alias = tables.real_name = (char*)table_name;
     tables.lock_type = TL_WRITE;
+    tables.updating= 1;
     // the table will be opened in mysql_load    
     if (table_rules_on && !tables_ok(thd, &tables))
     {
@@ -1819,8 +1890,12 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
 		     TL_WRITE))
 	thd->query_error = 1;
       if (thd->cuted_fields)
+	/* 
+	   log_pos is the position of the LOAD
+	   event in the master log
+	*/
 	sql_print_error("Slave: load data infile at position %s in log \
-'%s' produced %d warning(s)", llstr(rli->master_log_pos,llbuff), RPL_LOG_NAME,
+'%s' produced %d warning(s)", llstr(log_pos,llbuff), RPL_LOG_NAME, 
 			thd->cuted_fields );
       if (net)
         net->pkt_nr= thd->net.pkt_nr;
@@ -1860,7 +1935,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
     return 1;
   }
 
-  return Log_event::exec_event(rli); 
+  return ( use_rli_only_for_errors ? 0 : Log_event::exec_event(rli) ); 
 }
 
 
@@ -2115,7 +2190,11 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
   save_options = thd->options;
   thd->options &= ~ (ulong) (OPTION_BIN_LOG);
   lev->thd = thd;
-  if (lev->exec_event(0,0))
+  /*
+    lev->exec_event should use rli only for errors
+    i.e. should not advance rli's position
+  */
+  if (lev->exec_event(0,rli,1)) 
   {
     slave_print_error(rli,my_errno, "Failed executing load from '%s'", fname);
     thd->options = save_options;

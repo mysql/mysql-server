@@ -355,19 +355,22 @@ if ($limits->{'group_distinct_functions'})
   print " for count_distinct ($count:$rows): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n";
 
-  $loop_time=new Benchmark;
-  $rows=$estimated=$count=0;
-  for ($i=0 ; $i < $opt_medium_loop_count ; $i++)
-  {
-    $count++;
-    $rows+=fetch_all_rows($dbh,"select count(distinct grp),count(distinct rev_idn) from bench1");
-    $end_time=new Benchmark;
-    last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$i+1,
+#  Workaround mimer's behavior
+  if (limits->{'multi_distinct'} == 1 ) {
+    $loop_time=new Benchmark;
+    $rows=$estimated=$count=0;
+    for ($i=0 ; $i < $opt_medium_loop_count ; $i++)
+    {
+      $count++;
+      $rows+=fetch_all_rows($dbh,"select count(distinct grp),count(distinct rev_idn) from bench1");
+      $end_time=new Benchmark;
+      last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$i+1,
 					   $opt_medium_loop_count));
-  }
-  print_time($estimated);
-  print " for count_distinct_2 ($count:$rows): " .
-    timestr(timediff($end_time, $loop_time),"all") . "\n";
+    } 
+    print_time($estimated);
+    print " for count_distinct_2 ($count:$rows): " .
+      timestr(timediff($end_time, $loop_time),"all") . "\n";
+  }    
 
   $loop_time=new Benchmark;
   $rows=$estimated=$count=0;

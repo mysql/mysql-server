@@ -77,7 +77,7 @@ Item *create_func_connection_id(void)
 {
   THD *thd=current_thd;
   thd->safe_to_cache_query=0;
-  return new Item_int("CONNECTION_ID()",(longlong) thd->thread_id,10);
+  return new Item_int(NullS,(longlong) thd->thread_id,10);
 }
 
 Item *create_func_conv(Item* a, Item *b, Item *c)
@@ -145,7 +145,7 @@ Item *create_func_found_rows(void)
 {
   THD *thd=current_thd;
   thd->safe_to_cache_query=0;
-  return new Item_int("FOUND_ROWS()",(longlong) thd->found_rows(),21);
+  return new Item_int(NullS,(longlong) thd->found_rows(),21);
 }
 
 Item *create_func_from_days(Item* a)
@@ -283,7 +283,7 @@ Item *create_func_period_diff(Item* a, Item *b)
 
 Item *create_func_pi(void)
 {
-  return new Item_real("PI()",M_PI,6,8);
+  return new Item_real(NullS,M_PI,6,8);
 }
 
 Item *create_func_pow(Item* a, Item *b)
@@ -291,9 +291,25 @@ Item *create_func_pow(Item* a, Item *b)
   return new Item_func_pow(a,b);
 }
 
+Item *create_func_current_user()
+{
+  THD *thd=current_thd;
+  char buff[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+  uint length;
+
+  length= (uint) (strxmov(buff, thd->priv_user, "@", thd->host_or_ip, NullS) -
+		  buff);
+  return new Item_string(NullS, thd->memdup(buff, length), length);
+}
+
 Item *create_func_quarter(Item* a)
 {
   return new Item_func_quarter(a);
+}
+
+Item *create_func_password(Item* a)
+{
+  return new Item_func_password(a);
 }
 
 Item *create_func_radians(Item *a)
@@ -394,7 +410,7 @@ Item *create_func_ucase(Item* a)
 
 Item *create_func_version(void)
 {
-  return new Item_string(NullS,server_version, (uint) strlen(server_version));
+  return new Item_string(NullS,server_version, strlen(server_version));
 }
 
 Item *create_func_weekday(Item* a)
@@ -413,18 +429,13 @@ Item *create_load_file(Item* a)
   return new Item_load_file(a);
 }
 
-Item *create_wait_for_master_pos(Item* a, Item* b)
-{
-  current_thd->safe_to_cache_query=0;
-  return new Item_master_pos_wait(a, b);
-}
-
 Item *create_func_cast(Item *a, Item_cast cast_type)
 {
   Item *res;
   LINT_INIT(res);
   switch (cast_type) {
   case ITEM_CAST_BINARY: 	res= new Item_func_binary(a); break;
+  case ITEM_CAST_CHAR:	 	res= new Item_char_typecast(a); break;
   case ITEM_CAST_SIGNED_INT:	res= new Item_func_signed(a); break;
   case ITEM_CAST_UNSIGNED_INT:  res= new Item_func_unsigned(a); break;
   case ITEM_CAST_DATE:		res= new Item_date_typecast(a); break;

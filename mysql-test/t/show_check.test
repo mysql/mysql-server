@@ -80,6 +80,41 @@ create table t1 (a decimal(9,2), b decimal (9,0), e double(9,2), f double(5,0), 
 show columns from t1;
 drop table t1;
 
+#
+# Do a create table that tries to cover all types and options
+#
+create table t1 (
+type_bool bool not null,
+type_tiny tinyint not null auto_increment primary key,
+type_short smallint(3),
+type_mediumint mediumint,
+type_bigint bigint,
+type_decimal decimal(5,2),
+type_numeric numeric(5,2),
+empty_char char(0),
+type_char char(2),
+type_varchar varchar(10),
+type_timestamp timestamp not null,
+type_date date not null,
+type_time time not null,
+type_datetime datetime not null,
+type_year year,
+type_enum enum ('red', 'green', 'blue'),
+type_set enum ('red', 'green', 'blue'),
+type_tinyblob tinyblob,
+type_blob blob,
+type_medium_blob mediumblob,
+type_long_blob longblob,
+index(type_short)
+) AVG_ROW_LENGTH=10 CHECKSUM=1 COMMENT="test" TYPE=MYISAM MIN_ROWS=10 MAX_ROWS=100 PACK_KEYS=1 DELAY_KEY_WRITE=1 ROW_FORMAT=fixed CHARSET=latin1;
+
+# Not tested above: RAID_# UNION INSERT_METHOD DATA DIRECTORY INDEX DIRECTORY
+show create table t1;
+insert into t1 (type_timestamp) values ("2003-02-07 10:00:01");
+select * from t1;
+drop table t1;
+
+
 # Check auto conversions of types
 
 create table t1 (c decimal, d double, f float, r real);

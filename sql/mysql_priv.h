@@ -53,14 +53,6 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 #define all_bits_set(A,B) ((A) & (B) != (B))
 
-#ifndef LL
-#ifdef HAVE_LONG_LONG
-#define LL(A) A ## LL
-#else
-#define LL(A) A ## L
-#endif
-#endif
-
 /***************************************************************************
   Configuration parameters
 ****************************************************************************/
@@ -83,6 +75,7 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 */
 #define MIN_FILE_LENGTH_TO_USE_ROW_CACHE (16L*1024*1024)
 #define MIN_ROWS_TO_USE_TABLE_CACHE	 100
+#define MIN_ROWS_TO_USE_BULK_INSERT	 100
 
 /*
   The following is used to decide if MySQL should use table scanning
@@ -225,6 +218,10 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #define SHOW_LOG_STATUS_FREE "FREE"
 #define SHOW_LOG_STATUS_INUSE "IN USE"
 
+/* Options to add_table_to_list() */
+#define TL_OPTION_UPDATING	1
+#define TL_OPTION_FORCE_INDEX	2
+
 /* Some portable defines */
 
 #define portable_sizeof_char_ptr 8
@@ -241,6 +238,20 @@ typedef struct st_sql_list {
   uint elements;
   byte *first;
   byte **next;
+
+  inline void empty()
+  {
+    elements=0;
+    first=0;
+    next= &first;
+  }
+  inline void link_in_list(byte *element,byte **next_ptr)
+  {
+    elements++;
+    (*next)=element;
+    next= next_ptr;
+    *next=0;
+  }
 } SQL_LIST;
 
 
@@ -378,7 +389,7 @@ int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
 		 ulong select_type,select_result *result);
 int mysql_union(THD *thd,LEX *lex,select_result *result);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
-			Item_result_field ***copy_func, Field **from_field,
+			Item ***copy_func, Field **from_field,
 			bool group,bool modify_item);
 int mysql_create_table(THD *thd,const char *db, const char *table_name,
 		       HA_CREATE_INFO *create_info,
@@ -414,6 +425,10 @@ int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 		 List<Item> &values,COND *conds, 
                  ORDER *order, ha_rows limit,
 		 enum enum_duplicates handle_duplicates);
+int mysql_multi_update(THD *thd, TABLE_LIST *table_list,
+		       List<Item> *fields, List<Item> *values,
+		       COND *conds, ulong options,
+		       enum enum_duplicates handle_duplicates);
 int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 		 List<List_item> &values, enum_duplicates flag);
 void kill_delayed_threads(void);
@@ -451,6 +466,7 @@ extern struct st_des_keyschedule des_keyschedule[10];
 extern uint des_default_key;
 extern pthread_mutex_t LOCK_des_key_file;
 bool load_des_key_file(const char *file_name);
+void free_des_key_file();
 #endif /* HAVE_OPENSSL */
 
 /* sql_do.cc */
@@ -478,6 +494,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 /* sql_handler.cc */
 int mysql_ha_open(THD *thd, TABLE_LIST *tables);
 int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok=0);
+int mysql_ha_closeall(THD *thd, TABLE_LIST *tables);
 int mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
 
@@ -490,14 +507,14 @@ bool add_field_to_list(char *field_name, enum enum_field_types type,
 void store_position_for_column(const char *name);
 bool add_to_list(SQL_LIST &list,Item *group,bool asc=0);
 TABLE_LIST *add_table_to_list(Table_ident *table,LEX_STRING *alias,
-			      bool updating,
+			      ulong table_option,
 			      thr_lock_type flags=TL_UNLOCK,
 			      List<String> *use_index=0,
 			      List<String> *ignore_index=0);
 void set_lock_for_tables(thr_lock_type lock_type);
 void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b);
-bool add_proc_to_list(Item *item);
+bool add_proc_to_list(THD *thd, Item *item);
 TABLE *unlink_open_table(THD *thd,TABLE *list,TABLE *find);
 
 SQL_SELECT *make_select(TABLE *head, table_map const_tables,
@@ -604,8 +621,10 @@ extern uchar *days_in_month;
 extern char language[LIBLEN],reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], time_zone[30], *opt_init_file;
+extern char log_error_file[FN_REFLEN];
 extern char blob_newline;
 extern double log_10[32];
+extern ulonglong keybuff_size;
 extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables;
 extern ulong created_tmp_tables, created_tmp_disk_tables;
 extern ulong aborted_threads,aborted_connects;
@@ -624,8 +643,7 @@ extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count;
 extern ulong ha_read_key_count, ha_read_next_count, ha_read_prev_count;
 extern ulong ha_read_first_count, ha_read_last_count;
 extern ulong ha_read_rnd_count, ha_read_rnd_next_count;
-extern ulong ha_commit_count, ha_rollback_count;
-extern ulong keybuff_size,table_cache_size;
+extern ulong ha_commit_count, ha_rollback_count,table_cache_size;
 extern ulong max_connections,max_connect_errors, connect_timeout;
 extern ulong max_insert_delayed_threads, max_user_connections;
 extern ulong long_query_count, what_to_log,flush_time,opt_sql_mode;
@@ -641,7 +659,7 @@ extern uint delay_key_write_options;
 extern bool opt_endinfo, using_udf_functions, locked_in_memory;
 extern bool opt_using_transactions, mysql_embedded;
 extern bool using_update_log, opt_large_files;
-extern bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
+extern bool opt_log, opt_update_log, opt_bin_log, opt_slow_log, opt_error_log;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern bool volatile abort_loop, shutdown_in_progress, grant_option;
 extern uint volatile thread_count, thread_running, global_read_lock;
@@ -670,12 +688,14 @@ extern String empty_string;
 extern SHOW_VAR init_vars[],status_vars[], internal_vars[];
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
+extern struct rand_struct sql_rand;
 
 /* optional things, have_* variables */
 
 extern SHOW_COMP_OPTION have_isam, have_innodb, have_berkeley_db;
 extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;
 extern SHOW_COMP_OPTION have_query_cache, have_berkeley_db, have_innodb;
+extern SHOW_COMP_OPTION have_crypt;
 
 #ifndef __WIN__
 extern pthread_t signal_thread;
@@ -691,6 +711,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count);
 void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table);
 void mysql_lock_abort(THD *thd, TABLE *table);
+void mysql_lock_abort_for_thread(THD *thd, TABLE *table);
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b);
 bool lock_global_read_lock(THD *thd);
 void unlock_global_read_lock(THD *thd);
@@ -707,7 +728,7 @@ bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list);
 /* old unireg functions */
 
 void unireg_init(ulong options);
-void unireg_end(int signal);
+void unireg_end(void);
 int rea_create_table(my_string file_name,HA_CREATE_INFO *create_info,
 		     List<create_field> &create_field,
 		     uint key_count,KEY *key_info);
@@ -752,7 +773,6 @@ uint calc_week(TIME *ltime, bool with_year, bool sunday_first_day_of_week,
 void find_date(char *pos,uint *vek,uint flag);
 TYPELIB *convert_strings_to_array_type(my_string *typelibs, my_string *end);
 TYPELIB *typelib(List<String> &strings);
-void clean_up(bool print_message=1);
 ulong get_form_pos(File file, uchar *head, TYPELIB *save_names);
 ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
 		     const char *newname);
@@ -762,7 +782,7 @@ int create_frm(char *name,uint reclength,uchar *fileinfo,
 	       HA_CREATE_INFO *create_info, uint keys);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 int rename_file_ext(const char * from,const char * to,const char * ext);
-bool check_db_name(const char *db);
+bool check_db_name(char *db);
 bool check_column_name(const char *name);
 bool check_table_name(const char *name, uint length);
 char *get_field(MEM_ROOT *mem,TABLE *table,uint fieldnr);
@@ -789,6 +809,9 @@ extern int sql_cache_hit(THD *thd, char *inBuf, uint length);
 
 /* item.cc */
 Item *get_system_var(enum_var_type var_type, LEX_STRING name);
+
+/* log.cc */
+bool flush_error_log(void);
 
 /* Some inline functions for more speed */
 

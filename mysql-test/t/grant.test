@@ -39,3 +39,6 @@ show grants for mysqltest_1@localhost;
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
 flush privileges;
+grant usage on test.* to user@localhost with grant option;
+show grants for user@localhost;
+

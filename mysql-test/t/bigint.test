@@ -4,7 +4,8 @@
 select 0,256,00000000000000065536,2147483647,-2147483648,2147483648,+4294967296;
 select 9223372036854775807,-009223372036854775808;
 select +9999999999999999999,-9999999999999999999;
-
+select cast(9223372036854775808 as unsigned)+1;
+select 9223372036854775808+1;
 #
 # In 3.23 we have to disable the test of column to bigint as
 # this fails on AIX powerpc (the resolution for double is not good enough)
@@ -36,10 +37,12 @@ select min(big),max(big),max(big)-1 from t1;
 select min(big),max(big),max(big)-1 from t1 group by a;
 drop table t1;
 
-select CAST(1-2 AS UNSIGNED);
-select CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER);
-select CONVERT('-1',UNSIGNED);
-select cast(-5 as unsigned) | 1, cast(-5 as unsigned) & -1;
-select cast(-5 as unsigned) -1, cast(-5 as unsigned) + 1;
-select ~5, cast(~5 as signed);
-select cast(5 as unsigned) -6.0;
+#
+# Test problem with big values fir auto_increment
+#
+
+create table t1 (id bigint auto_increment primary key, a int) auto_increment=9999999999;
+insert into t1 values (null,1);
+select * from t1;
+select * from t1 limit 9999999999;
+drop table t1;

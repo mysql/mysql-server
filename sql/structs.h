@@ -106,7 +106,7 @@ typedef struct st_read_record {			/* Parameter to read_record */
   byte *record;
   byte	*cache,*cache_pos,*cache_end,*read_positions;
   IO_CACHE *io_cache;
-  bool print_error;
+  bool print_error, ignore_not_found_rows;
 } READ_RECORD;
 
 enum timestamp_type { TIMESTAMP_NONE, TIMESTAMP_DATE, TIMESTAMP_FULL,
@@ -129,7 +129,7 @@ enum SHOW_TYPE
   SHOW_UNDEF,
   SHOW_LONG, SHOW_LONGLONG, SHOW_INT, SHOW_CHAR, SHOW_CHAR_PTR, SHOW_BOOL,
   SHOW_MY_BOOL, SHOW_OPENTABLES, SHOW_STARTTIME, SHOW_QUESTION,
-  SHOW_LONG_CONST, SHOW_INT_CONST, SHOW_HAVE, SHOW_SYS,
+  SHOW_LONG_CONST, SHOW_INT_CONST, SHOW_HAVE, SHOW_SYS, SHOW_HA_ROWS,
 #ifdef HAVE_OPENSSL
   SHOW_SSL_CTX_SESS_ACCEPT, 	SHOW_SSL_CTX_SESS_ACCEPT_GOOD,
   SHOW_SSL_GET_VERSION, 	SHOW_SSL_CTX_GET_SESSION_CACHE_MODE,

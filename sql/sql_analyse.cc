@@ -89,6 +89,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
     if ((*param->item)->type() != Item::INT_ITEM ||
 	(*param->item)->val() < 0)
     {
+      delete pc;
       net_printf(&thd->net, ER_WRONG_PARAMETERS_TO_PROCEDURE, proc_name);
       DBUG_RETURN(0);
     }
@@ -96,6 +97,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
     param = param->next;
     if (param->next)  // no third parameter possible
     {
+      delete pc;
       net_printf(&thd->net, ER_WRONG_PARAMCOUNT_TO_PROCEDURE, proc_name);
       DBUG_RETURN(0);
     }
@@ -103,6 +105,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
     if ((*param->item)->type() != Item::INT_ITEM ||
 	(*param->item)->val() < 0)
     {
+      delete pc;
       net_printf(&thd->net, ER_WRONG_PARAMETERS_TO_PROCEDURE, proc_name);
       DBUG_RETURN(0);
     }
@@ -111,6 +114,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
   else if ((*param->item)->type() != Item::INT_ITEM ||
 	   (*param->item)->val() < 0)
   {
+    delete pc;
     net_printf(&thd->net, ER_WRONG_PARAMETERS_TO_PROCEDURE, proc_name);
     DBUG_RETURN(0);
   }
@@ -310,30 +314,6 @@ void field_str::add()
     was_maybe_zerofill = num_info.maybe_zerofill;
   }
 
-  if (room_in_tree)
-  {
-    if (res != &s)
-      s.copy(*res);
-    if (!tree_search(&tree, (void*) &s)) // If not in tree
-    {
-      s.copy();        // slow, when SAFE_MALLOC is in use
-      if (!tree_insert(&tree, (void*) &s, 0))
-      {
-	room_in_tree = 0;      // Remove tree, out of RAM ?
-	delete_tree(&tree);
-      }
-      else
-      {
-	bzero((char*) &s, sizeof(s));  // Let tree handle free of this
-	if ((treemem += length) > pc->max_treemem)
-	{
-	  room_in_tree = 0;	 // Remove tree, too big tree
-	  delete_tree(&tree);
-	}
-      }
-    }
-  }
-
   if (!found)
   {
     found = 1;
@@ -364,6 +344,31 @@ void field_str::add()
 	max_arg.copy(*res);
     }
   }
+
+  if (room_in_tree)
+  {
+    if (res != &s)
+      s.copy(*res);
+    if (!tree_search(&tree, (void*) &s)) // If not in tree
+    {
+      s.copy();        // slow, when SAFE_MALLOC is in use
+      if (!tree_insert(&tree, (void*) &s, 0))
+      {
+	room_in_tree = 0;      // Remove tree, out of RAM ?
+	delete_tree(&tree);
+      }
+      else
+      {
+	bzero((char*) &s, sizeof(s));  // Let tree handle free of this
+	if ((treemem += length) > pc->max_treemem)
+	{
+	  room_in_tree = 0;	 // Remove tree, too big tree
+	  delete_tree(&tree);
+	}
+      }
+    }
+  }
+
   if ((num_info.zerofill && (max_length != min_length)) ||
       (was_zero_fill && (max_length != min_length)))
     can_be_still_num = 0; // zerofilled numbers must be of same length

@@ -416,8 +416,7 @@ int _mi_read_pack_record(MI_INFO *info, my_off_t filepos, byte *buf)
     DBUG_RETURN(-1);			/* _search() didn't find record */
 
   file=info->dfile;
-  if (_mi_pack_get_block_info(info, &block_info, file, filepos,
-			      info->rec_buff))
+  if (_mi_pack_get_block_info(info, &block_info, file, filepos))
     goto err;
   if (my_read(file,(byte*) info->rec_buff + block_info.offset ,
 	      block_info.rec_len - block_info.offset, MYF(MY_NABP)))
@@ -963,11 +962,10 @@ int _mi_read_rnd_pack_record(MI_INFO *info, byte *buf,
     if (_mi_read_cache(&info->rec_cache,(byte*) block_info.header,filepos,
 		      share->pack.ref_length, skip_deleted_blocks))
       goto err;
-    b_type=_mi_pack_get_block_info(info,&block_info,-1, filepos, NullS);
+    b_type=_mi_pack_get_block_info(info,&block_info,-1, filepos);
   }
   else
-    b_type=_mi_pack_get_block_info(info,&block_info,info->dfile,filepos,
-				   info->rec_buff);
+    b_type=_mi_pack_get_block_info(info,&block_info,info->dfile,filepos);
   if (b_type)
     goto err;					/* Error code is already set */
 #ifndef DBUG_OFF
@@ -1007,7 +1005,7 @@ int _mi_read_rnd_pack_record(MI_INFO *info, byte *buf,
 	/* Read and process header from a huff-record-file */
 
 uint _mi_pack_get_block_info(MI_INFO *myisam, MI_BLOCK_INFO *info, File file,
-			     my_off_t filepos, char *rec_buff)
+			     my_off_t filepos)
 {
   uchar *header=info->header;
   uint head_length,ref_length;
@@ -1067,7 +1065,7 @@ uint _mi_pack_get_block_info(MI_INFO *myisam, MI_BLOCK_INFO *info, File file,
   if (file > 0)
   {
     info->offset=min(info->rec_len, ref_length - head_length);
-    memcpy(rec_buff, header+head_length, info->offset);
+    memcpy(myisam->rec_buff, header+head_length, info->offset);
   }
   return 0;
 }

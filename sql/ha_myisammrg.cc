@@ -69,7 +69,7 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
 err:
   myrg_close(file);
   file=0;
-  return (my_errno= HA_ERR_WRONG_TABLE_DEF);
+  return (my_errno= HA_ERR_WRONG_MRG_TABLE_DEF);
 }
 
 int ha_myisammrg::close(void)
@@ -187,6 +187,19 @@ void ha_myisammrg::position(const byte *record)
   ha_store_ptr(ref, ref_length, (my_off_t) position);
 }
 
+ha_rows ha_myisammrg::records_in_range(int inx,
+				    const byte *start_key,uint start_key_len,
+				    enum ha_rkey_function start_search_flag,
+				    const byte *end_key,uint end_key_len,
+				    enum ha_rkey_function end_search_flag)
+{
+  return (ha_rows) myrg_records_in_range(file,
+				       inx,
+				       start_key,start_key_len,
+				       start_search_flag,
+				       end_key,end_key_len,
+				       end_search_flag);
+}
 
 void ha_myisammrg::info(uint flag)
 {
@@ -216,6 +229,13 @@ void ha_myisammrg::info(uint flag)
 #else
   ref_length=4;					// Can't be > than my_off_t
 #endif
+  if (flag & HA_STATUS_CONST)
+  {
+    if (table->key_parts && info.rec_per_key)
+      memcpy((char*) table->key_info[0].rec_per_key,
+	     (char*) info.rec_per_key,
+	     sizeof(table->key_info[0].rec_per_key)*table->key_parts);
+  }
 }
 
 
@@ -234,9 +254,7 @@ int ha_myisammrg::extra(enum ha_extra_function operation)
 
 int ha_myisammrg::extra_opt(enum ha_extra_function operation, ulong cache_size)
 {
-  if ((specialflag & SPECIAL_SAFE_MODE) &
-      (operation == HA_EXTRA_WRITE_CACHE ||
-       operation == HA_EXTRA_BULK_INSERT_BEGIN))
+  if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_WRITE_CACHE)
     return 0;
   return myrg_extra(file, operation, (void*) &cache_size);
 }

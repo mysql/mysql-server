@@ -110,7 +110,7 @@ typedef struct st_select_lex
   char *db,*db1,*table1,*db2,*table2;		/* For outer join using .. */
   Item *where,*having;
   ha_rows select_limit,offset_limit;
-  ulong options;
+  ulong options, table_join_options;
   List<List_item>     expr_list;
   List<List_item>     when_list;
   SQL_LIST	      order_list,table_list,group_list;

@@ -179,14 +179,12 @@ cleanup:
     if (ha_autocommit_or_rollback(thd,error >= 0))
       error=1;
   }
+
   /*
-    Only invalidate the query cache if something changed or if we
-    didn't commit the transacion (query cache is automaticly
-    invalidated on commit)
+    Store table for future invalidation  or invalidate it in
+    the query cache if something changed
   */
-  if (deleted &&
-      (!transactional_table ||
-       thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+  if (deleted)
   {
     query_cache_invalidate3(thd, table_list, 1);
   }
@@ -215,12 +213,13 @@ cleanup:
 
 extern "C" int refposcmp2(void* arg, const void *a,const void *b)
 {
+  /* arg is a pointer to file->ref_length */
   return memcmp(a,b, *(int*) arg);
 }
 
 multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
 			   uint num_of_tables_arg)
-  : delete_tables (dt), thd(thd_arg), deleted(0),
+  : delete_tables(dt), thd(thd_arg), deleted(0),
     num_of_tables(num_of_tables_arg), error(0),
     do_delete(0), transactional_tables(0), log_delayed(0), normal_tables(0)
 {
@@ -232,31 +231,22 @@ int
 multi_delete::prepare(List<Item> &values)
 {
   DBUG_ENTER("multi_delete::prepare");
-  do_delete = true;   
+  do_delete= 1;
   thd->proc_info="deleting from main table";
-
-  if (thd->options & OPTION_SAFE_UPDATES)
-  {
-    TABLE_LIST *table_ref;
-    for (table_ref=delete_tables;  table_ref; table_ref=table_ref->next)
-    {
-      TABLE *table=table_ref->table;
-      if ((thd->options & OPTION_SAFE_UPDATES) && !table->quick_keys)
-      {
-	my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,MYF(0));
-	DBUG_RETURN(1);
-      }
-    }
-  }
   DBUG_RETURN(0);
 }
 
 
-void
+bool
 multi_delete::initialize_tables(JOIN *join)
 {
-  int counter=0;
   TABLE_LIST *walk;
+  Unique **tempfiles_ptr;
+  DBUG_ENTER("initialize_tables");
+
+  if ((thd->options & OPTION_SAFE_UPDATES) && error_if_full_join(join))
+    DBUG_RETURN(1);
+
   table_map tables_to_delete_from=0;
   for (walk= delete_tables ; walk ; walk=walk->next)
     tables_to_delete_from|= walk->table->map;
@@ -270,9 +260,10 @@ multi_delete::initialize_tables(JOIN *join)
     {
       /* We are going to delete from this table */
       TABLE *tbl=walk->table=tab->table;
+      walk=walk->next;
       /* Don't use KEYREAD optimization on this table */
       tbl->no_keyread=1;
-      walk=walk->next;
+      tbl->used_keys= 0;
       if (tbl->file->has_transactions())
 	log_delayed= transactional_tables= 1;
       else if (tbl->tmp_table != NO_TMP_TABLE)
@@ -282,19 +273,17 @@ multi_delete::initialize_tables(JOIN *join)
     }
   }
   walk= delete_tables;
-  walk->table->used_keys=0;
-  for (walk=walk->next ; walk ; walk=walk->next, counter++)
+  tempfiles_ptr= tempfiles;
+  for (walk=walk->next ; walk ; walk=walk->next)
   {
-    tables_to_delete_from|= walk->table->map;
     TABLE *table=walk->table;
-  /* Don't use key read with MULTI-TABLE-DELETE */
-    table->used_keys=0;
-    tempfiles[counter] = new Unique (refposcmp2,
-				     (void *) &table->file->ref_length,
-				     table->file->ref_length,
-				     MEM_STRIP_BUF_SIZE);
+    *tempfiles_ptr++= new Unique (refposcmp2,
+				  (void *) &table->file->ref_length,
+				  table->file->ref_length,
+				  MEM_STRIP_BUF_SIZE);
   }
   init_ftfuncs(thd,1);
+  DBUG_RETURN(thd->fatal_error != 0);
 }
 
 
@@ -309,7 +298,7 @@ multi_delete::~multi_delete()
     t->no_keyread=0;
   }
 
-  for (uint counter = 0; counter < num_of_tables-1; counter++)
+  for (uint counter= 0; counter < num_of_tables-1; counter++)
   {
     if (tempfiles[counter])
       delete tempfiles[counter];
@@ -404,6 +393,7 @@ void multi_delete::send_error(uint errcode,const char *err)
 int multi_delete::do_deletes(bool from_send_error)
 {
   int local_error= 0, counter= 0;
+  DBUG_ENTER("do_deletes");
 
   if (from_send_error)
   {
@@ -416,7 +406,7 @@ int multi_delete::do_deletes(bool from_send_error)
   else
     table_being_deleted = delete_tables;
 
-  do_delete = false;
+  do_delete= 0;
   for (table_being_deleted=table_being_deleted->next;
        table_being_deleted ;
        table_being_deleted=table_being_deleted->next, counter++)
@@ -429,7 +419,12 @@ int multi_delete::do_deletes(bool from_send_error)
     }
 
     READ_RECORD	info;
-    init_read_record(&info,thd,table,NULL,0,0);
+    init_read_record(&info,thd,table,NULL,0,1);
+    /*
+      Ignore any rows not found in reference tables as they may already have
+      been deleted by foreign key handling
+    */
+    info.ignore_not_found_rows= 1;
     while (!(local_error=info.read_record(&info)) && !thd->killed)
     {
       if ((local_error=table->file->delete_row(table->record[0])))
@@ -443,7 +438,7 @@ int multi_delete::do_deletes(bool from_send_error)
     if (local_error == -1)				// End of file
       local_error = 0;
   }
-  return local_error;
+  DBUG_RETURN(local_error);
 }
 
 
@@ -470,7 +465,7 @@ bool multi_delete::send_eof()
     was a non-transaction-safe table involved, since
     modifications in it cannot be rolled back.
   */
-  if (deleted)
+  if (deleted && (error <= 0 || normal_tables))
   {
     mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
@@ -480,11 +475,17 @@ bool multi_delete::send_eof()
       if (mysql_bin_log.write(&qinfo) && !normal_tables)
 	local_error=1;  // Log write failed: roll back the SQL statement
     }
-    /* Commit or rollback the current SQL statement */ 
-    VOID(ha_autocommit_or_rollback(thd,local_error > 0));
-
-    query_cache_invalidate3(thd, delete_tables, 1);
+    if (!log_delayed)
+      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
+  /* Commit or rollback the current SQL statement */ 
+  if (transactional_tables)
+    if (ha_autocommit_or_rollback(thd,local_error > 0))
+      local_error=1;
+  
+  if (deleted)
+    query_cache_invalidate3(thd, delete_tables, 1);
+
   if (local_error)
     ::send_error(&thd->net);
   else

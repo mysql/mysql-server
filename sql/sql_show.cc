@@ -294,6 +294,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   field_list.push_back(item=new Item_empty_string("Create_options",255));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Comment",80));
+  item->maybe_null=1;
   if (send_fields(thd,field_list,1))
     DBUG_RETURN(1);
 
@@ -308,9 +309,11 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
     net_store_data(packet,convert, file_name);
     table_list.db=(char*) db;
     table_list.real_name= table_list.alias= file_name;
+    if (lower_case_table_names)
+      casedn_str(file_name);
     if (!(table = open_ltable(thd, &table_list, TL_READ)))
     {
-      for (uint i=0 ; i < field_list.elements ; i++)
+      for (uint i=2 ; i < field_list.elements ; i++)
         net_store_null(packet);
       net_store_data(packet,convert, thd->net.last_error);
       thd->net.last_error[0]=0;
@@ -1014,6 +1017,7 @@ public:
 template class I_List<thread_info>;
 #endif
 
+#define LIST_PROCESS_HOST_LEN 64
 
 void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 {
@@ -1027,7 +1031,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
   field_list.push_back(new Item_int("Id",0,7));
   field_list.push_back(new Item_empty_string("User",16));
-  field_list.push_back(new Item_empty_string("Host",64));
+  field_list.push_back(new Item_empty_string("Host",LIST_PROCESS_HOST_LEN));
   field_list.push_back(field=new Item_empty_string("db",NAME_LEN));
   field->maybe_null=1;
   field_list.push_back(new Item_empty_string("Command",16));
@@ -1046,6 +1050,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     THD *tmp;
     while ((tmp=it++))
     {
+      struct st_my_thread_var *mysys_var;
       if ((tmp->net.vio || tmp->system_thread) &&
           (!user || (tmp->user && !strcmp(tmp->user,user))))
       {
@@ -1055,15 +1060,19 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->user=thd->strdup(tmp->user ? tmp->user :
 				   (tmp->system_thread ?
 				    "system user" : "unauthenticated user"));
-        thd_info->host=thd->strdup(tmp->host ? tmp->host :
-				   (tmp->ip ? tmp->ip :
-				    (tmp->system_thread ? "none" :
-				     "connecting host")));
+	if (tmp->peer_port && (tmp->host || tmp->ip))
+	{
+	  if ((thd_info->host= thd->alloc(LIST_PROCESS_HOST_LEN+1)))
+	    my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN,
+			"%s:%u", thd->host_or_ip, tmp->peer_port);
+	}
+	else
+	  thd_info->host= thd->strdup(thd->host_or_ip);
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
-        if (tmp->mysys_var)
-          pthread_mutex_lock(&tmp->mysys_var->mutex);
+        if ((mysys_var= tmp->mysys_var))
+          pthread_mutex_lock(&mysys_var->mutex);
         thd_info->proc_info= (char*) (tmp->killed ? "Killed" : 0);
         thd_info->state_info= (char*) (tmp->locked ? "Locked" :
                                        tmp->net.reading_or_writing ?
@@ -1075,8 +1084,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
                                        tmp->mysys_var &&
                                        tmp->mysys_var->current_cond ?
                                        "Waiting on cond" : NullS);
-        if (tmp->mysys_var)
-          pthread_mutex_unlock(&tmp->mysys_var->mutex);
+        if (mysys_var)
+          pthread_mutex_unlock(&mysys_var->mutex);
 
 #if !defined(DONT_USE_THR_ALARM) && ! defined(SCO)
         if (pthread_kill(tmp->real_id,0))
@@ -1183,6 +1192,9 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
       case SHOW_LONGLONG:
         net_store_data(&packet2,(longlong) *(longlong*) value);
         break;
+      case SHOW_HA_ROWS:
+        net_store_data(&packet2,(longlong) *(ha_rows*) value);
+        break;
       case SHOW_BOOL:
         net_store_data(&packet2,(ulong) *(bool*) value ? "ON" : "OFF");
         break;
@@ -1213,6 +1225,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
       case SHOW_RPL_STATUS:
 	net_store_data(&packet2, rpl_status_type[(int)rpl_status]);
 	break;
+#ifndef EMBEDDED_LIBRARY
       case SHOW_SLAVE_RUNNING:
       {
 	LOCK_ACTIVE_MI;
@@ -1222,6 +1235,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 	UNLOCK_ACTIVE_MI;
 	break;
       }
+#endif
       case SHOW_OPENTABLES:
         net_store_data(&packet2,(uint32) cached_tables());
         break;

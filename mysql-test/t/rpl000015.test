@@ -1,5 +1,5 @@
-connect (master,localhost,root,,test,0,master.sock);
-connect (slave,localhost,root,,test,0, slave.sock);
+connect (master,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connect (slave,localhost,root,,test,$SLAVE_MYPORT,slave.sock);
 connection master;
 reset master;
 show master status;

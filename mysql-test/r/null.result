@@ -6,7 +6,7 @@ select 1 | NULL,1 & NULL,1+NULL,1-NULL;
 NULL	NULL	NULL	NULL
 select NULL=NULL,NULL<>NULL,IFNULL(NULL,1.1)+0,IFNULL(NULL,1) | 0;
 NULL=NULL	NULL<>NULL	IFNULL(NULL,1.1)+0	IFNULL(NULL,1) | 0
-NULL	NULL	1.1	1
+NULL	NULL	1	1
 select strcmp("a",NULL),(1<NULL)+0.0,NULL regexp "a",null like "a%","a%" like null;
 strcmp("a",NULL)	(1<NULL)+0.0	NULL regexp "a"	null like "a%"	"a%" like null
 NULL	NULL	NULL	NULL	NULL
@@ -56,3 +56,56 @@ indexed_field
 NULL
 NULL
 DROP TABLE t1;
+create table t1 (a int, b int) type=myisam;
+insert into t1 values(20,null);
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a;
+b	ifnull(t2.b,"this is null")
+NULL	this is null
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a order by 1;
+b	ifnull(t2.b,"this is null")
+NULL	this is null
+insert into t1 values(10,null);
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a order by 1;
+b	ifnull(t2.b,"this is null")
+NULL	this is null
+NULL	this is null
+drop table t1;
+CREATE TABLE t1 (a varchar(16) NOT NULL, b smallint(6) NOT NULL, c datetime NOT NULL, d smallint(6) NOT NULL);
+INSERT INTO t1 SET a = "", d= "2003-01-14 03:54:55";
+UPDATE t1 SET d=1/NULL;
+UPDATE t1 SET d=NULL;
+INSERT INTO t1 (a) values (null);
+Column 'a' cannot be null
+INSERT INTO t1 (a) values (1/null);
+Column 'a' cannot be null
+INSERT INTO t1 (a) values (null),(null);
+INSERT INTO t1 (b) values (null);
+Column 'b' cannot be null
+INSERT INTO t1 (b) values (1/null);
+Column 'b' cannot be null
+INSERT INTO t1 (b) values (null),(null);
+INSERT INTO t1 (c) values (null);
+Column 'c' cannot be null
+INSERT INTO t1 (c) values (1/null);
+Column 'c' cannot be null
+INSERT INTO t1 (c) values (null),(null);
+INSERT INTO t1 (d) values (null);
+Column 'd' cannot be null
+INSERT INTO t1 (d) values (1/null);
+Column 'd' cannot be null
+INSERT INTO t1 (d) values (null),(null);
+select * from t1;
+a	b	c	d
+	0	0000-00-00 00:00:00	0
+	0	0000-00-00 00:00:00	0
+	0	0000-00-00 00:00:00	0
+	0	0000-00-00 00:00:00	0
+	0	0000-00-00 00:00:00	0
+	0	0000-00-00 00:00:00	0
+	0	0000-00-00 00:00:00	0
+	0	0000-00-00 00:00:00	0
+	0	0000-00-00 00:00:00	0
+drop table t1;

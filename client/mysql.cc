@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2002 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.16";
+const char *VER= "12.18";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -79,7 +79,7 @@ extern "C" {
 #undef bcmp				// Fix problem with new readline
 #if defined( __WIN__) || defined(OS2)
 #include <conio.h>
-#else
+#elif !defined(__NETWARE__)
 #include <readline/readline.h>
 #define HAVE_READLINE
 #endif
@@ -91,10 +91,14 @@ extern "C" {
 #define vidattr(A) {}			// Can't get this to work
 #endif
 
-#ifdef __WIN__
+#ifdef FN_NO_CASE_SENCE
 #define cmp_database(A,B) my_strcasecmp((A),(B))
 #else
 #define cmp_database(A,B) strcmp((A),(B))
+#endif
+
+#if !defined( __WIN__) && !defined( OS2) && !defined(__NETWARE__) && (!defined(HAVE_mit_thread) || !defined(THREAD))
+#define USE_POPEN
 #endif
 
 #include "completion_hash.h"
@@ -171,12 +175,12 @@ static int com_quit(String *str,char*),
 	   com_connect(String *str,char*), com_status(String *str,char*),
 	   com_use(String *str,char*), com_source(String *str, char*),
 	   com_rehash(String *str, char*), com_tee(String *str, char*),
-           com_notee(String *str, char*), com_shell(String *str, char *),
+           com_notee(String *str, char*),
            com_prompt(String *str, char*);
 
-#ifndef __WIN__
+#ifdef USE_POPEN
 static int com_nopager(String *str, char*), com_pager(String *str, char*),
-	   com_edit(String *str,char*);
+           com_edit(String *str,char*), com_shell(String *str, char *);
 #endif
 
 static int read_lines(bool execute_commands);
@@ -187,7 +191,7 @@ static void safe_put_field(const char *pos,ulong length);
 static void xmlencode_print(const char *src, uint length);
 static void init_pager();
 static void end_pager();
-static int init_tee(char *);
+static void init_tee(const char *);
 static void end_tee();
 static const char* construct_prompt();
 static void init_username();
@@ -210,18 +214,18 @@ static COMMANDS commands[] = {
   { "clear",  'c', com_clear,  0, "Clear command."},
   { "connect",'r', com_connect,1,
     "Reconnect to the server. Optional arguments are db and host." },
-#ifndef __WIN__
+#ifdef USE_POPEN
   { "edit",   'e', com_edit,   0, "Edit command with $EDITOR."},
 #endif
   { "ego",    'G', com_ego,    0,
     "Send command to mysql server, display result vertically."},
   { "exit",   'q', com_quit,   0, "Exit mysql. Same as quit."},
   { "go",     'g', com_go,     0, "Send command to mysql server." },
-#ifndef __WIN__
+#ifdef USE_POPEN
   { "nopager",'n', com_nopager,0, "Disable pager, print to stdout." },
 #endif
   { "notee",  't', com_notee,  0, "Don't write into outfile." },
-#ifndef __WIN__
+#ifdef USE_POPEN
   { "pager",  'P', com_pager,  1, 
     "Set PAGER [to_pager]. Print the query results via PAGER." },
 #endif
@@ -232,7 +236,7 @@ static COMMANDS commands[] = {
   { "source", '.', com_source, 1,
     "Execute a SQL script file. Takes a file name as an argument."},
   { "status", 's', com_status, 0, "Get status information from the server."},
-#ifndef __WIN__
+#ifdef USE_POPEN
   { "system", '!', com_shell,  1, "Execute a system shell command."},
 #endif
   { "tee",    'T', com_tee,    1, 
@@ -302,8 +306,8 @@ int main(int argc,char *argv[])
   current_prompt = my_strdup(default_prompt,MYF(MY_WME));
   prompt_counter=0;
 
-  strmov(outfile, "\0");   // no (default) outfile, unless given at least once
-  strmov(pager, "stdout"); // the default, if --pager wasn't given
+  outfile[0]=0;			// no (default) outfile
+  strmov(pager, "stdout");	// the default, if --pager wasn't given
   {
     char *tmp=getenv("PAGER");
     if (tmp)
@@ -491,7 +495,7 @@ static struct my_option my_long_options[] =
    NO_ARG, 1, 0, 0, 0, 0, 0},  
   {"skip-line-numbers", 'L', "Don't write line number for errors. WARNING: -L is deprecated, use long version of this option instead.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef __WIN__
+#ifdef USE_POPEN
   {"no-pager", OPT_NOPAGER,
    "Disable pager and print to stdout. See interactive help (\\h) also. WARNING: option deprecated; use --disable-pager instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -512,7 +516,7 @@ static struct my_option my_long_options[] =
   {"one-database", 'o',
    "Only update the default database. This is useful for skipping updates to other database in the update log.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef __WIN__
+#ifdef USE_POPEN
   {"pager", OPT_PAGER,
    "Pager to use to display results. If you don't supply an option the default pager is taken from your ENV variable PAGER. Valid pagers are less, more, cat [> filename], etc. See interactive help (\\h) also. This option does not work in batch mode.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -619,7 +623,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	end_tee();
     }
     else
-      opt_outfile= init_tee(argument);
+      init_tee(argument);
     break;
   case OPT_NOTEE:
     printf("WARNING: option deprecated; use --disable-tee instead.\n");
@@ -772,7 +776,7 @@ static int get_options(int argc, char **argv)
 
 static int read_lines(bool execute_commands)
 {
-#if defined( __WIN__) || defined(OS2)
+#if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
   char linebuffer[254];
 #endif
   char	*line;
@@ -792,30 +796,33 @@ static int read_lines(bool execute_commands)
     }
     else
     {
-#if defined( __WIN__) || defined(OS2)
-      if (opt_outfile && glob_buffer.is_empty())
-	fflush(OUTFILE);
-      tee_fputs(glob_buffer.is_empty() ? construct_prompt() :
-		!in_string ? "    -> " :
-		in_string == '\'' ?
-		"    '> " : "    \"> ",stdout);
-      linebuffer[0]=(char) sizeof(linebuffer);
-      line=_cgets(linebuffer);
-#else
-      if (opt_outfile)
-      {
-	if (glob_buffer.is_empty())
-	  fflush(OUTFILE);
-	fputs(glob_buffer.is_empty() ? construct_prompt() :
-	      !in_string ? "    -> " :
-	      in_string == '\'' ?
-	      "    '> " : "    \"> ", OUTFILE);
-      }
-      line=readline((char*) (glob_buffer.is_empty() ? construct_prompt() :
+      char *prompt= (char*) (glob_buffer.is_empty() ? construct_prompt() :
 			     !in_string ? "    -> " :
 			     in_string == '\'' ?
-			     "    '> " : "    \"> "));
-#endif
+			     "    '> " : "    \"> ");
+      if (opt_outfile && glob_buffer.is_empty())
+	fflush(OUTFILE);
+
+#if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
+      tee_fputs(prompt, stdout);
+#ifdef __NETWARE__
+      line=fgets(linebuffer, sizeof(linebuffer)-1, stdin);
+      /* Remove the '\n' */
+      {
+        char *p = strrchr(line, '\n');
+	if (p != NULL)
+	  *p = '\0';
+      }
+#else
+      linebuffer[0]= (char) sizeof(linebuffer);
+      line= _cgets(linebuffer);
+#endif /* __NETWARE__ */
+#else
+      if (opt_outfile)
+	fputs(prompt, OUTFILE);
+      line= readline(prompt);
+#endif /* defined( __WIN__) || defined(OS2) || defined(__NETWARE__) */
+
       if (opt_outfile)
 	fprintf(OUTFILE, "%s\n", line);
     }
@@ -1497,7 +1504,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
 
 static void init_pager()
 {
-#if !defined( __WIN__) && !defined( OS2) && (!defined(HAVE_mit_thread) || !defined(THREAD))
+#ifdef USE_POPEN
   if (!opt_nopager)
   {
     if (!(PAGER= popen(pager, "w")))
@@ -1513,30 +1520,35 @@ static void init_pager()
 
 static void end_pager()
 {
-#if !defined( __WIN__) && !defined( OS2) && !(defined(HAVE_mit_thread) && defined(THREAD))
+#ifdef USE_POPEN
   if (!opt_nopager)
     pclose(PAGER);
 #endif
 }
 
 
-static int init_tee(char* newfile)
+static void init_tee(const char *file_name)
 {
   FILE* new_outfile;
-  if (!(new_outfile= my_fopen(newfile, O_APPEND | O_WRONLY, MYF(MY_WME))))
-    return 0;
   if (opt_outfile)
     end_tee();
+  if (!(new_outfile= my_fopen(file_name, O_APPEND | O_WRONLY, MYF(MY_WME))))
+  {
+    tee_fprintf(stdout, "Error logging to file '%s'\n", file_name);
+    return;
+  }
   OUTFILE = new_outfile;
-  strmake(outfile,newfile,FN_REFLEN-1);
-  tee_fprintf(stdout, "Logging to file '%s'\n", outfile);
-  return 1;
+  strmake(outfile, file_name, FN_REFLEN-1);
+  tee_fprintf(stdout, "Logging to file '%s'\n", file_name);
+  opt_outfile= 1;
+  return;
 }
 
 
 static void end_tee()
 {
   my_fclose(OUTFILE, MYF(0));
+  OUTFILE= 0;
   opt_outfile= 0;
   return;
 }
@@ -1576,6 +1588,9 @@ print_table_data(MYSQL_RES *result)
   MYSQL_ROW	cur;
   MYSQL_FIELD	*field;
   bool		*num_flag;
+#ifdef __NETWARE__
+  uint		lines= 0;
+#endif
 
   num_flag=(bool*) my_alloca(sizeof(bool)*mysql_num_fields(result));
   if (info_flag)
@@ -1631,16 +1646,24 @@ print_table_data(MYSQL_RES *result)
 		  length, str);
     }
     (void) tee_fputs("\n", PAGER);
+#ifdef __NETWARE__
+    // on a long result the screen could hog the cpu
+    if ((lines++ & 1023) == 0) pthread_yield();
+#endif
   }
   tee_puts(separator.c_ptr(), PAGER);
   my_afree((gptr) num_flag);
 }
 
+
 static void
 print_table_data_html(MYSQL_RES *result)
 {
-  MYSQL_ROW   cur;
-  MYSQL_FIELD *field;
+  MYSQL_ROW	cur;
+  MYSQL_FIELD	*field;
+#ifdef __NETWARE__
+  uint		lines= 0;
+#endif
 
   mysql_field_seek(result,0);
   (void) tee_fputs("<TABLE BORDER=1><TR>", PAGER);
@@ -1665,6 +1688,10 @@ print_table_data_html(MYSQL_RES *result)
       (void) tee_fputs("</TD>", PAGER);
     }
     (void) tee_fputs("</TR>", PAGER);
+#ifdef __NETWARE__
+    // on a long result the screen could hog the cpu
+    if ((lines++ & 1023) == 0) pthread_yield();
+#endif
   }
   (void) tee_fputs("</TABLE>", PAGER);
 }
@@ -1675,6 +1702,9 @@ print_table_data_xml(MYSQL_RES *result)
 {
   MYSQL_ROW   cur;
   MYSQL_FIELD *fields;
+#ifdef __NETWARE__
+  uint		lines= 0;
+#endif
 
   mysql_field_seek(result,0);
 
@@ -1698,6 +1728,10 @@ print_table_data_xml(MYSQL_RES *result)
 				      " &nbsp; ") : "NULL"));
     }
     (void) tee_fputs("  </row>\n", PAGER);
+#ifdef __NETWARE__
+      // on a long result the screen could hog the cpu
+    if ((lines++ & 1023) == 0) pthread_yield();
+#endif
   }
   (void) tee_fputs("</resultset>\n", PAGER);
 }
@@ -1730,6 +1764,10 @@ print_table_data_vertically(MYSQL_RES *result)
       tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
       tee_fprintf(PAGER, "%s\n",cur[off] ? (char*) cur[off] : "NULL");
     }
+#ifdef __NETWARE__
+      // on a long result the screen could hog the cpu
+    if ((row_count & 1023) == 0) pthread_yield();
+#endif
   }
 }
 
@@ -1869,11 +1907,7 @@ com_tee(String *buffer, char *line __attribute__((unused)))
     printf("No outfile specified!\n");
     return 0;
   }
-  opt_outfile= init_tee(file_name);
-  if (opt_outfile)
-    tee_fprintf(stdout, "Logging to file '%s'\n", outfile);
-  else
-    tee_fprintf(stdout, "Error logging to file '%s'\n",file_name);
+  init_tee(file_name);
   return 0;
 }
 
@@ -1892,7 +1926,7 @@ com_notee(String *buffer __attribute__((unused)),
   Sorry, this command is not available in Windows.
 */
 
-#ifndef __WIN__
+#ifdef USE_POPEN
 static int
 com_pager(String *buffer, char *line __attribute__((unused)))
 {
@@ -1903,9 +1937,9 @@ com_pager(String *buffer, char *line __attribute__((unused)))
   /* Skip space from file name */
   while (isspace(*line))
     line++;
-  if (!(param = strchr(line, ' '))) // if pager was not given, use the default
+  if (!(param= strchr(line, ' '))) // if pager was not given, use the default
   {
-    if (!strlen(default_pager))
+    if (!default_pager[0])
     {
       tee_fprintf(stdout, "Default pager wasn't set, using stdout.\n");
       opt_nopager=1;
@@ -1948,7 +1982,7 @@ com_nopager(String *buffer __attribute__((unused)),
   Sorry, you can't send the result to an editor in Win32
 */
 
-#ifndef __WIN__
+#ifdef USE_POPEN
 static int
 com_edit(String *buffer,char *line __attribute__((unused)))
 {
@@ -1996,6 +2030,10 @@ static int
 com_quit(String *buffer __attribute__((unused)),
 	 char *line __attribute__((unused)))
 {
+#ifdef __NETWARE__
+  // let the screen auto close on a normal shutdown
+  setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
+#endif
   status.exit_status=0;
   return 1;
 }
@@ -2011,7 +2049,7 @@ com_rehash(String *buffer __attribute__((unused)),
 }
 
 
-#ifndef __WIN__
+#ifdef USE_POPEN
 static int
 com_shell(String *buffer, char *line __attribute__((unused)))
 {
@@ -2327,7 +2365,7 @@ com_status(String *buffer __attribute__((unused)),
     tee_fprintf(stdout, "\nAll updates ignored to this database\n");
     vidattr(A_NORMAL);
   }
-#ifndef __WIN__
+#ifdef USE_POPEN
   tee_fprintf(stdout, "Current pager:\t\t%s\n", pager);
   tee_fprintf(stdout, "Using outfile:\t\t'%s'\n", opt_outfile ? outfile : "");
 #endif
@@ -2500,7 +2538,7 @@ void tee_putc(int c, FILE *file)
     putc(c, OUTFILE);
 }
 
-#if defined( __WIN__) || defined( OS2)
+#if defined( __WIN__) || defined( OS2) || defined(__NETWARE__)
 #include <time.h>
 #else
 #include <sys/times.h>
@@ -2512,7 +2550,7 @@ void tee_putc(int c, FILE *file)
 
 static ulong start_timer(void)
 {
-#if defined( __WIN__) || defined( OS2)
+#if defined( __WIN__) || defined( OS2) || defined(__NETWARE__)
  return clock();
 #else
   struct tms tms_tmp;
@@ -2612,7 +2650,10 @@ static const char* construct_prompt()
 	    ! mysql.unix_socket)
 	  add_int_to_prompt(mysql.port);
 	else
-	  processed_prompt.append(strrchr(mysql.unix_socket,'/')+1);
+	{
+	  char *pos=strrchr(mysql.unix_socket,'/');
+	  processed_prompt.append(pos ? pos+1 : mysql.unix_socket);
+	}
 	break;
       case 'U':
 	if (!full_username)

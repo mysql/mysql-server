@@ -43,8 +43,8 @@ enum thr_lock_type { TL_IGNORE=-1,
 		      */
 		     TL_WRITE_ALLOW_WRITE,
 		     /*
-			Write lock, but allow other threads to read / write.
-			Used by ALTER TABLE in MySQL to mark to allow readers
+			Write lock, but allow other threads to read.
+			Used by ALTER TABLE in MySQL to allow readers
 			to use the table until ALTER TABLE is finished.
 		     */
 		     TL_WRITE_ALLOW_READ,
@@ -107,6 +107,7 @@ void thr_unlock(THR_LOCK_DATA *data);
 int thr_multi_lock(THR_LOCK_DATA **data,uint count);
 void thr_multi_unlock(THR_LOCK_DATA **data,uint count);
 void thr_abort_locks(THR_LOCK *lock);
+void thr_abort_locks_for_thread(THR_LOCK *lock, pthread_t thread);
 void thr_print_locks(void);		/* For debugging */
 my_bool thr_upgrade_write_delay_lock(THR_LOCK_DATA *data);
 my_bool thr_reschedule_write_lock(THR_LOCK_DATA *data);
