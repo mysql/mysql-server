@@ -321,8 +321,8 @@ then
   fi
   echo "PLEASE REMEMBER TO SET A PASSWORD FOR THE MySQL root USER !"
   echo "This is done with:"
-  echo "$bindir/mysqladmin -u root -p password 'new-password'"
-  echo "$bindir/mysqladmin -u root -h $hostname -p password 'new-password'"
+  echo "$bindir/mysqladmin -u root password 'new-password'"
+  echo "$bindir/mysqladmin -u root -h $hostname password 'new-password'"
   echo "See the manual for more instructions."
   #
   # Print message about upgrading unless we have created a new db table.

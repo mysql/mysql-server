@@ -41,6 +41,10 @@
 #define QUERY_CACHE_MEM_BIN_PARTS_MUL		1.2
 #define QUERY_CACHE_MEM_BIN_SPC_LIM_PWR2	3
 
+/* how many free blocks check when finding most suitable before other 'end'
+   of list of free blocks */
+#define QUERY_CACHE_MEM_BIN_TRY                 5
+
 /* query flags masks */
 #define QUERY_CACHE_CLIENT_LONG_FLAG_MASK	0x80
 #define QUERY_CACHE_CHARSET_CONVERT_MASK	0x7F
