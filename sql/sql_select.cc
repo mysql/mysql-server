@@ -7185,7 +7185,19 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	/* Found key that can be used to retrieve data in sorted order */
 	if (tab->ref.key >= 0)
 	{
-	  tab->ref.key= new_ref_key;
+          /*
+            We'll use ref access method on key new_ref_key. In general case 
+            the index search tuple for new_ref_key will be different (e.g.
+            when one of the indexes only covers prefix of the field, see
+            BUG#9213 in group_by.test).
+            So we build tab->ref from scratch here.
+          */
+          KEYUSE *keyuse= tab->keyuse;
+          while (keyuse->key != new_ref_key && keyuse->table == tab->table)
+            keyuse++;
+          if (create_ref_for_key(tab->join, tab, keyuse, 
+                                 tab->join->const_table_map))
+            DBUG_RETURN(0);
 	}
 	else
 	{
