@@ -50,7 +50,7 @@ libmysys_a_SOURCES =	my_init.c my_getwd.c mf_getdate.c\
 			my_getopt.c my_mkdir.c \
 			default.c my_compress.c checksum.c raid.cc \
 			my_net.c my_semaphore.c my_port.c \
-			my_vsnprintf.c charset.c my_bitmap.c my_bit.c md5.c \
+			my_vsnprintf.c charset.c xml.c my_bitmap.c my_bit.c md5.c \
 			my_gethostbyname.c rijndael.c my_aes.c sha1.c \
 			my_handler.c
 EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
@@ -103,6 +103,9 @@ test_dir: test_dir.c $(LIBRARIES)
 
 test_charset$(EXEEXT): test_charset.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_charset.c $(LDADD) $(LIBS)
+
+test_xml$(EXEEXT): test_xml.c $(LIBRARIES)
+	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_xml.c $(LDADD) $(LIBS)
 
 charset2html$(EXEEXT): charset2html.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/charset2html.c $(LDADD) $(LIBS)
