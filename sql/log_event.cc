@@ -1946,8 +1946,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       sql_error= ER_UNKNOWN_ERROR;
     slave_print_error(rli,sql_error,
 		      "Error '%s' running load data infile",
-		      sql_error ? thd->net.last_error :
-		      ER_SAFE(ER_UNKNOWN_ERROR));
+		      ER_SAFE(sql_error));
     free_root(&thd->mem_root,0);
     return 1;
   }
