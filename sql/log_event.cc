@@ -1091,7 +1091,15 @@ end:
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);      
   free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
-  return (thd->query_error ? thd->query_error : Log_event::exec_event(rli)); 
+  /*
+    If there was an error we stop. Otherwise we increment positions. Note that
+    we will not increment group* positions if we are just after a SET
+    ONE_SHOT, because SET ONE_SHOT should not be separated from its following
+    updating query.
+  */
+  return (thd->query_error ? thd->query_error : 
+          (thd->one_shot_set ? (rli->inc_event_relay_log_pos(get_event_len()),0) :
+           Log_event::exec_event(rli))); 
 }
 #endif
 
