@@ -42,9 +42,6 @@
 #endif
 
 extern EventLogger g_eventLogger;
-#if defined (NDB_LINUX) || defined (NDB_SOLARIS)
-#include <sys/wait.h>
-#endif
 
 void catchsigs(bool ignore); // for process signal handling
 extern "C" void handler(int signo);  // for process signal handling

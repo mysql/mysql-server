@@ -17,6 +17,8 @@
 #ifndef NDB_MUTEX_H
 #define NDB_MUTEX_H
 
+#include <ndb_global.h>
+
 #ifdef NDB_WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -34,7 +36,7 @@ typedef SEMAPHORE NdbMutex;
 #elif defined NDB_WIN32
 typedef CRITICAL_SECTION NdbMutex;
 #else
-#include <pthread.h>
+#include <my_pthread.h>
 typedef pthread_mutex_t NdbMutex;
 #define NDB_MUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER
 #endif
