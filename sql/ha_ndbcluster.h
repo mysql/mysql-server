@@ -152,6 +152,7 @@ class ha_ndbcluster: public handler
   const char* get_unique_index_name(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
+  int get_ndb_lock_type();
   
   int pk_read(const byte *key, uint key_len, 
 	      byte *buf);
@@ -162,12 +163,10 @@ class ha_ndbcluster: public handler
 			 bool sorted, byte* buf);
   int full_table_scan(byte * buf);
   int next_result(byte *buf); 
-#if 0
+  int define_read_attrs(byte* buf, NdbOperation* op);
   int filtered_scan(const byte *key, uint key_len, 
 		    byte *buf,
 		    enum ha_rkey_function find_flag);
-#endif
-
   void unpack_record(byte *buf);
 
   void set_dbname(const char *pathname);
@@ -212,6 +211,7 @@ class ha_ndbcluster: public handler
   ha_rows rows_to_insert;
   ha_rows rows_inserted;
   ha_rows bulk_insert_rows;
+  ha_rows ops_pending;
 };
 
 bool ndbcluster_init(void);
