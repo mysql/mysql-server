@@ -240,3 +240,9 @@ CREATE TABLE t1 (a_dec DECIMAL(-1,0));
 CREATE TABLE t1 (a_dec DECIMAL(-2,1));
 --error 1074
 CREATE TABLE t1 (a_dec DECIMAL(-1,1));
+
+#  Zero prepend overflow bug
+create table t1(a decimal(10,4));
+insert into t1 values ("+0000100000000");
+select * from t1;
+drop table t1;
