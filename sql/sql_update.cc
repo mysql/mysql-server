@@ -49,7 +49,7 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
 		 thr_lock_type lock_type)
 {
   bool 		using_limit=limit != HA_POS_ERROR;
-  bool		used_key_is_modified;
+  bool		used_key_is_modified, using_transactions;
   int		error=0;
   uint		save_time_stamp, used_index;
   key_map	old_used_keys;
@@ -237,18 +237,20 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
   thd->proc_info="end";
   VOID(table->file->extra(HA_EXTRA_READCHECK));
   table->time_stamp=save_time_stamp;	// Restore auto timestamp pointer
-  if (updated)
+  using_transactions=table->file->has_transactions();
+  if (updated && (error == 0 || !using_transactions))
   {
     mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
-      Query_log_event qinfo(thd, thd->query);
-      mysql_bin_log.write(&qinfo);
+      Query_log_event qinfo(thd, thd->query, using_transactions);
+      if (mysql_bin_log.write(&qinfo) && using_transactions)
+	error=1;
     }
-    if (!table->file->has_transactions())
+    if (!using_transactions)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
-  if (ha_autocommit_or_rollback(thd, error >= 0))
+  if (using_transactions && ha_autocommit_or_rollback(thd, error >= 0))
     error=1;
   if (thd->lock)
   {

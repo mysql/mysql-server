@@ -33,10 +33,12 @@ set-variable	= table_cache=64
 set-variable	= sort_buffer=512K
 set-variable	= net_buffer_length=8K
 set-variable	= myisam_sort_buffer_size=8M
-log-update
+log-bin
+server-id	= 1
 
 # Uncomment the following if you are using BDB tables
 #set-variable	= bdb_cache_size=4M
+#set-variable	= bdb_max_lock=10000
 
 # Point the following paths to different dedicated disks
 #tmpdir		= /tmp/		

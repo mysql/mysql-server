@@ -1427,6 +1427,17 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->count_cuted_fields=0;			/* Don`t calc cuted fields */
   new_table->time_stamp=save_time_stamp;
 
+#if defined( __WIN__) || defined( __EMX__)
+  /*
+    We must do the COMMIT here so that we can close and rename the
+    temporary table (as windows can't rename open tables)
+  */
+  if (ha_commit_stmt(thd))
+    error=1;
+  if (ha_commit(thd))
+    error=1;
+#endif
+
   if (table->tmp_table)
   {
     /* We changed a temporary table */
@@ -1544,6 +1555,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       goto err;
     }
   }
+
+#if !(defined( __WIN__) || defined( __EMX__))
   /* The ALTER TABLE is always in it's own transaction */
   error = ha_commit_stmt(thd);
   if (ha_commit(thd))
@@ -1554,6 +1567,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     VOID(pthread_mutex_unlock(&LOCK_open));
     goto err;
   }
+#endif
 
   thd->proc_info="end";
   mysql_update_log.write(thd, thd->query,thd->query_length);

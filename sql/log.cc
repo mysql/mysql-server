@@ -16,6 +16,7 @@
 
 
 /* logging of commands */
+/* TODO: Abort logging when we get an error in reading or writing log files */
 
 #include "mysql_priv.h"
 #include "sql_acl.h"
@@ -523,14 +524,12 @@ void MYSQL_LOG::new_file()
 }
 
 
-void MYSQL_LOG::write(THD *thd,enum enum_server_command command,
+bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 		      const char *format,...)
 {
   if (is_open() && (what_to_log & (1L << (uint) command)))
   {
-    va_list args;
-    va_start(args,format);
-    char buff[32];
+    int error=0;
     VOID(pthread_mutex_lock(&LOCK_log));
 
     /* Test if someone closed after the is_open test */
@@ -538,14 +537,17 @@ void MYSQL_LOG::write(THD *thd,enum enum_server_command command,
     {
       time_t skr;
       ulong id;
-      int error=0;
+      va_list args;
+      va_start(args,format);
+      char buff[32];
+
       if (thd)
       {						// Normal thread
 	if ((thd->options & OPTION_LOG_OFF) &&
 	    (thd->master_access & PROCESS_ACL))
 	{
 	  VOID(pthread_mutex_unlock(&LOCK_log));
-	  return;				// No logging
+	  return 0;				// No logging
 	}
 	id=thd->thread_id;
 	if (thd->user_time || !(skr=thd->query_start()))
@@ -593,115 +595,184 @@ void MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 	write_error=1;
 	sql_print_error(ER(ER_ERROR_ON_WRITE),name,error);
       }
+      va_end(args);
+      VOID(pthread_mutex_unlock(&LOCK_log));
     }
-    va_end(args);
     VOID(pthread_mutex_unlock(&LOCK_log));
+    return error != 0;
   }
+  return 0;
 }
 
 /* Write to binary log in a format to be used for replication */
 
-void MYSQL_LOG::write(Query_log_event* event_info)
+bool MYSQL_LOG::write(Query_log_event* event_info)
 {
+  /* In most cases this is only called if 'is_open()' is true */
+  bool error=1;
+  VOID(pthread_mutex_lock(&LOCK_log));
   if (is_open())
   {
-    VOID(pthread_mutex_lock(&LOCK_log));
-    if (is_open())
+    THD *thd=event_info->thd;
+    IO_CACHE *file = (event_info->cache_stmt ? &thd->transaction.trans_log :
+		      &log_file);
+    if ((!(thd->options & OPTION_BIN_LOG) &&
+	 thd->master_access & PROCESS_ACL) ||
+	!db_ok(event_info->db, binlog_do_db, binlog_ignore_db))
     {
-      THD *thd=event_info->thd;
-      if ((!(thd->options & OPTION_BIN_LOG) &&
-	   thd->master_access & PROCESS_ACL) ||
-	  !db_ok(event_info->db, binlog_do_db, binlog_ignore_db))
-      {
-	VOID(pthread_mutex_unlock(&LOCK_log));
-	return;
-      }
-	  
-      if (thd->last_insert_id_used)
-      {
-	Intvar_log_event e((uchar)LAST_INSERT_ID_EVENT, thd->last_insert_id);
-	if (e.write(&log_file))
-	{
-	  sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
-	  goto err;
-	}
-      }
-      if (thd->insert_id_used)
-      {
-	Intvar_log_event e((uchar)INSERT_ID_EVENT, thd->last_insert_id);
-	if (e.write(&log_file))
-	{
-	  sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
-	  goto err;
-	}
-      }
-      if (thd->convert_set)
-      {
-	char buf[1024] = "SET CHARACTER SET ";
-	char* p = strend(buf);
-	p = strmov(p, thd->convert_set->name);
-	int save_query_length = thd->query_length;
-	// just in case somebody wants it later
-	thd->query_length = (uint)(p - buf);
-	Query_log_event e(thd, buf);
-	if (e.write(&log_file))
-	{
-	  sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
-	  goto err;
-	}
-	thd->query_length = save_query_length; // clean up
-      }
-      if (event_info->write(&log_file) || flush_io_cache(&log_file))
-      {
-	sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
-      }
-  err:
-      VOID(pthread_cond_broadcast(&COND_binlog_update));
+      VOID(pthread_mutex_unlock(&LOCK_log));
+      return 0;
     }
-    VOID(pthread_mutex_unlock(&LOCK_log));
+	  
+    if (thd->last_insert_id_used)
+    {
+      Intvar_log_event e((uchar)LAST_INSERT_ID_EVENT, thd->last_insert_id);
+      if (e.write(file))
+	goto err;
+    }
+    if (thd->insert_id_used)
+    {
+      Intvar_log_event e((uchar)INSERT_ID_EVENT, thd->last_insert_id);
+      if (e.write(file))
+	goto err;
+    }
+    if (thd->convert_set)
+    {
+      char buf[1024] = "SET CHARACTER SET ";
+      char* p = strend(buf);
+      p = strmov(p, thd->convert_set->name);
+      int save_query_length = thd->query_length;
+      // just in case somebody wants it later
+      thd->query_length = (uint)(p - buf);
+      Query_log_event e(thd, buf);
+      if (e.write(file))
+	goto err;
+      thd->query_length = save_query_length; // clean up
+    }
+    if (event_info->write(file) ||
+	file == &log_file && flush_io_cache(file))
+      goto err;
+    error=0;
+
+err:
+    if (error)
+    {
+      if (my_errno == EFBIG)
+	my_error(ER_TRANS_CACHE_FULL, MYF(0));
+      else
+	my_error(ER_ERROR_ON_WRITE, MYF(0), name, errno);
+      write_error=1;
+    }
+    if (file == &log_file)
+      VOID(pthread_cond_broadcast(&COND_binlog_update));
   }
+  else
+    error=0;
+  VOID(pthread_mutex_unlock(&LOCK_log));
+  return error;
 }
 
-void MYSQL_LOG::write(Load_log_event* event_info)
+/*
+  Write a cached log entry to the binary log
+  We only come here if there is something in the cache.
+  'cache' needs to be reinitialized after this functions returns.
+*/
+
+bool MYSQL_LOG::write(IO_CACHE *cache)
 {
+  VOID(pthread_mutex_lock(&LOCK_log));
+  bool error=1;
   if (is_open())
   {
-    VOID(pthread_mutex_lock(&LOCK_log));
-    if (is_open())
+    uint length;
+    my_off_t start_pos=my_b_tell(&log_file);
+
+    if (reinit_io_cache(cache, WRITE_CACHE, 0, 0, 0))
     {
-      THD *thd=event_info->thd;
-      if ((thd->options & OPTION_BIN_LOG) ||
-	  !(thd->master_access & PROCESS_ACL))
-      {
-	if (event_info->write(&log_file) || flush_io_cache(&log_file))
-	  sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
-	VOID(pthread_cond_broadcast(&COND_binlog_update));
-      }
+      if (!write_error)
+	sql_print_error(ER(ER_ERROR_ON_WRITE), cache->file_name, errno);
+      goto err;
     }
-    VOID(pthread_mutex_unlock(&LOCK_log));
+    while ((length=my_b_fill(cache)))
+    {
+      if (my_b_write(&log_file, cache->rc_pos, length))
+      {
+	if (!write_error)
+	  sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+	goto err;
+      }
+      cache->rc_pos=cache->rc_end;		// Mark buffer used up
+    }
+    if (flush_io_cache(&log_file))
+    {
+      if (!write_error)
+	sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+      goto err;
+    }
+    if (cache->error)				// Error on read
+    {
+      if (!write_error)
+	sql_print_error(ER(ER_ERROR_ON_READ), cache->file_name, errno);
+      goto err;
+    }
   }
+  error=0;
+
+err:
+  if (error)
+    write_error=1;
+  else
+    VOID(pthread_cond_broadcast(&COND_binlog_update));
+    
+  VOID(pthread_mutex_unlock(&LOCK_log));    
+  return error;
+}
+
+
+bool MYSQL_LOG::write(Load_log_event* event_info)
+{
+  bool error=0;
+  VOID(pthread_mutex_lock(&LOCK_log));
+  if (is_open())
+  {
+    THD *thd=event_info->thd;
+    if ((thd->options & OPTION_BIN_LOG) ||
+	!(thd->master_access & PROCESS_ACL))
+    {
+      if (event_info->write(&log_file) || flush_io_cache(&log_file))
+      {
+	if (!write_error)
+	  sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+	error=write_error=1;
+      }
+      VOID(pthread_cond_broadcast(&COND_binlog_update));
+    }
+  }
+  VOID(pthread_mutex_unlock(&LOCK_log));
+  return error;
 }
 
 
 /* Write update log in a format suitable for incremental backup */
 
-void MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
+bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 		      time_t query_start)
 {
+  bool error=0;
   if (is_open())
   {
     time_t current_time;
     VOID(pthread_mutex_lock(&LOCK_log));
     if (is_open())
     {						// Safety agains reopen
-      int error=0;
+      int tmp_errno=0;
       char buff[80],*end;
       end=buff;
       if (!(thd->options & OPTION_UPDATE_LOG) &&
 	  (thd->master_access & PROCESS_ACL))
       {
 	VOID(pthread_mutex_unlock(&LOCK_log));
-	return;
+	return 0;
       }
       if ((specialflag & SPECIAL_LONG_LOG_FORMAT) || query_start)
       {
@@ -722,14 +793,14 @@ void MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 		  start->tm_min,
 		  start->tm_sec);
 	  if (my_b_write(&log_file, (byte*) buff,24))
-	    error=errno;
+	    tmp_errno=errno;
 	}
 	if (my_b_printf(&log_file, "# User@Host: %s[%s] @ %s [%s]\n",
 			thd->priv_user,
 			thd->user,
 			thd->host ? thd->host : "",
 			thd->ip ? thd->ip : "") == (uint) -1)
-	  error=errno;
+	  tmp_errno=errno;
       }
       if (query_start)
       {
@@ -739,12 +810,12 @@ void MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 			(ulong) (current_time - query_start),
 			(ulong) (thd->time_after_lock - query_start),
 			(ulong) thd->sent_row_count) == (uint) -1)
-	    error=errno;
+	    tmp_errno=errno;
       }
       if (thd->db && strcmp(thd->db,db))
       {						// Database changed
 	if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
-	  error=errno;
+	  tmp_errno=errno;
 	strmov(db,thd->db);
       }
       if (thd->last_insert_id_used)
@@ -777,7 +848,7 @@ void MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 	*end=0;
 	if (my_b_write(&log_file, (byte*) "SET ",4) ||
 	    my_b_write(&log_file, (byte*) buff+1,(uint) (end-buff)-1))
-	  error=errno;
+	  tmp_errno=errno;
       }
       if (!query)
       {
@@ -787,28 +858,21 @@ void MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
       if (my_b_write(&log_file, (byte*) query,query_length) ||
 	  my_b_write(&log_file, (byte*) ";\n",2) ||
 	  flush_io_cache(&log_file))
-	error=errno;
-      if (error && ! write_error)
+	tmp_errno=errno;
+      if (tmp_errno)
       {
-	write_error=1;
-	sql_print_error(ER(ER_ERROR_ON_WRITE),name,error);
+	error=1;
+	if (! write_error)
+	{
+	  write_error=1;
+	  sql_print_error(ER(ER_ERROR_ON_WRITE),name,error);
+	}
       }
     }
     VOID(pthread_mutex_unlock(&LOCK_log));
   }
+  return error;
 }
-
-#ifdef TO_BE_REMOVED
-void MYSQL_LOG::flush()
-{
-  if (is_open())
-    if (flush_io_cache(log_file) && ! write_error)
-    {
-      write_error=1;
-      sql_print_error(ER(ER_ERROR_ON_WRITE),name,errno);
-    }
-}
-#endif
 
 
 void MYSQL_LOG::close(bool exiting)

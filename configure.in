@@ -1239,7 +1239,7 @@ AC_CHECK_FUNCS(alarm bmove \
  chsize ftruncate rint finite fpsetmask fpresetsticky\
  cuserid fcntl fconvert poll \
  getrusage getpwuid getcwd getrlimit getwd index stpcpy locking longjmp \
- perror pread realpath rename \
+ perror pread realpath readlink rename \
  socket strnlen madvise mkstemp \
  strtol strtoul strtoull snprintf tempnam thr_setconcurrency \
  gethostbyaddr_r gethostbyname_r getpwnam \
