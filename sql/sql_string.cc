@@ -232,6 +232,10 @@ bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *cs)
 bool String::copy(const char *str, uint32 arg_length,
 		  CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
 {
+  if ((from_cs == &my_charset_bin) || (to_cs == &my_charset_bin))
+  {
+    return copy(str, arg_length, &my_charset_bin);
+  }
   uint32 new_length= to_cs->mbmaxlen*arg_length;
   if (alloc(new_length))
     return TRUE;
