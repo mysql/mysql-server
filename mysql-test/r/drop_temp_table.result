@@ -1,0 +1,18 @@
+reset master;
+create database `drop-temp+table-test`;
+use `drop-temp+table-test`;
+create temporary table `table:name` (a int);
+select get_lock("a",10);
+get_lock("a",10)
+1
+select get_lock("a",10);
+get_lock("a",10)
+1
+show binlog events;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.001	4	Start	1	4	Server ver: VERSION, Binlog ver: 3
+master-bin.001	79	Query	1	79	use `test`; create database `drop-temp+table-test`
+master-bin.001	152	Query	1	152	use `drop-temp+table-test`; create temporary table `table:name` (a int)
+master-bin.001	246	Query	1	246	use `drop-temp+table-test`; DROP /*!40005 TEMPORARY */ TABLE `drop-temp+table-test`.`table:name`
+master-bin.001	365	Query	1	365	use `drop-temp+table-test`; DO RELEASE_LOCK("a")
+drop database `drop-temp+table-test`;

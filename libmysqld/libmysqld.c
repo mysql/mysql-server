@@ -88,7 +88,7 @@ net_safe_read(MYSQL *mysql)
 {
   NET *net= &mysql->net;
   uint len=0;
-  //init_sigpipe_variables
+  /* init_sigpipe_variables */
   /* Don't give sigpipe errors if the client doesn't want them */
   set_sigpipe(mysql);
   if (net->vio != 0)

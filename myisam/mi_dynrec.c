@@ -167,7 +167,6 @@ static int _mi_find_writepos(MI_INFO *info,
   if (info->s->state.dellink != HA_OFFSET_ERROR)
   {
     /* Deleted blocks exists;  Get last used block */
-
     *filepos=info->s->state.dellink;
     block_info.second_read=0;
     info->rec_cache.seek_not_done=1;
@@ -211,7 +210,11 @@ static int _mi_find_writepos(MI_INFO *info,
 
 
 
-/* Remove a deleted block from the deleted list */
+/*
+  Unlink a deleted block from the deleted list.
+  This block will be combined with the preceding or next block to form
+  a big block.
+*/
 
 static bool unlink_deleted_block(MI_INFO *info, MI_BLOCK_INFO *block_info)
 {
@@ -225,6 +228,7 @@ static bool unlink_deleted_block(MI_INFO *info, MI_BLOCK_INFO *block_info)
   {
     MI_BLOCK_INFO tmp;
     tmp.second_read=0;
+    /* Unlink block from the previous block */
     if (!(_mi_get_block_info(&tmp,info->dfile,block_info->prev_filepos)
 	  & BLOCK_DELETED))
       DBUG_RETURN(1);				/* Something is wrong */
@@ -232,6 +236,7 @@ static bool unlink_deleted_block(MI_INFO *info, MI_BLOCK_INFO *block_info)
     if (my_pwrite(info->dfile,(char*) tmp.header+4,8,
 		  block_info->prev_filepos+4, MYF(MY_NABP)))
       DBUG_RETURN(1);
+    /* Unlink block from next block */
     if (block_info->next_filepos != HA_OFFSET_ERROR)
     {
       if (!(_mi_get_block_info(&tmp,info->dfile,block_info->next_filepos)
@@ -244,11 +249,16 @@ static bool unlink_deleted_block(MI_INFO *info, MI_BLOCK_INFO *block_info)
 	DBUG_RETURN(1);
     }
   }
+  /* We now have one less deleted block */
   info->state->del--;
   info->state->empty-= block_info->block_len;
   info->s->state.split--;
 
-  /* Removing block that we are using through mi_rrnd */
+  /*
+    If this was a block that we where accessing through table scan
+    (mi_rrnd() or mi_scan(), then ensure that we skip over this block
+    when doing next mi_rrnd() or mi_scan().
+  */
   if (info->nextpos == block_info->filepos)
     info->nextpos+=block_info->block_len;
   DBUG_RETURN(0);
@@ -325,7 +335,7 @@ static int delete_dynamic_record(MI_INFO *info, my_off_t filepos,
     info->state->empty+=length;
     filepos=block_info.next_filepos;
 
-    /* Now it's safe to unlink the block */
+    /* Now it's safe to unlink the deleted block directly after this one */
     if (remove_next_block && unlink_deleted_block(info,&del_block))
       error=1;
   } while (!(b_type & BLOCK_LAST));

@@ -888,13 +888,16 @@ class Item_func_set_user_var :public Item_func
   enum Item_result cached_result_type;
   LEX_STRING name;
   user_var_entry *entry;
+  char buffer[MAX_FIELD_WIDTH];
+  String value;
 
 public:
-  Item_func_set_user_var(LEX_STRING a,Item *b): Item_func(b), name(a) {}
+  Item_func_set_user_var(LEX_STRING a,Item *b):
+    Item_func(b), name(a), value(buffer,sizeof(buffer)) {}
   double val();
   longlong val_int();
   String *val_str(String *str);
-  void update_hash(void *ptr, uint length, enum Item_result type);
+  bool update_hash(const void *ptr, uint length, enum Item_result type);
   bool update();
   enum Item_result result_type () const { return cached_result_type; }
   bool fix_fields(THD *thd,struct st_table_list *tables);
@@ -913,7 +916,6 @@ class Item_func_get_user_var :public Item_func
 public:
   Item_func_get_user_var(LEX_STRING a):
     Item_func(), name(a) {}
-  user_var_entry *get_entry();
   double val();
   longlong val_int();
   String *val_str(String* str);

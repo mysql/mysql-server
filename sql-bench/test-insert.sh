@@ -28,6 +28,7 @@
 #
 ##################### Standard benchmark inits ##############################
 
+use Cwd;
 use DBI;
 use Benchmark;
 use Data::Dumper;
@@ -38,7 +39,7 @@ $range_loop_count=$small_loop_count*50;
 $many_keys_loop_count=$opt_loop_count;
 $opt_read_key_loop_count=$opt_loop_count;
 
-chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
+$pwd = cwd(); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";
 
 if ($opt_small_test)

@@ -170,7 +170,8 @@ typedef struct st_relay_log_info
   /*
     Handling of the relay_log_space_limit optional constraint.
     ignore_log_space_limit is used to resolve a deadlock between I/O and SQL
-    threads, it makes the I/O thread temporarily forget about the constraint
+    threads, the SQL thread sets it to unblock the I/O thread and make it
+    temporarily forget about the constraint.
   */
   ulonglong log_space_limit,log_space_total;
   bool ignore_log_space_limit;

@@ -140,11 +140,6 @@ Log_event::Log_event()
 
 /*
   Delete all temporary files used for SQL_LOAD.
-
-  TODO
-  - When we get a 'server start' event, we should only remove
-    the files associated with the server id that just started.
-    Easily fixable by adding server_id as a prefix to the log files.
 */
 
 static void cleanup_load_tmpdir()
@@ -152,13 +147,30 @@ static void cleanup_load_tmpdir()
   MY_DIR *dirp;
   FILEINFO *file;
   uint i;
+  char fname[FN_REFLEN];
+  char prefbuf[31];
+  char *p;
+  
   if (!(dirp=my_dir(slave_load_tmpdir,MYF(MY_WME))))
     return;
-  char fname[FN_REFLEN];
+  
+  /* 
+     When we are deleting temporary files, we should only remove
+     the files associated with the server id of our server.
+     We don't use event_server_id here because since we've disabled
+     direct binlogging of Create_file/Append_file/Exec_load events
+     we cannot meet Start_log event in the middle of events from one 
+     LOAD DATA.
+  */
+  p= strmake(prefbuf,"SQL_LOAD-",9);
+  p= int10_to_str(::server_id, p, 10);
+  *(p++)= '-';
+  *p= 0;
+
   for (i=0 ; i < (uint)dirp->number_off_files; i++)
   {
     file=dirp->dir_entry+i;
-    if (is_prefix(file->name,"SQL_LOAD-"))
+    if (is_prefix(file->name, prefbuf))
     {
       fn_format(fname,file->name,slave_load_tmpdir,"",MY_UNPACK_FILENAME);
       my_delete(fname, MYF(0));
@@ -232,9 +244,9 @@ void Query_log_event::pack_info(String* packet)
   tmp.length(0);
   if (db && db_len)
   {
-   tmp.append("use ");
+   tmp.append("use `",5);
    tmp.append(db, db_len);
-   tmp.append("; ", 2);
+   tmp.append("`; ", 3);
   }
 
   if (query && q_len)
@@ -2079,6 +2091,23 @@ int Start_log_event::exec_event(struct st_relay_log_info* rli)
     */
     close_temporary_tables(thd);
     cleanup_load_tmpdir();
+    /*
+      As a transaction NEVER spans on 2 or more binlogs:
+      if we have an active transaction at this point, the master died while
+      writing the transaction to the binary log, i.e. while flushing the binlog
+      cache to the binlog. As the write was started, the transaction had been
+      committed on the master, so we lack of information to replay this
+      transaction on the slave; all we can do is stop with error.
+    */
+    if (rli->inside_transaction)
+    {
+      slave_print_error(rli, 0,
+                        "\
+Rolling back unfinished transaction (no COMMIT or ROLLBACK) from relay log. \
+Probably cause is that the master died while writing the transaction to it's \
+binary log.");
+      return(1);
+    }
     break;
   /* 
      Now the older formats; in that case load_tmpdir is cleaned up by the I/O
@@ -2154,51 +2183,34 @@ int Stop_log_event::exec_event(struct st_relay_log_info* rli)
     We can't rotate the slave as this will cause infinitive rotations
     in a A -> B -> A setup.
 
-  NOTES
-    As a transaction NEVER spans on 2 or more binlogs:
-    if we have an active transaction at this point, the master died while
-    writing the transaction to the binary log, i.e. while flushing the binlog
-    cache to the binlog. As the write was started, the transaction had been
-    committed on the master, so we lack of information to replay this
-    transaction on the slave; all we can do is stop with error.
-    If we didn't detect it, then positions would start to become garbage (as we
-    are incrementing rli->relay_log_pos whereas we are in a transaction: the new
-    rli->relay_log_pos will be
-    relay_log_pos of the BEGIN + size of the Rotate event = garbage.
-
-    Since MySQL 4.0.14, the master ALWAYS sends a Rotate event when it starts
-    sending the next binlog, so we are sure to receive a Rotate event just
-    after the end of the "dead master"'s binlog; so this exec_event() is the
-    right place to catch the problem. If we would wait until
-    Start_log_event::exec_event() it would be too late, rli->relay_log_pos would
-    already be garbage.
-
   RETURN VALUES
     0	ok
 */
 
 int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  char* log_name = rli->master_log_name;
   DBUG_ENTER("Rotate_log_event::exec_event");
 
   pthread_mutex_lock(&rli->data_lock);
-
-  if (rli->inside_transaction)
+  /*
+    If we are in a transaction: the only normal case is when the I/O thread was
+    copying a big transaction, then it was stopped and restarted: we have this
+    in the relay log:
+    BEGIN
+    ...
+    ROTATE (a fake one)
+    ...
+    COMMIT or ROLLBACK
+    In that case, we don't want to touch the coordinates which correspond to the
+    beginning of the transaction.
+  */
+  if (!rli->inside_transaction)
   {
-    slave_print_error(rli, 0,
-                      "there is an unfinished transaction in the relay log \
-(could find neither COMMIT nor ROLLBACK in the relay log); it could be that \
-the master died while writing the transaction to its binary log. Now the slave \
-is rolling back the transaction.");
-    pthread_mutex_unlock(&rli->data_lock);
-    DBUG_RETURN(1);
+    memcpy(rli->master_log_name, new_log_ident, ident_len+1);
+    rli->master_log_pos= pos;
+    DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) rli->master_log_pos));
   }
-
-  memcpy(log_name, new_log_ident, ident_len+1);
-  rli->master_log_pos = pos;
   rli->relay_log_pos += get_event_len();
-  DBUG_PRINT("info", ("master_log_pos: %d", (ulong) rli->master_log_pos));
   pthread_mutex_unlock(&rli->data_lock);
   pthread_cond_broadcast(&rli->data_cond);
   flush_relay_log_info(rli);
@@ -2381,6 +2393,16 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
       my_free(tmp,MYF(0));
     }
     goto err;
+  }
+  /*
+    We have an open file descriptor to the .info file; we need to close it
+    or Windows will refuse to delete the file in my_delete().
+  */
+  if (fd >= 0)
+  {
+    my_close(fd, MYF(0));
+    end_io_cache(&file);
+    fd= -1;
   }
   (void) my_delete(fname, MYF(MY_WME));
   memcpy(p, ".data", 6);
