@@ -7491,6 +7491,10 @@ It is recomended you use MIT-pthreads on FreeBSD 2.x and native threads on
 Versions 3 and up. It is possible to run with  native threads on some late
 2.2.x versions but you may encounter problems shutting down mysqld.
 
+The @strong{MYSQL} Makefiles require GNU make (@code{gmake}) to work.
+If you want to compile @strong{MYSQL} you need to install GNU make
+first.
+
 Be sure to have your name resolver setup correct. Otherwise you may
 experience resolver delays or failures when connecting to mysqld.
 
@@ -7513,10 +7517,6 @@ MIT-pthreads. This is fixed by executing these commands:
 shell> rm config.cache
 shell> ./configure --with-mit-threads
 @end example
-
-The behavior of FreeBSD @code{make} is slightly different from that of GNU
-@code{make}. If you have @code{make}-related problems, you should install GNU
-@code{make}.
 
 FreeBSD is also known to have a very low default file handle limit.
 @xref{Not enough file handles}. Uncomment the ulimit -n section in
@@ -20233,11 +20233,11 @@ start @code{mysqld} with @code{--skip-bdb} o not waste memory for this cache.
 The value of the @code{--bdb-home} option.
 
 @item @code{bdb_lock_max}
-The maximum number of locks (1000 by default) you can have active on a BDB
-table. You should increase this if you get errors of type
-@code{bdb: Lock table is out of available locks} when you have do long
-transactions or when mysqld has to examine a lot of rows to calculate
-the query.
+The maximum number of locks (1000 by default) you can have active on a
+BDB table. You should increase this if you get errors of type @code{bdb:
+Lock table is out of available locks} or @code{Got error 12 from ...}
+when you have do long transactions or when @code{mysqld} has to examine
+a lot of rows to calculate the query.
 
 @item @code{bdb_logdir}
 The value of the @code{--bdb-logdir} option.
@@ -22518,6 +22518,13 @@ you cannot use @code{BDB} tables if you are using this option.
 Normally you should start mysqld with @code{--bdb-recover} if you intend
 to use BDB tables.  This may, however, give you problems when you try to
 start mysqld if the BDB log files are corrupted. @xref{Starting server}.
+
+With @code{bdb_lock_max} you can specify the maximum number of locks
+(1000 by default) you can have active on a BDB table. You should
+increase this if you get errors of type @code{bdb: Lock table is out of
+available locks} or @code{Got error 12 from ...}  when you have do long
+transactions or when @code{mysqld} has to examine a lot of rows to
+calculate the query.
 
 @node BDB characteristic, BDB TODO, BDB start, BDB
 @subsection Some characteristic of @code{BDB} tables:

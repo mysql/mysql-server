@@ -379,3 +379,16 @@ support-files/mysql-3.23.29-gamma.spec
 support-files/mysql-log-rotate
 support-files/mysql.server
 support-files/mysql.spec
+Docs/manual.aux
+Docs/manual.cp
+Docs/manual.cps
+Docs/manual.dvi
+Docs/manual.fn
+Docs/manual.fns
+Docs/manual.ky
+Docs/manual.pg
+Docs/manual.toc
+Docs/manual.tp
+Docs/manual.vr
+Docs/manual_a4.ps
+Docs/manual_letter.ps
