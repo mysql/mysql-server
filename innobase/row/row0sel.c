@@ -3694,6 +3694,8 @@ rec_loop:
 		}
 
 		if (prebuilt->clust_index_was_generated) {
+			offsets = rec_reget_offsets(index_rec, index, offsets,
+							ULINT_UNDEFINED, heap);
 			row_sel_store_row_id_to_prebuilt(prebuilt, index_rec,
 							index, offsets);
 		}
