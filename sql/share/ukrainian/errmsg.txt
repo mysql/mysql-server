@@ -254,3 +254,4 @@
 "Посилання '%-.64s' не пiдтримуется (%s)",
 "Every derived table must have it's own alias"
 "Select %u was скасовано при оптимiзацii",
+"Table '%-.64s' from one of SELECT's can not be used  in %-.32s"
