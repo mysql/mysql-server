@@ -42,6 +42,7 @@
 #include <violite.h>
 #include <my_pthread.h>
 #include <md5.h>
+#include <signal.h>
 
 #define MANAGER_VERSION "1.0"
 #define MANAGER_GREETING "MySQL Server Management Daemon v. 1.0" 

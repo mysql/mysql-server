@@ -37,7 +37,7 @@ usage: $0 [-g|-h|-r] [test-name ...]
 EOF
 }
 
-init_args=""
+init_args="--server-arg=--language=$top_builddir/sql/share/english"
 while test $# -gt 0
 do
     arg=
