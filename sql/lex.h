@@ -627,6 +627,7 @@ static SYMBOL sql_functions[] = {
   { "STD",		SYM(STD_SYM),0,0},
   { "STDDEV",		SYM(STD_SYM),0,0},
   { "STRCMP",		SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_strcmp)},
+  { "SUBSTR",	  	SYM(SUBSTRING),0,0},
   { "SUBSTRING",	SYM(SUBSTRING),0,0},
   { "SUBSTRING_INDEX",	SYM(SUBSTRING_INDEX),0,0},
   { "SUBTIME",          SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_subtime)},
