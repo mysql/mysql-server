@@ -41585,6 +41585,9 @@ not yet 100 % confident in this code.
 @appendixsubsec Changes in release 3.23.34
 @itemize @bullet
 @item
+Limit query length for replication by max_allowed_packet, not the arbitrary
+limit of 4 MB
+@item
 Allow space around @code{=} in argument to @code{--set-variable}.
 @item
 Fixed problem in automatic repair that could let some threads in state
@@ -41606,7 +41609,7 @@ Fixed that @code{mysqlbinlog} writes the timestamp value for each query.
 This ensures that on gets same values for date functions like @code{NOW()}
 when using @code{mysqlbinlog} to pipe the queries to another server.
 @item
-Allow one to use @code{--skip-gemeni}, @code{--skip-bdb} and
+Allow one to use @code{--skip-gemini}, @code{--skip-bdb} and
 @code{--skip-innobase} to @code{mysqld} even if these databases are not
 compiled in @code{mysqld}.
 @item
