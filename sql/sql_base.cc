@@ -2120,7 +2120,7 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
     Field_translator *trans= table_list->field_translation;
     for (uint i= 0; i < num; i ++)
     {
-      if (strcmp(trans[i].name, name) == 0)
+      if (!my_strcasecmp(system_charset_info, trans[i].name, name))
       {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 	if (check_grants_view &&

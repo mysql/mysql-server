@@ -1654,3 +1654,10 @@ select * from v3;
 
 drop view v3;
 drop tables t1,t2;
+
+# View field names should be case insensitive 
+create table t1(f1 int);
+create view v1 as select f1 from t1;
+select * from v1 where F1 = 1;
+drop view v1;
+drop table t1;
