@@ -8707,7 +8707,7 @@ cat /proc/sys/fs/super-max
 @end example
 
 If you have more than 16 MB of memory, you should add something like the
-following in your boot script (@file{/etc/rc/boot.local} on SuSE):
+following to your init scripts (e.g. @file{/etc/init.d/boot.local} on SuSE Linux):
 
 @example
 echo 65536 > /proc/sys/fs/file-max
@@ -8715,10 +8715,22 @@ echo 8192 > /proc/sys/fs/dquot-max
 echo 1024 > /proc/sys/fs/super-max
 @end example
 
-You can also run the preceding commands from the command-line as root, but in this case
-your old limits will be used the next time your computer reboots.
+You can also run the preceding commands from the command-line as root, but
+these settings will be lost the next time your computer reboots.
 
-You should also add /etc/my.cnf:
+Alternatively, you can set these parameters on bootup by using the
+@code{sysctl} tool, which is used by many Linux distributions (SuSE has
+added it as well, beginning with SuSE Linux 8.0). Just put the following
+values into a file named @file{/etc/sysctl.conf}:
+
+@example
+# Increase some values for MySQL
+fs.file-max = 65536
+fs.dquot-max = 8192
+fs.super-max = 1024
+@end example
+
+You should also add the following to @file{/etc/my.cnf}:
 
 @example
 [safe_mysqld]
