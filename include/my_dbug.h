@@ -39,6 +39,7 @@ extern	void _db_pargs_(uint _line_,const char *keyword);
 extern	void _db_doprnt_ _VARARGS((const char *format,...));
 extern	void _db_dump_(uint _line_,const char *keyword,const char *memory,
 		       uint length);
+extern	void _db_output_();
 extern	void _db_lock_file();
 extern	void _db_unlock_file();
 
@@ -67,6 +68,7 @@ extern	void _db_unlock_file();
 #define DEBUGGER_ON  _no_db_=0
 #define DBUG_LOCK_FILE { _db_lock_file(); }
 #define DBUG_UNLOCK_FILE { _db_unlock_file(); }
+#define DBUG_OUTPUT(A) { _db_output_(A); }
 #define DBUG_ASSERT(A) assert(A)
 #define DBUG_EXECUTE_IF(keyword,a1) \
         {if (_db_on_) {if (_db_strict_keyword_ (keyword)) { a1 }}}
@@ -90,6 +92,7 @@ extern	void _db_unlock_file();
 #define DEBUGGER_ON
 #define DBUG_LOCK_FILE
 #define DBUG_UNLOCK_FILE
+#define DBUG_OUTPUT(A)
 #define DBUG_ASSERT(A) {}
 #endif
 #ifdef	__cplusplus

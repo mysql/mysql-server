@@ -134,7 +134,7 @@ public:
   void reset();
   trans_res select_transformer(JOIN *join);
   void store(uint i, Item* item);
-  double val();
+  double val_real();
   longlong val_int ();
   String *val_str (String *);
   enum Item_result result_type() const;
@@ -179,7 +179,7 @@ public:
 
   enum Item_result result_type() const { return INT_RESULT;}
   longlong val_int();
-  double val();
+  double val_real();
   String *val_str(String*);
   void fix_length_and_dec();
   void print(String *str);
@@ -224,7 +224,7 @@ public:
 				     Comp_creator *func);
   trans_res row_value_transformer(JOIN * join);
   longlong val_int();
-  double val();
+  double val_real();
   String *val_str(String*);
   void top_level_item() { abort_on_null=1; }
   bool test_limit(st_select_lex_unit *unit);
@@ -290,7 +290,7 @@ public:
   virtual table_map upper_select_const_tables()= 0;
   static table_map calc_const_tables(TABLE_LIST *);
   virtual void print(String *str)= 0;
-  virtual int change_item(Item_subselect *si, select_subselect *result)= 0;
+  virtual bool change_result(Item_subselect *si, select_subselect *result)= 0;
   virtual bool no_tables()= 0;
 };
 
@@ -315,7 +315,7 @@ public:
   void exclude();
   table_map upper_select_const_tables();
   void print (String *str);
-  int change_item(Item_subselect *si, select_subselect *result);
+  bool change_result(Item_subselect *si, select_subselect *result);
   bool no_tables();
 };
 
@@ -336,7 +336,7 @@ public:
   void exclude();
   table_map upper_select_const_tables();
   void print (String *str);
-  int change_item(Item_subselect *si, select_subselect *result);
+  bool change_result(Item_subselect *si, select_subselect *result);
   bool no_tables();
 };
 
@@ -366,7 +366,7 @@ public:
   void exclude();
   table_map upper_select_const_tables() { return 0; }
   void print (String *str);
-  int change_item(Item_subselect *si, select_subselect *result);
+  bool change_result(Item_subselect *si, select_subselect *result);
   bool no_tables();
 };
 

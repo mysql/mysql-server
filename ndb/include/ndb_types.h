@@ -21,11 +21,11 @@
 #ifndef NDB_TYPES_H
 #define NDB_TYPES_H
 
-typedef          char  Int8;
+typedef   signed char  Int8;
 typedef unsigned char  Uint8;
-typedef          short Int16;
+typedef   signed short Int16;
 typedef unsigned short Uint16;
-typedef          int   Int32;
+typedef   signed int   Int32;
 typedef unsigned int   Uint32;
 
 typedef unsigned int UintR;
@@ -45,10 +45,10 @@ typedef uintptr_t UintPtr;
 
 #if defined(WIN32) || defined(NDB_WIN32)
 typedef unsigned __int64 Uint64;
-typedef          __int64 Int64;
+typedef   signed __int64 Int64;
 #else
 typedef unsigned long long Uint64;
-typedef          long long Int64;
+typedef   signed long long Int64;
 #endif
 
 #endif

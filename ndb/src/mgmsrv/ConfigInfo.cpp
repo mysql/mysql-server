@@ -1478,7 +1478,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    NDB_BASE_PORT,
+    NDB_PORT,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1490,7 +1490,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    "2199",
+    UNDEFINED,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -3010,7 +3010,7 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
       if(!(ctx.m_userDefaults &&
 	   ctx.m_userDefaults->get("PortNumber", &base)) &&
 	 !ctx.m_systemDefaults->get("PortNumber", &base)) {
-	base= strtoll(NDB_BASE_PORT,0,0)+2;
+	base= strtoll(NDB_BASE_PORT,0,0);
       //      ctx.reportError("Cannot retrieve base port number");
       //      return false;
       }
@@ -3442,7 +3442,7 @@ static bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections,
 #if 0
   Properties * props= ctx.m_config;
   Properties computers(true);
-  Uint32 port_base = NDB_BASE_PORT+2;
+  Uint32 port_base = NDB_BASE_PORT;
 
   Uint32 nNodes;
   ctx.m_userProperties.get("NoOfNodes", &nNodes);

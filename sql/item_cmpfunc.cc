@@ -53,10 +53,10 @@ static void agg_cmp_type(Item_result *type, Item **items, uint nitems)
 
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
 {
-  my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
-  	   c1.collation->name,c1.derivation_name(),
-	   c2.collation->name,c2.derivation_name(),
-	   fname);
+  my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0),
+           c1.collation->name,c1.derivation_name(),
+           c2.collation->name,c2.derivation_name(),
+           fname);
 }
 
 
@@ -104,7 +104,7 @@ Item_bool_func2* Le_creator::create(Item *a, Item *b) const
 longlong Item_func_not::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   null_value=args[0]->null_value;
   return !null_value && value == 0 ? 1 : 0;
 }
@@ -116,7 +116,7 @@ longlong Item_func_not::val_int()
 longlong Item_func_not_all::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  double value= args[0]->val();
+  double value= args[0]->val_real();
   if (abort_on_null)
   {
     null_value= 0;
@@ -384,10 +384,10 @@ int Arg_comparator::compare_e_binary_string()
 
 int Arg_comparator::compare_real()
 {
-  double val1= (*a)->val();
+  double val1= (*a)->val_real();
   if (!(*a)->null_value)
   {
-    double val2= (*b)->val();
+    double val2= (*b)->val_real();
     if (!(*b)->null_value)
     {
       owner->null_value= 0;
@@ -402,8 +402,8 @@ int Arg_comparator::compare_real()
 
 int Arg_comparator::compare_e_real()
 {
-  double val1= (*a)->val();
-  double val2= (*b)->val();
+  double val1= (*a)->val_real();
+  double val2= (*b)->val_real();
   if ((*a)->null_value || (*b)->null_value)
     return test((*a)->null_value && (*b)->null_value);
   return test(val1 == val2);
@@ -600,17 +600,17 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
 {
   DBUG_ASSERT(fixed == 0);
   if (fix_left(thd, tables, ref))
-    return 1;
+    return TRUE;
   if (args[0]->maybe_null)
     maybe_null=1;
 
   if (!args[1]->fixed && args[1]->fix_fields(thd, tables, args+1))
-    return 1;
+    return TRUE;
   Item_in_subselect * sub= (Item_in_subselect *)args[1];
   if (args[0]->cols() != sub->engine->cols())
   {
     my_error(ER_OPERAND_COLUMNS, MYF(0), args[0]->cols());
-    return 1;
+    return TRUE;
   }
   if (args[1]->maybe_null)
     maybe_null=1;
@@ -619,7 +619,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
   not_null_tables_cache|= args[1]->not_null_tables();
   const_item_cache&= args[1]->const_item();
   fixed= 1;
-  return 0;
+  return FALSE;
 }
 
 
@@ -754,7 +754,7 @@ void Item_func_interval::fix_length_and_dec()
         (intervals=(double*) sql_alloc(sizeof(double)*(row->cols()-1))))
     {
       for (uint i=1 ; i < row->cols(); i++)
-        intervals[i-1]=row->el(i)->val();
+        intervals[i-1]= row->el(i)->val_real();
     }
   }
   maybe_null= 0;
@@ -776,7 +776,7 @@ void Item_func_interval::fix_length_and_dec()
 longlong Item_func_interval::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  double value= row->el(0)->val();
+  double value= row->el(0)->val_real();
   uint i;
 
   if (row->el(0)->null_value)
@@ -799,7 +799,7 @@ longlong Item_func_interval::val_int()
 
   for (i=1 ; i < row->cols() ; i++)
   {
-    if (row->el(i)->val() > value)
+    if (row->el(i)->val_real() > value)
       return i-1;
   }
   return i-1;
@@ -873,7 +873,7 @@ longlong Item_func_between::val_int()
   }
   else if (cmp_type == INT_RESULT)
   {
-    longlong value=args[0]->val_int(),a,b;
+    longlong value=args[0]->val_int(), a, b;
     if ((null_value=args[0]->null_value))
       return 0;					/* purecov: inspected */
     a=args[1]->val_int();
@@ -893,11 +893,11 @@ longlong Item_func_between::val_int()
   }
   else
   {
-    double value=args[0]->val(),a,b;
+    double value= args[0]->val_real(),a,b;
     if ((null_value=args[0]->null_value))
       return 0;					/* purecov: inspected */
-    a=args[1]->val();
-    b=args[2]->val();
+    a= args[1]->val_real();
+    b= args[2]->val_real();
     if (!args[1]->null_value && !args[2]->null_value)
       return (value >= a && value <= b) ? 1 : 0;
     if (args[1]->null_value && args[2]->null_value)
@@ -954,16 +954,16 @@ Field *Item_func_ifnull::tmp_table_field(TABLE *table)
 }
 
 double
-Item_func_ifnull::val()
+Item_func_ifnull::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   if (!args[0]->null_value)
   {
     null_value=0;
     return value;
   }
-  value=args[1]->val();
+  value= args[1]->val_real();
   if ((null_value=args[1]->null_value))
     return 0.0;
   return value;
@@ -1042,11 +1042,11 @@ Item_func_if::fix_length_and_dec()
 
 
 double
-Item_func_if::val()
+Item_func_if::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   Item *arg= args[0]->val_int() ? args[1] : args[2];
-  double value=arg->val();
+  double value= arg->val_real();
   null_value=arg->null_value;
   return value;
 }
@@ -1095,7 +1095,7 @@ Item_func_nullif::fix_length_and_dec()
 */
 
 double
-Item_func_nullif::val()
+Item_func_nullif::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double value;
@@ -1104,7 +1104,7 @@ Item_func_nullif::val()
     null_value=1;
     return 0.0;
   }
-  value=args[0]->val();
+  value= args[0]->val_real();
   null_value=args[0]->null_value;
   return value;
 }
@@ -1179,7 +1179,7 @@ Item *Item_func_case::find_item(String *str)
 	  return else_expr_num != -1 ? args[else_expr_num] : 0;
 	break;
       case REAL_RESULT:
-	first_expr_real= args[first_expr_num]->val();
+	first_expr_real= args[first_expr_num]->val_real();
 	if (args[first_expr_num]->null_value)
 	  return else_expr_num != -1 ? args[else_expr_num] : 0;
 	break;
@@ -1212,7 +1212,7 @@ Item *Item_func_case::find_item(String *str)
         return args[i+1];
       break;
     case REAL_RESULT: 
-      if (args[i]->val()==first_expr_real && !args[i]->null_value) 
+      if (args[i]->val_real() == first_expr_real && !args[i]->null_value)
         return args[i+1];
       break;
     case ROW_RESULT:
@@ -1264,7 +1264,7 @@ longlong Item_func_case::val_int()
   return res;
 }
 
-double Item_func_case::val()
+double Item_func_case::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   char buff[MAX_FIELD_WIDTH];
@@ -1277,7 +1277,7 @@ double Item_func_case::val()
     null_value=1;
     return 0;
   }
-  res=item->val();
+  res= item->val_real();
   null_value=item->null_value;
   return res;
 }
@@ -1400,13 +1400,13 @@ longlong Item_func_coalesce::val_int()
   return 0;
 }
 
-double Item_func_coalesce::val()
+double Item_func_coalesce::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   null_value=0;
   for (uint i=0 ; i < arg_count ; i++)
   {
-    double res=args[i]->val();
+    double res= args[i]->val_real();
     if (!args[i]->null_value)
       return res;
   }
@@ -1559,12 +1559,12 @@ in_double::in_double(uint elements)
 
 void in_double::set(uint pos,Item *item)
 {
-  ((double*) base)[pos]=item->val();
+  ((double*) base)[pos]= item->val_real();
 }
 
 byte *in_double::get_value(Item *item)
 {
-  tmp= item->val();
+  tmp= item->val_real();
   if (item->null_value)
     return 0;					/* purecov: inspected */
   return (byte*) &tmp;
@@ -1956,7 +1956,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   and_tables_cache= ~(table_map) 0;
 
   if (check_stack_overrun(thd, buff))
-    return 1;					// Fatal error flag is set!
+    return TRUE;				// Fatal error flag is set!
   while ((item=li++))
   {
     table_map tmp_table_map;
@@ -1974,7 +1974,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     if ((!item->fixed &&
 	 item->fix_fields(thd, tables, li.ref())) ||
 	(item= *li.ref())->check_cols(1))
-      return 1; /* purecov: inspected */
+      return TRUE; /* purecov: inspected */
     used_tables_cache|=     item->used_tables();
     tmp_table_map=	    item->not_null_tables();
     not_null_tables_cache|= tmp_table_map;
@@ -1987,7 +1987,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   thd->lex->current_select->cond_count+= list.elements;
   fix_length_and_dec();
   fixed= 1;
-  return 0;
+  return FALSE;
 }
 
 bool Item_cond::walk(Item_processor processor, byte *arg)
@@ -2339,12 +2339,12 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
   DBUG_ASSERT(fixed == 0);
   if (Item_bool_func2::fix_fields(thd, tlist, ref) ||
       escape_item->fix_fields(thd, tlist, &escape_item))
-    return 1;
+    return TRUE;
 
   if (!escape_item->const_during_execution())
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"ESCAPE");
-    return 1;
+    return TRUE;
   }
   
   if (escape_item->const_item())
@@ -2362,7 +2362,7 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
     {
       String* res2 = args[1]->val_str(&tmp_value2);
       if (!res2)
-        return 0;				// Null argument
+        return FALSE;				// Null argument
       
       const size_t len   = res2->length();
       const char*  first = res2->ptr();
@@ -2395,7 +2395,7 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
       }
     }
   }
-  return 0;
+  return FALSE;
 }
 
 #ifdef USE_REGEX
@@ -2406,13 +2406,13 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   DBUG_ASSERT(fixed == 0);
   if (args[0]->fix_fields(thd, tables, args) || args[0]->check_cols(1) ||
       args[1]->fix_fields(thd,tables, args + 1) || args[1]->check_cols(1))
-    return 1;					/* purecov: inspected */
+    return TRUE;				/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
   max_length= 1;
   decimals= 0;
 
   if (agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV))
-    return 1;
+    return TRUE;
 
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();
   not_null_tables_cache= (args[0]->not_null_tables() |
@@ -2426,7 +2426,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     if (args[1]->null_value)
     {						// Will always return NULL
       maybe_null=1;
-      return 0;
+      return FALSE;
     }
     int error;
     if ((error=regcomp(&preg,res->c_ptr(),
@@ -2436,8 +2436,8 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 		       cmp_collation.collation)))
     {
       (void) regerror(error,&preg,buff,sizeof(buff));
-      my_printf_error(ER_REGEXP_ERROR,ER(ER_REGEXP_ERROR),MYF(0),buff);
-      return 1;
+      my_error(ER_REGEXP_ERROR, MYF(0), buff);
+      return TRUE;
     }
     regex_compiled=regex_is_const=1;
     maybe_null=args[0]->maybe_null;
@@ -2445,7 +2445,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   else
     maybe_null=1;
   fixed= 1;
-  return 0;
+  return FALSE;
 }
 
 

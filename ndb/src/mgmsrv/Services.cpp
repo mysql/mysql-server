@@ -242,6 +242,8 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("node", Int, Optional, "Node"),  
     MGM_ARG("filter", String, Mandatory, "Event category"),
 
+  MGM_CMD("purge stale sessions", &MgmApiSession::purge_stale_sessions, ""),
+
   MGM_END()
 };
 
@@ -1409,6 +1411,46 @@ done:
   m_output->println("result: %d", result);
   if(result != 0)
     m_output->println("msg: %s", msg.c_str());
+  m_output->println("");
+}
+
+struct PurgeStruct
+{
+  NodeBitmask free_nodes;/* free nodes as reported
+			  * by ndbd in apiRegReqConf
+			  */
+  BaseString *str;
+};
+
+void
+MgmApiSession::stop_session_if_not_connected(SocketServer::Session *_s, void *data)
+{
+  MgmApiSession *s= (MgmApiSession *)_s;
+  struct PurgeStruct &ps= *(struct PurgeStruct *)data;
+  if (s->m_allocated_resources->is_reserved(ps.free_nodes))
+  {
+    ps.str->appfmt(" %d", s->m_allocated_resources->get_nodeid());
+    s->stopSession();
+  }
+}
+
+void
+MgmApiSession::purge_stale_sessions(Parser_t::Context &ctx,
+				    const class Properties &args)
+{
+  struct PurgeStruct ps;
+  BaseString str;
+  ps.str = &str;
+
+  m_mgmsrv.get_connected_nodes(ps.free_nodes);
+  ps.free_nodes.bitXORC(NodeBitmask()); // invert connected_nodes to get free nodes
+
+  m_mgmsrv.get_socket_server()->foreachSession(stop_session_if_not_connected,&ps);
+
+  m_output->println("purge stale sessions reply");
+  if (str.length() > 0)
+    m_output->println("purged:%s",str.c_str());
+  m_output->println("result: Ok");
   m_output->println("");
 }
 

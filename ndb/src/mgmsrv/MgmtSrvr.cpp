@@ -400,11 +400,13 @@ MgmtSrvr::getPort() const {
 
 /* Constructor */
 MgmtSrvr::MgmtSrvr(NodeId nodeId,
+		   SocketServer *socket_server,
 		   const BaseString &configFilename,
 		   LocalConfig &local_config,
 		   Config * config):
   _blockNumber(1), // Hard coded block number since it makes it easy to send
                    // signals to other management servers.
+  m_socket_server(socket_server),
   _ownReference(0),
   m_local_config(local_config),
   theSignalIdleList(NULL),
@@ -2094,6 +2096,25 @@ MgmtSrvr::getNodeType(NodeId nodeId) const
   return nodeTypes[nodeId];
 }
 
+void
+MgmtSrvr::get_connected_nodes(NodeBitmask &connected_nodes) const
+{
+  if (theFacade && theFacade->theClusterMgr) 
+  {
+    for(Uint32 i = 0; i < MAX_NODES; i++)
+    {
+      if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB)
+      {
+	const ClusterMgr::Node &node= theFacade->theClusterMgr->getNodeInfo(i);
+	if (node.connected)
+	{
+	  connected_nodes.bitOR(node.m_state.m_connected_nodes);
+	}
+      }
+    }
+  }
+}
+
 bool
 MgmtSrvr::alloc_node_id(NodeId * nodeId, 
 			enum ndb_mgm_node_type type,
@@ -2106,7 +2127,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 		       *nodeId, type, client_addr));
   if (g_no_nodeid_checks) {
     if (*nodeId == 0) {
-      error_string.appfmt("no-nodeid-ckecks set in manegment server.\n"
+      error_string.appfmt("no-nodeid-checks set in management server.\n"
 			  "node id must be set explicitly in connectstring");
       DBUG_RETURN(false);
     }
@@ -2115,16 +2136,11 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
   Guard g(m_node_id_mutex);
   int no_mgm= 0;
   NodeBitmask connected_nodes(m_reserved_nodes);
-  for(Uint32 i = 0; i < MAX_NODES; i++)
+  get_connected_nodes(connected_nodes);
   {
-    if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB &&
-	theFacade && theFacade->theClusterMgr) {
-      const ClusterMgr::Node &node= theFacade->theClusterMgr->getNodeInfo(i);
-      if (node.connected) {
-	connected_nodes.bitOR(node.m_state.m_connected_nodes);
-      }
-    } else if (getNodeType(i) == NDB_MGM_NODE_TYPE_MGM)
-      no_mgm++;
+    for(Uint32 i = 0; i < MAX_NODES; i++)
+      if (getNodeType(i) == NDB_MGM_NODE_TYPE_MGM)
+	no_mgm++;
   }
   bool found_matching_id= false;
   bool found_matching_type= false;
@@ -2227,6 +2243,10 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 	m_connect_address[id_found].s_addr= 0;
     }
     m_reserved_nodes.set(id_found);
+    char tmp_str[128];
+    m_reserved_nodes.getText(tmp_str);
+    g_EventLogger.info("Mgmt server state: nodeid %d reserved for ip %s, m_reserved_nodes %s.",
+		       id_found, get_connect_address(id_found), tmp_str);
     DBUG_RETURN(true);
   }
 
@@ -2282,6 +2302,36 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
     else
       error_string.appfmt("No node defined with id=%d in config file.",
 			  *nodeId);
+  }
+
+  g_EventLogger.warning("Allocate nodeid (%d) failed. Connection from ip %s. "
+			"Returned error string \"%s\"",
+			*nodeId,
+			client_addr != 0 ? inet_ntoa(((struct sockaddr_in *)(client_addr))->sin_addr) : "<none>",
+			error_string.c_str());
+
+  NodeBitmask connected_nodes2;
+  get_connected_nodes(connected_nodes2);
+  {
+    BaseString tmp_connected, tmp_not_connected;
+    for(Uint32 i = 0; i < MAX_NODES; i++)
+    {
+      if (connected_nodes2.get(i))
+      {
+	if (!m_reserved_nodes.get(i))
+	  tmp_connected.appfmt(" %d", i);
+      }
+      else if (m_reserved_nodes.get(i))
+      {
+	tmp_not_connected.appfmt(" %d", i);
+      }
+    }
+    if (tmp_connected.length() > 0)
+      g_EventLogger.info("Mgmt server state: node id's %s connected but not reserved", 
+			 tmp_connected.c_str());
+    if (tmp_not_connected.length() > 0)
+      g_EventLogger.info("Mgmt server state: node id's %s not connected but reserved",
+			 tmp_not_connected.c_str());
   }
   DBUG_RETURN(false);
 }
@@ -2531,16 +2581,32 @@ MgmtSrvr::Allocated_resources::~Allocated_resources()
 {
   Guard g(m_mgmsrv.m_node_id_mutex);
   if (!m_reserved_nodes.isclear()) {
+    m_mgmsrv.m_reserved_nodes.bitANDC(m_reserved_nodes); 
     // node has been reserved, force update signal to ndb nodes
     global_flag_send_heartbeat_now= 1;
+
+    char tmp_str[128];
+    m_mgmsrv.m_reserved_nodes.getText(tmp_str);
+    g_EventLogger.info("Mgmt server state: nodeid %d freed, m_reserved_nodes %s.",
+		       get_nodeid(), tmp_str);
   }
-  m_mgmsrv.m_reserved_nodes.bitANDC(m_reserved_nodes); 
 }
 
 void
 MgmtSrvr::Allocated_resources::reserve_node(NodeId id)
 {
   m_reserved_nodes.set(id);
+}
+
+NodeId
+MgmtSrvr::Allocated_resources::get_nodeid() const
+{
+  for(Uint32 i = 0; i < MAX_NODES; i++)
+  {
+    if (m_reserved_nodes.get(i))
+      return i;
+  }
+  return 0;
 }
 
 int

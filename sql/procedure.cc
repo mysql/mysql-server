@@ -65,8 +65,7 @@ setup_procedure(THD *thd,ORDER *param,select_result *result,
       DBUG_RETURN(proc);
     }
   }
-  my_printf_error(ER_UNKNOWN_PROCEDURE,ER(ER_UNKNOWN_PROCEDURE),MYF(0),
-		  (*param->item)->name);
+  my_error(ER_UNKNOWN_PROCEDURE, MYF(0), (*param->item)->name);
   *error=1;
   DBUG_RETURN(0);
 }

@@ -161,21 +161,24 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 {
   int weekday= 0, yearday= 0, daypart= 0;
   int week_number= -1;
-  CHARSET_INFO *cs= &my_charset_bin;
   int error= 0;
-  bool usa_time= 0;
-  bool sunday_first_n_first_week_non_iso= -2;
-  bool strict_week_number;
   int  strict_week_number_year= -1;
-  bool strict_week_number_year_type= -1;
   int frac_part;
+  bool usa_time= 0;
+  bool sunday_first_n_first_week_non_iso;
+  bool strict_week_number;
+  bool strict_week_number_year_type;
   const char *val_begin= val;
   const char *val_end= val + length;
   const char *ptr= format->format.str;
   const char *end= ptr + format->format.length;
+  CHARSET_INFO *cs= &my_charset_bin;
   DBUG_ENTER("extract_date_time");
 
   LINT_INIT(strict_week_number);
+  /* Remove valgrind varnings when using gcc 3.3 and -O1 */
+  PURIFY_OR_LINT_INIT(strict_week_number_year_type);
+  PURIFY_OR_LINT_INIT(sunday_first_n_first_week_non_iso);
 
   if (!sub_pattern_end)
     bzero((char*) l_time, sizeof(*l_time));
@@ -1666,7 +1669,7 @@ Item_func_convert_tz::fix_fields(THD *thd_arg, TABLE_LIST *tables_arg, Item **re
 {
   String str;
   if (Item_date_func::fix_fields(thd_arg, tables_arg, ref))
-    return 1;
+    return TRUE;
 
   tz_tables= thd_arg->lex->time_zone_tables_used;
 
@@ -1676,7 +1679,7 @@ Item_func_convert_tz::fix_fields(THD *thd_arg, TABLE_LIST *tables_arg, Item **re
   if (args[2]->const_item())
     to_tz= my_tz_find(args[2]->val_str(&str), tz_tables);
 
-  return 0;
+  return FALSE;
 }
 
 

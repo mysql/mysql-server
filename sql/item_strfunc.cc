@@ -42,10 +42,10 @@ String my_empty_string("",default_charset_info);
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
                               const char *fname)
 {
-  my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
-  	   c1.collation->name,c1.derivation_name(),
-	   c2.collation->name,c2.derivation_name(),
-	   fname);
+  my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0),
+           c1.collation->name, c1.derivation_name(),
+           c2.collation->name, c2.derivation_name(),
+           fname);
 }
 
 uint nr_of_decimals(const char *str)
@@ -59,7 +59,7 @@ uint nr_of_decimals(const char *str)
   return 0;
 }
 
-double Item_str_func::val()
+double Item_str_func::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   int err;
@@ -1629,7 +1629,7 @@ Item_func_format::Item_func_format(Item *org,int dec) :Item_str_func(org)
 String *Item_func_format::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  double nr	=args[0]->val();
+  double nr= args[0]->val_real();
   uint32 diff,length,str_length;
   uint dec;
   if ((null_value=args[0]->null_value))
@@ -1697,14 +1697,14 @@ void Item_func_elt::fix_length_and_dec()
 }
 
 
-double Item_func_elt::val()
+double Item_func_elt::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   uint tmp;
   null_value=1;
   if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
     return 0.0;
-  double result= args[tmp]->val();
+  double result= args[tmp]->val_real();
   null_value= args[tmp]->null_value;
   return result;
 }
@@ -2226,8 +2226,8 @@ void Item_func_set_collation::fix_length_and_dec()
   if (!set_collation || 
       !my_charset_same(args[0]->collation.collation,set_collation))
   {
-    my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), 
-      colname,args[0]->collation.collation->csname);
+    my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
+             colname, args[0]->collation.collation->csname);
     return;
   }
   collation.set(set_collation, DERIVATION_EXPLICIT);
@@ -2574,9 +2574,12 @@ String* Item_func_inet_ntoa::val_str(String* str)
 
     This function is very useful when you want to generate SQL statements
 
-    RETURN VALUES
+  NOTE
+    QUOTE(NULL) returns the string 'NULL' (4 letters, without quotes).
+
+  RETURN VALUES
     str		Quoted string
-    NULL	Argument to QUOTE() was NULL or out of memory.
+    NULL	Out of memory.
 */
 
 #define get_esc_bit(mask, num) (1 & (*((mask) + ((num) >> 3))) >> ((num) & 7))
@@ -2601,7 +2604,12 @@ String *Item_func_quote::val_str(String *str)
   String *arg= args[0]->val_str(str);
   uint arg_length, new_length;
   if (!arg)					// Null argument
-    goto null;
+  {
+    str->copy("NULL", 4, collation.collation);	// Return the string 'NULL'
+    null_value= 0;
+    return str;
+  }
+
   arg_length= arg->length();
   new_length= arg_length+2; /* for beginning and ending ' signs */
 

@@ -134,7 +134,7 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
       }
     case REAL_RESULT:
       {
-	double d= it->val();
+	double d= it->val_real();
 
 	if (it->null_value)
 	{
@@ -148,7 +148,7 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 	  uint8 decimals= it->decimals;
 	  uint32 max_length= it->max_length;
 	  DBUG_PRINT("info", ("REAL_RESULT: %g", d));
-	  it= new Item_real(it->val());
+	  it= new Item_real(it->val_real());
 	  it->decimals= decimals;
 	  it->max_length= max_length;
 	}
@@ -494,16 +494,17 @@ sp_head::execute(THD *thd)
       case SP_HANDLER_CONTINUE:
 	ctx->save_variables(hf);
 	ctx->push_hstack(ip);
-	// Fall through
+        // Fall through
       default:
 	ip= hip;
 	ret= 0;
 	ctx->clear_handler();
 	ctx->in_handler= TRUE;
+        thd->clear_error();
 	continue;
       }
     }
-  } while (ret == 0 && !thd->killed && !thd->query_error);
+  } while (ret == 0 && !thd->killed);
 
   cleanup_items(thd->current_arena->free_list);
   thd->current_arena= old_arena;
@@ -512,7 +513,7 @@ sp_head::execute(THD *thd)
   DBUG_PRINT("info", ("ret=%d killed=%d query_error=%d",
 		      ret, thd->killed, thd->query_error));
 
-  if (thd->killed || thd->query_error)
+  if (thd->killed)
     ret= -1;
   /* If the DB has changed, the pointer has changed too, but the
      original thd->db will then have been freed */
@@ -543,8 +544,8 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   {
     // Need to use my_printf_error here, or it will not terminate the
     // invoking query properly.
-    my_printf_error(ER_SP_WRONG_NO_OF_ARGS, ER(ER_SP_WRONG_NO_OF_ARGS), MYF(0),
-		    "FUNCTION", m_name.str, params, argcount);
+    my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0),
+             "FUNCTION", m_name.str, params, argcount);
     DBUG_RETURN(-1);
   }
 
@@ -595,8 +596,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
       *resp= it;
     else
     {
-      my_printf_error(ER_SP_NORETURNEND, ER(ER_SP_NORETURNEND), MYF(0),
-		      m_name.str);
+      my_error(ER_SP_NORETURNEND, MYF(0), m_name.str);
       ret= -1;
     }
   }
@@ -622,8 +622,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
   if (args->elements != params)
   {
-    net_printf(thd, ER_SP_WRONG_NO_OF_ARGS, "PROCEDURE", m_name.str,
-	       params, args->elements);
+    my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0), "PROCEDURE",
+             m_name.str, params, args->elements);
     DBUG_RETURN(-1);
   }
 
@@ -694,13 +694,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   if (! ret)
     ret= execute(thd);
 
-  // Don't copy back OUT values if we got an error
-  if (ret)
-  {
-    if (thd->net.report_error)
-      send_error(thd, 0, NullS);
-  }
-  else if (csize > 0)
+  if (!ret && csize > 0)
   {
     List_iterator_fast<Item> li(*args);
     Item *it;
@@ -898,7 +892,7 @@ sp_head::check_backpatch(THD *thd)
   {
     if (bp->lab->type == SP_LAB_REF)
     {
-      net_printf(thd, ER_SP_LILABEL_MISMATCH, "GOTO", bp->lab->name);
+      my_error(ER_SP_LILABEL_MISMATCH, MYF(0), "GOTO", bp->lab->name);
       return -1;
     }
   }
@@ -1791,7 +1785,7 @@ sp_instr_error::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_error::execute");
 
-  my_error(m_errcode, MYF(0));
+  my_message(m_errcode, ER(m_errcode), MYF(0));
   *nextp= m_ip+1;
   DBUG_RETURN(-1);
 }

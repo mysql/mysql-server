@@ -420,7 +420,7 @@ public:
   Item_func_ifnull(Item *a,Item *b)
     :Item_func(a,b), cached_result_type(INT_RESULT)
   {}
-  double val();
+  double val_real();
   longlong val_int();
   String *val_str(String *str);
   enum Item_result result_type () const { return cached_result_type; }
@@ -439,7 +439,7 @@ public:
   Item_func_if(Item *a,Item *b,Item *c)
     :Item_func(a,b,c), cached_result_type(INT_RESULT)
   {}
-  double val();
+  double val_real();
   longlong val_int();
   String *val_str(String *str);
   enum Item_result result_type () const { return cached_result_type; }
@@ -462,7 +462,7 @@ public:
   Item_func_nullif(Item *a,Item *b)
     :Item_bool_func2(a,b), cached_result_type(INT_RESULT)
   {}
-  double val();
+  double val_real();
   longlong val_int();
   String *val_str(String *str);
   enum Item_result result_type () const { return cached_result_type; }
@@ -481,7 +481,7 @@ public:
   Item_func_coalesce(List<Item> &list)
     :Item_func(list),cached_result_type(INT_RESULT)
   {}
-  double val();
+  double val_real();
   longlong val_int();
   String *val_str(String *);
   void fix_length_and_dec();
@@ -517,7 +517,7 @@ public:
     }
     set_arguments(list);
   }
-  double val();
+  double val_real();
   longlong val_int();
   String *val_str(String *);
   void fix_length_and_dec();
@@ -674,11 +674,11 @@ class cmp_item_real :public cmp_item
 public:
   void store_value(Item *item)
   {
-    value= item->val();
+    value= item->val_real();
   }
   int cmp(Item *arg)
   {
-    return value != arg->val();
+    return value != arg->val_real();
   }
   int compare(cmp_item *c)
   {
