@@ -202,6 +202,9 @@ SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/mysqld-slave.err"
 
 SMALL_SERVER="-O key_buffer_size=1M -O sort_buffer=256K -O max_heap_table_size=1M"
 
+export MASTER_MYPORT
+export SLAVE_MYPORT
+
 if [ x$SOURCE_DIST = x1 ] ; then
  MY_BASEDIR=$MYSQL_TEST_DIR
 else

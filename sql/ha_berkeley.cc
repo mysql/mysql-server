@@ -41,10 +41,9 @@
     from the updated tables.
 
   Testing of:
-  - LOCK TABLES
   - Mark tables that participate in a transaction so that they are not
     closed during the transaction.  We need to test what happens if
-    MySQL closes a table that is updated by a not commit transaction.
+    MySQL closes a table that is updated by a not commited transaction.
 */
 
 
@@ -1701,11 +1700,34 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
 	DBUG_PRINT("trans",("commiting non-updating transaction"));
 	error=txn_commit((DB_TXN*) thd->transaction.stmt.bdb_tid,0);
 	thd->transaction.stmt.bdb_tid=0;
+	transaction=0;
       }
     }
   }
   DBUG_RETURN(error);
 }
+
+
+/*
+  When using LOCK TABLE's external_lock is only called when the actual
+  TABLE LOCK is done.
+  Under LOCK TABLES, each used tables will force a call to start_stmt.
+*/
+
+int ha_berkeley::start_stmt(THD *thd)
+{
+  int error=0;
+  DBUG_ENTER("ha_berkeley::start_stmt");
+  if (!thd->transaction.stmt.bdb_tid)
+  {
+    error=txn_begin(db_env, (DB_TXN*) thd->transaction.all.bdb_tid,
+		    (DB_TXN**) &thd->transaction.stmt.bdb_tid,
+		    0);
+    transaction= (DB_TXN*) thd->transaction.stmt.bdb_tid;
+  }
+  DBUG_RETURN(error);
+}
+
 
 /*
   The idea with handler::store_lock() is the following:

@@ -14,6 +14,7 @@ OLD="mysql-$PVER.tar.gz"
 RESULT="mysql-$PVER-$VER.patch.gz"
 PATCH_DIR=/my/web/Downloads-live/Patches
 RESULT_DIR=/my/web/Downloads-live/MySQL-3.23
+RESULT_DIR_MAX=/my/web/Downloads-live/MySQL-Max-3.23
 
 if test ! -f $NEWDIR/$NEW
 then
@@ -39,4 +40,5 @@ chmod a+r,o-w $RESULT binary/*
 mv $RESULT $PATCH_DIR
 cp binary/mysqlcom-* binary/mysql*win* /net/web/home/production/data/nweb/customer/Downloads
 rm binary/mysqlcom-*
+mv binary/*Max* $RESULT_DIR_MAX
 cp binary/* $RESULT_DIR
