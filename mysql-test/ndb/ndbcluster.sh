@@ -102,11 +102,42 @@ if [ ! -x "$exec_mgmtsrvr" ]; then
   echo "$exec_mgmtsrvr missing"
   exit 1
 fi
+if [ ! -x "$exec_waiter" ]; then
+  echo "$exec_waiter missing"
+  exit 1
+fi
+
+exec_mgmtclient="$exec_mgmtclient --no-defaults"
+exec_mgmtsrvr="$exec_mgmtsrvr --no-defaults"
+exec_ndb="$exec_ndb --no-defaults"
+exec_waiter="$exec_waiter --no-defaults"
 
 ndb_host="localhost"
 ndb_mgmd_port=$port_base
 NDB_CONNECTSTRING="host=$ndb_host:$ndb_mgmd_port"
 export NDB_CONNECTSTRING
+
+sleep_until_file_created () {
+  file=$1
+  loop=$2
+  org_time=$2
+  message=$3
+  while (test $loop -gt 0)
+  do
+    if [ -r $file ]
+    then
+      return 0
+    fi
+    sleep 1
+    loop=`expr $loop - 1`
+  done
+  if [ $message ]
+  then
+    echo $message
+  fi
+  echo "ERROR: $file was not created in $org_time seconds;  Aborting"
+  return 1;
+}
 
 start_default_ndbcluster() {
 
@@ -127,8 +158,8 @@ port_transporter=`expr $ndb_mgmd_port + 2`
 # Start management server as deamon
 
 # Edit file system path and ports in config file
-
 if [ $initial_ndb ] ; then
+  rm -f $fs_ndb/ndb_*
 sed \
     -e s,"CHOOSE_MaxNoOfOrderedIndexes","$ndb_no_ord",g \
     -e s,"CHOOSE_MaxNoOfConcurrentOperations","$ndb_con_op",g \
@@ -146,25 +177,36 @@ fi
 rm -f "$cfgfile" 2>&1 | cat > /dev/null
 rm -f "$fs_ndb/$cfgfile" 2>&1 | cat > /dev/null
 
-if ( cd "$fs_ndb" ; $exec_mgmtsrvr -c config.ini ) ; then :; else
+if ( cd "$fs_ndb" ; $exec_mgmtsrvr -f config.ini ) ; then :; else
   echo "Unable to start $exec_mgmtsrvr from `pwd`"
   exit 1
 fi
-
+if sleep_until_file_created $fs_ndb/ndb_3.pid 30
+then :; else
+  exit 1
+fi
 cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
 
 # Start database node 
 
 echo "Starting ndbd"
 ( cd "$fs_ndb" ; $exec_ndb $flags_ndb & )
-
+if sleep_until_file_created $fs_ndb/ndb_1.pid 30
+then :; else
+  stop_default_ndbcluster
+  exit 1
+fi
 cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
 
 # Start database node 
 
 echo "Starting ndbd"
 ( cd "$fs_ndb" ; $exec_ndb $flags_ndb & )
-
+if sleep_until_file_created $fs_ndb/ndb_2.pid 30
+then :; else
+  stop_default_ndbcluster
+  exit 1
+fi
 cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
 
 # test if Ndb Cluster starts properly
@@ -172,6 +214,7 @@ cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
 echo "Waiting for started..."
 if ( $exec_waiter ) | grep "NDBT_ProgramExit: 0 - OK"; then :; else
   echo "Ndbcluster startup failed"
+  stop_default_ndbcluster
   exit 1
 fi
 
@@ -198,10 +241,12 @@ if [ -f "$fs_ndb/$pidfile" ] ; then
   attempt=0
   while [ $attempt -lt 10 ] ; do
     new_kill_pid=""
+    kill_pids2=""
     for p in $kill_pids ; do
       kill -0 $p 2> /dev/null
       if [ $? -eq 0 ] ; then
         new_kill_pid="$p $new_kill_pid"
+        kill_pids2="-$p $kill_pids2"
       fi
     done
     kill_pids=$new_kill_pid
@@ -211,9 +256,14 @@ if [ -f "$fs_ndb/$pidfile" ] ; then
     sleep 1
     attempt=`expr $attempt + 1`
   done
-  if [ "$kill_pids" != "" ] ; then
-    echo "Failed to shutdown ndbcluster, executing kill -9 "$kill_pids
-    kill -9 $kill_pids
+  if [ "$kill_pids2" != "" ] ; then
+    echo "Failed to shutdown ndbcluster, executing kill "$kill_pids2
+    kill          -9 -- $kill_pids2 2> /dev/null
+    /bin/kill     -9 -- $kill_pids2 2> /dev/null
+    /usr/bin/kill -9 -- $kill_pids2 2> /dev/null
+    kill          -9    $kill_pids2 2> /dev/null
+    /bin/kill     -9    $kill_pids2 2> /dev/null
+    /usr/bin/kill -9    $kill_pids2 2> /dev/null
   fi
   rm "$fs_ndb/$pidfile"
 fi
