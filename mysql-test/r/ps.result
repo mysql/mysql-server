@@ -113,3 +113,9 @@ execute stmt1 using @ivar;
 ?
 1234
 drop table t1,t2;
+PREPARE stmt1 FROM "select _utf8 'A' collate utf8_bin = ?";
+set @var='A';
+EXECUTE stmt1 USING @var;
+_utf8 'A' collate utf8_bin = ?
+1
+DEALLOCATE PREPARE stmt1;
