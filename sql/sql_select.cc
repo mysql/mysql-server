@@ -7978,13 +7978,18 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
     return 0;
   }
   uint counter;
-  Item **item= find_item_in_list(itemptr, fields, &counter, IGNORE_ERRORS);
-  if (item)
+  Item **item= find_item_in_list(itemptr, fields, &counter,
+                                 REPORT_EXCEPT_NOT_FOUND);
+  if (!item)
+    return 1;
+
+  if (item != not_found_item)
   {
     order->item= ref_pointer_array + counter;
     order->in_field_list=1;
     return 0;
   }
+
   order->in_field_list=0;
   Item *it= *order->item;
   /*
