@@ -36742,6 +36742,10 @@ though, so 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.25
 @itemize @bullet
 @item
+Fixed a bug in MyISAM with packed multi-part keys.
+@item
+Fixed crash when using @code{CHECK TABLE} on Windows.
+@item
 Fixed a bug where @code{FULLTEXT} index always used the koi8_ukr
 character set.
 @item

@@ -1407,7 +1407,7 @@ _mi_calc_var_key_length(MI_KEYDEF *keyinfo,uint nod_flag,
   Keys are compressed the following way:
 
   If the max length of first key segment <= 127 characters the prefix is
-  1 byte else its 2 byte
+  1 byte else it's 2 byte
 
   prefix byte	 The high bit is set if this is a prefix for the prev key
   length	 Packed length if the previous was a prefix byte
@@ -1492,7 +1492,7 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
     if (new_key_length && new_key_length == org_key_length)
       same_length=1;
     else if (new_key_length > org_key_length)
-      end=key+ org_key_length+1;
+      end=key + org_key_length;
 
     if (sort_order)				/* SerG */
     {

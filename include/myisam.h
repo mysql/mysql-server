@@ -320,7 +320,7 @@ typedef struct st_mi_check_param
   ulonglong max_data_file_length;
   ulonglong keys_in_use;
   my_off_t new_file_pos,key_file_blocks;
-  my_off_t keydata,totaldata,key_blocks;
+  my_off_t keydata,totaldata,key_blocks,start_check_pos;
   ha_checksum record_checksum,glob_crc;
   char temp_filename[FN_REFLEN],*isam_file_name,*tmpdir;
   int tmpfile_createflag;

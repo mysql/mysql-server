@@ -94,6 +94,7 @@ void myisamchk_init(MI_CHECK *param)
   param->tmpfile_createflag=O_RDWR | O_TRUNC | O_EXCL;
   param->myf_rw=MYF(MY_NABP | MY_WME | MY_WAIT_IF_FULL);
   param->sort_info.param=param;
+  param->start_check_pos=0;
 }
 
 	/* Check delete links */
@@ -668,7 +669,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
   intern_record_checksum=param->glob_crc=0;
   LINT_INIT(left_length);  LINT_INIT(start_recpos);  LINT_INIT(to);
   got_error=error=0;
-  empty=pos=info->s->pack.header_length;
+  empty=info->s->pack.header_length;
 
   /* Check how to calculate checksum of rows */
   static_row_size=1;
@@ -685,6 +686,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
     }
   }
 
+  pos=my_b_tell(&param->read_cache);
   bzero((char*) key_checksum, info->s->base.keys * sizeof(key_checksum[0]));
   while (pos < info->state->data_file_length)
   {

@@ -254,13 +254,9 @@ int main(int argc,char *argv[])
   if (sql_connect(current_host,current_db,current_user,opt_password,
 		  opt_silent))
   {
-    if (connected)
-      mysql_close(&mysql);
-    glob_buffer.free();
-    old_buffer.free();
-    batch_readline_end(status.line_buff);
-    my_end(0);
-    exit(1);
+    quick=1;					// Avoid history
+    status.exit_status=1;
+    mysql_end(-1);
   }
   if (!status.batch)
     ignore_errors=1;				// Don't abort monitor
@@ -324,7 +320,8 @@ sig_handler mysql_end(int sig)
   batch_readline_end(status.line_buff);
   completion_hash_free(&ht);
 #endif
-  put_info(sig ? "Aborted" : "Bye", INFO_RESULT);
+  if (sig >= 0)
+    put_info(sig ? "Aborted" : "Bye", INFO_RESULT);
   glob_buffer.free();
   old_buffer.free();
   my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
@@ -402,7 +399,7 @@ CHANGEABLE_VAR changeable_vars[] = {
 
 static void usage(int version)
 {
-  printf("%s  Ver 10.11 Distrib %s, for %s (%s)\n",
+  printf("%s  Ver 10.12 Distrib %s, for %s (%s)\n",
 	 my_progname, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   if (version)
     return;
@@ -603,7 +600,7 @@ static int get_options(int argc, char **argv)
       break;
     case 'W':
 #ifdef __WIN__
-      opt_mysql_unix_port=MYSQL_NAMEDPIPE;
+      opt_mysql_unix_port=my_strdup(MYSQL_NAMEDPIPE,MYF(0));
 #endif
       break;
     case 'V': usage(1); exit(0);
@@ -1013,7 +1010,7 @@ static void build_completion_hash(bool skip_rehash,bool write_info)
   int i,j,num_fields;
   DBUG_ENTER("build_completion_hash");
 
-  if (status.batch || quick)
+  if (status.batch || quick || !current_db)
     DBUG_VOID_RETURN;			// We don't need completion in batches
 
   completion_hash_clean(&ht);
