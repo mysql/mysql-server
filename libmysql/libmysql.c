@@ -4377,6 +4377,7 @@ my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt)
 static my_bool int_is_null_true= 1;		/* Used for MYSQL_TYPE_NULL */
 static my_bool int_is_null_false= 0;
 static my_bool int_is_null_dummy;
+static unsigned long param_length_is_dummy;
 
 /*
   Setup the parameter data buffers from application
@@ -5062,7 +5063,7 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
       param->is_null= &int_is_null_dummy;
 
     if (!param->length)
-      param->length= &param->buffer_length;
+      param->length= &param_length_is_dummy;
 
     param->param_number= param_count++;
     /* Setup data copy functions for the different supported types */
