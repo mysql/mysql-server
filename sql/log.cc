@@ -2415,6 +2415,7 @@ void sql_print_information(const char *format, ...)
   DBUG_VOID_RETURN;
 }
 
+#ifdef HAVE_MMAP
 /********* transaction coordinator log for 2pc - mmap() based solution *******/
 
 /*
@@ -2460,10 +2461,6 @@ uint opt_tc_log_size=TC_LOG_MIN_SIZE;
 uint tc_log_max_pages_used=0, tc_log_page_size=0,
      tc_log_page_waits=0, tc_log_cur_pages_used=0;
 
-TC_LOG *tc_log;
-TC_LOG_MMAP tc_log_mmap;
-TC_LOG_DUMMY tc_log_dummy;
-
 int TC_LOG_MMAP::open(const char *opt_name)
 {
   uint i;
@@ -2473,12 +2470,8 @@ int TC_LOG_MMAP::open(const char *opt_name)
   DBUG_ASSERT(total_ha_2pc > 1);
   DBUG_ASSERT(opt_name && opt_name[0]);
 
-#ifdef HAVE_GETPAGESIZE
   tc_log_page_size= my_getpagesize();
   DBUG_ASSERT(TC_LOG_PAGE_SIZE % tc_log_page_size == 0);
-#else
-  tc_log_page_size= TC_LOG_PAGE_SIZE;
-#endif
 
   fn_format(logname,opt_name,mysql_data_home,"",MY_UNPACK_FILENAME);
   fd= my_open(logname, O_RDWR, MYF(0));
@@ -2861,6 +2854,11 @@ err1:
                   "--tc-heuristic-recover={commit|rollback}");
   return 1;
 }
+#endif
+
+TC_LOG *tc_log;
+TC_LOG_DUMMY tc_log_dummy;
+TC_LOG_MMAP  tc_log_mmap;
 
 /*
   Perform heuristic recovery, if --tc-heuristic-recover was used
