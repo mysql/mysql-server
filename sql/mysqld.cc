@@ -1094,7 +1094,7 @@ static void start_signal_handler(void)
 #elif defined(__EMX__)
 static void sig_reload(int signo)
 {
-  reload_acl_and_cache((THD*) 0,~0, (TABLE_LIST*) 0); // Flush everything
+  reload_acl_and_cache((THD*) 0,REFRESH_LOG, (TABLE_LIST*) 0); // Flush everything
   signal(signo, SIG_ACK);
 }
 
