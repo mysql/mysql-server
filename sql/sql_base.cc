@@ -1317,18 +1317,34 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 {
   char path[FN_REFLEN];
   int error;
+  uint discover_retry_count= 0;
   DBUG_ENTER("open_unireg_entry");
 
   strxmov(path, mysql_data_home, "/", db, "/", name, NullS);
-  if (openfrm(path,alias,
+  while (openfrm(path,alias,
 	       (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX |
 		       HA_TRY_READ_ONLY),
 	       READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
 	      thd->open_options, entry))
   {
     if (!entry->crashed)
-      goto err;					// Can't repair the table
+    {
+      /*
+       Frm file could not be found on disk
+       Since it does not exist, no one can be using it
+       LOCK_open has been locked to protect from someone else
+       trying to discover the table at the same time.
+      */
+      if (discover_retry_count++ != 0)
+       goto err;
+      if (create_table_from_handler(db, name, true) != 0)
+       goto err;
 
+      thd->clear_error(); // Clear error message
+      continue;
+    }
+
+    // Code below is for repairing a crashed file
     TABLE_LIST table_list;
     bzero((char*) &table_list, sizeof(table_list)); // just for safe
     table_list.db=(char*) db;
@@ -1374,6 +1390,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 
     if (error)
       goto err;
+    break;
   }
   /*
     If we are here, there was no fatal error (but error may be still

@@ -40,6 +40,9 @@
 #else
 #define innobase_query_caching_of_table_permitted(X,Y,Z) 1
 #endif
+#ifdef HAVE_NDBCLUSTER_DB
+#include "ha_ndbcluster.h"
+#endif
 #include <myisampack.h>
 #include <errno.h>
 
@@ -51,7 +54,7 @@ ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
       ha_read_key_count, ha_read_next_count, ha_read_prev_count,
       ha_read_first_count, ha_read_last_count,
       ha_commit_count, ha_rollback_count,
-      ha_read_rnd_count, ha_read_rnd_next_count;
+      ha_read_rnd_count, ha_read_rnd_next_count, ha_discover_count;
 
 static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
 
@@ -79,6 +82,10 @@ struct show_table_type_st sys_table_types[]=
    "Supports transactions and page-level locking", DB_TYPE_BERKELEY_DB},
   {"BERKELEYDB",&have_berkeley_db,
    "Alias for BDB", DB_TYPE_BERKELEY_DB},
+  {"NDBCLUSTER", &have_ndbcluster,
+   "Clustered, fault tolerant memory based tables", DB_TYPE_NDBCLUSTER},
+  {"NDB", &have_ndbcluster,
+   "Alias for NDBCLUSTER", DB_TYPE_NDBCLUSTER},
   {"EXAMPLE",&have_example_db,
    "Example storage engine", DB_TYPE_EXAMPLE_DB},
   {NullS, NULL, NullS, DB_TYPE_UNKNOWN}
@@ -181,6 +188,10 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
   case DB_TYPE_EXAMPLE_DB:
     return new ha_example(table);
 #endif
+#ifdef HAVE_NDBCLUSTER_DB
+  case DB_TYPE_NDBCLUSTER:
+    return new ha_ndbcluster(table);
+#endif
   case DB_TYPE_HEAP:
     return new ha_heap(table);
   default:					// should never happen
@@ -225,6 +236,18 @@ int ha_init()
       opt_using_transactions=1;
   }
 #endif
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+  {
+    if (ndbcluster_init())
+    {
+      have_ndbcluster= SHOW_OPTION_DISABLED;
+      error= 1;
+    }
+    else
+      opt_using_transactions=1;
+  }
+#endif
   return error;
 }
 
@@ -252,6 +275,10 @@ int ha_panic(enum ha_panic_function flag)
   if (have_innodb == SHOW_OPTION_YES)
     error|=innobase_end();
 #endif
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+    error|=ndbcluster_end();
+#endif
   return error;
 } /* ha_panic */
 
@@ -261,6 +288,10 @@ void ha_drop_database(char* path)
   if (have_innodb == SHOW_OPTION_YES)
     innobase_drop_database(path);
 #endif
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+    ndbcluster_drop_database(path);
+#endif
 }
 
 void ha_close_connection(THD* thd)
@@ -268,6 +299,10 @@ void ha_close_connection(THD* thd)
 #ifdef HAVE_INNOBASE_DB
   if (have_innodb == SHOW_OPTION_YES)
     innobase_close_connection(thd);
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+    ndbcluster_close_connection(thd);
 #endif
 }
 
@@ -428,6 +463,19 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 		      WRITE_CACHE, (my_off_t) 0, 0, 1);
       thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
     }
+#ifdef HAVE_NDBCLUSTER_DB
+    if (trans->ndb_tid)
+    {
+      if ((error=ndbcluster_commit(thd,trans->ndb_tid)))
+      {
+        my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
+        error=1;
+      }
+      if (trans == &thd->transaction.all)
+        operation_done= transaction_commited= 1;
+      trans->ndb_tid=0;
+    }
+#endif
 #ifdef HAVE_BERKELEY_DB
     if (trans->bdb_tid)
     {
@@ -481,6 +529,18 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
   if (opt_using_transactions)
   {
     bool operation_done=0;
+#ifdef HAVE_NDBCLUSTER_DB
+    if (trans->ndb_tid)
+    {
+      if ((error=ndbcluster_rollback(thd, trans->ndb_tid)))
+      {
+        my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);
+        error=1;
+      }
+      trans->ndb_tid = 0;
+      operation_done=1;
+    }
+#endif
 #ifdef HAVE_BERKELEY_DB
     if (trans->bdb_tid)
     {
@@ -1160,8 +1220,10 @@ bool handler::caching_allowed(THD* thd, char* table_key,
 ** Some general functions that isn't in the handler class
 ****************************************************************************/
 
-	/* Initiates table-file and calls apropriate database-creator */
-	/* Returns 1 if something got wrong */
+/*
+  Initiates table-file and calls apropriate database-creator
+  Returns 1 if something got wrong
+*/
 
 int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info)
@@ -1177,7 +1239,7 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   {
     update_create_info_from_table(create_info, &table);
     if (table.file->table_flags() & HA_DROP_BEFORE_CREATE)
-      table.file->delete_table(name);		// Needed for BDB tables
+      table.file->delete_table(name);
   }
   if (lower_case_table_names == 2 &&
       !(table.file->table_flags() & HA_FILE_BASED))
@@ -1295,6 +1357,26 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
 {
   mi_change_key_cache(old_key_cache, new_key_cache);
   return 0;
+}
+
+
+/*
+  Try to discover one table from handler(s)
+*/
+
+int ha_discover(const char* dbname, const char* name,
+               const void** frmblob, uint* frmlen)
+{
+  int error= 1; // Table does not exist in any handler
+  DBUG_ENTER("ha_discover");
+  DBUG_PRINT("enter", ("db: %s, name: %s", dbname, name));
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+    error= ndbcluster_discover(dbname, name, frmblob, frmlen);
+#endif
+  if (!error)
+    statistic_increment(ha_discover_count,&LOCK_status);
+  DBUG_RETURN(error);
 }
 
 
@@ -1434,3 +1516,5 @@ int handler::compare_key(key_range *range)
   }
   return key_compare_result_on_equal;
 }
+
+
