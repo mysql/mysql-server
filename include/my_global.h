@@ -73,6 +73,12 @@
 #endif
 #endif /* _WIN32... */
 
+/* Some defines to avoid ifdefs in the code */
+#ifndef NETWARE_YIELD
+#define NETWARE_YIELD
+#define NETWARE_SET_SCREEN_MODE(A)
+#endif
+
 /*
   The macros below are borrowed from include/linux/compiler.h in the
   Linux kernel. Use them to indicate the likelyhood of the truthfulness
@@ -152,7 +158,11 @@ C_MODE_END
 #ifdef HAVE_BROKEN_SNPRINTF	/* HPUX 10.20 don't have this defined */
 #undef HAVE_SNPRINTF
 #endif
-#ifdef HAVE_BROKEN_PREAD	/* These doesn't work on HPUX 11.x */
+#ifdef HAVE_BROKEN_PREAD
+/*
+  pread()/pwrite() are not 64 bit safe on HP-UX 11.0 without
+  installing the kernel patch PHKL_20349 or greater
+*/
 #undef HAVE_PREAD
 #undef HAVE_PWRITE
 #endif
@@ -317,6 +327,9 @@ C_MODE_END
 #ifndef OS2
 #define USE_BMOVE512 1		/* Use this unless system bmove is faster */
 #endif
+
+#define QUOTE_ARG(x)		#x	/* Quote argument (before cpp) */
+#define STRINGIFY_ARG(x) QUOTE_ARG(x)	/* Quote argument, after cpp */
 
 /* Paranoid settings. Define I_AM_PARANOID if you are paranoid */
 #ifdef I_AM_PARANOID

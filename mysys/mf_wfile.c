@@ -106,7 +106,7 @@ int wf_test(register WF_PACK *wf_pack, register const char *name)
 
   not_pos=wf_pack->not_pos;
   for (i=0 ; i < not_pos; i++)
-    if (wild_compare(name,wf_pack->wild[i]) == 0)
+    if (wild_compare(name,wf_pack->wild[i],0) == 0)
       goto found;
   if (i)
     DBUG_RETURN(1);			/* No-match */
@@ -115,7 +115,7 @@ found:
 /* Test that it isn't in not-list */
 
   for (i=not_pos ; i < wf_pack->wilds; i++)
-    if (wild_compare(name,wf_pack->wild[i]) == 0)
+    if (wild_compare(name,wf_pack->wild[i],0) == 0)
       DBUG_RETURN(1);
   DBUG_RETURN(0);
 } /* wf_test */

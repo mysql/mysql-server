@@ -85,8 +85,8 @@ do
   fi
 done
 
-for i in COPYING README Docs/INSTALL-BINARY \
-         MySQLEULA.txt LICENSE.doc README.NW 
+for i in COPYING COPYING.LIB README Docs/INSTALL-BINARY \
+         MySQLEULA.txt LICENSE.doc README.NW
 do
   if [ -f $i ]
   then
@@ -151,6 +151,7 @@ done
 
 if [ $BASE_SYSTEM = "netware" ] ; then
     $CP -r netware/*.pl $BASE/scripts
+    $CP scripts/mysqlhotcopy $BASE/scripts/mysqlhotcopy.pl
 fi
 
 for i in \
@@ -167,7 +168,7 @@ do
    fi
 done
 
-# convert the libs to .lib for NetWare
+# convert the .a to .lib for NetWare
 if [ $BASE_SYSTEM = "netware" ] ; then
     for i in $BASE/lib/*.a
     do
@@ -234,6 +235,16 @@ fi
 
 rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh $BASE/bin/mysql_install_db $BASE/bin/make_binary_distribution $BASE/bin/setsomevars $BASE/support-files/Makefile* $BASE/support-files/*.sh
 
+
+#
+# Remove system dependent files
+#
+if [ $BASE_SYSTEM = "netware" ] ; then
+    rm -f $BASE/MySQLEULA.txt
+else
+    rm -f $BASE/README.NW
+fi
+
 # Make safe_mysqld a symlink to mysqld_safe for backwards portability
 # To be removed in MySQL 4.1
 (cd $BASE/bin ; ln -s mysqld_safe safe_mysqld )
@@ -295,29 +306,47 @@ which_1 ()
   exit 1
 }
 
-#
-# Create the result tar file
-#
+if [ $BASE_SYSTEM != "netware" ] ; then
 
-tar=`which_1 gnutar gtar`
-if test "$?" = "1" -o "$tar" = ""
-then
-  tar=tar
+  #
+  # Create the result tar file
+  #
+  
+  tar=`which_1 gnutar gtar`
+  if test "$?" = "1" -o "$tar" = ""
+  then
+    tar=tar
+  fi
+  
+  echo "Using $tar to create archive"
+  cd $TMP
+  
+  OPT=cvf
+  if [ x$SILENT = x1 ] ; then
+    OPT=cf
+  fi
+  
+  $tar $OPT $SOURCE/$NEW_NAME.tar $NEW_NAME
+  cd $SOURCE
+  echo "Compressing archive"
+  rm -f $NEW_NAME.tar.gz
+  gzip -9 $NEW_NAME.tar
+  echo "Removing temporary directory"
+  rm -r -f $BASE
+  
+  echo "$NEW_NAME.tar.gz created"
+else
+
+  #
+  # Create a zip file for NetWare users
+  #
+
+  cd $TMP
+  if test -e "$SOURCE/$NEW_NAME.zip"; then rm $SOURCE/$NEW_NAME.zip; fi
+  zip -r $SOURCE/$NEW_NAME.zip $NEW_NAME
+  echo "Removing temporary directory"
+  rm -r -f $BASE
+
+  echo "$NEW_NAME.zip created"
+
 fi
-
-echo "Using $tar to create archive"
-cd $TMP
-
-OPT=cvf
-if [ x$SILENT = x1 ] ; then
-  OPT=cf
-fi
-
-$tar $OPT $SOURCE/$NEW_NAME.tar $NEW_NAME
-cd $SOURCE
-echo "Compressing archive"
-gzip -9 $NEW_NAME.tar
-echo "Removing temporary directory"
-rm -r -f $BASE
-
-echo "$NEW_NAME.tar.gz created"

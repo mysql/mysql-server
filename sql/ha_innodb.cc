@@ -4504,6 +4504,39 @@ ha_innobase::start_stmt(
 	        prepared for an update of a row */
 	  
 	        prebuilt->select_lock_type = LOCK_X;
+	} else {
+		/* When we first come here after LOCK TABLES,
+		select_lock_type is set to LOCK_S or LOCK_X. Store the value
+		in case we run also consistent reads and need to restore the
+		value later. */
+
+		if (prebuilt->select_lock_type != LOCK_NONE) {
+			prebuilt->stored_select_lock_type =
+					prebuilt->select_lock_type;
+		}
+
+		if (prebuilt->stored_select_lock_type != LOCK_S
+		    && prebuilt->stored_select_lock_type != LOCK_X) {
+			fprintf(stderr,
+"InnoDB: Error: select_lock_type is %lu inside ::start_stmt()!\n",
+			prebuilt->stored_select_lock_type);
+
+			ut_error;
+		}
+
+		if (thd->lex.sql_command == SQLCOM_SELECT
+					&& thd->lex.lock_option == TL_READ) {
+	
+			/* For other than temporary tables, we obtain
+			no lock for consistent read (plain SELECT) */
+
+			prebuilt->select_lock_type = LOCK_NONE;
+		} else {
+			/* Not a consistent read: restore the
+			select_lock_type value */
+			prebuilt->select_lock_type =
+				prebuilt->stored_select_lock_type;
+		}
 	}
 	
 	/* Set the MySQL flag to mark that there is an active transaction */

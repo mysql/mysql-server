@@ -133,7 +133,7 @@ sys_var_ulonglong_ptr	sys_key_buffer_size("key_buffer_size",
 					    fix_key_buffer_size);
 sys_var_bool_ptr	sys_local_infile("local_infile",
 					 &opt_local_infile);
-sys_var_thd_bool	sys_log_warnings("log_warnings", &SV::log_warnings);
+sys_var_thd_ulong	sys_log_warnings("log_warnings", &SV::log_warnings);
 sys_var_thd_ulong	sys_long_query_time("long_query_time",
 					     &SV::long_query_time);
 sys_var_thd_bool	sys_low_priority_updates("low_priority_updates",
@@ -340,7 +340,7 @@ static sys_var_thd_ulong        sys_default_week_format("default_week_format",
 
 sys_var_const_str		sys_os("version_compile_os", SYSTEM_TYPE);
 /* Global read-only variable describing server license */
-sys_var_const_str		sys_license("license", LICENSE);
+sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 
 
 /*

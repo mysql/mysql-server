@@ -92,7 +92,7 @@ LINK32=xilink6.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MT /W3 /GX /O2 /I "../include" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D "NDEBUG" /YX /FD /c
-# ADD CPP /nologo /MT /W3 /GX /O2 /I "../include" /D "WIN32" /D "_CONSOLE" /D MYSQL_COMMERCIAL_LICENSE /D "DBUG_OFF" /D "_MBCS" /D "NDEBUG" /YX /FD /c
+# ADD CPP /nologo /MT /W3 /GX /O2 /I "../include" /D "WIN32" /D "_CONSOLE" /D LICENSE=Commercial /D "DBUG_OFF" /D "_MBCS" /D "NDEBUG" /YX /FD /c
 # ADD BASE RSC /l 0x416 /d "NDEBUG"
 # ADD RSC /l 0x416 /d "NDEBUG"
 BSC32=bscmake.exe

@@ -121,6 +121,14 @@ void STDCALL mysql_server_end()
   mysql_client_init= org_my_init_done= 0;
 }
 
+static MYSQL_PARAMETERS mysql_internal_parameters=
+{&max_allowed_packet, &net_buffer_length};
+
+MYSQL_PARAMETERS *STDCALL mysql_get_parameters(void)
+{
+  return &mysql_internal_parameters;
+}
+
 my_bool STDCALL mysql_thread_init()
 {
 #ifdef THREAD
@@ -1631,7 +1639,7 @@ static int check_license(MYSQL *mysql)
   MYSQL_RES *res;
   NET *net= &mysql->net;
   static const char query[]= "SELECT @@license";
-  static const char required_license[]= LICENSE;
+  static const char required_license[]= STRINGIFY_ARG(LICENSE);
 
   if (mysql_real_query(mysql, query, sizeof(query)-1))
   {

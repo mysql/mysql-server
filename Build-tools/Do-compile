@@ -7,7 +7,7 @@ use Sys::Hostname;
 @config_options= ();
 @make_options= ();
 
-$opt_distribution=$opt_user=$opt_config_env="";
+$opt_distribution=$opt_user=$opt_config_env=$opt_config_extra_env="";
 $opt_dbd_options=$opt_perl_options=$opt_config_options=$opt_make_options=$opt_suffix="";
 $opt_tmp=$opt_version_suffix="";
 $opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=0;
@@ -17,6 +17,7 @@ GetOptions(
 	"bdb",
 	"build-thread=i",
 	"config-env=s" => \@config_env,
+	"config-extra-env=s" => \@config_extra_env,
 	"config-options=s" => \@config_options,
 	"dbd-options=s",
 	"debug",
@@ -79,6 +80,12 @@ if (@config_env > 0)
 	$opt_config_env= join(" ", @config_env);
 }
 
+if (@config_extra_env > 0)
+{
+	chomp(@config_extra_env);
+	$opt_config_extra_env= join(" ", @config_extra_env);
+}
+
 $host= hostname();
 chomp($uname=`uname`);
 $full_host_name=$host;
@@ -89,6 +96,7 @@ $email="$opt_user\@mysql.com";
 chomp($pwd = `pwd`);
 $VER= basename($opt_distribution);
 $VER=~ /mysql.*-([1-9]\.[0-9]{1,2}\.[0-9]{1,2}.*)\.tar*/; $version=$1;
+$release="";			# Shut up perl
 ($major, $minor, $release) = split(/\./,$version);
 $log="$pwd/Logs/$host-$major.$minor$opt_version_suffix.log";
 $opt_distribution =~ /(mysql[^\/]*)\.tar/;
@@ -110,6 +118,8 @@ if (defined($gcc_version) && ! $opt_config_env)
     $opt_config_env= 'CC=gcc CFLAGS="-O3 -fno-omit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fno-omit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti"';
   }
 }
+
+$opt_config_env.=" $opt_config_extra_env";
 
 $new_opt_tmp=0;
 if ($opt_tmp)
@@ -154,6 +164,9 @@ select STDOUT;
 $|=1;
 
 info("Compiling MySQL$opt_version_suffix at $host$opt_suffix, stage: $opt_stage\n");
+info("LD_LIBRARY_PATH is $ENV{LD_LIBRARY_PATH}");
+info("PATH is $ENV{PATH}");
+
 log_timestamp();
 
 if (-x "$host/bin/mysqladmin")
@@ -240,14 +253,14 @@ if ($opt_stage <= 1)
 
   # Only enable InnoDB when requested (required to be able to
   # build the "Classic" packages that do not include InnoDB)
-	if ($opt_innodb)
-	{
-		$opt_config_options.= " --with-innodb";
-	}
-	else
-	{
-		$opt_config_options.= " --without-innodb";
-	}
+  if ($opt_innodb)
+  {
+    $opt_config_options.= " --with-innodb";
+  }
+  else
+  {
+    $opt_config_options.= " --without-innodb";
+  }
 
   if ($opt_with_other_libc)
   {
@@ -443,7 +456,7 @@ exit 0;
 sub usage
 {
 print <<EOF;
-$0  version 1.5
+$0  version 1.6
 
 $0 takes the following options:
 
@@ -452,6 +465,10 @@ Compile with support for Berkeley DB tables
 
 --config-env <environment for configure>
 To set up the environment, like 'CC=cc CXX=gcc CXXFLAGS=-O3'
+
+--config-extra-env <environment for configure>
+Additional flags for environment (not CC or CXX). Should be used when one
+wants Do-compile to propose proper CC and CXX flags.
 
 --config-options <options>
 To add some extra options to configure (e.g. '--with-perl=yes')

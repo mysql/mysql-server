@@ -79,6 +79,7 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick=0, extended_insert = 0,
   opt_autocommit=0,opt_master_data,opt_disable_keys=0,opt_xml=0,
   opt_delete_master_logs=0, tty_password=0,
   opt_single_transaction=0, opt_comments= 0;
+static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL  mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
@@ -87,7 +88,6 @@ static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
 static uint     opt_mysql_port=0;
 static my_string opt_mysql_unix_port=0;
 static int   first_error=0;
-extern ulong net_buffer_length;
 static DYNAMIC_STRING extended_row;
 #include <sslopt-vars.h>
 FILE  *md_result_file;
@@ -238,11 +238,11 @@ static struct my_option my_long_options[] =
   {"xml", 'X', "Dump a database as well formed XML.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
-    (gptr*) &max_allowed_packet, (gptr*) &max_allowed_packet, 0,
+    (gptr*) &opt_max_allowed_packet, (gptr*) &opt_max_allowed_packet, 0,
     GET_ULONG, REQUIRED_ARG, 24*1024*1024, 4096, 
    (longlong) 2L*1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
-    (gptr*) &net_buffer_length, (gptr*) &net_buffer_length, 0,
+    (gptr*) &opt_net_buffer_length, (gptr*) &opt_net_buffer_length, 0,
     GET_ULONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 16*1024L*1024L,
     MALLOC_OVERHEAD-1024, 1024, 0},
   {"comments", 'i', "Write additional information.",
@@ -267,11 +267,13 @@ static char *quote_name(const char *name, char *buff, my_bool force);
 static void print_quoted_xml(FILE *output, char *fname, char *str, uint len);
 static const char *check_if_ignore_table(const char *table_name);
 
+#include <help_start.h>
 
 static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,DUMP_VERSION,
-   MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+         MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+  NETWARE_SET_SCREEN_MODE(1);
 } /* print_version */
 
 
@@ -281,7 +283,9 @@ static void short_usage_sub(void)
   printf("OR     %s [OPTIONS] --databases [OPTIONS] DB1 [DB2 DB3...]\n",
 	 my_progname);
   printf("OR     %s [OPTIONS] --all-databases [OPTIONS]\n", my_progname);
+  NETWARE_SET_SCREEN_MODE(1);
 }
+
 
 static void usage(void)
 {
@@ -301,6 +305,8 @@ static void short_usage(void)
   short_usage_sub();
   printf("For more options, use %s --help\n", my_progname);
 }
+
+#include <help_end.h>
 
 
 static void write_header(FILE *sql_file, char *db_name)
@@ -399,12 +405,19 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 static int get_options(int *argc, char ***argv)
 {
   int ho_error;
+  MYSQL_PARAMETERS *mysql_params= mysql_get_parameters();
+
+  opt_max_allowed_packet= *mysql_params->p_max_allowed_packet;
+  opt_net_buffer_length= *mysql_params->p_net_buffer_length;
 
   md_result_file= stdout;
   load_defaults("my",load_default_groups,argc,argv);
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
+
+  *mysql_params->p_max_allowed_packet= opt_max_allowed_packet;
+  *mysql_params->p_net_buffer_length= opt_net_buffer_length;
 
   if (opt_delayed)
     opt_lock=0;				/* Can't have lock with delayed */
@@ -1067,7 +1080,7 @@ static void dumpTable(uint numFields, char *table)
     if (opt_lock)
       fprintf(md_result_file,"LOCK TABLES %s WRITE;\n", opt_quoted_table);
 
-    total_length=net_buffer_length;		/* Force row break */
+    total_length= opt_net_buffer_length;		/* Force row break */
     row_break=0;
     rownr=0;
     init_length=(uint) strlen(insert_pat)+4;
@@ -1212,7 +1225,7 @@ static void dumpTable(uint numFields, char *table)
 	ulong row_length;
 	dynstr_append(&extended_row,")");
         row_length = 2 + extended_row.length;
-        if (total_length + row_length < net_buffer_length)
+        if (total_length + row_length < opt_net_buffer_length)
         {
 	  total_length += row_length;
 	  fputc(',',md_result_file);		/* Always row break */

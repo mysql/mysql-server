@@ -25,6 +25,31 @@
 
 #ifdef HAVE_OPENSSL
 
+#ifdef __NETWARE__
+/*
+  The default OpenSSL implementation on NetWare uses WinSock.
+  This code allows us to use the BSD sockets.
+*/
+
+static int SSL_set_fd_bsd(SSL *s, int fd)
+{
+  int result= -1;
+  BIO_METHOD *BIO_s_bsdsocket();
+  BIO *bio;
+
+  if ((bio= BIO_new(BIO_s_bsdsocket())))
+  {
+    result= BIO_set_fd(bio, fd, BIO_NOCLOSE);
+    SSL_set_bio(s, bio, bio);
+  }
+  return result;
+}
+
+#define SSL_set_fd(A, B)  SSL_set_fd_bsd((A), (B))
+
+#endif /* __NETWARE__ */
+
+
 static void
 report_errors()
 {
