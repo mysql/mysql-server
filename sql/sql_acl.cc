@@ -1130,6 +1130,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 		acl_user->user ? acl_user->user : "",
 		acl_user->host.hostname ? acl_user->host.hostname : "",
 		new_password));
+  thd->clear_error();
   mysql_update_log.write(thd, buff, query_length);
   Query_log_event qinfo(thd, buff, query_length, 0);
   mysql_bin_log.write(&qinfo);

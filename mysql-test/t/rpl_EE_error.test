@@ -1,0 +1,30 @@
+# See if an EE_ error in one event of the master's binlog stops replication
+# (it should not: in this configuration the EE_ error is probably not 
+# critical). Example: you do a DROP TABLE on a table which has no MYI file
+# check if START SLAVE, RESET SLAVE, CHANGE MASTER reset Last_slave_error and
+# Last_slave_errno in SHOW SLAVE STATUS (1st and 3rd commands did not: bug 986).
+
+source include/master-slave.inc;
+
+create table t1 (a int) type=myisam;
+flush tables;
+system rm ./var/master-data/test/t1.MYI ;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;
+
+# Now a real error.
+
+connection master;
+create table t1 (a int, unique(a)) type=myisam;
+set sql_log_bin=0;
+insert into t1 values(2);
+set sql_log_bin=1;
+save_master_pos;
+--error 1062;
+insert into t1 values(1),(2);
+drop table t1;
+save_master_pos;
+connection slave;
+wait_for_slave_to_stop;
