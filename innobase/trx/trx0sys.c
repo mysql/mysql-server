@@ -438,7 +438,6 @@ trx_sys_update_mysql_binlog_offset(
 	trx_sysf_t*	sys_header;
 	char		namebuf[TRX_SYS_MYSQL_LOG_NAME_LEN];
 	
-	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(trx->mysql_log_file_name);
 
 	memset(namebuf, ' ', TRX_SYS_MYSQL_LOG_NAME_LEN - 1);
@@ -524,7 +523,7 @@ trx_sys_print_mysql_binlog_offset(void)
 	}
 
 	fprintf(stderr,
-	"InnoDB: Last MySQL binlog file offset %lu %lu, file name %s\n",
+	"InnoDB: Last MySQL binlog file position %lu %lu, file name %s\n",
 		mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
 					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
 		mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO

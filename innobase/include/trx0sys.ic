@@ -93,7 +93,6 @@ trx_sysf_get(
 {
 	trx_sysf_t*	header;
 
-	ut_ad(mutex_own(&(kernel_mutex)));
 	ut_ad(mtr);
 	
 	header = TRX_SYS + buf_page_get(TRX_SYS_SPACE, TRX_SYS_PAGE_NO,

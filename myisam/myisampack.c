@@ -240,7 +240,6 @@ static struct option long_options[] =
   {"force",	no_argument,	   0, 'f'},
   {"join",	required_argument, 0, 'j'},
   {"help",	no_argument,	   0, '?'},
-  {"packlength",required_argument, 0, 'p'},
   {"silent",	no_argument,	   0, 's'},
   {"tmpdir",	required_argument, 0, 'T'},
   {"test",	no_argument,	   0, 't'},
@@ -252,7 +251,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.12 for %s on %s\n",my_progname,SYSTEM_TYPE,MACHINE_TYPE);
+  printf("%s  Ver 1.13 for %s on %s\n",my_progname,SYSTEM_TYPE,MACHINE_TYPE);
 }
 
 static void usage(void)

@@ -149,9 +149,9 @@ void
 os_mutex_free(
 /*==========*/
 	os_mutex_t	mutex);	/* in: mutex to free */
-#ifndef _WIN32
 /**************************************************************
-Acquires ownership of a fast mutex. */
+Acquires ownership of a fast mutex. Currently in Windows this is the same
+as os_fast_mutex_lock! */
 UNIV_INLINE
 ulint
 os_fast_mutex_trylock(
@@ -160,7 +160,6 @@ os_fast_mutex_trylock(
 						was reserved by another
 						thread */
 	os_fast_mutex_t*	fast_mutex);	/* in: mutex to acquire */
-#endif
 /**************************************************************
 Releases ownership of a fast mutex. */
 

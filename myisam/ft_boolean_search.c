@@ -264,7 +264,8 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   ftbe->weight=1;
   ftbe->flags=FTB_FLAG_YES;
   ftbe->nos=1;
-  ftbe->quot=ftbe->up=0;
+  ftbe->quot=0;
+  ftbe->up=0;
   ftbe->ythresh=ftbe->yweaks=0;
   ftbe->docid[0]=ftbe->docid[1]=HA_POS_ERROR;
   ftb->root=ftbe;
@@ -288,12 +289,14 @@ int _ftb_strstr(const byte *s0, const byte *e0,
 
   while (s0 < e0)
   {
-    while (s0 < e0 && cs->to_upper[*s0++] != cs->to_upper[*s1])
+    while (s0 < e0 && cs->to_upper[(uint) (uchar) *s0++] !=
+	   cs->to_upper[(uint) (uchar) *s1])
       /* no-op */;
     if (s0 >= e0)
       return 0;
     p=s1+1;
-    while (s0 < e0 && p < e1 && cs->to_upper[*s0++] == cs->to_upper[*p++])
+    while (s0 < e0 && p < e1 && cs->to_upper[(uint) (uchar) *s0++] ==
+	   cs->to_upper[(uint) (uchar) *p++])
       /* no-op */;
     if (p >= e1)
       return 1;

@@ -127,7 +127,11 @@ UNIV_INLINE
 ibool
 ibuf_should_try(
 /*============*/
-	dict_index_t*	index);	/* in: index where to insert */
+	dict_index_t*	index,			/* in: index where to insert */
+	ulint		ignore_sec_unique);	/* in: if != 0, we should
+						ignore UNIQUE constraint on
+						a secondary index when we
+						decide */
 /**********************************************************************
 Returns TRUE if the current OS thread is performing an insert buffer
 routine. */
