@@ -21,7 +21,7 @@
 @c
 @c %**start of header
 
-@c there's a better way to do this.. i just don't know it yet
+@c there's a better way to do this... i just don't know it yet
 @c sed will remove the "@c ifnusphere " to make this valid
 @c ifnusphere @set nusphere 1
 
@@ -3432,7 +3432,7 @@ will probably be ignored).
 cause problems on tables for which you are using @code{INSERT DELAYED}.
 
 @item
-Doing a @code{LOCK TABLE ..} and @code{FLUSH TABLES ..} doesn't
+Doing a @code{LOCK TABLE ...} and @code{FLUSH TABLES ...} doesn't
 guarantee that there isn't a half-finished transaction in progress on the
 table.
 
@@ -3938,7 +3938,7 @@ Check why MIT-pthreads @code{ctime()} doesn't work on some FreeBSD systems.
 Add an @code{IMAGE} option to @code{LOAD DATA INFILE} to not update
 @code{TIMESTAMP} and @code{AUTO_INCREMENT} fields.
 @item
-Added @code{LOAD DATE INFILE.. UPDATE} syntax.
+Added @code{LOAD DATE INFILE ... UPDATE} syntax.
 @itemize @bullet
 @item
 For tables with primary keys, if the data contains the primary key,
@@ -10701,7 +10701,7 @@ The @code{alloca()} function also may have an incorrect prototype in
 When using @code{gcc}, you can also try running @code{configure} like this:
 
 @example
-shell> CFLAGS=-D_PTHREAD_USE_D4 CXX=gcc CXXFLAGS=-O3 ./configure ....
+shell> CFLAGS=-D_PTHREAD_USE_D4 CXX=gcc CXXFLAGS=-O3 ./configure ...
 @end example
 
 If you have problems with signals (MySQL dies unexpectedly
@@ -22408,7 +22408,7 @@ directly to the same options to @code{LOAD DATA INFILE}.
 @code{mysqlimport} is invoked like this:
 
 @example
-shell> mysqlimport [options] database textfile1 [textfile2....]
+shell> mysqlimport [options] database textfile1 [textfile2 ...]
 @end example
 
 For each text file named on the command line,
@@ -23581,7 +23581,7 @@ Updates to a database with a different name than the original
 
 Example: @code{replicate-rewrite-db=master_db_name->slave_db_name}.
 
-@item @code{slave-skip-errors=err_code1,err_code2,..} @tab
+@item @code{slave-skip-errors=err_code1,err_code2,...} @tab
 Available only in 3.23.47 and later. Tells the slave thread to continue
 replication when a query returns an error from the provided
 list. Normally, replication will discontinue when an error is
@@ -25672,7 +25672,7 @@ for you, you should consider methods where you don't have to delete rows
 or run @code{OPTIMIZE TABLE} after you have deleted a lot of rows.
 @item
 Use @code{ALTER TABLE ... ORDER BY expr1,expr2...} if you mostly
-retrieve rows in expr1,expr2.. order.  By using this option after big
+retrieve rows in expr1,expr2... order.  By using this option after big
 changes to the table, you may be able to get higher performance.
 @item
 In some cases it may make sense to introduce a column that is 'hashed'
@@ -32531,7 +32531,7 @@ mysql> select COUNT(DISTINCT results) from student;
 In MySQL you can get the number of distinct expression
 combinations that don't contain NULL by giving a list of expressions.
 In ANSI SQL you would have to do a concatenation of all expressions
-inside @code{CODE(DISTINCT ..)}.
+inside @code{CODE(DISTINCT ...)}.
 
 @findex AVG()
 @item AVG(expr)
@@ -33136,9 +33136,9 @@ mysql> select * from table1 IGNORE INDEX (key3) WHERE key1=1 and key2=2 AND
 @findex UNION
 
 @example
-SELECT ....
+SELECT ...
 UNION [ALL]
-SELECT ....
+SELECT ...
   [UNION 
    SELECT ...]
 @end example
@@ -33386,7 +33386,7 @@ the query. @xref{INSERT}.
 @item
 To ensure that the update log/binary log can be used to re-create the
 original tables, MySQL will not allow concurrent inserts during
-@code{INSERT .... SELECT}.
+@code{INSERT ... SELECT}.
 @end itemize
 
 You can of course also use @code{REPLACE} instead of @code{INSERT} to
@@ -33694,7 +33694,7 @@ TRUNCATE TABLE table_name
 In 3.23 @code{TRUNCATE TABLE} is mapped to
 @code{COMMIT ; DELETE FROM table_name}. @xref{DELETE}.
 
-The differences between @code{TRUNCATE TABLE} and @code{DELETE FROM ..}
+The differences between @code{TRUNCATE TABLE} and @code{DELETE FROM ...}
 are:
 
 @itemize @bullet
@@ -34767,7 +34767,7 @@ automatically be deleted.
 
 To ensure that the update log/binary log can be used to re-create the
 original tables, MySQL will not allow concurrent inserts during
-@code{CREATE TABLE .... SELECT}.
+@code{CREATE TABLE ... SELECT}.
 @item
 The @code{RAID_TYPE} option will help you to break the 2G/4G limit for
 the MyISAM data file (not the index file) on operating systems that
@@ -45849,7 +45849,7 @@ number 256 to affect the number of file descriptors available to
 file descriptors, but only up to the limit imposed by the operating
 system. There is also a 'hard' limit that can only be overrided if you
 start @code{safe_mysqld} or @code{mysqld} as root (just remember that
-you need to also use the @code{--user=..} option in this case).  If you
+you need to also use the @code{--user=...} option in this case).  If you
 need to increase the OS limit on the number of file descriptors
 available to each process, consult the documentation for your operating
 system.
@@ -48419,7 +48419,7 @@ Fixed bug in multi table delete.
 @item
 Fixed bug in @code{SELECT CONCAT(argument-list) ... GROUP BY 1}.
 @item
-@code{SELECT .. INSERT} did a full rollback in case of an error. Fixed
+@code{SELECT ... INSERT} did a full rollback in case of an error. Fixed
 so that we only roll back the last statement.
 @item
 Fixed bug with empty expression for boolean fulltext search.
@@ -48478,7 +48478,7 @@ hexadecimal.
 Fixed problem with @code{GRANT} when using @code{lower_case_table_names == 1}.
 @item
 Changed @code{SELECT ... IN SHARE MODE} to
-@code{SELECT .. LOCK IN SHARE MODE} (as in MySQL 3.23).
+@code{SELECT ... LOCK IN SHARE MODE} (as in MySQL 3.23).
 @item
 A new query cache to cache results from identical @code{SELECT} queries.
 @item
@@ -48512,7 +48512,7 @@ Changed @code{RAND()} initialization so that @code{RAND(N)} and
 @item
 Fixed core dump bug in @code{UPDATE ... ORDER BY}.
 @item
-Changed @code{INSERT INTO .. SELECT} to stop on errors by default.
+Changed @code{INSERT INTO ... SELECT} to stop on errors by default.
 @item
 Ignore @code{DATA DIRECTORY} and @code{INDEX DIRECTORY} directives on Windows.
 @item
