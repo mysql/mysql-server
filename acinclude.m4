@@ -837,7 +837,7 @@ AC_DEFUN([MYSQL_TOP_BUILDDIR], [
     /* )        ;;      # already an absolute path
     *  )        [$1]="'\$(top_builddir)/'$[$1]" ;;
   esac
-  if X"$[$1]" != "/"
+  if test X"$[$1]" != "/"
   then
     [$1]=`echo $[$1] | sed -e 's,/$,,'`
   fi
