@@ -295,3 +295,14 @@ insert into t1 (s) values ('pära para para'),('para para para');
 select * from t1 where match(s) against('para' in boolean mode);
 select * from t1 where match(s) against('par*' in boolean mode);
 DROP TABLE t1;
+
+#
+# icc -ip bug (ip = interprocedural optimization)
+# bug#5528
+#
+CREATE TABLE t1 (h text, FULLTEXT (h));
+INSERT INTO t1 VALUES ('Jesses Hasse Ling and his syncopators of Swing');
+REPAIR TABLE t1;
+select count(*) from t1;
+drop table t1;
+
