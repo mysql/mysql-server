@@ -2960,10 +2960,14 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
     }
 
     Uint32 base= 0;
-    if(!(ctx.m_userDefaults && ctx.m_userDefaults->get("PortNumber", &base)) &&
-       !ctx.m_systemDefaults->get("PortNumber", &base)){
-      ctx.reportError("Cannot retrieve base port number");
-      return false;
+    if (!ctx.m_userProperties.get("ServerPortBase", &base)){
+      if(!(ctx.m_userDefaults && ctx.m_userDefaults->get("PortNumber", &base)) &&
+	 !ctx.m_systemDefaults->get("PortNumber", &base)) {
+	base= NDB_BASE_PORT+2;
+      //      ctx.reportError("Cannot retrieve base port number");
+      //      return false;
+      }
+      ctx.m_userProperties.put("ServerPortBase", base);
     }
 
     port= base + adder;
