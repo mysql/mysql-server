@@ -48927,8 +48927,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Fixed @code{SIGINT} and @code{SIGQUIT} problems in mysql.cc on Linux with 
-some glibc versions
+Fixed @code{SIGINT} and @code{SIGQUIT} problems in @file{mysql.cc} on Linux
+with some @code{glibc} versions.
 @item
 Fixed bug in @file{convert.cc}, which is caused by having an incorrect
 @code{net_store_length()} linked in the @code{CONVERT::store()} method.
