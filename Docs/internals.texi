@@ -649,7 +649,7 @@ Item_in_subselect inherit mechanism of getting value from
   Item_exists_subselect.
 @item
 Select_transformer stores reference to left expression in its
-  conditions:  (in WHERE in case 'a' and in a HAVING in case 'b')
+  conditions:  (in WHERE & HAVING in case 'a' and in a HAVING in case 'b')
 @item
 Item from item list of this select (t2.a) can be referred with special
   reference (Item_ref_null_helper or Item_asterisk_remover).
@@ -704,6 +704,13 @@ ORDER BY without LIMIT here.
 If IN subselect union condition of every select in UNION will be changed
 personally.
 
+If condition should be added to WHERE clause it will be presented as 
+"(item OR item IS NULL)" and Item_is_not_null_test(item) will be added
+to HAVING clause. Item_is_not_null_test register NULL value as
+Item_ref_null_helper does it and return FALSE if argument is NULL.
+With above trick we will register NULL value of Item even in case
+of index optimization of WHERE clause (case 'a' of following example).
+
 Following is examples of IN transformations:
 @example
 a) <left_expression> IN (SELECT <item> FROM t
@@ -712,8 +719,11 @@ a) <left_expression> IN (SELECT <item> FROM t
 will be represented as
 
  (SELECT 1 FROM t
-   WHERE <where_exp> and
-    Item_ref(<cached_left_expression>)=<Item_asterisk_remover(<Item>)>)
+   WHERE
+     <where_exp> and
+     (Item_ref(<cached_left_expression>)=<Item_asterisk_remover(<Item>)> or
+      <Item> is null)
+   HAVING Item_is_not_null_test(<Item>))
 
 
 b) <left_expression> IN (SELECT <item> FROM t
@@ -721,7 +731,6 @@ b) <left_expression> IN (SELECT <item> FROM t
                            ORDER BY 1)
 
 will be represented as
-
  (SELECT <item> as ref_null_helper FROM t
     HAVING <having_exp> AND
       Item_ref(<cached_left_expression>) = ref_null_helper)
