@@ -103,7 +103,9 @@ public:
   virtual Item** addr(uint i) { return 0; }
   virtual bool check_cols(uint c);
   // It is not row => null inside is impossible
-  virtual bool null_inside() { return 0; };
+  virtual bool null_inside() { return 0; }
+  // used in row subselects to get value of elements
+  virtual void bring_value() {}
 };
 
 
@@ -719,6 +721,7 @@ public:
     decimals= dec;
   }
   enum Type type() const { return CACHE_ITEM; }
+  static Item_cache* get_cache(Item_result type);
 };
 
 class Item_cache_int: public Item_cache
@@ -766,24 +769,9 @@ class Item_cache_str: public Item_cache
 public:
   Item_cache_str() { fixed= 1; null_value= 1; }
   
-  void store(Item *item)
-  {
-    str_value.set(buffer, sizeof(buffer), item->charset());
-    value= item->str_result(&str_value);
-    // TODO remove if str_value charset have no side effect for now
-    str_value.set_charset(value->charset());
-    null_value= item->null_value;
-  }
-  double val()
-  { 
-    return my_strntod(value->charset(), value->ptr(),
-		      value->length(), (char**)0);
-  }
-  longlong val_int()
-  {
-    return my_strntoll(value->charset(), value->ptr(),
-		       value->length(), (char**) 0, 10);
-  }
+  void store(Item *item);
+  double val();
+  longlong val_int();
   String* val_str(String *) { return value; }
   enum Item_result result_type() const { return STRING_RESULT; }
   CHARSET_INFO *charset() const { return value->charset(); };

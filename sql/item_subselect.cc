@@ -112,9 +112,14 @@ bool Item_subselect::check_loop(uint id)
   DBUG_RETURN(engine->check_loop(id));
 }
 
+Item::Type Item_subselect::type() const 
+{
+  return SUBSELECT_ITEM;
+}
+
 void Item_subselect::fix_length_and_dec()
 {
-  engine->fix_length_and_dec();
+  engine->fix_length_and_dec(0);
 }
 
 inline table_map Item_subselect::used_tables() const
@@ -130,6 +135,7 @@ Item_singleval_subselect::Item_singleval_subselect(THD *thd,
   init(thd, select_lex, new select_singleval_subselect(this));
   max_columns= 1;
   maybe_null= 1;
+  max_columns= UINT_MAX;
   DBUG_VOID_RETURN;
 }
 
@@ -140,9 +146,9 @@ void Item_singleval_subselect::reset()
     value->null_value= 1;
 }
 
-void Item_singleval_subselect::store(Item *item)
+void Item_singleval_subselect::store(uint i, Item *item)
 {
-  value->store(item);
+  row[i]->store(item);
 }
 
 enum Item_result Item_singleval_subselect::result_type() const
@@ -152,29 +158,58 @@ enum Item_result Item_singleval_subselect::result_type() const
 
 void Item_singleval_subselect::fix_length_and_dec()
 {
-  engine->fix_length_and_dec();
-  switch (engine->type())
+  if ((max_columns= engine->cols()) == 1)
   {
-  case INT_RESULT:
-    value= new Item_cache_int();
-    break;
-  case REAL_RESULT:
-    value= new Item_cache_real();
-    break;
-  case STRING_RESULT:
-    value= new Item_cache_str();
-    break;
-  default:
-    // should never be in real life
-    DBUG_ASSERT(0);
-    return;
+    engine->fix_length_and_dec(row= &value);
+    if (!(value= Item_cache::get_cache(engine->type())))
+    {
+      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+      current_thd->fatal_error= 1;
+      return;
+    }  
   }
-  value->set_len_n_dec(max_length, decimals);
+  else
+  {
+    THD *thd= current_thd;
+    if (!(row= (Item_cache**)thd->alloc(sizeof(Item_cache*)*max_columns)))
+    {
+      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+      thd->fatal_error= 1;
+      return;
+    }
+    engine->fix_length_and_dec(row);
+    value= *row;
+  }
 }
 
-Item::Type Item_subselect::type() const 
+uint Item_singleval_subselect::cols()
 {
-  return SUBSELECT_ITEM;
+  return engine->cols();
+}
+
+bool Item_singleval_subselect::check_cols(uint c)
+{
+  if (c != engine->cols())
+  {
+    my_error(ER_CARDINALITY_COL, MYF(0), c);
+    return 1;
+  }
+  return 0;
+}
+
+bool Item_singleval_subselect::null_inside()
+{
+  for (uint i= 0; i < max_columns ; i++)
+  {
+    if (row[i]->null_value)
+      return 1;
+  }
+  return 0;
+}
+
+void Item_singleval_subselect::bring_value()
+{
+  engine->exec();
 }
 
 double Item_singleval_subselect::val () 
@@ -268,7 +303,7 @@ Item_allany_subselect::Item_allany_subselect(THD *thd, Item * left_exp,
 
 void Item_exists_subselect::fix_length_and_dec()
 {
-   decimals=0;
+   decimals= 0;
    max_length= 1;
 }
 
@@ -540,31 +575,85 @@ int subselect_union_engine::prepare()
   return unit->prepare(thd, result);
 }
 
-void subselect_single_select_engine::fix_length_and_dec()
+static Item_result set_row(SELECT_LEX *select_lex, Item * item,
+			   Item_cache **row)
 {
+  Item_result res_type= STRING_RESULT;
+  Item *sel_item;
   List_iterator_fast<Item> li(select_lex->item_list);
-  Item *sel_item= li++;
-  item->max_length= sel_item->max_length;
-  res_type= sel_item->result_type();
-  item->decimals= sel_item->decimals;
+  for (uint i= 0; (sel_item= li++); i++)
+  {
+    item->max_length= sel_item->max_length;
+    res_type= sel_item->result_type();
+    item->decimals= sel_item->decimals;
+    if (row)
+    {
+      if (!(row[i]= Item_cache::get_cache(res_type)))
+      {
+	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+	current_thd->fatal_error= 1;
+	return STRING_RESULT; // we should return something
+      }
+      row[i]->set_len_n_dec(sel_item->max_length, sel_item->decimals);
+    }
+  }
+  if (select_lex->item_list.elements > 1)
+    res_type= ROW_RESULT;
+  return res_type;
 }
 
-void subselect_union_engine::fix_length_and_dec()
+void subselect_single_select_engine::fix_length_and_dec(Item_cache **row)
 {
-  uint32 mlen= 0, len;
-  Item *sel_item= 0;
-  for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
+  DBUG_ASSERT(row || select_lex->item_list.elements==1);
+  res_type= set_row(select_lex, item, row);
+}
+
+void subselect_union_engine::fix_length_and_dec(Item_cache **row)
+{
+  DBUG_ASSERT(row || unit->first_select()->item_list.elements==1);
+
+  if (unit->first_select()->item_list.elements == 1)
   {
-    List_iterator_fast<Item> li(sl->item_list);
-    Item *s_item= li++;
-    if ((len= s_item->max_length))
-      mlen= len;
-    if (!sel_item)
-      sel_item= s_item;
+    uint32 mlen= 0, len;
+    Item *sel_item= 0;
+    for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
+    {
+      List_iterator_fast<Item> li(sl->item_list);
+      Item *s_item= li++;
+      if ((len= s_item->max_length) > mlen)
+	mlen= len;
+      if (!sel_item)
+	sel_item= s_item;
+    }
+    item->max_length= mlen;
+    res_type= sel_item->result_type();
+    item->decimals= sel_item->decimals;
+    if (row)
+    {
+      if (!(row[0]= Item_cache::get_cache(res_type)))
+      {
+	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+	current_thd->fatal_error= 1;
+	return;
+      }
+      row[0]->set_len_n_dec(mlen, sel_item->decimals);
+    }
   }
-  item->max_length= mlen;
-  res_type= sel_item->result_type();
-  item->decimals= sel_item->decimals;
+  else
+  {
+    SELECT_LEX *sl= unit->first_select();
+    res_type= set_row(sl, item, row);
+    for(sl= sl->next_select(); sl; sl->next_select())
+    {
+      List_iterator_fast<Item> li(sl->item_list);
+      Item *sel_item;
+      for (uint i= 0; (sel_item= li++); i++)
+      {
+	if (sel_item->max_length > row[i]->max_length)
+	  row[i]->max_length= sel_item->max_length;
+      }
+    }
+  }
 }
 
 int subselect_single_select_engine::exec()

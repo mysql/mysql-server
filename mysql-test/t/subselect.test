@@ -26,6 +26,22 @@ select (SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE(1));
 SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE((SELECT 1));
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NULL;
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NOT NULL;
+SELECT (SELECT 1,2,3) = ROW(1,2,3);
+SELECT (SELECT 1,2,3) = ROW(1,2,1);
+SELECT (SELECT 1,2,3) < ROW(1,2,1);
+SELECT (SELECT 1,2,3) > ROW(1,2,1);
+SELECT (SELECT 1,2,3) = ROW(1,2,NULL);
+SELECT ROW(1,2,3) = (SELECT 1,2,3);
+SELECT ROW(1,2,3) = (SELECT 1,2,1);
+SELECT ROW(1,2,3) < (SELECT 1,2,1);
+SELECT ROW(1,2,3) > (SELECT 1,2,1);
+SELECT ROW(1,2,3) = (SELECT 1,2,NULL);
+SELECT (SELECT 1.5,2,'a') = ROW(1.5,2,'a');
+SELECT (SELECT 1.5,2,'a') = ROW(1.5,2,'b');
+SELECT (SELECT 1.5,2,'a') = ROW('b',2,'b');
+SELECT (SELECT 'b',2,'a') = ROW(1.5,2,'a');
+SELECT (SELECT 1.5,2,'a') = ROW(1.5,'c','a');
+SELECT (SELECT 1.5,'c','a') = ROW(1.5,2,'a');
 
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 create table t1 (a int);
@@ -363,7 +379,7 @@ CREATE TABLE t1 (id int(11) default NULL, KEY id (id)) TYPE=MyISAM CHARSET=latin
 INSERT INTO t1 values (1),(1);
 -- error 1240
 UPDATE t SET id=(SELECT * FROM t1);
-drop table t;
+drop table t, t1;
 
 
 #NULL test
@@ -409,3 +425,12 @@ select 10.5 > ALL (SELECT * from t);
 select 1.5 > ANY (SELECT * from t);
 select 10.5 > ANY (SELECT * from t);
 drop table t;
+
+create table t1 (a int, b int, c varchar(10));
+create table t2 (a int);
+insert into t1 values (1,2,'a'),(2,3,'b'),(3,4,'c');
+insert into t2 values (1),(2),(NULL);
+select a, (select a,b,c from t1 where t1.a=t2.a) = ROW(a,2,'a'),(select c from t1 where a=t2.a)  from t2;
+select a, (select a,b,c from t1 where t1.a=t2.a) = ROW(a,3,'b'),(select c from t1 where a=t2.a) from t2;
+select a, (select a,b,c from t1 where t1.a=t2.a) = ROW(a,4,'c'),(select c from t1 where a=t2.a) from t2;
+drop table t1,t2;

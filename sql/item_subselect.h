@@ -94,8 +94,7 @@ class Item_cache;
 class Item_singleval_subselect :public Item_subselect
 {
 protected:
-  Item_cache *value;
-  
+  Item_cache *value, **row;
 public:
   Item_singleval_subselect(THD *thd, st_select_lex *select_lex);
   Item_singleval_subselect(Item_singleval_subselect *item):
@@ -106,13 +105,20 @@ public:
     decimals= item->decimals;
   }
   void reset();
-  void store(Item* item);
+  void store(uint i, Item* item);
   double val();
   longlong val_int ();
   String *val_str (String *);
   Item *new_item() { return new Item_singleval_subselect(this); }
   enum Item_result result_type() const;
   void fix_length_and_dec();
+
+  uint cols();
+  Item* el(uint i) { return (Item*)row[i]; }
+  Item** addr(uint i) { return (Item**)row + i; }
+  bool check_cols(uint c);
+  bool null_inside();
+  void bring_value();
 
   friend class select_singleval_subselect;
 };
@@ -212,7 +218,7 @@ public:
   }
 
   virtual int prepare()= 0;
-  virtual void fix_length_and_dec()= 0;
+  virtual void fix_length_and_dec(Item_cache** row)= 0;
   virtual int exec()= 0;
   virtual uint cols()= 0; /* return number of columnss in select */
   virtual bool depended()= 0; /* depended from outer select */
@@ -233,7 +239,7 @@ public:
 				 select_subselect *result,
 				 Item_subselect *item);
   int prepare();
-  void fix_length_and_dec();
+  void fix_length_and_dec(Item_cache** row);
   int exec();
   uint cols();
   bool depended();
@@ -250,7 +256,7 @@ public:
 			 select_subselect *result,
 			 Item_subselect *item);
   int prepare();
-  void fix_length_and_dec();
+  void fix_length_and_dec(Item_cache** row);
   int exec();
   uint cols();
   bool depended();
