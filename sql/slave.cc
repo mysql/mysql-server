@@ -2445,8 +2445,17 @@ reconnect done to recover from failed read");
         for no reason, but this function will do a clean read, notice the clean
         value and exit immediately.
       */
-      DBUG_PRINT("info", ("ignore_log_space_limit=%d", (int)
-                          mi->rli.ignore_log_space_limit)); 
+#ifndef DBUG_OFF
+      {
+        char llbuf1[22], llbuf2[22];
+        DBUG_PRINT("info", ("log_space_limit=%s log_space_total=%s \
+ignore_log_space_limit=%d",
+                            llstr(mi->rli.log_space_limit,llbuf1),
+                            llstr(mi->rli.log_space_total,llbuf2),
+                            (int) mi->rli.ignore_log_space_limit)); 
+      }
+#endif
+
       if (mi->rli.log_space_limit && mi->rli.log_space_limit <
 	  mi->rli.log_space_total &&
           !mi->rli.ignore_log_space_limit)
