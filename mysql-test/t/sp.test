@@ -1055,6 +1055,41 @@ call bug2260()|
 select @x2|
 drop procedure bug2260|
 
+#
+# BUG#2267
+#
+create procedure bug2267_1()
+begin
+  show procedure status;
+end|
+
+create procedure bug2267_2()
+begin
+  show function status;
+end|
+
+create procedure bug2267_3()
+begin
+  show create procedure bug2267_1;
+end|
+
+create procedure bug2267_4()
+begin
+  show create function fac;
+end|
+
+--replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+call bug2267_1()|
+--replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+call bug2267_2()|
+call bug2267_3()|
+call bug2267_4()|
+
+drop procedure bug2267_1|
+drop procedure bug2267_2|
+drop procedure bug2267_3|
+drop procedure bug2267_4|
+
 
 #
 # Some "real" examples
