@@ -938,7 +938,7 @@ int main(int argc, char** argv)
   {
     if (init_tmpdir(&tmpdir, 0))
       exit(1);
-    dirname_for_local_load= my_tmpdir(&tmpdir);
+    dirname_for_local_load= my_strdup(my_tmpdir(&tmpdir),MY_WME);
   }
 
   if (load_processor.init())
