@@ -94,7 +94,6 @@ public:
   Item *get_tmp_table_item(THD *thd);
   virtual Field *create_tmp_field(bool group, TABLE *table,
                                   uint convert_blob_length);
-
   bool walk (Item_processor processor, byte *argument);
 };
 
@@ -525,6 +524,8 @@ protected:
   void cleanup();
   bool any_value() { return was_values; }
   void no_rows_in_result();
+  Field *create_tmp_field(bool group, TABLE *table,
+			  uint convert_blob_length);
 };
 
 

@@ -1267,9 +1267,18 @@ page_cur_parse_delete_rec(
 	ut_a(offset <= UNIV_PAGE_SIZE);
 
 	if (page) {
-		page_cur_position(page + offset, &cursor);
+		mem_heap_t*	heap		= NULL;
+		ulint		offsets_[100]	= { 100, };
+		rec_t*		rec		= page + offset;
 
-		page_cur_delete_rec(&cursor, index, mtr);
+		page_cur_position(rec, &cursor);
+
+		page_cur_delete_rec(&cursor, index,
+				rec_get_offsets(rec, index, offsets_,
+				ULINT_UNDEFINED, &heap), mtr);
+		if (heap) {
+			mem_heap_free(heap);
+		}
 	}
 
 	return(ptr);
@@ -1284,6 +1293,7 @@ page_cur_delete_rec(
 /*================*/
 	page_cur_t*  	cursor,	/* in: a page cursor */
 	dict_index_t*	index,	/* in: record descriptor */
+	const ulint*	offsets,/* in: rec_get_offsets(cursor->rec, index) */
 	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
 	page_dir_slot_t* cur_dir_slot;
@@ -1300,6 +1310,7 @@ page_cur_delete_rec(
 	
 	page = page_cur_get_page(cursor);
 	current_rec = cursor->rec;
+	ut_ad(rec_offs_validate(current_rec, index, offsets));
 
 	/* The record must not be the supremum or infimum record. */
 	ut_ad(current_rec != page_get_supremum_rec(page));	
@@ -1365,7 +1376,7 @@ page_cur_delete_rec(
 	page_dir_slot_set_n_owned(cur_dir_slot, cur_n_owned - 1);
 
 	/* 6. Free the memory occupied by the record */
-	page_mem_free(page, current_rec, index);
+	page_mem_free(page, current_rec, offsets);
 
 	/* 7. Now we have decremented the number of owned records of the slot.
 	If the number drops below PAGE_DIR_SLOT_MIN_N_OWNED, we balance the

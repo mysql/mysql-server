@@ -599,11 +599,10 @@ trx_undo_read_xid(
 Adds the XA XID after an undo log old-style header. */
 static
 void
-trx_undo_header_add_xid(
-/*====================*/
+trx_undo_header_add_space_for_xid(
+/*==============================*/
 	page_t*		undo_page,/* in: undo log segment header page */
 	trx_ulogf_t*	log_hdr,/* in: undo log header */
-	XID*		xid,	/* in: X/Open XA transaction identification */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	trx_upagef_t*	page_hdr;
@@ -620,9 +619,8 @@ trx_undo_header_add_xid(
 
 	new_free = free + (TRX_UNDO_LOG_XA_HDR_SIZE
 						- TRX_UNDO_LOG_OLD_HDR_SIZE);
-	trx_undo_write_xid(log_hdr, xid, mtr);
 
-	/* Now that we added the XID after the header, update the free offset
+	/* Add space for a XID after the header, update the free offset
 	fields on the undo log page and in the undo log header */
 
 	mlog_write_ulint(page_hdr + TRX_UNDO_PAGE_START, new_free,
@@ -1532,7 +1530,7 @@ trx_undo_create(
 	
 	offset = trx_undo_header_create(undo_page, trx_id, mtr);
 
-	trx_undo_header_add_xid(undo_page, undo_page + offset, xid, mtr);
+	trx_undo_header_add_space_for_xid(undo_page, undo_page + offset, mtr);
 
 	undo = trx_undo_mem_create(rseg, id, type, trx_id, xid,
 							page_no, offset);
@@ -1599,7 +1597,7 @@ trx_undo_reuse_cached(
 
 	if (type == TRX_UNDO_INSERT) {
 		offset = trx_undo_insert_header_reuse(undo_page, trx_id, mtr);
-		trx_undo_header_add_xid(undo_page, undo_page + offset, xid,
+		trx_undo_header_add_space_for_xid(undo_page, undo_page + offset,
 									mtr);
 	} else {
 		ut_a(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
@@ -1607,7 +1605,7 @@ trx_undo_reuse_cached(
 						== TRX_UNDO_UPDATE);
 
 		offset = trx_undo_header_create(undo_page, trx_id, mtr);
-		trx_undo_header_add_xid(undo_page, undo_page + offset, xid,
+		trx_undo_header_add_space_for_xid(undo_page, undo_page + offset,
 									mtr);
 	}
 	

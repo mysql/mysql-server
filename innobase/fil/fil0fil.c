@@ -3817,13 +3817,6 @@ fil_io(
 	node = UT_LIST_GET_FIRST(space->chain);
 
 	for (;;) {
-		if (space->id != 0 && node->size == 0) {
-			/* We do not know the size of a single-table tablespace
-			before we open the file */
-
-			break;
-		}
-
 		if (node == NULL) {
 			fprintf(stderr,
 	"InnoDB: Error: trying to access page number %lu in space %lu,\n"
@@ -3835,6 +3828,13 @@ fil_io(
 			(ulong) type);
  			
 			ut_error;
+		}
+
+		if (space->id != 0 && node->size == 0) {
+			/* We do not know the size of a single-table tablespace
+			before we open the file */
+
+			break;
 		}
 
 		if (node->size > block_offset) {
