@@ -146,6 +146,8 @@ class JOIN :public Sql_alloc
   TABLE    *exec_tmp_table1, *exec_tmp_table2;
   THD	   *thd;
   Item_sum  **sum_funcs, ***sum_funcs_end;
+  /* second copy of sumfuncs (for queries with 2 temporary tables */
+  Item_sum  **sum_funcs2, ***sum_funcs_end2;
   Procedure *procedure;
   Item	    *having;
   Item      *tmp_having; // To store Having when processed temporary table
@@ -199,7 +201,7 @@ class JOIN :public Sql_alloc
     send_records(0), found_records(0), examined_rows(0),
     exec_tmp_table1(0), exec_tmp_table2(0),
     thd(thd_arg),
-    sum_funcs(0),
+    sum_funcs(0),sum_funcs2(0),
     procedure(0),
     having(0), tmp_having(0),
     select_options(select_options_arg),

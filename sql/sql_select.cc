@@ -1137,6 +1137,20 @@ JOIN::exec()
       
       thd->proc_info="Copying to group table";
       tmp_error= -1;
+      if (curr_join != this)
+      {
+	if (sum_funcs2)
+	{
+	  curr_join->sum_funcs= sum_funcs2;
+	  curr_join->sum_funcs_end= sum_funcs_end2; 
+	}
+	else
+	{
+	  curr_join->alloc_func_list();
+	  sum_funcs2= curr_join->sum_funcs;
+	  sum_funcs_end2= curr_join->sum_funcs_end;
+	}
+      }
       if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
 					1) ||
 	  (tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table,
