@@ -1805,10 +1805,21 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     position to store is of the END of the current log event.
   */
 #if MYSQL_VERSION_ID < 40100
-  rli->future_master_log_pos= log_pos + get_event_len();
+  /*
+    If the event was converted from a 3.23 format, get_event_len() has grown by
+    6 bytes (at least for most events, except LOAD DATA INFILE which is already
+    a big problem for 3.23->4.0 replication); 6 bytes is the difference between
+    the header's size in 4.0 (LOG_EVENT_HEADER_LEN) and the header's size in
+    3.23 (OLD_HEADER_LEN). Note that using mi->old_format will not help if the
+    I/O thread has not started yet.
+  */
+  rli->future_master_log_pos= log_pos + get_event_len() -
+    (rli->mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0); 
 #elif MYSQL_VERSION_ID < 50000
-  rli->future_group_master_log_pos= log_pos + get_event_len();
+  rli->future_group_master_log_pos= log_pos + get_event_len() -
+    (rli->mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
 #else
+  /* In 5.0 we store the end_log_pos in the relay log so no problem */
   rli->future_group_master_log_pos= log_pos;
 #endif
   clear_all_errors(thd, rli);
@@ -1960,9 +1971,11 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   if (!use_rli_only_for_errors)
   {
 #if MYSQL_VERSION_ID < 40100
-    rli->future_master_log_pos= log_pos + get_event_len();
+    rli->future_master_log_pos= log_pos + get_event_len() -
+      (rli->mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
 #elif MYSQL_VERSION_ID < 50000
-    rli->future_group_master_log_pos= log_pos + get_event_len();
+    rli->future_group_master_log_pos= log_pos + get_event_len() -
+      (rli->mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
 #else
     rli->future_group_master_log_pos= log_pos;
 #endif
@@ -2133,6 +2146,11 @@ Fatal error running LOAD DATA INFILE on table '%s'. Default database: '%s'",
 int Start_log_event::exec_event(struct st_relay_log_info* rli)
 {
 
+  /*
+    If the I/O thread has not started, mi->old_format is BINLOG_FORMAT_CURRENT
+    (that's what the MASTER_INFO constructor does), so the test below is not
+    perfect at all.
+  */
   switch (rli->mi->old_format) {
   case BINLOG_FORMAT_CURRENT : 
     /* 
@@ -2427,9 +2445,11 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
   */
 
 #if MYSQL_VERSION_ID < 40100
-    rli->future_master_log_pos= log_pos + get_event_len();
+    rli->future_master_log_pos= log_pos + get_event_len() -
+      (rli->mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
 #elif MYSQL_VERSION_ID < 50000
-    rli->future_group_master_log_pos= log_pos + get_event_len();
+    rli->future_group_master_log_pos= log_pos + get_event_len() -
+      (rli->mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
 #else
     rli->future_group_master_log_pos= log_pos;
 #endif
