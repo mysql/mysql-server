@@ -35059,20 +35059,20 @@ only a given number of rows are changed.
 @findex DELETE
 
 @example
-DELETE [LOW_PRIORITY | QUICK] FROM table_name
+DELETE [LOW_PRIORITY] [QUICK] FROM table_name
        [WHERE where_definition]
        [ORDER BY ...]
        [LIMIT rows]
 
 or
 
-DELETE [LOW_PRIORITY | QUICK] table_name[.*] [,table_name[.*] ...]
+DELETE [LOW_PRIORITY] [QUICK] table_name[.*] [,table_name[.*] ...]
        FROM table-references
        [WHERE where_definition]
 
 or
 
-DELETE [LOW_PRIORITY | QUICK]
+DELETE [LOW_PRIORITY] [QUICK]
        FROM table_name[.*], [table_name[.*] ...]
        USING table-references
        [WHERE where_definition]
