@@ -951,6 +951,7 @@ select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
 explain select s1, s1 NOT IN (SELECT s1 FROM t2) from t1;
 explain select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
 drop table t1,t2;
+
 #
 # correct ALL optimisation
 #
@@ -960,8 +961,21 @@ insert into t3 values (6),(7),(3);
 select * from t3 where a >= all (select b from t2);
 explain select * from t3 where a >= all (select b from t2);
 
+#
 # optimized static ALL/ANY with grouping
+#
 insert into t2 values (2,2), (2,1), (3,3), (3,1);
 select * from t3 where a > all (select max(b) from t2 group by a);
 explain select * from t3 where a > all (select max(b) from t2 group by a);
 drop table if exists t2, t3;
+
+#
+# DO and SET with errors
+#
+create table t1 (s1 int);
+insert into t1 values (1);
+insert into t1 values (2);
+-- error 1241
+set sort_buffer_size = (select s1 from t1);
+do (select * from t1);
+drop table t1;
