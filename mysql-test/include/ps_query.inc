@@ -421,6 +421,11 @@ prepare stmt1 from ' select a, ?, b FROM t1 outer_table where
    b=? and a = (select ? from t1 where b = ? ) ' ;
 execute stmt1 using @arg00, @arg01, @arg02, @arg03 ;
 
+# Bug#8807
+prepare stmt1 from 'select c4 FROM t9 where
+    c13 = (select MAX(b) from t1 where a = ?) and c22 = ? ' ;
+execute stmt1 using @arg01, @arg02;
+
 ######## correlated subquery
 # no parameter
 prepare stmt1 from ' select a, b FROM t1 outer_table where
