@@ -1434,7 +1434,8 @@ sp_opt_inout:
 
 sp_proc_stmts:
 	  /* Empty */ {}
-	| sp_proc_stmts sp_proc_stmt ';'
+	| sp_proc_stmts  { Lex->query_tables= 0; } sp_proc_stmt ';'
+
 	;
 
 sp_decls:
@@ -1483,6 +1484,8 @@ sp_decl:
 	        sp_instr_set *in= new sp_instr_set(lex->sphead->instructions(),
 	                                           i, it, type);
 
+		in->tables= lex->query_tables;
+		lex->query_tables= 0;
 	        lex->sphead->add_instr(in);
 	        lex->spcont->set_isset(i, TRUE);
 		lex->spcont->set_default(i, it);
@@ -1799,6 +1802,8 @@ sp_proc_stmt:
 	    dummy.str= (char *)"";
 	    dummy.length= 0;
 	    lex->spcont->push_pvar(&dummy, MYSQL_TYPE_STRING, sp_param_in);
+	    i->tables= lex->query_tables;
+	    lex->query_tables= 0;
 	    lex->sphead->add_instr(i);
 	    lex->sphead->m_simple_case= TRUE;
 	  }
@@ -2047,11 +2052,14 @@ sp_fetch_list:
 sp_if:
 	  expr THEN_SYM
 	  {
-	    sp_head *sp= Lex->sphead;
-	    sp_pcontext *ctx= Lex->spcont;
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+	    sp_pcontext *ctx= lex->spcont;
 	    uint ip= sp->instructions();
 	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, $1);
 
+	    i->tables= lex->query_tables;
+	    lex->query_tables= 0;
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
             sp->add_instr(i);
 	  }
@@ -2105,6 +2113,8 @@ sp_case:
               lex->variables_used= 1;
 	    }
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
+	    i->tables= lex->query_tables;
+	    lex->query_tables= 0;
             sp->add_instr(i);
 	  }
 	  sp_proc_stmts
@@ -2240,6 +2250,8 @@ sp_unlabeled_control:
 
 	    /* Jumping forward */
 	    sp->push_backpatch(i, lex->spcont->last_label());
+	    i->tables= lex->query_tables;
+	    lex->query_tables= 0;
             sp->add_instr(i);
 	  }
 	  sp_proc_stmts END WHILE_SYM
@@ -2258,6 +2270,8 @@ sp_unlabeled_control:
 	    sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
 	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, $4, lab->ip);
 
+	    i->tables= lex->query_tables;
+	    lex->query_tables= 0;
             lex->sphead->add_instr(i);
 	  }
 	;
@@ -6776,11 +6790,6 @@ option_value:
               sp_instr_set *i;
 	      Item *it;
 
-	      if ($3 && $3->type() == Item::SUBSELECT_ITEM)
-	      {  /* QQ For now, just disallow subselects as values */
-	        send_error(lex->thd, ER_SP_SUBSELECT_NYI);
-	        YYABORT;
-	      }
 	      spv= lex->spcont->find_pvar(&$1.base_name);
 
 	      if ($3)
@@ -6791,6 +6800,8 @@ option_value:
 	        it= new Item_null();
               i= new sp_instr_set(lex->sphead->instructions(),
 	                          spv->offset, it, spv->type);
+	      i->tables= lex->query_tables;
+	      lex->query_tables= 0;
 	      lex->sphead->add_instr(i);
 	      spv->isset= TRUE;
 	    }

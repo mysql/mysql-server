@@ -1808,6 +1808,42 @@ call bug4904()|
 
 drop procedure bug4904|
 
+#
+# BUG#336
+#
+create procedure bug336(out y int)
+begin
+  declare x int;
+  set x = (select sum(t.data) from test.t1 t);
+  set y = x;
+end|
+
+insert into t1 values ("a", 2), ("b", 3)|
+call bug336(@y)|
+select @y|
+delete from t1|
+drop procedure bug336|
+
+#
+# BUG#3157
+#
+create procedure bug3157()
+begin
+  if exists(select * from t1) then
+    set @n= @n + 1;
+  end if;
+  if (select count(*) from t1) then
+    set @n= @n + 1;
+  end if;
+end|
+
+set @n = 0|
+insert into t1 values ("a", 1)|
+call bug3157()|
+select @n|
+delete from t1|
+drop procedure bug3157|
+
 
 #
 # Some "real" examples
