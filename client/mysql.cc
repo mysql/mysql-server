@@ -495,8 +495,10 @@ static void usage(int version)
 	 my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   if (version)
     return;
-  puts("Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
+  printf("\
+Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB\n\
+This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
+and you are welcome to modify and redistribute it under the GPL license\n");
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
   printf("\n\
   -?, --help		Display this help and exit.\n\
@@ -511,7 +513,7 @@ static void usage(int version)
   -C, --compress	Use compression in server/client protocol.\n");
 #ifndef DBUG_OFF
   printf("\
-  -#, --debug[=...]     Debug log. Default is '%s'.\n",default_dbug_option);
+  -#, --debug[=...]     Debug log. Default is '%s'.\n", default_dbug_option);
 #endif
   printf("\
   -D, --database=..	Database to use.\n\
@@ -558,14 +560,16 @@ static void usage(int version)
                         variable PAGER (%s).\n\
                         Valid pagers are less, more, cat [> filename], etc.\n\
                         See interactive help (\\h) also. This option does\n\
-                        not work in batch mode.\n", getenv("PAGER") ? getenv("PAGER") : "");
+                        not work in batch mode.\n", 
+                          getenv("PAGER") ? getenv("PAGER") : "");
 #endif
   printf("\
   -p[password], --password[=...]\n\
 			Password to use when connecting to server\n\
 			If password is not given it's asked from the tty.\n");
 #ifdef __WIN__
-  puts("  -W, --pipe		Use named pipes to connect to server");
+  printf("\
+  -W, --pipe		Use named pipes to connect to server");
 #endif
   printf("\n\
   -P, --port=...	Port number to use for connection.\n\
@@ -591,6 +595,7 @@ static void usage(int version)
   -v, --verbose		Write more. (-v -v -v gives the table output format)\n\
   -V, --version		Output version information and exit.\n\
   -w, --wait		Wait and retry if connection is down.\n");
+
   print_defaults("my",load_default_groups);
 
   printf("\nPossible variables for option --set-variable (-O) are:\n");
@@ -612,15 +617,16 @@ static int get_options(int argc, char **argv)
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
-    case OPT_DEFAULT_CHARSET:
-      default_charset= optarg;
-      break;
     case OPT_CHARSETS_DIR:
       strmov(mysql_charsets_dir, optarg);
       charsets_dir = mysql_charsets_dir;
       break;
-    case 'b':
-      opt_nobeep = 1;
+    case OPT_DEFAULT_CHARSET:
+      default_charset= optarg;
+      break;
+    case OPT_LOCAL_INFILE:
+      using_opt_local_infile=1;
+      opt_local_infile= test(!optarg || atoi(optarg)>0);
       break;
     case OPT_TEE:
       if (!opt_outfile && strlen(optarg))
@@ -654,6 +660,9 @@ static int get_options(int argc, char **argv)
       break;
     case OPT_NOPAGER:
       opt_nopager=1;
+      break;
+    case 'b':
+      opt_nobeep = 1;
       break;
     case 'D':
       my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));      
@@ -709,32 +718,27 @@ static int get_options(int argc, char **argv)
       else
 	tty_password=1;
       break;
-    case 't':
-      output_tables=1;
-      break;
-    case 'r':
-      opt_raw_data=1;
-      break;
-    case '#':
-      DBUG_PUSH(optarg ? optarg : default_dbug_option);
-      info_flag=1;
-      break;
+    case 't': output_tables=1; break;
+    case 'r': opt_raw_data=1;  break;
     case 'q': quick=1; break;
     case 's': opt_silent++; break;
     case 'T': info_flag=1; break;
     case 'n': unbuffered=1; break;
     case 'v': verbose++; break;
     case 'E': vertical=1; break;
-    case 'w':
-      wait_flag=1;
-      if(optarg) wait_time = atoi(optarg) ;
-      break;
     case 'A': no_rehash=1; break;
     case 'G': no_named_cmds=0; break;
     case 'g': no_named_cmds=1; break;
     case 'H': opt_html=1; break;
     case 'X': opt_xml=1; break;
     case 'i': connect_flag|= CLIENT_IGNORE_SPACE; break;
+    case 'C': opt_compress=1; break;
+    case 'L': skip_line_numbers=1; break;
+    case 'N': skip_column_names=1; break;
+    case 'w':
+      wait_flag=1;
+      if(optarg) wait_time = atoi(optarg) ;
+      break;
     case 'B':
       if (!status.batch)
       {
@@ -742,19 +746,6 @@ static int get_options(int argc, char **argv)
 	status.add_to_history=0;
 	opt_silent++;				// more silent
       }
-      break;
-    case 'C':
-      opt_compress=1;
-      break;
-    case OPT_LOCAL_INFILE:
-      using_opt_local_infile=1;
-      opt_local_infile= test(!optarg || atoi(optarg)>0);
-      break;
-    case 'L':
-      skip_line_numbers=1;
-      break;
-    case 'N':
-      skip_column_names=1;
       break;
     case 'P':
       opt_mysql_port= (unsigned int) atoi(optarg);
@@ -773,6 +764,10 @@ static int get_options(int argc, char **argv)
     case '?':
       usage(0);
       exit(0);
+    case '#':
+      DBUG_PUSH(optarg ? optarg : default_dbug_option);
+      info_flag=1;
+      break;
 #include "sslopt-case.h"
     default:
       tee_fprintf(stderr,"illegal option: -%c\n",opterr);
