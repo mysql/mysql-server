@@ -1,0 +1,48 @@
+DROP TABLE IF EXISTS t1;
+SELECT IF(NULL AND 1, 1, 2), IF(1 AND NULL, 1, 2);
+IF(NULL AND 1, 1, 2)	IF(1 AND NULL, 1, 2)
+2	2
+SELECT NULL AND 1, 1 AND NULL, 0 AND NULL, NULL and 0;
+NULL AND 1	1 AND NULL	0 AND NULL	NULL and 0
+NULL	NULL	0	0
+create table t1 (a int);
+insert into t1 values (0),(1),(NULL);
+SELECT * FROM t1 WHERE IF(a AND 1, 0, 1);
+a
+0
+NULL
+SELECT * FROM t1 WHERE IF(1 AND a, 0, 1);
+a
+0
+NULL
+SELECT * FROM t1 where NOT(a AND 1);
+a
+0
+SELECT * FROM t1 where NOT(1 AND a);
+a
+0
+SELECT * FROM t1 where (a AND 1)=0;
+a
+0
+SELECT * FROM t1 where (1 AND a)=0;
+a
+0
+SELECT * FROM t1 where (1 AND a)=1;
+a
+1
+SELECT * FROM t1 where (1 AND a) IS NULL;
+a
+NULL
+SET @a=0, @b=0;
+SELECT * FROM t1 WHERE NULL AND (@a:=@a+1);
+a
+SELECT * FROM t1 WHERE NOT(a>=0 AND NULL AND (@b:=@b+1));
+a
+SELECT * FROM t1 WHERE a=2 OR (NULL AND (@a:=@a+1));
+a
+SELECT * FROM t1 WHERE NOT(a=2 OR (NULL AND (@b:=@b+1)));
+a
+SELECT @a, @b;
+@a	@b
+0	6
+DROP TABLE t1;
