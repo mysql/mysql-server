@@ -128,3 +128,4 @@ a	MAX(b)	ELT(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f')
 a	MAX(b)	MAKE_SET(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h')
 1	4	c
 10	43	a,b,d,f
+a	c	count(distinct rand())
