@@ -577,16 +577,22 @@ void reset_slave()
 {
   MY_STAT stat_area;
   char fname[FN_REFLEN];
-  bool slave_was_running = slave_running;
+  bool slave_was_running ;
 
-  if(slave_running)
-    stop_slave(0,0);
-
+  pthread_mutex_lock(&LOCK_slave);
+  if((slave_was_running = slave_running))
+    {
+      pthread_mutex_unlock(&LOCK_slave);
+      stop_slave(0,0);
+    }
+  else
+    pthread_mutex_unlock(&LOCK_slave);
+  
+  end_master_info(&glob_mi);
   fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
   if(my_stat(fname, &stat_area, MYF(0)))
     if(my_delete(fname, MYF(MY_WME)))
         return;
-  end_master_info(&glob_mi);
   if(slave_was_running)
     start_slave(0,0);
 }

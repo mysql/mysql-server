@@ -1306,11 +1306,11 @@ int main(int argc, char** argv)
 
   close_cons();
 
-  if(result_file)
+  if(result_file && ds_res.len)
     {
-      if(!record && ds_res.len)
+      if(!record)
 	error |= check_result(&ds_res, result_file);
-      else
+      else 
 	str_to_file(result_file, ds_res.str, ds_res.len);
     }
   dyn_string_end(&ds_res);

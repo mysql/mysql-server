@@ -259,7 +259,7 @@ int db_ok(const char* db, I_List<i_string> &do_list,
     }
 }
 
-static void init_strvar_from_file(char* var, int max_size, IO_CACHE* f,
+static int init_strvar_from_file(char* var, int max_size, IO_CACHE* f,
 			       char* default_val)
 {
 
@@ -272,12 +272,18 @@ static void init_strvar_from_file(char* var, int max_size, IO_CACHE* f,
 	while( ((c=my_b_get(f)) != '\n' && c != my_b_EOF));
       // if we truncated a line or stopped on last char, remove all chars
       // up to and including newline
+      return 0;
     }
   else if(default_val)
-   strmake(var,  default_val, max_size);
+    {
+      strmake(var,  default_val, max_size);
+      return 0;
+    }
+  
+  return 1;
 }
 
-static void init_intvar_from_file(int* var, IO_CACHE* f,
+static int init_intvar_from_file(int* var, IO_CACHE* f,
 			       int default_val)
 {
   char buf[32];
@@ -285,9 +291,14 @@ static void init_intvar_from_file(int* var, IO_CACHE* f,
   if(my_b_gets(f, buf, sizeof(buf))) 
     {
       *var = atoi(buf);
+      return 0;
     }
   else if(default_val)
-   *var = default_val;
+    {
+     *var = default_val;
+     return 0;
+    }
+  return 1;
 }
 
 
@@ -462,6 +473,8 @@ int init_master_info(MASTER_INFO* mi)
 	  || init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,0,
 			   MYF(MY_WME)))
 	{
+	  if(fd >= 0)
+	    my_close(fd, MYF(0));
 	  pthread_mutex_unlock(&mi->lock);
 	  return 1;
 	}
@@ -487,6 +500,8 @@ int init_master_info(MASTER_INFO* mi)
 	  || init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,
 			   0, MYF(MY_WME)))
 	{
+	  if(fd >= 0)
+	    my_close(fd, MYF(0));
 	  pthread_mutex_unlock(&mi->lock);
 	  return 1;
 	}
@@ -494,6 +509,8 @@ int init_master_info(MASTER_INFO* mi)
       if(!my_b_gets(&mi->file, mi->log_file_name, sizeof(mi->log_file_name)))
 	{
 	  sql_print_error("Error reading log file name from master info file ");
+	  end_io_cache(&mi->file);
+	  my_close(fd, MYF(0));
 	  pthread_mutex_unlock(&mi->lock);
           return 1;
 	}
@@ -503,23 +520,30 @@ int init_master_info(MASTER_INFO* mi)
       if(!my_b_gets(&mi->file, buf, sizeof(buf)))
 	{
 	  sql_print_error("Error reading log file position from master info file");
+	  end_io_cache(&mi->file);
+	  my_close(fd, MYF(0));
 	  pthread_mutex_unlock(&mi->lock);
 	  return 1;
 	}
 
       mi->pos = atoi(buf);
       mi->fd = fd;
-      init_strvar_from_file(mi->host, sizeof(mi->host), &mi->file,
-			    master_host);
-      init_strvar_from_file(mi->user, sizeof(mi->user), &mi->file,
-			    master_user); 
-      init_strvar_from_file(mi->password, sizeof(mi->password), &mi->file,
-			 master_password);
-      
-      init_intvar_from_file((int*)&mi->port, &mi->file, master_port);	
-      init_intvar_from_file((int*)&mi->connect_retry, &mi->file,
-			    master_connect_retry);
-      
+      if(init_strvar_from_file(mi->host, sizeof(mi->host), &mi->file,
+			    master_host) ||
+         init_strvar_from_file(mi->user, sizeof(mi->user), &mi->file,
+			    master_user) || 
+         init_strvar_from_file(mi->password, sizeof(mi->password), &mi->file,
+			 master_password) ||
+         init_intvar_from_file((int*)&mi->port, &mi->file, master_port) ||
+         init_intvar_from_file((int*)&mi->connect_retry, &mi->file,
+			       master_connect_retry))
+	{
+	  sql_print_error("Error reading master configuration");
+	  end_io_cache(&mi->file);
+	  my_close(fd, MYF(0));
+	  pthread_mutex_unlock(&mi->lock);
+	  return 1;
+	}
     }
   
   mi->inited = 1;
@@ -858,65 +882,72 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	thd->query_id = query_id++;
 	VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
-	enum enum_duplicates handle_dup = DUP_IGNORE;
-	if(lev->sql_ex.opt_flags && REPLACE_FLAG)
-	  handle_dup = DUP_REPLACE;
-	sql_exchange ex((char*)lev->fname, lev->sql_ex.opt_flags &&
-			DUMPFILE_FLAG );
-	String field_term(&lev->sql_ex.field_term, 1),
-	  enclosed(&lev->sql_ex.enclosed, 1),
-	  line_term(&lev->sql_ex.line_term,1),
-	  escaped(&lev->sql_ex.escaped, 1),
-	  line_start(&lev->sql_ex.line_start, 1);
-	    
-	ex.field_term = &field_term;
-	if(lev->sql_ex.empty_flags & FIELD_TERM_EMPTY)
-	  ex.field_term->length(0);
-	    
-	ex.enclosed = &enclosed;
-	if(lev->sql_ex.empty_flags & ENCLOSED_EMPTY)
-	  ex.enclosed->length(0);
-
-	ex.line_term = &line_term;
-	if(lev->sql_ex.empty_flags & LINE_TERM_EMPTY)
-	  ex.line_term->length(0);
-
-	ex.line_start = &line_start;
-	if(lev->sql_ex.empty_flags & LINE_START_EMPTY)
-	  ex.line_start->length(0);
-
-	ex.escaped = &escaped;
-	if(lev->sql_ex.empty_flags & ESCAPED_EMPTY)
-	  ex.escaped->length(0);
-
-	ex.opt_enclosed = (lev->sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
-	if(lev->sql_ex.empty_flags & FIELD_TERM_EMPTY)
-	  ex.field_term->length(0);
-	    
-	ex.skip_lines = lev->skip_lines;
-	    
 	TABLE_LIST tables;
 	bzero((char*) &tables,sizeof(tables));
 	tables.db = thd->db;
 	tables.name = tables.real_name = (char*)lev->table_name;
 	tables.lock_type = TL_WRITE;
 	// the table will be opened in mysql_load    
+        if(table_rules_on && !tables_ok(thd, &tables))
+	  {
+	    skip_load_data_infile(net);
+	  }
+	else
+	  {
+	    enum enum_duplicates handle_dup = DUP_IGNORE;
+	    if(lev->sql_ex.opt_flags && REPLACE_FLAG)
+	      handle_dup = DUP_REPLACE;
+	    sql_exchange ex((char*)lev->fname, lev->sql_ex.opt_flags &&
+			    DUMPFILE_FLAG );
+	    String field_term(&lev->sql_ex.field_term, 1),
+	      enclosed(&lev->sql_ex.enclosed, 1),
+	      line_term(&lev->sql_ex.line_term,1),
+	      escaped(&lev->sql_ex.escaped, 1),
+	      line_start(&lev->sql_ex.line_start, 1);
+	    
+	    ex.field_term = &field_term;
+	    if(lev->sql_ex.empty_flags & FIELD_TERM_EMPTY)
+	      ex.field_term->length(0);
+	    
+	    ex.enclosed = &enclosed;
+	    if(lev->sql_ex.empty_flags & ENCLOSED_EMPTY)
+	      ex.enclosed->length(0);
 
-	List<Item> fields;
-	lev->set_fields(fields);
-	thd->slave_proxy_id = thd->thread_id;
-	thd->net.vio = net->vio;
-	// mysql_load will use thd->net to read the file
-	thd->net.pkt_nr = net->pkt_nr;
-	// make sure the client does get confused
-	// about the packet sequence
-	if(mysql_load(thd, &ex, &tables, fields, handle_dup, 1,
-		      TL_WRITE))
-	  thd->query_error = 1;
-	if(thd->cuted_fields)
-	  sql_print_error("Slave: load data infile at position %d in log \
+	    ex.line_term = &line_term;
+	    if(lev->sql_ex.empty_flags & LINE_TERM_EMPTY)
+	      ex.line_term->length(0);
+
+	    ex.line_start = &line_start;
+	    if(lev->sql_ex.empty_flags & LINE_START_EMPTY)
+	      ex.line_start->length(0);
+
+	    ex.escaped = &escaped;
+	    if(lev->sql_ex.empty_flags & ESCAPED_EMPTY)
+	      ex.escaped->length(0);
+
+	    ex.opt_enclosed = (lev->sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
+	    if(lev->sql_ex.empty_flags & FIELD_TERM_EMPTY)
+	      ex.field_term->length(0);
+	    
+	    ex.skip_lines = lev->skip_lines;
+	    
+
+	    List<Item> fields;
+	    lev->set_fields(fields);
+	    thd->slave_proxy_id = thd->thread_id;
+	    thd->net.vio = net->vio;
+	    // mysql_load will use thd->net to read the file
+	    thd->net.pkt_nr = net->pkt_nr;
+	    // make sure the client does get confused
+	    // about the packet sequence
+	    if(mysql_load(thd, &ex, &tables, fields, handle_dup, 1,
+			  TL_WRITE))
+	      thd->query_error = 1;
+	    if(thd->cuted_fields)
+	      sql_print_error("Slave: load data infile at position %d in log \
 '%s' produced %d warning(s)", glob_mi.pos, RPL_LOG_NAME, thd->cuted_fields );
-	net->pkt_nr = thd->net.pkt_nr;
+	    net->pkt_nr = thd->net.pkt_nr;
+	  }
       }
       else // we will just ask the master to send us /dev/null if we do not want to
 	// load the data :-)
