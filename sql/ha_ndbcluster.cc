@@ -1290,7 +1290,6 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
     Field *field= key_part->field;
     uint part_len= key_part->length;
     uint part_store_len= key_part->store_length;
-    bool part_nullable= (bool) key_part->null_bit;
     // Info about each key part
     struct part_st {
       bool part_last;
@@ -1312,9 +1311,9 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
         p.part_last= (tot_len + part_store_len >= key_tot_len[j]);
         p.key= keys[j];
         p.part_ptr= &p.key->key[tot_len];
-        p.part_null= (field->maybe_null() && *p.part_ptr);
+        p.part_null= key_part->null_bit && *p.part_ptr;
         p.bound_ptr= (const char *)
-          p.part_null ? 0 : part_nullable ? p.part_ptr + 1 : p.part_ptr;
+          p.part_null ? 0 : key_part->null_bit ? p.part_ptr + 1 : p.part_ptr;
 
         if (j == 0)
         {
