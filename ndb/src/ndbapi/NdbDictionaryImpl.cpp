@@ -218,6 +218,12 @@ NdbColumnImpl::create_psuedo(const char * name){
     col->m_impl.m_attrId = AttributeHeader::COMMIT_COUNT;
     col->m_impl.m_attrSize = 8;
     col->m_impl.m_arraySize = 1;
+  } else if(!strcmp(name, "NDB$RANGE_NO")){
+    col->setType(NdbDictionary::Column::Unsigned);
+    col->m_impl.m_attrId = AttributeHeader::RANGE_NO;
+    col->m_impl.m_attrSize = 4;
+    col->m_impl.m_arraySize = 1;
+    col->m_impl.m_extType = NdbSqlUtil::Type::Unsigned;
   } else {
     abort();
   }
@@ -685,6 +691,8 @@ NdbDictionaryImpl::setTransporter(class Ndb* ndb,
 	NdbColumnImpl::create_psuedo("NDB$ROW_COUNT");
       NdbDictionary::Column::COMMIT_COUNT= 
 	NdbColumnImpl::create_psuedo("NDB$COMMIT_COUNT");
+      NdbDictionary::Column::RANGE_NO= 
+	NdbColumnImpl::create_psuedo("NDB$RANGE_NO");
     }
     m_globalHash->unlock();
     return true;

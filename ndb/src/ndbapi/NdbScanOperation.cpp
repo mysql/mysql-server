@@ -121,6 +121,7 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbConnection* myConnection)
   theOperationType = OpenScanRequest;
   theNdbCon->theMagicNumber = 0xFE11DF;
   theNoOfTupKeyLeft = tab->m_noOfDistributionKeys;
+  m_read_range_no = 0;
   return 0;
 }
 
@@ -735,7 +736,9 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   req->requestInfo = reqInfo;
   
   for(Uint32 i = 0; i<theParallelism; i++){
-    m_receivers[i]->do_get_value(&theReceiver, batch_size, key_size);
+    m_receivers[i]->do_get_value(&theReceiver, batch_size, 
+				 key_size, 
+				 m_read_range_no);
   }
   return 0;
 }
@@ -1197,8 +1200,17 @@ NdbResultSet*
 NdbIndexScanOperation::readTuples(LockMode lm,
 				  Uint32 batch,
 				  Uint32 parallel,
-				  bool order_by){
+				  bool order_by,
+				  bool read_range_no){
   NdbResultSet * rs = NdbScanOperation::readTuples(lm, batch, 0);
+  if(read_range_no)
+  {
+    m_read_range_no = 1;
+    Uint32 word = 0;
+    AttributeHeader::init(&word, AttributeHeader::RANGE_NO, 0);
+    if(insertATTRINFO(word) == -1)
+      rs = 0;
+  }
   if(rs && order_by){
     m_ordered = 1;
     Uint32 cnt = m_accessTable->getNoOfColumns() - 1;
@@ -1264,7 +1276,6 @@ NdbIndexScanOperation::compare(Uint32 skip, Uint32 cols,
 
   r1 = (skip ? r1->next() : r1);
   r2 = (skip ? r2->next() : r2);
-  
   while(cols > 0){
     Uint32 * d1 = (Uint32*)r1->aRef();
     Uint32 * d2 = (Uint32*)r2->aRef();
@@ -1366,7 +1377,7 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed,
 				 s_idx, s_last);
 
 
-  Uint32 cols = m_sort_columns;
+  Uint32 cols = m_sort_columns + m_read_range_no;
   Uint32 skip = m_keyInfo;
   while(u_idx < u_last){
     u_last--;
@@ -1640,13 +1651,41 @@ NdbIndexScanOperation::reset_bounds(bool forceSend){
 }
 
 int
-NdbIndexScanOperation::end_of_bound()
+NdbIndexScanOperation::end_of_bound(Uint32 no)
 {
-  Uint32 bound_head = * m_first_bound_word;
-  bound_head |= (theTupKeyLen - m_this_bound_start) << 16;
-  * m_first_bound_word = bound_head;
-  
-  m_first_bound_word = theKEYINFOptr + theTotalNrOfKeyWordInSignal;;
-  m_this_bound_start = theTupKeyLen;
+  if(no < (1 << 13)) // Only 12-bits no of ranges
+  {
+    Uint32 bound_head = * m_first_bound_word;
+    bound_head |= (theTupKeyLen - m_this_bound_start) << 16 | (no << 4);
+    * m_first_bound_word = bound_head;
+    
+    m_first_bound_word = theKEYINFOptr + theTotalNrOfKeyWordInSignal;;
+    m_this_bound_start = theTupKeyLen;
+    return 0;
+  }
+  return -1;
+}
+
+Uint32
+NdbIndexScanOperation::get_range_no()
+{
+  if(m_read_range_no)
+  {
+    Uint32 idx = m_current_api_receiver;
+    Uint32 last = m_api_receivers_count;
+    
+    Uint32 row;
+    NdbReceiver * tRec;
+    NdbRecAttr * tRecAttr;
+    if(idx < last && (tRec = m_api_receivers[idx]) 
+       && ((row = tRec->m_current_row) <= tRec->m_defined_rows)
+       && (tRecAttr = tRec->m_rows[row-1])){
+      
+      if(m_keyInfo)
+	tRecAttr = tRecAttr->next();
+      Uint32 ret = *(Uint32*)tRecAttr->aRef();
+      return ret;
+    }
+  }
   return 0;
 }

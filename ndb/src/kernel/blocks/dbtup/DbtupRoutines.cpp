@@ -998,6 +998,13 @@ Dbtup::read_psuedo(Uint32 attrId, Uint32* outBuffer){
     outBuffer[0] = signal->theData[0];
     outBuffer[1] = signal->theData[1];
     return 2;
+  case AttributeHeader::RANGE_NO:
+    signal->theData[0] = operPtr.p->userpointer;
+    signal->theData[1] = attrId;
+    
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSUEDO_REQ, signal, 2);
+    outBuffer[0] = signal->theData[0];
+    return 1;
   default:
     return 0;
   }
