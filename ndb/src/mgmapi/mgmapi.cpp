@@ -368,7 +368,7 @@ ndb_mgm_connect(NdbMgmHandle handle, const char * mgmsrv)
    */
   SocketClient s(handle->hostname, handle->port);
   const NDB_SOCKET_TYPE sockfd = s.connect();
-  if (sockfd < 0) {
+  if (sockfd == NDB_INVALID_SOCKET) {
     setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
 	     "Unable to connect to %s", mgmsrv);
     return -1;
@@ -1082,7 +1082,7 @@ ndb_mgm_listen_event(NdbMgmHandle handle, int filter[])
   
   SocketClient s(handle->hostname, handle->port);
   const NDB_SOCKET_TYPE sockfd = s.connect();
-  if (sockfd < 0) {
+  if (sockfd == NDB_INVALID_SOCKET) {
     setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
 	     "Unable to connect to");
     return -1;
