@@ -179,9 +179,39 @@ TEST_join(JOIN *join)
 		"                  quick select checked for each record (keys: %d)\n",
 		(int) tab->select->quick_keys);
       else if (tab->select->quick)
-	fprintf(DBUG_FILE,"                  quick select used on key %s, length: %d\n",
+      {
+        int quick_type= tab->select->quick->get_type();
+        if ((quick_type == QUICK_SELECT_I::QS_TYPE_RANGE) || 
+            (quick_type == QUICK_SELECT_I::QS_TYPE_RANGE_DESC))
+        {
+	  fprintf(DBUG_FILE,
+                "                  quick select used on key %s, length: %d\n",
 		form->key_info[tab->select->quick->index].name,
 		tab->select->quick->max_used_key_length);
+        }
+        else if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
+        {
+          QUICK_INDEX_MERGE_SELECT *quick_imerge= 
+              (QUICK_INDEX_MERGE_SELECT*)tab->select->quick;
+          QUICK_RANGE_SELECT *quick;
+          fprintf(DBUG_FILE,
+                  "                  index_merge quick select used\n");
+                    
+          List_iterator_fast<QUICK_RANGE_SELECT> it(quick_imerge->quick_selects);
+          while ((quick = it++))
+          {
+  	    fprintf(DBUG_FILE,
+                "                  range quick select: key %s, length: %d\n",
+		form->key_info[quick->index].name,
+		quick->max_used_key_length);
+          }
+        }
+        else
+        {
+          fprintf(DBUG_FILE,
+                  "                  quick select of unknown nature used\n");
+        }
+      }
       else
 	VOID(fputs("                  select used\n",DBUG_FILE));
     }

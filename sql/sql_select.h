@@ -76,7 +76,7 @@ typedef struct st_join_cache {
 
 enum join_type { JT_UNKNOWN,JT_SYSTEM,JT_CONST,JT_EQ_REF,JT_REF,JT_MAYBE_REF,
 		 JT_ALL, JT_RANGE, JT_NEXT, JT_FT, JT_REF_OR_NULL,
-		 JT_SIMPLE_IN, JT_INDEX_IN};
+		 JT_SIMPLE_IN, JT_INDEX_IN, JT_INDEX_MERGE}; 
 
 class JOIN;
 
@@ -85,7 +85,7 @@ typedef struct st_join_table {
   KEYUSE	*keyuse;			/* pointer to first used key */
   SQL_SELECT	*select;
   COND		*select_cond;
-  QUICK_SELECT	*quick;
+  QUICK_SELECT_I *quick;
   Item		*on_expr;
   const char	*info;
   byte		*null_ref_key;
@@ -307,9 +307,13 @@ void copy_fields(TMP_TABLE_PARAM *param);
 void copy_funcs(Item **func_ptr);
 bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
 			     int error, bool ignore_last_dupp_error);
+uint find_shortest_key(TABLE *table, key_map usable_keys);
 
 /* functions from opt_sum.cc */
 int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds);
+
+/* from sql_delete.cc, used by opt_range.cc */
+extern "C" int refposcmp2(void* arg, const void *a,const void *b);
 
 /* class to copying an field/item to a key struct */
 

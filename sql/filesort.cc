@@ -49,7 +49,8 @@ static int merge_index(SORTPARAM *param,uchar *sort_buffer,
 		       BUFFPEK *buffpek,
 		       uint maxbuffer,IO_CACHE *tempfile,
 		       IO_CACHE *outfile);
-static bool save_index(SORTPARAM *param,uchar **sort_keys, uint count);
+static bool save_index(SORTPARAM *param,uchar **sort_keys, uint count, 
+                       FILESORT_INFO *table_sort);
 static uint sortlength(SORT_FIELD *sortorder, uint s_length,
 		       bool *multi_byte_charset);
 static SORT_ADDON_FIELD *get_addon_fields(THD *thd, Field **ptabfield,
@@ -86,7 +87,9 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_PUSH("");		/* No DBUG here */
 #endif
-
+  FILESORT_INFO table_sort;
+  bzero(&table_sort, sizeof(FILESORT_INFO));
+  
   outfile= table->sort.io_cache;
   my_b_clear(&tempfile);
   my_b_clear(&buffpek_pointers);
@@ -108,14 +111,15 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
                                         param.sort_length,
                                         &param.addon_length);
   }
-  table->sort.addon_buf= 0;
-  table->sort.addon_length= param.addon_length;
-  table->sort.addon_field= param.addon_field;
-  table->sort.unpack= unpack_addon_fields;
+
+  table_sort.addon_buf= 0;
+  table_sort.addon_length= param.addon_length;
+  table_sort.addon_field= param.addon_field;
+  table_sort.unpack= unpack_addon_fields;
   if (param.addon_field)
   {
     param.res_length= param.addon_length;
-    if (!(table->sort.addon_buf= (byte *) my_malloc(param.addon_length,
+    if (!(table_sort.addon_buf= (byte *) my_malloc(param.addon_length,
                                                     MYF(MY_WME))))
       goto err;
   }
@@ -194,7 +198,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 
   if (maxbuffer == 0)			// The whole set is in memory
   {
-    if (save_index(&param,sort_keys,(uint) records))
+    if (save_index(&param,sort_keys,(uint) records, &table_sort))
       goto err;
   }
   else
@@ -257,6 +261,8 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_POP();			/* Ok to DBUG */
 #endif
+  memcpy(&table->sort, &table_sort, sizeof(FILESORT_INFO));
+  table->sort.io_cache= outfile;
   DBUG_PRINT("exit",("records: %ld",records));
   DBUG_RETURN(error ? HA_POS_ERROR : records);
 } /* filesort */
@@ -360,12 +366,24 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 		    current_thd->variables.read_buff_size);
   }
 
+  READ_RECORD read_record_info;
+  if (quick_select)
+  {
+    if (select->quick->reset())
+      DBUG_RETURN(HA_POS_ERROR);
+    init_read_record(&read_record_info, current_thd, select->quick->head,
+                     select, 1, 1);
+  }
+
   for (;;)
   {
     if (quick_select)
     {
-      if ((error=select->quick->get_next()))
-	break;
+      if ((error= read_record_info.read_record(&read_record_info)))
+      {
+        error= HA_ERR_END_OF_FILE;
+        break;
+      }
       file->position(sort_form->record[0]);
     }
     else					/* Not quick-select */
@@ -393,6 +411,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
       if (error && error != HA_ERR_RECORD_DELETED)
 	break;
     }
+
     if (*killed)
     {
       DBUG_PRINT("info",("Sort killed by user"));
@@ -426,8 +445,14 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     else
       file->unlock_row();
   }
-  (void) file->extra(HA_EXTRA_NO_CACHE);	/* End cacheing of records */
-  file->rnd_end();
+  if (quick_select)
+    end_read_record(&read_record_info);
+  else
+  {
+    (void) file->extra(HA_EXTRA_NO_CACHE);	/* End cacheing of records */
+    file->rnd_end();
+  }
+
   DBUG_PRINT("test",("error: %d  indexpos: %d",error,indexpos));
   if (error != HA_ERR_END_OF_FILE)
   {
@@ -665,8 +690,8 @@ static void make_sortkey(register SORTPARAM *param,
   return;
 }
 
-
-static bool save_index(SORTPARAM *param, uchar **sort_keys, uint count)
+static bool save_index(SORTPARAM *param, uchar **sort_keys, uint count, 
+                       FILESORT_INFO *table_sort)
 {
   uint offset,res_length;
   byte *to;
@@ -677,7 +702,7 @@ static bool save_index(SORTPARAM *param, uchar **sort_keys, uint count)
   offset= param->rec_length-res_length;
   if ((ha_rows) count > param->max_rows)
     count=(uint) param->max_rows;
-  if (!(to= param->sort_form->sort.record_pointers=
+  if (!(to= table_sort->record_pointers= 
         (byte*) my_malloc(res_length*count, MYF(MY_WME))))
     DBUG_RETURN(1);                 /* purecov: inspected */
   for (uchar **end= sort_keys+count ; sort_keys != end ; sort_keys++)
