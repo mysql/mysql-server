@@ -2134,7 +2134,7 @@ String *Item_func_quote::val_str(String *str)
   */
   to= (char*) str->ptr() + new_length - 1;
   *to--= '\'';
-  for (start= (char*) arg->ptr() ; end-- != start; to--)
+  for (start= (char*) arg->ptr(),end= start + arg_length; end-- != start; to--)
   {
     /*
       We can't use the bitmask here as we want to replace \O and ^Z with 0
