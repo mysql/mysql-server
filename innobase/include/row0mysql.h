@@ -363,6 +363,15 @@ row_get_background_drop_list_len_low(void);
 /*======================================*/
 					/* out: how many tables in list */
 /*************************************************************************
+Truncates a table for MySQL. */
+
+int
+row_truncate_table_for_mysql(
+/*=========================*/
+				/* out: error code or DB_SUCCESS */
+	dict_table_t*	table,	/* in: table handle */
+	trx_t*		trx);	/* in: transaction handle */
+/*************************************************************************
 Drops a table for MySQL. If the name of the dropped table ends to
 characters INNODB_MONITOR, then this also stops printing of monitor
 output by the master thread. */
@@ -447,6 +456,8 @@ struct mysql_row_templ_struct {
 					zero if column cannot be NULL */
 	ulint	type;			/* column type in Innobase mtype
 					numbers DATA_CHAR... */
+	ulint	charset;		/* MySQL charset-collation code
+					of the column, or zero */
 	ulint	is_unsigned;		/* if a column type is an integer
 					type and this field is != 0, then
 					it is an unsigned integer type */
@@ -531,10 +542,7 @@ struct row_prebuilt_struct {
 					format */
 	ulint		hint_need_to_fetch_extra_cols;
 					/* normally this is set to 0; if this
-					is set to ROW_RETRIEVE_PRIMARY_KEY
-					(that value is obsolete starting from
-					5.0.2, because we always fetch the
-					primary key cols),
+					is set to ROW_RETRIEVE_PRIMARY_KEY,
 					then we should at least retrieve all
 					columns in the primary key; if this
 					is set to ROW_RETRIEVE_ALL_COLS, then
@@ -607,9 +615,6 @@ struct row_prebuilt_struct {
 
 /* Values for hint_need_to_fetch_extra_cols */
 #define ROW_RETRIEVE_PRIMARY_KEY	1
-					/* value 1 is obsolete starting from
-					5.0.2, because we always fetch the
-					primary key cols */
 #define ROW_RETRIEVE_ALL_COLS		2
 
 

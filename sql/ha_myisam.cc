@@ -1467,7 +1467,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 	  fieldpos <= minpos)
       {
 	/* skip null fields */
-	if (!(temp_length= (*field)->pack_length()))
+	if (!(temp_length= (*field)->pack_length_in_rec()))
 	  continue;				/* Skip null-fields */
 	if (! found || fieldpos < minpos ||
 	    (fieldpos == minpos && temp_length < length))

@@ -295,7 +295,7 @@ execute stmt4;
 prepare stmt4 from ' show full processlist ';
 execute stmt4;
 Id	User	Host	db	Command	Time	State	Info
-number	root	localhost	test	Query	seconds	NULL	show full processlist
+number	root	localhost	test	Query	time	NULL	show full processlist
 prepare stmt4 from ' show grants for user ';
 prepare stmt4 from ' show create table t2 ';
 ERROR HY000: This command is not supported in the prepared statement protocol yet
@@ -471,7 +471,7 @@ ERROR HY000: This command is not supported in the prepared statement protocol ye
 prepare stmt1 from ' explain select a from t1 order by b ';
 execute stmt1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					id	8	3	1	N	32801	0	8
+def					id	8	3	1	N	32929	0	63
 def					select_type	253	19	6	N	1	31	8
 def					table	253	64	2	N	1	31	8
 def					type	253	10	3	N	1	31	8
@@ -479,7 +479,7 @@ def					possible_keys	253	4096	0	Y	0	31	8
 def					key	253	64	0	Y	0	31	8
 def					key_len	253	4096	0	Y	128	31	63
 def					ref	253	1024	0	Y	0	31	8
-def					rows	8	10	1	N	32801	0	8
+def					rows	8	10	1	N	32929	0	63
 def					Extra	253	255	14	N	1	31	8
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
@@ -487,7 +487,7 @@ SET @arg00=1 ;
 prepare stmt1 from ' explain select a from t1 where a > ? order by b ';
 execute stmt1 using @arg00;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					id	8	3	1	N	32801	0	8
+def					id	8	3	1	N	32929	0	63
 def					select_type	253	19	6	N	1	31	8
 def					table	253	64	2	N	1	31	8
 def					type	253	10	5	N	1	31	8
@@ -495,7 +495,7 @@ def					possible_keys	253	4096	7	Y	0	31	8
 def					key	253	64	7	Y	0	31	8
 def					key_len	253	4096	1	Y	128	31	63
 def					ref	253	1024	0	Y	0	31	8
-def					rows	8	10	1	N	32801	0	8
+def					rows	8	10	1	N	32929	0	63
 def					Extra	253	255	27	N	1	31	8
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	Using where; Using filesort

@@ -1312,7 +1312,10 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
     if (tapiBlockref == apiConnectptr.p->ndbapiBlockref) {
       if (apiConnectptr.p->apiConnectstate == CS_CONNECTED ||
 	  (apiConnectptr.p->apiConnectstate == CS_ABORTING &&
-	   apiConnectptr.p->abortState == AS_IDLE)){
+	   apiConnectptr.p->abortState == AS_IDLE) ||
+	  (apiConnectptr.p->apiConnectstate == CS_STARTED &&
+	   apiConnectptr.p->firstTcConnect == RNIL))
+      {
         jam();                                   /* JUST REPLY OK */
         releaseApiCon(signal, apiConnectptr.i);
         signal->theData[0] = tuserpointer;
@@ -3081,6 +3084,15 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     execDIGETNODESREF(signal);
     return;
   }
+  
+  if(ERROR_INSERTED(8050) && signal->theData[3] != getOwnNodeId())
+  {
+    ndbassert(false);
+    signal->theData[1] = 626;
+    execDIGETNODESREF(signal);
+    return;
+  }
+  
   /****************>>*/
   /* DIGETNODESCONF >*/
   /* ***************>*/

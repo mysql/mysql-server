@@ -1,4 +1,4 @@
-languages czech=cze latin2, danish=dan latin1, dutch=nla latin1, english=eng latin1, estonian=est latin7, french=fre latin1, german=ger latin1, greek=greek greek, hungarian=hun latin2, italian=ita latin1, japanese=jpn ujis, korean=kor euckr, norwegian-ny=norwegian-ny latin1, norwegian=nor latin1, polish=pol latin2, portuguese=por latin1, romanian=rum latin2, russian=rus koi8r, serbian=serbian cp1250, slovak=slo latin2, spanish=spa latin1, swedish=swe latin1, ukrainian=ukr koi8u;
+languages czech=cze latin2, danish=dan latin1, dutch=nla latin1, english=eng latin1, estonian=est latin7, french=fre latin1, german=ger latin1, greek=greek greek, hungarian=hun latin2, italian=ita latin1, japanese=jpn ujis, japanese-sjis=jps sjis, korean=kor euckr, norwegian-ny=norwegian-ny latin1, norwegian=nor latin1, polish=pol latin2, portuguese=por latin1, romanian=rum latin2, russian=rus koi8r, serbian=serbian cp1250, slovak=slo latin2, spanish=spa latin1, swedish=swe latin1, ukrainian=ukr koi8u;
 
 default-language eng
 
@@ -79,6 +79,7 @@ ER_CANT_CREATE_TABLE
 	dan "Kan ikke oprette tabellen '%-.64s' (Fejlkode: %d)"
 	nla "Kan tabel '%-.64s' niet aanmaken (Errcode: %d)"
 	eng "Can't create table '%-.64s' (errno: %d)"
+	jps "'%-.64s' ƒe[ƒuƒ‹‚ªì‚ê‚Ü‚¹‚ñ.(errno: %d)",
 	est "Ei suuda luua tabelit '%-.64s' (veakood: %d)"
 	fre "Ne peut créer la table '%-.64s' (Errcode: %d)"
 	ger "Kann Tabelle '%-.64s' nicht erzeugen (Fehler: %d)"
@@ -103,6 +104,7 @@ ER_CANT_CREATE_DB
 	dan "Kan ikke oprette databasen '%-.64s' (Fejlkode: %d)"
 	nla "Kan database '%-.64s' niet aanmaken (Errcode: %d)"
 	eng "Can't create database '%-.64s' (errno: %d)"
+	jps "'%-.64s' ƒf[ƒ^ƒx[ƒX‚ªì‚ê‚Ü‚¹‚ñ (errno: %d)",
 	est "Ei suuda luua andmebaasi '%-.64s' (veakood: %d)"
 	fre "Ne peut créer la base '%-.64s' (Erreur %d)"
 	ger "Kann Datenbank '%-.64s' nicht erzeugen (Fehler: %d)"
@@ -127,6 +129,7 @@ ER_DB_CREATE_EXISTS
 	dan "Kan ikke oprette databasen '%-.64s'; databasen eksisterer"
 	nla "Kan database '%-.64s' niet aanmaken; database bestaat reeds"
 	eng "Can't create database '%-.64s'; database exists"
+	jps "'%-.64s' ƒf[ƒ^ƒx[ƒX‚ªì‚ê‚Ü‚¹‚ñ.Šù‚É‚»‚Ìƒf[ƒ^ƒx[ƒX‚ª‘¶İ‚µ‚Ü‚·",
 	est "Ei suuda luua andmebaasi '%-.64s': andmebaas juba eksisteerib"
 	fre "Ne peut créer la base '%-.64s'; elle existe déjà"
 	ger "Kann Datenbank '%-.64s' nicht erzeugen. Datenbank '%-.64s' existiert bereits"
@@ -151,6 +154,7 @@ ER_DB_DROP_EXISTS
 	dan "Kan ikke slette (droppe) '%-.64s'; databasen eksisterer ikke"
 	nla "Kan database '%-.64s' niet verwijderen; database bestaat niet"
 	eng "Can't drop database '%-.64s'; database doesn't exist"
+	jps "'%-.64s' ƒf[ƒ^ƒx[ƒX‚ğ”jŠü‚Å‚«‚Ü‚¹‚ñ. ‚»‚Ìƒf[ƒ^ƒx[ƒX‚ª‚È‚¢‚Ì‚Å‚·.",
 	est "Ei suuda kustutada andmebaasi '%-.64s': andmebaasi ei eksisteeri"
 	fre "Ne peut effacer la base '%-.64s'; elle n'existe pas"
 	ger "Kann Datenbank '%-.64s' nicht löschen. Keine Datenbank '%-.64s' vorhanden"
@@ -175,6 +179,7 @@ ER_DB_DROP_DELETE
 	dan "Fejl ved sletning (drop) af databasen (kan ikke slette '%-.64s', Fejlkode %d)"
 	nla "Fout bij verwijderen database (kan '%-.64s' niet verwijderen, Errcode: %d)"
 	eng "Error dropping database (can't delete '%-.64s', errno: %d)"
+	jps "ƒf[ƒ^ƒx[ƒX”jŠüƒGƒ‰[ ('%-.64s' ‚ğíœ‚Å‚«‚Ü‚¹‚ñ, errno: %d)",
 	est "Viga andmebaasi kustutamisel (ei suuda kustutada faili '%-.64s', veakood: %d)"
 	fre "Ne peut effacer la base '%-.64s' (erreur %d)"
 	ger "Fehler beim Löschen der Datenbank ('%-.64s' kann nicht gelöscht werden, Fehlernuumer: %d)"
@@ -199,6 +204,7 @@ ER_DB_DROP_RMDIR
 	dan "Fejl ved sletting af database (kan ikke slette folderen '%-.64s', Fejlkode %d)"
 	nla "Fout bij verwijderen database (kan rmdir '%-.64s' niet uitvoeren, Errcode: %d)"
 	eng "Error dropping database (can't rmdir '%-.64s', errno: %d)"
+	jps "ƒf[ƒ^ƒx[ƒX”jŠüƒGƒ‰[ ('%-.64s' ‚ğ rmdir ‚Å‚«‚Ü‚¹‚ñ, errno: %d)",
 	est "Viga andmebaasi kustutamisel (ei suuda kustutada kataloogi '%-.64s', veakood: %d)"
 	fre "Erreur en effaçant la base (rmdir '%-.64s', erreur %d)"
 	ger "Fehler beim Löschen der Datenbank (Verzeichnis '%-.64s' kann nicht gelöscht werden, Fehlernummer: %d)"
@@ -223,6 +229,7 @@ ER_CANT_DELETE_FILE
 	dan "Fejl ved sletning af '%-.64s' (Fejlkode: %d)"
 	nla "Fout bij het verwijderen van '%-.64s' (Errcode: %d)"
 	eng "Error on delete of '%-.64s' (errno: %d)"
+	jps "'%-.64s' ‚Ìíœ‚ªƒGƒ‰[ (errno: %d)",
 	est "Viga '%-.64s' kustutamisel (veakood: %d)"
 	fre "Erreur en effaçant '%-.64s' (Errcode: %d)"
 	ger "Fehler beim Löschen von '%-.64s' (Fehler: %d)"
@@ -247,6 +254,7 @@ ER_CANT_FIND_SYSTEM_REC
 	dan "Kan ikke læse posten i systemfolderen"
 	nla "Kan record niet lezen in de systeem tabel"
 	eng "Can't read record in system table"
+	jps "system table ‚ÌƒŒƒR[ƒh‚ğ“Ç‚Ş–‚ª‚Å‚«‚Ü‚¹‚ñ‚Å‚µ‚½",
 	est "Ei suuda lugeda kirjet süsteemsest tabelist"
 	fre "Ne peut lire un enregistrement de la table 'system'"
 	ger "Datensatz in der Systemtabelle nicht lesbar"
@@ -271,6 +279,7 @@ ER_CANT_GET_STAT
 	dan "Kan ikke læse status af '%-.64s' (Fejlkode: %d)"
 	nla "Kan de status niet krijgen van '%-.64s' (Errcode: %d)"
 	eng "Can't get status of '%-.64s' (errno: %d)"
+	jps "'%-.64s' ‚ÌƒXƒeƒCƒ^ƒX‚ª“¾‚ç‚ê‚Ü‚¹‚ñ. (errno: %d)",
 	est "Ei suuda lugeda '%-.64s' olekut (veakood: %d)"
 	fre "Ne peut obtenir le status de '%-.64s' (Errcode: %d)"
 	ger "Kann Status von '%-.64s' nicht ermitteln (Fehler: %d)"
@@ -295,6 +304,7 @@ ER_CANT_GET_WD
 	dan "Kan ikke læse aktive folder (Fejlkode: %d)"
 	nla "Kan de werkdirectory niet krijgen (Errcode: %d)"
 	eng "Can't get working directory (errno: %d)"
+	jps "working directory ‚ğ“¾‚é–‚ª‚Å‚«‚Ü‚¹‚ñ‚Å‚µ‚½ (errno: %d)",
 	est "Ei suuda identifitseerida jooksvat kataloogi (veakood: %d)"
 	fre "Ne peut obtenir le répertoire de travail (Errcode: %d)"
 	ger "Kann Arbeitsverzeichnis nicht ermitteln (Fehler: %d)"
@@ -319,6 +329,7 @@ ER_CANT_LOCK
 	dan "Kan ikke låse fil (Fejlkode: %d)"
 	nla "Kan de file niet blokeren (Errcode: %d)"
 	eng "Can't lock file (errno: %d)"
+	jps "ƒtƒ@ƒCƒ‹‚ğƒƒbƒN‚Å‚«‚Ü‚¹‚ñ (errno: %d)",
 	est "Ei suuda lukustada faili (veakood: %d)"
 	fre "Ne peut verrouiller le fichier (Errcode: %d)"
 	ger "Datei kann nicht gesperrt werden (Fehler: %d)"
@@ -343,6 +354,7 @@ ER_CANT_OPEN_FILE
 	dan "Kan ikke åbne fil: '%-.64s' (Fejlkode: %d)"
 	nla "Kan de file '%-.64s' niet openen (Errcode: %d)"
 	eng "Can't open file: '%-.64s' (errno: %d)"
+	jps "'%-.64s' ƒtƒ@ƒCƒ‹‚ğŠJ‚­–‚ª‚Å‚«‚Ü‚¹‚ñ (errno: %d)",
 	est "Ei suuda avada faili '%-.64s' (veakood: %d)"
 	fre "Ne peut ouvrir le fichier: '%-.64s' (Errcode: %d)"
 	ger "Datei '%-.64s' nicht öffnen (Fehler: %d)"
@@ -367,6 +379,7 @@ ER_FILE_NOT_FOUND
 	dan "Kan ikke finde fila: '%-.64s' (Fejlkode: %d)"
 	nla "Kan de file: '%-.64s' niet vinden (Errcode: %d)"
 	eng "Can't find file: '%-.64s' (errno: %d)"
+	jps "'%-.64s' ƒtƒ@ƒCƒ‹‚ğŒ©•t‚¯‚é–‚ª‚Å‚«‚Ü‚¹‚ñ.(errno: %d)",
 	est "Ei suuda leida faili '%-.64s' (veakood: %d)"
 	fre "Ne peut trouver le fichier: '%-.64s' (Errcode: %d)"
 	ger "Kann Datei '%-.64s' nicht finden (Fehler: %d)"
@@ -391,6 +404,7 @@ ER_CANT_READ_DIR
 	dan "Kan ikke læse folder '%-.64s' (Fejlkode: %d)"
 	nla "Kan de directory niet lezen van '%-.64s' (Errcode: %d)"
 	eng "Can't read dir of '%-.64s' (errno: %d)"
+	jps "'%-.64s' ƒfƒBƒŒƒNƒgƒŠ‚ª“Ç‚ß‚Ü‚¹‚ñ.(errno: %d)",
 	est "Ei suuda lugeda kataloogi '%-.64s' (veakood: %d)"
 	fre "Ne peut lire le répertoire de '%-.64s' (Errcode: %d)"
 	ger "Verzeichnis von '%-.64s' nicht lesbar (Fehler: %d)"
@@ -415,6 +429,7 @@ ER_CANT_SET_WD
 	dan "Kan ikke skifte folder til '%-.64s' (Fejlkode: %d)"
 	nla "Kan de directory niet veranderen naar '%-.64s' (Errcode: %d)"
 	eng "Can't change dir to '%-.64s' (errno: %d)"
+	jps "'%-.64s' ƒfƒBƒŒƒNƒgƒŠ‚É chdir ‚Å‚«‚Ü‚¹‚ñ.(errno: %d)",
 	est "Ei suuda siseneda kataloogi '%-.64s' (veakood: %d)"
 	fre "Ne peut changer le répertoire pour '%-.64s' (Errcode: %d)"
 	ger "Kann nicht in das Verzeichnis '%-.64s' wechseln (Fehler: %d)"
@@ -462,6 +477,7 @@ ER_DISK_FULL
 	dan "Ikke mere diskplads (%s). Venter på at få frigjort plads..."
 	nla "Schijf vol (%s). Aan het wachten totdat er ruimte vrij wordt gemaakt..."
 	eng "Disk full (%s); waiting for someone to free some space..."
+	jps "Disk full (%s). ’N‚©‚ª‰½‚©‚ğŒ¸‚ç‚·‚Ü‚Å‚Ü‚Á‚Ä‚­‚¾‚³‚¢...",
 	est "Ketas täis (%s). Ootame kuni tekib vaba ruumi..."
 	fre "Disque plein (%s). J'attend que quelqu'un libère de l'espace..."
 	ger "Festplatte voll (%-.64s). Warte, bis jemand Platz schafft ..."
@@ -486,6 +502,7 @@ ER_DUP_KEY 23000
 	dan "Kan ikke skrive, flere ens nøgler i tabellen '%-.64s'"
 	nla "Kan niet schrijven, dubbele zoeksleutel in tabel '%-.64s'"
 	eng "Can't write; duplicate key in table '%-.64s'"
+	jps "table '%-.64s' ‚É key ‚ªd•¡‚µ‚Ä‚¢‚Ä‘‚«‚±‚ß‚Ü‚¹‚ñ",
 	est "Ei saa kirjutada, korduv võti tabelis '%-.64s'"
 	fre "Ecriture impossible, doublon dans une clé de la table '%-.64s'"
 	ger "Kann nicht speichern, Grund: doppelter Schlüssel in Tabelle '%-.64s'"
@@ -533,6 +550,7 @@ ER_ERROR_ON_READ
 	dan "Fejl ved læsning af '%-.64s' (Fejlkode: %d)"
 	nla "Fout bij het lezen van file '%-.64s' (Errcode: %d)"
 	eng "Error reading file '%-.64s' (errno: %d)"
+	jps "'%-.64s' ƒtƒ@ƒCƒ‹‚Ì“Ç‚İ‚İƒGƒ‰[ (errno: %d)",
 	est "Viga faili '%-.64s' lugemisel (veakood: %d)"
 	fre "Erreur en lecture du fichier '%-.64s' (Errcode: %d)"
 	ger "Fehler beim Lesen der Datei '%-.64s' (Fehler: %d)"
@@ -557,6 +575,7 @@ ER_ERROR_ON_RENAME
 	dan "Fejl ved omdøbning af '%-.64s' til '%-.64s' (Fejlkode: %d)"
 	nla "Fout bij het hernoemen van '%-.64s' naar '%-.64s' (Errcode: %d)"
 	eng "Error on rename of '%-.64s' to '%-.64s' (errno: %d)"
+	jps "'%-.64s' ‚ğ '%-.64s' ‚É rename ‚Å‚«‚Ü‚¹‚ñ (errno: %d)",
 	est "Viga faili '%-.64s' ümbernimetamisel '%-.64s'-ks (veakood: %d)"
 	fre "Erreur en renommant '%-.64s' en '%-.64s' (Errcode: %d)"
 	ger "Fehler beim Umbenennen von '%-.64s' in '%-.64s' (Fehler: %d)"
@@ -581,6 +600,7 @@ ER_ERROR_ON_WRITE
 	dan "Fejl ved skriving av filen '%-.64s' (Fejlkode: %d)"
 	nla "Fout bij het wegschrijven van file '%-.64s' (Errcode: %d)"
 	eng "Error writing file '%-.64s' (errno: %d)"
+	jps "'%-.64s' ƒtƒ@ƒCƒ‹‚ğ‘‚­–‚ª‚Å‚«‚Ü‚¹‚ñ (errno: %d)",
 	est "Viga faili '%-.64s' kirjutamisel (veakood: %d)"
 	fre "Erreur d'écriture du fichier '%-.64s' (Errcode: %d)"
 	ger "Fehler beim Speichern der Datei '%-.64s' (Fehler: %d)"
@@ -605,6 +625,7 @@ ER_FILE_USED
 	dan "'%-.64s' er låst mod opdateringer"
 	nla "'%-.64s' is geblokeerd tegen veranderingen"
 	eng "'%-.64s' is locked against change"
+	jps "'%-.64s' ‚ÍƒƒbƒN‚³‚ê‚Ä‚¢‚Ü‚·",
 	est "'%-.64s' on lukustatud muudatuste vastu"
 	fre "'%-.64s' est verrouillé contre les modifications"
 	ger "'%-.64s' ist für Änderungen gesperrt"
@@ -629,6 +650,7 @@ ER_FILSORT_ABORT
 	dan "Sortering afbrudt"
 	nla "Sorteren afgebroken"
 	eng "Sort aborted"
+	jps "Sort ’†’f",
 	est "Sorteerimine katkestatud"
 	fre "Tri alphabétique abandonné"
 	ger "Sortiervorgang abgebrochen"
@@ -653,6 +675,7 @@ ER_FORM_NOT_FOUND
 	dan "View '%-.64s' eksisterer ikke for '%-.64s'"
 	nla "View '%-.64s' bestaat niet voor '%-.64s'"
 	eng "View '%-.64s' doesn't exist for '%-.64s'"
+	jps "View '%-.64s' ‚ª '%-.64s' ‚É’è‹`‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ",
 	est "Vaade '%-.64s' ei eksisteeri '%-.64s' jaoks"
 	fre "La vue (View) '%-.64s' n'existe pas pour '%-.64s'"
 	ger "View '%-.64s' existiert für '%-.64s' nicht"
@@ -725,6 +748,7 @@ ER_KEY_NOT_FOUND
 	dan "Kan ikke finde posten i '%-.64s'"
 	nla "Kan record niet vinden in '%-.64s'"
 	eng "Can't find record in '%-.64s'"
+	jps "'%-.64s'‚Ì‚È‚©‚ÉƒŒƒR[ƒh‚ªŒ©•t‚©‚è‚Ü‚¹‚ñ",
 	est "Ei suuda leida kirjet '%-.64s'-s"
 	fre "Ne peut trouver l'enregistrement dans '%-.64s'"
 	ger "Kann Datensatz nicht finden"
@@ -749,6 +773,7 @@ ER_NOT_FORM_FILE
 	dan "Forkert indhold i: '%-.64s'"
 	nla "Verkeerde info in file: '%-.64s'"
 	eng "Incorrect information in file: '%-.64s'"
+	jps "ƒtƒ@ƒCƒ‹ '%-.64s' ‚Ì info ‚ªŠÔˆá‚Á‚Ä‚¢‚é‚æ‚¤‚Å‚·",
 	est "Vigane informatsioon failis '%-.64s'"
 	fre "Information erronnée dans le fichier: '%-.64s'"
 	ger "Falsche Information in Datei '%-.64s'"
@@ -773,6 +798,7 @@ ER_NOT_KEYFILE
 	dan "Fejl i indeksfilen til tabellen '%-.64s'; prøv at reparere den"
 	nla "Verkeerde zoeksleutel file voor tabel: '%-.64s'; probeer het te repareren"
 	eng "Incorrect key file for table '%-.64s'; try to repair it"
+	jps "'%-.64s' ƒe[ƒuƒ‹‚Ì key file ‚ªŠÔˆá‚Á‚Ä‚¢‚é‚æ‚¤‚Å‚·. C•œ‚ğ‚µ‚Ä‚­‚¾‚³‚¢",
 	est "Tabeli '%-.64s' võtmefail on vigane; proovi seda parandada"
 	fre "Index corrompu dans la table: '%-.64s'; essayez de le réparer"
 	ger "Falsche Schlüssel-Datei für Tabelle '%-.64s'. versuche zu reparieren"
@@ -797,6 +823,7 @@ ER_OLD_KEYFILE
 	dan "Gammel indeksfil for tabellen '%-.64s'; reparer den"
 	nla "Oude zoeksleutel file voor tabel '%-.64s'; repareer het!"
 	eng "Old key file for table '%-.64s'; repair it!"
+	jps "'%-.64s' ƒe[ƒuƒ‹‚ÍŒÃ‚¢Œ`®‚Ì key file ‚Ì‚æ‚¤‚Å‚·; C•œ‚ğ‚µ‚Ä‚­‚¾‚³‚¢",
 	est "Tabeli '%-.64s' võtmefail on aegunud; paranda see!"
 	fre "Vieux fichier d'index pour la table '%-.64s'; réparez le!"
 	ger "Alte Schlüssel-Datei für Tabelle '%-.64s'. Bitte reparieren"
@@ -821,6 +848,7 @@ ER_OPEN_AS_READONLY
 	dan "'%-.64s' er skrivebeskyttet"
 	nla "'%-.64s' is alleen leesbaar"
 	eng "Table '%-.64s' is read only"
+	jps "'%-.64s' ‚Í“Ç‚İ‚İê—p‚Å‚·",
 	est "Tabel '%-.64s' on ainult lugemiseks"
 	fre "'%-.64s' est en lecture seulement"
 	ger "'%-.64s' ist nur lesbar"
@@ -845,6 +873,7 @@ ER_OUTOFMEMORY HY001 S1001
 	dan "Ikke mere hukommelse. Genstart serveren og prøv igen (mangler %d bytes)"
 	nla "Geen geheugen meer. Herstart server en probeer opnieuw (%d bytes nodig)"
 	eng "Out of memory; restart server and try again (needed %d bytes)"
+	jps "Out of memory. ƒf[ƒ‚ƒ“‚ğƒŠƒXƒ^[ƒg‚µ‚Ä‚İ‚Ä‚­‚¾‚³‚¢ (%d bytes •K—v)",
 	est "Mälu  sai otsa. Proovi MySQL uuesti käivitada (puudu jäi %d baiti)"
 	fre "Manque de mémoire. Redémarrez le démon et ré-essayez (%d octets nécessaires)"
 	ger "Kein Speicher vorhanden (%d Bytes benötigt). Bitte Server neu starten"
@@ -869,6 +898,7 @@ ER_OUT_OF_SORTMEMORY HY001 S1001
 	dan "Ikke mere sorteringshukommelse. Øg sorteringshukommelse (sort buffer size) for serveren"
 	nla "Geen geheugen om te sorteren. Verhoog de server sort buffer size"
 	eng "Out of sort memory; increase server sort buffer size"
+	jps "Out of sort memory. sort buffer size ‚ª‘«‚è‚È‚¢‚æ‚¤‚Å‚·.",
 	est "Mälu sai sorteerimisel otsa. Suurenda MySQL-i sorteerimispuhvrit"
 	fre "Manque de mémoire pour le tri. Augmentez-la."
 	ger "Kein Speicher zum Sortieren vorhanden. sort_buffer_size sollte erhöht werden"
@@ -893,6 +923,7 @@ ER_UNEXPECTED_EOF
 	dan "Uventet afslutning på fil (eof) ved læsning af filen '%-.64s' (Fejlkode: %d)"
 	nla "Onverwachte eof gevonden tijdens het lezen van file '%-.64s' (Errcode: %d)"
 	eng "Unexpected EOF found when reading file '%-.64s' (errno: %d)"
+	jps "'%-.64s' ƒtƒ@ƒCƒ‹‚ğ“Ç‚İ‚İ’†‚É EOF ‚ª—\Šú‚¹‚ÊŠ‚ÅŒ»‚ê‚Ü‚µ‚½. (errno: %d)",
 	est "Ootamatu faililõpumärgend faili '%-.64s' lugemisel (veakood: %d)"
 	fre "Fin de fichier inattendue en lisant '%-.64s' (Errcode: %d)"
 	ger "Unerwartetes Ende beim Lesen der Datei '%-.64s' (Fehler: %d)"
@@ -917,6 +948,7 @@ ER_CON_COUNT_ERROR 08004
 	dan "For mange forbindelser (connections)"
 	nla "Te veel verbindingen"
 	eng "Too many connections"
+	jps "Ú‘±‚ª‘½‚·‚¬‚Ü‚·",
 	est "Liiga palju samaaegseid ühendusi"
 	fre "Trop de connections"
 	ger "Zu viele Verbindungen"
@@ -941,6 +973,7 @@ ER_OUT_OF_RESOURCES
 	dan "Udgået for tråde/hukommelse"
 	nla "Geen thread geheugen meer; controleer of mysqld of andere processen al het beschikbare geheugen gebruikt. Zo niet, dan moet u wellicht 'ulimit' gebruiken om mysqld toe te laten meer geheugen te benutten, of u kunt extra swap ruimte toevoegen"
 	eng "Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space"
+	jps "Out of memory;  mysqld ‚©‚»‚Ì‘¼‚ÌƒvƒƒZƒX‚ªƒƒ‚ƒŠ[‚ğ‘S‚Äg‚Á‚Ä‚¢‚é‚©Šm”F‚µ‚Ä‚­‚¾‚³‚¢. ƒƒ‚ƒŠ[‚ğg‚¢Ø‚Á‚Ä‚¢‚È‚¢ê‡A'ulimit' ‚ğİ’è‚µ‚Ä mysqld ‚Ìƒƒ‚ƒŠ[g—pŒÀŠE—Ê‚ğ‘½‚­‚·‚é‚©Aswap space ‚ğ‘‚â‚µ‚Ä‚İ‚Ä‚­‚¾‚³‚¢",
 	est "Mälu sai otsa. Võimalik, et aitab swap-i lisamine või käsu 'ulimit' abil MySQL-le rohkema mälu kasutamise lubamine"
 	fre "Manque de 'threads'/mémoire"
 	ger "Kein Speicher mehr vorhanden. Prüfen Sie, ob mysqld oder ein anderer Prozess allen Speicher verbraucht. Wenn nicht, sollten Sie mit 'ulimit' dafür sorgen, dass mysqld mehr Speicher benutzen darf, oder mehr Swap-Speicher einrichten"
@@ -965,6 +998,7 @@ ER_BAD_HOST_ERROR 08S01
 	dan "Kan ikke få værtsnavn for din adresse"
 	nla "Kan de hostname niet krijgen van uw adres"
 	eng "Can't get hostname for your address"
+	jps "‚»‚Ì address ‚Ì hostname ‚ªˆø‚¯‚Ü‚¹‚ñ.",
 	est "Ei suuda lahendada IP aadressi masina nimeks"
 	fre "Ne peut obtenir de hostname pour votre adresse"
 	ger "Kann Hostnamen für diese Adresse nicht erhalten"
@@ -1011,6 +1045,7 @@ ER_DBACCESS_DENIED_ERROR 42000
 	dan "Adgang nægtet bruger: '%-.32s'@'%-.64s' til databasen '%-.64s'"
 	nla "Toegang geweigerd voor gebruiker: '%-.32s'@'%-.64s' naar database '%-.64s'"
 	eng "Access denied for user '%-.32s'@'%-.64s' to database '%-.64s'"
+	jps "ƒ†[ƒU[ '%-.32s'@'%-.64s' ‚Ì '%-.64s' ƒf[ƒ^ƒx[ƒX‚Ö‚ÌƒAƒNƒZƒX‚ğ‹‘”Û‚µ‚Ü‚·",
 	est "Ligipääs keelatud kasutajale '%-.32s'@'%-.64s' andmebaasile '%-.64s'"
 	fre "Accès refusé pour l'utilisateur: '%-.32s'@'@%-.64s'. Base '%-.64s'"
 	ger "Benutzer '%-.32s'@'%-.64s' hat keine Zugriffsberechtigung für Datenbank '%-.64s'"
@@ -1034,6 +1069,7 @@ ER_ACCESS_DENIED_ERROR 28000
 	dan "Adgang nægtet bruger: '%-.32s'@'%-.64s' (Bruger adgangskode: %s)"
 	nla "Toegang geweigerd voor gebruiker: '%-.32s'@'%-.64s' (Wachtwoord gebruikt: %s)"
 	eng "Access denied for user '%-.32s'@'%-.64s' (using password: %s)"
+	jps "ƒ†[ƒU[ '%-.32s'@'%-.64s' ‚ğ‹‘”Û‚µ‚Ü‚·.uUsing password: %s)",
 	est "Ligipääs keelatud kasutajale '%-.32s'@'%-.64s' (kasutab parooli: %s)"
 	fre "Accès refusé pour l'utilisateur: '%-.32s'@'@%-.64s' (mot de passe: %s)"
 	ger "Benutzer '%-.32s'@'%-.64s' hat keine Zugriffsberechtigung (verwendetes Passwort: %-.64s)"
@@ -1057,6 +1093,7 @@ ER_NO_DB_ERROR 3D000
 	dan "Ingen database valgt"
 	nla "Geen database geselecteerd"
 	eng "No database selected"
+	jps "ƒf[ƒ^ƒx[ƒX‚ª‘I‘ğ‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ.",
 	est "Andmebaasi ei ole valitud"
 	fre "Aucune base n'a été sélectionnée"
 	ger "Keine Datenbank ausgewählt"
@@ -1081,6 +1118,7 @@ ER_UNKNOWN_COM_ERROR 08S01
 	dan "Ukendt kommando"
 	nla "Onbekend commando"
 	eng "Unknown command"
+	jps "‚»‚ÌƒRƒ}ƒ“ƒh‚Í‰½H",
 	est "Tundmatu käsk"
 	fre "Commande inconnue"
 	ger "Unbekannter Befehl"
@@ -1105,6 +1143,7 @@ ER_BAD_NULL_ERROR 23000
 	dan "Kolonne '%-.64s' kan ikke være NULL"
 	nla "Kolom '%-.64s' kan niet null zijn"
 	eng "Column '%-.64s' cannot be null"
+	jps "Column '%-.64s' ‚Í null ‚É‚Í‚Å‚«‚È‚¢‚Ì‚Å‚·",
 	est "Tulp '%-.64s' ei saa omada nullväärtust"
 	fre "Le champ '%-.64s' ne peut être vide (null)"
 	ger "Feld '%-.64s' darf nicht NULL sein"
@@ -1129,6 +1168,7 @@ ER_BAD_DB_ERROR 42000
 	dan "Ukendt database '%-.64s'"
 	nla "Onbekende database '%-.64s'"
 	eng "Unknown database '%-.64s'"
+	jps "'%-.64s' ‚È‚ñ‚Äƒf[ƒ^ƒx[ƒX‚Í’m‚è‚Ü‚¹‚ñ.",
 	est "Tundmatu andmebaas '%-.64s'"
 	fre "Base '%-.64s' inconnue"
 	ger "Unbekannte Datenbank '%-.64s'"
@@ -1153,6 +1193,7 @@ ER_TABLE_EXISTS_ERROR 42S01
 	dan "Tabellen '%-.64s' findes allerede"
 	nla "Tabel '%-.64s' bestaat al"
 	eng "Table '%-.64s' already exists"
+	jps "Table '%-.64s' ‚ÍŠù‚É‚ ‚è‚Ü‚·",
 	est "Tabel '%-.64s' juba eksisteerib"
 	fre "La table '%-.64s' existe déjà"
 	ger "Tabelle '%-.64s' bereits vorhanden"
@@ -1177,6 +1218,7 @@ ER_BAD_TABLE_ERROR 42S02
 	dan "Ukendt tabel '%-.64s'"
 	nla "Onbekende tabel '%-.64s'"
 	eng "Unknown table '%-.64s'"
+	jps "table '%-.64s' ‚Í‚ ‚è‚Ü‚¹‚ñ.",
 	est "Tundmatu tabel '%-.64s'"
 	fre "Table '%-.64s' inconnue"
 	ger "Unbekannte Tabelle '%-.64s'"
@@ -1225,6 +1267,7 @@ ER_SERVER_SHUTDOWN 08S01
 	dan "Database nedlukning er i gang"
 	nla "Bezig met het stoppen van de server"
 	eng "Server shutdown in progress"
+	jps "Server ‚ğ shutdown ’†...",
 	est "Serveri seiskamine käib"
 	fre "Arrêt du serveur en cours"
 	ger "Der Server wird heruntergefahren"
@@ -1249,6 +1292,7 @@ ER_BAD_FIELD_ERROR 42S22 S0022
 	dan "Ukendt kolonne '%-.64s' i tabel %s"
 	nla "Onbekende kolom '%-.64s' in %s"
 	eng "Unknown column '%-.64s' in '%-.64s'"
+	jps "'%-.64s' column ‚Í '%-.64s' ‚É‚Í‚ ‚è‚Ü‚¹‚ñ.",
 	est "Tundmatu tulp '%-.64s' '%-.64s'-s"
 	fre "Champ '%-.64s' inconnu dans %s"
 	ger "Unbekanntes Tabellenfeld '%-.64s' in %-.64s"
@@ -1273,6 +1317,7 @@ ER_WRONG_FIELD_WITH_GROUP 42000 S1009
 	dan "Brugte '%-.64s' som ikke var i group by"
 	nla "Opdracht gebruikt '%-.64s' dat niet in de GROUP BY voorkomt"
 	eng "'%-.64s' isn't in GROUP BY"
+	jps "'%-.64s' isn't in GROUP BY",
 	est "'%-.64s' puudub GROUP BY klauslis"
 	fre "'%-.64s' n'est pas dans 'group by'"
 	ger "'%-.64s' ist nicht in GROUP BY vorhanden"
@@ -1363,6 +1408,7 @@ ER_TOO_LONG_IDENT 42000 S1009
 	dan "Navnet '%-.64s' er for langt"
 	nla "Naam voor herkenning '%-.64s' is te lang"
 	eng "Identifier name '%-.100s' is too long"
+	jps "Identifier name '%-.100s' ‚Í’·‚·‚¬‚Ü‚·",
 	est "Identifikaatori '%-.100s' nimi on liiga pikk"
 	fre "Le nom de l'identificateur '%-.64s' est trop long"
 	ger "Name des Bezeichners '%-.64s' ist zu lang"
@@ -1387,6 +1433,7 @@ ER_DUP_FIELDNAME 42S21 S1009
 	dan "Feltnavnet '%-.64s' findes allerede"
 	nla "Dubbele kolom naam '%-.64s'"
 	eng "Duplicate column name '%-.64s'"
+	jps "'%-.64s' ‚Æ‚¢‚¤ column –¼‚Íd•¡‚µ‚Ä‚Ü‚·",
 	est "Kattuv tulba nimi '%-.64s'"
 	fre "Nom du champ '%-.64s' déjà utilisé"
 	ger "Doppelter Spaltenname vorhanden: '%-.64s'"
@@ -1411,6 +1458,7 @@ ER_DUP_KEYNAME 42000 S1009
 	dan "Indeksnavnet '%-.64s' findes allerede"
 	nla "Dubbele zoeksleutel naam '%-.64s'"
 	eng "Duplicate key name '%-.64s'"
+	jps "'%-.64s' ‚Æ‚¢‚¤ key ‚Ì–¼‘O‚Íd•¡‚µ‚Ä‚¢‚Ü‚·",
 	est "Kattuv võtme nimi '%-.64s'"
 	fre "Nom de clef '%-.64s' déjà utilisé"
 	ger "Doppelter Name für Schlüssel (Key) vorhanden: '%-.64s'"
@@ -1435,6 +1483,7 @@ ER_DUP_ENTRY 23000 S1009
 	dan "Ens værdier '%-.64s' for indeks %d"
 	nla "Dubbele ingang '%-.64s' voor zoeksleutel %d"
 	eng "Duplicate entry '%-.64s' for key %d"
+	jps "'%-.64s' ‚Í key %d ‚É‚¨‚¢‚Äd•¡‚µ‚Ä‚¢‚Ü‚·",
 	est "Kattuv väärtus '%-.64s' võtmele %d"
 	fre "Duplicata du champ '%-.64s' pour la clef %d"
 	ger "Doppelter Eintrag '%-.64s' für Schlüssel %d"
@@ -1482,6 +1531,7 @@ ER_PARSE_ERROR 42000
 	dan "%s nær '%-.64s' på linje %d"
 	nla "%s bij '%-.64s' in regel %d"
 	eng "%s near '%-.80s' at line %d"
+	jps "%s  : '%-.80s' •t‹ß  : %d s–Ú",
 	est "%s '%-.80s' ligidal real %d"
 	fre "%s près de '%-.64s' à la ligne %d"
 	ger "%s bei '%-.80s' in Zeile %d"
@@ -1506,6 +1556,7 @@ ER_EMPTY_QUERY 42000
 	dan "Forespørgsel var tom"
 	nla "Query was leeg"
 	eng "Query was empty"
+	jps "Query ‚ª‹ó‚Å‚·.",
 	est "Tühi päring"
 	fre "Query est vide"
 	ger "Leere Abfrage"
@@ -1530,6 +1581,7 @@ ER_NONUNIQ_TABLE 42000 S1009
 	dan "Tabellen/aliaset: '%-.64s' er ikke unikt"
 	nla "Niet unieke waarde tabel/alias: '%-.64s'"
 	eng "Not unique table/alias: '%-.64s'"
+	jps "'%-.64s' ‚ÍˆêˆÓ‚Ì table/alias –¼‚Å‚Í‚ ‚è‚Ü‚¹‚ñ",
 	est "Ei ole unikaalne tabel/alias '%-.64s'"
 	fre "Table/alias: '%-.64s' non unique"
 	ger "Tabellenname/Alias '%-.64s' nicht eindeutig"
@@ -1577,6 +1629,7 @@ ER_MULTIPLE_PRI_KEY 42000 S1009
 	dan "Flere primærnøgler specificeret"
 	nla "Meerdere primaire zoeksleutels gedefinieerd"
 	eng "Multiple primary key defined"
+	jps "•¡”‚Ì primary key ‚ª’è‹`‚³‚ê‚Ü‚µ‚½",
 	est "Mitut primaarset võtit ei saa olla"
 	fre "Plusieurs clefs primaires définies"
 	ger "Mehrfacher Primärschlüssel (PRIMARY KEY) definiert"
@@ -1601,6 +1654,7 @@ ER_TOO_MANY_KEYS 42000 S1009
 	dan "For mange nøgler specificeret. Kun %d nøgler må bruges"
 	nla "Teveel zoeksleutels gedefinieerd. Maximaal zijn %d zoeksleutels toegestaan"
 	eng "Too many keys specified; max %d keys allowed"
+	jps "key ‚Ìw’è‚ª‘½‚·‚¬‚Ü‚·.  key ‚ÍÅ‘å %d ‚Ü‚Å‚Å‚·",
 	est "Liiga palju võtmeid. Maksimaalselt võib olla %d võtit"
 	fre "Trop de clefs sont définies. Maximum de %d clefs alloué"
 	ger "Zu viele Schlüssel definiert. Maximal %d Schlüssel erlaubt"
@@ -1648,6 +1702,7 @@ ER_TOO_LONG_KEY 42000 S1009
 	dan "Specificeret nøgle var for lang. Maksimal nøglelængde er %d"
 	nla "Gespecificeerde zoeksleutel was te lang. De maximale lengte is %d"
 	eng "Specified key was too long; max key length is %d bytes"
+	jps "key ‚ª’·‚·‚¬‚Ü‚·. key ‚Ì’·‚³‚ÍÅ‘å %d ‚Å‚·",
 	est "Võti on liiga pikk. Maksimaalne võtmepikkus on %d"
 	fre "La clé est trop longue. Longueur maximale: %d"
 	ger "Schlüssel ist zu lang. Die maximale Schlüssellänge beträgt %d"
@@ -1672,6 +1727,7 @@ ER_KEY_COLUMN_DOES_NOT_EXITS 42000 S1009
 	dan "Nøglefeltet '%-.64s' eksisterer ikke i tabellen"
 	nla "Zoeksleutel kolom '%-.64s' bestaat niet in tabel"
 	eng "Key column '%-.64s' doesn't exist in table"
+	jps "Key column '%-.64s' ‚ªƒe[ƒuƒ‹‚É‚ ‚è‚Ü‚¹‚ñ.",
 	est "Võtme tulp '%-.64s' puudub tabelis"
 	fre "La clé '%-.64s' n'existe pas dans la table"
 	ger "In der Tabelle gibt es keine Schlüsselspalte '%-.64s'"
@@ -1719,6 +1775,7 @@ ER_TOO_BIG_FIELDLENGTH 42000 S1009
 	dan "For stor feltlængde for kolonne '%-.64s' (maks = %d). Brug BLOB i stedet"
 	nla "Te grote kolomlengte voor '%-.64s' (max = %d). Maak hiervoor gebruik van het type BLOB"
 	eng "Column length too big for column '%-.64s' (max = %d); use BLOB instead"
+	jps "column '%-.64s' ‚Í,Šm•Û‚·‚é column ‚Ì‘å‚«‚³‚ª‘½‚·‚¬‚Ü‚·. (Å‘å %d ‚Ü‚Å). BLOB ‚ğ‚©‚í‚è‚Ég—p‚µ‚Ä‚­‚¾‚³‚¢.",
 	est "Tulba '%-.64s' pikkus on liiga pikk (maksimaalne pikkus: %d). Kasuta BLOB väljatüüpi"
 	fre "Champ '%-.64s' trop long (max = %d). Utilisez un BLOB"
 	ger "Feldlänge für Feld '%-.64s' zu groß (maximal %d). BLOB-Feld verwenden!"
@@ -1743,6 +1800,7 @@ ER_WRONG_AUTO_KEY 42000 S1009
 	dan "Der kan kun specificeres eet AUTO_INCREMENT-felt, og det skal være indekseret"
 	nla "Er kan slechts 1 autofield zijn en deze moet als zoeksleutel worden gedefinieerd."
 	eng "Incorrect table definition; there can be only one auto column and it must be defined as a key"
+	jps "ƒe[ƒuƒ‹‚Ì’è‹`‚ªˆá‚¢‚Ü‚·; there can be only one auto column and it must be defined as a key",
 	est "Vigane tabelikirjeldus; Tabelis tohib olla üks auto_increment tüüpi tulp ning see peab olema defineeritud võtmena"
 	fre "Un seul champ automatique est permis et il doit être indexé"
 	ger "Falsche Tabellendefinition. Es darf nur ein Auto-Feld geben und dieses muss als Schlüssel definiert werden"
@@ -1767,6 +1825,7 @@ ER_READY
 	dan "%s: klar til tilslutninger"
 	nla "%s: klaar voor verbindingen"
 	eng "%s: ready for connections.\nVersion: '%s'  socket: '%s'  port: %d"
+	jps "%s: €”õŠ®—¹",
 	est "%s: ootab ühendusi"
 	fre "%s: Prêt pour des connections"
 	ger "%-.64s: Bereit für Verbindungen"
@@ -1814,6 +1873,7 @@ ER_GOT_SIGNAL
 	dan "%s: Fangede signal %d. Afslutter!!\n"
 	nla "%s: Signaal %d. Systeem breekt af!\n"
 	eng "%s: Got signal %d. Aborting!\n"
+	jps "%s: Got signal %d. ’†’f!\n",
 	est "%s: sain signaali %d. Lõpetan!\n"
 	fre "%s: Reçu le signal %d. Abandonne!\n"
 	ger "%-.64s: Signal %d erhalten. Abbruch!\n"
@@ -1838,6 +1898,7 @@ ER_SHUTDOWN_COMPLETE
 	dan "%s: Server lukket\n"
 	nla "%s: Afsluiten afgerond\n"
 	eng "%s: Shutdown complete\n"
+	jps "%s: Shutdown Š®—¹\n",
 	est "%s: Lõpp\n"
 	fre "%s: Arrêt du serveur terminé\n"
 	ger "%-.64s: Heruntergefahren (shutdown)\n"
@@ -1862,6 +1923,7 @@ ER_FORCING_CLOSE 08S01
 	dan "%s: Forceret nedlukning af tråd: %ld  bruger: '%-.64s'\n"
 	nla "%s: Afsluiten afgedwongen van thread %ld  gebruiker: '%-.64s'\n"
 	eng "%s: Forcing close of thread %ld  user: '%-.32s'\n"
+	jps "%s: ƒXƒŒƒbƒh %ld ‹­§I—¹  user: '%-.64s'\n",
 	est "%s: Sulgen jõuga lõime %ld  kasutaja: '%-.32s'\n"
 	fre "%s: Arrêt forcé de la tâche (thread) %ld  utilisateur: '%-.64s'\n"
 	ger "%s: Thread %ld zwangsweise beendet. Benutzer: '%-.32s'\n"
@@ -1886,6 +1948,7 @@ ER_IPSOCK_ERROR 08S01
 	dan "Kan ikke oprette IP socket"
 	nla "Kan IP-socket niet openen"
 	eng "Can't create IP socket"
+	jps "IP socket ‚ªì‚ê‚Ü‚¹‚ñ",
 	est "Ei suuda luua IP socketit"
 	fre "Ne peut créer la connection IP (socket)"
 	ger "Kann IP-Socket nicht erzeugen"
@@ -1910,6 +1973,7 @@ ER_NO_SUCH_INDEX 42S12 S1009
 	dan "Tabellen '%-.64s' har ikke den nøgle, som blev brugt i CREATE INDEX. Genopret tabellen"
 	nla "Tabel '%-.64s' heeft geen INDEX zoals deze gemaakt worden met CREATE INDEX. Maak de tabel opnieuw"
 	eng "Table '%-.64s' has no index like the one used in CREATE INDEX; recreate the table"
+	jps "Table '%-.64s' ‚Í‚»‚Ì‚æ‚¤‚È index ‚ğ‚Á‚Ä‚¢‚Ü‚¹‚ñ(CREATE INDEX Às‚Éw’è‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ). ƒe[ƒuƒ‹‚ğì‚è’¼‚µ‚Ä‚­‚¾‚³‚¢",
 	est "Tabelil '%-.64s' puuduvad võtmed. Loo tabel uuesti"
 	fre "La table '%-.64s' n'a pas d'index comme celle utilisée dans CREATE INDEX. Recréez la table"
 	ger "Tabelle '%-.64s' besitzt keinen wie den in CREATE INDEX verwendeten Index. Index neu anlegen"
@@ -1981,6 +2045,7 @@ ER_TEXTFILE_NOT_READABLE
 	dan "Filen '%-.64s' skal være i database-folderen og kunne læses af alle"
 	nla "Het bestand '%-.64s' dient in de database directory voor the komen of leesbaar voor iedereen te zijn."
 	eng "The file '%-.64s' must be in the database directory or be readable by all"
+	jps "ƒtƒ@ƒCƒ‹ '%-.64s' ‚Í databse ‚Ì directory ‚É‚ ‚é‚©‘S‚Ä‚Ìƒ†[ƒU[‚ª“Ç‚ß‚é‚æ‚¤‚É‹–‰Â‚³‚ê‚Ä‚¢‚È‚¯‚ê‚Î‚È‚è‚Ü‚¹‚ñ.",
 	est "Fail '%-.64s' peab asuma andmebaasi kataloogis või olema kõigile loetav"
 	fre "Le fichier '%-.64s' doit être dans le répertoire de la base et lisible par tous"
 	ger "Datei '%-.64s' muss im Datenbank-Verzeichnis vorhanden und lesbar für alle sein"
@@ -2005,6 +2070,7 @@ ER_FILE_EXISTS_ERROR
 	dan "Filen '%-.64s' eksisterer allerede"
 	nla "Het bestand '%-.64s' bestaat reeds"
 	eng "File '%-.80s' already exists"
+	jps "File '%-.64s' ‚ÍŠù‚É‘¶İ‚µ‚Ü‚·",
 	est "Fail '%-.80s' juba eksisteerib"
 	fre "Le fichier '%-.64s' existe déjà"
 	ger "Datei '%-.64s' bereits vorhanden"
@@ -2029,6 +2095,7 @@ ER_LOAD_INFO
 	dan "Poster: %ld  Fjernet: %ld  Sprunget over: %ld  Advarsler: %ld"
 	nla "Records: %ld  Verwijderd: %ld  Overgeslagen: %ld  Waarschuwingen: %ld"
 	eng "Records: %ld  Deleted: %ld  Skipped: %ld  Warnings: %ld"
+	jps "ƒŒƒR[ƒh”: %ld  íœ: %ld  Skipped: %ld  Warnings: %ld",
 	est "Kirjeid: %ld  Kustutatud: %ld  Vahele jäetud: %ld  Hoiatusi: %ld"
 	fre "Enregistrements: %ld  Effacés: %ld  Non traités: %ld  Avertissements: %ld"
 	ger "Datensätze: %ld  Gelöscht: %ld  Ausgelassen: %ld  Warnungen: %ld"
@@ -2053,6 +2120,7 @@ ER_ALTER_INFO
 	dan "Poster: %ld  Ens: %ld"
 	nla "Records: %ld  Dubbel: %ld"
 	eng "Records: %ld  Duplicates: %ld"
+	jps "ƒŒƒR[ƒh”: %ld  d•¡: %ld",
 	est "Kirjeid: %ld  Kattuvaid: %ld"
 	fre "Enregistrements: %ld  Doublons: %ld"
 	ger "Datensätze: %ld  Duplikate: %ld"
@@ -2101,6 +2169,7 @@ ER_CANT_REMOVE_ALL_FIELDS 42000
 	dan "Man kan ikke slette alle felter med ALTER TABLE. Brug DROP TABLE i stedet."
 	nla "Het is niet mogelijk alle velden te verwijderen met ALTER TABLE. Gebruik a.u.b. DROP TABLE hiervoor!"
 	eng "You can't delete all columns with ALTER TABLE; use DROP TABLE instead"
+	jps "ALTER TABLE ‚Å‘S‚Ä‚Ì column ‚Ííœ‚Å‚«‚Ü‚¹‚ñ. DROP TABLE ‚ğg—p‚µ‚Ä‚­‚¾‚³‚¢",
 	est "ALTER TABLE kasutades ei saa kustutada kõiki tulpasid. Kustuta tabel DROP TABLE abil"
 	fre "Vous ne pouvez effacer tous les champs avec ALTER TABLE. Utilisez DROP TABLE"
 	ger "Mit ALTER TABLE können nicht alle Felder auf einmal gelöscht werden. Dafür DROP TABLE verwenden"
@@ -2125,6 +2194,7 @@ ER_CANT_DROP_FIELD_OR_KEY 42000
 	dan "Kan ikke udføre DROP '%-.64s'. Undersøg om feltet/nøglen eksisterer."
 	nla "Kan '%-.64s' niet weggooien. Controleer of het veld of de zoeksleutel daadwerkelijk bestaat."
 	eng "Can't DROP '%-.64s'; check that column/key exists"
+	jps "'%-.64s' ‚ğ”jŠü‚Å‚«‚Ü‚¹‚ñ‚Å‚µ‚½; check that column/key exists",
 	est "Ei suuda kustutada '%-.64s'. Kontrolli kas tulp/võti eksisteerib"
 	fre "Ne peut effacer (DROP) '%-.64s'. Vérifiez s'il existe"
 	ger "Kann '%-.64s' nicht löschen. Existiert das Feld / der Schlüssel?"
@@ -2149,6 +2219,7 @@ ER_INSERT_INFO
 	dan "Poster: %ld  Ens: %ld  Advarsler: %ld"
 	nla "Records: %ld  Dubbel: %ld  Waarschuwing: %ld"
 	eng "Records: %ld  Duplicates: %ld  Warnings: %ld"
+	jps "ƒŒƒR[ƒh”: %ld  d•¡”: %ld  Warnings: %ld",
 	est "Kirjeid: %ld  Kattuvaid: %ld  Hoiatusi: %ld"
 	fre "Enregistrements: %ld  Doublons: %ld  Avertissements: %ld"
 	ger "Datensätze: %ld  Duplikate: %ld  Warnungen: %ld"
@@ -2179,6 +2250,7 @@ ER_NO_SUCH_THREAD
 	dan "Ukendt tråd id: %lu"
 	nla "Onbekend thread id: %lu"
 	eng "Unknown thread id: %lu"
+	jps "thread id: %lu ‚Í‚ ‚è‚Ü‚¹‚ñ",
 	est "Tundmatu lõim: %lu"
 	fre "Numéro de tâche inconnu: %lu"
 	ger "Unbekannte Thread-ID: %lu"
@@ -2203,6 +2275,7 @@ ER_KILL_DENIED_ERROR
 	dan "Du er ikke ejer af tråden %lu"
 	nla "U bent geen bezitter van thread %lu"
 	eng "You are not owner of thread %lu"
+	jps "thread %lu ‚ÌƒI[ƒi[‚Å‚Í‚ ‚è‚Ü‚¹‚ñ",
 	est "Ei ole lõime %lu omanik"
 	fre "Vous n'êtes pas propriétaire de la tâche no: %lu"
 	ger "Sie sind nicht Eigentümer von Thread %lu"
@@ -2296,6 +2369,7 @@ ER_TABLE_NOT_LOCKED_FOR_WRITE
 	dan "Tabellen '%-.64s' var låst med READ lås og kan ikke opdateres"
 	nla "Tabel '%-.64s' was gelocked met een lock om te lezen. Derhalve kunnen geen wijzigingen worden opgeslagen."
 	eng "Table '%-.64s' was locked with a READ lock and can't be updated"
+	jps "Table '%-.64s' ‚Í READ lock ‚É‚È‚Á‚Ä‚¢‚ÄAXV‚Í‚Å‚«‚Ü‚¹‚ñ",
 	est "Tabel '%-.64s' on lukustatud READ lukuga ning ei ole muudetav"
 	fre "Table '%-.64s' verrouillée lecture (READ): modification impossible"
 	ger "Tabelle '%-.64s' ist mit Lesesperre versehen und kann nicht aktualisiert werden"
@@ -2320,6 +2394,7 @@ ER_TABLE_NOT_LOCKED
 	dan "Tabellen '%-.64s' var ikke låst med LOCK TABLES"
 	nla "Tabel '%-.64s' was niet gelocked met LOCK TABLES"
 	eng "Table '%-.64s' was not locked with LOCK TABLES"
+	jps "Table '%-.64s' ‚Í LOCK TABLES ‚É‚æ‚Á‚ÄƒƒbƒN‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ",
 	est "Tabel '%-.64s' ei ole lukustatud käsuga LOCK TABLES"
 	fre "Table '%-.64s' non verrouillée: utilisez LOCK TABLES"
 	ger "Tabelle '%-.64s' wurde nicht mit LOCK TABLES gesperrt"
@@ -2368,6 +2443,7 @@ ER_WRONG_DB_NAME 42000
 	dan "Ugyldigt database navn '%-.64s'"
 	nla "Databasenaam '%-.64s' is niet getoegestaan"
 	eng "Incorrect database name '%-.100s'"
+	jps "w’è‚µ‚½ database –¼ '%-.100s' ‚ªŠÔˆá‚Á‚Ä‚¢‚Ü‚·",
 	est "Vigane andmebaasi nimi '%-.100s'"
 	fre "Nom de base de donnée illégal: '%-.64s'"
 	ger "Unerlaubter Datenbankname '%-.64s'"
@@ -2392,6 +2468,7 @@ ER_WRONG_TABLE_NAME 42000
 	dan "Ugyldigt tabel navn '%-.64s'"
 	nla "Niet toegestane tabelnaam '%-.64s'"
 	eng "Incorrect table name '%-.100s'"
+	jps "w’è‚µ‚½ table –¼ '%-.100s' ‚Í‚Ü‚¿‚ª‚Á‚Ä‚¢‚Ü‚·",
 	est "Vigane tabeli nimi '%-.100s'"
 	fre "Nom de table illégal: '%-.64s'"
 	ger "Unerlaubter Tabellenname '%-.64s'"
@@ -2620,6 +2697,7 @@ ER_TABLE_MUST_HAVE_COLUMNS 42000
 	dan "En tabel skal have mindst een kolonne"
 	nla "Een tabel moet minstens 1 kolom bevatten"
 	eng "A table must have at least 1 column"
+	jps "ƒe[ƒuƒ‹‚ÍÅ’á 1 ŒÂ‚Ì column ‚ª•K—v‚Å‚·",
 	est "Tabelis peab olema vähemalt üks tulp"
 	fre "Une table doit comporter au moins une colonne"
 	ger "Eine Tabelle muß mindestens 1 Spalte besitzen"
@@ -2641,6 +2719,7 @@ ER_RECORD_FILE_FULL
 	dan "Tabellen '%-.64s' er fuld"
 	nla "De tabel '%-.64s' is vol"
 	eng "The table '%-.64s' is full"
+	jps "table '%-.64s' ‚Í‚¢‚Á‚Ï‚¢‚Å‚·",
 	est "Tabel '%-.64s' on täis"
 	fre "La table '%-.64s' est pleine"
 	ger "Tabelle '%-.64s' ist voll"
@@ -2662,6 +2741,7 @@ ER_UNKNOWN_CHARACTER_SET 42000
 	dan "Ukendt tegnsæt: '%-.64s'"
 	nla "Onbekende character set: '%-.64s'"
 	eng "Unknown character set: '%-.64s'"
+	jps "character set '%-.64s' ‚ÍƒTƒ|[ƒg‚µ‚Ä‚¢‚Ü‚¹‚ñ",
 	est "Vigane kooditabel '%-.64s'"
 	fre "Jeu de caractères inconnu: '%-.64s'"
 	ger "Unbekannter Zeichensatz: '%-.64s'"
@@ -2683,6 +2763,7 @@ ER_TOO_MANY_TABLES
 	dan "For mange tabeller. MySQL kan kun bruge %d tabeller i et join"
 	nla "Teveel tabellen. MySQL kan slechts %d tabellen in een join bevatten"
 	eng "Too many tables; MySQL can only use %d tables in a join"
+	jps "ƒe[ƒuƒ‹‚ª‘½‚·‚¬‚Ü‚·; MySQL can only use %d tables in a join",
 	est "Liiga palju tabeleid. MySQL suudab JOINiga ühendada kuni %d tabelit"
 	fre "Trop de tables. MySQL ne peut utiliser que %d tables dans un JOIN"
 	ger "Zu viele Tabellen. MySQL kann in einem Join maximal %d Tabellen verwenden"
@@ -2704,6 +2785,7 @@ ER_TOO_MANY_FIELDS
 	dan "For mange felter"
 	nla "Te veel velden"
 	eng "Too many columns"
+	jps "column ‚ª‘½‚·‚¬‚Ü‚·",
 	est "Liiga palju tulpasid"
 	fre "Trop de champs"
 	ger "Zu viele Spalten"
@@ -2725,6 +2807,7 @@ ER_TOO_BIG_ROWSIZE 42000
 	dan "For store poster. Max post størrelse, uden BLOB's, er %d. Du må lave nogle felter til BLOB's"
 	nla "Rij-grootte is groter dan toegestaan. Maximale rij grootte, blobs niet meegeteld, is %d. U dient sommige velden in blobs te veranderen."
 	eng "Row size too large. The maximum row size for the used table type, not counting BLOBs, is %ld. You have to change some columns to TEXT or BLOBs"
+	jps "row size ‚ª‘å‚«‚·‚¬‚Ü‚·. BLOB ‚ğŠÜ‚Ü‚È‚¢ê‡‚Ì row size ‚ÌÅ‘å‚Í %d ‚Å‚·. ‚¢‚­‚Â‚©‚Ì field ‚ğ BLOB ‚É•Ï‚¦‚Ä‚­‚¾‚³‚¢.",
 	est "Liiga pikk kirje. Kirje maksimumpikkus arvestamata BLOB-tüüpi välju on %d. Muuda mõned väljad BLOB-tüüpi väljadeks"
 	fre "Ligne trop grande. Le taille maximale d'une ligne, sauf les BLOBs, est %d. Changez le type de quelques colonnes en BLOB"
 	ger "Zeilenlänge zu groß. Die maximale Spaltenlänge für den verwendeten Tabellentyp (ohne BLOB-Felder) beträgt %d. Einige Felder müssen in BLOB oder TEXT umgewandelt werden"
@@ -2746,6 +2829,7 @@ ER_STACK_OVERRUN
 	dan "Thread stack brugt:  Brugt: %ld af en %ld stak.  Brug 'mysqld -O thread_stack=#' for at allokere en større stak om nødvendigt"
 	nla "Thread stapel overrun:  Gebruikte: %ld van een %ld stack. Gebruik 'mysqld -O thread_stack=#' om een grotere stapel te definieren (indien noodzakelijk)."
 	eng "Thread stack overrun:  Used: %ld of a %ld stack.  Use 'mysqld -O thread_stack=#' to specify a bigger stack if needed"
+	jps "Thread stack overrun:  Used: %ld of a %ld stack.  ƒXƒ^ƒbƒN—Ìˆæ‚ğ‘½‚­‚Æ‚è‚½‚¢ê‡A'mysqld -O thread_stack=#' ‚Æw’è‚µ‚Ä‚­‚¾‚³‚¢",
 	fre "Débordement de la pile des tâches (Thread stack). Utilisées: %ld pour une pile de %ld.  Essayez 'mysqld -O thread_stack=#' pour indiquer une plus grande valeur"
 	ger "Thread-Stack-Überlauf. Benutzt: %ld von %ld Stack. 'mysqld -O thread_stack=#' verwenen, um notfalls einen größeren Stack anzulegen"
 	greek "Stack overrun óôï thread:  Used: %ld of a %ld stack.  Ğáñáêáëş ÷ñçóéìïğïéåßóôå 'mysqld -O thread_stack=#' ãéá íá ïñßóåôå İíá ìåãáëıôåñï stack áí ÷ñåéÜæåôáé"
@@ -2785,6 +2869,7 @@ ER_NULL_COLUMN_IN_INDEX 42000
 	dan "Kolonne '%-.32s' bruges som UNIQUE eller INDEX men er ikke defineret som NOT NULL"
 	nla "Kolom '%-.64s' wordt gebruikt met UNIQUE of INDEX maar is niet gedefinieerd als NOT NULL"
 	eng "Column '%-.64s' is used with UNIQUE or INDEX but is not defined as NOT NULL"
+	jps "Column '%-.64s' ‚ª UNIQUE ‚© INDEX ‚Åg—p‚³‚ê‚Ü‚µ‚½. ‚±‚ÌƒJƒ‰ƒ€‚Í NOT NULL ‚Æ’è‹`‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ.",
 	est "Tulp '%-.64s' on kasutusel indeksina, kuid ei ole määratletud kui NOT NULL"
 	fre "La colonne '%-.32s' fait partie d'un index UNIQUE ou INDEX mais n'est pas définie comme NOT NULL"
 	ger "Spalte '%-.64s' wurde mit UNIQUE oder INDEX benutzt, ist aber nicht als NOT NULL definiert"
@@ -2809,6 +2894,7 @@ ER_CANT_FIND_UDF
 	dan "Kan ikke læse funktionen '%-.64s'"
 	nla "Kan functie '%-.64s' niet laden"
 	eng "Can't load function '%-.64s'"
+	jps "function '%-.64s' ‚ğ ƒ[ƒh‚Å‚«‚Ü‚¹‚ñ",
 	est "Ei suuda avada funktsiooni '%-.64s'"
 	fre "Imposible de charger la fonction '%-.64s'"
 	ger "Kann Funktion '%-.64s' nicht laden"
@@ -2830,6 +2916,7 @@ ER_CANT_INITIALIZE_UDF
 	dan "Kan ikke starte funktionen '%-.64s'; %-.80s"
 	nla "Kan functie '%-.64s' niet initialiseren; %-.80s"
 	eng "Can't initialize function '%-.64s'; %-.80s"
+	jps "function '%-.64s' ‚ğ‰Šú‰»‚Å‚«‚Ü‚¹‚ñ; %-.80s",
 	est "Ei suuda algväärtustada funktsiooni '%-.64s'; %-.80s"
 	fre "Impossible d'initialiser la fonction '%-.64s'; %-.80s"
 	ger "Kann Funktion '%-.64s' nicht initialisieren: %-.80s"
@@ -2851,6 +2938,7 @@ ER_UDF_NO_PATHS
 	dan "Angivelse af sti ikke tilladt for delt bibliotek"
 	nla "Geen pad toegestaan voor shared library"
 	eng "No paths allowed for shared library"
+	jps "shared library ‚Ö‚ÌƒpƒX‚ª’Ê‚Á‚Ä‚¢‚Ü‚¹‚ñ",
 	est "Teegi nimes ei tohi olla kataloogi"
 	fre "Chemin interdit pour les bibliothèques partagées"
 	ger "Keine Pfade gestattet für Shared Library"
@@ -2872,6 +2960,7 @@ ER_UDF_EXISTS
 	dan "Funktionen '%-.64s' findes allerede"
 	nla "Functie '%-.64s' bestaat reeds"
 	eng "Function '%-.64s' already exists"
+	jps "Function '%-.64s' ‚ÍŠù‚É’è‹`‚³‚ê‚Ä‚¢‚Ü‚·",
 	est "Funktsioon '%-.64s' juba eksisteerib"
 	fre "La fonction '%-.64s' existe déjà"
 	ger "Funktion '%-.64s' existiert schon"
@@ -2893,6 +2982,7 @@ ER_CANT_OPEN_LIBRARY
 	dan "Kan ikke åbne delt bibliotek '%-.64s' (errno: %d %s)"
 	nla "Kan shared library '%-.64s' niet openen (Errcode: %d %s)"
 	eng "Can't open shared library '%-.64s' (errno: %d %-.64s)"
+	jps "shared library '%-.64s' ‚ğŠJ‚­–‚ª‚Å‚«‚Ü‚¹‚ñ (errno: %d %s)",
 	est "Ei suuda avada jagatud teeki '%-.64s' (veakood: %d %-.64s)"
 	fre "Impossible d'ouvrir la bibliothèque partagée '%-.64s' (errno: %d %s)"
 	ger "Kann Shared Library '%-.64s' nicht öffnen (Fehler: %d %-.64s)"
@@ -2917,6 +3007,7 @@ ER_CANT_FIND_DL_ENTRY
 	dan "Kan ikke finde funktionen '%-.64s' i bibliotek'"
 	nla "Kan functie '%-.64s' niet in library vinden"
 	eng "Can't find function '%-.64s' in library'"
+	jps "function '%-.64s' ‚ğƒ‰ƒCƒuƒ‰ƒŠ[’†‚ÉŒ©•t‚¯‚é–‚ª‚Å‚«‚Ü‚¹‚ñ",
 	est "Ei leia funktsiooni '%-.64s' antud teegis"
 	fre "Impossible de trouver la fonction '%-.64s' dans la bibliothèque'"
 	ger "Kann Funktion '%-.64s' in der Library nicht finden"
@@ -2938,6 +3029,7 @@ ER_FUNCTION_NOT_DEFINED
 	dan "Funktionen '%-.64s' er ikke defineret"
 	nla "Functie '%-.64s' is niet gedefinieerd"
 	eng "Function '%-.64s' is not defined"
+	jps "Function '%-.64s' ‚Í’è‹`‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ",
 	est "Funktsioon '%-.64s' ei ole defineeritud"
 	fre "La fonction '%-.64s' n'est pas définie"
 	ger "Funktion '%-.64s' ist nicht definiert"
@@ -2959,6 +3051,7 @@ ER_HOST_IS_BLOCKED
 	dan "Værten er blokeret på grund af mange fejlforespørgsler. Lås op med 'mysqladmin flush-hosts'"
 	nla "Host '%-.64s' is geblokkeeerd vanwege te veel verbindings fouten. Deblokkeer met 'mysqladmin flush-hosts'"
 	eng "Host '%-.64s' is blocked because of many connection errors; unblock with 'mysqladmin flush-hosts'"
+	jps "Host '%-.64s' ‚Í many connection error ‚Ì‚½‚ßA‹‘”Û‚³‚ê‚Ü‚µ‚½.  'mysqladmin flush-hosts' ‚Å‰ğœ‚µ‚Ä‚­‚¾‚³‚¢",
 	est "Masin '%-.64s' on blokeeritud hulgaliste ühendusvigade tõttu. Blokeeringu saab tühistada 'mysqladmin flush-hosts' käsuga"
 	fre "L'hôte '%-.64s' est bloqué à cause d'un trop grand nombre d'erreur de connection. Débloquer le par 'mysqladmin flush-hosts'"
 	ger "Host '%-.64s' blockiert wegen zu vieler Verbindungsfehler. Aufheben der Blockierung mit 'mysqladmin flush-hosts'"
@@ -2979,6 +3072,7 @@ ER_HOST_NOT_PRIVILEGED
 	dan "Værten '%-.64s' kan ikke tilkoble denne MySQL-server"
 	nla "Het is host '%-.64s' is niet toegestaan verbinding te maken met deze MySQL server"
 	eng "Host '%-.64s' is not allowed to connect to this MySQL server"
+	jps "Host '%-.64s' ‚Í MySQL server ‚ÉÚ‘±‚ğ‹–‰Â‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ",
 	est "Masinal '%-.64s' puudub ligipääs sellele MySQL serverile"
 	fre "Le hôte '%-.64s' n'est pas authorisé à se connecter à ce serveur MySQL"
 	ger "Host '%-.64s' hat keine Berechtigung, sich mit diesem MySQL-Server zu verbinden"
@@ -2999,6 +3093,7 @@ ER_PASSWORD_ANONYMOUS_USER 42000
 	dan "Du bruger MySQL som anonym bruger. Anonyme brugere må ikke ændre adgangskoder"
 	nla "U gebruikt MySQL als anonieme gebruiker en deze mogen geen wachtwoorden wijzigen"
 	eng "You are using MySQL as an anonymous user and anonymous users are not allowed to change passwords"
+	jps "MySQL ‚ğ anonymous users ‚Åg—p‚µ‚Ä‚¢‚éó‘Ô‚Å‚ÍAƒpƒXƒ[ƒh‚Ì•ÏX‚Í‚Å‚«‚Ü‚¹‚ñ",
 	est "Te kasutate MySQL-i anonüümse kasutajana, kelledel pole parooli muutmise õigust"
 	fre "Vous utilisez un utilisateur anonyme et les utilisateurs anonymes ne sont pas autorisés à changer les mots de passe"
 	ger "Sie benutzen MySQL als anonymer Benutzer und dürfen daher keine Passwörter ändern"
@@ -3019,6 +3114,7 @@ ER_PASSWORD_NOT_ALLOWED 42000
 	dan "Du skal have tilladelse til at opdatere tabeller i MySQL databasen for at ændre andres adgangskoder"
 	nla "U moet tabel update priveleges hebben in de mysql database om wachtwoorden voor anderen te mogen wijzigen"
 	eng "You must have privileges to update tables in the mysql database to be able to change passwords for others"
+	jps "‘¼‚Ìƒ†[ƒU[‚ÌƒpƒXƒ[ƒh‚ğ•ÏX‚·‚é‚½‚ß‚É‚Í, mysql ƒf[ƒ^ƒx[ƒX‚É‘Î‚µ‚Ä update ‚Ì‹–‰Â‚ª‚È‚¯‚ê‚Î‚È‚è‚Ü‚¹‚ñ.",
 	est "Teiste paroolide muutmiseks on nõutav tabelite muutmisõigus 'mysql' andmebaasis"
 	fre "Vous devez avoir le privilège update sur les tables de la base de donnée mysql pour pouvoir changer les mots de passe des autres"
 	ger "Sie benötigen die Berechtigung zum Aktualisieren von Tabellen in der Datenbank 'mysql', um die Passwörter anderer Benutzer ändern zu können"
@@ -3058,6 +3154,7 @@ ER_UPDATE_INFO
 	dan "Poster fundet: %ld  Ændret: %ld  Advarsler: %ld"
 	nla "Passende rijen: %ld  Gewijzigd: %ld  Waarschuwingen: %ld"
 	eng "Rows matched: %ld  Changed: %ld  Warnings: %ld"
+	jps "ˆê’v”(Rows matched): %ld  •ÏX: %ld  Warnings: %ld",
 	est "Sobinud kirjeid: %ld  Muudetud: %ld  Hoiatusi: %ld"
 	fre "Enregistrements correspondants: %ld  Modifiés: %ld  Warnings: %ld"
 	ger "Datensätze gefunden: %ld  Geändert: %ld  Warnungen: %ld"
@@ -3077,6 +3174,7 @@ ER_CANT_CREATE_THREAD
 	dan "Kan ikke danne en ny tråd (fejl nr. %d). Hvis computeren ikke er løbet tør for hukommelse, kan du se i brugervejledningen for en mulig operativ-system - afhængig fejl"
 	nla "Kan geen nieuwe thread aanmaken (Errcode: %d). Indien er geen tekort aan geheugen is kunt u de handleiding consulteren over een mogelijke OS afhankelijke fout"
 	eng "Can't create a new thread (errno %d); if you are not out of available memory, you can consult the manual for a possible OS-dependent bug"
+	jps "V‹K‚ÉƒXƒŒƒbƒh‚ªì‚ê‚Ü‚¹‚ñ‚Å‚µ‚½ (errno %d). ‚à‚µÅ‘åg—p‹–‰Âƒƒ‚ƒŠ[”‚ğ‰z‚¦‚Ä‚¢‚È‚¢‚Ì‚ÉƒGƒ‰[‚ª”­¶‚µ‚Ä‚¢‚é‚È‚ç, ƒ}ƒjƒ…ƒAƒ‹‚Ì’†‚©‚ç 'possible OS-dependent bug' ‚Æ‚¢‚¤•¶š‚ğ’T‚µ‚Ä‚­‚İ‚Ä‚¾‚³‚¢.",
 	est "Ei suuda luua uut lõime (veakood %d). Kui mälu ei ole otsas, on tõenäoliselt tegemist operatsioonisüsteemispetsiifilise veaga"
 	fre "Impossible de créer une nouvelle tâche (errno %d). S'il reste de la mémoire libre, consultez le manual pour trouver un éventuel bug dépendant de l'OS"
 	ger "Kann keinen neuen Thread erzeugen (Fehler: %d). Sollte noch Speicher verfügbar sein, bitte im Handbuch wegen möglicher Fehler im Betriebssystem nachschlagen"
@@ -3138,6 +3236,7 @@ ER_INVALID_USE_OF_NULL 22004
 	dan "Forkert brug af nulværdi (NULL)"
 	nla "Foutief gebruik van de NULL waarde"
 	eng "Invalid use of NULL value"
+	jps "NULL ’l‚Ìg—p•û–@‚ª•s“KØ‚Å‚·",
 	est "NULL väärtuse väärkasutus"
 	fre "Utilisation incorrecte de la valeur NULL"
 	ger "Unerlaubte Verwendung eines NULL-Werts"
@@ -3193,6 +3292,7 @@ ER_NONEXISTING_GRANT 42000
 	dan "Denne tilladelse findes ikke for brugeren '%-.32s' på vært '%-.64s'"
 	nla "Deze toegang (GRANT) is niet toegekend voor gebruiker '%-.32s' op host '%-.64s'"
 	eng "There is no such grant defined for user '%-.32s' on host '%-.64s'"
+	jps "ƒ†[ƒU[ '%-.32s' (ƒzƒXƒg '%-.64s' ‚Ìƒ†[ƒU[) ‚Í‹–‰Â‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ",
 	est "Sellist õigust ei ole defineeritud kasutajale '%-.32s' masinast '%-.64s'"
 	fre "Un tel droit n'est pas défini pour l'utilisateur '%-.32s' sur l'hôte '%-.64s'"
 	ger "Für Benutzer '%-.32s' auf Host '%-.64s' gibt es keine solche Berechtigung"
@@ -3212,6 +3312,7 @@ ER_TABLEACCESS_DENIED_ERROR 42000
 	dan "%-.16s-kommandoen er ikke tilladt for brugeren '%-.32s'@'%-.64s' for tabellen '%-.64s'"
 	nla "%-.16s commando geweigerd voor gebruiker: '%-.32s'@'%-.64s' voor tabel '%-.64s'"
 	eng "%-.16s command denied to user '%-.32s'@'%-.64s' for table '%-.64s'"
+	jps "ƒRƒ}ƒ“ƒh %-.16s ‚Í ƒ†[ƒU[ '%-.32s'@'%-.64s' ,ƒe[ƒuƒ‹ '%-.64s' ‚É‘Î‚µ‚Ä‹–‰Â‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ",
 	est "%-.16s käsk ei ole lubatud kasutajale '%-.32s'@'%-.64s' tabelis '%-.64s'"
 	fre "La commande '%-.16s' est interdite à l'utilisateur: '%-.32s'@'@%-.64s' sur la table '%-.64s'"
 	ger "%-.16s Befehl nicht erlaubt für Benutzer '%-.32s'@'%-.64s' und für Tabelle '%-.64s'"
@@ -3231,6 +3332,7 @@ ER_COLUMNACCESS_DENIED_ERROR 42000
 	dan "%-.16s-kommandoen er ikke tilladt for brugeren '%-.32s'@'%-.64s' for kolonne '%-.64s' in tabellen '%-.64s'"
 	nla "%-.16s commando geweigerd voor gebruiker: '%-.32s'@'%-.64s' voor kolom '%-.64s' in tabel '%-.64s'"
 	eng "%-.16s command denied to user '%-.32s'@'%-.64s' for column '%-.64s' in table '%-.64s'"
+	jps "ƒRƒ}ƒ“ƒh %-.16s ‚Í ƒ†[ƒU[ '%-.32s'@'%-.64s'\n ƒJƒ‰ƒ€ '%-.64s' ƒe[ƒuƒ‹ '%-.64s' ‚É‘Î‚µ‚Ä‹–‰Â‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ",
 	est "%-.16s käsk ei ole lubatud kasutajale '%-.32s'@'%-.64s' tulbale '%-.64s' tabelis '%-.64s'"
 	fre "La commande '%-.16s' est interdite à l'utilisateur: '%-.32s'@'@%-.64s' sur la colonne '%-.64s' de la table '%-.64s'"
 	ger "%-.16s Befehl nicht erlaubt für Benutzer '%-.32s'@'%-.64s' und Spalte '%-.64s' in Tabelle '%-.64s'"
@@ -4023,28 +4125,11 @@ ER_DUMP_NOT_IMPLEMENTED
 	swe "Tabellhanteraren klarar inte en binär kopiering av tabellen"
 	ukr "ãÅÊ ÔÉĞ ÔÁÂÌÉÃ¦ ÎÅ Ğ¦ÄÔÒÉÍÕ¤ Â¦ÎÁÒÎÕ ĞÅÒÅÄÁŞÕ ÔÁÂÌÉÃ¦"
 ER_FLUSH_MASTER_BINLOG_CLOSED  
-	cze "Binlog uzav-Bøen pøi pokusu o FLUSH MASTER"
-	dan "Binlog blev lukket mens kommandoen FLUSH MASTER blev udført"
-	nla "Binlog gesloten tijdens FLUSH MASTER poging"
 	eng "Binlog closed, cannot RESET MASTER"
-	est "Binlog closed while trying to FLUSH MASTER"
-	fre "Le 'binlog' a été fermé pendant l'exécution du FLUSH MASTER"
 	ger "Binlog geschlossen. Kann RESET MASTER nicht ausführen"
-	greek "Binlog closed while trying to FLUSH MASTER"
-	hun "Binlog closed while trying to FLUSH MASTER"
-	ita "Binlog e` stato chiuso durante l'esecuzione del FLUSH MASTER"
-	jpn "Binlog closed while trying to FLUSH MASTER"
-	kor "Binlog closed while trying to FLUSH MASTER"
-	nor "Binlog closed while trying to FLUSH MASTER"
-	norwegian-ny "Binlog closed while trying to FLUSH MASTER"
-	pol "Binlog closed while trying to FLUSH MASTER"
 	por "Binlog fechado. Não pode fazer RESET MASTER"
-	rum "Binlog closed while trying to FLUSH MASTER"
 	rus "ä×ÏÉŞÎÙÊ ÖÕÒÎÁÌ ÏÂÎÏ×ÌÅÎÉÑ ÚÁËÒÙÔ, ÎÅ×ÏÚÍÏÖÎÏ ×ÙĞÏÌÎÉÔØ RESET MASTER"
 	serbian "Binarni log file zatvoren, ne mogu da izvršim komandu 'RESET MASTER'"
-	slo "Binlog closed while trying to FLUSH MASTER"
-	spa "Binlog cerrado mientras tentaba el FLUSH MASTER"
-	swe "Binärloggen stängdes medan FLUSH MASTER utfördes"
 	ukr "òÅĞÌ¦ËÁÃ¦ÊÎÉÊ ÌÏÇ ÚÁËÒÉÔÏ, ÎÅ ÍÏÖÕ ×ÉËÏÎÁÔÉ RESET MASTER"
 ER_INDEX_REBUILD  
 	cze "P-Bøebudování indexu dumpnuté tabulky '%-.64s' nebylo úspì¹né"
@@ -4258,7 +4343,6 @@ ER_SLAVE_THREAD
 	ita "Impossibile creare il thread 'slave', controllare le risorse di sistema"
 	por "Não conseguiu criar 'thread' de 'slave'. Verifique os recursos do sistema"
 	rus "îÅ×ÏÚÍÏÖÎÏ ÓÏÚÄÁÔØ ĞÏÔÏË ĞÏÄŞÉÎÅÎÎÏÇÏ ÓÅÒ×ÅÒÁ. ğÒÏ×ÅÒØÔÅ ÓÉÓÔÅÍÎÙÅ ÒÅÓÕÒÓÙ"
-	slo "Could not create slave thread, check system resources"
 	serbian "Nisam mogao da startujem thread za podreğeni server, proverite sistemske resurse"
 	spa "No puedo crear el thread esclavo, verifique recursos del sistema"
 	swe "Kunde inte starta en tråd för replikering"
@@ -4266,7 +4350,7 @@ ER_SLAVE_THREAD
 ER_TOO_MANY_USER_CONNECTIONS 42000 
 	dan "Brugeren %-.64s har allerede mere end 'max_user_connections' aktive forbindelser"
 	nla "Gebruiker %-.64s heeft reeds meer dan 'max_user_connections' actieve verbindingen"
-	eng "User %-.64s has already more than 'max_user_connections' active connections"
+	eng "User %-.64s already has more than 'max_user_connections' active connections"
 	est "Kasutajal %-.64s on juba rohkem ühendusi kui lubatud 'max_user_connections' muutujaga"
 	fre "L'utilisateur %-.64s possède déjà plus de 'max_user_connections' connections actives"
 	ger "Benutzer '%-.64s' hat mehr als max_user_connections aktive Verbindungen"
@@ -4764,7 +4848,7 @@ ER_SLAVE_WAS_RUNNING
 	spa "Slave ya está funcionando"
 	swe "Slaven har redan startat"
 ER_SLAVE_WAS_NOT_RUNNING  
-	eng "Slave has already been stopped"
+	eng "Slave already has been stopped"
 	ger "Slave wurde bereits angehalten"
 	por "O slave já está parado"
 	spa "Slave ya fué parado"
@@ -4788,9 +4872,7 @@ ER_ZLIB_Z_DATA_ERROR
 	eng "ZLIB: Input data corrupted"
 	ger "ZLIB: Eingabedaten beschädigt"
 	por "ZLIB: Dados de entrada está corrupto"
-	spa "Z_DATA_ERROR: Dato de entrada fué corrompido para zlib"
-	swe "Z_DATA_ERROR: Input data was corrupted for zlib"
-	ukr "Z_DATA_ERROR: Input data was corrupted for zlib"
+	spa "ZLIB: Dato de entrada fué corrompido para zlib"
 ER_CUT_VALUE_GROUP_CONCAT  
 	eng "%d line(s) were cut by GROUP_CONCAT()"
 	ger "%d Zeile(n) durch GROUP_CONCAT() abgeschnitten"
@@ -4818,7 +4900,7 @@ ER_WARN_DATA_OUT_OF_RANGE 22003
 	ger "Daten abgeschnitten, außerhalb des Wertebereichs für Spalte '%s' in Zeile %ld"
 	por "Dado truncado, fora de alcance para coluna '%s' na linha %ld"
 	spa "Datos truncados, fuera de gama para columna '%s' en la línea %ld"
-ER_WARN_DATA_TRUNCATED 01000 
+WARN_DATA_TRUNCATED 01000 
 	eng "Data truncated for column '%s' at row %ld"
 	ger "Daten abgeschnitten für Spalte '%s' in Zeile %ld"
 	por "Dado truncado para coluna '%s' na linha %ld"
@@ -4867,8 +4949,6 @@ ER_SLAVE_IGNORED_SSL_PARAMS
 	ger "SSL-Parameter in CHANGE MASTER werden ignoriert, weil dieser MySQL-Slave ohne SSL-Unterstützung kompiliert wurde. Sie können aber später verwendet werden, wenn der MySQL-Slave mit SSL gestartet wird"
 	por "SSL parâmetros em CHANGE MASTER são ignorados porque este escravo MySQL foi compilado sem o SSL suporte. Os mesmos podem ser usados mais tarde quando o escravo MySQL com SSL seja iniciado."
 	spa "Parametros SSL en CHANGE MASTER son ignorados porque este slave MySQL fue compilado sin soporte SSL; pueden ser usados despues cuando el slave MySQL con SSL sea inicializado"
-	swe "SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support; they can be used later when MySQL slave with SSL will be started"
-	ukr "SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support; they can be used later when MySQL slave with SSL will be started"
 ER_SERVER_IS_IN_SECURE_AUTH_MODE  
 	eng "Server is running in --secure-auth mode, but '%s'@'%s' has a password in the old format; please change the password to the new format"
 	ger "Server läuft im Modus --secure-auth, aber '%s'@'%s' hat ein Passwort im alten Format. Bitte Passwort ins neue Format ändern"
@@ -4965,26 +5045,20 @@ ER_TOO_MUCH_AUTO_TIMESTAMP_COLS
 	eng "Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
 	por "Incorreta definição de tabela; Pode ter somente uma coluna TIMESTAMP com CURRENT_TIMESTAMP em DEFAULT ou ON UPDATE cláusula"
 	spa "Incorrecta definición de tabla; Solamente debe haber una columna TIMESTAMP con CURRENT_TIMESTAMP en DEFAULT o ON UPDATE cláusula"
-	swe "Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
-	ukr "Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
 ER_INVALID_ON_UPDATE  
 	eng "Invalid ON UPDATE clause for '%-.64s' column"
 	por "Inválida cláusula ON UPDATE para campo '%-.64s'"
 	spa "Inválido ON UPDATE cláusula para campo '%-.64s'"
-	swe "Invalid ON UPDATE clause for '%-.64s' field"
-	ukr "Invalid ON UPDATE clause for '%-.64s' field"
 ER_UNSUPPORTED_PS  
 	eng "This command is not supported in the prepared statement protocol yet"
 ER_GET_ERRMSG  
 	dan "Modtog fejl %d '%-.100s' fra %s"
 	eng "Got error %d '%-.100s' from %s"
-	jpn "Got NDB error %d '%-.100s'"
 	nor "Mottok feil %d '%-.100s' fa %s"
 	norwegian-ny "Mottok feil %d '%-.100s' fra %s"
 ER_GET_TEMPORARY_ERRMSG  
 	dan "Modtog temporary fejl %d '%-.100s' fra %s"
 	eng "Got temporary error %d '%-.100s' from %s"
-	jpn "Got temporary NDB error %d '%-.100s'"
 	nor "Mottok temporary feil %d '%-.100s' fra %s"
 	norwegian-ny "Mottok temporary feil %d '%-.100s' fra %s"
 ER_UNKNOWN_TIME_ZONE  
@@ -5238,3 +5312,5 @@ ER_PROC_AUTO_GRANT_FAIL
 	eng "Failed to grant EXECUTE and ALTER ROUTINE privileges"
 ER_PROC_AUTO_REVOKE_FAIL
 	eng "Failed to revoke all privileges to dropped routine"
+ER_DATA_TOO_LONG 22001
+	eng "Data too long for column '%s' at row %ld"

@@ -33,1276 +33,697 @@ EventLoggerBase::~EventLoggerBase()
   
 }
 
+
+#define QQQQ char *m_text, size_t m_text_len, const Uint32* theData
+
+void getTextConnected(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Node %u Connected",
+		       theData[1]);
+}
+void getTextConnectedApiVersion(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Node %u: API version %d.%d.%d",
+		       theData[1],
+		       getMajor(theData[2]),
+		       getMinor(theData[2]),
+		       getBuild(theData[2]));
+}
+void getTextDisconnected(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Node %u Disconnected", 
+		       theData[1]);
+}
+void getTextCommunicationClosed(QQQQ) {
+  //-----------------------------------------------------------------------
+  // REPORT communication to node closed.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Communication to Node %u closed", 
+		       theData[1]);
+}
+void getTextCommunicationOpened(QQQQ) {
+  //-----------------------------------------------------------------------
+  // REPORT communication to node opened.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Communication to Node %u opened", 
+		       theData[1]);
+}
+void getTextNDBStartStarted(QQQQ) {
+  //-----------------------------------------------------------------------
+  // Start of NDB has been initiated.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Start initiated (version %d.%d.%d)", 
+		       getMajor(theData[1]),
+		       getMinor(theData[1]),
+		       getBuild(theData[1]));
+}
+void getTextNDBStopStarted(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len,
+		       "%s shutdown initiated", 
+		       (theData[1] == 1 ? "Cluster" : "Node"));
+}
+void getTextNDBStopAborted(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len,
+		       "Node shutdown aborted");
+}
+void getTextNDBStartCompleted(QQQQ) {
+  //-----------------------------------------------------------------------
+  // Start of NDB has been completed.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Started (version %d.%d.%d)", 
+		       getMajor(theData[1]),
+		       getMinor(theData[1]),
+		       getBuild(theData[1]));
+}
+void getTextSTTORRYRecieved(QQQQ) {
+  //-----------------------------------------------------------------------
+  // STTORRY recevied after restart finished.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len, 
+		       "STTORRY received after restart finished");
+}
+void getTextStartPhaseCompleted(QQQQ) {
+  //-----------------------------------------------------------------------
+  // REPORT Start phase completed.
+  //-----------------------------------------------------------------------
+  const char *type = "<Unknown>";
+  switch((NodeState::StartType)theData[2]){
+  case NodeState::ST_INITIAL_START:
+    type = "(initial start)";
+    break;
+  case NodeState::ST_SYSTEM_RESTART:
+    type = "(system restart)";
+    break;
+  case NodeState::ST_NODE_RESTART:
+    type = "(node restart)";
+    break;
+  case NodeState::ST_INITIAL_NODE_RESTART:
+    type = "(initial node restart)";
+    break;
+  case NodeState::ST_ILLEGAL_TYPE:
+    type = "";
+    break;
+  default:
+    BaseString::snprintf(m_text, m_text_len, 
+			 "Start phase %u completed (unknown = %d)", 
+			 theData[1],
+			 theData[2]);
+    return;
+  }
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Start phase %u completed %s", 
+		       theData[1],
+		       type);
+}
+void getTextCM_REGCONF(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "CM_REGCONF president = %u, own Node = %u, our dynamic id = %u",
+		       theData[2], 
+		       theData[1],
+		       theData[3]);
+}
+void getTextCM_REGREF(QQQQ) {
+  const char* line = "";
+  switch (theData[3]) {
+  case 0:
+    line = "Busy";
+    break;
+  case 1:
+    line = "Election with wait = false";
+    break;
+  case 2:
+    line = "Election with wait = false";
+    break;
+  case 3:
+    line = "Not president";
+    break;
+  case 4:
+    line = "Election without selecting new candidate";
+    break;
+  default:
+    line = "No such cause";
+    break;
+  }//switch
+
+  BaseString::snprintf(m_text, m_text_len, 
+		       "CM_REGREF from Node %u to our Node %u. Cause = %s", 
+		       theData[2], 
+		       theData[1], 
+		       line);
+}
+void getTextFIND_NEIGHBOURS(QQQQ) {
+  //-----------------------------------------------------------------------
+  // REPORT Node Restart copied a fragment.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len, 
+		       "We are Node %u with dynamic ID %u, our left neighbour "
+		       "is Node %u, our right is Node %u", 
+		       theData[1], 
+		       theData[4], 
+		       theData[2], 
+		       theData[3]);
+}
+void getTextNodeFailCompleted(QQQQ) {
+  //-----------------------------------------------------------------------
+  // REPORT Node failure phase completed.
+  //-----------------------------------------------------------------------
+  if (theData[1] == 0)
+  {
+    if (theData[3] != 0) {
+      BaseString::snprintf(m_text, m_text_len, 
+			   "Node %u completed failure of Node %u", 
+			   theData[3], 
+			   theData[2]);
+    } else {
+      BaseString::snprintf(m_text, m_text_len, 
+			   "All nodes completed failure of Node %u", 
+			   theData[2]);
+    }//if      
+  } else {
+    const char* line = "";
+    if (theData[1] == DBTC){
+      line = "DBTC";
+    }else if (theData[1] == DBDICT){
+      line = "DBDICT";
+    }else if (theData[1] == DBDIH){
+      line = "DBDIH";
+    }else if (theData[1] == DBLQH){
+      line = "DBLQH";
+    }
+    BaseString::snprintf(m_text, m_text_len, 
+			 "Node failure of %u %s completed", 
+			 theData[2], 
+			 line);
+  }
+}
+void getTextNODE_FAILREP(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Node %u has failed. The Node state at failure "
+		       "was %u", 
+		       theData[1], 
+		       theData[2]); 
+}
+void getTextArbitState(QQQQ) {
+  //-----------------------------------------------------------------------
+  // REPORT arbitrator found or lost.
+  //-----------------------------------------------------------------------
+  {
+    const ArbitSignalData* sd = (ArbitSignalData*)theData;
+    char ticketText[ArbitTicket::TextLength + 1];
+    char errText[ArbitCode::ErrTextLength + 1];
+    const unsigned code = sd->code & 0xFFFF;
+    const unsigned state = sd->code >> 16;
+    switch (code) {
+    case ArbitCode::ThreadStart:
+      BaseString::snprintf(m_text, m_text_len,
+			   "President restarts arbitration thread [state=%u]",
+			   state);
+      break;
+    case ArbitCode::PrepPart2:
+      sd->ticket.getText(ticketText, sizeof(ticketText));
+      BaseString::snprintf(m_text, m_text_len,
+			   "Prepare arbitrator node %u [ticket=%s]",
+			   sd->node, ticketText);
+      break;
+    case ArbitCode::PrepAtrun:
+      sd->ticket.getText(ticketText, sizeof(ticketText));
+      BaseString::snprintf(m_text, m_text_len,
+			   "Receive arbitrator node %u [ticket=%s]",
+			   sd->node, ticketText);
+      break;
+    case ArbitCode::ApiStart:
+      sd->ticket.getText(ticketText, sizeof(ticketText));
+      BaseString::snprintf(m_text, m_text_len,
+			   "Started arbitrator node %u [ticket=%s]",
+			   sd->node, ticketText);
+      break;
+    case ArbitCode::ApiFail:
+      BaseString::snprintf(m_text, m_text_len,
+			   "Lost arbitrator node %u - process failure [state=%u]",
+			   sd->node, state);
+      break;
+    case ArbitCode::ApiExit:
+      BaseString::snprintf(m_text, m_text_len,
+			   "Lost arbitrator node %u - process exit [state=%u]",
+			   sd->node, state);
+      break;
+    default:
+      ArbitCode::getErrText(code, errText, sizeof(errText));
+      BaseString::snprintf(m_text, m_text_len,
+			   "Lost arbitrator node %u - %s [state=%u]",
+			   sd->node, errText, state);
+      break;
+    }
+  }
+}
+
+void getTextArbitResult(QQQQ) {
+  //-----------------------------------------------------------------------
+  // REPORT arbitration result (the failures may not reach us).
+  //-----------------------------------------------------------------------
+  {
+    const ArbitSignalData* sd = (ArbitSignalData*)theData;
+    char errText[ArbitCode::ErrTextLength + 1];
+    const unsigned code = sd->code & 0xFFFF;
+    const unsigned state = sd->code >> 16;
+    switch (code) {
+    case ArbitCode::LoseNodes:
+      BaseString::snprintf(m_text, m_text_len,
+			   "Arbitration check lost - less than 1/2 nodes left");
+      break;
+    case ArbitCode::WinNodes:
+      BaseString::snprintf(m_text, m_text_len,
+			   "Arbitration check won - all node groups and more than 1/2 nodes left");
+      break;
+    case ArbitCode::WinGroups:
+      BaseString::snprintf(m_text, m_text_len,
+			   "Arbitration check won - node group majority");
+      break;
+    case ArbitCode::LoseGroups:
+      BaseString::snprintf(m_text, m_text_len,
+			   "Arbitration check lost - missing node group");
+      break;
+    case ArbitCode::Partitioning:
+      BaseString::snprintf(m_text, m_text_len,
+			   "Network partitioning - arbitration required");
+      break;
+    case ArbitCode::WinChoose:
+      BaseString::snprintf(m_text, m_text_len,
+			   "Arbitration won - positive reply from node %u",
+			   sd->node);
+      break;
+    case ArbitCode::LoseChoose:
+      BaseString::snprintf(m_text, m_text_len,
+			   "Arbitration lost - negative reply from node %u",
+			   sd->node);
+      break;
+    case ArbitCode::LoseNorun:
+      BaseString::snprintf(m_text, m_text_len,
+			   "Network partitioning - no arbitrator available");
+      break;
+    case ArbitCode::LoseNocfg:
+      BaseString::snprintf(m_text, m_text_len,
+			   "Network partitioning - no arbitrator configured");
+      break;
+    default:
+      ArbitCode::getErrText(code, errText, sizeof(errText));
+      BaseString::snprintf(m_text, m_text_len,
+			   "Arbitration failure - %s [state=%u]",
+			   errText, state);
+      break;
+    }
+  }
+}
+void getTextGlobalCheckpointStarted(QQQQ) {
+  //-----------------------------------------------------------------------
+  // This event reports that a global checkpoint has been started and this
+  // node is the master of this global checkpoint.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Global checkpoint %u started", 
+		       theData[1]);
+}
+void getTextGlobalCheckpointCompleted(QQQQ) {
+  //-----------------------------------------------------------------------
+  // This event reports that a global checkpoint has been completed on this
+  // node and the node is the master of this global checkpoint.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Global checkpoint %u completed", 
+		       theData[1]);
+}
+void getTextLocalCheckpointStarted(QQQQ) {
+  //-----------------------------------------------------------------------
+  // This event reports that a local checkpoint has been started and this
+  // node is the master of this local checkpoint.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Local checkpoint %u started. "
+		       "Keep GCI = %u oldest restorable GCI = %u", 
+		       theData[1], 
+		       theData[2], 
+		       theData[3]);
+}
+void getTextLocalCheckpointCompleted(QQQQ) {
+  //-----------------------------------------------------------------------
+  // This event reports that a local checkpoint has been completed on this
+  // node and the node is the master of this local checkpoint.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Local checkpoint %u completed", 
+		       theData[1]);
+}
+void getTextTableCreated(QQQQ) {
+  //-----------------------------------------------------------------------
+  // This event reports that a table has been created.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Table with ID =  %u created", 
+		       theData[1]);
+}
+/* STRANGE */
+void getTextLCPStoppedInCalcKeepGci(QQQQ) {
+  if (theData[1] == 0)
+    BaseString::snprintf(m_text, m_text_len, 
+			 "Local Checkpoint stopped in CALCULATED_KEEP_GCI");
+}
+void getTextNR_CopyDict(QQQQ) {
+  //-----------------------------------------------------------------------
+  // REPORT Node Restart completed copy of dictionary information.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Node restart completed copy of dictionary information");
+}
+void getTextNR_CopyDistr(QQQQ) {
+  //-----------------------------------------------------------------------
+  // REPORT Node Restart completed copy of distribution information.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Node restart completed copy of distribution information");
+}
+void getTextNR_CopyFragsStarted(QQQQ) {
+  //-----------------------------------------------------------------------
+  // REPORT Node Restart is starting to copy the fragments.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Node restart starting to copy the fragments "
+		       "to Node %u", 
+		       theData[1]);
+}
+void getTextNR_CopyFragDone(QQQQ) {
+  //-----------------------------------------------------------------------
+  // REPORT Node Restart copied a fragment.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Table ID = %u, fragment ID = %u have been copied "
+		       "to Node %u", 
+		       theData[2], 
+		       theData[3], 
+		       theData[1]);
+}
+void getTextNR_CopyFragsCompleted(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Node restart completed copying the fragments "
+		       "to Node %u", 
+		       theData[1]);
+}
+void getTextLCPFragmentCompleted(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Table ID = %u, fragment ID = %u has completed LCP "
+		       "on Node %u", 
+		       theData[2], 
+		       theData[3], 
+		       theData[1]);
+}
+void getTextTransReportCounters(QQQQ) {
+  // -------------------------------------------------------------------  
+  // Report information about transaction activity once per 10 seconds.
+  // ------------------------------------------------------------------- 
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Trans. Count = %u, Commit Count = %u, "
+		       "Read Count = %u, Simple Read Count = %u,\n"
+		       "Write Count = %u, AttrInfo Count = %u, "
+		       "Concurrent Operations = %u, Abort Count = %u\n"
+		       " Scans: %u Range scans: %u", 
+		       theData[1], 
+		       theData[2], 
+		       theData[3], 
+		       theData[4],
+		       theData[5], 
+		       theData[6], 
+		       theData[7], 
+		       theData[8],
+		       theData[9],
+		       theData[10]);
+}
+void getTextOperationReportCounters(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len,
+		       "Operations=%u",
+		       theData[1]);
+}
+void getTextUndoLogBlocked(QQQQ) {
+  //-----------------------------------------------------------------------
+  // REPORT Undo Logging blocked due to buffer near to overflow.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len, 
+		       "ACC Blocked %u and TUP Blocked %u times last second",
+		       theData[1],
+		       theData[2]);
+}
+void getTextTransporterError(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Transporter to node %d reported error 0x%x",
+		       theData[1],
+		       theData[2]);
+}
+void getTextTransporterWarning(QQQQ) {
+  getTextTransporterError(m_text, m_text_len, theData);
+}
+void getTextMissedHeartbeat(QQQQ) {
+  //-----------------------------------------------------------------------
+  // REPORT Undo Logging blocked due to buffer near to overflow.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Node %d missed heartbeat %d",
+		       theData[1],
+		       theData[2]);
+}
+void getTextDeadDueToHeartbeat(QQQQ) {
+  //-----------------------------------------------------------------------
+  // REPORT Undo Logging blocked due to buffer near to overflow.
+  //-----------------------------------------------------------------------
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Node %d declared dead due to missed heartbeat",
+		       theData[1]);
+}
+void getTextJobStatistic(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Mean loop Counter in doJob last 8192 times = %u",
+		       theData[1]);
+}
+void getTextSendBytesStatistic(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Mean send size to Node = %d last 4096 sends = %u bytes",
+		       theData[1],
+		       theData[2]);
+}
+void getTextReceiveBytesStatistic(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Mean receive size to Node = %d last 4096 sends = %u bytes",
+		       theData[1],
+		       theData[2]);
+}
+void getTextSentHeartbeat(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Node Sent Heartbeat to node = %d",
+		       theData[1]);
+}
+void getTextCreateLogBytes(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Log part %u, log file %u, MB %u",
+		       theData[1],
+		       theData[2],
+		       theData[3]);
+}
+void getTextStartLog(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Log part %u, start MB %u, stop MB %u, last GCI, log exec %u",
+		       theData[1],
+		       theData[2],
+		       theData[3],
+		       theData[4]);
+}
+void getTextStartREDOLog(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Node: %d StartLog: [GCI Keep: %d LastCompleted: %d NewestRestorable: %d]",
+		       theData[1],
+		       theData[2],
+		       theData[3],
+		       theData[4]);
+}
+void getTextUNDORecordsExecuted(QQQQ) {
+  const char* line = "";
+  if (theData[1] == DBTUP){
+    line = "DBTUP";
+  }else if (theData[1] == DBACC){
+    line = "DBACC";
+  }
+    
+  BaseString::snprintf(m_text, m_text_len, 
+		       " UNDO %s %d [%d %d %d %d %d %d %d %d %d]",
+		       line,
+		       theData[2],
+		       theData[3],
+		       theData[4],
+		       theData[5],
+		       theData[6],
+		       theData[7],
+		       theData[8],
+		       theData[9],
+		       theData[10],
+		       theData[11]);
+}
+void getTextInfoEvent(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, (char *)&theData[1]);
+}
+void getTextWarningEvent(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, (char *)&theData[1]);
+}
+void getTextGCP_TakeoverStarted(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, "GCP Take over started");
+}
+void getTextGCP_TakeoverCompleted(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, "GCP Take over completed");
+}
+void getTextLCP_TakeoverStarted(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, "LCP Take over started");
+}
+void getTextLCP_TakeoverCompleted(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len,
+		       "LCP Take over completed (state = %d)", 
+		       theData[1]);
+}
+void getTextMemoryUsage(QQQQ) {
+  const int gth = theData[1];
+  const int size = theData[2];
+  const int used = theData[3];
+  const int total = theData[4];
+  const int block = theData[5];
+  const int percent = (used*100)/total;
+    
+  BaseString::snprintf(m_text, m_text_len,
+		       "%s usage %s %d%s(%d %dK pages of total %d)",
+		       (block==DBACC ? "Index" : (block == DBTUP ?"Data":"<unknown>")),
+		       (gth == 0 ? "is" : (gth > 0 ? "increased to" : "decreased to")),
+		       percent, "%",
+		       used, size/1024, total
+		       );
+}
+
+void getTextBackupStarted(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Backup %d started from node %d", 
+		       theData[2], refToNode(theData[1]));
+}
+void getTextBackupFailedToStart(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Backup request from %d failed to start. Error: %d", 
+		       refToNode(theData[1]), theData[2]);
+}
+void getTextBackupCompleted(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Backup %u started from node %u completed\n" 
+		       " StartGCP: %u StopGCP: %u\n"
+		       " #Records: %u #LogRecords: %u\n"
+		       " Data: %u bytes Log: %u bytes",
+		       theData[2], refToNode(theData[1]),
+		       theData[3], theData[4], theData[6], theData[8],
+		       theData[5], theData[7]);
+}
+void getTextBackupAborted(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Backup %d started from %d has been aborted. Error: %d",
+		       theData[2], 
+		       refToNode(theData[1]), 
+		       theData[3]);
+}
+
+#if 0
+BaseString::snprintf(m_text, 
+		     m_text_len, 
+		     "Unknown event: %d",
+		     theData[0]);
+#endif
+
 /**
  * This matrix defines which event should be printed when
  *
  * threshold - is in range [0-15]
  * severity  - DEBUG to ALERT (Type of log message)
  */
+
+#define ROW(a,b,c,d) \
+{ NDB_LE_ ## a, b, c, d, getText ## a}
+
 const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   // CONNECTION
-  { NDB_LE_Connected,           LogLevel::llConnection, 8, Logger::LL_INFO },
-  { NDB_LE_Disconnected,        LogLevel::llConnection, 8, Logger::LL_ALERT },
-  { NDB_LE_CommunicationClosed, LogLevel::llConnection, 8, Logger::LL_INFO },
-  { NDB_LE_CommunicationOpened, LogLevel::llConnection, 8, Logger::LL_INFO },
-  { NDB_LE_ConnectedApiVersion, LogLevel::llConnection, 8, Logger::LL_INFO },
+  ROW(Connected,               LogLevel::llConnection,  8, Logger::LL_INFO ),
+  ROW(Disconnected,            LogLevel::llConnection,  8, Logger::LL_ALERT ),
+  ROW(CommunicationClosed,     LogLevel::llConnection,  8, Logger::LL_INFO ),
+  ROW(CommunicationOpened,     LogLevel::llConnection,  8, Logger::LL_INFO ),
+  ROW(ConnectedApiVersion,     LogLevel::llConnection,  8, Logger::LL_INFO ),
   // CHECKPOINT
-  { NDB_LE_GlobalCheckpointStarted, LogLevel::llCheckpoint,  9, Logger::LL_INFO },
-  { NDB_LE_GlobalCheckpointCompleted,LogLevel::llCheckpoint,10, Logger::LL_INFO },
-  { NDB_LE_LocalCheckpointStarted,  LogLevel::llCheckpoint,  7, Logger::LL_INFO },
-  { NDB_LE_LocalCheckpointCompleted,LogLevel::llCheckpoint,  8, Logger::LL_INFO },
-  { NDB_LE_LCPStoppedInCalcKeepGci, LogLevel::llCheckpoint,  0, Logger::LL_ALERT },
-  { NDB_LE_LCPFragmentCompleted,    LogLevel::llCheckpoint, 11, Logger::LL_INFO },
-  { NDB_LE_UndoLogBlocked,          LogLevel::llCheckpoint,  7, Logger::LL_INFO },
+  ROW(GlobalCheckpointStarted, LogLevel::llCheckpoint,  9, Logger::LL_INFO ),
+  ROW(GlobalCheckpointCompleted,LogLevel::llCheckpoint,10, Logger::LL_INFO ),
+  ROW(LocalCheckpointStarted,  LogLevel::llCheckpoint,  7, Logger::LL_INFO ),
+  ROW(LocalCheckpointCompleted,LogLevel::llCheckpoint,  8, Logger::LL_INFO ),
+  ROW(LCPStoppedInCalcKeepGci, LogLevel::llCheckpoint,  0, Logger::LL_ALERT ),
+  ROW(LCPFragmentCompleted,    LogLevel::llCheckpoint, 11, Logger::LL_INFO ),
+  ROW(UndoLogBlocked,          LogLevel::llCheckpoint,  7, Logger::LL_INFO ),
 
   // STARTUP
-  { NDB_LE_NDBStartStarted,          LogLevel::llStartUp, 1, Logger::LL_INFO },
-  { NDB_LE_NDBStartCompleted,        LogLevel::llStartUp, 1, Logger::LL_INFO },
-  { NDB_LE_STTORRYRecieved,          LogLevel::llStartUp,15, Logger::LL_INFO },
-  { NDB_LE_StartPhaseCompleted,      LogLevel::llStartUp, 4, Logger::LL_INFO },
-  { NDB_LE_CM_REGCONF,               LogLevel::llStartUp, 3, Logger::LL_INFO },
-  { NDB_LE_CM_REGREF,                LogLevel::llStartUp, 8, Logger::LL_INFO },
-  { NDB_LE_FIND_NEIGHBOURS,          LogLevel::llStartUp, 8, Logger::LL_INFO },
-  { NDB_LE_NDBStopStarted,           LogLevel::llStartUp, 1, Logger::LL_INFO },
-  { NDB_LE_NDBStopAborted,           LogLevel::llStartUp, 1, Logger::LL_INFO },
-  { NDB_LE_StartREDOLog,             LogLevel::llStartUp, 10, Logger::LL_INFO },
-  { NDB_LE_StartLog,                 LogLevel::llStartUp, 10, Logger::LL_INFO },
-  { NDB_LE_UNDORecordsExecuted,      LogLevel::llStartUp, 15, Logger::LL_INFO },
+  ROW(NDBStartStarted,         LogLevel::llStartUp,     1, Logger::LL_INFO ),
+  ROW(NDBStartCompleted,       LogLevel::llStartUp,     1, Logger::LL_INFO ),
+  ROW(STTORRYRecieved,         LogLevel::llStartUp,    15, Logger::LL_INFO ),
+  ROW(StartPhaseCompleted,     LogLevel::llStartUp,     4, Logger::LL_INFO ),
+  ROW(CM_REGCONF,              LogLevel::llStartUp,     3, Logger::LL_INFO ),
+  ROW(CM_REGREF,               LogLevel::llStartUp,     8, Logger::LL_INFO ),
+  ROW(FIND_NEIGHBOURS,         LogLevel::llStartUp,     8, Logger::LL_INFO ),
+  ROW(NDBStopStarted,          LogLevel::llStartUp,     1, Logger::LL_INFO ),
+  ROW(NDBStopAborted,          LogLevel::llStartUp,     1, Logger::LL_INFO ),
+  ROW(StartREDOLog,            LogLevel::llStartUp,    10, Logger::LL_INFO ),
+  ROW(StartLog,                LogLevel::llStartUp,    10, Logger::LL_INFO ),
+  ROW(UNDORecordsExecuted,     LogLevel::llStartUp,    15, Logger::LL_INFO ),
   
   // NODERESTART
-  { NDB_LE_NR_CopyDict,            LogLevel::llNodeRestart,  8, Logger::LL_INFO },
-  { NDB_LE_NR_CopyDistr,           LogLevel::llNodeRestart,  8, Logger::LL_INFO },
-  { NDB_LE_NR_CopyFragsStarted,    LogLevel::llNodeRestart,  8, Logger::LL_INFO },
-  { NDB_LE_NR_CopyFragDone,        LogLevel::llNodeRestart, 10, Logger::LL_INFO },
-  { NDB_LE_NR_CopyFragsCompleted,  LogLevel::llNodeRestart,  8, Logger::LL_INFO },
+  ROW(NR_CopyDict,             LogLevel::llNodeRestart, 8, Logger::LL_INFO ),
+  ROW(NR_CopyDistr,            LogLevel::llNodeRestart, 8, Logger::LL_INFO ),
+  ROW(NR_CopyFragsStarted,     LogLevel::llNodeRestart, 8, Logger::LL_INFO ),
+  ROW(NR_CopyFragDone,         LogLevel::llNodeRestart,10, Logger::LL_INFO ),
+  ROW(NR_CopyFragsCompleted,   LogLevel::llNodeRestart, 8, Logger::LL_INFO ),
 
-  { NDB_LE_NodeFailCompleted,      LogLevel::llNodeRestart,  8, Logger::LL_ALERT},
-  { NDB_LE_NODE_FAILREP,           LogLevel::llNodeRestart,  8, Logger::LL_ALERT},
-  { NDB_LE_ArbitState,		 LogLevel::llNodeRestart,  6, Logger::LL_INFO },
-  { NDB_LE_ArbitResult,		 LogLevel::llNodeRestart,  2, Logger::LL_ALERT},
-  { NDB_LE_GCP_TakeoverStarted,    LogLevel::llNodeRestart,  7, Logger::LL_INFO },
-  { NDB_LE_GCP_TakeoverCompleted,  LogLevel::llNodeRestart,  7, Logger::LL_INFO },
-  { NDB_LE_LCP_TakeoverStarted,    LogLevel::llNodeRestart,  7, Logger::LL_INFO },
-  { NDB_LE_LCP_TakeoverCompleted,  LogLevel::llNodeRestart,  7, Logger::LL_INFO },
+  ROW(NodeFailCompleted,       LogLevel::llNodeRestart, 8, Logger::LL_ALERT),
+  ROW(NODE_FAILREP,            LogLevel::llNodeRestart, 8, Logger::LL_ALERT),
+  ROW(ArbitState,		LogLevel::llNodeRestart, 6, Logger::LL_INFO ),
+  ROW(ArbitResult,	        LogLevel::llNodeRestart, 2, Logger::LL_ALERT),
+  ROW(GCP_TakeoverStarted,     LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
+  ROW(GCP_TakeoverCompleted,   LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
+  ROW(LCP_TakeoverStarted,     LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
+  ROW(LCP_TakeoverCompleted,   LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
 
   // STATISTIC
-  { NDB_LE_TransReportCounters,     LogLevel::llStatistic, 8, Logger::LL_INFO },
-  { NDB_LE_OperationReportCounters, LogLevel::llStatistic, 8, Logger::LL_INFO }, 
-  { NDB_LE_TableCreated,            LogLevel::llStatistic, 7, Logger::LL_INFO },
-  { NDB_LE_JobStatistic,            LogLevel::llStatistic, 9, Logger::LL_INFO },
-  { NDB_LE_SendBytesStatistic,      LogLevel::llStatistic, 9, Logger::LL_INFO },
-  { NDB_LE_ReceiveBytesStatistic,   LogLevel::llStatistic, 9, Logger::LL_INFO },
-  { NDB_LE_MemoryUsage,             LogLevel::llStatistic, 5, Logger::LL_INFO },
+  ROW(TransReportCounters,     LogLevel::llStatistic,   8, Logger::LL_INFO ),
+  ROW(OperationReportCounters, LogLevel::llStatistic,   8, Logger::LL_INFO ), 
+  ROW(TableCreated,            LogLevel::llStatistic,   7, Logger::LL_INFO ),
+  ROW(JobStatistic,            LogLevel::llStatistic,   9, Logger::LL_INFO ),
+  ROW(SendBytesStatistic,      LogLevel::llStatistic,   9, Logger::LL_INFO ),
+  ROW(ReceiveBytesStatistic,   LogLevel::llStatistic,   9, Logger::LL_INFO ),
+  ROW(MemoryUsage,             LogLevel::llStatistic,   5, Logger::LL_INFO ),
 
   // ERROR
-  { NDB_LE_TransporterError,   LogLevel::llError, 2, Logger::LL_ERROR   },
-  { NDB_LE_TransporterWarning, LogLevel::llError, 8, Logger::LL_WARNING },
-  { NDB_LE_MissedHeartbeat,    LogLevel::llError, 8, Logger::LL_WARNING },
-  { NDB_LE_DeadDueToHeartbeat, LogLevel::llError, 8, Logger::LL_ALERT   },
-  { NDB_LE_WarningEvent,       LogLevel::llError, 2, Logger::LL_WARNING },
+  ROW(TransporterError,        LogLevel::llError,  2, Logger::LL_ERROR   ),
+  ROW(TransporterWarning,      LogLevel::llError,  8, Logger::LL_WARNING ),
+  ROW(MissedHeartbeat,         LogLevel::llError,  8, Logger::LL_WARNING ),
+  ROW(DeadDueToHeartbeat,      LogLevel::llError,  8, Logger::LL_ALERT   ),
+  ROW(WarningEvent,            LogLevel::llError,  2, Logger::LL_WARNING ),
   // INFO
-  { NDB_LE_SentHeartbeat,     LogLevel::llInfo, 12, Logger::LL_INFO },
-  { NDB_LE_CreateLogBytes,    LogLevel::llInfo, 11, Logger::LL_INFO },
-  { NDB_LE_InfoEvent,         LogLevel::llInfo,  2, Logger::LL_INFO },
+  ROW(SentHeartbeat,           LogLevel::llInfo,  12, Logger::LL_INFO ),
+  ROW(CreateLogBytes,          LogLevel::llInfo,  11, Logger::LL_INFO ),
+  ROW(InfoEvent,               LogLevel::llInfo,   2, Logger::LL_INFO ),
 
   // Backup
-  { NDB_LE_BackupStarted, LogLevel::llBackup, 7, Logger::LL_INFO },
-  { NDB_LE_BackupCompleted, LogLevel::llBackup, 7, Logger::LL_INFO },
-  { NDB_LE_BackupFailedToStart, LogLevel::llBackup, 7, Logger::LL_ALERT},
-  { NDB_LE_BackupAborted, LogLevel::llBackup, 7, Logger::LL_ALERT }
+  ROW(BackupStarted,           LogLevel::llBackup, 7, Logger::LL_INFO ),
+  ROW(BackupCompleted,         LogLevel::llBackup, 7, Logger::LL_INFO ),
+  ROW(BackupFailedToStart,     LogLevel::llBackup, 7, Logger::LL_ALERT),
+  ROW(BackupAborted,           LogLevel::llBackup, 7, Logger::LL_ALERT )
 };
 
-const Uint32 EventLoggerBase::matrixSize = sizeof(EventLoggerBase::matrix)/
-                                       sizeof(EventRepLogLevelMatrix);
-
-const char*
-EventLogger::getText(char * m_text, size_t m_text_len, 
-		     int type,
-		     const Uint32* theData, NodeId nodeId)
-{
-  // TODO: Change the switch implementation...
-  char theNodeId[32];
-  if (nodeId != 0){
-    BaseString::snprintf(theNodeId, 32, "Node %u: ", nodeId);
-  } else {
-    theNodeId[0] = 0;
-  }
-
-  Ndb_logevent_type eventType = (Ndb_logevent_type)type;
-  switch (eventType){
-  case NDB_LE_Connected:
-    BaseString::snprintf(m_text, m_text_len, 
-	       "%sNode %u Connected",
-	       theNodeId,
-	       theData[1]);
-  break;
-  case NDB_LE_ConnectedApiVersion:
-    BaseString::snprintf(m_text, m_text_len, 
-	       "%sNode %u: API version %d.%d.%d",
-	       theNodeId,
-	       theData[1],
-	       getMajor(theData[2]),
-	       getMinor(theData[2]),
-	       getBuild(theData[2]));
-  break;
-  case NDB_LE_Disconnected:
-    BaseString::snprintf(m_text, m_text_len, 
-	       "%sNode %u Disconnected", 
-	       theNodeId,
-	       theData[1]);
-  break;
-  case NDB_LE_CommunicationClosed:
-    //-----------------------------------------------------------------------
-    // REPORT communication to node closed.
-    //-----------------------------------------------------------------------
-    BaseString::snprintf(m_text, m_text_len, 
-	       "%sCommunication to Node %u closed", 
-	       theNodeId,
-	       theData[1]);
-  break;
-  case NDB_LE_CommunicationOpened:
-    //-----------------------------------------------------------------------
-    // REPORT communication to node opened.
-    //-----------------------------------------------------------------------
-    BaseString::snprintf(m_text, m_text_len, 
-	       "%sCommunication to Node %u opened", 
-	       theNodeId,
-	       theData[1]);
-  break;
-  case NDB_LE_NDBStartStarted:
-    //-----------------------------------------------------------------------
-    // Start of NDB has been initiated.
-    //-----------------------------------------------------------------------
-    BaseString::snprintf(m_text, m_text_len, 
-	       "%sStart initiated (version %d.%d.%d)", 
-	       theNodeId ,
-	       getMajor(theData[1]),
-	       getMinor(theData[1]),
-	       getBuild(theData[1]));
-  break;
-  case NDB_LE_NDBStopStarted:
-    BaseString::snprintf(m_text, m_text_len,
-	       "%s%s shutdown initiated", 
-	       theNodeId, 
-	       (theData[1] == 1 ? "Cluster" : "Node"));
-  break;
-  case NDB_LE_NDBStopAborted:
-    BaseString::snprintf(m_text, m_text_len,
-	       "%sNode shutdown aborted",
-	       theNodeId);
-  break;
-  case NDB_LE_NDBStartCompleted:
-    //-----------------------------------------------------------------------
-    // Start of NDB has been completed.
-    //-----------------------------------------------------------------------
-    BaseString::snprintf(m_text, m_text_len, 
-	       "%sStarted (version %d.%d.%d)", 
-	       theNodeId ,
-	       getMajor(theData[1]),
-	       getMinor(theData[1]),
-	       getBuild(theData[1]));
-
-  break;
-  case NDB_LE_STTORRYRecieved:
-    //-----------------------------------------------------------------------
-    // STTORRY recevied after restart finished.
-    //-----------------------------------------------------------------------
-    BaseString::snprintf(m_text, m_text_len, 
-	       "%sSTTORRY received after restart finished",
-	       theNodeId);
-  break;
-  case NDB_LE_StartPhaseCompleted:{
-    //-----------------------------------------------------------------------
-    // REPORT Start phase completed.
-    //-----------------------------------------------------------------------
-    const char * type = "<Unknown>";
-    switch((NodeState::StartType)theData[2]){
-    case NodeState::ST_INITIAL_START:
-      type = "(initial start)";
-      break;
-    case NodeState::ST_SYSTEM_RESTART:
-      type = "(system restart)";
-      break;
-    case NodeState::ST_NODE_RESTART:
-      type = "(node restart)";
-      break;
-    case NodeState::ST_INITIAL_NODE_RESTART:
-      type = "(initial node restart)";
-      break;
-    case NodeState::ST_ILLEGAL_TYPE:
-      type = "";
-      break;
-    default:{
-      BaseString::snprintf(m_text, m_text_len, 
-		 "%sStart phase %u completed (unknown = %d)", 
-		 theNodeId,
-		 theData[1],
-		 theData[2]);
-      return m_text;
-    }
-    }
-    BaseString::snprintf(m_text, m_text_len, 
-	       "%sStart phase %u completed %s", 
-	       theNodeId,
-	       theData[1],
-	       type);
-    return m_text;
-    break;
-  }
-  case NDB_LE_CM_REGCONF:
-    BaseString::snprintf(m_text, m_text_len, 
-	       "%sCM_REGCONF president = %u, own Node = %u, our dynamic id = %u"
-	       , 
-	       theNodeId,
-	       theData[2], 
-	       theData[1],
-	       theData[3]);
-  break;
-  case NDB_LE_CM_REGREF:
-  {
-    const char* line = "";
-    switch (theData[3]) {
-    case 0:
-      line = "Busy";
-      break;
-    case 1:
-      line = "Election with wait = false";
-      break;
-    case 2:
-      line = "Election with wait = false";
-      break;
-    case 3:
-      line = "Not president";
-      break;
-    case 4:
-      line = "Election without selecting new candidate";
-      break;
-    default:
-      line = "No such cause";
-      break;
-    }//switch
-
-    BaseString::snprintf(m_text, m_text_len, 
-	       "%sCM_REGREF from Node %u to our Node %u. Cause = %s", 
-	       theNodeId,
-	       theData[2], 
-	       theData[1], 
-	       line);
-  }
-  break;
-  case NDB_LE_FIND_NEIGHBOURS:
-    //-----------------------------------------------------------------------
-    // REPORT Node Restart copied a fragment.
-    //-----------------------------------------------------------------------
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sWe are Node %u with dynamic ID %u, our left neighbour "
-	       "is Node %u, our right is Node %u", 
-	       theNodeId,
-	       theData[1], 
-	       theData[4], 
-	       theData[2], 
-	       theData[3]);
-  break;
-  case NDB_LE_NodeFailCompleted:
-    //-----------------------------------------------------------------------
-    // REPORT Node failure phase completed.
-    //-----------------------------------------------------------------------
-    if (theData[1] == 0)
-    {
-      if (theData[3] != 0) {
-        BaseString::snprintf(m_text, m_text_len, 
-		 "%sNode %u completed failure of Node %u", 
-		 theNodeId,
-		 theData[3], 
-		 theData[2]);
-      } else {
-        BaseString::snprintf(m_text, m_text_len, 
-		 "%sAll nodes completed failure of Node %u", 
-		 theNodeId,
-		 theData[2]);
-      }//if      
-    } else {
-      const char* line = "";
-      if (theData[1] == DBTC){
-	line = "DBTC";
-      }else if (theData[1] == DBDICT){
-	line = "DBDICT";
-      }else if (theData[1] == DBDIH){
-	line = "DBDIH";
-      }else if (theData[1] == DBLQH){
-	line = "DBLQH";
-      }
-      
-      BaseString::snprintf(m_text, m_text_len, 
-		 "%sNode failure of %u %s completed", 
-		 theNodeId,
-		 theData[2], 
-		 line);
-    }
-    break;
-  case NDB_LE_NODE_FAILREP:
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sNode %u has failed. The Node state at failure "
-	       "was %u", 
-	       theNodeId,
-	       theData[1], 
-	       theData[2]); 
-
-  break;
-  case NDB_LE_ArbitState:
-    //-----------------------------------------------------------------------
-    // REPORT arbitrator found or lost.
-    //-----------------------------------------------------------------------
-    { const ArbitSignalData* sd = (ArbitSignalData*)theData;
-      char ticketText[ArbitTicket::TextLength + 1];
-      char errText[ArbitCode::ErrTextLength + 1];
-      const unsigned code = sd->code & 0xFFFF;
-      const unsigned state = sd->code >> 16;
-      switch (code) {
-      case ArbitCode::ThreadStart:
-        BaseString::snprintf(m_text, m_text_len,
-          "%sPresident restarts arbitration thread [state=%u]",
-          theNodeId, state);
-        break;
-      case ArbitCode::PrepPart2:
-	sd->ticket.getText(ticketText, sizeof(ticketText));
-	BaseString::snprintf(m_text, m_text_len,
-	  "%sPrepare arbitrator node %u [ticket=%s]",
-	  theNodeId, sd->node, ticketText);
-	break;
-      case ArbitCode::PrepAtrun:
-	sd->ticket.getText(ticketText, sizeof(ticketText));
-	BaseString::snprintf(m_text, m_text_len,
-	  "%sReceive arbitrator node %u [ticket=%s]",
-	  theNodeId, sd->node, ticketText);
-	break;
-      case ArbitCode::ApiStart:
-	sd->ticket.getText(ticketText, sizeof(ticketText));
-	BaseString::snprintf(m_text, m_text_len,
-	  "%sStarted arbitrator node %u [ticket=%s]",
-	  theNodeId, sd->node, ticketText);
-	break;
-      case ArbitCode::ApiFail:
-	BaseString::snprintf(m_text, m_text_len,
-	  "%sLost arbitrator node %u - process failure [state=%u]",
-	  theNodeId, sd->node, state);
-	break;
-      case ArbitCode::ApiExit:
-	BaseString::snprintf(m_text, m_text_len,
-	  "%sLost arbitrator node %u - process exit [state=%u]",
-	  theNodeId, sd->node, state);
-	break;
-      default:
-	ArbitCode::getErrText(code, errText, sizeof(errText));
-	BaseString::snprintf(m_text, m_text_len,
-	  "%sLost arbitrator node %u - %s [state=%u]",
-	  theNodeId, sd->node, errText, state);
-	break;
-      }
-    }
-    break;
-  case NDB_LE_ArbitResult:
-    //-----------------------------------------------------------------------
-    // REPORT arbitration result (the failures may not reach us).
-    //-----------------------------------------------------------------------
-    { const ArbitSignalData* sd = (ArbitSignalData*)theData;
-      char errText[ArbitCode::ErrTextLength + 1];
-      const unsigned code = sd->code & 0xFFFF;
-      const unsigned state = sd->code >> 16;
-      switch (code) {
-      case ArbitCode::LoseNodes:
-	BaseString::snprintf(m_text, m_text_len,
-	  "%sArbitration check lost - less than 1/2 nodes left",
-	  theNodeId);
-	break;
-      case ArbitCode::WinNodes:
-	BaseString::snprintf(m_text, m_text_len,
-	  "%sArbitration check won - all node groups and more than 1/2 nodes left",
-	  theNodeId);
-	break;
-      case ArbitCode::WinGroups:
-	BaseString::snprintf(m_text, m_text_len,
-	  "%sArbitration check won - node group majority",
-	  theNodeId);
-	break;
-      case ArbitCode::LoseGroups:
-	BaseString::snprintf(m_text, m_text_len,
-	  "%sArbitration check lost - missing node group",
-	  theNodeId);
-	break;
-      case ArbitCode::Partitioning:
-	BaseString::snprintf(m_text, m_text_len,
-	  "%sNetwork partitioning - arbitration required",
-	  theNodeId);
-	break;
-      case ArbitCode::WinChoose:
-	BaseString::snprintf(m_text, m_text_len,
-	  "%sArbitration won - positive reply from node %u",
-	  theNodeId, sd->node);
-	break;
-      case ArbitCode::LoseChoose:
-	BaseString::snprintf(m_text, m_text_len,
-	  "%sArbitration lost - negative reply from node %u",
-	  theNodeId, sd->node);
-	break;
-      case ArbitCode::LoseNorun:
-	BaseString::snprintf(m_text, m_text_len,
-	  "%sNetwork partitioning - no arbitrator available",
-	  theNodeId);
-	break;
-      case ArbitCode::LoseNocfg:
-	BaseString::snprintf(m_text, m_text_len,
-	  "%sNetwork partitioning - no arbitrator configured",
-	  theNodeId);
-	break;
-      default:
-	ArbitCode::getErrText(code, errText, sizeof(errText));
-	BaseString::snprintf(m_text, m_text_len,
-	  "%sArbitration failure - %s [state=%u]",
-	  theNodeId, errText, state);
-	break;
-      }
-    }
-    break;
-  case NDB_LE_GlobalCheckpointStarted:
-    //-----------------------------------------------------------------------
-    // This event reports that a global checkpoint has been started and this
-    // node is the master of this global checkpoint.
-    //-----------------------------------------------------------------------
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sGlobal checkpoint %u started", 
-	       theNodeId,
-	       theData[1]);
-    break;
-  case NDB_LE_GlobalCheckpointCompleted:
-    //-----------------------------------------------------------------------
-    // This event reports that a global checkpoint has been completed on this
-    // node and the node is the master of this global checkpoint.
-    //-----------------------------------------------------------------------
-    BaseString::snprintf(m_text, m_text_len, 
-	       "%sGlobal checkpoint %u completed", 
-	       theNodeId,
-	       theData[1]);
-    break;
-  case NDB_LE_LocalCheckpointStarted:
-    //-----------------------------------------------------------------------
-    // This event reports that a local checkpoint has been started and this
-    // node is the master of this local checkpoint.
-    //-----------------------------------------------------------------------
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sLocal checkpoint %u started. "
-	       "Keep GCI = %u oldest restorable GCI = %u", 
-	       theNodeId,
-	       theData[1], 
-	       theData[2], 
-	       theData[3]);
-    break;
-  case NDB_LE_LocalCheckpointCompleted:
-    //-----------------------------------------------------------------------
-    // This event reports that a local checkpoint has been completed on this
-    // node and the node is the master of this local checkpoint.
-    //-----------------------------------------------------------------------
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sLocal checkpoint %u completed", 
-	       theNodeId,
-	       theData[1]);
-    break;
-  case NDB_LE_TableCreated:
-    //-----------------------------------------------------------------------
-    // This event reports that a table has been created.
-    //-----------------------------------------------------------------------
-    BaseString::snprintf(m_text, m_text_len, 
-	       "%sTable with ID =  %u created", 
-	       theNodeId,
-	       theData[1]);
-    break;
-  case NDB_LE_LCPStoppedInCalcKeepGci:
-    if (theData[1] == 0)
-      BaseString::snprintf(m_text, m_text_len, 
-		 "%sLocal Checkpoint stopped in CALCULATED_KEEP_GCI",
-		 theNodeId);
-    break;
-  case NDB_LE_NR_CopyDict:
-    //-----------------------------------------------------------------------
-    // REPORT Node Restart completed copy of dictionary information.
-    //-----------------------------------------------------------------------
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sNode restart completed copy of dictionary information",
-	       theNodeId);
-    break;
-  case NDB_LE_NR_CopyDistr:
-    //-----------------------------------------------------------------------
-    // REPORT Node Restart completed copy of distribution information.
-    //-----------------------------------------------------------------------
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sNode restart completed copy of distribution information",
-	       theNodeId);
-    break;
-  case NDB_LE_NR_CopyFragsStarted:
-    //-----------------------------------------------------------------------
-    // REPORT Node Restart is starting to copy the fragments.
-    //-----------------------------------------------------------------------
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sNode restart starting to copy the fragments "
-	       "to Node %u", 
-	       theNodeId,
-	       theData[1]);
-    break;
-  case NDB_LE_NR_CopyFragDone:
-    //-----------------------------------------------------------------------
-    // REPORT Node Restart copied a fragment.
-    //-----------------------------------------------------------------------
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sTable ID = %u, fragment ID = %u have been copied "
-	       "to Node %u", 
-	       theNodeId,
-	       theData[2], 
-	       theData[3], 
-	       theData[1]);
-  break;
-  case NDB_LE_NR_CopyFragsCompleted:
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sNode restart completed copying the fragments "
-	       "to Node %u", 
-	       theNodeId,
-	       theData[1]);
-    break;
-  case NDB_LE_LCPFragmentCompleted:
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sTable ID = %u, fragment ID = %u has completed LCP "
-	       "on Node %u", 
-	       theNodeId,
-	       theData[2], 
-	       theData[3], 
-	       theData[1]);
-    break;
-  case NDB_LE_TransReportCounters:
-    // -------------------------------------------------------------------  
-    // Report information about transaction activity once per 10 seconds.
-    // ------------------------------------------------------------------- 
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sTrans. Count = %u, Commit Count = %u, "
-	       "Read Count = %u, Simple Read Count = %u,\n"
-	       "Write Count = %u, AttrInfo Count = %u, "
-	       "Concurrent Operations = %u, Abort Count = %u\n"
-	       " Scans: %u Range scans: %u", 
-	       theNodeId,
-	       theData[1], 
-	       theData[2], 
-	       theData[3], 
-	       theData[4],
-	       theData[5], 
-	       theData[6], 
-	       theData[7], 
-	       theData[8],
-	       theData[9],
-	       theData[10]);
-    break;
-  case NDB_LE_OperationReportCounters:
-    BaseString::snprintf(m_text, m_text_len,
-	       "%sOperations=%u",
-	       theNodeId, 
-	       theData[1]);
-    break;
-  case NDB_LE_UndoLogBlocked:
-    //-----------------------------------------------------------------------
-    // REPORT Undo Logging blocked due to buffer near to overflow.
-    //-----------------------------------------------------------------------
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sACC Blocked %u and TUP Blocked %u times last second",
-	       theNodeId,
-	       theData[1],
-	       theData[2]);
-  break;
-  case NDB_LE_TransporterError:
-  case NDB_LE_TransporterWarning:
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sTransporter to node %d reported error 0x%x",
-	       theNodeId,
-	       theData[1],
-	       theData[2]);
-  break;
-  case NDB_LE_MissedHeartbeat:
-    //-----------------------------------------------------------------------
-    // REPORT Undo Logging blocked due to buffer near to overflow.
-    //-----------------------------------------------------------------------
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sNode %d missed heartbeat %d",
-	       theNodeId,
-	       theData[1],
-	       theData[2]);
-  break;
-  case NDB_LE_DeadDueToHeartbeat:
-    //-----------------------------------------------------------------------
-    // REPORT Undo Logging blocked due to buffer near to overflow.
-    //-----------------------------------------------------------------------
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sNode %d declared dead due to missed heartbeat",
-	       theNodeId,
-	       theData[1]);
-  break;
-  case NDB_LE_JobStatistic:
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sMean loop Counter in doJob last 8192 times = %u",
-	       theNodeId,
-	       theData[1]);
-    break;
-  case NDB_LE_SendBytesStatistic:
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sMean send size to Node = %d last 4096 sends = %u bytes",
-	       theNodeId,
-	       theData[1],
-	       theData[2]);
-    break;
-  case NDB_LE_ReceiveBytesStatistic:
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sMean receive size to Node = %d last 4096 sends = %u bytes",
-	       theNodeId,
-	       theData[1],
-	       theData[2]);
-  break;
-  case NDB_LE_SentHeartbeat:
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sNode Sent Heartbeat to node = %d",
-	       theNodeId,
-	       theData[1]);
-  break;
-  case NDB_LE_CreateLogBytes:
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sLog part %u, log file %u, MB %u",
-	       theNodeId,
-	       theData[1],
-	       theData[2],
-	       theData[3]);
-  break;
-  case NDB_LE_StartLog:
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sLog part %u, start MB %u, stop MB %u, last GCI, log exec %u",
-	       theNodeId,
-	       theData[1],
-	       theData[2],
-	       theData[3],
-	       theData[4]);
-  break;
-  case NDB_LE_StartREDOLog:
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sNode: %d StartLog: [GCI Keep: %d LastCompleted: %d NewestRestorable: %d]",
-	       theNodeId,
-	       theData[1],
-	       theData[2],
-	       theData[3],
-	       theData[4]);
-  break;
-  case NDB_LE_UNDORecordsExecuted:{
-    const char* line = "";
-    if (theData[1] == DBTUP){
-      line = "DBTUP";
-    }else if (theData[1] == DBACC){
-      line = "DBACC";
-    }
-    
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%s UNDO %s %d [%d %d %d %d %d %d %d %d %d]",
-	       theNodeId,
-	       line,
-	       theData[2],
-	       theData[3],
-	       theData[4],
-	       theData[5],
-	       theData[6],
-	       theData[7],
-	       theData[8],
-	       theData[9],
-	       theData[10],
-	       theData[11]);
-  }
-    break;
-  case NDB_LE_InfoEvent:
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%s%s",
-	       theNodeId,
-	       (char *)&theData[1]);
-  break;
-  case NDB_LE_WarningEvent:
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%s%s",
-	       theNodeId,
-	       (char *)&theData[1]);
-  break;
-  case NDB_LE_GCP_TakeoverStarted:
-    BaseString::snprintf(m_text,
-	       m_text_len,
-	       "%sGCP Take over started", theNodeId);
-  break;
-  case NDB_LE_GCP_TakeoverCompleted:
-    BaseString::snprintf(m_text,
-	       m_text_len,
-	       "%sGCP Take over completed", theNodeId);
-  break;
-  case NDB_LE_LCP_TakeoverStarted:
-    BaseString::snprintf(m_text,
-	       m_text_len,
-	       "%sLCP Take over started", theNodeId);
-  break;
-  case NDB_LE_LCP_TakeoverCompleted:
-    BaseString::snprintf(m_text,
-	       m_text_len,
-	       "%sLCP Take over completed (state = %d)", 
-	       theNodeId, theData[1]);
-  break;
-  case NDB_LE_MemoryUsage:{
-    const int gth = theData[1];
-    const int size = theData[2];
-    const int used = theData[3];
-    const int total = theData[4];
-    const int block = theData[5];
-    const int percent = (used*100)/total;
-    
-    BaseString::snprintf(m_text, m_text_len,
-	       "%s%s usage %s %d%s(%d %dK pages of total %d)",
-	       theNodeId,
-	       (block==DBACC ? "Index" : (block == DBTUP ?"Data":"<unknown>")),
-	       (gth == 0 ? "is" : (gth > 0 ? "increased to" : "decreased to")),
-	       percent, "%",
-	       used, size/1024, total
-	       );
-    break;
-  }
-  case NDB_LE_GrepSubscriptionInfo : 
-  {   
-    GrepEvent::Subscription event  = (GrepEvent::Subscription)theData[1];
-    switch(event) {
-    case GrepEvent::GrepSS_CreateSubIdConf: 
-    {
-      const int subId  = theData[2];
-      const int subKey = theData[3];
-      const int err    = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::SSCoord: Created subscription id"
-		 " (subId=%d,SubKey=%d)"
-		 " Return code: %d.",
-		 subId,
-		 subKey,
-		 err);
-      break;
-    }      
-    case GrepEvent::GrepPS_CreateSubIdConf: 
-    {
-      const int subId  = theData[2];
-      const int subKey = theData[3];
-      const int err    = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::PSCoord: Created subscription id" 
-		 " (subId=%d,SubKey=%d)"
-		 " Return code: %d.",
-		 subId,
-		 subKey,
-		 err);
-      break;
-    }
-    case GrepEvent::GrepSS_SubCreateConf: 
-    {
-      const int subId   = theData[2];
-      const int subKey  = theData[3];
-      const int err     = theData[4];
-      const int nodegrp = theData[5];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::SSCoord: Created subscription using"
-		 " (subId=%d,SubKey=%d)" 
-		 " in primary system. Primary system has %d nodegroup(s)."
-		 " Return code: %d",
-		 subId,
-		 subKey,
-		 nodegrp,
-		 err);
-      break;
-    }
-    case GrepEvent::GrepPS_SubCreateConf: 
-    {
-      const int subId   = theData[2];
-      const int subKey  = theData[3];
-      const int err    = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::PSCoord: All participants have created "
-		 "subscriptions"
-		 " using (subId=%d,SubKey=%d)."
-		 " Return code: %d",
-		 subId,
-		 subKey,
-		 err);
-      break;
-    }      
-    case GrepEvent::GrepSS_SubStartMetaConf: 
-    {
-      const int subId  = theData[2];
-      const int subKey = theData[3];
-      const int err    = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::SSCoord: Logging started on meta data changes." 
-		 " using (subId=%d,SubKey=%d)"
-		 " Return code: %d",
-		 subId,
-		 subKey,
-		 err);
-      break;
-    }
-    case GrepEvent::GrepPS_SubStartMetaConf: 
-    {
-      const int subId  = theData[2];
-      const int subKey = theData[3];
-      const int err    = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::PSCoord: All participants have started " 
-		 "logging meta data" 
-		 " changes on the subscription subId=%d,SubKey=%d) "
-		 "(N.I yet)."
-		 " Return code: %d",
-		 subId,
-		 subKey,
-		 err);
-      break;
-    }
-    case GrepEvent::GrepSS_SubStartDataConf: {
-      const int subId  = theData[2];
-      const int subKey = theData[3];
-      const int err    = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::SSCoord: Logging started on table data changes " 
-		 " using (subId=%d,SubKey=%d)"
-		 " Return code: %d",
-		 subId,
-		 subKey,
-		 err);
-      break;
-    }
-    case GrepEvent::GrepPS_SubStartDataConf: 
-    {
-      const int subId  = theData[2];
-      const int subKey = theData[3];
-      const int err    = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::PSCoord: All participants have started logging "
-		 "table data changes on the subscription " 
-		 "subId=%d,SubKey=%d)."
-		 " Return code: %d",
-		 subId,
-		 subKey,
-		 err);
-      break;
-    }
-    case GrepEvent::GrepPS_SubSyncMetaConf: 
-    {
-      const int subId  = theData[2];
-      const int subKey = theData[3];
-      const int err    = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::PSCoord: All participants have started "
-		 " synchronization  on meta data (META SCAN) using "
-		 "(subId=%d,SubKey=%d)."
-		 " Return code: %d",
-		 subId,
-		 subKey,
-		 err);
-      break;
-    }
-    case GrepEvent::GrepSS_SubSyncMetaConf: 
-    {
-      const int subId  = theData[2];
-      const int subKey = theData[3];
-      const int err    = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::SSCoord: Synchronization started (META SCAN) on "
-		 " meta data using (subId=%d,SubKey=%d)"
-		 " Return code: %d",
-		 subId,
-		 subKey,
-		 err);
-      break;
-    }
-    case GrepEvent::GrepPS_SubSyncDataConf: 
-    {
-      const int subId  = theData[2];
-      const int subKey = theData[3];
-      const int err    = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::PSCoord: All participants have started " 
-		 "synchronization "
-		 " on table data (DATA SCAN) using (subId=%d,SubKey=%d)."
-		 " Return code: %d",
-		 subId,
-		 subKey,
-		 err);
-      break;
-    }
-    case GrepEvent::GrepSS_SubSyncDataConf: 
-    {
-      const int subId   =  theData[2];
-      const int subKey  =  theData[3];
-      const int err     =  theData[4];
-      const int gci     =  theData[5];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::SSCoord: Synchronization started (DATA SCAN) on "
-		 "table data using (subId=%d,SubKey=%d). GCI = %d"
-		 " Return code: %d",
-		 subId,
-		 subKey,
-		 gci,
-		 err);
-      break;
-    }      
-    case GrepEvent::GrepPS_SubRemoveConf: 
-    {
-      const int subId  = theData[2];
-      const int subKey = theData[3];
-      const int err    = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::PSCoord: All participants have removed "
-		 "subscription (subId=%d,SubKey=%d). I have cleaned "
-		 "up resources I've used."
-		 " Return code: %d",
-		 subId,
-		 subKey,
-		 err);
-      break;
-    }	
-    case GrepEvent::GrepSS_SubRemoveConf: 
-    {
-      const int subId  = theData[2];
-      const int subKey = theData[3];
-      const int err    = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::SSCoord: Removed subscription "
-		 "(subId=%d,SubKey=%d)"
-		 " Return code: %d",
-		 subId,
-		 subKey,
-		 err);
-      break;
-    }
-    default:
-      BaseString::snprintf(m_text, 
-		 m_text_len, 
-		 "%sUnknown GrepSubscriptonInfo event: %d",
-		 theNodeId,
-		 theData[1]);
-    }
-    break;
-  }
-  
-  case NDB_LE_GrepSubscriptionAlert : 
-  {
-    GrepEvent::Subscription event  = (GrepEvent::Subscription)theData[1];
-    switch(event) 
-    { 
-    case GrepEvent::GrepSS_CreateSubIdRef: 
-    {
-      const int subId    = theData[2];
-      const int subKey   = theData[3];
-      const int err      = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::SSCoord:Error code: %d Error message: %s"
-		 " (subId=%d,SubKey=%d)",
-		 err,
-		 GrepError::getErrorDesc((GrepError::GE_Code)err),
-		 subId,
-		 subKey);
-      break;
-    }
-    case GrepEvent::GrepSS_SubCreateRef: 
-    {
-      const int subId   = theData[2];
-      const int subKey  = theData[3];
-      const int err     = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::SSCoord: FAILED to Created subscription using"
-		 " (subId=%d,SubKey=%d)in primary system."
-		 " Error code: %d Error Message: %s",
-		 subId,
-		 subKey,
-		 err,
-		 GrepError::getErrorDesc((GrepError::GE_Code)err));
-      break;
-    }
-    case GrepEvent::GrepSS_SubStartMetaRef: 
-    {
-      const int subId  = theData[2];
-      const int subKey = theData[3];
-      const int err    = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::SSCoord: Logging failed to start on meta "
-		 "data changes." 
-		 " using (subId=%d,SubKey=%d)"
-		 " Error code: %d Error Message: %s",
-		 subId,
-		 subKey,
-		 err,
-		 GrepError::getErrorDesc((GrepError::GE_Code)err));
-      break;
-    }
-    case GrepEvent::GrepSS_SubStartDataRef: 
-    {
-      const int subId  = theData[2];
-      const int subKey = theData[3];
-      const int err    = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::SSCoord: Logging FAILED to start on table data "
-		 " changes using (subId=%d,SubKey=%d)"
-		 " Error code: %d Error Message: %s",
-		 subId,
-		 subKey,
-		 err,
-		 GrepError::getErrorDesc((GrepError::GE_Code)err));
-      break;
-    }
-    case GrepEvent::GrepSS_SubSyncMetaRef: 
-    {
-      const int subId   = theData[2];
-      const int subKey  = theData[3];
-      const int err     = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::SSCoord: Synchronization FAILED (META SCAN) on "
-		 " meta data using (subId=%d,SubKey=%d)"
-		 " Error code: %d Error Message: %s",
-		 subId,
-		 subKey,
-		 err,
-		 GrepError::getErrorDesc((GrepError::GE_Code)err));
-      break;
-    }
-    case GrepEvent::GrepSS_SubSyncDataRef: 
-    {
-      const int subId   =  theData[2];
-      const int subKey  =  theData[3];
-      const int err     =  theData[4];
-      const int gci     =  theData[5];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::SSCoord: Synchronization FAILED (DATA SCAN) on "
-		 "table data using (subId=%d,SubKey=%d). GCI = %d"
-		 " Error code: %d Error Message: %s", 
-		 subId,
-		 subKey,
-		 gci,
-		 err,
-		 GrepError::getErrorDesc((GrepError::GE_Code)err));
-      break;
-    }
-    case GrepEvent::GrepSS_SubRemoveRef: 
-    {
-      const int subId  = theData[2];
-      const int subKey = theData[3];
-      const int err    = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::SSCoord: Failed to remove subscription "
-		 "(subId=%d,SubKey=%d). "
-		 " Error code: %d Error Message: %s",
-		 subId,
-		 subKey,
-		 err,
-		 GrepError::getErrorDesc((GrepError::GE_Code)err)
-		 );
-      break;
-    }	
-	
-    case GrepEvent::GrepPS_CreateSubIdRef: 
-    {
-      const int subId  = theData[2];
-      const int subKey = theData[3];
-      const int err    = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::PSCoord: Error code: %d Error Message: %s"
-		 " (subId=%d,SubKey=%d)",
-		 err,
-		 GrepError::getErrorDesc((GrepError::GE_Code)err),
-		 subId,
-		 subKey);
-      break;
-    }
-    case GrepEvent::GrepPS_SubCreateRef: 
-    {
-      const int subId   = theData[2];
-      const int subKey  = theData[3];
-      const int err     = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::PSCoord: FAILED to Created subscription using"
-		 " (subId=%d,SubKey=%d)in primary system."
-		 " Error code: %d Error Message: %s",
-		 subId,
-		 subKey,
-		 err,
-		 GrepError::getErrorDesc((GrepError::GE_Code)err));
-      break;
-    }
-    case GrepEvent::GrepPS_SubStartMetaRef: 
-    {
-      const int subId   = theData[2];
-      const int subKey  = theData[3];
-      const int err     = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::PSCoord: Logging failed to start on meta "
-		 "data changes." 
-		 " using (subId=%d,SubKey=%d)"
-		 " Error code: %d Error Message: %s",
-		 subId,
-		 subKey,		       
-		 err,
-		 GrepError::getErrorDesc((GrepError::GE_Code)err));
-      break;
-    }
-    case GrepEvent::GrepPS_SubStartDataRef: 
-    {
-      const int subId  = theData[2];
-      const int subKey = theData[3];
-      const int err    = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::PSCoord: Logging FAILED to start on table data "
-		 " changes using (subId=%d,SubKey=%d)"
-		 " Error code: %d Error Message: %s",
-		 subId,
-		 subKey,
-		 err,
-		 GrepError::getErrorDesc((GrepError::GE_Code)err));
-      break;
-    }
-    case GrepEvent::GrepPS_SubSyncMetaRef: 
-    {
-      const int subId   = theData[2];
-      const int subKey  = theData[3];
-      const int err     = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::PSCoord: Synchronization FAILED (META SCAN) on "
-		 " meta data using (subId=%d,SubKey=%d)"
-		 " Error code: %d Error Message: %s",
-		 subId,
-		 subKey,
-		 err,
-		 GrepError::getErrorDesc((GrepError::GE_Code)err));
-      break;
-    }
-    case GrepEvent::GrepPS_SubSyncDataRef: 
-    {
-      const int subId   =  theData[2];
-      const int subKey  =  theData[3];
-      const int err     =  theData[4];
-      const int gci     =  theData[5];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::PSCoord: Synchronization FAILED (DATA SCAN) on "
-		 "table data using (subId=%d,SubKey=%d). GCI = %d. "
-		 " Error code: %d Error Message: %s",
-		 subId,
-		 subKey,
-		 gci,
-		 err,
-		 GrepError::getErrorDesc((GrepError::GE_Code)err));
-      break;
-    }
-    case GrepEvent::GrepPS_SubRemoveRef: 
-    {
-      const int subId  = theData[2];
-      const int subKey = theData[3];
-      const int err    = theData[4];
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Grep::PSCoord: Failed to remove subscription "
-		 "(subId=%d,SubKey=%d)." 
-		 " Error code: %d Error Message: %s",
-		 subId,
-		 subKey,
-		 err,
-		 GrepError::getErrorDesc((GrepError::GE_Code)err));
-      break;
-    }	
-    case GrepEvent::Rep_Disconnect:
-    {
-      const int err       = theData[4];
-      const int nodeId    = theData[5];   
-      BaseString::snprintf(m_text, m_text_len, 
-		 "Rep: Node %d."
-		 " Error code: %d Error Message: %s",
-		 nodeId,
-		 err,
-		 GrepError::getErrorDesc((GrepError::GE_Code)err));
-      break;
-    }	
-	
-	
-    default:
-      BaseString::snprintf(m_text, 
-		 m_text_len, 
-		 "%sUnknown GrepSubscriptionAlert event: %d",
-		 theNodeId,
-		 theData[1]);
-    break;
-    }
-    break;
-  }
-
-  case NDB_LE_BackupStarted:
-    BaseString::snprintf(m_text,
-	       m_text_len,
-	       "%sBackup %d started from node %d", 
-	       theNodeId, theData[2], refToNode(theData[1]));
-  break;
-  case NDB_LE_BackupFailedToStart:
-    BaseString::snprintf(m_text,
-	       m_text_len,
-	       "%sBackup request from %d failed to start. Error: %d", 
-	       theNodeId, refToNode(theData[1]), theData[2]);
-  break;
-  case NDB_LE_BackupCompleted:
-    BaseString::snprintf(m_text,
-	       m_text_len,
-	       "%sBackup %u started from node %u completed\n" 
-	       " StartGCP: %u StopGCP: %u\n"
-	       " #Records: %u #LogRecords: %u\n"
-	       " Data: %u bytes Log: %u bytes",
-	       theNodeId, theData[2], refToNode(theData[1]),
-	       theData[3], theData[4], theData[6], theData[8],
-	       theData[5], theData[7]);
-  break;
-  case NDB_LE_BackupAborted:
-    BaseString::snprintf(m_text,
-	       m_text_len,
-	       "%sBackup %d started from %d has been aborted. Error: %d",
-	       theNodeId, 
-	       theData[2], 
-	       refToNode(theData[1]), 
-	       theData[3]);
-  break;
-  default:
-    BaseString::snprintf(m_text, 
-	       m_text_len, 
-	       "%sUnknown event: %d",
-	       theNodeId,
-	       theData[0]);
-  
-  }
-  return m_text;
-}
+const Uint32 EventLoggerBase::matrixSize=
+sizeof(EventLoggerBase::matrix)/sizeof(EventRepLogLevelMatrix);
 
 EventLogger::EventLogger() : m_filterLevel(15)
 {
@@ -1342,17 +763,35 @@ int
 EventLoggerBase::event_lookup(int eventType,
 			      LogLevel::EventCategory &cat,
 			      Uint32 &threshold, 
-			      Logger::LoggerLevel &severity)
+			      Logger::LoggerLevel &severity,
+			      EventTextFunction &textF)
 {
   for(unsigned i = 0; i<EventLoggerBase::matrixSize; i++){
     if(EventLoggerBase::matrix[i].eventType == eventType){
       cat = EventLoggerBase::matrix[i].eventCategory;
       threshold = EventLoggerBase::matrix[i].threshold;
       severity = EventLoggerBase::matrix[i].severity;
+      textF= EventLoggerBase::matrix[i].textF;
       return 0;
     }
   }
   return 1;
+}
+
+const char*
+EventLogger::getText(char * dst, size_t dst_len,
+		     EventTextFunction textF,
+		     const Uint32* theData, NodeId nodeId )
+{
+  int pos= 0;
+  if (nodeId != 0)
+  {
+    BaseString::snprintf(dst, dst_len, "Node %u: ", nodeId);
+    pos= strlen(dst);
+  }
+  if (dst_len-pos > 0)
+    textF(dst+pos,dst_len-pos,theData);
+  return dst;
 }
 
 void 
@@ -1362,52 +801,43 @@ EventLogger::log(int eventType, const Uint32* theData, NodeId nodeId,
   Uint32 threshold = 0;
   Logger::LoggerLevel severity = Logger::LL_WARNING;
   LogLevel::EventCategory cat= LogLevel::llInvalid;
+  EventTextFunction textF;
 
   DBUG_ENTER("EventLogger::log");
   DBUG_PRINT("enter",("eventType=%d, nodeid=%d", eventType, nodeId));
 
-  if (EventLoggerBase::event_lookup(eventType,cat,threshold,severity))
+  if (EventLoggerBase::event_lookup(eventType,cat,threshold,severity,textF))
     DBUG_VOID_RETURN;
   
   Uint32 set = ll?ll->getLogLevel(cat) : m_logLevel.getLogLevel(cat);
   DBUG_PRINT("info",("threshold=%d, set=%d", threshold, set));
   if (ll)
     DBUG_PRINT("info",("m_logLevel.getLogLevel=%d", m_logLevel.getLogLevel(cat)));
+
   if (threshold <= set){
+    getText(m_text,sizeof(m_text),textF,theData,nodeId);
+
     switch (severity){
     case Logger::LL_ALERT:
-      alert(EventLogger::getText(m_text, sizeof(m_text), 
-				 eventType, theData, nodeId));
+      alert(m_text);
       break;
-      
     case Logger::LL_CRITICAL:
-      critical(EventLogger::getText(m_text, sizeof(m_text), 
-				    eventType, theData, nodeId));
+      critical(m_text); 
       break;
-      
     case Logger::LL_WARNING:
-      warning(EventLogger::getText(m_text, sizeof(m_text), 
-				   eventType, theData, nodeId));
+      warning(m_text); 
       break;
-      
     case Logger::LL_ERROR:
-      error(EventLogger::getText(m_text, sizeof(m_text), 
-				 eventType, theData, nodeId));
+      error(m_text); 
       break;
-      
     case Logger::LL_INFO:
-      info(EventLogger::getText(m_text, sizeof(m_text), 
-				eventType, theData, nodeId));
+      info(m_text); 
       break;
-      
     case Logger::LL_DEBUG:
-      debug(EventLogger::getText(m_text, sizeof(m_text), 
-				 eventType, theData, nodeId));
+      debug(m_text); 
       break;
-      
     default:
-      info(EventLogger::getText(m_text, sizeof(m_text), 
-				eventType, theData, nodeId));
+      info(m_text); 
       break;
     }
   } // if (..

@@ -361,7 +361,6 @@ AC_SUBST(INSTALL_SCRIPT)
 
 export CC CXX CFLAGS LD LDFLAGS AR
 
-ndb_cxxflags_fix=
 if test "$GXX" = "yes"
 then
   # mysqld requires -fno-implicit-templates.
@@ -963,6 +962,7 @@ esac
 MAX_C_OPTIMIZE="-O3"
 MAX_CXX_OPTIMIZE="-O3"
 
+ndb_cxxflags_fix=
 case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc in
 # workaround for Sun Forte/x86 see BUG#4681
   *solaris*-i?86-no)
@@ -1922,7 +1922,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
   pthread_key_delete pthread_rwlock_rdlock pthread_setprio \
   pthread_setprio_np pthread_setschedparam pthread_sigmask readlink \
   realpath rename rint rwlock_init setupterm \
-  shmget shmat shmdt shmctl sigaction \
+  shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
   sighold sigset sigthreadmask \
   snprintf socket stpcpy strcasecmp strerror strnlen strpbrk strstr strtol \
   strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr)
@@ -2572,6 +2572,15 @@ EOF
     AC_CONFIG_SUBDIRS(innobase)
   fi
 
+case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc-$have_ndbcluster in
+  *solaris*-i?86-no-yes)
+  # ndb fail for whatever strange reason to link Sun Forte/x86
+  # unless using incremental linker
+  CXXFLAGS="$CXXFLAGS -xildon"
+  ;;
+  *) ;;
+esac
+
   if test X"$have_ndbcluster" = Xyes
   then
     if test X"$mysql_cv_compress" != Xyes
@@ -2629,7 +2638,7 @@ AC_SUBST(server_scripts)
 sql_union_dirs=" $sql_server_dirs "
 for DIR in $sql_client_dirs
 do
-  if echo $sql_union_dirs | grep " $DIR " >/dev/null
+  if echo " $sql_union_dirs " | grep " $DIR " >/dev/null
   then
     :  # already present, skip
   else
@@ -2709,7 +2718,10 @@ if test "$ac_cv_func_shmget" = "yes" &&
    test "$ac_cv_func_shmat" = "yes" &&
    test "$ac_cv_func_shmdt" = "yes" &&
    test "$ac_cv_func_shmctl" = "yes" &&
-   test "$ac_cv_func_sigaction" = "yes"
+   test "$ac_cv_func_sigaction" = "yes" &&
+   test "$ac_cv_func_sigemptyset" = "yes" &&
+   test "$ac_cv_func_sigaddset" = "yes" &&
+   test "$ac_cv_func_pthread_sigmask" = "yes"
 then
    AC_DEFINE([NDB_SHM_TRANSPORTER], [1],
              [Including Ndb Cluster DB shared memory transporter])

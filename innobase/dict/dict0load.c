@@ -681,12 +681,10 @@ dict_load_indexes(
 		} else {
  			index = dict_mem_index_create(table->name, name_buf,
 						space, type, n_fields);
-			index->page_no = page_no;
 			index->id = id;
 		
 			dict_load_fields(table, index, heap);
-
-			dict_index_add_to_cache(table, index);
+			dict_index_add_to_cache(table, index, page_no);
 		}
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
@@ -730,6 +728,7 @@ dict_load_table(
 	ulint		space;
 	ulint		n_cols;
 	ulint		err;
+	ulint		mix_len;
 	mtr_t		mtr;
 	
 #ifdef UNIV_SYNC_DEBUG
@@ -775,6 +774,22 @@ dict_load_table(
 		mem_heap_free(heap);
 		
 		return(NULL);
+	}
+
+	/* Track a corruption bug reported on the MySQL mailing list Jan 14,
+	2005: mix_len had a value different from 0 */
+
+	field = rec_get_nth_field_old(rec, 7, &len);
+	ut_a(len == 4);
+
+	mix_len = mach_read_from_4(field);
+
+	if (mix_len != 0 && mix_len != 0x80000000) {
+		ut_print_timestamp(stderr);
+		
+		fprintf(stderr,
+			"  InnoDB: table %s has a nonsensical mix len %lu\n",
+			name, (ulong)mix_len);
 	}
 
 #if MYSQL_VERSION_ID < 50003

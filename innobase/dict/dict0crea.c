@@ -81,6 +81,17 @@ dict_create_sys_tables_tuple(
 
 	dfield_set_data(dfield, ptr, 8);
 	/* 7: MIX_LEN --------------------------*/
+
+	/* Track corruption reported on mailing list Jan 14, 2005 */
+	if (table->mix_len != 0 && table->mix_len != 0x80000000) {
+		fprintf(stderr,
+"InnoDB: Error: mix_len is %lu in table %s\n", (ulong)table->mix_len,
+							table->name);
+		mem_analyze_corruption((byte*)&(table->mix_len));
+	
+		ut_error;
+	}
+
 	dfield = dtuple_get_nth_field(entry, 5);
 
 	ptr = mem_heap_alloc(heap, 4);
@@ -544,9 +555,7 @@ dict_build_index_def_step(
 	table in the same tablespace */
 
 	index->space = table->space;
-
-	index->page_no = FIL_NULL;
-	
+	node->page_no = FIL_NULL;
 	row = dict_create_sys_indexes_tuple(index, node->heap);
 	node->ind_row = row;
 
@@ -624,18 +633,18 @@ dict_create_index_tree_step(
 
 	btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 
-	index->page_no = btr_create(index->type, index->space, index->id,
+	node->page_no = btr_create(index->type, index->space, index->id,
 							table->comp, &mtr);
 	/* printf("Created a new index tree in space %lu root page %lu\n",
 					index->space, index->page_no); */
 
 	page_rec_write_index_page_no(btr_pcur_get_rec(&pcur),
 					DICT_SYS_INDEXES_PAGE_NO_FIELD,
-					index->page_no, &mtr);
+					node->page_no, &mtr);
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
-	if (index->page_no == FIL_NULL) {
+	if (node->page_no == FIL_NULL) {
 
 		return(DB_OUT_OF_FILE_SPACE);
 	}
@@ -706,6 +715,101 @@ dict_drop_index_tree(
 				DICT_SYS_INDEXES_PAGE_NO_FIELD, FIL_NULL, mtr);
 }
 
+/***********************************************************************
+Truncates the index tree associated with a row in SYS_INDEXES table. */
+
+void
+dict_truncate_index_tree(
+/*=====================*/
+	dict_table_t*	table,	/* in: the table the index belongs to */
+	rec_t*		rec,	/* in: record in the clustered index of
+				SYS_INDEXES table */
+	mtr_t*		mtr)	/* in: mtr having the latch
+				on the record page */
+{
+	ulint		root_page_no;
+	ulint		space;
+	ulint		type;
+	dulint		index_id;
+	byte*		ptr;
+	ulint		len;
+	ibool		comp;
+	dict_index_t*	index;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
+
+	ut_a(!dict_sys->sys_indexes->comp);
+	ptr = rec_get_nth_field_old(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD, &len);
+
+	ut_ad(len == 4);
+
+	root_page_no = mtr_read_ulint(ptr, MLOG_4BYTES, mtr);
+
+	if (root_page_no == FIL_NULL) {
+		/* The tree has been freed. */
+
+		return;
+	}
+
+	ptr = rec_get_nth_field_old(rec,
+				DICT_SYS_INDEXES_SPACE_NO_FIELD, &len);
+
+	ut_ad(len == 4);
+
+	space = mtr_read_ulint(ptr, MLOG_4BYTES, mtr);
+
+	if (!fil_tablespace_exists_in_mem(space)) {
+		/* It is a single table tablespace and the .ibd file is
+		missing: do nothing */
+
+		return;
+	}
+
+	ptr = rec_get_nth_field_old(rec,
+				DICT_SYS_INDEXES_TYPE_FIELD, &len);
+	ut_ad(len == 4);
+	type = mach_read_from_4(ptr);
+
+	ptr = rec_get_nth_field_old(rec, 1, &len);
+	ut_ad(len == 8);
+	index_id = mach_read_from_8(ptr);
+
+	/* We free all the pages but the root page first; this operation
+	may span several mini-transactions */
+
+	btr_free_but_not_root(space, root_page_no);
+
+	/* Then we free the root page in the same mini-transaction where
+	we create the b-tree and write its new root page number to the
+	appropriate field in the SYS_INDEXES record: this mini-transaction
+	marks the B-tree totally truncated */
+
+	comp = page_is_comp(btr_page_get(
+				space, root_page_no, RW_X_LATCH, mtr));
+
+	btr_free_root(space, root_page_no, mtr);
+
+	/* Find the index corresponding to this SYS_INDEXES record. */
+	for (index = UT_LIST_GET_FIRST(table->indexes);
+			index;
+			index = UT_LIST_GET_NEXT(indexes, index)) {
+		if (!ut_dulint_cmp(index->id, index_id)) {
+			break;
+		}
+	}
+
+	root_page_no = btr_create(type, space, index_id, comp, mtr);
+	if (index) {
+		index->tree->page = root_page_no;
+	}
+
+	page_rec_write_index_page_no(rec,
+				DICT_SYS_INDEXES_PAGE_NO_FIELD,
+				root_page_no, mtr);
+}
+
 /*************************************************************************
 Creates a table create graph. */
 
@@ -762,6 +866,7 @@ ind_create_graph_create(
 	node->index = index;
 
 	node->state = INDEX_BUILD_INDEX_DEF;
+	node->page_no = FIL_NULL;
 	node->heap = mem_heap_create(256);
 
 	node->ind_def = ins_node_create(INS_DIRECT,
@@ -981,7 +1086,8 @@ dict_create_index_step(
 
 	if (node->state == INDEX_ADD_TO_CACHE) {
 
-		success = dict_index_add_to_cache(node->table, node->index);
+		success = dict_index_add_to_cache(node->table, node->index,
+				node->page_no);
 
 		ut_a(success);
 

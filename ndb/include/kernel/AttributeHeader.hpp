@@ -17,7 +17,6 @@
 #ifndef ATTRIBUTE_HEADER
 #define ATTRIBUTE_HEADER
 
-#include <new>
 /**
  * @class AttributeHeader
  * @brief Header passed in front of every attribute value in AttrInfo signal
@@ -40,6 +39,7 @@ public:
   STATIC_CONST( RANGE_NO     = 0xFFFB ); // Read range no (when batched ranges)
   
   STATIC_CONST( ROW_SIZE     = 0xFFFA );
+  STATIC_CONST( FRAGMENT_MEMORY= 0xFFF9 );
 
   /** Initialize AttributeHeader at location aHeaderPtr */
   static AttributeHeader& init(void* aHeaderPtr, Uint32 anAttributeId, 

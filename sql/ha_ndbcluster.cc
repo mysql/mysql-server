@@ -85,7 +85,7 @@ static int unpackfrm(const void **data, uint *len,
 		     const void* pack_data);
 
 static int ndb_get_table_statistics(Ndb*, const char *, 
-				    Uint64* rows, Uint64* commits);
+				    struct Ndb_statistics *);
 
 
 /*
@@ -93,6 +93,44 @@ static int ndb_get_table_statistics(Ndb*, const char *,
   which are mapped to 1 char
 */
 static uint32 dummy_buf;
+
+/*
+  Stats that can be retrieved from ndb
+*/
+
+struct Ndb_statistics {
+  Uint64 row_count;
+  Uint64 commit_count;
+  Uint64 row_size;
+  Uint64 fragment_memory;
+};
+
+/* Status variables shown with 'show status like 'Ndb%' */
+
+static long ndb_cluster_node_id= 0;
+static const char * ndb_connected_host= 0;
+static long ndb_connected_port= 0;
+static long ndb_number_of_replicas= 0;
+static long ndb_number_of_storage_nodes= 0;
+
+static int update_status_variables(Ndb_cluster_connection *c)
+{
+  ndb_cluster_node_id=         c->node_id();
+  ndb_connected_port=          c->get_connected_port();
+  ndb_connected_host=          c->get_connected_host();
+  ndb_number_of_replicas=      0;
+  ndb_number_of_storage_nodes= c->no_db_nodes();
+  return 0;
+}
+
+struct show_var_st ndb_status_variables[]= {
+  {"cluster_node_id",        (char*) &ndb_cluster_node_id,         SHOW_LONG},
+  {"connected_host",         (char*) &ndb_connected_host,      SHOW_CHAR_PTR},
+  {"connected_port",         (char*) &ndb_connected_port,          SHOW_LONG},
+//  {"number_of_replicas",     (char*) &ndb_number_of_replicas,      SHOW_LONG},
+  {"number_of_storage_nodes",(char*) &ndb_number_of_storage_nodes, SHOW_LONG},
+  {NullS, NullS, SHOW_LONG}
+};
 
 /*
   Error handling functions
@@ -262,9 +300,11 @@ void ha_ndbcluster::records_update()
   //  if (info->records == ~(ha_rows)0)
   {
     Ndb *ndb= get_ndb();
-    Uint64 rows;
-    if(ndb_get_table_statistics(ndb, m_tabname, &rows, 0) == 0){
-      info->records= rows;
+    struct Ndb_statistics stat;
+    if(ndb_get_table_statistics(ndb, m_tabname, &stat) == 0){
+      mean_rec_length= stat.row_size;
+      data_file_length= stat.fragment_memory;
+      info->records= stat.row_count;
     }
   }
   {
@@ -524,6 +564,13 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
           DBUG_RETURN((ndb_op->setValue(fieldnr, (char*)NULL, pack_len) != 0));
         DBUG_PRINT("info", ("bit field"));
         DBUG_DUMP("value", (char*)&bits, pack_len);
+#ifdef WORDS_BIGENDIAN
+	if (pack_len < 5)
+	{
+	  DBUG_RETURN(ndb_op->setValue(fieldnr, 
+				       ((char*)&bits)+4, pack_len) != 0);
+	}
+#endif
 	DBUG_RETURN(ndb_op->setValue(fieldnr, (char*)&bits, pack_len) != 0);
       }
     }
@@ -616,7 +663,7 @@ int ha_ndbcluster::get_ndb_blobs_value(NdbBlob *last_ndb_blob)
           char *buf= m_blobs_buffer + offset;
           uint32 len= 0xffffffff;  // Max uint32
           DBUG_PRINT("value", ("read blob ptr=%x len=%u",
-                               (uint)buf, (uint)blob_len));
+                               (UintPtr)buf, (uint)blob_len));
           if (ndb_blob->readData(buf, len) != 0)
             DBUG_RETURN(-1);
           DBUG_ASSERT(len == blob_len);
@@ -1112,6 +1159,47 @@ ha_ndbcluster::set_index_key(NdbOperation *op,
   DBUG_RETURN(0);
 }
 
+inline 
+int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
+{
+  uint i;
+  THD *thd= current_thd;
+
+  DBUG_ENTER("define_read_attrs");  
+
+  // Define attributes to read
+  for (i= 0; i < table->s->fields; i++) 
+  {
+    Field *field= table->field[i];
+    if ((thd->query_id == field->query_id) ||
+	((field->flags & PRI_KEY_FLAG)) || 
+	m_retrieve_all_fields)
+    {      
+      if (get_ndb_value(op, field, i, buf))
+	ERR_RETURN(op->getNdbError());
+    } 
+    else 
+    {
+      m_value[i].ptr= NULL;
+    }
+  }
+    
+  if (table->s->primary_key == MAX_KEY) 
+  {
+    DBUG_PRINT("info", ("Getting hidden key"));
+    // Scanning table with no primary key
+    int hidden_no= table->s->fields;      
+#ifndef DBUG_OFF
+    const NDBTAB *tab= (const NDBTAB *) m_table;    
+    if (!tab->getColumn(hidden_no))
+      DBUG_RETURN(1);
+#endif
+    if (get_ndb_value(op, NULL, hidden_no, NULL))
+      ERR_RETURN(op->getNdbError());
+  }
+  DBUG_RETURN(0);
+} 
+
 /*
   Read one record from NDB using primary key
 */
@@ -1584,47 +1672,6 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
   op->end_of_bound(range_no);
   DBUG_RETURN(0);
 }
-
-inline 
-int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
-{
-  uint i;
-  THD *thd= current_thd;
-
-  DBUG_ENTER("define_read_attrs");  
-
-  // Define attributes to read
-  for (i= 0; i < table->s->fields; i++) 
-  {
-    Field *field= table->field[i];
-    if ((thd->query_id == field->query_id) ||
-	((field->flags & PRI_KEY_FLAG)) || 
-	m_retrieve_all_fields)
-    {      
-      if (get_ndb_value(op, field, i, buf))
-	ERR_RETURN(op->getNdbError());
-    } 
-    else 
-    {
-      m_value[i].ptr= NULL;
-    }
-  }
-    
-  if (table->s->primary_key == MAX_KEY) 
-  {
-    DBUG_PRINT("info", ("Getting hidden key"));
-    // Scanning table with no primary key
-    int hidden_no= table->s->fields;      
-#ifndef DBUG_OFF
-    const NDBTAB *tab= (const NDBTAB *) m_table;    
-    if (!tab->getColumn(hidden_no))
-      DBUG_RETURN(1);
-#endif
-    if (get_ndb_value(op, NULL, hidden_no, NULL))
-      ERR_RETURN(op->getNdbError());
-  }
-  DBUG_RETURN(0);
-} 
 
 /*
   Start ordered index scan in NDB
@@ -2487,13 +2534,13 @@ int ha_ndbcluster::index_read_last(byte * buf, const byte * key, uint key_len)
 inline
 int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
 					   const key_range *end_key,
-					   bool eq_range, bool sorted,
+					   bool eq_r, bool sorted,
 					   byte* buf)
 {
   KEY* key_info;
   int error= 1; 
   DBUG_ENTER("ha_ndbcluster::read_range_first_to_buf");
-  DBUG_PRINT("info", ("eq_range: %d, sorted: %d", eq_range, sorted));
+  DBUG_PRINT("info", ("eq_r: %d, sorted: %d", eq_r, sorted));
 
   switch (get_index_type(active_index)){
   case PRIMARY_KEY_ORDERED_INDEX:
@@ -2534,14 +2581,14 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
 
 int ha_ndbcluster::read_range_first(const key_range *start_key,
 				    const key_range *end_key,
-				    bool eq_range, bool sorted)
+				    bool eq_r, bool sorted)
 {
   byte* buf= table->record[0];
   DBUG_ENTER("ha_ndbcluster::read_range_first");
   
   DBUG_RETURN(read_range_first_to_buf(start_key,
 				      end_key,
-				      eq_range, 
+				      eq_r, 
 				      sorted,
 				      buf));
 }
@@ -2724,10 +2771,19 @@ void ha_ndbcluster::info(uint flag)
       if ((my_errno= check_ndb_connection()))
         DBUG_VOID_RETURN;
       Ndb *ndb= get_ndb();
-      Uint64 rows= 100;
-      if (current_thd->variables.ndb_use_exact_count)
-	ndb_get_table_statistics(ndb, m_tabname, &rows, 0);
-      records= rows;
+      struct Ndb_statistics stat;
+      if (current_thd->variables.ndb_use_exact_count &&
+	  ndb_get_table_statistics(ndb, m_tabname, &stat) == 0)
+      {
+	mean_rec_length= stat.row_size;
+	data_file_length= stat.fragment_memory;
+	records= stat.row_count;
+      }
+      else
+      {
+	mean_rec_length= 0;
+	records= 100;
+      }
     }
   }
   if (flag & HA_STATUS_CONST)
@@ -3222,7 +3278,7 @@ int ha_ndbcluster::start_stmt(THD *thd)
 #if 0    
     NdbTransaction *tablock_trans= 
       (NdbTransaction*)thd->transaction.all.ndb_tid;
-    DBUG_PRINT("info", ("tablock_trans: %x", (uint)tablock_trans));
+    DBUG_PRINT("info", ("tablock_trans: %x", (UintPtr)tablock_trans));
     DBUG_ASSERT(tablock_trans);
 //    trans= ndb->hupp(tablock_trans);
 #endif
@@ -3898,7 +3954,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
 		HA_AUTO_PART_KEY |
 		HA_NO_PREFIX_CHAR_KEYS |
 		HA_NEED_READ_RANGE_BUFFER |
-                                HA_CAN_BIT_FIELD),
+		HA_CAN_BIT_FIELD),
   m_share(0),
   m_use_write(FALSE),
   m_ignore_dup_key(FALSE),
@@ -4034,6 +4090,8 @@ Thd_ndb* ha_ndbcluster::seize_thd_ndb()
 
   thd_ndb= new Thd_ndb();
   thd_ndb->ndb->getDictionary()->set_local_table_data_size(sizeof(Ndb_table_local_info));
+
+
   if (thd_ndb->ndb->init(max_transactions) != 0)
   {
     ERR_PRINT(thd_ndb->ndb->getNdbError());
@@ -4359,6 +4417,13 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
   a NDB Cluster table handler
  */
 
+/* Call back after cluster connect */
+static int connect_callback()
+{
+  update_status_variables(g_ndb_cluster_connection);
+  return 0;
+}
+
 bool ndbcluster_init()
 {
   int res;
@@ -4388,6 +4453,7 @@ bool ndbcluster_init()
 
   if ((res= g_ndb_cluster_connection->connect(0,0,0)) == 0)
   {
+    connect_callback();
     DBUG_PRINT("info",("NDBCLUSTER storage engine at %s on port %d",
 		       g_ndb_cluster_connection->get_connected_host(),
 		       g_ndb_cluster_connection->get_connected_port()));
@@ -4395,7 +4461,7 @@ bool ndbcluster_init()
   } 
   else if(res == 1)
   {
-    if (g_ndb_cluster_connection->start_connect_thread()) 
+    if (g_ndb_cluster_connection->start_connect_thread(connect_callback)) 
     {
       DBUG_PRINT("error", ("g_ndb_cluster_connection->start_connect_thread()"));
       goto ndbcluster_init_error;
@@ -4813,8 +4879,8 @@ static int unpackfrm(const void **unpack_data, uint *unpack_len,
 
 static 
 int
-ndb_get_table_statistics(Ndb* ndb, const char * table, 
-			 Uint64* row_count, Uint64* commit_count)
+ndb_get_table_statistics(Ndb* ndb, const char * table,
+			 struct Ndb_statistics * ndbstat)
 {
   DBUG_ENTER("ndb_get_table_statistics");
   DBUG_PRINT("enter", ("table: %s", table));
@@ -4835,9 +4901,12 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     if (check == -1)
       break;
     
-    Uint64 rows, commits;
+    Uint64 rows, commits, mem;
+    Uint32 size;
     pOp->getValue(NdbDictionary::Column::ROW_COUNT, (char*)&rows);
     pOp->getValue(NdbDictionary::Column::COMMIT_COUNT, (char*)&commits);
+    pOp->getValue(NdbDictionary::Column::ROW_SIZE, (char*)&size);
+    pOp->getValue(NdbDictionary::Column::FRAGMENT_MEMORY, (char*)&mem);
     
     check= pTrans->execute(NdbTransaction::NoCommit,
 			   NdbTransaction::AbortOnError,
@@ -4847,10 +4916,15 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     
     Uint64 sum_rows= 0;
     Uint64 sum_commits= 0;
+    Uint64 sum_row_size= 0;
+    Uint64 sum_mem= 0;
     while((check= pOp->nextResult(TRUE, TRUE)) == 0)
     {
       sum_rows+= rows;
       sum_commits+= commits;
+      if (sum_row_size < size)
+	sum_row_size= size;
+      sum_mem+= mem;
     }
     
     if (check == -1)
@@ -4859,11 +4933,14 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     pOp->close(TRUE);
 
     ndb->closeTransaction(pTrans);
-    if(row_count)
-      * row_count= sum_rows;
-    if(commit_count)
-      * commit_count= sum_commits;
-    DBUG_PRINT("exit", ("records: %u commits: %u", sum_rows, sum_commits));
+
+    ndbstat->row_count= sum_rows;
+    ndbstat->commit_count= sum_commits;
+    ndbstat->row_size= sum_row_size;
+    ndbstat->fragment_memory= sum_mem;
+
+    DBUG_PRINT("exit", ("records: %u commits: %u row_size: %d mem: %d",
+			sum_rows, sum_commits, sum_row_size, sum_mem));
     DBUG_RETURN(0);
   } while(0);
 
@@ -5246,6 +5323,45 @@ ha_ndbcluster::setup_recattr(const NdbRecAttr* curr)
   }
   
   DBUG_RETURN(0);
+}
+
+char*
+ha_ndbcluster::update_table_comment(
+			        /* out: table comment + additional */
+        const char*	comment)/* in:  table comment defined by user */
+{
+  uint length= strlen(comment);
+  if(length > 64000 - 3) 
+  {
+    return((char*)comment); /* string too long */
+  }
+
+  Ndb* ndb;
+  if (!(ndb= get_ndb()))
+  {
+    return((char*)comment);
+  }
+
+  ndb->setDatabaseName(m_dbname);
+  NDBDICT* dict= ndb->getDictionary();
+  const NDBTAB* tab;
+  if (!(tab= dict->getTable(m_tabname)))
+  {
+    return((char*)comment);
+  }
+
+  char *str;
+  const char *fmt="%s%snumber_of_replicas: %d";
+  const unsigned fmt_len_plus_extra= length + strlen(fmt);
+  if ((str= my_malloc(fmt_len_plus_extra, MYF(0))) == NULL)
+  {
+    return (char*)comment;
+  }
+
+  snprintf(str,fmt_len_plus_extra,fmt,comment,
+	   length > 0 ? " ":"",
+	   tab->getReplicaCount());
+  return str;
 }
 
 #endif /* HAVE_NDBCLUSTER_DB */

@@ -750,11 +750,11 @@ struct show_var_st init_vars[]= {
   {sys_innodb_autoextend_increment.name, (char*) &sys_innodb_autoextend_increment, SHOW_SYS},
   {"innodb_buffer_pool_awe_mem_mb", (char*) &innobase_buffer_pool_awe_mem_mb, SHOW_LONG },
   {"innodb_buffer_pool_size", (char*) &innobase_buffer_pool_size, SHOW_LONG },
+  {"innodb_checksums", (char*) &innobase_use_checksums, SHOW_MY_BOOL},
+  {sys_innodb_concurrency_tickets.name, (char*) &sys_innodb_concurrency_tickets, SHOW_SYS},
   {"innodb_data_file_path", (char*) &innobase_data_file_path,	    SHOW_CHAR_PTR},
   {"innodb_data_home_dir",  (char*) &innobase_data_home_dir,	    SHOW_CHAR_PTR},
   {"innodb_doublewrite", (char*) &innobase_use_doublewrite, SHOW_MY_BOOL},
-  {"innodb_checksums", (char*) &innobase_use_checksums, SHOW_MY_BOOL},
-  {sys_innodb_concurrency_tickets.name, (char*) &sys_innodb_concurrency_tickets, SHOW_SYS},
   {"innodb_fast_shutdown", (char*) &innobase_fast_shutdown, SHOW_MY_BOOL},
   {"innodb_file_io_threads", (char*) &innobase_file_io_threads, SHOW_LONG },
   {"innodb_file_per_table", (char*) &innobase_file_per_table, SHOW_MY_BOOL},
@@ -773,10 +773,10 @@ struct show_var_st init_vars[]= {
   {sys_innodb_max_purge_lag.name, (char*) &sys_innodb_max_purge_lag, SHOW_SYS},
   {"innodb_mirrored_log_groups", (char*) &innobase_mirrored_log_groups, SHOW_LONG},
   {"innodb_open_files", (char*) &innobase_open_files, SHOW_LONG },
-  {sys_innodb_thread_concurrency.name, (char*) &sys_innodb_thread_concurrency, SHOW_SYS},
-  {sys_innodb_thread_sleep_delay.name, (char*) &sys_innodb_thread_sleep_delay, SHOW_SYS},
   {sys_innodb_sync_spin_loops.name, (char*) &sys_innodb_sync_spin_loops, SHOW_SYS},
   {sys_innodb_table_locks.name, (char*) &sys_innodb_table_locks, SHOW_SYS},
+  {sys_innodb_thread_concurrency.name, (char*) &sys_innodb_thread_concurrency, SHOW_SYS},
+  {sys_innodb_thread_sleep_delay.name, (char*) &sys_innodb_thread_sleep_delay, SHOW_SYS},
 #endif
   {sys_interactive_timeout.name,(char*) &sys_interactive_timeout,   SHOW_SYS},
   {sys_join_buffer_size.name,   (char*) &sys_join_buffer_size,	    SHOW_SYS},
@@ -2232,7 +2232,7 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 
   if (!tmp)					// Zero size means delete
   {
-    if (key_cache == sql_key_cache)
+    if (key_cache == dflt_key_cache)
       goto end;					// Ignore default key cache
 
     if (key_cache->key_cache_inited)		// If initied
@@ -2246,7 +2246,7 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 					      base_name->length, &list);
       key_cache->in_init= 1;
       pthread_mutex_unlock(&LOCK_global_system_variables);
-      error= reassign_keycache_tables(thd, key_cache, sql_key_cache);
+      error= reassign_keycache_tables(thd, key_cache, dflt_key_cache);
       pthread_mutex_lock(&LOCK_global_system_variables);
       key_cache->in_init= 0;
     }

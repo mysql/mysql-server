@@ -145,7 +145,7 @@ flush tables;
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t6	MyISAM	9	Fixed	1	260	#	#	#	0	NULL	#	#	NULL	#	NULL		
-t7	ndbcluster	9	Fixed	1	0	#	#	#	0	NULL	#	#	NULL	#	NULL		
+t7	ndbcluster	9	Fixed	1	276	#	#	#	0	NULL	#	#	NULL	#	NULL		number_of_replicas: 2
 show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	2
@@ -353,12 +353,17 @@ drop table t1;
 use test2;
 drop table t2;
 drop database test2;
-show databases;
-Database
-information_schema
-mysql
-test
 use test;
+drop database if exists test_only_ndb_tables;
+create database test_only_ndb_tables;
+use test_only_ndb_tables;
+create table t1 (a int primary key) engine=ndb;
+select * from t1;
+a
+select * from t1;
+ERROR HY000: Can't lock file (errno: 4009)
+use test;
+drop database test_only_ndb_tables;
 CREATE TABLE t9 (
 a int NOT NULL PRIMARY KEY,
 b int

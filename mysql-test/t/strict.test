@@ -531,7 +531,7 @@ INSERT INTO t1 VALUES (-2.2E-307,0),(+1.7E+308,+1.7E+308);
 INSERT INTO t1 VALUES ('-2.2E-307',0),('+1.7E+308','+1.7E+308');
 # We don't give warnings for underflow
 INSERT INTO t1 (col1) VALUES (-2.2E-330);
---error 1367
+--error 1367,1264
 INSERT INTO t1 (col1) VALUES (+1.7E+309);
 --error 1264
 INSERT INTO t1 (col2) VALUES (-1.1E-3);
@@ -565,12 +565,12 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (col1 CHAR(5), col2 VARCHAR(6));
 INSERT INTO t1 VALUES ('hello', 'hello'),('he', 'he'),('hello   ', 'hello ');
---error 1265
+--error 1400
 INSERT INTO t1 (col1) VALUES ('hellobob');
 --error 1265
 INSERT INTO t1 (col2) VALUES ('hellobob');
 INSERT INTO t1 (col2) VALUES ('hello  ');
---error 1265
+--error 1400
 UPDATE t1 SET col1 ='hellobob' WHERE col1 ='he';
 --error 1265
 UPDATE t1 SET col2 ='hellobob' WHERE col2 ='he';

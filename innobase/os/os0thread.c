@@ -88,7 +88,7 @@ os_thread_create(
 /*=============*/
 						/* out: handle to the thread */
 #ifndef __WIN__
-		 os_posix_f_t            start_f,
+	os_posix_f_t		start_f,
 #else
 	ulint (*start_f)(void*),		/* in: pointer to function
 						from which to start */
