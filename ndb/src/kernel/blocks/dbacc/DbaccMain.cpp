@@ -9645,10 +9645,10 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
     operationRecPtr.i = scanPtr.p->scanFirstQueuedOp;
     ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
     takeOutReadyScanQueue(signal);
+    fragrecptr.i = operationRecPtr.p->fragptr;
+    ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
     if (operationRecPtr.p->elementIsDisappeared == ZTRUE) {
       jam();
-      fragrecptr.i = operationRecPtr.p->fragptr;
-      ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
       if (fragrecptr.p->createLcp == ZTRUE) {
         if (remainingUndoPages() < ZMIN_UNDO_PAGES_AT_COMMIT) {
           jam();
