@@ -403,7 +403,7 @@ struct system_variables
   ulong ndb_autoincrement_prefetch_sz;
   my_bool ndb_force_send;
   my_bool ndb_use_exact_count;
-  my_bool ndb_use_local_query_cache;
+  ulong   ndb_query_cache_type;
   my_bool ndb_use_transactions;
 #endif /* HAVE_NDBCLUSTER_DB */
   my_bool old_passwords;
