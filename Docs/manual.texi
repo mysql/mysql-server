@@ -25727,7 +25727,7 @@ in its own lock table and rolls back the transaction. If you use
 than InnoDB in the same transaction, then a deadlock may arise which
 InnoDB cannot notice. In cases like this the timeout is useful to
 resolve the situation.
-@item @code{innodb_unix_file_flush_method} @tab
+@item @code{innodb_flush_method} @tab
 (Available from 3.23.39 up.)
 The default value for this is @code{fdatasync}.
 Another option is @code{O_DSYNC}.
@@ -26338,7 +26338,7 @@ In some versions of Linux and Unix, flushing files to disk with the Unix
 @code{fdatasync} and other similar methods is surprisingly slow.
 The default method InnoDB uses is the @code{fdatasync} function.
 If you are not satisfied with the database write performance, you may
-try setting @code{innodb_unix_file_flush_method} in @file{my.cnf}
+try setting @code{innodb_flush_method} in @file{my.cnf}
 to @code{O_DSYNC}, though O_DSYNC seems to be slower on most systems.
 You can also try setting it to @code{littlesync}, which means that
 InnoDB does not call the file flush for every write it does to a
