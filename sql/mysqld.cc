@@ -1504,7 +1504,7 @@ static void open_log(MYSQL_LOG *log, const char *hostname,
     char* p = strrchr(opt_name, FN_EXTCHAR);
     if (p)
       *p = 0;
-  } 
+  }
   log->open(opt_name,type);
 }
 

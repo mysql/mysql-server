@@ -732,7 +732,7 @@ err:
     if (file == &log_file)
       VOID(pthread_cond_broadcast(&COND_binlog_update));
   }
-  if(should_rotate)
+  if (should_rotate)
     new_file(1); // inside mutex
   VOID(pthread_mutex_unlock(&LOCK_log));
   return error;
@@ -820,10 +820,13 @@ bool MYSQL_LOG::write(Load_log_event* event_info)
 	VOID(pthread_cond_broadcast(&COND_binlog_update));
       }
     }
+    
     if(should_rotate)
       new_file(1); // inside mutex
+    
     VOID(pthread_mutex_unlock(&LOCK_log));
   }
+
   return error;
 }
 
