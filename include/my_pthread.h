@@ -428,6 +428,16 @@ struct tm *localtime_r(const time_t *clock, struct tm *res);
 
 #endif /* defined(__WIN__) */
 
+#if defined(HPUX) && !defined(DONT_REMAP_PTHREAD_FUNCTIONS)
+#undef pthread_cond_timedwait
+#undef pthread_mutex_trylock
+#define pthread_cond_timedwait(a,b,c) my_pthread_cond_timedwait((a),(b),(c))
+#define pthread_mutex_trylock(a) my_pthread_mutex_trylock((a))
+int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
+			      struct timespec *abstime);
+int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
+#endif
+
 	/* safe_mutex adds checking to mutex for easier debugging */
 
 typedef struct st_safe_mutex_t
@@ -464,14 +474,7 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
 #define pthread_mutex_destroy(A) safe_mutex_destroy((A),__FILE__,__LINE__)
 #define pthread_cond_wait(A,B) safe_cond_wait((A),(B),__FILE__,__LINE__)
 #define pthread_cond_timedwait(A,B,C) safe_cond_timedwait((A),(B),(C),__FILE__,__LINE__)
-#ifdef PTHREAD_MUTEX_TRYLOCK_INVERTED_RET_VAL
-  /* In HP-UX-10.20 and other old Posix 1003.4a Draft 4 implementations
-     pthread_mutex_trylock returns 1 on success, not 0 like
-     pthread_mutex_lock */
-#define pthread_mutex_trylock(A) (1 - pthread_mutex_lock(A))
-#else
 #define pthread_mutex_trylock(A) pthread_mutex_lock(A)
-#endif
 #define pthread_mutex_t safe_mutex_t
 #endif /* SAFE_MUTEX */
 

@@ -409,7 +409,7 @@ int my_pthread_cond_init(pthread_cond_t *mp, const pthread_condattr_t *attr)
 
 /* Change functions on HP to work according to POSIX */
 
-#ifdef HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT
+#if defined(HPUX) || defined(HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT)
 #undef pthread_cond_timedwait
 
 int my_pthread_cond_timedwait(pthread_cond_t *cond,
@@ -426,7 +426,26 @@ int my_pthread_cond_timedwait(pthread_cond_t *cond,
     error= ETIMEDOUT;
   return error;
 }
-#endif /* HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT */
+#endif
+
+
+#ifdef HPUX
+/*
+  In HP-UX-10.20 and other old Posix 1003.4a Draft 4 implementations
+  pthread_mutex_trylock returns 1 on success, not 0 like
+  pthread_mutex_lock
+*/
+
+int my_pthread_mutex_trylock(pthread_mutex_t *mutex)
+{
+  int error=pthread_mutex_trylock(mutex);
+  if (error == 1)			/* Safety if the lib is fixed */
+    return 0;				/* Mutex was locked */
+  if (error == -1)			/* Safety if the lib is fixed */
+    error=errno;
+   return error;
+}
+#endif
 
 
 /* Some help functions */
