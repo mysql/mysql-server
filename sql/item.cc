@@ -3513,6 +3513,9 @@ Item_ref::Item_ref(Item **item, const char *table_name_par,
     Item_field::fix_fields, here we first search the SELECT and GROUP BY
     clauses, and then we search the FROM clause.
 
+  POSTCONDITION
+    Item_ref::ref is 0 or points to a valid item
+
   RETURN
     TRUE  if error
     FALSE on success
@@ -3534,168 +3537,155 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 
     if (ref == not_found_item) /* This reference was not resolved. */
     {
-      /*
-        If there is an outer select, and it is not a derived table (which do
-        not support the use of outer fields for now), try to resolve this
-        reference in the outer select(s).
-      
-        We treat each subselect as a separate namespace, so that different
-        subselects may contain columns with the same names. The subselects are
-        searched starting from the innermost.
-      */
-      if (outer_sel && (current_sel->master_unit()->first_select()->linkage !=
+      TABLE_LIST *table_list;
+      Field *from_field;
+      SELECT_LEX *last;
+      ref= 0;
+
+      if (!outer_sel || (current_sel->master_unit()->first_select()->linkage ==
                         DERIVED_TABLE_TYPE))
-      {
-        TABLE_LIST *table_list;
-        Field *from_field= (Field*) not_found_field;
-        SELECT_LEX *last= 0;
-
-        for ( ; outer_sel ;
-              outer_sel= (prev_unit= outer_sel->master_unit())->outer_select())
-        {
-          last= outer_sel;
-          Item_subselect *prev_subselect_item= prev_unit->item;
-
-          /* Search in the SELECT and GROUP lists of the outer select. */
-          if (outer_sel->resolve_mode == SELECT_LEX::SELECT_MODE)
-          {
-            if (!(ref= resolve_ref_in_select_and_group(thd, this, outer_sel)))
-              return TRUE; /* Some error occurred (e.g. ambiguous names). */
-            if (ref != not_found_item)
-            {
-              DBUG_ASSERT(*ref && (*ref)->fixed);
-              prev_subselect_item->used_tables_cache|= (*ref)->used_tables();
-              prev_subselect_item->const_item_cache&= (*ref)->const_item();
-              break;
-            }
-          }
-
-          /* Search in the tables of the FROM clause of the outer select. */
-          table_list= outer_sel->get_table_list();
-          if (outer_sel->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
-            /*
-              It is a primary INSERT st_select_lex => do not resolve against the
-              first table.
-            */
-            table_list= table_list->next_local;
-
-          place= prev_subselect_item->parsing_place;
-          /*
-            Check table fields only if the subquery is used somewhere out of
-            HAVING or the outer SELECT does not use grouping (i.e. tables are
-            accessible).
-            TODO: 
-            Here we could first find the field anyway, and then test this
-            condition, so that we can give a better error message -
-            ER_WRONG_FIELD_WITH_GROUP, instead of the less informative
-            ER_BAD_FIELD_ERROR which we produce now.
-          */
-          if ((place != IN_HAVING ||
-               (!outer_sel->with_sum_func &&
-                outer_sel->group_list.elements == 0)))
-          {
-            /*
-              In case of view, find_field_in_tables() write pointer to view
-              field expression to 'reference', i.e. it substitute that
-              expression instead of this Item_ref
-            */
-            if ((from_field= find_field_in_tables(thd, this, table_list,
-                                                  reference,
-                                                  IGNORE_EXCEPT_NON_UNIQUE,
-                                                  TRUE)) !=
-                not_found_field)
-            {
-              if (from_field != view_ref_found)
-              {
-                prev_subselect_item->used_tables_cache|= from_field->table->map;
-                prev_subselect_item->const_item_cache= 0;
-              }
-              else
-              {
-                Item::Type type= (*reference)->type();
-                prev_subselect_item->used_tables_cache|=
-                  (*reference)->used_tables();
-                prev_subselect_item->const_item_cache&=
-                  (*reference)->const_item();
-                DBUG_ASSERT((*reference)->type() == REF_ITEM);
-                mark_as_dependent(thd, last, current_sel, this,
-                                  ((type == REF_ITEM || type == FIELD_ITEM) ?
-                                   (Item_ident*) (*reference) :
-                                   0));
-                /*
-                  view reference found, we substituted it instead of this
-                  Item, so can quit
-                */
-                return FALSE;
-              }
-              break;
-            }
-          }
-
-          /* Reference is not found => depend on outer (or just error). */
-          prev_subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
-          prev_subselect_item->const_item_cache= 0;
-
-          if (outer_sel->master_unit()->first_select()->linkage ==
-              DERIVED_TABLE_TYPE)
-            break; /* Do not consider derived tables. */
-        }
-
-        DBUG_ASSERT(ref != 0);
-        if (!from_field)
-          return TRUE;
-        if (ref == not_found_item && from_field == not_found_field)
-        {
-          my_error(ER_BAD_FIELD_ERROR, MYF(0),
-                   this->full_name(), current_thd->where);
-          ref= 0;                                 // Safety
-          return TRUE;
-        }
-        if (from_field != not_found_field)
-        {
-          /*
-            Set ref to 0 as we are replacing this item with the found item and
-            this will ensure we get an error if this item would be used
-            elsewhere
-          */
-          ref= 0;                                 // Safety
-          if (from_field != view_ref_found)
-          {
-            Item_field* fld;
-            if (!(fld= new Item_field(from_field)))
-              return TRUE;
-            thd->change_item_tree(reference, fld);
-            mark_as_dependent(thd, last, thd->lex->current_select, this, fld);
-            return FALSE;
-          }
-          /*
-            We can leave expression substituted from view for next PS/SP
-            re-execution (i.e. do not register this substitution for reverting
-            on cleanup() (register_item_tree_changing())), because this subtree
-            will be fix_field'ed during setup_tables()->setup_ancestor()
-            (i.e. before all other expressions of query, and references on
-            tables which do not present in query will not make problems.
-
-            Also we suppose that view can't be changed during PS/SP life.
-          */
-        }
-        else
-        {
-          /* Should be checked in resolve_ref_in_select_and_group(). */
-          DBUG_ASSERT(*ref && (*ref)->fixed);
-          mark_as_dependent(thd, last, current_sel, this, this);
-        }
-      }
-      else
       {
         /* The current reference cannot be resolved in this query. */
         my_error(ER_BAD_FIELD_ERROR,MYF(0),
                  this->full_name(), current_thd->where);
         return TRUE;
       }
+      /*
+        If there is an outer select, and it is not a derived table (which do
+        not support the use of outer fields for now), try to resolve this
+        reference in the outer select(s).
+
+        We treat each subselect as a separate namespace, so that different
+        subselects may contain columns with the same names. The subselects are
+        searched starting from the innermost.
+      */
+      from_field= (Field*) not_found_field;
+      last= 0;
+
+      /* The following loop will always be excuted at least once */
+      for ( ; outer_sel ;
+            outer_sel= (prev_unit= outer_sel->master_unit())->outer_select())
+      {
+        last= outer_sel;
+        Item_subselect *prev_subselect_item= prev_unit->item;
+
+        /* Search in the SELECT and GROUP lists of the outer select. */
+        if (outer_sel->resolve_mode == SELECT_LEX::SELECT_MODE)
+        {
+          if (!(ref= resolve_ref_in_select_and_group(thd, this, outer_sel)))
+            return TRUE; /* Some error occurred (e.g. ambiguous names). */
+          if (ref != not_found_item)
+          {
+            DBUG_ASSERT(*ref && (*ref)->fixed);
+            prev_subselect_item->used_tables_cache|= (*ref)->used_tables();
+            prev_subselect_item->const_item_cache&= (*ref)->const_item();
+            break;
+          }
+          /*
+            Set ref to 0 to ensure that we get an error in case we replaced
+            this item with another item and still use this item in some
+            other place of the parse tree.
+          */
+          ref= 0;
+        }
+
+        /* Search in the tables of the FROM clause of the outer select. */
+        table_list= outer_sel->get_table_list();
+        if (outer_sel->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
+        {
+          /*
+            It is a primary INSERT st_select_lex => do not resolve against
+            the first table.
+          */
+          table_list= table_list->next_local;
+        }
+
+        place= prev_subselect_item->parsing_place;
+        /*
+          Check table fields only if the subquery is used somewhere out of
+          HAVING or the outer SELECT does not use grouping (i.e. tables are
+          accessible).
+          TODO: 
+          Here we could first find the field anyway, and then test this
+          condition, so that we can give a better error message -
+          ER_WRONG_FIELD_WITH_GROUP, instead of the less informative
+          ER_BAD_FIELD_ERROR which we produce now.
+        */
+        if ((place != IN_HAVING ||
+             (!outer_sel->with_sum_func &&
+              outer_sel->group_list.elements == 0)))
+        {
+          /*
+            In case of view, find_field_in_tables() write pointer to view
+            field expression to 'reference', i.e. it substitute that
+            expression instead of this Item_ref
+          */
+          from_field= find_field_in_tables(thd, this, table_list,
+                                           reference,
+                                           IGNORE_EXCEPT_NON_UNIQUE,
+                                           TRUE);
+          if (! from_field)
+            return TRUE;
+          if (from_field == view_ref_found)
+          {
+            Item::Type type= (*reference)->type();
+            prev_subselect_item->used_tables_cache|=
+              (*reference)->used_tables();
+            prev_subselect_item->const_item_cache&=
+              (*reference)->const_item();
+            DBUG_ASSERT((*reference)->type() == REF_ITEM);
+            mark_as_dependent(thd, last, current_sel, this,
+                              ((type == REF_ITEM || type == FIELD_ITEM) ?
+                               (Item_ident*) (*reference) :
+                               0));
+            /*
+              view reference found, we substituted it instead of this
+              Item, so can quit
+            */
+            return FALSE;
+          }
+          if (from_field != not_found_field)
+          {
+            prev_subselect_item->used_tables_cache|= from_field->table->map;
+            prev_subselect_item->const_item_cache= 0;
+            break;
+          }
+        }
+        DBUG_ASSERT(from_field == not_found_field);
+
+        /* Reference is not found => depend on outer (or just error). */
+        prev_subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
+        prev_subselect_item->const_item_cache= 0;
+
+        if (outer_sel->master_unit()->first_select()->linkage ==
+            DERIVED_TABLE_TYPE)
+          break; /* Do not consider derived tables. */
+      }
+
+      DBUG_ASSERT(from_field != 0 && from_field != view_ref_found);
+      if (from_field != not_found_field)
+      {
+        Item_field* fld;
+        if (!(fld= new Item_field(from_field)))
+          return TRUE;
+        thd->change_item_tree(reference, fld);
+        mark_as_dependent(thd, last, thd->lex->current_select, this, fld);
+        return FALSE;
+      }
+      if (ref == 0)
+      {
+        /* The item was not a table field and not a reference */
+        my_error(ER_BAD_FIELD_ERROR, MYF(0),
+                 this->full_name(), current_thd->where);
+        return TRUE;
+      }
+      /* Should be checked in resolve_ref_in_select_and_group(). */
+      DBUG_ASSERT(*ref && (*ref)->fixed);
+      mark_as_dependent(thd, last, current_sel, this, this);
     }
   }
 
+  DBUG_ASSERT(*ref);
   /*
     Check if this is an incorrect reference in a group function or forward
     reference. Do not issue an error if this is an unnamed reference inside an
@@ -3716,10 +3706,11 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 
   set_properties();
 
-  if (ref && (*ref)->check_cols(1))
-    return 1;
-  return 0;
+  if ((*ref)->check_cols(1))
+    return TRUE;
+  return FALSE;
 }
+
 
 void Item_ref::set_properties()
 {
