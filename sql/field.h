@@ -126,10 +126,12 @@ public:
     Field *tmp= (Field*) memdup_root(root,(char*) this,size_of());
     if (tmp)
     {
-      tmp->table=new_table;
-      tmp->key_start=tmp->part_of_key=tmp->part_of_sortkey=0;
+      tmp->table= new_table;
+      tmp->key_start= tmp->part_of_key= tmp->part_of_sortkey= 0;
       tmp->unireg_check=Field::NONE;
-      tmp->flags&= (NOT_NULL_FLAG | BLOB_FLAG | UNSIGNED_FLAG | ZEROFILL_FLAG | ENUM_FLAG | SET_FLAG);
+      tmp->flags&= (NOT_NULL_FLAG | BLOB_FLAG | UNSIGNED_FLAG |
+		    ZEROFILL_FLAG | ENUM_FLAG | SET_FLAG);
+      tmp->table_name= new_table->table_name;
       tmp->reset_fields();
     }
     return tmp;

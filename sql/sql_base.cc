@@ -1861,7 +1861,7 @@ const Field *not_found_field= (Field*) 0x1;
 */
 
 Field *
-find_field_in_tables(THD *thd, Item_field *item, TABLE_LIST *tables,
+find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 		     bool report_error)
 {
   Field *found=0;
@@ -2061,9 +2061,9 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     if (item->type() == Item::FIELD_ITEM &&
 	((Item_field*) item)->field_name[0] == '*')
     {
-      uint elem=fields.elements;
+      uint elem= fields.elements;
       if (insert_fields(thd,tables,((Item_field*) item)->db_name,
-			((Item_field*) item)->table_name,&it))
+			((Item_field*) item)->table_name, &it))
 	DBUG_RETURN(-1); /* purecov: inspected */
       if (sum_func_list)
       {
@@ -2079,6 +2079,7 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     {
       if (item->fix_fields(thd, tables, it.ref()))
 	DBUG_RETURN(-1); /* purecov: inspected */
+      item= *(it.ref()); //Item can be chenged in fix fields
       if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	  sum_func_list)
 	item->split_sum_func(*sum_func_list);
@@ -2227,8 +2228,6 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   thd->set_query_id=1;
   
   thd->cond_count= 0;
-  bool save_allow_sum_func= thd->allow_sum_func;
-  thd->allow_sum_func= 0;
   if (*conds)
   {
     thd->where="where clause";
@@ -2301,7 +2300,6 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	table->on_expr=and_conds(table->on_expr,cond_and);
     }
   }
-  thd->allow_sum_func= save_allow_sum_func;
   DBUG_RETURN(test(thd->fatal_error));
 }
 
