@@ -1212,15 +1212,6 @@ create:
             LEX *lex= Lex;
             sp_head *sp;
            
-            lex->name_and_length= $3;
-           
-            /* QQ: Could we loosen lock type in certain cases ? */
-            if (!lex->select_lex.add_table_to_list(YYTHD, $7, 
-                                                   (LEX_STRING*) 0,
-                                                   TL_OPTION_UPDATING,
-                                                   TL_WRITE))
-              YYABORT;
-              
             if (lex->sphead)
             {
               net_printf(YYTHD, ER_SP_NO_RECURSIVE_CREATE, "TRIGGER");
@@ -1256,6 +1247,23 @@ create:
             if (sp->m_old_cmq)
               YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
             sp->restore_thd_mem_root(YYTHD);
+
+            lex->name_and_length= $3;
+
+            /*
+              We have to do it after parsing trigger body, because some of
+              sp_proc_stmt alternatives are not saving/restoring LEX, so
+              lex->query_tables can be wiped out.
+              
+              QQ: What are other consequences of this?
+              
+              QQ: Could we loosen lock type in certain cases ?
+            */
+            if (!lex->select_lex.add_table_to_list(YYTHD, $7, 
+                                                   (LEX_STRING*) 0,
+                                                   TL_OPTION_UPDATING,
+                                                   TL_WRITE))
+              YYABORT;
           }
 	;
 
@@ -6922,10 +6930,18 @@ option_value:
                 We have to use special instruction in functions and triggers
                 because sp_instr_stmt will close all tables and thus ruin
                 execution of statement invoking function or trigger.
+
+                We also do not want to allow expression with subselects in
+                this case.
               */
+              if (lex->query_tables)
+              {
+                send_error(YYTHD, ER_SP_SUBSELECT_NYI);
+                YYABORT;
+              }
               sp_instr_set_user_var *i= 
-                new sp_instr_set_user_var(lex->sphead->instructions(), 
-                                          $2, $4);
+                new sp_instr_set_user_var(lex->sphead->instructions(),
+                                          lex->spcont, $2, $4);
 	      lex->sphead->add_instr(i);
             }
             else
@@ -6941,12 +6957,8 @@ option_value:
               /* We are in trigger and assigning value to field of new row */
               Item *it;
               sp_instr_set_trigger_field *i;
-              if ($3 && $3->type() == Item::SUBSELECT_ITEM)
-              {  /*
-                   QQ For now, just disallow subselects as values
-                   Unfortunately this doesn't helps in case when we have
-                   subselect deeper in expression.
-                 */
+              if (lex->query_tables)
+              {
                 send_error(YYTHD, ER_SP_SUBSELECT_NYI);
                 YYABORT;
               }
@@ -6958,7 +6970,7 @@ option_value:
                 it= new Item_null();
               }
               i= new sp_instr_set_trigger_field(lex->sphead->instructions(),
-                                                $1.base_name, it);
+                                                lex->spcont, $1.base_name, it);
               if (lex->trg_table && i->setup_field(YYTHD, lex->trg_table,
                                                    lex->trg_chistics.event))
               {

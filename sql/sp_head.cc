@@ -1230,7 +1230,7 @@ sp_instr_set::execute(THD *thd, uint *nextp)
     thd->spcont->set_item(m_offset, it);
   }
   *nextp = m_ip+1;
-  if (thd->lock || thd->open_tables || thd->derived_tables)
+  if (tables && (thd->lock || thd->open_tables || thd->derived_tables))
     close_thread_tables(thd);
   DBUG_RETURN(res);
 }
@@ -1387,7 +1387,7 @@ sp_instr_jump_if::execute(THD *thd, uint *nextp)
     else
       *nextp = m_ip+1;
   }
-  if (thd->lock || thd->open_tables || thd->derived_tables)
+  if (tables && (thd->lock || thd->open_tables || thd->derived_tables))
     close_thread_tables(thd);
   DBUG_RETURN(res);
 }
@@ -1444,7 +1444,7 @@ sp_instr_jump_if_not::execute(THD *thd, uint *nextp)
     else
       *nextp = m_ip+1;
   }
-  if (thd->lock || thd->open_tables || thd->derived_tables)
+  if (tables && (thd->lock || thd->open_tables || thd->derived_tables))
     close_thread_tables(thd);
   DBUG_RETURN(res);
 }

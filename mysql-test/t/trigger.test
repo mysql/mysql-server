@@ -151,15 +151,15 @@ drop table t1;
 #
 create table t1 (i int);
 
---error 1358
+--error 1362
 create trigger trg before insert on t1 for each row set @a:= old.i;
---error 1358
+--error 1362
 create trigger trg before delete on t1 for each row set @a:= new.i;
---error 1357
+--error 1361
 create trigger trg before update on t1 for each row set old.i:=1;
---error 1358
+--error 1362
 create trigger trg before delete on t1 for each row set new.i:=1;
---error 1357
+--error 1361
 create trigger trg after update on t1 for each row set new.i:=1;
 # TODO: We should also test wrong field names here, we don't do it now
 #       because proper error handling is not in place yet.
@@ -173,23 +173,23 @@ create trigger trg after update on t1 for each row set new.i:=1;
 create trigger trg before insert on t2 for each row set @a:=1;
 
 create trigger trg before insert on t1 for each row set @a:=1;
---error 1354
+--error 1358
 create trigger trg after insert on t1 for each row set @a:=1;
---error 1354
+--error 1358
 create trigger trg2 before insert on t1 for each row set @a:=1;
 drop trigger t1.trg;
 
---error 1355
+--error 1359
 drop trigger t1.trg;
 
 create view v1 as select * from t1;
---error 1356
+--error 1360
 create trigger trg before insert on v1 for each row set @a:=1;
 drop view v1;
 
 drop table t1;
 
 create temporary table t1 (i int);
---error 1356
+--error 1360
 create trigger trg before insert on t1 for each row set @a:=1;
 drop table t1;
