@@ -97,10 +97,12 @@ int safe_mutex_lock(safe_mutex_t *mp,const char *file, uint line)
   int error;
   if (!mp->file)
   {
-    fprintf(stderr,"safe_mutex: Trying to lock unitialized mutex at %s, line %d",  file, line);
+    fprintf(stderr,
+	    "safe_mutex: Trying to lock unitialized mutex at %s, line %d\n",
+	    file, line);
     fflush(stderr);
     abort();
-  }    
+  }
     
   pthread_mutex_lock(&mp->global);
   if (mp->count > 0 && pthread_equal(pthread_self(),mp->thread))
@@ -262,6 +264,14 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
 int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line)
 {
   int error=0;
+  if (!mp->file)
+  {
+    fprintf(stderr,
+	    "safe_mutex: Trying to destroy unitialized mutex at %s, line %d\n",
+	    file, line);
+    fflush(stderr);
+    abort();
+  }
   if (mp->count != 0)
   {
     fprintf(stderr,"safe_mutex: Trying to destroy a mutex that was locked at %s, line %d at %s, line %d\n",

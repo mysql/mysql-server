@@ -440,7 +440,6 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
   char filePath[FN_REFLEN];
   TABLE_LIST *tot_list=0, **tot_list_next;
   List<String> raid_dirs;
-
   DBUG_ENTER("mysql_rm_known_files");
   DBUG_PRINT("enter",("path: %s", org_path));
 
@@ -516,17 +515,24 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       deleted++;
     }
   }
+  List_iterator<String> it(raid_dirs);
+  String *dir;
+
   if (thd->killed ||
       (tot_list && mysql_rm_table_part2_with_lock(thd, tot_list, 1, 0, 1)))
   {
+    /* Free memory for allocated raid dirs */
+    while ((dir= it++))
+      delete dir;
     my_dirend(dirp);
     DBUG_RETURN(-1);
   }
-  List_iterator<String> it(raid_dirs);
-  String *dir;
   while ((dir= it++))
+  {
     if (rmdir(dir->c_ptr()) < 0)
       found_other_files++;
+    delete dir;
+  }
   my_dirend(dirp);  
   
   /*

@@ -9,6 +9,7 @@ enable_query_log;
 
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2;
+DROP DATABASE IF EXISTS test_$1;
 --enable_warnings
 
 #
@@ -111,8 +112,8 @@ ALTER TABLE t1 DROP COLUMN x;
 ALTER TABLE t1 RENAME t2;
 select count(*) from t2;
 DROP TABLE t2;
+
 /* variable rows */
-DROP TABLE IF EXISTS t2;
 CREATE TABLE t1 (
 id int unsigned not null auto_increment primary key,
 c varchar(255) not null
