@@ -66,7 +66,8 @@ bool Item_row::fix_fields(THD *thd, TABLE_LIST *tabl, Item **ref)
     // we can't assign 'item' before, because fix_fields() can change arg
     Item *item= *arg;
     used_tables_cache |= item->used_tables();
-    if (const_item_cache&= item->const_item() && !with_null)
+    const_item_cache&= item->const_item() && !with_null;
+    if (const_item_cache)
     {
       if (item->cols() > 1)
 	with_null|= item->null_inside();

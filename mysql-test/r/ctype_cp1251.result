@@ -49,8 +49,8 @@ a	b
 aaa	bbb
 select charset(a), charset(b), charset(binary 'ccc') from t1 limit 1;
 charset(a)	charset(b)	charset(binary 'ccc')
-cp1251	binary	cp1251
+cp1251	binary	binary
 select collation(a), collation(b), collation(binary 'ccc') from t1 limit 1;
 collation(a)	collation(b)	collation(binary 'ccc')
-cp1251_bin	binary	cp1251_bin
+cp1251_bin	binary	binary
 drop table t1;

@@ -200,7 +200,7 @@ net_printf(THD *thd, uint errcode, ...)
 	    2+SQLSTATE_LENGTH+1 : 2) : 0);
 #ifndef EMBEDDED_LIBRARY
   text_pos=(char*) net->buff + head_length + offset + 1;
-  length=(char*)net->buff_end-text_pos;
+  length= (uint) ((char*)net->buff_end - text_pos);
 #else
   length=sizeof(text_pos)-1;
 #endif

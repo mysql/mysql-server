@@ -2740,7 +2740,7 @@ unsent_create_error:
       send_error(thd,ER_LOCK_OR_ACTIVE_TRANSACTION,NullS);
       goto error;
     }
-    res=mysql_truncate(thd,tables);
+    res=mysql_truncate(thd, tables, 0);
     break;
   case SQLCOM_DELETE:
   {
