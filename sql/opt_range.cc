@@ -778,6 +778,7 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
         DBUG_PRINT("info", ("Freeing separate handler %p (free=%d)", file,
                             free_file));
         file->reset();
+        file->external_lock(current_thd, F_UNLCK);
         file->close();
       }
     }
@@ -929,6 +930,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
     DBUG_RETURN(0);
   }
 
+  THD *thd= current_thd;
   if (!(file= get_new_handler(head, head->s->db_type)))
     goto failure;
   DBUG_PRINT("info", ("Allocated new handler %p", file));
@@ -937,11 +939,14 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
     /* Caller will free the memory */
     goto failure;
   }
+  if (file->external_lock(thd, F_RDLCK))
+    goto failure;
 
   if (file->extra(HA_EXTRA_KEYREAD) ||
       file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY) ||
       init() || reset())
   {
+    file->external_lock(thd, F_UNLCK);
     file->close();
     goto failure;
   }
@@ -1886,7 +1891,7 @@ double get_sweep_read_cost(const PARAM *param, ha_rows records)
   else
   {
     double n_blocks=
-      ceil((double)param->table->file->data_file_length / IO_SIZE);
+      ceil(ulonglong2double(param->table->file->data_file_length) / IO_SIZE);
     double busy_blocks=
       n_blocks * (1.0 - pow(1.0 - 1.0/n_blocks, rows2double(records)));
     if (busy_blocks < 1.0)

@@ -134,6 +134,27 @@ rec_set_status(
 	ulint	bits);	/* in: info bits */
 
 /**********************************************************
+The following function is used to retrieve the info and status
+bits of a record.  (Only compact records have status bits.) */
+UNIV_INLINE
+ulint
+rec_get_info_and_status_bits(
+/*=========================*/
+			/* out: info bits */
+	rec_t*	rec,	/* in: physical record */
+	ibool	comp);	/* in: TRUE=compact page format */
+/**********************************************************
+The following function is used to set the info and status
+bits of a record.  (Only compact records have status bits.) */
+UNIV_INLINE
+void
+rec_set_info_and_status_bits(
+/*=========================*/
+	rec_t*	rec,	/* in: physical record */
+	ibool	comp,	/* in: TRUE=compact page format */
+	ulint	bits);	/* in: info bits */
+
+/**********************************************************
 The following function tells if record is delete marked. */
 UNIV_INLINE
 ibool

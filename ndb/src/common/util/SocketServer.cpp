@@ -333,11 +333,18 @@ sessionThread_C(void* _sc){
     return 0;
   }
   
-  if(!si->m_stop){
-    si->m_stopped = false;
-    si->runSession();
-  } else {
-    NDB_CLOSE_SOCKET(si->m_socket);
+  /**
+   * may have m_stopped set if we're transforming a mgm
+   * connection into a transporter connection.
+   */
+  if(!si->m_stopped)
+  {
+    if(!si->m_stop){
+      si->m_stopped = false;
+      si->runSession();
+    } else {
+      NDB_CLOSE_SOCKET(si->m_socket);
+    }
   }
   
   si->m_stopped = true;

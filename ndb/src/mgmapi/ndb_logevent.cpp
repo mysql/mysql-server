@@ -197,10 +197,16 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
   ROW( NODE_FAILREP, "failure_state", 2, failure_state),
 
 	/* TODO */
-//  ROW( ArbitState),
+  ROW( ArbitState,   "code",          1, code),
+  ROW( ArbitState,   "arbit_node",    2, arbit_node),
+  ROW( ArbitState,   "ticket_0",      3, ticket_0),
+  ROW( ArbitState,   "ticket_1",      4, ticket_1),
 
 	/* TODO */
-//  ROW( ArbitResult),
+  ROW( ArbitResult,  "code",          1, code),
+  ROW( ArbitResult,  "arbit_node",    2, arbit_node),
+  ROW( ArbitResult,  "ticket_0",      3, ticket_0),
+  ROW( ArbitResult,  "ticket_1",      4, ticket_1),
 
 //  ROW( GCP_TakeoverStarted),
 

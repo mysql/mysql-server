@@ -346,11 +346,12 @@ static void _ftb_init_index_search(FT_INFO *ftb)
         if (ftbe->flags & FTB_FLAG_NO ||                     /* 2 */
              ftbe->up->ythresh - ftbe->up->yweaks >1)        /* 1 */
         {
-          FTB_EXPR *top_ftbe=ftbe->up->up;
+          FTB_EXPR *top_ftbe=ftbe->up;
           ftbw->docid[0]=HA_OFFSET_ERROR;
-          for (ftbe=ftbw->up; ftbe != top_ftbe; ftbe=ftbe->up)
-            if (!(ftbe->flags & FTB_FLAG_NO))
-              ftbe->yweaks++;
+          for (ftbe=(FTB_EXPR *)ftbw;
+               ftbe != top_ftbe && !(ftbe->flags & FTB_FLAG_NO);
+               ftbe=ftbe->up)
+              ftbe->up->yweaks++;
           ftbe=0;
           break;
         }
@@ -364,7 +365,7 @@ static void _ftb_init_index_search(FT_INFO *ftb)
       else
         reset_tree(& ftb->no_dupes);
     }
-     
+
     if (_ft2_search(ftb, ftbw, 1))
       return;
   }

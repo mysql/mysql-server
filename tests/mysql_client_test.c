@@ -11406,6 +11406,12 @@ static void test_bug5194()
   if (bind == 0 || query == 0 || param_str == 0)
   {
     fprintf(stderr, "Can't allocate enough memory for query structs\n");
+    if (bind)
+      free(bind);
+    if (query)
+      free(query);
+    if (param_str)
+      free(param_str);
     return;
   }
 

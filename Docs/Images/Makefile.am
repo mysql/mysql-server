@@ -27,9 +27,5 @@ EXTRA_DIST =
 all:
 	:
 
-# Nothing to cleanup in this dummy directory.
-clean:
-	:
-
 # Don't update the files from bitkeeper
 %::SCCS/s.%

@@ -207,7 +207,7 @@ public:
     NotUnique = 4251,
     AllocationError = 4252,
     CreateIndexTableFailed = 4253,
-    InvalidAttributeOrder = 4255
+    DuplicateAttributes = 4258
   };
 
 private:
