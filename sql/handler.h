@@ -241,7 +241,7 @@ public:
   virtual double read_time(uint index, uint ranges, ha_rows rows)
  { return rows2double(ranges+rows); }
   virtual bool fast_key_read() { return 0;}
-  virtual const key_map& keys_to_use_for_scanning() { return key_map_empty; }
+  virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
   virtual bool has_transactions(){ return 0;}
   virtual uint extra_rec_buf_length() { return 0; }
   virtual ha_rows estimate_number_of_rows() { return records+EXTRA_RECORDS; }

@@ -305,7 +305,7 @@ static ha_rows check_quick_keys(PARAM *param,uint index,SEL_ARG *key_tree,
 static QUICK_SELECT *get_quick_select(PARAM *param,uint index,
 				      SEL_ARG *key_tree);
 #ifndef DBUG_OFF
-static void print_quick(QUICK_SELECT *quick,const key_map& needed_reg);
+static void print_quick(QUICK_SELECT *quick,const key_map* needed_reg);
 #endif
 static SEL_TREE *tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
 static SEL_TREE *tree_or(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
@@ -364,6 +364,7 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 
 SQL_SELECT::SQL_SELECT() :quick(0),cond(0),free_cond(0)
 {
+  quick_keys.clear_all(); needed_reg.clear_all();
   my_b_clear(&file);
 }
 
@@ -588,9 +589,9 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   uint idx;
   double scan_time;
   DBUG_ENTER("test_quick_select");
-/*  DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
-		      (ulong) keys_to_use, (ulong) prev_tables,
-		      (ulong) const_tables));*/
+  DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
+		      keys_to_use.to_ulonglong(), (ulong) prev_tables,
+		      (ulong) const_tables));
 
   delete quick;
   quick=0;
@@ -622,7 +623,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     SEL_TREE *tree;
     KEY_PART *key_parts;
     PARAM param;
-   
+
     /* set up parameter that is passed to all functions */
     param.thd= thd;
     param.baseflag=basflag;
@@ -743,7 +744,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     my_pthread_setspecific_ptr(THR_MALLOC,old_root);
     thd->no_errors=0;
   }
-  DBUG_EXECUTE("info",print_quick(quick,needed_reg););
+  DBUG_EXECUTE("info",print_quick(quick,&needed_reg););
   /*
     Assume that if the user is using 'limit' we will only need to scan
     limit rows if we are using a key
@@ -2853,7 +2854,7 @@ print_key(KEY_PART *key_part,const char *key,uint used_length)
       fputc('/',DBUG_FILE);
     if (field->real_maybe_null())
     {
-      length++;				// null byte is not in part_length 
+      length++;				// null byte is not in part_length
       if (*key++)
       {
 	fwrite("NULL",sizeof(char),4,DBUG_FILE);
@@ -2869,7 +2870,7 @@ print_key(KEY_PART *key_part,const char *key,uint used_length)
   }
 }
 
-static void print_quick(QUICK_SELECT *quick,const key_map& needed_reg)
+static void print_quick(QUICK_SELECT *quick,const key_map* needed_reg)
 {
   QUICK_RANGE *range;
   char buf[MAX_KEY/8+1];
@@ -2879,8 +2880,8 @@ static void print_quick(QUICK_SELECT *quick,const key_map& needed_reg)
 
   List_iterator<QUICK_RANGE> li(quick->ranges);
   DBUG_LOCK_FILE;
-  fprintf(DBUG_FILE,"Used quick_range on key: %d (other_keys: %s):\n",
-	  quick->index, needed_reg.print(buf));
+  fprintf(DBUG_FILE,"Used quick_range on key: %d (other_keys: 0x%s):\n",
+	  quick->index, needed_reg->print(buf));
   while ((range=li++))
   {
     if (!(range->flag & NO_MIN_RANGE))
