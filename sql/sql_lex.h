@@ -175,7 +175,7 @@ typedef struct st_lex
   enum enum_var_type option_type;
   uint grant,grant_tot_col,which_columns, union_option;
   thr_lock_type lock_option;
-  bool	drop_primary,drop_if_exists,local_file. olap;
+  bool	drop_primary,drop_if_exists,local_file, olap;
   bool  in_comment,ignore_space,verbose,simple_alter;
   uint slave_thd_opt;
 } LEX;

@@ -28546,7 +28546,7 @@ the case of the file extensions in each specified database directory
 @cindex user variables
 @cindex names, variables
 
-MySQL supports thread-specific user variables with the
+MySQL supports connection-specific user variables with the
 @code{@@variablename} syntax.  A variable name may consist of
 alphanumeric characters from the current character set and also
 @samp{_}, @samp{$}, and @samp{.} . The default character set is
@@ -28600,8 +28600,11 @@ row, but the value of @code{id} for the previous accepted row.
 @node System Variables, Comments, Variables, Language Structure
 @subsection System Variables
 
+@cindex variables, System
+@cindex system variables
+
 Starting from MySQL 4.0.3 we provide better access to a lot of system
-variables and one can change most of them without having to take
+and connection variables. One can change most of them without having to take
 down the server.
 
 There are two kind of system variables: Thread (or connection) specific
@@ -28657,7 +28660,7 @@ SHOW SESSION VARIABLES like 'sort_buffer_size';
 When you @strong{retrieve} a variable value with the
 @code{@@@@variable_name} syntax and you don't specify @code{GLOBAL} or
 @code{SESSION} then MySQL will return the thread specific
-(@code{SESSION}) value if a such exist.  If not, MySQL will return the
+(@code{SESSION}) value if it exists.  If not, MySQL will return the
 global value.
 
 The reason for requiring @code{GLOBAL} for setting @code{GLOBAL} only
@@ -28844,7 +28847,7 @@ A few are reserved because MySQL needs them and is
 
 @c START_OF_RESERVED_WORDS
 
-@c Reserved word list updated Tue Jul 23 02:10:12 2002 by monty.
+@c Reserved word list updated Tue Jul 23 20:41:20 2002 by monty.
 @c To regenerate, use Support/update-reserved-words.pl.
 
 @multitable @columnfractions .33 .33 .34
@@ -29019,8 +29022,9 @@ A few are reserved because MySQL needs them and is
 @item @code{WITH}
  @tab @code{WRITE}
  @tab @code{XOR}
- @tab @code{ZEROFILL}
 @item @code{YEAR_MONTH}
+ @tab @code{ZEROFILL}
+ @tab
 @end multitable
 
 @c END_OF_RESERVED_WORDS
