@@ -36191,15 +36191,6 @@ SET [GLOBAL | SESSION] TRANSACTION ISOLATION LEVEL
 Sets the transaction isolation level for the global, whole session or
 the next transaction.
 
-The default behavior is to set the isolation level for the next (not
-started) transaction.  If you use the @code{GLOBAL} keyword, the statement
-sets the default transaction level globally for all new connections
-created from that point on.  You will need the @strong{process}
-privilege to do do this.  Using the @code{SESSION} keyword sets the
-default transaction level for all future transactions performed on the
-current connection.
-
-You can set the default global isolation level for @code{mysqld} with
 @code{--transaction-isolation=...}. @xref{Command-line options}.
 
 @node Fulltext Search, Query Cache, Transactional Commands, Reference
@@ -49215,6 +49206,77 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed bug in DROP DATABASE with symlink
+@item
+Fixed bug in EXPLAIN with LIMIT offset != 0
+@item
+
+New feature :
+
+Management of user resources
+
+So far, the only available method of limiting user usage of MySQL
+server resources has been setting max_user_connections startup
+variable to some non-zero value at MySQL startup. But this method is
+strictly a global one and does not allow management of individual
+users, which could be  of paricular interest to Interent Service
+Providers. 
+
+Therefore, management of three resources is introduced on the
+individual user level :
+
+* number of all queries per hour
+* number of all updates per hour
+* number of connections made per hour
+
+Small clarification : By the  updates in the above sense is considered
+any command that changes any table or database. Queries in the above
+context comprehend all commands that could be run by user. User in the
+above context comprehends a single entry in user table, which is
+uniquely identified by user and host columns.
+
+All users are by default not limited in using the above resources,
+unless the limits are GRANTed to them. These limits can be granted
+ONLY by global GRANT (*.*) and with a following syntax :
+
+GRANT ... WITH MAX_QUERIES_PER_HOUR = N1 MAX_UPDATES_PER_HOUR = N2
+MAX_CONNECTIONS_PER_HOUR = N3;
+
+It is not required that all three resources are specified. One or two
+can be specified also. N1,N2 and N3 are intergers and should limit
+number of times user can execute any command, update command  or can
+login that many times per hour.
+
+If user reaches any of the above limits withing one hour, his
+connection will be broken or refused and the appropriate error message
+shall be issued.
+
+Current values of particular user resources can be flushed (set to
+zero) by issuing a grant statement with any of the above limiting
+clauses, including a GRANT statement with current value(s) of tha
+resource(s).
+
+Also, current values for all users will be flushed if privileges are
+reloaded or if a new flush command is issued :
+
+flush user_resources.
+
+Also, current values for all users will be flushed with mysqladmin
+reload command.
+
+This new feature is enabled as soon as single user is GRANTed with
+some of the limiting GRANT clauses.
+
+As a prerequisite for enabling this features, user table in mysql
+database must have the additional columns, just as defined in table
+creation scripts mysql_install_db and mysql_install_db.sh in scripts/
+directory.
+
+@item
+New configure option --without-query-cache. 
+@item
+Memory allocation strategy for 'root memory' changed. Block size now grows 
+=======
 Fixed bug in phrase operator @code{"..."} in boolean full-text search.
 @item
 Fixed bug that caused duplicated rows when using truncation operator
