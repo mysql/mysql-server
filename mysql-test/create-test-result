@@ -6,7 +6,7 @@
 # to start mysqld yourself and run mysqltest -r
 
 RESULT_DIR=r
-if [ -z $EDITOR] ; then
+if [ -z $EDITOR ] ; then
  EDITOR=vi
 fi
 
