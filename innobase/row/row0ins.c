@@ -389,9 +389,10 @@ row_ins_foreign_delete_or_set_null(
 	char		err_buf[1000];
 	
 	ut_a(thr && foreign && pcur && mtr);
-	ut_a(que_node_get_type(node) == QUE_NODE_UPDATE);
 
 	node = thr->run_node;
+
+	ut_a(que_node_get_type(node) == QUE_NODE_UPDATE);
 
 	if (!node->is_delete) {
 	        /* According to SQL-92 an UPDATE with respect to FOREIGN
