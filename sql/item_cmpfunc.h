@@ -323,6 +323,7 @@ public:
   Item_func_equal(Item *a,Item *b) :Item_bool_rowready_func2(a,b) {};
   longlong val_int();
   void fix_length_and_dec();
+  table_map not_null_tables() const { return 0; }
   enum Functype functype() const { return EQUAL_FUNC; }
   enum Functype rev_functype() const { return EQUAL_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
