@@ -130,6 +130,14 @@ void
 trx_mark_sql_stat_end(
 /*==================*/
 	trx_t*	trx);	/* in: trx handle */
+/**************************************************************************
+Marks the latest SQL statement ended but does not start a new transaction
+if the trx is not started. */
+
+void
+trx_mark_sql_stat_end_do_not_start_new(
+/*===================================*/
+	trx_t*	trx);	/* in: trx handle */
 /************************************************************************
 Assigns a read view for a consistent read query. All the consistent reads
 within the same transaction will get the same read view, which is created
@@ -236,6 +244,14 @@ trx_commit_step(
 /*============*/
 				/* out: query thread to run next, or NULL */
 	que_thr_t*	thr);	/* in: query thread */
+/**************************************************************************
+Prints info about a transaction to the standard output. The caller must
+own the kernel mutex. */
+
+void
+trx_print(
+/*======*/
+	  trx_t* trx); /* in: transaction */
 
 
 /* Signal to a transaction */
@@ -270,6 +286,9 @@ rolling back after a database recovery */
 struct trx_struct{
 	/* All the next fields are protected by the kernel mutex, except the
 	undo logs which are protected by undo_mutex */
+	char*		op_info;	/* English text describing the
+					current operation, or an empty
+					string */
 	ulint		type;		/* TRX_USER, TRX_PURGE */
 	ulint		conc_state;	/* state of the trx from the point
 					of view of concurrency control:
@@ -284,6 +303,8 @@ struct trx_struct{
 					table */
 	dulint		table_id;	/* table id if the preceding field is
 					TRUE */
+        void*           mysql_thd;      /* MySQL thread handle corresponding
+                                        to this trx, or NULL */
 	os_thread_id_t	mysql_thread_id;/* id of the MySQL thread associated
 					with this transaction object */
 	ulint		n_mysql_tables_in_use; /* number of Innobase tables
@@ -302,6 +323,9 @@ struct trx_struct{
                                         of a duplicate key error */
 	UT_LIST_NODE_T(trx_t)
 			trx_list;	/* list of transactions */
+	UT_LIST_NODE_T(trx_t)
+			mysql_trx_list;	/* list of transactions created for
+					MySQL */
 	/*------------------------------*/
 	mutex_t		undo_mutex;	/* mutex protecting the fields in this
 					section (down to undo_no_arr), EXCEPT

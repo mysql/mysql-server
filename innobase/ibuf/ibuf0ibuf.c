@@ -2341,7 +2341,7 @@ ibuf_delete_rec(
 	root = ibuf_tree_root_get(ibuf_data, space, mtr);
 
 	btr_cur_pessimistic_delete(&err, TRUE, btr_pcur_get_btr_cur(pcur),
-									mtr);
+							FALSE, mtr);
 	ut_a(err == DB_SUCCESS);
 
 #ifdef UNIV_IBUF_DEBUG
