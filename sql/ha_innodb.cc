@@ -982,6 +982,12 @@ innobase_commit(
 
 	trx = check_trx_exists(thd);
 
+	/* Release a possible FIFO ticket and search latch. Since we will
+	reserve the kernel mutex, we have to release the search system latch
+	first to obey the latching order. */
+
+	innobase_release_stat_resources(trx);
+
 	/* The flag thd->transaction.all.innodb_active_trans is set to 1 in
 	::external_lock, ::start_stmt, and innobase_savepoint, and it is only
 	set to 0 in a commit or a rollback. If it is 0 we know there cannot be
@@ -1008,9 +1014,7 @@ innobase_commit(
 			/* If we had reserved the auto-inc lock for some
 			table in this SQL statement we release it now */
 		  	
-			innodb_srv_conc_enter_innodb(trx);
 			row_unlock_table_autoinc_for_mysql(trx);
-			innodb_srv_conc_exit_innodb(trx);
 		}
 		/* Store the current undo_no of the transaction so that we
 		know where to roll back if we have to roll back the next
@@ -1018,9 +1022,6 @@ innobase_commit(
 
 		trx_mark_sql_stat_end(trx);
 	}
-
-	/* Release a possible FIFO ticket and search latch */
-	innobase_release_stat_resources(trx);
 
 	/* Tell the InnoDB server that there might be work for utility
 	threads: */
@@ -1114,17 +1115,19 @@ innobase_rollback(
 
 	trx = check_trx_exists(thd);
 
+	/* Release a possible FIFO ticket and search latch. Since we will
+	reserve the kernel mutex, we have to release the search system latch
+	first to obey the latching order. */
+
+	innobase_release_stat_resources(trx);
+
         if (trx->auto_inc_lock) {
 		/* If we had reserved the auto-inc lock for some table (if
 		we come here to roll back the latest SQL statement) we
 		release it now before a possibly lengthy rollback */
 		
-		innodb_srv_conc_enter_innodb(trx);
 		row_unlock_table_autoinc_for_mysql(trx);
-		innodb_srv_conc_exit_innodb(trx);
 	}
-
-	innodb_srv_conc_enter_innodb(trx);
 
 	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle
 	    || (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
@@ -1134,11 +1137,6 @@ innobase_rollback(
 	} else {
 		error = trx_rollback_last_sql_stat_for_mysql(trx);
 	}
-
-	innodb_srv_conc_exit_innodb(trx);
-
-	/* Release a possible FIFO ticket and search latch */
-	innobase_release_stat_resources(trx);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
 }
@@ -1166,16 +1164,16 @@ innobase_rollback_to_savepoint(
 
 	trx = check_trx_exists(thd);
 
-	innodb_srv_conc_enter_innodb(trx);
+	/* Release a possible FIFO ticket and search latch. Since we will
+	reserve the kernel mutex, we have to release the search system latch
+	first to obey the latching order. */
+
+	innobase_release_stat_resources(trx);
 
 	error = trx_rollback_to_savepoint_for_mysql(trx, savepoint_name,
 						&mysql_binlog_cache_pos);
-	innodb_srv_conc_exit_innodb(trx);
 
 	*binlog_cache_pos = (my_off_t)mysql_binlog_cache_pos;
-
-	/* Release a possible FIFO ticket and search latch */
-	innobase_release_stat_resources(trx);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
 }
@@ -4496,6 +4494,12 @@ ha_innobase::external_lock(
 	        trx->mysql_n_tables_locked = 0;
 		prebuilt->used_in_HANDLER = FALSE;
 			
+		/* Release a possible FIFO ticket and search latch. Since we
+		may reserve the kernel mutex, we have to release the search
+		system latch first to obey the latching order. */
+
+	        innobase_release_stat_resources(trx);
+
 		if (!(thd->options
 				 & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 			if (thd->transaction.all.innodb_active_trans != 0) {
@@ -4511,11 +4515,6 @@ ha_innobase::external_lock(
 				read_view_close_for_mysql(trx);
 			}
 		}
-		        
-		/* Here we release the search latch and the InnoDB thread FIFO
-		ticket if they were reserved. */
-
-		innobase_release_stat_resources(trx);
 	}
 
 	DBUG_RETURN(error);
@@ -4532,6 +4531,7 @@ innodb_show_status(
 {
 	String* 	packet 	= &thd->packet;
 	char*		buf;
+	trx_t*		trx;
 
   	DBUG_ENTER("innodb_show_status");
 	
@@ -4541,6 +4541,10 @@ innodb_show_status(
 			   MYF(0));
                 DBUG_RETURN(-1);
         }
+
+	trx = check_trx_exists(thd);
+
+	innobase_release_stat_resources(trx);
 
 	/* We let the InnoDB Monitor to output at most 200 kB of text, add
 	a safety margin of 10 kB for buffer overruns */
@@ -4553,7 +4557,7 @@ innodb_show_status(
 
 	field_list.push_back(new Item_empty_string("Status", strlen(buf)));
 
-	if(send_fields(thd, field_list, 1)) {
+	if (send_fields(thd, field_list, 1)) {
 
 		ut_free(buf);
 
@@ -4729,6 +4733,11 @@ ha_innobase::innobase_read_and_init_auto_inc(
 		(trx_t*) current_thd->transaction.all.innobase_tid);
 	ut_a(prebuilt->table);
 	
+	/* In case MySQL calls this in the middle of a SELECT query, release
+	possible adaptive hash latch to avoid deadlocks of threads */
+
+	trx_search_latch_release_if_reserved(prebuilt->trx);
+
 	auto_inc = dict_table_autoinc_read(prebuilt->table);
 
 	if (auto_inc != 0) {
@@ -4738,9 +4747,7 @@ ha_innobase::innobase_read_and_init_auto_inc(
 		return(0);
 	}
 
-	innodb_srv_conc_enter_innodb(prebuilt->trx);
 	error = row_lock_table_autoinc_for_mysql(prebuilt);
-	innodb_srv_conc_exit_innodb(prebuilt->trx);
 
 	if (error != DB_SUCCESS) {
 		error = convert_error_code_to_mysql(error, user_thd);
