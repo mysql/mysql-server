@@ -548,3 +548,16 @@ insert into t1 select * from t1;
 select col1,count(col1),sum(col1),avg(col1) from t1 group by col1;
 DROP TABLE t1;
 
+#
+# BUG#8465 decimal MIN and MAX return incorrect result
+#
+
+create table t1 (col1 decimal(16,12));
+insert into t1 values (-5.00000000001);
+insert into t1 values (-5.00000000001);
+select col1,sum(col1),max(col1),min(col1) from t1 group by col1;
+delete from t1;
+insert into t1 values (5.00000000001);
+insert into t1 values (5.00000000001);
+select col1,sum(col1),max(col1),min(col1) from t1 group by col1;
+DROP TABLE t1;
