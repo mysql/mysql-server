@@ -65,4 +65,7 @@ public:
   }
 
   friend class Item_trigger_field;
+
+private:
+  bool prepare_old_row_accessors(TABLE *table);
 };

@@ -3152,16 +3152,12 @@ void Item_insert_value::print(String *str)
   NOTE
     This function does almost the same as fix_fields() for Item_field
     but is invoked during trigger definition parsing and takes TABLE
-    object as its argument.
-
-  RETURN VALUES
-    0	 ok
-    1	 field was not found.
+    object as its argument. If proper field was not found in table
+    error will be reported at fix_fields() time.
 */
-bool Item_trigger_field::setup_field(THD *thd, TABLE *table,
+void Item_trigger_field::setup_field(THD *thd, TABLE *table,
                                      enum trg_event_type event)
 {
-  bool result= 1;
   uint field_idx= (uint)-1;
   bool save_set_query_id= thd->set_query_id;
 
@@ -3175,12 +3171,9 @@ bool Item_trigger_field::setup_field(THD *thd, TABLE *table,
     field= (row_version == OLD_ROW && event == TRG_EVENT_UPDATE) ?
              table->triggers->old_field[field_idx] :
              table->field[field_idx];
-    result= 0;
   }
 
   thd->set_query_id= save_set_query_id;
-
-  return result;
 }
 
 
@@ -3204,10 +3197,18 @@ bool Item_trigger_field::fix_fields(THD *thd,
     FIXME may be we still should bother about permissions here.
   */
   DBUG_ASSERT(fixed == 0);
-  // QQ: May be this should be moved to setup_field?
-  set_field(field);
-  fixed= 1;
-  return 0;
+
+  if (field)
+  {
+    // QQ: May be this should be moved to setup_field?
+    set_field(field);
+    fixed= 1;
+    return 0;
+  }
+
+  my_error(ER_BAD_FIELD_ERROR, MYF(0), field_name,
+           (row_version == NEW_ROW) ? "NEW" : "OLD");
+  return 1;
 }
 
 

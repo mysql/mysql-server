@@ -7280,7 +7280,7 @@ static void test_explain_bug()
                        MYSQL_TYPE_STRING, 0, 0, "", 192, 0);
 
   verify_prepare_field(result, 1, "Type", "COLUMN_TYPE",
-                       MYSQL_TYPE_STRING, 0, 0, "", 120, 0);
+                       MYSQL_TYPE_BLOB, 0, 0, "", 193203, 0);
 
   verify_prepare_field(result, 2, "Null", "IS_NULLABLE",
                        MYSQL_TYPE_STRING, 0, 0, "", 9, 0);
