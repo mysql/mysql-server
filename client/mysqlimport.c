@@ -25,7 +25,7 @@
 **			   *			   *
 **			   *************************
 */
-#define IMPORT_VERSION "2.8"
+#define IMPORT_VERSION "2.9"
 
 #include "client_priv.h"
 #include "mysql_version.h"
@@ -47,6 +47,7 @@ static char	*opt_password=0, *current_user=0,
  		*default_charset;
 static uint     opt_mysql_port=0;
 static my_string opt_mysql_unix_port=0;
+static my_string opt_ignore_lines=0;
 #include "sslopt-vars.h"
 
 static struct option long_options[] =
@@ -65,6 +66,7 @@ static struct option long_options[] =
   {"help",		no_argument,		0, '?'},
   {"host",		required_argument,	0, 'h'},
   {"ignore",		no_argument,		0, 'i'},
+  {"ignore-lines",	required_argument,	0, OPT_IGN_LINES},
   {"lines-terminated-by", required_argument,	0, (int) OPT_LTB},
   {"local",		no_argument,		0, 'L'},
   {"lock-tables",	no_argument,		0, 'l'},
@@ -125,6 +127,7 @@ file. The SQL command 'LOAD DATA INFILE' is used to import the rows.\n");
   -f, --force		Continue even if we get an sql-error.\n\
   -h, --host=...	Connect to host.\n\
   -i, --ignore          If duplicate unique key was found, keep old row.\n\
+  --ignore-lines=n      Ignore first n lines of data file.\n\
   -l, --lock-tables     Lock all tables for write.\n\
   -L, --local		Read all files through the client\n\
   --low-priority	Use LOW_PRIORITY when updating the table\n\
@@ -256,6 +259,9 @@ static int get_options(int *argc, char ***argv)
     case (int) OPT_ESC:
       escaped= optarg;
       break;
+    case (int) OPT_IGN_LINES:
+      opt_ignore_lines= optarg;
+      break;
 #include "sslopt-case.h"
     }
   }
@@ -345,6 +351,8 @@ static int write_to_table(char *filename, MYSQL *sock)
 		       " OPTIONALLY ENCLOSED BY");
   end= add_load_option(end, escaped, " ESCAPED BY");
   end= add_load_option(end, lines_terminated, " LINES TERMINATED BY");
+  if (opt_ignore_lines)
+    end= strmov(strmov(strmov(end, " IGNORE "), opt_ignore_lines), " LINES");
   if (opt_columns)
     end= strmov(strmov(strmov(end, " ("), opt_columns), ")");
   *end= '\0';
