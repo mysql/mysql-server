@@ -553,8 +553,8 @@ static int NEAR_F write_keys(MI_SORT_PARAM *info, register uchar **sort_keys,
   qsort2((byte*) sort_keys,count,sizeof(byte*),(qsort2_cmp) info->key_cmp,
          info);
   if (!my_b_inited(tempfile) &&
-      open_cached_file(tempfile, info->tmpdir, "ST", DISK_BUFFER_SIZE,
-                       info->sort_info->param->myf_rw))
+      open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
+                       DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
     DBUG_RETURN(1); /* purecov: inspected */
 
   buffpek->file_pos=my_b_tell(tempfile);
@@ -576,8 +576,8 @@ static int NEAR_F write_key(MI_SORT_PARAM *info, uchar *key,
   DBUG_ENTER("write_key");
 
   if (!my_b_inited(tempfile) &&
-      open_cached_file(tempfile, info->tmpdir, "ST", DISK_BUFFER_SIZE,
-                       info->sort_info->param->myf_rw))
+      open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
+                       DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
     DBUG_RETURN(1);
 
   if (my_b_write(tempfile,(byte*)&key_length,sizeof(key_length)) ||
@@ -619,8 +619,8 @@ static int NEAR_F merge_many_buff(MI_SORT_PARAM *info, uint keys,
   if (*maxbuffer < MERGEBUFF2)
     DBUG_RETURN(0);                             /* purecov: inspected */
   if (flush_io_cache(t_file) ||
-      open_cached_file(&t_file2,info->tmpdir,"ST",DISK_BUFFER_SIZE,
-                       info->sort_info->param->myf_rw))
+      open_cached_file(&t_file2,my_tmpdir(info->tmpdir),"ST",
+                       DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
     DBUG_RETURN(1);                             /* purecov: inspected */
 
   from_file= t_file ; to_file= &t_file2;

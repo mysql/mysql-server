@@ -329,7 +329,8 @@ typedef struct st_mi_check_param
   uint8 language;
   my_bool using_global_keycache, opt_lock_memory, opt_follow_links;
   my_bool retry_repair, force_sort, calc_checksum;
-  char temp_filename[FN_REFLEN],*isam_file_name,*tmpdir;
+  char temp_filename[FN_REFLEN],*isam_file_name;
+  MY_TMPDIR *tmpdir;
   int tmpfile_createflag;
   myf myf_rw;
   IO_CACHE read_cache;
@@ -376,7 +377,7 @@ typedef struct st_mi_sort_param
   byte *rec_buff;
   void *wordlist, *wordptr;
   char *record;
-  char *tmpdir;
+  MY_TMPDIR *tmpdir;
   int (*key_cmp)(struct st_mi_sort_param *, const void *, const void *);
   int (*key_read)(struct st_mi_sort_param *,void *);
   int (*key_write)(struct st_mi_sort_param *, const void *);
