@@ -1811,7 +1811,7 @@ mysql_execute_command(THD *thd)
       !(thd->slave_thread || (thd->master_access & SUPER_ACL)) &&
       (uc_update_queries[lex->sql_command] > 0))
   {
-    send_error(thd, ER_CANT_UPDATE_WITH_READLOCK);
+    net_printf(thd, ER_OPTION_PREVENTS_STATEMENT, "--read-only");
     DBUG_VOID_RETURN;
   }
 
