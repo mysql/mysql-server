@@ -236,6 +236,8 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
     VOID(mi_extra(file, HA_EXTRA_WAIT_LOCK, 0));
   if (!table->db_record_offset)
     int_table_flags|=HA_REC_NOT_IN_SEQ;
+  if (file->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
+    int_table_flags|=HA_HAS_CHECKSUM;
   return (0);
 }
 
@@ -1410,3 +1412,9 @@ int ha_myisam::ft_read(byte * buf)
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
+
+uint ha_myisam::checksum() const
+{
+  return (uint)file->s->state.checksum;
+}
+
