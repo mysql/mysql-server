@@ -363,3 +363,30 @@ create view v1 as select * from t1, t2;
 set @got_val= (select count(*) from information_schema.columns);
 drop view v1;
 drop table t1, t2;
+
+#
+# Bug #7476: crash on SELECT * FROM INFORMATION_SCHEMA.TABLES
+#
+
+CREATE TABLE t_crashme ( f1 BIGINT);
+CREATE VIEW a1 (t_CRASHME) AS SELECT f1 FROM t_crashme GROUP BY f1;
+CREATE VIEW a2 AS SELECT t_CRASHME FROM a1;
+let $tab_count= 65;
+--disable_query_log
+while ($tab_count)
+{
+     EVAL CREATE TABLE t_$tab_count (f1 BIGINT);
+     dec $tab_count ;
+}
+--disable_result_log
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES;
+--enable_result_log
+let $tab_count= 65;
+while ($tab_count)
+{
+     EVAL DROP TABLE t_$tab_count;
+     dec $tab_count ;
+}
+--enable_query_log
+drop view a2, a1;
+drop table t_crashme;
