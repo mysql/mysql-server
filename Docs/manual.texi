@@ -1718,17 +1718,17 @@ Other new features target the users of embedded databases.
 The rollout of MySQL 4.0 will come in several steps, with
 the first version labelled 4.0.0 already containing most of the
 new features. Additional features will be incorporated into
-MySQL 4.0.1, 4.0.2 onwards; very probably within two months,
+MySQL 4.0.1, 4.0.2 onwards; very probably within a couple of months,
 MySQL 4.0 will be labelled beta. Further new features will then
 be added in MySQL 4.1, which is targeted for alpha release
-in December/January.
+in early 2002.
 
 
 @node Nutshell Ready for Immediate Development Use, Nutshell Embedded MySQL, Nutshell Stepwise Rollout, MySQL 4.0 In A Nutshell
 @subsection Ready for Immediate Development Use
 
 Users are not recommended to switch their production systems
-to MySQL 4.0 until it is released in beta version later Q4/2001.
+to MySQL 4.0 until it is released in beta version.
 However, even the initial release has passed our extensive
 test suite without any errors on any of the platforms we test on.
 Due to the large number of new features, we thus recommend
