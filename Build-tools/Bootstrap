@@ -274,11 +274,14 @@ if (defined $opt_changelog)
 #
 unless ($opt_skip_manual)
 {
-	$msg= "Adding manual.texi";
+	$msg= "Updating manual files";
 	&logger($msg);
-	$command= "install -m 644 $opt_docdir/Docs/{manual,reservedwords}.texi";
-	$command.= " $target_dir/Docs/";
-	&run_command($command, "Could not update the manual in $target_dir/Docs/!");
+	foreach $file qw/internals manual reservedwords/
+	{
+		$command= "bk cat $opt_docdir/Docs/$file.texi";
+		$command.= "> $target_dir/Docs/$file.texi";
+		&run_command($command, "Could not updated $file.texi in $target_dir/Docs/!");
+	}
 }
 
 #
@@ -364,11 +367,13 @@ sub print_help
 
 Usage: Bootstrap [options] <bk repository>
 
-Checks out (exports) a clear-text version of the given local BitKeeper
+Creates a MySQL source distribution to be used for the release builds.
+
+It checks out (exports) a clear-text version of the given local BitKeeper
 repository, creates and adds a Changelog file (if requested), adds the
-latest manual.texi from the mysqldoc tree and builds a source distribution
-(*.tar.gz) file. Optionally, the test suite can be run before the source
-archive is being created.
+latest manual files from the mysqldoc BK tree and builds a source
+distribution (*.tar.gz) file. Optionally, the test suite and the
+distribution check can be run before the source archive is being created.
 
 Options:
 
