@@ -239,6 +239,12 @@ int process_default_option_files(const char *conf_file,
   option                    The very option to be processed. It is already
                             prepared to be used in argv (has -- prefix)
 
+  DESCRIPTION
+
+  This handler checks whether a group is one of the listed and adds an option
+  to the array if yes. Some other handler can record, for instance, all groups
+  and their options, not knowing in advance the names and amount of groups.
+
   RETURN
     0 - ok
     1 - error occured
