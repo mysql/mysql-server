@@ -2,15 +2,15 @@
 # Only run the test if we are using --big-test, because this test takes a
 # long time
 #
--- require r/big_test.require
-eval select $BIG_TEST as using_big_test;
+#-- require r/big_test.require
+#eval select $BIG_TEST as using_big_test;
 
 drop table if exists t1,t2,t3;
 create table t1(id1 int not null auto_increment primary key, t char(12));
 create table t2(id2 int not null, t char(12));
 create table t3(id3 int not null, t char(12), index(id3));
 disable_query_log;
-let $1 = 10000;
+let $1 = 100;
 while ($1)
  {
   let $2 = 5;
@@ -29,20 +29,21 @@ while ($1)
   dec $1;
  }
 enable_query_log;
-delete t1.*, t2.*, t3.*  from t1,t2,t3 where t1.id1 = t2.id2 and t2.id2 = t3.id3  and t1.id1 > 9500;
+update t1,t2,t3 set t1.t="aaa", t2.t="bbb", t3.t="cc" where  t1.id1 = t2.id2 and t2.id2 = t3.id3  and t1.id1 > 90;
+delete t1.*, t2.*, t3.*  from t1,t2,t3 where t1.id1 = t2.id2 and t2.id2 = t3.id3  and t1.id1 > 95;
 
 check table t1, t2, t3;
 
-select count(*) from t1 where id1 > 9500;
-select count(*) from t2 where id2 > 9500;
-select count(*) from t3 where id3 > 9500;
+select count(*) from t1 where id1 > 95;
+select count(*) from t2 where id2 > 95;
+select count(*) from t3 where id3 > 95;
 
-delete t1, t2, t3  from t1,t2,t3 where t1.id1 = t2.id2 and t2.id2 = t3.id3  and t1.id1 > 500;
-select count(*) from t1 where id1 > 500;
-select count(*) from t2 where id2 > 500;
-select count(*) from t3 where id3 > 500;
+delete t1, t2, t3  from t1,t2,t3 where t1.id1 = t2.id2 and t2.id2 = t3.id3  and t1.id1 > 5;
+select count(*) from t1 where id1 > 5;
+select count(*) from t2 where id2 > 5;
+select count(*) from t3 where id3 > 5;
 
-delete t1, t2, t3  from t1,t2,t3 where t1.id1 = t2.id2 and t2.id2 = t3.id3  and t1.id1 > 0;
+delete from t1, t2, t3  using t1,t2,t3 where t1.id1 = t2.id2 and t2.id2 = t3.id3  and t1.id1 > 0;
 
 # These queries will force a scan of the table
 select count(*) from t1 where id1;
