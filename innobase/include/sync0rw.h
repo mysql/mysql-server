@@ -57,7 +57,7 @@ location (which must be appropriately aligned). The rw-lock is initialized
 to the non-locked state. Explicit freeing of the rw-lock with rw_lock_free
 is necessary only if the memory block containing it is freed. */
 
-#define rw_lock_create(L)	rw_lock_create_func((L), __FILE__, __LINE__)
+#define rw_lock_create(L)	rw_lock_create_func((L), IB__FILE__, __LINE__)
 /*=====================*/
 /**********************************************************************
 Creates, or rather, initializes an rw-lock object in a specified memory
@@ -94,7 +94,7 @@ corresponding function. */
 
 #ifdef UNIV_SYNC_DEBUG
 #define rw_lock_s_lock(M)    rw_lock_s_lock_func(\
-					  (M), 0, __FILE__, __LINE__)
+					  (M), 0, IB__FILE__, __LINE__)
 #else
 #define rw_lock_s_lock(M)    rw_lock_s_lock_func(M)
 #endif
@@ -104,7 +104,7 @@ corresponding function. */
 
 #ifdef UNIV_SYNC_DEBUG
 #define rw_lock_s_lock_gen(M, P)    rw_lock_s_lock_func(\
-					  (M), (P), __FILE__, __LINE__)
+					  (M), (P), IB__FILE__, __LINE__)
 #else
 #define rw_lock_s_lock_gen(M, P)    rw_lock_s_lock_func(M)
 #endif
@@ -114,7 +114,7 @@ corresponding function. */
 
 #ifdef UNIV_SYNC_DEBUG
 #define rw_lock_s_lock_nowait(M)    rw_lock_s_lock_func_nowait(\
-					     (M), __FILE__, __LINE__)
+					     (M), IB__FILE__, __LINE__)
 #else
 #define rw_lock_s_lock_nowait(M)    rw_lock_s_lock_func_nowait(M)
 #endif
@@ -201,7 +201,7 @@ corresponding function. */
 
 #ifdef UNIV_SYNC_DEBUG
 #define rw_lock_x_lock(M)    rw_lock_x_lock_func(\
-					  (M), 0, __FILE__, __LINE__)
+					  (M), 0, IB__FILE__, __LINE__)
 #else
 #define rw_lock_x_lock(M)    rw_lock_x_lock_func(M, 0)
 #endif
@@ -211,7 +211,7 @@ corresponding function. */
 
 #ifdef UNIV_SYNC_DEBUG
 #define rw_lock_x_lock_gen(M, P)    rw_lock_x_lock_func(\
-					  (M), (P), __FILE__, __LINE__)
+					  (M), (P), IB__FILE__, __LINE__)
 #else
 #define rw_lock_x_lock_gen(M, P)    rw_lock_x_lock_func(M, P)
 #endif
@@ -221,7 +221,7 @@ corresponding function. */
 
 #ifdef UNIV_SYNC_DEBUG
 #define rw_lock_x_lock_nowait(M)    rw_lock_x_lock_func_nowait(\
-					     (M), __FILE__, __LINE__)
+					     (M), IB__FILE__, __LINE__)
 #else
 #define rw_lock_x_lock_nowait(M)    rw_lock_x_lock_func_nowait(M)
 #endif

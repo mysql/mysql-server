@@ -119,7 +119,7 @@ in LA! */
 #ifdef UNIV_SYNC_DEBUG
 #define buf_page_get(SP, OF, LA, MTR)    buf_page_get_gen(\
 				SP, OF, LA, NULL,\
-				BUF_GET, __FILE__, __LINE__, MTR)
+				BUF_GET, IB__FILE__, __LINE__, MTR)
 #else
 #define buf_page_get(SP, OF, LA, MTR)    buf_page_get_gen(\
 				SP, OF, LA, NULL,\
@@ -134,7 +134,7 @@ with care. */
 #ifdef UNIV_SYNC_DEBUG
 #define buf_page_get_with_no_latch(SP, OF, MTR)    buf_page_get_gen(\
 				SP, OF, RW_NO_LATCH, NULL,\
-				BUF_GET_NO_LATCH, __FILE__, __LINE__, MTR)
+				BUF_GET_NO_LATCH, IB__FILE__, __LINE__, MTR)
 #else
 #define buf_page_get_with_no_latch(SP, OF, MTR)    buf_page_get_gen(\
 				SP, OF, RW_NO_LATCH, NULL,\
@@ -146,7 +146,7 @@ improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed as LA! */
 #ifdef UNIV_SYNC_DEBUG
 #define buf_page_get_nowait(SP, OF, LA, MTR)    buf_page_get_gen(\
 				SP, OF, LA, NULL,\
-				BUF_GET_NOWAIT, __FILE__, __LINE__, MTR)
+				BUF_GET_NOWAIT, IB__FILE__, __LINE__, MTR)
 #else
 #define buf_page_get_nowait(SP, OF, LA, MTR)    buf_page_get_gen(\
 				SP, OF, LA, NULL,\
@@ -158,7 +158,7 @@ buf_page_optimistic_get_func, to improve debugging. Only values RW_S_LATCH and
 RW_X_LATCH are allowed as LA! */
 #ifdef UNIV_SYNC_DEBUG
 #define buf_page_optimistic_get(LA, G, MC, MTR) buf_page_optimistic_get_func(\
-				LA, G, MC, __FILE__, __LINE__, MTR)
+				LA, G, MC, IB__FILE__, __LINE__, MTR)
 #else
 #define buf_page_optimistic_get(LA, G, MC, MTR) buf_page_optimistic_get_func(\
 				LA, G, MC, MTR)

@@ -90,6 +90,8 @@ os_shm_free(
 	}
 #else
 	UT_NOT_USED(shm);
+
+	return(FALSE);
 #endif
 }
 
@@ -116,6 +118,8 @@ os_shm_map(
 	return(mem);
 #else
 	UT_NOT_USED(shm);
+
+	return(NULL);
 #endif
 }
 		
@@ -142,5 +146,7 @@ os_shm_unmap(
 	}
 #else
 	UT_NOT_USED(addr);
+
+	return(FALSE);
 #endif
 }

@@ -1040,7 +1040,7 @@ trx_undo_report_row_operation(
 						RW_X_LATCH, undo->guess_page,
 						BUF_GET,
 						#ifdef UNIV_SYNC_DEBUG
-						__FILE__, __LINE__,
+						IB__FILE__, __LINE__,
 						#endif
 						&mtr);
 

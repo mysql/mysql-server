@@ -51,7 +51,8 @@ row_vers_impl_x_locked_off_kernel(
 	mem_heap_t*	heap;
 	mem_heap_t*	heap2;
 	dtuple_t*	row;
-	dtuple_t*	entry;
+	dtuple_t*	entry	= NULL; /* assignment to eliminate compiler
+					warning */
 	trx_t*		trx;
 	ibool		vers_del;
 	ibool		rec_del;

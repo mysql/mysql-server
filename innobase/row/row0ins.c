@@ -439,6 +439,8 @@ row_ins_duplicate_error(
 	page_t*	page;
 	ulint	n_unique;
 
+	UT_NOT_USED(mtr);
+	
 	ut_ad(cursor->index->type & DICT_UNIQUE);
 
 	/* NOTE: For unique non-clustered indexes there may be any number

@@ -2626,11 +2626,11 @@ fseg_free_step(
 	fseg_inode_t*	inode;
 	ulint		space;
 
+	space = buf_frame_get_space_id(header);
+
 	ut_ad(!mutex_own(&kernel_mutex)
 	      || mtr_memo_contains(mtr, fil_space_get_latch(space),
 							MTR_MEMO_X_LOCK));
-	space = buf_frame_get_space_id(header);
-
 	mtr_x_lock(fil_space_get_latch(space), mtr);	
 
 	inode = fseg_inode_get(header, mtr);
@@ -2682,11 +2682,11 @@ fseg_free_step_not_header(
 	ulint		space;
 	ulint		page_no;
 
-	ut_ad(!mutex_own(&kernel_mutex)
-	      || mtr_memo_contains(mtr, fil_space_get_latch(space), MTR_MEMO_X_LOCK));
-
 	space = buf_frame_get_space_id(header);
-
+	
+	ut_ad(!mutex_own(&kernel_mutex)
+	      || mtr_memo_contains(mtr, fil_space_get_latch(space),
+							MTR_MEMO_X_LOCK));
 	mtr_x_lock(fil_space_get_latch(space), mtr);	
 
 	inode = fseg_inode_get(header, mtr);

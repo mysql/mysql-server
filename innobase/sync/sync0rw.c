@@ -165,7 +165,6 @@ rw_lock_validate(
 	ut_a(lock->magic_n == RW_LOCK_MAGIC_N);
 	ut_a((rw_lock_get_reader_count(lock) == 0)
 	     || (rw_lock_get_writer(lock) != RW_LOCK_EX));
-	ut_a(rw_lock_get_reader_count(lock) >= 0);
 	ut_a((rw_lock_get_writer(lock) == RW_LOCK_EX)
 	     || (rw_lock_get_writer(lock) == RW_LOCK_WAIT_EX)
 	     || (rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED));

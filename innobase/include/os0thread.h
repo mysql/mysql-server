@@ -28,6 +28,10 @@ typedef pthread_t               os_thread_t;
 #endif
 typedef	unsigned long int	os_thread_id_t;
 
+/* Define a function pointer type to use in a typecast */
+typedef void* (*os_posix_f_t) (void*);
+
+
 /********************************************************************
 Creates a new thread of execution. The execution starts from
 the function given. The start function takes a void* parameter
@@ -37,8 +41,12 @@ os_thread_t
 os_thread_create(
 /*=============*/
 						/* out: handle to the thread */
+#ifndef __WIN__
+		 os_posix_f_t            start_f,
+#else
 	ulint (*start_f)(void*),		/* in: pointer to function
 						from which to start */
+#endif
 	void*			arg,		/* in: argument to start
 						function */
 	os_thread_id_t*		thread_id);	/* out: id of created
