@@ -28,7 +28,7 @@ class subselect_engine;
 
 /* base class for subselects */
 
-class Item_subselect :public Item
+class Item_subselect :public Item_result_field
 {
   my_bool engine_owner; /* Is this item owner of engine */
   my_bool value_assigned; /* value already assigned to subselect */
@@ -116,6 +116,7 @@ public:
   Item *new_item() { return new Item_singleval_subselect(this); }
   enum Item_result result_type() const { return res_type; }
   void fix_length_and_dec();
+
   friend class select_singleval_subselect;
 };
 
