@@ -14265,7 +14265,7 @@ Don't show databases for which the user doesn't have any privileges.
 
 @item --safe-user-create
 If this is enabled, a user can't create new users with the GRANT
-command, if the user doesn't have @code{INSERT} privilege to the
+command, if the user doesn't have @strong{insert} privilege to the
 @code{mysql.user} table or any column in this table.
 
 @item --skip-concurrent-insert
@@ -15002,7 +15002,7 @@ mysql> FLUSH PRIVILEGES;
 
 @item
 Don't run the MySQL daemon as the Unix @code{root} user.  This is
-very dangerous, because any user with @code{FILE} privileges will be able
+very dangerous, because any user with the @strong{file} privilege will be able
 to create files as @code{root} (for example, @code{~root/.bashrc}). To
 prevent this, @code{mysqld} will refuse to run as @code{root} unless it
 is specified directly using a @code{--user=root} option.
@@ -15091,7 +15091,7 @@ some kind of privilege.
 
 @item --safe-user-create
 If this is enabled, an user can't create new users with the @code{GRANT}
-command, if the user doesn't have @code{INSERT} privilege to the
+command, if the user doesn't have the @strong{insert} privilege for the
 @code{mysql.user} table.  If you want to give a user access to just create
 new users with those privileges that the user has right to grant, you should
 give the user the following privilege:
@@ -16620,11 +16620,11 @@ MySQL the granted privileges are not automatically revoked, but
 you have to revoke these yourself if needed.
 
 @item
-If you in MySQL have the @code{INSERT} grant on only part of the
+In MySQL, if you have the @strong{insert} privilege on only some of the
 columns in a table, you can execute @code{INSERT} statements on the
-table; The columns for which you don't have the @code{INSERT} privilege
-will set to their default values. ANSI SQL requires you to have the
-@code{INSERT} privilege on all columns.
+table; The columns for which you don't have the @strong{insert} privilege
+will be set to their default values. ANSI SQL requires you to have the
+@strong{insert} privilege on all columns.
 
 @item
 When you drop a table in ANSI SQL, all privileges for the table are revoked.
@@ -16916,7 +16916,7 @@ This allows the user to execute the @code{mysqladmin reload},
 
 @item dummy
 A user who can connect without a password, but only from the local host.  The
-global privileges are all set to @code{'N'} --- the @code{USAGE} privilege
+global privileges are all set to @code{'N'} --- the @strong{usage} privilege
 type allows you to create a user with no privileges.  It is assumed that you
 will grant database-specific privileges later.
 @end table
@@ -18887,11 +18887,12 @@ Deleted records are maintained in a linked list and subsequent @code{INSERT}
 operations reuse old record positions. You can use @code{OPTIMIZE TABLE} to
 reclaim the unused space and to defragment the data file.
 
-For the moment @code{OPTIMIZE TABLE} only works on @code{MyISAM} and
+For the moment, @code{OPTIMIZE TABLE} only works on @code{MyISAM} and
 @code{BDB} tables. For @code{BDB} tables, @code{OPTIMIZE TABLE} is
-currently mapped to @code{ANALYZE TABLE}. @xref{ANALYZE TABLE}.
+currently mapped to @code{ANALYZE TABLE}.
+@xref{ANALYZE TABLE, , @code{ANALYZE TABLE}}.
 
-You can get optimise table to work on other table types by starting
+You can get @code{OPTIMIZE TABLE} to work on other table types by starting
 @code{mysqld} with @code{--skip-new} or @code{--safe-mode}, but in this
 case @code{OPTIMIZE TABLE} is just mapped to @code{ALTER TABLE}.
 
@@ -18906,7 +18907,7 @@ If the statistics are not up to date (and the repair couldn't be done
 by sorting the index), update them.
 @end itemize
 
-@code{OPTIMIZE TABLE} for @code{MyISAM} tables is equvialent of running
+@code{OPTIMIZE TABLE} for a @code{MyISAM} table is equivalent to running
 @code{myisamchk --quick --check-only-changed --sort-index --analyze}
 on the table.
 
@@ -18965,7 +18966,7 @@ FLUSH flush_option [,flush_option]
 
 You should use the @code{FLUSH} command if you want to clear some of the
 internal caches MySQL uses.  To execute @code{FLUSH}, you must have
-the @strong{RELOAD} privilege.
+the @strong{reload} privilege.
 
 @code{flush_option} can be any of the following:
 
@@ -19951,7 +19952,7 @@ Is ON if we only allow local (socket) connections.
 
 @item @code{skip_show_databases}
 This prevents people from doing @code{SHOW DATABASES} if they don't have
-the @code{Process_priv} privilege. This can improve security if you're
+the @strong{process} privilege. This can improve security if you're
 concerned about people being able to see what databases other users
 have. See also @code{safe_show_databases}.
 
@@ -20068,7 +20069,7 @@ the first 100 characters of each query will be shown.
 
 This command is very useful if you get the 'too many connections' error
 message and want to find out what's going on. MySQL reserves
-one extra connection for a client with the @code{Process_priv} privilege
+one extra connection for a client with the @strong{process} privilege
 to ensure that you should always be able to login and check the system
 (assuming you are not giving this privilege to all your users).
 
@@ -22602,8 +22603,8 @@ documentation for @code{mysqlhotcopy}.
 from the option files.
 
 To be able to execute @code{mysqlhotcopy} you need write access to the
-backup directory, @code{SELECT} privilege to the tables you are about to
-copy and the MySQL @code{Reload} privilege (to be able to
+backup directory, the @strong{select} privilege for the tables you are about to
+copy and the MySQL @strong{reload} privilege (to be able to
 execute @code{FLUSH TABLES}).
 
 
@@ -23465,8 +23466,8 @@ Update queries that use user variables are not replication-safe (yet).
 @code{FLUSH} commands are not stored in the binary log and are because
 of this not replicated to the slaves. This is not normally a problem as
 @code{FLUSH} doesn't change anything. This does however mean that if you
-update the @code{MySQL} privilege tables directly without using
-@code{GRANT} statement and you replicate the @code{MySQL} privilege
+update the MySQL privilege tables directly without using the
+@code{GRANT} statement and you replicate the @code{mysql} privilege
 database, you must do a @code{FLUSH PRIVILEGES} on your slaves to put
 the new privileges into effect.
 @item
@@ -23685,7 +23686,7 @@ Example: @code{master-host=db-master.mycompany.com}.
 
 @item @code{master-user=username} @tab
 The username the slave thread will use for authentication when connecting to
-the master. The user must have @code{FILE} privilege. If the master user
+the master. The user must have the @strong{file} privilege. If the master user
 is not set, user @code{test} is assumed. The value in @code{master.info} will
 take precedence if it can be read.
 
@@ -32586,7 +32587,7 @@ If no @code{key_string} argument is given, @code{DES_DECRYPT()} examines
 the first byte of the encrypted string to determine the DES key number
 that was used to encrypt the original string, then reads the key
 from the @code{des-key-file} to decrypt the message.  For this to work
-the user must have the @code{Process_priv} privilege.
+the user must have the @strong{process} privilege.
 
 If you pass this function a @code{key_string} argument, that string
 is used as the key for decrypting the message.
@@ -35169,8 +35170,8 @@ to the data file, the @code{RAID} handler will map the first
 @code{UNION} is used when you want to use a collection of identical
 tables as one. This only works with MERGE tables. @xref{MERGE}.
 
-For the moment you need to have @code{SELECT}, @code{UPDATE}, and
-@code{DELETE} privileges on the tables you map to a @code{MERGE} table.
+For the moment you need to have @strong{select}, @strong{update}, and
+@strong{delete} privileges on the tables you map to a @code{MERGE} table.
 All mapped tables must be in the same database as the @code{MERGE} table.
 
 @item
@@ -35308,8 +35309,8 @@ normally do @code{ALTER TABLE} that often this isn't that high on our TODO.
 
 @itemize @bullet
 @item
-To use @code{ALTER TABLE}, you need @strong{ALTER}, @strong{INSERT},
-and @strong{CREATE} privileges on the table.
+To use @code{ALTER TABLE}, you need @strong{alter}, @strong{insert},
+and @strong{create} privileges on the table.
 
 @item
 @code{IGNORE} is a MySQL extension to ANSI SQL92.
@@ -35973,7 +35974,7 @@ The default behavior is to set the isolation level for the next (not started)
 transaction.
 
 If you set the @code{GLOBAL} privilege it will affect all new created threads.
-You will need the @code{PROCESS} privilege to do do this.
+You will need the @strong{process} privilege to do do this.
 
 Setting the @code{SESSION} privilege will affect the following and all
 future transactions.
@@ -37144,8 +37145,8 @@ contains a list of the index files (@file{.MYI} files) that should
 be used as one.  All used tables must be in the same database as the
 @code{MERGE} table itself.
 
-For the moment you need to have @code{SELECT}, @code{UPDATE}, and
-@code{DELETE} privileges on the tables you map to a @code{MERGE} table.
+For the moment, you need to have @strong{select}, @strong{update}, and
+@strong{delete} privileges on the tables you map to a @code{MERGE} table.
 
 @code{MERGE} tables can help you solve the following problems:
 
@@ -49843,7 +49844,7 @@ Fixed problem with @code{UPDATE} and @code{BDB} tables.
 Fixed hard bug in @code{BDB} tables when using key parts.
 @item
 Fixed problem when using @code{GRANT FILE ON database.* ...}; previously
-we added the @code{DROP} privilege for the database.
+we added the @strong{drop} privilege for the database.
 @item
 Fixed @code{DELETE FROM tbl_name ... LIMIT 0} and
 @code{UPDATE FROM tbl_name ... LIMIT 0}, which acted as though the
@@ -52875,7 +52876,7 @@ Changed optimiser to make it better at deciding when to do a full join
 and when using keys.
 @item
 You can now use @code{mysqladmin proc} to display information about your own
-threads. Only users with the @code{Process_priv} privilege can get
+threads. Only users with the @strong{process} privilege can get
 information about all threads.
 @item
 Added handling of formats @code{YYMMDD}, @code{YYYYMMDD},
@@ -54351,7 +54352,7 @@ memory.  Also added more checks to handle ``out of memory'' problems.
 multiple threads.
 @item
 When the maximum connection limit is reached, one extra connection by a user
-with the @strong{PROCESS_ACL} privilege is granted.
+with the @strong{process_acl} privilege is granted.
 @item
 Added @code{-O backlog=#} option to @code{mysqld}.
 @item
