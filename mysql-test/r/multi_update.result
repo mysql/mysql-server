@@ -399,3 +399,9 @@ select * from t2;
 c2_id	c2_p_id	c2_note	c2_active
 1	1	A Note	1
 drop table t1, t2;
+drop table if exists t2, t1;
+create table t1(aclid bigint not null primary key, status tinyint(1) not null ) type = innodb;
+create table t2(refid bigint not null primary key, aclid bigint, index idx_acl(aclid) )type = innodb;
+insert into t2 values(1,null);
+delete t2, t1 from t2 as a left join t1 as b on (a.aclid=b.aclid) where a.refid='1';
+drop table t1, t2;
