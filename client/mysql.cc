@@ -39,7 +39,7 @@
 #include "my_readline.h"
 #include <signal.h>
 
-const char *VER="11.14";
+const char *VER="11.15";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -269,6 +269,11 @@ int main(int argc,char *argv[])
 
   strmov(outfile, "\0");   // no (default) outfile, unless given at least once
   strmov(pager, "stdout"); // the default, if --pager wasn't given
+  {
+    char *tmp=getenv("PAGER");
+    if (tmp)
+      strmov(default_pager,tmp);
+  }
   if (!isatty(0) || !isatty(1))
   {
     status.batch=1; opt_silent=1;

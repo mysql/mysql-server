@@ -2376,6 +2376,9 @@ Apart from the following links, you can find and download a lot of
 @subheading Tutorials and Manuals
 
 @table @asis
+@item @uref{http://netgraft.com/~mbac/research/mysqlmyths.html, MySQL Myths Debunked}
+@strong{MySQL} used in the real world.
+
 @item @uref{http://www.4t2.com/mysql}
 Information about the German MySQL mailing list.
 
