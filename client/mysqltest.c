@@ -45,7 +45,7 @@
 #define PAD_SIZE        128
 #define MAX_CONS   1024
 #define MAX_INCLUDE_DEPTH 16
-
+#define LAZY_GUESS_BUF_SIZE 8192
 
 int record = 0, verbose = 0, silent = 0;
 const char* record_mode = "r";
@@ -615,7 +615,7 @@ int run_query(MYSQL* mysql, struct query* q)
   unsigned long* lengths;
   char* val;
   int len;
-  
+  int guess_result_size;
 
   if(q->record_file[0])
     {
@@ -625,10 +625,29 @@ int run_query(MYSQL* mysql, struct query* q)
 	{
 	  if(stat(q->record_file, &info))
 	    die("Error %d on stat of record file '%s'", errno, q->record_file);
+	  /* let the developer be lazy and generate a .reject file
+           * by touching the the result file and running the test
+	   * in that case, we need a buffer large enough to hold the
+	   * entire rejected result
+	   */
+	  guess_result_size = (info.st_size ? info.st_size :
+			       LAZY_GUESS_BUF_SIZE) + PAD_SIZE;
+	  /* if we guess wrong, the result will be truncated */
+	  /* if the master result file is 0 length, the developer */
+	  /* wants to generate reject file, edit it, and then move into
+	   * the master result location - in this case we should just
+	   * allocate a buffer that is large enough for the kind of result
+	   * that a human would want to examine - hope 8 K is enough
+	   * if this is a real test, the result should be exactly the length
+	   * of the master file if it is correct. If it is wrong and is
+	   * longer, we should be able to tell what is wrong by looking
+	   * at the first "correct" number of bytes
+	   */
 	  if(!(p_res_buf = res_buf =
-	       (char*)malloc(info.st_size + PAD_SIZE)))
-	    die("malloc() failed trying to allocate %d bytes", info.st_size);
-	  res_buf_end = res_buf + info.st_size + PAD_SIZE;
+	       (char*)malloc(guess_result_size)))
+	    die("malloc() failed trying to allocate %d bytes",
+		guess_result_size);
+	  res_buf_end = res_buf + guess_result_size;;
 	}
     } 	
 

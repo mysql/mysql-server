@@ -732,7 +732,8 @@ store_create_info(THD *thd, TABLE *table, String *packet)
         type.set(tmp,sizeof(tmp));
         field->val_str(&type,&type);
         packet->append('\'');
-        packet->append(type.ptr(),type.length());
+	if(type.length())
+          append_unescaped(packet, type.c_ptr());
         packet->append('\'');
       }
       else if (field->maybe_null())
@@ -818,6 +819,12 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append(" CHECKSUM=1", 11);
   if (table->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
     packet->append(" DELAY_KEY_WRITE=1",18);
+  if(table->comment)
+    {
+      packet->append(" COMMENT='", 10); 
+      append_unescaped(packet, table->comment);
+      packet->append('\'');
+    }
 
 
   DBUG_RETURN(0);
