@@ -1,0 +1,4 @@
+get_lock("lock",3)
+1
+n
+1
