@@ -1375,7 +1375,8 @@ static void *signal_hand(void *arg __attribute__((unused)))
       }
       break;
     case SIGHUP:
-      reload_acl_and_cache((THD*) 0,~0, (TABLE_LIST*) 0); // Flush everything
+      reload_acl_and_cache((THD*) 0,REFRESH_LOG,
+			   (TABLE_LIST*) 0); // Flush logs
       mysql_print_status((THD*) 0);		// Send debug some info
       break;
 #ifdef USE_ONE_SIGNAL_HAND
