@@ -63,10 +63,12 @@ public:
   inline int compare() { return (this->*func)(); }
 
   int compare_string();		 // compare args[0] & args[1]
+  int compare_binary_string();	 // compare args[0] & args[1]
   int compare_real();            // compare args[0] & args[1]
   int compare_int();             // compare args[0] & args[1]
   int compare_row();             // compare args[0] & args[1]
   int compare_e_string();	 // compare args[0] & args[1]
+  int compare_e_binary_string(); // compare args[0] & args[1]
   int compare_e_real();          // compare args[0] & args[1]
   int compare_e_int();           // compare args[0] & args[1]
   int compare_e_row();           // compare args[0] & args[1]
@@ -811,8 +813,6 @@ public:
 
 class Item_func_like :public Item_bool_func2
 {
-  char escape;
-
   // Turbo Boyer-Moore data
   bool        canDoTurboBM;	// pattern is '%abcd%' case
   const char* pattern;
@@ -829,10 +829,11 @@ class Item_func_like :public Item_bool_func2
   enum { alphabet_size = 256 };
 
 public:
+  char escape;
+
   Item_func_like(Item *a,Item *b, char* escape_arg)
-    :Item_bool_func2(a,b), escape(*escape_arg), canDoTurboBM(false),
-    pattern(0), pattern_len(0), bmGs(0), bmBc(0)
-  {}
+    :Item_bool_func2(a,b), canDoTurboBM(false), pattern(0), pattern_len(0), 
+     bmGs(0), bmBc(0), escape(*escape_arg) {}
   longlong val_int();
   enum Functype functype() const { return LIKE_FUNC; }
   optimize_type select_optimize() const;

@@ -56,17 +56,38 @@ static SORT_ADDON_FIELD *get_addon_fields(THD *thd, Field **ptabfield,
 static void unpack_addon_fields(struct st_sort_addon_field *addon_field,
                                 byte *buff);
 
-	/*
-	  Creates a set of pointers that can be used to read the rows
-	  in sorted order. This should be done with the functions
-	  in records.cc
+/*
+  Sort a table
 
-	  Before calling filesort, one must have done
-	  table->file->info(HA_STATUS_VARIABLE)
+  SYNOPSIS
+    filesort()
+    table		Table to sort
+    sortorder		How to sort the table
+    s_length		Number of elements in sortorder	
+    select		condition to apply to the rows
+    special		Not used.
+			(This could be used to sort the rows pointed on by
+			select->file)
+   examined_rows	Store number of examined rows here
 
-	  The result set is stored in table->io_cache or
-	  table->record_pointers
-	*/
+  IMPLEMENTATION
+    Creates a set of pointers that can be used to read the rows
+    in sorted order. This should be done with the functions
+    in records.cc
+  
+  REQUIREMENTS
+    Before calling filesort, one must have done
+    table->file->info(HA_STATUS_VARIABLE)
+
+  RETURN
+    HA_POS_ERROR	Error
+    #			Number of rows
+
+    examined_rows	will be set to number of examined rows
+
+    The result set is stored in table->io_cache or
+    table->record_pointers
+*/
 
 ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 		 SQL_SELECT *select, ha_rows max_rows, ha_rows *examined_rows)
@@ -794,7 +815,8 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     strpos+= (uint) (error= (int) read_to_buffer(from_file, buffpek,
                                                                          rec_length));
     if (error == -1)
-      goto err;                                        /* purecov: inspected */
+      goto err;					/* purecov: inspected */
+    buffpek->max_keys= buffpek->mem_count;	// If less data in buffers than expected
     queue_insert(&queue, (byte*) buffpek);
   }
 

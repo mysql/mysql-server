@@ -111,7 +111,7 @@ typedef struct my_collation_handler_st
 		      uchar *, uint, const uchar *, uint);
   my_bool (*like_range)(struct charset_info_st *,
 			const char *s, uint s_length,
-			int w_prefix, int w_one, int w_many, 
+			pchar w_prefix, pchar w_one, pchar w_many, 
 			uint res_length,
 			char *min_str, char *max_str,
 			uint *min_len, uint *max_len);
@@ -300,7 +300,7 @@ void my_fill_8bit(CHARSET_INFO *cs, char* to, uint l, int fill);
 
 my_bool  my_like_range_simple(CHARSET_INFO *cs,
 			      const char *ptr, uint ptr_length,
-			      int escape, int w_one, int w_many,
+			      pbool escape, pbool w_one, pbool w_many,
 			      uint res_length,
 			      char *min_str, char *max_str,
 			      uint *min_length, uint *max_length);
@@ -381,6 +381,7 @@ extern my_bool my_parse_charset_xml(const char *bug, uint len,
 #define my_isvar(s,c)                 (my_isalnum(s,c) || (c) == '_')
 #define my_isvar_start(s,c)           (my_isalpha(s,c) || (c) == '_')
 
+#define my_binary_compare(s)	      ((s)->state  & MY_CS_BINSORT)
 #define use_strnxfrm(s)               ((s)->state  & MY_CS_STRNXFRM)
 #define my_strnxfrm(s, a, b, c, d)    ((s)->coll->strnxfrm((s), (a), (b), (c), (d)))
 #define my_strnncoll(s, a, b, c, d)   ((s)->coll->strnncoll((s), (a), (b), (c), (d)))

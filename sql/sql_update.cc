@@ -15,8 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* Update of records 
-   Multi-table updates were introduced by Monty and Sinisa <sinisa@mysql.com>
+/*
+  Single table and multi table updates of tables.
+  Multi-table updates were introduced by Sinisa & Monty
 */
 
 #include "mysql_priv.h"
@@ -423,17 +424,31 @@ int mysql_multi_update(THD *thd,
   int res;
   multi_update *result;
   TABLE_LIST *tl;
+  table_map item_tables= 0, derived_tables= 0;
   DBUG_ENTER("mysql_multi_update");
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  table_list->grant.want_privilege=(SELECT_ACL & ~table_list->grant.privilege);
-#endif
-  if ((res=open_and_lock_tables(thd,table_list)))
+ if ((res=open_and_lock_tables(thd,table_list)))
     DBUG_RETURN(res);
 
   select_lex->select_limit= HA_POS_ERROR;
 
-  table_map item_tables= 0, derived_tables= 0;
+  /*
+    Ensure that we have update privilege for all tables and columns in the
+    SET part
+  */
+  for (tl= table_list ; tl ; tl=tl->next)
+  {
+    TABLE *table= tl->table;
+    /*
+      Update of derived tables is checked later
+      We don't check privileges here, becasue then we would get error
+      "UPDATE command denided .. for column N" instead of
+      "Target table ... is not updatable"
+    */
+    if (!tl->derived)
+      table->grant.want_privilege= (UPDATE_ACL & ~table->grant.privilege);
+  }
+
   if (thd->lex->derived_tables)
   {
     // Assign table map values to check updatability of derived tables
@@ -464,6 +479,9 @@ int mysql_multi_update(THD *thd,
   for (tl= select_lex->get_table_list() ; tl ; tl= tl->next)
   {
     TABLE *table= tl->table;
+
+    /* We only need SELECT privilege for columns in the values list */
+    table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
     if (table->timestamp_field)
     {
       table->time_stamp=0;

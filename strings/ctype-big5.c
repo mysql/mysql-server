@@ -247,8 +247,8 @@ int my_strnncollsp_big5(CHARSET_INFO * cs,
 			const uchar *s, uint slen, 
 			const uchar *t, uint tlen)
 {
-  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
-  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  for ( ; slen && s[slen-1] == ' ' ; slen--);
+  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
   return my_strnncoll_big5(cs,s,slen,t,tlen);
 }
 
@@ -343,10 +343,10 @@ static int my_strxfrm_big5(uchar * dest, const uchar * src, int len)
 #define max_sort_char ((char) 255)
 
 static my_bool my_like_range_big5(CHARSET_INFO *cs __attribute__((unused)),
-		           const char *ptr,uint ptr_length,
-		           int escape, int w_one, int w_many,
-		           uint res_length, char *min_str,char *max_str,
-		           uint *min_length,uint *max_length)
+				  const char *ptr,uint ptr_length,
+				  pbool escape, pbool w_one, pbool w_many,
+				  uint res_length, char *min_str,char *max_str,
+				  uint *min_length,uint *max_length)
 {
   const char *end=ptr+ptr_length;
   char *min_org=min_str;

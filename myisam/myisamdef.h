@@ -249,6 +249,8 @@ struct st_myisam_info {
   my_off_t last_search_keypage;		/* Last keypage when searching */
   my_off_t dupp_key_pos;
   ha_checksum checksum;
+  /* QQ: the folloing two xxx_length fields should be removed,
+     as they are not compatible with parallel repair */
   ulong packed_length,blob_length;	/* Length of found, packed record */
   int  dfile;				/* The datafile */
   uint opt_flag;			/* Optim. for space/speed */
@@ -577,7 +579,8 @@ extern byte *mi_alloc_rec_buff(MI_INFO *,ulong, byte**);
 
 extern ulong _mi_rec_unpack(MI_INFO *info,byte *to,byte *from,
 			    ulong reclength);
-extern my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *packpos);
+extern my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *packpos,
+                             ulong reclength);
 extern int _mi_write_part_record(MI_INFO *info,my_off_t filepos,ulong length,
 				 my_off_t next_filepos,byte **record,
 				 ulong *reclength,int *flag);

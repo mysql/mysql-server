@@ -205,7 +205,7 @@ character-set=latin1
 "Esta operação não pode ser realizada com um 'slave' em execução. Execute STOP SLAVE primeiro",
 "Esta operação requer um 'slave' em execução. Configure  o 'slave' e execute START SLAVE",
 "O servidor não está configurado como 'slave'. Acerte o arquivo de configuração ou use CHANGE MASTER TO",
-"Não pode inicializar a estrutura de informação do 'master'. Verifique as permissões em 'master.info'",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 "Não conseguiu criar 'thread' de 'slave'. Verifique os recursos do sistema",
 "Usuário '%-.64s' já possui mais que o valor máximo de conexões (max_user_connections) ativas",
 "Você pode usar apenas expressões constantes com SET",
@@ -242,6 +242,7 @@ character-set=latin1
 "Esta versão de MySQL não suporta ainda '%s'",
 "Obteve fatal erro %d: '%-.128s' do master quando lendo dados do binary log",
 "Slave SQL thread ignorado a consulta devido às normas de replicação-*-tabela",
+"Variable '%-.64s' is a %s variable",
 "Definição errada da chave estrangeira para '%-.64s': %s",
 "Referência da chave e referência da tabela não coincidem",
 "Operand should contain %d column(s)",
@@ -290,7 +291,7 @@ character-set=latin1
 "Key cache desconhecida '%-.100s'",
 "MySQL foi inicializado em modo --skip-name-resolve. Você necesita reincializá-lo sem esta opção para este grant funcionar",
 "Motor de tabela desconhecido '%s'",
-"'%s' é desatualizado. Use '%s' em seu lugar.",
-"The target table %-.100s of the %s is not updatable",
-"The '%s' feature was disabled; you need MySQL built with '%s' define to have it working"
-"MySQL is started in --skip-grant-tables mode. You can't use this command"
+"'%s' é desatualizado. Use '%s' em seu lugar",
+"The target table %-.100s of the %s is not updateable",
+"The '%s' feature was disabled; you need MySQL built with '%s' define to have it working",
+"MySQL is started in --skip-grant-tables mode. You can't use this command",

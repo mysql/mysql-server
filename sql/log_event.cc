@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2004 MySQL AB
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -290,6 +290,8 @@ Log_event::Log_event(const char* buf, bool old_format)
 
 int Log_event::exec_event(struct st_relay_log_info* rli)
 {
+  DBUG_ENTER("Log_event::exec_event");
+
   /*
     rli is null when (as far as I (Guilhem) know)
     the caller is
@@ -342,7 +344,7 @@ int Log_event::exec_event(struct st_relay_log_info* rli)
       rli->last_master_timestamp= when;
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -592,11 +594,13 @@ Error in Log_event::read_log_event(): '%s', data_len: %d, event_type: %d",
 Log_event* Log_event::read_log_event(const char* buf, int event_len,
 				     const char **error, bool old_format)
 {
+  DBUG_ENTER("Log_event::read_log_event");
+
   if (event_len < EVENT_LEN_OFFSET ||
       (uint) event_len != uint4korr(buf+EVENT_LEN_OFFSET))
   {
     *error="Sanity check failed";		// Needed to free buffer
-    return NULL; // general sanity check - will fail on a partial read
+    DBUG_RETURN(NULL); // general sanity check - will fail on a partial read
   }
   
   Log_event* ev = NULL;
@@ -658,16 +662,16 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len,
     if (!force_opt)
     {
       *error= "Found invalid event in binary log";
-      return 0;
+      DBUG_RETURN(0);
     }
     ev= new Unknown_log_event(buf, old_format);
 #else
     *error= "Found invalid event in binary log";
-    return 0;
+    DBUG_RETURN(0);
 #endif
   }
   ev->cached_event_len = event_len;
-  return ev;  
+  DBUG_RETURN(ev);  
 }
 
 #ifdef MYSQL_CLIENT
@@ -949,6 +953,8 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     since we must store the pos of the END of the current log event (COMMIT).
   */
   rli->event_len= get_event_len();
+  thd->query_error= 0;			// clear error
+  thd->clear_error();
 
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
@@ -958,8 +964,6 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = query_id++;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
-    thd->query_error= 0;				// clear error
-    thd->clear_error();
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
 
     /*
@@ -1004,7 +1008,8 @@ Default database: '%s'",
 	       ignored_error_code(actual_error))
       {
 	DBUG_PRINT("info",("error ignored"));
-	thd->query_error = 0;
+	thd->query_error= 0;
+        thd->clear_error();
 	*rli->last_slave_error = 0;
 	rli->last_slave_errno = 0;
       }
@@ -1213,7 +1218,7 @@ void Load_log_event::pack_info(Protocol *protocol)
     18 + fname_len + 2 +                    // "LOAD DATA INFILE 'file''"
     7 +					    // LOCAL
     9 +                                     // " REPLACE or IGNORE "
-    11 + table_name_len +                   // "INTO TABLE table"
+    13 + table_name_len*2 +                 // "INTO TABLE `table`"
     21 + sql_ex.field_term_len*4 + 2 +      // " FIELDS TERMINATED BY 'str'"
     23 + sql_ex.enclosed_len*4 + 2 +        // " OPTIONALLY ENCLOSED BY 'str'"
     12 + sql_ex.escaped_len*4 + 2 +         // " ESCAPED BY 'str'"
@@ -1244,42 +1249,25 @@ void Load_log_event::pack_info(Protocol *protocol)
   else if (sql_ex.opt_flags & IGNORE_FLAG)
     pos= strmov(pos, " IGNORE ");
 
-  pos= strmov(pos ,"INTO TABLE ");
+  pos= strmov(pos ,"INTO TABLE `");
   memcpy(pos, table_name, table_name_len);
   pos+= table_name_len;
 
-  if (sql_ex.field_term_len)
-  {
-    pos= strmov(pos, " FIELDS TERMINATED BY ");
-    pos= pretty_print_str(pos, sql_ex.field_term, sql_ex.field_term_len);
-  }
+  /* We have to create all optinal fields as the default is not empty */
+  pos= strmov(pos, "` FIELDS TERMINATED BY ");
+  pos= pretty_print_str(pos, sql_ex.field_term, sql_ex.field_term_len);
+  if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG)
+    pos= strmov(pos, " OPTIONALLY ");
+  pos= strmov(pos, " ENCLOSED BY ");
+  pos= pretty_print_str(pos, sql_ex.enclosed, sql_ex.enclosed_len);
 
-  if (sql_ex.enclosed_len)
-  {
-    if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG)
-      pos= strmov(pos, " OPTIONALLY ");
-    pos= strmov(pos, " ENCLOSED BY ");
-    pos= pretty_print_str(pos, sql_ex.enclosed, sql_ex.enclosed_len);
-  }
+  pos= strmov(pos, " ESCAPED BY ");
+  pos= pretty_print_str(pos, sql_ex.escaped, sql_ex.escaped_len);
 
-  if (sql_ex.escaped_len)
-  {
-    pos= strmov(pos, " ESCAPED BY ");
-    pos= pretty_print_str(pos, sql_ex.escaped, sql_ex.escaped_len);
-  }
-
-  bool line_lexem_added= false;
-  if (sql_ex.line_term_len)
-  {
-    pos= strmov(pos, " LINES TERMINATED BY ");
-    pos= pretty_print_str(pos, sql_ex.line_term, sql_ex.line_term_len);
-    line_lexem_added= true;
-  }
-
+  pos= strmov(pos, " LINES TERMINATED BY ");
+  pos= pretty_print_str(pos, sql_ex.line_term, sql_ex.line_term_len);
   if (sql_ex.line_start_len)
   {
-    if (!line_lexem_added)
-      pos= strmov(pos," LINES");
     pos= strmov(pos, " STARTING BY ");
     pos= pretty_print_str(pos, sql_ex.line_start, sql_ex.line_start_len);
   }
@@ -1368,7 +1356,7 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
    num_fields(0),fields(0),
    field_lens(0),field_block_len(0),
    table_name(table_name_arg ? table_name_arg : ""),
-   db(db_arg), fname(ex->file_name)
+   db(db_arg), fname(ex->file_name), local_fname(FALSE)
 {
   time_t end_time;
   time(&end_time);
@@ -1450,13 +1438,14 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 
 Load_log_event::Load_log_event(const char *buf, int event_len,
 			       bool old_format)
-  :Log_event(buf, old_format),num_fields(0),fields(0),
-   field_lens(0),field_block_len(0),
-   table_name(0),db(0),fname(0)
+  :Log_event(buf, old_format), num_fields(0), fields(0),
+   field_lens(0), field_block_len(0),
+   table_name(0), db(0), fname(0), local_fname(FALSE)
 {
-  if (!event_len) // derived class, will call copy_log_event() itself
-    return;
-  copy_log_event(buf, event_len, old_format);
+  DBUG_ENTER("Load_log_event");
+  if (event_len) // derived class, will call copy_log_event() itself
+    copy_log_event(buf, event_len, old_format);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1471,6 +1460,8 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   char* buf_end = (char*)buf + event_len;
   uint header_len= old_format ? OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN;
   const char* data_head = buf + header_len;
+  DBUG_ENTER("Load_log_event::copy_log_event");
+
   slave_proxy_id= thread_id= uint4korr(data_head + L_THREAD_ID_OFFSET);
   exec_time = uint4korr(data_head + L_EXEC_TIME_OFFSET);
   skip_lines = uint4korr(data_head + L_SKIP_LINES_OFFSET);
@@ -1483,19 +1474,19 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
 		     get_data_body_offset());
   
   if ((int) event_len < body_offset)
-    return 1;
+    DBUG_RETURN(1);
   /*
     Sql_ex.init() on success returns the pointer to the first byte after
     the sql_ex structure, which is the start of field lengths array.
   */
   if (!(field_lens=(uchar*)sql_ex.init((char*)buf + body_offset,
-		  buf_end,
-		  buf[EVENT_TYPE_OFFSET] != LOAD_EVENT)))
-    return 1;
-  
+				       buf_end,
+				       buf[EVENT_TYPE_OFFSET] != LOAD_EVENT)))
+    DBUG_RETURN(1);
+
   data_len = event_len - body_offset;
   if (num_fields > data_len) // simple sanity check against corruption
-    return 1;
+    DBUG_RETURN(1);
   for (uint i = 0; i < num_fields; i++)
     field_block_len += (uint)field_lens[i] + 1;
 
@@ -1505,7 +1496,7 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   fname = db + db_len + 1;
   fname_len = strlen(fname);
   // null termination is accomplished by the caller doing buf[event_len]=0
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -1523,6 +1514,7 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
 void Load_log_event::print(FILE* file, bool short_form, char* last_db,
 			   bool commented)
 {
+  DBUG_ENTER("Load_log_event::print");
   if (!short_form)
   {
     print_header(file);
@@ -1553,43 +1545,27 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db,
   else if (sql_ex.opt_flags & IGNORE_FLAG)
     fprintf(file," IGNORE ");
   
-  fprintf(file, "INTO TABLE %s ", table_name);
-  if (sql_ex.field_term)
-  {
-    fprintf(file, " FIELDS TERMINATED BY ");
-    pretty_print_str(file, sql_ex.field_term, sql_ex.field_term_len);
-  }
+  fprintf(file, "INTO TABLE `%s`", table_name);
+  fprintf(file, " FIELDS TERMINATED BY ");
+  pretty_print_str(file, sql_ex.field_term, sql_ex.field_term_len);
 
-  if (sql_ex.enclosed)
-  {
-    if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG)
-      fprintf(file," OPTIONALLY ");
-    fprintf(file, " ENCLOSED BY ");
-    pretty_print_str(file, sql_ex.enclosed, sql_ex.enclosed_len);
-  }
+  if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG)
+    fprintf(file," OPTIONALLY ");
+  fprintf(file, " ENCLOSED BY ");
+  pretty_print_str(file, sql_ex.enclosed, sql_ex.enclosed_len);
      
-  if (sql_ex.escaped)
-  {
-    fprintf(file, " ESCAPED BY ");
-    pretty_print_str(file, sql_ex.escaped, sql_ex.escaped_len);
-  }
+  fprintf(file, " ESCAPED BY ");
+  pretty_print_str(file, sql_ex.escaped, sql_ex.escaped_len);
      
-  bool line_lexem_added= false;
-  if (sql_ex.line_term)
-  {
-    fprintf(file," LINES TERMINATED BY ");
-    pretty_print_str(file, sql_ex.line_term, sql_ex.line_term_len);
-    line_lexem_added= true;
-  }
+  fprintf(file," LINES TERMINATED BY ");
+  pretty_print_str(file, sql_ex.line_term, sql_ex.line_term_len);
+
 
   if (sql_ex.line_start)
   {
-    if (!line_lexem_added)
-      fprintf(file," LINES");
     fprintf(file," STARTING BY ");
     pretty_print_str(file, sql_ex.line_start, sql_ex.line_start_len);
   }
-     
   if ((long) skip_lines > 0)
     fprintf(file, " IGNORE %ld LINES", (long) skip_lines);
 
@@ -1610,6 +1586,7 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db,
   }
 
   fprintf(file, ";\n");
+  DBUG_VOID_RETURN;
 }
 #endif /* MYSQL_CLIENT */
 
@@ -1664,8 +1641,9 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 {
   thd->db= (char*) rewrite_db(db);
   DBUG_ASSERT(thd->query == 0);
-  thd->query = 0;				// Should not be needed
-  thd->query_error = 0;
+  thd->query= 0;				// Should not be needed
+  thd->query_error= 0;
+  thd->clear_error();
 
   /*
     We test replicate_*_db rules. Note that we have already prepared the file
@@ -1875,8 +1853,11 @@ Rotate_log_event::Rotate_log_event(const char* buf, int event_len,
   // The caller will ensure that event_len is what we have at EVENT_LEN_OFFSET
   int header_size = (old_format) ? OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN;
   uint ident_offset;
+  DBUG_ENTER("Rotate_log_event");
+
   if (event_len < header_size)
-    return;
+    DBUG_VOID_RETURN;
+
   buf += header_size;
   if (old_format)
   {
@@ -1895,8 +1876,9 @@ Rotate_log_event::Rotate_log_event(const char* buf, int event_len,
 					     ident_offset,
 					     (uint) ident_len,
 					     MYF(MY_WME))))
-    return;
+    DBUG_VOID_RETURN;
   alloced = 1;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2588,10 +2570,12 @@ Create_file_log_event(THD* thd_arg, sql_exchange* ex,
 		      char* block_arg, uint block_len_arg, bool using_trans)
   :Load_log_event(thd_arg,ex,db_arg,table_name_arg,fields_arg,handle_dup,
 		  using_trans),
-   fake_base(0),block(block_arg),block_len(block_len_arg),
+   fake_base(0), block(block_arg), event_buf(0), block_len(block_len_arg),
    file_id(thd_arg->file_id = mysql_bin_log.next_file_id())
 {
+  DBUG_ENTER("Create_file_log_event");
   sql_ex.force_new_format();
+  DBUG_VOID_RETURN;
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -2648,8 +2632,16 @@ Create_file_log_event::Create_file_log_event(const char* buf, int len,
   :Load_log_event(buf,0,old_format),fake_base(0),block(0),inited_from_old(0)
 {
   int block_offset;
-  if (copy_log_event(buf,len,old_format))
-    return;
+  DBUG_ENTER("Create_file_log_event");
+
+  /*
+    We must make copy of 'buf' as this event may have to live over a
+    rotate log entry when used in mysqlbinlog
+  */
+  if (!(event_buf= my_memdup(buf, len, MYF(MY_WME))) ||
+      (copy_log_event(event_buf, len, old_format)))
+    DBUG_VOID_RETURN;
+
   if (!old_format)
   {
     file_id = uint4korr(buf + LOG_EVENT_HEADER_LEN +
@@ -2667,6 +2659,7 @@ Create_file_log_event::Create_file_log_event(const char* buf, int len,
     sql_ex.force_new_format();
     inited_from_old = 1;
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2819,11 +2812,13 @@ Append_block_log_event::Append_block_log_event(THD* thd_arg, const char* db_arg,
 Append_block_log_event::Append_block_log_event(const char* buf, int len)
   :Log_event(buf, 0),block(0)
 {
+  DBUG_ENTER("Append_block_log_event");
   if ((uint)len < APPEND_BLOCK_EVENT_OVERHEAD)
-    return;
+    DBUG_VOID_RETURN;
   file_id = uint4korr(buf + LOG_EVENT_HEADER_LEN + AB_FILE_ID_OFFSET);
   block = (char*)buf + APPEND_BLOCK_EVENT_OVERHEAD;
   block_len = len - APPEND_BLOCK_EVENT_OVERHEAD;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2886,6 +2881,7 @@ int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
   char *p= slave_load_file_stem(fname, file_id, server_id);
   int fd;
   int error = 1;
+  DBUG_ENTER("Append_block_log_event::exec_event");
 
   memcpy(p, ".data", 6);
   if ((fd = my_open(fname, O_WRONLY|O_APPEND|O_BINARY, MYF(MY_WME))) < 0)
@@ -2903,7 +2899,7 @@ int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
 err:
   if (fd >= 0)
     my_close(fd, MYF(0));
-  return error ? error : Log_event::exec_event(rli);
+  DBUG_RETURN(error ? error : Log_event::exec_event(rli));
 }
 #endif
 

@@ -149,7 +149,7 @@ int initgroups(const char *,unsigned int);
 typedef fp_except fp_except_t;
 #endif
 
-  /* We can't handle floating point expections with threads, so disable
+  /* We can't handle floating point exceptions with threads, so disable
      this on freebsd
   */
 
@@ -262,11 +262,11 @@ my_bool opt_reckless_slave = 0;
 my_bool opt_enable_named_pipe= 0, opt_debugging= 0;
 my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
-my_bool lower_case_table_names, opt_old_rpl_compat;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
 my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam;
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
+my_bool opt_sync_bdb_logs, opt_sync_frm;
 my_bool opt_secure_auth= 0;
 my_bool opt_short_log_format= 0;
 my_bool opt_log_queries_not_using_indexes= 0;
@@ -274,6 +274,7 @@ volatile bool mqh_used = 0;
 
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
 uint delay_key_write_options, protocol_version;
+uint lower_case_table_names;
 uint volatile thread_count, thread_running, kill_cached_threads, wake_thread;
 
 ulong back_log, connect_timeout, concurrency;
@@ -1712,7 +1713,7 @@ static void start_signal_handler(void)
   (void) pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
   if (!(opt_specialflag & SPECIAL_NO_PRIOR))
     my_pthread_attr_setprio(&thr_attr,INTERRUPT_PRIOR);
-  pthread_attr_setstacksize(&thr_attr, 129*1024);
+  pthread_attr_setstacksize(&thr_attr,thread_stack);
 #endif
 
   (void) pthread_mutex_lock(&LOCK_thread_count);
@@ -2505,6 +2506,18 @@ int main(int argc, char **argv)
   }
 #endif
   (void) thr_setconcurrency(concurrency);	// 10 by default
+
+  /*
+    Ensure that lower_case_table_names is set on system where we have case
+    insensitive names.  If this is not done the users MyISAM tables will
+    get corrupted if accesses with names of different case.
+  */
+  if (!lower_case_table_names &&
+      test_if_case_insensitive(mysql_real_data_home) == 1)
+  {
+    sql_print_error("Warning: Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
+    lower_case_table_names= 2;
+  }
 
   select_thread=pthread_self();
   select_thread_in_use=1;
@@ -3540,7 +3553,7 @@ enum options_mysqld
   OPT_DELAY_KEY_WRITE_ALL,     OPT_SLOW_QUERY_LOG,
   OPT_DELAY_KEY_WRITE,	       OPT_CHARSETS_DIR,
   OPT_BDB_HOME,                OPT_BDB_LOG,
-  OPT_BDB_TMP,                 OPT_BDB_NOSYNC,
+  OPT_BDB_TMP,                 OPT_BDB_SYNC,
   OPT_BDB_LOCK,                OPT_BDB,
   OPT_BDB_NO_RECOVER,	    OPT_BDB_SHARED,
   OPT_MASTER_HOST,             OPT_MASTER_USER,
@@ -3580,7 +3593,7 @@ enum options_mysqld
   OPT_HAVE_NAMED_PIPE,
   OPT_DO_PSTACK, OPT_REPORT_HOST,
   OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
-  OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
+  OPT_SHOW_SLAVE_AUTH_INFO,
   OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
   OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE,
   OPT_RELAY_LOG, OPT_RELAY_LOG_INDEX, OPT_RELAY_LOG_INFO_FILE,
@@ -3641,6 +3654,7 @@ enum options_mysqld
   OPT_RANGE_ALLOC_BLOCK_SIZE,
   OPT_QUERY_ALLOC_BLOCK_SIZE, OPT_QUERY_PREALLOC_SIZE,
   OPT_TRANS_ALLOC_BLOCK_SIZE, OPT_TRANS_PREALLOC_SIZE,
+  OPT_SYNC_FRM, OPT_BDB_NOSYNC,
   OPT_ENABLE_SHARED_MEMORY,
   OPT_SHARED_MEMORY_BASE_NAME,
   OPT_OLD_PASSWORDS,
@@ -3679,8 +3693,14 @@ struct my_option my_long_options[] =
   {"bdb-no-recover", OPT_BDB_NO_RECOVER,
    "Don't try to recover Berkeley DB tables on start.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"bdb-no-sync", OPT_BDB_NOSYNC, "Don't synchronously flush logs.", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"bdb-no-sync", OPT_BDB_NOSYNC,
+   "Disable synchronously flushing logs. This option is deprecated, use --skip-sync-bdb-logs or sync-bdb-logs=0 instead",
+   //   (gptr*) &opt_sync_bdb_logs, (gptr*) &opt_sync_bdb_logs, 0, GET_BOOL,
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"sync-bdb-logs", OPT_BDB_SYNC,
+   "Synchronously flush logs. Enabled by default",
+   (gptr*) &opt_sync_bdb_logs, (gptr*) &opt_sync_bdb_logs, 0, GET_BOOL,
+   NO_ARG, 1, 0, 0, 0, 0, 0},
   {"bdb-shared-data", OPT_BDB_SHARED,
    "Start Berkeley DB in multi-process mode.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
@@ -3688,6 +3708,9 @@ struct my_option my_long_options[] =
    (gptr*) &berkeley_tmpdir, (gptr*) &berkeley_tmpdir, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif /* HAVE_BERKELEY_DB */
+  {"sync-frm", OPT_SYNC_FRM, "Sync .frm to disk on create. Enabled by default",
+   (gptr*) &opt_sync_frm, (gptr*) &opt_sync_frm, 0, GET_BOOL, NO_ARG, 1, 0,
+   0, 0, 0, 0},
   {"bdb", OPT_BDB, "Enable Berkeley DB (if this version of MySQL supports it). \
 Disable with --skip-bdb (will save memory).",
    (gptr*) &opt_bdb, (gptr*) &opt_bdb, 0, GET_BOOL, NO_ARG, 1, 0, 0,
@@ -3988,10 +4011,6 @@ master-ssl",
    (gptr*) &global_system_variables.old_passwords,
    (gptr*) &max_system_variables.old_passwords, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"old-rpl-compat", OPT_OLD_RPL_COMPAT,
-   "Use old LOAD DATA format in the binary log (don't save data in file).",
-   (gptr*) &opt_old_rpl_compat, (gptr*) &opt_old_rpl_compat, 0, GET_BOOL,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef ONE_THREAD
   {"one-thread", OPT_ONE_THREAD,
    "Only use one thread (for debugging under Linux).", 0, 0, 0, GET_NO_ARG,
@@ -4348,15 +4367,15 @@ replicating a LOAD DATA INFILE command.",
    (gptr*) &max_system_variables.long_query_time, 0, GET_ULONG,
    REQUIRED_ARG, 10, 1, LONG_TIMEOUT, 0, 1, 0},
   {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
-   "If set to 1 table names are stored in lowercase on disk and table names will be case-insensitive.",
+   "If set to 1 table names are stored in lowercase on disk and table names will be case-insensitive.  Should be set to 2 if you are using a case insensitive file system",
    (gptr*) &lower_case_table_names,
-   (gptr*) &lower_case_table_names, 0, GET_BOOL, NO_ARG,
+   (gptr*) &lower_case_table_names, 0, GET_UINT, OPT_ARG,
 #ifdef FN_NO_CASE_SENCE
     1
 #else
     0
 #endif
-   , 0, 1, 0, 1, 0},
+   , 0, 2, 0, 1, 0},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
    "Max packetlength to send/receive from to server.",
    (gptr*) &global_system_variables.max_allowed_packet,
@@ -4568,7 +4587,7 @@ The minimum value for this variable is 4096.",
    (gptr*) &max_system_variables.range_alloc_block_size, 0, GET_ULONG,
    REQUIRED_ARG, RANGE_ALLOC_BLOCK_SIZE, 1024, ~0L, 0, 1024, 0},
   {"read-only", OPT_READONLY,
-   "Make all tables readonly, with the expections for replications (slave) threads and users with the SUPER privilege.",
+   "Make all tables readonly, with the exception for replication (slave) threads and users with the SUPER privilege",
    (gptr*) &opt_readonly,
    (gptr*) &opt_readonly,
    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
@@ -4617,7 +4636,8 @@ The minimum value for this variable is 4096.",
    "The number of seconds the server waits for activity on a connection before closing it.",
    (gptr*) &global_system_variables.net_wait_timeout,
    (gptr*) &max_system_variables.net_wait_timeout, 0, GET_ULONG,
-   REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
+   REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT),
+   0, 1, 0},
   {"expire_logs_days", OPT_EXPIRE_LOGS_DAYS,
    "Binary logs will be rotated after expire-log-days days ",
    (gptr*) &expire_logs_days,
@@ -5463,7 +5483,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
 #ifdef HAVE_BERKELEY_DB
   case OPT_BDB_NOSYNC:
-    berkeley_env_flags|=DB_TXN_NOSYNC;
+    /* Deprecated option */
+    opt_sync_bdb_logs= 0;
+    /* Fall through */
+  case OPT_BDB_SYNC:
+    if (!opt_sync_bdb_logs)
+      berkeley_env_flags|= DB_TXN_NOSYNC;
+    else
+      berkeley_env_flags&= ~DB_TXN_NOSYNC;
     break;
   case OPT_BDB_NO_RECOVER:
     berkeley_init_flags&= ~(DB_RECOVER);
@@ -5588,6 +5615,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #ifdef SAFEMALLOC
     sf_malloc_quick=1;
 #endif
+    break;
+  case OPT_LOWER_CASE_TABLE_NAMES:
+    lower_case_table_names= argument ? atoi(argument) : 1;
     break;
   }
   return 0;
@@ -5779,18 +5809,6 @@ static void fix_paths(void)
       exit(1);
   }
 #endif /* HAVE_REPLICATION */
-
-  /*
-    Ensure that lower_case_table_names is set on system where we have case
-    insensitive names.  If this is not done the users MyISAM tables will
-    get corrupted if accesses with names of different case.
-  */
-  if (!lower_case_table_names &&
-      test_if_case_insensitive(mysql_real_data_home) == 1)
-  {
-    sql_print_error("Warning: Setting lower_case_table_names=1 becasue file system %s is case insensitive", mysql_real_data_home);
-    lower_case_table_names= 1;
-  }
 }
 
 
@@ -5798,7 +5816,7 @@ static void fix_paths(void)
   set how many open files we want to be able to handle
 
   SYNOPSIS
-    set_maximum_open_files()  
+    set_maximum_open_files()
     max_file_limit		Files to open
 
   NOTES

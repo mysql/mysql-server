@@ -38,7 +38,10 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
     HA_CREATE_INFO create_info;
     bzero(&create_info, sizeof(create_info));
     if (!create(name, table, &create_info))
+    {
       file= heap_open(name, mode);
+      implicit_emptied= 1;
+    }
   }
   ref_length= sizeof(HEAP_PTR);
   return (file ? 0 : 1);

@@ -74,6 +74,7 @@ Docs/safe-mysql.xml
 Docs/tex.fmt
 Docs/texi2dvi.out
 INSTALL-SOURCE
+INSTALL-WIN-SOURCE
 Logs/*
 MIRRORS
 Makefile
@@ -436,6 +437,7 @@ linked_libmysqldex_sources
 linked_server_sources
 linked_tools_sources
 locked
+man/*.1
 mit-pthreads/config.flags
 mit-pthreads/include/bits
 mit-pthreads/include/pthread/machdep.h
@@ -458,6 +460,7 @@ myisam/mi_test2
 myisam/mi_test3
 myisam/mi_test_all
 myisam/myisam.log
+myisam/myisam_ftdump
 myisam/myisamchk
 myisam/myisamlog
 myisam/myisampack
@@ -640,4 +643,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-INSTALL-WIN-SOURCE

@@ -245,6 +245,7 @@ character-set=latin2
 "This version of MySQL doesn't yet support '%s'",
 "Got fatal error %d: '%-.128s' from master when reading data from binary log",
 "Slave SQL thread ignored the query because of replicate-*-table rules",
+"Variable '%-.64s' is a %s variable",
 "Wrong foreign key definition for '%-.64s': %s",
 "Key reference and table reference doesn't match",
 "Operand should contain %d column(s)",
@@ -294,6 +295,6 @@ character-set=latin2
 "MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
 "Unknown table engine '%s'",
 "'%s' is deprecated, use '%s' instead",
-"The target table %-.100s of the %s is not updatable",
-"The '%s' feature was disabled; you need MySQL built with '%s' define to have it working"
-"MySQL is started in --skip-grant-tables mode. You can't use this command"
+"The target table %-.100s of the %s is not updateble",
+"The '%s' feature was disabled; you need MySQL built with '%s' define to have it working",
+"MySQL is started in --skip-grant-tables mode. You can't use this command",

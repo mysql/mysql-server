@@ -1035,11 +1035,11 @@ class select_create: public select_insert {
   MYSQL_LOCK *lock;
   Field **field;
 public:
-  select_create (const char *db_name, const char *table_name,
-		 HA_CREATE_INFO *create_info_par,
-		 List<create_field> &fields_par,
-		 List<Key> &keys_par,
-		 List<Item> &select_fields,enum_duplicates duplic)
+  select_create(const char *db_name, const char *table_name,
+		HA_CREATE_INFO *create_info_par,
+		List<create_field> &fields_par,
+		List<Key> &keys_par,
+		List<Item> &select_fields,enum_duplicates duplic)
     :select_insert (NULL, &select_fields, duplic), db(db_name),
     name(table_name), extra_fields(&fields_par),keys(&keys_par),
     create_info(create_info_par), lock(0)

@@ -74,7 +74,7 @@ create table `` (a int);
 drop table if exists ``;
 --error 1166
 create table t1 (`` int);
---error 1279
+--error 1280
 create table t1 (i int, index `` (i)); 
 
 #
@@ -157,7 +157,7 @@ SELECT @@storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
 drop table t1;
---error 1285
+--error 1286
 SET SESSION storage_engine="gemini";
 SELECT @@storage_engine;
 CREATE TABLE t1 (a int not null);
@@ -277,7 +277,7 @@ SELECT @@storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
 drop table t1;
---error 1285
+--error 1286
 SET SESSION storage_engine="gemini";
 SELECT @@storage_engine;
 CREATE TABLE t1 (a int not null);

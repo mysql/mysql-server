@@ -643,7 +643,10 @@ public:
   void set_time();
   virtual void set_default()
   {
-    set_time();
+    if (table->timestamp_field == this)
+      set_time();
+    else
+      Field::set_default();
   }
   inline long get_timestamp()
   {
@@ -679,6 +682,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   void sql_type(String &str) const;
+  bool store_for_compare() { return 1; }
   field_cast_enum field_cast_type() { return FIELD_CAST_YEAR; }
 };
 

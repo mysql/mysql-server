@@ -219,7 +219,7 @@ then
   if test "$windows" -eq 0
   then
   echo "PLEASE REMEMBER TO SET A PASSWORD FOR THE MySQL root USER !"
-  echo "This is done with:"
+  echo "To do so, start the server, then issue the following commands:"
   echo "$bindir/mysqladmin -u root password 'new-password'"
   echo "$bindir/mysqladmin -u root -h $hostname password 'new-password'"
   echo "See the manual for more instructions."

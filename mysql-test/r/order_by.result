@@ -333,10 +333,10 @@ a	b	c
 1	NULL	NULL
 alter table t1 modify b int not null, modify c varchar(10) not null;
 Warnings:
-Warning	1264	Data truncated for column 'b' at row 1
-Warning	1264	Data truncated for column 'c' at row 1
-Warning	1264	Data truncated for column 'b' at row 2
-Warning	1264	Data truncated for column 'c' at row 3
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'c' at row 1
+Warning	1265	Data truncated for column 'b' at row 2
+Warning	1265	Data truncated for column 'c' at row 3
 explain select * from t1 order by a, b, c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	a	18	NULL	11	Using index
