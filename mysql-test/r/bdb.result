@@ -139,6 +139,8 @@ t1	1	level	1	level	A	3	NULL	NULL
 gesuchnr	benutzer_id
 1	1
 2	1
+id	x
+1	2
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 a

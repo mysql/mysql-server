@@ -234,7 +234,13 @@ row_ins_clust_index_entry_by_modify(
 				depending on whether mtr holds just a leaf
 				latch or also a tree latch */
 	btr_cur_t*	cursor,	/* in: B-tree cursor */
+	big_rec_t**	big_rec,/* out: possible big rec vector of fields
+				which have to be stored externally by the
+				caller */
 	dtuple_t*	entry,	/* in: index entry to insert */
+	ulint*		ext_vec,/* in: array containing field numbers of
+				externally stored fields in entry, or NULL */
+	ulint		n_ext_vec,/* in: number of fields in ext_vec */
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr)	/* in: mtr */
 {
@@ -243,8 +249,10 @@ row_ins_clust_index_entry_by_modify(
 	upd_t*		update;
 	ulint		err;
 	
-	ut_ad((cursor->index)->type & DICT_CLUSTERED);
+	ut_ad(cursor->index->type & DICT_CLUSTERED);
 	
+	*big_rec = NULL;
+
 	rec = btr_cur_get_rec(cursor);
 
 	ut_ad(rec_get_deleted_flag(rec));	
@@ -254,21 +262,21 @@ row_ins_clust_index_entry_by_modify(
 	/* Build an update vector containing all the fields to be modified;
 	NOTE that this vector may contain also system columns! */
 	
-	update = row_upd_build_difference(cursor->index, entry, rec, heap); 
-
+	update = row_upd_build_difference(cursor->index, entry, ext_vec,
+						n_ext_vec, rec, heap); 
 	if (mode == BTR_MODIFY_LEAF) {
 		/* Try optimistic updating of the record, keeping changes
 		within the page */
 
-		err = btr_cur_optimistic_update(0, cursor, update, 0, thr,
-									mtr);
-		if ((err == DB_OVERFLOW) || (err == DB_UNDERFLOW)) {
+		err = btr_cur_optimistic_update(0, cursor, update, 0, thr, mtr);
+
+		if (err == DB_OVERFLOW || err == DB_UNDERFLOW) {
 			err = DB_FAIL;
 		}
 	} else  {
-		ut_ad(mode == BTR_MODIFY_TREE);
-		err = btr_cur_pessimistic_update(0, cursor, update, 0, thr,
-									mtr);
+		ut_a(mode == BTR_MODIFY_TREE);
+		err = btr_cur_pessimistic_update(0, cursor, big_rec, update,
+								0, thr, mtr);
 	}
 	
 	mem_heap_free(heap);
@@ -597,14 +605,18 @@ row_ins_index_entry_low(
 				pessimistic descent down the index tree */
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry,	/* in: index entry to insert */
+	ulint*		ext_vec,/* in: array containing field numbers of
+				externally stored fields in entry, or NULL */
+	ulint		n_ext_vec,/* in: number of fields in ext_vec */
 	que_thr_t*	thr)	/* in: query thread */
 {
 	btr_cur_t	cursor;		
 	ulint		modify;
-	rec_t*		dummy_rec;
+	rec_t*		insert_rec;
 	rec_t*		rec;
 	ulint		err;
 	ulint		n_unique;
+	big_rec_t*	big_rec		= NULL;
 	mtr_t		mtr;
 	
 	log_free_check();
@@ -682,23 +694,53 @@ row_ins_index_entry_low(
 
 		if (index->type & DICT_CLUSTERED) {
 			err = row_ins_clust_index_entry_by_modify(mode,
-								&cursor, entry,
-								thr, &mtr);
+							&cursor, &big_rec,
+							entry,
+							ext_vec, n_ext_vec,
+							thr, &mtr);
 		} else {
 			err = row_ins_sec_index_entry_by_modify(&cursor,
 								thr, &mtr);
 		}
 		
-	} else if (mode == BTR_MODIFY_LEAF) {
-		err = btr_cur_optimistic_insert(0, &cursor, entry,
-							&dummy_rec, thr, &mtr);
 	} else {
-		ut_ad(mode == BTR_MODIFY_TREE);
-		err = btr_cur_pessimistic_insert(0, &cursor, entry,
-							&dummy_rec, thr, &mtr);
+		if (mode == BTR_MODIFY_LEAF) {
+			err = btr_cur_optimistic_insert(0, &cursor, entry,
+					&insert_rec, &big_rec, thr, &mtr);
+		} else {
+			ut_a(mode == BTR_MODIFY_TREE);
+			err = btr_cur_pessimistic_insert(0, &cursor, entry,
+					&insert_rec, &big_rec, thr, &mtr);
+		}
+
+		if (err == DB_SUCCESS) {
+			if (ext_vec) {
+				rec_set_field_extern_bits(insert_rec,
+						ext_vec, n_ext_vec, &mtr);
+			}
+		}
 	}
+
 function_exit:
 	mtr_commit(&mtr);
+
+	if (big_rec) {
+		mtr_start(&mtr);
+	
+		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
+					BTR_MODIFY_TREE, &cursor, 0, &mtr);
+
+		err = btr_store_big_rec_extern_fields(index,
+						btr_cur_get_rec(&cursor), 
+						big_rec, &mtr);
+		if (modify) {
+			dtuple_big_rec_free(big_rec);
+		} else {
+			dtuple_convert_back_big_rec(index, entry, big_rec);
+		}
+
+		mtr_commit(&mtr);
+	}
 
 	return(err);
 }
@@ -716,14 +758,17 @@ row_ins_index_entry(
 				DB_DUPLICATE_KEY, or some other error code */
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry,	/* in: index entry to insert */
+	ulint*		ext_vec,/* in: array containing field numbers of
+				externally stored fields in entry, or NULL */
+	ulint		n_ext_vec,/* in: number of fields in ext_vec */
 	que_thr_t*	thr)	/* in: query thread */
 {
 	ulint	err;
 
 	/* Try first optimistic descent to the B-tree */
 
-	err = row_ins_index_entry_low(BTR_MODIFY_LEAF, index, entry, thr);
-	
+	err = row_ins_index_entry_low(BTR_MODIFY_LEAF, index, entry,
+						ext_vec, n_ext_vec, thr);	
 	if (err != DB_FAIL) {
 
 		return(err);
@@ -731,8 +776,8 @@ row_ins_index_entry(
 
 	/* Try then pessimistic descent to the B-tree */
 
-	err = row_ins_index_entry_low(BTR_MODIFY_TREE, index, entry, thr);
-
+	err = row_ins_index_entry_low(BTR_MODIFY_TREE, index, entry,
+						ext_vec, n_ext_vec, thr);
 	return(err);
 }
 
@@ -784,7 +829,7 @@ row_ins_index_entry_step(
 	
 	ut_ad(dtuple_check_typed(node->entry));
 
-	err = row_ins_index_entry(node->index, node->entry, thr);
+	err = row_ins_index_entry(node->index, node->entry, NULL, 0, thr);
 
 	return(err);
 }

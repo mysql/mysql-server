@@ -27,6 +27,23 @@ Created 3/26/1996 Heikki Tuuri
 /* The transaction system */
 extern trx_sys_t*	trx_sys;
 
+/* Doublewrite system */
+extern trx_doublewrite_t*	trx_doublewrite;
+
+/********************************************************************
+Creates the doublewrite buffer at a database start. The header of the
+doublewrite buffer is placed on the trx system header page. */
+
+void
+trx_sys_create_doublewrite_buf(void);
+/*================================*/
+/********************************************************************
+At a database startup uses a possible doublewrite buffer to restore
+half-written pages in the data files. */
+
+void
+trx_sys_doublewrite_restore_corrupt_pages(void);
+/*===========================================*/
 /*******************************************************************
 Checks if a page address is the trx sys header page. */
 UNIV_INLINE
@@ -234,6 +251,59 @@ therefore 256 */
 					/* the start of the array of rollback
 					segment specification slots */
 /*-------------------------------------------------------------*/
+
+/* The offset of the doublewrite buffer header on the trx system header page */
+#define TRX_SYS_DOUBLEWRITE		(UNIV_PAGE_SIZE - 200)
+/*-------------------------------------------------------------*/
+#define TRX_SYS_DOUBLEWRITE_FSEG 	0	/* fseg header of the fseg
+						containing the doublewrite
+						buffer */
+#define TRX_SYS_DOUBLEWRITE_MAGIC 	FSEG_HEADER_SIZE
+						/* 4-byte magic number which
+						shows if we already have
+						created the doublewrite
+						buffer */
+#define TRX_SYS_DOUBLEWRITE_BLOCK1	(4 + FSEG_HEADER_SIZE)
+						/* page number of the
+						first page in the first
+						sequence of 64
+						(= FSP_EXTENT_SIZE) consecutive
+						pages in the doublewrite
+						buffer */
+#define TRX_SYS_DOUBLEWRITE_BLOCK2	(8 + FSEG_HEADER_SIZE)
+						/* page number of the
+						first page in the second
+						sequence of 64 consecutive
+						pages in the doublewrite
+						buffer */
+#define TRX_SYS_DOUBLEWRITE_REPEAT	12	/* we repeat the above 3
+						numbers so that if the trx
+						sys header is half-written
+						to disk, we still may be able
+						to recover the information */
+/*-------------------------------------------------------------*/
+#define TRX_SYS_DOUBLEWRITE_MAGIC_N	536853855
+
+#define TRX_SYS_DOUBLEWRITE_BLOCK_SIZE	FSP_EXTENT_SIZE	
+
+/* Doublewrite control struct */
+struct trx_doublewrite_struct{
+	mutex_t	mutex;		/* mutex protecting the first_free field and
+				write_buf */
+	ulint	block1;		/* the page number of the first
+				doublewrite block (64 pages) */
+	ulint	block2;		/* page number of the second block */
+	ulint	first_free;	/* first free position in write_buf measured
+				in units of UNIV_PAGE_SIZE */
+	byte*	write_buf; 	/* write buffer used in writing to the
+				doublewrite buffer, aligned to an
+				address divisible by UNIV_PAGE_SIZE
+				(which is required by Windows aio) */
+	byte*	write_buf_unaligned; /* pointer to write_buf, but unaligned */
+	buf_block_t**
+		buf_block_arr;	/* array to store pointers to the buffer
+				blocks which have been cached to write_buf */
+};
 
 /* The transaction system central memory data structure; protected by the
 kernel mutex */

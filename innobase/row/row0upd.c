@@ -90,8 +90,10 @@ upd_node_create(
 	node->in_mysql_interface = FALSE;
 
 	node->row = NULL;
+	node->ext_vec = NULL;
 	node->index = NULL;
-
+	node->update = NULL;
+	
 	node->select = NULL;
 	
 	node->heap = mem_heap_create(128);
@@ -160,7 +162,8 @@ row_upd_index_entry_sys_field(
 }
 
 /***************************************************************
-Returns TRUE if row update changes size of some field in index. */
+Returns TRUE if row update changes size of some field in index
+or if some field to be updated is stored externally in rec or update. */
 
 ibool
 row_upd_changes_field_size(
@@ -196,6 +199,16 @@ row_upd_changes_field_size(
 		old_len = rec_get_nth_field_size(rec, upd_field->field_no);
 		
 		if (old_len != new_len) {
+
+			return(TRUE);
+		}
+		
+		if (rec_get_nth_field_extern_bit(rec, upd_field->field_no)) {
+
+			return(TRUE);
+		}
+
+		if (upd_field->extern_storage) {
 
 			return(TRUE);
 		}
@@ -441,6 +454,34 @@ row_upd_index_parse(
 
 	return(ptr);
 }
+
+/*******************************************************************
+Returns TRUE if ext_vec contains i. */
+UNIV_INLINE
+ibool
+upd_ext_vec_contains(
+/*=================*/
+				/* out: TRUE if i is in ext_vec */
+	ulint*	ext_vec,	/* in: array of indexes or NULL */
+	ulint	n_ext_vec,	/* in: number of numbers in ext_vec */
+	ulint	i)		/* in: a number */
+{
+	ulint	j;
+
+	if (ext_vec == NULL) {
+
+		return(FALSE);
+	}
+
+	for (j = 0; j < n_ext_vec; j++) {
+		if (ext_vec[j] == i) {
+
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
+}
 	
 /*******************************************************************
 Builds an update vector from those fields, excluding the roll ptr and
@@ -454,6 +495,9 @@ row_upd_build_difference(
 				fields, excluding roll ptr and trx id */
 	dict_index_t*	index,	/* in: clustered index */
 	dtuple_t*	entry,	/* in: entry to insert */
+	ulint*		ext_vec,/* in: array containing field numbers of
+				externally stored fields in entry, or NULL */
+	ulint		n_ext_vec,/* in: number of fields in ext_vec */
 	rec_t*		rec,	/* in: clustered index record */
 	mem_heap_t*	heap)	/* in: memory heap from which allocated */
 {
@@ -480,16 +524,25 @@ row_upd_build_difference(
 	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
 
 		data = rec_get_nth_field(rec, i, &len);
+
 		dfield = dtuple_get_nth_field(entry, i);
 
-		if ((i != trx_id_pos) && (i != roll_ptr_pos)
-		   		&& !dfield_data_is_equal(dfield, len, data)) {
+		if ((rec_get_nth_field_extern_bit(rec, i)
+		    != upd_ext_vec_contains(ext_vec, n_ext_vec, i))
+		    || ((i != trx_id_pos) && (i != roll_ptr_pos)
+			&& !dfield_data_is_equal(dfield, len, data))) {
 
 			upd_field = upd_get_nth_field(update, n_diff);
 
 			dfield_copy(&(upd_field->new_val), dfield);
 
 			upd_field_set_field_no(upd_field, i, index);
+
+			if (upd_ext_vec_contains(ext_vec, n_ext_vec, i)) {
+				upd_field->extern_storage = TRUE;
+			} else {
+				upd_field->extern_storage = FALSE;
+			}
 				
 			n_diff++;
 		}
@@ -630,9 +683,7 @@ row_upd_changes_ord_field(
 }
 
 /***************************************************************
-Checks if an update vector changes an ordering field of an index record.
-This function is fast if the update vector is short or the number of ordering
-fields in the index is small. Otherwise, this can be quadratic. */
+Checks if an update vector changes an ordering field of an index record. */
 
 ibool
 row_upd_changes_some_index_ord_field(
@@ -642,19 +693,24 @@ row_upd_changes_some_index_ord_field(
 	dict_table_t*	table,	/* in: table */
 	upd_t*		update)	/* in: update vector for the row */
 {
+	upd_field_t*	upd_field;
 	dict_index_t*	index;
-
+	ulint		i;
+	
 	index = dict_table_get_first_index(table);
 	
-	while (index) {
-		if (row_upd_changes_ord_field(NULL, index, update)) {
+	for (i = 0; i < upd_get_n_fields(update); i++) {
 
-			return(TRUE);
+		upd_field = upd_get_nth_field(update, i);
+
+		if (dict_field_get_col(dict_index_get_nth_field(index,
+						upd_field->field_no))
+		    ->ord_part) {
+
+		    	return(TRUE);
 		}
-
-		index = dict_table_get_next_index(index);
-	}	
-
+	}
+	
 	return(FALSE);
 }
 
@@ -710,15 +766,17 @@ row_upd_eval_new_vals(
 
 /***************************************************************
 Stores to the heap the row on which the node->pcur is positioned. */
-UNIV_INLINE
+static
 void
 row_upd_store_row(
 /*==============*/
 	upd_node_t*	node)	/* in: row update node */
 {
 	dict_index_t*	clust_index;
+	upd_t*		update;
+	rec_t*		rec;
 	
-	ut_ad((node->pcur)->latch_mode != BTR_NO_LATCHES);
+	ut_ad(node->pcur->latch_mode != BTR_NO_LATCHES);
 
 	if (node->row != NULL) {
 		mem_heap_empty(node->heap);
@@ -727,8 +785,20 @@ row_upd_store_row(
 	
 	clust_index = dict_table_get_first_index(node->table);
 
-	node->row = row_build(ROW_COPY_DATA, clust_index,
-				btr_pcur_get_rec(node->pcur), node->heap);
+	rec = btr_pcur_get_rec(node->pcur);
+	
+	node->row = row_build(ROW_COPY_DATA, clust_index, rec, node->heap);
+
+	node->ext_vec = mem_heap_alloc(node->heap, sizeof(ulint)
+				                    * rec_get_n_fields(rec));
+	if (node->is_delete) {
+		update = NULL;
+	} else {
+		update = node->update;
+	}
+	
+	node->n_ext_vec = btr_push_update_extern_fields(node->ext_vec,
+								rec, update);
 }
 
 /***************************************************************
@@ -812,7 +882,7 @@ row_upd_sec_index_entry(
 	row_upd_index_replace_new_col_vals(entry, index, node->update);
 
 	/* Insert new index entry */
-	err = row_ins_index_entry(index, entry, thr);
+	err = row_ins_index_entry(index, entry, NULL, 0, thr);
 
 	mem_heap_free(heap);	
 
@@ -870,6 +940,8 @@ row_upd_clust_rec_by_insert(
 	dict_table_t*	table;
 	mem_heap_t*	heap;
 	dtuple_t*	entry;
+	ulint*		ext_vec;
+	ulint		n_ext_vec;
 	ulint		err;
 	
 	ut_ad(node);
@@ -897,14 +969,18 @@ row_upd_clust_rec_by_insert(
 
 	heap = mem_heap_create(1024);
 
+	ext_vec = mem_heap_alloc(heap,
+			sizeof(ulint) * dtuple_get_n_fields(node->row));
+	n_ext_vec = 0;
+	
 	entry = row_build_index_entry(node->row, index, heap);
 
 	row_upd_clust_index_replace_new_col_vals(entry, node->update);
-
+	
 	row_upd_index_entry_sys_field(entry, index, DATA_TRX_ID, trx->id);
 	
-	err = row_ins_index_entry(index, entry, thr);
-
+	err = row_ins_index_entry(index, entry, node->ext_vec,
+						node->n_ext_vec, thr);
 	mem_heap_free(heap);	
 
 	return(err);
@@ -924,6 +1000,7 @@ row_upd_clust_rec(
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr)	/* in: mtr; gets committed here */
 {
+	big_rec_t*	big_rec	= NULL;
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
 	ulint		err;
@@ -973,9 +1050,24 @@ row_upd_clust_rec(
 	ut_ad(FALSE == rec_get_deleted_flag(btr_pcur_get_rec(pcur)));
 	
 	err = btr_cur_pessimistic_update(BTR_NO_LOCKING_FLAG, btr_cur,
-				node->update, node->cmpl_info, thr, mtr);
+					&big_rec, node->update,
+					node->cmpl_info, thr, mtr);
 	mtr_commit(mtr);
 
+	if (err == DB_SUCCESS && big_rec) {
+		mtr_start(mtr);
+		ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr));
+	
+		err = btr_store_big_rec_extern_fields(index,
+						btr_cur_get_rec(btr_cur),
+						big_rec, mtr);		
+		mtr_commit(mtr);
+	}
+
+	if (big_rec) {
+		dtuple_big_rec_free(big_rec);
+	}
+		
 	return(err);
 }
 
@@ -1194,10 +1286,12 @@ row_upd(
 	ut_ad(node && thr);
 
 	if (node->in_mysql_interface) {
+	
 		/* We do not get the cmpl_info value from the MySQL
 		interpreter: we must calculate it on the fly: */
 		
-		if (row_upd_changes_some_index_ord_field(node->table,
+		if (node->is_delete ||
+			row_upd_changes_some_index_ord_field(node->table,
 							node->update)) {
 			node->cmpl_info = 0; 
 		} else {
@@ -1239,6 +1333,7 @@ function_exit:
 		if (node->row != NULL) {
 			mem_heap_empty(node->heap);
 			node->row = NULL;
+			node->n_ext_vec = 0;
 		}
 
 		node->state = UPD_NODE_UPDATE_CLUSTERED;

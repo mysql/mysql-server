@@ -3219,6 +3219,7 @@ lock_rec_print(
 	ulint	space;
 	ulint	page_no;
 	ulint	i;
+	ulint	count	= 0;
 	mtr_t	mtr;
 
 	ut_ad(mutex_own(&kernel_mutex));
@@ -3230,7 +3231,8 @@ lock_rec_print(
 	printf("\nRECORD LOCKS space id %lu page no %lu n bits %lu",
 		    space, page_no, lock_rec_get_n_bits(lock));
 
-	printf(" index %s trx id %lu %lu", (lock->index)->name,
+	printf(" table %s index %s trx id %lu %lu",
+		lock->index->table->name, lock->index->name,
 		(lock->trx)->id.high, (lock->trx)->id.low);
 
 	if (lock_get_mode(lock) == LOCK_S) {
@@ -3281,10 +3283,18 @@ lock_rec_print(
 				rec_print(page_find_rec_with_heap_no(page, i));
 			}
 
+			count++;
+
 			printf("\n");
 		}
-	}
 
+		if (count >= 3) {
+			printf(
+    "3 LOCKS PRINTED FOR THIS TRX AND PAGE: SUPPRESSING FURTHER PRINTS\n");
+    			goto end_prints;
+    		}
+	}
+end_prints:
 	mtr_commit(&mtr);
 }						
 				
@@ -3335,7 +3345,6 @@ lock_print_info(void)
 	
 	lock_mutex_enter_kernel();
 
-	printf("------------------------------------\n");
 	printf("LOCK INFO:\n");
 	printf("Number of locks in the record hash table %lu\n",
 						lock_get_n_rec_locks());
@@ -3352,7 +3361,7 @@ loop:
 	if (trx == NULL) {
 		lock_mutex_exit_kernel();
 
-		lock_validate();
+		/* lock_validate(); */
 
 		return;
 	}
@@ -3360,6 +3369,19 @@ loop:
 	if (nth_lock == 0) {
 		printf("\nLOCKS FOR TRANSACTION ID %lu %lu\n", trx->id.high,
 								trx->id.low);
+		if (trx->que_state == TRX_QUE_LOCK_WAIT) {
+			printf(
+			"################# TRX IS WAITING FOR THE LOCK: ###\n");
+
+			if (lock_get_type(trx->wait_lock) == LOCK_REC) {
+				lock_rec_print(trx->wait_lock);
+			} else {
+				lock_table_print(trx->wait_lock);
+			}
+
+			printf(
+			"##################################################\n");
+		}
 	}
 
 	i = 0;
@@ -3408,6 +3430,16 @@ loop:
 	load_page_first = TRUE;
 
 	nth_lock++;
+
+	if (nth_lock >= 25) {
+		printf(
+		"25 LOCKS PRINTED FOR THIS TRX: SUPPRESSING FURTHER PRINTS\n");
+	
+		nth_trx++;
+		nth_lock = 0;
+
+		goto loop;
+	}
 
 	goto loop;
 }

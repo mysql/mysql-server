@@ -1954,13 +1954,17 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
   maybe_null=1;
   join_key=0;
 
-  /* Why testing for const_item ? Monty */
-  /* I'll remove it later, but this should include modifications to
-     find_best and auto_close as complement to auto_init code above. SerG */
-  /* I'd rather say now that const_item is assumed in quite a bit of
-     places, so it would be difficult to remove. SerG */
+  /* Serg:
+     I'd rather say now that const_item is assumed in quite a bit of
+     places, so it would be difficult to remove;  If it would ever to be
+     removed, this should include modifications to find_best and auto_close
+     as complement to auto_init code above.
+  */
   if (Item_func::fix_fields(thd,tlist) || !const_item())
+  {
+    my_error(ER_WRONG_ARGUMENTS,MYF(0),"AGAINST");
     return 1;
+  }
 
   while ((item=li++))
   {
@@ -1969,12 +1973,18 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
     if (item->type() == Item::REF_ITEM)
       li.replace(item= *((Item_ref *)item)->ref);
     if (item->type() != Item::FIELD_ITEM || !item->used_tables())
+    {
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
       return 1;
+    }
     used_tables_cache|=item->used_tables();
   }
   /* check that all columns come from the same table */
   if (count_bits(used_tables_cache) != 1)
+  {
+    my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
     return 1;
+  }
   const_item_cache=0;
   table=((Item_field *)fields.head())->field->table;
   return 0;

@@ -13,7 +13,10 @@ Created 5/30/1994 Heikki Tuuri
 #endif
 
 #include "ut0rnd.h"
-
+#include "rem0rec.h"
+#include "page0page.h"
+#include "dict0dict.h"
+#include "btr0cur.h"
 
 byte	data_error;	/* data pointers of tuple fields are initialized
 			to point here for error checking */
@@ -378,6 +381,172 @@ dtuple_sprintf(
 	return(len);
 }
 
+/******************************************************************
+Moves parts of long fields in entry to the big record vector so that
+the size of tuple drops below the maximum record size allowed in the
+database. Moves data only from those fields which are not necessary
+to determine uniquely the insertion place of the tuple in the index. */
+
+big_rec_t*
+dtuple_convert_big_rec(
+/*===================*/
+				/* out, own: created big record vector,
+				NULL if we are not able to shorten
+				the entry enough, i.e., if there are
+				too many short fields in entry */
+	dict_index_t*	index,	/* in: index */
+	dtuple_t*	entry)	/* in: index entry */
+{
+	mem_heap_t*	heap;
+	big_rec_t*	vector;
+	dfield_t*	dfield;
+	ulint		size;
+	ulint		n_fields;
+	ulint		longest;
+	ulint		longest_i;
+	ulint		i;
+	
+	size = rec_get_converted_size(entry);
+
+	heap = mem_heap_create(size + dtuple_get_n_fields(entry)
+					* sizeof(big_rec_field_t) + 1000);
+
+	vector = mem_heap_alloc(heap, sizeof(big_rec_t));
+
+	vector->heap = heap;
+	vector->fields = mem_heap_alloc(heap, dtuple_get_n_fields(entry)
+					* sizeof(big_rec_field_t));
+
+	/* Decide which fields to shorten: the algorithm is to look for
+	the longest field which does not occur in the ordering part
+	of any index on the table */
+
+	n_fields = 0;
+
+	while ((rec_get_converted_size(entry)
+					>= page_get_free_space_of_empty() / 2)
+	       || rec_get_converted_size(entry) >= REC_MAX_DATA_SIZE) {
+
+		longest = 0;
+		for (i = dict_index_get_n_unique_in_tree(index);
+				i < dtuple_get_n_fields(entry); i++) {
+
+			/* Skip over fields which are ordering in some index */
+
+			if (dict_field_get_col(
+			    	dict_index_get_nth_field(index, i))
+			    ->ord_part == 0) {
+
+				dfield = dtuple_get_nth_field(entry, i);
+
+				if (dfield->len != UNIV_SQL_NULL &&
+			        		dfield->len > longest) {
+
+			        	longest = dfield->len;
+
+			        	longest_i = i;
+				}
+			}
+		}
+	
+		if (longest < BTR_EXTERN_FIELD_REF_SIZE + 10) {
+
+			/* Cannot shorten more */
+
+			mem_heap_free(heap);
+
+			return(NULL);
+		}
+
+		/* Move data from field longest_i to big rec vector,
+		but do not let data size of the remaining entry
+		drop below 128 which is the limit for the 2-byte
+		offset storage format in a physical record */
+
+		dfield = dtuple_get_nth_field(entry, longest_i);
+		vector->fields[n_fields].field_no = longest_i;
+
+		if (dtuple_get_data_size(entry) - dfield->len
+						<= REC_1BYTE_OFFS_LIMIT) {
+			vector->fields[n_fields].len =
+			     dtuple_get_data_size(entry)
+						- REC_1BYTE_OFFS_LIMIT;
+			/* Since dfield will contain at least
+			a 20-byte reference to the extern storage,
+			we know that the data size of entry will be
+			> REC_1BYTE_OFFS_LIMIT */
+		} else {
+			vector->fields[n_fields].len = dfield->len;
+		}
+
+		vector->fields[n_fields].data = mem_heap_alloc(heap,
+						vector->fields[n_fields].len);
+
+		/* Copy data (from the end of field) to big rec vector */
+
+		ut_memcpy(vector->fields[n_fields].data,
+				((byte*)dfield->data) + dfield->len
+						- vector->fields[n_fields].len,
+				vector->fields[n_fields].len);
+		dfield->len = dfield->len - vector->fields[n_fields].len
+						+ BTR_EXTERN_FIELD_REF_SIZE;
+
+		/* Set the extern field reference in dfield to zero */
+		memset(((byte*)dfield->data)
+			+ dfield->len - BTR_EXTERN_FIELD_REF_SIZE,
+					0, BTR_EXTERN_FIELD_REF_SIZE);
+		n_fields++;
+	}	
+
+	vector->n_fields = n_fields;
+	return(vector);
+}
+
+/******************************************************************
+Puts back to entry the data stored in vector. Note that to ensure the
+fields in entry can accommodate the data, vector must have been created
+from entry with dtuple_convert_big_rec. */
+
+void
+dtuple_convert_back_big_rec(
+/*========================*/
+	dict_index_t*	index,	/* in: index */
+	dtuple_t*	entry,	/* in: entry whose data was put to vector */
+	big_rec_t*	vector)	/* in, own: big rec vector; it is
+				freed in this function */
+{
+	dfield_t*	dfield;
+	ulint		i;	
+
+	for (i = 0; i < vector->n_fields; i++) {
+	
+		dfield = dtuple_get_nth_field(entry,
+						vector->fields[i].field_no);
+		/* Copy data from big rec vector */
+
+		ut_memcpy(((byte*)dfield->data)
+				+ dfield->len - BTR_EXTERN_FIELD_REF_SIZE,
+			  vector->fields[i].data,
+		          vector->fields[i].len);
+		dfield->len = dfield->len + vector->fields[i].len
+						- BTR_EXTERN_FIELD_REF_SIZE;
+	}	
+
+	mem_heap_free(vector->heap);
+}
+
+/******************************************************************
+Frees the memory in a big rec vector. */
+
+void
+dtuple_big_rec_free(
+/*================*/
+	big_rec_t*	vector)	/* in, own: big rec vector; it is
+				freed in this function */
+{
+	mem_heap_free(vector->heap);
+}
+				
 #ifdef notdefined
 
 /******************************************************************

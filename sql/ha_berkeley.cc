@@ -888,7 +888,7 @@ int ha_berkeley::write_row(byte * record)
 	      if (changed_keys & 1)
 	      {
 		if ((new_error = remove_key(sub_trans, keynr, record,
-					    (DBT*) 0, &prim_key)))
+					    &prim_key)))
 		  break; /* purecov: inspected */
 	      }
 	    }
@@ -970,7 +970,7 @@ int ha_berkeley::update_primary_key(DB_TXN *trans, bool primary_key_changed,
   {
     // Primary key changed or we are updating a key that can have duplicates.
     // Delete the old row and add a new one
-    if (!(error=remove_key(trans, primary_key, old_row, (DBT *) 0, old_key)))
+    if (!(error=remove_key(trans, primary_key, old_row, old_key)))
     {
       if (!(error=pack_row(&row, new_row, 0)))
       {
@@ -1034,7 +1034,7 @@ int ha_berkeley::restore_keys(DB_TXN *trans, key_map changed_keys,
     if (changed_keys & 1)
     {
       if (changed_keys != 1 &&
-	  (error = remove_key(trans, keynr, new_row, (DBT*) 0, new_key)))
+	  (error = remove_key(trans, keynr, new_row, new_key)))
 	break; /* purecov: inspected */
       if ((error = key_file[keynr]->put(key_file[keynr], trans,
 					create_key(&tmp_key, keynr, key_buff2,
@@ -1105,8 +1105,7 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
 	  continue;
 	if (key_cmp(keynr, old_row, new_row) || primary_key_changed)
 	{
-	  if ((error=remove_key(sub_trans, keynr, old_row, (DBT*) 0,
-				&old_prim_key)))
+	  if ((error=remove_key(sub_trans, keynr, old_row, &old_prim_key)))
 	  {
 	    if (using_ignore && /* purecov: inspected */
 		(thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
@@ -1172,11 +1171,9 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
   Delete one key
   This uses key_buff2, when keynr != primary key, so it's important that
   a function that calls this doesn't use this buffer for anything else.
-  packed_record may be NULL if the key is unique
 */
 
 int ha_berkeley::remove_key(DB_TXN *trans, uint keynr, const byte *record,
-			    DBT *packed_record,
 			    DBT *prim_key)
 {
   int error;
@@ -1207,13 +1204,9 @@ int ha_berkeley::remove_key(DB_TXN *trans, uint keynr, const byte *record,
     if (!(error=key_file[keynr]->cursor(key_file[keynr], trans,
 					&tmp_cursor, 0)))
     {
-      if (!(error=cursor->c_get(tmp_cursor,
-			       (keynr == primary_key ?
-				prim_key :
-				create_key(&key, keynr, key_buff2, record)),
-			       (keynr == primary_key ?
-				packed_record :  prim_key),
-				DB_GET_BOTH | DB_RMW)))
+      if (!(error=tmp_cursor->c_get(tmp_cursor,
+                                    create_key(&key, keynr, key_buff2, record),
+                                    prim_key, DB_GET_BOTH | DB_RMW)))
       {					// This shouldn't happen
 	error=tmp_cursor->c_del(tmp_cursor,0);
       }
@@ -1236,7 +1229,7 @@ int ha_berkeley::remove_keys(DB_TXN *trans, const byte *record,
   {
     if (keys & 1)
     {
-      int new_error=remove_key(trans, keynr, record, new_record, prim_key);
+      int new_error=remove_key(trans, keynr, record, prim_key);
       if (new_error)
       {
 	result=new_error;			// Return last error /* purecov: inspected */

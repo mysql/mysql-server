@@ -55,7 +55,8 @@ mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
 			mf_loadpath.lo my_pthread.lo my_thr_init.lo \
 			thr_mutex.lo mulalloc.lo string.lo default.lo \
 			my_compress.lo array.lo my_once.lo list.lo my_net.lo \
-                        charset.lo hash.lo
+                        charset.lo hash.lo mf_iocache.lo my_seek.lo \
+			my_pread.lo mf_cache.lo
 # Not needed in the minimum library
 mysysobjects2 =		getopt.lo getopt1.lo getvar.lo my_lib.lo
 mysysobjects =		$(mysysobjects1) $(mysysobjects2)

@@ -12,6 +12,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "univ.i"
 #include "data0data.h"
 #include "rem0types.h"
+#include "mtr0types.h"
 
 /* Maximum values for various fields (for non-blob tuples) */
 #define REC_MAX_N_FIELDS	(1024 - 1)
@@ -162,6 +163,49 @@ rec_get_nth_field_size(
 			/* out: field size in bytes */
  	rec_t*	rec, 	/* in: record */
  	ulint	n);	/* in: index of the field */
+/***************************************************************
+Gets the value of the ith field extern storage bit. If it is TRUE
+it means that the field is stored on another page. */
+UNIV_INLINE
+ibool
+rec_get_nth_field_extern_bit(
+/*=========================*/
+			/* in: TRUE or FALSE */
+	rec_t*	rec,	/* in: record */
+	ulint	i);	/* in: ith field */
+/**********************************************************
+Returns TRUE if the extern bit is set in any of the fields
+of rec. */
+UNIV_INLINE
+ibool
+rec_contains_externally_stored_field(
+/*=================================*/
+			/* out: TRUE if a field is stored externally */
+	rec_t*	rec);	/* in: record */
+/***************************************************************
+Sets the value of the ith field extern storage bit. */
+
+void
+rec_set_nth_field_extern_bit(
+/*=========================*/
+	rec_t*	rec,	/* in: record */
+	ulint	i,	/* in: ith field */
+	ibool	val,	/* in: value to set */
+	mtr_t*	mtr);	/* in: mtr holding an X-latch to the page where
+			rec is, or NULL; in the NULL case we do not
+			write to log about the change */
+/***************************************************************
+Sets TRUE the extern storage bits of fields mentioned in an array. */
+
+void
+rec_set_field_extern_bits(
+/*======================*/
+	rec_t*	rec,		/* in: record */
+	ulint*	vec,		/* in: array of field numbers */
+	ulint	n_fields,	/* in: number of fields numbers */
+	mtr_t*	mtr);		/* in: mtr holding an X-latch to the page
+				where rec is, or NULL; in the NULL case we
+				do not write to log about the change */
 /****************************************************************
 The following function is used to get a copy of the nth
 data field in the record to a buffer. */
@@ -349,6 +393,15 @@ rec_sprintf(
 	rec_t*	rec);	/* in: physical record */
 
 #define REC_INFO_BITS		6	/* This is single byte bit-field */
+
+/* Maximum lengths for the data in a physical record if the offsets
+are given in one byte (resp. two byte) format. */
+#define REC_1BYTE_OFFS_LIMIT	0x7F
+#define REC_2BYTE_OFFS_LIMIT	0x7FFF
+
+/* The data size of record must be smaller than this because we reserve
+two upmost bits in a two byte offset for special purposes */
+#define REC_MAX_DATA_SIZE	(16 * 1024)
 
 #ifndef UNIV_NONINL
 #include "rem0rec.ic"
