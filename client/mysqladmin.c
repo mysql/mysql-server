@@ -130,7 +130,7 @@ static struct my_option my_long_options[] =
    (gptr*) &opt_relative, (gptr*) &opt_relative, 0, GET_BOOL, NO_ARG, 0, 0, 0,
   0, 0, 0},
   {"set-variable", 'O',
-   "Change the value of a variable. Please note that this option is depricated; you can set variables directly with --variable-name=value.",
+   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's', "Silently exit if one can't connect to server",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
