@@ -35,10 +35,10 @@ Dbtux::Dbtux(const Configuration& conf) :
   BLOCK_CONSTRUCTOR(Dbtux);
   // verify size assumptions (also when release-compiled)
   ndbrequire(
-      (sizeof(DescHead) & 0x3) == 0 &&
-      (sizeof(DescAttr) & 0x3) == 0 &&
       (sizeof(TreeEnt) & 0x3) == 0 &&
-      (sizeof(TreeNode) & 0x3) == 0
+      (sizeof(TreeNode) & 0x3) == 0 &&
+      (sizeof(DescHead) & 0x3) == 0 &&
+      (sizeof(DescAttr) & 0x3) == 0
   );
   /*
    * DbtuxGen.cpp
