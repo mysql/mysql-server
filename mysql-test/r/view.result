@@ -991,8 +991,6 @@ drop view v1;
 create view v1 (a,a) as select 'a','a';
 ERROR 42S21: Duplicate column name 'a'
 create procedure p1 () begin declare v int; create view v1 as select v; end;//
-Warnings:
-Warning	1311	Referring to uninitialized variable v
 call p1();
 ERROR HY000: View's SELECT contains a variable or parameter
 drop procedure p1;
