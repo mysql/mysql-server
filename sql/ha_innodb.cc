@@ -5317,12 +5317,9 @@ innobase_get_at_most_n_mbchars(
 	ulint data_len,         /* in: length of the string in bytes */
 	const char* str)	/* in: character string */
 {
-	ulint byte_length;	/* string length in bytes. */
 	ulint char_length;	/* character length in bytes */
 	ulint n_chars;		/* number of characters in prefix */
 	CHARSET_INFO* charset;	/* charset used in the field */
-
-	byte_length = data_len;
 
 	charset = get_charset(charset_id, MYF(MY_WME));
 
@@ -5339,13 +5336,42 @@ innobase_get_at_most_n_mbchars(
 	full character. */
 
 	if (charset->mbmaxlen > 1) {
+/*		ulint	right_value; */
+
 		/* my_charpos() returns the byte length of the first n_chars
 		characters, or the end of the last full character */
 
-		char_length = my_charpos(charset, str, 
-					 str + byte_length, n_chars);
+		char_length = my_charpos(charset, str,
+						str + data_len, n_chars);
+	
+		/*################################################*/
+		/* TODO: my_charpos sometimes returns a non-sensical value
+		that is BIGGER than data_len: try to fix this bug partly with
+		these heuristics. This is NOT a complete bug fix! */
+
+		if (char_length > data_len) {
+			char_length = data_len;
+		}		
+		/*################################################*/
+
+/*		printf("data_len %lu, n_chars %lu, char_len %lu\n",
+				data_len, n_chars, char_length);
+		if (data_len < n_chars) {
+			right_value = data_len;
+		} else {
+			right_value = n_chars;
+		}
+
+		if (right_value != char_length) {
+			printf("ERRRRRROOORRRRRRRRRRRR!!!!!!!!!\n");
+		}
+*/
 	} else {
-		char_length = prefix_len;
+		if (data_len < prefix_len) {
+			char_length = data_len;
+		} else {
+			char_length = prefix_len;
+		}
 	}
 
 	return(char_length);
