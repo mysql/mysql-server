@@ -182,8 +182,8 @@ const DepricationTransform f_deprication[] = {
   ,{ "TCP", "SendBufferSize", "SendBufferMemory", 0, 16384 }
   ,{ "TCP", "MaxReceiveSize", "ReceiveBufferMemory", 0, 16384 }
 
-  ,{ "SHM", "ProcessId1", "NodeId1", 0, 1}
-  ,{ "SHM", "ProcessId2", "NodeId2", 0, 1}
+  //  ,{ "SHM", "ProcessId1", "NodeId1", 0, 1}
+  //  ,{ "SHM", "ProcessId2", "NodeId2", 0, 1}
   ,{ "SCI", "ProcessId1", "NodeId1", 0, 1}
   ,{ "SCI", "ProcessId2", "NodeId2", 0, 1}
   ,{ "OSE", "ProcessId1", "NodeId1", 0, 1}
@@ -246,7 +246,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     KEY_INTERNAL,
     "HostName",
     "COMPUTER",
-    "Hostname of computer (e.g. alzato.com)",
+    "Hostname of computer (e.g. mysql.com)",
     ConfigInfo::USED,
     false,
     ConfigInfo::STRING,
@@ -327,18 +327,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     0,
-    0,
-    0x7FFFFFFF },
-
-  {
-    CFG_SYS_PORT_BASE,
-    "PortBase",
-    "SYSTEM",
-    "Base port for system",
-    ConfigInfo::USED,
-    false,
-    ConfigInfo::INT,
-    NDB_BASE_PORT+2,
     0,
     0x7FFFFFFF },
 
@@ -2238,7 +2226,7 @@ const int ConfigInfo::m_NoOfParams = sizeof(m_ParamInfo) / sizeof(ParamInfo);
 /****************************************************************************
  * Ctor
  ****************************************************************************/
-inline void require(bool v) { if(!v) abort();}
+static void require(bool v) { if(!v) abort();}
 
 ConfigInfo::ConfigInfo() {
   Properties *section;
@@ -2670,6 +2658,9 @@ transformSystem(InitConfigFileParser::Context & ctx, const char * data){
 		    ctx.fname, ctx.m_sectionLineno);
     return false;
   }
+
+  ndbout << "transformSystem " << name << endl;
+
   snprintf(ctx.pname, sizeof(ctx.pname), "SYSTEM_%s", name);
   
   return true;
@@ -2960,25 +2951,30 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
 
   Uint32 port= 0;
   if (!node->get("ServerPort", &port) && !ctx.m_userProperties.get("ServerPort_", id1, &port)) {
-    hostname.append("_ServerPortAdder");
     Uint32 adder= 0;
-    ctx.m_userProperties.get(hostname.c_str(), &adder);
-    ctx.m_userProperties.put(hostname.c_str(), adder+1, true);
-    
-    Uint32 base = 0;
+    {
+      BaseString server_port_adder(hostname);
+      server_port_adder.append("_ServerPortAdder");
+      ctx.m_userProperties.get(server_port_adder.c_str(), &adder);
+      ctx.m_userProperties.put(server_port_adder.c_str(), adder+1, true);
+    }
+
+    Uint32 base= 0;
     if(!(ctx.m_userDefaults && ctx.m_userDefaults->get("PortNumber", &base)) &&
        !ctx.m_systemDefaults->get("PortNumber", &base)){
+      ctx.reportError("Cannot retrieve base port number");
       return false;
     }
+
     port= base + adder;
     ctx.m_userProperties.put("ServerPort_", id1, port);
   }
 
   if(ctx.m_currentSection->contains("PortNumber")) {
     ndbout << "PortNumber should no longer be specificied per connection, please remove from config. Will be changed to " << port << endl;
-  }
-
-  ctx.m_currentSection->put("PortNumber", port);
+    ctx.m_currentSection->put("PortNumber", port, true);
+  } else
+    ctx.m_currentSection->put("PortNumber", port);
 
   return true;
 }

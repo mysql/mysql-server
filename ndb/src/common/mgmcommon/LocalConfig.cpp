@@ -192,7 +192,7 @@ LocalConfig::parseNodeId(const char * buf){
 
 bool
 LocalConfig::parseHostName(const char * buf){
-  char tempString[100];
+  char tempString[1024];
   int port;
   for(int i = 0; hostNameTokens[i] != 0; i++) {
     if (sscanf(buf, hostNameTokens[i], tempString, &port) == 2) {
@@ -209,7 +209,7 @@ LocalConfig::parseHostName(const char * buf){
 
 bool
 LocalConfig::parseFileName(const char * buf){
-  char tempString[100];
+  char tempString[1024];
   for(int i = 0; fileNameTokens[i] != 0; i++) {
     if (sscanf(buf, fileNameTokens[i], tempString) == 1) {
       MgmtSrvrId* mgmtSrvrId = new MgmtSrvrId();
@@ -224,10 +224,9 @@ LocalConfig::parseFileName(const char * buf){
 
 bool
 LocalConfig::parseString(const char * connectString, bool onlyNodeId, char *line){
-  bool return_value = true;
-
   char * for_strtok;
   char * copy = strdup(connectString);
+  NdbAutoPtr<char> tmp_aptr(copy);
 
   bool b_nodeId = false;
   bool found_other = false;
@@ -248,18 +247,18 @@ LocalConfig::parseString(const char * connectString, bool onlyNodeId, char *line
     if (found_other = parseFileName(tok))
       continue;
     
-    snprintf(line, 150, "Unexpected entry: \"%s\"", tok);
-    return_value = false;
-    break;
+    if (line)
+      snprintf(line, 150, "Unexpected entry: \"%s\"", tok);
+    return false;
   }
 
-  if (return_value && !onlyNodeId && !found_other) {
-    return_value = false;
-    snprintf(line, 150, "Missing host/file name extry in \"%s\"", connectString);
+  if (!onlyNodeId && !found_other) {
+    if (line)
+      snprintf(line, 150, "Missing host/file name extry in \"%s\"", connectString);
+    return false;
   }
 
-  free(copy);
-  return return_value;
+  return true;
 }
 
 bool LocalConfig::readFile(const char * filename, bool &fopenError, bool onlyNodeId)
