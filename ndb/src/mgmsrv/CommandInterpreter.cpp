@@ -389,9 +389,9 @@ void CommandInterpreter::executeHelp(char* parameters) {
 	   << endl;
 
     ndbout << "<category> = ";
-    for(i = 0; i<EventLogger::noOfEventCategoryNames; i++){
-      ndbout << EventLogger::eventCategoryNames[i].name;
-      if (i < EventLogger::noOfEventCategoryNames - 1) {
+    for(i = 0; i<EventLoggerBase::noOfEventCategoryNames; i++){
+      ndbout << EventLoggerBase::eventCategoryNames[i].name;
+      if (i < EventLoggerBase::noOfEventCategoryNames - 1) {
 	ndbout << " | ";
       }
     }
@@ -831,12 +831,13 @@ void CommandInterpreter::executeStatus(int processId,
 //*****************************************************************************
 void CommandInterpreter::executeLogLevel(int processId, 
 					 const char* parameters, bool all) {
+#if 0
   (void)all;  // Don't want compiler warning
   SetLogLevelOrd logLevel; logLevel.clear();
   
   if (emptyString(parameters) || (strcmp(parameters, "ALL") == 0)) {
-    for(Uint32 i = 0; i<EventLogger::noOfEventCategoryNames; i++)
-      logLevel.setLogLevel(EventLogger::eventCategoryNames[i].category, 7);
+    for(Uint32 i = 0; i<EventLoggerBase::noOfEventCategoryNames; i++)
+      logLevel.setLogLevel(EventLoggerBase::eventCategoryNames[i].category, 7);
   } else {
 
     char * tmpString = strdup(parameters);
@@ -852,7 +853,7 @@ void CommandInterpreter::executeLogLevel(int processId,
 	return;
       }
       LogLevel::EventCategory cat;
-      if(!EventLogger::matchEventCategory(categoryTxt,
+      if(!EventLoggerBase::matchEventCategory(categoryTxt,
 			     &cat)){
 	ndbout << "Invalid loglevel specification, unknown category: " 
 	       << categoryTxt << endl;
@@ -875,6 +876,7 @@ void CommandInterpreter::executeLogLevel(int processId,
   if (result != 0) {
     ndbout << _mgmtSrvr.getErrorText(result) << endl;
   }
+#endif
 }
 
 
@@ -1080,12 +1082,13 @@ void CommandInterpreter::executeTestOff(int processId,
 void CommandInterpreter::executeEventReporting(int processId, 
 					       const char* parameters, 
 					       bool all) {
+#if 0
   (void)all;  // Don't want compiler warning
   SetLogLevelOrd logLevel; logLevel.clear();
   
   if (emptyString(parameters) || (strcmp(parameters, "ALL") == 0)) {
-    for(Uint32 i = 0; i<EventLogger::noOfEventCategoryNames; i++)
-      logLevel.setLogLevel(EventLogger::eventCategoryNames[i].category, 7);
+    for(Uint32 i = 0; i<EventLoggerBase::noOfEventCategoryNames; i++)
+      logLevel.setLogLevel(EventLoggerBase::eventCategoryNames[i].category, 7);
   } else {
 
     char * tmpString = strdup(parameters);
@@ -1101,7 +1104,7 @@ void CommandInterpreter::executeEventReporting(int processId,
 	return;
       }
       LogLevel::EventCategory cat;
-      if(!EventLogger::matchEventCategory(categoryTxt,
+      if(!EventLoggerBase::matchEventCategory(categoryTxt,
 			     &cat)){
 	ndbout << "Invalid loglevel specification, unknown category: " 
 	       << categoryTxt << endl;
@@ -1124,6 +1127,7 @@ void CommandInterpreter::executeEventReporting(int processId,
   if (result != 0) {
     ndbout << _mgmtSrvr.getErrorText(result) << endl;
   }
+#endif
 }
 
 void
