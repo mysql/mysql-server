@@ -77,19 +77,6 @@ enum enum_sql_command {
   SQLCOM_END
 };
 
-enum lex_states
-{
-  STATE_START, STATE_CHAR, STATE_IDENT, STATE_IDENT_SEP, STATE_IDENT_START,
-  STATE_FOUND_IDENT, STATE_SIGNED_NUMBER, STATE_REAL, STATE_HEX_NUMBER,
-  STATE_CMP_OP, STATE_LONG_CMP_OP, STATE_STRING, STATE_COMMENT, STATE_END,
-  STATE_OPERATOR_OR_IDENT, STATE_NUMBER_IDENT, STATE_INT_OR_REAL,
-  STATE_REAL_OR_POINT, STATE_BOOL, STATE_EOL, STATE_ESCAPE, STATE_LONG_COMMENT,
-  STATE_END_LONG_COMMENT, STATE_COLON, STATE_SET_VAR, STATE_USER_END,
-  STATE_HOSTNAME, STATE_SKIP, STATE_USER_VARIABLE_DELIMITER, STATE_SYSTEM_VAR,
-  STATE_IDENT_OR_KEYWORD, STATE_IDENT_OR_HEX, STATE_IDENT_OR_BIN,
-  STAT_STRING_OR_DELIMITER
-};
-
 
 typedef List<Item> List_item;
 
@@ -474,7 +461,7 @@ typedef struct st_lex
   ulong thread_id,type;
   enum_sql_command sql_command;
   thr_lock_type lock_option;
-  enum lex_states next_state;
+  enum my_lex_states next_state;
   enum enum_duplicates duplicates;
   enum enum_tx_isolation tx_isolation;
   enum enum_ha_read_modes ha_read_mode;

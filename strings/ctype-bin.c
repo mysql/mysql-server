@@ -306,6 +306,7 @@ CHARSET_INFO my_charset_bin =
     bin_char_array,		/* sort_order    */
     NULL,			/* tab_to_uni    */
     NULL,			/* tab_from_uni  */
+    "","",
     0,				/* strxfrm_multiply */
     my_strnncoll_binary,	/* strnncoll     */
     my_strnncoll_binary,

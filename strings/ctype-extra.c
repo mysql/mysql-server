@@ -2818,6 +2818,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_latin1,
     tab_8859_1_uni,	/* tab_to_uni   */
     idx_uni_8859_1,	/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -2869,6 +2870,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_cp1251,
     tab_cp1251_uni,	/* tab_to_uni   */
     idx_uni_cp1251,	/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -2919,6 +2921,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_cp1257,
     tab_cp1257_uni,	/* tab_to_uni   */
     idx_uni_cp1257,	/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -2969,6 +2972,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_croat,
     tab_8859_2_uni,	/* tab_to_uni   */
     idx_uni_8859_2,	/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3020,6 +3024,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_danish,
     tab_8859_1_uni,	/* tab_to_uni   */
     idx_uni_8859_1,	/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3070,6 +3075,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_dec8,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3120,6 +3126,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_dos,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3170,6 +3177,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_estonia,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3221,6 +3229,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_german1,
     tab_8859_1_uni,	/* tab_to_uni   */
     idx_uni_8859_1,	/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3271,6 +3280,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_greek,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3321,6 +3331,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_hebrew,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3371,6 +3382,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_hp8,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3421,6 +3433,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_hungarian,
     tab_8859_2_uni,	/* tab_to_uni   */
     idx_uni_8859_2,	/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3471,6 +3484,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_koi8_ru,
     tab_koi8_r_uni,	/* tab_to_uni   */
     idx_uni_koi8_r,	/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3521,6 +3535,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_koi8_ukr,
     tab_koi8_u_uni,	/* tab_to_uni   */
     idx_uni_koi8_u,	/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3572,6 +3587,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_latin2,
     tab_8859_2_uni,	/* tab_to_uni   */
     idx_uni_8859_2,	/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3622,6 +3638,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_latin5,
     tab_8859_9_uni,	/* tab_to_uni   */
     idx_uni_8859_9,	/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3673,6 +3690,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_swe7,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3724,6 +3742,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_usa7,
     tab_us_ascii_uni,	/* tab_to_uni   */
     idx_uni_us_ascii,	/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3774,6 +3793,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_win1250,
     tab_cp1250_uni,	/* tab_to_uni   */
     idx_uni_cp1250,	/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3824,6 +3844,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_win1251ukr,
     tab_cp1251_uni,	/* tab_to_uni   */
     idx_uni_cp1251,	/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3874,6 +3895,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_armscii8,
     tab_armscii_8_uni,	/* tab_to_uni   */
     idx_uni_armscii_8,	/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3924,6 +3946,7 @@ CHARSET_INFO compiled_charsets[] = {
     sort_order_win1251,
     tab_cp1251_uni,	/* tab_to_uni   */
     idx_uni_cp1251,	/* tab_from_uni */
+    "","",
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     my_strnncollsp_simple,/* strnncollsp  */
@@ -3973,6 +3996,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     0,
     NULL,		/* strnncoll    */
     NULL,		/* strnncollsp  */
