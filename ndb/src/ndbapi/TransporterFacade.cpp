@@ -548,7 +548,7 @@ TransporterFacade::TransporterFacade() :
   theClusterMgr = NULL;
   theArbitMgr = NULL;
   theStartNodeId = 1;
-  m_open_count = 0;
+  m_max_trans_id = 0;
 }
 
 bool
@@ -684,9 +684,11 @@ TransporterFacade::ReportNodeAlive(NodeId tNodeId)
 }
 
 int 
-TransporterFacade::close(BlockNumber blockNumber)
+TransporterFacade::close(BlockNumber blockNumber, Uint64 trans_id)
 {
   NdbMutex_Lock(theMutexPtr);
+  Uint32 low_bits = (Uint32)trans_id;
+  m_max_trans_id = m_max_trans_id > low_bits ? m_max_trans_id : low_bits;
   close_local(blockNumber);
   NdbMutex_Unlock(theMutexPtr);
   return 0;
@@ -703,7 +705,6 @@ TransporterFacade::open(void* objRef,
                         ExecuteFunction fun, 
                         NodeStatusFunction statusFun)
 {
-  m_open_count++;
   return m_threads.open(objRef, fun, statusFun);
 }
 
