@@ -2711,7 +2711,8 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
     modifications to find_best and auto_close as complement to auto_init code
     above.
    */
-  if (Item_func::fix_fields(thd, tlist, ref) || !args[0]->const_item())
+  if (Item_func::fix_fields(thd, tlist, ref) ||
+      !args[0]->const_during_execution())
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"AGAINST");
     return 1;
@@ -2725,11 +2726,15 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
       args[i]= item= *((Item_ref *)item)->ref;
     if (item->type() != Item::FIELD_ITEM)
       key=NO_SUCH_KEY;
-    used_tables_cache|=item->used_tables();
   }
-  /* check that all columns come from the same table */
-  if (my_count_bits(used_tables_cache) != 1)
+  /*
+    Check that all columns come from the same table.
+    We've already checked that columns in MATCH are fields so 
+    PARAM_TABLE_BIT can only appear from AGAINST argument.
+  */
+  if ((used_tables_cache & ~PARAM_TABLE_BIT) != item->used_tables())
     key=NO_SUCH_KEY;
+  
   if (key == NO_SUCH_KEY && !(flags & FT_BOOL))
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
