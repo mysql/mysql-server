@@ -583,7 +583,8 @@
    
    As noted previously, the application programmer can provide hints to the NDB API as to 
    which transaction co-ordinator it should use. This is done by
-   providing a <em>partition key</em> (usually the primary key).
+   providing a <em>table</em> and <em>partition key</em> 
+   (usually the primary key).
    By using the primary key as the partition key, 
    the transaction will be placed on the node where the primary replica
    of that record resides.
