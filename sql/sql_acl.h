@@ -134,7 +134,7 @@ public:
 my_bool  acl_init(THD *thd, bool dont_read_acl_tables);
 void acl_reload(THD *thd);
 void acl_free(bool end=0);
-ulong acl_get(const char *host, const char *ip, const char *bin_ip,
+ulong acl_get(const char *host, const char *ip,
 	      const char *user, const char *db, my_bool db_is_pattern);
 int acl_getroot(THD *thd, USER_RESOURCES *mqh, const char *passwd,
                 uint passwd_len);

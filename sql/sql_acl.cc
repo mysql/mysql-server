@@ -52,7 +52,8 @@ static byte* acl_entry_get_key(acl_entry *entry,uint *length,
   return (byte*) entry->key;
 }
 
-#define ACL_KEY_LENGTH (sizeof(long)+NAME_LEN+USERNAME_LENGTH+1)
+#define IP_ADDR_STRLEN
+#define ACL_KEY_LENGTH (IP_ADDR_STRLEN+1+NAME_LEN+1+USERNAME_LENGTH+1)
 
 static DYNAMIC_ARRAY acl_hosts,acl_users,acl_dbs;
 static MEM_ROOT mem, memex;
@@ -909,7 +910,7 @@ static void acl_insert_db(const char *user, const char *host, const char *db,
   Get privilege for a host, user and db combination
 */
 
-ulong acl_get(const char *host, const char *ip, const char *bin_ip,
+ulong acl_get(const char *host, const char *ip,
 	     const char *user, const char *db, my_bool db_is_pattern)
 {
   ulong host_access,db_access;
@@ -919,8 +920,7 @@ ulong acl_get(const char *host, const char *ip, const char *bin_ip,
   acl_entry *entry;
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
-  memcpy_fixed(&key,bin_ip,sizeof(struct in_addr));
-  end=strmov((tmp_db=strmov(key+sizeof(struct in_addr),user)+1),db);
+  end=strmov((tmp_db=strmov(strmov(key, ip ? ip : "")+1,user)+1),db);
   if (lower_case_table_names)
   {
     my_casedn_str(&my_charset_latin1, tmp_db);
@@ -1331,7 +1331,7 @@ static bool test_if_create_new_users(THD *thd)
     bzero((char*) &tl,sizeof(tl));
     tl.db=	   (char*) "mysql";
     tl.real_name=  (char*) "user";
-    db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
+    db_access=acl_get(thd->host, thd->ip,
 		      thd->priv_user, tl.db, 0);
     if (!(db_access & INSERT_ACL))
     {
