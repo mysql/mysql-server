@@ -222,7 +222,7 @@ int load_defaults(const char *conf_file, const char **groups,
   /* copy name + found arguments + command line arguments to new array */
   res[0]= argv[0][0];  /* Name MUST be set, even by embedded library */
   memcpy((gptr) (res+1), args.buffer, args.elements*sizeof(char*));
-  /* Skipp --defaults-file and --defaults-extra-file */
+  /* Skip --defaults-file and --defaults-extra-file */
   (*argc)-= args_used;
   (*argv)+= args_used;
 

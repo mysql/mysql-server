@@ -4768,7 +4768,7 @@ simple_ident:
 
 field_ident:
 	ident			{ $$=$1;}
-	| ident '.' ident	{ $$=$3;}	/* Skipp schema name in create*/
+	| ident '.' ident	{ $$=$3;}	/* Skip schema name in create*/
 	| '.' ident		{ $$=$2;}	/* For Delphi */;
 
 table_ident:
