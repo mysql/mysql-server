@@ -96,6 +96,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   current_linfo =  0;
   slave_thread = 0;
   slave_proxy_id = 0;
+  log_seq = 0;
   cond_count=0;
   convert_set=0;
   mysys_var=0;

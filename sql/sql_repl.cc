@@ -74,8 +74,10 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
 
   uint ident_len = (uint) strlen(p);
   ulong event_len = ident_len + sizeof(header);
-  int4store(header + EVENT_TYPE_OFFSET + 1, server_id);
+  int4store(header + SERVER_ID_OFFSET, server_id);
   int4store(header + EVENT_LEN_OFFSET, event_len);
+  int2store(header + FLAGS_OFFSET, 0);
+  int4store(header + LOG_SEQ_OFFSET, 0);
   packet->append(header, sizeof(header));
   packet->append(p,ident_len);
   if(my_net_write(net, (char*)packet->ptr(), packet->length()))

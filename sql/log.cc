@@ -81,7 +81,7 @@ static int find_uniq_filename(char *name)
 
 MYSQL_LOG::MYSQL_LOG(): last_time(0), query_start(0),index_file(-1),
 			name(0), log_type(LOG_CLOSED),write_error(0),
-			inited(0), no_rotate(0)
+			inited(0), log_seq(1), no_rotate(0)
 {
   /*
     We don't want to intialize LOCK_Log here as the thread system may
@@ -232,7 +232,20 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
       goto err;
     Start_log_event s;
     bool error;
+    s.set_log_seq(0, this);
     s.write(&log_file);
+    // if we have a master, record current master info in a slave
+    // event
+    if (glob_mi.inited)
+    {
+      THD* thd = current_thd;
+      Slave_log_event s(thd, &glob_mi);
+      s.set_log_seq(thd, this);
+	
+      if(s.master_host)
+	s.write(&log_file);
+    }
+
     flush_io_cache(&log_file);
     pthread_mutex_lock(&LOCK_index);
     error=(my_write(index_file, (byte*) log_file_name, strlen(log_file_name),
@@ -531,16 +544,8 @@ void MYSQL_LOG::new_file()
 	to change base names at some point.
       */
       Rotate_log_event r(new_name+dirname_length(new_name));
+      r.set_log_seq(current_thd, this);
       r.write(&log_file);
-
-      // if we have a master, record current master info in a slave
-      // event
-      if(glob_mi.inited)
-      {
-	Slave_log_event s(current_thd, &glob_mi);
-	if(s.master_host)
-	  s.write(&log_file);
-      }
       VOID(pthread_cond_broadcast(&COND_binlog_update));
     }
     name=0;
@@ -548,6 +553,7 @@ void MYSQL_LOG::new_file()
     open(old_name, log_type, new_name);
     my_free(old_name,MYF(0));
     last_time=query_start=0;
+    log_seq = 1;
     write_error=0;
     VOID(pthread_mutex_unlock(&LOCK_log));
   }
@@ -641,6 +647,7 @@ bool MYSQL_LOG::write(Slave_log_event* event_info)
   if (!inited)					// Can't use mutex if not init
     return 0;
   VOID(pthread_mutex_lock(&LOCK_log));
+  event_info->set_log_seq(current_thd, this);
   error = event_info->write(&log_file);
   VOID(pthread_mutex_unlock(&LOCK_log));
   return error;
