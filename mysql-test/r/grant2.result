@@ -31,7 +31,6 @@ select current_user;
 current_user
 mysqltest_1@localhost
 grant all privileges on `my\_1`.* to mysqltest_2@localhost with grant option;
-ERROR 42000: 'mysqltest_1'@'localhost' is not allowed to create new users
 grant all privileges on `my_%`.* to mysqltest_3@localhost with grant option;
 ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'my_%'
 set @@sql_mode='NO_AUTO_CREATE_USER';
@@ -39,16 +38,17 @@ select @@sql_mode;
 @@sql_mode
 NO_AUTO_CREATE_USER
 grant select on `my\_1`.* to mysqltest_4@localhost with grant option;
-ERROR 42000: 'mysqltest_1'@'localhost' is not allowed to create new users
+ERROR 42000: Can't find any matching row in the user table
 grant select on `my\_1`.* to mysqltest_4@localhost identified by 'mypass'
 with grant option;
-ERROR 42000: 'mysqltest_1'@'localhost' is not allowed to create new users
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT CREATE USER ON *.* TO 'mysqltest_1'@'localhost'
 GRANT ALL PRIVILEGES ON `my\_%`.* TO 'mysqltest_1'@'localhost' WITH GRANT OPTION
 show grants for mysqltest_2@localhost;
-ERROR 42000: There is no such grant defined for user 'mysqltest_2' on host 'localhost'
+Grants for mysqltest_2@localhost
+GRANT USAGE ON *.* TO 'mysqltest_2'@'localhost'
+GRANT ALL PRIVILEGES ON `my\_1`.* TO 'mysqltest_2'@'localhost' WITH GRANT OPTION
 show grants for mysqltest_3@localhost;
 ERROR 42000: There is no such grant defined for user 'mysqltest_3' on host 'localhost'
 delete from mysql.user where user like 'mysqltest\_%';
@@ -78,9 +78,9 @@ flush privileges;
 create table t1 (a int, b int);
 grant select (a) on t1 to mysqltest_1@localhost with grant option;
 grant select (a,b) on t1 to mysqltest_2@localhost;
-ERROR 42000: 'mysqltest_1'@'localhost' is not allowed to create new users
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for column 'b' in table 't1'
 grant select on t1 to mysqltest_3@localhost;
-ERROR 42000: 'mysqltest_1'@'localhost' is not allowed to create new users
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 't1'
 drop table t1;
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
@@ -165,8 +165,6 @@ GRANT INSERT ON "test".* TO 'mysqltest_1'@'%'
 GRANT UPDATE (c2) ON "test"."t2" TO 'mysqltest_1'@'%'
 GRANT UPDATE ON "test"."t1" TO 'mysqltest_1'@'%'
 drop user 'mysqltest_1', 'mysqltest_3';
-grant all on test.t1 to 'mysqltest_1';
-ERROR HY000: You are not allowed to create a user with GRANT
 drop user 'mysqltest_1';
 ERROR HY000: Operation DROP USER failed for 'mysqltest_1'@'%'
 drop table t1, t2;

@@ -57,7 +57,6 @@ connect (user1,localhost,mysqltest_1,,);
 connection user1;
 select current_user();
 select current_user;
---error 1211
 grant all privileges on `my\_1`.* to mysqltest_2@localhost with grant option;
 --error 1044
 grant all privileges on `my_%`.* to mysqltest_3@localhost with grant option;
@@ -67,14 +66,16 @@ grant all privileges on `my_%`.* to mysqltest_3@localhost with grant option;
 #
 set @@sql_mode='NO_AUTO_CREATE_USER';
 select @@sql_mode;
---error 1211
+#
+# GRANT without IDENTIFIED BY does not create new users
+#
+--error 1133
 grant select on `my\_1`.* to mysqltest_4@localhost with grant option;
 grant select on `my\_1`.* to mysqltest_4@localhost identified by 'mypass'
 with grant option;
 disconnect user1;
 connection default;
 show grants for mysqltest_1@localhost;
---error 1141
 show grants for mysqltest_2@localhost;
 --error 1141
 show grants for mysqltest_3@localhost;
@@ -116,9 +117,9 @@ create table t1 (a int, b int);
 grant select (a) on t1 to mysqltest_1@localhost with grant option;
 connect (mrugly, localhost, mysqltest_1,,mysqltest);
 connection mrugly;
---error 1211
+--error 1143
 grant select (a,b) on t1 to mysqltest_2@localhost;
---error 1211
+--error 1142
 grant select on t1 to mysqltest_3@localhost;
 disconnect mrugly;
 
@@ -177,10 +178,6 @@ select host,db,user,table_name from mysql.tables_priv where user like 'mysqltest
 select host,db,user,table_name,column_name from mysql.columns_priv where user like 'mysqltest_%' order by host,db,user,table_name,column_name;
 show grants for 'mysqltest_1';
 drop user 'mysqltest_1', 'mysqltest_3';
-#
-# Grant must not create user
---error 1410
-grant all on test.t1 to 'mysqltest_1';
 --error 1396
 drop user 'mysqltest_1';
 #
