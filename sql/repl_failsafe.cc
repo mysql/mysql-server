@@ -450,11 +450,11 @@ int show_new_master(THD* thd)
 
 /*
   Asks the master for the list of its other connected slaves.
-  This is for failsafe replication : 
-  in order for failsafe replication to work, the servers involved in replication
-  must know of each other. We accomplish this by having each slave report to the
-  master how to reach it, and on connection, each slave receives information
-  about where the other slaves are.
+  This is for failsafe replication: 
+  in order for failsafe replication to work, the servers involved in
+  replication must know of each other. We accomplish this by having each
+  slave report to the master how to reach it, and on connection, each
+  slave receives information about where the other slaves are.
 
   SYNOPSIS
     update_slave_list()
@@ -466,8 +466,8 @@ int show_new_master(THD* thd)
     hostname/port of the master, the username used by the slave to connect to
     the master.
     If the user used by the slave to connect to the master does not have the
-    REPLICATION SLAVE privilege, it will pop in this function because SHOW SLAVE
-    HOSTS will fail on the master.
+    REPLICATION SLAVE privilege, it will pop in this function because
+    SHOW SLAVE HOSTS will fail on the master.
 
   RETURN VALUES
     1           error
@@ -482,7 +482,6 @@ int update_slave_list(MYSQL* mysql, MASTER_INFO* mi)
   bool have_auth_info;
   int port_ind;
   DBUG_ENTER("update_slave_list");
-
 
   if (mysql_real_query(mysql,"SHOW SLAVE HOSTS",16) ||
       !(res = mysql_store_result(mysql)))
@@ -668,8 +667,10 @@ int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi)
     strmov(mysql->net.last_error, "Master is not configured");
     DBUG_RETURN(1);
   }
-  mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *)&slave_net_timeout);
-  mysql_options(mysql, MYSQL_SET_CHARSET_NAME, (char *)default_charset_info);
+  mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
+  mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
+  mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset_info->csname);
+  mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
   if (!mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
 			mi->port, 0, 0))
     DBUG_RETURN(1);
