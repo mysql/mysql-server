@@ -43953,6 +43953,8 @@ when to_table was empty.
 @appendixsubsec Changes in release 3.23.37
 @itemize @bullet
 @item
+Fixed a bug when using MATCH in HAVING clause.
+@item
 Fixed a bug when using @code{HEAP} tables with @code{LIKE}.
 @item
 Added @code{--mysql-version} to @code{safe_mysqld}
