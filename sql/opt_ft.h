@@ -30,6 +30,8 @@ public:
 
   FT_SELECT(THD *thd, TABLE *table, TABLE_REF *tref) :
       QUICK_RANGE_SELECT (thd, table, tref->key, 1), ref(tref) { init(); }
+
+  int init() { return error=file->ft_init(); }
   int get_next() { return error=file->ft_read(record); }
   int get_type() { return QS_TYPE_FULLTEXT; }
 };

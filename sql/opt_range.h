@@ -119,7 +119,7 @@ public:
 protected:
   friend void print_quick_sel_range(QUICK_RANGE_SELECT *quick,
                                     key_map needed_reg);
-  friend QUICK_RANGE_SELECT *get_quick_select_for_ref(TABLE *table, 
+  friend QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, 
                                                       struct st_table_ref *ref);
   friend bool get_quick_keys(struct st_qsel_param *param,
                              QUICK_RANGE_SELECT *quick,KEY_PART *key,
@@ -134,11 +134,10 @@ protected:
   List_iterator<QUICK_RANGE> it;
   QUICK_RANGE *range;
   MEM_ROOT alloc;
-  KEY_PART *key_parts;
-  QUICK_SELECT(THD *thd, TABLE *table,uint index_arg,bool no_alloc=0); //!!todo: add thd to my ctor below
+  KEY_PART *key_parts;  
   int cmp_next(QUICK_RANGE *range);
 public:
-  QUICK_RANGE_SELECT(TABLE *table,uint index_arg,bool no_alloc=0, 
+  QUICK_RANGE_SELECT(THD *thd, TABLE *table,uint index_arg,bool no_alloc=0,
                      MEM_ROOT *parent_alloc=NULL);
   ~QUICK_RANGE_SELECT();
   
