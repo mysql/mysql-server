@@ -90,7 +90,9 @@ struct st_table {
   uint null_fields;			/* number of null fields */
   uint blob_fields;			/* number of blob fields */
   key_map keys_in_use, keys_for_keyread, read_only_keys;
-  key_map quick_keys, used_keys, keys_in_use_for_query;
+  key_map quick_keys;
+  key_map used_keys;  /* keys that cover all used table fields */
+  key_map keys_in_use_for_query;
   KEY  *key_info;			/* data of keys in database */
   TYPELIB keynames;			/* Pointers to keynames */
   ha_rows max_rows;			/* create information */
