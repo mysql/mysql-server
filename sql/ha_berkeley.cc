@@ -453,9 +453,11 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
   if ((primary_key=table->primary_key) >= MAX_KEY)
   {						// No primary key
     primary_key=table->keys;
+    key_used_on_scan=MAX_KEY;
     ref_length=hidden_primary_key=BDB_HIDDEN_PRIMARY_KEY_LENGTH;
   }
-  key_used_on_scan=primary_key;
+  else
+    key_used_on_scan=primary_key;
 
   /* Need some extra memory in case of packed keys */
   uint max_key_length= table->max_key_length + MAX_REF_PARTS*3;

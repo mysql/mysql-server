@@ -3582,7 +3582,7 @@ in your applications or when you add not free extensions to the
 become GPL through the GPL license that acts as a virus.  By licensing
 @strong{MySQL} server from @strong{MySQL AB} under a commercial
 license you will avoid this problem.
-
+See @uref{http://www.gnu.org/copyleft/gpl-faq.html}.
 @item
 You have a commercial application that ONLY works with @strong{MySQL}
 and ships the application with the @strong{MySQL} server.  This is
@@ -45717,6 +45717,11 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.40
 @itemize @bullet
 @item
+Fixed problem with @code{UPDATE} and BDB tables.
+@item
+Fixed problem when using the @code{GRANT FILE ON database.* ...}; Previously
+we added the @code{DROP} privilege for the database.
+@item
 Fixed that @code{DELETE FROM table_name ... LIMIT 0} and
 @code{UPDATE FROM table_name ... LIMIT 0} doesn't delete/update anything.
 @item
@@ -45747,8 +45752,8 @@ Fixed bug in @code{BDB} tables when querying empty tables.
 Fixed a bug when using @code{COUNT(DISTINCT)} with @code{LEFT JOIN} and
 there wasn't any matching rows.
 @item
-Removed all documentation referring to the @code{GEMINI} table type. @code{GEMINI}
-is not released under an Open Source license.
+Removed all documentation referring to the @code{GEMINI} table
+type. @code{GEMINI} is not released under an Open Source license.
 @end itemize
 
 @node News-3.23.39, News-3.23.38, News-3.23.40, News-3.23.x
@@ -50796,15 +50801,19 @@ running not completed multi-statement transactions. (The transaction
 will probably be ignored).
 
 @item
+@code{ANALYZE TABLE}, @code{OPTIMIZE TABLE} and @code{REPAIR TABLE} may
+cause problems on tables for which you are using @code{INSERT DELAYED}.
+
+@item
 Doing a @code{LOCK TABLE ..} and @code{FLUSH TABLES ..} doesn't
 guarantee that there isn't a half-finished transaction in progress on the
 table.
 
 @item
-BDB tables are a bit slow to open from this. If you have many BDB tables
-in a database, it will take a long time to use the @code{mysql} client
-on the database if you are not using the @code{-A} option or if you are
-using @code{rehash}. This is especially notable when you have a big table
+BDB tables are a bit slow to open. If you have many BDB tables in a
+database, it will take a long time to use the @code{mysql} client on the
+database if you are not using the @code{-A} option or if you are using
+@code{rehash}. This is especially notable when you have a big table
 cache.
 
 @item
@@ -50959,6 +50968,8 @@ values in double. Using these will cause problems when trying to export
 and import data. We should as an intermediate solution change @code{NaN} to
 @code{NULL} (if possible) and @code{-Inf} and @code{Inf} to the
 Minimum respective maximum possible @code{double} value.
+@item
+@code{LIMIT} on negative numbers are treated as big positive numbers.
 @end itemize
 
 The following are known bugs in earlier versions of @strong{MySQL}:
