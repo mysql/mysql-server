@@ -4798,7 +4798,7 @@ ER_WARN_DATA_OUT_OF_RANGE 22003
 	ger "Daten abgeschnitten, außerhalb des Wertebereichs für Spalte '%s' in Zeile %ld"
 	por "Dado truncado, fora de alcance para coluna '%s' na linha %ld"
 	spa "Datos truncados, fuera de gama para columna '%s' en la línea %ld"
-ER_WARN_DATA_TRUNCATED 01000 
+WARN_DATA_TRUNCATED 01000 
 	eng "Data truncated for column '%s' at row %ld"
 	ger "Daten abgeschnitten für Spalte '%s' in Zeile %ld"
 	por "Dado truncado para coluna '%s' na linha %ld"

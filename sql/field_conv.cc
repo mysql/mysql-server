@@ -121,8 +121,7 @@ set_field_to_null(Field *field)
   field->reset();
   if (current_thd->count_cuted_fields == CHECK_FIELD_WARN)
   {
-    field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
-                       ER_WARN_DATA_TRUNCATED, 1);
+    field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
     return 0;
   }
   if (!current_thd->no_errors)
@@ -230,7 +229,7 @@ static void do_copy_not_null(Copy_field *copy)
   if (*copy->from_null_ptr & copy->from_bit)
   {
     copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
-                                ER_WARN_DATA_TRUNCATED, 1);
+                                WARN_DATA_TRUNCATED, 1);
     copy->to_field->reset();
   }
   else
@@ -336,7 +335,7 @@ static void do_cut_string(Copy_field *copy)
     if (!my_isspace(system_charset_info, *ptr))	// QQ: ucs incompatible
     {
       copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
-                                  ER_WARN_DATA_TRUNCATED, 1);
+                                  WARN_DATA_TRUNCATED, 1);
       break;
     }
   }
@@ -360,7 +359,7 @@ static void do_varstring1(Copy_field *copy)
     length=copy->to_length - 1;
     if (current_thd->count_cuted_fields)
       copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
-                                  ER_WARN_DATA_TRUNCATED, 1);
+                                  WARN_DATA_TRUNCATED, 1);
   }
   *(uchar*) copy->to_ptr= (uchar) length;
   memcpy(copy->to_ptr+1, copy->from_ptr + 1, length);
@@ -375,7 +374,7 @@ static void do_varstring2(Copy_field *copy)
     length=copy->to_length-HA_KEY_BLOB_LENGTH;
     if (current_thd->count_cuted_fields)
       copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
-                                  ER_WARN_DATA_TRUNCATED, 1);
+                                  WARN_DATA_TRUNCATED, 1);
   }
   int2store(copy->to_ptr,length);
   memcpy(copy->to_ptr+HA_KEY_BLOB_LENGTH, copy->from_ptr + HA_KEY_BLOB_LENGTH,
