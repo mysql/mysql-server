@@ -64,28 +64,28 @@ Item_sum::Item_sum(THD *thd, Item_sum *item):
 
 
 /*
-  Save copy of arguments if we are prepare prepared statement
+  Save copy of arguments if we prepare prepared statement
   (arguments can be rewritten in get_tmp_table_item())
 
   SYNOPSIS
-    Item_sum::save_args_for_prepared_statements()
+    Item_sum::save_args_for_prepared_statement()
     thd		- thread handler
 
   RETURN
     0 - OK
     1 - Error
 */
-bool Item_sum::save_args_for_prepared_statements(THD *thd)
+bool Item_sum::save_args_for_prepared_statement(THD *thd)
 {
-  if (thd->current_statement)
-    return save_args(thd->current_statement);
+  if (thd->current_arena->is_stmt_prepare())
+    return save_args(thd->current_arena);
   return 0;
 }
 
 
-bool Item_sum::save_args(Statement* stmt)
+bool Item_sum::save_args(Item_arena* arena)
 {
-  if (!(args_copy= (Item**) stmt->alloc(sizeof(Item*)*arg_count)))
+  if (!(args_copy= (Item**) arena->alloc(sizeof(Item*)*arg_count)))
     return 1;
   memcpy(args_copy, args, sizeof(Item*)*arg_count);
   return 0;
@@ -217,7 +217,7 @@ Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
 
-  if (save_args_for_prepared_statements(thd))
+  if (save_args_for_prepared_statement(thd))
     return 1;
   
   if (!thd->allow_sum_func)
@@ -251,7 +251,7 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
 
-  if (save_args_for_prepared_statements(thd))
+  if (save_args_for_prepared_statement(thd))
     return 1;
 
   Item *item= args[0];
@@ -1950,7 +1950,7 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
 
-  if (save_args_for_prepared_statements(thd))
+  if (save_args_for_prepared_statement(thd))
     return 1;
 
   uint i;			/* for loop variable */ 

@@ -155,7 +155,7 @@ bool foreign_key_prefix(Key *a, Key *b)
 ** Thread specific functions
 ****************************************************************************/
 
-THD::THD():user_time(0), current_statement(0), is_fatal_error(0),
+THD::THD():user_time(0), current_arena(this), is_fatal_error(0),
 	   last_insert_id_used(0),
            insert_id_used(0), rand_used(0), time_zone_used(0),
            in_lock_tables(0), global_read_lock(0), bootstrap(0)
@@ -1301,23 +1301,59 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 }
 
 
+Item_arena::Item_arena(THD* thd)
+  :free_list(0),
+  state(INITIALIZED)
+{
+  init_sql_alloc(&mem_root,
+                 thd->variables.query_alloc_block_size,
+                 thd->variables.query_prealloc_size);
+}
+
+
+/* This constructor is called when Item_arena is a subobject of THD */
+
+Item_arena::Item_arena()
+  :free_list(0),
+  state(CONVENTIONAL_EXECUTION)
+{
+  clear_alloc_root(&mem_root);
+}
+
+
+Item_arena::Item_arena(bool init_mem_root)
+  :free_list(0),
+  state(INITIALIZED)
+{
+  if (init_mem_root)
+    clear_alloc_root(&mem_root);
+}
+
+Item_arena::Type Item_arena::type() const
+{
+  DBUG_ASSERT("Item_arena::type()" == "abstract");
+  return STATEMENT;
+}
+
+
+Item_arena::~Item_arena()
+{}
+
+
 /*
   Statement functions 
 */
 
 Statement::Statement(THD *thd)
-  :id(++thd->statement_id_counter),
+  :Item_arena(thd),
+  id(++thd->statement_id_counter),
   set_query_id(1),
   allow_sum_func(0),
   lex(&main_lex),
   query(0),
-  query_length(0),
-  free_list(0)
+  query_length(0)
 {
   name.str= NULL;
-  init_sql_alloc(&mem_root,
-                 thd->variables.query_alloc_block_size,
-                 thd->variables.query_prealloc_size);
 }
 
 /*
@@ -1332,14 +1368,12 @@ Statement::Statement()
   allow_sum_func(0),                            /* initialized later */
   lex(&main_lex),
   query(0),                                     /* these two are set */ 
-  query_length(0),                              /* in alloc_query() */
-  free_list(0)
+  query_length(0)                               /* in alloc_query() */
 {
-  bzero((char *) &mem_root, sizeof(mem_root));
 }
 
 
-Statement::Type Statement::type() const
+Item_arena::Type Statement::type() const
 {
   return STATEMENT;
 }
@@ -1356,14 +1390,29 @@ void Statement::set_statement(Statement *stmt)
 }
 
 
-void Statement::set_n_backup_item_arena(Statement *set, Statement *backup)
+void
+Statement::set_n_backup_statement(Statement *stmt, Statement *backup)
+{
+  backup->set_statement(this);
+  set_statement(stmt);
+}
+
+
+void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
+{
+  stmt->set_statement(this);
+  set_statement(backup);
+}
+
+
+void Item_arena::set_n_backup_item_arena(Item_arena *set, Item_arena *backup)
 {
   backup->set_item_arena(this);
   set_item_arena(set);
 }
 
 
-void Statement::restore_backup_item_arena(Statement *set, Statement *backup)
+void Item_arena::restore_backup_item_arena(Item_arena *set, Item_arena *backup)
 {
   set->set_item_arena(this);
   set_item_arena(backup);
@@ -1371,10 +1420,11 @@ void Statement::restore_backup_item_arena(Statement *set, Statement *backup)
   init_alloc_root(&backup->mem_root, 0, 0);
 }
 
-void Statement::set_item_arena(Statement *set)
+void Item_arena::set_item_arena(Item_arena *set)
 {
   mem_root= set->mem_root;
   free_list= set->free_list;
+  state= set->state;
 }
 
 Statement::~Statement()
