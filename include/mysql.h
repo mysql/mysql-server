@@ -481,7 +481,6 @@ typedef struct st_mysql_bind
   unsigned long buffer_length;		/* buffer length */  
 
   /* The following are for internal use. Set by mysql_bind_param */
-  unsigned long bind_length;		/* Default length of data */
   unsigned int	param_number;		/* For null count and error messages */
   my_bool	long_data_used;		/* If used with mysql_send_long_data */
   void (*store_param_func)(NET *net, struct st_mysql_bind *param);

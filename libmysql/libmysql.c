@@ -4058,7 +4058,7 @@ static void store_param_double(NET *net, MYSQL_BIND *param)
 
 static void store_param_str(NET *net, MYSQL_BIND *param)
 {
-  ulong length= *param->length;
+  ulong length= min(*param->length, param->buffer_length);
   char *to= (char *) net_store_length((char *) net->write_pos, length);
   memcpy(to, param->buffer, length);
   net->write_pos= (uchar*) to+length;
@@ -4107,7 +4107,7 @@ static my_bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
   {
     /*
       Param->length should ALWAYS point to the correct length for the type
-      Either to the length pointer given by the user or param->bind_length
+      Either to the length pointer given by the user or param->buffer_length
     */
     if ((my_realloc_str(net, 9 + *param->length)))
       DBUG_RETURN(1);
@@ -4277,12 +4277,14 @@ my_bool STDCALL mysql_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
        param++)
   {
     param->param_number= count++;
+    param->long_data_used= 0;
+
     /*
-      If param->length is not given, change it to point to bind_length.
+      If param->length is not given, change it to point to buffer_length.
       This way we can always use *param->length to get the length of data
     */
     if (!param->length)
-      param->length= &param->bind_length;
+      param->length= &param->buffer_length;
 
     /* If param->is_null is not set, then the value can never be NULL */
     if (!param->is_null)
@@ -4295,33 +4297,33 @@ my_bool STDCALL mysql_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
       break;
     case MYSQL_TYPE_TINY:
       /* Force param->length as this is fixed for this type */
-      param->length= &param->bind_length;
-      param->bind_length= param->buffer_length= 1;
+      param->length= &param->buffer_length;
+      param->buffer_length= 1;
       param->store_param_func= store_param_tinyint;
       break;
     case MYSQL_TYPE_SHORT:
-      param->length= &param->bind_length;
-      param->bind_length= param->buffer_length= 2;
+      param->length= &param->buffer_length;
+      param->buffer_length= 2;
       param->store_param_func= store_param_short;
       break;
     case MYSQL_TYPE_LONG:
-      param->length= &param->bind_length;
-      param->bind_length= param->buffer_length= 4;
+      param->length= &param->buffer_length;
+      param->buffer_length= 4;
       param->store_param_func= store_param_int32;
       break;
     case MYSQL_TYPE_LONGLONG:
-      param->length= &param->bind_length;
-      param->bind_length= param->buffer_length= 8;
+      param->length= &param->buffer_length;
+      param->buffer_length= 8;
       param->store_param_func= store_param_int64;
       break;
     case MYSQL_TYPE_FLOAT:
-      param->length= &param->bind_length;
-      param->bind_length= param->buffer_length= 4;
+      param->length= &param->buffer_length;
+      param->buffer_length= 4;
       param->store_param_func= store_param_float;
       break;
     case MYSQL_TYPE_DOUBLE:
-      param->length= &param->bind_length;
-      param->bind_length= param->buffer_length= 8;
+      param->length= &param->buffer_length;
+      param->buffer_length= 8;
       param->store_param_func= store_param_double;
       break;
     case MYSQL_TYPE_TINY_BLOB:
@@ -4330,7 +4332,6 @@ my_bool STDCALL mysql_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_STRING:
-      param->bind_length= param->buffer_length;
       param->store_param_func= store_param_str;
       break;
     default:
@@ -4586,6 +4587,7 @@ static void send_data_str(MYSQL_BIND *param, char *value, uint length)
   }
   default:
     *param->length= length;
+    length= min(length, param->buffer_length);
     memcpy(buffer, value, length);
     buffer[length]='\0';
   } 
@@ -4804,9 +4806,10 @@ static void fetch_result_double(MYSQL_BIND *param, uchar **row)
 static void fetch_result_str(MYSQL_BIND *param, uchar **row)
 {
   ulong length= net_field_length(row);
-  memcpy(param->buffer, (char *)*row, length);
-  *(param->buffer+length)= '\0';
-  *param->length= length;
+  ulong copy_length= min(length, param->buffer_length);
+  memcpy(param->buffer, (char *)*row, copy_length);
+  *(param->buffer+copy_length)= '\0';
+  *param->length= length; // return total length
   *row+= length;
 }
 
@@ -4882,7 +4885,7 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
       DBUG_RETURN(1);
     }
     if (!param->length)
-      param->length= &param->bind_length;
+      param->length= &param->buffer_length;
     *param->length= (long)get_binary_length(param->buffer_type);
   }
   stmt->res_buffers= 1;
