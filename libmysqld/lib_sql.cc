@@ -296,7 +296,7 @@ extern "C"
 
 static my_bool inited, org_my_init_done;
 
-int mysql_server_init(int argc, const char **argv, const char **groups)
+int mysql_server_init(int argc, char **argv, char **groups)
 {
   char glob_hostname[FN_REFLEN];
 
@@ -306,7 +306,7 @@ int mysql_server_init(int argc, const char **argv, const char **groups)
   char ***argvp;
   int fake_argc = 1;
   char *fake_argv[] = { (char *)"", 0 };
-  const char *fake_groups[] = { "server", 0 };
+  const char *fake_groups[] = { "server", "embedded", 0 };
   if (argc)
   {
     argcp = &argc;
@@ -318,7 +318,7 @@ int mysql_server_init(int argc, const char **argv, const char **groups)
     argvp = (char ***) &fake_argv;
   }
   if (!groups)
-      groups = fake_groups;
+      groups = (char**) fake_groups;
 
   my_umask=0660;		// Default umask for new files
   my_umask_dir=0700;		// Default umask for new directories
@@ -330,7 +330,9 @@ int mysql_server_init(int argc, const char **argv, const char **groups)
     org_my_init_done=my_init_done;
   }
   if (!org_my_init_done)
+  {
     MY_INIT((char *)"mysql_embedded");	// init my_sys library & pthreads
+  }
 
   tzset();			// Set tzname
 
@@ -357,7 +359,7 @@ int mysql_server_init(int argc, const char **argv, const char **groups)
   strcat(server_version,"-debug");
 #endif
   strcat(server_version,"-embedded");
-  load_defaults("my", groups, argcp, argvp);
+  load_defaults("my", (const char **) groups, argcp, argvp);
   defaults_argv=*argvp;
   mysql_tmpdir=getenv("TMPDIR");	/* Use this if possible */
 #if defined( __WIN__) || defined(OS2)

@@ -854,6 +854,7 @@ dnl echo "DBG2: [$mode] bdb='$bdb'; incl='$bdb_includes'; lib='$bdb_libs'"
     no )
       bdb_includes=
       bdb_libs=
+      bdb_libs_with_path=
       ;;
     supplied-two )
       MYSQL_CHECK_INSTALLED_BDB([$bdb_includes], [$bdb_libs])
@@ -883,6 +884,7 @@ dnl echo "DBG2: [$mode] bdb='$bdb'; incl='$bdb_includes'; lib='$bdb_libs'"
           esac
          bdb_includes=
          bdb_libs=
+	 bdb_libs_with_path=
           ;;
       esac
       ;;
@@ -911,6 +913,7 @@ dnl echo "DBG3: [$mode] bdb='$bdb'; incl='$bdb_includes'; lib='$bdb_libs'"
 
   AC_SUBST(bdb_includes)
   AC_SUBST(bdb_libs)
+  AC_SUBST(bdb_libs_with_path)
 ])
 
 AC_DEFUN([MYSQL_CHECK_INSTALLED_BDB], [
@@ -931,6 +934,7 @@ dnl echo ["MYSQL_CHECK_INSTALLED_BDB ($1) ($2)"]
         MYSQL_TOP_BUILDDIR([lib])
         bdb_includes="-I$inc"
         bdb_libs="-L$lib -ldb"
+        bdb_libs_with_path="$lib/libdb.a"
       ])
       LDFLAGS="$save_LDFLAGS"
     else
@@ -959,6 +963,7 @@ dnl echo ["MYSQL_CHECK_BDB_DIR ($1)"]
         MYSQL_TOP_BUILDDIR([dir])
         bdb_includes="-I$dir/build_unix"
         bdb_libs="-L$dir/build_unix -ldb"
+	bdb_libs_with_path="$dir/build_unix/libdb.a"
       else
         bdb_dir_ok="$bdb_version_ok"
       fi
@@ -1070,6 +1075,7 @@ AC_DEFUN([MYSQL_CHECK_INNODB], [
       AC_DEFINE(HAVE_INNOBASE_DB)
       have_innodb="yes"
       innodb_includes="-I../innobase/include"
+      innodb_system_libs=""
 dnl Some libs are listed several times, in order for gcc to sort out
 dnl circular references.
       innodb_libs="\
@@ -1110,7 +1116,7 @@ dnl circular references.
  \$(top_builddir)/innobase/os/libos.a\
  \$(top_builddir)/innobase/ut/libut.a"
 
-      AC_CHECK_LIB(rt, aio_read, [innodb_libs="$innodb_libs -lrt"])
+      AC_CHECK_LIB(rt, aio_read, [innodb_system_libs="-lrt"])
       ;;
     * )
       AC_MSG_RESULT([Not using Innodb])
@@ -1119,6 +1125,7 @@ dnl circular references.
 
   AC_SUBST(innodb_includes)
   AC_SUBST(innodb_libs)
+  AC_SUBST(innodb_system_libs)
 ])
 
 dnl ---------------------------------------------------------------------------

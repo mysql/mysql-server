@@ -101,8 +101,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
       errno=my_errno= ENAMETOOLONG;
       return 1;
     }
-    strmov(to,dir);
-    strmov(convert_dirname(to),prefix_buff);
+    strmov(convert_dirname(to,dir,NullS),prefix_buff);
     org_file=mkstemp(to);
     file=my_register_filename(org_file, to, FILE_BY_MKSTEMP,
 			      EE_CANTCREATEFILE, MyFlags);

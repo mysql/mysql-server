@@ -24,6 +24,7 @@
 #undef HAVE_DLOPEN				/* No udf functions */
 #undef HAVE_OPENSSL
 #undef HAVE_VIO
+#undef HAVE_ISAM
 
 #define DONT_USE_RAID
 #endif /* EMBEDDED_LIBRARY */

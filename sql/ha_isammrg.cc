@@ -20,11 +20,12 @@
 #endif
 
 #include "mysql_priv.h"
+#ifdef HAVE_ISAM
 #include <m_ctype.h>
 #ifndef MASTER
-#include "../srclib/merge/mrgdef.h"
+#include "../srclib/merge/mrg_def.h"
 #else
-#include "../merge/mrgdef.h"
+#include "../merge/mrg_def.h"
 #endif
 #include "ha_isammrg.h"
 
@@ -208,3 +209,4 @@ int ha_isammrg::create(const char *name, register TABLE *form,
   char buff[FN_REFLEN];
   return mrg_create(fn_format(buff,name,"","",2+4+16),0);
 }
+#endif /* HAVE_ISAM */

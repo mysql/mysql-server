@@ -9,18 +9,6 @@ a	b	c
 5	5	NULL
 8	8	8
 9	9	9
-a	b
-1	1
-5	5
-3	3
-4	4
-6	6
-a	b	c
-1	1	NULL
-5	5	NULL
-3	3	NULL
-4	4	NULL
-6	6	6
 skey	sval
 1	hello
 2	hey

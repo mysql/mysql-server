@@ -28,7 +28,8 @@
 #include <my_global.h>
 #include "m_string.h"
 
-void bchange(register char *dst, uint old_length, register const char *src, uint new_length, uint tot_length)
+void bchange(register char *dst, uint old_length, register const char *src,
+	     uint new_length, uint tot_length)
 {
   uint rest=tot_length-old_length;
   if (old_length < new_length)

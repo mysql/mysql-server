@@ -29,7 +29,7 @@ WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
 noinst_PROGRAMS =	gen_lex_hash
-gen_lex_hash_LDFLAGS =        @NOINST_LDFLAGS@
+gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
 LDADD =			../isam/libnisam.a \
 			../merge/libmerge.a \
 			../myisam/libmyisam.a \
@@ -43,7 +43,7 @@ LDADD =			../isam/libnisam.a \
 
 mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 			@bdb_libs@ @innodb_libs@ @pstack_libs@ \
-                        @gemini_libs@ \
+                        @gemini_libs@ @innodb_system_libs@ \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ @openssl_libs@
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h item_uniq.h \

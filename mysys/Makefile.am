@@ -34,7 +34,7 @@ libmysys_a_SOURCES =	my_init.c my_getwd.c mf_getdate.c\
 			my_error.c errors.c my_div.c my_messnc.c \
 			mf_format.c mf_same.c mf_dirname.c mf_fn_ext.c \
 			my_symlink.c my_symlink2.c \
-			mf_pack.c mf_pack2.c mf_unixpath.c mf_stripp.c \
+			mf_pack.c mf_unixpath.c mf_stripp.c \
 			mf_casecnv.c mf_soundex.c mf_wcomp.c mf_wfile.c \
 			mf_qsort.c mf_qsort2.c mf_sort.c \
 			ptr_cmp.c mf_radix.c queues.c \
