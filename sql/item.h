@@ -698,12 +698,13 @@ public:
 
 class Item_real :public Item_num
 {
+  char *presentation;
 public:
   double value;
   // Item_real() :value(0) {}
   Item_real(const char *str_arg, uint length) :value(my_atof(str_arg))
   {
-    name=(char*) str_arg;
+    presentation= name=(char*) str_arg;
     decimals=(uint8) nr_of_decimals(str_arg);
     max_length=length;
     fixed= 1;
@@ -711,12 +712,12 @@ public:
   Item_real(const char *str,double val_arg,uint decimal_par,uint length)
     :value(val_arg)
   {
-    name=(char*) str;
+    presentation= name=(char*) str;
     decimals=(uint8) decimal_par;
     max_length=length;
     fixed= 1;
   }
-  Item_real(double value_par) :value(value_par) { fixed= 1; }
+  Item_real(double value_par) :presentation(0), value(value_par) { fixed= 1; }
   int save_in_field(Field *field, bool no_conversions);
   enum Type type() const { return REAL_ITEM; }
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
@@ -732,6 +733,7 @@ public:
   void cleanup() {}
   Item *new_item() { return new Item_real(name,value,decimals,max_length); }
   Item_num *neg() { value= -value; return this; }
+  void print(String *str);
 };
 
 

@@ -1756,6 +1756,21 @@ int Item_real::save_in_field(Field *field, bool no_conversions)
   return field->store(nr);
 }
 
+
+void Item_real::print(String *str)
+{
+  if (presentation)
+  {
+    str->append(presentation);
+    return;
+  }
+  char buffer[20];
+  String num(buffer, sizeof(buffer), &my_charset_bin);
+  num.set(value, decimals, &my_charset_bin);
+  str->append(num);
+}
+
+
 /****************************************************************************
 ** varbinary item
 ** In string context this is a binary string
