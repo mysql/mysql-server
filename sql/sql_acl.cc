@@ -588,6 +588,11 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	      /* Prepare certificate (if exists) */
 	      DBUG_PRINT("info",("checkpoint 1"));
 	      X509* cert=SSL_get_peer_certificate(ssl);
+	      if (!cert)
+	      {
+		user_access=NO_ACCESS;
+		break;
+	      }
 	      DBUG_PRINT("info",("checkpoint 2"));
 	      /* If X509 issuer is speified, we check it... */
 	      if (acl_user->x509_issuer)
