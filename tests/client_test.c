@@ -784,15 +784,9 @@ static void test_tran_bdb()
   myquery(rc);
 
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   /* create the table 'mytran_demo' of type BDB' or 'InnoDB' */
   rc= mysql_query(mysql, "CREATE TABLE my_demo_transaction( "
                          "col1 int , col2 varchar(30)) TYPE= BDB");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   /* insert a row and commit the transaction */
@@ -863,15 +857,9 @@ static void test_tran_innodb()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS my_demo_transaction");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   /* create the table 'mytran_demo' of type BDB' or 'InnoDB' */
   rc= mysql_query(mysql, "CREATE TABLE my_demo_transaction(col1 int, "
                          "col2 varchar(30)) TYPE= InnoDB");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   /* insert a row and commit the transaction */
@@ -935,9 +923,6 @@ static void test_prepare_simple()
   myheader("test_prepare_simple");
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_prepare_simple");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   rc= mysql_query(mysql, "CREATE TABLE test_prepare_simple("
@@ -1008,9 +993,6 @@ static void test_prepare_field_result()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_prepare_field_result");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_prepare_field_result(int_c int, "
                          "var_c varchar(50), ts_c timestamp(14), "
                          "char_c char(3), date_c date, extra tinyint)");
@@ -1059,9 +1041,6 @@ static void test_prepare_syntax()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_prepare_syntax");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_prepare_syntax("
                          "id int, name varchar(50), extra int)");
   myquery(rc);
@@ -1103,9 +1082,6 @@ static void test_prepare()
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS my_prepare");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   rc= mysql_query(mysql, "CREATE TABLE my_prepare(col1 tinyint, "
@@ -1277,9 +1253,6 @@ static void test_double_compare()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_double_compare");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_double_compare(col1 tinyint, "
                          " col2 float, col3 double )");
   myquery(rc);
@@ -1356,9 +1329,6 @@ static void test_null()
   myheader("test_null");
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_null");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   rc= mysql_query(mysql, "CREATE TABLE test_null(col1 int, col2 varchar(50))");
@@ -1537,9 +1507,6 @@ static void test_fetch_null()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_fetch_null");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_fetch_null("
                          " col1 tinyint, col2 smallint, "
                          " col3 int, col4 bigint, "
@@ -1548,9 +1515,6 @@ static void test_fetch_null()
                          " col9 varbinary(10), "
                          " col10 varchar(50), "
                          " col11 char(20))");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   rc= mysql_query(mysql, "INSERT INTO test_fetch_null (col11) "
@@ -1664,16 +1628,10 @@ static void test_select_direct()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_select");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_select(id int, id1 tinyint, "
                                                  " id2 float, "
                                                  " id3 double, "
                                                  " name varchar(50))");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   /* insert a row and commit the transaction */
@@ -1710,13 +1668,7 @@ static void test_select_prepare()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_select");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_select(id int, name varchar(50))");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   /* insert a row and commit the transaction */
@@ -1738,15 +1690,9 @@ static void test_select_prepare()
   rc= mysql_query(mysql, "DROP TABLE test_select");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_select(id tinyint, id1 int, "
                                                 "  id2 float, id3 float, "
                                                 "  name varchar(50))");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   /* insert a row and commit the transaction */
@@ -1786,20 +1732,11 @@ static void test_select()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_select");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_select(id int, name varchar(50))");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   /* insert a row and commit the transaction */
   rc= mysql_query(mysql, "INSERT INTO test_select VALUES(10, 'venu')");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   /* now insert the second row, and rollback the transaction */
@@ -2276,14 +2213,8 @@ static void test_simple_update()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_update");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_update(col1 int, "
                          " col2 varchar(50), col3 int )");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   rc= mysql_query(mysql, "INSERT INTO test_update VALUES(1, 'MySQL', 100)");
@@ -2358,14 +2289,8 @@ static void test_long_data()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_long_data");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_long_data(col1 int, "
                          "      col2 long varchar, col3 long varbinary)");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   strmov(query, "INSERT INTO test_long_data(col1, col2) VALUES(?)");
@@ -2448,13 +2373,7 @@ static void test_long_data_str()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_long_data_str");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_long_data_str(id int, longstr long varchar)");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   strmov(query, "INSERT INTO test_long_data_str VALUES(?, ?)");
@@ -2544,13 +2463,7 @@ static void test_long_data_str1()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_long_data_str");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_long_data_str(longstr long varchar, blb long varbinary)");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   strmov(query, "INSERT INTO test_long_data_str VALUES(?, ?)");
@@ -2701,13 +2614,7 @@ static void test_long_data_bin()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_long_data_bin");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_long_data_bin(id int, longbin long varbinary)");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   strmov(query, "INSERT INTO test_long_data_bin VALUES(?, ?)");
@@ -2783,14 +2690,8 @@ static void test_simple_delete()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_simple_delete");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_simple_delete(col1 int, \
                                 col2 varchar(50), col3 int )");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   rc= mysql_query(mysql, "INSERT INTO test_simple_delete VALUES(1, 'MySQL', 100)");
@@ -2869,14 +2770,9 @@ static void test_update()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_update");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
-  rc= mysql_query(mysql, "CREATE TABLE test_update(col1 int primary key auto_increment, \
-                                col2 varchar(50), col3 int )");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
+  rc= mysql_query(mysql, "CREATE TABLE test_update("
+                               "col1 int primary key auto_increment, "
+                               "col2 varchar(50), col3 int )");
   myquery(rc);
 
   strmov(query, "INSERT INTO test_update(col2, col3) VALUES(?, ?)");
@@ -2966,12 +2862,9 @@ static void test_prepare_noparam()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS my_prepare");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
 
-  rc= mysql_query(mysql, "CREATE TABLE my_prepare(col1 int , col2 varchar(50))");
+  rc= mysql_query(mysql, "CREATE TABLE my_prepare(col1 int, col2 varchar(50))");
   myquery(rc);
-
 
   /* insert by prepare */
   strmov(query, "INSERT INTO my_prepare VALUES(10, 'venu')");
@@ -3019,13 +2912,7 @@ static void test_bind_result()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bind_result");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_bind_result(col1 int , col2 varchar(50))");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   rc= mysql_query(mysql, "INSERT INTO test_bind_result VALUES(10, 'venu')");
@@ -3118,22 +3005,17 @@ static void test_bind_result_ext()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bind_result");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
+  rc= mysql_query(mysql, "CREATE TABLE test_bind_result(c1 tinyint, "
+                                                      " c2 smallint, "
+                                                      " c3 int, c4 bigint, "
+                                                      " c5 float, c6 double, "
+                                                      " c7 varbinary(10), "
+                                                      " c8 varchar(50))");
   myquery(rc);
 
-  rc= mysql_query(mysql, "CREATE TABLE test_bind_result(c1 tinyint, c2 smallint, \
-                                                        c3 int, c4 bigint, \
-                                                        c5 float, c6 double, \
-                                                        c7 varbinary(10), \
-                                                        c8 varchar(50))");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
-  rc= mysql_query(mysql, "INSERT INTO test_bind_result VALUES(19, 2999, 3999, 4999999, \
-                                                              2345.6, 5678.89563, \
-                                                              'venu', 'mysql')");
+  rc= mysql_query(mysql, "INSERT INTO test_bind_result "
+                         "VALUES (19, 2999, 3999, 4999999, "
+                         " 2345.6, 5678.89563, 'venu', 'mysql')");
   myquery(rc);
 
   rc= mysql_commit(mysql);
@@ -3240,17 +3122,11 @@ static void test_bind_result_ext1()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bind_result");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_bind_result(c1 tinyint, c2 smallint, \
                                                         c3 int, c4 bigint, \
                                                         c5 float, c6 double, \
                                                         c7 varbinary(10), \
                                                         c8 varchar(10))");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   rc= mysql_query(mysql, "INSERT INTO test_bind_result VALUES(120, 2999, 3999, 54, \
@@ -3499,18 +3375,12 @@ static void test_fetch_date()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bind_result");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_bind_result(c1 date, c2 time, \
                                                         c3 timestamp(14), \
                                                         c4 year, \
                                                         c5 datetime, \
                                                         c6 timestamp(4), \
                                                         c7 timestamp(6))");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   rc= mysql_query(mysql, "INSERT INTO test_bind_result VALUES('2002-01-02', \
@@ -3626,9 +3496,6 @@ static void test_fetch_str()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bind_fetch");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_bind_fetch(c1 char(10), \
                                                      c2 char(10), \
                                                      c3 char(20), \
@@ -3636,9 +3503,6 @@ static void test_fetch_str()
                                                      c5 char(30), \
                                                      c6 char(40), \
                                                      c7 char(20))");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   bind_fetch(3);
@@ -3656,9 +3520,6 @@ static void test_fetch_long()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bind_fetch");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_bind_fetch(c1 int unsigned, \
                                                      c2 int unsigned, \
                                                      c3 int, \
@@ -3666,9 +3527,6 @@ static void test_fetch_long()
                                                      c5 int, \
                                                      c6 int unsigned, \
                                                      c7 int)");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   bind_fetch(4);
@@ -3686,9 +3544,6 @@ static void test_fetch_short()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bind_fetch");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_bind_fetch(c1 smallint unsigned, \
                                                      c2 smallint, \
                                                      c3 smallint unsigned, \
@@ -3696,9 +3551,6 @@ static void test_fetch_short()
                                                      c5 smallint, \
                                                      c6 smallint, \
                                                      c7 smallint unsigned)");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   bind_fetch(5);
@@ -3716,9 +3568,6 @@ static void test_fetch_tiny()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bind_fetch");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_bind_fetch(c1 tinyint unsigned, \
                                                      c2 tinyint, \
                                                      c3 tinyint unsigned, \
@@ -3726,9 +3575,6 @@ static void test_fetch_tiny()
                                                      c5 tinyint, \
                                                      c6 tinyint, \
                                                      c7 tinyint unsigned)");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   bind_fetch(3);
@@ -3747,9 +3593,6 @@ static void test_fetch_bigint()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bind_fetch");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_bind_fetch(c1 bigint, \
                                                      c2 bigint, \
                                                      c3 bigint unsigned, \
@@ -3757,9 +3600,6 @@ static void test_fetch_bigint()
                                                      c5 bigint unsigned, \
                                                      c6 bigint unsigned, \
                                                      c7 bigint unsigned)");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   bind_fetch(2);
@@ -3778,9 +3618,6 @@ static void test_fetch_float()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bind_fetch");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_bind_fetch(c1 float(3), \
                                                      c2 float, \
                                                      c3 float unsigned, \
@@ -3788,9 +3625,6 @@ static void test_fetch_float()
                                                      c5 float, \
                                                      c6 float, \
                                                      c7 float(10) unsigned)");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   bind_fetch(2);
@@ -3809,16 +3643,10 @@ static void test_fetch_double()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bind_fetch");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_bind_fetch(c1 double(5, 2), "
                          "c2 double unsigned, c3 double unsigned, "
                          "c4 double unsigned, c5 double unsigned, "
                          "c6 double unsigned, c7 double unsigned)");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   bind_fetch(3);
@@ -3841,9 +3669,6 @@ static void test_prepare_ext()
   myheader("test_prepare_ext");
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_prepare_ext");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   sql= (char *)"CREATE TABLE test_prepare_ext\
@@ -3963,16 +3788,10 @@ static void test_field_names()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_field_names2");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_field_names1(id int, name varchar(50))");
   myquery(rc);
 
   rc= mysql_query(mysql, "CREATE TABLE test_field_names2(id int, name varchar(50))");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   /* with table name included with TRUE column name */
@@ -4068,9 +3887,6 @@ static void test_insert()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_prep_insert");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_prep_insert(col1 tinyint, \
                                 col2 varchar(50))");
   myquery(rc);
@@ -4145,9 +3961,6 @@ static void test_prepare_resultset()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_prepare_resultset");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_prepare_resultset(id int, \
                                 name varchar(50), extra double)");
   myquery(rc);
@@ -4180,9 +3993,6 @@ static void test_field_flags()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_field_flags");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_field_flags(id int NOT NULL AUTO_INCREMENT PRIMARY KEY, \
                                                         id1 int NOT NULL, \
                                                         id2 int UNIQUE, \
@@ -4190,9 +4000,6 @@ static void test_field_flags()
                                                         id4 int NOT NULL, \
                                                         id5 int, \
                                                         KEY(id3, id4))");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   /* with table name included with TRUE column name */
@@ -4456,9 +4263,6 @@ static void test_insert_meta()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_prep_insert");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_prep_insert(col1 tinyint, \
                                 col2 varchar(50), col3 varchar(30))");
   myquery(rc);
@@ -4519,9 +4323,6 @@ static void test_update_meta()
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_prep_update");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   rc= mysql_query(mysql, "CREATE TABLE test_prep_update(col1 tinyint, \
@@ -4590,9 +4391,6 @@ static void test_select_meta()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_prep_select");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_prep_select(col1 tinyint, \
                                 col2 varchar(50), col3 varchar(30))");
   myquery(rc);
@@ -4655,9 +4453,6 @@ static void test_func_fields()
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_dateformat");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   rc= mysql_query(mysql, "CREATE TABLE test_dateformat(id int, \
@@ -5235,13 +5030,7 @@ static void test_store_result()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_store_result");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_store_result(col1 int , col2 varchar(50))");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   rc= mysql_query(mysql, "INSERT INTO test_store_result VALUES(10, 'venu'), (20, 'mysql')");
@@ -5359,13 +5148,7 @@ static void test_store_result1()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_store_result");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_store_result(col1 int , col2 varchar(50))");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   rc= mysql_query(mysql, "INSERT INTO test_store_result VALUES(10, 'venu'), (20, 'mysql')");
@@ -5423,13 +5206,7 @@ static void test_store_result2()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_store_result");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_store_result(col1 int , col2 varchar(50))");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   rc= mysql_query(mysql, "INSERT INTO test_store_result VALUES(10, 'venu'), (20, 'mysql')");
@@ -5516,16 +5293,10 @@ static void test_subselect()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_sub2");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_sub1(id int)");
   myquery(rc);
 
   rc= mysql_query(mysql, "CREATE TABLE test_sub2(id int, id1 int)");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   rc= mysql_query(mysql, "INSERT INTO test_sub1 values(2)");
@@ -5771,9 +5542,6 @@ static void test_date()
 
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   test_bind_date_conv(5);
 }
 
@@ -5794,9 +5562,6 @@ static void test_date_date()
                                                  c3 DATE, \
                                                  c4 DATE)");
 
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   test_bind_date_conv(3);
@@ -5821,9 +5586,6 @@ static void test_date_time()
 
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   test_bind_date_conv(3);
 }
 
@@ -5846,9 +5608,6 @@ static void test_date_ts()
 
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   test_bind_date_conv(2);
 }
 
@@ -5866,9 +5625,6 @@ static void test_date_dt()
 
   rc= mysql_query(mysql, "CREATE TABLE test_date(c1 datetime, "
                          " c2 datetime, c3 datetime, c4 date)");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   test_bind_date_conv(2);
@@ -5955,7 +5711,6 @@ static void test_pure_coverage()
   mysql_stmt_close(stmt);
 
   mysql_query(mysql, "DROP TABLE test_pure");
-  mysql_commit(mysql);
 }
 
 
@@ -8046,9 +7801,6 @@ static void test_sqlmode()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_piping");
   myquery(rc);
 
-  rc= mysql_commit(mysql);
-  myquery(rc);
-
   rc= mysql_query(mysql, "CREATE TABLE test_piping(name varchar(10))");
   myquery(rc);
 
@@ -8181,9 +7933,6 @@ static void test_ts()
   myquery(rc);
 
   rc= mysql_query(mysql, "CREATE TABLE test_ts(a DATE, b TIME, c TIMESTAMP)");
-  myquery(rc);
-
-  rc= mysql_commit(mysql);
   myquery(rc);
 
   stmt= mysql_simple_prepare(mysql, "INSERT INTO test_ts VALUES(?, ?, ?), (?, ?, ?)");
