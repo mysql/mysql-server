@@ -2889,7 +2889,7 @@ simple_expr:
 	| CONCAT '(' expr_list ')'
 	  { $$= new Item_func_concat(* $3); }
 	| CONCAT_WS '(' expr ',' expr_list ')'
-	  { $$= new Item_func_concat_ws($3, *$5); }
+	  { $5->push_front($3); $$= new Item_func_concat_ws(*$5); }
 	| CONVERT_TZ_SYM '(' expr ',' expr ',' expr ')'
 	  {
 	    Lex->time_zone_tables_used= &fake_time_zone_tables_list;
