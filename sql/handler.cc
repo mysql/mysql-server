@@ -55,16 +55,17 @@ const char *ha_table_type[] = {
   "MRG_ISAM","MYISAM", "MRG_MYISAM", "BDB", "INNOBASE", "GEMINI", "?", "?",NullS
 };
 
+TYPELIB ha_table_typelib= {array_elements(ha_table_type)-4,"",
+			   ha_table_type+1};
+
 const char *ha_row_type[] = {
   "", "FIXED", "DYNAMIC", "COMPRESSED","?","?","?"
 };
 
-TYPELIB ha_table_typelib= {array_elements(ha_table_type)-4,"",
-			   ha_table_type+1};
-
 const char *tx_isolation_names[] =
-{ "READ-UNCOMMITTED", "READ-COMMITTED", "REPEATABLE-READ", "SERIALIZABLE"};
-TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names),"",
+{ "READ-UNCOMMITTED", "READ-COMMITTED", "REPEATABLE-READ", "SERIALIZABLE",
+  NullS};
+TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 			       tx_isolation_names};
 
 	/* Use other database handler if databasehandler is not incompiled */

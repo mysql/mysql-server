@@ -4,6 +4,8 @@
 # -----------
 # Testing string functions
 
+drop table if exists t1;
+
 select 'hello',"'hello'",'""hello""','''h''e''l''l''o''',"hel""lo",'hel\'lo';
 select 'hello' 'monty';
 select length('\n\t\r\b\0\_\%\\');
@@ -23,6 +25,11 @@ select concat(':',trim(' m '),':',trim(BOTH FROM ' y '),':',trim('*' FROM '*s*')
 select concat(':',trim(BOTH 'ab' FROM 'ababmyabab'),':',trim(BOTH '*' FROM '***sql'),':');
 select concat(':',trim(LEADING '.*' FROM '.*my'),':',trim(TRAILING '.*' FROM 'sql.*.*'),':');
 select TRIM("foo" FROM "foo"), TRIM("foo" FROM "foook"), TRIM("foo" FROM "okfoo");
+
+select concat_ws(', ','monty','was here','again');
+select concat_ws(NULL,'a'),concat_ws(',',NULL,'');
+select concat_ws(',','',NULL,'a');
+SELECT CONCAT('"',CONCAT_WS('";"',repeat('a',60),repeat('b',60),repeat('c',60),repeat('d',100)), '"');
 
 select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
 select replace('aaaa','a','b'),replace('aaaa','aa','b'),replace('aaaa','a','bb'),replace('aaaa','','b'),replace('bbbb','a','c');
@@ -69,4 +76,27 @@ create table t1 ( domain char(50) );
 insert into t1 VALUES ("hello.de" ), ("test.de" );
 select domain from t1 where concat('@', trim(leading '.' from concat('.', domain))) = '@hello.de';
 select domain from t1 where concat('@', trim(leading '.' from concat('.', domain))) = '@test.de';
+drop table t1;
+
+#
+# Test bug in concat_ws
+#
+
+CREATE TABLE t1 (
+  id int(10) unsigned NOT NULL,
+  title varchar(255) default NULL,
+  prio int(10) unsigned default NULL,
+  category int(10) unsigned default NULL,
+  program int(10) unsigned default NULL,
+  bugdesc text,
+  created datetime default NULL,
+  modified timestamp(14) NOT NULL,
+  bugstatus int(10) unsigned default NULL,
+  submitter int(10) unsigned default NULL
+) TYPE=MyISAM;
+
+INSERT INTO t1 VALUES (1,'Link',1,1,1,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','2001-02-28 08:40:16',20010228084016,0,4);
+SELECT CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified,bugstatus,submitter), '"') FROM t1;
+SELECT CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugstatus,submitter), '"') FROM t1;
+SELECT CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified,bugstatus,submitter) FROM t1;
 drop table t1;
