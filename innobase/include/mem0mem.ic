@@ -628,20 +628,6 @@ mem_strdupq(
 }
 
 /**************************************************************************
-Duplicates a NUL-terminated string, allocated from a memory heap. */
-UNIV_INLINE
-char*
-mem_heap_strdup(
-/*============*/
-				/* out, own: a copy of the string */
-	mem_heap_t* heap,	/* in: memory heap where string is allocated */
-	const char* str)	/* in: string to be copied */
-{
-	ulint	len = strlen(str) + 1;
-	return(memcpy(mem_heap_alloc(heap, len), str, len));
-}
-
-/**************************************************************************
 Makes a NUL-terminated copy of a nonterminated string,
 allocated from a memory heap. */
 UNIV_INLINE
