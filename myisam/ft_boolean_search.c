@@ -369,6 +369,8 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
 
   if (docid == HA_POS_ERROR)
     return -2.0;
+  if (!ftb->queue.elements)
+    return 0;
   if (ftb->state == READY || ftb->state == INDEX_DONE)
   {
     for (i=1; i<=ftb->queue.elements; i++)
