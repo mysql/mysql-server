@@ -35,11 +35,13 @@
 #define EXECUTE_ACL	(1L << 18)
 #define REPL_SLAVE_ACL	(1L << 19)
 #define REPL_CLIENT_ACL	(1L << 20)
-
+#define CREATE_VIEW_ACL	(1L << 21)
+#define SHOW_VIEW_ACL	(1L << 22)
 
 #define DB_ACLS \
 (UPDATE_ACL | SELECT_ACL | INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
- GRANT_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL | LOCK_TABLES_ACL)
+ GRANT_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL | \
+ LOCK_TABLES_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL)
 
 #define TABLE_ACLS \
 (SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
@@ -53,7 +55,7 @@
  RELOAD_ACL | SHUTDOWN_ACL | PROCESS_ACL | FILE_ACL | GRANT_ACL | \
  REFERENCES_ACL | INDEX_ACL | ALTER_ACL | SHOW_DB_ACL | SUPER_ACL | \
  CREATE_TMP_ACL | LOCK_TABLES_ACL | REPL_SLAVE_ACL | REPL_CLIENT_ACL | \
- EXECUTE_ACL)
+ EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL)
 
 #define EXTRA_ACL	(1L << 29)
 #define NO_ACCESS	(1L << 30)
@@ -66,13 +68,21 @@
 /* Continius bit-segments that needs to be shifted */
 #define DB_REL1 (RELOAD_ACL | SHUTDOWN_ACL | PROCESS_ACL | FILE_ACL)
 #define DB_REL2 (GRANT_ACL | REFERENCES_ACL)
+#define DB_REL3 (INDEX_ACL | ALTER_ACL)
 
 /* Privileges that needs to be reallocated (in continous chunks) */
 #define DB_CHUNK1 (GRANT_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL)
 #define DB_CHUNK2 (CREATE_TMP_ACL | LOCK_TABLES_ACL)
+#define DB_CHUNK3 (CREATE_VIEW_ACL | SHOW_VIEW_ACL)
 
-#define fix_rights_for_db(A) (((A) & 63) | (((A) & DB_REL1) << 4) | (((A) & DB_REL2) << 6))
-#define get_rights_for_db(A) (((A) & 63) | (((A) & DB_CHUNK1) >> 4) | (((A) & DB_CHUNK2) >> 6))
+#define fix_rights_for_db(A) (((A) & 63) | \
+			      (((A) & DB_REL1) << 4) | \
+			      (((A) & DB_REL2) << 6) | \
+			      (((A) & DB_REL3) << 9))
+#define get_rights_for_db(A) (((A) & 63) | \
+			      (((A) & DB_CHUNK1) >> 4) | \
+			      (((A) & DB_CHUNK2) >> 6) | \
+			      (((A) & DB_CHUNK3) >> 9))
 #define fix_rights_for_table(A) (((A) & 63) | (((A) & ~63) << 4))
 #define get_rights_for_table(A) (((A) & 63) | (((A) & ~63) >> 4))
 #define fix_rights_for_column(A) (((A) & 7) | (((A) & ~7) << 8))
