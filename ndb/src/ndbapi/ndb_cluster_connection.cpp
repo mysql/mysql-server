@@ -31,6 +31,9 @@
 #include <mgmapi_debug.h>
 #include <md5_hash.hpp>
 
+#include <EventLogger.hpp>
+EventLogger g_eventLogger;
+
 static int g_run_connect_thread= 0;
 
 #include <NdbMutex.h>
@@ -174,7 +177,7 @@ Ndb_cluster_connection_impl::get_next_node(Ndb_cluster_connection_node_iter &ite
   return node.id;
 }
 
-Uint32
+unsigned
 Ndb_cluster_connection::no_db_nodes()
 {
   return m_impl.m_all_nodes.size();
@@ -219,16 +222,8 @@ Ndb_cluster_connection::wait_until_ready(int timeout,
     else if (foundAliveNode > 0)
     {
       noChecksSinceFirstAliveFound++;
-      if (timeout_after_first_alive >= 0)
-      {
-	if (noChecksSinceFirstAliveFound > timeout_after_first_alive)
-	  DBUG_RETURN(0);
-      }
-      else // timeout_after_first_alive < 0
-      {
-	if (noChecksSinceFirstAliveFound > -timeout_after_first_alive)
-	  DBUG_RETURN(-1);
-      }
+      if (noChecksSinceFirstAliveFound > timeout_after_first_alive)
+	DBUG_RETURN(1);
     }
     else if (secondsCounter >= timeout)
     { // no alive nodes and timed out
@@ -256,6 +251,10 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
 {
   DBUG_ENTER("Ndb_cluster_connection");
   DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%x", this));
+
+  g_eventLogger.createConsoleHandler();
+  g_eventLogger.setCategory("NdbApi");
+  g_eventLogger.enable(Logger::LL_ON, Logger::LL_ERROR);
 
   m_connect_thread= 0;
   m_connect_callback= 0;

@@ -20,6 +20,8 @@
 #include <ndb_global.h>
 #include <BaseString.hpp>
 
+#define MAX_LOG_MESSAGE_SIZE 1024
+
 class LogHandler;
 class LogHandlerList;
 
