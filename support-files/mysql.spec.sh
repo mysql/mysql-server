@@ -16,7 +16,7 @@ Summary(pt_BR): MySQL: Um servidor SQL rápido e confiável.
 Group(pt_BR):	Aplicações/Banco_de_Dados
 Version:	@MYSQL_NO_DASH_VERSION@
 Release:	%{release}
-Copyright:	GPL
+License:	GPL
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 URL:		http://www.mysql.com/
 Packager:	Lenz Grimmer <build@mysql.com>
@@ -259,10 +259,11 @@ export PATH
 # Build the 4.0 Max binary (includes BDB and UDFs and therefore
 # cannot be linked statically against the patched glibc)
 
-# If we want to compile with RAID using gcc 3, we need to use
-# gcc instead of g++ to avoid linking problems (RAID code is written in C++)
-test -z $CXX && test -z $CC && if gcc -v 2>&1 | grep 'gcc version 3' > /dev/null 2>&1
+# Use gcc for C and C++ code (to avoid a dependency on libstdc++ and
+# including exceptions into the code
+if [ -z "$CXX" -a -z "$CC" ]
 then
+	export CC="gcc"
 	export CXX="gcc"
 fi
 
@@ -576,6 +577,11 @@ fi
 # The spec file changelog only includes changes made to the spec file
 # itself
 %changelog 
+* Thu Feb 12 2004 Lenz Grimmer <lenz@mysql.com>
+
+- when using gcc, _always_ use CXX=gcc 
+- replaced Copyright with License field (Copyright is obsolete)
+
 * Tue Feb 03 2004 Lenz Grimmer <lenz@mysql.com>
 
 - added myisam_ftdump to the Server package

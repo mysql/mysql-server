@@ -496,6 +496,7 @@ SEL_ARG *SEL_ARG::clone(SEL_ARG *new_parent,SEL_ARG **next_arg)
 	return 0;				// OOM
   }
   increment_use_count(1);
+  tmp->color= color;
   return tmp;
 }
 
