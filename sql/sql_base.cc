@@ -1761,9 +1761,9 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("open_and_lock_tables");
   uint counter;
-  if (open_tables(thd, tables, &counter) || lock_tables(thd, tables, counter))
+  if (open_tables(thd, tables, &counter) || lock_tables(thd, tables, counter)
+      || mysql_handle_derived(thd->lex))
     DBUG_RETURN(thd->net.report_error ? -1 : 1); /* purecov: inspected */
-  DBUG_RETURN(mysql_handle_derived(thd->lex));
 }
 
 
