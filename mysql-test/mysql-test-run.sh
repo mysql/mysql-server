@@ -93,6 +93,7 @@ SLAVE_RUNNING=0
 SLAVE_MYPORT=9307
 NO_SLAVE=0
 
+EXTRA_MASTER_OPT=""
 EXTRA_MYSQL_TEST_OPT=""
 USE_RUNNING_SERVER=1
 DO_GCOV=""
@@ -505,49 +506,51 @@ run_testcase ()
    return
  fi
 
- if [ -f $master_opt_file ] ;
+ if [ -z "$USE_RUNNING_SERVER" ] ;
  then
-  EXTRA_MASTER_OPT=`$CAT $master_opt_file`
-  stop_master
-  start_master
- else
-  if [ ! -z "$EXTRA_MASTER_OPT" ] || [ x$MASTER_RUNNING != x1 ] ;
-  then
-    EXTRA_MASTER_OPT=""
-    stop_master
-    start_master
-  fi  
- fi
- do_slave_restart=0
+   if [ -f $master_opt_file ] ;
+   then
+     EXTRA_MASTER_OPT=`$CAT $master_opt_file`
+     stop_master
+     start_master
+   else
+     if [ ! -z "$EXTRA_MASTER_OPT" ] || [ x$MASTER_RUNNING != x1 ] ;
+     then
+       EXTRA_MASTER_OPT=""
+       stop_master
+       start_master
+     fi  
+   fi
+   do_slave_restart=0
  
- if [ -f $slave_opt_file ] ;
- then
-  EXTRA_SLAVE_OPT=`$CAT $slave_opt_file`
-  do_slave_restart=1
- else
-  if [ ! -z "$EXTRA_SLAVE_OPT" ] || [ x$SLAVE_RUNNING != x1 ] ;
-  then
-    EXTRA_SLAVE_OPT=""
-    do_slave_restart=1    
-  fi  
- fi
+   if [ -f $slave_opt_file ] ;
+   then
+     EXTRA_SLAVE_OPT=`$CAT $slave_opt_file`
+     do_slave_restart=1
+   else
+    if [ ! -z "$EXTRA_SLAVE_OPT" ] || [ x$SLAVE_RUNNING != x1 ] ;
+    then
+      EXTRA_SLAVE_OPT=""
+      do_slave_restart=1    
+    fi  
+   fi
 
- if [ -f $slave_master_info_file ] ; then
-   SLAVE_MASTER_INFO=`$CAT $slave_master_info_file`
-   do_slave_restart=1
- else
-  if [ ! -z "$SLAVE_MASTER_INFO" ] || [ x$SLAVE_RUNNING != x1 ] ;
-  then
-    SLAVE_MASTER_INFO=""
-    do_slave_restart=1    
-  fi  
- fi
+   if [ -f $slave_master_info_file ] ; then
+     SLAVE_MASTER_INFO=`$CAT $slave_master_info_file`
+     do_slave_restart=1
+   else
+     if [ ! -z "$SLAVE_MASTER_INFO" ] || [ x$SLAVE_RUNNING != x1 ] ;
+     then
+       SLAVE_MASTER_INFO=""
+       do_slave_restart=1    
+     fi  
+   fi
 
- if [ x$do_slave_restart = x1 ] ; then
-  stop_slave
-  start_slave
+   if [ x$do_slave_restart = x1 ] ; then
+     stop_slave
+     start_slave
+   fi
  fi
-
  cd $MYSQL_TEST_DIR
   
  if [ -f $tf ] ; then
