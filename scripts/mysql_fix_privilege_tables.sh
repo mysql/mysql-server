@@ -155,7 +155,7 @@ s_echo ""
 if test $verbose = 1
 then
   s_echo "You can safely ignore all 'Duplicate column' and 'Unknown column' errors"
-  s_echo "as this just means that your tables are already up to date."
+  s_echo "because these just mean that your tables are already up to date."
   s_echo "This script is safe to run even if your tables are already up to date!"
   s_echo ""
 fi
