@@ -212,6 +212,7 @@ Installing MySQL
 * Installation layouts::        Installation layouts
 * Installing binary::           Installing a @strong{MySQL} binary distribution
 * Installing source::           Installing a @strong{MySQL} source distribution
+* Installing source tree::      Installing @strong{MySQL} from development source tree
 * Compilation problems::        Problems compiling?
 * MIT-pthreads::                MIT-pthreads notes
 * Perl support::                Perl installation comments
@@ -3621,6 +3622,7 @@ encounter per year, but we are always very flexible towards our customers!
 * Installation layouts::        Installation layouts
 * Installing binary::           Installing a @strong{MySQL} binary distribution
 * Installing source::           Installing a @strong{MySQL} source distribution
+* Installing source tree::      Installing @strong{MySQL} from development source tree
 * Compilation problems::        Problems compiling?
 * MIT-pthreads::                MIT-pthreads notes
 * Perl support::                Perl installation comments
@@ -3644,7 +3646,9 @@ To see which platforms are supported, see @ref{Which OS}.
 
 @item
 Several versions of @strong{MySQL} are available in both binary and
-source distributions.  To determine which version and type of
+source distributions. We also provide public access to our current
+ source tree for those who want to see our most recent developments and
+help us test new code. To determine which version and type of
 distribution you should use, see @ref{Many versions}.
 
 @item
@@ -5142,7 +5146,7 @@ To install the HP-UX tar.gz distribution, you must have a copy of GNU
 @cindex installing, source distribution
 @cindex source distribtuion, installing
 @cindex installation overview
-@node Installing source, Compilation problems, Installing binary, Installing
+@node Installing source, Installing source tree, Installing binary, Installing
 @section Installing a MySQL Source Distribution
 
 You need the following tools to build and install @strong{MySQL} from source:
@@ -5558,12 +5562,77 @@ system-specific sections later in this chapter.
 @xref{Source install system issues}.
 @end itemize
 
+@node Installing source tree, Compilation problems, Installing source, Installing
+@section Installing from development source tree
+
+@strong{CAUTION:} You should only read this section if you are 
+interested in helping us test our new code. If you just want to get
+@strong{MySQL} up and running on your system, you should use either
+source or binary distribution.
+
+Below are the instructions to obtain our most recent development 
+source tree:
+
+@itemize
+@item
+Download @strong{BitKeeper} from @uref{http://www.bitmover.com/cgi-bin/download.cgi}
+@item
+Follow the instructions to install it
+@item
+Once @strong{BitKeeper} is installed, 
+@code{bk clone bk://work.mysql.com:7000 mysql} - the initial download
+may take a while, depending on the speed of your connection
+@item 
+@code{cd mysql; bk -r edit; aclocal; autoheader; autoconf; 
+ automake; ./configure} with your favorite options, and then 
+@code{ make}  
+ - you will need GNU autoconf/automake, libtool, and m4 to do this.
+. We have a
+collection of our standard configure scripts in the @code{BUILD/} 
+subdirectory - if you are lazy, you can do 
+@code{BUILD/compile-pentium-debug} . It will actually work on a lot of
+none-x86 machines despite its name.
+@item
+Once the build is done, @code{make install}. Be careful with this on
+a production machine - this may overwrite your live release binary. We
+recommend that if you have another installation of @strong{MySQL} that
+you @code{./configure} with different values for @code{basedir}, 
+@code{datadir}, @code{bindir}, @code{sbindir},  @code{libexecdir}, 
+@code{tcp-port}, and @code{unix-socket-path}
+@item
+Play hard with your new installation and try to make the new feature
+crash. Report bugs to @email{bugs@@lists.mysql.com}. As always, make
+sure you have a full test case for the bug that we can run.
+@item
+If you have gotten to the @code{make} stage and it does not compile, 
+please report it to @email{bugs@@lists.mysql.com}. If you have 
+installed the update version of the required GNU tools, and they crash
+trying to process our configuration files, please report it also. However,
+if you execute @code{aclocal} and get @code{command not found}, or a
+similar problem, do not report it - make sure all the needed tools are
+installed and your @code{PATH} variable is set correctly.  
+@item
+After the initial @code{bk clone}, do @code{bk pull} to get the updates
+@item
+You can examine change history to the tree with all the cool diffs with
+@code{bk sccstool}. If you see some funny diffs or code that you have a 
+question about, do not hesitate and e-mail 
+@email{internals@@lists.mysql.com}. Also if you think you have a 
+better idea on how to do something, send an email to the same place 
+with a patch - @code{bk diffs} with produce a patch for you after you
+have made changes to the source. If you do not have the time to code
+your idea, just send a description.
+@item
+@strong{BitKeeper} has a nice help utility - @code{bk helptool}
+
+@end itemize  
+
 @cindex compiling, problems
 @cindex problems, compiling
 @cindex reconfiguring
 @cindex @code{config.cache} file
 @cindex files, @code{config.cache}
-@node Compilation problems, MIT-pthreads, Installing source, Installing
+@node Compilation problems, MIT-pthreads, Installing source tree, Installing
 @section Problems Compiling?
 
 All @strong{MySQL} programs compile cleanly for us with no warnings on
