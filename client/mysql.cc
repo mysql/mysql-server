@@ -2154,7 +2154,7 @@ print_table_data_xml(MYSQL_RES *result)
     for (uint i=0; i < mysql_num_fields(result); i++)
     {
       tee_fprintf(PAGER, "\t<field name=\"");
-      xmlencode_print(fields[i].name, strlen(fields[i].name));
+      xmlencode_print(fields[i].name, (uint)strlen(fields[i].name));
       tee_fprintf(PAGER, "\">");
       xmlencode_print(cur[i], lengths[i]);
       tee_fprintf(PAGER, "</field>\n");
