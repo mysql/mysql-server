@@ -227,6 +227,7 @@ const char* Log_event::get_type_str()
   case DELETE_FILE_EVENT: return "Delete_file";
   case EXEC_LOAD_EVENT: return "Exec_load";
   case RAND_EVENT: return "RAND";
+  case USER_VAR_EVENT: return "User var";
   default: /* impossible */ return "Unknown";
   }
 }
@@ -592,6 +593,9 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len,
     break;
   case RAND_EVENT:
     ev = new Rand_log_event(buf, old_format);
+    break;
+  case USER_VAR_EVENT:
+    ev = new User_var_log_event(buf, old_format);
     break;
   default:
     break;
@@ -1894,6 +1898,242 @@ int Rand_log_event::exec_event(struct st_relay_log_info* rli)
 }
 #endif // !MYSQL_CLIENT
 
+/*****************************************************************************
+ *****************************************************************************
+
+                          User_var_log_event methods
+
+ *****************************************************************************
+ ****************************************************************************/
+
+/*****************************************************************************
+
+  User_var_log_event::pack_info()
+
+ ****************************************************************************/
+#ifndef MYSQL_CLIENT
+void User_var_log_event::pack_info(Protocol* protocol)
+{
+  char *buf= 0;
+  uint val_offset= 2 + name_len;
+  uint event_len= val_offset;
+
+  if (is_null)
+  {
+    buf= my_malloc(val_offset + 5, MYF(MY_WME));
+    strmov(buf + val_offset, "NULL");
+    event_len= val_offset + 4;
+  }
+  else
+  {
+    switch (type) {
+    case REAL_RESULT:
+      double real_val;
+      float8get(real_val, val);
+      buf= my_malloc(val_offset + FLOATING_POINT_BUFFER, MYF(MY_WME));
+      event_len += my_sprintf(buf + val_offset,
+			      (buf + val_offset, "%.14g", real_val));
+      break;
+    case INT_RESULT:
+      buf= my_malloc(val_offset + 22, MYF(MY_WME));
+      event_len= longlong10_to_str(uint8korr(val), buf + val_offset,-10)-buf;
+      break;
+    case STRING_RESULT:
+      /*
+	This is correct as pack_info is used for SHOW BINLOG command
+	only. But be carefull this is may be incorrect in other cases as
+	string may contain \ and '.
+      */
+      buf= my_malloc(val_offset + 2 + val_len, MYF(MY_WME));
+      buf[val_offset]= '\'';
+      memcpy(buf + val_offset + 1, val, val_len);
+      buf[val_offset + val_len]= '\'';
+      event_len= val_offset + 1 + val_len;
+      break;
+    case ROW_RESULT:
+      DBUG_ASSERT(1);
+      return;
+    }
+  }
+  buf[0]= '@';
+  buf[1+name_len]= '=';
+  memcpy(buf+1, name, name_len);
+  protocol->store(buf, event_len);
+  my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
+}
+#endif // !MYSQL_CLIENT
+/*****************************************************************************
+
+  User_var_log_event::User_var_log_event()
+
+ ****************************************************************************/
+User_var_log_event::User_var_log_event(const char* buf, bool old_format)
+  :Log_event(buf, old_format)
+{
+  buf+= (old_format) ? OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN;
+  name_len= uint4korr(buf);
+  name= (char *) buf + UV_NAME_LEN_SIZE;
+  is_null= buf[UV_NAME_LEN_SIZE + name_len];
+  if (is_null)
+  {
+    type= STRING_RESULT;
+    val_len= 0;
+    val= 0;  
+  }
+  else
+  {
+    type= (Item_result) buf[UV_VAL_IS_NULL + UV_NAME_LEN_SIZE + name_len];
+    charset_number= uint4korr(buf + UV_NAME_LEN_SIZE  + name_len +
+			      UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE);
+    val_len= uint4korr(buf + UV_NAME_LEN_SIZE  + name_len +
+		       UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE + 
+		       UV_CHARSET_NUMBER_SIZE);
+    val= (char *) buf + UV_NAME_LEN_SIZE + name_len + UV_VAL_IS_NULL +
+      UV_VAL_TYPE_SIZE + UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE;
+  }
+}
+
+/*****************************************************************************
+
+  User_var_log_event::write_data()
+
+ ****************************************************************************/
+int User_var_log_event::write_data(IO_CACHE* file)
+{
+  char buf[UV_NAME_LEN_SIZE];
+  char buf1[UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE + 
+	    UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE];
+  char buf2[8];
+  char *pos= buf2;
+  int4store(buf, name_len);
+  buf1[0]= is_null;
+  if (!is_null)
+  {
+    buf1[1]= type;
+    int4store(buf1 + 2, charset_number);
+    int4store(buf1 + 2 + UV_CHARSET_NUMBER_SIZE, val_len);
+
+    switch (type) {
+    case REAL_RESULT:
+      float8store(buf2, *(double*) val);
+      break;
+    case INT_RESULT:
+      int8store(buf2, *(longlong*) val);
+      break;
+    case STRING_RESULT:
+      pos= val;
+      break;
+    case ROW_RESULT:
+      DBUG_ASSERT(1);
+      return 0;
+    }
+    return (my_b_safe_write(file, (byte*) buf, sizeof(buf))   ||
+	    my_b_safe_write(file, (byte*) name, name_len)     ||
+	    my_b_safe_write(file, (byte*) buf1, sizeof(buf1)) ||
+	    my_b_safe_write(file, (byte*) pos, val_len));
+  }
+
+  return (my_b_safe_write(file, (byte*) buf, sizeof(buf))   ||
+          my_b_safe_write(file, (byte*) name, name_len)     ||
+	  my_b_safe_write(file, (byte*) buf1, 1));
+}
+
+/*****************************************************************************
+
+  User_var_log_event::print()
+
+ ****************************************************************************/
+#ifdef MYSQL_CLIENT
+void User_var_log_event::print(FILE* file, bool short_form, char* last_db)
+{
+  if (!short_form)
+  {
+    print_header(file);
+    fprintf(file, "\tUser_var\n");
+  }
+
+  fprintf(file, "SET @");
+  my_fwrite(file, (byte*) name, (uint) (name_len), MYF(MY_NABP | MY_WME));
+
+  if (is_null)
+  {
+    fprintf(file, ":=NULL;\n");
+  }
+  else
+  {
+    switch (type) {
+    case REAL_RESULT:
+      double real_val;
+      float8get(real_val, val);
+      fprintf(file, ":=%.14g;\n", real_val);
+      break;
+    case INT_RESULT:
+      char int_buf[22];
+      longlong10_to_str(uint8korr(val), int_buf, -10);
+      fprintf(file, ":=%s;\n", int_buf);
+      break;
+    case STRING_RESULT:
+      fprintf(file, ":='%s';\n", val);
+      break;
+    case ROW_RESULT:
+      DBUG_ASSERT(1);
+      return;
+    }
+  }
+  fflush(file);
+}
+#endif
+
+/*****************************************************************************
+
+  User_var_log_event::exec_event()
+
+ ****************************************************************************/
+#ifndef MYSQL_CLIENT
+int User_var_log_event::exec_event(struct st_relay_log_info* rli)
+{
+  Item *it= 0;
+  CHARSET_INFO *charset= log_cs;
+  LEX_STRING user_var_name;
+  user_var_name.str= name;
+  user_var_name.length= name_len;
+
+  if (type != ROW_RESULT)
+    init_sql_alloc(&thd->mem_root, 8192,0);
+
+  if (is_null)
+  {
+    it= new Item_null();
+  }
+  else
+  {
+    switch (type) {
+    case REAL_RESULT:
+      double real_val;
+      float8get(real_val, val);
+      it= new Item_real(real_val);
+      break;
+    case INT_RESULT:
+      it= new Item_int((longlong) uint8korr(val));
+      break;
+    case STRING_RESULT:
+      it= new Item_string(val, val_len, charset);
+      break;
+    case ROW_RESULT:
+      DBUG_ASSERT(1);
+      return 0;
+    }
+    charset= get_charset(charset_number, MYF(0));
+  }
+  Item_func_set_user_var e(user_var_name, it);
+  e.fix_fields(thd, 0, 0);
+  e.update_hash(val, val_len, type, charset);
+  free_root(&thd->mem_root,0);
+
+  rli->inc_pending(get_event_len());
+  return 0;
+}
+#endif // !MYSQL_CLIENT
 
 /*****************************************************************************
  *****************************************************************************

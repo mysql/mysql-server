@@ -173,6 +173,14 @@ struct sql_ex_info
 #define RAND_SEED1_OFFSET 0
 #define RAND_SEED2_OFFSET 8
 
+/* User_var event post-header */
+
+#define UV_VAL_LEN_SIZE        4
+#define UV_VAL_IS_NULL         1
+#define UV_VAL_TYPE_SIZE       1
+#define UV_NAME_LEN_SIZE       4
+#define UV_CHARSET_NUMBER_SIZE 4
+
 /* Load event post-header */
 
 #define L_THREAD_ID_OFFSET   0
@@ -222,7 +230,7 @@ enum Log_event_type
   START_EVENT = 1, QUERY_EVENT =2, STOP_EVENT=3, ROTATE_EVENT = 4,
   INTVAR_EVENT=5, LOAD_EVENT=6, SLAVE_EVENT=7, CREATE_FILE_EVENT=8,
   APPEND_BLOCK_EVENT=9, EXEC_LOAD_EVENT=10, DELETE_FILE_EVENT=11,
-  NEW_LOAD_EVENT=12, RAND_EVENT=13
+  NEW_LOAD_EVENT=12, RAND_EVENT=13, USER_VAR_EVENT=14
 };
 
 enum Int_event_type
@@ -590,6 +598,46 @@ class Rand_log_event: public Log_event
   bool is_valid() { return 1; }
 };
 
+/*****************************************************************************
+
+  User var Log Event class
+
+ ****************************************************************************/
+class User_var_log_event: public Log_event
+{
+public:
+  char *name;
+  uint name_len;
+  char *val;
+  ulong val_len;
+  Item_result type;
+  uint charset_number;
+  byte is_null;
+#ifndef MYSQL_CLIENT
+  User_var_log_event(THD* thd_arg, char *name_arg, uint name_len_arg,
+                     char *val_arg, ulong val_len_arg, Item_result type_arg,
+		     uint charset_number_arg)
+    :Log_event(), name(name_arg), name_len(name_len_arg), val(val_arg),
+    val_len(val_len_arg), type(type_arg), charset_number(charset_number_arg)
+    { is_null= !val; }
+  void pack_info(Protocol* protocol);
+  int exec_event(struct st_relay_log_info* rli);
+#else
+  void print(FILE* file, bool short_form = 0, char* last_db = 0);
+#endif
+
+  User_var_log_event(const char* buf, bool old_format);
+  ~User_var_log_event() {}
+  Log_event_type get_type_code() { return USER_VAR_EVENT;}
+  int get_data_size()
+    {
+      return (is_null ? UV_NAME_LEN_SIZE + name_len + UV_VAL_IS_NULL :
+	UV_NAME_LEN_SIZE + name_len + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
+	UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE + val_len);
+    }
+  int write_data(IO_CACHE* file);
+  bool is_valid() { return 1; }
+};
 
 /*****************************************************************************
 

@@ -1,0 +1,78 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+stop slave;
+reset master;
+drop table if exists t1;
+create table t1(n char(30));
+set @i1:=12345678901234, @i2:=-12345678901234, @i3:=0, @i4:=-1;
+set @s1:='This is a test', @r1:=12.5, @r2:=-12.5;
+set @n1:=null;
+set @s2:='', @s3:='abc\'def', @s4:= 'abc\\def', @s5:= 'abc''def';
+insert into t1 values (@i1), (@i2), (@i3), (@i4);
+insert into t1 values (@r1), (@r2);
+insert into t1 values (@s1), (@s2), (@s3), (@s4), (@s5);
+insert into t1 values (@n1);
+insert into t1 values (@n2);
+insert into t1 values (@a:=0), (@a:=@a+1), (@a:=@a+1);
+insert into t1 values (@a+(@b:=@a+1));
+set @q:='abc';
+insert t1 values (@q), (@q:=concat(@q, 'n1')), (@q:=concat(@q, 'n2'));
+set @a:=5;
+insert into t1 values (@a),(@a);
+start slave;
+select * from t1;
+n
+12345678901234
+-12345678901234
+0
+-1
+12.5
+-12.5
+This is a test
+
+abc'def
+abc\def
+abc'def
+NULL
+NULL
+0
+1
+2
+5
+abc
+abcn1
+abcn1n2
+5
+5
+show binlog events from 141;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+slave-bin.000001	141	User var	2	141	@i1=12345678901234
+slave-bin.000001	184	User var	2	184	@i2=-12345678901234
+slave-bin.000001	227	User var	2	227	@i3=0
+slave-bin.000001	270	User var	2	270	@i4=-1
+slave-bin.000001	313	Query	1	313	use `test`; insert into t1 values (@i1), (@i2), (@i3), (@i4)
+slave-bin.000001	396	User var	2	396	@r1=12.5
+slave-bin.000001	439	User var	2	439	@r2=-12.5
+slave-bin.000001	482	Query	1	482	use `test`; insert into t1 values (@r1), (@r2)
+slave-bin.000001	551	User var	2	551	@s1='This is a test'
+slave-bin.000001	601	User var	2	601	@s2=''
+slave-bin.000001	637	User var	2	637	@s3='abc'def'
+slave-bin.000001	680	User var	2	680	@s4='abc\def'
+slave-bin.000001	723	User var	2	723	@s5='abc'def'
+slave-bin.000001	766	Query	1	766	use `test`; insert into t1 values (@s1), (@s2), (@s3), (@s4), (@s5)
+slave-bin.000001	856	User var	2	856	@n1=NULL
+slave-bin.000001	882	Query	1	882	use `test`; insert into t1 values (@n1)
+slave-bin.000001	944	Query	1	944	use `test`; insert into t1 values (@n2)
+slave-bin.000001	1006	Query	1	1006	use `test`; insert into t1 values (@a:=0), (@a:=@a+1), (@a:=@a+1)
+slave-bin.000001	1094	User var	2	1094	@a='2'
+slave-bin.000001	1130	Query	1	1130	use `test`; insert into t1 values (@a+(@b:=@a+1))
+slave-bin.000001	1202	User var	2	1202	@q='abc'
+slave-bin.000001	1240	Query	1	1240	use `test`; insert t1 values (@q), (@q:=concat(@q, 'n1')), (@q:=concat(@q, 'n2'))
+slave-bin.000001	1344	User var	2	1344	@a=5
+slave-bin.000001	1386	Query	1	1386	use `test`; insert into t1 values (@a),(@a)
+drop table t1;
+stop slave;
