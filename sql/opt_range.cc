@@ -299,9 +299,6 @@ static SEL_TREE * get_mm_parts(PARAM *param,Field *field,
 			       Item_result cmp_type);
 static SEL_ARG *get_mm_leaf(PARAM *param,Field *field,KEY_PART *key_part,
 			    Item_func::Functype type,Item *value);
-static bool like_range(const char *ptr,uint length,char wild_prefix,
-		       uint field_length, char *min_str,char *max_str,
-		       char max_sort_char,uint *min_length,uint *max_length);
 static SEL_TREE *get_mm_tree(PARAM *param,COND *cond);
 static ha_rows check_quick_select(PARAM *param,uint index,SEL_ARG *key_tree);
 static ha_rows check_quick_keys(PARAM *param,uint index,SEL_ARG *key_tree,
@@ -970,27 +967,14 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
     max_str=min_str+length;
     if (maybe_null)
       max_str[0]= min_str[0]=0;
-    if (field->binary())
-      like_error=like_range(res->ptr(),res->length(),wild_prefix,field_length,
-			    min_str+offset,max_str+offset,(char) 255,
-			    &min_length,&max_length);
-    else
-    {
-      CHARSET_INFO *charset=field->charset();
-#ifdef USE_STRCOLL
-      if (use_strnxfrm(charset))
-        like_error= my_like_range(charset,
-                                  res->ptr(),res->length(),wild_prefix,
-                                  field_length, min_str+maybe_null,
-                                  max_str+maybe_null,&min_length,&max_length);
-      else
-#endif
-        like_error=like_range(res->ptr(),res->length(),wild_prefix,
-			      field_length,
-                              min_str+offset,max_str+offset,
-                              charset->max_sort_char,
-                              &min_length,&max_length);
-    }
+
+    like_error= my_like_range(field->charset(),
+                                  res->ptr(),res->length(),
+				  wild_prefix,wild_one,wild_many,
+                                  field_length, 
+				  min_str+offset, max_str+offset,
+				  &min_length,&max_length);
+
     if (like_error)				// Can't optimize with LIKE
       DBUG_RETURN(0);
     if (offset != maybe_null)			// Blob
@@ -1116,69 +1100,6 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
     break;
   }
   DBUG_RETURN(tree);
-}
-
-
-/*
-** Calculate min_str and max_str that ranges a LIKE string.
-** Arguments:
-** ptr		Pointer to LIKE string.
-** ptr_length	Length of LIKE string.
-** escape	Escape character in LIKE.  (Normally '\').
-**		All escape characters should be removed from min_str and max_str
-** res_length	Length of min_str and max_str.
-** min_str	Smallest case sensitive string that ranges LIKE.
-**		Should be space padded to res_length.
-** max_str	Largest case sensitive string that ranges LIKE.
-**		Normally padded with the biggest character sort value.
-**
-** The function should return 0 if ok and 1 if the LIKE string can't be
-** optimized !
-*/
-
-static bool like_range(const char *ptr,uint ptr_length,char escape,
-		       uint res_length, char *min_str,char *max_str,
-		       char max_sort_chr, uint *min_length, uint *max_length)
-{
-  const char *end=ptr+ptr_length;
-  char *min_org=min_str;
-  char *min_end=min_str+res_length;
-
-  for (; ptr != end && min_str != min_end ; ptr++)
-  {
-    if (*ptr == escape && ptr+1 != end)
-    {
-      ptr++;					// Skip escape
-      *min_str++= *max_str++ = *ptr;
-      continue;
-    }
-    if (*ptr == wild_one)			// '_' in SQL
-    {
-      *min_str++='\0';				// This should be min char
-      *max_str++=max_sort_chr;
-      continue;
-    }
-    if (*ptr == wild_many)			// '%' in SQL
-    {
-      *min_length= (uint) (min_str - min_org);
-      *max_length=res_length;
-      do {
-	*min_str++ = ' ';			// Because if key compression
-	*max_str++ = max_sort_chr;
-      } while (min_str != min_end);
-      return 0;
-    }
-    *min_str++= *max_str++ = *ptr;
-  }
-  *min_length= *max_length = (uint) (min_str - min_org);
-
-  /* Temporary fix for handling wild_one at end of string (key compression) */
-  for (char *tmp= min_str ; tmp > min_org && tmp[-1] == '\0';)
-    *--tmp=' ';
-
-  while (min_str != min_end)
-    *min_str++ = *max_str++ = ' ';		// Because if key compression
-  return 0;
 }
 
 

@@ -638,9 +638,10 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
     {
       TABLE_RULE_ENT* e ;
       get_dynamic(a, (gptr)&e, i);
-      if (!wild_case_compare(system_charset_info, key, key_end, 
+      if (!my_wildcmp(system_charset_info, key, key_end, 
                             (const char*)e->db,
-			    (const char*)(e->db + e->key_len),'\\'))
+			    (const char*)(e->db + e->key_len),
+			    '\\',wild_one,wild_many))
 	return e;
     }
   

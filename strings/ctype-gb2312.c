@@ -5698,8 +5698,9 @@ CHARSET_INFO my_charset_gb2312 =
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
-    2,			/* mbmaxlen */
+    my_like_range_simple,/* like_range */
+    my_wildcmp_mb,	/* wildcmp    */
+    2,			/* mbmaxlen   */
     ismbchar_gb2312,
     ismbhead_gb2312,
     mbcharlen_gb2312,

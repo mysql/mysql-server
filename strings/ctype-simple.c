@@ -18,7 +18,6 @@
 #include "my_sys.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "dbug.h"
 #include "stdarg.h"
 #include "assert.h"
 
@@ -273,4 +272,167 @@ double      my_strtod_8bit(CHARSET_INFO *cs __attribute__((unused)),
 			   const char *s, char **e)
 {
   return strtod(s,e);
+}
+
+
+/*
+** Compare string against string with wildcard
+**	0 if matched
+**	-1 if not matched with wildcard
+**	 1 if matched with wildcard
+*/
+
+#ifdef LIKE_CMP_TOUPPER
+#define likeconv(s,A) (uchar) my_toupper(s,A)
+#else
+#define likeconv(s,A) (uchar) (s)->sort_order[(uchar) (A)]
+#endif
+
+#define INC_PTR(cs,A,B) A++
+
+
+int my_wildcmp_8bit(CHARSET_INFO *cs,
+		    const char *str,const char *str_end,
+		    const char *wildstr,const char *wildend,
+		    int escape, int w_one, int w_many)
+{
+  int result= -1;				// Not found, using wildcards
+
+  while (wildstr != wildend)
+  {
+    while (*wildstr != w_many && *wildstr != w_one)
+    {
+      if (*wildstr == escape && wildstr+1 != wildend)
+	wildstr++;
+
+      if (str == str_end || likeconv(cs,*wildstr++) != likeconv(cs,*str++))
+	return(1);				// No match
+      if (wildstr == wildend)
+	return (str != str_end);		// Match if both are at end
+      result=1;					// Found an anchor char
+    }
+    if (*wildstr == w_one)
+    {
+      do
+      {
+	if (str == str_end)			// Skip one char if possible
+	  return (result);
+	INC_PTR(cs,str,str_end);
+      } while (++wildstr < wildend && *wildstr == w_one);
+      if (wildstr == wildend)
+	break;
+    }
+    if (*wildstr == w_many)
+    {						// Found w_many
+      uchar cmp;
+      
+      wildstr++;
+      /* Remove any '%' and '_' from the wild search string */
+      for (; wildstr != wildend ; wildstr++)
+      {
+	if (*wildstr == w_many)
+	  continue;
+	if (*wildstr == w_one)
+	{
+	  if (str == str_end)
+	    return (-1);
+	  INC_PTR(cs,str,str_end);
+	  continue;
+	}
+	break;					// Not a wild character
+      }
+      if (wildstr == wildend)
+	return(0);				// Ok if w_many is last
+      if (str == str_end)
+	return -1;
+      
+      if ((cmp= *wildstr) == escape && wildstr+1 != wildend)
+	cmp= *++wildstr;
+
+      INC_PTR(cs,wildstr,wildend);		// This is compared trough cmp
+      cmp=likeconv(cs,cmp);   
+      do
+      {
+          while (str != str_end && likeconv(cs,*str) != cmp)
+            str++;
+          if (str++ == str_end) return (-1);
+	{
+	  int tmp=my_wildcmp_8bit(cs,str,str_end,wildstr,wildend,escape,w_one,w_many);
+	  if (tmp <= 0)
+	    return (tmp);
+	}
+      } while (str != str_end && wildstr[0] != w_many);
+      return(-1);
+    }
+  }
+  return (str != str_end ? 1 : 0);
+}
+
+
+/*
+** Calculate min_str and max_str that ranges a LIKE string.
+** Arguments:
+** ptr		Pointer to LIKE string.
+** ptr_length	Length of LIKE string.
+** escape	Escape character in LIKE.  (Normally '\').
+**		All escape characters should be removed from min_str and max_str
+** res_length	Length of min_str and max_str.
+** min_str	Smallest case sensitive string that ranges LIKE.
+**		Should be space padded to res_length.
+** max_str	Largest case sensitive string that ranges LIKE.
+**		Normally padded with the biggest character sort value.
+**
+** The function should return 0 if ok and 1 if the LIKE string can't be
+** optimized !
+*/
+
+my_bool my_like_range_simple(CHARSET_INFO *cs,
+				const char *ptr,uint ptr_length,
+				int escape, int w_one, int w_many,
+				uint res_length,
+				char *min_str,char *max_str,
+				uint *min_length,uint *max_length)
+{
+  const char *end=ptr+ptr_length;
+  char *min_org=min_str;
+  char *min_end=min_str+res_length;
+
+  for (; ptr != end && min_str != min_end ; ptr++)
+  {
+    if (*ptr == escape && ptr+1 != end)
+    {
+      ptr++;					// Skip escape
+      *min_str++= *max_str++ = *ptr;
+      continue;
+    }
+    if (*ptr == w_one)				// '_' in SQL
+    {
+      *min_str++='\0';				// This should be min char
+      *max_str++=cs->max_sort_char;
+      continue;
+    }
+    if (*ptr == w_many)				// '%' in SQL
+    {
+      *min_length= (uint) (min_str - min_org);
+      *max_length=res_length;
+      do {
+	*min_str++ = ' ';			// Because if key compression
+	*max_str++ = cs->max_sort_char;
+      } while (min_str != min_end);
+      return 0;
+    }
+    *min_str++= *max_str++ = *ptr;
+  }
+  *min_length= *max_length = (uint) (min_str - min_org);
+
+  /* Temporary fix for handling w_one at end of string (key compression) */
+  {
+    char *tmp;
+    for (tmp= min_str ; tmp > min_org && tmp[-1] == '\0';)
+      *--tmp=' ';
+  }
+
+  while (min_str != min_end)
+    *min_str++ = *max_str++ = ' ';		// Because if key compression
+  return 0;
 }
