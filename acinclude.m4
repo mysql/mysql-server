@@ -126,12 +126,19 @@ AC_DEFUN(MYSQL_CHECK_ZLIB_WITH_COMPRESS, [
 save_LIBS="$LIBS"
 LIBS="-l$1 $LIBS"
 AC_CACHE_CHECK([if libz with compress], mysql_cv_compress,
-[AC_TRY_LINK([#include <zlib.h>
+[AC_TRY_RUN([#include <zlib.h>
 #ifdef __cplusplus
 extern "C"
 #endif
-],
-[ return compress(0, (unsigned long*) 0, "", 0);
+int main(int argv, char **argc)
+{
+  return 0;
+}
+
+int link_test()
+{
+  return compress(0, (unsigned long*) 0, "", 0);
+}
 ], mysql_cv_compress=yes, mysql_cv_compress=no)])
 if test "$mysql_cv_compress" = "yes"
 then
