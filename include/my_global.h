@@ -313,6 +313,13 @@ C_MODE_END
 #include <crypt.h>
 #endif
 
+/*
+  A lot of our programs uses asserts, so better to always include it
+  This also fixes a problem when people uses DBUG_ASSERT without including
+  assert.h
+*/
+#include <assert.h>
+
 /* Go around some bugs in different OS and compilers */
 #if defined(_HPUX_SOURCE) && defined(HAVE_SYS_STREAM_H)
 #include <sys/stream.h>		/* HPUX 10.20 defines ulong here. UGLY !!! */
@@ -1020,22 +1027,22 @@ do { doubleget_union _tmp; \
 				    32))
 #define int2store(T,A)       do { uint def_temp= (uint) (A) ;\
                                   *((uchar*) (T))=  (uchar)(def_temp); \
-                                   *((uchar*) (T+1))=(uchar)((def_temp >> 8)); \
+                                   *((uchar*) (T)+1)=(uchar)((def_temp >> 8)); \
                              } while(0)
 #define int3store(T,A)       do { /*lint -save -e734 */\
                                   *((uchar*)(T))=(uchar) ((A));\
                                   *((uchar*) (T)+1)=(uchar) (((A) >> 8));\
                                   *((uchar*)(T)+2)=(uchar) (((A) >> 16)); \
                                   /*lint -restore */} while(0)
-#define int4store(T,A)       do { *(T)=(char) ((A));\
-                                  *((T)+1)=(char) (((A) >> 8));\
-                                  *((T)+2)=(char) (((A) >> 16));\
-                                  *((T)+3)=(char) (((A) >> 24)); } while(0)
-#define int5store(T,A)       do { *(T)=((A));\
-                                  *((T)+1)=(((A) >> 8));\
-                                  *((T)+2)=(((A) >> 16));\
-                                  *((T)+3)=(((A) >> 24)); \
-                                  *((T)+4)=(((A) >> 32)); } while(0)
+#define int4store(T,A)       do { *((char *)(T))=(char) ((A));\
+                                  *(((char *)(T))+1)=(char) (((A) >> 8));\
+                                  *(((char *)(T))+2)=(char) (((A) >> 16));\
+                                  *(((char *)(T))+3)=(char) (((A) >> 24)); } while(0)
+#define int5store(T,A)       do { *((char *)(T))=((A));\
+                                  *(((char *)(T))+1)=(((A) >> 8));\
+                                  *(((char *)(T))+2)=(((A) >> 16));\
+                                  *(((char *)(T))+3)=(((A) >> 24)); \
+                                  *(((char *)(T))+4)=(((A) >> 32)); } while(0)
 #define int8store(T,A)       do { uint def_temp= (uint) (A), def_temp2= (uint) ((A) >> 32); \
                                   int4store((T),def_temp); \
                                   int4store((T+4),def_temp2); } while(0)
