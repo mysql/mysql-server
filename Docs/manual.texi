@@ -24702,7 +24702,7 @@ The meanings of the configuration parameters are the following:
 
 @multitable @columnfractions .30 .70
 @item @code{innodb_data_home_dir} @tab 
-The common part of the directory path for all innobase data files.
+The common part of the directory path for all InnoDB data files.
 @item @code{innodb_data_file_path} @tab 
 Paths to individual data files and their sizes. The full directory path
 to each data file is acquired by concatenating innodb_data_home_dir to
@@ -45727,6 +45727,8 @@ not yet 100% confident in this code.
 @node News-3.23.40, News-3.23.39, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.40
 @itemize @bullet
+@item
+Fixed problem with @code{--low-priority-updates} and @code{INSERT}'s.
 @item
 Added @code{slave_wait_timeout} for replication.
 @item
