@@ -1217,7 +1217,9 @@ row_mysql_lock_data_dictionary(
 /*===========================*/
 	trx_t*	trx)	/* in: transaction */
 {
-	ut_a(trx->dict_operation_lock_mode == 0);
+	ut_ad(trx->dict_operation_lock_mode == 0); /* This is allowed to fail
+					       in a rename #sql... to
+					       rsql... */
 	
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks or lock waits can occur then in these operations */
@@ -1236,7 +1238,9 @@ row_mysql_unlock_data_dictionary(
 /*=============================*/
 	trx_t*	trx)	/* in: transaction */
 {
-	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
+	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH); /* This is allowed
+					       to fail in a rename #sql... to
+					       rsql... */
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
@@ -2190,6 +2194,9 @@ row_rename_table_for_mysql(
 	mem_heap_t*	heap			= NULL;
 	char**		constraints_to_drop	= NULL;
 	ulint		n_constraints_to_drop	= 0;
+        ibool           recovering_temp_table   = FALSE;
+        ulint           namelen;
+        ulint           keywordlen;
 	ulint		len;
 	ulint		i;
 	char		buf[10000];
@@ -2226,10 +2233,23 @@ row_rename_table_for_mysql(
 	trx->op_info = (char *) "renaming table";
 	trx_start_if_not_started(trx);
 
+        namelen = ut_strlen(new_name);
+
+        keywordlen = ut_strlen("_recover_innodb_tmp_table");
+
+        if (namelen >= keywordlen
+                    && 0 == ut_memcmp(new_name + namelen - keywordlen,
+                     (char*)"_recover_innodb_tmp_table", keywordlen)) {
+
+                recovering_temp_table = TRUE;
+        }
+
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
-	row_mysql_lock_data_dictionary(trx);
+	if (!recovering_temp_table) {		
+		row_mysql_lock_data_dictionary(trx);
+	}
 
 	table = dict_table_get_low(old_name);
 
@@ -2396,8 +2416,10 @@ row_rename_table_for_mysql(
 			}
 		}
 	}
-funct_exit:	
-	row_mysql_unlock_data_dictionary(trx);
+funct_exit:
+	if (!recovering_temp_table) {		
+		row_mysql_unlock_data_dictionary(trx);
+	}
 
 	if (graph) {
 		que_graph_free(graph);
