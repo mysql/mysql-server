@@ -39,3 +39,12 @@ Unknown table 'T1' in field list
 select count(bags.a) from t1 as Bags;
 Unknown table 'bags' in field list
 drop table t1;
+create database foo;
+use foo;
+create table t1 (a int);
+select FOO.t1.* from FOO.t1;
+a
+alter table t1 rename to T1;
+select FOO.t1.* from FOO.t1;
+a
+drop database FOO;
