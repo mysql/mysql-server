@@ -1629,7 +1629,7 @@ mysql_execute_command(void)
 #else
     {
       ulong priv=0;
-      if (lex->name && strlen(lex->name) > NAME_LEN)
+      if (lex->name && (!lex->name[0] || strlen(lex->name) > NAME_LEN))
       {
 	net_printf(&thd->net,ER_WRONG_TABLE_NAME,lex->name);
 	res=0;
