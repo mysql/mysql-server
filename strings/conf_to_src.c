@@ -25,13 +25,10 @@
 #include <m_ctype.h>
 #include <my_xml.h>
 
-#define CHARSETS_SUBDIR "sql/share/charsets"
-#define CTYPE_TABLE_SIZE      257
-#define TO_LOWER_TABLE_SIZE   256
-#define TO_UPPER_TABLE_SIZE   256
-#define SORT_ORDER_TABLE_SIZE 256
 
-#define MAX_BUF	16*1024
+#define ROW_LEN		16
+#define ROW16_LEN	8
+#define MAX_BUF		16*1024
 
 static CHARSET_INFO all_charsets[256];
 
@@ -45,11 +42,29 @@ print_array(FILE *f, const char *set, const char *name, uchar *a, int n)
   
   for (i=0 ;i<n ; i++)
   {
-    fprintf(f,"0x%02X%s%s",a[i], (i+1<n) ? "," :"", i % 16 ? "" : "\n");
+    fprintf(f,"0x%02X",a[i]);
+    fprintf(f, (i+1<n) ? "," :"" );
+    fprintf(f, ((i+1) % ROW_LEN == n % ROW_LEN) ? "\n" : "" );
   }
   fprintf(f,"};\n\n");
 }
 
+
+void
+print_array16(FILE *f, const char *set, const char *name, uint16 *a, int n)
+{
+  int i;
+
+  fprintf(f,"uchar %s_%s[] = {\n", name, set);
+  
+  for (i=0 ;i<n ; i++)
+  {
+    fprintf(f,"0x%04X",a[i]);
+    fprintf(f, (i+1<n) ? "," :"" );
+    fprintf(f, ((i+1) % ROW16_LEN == n % ROW16_LEN) ? "\n" : "" );
+  }
+  fprintf(f,"};\n\n");
+}
 
 
 static int get_charset_number(const char *charset_name)
@@ -261,10 +276,13 @@ main(int argc, char **argv  __attribute__((unused)))
   {
     if (simple_cs_is_full(cs))
     {
-      print_array(f, cs->name, "ctype",      cs->ctype,      CTYPE_TABLE_SIZE);
-      print_array(f, cs->name, "to_lower",   cs->to_lower,   TO_LOWER_TABLE_SIZE);
-      print_array(f, cs->name, "to_upper",   cs->to_upper,   TO_UPPER_TABLE_SIZE);
-      print_array(f, cs->name, "sort_order", cs->sort_order, SORT_ORDER_TABLE_SIZE);
+      fprintf(f,"#ifdef HAVE_CHARSET_%s\n",cs->csname);
+      print_array(f, cs->name, "ctype",      cs->ctype,      MY_CS_CTYPE_TABLE_SIZE);
+      print_array(f, cs->name, "to_lower",   cs->to_lower,   MY_CS_TO_LOWER_TABLE_SIZE);
+      print_array(f, cs->name, "to_upper",   cs->to_upper,   MY_CS_TO_UPPER_TABLE_SIZE);
+      print_array(f, cs->name, "sort_order", cs->sort_order, MY_CS_SORT_ORDER_TABLE_SIZE);
+      print_array16(f, cs->name, "to_uni",     cs->tab_to_uni, MY_CS_TO_UNI_TABLE_SIZE);
+      fprintf(f,"#endif\n");
       fprintf(f,"\n");
     }
   }

@@ -2256,9 +2256,6 @@ then
   AC_DEFINE(USE_MB_IDENT)
 fi
 
-# Temporary hack for USE_STRCOLL
-AC_DEFINE(USE_STRCOLL)
-
 AC_SUBST(default_charset)
 AC_DEFINE_UNQUOTED(DEFAULT_CHARSET_NAME,"$default_charset")
 

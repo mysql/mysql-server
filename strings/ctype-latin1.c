@@ -19,7 +19,7 @@
 #include "m_ctype.h"
 
 
-static uint16 latin1_uni[256]={
+static my_wc_t latin1_uni[256]={
      0,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,
 0x0008,0x0009,0x000A,0x000B,0x000C,0x000D,0x000E,0x000F,
 0x0010,0x0011,0x0012,0x0013,0x0014,0x0015,0x0016,0x0017,
@@ -71,12 +71,6 @@ static uchar uni_latin1[]={
 0xD0,0xD1,0xD2,0xD3,0xD4,0xD5,0xD6,0xD7,0xD8,0xD9,0xDA,0xDB,0xDC,0xDD,0xDE,0xDF,
 0xE0,0xE1,0xE2,0xE3,0xE4,0xE5,0xE6,0xE7,0xE8,0xE9,0xEA,0xEB,0xEC,0xED,0xEE,0xEF,
 0xF0,0xF1,0xF2,0xF3,0xF4,0xF5,0xF6,0xF7,0xF8,0xF9,0xFA,0xFB,0xFC,0xFD,0xFE,0xFF};
-
-static MY_UNI_IDX idx_uni_latin1[]={
-  {0x0000,0x00FF,uni_latin1},
-  {0,0,NULL}
-};
-
 
 static uchar ctype_latin1[] = {
     0,
@@ -156,6 +150,31 @@ static uchar sort_order_latin1[] = {
 };
 
 
+static
+int my_mb_wc_latin1(CHARSET_INFO *cs __attribute__((unused)),
+		  my_wc_t *wc,
+		  const unsigned char *str,
+		  const unsigned char *end)
+{
+  if (str >= end)
+    return MY_CS_TOOFEW(0);
+  
+  return ((wc[0]= latin1_uni[*str]) || (!str[0])) ? 1 : MY_CS_ILSEQ;
+}
+
+static
+int my_wc_mb_latin1(CHARSET_INFO *cs __attribute__((unused)),
+		  my_wc_t wc,
+		  unsigned char *str,
+		  unsigned char *end)
+{
+  if (str >= end)
+    return MY_CS_TOOSMALL;
+  
+  return ((wc < 256) && ((str[0]=uni_latin1[wc]) || (!wc))) ? 1 : MY_CS_ILUNI;
+}
+
+
 CHARSET_INFO my_charset_latin1 =
 {
     8,			/* number    */
@@ -167,8 +186,8 @@ CHARSET_INFO my_charset_latin1 =
     to_lower_latin1,
     to_upper_latin1,
     sort_order_latin1,
-    latin1_uni,		/* tab_to_uni   */
-    idx_uni_latin1,	/* tab_from_uni */
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
     2,			/* strxfrm_multiply */
     my_strnncoll_simple,
     my_strnxfrm_simple,
@@ -178,8 +197,8 @@ CHARSET_INFO my_charset_latin1 =
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
-    my_mb_wc_8bit,	/* mb_wc     */
-    my_wc_mb_8bit,	/* wc_mb     */
+    my_mb_wc_latin1,	/* mb_wc     */
+    my_wc_mb_latin1,	/* wc_mb     */
     my_caseup_str_8bit,
     my_casedn_str_8bit,
     my_caseup_8bit,
