@@ -201,9 +201,11 @@ class Item_param :public Item
 public:    
   longlong int_value;
   double   real_value;
+  TIME     ltime;
   enum Item_result item_result_type;
   enum Type item_type;
   enum enum_field_types buffer_type;
+  bool item_is_time;
   my_bool long_data_supplied;
 
   Item_param(char *name_par=0)
@@ -212,6 +214,7 @@ public:
     long_data_supplied= false;
     item_type= STRING_ITEM;
     item_result_type = STRING_RESULT;
+    item_is_time= false;
   }
   enum Type type() const { return item_type; }
   double val();
@@ -226,6 +229,8 @@ public:
   void set_long_binary(const char *str, ulong length);
   void set_longdata(const char *str, ulong length);
   void set_long_end();
+  void set_time(TIME *tm, timestamp_type type);
+  bool get_time(TIME *tm);
   void reset() {}
   void (*setup_param_func)(Item_param *param, uchar **pos);
   enum Item_result result_type () const

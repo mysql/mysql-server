@@ -347,6 +347,25 @@ void Item_param::set_value(const char *str, uint length)
 }
 
 
+void Item_param::set_time(TIME *tm, timestamp_type type)
+{ 
+  ltime.year= tm->year;
+  ltime.month= tm->month;
+  ltime.day= tm->day;
+  
+  ltime.hour= tm->hour;
+  ltime.minute= tm->minute;
+  ltime.second= tm->second; 
+
+  ltime.second_part= tm->second_part;
+
+  ltime.time_type= type;
+  
+  item_is_time= true;
+  item_type= STRING_ITEM;
+}
+
+
 void Item_param::set_longdata(const char *str, ulong length)
 {  
   str_value.append(str,length);
@@ -369,11 +388,21 @@ int Item_param::save_in_field(Field *field, bool no_conversions)
   {
     double nr=val();    
     return (field->store(nr)) ? -1 : 0; 
+  }  
+  if (item_is_time)
+  {
+    field->store_time(&ltime, ltime.time_type);
+    return 0;
   }
   String *result=val_str(&str_value);
   return (field->store(result->ptr(),result->length(),field->charset())) ? -1 : 0;
 }
 
+bool Item_param::get_time(TIME *res)
+{
+  *res=ltime;
+  return 0;
+}
 
 double Item_param::val() 
 {
