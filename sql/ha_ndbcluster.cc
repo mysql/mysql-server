@@ -3948,8 +3948,8 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
   while ((file_name=it2++))
   {  
     DBUG_PRINT("info", ("Table %s need discovery", name));
-    ha_create_table_from_engine(thd, db, file_name, true);    
-    files->push_back(thd->strdup(file_name)); 
+    if (ha_create_table_from_engine(thd, db, file_name, true) == 0)
+      files->push_back(thd->strdup(file_name)); 
   }
 
   pthread_mutex_unlock(&LOCK_open);      
