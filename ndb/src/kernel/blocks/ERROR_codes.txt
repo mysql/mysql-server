@@ -3,7 +3,7 @@ Next NDBCNTR 1000
 Next NDBFS 2000
 Next DBACC 3001
 Next DBTUP 4007
-Next DBLQH 5031
+Next DBLQH 5036
 Next DBDICT 6003
 Next DBDIH 7173
 Next DBTC 8035
@@ -187,6 +187,10 @@ Delay execution of ABORTREQ signal 2 seconds to generate time-out.
 5032: lqhKeyRef, ZTEMPORARY_REDO_LOG_FAILURE
 5033: lqhKeyRef, ZTAIL_PROBLEM_IN_LOG_ERROR
 
+5034: Don't pop scan queue
+
+5035: Delay ACC_CONTOPCONT
+
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------
 8040:
@@ -262,6 +266,7 @@ ABORT OF TCKEYREQ
 CMVMI
 -----
 9000 Set RestartOnErrorInsert to restart -n
+9998 Enter endless loop (trigger watchdog)
 9999 Crash system immediatly
 
 Test Crashes in handling node restarts

@@ -60,6 +60,11 @@ public:
   void add(Ptr<T> &);
 
   /**
+   * Remove from list 
+   */
+  void remove(Ptr<T> &);
+
+  /**
    * Return an object to pool
    */
   void release(Uint32 i);
@@ -241,14 +246,11 @@ DLFifoList<T>::release(Uint32 i){
   p.p = thePool.getPtr(i);
   release(p);
 }
-  
-/**
- * Return an object to pool
- */
+
 template <class T>
 inline
 void 
-DLFifoList<T>::release(Ptr<T> & p){
+DLFifoList<T>::remove(Ptr<T> & p){
   T * t = p.p;
   Uint32 ni = t->nextList;
   Uint32 pi = t->prevList;
@@ -268,6 +270,16 @@ DLFifoList<T>::release(Ptr<T> & p){
     // We are releasing first
     head.firstItem = ni;
   }
+}
+  
+/**
+ * Return an object to pool
+ */
+template <class T>
+inline
+void 
+DLFifoList<T>::release(Ptr<T> & p){
+  remove(p);
   thePool.release(p.i);
 }  
 

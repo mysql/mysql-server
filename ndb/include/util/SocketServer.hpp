@@ -62,8 +62,7 @@ public:
      * To manage threads self, just return NULL
      */
     virtual Session * newSession(NDB_SOCKET_TYPE theSock) = 0;
-
-    virtual void stopSessions() {}
+    virtual void stopSessions(){}
   };
   
   /**

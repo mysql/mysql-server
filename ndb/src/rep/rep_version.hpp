@@ -25,6 +25,8 @@
 
 #define DBUG
 
+#include <ndb_version.h>
+
 extern "C"
 void 
 DBUG_PRINT(const char * fmt, ...);
@@ -52,7 +54,7 @@ extern int replogEnabled;
 /**
  * Used for config id
  */
-#define REP_VERSION_ID 0
+#define REP_VERSION_ID NDB_VERSION
 
 #define MAX_NODE_GROUPS 6
 

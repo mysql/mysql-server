@@ -2635,7 +2635,7 @@ void Dbdict::execINCL_NODEREQ(Signal* signal)
   c_noNodesFailed--;
 
   c_nodes.getPtr(nodePtr);
-  ndbrequire(nodePtr.p->nodeState = NodeRecord::NDB_NODE_DEAD);
+  ndbrequire(nodePtr.p->nodeState == NodeRecord::NDB_NODE_DEAD);
   nodePtr.p->nodeState = NodeRecord::NDB_NODE_ALIVE;
   signal->theData[0] = reference();
   sendSignal(retRef, GSN_INCL_NODECONF, signal, 1, JBB);

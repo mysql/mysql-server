@@ -948,7 +948,6 @@ SimulatedBlock::FragmentInfo::FragmentInfo(Uint32 fragId, Uint32 sender){
   m_sectionPtrI[0] = RNIL; 
   m_sectionPtrI[1] = RNIL;
   m_sectionPtrI[2] = RNIL;
-  m_sectionPtrI[3] = RNIL;
 }
 
 SimulatedBlock::FragmentSendInfo::FragmentSendInfo()
