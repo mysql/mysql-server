@@ -655,12 +655,20 @@ CommandInterpreter::executeShow(char* parameters)
       mgm_nodes= 0;
 
     for(i=0; i < state->no_of_nodes; i++) {
+      if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_NDB &&
+	 state->node_states[i].version != 0){
+	master_id= state->node_states[i].dynamic_id;
+	break;
+      }
+    }
+    
+    for(i=0; i < state->no_of_nodes; i++) {
       switch(state->node_states[i].node_type) {
       case NDB_MGM_NODE_TYPE_API:
 	api_nodes++;
 	break;
       case NDB_MGM_NODE_TYPE_NDB:
-	if (state->node_states[i].dynamic_id > master_id)
+	if (state->node_states[i].dynamic_id < master_id)
 	  master_id= state->node_states[i].dynamic_id;
 	ndb_nodes++;
 	break;

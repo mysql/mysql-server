@@ -23,11 +23,14 @@
 #include <ieeefp.h>
 #endif
 
-#define CHECK_KEYS
+#define CHECK_KEYS                              /* Enable safety checks */
 
-#define FIX_LENGTH if (length > char_length) \
-                     char_length= my_charpos(cs, pos, pos+length, char_length); \
-                   set_if_smaller(char_length,length); \
+#define FIX_LENGTH(cs, pos, length, char_length)                            \
+            do {                                                            \
+              if (length > char_length)                                     \
+                char_length= my_charpos(cs, pos, pos+length, char_length);  \
+              set_if_smaller(char_length,length);                           \
+            } while(0)
 
 static int _mi_put_key_in_record(MI_INFO *info,uint keynr,byte *record);
 
@@ -45,7 +48,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
   my_bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
   DBUG_ENTER("_mi_make_key");
 
-  if(info->s->keyinfo[keynr].flag & HA_SPATIAL)
+  if (info->s->keyinfo[keynr].flag & HA_SPATIAL)
   {
     /*
       TODO: nulls processing
@@ -75,7 +78,8 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       *key++=1;					/* Not NULL */
     }
 
-    char_length= (!is_ft && cs && cs->mbmaxlen > 1) ? length/cs->mbmaxlen : length;
+    char_length= ((!is_ft && cs && cs->mbmaxlen > 1) ? length/cs->mbmaxlen :
+                  length);
 
     pos= (byte*) record+keyseg->start;
     if (keyseg->flag & HA_SPACE_PACK)
@@ -92,7 +96,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
 	  pos++;
       }
       length=(uint) (end-pos);
-      FIX_LENGTH;
+      FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
       memcpy((byte*) key,(byte*) pos,(size_t) char_length);
       key+=char_length;
@@ -103,7 +107,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       uint tmp_length=uint2korr(pos);
       pos+=2;					/* Skip VARCHAR length */
       set_if_smaller(length,tmp_length);
-      FIX_LENGTH;
+      FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
       memcpy((byte*) key,(byte*) pos,(size_t) char_length);
       key+= char_length;
@@ -114,7 +118,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       uint tmp_length=_mi_calc_blob_length(keyseg->bit_start,pos);
       memcpy_fixed((byte*) &pos,pos+keyseg->bit_start,sizeof(char*));
       set_if_smaller(length,tmp_length);
-      FIX_LENGTH;
+      FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
       memcpy((byte*) key,(byte*) pos,(size_t) char_length);
       key+= char_length;
@@ -154,10 +158,10 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       }
       continue;
     }
-    FIX_LENGTH;
+    FIX_LENGTH(cs, pos, length, char_length);
     memcpy((byte*) key, pos, char_length);
     if (length > char_length)
-      bfill(key+char_length, length-char_length, ' ');
+      cs->cset->fill(cs, key+char_length, length-char_length, ' ');
     key+= length;
   }
   _mi_dpointer(info,key,filepos);
@@ -234,7 +238,7 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
       }
       k_length-=length;
       length=(uint) (end-pos);
-      FIX_LENGTH;
+      FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
       memcpy((byte*) key,pos,(size_t) char_length);
       key+= char_length;
@@ -247,7 +251,7 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
       k_length-= 2+length;
       pos+=2;
       set_if_smaller(length,tmp_length);	/* Safety */
-      FIX_LENGTH;
+      FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
       old+=2;					/* Skip length */
       memcpy((byte*) key, pos,(size_t) char_length);
@@ -264,10 +268,10 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
       }
       continue;
     }
-    FIX_LENGTH;
+    FIX_LENGTH(cs, pos, length, char_length);
     memcpy((byte*) key, pos, char_length);
     if (length > char_length)
-      bfill(key+char_length, length-char_length, ' ');
+      cs->cset->fill(cs,key+char_length, length-char_length, ' ');
     key+= length;
     k_length-=length;
   }

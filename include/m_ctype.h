@@ -149,6 +149,7 @@ typedef struct my_charset_handler_st
   uint    (*well_formed_len)(struct charset_info_st *,
   			   const char *b,const char *e, uint nchars);
   uint    (*lengthsp)(struct charset_info_st *, const char *ptr, uint length);
+  uint    (*numcells)(struct charset_info_st *, const char *b, const char *e);
   
   /* Unicode convertion */
   int (*mb_wc)(struct charset_info_st *cs,my_wc_t *wc,
@@ -325,6 +326,7 @@ int my_wildcmp_8bit(CHARSET_INFO *,
 		    int escape, int w_one, int w_many);
 
 uint my_numchars_8bit(CHARSET_INFO *, const char *b, const char *e);
+uint my_numcells_8bit(CHARSET_INFO *, const char *b, const char *e);
 uint my_charpos_8bit(CHARSET_INFO *, const char *b, const char *e, uint pos);
 uint my_well_formed_len_8bit(CHARSET_INFO *, const char *b, const char *e, uint pos);
 int my_mbcharlen_8bit(CHARSET_INFO *, uint c);
@@ -342,6 +344,7 @@ int my_wildcmp_mb(CHARSET_INFO *,
 		  const char *wildstr,const char *wildend,
 		  int escape, int w_one, int w_many);
 uint my_numchars_mb(CHARSET_INFO *, const char *b, const char *e);
+uint my_numcells_mb(CHARSET_INFO *, const char *b, const char *e);
 uint my_charpos_mb(CHARSET_INFO *, const char *b, const char *e, uint pos);
 uint my_well_formed_len_mb(CHARSET_INFO *, const char *b, const char *e, uint pos);
 uint my_instr_mb(struct charset_info_st *,

@@ -32,7 +32,7 @@ NdbConfig_AllocHomePath(int _len)
   len+= path_len;
   buf= malloc(len);
   if (path_len > 0)
-    snprintf(buf, len, "%s%c", path, DIR_SEPARATOR);
+    snprintf(buf, len, "%s%s", path, DIR_SEPARATOR);
   else
     buf[0]= 0;
 

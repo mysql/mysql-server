@@ -20,6 +20,7 @@
 
 #include <my_global.h>
 #include <m_string.h>
+#include <my_sys.h>
 #include <my_getopt.h>
 #include <signal.h>
 #include <errno.h>
@@ -66,7 +67,7 @@ int main(int argc, char *argv[])
 
   progname= argv[0];
 
-  if (handle_options(&argc, &argv, my_long_options, get_one_option))
+  if (handle_options(&argc, &argv, my_long_options, get_one_option, NULL))
     exit(-1);
   if (!argv[0] || !argv[1] || (pid= atoi(argv[0])) <= 0 ||
       (t= atoi(argv[1])) <= 0)

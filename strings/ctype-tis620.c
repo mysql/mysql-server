@@ -930,6 +930,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_charpos_8bit,
     my_well_formed_len_8bit,
     my_lengthsp_8bit,
+    my_numcells_8bit,
     my_mb_wc_tis620,	/* mb_wc     */
     my_wc_mb_tis620,	/* wc_mb     */
     my_caseup_str_8bit,

@@ -1,4 +1,4 @@
-/*	$NetBSD: tokenizer.h,v 1.4 2000/09/04 22:06:33 lukem Exp $	*/
+/*	$NetBSD: tokenizer.h,v 1.5 2002/03/18 16:01:00 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
