@@ -342,6 +342,12 @@ TODO list:
 #define DUMP(C)
 #endif
 
+#ifdef FN_NO_CASE_SENCE
+#define DB_NAME_PREPROCESS(C) tolower(C)
+#else
+#define DB_NAME_PREPROCESS(C) (C)
+#endif
+
 const char *query_cache_type_names[]= { "OFF", "ON", "DEMAND",NullS };
 TYPELIB query_cache_type_typelib=
 {
@@ -1378,11 +1384,11 @@ ulong Query_cache::init_cache()
 
   VOID(hash_init(&queries,def_query_hash_size, 0, 0,
 		 query_cache_query_get_key, 0, 0));
-#ifndef __WIN__
+#ifndef FN_NO_CASE_SENCE
   VOID(hash_init(&tables,def_table_hash_size, 0, 0,
 		 query_cache_table_get_key, 0, 0));
 #else
-  // windows case insensitive file names work around
+  // windows, OS/2 or other case insensitive file names work around
   VOID(hash_init(&tables,def_table_hash_size, 0, 0,
 		 query_cache_table_get_key, 0,
 		 (lower_case_table_names?0:HASH_CASE_INSENSITIVE)));  
@@ -2432,7 +2438,7 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 			lex->select->options,
 			(int) thd->variables.query_cache_type));
 
-    for (; tables_used; tables_used=tables_used->next)
+    for (; tables_used; tables_used= tables_used->next)
     {
       tables++;
       DBUG_PRINT("qcache", ("table %s, db %s, type %u",
@@ -2442,10 +2448,16 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 			  tables_used->table->file->has_transactions());
 
       if (tables_used->table->db_type == DB_TYPE_MRG_ISAM ||
-	  tables_used->table->tmp_table != NO_TMP_TABLE)
+	  tables_used->table->tmp_table != NO_TMP_TABLE ||
+	  (tables_used->db_length == 5 && 
+	   DB_NAME_PREPROCESS(tables_used->db[0])=='m' &&
+	   DB_NAME_PREPROCESS(tables_used->db[1])=='y' &&
+	   DB_NAME_PREPROCESS(tables_used->db[2])=='s' &&
+	   DB_NAME_PREPROCESS(tables_used->db[3])=='q' &&
+	   DB_NAME_PREPROCESS(tables_used->db[4])=='l'))
       {
 	DBUG_PRINT("qcache", 
-		   ("select not cacheable: used MRG_ISAM or temporary table(s)"));
+		   ("select not cacheable: used MRG_ISAM, temporary or system table(s)"));
 	DBUG_RETURN(0);
       }
       if (tables_used->table->db_type == DB_TYPE_MRG_MYISAM)
