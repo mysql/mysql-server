@@ -296,8 +296,8 @@ Windows Notes
 * Windows and SSH::             Connecting to a remote @strong{MySQL} from Windows with SSH
 * Windows symbolic links::      Splitting data across different disks under Win32
 * Windows compiling::           Compiling MySQL clients on Windows.
-* Windows and BDB tables.::     
-* Windows vs UNIX::             @strong{MySQL}-Windows compared to UNIX @strong{MySQL}
+* Windows and BDB tables.::     Windows and BDB Tables
+* Windows vs Unix::             @strong{MySQL}-Windows compared to UNIX @strong{MySQL}
 
 Post-installation Setup and Testing
 
@@ -7798,7 +7798,7 @@ is also described in the @file{README} file that comes with the
 * Windows and SSH::             Connecting to a remote @strong{MySQL} from Windows with SSH
 * Windows symbolic links::      Splitting data across different disks under Win32
 * Windows compiling::           Compiling MySQL clients on Windows.
-* Windows and BDB tables.::     
+* Windows and BDB tables.::     Windows and BDB Tables
 * Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
 @end menu
 
@@ -18263,8 +18263,7 @@ operations reuse old record positions. To reclaim unused space and reduce
 file sizes, use the @code{OPTIMIZE TABLE} statement or the @code{myisamchk}
 utility to reorganize tables.  @code{OPTIMIZE TABLE} is easier, but
 @code{myisamchk} is faster.
-@xref{OPTIMIZE TABLE, , @code{OPTIMIZE TABLE}} and
-@ref{Optimization}.
+@xref{OPTIMIZE TABLE, , @code{OPTIMIZE TABLE}}. @ref{Optimization}.
 
 The @strong{MySQL}-specific @code{LIMIT rows} option to @code{DELETE} tells
 the server the maximum number of rows to be deleted before control is
