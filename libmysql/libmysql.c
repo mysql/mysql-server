@@ -486,7 +486,8 @@ simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
   if (net_write_command(net,(uchar) command,arg,
 			length ? length : (ulong) strlen(arg)))
   {
-    DBUG_PRINT("error",("Can't send command to server. Error: %d",socket_errno));
+    DBUG_PRINT("error",("Can't send command to server. Error: %d",
+			socket_errno));
     if (net->last_errno == ER_NET_PACKET_TOO_LARGE)
     {
       net->last_errno=CR_NET_PACKET_TOO_LARGE;
