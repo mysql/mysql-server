@@ -27,14 +27,13 @@
 int mi_rnext_same(MI_INFO *info, byte *buf)
 {
   int error;
-  uint inx,flag,not_used;
+  uint inx,not_used;
   MI_KEYDEF *keyinfo;
   DBUG_ENTER("mi_rnext_same");
 
   if ((int) (inx=info->lastinx) < 0 || info->lastpos == HA_OFFSET_ERROR)
     DBUG_RETURN(my_errno=HA_ERR_WRONG_INDEX);
   keyinfo=info->s->keyinfo+inx;
-  flag=SEARCH_BIGGER;				/* Read next */
   if (fast_mi_readinfo(info))
     DBUG_RETURN(my_errno);
 
@@ -44,7 +43,7 @@ int mi_rnext_same(MI_INFO *info, byte *buf)
   for (;;)
   {
     if ((error=_mi_search_next(info,keyinfo,info->lastkey,
-			       info->lastkey_length,flag,
+			       info->lastkey_length,SEARCH_BIGGER,
 			       info->s->state.key_root[inx])))
       break;
     if (_mi_key_cmp(keyinfo->seg,info->lastkey2,info->lastkey,
