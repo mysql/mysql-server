@@ -1317,7 +1317,8 @@ void Item_func_trim::fix_length_and_dec()
     remove.set_ascii(" ",1);
   }
   else
-  if (collation.set(args[1]->collation, args[0]->collation))
+  if (collation.set(args[1]->collation, args[0]->collation) ||
+      collation.derivation == DERIVATION_NONE)
   {
     my_coll_agg_error(args[1]->collation, args[0]->collation, func_name());
   }

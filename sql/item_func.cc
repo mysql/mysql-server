@@ -921,14 +921,9 @@ void Item_func_min_max::fix_length_and_dec()
     if (!args[i]->maybe_null)
       maybe_null=0;
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
-    if (i==0)
-      collation.set(args[0]->collation);
-    if (collation.aggregate(args[i]->collation))
-    {
-      my_coll_agg_error(collation, args[i]->collation, func_name());
-      break;
-    }
   }
+  if (cmp_type == STRING_RESULT)
+    agg_arg_collations_for_comparison(collation, args, arg_count);
 }
 
 
@@ -1103,8 +1098,7 @@ longlong Item_func_coercibility::val_int()
 void Item_func_locate::fix_length_and_dec()
 {
   maybe_null=0; max_length=11;
-  if (cmp_collation.set(args[0]->collation, args[1]->collation))
-    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+  agg_arg_collations_for_comparison(cmp_collation, args, 2);
 }
 
 longlong Item_func_locate::val_int()
@@ -1310,8 +1304,7 @@ void Item_func_find_in_set::fix_length_and_dec()
       }
     }
   }
-  if (cmp_collation.set(args[0]->collation, args[1]->collation))
-    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+  agg_arg_collations_for_comparison(cmp_collation, args, 2);
 }
 
 static const char separator=',';
