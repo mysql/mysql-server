@@ -31258,8 +31258,8 @@ stored into a temporary table) is calculated in MySQL Version
 @item expr2 or expr3 returns an integer @tab integer
 @end multitable
 
-If expr2 and expr3 are strings, then the result is case-sensitive if
-both strings are case-sensitive. (Starting from 3.23.51)
+If expr2 and expr3 are strings, then the result is case-insensitive if
+both strings are case-insensitive. (Starting from 3.23.51)
 
 @findex CASE
 @item CASE value WHEN [compare-value] THEN result [WHEN [compare-value] THEN result ...] [ELSE result] END
@@ -33246,8 +33246,14 @@ anything; just use the string value as it would be a number:
 
 @example
 mysql> SELECT 1+'1';
-        -> 2
+       -> 2
 @end example
+
+If you use a number in string context the number will automaticly be
+converted to a @code{BINARY} string.
+
+mysql> SELECT concat("hello you ",2);
+       ->  "hello you 2"
 
 MySQL supports arithmetic with both signed and unsigned 64-bit values.
 If you are using an numerical operations (like @code{+}) and one of the
@@ -50442,7 +50448,15 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
-Fixed overrun bug when calling @code{AES_DECRYPT()} with wrong arguments
+Increased max possible @code{max_allowed_packet} in @code{mysqld} to 1G.
+@item
+Fixed bug when doing a multi-line @code{INSERT} on a table with an
+auto_increment key which was not in the first part of the key.
+@item
+Changed @code{LOAD DATA INFILE} to not recreate index if the table had
+rows from before.
+@item
+Fixed overrun bug when calling @code{AES_DECRYPT()} with wrong arguments.
 @item
 @code{--skip-ssl} can now be used to disable SSL in the MySQL clients,
 even if one is using other ssl options in a options file or previously
@@ -50502,8 +50516,9 @@ Fixed a bug in my_getopt; --set-variable syntax didn't work for
 those options that didn't have a valid variable in my_option struct.
 This affected at least @code{default-table-type} option.
 @item
-Fixed a bug that caused @code{REPAIR TABLE} to fail on tables
-with duplicates in a unique key.
+Fixed a bug from 4.0.2 that caused @code{REPAIR TABLE} and
+@code{myisamchk --repair} to fail on tables with duplicates in a unique
+key.
 @item
 Fixed a bug from 4.0.3 in calculating the default field type for some
 functions. This affected queries of type @code{CREATE TABLE table_name

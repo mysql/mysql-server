@@ -3477,7 +3477,7 @@ struct my_option my_long_options[] =
    "Max packetlength to send/receive from to server.",
    (gptr*) &global_system_variables.max_allowed_packet,
    (gptr*) &max_system_variables.max_allowed_packet, 0, GET_ULONG,
-   REQUIRED_ARG, 1024*1024L, 80, 64*1024*1024L, MALLOC_OVERHEAD, 1024, 0},
+   REQUIRED_ARG, 1024*1024L, 80, 1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
   {"max_binlog_cache_size", OPT_MAX_BINLOG_CACHE_SIZE,
    "Can be used to restrict the total size used to cache a multi-transaction query.",
    (gptr*) &max_binlog_cache_size, (gptr*) &max_binlog_cache_size, 0,
