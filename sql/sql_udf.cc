@@ -298,7 +298,11 @@ udf_func *find_udf(const char *name,uint length,bool mark_used)
   DBUG_ENTER("find_udf");
 
   /* TODO: This should be changed to reader locks someday! */
-  rw_rdlock(&THR_LOCK_udf);  
+  if (mark_used)
+    rw_wrlock(&THR_LOCK_udf);  /* Called during fix_fields */
+  else
+    rw_rdlock(&THR_LOCK_udf);  /* Called during parsing */
+
   if ((udf=(udf_func*) hash_search(&udf_hash,(byte*) name,
 				   length ? length : (uint) strlen(name))))
   {
@@ -474,7 +478,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   if (!(udf=(udf_func*) hash_search(&udf_hash,(byte*) udf_name->str,
 				    (uint) udf_name->length)))
   {
-    net_printf(thd, ER_FUNCTION_NOT_DEFINED, udf_name);
+    net_printf(thd, ER_FUNCTION_NOT_DEFINED, udf_name->str);
     goto err;
   }
   del_udf(udf);
