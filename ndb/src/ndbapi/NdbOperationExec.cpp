@@ -16,7 +16,7 @@
 
 #include <ndb_global.h>
 #include <NdbOperation.hpp>
-#include <NdbConnection.hpp>
+#include <NdbTransaction.hpp>
 #include "NdbApiSignal.hpp"
 #include <Ndb.hpp>
 #include <NdbRecAttr.hpp>
@@ -544,7 +544,7 @@ NdbOperation::receiveTCKEYREF( NdbApiSignal* aSignal)
   // blobs want this
   if (m_abortOption != AO_IgnoreError)
   {
-    theNdbCon->theReturnStatus = NdbConnection::ReturnFailure;
+    theNdbCon->theReturnStatus = NdbTransaction::ReturnFailure;
   }
   theError.code = aSignal->readData(4);
   theNdbCon->setOperationErrorCodeAbort(aSignal->readData(4), ao);

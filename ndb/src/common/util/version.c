@@ -70,6 +70,8 @@ struct NdbUpGradeCompatible {
 
 #ifndef TEST_VERSION
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
+  { MAKE_VERSION(5,0,3), MAKE_VERSION(5,0,2), UG_Exact },
+  { MAKE_VERSION(4,1,9), MAKE_VERSION(4,1,8), UG_Exact },
   { MAKE_VERSION(3,5,2), MAKE_VERSION(3,5,1), UG_Exact },
   { 0, 0, UG_Null }
 };
