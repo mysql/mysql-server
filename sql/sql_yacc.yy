@@ -1690,17 +1690,14 @@ select_lock_type:
 	| FOR_SYM UPDATE_SYM
 	  {
 	    LEX *lex=Lex;
-	    if (check_simple_select())
-	      YYABORT;	
-	    lex->lock_option= TL_WRITE;
+	    lex->current_select->set_lock_for_tables(TL_WRITE);
 	    lex->thd->safe_to_cache_query=0;
 	  }
 	| LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
 	  {
 	    LEX *lex=Lex;
-	    if (check_simple_select())
-	      YYABORT;	
-	    lex->lock_option= TL_READ_WITH_SHARED_LOCKS;
+	    lex->current_select->
+	      set_lock_for_tables(TL_READ_WITH_SHARED_LOCKS);
 	    lex->thd->safe_to_cache_query=0;
 	  }
 	;
