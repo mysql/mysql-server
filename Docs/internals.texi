@@ -43,18 +43,18 @@ END-INFO-DIR-ENTRY
 @page
 @end titlepage
 
-@node Top, caching, (dir), (dir)
+@node Top, coding guidelines, (dir), (dir)
 
 @ifinfo
 This is a manual about @strong{MySQL} internals.
 @end ifinfo
 
 @menu
-* caching::                     How MySQL Handles Caching
-* join_buffer_size::
-* flush tables::                How MySQL Handles @code{FLUSH TABLES}
-* filesort::                    How MySQL Does Sorting (@code{filesort})
 * coding guidelines::           Coding Guidelines
+* caching::                     How MySQL Handles Caching
+* join_buffer_size::            
+* flush tables::                How MySQL Handles @code{FLUSH TABLES}
+* Algorithms::                  
 * mysys functions::             Functions In The @code{mysys} Library
 * DBUG::                        DBUG Tags To Use
 * protocol::                    MySQL Client/Server Protocol
@@ -67,207 +67,7 @@ This is a manual about @strong{MySQL} internals.
 @end menu
 
 
-@node caching, join_buffer_size, Top, Top
-@chapter How MySQL Handles Caching
-
-@strong{MySQL} has the following caches:
-(Note that the some of the filename have a wrong spelling of cache. :)
-
-@table @strong
-
-@item Key Cache
-A shared cache for all B-tree index blocks in the different NISAM
-files. Uses hashing and reverse linked lists for quick caching of the
-last used blocks and quick flushing of changed entries for a specific
-table. (@file{mysys/mf_keycash.c})
-
-@item Record Cache
-This is used for quick scanning of all records in a table.
-(@file{mysys/mf_iocash.c} and @file{isam/_cash.c})
-
-@item Table Cache
-This holds the last used tables. (@file{sql/sql_base.cc})
-
-@item Hostname Cache
-For quick lookup (with reverse name resolving). Is a must when one has a
-slow DNS. 
-(@file{sql/hostname.cc})
-
-@item Privilege Cache
-To allow quick change between databases the last used privileges are
-cached for each user/database combination.
-(@file{sql/sql_acl.cc})
-
-@item Heap Table Cache
-Many use of @code{GROUP BY} or @code{DISTINCT} caches all found rows in 
-a @code{HEAP} table. (This is a very quick in-memory table with hash index.)
-
-@item Join buffer Cache
-For every full join in a @code{SELECT} statement (a full join here means
-there were no keys that one could use to find the next table in a list), 
-the found rows are cached in a join cache.  One @code{SELECT} query can 
-use many join caches in the worst case.
-@end table
-
-@node join_buffer_size, flush tables, caching, Top
-@chapter How MySQL uses the join_buffer cache
-
-Basic information about @code{join_buffer_size}:
-
-@itemize @bullet
-@item
-It's only used in the case when join type is of type @code{ALL} or
-@code{index}; In other words: no possible keys can be used.
-@item
-A join buffer is never allocated for the first not-const table,
-even it it would be of type @code{ALL}/@code{index}.
-@item
-The buffer is allocated when we need to do a each full join between two
-tables and freed after the query is done.
-@item
-Accepted row combinations of tables before the @code{ALL}/@code{index}
-able is stored in the cache and is used to compare against each read
-row in the @code{ALL} table.
-@item
-We only store the used fields in the join_buffer cache, not the
-whole rows.
-@end itemize
-
-Assume you have the following join:
-
-@example
-Table name	Type
-t1		range
-t2		ref
-t3		@code{ALL}
-@end example
-
-The join is then done as follows:
-
-@example
-- While rows in t1 matching range
- - Read through all rows in t2 according to reference key
-  - Store used fields form t1,t2 in cache
-  - If cache is full
-    - Read through all rows in t3
-      - Compare t3 row against all t1,t2 combination in cache
-        - If rows satisfying join condition, send it to client
-    - Empty cache
-
-- Read through all rows in t3
- - Compare t3 row against all stored t1,t2 combinations in cache
-   - If rows satisfying join condition, send it to client
-@end example
-
-The above means that table t3 is scanned
-
-@example
-(size-of-stored-row(t1,t2) * accepted-row-cominations(t1,t2))/
-join_buffer_size+1
-@end example
-times.
-
-Some conclusions:
-
-@itemize @bullet
-@item
-The larger the join_buff_size, the fewer scans of t3.
-If @code{join_buff_size} is already large enough to hold all previous row
-combinations then there is no speed to gain by making it bigger.
-@item
-If there is several tables of @code{ALL}/@code{index} then the we
-allocate one @code{join_buffer_size buffer} for each of them and use the
-same algorithm described above to handle it.  (In other words, we store
-the same row combination several times into different buffers)
-@end itemize
-
-@node flush tables, filesort, join_buffer_size, Top
-@chapter How MySQL Handles @code{FLUSH TABLES}
-
-@itemize @bullet
-
-@item
-Flush tables is handled in @file{sql/sql_base.cc::close_cached_tables()}.
-
-@item
-The idea of flush tables is to force all tables to be closed. This
-is mainly to ensure that if someone adds a new table outside of
-@strong{MySQL} (for example with @code{cp}) all threads will start using 
-the new table. This will also ensure that all table changes are flushed 
-to disk (but of course not as optimally as simple calling a sync on
-all tables)!
-
-@item
-When one does a @code{FLUSH TABLES}, the variable @code{refresh_version} 
-will be incremented. Every time a thread releases a table it checks if
-the refresh version of the table (updated at open) is the same as
-the current @code{refresh_version}.  If not it will close it and broadcast
-a signal on @code{COND_refresh} (to wait any thread that is waiting for
-all instanses of a table to be closed).
-
-@item
-The current @code{refresh_version} is also compared to the open 
-@code{refresh_version} after a thread gets a lock on a table.  If the 
-refresh version is different the thread will free all locks, reopen the
-table and try to get the locks again;  This is just to quickly get all 
-tables to use the newest version.  This is handled by
-@file{sql/lock.cc::mysql_lock_tables()} and 
-@file{sql/sql_base.cc::wait_for_tables()}.
-
-@item
-When all tables has been closed @code{FLUSH TABLES} will return an ok 
-to client.
-
-@item
-If the thread that is doing @code{FLUSH TABLES} has a lock on some tables,
-it will first close the locked tables, then wait until all other threads
-have also closed them, and then reopen them and get the locks.
-After this it will give other threads a chance to open the same tables.
-
-@end itemize
-
-@node filesort, coding guidelines, flush tables, Top
-@chapter How MySQL Does Sorting (@code{filesort})
-
-@itemize @bullet
-
-@item
-Read all rows according to key or by table scanning.
-
-@item
-Store the sort-key in a buffer (@code{sort_buffer}).
-
-@item
-When the buffer gets full, run a @code{qsort} on it and store the result
-in a temporary file.  Save a pointer to the sorted block.
-
-@item
-Repeat the above until all rows have been read.
-
-@item
-Repeat the following until there is less than @code{MERGEBUFF2} (15) 
-blocks left.
-
-@item
-Do a multi-merge of up to @code{MERGEBUFF} (7) regions to one block in
-another temporary file.  Repeat until all blocks from the first file
-are in the second file.
-
-@item
-On the last multi-merge, only the pointer to the row (last part of
-the sort-key) is written to a result file.
-
-@item
-Now the code in @file{sql/records.cc} will be used to read through them
-in sorted order by using the row pointers in the result file.
-To optimize this, we read in a big block of row pointers, sort these
-and then we read the rows in the sorted order into a row buffer
-(@code{record_buffer}).
-
-@end itemize
-
-
-@node coding guidelines, mysys functions, filesort, Top
+@node coding guidelines, caching, Top, Top
 @chapter Coding Guidelines
 
 @itemize @bullet
@@ -427,8 +227,230 @@ Suggested mode in emacs:
 (setq c-default-style "MY")
 @end example
 
+@node caching, join_buffer_size, coding guidelines, Top
+@chapter How MySQL Handles Caching
 
-@node mysys functions, DBUG, coding guidelines, Top
+@strong{MySQL} has the following caches:
+(Note that the some of the filename have a wrong spelling of cache. :)
+
+@table @strong
+
+@item Key Cache
+A shared cache for all B-tree index blocks in the different NISAM
+files. Uses hashing and reverse linked lists for quick caching of the
+last used blocks and quick flushing of changed entries for a specific
+table. (@file{mysys/mf_keycash.c})
+
+@item Record Cache
+This is used for quick scanning of all records in a table.
+(@file{mysys/mf_iocash.c} and @file{isam/_cash.c})
+
+@item Table Cache
+This holds the last used tables. (@file{sql/sql_base.cc})
+
+@item Hostname Cache
+For quick lookup (with reverse name resolving). Is a must when one has a
+slow DNS. 
+(@file{sql/hostname.cc})
+
+@item Privilege Cache
+To allow quick change between databases the last used privileges are
+cached for each user/database combination.
+(@file{sql/sql_acl.cc})
+
+@item Heap Table Cache
+Many use of @code{GROUP BY} or @code{DISTINCT} caches all found rows in 
+a @code{HEAP} table. (This is a very quick in-memory table with hash index.)
+
+@item Join buffer Cache
+For every full join in a @code{SELECT} statement (a full join here means
+there were no keys that one could use to find the next table in a list), 
+the found rows are cached in a join cache.  One @code{SELECT} query can 
+use many join caches in the worst case.
+@end table
+
+@node join_buffer_size, flush tables, caching, Top
+@chapter How MySQL uses the join_buffer cache
+
+Basic information about @code{join_buffer_size}:
+
+@itemize @bullet
+@item
+It's only used in the case when join type is of type @code{ALL} or
+@code{index}; In other words: no possible keys can be used.
+@item
+A join buffer is never allocated for the first not-const table,
+even it it would be of type @code{ALL}/@code{index}.
+@item
+The buffer is allocated when we need to do a each full join between two
+tables and freed after the query is done.
+@item
+Accepted row combinations of tables before the @code{ALL}/@code{index}
+able is stored in the cache and is used to compare against each read
+row in the @code{ALL} table.
+@item
+We only store the used fields in the join_buffer cache, not the
+whole rows.
+@end itemize
+
+Assume you have the following join:
+
+@example
+Table name	Type
+t1		range
+t2		ref
+t3		@code{ALL}
+@end example
+
+The join is then done as follows:
+
+@example
+- While rows in t1 matching range
+ - Read through all rows in t2 according to reference key
+  - Store used fields form t1,t2 in cache
+  - If cache is full
+    - Read through all rows in t3
+      - Compare t3 row against all t1,t2 combination in cache
+        - If rows satisfying join condition, send it to client
+    - Empty cache
+
+- Read through all rows in t3
+ - Compare t3 row against all stored t1,t2 combinations in cache
+   - If rows satisfying join condition, send it to client
+@end example
+
+The above means that table t3 is scanned
+
+@example
+(size-of-stored-row(t1,t2) * accepted-row-cominations(t1,t2))/
+join_buffer_size+1
+@end example
+times.
+
+Some conclusions:
+
+@itemize @bullet
+@item
+The larger the join_buff_size, the fewer scans of t3.
+If @code{join_buff_size} is already large enough to hold all previous row
+combinations then there is no speed to gain by making it bigger.
+@item
+If there is several tables of @code{ALL}/@code{index} then the we
+allocate one @code{join_buffer_size buffer} for each of them and use the
+same algorithm described above to handle it.  (In other words, we store
+the same row combination several times into different buffers)
+@end itemize
+
+@node flush tables, Algorithms, join_buffer_size, Top
+@chapter How MySQL Handles @code{FLUSH TABLES}
+
+@itemize @bullet
+
+@item
+Flush tables is handled in @file{sql/sql_base.cc::close_cached_tables()}.
+
+@item
+The idea of flush tables is to force all tables to be closed. This
+is mainly to ensure that if someone adds a new table outside of
+@strong{MySQL} (for example with @code{cp}) all threads will start using 
+the new table. This will also ensure that all table changes are flushed 
+to disk (but of course not as optimally as simple calling a sync on
+all tables)!
+
+@item
+When one does a @code{FLUSH TABLES}, the variable @code{refresh_version} 
+will be incremented. Every time a thread releases a table it checks if
+the refresh version of the table (updated at open) is the same as
+the current @code{refresh_version}.  If not it will close it and broadcast
+a signal on @code{COND_refresh} (to wait any thread that is waiting for
+all instanses of a table to be closed).
+
+@item
+The current @code{refresh_version} is also compared to the open 
+@code{refresh_version} after a thread gets a lock on a table.  If the 
+refresh version is different the thread will free all locks, reopen the
+table and try to get the locks again;  This is just to quickly get all 
+tables to use the newest version.  This is handled by
+@file{sql/lock.cc::mysql_lock_tables()} and 
+@file{sql/sql_base.cc::wait_for_tables()}.
+
+@item
+When all tables has been closed @code{FLUSH TABLES} will return an ok 
+to client.
+
+@item
+If the thread that is doing @code{FLUSH TABLES} has a lock on some tables,
+it will first close the locked tables, then wait until all other threads
+have also closed them, and then reopen them and get the locks.
+After this it will give other threads a chance to open the same tables.
+
+@end itemize
+
+@node Algorithms, mysys functions, flush tables, Top
+@chapter Different algoritms used in MySQL
+
+MySQL uses a lot of different algorithms.  This chapter tries to describe
+some of these:
+
+@menu
+* filesort::                    
+* bulk-insert::                 
+@end menu
+
+@node filesort, bulk-insert, Algorithms, Algorithms
+@section How MySQL Does Sorting (@code{filesort})
+
+@itemize @bullet
+
+@item
+Read all rows according to key or by table scanning.
+
+@item
+Store the sort-key in a buffer (@code{sort_buffer}).
+
+@item
+When the buffer gets full, run a @code{qsort} on it and store the result
+in a temporary file.  Save a pointer to the sorted block.
+
+@item
+Repeat the above until all rows have been read.
+
+@item
+Repeat the following until there is less than @code{MERGEBUFF2} (15) 
+blocks left.
+
+@item
+Do a multi-merge of up to @code{MERGEBUFF} (7) regions to one block in
+another temporary file.  Repeat until all blocks from the first file
+are in the second file.
+
+@item
+On the last multi-merge, only the pointer to the row (last part of
+the sort-key) is written to a result file.
+
+@item
+Now the code in @file{sql/records.cc} will be used to read through them
+in sorted order by using the row pointers in the result file.
+To optimize this, we read in a big block of row pointers, sort these
+and then we read the rows in the sorted order into a row buffer
+(@code{record_buffer}).
+
+@end itemize
+
+@node bulk-insert,  , filesort, Algorithms
+@section Bulk insert
+
+Logic behind bulk insert optimisation is simple.
+
+Instead of writing each key value to b-tree (that is to keycache, but
+bulk insert code doesn't know about keycache) keys are stored in
+balanced binary (red-black) tree, in memory. When this tree reaches its
+memory limit it's writes all keys to disk (to keycache, that is).  But
+as key stream coming from the binary tree is already sorted inserting
+goes much faster, all the necessary pages are already in cache, disk
+access is minimized, etc.
+
+@node mysys functions, DBUG, Algorithms, Top
 @chapter Functions In The @code{mysys} Library
 
 Functions in @code{mysys}: (For flags see @file{my_sys.h})
@@ -624,6 +646,16 @@ Print query.
 * fieldtype codes::             
 * protocol functions::          
 * protocol version 2::          
+* 4.1 protocol changes::        
+* 4.1 field packet::            
+* 4.1 field desc::              
+* 4.1 ok packet::               
+* 4.1 end packet::              
+* 4.1 error packet::            
+* 4.1 prep init::               
+* 4.1 long data::               
+* 4.1 execute::                 
+* 4.1 binary result::           
 @end menu
 
 @node raw packet without compression, raw packet with compression, protocol, protocol
@@ -690,7 +722,7 @@ is the header of the packet.
 @end menu
 
 
-@node ok packet, error packet, basic packets, basic packets, basic packets
+@node ok packet, error packet, basic packets, basic packets
 @subsection OK Packet
 
 For details, see @file{sql/net_pkg.cc::send_ok()}.
@@ -720,7 +752,7 @@ For details, see @file{sql/net_pkg.cc::send_ok()}.
 @end table
 
 
-@node error packet,  , ok packet, basic packets, basic packets
+@node error packet,  , ok packet, basic packets
 @subsection Error Packet	
 
 @example
@@ -835,7 +867,7 @@ For details, see @file{sql/net_pkg.cc::send_ok()}.
 		n data
 @end example
  
-@node fieldtype codes, protocol functions, communication
+@node fieldtype codes, protocol functions, communication, protocol
 @section Fieldtype Codes
 
 @example
@@ -859,7 +891,7 @@ Time            03 08 00 00     |01 0B                  |03 00 00 00
 Date            03 0A 00 00     |01 0A                  |03 00 00 00
 @end example
 
-@node protocol functions, protocol version 2, fieldtype codes
+@node protocol functions, protocol version 2, fieldtype codes, protocol
 @section Functions used to implement the protocol
 
 @c This should be merged with the above one and changed to texi format
@@ -971,7 +1003,7 @@ client. If this is equal to the new message the client sends to the
 server then the password is accepted.
 @end example
 
-@node protocol version 2, 4.1 protocol changes, protocol functions
+@node protocol version 2, 4.1 protocol changes, protocol functions, protocol
 @section Another description of the protocol
 
 @c This should be merged with the above one and changed to texi format.
@@ -1664,7 +1696,7 @@ fe 00                       . .
 @c @node 4.1 protocol,,,
 @c @chapter MySQL 4.1 protocol
 
-@node 4.1 protocol changes, 4.1 field packet, protocol version 2
+@node 4.1 protocol changes, 4.1 field packet, protocol version 2, protocol
 @section Changes to 4.0 protocol in 4.1
 
 All basic packet handling is identical to 4.0. When communication
@@ -1699,7 +1731,7 @@ results will sent as binary (low-byte-first).
 @end itemize
 
 
-@node 4.1 field packet, 4.1 field desc, 4.1 protocol changes
+@node 4.1 field packet, 4.1 field desc, 4.1 protocol changes, protocol
 @section 4.1 field description packet
 
 The field description packet is sent as a response to a query that
@@ -1719,7 +1751,7 @@ uses this to send the number of rows in the table)
 This packet is always followed by a field description set.
 @xref{4.1 field desc}.
 
-@node 4.1 field desc, 4.1 ok packet, 4.1 field packet
+@node 4.1 field desc, 4.1 ok packet, 4.1 field packet, protocol
 @section 4.1 field description result set
 
 The field description result set contains the meta info for a result set.
@@ -1737,7 +1769,7 @@ The field description result set contains the meta info for a result set.
 @end multitable
 
 
-@node 4.1 ok packet, 4.1 end packet, 4.1 field desc
+@node 4.1 ok packet, 4.1 end packet, 4.1 field desc, protocol
 @section 4.1 ok packet
 
 The ok packet is the first that is sent as an response for a query
@@ -1763,7 +1795,7 @@ The message is optional.  For example for multi line INSERT it
 contains a string for how many rows was inserted / deleted.
 
 
-@node 4.1 end packet, 4.1 error packet, 4.1 ok packet
+@node 4.1 end packet, 4.1 error packet, 4.1 ok packet, protocol
 @section 4.1 end packet
 
 The end packet is sent as the last packet for
@@ -1792,7 +1824,7 @@ by checking the packet length < 9 bytes (in which case it's and end
 packet).
 
 
-@node 4.1 error packet, 4.1 prep init, 4.1 end packet
+@node 4.1 error packet, 4.1 prep init, 4.1 end packet, protocol
 @section 4.1 error packet.
 
 The error packet is sent when something goes wrong.
@@ -1809,7 +1841,7 @@ The client/server protocol is designed in such a way that a packet
 can only start with 255 if it's an error packet.
 
 
-@node 4.1 prep init, 4.1 long data, 4.1 error packet
+@node 4.1 prep init, 4.1 long data, 4.1 error packet, protocol
 @section 4.1 prepared statement init packet
 
 This is the return packet when one sends a query with the COM_PREPARE
@@ -1843,7 +1875,7 @@ prepared statement will contain a result set. In this case the packet
 is followed by a field description result set. @xref{4.1 field desc}.
 
 
-@node 4.1 long data, 4.1 execute, 4.1 prep init
+@node 4.1 long data, 4.1 execute, 4.1 prep init, protocol
 @section 4.1 long data handling
 
 This is used by mysql_send_long_data() to set any parameter to a string
@@ -1870,7 +1902,7 @@ The server will NOT send an @code{ok} or @code{error} packet in
 responce for this.  If there is any errors (like to big string), one
 will get the error when calling execute.
 
-@node 4.1 execute, 4.1 binary result, 4.1 long data
+@node 4.1 execute, 4.1 binary result, 4.1 long data, protocol
 @section 4.1 execute
 
 On execute we send all parameters to the server in a COM_EXECUTE
@@ -1908,7 +1940,7 @@ The parameters are stored the following ways:
 The result for this will be either an ok packet or a binary result
 set.
 
-@node 4.1 binary result, , 4.1 execute
+@node 4.1 binary result,  , 4.1 execute, protocol
 @section 4.1 binary result set
 
 A binary result are sent the following way.
@@ -2384,7 +2416,7 @@ work for different record formats are: /myisam/mi_statrec.c,
 /myisam/mi_dynrec.c, and /myisam/mi_packrec.c.
 @*
 
-@node InnoDB Record Structure,InnoDB Page Structure,MyISAM Record Structure,Top
+@node InnoDB Record Structure, InnoDB Page Structure, MyISAM Record Structure, Top
 @chapter InnoDB Record Structure
 
 This page contains:
@@ -2690,7 +2722,7 @@ shorter because the NULLs take no space.
 The most relevant InnoDB source-code files are rem0rec.c, rem0rec.ic,
 and rem0rec.h in the rem ("Record Manager") directory.
 
-@node InnoDB Page Structure,Files in MySQL Sources,InnoDB Record Structure,Top
+@node InnoDB Page Structure, Files in MySQL Sources, InnoDB Record Structure, Top
 @chapter InnoDB Page Structure
 
 InnoDB stores all records inside a fixed-size unit which is commonly called a
@@ -3121,7 +3153,7 @@ header.
 The most relevant InnoDB source-code files are page0page.c,
 page0page.ic, and page0page.h in \page directory.
 
-@node Files in MySQL Sources,Files in InnoDB Sources,InnoDB Page Structure,Top
+@node Files in MySQL Sources, Files in InnoDB Sources, InnoDB Page Structure, Top
 @chapter Annotated List Of Files in the MySQL Source Code Distribution
 
 This is a description of the files that you get when you download the
@@ -4942,7 +4974,7 @@ The MySQL program that uses zlib is \mysys\my_compress.c. The use is
 for packet compression. The client sends messages to the server which
 are compressed by zlib. See also: \sql\net_serv.cc.
 
-@node Files in InnoDB Sources,,Files in MySQL Sources,Top
+@node Files in InnoDB Sources,  , Files in MySQL Sources, Top
 @chapter Annotated List Of Files in the InnoDB Source Code Distribution
 
 ERRATUM BY HEIKKI TUURI (START)
