@@ -25,7 +25,9 @@
 #include "CPCD.hpp"
 
 #include <pwd.h>
+#ifdef HAVE_GETRLIMIT
 #include <sys/resource.h>
+#endif
 
 void
 CPCD::Process::print(FILE * f){
@@ -205,6 +207,7 @@ setup_environment(const char *env) {
 static
 int
 set_ulimit(const BaseString & pair){
+#ifdef HAVE_GETRLIMIT
   errno = 0;
   do {
     Vector<BaseString> list;
@@ -212,42 +215,43 @@ set_ulimit(const BaseString & pair){
     if(list.size() != 2){
       break;
     }
-    
-    int resource = 0;
+
+    int res;
     rlim_t value = RLIM_INFINITY;
     if(!(list[1].trim() == "unlimited")){
       value = atoi(list[1].c_str());
     }
+
+    struct rlimit rlp;
+#define _RLIMIT_FIX(x) { res = getrlimit(x,&rlp); if(!res){ rlp.rlim_cur = value; res = setrlimit(x, &rlp); }}
+
     if(list[0].trim() == "c"){
-      resource = RLIMIT_CORE;
+      _RLIMIT_FIX(RLIMIT_CORE);
     } else if(list[0] == "d"){
-      resource = RLIMIT_DATA;
+      _RLIMIT_FIX(RLIMIT_DATA);
     } else if(list[0] == "f"){
-      resource = RLIMIT_FSIZE;
+      _RLIMIT_FIX(RLIMIT_FSIZE);
     } else if(list[0] == "n"){
-      resource = RLIMIT_NOFILE;
+      _RLIMIT_FIX(RLIMIT_NOFILE);
     } else if(list[0] == "s"){
-      resource = RLIMIT_STACK;
+      _RLIMIT_FIX(RLIMIT_STACK);
     } else if(list[0] == "t"){
-      resource = RLIMIT_CPU;
+      _RLIMIT_FIX(RLIMIT_CPU);
     } else {
       errno = EINVAL;
       break;
     }
-    struct rlimit rlp;
-    if(getrlimit(resource, &rlp) != 0){
+    if(!res)
       break;
-    }
-
-    rlp.rlim_cur = value;
-    if(setrlimit(resource, &rlp) != 0){
-      break;
-    }
+    
     return 0;
   } while(false);
   logger.error("Unable to process ulimit: %s(%s)", 
 	       pair.c_str(), strerror(errno));
   return -1;
+#else
+  return 0; // Maybe it's ok anyway...
+#endif
 }
 
 void
