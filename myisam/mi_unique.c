@@ -170,19 +170,19 @@ int mi_unique_comp(MI_UNIQUEDEF *def, const byte *a, const byte *b,
       memcpy_fixed((byte*) &pos_a,pos_a+keyseg->bit_start,sizeof(char*));
       memcpy_fixed((byte*) &pos_b,pos_b+keyseg->bit_start,sizeof(char*));
     }
-    end= pos_a+length;
     if (type == HA_KEYTYPE_TEXT || type == HA_KEYTYPE_VARTEXT)
     {
-      uchar *sort_order=keyseg->charset->sort_order;
-      while (pos_a != end)
-	if (sort_order[*(uchar*) pos_a++] !=
-	    sort_order[*(uchar*) pos_b++])
+      if (_mi_compare_text(keyseg->charset, (uchar *)pos_a, length,
+                                            (uchar *)pos_b, length, 0))
 	  return 1;
     }
     else
+    {
+      end= pos_a+length;
       while (pos_a != end)
 	if (*pos_a++ != *pos_b++)
 	  return 1;
+    }
   }
   return 0;
 }
