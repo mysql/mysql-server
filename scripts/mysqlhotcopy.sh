@@ -453,13 +453,13 @@ if ( $opt{dryrun} ) {
 }
 else {
     my $start = time;
-    $dbh->do('LOCK TABLES $hc_locks');
+    $dbh->do("LOCK TABLES $hc_locks");
     printf "Locked $num_tables tables in %d seconds.\n", time-$start unless $opt{quiet};
     $hc_started = time;	# count from time lock is granted
 
     # flush tables to make on-disk copy uptodate
     $start = time;
-    $dbh->do('FLUSH TABLES /*!32323 $hc_tables */');
+    $dbh->do("FLUSH TABLES /*!32323 $hc_tables */");
     printf "Flushed tables ($hc_tables) in %d seconds.\n", time-$start unless $opt{quiet};
     $dbh->do( "FLUSH LOGS" ) if ( $opt{flushlog} );
     $dbh->do( "RESET MASTER" ) if ( $opt{resetmaster} );
@@ -467,7 +467,7 @@ else {
 
     if ( $opt{record_log_pos} ) {
 	record_log_pos( $dbh, $opt{record_log_pos} );
-	$dbh->do('FLUSH TABLES /*!32323 $hc_tables */');
+	$dbh->do("FLUSH TABLES /*!32323 $hc_tables */");
     }
 }
 
