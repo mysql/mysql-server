@@ -508,14 +508,20 @@ skipp:
 
 bool String::replace(uint32 offset,uint32 arg_length,const String &to)
 {
-  long diff = (long) to.length()-(long) arg_length;
+  return replace(offset,arg_length,to.ptr(),to.length());
+}
+
+bool String::replace(uint32 offset,uint32 arg_length,
+                     const char *to,uint32 length)
+{
+  long diff = (long) length-(long) arg_length;
   if (offset+arg_length <= str_length)
   {
     if (diff < 0)
     {
-      if (to.length())
-	memcpy(Ptr+offset,to.ptr(),to.length());
-      bmove(Ptr+offset+to.length(),Ptr+offset+arg_length,
+      if (length)
+	memcpy(Ptr+offset,to,length);
+      bmove(Ptr+offset+length,Ptr+offset+arg_length,
 	    str_length-offset-arg_length);
     }
     else
@@ -527,13 +533,14 @@ bool String::replace(uint32 offset,uint32 arg_length,const String &to)
 	bmove_upp(Ptr+str_length+diff,Ptr+str_length,
 		  str_length-offset-arg_length);
       }
-      if (to.length())
-	memcpy(Ptr+offset,to.ptr(),to.length());
+      if (length)
+	memcpy(Ptr+offset,to,length);
     }
     str_length+=(uint32) diff;
   }
   return FALSE;
 }
+
 
 // added by Holyfoot for "geometry" needs
 int String::reserve(uint32 space_needed, uint32 grow_by)

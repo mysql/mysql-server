@@ -566,14 +566,14 @@ my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt);
 int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt);
 my_bool STDCALL mysql_more_results(MYSQL *mysql);
 my_bool STDCALL mysql_next_result(MYSQL *mysql);
+MYSQL_ROW_OFFSET STDCALL mysql_stmt_row_seek(MYSQL_STMT *stmt, 
+                                             MYSQL_ROW_OFFSET offset);
+MYSQL_ROW_OFFSET STDCALL mysql_stmt_row_tell(MYSQL_STMT *stmt);
+void STDCALL mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong offset);
+my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt);
 
-
-
-/* new status messages */
-#define MYSQL_SUCCESS      0
-#define MYSQL_STATUS_ERROR 1
+/* status return codes */
 #define MYSQL_NO_DATA      100
-#define MYSQL_NEED_DATA    99 
 
 #define mysql_reload(mysql) mysql_refresh((mysql),REFRESH_GRANT)
 

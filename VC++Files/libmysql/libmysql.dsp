@@ -58,8 +58,8 @@ LINK32=link.exe
 # SUBTRACT LINK32 /pdb:none
 # Begin Special Build Tool
 SOURCE="$(InputPath)"
-PostBuild_Desc=Copy .lib file
-PostBuild_Cmds=xcopy  release\libmysql.lib   ..\lib_release\
+PostBuild_Desc=Move DLL export lib
+PostBuild_Cmds=xcopy release\libmysql.lib ..\lib_release /y
 # End Special Build Tool
 
 !ELSEIF  "$(CFG)" == "libmysql - Win32 Debug"
@@ -91,8 +91,8 @@ LINK32=link.exe
 # SUBTRACT LINK32 /pdb:none
 # Begin Special Build Tool
 SOURCE="$(InputPath)"
-PostBuild_Desc=Copy .lib file
-PostBuild_Cmds=xcopy   ..\lib_debug\libmysql.dll   C:\winnt\system32\  	xcopy  debug\libmysql.lib   ..\lib_debug\
+PostBuild_Desc=Move DLL export lib
+PostBuild_Cmds=xcopy ..\lib_debug\libmysql.dll C:\winnt\system32\ /y	xcopy     debug\libmysql.lib ..\lib_debug\ /y
 # End Special Build Tool
 
 !ENDIF
@@ -152,10 +152,6 @@ SOURCE="..\strings\ctype-gbk.c"
 # Begin Source File
 
 SOURCE="..\strings\ctype-latin1.c"
-# End Source File
-# Begin Source File
-
-SOURCE="..\strings\ctype-latin1_de.c"
 # End Source File
 # Begin Source File
 
