@@ -251,6 +251,11 @@ public:
 
 class delayed_insert;
 
+#define THD_SENTRY_MAGIC 0xfeedd1ff
+#define THD_SENTRY_GONE  0xdeadbeef
+
+#define THD_CHECK_SENTRY(thd) DBUG_ASSERT(thd->dbug_sentry == THD_SENTRY_MAGIC)
+
 /* For each client connection we create a separate thread with THD serving as
    a thread/connection descriptor */
 
@@ -312,6 +317,9 @@ public:
   // TODO: document the variables below
   MYSQL_LOCK *lock,*locked_tables;
   ULL	  *ull;
+#ifndef DBUG_OFF
+  uint dbug_sentry; // watch out for memory corruption
+#endif  
   struct st_my_thread_var *mysys_var;
   enum enum_server_command command;
   uint32 server_id;

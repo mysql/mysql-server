@@ -690,6 +690,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
 {
   int error=0,restart_thread_mask;
   const char* errmsg=0;
+  bool need_relay_log_purge=1;
   
   // kill slave thread
   lock_slave_threads(mi);
@@ -713,7 +714,10 @@ int change_master(THD* thd, MASTER_INFO* mi)
     return 1;
   }
 
-  pthread_mutex_lock(&mi->data_lock);
+  /* data lock not needed since we have already stopped the running threads,
+     and we have the hold on the run locks which will keep all threads that
+     could possibly modify the data structures from running
+  */
   if ((lex_mi->host || lex_mi->port) && !lex_mi->log_file_name && !lex_mi->pos)
   {
     // if we change host or port, we must reset the postion
@@ -742,23 +746,56 @@ int change_master(THD* thd, MASTER_INFO* mi)
   if (lex_mi->connect_retry)
     mi->connect_retry = lex_mi->connect_retry;
 
-  flush_master_info(mi);
-  pthread_mutex_unlock(&mi->data_lock);
-  thd->proc_info="purging old relay logs";
-  if (purge_relay_logs(&mi->rli,0 /* not only reset, but also reinit*/,
-		       &errmsg))
+  if (lex_mi->relay_log_name)
   {
-    send_error(&thd->net, 0, "Failed purging old relay logs");
-    unlock_slave_threads(mi);
-    return 1;
+    need_relay_log_purge = 0;
+    mi->rli.skip_log_purge=1;
+    strnmov(mi->rli.relay_log_name,lex_mi->relay_log_name,
+	    sizeof(mi->rli.relay_log_name));
   }
-  pthread_mutex_lock(&mi->rli.data_lock);
+
+  if (lex_mi->relay_log_pos)
+  {
+    need_relay_log_purge=0;
+    mi->rli.relay_log_pos=lex_mi->relay_log_pos;
+  }
+
+  flush_master_info(mi);
+  if (need_relay_log_purge)
+  {
+    mi->rli.skip_log_purge=0;
+    thd->proc_info="purging old relay logs";
+    if (purge_relay_logs(&mi->rli,0 /* not only reset, but also reinit*/,
+			 &errmsg))
+    {
+      net_printf(&thd->net, 0, "Failed purging old relay logs: %s",errmsg);
+      return 1;
+    }
+  }
+  else
+  {
+    const char* msg;
+    if (init_relay_log_pos(&mi->rli,0/*log already inited*/,
+			   0 /*pos already inited*/,
+			   0 /*no data lock*/,
+			   &msg))
+    {
+      //Sasha: note that I had to change net_printf() to make this work
+      net_printf(&thd->net,0,"Failed initializing relay log position: %s",msg);
+      unlock_slave_threads(mi);
+      return 1;
+    }
+      
+  }
   mi->rli.master_log_pos = mi->master_log_pos;
   strnmov(mi->rli.master_log_name,mi->master_log_name,
 	  sizeof(mi->rli.master_log_name));
   if (!mi->rli.master_log_name[0]) // uninitialized case
     mi->rli.master_log_pos=0;
-  pthread_cond_broadcast(&mi->rli.data_cond);
+
+  pthread_mutex_lock(&mi->rli.data_lock);
+  mi->rli.abort_pos_wait = 1;
+  pthread_cond_broadcast(&mi->data_cond);
   pthread_mutex_unlock(&mi->rli.data_lock);
 
   thd->proc_info = "starting slave";
