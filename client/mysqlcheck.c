@@ -16,7 +16,7 @@
 
 /* By Jani Tolonen, 2001-04-20, MySQL Development Team */
 
-#define CHECK_VERSION "2.4"
+#define CHECK_VERSION "2.4.1"
 
 #include "client_priv.h"
 #include <m_ctype.h>
@@ -53,7 +53,7 @@ static struct my_option my_long_options[] =
   {"analyze", 'a', "Analyze given tables.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"all-in-1", '1',
-   "Instead of making one query for each table, execute all queries in 1 query separately for each database. Table names will be in a comma separeted list.",
+   "Instead of issuing one query for each table, use one query per database, naming all tables in the database in a comma-separated list.",
    (gptr*) &opt_all_in_1, (gptr*) &opt_all_in_1, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"auto-repair", OPT_AUTO_REPAIR,
@@ -80,7 +80,7 @@ static struct my_option my_long_options[] =
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set", (gptr*) &default_charset,
    (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"fast",'F', "Check only tables that hasn't been closed properly",
+  {"fast",'F', "Check only tables that haven't been closed properly",
    (gptr*) &opt_fast, (gptr*) &opt_fast, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
   {"force", 'f', "Continue even if we get an sql-error.",
@@ -169,7 +169,7 @@ static void usage(void)
   puts("and you are welcome to modify and redistribute it under the GPL license.\n");
   puts("This program can be used to CHECK (-c,-m,-C), REPAIR (-r), ANALYZE (-a)");
   puts("or OPTIMIZE (-o) tables. Some of the options (like -e or -q) can be");
-  puts("used same time. It works on MyISAM and in some cases on BDB tables.");
+  puts("used at the same time. It works on MyISAM and in some cases on BDB tables.");
   puts("Please consult the MySQL manual for latest information about the");
   puts("above. The options -c,-r,-a and -o are exclusive to each other, which");
   puts("means that the last option will be used, if several was specified.\n");

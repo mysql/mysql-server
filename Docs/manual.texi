@@ -50344,6 +50344,10 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed a bug in my_getopt in handling of special prefixes (--skip-, --enable-).
+--skip-external-locking didn't work and the bug may have affected other
+similar options.
+@item
 Fixed bug in checking for output file name of the @code{tee} option.
 @end itemize
 
