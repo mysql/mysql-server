@@ -1024,7 +1024,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 
       mi->inc_pos(event_len);
       
-      if (!(thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN))) {
+      if (!(thd->options & OPTION_BEGIN)) {
 
       	/* We only flush the master info position to the master.info file if
         the transaction is not open any more: an incomplete transaction will
@@ -1155,7 +1155,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 
       mi->inc_pos(event_len);
 
-      if (!(thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)))
+      if (!(thd->options & OPTION_BEGIN))
         flush_master_info(mi);
 
       break;
@@ -1190,7 +1190,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       pthread_cond_broadcast(&mi->cond);
       pthread_mutex_unlock(&mi->lock);
 
-      if (!(thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)))
+      if (!(thd->options & OPTION_BEGIN))
         flush_master_info(mi);
 #ifndef DBUG_OFF
       if(abort_slave_event_count)
