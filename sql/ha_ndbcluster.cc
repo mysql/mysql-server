@@ -2154,11 +2154,47 @@ int ha_ndbcluster::index_read(byte *buf,
   DBUG_PRINT("enter", ("active_index: %u, key_len: %u, find_flag: %d", 
                        active_index, key_len, find_flag));
 
+  int error;
+  ndb_index_type type = get_index_type(active_index);
+  const KEY* key_info = table->key_info+active_index;
+  switch (type){
+  case PRIMARY_KEY_ORDERED_INDEX:
+  case PRIMARY_KEY_INDEX:
+    if (find_flag == HA_READ_KEY_EXACT && key_info->key_length == key_len)
+    {
+      DBUG_RETURN(pk_read(key, key_len, buf));
+    }
+    else if (type == PRIMARY_KEY_INDEX)
+    {
+      DBUG_RETURN(1);
+    }
+    break;
+  case UNIQUE_ORDERED_INDEX:
+  case UNIQUE_INDEX:
+    if (find_flag == HA_READ_KEY_EXACT && key_info->key_length == key_len)
+    {
+      DBUG_RETURN(unique_index_read(key, key_len, buf));
+    }
+    else if (type == UNIQUE_INDEX)
+    {
+      DBUG_RETURN(1);
+    }
+    break;
+  case ORDERED_INDEX:
+    break;
+  default:
+  case UNDEFINED_INDEX:
+    DBUG_ASSERT(false);
+    return 1;
+    break;
+  }
+  
   key_range start_key;
-  start_key.key=    key;
-  start_key.length= key_len;
-  start_key.flag=   find_flag;
-  DBUG_RETURN(read_range_first_to_buf(&start_key, NULL, false, true, buf));
+  start_key.key = key;
+  start_key.length = key_len;
+  start_key.flag = find_flag;
+  error= ordered_index_scan(&start_key, 0, true, buf);  
+  DBUG_RETURN(error == HA_ERR_END_OF_FILE ? HA_ERR_KEY_NOT_FOUND : error);
 }
 
 
