@@ -723,7 +723,10 @@ row_ins_foreign_check_on_constraint(
 	trx = thr_get_trx(thr);
 
 	/* Since we are going to delete or update a row, we have to invalidate
-	the MySQL query cache for table */
+	the MySQL query cache for table. A deadlock of threads is not possible
+	here because the caller of this function does not hold any latches with
+	the sync0sync.h rank above the kernel mutex. The query cache mutex has
+	a rank just above the kernel mutex. */
 
 	row_ins_invalidate_query_cache(thr, table->name);
 
