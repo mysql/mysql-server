@@ -121,11 +121,158 @@ explain select min(a2) from t1;
 explain select max(t1.a1), max(t2.a2) from t1, t2;
 
 insert into t2 values('AAA', 10, 0.5);
+insert into t2 values('BBB', 20, 1.0);
+select t1.a1, t1.a2, t2.a1, t2.a2 from t1,t2;
+
 select max(t1.a1), max(t2.a1) from t1, t2 where t2.a2=9;
 select max(t2.a1), max(t1.a1) from t1, t2 where t2.a2=9;
 select t1.a1, t1.a2, t2.a1, t2.a2 from t1 left outer join t2 on t1.a1=10;
 select max(t1.a2) from t1 left outer join t2 on t1.a1=10;
-select max(t1.a2) from t1 left outer join t2 on t1.a1=10 where t1.a1=20;
-select max(t1.a2) from t1 left outer join t2 on t1.a1=10 where t1.a1=10;
+select max(t2.a1) from t2 left outer join t1 on t2.a2=10 where t2.a2=20;
+select max(t2.a1) from t2 left outer join t1 on t2.a2=10 where t2.a2=10;
 select max(t2.a1) from t1 left outer join t2 on t1.a2=t2.a1 and 1=0 where t2.a1='AAA';
+select max(t1.a2),max(t2.a1) from t1 left outer join t2 on t1.a1=10;
 drop table t1,t2;
+
+
+#
+# Tests to check MIN/MAX query optimization
+#
+
+# Create database schema
+create table t1(
+  a1 char(3) primary key,
+  a2 smallint,
+  a3 char(3),
+  a4 real,
+  a5 date,
+  key k1(a2,a3),
+  key k2(a4 desc,a1),
+  key k3(a5,a1)
+);
+create table t2(
+  a1 char(3) primary key,
+  a2 char(17),
+  a3 char(2),
+  a4 char(3),
+  key k1(a3, a2),
+  key k2(a4)
+);
+
+# Populate table t1
+insert into t1 values('AME',0,'SEA',0.100,date'1942-02-19');
+insert into t1 values('HBR',1,'SEA',0.085,date'1948-03-05');
+insert into t1 values('BOT',2,'SEA',0.085,date'1951-11-29');
+insert into t1 values('BMC',3,'SEA',0.085,date'1958-09-08');
+insert into t1 values('TWU',0,'LAX',0.080,date'1969-10-05');
+insert into t1 values('BDL',0,'DEN',0.080,date'1960-11-27');
+insert into t1 values('DTX',1,'NYC',0.080,date'1961-05-04');
+insert into t1 values('PLS',1,'WDC',0.075,date'1949-01-02');
+insert into t1 values('ZAJ',2,'CHI',0.075,date'1960-06-15');
+insert into t1 values('VVV',2,'MIN',0.075,date'1959-06-28');
+insert into t1 values('GTM',3,'DAL',0.070,date'1977-09-23');
+insert into t1 values('SSJ',null,'CHI',null,date'1974-03-19');
+insert into t1 values('KKK',3,'ATL',null,null);
+insert into t1 values('XXX',null,'MIN',null,null);
+
+# Populate table t2
+insert into t2 values('TKF','Seattle','WA','AME');
+insert into t2 values('LCC','Los Angeles','CA','TWU');
+insert into t2 values('DEN','Denver','CO','BDL');
+insert into t2 values('SDC','San Diego','CA','TWU');
+insert into t2 values('NOL','New Orleans','LA','GTM');
+insert into t2 values('LAK','Los Angeles','CA','TWU');
+
+# Show the table contents
+select * from t1;
+select * from t2;
+
+# Queries with min/max functions 
+# which regular min/max optimization are applied to
+
+explain 
+select min(a1) from t1;
+select min(a1) from t1;
+explain 
+select max(a4) from t1;
+select max(a4) from t1;
+explain 
+select min(a5), max(a5) from t1;
+select min(a5), max(a5) from t1;
+explain 
+select min(a3) from t1 where a2 = 2;
+select min(a3) from t1 where a2 = 2;
+explain 
+select min(a1), max(a1) from t1 where a4 = 0.080;
+select min(a1), max(a1) from t1 where a4 = 0.080;
+
+explain 
+select min(t1.a5), max(t2.a3) from t1, t2;
+select min(t1.a5), max(t2.a3) from t1, t2;
+explain 
+select min(t1.a3), max(t2.a2) from t1, t2 where t1.a2 = 0 and t2.a3 = 'CA';
+select min(t1.a3), max(t2.a2) from t1, t2 where t1.a2 = 0 and t2.a3 = 'CA';
+
+# Queries with min/max functions 
+# which extended min/max optimization are applied to
+
+explain 
+select min(a1) from t1 where a1 > 'KKK';
+select min(a1) from t1 where a1 > 'KKK';
+explain 
+select min(a1) from t1 where a1 >= 'KKK';
+select min(a1) from t1 where a1 >= 'KKK';
+explain 
+select max(a3) from t1 where a2 = 2 and a3 < 'SEA';
+select max(a3) from t1 where a2 = 2 and a3 < 'SEA';
+explain 
+select max(a5) from t1 where a5 < date'1970-01-01';
+select max(a5) from t1 where a5 < date'1970-01-01';
+explain 
+select max(a3) from t1 where a2 is null;
+select max(a3) from t1 where a2 is null;
+explain 
+select max(a3) from t1 where a2 = 0 and a3 between 'K' and 'Q';
+select max(a3) from t1 where a2 = 0 and a3 between 'K' and 'Q';
+explain
+select min(a1), max(a1) from t1 where a1 between 'A' and 'P';
+select min(a1), max(a1) from t1 where a1 between 'A' and 'P';
+explain 
+select max(a3) from t1 where a3 < 'SEA' and a2 = 2 and a3 <= 'MIN';
+select max(a3) from t1 where a3 < 'SEA' and a2 = 2 and a3 <= 'MIN';
+explain 
+select max(a3) from t1 where a3 = 'SEA' and a2 = 2;
+select max(a3) from t1 where a3 = 'SEA' and a2 = 2;
+explain 
+select max(a3) from t1 where a3 = 'DEN' and a2 = 2;
+select max(a3) from t1 where a3 = 'DEN' and a2 = 2;
+
+explain
+select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 = 'CA';
+select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 = 'CA';
+
+explain
+select max(a3) from t1 where a2 is null and a2 = 2;
+select max(a3) from t1 where a2 is null and a2 = 2;
+
+explain
+select max(a2) from t1 where a2 >= 1;
+select max(a2) from t1 where a2 >= 1;
+explain
+select min(a3) from t1 where a2 = 2 and a3 < 'SEA';
+select min(a3) from t1 where a2 = 2 and a3 < 'SEA';
+
+# Queries to which max/min optimization is not applied
+
+explain 
+select min(a1) from t1 where a1 > 'KKK' or a1 < 'XXX';
+explain 
+select min(a1) from t1 where a1 != 'KKK';
+explain
+select max(a3) from t1 where a2 < 2 and a3 < 'SEA';
+explain
+select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 > 'CA';
+
+
+# Clean up
+drop table if exists t1, t2;
