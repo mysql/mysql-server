@@ -3391,5 +3391,6 @@ void Item_result_field::cleanup()
 template class List<Item>;
 template class List_iterator<Item>;
 template class List_iterator_fast<Item>;
+template class List_iterator_fast<Item_field>;
 template class List<List_item>;
 #endif
