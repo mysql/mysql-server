@@ -88,12 +88,11 @@ fi
 
 
 NOHUP_NICENESS=`nohup nice`
-if [ "x$NOHUP_NICENESS" = "x0" ] || ! nice --1 nice >/dev/null 2>&1 ; then
+if test $? -ne 0 || test x"$NOHUP_NICENESS" = x0 || test ! nice --1 echo foo > /dev/null 2>&1; then
   NOHUP_NICENESS="nohup"
 else
   NOHUP_NICENESS="nice --$NOHUP_NICENESS nohup"
 fi
-
 
 export MYSQL_UNIX_PORT
 #export MYSQL_TCP_PORT
