@@ -257,6 +257,11 @@ SHOW_COMP_OPTION have_crypt=SHOW_OPTION_YES;
 #else
 SHOW_COMP_OPTION have_crypt=SHOW_OPTION_NO;
 #endif
+#ifdef HAVE_COMPRESS
+SHOW_COMP_OPTION have_compress= SHOW_OPTION_YES;
+#else
+SHOW_COMP_OPTION have_compress= SHOW_OPTION_NO;
+#endif
 
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
 
