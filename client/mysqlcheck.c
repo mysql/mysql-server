@@ -195,7 +195,7 @@ static void usage(void)
   puts("and you are welcome to modify and redistribute it under the GPL license.\n");
   puts("This program can be used to CHECK (-c,-m,-C), REPAIR (-r), ANALYZE (-a)");
   puts("or OPTIMIZE (-o) tables. Some of the options (like -e or -q) can be");
-  puts("used at the same time. It works on MyISAM and in some cases on BDB tables.");
+  puts("used at the same time. Not all options are supported by all storage engines.");
   puts("Please consult the MySQL manual for latest information about the");
   puts("above. The options -c,-r,-a and -o are exclusive to each other, which");
   puts("means that the last option will be used, if several was specified.\n");
