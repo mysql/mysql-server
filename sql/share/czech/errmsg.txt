@@ -297,3 +297,4 @@ character-set=latin2
 "Column '%-.64s' cannot be part of FULLTEXT index",
 "Unknown key cache '%-.100s'",
 "MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
+"Unknown table engine '%s'",
