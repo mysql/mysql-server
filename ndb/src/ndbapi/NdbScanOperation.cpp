@@ -448,6 +448,8 @@ NdbScanOperation::executeCursor(int nodeId){
   return -1;
 }
 
+#define DEBUG_NEXT_RESULT 0
+
 int NdbScanOperation::nextResult(bool fetchAllowed)
 {
   if(m_ordered)
@@ -459,6 +461,9 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
   int retVal = 2;
   Uint32 idx = m_current_api_receiver;
   Uint32 last = m_api_receivers_count;
+
+  if(DEBUG_NEXT_RESULT)
+    ndbout_c("nextResult(%d) idx=%d last=%d", fetchAllowed, idx, last);
   
   /**
    * Check next buckets
@@ -497,6 +502,9 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
       
       Uint32 cnt = m_conf_receivers_count;
       Uint32 sent = m_sent_receivers_count;
+
+      if(DEBUG_NEXT_RESULT)
+	ndbout_c("idx=%d last=%d cnt=%d sent=%d", idx, last, cnt, sent);
 	
       if(cnt > 0){
 	/**
@@ -527,6 +535,7 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
 	  theNdb->theWaiter.m_state = WAIT_SCAN;
 	  int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
 	  if (return_code == 0 && seq == tp->getNodeSequence(nodeId)) {
+	    theError.code = -1; // make sure user gets error if he tries again
 	    return 1;
 	  }
 	  retVal = -1; //return_code;
@@ -1192,8 +1201,6 @@ NdbIndexScanOperation::compare(Uint32 skip, Uint32 cols,
   }
   return 0;
 }
-
-#define DEBUG_NEXT_RESULT 0
 
 int
 NdbIndexScanOperation::next_result_ordered(bool fetchAllowed){
