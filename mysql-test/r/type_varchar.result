@@ -49,3 +49,22 @@ length(v)	length(c)	length(e)	length(t)
 3	2	3	4
 3	1	3	7
 drop table t1, vchar;
+create table t1 (v varchar(20));
+insert into t1 values('a ');
+select v='a' from t1;
+v='a'
+1
+select binary v='a' from t1;
+binary v='a'
+0
+select binary v='a ' from t1;
+binary v='a '
+1
+insert into t1 values('a');
+alter table t1 add primary key (v);
+ERROR 23000: Duplicate entry 'a' for key 1
+drop table t1;
+create table t1 (v varbinary(20));
+insert into t1 values('a');
+insert into t1 values('a ');
+alter table t1 add primary key (v);
