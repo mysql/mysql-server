@@ -2447,20 +2447,22 @@ srv_sprintf_innodb_monitor(
 		       "BUFFER POOL AND MEMORY\n"
 		       "----------------------\n");
 	buf += sprintf(buf,
-	"Total memory allocated %lu; in additional pool allocated %lu\n",
-				(ulong) ut_total_allocated_memory,
-				(ulong) mem_pool_get_reserved(mem_comm_pool));
+	"Total memory allocated " ULINTPF
+	"; in additional pool allocated" ULINTPF "\n",
+				ut_total_allocated_memory,
+				mem_pool_get_reserved(mem_comm_pool));
 
 	if (mem_out_of_mem_err_msg_count > 0) {
 	        buf += sprintf(buf,
-	"Mem allocation has spilled out of additional mem pool %lu times\n",
-					(ulong) mem_out_of_mem_err_msg_count);
+	"Mem allocation has spilled out of additional mem pool" ULINTPF
+						"times\n",
+					mem_out_of_mem_err_msg_count);
 	}
 
 	if (srv_use_awe) {
 		buf += sprintf(buf,
 	"In addition to that %lu MB of AWE memory allocated\n",
-			       (ulong) (srv_pool_size / ((1024 * 1024) / UNIV_PAGE_SIZE)));
+		(ulong) (srv_pool_size / ((1024 * 1024) / UNIV_PAGE_SIZE)));
 	}
 	
 	buf_print_io(buf, buf_end);
@@ -2472,7 +2474,7 @@ srv_sprintf_innodb_monitor(
 		       "--------------\n");
 	buf += sprintf(buf,
         "%ld queries inside InnoDB, %lu queries in queue\n",
-		       (ulong) srv_conc_n_threads,
+		       (long) srv_conc_n_threads,
 		       (ulong) srv_conc_n_waiting_threads);
 
         n_reserved = fil_space_get_n_reserved_extents(0);
@@ -2495,11 +2497,12 @@ srv_sprintf_innodb_monitor(
 			srv_main_thread_op_info);
 #endif
 	buf += sprintf(buf,
-	"Number of rows inserted %lu, updated %lu, deleted %lu, read %lu\n",
-			(ulong) srv_n_rows_inserted, 
-			(ulong) srv_n_rows_updated, 
-			(ulong) srv_n_rows_deleted, 
-			(ulong) srv_n_rows_read);
+	"Number of rows inserted " ULINTPF
+	", updated " ULINTPF ", deleted " ULINTPF ", read " ULINTPF "\n",
+			srv_n_rows_inserted, 
+			srv_n_rows_updated, 
+			srv_n_rows_deleted, 
+			srv_n_rows_read);
 	buf += sprintf(buf,
 	"%.2f inserts/s, %.2f updates/s, %.2f deletes/s, %.2f reads/s\n",
 			(srv_n_rows_inserted - srv_n_rows_inserted_old)
