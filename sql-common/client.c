@@ -321,8 +321,9 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
     {
       net->last_errno=CR_NAMEDPIPEOPEN_ERROR;
       strmov(net->sqlstate, unknown_sqlstate);
-      sprintf(net->last_error,ER(net->last_errno),host, unix_socket,
-	      (ulong) GetLastError());
+      my_snprintf(net->last_error, sizeof(net->last_error)-1,
+                  ER(net->last_errno), host, unix_socket,
+	          (ulong) GetLastError());
       return INVALID_HANDLE_VALUE;
     }
     /* wait for for an other instance */
@@ -330,8 +331,9 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
     {
       net->last_errno=CR_NAMEDPIPEWAIT_ERROR;
       strmov(net->sqlstate, unknown_sqlstate);
-      sprintf(net->last_error,ER(net->last_errno),host, unix_socket,
-	      (ulong) GetLastError());
+      my_snprintf(net->last_error, sizeof(net->last_error)-1,
+                  ER(net->last_errno), host, unix_socket,
+	          (ulong) GetLastError());
       return INVALID_HANDLE_VALUE;
     }
   }
@@ -339,8 +341,9 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
   {
     net->last_errno=CR_NAMEDPIPEOPEN_ERROR;
     strmov(net->sqlstate, unknown_sqlstate);
-    sprintf(net->last_error,ER(net->last_errno),host, unix_socket,
-	    (ulong) GetLastError());
+    my_snprintf(net->last_error, sizeof(net->last_error)-1,
+                ER(net->last_errno), host, unix_socket,
+	        (ulong) GetLastError());
     return INVALID_HANDLE_VALUE;
   }
   dwMode = PIPE_READMODE_BYTE | PIPE_WAIT;
@@ -349,8 +352,9 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
     CloseHandle( hPipe );
     net->last_errno=CR_NAMEDPIPESETSTATE_ERROR;
     strmov(net->sqlstate, unknown_sqlstate);
-    sprintf(net->last_error,ER(net->last_errno),host, unix_socket,
-	    (ulong) GetLastError());
+    my_snprintf(net->last_error, sizeof(net->last_error)-1,
+                ER(net->last_errno),host, unix_socket,
+	        (ulong) GetLastError());
     return INVALID_HANDLE_VALUE;
   }
   *arg_host=host ; *arg_unix_socket=unix_socket;	/* connect arg */
@@ -563,9 +567,11 @@ err:
     net->last_errno=error_allow;
     strmov(net->sqlstate, unknown_sqlstate);
     if (error_allow == CR_SHARED_MEMORY_EVENT_ERROR)
-      sprintf(net->last_error,ER(net->last_errno),suffix_pos,error_code);
+      my_snprintf(net->last_error,sizeof(net->last_error)-1,
+                  ER(net->last_errno),suffix_pos,error_code);
     else
-      sprintf(net->last_error,ER(net->last_errno),error_code);
+      my_snprintf(net->last_error,sizeof(net->last_error)-1,
+                  ER(net->last_errno),error_code);
     return(INVALID_HANDLE_VALUE);
   }
   return(handle_map);
@@ -794,7 +800,8 @@ static int check_license(MYSQL *mysql)
     if (net->last_errno == ER_UNKNOWN_SYSTEM_VARIABLE)
     {
       net->last_errno= CR_WRONG_LICENSE;
-      sprintf(net->last_error, ER(net->last_errno), required_license);
+      my_snprintf(net->last_error, sizeof(net->last_error)-1,
+                  ER(net->last_errno), required_license);
     }
     return 1;
   }
@@ -811,7 +818,8 @@ static int check_license(MYSQL *mysql)
        strncmp(row[0], required_license, sizeof(required_license))))
   {
     net->last_errno= CR_WRONG_LICENSE;
-    sprintf(net->last_error, ER(net->last_errno), required_license);
+    my_snprintf(net->last_error, sizeof(net->last_error)-1,
+                ER(net->last_errno), required_license);
   }
   mysql_free_result(res);
   return net->last_errno;
@@ -1628,7 +1636,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       sock=0;
       unix_socket = 0;
       host=mysql->options.shared_memory_base_name;
-      sprintf(host_info=buff, ER(CR_SHARED_MEMORY_CONNECTION), host);
+      my_snprintf(host_info=buff, sizeof(buff)-1,
+                  ER(CR_SHARED_MEMORY_CONNECTION), host);
     }
   }
 #endif /* HAVE_SMEM */
@@ -1648,7 +1657,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     {
       net->last_errno=CR_SOCKET_CREATE_ERROR;
       strmov(net->sqlstate, unknown_sqlstate);
-      sprintf(net->last_error,ER(net->last_errno),socket_errno);
+      my_snprintf(net->last_error,sizeof(net->last_error)-1,
+                  ER(net->last_errno),socket_errno);
       goto error;
     }
     net->vio = vio_new(sock, VIO_TYPE_SOCKET, TRUE);
@@ -1662,7 +1672,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 			  socket_errno));
       net->last_errno=CR_CONNECTION_ERROR;
       strmov(net->sqlstate, unknown_sqlstate);
-      sprintf(net->last_error,ER(net->last_errno),unix_socket,socket_errno);
+      my_snprintf(net->last_error,sizeof(net->last_error)-1,
+                  ER(net->last_errno),unix_socket,socket_errno);
       goto error;
     }
     mysql->options.protocol=MYSQL_PROTOCOL_SOCKET;
@@ -1692,7 +1703,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     else
     {
       net->vio=vio_new_win32pipe(hPipe);
-      sprintf(host_info=buff, ER(CR_NAMEDPIPE_CONNECTION), unix_socket);
+      my_snprintf(host_info=buff, sizeof(buff)-1,
+                  ER(CR_NAMEDPIPE_CONNECTION), unix_socket);
     }
   }
 #endif
@@ -1705,7 +1717,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       port=mysql_port;
     if (!host)
       host=LOCAL_HOST;
-    sprintf(host_info=buff,ER(CR_TCP_CONNECTION),host);
+    my_snprintf(host_info=buff,sizeof(buff)-1,ER(CR_TCP_CONNECTION),host);
     DBUG_PRINT("info",("Server name: '%s'.  TCP sock: %d", host,port));
 #ifdef MYSQL_SERVER
     thr_alarm_init(&alarmed);
@@ -1720,7 +1732,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     {
       net->last_errno=CR_IPSOCK_ERROR;
       strmov(net->sqlstate, unknown_sqlstate);
-      sprintf(net->last_error,ER(net->last_errno),socket_errno);
+      my_snprintf(net->last_error,sizeof(net->last_error)-1,
+                  ER(net->last_errno),socket_errno);
       goto error;
     }
     net->vio = vio_new(sock,VIO_TYPE_TCPIP,FALSE);
@@ -1747,7 +1760,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 	my_gethostbyname_r_free();
 	net->last_errno=CR_UNKNOWN_HOST;
 	strmov(net->sqlstate, unknown_sqlstate);
-	sprintf(net->last_error, ER(CR_UNKNOWN_HOST), host, tmp_errno);
+	my_snprintf(net->last_error, sizeof(net->last_error)-1,
+                    ER(CR_UNKNOWN_HOST), host, tmp_errno);
 	goto error;
       }
       memcpy(&sock_addr.sin_addr, hp->h_addr,
@@ -1762,7 +1776,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 			  host));
       net->last_errno= CR_CONN_HOST_ERROR;
       strmov(net->sqlstate, unknown_sqlstate);
-      sprintf(net->last_error ,ER(CR_CONN_HOST_ERROR), host, socket_errno);
+      my_snprintf(net->last_error, sizeof(net->last_error)-1,
+                  ER(CR_CONN_HOST_ERROR), host, socket_errno);
       goto error;
     }
   }
@@ -1815,8 +1830,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   {
     strmov(net->sqlstate, unknown_sqlstate);
     net->last_errno= CR_VERSION_ERROR;
-    sprintf(net->last_error, ER(CR_VERSION_ERROR), mysql->protocol_version,
-	    PROTOCOL_VERSION);
+    my_snprintf(net->last_error, sizeof(net->last_error)-1,
+                ER(CR_VERSION_ERROR), mysql->protocol_version,
+	        PROTOCOL_VERSION);
     goto error;
   }
   end=strend((char*) net->read_pos+1);
