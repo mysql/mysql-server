@@ -2,6 +2,7 @@
 # Test of heap tables.
 #
 
+drop table if exists t1;
 create table t1 (a int not null,b int not null, primary key (a)) type=heap comment="testing heaps" avg_row_length=100 min_rows=1 max_rows=100;
 insert into t1 values(1,1),(2,2),(3,3),(4,4);
 delete from t1 where a=1 or a=0;
@@ -84,4 +85,18 @@ INSERT into t1 set f1=12,f2="ted";
 INSERT into t1 set f1=12,f2="ted";
 delete from t1 where f2="bill";
 select * from t1;
+drop table t1;
+
+#
+# Test when using part key searches
+#
+
+create table t1 (btn char(10) not null, key(btn)) type=heap;
+insert into t1 values ("hello"),("hello"),("hello"),("hello"),("hello"),("a"),("b"),("c"),("d"),("e"),("f"),("g"),("h"),("i");
+explain select * from t1 where btn like "q%";
+select * from t1 where btn like "q%";
+alter table t1 add column new_col char(1) not null, add key (btn,new_col), drop key btn;
+update t1 set new_col=btn;
+explain select * from t1 where btn="a";
+explain select * from t1 where btn="a" and new_col="a";
 drop table t1;
