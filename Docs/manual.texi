@@ -48886,6 +48886,14 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+@code{InnoDB} now retains foreign key constraints through @code{ALTER TABLE}
+and @code{CREATE/DROP INDEX}.
+@item
+@code{InnoDB} now allows foreign key constraints to be added through the
+@code{ALTER TABLE} syntax.
+@item
+@code{InnoDB} tables can now be set to automatically grow in size (autoextend).
+@item
 Added @code{--ignore-lines=n} option to @code{mysqlimport}.  This has the
 same effect as the @code{IGNORE n LINES} clause for @code{LOAD DATA}.
 @item
