@@ -28,6 +28,7 @@
 
 int main(int argc, const char** argv)
 {
+  ndb_init();
   int _row = 0;
   int _column = 0;
   int _updates = 0;

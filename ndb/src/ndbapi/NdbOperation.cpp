@@ -78,7 +78,6 @@ NdbOperation::NdbOperation(Ndb* aNdb) :
   m_tcReqGSN(GSN_TCKEYREQ),
   m_keyInfoGSN(GSN_KEYINFO),
   m_attrInfoGSN(GSN_ATTRINFO),
-  theBoundATTRINFO(NULL),
   theBlobList(NULL)
 {
   theReceiver.init(NdbReceiver::NDB_OPERATION, this);
@@ -131,7 +130,7 @@ NdbOperation::setErrorCodeAbort(int anErrorCode)
  *****************************************************************************/
 
 int
-NdbOperation::init(NdbTableImpl* tab, NdbConnection* myConnection){
+NdbOperation::init(const NdbTableImpl* tab, NdbConnection* myConnection){
   NdbApiSignal* tSignal;
   theStatus		= Init;
   theError.code		= 0;
@@ -167,7 +166,6 @@ NdbOperation::init(NdbTableImpl* tab, NdbConnection* myConnection){
   theScanInfo        	= 0;
   theTotalNrOfKeyWordInSignal = 8;
   theMagicNumber        = 0xABCDEF01;
-  theBoundATTRINFO      = NULL;
   theBlobList = NULL;
 
   tSignal = theNdb->getSignal();
@@ -263,14 +261,6 @@ NdbOperation::release()
       tSubroutine = tSubroutine->theNext;
       theNdb->releaseNdbSubroutine(tSaveSubroutine);
     }
-    tSignal = theBoundATTRINFO;
-    while (tSignal != NULL)
-    {
-      tSaveSignal = tSignal;
-      tSignal = tSignal->next();
-      theNdb->releaseSignal(tSaveSignal);
-    }
-    theBoundATTRINFO = NULL;
   }
   tBlob = theBlobList;
   while (tBlob != NULL)
@@ -293,6 +283,12 @@ NdbRecAttr*
 NdbOperation::getValue(Uint32 anAttrId, char* aValue)
 {
   return getValue_impl(m_currentTable->getColumn(anAttrId), aValue);
+}
+
+NdbRecAttr*
+NdbOperation::getValue(const NdbDictionary::Column* col, char* aValue)
+{
+  return getValue_impl(&NdbColumnImpl::getImpl(*col), aValue);
 }
 
 int

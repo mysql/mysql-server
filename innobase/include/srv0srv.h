@@ -24,7 +24,8 @@ extern os_event_t	srv_lock_timeout_thread_event;
 
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
-#define SRV_AUTO_EXTEND_INCREMENT   (8 * ((1024 * 1024) / UNIV_PAGE_SIZE))
+#define SRV_AUTO_EXTEND_INCREMENT	\
+	(srv_auto_extend_increment * ((1024 * 1024) / UNIV_PAGE_SIZE))
 
 /* This is set to TRUE if the MySQL user has set it in MySQL */
 extern ibool	srv_lower_case_table_names;
@@ -51,6 +52,7 @@ extern ulint*   srv_data_file_is_raw_partition;
 
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
+extern ulint	srv_auto_extend_increment;
 
 extern ibool	srv_created_new_raw;
 
@@ -98,7 +100,10 @@ extern ulint	srv_max_n_threads;
 extern lint	srv_conc_n_threads;
 
 extern ibool	srv_fast_shutdown;
-
+extern ibool	srv_very_fast_shutdown;  /* if this TRUE, do not flush the
+					 buffer pool to data files at the
+					 shutdown; we effectively 'crash'
+					 InnoDB */
 extern ibool	srv_innodb_status;
 
 extern ibool	srv_use_doublewrite_buf;
@@ -106,8 +111,11 @@ extern ibool	srv_use_doublewrite_buf;
 extern ibool    srv_set_thread_priorities;
 extern int      srv_query_thread_priority;
 
+extern ulint	srv_max_purge_lag;
 extern ibool	srv_use_awe;
 extern ibool	srv_use_adaptive_hash_indexes;
+
+extern ulint	srv_max_purge_lag;
 /*-------------------------------------------*/
 
 extern ulint	srv_n_rows_inserted;
@@ -161,6 +169,7 @@ extern	ulint	srv_test_array_size;
 
 extern ulint	srv_activity_count;
 extern ulint	srv_fatal_semaphore_wait_threshold;
+extern ulint	srv_dml_needed_delay;
 
 extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 				query threads, and lock table: we allocate

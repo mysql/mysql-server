@@ -181,7 +181,7 @@ public:
   
   void execute( Request* request );
   
-  void doStart(Uint32 nodeId, const char * fspath);
+  void doStart(Uint32 nodeId, const char * fspath, const char * backup_path);
   // its a thread so its always running
   void run();   
 

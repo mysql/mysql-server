@@ -145,6 +145,29 @@ store the charset-collation number; one byte is left unused, though */
 #define DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE	6
 
 /*************************************************************************
+Checks if a string type has to be compared by the MySQL comparison functions.
+InnoDB internally only handles binary byte string comparisons, as well as
+latin1_swedish_ci strings. For example, UTF-8 strings have to be compared
+by MySQL. */
+
+ibool
+dtype_str_needs_mysql_cmp(
+/*======================*/
+				/* out: TRUE if a string type that requires
+				comparison with MySQL functions */
+	dtype_t*	dtype);	/* in: type struct */
+/*************************************************************************
+For the documentation of this function, see innobase_get_at_most_n_mbchars()
+in ha_innodb.cc. */
+
+ulint
+dtype_get_at_most_n_mbchars(
+/*========================*/
+	dtype_t*	dtype,
+	ulint		prefix_len,
+	ulint		data_len,
+	const char*	str);
+/*************************************************************************
 Checks if a data main type is a string type. Also a BLOB is considered a
 string type. */
 

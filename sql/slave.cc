@@ -1465,6 +1465,7 @@ be equal for replication to work";
   Used by fetch_master_table (used by LOAD TABLE tblname FROM MASTER and LOAD
   DATA FROM MASTER). Drops the table (if 'overwrite' is true) and recreates it
   from the dump. Honours replication inclusion/exclusion rules.
+  db must be non-zero (guarded by assertion).
 
   RETURN VALUES
     0           success
@@ -1475,8 +1476,8 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
 				  const char* table_name, bool overwrite)
 {
   ulong packet_len;
-  char *query;
-  char* save_db;
+  char *query, *save_db;
+  uint32 save_db_length;
   Vio* save_vio;
   HA_CHECK_OPT check_opt;
   TABLE_LIST tables;
@@ -1532,9 +1533,13 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   thd->proc_info = "Creating table from master dump";
   // save old db in case we are creating in a different database
   save_db = thd->db;
+  save_db_length= thd->db_length;
   thd->db = (char*)db;
+  DBUG_ASSERT(thd->db);
+  thd->db_length= strlen(thd->db);
   mysql_parse(thd, thd->query, packet_len); // run create table
   thd->db = save_db;		// leave things the way the were before
+  thd->db_length= save_db_length;
   thd->options = save_options;
   
   if (thd->query_error)
@@ -3468,7 +3473,7 @@ err:
 		  IO_RPL_LOG_NAME, llstr(mi->master_log_pos,llbuff));
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query = thd->db = 0; // extra safety
-  thd->query_length = 0;
+  thd->query_length= thd->db_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   if (mysql)
   {
@@ -3636,7 +3641,7 @@ Slave SQL thread aborted. Can't execute init_slave query");
 
   while (!sql_slave_killed(thd,rli))
   {
-    thd->proc_info = "Reading event from the relay log"; 
+    thd->proc_info = "Reading event from the relay log";
     DBUG_ASSERT(rli->sql_thd == thd);
     THD_CHECK_SENTRY(thd);
     if (exec_relay_log_event(thd,rli))
@@ -3646,16 +3651,15 @@ Slave SQL thread aborted. Can't execute init_slave query");
         sql_print_error("\
 Error running query, slave SQL thread aborted. Fix the problem, and restart \
 the slave SQL thread with \"SLAVE START\". We stopped at log \
-'%s' position %s",
-		      RPL_LOG_NAME, llstr(rli->group_master_log_pos, llbuff));
+'%s' position %s", RPL_LOG_NAME, llstr(rli->group_master_log_pos, llbuff));
       goto err;
     }
   }
 
   /* Thread stopped. Print the current replication position to the log */
-  sql_print_information("Slave SQL thread exiting, replication stopped in log \
- '%s' at position %s",
-		  RPL_LOG_NAME, llstr(rli->group_master_log_pos,llbuff));
+  sql_print_information("Slave SQL thread exiting, replication stopped in log "
+ 			"'%s' at position %s",
+		        RPL_LOG_NAME, llstr(rli->group_master_log_pos,llbuff));
 
  err:
   VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -3665,7 +3669,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
     variables is supposed to set them to 0 before terminating)).
   */
   thd->query= thd->db= thd->catalog= 0; 
-  thd->query_length = 0;
+  thd->query_length= thd->db_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->proc_info = "Waiting for slave mutex on exit";
   pthread_mutex_lock(&rli->run_lock);

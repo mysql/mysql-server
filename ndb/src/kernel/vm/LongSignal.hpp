@@ -25,7 +25,7 @@
  */
 struct SectionSegment {
 
-  static const Uint32 DataLength = 60;
+  STATIC_CONST( DataLength = 60 );
   
   Uint32 m_ownerRef;
   Uint32 m_sz;

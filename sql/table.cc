@@ -379,6 +379,24 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   fix_type_pointers(&int_array,&outparam->fieldnames,1,&names);
   fix_type_pointers(&int_array,outparam->intervals,interval_count,
 		    &names);
+
+  {
+    /* Set ENUM and SET lengths */
+    TYPELIB *interval;
+    for (interval= outparam->intervals;
+         interval < outparam->intervals + interval_count;
+         interval++)
+    {
+      uint count= (uint) (interval->count + 1) * sizeof(uint);
+      if (!(interval->type_lengths= (uint *) alloc_root(&outparam->mem_root,
+                                                        count)))
+        goto err_not_open;
+      for (count= 0; count < interval->count; count++)
+        interval->type_lengths[count]= strlen(interval->type_names[count]);
+      interval->type_lengths[count]= 0;
+    }
+  }
+
   if (keynames)
     fix_type_pointers(&int_array,&outparam->keynames,1,&keynames);
   VOID(my_close(file,MYF(MY_WME)));
@@ -731,6 +749,14 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       outparam->crashed=((err == HA_ERR_CRASHED_ON_USAGE) &&
 			 outparam->file->auto_repair() &&
 			 !(ha_open_flags & HA_OPEN_FOR_REPAIR));
+
+      if (err==HA_ERR_NO_SUCH_TABLE)
+      {
+	/* The table did not exists in storage engine, use same error message
+	   as if the .frm file didn't exist */
+	error= 1;
+	my_errno= ENOENT;
+      }
       goto err_not_open; /* purecov: inspected */
     }
   }
@@ -1030,14 +1056,19 @@ TYPELIB *typelib(List<String> &strings)
     return 0;
   result->count=strings.elements;
   result->name="";
-  if (!(result->type_names=(const char **) sql_alloc(sizeof(char *)*
-						     (result->count+1))))
+  uint nbytes= (sizeof(char*) + sizeof(uint)) * (result->count + 1);
+  if (!(result->type_names= (const char**) sql_alloc(nbytes)))
     return 0;
+  result->type_lengths= (uint*) (result->type_names + result->count + 1);
   List_iterator<String> it(strings);
   String *tmp;
   for (uint i=0; (tmp=it++) ; i++)
-    result->type_names[i]=tmp->ptr();
-  result->type_names[result->count]=0;		// End marker
+  {
+    result->type_names[i]= tmp->ptr();
+    result->type_lengths[i]= tmp->length();
+  }
+  result->type_names[result->count]= 0;		// End marker
+  result->type_lengths[result->count]= 0;
   return result;
 }
 

@@ -240,3 +240,40 @@ SELECT t1.A_ID, GROUP_CONCAT(t2.B_DESC) AS B_DESC FROM t1 LEFT JOIN t2 ON t1.A_I
 DROP TABLE t1;
 DROP TABLE t2;
 
+#
+# blobs
+#
+
+create table t1 (a int, b text);
+insert into t1 values (1, 'bb'), (1, 'ccc'), (1, 'a'), (1, 'bb'), (1, 'ccc');
+insert into t1 values (2, 'BB'), (2, 'CCC'), (2, 'A'), (2, 'BB'), (2, 'CCC');
+select group_concat(b) from t1 group by a;
+select group_concat(distinct b) from t1 group by a;
+select group_concat(b order by b) from t1 group by a;
+select group_concat(distinct b order by b) from t1 group by a;
+set local group_concat_max_len=4;
+select group_concat(b) from t1 group by a;
+select group_concat(distinct b) from t1 group by a;
+select group_concat(b order by b) from t1 group by a;
+select group_concat(distinct b order by b) from t1 group by a;
+
+#
+# long blobs
+#
+
+insert into t1 values (1, concat(repeat('1', 300), '2')), 
+(1, concat(repeat('1', 300), '2')), (1, concat(repeat('0', 300), '1')), 
+(2, concat(repeat('1', 300), '2')), (2, concat(repeat('1', 300), '2')), 
+(2, concat(repeat('0', 300), '1'));
+set local group_concat_max_len=1024;
+select group_concat(b) from t1 group by a;
+select group_concat(distinct b) from t1 group by a;
+select group_concat(b order by b) from t1 group by a;
+select group_concat(distinct b order by b) from t1 group by a;
+set local group_concat_max_len=400;
+select group_concat(b) from t1 group by a;
+select group_concat(distinct b) from t1 group by a;
+select group_concat(b order by b) from t1 group by a;
+select group_concat(distinct b order by b) from t1 group by a;
+
+drop table t1;

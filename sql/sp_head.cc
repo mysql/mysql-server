@@ -765,7 +765,7 @@ sp_head::reset_lex(THD *thd)
   thd->lex= sublex= new st_lex;
 
   /* Reset most stuff. The length arguments doesn't matter here. */
-  mysql_init_query(thd,oldlex->buf, oldlex->end_of_query - oldlex->ptr, TRUE);
+  lex_start(thd, oldlex->buf, (ulong) (oldlex->end_of_query - oldlex->ptr));
 
   /* We must reset ptr and end_of_query again */
   sublex->ptr= oldlex->ptr;

@@ -127,6 +127,7 @@ private:
    */
   void executeHelp(char* parameters);
   void executeShow(char* parameters);
+  void executeShutdown(char* parameters);
   void executeRun(char* parameters);
   void executeInfo(char* parameters);
   void executeClusterLog(char* parameters);

@@ -416,6 +416,5 @@ select count(*) from t2 where x < -16;
 select count(*) from t2 where x = -16;
 select count(*) from t2 where x > -16;
 select count(*) from t2 where x = 18446744073709551601;
-
-drop table t1;
+drop table t1,t2;
 

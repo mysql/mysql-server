@@ -293,7 +293,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
        */
       List<Item> vals= thd->lex->value_list;
 
-      mysql_init_query(thd, (uchar*)defstr.c_ptr(), defstr.length(), TRUE);
+      lex_start(thd, (uchar*)defstr.c_ptr(), defstr.length());
       thd->lex->value_list= vals;
     }
 
@@ -455,7 +455,7 @@ db_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
   if (ret == SP_OK)
   {
     store_record(table,record[1]);
-    table->timestamp_on_update_now = 0;	// Don't update create time now.
+    table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_MODIFIED])->set_time();
     if (chistics->suid != SP_IS_DEFAULT_SUID)
       table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]->
@@ -1054,6 +1054,10 @@ create_string(THD *thd, String *buf,
     break;
   case SP_MODIFIES_SQL_DATA:
     buf->append("    MODIFIES SQL DATA\n");
+    break;
+  case SP_DEFAULT_ACCESS:
+  case SP_CONTAINS_SQL:
+    /* Do nothing */
     break;
   }
   if (chistics->detistic)

@@ -156,6 +156,8 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
 {
   NET *net= &stmt->thd->net;
   char buff[9];
+  DBUG_ENTER("send_prep_stmt");
+
   buff[0]= 0;                                   /* OK packet indicator */
   int4store(buff+1, stmt->id);
   int2store(buff+5, columns);
@@ -164,13 +166,12 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
     Send types and names of placeholders to the client
     XXX: fix this nasty upcast from List<Item_param> to List<Item>
   */
-  return my_net_write(net, buff, sizeof(buff)) || 
-         (stmt->param_count &&
-          stmt->thd->protocol_simple.send_fields((List<Item> *)
-                                                 &stmt->lex->param_list,
-                                                 Protocol::SEND_EOF)) ||
-         net_flush(net);
-  return 0;
+  DBUG_RETURN(my_net_write(net, buff, sizeof(buff)) || 
+              (stmt->param_count &&
+               stmt->thd->protocol_simple.send_fields((List<Item> *)
+                                                      &stmt->lex->param_list,
+                                                      Protocol::SEND_EOF)) ||
+              net_flush(net));
 }
 #else
 static bool send_prep_stmt(Prepared_statement *stmt,
@@ -899,10 +900,9 @@ static int mysql_test_insert(Prepared_statement *stmt,
   List_iterator_fast<List_item> its(values_list);
   List_item *values;
   int res;
-  my_bool update= (lex->value_list.elements ? UPDATE_ACL : 0);
   DBUG_ENTER("mysql_test_insert");
 
-  if ((res= insert_precheck(thd, table_list, update)))
+  if ((res= insert_precheck(thd, table_list)))
     DBUG_RETURN(res);
 
   /*
@@ -1071,6 +1071,12 @@ static int mysql_test_select(Prepared_statement *stmt,
     DBUG_RETURN(1);
 #endif
 
+  if (!lex->result && !(lex->result= new (&stmt->mem_root) select_send))
+  {
+    send_error(thd);
+    goto err;
+  }
+
   if ((result= open_and_lock_tables(thd, tables)))
   {
     result= 1;                                  // Error sent
@@ -1096,9 +1102,20 @@ static int mysql_test_select(Prepared_statement *stmt,
     }
     else
     {
-      if (send_prep_stmt(stmt, lex->select_lex.item_list.elements) ||
-        thd->protocol_simple.send_fields(&lex->select_lex.item_list,
-                                         Protocol::SEND_EOF)
+      /* Make copy of item list, as change_columns may change it */
+      List<Item> fields(lex->select_lex.item_list);
+
+      /* Change columns if a procedure like analyse() */
+      if (unit->last_procedure &&
+          unit->last_procedure->change_columns(fields))
+        goto err_prep;
+
+      /*
+        We can use lex->result as it should've been
+        prepared in unit->prepare call above.
+      */
+      if (send_prep_stmt(stmt, lex->result->field_count(fields)) ||
+          lex->result->send_fields(fields, Protocol::SEND_EOF)
 #ifndef EMBEDDED_LIBRARY
           || net_flush(&thd->net)
 #endif
@@ -1398,8 +1415,7 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
     res= mysql_test_insert(stmt, tables, lex->field_list,
 			   lex->many_values,
 			   select_lex->item_list, lex->value_list,
-			   (lex->value_list.elements ?
-			    DUP_UPDATE : lex->duplicates));
+			   lex->duplicates);
     break;
 
   case SQLCOM_UPDATE:
@@ -1491,8 +1507,16 @@ error:
 static bool init_param_array(Prepared_statement *stmt)
 {
   LEX *lex= stmt->lex;
+  THD *thd= stmt->thd;
   if ((stmt->param_count= lex->param_list.elements))
   {
+    if (stmt->param_count > (uint) UINT_MAX16)
+    {
+      /* Error code to be defined in 5.0 */
+      send_error(thd, ER_UNKNOWN_ERROR,
+                 "Prepared statement contains too many placeholders.");
+      return 1;
+    }
     Item_param **to;
     List_iterator<Item_param> param_iterator(lex->param_list);
     /* Use thd->mem_root as it points at statement mem_root */
@@ -1501,7 +1525,7 @@ static bool init_param_array(Prepared_statement *stmt)
                                   sizeof(Item_param*) * stmt->param_count);
     if (!stmt->param_array)
     {
-      send_error(stmt->thd, ER_OUT_OF_RESOURCES);
+      send_error(thd, ER_OUT_OF_RESOURCES);
       return 1;
     }
     for (to= stmt->param_array;
@@ -1596,11 +1620,13 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
 
   thd->current_arena= stmt;
   mysql_init_query(thd, (uchar *) thd->query, thd->query_length);
+  /* Reset warnings from previous command */
+  mysql_reset_errors(thd);
   lex= thd->lex;
   lex->safe_to_cache_query= 0;
 
   error= yyparse((void *)thd) || thd->is_fatal_error ||
-         init_param_array(stmt);
+         thd->net.report_error || init_param_array(stmt);
   /*
     While doing context analysis of the query (in send_prepare_results) we
     allocate a lot of additional memory: for open tables, JOINs, derived
@@ -1628,6 +1654,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   thd->restore_backup_statement(stmt, &thd->stmt_backup);
   cleanup_items(stmt->free_list);
   close_thread_tables(thd);
+  thd->rollback_item_tree_changes();
   thd->cleanup_after_query();
   thd->current_arena= thd;
 
@@ -1636,7 +1663,9 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     /* Statement map deletes statement on erase */
     thd->stmt_map.erase(stmt);
     stmt= NULL;
-    /* error is sent inside yyparse/send_prepare_results */
+    if (thd->net.report_error)
+      send_error(thd);
+    /* otherwise the error is sent inside yyparse/send_prepare_results */
   }
   else
   {
@@ -1653,11 +1682,13 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   DBUG_RETURN(!stmt);
 }
 
+
 /* Reinit statement before execution */
 
 void reset_stmt_for_execute(THD *thd, LEX *lex)
 {
   SELECT_LEX *sl= lex->all_selects_list;
+  DBUG_ENTER("reset_stmt_for_execute");
 
   if (lex->empty_field_list_on_rset)
   {
@@ -1720,6 +1751,8 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
   lex->current_select= &lex->select_lex;
   if (lex->result)
     lex->result->cleanup();
+
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1781,10 +1814,13 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     DBUG_VOID_RETURN;
   }
 
+  DBUG_ASSERT(thd->free_list == NULL);
+  mysql_reset_thd_for_next_command(thd);
   if (flags & (ulong) CURSOR_TYPE_READ_ONLY)
   {
-    if (stmt->lex->result)
+    if (!stmt->lex->result || !stmt->lex->result->simple_select())
     {
+      DBUG_PRINT("info",("Cursor asked for not SELECT stmt"));
       /*
         If lex->result is set in the parser, this is not a SELECT
         statement: we can't open a cursor for it.
@@ -1793,6 +1829,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     }
     else
     {
+      DBUG_PRINT("info",("Using READ_ONLY cursor"));
       if (!stmt->cursor &&
           !(stmt->cursor= new (&stmt->mem_root) Cursor()))
       {
@@ -1821,7 +1858,6 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   if (stmt->param_count && stmt->set_params_data(stmt, &expanded_query))
     goto set_params_data_err;
 #endif
-  DBUG_ASSERT(thd->free_list == NULL);
   thd->stmt_backup.set_statement(thd);
   thd->set_statement(stmt);
   thd->current_arena= stmt;
@@ -1855,6 +1891,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     cleanup_items(stmt->free_list);
     reset_stmt_params(stmt);
     close_thread_tables(thd);                   /* to close derived tables */
+    thd->rollback_item_tree_changes();
     thd->cleanup_after_query();
   }
 
@@ -1903,6 +1940,8 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
     DBUG_VOID_RETURN;
   }
 
+  /* Must go before setting variables, as it clears thd->user_var_events */
+  mysql_reset_thd_for_next_command(thd);
   thd->set_n_backup_statement(stmt, &thd->stmt_backup);
   thd->set_statement(stmt);
   if (stmt->set_params_from_vars(stmt,
@@ -1949,8 +1988,7 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
     transformations of the query tree (i.e. negations elimination).
     This should be done permanently on the parse tree of this statement.
   */
-  if (stmt->state == Item_arena::PREPARED)
-    thd->current_arena= stmt;
+  thd->current_arena= stmt;
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
@@ -1959,7 +1997,9 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
   thd->lex->unit.cleanup();
+  thd->current_arena= thd;
   cleanup_items(stmt->free_list);
+  thd->rollback_item_tree_changes();
   reset_stmt_params(stmt);
   close_thread_tables(thd);                    // to close derived tables
   thd->set_statement(&thd->stmt_backup);
@@ -2062,6 +2102,7 @@ void mysql_stmt_reset(THD *thd, char *packet)
   */
   reset_stmt_params(stmt);
 
+  mysql_reset_thd_for_next_command(thd);
   send_ok(thd);
   
   DBUG_VOID_RETURN;

@@ -546,4 +546,4 @@ count(*)
 select count(*) from t2 where x = 18446744073709551601;
 count(*)
 0
-drop table t1;
+drop table t1,t2;

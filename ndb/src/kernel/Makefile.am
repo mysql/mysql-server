@@ -52,7 +52,10 @@ LDADD +=  \
               $(top_builddir)/ndb/src/common/mgmcommon/libmgmsrvcommon.la \
               $(top_builddir)/ndb/src/mgmapi/libmgmapi.la \
               $(top_builddir)/ndb/src/common/portlib/libportlib.la      \
-              $(top_builddir)/ndb/src/common/util/libgeneral.la 
+              $(top_builddir)/ndb/src/common/util/libgeneral.la  \
+         $(top_builddir)/dbug/libdbug.a \
+         $(top_builddir)/mysys/libmysys.a \
+         $(top_builddir)/strings/libmystrings.a @NDB_SCI_LIBS@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

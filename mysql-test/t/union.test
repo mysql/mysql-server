@@ -5,6 +5,9 @@
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6;
 --enable_warnings
+# PS doesn't work correctly with found_rows: to be fixed
+--disable_ps_protocol
+
 
 CREATE TABLE t1 (a int not null, b char (10) not null);
 insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
@@ -73,6 +76,7 @@ select * from t1 union select SQL_BUFFER_RESULT * from t2;
 # Test CREATE, INSERT and REPLACE
 create table t3 select a,b from t1 union all select a,b from t2;
 insert into t3 select a,b from t1 union all select a,b from t2;
+# PS can't handle REPLACE ... SELECT
 replace into t3 select a,b as c from t1 union all select a,b from t2;
 
 drop table t1,t2,t3;
@@ -575,3 +579,78 @@ PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
 (SELECT * FROM t1 AS PARTITIONED, t2 AS
 PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1);
 drop table t1,t2;
+
+#
+# merging ENUM and SET fields in one UNION
+#
+create table t1 (a ENUM('Yes', 'No') NOT NULL);
+create table t2 (a ENUM('aaa', 'bbb') NOT NULL);
+insert into t1 values ('No');
+insert into t2 values ('bbb');
+create table t3 (a SET('Yes', 'No') NOT NULL);
+create table t4 (a SET('aaa', 'bbb') NOT NULL);
+insert into t3 values (1);
+insert into t4 values (3);
+select "1" as a union select a from t1;
+select a as a from t1 union select "1";
+select a as a from t2 union select a from t1;
+select "1" as a union select a from t3;
+select a as a from t3 union select "1";
+select a as a from t4 union select a from t3;
+select a as a from t1 union select a from t4;
+drop table t1,t2,t3,t4;
+
+#
+# Bug #6139 UNION doesn't understand collate in the column of second select
+#
+create table t1 as
+(select _latin1'test') union
+(select _latin1'TEST') union
+(select _latin1'TeST');
+show create table t1;
+select count(*) from t1;
+drop table t1;
+
+create table t1 as
+(select _latin1'test' collate latin1_bin) union
+(select _latin1'TEST') union
+(select _latin1'TeST');
+show create table t1;
+select count(*) from t1;
+drop table t1;
+
+create table t1 as
+(select _latin1'test') union
+(select _latin1'TEST' collate latin1_bin) union
+(select _latin1'TeST');
+show create table t1;
+select count(*) from t1;
+drop table t1;
+
+create table t1 as
+(select _latin1'test') union
+(select _latin1'TEST') union
+(select _latin1'TeST' collate latin1_bin);
+show create table t1;
+select count(*) from t1;
+drop table t1;
+
+create table t2 (
+a char character set latin1 collate latin1_swedish_ci,
+b char character set latin1 collate latin1_bin);
+--error 1271
+create table t1 as
+(select a from t2) union
+(select b from t2);
+create table t1 as
+(select a collate latin1_german1_ci from t2) union
+(select b from t2);
+show create table t1;
+drop table t1;
+create table t1 as
+(select a from t2) union
+(select b collate latin1_german1_ci from t2);
+show create table t1;
+drop table t1;
+drop table t2;
+
