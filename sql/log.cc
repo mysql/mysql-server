@@ -2096,7 +2096,7 @@ void MYSQL_LOG::close(uint exiting)
     if (log_file.type == WRITE_CACHE && log_type == LOG_BIN)
     {
       my_off_t offset= BIN_LOG_HEADER_SIZE + FLAGS_OFFSET;
-      char flags=0; // clearing LOG_EVENT_BINLOG_IN_USE_F
+      byte flags=0; // clearing LOG_EVENT_BINLOG_IN_USE_F
       my_pwrite(log_file.file, &flags, 1, offset, MYF(0));
     }
 
@@ -2474,10 +2474,10 @@ int TC_LOG_MMAP::open(const char *opt_name)
   DBUG_ASSERT(opt_name && opt_name[0]);
 
 #ifdef HAVE_GETPAGESIZE
-  tc_log_page_size=getpagesize();
+  tc_log_page_size= my_getpagesize();
   DBUG_ASSERT(TC_LOG_PAGE_SIZE % tc_log_page_size == 0);
 #else
-  tc_log_page_size=TC_LOG_PAGE_SIZE;
+  tc_log_page_size= TC_LOG_PAGE_SIZE;
 #endif
 
   fn_format(logname,opt_name,mysql_data_home,"",MY_UNPACK_FILENAME);
@@ -2781,6 +2781,7 @@ void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
 
 void TC_LOG_MMAP::close()
 {
+  uint i;
   switch (inited) {
   case 6:
     pthread_mutex_destroy(&LOCK_sync);
@@ -2790,7 +2791,7 @@ void TC_LOG_MMAP::close()
   case 5:
     data[0]='A'; // garble the first (signature) byte, in case my_delete fails
   case 4:
-    for (uint i=0; i < npages; i++)
+    for (i=0; i < npages; i++)
     {
       if (pages[i].ptr == 0)
         break;
@@ -3015,7 +3016,8 @@ int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
     if (ev->get_type_code() == XID_EVENT)
     {
       Xid_log_event *xev=(Xid_log_event *)ev;
-      byte *x=memdup_root(&mem_root, (char *)& xev->xid, sizeof(xev->xid));
+      byte *x=(byte *)memdup_root(&mem_root, (char *)& xev->xid,
+                                  sizeof(xev->xid));
       if (! x)
         goto err2;
       my_hash_insert(&xids, x);
