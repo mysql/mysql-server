@@ -300,6 +300,7 @@ character-set=koi8r
 "Truncated wrong %-.32s value: '%-.128s'"
 "Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
 "Invalid ON UPDATE clause for '%-.64s' field",
+"This command is not supported in the prepared statement protocol yet",
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"
@@ -337,3 +338,8 @@ character-set=koi8r
 "Variable or condition declaration after cursor or handler declaration"
 "Cursor declaration after handler declaration"
 "Case not found for CASE statement"
+"Слишком большой конфигурационный файл '%-.64s'"
+"Неверный заголовок типа файла '%-.64s'"
+"Неожиданный конец файла в коментарии '%-.64s'"
+"Ошибка при распознавании параметра '%-.64s' (строка: '%-.64s')"
+"Неожиданный конец файла при пропуске неизвестного параметра '%-.64s'"

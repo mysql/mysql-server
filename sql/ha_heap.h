@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000,2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ class ha_heap: public handler
   const char **bas_ext() const;
   ulong table_flags() const
   {
-    return (HA_READ_RND_SAME | HA_NO_INDEX | HA_KEYPOS_TO_RNDPOS |
+    return (HA_READ_RND_SAME | HA_FAST_KEY_READ | HA_KEYPOS_TO_RNDPOS |
 	    HA_NO_BLOBS | HA_NULL_KEY | HA_REC_NOT_IN_SEQ);
   }
   ulong index_flags(uint inx) const
@@ -58,10 +58,10 @@ class ha_heap: public handler
   double scan_time() { return (double) (records+deleted) / 20.0+10; }
   double read_time(uint index, uint ranges, ha_rows rows)
   { return (double) rows /  20.0+1; }
-  virtual bool fast_key_read() { return 1;}
 
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
+  void set_keys_for_scanning(void);
   int write_row(byte * buf);
   int update_row(const byte * old_data, byte * new_data);
   int delete_row(const byte * buf);
@@ -81,13 +81,12 @@ class ha_heap: public handler
   void position(const byte *record);
   void info(uint);
   int extra(enum ha_extra_function operation);
-  int reset(void);
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
-  ha_rows records_in_range(int inx, const byte *start_key,uint start_key_len,
-			   enum ha_rkey_function start_search_flag,
-			   const byte *end_key,uint end_key_len,
-			   enum ha_rkey_function end_search_flag);
+  int disable_indexes(uint mode);
+  int enable_indexes(uint mode);
+  int indexes_are_disabled(void);
+  ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   int delete_table(const char *from);
   int rename_table(const char * from, const char * to);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);

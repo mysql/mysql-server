@@ -587,12 +587,13 @@ CHARSET_INFO my_charset_latin2_czech_ci =
     2,0,0,				/* number */
     MY_CS_COMPILED|MY_CS_STRNXFRM,	/* state      */
     "latin2",				/* cs name    */
-    "latin2_czech_ci",			/* name */
+    "latin2_czech_cs",			/* name */
     "",					/* comment    */
     ctype_czech,
     to_lower_czech,
     to_upper_czech,
     sort_order_czech,
+    NULL,		/* sort_order_big*/
     tab_8859_2_uni,	/* tab_to_uni   */
     idx_uni_8859_2,	/* tab_from_uni */
     "","",

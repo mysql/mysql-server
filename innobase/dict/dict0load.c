@@ -27,9 +27,10 @@ Finds the first table name in the given database. */
 char*
 dict_get_first_table_name_in_db(
 /*============================*/
-			/* out, own: table name, NULL if does not exist;
-			the caller must free the memory in the string! */
-	char*	name)	/* in: database name which ends to '/' */
+				/* out, own: table name, NULL if
+				does not exist; the caller must
+				free the memory in the string! */
+	const char*	name)	/* in: database name which ends to '/' */
 {
 	dict_table_t*	sys_tables;
 	btr_pcur_t	pcur;
@@ -40,7 +41,6 @@ dict_get_first_table_name_in_db(
 	rec_t*		rec;
 	byte*		field;
 	ulint		len;
-	char*		table_name;
 	mtr_t		mtr;
 	
 #ifdef UNIV_SYNC_DEBUG
@@ -92,9 +92,7 @@ loop:
 
 		/* We found one */
 
-		table_name = mem_alloc(len + 1);
-		ut_memcpy(table_name, field, len);
-		table_name[len] = '\0';
+		char*	table_name = mem_strdupl(field, len);
 		
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -124,7 +122,6 @@ dict_print(void)
 	byte*		field;
 	ulint		len;
 	mtr_t		mtr;
-	char		table_name[10000];
 	
 	mutex_enter(&(dict_sys->mutex));
 
@@ -157,18 +154,19 @@ loop:
 
 		/* We found one */
 
-		ut_memcpy(table_name, field, len);
-		table_name[len] = '\0';
-			
+		char*	table_name = mem_strdupl(field, len);
+
 		btr_pcur_store_position(&pcur, &mtr);
 
 		mtr_commit(&mtr);
-		
+
 		table = dict_table_get_low(table_name);
+		mem_free(table_name);
 
 		if (table == NULL) {
-			fprintf(stderr, "InnoDB: Failed to load table %s\n",
-								table_name);
+			fputs("InnoDB: Failed to load table ", stderr);
+			ut_print_namel(stderr, field, len);
+			putc('\n', stderr);
 		} else {
 			/* The table definition was corrupt if there
 			is no index */
@@ -300,7 +298,6 @@ dict_load_columns(
 	byte*		field;
 	ulint		len;
 	byte*		buf;
-	char*		name_buf;
 	char*		name;
 	ulint		mtype;
 	ulint		prtype;
@@ -351,12 +348,7 @@ dict_load_columns(
 			dict_table_get_first_index(sys_columns), 4))->name));
 
 		field = rec_get_nth_field(rec, 4, &len);
-
-		name_buf = mem_heap_alloc(heap, len + 1);
-		ut_memcpy(name_buf, field, len);
-		name_buf[len] = '\0';
-
-		name = name_buf;
+		name = mem_heap_strdupl(heap, field, len);
 
 		field = rec_get_nth_field(rec, 5, &len);
 		mtype = mach_read_from_4(field);
@@ -394,6 +386,27 @@ dict_load_columns(
 }
 
 /************************************************************************
+Report that an index field or index for a table has been delete marked. */
+static
+void
+dict_load_report_deleted_index(
+	const char*	name,	/* in: table name */
+	ulint		field)	/* in: index field, or ULINT_UNDEFINED */
+{
+	fputs("InnoDB: Error: data dictionary entry"
+		" for table ", stderr);
+	ut_print_name(stderr, name);
+	fputs(" is corrupt!\n", stderr);
+	if (field != ULINT_UNDEFINED) {
+		fprintf(stderr,
+			"InnoDB: Index field %lu is delete marked.\n", field);
+	}
+	else {
+		fputs("InnoDB: An index is delete marked.\n", stderr);
+	}
+}
+
+/************************************************************************
 Loads definitions for index fields. */
 static
 void
@@ -408,7 +421,6 @@ dict_load_fields(
 	btr_pcur_t	pcur;
 	dtuple_t*	tuple;
 	dfield_t*	dfield;
-	char*		col_name;
 	ulint		pos_and_prefix_len;
 	ulint		prefix_len;
 	rec_t*		rec;
@@ -446,10 +458,7 @@ dict_load_fields(
 
 		ut_a(btr_pcur_is_on_user_rec(&pcur, &mtr));
 		if (rec_get_deleted_flag(rec)) {
-			fprintf(stderr,
-"InnoDB: Error: data dictionary entry for table %s is corrupt!\n"
-"InnoDB: An index field is delete marked.\n",
-			table->name);
+			dict_load_report_deleted_index(table->name, i);
 		}
 		
 		field = rec_get_nth_field(rec, 0, &len);
@@ -487,11 +496,8 @@ dict_load_fields(
 
 		field = rec_get_nth_field(rec, 4, &len);
 
-		col_name = mem_heap_alloc(heap, len + 1);
-		ut_memcpy(col_name, field, len);
-		col_name[len] = '\0';
-		
-		dict_mem_index_add_field(index, col_name, 0, prefix_len);
+		dict_mem_index_add_field(index,
+			mem_heap_strdupl(heap, field, len), 0, prefix_len);
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	} 
@@ -575,10 +581,8 @@ dict_load_indexes(
 		}
 
 		if (rec_get_deleted_flag(rec)) {
-			fprintf(stderr,
-"InnoDB: Error: data dictionary entry for table %s is corrupt!\n"
-"InnoDB: An index is delete marked.\n",
-			table->name);
+			dict_load_report_deleted_index(table->name,
+				ULINT_UNDEFINED);
 
 			btr_pcur_close(&pcur);
 			mtr_commit(&mtr);
@@ -596,10 +600,7 @@ dict_load_indexes(
 			dict_table_get_first_index(sys_indexes), 4))->name));
 		
 		field = rec_get_nth_field(rec, 4, &name_len);
-
-		name_buf = mem_heap_alloc(heap, name_len + 1);
-		ut_memcpy(name_buf, field, name_len);
-		name_buf[name_len] = '\0';
+		name_buf = mem_heap_strdupl(heap, field, name_len);
 
 		field = rec_get_nth_field(rec, 5, &len);
 		n_fields = mach_read_from_4(field);
@@ -620,11 +621,13 @@ dict_load_indexes(
 
 		if (page_no == FIL_NULL) {
 
-			fprintf(stderr,
-	"InnoDB: Error: trying to load index %s for table %s\n"
-	"InnoDB: but the index tree has been freed!\n",
-				name_buf, table->name);
- 
+			fputs("InnoDB: Error: trying to load index ", stderr);
+			ut_print_name(stderr, name_buf);
+			fputs(" for table ", stderr);
+			ut_print_name(stderr, table->name);
+			fputs("\n"
+		"InnoDB: but the index tree has been freed!\n", stderr);
+
 			btr_pcur_close(&pcur);
 			mtr_commit(&mtr);
 
@@ -634,10 +637,12 @@ dict_load_indexes(
 		if ((type & DICT_CLUSTERED) == 0
 			    && NULL == dict_table_get_first_index(table)) {
 
-			fprintf(stderr,
-	"InnoDB: Error: trying to load index %s for table %s\n"
-	"InnoDB: but the first index was not clustered!\n",
-				name_buf, table->name);
+			fputs("InnoDB: Error: trying to load index ", stderr);
+			ut_print_namel(stderr, name_buf, name_len);
+			fputs(" for table ", stderr);
+			ut_print_name(stderr, table->name);
+			fputs("\n"
+		"InnoDB: but the first index is not clustered!\n", stderr);
 
 			btr_pcur_close(&pcur);
 			mtr_commit(&mtr);
@@ -648,7 +653,7 @@ dict_load_indexes(
 		if (is_sys_table
 		    && ((type & DICT_CLUSTERED)
 		        || ((table == dict_sys->sys_tables)
-		            && (name_len == ut_strlen("ID_IND"))
+		            && (name_len == (sizeof "ID_IND") - 1)
 			    && (0 == ut_memcmp(name_buf, (char*) "ID_IND",
 							name_len))))) {
 
@@ -684,12 +689,13 @@ dictionary cache. */
 dict_table_t*
 dict_load_table(
 /*============*/
-			/* out: table, NULL if does not exist; if the table is
-			stored in an .ibd file, but the file does not exist,
-			then we set the ibd_file_missing flag TRUE in the table
-			object we return */
-	char*	name)	/* in: table name in the databasename/tablename
-			format */
+				/* out: table, NULL if does not exist;
+				if the table is stored in an .ibd file,
+				but the file does not exist,
+				then we set the ibd_file_missing flag TRUE
+				in the table object we return */
+	const char*	name)	/* in: table name in the
+				databasename/tablename format */
 {
 	ibool		ibd_file_missing	= FALSE;
 	dict_table_t*	table;
@@ -702,7 +708,6 @@ dict_load_table(
 	rec_t*		rec;
 	byte*		field;
 	ulint		len;
-	char*		buf;
 	ulint		space;
 	ulint		n_cols;
 	ulint		err;
@@ -802,15 +807,13 @@ dict_load_table(
 
 	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
 		ut_error;
-	
+#if 0 /* clustered tables have not been implemented yet */
 		field = rec_get_nth_field(rec, 6, &len);
 		table->mix_id = mach_read_from_8(field);
 
 		field = rec_get_nth_field(rec, 8, &len);
-		buf = mem_heap_alloc(heap, len);
-		ut_memcpy(buf, field, len);
-
-		table->cluster_name = buf;
+		table->cluster_name = mem_heap_strdupl(heap, field, len);
+#endif
 	}
 
 	if ((table->type == DICT_TABLE_CLUSTER)
@@ -848,7 +851,7 @@ dict_load_table(
 "InnoDB: the foreign key table or the referenced table!\n"
 "InnoDB: The data dictionary of InnoDB is corrupt. You may need to drop\n"
 "InnoDB: and recreate the foreign key table or the referenced table.\n"
-"InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n"
+"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n"
 "InnoDB: Latest foreign key error printout:\n%s\n", dict_foreign_err_buf);
 				
 		mutex_exit(&dict_foreign_err_mutex);
@@ -879,7 +882,6 @@ dict_load_table_on_id(
 	byte*		field;
 	ulint		len;	
 	dict_table_t*	table;
-	char*		name;
 	mtr_t		mtr;
 	
 #ifdef UNIV_SYNC_DEBUG
@@ -942,13 +944,8 @@ dict_load_table_on_id(
 		
 	/* Now we get the table name from the record */
 	field = rec_get_nth_field(rec, 1, &len);
-
-	name = mem_heap_alloc(heap, len + 1);
-	ut_memcpy(name, field, len);
-	name[len] = '\0';
-	
 	/* Load the table definition to memory */
-	table = dict_load_table(name);
+	table = dict_load_table(mem_heap_strdupl(heap, field, len));
 	
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -995,7 +992,6 @@ dict_load_foreign_cols(
 	btr_pcur_t	pcur;
 	dtuple_t*	tuple;
 	dfield_t*	dfield;
-	char*		col_name;
 	rec_t*		rec;
 	byte*		field;
 	ulint		len;
@@ -1040,21 +1036,13 @@ dict_load_foreign_cols(
 		ut_a(i == mach_read_from_4(field));
 
 		field = rec_get_nth_field(rec, 4, &len);
-
-		col_name = mem_heap_alloc(foreign->heap, len + 1);
-		ut_memcpy(col_name, field, len);
-		col_name[len] = '\0';
-
-		foreign->foreign_col_names[i] = col_name;
+		foreign->foreign_col_names[i] =
+			mem_heap_strdupl(foreign->heap, field, len);
 
 		field = rec_get_nth_field(rec, 5, &len);
+		foreign->referenced_col_names[i] =
+			mem_heap_strdupl(foreign->heap, field, len);
 
-		col_name = mem_heap_alloc(foreign->heap, len + 1);
-		ut_memcpy(col_name, field, len);
-		col_name[len] = '\0';
-
-		foreign->referenced_col_names[i] = col_name;
-		
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	} 
 
@@ -1110,8 +1098,10 @@ dict_load_foreign(
 					|| rec_get_deleted_flag(rec)) {
 		/* Not found */
 
-		fprintf(stderr,
-		"InnoDB: Error A: cannot load foreign constraint %s\n", id);
+		fputs("InnoDB: Error A: cannot load foreign constraint ",
+			stderr);
+		ut_print_name(stderr, id);
+		putc('\n', stderr);
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -1125,8 +1115,10 @@ dict_load_foreign(
 	/* Check if the id in record is the searched one */
 	if (len != ut_strlen(id) || ut_memcmp(id, field, len) != 0) {
 
-		fprintf(stderr,
-		"InnoDB: Error B: cannot load foreign constraint %s\n", id);
+		fputs("InnoDB: Error B: cannot load foreign constraint ",
+			stderr);
+		ut_print_name(stderr, id);
+		putc('\n', stderr);
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -1151,23 +1143,15 @@ dict_load_foreign(
 	foreign->type = foreign->n_fields >> 24;
 	foreign->n_fields = foreign->n_fields & 0xFFFFFFUL;
 	
-	foreign->id = mem_heap_alloc(foreign->heap, ut_strlen(id) + 1);
-				
-	ut_memcpy(foreign->id, id, ut_strlen(id) + 1);
+	foreign->id = mem_heap_strdup(foreign->heap, id);
 
 	field = rec_get_nth_field(rec, 3, &len);
-							
-	foreign->foreign_table_name = mem_heap_alloc(foreign->heap, 1 + len);
-				
-	ut_memcpy(foreign->foreign_table_name, field, len);
-	foreign->foreign_table_name[len] = '\0';	
+	foreign->foreign_table_name =
+		mem_heap_strdupl(foreign->heap, field, len);
 	
 	field = rec_get_nth_field(rec, 4, &len);
-							
-	foreign->referenced_table_name = mem_heap_alloc(foreign->heap,
-								1 + len);
-	ut_memcpy(foreign->referenced_table_name, field, len);
-	foreign->referenced_table_name[len] = '\0';	
+	foreign->referenced_table_name =
+		mem_heap_strdupl(foreign->heap, field, len);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -1203,8 +1187,8 @@ already in the dictionary cache. */
 ulint
 dict_load_foreigns(
 /*===============*/
-				/* out: DB_SUCCESS or error code */
-	char*	table_name)	/* in: table name */
+					/* out: DB_SUCCESS or error code */
+	const char*	table_name)	/* in: table name */
 {
 	btr_pcur_t	pcur;
 	mem_heap_t* 	heap;
@@ -1281,10 +1265,7 @@ loop:
 
 	/* Now we get a foreign key constraint id */
 	field = rec_get_nth_field(rec, 1, &len);
-
-	id = mem_heap_alloc(heap, len + 1);
-	ut_memcpy(id, field, len);
-	id[len] = '\0';
+	id = mem_heap_strdupl(heap, field, len);
 	
 	btr_pcur_store_position(&pcur, &mtr);
 

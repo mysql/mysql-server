@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000,2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -417,6 +417,7 @@ typedef struct st_mi_sort_param
 #define MI_MIN_SIZE_BULK_INSERT_TREE 16384             /* this is per key */
 #define MI_MIN_ROWS_TO_USE_BULK_INSERT 100
 #define MI_MIN_ROWS_TO_DISABLE_INDEXES 100
+#define MI_MIN_ROWS_TO_USE_WRITE_CACHE 10
 
 /* The UNIQUE check is done with a hashed long key */
 
@@ -683,6 +684,9 @@ uint mi_uniquedef_write(File file, MI_UNIQUEDEF *keydef);
 char *mi_uniquedef_read(char *ptr, MI_UNIQUEDEF *keydef);
 uint mi_recinfo_write(File file, MI_COLUMNDEF *recinfo);
 char *mi_recinfo_read(char *ptr, MI_COLUMNDEF *recinfo);
+extern int mi_disable_indexes(MI_INFO *info);
+extern int mi_enable_indexes(MI_INFO *info);
+extern int mi_indexes_are_disabled(MI_INFO *info);
 ulong _my_calc_total_blob_length(MI_INFO *info, const byte *record);
 ha_checksum mi_checksum(MI_INFO *info, const byte *buf);
 ha_checksum mi_static_checksum(MI_INFO *info, const byte *buf);

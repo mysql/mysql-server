@@ -553,7 +553,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	    keyinfo->key_length+= HA_KEY_NULL_LENGTH;
 	  }
 	  if (field->type() == FIELD_TYPE_BLOB ||
-	      field->type() == FIELD_TYPE_GEOMETRY ||
 	      field->real_type() == FIELD_TYPE_VAR_STRING)
 	  {
 	    if (field->type() == FIELD_TYPE_BLOB)
@@ -945,7 +944,8 @@ static void frm_error(int error, TABLE *form, const char *name, myf errortype)
     break;
   case 2:
   {
-    datext=form->file ? *form->file->bas_ext() : "";
+    datext= form->file ? *form->file->bas_ext() : "";
+    datext= datext==NullS ? "" : datext;
     err_no= (my_errno == ENOENT) ? ER_FILE_NOT_FOUND : (my_errno == EAGAIN) ?
       ER_FILE_USED : ER_CANT_OPEN_FILE;
     my_error(err_no,errortype,
@@ -1140,6 +1140,11 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
   if (create_info->min_rows > ~(ulong) 0)
     create_info->min_rows= ~(ulong) 0;
 #endif
+  /*
+    Ensure that raid_chunks can't be larger than 255, as this would cause
+    problems with drop database
+  */
+  set_if_smaller(create_info->raid_chunks, 255);
 
   if ((file=my_create(name,CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {
@@ -1228,7 +1233,7 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
   String str(buff,sizeof(buff),&my_charset_bin);
   uint length;
 
-  field->val_str(&str,&str);
+  field->val_str(&str);
   if (!(length= str.length()))
     return 1;
   to= strmake_root(mem, str.ptr(), length);
@@ -1256,7 +1261,7 @@ char *get_field(MEM_ROOT *mem, Field *field)
   String str(buff,sizeof(buff),&my_charset_bin);
   uint length;
 
-  field->val_str(&str,&str);
+  field->val_str(&str);
   length= str.length();
   if (!length || !(to= (char*) alloc_root(mem,length+1)))
     return NullS;

@@ -20,7 +20,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0rec.h"
 #include "que0que.h"
 #include "usr0sess.h"
-#include "srv0que.h"
 #include "srv0start.h"
 #include "row0undo.h"
 #include "row0mysql.h"
@@ -200,7 +199,7 @@ trx_rollback_to_savepoint_for_mysql(
 						DB_NO_SAVEPOINT,
 						otherwise DB_SUCCESS */
 	trx_t*		trx,			/* in: transaction handle */
-	char*		savepoint_name,		/* in: savepoint name */
+	const char*	savepoint_name,		/* in: savepoint name */
 	ib_longlong*	mysql_binlog_cache_pos)	/* out: the MySQL binlog cache
 						position corresponding to this
 						savepoint; MySQL needs this
@@ -228,9 +227,9 @@ trx_rollback_to_savepoint_for_mysql(
 
 	if (trx->conc_state == TRX_NOT_STARTED) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr,
-"  InnoDB: Error: transaction has a savepoint %s though it is not started\n",
-							      savep->name);
+		fputs("  InnoDB: Error: transaction has a savepoint ", stderr);
+		ut_print_name(stderr, savep->name);
+		fputs(" though it is not started\n", stderr);
 	        return(DB_ERROR);
 	}
 
@@ -265,7 +264,7 @@ trx_savepoint_for_mysql(
 /*====================*/
 						/* out: always DB_SUCCESS */
 	trx_t*		trx,			/* in: transaction handle */
-	char*		savepoint_name,		/* in: savepoint name */
+	const char*	savepoint_name,		/* in: savepoint name */
 	ib_longlong	binlog_cache_pos)	/* in: MySQL binlog cache
 						position corresponding to this
 						connection at the time of the
@@ -301,8 +300,7 @@ trx_savepoint_for_mysql(
 
 	savep = mem_alloc(sizeof(trx_named_savept_t));
 
-	savep->name = mem_alloc(1 + ut_strlen(savepoint_name));
-	ut_memcpy(savep->name, savepoint_name, 1 + ut_strlen(savepoint_name));
+	savep->name = mem_strdup(savepoint_name);
 
 	savep->savept = trx_savept_take(trx);
 
@@ -467,10 +465,11 @@ loop:
 		table = dict_table_get_on_id_low(trx->table_id, trx);
 
 		if (table) {		
-			fprintf(stderr,
-"InnoDB: Table found: dropping table %s in recovery\n", table->name);
+			fputs("InnoDB: Table found: dropping table ", stderr);
+			ut_print_name(stderr, table->name);
+			fputs(" in recovery\n", stderr);
 
-			err = row_drop_table_for_mysql(table->name, trx);
+			err = row_drop_table_for_mysql(table->name, trx, TRUE);
 
 			ut_a(err == (int) DB_SUCCESS);
 		}
@@ -730,7 +729,7 @@ trx_roll_pop_top_rec(
 						undo->top_page_no, mtr);
 	offset = undo->top_offset;
 
-/*	printf("Thread %lu undoing trx %lu undo record %lu\n",
+/*	fprintf(stderr, "Thread %lu undoing trx %lu undo record %lu\n",
 		os_thread_get_curr_id(), ut_dulint_get_low(trx->id),
 		ut_dulint_get_low(undo->top_undo_no)); */
 
@@ -932,21 +931,15 @@ trx_undo_rec_release(
 /*************************************************************************
 Starts a rollback operation. */	
 
-void
+que_thr_t*
 trx_rollback(
 /*=========*/
+				/* out: next query thread to run */
 	trx_t*		trx,	/* in: transaction */
-	trx_sig_t*	sig,	/* in: signal starting the rollback */
-	que_thr_t**	next_thr)/* in/out: next query thread to run;
-				if the value which is passed in is
-				a pointer to a NULL pointer, then the
-				calling function can start running
-				a new query thread; if the passed value is
-				NULL, the parameter is ignored */
+	trx_sig_t*	sig)	/* in: signal starting the rollback */
 {
 	que_t*		roll_graph;
 	que_thr_t*	thr;
-/*	que_thr_t*	thr2; */
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
@@ -988,18 +981,7 @@ trx_rollback(
 	thr = que_fork_start_command(roll_graph);
 
 	ut_ad(thr);
-
-/*	thr2 = que_fork_start_command(roll_graph);
-
-	ut_ad(thr2); */
-	
-	if (next_thr && (*next_thr == NULL)) {
-		*next_thr = thr;
-/*		srv_que_task_enqueue_low(thr2); */
-	} else {
-		srv_que_task_enqueue_low(thr);
-/*		srv_que_task_enqueue_low(thr2); */
-	}
+	return(thr);
 }
 
 /********************************************************************
@@ -1071,17 +1053,14 @@ trx_finish_error_processing(
 /*************************************************************************
 Finishes a partial rollback operation. */
 static
-void
+que_thr_t*
 trx_finish_partial_rollback_off_kernel(
 /*===================================*/
-	trx_t*		trx,	/* in: transaction */
-	que_thr_t**	next_thr)/* in/out: next query thread to run;
-				if the value which is passed in is a pointer
-				to a NULL pointer, then the calling function
-				can start running a new query thread; if this
-				parameter is NULL, it is ignored */
+				/* out: next query thread to run */
+	trx_t*		trx)	/* in: transaction */
 {
 	trx_sig_t*	sig;
+	que_thr_t*	next_thr;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
@@ -1092,29 +1071,26 @@ trx_finish_partial_rollback_off_kernel(
 	/* Remove the signal from the signal queue and send reply message
 	to it */
 
-	trx_sig_reply(sig, next_thr);
+	next_thr = trx_sig_reply(sig);
 	trx_sig_remove(trx, sig);
 
 	trx->que_state = TRX_QUE_RUNNING;
+	return(next_thr);
 }
 
 /********************************************************************
 Finishes a transaction rollback. */
 
-void
+que_thr_t*
 trx_finish_rollback_off_kernel(
 /*===========================*/
+				/* out: next query thread to run */
 	que_t*		graph,	/* in: undo graph which can now be freed */
-	trx_t*		trx,	/* in: transaction */
-	que_thr_t**	next_thr)/* in/out: next query thread to run;
-				if the value which is passed in is
-				a pointer to a NULL pointer, then the
-   				calling function can start running
-				a new query thread; if this parameter is
-				NULL, it is ignored */
+	trx_t*		trx)	/* in: transaction */
 {
 	trx_sig_t*	sig;
 	trx_sig_t*	next_sig;
+	que_thr_t*	next_thr;
 	
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
@@ -1129,21 +1105,21 @@ trx_finish_rollback_off_kernel(
 
 	if (sig->type == TRX_SIG_ROLLBACK_TO_SAVEPT) {
 
-		trx_finish_partial_rollback_off_kernel(trx, next_thr);
-
-		return;
+		return(trx_finish_partial_rollback_off_kernel(trx));
 
 	} else if (sig->type == TRX_SIG_ERROR_OCCURRED) {
 
 		trx_finish_error_processing(trx);
 
-		return;
+		return(NULL);
 	}
 
+#ifdef UNIV_DEBUG
 	if (lock_print_waits) {			
-		printf("Trx %lu rollback finished\n",
+		fprintf(stderr, "Trx %lu rollback finished\n",
 						(ulong) ut_dulint_get_low(trx->id));
 	}
+#endif /* UNIV_DEBUG */
 
 	trx_commit_off_kernel(trx);
 
@@ -1151,19 +1127,23 @@ trx_finish_rollback_off_kernel(
 	send reply messages to them */
 
 	trx->que_state = TRX_QUE_RUNNING;
-	
+
+	next_thr = NULL;
 	while (sig != NULL) {
 		next_sig = UT_LIST_GET_NEXT(signals, sig);
 
 		if (sig->type == TRX_SIG_TOTAL_ROLLBACK) {
 
-			trx_sig_reply(sig, next_thr);
+			ut_a(next_thr == NULL);
+			next_thr = trx_sig_reply(sig);
 
 			trx_sig_remove(trx, sig);
 		}
 
 		sig = next_sig;
 	}
+
+	return(next_thr);
 }
 
 /*************************************************************************
@@ -1196,7 +1176,6 @@ trx_rollback_step(
 	que_thr_t*	thr)	/* in: query thread */
 {
 	roll_node_t*	node;
-	ibool		success;
 	ulint		sig_no;
 	trx_savept_t*	savept;
 	
@@ -1223,18 +1202,12 @@ trx_rollback_step(
 
 		/* Send a rollback signal to the transaction */
 
-		success = trx_sig_send(thr_get_trx(thr),
-					sig_no, TRX_SIG_SELF,
-					thr, savept, NULL);
+		trx_sig_send(thr_get_trx(thr), sig_no, TRX_SIG_SELF,
+					thr, savept);
 
 		thr->state = QUE_THR_SIG_REPLY_WAIT;
 		
 		mutex_exit(&kernel_mutex);
-
-		if (!success) {
-			/* Error in delivering the rollback signal */
-			que_thr_handle_error(thr, DB_ERROR, NULL, 0);
-		}
 
 		return(NULL);
 	}

@@ -28,6 +28,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,
     NULL,
     NULL,
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     "","",

@@ -589,28 +589,29 @@ btr_page_get_father_for_rec(
 
 	if (btr_node_ptr_get_child_page_no(node_ptr) !=
                                                 buf_frame_get_page_no(page)) {
-		fprintf(stderr,
-"InnoDB: Dump of the child page:\n");
+		fputs("InnoDB: Dump of the child page:\n", stderr);
 		buf_page_print(buf_frame_align(page));
-		fprintf(stderr,
-"InnoDB: Dump of the parent page:\n");
+		fputs("InnoDB: Dump of the parent page:\n", stderr);
 		buf_page_print(buf_frame_align(node_ptr));
 
-      		fprintf(stderr,
-"InnoDB: Corruption of an index tree: table %s, index %s,\n"
+		fputs("InnoDB: Corruption of an index tree: table ", stderr);
+		ut_print_name(stderr,
+			UT_LIST_GET_FIRST(tree->tree_indexes)->table_name);
+		fputs(", index ", stderr);
+		ut_print_name(stderr,
+			UT_LIST_GET_FIRST(tree->tree_indexes)->name);
+		fprintf(stderr, ",\n"
 "InnoDB: father ptr page no %lu, child page no %lu\n",
-                    (UT_LIST_GET_FIRST(tree->tree_indexes))->table_name,
-                    (UT_LIST_GET_FIRST(tree->tree_indexes))->name,
-                    (unsigned long) btr_node_ptr_get_child_page_no(node_ptr),
-                    (unsigned long) buf_frame_get_page_no(page));
+			(ulong) btr_node_ptr_get_child_page_no(node_ptr),
+			(ulong) buf_frame_get_page_no(page));
      		page_rec_print(page_rec_get_next(page_get_infimum_rec(page)));
      		page_rec_print(node_ptr);
 
-      		fprintf(stderr,
+		fputs(
 "InnoDB: You should dump + drop + reimport the table to fix the\n"
 "InnoDB: corruption. If the crash happens at the database startup, see\n"
-"InnoDB: section 6.1 of http://www.innodb.com/ibman.html about forcing\n"
-"InnoDB: recovery. Then dump + drop + reimport.\n");
+"InnoDB: section 6.1 of http://www.innodb.com/ibman.php about forcing\n"
+"InnoDB: recovery. Then dump + drop + reimport.\n", stderr);
 	}
 
 	ut_a(btr_node_ptr_get_child_page_no(node_ptr) ==
@@ -882,7 +883,7 @@ btr_page_reorganize_low(
 	        fprintf(stderr,
 "InnoDB: Error: page old data size %lu new data size %lu\n"
 "InnoDB: Error: page old max ins size %lu new max ins size %lu\n"
-"InnoDB: Make a detailed bug report and send it to mysql@lists.mysql.com\n",
+"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n",
 			(unsigned long) data_size1, (unsigned long) data_size2,
 			(unsigned long) max_ins_size1,
 			(unsigned long) max_ins_size2);
@@ -1053,7 +1054,7 @@ btr_root_raise_and_insert(
 
 	/* We play safe and reset the free bits for the new page */
 
-/*	printf("Root raise new page no %lu\n",
+/*	fprintf(stderr, "Root raise new page no %lu\n",
 					buf_frame_get_page_no(new_page)); */
 
 	ibuf_reset_free_bits(UT_LIST_GET_FIRST(tree->tree_indexes),
@@ -1602,7 +1603,7 @@ func_start:
 
 	/* 5. Move then the records to the new page */
 	if (direction == FSP_DOWN) {
-/*		printf("Split left\n"); */
+/*		fputs("Split left\n", stderr); */
 
 		page_move_rec_list_start(new_page, page, move_limit, mtr);
 		left_page = new_page;
@@ -1610,7 +1611,7 @@ func_start:
 
 		lock_update_split_left(right_page, left_page);
 	} else {
-/*		printf("Split right\n"); */
+/*		fputs("Split right\n", stderr); */
 
 		page_move_rec_list_end(new_page, page, move_limit, mtr);
 		left_page = page;
@@ -1646,7 +1647,7 @@ func_start:
 		ibuf_update_free_bits_for_two_pages_low(cursor->index,
 							left_page,
 							right_page, mtr);
-		/* printf("Split and insert done %lu %lu\n",
+		/* fprintf(stderr, "Split and insert done %lu %lu\n",
 				buf_frame_get_page_no(left_page),
 				buf_frame_get_page_no(right_page)); */
 		return(rec);
@@ -1666,7 +1667,7 @@ func_start:
 		/* We play safe and reset the free bits for new_page */
 		ibuf_reset_free_bits(cursor->index, new_page);
 
-		/* printf("Split second round %lu\n",
+		/* fprintf(stderr, "Split second round %lu\n",
 					buf_frame_get_page_no(page)); */
 		n_iterations++;
 		ut_ad(n_iterations < 2);
@@ -1680,7 +1681,7 @@ func_start:
 
 	ibuf_update_free_bits_for_two_pages_low(cursor->index, left_page,
 							right_page, mtr);
-	/* printf("Split and insert done %lu %lu\n",
+	/* fprintf(stderr, "Split and insert done %lu %lu\n",
 				buf_frame_get_page_no(left_page),
 				buf_frame_get_page_no(right_page)); */
 
@@ -1927,7 +1928,7 @@ btr_compress(
 	left_page_no = btr_page_get_prev(page, mtr);
 	right_page_no = btr_page_get_next(page, mtr);
 
-/*	printf("Merge left page %lu right %lu \n", left_page_no,
+/*	fprintf(stderr, "Merge left page %lu right %lu \n", left_page_no,
 							right_page_no); */
 
 	node_ptr = btr_page_get_father_node_ptr(tree, page, mtr);
@@ -2164,6 +2165,7 @@ btr_discard_page(
 	ut_ad(btr_check_node_ptr(tree, merge_page, mtr));
 }	
 
+#ifdef UNIV_DEBUG
 /*****************************************************************
 Prints size info of a B-tree. */
 
@@ -2177,8 +2179,9 @@ btr_print_size(
 	mtr_t		mtr;
 
 	if (tree->type & DICT_IBUF) {
-		printf(
-	"Sorry, cannot print info of an ibuf tree: use ibuf functions\n");
+		fputs(
+	"Sorry, cannot print info of an ibuf tree: use ibuf functions\n",
+			stderr);
 
 		return;
 	}
@@ -2189,14 +2192,14 @@ btr_print_size(
 
 	seg = root + PAGE_HEADER + PAGE_BTR_SEG_TOP;
 
-	printf("INFO OF THE NON-LEAF PAGE SEGMENT\n");
+	fputs("INFO OF THE NON-LEAF PAGE SEGMENT\n", stderr);
 	fseg_print(seg, &mtr);
 
 	if (!(tree->type & DICT_UNIVERSAL)) {
 
 		seg = root + PAGE_HEADER + PAGE_BTR_SEG_LEAF;
 
-		printf("INFO OF THE LEAF PAGE SEGMENT\n");
+		fputs("INFO OF THE LEAF PAGE SEGMENT\n", stderr);
 		fseg_print(seg, &mtr);
 	}
 
@@ -2224,7 +2227,7 @@ btr_print_recursive(
 	
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 							MTR_MEMO_PAGE_X_FIX));
-	printf("NODE ON LEVEL %lu page number %lu\n",
+	fprintf(stderr, "NODE ON LEVEL %lu page number %lu\n",
 	       (ulong) btr_page_get_level(page, mtr),
 	       (ulong) buf_frame_get_page_no(page));
 	
@@ -2271,8 +2274,8 @@ btr_print_tree(
 	mtr_t	mtr;
 	page_t*	root;
 
-	printf("--------------------------\n");
-	printf("INDEX TREE PRINT\n");
+	fputs("--------------------------\n"
+		"INDEX TREE PRINT\n", stderr);
 
 	mtr_start(&mtr);
 
@@ -2284,6 +2287,7 @@ btr_print_tree(
 
 	btr_validate_tree(tree);
 }
+#endif /* UNIV_DEBUG */
 
 /****************************************************************
 Checks that the node pointer to a page is appropriate. */
@@ -2329,6 +2333,22 @@ btr_check_node_ptr(
 }
 
 /****************************************************************
+Display identification information for a record. */
+static
+void
+btr_index_rec_validate_report(
+/*==========================*/
+	page_t*		page,	/* in: index page */
+	rec_t*		rec,	/* in: index record */
+	dict_index_t*	index)	/* in: index */
+{
+	fputs("InnoDB: Record in ", stderr);
+	dict_index_name_print(stderr, index);
+	fprintf(stderr, ", page %lu, at offset %lu\n",
+		buf_frame_get_page_no(page), (ulint)(rec - page));
+}
+
+/****************************************************************
 Checks the size and number of fields in a record based on the definition of
 the index. */
 
@@ -2342,13 +2362,10 @@ btr_index_rec_validate(
 					should print hex dump of record
 					and page on error */
 {
-	dtype_t* type;
-	byte*	data;
 	ulint	len;
 	ulint	n;
 	ulint	i;
 	page_t*	page;
-	char	err_buf[1000];
 
 	page = buf_frame_align(rec);
 	
@@ -2363,14 +2380,9 @@ btr_index_rec_validate(
 	n = dict_index_get_n_fields(index);
 
 	if (rec_get_n_fields(rec) != n) {
-		fprintf(stderr,
-"InnoDB: Record in index %s in table %s, page %lu, at offset %lu\n"
-"InnoDB: has %lu fields, should have %lu\n",
-			index->name, index->table_name,
-			(unsigned long) buf_frame_get_page_no(page),
-			(unsigned long) (rec - page),
-			(unsigned long) rec_get_n_fields(rec),
-			(unsigned long) n);
+		btr_index_rec_validate_report(page, rec, index);
+		fprintf(stderr, "InnoDB: has %lu fields, should have %lu\n",
+			(ulong) rec_get_n_fields(rec), (ulong) n);
 
 		if (!dump_on_error) {
 
@@ -2379,16 +2391,17 @@ btr_index_rec_validate(
 
 		buf_page_print(page);
 
-		rec_sprintf(err_buf, 900, rec);
-	  	fprintf(stderr, "InnoDB: corrupt record %s\n", err_buf);
+		fputs("InnoDB: corrupt record ", stderr);
+		rec_print(stderr, rec);
+		putc('\n', stderr);
 
 		return(FALSE);
 	}
 
 	for (i = 0; i < n; i++) {
-		data = rec_get_nth_field(rec, i, &len);
+		dtype_t*	type = dict_index_get_nth_type(index, i);
 
-		type = dict_index_get_nth_type(index, i);
+		rec_get_nth_field(rec, i, &len);
 		
 		if ((dict_index_get_nth_field(index, i)->prefix_len == 0
 		    && len != UNIV_SQL_NULL && dtype_is_fixed_size(type)
@@ -2399,15 +2412,10 @@ btr_index_rec_validate(
 		    && len !=
 			   dict_index_get_nth_field(index, i)->prefix_len)) {
 
+			btr_index_rec_validate_report(page, rec, index);
 			fprintf(stderr,
-"InnoDB: Record in index %s in table %s, page %lu, at offset %lu\n"
 "InnoDB: field %lu len is %lu, should be %lu\n",
-				index->name, index->table_name,
-				(unsigned long) buf_frame_get_page_no(page),
-				(unsigned long) (rec - page),
-				(unsigned long) i,
-				(unsigned long) len,
-				(unsigned long) dtype_get_fixed_size(type));
+				(ulong) i, (ulong) len, (ulong) dtype_get_fixed_size(type));
 
 			if (!dump_on_error) {
 	
@@ -2416,9 +2424,9 @@ btr_index_rec_validate(
 
 			buf_page_print(page);
 
-			rec_sprintf(err_buf, 900, rec);
-	  		fprintf(stderr,
-                             "InnoDB: corrupt record %s\n", err_buf);
+			fputs("InnoDB: corrupt record ", stderr);
+			rec_print(stderr, rec);
+			putc('\n', stderr);
 
 			return(FALSE);
 		}
@@ -2438,7 +2446,6 @@ btr_index_page_validate(
 	page_t*		page,	/* in: index page */
 	dict_index_t*	index)	/* in: index */
 {
-	rec_t*		rec;
 	page_cur_t 	cur;
 	ibool		ret	= TRUE;
 	
@@ -2446,14 +2453,12 @@ btr_index_page_validate(
 	page_cur_move_to_next(&cur);
 
 	for (;;) {
-		rec = (&cur)->rec;
-
 		if (page_cur_is_after_last(&cur)) {
 
 			break;
 		}
 
-		if (!btr_index_rec_validate(rec, index, TRUE)) {
+		if (!btr_index_rec_validate(cur.rec, index, TRUE)) {
 
 			return(FALSE);
 		}
@@ -2462,6 +2467,46 @@ btr_index_page_validate(
 	}
 
 	return(ret);	
+}
+
+/****************************************************************
+Report an error on one page of an index tree. */
+static
+void
+btr_validate_report1(
+				/* out: TRUE if ok */
+	dict_index_t*	index,	/* in: index */
+	ulint		level,	/* in: B-tree level */
+	page_t*		page)	/* in: index page */
+{
+	fprintf(stderr, "InnoDB: Error in page %lu of ",
+		buf_frame_get_page_no(page));
+	dict_index_name_print(stderr, index);
+	if (level) {
+		fprintf(stderr, ", index tree level %lu", level);
+	}
+	putc('\n', stderr);
+}
+
+/****************************************************************
+Report an error on two pages of an index tree. */
+static
+void
+btr_validate_report2(
+				/* out: TRUE if ok */
+	dict_index_t*	index,	/* in: index */
+	ulint		level,	/* in: B-tree level */
+	page_t*		page1,	/* in: first index page */
+	page_t*		page2)	/* in: second index page */
+{
+	fprintf(stderr, "InnoDB: Error in pages %lu and %lu of ",
+		buf_frame_get_page_no(page1),
+		buf_frame_get_page_no(page2));
+	dict_index_name_print(stderr, index);
+	if (level) {
+		fprintf(stderr, ", index tree level %lu", level);
+	}
+	putc('\n', stderr);
 }
 
 /****************************************************************
@@ -2489,7 +2534,6 @@ btr_validate_level(
 	ibool		ret	= TRUE;
 	dict_index_t*	index;
 	mtr_t		mtr;
-	char		err_buf[1000];
 	
 	mtr_start(&mtr);
 
@@ -2520,10 +2564,7 @@ loop:
 	/* Check ordering etc. of records */
 
 	if (!page_validate(page, index)) {
-		fprintf(stderr,
-"InnoDB: Error in page %lu in index %s table %s, index tree level %lu\n",
-			(ulong) buf_frame_get_page_no(page), index->name,
-			index->table_name, (ulong) level);
+		btr_validate_report1(index, level, page);
 
 		ret = FALSE;
 	} else if (level == 0) {
@@ -2553,25 +2594,22 @@ loop:
 			page_rec_get_next(page_get_infimum_rec(right_page)),
 			UT_LIST_GET_FIRST(tree->tree_indexes)) >= 0) {
 
- 			fprintf(stderr,
-		"InnoDB: Error on pages %lu and %lu in index %s table %s\n",
-				(ulong) buf_frame_get_page_no(page),
-				(ulong) right_page_no,
-				index->name, index->table_name);
+			btr_validate_report2(index, level, page, right_page);
 
-			fprintf(stderr,
-			"InnoDB: records in wrong order on adjacent pages\n");
+			fputs("InnoDB: records in wrong order"
+				" on adjacent pages\n", stderr);
 
 			buf_page_print(page);
 			buf_page_print(right_page);
 
-			rec_sprintf(err_buf, 900,
-				page_rec_get_prev(page_get_supremum_rec(page)));
-	  		fprintf(stderr, "InnoDB: record %s\n", err_buf);
-
-			rec_sprintf(err_buf, 900,
-			page_rec_get_next(page_get_infimum_rec(right_page)));
-	  		fprintf(stderr, "InnoDB: record %s\n", err_buf);
+			fputs("InnoDB: record ", stderr);
+			rec_print(stderr, page_rec_get_prev(
+				page_get_supremum_rec(page)));
+			putc('\n', stderr);
+			fputs("InnoDB: record ", stderr);
+			rec_print(stderr, page_rec_get_next(
+				page_get_infimum_rec(right_page)));
+			putc('\n', stderr);
 
 	  		ret = FALSE;
 	  	}
@@ -2594,32 +2632,27 @@ loop:
 		   || node_ptr != btr_page_get_father_for_rec(tree, page,
 		   	page_rec_get_prev(page_get_supremum_rec(page)),
 								&mtr)) {
- 			fprintf(stderr,
-			"InnoDB: Error on page %lu in index %s table %s\n",
-				(unsigned long) buf_frame_get_page_no(page),
-				index->name, index->table_name);
+			btr_validate_report1(index, level, page);
 
-			fprintf(stderr,
-			"InnoDB: node pointer to the page is wrong\n");
+			fputs("InnoDB: node pointer to the page is wrong\n",
+				stderr);
 
 			buf_page_print(father_page);
 			buf_page_print(page);
 
-			rec_sprintf(err_buf, 900, node_ptr);
-				
-	  		fprintf(stderr, "InnoDB: node ptr %s\n", err_buf);
+			fputs("InnoDB: node ptr ", stderr);
+			rec_print(stderr, node_ptr);
 
-			fprintf(stderr,
+			fprintf(stderr, "\n"
 				"InnoDB: node ptr child page n:o %lu\n",
 				(unsigned long) btr_node_ptr_get_child_page_no(node_ptr));
 
-			rec_sprintf(err_buf, 900,
+			fputs("InnoDB: record on page ", stderr);
+			rec_print(stderr,
 			 	btr_page_get_father_for_rec(tree, page,
 		   	 	page_rec_get_prev(page_get_supremum_rec(page)),
 					&mtr));
-
-	  		fprintf(stderr, "InnoDB: record on page %s\n",
-								err_buf);
+			putc('\n', stderr);
 		   	ret = FALSE;
 
 		   	goto node_ptr_fails;
@@ -2637,27 +2670,19 @@ loop:
 
 			if (cmp_dtuple_rec(node_ptr_tuple, node_ptr) != 0) {
 
-	 			fprintf(stderr,
-			"InnoDB: Error on page %lu in index %s table %s\n",
-					(ulong) buf_frame_get_page_no(page),
-					index->name, index->table_name);
+				btr_validate_report1(index, level, page);
 
 				buf_page_print(father_page);
 				buf_page_print(page);
 
-	  			fprintf(stderr,
-                	"InnoDB: Error: node ptrs differ on levels > 0\n");
-							
-				rec_sprintf(err_buf, 900, node_ptr);
-				
-	  			fprintf(stderr, "InnoDB: node ptr %s\n",
-								err_buf);
-				rec_sprintf(err_buf, 900,
-				  page_rec_get_next(
+				fputs("InnoDB: Error: node ptrs differ"
+					" on levels > 0\n"
+					"InnoDB: node ptr ", stderr);
+				rec_print(stderr, node_ptr);
+				fputs("InnoDB: first rec ", stderr);
+				rec_print(stderr, page_rec_get_next(
 					page_get_infimum_rec(page)));
-				
-	  			fprintf(stderr, "InnoDB: first rec %s\n",
-								err_buf);
+				putc('\n', stderr);
 		   		ret = FALSE;
 				mem_heap_free(heap);
 
@@ -2689,13 +2714,12 @@ loop:
 				if (right_node_ptr !=
 						page_rec_get_next(node_ptr)) {
 					ret = FALSE;
-					fprintf(stderr,
-			"InnoDB: node pointer to the right page is wrong\n");
+					fputs(
+			"InnoDB: node pointer to the right page is wrong\n",
+					stderr);
 
-	 				fprintf(stderr,
-			"InnoDB: Error on page %lu in index %s table %s\n",
-					(unsigned long) buf_frame_get_page_no(page),
-					index->name, index->table_name);
+					btr_validate_report1(index, level,
+						page);
 
 					buf_page_print(father_page);
 					buf_page_print(page);
@@ -2709,13 +2733,12 @@ loop:
 					   		page_get_infimum_rec(
 							right_father_page))) {
 					ret = FALSE;
-					fprintf(stderr,
-			"InnoDB: node pointer 2 to the right page is wrong\n");
+					fputs(
+			"InnoDB: node pointer 2 to the right page is wrong\n",
+					stderr);
 
-	 				fprintf(stderr,
-			"InnoDB: Error on page %lu in index %s table %s\n",
-					(unsigned long) buf_frame_get_page_no(page),
-					index->name, index->table_name);
+					btr_validate_report1(index, level,
+						page);
 
 					buf_page_print(father_page);
 					buf_page_print(right_father_page);
@@ -2727,13 +2750,12 @@ loop:
 				   != btr_page_get_next(father_page, &mtr)) {
 
 					ret = FALSE;
-					fprintf(stderr,
-			"InnoDB: node pointer 3 to the right page is wrong\n");
+					fputs(
+			"InnoDB: node pointer 3 to the right page is wrong\n",
+					stderr);
 
-	 				fprintf(stderr,
-			"InnoDB: Error on page %lu in index %s table %s\n",
-					(unsigned long) buf_frame_get_page_no(page),
-					index->name, index->table_name);
+					btr_validate_report1(index, level,
+						page);
 
 					buf_page_print(father_page);
 					buf_page_print(right_father_page);

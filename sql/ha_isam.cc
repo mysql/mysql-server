@@ -237,11 +237,6 @@ int ha_isam::extra(enum ha_extra_function operation)
   return nisam_extra(file,operation);
 }
 
-int ha_isam::reset(void)
-{
-  return nisam_extra(file,HA_EXTRA_RESET);
-}
-
 int ha_isam::external_lock(THD *thd, int lock_type)
 {
   if (!table->tmp_table)
@@ -387,18 +382,21 @@ int ha_isam::create(const char *name, register TABLE *form,
 
 }
 
+static key_range no_range= { (byte*) 0, 0, HA_READ_KEY_EXACT };
 
-ha_rows ha_isam::records_in_range(int inx,
-				  const byte *start_key,uint start_key_len,
-				  enum ha_rkey_function start_search_flag,
-				  const byte *end_key,uint end_key_len,
-				  enum ha_rkey_function end_search_flag)
+ha_rows ha_isam::records_in_range(uint inx, key_range *min_key,
+                                  key_range *max_key)
 {
+  /* ISAM checks if 'key' pointer <> 0 to know if there is no range */
+  if (!min_key)
+    min_key= &no_range;
+  if (!max_key)
+    max_key= &no_range;
   return (ha_rows) nisam_records_in_range(file,
-				       inx,
-				       start_key,start_key_len,
-				       start_search_flag,
-				       end_key,end_key_len,
-				       end_search_flag);
+                                          (int) inx,
+                                          min_key->key, min_key->length,
+                                          min_key->flag,
+                                          max_key->key, max_key->length,
+                                          max_key->flag);
 }
 #endif /* HAVE_ISAM */

@@ -26,10 +26,10 @@ Created 3/26/1996 Heikki Tuuri
 #include "os0proc.h"
 
 /* Copy of the prototype for innobase_mysql_print_thd: this
-copy MUST be equal to the one in mysql/sql/ha_innobase.cc ! */
+copy MUST be equal to the one in mysql/sql/ha_innodb.cc ! */
 
 void innobase_mysql_print_thd(
-	char* buf,
+	FILE* f,
 	void* thd);
 
 /* Dummy session used currently in MySQL interface */
@@ -151,6 +151,7 @@ trx_create(
 	trx->n_tickets_to_enter_innodb = 0;
 
 	trx->auto_inc_lock = NULL;
+	trx->n_tables_locked = 0;
 	
 	trx->read_view_heap = mem_heap_create(256);
 	trx->read_view = NULL;
@@ -239,19 +240,17 @@ trx_free(
 /*=====*/
 	trx_t*	trx)	/* in, own: trx object */
 {
-        char      err_buf[1000];
-
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (trx->declared_to_be_inside_innodb) {
 	        ut_print_timestamp(stderr);
-	        trx_print(err_buf, trx);
-
-	        fprintf(stderr,
+		fputs(
 "  InnoDB: Error: Freeing a trx which is declared to be processing\n"
-"InnoDB: inside InnoDB.\n%s\n", err_buf);
+"InnoDB: inside InnoDB.\n", stderr);
+		trx_print(stderr, trx);
+		putc('\n', stderr);
 	}
 
 	ut_a(trx->magic_n == TRX_MAGIC_N);
@@ -280,6 +279,7 @@ trx_free(
 
 	ut_a(!trx->has_search_latch);
 	ut_a(!trx->auto_inc_lock);
+	ut_a(!trx->n_tables_locked);
 
 	ut_a(trx->dict_operation_lock_mode == 0);
 
@@ -758,7 +758,8 @@ trx_commit_off_kernel(
 		trx->read_view = NULL;
 	}
 
-/*	printf("Trx %lu commit finished\n", ut_dulint_get_low(trx->id)); */
+/*	fprintf(stderr, "Trx %lu commit finished\n",
+		ut_dulint_get_low(trx->id)); */
 
 	if (must_flush_log) {
 
@@ -896,18 +897,15 @@ trx_assign_read_view(
 /********************************************************************
 Commits a transaction. NOTE that the kernel mutex is temporarily released. */
 static
-void
+que_thr_t*
 trx_handle_commit_sig_off_kernel(
 /*=============================*/
-	trx_t*		trx,		/* in: transaction */
-	que_thr_t**	next_thr)	/* in/out: next query thread to run;
-					if the value which is passed in is
-					a pointer to a NULL pointer, then the
-					calling function can start running
-					a new query thread */
+					/* out: next query thread to run */
+	trx_t*		trx)		/* in: transaction */
 {
 	trx_sig_t*	sig;
 	trx_sig_t*	next_sig;
+	que_thr_t*	next_thr = NULL;
 	
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
@@ -929,7 +927,8 @@ trx_handle_commit_sig_off_kernel(
 
 		if (sig->type == TRX_SIG_COMMIT) {
 
-			trx_sig_reply(sig, next_thr);
+			ut_a(next_thr == NULL);
+			next_thr = trx_sig_reply(sig);
 			trx_sig_remove(trx, sig);
 		}
 
@@ -937,6 +936,8 @@ trx_handle_commit_sig_off_kernel(
 	}
 
 	trx->que_state = TRX_QUE_RUNNING;
+
+	return(next_thr);
 }
 
 /***************************************************************
@@ -996,39 +997,6 @@ trx_lock_wait_to_suspended(
 	}
 
 	trx->que_state = TRX_QUE_RUNNING;
-}
-
-/***************************************************************
-Moves the query threads in the sig reply wait list of trx to the SUSPENDED
-state. */
-static
-void
-trx_sig_reply_wait_to_suspended(
-/*============================*/
-	trx_t*	trx)	/* in: transaction */
-{
-	trx_sig_t*	sig;
-	que_thr_t*	thr;
-
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
-	
-	sig = UT_LIST_GET_FIRST(trx->reply_signals);
-
-	while (sig != NULL) {
-		thr = sig->receiver;
-
-		ut_ad(thr->state == QUE_THR_SIG_REPLY_WAIT);
-		
-		thr->state = QUE_THR_SUSPENDED;
-
-		sig->receiver = NULL;
-	
-		UT_LIST_REMOVE(reply_signals, trx->reply_signals, sig);
-			
-		sig = UT_LIST_GET_FIRST(trx->reply_signals);
-	}
 }
 
 /*********************************************************************
@@ -1110,11 +1078,10 @@ trx_sig_is_compatible(
 /********************************************************************
 Sends a signal to a trx object. */
 
-ibool
+que_thr_t*
 trx_sig_send(
 /*=========*/
-					/* out: TRUE if the signal was
-					successfully delivered */
+					/* out: next query thread to run */
 	trx_t*		trx,		/* in: trx handle */
 	ulint		type,		/* in: signal type */
 	ulint		sender,		/* in: TRX_SIG_SELF or
@@ -1122,14 +1089,8 @@ trx_sig_send(
 	que_thr_t*	receiver_thr,	/* in: query thread which wants the
 					reply, or NULL; if type is
 					TRX_SIG_END_WAIT, this must be NULL */
-	trx_savept_t* 	savept,		/* in: possible rollback savepoint, or
+	trx_savept_t* 	savept)		/* in: possible rollback savepoint, or
 					NULL */
-	que_thr_t**	next_thr)	/* in/out: next query thread to run;
-					if the value which is passed in is
-					a pointer to a NULL pointer, then the
-					calling function can start running
-					a new query thread; if the parameter
-					is NULL, it is ignored */
 {
 	trx_sig_t*	sig;
 	trx_t*		receiver_trx;
@@ -1139,14 +1100,7 @@ trx_sig_send(
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 
-	if (!trx_sig_is_compatible(trx, type, sender)) {
-		/* The signal is not compatible with the other signals in
-		the queue: do nothing */
-
-		ut_error;
-		
-		return(FALSE);
-	}
+	ut_a(trx_sig_is_compatible(trx, type, sender));
 
 	/* Queue the signal object */
 
@@ -1180,11 +1134,6 @@ trx_sig_send(
 									sig);
 	}
 
-	if (trx->sess->state == SESS_ERROR) {
-	
-		trx_sig_reply_wait_to_suspended(trx);
-	}
-
 	if ((sender != TRX_SIG_SELF) || (type == TRX_SIG_BREAK_EXECUTION)) {
 
 		/* The following call will add a TRX_SIG_ERROR_OCCURRED
@@ -1199,10 +1148,10 @@ trx_sig_send(
 
 	if (UT_LIST_GET_FIRST(trx->signals) == sig) {
 	
-		trx_sig_start_handle(trx, next_thr);
+		return(trx_sig_start_handle(trx));
 	}
 
-	return(TRUE);
+	return(NULL);
 }
 
 /********************************************************************
@@ -1224,27 +1173,18 @@ trx_end_signal_handling(
 	trx->handling_signals = FALSE;
 
 	trx->graph = trx->graph_before_signal_handling;
-
-	if (trx->graph && (trx->sess->state == SESS_ERROR)) {
-			
-		que_fork_error_handle(trx, trx->graph);
-	}
 }
 
 /********************************************************************
 Starts handling of a trx signal. */
 
-void
+que_thr_t*
 trx_sig_start_handle(
 /*=================*/
-	trx_t*		trx,		/* in: trx handle */
-	que_thr_t**	next_thr)	/* in/out: next query thread to run;
-					if the value which is passed in is
-					a pointer to a NULL pointer, then the
-					calling function can start running
-					a new query thread; if the parameter
-					is NULL, it is ignored */
+				/* out: next query thread to run, or NULL */
+	trx_t*		trx)	/* in: trx handle */
 {
+	que_thr_t*	next_thr = NULL;
 	trx_sig_t*	sig;
 	ulint		type;
 loop:
@@ -1260,7 +1200,7 @@ loop:
 
 		trx_end_signal_handling(trx);
 	
-		return;
+		return(next_thr);
 	}
 
 	if (trx->conc_state == TRX_NOT_STARTED) {
@@ -1276,23 +1216,13 @@ loop:
 		trx_lock_wait_to_suspended(trx);
 	}
 
-	/* If the session is in the error state and this trx has threads
-	waiting for reply from signals, moves these threads to the suspended
-	state, canceling wait reservations; note that if the transaction has
-	sent a commit or rollback signal to itself, and its session is not in
-	the error state, then nothing is done here. */
-
-	if (trx->sess->state == SESS_ERROR) {
-		trx_sig_reply_wait_to_suspended(trx);
-	}
-	
 	/* If there are no running query threads, we can start processing of a
 	signal, otherwise we have to wait until all query threads of this
 	transaction are aware of the arrival of the signal. */
 
 	if (trx->n_active_thrs > 0) {
 
-		return;
+		return(NULL);
 	}
 
 	if (trx->handling_signals == FALSE) {
@@ -1306,30 +1236,19 @@ loop:
 
 	if (type == TRX_SIG_COMMIT) {
 
-		trx_handle_commit_sig_off_kernel(trx, next_thr);
+		next_thr = trx_handle_commit_sig_off_kernel(trx);
 
 	} else if ((type == TRX_SIG_TOTAL_ROLLBACK)
-				|| (type == TRX_SIG_ROLLBACK_TO_SAVEPT)) { 
-
-		trx_rollback(trx, sig, next_thr);
-
+				|| (type == TRX_SIG_ROLLBACK_TO_SAVEPT)
+				|| (type == TRX_SIG_ERROR_OCCURRED)) {
 		/* No further signals can be handled until the rollback
 		completes, therefore we return */
 
-		return;
-
-	} else if (type == TRX_SIG_ERROR_OCCURRED) {
-
-		trx_rollback(trx, sig, next_thr);
-
-		/* No further signals can be handled until the rollback
-		completes, therefore we return */
-
-		return;
+		return(trx_rollback(trx, sig));
 
 	} else if (type == TRX_SIG_BREAK_EXECUTION) {
 
-		trx_sig_reply(sig, next_thr);
+		next_thr = trx_sig_reply(sig);
 		trx_sig_remove(trx, sig);
 	} else {
 		ut_error;
@@ -1342,17 +1261,14 @@ loop:
 Send the reply message when a signal in the queue of the trx has been
 handled. */
 
-void
+que_thr_t*
 trx_sig_reply(
 /*==========*/
-	trx_sig_t*	sig,		/* in: signal */
-	que_thr_t**	next_thr)	/* in/out: next query thread to run;
-					if the value which is passed in is
-					a pointer to a NULL pointer, then the
-					calling function can start running
-					a new query thread */
+					/* out: next query thread to run */
+	trx_sig_t*	sig)		/* in: signal */
 {
-	trx_t*	receiver_trx;
+	trx_t*		receiver_trx;
+	que_thr_t*	next_thr = NULL;
 
 	ut_ad(sig);
 #ifdef UNIV_SYNC_DEBUG
@@ -1366,13 +1282,13 @@ trx_sig_reply(
 
 		UT_LIST_REMOVE(reply_signals, receiver_trx->reply_signals,
 									sig);
-		ut_ad(receiver_trx->sess->state != SESS_ERROR);
-									
-		que_thr_end_wait(sig->receiver, next_thr);
+		next_thr = que_thr_end_wait(sig->receiver);
 
 		sig->receiver = NULL;
 
 	}
+
+	return(next_thr);
 }
 
 /********************************************************************
@@ -1428,7 +1344,6 @@ trx_commit_step(
 {
 	commit_node_t*	node;
 	que_thr_t*	next_thr;
-	ibool		success;
 	
 	node = thr->run_node;
 
@@ -1443,21 +1358,14 @@ trx_commit_step(
 
 		node->state = COMMIT_NODE_WAIT;
 
-		next_thr = NULL;
-		
 		thr->state = QUE_THR_SIG_REPLY_WAIT;
 
 		/* Send the commit signal to the transaction */
 		
-		success = trx_sig_send(thr_get_trx(thr), TRX_SIG_COMMIT,
-					TRX_SIG_SELF, thr, NULL, &next_thr);
-		
-		mutex_exit(&kernel_mutex);
+		next_thr = trx_sig_send(thr_get_trx(thr), TRX_SIG_COMMIT,
+					TRX_SIG_SELF, thr, NULL);
 
-		if (!success) {
-			/* Error in delivering the commit signal */
-			que_thr_handle_error(thr, DB_ERROR, NULL, 0);
-		}
+		mutex_exit(&kernel_mutex);
 
 		return(next_thr);
 	}
@@ -1563,98 +1471,106 @@ trx_mark_sql_stat_end(
 
 /**************************************************************************
 Prints info about a transaction to the standard output. The caller must
-own the kernel mutex. */
+own the kernel mutex and must have called
+innobase_mysql_prepare_print_arbitrary_thd(), unless he knows that MySQL or
+InnoDB cannot meanwhile change the info printed here. */
 
 void
 trx_print(
 /*======*/
-	char*	buf,	/* in/out: buffer where to print, must be at least
-			800 bytes */
+	FILE*	f,	/* in: output stream */
 	trx_t*	trx)	/* in: transaction */
 {
-        char*   start_of_line;
+	ibool	newline;
 
-        buf += sprintf(buf, "TRANSACTION %lu %lu",
+	fprintf(f, "TRANSACTION %lu %lu",
 		(ulong) ut_dulint_get_high(trx->id),
 		 (ulong) ut_dulint_get_low(trx->id));
 
   	switch (trx->conc_state) {
-  		case TRX_NOT_STARTED:         buf += sprintf(buf,
-						", not started"); break;
-  		case TRX_ACTIVE:              buf += sprintf(buf,
-						", ACTIVE %lu sec",
-			 (ulong) difftime(time(NULL), trx->start_time)); break;
-  		case TRX_COMMITTED_IN_MEMORY: buf += sprintf(buf,
-						", COMMITTED IN MEMORY");
+		case TRX_NOT_STARTED:
+			fputs(", not started", f);
+			break;
+		case TRX_ACTIVE:
+			fprintf(f, ", ACTIVE %lu sec",
+				(ulong)difftime(time(NULL), trx->start_time));
 									break;
-  		default: buf += sprintf(buf, " state %lu", (ulong) trx->conc_state);
+		case TRX_COMMITTED_IN_MEMORY:
+			fputs(", COMMITTED IN MEMORY", f);
+			break;
+		default:
+			fprintf(f, " state %lu", (ulong) trx->conc_state);
   	}
 
 #ifdef UNIV_LINUX
-        buf += sprintf(buf, ", process no %lu", trx->mysql_process_no);
+	fprintf(f, ", process no %lu", trx->mysql_process_no);
 #endif
-        buf += sprintf(buf, ", OS thread id %lu",
+	fprintf(f, ", OS thread id %lu",
 		       (ulong) os_thread_pf(trx->mysql_thread_id));
 
-	if (ut_strlen(trx->op_info) > 0) {
-		buf += sprintf(buf, " %s", trx->op_info);
+	if (*trx->op_info) {
+		putc(' ', f);
+		fputs(trx->op_info, f);
 	}
 	
   	if (trx->type != TRX_USER) {
-    		buf += sprintf(buf, " purge trx");
+		fputs(" purge trx", f);
   	}
 
 	if (trx->declared_to_be_inside_innodb) {
-	        buf += sprintf(buf, ", thread declared inside InnoDB %lu",
+		fprintf(f, ", thread declared inside InnoDB %lu",
 			       (ulong) trx->n_tickets_to_enter_innodb);
 	}
 
-	buf += sprintf(buf, "\n");
+	putc('\n', f);
   	
         if (trx->n_mysql_tables_in_use > 0 || trx->mysql_n_tables_locked > 0) {
 
-                buf += sprintf(buf, "mysql tables in use %lu, locked %lu\n",
-                                    (ulong) trx->n_mysql_tables_in_use,
-                                    (ulong) trx->mysql_n_tables_locked);
+                fprintf(f, "mysql tables in use %lu, locked %lu\n",
+                           (ulong) trx->n_mysql_tables_in_use,
+                           (ulong) trx->mysql_n_tables_locked);
         }
 
-	start_of_line = buf;
+	newline = TRUE;
 
   	switch (trx->que_state) {
-  		case TRX_QUE_RUNNING:         break;
-  		case TRX_QUE_LOCK_WAIT:       buf += sprintf(buf,
-						"LOCK WAIT "); break;
-  		case TRX_QUE_ROLLING_BACK:    buf += sprintf(buf,
-						"ROLLING BACK "); break;
-  		case TRX_QUE_COMMITTING:      buf += sprintf(buf,
-						"COMMITTING "); break;
-  		default: buf += sprintf(buf, "que state %lu", (ulong) trx->que_state);
+		case TRX_QUE_RUNNING:
+			newline = FALSE; break;
+		case TRX_QUE_LOCK_WAIT:
+			fputs("LOCK WAIT ", f); break;
+		case TRX_QUE_ROLLING_BACK:
+			fputs("ROLLING BACK ", f); break;
+		case TRX_QUE_COMMITTING:
+			fputs("COMMITTING ", f); break;
+		default:
+			fprintf(f, "que state %lu ", (ulong) trx->que_state);
   	}
 
   	if (0 < UT_LIST_GET_LEN(trx->trx_locks) ||
 	    mem_heap_get_size(trx->lock_heap) > 400) {
+		newline = TRUE;
 
-  		buf += sprintf(buf,
-"%lu lock struct(s), heap size %lu",
+		fprintf(f, "%lu lock struct(s), heap size %lu",
 			       (ulong) UT_LIST_GET_LEN(trx->trx_locks),
 			       (ulong) mem_heap_get_size(trx->lock_heap));
 	}
 
   	if (trx->has_search_latch) {
-  		buf += sprintf(buf, ", holds adaptive hash latch");
+		newline = TRUE;
+		fputs(", holds adaptive hash latch", f);
   	}
 
 	if (ut_dulint_cmp(trx->undo_no, ut_dulint_zero) != 0) {
-		buf += sprintf(buf, ", undo log entries %lu",
+		newline = TRUE;
+		fprintf(f, ", undo log entries %lu",
 			(ulong) ut_dulint_get_low(trx->undo_no));
 	}
 	
-	if (buf != start_of_line) {
-
-	        buf += sprintf(buf, "\n");
+	if (newline) {
+		putc('\n', f);
 	}
 
   	if (trx->mysql_thd != NULL) {
-    		innobase_mysql_print_thd(buf, trx->mysql_thd);
+		innobase_mysql_print_thd(f, trx->mysql_thd);
   	}  
 }

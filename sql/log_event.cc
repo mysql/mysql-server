@@ -1244,15 +1244,15 @@ void Query_log_event::print(FILE* file, bool short_form,
 	    (ulong) thread_id, (ulong) exec_time, error_code);
   }
 
-  bool same_db = 0;
+  bool different_db= 1;
 
   if (db && last_event_info->db)
   {
-    if (!(same_db = !memcmp(last_event_info->db, db, db_len + 1)))
+    if ((different_db = memcmp(last_event_info->db, db, db_len + 1)))
       memcpy(last_event_info->db, db, db_len + 1);
   }
   
-  if (db && db[0] && !same_db)
+  if (db && db[0] && different_db)
     fprintf(file, "use %s;\n", db);
   end=int10_to_str((long) when, strmov(buff,"SET TIMESTAMP="),10);
   *end++=';';
@@ -1355,8 +1355,10 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     access it.
   */
 #if MYSQL_VERSION_ID < 50000
-  rli->future_group_master_log_pos= log_pos + get_event_len();
+  rli->future_group_master_log_pos= log_pos + get_event_len() -
+    (rli->mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
 #else
+  /* In 5.0 we store the end_log_pos in the relay log so no problem */
   rli->future_group_master_log_pos= log_pos;
 #endif
   clear_all_errors(thd, rli);
@@ -1415,11 +1417,11 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
       {
         slave_print_error(rli,expected_error, 
                           "\
-Query '%s' partially completed on the master (error on master: %d) \
+Query partially completed on the master (error on master: %d) \
 and was aborted. There is a chance that your master is inconsistent at this \
 point. If you are sure that your master is ok, run this query manually on the \
 slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1; \
-START SLAVE; .", thd->query, expected_error);
+START SLAVE; . Query: '%s'", expected_error, thd->query);
         thd->query_error= 1;
       }
       goto end;
@@ -1438,15 +1440,14 @@ START SLAVE; .", thd->query, expected_error);
     {
       slave_print_error(rli, 0,
  			"\
-Query '%s' caused different errors on master and slave. \
+Query caused different errors on master and slave. \
 Error on master: '%s' (%d), Error on slave: '%s' (%d). \
-Default database: '%s'",
- 			query,
+Default database: '%s'. Query: '%s'",
  			ER_SAFE(expected_error),
  			expected_error,
  			actual_error ? thd->net.last_error: "no error",
  			actual_error,
- 			print_slave_db_safe(db));
+			print_slave_db_safe(db), query);
       thd->query_error= 1;
     }
     /*
@@ -1464,11 +1465,10 @@ Default database: '%s'",
     else if (thd->query_error || thd->is_fatal_error)
     {
       slave_print_error(rli,actual_error,
- 			"Error '%s' on query '%s'. Default database: '%s'",
+			"Error '%s' on query. Default database: '%s'. Query: '%s'",
  			(actual_error ? thd->net.last_error :
  			 "unexpected success or fatal error"),
- 			query,
-			print_slave_db_safe(db));
+			print_slave_db_safe(db), query);
       thd->query_error= 1;
     }
 
@@ -1507,7 +1507,9 @@ end:
     TEMPORARY TABLE don't suffer from these assignments to 0 as DROP TEMPORARY
     TABLE uses the db.table syntax).
   */
-  thd->db= thd->query= thd->catalog =0;	
+  thd->db= 0;	                        // prevent db from being freed
+  thd->query= 0;			// just to be sure
+  thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   // assume no convert for next query unless set explictly
 #ifdef TO_BE_REMOVED
@@ -1630,6 +1632,11 @@ int Start_log_event_v3::write_data(IO_CACHE* file)
 int Start_log_event_v3::exec_event(struct st_relay_log_info* rli)
 {
   DBUG_ENTER("Start_log_event_v3::exec_event");
+  /*
+    If the I/O thread has not started, mi->old_format is BINLOG_FORMAT_CURRENT
+    (that's what the MASTER_INFO constructor does), so the test below is not
+    perfect at all.
+  */
   switch (rli->relay_log.description_event_for_exec->binlog_version)
   {
   case 3:
@@ -2267,14 +2274,21 @@ void Load_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* last_ev
 	    thread_id, exec_time);
   }
 
-  bool same_db = 0;
+  bool different_db= 1;
   if (db && last_event_info->db)
   {
-    if (!(same_db = !memcmp(last_event_info->db, db, db_len + 1)))
+    /*
+      If the database is different from the one of the previous statement, we
+      need to print the "use" command, and we update the last_db.
+      But if commented, the "use" is going to be commented so we should not
+      update the last_db.
+    */
+    if ((different_db= memcmp(last_event_info->db, db, db_len + 1)) &&
+        !commented)
       memcpy(last_event_info->db, db, db_len + 1);
   }
   
-  if (db && db[0] && !same_db)
+  if (db && db[0] && different_db)
     fprintf(file, "%suse %s;\n", 
             commented ? "# " : "",
             db);
@@ -2386,14 +2400,16 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 {
   thd->db= (char*) rewrite_db(db);
   DBUG_ASSERT(thd->query == 0);
-  thd->query = 0;				// Should not be needed
-  thd->query_error = 0;
+  thd->query= 0;				// Should not be needed
+  thd->query_length= 0;                         // Should not be needed
+  thd->query_error= 0;
   clear_all_errors(thd, rli);
   if (!use_rli_only_for_errors)
   {
     /* Saved for InnoDB, see comment in Query_log_event::exec_event() */
 #if MYSQL_VERSION_ID < 50000
-    rli->future_group_master_log_pos= log_pos + get_event_len();
+    rli->future_group_master_log_pos= log_pos + get_event_len() -
+      (rli->mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
 #else
     rli->future_group_master_log_pos= log_pos;
 #endif
@@ -3903,8 +3919,12 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
     mysql_load()).
   */
 
-#if MYSQL_VERSION_ID < 50000
-    rli->future_group_master_log_pos= log_pos + get_event_len();
+#if MYSQL_VERSION_ID < 40100
+    rli->future_master_log_pos= log_pos + get_event_len() -
+      (rli->mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
+#elif MYSQL_VERSION_ID < 50000
+    rli->future_group_master_log_pos= log_pos + get_event_len() -
+      (rli->mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
 #else
     rli->future_group_master_log_pos= log_pos;
 #endif

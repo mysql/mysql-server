@@ -468,6 +468,7 @@ void Protocol::init(THD *thd_arg)
 {
   thd=thd_arg;
   packet= &thd->packet;
+  convert= &thd->convert_buffer;
 #ifndef DEBUG_OFF
   field_types= 0;
 #endif
@@ -704,6 +705,26 @@ bool Protocol_simple::store_null()
 #endif
 
 
+/*
+  Auxilary function to convert string to the given character set
+  and store in network buffer.
+*/
+
+bool Protocol::store_string_aux(const char *from, uint length,
+                                CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
+{
+  /* 'tocs' is set 0 when client issues SET character_set_results=NULL */
+  if (tocs && !my_charset_same(fromcs, tocs) &&
+      fromcs != &my_charset_bin &&
+      tocs != &my_charset_bin)
+  {
+    return convert->copy(from, length, fromcs, tocs) ||
+           net_store_data(convert->ptr(), convert->length());
+  }
+  return net_store_data(from, length);
+}
+
+
 bool Protocol_simple::store(const char *from, uint length,
 			    CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
 {
@@ -714,15 +735,7 @@ bool Protocol_simple::store(const char *from, uint length,
 	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   field_pos++;
 #endif
-  if (tocs && !my_charset_same(fromcs, tocs) &&
-      (fromcs != &my_charset_bin) &&
-      (tocs   != &my_charset_bin))
-  {
-    convert.copy(from, length, fromcs, tocs);
-    return net_store_data(convert.ptr(), convert.length());
-  }
-  else
-    return net_store_data(from, length);
+  return store_string_aux(from, length, fromcs, tocs);
 }
 
 
@@ -737,15 +750,7 @@ bool Protocol_simple::store(const char *from, uint length,
 	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   field_pos++;
 #endif
-  if (tocs && !my_charset_same(fromcs, tocs) &&
-      (fromcs != &my_charset_bin) &&
-      (tocs   != &my_charset_bin))
-  {
-    convert.copy(from, length, fromcs, tocs);
-    return net_store_data(convert.ptr(), convert.length());
-  }
-  else
-    return net_store_data(from, length);
+  return store_string_aux(from, length, fromcs, tocs);
 }
 
 
@@ -838,16 +843,8 @@ bool Protocol_simple::store(Field *field)
   String str(buff,sizeof(buff), &my_charset_bin);
   CHARSET_INFO *tocs= this->thd->variables.character_set_results;
 
-  field->val_str(&str,&str);
-  if (tocs && !my_charset_same(field->charset(), tocs) &&
-      (field->charset() != &my_charset_bin) &&
-      (tocs != &my_charset_bin))
-  {
-    convert.copy(str.ptr(), str.length(), str.charset(), tocs);
-    return net_store_data(convert.ptr(), convert.length());
-  }
-  else
-    return net_store_data(str.ptr(), str.length());
+  field->val_str(&str);
+  return store_string_aux(str.ptr(), str.length(), str.charset(), tocs);
 }
 
 
@@ -960,8 +957,9 @@ void Protocol_prep::prepare_for_resend()
 }
 
 
-bool Protocol_prep::store(const char *from,uint length, CHARSET_INFO *cs)
+bool Protocol_prep::store(const char *from, uint length, CHARSET_INFO *fromcs)
 {
+  CHARSET_INFO *tocs= thd->variables.character_set_results;
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
@@ -969,7 +967,7 @@ bool Protocol_prep::store(const char *from,uint length, CHARSET_INFO *cs)
 	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
 #endif
   field_pos++;
-  return net_store_data(from, length);
+  return store_string_aux(from, length, fromcs, tocs);
 }
 
 bool Protocol_prep::store(const char *from,uint length,
@@ -982,7 +980,7 @@ bool Protocol_prep::store(const char *from,uint length,
 	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
 #endif
   field_pos++;
-  return net_store_data(from, length);
+  return store_string_aux(from, length, fromcs, tocs);
 }
 
 bool Protocol_prep::store_null()

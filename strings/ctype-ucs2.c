@@ -406,8 +406,8 @@ long my_strntol_ucs2(CHARSET_INFO *cs,
   int      cnv;
   my_wc_t  wc;
   register unsigned int cutlim;
-  register ulong cutoff;
-  register ulong res;
+  register uint32 cutoff;
+  register uint32 res;
   register const uchar *s= (const uchar*) nptr;
   register const uchar *e= (const uchar*) nptr+l;
   const uchar *save;
@@ -446,8 +446,8 @@ bs:
   overflow = 0;
   res = 0;
   save = s;
-  cutoff = ((ulong)~0L) / (unsigned long int) base;
-  cutlim = (uint) (((ulong)~0L) % (unsigned long int) base);
+  cutoff = ((uint32)~0L) / (uint32) base;
+  cutlim = (uint) (((uint32)~0L) % (uint32) base);
   
   do {
     if ((cnv=cs->cset->mb_wc(cs,&wc,s,e))>0)
@@ -467,7 +467,7 @@ bs:
         overflow = 1;
       else
       {
-        res *= (ulong) base;
+        res *= (uint32) base;
         res += wc;
       }
     }
@@ -496,16 +496,16 @@ bs:
   
   if (negative)
   {
-    if (res > (ulong) LONG_MIN)
+    if (res > (uint32) INT_MIN32)
       overflow = 1;
   }
-  else if (res > (ulong) LONG_MAX)
+  else if (res > INT_MAX32)
     overflow = 1;
   
   if (overflow)
   {
     err[0]=ERANGE;
-    return negative ? LONG_MIN : LONG_MAX;
+    return negative ? INT_MIN32 : INT_MAX32;
   }
   
   return (negative ? -((long) res) : (long) res);
@@ -521,8 +521,8 @@ ulong my_strntoul_ucs2(CHARSET_INFO *cs,
   int      cnv;
   my_wc_t  wc;
   register unsigned int cutlim;
-  register ulong cutoff;
-  register ulong res;
+  register uint32 cutoff;
+  register uint32 res;
   register const uchar *s= (const uchar*) nptr;
   register const uchar *e= (const uchar*) nptr+l;
   const uchar *save;
@@ -561,8 +561,8 @@ bs:
   overflow = 0;
   res = 0;
   save = s;
-  cutoff = ((ulong)~0L) / (unsigned long int) base;
-  cutlim = (uint) (((ulong)~0L) % (unsigned long int) base);
+  cutoff = ((uint32)~0L) / (uint32) base;
+  cutlim = (uint) (((uint32)~0L) % (uint32) base);
   
   do
   {
@@ -583,7 +583,7 @@ bs:
         overflow = 1;
       else
       {
-        res *= (ulong) base;
+        res *= (uint32) base;
         res += wc;
       }
     }
@@ -613,11 +613,10 @@ bs:
   if (overflow)
   {
     err[0]=(ERANGE);
-    return ((ulong)~0L);
+    return (~(uint32) 0);
   }
   
   return (negative ? -((long) res) : (long) res);
-  
 }
 
 
@@ -1398,7 +1397,7 @@ static MY_COLLATION_HANDLER my_collation_ucs2_bin_handler =
 };
 
 
-static MY_CHARSET_HANDLER my_charset_ucs2_handler=
+MY_CHARSET_HANDLER my_charset_ucs2_handler=
 {
     my_ismbchar_ucs2,	/* ismbchar     */
     my_mbcharlen_ucs2,	/* mbcharlen    */
@@ -1438,6 +1437,7 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     to_upper_ucs2,	/* sort_order   */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    NULL,		/* sort_order_big*/
     "",
     "",
     1,			/* strxfrm_multiply */
@@ -1447,30 +1447,6 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     0xFFFF,		/* max_sort_char */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_general_ci_handler
-};
-
-CHARSET_INFO my_charset_ucs2_general_uca=
-{
-    45,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONTEXT,
-    "ucs2",		/* cs name    */
-    "ucs2_general_uca",	/* name         */
-    "",			/* comment      */
-    ctype_ucs2,		/* ctype        */
-    to_lower_ucs2,	/* to_lower     */
-    to_upper_ucs2,	/* to_upper     */
-    to_upper_ucs2,	/* sort_order   */
-    NULL,		/* tab_to_uni   */
-    NULL,		/* tab_from_uni */
-    "",
-    "",
-    8,			/* strxfrm_multiply */
-    2,			/* mbminlen     */
-    2,			/* mbmaxlen     */
-    9,			/* min_sort_char */
-    0xFFFF,		/* max_sort_char */
-    &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
 };
 
 CHARSET_INFO my_charset_ucs2_bin=
@@ -1484,6 +1460,7 @@ CHARSET_INFO my_charset_ucs2_bin=
     to_lower_ucs2,	/* to_lower     */
     to_upper_ucs2,	/* to_upper     */
     to_upper_ucs2,	/* sort_order   */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     "",

@@ -42,7 +42,7 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename);
 
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group);
-MYSQL *
+MYSQL * STDCALL
 cli_mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		       const char *passwd, const char *db,
 		       uint port, const char *unix_socket,ulong client_flag);
@@ -62,10 +62,4 @@ int cli_read_change_user_result(MYSQL *mysql, char *buff, const char *passwd);
 #ifdef EMBEDDED_LIBRARY
 int init_embedded_server(int argc, char **argv, char **groups);
 void end_embedded_server();
-
-#else
-/* Prevent warnings of unused parameters */
-#define init_embedded_server(a,b,c) ((void)a, (void)b, (void)c, 0)
-#define end_embedded_server()
 #endif /*EMBEDDED_LIBRARY*/
-

@@ -88,7 +88,7 @@ class ha_berkeley: public handler
  public:
   ha_berkeley(TABLE *table): handler(table), alloc_ptr(0),rec_buff(0), file(0),
     int_table_flags(HA_REC_NOT_IN_SEQ |
-		    HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
+		    HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER | HA_FAST_KEY_READ |
 		    HA_NULL_KEY | HA_BLOB_KEY | HA_NOT_EXACT_COUNT |
 		    HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE |
 		    HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX |
@@ -107,7 +107,6 @@ class ha_berkeley: public handler
   uint max_key_length()    const { return MAX_KEY_LENGTH; }
   uint extra_rec_buf_length()	 { return BDB_HIDDEN_PRIMARY_KEY_LENGTH; }
   ha_rows estimate_number_of_rows();
-  bool fast_key_read()	   { return 1;}
   const key_map *keys_to_use_for_scanning() { return &key_map_full; }
   bool has_transactions()  { return 1;}
 
@@ -144,12 +143,7 @@ class ha_berkeley: public handler
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int check(THD* thd, HA_CHECK_OPT* check_opt);
 
-  ha_rows records_in_range(int inx,
-			   const byte *start_key,uint start_key_len,
-			   enum ha_rkey_function start_search_flag,
-			   const byte *end_key,uint end_key_len,
-			   enum ha_rkey_function end_search_flag);
-
+  ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   int create(const char *name, register TABLE *form,
 	     HA_CREATE_INFO *create_info);
   int delete_table(const char *name);

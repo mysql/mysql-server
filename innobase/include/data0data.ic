@@ -93,12 +93,12 @@ void
 dfield_set_data(
 /*============*/
 	dfield_t* 	field,	/* in: field */
-	void*		data,	/* in: data */
+	const void*	data,	/* in: data */
 	ulint		len)	/* in: length or UNIV_SQL_NULL */
 {
 	ut_ad(field);
 
-	field->data = data;
+	field->data = (void*) data;
 	field->len = len;
 }
 
@@ -299,7 +299,7 @@ dtuple_get_data_size(
 
 	ut_ad(tuple);
 	ut_ad(dtuple_check_typed(tuple));
-	ut_ad(tuple->magic_n = DATA_TUPLE_MAGIC_N);
+	ut_ad(tuple->magic_n == DATA_TUPLE_MAGIC_N);
 
 	n_fields = tuple->n_fields;
 
@@ -355,7 +355,7 @@ dtuple_fold(
 	ulint		fold;
 
 	ut_ad(tuple);
-	ut_ad(tuple->magic_n = DATA_TUPLE_MAGIC_N);
+	ut_ad(tuple->magic_n == DATA_TUPLE_MAGIC_N);
 	ut_ad(dtuple_check_typed(tuple));
 
 	fold = ut_fold_dulint(tree_id);

@@ -54,9 +54,11 @@ Created 11/5/1995 Heikki Tuuri
 #define BUF_KEEP_OLD	52
 
 extern buf_pool_t* 	buf_pool; 	/* The buffer pool of the database */
+#ifdef UNIV_DEBUG
 extern ibool		buf_debug_prints;/* If this is set TRUE, the program
 					prints info whenever read or flush
 					occurs */
+#endif /* UNIV_DEBUG */
 
 /************************************************************************
 Creates the buffer pool. */
@@ -130,7 +132,7 @@ to improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed
 in LA! */
 #define buf_page_get(SP, OF, LA, MTR)    buf_page_get_gen(\
 				SP, OF, LA, NULL,\
-				BUF_GET, IB__FILE__, __LINE__, MTR)
+				BUF_GET, __FILE__, __LINE__, MTR)
 /******************************************************************
 Use these macros to bufferfix a page with no latching. Remember not to
 read the contents of the page unless you know it is safe. Do not modify
@@ -139,19 +141,19 @@ error-prone programming not to set a latch, and it should be used
 with care. */
 #define buf_page_get_with_no_latch(SP, OF, MTR)    buf_page_get_gen(\
 				SP, OF, RW_NO_LATCH, NULL,\
-				BUF_GET_NO_LATCH, IB__FILE__, __LINE__, MTR)
+				BUF_GET_NO_LATCH, __FILE__, __LINE__, MTR)
 /******************************************************************
 NOTE! The following macros should be used instead of buf_page_get_gen, to
 improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed as LA! */
 #define buf_page_get_nowait(SP, OF, LA, MTR)    buf_page_get_gen(\
 				SP, OF, LA, NULL,\
-				BUF_GET_NOWAIT, IB__FILE__, __LINE__, MTR)
+				BUF_GET_NOWAIT, __FILE__, __LINE__, MTR)
 /******************************************************************
 NOTE! The following macros should be used instead of
 buf_page_optimistic_get_func, to improve debugging. Only values RW_S_LATCH and
 RW_X_LATCH are allowed as LA! */
 #define buf_page_optimistic_get(LA, BL, G, MC, MTR) buf_page_optimistic_get_func(\
-				LA, BL, G, MC, IB__FILE__, __LINE__, MTR)
+				LA, BL, G, MC, __FILE__, __LINE__, MTR)
 /************************************************************************
 This is the general function used to get optimistic access to a database
 page. */
@@ -166,7 +168,7 @@ buf_page_optimistic_get_func(
 				frames */
 	dulint		modify_clock,/* in: modify clock value if mode is
 				..._GUESS_ON_CLOCK */
-	char*		file,	/* in: file name */
+	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr);	/* in: mini-transaction */
 /************************************************************************
@@ -199,7 +201,7 @@ buf_page_get_known_nowait(
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH */
 	buf_frame_t*	guess,	/* in: the known page frame */
 	ulint		mode,	/* in: BUF_MAKE_YOUNG or BUF_KEEP_OLD */
-	char*		file,	/* in: file name */
+	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr);	/* in: mini-transaction */
 /************************************************************************
@@ -215,7 +217,7 @@ buf_page_get_gen(
 	buf_frame_t*	guess,	/* in: guessed frame or NULL */
 	ulint		mode,	/* in: BUF_GET, BUF_GET_IF_IN_POOL,
 				BUF_GET_NO_LATCH */
-	char*		file,	/* in: file name */
+	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr);	/* in: mini-transaction */
 /************************************************************************
@@ -476,12 +478,14 @@ buf_pool_is_block(
 /*==============*/
 			/* out: TRUE if pointer to block */
 	void*	ptr);	/* in: pointer to memory */
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Validates the buffer pool data structure. */
 
 ibool
 buf_validate(void);
 /*==============*/
+#endif /* UNIV_DEBUG */
 /************************************************************************
 Prints a page to stderr. */
 
@@ -507,8 +511,7 @@ Prints info of the buffer i/o. */
 void
 buf_print_io(
 /*=========*/
-	char*	buf,	/* in/out: buffer where to print */
-	char*	buf_end);/* in: buffer end */
+	FILE*	file);	/* in: file where to print */
 /*************************************************************************
 Returns the ratio in percents of modified pages in the buffer pool /
 database pages in the buffer pool. */
@@ -894,7 +897,7 @@ struct buf_pool_struct{
 
 	ulint		n_pend_reads;	/* number of pending read operations */
 
-	time_t		last_printout_time; /* when buf_print was last time
+	time_t		last_printout_time; /* when buf_print_io was last time
 					called */
 	ulint		n_pages_read;	/* number read operations */
 	ulint		n_pages_written;/* number write operations */
@@ -909,10 +912,10 @@ struct buf_pool_struct{
 	ulint		n_pages_awe_remapped; /* if AWE is enabled, the
 					number of remaps of blocks to
 					buffer frames */
-	ulint		n_page_gets_old;/* n_page_gets when buf_print was
+	ulint		n_page_gets_old;/* n_page_gets when buf_print_io was
 					last time called: used to calculate
 					hit rate */
-	ulint		n_pages_read_old;/* n_pages_read when buf_print was
+	ulint		n_pages_read_old;/* n_pages_read when buf_print_io was
 					last time called */
 	ulint		n_pages_written_old;/* number write operations */
 	ulint		n_pages_created_old;/* number of pages created in

@@ -48,6 +48,9 @@ EOF
   exit 0
 fi
 
+# libtool 1.4.2 workaround
+SED=${SED:-sed}
+
 # The name of this program.
 progname=`$echo "$0" | ${SED} 's%^.*/%%'`
 modename="$progname"

@@ -678,7 +678,7 @@ CREATE TABLE `t1` (
   `id` mediumint(8) unsigned NOT NULL auto_increment,
   `pseudo` varchar(35) character set latin1 NOT NULL default '',
   PRIMARY KEY  (`id`),
-  UNIQUE KEY `pseudo` (`pseudo`),
+  UNIQUE KEY `pseudo` (`pseudo`)
 ) ENGINE=MyISAM PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 (pseudo) VALUES ('test');
 SELECT 0 IN (SELECT 1 FROM t1 a);
@@ -781,7 +781,7 @@ CREATE TABLE `t1` (
   `email` varchar(60) NOT NULL default '',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `email` (`email`),
-  UNIQUE KEY `pseudo` (`pseudo`),
+  UNIQUE KEY `pseudo` (`pseudo`)
 ) ENGINE=MyISAM CHARSET=latin1 PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 (id,pseudo,email) VALUES (1,'test','test'),(2,'test1','test1');
 SELECT pseudo as a, pseudo as b FROM t1 GROUP BY (SELECT a) ORDER BY (SELECT id*1);
@@ -979,7 +979,7 @@ create table t1 (s1 char);
 insert into t1 values ('e');
 select * from t1 where 'f' > any (select s1 from t1);
 select * from t1 where 'f' > any (select s1 from t1 union select s1 from t1);
-explain select * from t1 where 'f' > any (select s1 from t1 union select s1 from t1);
+explain extended select * from t1 where 'f' > any (select s1 from t1 union select s1 from t1);
 drop table t1;
 
 #
@@ -1120,3 +1120,46 @@ create table t3(flag int);
 -- error 1064
 select (select * from t3 where id not null) from t1, t2;
 drop table t1,t2,t3;
+
+#
+# aggregate functions (Bug #3505)
+#
+CREATE TABLE t1 (id INT);
+CREATE TABLE t2 (id INT);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1);
+SELECT t1.id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id);
+SELECT t1.id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id) ORDER BY t1.id;
+DROP TABLE t1,t2;
+
+#
+# ALL/ANY test
+#
+CREATE TABLE t1 ( a int, b int );
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+SELECT a FROM t1 WHERE a > ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a < ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a = ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a >= ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a <= ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a <> ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a > ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a < ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a = ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a >= ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a <= ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a <> ALL ( SELECT a FROM t1 WHERE b = 2 );
+ALTER TABLE t1 ADD INDEX (a);
+SELECT a FROM t1 WHERE a > ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a < ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a = ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a >= ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a <= ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a <> ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a > ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a < ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a = ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a >= ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a <= ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a <> ALL ( SELECT a FROM t1 WHERE b = 2 );
+DROP TABLE t1;

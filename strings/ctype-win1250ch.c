@@ -621,12 +621,13 @@ CHARSET_INFO my_charset_cp1250_czech_ci =
   34,0,0,			/* number    */
   MY_CS_COMPILED|MY_CS_STRNXFRM,		/* state     */
   "cp1250",			/* cs name    */
-  "cp1250_czech_ci",		/* name      */
+  "cp1250_czech_cs",		/* name      */
   "",				/* comment   */
   ctype_win1250ch,
   to_lower_win1250ch,
   to_upper_win1250ch,
   sort_order_win1250ch,
+  NULL,				/* sort_order_big*/
   tab_cp1250_uni,		/* tab_to_uni   */
   idx_uni_cp1250,		/* tab_from_uni */
   "","",

@@ -97,7 +97,7 @@ static void init_state_maps(CHARSET_INFO *cs)
   state_map[(uchar)'<']= (uchar) MY_LEX_LONG_CMP_OP;
   state_map[(uchar)'&']=state_map[(uchar)'|']=(uchar) MY_LEX_BOOL;
   state_map[(uchar)'#']=(uchar) MY_LEX_COMMENT;
-  state_map[(uchar)';']=(uchar) MY_LEX_COLON;
+  state_map[(uchar)';']=(uchar) MY_LEX_SEMICOLON;
   state_map[(uchar)':']=(uchar) MY_LEX_SET_VAR;
   state_map[0]=(uchar) MY_LEX_EOL;
   state_map[(uchar)'\\']= (uchar) MY_LEX_ESCAPE;
@@ -373,7 +373,7 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
   uint len;
   MY_STAT stat_info;
   
-  if (!my_stat(filename, &stat_info, MYF(MY_WME)) ||
+  if (!my_stat(filename, &stat_info, MYF(myflags)) ||
        ((len= (uint)stat_info.st_size) > MY_MAX_ALLOWED_BUF) ||
        !(buf= (char *)my_malloc(len,myflags)))
     return TRUE;
@@ -466,7 +466,8 @@ static my_bool init_available_charsets(myf myflags)
       if (*cs)
       {
         set_max_sort_char(*cs);
-        init_state_maps(*cs);
+        if (cs[0]->ctype)
+          init_state_maps(*cs);
       }
     }
     
@@ -621,4 +622,62 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
   }
 
   DBUG_RETURN(cs);
+}
+
+
+ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
+                              const char *from, ulong length)
+{
+  const char *to_start= to;
+  const char *end;
+#ifdef USE_MB
+  my_bool use_mb_flag= use_mb(charset_info);
+#endif
+  for (end= from + length; from != end; from++)
+  {
+#ifdef USE_MB
+    int l;
+    if (use_mb_flag && (l= my_ismbchar(charset_info, from, end)))
+    {
+      while (l--)
+	*to++= *from++;
+      from--;
+      continue;
+    }
+#endif
+    switch (*from) {
+    case 0:				/* Must be escaped for 'mysql' */
+      *to++= '\\';
+      *to++= '0';
+      break;
+    case '\n':				/* Must be escaped for logs */
+      *to++= '\\';
+      *to++= 'n';
+      break;
+    case '\r':
+      *to++= '\\';
+      *to++= 'r';
+      break;
+    case '\\':
+      *to++= '\\';
+      *to++= '\\';
+      break;
+    case '\'':
+      *to++= '\\';
+      *to++= '\'';
+      break;
+    case '"':				/* Better safe than sorry */
+      *to++= '\\';
+      *to++= '"';
+      break;
+    case '\032':			/* This gives problems on Win32 */
+      *to++= '\\';
+      *to++= 'Z';
+      break;
+    default:
+      *to++= *from;
+    }
+  }
+  *to= 0;
+  return (ulong) (to - to_start);
 }

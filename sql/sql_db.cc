@@ -18,6 +18,7 @@
 /* create and drop of databases */
 
 #include "mysql_priv.h"
+#include <mysys_err.h>
 #include "sql_acl.h"
 #include "sp.h"
 #include <my_dir.h>
@@ -186,7 +187,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   strxmov(path, mysql_data_home, "/", db, NullS);
   unpack_dirname(path,path);			// Convert if not unix
 
-  if (my_stat(path,&stat_info,MYF(MY_WME)))
+  if (my_stat(path,&stat_info,MYF(0)))
   {
    if (!(create_options & HA_LEX_CREATE_IF_NOT_EXISTS))
     {
@@ -198,6 +199,11 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   }
   else
   {
+    if (my_errno != ENOENT)
+    {
+      my_error(EE_STAT, MYF(0),path,my_errno);
+      goto exit;
+    }
     strend(path)[-1]=0;				// Remove last '/' from path
     if (my_mkdir(path,0777,MYF(0)) < 0)
     {
@@ -365,7 +371,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   {
     /* Convert database to lower case */
     strmov(tmp_db, db);
-    my_casedn_str(system_charset_info, tmp_db);
+    my_casedn_str(files_charset_info, tmp_db);
     db= tmp_db;
   }
 
@@ -461,13 +467,18 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 
   tot_list_next= &tot_list;
 
-  for (uint idx=2 ;
+  for (uint idx=0 ;
        idx < (uint) dirp->number_off_files && !thd->killed ;
        idx++)
   {
     FILEINFO *file=dirp->dir_entry+idx;
     char *extension;
     DBUG_PRINT("info",("Examining: %s", file->name));
+
+    /* skiping . and .. */
+    if (file->name[0] == '.' && (!file->name[1] ||
+       (file->name[1] == '.' &&  !file->name[2])))
+      continue;
 
     /* Check if file is a raid directory */
     if ((my_isdigit(&my_charset_latin1, file->name[0]) ||
@@ -550,7 +561,12 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     If the directory is a symbolic link, remove the link first, then
     remove the directory the symbolic link pointed at
   */
-  if (!found_other_files)
+  if (found_other_files)
+  {
+    my_error(ER_DB_DROP_RMDIR, MYF(0), org_path, EEXIST);
+    DBUG_RETURN(-1);
+  }
+  else
   {
     char tmp_path[FN_REFLEN], *pos;
     char *path= tmp_path;

@@ -171,11 +171,6 @@ int ha_isammrg::extra(enum ha_extra_function operation)
   return !mrg_extra(file,operation) ? 0 : my_errno ? my_errno : -1;
 }
 
-int ha_isammrg::reset(void)
-{
-  return !mrg_extra(file,HA_EXTRA_RESET) ? 0 : my_errno ? my_errno : -1;
-}
-
 int ha_isammrg::external_lock(THD *thd, int lock_type)
 {
   return !mrg_lock_database(file,lock_type) ? 0 : my_errno ? my_errno : -1;

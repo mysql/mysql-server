@@ -661,7 +661,7 @@ void query_cache_end_of_result(THD *thd)
   if (thd->net.query_cache_query != 0)	// Quick check on unlocked structure
   {
 #ifdef EMBEDDED_LIBRARY
-    query_cache_insert(&thd->net, (byte*)thd, 
+    query_cache_insert(&thd->net, (char*)thd, 
 		       emb_count_querycache_size(thd));
 #endif
     STRUCT_LOCK(&query_cache.structure_guard_mutex);
@@ -1517,13 +1517,28 @@ ulong Query_cache::init_cache()
   VOID(hash_init(&queries, &my_charset_bin, def_query_hash_size, 0, 0,
 		 query_cache_query_get_key, 0, 0));
 #ifndef FN_NO_CASE_SENCE
+  /*
+    If lower_case_table_names!=0 then db and table names are already 
+    converted to lower case and we can use binary collation for their 
+    comparison (no matter if file system case sensitive or not).
+    If we have case-sensitive file system (like on most Unixes) and
+    lower_case_table_names == 0 then we should distinguish my_table
+    and MY_TABLE cases and so again can use binary collation.
+  */
   VOID(hash_init(&tables, &my_charset_bin, def_table_hash_size, 0, 0,
 		 query_cache_table_get_key, 0, 0));
 #else
-  // windows, OS/2 or other case insensitive file names work around
+  /*
+    On windows, OS/2, MacOS X with HFS+ or any other case insensitive 
+    file system if lower_case_table_names!=0 we have same situation as 
+    in previous case, but if lower_case_table_names==0 then we should 
+    not distinguish cases (to be compatible in behavior with underlaying 
+    file system) and so should use case insensitive collation for 
+    comparison.
+  */
   VOID(hash_init(&tables,
 		 lower_case_table_names ? &my_charset_bin :
-		 system_charset_info,
+		 files_charset_info,
 		 def_table_hash_size, 0, 0,query_cache_table_get_key, 0, 0));
 #endif
 
@@ -2617,14 +2632,15 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 	table_alias_charset used here because it depends of
 	lower_case_table_names variable
       */
-      if (tables_used->table->db_type == DB_TYPE_MRG_ISAM ||
-	  tables_used->table->tmp_table != NO_TMP_TABLE ||
+      if (tables_used->table->tmp_table != NO_TMP_TABLE ||
+	  (*tables_type & HA_CACHE_TBL_NOCACHE) ||
 	  (tables_used->db_length == 5 &&
 	   my_strnncoll(table_alias_charset, (uchar*)tables_used->db, 6,
 			(uchar*)"mysql",6) == 0))
       {
 	DBUG_PRINT("qcache", 
-		   ("select not cacheable: used MRG_ISAM, temporary or system table(s)"));
+		   ("select not cacheable: temporary, system or \
+other non-cacheable table(s)"));
 	DBUG_RETURN(0);
       }
       if (tables_used->table->db_type == DB_TYPE_MRG_MYISAM)
