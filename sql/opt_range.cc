@@ -3148,12 +3148,98 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
   DBUG_RETURN(quick_roru);
 }
 
-/****************************************************************************/
+
+/*
+  Build a SEL_TREE for a simple predicate
+ 
+  SYNOPSIS
+    get_func_mm_tree()
+      param       PARAM from SQL_SELECT::test_quick_select
+      cond_func   item for the predicate
+      field       field in the predicate
+      value       constant in the predicate
+      cmp_type    compare type for the field
+
+  RETURN 
+    Pointer to thre built tree
+*/
+
+static SEL_TREE *get_func_mm_tree(PARAM *param, Item_func *cond_func, 
+                                  Field *field, Item *value,
+                                  Item_result cmp_type)
+{
+  SEL_TREE *tree= 0;
+  DBUG_ENTER("get_func_mm_tree");
+
+  switch (cond_func->functype()) {
+  case Item_func::NE_FUNC:
+    tree= get_mm_parts(param, cond_func, field, Item_func::LT_FUNC,
+		       value, cmp_type);
+    if (tree)
+    {
+      tree= tree_or(param, tree, get_mm_parts(param, cond_func, field,
+					      Item_func::GT_FUNC,
+					      value, cmp_type));
+    }
+    break;
+  case Item_func::BETWEEN:
+    tree= get_mm_parts(param, cond_func, field, Item_func::GE_FUNC,
+		       cond_func->arguments()[1],cmp_type);
+    if (tree)
+    {
+      tree= tree_and(param, tree, get_mm_parts(param, cond_func, field,
+					       Item_func::LE_FUNC,
+					       cond_func->arguments()[2],
+                                               cmp_type));
+    }
+    break;
+  case Item_func::IN_FUNC:
+  {
+    Item_func_in *func=(Item_func_in*) cond_func;
+    tree= get_mm_parts(param, cond_func, field, Item_func::EQ_FUNC,
+                       func->arguments()[1], cmp_type);
+    if (tree)
+    {
+      Item **arg, **end;
+      for (arg= func->arguments()+2, end= arg+func->argument_count()-2;
+           arg < end ; arg++)
+      {
+        tree=  tree_or(param, tree, get_mm_parts(param, cond_func, field, 
+                                                 Item_func::EQ_FUNC,
+                                                 *arg,
+                                                 cmp_type));
+      }
+    }
+    break;
+  }
+  default: 
+  {
+    /* 
+       Here the function for the following predicates are processed:
+       <, <=, =, >=, >, LIKE, IS NULL, IS NOT NULL.
+       If the predicate is of the form (value op field) it is handled
+       as the equivalent predicate (field rev_op value), e.g.
+       2 <= a is handled as a >= 2.
+    */
+    Item_func::Functype func_type=
+      (value != cond_func->arguments()[0]) ? cond_func->functype() :
+        ((Item_bool_func2*) cond_func)->rev_functype();
+    tree= get_mm_parts(param, cond_func, field, func_type, value, cmp_type);
+  }
+  }
+
+  DBUG_RETURN(tree);
+
+}
+
 	/* make a select tree of all keys in condition */
 
 static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
 {
   SEL_TREE *tree=0;
+  SEL_TREE *ftree= 0;
+  Item_field *field_item= 0;
+  Item *value;
   DBUG_ENTER("get_mm_tree");
 
   if (cond->type() == Item::COND_ITEM)
@@ -3201,9 +3287,12 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
     DBUG_RETURN(new SEL_TREE(SEL_TREE::IMPOSSIBLE));
   }
 
-  table_map ref_tables=cond->used_tables();
+  table_map ref_tables= 0;
+  table_map param_comp= ~(param->prev_tables | param->read_tables |
+		          param->current_table);
   if (cond->type() != Item::FUNC_ITEM)
   {						// Should be a field
+    ref_tables= cond->used_tables();
     if ((ref_tables & param->current_table) ||
 	(ref_tables & ~(param->prev_tables | param->read_tables)))
       DBUG_RETURN(0);
@@ -3214,80 +3303,42 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
   if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
     DBUG_RETURN(0);				// Can't be calculated
 
-  param->cond= cond;
-
-  if (cond_func->functype() == Item_func::BETWEEN)
+  switch (cond_func->functype()) {
+  case Item_func::BETWEEN:
+    if (cond_func->arguments()[0]->type() != Item::FIELD_ITEM)
+      DBUG_RETURN(0);
+    field_item= (Item_field*) (cond_func->arguments()[0]);
+    value= NULL;
+    break;
+  case Item_func::IN_FUNC:
   {
-    if (cond_func->arguments()[0]->type() == Item::FIELD_ITEM)
-    {
-      Field *field=((Item_field*) (cond_func->arguments()[0]))->field;
-      Item_result cmp_type=field->cmp_type();
-      DBUG_RETURN(tree_and(param,
-			   get_mm_parts(param, cond_func, field,
-					Item_func::GE_FUNC,
-					cond_func->arguments()[1], cmp_type),
-			   get_mm_parts(param, cond_func, field,
-					Item_func::LE_FUNC,
-					cond_func->arguments()[2], cmp_type)));
-    }
-    DBUG_RETURN(0);
-  }
-  if (cond_func->functype() == Item_func::IN_FUNC)
-  {						// COND OR
     Item_func_in *func=(Item_func_in*) cond_func;
-    if (func->key_item()->type() == Item::FIELD_ITEM)
+    if (func->key_item()->type() != Item::FIELD_ITEM)
+      DBUG_RETURN(0);
+    field_item= (Item_field*) (func->key_item());
+    value= NULL;
+    break;
+  }
+  case Item_func::MULT_EQUAL_FUNC:
+  {
+    Item_equal *item_equal= (Item_equal *) cond;    
+    if (!(value= item_equal->get_const()))
+      DBUG_RETURN(0);
+    Item_equal_iterator it(*item_equal);
+    ref_tables= value->used_tables();
+    while ((field_item= it++))
     {
-      Field *field=((Item_field*) (func->key_item()))->field;
-      Item_result cmp_type=field->cmp_type();
-      tree= get_mm_parts(param,cond_func,field,Item_func::EQ_FUNC,
-			 func->arguments()[1],cmp_type);
-      if (!tree)
-	DBUG_RETURN(tree);			// Not key field
-      for (uint i=2 ; i < func->argument_count(); i++)
+      Field *field= field_item->field;
+      Item_result cmp_type= field->cmp_type();
+      if (!((ref_tables | field->table->map) & param_comp))
       {
-	SEL_TREE *new_tree=get_mm_parts(param,cond_func,field,
-					Item_func::EQ_FUNC,
-					func->arguments()[i],cmp_type);
-	tree=tree_or(param,tree,new_tree);
+        tree= get_mm_parts(param, cond, field, Item_func::EQ_FUNC,
+		           value,cmp_type);
+        ftree= !ftree ? tree : tree_and(param, ftree, tree);
       }
-      DBUG_RETURN(tree);
     }
-    DBUG_RETURN(0);				// Can't optimize this IN
-  }
-
-  if (ref_tables & ~(param->prev_tables | param->read_tables |
-		     param->current_table))
-    DBUG_RETURN(0);				// Can't be calculated yet
-  if (!(ref_tables & param->current_table))
-    DBUG_RETURN(new SEL_TREE(SEL_TREE::MAYBE)); // This may be FALSE or TRUE
-
-  /* check field op const */
-  /* btw, ft_func's arguments()[0] isn't FIELD_ITEM.  SerG*/
-  if (cond_func->arguments()[0]->type() == Item::FIELD_ITEM)
-  {
-    tree= get_mm_parts(param, cond_func,
-		       ((Item_field*) (cond_func->arguments()[0]))->field,
-		       cond_func->functype(),
-		       cond_func->arg_count > 1 ? cond_func->arguments()[1] :
-		       0,
-		       ((Item_field*) (cond_func->arguments()[0]))->field->
-		       cmp_type());
-  }
-  /* check const op field */
-  if (!tree &&
-      cond_func->have_rev_func() &&
-      cond_func->arguments()[1]->type() == Item::FIELD_ITEM)
-  {
-    DBUG_RETURN(get_mm_parts(param, cond_func,
-			     ((Item_field*)
-			      (cond_func->arguments()[1]))->field,
-			     ((Item_bool_func2*) cond_func)->rev_functype(),
-			     cond_func->arguments()[0],
-			     ((Item_field*)
-			      (cond_func->arguments()[1]))->field->cmp_type()
-			     ));
-  }
-  DBUG_RETURN(tree);
+    
+    DBUG_RETURN(ftree);
 }
 
 
@@ -3296,16 +3347,9 @@ get_mm_parts(PARAM *param, COND *cond_func, Field *field,
 	     Item_func::Functype type,
 	     Item *value, Item_result cmp_type)
 {
-  bool ne_func= FALSE;
   DBUG_ENTER("get_mm_parts");
   if (field->table != param->table)
     DBUG_RETURN(0);
-
-  if (type == Item_func::NE_FUNC)
-  {
-    ne_func= TRUE;
-    type= Item_func::LT_FUNC;
-  }
 
   KEY_PART *key_part = param->key_parts;
   KEY_PART *end = param->key_parts_end;
@@ -3342,15 +3386,6 @@ get_mm_parts(PARAM *param, COND *cond_func, Field *field,
       tree->keys[key_part->key]=sel_add(tree->keys[key_part->key],sel_arg);
       tree->keys_map.set_bit(key_part->key);
     }
-  }
-
-  if (ne_func)
-  {
-    SEL_TREE *tree2= get_mm_parts(param, cond_func,
-				  field, Item_func::GT_FUNC,
-                                  value, cmp_type);
-    if (tree2)
-      tree= tree_or(param,tree,tree2);
   }
 
   DBUG_RETURN(tree);

@@ -341,6 +341,18 @@ static bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
   Item *item;
   *inv_order= 0;
   switch (func_item->argument_count()) {
+  case 0:
+    /* MULT_EQUAL_FUNC */
+    {
+      Item_equal *item_equal= (Item_equal *) func_item;
+      Item_equal_iterator it(*item_equal);
+      args[0]= it++;
+      if (it++)
+        return 0;
+      if (!(args[1]= item_equal->get_const()))
+        return 0;
+    }
+    break;
   case 1:
     /* field IS NULL */
     item= func_item->arguments()[0];
@@ -480,6 +492,9 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     break;
   case Item_func::BETWEEN:
     between= 1;
+    break;
+  case Item_func::MULT_EQUAL_FUNC:
+    eq_type= 1;
     break;
   default:
     return 0;                                        // Can't optimize function

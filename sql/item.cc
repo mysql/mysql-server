@@ -408,6 +408,7 @@ bool DTCollation::aggregate(DTCollation &dt, bool superset_conversion)
 
 Item_field::Item_field(Field *f)
   :Item_ident(NullS, f->table_name, f->field_name),
+   item_equal(0),
    have_privileges(0), any_privileges(0)
 {
   set_field(f);
@@ -418,6 +419,7 @@ Item_field::Item_field(Field *f)
 Item_field::Item_field(THD *thd, Field *f)
   :Item_ident(NullS, thd->strdup(f->table_name), 
               thd->strdup(f->field_name)),
+   item_equal(0),
    have_privileges(0), any_privileges(0)
 {
   set_field(f);
@@ -434,6 +436,7 @@ Item_field::Item_field(THD *thd, Item_field *item)
    any_privileges(item->any_privileges)
 {
   collation.set(DERIVATION_IMPLICIT);
+  item_equal= item->item_equal;
 }
 
 void Item_field::set_field(Field *field_par)
@@ -1582,7 +1585,29 @@ void Item_field::cleanup()
     I.e. we can drop 'field'.
    */
   field= result_field= 0;
-  DBUG_VOID_RETURN;
+}
+
+/*
+  Find a field among specified multiple equalities 
+
+  SYNOPSIS
+    find_item_equal()
+    cond_equal   reference to list of multiple equalities where
+                 the field (this object) is to be looked for
+  
+  DESCRIPTION
+    The function first searches the field among multiple equalities
+    of the current level (in the cond_equal->current_level list).
+    If it fails, it continues searching in upper levels accessed
+    through a pointer cond_equal->upper_levels.
+    The search terminates as soon as a multiple equality containing 
+    the field is found. 
+
+  RETURN VALUES
+    First Item_equal containing the field, if success
+    0, otherwise
+*/
+
 }
 
 void Item::init_make_field(Send_field *tmp_field,
