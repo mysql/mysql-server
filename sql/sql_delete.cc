@@ -573,9 +573,15 @@ end:
       }
       send_ok(&thd->net);		// This should return record count
     }
+    VOID(pthread_mutex_lock(&LOCK_open));
     unlock_table_name(thd, table_list);
+    VOID(pthread_mutex_unlock(&LOCK_open));
   }
   else if (error)
+  {
+    VOID(pthread_mutex_lock(&LOCK_open));
     unlock_table_name(thd, table_list);
+    VOID(pthread_mutex_unlock(&LOCK_open));
+  }
   DBUG_RETURN(error ? -1 : 0);
 }
