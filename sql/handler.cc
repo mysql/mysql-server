@@ -473,7 +473,8 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
   int error;
   DBUG_ENTER("handler::open");
   DBUG_PRINT("enter",("name: %s  db_type: %d  db_stat: %d  mode: %d  lock_test: %d",
-		      name, table->db_type, table->db_stat, mode, test_if_locked));
+		      name, table->db_type, table->db_stat, mode,
+		      test_if_locked));
 
   if ((error=open(name,mode,test_if_locked)))
   {

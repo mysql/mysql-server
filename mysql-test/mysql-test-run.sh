@@ -349,7 +349,8 @@ while test $# -gt 0; do
        --debug=d:t:i:A,$MYSQL_TEST_DIR/var/log/master.trace"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT \
        --debug=d:t:i:A,$MYSQL_TEST_DIR/var/log/slave.trace"
-      EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT --debug"
+      EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT \
+       --debug=d:t:A,$MYSQL_TEST_DIR/var/log/mysqltest.trace"
       ;;
     --fast)
       FAST_START=1

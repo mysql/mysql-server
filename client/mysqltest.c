@@ -2484,6 +2484,7 @@ int main(int argc, char** argv)
       }
       case Q_COMMENT:				/* Ignore row */
       case Q_COMMENT_WITH_COMMAND:
+	break;
       case Q_PING:
 	(void) mysql_ping(&cur_con->mysql);
 	break;
