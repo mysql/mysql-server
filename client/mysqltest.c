@@ -74,6 +74,11 @@
 #define MAX_EXPECTED_ERRORS 10
 #define QUERY_SEND  1
 #define QUERY_REAP  2
+#define CON_RETRY_SLEEP 1 /* how long to sleep before trying to connect again*/
+#define MAX_CON_TRIES   2 /* sometimes in a test the client starts before
+			   * the server - to solve the problem, we try again
+			   * after some sleep if connection fails the first
+			   * time */
 
 static int record = 0, verbose = 0, silent = 0, opt_sleep=0;
 static char *db = 0, *pass=0;
@@ -931,6 +936,8 @@ int do_connect(struct st_query* q)
   char* p=q->first_argument;
   char buff[FN_REFLEN];
   int con_port;
+  int i, con_error;
+  
   DBUG_ENTER("do_connect");
   DBUG_PRINT("enter",("connect: %s",p));
 
@@ -961,8 +968,20 @@ int do_connect(struct st_query* q)
   con_sock=fn_format(buff, con_sock, TMPDIR, "",0);
   if (!con_db[0])
     con_db=db;
-  if (!mysql_real_connect(&next_con->mysql, con_host, con_user, con_pass,
-			 con_db, con_port, con_sock, 0))
+  con_error = 1;
+  for (i = 0; i < MAX_CON_TRIES; ++i)
+    {
+      if(mysql_real_connect(&next_con->mysql, con_host,
+			    con_user, con_pass,
+			    con_db, con_port, con_sock, 0))
+	{
+	  con_error = 0;
+	  break;
+	}
+      sleep(CON_RETRY_SLEEP);
+    }
+
+  if(con_error)
     die("Could not open connection '%s': %s", con_name,
 	mysql_error(&next_con->mysql));
 
