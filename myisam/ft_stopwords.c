@@ -51,8 +51,8 @@ int ft_init_stopwords(const char **sws)
     if( (sw.len= (uint) strlen(sw.pos=*sws)) < MIN_WORD_LEN) continue;
     if(!tree_insert(stopwords3, &sw, 0))
     {
-      delete_tree(stopwords3);
-      return -1;
+      delete_tree(stopwords3); /* purecov: inspected */
+      return -1; /* purecov: inspected */
     }
   }
   return 0;
@@ -66,3 +66,12 @@ int is_stopword(char *word, uint len)
   return tree_search(stopwords3,&sw) != NULL;
 }
 
+
+void ft_free_stopwords()
+{
+  if (stopwords3)
+  {
+    delete_tree(stopwords3); /* purecov: inspected */    
+    stopwords3=0;
+  }
+}

@@ -101,7 +101,7 @@ int generate_table(THD *thd, TABLE_LIST *table_list,
 
 
 int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
-		 thr_lock_type lock_type)
+		 thr_lock_type lock_type, ulong options)
 {
   int		error;
   TABLE		*table;
@@ -162,6 +162,8 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   }
 
   (void) table->file->extra(HA_EXTRA_NO_READCHECK);
+  if (options & OPTION_QUICK)
+    (void) table->file->extra(HA_EXTRA_QUICK);    
   init_read_record(&info,thd,table,select,1,1);
   ulong deleted=0L;
   thd->proc_info="updating";
@@ -188,7 +190,9 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   }
   thd->proc_info="end";
   end_read_record(&info);
-  VOID(table->file->extra(HA_EXTRA_READCHECK));
+  (void) table->file->extra(HA_EXTRA_READCHECK);
+  if (options & OPTION_QUICK)
+    (void) table->file->extra(HA_EXTRA_NORMAL);    
   if (deleted)
   {
     mysql_update_log.write(thd,thd->query, thd->query_length);

@@ -394,6 +394,7 @@ pthread_handler_decl(handle_one_connection,arg)
       thd->client_capabilities|=CLIENT_IGNORE_SPACE;
 
     thd->proc_info=0;				// Remove 'login'
+    thd->command=COM_SLEEP;
     thd->version=refresh_version;
     thd->set_time();
     init_sql_alloc(&thd->mem_root,8192,8192);
@@ -754,7 +755,7 @@ bool do_command(THD *thd)
   {
     mysql_log.write(thd,command,NullS);
     char buff[200];
-    ulong uptime = (ulong) (time((time_t*) 0) - start_time);
+    ulong uptime = (ulong) (thd->start_time - start_time);
     sprintf((char*) buff,
 	    "Uptime: %ld  Threads: %d  Questions: %lu  Slow queries: %ld  Opens: %ld  Flush tables: %ld  Open tables: %d Queries per second avg: %.3f",
 	    uptime,
@@ -813,7 +814,9 @@ bool do_command(THD *thd)
 
   time_t start_of_query=thd->start_time;
   thd->set_time();
-  if ((ulong) (thd->start_time - start_of_query) > long_query_time)
+  /* If not reading from backup and if the query took too long */
+  if (!thd->user_time &&
+      (ulong) (thd->start_time - start_of_query) > long_query_time)
   {
     long_query_count++;
     mysql_slow_log.write(thd, thd->query, thd->query_length, start_of_query);
@@ -1355,7 +1358,7 @@ mysql_execute_command(void)
     // Set privilege for the WHERE clause
     tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
     res = mysql_delete(thd,tables,lex->where,lex->select_limit,
-		       lex->lock_option);
+		       lex->lock_option, lex->options);
 #ifdef DELETE_ITEMS
     delete lex->where;
 #endif
@@ -1818,7 +1821,10 @@ check_table_access(THD *thd,uint want_access,TABLE_LIST *tables)
       return TRUE;				// Access denied
   }
   if (grant_option)
+  {
+    want_access &= ~EXTRA_ACL;			// Remove SHOW attribute
     return check_grant(thd,want_access,org_tables);
+  }
   return FALSE;
 }
 

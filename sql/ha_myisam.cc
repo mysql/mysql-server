@@ -433,7 +433,8 @@ int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
   param.op_name = (char*) "optimize";
   param.testflag = (check_opt->flags | T_SILENT | T_FORCE_CREATE |
 		    T_REP_BY_SORT | T_STATISTICS | T_SORT_INDEX);
-  param.opt_rep_quick++;
+  if (check_opt->quick)
+    param.opt_rep_quick++;
   param.sort_buffer_length=  check_opt->sort_buffer_size;
   return repair(thd,param,1);
 }
@@ -456,8 +457,10 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   VOID(fn_format(fixed_name,file->filename,"",MI_NAME_IEXT,
 		     4+ (param.opt_follow_links ? 16 : 0)));
 
-  if (!optimize || file->state->del ||
-      share->state.split != file->state->records)
+  if (!optimize || 
+      ((file->state->del || share->state.split != file->state->records) &&
+       (!param.opt_rep_quick ||
+	!(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))))
   {
     optimize_done=1;
     if (mi_test_if_sort_rep(file,file->state->records))
@@ -564,7 +567,7 @@ bool ha_myisam::activate_all_index(THD *thd)
     myisamchk_init(&param);
     param.op_name = (char*) "recreating_index";
     param.testflag = (T_SILENT | T_REP_BY_SORT |
-		      T_STATISTICS | T_CREATE_MISSING_KEYS | T_TRUST_HEADER);
+		      T_CREATE_MISSING_KEYS | T_TRUST_HEADER);
     param.myf_rw&= ~MY_WAIT_IF_FULL;
     param.sort_buffer_length=  myisam_sort_buffer_size;
     param.opt_rep_quick++;

@@ -290,6 +290,7 @@ inline double ulonglong2double(ulonglong value)
 #define MY_NFILE	127	/* This is only used to save filenames */
 
 
+#define DO_NOT_REMOVE_THREAD_WRAPPERS
 #define thread_safe_increment(V,L) InterlockedIncrement((long*) &(V))
 /* The following is only used for statistics, so it should be good enough */
 #ifdef __NT__  /* This should also work on Win98 but .. */

@@ -221,7 +221,7 @@ static void usage(void)
                       extreme cases as myisamchk should normally be able to\n\
                       find out if the table is ok even without this switch\n\
   -F, --fast	      Check only tables that hasn't been closed properly\n\
-  -C, --check-changed-tables\n\
+  -C, --check-only-changed\n\
 		      Check only tables that has changed since last check\n\
   -f, --force         Restart with -r if there are any errors in the table\n\
   -i, --information   Print statistics information about table that is checked\n\

@@ -104,6 +104,7 @@ SUFFIXES = .sh
 	  -e 's!@''PERL_DBD_VERSION''@!@PERL_DBD_VERSION@!' \
 	  -e 's!@''PERL_DATA_DUMPER''@!@PERL_DATA_DUMPER@!' \
 	$< > $@-t
+	@CHMOD@ +x $@-t
 	@MV@ $@-t $@
 
 # Don't update the files from bitkeeper
