@@ -237,7 +237,7 @@ binlog purge"; break;
       break;
     case LOG_INFO_MEM: errmsg = "Out of memory"; break;
     case LOG_INFO_FATAL: errmsg = "Fatal error during purge"; break;
-    case LOG_INFO_IN_USE: errmsg = "A purgable log is in use, will not purge";
+    case LOG_INFO_IN_USE: errmsg = "A purgeable log is in use, will not purge";
       break;
     default:
       errmsg = "Unknown error during purge"; break;

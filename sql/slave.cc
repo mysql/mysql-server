@@ -45,8 +45,8 @@ static int stuck_count = 0;
 #endif
 
 
-static inline void skip_load_data_infile(NET* net);
-static inline bool slave_killed(THD* thd);
+inline void skip_load_data_infile(NET* net);
+inline bool slave_killed(THD* thd);
 static int init_slave_thread(THD* thd);
 static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
 static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
@@ -54,7 +54,7 @@ static int safe_sleep(THD* thd, int sec);
 static int request_table_dump(MYSQL* mysql, char* db, char* table);
 static int create_table_from_dump(THD* thd, NET* net, const char* db,
 				  const char* table_name);
-static inline char* rewrite_db(char* db);
+inline char* rewrite_db(char* db);
 static void free_table_ent(TABLE_RULE_ENT* e)
 {
   my_free((gptr) e, MYF(0));
@@ -194,12 +194,12 @@ void end_slave()
     free_string_array(&replicate_wild_ignore_table);
 }
 
-static inline bool slave_killed(THD* thd)
+inline bool slave_killed(THD* thd)
 {
   return abort_slave || abort_loop || thd->killed;
 }
 
-static inline void skip_load_data_infile(NET* net)
+inline void skip_load_data_infile(NET* net)
 {
   (void)my_net_write(net, "\xfb/dev/null", 10);
   (void)net_flush(net);
@@ -207,7 +207,7 @@ static inline void skip_load_data_infile(NET* net)
   send_ok(net); // the master expects it
 }
 
-static inline char* rewrite_db(char* db)
+inline char* rewrite_db(char* db)
 {
   if(replicate_rewrite_db.is_empty() || !db) return db;
   I_List_iterator<i_string_pair> it(replicate_rewrite_db);

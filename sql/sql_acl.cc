@@ -1287,7 +1287,7 @@ static GRANT_TABLE *table_hash_search(const char *host,const char* ip,
 
 
 
-static inline GRANT_COLUMN *
+inline GRANT_COLUMN *
 column_hash_search(GRANT_TABLE *t, const char *cname,
 					uint length)
 {

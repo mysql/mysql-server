@@ -91,7 +91,7 @@ void make_scrambled_password(char *to,const char *password)
   sprintf(to,"%08lx%08lx",hash_res[0],hash_res[1]);
 }
 
-static inline uint char_val(char X)
+inline uint char_val(char X)
 {
   return (uint) (X >= '0' && X <= '9' ? X-'0' :
 		 X >= 'A' && X <= 'Z' ? X-'A'+10 :
