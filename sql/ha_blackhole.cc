@@ -47,7 +47,7 @@ int ha_blackhole::close(void)
 }
 
 int ha_blackhole::create(const char *name, TABLE *table_arg,
-                       HA_CREATE_INFO *create_info)
+                         HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("ha_blackhole::create");
   DBUG_RETURN(0);
@@ -57,12 +57,12 @@ const char *ha_blackhole::index_type(uint key_number)
 {
   DBUG_ENTER("ha_blackhole::index_type");
   DBUG_RETURN((table->key_info[key_number].flags & HA_FULLTEXT) ? 
-	  "FULLTEXT" :
-	  (table->key_info[key_number].flags & HA_SPATIAL) ?
-	  "SPATIAL" :
-	  (table->key_info[key_number].algorithm == HA_KEY_ALG_RTREE) ?
-	  "RTREE" :
-	  "BTREE");
+              "FULLTEXT" :
+              (table->key_info[key_number].flags & HA_SPATIAL) ?
+              "SPATIAL" :
+              (table->key_info[key_number].algorithm == HA_KEY_ALG_RTREE) ?
+              "RTREE" :
+              "BTREE");
 }
 
 int ha_blackhole::write_row(byte * buf)
@@ -88,6 +88,7 @@ int ha_blackhole::rnd_next(byte *buf)
 int ha_blackhole::rnd_pos(byte * buf, byte *pos)
 {
   DBUG_ENTER("ha_blackhole::rnd_pos");
+  DBUG_ASSERT(0);
   DBUG_RETURN(0);
 }
 
@@ -95,6 +96,7 @@ int ha_blackhole::rnd_pos(byte * buf, byte *pos)
 void ha_blackhole::position(const byte *record)
 {
   DBUG_ENTER("ha_blackhole::position");
+  DBUG_ASSERT(0);
   DBUG_VOID_RETURN;
 }
 
@@ -124,41 +126,63 @@ int ha_blackhole::external_lock(THD *thd, int lock_type)
 
 
 THR_LOCK_DATA **ha_blackhole::store_lock(THD *thd,
-                                       THR_LOCK_DATA **to,
-                                       enum thr_lock_type lock_type)
+                                         THR_LOCK_DATA **to,
+                                         enum thr_lock_type lock_type)
 {
-  if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) 
-  {
-    /* 
-      Here is where we get into the guts of a row level lock.
-      If TL_UNLOCK is set 
-      If we are not doing a LOCK TABLE or DISCARD/IMPORT
-      TABLESPACE, then allow multiple writers 
-    */
-
-    if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
-         lock_type <= TL_WRITE) && !thd->in_lock_tables
-        && !thd->tablespace_op)
-      lock_type = TL_WRITE_ALLOW_WRITE;
-
-    /* 
-      In queries of type INSERT INTO t1 SELECT ... FROM t2 ...
-      MySQL would use the lock TL_READ_NO_INSERT on t2, and that
-      would conflict with TL_WRITE_ALLOW_WRITE, blocking all inserts
-      to t2. Convert the lock to a normal read lock to allow
-      concurrent inserts to t2. 
-    */
-
-    if (lock_type == TL_READ_NO_INSERT && !thd->in_lock_tables) 
-      lock_type = TL_READ;
-
-    lock.type=lock_type;
-  }
-
   *to++= &lock;
 
   return to;
 }
 
+
+int ha_blackhole::index_read(byte * buf, const byte * key,
+                             uint key_len, enum ha_rkey_function find_flag)
+{
+  DBUG_ENTER("ha_blackhole::index_read");
+  DBUG_RETURN(0);
+}
+
+
+int ha_blackhole::index_read_idx(byte * buf, uint idx, const byte * key,
+                                 uint key_len, enum ha_rkey_function find_flag)
+{
+  DBUG_ENTER("ha_blackhole::index_read_idx");
+  DBUG_RETURN(HA_ERR_END_OF_FILE);
+}
+
+
+int ha_blackhole::index_read_last(byte * buf, const byte * key, uint key_len)
+{
+  DBUG_ENTER("ha_blackhole::index_read_last");
+  DBUG_RETURN(HA_ERR_END_OF_FILE);
+}
+
+
+int ha_blackhole::index_next(byte * buf)
+{
+  DBUG_ENTER("ha_blackhole::index_next");
+  DBUG_RETURN(HA_ERR_END_OF_FILE);
+}
+
+
+int ha_blackhole::index_prev(byte * buf)
+{
+  DBUG_ENTER("ha_blackhole::index_prev");
+  DBUG_RETURN(HA_ERR_END_OF_FILE);
+}
+
+
+int ha_blackhole::index_first(byte * buf)
+{
+  DBUG_ENTER("ha_blackhole::index_first");
+  DBUG_RETURN(HA_ERR_END_OF_FILE);
+}
+
+
+int ha_blackhole::index_last(byte * buf)
+{
+  DBUG_ENTER("ha_blackhole::index_last");
+  DBUG_RETURN(HA_ERR_END_OF_FILE);
+}
 
 #endif /* HAVE_BLACKHOLE_DB */

@@ -39,7 +39,7 @@ public:
   /*
     The name of the index type that will be used for display
     don't implement this method unless you really have indexes
-   */
+  */
   const char *index_type(uint key_number);
   const char **bas_ext() const;
   ulong table_flags() const
@@ -68,12 +68,21 @@ public:
   int rnd_init(bool scan);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
+  int index_read(byte * buf, const byte * key,
+                 uint key_len, enum ha_rkey_function find_flag);
+  int index_read_idx(byte * buf, uint idx, const byte * key,
+                     uint key_len, enum ha_rkey_function find_flag);
+  int index_read_last(byte * buf, const byte * key, uint key_len);
+  int index_next(byte * buf);
+  int index_prev(byte * buf);
+  int index_first(byte * buf);
+  int index_last(byte * buf);
   void position(const byte *record);
   void info(uint flag);
   int external_lock(THD *thd, int lock_type);
   int create(const char *name, TABLE *table_arg,
-                           HA_CREATE_INFO *create_info);
+             HA_CREATE_INFO *create_info);
   THR_LOCK_DATA **store_lock(THD *thd,
-                                           THR_LOCK_DATA **to,
-                                           enum thr_lock_type lock_type);
+                             THR_LOCK_DATA **to,
+                             enum thr_lock_type lock_type);
 };
