@@ -95,11 +95,6 @@ END-INFO-DIR-ENTRY
 
 @node Top, Introduction, (dir), (dir)
 
-@c @ifhtml
-@c <IMG SRC="Images/mysql-logo.gif">
-@c <!--Image doesn't exist. Can't find suitable replacement. (Matt) -->
-@c @end ifhtml
-
 @ifinfo
 This is a manual for MySQL. This version is about the
 @value{mysql_version} version of MySQL.  You can find a manual
@@ -135,9 +130,7 @@ distribution for that version.
 @end menu
 
 
-
-
-@node Introduction, Installing, Top, Top
+@node Introduction, Installing, Top, (dir)
 @chapter General Information About MySQL
 
 @cindex overview
