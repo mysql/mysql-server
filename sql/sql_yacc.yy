@@ -17,10 +17,16 @@
 /* sql_yacc.yy */
 
 %{
+/* Pass thd as an arg to yyparse(). The type will be void*, so it
+** must be  cast to (THD*) when used. Use the YYTHD macro for this.
+*/
+#define YYPARSE_PARAM yythd
+#define YYTHD ((THD *)yythd)
+
 #define MYSQL_YACC
 #define YYINITDEPTH 100
 #define YYMAXDEPTH 3200				/* Because of 64K stack */
-#define Lex current_lex
+#define Lex (&(YYTHD->lex))
 #define Select Lex->current_select
 #include "mysql_priv.h"
 #include "slave.h"
@@ -35,9 +41,9 @@ int yylex(void *yylval);
 
 #define yyoverflow(A,B,C,D,E,F) if (my_yyoverflow((B),(D),(int*) (F))) { yyerror((char*) (A)); return 2; }
 
-inline Item *or_or_concat(Item* A, Item* B)
+inline Item *or_or_concat(THD *thd, Item* A, Item* B)
 {
-  return (current_thd->sql_mode & MODE_PIPES_AS_CONCAT ?
+  return (thd->sql_mode & MODE_PIPES_AS_CONCAT ?
           (Item*) new Item_func_concat(A,B) : (Item*) new Item_cond_or(A,B));
 }
 
@@ -661,11 +667,11 @@ END_OF_INPUT
 query:
 	END_OF_INPUT
 	{
-	   THD *thd=current_thd;
+	   THD *thd= YYTHD;
 	   if (!thd->bootstrap &&
 	      (!(thd->lex.select_lex.options & OPTION_FOUND_COMMENT)))
 	   {
-	     send_error(current_thd,ER_EMPTY_QUERY);
+	     send_error(thd,ER_EMPTY_QUERY);
 	     YYABORT;
  	   }
 	   else
@@ -791,7 +797,7 @@ master_def:
 create:
 	CREATE opt_table_options TABLE_SYM opt_if_not_exists table_ident
 	{
-	  THD *thd=current_thd;
+	  THD *thd= YYTHD;
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_CREATE_TABLE;
 	  if (!lex->select_lex.add_table_to_list($5,
@@ -1075,7 +1081,7 @@ type:
 	| TIME_SYM			{ $$=FIELD_TYPE_TIME; }
 	| TIMESTAMP
 	  {
-	    if (current_thd->sql_mode & MODE_SAPDB)
+	    if (YYTHD->sql_mode & MODE_SAPDB)
 	      $$=FIELD_TYPE_DATETIME;
 	    else
 	      $$=FIELD_TYPE_TIMESTAMP;	
@@ -1146,7 +1152,7 @@ int_type:
 	| BIGINT	{ $$=FIELD_TYPE_LONGLONG; };
 
 real_type:
-	REAL		{ $$= current_thd->sql_mode & MODE_REAL_AS_FLOAT ?
+	REAL		{ $$= YYTHD->sql_mode & MODE_REAL_AS_FLOAT ?
 			      FIELD_TYPE_FLOAT : FIELD_TYPE_DOUBLE; }
 	| DOUBLE_SYM	{ $$=FIELD_TYPE_DOUBLE; }
 	| DOUBLE_SYM PRECISION { $$=FIELD_TYPE_DOUBLE; };
@@ -1211,7 +1217,7 @@ charset_name:
 	{ 
 	  if (!($$=get_charset_by_name("binary",MYF(0))))
 	  {
-	    net_printf(current_thd,ER_UNKNOWN_CHARACTER_SET,"binary");
+	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,"binary");
 	    YYABORT;
 	  }
 	}
@@ -1219,7 +1225,7 @@ charset_name:
 	{ 
 	  if (!($$=get_charset_by_name($1.str,MYF(0))))
 	  {
-	    net_printf(current_thd,ER_UNKNOWN_CHARACTER_SET,$1.str);
+	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,$1.str);
 	    YYABORT;
 	  }
 	};
@@ -1247,6 +1253,7 @@ opt_binary:
 opt_primary:
 	/* empty */
 	| PRIMARY_SYM
+	;
 
 references:
 	REFERENCES table_ident
@@ -1347,7 +1354,7 @@ string_list:
 alter:
 	ALTER opt_ignore TABLE_SYM table_ident
 	{
-	  THD *thd=current_thd;
+	  THD *thd= YYTHD;
 	  LEX *lex=&thd->lex;
 	  lex->sql_command = SQLCOM_ALTER_TABLE;
 	  lex->name=0;
@@ -1776,7 +1783,7 @@ expr_expr:
 	  { $$= new Item_func_between($1,$3,$5); }
 	| expr NOT BETWEEN_SYM no_and_expr AND expr
 	  { $$= new Item_func_not(new Item_func_between($1,$4,$6)); }
-	| expr OR_OR_CONCAT expr { $$= or_or_concat($1,$3); }
+	| expr OR_OR_CONCAT expr { $$= or_or_concat(YYTHD, $1,$3); }
 	| expr OR expr		{ $$= new Item_cond_or($1,$3); }
         | expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
 	| expr AND expr		{ $$= new Item_cond_and($1,$3); }
@@ -1818,7 +1825,7 @@ no_in_expr:
 	  { $$= new Item_func_between($1,$3,$5); }
 	| no_in_expr NOT BETWEEN_SYM no_and_expr AND expr
 	  { $$= new Item_func_not(new Item_func_between($1,$4,$6)); }
-	| no_in_expr OR_OR_CONCAT expr	{ $$= or_or_concat($1,$3); }
+	| no_in_expr OR_OR_CONCAT expr	{ $$= or_or_concat(YYTHD, $1,$3); }
 	| no_in_expr OR expr		{ $$= new Item_cond_or($1,$3); }
         | no_in_expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
 	| no_in_expr AND expr		{ $$= new Item_cond_and($1,$3); }
@@ -1863,7 +1870,7 @@ no_and_expr:
 	  { $$= new Item_func_between($1,$3,$5); }
 	| no_and_expr NOT BETWEEN_SYM no_and_expr AND expr
 	  { $$= new Item_func_not(new Item_func_between($1,$4,$6)); }
-	| no_and_expr OR_OR_CONCAT expr	{ $$= or_or_concat($1,$3); }
+	| no_and_expr OR_OR_CONCAT expr	{ $$= or_or_concat(YYTHD, $1,$3); }
 	| no_and_expr OR expr		{ $$= new Item_cond_or($1,$3); }
         | no_and_expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
 	| no_and_expr LIKE simple_expr opt_escape { $$= new Item_func_like($1,$3,$4); }
@@ -3015,7 +3022,7 @@ update_list:
 	  };
 
 opt_low_priority:
-	/* empty */	{ $$= current_thd->update_lock_default; }
+	/* empty */	{ $$= YYTHD->update_lock_default; }
 	| LOW_PRIORITY	{ $$= TL_WRITE_LOW_PRIORITY; };
 
 /* Delete rows from a table */
@@ -3199,7 +3206,7 @@ show_param:
 	  { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
 	| opt_var_type VARIABLES wild
 	  {
-	    THD *thd= current_thd;
+	    THD *thd= YYTHD;
 	    thd->lex.sql_command= SQLCOM_SHOW_VARIABLES;
 	    thd->lex.option_type= (enum_var_type) $1;
 	  }
@@ -3410,7 +3417,7 @@ opt_local:
 	| LOCAL_SYM	{ $$=1;};
 
 load_data_lock:
-	/* empty */	{ $$= current_thd->update_lock_default; }
+	/* empty */	{ $$= YYTHD->update_lock_default; }
 	| CONCURRENT	{ $$= TL_WRITE_CONCURRENT_INSERT ; }
 	| LOW_PRIORITY	{ $$= TL_WRITE_LOW_PRIORITY; };
 
@@ -3459,13 +3466,13 @@ opt_ignore_lines:
 /* Common definitions */
 
 text_literal:
-	TEXT_STRING { $$ = new Item_string($1.str,$1.length,current_thd->thd_charset); }
+	TEXT_STRING { $$ = new Item_string($1.str,$1.length,YYTHD->thd_charset); }
 	| UNDERSCORE_CHARSET TEXT_STRING { $$ = new Item_string($2.str,$2.length,Lex->charset); }
 	| text_literal TEXT_STRING
 	{ ((Item_string*) $1)->append($2.str,$2.length); };
 
 text_string:
-	TEXT_STRING	{ $$=  new String($1.str,$1.length,current_thd->thd_charset); }
+	TEXT_STRING	{ $$=  new String($1.str,$1.length,YYTHD->thd_charset); }
 	| HEX_NUM
 	  {
 	    Item *tmp = new Item_varbinary($1.str,$1.length);
@@ -3475,7 +3482,7 @@ param_marker:
         '?' 
         {
 	  LEX *lex=Lex;
-          if (current_thd->prepare_command)
+          if (YYTHD->prepare_command)
           {     
             lex->param_list.push_back($$=new Item_param());      
             lex->param_count++;
@@ -3511,7 +3518,7 @@ insert_ident:
 table_wild:
 	ident '.' '*' { $$ = new Item_field(NullS,$1.str,"*"); }
 	| ident '.' ident '.' '*'
-	{ $$ = new Item_field((current_thd->client_capabilities &
+	{ $$ = new Item_field((YYTHD->client_capabilities &
    CLIENT_NO_SCHEMA ? NullS : $1.str),$3.str,"*"); };
 
 order_ident:
@@ -3536,7 +3543,7 @@ simple_ident:
 	| ident '.' ident '.' ident
 	{
 	  SELECT_LEX_NODE *sel=Select;
-	  $$ = !sel->create_refs || sel->get_in_sum_expr() > 0 ? (Item*) new Item_field((current_thd->client_capabilities & CLIENT_NO_SCHEMA ? NullS :$1.str),$3.str,$5.str) : (Item*) new Item_ref((current_thd->client_capabilities & CLIENT_NO_SCHEMA ? NullS :$1.str),$3.str,$5.str);
+	  $$ = !sel->create_refs || sel->get_in_sum_expr() > 0 ? (Item*) new Item_field((YYTHD->client_capabilities & CLIENT_NO_SCHEMA ? NullS :$1.str),$3.str,$5.str) : (Item*) new Item_ref((YYTHD->client_capabilities & CLIENT_NO_SCHEMA ? NullS :$1.str),$3.str,$5.str);
 	};
 
 
@@ -3819,7 +3826,7 @@ option_value:
 	}
 	| PASSWORD equal text_or_password
 	  {
-	    THD *thd=current_thd;
+	    THD *thd=YYTHD;
 	    LEX_USER *user;
 	    if (!(user=(LEX_USER*) sql_alloc(sizeof(LEX_USER))))
 	      YYABORT;
@@ -3901,7 +3908,7 @@ table_lock:
 
 lock_option:
 	READ_SYM	{ $$=TL_READ_NO_INSERT; }
-	| WRITE_SYM     { $$=current_thd->update_lock_default; }
+	| WRITE_SYM     { $$=YYTHD->update_lock_default; }
 	| LOW_PRIORITY WRITE_SYM { $$=TL_WRITE_LOW_PRIORITY; }
 	| READ_SYM LOCAL_SYM { $$= TL_READ; }
         ;
@@ -4338,7 +4345,7 @@ singleval_subselect:
 singleval_subselect_init:
 	select_init
 	{
-	  $$= new Item_singleval_subselect(current_thd,
+	  $$= new Item_singleval_subselect(YYTHD,
 					   Lex->current_select->master_unit()->
                                              first_select());
 	};
@@ -4353,7 +4360,7 @@ exists_subselect:
 exists_subselect_init:
 	select_init
 	{
-	  $$= new Item_exists_subselect(current_thd,
+	  $$= new Item_exists_subselect(YYTHD,
 					Lex->current_select->master_unit()->
 					  first_select());
 	};
