@@ -212,8 +212,8 @@ public:
   // Doubly-linked list of pages.  There is one free list in super pool
   // and free, active, full list in each record pool.
   struct PageList {
-    PageList::PageList();
-    PageList::PageList(PtrI pageI);
+    PageList();
+    PageList(PtrI pageI);
     PtrI m_headPageI;
     PtrI m_tailPageI;
     Uint32 m_pageCount;
