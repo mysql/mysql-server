@@ -152,6 +152,11 @@ THD::THD():user_time(0), fatal_error(0),
 	    (qsort_cmp2) compare_prep_stmt, 1,
 	    (tree_element_free) free_prep_stmt, 0);
 
+  /* Protocol */
+  protocol= &protocol_simple;			// Default protocol
+  protocol_simple.init(this);
+  protocol_prep.init(this);
+
 #ifdef USING_TRANSACTIONS
   bzero((char*) &transaction,sizeof(transaction));
   if (opt_using_transactions)
@@ -438,7 +443,7 @@ int THD::send_explain_fields(select_result *result)
 {
   List<Item> field_list;
   Item *item;
-  field_list.push_back(new Item_int("id",0,3));
+  field_list.push_back(new Item_return_int("id",3, MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("select_type",19));
   field_list.push_back(new Item_empty_string("table",NAME_LEN));
   field_list.push_back(new Item_empty_string("type",10));
@@ -447,12 +452,13 @@ int THD::send_explain_fields(select_result *result)
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("key",NAME_LEN));
   item->maybe_null=1;
-  field_list.push_back(item=new Item_int("key_len",0,3));
+  field_list.push_back(item=new Item_return_int("key_len",3,
+						MYSQL_TYPE_LONGLONG));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("ref",
 						  NAME_LEN*MAX_REF_PARTS));
   item->maybe_null=1;
-  field_list.push_back(new Item_real("rows",0.0,0,10));
+  field_list.push_back(new Item_return_int("rows",10, MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Extra",255));
   return (result->send_fields(field_list,1));
 }
@@ -503,7 +509,7 @@ sql_exchange::sql_exchange(char *name,bool flag)
 
 bool select_send::send_fields(List<Item> &list,uint flag)
 {
-  return ::send_fields(thd,list,flag);
+  return thd->protocol->send_fields(&list,flag);
 }
 
 
@@ -511,35 +517,33 @@ bool select_send::send_fields(List<Item> &list,uint flag)
 
 bool select_send::send_data(List<Item> &items)
 {
-  List_iterator_fast<Item> li(items);
-  String *packet= &thd->packet;
-  DBUG_ENTER("send_data");
-
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
     unit->offset_limit_cnt--;
-    DBUG_RETURN(0);
+    return 0;
   }
-  packet->length(0);				// Reset packet
+
+  List_iterator_fast<Item> li(items);
+  Protocol *protocol= thd->protocol;
+  char buff[MAX_FIELD_WIDTH];
+  String buffer(buff, sizeof(buff), system_charset_info);
+  DBUG_ENTER("send_data");
+
+  protocol->prepare_for_resend();
   Item *item;
   while ((item=li++))
   {
-    if (item->send(thd, packet))
+    if (item->send(protocol, &buffer))
     {
-      packet->free();				// Free used
+      protocol->free();				// Free used buffer
       my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-      DBUG_RETURN(1);
+      break;
     }
   }
   thd->sent_row_count++;
   if (!thd->net.report_error)
-  {
-    DBUG_RETURN(my_net_write(&thd->net,
-			     (char*) packet->ptr(),
-			     packet->length()));
-  }
-  else
-    DBUG_RETURN(1);
+    DBUG_RETURN(protocol->write());
+  DBUG_RETURN(1);
 }
 
 bool select_send::send_eof()

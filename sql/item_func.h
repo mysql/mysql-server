@@ -106,7 +106,6 @@ public:
   Item_func(List<Item> &list);
   ~Item_func() {} /* Nothing to do; Items are freed automaticly */
   bool fix_fields(THD *,struct st_table_list *, Item **ref);
-  void make_field(Send_field *field);
   table_map used_tables() const;
   void update_used_tables();
   bool eq(const Item *item, bool binary_cmp) const;
@@ -909,7 +908,9 @@ class Item_func_set_user_var :public Item_func
   user_var_entry *entry;
 
 public:
-  Item_func_set_user_var(LEX_STRING a,Item *b): Item_func(b), name(a) {}
+  Item_func_set_user_var(LEX_STRING a,Item *b)
+    :Item_func(b), cached_result_type(INT_RESULT), name(a)
+  {}
   double val();
   longlong val_int();
   String *val_str(String *str);
@@ -939,6 +940,11 @@ public:
   void fix_length_and_dec();
   void print(String *str);
   enum Item_result result_type() const;
+  /*
+    We must always return variables as strings to guard against selects of type
+    select @t1:=1,@t1,@t:="hello",@t from foo where (@t1:= t2.b)
+  */
+  enum_field_types field_type() const  { return MYSQL_TYPE_STRING; }
   const char *func_name() const { return "get_user_var"; }
   bool const_item() const { return const_var_flag; }
   table_map used_tables() const

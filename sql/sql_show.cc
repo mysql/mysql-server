@@ -62,6 +62,7 @@ mysqld_show_dbs(THD *thd,const char *wild)
   char *end;
   List<char> files;
   char *file_name;
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_show_dbs");
 
   field->name=(char*) thd->alloc(20+ (wild ? (uint) strlen(wild)+4: 0));
@@ -71,13 +72,12 @@ mysqld_show_dbs(THD *thd,const char *wild)
     strxmov(end," (",wild,")",NullS);
   field_list.push_back(field);
 
-  if (send_fields(thd,field_list,1))
+  if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
   if (mysql_find_files(thd,&files,NullS,mysql_data_home,wild,1))
     DBUG_RETURN(1);
   List_iterator_fast<char> it(files);
 
-  String *packet= &thd->packet;
   while ((file_name=it++))
   {
     if (thd->master_access & (DB_ACLS | SHOW_DB_ACL) ||
@@ -85,10 +85,9 @@ mysqld_show_dbs(THD *thd,const char *wild)
 		thd->priv_user, file_name) ||
 	(grant_option && !check_grant_db(thd, file_name)))
     {
-      packet->length(0);
-      net_store_data(packet, thd->variables.convert_set, file_name);
-      if (my_net_write(&thd->net, (char*) packet->ptr(),
-		       packet->length()))
+      protocol->prepare_for_resend();
+      protocol->store(file_name);
+      if (protocol->write())
 	DBUG_RETURN(-1);
     }
   }
@@ -105,29 +104,28 @@ int mysqld_show_open_tables(THD *thd,const char *wild)
 {
   List<Item> field_list;
   OPEN_TABLE_LIST *open_list;
-  CONVERT *convert=thd->variables.convert_set;
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_show_open_tables");
 
   field_list.push_back(new Item_empty_string("Database",NAME_LEN));
   field_list.push_back(new Item_empty_string("Table",NAME_LEN));
-  field_list.push_back(new Item_int("In_use",0, 4));
-  field_list.push_back(new Item_int("Name_locked",0, 4));
+  field_list.push_back(new Item_return_int("In_use", 1, MYSQL_TYPE_TINY));
+  field_list.push_back(new Item_return_int("Name_locked", 4, MYSQL_TYPE_TINY));
 
-  if (send_fields(thd,field_list,1))
+  if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
 
   if (!(open_list=list_open_tables(thd,wild)) && thd->fatal_error)
     DBUG_RETURN(-1);
 
-  String *packet= &thd->packet;
   for (; open_list ; open_list=open_list->next)
   {
-    packet->length(0);
-    net_store_data(packet,convert, open_list->db);
-    net_store_data(packet,convert, open_list->table);
-    net_store_data(packet,open_list->in_use);
-    net_store_data(packet,open_list->locked);
-    if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+    protocol->prepare_for_resend();
+    protocol->store(open_list->db);
+    protocol->store(open_list->table);
+    protocol->store_tiny((longlong) open_list->in_use);
+    protocol->store_tiny((longlong) open_list->locked);
+    if (protocol->write())
     {
       DBUG_RETURN(-1);
     }
@@ -149,9 +147,11 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
   char path[FN_LEN],*end;
   List<char> files;
   char *file_name;
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_show_tables");
 
-  field->name=(char*) thd->alloc(20+(uint) strlen(db)+(wild ? (uint) strlen(wild)+4:0));
+  field->name=(char*) thd->alloc(20+(uint) strlen(db)+
+				 (wild ? (uint) strlen(wild)+4:0));
   end=strxmov(field->name,"Tables_in_",db,NullS);
   if (wild && wild[0])
     strxmov(end," (",wild,")",NullS);
@@ -159,17 +159,16 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
   (void) sprintf(path,"%s/%s",mysql_data_home,db);
   (void) unpack_dirname(path,path);
   field_list.push_back(field);
-  if (send_fields(thd,field_list,1))
+  if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
   if (mysql_find_files(thd,&files,db,path,wild,0))
     DBUG_RETURN(-1);
   List_iterator_fast<char> it(files);
-  String *packet= &thd->packet;
   while ((file_name=it++))
   {
-    packet->length(0);
-    net_store_data(packet, thd->variables.convert_set, file_name);
-    if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+    protocol->prepare_for_resend();
+    protocol->store(file_name);
+    if (protocol->write())
       DBUG_RETURN(-1);
   }
   send_eof(thd);
@@ -210,31 +209,32 @@ static struct show_table_type_st sys_table_types[]=
 int mysqld_show_table_types(THD *thd)
 {
   List<Item> field_list;
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_show_table_types");
 
   field_list.push_back(new Item_empty_string("Type",10));
   field_list.push_back(new Item_empty_string("Support",10));
   field_list.push_back(new Item_empty_string("Comment",80));
 
-  if (send_fields(thd,field_list,1))
+  if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
 
-  const char *default_type_name= ha_table_typelib.type_names[thd->variables.table_type];
+  const char *default_type_name=
+    ha_table_typelib.type_names[thd->variables.table_type];
 
   show_table_type_st *types;
-  String *packet= &thd->packet;
   for (types= sys_table_types; types->type; types++)
   {
-    packet->length(0);
-    net_store_data(packet, types->type);
+    protocol->prepare_for_resend();
+    protocol->store(types->type);
     const char *option_name= show_comp_option_name[(int) *types->value];
 
     if (*types->value == SHOW_OPTION_YES &&
 	!my_strcasecmp(system_charset_info, default_type_name, types->type))
       option_name= "DEFAULT";
-    net_store_data(packet, option_name);
-    net_store_data(packet, types->comment);
-    if (my_net_write(&thd->net, (char*) packet->ptr(), packet->length()))
+    protocol->store(option_name);
+    protocol->store(types->comment);
+    if (protocol->write())
       DBUG_RETURN(-1);
   }
   send_eof(thd);
@@ -279,24 +279,24 @@ static struct show_privileges_st sys_privileges[]=
 int mysqld_show_privileges(THD *thd)
 {
   List<Item> field_list;
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_show_privileges");
 
   field_list.push_back(new Item_empty_string("Privilege",10));
   field_list.push_back(new Item_empty_string("Context",15));
   field_list.push_back(new Item_empty_string("Comment",NAME_LEN));
 
-  if (send_fields(thd,field_list,1))
+  if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
 
   show_privileges_st *privilege= sys_privileges;
-  String *packet= &thd->packet;
   for (privilege= sys_privileges; privilege->privilege ; privilege++)
   {
-    packet->length(0);
-    net_store_data(packet,privilege->privilege);
-    net_store_data(packet,privilege->context);
-    net_store_data(packet,privilege->comment);
-    if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+    protocol->prepare_for_resend();
+    protocol->store(privilege->privilege);
+    protocol->store(privilege->context);
+    protocol->store(privilege->comment);
+    if (protocol->write())
       DBUG_RETURN(-1);
   }
   send_eof(thd);
@@ -343,14 +343,15 @@ static struct show_column_type_st sys_column_types[]=
 int mysqld_show_column_types(THD *thd)
 {
   List<Item> field_list;
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_show_column_types");
 
   field_list.push_back(new Item_empty_string("Type",30));
   field_list.push_back(new Item_int("Size",(longlong) 1,21));
   field_list.push_back(new Item_empty_string("Min_Value",20));
   field_list.push_back(new Item_empty_string("Max_Value",20));
-  field_list.push_back(new Item_int("Prec", 0,4));
-  field_list.push_back(new Item_int("Scale", 0,4));
+  field_list.push_back(new Item_return_int("Prec", 4, MYSQL_TYPE_SHORT));
+  field_list.push_back(new Item_return_int("Scale", 4, MYSQL_TYPE_SHORT));
   field_list.push_back(new Item_empty_string("Nullable",4));
   field_list.push_back(new Item_empty_string("Auto_Increment",4));
   field_list.push_back(new Item_empty_string("Unsigned",4));
@@ -360,29 +361,28 @@ int mysqld_show_column_types(THD *thd)
   field_list.push_back(new Item_empty_string("Default",NAME_LEN));
   field_list.push_back(new Item_empty_string("Comment",NAME_LEN));
 
-  if (send_fields(thd,field_list,1))
+  if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
 
   /* TODO: Change the loop to not use 'i' */
-  String *packet= &thd->packet;
   for (uint i=0; i < sizeof(sys_column_types)/sizeof(sys_column_types[0]); i++)
   {
-    packet->length(0);
-    net_store_data(packet,sys_column_types[i].type);
-    net_store_data(packet,(longlong)sys_column_types[i].size);
-    net_store_data(packet,sys_column_types[i].min_value);
-    net_store_data(packet,sys_column_types[i].max_value);
-    net_store_data(packet,(uint32)sys_column_types[i].precision);
-    net_store_data(packet,(uint32)sys_column_types[i].scale);
-    net_store_data(packet,sys_column_types[i].nullable);
-    net_store_data(packet,sys_column_types[i].auto_increment);
-    net_store_data(packet,sys_column_types[i].unsigned_attr);
-    net_store_data(packet,sys_column_types[i].zerofill);
-    net_store_data(packet,sys_column_types[i].searchable);
-    net_store_data(packet,sys_column_types[i].case_sensitivity);
-    net_store_data(packet,sys_column_types[i].default_value);
-    net_store_data(packet,sys_column_types[i].comment);
-    if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+    protocol->prepare_for_resend();
+    protocol->store(sys_column_types[i].type);
+    protocol->store((ulonglong) sys_column_types[i].size);
+    protocol->store(sys_column_types[i].min_value);
+    protocol->store(sys_column_types[i].max_value);
+    protocol->store_short((longlong) sys_column_types[i].precision);
+    protocol->store_short((longlong) sys_column_types[i].scale);
+    protocol->store(sys_column_types[i].nullable);
+    protocol->store(sys_column_types[i].auto_increment);
+    protocol->store(sys_column_types[i].unsigned_attr);
+    protocol->store(sys_column_types[i].zerofill);
+    protocol->store(sys_column_types[i].searchable);
+    protocol->store(sys_column_types[i].case_sensitivity);
+    protocol->store(sys_column_types[i].default_value);
+    protocol->store(sys_column_types[i].comment);
+    if (protocol->write())
       DBUG_RETURN(-1);
   }
   send_eof(thd);
@@ -477,8 +477,8 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   char path[FN_LEN];
   char *file_name;
   TABLE *table;
-  String *packet= &thd->packet;
-  CONVERT *convert=thd->variables.convert_set;
+  Protocol *protocol= thd->protocol;
+  TIME time;
   DBUG_ENTER("mysqld_extend_show_tables");
 
   (void) sprintf(path,"%s/%s",mysql_data_home,db);
@@ -514,7 +514,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   field_list.push_back(item=new Item_empty_string("Create_options",255));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Comment",80));
-  if (send_fields(thd,field_list,1))
+  if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
 
   if (mysql_find_files(thd,&files,db,path,wild,0))
@@ -524,70 +524,74 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   {
     TABLE_LIST table_list;
     bzero((char*) &table_list,sizeof(table_list));
-    packet->length(0);
-    net_store_data(packet,convert, file_name);
+    protocol->prepare_for_resend();
+    protocol->store(file_name);
     table_list.db=(char*) db;
     table_list.real_name= table_list.alias= file_name;
     if (!(table = open_ltable(thd, &table_list, TL_READ)))
     {
       for (uint i=0 ; i < field_list.elements ; i++)
-        net_store_null(packet);
-      net_store_data(packet,convert, thd->net.last_error);
+        protocol->store_null();
+      protocol->store(thd->net.last_error);
       thd->net.last_error[0]=0;
     }
     else
     {
       struct tm tm_tmp;
+      const char *str;
       handler *file=table->file;
       file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_NO_LOCK);
-      net_store_data(packet, convert, file->table_type());
-      net_store_data(packet, convert,
-                     (table->db_options_in_use & HA_OPTION_COMPRESS_RECORD) ?
-		     "Compressed" :
-                     (table->db_options_in_use & HA_OPTION_PACK_RECORD) ?
-                     "Dynamic" : "Fixed");
-      net_store_data(packet, (longlong) file->records);
-      net_store_data(packet, (uint32) file->mean_rec_length);
-      net_store_data(packet, (longlong) file->data_file_length);
+      protocol->store(file->table_type());
+      str= ((table->db_options_in_use & HA_OPTION_COMPRESS_RECORD) ?
+	    "Compressed" :
+	    (table->db_options_in_use & HA_OPTION_PACK_RECORD) ?
+	    "Dynamic" : "Fixed");
+      protocol->store(str);
+      protocol->store((ulonglong) file->records);
+      protocol->store((ulonglong) file->mean_rec_length);
+      protocol->store((ulonglong) file->data_file_length);
       if (file->max_data_file_length)
-        net_store_data(packet, (longlong) file->max_data_file_length);
+        protocol->store((ulonglong) file->max_data_file_length);
       else
-        net_store_null(packet);
-      net_store_data(packet, (longlong) file->index_file_length);
-      net_store_data(packet, (longlong) file->delete_length);
+        protocol->store_null();
+      protocol->store((ulonglong) file->index_file_length);
+      protocol->store((ulonglong) file->delete_length);
       if (table->found_next_number_field)
       {
         table->next_number_field=table->found_next_number_field;
         table->next_number_field->reset();
         file->update_auto_increment();
-        net_store_data(packet, table->next_number_field->val_int());
+        protocol->store(table->next_number_field->val_int());
         table->next_number_field=0;
       }
       else
-        net_store_null(packet);
+        protocol->store_null();
       if (!file->create_time)
-        net_store_null(packet);
+        protocol->store_null();
       else
       {
         localtime_r(&file->create_time,&tm_tmp);
-        net_store_data(packet, &tm_tmp);
+	localtime_to_TIME(&time, &tm_tmp);
+        protocol->store(&time);
       }
       if (!file->update_time)
-        net_store_null(packet);
+        protocol->store_null();
       else
       {
         localtime_r(&file->update_time,&tm_tmp);
-        net_store_data(packet, &tm_tmp);
+	localtime_to_TIME(&time, &tm_tmp);
+        protocol->store(&time);
       }
       if (!file->check_time)
-        net_store_null(packet);
+        protocol->store_null();
       else
       {
         localtime_r(&file->check_time,&tm_tmp);
-        net_store_data(packet, &tm_tmp);
+	localtime_to_TIME(&time, &tm_tmp);
+        protocol->store(&time);
       }
-      net_store_data(packet, convert, table->table_charset ?
-				      table->table_charset->name : "default");
+      str= (table->table_charset ? table->table_charset->name : "default");
+      protocol->store(str);
       {
         char option_buff[350],*ptr;
         ptr=option_buff;
@@ -624,19 +628,18 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
                   my_raid_type(file->raid_type), file->raid_chunks, file->raid_chunksize/RAID_BLOCK_SIZE);
           ptr=strmov(ptr,buff);
         }
-        net_store_data(packet, convert, option_buff+1,
-                       (ptr == option_buff ? 0 : (uint) (ptr-option_buff)-1));
+        protocol->store(option_buff+1,
+			(ptr == option_buff ? 0 : (uint) (ptr-option_buff)-1));
       }
       {
 	char *comment=table->file->update_table_comment(table->comment);
-	net_store_data(packet, comment);
+	protocol->store(comment);
 	if (comment != table->comment)
 	  my_free(comment,MYF(0));
       }
       close_thread_tables(thd,0);
     }
-    if (my_net_write(&thd->net,(char*) packet->ptr(),
-                     packet->length()))
+    if (protocol->write())
       DBUG_RETURN(-1);
   }
   send_eof(thd);
@@ -656,7 +659,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   handler *file;
   char tmp[MAX_FIELD_WIDTH];
   Item *item;
-  CONVERT *convert=thd->variables.convert_set;
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_show_fields");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->real_name));
@@ -691,7 +694,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
     (void) my_net_write(&thd->net,tmp,(uint) (pos-tmp));
   }
 
-  if (send_fields(thd,field_list,0))
+  if (protocol->send_fields(&field_list,0))
     DBUG_RETURN(1);
   restore_record(table,2);      // Get empty record
 
@@ -714,19 +717,19 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
         uint col_access;
         bool null_default_value=0;
 
-        packet->length(0);
-        net_store_data(packet,convert,field->field_name);
+	protocol->prepare_for_resend();
+        protocol->store(field->field_name);
         field->sql_type(type);
-        net_store_data(packet,convert,type.ptr(),type.length());
+        protocol->store(type.ptr(), type.length());
 
         pos=(byte*) ((flags & NOT_NULL_FLAG) &&
                      field->type() != FIELD_TYPE_TIMESTAMP ?
                      "" : "YES");
-        net_store_data(packet,convert,(const char*) pos);
+        protocol->store((const char*) pos);
         pos=(byte*) ((field->flags & PRI_KEY_FLAG) ? "PRI" :
                      (field->flags & UNIQUE_KEY_FLAG) ? "UNI" :
                      (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
-        net_store_data(packet,convert,(char*) pos);
+        protocol->store((char*) pos);
 
         if (field->type() == FIELD_TYPE_TIMESTAMP ||
             field->unireg_check == Field::NEXT_NUMBER)
@@ -735,17 +738,17 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
         {                                               // Not null by default
           type.set(tmp,sizeof(tmp),default_charset_info);
           field->val_str(&type,&type);
-          net_store_data(packet,convert,type.ptr(),type.length());
+          protocol->store(type.ptr(),type.length());
         }
         else if (field->maybe_null() || null_default_value)
-          net_store_null(packet);                       // Null as default
+          protocol->store_null();                       // Null as default
         else
-          net_store_data(packet,convert,tmp,0);
+          protocol->store("",0);			// empty string
 
         char *end=tmp;
         if (field->unireg_check == Field::NEXT_NUMBER)
           end=strmov(tmp,"auto_increment");
-        net_store_data(packet,convert,tmp,(uint) (end-tmp));
+        protocol->store(tmp,(uint) (end-tmp));
 
 	if (verbose)
 	{
@@ -760,10 +763,10 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	      end=strmov(end,grant_types.type_names[bitnr]);
 	    }
 	  }
-	  net_store_data(packet,convert, tmp+1,end == tmp ? 0 : (uint) (end-tmp-1));
-	  net_store_data(packet, field->comment.str,field->comment.length);
+	  protocol->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1));
+	  protocol->store(field->comment.str, field->comment.length);
 	}
-        if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+        if (protocol->write())
           DBUG_RETURN(1);
       }
     }
@@ -777,7 +780,9 @@ int
 mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 {
   TABLE *table;
-  CONVERT *convert=thd->variables.convert_set;
+  Protocol *protocol= thd->protocol;
+  char buff[2048];
+  String buffer(buff, sizeof(buff), system_charset_info);
   DBUG_ENTER("mysqld_show_create");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->real_name));
@@ -791,51 +796,18 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("Table",NAME_LEN));
-  field_list.push_back(new Item_empty_string("Create Table",1024));
+  field_list.push_back(new Item_empty_string("Create Table", MAX_BLOB_WIDTH));
 
-  if (send_fields(thd,field_list,1))
+  if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(1);
-
-  String *packet = &thd->packet;
-  {
-    packet->length(0);
-    net_store_data(packet,convert, table->table_name);
-    /*
-      A hack - we need to reserve some space for the length before
-      we know what it is - let's assume that the length of create table
-      statement will fit into 3 bytes ( 16 MB max :-) )
-    */
-    ulong store_len_offset = packet->length();
-    packet->length(store_len_offset + 4);
-    if (store_create_info(thd, table, packet))
-      DBUG_RETURN(-1);
-    ulong create_len = packet->length() - store_len_offset - 4;
-    /*
-      Just in case somebody manages to create a table
-      with *that* much stuff in the definition
-    */
-    if (create_len > 0x00ffffff) // better readable in HEX ...
-    {
-      /*
-	Just in case somebody manages to create a table
-	with *that* much stuff in the definition
-      */
-      DBUG_RETURN(1);
-    }
-
-    /*
-      Now we have to store the length in three bytes, even if it would fit
-      into fewer bytes, so we cannot use net_store_data() anymore,
-      and do it ourselves
-    */
-    char* p = (char*)packet->ptr() + store_len_offset;
-    *p++ = (char) 253; // The client the length is stored using 3-bytes
-    int3store(p, create_len);
-
-    // now we are in business :-)
-    if (my_net_write(&thd->net, (char*)packet->ptr(), packet->length()))
-      DBUG_RETURN(1);
-  }
+  protocol->prepare_for_resend();
+  protocol->store(table->table_name);
+  buffer.length(0);
+  if (store_create_info(thd, table, &buffer))
+    DBUG_RETURN(-1);
+  protocol->store(buffer.ptr(), buffer.length());
+  if (protocol->write())
+    DBUG_RETURN(1);
   send_eof(thd);
   DBUG_RETURN(0);
 }
@@ -844,18 +816,19 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 int
 mysqld_show_logs(THD *thd)
 {
+  List<Item> field_list;
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_show_logs");
 
-  List<Item> field_list;
   field_list.push_back(new Item_empty_string("File",FN_REFLEN));
   field_list.push_back(new Item_empty_string("Type",10));
   field_list.push_back(new Item_empty_string("Status",10));
 
-  if (send_fields(thd,field_list,1))
+  if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
 
 #ifdef HAVE_BERKELEY_DB
-  if (!berkeley_skip && berkeley_show_logs(thd))
+  if (!berkeley_skip && berkeley_show_logs(protocol))
     DBUG_RETURN(-1);
 #endif
 
@@ -869,7 +842,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
 {
   TABLE *table;
   char buff[256];
-  CONVERT *convert=thd->variables.convert_set;
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_show_keys");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->real_name));
@@ -883,15 +856,16 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
   List<Item> field_list;
   Item *item;
   field_list.push_back(new Item_empty_string("Table",NAME_LEN));
-  field_list.push_back(new Item_int("Non_unique",0,1));
+  field_list.push_back(new Item_return_int("Non_unique",1, MYSQL_TYPE_TINY));
   field_list.push_back(new Item_empty_string("Key_name",NAME_LEN));
-  field_list.push_back(new Item_int("Seq_in_index",0,2));
+  field_list.push_back(new Item_return_int("Seq_in_index",2, MYSQL_TYPE_TINY));
   field_list.push_back(new Item_empty_string("Column_name",NAME_LEN));
   field_list.push_back(item=new Item_empty_string("Collation",1));
   item->maybe_null=1;
   field_list.push_back(item=new Item_int("Cardinality",0,21));
   item->maybe_null=1;
-  field_list.push_back(item=new Item_int("Sub_part",0,3));
+  field_list.push_back(item=new Item_return_int("Sub_part",3,
+						MYSQL_TYPE_TINY));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Packed",10));
   item->maybe_null=1;
@@ -900,7 +874,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
   field_list.push_back(new Item_empty_string("Comment",255));
   item->maybe_null=1;
 
-  if (send_fields(thd,field_list,1))
+  if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
 
   String *packet= &thd->packet;
@@ -909,54 +883,48 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
   for (uint i=0 ; i < table->keys ; i++,key_info++)
   {
     KEY_PART_INFO *key_part= key_info->key_part;
-    char *end;
+    const char *str;
     for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
     {
-      packet->length(0);
-      net_store_data(packet,convert,table->table_name);
-      net_store_data(packet,convert,((key_info->flags & HA_NOSAME) ? "0" :"1"), 1);
-      net_store_data(packet,convert,key_info->name);
-      end=int10_to_str((long) (j+1),(char*) buff,10);
-      net_store_data(packet,convert,buff,(uint) (end-buff));
-      net_store_data(packet,convert,
-		     key_part->field ? key_part->field->field_name :
-                     "?unknown field?");
+      protocol->prepare_for_resend();
+      protocol->store(table->table_name);
+      protocol->store_tiny((longlong) ((key_info->flags & HA_NOSAME) ? 0 :1));
+      protocol->store(key_info->name);
+      protocol->store_tiny((longlong) (j+1));
+      str=(key_part->field ? key_part->field->field_name :
+	   "?unknown field?");
+      protocol->store(str);
       if (table->file->index_flags(i) & HA_READ_ORDER)
-        net_store_data(packet,convert,
-		       ((key_part->key_part_flag & HA_REVERSE_SORT) ?
-			"D" : "A"), 1);
+        protocol->store(((key_part->key_part_flag & HA_REVERSE_SORT) ?
+			 "D" : "A"), 1);
       else
-        net_store_null(packet); /* purecov: inspected */
+        protocol->store_null(); /* purecov: inspected */
       KEY *key=table->key_info+i;
       if (key->rec_per_key[j])
       {
         ha_rows records=(table->file->records / key->rec_per_key[j]);
-        end=longlong10_to_str((longlong) records, buff, 10);
-        net_store_data(packet,convert,buff,(uint) (end-buff));
+        protocol->store((ulonglong) records);
       }
       else
-        net_store_null(packet);
+        protocol->store_null();
 
       /* Check if we have a key part that only uses part of the field */
       if (!key_part->field ||
           key_part->length !=
           table->field[key_part->fieldnr-1]->key_length())
-      {
-        end=int10_to_str((long) key_part->length, buff,10); /* purecov: inspected */
-        net_store_data(packet,convert,buff,(uint) (end-buff)); /* purecov: inspected */
-      }
+        protocol->store_tiny((longlong) key_part->length);
       else
-        net_store_null(packet);
-      net_store_null(packet);                   // No pack_information yet
+        protocol->store_null();
+      protocol->store_null();                   // No pack_information yet
 
       /* Null flag */
       uint flags= key_part->field ? key_part->field->flags : 0;
       char *pos=(char*) ((flags & NOT_NULL_FLAG) ? "" : "YES");
-      net_store_data(packet,convert,(const char*) pos);
-      net_store_data(packet,convert,table->file->index_type(i));
+      protocol->store((const char*) pos);
+      protocol->store(table->file->index_type(i));
       /* Comment */
-      net_store_data(packet,convert,"");
-      if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+      protocol->store("", 0);
+      if (protocol->write())
         DBUG_RETURN(1); /* purecov: inspected */
     }
   }
@@ -992,7 +960,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
       field_list.push_back(new Item_field(field));
   }
   restore_record(table,2);              // Get empty record
-  if (send_fields(thd,field_list,2))
+  if (thd->protocol->send_fields(&field_list,2))
     DBUG_VOID_RETURN;
   VOID(net_flush(&thd->net));
   DBUG_VOID_RETURN;
@@ -1002,20 +970,20 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
 int
 mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
 {
-  CONVERT *convert=thd->variables.convert_set;
+  Protocol *protocol= thd->protocol;
+  String *packet= protocol->storage_packet();
   DBUG_ENTER("mysqld_dump_create_info");
   DBUG_PRINT("enter",("table: %s",table->real_name));
 
-  String *packet = &thd->packet;
-  packet->length(0);
-  if (store_create_info(thd,table,packet))
+  protocol->prepare_for_resend();
+  if (store_create_info(thd, table, packet))
     DBUG_RETURN(-1);
 
-  if (convert)
-    convert->convert((char*) packet->ptr(), packet->length());
+  if (protocol->convert)
+    protocol->convert->convert((char*) packet->ptr(), packet->length());
   if (fd < 0)
   {
-    if (my_net_write(&thd->net, (char*)packet->ptr(), packet->length()))
+    if (protocol->write())
       DBUG_RETURN(-1);
     VOID(net_flush(&thd->net));
   }
@@ -1278,21 +1246,21 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   I_List<thread_info> thread_infos;
   ulong max_query_length= (verbose ? thd->variables.max_allowed_packet :
 			   PROCESS_LIST_WIDTH);
-  CONVERT *convert=thd->variables.convert_set;
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_list_processes");
 
-  field_list.push_back(new Item_int("Id",0,7));
+  field_list.push_back(new Item_int("Id",0,11));
   field_list.push_back(new Item_empty_string("User",16));
   field_list.push_back(new Item_empty_string("Host",64));
   field_list.push_back(field=new Item_empty_string("db",NAME_LEN));
   field->maybe_null=1;
   field_list.push_back(new Item_empty_string("Command",16));
-  field_list.push_back(new Item_empty_string("Time",7));
+  field_list.push_back(new Item_return_int("Time",7, FIELD_TYPE_LONG));
   field_list.push_back(field=new Item_empty_string("State",30));
   field->maybe_null=1;
   field_list.push_back(field=new Item_empty_string("Info",max_query_length));
   field->maybe_null=1;
-  if (send_fields(thd,field_list,1))
+  if (protocol->send_fields(&field_list,1))
     DBUG_VOID_RETURN;
 
   VOID(pthread_mutex_lock(&LOCK_thread_count)); // For unlink from list
@@ -1358,37 +1326,26 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
   thread_info *thd_info;
-  String *packet= &thd->packet;
+  time_t now= time(0);
   while ((thd_info=thread_infos.get()))
   {
     char buff[20],*end;
-    packet->length(0);
-    end=int10_to_str((long) thd_info->thread_id, buff,10);
-    net_store_data(packet,convert,buff,(uint) (end-buff));
-    net_store_data(packet,convert,thd_info->user);
-    net_store_data(packet,convert,thd_info->host);
-    if (thd_info->db)
-      net_store_data(packet,convert,thd_info->db);
-    else
-      net_store_null(packet);
+    protocol->prepare_for_resend();
+    protocol->store((ulonglong) thd_info->thread_id);
+    protocol->store(thd_info->user);
+    protocol->store(thd_info->host);
+    protocol->store(thd_info->db);
     if (thd_info->proc_info)
-      net_store_data(packet,convert,thd_info->proc_info);
+      protocol->store(thd_info->proc_info);
     else
-      net_store_data(packet,convert,command_name[thd_info->command]);
+      protocol->store(command_name[thd_info->command]);
     if (thd_info->start_time)
-      net_store_data(packet,
-		     (uint32) (time((time_t*) 0) - thd_info->start_time));
+      protocol->store((uint32) (now - thd_info->start_time));
     else
-      net_store_null(packet);
-    if (thd_info->state_info)
-      net_store_data(packet,convert,thd_info->state_info);
-    else
-      net_store_null(packet);
-    if (thd_info->query)
-      net_store_data(packet,convert,thd_info->query);
-    else
-      net_store_null(packet);
-    if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+      protocol->store_null();
+    protocol->store(thd_info->state_info);
+    protocol->store(thd_info->query);
+    if (protocol->write())
       break; /* purecov: inspected */
   }
   send_eof(thd);
@@ -1405,16 +1362,16 @@ int mysqld_show_charsets(THD *thd, const char *wild)
   char buff[8192];
   String packet2(buff,sizeof(buff),default_charset_info);
   List<Item> field_list;
-  CONVERT *convert=thd->variables.convert_set;
   CHARSET_INFO **cs;
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_show_charsets");
 
   field_list.push_back(new Item_empty_string("Name",30));
-  field_list.push_back(new Item_int("Id",0,7));
-  field_list.push_back(new Item_int("strx_maxlen",0,7));
-  field_list.push_back(new Item_int("mb_maxlen",0,7));
+  field_list.push_back(new Item_return_int("Id",11, FIELD_TYPE_SHORT));
+  field_list.push_back(new Item_return_int("strx_maxlen",3, FIELD_TYPE_TINY));
+  field_list.push_back(new Item_return_int("mb_maxlen",3, FIELD_TYPE_TINY));
 
-  if (send_fields(thd,field_list,1))
+  if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(1);
 
   for (cs=all_charsets ; cs < all_charsets+255 ; cs++ )
@@ -1424,14 +1381,13 @@ int mysqld_show_charsets(THD *thd, const char *wild)
     if (!(wild && wild[0] &&
 	  wild_case_compare(system_charset_info,cs[0]->name,wild)))
     {
-      packet2.length(0);
-      net_store_data(&packet2,convert,cs[0]->name);
-      net_store_data(&packet2,(uint32) cs[0]->number);
-      net_store_data(&packet2,(uint32) cs[0]->strxfrm_multiply);
-      net_store_data(&packet2,(uint32) (cs[0]->mbmaxlen));
-
-      if (my_net_write(&thd->net, (char*) packet2.ptr(),packet2.length()))
-         goto err;
+      protocol->prepare_for_resend();
+      protocol->store(cs[0]->name);
+      protocol->store_short((longlong) cs[0]->number);
+      protocol->store_tiny((longlong) cs[0]->strxfrm_multiply);
+      protocol->store_tiny((longlong) cs[0]->mbmaxlen);
+      if (protocol->write())
+	goto err;
     }
   }
   send_eof(thd); 
@@ -1445,15 +1401,14 @@ err:
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 		enum enum_var_type value_type)
 {
-  char buff[8192];
-  String packet2(buff,sizeof(buff), system_charset_info);
+  char buff[1024];
   List<Item> field_list;
-  CONVERT *convert=thd->variables.convert_set;
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_show");
 
   field_list.push_back(new Item_empty_string("Variable_name",30));
   field_list.push_back(new Item_empty_string("Value",256));
-  if (send_fields(thd,field_list,1))
+  if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1); /* purecov: inspected */
 
   /* pthread_mutex_lock(&THR_LOCK_keycache); */
@@ -1463,232 +1418,248 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
     if (!(wild && wild[0] && wild_case_compare(system_charset_info,
 					       variables->name,wild)))
     {
-      packet2.length(0);
-      net_store_data(&packet2,convert,variables->name);
+      protocol->prepare_for_resend();
+      protocol->store(variables->name);
       SHOW_TYPE show_type=variables->type;
       char *value=variables->value;
+      const char *pos, *end;
+      long nr;
+
       if (show_type == SHOW_SYS)
       {
 	show_type= ((sys_var*) value)->type();
 	value=     (char*) ((sys_var*) value)->value_ptr(thd, value_type);
       }
 
+      pos= end= buff;
       switch (show_type) {
       case SHOW_LONG:
       case SHOW_LONG_CONST:
-        net_store_data(&packet2,(uint32) *(ulong*) value);
+	end= int10_to_str(*(long*) value, buff, 10);
         break;
       case SHOW_LONGLONG:
-        net_store_data(&packet2,(longlong) *(longlong*) value);
+	end= longlong10_to_str(*(longlong*) value, buff, 10);
         break;
       case SHOW_BOOL:
-        net_store_data(&packet2,(ulong) *(bool*) value ? "ON" : "OFF");
+	end= strmov(buff, *(bool*) value ? "ON" : "OFF");
         break;
       case SHOW_MY_BOOL:
-        net_store_data(&packet2,(ulong) *(my_bool*) value ? "ON" : "OFF");
+	end= strmov(buff, *(my_bool*) value ? "ON" : "OFF");
         break;
       case SHOW_INT_CONST:
       case SHOW_INT:
-        net_store_data(&packet2,(uint32) *(int*) value);
+	end= int10_to_str((long) *(uint32*) value, buff, 10);
         break;
       case SHOW_HAVE:
       {
 	SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) value;
-        net_store_data(&packet2, show_comp_option_name[(int) tmp]);
+	pos= show_comp_option_name[(int) tmp];
+	end= strend(pos);
         break;
       }
       case SHOW_CHAR:
-        net_store_data(&packet2,convert, value);
+	pos= value;
+	end= strend(pos);
         break;
       case SHOW_STARTTIME:
-        net_store_data(&packet2,(uint32) (thd->query_start() - start_time));
+	nr= (long) (thd->query_start() - start_time);
+	end= int10_to_str(nr, buff, 10);
         break;
       case SHOW_QUESTION:
-        net_store_data(&packet2,(uint32) thd->query_id);
+	end= int10_to_str((long) thd->query_id, buff, 10);
         break;
       case SHOW_RPL_STATUS:
-	net_store_data(&packet2, rpl_status_type[(int)rpl_status]);
+	end= int10_to_str((long) rpl_status_type[(int)rpl_status], buff, 10);
 	break;
       case SHOW_SLAVE_RUNNING:
       {
 	LOCK_ACTIVE_MI;
-	net_store_data(&packet2, (active_mi->slave_running &&
-				  active_mi->rli.slave_running)
-		        ? "ON" : "OFF");
+	end= strmov(buff, (active_mi->slave_running &&
+			   active_mi->rli.slave_running) ? "ON" : "OFF");
 	UNLOCK_ACTIVE_MI;
 	break;
       }
       case SHOW_OPENTABLES:
-        net_store_data(&packet2,(uint32) cached_tables());
+	end= int10_to_str((long) cached_tables(), buff, 10);
         break;
       case SHOW_CHAR_PTR:
       {
-	value= *(char**) value;
-	net_store_data(&packet2,convert, value ? value : "");
+	if (!(pos= *(char**) value))
+	  pos= "";
+	end= strend(pos);
 	break;
       }
 #ifdef HAVE_OPENSSL
 	/* First group - functions relying on CTX */
       case SHOW_SSL_CTX_SESS_ACCEPT:
-	net_store_data(&packet2,(uint32) 
-		       (!ssl_acceptor_fd ? 0 :
-			SSL_CTX_sess_accept(ssl_acceptor_fd->ssl_context_)));
+	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+				  SSL_CTX_sess_accept(ssl_acceptor_fd->
+						      ssl_context_)),
+			  buff, 10);
         break;
       case SHOW_SSL_CTX_SESS_ACCEPT_GOOD:
-	net_store_data(&packet2,(uint32) 
-		       (!ssl_acceptor_fd ? 0 :
-			SSL_CTX_sess_accept_good(ssl_acceptor_fd->ssl_context_)));
+	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+				  SSL_CTX_sess_accept_good(ssl_acceptor_fd->
+							   ssl_context_)),
+			  buff, 10);
         break;
       case SHOW_SSL_CTX_SESS_CONNECT_GOOD:
-	net_store_data(&packet2,(uint32) 
-		       (!ssl_acceptor_fd ? 0 :
-			SSL_CTX_sess_connect_good(ssl_acceptor_fd->ssl_context_)));
+	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+				  SSL_CTX_sess_connect_good(ssl_acceptor_fd->
+							    ssl_context_)),
+			  buff, 10);
         break;
       case SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE:
-	net_store_data(&packet2,(uint32) 
-		       (!ssl_acceptor_fd ? 0 :
-			SSL_CTX_sess_accept_renegotiate(ssl_acceptor_fd->ssl_context_)));
+	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+				  SSL_CTX_sess_accept_renegotiate(ssl_acceptor_fd->ssl_context_)),
+			  buff, 10);
         break;
       case SHOW_SSL_CTX_SESS_CONNECT_RENEGOTIATE:
-	net_store_data(&packet2,(uint32) 
-		       (!ssl_acceptor_fd ? 0 :
-			SSL_CTX_sess_connect_renegotiate(ssl_acceptor_fd->ssl_context_)));
+	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+				  SSL_CTX_sess_connect_renegotiate(ssl_acceptor_fd-> ssl_context_)),
+			  buff, 10);
         break;
       case SHOW_SSL_CTX_SESS_CB_HITS:
-	net_store_data(&packet2,(uint32) 
-		       (!ssl_acceptor_fd ? 0 :
-			SSL_CTX_sess_cb_hits(ssl_acceptor_fd->ssl_context_)));
+	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+				  SSL_CTX_sess_cb_hits(ssl_acceptor_fd->
+						       ssl_context_)),
+			  buff, 10);
         break;
       case SHOW_SSL_CTX_SESS_HITS:
-	net_store_data(&packet2,(uint32) 
-		       (!ssl_acceptor_fd ? 0 :
-			SSL_CTX_sess_hits(ssl_acceptor_fd->ssl_context_)));
+	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+				  SSL_CTX_sess_hits(ssl_acceptor_fd->
+						    ssl_context_)),
+			  buff, 10);
         break;
       case SHOW_SSL_CTX_SESS_CACHE_FULL:
-	net_store_data(&packet2,(uint32) 
-		       (!ssl_acceptor_fd ? 0 :
-			SSL_CTX_sess_cache_full(ssl_acceptor_fd->ssl_context_)));
+	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+				  SSL_CTX_sess_cache_full(ssl_acceptor_fd->
+							  ssl_context_)),
+			  buff, 10);
         break;
       case SHOW_SSL_CTX_SESS_MISSES:
-	net_store_data(&packet2,(uint32) 
-		       (!ssl_acceptor_fd ? 0 :
-			SSL_CTX_sess_misses(ssl_acceptor_fd->ssl_context_)));
+	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+				  SSL_CTX_sess_misses(ssl_acceptor_fd->
+						      ssl_context_)),
+			  buff, 10);
         break;
       case SHOW_SSL_CTX_SESS_TIMEOUTS:
-	net_store_data(&packet2,(uint32) 
-		       (!ssl_acceptor_fd ? 0 :
-			SSL_CTX_sess_timeouts(ssl_acceptor_fd->ssl_context_)));
+	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+				  SSL_CTX_sess_timeouts(ssl_acceptor_fd->ssl_context_)),
+			  buff,10);
         break;
       case SHOW_SSL_CTX_SESS_NUMBER:
-	net_store_data(&packet2,(uint32) 
-		       (!ssl_acceptor_fd ? 0 :
-			SSL_CTX_sess_number(ssl_acceptor_fd->ssl_context_)));
+	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+				  SSL_CTX_sess_number(ssl_acceptor_fd->ssl_context_)),
+			  buff,10);
         break;
       case SHOW_SSL_CTX_SESS_CONNECT:
-	net_store_data(&packet2,(uint32) 
-		       (!ssl_acceptor_fd ? 0 :
-			SSL_CTX_sess_connect(ssl_acceptor_fd->ssl_context_)));
+	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+				  SSL_CTX_sess_connect(ssl_acceptor_fd->ssl_context_)),
+			  buff,10);
         break;
       case SHOW_SSL_CTX_SESS_GET_CACHE_SIZE:
-	net_store_data(&packet2,(uint32) 
-		       (!ssl_acceptor_fd ? 0 :
-			SSL_CTX_sess_get_cache_size(ssl_acceptor_fd->ssl_context_)));
+	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+				  SSL_CTX_sess_get_cache_size(ssl_acceptor_fd->ssl_context_)),
+				  buff,10);
         break;
       case SHOW_SSL_CTX_GET_VERIFY_MODE:
-	net_store_data(&packet2,(uint32) 
-		       (!ssl_acceptor_fd ? 0 :
-			SSL_CTX_get_verify_mode(ssl_acceptor_fd->ssl_context_)));
+	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+				  SSL_CTX_get_verify_mode(ssl_acceptor_fd->ssl_context_)),
+			  buff,10);
         break;
       case SHOW_SSL_CTX_GET_VERIFY_DEPTH:
-	net_store_data(&packet2,(uint32) 
-		       (!ssl_acceptor_fd ? 0 :
-			SSL_CTX_get_verify_depth(ssl_acceptor_fd->ssl_context_)));
+	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
+				  SSL_CTX_get_verify_depth(ssl_acceptor_fd->ssl_context_)),
+			  buff,10);
         break;
       case SHOW_SSL_CTX_GET_SESSION_CACHE_MODE:
 	if (!ssl_acceptor_fd)
 	{
-	  net_store_data(&packet2,"NONE" );
+	  pos= "NONE";
+	  end= pos+4;
 	  break;
 	}
 	switch (SSL_CTX_get_session_cache_mode(ssl_acceptor_fd->ssl_context_))
 	{
           case SSL_SESS_CACHE_OFF:
-            net_store_data(&packet2,"OFF" );
+            pos= "OFF";
 	    break;
           case SSL_SESS_CACHE_CLIENT:
-            net_store_data(&packet2,"CLIENT" );
+            pos= "CLIENT";
 	    break;
           case SSL_SESS_CACHE_SERVER:
-            net_store_data(&packet2,"SERVER" );
+            pos= "SERVER";
 	    break;
           case SSL_SESS_CACHE_BOTH:
-            net_store_data(&packet2,"BOTH" );
+            pos= "BOTH";
 	    break;
           case SSL_SESS_CACHE_NO_AUTO_CLEAR:
-            net_store_data(&packet2,"NO_AUTO_CLEAR" );
+            pos= "NO_AUTO_CLEAR";
 	    break;
           case SSL_SESS_CACHE_NO_INTERNAL_LOOKUP:
-            net_store_data(&packet2,"NO_INTERNAL_LOOKUP" );
+            pos= "NO_INTERNAL_LOOKUP";
 	    break;
 	  default:
-            net_store_data(&packet2,"Unknown");
+            pos= "Unknown";
 	    break;
 	}
+	pos= strend(pos);
         break;
 	/* First group - functions relying on SSL */
       case SHOW_SSL_GET_VERSION:
-	net_store_data(&packet2, thd->net.vio->ssl_ ? 
-			SSL_get_version(thd->net.vio->ssl_) : "");
+	pos= thd->net.vio->ssl_ ? SSL_get_version(thd->net.vio->ssl_) : "";
+	end= strend(pos);
         break;
       case SHOW_SSL_SESSION_REUSED:
-	net_store_data(&packet2,(uint32) (thd->net.vio->ssl_ ? 
-			SSL_session_reused(thd->net.vio->ssl_) : 0));
+	end= int10_to_str((long) (thd->net.vio->ssl_ ?
+				  SSL_session_reused(thd->net.vio->ssl_):
+				  0), buff, 10);
         break;
       case SHOW_SSL_GET_DEFAULT_TIMEOUT:
-	net_store_data(&packet2,(uint32) (thd->net.vio->ssl_ ?
-			SSL_get_default_timeout(thd->net.vio->ssl_):0));
+	end= int10_to_str((long) (thd->net.vio->ssl_ ?
+				  SSL_get_default_timeout(thd->net.vio->ssl_):
+				  0), buff, 10);
         break;
       case SHOW_SSL_GET_VERIFY_MODE:
-	net_store_data(&packet2,(uint32) (thd->net.vio->ssl_ ?
-			SSL_get_verify_mode(thd->net.vio->ssl_):0));
+	end= int10_to_str((long) (thd->net.vio->ssl_ ?
+				  SSL_get_verify_mode(thd->net.vio->ssl_):
+				  0), buff, 10);
         break;
       case SHOW_SSL_GET_VERIFY_DEPTH:
-	net_store_data(&packet2,(uint32) (thd->net.vio->ssl_ ?
-			SSL_get_verify_depth(thd->net.vio->ssl_):0));
+	end= int10_to_str((long) (thd->net.vio->ssl_ ?
+				  SSL_get_verify_depth(thd->net.vio->ssl_):
+				  0), buff, 10);
         break;
       case SHOW_SSL_GET_CIPHER:
-	net_store_data(&packet2, thd->net.vio->ssl_ ?
-		       SSL_get_cipher(thd->net.vio->ssl_) : "");
+	pos= thd->net.vio->ssl_ ? SSL_get_cipher(thd->net.vio->ssl_) : "";
+	end= strend(pos);
 	break;
       case SHOW_SSL_GET_CIPHER_LIST:
 	if (thd->net.vio->ssl_)
 	{
-	  char buf[1024], *pos;
-	  pos=buf;
+	  char *to= buff;
 	  for (int i=0 ; i++ ;)
 	  {
-	    const char *p=SSL_get_cipher_list(thd->net.vio->ssl_,i);
+	    const char *p= SSL_get_cipher_list(thd->net.vio->ssl_,i);
 	    if (p == NULL) 
 	      break;
-	    pos=strmov(pos, p);
-	    *pos++= ':';
+	    to= strmov(to, p);
+	    *to++= ':';
 	  }
-	  if (pos != buf)
-	    pos--;				// Remove last ':'
-	  *pos=0;
- 	  net_store_data(&packet2, buf);
+	  if (to != buff)
+	    to--;				// Remove last ':'
+	  end= to;
         }
-	else
- 	  net_store_data(&packet2, "");
         break;
 
 #endif /* HAVE_OPENSSL */
       case SHOW_UNDEF:				// Show never happen
       case SHOW_SYS:
-	net_store_data(&packet2, "");		// Safety
-	break;
+	break;					// Return empty string
       }
-      if (my_net_write(&thd->net, (char*) packet2.ptr(),packet2.length()))
+      if (protocol->store(pos, (uint32) (end - pos)) ||
+	  protocol->write())
         goto err;                               /* purecov: inspected */
     }
   }

@@ -35,7 +35,7 @@ drop table t1;
 
 create table t1 (ix timestamp);
 insert into t1 values (19991101000000),(19990102030405),(19990630232922),(19990601000000),(19990930232922),(19990531232922),(19990501000000),(19991101000000),(19990501000000);
-select * from t1; 
+select ix+0 from t1; 
 drop table t1;
 
 CREATE TABLE t1 (date date, date_time datetime, time_stamp timestamp);

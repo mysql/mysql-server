@@ -47,27 +47,20 @@ void Item_sum::mark_as_sum_func()
   with_sum_func= 1;
 }
 
+
 void Item_sum::make_field(Send_field *tmp_field)
 {
   if (args[0]->type() == Item::FIELD_ITEM && keep_field_type())
-    ((Item_field*) args[0])->field->make_field(tmp_field);
-  else
   {
-    tmp_field->flags=0;
-    if (!maybe_null)
-      tmp_field->flags|= NOT_NULL_FLAG;
-    if (unsigned_flag)
-      tmp_field->flags |= UNSIGNED_FLAG;
-    tmp_field->length=max_length;
-    tmp_field->decimals=decimals;
-    tmp_field->type=(result_type() == INT_RESULT ? FIELD_TYPE_LONG :
-		     result_type() == REAL_RESULT ? FIELD_TYPE_DOUBLE :
-		     FIELD_TYPE_VAR_STRING);
+    ((Item_field*) args[0])->field->make_field(tmp_field);
+    tmp_field->db_name=(char*)"";
+    tmp_field->org_table_name=tmp_field->table_name=(char*)"";
+    tmp_field->org_col_name=tmp_field->col_name=name;
   }
-  tmp_field->db_name=(char*)"";
-  tmp_field->org_table_name=tmp_field->table_name=(char*)"";
-  tmp_field->org_col_name=tmp_field->col_name=name;
+  else
+    init_make_field(tmp_field, field_type());
 }
+
 
 void Item_sum::print(String *str)
 {
@@ -168,6 +161,10 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   null_value=1;
   fix_length_and_dec();
   thd->allow_sum_func=1;			// Allow group functions
+  if (item->type() == Item::FIELD_ITEM)
+    hybrid_field_type= ((Item_field*) item)->field->type();
+  else
+    hybrid_field_type= Item::field_type();
   fixed= 1;
   return 0;
 }

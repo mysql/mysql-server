@@ -196,17 +196,12 @@ void Field::copy_from_tmp(int row_offset)
 }
 
 
-bool Field::send(THD *thd, String *packet)
+bool Field::send_binary(Protocol *protocol)
 {
-  if (is_null())
-    return net_store_null(packet);
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),default_charset_info);
   val_str(&tmp,&tmp);
-  CONVERT *convert;
-  if ((convert=thd->variables.convert_set))
-    return convert->store(packet,tmp.ptr(),tmp.length());
-  return net_store_data(packet,tmp.ptr(),tmp.length());
+  return protocol->store(tmp.ptr(), tmp.length());
 }
 
 
@@ -1074,6 +1069,10 @@ String *Field_tiny::val_str(String *val_buffer,
   return val_buffer;
 }
 
+bool Field_tiny::send_binary(Protocol *protocol)
+{
+  return protocol->store_tiny((longlong) (int8) ptr[0]);
+}
 
 int Field_tiny::cmp(const char *a_ptr, const char *b_ptr)
 {
@@ -1285,6 +1284,7 @@ longlong Field_short::val_int(void)
   return unsigned_flag ? (longlong) (unsigned short) j : (longlong) j;
 }
 
+
 String *Field_short::val_str(String *val_buffer,
 			     String *val_ptr __attribute__((unused)))
 {
@@ -1309,6 +1309,12 @@ String *Field_short::val_str(String *val_buffer,
   if (zerofill)
     prepend_zeros(val_buffer);
   return val_buffer;
+}
+
+
+bool Field_short::send_binary(Protocol *protocol)
+{
+  return protocol->store_short(Field_short::val_int());
 }
 
 
@@ -1535,6 +1541,12 @@ String *Field_medium::val_str(String *val_buffer,
   if (zerofill)
     prepend_zeros(val_buffer); /* purecov: inspected */
   return val_buffer;
+}
+
+
+bool Field_medium::send_binary(Protocol *protocol)
+{
+  return protocol->store_long(Field_medium::val_int());
 }
 
 
@@ -1774,6 +1786,11 @@ String *Field_long::val_str(String *val_buffer,
 }
 
 
+bool Field_long::send_binary(Protocol *protocol)
+{
+  return protocol->store_long(Field_long::val_int());
+}
+
 int Field_long::cmp(const char *a_ptr, const char *b_ptr)
 {
   int32 a,b;
@@ -1985,6 +2002,12 @@ String *Field_longlong::val_str(String *val_buffer,
   if (zerofill)
     prepend_zeros(val_buffer);
   return val_buffer;
+}
+
+
+bool Field_longlong::send_binary(Protocol *protocol)
+{
+  return protocol->store_longlong(Field_longlong::val_int(), unsigned_flag);
 }
 
 
@@ -2302,6 +2325,12 @@ void Field_float::sort_string(char *to,uint length __attribute__((unused)))
 }
 
 
+bool Field_float::send_binary(Protocol *protocol)
+{
+  return protocol->store((float) Field_float::val_real(), dec, (String*) 0);
+}
+
+
 void Field_float::sql_type(String &res) const
 {
   if (dec == NOT_FIXED_DEC)
@@ -2499,6 +2528,11 @@ String *Field_double::val_str(String *val_buffer,
   return val_buffer;
 }
 
+bool Field_double::send_binary(Protocol *protocol)
+{
+  return protocol->store((float) Field_double::val_real(), dec, (String*) 0);
+}
+
 
 int Field_double::cmp(const char *a_ptr, const char *b_ptr)
 {
@@ -2568,10 +2602,10 @@ void Field_double::sql_type(String &res) const
 Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
 				 enum utype unireg_check_arg,
 				 const char *field_name_arg,
-				 struct st_table *table_arg)
-    :Field_num(ptr_arg, len_arg, (uchar*) 0,0,
-	       unireg_check_arg, field_name_arg, table_arg,
-	       0, 1, 1)
+				 struct st_table *table_arg,
+				 CHARSET_INFO *cs)
+  :Field_str(ptr_arg, 19, (uchar*) 0,0,
+	     unireg_check_arg, field_name_arg, table_arg, cs)
 {
   if (table && !table->timestamp_field)
   {
@@ -2595,35 +2629,6 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
     longstore(ptr,tmp);
   return 0;
 }
-
-void Field_timestamp::fill_and_store(char *from,uint len)
-{
-  uint res_length;
-  if (len <= field_length)
-    res_length=field_length;
-  else if (len <= 12)
-    res_length=12;				/* purecov: inspected */
-  else if (len <= 14)
-    res_length=14;				/* purecov: inspected */
-  else
-    res_length=(len+1)/2*2;			// must be even
-  if (res_length != len)
-  {
-    bmove_upp(from+res_length,from+len,len);
-    bfill(from,res_length-len,'0');
-    len=res_length;
-  }
-  long tmp=(long) str_to_timestamp(from,len);
-#ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
-  {
-    int4store(ptr,tmp);
-  }
-  else
-#endif
-    longstore(ptr,tmp);
-}
-
 
 int Field_timestamp::store(double nr)
 {
@@ -2735,44 +2740,34 @@ longlong Field_timestamp::val_int(void)
   time_arg=(time_t) temp;
   localtime_r(&time_arg,&tm_tmp);
   l_time=&tm_tmp;
-  res=(longlong) 0;
-  for (pos=len=0; len+1 < (uint) field_length ; len+=2,pos++)
-  {
-    bool year_flag=0;
-    switch (dayord.pos[pos]) {
-    case 0: part_time=l_time->tm_year % 100; year_flag=1 ; break;
-    case 1: part_time=l_time->tm_mon+1; break;
-    case 2: part_time=l_time->tm_mday; break;
-    case 3: part_time=l_time->tm_hour; break;
-    case 4: part_time=l_time->tm_min; break;
-    case 5: part_time=l_time->tm_sec; break;
-    default: part_time=0; break; /* purecov: deadcode */
-    }
-    if (year_flag && (field_length == 8 || field_length == 14))
-    {
-      res=res*(longlong) 10000+(part_time+
-				((part_time < YY_PART_YEAR) ? 2000 : 1900));
-      len+=2;
-    }
-    else
-      res=res*(longlong) 100+part_time;
-  }
-  return (longlong) res;
+
+  part_time= l_time->tm_year % 100;
+  res= ((longlong) (part_time+ ((part_time < YY_PART_YEAR) ? 2000 : 1900))*
+	LL(10000000000));
+  part_time= l_time->tm_mon+1;
+  res+= (longlong) part_time * LL(100000000);
+  part_time=l_time->tm_mday;
+  res+= (longlong) ((long) part_time * 1000000L);
+  part_time=l_time->tm_hour;
+  res+= (longlong) (part_time * 10000L);
+  part_time=l_time->tm_min;
+  res+= (longlong) (part_time * 100);
+  part_time=l_time->tm_sec;
+  return res+part_time;
 }
 
 
 String *Field_timestamp::val_str(String *val_buffer,
 				 String *val_ptr __attribute__((unused)))
 {
-  uint pos;
-  int part_time;
-  uint32 temp;
+  uint32 temp, temp2;
   time_t time_arg;
   struct tm *l_time;
   struct tm tm_tmp;
 
   val_buffer->alloc(field_length+1);
   char *to=(char*) val_buffer->ptr(),*end=to+field_length;
+  val_buffer->length(field_length);
 
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -2783,43 +2778,56 @@ String *Field_timestamp::val_str(String *val_buffer,
 
   if (temp == 0L)
   {				      /* Zero time is "000000" */
-    VOID(strfill(to,field_length,'0'));
-    val_buffer->length(field_length);
+    strmov(to, "0000-00-00 00:00:00");
     return val_buffer;
   }
   time_arg=(time_t) temp;
   localtime_r(&time_arg,&tm_tmp);
   l_time=&tm_tmp;
-  for (pos=0; to < end ; pos++)
+
+  temp= l_time->tm_year % 100;
+  if (temp < YY_PART_YEAR)
   {
-    bool year_flag=0;
-    switch (dayord.pos[pos]) {
-    case 0: part_time=l_time->tm_year % 100; year_flag=1; break;
-    case 1: part_time=l_time->tm_mon+1; break;
-    case 2: part_time=l_time->tm_mday; break;
-    case 3: part_time=l_time->tm_hour; break;
-    case 4: part_time=l_time->tm_min; break;
-    case 5: part_time=l_time->tm_sec; break;
-    default: part_time=0; break; /* purecov: deadcode */
-    }
-    if (year_flag && (field_length == 8 || field_length == 14))
-    {
-      if (part_time < YY_PART_YEAR)
-      {
-	*to++='2'; *to++='0'; /* purecov: inspected */
-      }
-      else
-      {
-	*to++='1'; *to++='9';
-      }
-    }
-    *to++=(char) ('0'+((uint) part_time/10));
-    *to++=(char) ('0'+((uint) part_time % 10));
+    *to++= '2';
+    *to++= '0';
   }
-  *to=0;					// Safeguard
-  val_buffer->length((uint) (to-val_buffer->ptr()));
+  else
+  {
+    *to++= '1';
+    *to++= '9';
+  }
+  temp2=temp/10; temp=temp-temp2*10;
+  *to++= (char) ('0'+(char) (temp2));
+  *to++= (char) ('0'+(char) (temp));
+  *to++= '-';
+  temp=l_time->tm_mon+1;
+  temp2=temp/10; temp=temp-temp2*10;
+  *to++= (char) ('0'+(char) (temp2));
+  *to++= (char) ('0'+(char) (temp));
+  *to++= '-';
+  temp=l_time->tm_mday;
+  temp2=temp/10; temp=temp-temp2*10;
+  *to++= (char) ('0'+(char) (temp2));
+  *to++= (char) ('0'+(char) (temp));
+  *to++= ' ';
+  temp=l_time->tm_hour;
+  temp2=temp/10; temp=temp-temp2*10;
+  *to++= (char) ('0'+(char) (temp2));
+  *to++= (char) ('0'+(char) (temp));
+  *to++= ':';
+  temp=l_time->tm_min;
+  temp2=temp/10; temp=temp-temp2*10;
+  *to++= (char) ('0'+(char) (temp2));
+  *to++= (char) ('0'+(char) (temp));
+  *to++= ':';
+  temp=l_time->tm_sec;
+  temp2=temp/10; temp=temp-temp2*10;
+  *to++= (char) ('0'+(char) (temp2));
+  *to++= (char) ('0'+(char) (temp));
+  *to= 0;
   return val_buffer;
 }
+
 
 bool Field_timestamp::get_date(TIME *ltime, bool fuzzydate)
 {
@@ -2860,6 +2868,15 @@ bool Field_timestamp::get_time(TIME *ltime)
   return Field_timestamp::get_date(ltime,0);
 }
 
+
+bool Field_timestamp::send_binary(Protocol *protocol)
+{
+  TIME tm;
+  Field_timestamp::get_date(&tm, 1);
+  return protocol->store(&tm);
+}
+
+
 int Field_timestamp::cmp(const char *a_ptr, const char *b_ptr)
 {
   int32 a,b;
@@ -2877,6 +2894,7 @@ int Field_timestamp::cmp(const char *a_ptr, const char *b_ptr)
   }
   return ((uint32) a < (uint32) b) ? -1 : ((uint32) a > (uint32) b) ? 1 : 0;
 }
+
 
 void Field_timestamp::sort_string(char *to,uint length __attribute__((unused)))
 {
@@ -2901,10 +2919,7 @@ void Field_timestamp::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_timestamp::sql_type(String &res) const
 {
-  ulong length= my_sprintf((char*) res.ptr(),
-			   ((char*) res.ptr(),"timestamp(%d)",
-			    (int) field_length));
-  res.length(length);
+  res.set("timestamp", 9, default_charset_info);
 }
 
 
@@ -3067,6 +3082,17 @@ bool Field_time::get_time(TIME *ltime)
   ltime->second_part=0;
   return 0;
 }
+
+
+bool Field_time::send_binary(Protocol *protocol)
+{
+  TIME tm;
+  Field_time::get_time(&tm);
+  tm.day= tm.hour/3600;				// Move hours to days
+  tm.hour-= tm.day*3600;
+  return protocol->store(&tm);
+}
+
 
 int Field_time::cmp(const char *a_ptr, const char *b_ptr)
 {
@@ -3965,19 +3991,15 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
     ThNormalize((uchar *) ptr+2, field_length, (uchar *) from, length);
   }
 #else
-  if (length <= field_length)
-  {
-    memcpy(ptr+2,from,length);
-  }
-  else
+  if (length > field_length)
   {
     length=field_length;
-    memcpy(ptr+2,from,field_length);
     current_thd->cuted_fields++;
     error= 1;
   }
+  memcpy(ptr+2,from,length);
 #endif /* USE_TIS620 */
-  int2store(ptr,length);
+  int2store(ptr, length);
   return error;
 }
 
@@ -4175,6 +4197,28 @@ uint Field_varstring::max_packed_col_length(uint max_length)
 {
   return (max_length > 255 ? 2 : 1)+max_length;
 }
+
+void Field_varstring::get_key_image(char *buff, uint length, imagetype type)
+{
+  length-= HA_KEY_BLOB_LENGTH;
+  uint f_length=uint2korr(ptr);
+  if (f_length > length)
+    f_length= length;
+  int2store(buff,length);
+  memcpy(buff+2,ptr+2,length);
+#ifdef HAVE_purify
+  if (f_length < length)
+    bzero(buff+2+f_length, (length-f_length));
+#endif
+}
+
+void Field_varstring::set_key_image(char *buff,uint length)
+{
+  length=uint2korr(buff);			// Real length is here
+  (void) Field_varstring::store(buff+2, length, default_charset_info);
+}
+
+
 
 /****************************************************************************
 ** blob type
@@ -4443,7 +4487,6 @@ void Field_blob::get_key_image(char *buff,uint length, imagetype type)
     return;
   }
 
-  length-=HA_KEY_BLOB_LENGTH;
   if ((uint32) length > blob_length)
   {
 #ifdef HAVE_purify
@@ -5258,7 +5301,7 @@ Field *make_field(char *ptr, uint32 field_length,
 			      f_is_dec(pack_flag) == 0);
   case FIELD_TYPE_TIMESTAMP:
     return new Field_timestamp(ptr,field_length,
-			       unireg_check, field_name, table);
+			       unireg_check, field_name, table, field_charset);
   case FIELD_TYPE_YEAR:
     return new Field_year(ptr,field_length,null_pos,null_bit,
 			  unireg_check, field_name, table);

@@ -27,10 +27,12 @@
 #define NOT_FIXED_DEC			31
 
 class Send_field;
+class Protocol;
 struct st_cache_field;
 void field_conv(Field *to,Field *from);
 
-class Field {
+class Field
+{
   Field(const Item &);				/* Prevent use of these */
   void operator=(Field &);
 public:
@@ -164,7 +166,7 @@ public:
       ptr-=row_offset;
       return tmp;
     }
-  bool send(THD *thd, String *packet);
+  bool send_binary(Protocol *protocol);
   virtual char *pack(char* to, const char *from, uint max_length=~(uint) 0)
   {
     uint32 length=pack_length();
@@ -268,11 +270,11 @@ public:
   void set_charset(CHARSET_INFO *charset) { field_charset=charset; }
   bool binary() const { return field_charset->state & MY_CS_BINSORT ? 1 : 0; }
   inline int cmp_image(char *buff,uint length)
-    {
-      if (binary())
-	return memcmp(ptr,buff,length);
-      else
-	return my_strncasecmp(field_charset,ptr,buff,length);
+  {
+    if (binary())
+      return memcmp(ptr,buff,length);
+    else
+      return my_strncasecmp(field_charset,ptr,buff,length);
   }
   friend class create_field;
 };
@@ -291,7 +293,7 @@ public:
     {}
   enum_field_types type() const { return FIELD_TYPE_DECIMAL;}
   enum ha_base_keytype key_type() const
-    { return zerofill ? HA_KEYTYPE_BINARY : HA_KEYTYPE_NUM; }
+  { return zerofill ? HA_KEYTYPE_BINARY : HA_KEYTYPE_NUM; }
   void reset(void);
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
@@ -329,6 +331,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 1; }
@@ -358,6 +361,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 2; }
@@ -387,6 +391,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 3; }
@@ -420,6 +425,7 @@ public:
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=0; }
   double val_real(void);
   longlong val_int(void);
+  bool send_binary(Protocol *protocol);
   String *val_str(String*,String *);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
@@ -457,6 +463,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 8; }
@@ -485,6 +492,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return sizeof(float); }
@@ -517,6 +525,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return sizeof(double); }
@@ -552,14 +561,15 @@ public:
 };
 
 
-class Field_timestamp :public Field_num {
+class Field_timestamp :public Field_str {
 public:
   Field_timestamp(char *ptr_arg, uint32 len_arg,
 		  enum utype unireg_check_arg, const char *field_name_arg,
-		  struct st_table *table_arg);
-  enum Item_result result_type () const { return field_length == 8 || field_length == 14 ? INT_RESULT : STRING_RESULT; }
+		  struct st_table *table_arg,
+		  CHARSET_INFO *cs);
   enum_field_types type() const { return FIELD_TYPE_TIMESTAMP;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
+  enum Item_result cmp_type () const { return INT_RESULT; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr);
@@ -567,6 +577,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 4; }
@@ -588,7 +599,6 @@ public:
     longget(tmp,ptr);
     return tmp;
   }
-  void fill_and_store(char *from,uint len);
   bool get_date(TIME *ltime,bool fuzzydate);
   bool get_time(TIME *ltime);
 };
@@ -610,6 +620,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool send_binary(Protocol *protocol);
   void sql_type(String &str) const;
 };
 
@@ -636,6 +647,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 4; }
@@ -664,6 +676,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 3; }
@@ -697,6 +710,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool send_binary(Protocol *protocol);
   bool get_time(TIME *ltime);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
@@ -732,6 +746,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 8; }
@@ -772,6 +787,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   void sql_type(String &str) const;
@@ -812,8 +828,11 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
+  void get_key_image(char *buff,uint length, imagetype type);
+  void set_key_image(char *buff,uint length);
   void sql_type(String &str) const;
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
   const char *unpack(char* to, const char *from);
@@ -852,6 +871,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   int cmp(const char *a, uint32 a_length, const char *b, uint32 b_length);
   int cmp_offset(uint offset);
@@ -957,6 +977,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return (uint32) packlength; }

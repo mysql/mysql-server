@@ -255,4 +255,29 @@ public:
   void qs_append(double d);
   void qs_append(double *d);
   void qs_append(const char &c);
+
+  /* Inline (general) functions used by the protocol functions */
+
+  inline char *prep_append(uint32 arg_length, uint32 step_alloc)
+  {
+    uint32 new_length= arg_length + str_length;
+    if (new_length > Alloced_length)
+    {
+      if (realloc(new_length + step_alloc))
+        return 0;
+    }
+    uint32 old_length= str_length;
+    str_length+= arg_length;
+    return Ptr+ old_length;			/* Area to use */
+  }
+
+  inline bool append(const char *s, uint32 arg_length, uint32 step_alloc)
+  {
+    uint32 new_length= arg_length + str_length;
+    if (new_length > Alloced_length && realloc(new_length + step_alloc))
+      return TRUE;
+    memcpy(Ptr+str_length, s, arg_length);
+    str_length+= arg_length;
+    return FALSE;
+  }
 };

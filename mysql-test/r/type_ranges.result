@@ -53,7 +53,7 @@ ushort	smallint(5) unsigned zerofill		MUL	00000		select,insert,update,references
 umedium	mediumint(8) unsigned		MUL	0		select,insert,update,references	
 ulong	int(11) unsigned		MUL	0		select,insert,update,references	
 ulonglong	bigint(13) unsigned		MUL	0		select,insert,update,references	
-time_stamp	timestamp(14)	YES		NULL		select,insert,update,references	
+time_stamp	timestamp	YES		NULL		select,insert,update,references	
 date_field	date	YES		NULL		select,insert,update,references	
 time_field	time	YES		NULL		select,insert,update,references	
 date_time	datetime	YES		NULL		select,insert,update,references	
@@ -183,7 +183,7 @@ ushort	smallint(5) unsigned zerofill			00000		select,insert,update,references
 umedium	mediumint(8) unsigned		MUL	0		select,insert,update,references	
 ulong	int(11) unsigned		MUL	0		select,insert,update,references	
 ulonglong	bigint(13) unsigned		MUL	0		select,insert,update,references	
-time_stamp	timestamp(14)	YES		NULL		select,insert,update,references	
+time_stamp	timestamp	YES		NULL		select,insert,update,references	
 date_field	varchar(10) character set latin1	YES		NULL		select,insert,update,references	
 time_field	time	YES		NULL		select,insert,update,references	
 date_time	datetime	YES		NULL		select,insert,update,references	
@@ -209,7 +209,7 @@ ushort	smallint(5) unsigned zerofill			00000		select,insert,update,references
 umedium	mediumint(8) unsigned			0		select,insert,update,references	
 ulong	int(11) unsigned			0		select,insert,update,references	
 ulonglong	bigint(13) unsigned			0		select,insert,update,references	
-time_stamp	timestamp(14)	YES		NULL		select,insert,update,references	
+time_stamp	timestamp	YES		NULL		select,insert,update,references	
 date_field	varchar(10) character set latin1	YES		NULL		select,insert,update,references	
 time_field	time	YES		NULL		select,insert,update,references	
 date_time	datetime	YES		NULL		select,insert,update,references	

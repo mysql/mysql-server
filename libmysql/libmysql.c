@@ -4502,8 +4502,8 @@ stmt_fetch_row(MYSQL_STMT *stmt, uchar **row)
   MYSQL_BIND  *bind, *end;
   uchar *null_ptr= (uchar*) *row, bit;
 
-  *row+= (stmt->field_count+7)/8;
-  bit=1;
+  row+= (stmt->field_count+9)/8;
+  bit= 4;					/* First 2 bits are reserved */
 
   /* Copy complete row to application buffers */
   for (bind= stmt->bind, end= (MYSQL_BIND *) bind + stmt->field_count;

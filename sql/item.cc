@@ -22,6 +22,7 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 #include "my_dir.h"
+#include <assert.h>
 
 /*****************************************************************************
 ** Item functions
@@ -378,12 +379,6 @@ int Item_param::save_in_field(Field *field, bool no_conversions)
 }
 
 
-void Item_param::make_field(Send_field *tmp_field)
-{
-  init_make_field(tmp_field,FIELD_TYPE_STRING);
-}
-
-
 double Item_param::val() 
 {
   switch (item_result_type) {
@@ -671,65 +666,24 @@ void Item::init_make_field(Send_field *tmp_field,
     tmp_field->flags |= UNSIGNED_FLAG;
 }
 
+void Item::make_field(Send_field *tmp_field)
+{
+  init_make_field(tmp_field, field_type());
+}
+
+enum_field_types Item::field_type() const
+{
+  return ((result_type() == STRING_RESULT) ? FIELD_TYPE_VAR_STRING :
+	  (result_type() == INT_RESULT) ? FIELD_TYPE_LONGLONG :
+	  FIELD_TYPE_DOUBLE);
+}
+
 /* ARGSUSED */
 void Item_field::make_field(Send_field *tmp_field)
 {
   field->make_field(tmp_field);
   if (name)
     tmp_field->col_name=name;			// Use user supplied name
-}
-
-void Item_int::make_field(Send_field *tmp_field)
-{
-  init_make_field(tmp_field,FIELD_TYPE_LONGLONG);
-}
-
-void Item_uint::make_field(Send_field *tmp_field)
-{
-  init_make_field(tmp_field,FIELD_TYPE_LONGLONG);
-  tmp_field->flags|= UNSIGNED_FLAG;
-  unsigned_flag=1;
-}
-
-void Item_real::make_field(Send_field *tmp_field)
-{
-  init_make_field(tmp_field,FIELD_TYPE_DOUBLE);
-}
-
-void Item_string::make_field(Send_field *tmp_field)
-{
-  init_make_field(tmp_field,FIELD_TYPE_STRING);
-}
-
-void Item_datetime::make_field(Send_field *tmp_field)
-{
-  init_make_field(tmp_field,FIELD_TYPE_DATETIME);
-}
-
-
-void Item_null::make_field(Send_field *tmp_field)
-{
-  init_make_field(tmp_field,FIELD_TYPE_NULL);
-  tmp_field->length=4;
-}
-
-
-void Item_func::make_field(Send_field *tmp_field)
-{
-  init_make_field(tmp_field, ((result_type() == STRING_RESULT) ?
-			      FIELD_TYPE_VAR_STRING :
-			      (result_type() == INT_RESULT) ?
-			      FIELD_TYPE_LONGLONG : FIELD_TYPE_DOUBLE));
-}
-
-void Item_avg_field::make_field(Send_field *tmp_field)
-{
-  init_make_field(tmp_field,FIELD_TYPE_DOUBLE);
-}
-
-void Item_variance_field::make_field(Send_field *tmp_field)
-{
-  init_make_field(tmp_field,FIELD_TYPE_DOUBLE);
 }
 
 /*
@@ -938,30 +892,118 @@ int Item_varbinary::save_in_field(Field *field, bool no_conversions)
 }
 
 
-void Item_varbinary::make_field(Send_field *tmp_field)
+/*
+  Pack data in buffer for sending
+*/
+
+bool Item_null::send(Protocol *protocol, String *packet)
 {
-  init_make_field(tmp_field,FIELD_TYPE_STRING);
+  return protocol->store_null();
 }
 
 /*
-** pack data in buffer for sending
+  This is only called from items that is not of type item_field
 */
 
-bool Item::send(THD *thd, String *packet)
+bool Item::send(Protocol *protocol, String *buffer)
 {
-  char buff[MAX_FIELD_WIDTH];
-  CONVERT *convert;
-  String s(buff,sizeof(buff),packet->charset()),*res;
-  if (!(res=val_str(&s)))
-    return net_store_null(packet);
-  if ((convert=thd->variables.convert_set))
-    return convert->store(packet,res->ptr(),res->length());
-  return net_store_data(packet,res->ptr(),res->length());
+  bool result;
+  enum_field_types type;
+  LINT_INIT(result);
+
+  switch ((type=field_type())) {
+  default:
+  case MYSQL_TYPE_NULL:
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_SET:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_GEOMETRY:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_VAR_STRING:
+  {
+    String *res;
+    if ((res=val_str(buffer)))
+      result= protocol->store(res->ptr(),res->length());
+    break;
+  }
+  case MYSQL_TYPE_TINY:
+  {
+    longlong nr;
+    nr= val_int();
+    if (!null_value)
+      result= protocol->store_tiny(nr);
+    break;
+  }
+  case MYSQL_TYPE_SHORT:
+  {
+    longlong nr;
+    nr= val_int();
+    if (!null_value)
+      result= protocol->store_short(nr);
+    break;
+  }
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONG:
+  {
+    longlong nr;
+    nr= val_int();
+    if (!null_value)
+      result= protocol->store_long(nr);
+    break;
+  }
+  case MYSQL_TYPE_LONGLONG:
+  {
+    longlong nr;
+    nr= val_int();
+    if (!null_value)
+      result= protocol->store_longlong(nr, unsigned_flag);
+    break;
+  }
+  case MYSQL_TYPE_DOUBLE:
+  {
+    double nr;
+    nr= val();
+    if (!null_value)
+      result= protocol->store(nr, decimals, buffer);
+    break;
+  }
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_TIMESTAMP:
+  {
+    TIME tm;
+    get_date(&tm, 1);
+    if (!null_value)
+    {
+      if (type == MYSQL_TYPE_DATE)
+	return protocol->store_date(&tm);
+      else
+	result= protocol->store(&tm);
+    }
+    break;
+  }
+  case MYSQL_TYPE_TIME:
+  {
+    TIME tm;
+    get_time(&tm);
+    if (!null_value)
+      result= protocol->store_time(&tm);
+    break;
+  }
+  }
+  if (null_value)
+    result= protocol->store_null();
+  return result;
 }
 
-bool Item_null::send(THD *thd, String *packet)
+
+bool Item_field::send(Protocol *protocol, String *buffer)
 {
-  return net_store_null(packet);
+  return protocol->store(result_field);
 }
 
 /*

@@ -560,7 +560,7 @@ select * from t6;
 a
 1
 2
-drop table if exists t1, t2, t3, t4, t5, t6;
+drop table if exists t6, t3, t1, t2, t4, t5;
 DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (
 fileset_id tinyint(3) unsigned NOT NULL default '0',
@@ -595,4 +595,4 @@ EXPLAIN SELECT * FROM t2 WHERE fileset_id = 2
 AND file_code = '0000000115' LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	const	PRIMARY,files	PRIMARY	33	const,const	1	
-DROP TABLE IF EXISTS t1, t2;
+DROP TABLE IF EXISTS t2, t1;

@@ -50,14 +50,12 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 			       const char *fmt, va_list args)
 {
   THD* thd = (THD*)param->thd;
-  String* packet = &thd->packet;
-  uint length;
+  Protocol *protocol= thd->protocol;
+  uint length, msg_length;
   char msgbuf[MI_MAX_MSG_BUF];
   char name[NAME_LEN*2+2];
-  packet->length(0);
 
-  msgbuf[0] = 0;		// healthy paranoia ?
-  my_vsnprintf(msgbuf, sizeof(msgbuf), fmt, args);
+  msg_length= my_vsnprintf(msgbuf, sizeof(msgbuf), fmt, args);
   msgbuf[sizeof(msgbuf) - 1] = 0; // healthy paranoia
 
   DBUG_PRINT(msg_type,("message: %s",msgbuf));
@@ -67,19 +65,20 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
     sql_print_error(msgbuf);
     return;
   }
-  if (param->testflag & (T_CREATE_MISSING_KEYS | T_SAFE_REPAIR | T_AUTO_REPAIR))
+  if (param->testflag & (T_CREATE_MISSING_KEYS | T_SAFE_REPAIR |
+			 T_AUTO_REPAIR))
   {
     my_message(ER_NOT_KEYFILE,msgbuf,MYF(MY_WME));
     return;
   }
   length=(uint) (strxmov(name, param->db_name,".",param->table_name,NullS) -
 		 name);
-  net_store_data(packet, name, length);
-  net_store_data(packet, param->op_name);
-  net_store_data(packet, msg_type);
-
-  net_store_data(packet, msgbuf);
-  if (my_net_write(&thd->net, (char*)thd->packet.ptr(), thd->packet.length()))
+  protocol->prepare_for_resend();
+  protocol->store(name, length);
+  protocol->store(param->op_name);
+  protocol->store(msg_type);
+  protocol->store(msgbuf, msg_length);
+  if (protocol->write())
     sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
 		    msgbuf);
   return;
