@@ -24,17 +24,15 @@
 
 	/* Set variable that we can't break */
 
+#if !defined(THREAD)
 void dont_break(void)
 {
-#if !defined(THREAD)
   my_dont_interrupt=1;
-#endif
   return;
 } /* dont_break */
 
 void allow_break(void)
 {
-#if !defined(THREAD)
   {
     reg1 int index;
 
@@ -54,8 +52,8 @@ void allow_break(void)
       _my_signals=0;
     }
   }
-#endif
 } /* dont_break */
+#endif
 
 	/* Set old status */
 
