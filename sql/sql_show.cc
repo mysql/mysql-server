@@ -2979,14 +2979,6 @@ static int get_schema_key_column_usage_record(THD *thd,
                                (longlong) f_idx);
         table->field[8]->store((longlong) f_idx);
         table->field[8]->set_notnull();
-        table->field[9]->store(f_key_info->referenced_db->str,
-                               f_key_info->referenced_db->length, cs);
-        table->field[9]->set_notnull();
-        table->field[10]->store(f_key_info->referenced_table->str,
-                               f_key_info->referenced_table->length, cs);
-        table->field[10]->set_notnull();
-        table->field[11]->store(r_info->str, r_info->length, cs);
-        table->field[11]->set_notnull();
         table->file->write_row(table->record[0]);
       }
     }
@@ -3602,9 +3594,6 @@ ST_FIELD_INFO key_column_usage_fields_info[]=
   {"COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ORDINAL_POSITION", 10 ,MYSQL_TYPE_LONG, 0, 0, 0},
   {"POSITION_IN_UNIQUE_CONSTRAINT", 10 ,MYSQL_TYPE_LONG, 0, 1, 0},
-  {"REFERENCED_TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"REFERENCED_TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"REFERENCED_COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
