@@ -42165,6 +42165,8 @@ Updated the documentation about @code{GEMINI} tables.
 Fixed thread-hang-bug in @code{INSERT DELAYED} when inserting
 @code{NULL} into an @code{AUTO_INCREMENT} column.
 @item
+Fixed thread-hang bug in @code{CHECK TABLE} / @code{REPAIR TABLE}.
+@item
 @code{REPLACE} will not replace a row that conflicts with an
 @code{auto_increment} generated key.
 @item
