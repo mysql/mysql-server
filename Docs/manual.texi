@@ -46916,6 +46916,10 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.51
 @itemize @bullet
 @item
+Removed BDB documentation.
+@item
+Fixed mit-pthreads to compile with glibc 2.2 (needed for @code{make dist}).
+@item
 Fixed the @code{FLOAT(X+1,X)} is not converted to @code{FLOAT(X+2,X)}.
 (This also affected @code{DECIMAL}, @code{DOUBLE} and @code{REAL} types)
 @item
@@ -46929,7 +46933,8 @@ Fixed that underflowed decimal fields is not zero filled.
 If we get an overflow when inserting @code{'+11111'} for
 @code{decimal(5,0) unsigned} columns, we will just drop the sign.
 @item
-Fixed bug with @code{ISNULL(expression_which_cannot_be_null)}.
+Fixed optimization bug with @code{ISNULL(expression_which_cannot_be_null)} and
+@code{ISNULL(constant_expression)}.
 @item
 Fixed host lookup bug in the glibc library that we used with the 3.23.50
 Linux-x86 binaries.

@@ -1211,7 +1211,7 @@ longlong Item_func_isnull::val_int()
     This has to be here because of the test in update_used_tables().
   */
   if (!used_tables_cache)
-    return 0;
+    return cached_value;
   (void) args[0]->val();
   return (args[0]->null_value) ? 1 : 0;
 }
