@@ -361,8 +361,8 @@ CPCD::Process::start() {
     switch(pid = fork()) {
     case 0: /* Child */
       
+      writePid(getpid());
       if(runas(m_runas.c_str()) == 0){
-	writePid(getpid());
 	do_exec();
       }
       _exit(1);
@@ -385,15 +385,14 @@ CPCD::Process::start() {
      */
     switch(fork()) {
     case 0: /* Child */
-      if(runas(m_runas.c_str()) != 0){
-	writePid(-1);
-	_exit(1);
-      }
       signal(SIGCHLD, SIG_IGN);
       pid_t pid;
       switch(pid = fork()) {
       case 0: /* Child */
 	writePid(getpid());
+	if(runas(m_runas.c_str()) != 0){
+	  _exit(1);
+	}
 	setsid();
 	do_exec();
 	_exit(1);

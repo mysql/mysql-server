@@ -58,7 +58,7 @@ ConsoleLogHandler::writeMessage(const char* pMsg)
 void 
 ConsoleLogHandler::writeFooter()
 {
-  ndbout << getDefaultFooter();
+  ndbout << getDefaultFooter() << flush;
 }
 
   

@@ -1870,6 +1870,7 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   }
 
   releaseSections(signal);
+  transPtr.p->noOfRetries = 3;
   runTransaction(signal, transPtr);
 }
 
@@ -2287,6 +2288,21 @@ DbUtil::execTCROLLBACKREP(Signal* signal){
   ndbout << "Transaction error (code: " << errCode << ")" << endl;
 #endif
  
+  if(transPtr.p->noOfRetries > 0){
+    transPtr.p->noOfRetries--;
+    switch(errCode){
+    case 266:
+    case 410:
+    case 1204:
+#if 0
+      ndbout_c("errCode: %d noOfRetries: %d -> retry", 
+	       errCode, transPtr.p->noOfRetries);
+#endif
+      runTransaction(signal, transPtr);
+      return;
+    }
+  }
+
   transPtr.p->errorCode = errCode;
   finishTransaction(signal, transPtr);
 }

@@ -69,7 +69,6 @@ int create_index_on_pk(Ndb* pNdb, const char* tabName){
   } else {
     ndbout << "OK!" << endl;
   }
-  delete tab;
   return result;
 }
 

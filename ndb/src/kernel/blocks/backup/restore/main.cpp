@@ -20,6 +20,7 @@
 #include <NdbSleep.h>
 #include <Vector.hpp>
 #include <ndb_limits.h>
+#include <NdbTCP.h>
 #ifdef USE_MYSQL
 #include <mysql.h>
 #endif
@@ -607,15 +608,20 @@ operator<<(NdbOut& ndbout, const AttributeS& attr){
       } // switch size
       break;
     case (String):
-      if (desc.size == 8) 
-      {
-	ndbout << data.string_value;
-	j = desc.arraySize;
+      if (desc.size == 8){ 
+	NdbDictionary::Column::Type type = desc.m_table->m_dictTable->getColumn(desc.attrId)->getType();
+	if(type == NdbDictionary::Column::Varchar){
+    	  short len = ntohs(data.u_int16_value[0]);
+  	  ndbout.print("%.*s", len, (data.string_value+2));
+  	} else {
+    	  ndbout << data.string_value;
+	}
       } // if
       else 
       {
 	ndbout << "String sz != 8 - this is something wrong??" << endl;
       }
+      j = desc.arraySize;
       break;
     case (Float):
       // Not yet supported to print float
@@ -642,7 +648,6 @@ operator<<(NdbOut& ndbout, const TupleS& tuple)
   {
     const AttributeS * attr = tuple[i];
     debug << i << " " << attr->Desc->name;
-    
     ndbout << (* attr);
     
     if (i != (tuple.getNoOfAttributes() - 1))
@@ -792,7 +797,6 @@ static void restoreCallback(int result,            // Result for transaction
   
 } // restoreCallback
 #endif
-
 
 
 

@@ -349,7 +349,7 @@ int populate(Ndb * myNdb, int data, async_callback_t * cbData)
   NdbOperation*   myNdbOperation;       // For operations
 
   async_callback_t * cb;
-  int retries;
+  int retries = 0;
   int current = 0;
   for(int i=0; i<1024; i++)
   {

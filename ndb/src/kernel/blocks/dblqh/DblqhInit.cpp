@@ -56,7 +56,6 @@ void Dblqh::initData()
   logFileOperationRecord = 0;
   logPageRecord = 0;
   pageRefRecord = 0;
-  scanRecord = 0;
   tablerec = 0;
   tcConnectionrec = 0;
   tcNodeFailRecord = 0;
@@ -127,9 +126,9 @@ void Dblqh::initRecords()
 					      sizeof(PageRefRecord),
 					      cpageRefFileSize);
 
-  scanRecord = (ScanRecord*)allocRecord("ScanRecord",
-					sizeof(ScanRecord),
-					cscanrecFileSize);
+  cscanNoFreeRec = cscanrecFileSize;
+  c_scanRecordPool.setSize(cscanrecFileSize);
+  c_scanTakeOverHash.setSize(64);
 
   tablerec = (Tablerec*)allocRecord("Tablerec",
 				    sizeof(Tablerec), 
@@ -172,7 +171,8 @@ void Dblqh::initRecords()
 
 Dblqh::Dblqh(const class Configuration & conf):
   SimulatedBlock(DBLQH, conf),
-  m_commitAckMarkerHash(m_commitAckMarkerPool)
+  m_commitAckMarkerHash(m_commitAckMarkerPool),
+  c_scanTakeOverHash(c_scanRecordPool)
 {
   BLOCK_CONSTRUCTOR(Dblqh);
 
@@ -391,10 +391,6 @@ Dblqh::~Dblqh()
 		sizeof(PageRefRecord),
 		cpageRefFileSize);
   
-  deallocRecord((void**)&scanRecord,
-		"ScanRecord",
-		sizeof(ScanRecord),
-		cscanrecFileSize);
 
   deallocRecord((void**)&tablerec,
 		"Tablerec",

@@ -54,6 +54,7 @@ public:
   static Uint32 getReadCommittedFlag(const Uint32 & requestInfo);
   static Uint32 getRangeScanFlag(const Uint32 & requestInfo);
   static Uint32 getAttrLen(const Uint32 & requestInfo);
+  static Uint32 getScanPrio(const Uint32 & requestInfo);
   
   static void setConcurrency(Uint32 & requestInfo, Uint32 concurrency);
   static void setLockMode(Uint32 & requestInfo, Uint32 lockMode);
@@ -62,6 +63,7 @@ public:
   static void setReadCommittedFlag(Uint32 & requestInfo, Uint32 readCommitted);
   static void setRangeScanFlag(Uint32 & requestInfo, Uint32 rangeScan);
   static void setAttrLen(Uint32 & requestInfo, Uint32 attrLen);
+  static void setScanPrio(Uint32& requestInfo, Uint32 prio);
 };
 
 class KeyInfo20 {
@@ -192,10 +194,11 @@ public:
  * k = Keyinfo               - 1  Bit 8
  * r = read committed        - 1  Bit 9
  * x = range scan            - 1  Bit 6
+ * p = Scan prio             - 4  Bits (12-15) -> max 15
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- * ccccclxhkr      aaaaaaaaaaaaaaaa 
+ * ccccclxhkr  ppppaaaaaaaaaaaaaaaa 
  */
 #define SF_CONCURRENCY_SHIFT (0)
 #define SF_CONCURRENCY_MASK  (31)
@@ -210,6 +213,9 @@ public:
 
 #define SF_ATTR_LEN_SHIFT    (16)
 #define SF_ATTR_LEN_MASK     (65535)
+
+#define SF_PRIO_SHIFT 12
+#define SF_PRIO_MASK 15
 
 inline 
 Uint32
@@ -237,20 +243,33 @@ ScanFragReq::getKeyinfoFlag(const Uint32 & requestInfo){
 
 inline
 Uint32
-ScanFragReq::getReadCommittedFlag(const Uint32 & requestInfo){
-  return (requestInfo >> SF_READ_COMMITTED_SHIFT) & 1;
+ScanFragReq::getRangeScanFlag(const Uint32 & requestInfo){
+  return (requestInfo >> SF_RANGE_SCAN_SHIFT) & 1;
 }
 
 inline
 Uint32
-ScanFragReq::getRangeScanFlag(const Uint32 & requestInfo){
-  return (requestInfo >> SF_RANGE_SCAN_SHIFT) & 1;
+ScanFragReq::getReadCommittedFlag(const Uint32 & requestInfo){
+  return (requestInfo >> SF_READ_COMMITTED_SHIFT) & 1;
 }
 
 inline 
 Uint32
 ScanFragReq::getAttrLen(const Uint32 & requestInfo){
   return (requestInfo >> SF_ATTR_LEN_SHIFT) & SF_ATTR_LEN_MASK;
+}
+
+inline
+Uint32
+ScanFragReq::getScanPrio(const Uint32 & requestInfo){
+  return (requestInfo >> SF_PRIO_SHIFT) & SF_PRIO_MASK;
+}
+
+inline
+void
+ScanFragReq::setScanPrio(UintR & requestInfo, UintR val){
+  ASSERT_MAX(val, SF_PRIO_MASK, "ScanFragReq::setScanPrio");
+  requestInfo |= (val << SF_PRIO_SHIFT);
 }
 
 inline

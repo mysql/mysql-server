@@ -3,12 +3,12 @@
 # Defines
 SHELL       := /bin/sh
 
-C++         := g++$(GCC_VERSION)
+C++         := gcc$(GCC_VERSION)
 CC          := gcc$(GCC_VERSION)
 AR_RCS      := $(PURE) ar rcs 
 SO          := gcc$(GCC_VERSION) -shared -lpthread -o
 
-MAKEDEPEND  := g++$(GCC_VERSION) -M
+MAKEDEPEND  := gcc$(GCC_VERSION) -M
 PIC         := -fPIC
 
 RPCGENFLAGS := -M -C -N
@@ -53,4 +53,4 @@ LINK.cc = $(PURE) $(CC) $(CCFLAGS) $(LDFLAGS)
 
 LINK.c = $(PURE) $(CC) $(CFLAGS) $(LDFLAGS)
 
-LDFLAGS_LAST = -lpthread -lrt -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic
+LDFLAGS_LAST = -lpthread -lrt $(NDB_TOP)/src/common/portlib/gcc.cpp

@@ -62,6 +62,7 @@ public:
    * 
    */
   bool getInitialStart() const;
+  void setInitialStart(bool val);
   bool getDaemonMode() const;
   
 private:
