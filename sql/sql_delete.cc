@@ -140,9 +140,11 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   deleted=0L;
   init_ftfuncs(thd, &thd->lex.select_lex, 1);
   thd->proc_info="updating";
-  while (!(error=info.read_record(&info)) && !thd->killed)
+  while (!(error=info.read_record(&info)) && !thd->killed &&
+	 !thd->net.report_error)
   {
-    if (!(select && select->skipp_record()))
+    // thd->net.report_error is tested to disallow delete row on error
+    if (!(select && select->skipp_record())&& !thd->net.report_error )
     {
       if (!(error=table->file->delete_row(table->record[0])))
       {
@@ -205,7 +207,7 @@ cleanup:
     thd->lock=0;
   }
   delete select;
-  if (error >= 0)				// Fatal error
+  if (error >= 0 || thd->net.report_error)
     send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN: 0);
   else
   {

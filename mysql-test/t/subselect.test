@@ -247,6 +247,8 @@ insert into t2 values (1, 21),(2, 22),(3, 23);
 select * from t1;
 -- error 1093
 update t1 set b= (select b from t1);
+-- error 1240
+update t1 set b= (select b from t2);
 update t1 set b= (select b from t2 where t1.a = t2.a);
 select * from t1;
 drop table t1, t2;
@@ -260,6 +262,8 @@ select * from t1;
 select * from t1 where b = (select b from t2 where t1.a = t2.a);
 -- error 1093
 delete from t1 where b = (select b from t1);
+-- error 1240
+delete from t1 where b = (select b from t2);
 delete from t1 where b = (select b from t2 where t1.a = t2.a);
 select * from t1;
 drop table t1, t2;
@@ -276,6 +280,8 @@ select * from t11;
 select * from t12;
 -- error 1093
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t12 where t11.a = t12.a);
+-- error 1240
+delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t2);
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t2 where t11.a = t2.a);
 select * from t11;
 select * from t12;
@@ -284,9 +290,13 @@ drop table t11, t12, t2;
 #insert with subselects
 CREATE TABLE t1 (x int);
 create table t2 (a int);
+create table t3 (a int);
 insert into t2 values (1);
+insert into t3 values (1),(2);
 -- error 1093
 INSERT INTO t1 (x) VALUES ((SELECT x FROM t1));
+-- error 1240
+INSERT INTO t1 (x) VALUES ((SELECT a FROM t3));
 INSERT INTO t1 (x) VALUES ((SELECT a FROM t2));
 select * from t1;
 insert into t2 values (1);
@@ -300,15 +310,19 @@ INSERT INTO t1 (x) select (SELECT SUM(x)+2 FROM t1) FROM t2;
 INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
 -- sleep 1
 select * from t1;
-drop table t1, t2;
+drop table t1, t2, t3;
 
 #replace with subselects
 CREATE TABLE t1 (x int not null, y int, primary key (x));
 create table t2 (a int);
+create table t3 (a int);
 insert into t2 values (1);
+insert into t3 values (1),(2);
 select * from t1;
 -- error 1093
 replace into t1 (x, y) VALUES ((SELECT x FROM t1), (SELECT a+1 FROM t2));
+-- error 1240
+replace into t1 (x, y) VALUES ((SELECT a FROM t3), (SELECT a+1 FROM t2));
 replace into t1 (x, y) VALUES ((SELECT a FROM t2), (SELECT a+1 FROM t2));
 select * from t1;
 replace into t1 (x, y) VALUES ((SELECT a FROM t2), (SELECT a+2 FROM t2));
@@ -321,7 +335,7 @@ replace DELAYED into t1 (x, y) VALUES ((SELECT a+3 FROM t2), (SELECT a+1 FROM t2
 select * from t1;
 replace LOW_PRIORITY into t1 (x, y) VALUES ((SELECT a+1 FROM t2), (SELECT a FROM t2));
 select * from t1;
-drop table t1, t2;
+drop table t1, t2, t3;
 
 -- error 1096
 SELECT * FROM (SELECT 1) WHERE 1 IN (SELECT *);
@@ -339,4 +353,8 @@ SELECT * FROM t WHERE id IN (SELECT 5 UNION SELECT 2);
 -- error 1093
 INSERT INTO t VALUES ((SELECT * FROM t));
 SELECT * FROM t;
+CREATE TABLE t1 (id int(11) default NULL, KEY id (id)) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t1 values (1),(1);
+-- error 1240
+UPDATE t SET id=(SELECT * FROM t1);
 drop table t;
