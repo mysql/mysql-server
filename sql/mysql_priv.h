@@ -94,6 +94,9 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define ACL_ALLOC_BLOCK_SIZE		1024
 #define UDF_ALLOC_BLOCK_SIZE		1024
 #define TABLE_ALLOC_BLOCK_SIZE		1024
+#define BDB_LOG_ALLOC_BLOCK_SIZE	1024
+#define WARN_ALLOC_BLOCK_SIZE		2048
+#define WARN_ALLOC_PREALLOC_SIZE	1024
 
 /*
   The following parameters is to decide when to use an extra cache to

@@ -1137,8 +1137,8 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 
 /* Read all rows (fields or data) from server */
 
-MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
-			  unsigned int fields)
+MYSQL_DATA * STDCALL cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
+				   unsigned int fields)
 {
   uint	field;
   ulong pkt_len;

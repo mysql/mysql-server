@@ -33,7 +33,9 @@
 #include "md5.h"
 #include "sha1.h"
 #include "my_aes.h"
+C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
+C_MODE_END
 
 String my_empty_string("",default_charset_info);
 

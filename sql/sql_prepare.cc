@@ -888,12 +888,15 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
 {
   MEM_ROOT thd_root= thd->mem_root;
   PREP_STMT stmt;
+  SELECT_LEX *sl;
   DBUG_ENTER("mysql_stmt_prepare");
 
   bzero((char*) &stmt, sizeof(stmt));
   
   stmt.stmt_id= ++thd->current_stmt_id;
-  init_sql_alloc(&stmt.mem_root, 8192, 8192);
+  init_sql_alloc(&stmt.mem_root,
+		 thd->variables.query_alloc_block_size,
+		 thd->variables.query_prealloc_size);
   
   stmt.thd= thd;
   stmt.thd->mem_root= stmt.mem_root;
@@ -908,7 +911,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
     my_pthread_setprio(pthread_self(),WAIT_PRIOR);
 
   // save WHERE clause pointers to avoid damaging they by optimisation
-  for (SELECT_LEX *sl= thd->lex.all_selects_list;
+  for (sl= thd->lex.all_selects_list;
        sl;
        sl= sl->next_select_in_list())
   {
@@ -943,8 +946,9 @@ err:
 
 void mysql_stmt_execute(THD *thd, char *packet)
 {
-  ulong stmt_id=     uint4korr(packet);
-  PREP_STMT	*stmt;
+  ulong stmt_id= uint4korr(packet);
+  PREP_STMT *stmt;
+  SELECT_LEX *sl;
   DBUG_ENTER("mysql_stmt_execute");
 
   if (!(stmt=find_prepared_statement(thd, stmt_id, "execute")))
@@ -963,11 +967,13 @@ void mysql_stmt_execute(THD *thd, char *packet)
   LEX thd_lex= thd->lex;
   thd->lex= stmt->lex;
   
-  for (SELECT_LEX *sl= stmt->lex.all_selects_list;
+  for (sl= stmt->lex.all_selects_list;
        sl;
        sl= sl->next_select_in_list())
   {
-    // copy WHERE clause pointers to avoid damaging they by optimisation
+    /*
+      Copy WHERE clause pointers to avoid damaging they by optimisation
+    */
     if (sl->prep_where)
       sl->where= sl->prep_where->copy_andor_structure(thd);
     DBUG_ASSERT(sl->join == 0);
