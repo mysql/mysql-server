@@ -6885,6 +6885,7 @@ keyword:
 	| CLIENT_SYM		{}
 	| CLOSE_SYM		{}
 	| COLLATION_SYM		{}
+        | COLUMNS               {}
 	| COMMENT_SYM		{}
 	| COMMITTED_SYM		{}
 	| COMMIT_SYM		{}
@@ -7006,6 +7007,7 @@ keyword:
 	| POLYGON		{}
         | PREPARE_SYM           {}
 	| PREV_SYM		{}
+        | PRIVILEGES            {}
 	| PROCESS		{}
 	| PROCESSLIST_SYM	{}
 	| QUARTER_SYM		{}
@@ -7057,6 +7059,7 @@ keyword:
 	| SUBDATE_SYM		{}
 	| SUBJECT_SYM		{}
 	| SUPER_SYM		{}
+        | TABLES                {}
 	| TABLESPACE		{}
 	| TEMPORARY		{}
 	| TEMPTABLE_SYM		{}
