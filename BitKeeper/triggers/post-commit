@@ -1,14 +1,21 @@
 #!/bin/sh
 
-           shift
-           REPO=`bk gethost`:`pwd`
-           TO=dev@mysql.com
-           if [ -f BitKeeper/etc/pushed -a "$BK_COMMIT" = OK ]
-           then (
-                echo ${USER}@"$@"
-                echo ""
-                bk changes - < BitKeeper/etc/pushed
-                ) | mail -s "Outgoing from $REPO" $TO
-           else
-                echo ${USER}@"$@"| mail -s "Outgoing from $REPO = $BK_OUTGOING" $TO
-           fi
+shift
+TO=dev@mysql.com
+FROM=$USER@mysql.com
+
+if [ "$BK_COMMIT" = OK ]
+then 
+ echo "Commit successful, notifying developers at $TO"
+ (
+   cat <<EOF
+From: $FROM
+To: $TO
+Subject: bk commit
+
+EOF
+  bk changes -v -r+
+ ) | /usr/sbin/sendmail -t
+else
+ echo "commit failed because '$BK_COMMIT', sorry life is hard..." 
+fi
