@@ -2223,7 +2223,8 @@ mysql_execute_command(void)
     }
     if (check_db_used(thd,tables) || end_active_trans(thd))
       goto error;
-    if (grant_option && check_grant(thd,SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL,tables))
+    if (check_table_access(thd, SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL , tables) 
+	|| (grant_option && check_grant(thd,SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL,tables)))
       goto error;
     thd->in_lock_tables=1;
     thd->options|= OPTION_TABLE_LOCK;
