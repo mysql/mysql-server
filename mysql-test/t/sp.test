@@ -3330,8 +3330,32 @@ call bug8849()|
 drop procedure bug8849|
 drop tables t3,t4,t5|
 
+#
+# BUG#8937: Stored Procedure: AVG() works as SUM() in SELECT ... INTO statement
+#
+--disable_warnings
+drop procedure if exists bug8937|
+--enable_warnings
+create procedure bug8937()
+begin
+  declare s,x,y,z int;
+  declare a float;
 
-# Add bug above this line. Use existing tables t1 and t2 when
+  select sum(data),avg(data),min(data),max(data) into s,x,y,z from t1;
+  select s,x,y,z;
+  select avg(data) into a from t1;
+  select a;
+end|
+
+delete from t1|
+insert into t1 (data) values (1), (2), (3), (4), (6)|
+call bug8937()|
+
+drop procedure bug8937|
+delete from t1|
+
+
+# Add bugs above this line. Use existing tables t1 and t2 when
 # practical, or create table t3, t3 etc temporarily (and drop them).
 delimiter ;|
 drop table t1,t2;
