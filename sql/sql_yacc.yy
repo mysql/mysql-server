@@ -5014,5 +5014,5 @@ subselect_end:
 	')'
 	{
 	  LEX *lex=Lex;
-	  lex->current_select = lex->current_select->outer_select();
+	  lex->current_select = lex->current_select->return_after_parsing();
 	};
