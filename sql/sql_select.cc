@@ -1692,10 +1692,6 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 err:
   if (free_join)
   {
-    JOIN *curr_join= (join->need_tmp&&join->tmp_join?
-		      (join->tmp_join->error=join->error,join->tmp_join):
-		      join);
-
     thd->proc_info="end";
     err= join->cleanup();
     if (thd->net.report_error)

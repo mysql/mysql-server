@@ -636,7 +636,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <simple_string>
 	remember_name remember_end opt_ident opt_db text_or_password
-	opt_escape
+	opt_escape opt_constraint
 
 %type <string>
 	text_string opt_gconcat_separator
@@ -670,7 +670,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	ident_list ident_list_arg
 
 %type <key_type>
-	key_type opt_unique_or_fulltext
+	key_type opt_unique_or_fulltext constraint_key_type
 
 %type <key_alg>
 	key_alg opt_btree_or_rtree
@@ -2144,6 +2144,13 @@ key_def:
 	    lex->key_list.push_back(new Key($1,$2, $3, lex->col_list));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
+	| opt_constraint constraint_key_type opt_ident key_alg '(' key_list ')'
+	  {
+	    LEX *lex=Lex;
+	    const char *key_name= $3 ? $3:$1;
+	    lex->key_list.push_back(new Key($2, key_name, $4, lex->col_list));
+	    lex->col_list.empty();		/* Alloced by sql_alloc */
+	  }
 	| opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
 	  {
 	    LEX *lex=Lex;
@@ -2167,8 +2174,8 @@ check_constraint:
 	;
 
 opt_constraint:
-	/* empty */
-	| CONSTRAINT opt_ident;
+	/* empty */		{ $$=(char*) 0; }
+	| CONSTRAINT opt_ident	{ $$=$2; };
 
 field_spec:
 	field_ident
@@ -2530,14 +2537,16 @@ delete_option:
 	| SET DEFAULT    { $$= (int) foreign_key::FK_OPTION_DEFAULT;  };
 
 key_type:
-	opt_constraint PRIMARY_SYM KEY_SYM  { $$= Key::PRIMARY; }
-	| key_or_index			    { $$= Key::MULTIPLE; }
+	key_or_index			    { $$= Key::MULTIPLE; }
 	| FULLTEXT_SYM			    { $$= Key::FULLTEXT; }
 	| FULLTEXT_SYM key_or_index	    { $$= Key::FULLTEXT; }
 	| SPATIAL_SYM			    { $$= Key::SPATIAL; }
-	| SPATIAL_SYM key_or_index	    { $$= Key::SPATIAL; }
-	| opt_constraint UNIQUE_SYM	    { $$= Key::UNIQUE; }
-	| opt_constraint UNIQUE_SYM key_or_index { $$= Key::UNIQUE; };
+	| SPATIAL_SYM key_or_index	    { $$= Key::SPATIAL; };
+
+constraint_key_type:
+	PRIMARY_SYM KEY_SYM  { $$= Key::PRIMARY; }
+	| UNIQUE_SYM	    { $$= Key::UNIQUE; }
+	| UNIQUE_SYM key_or_index { $$= Key::UNIQUE; };
 
 key_or_index:
 	KEY_SYM {}
