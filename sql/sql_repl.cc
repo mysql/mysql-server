@@ -27,11 +27,9 @@
 
 extern const char* any_db;
 
-#ifndef DBUG_OFF
 int max_binlog_dump_events = 0; // unlimited
 bool opt_sporadic_binlog_dump_fail = 0;
 static int binlog_dump_count = 0;
-#endif
 
 int check_binlog_magic(IO_CACHE* log, const char** errmsg)
 {
