@@ -1636,8 +1636,8 @@ end_with_setting_default_tz:
   /* If we have default time zone try to load it */
   if (default_tzname)
   {
-    String tzname(default_tzname, &my_charset_latin1);
-    if (!(global_system_variables.time_zone= my_tz_find(&tzname, tables)))
+    String tmp_tzname(default_tzname, &my_charset_latin1);
+    if (!(global_system_variables.time_zone= my_tz_find(&tmp_tzname, tables)))
     {
       sql_print_error("Fatal error: Illegal or unknown default time zone '%s'",
                       default_tzname);
