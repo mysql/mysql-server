@@ -187,7 +187,7 @@ else
   insert into test.t1 values ("h?", x);
 end case|
 
-create procedure sinisa()
+create procedure into_test()
 begin
   declare x char(16);
   declare y int;
@@ -273,7 +273,7 @@ call h(0);
 call h(1);
 call h(17);
 select * from t1;
-call sinisa();
+call into_test();
 select * from t1;
 delete from t1;
 
@@ -298,6 +298,6 @@ drop procedure e;
 drop procedure f;
 drop procedure g;
 drop procedure h;
-drop procedure sinisa;
+drop procedure into_test;
 
 drop table t1;
