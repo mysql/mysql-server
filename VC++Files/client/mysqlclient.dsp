@@ -430,10 +430,6 @@ SOURCE=..\mysys\safemalloc.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\select_test.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\mysys\sha1.c
 # End Source File
 # Begin Source File
