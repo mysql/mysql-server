@@ -95,27 +95,29 @@ inline int ignored_error_code(int err_code)
 
  ****************************************************************************/
 #ifndef MYSQL_CLIENT
-static void pretty_print_str(String* packet, char* str, int len)
+static char* pretty_print_str(char* packet, char* str, int len)
 {
   char* end = str + len;
-  packet->append('\'');
+  char* pos= packet;
+  *pos++= '\'';
   while (str < end)
   {
     char c;
     switch ((c=*str++)) {
-    case '\n': packet->append( "\\n"); break;
-    case '\r': packet->append( "\\r"); break;
-    case '\\': packet->append( "\\\\"); break;
-    case '\b': packet->append( "\\b"); break;
-    case '\t': packet->append( "\\t"); break;
-    case '\'': packet->append( "\\'"); break;
-    case 0   : packet->append( "\\0"); break;
+    case '\n': pos= strmov(pos, "\\n"); break;
+    case '\r': pos= strmov(pos, "\\r"); break;
+    case '\\': pos= strmov(pos, "\\\\"); break;
+    case '\b': pos= strmov(pos, "\\b"); break;
+    case '\t': pos= strmov(pos, "\\t"); break;
+    case '\'': pos= strmov(pos, "\\'"); break;
+    case 0   : pos= strmov(pos, "\\0"); break;
     default:
-      packet->append((char)c);
+      *pos++= (char)c;
       break;
     }
   }
-  packet->append('\'');
+  *pos++= '\'';
+  return pos;
 }
 #endif // !MYSQL_CLIENT
 
@@ -570,7 +572,7 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len,
     ev  = new Query_log_event(buf, event_len, old_format);
     break;
   case LOAD_EVENT:
-    ev = new Create_file_log_event(buf, event_len, old_format);
+    ev = new Load_log_event(buf, event_len, old_format);
     break;
   case NEW_LOAD_EVENT:
     ev = new Load_log_event(buf, event_len, old_format);
@@ -693,19 +695,24 @@ void Log_event::set_log_pos(MYSQL_LOG* log)
  ****************************************************************************/
 void Query_log_event::pack_info(Protocol *protocol)
 {
-  char buf[256];
-  String tmp(buf, sizeof(buf), log_cs);
-  tmp.length(0);
+  char *buf, *pos;
+  if (!(buf= my_malloc(9 + db_len + q_len, MYF(MY_WME))))
+    return;
+  pos= buf;    
   if (db && db_len)
   {
-   tmp.append("use `", 5);
-   tmp.append(db, db_len);
-   tmp.append("`; ", 3);
+    pos= strmov(buf, "use `");
+    memcpy(pos, db, db_len);
+    pos+= db_len;
+    pos= strmov(pos, "`; ");
   }
-
   if (query && q_len)
-    tmp.append(query, q_len);
-  protocol->store((char*) tmp.ptr(), tmp.length());
+  {
+    memcpy(pos, query, q_len);
+    pos+= q_len;
+  }
+  protocol->store(buf, pos-buf);
+  my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
 }
 #endif // !MYSQL_CLIENT
 
@@ -964,16 +971,12 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
 #ifndef MYSQL_CLIENT
 void Start_log_event::pack_info(Protocol *protocol)
 {
-  char buf1[256];
-  String tmp(buf1, sizeof(buf1), log_cs);
-  tmp.length(0);
-  char buf[22];
-
-  tmp.append("Server ver: ");
-  tmp.append(server_version);
-  tmp.append(", Binlog ver: ");
-  tmp.append(llstr(binlog_version, buf));
-  protocol->store(tmp.ptr(), tmp.length());
+  char buf[12 + ST_SERVER_VER_LEN + 14 + 22], *pos;
+  pos= strmov(buf, "Server ver: ");
+  pos= strmov(pos, server_version);
+  pos= strmov(pos, ", Binlog ver: ");
+  pos=int10_to_str(binlog_version, pos, 10);
+  protocol->store(buf, pos-buf);
 }
 #endif // !MYSQL_CLIENT
 
@@ -1075,78 +1078,105 @@ int Start_log_event::exec_event(struct st_relay_log_info* rli)
 #ifndef MYSQL_CLIENT
 void Load_log_event::pack_info(Protocol *protocol)
 {
-  char buf[256];
-  String tmp(buf, sizeof(buf), log_cs);
-  tmp.length(0);
+  char *buf, *pos;
+  uint buf_len;
+
+  buf_len= 
+    5 + db_len + 3 +                        // "use DB; "
+    18 + fname_len + 2 +                    // "LOAD DATA INFILE 'file''"
+    9 +                                     // " REPLACE or IGNORE "
+    11 + table_name_len +                   // "INTO TABLE table"
+    21 + sql_ex.field_term_len*4 + 2 +      // " FIELDS TERMINATED BY 'str'"
+    23 + sql_ex.enclosed_len*4 + 2 +        // " OPTIONALLY ENCLOSED BY 'str'"
+    12 + sql_ex.escaped_len*4 + 2 +         // " ESCAPED BY 'str'"
+    21 + sql_ex.line_term_len*4 + 2 +       // " FIELDS TERMINATED BY 'str'"
+    19 + sql_ex.line_start_len*4 + 2 +      // " LINES STARTING BY 'str'" 
+    15 + 22 +                               // " IGNORE xxx  LINES" 
+    3 + (num_fields-1)*2 + field_block_len; // " (field1, field2, ...)"
+
+  buf= my_malloc(buf_len, MYF(MY_WME));
+  if (!buf)
+    return;
+  pos= buf;
   if (db && db_len)
   {
-   tmp.append("use ");
-   tmp.append(db, db_len);
-   tmp.append("; ", 2);
+    pos= strmov(pos, "use `");
+    memcpy(pos, db, db_len);
+    pos+= db_len;  
+    pos= strmov(pos, "`; ");
   }
 
-  tmp.append("LOAD DATA INFILE '");
-  tmp.append(fname, fname_len);
-  tmp.append("' ", 2);
+  pos= strmov(pos, "LOAD DATA INFILE '");
+  memcpy(pos, fname, fname_len);
+  pos+= fname_len;
+  pos= strmov(pos, "' ");
+
   if (sql_ex.opt_flags && REPLACE_FLAG )
-    tmp.append(" REPLACE ");
+    pos= strmov(pos, " REPLACE ");
   else if (sql_ex.opt_flags && IGNORE_FLAG )
-    tmp.append(" IGNORE ");
-  
-  tmp.append("INTO TABLE ");
-  tmp.append(table_name);
+    pos= strmov(pos, " IGNORE ");
+
+  pos= strmov(pos ,"INTO TABLE ");
+  memcpy(pos, table_name, table_name_len);
+  pos+= table_name_len;
+
   if (sql_ex.field_term_len)
   {
-    tmp.append(" FIELDS TERMINATED BY ");
-    pretty_print_str(&tmp, sql_ex.field_term, sql_ex.field_term_len);
+    pos= strmov(pos, " FIELDS TERMINATED BY ");
+    pos= pretty_print_str(pos, sql_ex.field_term, sql_ex.field_term_len);
   }
 
   if (sql_ex.enclosed_len)
   {
     if (sql_ex.opt_flags && OPT_ENCLOSED_FLAG )
-      tmp.append(" OPTIONALLY ");
-    tmp.append( " ENCLOSED BY ");
-    pretty_print_str(&tmp, sql_ex.enclosed, sql_ex.enclosed_len);
+      pos= strmov(pos, " OPTIONALLY ");
+    pos= strmov(pos, " ENCLOSED BY ");
+    pos= pretty_print_str(pos, sql_ex.enclosed, sql_ex.enclosed_len);
   }
-     
+
   if (sql_ex.escaped_len)
   {
-    tmp.append( " ESCAPED BY ");
-    pretty_print_str(&tmp, sql_ex.escaped, sql_ex.escaped_len);
+    pos= strmov(pos, " ESCAPED BY ");
+    pos= pretty_print_str(pos, sql_ex.escaped, sql_ex.escaped_len);
   }
-     
+
   if (sql_ex.line_term_len)
   {
-    tmp.append(" LINES TERMINATED BY ");
-    pretty_print_str(&tmp, sql_ex.line_term, sql_ex.line_term_len);
+    pos= strmov(pos, " LINES TERMINATED BY ");
+    pos= pretty_print_str(pos, sql_ex.line_term, sql_ex.line_term_len);
   }
 
   if (sql_ex.line_start_len)
   {
-    tmp.append(" LINES STARTING BY ");
-    pretty_print_str(&tmp, sql_ex.line_start, sql_ex.line_start_len);
+    pos= strmov(pos, " LINES STARTING BY ");
+    pos= pretty_print_str(pos, sql_ex.line_start, sql_ex.line_start_len);
   }
-     
+
   if ((int)skip_lines > 0)
-    tmp.append( " IGNORE %ld LINES ", (long) skip_lines);
+  {
+    pos= strmov(pos, " IGNORE ");
+    pos= longlong10_to_str((long) skip_lines, pos, 10);
+    pos= strmov(pos," LINES ");    
+  }
 
   if (num_fields)
   {
     uint i;
     const char* field = fields;
-    tmp.append(" (");
+    pos= strmov(pos, " (");
     for (i = 0; i < num_fields; i++)
     {
       if (i)
-	tmp.append(" ,");
-      tmp.append( field);
-	  
+        pos= strmov(pos, " ,");
+      memcpy(pos, field, field_lens[i]);
+      pos+= field_lens[i];
       field += field_lens[i]  + 1;
     }
-    tmp.append(')');
+    *pos++= ')';
   }
 
-  protocol->store(tmp.ptr(), tmp.length());
+  protocol->store(buf, pos-buf);
+  my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
 }
 #endif // !MYSQL_CLIENT
 
@@ -1301,9 +1331,9 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
 				   bool old_format)
 {
   uint data_len;
+  uint header_len= old_format ? OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN;
   char* buf_end = (char*)buf + event_len;
-  const char* data_head = buf + ((old_format) ?
-				 OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN);
+  const char* data_head = buf + header_len;
   thread_id = uint4korr(data_head + L_THREAD_ID_OFFSET);
   exec_time = uint4korr(data_head + L_EXEC_TIME_OFFSET);
   skip_lines = uint4korr(data_head + L_SKIP_LINES_OFFSET);
@@ -1312,7 +1342,7 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   num_fields = uint4korr(data_head + L_NUM_FIELDS_OFFSET);
 	  
   int body_offset = ((buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
-		     LOAD_HEADER_LEN + OLD_HEADER_LEN :
+		     LOAD_HEADER_LEN + header_len :
 		     get_data_body_offset());
   
   if ((int) event_len < body_offset)
@@ -1606,15 +1636,18 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 #ifndef MYSQL_CLIENT
 void Rotate_log_event::pack_info(Protocol *protocol)
 {
-  char buf1[256], buf[22];
-  String tmp(buf1, sizeof(buf1), log_cs);
-  tmp.length(0);
-  tmp.append(new_log_ident, ident_len);
-  tmp.append(";pos=");
-  tmp.append(llstr(pos,buf));
+  char *buf, *b_pos;
+  if (!(buf= my_malloc(ident_len + 45, MYF(MY_WME))))
+    return;
+  b_pos= buf;
+  memcpy(buf, new_log_ident, ident_len);
+  b_pos+= ident_len;
+  b_pos= strmov(b_pos, ";pos=");
+  b_pos=int10_to_str(pos, b_pos, 10);
   if (flags & LOG_EVENT_FORCED_ROTATE_F)
-    tmp.append("; forced by master");
-  protocol->store(tmp.ptr(), tmp.length());
+    b_pos= strmov(b_pos ,"; forced by master");
+  protocol->store(buf, b_pos-buf);
+  my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
 }
 #endif // !MYSQL_CLIENT
 
@@ -1744,13 +1777,11 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
 #ifndef MYSQL_CLIENT
 void Intvar_log_event::pack_info(Protocol *protocol)
 {
-  char buf1[256], buf[22];
-  String tmp(buf1, sizeof(buf1), log_cs);
-  tmp.length(0);
-  tmp.append(get_var_type_name());
-  tmp.append('=');
-  tmp.append(llstr(val, buf));
-  protocol->store(tmp.ptr(), tmp.length());
+  char buf[64], *pos;
+  pos= strmov(buf, get_var_type_name());
+  *(pos++)='=';
+  pos=int10_to_str(val, pos, -10);
+  protocol->store(buf, pos-buf);
 }
 #endif // !MYSQL_CLIENT
 
@@ -1952,19 +1983,16 @@ int Rand_log_event::exec_event(struct st_relay_log_info* rli)
 #ifndef MYSQL_CLIENT
 void Slave_log_event::pack_info(Protocol *protocol)
 {
-  char buf1[256], buf[22], *end;
-  String tmp(buf1, sizeof(buf1), log_cs);
-  tmp.length(0);
-  tmp.append("host=");
-  tmp.append(master_host);
-  tmp.append(",port=");
-  end= int10_to_str((long) master_port, buf, 10);
-  tmp.append(buf, (uint32) (end-buf));
-  tmp.append(",log=");
-  tmp.append(master_log);
-  tmp.append(",pos=");
-  tmp.append(llstr(master_pos,buf));
-  protocol->store(tmp.ptr(), tmp.length());
+  char buf[256], *pos;
+  pos= strmov(buf, "host=");
+  pos= strnmov(pos, master_host, HOSTNAME_LENGTH);
+  pos= strmov(pos, ",port=");
+  pos= int10_to_str((long) master_port, pos, 10);
+  pos= strmov(pos, ",log=");
+  pos= strmov(pos, master_log);
+  pos= strmov(pos, ",pos=");
+  pos= int10_to_str(master_pos, pos, 10);
+  protocol->store(buf, pos-buf);
 }
 #endif // !MYSQL_CLIENT
 
@@ -2300,20 +2328,18 @@ void Create_file_log_event::print(FILE* file, bool short_form,
 #ifndef MYSQL_CLIENT
 void Create_file_log_event::pack_info(Protocol *protocol)
 {
-  char buf1[256],buf[22], *end;
-  String tmp(buf1, sizeof(buf1), log_cs);
-  tmp.length(0);
-  tmp.append("db=");
-  tmp.append(db, db_len);
-  tmp.append(";table=");
-  tmp.append(table_name, table_name_len);
-  tmp.append(";file_id=");
-  end= int10_to_str((long) file_id, buf, 10);
-  tmp.append(buf, (uint32) (end-buf));
-  tmp.append(";block_len=");
-  end= int10_to_str((long) block_len, buf, 10);
-  tmp.append(buf, (uint32) (end-buf));
-  protocol->store((char*) tmp.ptr(), tmp.length());
+  char buf[NAME_LEN*2 + 30 + 21*2], *pos;
+  pos= strmov(buf, "db=");
+  memcpy(pos, db, db_len);
+  pos+= db_len;
+  pos= strmov(pos, ";table=");
+  memcpy(pos, table_name, table_name_len);
+  pos+= table_name_len;
+  pos= strmov(pos, ";file_id=");
+  pos= int10_to_str((long) file_id, pos, 10);
+  pos= strmov(pos, ";block_len=");
+  pos= int10_to_str((long) block_len, pos, 10);
+  protocol->store(buf, pos-buf);
 }
 #endif // !MYSQL_CLIENT
 
