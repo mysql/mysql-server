@@ -22,6 +22,9 @@ insert delayed into t1 values (null,"c");
 insert delayed into t1 values (3,"d"),(null,"e");
 insert delayed into t1 values (3,"this will give an","error");
 ERROR 21S01: Column count doesn't match value count at row 1
+show status like 'not_flushed_delayed_rows';
+Variable_name	Value
+Not_flushed_delayed_rows	0
 select * from t1;
 a	b
 1	b
