@@ -156,6 +156,7 @@ version see the relevant distribution.
 General Information About MySQL
 
 * What-is::                     What is @strong{MySQL}?
+* What is MySQL AB::            
 * Manual-info::                 About this manual
 * History::                     History of @strong{MySQL}
 * MySQL-Books::                 Books about MySQL
@@ -574,7 +575,7 @@ Replication in MySQL
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
 
 Getting Maximum Performance from MySQL
 
@@ -1046,6 +1047,7 @@ Debugging a MySQL server
 
 @menu
 * What-is::                     What is @strong{MySQL}?
+* What is MySQL AB::            
 * Manual-info::                 About this manual
 * History::                     History of @strong{MySQL}
 * MySQL-Books::                 Books about MySQL
@@ -1142,8 +1144,13 @@ see @ref{General-SQL}. For books that focus more specifically on
 
 @cindex MySQL, defined
 @cindex MySQL, introduction
-@node What-is, Manual-info, Introduction, Introduction
+@node What-is, What is MySQL AB, Introduction, Introduction
 @section What Is MySQL
+
+@strong{MySQL}, the most popular Open Source SQL database, is provided
+by @strong{MySQL AB}.  @strong{MySQL AB} is a commercial company that
+builds is business providing services around the @code{MySQL} database.
+@xref{What is MySQL AB}.
 
 @table @asis
 
@@ -1207,6 +1214,10 @@ a client/server system that consists of a multi-threaded SQL server
 that supports different backends, several different client programs and
 libraries, administrative tools, and a programming interface.
 
+We also provide @strong{MySQL} as a multi-threaded library which you can
+link into your application to get a smaller, faster, easier to manage
+product.
+
 @item @strong{MySQL} has a lot of contributed software available.
 
 It is very likely that you will find that your favorite
@@ -1220,9 +1231,75 @@ application/language already supports @strong{MySQL}.
 The official way to pronounce @strong{MySQL} is ``My Ess Que Ell'' (not
 MY-SEQUEL). But we try to avoid correcting people who say MY-SEQUEL.
 
+@cindex MySQL AB, defined
+@node What is MySQL AB, Manual-info, What-is, Introduction
+@section What Is MySQL AB
 
+@strong{MySQL AB} is the Swedish company owned and run by the @strong{MySQL}
+founders and main developers. We are dedicated to developing
+@strong{MySQL} and spreading our database to new users. @strong{MySQL AB}
+owns the copyright to the @strong{MySQL} server source code and the
+@strong{MySQL} trademark.  A significant amount of revenues from our
+services goes to developing @strong{MySQL}. @xref{What-is}.
 
-@strong{MySQL} core values
+@strong{MySQL AB} has been profitable providing MySQL AB from the start.
+We don't get any outside funding, but have earned all our money ourselves.
+
+We are searching after partners that would like to support our
+development of @strong{MySQL} so that we could accelerate the
+development pace.  If you are interested in doing this, you can email
+@email{partner@@mysql.com} about this!
+
+@strong{MYSQL AB} has currently 20+ people on it's payroll and is
+growing rapidly.  @uref{http://www.mysql.com/development/team.html}.
+
+Our main streams of income are
+
+@itemize @bullet
+@item
+Commercial high quality support for @strong{MySQL} provided by
+@strong{MySQL} developers.  If you are interested in getting support,
+please visit @uref{https://order.mysql.com/} to view our support options
+or to order support.
+@item
+Consulting services.  We have developers/consults in 12 countries and
+partners in many other countries that can help you with almost any
+@strong{MySQL} related issues.  If you need consulting services, please
+email a good description of your needs to @email{info@@mysql.com}!  If we
+can't handle this ourselves we can usually find a partner or a developer
+that can help you with your problems.
+@item
+We sell licenses for using @strong{MySQL} as an embedded
+database. @xref{Cost}.  If you have a commercial product for which you
+need a fast high quality database but you can't afford to make your
+product Open Source, you can buy the right to use the @strong{MySQL} server
+under a normal commercial copyright.  If you are interested in this you can
+buy @strong{MySQL} licenses at @uref{https://order.mysql.com/} or contact
+us at @email{licensing@@mysql.com}.
+@item
+Advertising; @uref{http://www.mysql.com} is a very popular web site with
+more than 10,000,000 page views per months (January 2001).  By putting a
+banner on this you are guaranteed to reach a lot of potential customers
+in the Open source, Linux and database community. If you are interested
+in this email @email{advertising@@mysql.com}.
+@item
+We are building a partner program to be able to provide @strong{MySQL}
+services in every country.  If you are interested in becomming a partner
+of @strong{MySQL AB} please visit
+@uref{http://ww.mysql.com/information/partners.html} or email
+@email{partner@@mysql.com}.
+@item
+We provide @strong{MySQL} training through our partner programs. For more
+information, please email @email{info@@mysql.com}.
+@item
+The @strong{MySQL} brand has since 1995 been associated with speed,
+reliability and is known to be something you can depend upon. If you are
+interested in using the @strong{MySQL} trademark in your marketing, you
+can email @email{info@@mysql.com} about this.
+@end itemize
+
+The @strong{MySQL} core values shows our dedication to @strong{MySQL} and
+Open Source:
 
 We want @strong{MySQL} to be:
 
@@ -1258,7 +1335,7 @@ Are a virtual company, networking with others
 Work against software patents
 @end itemize
 
-@node Manual-info, History, What-is, Introduction
+@node Manual-info, History, What is MySQL AB, Introduction
 @section About This Manual
 
 @menu
@@ -1269,7 +1346,7 @@ This manual is currently available in Texinfo, plain text, Info, HTML,
 PostScript, and PDF versions.  The primary document is the Texinfo file.
 The HTML version is produced automatically using a modified version of
 @code{texi2html}. The plain text and Info versions are produced with
- @code{makeinfo}. The Postscript version is produced using @code{texi2dvi}
+@code{makeinfo}. The Postscript version is produced using @code{texi2dvi}
 and @code{dvips}. The PDF version is produced with @code{pdftex}.
 
 @cindex manual, available formats
@@ -3639,15 +3716,23 @@ EURO (European Union Euro). One EURO is about 1.17 USD.
 
 @multitable @columnfractions .5 .5
 @item @strong{Type of support}  @tab @strong{Cost per year}
-@item Basic e-mail support      @tab EURO 170
-@item Extended e-mail support   @tab EURO 1000
-@item Login support             @tab EURO 2000
-@item Extended login support    @tab EURO 5000
+@item Basic e-mail support. @xref{Basic email support}. @tab EURO 170
+@item Extended e-mail support @xref{Extended email support}. @tab EURO 1000
+@item Login support @xref{Login support}.            @tab EURO 2000
+@item Extended login support @xref{Extended login support}.  @tab EURO 5000
 @end multitable
 
-You may upgrade from any
-lower level of support to a higher level of support for the difference
-in price between the two support levels.
+You may upgrade from any lower level of support to a higher level of
+support for the difference in price between the two support levels.
+
+We do also provide telephone support (mostly emergency support but also
+24/7 support). This support option doesn't however have a fixed price
+but is negotiated for case to case. If you are interested in this option
+you can email @email{sales@@mysql.com} and tell us about your needs.
+
+Note that as our sales staff is very busy, it may take some time until
+your request is handled.  Our support staff does however always answer
+promptly to support questions!
 
 @cindex payment information
 @node Payment information, Contact information, Cost, Cost
@@ -5883,7 +5968,6 @@ shell> ./configure --with-unix-socket-path=/usr/local/mysql/tmp/mysql.sock
 Note that the given file must be an absolute pathname!
 @cindex socket location
 
-
 @item
 If you want to compile statically linked programs (for example, to make a
 binary distribution, to get more speed, or to work around problems with some
@@ -5914,6 +5998,43 @@ shell> CC=gcc CXX=gcc ./configure
 When you use @code{gcc} as your C++ compiler, it will not attempt to link in
 @code{libg++} or @code{libstdc++}.
 
+Here is some common environment variables to set depending on
+the compiler you are using:
+
+@tindex CXXFLAGS environment variable
+@tindex Environment variable, CXXFLAGS
+@multitable @columnfractions .20 .80
+@item gcc 2.7.2.1 @tab
+CC=gcc CXX=gcc CXXFLAGS="-O6 -felide-constructors"
+@item egcs 1.0.3a @tab
+CC=gcc CXX=gcc CXXFLAGS="-O6 -felide-constructors -fno-exceptions -fno-rtti"
+@item gcc 2.95.2 @tab
+CFLAGS="-O6 -mpentiumpro" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti"
+@item pgcc 2.90.29 or newer @tab
+CFLAGS="-O6 -mpentiumpro -mstack-align-double" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -mstack-align-double -felide-constructors -fno-exceptions -fno-rtti"
+@end multitable
+
+In most cases you can get a resonable optimal @code{MySQL} binary
+picking the options from the above and add the following options to the
+configure line: 
+
+@example
+--prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static
+@end example
+
+The full configure line would in other words be something like the
+following for all recent gcc versions:
+
+@example
+CFLAGS="-O6 -mpentiumpro" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static
+@end example
+
+The binaries we provide at on the MySQL home site
+@uref{http://www.mysql.com}, are all compiled with full optimization and
+should be ok for most users.  @xref{MySQL binaries}. There is some
+things one can tweak to make an even faster binary, but this is only for
+advanced users.  @xref{Compile and link options}.
+
 If the build fails and produces errors about your compiler or linker not
 being able to create the shared library @file{libmysqlclient.so.#} (@samp{#}
 is a version number), you can work around this problem by giving the
@@ -5935,7 +6056,6 @@ shell> CXXFLAGS=-DDONT_USE_DEFAULT_FIELDS ./configure
 @end example
 @cindex default values, suppression
 @cindex suppression, default values
-
 
 @item
 By default, @strong{MySQL} uses the ISO-8859-1 (Latin1) character set. To
@@ -7747,6 +7867,19 @@ The symptom is that you can't execute any client programs, for example,
 @code{mysqladmin}.  In this case you need to reconfigure not to use
 shared libraries with the @code{--disable-shared} option to configure.
 
+Some customers have had problems on BSDI 4.0.1 that the @code{mysqld}
+binary after a while can't open tables.  This is because some
+library/system related bug causes @code{mysqld} to change current
+directory without asking for this!
+
+The fix is to either upgrade to 3.23.34 or after running @code{configure}
+remove the line @code{#define HAVE_REALPATH} from @code{config.h}
+before running make.
+
+Note that the above means that you can't symbolic link a database directories
+to another database directory or symbolic link a table to another database
+on BSDI!  (Making a symbolic link to another disk is ok).
+
 @node SCO, SCO Unixware, BSDI, Source install system issues
 @subsection SCO Notes
 
@@ -8780,7 +8913,7 @@ following compilers and options:
 
 @table @asis
 @item SunOS 4.1.4 2 sun4c with @code{gcc} 2.7.2.1
-@code{CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql --disable-shared --with-extra-charsets=complex}
+@code{CC=gcc CXX=gcc CXXFLAGS="-O3 -felide-constructors" ./configure --prefix=/usr/local/mysql --disable-shared --with-extra-charsets=complex --enable-assembler}
 
 @item SunOS 5.5.1 sun4u with @code{egcs} 1.0.3a
 @code{CC=gcc CFLAGS="-O6 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
@@ -26090,7 +26223,7 @@ tables}.
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
 @end menu
 
 @node Replication Intro, Replication Implementation, Replication, Replication
@@ -40454,7 +40587,7 @@ New version of netadmin. See above for details.
 Home page for this can be found at: @uref{http://www.artronic.hr}.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/mysqlfront.zip, mysqlfront}
-Home page: @uref{http://my.mysqlfront.de/}.
+Home page: @uref{http://www.mysqlfront.de/}.
 Win32-Client for accessing and managing dbs, tables, table-data, indexes,
 import-/export-files. (Freeware).  By Ansgar Becker.
 

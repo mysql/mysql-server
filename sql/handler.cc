@@ -112,7 +112,7 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
     return new ha_berkeley(table);
 #endif
 #ifdef HAVE_INNOBASE_DB
-  case DB_TYPE_INNOBASE_DB:
+  case DB_TYPE_INNOBASE:
     return new ha_innobase(table);
 #endif
   case DB_TYPE_HEAP:
