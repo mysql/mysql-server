@@ -26,7 +26,7 @@ $host=$1 . $opt_suffix;
 $email="$opt_user\@mysql.com";
 $pwd = `pwd`; chomp($pwd);
 $log="$pwd/Logs/$host$opt_version_suffix.log";
-$opt_distribution =~ /(mysql-[^\/]*)\.tar/;
+$opt_distribution =~ /(mysql[^\/]*)\.tar/;
 $ver=$1;
 $gcc_version=which("gcc");
 if (defined($gcc_version) && ! $opt_config_env)
@@ -209,7 +209,7 @@ if ($opt_stage <= 4 && !$opt_no_test)
   safe_system("gunzip < $tar_file | $tar xf -");
 }
 
-$tar_file =~ /(mysql-[^\/]*)\.tar/;
+$tar_file =~ /(mysql[^\/]*)\.tar/;
 $ver=$1;
 $test_dir="$pwd/$host/test/$ver";
 $ENV{"LD_LIBRARY_PATH"}= "$test_dir/lib:" . $ENV{"LD_LIBRARY_PATH"};
