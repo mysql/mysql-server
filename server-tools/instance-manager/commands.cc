@@ -184,8 +184,8 @@ int Show_instance_status::do_command(struct st_net *net,
     }
 
 
-    if (my_net_write(net, send_buff.buffer, (uint) position) ||
-        send_buff.is_error())
+    if (send_buff.is_error() ||
+        my_net_write(net, send_buff.buffer, (uint) position))
       goto err;
   }
 
@@ -271,8 +271,8 @@ int Show_instance_options::do_command(struct st_net *net,
       store_to_string(&send_buff,
                      (char *) instance->options.mysqld_path,
                      &position);
-      if (my_net_write(net, send_buff.buffer, (uint) position) ||
-          send_buff.is_error())
+      if (send_buff.is_error() ||
+          my_net_write(net, send_buff.buffer, (uint) position))
         goto err;
     }
 
@@ -281,8 +281,8 @@ int Show_instance_options::do_command(struct st_net *net,
       position= 0;
       store_to_string(&send_buff, (char *) "nonguarded", &position);
       store_to_string(&send_buff, "", &position);
-      if (my_net_write(net, send_buff.buffer, (uint) position) ||
-          send_buff.is_error())
+      if (send_buff.is_error() ||
+          my_net_write(net, send_buff.buffer, (uint) position))
         goto err;
     }
 
@@ -299,8 +299,8 @@ int Show_instance_options::do_command(struct st_net *net,
       store_to_string(&send_buff, option_value + 1, &position);
       /* join name and the value into the same option again */
       *option_value= '=';
-      if (my_net_write(net, send_buff.buffer, (uint) position) ||
-          send_buff.is_error())
+      if (send_buff.is_error() ||
+          my_net_write(net, send_buff.buffer, (uint) position))
         goto err;
     }
   }

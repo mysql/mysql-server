@@ -17,6 +17,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
+#include <my_sys.h>
 
 #ifdef __GNUC__
 #pragma interface
@@ -45,7 +46,7 @@ public:
     /*
       As append() will invokes realloc() anyway, it's ok if malloc returns 0
     */
-    if (!(buffer= (char*) malloc(buffer_size)))
+    if (!(buffer= (char*) my_malloc(buffer_size, MYF(0))))
         buffer_size= 0;
   }
 

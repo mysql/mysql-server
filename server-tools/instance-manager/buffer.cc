@@ -81,10 +81,10 @@ int Buffer::reserve(uint position, uint len_arg)
 
   if (position + len_arg>= buffer_size)
   {
-    buffer= (char *) realloc(buffer,
-                             min(MAX_BUFFER_SIZE,
-                                 max((uint) (buffer_size*1.5),
-                                     position + len_arg)));
+    buffer= (char *) my_realloc(buffer,
+                                min(MAX_BUFFER_SIZE,
+                                    max((uint) (buffer_size*1.5),
+                                        position + len_arg)), MYF(0));
     if (buffer == NULL)
       goto err;
     buffer_size= (uint) (buffer_size*1.5);

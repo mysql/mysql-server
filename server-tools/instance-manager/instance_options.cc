@@ -80,9 +80,7 @@ void Instance_options::get_pid_filename(char *result)
   char datadir[MAX_PATH_LEN];
 
   if (mysqld_datadir == NULL)
-  {
     get_default_option(datadir, sizeof(datadir), "--datadir");
-  }
   else
     strxnmov(datadir, MAX_PATH_LEN - 1, strchr(mysqld_datadir, '=') + 1,
              "/", NullS);
@@ -106,8 +104,8 @@ pid_t Instance_options::get_pid()
   FILE *pid_file_stream;
 
   /* get the pid */
-  if (pid_file_stream= my_fopen(pid_file_with_path,
-                                O_RDONLY | O_BINARY, MYF(0)))
+  if ((pid_file_stream= my_fopen(pid_file_with_path,
+                                O_RDONLY | O_BINARY, MYF(0))) != NULL)
   {
     pid_t pid;
 
