@@ -1,18 +1,19 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
    
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
+   This program file is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Library General Public
+   License as published by the Free Software Foundation; either
+   version 2 of the License, or (at your option) any later version.
    
-   This program is distributed in the hope that it will be useful,
+   This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Library General Public License for more details.
    
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   You should have received a copy of the GNU Library General Public
+   License along with this library; if not, write to the Free
+   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
+   MA 02111-1307, USA */
 
 /* This file is originally from the mysql distribution. Coded by monty */
 
@@ -126,7 +127,7 @@ bool String::set(double num,uint decimals)
   if (decimals >= NOT_FIXED_DEC)
   {
     sprintf(buff,"%.14g",num);			// Enough for a DATETIME
-    return copy(buff,(uint) strlen(buff));
+    return copy(buff, (uint32) strlen(buff));
   }
 #ifdef HAVE_FCONVERT
   int decpt,sign;
@@ -141,7 +142,7 @@ bool String::set(double num,uint decimals)
       buff[0]='-';
       pos=buff;
     }
-    return copy(pos,(uint) strlen(pos));
+    return copy(pos,(uint32) strlen(pos));
   }
   if (alloc((uint32) ((uint32) decpt+3+decimals)))
     return TRUE;
@@ -191,7 +192,7 @@ end:
 #else
   sprintf(buff,"%.*f",(int) decimals,num);
 #endif
-  return copy(buff,(uint) strlen(buff));
+  return copy(buff,(uint32) strlen(buff));
 #endif
 }
 
@@ -260,7 +261,7 @@ bool String::append(const String &s)
 bool String::append(const char *s,uint32 arg_length)
 {
   if (!arg_length)				// Default argument
-    arg_length=(uint) strlen(s);
+    arg_length= (uint32) strlen(s);
   if (realloc(str_length+arg_length))
     return TRUE;
   memcpy(Ptr+str_length,s,arg_length);
@@ -318,7 +319,7 @@ int String::charpos(int i,uint32 offset)
     if ( INT_MAX32-i <= (int) (mbstr-Ptr-offset)) 
       return INT_MAX32;
     else 
-      return (mbstr-Ptr-offset)+i;
+      return (int) ((mbstr-Ptr-offset)+i);
   }
   else
 #endif
@@ -330,7 +331,7 @@ int String::strstr(const String &s,uint32 offset)
   if (s.length()+offset <= str_length)
   {
     if (!s.length())
-      return offset;				// Empty string is always found
+      return ((int) offset);	// Empty string is always found
 
     register const char *str = Ptr+offset;
     register const char *search=s.ptr();

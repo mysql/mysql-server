@@ -241,11 +241,12 @@ int nisam_create(const char *name,uint keys,N_KEYDEF *keyinfo,
   share.base.keystart = share.state.key_file_length=MY_ALIGN(info_length,
 							  nisam_block_size);
   share.base.max_block=max_block;
-  share.base.max_key_length=ALIGN_SIZE(max_key_length+4);
+  share.base.max_key_length=(uint) ALIGN_SIZE(max_key_length+4);
   share.base.records=records;
   share.base.reloc=reloc;
   share.base.reclength=reclength;
-  share.base.pack_reclength=reclength+packed-share.base.blobs*sizeof(char*);
+  share.base.pack_reclength=
+    (uint) (reclength+packed-share.base.blobs*sizeof(char*));
   share.base.max_pack_length=pack_reclength;
   share.base.min_pack_length=min_pack_length;
   share.base.pack_bits=packed;

@@ -326,7 +326,7 @@ net_real_write(NET *net,const char *packet,ulong len)
   pos=(char*) packet; end=pos+len;
   while (pos != end)
   {
-    if ((int) (length=vio_write(net->vio,pos,(size_t) (end-pos))) <= 0)
+    if ((int) (length=vio_write(net->vio,pos,(int) (end-pos))) <= 0)
     {
       my_bool interrupted = vio_should_retry(net->vio);
 #if (!defined(__WIN__) && !defined(__EMX__))

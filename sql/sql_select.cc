@@ -2606,7 +2606,7 @@ static void clear_tables(JOIN *join)
 
 class COND_CMP :public ilink {
 public:
-  static void *operator new(size_t size) {return (void*) sql_alloc(size); }
+  static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
   static void operator delete(void *ptr __attribute__((unused)),
 			      size_t size __attribute__((unused))) {} /*lint -e715 */
 
@@ -3229,7 +3229,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       *(reg_field++) =new_field;
     }
   }
-  field_count=reg_field - table->field;
+  field_count= (uint) (reg_field - table->field);
 
   /* If result table is small; use a heap */
   if (blob_count || using_unique_constraint ||

@@ -21,7 +21,7 @@
 #ifndef _global_h
 #define _global_h
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
 #include <config-win.h>
 #else
 #include <my_config.h>
@@ -54,7 +54,9 @@
 #endif
 
 #if defined(THREAD) && !defined(__WIN__)
+#ifndef _POSIX_PTHREAD_SEMANTICS
 #define _POSIX_PTHREAD_SEMANTICS /* We want posix threads */
+#endif
 /* was #if defined(HAVE_LINUXTHREADS) || defined(HAVE_DEC_THREADS) || defined(HPUX) */
 #if !defined(SCO)
 #define _REENTRANT	1	/* Some thread libraries require this */

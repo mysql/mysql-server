@@ -247,7 +247,7 @@ int _nisam_insert(register N_INFO *info, register N_KEYDEF *keyinfo,
 		       s_temp.n_ref_length,s_temp.n_length,s_temp.key));
   }
 #endif
-  key_offset = (endpos-key_pos);
+  key_offset = (uint)(endpos-key_pos);
   if((int) t_length < 0)
     key_offset += (int) t_length;
   if (key_offset < 0)
