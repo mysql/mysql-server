@@ -3592,10 +3592,11 @@ mysql_execute_command(THD *thd)
 	goto error;
       }
       res= sp_show_create_procedure(thd, &lex->udf.name);
-      if (res == SP_KEY_NOT_FOUND)
-      {
-	net_printf(thd, ER_SP_DOES_NOT_EXIST, 
+      if (res != SP_OK)
+      {			/* We don't distinguish between errors for now */
+	net_printf(thd, ER_SP_DOES_NOT_EXIST,
 		   SP_COM_STRING(lex), lex->udf.name.str);
+	res= 0;
 	goto error;
       }
       break;
@@ -3608,23 +3609,24 @@ mysql_execute_command(THD *thd)
 	goto error;
       }
       res= sp_show_create_function(thd, &lex->udf.name);
-      if (res == SP_KEY_NOT_FOUND)
-      {
+      if (res != SP_OK)
+      {			/* We don't distinguish between errors for now */
 	net_printf(thd, ER_SP_DOES_NOT_EXIST,
 		   SP_COM_STRING(lex), lex->udf.name.str);
+	res= 0;
 	goto error;
       }
       break;
     }
   case SQLCOM_SHOW_STATUS_PROC:
     {
-      res= db_show_status_procedure(thd, (lex->wild ?
+      res= sp_show_status_procedure(thd, (lex->wild ?
 					  lex->wild->ptr() : NullS));
       break;
     }
   case SQLCOM_SHOW_STATUS_FUNC:
     {
-      res= db_show_status_function(thd, (lex->wild ? 
+      res= sp_show_status_function(thd, (lex->wild ? 
 					 lex->wild->ptr() : NullS));
       break;
     }

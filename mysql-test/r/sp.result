@@ -809,6 +809,8 @@ Name	Type	Creator	Modified	Created	Suid	Comment
 fac	function	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	Y	
 drop procedure ifac;
 drop function fac;
+show function status like '%f%';
+Name	Type	Creator	Modified	Created	Suid	Comment
 drop table if exists primes;
 create table primes (
 i int unsigned not null primary key,
@@ -908,6 +910,8 @@ i	p
 drop table primes;
 drop procedure opp;
 drop procedure ip;
+show procedure status like '%p%';
+Name	Type	Creator	Modified	Created	Suid	Comment
 create procedure bar(x char(16), y int)
 comment "111111111111" sql security invoker
 insert into test.t1 values (x, y);

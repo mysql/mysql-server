@@ -62,6 +62,8 @@ drop function foo|
 --error 1286
 call foo()|
 drop procedure if exists foo|
+--error 1286
+show create procedure foo|
 
 # LEAVE/ITERATE with no match
 --error 1289
