@@ -1084,7 +1084,7 @@ do { doubleget_union _tmp; \
 #define float4store(V,M) memcpy_fixed((byte*) V,(byte*) (&M),sizeof(float))
 
 #if defined(__FLOAT_WORD_ORDER) && (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
-#define doublestore(T,V) do { *(T)= ((byte *) &V)[4];\
+#define doublestore(T,V) do { *(((char*)T)+0)=(char) ((byte *) &V)[4];\
                               *(((char*)T)+1)=(char) ((byte *) &V)[5];\
                               *(((char*)T)+2)=(char) ((byte *) &V)[6];\
                               *(((char*)T)+3)=(char) ((byte *) &V)[7];\

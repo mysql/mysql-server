@@ -2131,20 +2131,25 @@ void Item_char_typecast::print(String *str)
 String *Item_char_typecast::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res, *res1;
+  String *res;
   uint32 length;
 
-  if (!charset_conversion && !(res= args[0]->val_str(str)))
+#if 0
+  if (!charset_conversion)
   {
-    null_value= 1;
-    return 0;
+    if (!(res= args[0]->val_str(str)))
+    {
+      null_value= 1;
+      return 0;
+    }
   }
   else
+#endif
   {
     // Convert character set if differ
     uint dummy_errors;
-    if (!(res1= args[0]->val_str(&tmp_value)) ||
-	str->copy(res1->ptr(), res1->length(), res1->charset(),
+    if (!(res= args[0]->val_str(&tmp_value)) ||
+	str->copy(res->ptr(), res->length(), res->charset(),
                   cast_cs, &dummy_errors))
     {
       null_value= 1;
@@ -2154,13 +2159,13 @@ String *Item_char_typecast::val_str(String *str)
   }
 
   res->set_charset(cast_cs);
-  
+
   /*
      Cut the tail if cast with length
      and the result is longer than cast length, e.g.
      CAST('string' AS CHAR(1))
   */
-  if (cast_length >= 0 && 
+  if (cast_length >= 0 &&
       (res->length() > (length= (uint32) res->charpos(cast_length))))
   {						// Safe even if const arg
     if (!res->alloced_length())
@@ -2169,7 +2174,7 @@ String *Item_char_typecast::val_str(String *str)
       res= &str_value;
     }
     res->length((uint) length);
-  } 
+  }
   null_value= 0;
   return res;
 }

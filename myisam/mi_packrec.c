@@ -184,21 +184,14 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
 	my_malloc((length+OFFSET_TABLE_SIZE)*sizeof(uint16)+
 		  (uint) (share->pack.header_length+7),
 		  MYF(MY_WME | MY_ZEROFILL))))
-  {
-    my_free((gptr) share->decode_trees,MYF(0));
     goto err1;
-  }
   tmp_buff=share->decode_tables+length;
   disk_cache=(byte*) (tmp_buff+OFFSET_TABLE_SIZE);
 
   if (my_read(file,disk_cache,
 	      (uint) (share->pack.header_length-sizeof(header)),
 	      MYF(MY_NABP)))
-  {
-    my_free((gptr) share->decode_trees,MYF(0));
-    my_free((gptr) share->decode_tables,MYF(0));
     goto err2;
-  }
 
   huff_tree_bits=max_bit(trees ? trees-1 : 0);
   init_bit_buffer(&bit_buff, (uchar*) disk_cache,
