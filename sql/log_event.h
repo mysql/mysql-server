@@ -327,6 +327,15 @@ extern char server_version[SERVER_VERSION_LENGTH];
 class Start_log_event: public Log_event
 {
 public:
+  /* 
+     If this event is at the start of the first binary log since server startup
+     'created' should be the timestamp when the event (and the binary log) was
+     created. 
+     In the other case (i.e. this event is at the start of a binary log created
+     by FLUSH LOGS or automatic rotation), 'created' should be 0.
+     This "trick" is used by MySQL >=4.0.14 slaves to know if they must drop the
+     stale temporary tables or not.
+  */
   time_t created;
   uint16 binlog_version;
   char server_version[50];

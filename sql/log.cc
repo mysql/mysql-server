@@ -157,7 +157,7 @@ void MYSQL_LOG::close_index()
 }
 
 void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
-		     const char *new_name)
+		     const char *new_name, bool null_created)
 {
   MY_STAT tmp_stat;
   char buff[512];
@@ -230,8 +230,10 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     if ((do_magic && my_b_write(&log_file, (byte*) BINLOG_MAGIC, 4)) ||
 	open_index(O_APPEND | O_RDWR | O_CREAT))
       goto err;
-    Start_log_event s;
     bool error;
+    Start_log_event s;
+    if (null_created)
+      s.created= 0;
     s.write(&log_file);
     flush_io_cache(&log_file);
     pthread_mutex_lock(&LOCK_index);
@@ -548,7 +550,15 @@ void MYSQL_LOG::new_file(bool inside_mutex)
     strmov(new_name, old_name);		// Reopen old file name
   name=0;
   close();
-  open(old_name, log_type, new_name);
+  /* 
+     new_file() is only used for rotation (in FLUSH LOGS or because size >
+     max_binlog_size). 
+     If this is a binary log, the Start_log_event at the beginning of
+     the new file should have created=0 (to distinguish with the Start_log_event
+     written at server startup, which should trigger temp tables deletion on
+     >=4.0.14 slaves).
+  */ 
+  open(old_name, log_type, new_name, 1);
   my_free(old_name,MYF(0));
   last_time=query_start=0;
   write_error=0;
