@@ -989,7 +989,7 @@ longlong Item_func_unix_timestamp::val_int()
   {						// Optimize timestamp field
     Field *field=((Item_field*) args[0])->field;
     if (field->type() == FIELD_TYPE_TIMESTAMP)
-      return ((Field_timestamp*) field)->get_timestamp();
+      return ((Field_timestamp*) field)->get_timestamp(&null_value);
   }
   
   if (get_arg0_date(&ltime, 0))
