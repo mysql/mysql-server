@@ -1667,7 +1667,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   */
   and_tables_cache= ~(table_map) 0;
 
-  if (thd && check_stack_overrun(thd,buff))
+  if (check_stack_overrun(thd, buff))
     return 1;					// Fatal error flag is set!
   while ((item=li++))
   {
@@ -1696,8 +1696,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     if (item->maybe_null)
       maybe_null=1;
   }
-  if (thd)
-    thd->lex.current_select->cond_count+=list.elements;
+  thd->lex.current_select->cond_count+=list.elements;
   fix_length_and_dec();
   fixed= 1;
   return 0;
