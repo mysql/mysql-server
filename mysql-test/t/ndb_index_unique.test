@@ -265,4 +265,24 @@ select * from t4 where rid = 2 order by cid;
 
 drop table t1,t2,t3,t4,t5,t6,t7;
 
+# test null in indexes
+CREATE TABLE t1 (   
+   a int unsigned NOT NULL PRIMARY KEY,
+   b int unsigned,   
+   c int unsigned, 
+   UNIQUE bc(b,c) ) engine = ndb;
+ 
+insert into t1 values(1,1,1),(2,NULL,2),(3,NULL,NULL),(4,4,NULL);
+select * from t1 where b=1 and c=1;
+select * from t1 where b is null and c is null;
+select * from t1 where b is null and c = 2;
+select * from t1 where b = 4 and c is null;
+create table t8 as 
+select * from t1 where (b = 1 and c = 1)
+                    or (b is null and c is null) 
+                    or (b is null and c = 2)
+                    or (b = 4 and c is null);
+select * from t8 order by a;
+select * from t1 order by a;
+drop table t1, t8;
 
