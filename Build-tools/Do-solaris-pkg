@@ -57,7 +57,7 @@ unlink $temp or warn "Unable to remove tempfile ($!)\n";
 # First get some info
 $fullname =~ s,/+$,,;             # Remove ending slash if any
 
-$fullname =~ /^((mysql)-\w+-?\w+?)-([\d\.]+\w?)-.+$/
+$fullname =~ /^((mysql)(?:-\w+){1,3})-([\d\.]+\w?)-.+$/
   or die "This name is not what I expected - \"$fullname\"";
 
 $default{"name"}= $2;
