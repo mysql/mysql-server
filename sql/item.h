@@ -128,7 +128,13 @@ public:
   virtual ~Item() { name=0; }		/*lint -e1509 */
   void set_name(const char *str,uint length, CHARSET_INFO *cs);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
-  virtual void cleanup() { fixed=0; }
+  virtual void cleanup()
+  {
+    DBUG_ENTER("Item::cleanup");
+    DBUG_PRINT("info", ("Type: %d", (int)type()));
+    fixed=0;
+    DBUG_VOID_RETURN;
+  }
   virtual void make_field(Send_field *field);
   virtual bool fix_fields(THD *, struct st_table_list *, Item **);
   virtual int save_in_field(Field *field, bool no_conversions);
@@ -996,8 +1002,10 @@ public:
   void bring_value();
   void cleanup()
   {
+    DBUG_ENTER("Item_cache_row::cleanup");
     Item_cache::cleanup();
     values= 0;
+    DBUG_VOID_RETURN;
   }
 };
 
@@ -1023,8 +1031,10 @@ public:
   Field *example() { return field_example; }
   void cleanup()
   {
+    DBUG_ENTER("Item_type_holder::cleanup");
     Item::cleanup();
     item_type= orig_type;
+    DBUG_VOID_RETURN;
   }
 };
 
