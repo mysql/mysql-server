@@ -736,6 +736,17 @@ Ndb::getAutoIncrementValue(const char* aTableName, Uint32 cacheSize)
   return tupleId;
 }
 
+Uint64
+Ndb::getAutoIncrementValue(NdbDictionary::Table * aTable, Uint32 cacheSize)
+{
+  DEBUG_TRACE("getAutoIncrementValue");
+  if (aTable == 0)
+    return ~0;
+  const NdbTableImpl* table = & NdbTableImpl::getImpl(*aTable);
+  Uint64 tupleId = getTupleIdFromNdb(table->m_tableId, cacheSize);
+  return tupleId;
+}
+
 Uint64 
 Ndb::getTupleIdFromNdb(const char* aTableName, Uint32 cacheSize)
 {
@@ -771,6 +782,17 @@ Ndb::readAutoIncrementValue(const char* aTableName)
 }
 
 Uint64
+Ndb::readAutoIncrementValue(NdbDictionary::Table * aTable)
+{
+  DEBUG_TRACE("readtAutoIncrementValue");
+  if (aTable == 0)
+    return ~0;
+  const NdbTableImpl* table = & NdbTableImpl::getImpl(*aTable);
+  Uint64 tupleId = readTupleIdFromNdb(table->m_tableId);
+  return tupleId;
+}
+
+Uint64
 Ndb::readTupleIdFromNdb(Uint32 aTableId)
 {
   if ( theFirstTupleId[aTableId] == theLastTupleId[aTableId] )
@@ -787,6 +809,16 @@ Ndb::setAutoIncrementValue(const char* aTableName, Uint64 val, bool increase)
   const NdbTableImpl* table = theDictionary->getTable(aTableName);
   if (table == 0)
     return false;
+  return setTupleIdInNdb(table->m_tableId, val, increase);
+}
+
+bool
+Ndb::setAutoIncrementValue(NdbDictionary::Table * aTable, Uint64 val, bool increase)
+{
+  DEBUG_TRACE("setAutoIncrementValue " << val);
+  if (aTable == 0)
+    return ~0;
+  const NdbTableImpl* table = & NdbTableImpl::getImpl(*aTable);
   return setTupleIdInNdb(table->m_tableId, val, increase);
 }
 
