@@ -119,6 +119,11 @@
 #define NDB_BLOB_HEAD_SIZE 2        /* sizeof(NdbBlob::Head) >> 2 */
 
 /*
+ * Character sets.
+ */
+#define MAX_XFRM_MULTIPLY 8         /* max expansion when normalizing */
+
+/*
  * Long signals
  */
 #define NDB_SECTION_SEGMENT_SZ 60

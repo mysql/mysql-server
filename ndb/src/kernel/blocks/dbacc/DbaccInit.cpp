@@ -179,6 +179,7 @@ Dbacc::Dbacc(const class Configuration & conf):
   addRecSignal(GSN_ACCKEYREQ, &Dbacc::execACCKEYREQ);
   addRecSignal(GSN_ACCSEIZEREQ, &Dbacc::execACCSEIZEREQ);
   addRecSignal(GSN_ACCFRAGREQ, &Dbacc::execACCFRAGREQ);
+  addRecSignal(GSN_TC_SCHVERREQ, &Dbacc::execTC_SCHVERREQ);
   addRecSignal(GSN_ACC_SRREQ, &Dbacc::execACC_SRREQ);
   addRecSignal(GSN_NEXT_SCANREQ, &Dbacc::execNEXT_SCANREQ);
   addRecSignal(GSN_ACC_ABORTREQ, &Dbacc::execACC_ABORTREQ);
