@@ -24,7 +24,7 @@ printDEFINE_BACKUP_REQ(FILE * out, const Uint32 * data, Uint32 len, Uint16 bno){
 	  sig->backupPtr, sig->backupId, sig->clientRef, sig->clientData);
   fprintf(out, " backupKey: [ %08x%08x ] DataLength: %d\n",
 	  sig->backupKey[0], sig->backupKey[1], sig->backupDataLen);
-  char buf[sig->nodes.TextLength + 1];
+  char buf[_NDB_NODE_BITMASK_SIZE * 8 + 1];
   fprintf(out, " Nodes: %s\n", sig->nodes.getText(buf));
   return true;
 }
