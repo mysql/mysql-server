@@ -127,3 +127,22 @@ WHERE (  r = 1 AND a IN ( 1, 2    ) AND ( u = 'w'   OR u LIKE 'w/%'   ) )
    OR (  r = 1 AND a IN ( 1, 2, 3 ) AND ( u = 'w'                     ) );
 drop table t1;
 
+#
+# Bug #3738: we have a ref key
+#
+
+CREATE TABLE t1 (a VARCHAR(16), UNIQUE(a));
+INSERT INTO t1 VALUES ('1'), ('2'), ('3');
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a = '2' LIMIT 0, 1;
+SELECT FOUND_ROWS();
+DROP TABLE t1;
+
+#
+# Bug #3845: group by, having and empty result
+#
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0), (0), (1), (2);
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a = 0 GROUP BY a HAVING a > 10;
+SELECT FOUND_ROWS();
+DROP TABLE t1;
