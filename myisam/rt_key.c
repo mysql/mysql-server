@@ -56,7 +56,7 @@ int rtree_add_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   }
 
   return (rtree_split_page(info, keyinfo, page_buf, key, key_length,
-			   new_page) ? -1 : 0);
+			   new_page) ? -1 : 1);
 }
 
 /*
@@ -69,7 +69,7 @@ int rtree_delete_key(MI_INFO *info, uchar *page_buf, uchar *key,
   uchar *key_start;
 
   key_start= key - nod_flag;
-  if (nod_flag)
+  if (!nod_flag)
     key_length += info->s->base.rec_reflength;
 
   memmove(key_start, key + key_length, page_size - key_length -

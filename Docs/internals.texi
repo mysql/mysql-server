@@ -53,6 +53,8 @@ This is a manual about @strong{MySQL} internals.
 * caching::                     How MySQL Handles Caching
 * flush tables::                How MySQL Handles @code{FLUSH TABLES}
 * filesort::                    How MySQL Does Sorting (@code{filesort})
+* selects::			How MySQL performs different selects
+* transformations::		How MySQL transforms subqueries
 * coding guidelines::           Coding Guidelines
 * mysys functions::             Functions In The @code{mysys} Library
 * DBUG::                        DBUG Tags To Use
@@ -220,7 +222,7 @@ After this it will give other threads a chance to open the same tables.
 
 @end itemize
 
-@node filesort, coding guidelines, flush tables, Top
+@node filesort, selects, flush tables, Top
 @chapter How MySQL Does Sorting (@code{filesort})
 
 @itemize @bullet
@@ -260,8 +262,584 @@ and then we read the rows in the sorted order into a row buffer
 
 @end itemize
 
+@node selects, transformations, flush tables, Top
+@chapter How MySQL performs different selects
 
-@node coding guidelines, mysys functions, filesort, Top
+@node select steps,,,
+@section Steps of select executing
+
+Every select performed in such base steps:
+@itemize
+@item
+  JOIN::prepare
+@itemize @bullet
+@item
+    initialization and linking JOIN structure to st_select_lex
+@item
+    fix_fields() for all items (after fix_fields we know everything
+      about item)
+@item
+    moving HAVING to WHERE if possible
+@item
+    initialization procedure if exists
+@end itemize
+@item
+  JOIN::optimize
+@itemize @bullet
+@item
+    single select optimization
+@item
+    creation first temporary table if need
+@end itemize
+@item
+  JOIN::exec
+@itemize @bullet
+@item
+    performing select (may be created second temporary table)
+@end itemize
+@item
+  JOIN::cleanup
+@itemize @bullet
+@item
+    removing all temporary tables, other cleanup
+@end itemize
+@item
+  JOIN::reinit
+@itemize @bullet
+@item
+    prepare all structures to SELECT executing (with JOIN::exec)
+@end itemize
+@end itemize
+
+@node select select_result
+@section select_result CLASS
+
+Very important role in SELECT performing have select_result class and
+classes inherited from it (usually called with "select_" prefix). This
+class provide interface for results transmitting.
+
+Key methods in this class are following:
+@itemize @bullet
+@item
+  @strong{send_fields} sends giving item list headers (type, name, etc..)
+@item
+  @strong{send_data} sends giving item list values as row of table of result
+@item
+  @strong{send_error} send error to used used mainly for error interception,
+    making some operation and then ::send_error will be called.
+@end itemize
+
+For example there are fillowing select_result classes:
+@itemize
+@item 
+  @strong{select_send} used for sending results though network layer
+@item 
+  @strong{select_export} used for exporting data to file
+@item
+  @strong{multi_delete} used for multi-delete
+@item
+  @strong{select_insert} used for INSERT ... SELECT ...
+@item
+  @strong{multi_update} used for multi-update
+@end itemize
+
+@node select simple
+@section SIMPLE or PRIMARY SELECT.
+
+For performing single primary select SELECT used function mysql_select,
+which:
+@itemize @bullet
+@item
+  allocate JOIN;
+@item
+  JOIN::prepare;
+@item
+  JOIN::optimize;
+@item
+  JOIN::exec;
+@item
+  JOIN::cleanup.
+@end itemize
+In previous versions of mysql all SELECTs was performed with help of this
+function and mysql_select() was not divided on parts.
+
+@node select structure
+@section Structure Of Complex Select
+
+There 2 structures which describe SELECTS:
+@itemize @bullet
+@item
+  st_select_lex (SELECT_LEX) it represent SELECT itself
+@item
+  st_select_lex_unit (SELECT_LEX_UNIT) group several selects in bunch
+@end itemize
+and represent UNION operation (absence of UNION is union
+with 1 SELECT and this structure present in any case). In future this
+structure will be used for EXCEPT and INTERSECT.
+
+For example:
+@example
+(SELECT ... )UNION(SELECT ... (SELECT...)...(SELECT...UNION...SELECT))
+   1           2      3           4             5        6       7
+@end example
+
+will be represent as
+@example
+------------------------------------------------------------------------
+                                                                 level 1
+SELECT_LEX_UNIT(2)
+|
++---------------+
+|               |
+SELECT_LEX(1)   SELECT_LEX(3)
+                |
+--------------- | ------------------------------------------------------
+                |                                                level 2
+                +-------------------+
+                |                   |
+                SELECT_LEX_UNIT(4)  SELECT_LEX_UNIT(6)
+                |                   |
+                |                   +--------------+
+                |                   |              |
+                SELECT_LEX(4)       SELECT_LEX(5)  SELECT_LEX(7)
+
+------------------------------------------------------------------------
+@end example
+Note: single subselect 4 have it's own SELECT_LEX_UNIT.
+
+Most upper SELECT_LEX_UNIT (#2 in example) stored in LEX.
+First and most upper SELECT_LEX (#1 in example) stored in LEX, too.
+This two structures always exist.
+
+In time of creating or performing any JOIN::* operation 
+LEX::current_select point on appropriate SELECT_LEX.
+
+Only during parsing global (for whole UNION) ORDER_BY & LIMIT clauses
+LEX::current_select points to SELECT_LEX_UNIT of this unit to store this
+parameter in this SELECT_LEX_UNIT (SELECT_LEX and SELECT_LEX_UNIT are
+inherited from st_select_lex_node).
+
+@node select union
+@section Non-Subselect UNIONs Executing
+
+Non subselect unions performed with help of mysql_union(). for now it
+divided on following steps:
+@itemize
+@item
+  st_select_lex_unit::prepare
+@itemize @bullet
+@item
+    create temporary table for union results storing (if UNION witout
+      ALL option, 'distinct' parameter will be passed to table creation
+      procedure). Types/lengths of table's fields will be determinated
+      by first SELECT item list.
+@item
+    create select_union (inherited from select_result) which will
+      write selects results in this temporary table
+@item
+    allocate JOIN and perform JOIN::prepare for all SELECTs belonged
+      to UNION
+@end itemize
+@item
+  st_select_lex_unit::exec
+@itemize @bullet
+@item
+    delete rows from temporary table if it is not first call
+@item
+    if first call call JOIN::optimize else JOIN::reinit and then
+      JOIN::exec for all SELECTs (select_union will write result for
+      temporary table). If union is cacheable and this method called
+      second, (third, ...) time it will do nothing.
+@item
+    call mysql_select on temporary table with global ORDER BY and
+      LIMIT parameters after collecting results from all SELECTs.
+@end itemize
+@end itemize
+As far as mysql_select need SELECT_LEX structure SELECT_LEX of first
+SELECT of this UNION will be passed to it, but also fake_select_lex
+parameter will be passed to mysql_select() too, to prevent linking
+this SELECT_LEX with JOIN on this mysql_select() session.
+
+PROBLEM: this fake select need workaround in many places.
+
+@node select derived
+@section Derived Tables Executing
+
+Derived tables processing is first operation on any query. It performed
+before creation list of tables of whole query and opening/locking this
+tables.
+
+If lex->derived_tables flag present will be scanned all SELECT_LEX (there
+are list of all SELECT_LEX in reverse order (first SELECT in query will
+be last in this list) lex->all_selects_list).
+
+Pointer on derived table SELECT_LEX_UNIT stored in TABLE_LIST structure
+(TABLE_LIST::derived). And for any table which have this pointer will
+be called mysql_derived().
+
+mysql_derived():
+@itemize @bullet
+@item
+  Creates list of all tables used in this query, opens and locks it
+@item
+  Creates temporary table for storing results
+@item
+  Creates union_result for writing result in this table
+@item
+  Calls mysql_select or mysql_union for execute query
+@item
+  Removes all derived table subtree from SELECTs tree (if it is
+    not EXPLAIN)
+@item
+  Stores pointer to this temporary table in TABLE_LIST structure, then
+    this table will be used by outer query. This table table will not be
+    skipped in checking grants, because tables from which this table was
+    received was checked in mysql_derived.
+@item
+  Links this temporary table in thd->derived_tables for removing after
+    query executing. this table will be closed in close_thread_tables if
+    second parameter of it (bool skip_derived) will be true.
+@end itemize
+
+@node select subselect
+@section Subselects
+
+In expression subselect represented by Item inherited from Item_subselect.
+
+To hide difference in performing single SELECTs and UNIONs
+Item_subselect use two different engines, which provide uniformed
+interface for access to underplaid SELECT or UNION
+(subselect_single_select_engine and subselect_union_engine, both are
+inherited from subselect_engine).
+
+Engine will be created in time of Item_select constructing
+(Item_subselect::init method).
+
+On Item_subselect::fix_fields() will be called engine->prepare().
+
+Before calling any value getting method (val, val_int, val_str,
+bring_value (in case of row result)) will be called engine->exec(),
+which execute query or just do nothing if subselect is cacheable and
+already executed.
+
+Items inherited from provide it's own select_result classes. There are
+2 type of it:
+@itemize @bullet
+@item
+  select_singlerow_subselect it store values of giving row in
+    Item_singlerow_subselect cache  on send_data() call and report error
+    if Item_subselect have 'assigned' attribute.
+@item
+  select_exists_subselect just store 1 as value of
+    Item_exists_subselect on send_data() call. As far as
+    Item_in_subselect and Item_allany_subselect inherited from
+    Item_exists_subselect, they use same select_result class.
+@end itemize
+
+Item_select will never call cleanup() procedure for JOIN. Every
+JOIN::cleanup will call cleanup() for inner JOINs. Most upper
+JOIN::cleanup will be called by mysql_select() or mysql_union().
+
+@node select select engine
+@section Single Select Engine
+
+subselect_single_select_engine:
+@itemize @bullet
+@item
+  @strong{constructor} allocate JOIN and store pointers on SELECT_LEX and JOIN
+@item
+  @strong{prepare()} call JOIN::prepare
+@item
+  @strong{fix_length_and_dec()} prepare cache and receive type and
+    parameters of returning items (it called only by
+    Item_singlerow_subselect)
+@item
+  @strong{exec()} drop 'assigned flag of Item_subselect. If called first time
+    JOIN::optimize and JOINexec(), else do nothing or JOIN::reinit()
+    JOIN::exec() depending of type of subquery.
+@end itemize
+
+@node select union engine
+@section Union Engine
+
+subselect_union_engine:
+@itemize @bullet
+@item
+  @strong{constructor} just store pointer to st_select_lex_union
+    (SELECT_LEX_UNION)
+@item
+  @strong{prepare()} call st_select_lex_unit::prepare
+@item
+  @strong{fix_length_and_dec()} prepare cache and receive type and
+    parameters (maximum of length) of returning items (it called
+    only by Item_singlerow_subselect)
+@item
+  @strong{exec()} call st_select_lex_unit::exec(). st_select_lex_unit::exec()
+    can drop 'assigned' flag of Item_subselect if 
+    st_select_lex_unit::item is not 0.
+@end itemize
+
+@node selectexplain
+@section Explain Execution
+
+For EXPLAIN result showing for every SELECT will be called mysql_select
+with option SELECT_DESCRIBE.
+
+For main UNION will be called mysql_explain_union.
+
+mysql_explain_union call mysql_explain_select for every SELECT in given
+union.
+
+mysql_explain_select call mysql_select with SELECT_DESCRIBE.
+
+mysql_select create JOIN for select (if it not exists, because if it
+called for subselect JOIN can be created in JOIN::optimize of outer
+query when it decided to calculate value of subselect). Then it call
+JOIN::prepare, JOIN::optimize, JOIN exec and JOIN::cleanup as usual.
+
+JOIN::exec called for SELECT with SELECT_DESCRIBE option call
+select_describe.
+
+select_describe return to user description of SELECT and call
+mysql_explain_union for every inner UNION
+
+PROBLEM: how it will work with global query optimization?
+
+@node transformations, coding guidelines, selects, Top
+@chapter How MySQL transforms subqueries
+
+Item_subselect virtual method select_transformer is used to rewrite
+subqueries. It is called from Item_subselect::init (which called in
+Item_subselect constructor)
+
+@node transformation IN
+@section Item_in_subselect::select_transformer
+
+Item_in_subselect::select_transformer is divided on two parts for
+scalar left part and row left part:
+
+@node transformation scalar IN
+@subsection Scalar IN Subselect
+
+To rewrite scalar IN subselect used method
+Item_in_subselect::single_value_transformer, Scalar IN subselect will
+be replaced with Item_in_optimizer.
+
+Item_in_optimizer item is special boolean function. On value request
+(one of val, val_int or val_str methods) it evaluate left expression of
+IN by storing it value in cache item (one of Item_cache* items), then it
+test cache is it NULL. If left expression (cache) is NULL then
+Item_in_optimizer return NULL, else it evaluate Item_in_subselect.
+
+Example queries.
+@example
+a) SELECT * from t1 where t1.a in (SELECT t2.a FROM t2);
+b) SELECT * from t1 where t1.a in (SELECT t2.a FROM t2 GROUP BY t2.a);
+@end example
+
+@itemize
+@item
+Item_in_subselect inherit mechanism of getting value from
+  Item_exists_subselect.
+@item
+Select_transformer stores reference to left expression in its
+  conditions:  (in WHERE in case 'a' and in a HAVING in case 'b')
+@item
+Item from item list of this select (t2.a) can be referred with special
+  reference (Item_ref_null_helper or Item_asterisk_remover).
+  This reference informs Item_in_optimizer if item (t2.a) is NULL by
+  setting the 'was_null' flag.
+@item
+The return value from Item_in_subselect will be evaluated as following:
+@itemize @bullet
+@item
+  If TRUE return true
+@item
+  If NULL return null
+@item
+  If FALSE and 'was_null' is set, return null
+@item
+  return FALSE
+@end itemize
+@end itemize
+
+<left_expression> IN (SELECT <item> ...) will be represented like
+following:
+@example
+                        +-----------------+
+                        |Item_in_optimizer|
+                        +-----------------+
+                                 |
+           +---------------------+------------+
+           |                                  |
++-----------------------+             +-----------------+
+|   <left_expression>   |             |Item_in_subselect|
+|                       |             +-----------------+
++-----------------------+                      |
+|<left_expression cache>|          +-----------+-----------+
+|                       |          |                       |
++-----------------------+          |                       |
+           ^                 +----------+        +--------------------+
+           +<<<<<<<<<<<<<<<<<| Item_ref |    +<<<|Item_ref_null_helper|
+                             +----------+    V   +--------------------+
+                                             V   +--------------------+
+                                             +>>>|       <item>       |
+                                                 +--------------------+  
+@end example
+where '<<<<<<<<<' is reference in meaning of Item_ref.
+
+Item_ref used for point to <left_expression cache>, because in time of
+transformation we know only address of variable where pointer on cache
+will be stored.
+
+If select have ORDER BY clause it will be wiped out, because no sense in
+ORDER BY without LIMIT here.
+
+If IN subselect union condition of every select in UNION will be changed
+personally.
+
+Following is examples of IN transformations:
+@example
+a) <left_expression> IN (SELECT <item> FROM t
+                           WHERE <where_exp>)
+
+will be represented as
+
+ (SELECT 1 FROM t
+   WHERE <where_exp> and
+    Item_ref(<cached_left_expression>)=<Item_asterisk_remover(<Item>)>)
+
+
+b) <left_expression> IN (SELECT <item> FROM t
+                           HAVING <having_expr>
+                           ORDER BY 1)
+
+will be represented as
+
+ (SELECT <item> as ref_null_helper FROM t
+    HAVING <having_exp> AND
+      Item_ref(<cached_left_expression>) = ref_null_helper)
+
+
+c) <left_expression> IN (SELECT <item> UNION ...)
+
+will be represented as
+
+ (SELECT 1 
+    HAVING Item_ref(<cached_left_expression>)=
+           <Item_asterisk_remover(<Item>)>
+  UNION ...)
+
+(having without FROM is syntax error, but having condition is checked
+even for subselect without FROM)
+
+d) <left_expression> IN (select <item>)
+
+will be completely replaced with <left_expression> = <item>
+@end example
+
+Now conditions (WHERE (a) or HAVING (b)) will be changed depends of
+select in following way:
+
+If subselect have HAVING , sum function  or GROUP BY (case a) then item
+list will be unchanged and  Item_ref_null_helper reference will be
+created on item list element. Condition will be added to HAVING condition.
+
+If subselect have not HAVING, sum function or GROUP BY (case b) then:
+@itemize @bullet
+@item
+ @strong{item list} will be replaced with 1.
+@item
+ @strong{<item>} from item list will be stored in Item_asterisk_remover, which
+   inherit from Item_ref_null_helper, but store item on which refer by
+   itself, and also it can resolve '*' item.
+@item
+ @strong{<left_expression cache> = <Item_ref_null_helper>} will be added to
+   WHERE clause this item or to HAVING clause if this subselect have
+   no FROM clause and subselect is union (case c).
+@end itemize
+
+Single select without FROM will be reduced to just
+<left_expression> = <item> without using Item_in_optimizer.
+
+@node transformations row IN
+@subsection Row IN Subselect
+
+To rewrite row IN subselect used method
+Item_in_subselect::row_value_transformer. It work in almost same way as
+scalar analog, but work with Item_cache_row for caching left expression
+and use references on elements of Item_cache_row.
+To refer on item list it use Item_ref_on_list_position.
+
+Item_ref_on_list_position::fix_fields will find item in item list of
+subselect by number and create Item_ref_null_helper to refer on it. It
+used to find reference when all '*' items will be translated in item
+list. Subselect with have HAVING, sum functions or GROUP BY will
+transformed in following way:
+
+@example
+ROW(l1, l2, ... lN) IN (SELECT i1, i2, ... iM FROM t HAVING <having_expr>)
+
+will be following:
+
+(SELECT i1, i2, ... iM FROM t
+   HAVING <having_expr> and
+     <cache_l1> = <ref_on_list_position(1)> AND
+     <cache_l2> = <ref_on_list_position(2)> AND
+     ...
+     <cache_lN> = <ref_on_list_position(N)>)
+@end example
+
+In this way will be transformed select without FROM, too.
+
+For other subselect it will be same but for WHERE clause.
+
+@node transformations all any
+@section Item_allany_subselect
+
+Item_allany_subselect is inherited from Item_in_subselect.
+ALL/ANY/SOME use same algorithm (and same method of Item_in_subselect)
+as scalar IN, but use different function instead of '='.
+
+ANY/SOME use same function that was listed after left expression.
+
+ALL use inverted function, and all subselect passed as argument to
+Item_func_not.
+
+@node transformations singlerow
+@section Item_singlerow_subselect
+
+Item_singlerow_subselect will be rewritten only if it have not FROM
+clause, it is not part of UNION and it is scalar subselect. For now will
+not be converted subselects with field or reference on top of item list
+(we can't change name of such items from one hand, but from other hand
+we should assign to it name of whole subselect which will be reduced);
+
+Following will not be reduced:
+@example
+SELECT a;
+SELECT 1 UNION SELECT 2;
+SELECT 1 FROM t1;
+@end example
+
+Following select will be reduced:
+@example
+SELECT 1;
+SELECT a+2;
+@end example
+
+Such subselect will be completely replaced by its expression from item
+list and its SELECT_LEX and SELECT_LEX_UNIT will be removed from
+SELECT_LEX's tree.
+
+But all Item_fields and Item_ref of that expression will be marked for
+special fix_fields() procedure. fix_fields() for such Item will be
+performed is same way as for items of inner subselect. Also if this
+expression is Item_fields or Item_ref then name of this new item will
+be same as name of this item (but not '(SELECT ...)'). It is done to
+prevent broke references on such items from more inner subselects.
+
+@node coding guidelines, mysys functions, transformations, Top
 @chapter Coding Guidelines
 
 @itemize @bullet
@@ -1836,7 +2414,7 @@ able to provide the optimal information for all parameters.
 
 If number of columns, in the header packet, is not 0 then the
 prepared statement will contain a result set. In this case the packet
-is followed by a field description result set. @xref{4.1 field descr}.
+is followed by a field description result set. @xref{4.1 field desc}.
 
 
 @node 4.1 long data,,,
