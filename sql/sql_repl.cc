@@ -693,7 +693,7 @@ void reset_slave()
     pthread_mutex_unlock(&LOCK_slave);
   
   end_master_info(&glob_mi);
-  fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
+  fn_format(fname, master_info_file, mysql_data_home, "", 4+32);
   if(my_stat(fname, &stat_area, MYF(0)))
     if(my_delete(fname, MYF(MY_WME)))
         return;
