@@ -66,8 +66,10 @@ lock tables t1 write;
 connection writer;
 send update low_priority t1 set n = 4;
 connection reader;
+--sleep 2
 send select n from t1;
 connection locker;
+--sleep 2
 unlock tables;
 connection writer;
 reap;
@@ -82,8 +84,10 @@ lock tables t1 read;
 connection writer;
 send update low_priority t1 set n = 4;
 connection reader;
+--sleep 2
 send select n from t1;
 connection locker;
+--sleep 2
 unlock tables;
 connection writer;
 reap;
