@@ -74,7 +74,6 @@ NdbColumnImpl::operator=(const NdbColumnImpl& col)
   m_autoIncrement = col.m_autoIncrement;
   m_autoIncrementInitialValue = col.m_autoIncrementInitialValue;
   m_defaultValue = col.m_defaultValue;
-  m_attrType = col.m_attrType; 
   m_attrSize = col.m_attrSize; 
   m_arraySize = col.m_arraySize;
   m_keyInfoPos = col.m_keyInfoPos;
@@ -228,7 +227,6 @@ NdbColumnImpl::create_psuedo(const char * name){
     col->m_impl.m_attrId = AttributeHeader::RANGE_NO;
     col->m_impl.m_attrSize = 4;
     col->m_impl.m_arraySize = 1;
-    col->m_impl.m_extType = NdbSqlUtil::Type::Unsigned;
   } else {
     abort();
   }
@@ -1145,35 +1143,6 @@ indexTypeMapping[] = {
   { -1, -1 }
 };
 
-// TODO: remove, api-kernel type codes must match now
-static const
-ApiKernelMapping
-columnTypeMapping[] = {
-  { DictTabInfo::ExtTinyint,         NdbDictionary::Column::Tinyint },
-  { DictTabInfo::ExtTinyunsigned,    NdbDictionary::Column::Tinyunsigned },
-  { DictTabInfo::ExtSmallint,        NdbDictionary::Column::Smallint },
-  { DictTabInfo::ExtSmallunsigned,   NdbDictionary::Column::Smallunsigned },
-  { DictTabInfo::ExtMediumint,       NdbDictionary::Column::Mediumint },
-  { DictTabInfo::ExtMediumunsigned,  NdbDictionary::Column::Mediumunsigned },
-  { DictTabInfo::ExtInt,             NdbDictionary::Column::Int },
-  { DictTabInfo::ExtUnsigned,        NdbDictionary::Column::Unsigned },
-  { DictTabInfo::ExtBigint,          NdbDictionary::Column::Bigint },
-  { DictTabInfo::ExtBigunsigned,     NdbDictionary::Column::Bigunsigned },
-  { DictTabInfo::ExtFloat,           NdbDictionary::Column::Float },
-  { DictTabInfo::ExtDouble,          NdbDictionary::Column::Double },
-  { DictTabInfo::ExtDecimal,         NdbDictionary::Column::Decimal },
-  { DictTabInfo::ExtChar,            NdbDictionary::Column::Char },
-  { DictTabInfo::ExtVarchar,         NdbDictionary::Column::Varchar },
-  { DictTabInfo::ExtBinary,          NdbDictionary::Column::Binary },
-  { DictTabInfo::ExtVarbinary,       NdbDictionary::Column::Varbinary },
-  { DictTabInfo::ExtDatetime,        NdbDictionary::Column::Datetime },
-  { DictTabInfo::ExtTimespec,        NdbDictionary::Column::Timespec },
-  { DictTabInfo::ExtBlob,            NdbDictionary::Column::Blob },
-  { DictTabInfo::ExtText,            NdbDictionary::Column::Text },
-  { DictTabInfo::ExtBit,             NdbDictionary::Column::Bit },
-  { -1, -1 }
-};
-
 int
 NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 				 const Uint32 * data, Uint32 len,
@@ -1245,15 +1214,11 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     NdbColumnImpl * col = new NdbColumnImpl();
     col->m_attrId = attrDesc.AttributeId;
     col->setName(attrDesc.AttributeName);
-    col->m_type = (NdbDictionary::Column::Type)
-      getApiConstant(attrDesc.AttributeExtType,
-                     columnTypeMapping,
-                     NdbDictionary::Column::Undefined);
-    if (col->m_type == NdbDictionary::Column::Undefined) {
+    if (attrDesc.AttributeExtType >= NDB_TYPE_MAX) {
       delete impl;
       return 703;
     }
-    col->m_extType = attrDesc.AttributeExtType;
+    col->m_type = (NdbDictionary::Column::Type)attrDesc.AttributeExtType;
     col->m_precision = (attrDesc.AttributeExtPrecision & 0xFFFF);
     col->m_scale = attrDesc.AttributeExtScale;
     col->m_length = attrDesc.AttributeExtLength;
@@ -1277,7 +1242,6 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       delete impl;
       return 703;
     }
-    col->m_attrType =attrDesc.AttributeType;
     col->m_attrSize = (1 << attrDesc.AttributeSize) / 8;
     col->m_arraySize = attrDesc.AttributeArraySize;
     if(attrDesc.AttributeSize == 0)
@@ -1531,10 +1495,11 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     tmpAttr.AttributeNullableFlag = col->m_nullable;
     tmpAttr.AttributeDKey = col->m_distributionKey;
 
-    tmpAttr.AttributeExtType =
-      getKernelConstant(col->m_type,
-                        columnTypeMapping,
-                        DictTabInfo::ExtUndefined);
+    if (col->m_type >= NDB_TYPE_MAX) {
+      m_error.code = 703;
+      return -1;
+    }
+    tmpAttr.AttributeExtType = (Uint32)col->m_type;
     tmpAttr.AttributeExtPrecision = ((unsigned)col->m_precision & 0xFFFF);
     tmpAttr.AttributeExtScale = col->m_scale;
     tmpAttr.AttributeExtLength = col->m_length;

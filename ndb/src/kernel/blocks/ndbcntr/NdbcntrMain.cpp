@@ -1562,13 +1562,9 @@ void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
     ndbassert(column.pos == i);
     w.add(DictTabInfo::AttributeName, column.name);
     w.add(DictTabInfo::AttributeId, (Uint32)column.pos);
-    //w.add(DictTabInfo::AttributeType, DictTabInfo::UnSignedType);
-    //w.add(DictTabInfo::AttributeSize, DictTabInfo::a32Bit);
-    //w.add(DictTabInfo::AttributeArraySize, 1);
     w.add(DictTabInfo::AttributeKeyFlag, (Uint32)column.keyFlag);
     //w.add(DictTabInfo::AttributeStorage, (Uint32)DictTabInfo::MainMemory);
     w.add(DictTabInfo::AttributeNullableFlag, (Uint32)column.nullable);
-    // ext type overrides
     w.add(DictTabInfo::AttributeExtType, (Uint32)column.type);
     w.add(DictTabInfo::AttributeExtLength, (Uint32)column.length);
     w.add(DictTabInfo::AttributeEnd, (Uint32)true);
