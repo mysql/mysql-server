@@ -1333,6 +1333,36 @@ dnl END OF MYSQL_CHECK_EXAMPLE SECTION
 dnl ---------------------------------------------------------------------------
 
 dnl ---------------------------------------------------------------------------
+dnl Macro: MYSQL_CHECK_ARCHIVEDB
+dnl Sets HAVE_ARCHIVE_DB if --with-archive-storage-engine is used
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([MYSQL_CHECK_ARCHIVEDB], [
+  AC_ARG_WITH([archive-storage-engine],
+              [
+  --with-archive-storage-engine
+                          Enable the Archive Storge Engine],
+              [archivedb="$withval"],
+              [archivedb=no])
+  AC_MSG_CHECKING([for archive storage engine])
+
+  case "$archivedb" in
+    yes )
+      AC_DEFINE(HAVE_ARCHIVE_DB)
+      AC_MSG_RESULT([yes])
+      [archivedb=yes]
+      ;;
+    * )
+      AC_MSG_RESULT([no])
+      [archivedb=no]
+      ;;
+  esac
+
+])
+dnl ---------------------------------------------------------------------------
+dnl END OF MYSQL_CHECK_ARCHIVE SECTION
+dnl ---------------------------------------------------------------------------
+
+dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CHECK_NDBCLUSTER
 dnl Sets HAVE_NDBCLUSTER_DB if --with-ndbcluster is used
 dnl ---------------------------------------------------------------------------
@@ -1348,6 +1378,11 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   --with-ndb-sci        Include the NDB Cluster sci transporter],
               [ndb_sci="$withval"],
               [ndb_sci=no])
+  AC_ARG_WITH([ndb-test],
+              [
+  --with-ndb-test       Include the NDB Cluster ndbapi test programs],
+              [ndb_test="$withval"],
+              [ndb_test=no])
                                                                                 
   AC_MSG_CHECKING([for NDB Cluster options])
   AC_MSG_RESULT([])
@@ -1373,6 +1408,17 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       ;;
     * )
       AC_MSG_RESULT([-- not including sci transporter])
+      ;;
+  esac
+
+  have_ndb_test=no
+  case "$ndb_test" in
+    yes )
+      AC_MSG_RESULT([-- including ndbapi test programs])
+      have_ndb_test="yes"
+      ;;
+    * )
+      AC_MSG_RESULT([-- not including ndbapi test programs])
       ;;
   esac
 

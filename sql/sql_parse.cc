@@ -1021,7 +1021,7 @@ pthread_handler_decl(handle_one_connection,arg)
     free_root(&thd->mem_root,MYF(0));
     if (net->error && net->vio != 0 && net->report_error)
     {
-      if (!thd->killed && thd->variables.log_warnings)
+      if (!thd->killed && thd->variables.log_warnings > 1)
 	sql_print_error(ER(ER_NEW_ABORTING_CONNECTION),
 			thd->thread_id,(thd->db ? thd->db : "unconnected"),
 			thd->user ? thd->user : "unauthenticated",
@@ -1424,7 +1424,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_EXECUTE:
   {
-    thd->free_list= NULL;
     mysql_stmt_execute(thd, packet, packet_length);
     break;
   }
@@ -1976,7 +1975,99 @@ mysql_execute_command(THD *thd)
     }
     break;
   }
+  case SQLCOM_PREPARE:
+  {
+    char *query_str;
+    uint query_len;
+    if (lex->prepared_stmt_code_is_varref)
+    {
+      /* This is PREPARE stmt FROM @var. */
+      String str;
+      String *pstr;
+      CHARSET_INFO *to_cs= thd->variables.collation_connection;
+      bool need_conversion;
+      user_var_entry *entry;
+      uint32 unused;
+      /*
+        Convert @var contents to string in connection character set. Although
+        it is known that int/real/NULL value cannot be a valid query we still
+        convert it for error messages to uniform.
+      */
+      if ((entry=
+             (user_var_entry*)hash_search(&thd->user_vars,
+                                          (byte*)lex->prepared_stmt_code.str,
+                                          lex->prepared_stmt_code.length))
+          && entry->value)
+      {
+        String *pstr;
+        my_bool is_var_null;
+        pstr= entry->val_str(&is_var_null, &str, NOT_FIXED_DEC);
+        DBUG_ASSERT(!is_var_null);
+        if (!pstr)
+          send_error(thd, ER_OUT_OF_RESOURCES);
+        DBUG_ASSERT(pstr == &str);
+      }
+      else
+        str.set("NULL", 4, &my_charset_latin1);
+      need_conversion=
+        String::needs_conversion(str.length(), str.charset(), to_cs, &unused);
 
+      query_len= need_conversion? (str.length() * to_cs->mbmaxlen) :
+                                  str.length();
+      if (!(query_str= alloc_root(&thd->mem_root, query_len+1)))
+        send_error(thd, ER_OUT_OF_RESOURCES);
+
+      if (need_conversion)
+        query_len= copy_and_convert(query_str, query_len, to_cs, str.ptr(),
+                                    str.length(), str.charset());
+      else
+        memcpy(query_str, str.ptr(), str.length());
+      query_str[query_len]= 0;
+    }
+    else
+    {
+      query_str= lex->prepared_stmt_code.str;
+      query_len= lex->prepared_stmt_code.length;
+      DBUG_PRINT("info", ("PREPARE: %.*s FROM '%.*s' \n",
+                          lex->prepared_stmt_name.length,
+                          lex->prepared_stmt_name.str,
+                          query_len, query_str));
+    }
+    thd->command= COM_PREPARE;
+    if (!mysql_stmt_prepare(thd, query_str, query_len + 1,
+                            &lex->prepared_stmt_name))
+      send_ok(thd, 0L, 0L, "Statement prepared");
+    break;
+  }
+  case SQLCOM_EXECUTE:
+  {
+    DBUG_PRINT("info", ("EXECUTE: %.*s\n",
+                        lex->prepared_stmt_name.length,
+                        lex->prepared_stmt_name.str));
+    mysql_sql_stmt_execute(thd, &lex->prepared_stmt_name);
+    lex->prepared_stmt_params.empty();
+    break;
+  }
+  case SQLCOM_DEALLOCATE_PREPARE:
+  {
+    Statement* stmt;
+    DBUG_PRINT("info", ("DEALLOCATE PREPARE: %.*s\n", 
+                        lex->prepared_stmt_name.length,
+                        lex->prepared_stmt_name.str));
+    if ((stmt= thd->stmt_map.find_by_name(&lex->prepared_stmt_name)))
+    {
+      thd->stmt_map.erase(stmt);
+      send_ok(thd);
+    }
+    else
+    {
+      res= -1;
+      my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0),
+               lex->prepared_stmt_name.length, lex->prepared_stmt_name.str,
+               "DEALLOCATE PREPARE");
+    }
+    break;
+  }
   case SQLCOM_DO:
     if (tables && ((res= check_table_access(thd, SELECT_ACL, tables,0)) ||
 		   (res= open_and_lock_tables(thd,tables))))
@@ -2918,14 +3009,31 @@ unsent_create_error:
   }
 
   case SQLCOM_SET_OPTION:
+  {
+    List<set_var_base> *lex_var_list= &lex->var_list;
     if (tables && ((res= check_table_access(thd, SELECT_ACL, tables,0)) ||
 		   (res= open_and_lock_tables(thd,tables))))
       break;
-    if (!(res= sql_set_variables(thd, &lex->var_list)))
+    if (lex->one_shot_set && not_all_support_one_shot(lex_var_list))
+    {
+      my_printf_error(0, "The SET ONE_SHOT syntax is reserved for \
+purposes internal to the MySQL server", MYF(0));
+      res= -1;
+      break;
+    }
+    if (!(res= sql_set_variables(thd, lex_var_list)))
+    {
+      /*
+        If the previous command was a SET ONE_SHOT, we don't want to forget
+        about the ONE_SHOT property of that SET. So we use a |= instead of = .
+      */
+      thd->one_shot_set|= lex->one_shot_set;
       send_ok(thd);
+    }
     if (thd->net.report_error)
       res= -1;
     break;
+  }
 
   case SQLCOM_UNLOCK_TABLES:
     unlock_locked_tables(thd);
@@ -3377,6 +3485,29 @@ unsent_create_error:
     break;
   }
   thd->proc_info="query end";			// QQ
+  if (thd->one_shot_set)
+    {
+      /*
+        If this is a SET, do nothing. This is to allow mysqlbinlog to print
+        many SET commands (in this case we want the charset temp setting to
+        live until the real query). This is also needed so that SET
+        CHARACTER_SET_CLIENT... does not cancel itself immediately.
+      */
+      if (lex->sql_command != SQLCOM_SET_OPTION)
+      {
+        thd->variables.character_set_client=
+          global_system_variables.character_set_client;
+        thd->variables.collation_connection=
+          global_system_variables.collation_connection;
+        thd->variables.collation_database=
+          global_system_variables.collation_database;
+        thd->variables.collation_server=
+          global_system_variables.collation_server;
+        thd->update_charset();
+        /* Add timezone stuff here */
+        thd->one_shot_set= 0;
+      }
+    }
   if (res < 0)
     send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
 
@@ -3401,7 +3532,6 @@ error:
 */
 
 int check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables)
-					 
 {
   if (check_access(thd, privilege, tables->db, &tables->grant.privilege,0,0))
     return 1;

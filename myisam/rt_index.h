@@ -25,7 +25,7 @@
               (nod_flag ? nod_flag : info->s->base.rec_reflength))
 #define rt_PAGE_END(page) (page + mi_getint(page))
 
-#define rt_PAGE_MIN_SIZE(block_length) ((uint)(block_length) / 2)
+#define rt_PAGE_MIN_SIZE(block_length) ((uint)(block_length) / 3)
 
 int rtree_insert(MI_INFO *info, uint keynr, uchar *key, uint key_length);
 int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length);

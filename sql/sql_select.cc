@@ -933,7 +933,7 @@ JOIN::optimize()
       If having is not handled here, it will be checked before the row
       is sent to the client.
     */    
-    if (having && 
+    if (tmp_having && 
 	(sort_and_group || (exec_tmp_table1->distinct && !group_list)))
       having= tmp_having;
 
@@ -6369,7 +6369,8 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	if ((join->tables == 1) && !join->tmp_table && !join->sort_and_group
 	    && !join->send_group_parts && !join->having && !jt->select_cond &&
 	    !(jt->select && jt->select->quick) &&
-	    !(jt->table->file->table_flags() & HA_NOT_EXACT_COUNT))
+	    !(jt->table->file->table_flags() & HA_NOT_EXACT_COUNT) &&
+            (jt->ref.key < 0))
 	{
 	  /* Join over all rows in table;  Return number of found rows */
 	  TABLE *table=jt->table;

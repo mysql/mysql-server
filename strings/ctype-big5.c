@@ -402,7 +402,7 @@ static my_bool my_like_range_big5(CHARSET_INFO *cs __attribute__((unused)),
     }
     if (*ptr == escape && ptr+1 != end)
     {
-      ptr++;				/* Skipp escape */
+      ptr++;				/* Skip escape */
       *min_str++= *max_str++ = *ptr;
       continue;
     }
@@ -6313,6 +6313,7 @@ CHARSET_INFO my_charset_big5_chinese_ci=
     "big5",		/* cs name    */
     "big5_chinese_ci",	/* name       */
     "",			/* comment    */
+    NULL,		/* tailoring */
     ctype_big5,
     to_lower_big5,
     to_upper_big5,
@@ -6339,6 +6340,7 @@ CHARSET_INFO my_charset_big5_bin=
     "big5",		/* cs name    */
     "big5_bin",		/* name       */
     "",			/* comment    */
+    NULL,		/* tailoring */
     ctype_big5,
     to_lower_big5,
     to_upper_big5,

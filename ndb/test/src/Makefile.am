@@ -8,7 +8,8 @@ libNDBT_a_SOURCES = \
 	HugoOperations.cpp HugoTransactions.cpp \
 	HugoAsynchTransactions.cpp UtilTransactions.cpp \
 	NdbRestarter.cpp NdbRestarts.cpp NDBT_Output.cpp \
-	NdbBackup.cpp  NdbConfig.cpp NdbGrep.cpp NDBT_Table.cpp
+	NdbBackup.cpp  NdbConfig.cpp NdbGrep.cpp NDBT_Table.cpp \
+	NdbSchemaCon.cpp NdbSchemaOp.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/src/common/mgmcommon -I$(top_srcdir)/ndb/include/mgmcommon -I$(top_srcdir)/ndb/include/kernel -I$(top_srcdir)/ndb/src/mgmapi
 

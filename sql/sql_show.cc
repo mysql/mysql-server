@@ -1251,7 +1251,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append(' ');
     // check for surprises from the previous call to Field::sql_type()
     if (type.ptr() != tmp)
-      type.set(tmp, sizeof(tmp),&my_charset_bin);
+      type.set(tmp, sizeof(tmp), system_charset_info);
 
     field->sql_type(type);
     packet->append(type.ptr(), type.length(), system_charset_info);
@@ -1540,13 +1540,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     while ((tmp=it++))
     {
       struct st_my_thread_var *mysys_var;
-#ifndef EMBEDDED_LIBRARY
-      if ((tmp->net.vio || tmp->system_thread) &&
+      if ((tmp->vio_ok() || tmp->system_thread) &&
           (!user || (tmp->user && !strcmp(tmp->user,user))))
-#else
-      if (tmp->system_thread &&
-          (!user || (tmp->user && !strcmp(tmp->user,user))))
-#endif
       {
         thread_info *thd_info=new thread_info;
 

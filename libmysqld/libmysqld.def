@@ -2,7 +2,8 @@ LIBRARY		LIBMYSQLD
 DESCRIPTION	'MySQL 4.1 Embedded Server Library'
 VERSION		4.1
 EXPORTS
-	_dig_vec
+	_dig_vec_upper
+	_dig_vec_lower
 	bmove_upp
 	delete_dynamic
 	free_defaults

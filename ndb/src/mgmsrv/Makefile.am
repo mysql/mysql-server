@@ -1,7 +1,7 @@
 
-ndbbin_PROGRAMS = mgmtsrvr
+ndbbin_PROGRAMS = ndb_mgmd
 
-mgmtsrvr_SOURCES = \
+ndb_mgmd_SOURCES = \
 	MgmtSrvr.cpp \
 	MgmtSrvrGeneralSignalHandling.cpp \
 	main.cpp \
@@ -17,12 +17,14 @@ INCLUDES_LOC = -I$(top_srcdir)/ndb/src/ndbapi \
                -I$(top_srcdir)/ndb/src/mgmapi \
                -I$(top_srcdir)/ndb/src/common/mgmcommon
 
-LDADD_LOC = $(top_srcdir)/ndb/src/.libs/libndbclient.a \
-	    $(top_srcdir)/ndb/src/common/editline/libeditline.a \
+LDADD_LOC = $(top_builddir)/ndb/src/libndbclient.la \
+	    $(top_builddir)/ndb/src/common/editline/libeditline.a \
 	    @TERMCAP_LIB@
 
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_ndbapi.mk.am
+
+ndb_mgmd_LDFLAGS = @ndb_bin_am_ldflags@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

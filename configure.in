@@ -4,13 +4,19 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 4.1.2-alpha)
+AM_INIT_AUTOMAKE(mysql, 4.1.3-beta)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
 DOT_FRM_VERSION=6
 # See the libtool docs for information on how to do shared lib versions.
 SHARED_LIB_VERSION=14:0:0
+
+# ndb version
+NDB_VERSION_MAJOR=3
+NDB_VERSION_MINOR=5
+NDB_VERSION_BUILD=0
+NDB_VERSION_STATUS=beta
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
@@ -26,7 +32,7 @@ MYSQL_UNIX_ADDR_DEFAULT="/tmp/mysql.sock"
 AVAILABLE_LANGUAGES="\
 czech danish dutch english estonian french german greek hungarian \
 italian japanese korean norwegian norwegian-ny polish portuguese \
-romanian russian slovak spanish swedish ukrainian"
+romanian russian serbian slovak spanish swedish ukrainian"
 
 # Generate make rules for all error messages
 AVAILABLE_LANGUAGES_ERRORS=
@@ -63,6 +69,16 @@ AC_SUBST(SHARED_LIB_VERSION)
 AC_SUBST(AVAILABLE_LANGUAGES)
 AC_SUBST(AVAILABLE_LANGUAGES_ERRORS)
 AC_SUBST_FILE(AVAILABLE_LANGUAGES_ERRORS_RULES)
+
+AC_SUBST([NDB_VERSION_MAJOR])
+AC_SUBST([NDB_VERSION_MINOR])
+AC_SUBST([NDB_VERSION_BUILD])
+AC_SUBST([NDB_VERSION_STATUS])
+AC_DEFINE_UNQUOTED([NDB_VERSION_MAJOR], [$NDB_VERSION_MAJOR])
+AC_DEFINE_UNQUOTED([NDB_VERSION_MINOR], [$NDB_VERSION_MINOR])
+AC_DEFINE_UNQUOTED([NDB_VERSION_BUILD], [$NDB_VERSION_BUILD])
+AC_DEFINE_UNQUOTED([NDB_VERSION_STATUS], ["$NDB_VERSION_STATUS"])
+
 
 # Canonicalize the configuration name.
 SYSTEM_TYPE="$host_vendor-$host_os"
@@ -432,6 +448,15 @@ AC_SUBST(HOSTNAME)
 AC_SUBST(PERL)
 AC_SUBST(PERL5)
 
+# for build ndb docs
+
+AC_PATH_PROG(DOXYGEN, doxygen, no)
+AC_PATH_PROG(PDFLATEX, pdflatex, no)
+AC_PATH_PROG(MAKEINDEX, makeindex, no)
+AC_SUBST(DOXYGEN)
+AC_SUBST(PDFLATEX)
+AC_SUBST(MAKEINDEX)
+
 # Lock for PS
 AC_PATH_PROG(PS, ps, ps)
 AC_MSG_CHECKING("how to check if pid exists")
@@ -767,7 +792,14 @@ AC_CHECK_FUNC(crypt, AC_DEFINE(HAVE_CRYPT))
 AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4, sem_init))
 
 # For compress in zlib
-MYSQL_CHECK_ZLIB_WITH_COMPRESS($with_named_zlib)
+case $SYSTEM_TYPE in
+  *netware*)
+    AC_DEFINE(HAVE_COMPRESS)
+    ;;
+  *)
+    MYSQL_CHECK_ZLIB_WITH_COMPRESS($with_named_zlib)
+    ;;
+esac
 
 #--------------------------------------------------------------------
 # Check for TCP wrapper support
@@ -1614,19 +1646,15 @@ then
   # Medium debug.
   CFLAGS="$DEBUG_CFLAGS $DEBUG_OPTIMIZE_CC -DDBUG_ON -DSAFE_MUTEX $CFLAGS"
   CXXFLAGS="$DEBUG_CXXFLAGS $DEBUG_OPTIMIZE_CXX -DSAFE_MUTEX $CXXFLAGS"
-  #NDB_DEFS="-DNDB_RELEASE -DUSE_EMULATED_JAM -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
-  NDB_DEFS="-DNDB_DEBUG -DUSE_EMULATED_JAM -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
 elif test "$with_debug" = "full"
 then
   # Full debug. Very slow in some cases
   CFLAGS="$DEBUG_CFLAGS -DDBUG_ON -DSAFE_MUTEX -DSAFEMALLOC $CFLAGS"
   CXXFLAGS="$DEBUG_CXXFLAGS -DSAFE_MUTEX -DSAFEMALLOC $CXXFLAGS"
-  NDB_DEFS="-DNDB_DEBUG -DUSE_EMULATED_JAM -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
 else
   # Optimized version. No debug
   CFLAGS="$OPTIMIZE_CFLAGS -DDBUG_OFF $CFLAGS"
   CXXFLAGS="$OPTIMIZE_CXXFLAGS -DDBUG_OFF $CXXFLAGS"
-  NDB_DEFS="-DNDB_RELEASE -DUSE_EMULATED_JAM -DNDEBUG"
 fi
 
 # Force static compilation to avoid linking problems/get more speed
@@ -2136,6 +2164,31 @@ then
   AC_DEFINE(HAVE_QUERY_CACHE)
 fi
 
+AC_ARG_WITH(geometry,
+    [  --without-geometry      Do not build geometry-related parts.],
+    [with_geometry=$withval],
+    [with_geometry=yes]
+)
+
+if test "$with_geometry" = "yes"
+then
+  AC_DEFINE(HAVE_SPATIAL)
+  AC_DEFINE(HAVE_RTREE_KEYS)
+fi
+
+AC_ARG_WITH(embedded_privilege_control,
+    [  --with-embedded-privilege-control
+                          Build parts to check user's privileges.
+			  Only affects embedded library.],
+    [with_embedded_privilege_control=$withval],
+    [with_embedded_privilege_control=no]
+)
+
+if test "$with_embedded_privilege_control" = "yes"
+then
+  AC_DEFINE(HAVE_EMBEDDED_PRIVILEGE_CONTROL)
+fi
+
 AC_ARG_WITH(extra-tools,
     [  --without-extra-tools   Skip building utilites in the tools directory.],
     [with_tools=$withval],
@@ -2624,6 +2677,7 @@ MYSQL_CHECK_ISAM
 MYSQL_CHECK_BDB
 MYSQL_CHECK_INNODB
 MYSQL_CHECK_EXAMPLEDB
+MYSQL_CHECK_ARCHIVEDB
 MYSQL_CHECK_NDBCLUSTER
 
 # If we have threads generate some library functions and test programs
@@ -2838,86 +2892,22 @@ if test X"$have_ndbcluster" = Xyes
 then
   MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
 
-  CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS)"
+  if test "$with_debug" = "yes"
+  then
+    # Medium debug.
+    NDB_DEFS="-DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
+    CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS) \$(NDB_CXXFLAGS_LOC) \$(NDB_CXXFLAGS_DEBUG_LOC)"
+  elif test "$with_debug" = "full"
+  then
+    NDB_DEFS="-DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
+    CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS) \$(NDB_CXXFLAGS_LOC) \$(NDB_CXXFLAGS_DEBUG_LOC)"
+  else
+    NDB_DEFS="-DNDEBUG"
+    CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS) \$(NDB_CXXFLAGS_LOC) \$(NDB_CXXFLAGS_RELEASE_LOC)"
+  fi
 fi
 
-ndbbindir_root="\$(prefix)"
-ndbbindir="\$(ndbbindir_root)/ndb/bin"
-AC_SUBST(ndbbindir_root)
-AC_SUBST(ndbbindir)
-ndbtoolsdir_root="\$(prefix)"
-ndbtoolsdir="\$(ndbtoolsdir_root)/ndb/tools"
-AC_SUBST(ndbtoolsdir_root)
-AC_SUBST(ndbtoolsdir)
-ndblibdir_root="\$(prefix)"
-ndblibdir="\$(ndblibdir_root)/ndb/lib"
-AC_SUBST(ndblibdir_root)
-AC_SUBST(ndblibdir)
-ndbtestdir_root="\$(prefix)"
-ndbtestdir="\$(ndbtestdir_root)/ndb/test"
-AC_SUBST(ndbtestdir_root)
-AC_SUBST(ndbtestdir)
-ndbincludedir_root="\$(prefix)"
-ndbincludedir="\$(ndbincludedir_root)/ndb/include"
-AC_SUBST(ndbincludedir_root)
-AC_SUBST(ndbincludedir)
-ndbapiincludedir_root="\$(prefix)"
-ndbapiincludedir="\$(ndbapiincludedir_root)/ndb/include/ndbapi"
-AC_SUBST(ndbapiincludedir_root)
-AC_SUBST(ndbapiincludedir)
-mgmapiincludedir_root="\$(prefix)"
-mgmapiincludedir="\$(mgmapiincludedir_root)/ndb/include/mgmapi"
-AC_SUBST(mgmapiincludedir_root)
-AC_SUBST(mgmapiincludedir)
-
-  NDB_UTIL_INCLUDES="-I\$(srcdir) -I\$(top_srcdir)/include -I\$(top_srcdir)/ndb/include \
-        -I\$(top_srcdir)/ndb/include/util \
-        -I\$(top_srcdir)/ndb/include/portlib \
-        -I\$(top_srcdir)/ndb/include/logger"
-  NDB_KERNEL_INCLUDES="\
-        -I\$(srcdir) -I\$(top_srcdir)/include -I\$(top_srcdir)/ndb/include \
-        -I\$(top_srcdir)/ndb/src/kernel/vm \
-        -I\$(top_srcdir)/ndb/src/kernel/error \
-	-I\$(top_srcdir)/ndb/src/kernel \
-	-I\$(top_srcdir)/ndb/include/kernel \
-	-I\$(top_srcdir)/ndb/include/transporter \
-	-I\$(top_srcdir)/ndb/include/debugger \
-	-I\$(top_srcdir)/ndb/include/mgmapi \
-	-I\$(top_srcdir)/ndb/include/mgmcommon \
-        -I\$(top_srcdir)/ndb/include/ndbapi \
-        -I\$(top_srcdir)/ndb/include/util \
-	-I\$(top_srcdir)/ndb/include/portlib \
-	-I\$(top_srcdir)/ndb/include/logger"
-  NDB_NDBAPI_INCLUDES="\
-        -I\$(srcdir) -I\$(top_srcdir)/include -I\$(top_srcdir)/ndb/include \
-	-I\$(top_srcdir)/ndb/include/kernel \
-	-I\$(top_srcdir)/ndb/include/transporter \
-	-I\$(top_srcdir)/ndb/include/debugger \
-	-I\$(top_srcdir)/ndb/include/mgmapi \
-	-I\$(top_srcdir)/ndb/include/mgmcommon \
-        -I\$(top_srcdir)/ndb/include/ndbapi \
-        -I\$(top_srcdir)/ndb/include/util \
-	-I\$(top_srcdir)/ndb/include/portlib \
-	-I\$(top_srcdir)/ndb/include/logger"
-  NDB_NDBAPITEST_INCLUDES="\
-        -I\$(srcdir) -I\$(top_srcdir)/include -I\$(top_srcdir)/ndb/include \
-        -I\$(top_srcdir)/ndb/include/ndbapi \
-        -I\$(top_srcdir)/ndb/include/util \
-	-I\$(top_srcdir)/ndb/include/portlib \
-	-I\$(top_srcdir)/ndb/test/include \
-	-I\$(top_srcdir)/ndb/include/mgmapi"
-  NDB_NDBAPICLIENT_INCLUDES="-I\$(top_srcdir)/ndb/include/ndbapi"
-  NDB_MGMAPICLIENT_INCLUDES="-I\$(top_srcdir)/ndb/include/mgmapi"
-
-  AC_SUBST(NDB_DEFS)
-  AC_SUBST(NDB_UTIL_INCLUDES)
-
-  AC_SUBST(NDB_UTIL_INCLUDES)
-  AC_SUBST(NDB_KERNEL_INCLUDES)
-  AC_SUBST(NDB_NDBAPI_INCLUDES)
-  AC_SUBST(NDB_NDBAPITEST_INCLUDES)
-  AC_SUBST(NDB_NDBAPICLIENT_INCLUDES)
-  AC_SUBST(NDB_MGMAPICLIENT_INCLUDES)
+AC_SUBST([NDB_DEFS])
 
 ndb_transporter_opt_objs=""
 if test X"$have_ndb_shm" = Xyes
@@ -2928,27 +2918,27 @@ if test X"$have_ndb_sci" = Xyes
 then
   ndb_transporter_opt_objs="$(ndb_transporter_opt_objs) SCI_Transporter.lo"
 fi
-AC_SUBST(ndb_transporter_opt_objs)
+AC_SUBST([ndb_transporter_opt_objs])
 
-  #NDB_TYPE_COMMON="include \$(top_srcdir)/ndb/config/common.mk.am"
-  #NDB_TYPE_NDBAPI="include \$(top_srcdir)/ndb/config/type_ndbapi.mk.am"
-  #NDB_TYPE_NDBAPI="include \$(top_srcdir)/ndb/config/type_ndbapitest.mk.am"
-  #NDB_TYPE_KERNEL="include \$(top_srcdir)/ndb/config/type_kernel.mk.am"
-  #NDB_TYPE_UTIL="include \$(top_srcdir)/ndb/config/type_util.mk.am"
-  #AC_SUBST(NDB_TYPE_COMMON)
-  #AC_SUBST(NDB_TYPE_NDBAPI)
-  #AC_SUBST(NDB_TYPE_NDBAPITEST)
-  #AC_SUBST(NDB_TYPE_KERNEL)
-  #AC_SUBST(NDB_TYPE_UTIL)
+ndb_bin_am_ldflags="-static"
+if test X"$have_ndb_test" = Xyes
+then
+  ndb_opt_test_subdirs="test"
+  ndb_bin_am_ldflags=""
+fi
+AC_SUBST([ndb_bin_am_ldflags])
+AC_SUBST([ndb_opt_test_subdirs])
 
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
 AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
-   ndb/Makefile ndb/src/Makefile ndb/src/common/Makefile dnl
+   ndb/docs/Makefile dnl
+   ndb/Makefile ndb/include/Makefile dnl
+   ndb/src/Makefile ndb/src/common/Makefile dnl
    ndb/tools/Makefile dnl
    ndb/src/common/debugger/Makefile ndb/src/common/debugger/signaldata/Makefile dnl
-   ndb/src/common/portlib/Makefile ndb/src/common/portlib/unix/Makefile dnl
+   ndb/src/common/portlib/Makefile dnl
    ndb/src/common/util/Makefile dnl
    ndb/src/common/logger/Makefile dnl
    ndb/src/common/transporter/Makefile dnl
@@ -2975,7 +2965,6 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
    ndb/src/kernel/blocks/grep/Makefile dnl
    ndb/src/kernel/blocks/dbtux/Makefile dnl
    ndb/src/kernel/vm/Makefile dnl
-   ndb/src/kernel/ndb-main/Makefile dnl
    ndb/src/mgmapi/Makefile dnl
    ndb/src/ndbapi/Makefile dnl
    ndb/src/mgmsrv/Makefile dnl

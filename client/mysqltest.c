@@ -187,7 +187,7 @@ typedef struct
 */
 
 static char *subst_env_var(const char *cmd);
-static int my_popen(const char *cmd, const char *mode);
+static FILE *my_popen(const char *cmd, const char *mode);
 #define popen(A,B) my_popen((A),(B))
 #endif /* __NETWARE__ */
 
@@ -3710,6 +3710,7 @@ static void get_replace_column(struct st_query *q)
 static char *subst_env_var(const char *str)
 {
   char *result;
+  char *pos;
 
   result= pos= my_malloc(MAX_QUERY, MYF(MY_FAE));
   while (*str)
@@ -3729,7 +3730,7 @@ static char *subst_env_var(const char *str)
            *str && !isspace(*str) && *str != '\\' && *str != '/' &&
              *str != '$';
            str++)
-        *env_pos++ *str;
+        *env_pos++= *str;
       *env_pos= 0;
 
       if (!(subst= getenv(env_var)))
@@ -3772,11 +3773,11 @@ static char *subst_env_var(const char *str)
 
 #undef popen                                    /* Remove wrapper */
 
-int my_popen(const char *cmd, const char *mode __attribute__((unused)) t)
+FILE *my_popen(const char *cmd, const char *mode __attribute__((unused)))
 {
   char *subst_cmd;
-  int res_file;
-  
+  FILE *res_file;
+
   subst_cmd= subst_env_var(cmd);
   res_file= popen(subst_cmd, "r0");
   my_free(subst_cmd, MYF(0));

@@ -78,7 +78,6 @@ extern "C" void free_user_var(user_var_entry *entry)
   my_free((char*) entry,MYF(0));
 }
 
-
 bool key_part_spec::operator==(const key_part_spec& other) const
 {
   return length == other.length && !strcmp(field_name, other.field_name);
@@ -181,6 +180,7 @@ THD::THD():user_time(0), current_statement(0), is_fatal_error(0),
   current_linfo =  0;
   slave_thread = 0;
   variables.pseudo_thread_id= 0;
+  one_shot_set= 0;
   file_id = 0;
   warn_id= 0;
   db_charset= global_system_variables.collation_database;
@@ -746,7 +746,7 @@ bool select_send::send_data(List<Item> &items)
     }
   }
   thd->sent_row_count++;
-  if (!thd->net.vio)
+  if (!thd->vio_ok())
     DBUG_RETURN(0);
   if (!thd->net.report_error)
     DBUG_RETURN(protocol->write());
@@ -1301,6 +1301,7 @@ Statement::Statement(THD *thd)
   query_length(0),
   free_list(0)
 {
+  name.str= NULL;
   init_sql_alloc(&mem_root,
                  thd->variables.query_alloc_block_size,
                  thd->variables.query_prealloc_size);
@@ -1384,16 +1385,51 @@ static void delete_statement_as_hash_key(void *key)
   delete (Statement *) key;
 }
 
+static byte *get_stmt_name_hash_key(Statement *entry, uint *length,
+                                    my_bool not_used __attribute__((unused)))
+{
+  *length=(uint) entry->name.length;
+  return (byte*) entry->name.str;
+}
+
 C_MODE_END
 
 Statement_map::Statement_map() :
   last_found_statement(0)
 {
-  enum { START_HASH_SIZE = 16 };
-  hash_init(&st_hash, default_charset_info, START_HASH_SIZE, 0, 0,
+  enum
+  {
+    START_STMT_HASH_SIZE = 16,
+    START_NAME_HASH_SIZE = 16
+  };
+  hash_init(&st_hash, default_charset_info, START_STMT_HASH_SIZE, 0, 0,
             get_statement_id_as_hash_key,
             delete_statement_as_hash_key, MYF(0));
+  hash_init(&names_hash, &my_charset_bin, START_NAME_HASH_SIZE, 0, 0,
+            (hash_get_key) get_stmt_name_hash_key,
+            NULL,MYF(0));
 }
+
+int Statement_map::insert(Statement *statement)
+{
+  int rc= my_hash_insert(&st_hash, (byte *) statement);
+  if (rc == 0)
+    last_found_statement= statement;
+  if (statement->name.str)
+  {
+    /*
+      If there is a statement with the same name, remove it. It is ok to 
+      remove old and fail to insert new one at the same time.
+    */
+    Statement *old_stmt;
+    if ((old_stmt= find_by_name(&statement->name)))
+      erase(old_stmt); 
+    if ((rc= my_hash_insert(&names_hash, (byte*)statement)))
+      hash_delete(&st_hash, (byte*)statement);
+  }
+  return rc;
+}
+
 
 bool select_dumpvar::send_data(List<Item> &items)
 {

@@ -331,7 +331,7 @@ int mysql_update(THD *thd,
 
   transactional_table= table->file->has_transactions();
   log_delayed= (transactional_table || table->tmp_table);
-  if (updated && (error <= 0 || !transactional_table))
+  if ((updated || (error < 0)) && (error <= 0 || !transactional_table))
   {
     mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
@@ -1092,7 +1092,9 @@ bool multi_update::send_eof()
   /*
     Write the SQL statement to the binlog if we updated
     rows and we succeeded or if we updated some non
-    transacational tables
+    transacational tables.
+    Note that if we updated nothing we don't write to the binlog (TODO:
+    fix this).
   */
 
   if (updated && (local_error <= 0 || !trans_safe))

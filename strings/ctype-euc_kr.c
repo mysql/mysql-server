@@ -8681,6 +8681,7 @@ CHARSET_INFO my_charset_euckr_korean_ci=
     "euckr",		/* cs name    */
     "euckr_korean_ci",	/* name */
     "",			/* comment    */
+    NULL,		/* tailoring */
     ctype_euc_kr,
     to_lower_euc_kr,
     to_upper_euc_kr,
@@ -8707,6 +8708,7 @@ CHARSET_INFO my_charset_euckr_bin=
     "euckr",		/* cs name    */
     "euckr_bin",	/* name */
     "",			/* comment    */
+    NULL,		/* tailoring */
     ctype_euc_kr,
     to_lower_euc_kr,
     to_upper_euc_kr,

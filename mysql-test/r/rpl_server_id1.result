@@ -15,8 +15,5 @@ start slave;
 insert into t1 values (1);
 show status like "slave_running";
 Variable_name	Value
-Slave_running	ON
-select * from t1;
-n
-1
+Slave_running	OFF
 drop table t1;

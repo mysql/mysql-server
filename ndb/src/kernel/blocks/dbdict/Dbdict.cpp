@@ -110,7 +110,7 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
 {
   jamEntry();
 
-#ifdef NDB_DEBUG
+#ifdef VM_TRACE
   if(signal->theData[0] == 1222){
     const Uint32 tab = signal->theData[1];
     PrepDropTabReq* req = (PrepDropTabReq*)signal->getDataPtr();

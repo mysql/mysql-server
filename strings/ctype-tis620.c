@@ -671,7 +671,7 @@ my_bool my_like_range_tis620(CHARSET_INFO *cs __attribute__((unused)),
   {
     if (*ptr == escape && ptr+1 != end)
     {
-      ptr++;					/* Skipp escape */
+      ptr++;					/* Skip escape */
       *min_str++ = *max_str++ = *ptr;
       continue;
     }
@@ -951,6 +951,7 @@ CHARSET_INFO my_charset_tis620_thai_ci=
     "tis620",		/* cs name    */
     "tis620_thai_ci",	/* name      */
     "",			/* comment   */
+    NULL,		/* tailoring */
     ctype_tis620,
     to_lower_tis620,
     to_upper_tis620,
@@ -976,6 +977,7 @@ CHARSET_INFO my_charset_tis620_bin=
     "tis620",		/* cs name    */
     "tis620_bin",	/* name      */
     "",			/* comment   */
+    NULL,		/* tailoring */
     ctype_tis620,
     to_lower_tis620,
     to_upper_tis620,

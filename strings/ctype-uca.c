@@ -7055,6 +7055,7 @@ CHARSET_INFO my_charset_ucs2_general_uca=
     "ucs2",		/* cs name    */
     "ucs2_general_uca",	/* name         */
     "",			/* comment      */
+    NULL,		/* tailoring    */
     NULL,		/* ctype        */
     NULL,		/* to_lower     */
     NULL,		/* to_upper     */

@@ -60,13 +60,11 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 
   DBUG_PRINT(msg_type,("message: %s",msgbuf));
 
-#ifndef EMBEDDED_LIBRARY
-  if (thd->net.vio == 0)
+  if (!thd->vio_ok())
   {
     sql_print_error(msgbuf);
     return;
   }
-#endif
 
   if (param->testflag & (T_CREATE_MISSING_KEYS | T_SAFE_REPAIR |
 			 T_AUTO_REPAIR))

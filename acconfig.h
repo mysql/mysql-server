@@ -115,6 +115,9 @@
 /* Builds Example DB */
 #undef HAVE_EXAMPLE_DB
 
+/* Builds Archive Storage Engine */
+#undef HAVE_ARCHIVE_DB
+
 /* fp_except from ieeefp.h */
 #undef HAVE_FP_EXCEPT
 
@@ -203,6 +206,15 @@
 /* If we want to have query cache */
 #undef HAVE_QUERY_CACHE
 
+/* Spatial extentions */
+#undef HAVE_SPATIAL
+
+/* RTree keys */
+#undef HAVE_RTREE_KEYS
+
+/* Access checks in embedded library */
+#undef HAVE_EMBEDDED_PRIVILEGE_CONTROL
+
 /* Solaris define gethostbyaddr_r with 7 arguments. glibc2 defines
    this with 8 arguments */
 #undef HAVE_SOLARIS_STYLE_GETHOST
@@ -268,6 +280,12 @@
 
 /* mysql client protocoll version */
 #undef PROTOCOL_VERSION
+
+/* ndb version */
+#undef NDB_VERSION_MAJOR
+#undef NDB_VERSION_MINOR
+#undef NDB_VERSION_BUILD
+#undef NDB_VERSION_STATUS
 
 /* Define if qsort returns void */
 #undef QSORT_TYPE_IS_VOID

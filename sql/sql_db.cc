@@ -358,15 +358,25 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     {
       error= -1;
       my_error(ER_DB_DROP_EXISTS,MYF(0),db);
+      goto exit;
     }
     else
-    {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			  ER_DB_DROP_EXISTS, ER(ER_DB_DROP_EXISTS), db);
-      if (!silent)
-        send_ok(thd,0);
+  }
+  else
+  {
+    pthread_mutex_lock(&LOCK_open);
+    remove_db_from_cache(db);
+    pthread_mutex_unlock(&LOCK_open);
+    
+    error= -1;
+    if ((deleted= mysql_rm_known_files(thd, dirp, db, path, 0)) >= 0)
+    {
+      ha_drop_database(path);
+      query_cache_invalidate1(db);  
+      error = 0;
     }
-    goto exit;
   }
   if (lower_case_table_names)
   {
@@ -375,42 +385,30 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     my_casedn_str(files_charset_info, tmp_db);
     db= tmp_db;
   }
-
-  pthread_mutex_lock(&LOCK_open);
-  remove_db_from_cache(db);
-  pthread_mutex_unlock(&LOCK_open);
-
-  error = -1;
-  if ((deleted=mysql_rm_known_files(thd, dirp, db, path,0)) >= 0 && thd)
+  if (!silent && deleted>=0 && thd)
   {
-    ha_drop_database(path);
-    query_cache_invalidate1(db);  
-    if (!silent)
+    const char *query;
+    ulong query_length;
+    if (!thd->query)
     {
-      const char *query;
-      ulong query_length;
-      if (!thd->query)
-      {
-	/* The client used the old obsolete mysql_drop_db() call */
-	query= path;
-	query_length = (uint) (strxmov(path,"drop database `", db, "`",
-				       NullS)- path);
-      }
-      else
-      {
-	query=thd->query;
-	query_length=thd->query_length;
-      }
-      mysql_update_log.write(thd, query, query_length);
-      if (mysql_bin_log.is_open())
-      {
-	Query_log_event qinfo(thd, query, query_length, 0);
-	thd->clear_error();
-	mysql_bin_log.write(&qinfo);
-      }
-      send_ok(thd,(ulong) deleted);
+      /* The client used the old obsolete mysql_drop_db() call */
+      query= path;
+      query_length= (uint) (strxmov(path, "drop database `", db, "`",
+                                     NullS) - path);
     }
-    error = 0;
+    else
+    {
+      query =thd->query;
+      query_length= thd->query_length;
+    }
+    mysql_update_log.write(thd, query, query_length);
+    if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, query, query_length, 0);
+      thd->clear_error();
+      mysql_bin_log.write(&qinfo);
+    }
+    send_ok(thd, (ulong) deleted);
   }
 
 exit:
