@@ -1141,6 +1141,13 @@ bool Protocol_prep::store_time(TIME *tm)
   field_pos++;
   pos= buff+1;
   pos[0]= tm->neg ? 1 : 0;
+  if (tm->hour >= 24)
+  {
+    /* Fix if we come from Item::send */
+    uint days= tm->hour/24;
+    tm->hour-= days*24;
+    tm->day+= days;
+  }
   int4store(pos+1, tm->day);
   pos[5]= (uchar) tm->hour;
   pos[6]= (uchar) tm->minute;

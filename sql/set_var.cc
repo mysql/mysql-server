@@ -2959,7 +2959,8 @@ void sys_var_thd_table_type::warn_deprecated(THD *thd)
 {
   push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 		      ER_WARN_DEPRECATED_SYNTAX,
-		      ER(ER_WARN_DEPRECATED_SYNTAX), "table_type", "storage_engine"); 
+		      ER(ER_WARN_DEPRECATED_SYNTAX), "table_type",
+                      "storage_engine"); 
 }
 
 void sys_var_thd_table_type::set_default(THD *thd, enum_var_type type)

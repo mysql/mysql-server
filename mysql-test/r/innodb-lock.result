@@ -1,3 +1,4 @@
+set global innodb_table_locks=1;
 select @@innodb_table_locks;
 @@innodb_table_locks
 1

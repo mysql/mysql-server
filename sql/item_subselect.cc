@@ -365,9 +365,9 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
       if (!(substitution= new Item_func_if(cond, substitution,
 					   new Item_null())))
 	goto err;
+      if (arena->is_stmt_prepare())
+        thd->restore_backup_item_arena(arena, &backup);
     }
-    if (arena->is_stmt_prepare())
-      thd->restore_backup_item_arena(arena, &backup);
     return RES_REDUCE;
   }
   return RES_OK;

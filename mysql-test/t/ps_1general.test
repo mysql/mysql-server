@@ -501,6 +501,8 @@ prepare stmt1 from ' KILL 0 ';
 ## simple explain
 # cases derived from client_test.c: test_explain_bug()
 prepare stmt1 from ' explain select a from t1 order by b ';
+# PS protocol gives slightly different metadata
+--disable_ps_protocol
 --enable_metadata
 execute stmt1;
 --disable_metadata
@@ -509,6 +511,7 @@ prepare stmt1 from ' explain select a from t1 where a > ? order by b ';
 --enable_metadata
 execute stmt1 using @arg00;
 --disable_metadata
+--enable_ps_protocol
 
 ## parameters with probably problematic characters (quote, double  quote)
 # cases derived from client_test.c: test_logs()
