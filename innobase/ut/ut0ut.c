@@ -49,6 +49,43 @@ ut_difftime(
 	return(difftime(time2, time1));
 }
 
+/**************************************************************
+Prints a timestamp to a file. */
+
+void
+ut_print_timestamp(
+/*===============*/
+	FILE*  file) /* in: file where to print */
+{
+  struct tm* cal_tm_ptr;
+  struct tm  cal_tm;
+  time_t     tm;
+
+ try_again:
+  time(&tm);
+
+  cal_tm_ptr = localtime(&tm);
+
+  memcpy(&cal_tm, cal_tm_ptr, sizeof(struct tm));
+
+  /* In theory localtime may return a wrong result because its return
+  struct is not protected with a mutex */
+
+  if (difftime(tm, mktime(&cal_tm)) > 0.5
+      || difftime(tm, mktime(&cal_tm)) < -0.5) {
+
+    goto try_again;
+  }
+
+  fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
+	  cal_tm.tm_year % 100,
+	  cal_tm.tm_mon+1,
+	  cal_tm.tm_mday,
+	  cal_tm.tm_hour,
+	  cal_tm.tm_min,
+	  cal_tm.tm_sec);
+}
+
 /*****************************************************************
 Runs an idle loop on CPU. The argument gives the desired delay
 in microseconds on 100 MHz Pentium + Visual C++. */

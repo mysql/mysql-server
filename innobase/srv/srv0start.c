@@ -813,7 +813,8 @@ innobase_start_or_create_for_mysql(void)
 	/* Create the thread which watches the timeouts for lock waits */
 	os_thread_create(&srv_lock_timeout_monitor_thread, NULL,
 					thread_ids + 2 + SRV_MAX_N_IO_THREADS);	
-	fprintf(stderr, "InnoDB: Started\n");
+	ut_print_timestamp(stderr);
+	fprintf(stderr, "  InnoDB: Started\n");
 
 	srv_was_started = TRUE;
 	srv_is_being_started = FALSE;
@@ -835,8 +836,9 @@ innobase_shutdown_for_mysql(void)
 {
         if (!srv_was_started) {
 	  if (srv_is_being_started) {
+	    ut_print_timestamp(stderr);
             fprintf(stderr, 
-	"InnoDB: Warning: shutting down not properly started database\n");
+	"  InnoDB: Warning: shutting down a not properly started database\n");
 	  }
 	  return(DB_SUCCESS);
 	}
