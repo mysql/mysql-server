@@ -538,27 +538,11 @@ void String::qs_append(const char &c)
 }
 
 
-int sortcmp(const String *x,const String *y)
+int sortcmp(const String *x,const String *y, CHARSET_INFO *cs)
 {
-  CHARSET_INFO *cs= x->str_charset;
   return cs->strnncollsp(cs,
                         (unsigned char *) x->ptr(),x->length(),
 			(unsigned char *) y->ptr(),y->length());
-}
-
-
-int stringcmp(const String *x,const String *y)
-{
-  const char *s= x->ptr();
-  const char *t= y->ptr();
-  uint32 x_len=x->length(),y_len=y->length(),len=min(x_len,y_len);
-
-  while (len--)
-  {
-    if (*s++ != *t++)
-      return ((int) (uchar) s[-1] - (int) (uchar) t[-1]);
-  }
-  return (int) (x_len-y_len);
 }
 
 

@@ -119,6 +119,7 @@
 </map>
 </collation>
 
+<collation name="latin5_bin"	flag="binary"/>
 
 </charset>
 

@@ -524,7 +524,6 @@ class Item_func_min_max :public Item_func
   Item_result cmp_type;
   String tmp_value;
   int cmp_sign;
-  int (*str_cmp_function)(const String *x,const String *y);
 public:
   Item_func_min_max(List<Item> &list,int cmp_sign_arg) :Item_func(list),
     cmp_type(INT_RESULT), cmp_sign(cmp_sign_arg) {}
