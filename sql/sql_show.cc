@@ -27,8 +27,6 @@
 #include "ha_berkeley.h"			// For berkeley_show_logs
 #endif
 
-/* extern "C" pthread_mutex_t THR_LOCK_keycache; */
-
 static const char *grant_names[]={
   "select","insert","update","delete","create","drop","reload","shutdown",
   "process","file","grant","references","index","alter"};
@@ -43,15 +41,11 @@ static int mysql_find_files(THD *thd,List<char> *files, const char *db,
 static int
 store_create_info(THD *thd, TABLE *table, String *packet);
 
-static void
-append_identifier(THD *thd, String *packet, const char *name);
 
-extern struct st_VioSSLAcceptorFd * ssl_acceptor_fd;
-
-/****************************************************************************
-** Send list of databases
-** A database is a directory in the mysql_data_home directory
-****************************************************************************/
+/*
+  Report list of databases
+  A database is a directory in the mysql_data_home directory
+*/
 
 int
 mysqld_show_dbs(THD *thd,const char *wild)
@@ -1002,8 +996,8 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
 }
 
 
-static void
-append_identifier(THD *thd, String *packet, const char *name)
+void
+append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
   char qtype;
   if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
@@ -1014,12 +1008,12 @@ append_identifier(THD *thd, String *packet, const char *name)
   if (thd->options & OPTION_QUOTE_SHOW_CREATE)
   {
     packet->append(&qtype, 1);
-    packet->append(name, 0, system_charset_info);
+    packet->append(name, length, system_charset_info);
     packet->append(&qtype, 1);
   }
   else
   {
-    packet->append(name, 0, system_charset_info);
+    packet->append(name, length, system_charset_info);
   }
 }
 
@@ -1050,7 +1044,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append("CREATE TEMPORARY TABLE ", 23);
   else
     packet->append("CREATE TABLE ", 13);
-  append_identifier(thd,packet,table->real_name);
+  append_identifier(thd,packet, table->real_name, strlen(table->real_name));
   packet->append(" (\n", 3);
 
   Field **ptr,*field;
@@ -1061,7 +1055,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 
     uint flags = field->flags;
     packet->append("  ", 2);
-    append_identifier(thd,packet,field->field_name);
+    append_identifier(thd,packet,field->field_name, strlen(field->field_name));
     packet->append(' ');
     // check for surprises from the previous call to Field::sql_type()
     if (type.ptr() != tmp)
@@ -1152,7 +1146,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append("KEY ", 4);
 
     if (!found_primary)
-     append_identifier(thd, packet, key_info->name);
+     append_identifier(thd, packet, key_info->name, strlen(key_info->name));
 
     if (!(thd->variables.sql_mode & MODE_NO_KEY_OPTIONS) &&
 	!limited_mysql_mode && !foreign_db_mode)
@@ -1174,7 +1168,8 @@ store_create_info(THD *thd, TABLE *table, String *packet)
         packet->append(',');
 
       if (key_part->field)
-        append_identifier(thd,packet,key_part->field->field_name);
+        append_identifier(thd,packet,key_part->field->field_name,
+			  strlen(key_part->field->field_name));
       if (!key_part->field ||
           (key_part->length !=
            table->field[key_part->fieldnr-1]->key_length() &&
@@ -1190,17 +1185,17 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append(')');
   }
 
+  /*
+    Get possible foreign key definitions stored in InnoDB and append them
+    to the CREATE TABLE statement
+  */
   handler *file = table->file;
+  char* for_str= file->get_foreign_key_create_info();
 
-  /* Get possible foreign key definitions stored in InnoDB and append them
-  to the CREATE TABLE statement */
-
-  char* for_str = file->get_foreign_key_create_info();
-
-  if (for_str) {
-  	packet->append(for_str, strlen(for_str));
-
-  	file->free_foreign_key_create_info(for_str);
+  if (for_str)
+  {
+    packet->append(for_str, strlen(for_str));
+    file->free_foreign_key_create_info(for_str);
   }
 
   packet->append("\n)", 2);
@@ -1267,7 +1262,8 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     {
       char buff[100];
       sprintf(buff," RAID_TYPE=%s RAID_CHUNKS=%d RAID_CHUNKSIZE=%ld",
-	      my_raid_type(file->raid_type), file->raid_chunks, file->raid_chunksize/RAID_BLOCK_SIZE);
+	      my_raid_type(file->raid_type), file->raid_chunks,
+	      file->raid_chunksize/RAID_BLOCK_SIZE);
       packet->append(buff);
     }
   }

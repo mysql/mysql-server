@@ -211,6 +211,7 @@ public:
   bool dependent;	/* dependent from outer select subselect */
   bool uncacheable;     /* result of this query can't be cached */
   bool no_table_names_allowed; /* used for global order by */
+  bool no_error; /* suppress error message (convert it to warnings) */
 
   static void *operator new(size_t size)
   {

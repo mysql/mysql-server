@@ -22,7 +22,7 @@ drop table t1;
 
 #
 # A bit bigger test
-# The 'replace_result' statements are needed because the cardinality calculated
+# The 'replace_column' statements are needed because the cardinality calculated
 # by innodb is not always the same between runs
 #
 
@@ -51,7 +51,7 @@ select * from t1 where parent_id=102;
 select level,id from t1 where level=1;
 select level,id,parent_id from t1 where level=1;
 optimize table t1;
---replace_result 87 # 50 # 48 # 43 # 25 # 24 # 6 # 3 #
+--replace_column 7 #
 show keys from t1;
 drop table t1;
 

@@ -1357,7 +1357,18 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
       Item *item= *arg;
       if (item->fix_fields(thd, tables, arg) || item->check_cols(1))
 	return 1;
-      if (item->binary())
+      /*
+	TODO: We should think about this. It is not always
+	right way just to set an UDF result to return my_charset_bin
+	if one argument has binary sorting order.
+	The result collation should be calculated according to arguments
+	derivations in some cases and should not in other cases.
+	Moreover, some arguments can represent a numeric input
+	which doesn't effect the result character set and collation.
+	There is no a general rule for UDF. Everything depends on
+	the particular user definted function.
+      */
+      if (item->charset()->state & MY_CS_BINSORT)
 	func->set_charset(&my_charset_bin);
       if (item->maybe_null)
 	func->maybe_null=1;
