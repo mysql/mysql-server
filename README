@@ -52,3 +52,4 @@ work for me. Why?' is not consider a valid bug report.
 
 The mysqlbug script can be found in the 'scripts' directory in the
 distribution, that is 'there-you-installed-mysql/scripts'.
+
