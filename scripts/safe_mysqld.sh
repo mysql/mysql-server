@@ -118,7 +118,15 @@ then
   exit 1
 fi
 
-test -z "$pid_file" && pid_file=$DATADIR/`@HOSTNAME@`.pid
+if test -z "$pid_file"
+then
+  pid_file=$DATADIR/`@HOSTNAME@`.pid
+else
+  case "$pid_file" in
+    /* ) ;;
+    * )  pid_file="$DATADIR/$pid_file" ;;
+  esac
+fi
 test -z "$err_log"  && err_log=$DATADIR/`@HOSTNAME@`.err
 
 export MYSQL_UNIX_PORT

@@ -1,93 +1,88 @@
 #!/bin/sh
 # Copyright (C) 1997, 1998, 1999 TCX DataKonsult AB & Monty Program KB & Detron HB
-# For a more info consult the file COPYRIGHT distributed with this file
+# For a more info consult the file COPYRIGHT distributed with this file.
 
 # This scripts creates the privilege tables db, host, user, tables_priv,
 # columns_priv in the mysql database, as well as the func table.
 #
-# All arguments (exept -IN-RPM as a first argument) to this script are
-# passed to mysqld
+# All unrecognized arguments to this script are passed to mysqld.
 
-ldata=@localstatedir@
-execdir=@libexecdir@
-bindir=@bindir@
-sbindir=@sbindir@
-force=0
 IN_RPM=0
+case "$1" in
+    -IN-RPM)
+      IN_RPM="$1"; shift
+      ;;
+esac
 defaults=
+case "$1" in
+    --no-defaults|--defaults-file=*|--defaults-extra-file=*)
+      defaults="$1"; shift
+      ;;
+esac
 
-while [ "x$1" != x ]
-do
-   case "$1" in
-   -*) eqvalue="`echo $1 |sed 's/[-_a-zA-Z0-9]*=//'`"
-       case "$1" in
-       -IN-RPM) IN_RPM=1
-                ;;
-       --force) force=1
-                ;;
-       --no-defaults)     defaults="$1"; CONFIG_FILES=/nonexistent
-                ;;
-       --defaults-file=*) defaults="$1"; CONFIG_FILES="$eqvalue"
-                ;;
-       --basedir=*) SETVARS="$SETVARS basedir=\"$eqvalue\"; bindir=\"$eqvalue/bin\"; execdir=\"$eqvalue/libexec\"; sbindir=\"$eqvalue/sbin\"; "
-                ;;
-       --ldata=*|--datadir=*) SETVARS="$SETVARS ldata=\"$eqvalue\";"
-                ;;
-       --user=*) SETVARS="$SETVARS user=\"$eqvalue\";"
-                ;;
-       esac
-       ;;
-   esac
-   shift
-done
-             
-GetCNF () {
+parse_arguments() {
+  # We only need to pass arguments through to the server if we don't
+  # handle them here.  So, we collect unrecognized options (passed on
+  # the command line) into the args variable.
+  pick_args=
+  if test "$1" = PICK-ARGS-FROM-ARGV
+  then
+    pick_args=1
+    shift
+  fi
 
-VARIABLES="basedir bindir datadir sbindir user pid-file log port socket"
-# set it not already set
-CONFIG_FILES=${CONFIG_FILES:-"/etc/my.cnf ./my.cnf $HOME/.my.cnf"}
-
-for c in $CONFIG_FILES
-do
-   if [ -f $c ]
-   then
-      #echo "Processing $c..."
-      for v in $VARIABLES
-      do
-         # This method assumes last of duplicate $variable entries will be the
-         # value set ([mysqld])
-         # This could easily be rewritten to gather [xxxxx]-specific entries,
-         # but for now it looks like only the mysqld ones are needed for
-         # server startup scripts
-         thevar=""
-         eval `sed -n -e '/^$/d' -e '/^#/d' -e 's,[ 	],,g' -e '/=/p' $c |\
-         awk -F= -v v=$v '{if ($1 == v) printf ("thevar=\"%s\"\n", $2)}'`
-
-         # it would be easier if the my.cnf and variable values were
-         # all matched, but since they aren't we need to map them here.
-         case $v in
-         pid-file) v=pid_file ;;
-              log) v=log_file ;;
-          datadir) v=ldata ;;
-         esac
-
-         # As long as $thevar isn't blank, use it to set or override current
-         # value
-         [ "$thevar" != "" ] && eval $v=$thevar
-            
-      done
-   #else
-   #   echo "No $c config file."
-   fi
-done
+  for arg do
+    case "$arg" in
+      --force) force=1 ;;
+      --basedir=*) basedir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --ldata=*|--datadir=*) ldata=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --user=*) user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      *)
+        if test -n "$pick_args"
+        then
+          # This sed command makes sure that any special chars are quoted,
+          # so the arg gets passed exactly to the server.
+          args="$args "`echo "$arg" | sed -e 's,\([^a-zA-Z0-9_.-]\),\\\\\1,g'`
+        fi
+        ;;
+    esac
+  done
 }
 
-# run function to get config values
-GetCNF
+# Get first arguments from the my.cfg file, groups [mysqld] and
+# [mysql_install_db], and then merge with the command line arguments
+if test -x ./bin/my_print_defaults
+then
+  print_defaults="./bin/my_print_defaults"
+elif test -x @bindir@/my_print_defaults
+then
+  print_defaults="@bindir@/my_print_defaults"
+elif test -x @bindir@/mysql_print_defaults
+then
+  print_defaults="@bindir@/mysql_print_defaults"
+else
+  print_defaults="my_print_defaults"
+fi
 
-# Override/set with command-line values
-eval $SETVARS
+args=
+ldata=
+execdir=
+bindir=
+basedir=
+force=0
+parse_arguments `$print_defaults $defaults mysqld mysql_install_db`
+parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
+test -z "$ldata" && ldata=@localstatedir@
+if test -z "$basedir"
+then
+  basedir=@prefix@
+  bindir=@bindir@
+  execdir=@libexecdir@ 
+else
+  bindir="$basedir/bin"
+  execdir="$basedir/libexec"
+fi
 
 mdata=$ldata/mysql
 
@@ -151,7 +146,7 @@ c_t="" c_c=""
 # Check for old tables
 if test ! -f $mdata/db.frm
 then
-  echo "Creating db table"
+  echo "Preparing db table"
 
   # mysqld --bootstrap wants one command/line
   c_d="$c_d CREATE TABLE db ("
@@ -179,7 +174,7 @@ fi
 
 if test ! -f $mdata/host.frm
 then
-  echo "Creating host table"
+  echo "Preparing host table"
 
   c_h="$c_h CREATE TABLE host ("
   c_h="$c_h  Host char(60) DEFAULT '' NOT NULL,"
@@ -201,7 +196,7 @@ fi
 
 if test ! -f $mdata/user.frm
 then
-  echo "Creating user table"
+  echo "Preparing user table"
 
   c_u="$c_u CREATE TABLE user ("
   c_u="$c_u   Host char(60) DEFAULT '' NOT NULL,"
@@ -237,7 +232,7 @@ fi
 
 if test ! -f $mdata/func.frm
 then
-  echo "Creating func table"
+  echo "Preparing func table"
 
   c_f="$c_f CREATE TABLE func ("
   c_f="$c_f   name char(64) DEFAULT '' NOT NULL,"
@@ -251,7 +246,7 @@ fi
 
 if test ! -f $mdata/tables_priv.frm
 then
-  echo "Creating tables_priv table"
+  echo "Preparing tables_priv table"
 
   c_t="$c_t CREATE TABLE tables_priv ("
   c_t="$c_t   Host char(60) DEFAULT '' NOT NULL,"
@@ -270,7 +265,7 @@ fi
 
 if test ! -f $mdata/columns_priv.frm
 then
-  echo "Creating columns_priv table"
+  echo "Preparing columns_priv table"
 
   c_c="$c_c CREATE TABLE columns_priv ("
   c_c="$c_c   Host char(60) DEFAULT '' NOT NULL,"
@@ -285,8 +280,9 @@ then
   c_c="$c_c   comment='Column privileges';"
 fi
 
- if $execdir/mysqld $defaults --bootstrap --skip-grant-tables \
-    --basedir=@prefix@ --datadir=$ldata "$@" << END_OF_DATA
+echo "Installing all prepared tables"
+if eval "$execdir/mysqld $defaults --bootstrap --skip-grant-tables \
+         --basedir=$basedir --datadir=$ldata $args" << END_OF_DATA
 use mysql;
 $c_d
 $i_d
