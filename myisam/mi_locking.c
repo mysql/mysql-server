@@ -66,6 +66,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 						      share->kfile,FLUSH_KEEP))
       {
 	error=my_errno;
+        mi_print_error(info, HA_ERR_CRASHED);
 	mi_mark_crashed(info);		/* Mark that table must be checked */
       }
       if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
@@ -73,6 +74,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	if (end_io_cache(&info->rec_cache))
 	{
 	  error=my_errno;
+          mi_print_error(info, HA_ERR_CRASHED);
 	  mi_mark_crashed(info);
 	}
       }
@@ -98,7 +100,10 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	  else
 	    share->not_flushed=1;
 	  if (error)
+          {
+            mi_print_error(info, HA_ERR_CRASHED);
 	    mi_mark_crashed(info);
+          }
 	}
 	if (info->lock_type != F_EXTRA_LCK)
 	{
@@ -285,6 +290,7 @@ void mi_update_status(void* param)
   {
     if (end_io_cache(&info->rec_cache))
     {
+      mi_print_error(info, HA_ERR_CRASHED);
       mi_mark_crashed(info);
     }
     info->opt_flag&= ~WRITE_CACHE_USED;

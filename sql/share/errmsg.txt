@@ -5168,8 +5168,8 @@ ER_VIEW_CHECK_FAILED
 	eng "CHECK OPTION failed '%-.64s.%-.64s'"
 	rus "проверка CHECK OPTION для VIEW '%-.64s.%-.64s' провалилась"
 	ukr "Перев╕рка CHECK OPTION для VIEW '%-.64s.%-.64s' не пройшла"
-ER_SP_ACCESS_DENIED_ERROR 42000 
-	eng "Access denied; you are not the procedure/function definer of '%s'"
+ER_PROCACCESS_DENIED_ERROR 42000 
+	eng "%-.16s command denied to user '%-.32s'@'%-.64s' for routine '%-.64s'"
 ER_RELAY_LOG_FAIL  
 	eng "Failed purging old relay logs: %s"
 ER_PASSWD_LENGTH  
@@ -5232,3 +5232,9 @@ ER_CANNOT_USER
 	eng "Operation %s failed for %.256s"
 	ger "Das Kommando %s scheiterte fЭr %.256s"
 	norwegian-ny "Operation %s failed for '%.256s'"
+ER_NONEXISTING_PROC_GRANT 42000 
+	eng "There is no such grant defined for user '%-.32s' on host '%-.64s' on routine '%-.64s'"
+ER_PROC_AUTO_GRANT_FAIL
+	eng "Failed to grant EXECUTE and ALTER ROUTINE privileges"
+ER_PROC_AUTO_REVOKE_FAIL
+	eng "Failed to revoke all privileges to dropped routine"

@@ -477,6 +477,7 @@ int _mi_read_key_record(MI_INFO *info, my_off_t filepos, byte *buf)
     {				/* Read only key */
       if (_mi_put_key_in_record(info,(uint) info->lastinx,buf))
       {
+        mi_print_error(info, HA_ERR_CRASHED);
 	my_errno=HA_ERR_CRASHED;
 	return -1;
       }

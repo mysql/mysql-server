@@ -37,8 +37,8 @@
 #define SHAREDIR	"share/"
 #endif
 
-#define ER(X) errmesg[(X)-1000]
-#define ER_SAFE(X) (((X) >= 1000 && (X) < ER_ERROR_MESSAGES + 1000) ? ER(X) : "Invalid error code")
+#define ER(X) errmesg[(X) - ER_ERROR_FIRST]
+#define ER_SAFE(X) (((X) >= ER_ERROR_FIRST && (X) <= ER_ERROR_LAST) ? ER(X) : "Invalid error code")
 
 
 #define ERRMAPP 1				/* Errormap f|r my_error */

@@ -374,6 +374,26 @@ rec_set_n_fields_old(
 }
 
 /**********************************************************
+The following function retrieves the status bits of a new-style record. */
+UNIV_INLINE
+ulint
+rec_get_status(
+/*===========*/
+			/* out: status bits */
+	rec_t*	rec)	/* in: physical record */
+{
+	ulint	ret;
+
+	ut_ad(rec);
+
+	ret = rec_get_bit_field_1(rec, REC_NEW_STATUS,
+				REC_NEW_STATUS_MASK, REC_NEW_STATUS_SHIFT);
+	ut_ad((ret & ~REC_NEW_STATUS_MASK) == 0);
+
+	return(ret);
+}
+
+/**********************************************************
 The following function is used to get the number of fields
 in a record. */
 UNIV_INLINE
@@ -482,26 +502,6 @@ rec_set_info_bits(
 	rec_set_bit_field_1(rec, bits,
 				comp ? REC_NEW_INFO_BITS : REC_OLD_INFO_BITS,
 				REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
-}
-
-/**********************************************************
-The following function retrieves the status bits of a new-style record. */
-UNIV_INLINE
-ulint
-rec_get_status(
-/*===========*/
-			/* out: status bits */
-	rec_t*	rec)	/* in: physical record */
-{
-	ulint	ret;
-
-	ut_ad(rec);
-
-	ret = rec_get_bit_field_1(rec, REC_NEW_STATUS,
-				REC_NEW_STATUS_MASK, REC_NEW_STATUS_SHIFT);
-	ut_ad((ret & ~REC_NEW_STATUS_MASK) == 0);
-
-	return(ret);
 }
 
 /**********************************************************
@@ -756,6 +756,25 @@ rec_offs_set_n_alloc(
 	offsets[0] = n_alloc;
 }
 
+/************************************************************** 
+The following function returns the number of fields in a record. */
+UNIV_INLINE
+ulint
+rec_offs_n_fields(
+/*===============*/
+				/* out: number of fields */
+	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
+{
+	ulint	n_fields;
+	ut_ad(offsets);
+	n_fields = offsets[1];
+	ut_ad(n_fields > 0);
+	ut_ad(n_fields <= REC_MAX_N_FIELDS);
+	ut_ad(n_fields + REC_OFFS_HEADER_SIZE
+		<= rec_offs_get_n_alloc(offsets));
+	return(n_fields);
+}
+
 /****************************************************************
 Validates offsets returned by rec_get_offsets(). */
 UNIV_INLINE
@@ -927,7 +946,8 @@ rec_offs_nth_size(
 {
 	ut_ad(rec_offs_validate(NULL, NULL, offsets));
 	ut_ad(n < rec_offs_n_fields(offsets));
-	return(rec_offs_base(offsets)[1 + n] & REC_OFFS_MASK);
+	return((rec_offs_base(offsets)[1 + n] - rec_offs_base(offsets)[n])
+			& REC_OFFS_MASK);
 }
 
 /**********************************************************
@@ -1200,25 +1220,6 @@ rec_get_data_size_old(
 	ut_ad(rec);
 
 	return(rec_get_field_start_offs(rec, rec_get_n_fields_old(rec)));
-}
-
-/************************************************************** 
-The following function returns the number of fields in a record. */
-UNIV_INLINE
-ulint
-rec_offs_n_fields(
-/*===============*/
-				/* out: number of fields */
-	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
-{
-	ulint	n_fields;
-	ut_ad(offsets);
-	n_fields = offsets[1];
-	ut_ad(n_fields > 0);
-	ut_ad(n_fields <= REC_MAX_N_FIELDS);
-	ut_ad(n_fields + REC_OFFS_HEADER_SIZE
-		<= rec_offs_get_n_alloc(offsets));
-	return(n_fields);
 }
 
 /************************************************************** 

@@ -21,6 +21,7 @@
 extern "C" {
 #endif
 void	init_client_errs(void);
+void	finish_client_errs(void);
 extern const char *client_errors[];	/* Error messages */
 #ifdef	__cplusplus
 }
@@ -35,6 +36,9 @@ extern const char *client_errors[];	/* Error messages */
 #endif
 #define CLIENT_ERRMAP		2	/* Errormap used by my_error() */
 
+/* Do not add error numbers before CR_ERROR_FIRST. */
+/* If necessary to add lower numbers, change CR_ERROR_FIRST accordingly. */
+#define CR_ERROR_FIRST  	2000 /*Copy first error nr.*/
 #define CR_UNKNOWN_ERROR	2000
 #define CR_SOCKET_CREATE_ERROR	2001
 #define CR_CONNECTION_ERROR	2002
@@ -90,3 +94,6 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_SECURE_AUTH                          2049
 #define CR_FETCH_CANCELED                       2050
 #define CR_NO_DATA                              2051
+#define CR_ERROR_LAST  /*Copy last error nr:*/  2051
+/* Add error numbers before CR_ERROR_LAST and change it accordingly. */
+

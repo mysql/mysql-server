@@ -2735,9 +2735,8 @@ loop:
 					offsets, ULINT_UNDEFINED, &heap);
 		offsets2 = rec_get_offsets(right_rec, index,
 					offsets2, ULINT_UNDEFINED, &heap);
-		if (cmp_rec_rec(rec, right_rec, offsets, offsets2,
-			dict_index_get_n_fields(index),
-			index) >= 0) {
+		if (cmp_rec_rec(rec, right_rec, offsets, offsets2, index)
+				>= 0) {
 
 			btr_validate_report2(index, level, page, right_page);
 

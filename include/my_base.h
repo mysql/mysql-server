@@ -273,6 +273,9 @@ enum ha_base_keytype {
 	/* Errorcodes given by functions */
 
 /* opt_sum_query() assumes these codes are > 1 */
+/* Do not add error numbers before HA_ERR_FIRST. */
+/* If necessary to add lower numbers, change HA_ERR_FIRST accordingly. */
+#define HA_ERR_FIRST            120 /*Copy first error nr.*/
 #define HA_ERR_KEY_NOT_FOUND	120	/* Didn't find key on read or update */
 #define HA_ERR_FOUND_DUPP_KEY	121	/* Dupplicate key on write */
 #define HA_ERR_RECORD_CHANGED	123	/* Uppdate with is recoverable */
@@ -308,6 +311,9 @@ enum ha_base_keytype {
 #define HA_ERR_NO_SUCH_TABLE     155  /* The table does not exist in engine */
 #define HA_ERR_TABLE_EXIST       156  /* The table existed in storage engine */
 #define HA_ERR_NO_CONNECTION     157  /* Could not connect to storage engine */
+#define HA_ERR_LAST              157 /*Copy last error nr.*/
+/* Add error numbers before HA_ERR_LAST and change it accordingly. */
+#define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
 
 	/* Other constants */
 
@@ -370,12 +376,29 @@ enum data_file_type {
 
 /* For key ranges */
 
+#define NO_MIN_RANGE	1
+#define NO_MAX_RANGE	2
+#define NEAR_MIN	4
+#define NEAR_MAX	8
+#define UNIQUE_RANGE	16
+#define EQ_RANGE	32
+#define NULL_RANGE	64
+#define GEOM_FLAG      128
+
 typedef struct st_key_range
 {
   const byte *key;
   uint length;
   enum ha_rkey_function flag;
 } key_range;
+
+typedef struct st_key_multi_range
+{
+  key_range start_key;
+  key_range end_key;
+  char  *ptr;                 /* Free to use by caller (ptr to row etc) */
+  uint  range_flag;           /* key range flags see above */
+} KEY_MULTI_RANGE;
 
 
 /* For number of records */
