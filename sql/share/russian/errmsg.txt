@@ -230,4 +230,6 @@
 "Невозможно выполнить запрос из-за конфликтной блокировки чтения",
 "Одновременное использование transactional и non-transactional таблиц отключено",
 "Опция '%s' использована дважды",
-"User '%-64s' has exceeded the '%s' resource (current value: %ld)",
+"User '%-.64s' has exceeded the '%s' resource (current value: %ld)",
+"Wrong foreign key definition for '%-.64s': %s",
+"Key reference and table reference doesn't match",
