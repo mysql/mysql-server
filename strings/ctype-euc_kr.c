@@ -8657,7 +8657,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
   my_charpos_mb,
   my_well_formed_len_mb,
   my_lengthsp_8bit,
-  my_numcells_mb,
+  my_numcells_8bit,
   my_mb_wc_euc_kr,	/* mb_wc   */
   my_wc_mb_euc_kr,	/* wc_mb   */
   my_caseup_str_mb,
