@@ -116,7 +116,7 @@ $cmd <<END_OF_DATA
 alter table user change password password char(16) NOT NULL;
 alter table user add File_priv enum('N','Y') NOT NULL;
 CREATE TABLE if not exists func (
-  name char(64) DEFAULT '' NOT NULL,
+  name char(64) binary DEFAULT '' NOT NULL,
   ret tinyint(1) DEFAULT '0' NOT NULL,
   dl char(128) DEFAULT '' NOT NULL,
   type enum ('function','aggregate') NOT NULL,
