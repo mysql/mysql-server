@@ -1289,7 +1289,7 @@ opt_binary:
 	| BYTE_SYM			{ Lex->charset=my_charset_bin; }
 	| BINARY			{ Lex->charset=my_charset_bin; }
 	| CHAR_SYM SET charset_name	{ Lex->charset=$3; }
-
+	;
 
 opt_primary:
 	/* empty */
@@ -1723,6 +1723,7 @@ select_init:
 	    }
             /* select in braces, can't contain global parameters */
             sel->master_unit()->global_parameters=
+               sel->master_unit();
           } union_opt;
 
 select_init2:
