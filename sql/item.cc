@@ -441,12 +441,11 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	cause error ER_NON_UNIQ_ERROR in find_field_in_tables.
       */
       SELECT_LEX *last= 0;
-      for (SELECT_LEX *sl= thd->lex.select->outer_select();
+      for (SELECT_LEX *sl= thd->lex.current_select->outer_select();
 	   sl;
 	   sl= sl->outer_select())
 	if ((tmp= find_field_in_tables(thd, this,
-				       (TABLE_LIST*)
-				       (last= sl)->table_list.first,
+				       (last= sl)->get_table_list(),
 				       0)) != not_found_field)
 	  break;
       if (!tmp)
@@ -464,20 +463,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  Mark all selects from resolved to 1 before select where was 
 	  found table as depended (of select where was found table)
 	*/
-	for (SELECT_LEX *s= thd->lex.select;
-	     s &&s != last;
-	     s= s->outer_select())
-	  if( !s->depended )
-	  {
-	    // Select is depended of outer select
-	    s->depended= s->master_unit()->depended= 1;
-	    //Tables will be reopened many times
-	    for (TABLE_LIST *tbl= 
-		   (TABLE_LIST*)s->table_list.first;
-		 tbl;
-		 tbl= tbl->next)
-	      tbl->shared= 1;
-	  }
+	thd->lex.current_select->mark_as_dependent(last);
       }
     } 
     else if (!tmp)
@@ -822,9 +808,11 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
   if (!ref)
   {
-    SELECT_LEX *sl=thd->lex.select->outer_select();
-    if ((ref= find_item_in_list(this, thd->lex.select->item_list,
-		(sl ? REPORT_EXCEPT_NOT_FOUND : REPORT_ALL_ERRORS))) ==
+    SELECT_LEX *sl= thd->lex.current_select->outer_select();
+    if ((ref= find_item_in_list(this, 
+				*(thd->lex.current_select->get_item_list()),
+				(sl ? REPORT_EXCEPT_NOT_FOUND :
+				 REPORT_ALL_ERRORS))) ==
 	(Item **)not_found_item)
     {
       /*
@@ -850,31 +838,16 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       else if (ref == (Item **)not_found_item)
       {
 	// Call to report error
-	find_item_in_list(this, thd->lex.select->item_list, REPORT_ALL_ERRORS);
-        ref=0;
+	find_item_in_list(this,
+			  *(thd->lex.current_select->get_item_list()),
+			  REPORT_ALL_ERRORS);
+        ref= 0;
 	return 1;
       }
       else
       {
 	depended_from= last;
-	/*
-	  Mark all selects from resolved to 1 before select where was
-	  found table as depended (of select where was found table)
-	*/
-	for (SELECT_LEX *s= thd->lex.select;
-	     s &&s != last;
-	     s= s->outer_select())
-	  if( !s->depended )
-	  {
-	    // Select is depended of outer select
-	    s->depended= s->master_unit()->depended= 1;
-	    //Tables will be reopened many times
-	    for (TABLE_LIST *tbl=
-		   (TABLE_LIST*)s->table_list.first;
-		 tbl;
-		 tbl= tbl->next)
-	      tbl->shared= 1;
-	  }
+	thd->lex.current_select->mark_as_dependent(last);
       }
     }
     else if (!ref)

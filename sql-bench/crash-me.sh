@@ -2009,6 +2009,43 @@ find_limit("number of columns in group by","columns_in_group_by",
 			  ["drop table crash_q $drop_attr"],
 			  $max_order_by));
 
+
+
+# Safe arithmetic test
+
+$prompt="safe decimal arithmetic";
+$key="safe_decimal_arithmetic";
+if (!defined($limits{$key}))
+{
+   print "$prompt=";
+   save_incomplete($limit,$prompt);	
+   if (!safe_query($server->create("crash_me_a",["a decimal(10,2)","b decimal(10,2)"]))) 
+     {
+       print DBI->errstr();
+       die "Can't create table 'crash_me_a' $DBI::errstr\n";
+     };
+   
+   if (!safe_query(["insert into crash_me_a (a,b) values (11.4,18.9)"]))
+     {
+       die "Can't insert into table 'crash_me_a' a  record: $DBI::errstr\n";
+     };
+     
+   $arithmetic_safe = 'no'; 
+   $arithmetic_safe = 'yes' 
+   if ( (safe_query_result('select count(*) from crash_me_a where a+b=30.3',1,0) == 0) 
+      and (safe_query_result('select count(*) from crash_me_a where a+b-30.3 = 0',1,0) == 0)  
+      and (safe_query_result('select count(*) from crash_me_a where a+b-30.3 < 0',0,0) == 0)
+      and (safe_query_result('select count(*) from crash_me_a where a+b-30.3 > 0',0,0) == 0) );
+   save_config_data($key,$arithmetic_safe,$prompt);
+   print "$arithmetic_safe\n";
+   assert("drop table crash_me_a $drop_attr");
+}
+ else
+{
+  print "$prompt=$limits{$key} (cached)\n";
+}
+
+
 #
 # End of test
 #

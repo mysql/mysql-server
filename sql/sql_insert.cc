@@ -1180,7 +1180,7 @@ bool delayed_insert::handle_inserts(void)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
       using_ignore=1;
     }
-    thd.net.last_errno = 0; // reset error for binlog
+    thd.clear_error(); // reset error for binlog
     if (write_record(table,&info))
     {
       info.error_count++;				// Ignore errors

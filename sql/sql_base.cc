@@ -1464,9 +1464,8 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       }
     }
     pthread_mutex_unlock(&LOCK_open);
-    thd->net.last_error[0]=0;				// Clear error message
-    thd->net.last_errno=0;
-    error=0;
+    thd->clear_error();				// Clear error message
+    error= 0;
     if (openfrm(path,alias,
 		(uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX |
 			 HA_TRY_READ_ONLY),
@@ -1476,8 +1475,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 	(entry->file->is_crashed() && entry->file->check_and_repair(thd)))
     {
       /* Give right error message */
-      thd->net.last_error[0]=0;
-      thd->net.last_errno=0;
+      thd->clear_error();
       my_error(ER_NOT_KEYFILE, MYF(0), name, my_errno);
       sql_print_error("Error: Couldn't repair table: %s.%s",db,name);
       if (entry->file)
@@ -1486,8 +1484,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
     }
     else
     {
-      thd->net.last_error[0]=0;			// Clear error message
-      thd->net.last_errno=0;
+      thd->clear_error();			// Clear error message
     }
     pthread_mutex_lock(&LOCK_open);
     unlock_table_name(thd,&table_list);
@@ -2451,10 +2448,10 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
   DBUG_RETURN(result);
 }
 
-int setup_ftfuncs(THD *thd)
+int setup_ftfuncs(SELECT_LEX *select_lex)
 {
-  List_iterator<Item_func_match> li(*(thd->lex.select->ftfunc_list)),
-                                 lj(*(thd->lex.select->ftfunc_list));
+  List_iterator<Item_func_match> li(*(select_lex->ftfunc_list)),
+                                 lj(*(select_lex->ftfunc_list));
   Item_func_match *ftf, *ftf2;
 
   while ((ftf=li++))
@@ -2473,11 +2470,11 @@ int setup_ftfuncs(THD *thd)
 }
 
 
-int init_ftfuncs(THD *thd, bool no_order)
+int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
 {
-  if (thd->lex.select->ftfunc_list->elements)
+  if (select_lex->ftfunc_list->elements)
   {
-    List_iterator<Item_func_match> li(*(thd->lex.select->ftfunc_list));
+    List_iterator<Item_func_match> li(*(select_lex->ftfunc_list));
     Item_func_match *ifm;
     DBUG_PRINT("info",("Performing FULLTEXT search"));
     thd->proc_info="FULLTEXT initialization";

@@ -57,8 +57,8 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t,
   {
     if (cursor->derived)
     {
-      res=mysql_derived(thd, lex, (SELECT_LEX_UNIT *)cursor->derived,
-			cursor, 0);
+      res= mysql_derived(thd, lex, (SELECT_LEX_UNIT *)cursor->derived,
+			 cursor, 0);
       if (res) DBUG_RETURN(res);
     }
   }
