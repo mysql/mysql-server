@@ -707,3 +707,14 @@ drop table t1;
 # Bug#8385: utf8_general_ci treats Cyrillic letters I and SHORT I as the same
 #
 select convert(_koi8r'É' using utf8) < convert(_koi8r'Ê' using utf8);
+
+#
+# Bugs#5980: NULL requires a characterset in a union
+#
+set names latin1;
+create table t1 (a varchar(10)) character set utf8;
+insert into t1 values ('test');
+select ifnull(a,'') from t1;
+drop table t1;
+select repeat(_utf8'+',3) as h union select NULL;
+select ifnull(NULL, _utf8'string');
