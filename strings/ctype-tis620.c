@@ -725,7 +725,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 
 
 
-CHARSET_INFO my_charset_tis620_thai_ci =
+CHARSET_INFO my_charset_tis620_thai_ci=
 {
     18,0,0,		/* number    */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state     */
@@ -738,12 +738,35 @@ CHARSET_INFO my_charset_tis620_thai_ci =
     sort_order_tis620,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "","",
+    "",
+    "",
     4,			/* strxfrm_multiply */
     1,			/* mbmaxlen  */
     0,
     &my_charset_handler,
     &my_collation_ci_handler
+};
+
+CHARSET_INFO my_charset_tis620_bin=
+{
+    89,0,0,		/* number    */
+    MY_CS_COMPILED|MY_CS_BINSORT,	/* state     */
+    "tis620",		/* cs name    */
+    "tis620_bin",	/* name      */
+    "",			/* comment   */
+    ctype_tis620,
+    to_lower_tis620,
+    to_upper_tis620,
+    sort_order_tis620,
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    "",
+    "",
+    0,			/* strxfrm_multiply */
+    1,			/* mbmaxlen  */
+    0,
+    &my_charset_handler,
+    &my_collation_bin_handler
 };
 
 

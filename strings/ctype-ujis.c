@@ -8463,7 +8463,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 
 
 
-CHARSET_INFO my_charset_ujis_japanese_ci =
+CHARSET_INFO my_charset_ujis_japanese_ci=
 {
     12,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state        */
@@ -8482,6 +8482,28 @@ CHARSET_INFO my_charset_ujis_japanese_ci =
     0,
     &my_charset_handler,
     &my_collation_ci_handler
+};
+
+
+CHARSET_INFO my_charset_ujis_bin=
+{
+    91,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_BINSORT,	/* state        */
+    "ujis",		/* cs name    */
+    "ujis_bin",		/* name         */
+    "",			/* comment      */
+    ctype_ujis,
+    to_lower_ujis,
+    to_upper_ujis,
+    sort_order_ujis,
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    "","",
+    0,			/* strxfrm_multiply */
+    3,			/* mbmaxlen     */
+    0,
+    &my_charset_handler,
+    &my_collation_bin_handler
 };
 
 

@@ -395,13 +395,16 @@ CHARSET_INFO *default_charset_info = &my_charset_latin1;
 static my_bool init_compiled_charsets(myf flags __attribute__((unused)))
 {
   CHARSET_INFO *cs;
+
+  MY_ADD_CHARSET(&my_charset_bin);
   
   MY_ADD_CHARSET(&my_charset_latin1);
-  MY_ADD_CHARSET(&my_charset_bin);
+  MY_ADD_CHARSET(&my_charset_latin1_bin);
   MY_ADD_CHARSET(&my_charset_latin1_german2_ci);
 
 #ifdef HAVE_CHARSET_big5
   MY_ADD_CHARSET(&my_charset_big5_chinese_ci);
+  MY_ADD_CHARSET(&my_charset_big5_bin);
 #endif
 
 #ifdef HAVE_CHARSET_czech
@@ -410,34 +413,42 @@ static my_bool init_compiled_charsets(myf flags __attribute__((unused)))
 
 #ifdef HAVE_CHARSET_euc_kr
   MY_ADD_CHARSET(&my_charset_euckr_korean_ci);
+  MY_ADD_CHARSET(&my_charset_euckr_bin);
 #endif
 
 #ifdef HAVE_CHARSET_gb2312
   MY_ADD_CHARSET(&my_charset_gb2312_chinese_ci);
+  MY_ADD_CHARSET(&my_charset_gb2312_bin);
 #endif
 
 #ifdef HAVE_CHARSET_gbk
   MY_ADD_CHARSET(&my_charset_gbk_chinese_ci);
+  MY_ADD_CHARSET(&my_charset_gbk_bin);
 #endif
 
 #ifdef HAVE_CHARSET_sjis
   MY_ADD_CHARSET(&my_charset_sjis_japanese_ci);
+  MY_ADD_CHARSET(&my_charset_sjis_bin);
 #endif
 
 #ifdef HAVE_CHARSET_tis620
   MY_ADD_CHARSET(&my_charset_tis620_thai_ci);
+  MY_ADD_CHARSET(&my_charset_tis620_bin);
 #endif
 
 #ifdef HAVE_CHARSET_ucs2
   MY_ADD_CHARSET(&my_charset_ucs2_general_ci);
+  MY_ADD_CHARSET(&my_charset_ucs2_bin);
 #endif
 
 #ifdef HAVE_CHARSET_ujis
   MY_ADD_CHARSET(&my_charset_ujis_japanese_ci);
+  MY_ADD_CHARSET(&my_charset_ujis_bin);
 #endif
 
 #ifdef HAVE_CHARSET_utf8
   MY_ADD_CHARSET(&my_charset_utf8_general_ci);
+  MY_ADD_CHARSET(&my_charset_utf8_bin);
 #endif
 
 #ifdef HAVE_CHARSET_win1250ch
