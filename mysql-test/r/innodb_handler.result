@@ -147,4 +147,5 @@ HANDLER t1 READ `primary` = (1, 1000);
 no1	no2
 HANDLER t1 READ `primary` PREV;
 no1	no2
+1	275
 DROP TABLE t1;
