@@ -280,7 +280,6 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_CREATESEMAPHORE
 #define HAVE_ISNAN
 #define HAVE_FINITE
-#define HAVE_ISAM		/* We want to have support for ISAM in 4.0 */
 #define HAVE_QUERY_CACHE
 #define SPRINTF_RETURNS_INT
 #define HAVE_SETFILEPOINTER
