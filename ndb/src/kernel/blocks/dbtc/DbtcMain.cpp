@@ -9220,6 +9220,8 @@ void Dbtc::execDIGETPRIMCONF(Signal* signal)
   scanFragptr.p->lqhBlockref = ref;
   scanFragptr.p->m_connectCount = getNodeInfo(tnodeid).m_connectCount;
   sendScanFragReq(signal, scanptr.p, scanFragptr.p);
+  if(ERROR_INSERTED(8035))
+    globalTransporterRegistry.performSend();
   attrbufptr.i = cachePtr.p->firstAttrbuf;
   while (attrbufptr.i != RNIL) {
     jam();
@@ -9229,6 +9231,8 @@ void Dbtc::execDIGETPRIMCONF(Signal* signal)
                  attrbufptr.p,
                  ref);
     attrbufptr.i = attrbufptr.p->attrbuf[ZINBUF_NEXT];
+    if(ERROR_INSERTED(8035))
+      globalTransporterRegistry.performSend();
   }//while
   scanFragptr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
   scanFragptr.p->startFragTimer(ctcTimer);
