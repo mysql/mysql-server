@@ -487,16 +487,17 @@ void Copy_field::set(Field *to,Field *from,bool save)
 
 void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
 {
+  bool compatible_db_low_byte_first= (to->table->s->db_low_byte_first ==
+                                     from->table->s->db_low_byte_first);
   if (to->flags & BLOB_FLAG)
   {
     if (!(from->flags & BLOB_FLAG) || from->charset() != to->charset())
       return do_conv_blob;
-    if (from_length != to_length ||
-	to->table->db_low_byte_first != from->table->db_low_byte_first)
+    if (from_length != to_length || !compatible_db_low_byte_first)
     {
       // Correct pointer to point at char pointer
-      to_ptr+=to_length - to->table->blob_ptr_size;
-      from_ptr+=from_length- from->table->blob_ptr_size;
+      to_ptr+=   to_length - to->table->s->blob_ptr_size;
+      from_ptr+= from_length- from->table->s->blob_ptr_size;
       return do_copy_blob;
     }
   }
@@ -509,7 +510,7 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
     if (from->result_type() == STRING_RESULT)
     {
       if (to->real_type() != from->real_type() ||
-	  to->table->db_low_byte_first != from->table->db_low_byte_first)
+          !compatible_db_low_byte_first)
       {
 	if (from->real_type() == FIELD_TYPE_ENUM ||
 	    from->real_type() == FIELD_TYPE_SET)
@@ -541,7 +542,7 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
     }
     else if (to->real_type() != from->real_type() ||
 	     to_length != from_length ||
-	     to->table->db_low_byte_first != from->table->db_low_byte_first)
+             !compatible_db_low_byte_first)
     {
       if (to->real_type() == FIELD_TYPE_DECIMAL ||
 	  to->result_type() == STRING_RESULT)
@@ -552,8 +553,7 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
     }
     else
     {
-      if (!to->eq_def(from) ||
-	  to->table->db_low_byte_first != from->table->db_low_byte_first)
+      if (!to->eq_def(from) || !compatible_db_low_byte_first)
       {
 	if (to->real_type() == FIELD_TYPE_DECIMAL)
 	  return do_field_string;
@@ -587,7 +587,7 @@ void field_conv(Field *to,Field *from)
 	to->real_type() != FIELD_TYPE_ENUM &&
 	to->real_type() != FIELD_TYPE_SET &&
         from->charset() == to->charset() &&
-	to->table->db_low_byte_first == from->table->db_low_byte_first)
+	to->table->s->db_low_byte_first == from->table->s->db_low_byte_first)
     {						// Identical fields
       memcpy(to->ptr,from->ptr,to->pack_length());
       return;

@@ -313,7 +313,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     bzero((char*) &result_table_list, sizeof(result_table_list));
     result_table_list.db= (char*) "";
-    result_table_list.real_name= result_table_list.alias= (char*) "union";
+    result_table_list.table_name= result_table_list.alias= (char*) "union";
     result_table_list.table= table;
     union_result->set_table(table);
 

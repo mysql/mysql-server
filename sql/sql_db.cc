@@ -812,8 +812,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       if (!table_list)
 	goto err;
       table_list->db= (char*) (table_list+1);
-      strmov(table_list->real_name= strmov(table_list->db,db)+1, file->name);
-      table_list->alias= table_list->real_name;	// If lower_case_table_names=2
+      strmov(table_list->table_name= strmov(table_list->db,db)+1, file->name);
+      table_list->alias= table_list->table_name;	// If lower_case_table_names=2
       /* Link into list */
       (*tot_list_next)= table_list;
       tot_list_next= &table_list->next_local;
