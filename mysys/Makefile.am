@@ -53,10 +53,11 @@ EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c
 libmysys_a_LIBADD =	@THREAD_LOBJECTS@
 # test_fn removed 980815 since it not upp to date test_dir
-noinst_PROGRAMS =	test_charset @THREAD_LPROGRAMS@
+noinst_PROGRAMS =	test_charset charset2html @THREAD_LPROGRAMS@
 # test_dir_DEPENDENCIES=	$(LIBRARIES)
 # testhash_DEPENDENCIES=	$(LIBRARIES)
 test_charset_DEPENDENCIES=	$(LIBRARIES)
+charset2html_DEPENDENCIES=	$(LIBRARIES)
 EXTRA_PROGRAMS =	
 DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
@@ -108,6 +109,9 @@ test_dir: test_dir.c $(LIBRARIES)
 
 test_charset: test_charset.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_charset.c $(LDADD) $(LIBS)
+
+charset2html: charset2html.c $(LIBRARIES)
+	$(LINK) $(FLAGS) -DMAIN $(srcdir)/charset2html.c $(LDADD) $(LIBS)
 
 testhash: testhash.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/testhash.c $(LDADD) $(LIBS)
