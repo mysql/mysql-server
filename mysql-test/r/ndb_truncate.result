@@ -1,0 +1,14 @@
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t2 (
+a bigint unsigned NOT NULL PRIMARY KEY,
+b int unsigned not null,
+c int unsigned
+) engine=ndbcluster;
+select count(*) from t2;
+count(*)
+5000
+truncate table t2;
+select count(*) from t2;
+count(*)
+0
+drop table t2;
