@@ -1988,9 +1988,9 @@ row_discard_tablespace_for_mysql(
 	"new_id_high INT;\n"
 	"table_name CHAR;\n"
 	"BEGIN\n"
-	"table_name := ";
+	"table_name := '";
 	static const char discard_tablespace_proc2[] =
-	";\n"
+	"';\n"
 	"new_id_high := %lu;\n"
 	"new_id_low := %lu;\n"
    "new_id := CONCAT(TO_BINARY(new_id_high, 4), TO_BINARY(new_id_low, 4));\n"
