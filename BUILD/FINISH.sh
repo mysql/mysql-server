@@ -11,7 +11,7 @@ done
 
 commands="\
 $make -k clean || true 
-/bin/rm -f */.deps/*.P config.cache innobase/config.cache bdb/build_unix/config.cache /bdb/dist/autom4te.cache /autom4te.cache /innobase/autom4te.cache;
+/bin/rm -f */.deps/*.P config.cache innobase/config.cache bdb/build_unix/config.cache bdb/dist/autom4te.cache autom4te.cache innobase/autom4te.cache;
 
 aclocal    || (echo \"Can't execute aclocal\"     && exit 1)
 autoheader || (echo \"Can't execute autoheader\"  && exit 1)
