@@ -134,3 +134,10 @@ select * from t1 where firstname='john' and firstname like binary 'John';
 firstname	lastname
 John	Doe
 drop table t1;
+create table t1 (a binary);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` binary(1) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
