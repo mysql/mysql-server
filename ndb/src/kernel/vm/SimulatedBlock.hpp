@@ -350,7 +350,7 @@ protected:
    * Allocates memory for the datastructures where ndb keeps the data
    *
    */
-  void* allocRecord(const char * type, size_t s, size_t n) const ;
+  void* allocRecord(const char * type, size_t s, size_t n);
   
   /**
    * Deallocate record
