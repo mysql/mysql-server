@@ -1862,8 +1862,8 @@ AC_SUBST(server_scripts)
 
 if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"
 then
-  # MIT pthreads does not support connecting with unix sockets
-  AC_DEFINE(HAVE_THREADS_WITHOUT_SOCKETS)
+  # MIT pthreads does now support connecting with unix sockets
+  # AC_DEFINE(HAVE_THREADS_WITHOUT_SOCKETS)
 fi
 
 # Some usefull subst
