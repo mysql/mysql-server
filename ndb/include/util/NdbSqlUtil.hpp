@@ -178,8 +178,11 @@ private:
   static Cmp cmpDecimalunsigned;
   //
   static Like likeChar;
+  static Like likeBinary;
   static Like likeVarchar;
+  static Like likeVarbinary;
   static Like likeLongvarchar;
+  static Like likeLongvarbinary;
 };
 
 #endif
