@@ -1597,6 +1597,7 @@ alter_list_item:
             LEX *lex=Lex;
             lex->length=lex->dec=0; lex->type=0; lex->interval=0;
             lex->default_value=lex->comment=0;
+	    lex->charset= NULL;
             lex->simple_alter=0;
           }
           type opt_attribute
