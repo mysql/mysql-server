@@ -28,8 +28,24 @@ struct NdbThread
 { 
   pthread_t thread;
   char thread_name[MAX_THREAD_NAME];
+  NDB_THREAD_FUNC * func;
+  void * object;
 };
 
+static
+void*
+ndb_thread_wrapper(void* _ss){
+  void * ret;
+  struct NdbThread * ss = (struct NdbThread *)_ss;
+#ifdef NDB_SHM_TRANSPORTER
+  sigset_t mask;
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGUSR1);
+  pthread_sigmask(SIG_BLOCK, &mask, 0);
+#endif
+  ret= (* ss->func)(ss->object);
+  return ret;
+}
 
 
 struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
@@ -67,10 +83,12 @@ struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
 #ifdef PTHREAD_CREATE_JOINABLE /* needed on SCO */
   pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
 #endif
+  tmpThread->func= p_thread_func;
+  tmpThread->object= p_thread_arg;
   result = pthread_create(&tmpThread->thread, 
 			  &thread_attr,
-  		          p_thread_func,
-  		          p_thread_arg);
+  		          ndb_thread_wrapper,
+  		          tmpThread);
   assert(result==0);
 
   pthread_attr_destroy(&thread_attr);
