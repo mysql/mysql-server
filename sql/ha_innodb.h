@@ -76,7 +76,7 @@ class ha_innobase: public handler
   	ha_innobase(TABLE *table): handler(table),
 	  int_table_flags(HA_REC_NOT_IN_SEQ |
 			  HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
-			  HA_NULL_KEY |
+			  HA_NULL_KEY | HA_CAN_SQL_HANDLER |
 			  HA_NOT_EXACT_COUNT |
 			  HA_NO_WRITE_DELAYED |
 			  HA_PRIMARY_KEY_IN_READ_INDEX |
@@ -164,8 +164,7 @@ class ha_innobase: public handler
 	void free_foreign_key_create_info(char* str);	
   	THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     		enum thr_lock_type lock_type);
-	/* void init_table_handle_for_HANDLER(); Not tested or used yet, code
-	included for documentational purposes only */
+	void init_table_handle_for_HANDLER(); 
 	longlong get_auto_increment();
 };
 

@@ -404,7 +404,6 @@ ha_innobase::update_thd(
 	return(0);
 }
 
-#ifdef notdefined
 /* The code here appears for documentational purposes only. Not used
 or tested yet. Will be used in 4.1. */
 /*********************************************************************
@@ -419,9 +418,6 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 /*============================================*/
 {
         row_prebuilt_t* prebuilt;
-
-	ut_a(0); /* the code has not been used or tested yet; to prevent
-		  inadvertent usage we assert an error here */
 
         /* If current thd does not yet have a trx struct, create one.
         If the current handle does not yet have a prebuilt struct, create
@@ -462,7 +458,6 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
         prebuilt->read_just_key = FALSE;
 }
-#endif
 
 /*************************************************************************
 Opens an InnoDB database. */
