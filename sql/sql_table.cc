@@ -1120,8 +1120,12 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (fatal_error)
       table->table->version=0;			// Force close of table
     else if (open_for_modify)
+    {
       remove_table_from_cache(thd, table->table->table_cache_key,
 			      table->table->real_name);
+      /* May be something modified consequently we have to invalidate cache */
+      query_cache_invalidate3(thd, table->table, 0);
+    }
     close_thread_tables(thd);
     table->table=0;				// For query cache
     if (my_net_write(&thd->net, (char*) packet->ptr(),
