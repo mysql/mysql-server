@@ -4627,6 +4627,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
   my_strnncoll_sjis,
   my_strnncollsp_sjis,
   my_strnxfrm_sjis,
+  my_strnxfrmlen_simple,
   my_like_range_sjis,
   my_wildcmp_mb,	/* wildcmp  */
   my_strcasecmp_8bit,
