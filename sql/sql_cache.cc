@@ -2476,7 +2476,9 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 	  (tables_used->db_length == 5 &&
 #ifdef FN_NO_CASE_SENCE
 	   // TODO: latin1 charset should be replaced with system charset
-	   my_strncasecmp(my_charset_latin1,tables_used->db,"mysql",5) == 0
+	   my_strncasecmp(&my_charset_latin1,
+			  tables_used->db,
+			  "mysql",5) == 0
 #else
 	   tables_used->db[0]=='m' &&
 	   tables_used->db[1]=='y' &&

@@ -38,9 +38,7 @@ typedef struct st_sort_param {
   SORT_FIELD *end;
   uchar *unique_buff;
   bool not_killable;
-#ifdef USE_STRCOLL
   char* tmp_buffer;
-#endif
 } SORTPARAM;
 
 

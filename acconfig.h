@@ -309,9 +309,6 @@
 /* Use MySQL RAID */
 #undef USE_RAID
 
-/* Use strcoll() functions when comparing and sorting. */
-#undef USE_STRCOLL
-
 /* Program version */
 #undef VERSION
 
