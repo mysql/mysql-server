@@ -97,6 +97,7 @@ Ndb::init(int aMaxNoOfTransactions)
   }
 
   theFirstTransId = ((Uint64)theNdbBlockNumber << 52)+((Uint64)theNode << 40);
+  theFirstTransId += theFacade->m_open_count;
   theFacade->unlock_mutex();
 
   

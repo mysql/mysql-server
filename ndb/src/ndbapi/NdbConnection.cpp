@@ -203,7 +203,7 @@ NdbConnection::restart(){
     releaseCompletedOperations();
     Uint64 tTransid = theNdb->theFirstTransId;
     theTransactionId = tTransid;
-    if((Uint32)tTransid == ((Uint32)~0)){
+    if ((tTransid & 0xFFFFFFFF) == 0xFFFFFFFF) {
       theNdb->theFirstTransId = (tTransid >> 32) << 32;
     } else {
       theNdb->theFirstTransId = tTransid + 1;
