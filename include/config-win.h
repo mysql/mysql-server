@@ -332,6 +332,9 @@ inline double ulonglong2double(ulonglong value)
 #define SHAREDIR		"share"
 #define DEFAULT_CHARSET_HOME	"C:/mysql/"
 #endif
+#ifndef DEFAULT_HOME_ENV
+#define DEFAULT_HOME_ENV MYSQL_HOME
+#endif
 
 /* File name handling */
 

@@ -1861,12 +1861,18 @@ Dbacc::xfrmKeyData(Signal* signal)
       dstWords = srcWords;
     } else {
       jam();
+      Uint32 typeId = AttributeDescriptor::getType(keyAttr.attributeDescriptor);
+      Uint32 lb, len;
+      bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
+      ndbrequire(ok);
       Uint32 xmul = cs->strxfrm_multiply;
       if (xmul == 0)
         xmul = 1;
-      Uint32 dstLen = xmul * srcBytes;
+      // see comment in DbtcMain.cpp
+      Uint32 dstLen = xmul * (srcBytes - lb);
       ndbrequire(dstLen <= ((dstSize - dstPos) << 2));
-      uint n = (*cs->coll->strnxfrm)(cs, dstPtr, dstLen, srcPtr, srcBytes);
+      int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
+      ndbrequire(n != -1);
       while ((n & 3) != 0)
         dstPtr[n++] = 0;
       dstWords = (n >> 2);
@@ -8441,7 +8447,7 @@ void Dbacc::startUndoLab(Signal* signal)
   }//for
 
   // Send report of how many undo log records where executed
-  signal->theData[0] = EventReport::UNDORecordsExecuted;
+  signal->theData[0] = NDB_LE_UNDORecordsExecuted;
   signal->theData[1] = DBACC; // From block
   signal->theData[2] = 0; // Total records executed
   for (int i = 0; i < 10; i++){
@@ -11289,7 +11295,7 @@ void Dbacc::takeRecOutOfFreeOverpage(Signal* signal)
 
 void
 Dbacc::reportMemoryUsage(Signal* signal, int gth){
-  signal->theData[0] = EventReport::MemoryUsage;
+  signal->theData[0] = NDB_LE_MemoryUsage;
   signal->theData[1] = gth;
   signal->theData[2] = sizeof(* rpPageptr.p);
   signal->theData[3] = cnoOfAllocatedPages;

@@ -26,7 +26,7 @@ static int rr_unpack_from_tempfile(READ_RECORD *info);
 static int rr_unpack_from_buffer(READ_RECORD *info);
 static int rr_from_pointers(READ_RECORD *info);
 static int rr_from_cache(READ_RECORD *info);
-static int init_rr_cache(READ_RECORD *info);
+static int init_rr_cache(THD *thd, READ_RECORD *info);
 static int rr_cmp(uchar *a,uchar *b);
 
 	/* init struct for read with info->read_record */
@@ -84,14 +84,14 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 	!(table->file->table_flags() & HA_FAST_KEY_READ) &&
 	(table->db_stat & HA_READ_ONLY ||
 	 table->reginfo.lock_type <= TL_READ_NO_INSERT) &&
-	(ulonglong) table->reclength*(table->file->records+
-				      table->file->deleted) >
+	(ulonglong) table->s->reclength* (table->file->records+
+                                          table->file->deleted) >
 	(ulonglong) MIN_FILE_LENGTH_TO_USE_ROW_CACHE &&
-	info->io_cache->end_of_file/info->ref_length*table->reclength >
+	info->io_cache->end_of_file/info->ref_length * table->s->reclength >
 	(my_off_t) MIN_ROWS_TO_USE_TABLE_CACHE &&
-	!table->blob_fields)
+	!table->s->blob_fields)
     {
-      if (! init_rr_cache(info))
+      if (! init_rr_cache(thd, info))
       {
 	DBUG_PRINT("info",("using rr_from_cache"));
 	info->read_record=rr_from_cache;
@@ -133,7 +133,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
     if (!table->no_cache &&
 	(use_record_cache > 0 ||
 	 (int) table->reginfo.lock_type <= (int) TL_READ_HIGH_PRIORITY ||
-	 !(table->db_options_in_use & HA_OPTION_PACK_RECORD) ||
+	 !(table->s->db_options_in_use & HA_OPTION_PACK_RECORD) ||
 	 (use_record_cache < 0 &&
 	  !(table->file->table_flags() & HA_NOT_DELETE_WITH_CACHE))))
       VOID(table->file->extra_opt(HA_EXTRA_CACHE,
@@ -329,23 +329,21 @@ static int rr_unpack_from_buffer(READ_RECORD *info)
 }
 	/* cacheing of records from a database */
 
-static int init_rr_cache(READ_RECORD *info)
+static int init_rr_cache(THD *thd, READ_RECORD *info)
 {
   uint rec_cache_size;
-  THD *thd= current_thd;
-
   DBUG_ENTER("init_rr_cache");
 
-  info->struct_length=3+MAX_REFLENGTH;
-  info->reclength=ALIGN_SIZE(info->table->reclength+1);
+  info->struct_length= 3+MAX_REFLENGTH;
+  info->reclength= ALIGN_SIZE(info->table->s->reclength+1);
   if (info->reclength < info->struct_length)
-    info->reclength=ALIGN_SIZE(info->struct_length);
+    info->reclength= ALIGN_SIZE(info->struct_length);
 
-  info->error_offset=info->table->reclength;
-  info->cache_records= thd->variables.read_rnd_buff_size /
-    (info->reclength+info->struct_length);
-  rec_cache_size=info->cache_records*info->reclength;
-  info->rec_cache_size=info->cache_records*info->ref_length;
+  info->error_offset= info->table->s->reclength;
+  info->cache_records= (thd->variables.read_rnd_buff_size /
+                        (info->reclength+info->struct_length));
+  rec_cache_size= info->cache_records*info->reclength;
+  info->rec_cache_size= info->cache_records*info->ref_length;
 
   // We have to allocate one more byte to use uint3korr (see comments for it)
   if (info->cache_records <= 2 ||
@@ -385,7 +383,8 @@ static int rr_from_cache(READ_RECORD *info)
       else
       {
 	error=0;
-	memcpy(info->record,info->cache_pos,(size_t) info->table->reclength);
+	memcpy(info->record,info->cache_pos,
+               (size_t) info->table->s->reclength);
       }
       info->cache_pos+=info->reclength;
       return ((int) error);

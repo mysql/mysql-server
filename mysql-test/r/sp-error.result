@@ -47,6 +47,8 @@ Warnings:
 Note	1305	PROCEDURE foo does not exist
 show create procedure foo|
 ERROR 42000: PROCEDURE foo does not exist
+show create function foo|
+ERROR 42000: FUNCTION foo does not exist
 create procedure foo()
 foo: loop
 leave bar;

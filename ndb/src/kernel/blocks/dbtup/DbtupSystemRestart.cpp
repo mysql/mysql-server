@@ -418,7 +418,7 @@ void Dbtup::xlcRestartCompletedLab(Signal* signal)
 {
   cnoOfLocalLogInfo = 0;
 
-  signal->theData[0] = EventReport::UNDORecordsExecuted;
+  signal->theData[0] = NDB_LE_UNDORecordsExecuted;
   signal->theData[1] = DBTUP; // From block
   signal->theData[2] = 0;     // Total records executed
   for (int i = 0; i < 10; i++) {

@@ -15,23 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/*****************************************************************************
- * Name:          NdbEventOperation.cpp
- * Include:
- * Link:
- * Author:        Tomas Ulin MySQL AB
- * Date:          2003-11-21
- * Version:       0.1
- * Description:   Event support
- * Documentation:
- * Adjust:  2003-11-21  Tomas Ulin   First version.
- ****************************************************************************/
-
 #include <Ndb.hpp>
-#include <signaldata/SumaImpl.hpp>
+#include <NdbError.hpp>
 #include <portlib/NdbMem.h>
-#include <transporter/TransporterDefinitions.hpp>
-#include <NdbEventOperation.hpp>
 #include "NdbEventOperationImpl.hpp"
 #include "NdbDictionaryImpl.hpp"
 
@@ -123,3 +109,7 @@ NdbEventOperation::wait(void *p, int aMillisecondNumber)
 NdbEventOperation::NdbEventOperation(NdbEventOperationImpl& impl) 
   : m_impl(impl) {}
 
+const struct NdbError & 
+NdbEventOperation::getNdbError() const {
+  return m_impl.getNdbError();
+}

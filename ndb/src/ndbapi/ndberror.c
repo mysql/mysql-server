@@ -55,6 +55,8 @@ typedef struct ErrorBundle {
 #define NI ndberror_cl_function_not_implemented
 #define UE ndberror_cl_unknown_error_code
 
+#define OE ndberror_cl_schema_object_already_exists
+
 static const char REDO_BUFFER_MSG[]=
 "REDO log buffers overloaded, consult online manual (increase RedoBuffer, and|or decrease TimeBetweenLocalCheckpoints, and|or increase NoOfFragmentLogFiles)";
 
@@ -298,14 +300,22 @@ ErrorBundle ErrorCodes[] = {
   { 290,  AE, "Scan not started or has been closed by kernel due to timeout" },
 
   /** 
+   * Event schema errors
+   */
+
+  { 4713,  SE, "Column defined in event does not exist in table"},
+  
+  /** 
    * Event application errors
    */
 
   { 4707,  AE, "Too many event have been defined"},
   { 4708,  AE, "Event name is too long"},
-  { 4709,  AE, "Event already exists"},
+  { 4709,  AE, "Can't accept more subscribers"},
+  {  746,  OE, "Event name already exists"},
   { 4710,  AE, "Event not found"},
   { 4711,  AE, "Creation of event failed"},
+  { 4712,  AE, "Stopped event operation does not exist. Already stopped?"},
 
   /** 
    * Event internal errors
@@ -323,7 +333,7 @@ ErrorBundle ErrorCodes[] = {
   { 707,  SE, "No more table metadata records" },  
   { 708,  SE, "No more attribute metadata records" },
   { 709,  SE, "No such table existed" },
-  { 721,  SE, "Table or index with given name already exists" },
+  { 721,  OE, "Table or index with given name already exists" },
   { 723,  SE, "No such table existed" },
   { 736,  SE, "Unsupported array size" },
   { 737,  SE, "Attribute array size too big" },
@@ -483,7 +493,7 @@ ErrorBundle ErrorCodes[] = {
   { 4241, AE, "Index name too long" },
   { 4242, AE, "Too many indexes" },
   { 4243, AE, "Index not found" },
-  { 4244, AE, "Index or table with given name already exists" },
+  { 4244, OE, "Index or table with given name already exists" },
   { 4245, AE, "Index attribute must be defined as stored, i.e. the StorageAttributeType must be defined as NormalStorageAttribute"},
   { 4247, AE, "Illegal index/trigger create/drop/alter request" },
   { 4248, AE, "Trigger/index name invalid" },
@@ -507,7 +517,8 @@ ErrorBundle ErrorCodes[] = {
   { 4268, IE, "Error in blob head update forced rollback of transaction" },
   { 4269, IE, "No connection to ndb management server" },
   { 4270, IE, "Unknown blob error" },
-  { 4335, AE, "Only one autoincrement column allowed per table. Having a table without primary key uses an autoincremented hidden key, i.e. a table without a primary key can not have an autoincremented column" }
+  { 4335, AE, "Only one autoincrement column allowed per table. Having a table without primary key uses an autoincremented hidden key, i.e. a table without a primary key can not have an autoincremented column" },
+  { 4271, AE, "Invalid index object, not retrieved via getIndex()" }
 };
 
 static

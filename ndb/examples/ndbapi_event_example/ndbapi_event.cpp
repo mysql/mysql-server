@@ -140,6 +140,7 @@ int main()
 		eventTableName,
 		eventColumnName,
 		noEventColumnName);
+
   int j= 0;
   while (j < 5) {
 
@@ -160,10 +161,9 @@ int main()
 
     // set up the callbacks
     printf("execute\n");
-    if (op->execute()) { // This starts changes to "start flowing"
-      printf("operation execution failed\n");
-      exit(-1);
-    }
+    // This starts changes to "start flowing"
+    if (op->execute())
+      APIERROR(op->getNdbError());
 
     int i= 0;
     while(i < 40) {
@@ -239,8 +239,10 @@ int myCreateEvent(Ndb* myNdb,
   NdbDictionary::Dictionary *myDict= myNdb->getDictionary();
   if (!myDict) APIERROR(myNdb->getNdbError());
 
-  NdbDictionary::Event myEvent(eventName);
-  myEvent.setTable(eventTableName);
+  const NdbDictionary::Table *table= myDict->getTable(eventTableName);
+  if (!table) APIERROR(myDict->getNdbError());
+
+  NdbDictionary::Event myEvent(eventName, *table);
   myEvent.addTableEvent(NdbDictionary::Event::TE_ALL); 
   //  myEvent.addTableEvent(NdbDictionary::Event::TE_INSERT); 
   //  myEvent.addTableEvent(NdbDictionary::Event::TE_UPDATE); 
@@ -251,7 +253,8 @@ int myCreateEvent(Ndb* myNdb,
   // Add event to database
   if (myDict->createEvent(myEvent) == 0)
     myEvent.print();
-  else if (myDict->getNdbError().code == 4709) {
+  else if (myDict->getNdbError().classification ==
+	   NdbError::SchemaObjectExists) {
     printf("Event creation failed, event exists\n");
     printf("dropping Event...\n");
     if (myDict->dropEvent(eventName)) APIERROR(myDict->getNdbError());

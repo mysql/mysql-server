@@ -33,7 +33,8 @@
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
 
-char *host= NULL, *user= 0, *opt_password= 0;
+char *host= NULL, *user= 0, *opt_password= 0,
+     *default_charset= NULL;
 char truncated_var_names[MAX_MYSQL_VAR][MAX_TRUNC_LENGTH];
 char ex_var_names[MAX_MYSQL_VAR][FN_REFLEN];
 ulonglong last_values[MAX_MYSQL_VAR];
@@ -145,6 +146,9 @@ static struct my_option my_long_options[] =
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.", (gptr*) &charsets_dir,
    (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default-character-set", OPT_DEFAULT_CHARSET,
+   "Set the default character set.", (gptr*) &default_charset,
+   (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0, GET_STR,
@@ -343,6 +347,8 @@ int main(int argc,char *argv[])
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
+  if (default_charset)
+    mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
   if (sql_connect(&mysql, option_wait))
   {
     unsigned int err= mysql_errno(&mysql);
@@ -827,13 +833,39 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       if (argv[1][0])
       {
         char *pw= argv[1];
+        bool old= find_type(argv[0], &command_typelib, 2) == ADMIN_OLD_PASSWORD;
 #ifdef __WIN__
         uint pw_len= strlen(pw);
         if (pw_len > 1 && pw[0] == '\'' && pw[pw_len-1] == '\'')
           printf("Warning: single quotes were not trimmed from the password by"
                  " your command\nline client, as you might have expected.\n");
 #endif
-        if (find_type(argv[0], &command_typelib, 2) == ADMIN_OLD_PASSWORD)
+        /*
+           If we don't already know to use an old-style password, see what
+           the server is using
+        */
+        if (!old) {
+          if (mysql_query(mysql, "SHOW VARIABLES LIKE 'old_passwords'")) {
+            my_printf_error(0, "Could not determine old_passwords setting from server; error: '%s'",
+                	    MYF(ME_BELL),mysql_error(mysql));
+            return -1;
+          } else {
+            MYSQL_RES *res= mysql_store_result(mysql);
+            if (!res) {
+              my_printf_error(0, "Could not get old_passwords setting from server; error: '%s'",
+        		      MYF(ME_BELL),mysql_error(mysql));
+              return -1;
+            }
+            if (!mysql_num_rows(res)) {
+              old= 1;
+            } else {
+              MYSQL_ROW row= mysql_fetch_row(res);
+              old= !strncmp(row[1], "ON", 2);
+            }
+            mysql_free_result(res);
+          }
+        }
+        if (old)
           make_scrambled_password_323(crypted_pw, pw);
         else
           make_scrambled_password(crypted_pw, pw);

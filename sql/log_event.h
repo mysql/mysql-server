@@ -783,7 +783,7 @@ public:
 
   Load_log_event(THD* thd, sql_exchange* ex, const char* db_arg,
 		 const char* table_name_arg,
-		 List<Item>& fields_arg, enum enum_duplicates handle_dup,
+		 List<Item>& fields_arg, enum enum_duplicates handle_dup, bool ignore,
 		 bool using_trans);
   void set_fields(const char* db, List<Item> &fields_arg);
   const char* get_db() { return db; }
@@ -1170,7 +1170,7 @@ public:
   Create_file_log_event(THD* thd, sql_exchange* ex, const char* db_arg,
 			const char* table_name_arg,
 			List<Item>& fields_arg,
-			enum enum_duplicates handle_dup,
+			enum enum_duplicates handle_dup, bool ignore,
 			char* block_arg, uint block_len_arg,
 			bool using_trans);
 #ifdef HAVE_REPLICATION

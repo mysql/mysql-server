@@ -1416,10 +1416,10 @@ static void
 tz_init_table_list(TABLE_LIST *tz_tabs, TABLE_LIST ***global_next_ptr)
 {
   bzero(tz_tabs, sizeof(TABLE_LIST) * 4);
-  tz_tabs[0].alias= tz_tabs[0].real_name= (char*)"time_zone_name";
-  tz_tabs[1].alias= tz_tabs[1].real_name= (char*)"time_zone";
-  tz_tabs[2].alias= tz_tabs[2].real_name= (char*)"time_zone_transition_type";
-  tz_tabs[3].alias= tz_tabs[3].real_name= (char*)"time_zone_transition";
+  tz_tabs[0].alias= tz_tabs[0].table_name= (char*)"time_zone_name";
+  tz_tabs[1].alias= tz_tabs[1].table_name= (char*)"time_zone";
+  tz_tabs[2].alias= tz_tabs[2].table_name= (char*)"time_zone_transition_type";
+  tz_tabs[3].alias= tz_tabs[3].table_name= (char*)"time_zone_transition";
   tz_tabs[0].next_global= tz_tabs[0].next_local= tz_tabs+1;
   tz_tabs[1].next_global= tz_tabs[1].next_local= tz_tabs+2;
   tz_tabs[2].next_global= tz_tabs[2].next_local= tz_tabs+3;
@@ -1582,7 +1582,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   thd->db= my_strdup("mysql",MYF(0));
   thd->db_length= 5;				// Safety
   bzero((char*) &tables_buff, sizeof(TABLE_LIST));
-  tables_buff[0].alias= tables_buff[0].real_name=
+  tables_buff[0].alias= tables_buff[0].table_name=
     (char*)"time_zone_leap_second";
   tables_buff[0].lock_type= TL_READ;
   tables_buff[0].db= thd->db;

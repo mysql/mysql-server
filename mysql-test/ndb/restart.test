@@ -8,5 +8,5 @@ sleep 5
 all clusterlog connection=8
 sleep 1
 1 restart
-sleep 5
+sleep 10
 clusterlog on all

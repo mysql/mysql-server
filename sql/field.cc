@@ -351,10 +351,8 @@ String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_flag)
 }
 
 
-/****************************************************************************
-** Functions for the base classes
-** This is an unpacked number.
-****************************************************************************/
+/* This is used as a table name when the table structure is not set up */
+const char *unknown_table_name= 0;
 
 Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
 	     uchar null_bit_arg,
@@ -362,7 +360,7 @@ Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
 	     struct st_table *table_arg)
   :ptr(ptr_arg),null_ptr(null_ptr_arg),
    table(table_arg),orig_table(table_arg),
-   table_name(table_arg ? table_arg->table_name : 0),
+   table_name(table_arg ? &table_arg->alias : &unknown_table_name),
    field_name(field_name_arg),
    query_id(0), key_start(0), part_of_key(0), part_of_sortkey(0),
    unireg_check(unireg_check_arg),
@@ -407,35 +405,24 @@ void Field_num::add_zerofill_and_unsigned(String &res) const
     res.append(" zerofill");
 }
 
-void Field_num::make_field(Send_field *field)
+void Field::make_field(Send_field *field)
 {
-  /* table_cache_key is not set for temp tables */
-  field->db_name= (orig_table->table_cache_key ? orig_table->table_cache_key :
-		   "");
-  field->org_table_name= orig_table->real_name;
-  field->table_name= orig_table->table_name;
-  field->col_name=field->org_col_name=field_name;
+  field->db_name= orig_table->s->table_cache_key;
+  field->org_table_name= orig_table->s->table_name;
+  field->table_name= orig_table->alias;
+  field->col_name= field->org_col_name= field_name;
   field->charsetnr= charset()->number;
   field->length=field_length;
   field->type=type();
   field->flags=table->maybe_null ? (flags & ~NOT_NULL_FLAG) : flags;
-  field->decimals=dec;
+  field->decimals= 0;
 }
 
 
-void Field_str::make_field(Send_field *field)
+void Field_num::make_field(Send_field *field)
 {
-  /* table_cache_key is not set for temp tables */
-  field->db_name= (orig_table->table_cache_key ? orig_table->table_cache_key :
-		   "");
-  field->org_table_name= orig_table->real_name;
-  field->table_name= orig_table->table_name;
-  field->col_name=field->org_col_name=field_name;
-  field->charsetnr= charset()->number;
-  field->length=field_length;
-  field->type=type();
-  field->flags=table->maybe_null ? (flags & ~NOT_NULL_FLAG) : flags;
-  field->decimals=0;
+  Field::make_field(field);
+  field->decimals= dec;
 }
 
 
@@ -448,7 +435,7 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
   {
     copy->blob_field=(Field_blob*) this;
     copy->strip=0;
-    copy->length-=table->blob_ptr_size;
+    copy->length-= table->s->blob_ptr_size;
     return copy->length;
   }
   else if (!zero_pack() &&
@@ -1399,7 +1386,7 @@ int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
       error= 1;
   }
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int2store(ptr,tmp);
   }
@@ -1450,7 +1437,7 @@ int Field_short::store(double nr)
       res=(int16) (int) nr;
   }
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int2store(ptr,res);
   }
@@ -1499,7 +1486,7 @@ int Field_short::store(longlong nr)
       res=(int16) nr;
   }
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int2store(ptr,res);
   }
@@ -1514,7 +1501,7 @@ double Field_short::val_real(void)
 {
   short j;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
     j=sint2korr(ptr);
   else
 #endif
@@ -1526,7 +1513,7 @@ longlong Field_short::val_int(void)
 {
   short j;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
     j=sint2korr(ptr);
   else
 #endif
@@ -1545,7 +1532,7 @@ String *Field_short::val_str(String *val_buffer,
   char *to=(char*) val_buffer->ptr();
   short j;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
     j=sint2korr(ptr);
   else
 #endif
@@ -1573,7 +1560,7 @@ int Field_short::cmp(const char *a_ptr, const char *b_ptr)
 {
   short a,b;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     a=sint2korr(a_ptr);
     b=sint2korr(b_ptr);
@@ -1594,7 +1581,7 @@ int Field_short::cmp(const char *a_ptr, const char *b_ptr)
 void Field_short::sort_string(char *to,uint length __attribute__((unused)))
 {
 #ifdef WORDS_BIGENDIAN
-  if (!table->db_low_byte_first)
+  if (!table->s->db_low_byte_first)
   {
     if (unsigned_flag)
       to[0] = ptr[0];
@@ -1899,7 +1886,7 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
     
   store_tmp= (long) tmp;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int4store(ptr, store_tmp);
   }
@@ -1950,7 +1937,7 @@ int Field_long::store(double nr)
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
 
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int4store(ptr,res);
   }
@@ -2001,7 +1988,7 @@ int Field_long::store(longlong nr)
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
 
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int4store(ptr,res);
   }
@@ -2016,7 +2003,7 @@ double Field_long::val_real(void)
 {
   int32 j;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
     j=sint4korr(ptr);
   else
 #endif
@@ -2030,7 +2017,7 @@ longlong Field_long::val_int(void)
   /* See the comment in Field_long::store(long long) */
   DBUG_ASSERT(table->in_use == current_thd);
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
     j=sint4korr(ptr);
   else
 #endif
@@ -2048,7 +2035,7 @@ String *Field_long::val_str(String *val_buffer,
   char *to=(char*) val_buffer->ptr();
   int32 j;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
     j=sint4korr(ptr);
   else
 #endif
@@ -2074,7 +2061,7 @@ int Field_long::cmp(const char *a_ptr, const char *b_ptr)
 {
   int32 a,b;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     a=sint4korr(a_ptr);
     b=sint4korr(b_ptr);
@@ -2093,7 +2080,7 @@ int Field_long::cmp(const char *a_ptr, const char *b_ptr)
 void Field_long::sort_string(char *to,uint length __attribute__((unused)))
 {
 #ifdef WORDS_BIGENDIAN
-  if (!table->db_low_byte_first)
+  if (!table->s->db_low_byte_first)
   {
     if (unsigned_flag)
       to[0] = ptr[0];
@@ -2159,7 +2146,7 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
            check_int(from,len,end,cs))
     error= 1;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int8store(ptr,tmp);
   }
@@ -2210,7 +2197,7 @@ int Field_longlong::store(double nr)
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
 
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int8store(ptr,res);
   }
@@ -2224,7 +2211,7 @@ int Field_longlong::store(double nr)
 int Field_longlong::store(longlong nr)
 {
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int8store(ptr,nr);
   }
@@ -2239,7 +2226,7 @@ double Field_longlong::val_real(void)
 {
   longlong j;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     j=sint8korr(ptr);
   }
@@ -2260,7 +2247,7 @@ longlong Field_longlong::val_int(void)
 {
   longlong j;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
     j=sint8korr(ptr);
   else
 #endif
@@ -2279,7 +2266,7 @@ String *Field_longlong::val_str(String *val_buffer,
   char *to=(char*) val_buffer->ptr();
   longlong j;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
     j=sint8korr(ptr);
   else
 #endif
@@ -2304,7 +2291,7 @@ int Field_longlong::cmp(const char *a_ptr, const char *b_ptr)
 {
   longlong a,b;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     a=sint8korr(a_ptr);
     b=sint8korr(b_ptr);
@@ -2324,7 +2311,7 @@ int Field_longlong::cmp(const char *a_ptr, const char *b_ptr)
 void Field_longlong::sort_string(char *to,uint length __attribute__((unused)))
 {
 #ifdef WORDS_BIGENDIAN
-  if (!table->db_low_byte_first)
+  if (!table->s->db_low_byte_first)
   {
     if (unsigned_flag)
       to[0] = ptr[0];
@@ -2440,7 +2427,7 @@ int Field_float::store(double nr)
   }
   
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     float4store(ptr,j);
   }
@@ -2453,23 +2440,7 @@ int Field_float::store(double nr)
 
 int Field_float::store(longlong nr)
 {
-  int error= 0;
-  float j= (float) nr;
-  if (unsigned_flag && j < 0)
-  {
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-    j=0;
-    error= 1;
-  }
-#ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
-  {
-    float4store(ptr,j);
-  }
-  else
-#endif
-    memcpy_fixed(ptr,(byte*) &j,sizeof(j));
-  return error;
+  return store((double)nr);
 }
 
 
@@ -2477,7 +2448,7 @@ double Field_float::val_real(void)
 {
   float j;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     float4get(j,ptr);
   }
@@ -2491,7 +2462,7 @@ longlong Field_float::val_int(void)
 {
   float j;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     float4get(j,ptr);
   }
@@ -2507,7 +2478,7 @@ String *Field_float::val_str(String *val_buffer,
 {
   float nr;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     float4get(nr,ptr);
   }
@@ -2589,7 +2560,7 @@ int Field_float::cmp(const char *a_ptr, const char *b_ptr)
 {
   float a,b;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     float4get(a,a_ptr);
     float4get(b,b_ptr);
@@ -2609,7 +2580,7 @@ void Field_float::sort_string(char *to,uint length __attribute__((unused)))
 {
   float nr;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     float4get(nr,ptr);
   }
@@ -2738,7 +2709,7 @@ int Field_double::store(double nr)
   }
 
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     float8store(ptr,nr);
   }
@@ -2751,23 +2722,7 @@ int Field_double::store(double nr)
 
 int Field_double::store(longlong nr)
 {
-  double j= (double) nr;
-  int error= 0;
-  if (unsigned_flag && j < 0)
-  {
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-    error= 1;
-    j=0;
-  }
-#ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
-  {
-    float8store(ptr,j);
-  }
-  else
-#endif
-    doublestore(ptr,j);
-  return error;
+  return store((double)nr);
 }
 
 
@@ -2775,7 +2730,7 @@ double Field_double::val_real(void)
 {
   double j;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     float8get(j,ptr);
   }
@@ -2789,7 +2744,7 @@ longlong Field_double::val_int(void)
 {
   double j;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     float8get(j,ptr);
   }
@@ -2805,7 +2760,7 @@ String *Field_double::val_str(String *val_buffer,
 {
   double nr;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     float8get(nr,ptr);
   }
@@ -2893,7 +2848,7 @@ int Field_double::cmp(const char *a_ptr, const char *b_ptr)
 {
   double a,b;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     float8get(a,a_ptr);
     float8get(b,b_ptr);
@@ -2916,7 +2871,7 @@ void Field_double::sort_string(char *to,uint length __attribute__((unused)))
 {
   double nr;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     float8get(nr,ptr);
   }
@@ -3092,7 +3047,7 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
   }
 
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int4store(ptr,tmp);
   }
@@ -3151,7 +3106,7 @@ int Field_timestamp::store(longlong nr)
                          nr, MYSQL_TIMESTAMP_DATETIME, 1);
 
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int4store(ptr,timestamp);
   }
@@ -3175,7 +3130,7 @@ longlong Field_timestamp::val_int(void)
   THD  *thd= table->in_use;
 
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
     temp=uint4korr(ptr);
   else
 #endif
@@ -3205,7 +3160,7 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
   val_buffer->length(field_length);
 
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
     temp=uint4korr(ptr);
   else
 #endif
@@ -3270,7 +3225,7 @@ bool Field_timestamp::get_date(TIME *ltime, uint fuzzydate)
   long temp;
   THD *thd= table->in_use;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
     temp=uint4korr(ptr);
   else
 #endif
@@ -3307,7 +3262,7 @@ int Field_timestamp::cmp(const char *a_ptr, const char *b_ptr)
 {
   int32 a,b;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     a=sint4korr(a_ptr);
     b=sint4korr(b_ptr);
@@ -3325,7 +3280,7 @@ int Field_timestamp::cmp(const char *a_ptr, const char *b_ptr)
 void Field_timestamp::sort_string(char *to,uint length __attribute__((unused)))
 {
 #ifdef WORDS_BIGENDIAN
-  if (!table->db_low_byte_first)
+  if (!table->s->db_low_byte_first)
   {
     to[0] = ptr[0];
     to[1] = ptr[1];
@@ -3354,7 +3309,7 @@ void Field_timestamp::set_time()
   long tmp= (long) table->in_use->query_start();
   set_notnull();
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int4store(ptr,tmp);
   }
@@ -3747,7 +3702,7 @@ int Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
                          from, len, MYSQL_TIMESTAMP_DATE, 1);
 
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int4store(ptr,tmp);
   }
@@ -3775,7 +3730,7 @@ int Field_date::store(double nr)
   else
     tmp=(long) rint(nr);
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int4store(ptr,tmp);
   }
@@ -3803,7 +3758,7 @@ int Field_date::store(longlong nr)
   else
     tmp=(long) nr;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int4store(ptr,tmp);
   }
@@ -3829,7 +3784,7 @@ double Field_date::val_real(void)
 {
   int32 j;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
     j=sint4korr(ptr);
   else
 #endif
@@ -3841,7 +3796,7 @@ longlong Field_date::val_int(void)
 {
   int32 j;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
     j=sint4korr(ptr);
   else
 #endif
@@ -3856,7 +3811,7 @@ String *Field_date::val_str(String *val_buffer,
   val_buffer->alloc(field_length);
   int32 tmp;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
     tmp=sint4korr(ptr);
   else
 #endif
@@ -3874,7 +3829,7 @@ int Field_date::cmp(const char *a_ptr, const char *b_ptr)
 {
   int32 a,b;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     a=sint4korr(a_ptr);
     b=sint4korr(b_ptr);
@@ -3892,7 +3847,7 @@ int Field_date::cmp(const char *a_ptr, const char *b_ptr)
 void Field_date::sort_string(char *to,uint length __attribute__((unused)))
 {
 #ifdef WORDS_BIGENDIAN
-  if (!table->db_low_byte_first)
+  if (!table->s->db_low_byte_first)
   {
     to[0] = ptr[0];
     to[1] = ptr[1];
@@ -4130,7 +4085,7 @@ int Field_datetime::store(const char *from,uint len,CHARSET_INFO *cs)
                          from, len, MYSQL_TIMESTAMP_DATETIME, 1);
 
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int8store(ptr,tmp);
   }
@@ -4171,7 +4126,7 @@ int Field_datetime::store(longlong nr)
                          MYSQL_TIMESTAMP_DATETIME, 1);
 
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int8store(ptr,nr);
   }
@@ -4200,7 +4155,7 @@ int Field_datetime::store_time(TIME *ltime,timestamp_type type)
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
   }
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int8store(ptr,tmp);
   }
@@ -4227,7 +4182,7 @@ longlong Field_datetime::val_int(void)
 {
   longlong j;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
     j=sint8korr(ptr);
   else
 #endif
@@ -4247,7 +4202,7 @@ String *Field_datetime::val_str(String *val_buffer,
   int part3;
 
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
     tmp=sint8korr(ptr);
   else
 #endif
@@ -4312,7 +4267,7 @@ int Field_datetime::cmp(const char *a_ptr, const char *b_ptr)
 {
   longlong a,b;
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     a=sint8korr(a_ptr);
     b=sint8korr(b_ptr);
@@ -4330,7 +4285,7 @@ int Field_datetime::cmp(const char *a_ptr, const char *b_ptr)
 void Field_datetime::sort_string(char *to,uint length __attribute__((unused)))
 {
 #ifdef WORDS_BIGENDIAN
-  if (!table->db_low_byte_first)
+  if (!table->s->db_low_byte_first)
   {
     to[0] = ptr[0];
     to[1] = ptr[1];
@@ -4717,6 +4672,7 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
   uint32 not_used, copy_length;
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
+  enum MYSQL_ERROR::enum_warning_level level= MYSQL_ERROR::WARN_LEVEL_WARN;
 
   /* Convert character set if nesessary */
   if (String::needs_conversion(length, cs, field_charset, &not_used))
@@ -4741,11 +4697,24 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
     *ptr= (uchar) copy_length;
   else
     int2store(ptr, copy_length);
-  
-  if (copy_length < length)
+
+  // Check if we lost something other than just trailing spaces
+  if ((copy_length < length) && table->in_use->count_cuted_fields)
+  {
+    const char *end= from + length;
+    from+= copy_length;
+    from+= field_charset->cset->scan(field_charset, from, end, MY_SEQ_SPACES);
+    /*
+      If we lost only spaces then produce a NOTE, not a WARNING.
+      But if we have already had errors (e.g with charset conversion),
+      then don't reset level to NOTE.
+    */
+    if (from == end && !error)
+      level= MYSQL_ERROR::WARN_LEVEL_NOTE;
     error= 1;
+  }
   if (error)
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
+    set_warning(level, ER_WARN_DATA_TRUNCATED, 1);
   return error;
 }
 
@@ -5189,7 +5158,7 @@ Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 {
   flags|= BLOB_FLAG;
   if (table)
-    table->blob_fields++;
+    table->s->blob_fields++;
 }
 
 
@@ -5201,7 +5170,7 @@ void Field_blob::store_length(uint32 number)
     break;
   case 2:
 #ifdef WORDS_BIGENDIAN
-    if (table->db_low_byte_first)
+    if (table->s->db_low_byte_first)
     {
       int2store(ptr,(unsigned short) number);
     }
@@ -5214,7 +5183,7 @@ void Field_blob::store_length(uint32 number)
     break;
   case 4:
 #ifdef WORDS_BIGENDIAN
-    if (table->db_low_byte_first)
+    if (table->s->db_low_byte_first)
     {
       int4store(ptr,number);
     }
@@ -5234,7 +5203,7 @@ uint32 Field_blob::get_length(const char *pos)
     {
       uint16 tmp;
 #ifdef WORDS_BIGENDIAN
-      if (table->db_low_byte_first)
+      if (table->s->db_low_byte_first)
 	tmp=sint2korr(pos);
       else
 #endif
@@ -5247,7 +5216,7 @@ uint32 Field_blob::get_length(const char *pos)
     {
       uint32 tmp;
 #ifdef WORDS_BIGENDIAN
-      if (table->db_low_byte_first)
+      if (table->s->db_low_byte_first)
 	tmp=uint4korr(pos);
       else
 #endif
@@ -5866,7 +5835,7 @@ void Field_enum::store_type(ulonglong value)
   case 1: ptr[0]= (uchar) value;  break;
   case 2:
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int2store(ptr,(unsigned short) value);
   }
@@ -5877,7 +5846,7 @@ void Field_enum::store_type(ulonglong value)
   case 3: int3store(ptr,(long) value); break;
   case 4:
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int4store(ptr,value);
   }
@@ -5887,7 +5856,7 @@ void Field_enum::store_type(ulonglong value)
   break;
   case 8:
 #ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
+  if (table->s->db_low_byte_first)
   {
     int8store(ptr,value);
   }
@@ -5978,7 +5947,7 @@ longlong Field_enum::val_int(void)
     {
       uint16 tmp;
 #ifdef WORDS_BIGENDIAN
-      if (table->db_low_byte_first)
+      if (table->s->db_low_byte_first)
 	tmp=sint2korr(ptr);
       else
 #endif
@@ -5991,7 +5960,7 @@ longlong Field_enum::val_int(void)
     {
       uint32 tmp;
 #ifdef WORDS_BIGENDIAN
-      if (table->db_low_byte_first)
+      if (table->s->db_low_byte_first)
 	tmp=uint4korr(ptr);
       else
 #endif
@@ -6002,7 +5971,7 @@ longlong Field_enum::val_int(void)
     {
       longlong tmp;
 #ifdef WORDS_BIGENDIAN
-      if (table->db_low_byte_first)
+      if (table->s->db_low_byte_first)
 	tmp=sint8korr(ptr);
       else
 #endif
@@ -6292,22 +6261,6 @@ Field *Field_bit::new_key_field(MEM_ROOT *root,
       res->ptr++;                               // Store rest of data here
   }
   return res;
-}
-
-
-void Field_bit::make_field(Send_field *field)
-{
-  /* table_cache_key is not set for temp tables */
-  field->db_name= (orig_table->table_cache_key ? orig_table->table_cache_key :
-		   "");
-  field->org_table_name= orig_table->real_name;
-  field->table_name= orig_table->table_name;
-  field->col_name= field->org_col_name= field_name;
-  field->charsetnr= charset()->number;
-  field->length= field_length;
-  field->type= type();
-  field->flags= table->maybe_null ? (flags & ~NOT_NULL_FLAG) : flags;
-  field->decimals= 0;
 }
 
 
@@ -6776,7 +6729,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
 
   /* Fix if the original table had 4 byte pointer blobs */
   if (flags & BLOB_FLAG)
-    pack_length= (pack_length- old_field->table->blob_ptr_size +
+    pack_length= (pack_length- old_field->table->s->blob_ptr_size +
 		  portable_sizeof_char_ptr);
 
   switch (sql_type) {
@@ -6824,19 +6777,20 @@ create_field::create_field(Field *old_field,Field *orig_field)
       old_field->ptr && orig_field)
   {
     char buff[MAX_FIELD_WIDTH],*pos;
-    String tmp(buff,sizeof(buff), charset);
+    String tmp(buff,sizeof(buff), charset), *res;
+    my_ptrdiff_t diff;
 
     /* Get the value from default_values */
-    my_ptrdiff_t diff= (my_ptrdiff_t) (orig_field->table->rec_buff_length*2);
+    diff= (my_ptrdiff_t) (orig_field->table->s->default_values-
+                          orig_field->table->record[0]);
     orig_field->move_field(diff);		// Points now at default_values
     bool is_null=orig_field->is_real_null();
-    orig_field->val_str(&tmp);
+    res= orig_field->val_str(&tmp);
     orig_field->move_field(-diff);		// Back to record[0]
     if (!is_null)
     {
-      pos= (char*) sql_memdup(tmp.ptr(),tmp.length()+1);
-      pos[tmp.length()]=0;
-      def= new Item_string(pos, tmp.length(), charset);
+      pos= (char*) sql_strmake(res->ptr(), res->length());
+      def= new Item_string(pos, res->length(), charset);
     }
   }
 }

@@ -1922,7 +1922,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
   pthread_key_delete pthread_rwlock_rdlock pthread_setprio \
   pthread_setprio_np pthread_setschedparam pthread_sigmask readlink \
   realpath rename rint rwlock_init setupterm \
-  shmget shmat shmdt shmctl \
+  shmget shmat shmdt shmctl sigaction \
   sighold sigset sigthreadmask \
   snprintf socket stpcpy strcasecmp strerror strnlen strpbrk strstr strtol \
   strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr)
@@ -2450,7 +2450,7 @@ thread_dirs=
 
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
-sql_client_dirs="libmysql client"
+sql_client_dirs="libmysql strings regex client"
 linked_client_targets="linked_libmysql_sources"
 CLIENT_LIBS=$NON_THREADED_CLIENT_LIBS
 if test "$THREAD_SAFE_CLIENT" != "no"
@@ -2624,6 +2624,20 @@ AC_SUBST(sql_server_dirs)
 AC_SUBST(thread_dirs)
 AC_SUBST(server_scripts)
 
+# Now that sql_client_dirs and sql_server_dirs are stable, determine the union.
+# Start with the (longer) server list, add each client item not yet present.
+sql_union_dirs=" $sql_server_dirs "
+for DIR in $sql_client_dirs
+do
+  if echo $sql_union_dirs | grep " $DIR " >/dev/null
+  then
+    :  # already present, skip
+  else
+    sql_union_dirs="$sql_union_dirs $DIR "
+  fi
+done
+AC_SUBST(sql_union_dirs)
+
 #if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"
 #then
   # MIT pthreads does now support connecting with unix sockets
@@ -2694,7 +2708,8 @@ ndb_transporter_opt_objs=""
 if test "$ac_cv_func_shmget" = "yes" &&
    test "$ac_cv_func_shmat" = "yes" &&
    test "$ac_cv_func_shmdt" = "yes" &&
-   test "$ac_cv_func_shmctl" = "yes"
+   test "$ac_cv_func_shmctl" = "yes" &&
+   test "$ac_cv_func_sigaction" = "yes"
 then
    AC_DEFINE([NDB_SHM_TRANSPORTER], [1],
              [Including Ndb Cluster DB shared memory transporter])

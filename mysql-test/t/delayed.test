@@ -31,6 +31,8 @@ insert delayed into t1 values (null,"c");
 insert delayed into t1 values (3,"d"),(null,"e");
 --error 1136
 insert delayed into t1 values (3,"this will give an","error");
---sleep 2
+# 2 was not enough for --ps-protocol
+--sleep 4
+show status like 'not_flushed_delayed_rows';
 select * from t1;
 drop table t1;
