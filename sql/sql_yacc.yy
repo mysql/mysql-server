@@ -194,6 +194,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	CHECK_SYM
 %token	COMMITTED_SYM
 %token	COLLATE_SYM
+%token	COLLATION_SYM
 %token	COLUMNS
 %token	COLUMN_SYM
 %token	CONCURRENT
@@ -284,6 +285,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MERGE_SYM
 %token	MIN_ROWS
 %token	MYISAM_SYM
+%token	NAMES_SYM
 %token	NATIONAL_SYM
 %token	NATURAL
 %token	NEW_SYM
@@ -3963,6 +3965,7 @@ keyword:
 	| CIPHER_SYM		{}
 	| CLIENT_SYM		{}
 	| CLOSE_SYM		{}
+	| COLLATION_SYM		{}
 	| COMMENT_SYM		{}
 	| COMMITTED_SYM		{}
 	| COMMIT_SYM		{}
@@ -4040,6 +4043,7 @@ keyword:
 	| MULTIPOINT		{}
 	| MULTIPOLYGON		{}
 	| MYISAM_SYM		{}
+	| NAMES_SYM		{}
 	| NATIONAL_SYM		{}
 	| NCHAR_SYM		{}
 	| NEXT_SYM		{}
@@ -4185,6 +4189,13 @@ option_value:
 	  lex->var_list.push_back(new set_var(lex->option_type,
 					      find_sys_var("convert_character_set"),
 					      $4));
+	}
+	| NAMES_SYM opt_equal set_expr_or_default
+	{
+	  LEX *lex=Lex;
+	  lex->var_list.push_back(new set_var(lex->option_type,
+					      find_sys_var("client_character_set"),
+					      $3));
 	}
 	| PASSWORD equal text_or_password
 	  {
