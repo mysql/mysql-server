@@ -2208,56 +2208,59 @@ mysql_real_query(MYSQL *mysql, const char *query, ulong length)
 static int
 send_file_to_server(MYSQL *mysql, const char *filename)
 {
-  int fd, readcount;
-  char buf[IO_SIZE*15],*tmp_name;
+  int fd, readcount, result= -1;
+  uint packet_length=MY_ALIGN(mysql->net.max_packet-16,IO_SIZE);
+  char *buf, tmp_name[FN_REFLEN];
   DBUG_ENTER("send_file_to_server");
 
-  fn_format(buf,filename,"","",4);		/* Convert to client format */
-  if (!(tmp_name=my_strdup(buf,MYF(0))))
+  if (!(buf=my_malloc(packet_length,MYF(0))))
   {
     strmov(mysql->net.last_error, ER(mysql->net.last_errno=CR_OUT_OF_MEMORY));
     DBUG_RETURN(-1);
   }
+
+  fn_format(tmp_name,filename,"","",4);		/* Convert to client format */
   if ((fd = my_open(tmp_name,O_RDONLY, MYF(0))) < 0)
   {
+    my_net_write(&mysql->net,"",0);		/* Server needs one packet */
+    net_flush(&mysql->net);
     mysql->net.last_errno=EE_FILENOTFOUND;
-    sprintf(buf,EE(mysql->net.last_errno),tmp_name,errno);
-    strmake(mysql->net.last_error,buf,sizeof(mysql->net.last_error)-1);
-    my_net_write(&mysql->net,"",0); net_flush(&mysql->net);
-    my_free(tmp_name,MYF(0));
-    DBUG_RETURN(-1);
+    snprintf(mysql->net.last_error,sizeof(mysql->net.last_error)-1,
+	     EE(mysql->net.last_errno),tmp_name, errno);
+    goto err;
   }
 
-  while ((readcount = (int) my_read(fd,buf,sizeof(buf),MYF(0))) > 0)
+  while ((readcount = (int) my_read(fd,(byte*) buf,packet_length,MYF(0))) > 0)
   {
     if (my_net_write(&mysql->net,buf,readcount))
     {
+      DBUG_PRINT("error",("Lost connection to MySQL server during LOAD DATA of local file"));
       mysql->net.last_errno=CR_SERVER_LOST;
       strmov(mysql->net.last_error,ER(mysql->net.last_errno));
-      DBUG_PRINT("error",("Lost connection to MySQL server during LOAD DATA of local file"));
-      (void) my_close(fd,MYF(0));
-      my_free(tmp_name,MYF(0));
-      DBUG_RETURN(-1);
+      goto err;
     }
   }
-  (void) my_close(fd,MYF(0));
   /* Send empty packet to mark end of file */
   if (my_net_write(&mysql->net,"",0) || net_flush(&mysql->net))
   {
     mysql->net.last_errno=CR_SERVER_LOST;
-    sprintf(mysql->net.last_error,ER(mysql->net.last_errno),socket_errno);
-    my_free(tmp_name,MYF(0));
-    DBUG_RETURN(-1);
+    sprintf(mysql->net.last_error,ER(mysql->net.last_errno),errno);
+    goto err;
   }
   if (readcount < 0)
   {
     mysql->net.last_errno=EE_READ; /* the errmsg for not entire file read */
-    sprintf(buf,EE(mysql->net.last_errno),tmp_name,errno);
-    strmake(mysql->net.last_error,buf,sizeof(mysql->net.last_error)-1);
-    my_free(tmp_name,MYF(0));
-    DBUG_RETURN(-1);
+    snprintf(mysql->net.last_error,sizeof(mysql->net.last_error)-1,
+	     tmp_name,errno);
+    goto err;
   }
-  DBUG_RETURN(0);
+  result=0;					/* Ok */
+
+err:
+  if (fd >= 0)
+    (void) my_close(fd,MYF(0));
+  my_free(buf,MYF(0));
+  DBUG_RETURN(result);
 }
 
 

@@ -2248,7 +2248,6 @@ sub fix_for_insert
 #############################################################################
 #	     Configuration for Sybase
 #############################################################################
-
 package db_sybase;
 
 sub new
@@ -2259,10 +2258,10 @@ sub new
   bless $self;
 
   $self->{'cmp_name'}		= "sybase";
-  $self->{'data_source'}	= "DBI:ODBC:$database";
+  $self->{'data_source'}	= "DBI:Sybase:database=$database";
   if (defined($host) && $host ne "")
   {
-    $self->{'data_source'}	.= ":$host";
+    $self->{'data_source'}	.= ";hostname=$host";
   }
   $self->{'limits'}		= \%limits;
   $self->{'smds'}		= \%smds;
@@ -2327,7 +2326,19 @@ sub new
 sub version
 {
   my ($self)=@_;
-  return "Sybase enterprise 11.5 NT";		#DBI/ODBC can't return the server version
+  my ($dbh,$sth,$version,@row);
+
+  $dbh=$self->connect();
+  $sth = $dbh->prepare('SELECT @@version') or die $DBI::errstr;
+  $version="Sybase (unknown)";
+  if ($sth->execute && (@row = $sth->fetchrow_array))
+  {
+    $version=$row[0];
+  }
+  $sth->finish;
+  $dbh->disconnect;
+  return $version;
+
 }
 
 sub connect
@@ -2335,7 +2346,7 @@ sub connect
   my ($self)=@_;
   my ($dbh);
   $dbh=DBI->connect($self->{'data_source'}, $main::opt_user,
-		    $main::opt_password,{ PrintError => 0}) ||
+		    $main::opt_password,{ PrintError => 0 , AutoCommit => 1}) ||
 		      die "Got error: '$DBI::errstr' when connecting to " . $self->{'data_source'} ." with user: '$main::opt_user' password: '$main::opt_password'\n";
   return $dbh;
 }
@@ -2428,7 +2439,9 @@ sub fix_for_insert
 
 #
 # optimize the tables ....
-#
+#  WARNING (from walrus)! This sub will work only from DBD:sybase
+# driver. Because if we use ODBC we don't know actual database name
+# (but DSN name only)
 sub vacuum
 {
   my ($self,$full_vacuum,$dbh_ref)=@_;
@@ -2440,12 +2453,32 @@ sub vacuum
   }
   $dbh=$$dbh_ref;
   $loop_time=new Benchmark;
-  $dbh->do("analyze table ?? compute statistics") || die "Got error: $DBI::errstr when executing 'vacuum'\n";
+  my (@tables,$sth,$current_table,$current_base);
+  $dbh->do("dump tran $database with truncate_only");
+  $sth=$dbh->prepare("sp_tables" ) or die "prepere";
+  $sth->execute() or die "execute";
+  while (@row = $sth->fetchrow_array()) {
+    $current_table = $row[2];
+    $current_base = $row[0];
+    next if ($current_table =~ /^sys/); 
+    push(@tables,$current_table) if ($database == $current_base);    
+   }
+
+  $sth->finish();
+
+  foreach $table (@tables) {
+#    print "$table: \n";
+    $dbh->do("update statistics $table") or print "Oops!"; 
+  }
+ 
+#  $dbh->do("analyze table ?? compute statistics") || die "Got error: $DBI::errstr when executing 'vacuum'\n";
   $end_time=new Benchmark;
   print "Time for book-keeping (1): " .
   Benchmark::timestr(Benchmark::timediff($end_time, $loop_time),"all") . "\n\n";
   $dbh->disconnect;  $$dbh_ref= $self->connect();
 }
+
+
 
 
 #############################################################################
@@ -2935,7 +2968,6 @@ sub new
   $smds{'q15'} 	= 'd';
   $smds{'q16'} 	= 'a';
   $smds{'q17'} 	= 'c';
-
   return $self;
 }
 
@@ -2984,23 +3016,35 @@ sub connect
 sub create
 {
   my($self,$table_name,$fields,$index,$options) = @_;
-  my($query,@queries);
+  my($query,@queries,@indexes);
 
   $query="create table $table_name (";
   foreach $field (@$fields)
   {
     $field =~ s/ decimal/ double(10,2)/i;
     $field =~ s/ big_decimal/ double(10,2)/i;
-    $field =~ s/ date/ int/i;		# Because of tcp ?
+    $field =~ s/ tinyint\(.*\)/ smallint/i;
+    $field =~ s/ smallint\(.*\)/ smallint/i;
+    $field =~ s/ mediumint/ integer/i;
+    $field =~ s/ float\(.*\)/ float/i;
+#    $field =~ s/ date/ int/i;		# Because of tcp ?
     $query.= $field . ',';
   }
   foreach $index (@$index)
   {
-    $query.= $index . ',';
+    if ( $index =~ /\bINDEX\b/i )
+    {
+      my @fields = split(' ',$index);
+      my $query="CREATE INDEX $fields[1] ON $table_name $fields[2]";
+      push(@indexes,$query);
+    
+    } else {
+      $query.= $index . ',';
+    }
   }
   substr($query,-1)=")";		# Remove last ',';
   $query.=" $options" if (defined($options));
-  push(@queries,$query);
+  push(@queries,$query,@indexes);
   return @queries;
 }
 
@@ -3360,13 +3404,13 @@ sub version
   my ($self)=@_;
   my ($dbh,$sth,$version,@row);
 
-  $dbh=$self->connect();
+#  $dbh=$self->connect();
 #
 #  Pick up SQLGetInfo option SQL_DBMS_VER (18)
 #
   #$version = $dbh->func(18, GetInfo);
-  $version="FrontBase 2.1";
-  $dbh->disconnect;
+  $version="FrontBase 3.3";
+#  $dbh->disconnect;
   return $version;
 }
 
@@ -3401,7 +3445,7 @@ sub connect
 sub create
 {
   my($self,$table_name,$fields,$index,$options) = @_;
-  my($query,@queries);
+  my($query,@queries,@indexes,@keys);
 
   $query="create table $table_name (";
   foreach $field (@$fields)
@@ -3419,18 +3463,18 @@ sub create
   }
   foreach $ind (@$index)
   {
-    my @index;
-    if ( $ind =~ /\bKEY\b/i ){
+#    my @index;
+    if ( $ind =~ /(\bKEY\b)|(\bUNIQUE\b)/i ){
       push(@keys,"ALTER TABLE $table_name ADD $ind");
     }else{
-      my @fields = split(' ',$index);
+      my @fields = split(' ',$ind);
       my $query="CREATE INDEX $fields[1] ON $table_name $fields[2]";
-      push(@index,$query);
+      push(@indexes,$query);
     }
   }
   substr($query,-1)=")";		# Remove last ',';
   $query.=" $options" if (defined($options));
-  push(@queries,$query);
+  push(@queries,$query,@keys,@indexes);
   return @queries;
 }
 
