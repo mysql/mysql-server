@@ -1311,7 +1311,7 @@ run_testcase ()
 	show_failed_diff $tname
 	$ECHO
 	if [ x$FORCE != x1 ] ; then
-	 $ECHO "Aborting becasue $tname failed. To continue, re-run with '--force'."
+	 $ECHO "Aborting: $tname failed. To continue, re-run with '--force'."
 	 $ECHO
          if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
 	 then
