@@ -24206,17 +24206,11 @@ for most systems, but one should be aware of it.
 @cindex design, limitations
 @cindex limitations, design
 
-Because MySQL uses extremely fast table locking (multiple readers /
-single writers) the biggest remaining problem is a mix of a steady stream of
-inserts and slow selects on the same table.
-
-We believe that for a huge number of systems the extremely fast
-performance in other cases make this choice a win. This case is usually
-also possible to solve by having multiple copies of the table, but it
-takes more effort and hardware.
-
-We are also working on some extensions to solve this problem for some
-common application niches.
+When using the MyISAM table handler, MySQL uses extremely fast table
+locking (multiple readers / single writers). The biggest problem with
+this table type is a if you have a mix of a steady stream of updates and
+slow selects on the same table.  If this is a problem with some tables,
+you can use another table type for these. @xref{Table types}.
 
 MySQL can work with both transactional and not transactional tables.  To
 be able to work smoothly with not transactional tables (which can't

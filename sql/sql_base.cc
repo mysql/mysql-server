@@ -1390,11 +1390,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
 
 #if defined( __WIN__) || defined(OS2)
     /* Win32 can't drop a file that is open */
-    if (lock_type == TL_WRITE_ALLOW_READ
-#ifdef HAVE_GEMINI_DB
-        && table->db_type != DB_TYPE_GEMINI
-#endif /* HAVE_GEMINI_DB */
-       )
+    if (lock_type == TL_WRITE_ALLOW_READ)
     {
       lock_type= TL_WRITE;
     }
