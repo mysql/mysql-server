@@ -67,6 +67,7 @@ inline Item *or_or_concat(Item* A, Item* B)
   interval_type interval;
   LEX_USER *lex_user;
   enum Item_udftype udf_type;
+  CHARSET_INFO *charset;
 }
 
 %{
@@ -600,6 +601,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <lex_user> user grant_user
 
+%type <charset> 
+	charset_name
+	charset_name_or_default
+	opt_db_default_character_set
+
 %type <NONE>
 	query verb_clause create change select do drop insert replace insert2
 	insert_values update delete truncate rename
@@ -758,6 +764,7 @@ master_def:
 create:
 	CREATE opt_table_options TABLE_SYM opt_if_not_exists table_ident
 	{
+	  THD *thd=current_thd;
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_CREATE_TABLE;
 	  if (!add_table_to_list($5,
@@ -771,7 +778,7 @@ create:
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= default_table_type;
-	  lex->create_info.table_charset=NULL;
+	  lex->create_info.table_charset=thd->db_charset?thd->db_charset:default_charset_info;
 	}
 	create2
 
@@ -793,13 +800,13 @@ create:
 	    lex->key_list.push_back(new Key($2,$4.str, $5, lex->col_list));
 	    lex->col_list.empty();
 	  }
-	| CREATE DATABASE opt_if_not_exists ident default_charset
+	| CREATE DATABASE opt_if_not_exists ident opt_db_default_character_set
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_CREATE_DB;
 	    lex->name=$4.str;
             lex->create_info.options=$3;
-	    lex->create_info.table_charset=lex->charset;
+	    lex->create_info.table_charset=$5;
 	  }
 	| CREATE udf_func_type UDF_SYM ident
 	  {
@@ -886,9 +893,9 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
-	| CHARSET EQ charset_or_nocharset
+	| CHARSET EQ charset_name_or_default
 	  { 
-	    Lex->create_info.table_charset=Lex->charset;
+	    Lex->create_info.table_charset= $3;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
 	  }
 	| INSERT_METHOD EQ merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
@@ -996,7 +1003,7 @@ type:
 					  $$=FIELD_TYPE_TINY; }
 	| BOOL_SYM			{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_TINY; }
-	| char '(' NUM ')' opt_binary { Lex->length=$3.str;
+	| char '(' NUM ')' opt_binary	{ Lex->length=$3.str;
 					  $$=FIELD_TYPE_STRING; }
 	| char opt_binary		{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_STRING; }
@@ -1125,28 +1132,28 @@ attribute:
 	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
 	| COMMENT_SYM text_literal { Lex->comment= $2; };
 
-charset:
+charset_name:
 	ident	
 	{ 
-	  if (!(Lex->charset=get_charset_by_name($1.str,MYF(0))))
+	  if (!($$=get_charset_by_name($1.str,MYF(0))))
 	  {
 	    net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$1.str);
 	    YYABORT;
 	  }
 	};
 
-charset_or_nocharset:
-	charset
-	| DEFAULT {Lex->charset=NULL; }
+charset_name_or_default:
+	charset_name { $$=$1;   }
+	| DEFAULT    { $$=NULL; } ;
+
+opt_db_default_character_set:
+	/* empty */		{ $$=default_charset_info; }
+	| DEFAULT CHAR_SYM SET charset_name_or_default  { $$=$4; };
 
 opt_binary:
-	/* empty */		{ Lex->charset=NULL; }
-	| BINARY		{ Lex->type|=BINARY_FLAG; Lex->charset=NULL; }
-	| CHAR_SYM SET charset  {/* charset is already in Lex->charset */} ;
-
-default_charset:
 	/* empty */			{ Lex->charset=NULL; }
-	| DEFAULT CHAR_SYM SET charset_or_nocharset ;
+	| BINARY			{ Lex->type|=BINARY_FLAG; Lex->charset=NULL; }
+	| CHAR_SYM SET charset_name	{ Lex->charset=$3; } ;
 
 references:
 	REFERENCES table_ident
@@ -1247,6 +1254,7 @@ string_list:
 alter:
 	ALTER opt_ignore TABLE_SYM table_ident
 	{
+	  THD *thd=current_thd;
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_ALTER_TABLE;
 	  lex->name=0;
@@ -1264,20 +1272,20 @@ alter:
 	  lex->select->db=lex->name=0;
     	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
+	  lex->create_info.table_charset=thd->db_charset?thd->db_charset:default_charset_info;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
-	  lex->create_info.table_charset=NULL;
           lex->alter_keys_onoff=LEAVE_AS_IS;
           lex->simple_alter=1;
 	}
 	alter_list;
 
-	| ALTER DATABASE ident default_charset
+	| ALTER DATABASE ident opt_db_default_character_set
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_ALTER_DB;
 	    lex->name=$3.str;
-	    lex->create_info.table_charset=lex->charset;
-	  }
+	    lex->create_info.table_charset=$4;
+	  };
 
 
 alter_list:
@@ -1660,15 +1668,8 @@ expr_expr:
 	  { $$= new Item_date_add_interval($1,$4,$5,0); }
 	| expr '-' INTERVAL_SYM expr interval
 	  { $$= new Item_date_add_interval($1,$4,$5,1); }
-	| expr COLLATE_SYM ident 
-	  { 
-	    if (!(Lex->charset=get_charset_by_name($3.str,MYF(0))))
-	    {
-	      net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$3.str);
-	      YYABORT;
-	    }
-	    $$= new Item_func_set_collation($1,Lex->charset);
-	  };
+	| expr COLLATE_SYM charset_name
+	  { $$= new Item_func_set_collation($1,$3); };
 
 /* expressions that begin with 'expr' that do NOT follow IN_SYM */
 no_in_expr:
@@ -1783,12 +1784,10 @@ simple_expr:
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ); }
 	| CONVERT_SYM '(' expr ',' cast_type ')'  { $$= create_func_cast($3, $5); }
-	| CONVERT_SYM '(' expr USING charset ')'
-	  { $$= new Item_func_conv_charset($3,Lex->charset); }
+	| CONVERT_SYM '(' expr USING charset_name ')'
+	  { $$= new Item_func_conv_charset($3,$5); }
 	| CONVERT_SYM '(' expr ',' expr ',' expr ')'
-	  { 
-	    $$= new Item_func_conv_charset3($3,$7,$5); 
-	  }
+	  { $$= new Item_func_conv_charset3($3,$7,$5); }
 	| FUNC_ARG0 '(' ')'
 	  { $$= ((Item*(*)(void))($1.symbol->create_func))();}
 	| FUNC_ARG1 '(' expr ')'
