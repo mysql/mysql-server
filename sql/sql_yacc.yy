@@ -4254,6 +4254,7 @@ set_expr_or_default:
 	| DEFAULT { $$=0; }
 	| ON	  { $$=new Item_string("ON",  2, system_charset_info); }
 	| ALL	  { $$=new Item_string("ALL", 3, system_charset_info); }
+	| BINARY  { $$=new Item_string("binary", 6, system_charset_info); }
 	;
 
 
