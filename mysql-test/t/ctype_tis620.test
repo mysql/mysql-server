@@ -151,3 +151,9 @@ INSERT INTO t1 VALUES
 n X Wallpapers',1,'','2002-05-31','',579,0,'',1091,0,0,'');
 select * from t1 order by id;
 DROP TABLE t1;
+
+
+SET collation_connection='tis620_thai_ci';
+-- source include/ctype_filesort.inc
+SET collation_connection='tis620_bin';
+-- source include/ctype_filesort.inc

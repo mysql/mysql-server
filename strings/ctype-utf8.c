@@ -2247,7 +2247,6 @@ static int my_strnxfrm_utf8(CHARSET_INFO *cs,
   int plane;
   uchar *de = dst + dstlen;
   const uchar *se = src + srclen;
-  const uchar *dst_orig = dst;
 
   while( src < se && dst < de )
   {
@@ -2267,7 +2266,9 @@ static int my_strnxfrm_utf8(CHARSET_INFO *cs,
     }
     dst+=res;
   }
-  return dst - dst_orig;
+  if (dst < de)
+    bfill(dst, de - dst, ' ');
+  return dstlen;
 }
 
 static int my_ismbchar_utf8(CHARSET_INFO *cs,const char *b, const char *e)
