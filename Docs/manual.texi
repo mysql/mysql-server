@@ -17933,6 +17933,12 @@ The different table types are:
 @end multitable
 @xref{Table types}.
 
+If a table type is specified, and that particular type is not available,
+@strong{MySQL} will choose the closest table type to the one that you have
+specified.  For example, if @code{TYPE=BDB} is specified, and that distribution
+of @strong{MySQL} does not support @code{BDB} tables, the table will be created
+as @code{MyISAM} instead.
+
 The other table options are used to optimize the behavior of the
 table. In most cases, you don't have to specify any of them.
 The options work for all table types, if not otherwise indicated:
