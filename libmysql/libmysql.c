@@ -662,6 +662,7 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 				  const char *passwd, const char *db)
 {
   char buff[512],*end=buff;
+  int rc;
   DBUG_ENTER("mysql_change_user");
 
   if (!user)
@@ -695,18 +696,26 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   /* Write authentication package */
   simple_command(mysql,COM_CHANGE_USER, buff,(ulong) (end-buff),1);
 
-  if ((*mysql->methods->read_change_user_result)(mysql, buff, passwd))
-    DBUG_RETURN(1);
-  /* Free old connect information */
-  my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->passwd,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
+  rc= (*mysql->methods->read_change_user_result)(mysql, buff, passwd);
 
-  /* alloc new connect information */
-  mysql->user=  my_strdup(user,MYF(MY_WME));
-  mysql->passwd=my_strdup(passwd,MYF(MY_WME));
-  mysql->db=    db ? my_strdup(db,MYF(MY_WME)) : 0;
-  DBUG_RETURN(0);
+  /*
+    The server will close all statements no matter was the attempt
+    to change user successful or not.
+  */
+  mysql_detach_stmt_list(&mysql->stmts);
+  if (rc == 0)
+  {
+    /* Free old connect information */
+    my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(mysql->passwd,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
+
+    /* alloc new connect information */
+    mysql->user=  my_strdup(user,MYF(MY_WME));
+    mysql->passwd=my_strdup(passwd,MYF(MY_WME));
+    mysql->db=    db ? my_strdup(db,MYF(MY_WME)) : 0;
+  }
+  DBUG_RETURN(rc);
 }
 
 #if defined(HAVE_GETPWUID) && defined(NO_GETPWUID_DECL)
