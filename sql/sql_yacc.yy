@@ -1134,10 +1134,10 @@ type:
 					  $$=FIELD_TYPE_STRING; }
 	| nchar '(' NUM ')'		{ Lex->length=$3.str;
 					  $$=FIELD_TYPE_STRING; 
-					  Lex->charset=&my_charset_utf8; }
+					  Lex->charset=national_charset_info; }
 	| nchar				{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_STRING; 
-					  Lex->charset=&my_charset_utf8; }
+					  Lex->charset=national_charset_info; }
 	| BINARY '(' NUM ')'		{ Lex->length=$3.str;
 					  Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_STRING; }
@@ -1145,7 +1145,7 @@ type:
 					  $$=FIELD_TYPE_VAR_STRING; }
 	| nvarchar '(' NUM ')'		{ Lex->length=$3.str;
 					  $$=FIELD_TYPE_VAR_STRING;
-					  Lex->charset= &my_charset_utf8; }
+					  Lex->charset=national_charset_info; }
 	| VARBINARY '(' NUM ')' 	{ Lex->length=$3.str;
 					  Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_VAR_STRING; }
@@ -3865,9 +3865,9 @@ text_literal:
 	  $$ = new Item_string($1.str,$1.length,cs);
 	}
 	| NCHAR_STRING
-	{ $$=  new Item_string($1.str,$1.length,&my_charset_utf8); }
+	{ $$=  new Item_string($1.str,$1.length,national_charset_info); }
 	| UNDERSCORE_CHARSET TEXT_STRING
-	  { $$ = new Item_string($2.str,$2.length,Lex->charset,Item::COER_IMPLICIT); }
+	  { $$ = new Item_string($2.str,$2.length,Lex->charset); }
 	| text_literal TEXT_STRING_db
 	  { ((Item_string*) $1)->append($2.str,$2.length); }
 	;
@@ -3913,9 +3913,8 @@ literal:
 	  { 
 	    Item *tmp= new Item_varbinary($2.str,$2.length);
 	    String *str= tmp ? tmp->val_str((String*) 0) : (String*) 0;
-	    $$ = new Item_string(str ? str->ptr() : "",
-				       str ? str->length() : 0,
-				       Lex->charset,Item::COER_IMPLICIT);
+	    $$ = new Item_string(str ? str->ptr() : "", str ? str->length() : 0, 
+				 Lex->charset);
 	  }
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }
