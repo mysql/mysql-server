@@ -44,6 +44,7 @@
 
 int main()
 {
+  ndb_init();
   Ndb* myNdb = new Ndb( "TEST_DB_1" );  // Object representing the database
   NdbDictionary::Table myTable;
   NdbDictionary::Column myColumn;

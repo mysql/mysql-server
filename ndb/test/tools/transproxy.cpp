@@ -346,6 +346,7 @@ start()
 int
 main(int av, char** ac)
 {
+    ndb_init();
     debug("start");
     hostname = "ndb-srv7";
     if (Ndb_getInAddr(&hostaddr.sin_addr, hostname) != 0) {

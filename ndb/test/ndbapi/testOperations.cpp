@@ -230,6 +230,7 @@ runClearTable(NDBT_Context* ctx, NDBT_Step* step){
 
 int
 main(int argc, const char** argv){
+  ndb_init();
 
   NDBT_TestSuite ts("testOperations");
   for(Uint32 i = 0; i<sizeof(matrix)/sizeof(matrix[0]); i++){

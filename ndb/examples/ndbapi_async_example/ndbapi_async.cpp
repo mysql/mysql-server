@@ -454,6 +454,7 @@ int populate(Ndb * myNdb, int data, async_callback_t * cbData)
 
 int main()
 {
+  ndb_init();
   Ndb* myNdb = new Ndb( "TEST_DB" );  // Object representing the database
   
   /*******************************************

@@ -761,6 +761,7 @@ int scan_print(Ndb * myNdb, int parallelism,
 
 int main()
 {
+  ndb_init();
   Ndb* myNdb = new Ndb( "TEST_DB" );  // Object representing the database
 
   
