@@ -73,37 +73,37 @@ mem_field_header_set_len(byte* field, ulint len)
 {
 	ut_ad(len >= 0);
 
-	mach_write(field - 2 * sizeof(ulint), len);
+	mach_write_to_4(field - 2 * sizeof(ulint), len);
 }
 
 ulint
 mem_field_header_get_len(byte* field)
 {
-	return(mach_read(field - 2 * sizeof(ulint)));
+	return(mach_read_from_4(field - 2 * sizeof(ulint)));
 }
 
 void
 mem_field_header_set_check(byte* field, ulint check)
 {
-	mach_write(field - sizeof(ulint), check);
+	mach_write_to_4(field - sizeof(ulint), check);
 }
 
 ulint
 mem_field_header_get_check(byte* field)
 {
-	return(mach_read(field - sizeof(ulint)));
+	return(mach_read_from_4(field - sizeof(ulint)));
 }
 
 void
 mem_field_trailer_set_check(byte* field, ulint check)
 {
-	mach_write(field + mem_field_header_get_len(field), check);
+	mach_write_to_4(field + mem_field_header_get_len(field), check);
 }
 
 ulint
 mem_field_trailer_get_check(byte* field)
 {
-	return(mach_read(field +
+	return(mach_read_from_4(field +
 			mem_field_header_get_len(field)));
 }
 
