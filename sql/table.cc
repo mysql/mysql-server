@@ -33,7 +33,7 @@ static uint find_field(TABLE *form,uint start,uint length);
 static byte* get_field_name(Field *buff,uint *length,
 			    my_bool not_used __attribute__((unused)))
 {
-  *length= strlen(buff->field_name);
+  *length= (uint) strlen(buff->field_name);
   return (byte*) buff->field_name;
 }
 
@@ -670,7 +670,7 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
   uchar *pos;
   DBUG_ENTER("make_new_entry");
 
-  length=strlen(newname)+1;
+  length=(uint) strlen(newname)+1;
   n_length=uint2korr(fileinfo+4);
   maxlength=uint2korr(fileinfo+6);
   names=uint2korr(fileinfo+8);
@@ -680,7 +680,7 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
   {						/* Expand file */
     newpos+=IO_SIZE;
     int4store(fileinfo+10,newpos);
-    endpos=(ulong) my_seek(file,0L,MY_SEEK_END,MYF(0)); /* Copy from file-end */
+    endpos=(ulong) my_seek(file,0L,MY_SEEK_END,MYF(0));/* Copy from file-end */
     bufflength= (uint) (endpos & (IO_SIZE-1));	/* IO_SIZE is a power of 2 */
 
     while (endpos > maxlength)

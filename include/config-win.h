@@ -222,6 +222,8 @@ inline double ulonglong2double(ulonglong value)
 
 #define HAVE_PERROR
 #define HAVE_VFPRINT
+#define HAVE_SNPRINTF
+#define _snprintf snprintf
 #define HAVE_CHSIZE		/* System has chsize() function */
 #define HAVE_RENAME		/* Have rename() as function */
 #define HAVE_BINARY_STREAMS	/* Have "b" flag in streams */

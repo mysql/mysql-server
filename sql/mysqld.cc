@@ -1138,7 +1138,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
       }
       break;
     case SIGHUP:
-      reload_acl_and_cache(~0);			// Flush everything
+      reload_acl_and_cache((THD*) 0,~0, (TABLE_LIST*) 0); // Flush everything
       mysql_print_status((THD*) 0);		// Send debug some info
       break;
 #ifdef USE_ONE_SIGNAL_HAND
@@ -2875,7 +2875,7 @@ static void get_options(int argc,char **argv)
 	berkeley_lock_type=berkeley_lock_types[type-1];
       else
       {
-	if (test_if_int(optarg,strlen(optarg)))
+	if (test_if_int(optarg,(uint) strlen(optarg)))
 	  berkeley_lock_scan_time=atoi(optarg);
 	else
 	{	  
@@ -3344,7 +3344,7 @@ static char *get_relative_path(const char *path)
       is_prefix(path,DEFAULT_MYSQL_HOME) && 
       strcmp(DEFAULT_MYSQL_HOME,FN_ROOTDIR))
   {
-    path+=strlen(DEFAULT_MYSQL_HOME);
+    path+=(uint) strlen(DEFAULT_MYSQL_HOME);
     while (*path == FN_LIBCHAR)
       path++;
   }
@@ -3384,7 +3384,7 @@ static void fix_paths(void)
     strmov(tmp,mysql_tmpdir);
     mysql_tmpdir=tmp;
     convert_dirname(mysql_tmpdir);
-    mysql_tmpdir=(char*) my_realloc(mysql_tmpdir,strlen(mysql_tmpdir)+1,
+    mysql_tmpdir=(char*) my_realloc(mysql_tmpdir,(uint) strlen(mysql_tmpdir)+1,
 				    MYF(MY_HOLD_ON_ERROR));
   }
 }

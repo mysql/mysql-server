@@ -505,7 +505,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	flush_options flush_option insert_lock_option replace_lock_option
 	equal optional_braces opt_key_definition key_usage_list2
 	opt_mi_check_type opt_to mi_check_types normal_join
-	table_to_table_list table_to_table
+	table_to_table_list table_to_table opt_table_list
 	END_OF_INPUT
 
 %type <NONE>
@@ -590,7 +590,7 @@ master_def:
 	 Lex->mi.log_file_name = $3.str;
        }
        |
-       MASTER_PORT_SYM EQ ULONGLONG_NUM
+       MASTER_PORT_SYM EQ ULONG_NUM
        {
 	 Lex->mi.port = $3;
        }
@@ -600,7 +600,7 @@ master_def:
 	 Lex->mi.pos = $3;
        }
        |
-       MASTER_CONNECT_RETRY_SYM EQ ULONGLONG_NUM
+       MASTER_CONNECT_RETRY_SYM EQ ULONG_NUM
        {
 	 Lex->mi.connect_retry = $3;
        }
@@ -1151,8 +1151,8 @@ table_to_table_list:
 
 table_to_table:
 	table_ident TO_SYM table_ident
-	{ if (add_table_to_list($1,NULL,TL_IGNORE) ||
-	      add_table_to_list($3,NULL,TL_IGNORE))
+	{ if (!add_table_to_list($1,NULL,TL_IGNORE) ||
+	      !add_table_to_list($3,NULL,TL_IGNORE))
 	     YYABORT;
  	}
 
@@ -2160,7 +2160,7 @@ flush_options:
 	| flush_option
 
 flush_option:
-	TABLES		{ Lex->type|= REFRESH_TABLES; }
+	TABLES		{ Lex->type|= REFRESH_TABLES; } opt_table_list
 	| TABLES WITH READ_SYM LOCK_SYM { Lex->type|= REFRESH_TABLES | REFRESH_READ_LOCK; }
 	| HOSTS_SYM	{ Lex->type|= REFRESH_HOSTS; }
 	| PRIVILEGES	{ Lex->type|= REFRESH_GRANT; }
@@ -2168,6 +2168,10 @@ flush_option:
 	| STATUS_SYM	{ Lex->type|= REFRESH_STATUS; }
         | SLAVE         { Lex->type|= REFRESH_SLAVE; } 
         | MASTER_SYM    { Lex->type|= REFRESH_MASTER; } 
+
+opt_table_list:
+	/* empty */  {}
+	| table_list {}
 
 /* kill threads */
 

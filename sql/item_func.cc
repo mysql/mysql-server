@@ -1047,7 +1047,7 @@ udf_handler::fix_fields(THD *thd,TABLE_LIST *tables,Item_result_field *func,
   }
   else
     thd=current_thd;				// In WHERE / const clause
-  udf_func *tmp_udf=find_udf(u_d->name,strlen(u_d->name),1);
+  udf_func *tmp_udf=find_udf(u_d->name,(uint) strlen(u_d->name),1);
 
   if (!tmp_udf)
   {

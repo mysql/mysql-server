@@ -455,7 +455,7 @@ void Item_func_curtime::fix_length_and_dec()
 	  (int) start->tm_hour,
 	  (int) start->tm_min,
 	  (int) start->tm_sec);
-  buff_length=strlen(buff);
+  buff_length=(uint) strlen(buff);
 }
 
 void Item_func_now::fix_length_and_dec()
@@ -478,7 +478,7 @@ void Item_func_now::fix_length_and_dec()
 	  (int) start->tm_hour,
 	  (int) start->tm_min,
 	  (int) start->tm_sec);
-  buff_length=strlen(buff);
+  buff_length=(uint) strlen(buff);
   /* For getdate */
   ltime.year=	start->tm_year+1900;
   ltime.month=	start->tm_mon+1;
@@ -522,7 +522,7 @@ String *Item_func_sec_to_time::val_str(String *str)
   uint sec= (uint) (seconds % 3600);
   sprintf(buff,"%s%02lu:%02u:%02u",sign,(long) (seconds/3600),
 	  sec/60, sec % 60);
-  str->copy(buff,strlen(buff));
+  str->copy(buff,(uint) strlen(buff));
   return str;
 }
 

@@ -126,7 +126,7 @@ bool String::set(double num,uint decimals)
   if (decimals >= NOT_FIXED_DEC)
   {
     sprintf(buff,"%.14g",num);			// Enough for a DATETIME
-    return copy(buff,strlen(buff));
+    return copy(buff,(uint) strlen(buff));
   }
 #ifdef HAVE_FCONVERT
   int decpt,sign;
@@ -141,7 +141,7 @@ bool String::set(double num,uint decimals)
       buff[0]='-';
       pos=buff;
     }
-    return copy(pos,strlen(pos));
+    return copy(pos,(uint) strlen(pos));
   }
   if (alloc((uint32) ((uint32) decpt+3+decimals)))
     return TRUE;
@@ -185,12 +185,12 @@ end:
   str_length=(uint32) (to-Ptr);
   return FALSE;
 #else
-#ifdef HAVE_SNPRINTF_
+#ifdef HAVE_SNPRINTF
   snprintf(buff,sizeof(buff), "%.*f",(int) decimals,num);
 #else
   sprintf(buff,"%.*f",(int) decimals,num);
 #endif
-  return copy(buff,strlen(buff));
+  return copy(buff,(uint) strlen(buff));
 #endif
 }
 
@@ -259,7 +259,7 @@ bool String::append(const String &s)
 bool String::append(const char *s,uint32 arg_length)
 {
   if (!arg_length)				// Default argument
-    arg_length=strlen(s);
+    arg_length=(uint) strlen(s);
   if (realloc(str_length+arg_length))
     return TRUE;
   memcpy(Ptr+str_length,s,arg_length);

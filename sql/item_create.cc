@@ -364,7 +364,7 @@ Item *create_func_ucase(Item* a)
 
 Item *create_func_version(void)
 {
-  return new Item_string(NullS,server_version, strlen(server_version));
+  return new Item_string(NullS,server_version, (uint) strlen(server_version));
 }
 
 Item *create_func_weekday(Item* a)

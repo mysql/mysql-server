@@ -909,7 +909,7 @@ static void print_top(MYSQL_RES *result)
   mysql_field_seek(result,0);
   while((field = mysql_fetch_field(result)))
   {
-    if ((length=strlen(field->name)) > field->max_length)
+    if ((length=(uint) strlen(field->name)) > field->max_length)
       field->max_length=length;
     else
       length=field->max_length;
@@ -974,7 +974,7 @@ static void print_relative_row_vert(MYSQL_RES *result __attribute__((unused)),
 	 llstr((tmp - last_values[row]), buff));
 
   /* Find the minimum row length needed to output the relative value */
-  if ((length=strlen(buff) > ex_val_max_len[row]) && ex_status_printed)
+  if ((length=(uint) strlen(buff) > ex_val_max_len[row]) && ex_status_printed)
     ex_val_max_len[row] = length;
   last_values[row] = tmp;
 }
