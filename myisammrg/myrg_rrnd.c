@@ -21,8 +21,6 @@
 
 #include "mymrgdef.h"
 
-static MYRG_TABLE *find_table(MYRG_TABLE *start,MYRG_TABLE *end,ulonglong pos);
-
 /*
   	If filepos == HA_OFFSET_ERROR, read next
 	Returns same as mi_rrnd:
@@ -80,8 +78,7 @@ int myrg_rrnd(MYRG_INFO *info,byte *buf,ulonglong filepos)
       isam_info->lastinx= (uint) -1;
     }
   }
-  info->current_table=find_table(info->open_tables,
-				 info->end_table-1,filepos);
+  info->current_table=_myrg_find_table(info,filepos);
   isam_info=info->current_table->table;
   isam_info->update&= HA_STATE_CHANGED;
   return ((*isam_info->s->read_rnd)
@@ -93,18 +90,19 @@ int myrg_rrnd(MYRG_INFO *info,byte *buf,ulonglong filepos)
 
 	/* Find which table to use according to file-pos */
 
-static MYRG_TABLE *find_table(MYRG_TABLE *start, MYRG_TABLE *end,
-			      ulonglong pos)
+MYRG_TABLE *_myrg_find_table(MYRG_INFO *info, ulonglong pos)
 {
-  MYRG_TABLE *mid;
+  MYRG_TABLE *t;
 
-  while (start != end)
+  info->records=info->del=info->data_file_length=0;
+
+  for (t=info->open_tables ; t < info->end_table ; t++)
   {
-    mid=start+((uint) (end-start)+1)/2;
-    if (mid->file_offset > pos)
-      end=mid-1;
-    else
-      start=mid;
+    t->file_offset=info->data_file_length;
+    if (pos < t->file_offset) return t-1;
+    info->data_file_length+=t->table->state->data_file_length;
+    info->records+=t->table->state->records;
+    info->del+=t->table->state->del;
   }
-  return start;
+  return t-1;
 }
