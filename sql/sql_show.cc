@@ -564,7 +564,8 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(1);
   }
 
-  String packet;
+  char buff[1024];
+  String packet(buff,sizeof(buff));
   packet.length(0);
   net_store_data(&packet, table->table_name);
   /*
@@ -597,7 +598,8 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("Table",NAME_LEN));
-  field_list.push_back(new Item_empty_string("Create Table",packet.length()));
+  field_list.push_back(new Item_empty_string("Create Table",
+        max(packet.length(),1024))); // 1024 is for not to confuse old clients
 
   if (send_fields(thd,field_list,1))
     DBUG_RETURN(1);
