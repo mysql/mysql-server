@@ -27,7 +27,8 @@ Documentation:
 Adjust:  971206  UABRONM First version
 ************************************************************************************************/
 #include <ndb_global.h>
-#include "NdbRecAttr.hpp"
+#include <NdbOut.hpp>
+#include <NdbRecAttr.hpp>
 #include "NdbDictionaryImpl.hpp"
 
 NdbRecAttr::NdbRecAttr() :
@@ -123,4 +124,89 @@ NdbRecAttr::clone() const {
   }
   memcpy(ret->theRef, theRef, n);
   return ret;
+}
+
+NdbOut& operator <<(NdbOut& ndbout, const NdbRecAttr &r)
+{
+  if (r.isNULL())
+  {
+    ndbout << "[NULL]";
+    return ndbout;
+  }
+
+  switch(r.getType()){
+
+  case NdbDictionary::Column::Bigunsigned:
+    ndbout << r.u_64_value();
+    break;
+  case NdbDictionary::Column::Unsigned:
+    ndbout << r.u_32_value();
+    break;
+  case NdbDictionary::Column::Smallunsigned:
+    ndbout << r.u_short_value();
+    break;
+  case NdbDictionary::Column::Tinyunsigned:
+    ndbout << (unsigned) r.u_char_value();
+    break;
+  case NdbDictionary::Column::Bigint:
+    ndbout << r.int64_value();
+    break;
+  case NdbDictionary::Column::Int:
+    ndbout << r.int32_value();
+    break;
+  case NdbDictionary::Column::Smallint:
+    ndbout << r.short_value();
+    break;
+  case NdbDictionary::Column::Tinyint:
+    ndbout << (int) r.char_value();
+    break;
+    
+  case NdbDictionary::Column::Char:
+  case NdbDictionary::Column::Varchar:
+    {
+      int aSize = r.arraySize();
+      char* buf = new char[aSize+1];
+      memcpy(buf, r.aRef(), aSize);
+      buf[aSize] = 0;
+      ndbout << buf;
+      delete [] buf;
+    }
+    break;
+    
+  case NdbDictionary::Column::Float:
+    ndbout << r.float_value();
+    break;
+  case NdbDictionary::Column::Double:
+    ndbout << r.double_value();
+    break;
+  case NdbDictionary::Column::Mediumint:
+    ndbout << "[Mediumint]";
+    break;
+  case NdbDictionary::Column::Mediumunsigned:
+    ndbout << "[Mediumunsigend]";
+    break;
+  case NdbDictionary::Column::Binary:
+    ndbout << "[Binary]";
+    break;
+  case NdbDictionary::Column::Varbinary:
+    ndbout << "[Varbinary]";
+    break;
+  case NdbDictionary::Column::Decimal:
+    ndbout << "[Decimal]";
+    break;
+  case NdbDictionary::Column::Timespec:
+    ndbout << "[Timespec]";
+    break;
+  case NdbDictionary::Column::Blob:
+    ndbout << "[Blob]";
+    break;
+  case NdbDictionary::Column::Undefined:
+    ndbout << "[Undefined]";
+    break;
+  default:
+    ndbout << "[unknown]";
+    break;
+  }
+
+  return ndbout;
 }
