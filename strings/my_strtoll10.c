@@ -22,9 +22,9 @@
 #define ULONGLONG_MAX		(~(ulonglong) 0)
 #define MAX_NEGATIVE_NUMBER	((ulonglong) LL(0x8000000000000000))
 #define INIT_CNT  9
-#define LFACTOR   LL(1000000000)
-#define LFACTOR1  LL(10000000000)
-#define LFACTOR2  LL(100000000000)
+#define LFACTOR   ULL(1000000000)
+#define LFACTOR1  ULL(10000000000)
+#define LFACTOR2  ULL(100000000000)
 
 static unsigned long lfactor[9]=
 {
@@ -113,8 +113,8 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error)
     negative= 1;
     if (++s == end)
       goto no_conv;
-    cutoff=  MAX_NEGATIVE_NUMBER / LL(100000000000);
-    cutoff2= (MAX_NEGATIVE_NUMBER % LL(100000000000)) / 100;
+    cutoff=  MAX_NEGATIVE_NUMBER / LFACTOR2;
+    cutoff2= (MAX_NEGATIVE_NUMBER % LFACTOR2) / 100;
     cutoff3=  MAX_NEGATIVE_NUMBER % 100;
   }
   else
@@ -125,8 +125,8 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error)
       if (++s == end)
 	goto no_conv;
     }
-    cutoff=  ULONGLONG_MAX / LL(100000000000);
-    cutoff2= ULONGLONG_MAX % LL(100000000000) / 100;
+    cutoff=  ULONGLONG_MAX / LFACTOR2;
+    cutoff2= ULONGLONG_MAX % LFACTOR2 / 100;
     cutoff3=  ULONGLONG_MAX % 100;
   }
 
