@@ -1278,7 +1278,8 @@ Item_func_regex::fix_fields(THD *thd,TABLE_LIST *tables)
     int error;
     if ((error=regcomp(&preg,res->c_ptr(),
 		       binary ? REG_EXTENDED | REG_NOSUB :
-		       REG_EXTENDED | REG_NOSUB | REG_ICASE)))
+		       REG_EXTENDED | REG_NOSUB | REG_ICASE,
+		       default_charset_info)))
     {
       (void) regerror(error,&preg,buff,sizeof(buff));
       my_printf_error(ER_REGEXP_ERROR,ER(ER_REGEXP_ERROR),MYF(0),buff);
@@ -1325,7 +1326,8 @@ longlong Item_func_regex::val_int()
       }
       if (regcomp(&preg,res2->c_ptr(),
 		  binary ? REG_EXTENDED | REG_NOSUB :
-		  REG_EXTENDED | REG_NOSUB | REG_ICASE))
+		  REG_EXTENDED | REG_NOSUB | REG_ICASE,
+		  default_charset_info))
 
       {
 	null_value=1;

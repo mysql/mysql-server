@@ -28,6 +28,7 @@ struct parse {
 #	define	NPAREN	10	/* we need to remember () 1-9 for back refs */
 	sopno pbegin[NPAREN];	/* -> ( ([0] unused) */
 	sopno pend[NPAREN];	/* -> ) ([0] unused) */
+	CHARSET_INFO *charset;	/* for ctype things  */
 };
 
 #include "regcomp.ih"
@@ -99,10 +100,11 @@ static int never = 0;		/* for use in asserts; shuts lint up */
  = #define	REG_DUMP	0200
  */
 int				/* 0 success, otherwise REG_something */
-regcomp(preg, pattern, cflags)
+regcomp(preg, pattern, cflags, charset)
 regex_t *preg;
 const char *pattern;
 int cflags;
+CHARSET_INFO *charset;
 {
 	struct parse pa;
 	register struct re_guts *g;
@@ -116,6 +118,7 @@ int cflags;
 #endif
 
 	regex_init();				/* Init cclass if neaded */
+	preg->charset=charset;
 	cflags = GOODFLAGS(cflags);
 	if ((cflags&REG_EXTENDED) && (cflags&REG_NOSPEC))
 		return(REG_INVARG);
@@ -146,6 +149,7 @@ int cflags;
 	p->end = p->next + len;
 	p->error = 0;
 	p->ncsalloc = 0;
+	p->charset = preg->charset;
 	for (i = 0; i < NPAREN; i++) {
 		p->pbegin[i] = 0;
 		p->pend[i] = 0;
@@ -327,7 +331,7 @@ register struct parse *p;
 		ordinary(p, c);
 		break;
 	case '{':		/* okay as ordinary except if digit follows */
-		if(REQUIRE(!MORE() || !isdigit(PEEK()), REG_BADRPT)) {}
+		if(REQUIRE(!MORE() || !my_isdigit(p->charset,PEEK()), REG_BADRPT)) {}
 		/* FALLTHROUGH */
 	default:
 		ordinary(p, c);
@@ -339,7 +343,8 @@ register struct parse *p;
 	c = PEEK();
 	/* we call { a repetition if followed by a digit */
 	if (!( c == '*' || c == '+' || c == '?' ||
-				(c == '{' && MORE2() && isdigit(PEEK2())) ))
+				(c == '{' && MORE2() && 
+				 my_isdigit(p->charset,PEEK2())) ))
 		return;		/* no repetition, we're done */
 	NEXT();
 
@@ -368,7 +373,7 @@ register struct parse *p;
 	case '{':
 		count = p_count(p);
 		if (EAT(',')) {
-			if (isdigit(PEEK())) {
+			if (my_isdigit(p->charset,PEEK())) {
 				count2 = p_count(p);
 				if(REQUIRE(count <= count2, REG_BADBR)) {}
 			} else		/* single number with comma */
@@ -389,7 +394,8 @@ register struct parse *p;
 		return;
 	c = PEEK();
 	if (!( c == '*' || c == '+' || c == '?' ||
-				(c == '{' && MORE2() && isdigit(PEEK2())) ) )
+				(c == '{' && MORE2() && 
+				 my_isdigit(p->charset,PEEK2())) ) )
 		return;
 	SETERROR(REG_BADRPT);
 }
@@ -546,7 +552,7 @@ int starordinary;		/* is a leading * an ordinary character? */
 	} else if (EATTWO('\\', '{')) {
 		count = p_count(p);
 		if (EAT(',')) {
-			if (MORE() && isdigit(PEEK())) {
+			if (MORE() && my_isdigit(p->charset,PEEK())) {
 				count2 = p_count(p);
 				if(REQUIRE(count <= count2, REG_BADBR)) {}
 			} else		/* single number with comma */
@@ -577,7 +583,7 @@ register struct parse *p;
 	register int count = 0;
 	register int ndigits = 0;
 
-	while (MORE() && isdigit(PEEK()) && count <= DUPMAX) {
+	while (MORE() && my_isdigit(p->charset,PEEK()) && count <= DUPMAX) {
 		count = count*10 + (GETNEXT() - '0');
 		ndigits++;
 	}
@@ -632,8 +638,8 @@ register struct parse *p;
 		register int ci;
 
 		for (i = p->g->csetsize - 1; i >= 0; i--)
-			if (CHIN(cs, i) && isalpha(i)) {
-				ci = othercase(i);
+			if (CHIN(cs, i) && my_isalpha(p->charset,i)) {
+				ci = othercase(p->charset,i);
 				if (ci != i)
 					CHadd(cs, ci);
 			}
@@ -744,7 +750,7 @@ register cset *cs;
 	register char *u;
 	register char c;
 
-	while (MORE() && isalpha(PEEK()))
+	while (MORE() && my_isalpha(p->charset,PEEK()))
 		NEXT();
 	len = p->next - sp;
 	for (cp = cclasses; cp->name != NULL; cp++)
@@ -837,14 +843,15 @@ int endc;			/* name ended by endc,']' */
  == static char othercase(int ch);
  */
 static char			/* if no counterpart, return ch */
-othercase(ch)
+othercase(charset,ch)
+CHARSET_INFO *charset;
 int ch;
 {
-	assert(isalpha(ch));
-	if (isupper(ch))
-		return(tolower(ch));
-	else if (islower(ch))
-		return(toupper(ch));
+	assert(my_isalpha(charset,ch));
+	if (my_isupper(charset,ch))
+		return(my_tolower(charset,ch));
+	else if (my_islower(charset,ch))
+		return(my_toupper(charset,ch));
 	else			/* peculiar, but could happen */
 		return(ch);
 }
@@ -887,7 +894,8 @@ register int ch;
 {
 	register cat_t *cap = p->g->categories;
 
-	if ((p->g->cflags&REG_ICASE) && isalpha(ch) && othercase(ch) != ch)
+	if ((p->g->cflags&REG_ICASE) && my_isalpha(p->charset,ch) && 
+	     othercase(p->charset,ch) != ch)
 		bothcases(p, ch);
 	else {
 		EMIT(OCHAR, (unsigned char)ch);
