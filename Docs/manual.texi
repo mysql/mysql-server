@@ -14344,7 +14344,7 @@ flush-privileges} or @code{mysqladmin reload}.)
 Never use host name cache for faster name-ip resolution, but query DNS server
 on every connect instead.  @xref{DNS}.
 
-@item --skip-extrnal-locking (was --skip-locking)
+@item --skip-external-locking (was --skip-locking)
 Don't use system locking.  To use @code{isamchk} or @code{myisamchk} you must
 shut down the server.  @xref{Stability}.  Note that in MySQL Version
 3.23 you can use @code{REPAIR} and @code{CHECK} to repair/check @code{MyISAM}
