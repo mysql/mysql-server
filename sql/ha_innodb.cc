@@ -2464,7 +2464,7 @@ ha_innobase::write_row(
 		NOTE that a REPLACE command and LOAD DATA INFILE REPLACE
 		handles a duplicate key error
 		itself, and we must not decrement the autoinc counter
-		if we are performing a those statements.
+		if we are performing those statements.
 		NOTE 2: if there was an error, for example a deadlock,
 		which caused InnoDB to roll back the whole transaction
 		already in the call of row_insert_for_mysql(), we may no
