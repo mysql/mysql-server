@@ -1456,7 +1456,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 #ifdef HAVE_SYS_UN_H
   struct	sockaddr_un UNIXaddr;
 #endif
-  init_sigpipe_variables;
+  init_sigpipe_variables
   DBUG_ENTER("mysql_real_connect");
   LINT_INIT(host_info);
 
