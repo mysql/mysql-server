@@ -245,3 +245,4 @@
 "Key reference and table reference doesn't match",
 "Subselect return more than 1 field",
 "Subselect return more than 1 record",
+"Unknown prepared statement handler (%ld) given to %s",
