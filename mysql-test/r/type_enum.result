@@ -1636,3 +1636,13 @@ t1	CREATE TABLE `t1` (
   `a` enum('','a','b') NOT NULL default 'b'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+create table t1 (a enum(0xE4, '1', '2') not null default 0xE4);
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	enum('ä','1','2')			ä	
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` enum('ä','1','2') NOT NULL default '?'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
