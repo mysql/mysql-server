@@ -5684,7 +5684,7 @@ my_mb_wc_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
   return 2;
 }
 
-CHARSET_INFO my_charset_gb2312 =
+CHARSET_INFO my_charset_gb2312_chinese_ci =
 {
     24,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state      */

@@ -61,6 +61,7 @@ typedef struct unicase_info_st
 #define MY_CS_BINSORT	16     /* if binary sort order           */
 #define MY_CS_PRIMARY	32     /* if primary collation           */
 #define MY_CS_STRNXFRM	64     /* if strnxfrm is used for sort   */
+#define MY_CS_UNICODE	128    /* is a charset is full unicode   */
 
 #define MY_CHARSET_UNDEFINED 0
 #define MY_CHARSET_CURRENT (default_charset_info->number)
@@ -185,20 +186,29 @@ typedef struct charset_info_st
 
 
 extern CHARSET_INFO my_charset_bin;
+extern CHARSET_INFO my_charset_big5_chinese_ci;
+extern CHARSET_INFO my_charset_big5_bin;
+extern CHARSET_INFO my_charset_euckr_korean_ci;
+extern CHARSET_INFO my_charset_euckr_bin;
+extern CHARSET_INFO my_charset_gb2312_chinese_ci;
+extern CHARSET_INFO my_charset_gb2312_bin;
+extern CHARSET_INFO my_charset_gbk_chinese_ci;
+extern CHARSET_INFO my_charset_gbk_bin;
 extern CHARSET_INFO my_charset_latin1;
-extern CHARSET_INFO my_charset_big5;
-extern CHARSET_INFO my_charset_czech;
-extern CHARSET_INFO my_charset_euc_kr;
-extern CHARSET_INFO my_charset_gb2312;
-extern CHARSET_INFO my_charset_gbk;
-extern CHARSET_INFO my_charset_latin1_de;
-extern CHARSET_INFO my_charset_sjis;
-extern CHARSET_INFO my_charset_tis620;
-extern CHARSET_INFO my_charset_ucs2;
-extern CHARSET_INFO my_charset_ucse;
-extern CHARSET_INFO my_charset_ujis;
-extern CHARSET_INFO my_charset_utf8;
-extern CHARSET_INFO my_charset_win1250ch;
+extern CHARSET_INFO my_charset_latin1_german2_ci;
+extern CHARSET_INFO my_charset_latin1_bin;
+extern CHARSET_INFO my_charset_latin2_czech_ci;
+extern CHARSET_INFO my_charset_sjis_japanese_ci;
+extern CHARSET_INFO my_charset_sjis_bin;
+extern CHARSET_INFO my_charset_tis620_thai_ci;
+extern CHARSET_INFO my_charset_tis620_bin;
+extern CHARSET_INFO my_charset_ucs2_general_ci;
+extern CHARSET_INFO my_charset_ucs2_bin;
+extern CHARSET_INFO my_charset_ujis_japanese_ci;
+extern CHARSET_INFO my_charset_ujis_bin;
+extern CHARSET_INFO my_charset_utf8_general_ci;
+extern CHARSET_INFO my_charset_utf8_bin;
+extern CHARSET_INFO my_charset_cp1250_czech_ci;
 
 
 extern my_bool my_parse_charset_xml(const char *bug, uint len,

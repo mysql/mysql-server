@@ -997,10 +997,10 @@ uint my_charpos_ucs2(CHARSET_INFO *cs __attribute__((unused)),
   return pos*2;
 }
 
-CHARSET_INFO my_charset_ucs2 =
+CHARSET_INFO my_charset_ucs2_general_ci =
 {
     35,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state        */
+    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE,	/* state */
     "ucs2",		/* cs name    */
     "ucs2_general_ci",	/* name         */
     "",			/* comment      */

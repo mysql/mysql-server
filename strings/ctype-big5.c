@@ -6226,7 +6226,7 @@ my_mb_wc_big5(CHARSET_INFO *cs __attribute__((unused)),
   return 2;
 }
 
-CHARSET_INFO my_charset_big5 =
+CHARSET_INFO my_charset_big5_chinese_ci =
 {
     1,0,0, 		/* number     */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */

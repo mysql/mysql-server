@@ -1950,10 +1950,10 @@ static int my_mbcharlen_utf8(CHARSET_INFO *cs  __attribute__((unused)) , uint c)
   return 0; /* Illegal mb head */;
 }
 
-CHARSET_INFO my_charset_utf8 =
+CHARSET_INFO my_charset_utf8_general_ci =
 {
     33,0,0,		/* number       */
-    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state        */
+    MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE,	/* state  */
     "utf8",		/* cs name      */
     "utf8_general_ci",	/* name         */
     "",			/* comment      */

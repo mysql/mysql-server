@@ -313,6 +313,8 @@ static int add_collation(CHARSET_INFO *cs)
   {
     if (!all_charsets[cs->number])
     {
+      if (cs->state & MY_CS_COMPILED)
+        return MY_XML_OK;
       if (!(all_charsets[cs->number]=
          (CHARSET_INFO*) my_once_alloc(sizeof(CHARSET_INFO),MYF(0))))
         return MY_XML_ERROR;
@@ -422,57 +424,53 @@ CHARSET_INFO *default_charset_info = &my_charset_latin1;
 static my_bool init_compiled_charsets(myf flags __attribute__((unused)))
 {
   CHARSET_INFO *cs;
-
-  MY_ADD_CHARSET(&my_charset_latin1);
   
+  MY_ADD_CHARSET(&my_charset_latin1);
   MY_ADD_CHARSET(&my_charset_bin);
+  MY_ADD_CHARSET(&my_charset_latin1_german2_ci);
 
 #ifdef HAVE_CHARSET_big5
-  MY_ADD_CHARSET(&my_charset_big5);
+  MY_ADD_CHARSET(&my_charset_big5_chinese_ci);
 #endif
 
 #ifdef HAVE_CHARSET_czech
-  MY_ADD_CHARSET(&my_charset_czech);
+  MY_ADD_CHARSET(&my_charset_latin2_czech_ci);
 #endif
 
 #ifdef HAVE_CHARSET_euc_kr
-  MY_ADD_CHARSET(&my_charset_euc_kr);
+  MY_ADD_CHARSET(&my_charset_euckr_korean_ci);
 #endif
 
 #ifdef HAVE_CHARSET_gb2312
-  MY_ADD_CHARSET(&my_charset_gb2312);
+  MY_ADD_CHARSET(&my_charset_gb2312_chinese_ci);
 #endif
 
 #ifdef HAVE_CHARSET_gbk
-  MY_ADD_CHARSET(&my_charset_gbk);
-#endif
-
-#ifdef HAVE_CHARSET_latin1_de
-  MY_ADD_CHARSET(&my_charset_latin1_de);
+  MY_ADD_CHARSET(&my_charset_gbk_chinese_ci);
 #endif
 
 #ifdef HAVE_CHARSET_sjis
-  MY_ADD_CHARSET(&my_charset_sjis);
+  MY_ADD_CHARSET(&my_charset_sjis_japanese_ci);
 #endif
 
 #ifdef HAVE_CHARSET_tis620
-  MY_ADD_CHARSET(&my_charset_tis620);
+  MY_ADD_CHARSET(&my_charset_tis620_thai_ci);
 #endif
 
 #ifdef HAVE_CHARSET_ucs2
-  MY_ADD_CHARSET(&my_charset_ucs2);
+  MY_ADD_CHARSET(&my_charset_ucs2_general_ci);
 #endif
 
 #ifdef HAVE_CHARSET_ujis
-  MY_ADD_CHARSET(&my_charset_ujis);
+  MY_ADD_CHARSET(&my_charset_ujis_japanese_ci);
 #endif
 
 #ifdef HAVE_CHARSET_utf8
-  MY_ADD_CHARSET(&my_charset_utf8);
+  MY_ADD_CHARSET(&my_charset_utf8_general_ci);
 #endif
 
 #ifdef HAVE_CHARSET_win1250ch
-  MY_ADD_CHARSET(&my_charset_win1250ch);
+  MY_ADD_CHARSET(&my_charset_cp1250_czech_ci);
 #endif
 
   /* Copy compiled charsets */
@@ -530,12 +528,6 @@ static my_bool init_available_charsets(myf myflags)
 void free_charsets(void)
 {
   charset_initialized=0;
-}
-
-
-static void get_charset_conf_name(const char *cs_name, char *buf)
-{
-  strxmov(get_charsets_dir(buf), cs_name, ".conf", NullS);
 }
 
 
@@ -660,29 +652,4 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
   }
 
   return cs;
-}
-
-
-/* Only append name if it doesn't exist from before */
-
-static my_bool charset_in_string(const char *name, DYNAMIC_STRING *s)
-{
-  uint length= (uint) strlen(name);
-  const char *pos;
-  for (pos=s->str ; (pos=strstr(pos,name)) ; pos++)
-  {
-    if (! pos[length] || pos[length] == ' ')
-      return TRUE;				/* Already existed */
-  }
-  return FALSE;
-}
-
-
-static void charset_append(DYNAMIC_STRING *s, const char *name)
-{
-  if (!charset_in_string(name, s))
-  {
-    dynstr_append(s, name);
-    dynstr_append(s, " ");
-  }
 }

@@ -8634,7 +8634,7 @@ my_mb_wc_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
   return 2;
 }
 
-CHARSET_INFO my_charset_euc_kr =
+CHARSET_INFO my_charset_euckr_korean_ci =
 {
     19,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state      */
