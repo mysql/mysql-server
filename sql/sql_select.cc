@@ -238,7 +238,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result)
     /*
       If we have real error reported erly then this will be ignored
     */
-    result->send_error(ER_UNKNOWN_ERROR, NullS);
+    result->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
     result->abort();
   }
   DBUG_RETURN(res);
