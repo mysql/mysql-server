@@ -1044,25 +1044,25 @@ sp_proc_stmt:
 	    lex->sphead->add_instr(i);
 	    lex->sphead->restore_lex(YYTHD);
           }
-/*	| sp_if
-	| sp_case */
+	| IF sp_if END IF {}
+/*	| sp_case */
 	| sp_labeled_control
 	  {}
 	| { /* Unlabeled controls get a secret label. */
 	    LEX *lex= Lex;
 
-	    Lex->spcont->push_gen_label(lex->sphead->instructions());
+	    lex->spcont->push_gen_label(lex->sphead->instructions());
 	  }
 	  sp_unlabeled_control
 	  {
 	    LEX *lex= Lex;
 
-	    lex->spcont->pop_label();
-	    lex->sphead->backpatch();
+	    lex->sphead->backpatch(lex->spcont->pop_label());
 	  }
 	| LEAVE_SYM IDENT
 	  {
 	    LEX *lex= Lex;
+	    sp_head *sp = lex->sphead;
 	    sp_label_t *lab= lex->spcont->find_label($2.str);
 
 	    if (! lab)
@@ -1072,10 +1072,10 @@ sp_proc_stmt:
 	    }
 	    else
 	    {
-	      sp_instr_jump *i= new sp_instr_jump(lex->sphead->instructions());
+	      sp_instr_jump *i= new sp_instr_jump(sp->instructions());
 
-	      lex->sphead->push_backpatch(i);  /* Jumping forward */
-              lex->sphead->add_instr(i);
+	      sp->push_backpatch(i, lab);  /* Jumping forward */
+              sp->add_instr(i);
 	    }
 	  }
 	| ITERATE_SYM IDENT
@@ -1119,6 +1119,44 @@ sp_proc_stmt:
 	  }
 	;
 
+sp_if:
+	  expr THEN_SYM
+	  {
+	    sp_head *sp= Lex->sphead;
+	    sp_pcontext *ctx= Lex->spcont;
+	    uint ip= sp->instructions();
+	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, $1);
+
+	    sp->push_backpatch(i, ctx->push_gen_label(0));  /* Forward only */
+            sp->add_instr(i);
+	  }
+	  sp_proc_stmts
+	  {
+	    sp_head *sp= Lex->sphead;
+	    sp_pcontext *ctx= Lex->spcont;
+	    uint ip= sp->instructions();
+	    sp_instr_jump *i = new sp_instr_jump(ip);
+
+	    sp->add_instr(i);
+	    sp->backpatch(ctx->pop_label());
+	    sp->push_backpatch(i, ctx->push_gen_label(0));  /* Forward only */
+	  }
+	  sp_elseifs
+	  {
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+	    sp_pcontext *ctx= lex->spcont;
+
+	    sp->backpatch(ctx->pop_label());
+	  }
+	;
+
+sp_elseifs:
+	  /* Empty */
+	| ELSEIF_SYM sp_if
+	| ELSE sp_proc_stmts
+	;
+
 sp_labeled_control:
 	  IDENT ':'
 	  {
@@ -1131,8 +1169,10 @@ sp_labeled_control:
 	      YYABORT;
 	    }
 	    else
+	    {
 	      lex->spcont->push_label($1.str,
 	                              lex->sphead->instructions());
+	    }
 	  }
 	  sp_unlabeled_control IDENT
 	  {
@@ -1152,7 +1192,7 @@ sp_labeled_control:
 	    else
 	    {
 	      lex->spcont->pop_label();
-	      lex->sphead->backpatch();
+	      lex->sphead->backpatch(lab);
 	    }
 	  }
 	;
@@ -1180,11 +1220,13 @@ sp_unlabeled_control:
 	| WHILE_SYM expr DO_SYM
 	  {
 	    LEX *lex= Lex;
-	    uint ip= lex->sphead->instructions();
+	    sp_head *sp= lex->sphead;
+	    uint ip= sp->instructions();
 	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, $2);
 
-	    lex->sphead->push_backpatch(i);  /* Jumping forward */
-            lex->sphead->add_instr(i);
+	    /* Jumping forward */
+	    sp->push_backpatch(i, lex->spcont->last_label());
+            sp->add_instr(i);
 	  }
 	  sp_proc_stmts END WHILE_SYM
 	  {

@@ -38,7 +38,7 @@ typedef struct
   my_bool isset;
 } sp_pvar_t;
 
-typedef struct
+typedef struct sp_label
 {
   char *name;
   uint ip;			// Instruction index
@@ -116,10 +116,10 @@ class sp_pcontext : public Sql_alloc
     return m_pvar+i;
   }
 
-  void
+  sp_label_t *
   push_label(char *name, uint ip);
 
-  void
+  sp_label_t *
   push_gen_label(uint ip);
 
   sp_label_t *
@@ -131,10 +131,10 @@ class sp_pcontext : public Sql_alloc
     return m_label.head();
   }
 
-  inline void
+  inline sp_label_t *
   pop_label()
   {
-    m_label.pop();
+    return m_label.pop();
   }
 
 private:

@@ -92,7 +92,7 @@ sp_pcontext::push(LEX_STRING *name, enum enum_field_types type,
   }
 }
 
-void
+sp_label_t *
 sp_pcontext::push_label(char *name, uint ip)
 {
   sp_label_t *lab = (sp_label_t *)my_malloc(sizeof(sp_label_t), MYF(MY_WME));
@@ -103,18 +103,21 @@ sp_pcontext::push_label(char *name, uint ip)
     lab->ip= ip;
     m_label.push_front(lab);
   }
+  return lab;
 }
 
-void
+sp_label_t *
 sp_pcontext::push_gen_label(uint ip)
 {
+  sp_label_t *lab= NULL;
   char *s= my_malloc(10, MYF(MY_WME)); // 10=...
 
   if (s)
   {
     sprintf(s, ".%08x", m_genlab++); // ...9+1
-    push_label(s, ip);
+    lab= push_label(s, ip);
   }
+  return lab;
 }
 
 sp_label_t *
