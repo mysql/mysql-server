@@ -413,6 +413,7 @@ sys_var_thd_bool
 sys_ndb_use_exact_count("ndb_use_exact_count", &SV::ndb_use_exact_count);
 sys_var_thd_bool
 sys_ndb_use_transactions("ndb_use_transactions", &SV::ndb_use_transactions);
+sys_var_long_ptr sys_ndb_cache_check_time("ndb_cache_check_time", &ndb_cache_check_time);
 #endif
 
 /* Time/date/datetime formats */
@@ -688,6 +689,7 @@ sys_var *sys_variables[]=
   &sys_ndb_force_send,
   &sys_ndb_use_exact_count,
   &sys_ndb_use_transactions,
+  &sys_ndb_cache_check_time,
 #endif
   &sys_unique_checks,
   &sys_updatable_views_with_limit,
@@ -868,6 +870,7 @@ struct show_var_st init_vars[]= {
   {sys_ndb_force_send.name,   (char*) &sys_ndb_force_send,          SHOW_SYS},
   {sys_ndb_use_exact_count.name,(char*) &sys_ndb_use_exact_count,   SHOW_SYS},
   {sys_ndb_use_transactions.name,(char*) &sys_ndb_use_transactions, SHOW_SYS},
+  {sys_ndb_cache_check_time.name,(char*) &sys_ndb_cache_check_time, SHOW_SYS},
 #endif
   {sys_net_buffer_length.name,(char*) &sys_net_buffer_length,       SHOW_SYS},
   {sys_net_read_timeout.name, (char*) &sys_net_read_timeout,        SHOW_SYS},

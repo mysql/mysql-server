@@ -1,6 +1,7 @@
 drop table if exists t1;
 set GLOBAL query_cache_type=on;
 set GLOBAL query_cache_size=1355776;
+set GLOBAL ndb_cache_check_time=5;
 reset query cache;
 flush status;
 CREATE TABLE t1 ( pk int not null primary key,
@@ -36,22 +37,22 @@ Variable_name	Value
 Qcache_hits	1
 insert into t1 value (2, 7, 8, 'Second row');
 insert into t1 value (4, 5, 6, 'Fourth row');
-select * from t1 order by pk;
+select * from t1 order by pk desc;
 pk	a	b	c
-1	3	3	First row
-2	7	8	Second row
 4	5	6	Fourth row
+2	7	8	Second row
+1	3	3	First row
 show status like "Qcache_inserts";
 Variable_name	Value
 Qcache_inserts	3
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	1
-select * from t1 order by pk;
+select * from t1 order by pk desc;
 pk	a	b	c
-1	3	3	First row
-2	7	8	Second row
 4	5	6	Fourth row
+2	7	8	Second row
+1	3	3	First row
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	2
@@ -81,10 +82,10 @@ show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	3
 use test;
-select * from t1 order by pk;
+select * from t1 order by pk desc;
 pk	a	b	c
-1	3	3	First row
 2	7	8	Second row
+1	3	3	First row
 select * from t1 where b=3;
 pk	a	b	c
 1	3	3	First row
@@ -189,3 +190,4 @@ show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
 SET GLOBAL query_cache_size=0;
+SET GLOBAL ndb_cache_check_time=0;
