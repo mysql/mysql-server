@@ -50,12 +50,12 @@ static int events_till_disconnect = -1, events_till_abort = -1;
 static int stuck_count = 0;
 #endif
 
-
 inline void skip_load_data_infile(NET* net);
 inline bool slave_killed(THD* thd);
 static int init_slave_thread(THD* thd);
 static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
-static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
+static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
+	bool suppress_prints_as_normal_reconnect_after_timeout);
 static int safe_sleep(THD* thd, int sec);
 static int request_table_dump(MYSQL* mysql, char* db, char* table);
 static int create_table_from_dump(THD* thd, NET* net, const char* db,
@@ -839,8 +839,13 @@ command");
   return 0;
 }
 
+/* We set suppress_prints_as_normal_reconnect_after_timeout TRUE
+when a normal net read timeout has caused us to try a reconnect.
+We do not want to print anything to the error log in this case
+because this a anormal event in an idle server. */
 
-static uint read_event(MYSQL* mysql, MASTER_INFO *mi)
+static uint read_event(MYSQL* mysql, MASTER_INFO *mi,
+	bool* suppress_prints_as_normal_reconnect_after_timeout)
 {
   uint len = packet_error;
 
@@ -850,12 +855,22 @@ static uint read_event(MYSQL* mysql, MASTER_INFO *mi)
   if (disconnect_slave_event_count && !(events_till_disconnect--))
     return packet_error;      
 #endif
-  
+  *suppress_prints_as_normal_reconnect_after_timeout = 0;  
+
   len = mc_net_safe_read(mysql);
 
   if (len == packet_error || (long) len < 1)
   {
-    sql_print_error("Error reading packet from server: %s (\
+    if (mc_mysql_errno(mysql) == ER_NET_READ_INTERRUPTED) {
+
+      /* We are trying a normal reconnect after a read timeout;
+	 we suppress prints to .err file as long as the reconnect
+	 happens without problems */
+      *suppress_prints_as_normal_reconnect_after_timeout = TRUE;
+    }
+
+    if (!(*suppress_prints_as_normal_reconnect_after_timeout))
+      sql_print_error("Error reading packet from server: %s (\
 server_errno=%d)",
 		    mc_mysql_error(mysql), mc_mysql_errno(mysql));
     return packet_error;
@@ -1352,7 +1367,7 @@ dump");
           sql_print_error("Slave: failed dump request, reconnecting to \
 try again, log '%s' at postion %s", RPL_LOG_NAME,
 			  llstr(last_failed_pos,llbuff));
-	  if(safe_reconnect(thd, mysql, &glob_mi) || slave_killed(thd))
+	  if(safe_reconnect(thd, mysql, &glob_mi, 0) || slave_killed(thd))
 	    {
 	      sql_print_error("Slave thread killed during or after reconnect");
 	      goto err;
@@ -1363,10 +1378,15 @@ try again, log '%s' at postion %s", RPL_LOG_NAME,
 
       while(!slave_killed(thd))
 	{
+          bool suppress_prints_as_normal_reconnect_after_timeout = 0;
+	
 	  thd->proc_info = "Reading master update";
-	  uint event_len = read_event(mysql, &glob_mi);
+	  uint event_len = read_event(mysql, &glob_mi,
+	  		&suppress_prints_as_normal_reconnect_after_timeout);
+	  
 	  if(slave_killed(thd))
 	    {
+	      suppress_prints_as_normal_reconnect_after_timeout = 0;
 	      sql_print_error("Slave thread killed while reading event");
 	      goto err;
 	    }
@@ -1375,6 +1395,7 @@ try again, log '%s' at postion %s", RPL_LOG_NAME,
 	  {
 	    if(mc_mysql_errno(mysql) == ER_NET_PACKET_TOO_LARGE)
 	      {
+	        suppress_prints_as_normal_reconnect_after_timeout = 0;
 		sql_print_error("Log entry on master is longer than \
 max_allowed_packet on slave. Slave thread will be aborted. If the entry is \
 really supposed to be that long, restart the server with a higher value of \
@@ -1392,22 +1413,29 @@ max_allowed_packet. The current value is %ld", max_allowed_packet);
 	    
 	    if(slave_killed(thd))
 	      {
+	        suppress_prints_as_normal_reconnect_after_timeout = 0;
 		sql_print_error("Slave thread killed while waiting to \
 reconnect after a failed read");
 	        goto err;
 	      }
 	    thd->proc_info = "Reconnecting after a failed read";
 	    last_failed_pos= glob_mi.pos;
-	    sql_print_error("Slave: Failed reading log event, \
+	    
+	    if (!suppress_prints_as_normal_reconnect_after_timeout)
+	      sql_print_error("Slave: Failed reading log event, \
 reconnecting to retry, log '%s' position %s", RPL_LOG_NAME,
 			    llstr(last_failed_pos, llbuff));
-	    if(safe_reconnect(thd, mysql, &glob_mi) || slave_killed(thd))
+	    if(safe_reconnect(thd, mysql, &glob_mi,
+			suppress_prints_as_normal_reconnect_after_timeout)
+			 || slave_killed(thd))
 	      {
+ 	        suppress_prints_as_normal_reconnect_after_timeout = 0;
 		sql_print_error("Slave thread killed during or after a \
 reconnect done to recover from failed read");
 	        goto err;
 	      }
 	    
+	    suppress_prints_as_normal_reconnect_after_timeout = 0;
 	    goto connected;
 	  } // if(event_len == packet_error)
 	  
@@ -1519,7 +1547,8 @@ static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
   master_retry_count times
 */
 
-static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
+static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
+	bool suppress_prints_as_normal_reconnect_after_timeout)
 {
   int slave_was_killed;
   int last_errno= -2;				// impossible error
@@ -1539,6 +1568,7 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
     /* Don't repeat last error */
     if (mc_mysql_errno(mysql) != last_errno)
     {
+      suppress_prints_as_normal_reconnect_after_timeout = 0;
       sql_print_error("Slave thread: error re-connecting to master: \
 %s, last_errno=%d, retry in %d sec",
 		      mc_mysql_error(mysql), last_errno=mc_mysql_errno(mysql),
@@ -1555,7 +1585,8 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 
   if (!slave_was_killed)
   {
-    sql_print_error("Slave: reconnected to master '%s@%s:%d',\
+    if (!suppress_prints_as_normal_reconnect_after_timeout)
+      sql_print_error("Slave: reconnected to master '%s@%s:%d',\
 replication resumed in log '%s' at position %s", glob_mi.user,
 		    glob_mi.host, glob_mi.port,
 		    RPL_LOG_NAME,
