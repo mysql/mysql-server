@@ -289,7 +289,8 @@ protected:
   bool describe, found_rows_for_union,
     prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
-    executed, t_and_f; // already executed
+    executed, // already executed
+    t_and_f;  // used for transferring tables_and_fields_initied UNIT:: methods 
 public:
   /*
     Pointer to 'last' select or pointer to unit where stored

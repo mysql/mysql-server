@@ -120,7 +120,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
   found_rows_for_union= 0;
   TMP_TABLE_PARAM tmp_table_param;
   this->result= result;
-  t_and_f=tables_and_fields_initied;
+  t_and_f= tables_and_fields_initied;
   SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
   SELECT_LEX *sl;
 
@@ -204,7 +204,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
 			 sl->having,
 			 (ORDER*) NULL,
 			 sl, this, 0, t_and_f);
-      t_and_f=0;
+      t_and_f= 0;
       if (res | thd->is_fatal_error)
 	goto err;
     }

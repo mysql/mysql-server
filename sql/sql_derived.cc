@@ -64,15 +64,16 @@ extern  const char *any_db;	// Special symbol for check_access
 int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 		  TABLE_LIST *org_table_list)
 {
-  SELECT_LEX *sl= unit->first_select();
+  SELECT_LEX *select_cursor= unit->first_select();
   List<Item> item_list;
   TABLE *table;
   int res;
   select_union *derived_result;
-  TABLE_LIST *tables= (TABLE_LIST *)sl->table_list.first;
+  TABLE_LIST *tables= (TABLE_LIST *)select_cursor->table_list.first;
   TMP_TABLE_PARAM tmp_table_param;
-  bool is_union= sl->next_select() && sl->next_select()->linkage == UNION_TYPE;
-  bool is_subsel= sl->first_inner_unit() ? 1: 0;
+  bool is_union= select_cursor->next_select() && 
+    select_cursor->next_select()->linkage == UNION_TYPE;
+  bool is_subsel= select_cursor->first_inner_unit() ? 1: 0;
   SELECT_LEX_NODE *save_current_select= lex->current_select;
   DBUG_ENTER("mysql_derived");
   
@@ -111,21 +112,23 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
       fix_tables_pointers(unit);
     }
 
-    lex->current_select= sl;
-    TABLE_LIST *first_table= (TABLE_LIST*) sl->table_list.first;
+    lex->current_select= select_cursor;
+    TABLE_LIST *first_table= (TABLE_LIST*) select_cursor->table_list.first;
+    /* Setting up. A must if a join or IGNORE, USE or similar are utilised */
     if (setup_tables(first_table) ||
-	setup_wild(thd, first_table, sl->item_list, 0, sl->with_wild))
+	setup_wild(thd, first_table, select_cursor->item_list, 0, select_cursor->with_wild))
     {
       res= -1;
       goto exit;
     }
 	
-    item_list= sl->item_list;
-    sl->with_wild= 0;
-    if (setup_ref_array(thd, &sl->ref_pointer_array, 
-			(item_list.elements + sl->with_sum_func +
-			 sl->order_list.elements + sl->group_list.elements)) ||
-	setup_fields(thd, sl->ref_pointer_array, first_table, item_list,
+    item_list= select_cursor->item_list;
+    select_cursor->with_wild= 0;
+    if (setup_ref_array(thd, &select_cursor->ref_pointer_array, 
+			(item_list.elements + select_cursor->with_sum_func +
+			 select_cursor->order_list.elements + 
+			 select_cursor->group_list.elements)) ||
+	setup_fields(thd, select_cursor->ref_pointer_array, first_table, item_list,
 		     0, 0, 1))
     {
       res= -1;
@@ -133,10 +136,12 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
     }
     bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
     tmp_table_param.field_count= item_list.elements;
+    /* temp table is created so that it hounours if UNION without ALL is to be 
+       processed */
     if (!(table= create_tmp_table(thd, &tmp_table_param, item_list,
 				  (ORDER*) 0, 
 				  is_union && !unit->union_option, 1,
-				  (sl->options | thd->options |
+				  (select_cursor->options | thd->options |
 				   TMP_TABLE_ALL_COLUMNS),
 				  HA_POS_ERROR)))
     {
@@ -147,26 +152,27 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
     if ((derived_result=new select_union(table)))
     {
       derived_result->tmp_table_param=&tmp_table_param;
-      unit->offset_limit_cnt= sl->offset_limit;
-      unit->select_limit_cnt= sl->select_limit+sl->offset_limit;
-      if (unit->select_limit_cnt < sl->select_limit)
+      unit->offset_limit_cnt= select_cursor->offset_limit;
+      unit->select_limit_cnt= select_cursor->select_limit+
+	select_cursor->offset_limit;
+      if (unit->select_limit_cnt < select_cursor->select_limit)
 	unit->select_limit_cnt= HA_POS_ERROR;
       if (unit->select_limit_cnt == HA_POS_ERROR)
-	sl->options&= ~OPTION_FOUND_ROWS;
+	select_cursor->options&= ~OPTION_FOUND_ROWS;
 
       if (is_union)
 	res= mysql_union(thd, lex, derived_result, unit, 1);
       else
-        res= mysql_select(thd, &sl->ref_pointer_array, 
-			  (TABLE_LIST*) sl->table_list.first,
-			  sl->with_wild,
-			  sl->item_list, sl->where,
-			  sl->order_list.elements+sl->group_list.elements,
-			  (ORDER *) sl->order_list.first,
-			  (ORDER *) sl->group_list.first,
-			  sl->having, (ORDER*) NULL,
-			  sl->options | thd->options  | SELECT_NO_UNLOCK,
-			  derived_result, unit, sl, 0, 1);
+        res= mysql_select(thd, &select_cursor->ref_pointer_array, 
+			  (TABLE_LIST*) select_cursor->table_list.first,
+			  select_cursor->with_wild,
+			  select_cursor->item_list, select_cursor->where,
+			  select_cursor->order_list.elements+select_cursor->group_list.elements,
+			  (ORDER *) select_cursor->order_list.first,
+			  (ORDER *) select_cursor->group_list.first,
+			  select_cursor->having, (ORDER*) NULL,
+			  select_cursor->options | thd->options  | SELECT_NO_UNLOCK,
+			  derived_result, unit, select_cursor, 0, 1);
 
       if (!res)
       {
@@ -180,7 +186,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	{
 	  org_table_list->real_name=table->real_name;
 	  org_table_list->table=table;
-	  table->derived_select_number= sl->select_number;
+	  table->derived_select_number= select_cursor->select_number;
 	  table->tmp_table= TMP_TABLE;
 	  if (lex->describe)
 	  {
@@ -195,6 +201,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	  /* Try to catch errors if this is accessed */
 	  org_table_list->derived=(SELECT_LEX_UNIT *) 1;
 #endif
+// This line is required to force read of table stats in the optimizer
 	  table->file->info(HA_STATUS_VARIABLE);
 	}
       }
