@@ -830,7 +830,8 @@ void NDBT_TestSuite::execute(Ndb* ndb, const NdbDictionary::Table* pTab,
       if(pTab2 == 0 && pDict->createTable(* pTab) != 0){
 	numTestsFail++;
 	numTestsExecuted++;
-	g_err << "ERROR1: Failed to create table " << pTab->getName() << endl;
+	g_err << "ERROR1: Failed to create table " << pTab->getName()
+              << pDict->getNdbError() << endl;
 	tests[t]->saveTestResult(pTab, FAILED_TO_CREATE);
 	continue;
       }

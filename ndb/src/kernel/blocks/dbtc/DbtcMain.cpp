@@ -8502,6 +8502,13 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     if ((transid1 == buddyApiPtr.p->transid[0]) &&
 	(transid2 == buddyApiPtr.p->transid[1])) {
       jam();
+      
+      if (buddyApiPtr.p->apiConnectstate == CS_ABORTING) {
+	// transaction has been aborted
+	jam();
+	errCode = buddyApiPtr.p->returncode;
+	goto SCAN_TAB_error;
+      }//if
       currSavePointId = buddyApiPtr.p->currSavePointId;
       buddyApiPtr.p->currSavePointId++;
     }

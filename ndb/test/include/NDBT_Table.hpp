@@ -23,7 +23,6 @@
 #include <NdbOut.hpp>
 
 class NDBT_Attribute : public NdbDictionary::Column {
-  friend class NdbOut& operator <<(class NdbOut&, const NDBT_Attribute &);
 public:
   NDBT_Attribute(const char* _name,
 		 Column::Type _type,
