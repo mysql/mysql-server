@@ -623,9 +623,56 @@ public:
   Item_func_collation(Item *a) :Item_str_func(a) {}
   String *val_str(String *);
   const char *func_name() const { return "collation"; }
-  void fix_length_and_dec() 
+  void fix_length_and_dec()
   {
      max_length=40; // should be enough
      collation.set(system_charset_info);
   };
 };
+
+#ifdef HAVE_COMPRESS
+#define ZLIB_DEPENDED_FUNCTION ;
+#else
+#define ZLIB_DEPENDED_FUNCTION { null_value=1; return 0; }
+#endif
+
+class Item_func_compress: public Item_str_func
+{
+  String buffer;
+public:
+  Item_func_compress(Item *a):Item_str_func(a){}
+  void fix_length_and_dec(){max_length= (args[0]->max_length*120)/100+12;}
+  const char *func_name() const{return "compress";}
+  String *val_str(String *) ZLIB_DEPENDED_FUNCTION
+};
+
+class Item_func_uncompress: public Item_str_func
+{
+  String buffer;
+public:
+  Item_func_uncompress(Item *a): Item_str_func(a){}
+  void fix_length_and_dec(){max_length= MAX_BLOB_WIDTH;}
+  const char *func_name() const{return "uncompress";}
+  String *val_str(String *) ZLIB_DEPENDED_FUNCTION
+};
+
+class Item_func_crc32 :public Item_int_func
+{
+  String value;
+public:
+  Item_func_crc32(Item *a) :Item_int_func(a) {}
+  const char *func_name() const { return "crc32"; }
+  void fix_length_and_dec() { max_length=10; }
+  longlong val_int() ZLIB_DEPENDED_FUNCTION
+};
+
+class Item_func_uncompressed_length : public Item_int_func
+{
+  String value;
+public:
+  Item_func_uncompressed_length(Item *a):Item_int_func(a){}
+  const char *func_name() const{return "uncompressed_length";}
+  void fix_length_and_dec() { max_length=10; }
+  longlong val_int();
+};
+

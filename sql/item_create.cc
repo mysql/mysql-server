@@ -107,14 +107,6 @@ Item *create_func_cot(Item* a)
 			   new Item_func_tan(a));
 }
 
-
-#ifdef HAVE_COMPRESS
-Item *create_func_crc32(Item* a)
-{
-  return new Item_func_crc32(a);
-}
-#endif
-
 Item *create_func_date_format(Item* a,Item *b)
 {
   return new Item_func_date_format(a,b,0);
@@ -666,13 +658,10 @@ Item *create_func_point(Item *a, Item *b)
   return new Item_func_point(a, b);
 }
 
-#if !defined(HAVE_COMPRESS)
-
-Item *create_func_compress           (Item*a __attribute__((unused))){return 0;}
-Item *create_func_uncompress         (Item*a __attribute__((unused))){return 0;}
-Item *create_func_uncompressed_length(Item*a __attribute__((unused))){return 0;}
-
-#else
+Item *create_func_crc32(Item* a)
+{
+  return new Item_func_crc32(a);
+}
 
 Item *create_func_compress(Item* a)
 {
@@ -688,8 +677,6 @@ Item *create_func_uncompressed_length(Item* a)
 {
   return new Item_func_uncompressed_length(a);
 }
-
-#endif
 
 Item *create_func_datediff(Item *a, Item *b)
 {
