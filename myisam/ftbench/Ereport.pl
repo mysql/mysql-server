@@ -29,7 +29,7 @@ sub Favg { my $a=shift; $Pavg*$Ravg ? 1/($a/$Pavg+(1-$a)/$Ravg) : 0; }
   # F0    : a=0                 -- ignore precision
   # F5    : a=0.5
   # F1    : a=1                 -- ignore recall
-  while($eout_str =~ /^$qid\s+(\d+)\s+(\d+\.\d+)/) {
+  while($eout_str =~ /^$qid\s+(\d+)\s+(\d+(?:\.\d+)?)/) {
     $B++;
     $AB++ if $dq{$1+0};
     $Ravg+=$AB;
@@ -41,11 +41,7 @@ sub Favg { my $a=shift; $Pavg*$Ravg ? 1/($a/$Pavg+(1-$a)/$Ravg) : 0; }
   $Ravg/=$B*$A if $B;
   $Pavg/=$B    if $B;
 
-  write;
-format=
-@##### @#.#######
-$qid, Favg(0.5)
-.
+  printf "%5d %1.12f %1.12f %1.12f\n", $qid, Favg(0),Favg(0.5),Favg(1);
 }
 
 exit 0;

@@ -170,14 +170,14 @@ int my_wc_mb_latin1(CHARSET_INFO *cs __attribute__((unused)),
 {
   if (str >= end)
     return MY_CS_TOOSMALL;
-  
+
   return ((wc < 256) && ((str[0]=uni_latin1[wc]) || (!wc))) ? 1 : MY_CS_ILUNI;
 }
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
     NULL,
-    NULL,
+    my_mbcharlen_8bit,
     my_numchars_8bit,
     my_charpos_8bit,
     my_lengthsp_8bit,

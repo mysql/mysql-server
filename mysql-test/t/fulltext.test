@@ -20,9 +20,11 @@ select * from t1 where MATCH(a,b) AGAINST ("indexes");
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
 select * from t1 where MATCH(a,b) AGAINST ("only");
 
-# UNION of fulltext's
-select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
+# query expansion
 
+select * from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
+select * from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
+select * from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
 
 # add_ft_keys() tests
 
@@ -58,6 +60,7 @@ select * from t1 where MATCH a,b AGAINST ('"text search"  "now support"' IN BOOL
 select * from t1 where MATCH a,b AGAINST ('"text search" -"now support"' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('"text search" +"now support"' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('"text i"' IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('"xt indexes"' IN BOOLEAN MODE);
 
 # boolean w/o index:
 
@@ -65,7 +68,6 @@ select * from t1 where MATCH a AGAINST ("search" IN BOOLEAN MODE);
 select * from t1 where MATCH b AGAINST ("sear*" IN BOOLEAN MODE);
 
 # UNION of fulltext's
-
 select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
 
 #update/delete with fulltext index
@@ -128,6 +130,13 @@ select * from t2 having MATCH inhalt AGAINST ('foobar');
 #
 # check of fulltext errors
 #
+
+--error 1280
+CREATE TABLE t3 (t int(11),i text,fulltext tix (t,i));
+--error 1280
+CREATE TABLE t3 (t int(11),i text,
+                 j varchar(200) CHARACTER SET latin2,
+                 fulltext tix (i,j));
 
 CREATE TABLE t3 (
   ticket int(11),
@@ -218,3 +227,21 @@ insert into t2 values (2, 1, 'xxbar');
 insert into t2 values (3, 1, 'xxbuz');
 select * from t1 join t2 using(`t1_id`) where match (t1.name, t2.name) against('xxfoo' in boolean mode);
 drop table t1,t2;
+
+#
+# UTF8
+#
+SET NAMES latin1;
+CREATE TABLE t1 (t text character set utf8 not null, fulltext(t));
+INSERT t1 VALUES ('Mit freundlichem GrЭъ'), ('aus OsnabrЭck');
+SET NAMES koi8r;
+INSERT t1 VALUES ("Это мы - опилки"),("Отлезь, гнида!"),
+                ("Не влезай, убьет!"),("и будет прав!");
+SELECT t, charset(t) FROM t1 WHERE MATCH t AGAINST ('ОПИЛКИ');
+SELECT t, charset(t) FROM t1 WHERE MATCH t AGAINST ('ПрА*' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH t AGAINST ('это' IN BOOLEAN MODE);
+SELECT t, charset(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
+SET NAMES latin1;
+SELECT t, charset(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
+DROP TABLE t1;
+

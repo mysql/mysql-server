@@ -1,4 +1,4 @@
-#!/bin/sh -x
+#!/bin/sh
 
 if [ ! -x ./ft-test-run.sh ] ; then
   echo "Usage: ./ft-test-run.sh"
@@ -15,12 +15,7 @@ SOCK=$DATA/mysql.sock
 PID=$DATA/mysql.pid
 H=../ftdefs.h
 OPTS="--no-defaults --socket=$SOCK --character-sets-dir=$ROOT/sql/share/charsets"
-
-#  --ft_min_word_len=#
-#  --ft_max_word_len=#
-#  --ft_max_word_len_for_sort=# 
-#  --ft_stopword_file=name 
-#  --key_buffer_size=#
+DELAY=10
 
 stop_myslqd()
 {
@@ -38,44 +33,66 @@ if [ -w $H ] ; then
   exit 1
 fi
 
-for batch in t/BEST t/* ; do
-  A=`ls $batch/*.out`
-  [ ! -d $batch -o -n "$A" ] && continue
+stop_myslqd
+rm -rf var > /dev/null 2>&1
+mkdir var
+mkdir var/test
+
+for batch in t/* ; do
+  [ ! -d $batch ] && continue
+  [ $batch -ef t/BEST -a $batch != t/BEST ] && continue
+
+  rm -rf var/test/* > /dev/null 2>&1
   rm -f $H
-  ln -s $BASE/$batch/ftdefs.h $H
-  touch $H
+  if [ -f $BASE/$batch/ftdefs.h ] ; then
+    cat $BASE/$batch/ftdefs.h > $H
+    chmod a-wx $H
+  else
+    bk get -q $H
+  fi
   OPTS="--defaults-file=$BASE/$batch/my.cnf --socket=$SOCK --character-sets-dir=$ROOT/sql/share/charsets"
   stop_myslqd
-  rm $MYSQLD
-  (cd $ROOT; gmake)
+  rm -f $MYSQLD
+  echo "building $batch"
+  echo "============== $batch ===============" >> var/ft_test.log
+  (cd $ROOT; gmake) >> var/ft_test.log 2>&1
 
   for prog in $MYSQLD $MYSQL $MYSQLADMIN ; do
     if [ ! -x $prog ] ; then
-      echo "No $prog"
+      echo "build failed: no $prog"
       exit 1
     fi
   done
 
-  rm -rf var 2>&1 >/dev/null
-  mkdir var
-  mkdir var/test
-
+  echo "=====================================" >> var/ft_test.log
   $MYSQLD $OPTS --basedir=$BASE --skip-bdb --pid-file=$PID \
                 --language=$ROOT/sql/share/english \
                 --skip-grant-tables --skip-innodb \
-                --skip-networking --tmpdir=$DATA &
+                --skip-networking --tmpdir=$DATA >> var/ft_test.log 2>&1 &
 
-  $MYSQLADMIN $OPTS --connect_timeout=60 ping
+  sleep $DELAY
+  $MYSQLADMIN $OPTS ping
   if [ $? != 0 ] ; then
     echo "$MYSQLD refused to start"
     exit 1
   fi
-  for test in `cd data; echo *.test|sed "s/\.test\>//g"` ; do
-    $MYSQL $OPTS --skip-column-names test <data/$test.test >var/$test.eval
-    ./Ereport.pl var/$test.eval data/$test.relj > $batch/$test.out || exit
+  for test in `cd data; echo *.r|sed "s/\.r//g"` ; do
+    if [ -f $batch/$test.out ] ; then
+      echo "skipping $batch/$test.out"
+      continue
+    fi
+    echo "testing $batch/$test"
+    FT_MODE=`cat $batch/ft_mode 2>/dev/null`
+    ./Ecreate.pl $test "$FT_MODE" | $MYSQL $OPTS --skip-column-names test >var/$test.eval
+    echo "reporting $batch/$test"
+    ./Ereport.pl var/$test.eval data/$test.r > $batch/$test.out || exit
   done
   stop_myslqd
   rm -f $H
-  [ $batch -ef t/BEST ] || ./Ecompare.pl t/BEST $batch >> t/BEST/report.txt
+  bk get -q $H
+  if [ ! $batch -ef t/BEST ] ; then
+    echo "comparing $batch"
+    ./Ecompare.pl t/BEST $batch >> t/BEST/report.txt
+  fi
 done
 

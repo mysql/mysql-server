@@ -73,14 +73,14 @@ for $file (split) {
 
   for (0..$#l1) {
     $pp[$_]+=$p[$_]; $mm[$_]+=$m[$_];
-    $total.=rep($file, ($#l1 ? $_ : undef), $p[$_], $m[$_]);
+    $total[$_].=rep($file, ($#l1 ? $_ : undef), $p[$_], $m[$_]);
   }
   close OUT1;
   close OUT2;
 }
 
 for (0..$#l1) {
-  rep($total, ($#l1 ? $_ : undef), $pp[$_], $mm[$_]);
+  rep($total[$_], ($#l1 ? $_ : undef), $pp[$_], $mm[$_]);
 }
 
 sub rep {

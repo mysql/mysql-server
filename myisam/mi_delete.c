@@ -18,6 +18,7 @@
 
 #include "fulltext.h"
 #include "rt_index.h"
+#include <assert.h>
 
 #ifdef	__WIN__
 #include <errno.h>
@@ -231,13 +232,22 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 
     get_key_full_length_rdonly(off, lastkey);
     subkeys=ft_sintXkorr(lastkey+off);
+    DBUG_ASSERT(info->ft1_to_ft2==0 || subkeys >=0);
     comp_flag=SEARCH_SAME;
     if (subkeys >= 0)
     {
       /* normal word, one-level tree structure */
-      DBUG_PRINT("info",("FT1"));
-      flag=(*keyinfo->bin_search)(info,keyinfo,anc_buff,key,USE_WHOLE_KEY,
-                                  comp_flag, &keypos, lastkey, &last_key);
+      if (info->ft1_to_ft2)
+      {
+        /* we're in ft1->ft2 conversion mode. Saving key data */
+        insert_dynamic(info->ft1_to_ft2, lastkey+off);
+      }
+      else
+      {
+        /* we need exact match only if not in ft1->ft2 conversion mode */
+        flag=(*keyinfo->bin_search)(info,keyinfo,anc_buff,key,USE_WHOLE_KEY,
+                                    comp_flag, &keypos, lastkey, &last_key);
+      }
       /* fall through to normal delete */
     }
     else
@@ -252,13 +262,11 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       if (subkeys == -1)
       {
         /* the last entry in sub-tree */
-        DBUG_PRINT("info",("FT2: the last entry"));
         _mi_dispose(info, keyinfo, root);
         /* fall through to normal delete */
       }
       else
       {
-        DBUG_PRINT("info",("FT2: going down"));
         keyinfo=&info->s->ft2_keyinfo;
         kpos-=keyinfo->keylength+nod_flag; /* we'll modify key entry 'in vivo' */
         key+=off;

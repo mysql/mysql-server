@@ -81,12 +81,12 @@ bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count)
 }
 
 
-bool Item_func::agg_arg_collations_for_comparison(DTCollation &c, 
+bool Item_func::agg_arg_collations_for_comparison(DTCollation &c,
 						  Item **av, uint count)
 {
   if (agg_arg_collations(c, av, count))
     return TRUE;
-  
+
   if (c.derivation == DERIVATION_NONE)
   {
     my_coll_agg_error(av, count, func_name());
@@ -211,7 +211,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       item= *arg;
       if (item->maybe_null)
 	maybe_null=1;
-      
+
       with_sum_func= with_sum_func || item->with_sum_func;
       used_tables_cache|=     item->used_tables();
       not_null_tables_cache|= item->not_null_tables();
@@ -2603,9 +2603,13 @@ void Item_func_match::init_search(bool no_order)
     DBUG_VOID_RETURN;
 
   if (key == NO_SUCH_KEY)
+  {
+    List<Item> fields;
+    for (uint i=1; i < arg_count; i++)
+      fields.push_back(args[i]);
     concat=new Item_func_concat_ws(new Item_string(" ",1,
-						   default_charset_info),
-				   fields);
+                                   cmp_collation.collation), fields);
+  }
 
   if (master)
   {
@@ -2617,20 +2621,25 @@ void Item_func_match::init_search(bool no_order)
   }
 
   String *ft_tmp= 0;
-  char tmp1[FT_QUERY_MAXLEN];
-  String tmp2(tmp1,sizeof(tmp1),default_charset_info);
 
   // MATCH ... AGAINST (NULL) is meaningless, but possible
-  if (!(ft_tmp=key_item()->val_str(&tmp2)))
+  if (!(ft_tmp=key_item()->val_str(&value)))
   {
-    ft_tmp= &tmp2;
-    tmp2.set("",0,default_charset_info);
+    ft_tmp= &value;
+    value.set("",0,cmp_collation.collation);
   }
 
-  ft_handler=table->file->ft_init_ext(mode, key,
+  if (ft_tmp->charset() != cmp_collation.collation)
+  {
+    search_value.copy(ft_tmp->ptr(), ft_tmp->length(), ft_tmp->charset(),
+                      cmp_collation.collation);
+    ft_tmp= &search_value;
+  }
+
+  if (join_key && !no_order) flags|=FT_SORTED;
+  ft_handler=table->file->ft_init_ext(flags, key,
 				      (byte*) ft_tmp->ptr(),
-				      ft_tmp->length(),
-				      join_key && !no_order);
+				      ft_tmp->length());
 
   if (join_key)
     table->file->ft_handler=ft_handler;
@@ -2641,7 +2650,6 @@ void Item_func_match::init_search(bool no_order)
 
 bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
 {
-  List_iterator<Item> li(fields);
   Item *item;
 
   maybe_null=1;
@@ -2653,51 +2661,37 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
     modifications to find_best and auto_close as complement to auto_init code
     above.
    */
-  if (Item_func::fix_fields(thd, tlist, ref) || !const_item())
+  if (Item_func::fix_fields(thd, tlist, ref) || !args[0]->const_item())
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"AGAINST");
     return 1;
   }
 
-  while ((item=li++))
+  const_item_cache=0;
+  for (uint i=1 ; i < arg_count ; i++)
   {
-    if (item->fix_fields(thd, tlist, li.ref()) || item->check_cols(1))
-      return 1;
+    item=args[i];
     if (item->type() == Item::REF_ITEM)
-      li.replace(item= *((Item_ref *)item)->ref);
-    if (item->type() != Item::FIELD_ITEM || !item->used_tables())
+      args[i]= item= *((Item_ref *)item)->ref;
+    if (item->type() != Item::FIELD_ITEM)
       key=NO_SUCH_KEY;
     used_tables_cache|=item->used_tables();
   }
   /* check that all columns come from the same table */
   if (my_count_bits(used_tables_cache) != 1)
     key=NO_SUCH_KEY;
-  const_item_cache=0;
-  table=((Item_field *)fields.head())->field->table;
-  table->fulltext_searched=1;
-  record=table->record[0];
-  if (key == NO_SUCH_KEY && mode != FT_BOOL)
+  if (key == NO_SUCH_KEY && !(flags & FT_BOOL))
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
     return 1;
   }
-
-  return 0;
-}
-
-bool Item_func_match::walk(Item_processor processor, byte *arg)
-{
-  List_iterator_fast<Item> li(fields);
-  Item *item;
-  while ((item= li++))
-    if (item->walk(processor, arg))
-      return 1;
-  return Item_func::walk(processor, arg);
+  table=((Item_field *)item)->field->table;
+  table->fulltext_searched=1;
+  return agg_arg_collations_for_comparison(cmp_collation, args+1, arg_count-1);
 }
 
 bool Item_func_match::fix_index()
 {
-  List_iterator_fast<Item> li(fields);
   Item_field *item;
   uint ft_to_key[MAX_KEY], ft_cnt[MAX_KEY], fts=0, keynr;
   uint max_cnt=0, mkeys=0;
@@ -2708,7 +2702,7 @@ bool Item_func_match::fix_index()
   for (keynr=0 ; keynr < table->keys ; keynr++)
   {
     if ((table->key_info[keynr].flags & HA_FULLTEXT) &&
-        (table->keys_in_use_for_query & (((key_map)1) << keynr)))
+        (table->keys_in_use_for_query.is_set(keynr)))
     {
       ft_to_key[fts]=keynr;
       ft_cnt[fts]=0;
@@ -2719,8 +2713,9 @@ bool Item_func_match::fix_index()
   if (!fts)
     goto err;
 
-  while ((item=(Item_field*)(li++)))
+  for (uint i=1; i < arg_count; i++)
   {
+    item=(Item_field*)args[i];
     for (keynr=0 ; keynr < fts ; keynr++)
     {
       KEY *ft_key=&table->key_info[ft_to_key[keynr]];
@@ -2754,8 +2749,8 @@ bool Item_func_match::fix_index()
 
   for (keynr=0 ; keynr <= mkeys ; keynr++)
   {
-    // for now, partial keys won't work. SerG
-    if (max_cnt < fields.elements ||
+    // partial keys doesn't work
+    if (max_cnt < arg_count-1 ||
         max_cnt < table->key_info[ft_to_key[keynr]].key_parts)
       continue;
 
@@ -2765,21 +2760,20 @@ bool Item_func_match::fix_index()
   }
 
 err:
-  if (mode == FT_BOOL)
+  if (flags & FT_BOOL)
   {
     key=NO_SUCH_KEY;
     return 0;
   }
-  my_printf_error(ER_FT_MATCHING_KEY_NOT_FOUND,
-		  ER(ER_FT_MATCHING_KEY_NOT_FOUND),MYF(0));
+  my_error(ER_FT_MATCHING_KEY_NOT_FOUND,MYF(0));
   return 1;
 }
 
 
 bool Item_func_match::eq(const Item *item, bool binary_cmp) const
 {
-  if (item->type() != FUNC_ITEM ||
-      func_name() != ((Item_func*)item)->func_name())
+  if (item->type() != FUNC_ITEM || ((Item_func*)item)->functype() != FT_FUNC ||
+      flags != ((Item_func_match*)item)->flags)
     return 0;
 
   Item_func_match *ifm=(Item_func_match*) item;
@@ -2817,7 +2811,8 @@ double Item_func_match::val()
 				      (byte *)a->ptr(), a->length()));
   }
   else
-    DBUG_RETURN(ft_handler->please->find_relevance(ft_handler, record, 0));
+    DBUG_RETURN(ft_handler->please->find_relevance(ft_handler,
+                                                   table->record[0], 0));
 }
 
 

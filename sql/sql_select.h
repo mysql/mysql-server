@@ -29,8 +29,8 @@ typedef struct keyuse_t {
   Item	*val;				/* or value if no field */
   table_map used_tables;
   uint	key, keypart, optimize;
-  key_map   keypart_map;
-  ha_rows   ref_table_rows;
+  key_part_map keypart_map;
+  ha_rows      ref_table_rows;
 } KEYUSE;
 
 class store_key;
@@ -96,9 +96,9 @@ typedef struct st_join_table {
   key_map	const_keys;			/* Keys with constant part */
   key_map	checked_keys;			/* Keys checked in find_best */
   key_map	needed_reg;
+  key_map       keys;                           /* all keys with can be used */
   ha_rows	records,found_records,read_time;
   table_map	dependent,key_dependent;
-  uint		keys;				/* all keys with can be used */
   uint		use_quick,index;
   uint		status;				// Save status for cache
   uint		used_fields,used_fieldlength,used_blobs;

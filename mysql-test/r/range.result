@@ -240,11 +240,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between t1.y-1 and t1.y+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	Using where
-1	SIMPLE	t2	ALL	x	NULL	NULL	NULL	9	Range checked for each record (index map: 1)
+1	SIMPLE	t2	ALL	x	NULL	NULL	NULL	9	Range checked for each record (index map: 0x1)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= t1.y-1 and t2.x <= t1.y+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	Using where
-1	SIMPLE	t2	ALL	x	NULL	NULL	NULL	9	Range checked for each record (index map: 1)
+1	SIMPLE	t2	ALL	x	NULL	NULL	NULL	9	Range checked for each record (index map: 0x1)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between 0 and t1.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	Using where
@@ -267,11 +267,11 @@ INSERT INTO t2 VALUES (0),(0),(1),(1),(2),(2);
 explain select * from t1, t2 where (t1.key1 <t2.keya + 1) and t2.keya=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	j1	j1	4	const	1	Using where; Using index
-1	SIMPLE	t1	ALL	i1,i2	NULL	NULL	NULL	4	Range checked for each record (index map: 3)
+1	SIMPLE	t1	ALL	i1,i2	NULL	NULL	NULL	4	Range checked for each record (index map: 0x3)
 explain select * from t1 force index(i2), t2 where (t1.key1 <t2.keya + 1) and t2.keya=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	j1	j1	4	const	1	Using where; Using index
-1	SIMPLE	t1	ALL	i2	NULL	NULL	NULL	4	Range checked for each record (index map: 2)
+1	SIMPLE	t1	ALL	i2	NULL	NULL	NULL	4	Range checked for each record (index map: 0x2)
 DROP TABLE t1,t2;
 create  table t1 (id int(10) primary key);
 insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9);

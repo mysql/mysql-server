@@ -20,7 +20,6 @@
 #include <m_ctype.h>
 #include <stdarg.h>
 #include <my_getopt.h>
-#include <assert.h>
 #ifdef HAVE_SYS_VADVISE_H
 #include <sys/vadvise.h>
 #endif
@@ -1955,11 +1954,11 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     if (sort_param.keyinfo->flag & HA_FULLTEXT)
     {
       sort_info.max_records=
-        (ha_rows) (sort_info.filelength/ft_max_word_len_for_sort+1);
+        (ha_rows) (sort_info.filelength/FT_MAX_WORD_LEN_FOR_SORT+1);
 
       sort_param.key_read=sort_ft_key_read;
       sort_param.key_write=sort_ft_key_write;
-      sort_param.key_length+=ft_max_word_len_for_sort-HA_FT_MAXLEN;
+      sort_param.key_length+=FT_MAX_WORD_LEN_FOR_SORT-HA_FT_MAXLEN;
     }
     else
     {
@@ -2350,7 +2349,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
     total_key_length+=sort_param[i].key_length;
 
     if (sort_param[i].keyinfo->flag & HA_FULLTEXT)
-      sort_param[i].key_length+=ft_max_word_len_for_sort-ft_max_word_len;
+      sort_param[i].key_length+=FT_MAX_WORD_LEN_FOR_SORT-ft_max_word_len;
   }
   sort_info.total_keys=i;
   sort_param[0].master= 1;
@@ -2575,8 +2574,7 @@ static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key)
       my_free((char*) wptr, MYF(MY_ALLOW_ZERO_PTR));
       if ((error=sort_get_next_record(sort_param)))
         DBUG_RETURN(error);
-      if (!(wptr=_mi_ft_parserecord(info,sort_param->key,
-                                     key,sort_param->record)))
+      if (!(wptr=_mi_ft_parserecord(info,sort_param->key,sort_param->record)))
         DBUG_RETURN(1);
       if (wptr->pos)
         break;
@@ -3876,7 +3874,7 @@ static my_bool mi_too_big_key_for_sort(MI_KEYDEF *key, ha_rows rows)
 {
   uint key_maxlength=key->maxlength;
   if (key->flag & HA_FULLTEXT)
-    key_maxlength+=ft_max_word_len_for_sort-HA_FT_MAXLEN;
+    key_maxlength+=FT_MAX_WORD_LEN_FOR_SORT-HA_FT_MAXLEN;
   return (key->flag & (HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY | HA_FULLTEXT) &&
 	  ((ulonglong) rows * key_maxlength >
 	   (ulonglong) myisam_max_temp_length));
@@ -3892,7 +3890,7 @@ void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows)
     MI_KEYDEF *key=share->keyinfo;
     for (i=0 ; i < share->base.keys ; i++,key++)
     {
-      if (!(key->flag & (HA_NOSAME | HA_SPATIAL | HA_AUTO_KEY)) && 
+      if (!(key->flag & (HA_NOSAME | HA_SPATIAL | HA_AUTO_KEY)) &&
 	  ! mi_too_big_key_for_sort(key,rows) && info->s->base.auto_key != i+1)
       {
 	share->state.key_map&= ~ ((ulonglong) 1 << i);

@@ -314,9 +314,6 @@ static struct my_option my_long_options[] =
   { "ft_max_word_len", OPT_FT_MAX_WORD_LEN, "", (gptr*) &ft_max_word_len,
     (gptr*) &ft_max_word_len, 0, GET_ULONG, REQUIRED_ARG, HA_FT_MAXLEN, 10,
     HA_FT_MAXLEN, 0, 1, 0},
-  { "ft_max_word_len_for_sort", OPT_FT_MAX_WORD_LEN_FOR_SORT, "",
-    (gptr*) &ft_max_word_len_for_sort, (gptr*) &ft_max_word_len_for_sort, 0,
-    GET_ULONG, REQUIRED_ARG, 20, 4, HA_FT_MAXLEN, 0, 1, 0},
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 

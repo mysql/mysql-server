@@ -18,11 +18,20 @@ Full-text indexes	are called collections
 Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST ("only");
 a	b
-select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
+select * from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
 a	b
 Only MyISAM tables	support collections
 Full-text indexes	are called collections
+MySQL has now support	for full-text search
+select * from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
+a	b
 Full-text indexes	are called collections
+Only MyISAM tables	support collections
+select * from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
+a	b
+Full-text indexes	are called collections
+Only MyISAM tables	support collections
+MySQL has now support	for full-text search
 explain select * from t1 where MATCH(a,b) AGAINST ("collections");
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	fulltext	a	a	0		1	Using where
@@ -119,7 +128,8 @@ a	b
 MySQL has now support	for full-text search
 select * from t1 where MATCH a,b AGAINST ('"text i"' IN BOOLEAN MODE);
 a	b
-Full-text indexes	are called collections
+select * from t1 where MATCH a,b AGAINST ('"xt indexes"' IN BOOLEAN MODE);
+a	b
 select * from t1 where MATCH a AGAINST ("search" IN BOOLEAN MODE);
 a	b
 Full-text search in MySQL	implements vector space model
@@ -190,6 +200,12 @@ ticket	inhalt
 select * from t2 having MATCH inhalt AGAINST ('foobar');
 ticket	inhalt
 3	foobar
+CREATE TABLE t3 (t int(11),i text,fulltext tix (t,i));
+ERROR HY000: Column 't' cannot be part of FULLTEXT index
+CREATE TABLE t3 (t int(11),i text,
+j varchar(200) CHARACTER SET latin2,
+fulltext tix (i,j));
+ERROR HY000: Column 'j' cannot be part of FULLTEXT index
 CREATE TABLE t3 (
 ticket int(11),
 inhalt text,
@@ -272,3 +288,24 @@ select * from t1 join t2 using(`t1_id`) where match (t1.name, t2.name) against('
 t1_id	name	t2_id	t1_id	name
 1	data1	1	1	xxfoo
 drop table t1,t2;
+SET NAMES latin1;
+CREATE TABLE t1 (t text character set utf8 not null, fulltext(t));
+INSERT t1 VALUES ('Mit freundlichem GrЭъ'), ('aus OsnabrЭck');
+SET NAMES koi8r;
+INSERT t1 VALUES ("Это мы - опилки"),("Отлезь, гнида!"),
+("Не влезай, убьет!"),("и будет прав!");
+SELECT t, charset(t) FROM t1 WHERE MATCH t AGAINST ('ОПИЛКИ');
+t	charset(t)
+Это мы - опилки	utf8
+SELECT t, charset(t) FROM t1 WHERE MATCH t AGAINST ('ПрА*' IN BOOLEAN MODE);
+t	charset(t)
+и будет прав!	utf8
+SELECT * FROM t1 WHERE MATCH t AGAINST ('это' IN BOOLEAN MODE);
+t
+SELECT t, charset(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
+t	charset(t)
+SET NAMES latin1;
+SELECT t, charset(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
+t	charset(t)
+aus OsnabrЭck	utf8
+DROP TABLE t1;
