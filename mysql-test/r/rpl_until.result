@@ -14,7 +14,7 @@ insert into t2 values (3),(4);
 drop table t2;
 show binlog events;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-master-bin.000001	4	Start	1	4	Server ver: 4.1.1-alpha-debug-log, Binlog ver: 3
+master-bin.000001	4	Start	1	4	Server ver: VERSION, Binlog ver: 3
 master-bin.000001	79	Query	1	79	use `test`; create table t1(n int not null auto_increment primary key)
 master-bin.000001	172	Query	1	172	use `test`; insert into t1 values (1),(2),(3),(4)
 master-bin.000001	244	Query	1	244	use `test`; drop table t1
