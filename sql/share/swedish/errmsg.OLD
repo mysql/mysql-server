@@ -195,3 +195,7 @@
 "Hittar inte ett FULLTEXT index i kolumnlistan",
 "Kan inte exekvera kommandot emedan du har en låst tabell eller an aktiv transaktion",
 "Okänd system variabel '%-.64'",
+#ER_CRASHED_ON_USAGE
+"Tabell '%-.64s' är crashad och bör repareras med REPAIR TABLE",
+#ER_CRASHED_ON_REPAIR
+"Tabell '%-.64s' är crashad och senast (automatiska?) reparation misslyckades",
