@@ -861,14 +861,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	tables.db = thd->db;
 	tables.name = tables.real_name = (char*)lev->table_name;
 	tables.lock_type = TL_WRITE;
-	    
-	if (open_tables(thd, &tables))
-	{
-	  sql_print_error("Slave:  error opening table %s ",
-			  tables.name);
-	  delete ev;
-	  return 1;
-	}
+	// the table will be opened in mysql_load    
 
 	List<Item> fields;
 	lev->set_fields(fields);

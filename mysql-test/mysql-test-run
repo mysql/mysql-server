@@ -347,7 +347,7 @@ start_slave()
 	    --master-connect-retry=1 \
 	    --master-host=127.0.0.1 \
 	    --master-port=$MASTER_MYPORT \
-	    --core-file \
+	    --core-file --log-bin --log-slave-updates \
             --basedir=$MY_BASEDIR \
             --datadir=$SLAVE_MYDDIR \
 	    --pid-file=$SLAVE_MYPID \
