@@ -114,8 +114,8 @@ set @str1 = 'select ?';
 set @str2 = convert(@str1 using ucs2);
 prepare stmt1 from @str2;
 execute stmt1 using @ivar;
-
 drop table t1,t2;
+
 #
 # Bug #4105: Server crash on attempt to prepare a statement with character
 # set introducer
@@ -140,3 +140,29 @@ execute stmt1;
 # Expect 0
 execute stmt1;
 deallocate prepare stmt1;
+drop table t1;
+
+#
+# prepared EXPLAIN
+#
+create table t1 
+(
+  c1  tinyint, c2  smallint, c3  mediumint, c4  int,
+  c5  integer, c6  bigint, c7  float, c8  double,
+  c9  double precision, c10 real, c11 decimal(7, 4), c12 numeric(8, 4),
+  c13 date, c14 datetime, c15 timestamp(14), c16 time,
+  c17 year, c18 bit, c19 bool, c20 char,
+  c21 char(10), c22 varchar(30), c23 tinyblob, c24 tinytext,
+  c25 blob, c26 text, c27 mediumblob, c28 mediumtext,
+  c29 longblob, c30 longtext, c31 enum('one', 'two', 'three'),
+  c32 set('monday', 'tuesday', 'wednesday')
+) engine = MYISAM ;
+create table t2 like t1;
+
+set @stmt= ' explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25 ' ;
+prepare stmt1 from @stmt ;
+execute stmt1 ;
+execute stmt1 ;
+explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25;
+deallocate prepare stmt1;
+drop tables t1,t2;
