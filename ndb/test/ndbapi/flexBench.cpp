@@ -281,6 +281,7 @@ tellThreads(ThreadData* pt, StartType what)
 
 NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
 {
+  ndb_init();
   ThreadData*           pThreadsData;
   int                   tLoops = 0, i;
   int                   returnValue = NDBT_OK;

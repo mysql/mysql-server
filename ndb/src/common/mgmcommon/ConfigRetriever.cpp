@@ -344,7 +344,7 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 
     const char * name;
     struct in_addr addr;
     BaseString tmp;
-    if(!iter.get(CFG_TCP_HOSTNAME_1, &name) && strlen(name)){
+    if(!iter.get(CFG_CONNECTION_HOSTNAME_1, &name) && strlen(name)){
       if(Ndb_getInAddr(&addr, name) != 0){
 	tmp.assfmt("Unable to lookup/illegal hostname %s, "
 		   "connection from node %d to node %d",
@@ -354,7 +354,7 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 
       }
     }
 
-    if(!iter.get(CFG_TCP_HOSTNAME_2, &name) && strlen(name)){
+    if(!iter.get(CFG_CONNECTION_HOSTNAME_2, &name) && strlen(name)){
       if(Ndb_getInAddr(&addr, name) != 0){
 	tmp.assfmt("Unable to lookup/illegal hostname %s, "
 		   "connection from node %d to node %d",

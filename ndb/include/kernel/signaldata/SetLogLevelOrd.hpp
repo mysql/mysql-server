@@ -18,6 +18,7 @@
 #define SET_LOGLEVEL_ORD_HPP
 
 #include <LogLevel.hpp>
+#include "EventSubscribeReq.hpp"
 #include "SignalData.hpp"
 
 /**
@@ -51,6 +52,24 @@ private:
    * Note level is valid as 0-15
    */
   void setLogLevel(LogLevel::EventCategory ec, int level = 7);
+
+  SetLogLevelOrd& operator= (const LogLevel& ll){
+    noOfEntries = _LOGLEVEL_CATEGORIES;
+    for(size_t i = 0; i<noOfEntries; i++){
+      theCategories[i] = i;
+      theLevels[i] = ll.getLogLevel((LogLevel::EventCategory)i);
+    }
+    return * this;
+  }
+
+  SetLogLevelOrd& operator= (const EventSubscribeReq& ll){
+    noOfEntries = ll.noOfEntries;
+    for(size_t i = 0; i<noOfEntries; i++){
+      theCategories[i] = ll.theCategories[i];
+      theLevels[i] = ll.theLevels[i];
+    }
+    return * this;
+  }
 };
 
 inline

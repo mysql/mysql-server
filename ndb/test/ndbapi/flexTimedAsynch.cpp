@@ -174,6 +174,7 @@ void deleteAttributeSpace(){
 
 NDB_COMMAND(flexTimedAsynch, "flexTimedAsynch", "flexTimedAsynch [-tpoilcas]", "flexTimedAsynch", 65535)
 {
+  ndb_init();
   ThreadNdb		tabThread[MAXTHREADS];
   int                   tLoops=0;
   int                   returnValue;
