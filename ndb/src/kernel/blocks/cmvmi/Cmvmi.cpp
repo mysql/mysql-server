@@ -480,7 +480,6 @@ void Cmvmi::execDISCONNECT_REP(Signal *signal)
  
 void Cmvmi::execCONNECT_REP(Signal *signal){
   const Uint32 hostId = signal->theData[0];
-  
   jamEntry();
   
   const NodeInfo::NodeType type = (NodeInfo::NodeType)getNodeInfo(hostId).m_type;
