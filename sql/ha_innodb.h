@@ -111,9 +111,7 @@ class ha_innobase: public handler
 	  return (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER |
 		  HA_KEY_READ_ONLY);
 	}
-				/* max_record_.. should be slightly less
-				than 1/2 UNIV_PAGE_SIZE */
-  	uint max_record_length() const { return 8000; }
+  	uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   	uint max_keys()          const { return MAX_KEY; }
   	uint max_key_parts()     const { return MAX_REF_PARTS; }
 				/* An InnoDB page must store >= 2 keys;
