@@ -4265,9 +4265,9 @@ will only clear the mapping for the table, not delete everything in the
 mapped tables.
 
 @item
-You cannot build in another directory when using
+You cannot build the server in another directory when using
 MIT-pthreads. Because this requires changes to MIT-pthreads, we are not
-likely to fix this.
+likely to fix this. @xref{MIT-pthreads}.
 
 @item
 @code{BLOB} values can't ``reliably'' be used in @code{GROUP BY} or
@@ -4496,6 +4496,7 @@ should be read with that in mind.  There are no factual errors contained
 in this section that we know of.  If you find something which you believe
 to be an error, please contact us about it at @email{docs@@mysql.com}.
 
+@c FIX this is bad lingo: "supported limits", etc.
 For a list of all supported limits, functions, and types, see the
 @code{crash-me} Web page at 
 @uref{http://www.mysql.com/information/crash-me.php}.
@@ -4705,7 +4706,7 @@ differences in spelling between @code{mSQL} and MySQL for the
 most-used C API functions.
 For example, it changes instances of @code{msqlConnect()} to
 @code{mysql_connect()}. Converting a client program from @code{mSQL} to
-MySQL usually takes a couple of minutes.
+MySQL usually requires only minor effort.
 @end table
 
 @menu
@@ -4722,7 +4723,7 @@ MySQL usually takes a couple of minutes.
 @cindex converting, tools
 @cindex tools, converting
 
-According to our experience, it would just take a few hours to convert tools
+According to our experience, it doesn't take long to convert tools
 such as @code{msql-tcl} and @code{msqljava} that use the
 @code{mSQL} C API so that they work with the MySQL C API.
 
@@ -4824,8 +4825,10 @@ Has the following additional types (among others;
 @pxref{CREATE TABLE, , @code{CREATE TABLE}}):
 @itemize @bullet
 @item
+@c FIX bad lingo, needs rephrasing
 @code{ENUM} type for one of a set of strings.
 @item
+@c FIX bad lingo, needs rephrasing
 @code{SET} type for many of a set of strings.
 @item
 @code{BIGINT} type for 64-bit integers.
@@ -5381,11 +5384,11 @@ benchmark page.
 Before going to the other benchmarks we know of, we would like to give
 some background on benchmarks:
 
-It's very easy to write a test that shows ANY database to be best
+It's very easy to write a test that shows ANY database to be the best
 database in the world, by just restricting the test to something the
-database is very good at and not test anything that the database is not
-good at.  If one after this publishes the result with a single figure,
-things are even easier.
+database is very good at and not testing anything that the database is
+not good at.  If one, after doing this, summarises the result with as
+a single figure, things are even easier.
 
 This would be like us measuring the speed of MySQL compared to PostgreSQL
 by looking at the summary time of the MySQL benchmarks on our web page.
@@ -5692,9 +5695,9 @@ derived tables for the duration of the query.
 @item
 Add @code{PREPARE} of statements and sending of parameters to @code{mysqld}.
 @item
-Extend the server/client protocol to support warnings.
+Extend the client/server protocol to support warnings.
 @item
-Add options to the server/protocol protocol to get progress notes
+Add options to the client/server protocol to get progress notes
 for long running commands.
 @item
 Add database and real table name (in case of alias) to the MYSQL_FIELD
@@ -14899,10 +14902,14 @@ select * from shop where price=@@min_price or price=@@max_price;
 @cindex foreign keys
 @cindex keys, foreign
 
-You don't need foreign keys to join 2 tables.
+In MySQL 3.23.44 and up, @code{InnoDB} tables supports checking of
+foreign key constraints. @xref{InnoDB}.
+See also @ref{example-Foreign keys}.
 
-The only thing MySQL doesn't do is @code{CHECK} to make sure that
-the keys you use really exist in the table(s) you're referencing and it
+You don't actually need foreign keys to join 2 tables.
+The only thing MySQL currently doesn't do (in type types other than
+@code{InnoDB}), is @code{CHECK} to make sure that the keys you use
+really exist in the table(s) you're referencing and it
 doesn't automatically delete rows from a table with a foreign key
 definition. If you use your keys like normal, it'll work just fine:
 
@@ -37448,37 +37455,85 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 @section InnoDB Tables
 
 @menu
-* InnoDB overview::             InnoDB tables overview
-* InnoDB start::                InnoDB startup options
-* InnoDB init::                 Creating InnoDB table space.
-* Using InnoDB tables::         Creating InnoDB tables
-* Adding and removing::         Adding and removing InnoDB data and log files
-* Backing up::                  Backing up and recovering an InnoDB database
-* Moving::                      Moving an InnoDB database to another machine
-* InnoDB transaction model::    InnoDB transaction model.
-* Implementation::              Implementation of multiversioning
-* Table and index::             Table and index structures
-* File space management::       File space management and disk i/o
-* Error handling::              Error handling
-* InnoDB restrictions::         Restrictions on InnoDB tables
-* InnoDB contact information::  InnoDB contact information. 
+* InnoDB overview::             InnoDB Tables Overview
+* InnoDB start::                InnoDB Startup Options
+* InnoDB init::                 Creating InnoDB Tablespace
+* Using InnoDB tables::         Creating InnoDB Tables
+* Adding and removing::         Adding and Removing InnoDB Data and Log Files
+* Backing up::                  Backing up and Recovering an InnoDB Database
+* Moving::                      Moving an InnoDB Database to Another Machine
+* InnoDB transaction model::    InnoDB Transaction Model.
+* Implementation::              Implementation of Multiversioning
+* Table and index::             Table and Index Structures
+* File space management::       File Space Management and Disk i/o
+* Error handling::              Error Handling
+* InnoDB restrictions::         Restrictions on InnoDB Tables
+* InnoDB contact information::  InnoDB Contact Information. 
 @end menu
 
 
 @node InnoDB overview, InnoDB start, InnoDB, InnoDB
-@subsection InnoDB tables overview
+@subsection InnoDB Tables Overview
+
+InnoDB provides MySQL with a transaction-safe table handler with
+commit, rollback, and crash recovery capabilities. InnoDB does
+locking on row level and also provides an Oracle-style
+consistent
+non-locking read in @code{SELECT}s. These features increase
+multiuser concurrency and performance. There is no need for
+lock escalation in InnoDB,
+because row level locks in InnoDB fit in very small space.
+InnoDB tables support @code{FOREIGN KEY} constraints
+as the first table type in MySQL.
+
+InnoDB has been designed for maximum performance
+when processing
+large data volumes. Its CPU efficiency is probably not
+matched by any other disk-based relational database engine.
+
+Technically, InnoDB is a complete database backend placed under MySQL.
+InnoDB has its own buffer pool for caching data and indexes in main
+memory. InnoDB stores its tables and indexes in a tablespace, which
+may consist of several files. This is different from, for example,
+MyISAM tables where each table is stored as a separate file.
+InnoDB tables can be of any size also on those operating
+systems where file size is limited to 2 GB.
+
+You can find the latest information about InnoDB at
+@uref{http://www.innodb.com}. The most up-to-date version of the
+InnoDB manual is always placed there, and you can also order
+commercial licenses and support for InnoDB.
+
+InnoDB is currently (October 2001) used in production at
+several large database sites requiring high performance.
+The famous Internet news site Slashdot.org runs on
+InnoDB. Mytrix, Inc. stores over 1 TB of data in
+InnoDB, and another site handles an average
+load of 800 inserts/updates per second in InnoDB.
 
 InnoDB tables are included in the MySQL source distribution
-starting from 3.23.34a and are activated in the @strong{MySQL -max}
-binary.
+starting from 3.23.34a and are activated in the MySQL -Max
+binary. For Windows the -Max binaries are contained in the
+standard distribution.
 
 If you have downloaded a binary version of MySQL that includes
-support for InnoDB (mysqld-max), simply follow the instructions for
-installing a binary version of MySQL. @xref{Installing binary}.
+support for InnoDB, simply follow the instructions of the
+MySQL manual
+for installing a binary version of MySQL. If you already have
+MySQL-3.23 installed, then the simplest way to install
+MySQL -Max is to replace the server executable @file{mysqld}
+with the corresponding executable in the -Max distribution.
+MySQL and MySQL -Max differ only in the server executable.
+@xref{Installing binary}.
 @xref{mysqld-max, , @code{mysqld-max}}.
 
-To compile MySQL with InnoDB support, download MySQL-3.23.37 or newer
-and configure MySQL with the @code{--with-innodb} option.
+To compile MySQL with InnoDB support,
+download MySQL-3.23.34a or newer version from
+@uref{http://www.mysql.com}
+and configure MySQL with the
+@code{--with-innodb} option. See the
+MySQL manual
+about installing a MySQL source distribution.
 @xref{Installing source}.
 
 @example
@@ -37486,47 +37541,23 @@ cd /path/to/source/of/mysql-3.23.37
 ./configure --with-innodb
 @end example
 
-To get InnoDB to work you have to specify where the data for InnoDB
-tables should be stored by specifying the @code{innodb_data_file_path}
-option on the command line or in an MySQL option file. @xref{InnoDB
-start}.  If you have configured MySQL for InnoDB but you have not
-specified the above option, @code{mysqld} will print at start:
+To use InnoDB you have to specify InnoDB startup options in
+your @file{my.cnf} or @file{my.ini} file. The minimal way
+to modify it is to add to the @code{[mysqld]} section the line
 
 @example
-Can't initialize InnoDB as 'innodb_data_file_path' is not set
+innodb_data_file_path=ibdata:30M
 @end example
 
-InnoDB provides MySQL with a transaction-safe table handler with
-commit, rollback, and crash recovery capabilities. InnoDB does
-locking on row level, and also provides an Oracle-style consistent
-non-locking read in @code{SELECT}s, which increases transaction
-concurrency. There is not need for lock escalation in InnoDB,
-because row level locks in InnoDB fit in very small space.
-
-InnoDB has been designed for maximum performance when processing
-large data volumes. Its CPU efficiency is probably not
-matched by any other disk-based relational database engine.
-
-You can find the latest information about InnoDB at
-@uref{http://www.innodb.com}. The most up-to-date version of the
-InnoDB manual is always placed there, and you can also order commercial
-support for InnoDB.
-
-Technically, InnoDB is a database backend placed under MySQL. InnoDB
-has its own buffer pool for caching data and indexes in main
-memory. InnoDB stores its tables and indexes in a tablespace, which
-may consist of several files. This is different from, for example,
-@code{MyISAM} tables where each table is stored as a separate file.
+but to get good performance it is best that you specify options
+like recommended below in the section 'InnoDB startup options'.
 
 InnoDB is distributed under the GNU GPL License Version 2 (of June 1991).
 In the source distribution of MySQL, InnoDB appears as a subdirectory.
 
 
 @node InnoDB start, InnoDB init, InnoDB overview, InnoDB
-@subsection InnoDB startup options
-
-Beginning from MySQL-3.23.37 the prefix of the options is changed
-from @code{innobase_...} to @code{innodb_...}.
+@subsection InnoDB Startup Options
 
 To use InnoDB tables you @strong{MUST} specify configuration parameters
 in the MySQL configuration file in the @code{[mysqld]} section of
@@ -37540,6 +37571,10 @@ hard disk.  Below is an example of possible configuration parameters in
 @file{my.cnf} for InnoDB:
 
 @example
+[mysqld]
+# You can write your other MySQL server options here
+# ...
+#
 innodb_data_file_path = ibdata1:2000M;ibdata2:2000M
 innodb_data_home_dir = c:\ibdata
 set-variable = innodb_mirrored_log_groups=1
@@ -37548,19 +37583,34 @@ set-variable = innodb_log_files_in_group=3
 set-variable = innodb_log_file_size=30M
 set-variable = innodb_log_buffer_size=8M
 innodb_flush_log_at_trx_commit=1
+#.._arch_dir must be the same as .._log_group_home_dir
 innodb_log_arch_dir = c:\iblogs
 innodb_log_archive=0
-set-variable = innodb_buffer_pool_size=80M
+set-variable = innodb_buffer_pool_size=70M
 set-variable = innodb_additional_mem_pool_size=10M
 set-variable = innodb_file_io_threads=4
 set-variable = innodb_lock_wait_timeout=50
 @end example
 
-Note that data files must be < 4G, and < 2G on
-some file systems! The total size of data files has
+Note that some operating systems
+restrict file size to < 2G.
+The total size of data files has
 to be >= 10 MB.
 InnoDB does not create directories:
 you have to create them yourself.
+Check that the MySQL server
+has the rights to create files in the directories you specify.
+
+When you the first time create an InnoDB database, it
+is best that you start the MySQL server from the command
+prompt. Then InnoDB will print the information about the
+database creation to the screen, and you see what is
+happening. See below in section 3 what the printout
+should look like.
+For example, in Windows you can start @file{mysqld-max.exe} with:
+@example
+your-path-to-mysqld>mysqld-max --standalone --console
+@end example
 
 Suppose you have a Linux machine with 512 MB RAM and
 three 20 GB hard disks (at directory paths @file{/},
@@ -37569,6 +37619,10 @@ Below is an example of possible configuration parameters in @file{my.cnf} for
 InnoDB:
 
 @example
+[mysqld]
+# You can write your other MySQL server options here
+# ...
+#
 innodb_data_file_path = ibdata/ibdata1:2000M;dr2/ibdata/ibdata2:2000M
 innodb_data_home_dir = /
 set-variable = innodb_mirrored_log_groups=1
@@ -37577,9 +37631,10 @@ set-variable = innodb_log_files_in_group=3
 set-variable = innodb_log_file_size=50M
 set-variable = innodb_log_buffer_size=8M
 innodb_flush_log_at_trx_commit=1
+#.._arch_dir must be the same as .._log_group_home_dir
 innodb_log_arch_dir = /dr3/iblogs
 innodb_log_archive=0
-set-variable = innodb_buffer_pool_size=400M
+set-variable = innodb_buffer_pool_size=350M
 set-variable = innodb_additional_mem_pool_size=20M
 set-variable = innodb_file_io_threads=4
 set-variable = innodb_lock_wait_timeout=50
@@ -37605,9 +37660,12 @@ The common part of the directory path for all InnoDB data files.
 Paths to individual data files and their sizes. The full directory path
 to each data file is acquired by concatenating innodb_data_home_dir to
 the paths specified here. The file sizes are specified in megabytes,
-hence the 'M' after the size specification above. Do not set a file size
-bigger than 4000M, and on most operating systems not bigger than 2000M.
+hence the 'M' after the size specification above. 
 InnoDB also understands the abbreviation 'G', 1G meaning 1024M.
+Starting from
+3.23.44 you can set the file size bigger than 4 GB on those
+operating systems which support big files.
+On some operating systems files must be < 2 GB.
 The sum of the sizes of the files must be at least 10 MB.
 @item @code{innodb_mirrored_log_groups} @tab 
 Number of identical copies of log groups we
@@ -37622,7 +37680,8 @@ Size of each log file in a log group in megabytes. Sensible values range
 from 1M to the size of the buffer pool specified below. The bigger the
 value, the less checkpoint flush activity is needed in the buffer pool,
 saving disk i/o. But bigger log files also mean that recovery will be
-slower in case of a crash. File size restriction as for a data file.
+slower in case of a crash. The combined size of log files must
+be < 4 GB on 32-bit computers.
 @item @code{innodb_log_buffer_size} @tab 
 The size of the buffer which InnoDB uses to write log to the log files
 on disk.  Sensible values range from 1M to half the combined size of log
@@ -37647,7 +37706,7 @@ archive InnoDB log files.
 The size of the memory buffer InnoDB uses to cache data and indexes of
 its tables.  The bigger you set this the less disk i/o is needed to
 access data in tables. On a dedicated database server you may set this
-parameter up to 90 % of the machine physical memory size. Do not set it
+parameter up to 80 % of the machine physical memory size. Do not set it
 too large, though, because competition of the physical memory may cause
 paging in the operating system.
 @item @code{innodb_additional_mem_pool_size} @tab 
@@ -37659,7 +37718,7 @@ will start to allocate memory from the operating system, and write
 warning messages to the MySQL error log.
 @item @code{innodb_file_io_threads} @tab 
 Number of file i/o threads in InnoDB. Normally, this should be 4, but
-on Windows NT disk i/o may benefit from a larger number.
+on Windows disk i/o may benefit from a larger number.
 @item @code{innodb_lock_wait_timeout} @tab 
 Timeout in seconds an InnoDB transaction may wait for a lock before
 being rolled back.  InnoDB automatically detects transaction deadlocks
@@ -37676,7 +37735,7 @@ Another option is @code{O_DSYNC}.
  
 
 @node InnoDB init, Using InnoDB tables, InnoDB start, InnoDB
-@subsection Creating InnoDB table space
+@subsection Creating InnoDB Tablespace
 
 Suppose you have installed MySQL and have edited @file{my.cnf} so that
 it contains the necessary InnoDB configuration parameters.
@@ -37742,7 +37801,7 @@ mysqld: ready for connections
 
 
 @node Error creating InnoDB,  , InnoDB init, InnoDB init
-@subsubsection If something goes wrong in database creation
+@subsubsection If Something Goes Wrong in Database Creation
 
 If something goes wrong in an InnoDB database creation, you should
 delete all files created by InnoDB. This means all data files, all log
@@ -37753,7 +37812,7 @@ directories. Then you can try the InnoDB database creation again.
 
 
 @node Using InnoDB tables, Adding and removing, InnoDB init, InnoDB
-@subsection Creating InnoDB tables
+@subsection Creating InnoDB Tables
 
 Suppose you have started the MySQL client with the command
 @code{mysql test}.
@@ -37787,15 +37846,7 @@ Note that the statistics @code{SHOW} gives about InnoDB tables
 are only approximate: they are used in SQL optimisation. Table and
 index reserved sizes in bytes are accurate, though.
 
-NOTE: @code{DROP DATABASE} does not currently work for InnoDB tables!
-You must drop the tables individually. Also take care not to delete or
-add @file{.frm} files to your InnoDB database manually: use
-@code{CREATE TABLE} and @code{DROP TABLE} commands.
-InnoDB has its own internal data dictionary, and you will get problems
-if the MySQL @file{.frm} files are out of 'sync' with the InnoDB
-internal data dictionary.
-
-@subsubsection Converting MyISAM tables to InnoDB
+@subsubsection Converting MyISAM Tables to InnoDB
 
 InnoDB does not have a special optimisation for separate index creation.
 Therefore it does not pay to export and import the table and create indexes
@@ -37835,9 +37886,55 @@ it is better that you kill the database process and delete all InnoDB data
 and log files and all InnoDB table @file{.frm} files, and start
 your job again, rather than wait for millions of disk i/os to complete.
 
+@subsubsection  Foreign Key Constraints
+
+InnoDB version 3.23.44 features foreign key constraints. InnoDB is the
+first MySQL table type which allows you to define foreign key
+constraints to guard the integrity of your data.
+An example:
+
+@example
+CREATE TABLE parent(id INT NOT NULL, PRIMARY KEY (id)) TYPE=INNODB;
+CREATE TABLE child(id INT, parent_id INT, INDEX par_ind (parent_id),
+           FOREIGN KEY (parent_id) REFERENCES parent(id)) TYPE=INNODB;
+@end example
+
+Both tables have to be InnoDB type and there must be an index
+where the foreign key and the referenced key are listed as the first
+columns. Any @code{ALTER TABLE} currently removes all foreign key
+constrainst defined for the table, but not the constraints
+that reference the table. Corresponding columns in the foreign key
+and the referenced key have to have similar internal data types
+inside InnoDB so that they can be compared without a type
+conversion. The length of string types need not be the same.
+The size and the signedness of integer types has to be same.
+
+When doing foreign key checks InnoDB sets shared row
+level locks on child or parent records it has to look at.
+
+InnoDB allows you to drop any table even though that
+would break the foreign key constraints which reference
+the table. When you drop a table the constraints which
+were defined in its create statement are also dropped.
+
+If you recreate a table which was dropped, it has to have
+a definition which conforms to the foreign key constraints
+referencing it. It must have the right column names and types,
+and it must have indexes on the referenced keys, as stated above.
+
+You can list the foreign key constraints for a table
+@code{T} with
+@example
+SHOW TABLE STATUS FROM yourdatabasename LIKE 'T';
+@end example
+The foreign key constraints are listed in the table comment of
+the output.
+
+InnoDB does not yet support @code{CASCADE ON DELETE}
+or other special options on the constraints.
 
 @node Adding and removing, Backing up, Using InnoDB tables, InnoDB
-@subsection Adding and removing InnoDB data and log files
+@subsection Adding and Removing InnoDB Data and Log Files
 
 You cannot increase the size of an InnoDB data file. To add more into
 your tablespace you have to add a new data file. To do this you have to
@@ -37846,7 +37943,7 @@ new file to @code{innodb_data_file_path}, and then start MySQL
 again.
 
 Currently you cannot remove a data file from InnoDB. To decrease the
-size of your database you have to use @code{mysqldump} to dump
+size of your database you have to use @file{mysqldump} to dump
 all your tables, create a new database, and import your tables to the
 new database.
 
@@ -37860,7 +37957,7 @@ you at the startup that it is creating new log files.
 
 
 @node Backing up, Moving, Adding and removing, InnoDB
-@subsection Backing up and recovering an InnoDB database
+@subsection Backing up and Recovering an InnoDB Database
 
 The key to safe database management is taking regular backups.
 To take a 'binary' backup of your database you have to do the following:
@@ -37979,7 +38076,7 @@ because there will be more log to apply to the database.
 
 
 @node Moving, InnoDB transaction model, Backing up, InnoDB
-@subsection Moving an InnoDB database to another machine
+@subsection Moving an InnoDB Database to Another Machine
 
 InnoDB data and log files are binary-compatible on all platforms
 if the floating point number format on the machines is the same.
@@ -38000,10 +38097,10 @@ a table.
 
 
 @node InnoDB transaction model, Implementation, Moving, InnoDB
-@subsection InnoDB transaction model
+@subsection InnoDB Transaction Model
 
 In the InnoDB transaction model the goal has been to combine the best
-sides of a multiversioning database to traditional two-phase locking.
+properties of a multiversioning database to traditional two-phase locking.
 InnoDB does locking on row level and runs queries by default
 as non-locking consistent reads, in the style of Oracle.
 The lock table in InnoDB is stored so space-efficiently that lock
@@ -38012,7 +38109,7 @@ to lock every row in the database, or any random subset of the rows,
 without InnoDB running out of memory.
 
 In InnoDB all user activity happens inside transactions. If the
-auto commit mode is used in MySQL, then each SQL statement
+auto-commit mode is used in MySQL, then each SQL statement
 will form a single transaction. If the auto commit mode is
 switched off, then we can think that a user always has a transaction
 open. If he issues
@@ -38026,17 +38123,17 @@ on the other hand cancels all modifications made by the current
 transaction.
 
 @menu
-* InnoDB consistent read::      Consistent read
-* InnoDB locking reads::        Locking reads
-* InnoDB Next-key locking::     Next-key locking: avoiding the phantom problem
-* InnoDB Locks set::            Locks set by different SQL statements in InnoDB
-* InnoDB Deadlock detection::   Deadlock detection and rollback
-* InnoDB Consistent read example::  An example of how the consistent read works in InnoDB
+* InnoDB consistent read::      Consistent Read
+* InnoDB locking reads::        Locking Reads
+* InnoDB Next-key locking::     Next-key Locking: Avoiding the Phantom Problem
+* InnoDB Locks set::            Locks Set by Different SQL Statements in InnoDB
+* InnoDB Deadlock detection::   Deadlock Detection and Rollback
+* InnoDB Consistent read example::  An Example of How the Consistent Read Works in InnoDB
 @end menu
 
 
 @node InnoDB consistent read, InnoDB locking reads, InnoDB transaction model, InnoDB transaction model
-@subsubsection Consistent read
+@subsubsection Consistent Read
 
 A consistent read means that InnoDB uses its multiversioning to
 present to a query a snapshot of the database at a point in time.
@@ -38062,7 +38159,7 @@ on the table.
 
 
 @node InnoDB locking reads, InnoDB Next-key locking, InnoDB consistent read, InnoDB transaction model
-@subsubsection Locking reads
+@subsubsection Locking Reads
 
 A consistent read is not convenient in some circumstances.
 Suppose you want to add a new row into your table @code{CHILD},
@@ -38120,7 +38217,7 @@ on the rows.
 
 
 @node InnoDB Next-key locking, InnoDB Locks set, InnoDB locking reads, InnoDB transaction model
-@subsubsection Next-key locking: avoiding the phantom problem
+@subsubsection Next-key Locking: Avoiding the Phantom Problem
 
 In row level locking InnoDB uses an algorithm called next-key locking.
 InnoDB does the row level locking so that when it searches or
@@ -38164,7 +38261,7 @@ after the last record in the index. Just that happens in the previous
 example: the locks set by InnoDB will prevent any insert to
 the table where @code{ID} would be bigger than 100.
 
-You can use the next-key locking to implement a uniqueness
+You can use next-key locking to implement a uniqueness
 check in your application: if you read your data in share mode
 and do not see a duplicate for a row you are going to insert,
 then you can safely insert your row and know that the next-key
@@ -38173,9 +38270,8 @@ anyone meanwhile inserting a duplicate for your row. Thus the next-key
 locking allows you to 'lock' the non-existence of something in your
 table.
 
-
 @node InnoDB Locks set, InnoDB Deadlock detection, InnoDB Next-key locking, InnoDB transaction model
-@subsubsection Locks set by different SQL statements in InnoDB
+@subsubsection Locks Set by Different SQL Statements in InnoDB
 
 @itemize @bullet
 @item
@@ -38216,6 +38312,12 @@ lock on every record the search encounters.
 @code{DELETE FROM ... WHERE ...} : sets an exclusive next-key
 lock on every record the search encounters.
 @item
+If a @code{FOREIGN KEY} constraint is defined on a table,
+any insert, update, or delete which requires checking of the constraint
+condition sets shared record level locks on the records it
+looks at to check the constraint. Also in the case where the
+constraint fails, InnoDB sets these locks.
+@item
 @code{LOCK TABLES ... } : sets table locks. In the implementation
 the MySQL layer of code sets these locks. The automatic deadlock detection
 of InnoDB cannot detect deadlocks where such table locks are involved:
@@ -38228,7 +38330,7 @@ locks. But that does not put transaction integerity into danger.
 
 
 @node InnoDB Deadlock detection, InnoDB Consistent read example, InnoDB Locks set, InnoDB transaction model
-@subsubsection Deadlock detection and rollback
+@subsubsection Deadlock Detection and Rollback
 
 InnoDB automatically detects a deadlock of transactions and rolls
 back the transaction whose lock request was the last one to build
@@ -38247,7 +38349,7 @@ stores row locks in a format where it cannot afterwards know which was
 set by which SQL statement.
 
 @node InnoDB Consistent read example,  , InnoDB Deadlock detection, InnoDB transaction model
-@subsubsection An example of how the consistent read works in InnoDB
+@subsubsection An Example of How the Consistent Read Works in InnoDB
 
 When you issue a consistent read, that is, an ordinary @code{SELECT}
 statement, InnoDB will give your transaction a timepoint according
@@ -38279,9 +38381,9 @@ v             SELECT * FROM t;
               COMMIT;
 
               SELECT * FROM t;
-              ----------------------
-              |     1    |    2   |
-              ----------------------
+              ---------------------
+              |    1    |    2    |
+              ---------------------
 @end example
 
 Thus user A sees the row inserted by B only when B has committed the
@@ -38296,7 +38398,7 @@ SELECT * FROM t LOCK IN SHARE MODE;
 @end example
 
 
-@subsection Performance tuning tips
+@subsection Performance Tuning Tips
 
 @strong{1.}
 If the Unix @file{top} or the Windows @file{Task Manager} shows that
@@ -38388,14 +38490,23 @@ This tip is of course valid for inserts into any table type, not just InnoDB.
 Starting from version 3.23.41 InnoDB includes the InnoDB
 Monitor which prints information on the InnoDB internal state.
 When swithed on, InnoDB Monitor
-will make the MySQL server to print data to the standard
-output about once every 10 seconds. This data is useful in
+will make the MySQL server @file{mysqld} to print data
+(note: the MySQL client will not print anything)
+to the standard
+output about once every 15 seconds. This data is useful in
 performance tuning.
+On Windows you must start @code{mysqld-max}
+from a MS-DOS prompt 
+with the @code{--standalone --console}
+options to direct the output to the MS-DOS prompt
+window.
+
+There is a separate @code{innodb_lock_monitor} which
+prints the same information as @code{innodb_monitor}
+plus information on locks set by each transaction.
 
 The printed information includes data on:
 @itemize @bullet
-@item
-table and record locks held by each active transaction,
 @item
 lock waits of a transactions,
 @item
@@ -38509,8 +38620,8 @@ may have lock contention. The output can also help to
 trace reasons for transaction deadlocks.
 @item
 Section SYNC INFO will report reserved semaphores
-if you compile InnoDB with <code>UNIV_SYNC_DEBUG</code>
-defined in <tt>univ.i</tt>.
+if you compile InnoDB with @code{UNIV_SYNC_DEBUG}
+defined in @file{univ.i}.
 @item
 Section SYNC ARRAY INFO reports threads waiting
 for a semaphore and statistics on how many times
@@ -38532,7 +38643,7 @@ currently doing.
 @end itemize
 
 @node Implementation, Table and index, InnoDB transaction model, InnoDB
-@subsection Implementation of multiversioning
+@subsection Implementation of Multiversioning
 
 Since InnoDB is a multiversioned database, it must keep information
 of old versions of rows in the tablespace. This information is stored
@@ -38563,7 +38674,9 @@ a snapshot that in a consistent read could need the information
 in the update undo log to build an earlier version of a database
 row.
 
-You must remember to commit your transactions regularly. Otherwise
+You must remember to commit your transactions regularly,
+also those transactions which only issue consistent reads.
+Otherwise
 InnoDB cannot discard data from the update undo logs, and the
 rollback segment may grow too big, filling up your tablespace.
 
@@ -38582,7 +38695,19 @@ time as the SQL statement which did the deletion.
 
 
 @node Table and index, File space management, Implementation, InnoDB
-@subsection Table and index structures
+@subsection Table and Index Structures
+
+MySQL stores its data dictionary information of tables
+in @file{.frm}
+files in database directories. But every InnoDB type table
+also has its own entry in InnoDB internal data dictionaries
+inside the tablespace. When MySQL drops a table or a database,
+it has to delete both a @file{.frm} file or files, and
+the corresponding entries inside the InnoDB data dictionary.
+This is the reason why you cannot move InnoDB tables between
+databases simply by moving the @file{.frm} files, and why
+@code{DROP DATABASE} did not work for InnoDB type tables
+in MySQL versions <= 3.23.43. 
 
 Every InnoDB table has a special index called the clustered index
 where the data of the rows is stored. If you define a
@@ -38610,15 +38735,15 @@ index. Note that if the primary key is long, the secondary indexes
 will use more space.
 
 @menu
-* InnoDB physical structure::   Physical structure of an index
-* InnoDB Insert buffering::     Insert buffering
-* InnoDB Adaptive hash::        Adaptive hash indexes
-* InnoDB Physical record::      Physical record structure
+* InnoDB physical structure::   Physical Structure of an Index
+* InnoDB Insert buffering::     Insert Buffering
+* InnoDB Adaptive hash::        Adaptive Hash Indexes
+* InnoDB Physical record::      Physical Record Structure
 @end menu
 
 
 @node InnoDB physical structure, InnoDB Insert buffering, Table and index, Table and index
-@subsubsection Physical structure of an index
+@subsubsection Physical Structure of an Index
 
 All indexes in InnoDB are B-trees where the index records are
 stored in the leaf pages of the tree. The default size of an index
@@ -38634,7 +38759,7 @@ InnoDB will try to contract the index tree to free the page.
 
 
 @node InnoDB Insert buffering, InnoDB Adaptive hash, InnoDB physical structure, Table and index
-@subsubsection Insert buffering
+@subsubsection Insert Buffering
 
 It is a common situation in a database application that the
 primary key is a unique identifier and new rows are inserted in the
@@ -38662,7 +38787,7 @@ to a table up to 15 times.
 
 
 @node InnoDB Adaptive hash, InnoDB Physical record, InnoDB Insert buffering, Table and index
-@subsubsection Adaptive hash indexes
+@subsubsection Adaptive Hash Indexes
 
 If a database fits almost entirely in main memory, then the fastest way
 to perform queries on it is to use hash indexes. InnoDB has an
@@ -38686,7 +38811,7 @@ databases.
 
 
 @node InnoDB Physical record,  , InnoDB Adaptive hash, Table and index
-@subsubsection Physical record structure
+@subsubsection Physical Record Structure
 
 @itemize @bullet
 @item
@@ -38709,7 +38834,7 @@ If the total length of the fields in a record is < 128 bytes, then
 the pointer is 1 byte, else 2 bytes.
 @end itemize
 
-@subsubsection How an auto-increment column works in InnoDB
+@subsubsection How an Auto-increment Column Works in InnoDB
 
 After a database startup, when a user first does an insert to a
 table @code{T}
@@ -38718,16 +38843,16 @@ an explicit value for the column, then InnoDB executes @code{SELECT
 MAX(auto-inc-column) FROM T}, and assigns that value incremented
 by one to the the column and the auto-increment counter of the table.
 We say that
-the auto-increment counter for table @code{T} has been initialised.
+the auto-increment counter for table @code{T} has been initialized.
 
-InnoDB follows the same procedure in initialising the auto-increment counter
+InnoDB follows the same procedure in initializing the auto-increment counter
 for a freshly created table.
 
 Note that if the user specifies in an insert the value 0 to the auto-increment
 column, then InnoDB treats the row like the value would not have been
 specified.
 
-After the auto-increment counter has been initialised, if a user inserts
+After the auto-increment counter has been initialized, if a user inserts
 a row where he explicitly specifies the column value, and the value is bigger
 than the current counter value, then the counter is set to the specified
 column value. If the user does not explicitly specify a value, then InnoDB
@@ -38744,12 +38869,12 @@ integer that can be stored in the specified integer type.
 
 
 @node File space management, Error handling, Table and index, InnoDB
-@subsection File space management and disk i/o
+@subsection File Space Management and Disk i/o
 
 @menu
 * InnoDB Disk i/o::             Disk i/o
-* InnoDB File space::           File space management
-* InnoDB File Defragmenting::   Defragmenting a table
+* InnoDB File space::           File Space Management
+* InnoDB File Defragmenting::   Defragmenting a Table
 @end menu
 
 
@@ -38792,7 +38917,7 @@ file size in @code{innodb_data_file_path}. The partition must be
 1000 000 bytes.
 
 @example
-innodb_data_file_path=hdd1:3Gnewraw;hdd2:2Gnewraw
+innodb_data_file_path=hdd1:5Gnewraw;hdd2:2Gnewraw
 @end example
 
 When you start the database again you MUST change the keyword
@@ -38800,10 +38925,10 @@ to @code{raw}. Otherwise InnoDB will write over your
 partition!
 
 @example
-innodb_data_file_path=hdd1:3Graw;hdd2:2Graw
+innodb_data_file_path=hdd1:5Graw;hdd2:2Graw
 @end example
 
-Using a raw disk you can on some Unixes perform non-buffered i/o.
+By using a raw disk you can on some Unixes perform unbuffered i/o.
 
 There are two read-ahead heuristics in InnoDB: sequential read-ahead
 and random read-ahead. In sequential read-ahead InnoDB notices that
@@ -38816,7 +38941,7 @@ reads to the i/o system.
 
 
 @node InnoDB File space, InnoDB File Defragmenting, InnoDB Disk i/o, File space management
-@subsubsection File space management
+@subsubsection File Space Management
 
 The data files you define in the configuration file form the tablespace
 of InnoDB. The files are simply catenated to form the tablespace,
@@ -38864,7 +38989,7 @@ consistent read.
 
 
 @node InnoDB File Defragmenting,  , InnoDB File space, File space management
-@subsubsection Defragmenting a table
+@subsubsection Defragmenting a Table
 
 If there are random insertions or deletions
 in the indexes of a table, the indexes
@@ -38888,13 +39013,13 @@ not occur.
 
 
 @node Error handling, InnoDB restrictions, File space management, InnoDB
-@subsection Error handling
+@subsection Error Handling
 
 The error handling in InnoDB is not always the same as
 specified in the ANSI SQL standards. According to the ANSI
 standard, any error during an SQL statement should cause the
 rollback of that statement. InnoDB sometimes rolls back only
-part of the statement.
+part of the statement, or the whole transaction.
 The following list specifies the error handling of InnoDB.
 
 @itemize @bullet
@@ -38903,9 +39028,9 @@ If you run out of file space in the tablespace,
 you will get the MySQL @code{'Table is full'} error
 and InnoDB rolls back the SQL statement.
 @item
-A transaction deadlock or a timeout in a lock wait will give
-@code{'Table handler error 1000000'} and InnoDB rolls back
-the SQL statement.
+A transaction deadlock or a timeout in a lock wait make InnoDB
+to roll back
+the whole transaction.
 @item
 A duplicate key error only rolls back the insert of that particular row,
 even in a statement like @code{INSERT INTO ... SELECT ...}.
@@ -38921,7 +39046,7 @@ they roll back the corresponding SQL statement.
 
 
 @node InnoDB restrictions, InnoDB contact information, Error handling, InnoDB
-@subsection Restrictions on InnoDB tables
+@subsection Restrictions on InnoDB Tables
 
 @itemize @bullet
 
@@ -38937,7 +39062,7 @@ error:
 CREATE TABLE T (A CHAR(20), B INT, UNIQUE (A(5))) TYPE = InnoDB;
 @end example
 
-If you create a non unique index on a prefix of a column, InnoDB will
+If you create a non-unique index on a prefix of a column, InnoDB will
 create an index over the whole column.
 @item
 @code{INSERT DELAYED} is not supported for InnoDB tables.
@@ -38961,23 +39086,19 @@ A table cannot contain more than 1000 columns.
 deletes all rows, one by one, which is not that fast. In future versions
 of MySQL you can use @code{TRUNCATE} which is fast.
 @item
-Before dropping a database with InnoDB tables one has to drop
-the individual InnoDB tables first.
-@item
 The default database page size in InnoDB is 16 kB. By recompiling the
 code one can set it from 8 kB to 64 kB.
 The maximun row length is slightly less than half of a database page
 in versions <= 3.23.40 of InnoDB. Starting from source
 release 3.23.41 BLOB and
 TEXT columns are allowed to be < 4 GB, the total row length must also be
-< 4 GB. InnoDB does not store fields whose size is <= 30 bytes on separate
+< 4 GB. InnoDB does not store fields whose size is <= 128 bytes on separate
 pages. After InnoDB has modified the row by storing long fields on
-separate pages, the remaining length of the row must be slightly less
-than half a database page.
+separate pages, the remaining length of the row must be less
+than half a database page. The maximun key length is 7000 bytes.
 @item
-The maximum data or log file size is 2 GB or 4 GB depending on how large
-files your operating system supports. Support for > 4 GB files will
-be added to InnoDB in a future version.
+On some operating systems data files must be < 2 GB. The combined
+size of log files must be < 4 GB on 32-bit computers.
 @item
 The maximum tablespace size is 4 billion database pages. This is also
 the maximum size for a table. The minimum tablespace size is 10 MB.
@@ -38985,7 +39106,7 @@ the maximum size for a table. The minimum tablespace size is 10 MB.
 
 
 @node InnoDB contact information,  , InnoDB restrictions, InnoDB
-@subsection InnoDB contact information
+@subsection InnoDB Contact Information
 
 Contact information of Innobase Oy, producer of the InnoDB engine.
 Website: @uref{http://www.innodb.com}. Email:
@@ -39015,7 +39136,7 @@ Finland
 * BDB characteristics::         Characteristics of @code{BDB} tables:
 * BDB TODO::                    Things we need to fix for BDB in the near future:
 * BDB portability::             Operating systems supported by @strong{BDB}
-* BDB errors::                  Errors You May Get When Using BDB Tables
+* BDB errors::                  Errors That May Occur When Using BDB Tables
 @end menu
 
 @node BDB overview, BDB install, BDB, BDB
@@ -39265,7 +39386,7 @@ Max OS X
 
 
 @node BDB errors,  , BDB portability, BDB
-@subsection Errors You May Get When Using BDB Tables
+@subsection Errors That May Occur When Using BDB Tables
 
 @itemize @bullet
 @item
@@ -43728,8 +43849,8 @@ included the thread libraries on the link/compile line.
 * libmysqld overview::          Overview of the Embedded MySQL Server Library
 * libmysqld compiling::         Compiling Programs with @code{libmysqld}
 * libmysqld restrictions::      Restrictions when Using the Embedded MySQL Server
-* libmysqld options::           Using Option files with the Embedded Server
-* libmysqld TODO::              Things left lo do in Embedded Server (TODO)
+* libmysqld options::           Using Option Files with the Embedded Server
+* libmysqld TODO::              Things left to do in Embedded Server (TODO)
 * libmysqld example::           A Simple Embedded Server Example
 * libmysqld licensing::         Licensing the Embedded Server
 @end menu
@@ -44133,13 +44254,301 @@ contains an Eiffel wrapper written by Michael Ravits.
 @chapter Extending MySQL
 
 @menu
+* MySQL internals::             MySQL Internals
 * Adding functions::            Adding New Functions to MySQL
 * Adding procedures::           Adding New Procedures to MySQL
-* MySQL internals::             MySQL Internals
 @end menu
 
 
-@node Adding functions, Adding procedures, Extending MySQL, Extending MySQL
+@node MySQL internals, Adding functions, Extending MySQL, Extending MySQL
+@section MySQL Internals
+
+@cindex internals
+@cindex threads
+
+This chapter describes a lot of things that you need to know when
+working on the MySQL code. If you plan to contribute to MySQL
+development, want to have access to the bleeding-edge in-between
+versions code, or just want to keep track of development, follow the
+instructions in @xref{Installing source tree}.
+If you are interested in MySQL internals, you should also subscribe
+to our @code{internals} mailing list. This list is relatively low
+traffic. For details on how to subscribe, please see
+@ref{Mailing-list}.
+All developers at MySQL AB are on the @code{internals} list and we
+help other people who are working on the MySQL code. Feel free to
+use this list both to ask questions about the code and to send
+patches that you would like to contribute to the MySQL project!
+
+@menu
+* MySQL threads::               MySQL threads
+* MySQL test suite::            MySQL test suite
+@end menu
+
+
+@node MySQL threads, MySQL test suite, MySQL internals, MySQL internals
+@subsection MySQL Threads
+
+The MySQL server creates the following threads:
+
+@itemize @bullet
+
+@item
+The TCP/IP connection thread handles all connection requests and
+creates a new dedicated thread to handle the authentication and
+and SQL query processing for each connection.
+
+@item
+On Windows NT there is a named pipe handler thread that does the same work as
+the TCP/IP connection thread on named pipe connect requests.
+
+@item
+The signal thread handles all signals.  This thread also normally handles
+alarms and calls @code{process_alarm()} to force timeouts on connections
+that have been idle too long.
+
+@item
+If @code{mysqld} is compiled with @code{-DUSE_ALARM_THREAD}, a dedicated 
+thread that handles alarms is created.  This is only used on some systems where
+there are problems with @code{sigwait()} or if one wants to use the
+@code{thr_alarm()} code in ones application without a dedicated signal
+handling thread.
+
+@item
+If one uses the @code{--flush_time=#} option, a dedicated thread is created
+to flush all tables at the given interval.
+
+@item
+Every connection has its own thread.
+
+@item
+Every different table on which one uses @code{INSERT DELAYED} gets its
+own thread.
+
+@item
+If you use @code{--master-host}, a slave replication thread will be
+started to read and apply updates from the master.
+@end itemize
+
+@code{mysqladmin processlist} only shows the connection, @code{INSERT DELAYED},
+and replication threads.
+
+
+@node MySQL test suite,  , MySQL threads, MySQL internals
+@subsection MySQL Test Suite
+
+@cindex mysqltest, MySQL Test Suite
+@cindex testing mysqld, mysqltest
+
+Until recently, our main full-coverage test suite was based on proprietary 
+customer data and for that reason has not been publicly available. The only 
+publicly available part of our testing process consisted of the @code{crash-me}
+test, a Perl DBI/DBD benchmark found in the @code{sql-bench} directory, and 
+miscellaneous tests located in @code{tests} directory. The lack of a 
+standardised publicly available test suite has made it difficult for our users,
+as well developers, to do regression tests on the MySQL code. To 
+address this problem, we have created a new test system that is included in
+the source and binary distributions starting in Version 3.23.29.
+
+The current set of test cases doesn't test everything in MySQL, but it
+should catch most obvious bugs in the SQL processing code, OS/library
+issues, and is quite thorough in testing replication.  Our eventual goal
+is to have the tests cover 100% of the code.  We welcome contributions
+to our test suite.  You may especially want to contribute tests that
+examine the functionality critical to your system, as this will ensure
+that all future MySQL releases will work well with your
+applications.
+
+@menu
+* running mysqltest::           Running the MySQL Test Suite
+* extending mysqltest::         Extending the MySQL Test Suite
+* Reporting mysqltest bugs::    Reporting Bugs in the MySQL Test Suite
+@end menu
+
+
+@node running mysqltest, extending mysqltest, MySQL test suite, MySQL test suite
+@subsubsection Running the MySQL Test Suite
+
+The test system consist of a test language interpreter
+(@code{mysqltest}), a shell script to run all
+tests(@code{mysql-test-run}), the actual test cases written in a special
+test language, and their expected results.  To run the test suite on
+your system after a build, type @code{make test} or
+@code{mysql-test/mysql-test-run} from the source root.  If you have
+installed a binary distribution, @code{cd} to the install root
+(eg. @code{/usr/local/mysql}), and do @code{scripts/mysql-test-run}.
+All tests should succeed.  If not, you should try to find out why and
+report the problem if this is a bug in MySQL.
+@xref{Reporting mysqltest bugs}.
+
+If you have a copy of @code{mysqld} running on the machine where you want to
+run the test suite you do not have to stop it, as long as it is not using
+ports @code{9306} and @code{9307}.  If one of those ports is taken, you should
+edit @code{mysql-test-run} and change the values of the master and/or slave
+port to one that is available.
+
+You can run one individual test case with
+@code{mysql-test/mysql-test-run test_name}.
+
+If one test fails, you should test running @code{mysql-test-run} with
+the @code{--force} option to check if any other tests fails.
+
+
+@node extending mysqltest, Reporting mysqltest bugs, running mysqltest, MySQL test suite
+@subsubsection Extending the MySQL Test Suite
+
+You can use the @code{mysqltest} language to write your own test cases.
+Unfortunately, we have not yet written full documentation for it - we plan to
+do this shortly.  You can, however, look at our current test cases and use 
+them as an example.  The following points should help you get started:
+
+@itemize @bullet
+@item
+The tests are located in @code{mysql-test/t/*.test}
+
+@item
+A test case consists of @code{;} terminated statements and is similar to the
+input of @code{mysql} command line client.  A statement by default is a query
+to be sent to MySQL server, unless it is recognised as internal
+command (eg. @code{sleep}).
+
+@item
+All queries that produce results, e.g. @code{SELECT}, @code{SHOW},
+@code{EXPLAIN}, etc., must be preceded with @code{@@/path/to/result/file}.  The
+file must contain the expected results.  An easy way to generate the result 
+file is to run @code{mysqltest -r < t/test-case-name.test} from 
+@code{mysql-test} directory, and then edit the generated result files, if 
+needed, to adjust them to the expected output.  In that case, be very careful 
+about not adding or deleting any invisible characters - make sure to only 
+change the text and/or delete lines.  If you have to insert a line, make sure
+the fields are separated with a hard tab, and there is a hard tab at the end.  
+You may want to use @code{od -c} to make sure your text editor has not messed 
+anything up during edit.  We, of course, hope that you will never have to edit
+the output of @code{mysqltest -r} as you only have to do it when you find a 
+bug.
+
+@item
+To be consistent with our setup, you should put your result files in
+@code{mysql-test/r} directory and name them @code{test_name.result}.  If the
+test produces more than one result, you should use @code{test_name.a.result},
+@code{test_name.b.result}, etc.
+
+@item
+If a statement returns an error, you should on the line before the statement
+specify with the @code{--error error-number}.  The error number can be
+a list of possible error numbers separated with @code{','}.
+
+@item
+If you are writing a replication test case, you should on the first line of
+the test file, put @code{source include/master-slave.inc;}.  To switch between
+master and slave, use @code{connection master;} and @code{connection slave;}. 
+If you need to do something on an alternate connection, you can do 
+@code{connection master1;} for the master, and @code{connection slave1;} for
+the slave.
+
+@item
+If you need to do something in a loop, you can use something like this:
+@example
+let $1=1000;
+while ($1)
+@{
+ # do your queries here
+ dec $1;
+@}
+@end example
+
+@item
+To sleep between queries, use the @code{sleep} command. It supports fractions
+of a second, so you can do @code{sleep 1.3;}, for example, to sleep 1.3 
+seconds.
+
+@item
+To run the slave with additional options for your test case, put them
+in the command-line format in @code{mysql-test/t/test_name-slave.opt}. For
+the master, put them in @code{mysql-test/t/test_name-master.opt}.
+
+@item
+If you have a question about the test suite, or have a test case to contribute,
+e-mail to @email{internals@@lists.mysql.com}. As the list does not accept 
+attachments, you should ftp all the relevant files to:
+@uref{ftp://support.mysql.com/pub/mysql/Incoming}
+
+@end itemize
+
+
+@node Reporting mysqltest bugs,  , extending mysqltest, MySQL test suite
+@subsubsection Reporting Bugs in the MySQL Test Suite
+
+If your MySQL version doesn't pass the test suite you should
+do the following:
+
+@itemize @bullet
+@item
+Don't send a bug report before you have found out as much as possible of
+what when wrong!  When you do it, please use the @code{mysqlbug} script
+so that we can get information about your system and @code{MySQL}
+version. @xref{Bug reports}.
+@item
+Make sure to include the output of @code{mysql-test-run}, as well as
+contents of all @code{.reject} files in @code{mysql-test/r} directory.
+@item
+If a test in the test suite fails, check if the test fails also when run
+by its own:
+
+@example
+cd mysql-test
+mysql-test-run --local test-name
+@end example
+
+If this fails, then you should configure MySQL with
+@code{--with-debug} and run @code{mysql-test-run} with the
+@code{--debug} option. If this also fails send the trace file
+@file{var/tmp/master.trace} to ftp://support.mysql.com/pub/mysql/secret
+so that we can examine it. Please remember to also include a full
+description of your system, the version of the mysqld binary and how you
+compiled it.
+
+@item
+Try also to run @code{mysql-test-run} with the @code{--force} option to
+see if there is any other test that fails.
+
+@item
+If you have compiled MySQL yourself, check our manual for how
+to compile MySQL on your platform or, preferable, use one of
+the binaries we have compiled for you at
+@uref{http://www.mysql.com/downloads/}.  All our standard binaries should
+pass the test suite !
+
+@item
+If you get an error, like @code{Result length mismatch} or @code{Result
+content mismatch} it means that the output of the test didn't match
+exactly the expected output. This could be a bug in MySQL or
+that your mysqld version produces slight different results under some
+circumstances.
+
+Failed test results are put in a file with the same base name as the
+result file with the @code{.reject} extension.  If your test case is
+failing, you should do a diff on the two files.  If you cannot see how
+they are different, examine both with @code{od -c} and also check their
+lengths.
+
+@item
+If a test fails totally, you should check the logs file in the
+@code{mysql-test/var/log} directory for hints of what went wrong.
+
+@item
+If you have compiled MySQL with debugging you can try to debug this
+by running @code{mysql-test-run} with the @code{--gdb} and/or @code{--debug}
+options.
+@xref{Making trace files}.
+
+If you have not compiled MySQL for debugging you should probably
+do that.  Just specify the @code{--with-debug} options to @code{configure}!
+@xref{Installing source}.
+@end itemize
+
+
+@node Adding functions, Adding procedures, MySQL internals, Extending MySQL
 @section Adding New Functions to MySQL
 
 @cindex functions, new
@@ -44785,7 +45194,7 @@ absolutely necessary!
 @end itemize
 
 
-@node Adding procedures, MySQL internals, Adding functions, Extending MySQL
+@node Adding procedures,  , Adding functions, Extending MySQL
 @section Adding New Procedures to MySQL
 
 @cindex procedures, adding
@@ -44847,291 +45256,6 @@ You can find all information about procedures by examining the following files:
 @end itemize
 
 
-@node MySQL internals,  , Adding procedures, Extending MySQL
-@section MySQL Internals
-
-@cindex internals
-@cindex threads
-
-This chapter describes a lot of things that you need to know when
-working on the MySQL code. If you plan to contribute to MySQL
-development, want to have access to the bleeding-edge in-between
-versions code, or just want to keep track of development, follow the
-instructions in @xref{Installing source tree}.  If you are interested in MySQL
-internals, you should also subscribe to @email{internals@@lists.mysql.com}.
-This is a relatively low traffic list, in comparison with 
-@email{mysql@@lists.mysql.com}.
-
-@menu
-* MySQL threads::               MySQL threads
-* MySQL test suite::            MySQL test suite
-@end menu
-
-
-@node MySQL threads, MySQL test suite, MySQL internals, MySQL internals
-@subsection MySQL Threads
-
-The MySQL server creates the following threads:
-
-@itemize @bullet
-
-@item
-The TCP/IP connection thread handles all connection requests and
-creates a new dedicated thread to handle the authentication and
-and SQL query processing for each connection.
-
-@item
-On Windows NT there is a named pipe handler thread that does the same work as
-the TCP/IP connection thread on named pipe connect requests.
-
-@item
-The signal thread handles all signals.  This thread also normally handles
-alarms and calls @code{process_alarm()} to force timeouts on connections
-that have been idle too long.
-
-@item
-If @code{mysqld} is compiled with @code{-DUSE_ALARM_THREAD}, a dedicated 
-thread that handles alarms is created.  This is only used on some systems where
-there are problems with @code{sigwait()} or if one wants to use the
-@code{thr_alarm()} code in ones application without a dedicated signal
-handling thread.
-
-@item
-If one uses the @code{--flush_time=#} option, a dedicated thread is created
-to flush all tables at the given interval.
-
-@item
-Every connection has its own thread.
-
-@item
-Every different table on which one uses @code{INSERT DELAYED} gets its
-own thread.
-
-@item
-If you use @code{--master-host}, a slave replication thread will be
-started to read and apply updates from the master.
-@end itemize
-
-@code{mysqladmin processlist} only shows the connection, @code{INSERT DELAYED},
-and replication threads.
-
-
-@node MySQL test suite,  , MySQL threads, MySQL internals
-@subsection MySQL Test Suite
-
-@cindex mysqltest, MySQL Test Suite
-@cindex testing mysqld, mysqltest
-
-Until recently, our main full-coverage test suite was based on proprietary 
-customer data and for that reason has not been publicly available. The only 
-publicly available part of our testing process consisted of the @code{crash-me}
-test, a Perl DBI/DBD benchmark found in the @code{sql-bench} directory, and 
-miscellaneous tests located in @code{tests} directory. The lack of a 
-standardised publicly available test suite has made it difficult for our users,
-as well developers, to do regression tests on the MySQL code. To 
-address this problem, we have created a new test system that is included in
-the source and binary distributions starting in Version 3.23.29.
-
-The current set of test cases doesn't test everything in MySQL, but it
-should catch most obvious bugs in the SQL processing code, OS/library
-issues, and is quite thorough in testing replication.  Our eventual goal
-is to have the tests cover 100% of the code.  We welcome contributions
-to our test suite.  You may especially want to contribute tests that
-examine the functionality critical to your system, as this will ensure
-that all future MySQL releases will work well with your
-applications.
-
-@menu
-* running mysqltest::           Running the MySQL Test Suite
-* extending mysqltest::         Extending the MySQL Test Suite
-* Reporting mysqltest bugs::    Reporting Bugs in the MySQL Test Suite
-@end menu
-
-
-@node running mysqltest, extending mysqltest, MySQL test suite, MySQL test suite
-@subsubsection Running the MySQL Test Suite
-
-The test system consist of a test language interpreter
-(@code{mysqltest}), a shell script to run all
-tests(@code{mysql-test-run}), the actual test cases written in a special
-test language, and their expected results.  To run the test suite on
-your system after a build, type @code{make test} or
-@code{mysql-test/mysql-test-run} from the source root.  If you have
-installed a binary distribution, @code{cd} to the install root
-(eg. @code{/usr/local/mysql}), and do @code{scripts/mysql-test-run}.
-All tests should succeed.  If not, you should try to find out why and
-report the problem if this is a bug in MySQL.
-@xref{Reporting mysqltest bugs}.
-
-If you have a copy of @code{mysqld} running on the machine where you want to
-run the test suite you do not have to stop it, as long as it is not using
-ports @code{9306} and @code{9307}.  If one of those ports is taken, you should
-edit @code{mysql-test-run} and change the values of the master and/or slave
-port to one that is available.
-
-You can run one individual test case with
-@code{mysql-test/mysql-test-run test_name}.
-
-If one test fails, you should test running @code{mysql-test-run} with
-the @code{--force} option to check if any other tests fails.
-
-
-@node extending mysqltest, Reporting mysqltest bugs, running mysqltest, MySQL test suite
-@subsubsection Extending the MySQL Test Suite
-
-You can use the @code{mysqltest} language to write your own test cases.
-Unfortunately, we have not yet written full documentation for it - we plan to
-do this shortly.  You can, however, look at our current test cases and use 
-them as an example.  The following points should help you get started:
-
-@itemize @bullet
-@item
-The tests are located in @code{mysql-test/t/*.test}
-
-@item
-A test case consists of @code{;} terminated statements and is similar to the
-input of @code{mysql} command line client.  A statement by default is a query
-to be sent to MySQL server, unless it is recognised as internal
-command (eg. @code{sleep}).
-
-@item
-All queries that produce results, e.g. @code{SELECT}, @code{SHOW},
-@code{EXPLAIN}, etc., must be preceded with @code{@@/path/to/result/file}.  The
-file must contain the expected results.  An easy way to generate the result 
-file is to run @code{mysqltest -r < t/test-case-name.test} from 
-@code{mysql-test} directory, and then edit the generated result files, if 
-needed, to adjust them to the expected output.  In that case, be very careful 
-about not adding or deleting any invisible characters - make sure to only 
-change the text and/or delete lines.  If you have to insert a line, make sure
-the fields are separated with a hard tab, and there is a hard tab at the end.  
-You may want to use @code{od -c} to make sure your text editor has not messed 
-anything up during edit.  We, of course, hope that you will never have to edit
-the output of @code{mysqltest -r} as you only have to do it when you find a 
-bug.
-
-@item
-To be consistent with our setup, you should put your result files in
-@code{mysql-test/r} directory and name them @code{test_name.result}.  If the
-test produces more than one result, you should use @code{test_name.a.result},
-@code{test_name.b.result}, etc.
-
-@item
-If a statement returns an error, you should on the line before the statement
-specify with the @code{--error error-number}.  The error number can be
-a list of possible error numbers separated with @code{','}.
-
-@item
-If you are writing a replication test case, you should on the first line of
-the test file, put @code{source include/master-slave.inc;}.  To switch between
-master and slave, use @code{connection master;} and @code{connection slave;}. 
-If you need to do something on an alternate connection, you can do 
-@code{connection master1;} for the master, and @code{connection slave1;} for
-the slave.
-
-@item
-If you need to do something in a loop, you can use something like this:
-@example
-let $1=1000;
-while ($1)
-@{
- # do your queries here
- dec $1;
-@}
-@end example
-
-@item
-To sleep between queries, use the @code{sleep} command. It supports fractions
-of a second, so you can do @code{sleep 1.3;}, for example, to sleep 1.3 
-seconds.
-
-@item
-To run the slave with additional options for your test case, put them
-in the command-line format in @code{mysql-test/t/test_name-slave.opt}. For
-the master, put them in @code{mysql-test/t/test_name-master.opt}.
-
-@item
-If you have a question about the test suite, or have a test case to contribute,
-e-mail to @email{internals@@lists.mysql.com}. As the list does not accept 
-attachments, you should ftp all the relevant files to:
-@uref{ftp://support.mysql.com/pub/mysql/Incoming}
-
-@end itemize
-
-
-@node Reporting mysqltest bugs,  , extending mysqltest, MySQL test suite
-@subsubsection Reporting Bugs in the MySQL Test Suite
-
-If your MySQL version doesn't pass the test suite you should
-do the following:
-
-@itemize @bullet
-@item
-Don't send a bug report before you have found out as much as possible of
-what when wrong!  When you do it, please use the @code{mysqlbug} script
-so that we can get information about your system and @code{MySQL}
-version. @xref{Bug reports}.
-@item
-Make sure to include the output of @code{mysql-test-run}, as well as
-contents of all @code{.reject} files in @code{mysql-test/r} directory.
-@item
-If a test in the test suite fails, check if the test fails also when run
-by its own:
-
-@example
-cd mysql-test
-mysql-test-run --local test-name
-@end example
-
-If this fails, then you should configure MySQL with
-@code{--with-debug} and run @code{mysql-test-run} with the
-@code{--debug} option. If this also fails send the trace file
-@file{var/tmp/master.trace} to ftp://support.mysql.com/pub/mysql/secret
-so that we can examine it. Please remember to also include a full
-description of your system, the version of the mysqld binary and how you
-compiled it.
-
-@item
-Try also to run @code{mysql-test-run} with the @code{--force} option to
-see if there is any other test that fails.
-
-@item
-If you have compiled MySQL yourself, check our manual for how
-to compile MySQL on your platform or, preferable, use one of
-the binaries we have compiled for you at
-@uref{http://www.mysql.com/downloads/}.  All our standard binaries should
-pass the test suite !
-
-@item
-If you get an error, like @code{Result length mismatch} or @code{Result
-content mismatch} it means that the output of the test didn't match
-exactly the expected output. This could be a bug in MySQL or
-that your mysqld version produces slight different results under some
-circumstances.
-
-Failed test results are put in a file with the same base name as the
-result file with the @code{.reject} extension.  If your test case is
-failing, you should do a diff on the two files.  If you cannot see how
-they are different, examine both with @code{od -c} and also check their
-lengths.
-
-@item
-If a test fails totally, you should check the logs file in the
-@code{mysql-test/var/log} directory for hints of what went wrong.
-
-@item
-If you have compiled MySQL with debugging you can try to debug this
-by running @code{mysql-test-run} with the @code{--gdb} and/or @code{--debug}
-options.
-@xref{Making trace files}.
-
-If you have not compiled MySQL for debugging you should probably
-do that.  Just specify the @code{--with-debug} options to @code{configure}!
-@xref{Installing source}.
-@end itemize
-
-
-
-
 @node Problems, Users, Extending MySQL, Top
 @appendix Problems and Common Errors
 
@@ -45140,7 +45264,7 @@ do that.  Just specify the @code{--with-debug} options to @code{configure}!
 
 @menu
 * What is crashing::            How to determine what is causing problems
-* Common errors::               Common errors when using MySQL
+* Common errors::               Common Errors When Using MySQL
 * Installation Issues::         Installation Related Issues
 * Administration Issues::       Administration Related Issues
 * Query Issues::                Query Related Issues
@@ -48409,14 +48533,15 @@ record format.
 Win32 port with Borland compiler.  @code{mysqlshutdown.exe} and
 @code{mysqlwatch.exe}
 @item David J. Hughes
-For the effort to make a shareware SQL database. We at TcX started with
-@code{mSQL}, but found that it couldn't satisfy our purposes so instead we
-wrote a SQL interface to our application builder Unireg.  @code{mysqladmin}
-and @code{mysql} are programs that were largely influenced by their
-@code{mSQL} counterparts. We have put a lot of effort into making the
-MySQL syntax a superset of @code{mSQL}. Many of the API's ideas are
-borrowed from @code{mSQL} to make it easy to port free @code{mSQL} programs
-to MySQL. MySQL doesn't contain any code from @code{mSQL}.
+For the effort to make a shareware SQL database. At TcX, the predecessor
+of MySQL AB, we started with @code{mSQL}, but found that it couldn't
+satisfy our purposes so instead we wrote a SQL interface to our
+application builder Unireg.  @code{mysqladmin} and @code{mysql} ar
+ programs that were largely influenced by their @code{mSQL} counterparts.
+We have put a lot of effort into making the MySQL syntax a superset of
+@code{mSQL}. Many of the API's ideas are borrowed from @code{mSQL} to
+make it easy to port free @code{mSQL} programs to MySQL.
+MySQL doesn't contain any code from @code{mSQL}.
 Two files in the distribution (@file{client/insert_test.c} and
 @file{client/select_test.c}) are based on the corresponding (non-copyrighted)
 files in the @code{mSQL} distribution, but are modified as examples showing
@@ -48435,7 +48560,7 @@ From whom we got an excellent compiler (@code{gcc}), the @code{libc} library
 and the @code{readline} library (for the @code{mysql} client).
 @item Free Software Foundation & The XEmacs development team
 For a really great editor/environment used by almost everybody at
-TcX/MySQL AB/detron.
+MySQL AB/TcX/detron.
 @item Patrick Lynch
 For helping us acquire @uref{http://www.mysql.com/}.
 @item Fred Lindberg

@@ -60,7 +60,6 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
     vio->vioclose	=vio_ssl_close;
     vio->peer_addr	=vio_ssl_peer_addr;
     vio->in_addr	=vio_ssl_in_addr;
-    vio->poll_read	=vio_ssl_poll_read;
     vio->vioblocking	=vio_blocking;
     vio->is_blocking	=vio_is_blocking;
   }
@@ -77,7 +76,6 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
     vio->vioclose	=vio_close;
     vio->peer_addr	=vio_peer_addr;
     vio->in_addr	=vio_in_addr;
-    vio->poll_read	=vio_poll_read;
     vio->vioblocking	=vio_blocking;
     vio->is_blocking	=vio_is_blocking;
   }
