@@ -219,7 +219,7 @@ const char *sql_mode_names[] =
   "NO_AUTO_VALUE_ON_ZERO", NullS
 };
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
-			    sql_mode_names };
+			    sql_mode_names, NULL };
 const char *first_keyword= "first", *binary_keyword= "BINARY";
 const char *my_localhost= "localhost", *delayed_user= "DELAYED";
 #if SIZEOF_OFF_T > 4 && defined(BIG_TABLES)

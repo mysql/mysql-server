@@ -812,6 +812,7 @@ extern bool check_reserved_words(LEX_STRING *name);
 ulonglong find_set(TYPELIB *typelib,const char *x, uint length,
 		   char **err_pos, uint *err_len, bool *set_warning);
 uint find_type(TYPELIB *lib, const char *find, uint length, bool part_match);
+uint find_type2(TYPELIB *lib, const char *find, uint length, CHARSET_INFO *cs);
 uint check_word(TYPELIB *lib, const char *val, const char *end,
 		const char **end_of_word);
 

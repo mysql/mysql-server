@@ -107,7 +107,7 @@ const char *tx_isolation_names[] =
 { "READ-UNCOMMITTED", "READ-COMMITTED", "REPEATABLE-READ", "SERIALIZABLE",
   NullS};
 TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
-			       tx_isolation_names};
+			       tx_isolation_names, NULL};
 
 enum db_type ha_resolve_by_name(const char *name, uint namelen)
 {
