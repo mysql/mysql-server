@@ -22,7 +22,6 @@
 #endif
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "slave.h"				// for wait_for_master_pos
 #include <m_ctype.h>
 #include <hash.h>

@@ -309,6 +309,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       HA_KEYSEG *pos=share->keyparts;
       for (i=0 ; i < keys ; i++)
       {
+        share->keyinfo[i].share= share;
 	disk_pos=mi_keydef_read(disk_pos, &share->keyinfo[i]);
         disk_pos_assert(disk_pos + share->keyinfo[i].keysegs * HA_KEYSEG_SIZE,
  			end_pos);
@@ -1236,7 +1237,7 @@ int mi_enable_indexes(MI_INFO *info)
   if (share->state.state.data_file_length ||
       (share->state.state.key_file_length != share->base.keystart))
   {
-    mi_print_error(info, HA_ERR_CRASHED);
+    mi_print_error(info->s, HA_ERR_CRASHED);
     error= HA_ERR_CRASHED;
   }
   else
