@@ -788,7 +788,7 @@ frm_type_enum mysql_frm_type(char *path)
   {
     DBUG_RETURN(FRMTYPE_ERROR);
   }
-  if (my_read(file, header, 10, MYF(MY_WME)) == MY_FILE_ERROR)
+  if (my_read(file, (byte*) header, 10, MYF(MY_WME)) == MY_FILE_ERROR)
   {
     my_close(file, MYF(MY_WME));
     DBUG_RETURN(FRMTYPE_ERROR);
