@@ -289,7 +289,7 @@ select sub3((select max(i) from t2))|
 drop procedure sub1|
 #drop procedure sub2|
 drop function sub3|
-
+delete from t2|
 
 # Basic tests of the flow control constructs
 
@@ -462,6 +462,30 @@ delete from t1|
 drop procedure i|
 
 
+# SELECT with one of more result set sent back to the clinet
+insert into t1 values ("foo", 3), ("bar", 19)|
+insert into t2 values ("x", 9, 4.1), ("y", -1, 19.2), ("z", 3, 2.2)|
+
+create procedure sel1()
+begin
+  select * from t1;
+end|
+
+call sel1()|
+drop procedure sel1|
+
+create procedure sel2()
+begin
+  select * from t1;
+  select * from t2;
+end|
+
+call sel2()|
+drop procedure sel2|
+delete from t1|
+delete from t2|
+
+
 # SELECT INTO local variables
 create procedure into_test(x char(16), y int)
 begin
@@ -501,7 +525,6 @@ begin
 end|
 
 insert into t1 values ("into3", 19)|
-delete from t2|
 # Two call needed for bug test
 call into_test3()|
 call into_test3()|

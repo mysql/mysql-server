@@ -5,7 +5,7 @@ key1 int not null,
 key2 int not null, 
 INDEX i1(key1),
 INDEX i2(key2),
-) type=innodb;
+) engine=innodb;
 explain select * from t1 where key1 < 5 or key2 > 197;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	8	Using where

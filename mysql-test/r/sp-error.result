@@ -1,110 +1,102 @@
 delete from mysql.proc;
-create procedure syntaxerror(t int);
+create procedure syntaxerror(t int)|
 ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
-create procedure syntaxerror(t int);
+create procedure syntaxerror(t int)|
 ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
-create procedure syntaxerror(t int);
+create procedure syntaxerror(t int)|
 ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 create procedure proc1()
-set @x = 42;
+set @x = 42|
 create function func1() returns int
-return 42;
+return 42|
 create procedure foo()
-create procedure bar() set @x=3;
+create procedure bar() set @x=3|
 ERROR 2F003: Can't create a PROCEDURE from within another stored routine
 create procedure foo()
-create function bar() returns double return 2.3;
+create function bar() returns double return 2.3|
 ERROR 2F003: Can't create a FUNCTION from within another stored routine
 create procedure proc1()
-set @x = 42;
+set @x = 42|
 ERROR 42000: PROCEDURE proc1 already exists
 create function func1() returns int
-return 42;
+return 42|
 ERROR 42000: FUNCTION func1 already exists
-drop procedure proc1;
-drop function func1;
-alter procedure foo;
+drop procedure proc1|
+drop function func1|
+alter procedure foo|
 ERROR 42000: PROCEDURE foo does not exist
-alter function foo;
+alter function foo|
 ERROR 42000: FUNCTION foo does not exist
-drop procedure foo;
+drop procedure foo|
 ERROR 42000: PROCEDURE foo does not exist
-drop function foo;
+drop function foo|
 ERROR 42000: FUNCTION foo does not exist
-call foo();
+call foo()|
 ERROR 42000: PROCEDURE foo does not exist
-drop procedure if exists foo;
+drop procedure if exists foo|
 Warnings:
-Warning	1288	PROCEDURE foo does not exist
-show create procedure foo;
+Warning	1289	PROCEDURE foo does not exist
+show create procedure foo|
 ERROR 42000: PROCEDURE foo does not exist
 create procedure foo()
 foo: loop
 leave bar;
-end loop;
+end loop|
 ERROR 42000: LEAVE with no matching label: bar
 create procedure foo()
 foo: loop
 iterate bar;
-end loop;
+end loop|
 ERROR 42000: ITERATE with no matching label: bar
 create procedure foo()
 foo: begin
 iterate foo;
-end;
+end|
 ERROR 42000: ITERATE with no matching label: foo
 create procedure foo()
 foo: loop
 foo: loop
 set @x=2;
 end loop foo;
-end loop foo;
+end loop foo|
 ERROR 42000: Redefining label foo
 create procedure foo()
 foo: loop
 set @x=2;
-end loop bar;
+end loop bar|
 ERROR 42000: End-label bar without match
 create procedure foo(out x int)
 begin
 declare y int;
 set x = y;
-end;
+end|
 Warnings:
-Warning	1294	Referring to uninitialized variable y
-drop procedure foo;
+Warning	1295	Referring to uninitialized variable y
+drop procedure foo|
 create procedure foo()
-begin
-select name from mysql.proc;
-select type from mysql.proc;
-end;
-call foo();
-ERROR 0A000: SELECT in a stored procedure must have INTO
-drop procedure foo;
-create procedure foo()
-return 42;
+return 42|
 ERROR 42000: RETURN is only allowed in a FUNCTION
 create function foo() returns int
 begin
 declare x int;
 select max(c) into x from test.t;
 return x;
-end;
+end|
 ERROR 0A000: Statements like SELECT, INSERT, UPDATE (and others) are not allowed in a FUNCTION
 create procedure p(x int)
-insert into test.t1 values (x);
+insert into test.t1 values (x)|
 create function f(x int) returns int
-return x+42;
-call p();
+return x+42|
+call p()|
 ERROR 42000: Wrong number of arguments for PROCEDURE p, expected 1, got 0
-call p(1, 2);
+call p(1, 2)|
 ERROR 42000: Wrong number of arguments for PROCEDURE p, expected 1, got 2
-select f();
+select f()|
 ERROR 42000: Wrong number of arguments for FUNCTION f, expected 1, got 0
-select f(1, 2);
+select f(1, 2)|
 ERROR 42000: Wrong number of arguments for FUNCTION f, expected 1, got 2
-drop procedure p;
-drop function f;
+drop procedure p|
+drop function f|
 create procedure p(val int, out res int)
 begin
 declare x int default 0;
@@ -115,7 +107,7 @@ set res = 0;
 else
 set res = 1;
 end if;
-end;
+end|
 ERROR 42000: Undefined CONDITION: foo
 create procedure p(val int, out res int)
 begin
@@ -128,13 +120,13 @@ set res = 0;
 else
 set res = 1;
 end if;
-end;
+end|
 ERROR 42000: Undefined CONDITION: bar
 create function f(val int) returns int
 begin
 declare x int;
 set x = val+3;
-end;
+end|
 ERROR 42000: No RETURN found in FUNCTION f
 create function f(val int) returns int
 begin
@@ -143,16 +135,16 @@ set x = val+3;
 if x < 4 then
 return x;
 end if;
-end;
-select f(10);
+end|
+select f(10)|
 ERROR 2F005: FUNCTION f ended without RETURN
-drop function f;
+drop function f|
 create procedure p()
 begin
 declare c cursor for insert into test.t1 values ("foo", 42);
 open c;
 close c;
-end;
+end|
 ERROR 42000: Cursor statement must be a SELECT
 create procedure p()
 begin
@@ -160,46 +152,46 @@ declare x int;
 declare c cursor for select * into x from test.t limit 1;
 open c;
 close c;
-end;
+end|
 ERROR 42000: Cursor SELECT must not have INTO
 create procedure p()
 begin
 declare c cursor for select * from test.t;
 open cc;
 close c;
-end;
+end|
 ERROR 42000: Undefined CURSOR: cc
-drop table if exists t1;
-create table t1 (val int);
+drop table if exists t1|
+create table t1 (val int)|
 create procedure p()
 begin
 declare c cursor for select * from test.t1;
 open c;
 open c;
 close c;
-end;
-call p();
+end|
+call p()|
 ERROR 24000: Cursor is already open
-drop procedure p;
+drop procedure p|
 create procedure p()
 begin
 declare c cursor for select * from test.t1;
 open c;
 close c;
 close c;
-end;
-call p();
+end|
+call p()|
 ERROR 24000: Cursor is not open
-drop procedure p;
-alter procedure bar3 sql security invoker;
+drop procedure p|
+alter procedure bar3 sql security invoker|
 ERROR 42000: PROCEDURE bar3 does not exist
 alter procedure bar3 name
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA;
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|
 ERROR 42000: Identifier name 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' is too long
-drop table t1;
-drop table if exists t1;
-create table t1 (val int, x float);
-insert into t1 values (42, 3.1), (19, 1.2);
+drop table t1|
+drop table if exists t1|
+create table t1 (val int, x float)|
+insert into t1 values (42, 3.1), (19, 1.2)|
 create procedure p()
 begin
 declare c cursor for select * from t1;
@@ -207,7 +199,7 @@ declare x int;
 open c;
 fetch c into x, y;
 close c;
-end;
+end|
 ERROR 42000: Undeclared variable: y
 create procedure p()
 begin
@@ -216,10 +208,10 @@ declare x int;
 open c;
 fetch c into x;
 close c;
-end;
-call p();
+end|
+call p()|
 ERROR HY000: Wrong number of FETCH variables
-drop procedure p;
+drop procedure p|
 create procedure p()
 begin
 declare c cursor for select * from t1;
@@ -229,66 +221,66 @@ declare z int;
 open c;
 fetch c into x, y, z;
 close c;
-end;
-call p();
+end|
+call p()|
 ERROR HY000: Wrong number of FETCH variables
-drop procedure p;
+drop procedure p|
 create procedure p(in x int, x char(10))
 begin
-end;
+end|
 ERROR 42000: Duplicate parameter: x
 create function p(x int, x char(10))
 begin
-end;
+end|
 ERROR 42000: Duplicate parameter: x
 create procedure p()
 begin
 declare x float;
 declare x int;
-end;
+end|
 ERROR 42000: Duplicate variable: x
 create procedure p()
 begin
 declare c condition for 1064;
 declare c condition for 1065;
-end;
+end|
 ERROR 42000: Duplicate condition: c
 create procedure p()
 begin
 declare c cursor for select * from t1;
 declare c cursor for select field from t1;
-end;
+end|
 ERROR 42000: Duplicate cursor: c
 create procedure bug1965()
 begin
 declare c cursor for select val from t1 order by valname;
 open c;
 close c;
-end;
-call bug1965();
+end|
+call bug1965()|
 ERROR 42S22: Unknown column 'valname' in 'order clause'
-drop procedure bug1965;
-select 1 into a;
+drop procedure bug1965|
+select 1 into a|
 ERROR 42000: Undeclared variable: a
 create procedure bug336(id char(16))
 begin
 declare x int;
 set x = (select sum(t.data) from test.t2 t);
-end;
+end|
 ERROR 0A000: Subselect value not supported
 create function bug1654()
 returns int
-return (select sum(t.data) from test.t2 t);
+return (select sum(t.data) from test.t2 t)|
 ERROR 0A000: Statements like SELECT, INSERT, UPDATE (and others) are not allowed in a FUNCTION
-drop table if exists table_1;
-create table t3 (column_1_0 int);
+drop table if exists table_1|
+create table t3 (column_1_0 int)|
 create procedure bug1653()
-update t3 set column_1 = 0;
-call bug1653();
+update t3 set column_1 = 0|
+call bug1653()|
 ERROR 42S22: Unknown column 'column_1' in 'field list'
-drop table t3;
-create table t3 (column_1 int);
-call bug1653();
-drop procedure bug1653;
-drop table t3;
-drop table t1;
+drop table t3|
+create table t3 (column_1 int)|
+call bug1653()|
+drop procedure bug1653|
+drop table t3|
+drop table t1|

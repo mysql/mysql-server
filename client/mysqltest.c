@@ -135,8 +135,6 @@ static const char *embedded_server_groups[] = {
   NullS
 };
 
-static char delimiter= DEFAULT_DELIMITER;
-
 DYNAMIC_ARRAY q_lines;
 
 #include "sslopt-vars.h"
@@ -1629,17 +1627,6 @@ int do_while(struct st_query* q)
   return 0;
 }
 
-int do_delimiter(char *p)
-{
-  while (*p && my_isspace(charset_info,*p))
-    p++;
-  if (!*p)
-    die("Missing delimiter character\n");
-  delimiter=*p;
-
-  return 0;
-}
-
 
 my_bool end_of_query(int c, char* p)
 {
@@ -2645,9 +2632,6 @@ int main(int argc, char **argv)
 	do_sync_with_master2("");
 	break;
       }
-      case Q_DELIMITER: 
-	do_delimiter(q->first_argument);
-	break;
       case Q_COMMENT:				/* Ignore row */
       case Q_COMMENT_WITH_COMMAND:
 	break;
