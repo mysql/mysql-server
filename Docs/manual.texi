@@ -50296,6 +50296,12 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed a bug in @code{mysqladmin shutdown} when pid file was modified
+while @code{mysqladmin} was still waiting for the previous one to
+disappear. This could happen during a very quick restart and caused
+@code{mysqladmin} to hang until @code{shutdown_timeout} seconds had
+passed.
+@item
 Don't increment warnings when setting @code{AUTO_INCREMENT} columns to
 @code{NULL} in @code{LOAD DATA INFILE}.
 @item
