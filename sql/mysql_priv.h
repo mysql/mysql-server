@@ -748,7 +748,7 @@ extern my_bool opt_safe_show_db, opt_local_infile, lower_case_table_names;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern my_bool opt_readonly;
 extern my_bool opt_enable_named_pipe;
-extern my_bool opt_old_passwords, use_old_passwords;
+extern my_bool opt_secure_auth;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern bool opt_enable_shared_memory;
 

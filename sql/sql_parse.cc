@@ -204,7 +204,22 @@ static int check_user(THD *thd, enum enum_server_command command,
                       bool check_count)
 {
   DBUG_ENTER("check_user");
-
+  
+  my_bool opt_secure_auth_local;
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  opt_secure_auth_local= opt_secure_auth;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  
+  /*
+    If the server is running in secure auth mode, short scrambles are 
+    forbidden.
+  */
+  if (opt_secure_auth_local && passwd_len == SCRAMBLE_LENGTH_323)
+  {
+    net_printf(thd, ER_NOT_SUPPORTED_AUTH_MODE);
+    mysql_log.write(thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    DBUG_RETURN(-1);
+  }
   if (passwd_len != 0 &&
       passwd_len != SCRAMBLE_LENGTH &&
       passwd_len != SCRAMBLE_LENGTH_323)
@@ -220,9 +235,7 @@ static int check_user(THD *thd, enum enum_server_command command,
   char buff[NAME_LEN + 1]; /* to conditionally save db */
   
   USER_RESOURCES ur;
-  int res= acl_getroot(thd, &ur, passwd, passwd_len,
-                       protocol_version == 9 ||
-                       !(thd->client_capabilities & CLIENT_LONG_PASSWORD));
+  int res= acl_getroot(thd, &ur, passwd, passwd_len);
   if (res == -1)
   {
     /*
@@ -231,6 +244,14 @@ static int check_user(THD *thd, enum enum_server_command command,
       scramble_323()). Here we please client to send scrambled_password
       in old format.
     */
+    if (opt_secure_auth_local)
+    {
+      net_printf(thd, ER_SERVER_IS_IN_SECURE_AUTH_MODE,
+                 thd->user, thd->host_or_ip);
+      mysql_log.write(thd, COM_CONNECT, ER(ER_SERVER_IS_IN_SECURE_AUTH_MODE),
+                      thd->user, thd->host_or_ip);
+      DBUG_RETURN(-1);
+    }
     /* save db because network buffer is to hold new packet */
     if (db)
     {
@@ -247,8 +268,7 @@ static int check_user(THD *thd, enum enum_server_command command,
     }
     /* Final attempt to check the user based on reply */
     /* So as passwd is short, errcode is always >= 0 */
-    res= acl_getroot(thd, &ur, (char *) net->read_pos, SCRAMBLE_LENGTH_323,
-                     false);
+    res= acl_getroot(thd, &ur, (char *) net->read_pos, SCRAMBLE_LENGTH_323);
   }
   /* here res is always >= 0 */
   if (res == 0)
