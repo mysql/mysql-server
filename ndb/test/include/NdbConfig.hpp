@@ -17,29 +17,22 @@
 #ifndef NDBT_CONFIG_HPP
 #define NDBT_CONFIG_HPP
 
+#include <ndb_types.h>
 #include <mgmapi.h>
 #include <Vector.hpp>
 #include <NdbRestarter.hpp>
-#include <Properties.hpp>
+#include <mgmapi_config_parameters.h>
 
-class NdbConfig : public NdbRestarter{
+class NdbConfig : public NdbRestarter {
 public:
   NdbConfig(int own_id, const char* addr = 0) 
     : NdbRestarter(addr), 
       ownNodeId(own_id) {};
 
-  bool getProperty(unsigned int node_id, const char* type,
-		   const char * name, Uint32 * value) const;
-  bool getProperty(unsigned int node_id, const char* type,
-		   const char * name, const char ** value) const;  
+  bool getProperty(unsigned nodeid, unsigned type, unsigned key, Uint32 * val);
 
-  bool getHostName(unsigned int node_id,
-		   const char ** hostname) const;
-protected:  
-  bool getPropsForNode(unsigned int node_id,
-		const char* type, 
-		const Properties ** props) const;
-
+  bool getHostName(unsigned int node_id, const char ** hostname);
+  //protected:  
   int ownNodeId;
 };
 

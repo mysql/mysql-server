@@ -52,10 +52,7 @@ void systemInfo(const Configuration & conf,
 
 const char programName[] = "NDB Kernel";
 
-extern int global_ndb_check;
 NDB_MAIN(ndb_kernel){
-  
-  global_ndb_check = 1;
 
   // Print to stdout/console
   g_eventLogger.createConsoleHandler();
@@ -130,9 +127,7 @@ NDB_MAIN(ndb_kernel){
   }
 
   g_eventLogger.info("Angel pid: %d ndb pid: %d", getppid(), getpid());
-  
-  systemInfo(* theConfig,
-	     theConfig->clusterConfigurationData().SizeAltData.logLevel);
+  systemInfo(* theConfig, * theConfig->m_logLevel); 
 
     // Load blocks
   globalEmulatorData.theSimBlockList->load(* theConfig);
@@ -147,6 +142,7 @@ NDB_MAIN(ndb_kernel){
   char buf[255];
   strcpy(buf, homePath);
   FILE * signalLog = fopen(strncat(buf,"Signal.log", 255), "a");
+  globalSignalLoggers.setOwnNodeId(globalData.ownId);
   globalSignalLoggers.setOutputStream(signalLog);
 #endif
   

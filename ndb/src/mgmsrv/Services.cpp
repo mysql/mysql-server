@@ -26,6 +26,9 @@
 #include <BaseString.hpp>
 #include <Base64.hpp>
 
+#include <ConfigValues.hpp>
+#include <mgmapi_configuration.hpp>
+
 #include "Services.hpp"
 
 static const unsigned int MAX_READ_TIMEOUT = 1000 ;
@@ -275,10 +278,58 @@ MgmApiSession::getConfig_old(Parser_t::Context &ctx) {
 }
 #endif /* MGM_GET_CONFIG_BACKWARDS_COMPAT */
 
+inline void require(bool b){ if(!b) abort(); }
+
 void
 MgmApiSession::getConfig(Parser_t::Context &ctx, 
 			 const class Properties &args) {
   getConfig_common(ctx, args);
+}
+
+static Properties *
+backward(const char * base, const Properties* reply){
+  Properties * ret = new Properties();
+  Properties::Iterator it(reply);
+  for(const char * name = it.first(); name != 0; name=it.next()){
+    PropertiesType type;
+    reply->getTypeOf(name, &type);
+    switch(type){
+    case PropertiesType_Uint32:{
+      Uint32 val;
+      reply->get(name, &val);
+      ret->put(name, val);
+    }
+      break;
+    case PropertiesType_char:
+      {
+	const char * val;
+	reply->get(name, &val);
+	ret->put(name, val);
+	if(!strcmp(name, "Type") && !strcmp(val, "DB")){
+	  ret->put("NoOfDiskBufferPages", (unsigned)0);
+	  ret->put("NoOfDiskFiles", (unsigned)0);
+	  ret->put("NoOfDiskClusters", (unsigned)0);
+	  ret->put("NoOfFreeDiskClusters", (unsigned)0);
+	  ret->put("NoOfDiskClustersPerDiskFile", (unsigned)0);
+	  ret->put("NoOfConcurrentCheckpointsDuringRestart", (unsigned)1);
+	  ret->put("NoOfConcurrentCheckpointsAfterRestart", (unsigned)1);
+	  ret->put("NoOfConcurrentProcessesHandleTakeover", (unsigned)1);
+	}
+      }
+      break;
+    case PropertiesType_Properties:
+      {
+	const Properties * recurse;
+	reply->get(name, &recurse);
+	Properties * val = backward(name, recurse);
+	ret->put(name, val);
+      }
+      break;
+    case PropertiesType_Uint64:
+      break;
+    }
+  }
+  return ret;
 }
 
 void
@@ -290,92 +341,100 @@ MgmApiSession::getConfig_common(Parser_t::Context &,
   args.get("version", &version);
   args.get("node", &node);
 
-#if 0
-  if(version != 0) {
-    m_output->println("get config");
-    m_output->println("result: Invalid version number");
-    m_output->println("");
-    return;
-  }
-#endif
-
   const Config *conf = m_mgmsrv.getConfig();
   if(conf == NULL) {
-    m_output->println("get config");
+    m_output->println("get config reply");
     m_output->println("result: Could not fetch configuration");
     m_output->println("");
     return;
   }
 
-  bool compatible;
-  switch (m_mgmsrv.getNodeType(node)) {
-  case NDB_MGM_NODE_TYPE_NDB:
-    compatible = ndbCompatible_mgmt_ndb(NDB_VERSION, version);
-    break;
-  case NDB_MGM_NODE_TYPE_API:
-  case NDB_MGM_NODE_TYPE_MGM:
-    compatible = ndbCompatible_mgmt_api(NDB_VERSION, version);
-    break;
-  default:
-    m_output->println("get config");
-    m_output->println("result: unrecognignized node type");
-    m_output->println("");
-    return;
-  }
+  if(version > 0 && version < makeVersion(3, 5, 0) && compat){
+    Properties *reply = backward("", conf->m_oldConfig);
+    reply->put("Version", version);
+    reply->put("LocalNodeId", node);
 
-  if (!compatible){
-    m_output->println("get config");
-    m_output->println("result: incompatible version mgmt 0x%x and node 0x%x",
-		      NDB_VERSION, version);
-    m_output->println("");
-    return;
-  }
-
-  Properties *reply = new Properties(*conf);
-  reply->put("Version", NDB_VERSION);  //  reply->put("Version", version);
-  reply->put("LocalNodeId", node);
-
-#ifdef MGM_GET_CONFIG_BACKWARDS_COMPAT
-  if(compat) {
+    backward("", reply);
+    //reply->print();
+    
     const Uint32 size = reply->getPackedSize();
     Uint32 *buffer = new Uint32[size/4+1];
     
     reply->pack(buffer);
     delete reply;
-
+    
     const int uurows = (size + 44)/45;
     char * uubuf = new char[uurows * 62+5];
-    
+      
     const int uusz = uuencode_mem(uubuf, (char *)buffer, size);
     delete[] buffer;
-    
+      
     m_output->println("GET CONFIG %d %d %d %d %d",
-		      0, NDB_VERSION, node, size, uusz);//  0, version, node, size, uusz);
-
+		      0, version, node, size, uusz);
+    
     m_output->println("begin 664 Ndb_cfg.bin");
-
+      
     /* XXX Need to write directly to the socket, because the uubuf is not
      * NUL-terminated. This could/should probably be done in a nicer way.
      */
     write_socket(m_socket, MAX_WRITE_TIMEOUT, uubuf, uusz);
     delete[] uubuf;
-    
+      
     m_output->println("end");
     m_output->println("");
-  } else {
-#endif /* MGM_GET_CONFIG_BACKWARDS_COMPAT */
-
-    UtilBuffer buffer;
-    BaseString str;
-    reply->pack(buffer);
-    delete reply;
-    base64_encode(buffer, str);
-
-    m_output->println("config: %s", str.c_str());
-    m_output->println("");
-#ifdef MGM_GET_CONFIG_BACKWARDS_COMPAT
+    return;
   }
-#endif /* MGM_GET_CONFIG_BACKWARDS_COMPAT */
+
+  if(compat){
+    m_output->println("GET CONFIG %d %d %d %d %d",1, version, 0, 0, 0);
+    return;
+  }
+
+  if(node != 0){
+    bool compatible;
+    switch (m_mgmsrv.getNodeType(node)) {
+    case NDB_MGM_NODE_TYPE_NDB:
+      compatible = ndbCompatible_mgmt_ndb(NDB_VERSION, version);
+      break;
+    case NDB_MGM_NODE_TYPE_API:
+    case NDB_MGM_NODE_TYPE_MGM:
+      compatible = ndbCompatible_mgmt_api(NDB_VERSION, version);
+      break;
+    default:
+      m_output->println("get config");
+      m_output->println("result: unrecognignized node type");
+      m_output->println("");
+      return;
+    }
+    
+    if (!compatible){
+      m_output->println("get config");
+      m_output->println("result: incompatible version mgmt 0x%x and node 0x%x",
+			NDB_VERSION, version);
+      m_output->println("");
+      return;
+    }
+  }  
+  
+  const ConfigValues * cfg = &conf->m_configValues->m_config;
+  const Uint32 size = cfg->getPackedSize();
+  
+  UtilBuffer src;
+  cfg->pack(src);
+  
+  BaseString str;
+  int res = base64_encode(src, str);
+  
+  m_output->println("get config reply");
+  m_output->println("result: Ok");
+  m_output->println("Content-Length: %d", str.length());
+  m_output->println("Content-Type: ndbconfig/octet-stream");
+  m_output->println("Content-Transfer-Encoding: base64");
+  m_output->println("");
+  m_output->println(str.c_str());
+  m_output->println("");
+
+  return;
 }
 
 void
@@ -756,10 +815,14 @@ printNodeStatus(OutputStream *output,
   NodeId nodeId = 0;
   while(mgmsrv.getNextNodeId(&nodeId, type)) {
     enum ndb_mgm_node_status status;
-    Uint32 startPhase = 0, version = 0, dynamicId = 0, nodeGroup = 0;
+    Uint32 startPhase = 0, 
+      version = 0, 
+      dynamicId = 0, 
+      nodeGroup = 0,
+      connectCount = 0;
     bool system;
     mgmsrv.status(nodeId, &status, &version, &startPhase, 
-		  &system, &dynamicId, &nodeGroup);
+		  &system, &dynamicId, &nodeGroup, &connectCount);
     output->println("node.%d.type: %s",
 		      nodeId,
 		      ndb_mgm_get_node_type_string(type));
@@ -770,6 +833,7 @@ printNodeStatus(OutputStream *output,
     output->println("node.%d.startphase: %d", nodeId, startPhase);
     output->println("node.%d.dynamic_id: %d", nodeId, dynamicId);
     output->println("node.%d.node_group: %d", nodeId, nodeGroup);
+    output->println("node.%d.connect_count: %d", nodeId, connectCount);
   }
 
 }

@@ -28,7 +28,6 @@
 // signal classes
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/TuxContinueB.hpp>
-#include <signaldata/TuxSizeAltReq.hpp>
 #include <signaldata/BuildIndx.hpp>
 #include <signaldata/TupFrag.hpp>
 #include <signaldata/AlterIndx.hpp>
@@ -620,7 +619,7 @@ private:
    */
   void execCONTINUEB(Signal* signal);
   void execSTTOR(Signal* signal);
-  void execSIZEALT_REP(Signal* signal);
+  void execREAD_CONFIG_REQ(Signal* signal);
   // utils
   void copyAttrs(Data dst, ConstData src, CopyPar& copyPar);
 

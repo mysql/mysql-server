@@ -35,7 +35,6 @@ void Dbtc::initData()
   cgcpFilesize = ZGCP_FILESIZE;
   cscanrecFileSize = ZSCANREC_FILE_SIZE;
   cscanFragrecFileSize = ZSCAN_FRAGREC_FILE_SIZE;
-  cscanOprecFileSize = ZSCAN_OPREC_FILE_SIZE;
   ctabrecFilesize = ZTABREC_FILESIZE;
   ctcConnectFilesize = ZTC_CONNECT_FILESIZE;
   cdihblockref = DBDIH_REF;
@@ -49,8 +48,6 @@ void Dbtc::initData()
   hostRecord = 0;
   tableRecord = 0;
   scanRecord = 0;
-  scanOperationRecord = 0;
-  scanFragmentRecord = 0;
   databufRecord = 0;
   attrbufRecord = 0;
   gcpRecord = 0;
@@ -143,16 +140,19 @@ void Dbtc::initRecords()
 					sizeof(ScanRecord),
 					cscanrecFileSize);
 
-  scanOperationRecord = (ScanOperationRecord*)
-    allocRecord("ScanOperationRecord",
-		sizeof(ScanOperationRecord),
-		cscanOprecFileSize);
 
-  scanFragmentRecord = (ScanFragRec*)
-    allocRecord("ScanFragRec",
-		sizeof(ScanFragRec), 
-		cscanFragrecFileSize);
+  c_scan_frag_pool.setSize(cscanFragrecFileSize);
+  {
+    ScanFragRecPtr ptr;
+    SLList<ScanFragRec> tmp(c_scan_frag_pool);
+    while(tmp.seize(ptr)) {
+      new (ptr.p) ScanFragRec();
+    }
+    tmp.release();
+  }
 
+  indexOps.release();
+  
   databufRecord = (DatabufRecord*)allocRecord("DatabufRecord",
 					      sizeof(DatabufRecord),
 					      cdatabufFilesize);
@@ -182,19 +182,24 @@ Dbtc::Dbtc(const class Configuration & conf):
 
   BLOCK_CONSTRUCTOR(Dbtc);
   
-  const Properties * p = conf.getOwnProperties();
+  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   Uint32 transactionBufferMemory = 0;
   Uint32 maxNoOfIndexes = 0, maxNoOfConcurrentIndexOperations = 0;
   Uint32 maxNoOfTriggers = 0, maxNoOfFiredTriggers = 0;
 
-  p->get("TransactionBufferMemory", &transactionBufferMemory);
-  p->get("MaxNoOfIndexes", &maxNoOfIndexes);
-  p->get("MaxNoOfConcurrentIndexOperations", &maxNoOfConcurrentIndexOperations);
-  p->get("MaxNoOfTriggers", &maxNoOfTriggers);
-  p->get("MaxNoOfFiredTriggers", &maxNoOfFiredTriggers);
-
+  ndb_mgm_get_int_parameter(p, CFG_DB_TRANS_BUFFER_MEM,  
+			    &transactionBufferMemory);
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_INDEXES, 
+			    &maxNoOfIndexes);
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_INDEX_OPS, 
+			    &maxNoOfConcurrentIndexOperations);
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS, 
+			    &maxNoOfTriggers);
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGER_OPS, 
+			    &maxNoOfFiredTriggers);
+  
   c_transactionBufferSpace = 
     transactionBufferMemory / AttributeBuffer::getSegmentSize();
   c_maxNumberOfIndexes = maxNoOfIndexes;
@@ -208,10 +213,7 @@ Dbtc::Dbtc(const class Configuration & conf):
   addRecSignal(GSN_ATTRINFO, &Dbtc::execATTRINFO);
   addRecSignal(GSN_CONTINUEB, &Dbtc::execCONTINUEB);
   addRecSignal(GSN_KEYINFO, &Dbtc::execKEYINFO);
-  addRecSignal(GSN_SCAN_TABINFO, &Dbtc::execSCAN_TABINFO);
   addRecSignal(GSN_SCAN_NEXTREQ, &Dbtc::execSCAN_NEXTREQ);
-  addRecSignal(GSN_SCAN_PROCREQ, &Dbtc::execSCAN_PROCREQ);
-  addRecSignal(GSN_SCAN_PROCCONF, &Dbtc::execSCAN_PROCCONF);
   addRecSignal(GSN_TAKE_OVERTCREQ, &Dbtc::execTAKE_OVERTCREQ);
   addRecSignal(GSN_TAKE_OVERTCCONF, &Dbtc::execTAKE_OVERTCCONF);
   addRecSignal(GSN_LQHKEYREF, &Dbtc::execLQHKEYREF);
@@ -247,7 +249,7 @@ Dbtc::Dbtc(const class Configuration & conf):
   addRecSignal(GSN_SCAN_TABREQ, &Dbtc::execSCAN_TABREQ);
   addRecSignal(GSN_SCAN_FRAGCONF, &Dbtc::execSCAN_FRAGCONF);
   addRecSignal(GSN_SCAN_FRAGREF, &Dbtc::execSCAN_FRAGREF);
-  addRecSignal(GSN_SIZEALT_REP, &Dbtc::execSIZEALT_REP);
+  addRecSignal(GSN_READ_CONFIG_REQ, &Dbtc::execREAD_CONFIG_REQ, true);
   addRecSignal(GSN_LQH_TRANSCONF, &Dbtc::execLQH_TRANSCONF);
   addRecSignal(GSN_COMPLETECONF, &Dbtc::execCOMPLETECONF);
   addRecSignal(GSN_COMMITCONF, &Dbtc::execCOMMITCONF);
@@ -285,6 +287,7 @@ Dbtc::Dbtc(const class Configuration & conf):
   //addRecSignal(GSN_CREATE_TAB_REQ, &Dbtc::execCREATE_TAB_REQ);
   addRecSignal(GSN_DROP_TAB_REQ, &Dbtc::execDROP_TAB_REQ);
   addRecSignal(GSN_PREP_DROP_TAB_REQ, &Dbtc::execPREP_DROP_TAB_REQ);
+  addRecSignal(GSN_WAIT_DROP_TAB_REF, &Dbtc::execWAIT_DROP_TAB_REF);
   addRecSignal(GSN_WAIT_DROP_TAB_CONF, &Dbtc::execWAIT_DROP_TAB_CONF);
   
   addRecSignal(GSN_ALTER_TAB_REQ, &Dbtc::execALTER_TAB_REQ);
@@ -318,17 +321,7 @@ Dbtc::~Dbtc()
   deallocRecord((void **)&scanRecord, "ScanRecord",
 		sizeof(ScanRecord),
 		cscanrecFileSize);
-  
-  deallocRecord((void **)&scanOperationRecord,
-		"ScanOperationRecord",
-		sizeof(ScanOperationRecord),
-		cscanOprecFileSize);
-
-  deallocRecord((void **)&scanFragmentRecord,
-		"ScanFragRec",
-		sizeof(ScanFragRec), 
-		cscanFragrecFileSize);
-  
+    
   deallocRecord((void **)&databufRecord, "DatabufRecord",
 		sizeof(DatabufRecord),
 		cdatabufFilesize);

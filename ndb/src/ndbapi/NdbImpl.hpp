@@ -35,6 +35,7 @@ public:
 #include <NdbError.hpp>
 #include <NdbCondition.h>
 #include <NdbReceiver.hpp>
+#include <NdbOperation.hpp>
 
 #include <NdbTick.h>
 
@@ -83,11 +84,12 @@ Ndb::void2rec_iop(void* val){
   return (NdbIndexOperation*)(void2rec(val)->getOwner());
 }
 
-inline
-NdbScanReceiver*
-Ndb::void2rec_srec(void* val){
-  return (NdbScanReceiver*)(void2rec(val)->getOwner());
+inline 
+NdbConnection * 
+NdbReceiver::getTransaction(){ 
+  return ((NdbOperation*)m_owner)->theNdbCon;
 }
+
 
 inline
 int
@@ -151,7 +153,6 @@ NdbWaiter::wait(int waitTime)
       waitTime = maxTime - NdbTick_CurrentMillisecond();
     }
   }
-  NdbMutex_Unlock((NdbMutex*)m_mutex);
 }
 
 inline
