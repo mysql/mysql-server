@@ -7668,7 +7668,7 @@ static int my_coll_rule_parse(MY_COLL_RULE *rule, size_t mitems,
   weights applying tailorings, i.e. a set of
   alternative weights for some characters. 
   
-  The default UCA weights are stored in my_charset_ucs2_general_uca.
+  The default UCA weights are stored in uca_weight/uca_length.
   They consist of 256 pages, 256 character each.
   
   If a page is not overwritten by tailoring rules,
@@ -7685,8 +7685,8 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(uint))
   char errstr[128];
   uchar   *newlengths;
   uint16 **newweights;
-  const uchar *deflengths= my_charset_ucs2_general_uca.sort_order;
-  uint16     **defweights= my_charset_ucs2_general_uca.sort_order_big;
+  const uchar *deflengths= uca_length;
+  uint16     **defweights= uca_weight;
   int rc, i;
   int ncontractions= 0;
   
