@@ -1,5 +1,8 @@
-# This test checks that a slave does not execute queries originating
-# from itself, by default.
+# This test checks that the slave I/O thread refuses to start if slave
+# and master have the same server id (because this is a useless setup,
+# and otherwise SHOW SLAVE STATUS shows progress but all queries are
+# ignored, which has caught our customers), unless
+# --replicate-same-server-id.
 
 source include/master-slave.inc;
 connection slave;
@@ -18,5 +21,4 @@ insert into t1 values (1);
 # (when slave is its own master without --replicate-same-server-id)
 sleep 2; # enough time for the event to be replicated (it should not)
 show status like "slave_running";
-select * from t1;
 drop table t1;

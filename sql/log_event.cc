@@ -2176,7 +2176,7 @@ int Rand_log_event::exec_event(struct st_relay_log_info* rli)
 void User_var_log_event::pack_info(Protocol* protocol)
 {
   char *buf= 0;
-  uint val_offset= 2 + name_len;
+  uint val_offset= 4 + name_len;
   uint event_len= val_offset;
 
   if (is_null)
@@ -2200,16 +2200,21 @@ void User_var_log_event::pack_info(Protocol* protocol)
       event_len= longlong10_to_str(uint8korr(val), buf + val_offset,-10)-buf;
       break;
     case STRING_RESULT:
-      /*
-	This is correct as pack_info is used for SHOW BINLOG command
-	only. But be carefull this is may be incorrect in other cases as
-	string may contain \ and '.
-      */
-      event_len= val_offset + 2 + val_len;
-      buf= my_malloc(event_len, MYF(MY_WME));
-      buf[val_offset]= '\'';
-      memcpy(buf + val_offset + 1, val, val_len);
-      buf[val_offset + val_len + 1]= '\'';
+      /* 15 is for 'COLLATE' and other chars */
+      buf= my_malloc(event_len+val_len*2+1+2*MY_CS_NAME_SIZE+15, MYF(MY_WME));
+      CHARSET_INFO *cs;
+      if (!(cs= get_charset(charset_number, MYF(0))))
+      {
+        strmov(buf+val_offset, "???");
+        event_len+= 3;
+      }
+      else
+      {
+        char *p= strxmov(buf + val_offset, "_", cs->csname, "'", NullS);
+        p+= escape_string_for_mysql(&my_charset_bin, p, val, val_len);
+        p= strxmov(p, "' COLLATE ", cs->name, NullS);
+        event_len= p-buf;
+      }
       break;
     case ROW_RESULT:
     default:
@@ -2218,8 +2223,10 @@ void User_var_log_event::pack_info(Protocol* protocol)
     }
   }
   buf[0]= '@';
-  buf[1+name_len]= '=';
-  memcpy(buf+1, name, name_len);
+  buf[1]= '`';
+  buf[2+name_len]= '`';
+  buf[3+name_len]= '=';
+  memcpy(buf+2, name, name_len);
   protocol->store(buf, event_len, &my_charset_bin);
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
 }
@@ -2311,8 +2318,9 @@ void User_var_log_event::print(FILE* file, bool short_form, char* last_db)
     fprintf(file, "\tUser_var\n");
   }
 
-  fprintf(file, "SET @");
+  fprintf(file, "SET @`");
   my_fwrite(file, (byte*) name, (uint) (name_len), MYF(MY_NABP | MY_WME));
+  fprintf(file, "`");
 
   if (is_null)
   {
@@ -2332,7 +2340,36 @@ void User_var_log_event::print(FILE* file, bool short_form, char* last_db)
       fprintf(file, ":=%s;\n", int_buf);
       break;
     case STRING_RESULT:
-      fprintf(file, ":='%s';\n", val);
+    {
+      char *p;
+      if (!(p= (char *)my_alloca(2*val_len+1)))
+        break; // no error, as we are 'void'
+      escape_string_for_mysql(&my_charset_bin, p, val, val_len);
+#if MYSQL_VERSION_ID < 50000
+      /*
+        For proper behaviour when mysqlbinlog|mysql, we need to explicitely
+        specify the variable's collation. It will however cause problems when
+        people want to mysqlbinlog|mysql into another server not supporting the
+        character set. But there's not much to do about this and it's unlikely.
+      */
+      CHARSET_INFO *cs;
+      if (!(cs= get_charset(charset_number, MYF(0))))
+        /*
+          Generate an unusable command (=> syntax error) is probably the best
+          thing we can do here.
+        */
+        fprintf(file, ":=???;\n");
+      else
+        fprintf(file, ":=_%s'%s' COLLATE %s;\n", cs->csname, p, cs->name);
+#else
+      /*
+        In 5.0 we will have some SET CHARACTER_SET_ect automatically printed
+        for all events where it's needed.
+      */
+      fprintf(file, ":='%s';\n", p);
+#endif
+      my_afree(p);
+    }
       break;
     case ROW_RESULT:
     default:
@@ -2353,7 +2390,9 @@ void User_var_log_event::print(FILE* file, bool short_form, char* last_db)
 int User_var_log_event::exec_event(struct st_relay_log_info* rli)
 {
   Item *it= 0;
-  CHARSET_INFO *charset= get_charset(charset_number, MYF(0));
+  CHARSET_INFO *charset;
+  if (!(charset= get_charset(charset_number, MYF(MY_WME))))
+    return 1;
   LEX_STRING user_var_name;
   user_var_name.str= name;
   user_var_name.length= name_len;

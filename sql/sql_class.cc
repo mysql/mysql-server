@@ -180,6 +180,7 @@ THD::THD():user_time(0), current_statement(0), is_fatal_error(0),
   current_linfo =  0;
   slave_thread = 0;
   variables.pseudo_thread_id= 0;
+  one_shot_set= 0;
   file_id = 0;
   warn_id= 0;
   db_charset= global_system_variables.collation_database;
