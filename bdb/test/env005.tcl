@@ -1,14 +1,14 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: env005.tcl,v 11.8 2000/08/25 14:21:50 sue Exp $
+# $Id: env005.tcl,v 11.15 2002/02/22 14:28:37 sandstro Exp $
 #
-# Env Test 5
-# Test that using subsystems without initializing them correctly
-# returns an error.  Cannot test mpool, because it is assumed
-# in the Tcl code.
+# TEST	env005
+# TEST	Test that using subsystems without initializing them correctly
+# TEST	returns an error.  Cannot test mpool, because it is assumed in
+# TEST	the Tcl code.
 proc env005 { } {
 	source ./include.tcl
 
@@ -17,7 +17,7 @@ proc env005 { } {
 	env_cleanup $testdir
 	puts "\tEnv005.a: Creating env with no subsystems."
 
-	set e [berkdb env -create -home $testdir]
+	set e [berkdb_env_noerr -create -home $testdir]
 	error_check_good dbenv [is_valid_env $e] TRUE
 	set db [berkdb_open -create -btree $testdir/env005.db]
 	error_check_good dbopen [is_valid_db $db] TRUE
@@ -27,17 +27,17 @@ proc env005 { } {
 	{ "lock_get read 1 1"		"Env005.b1"}
 	{ "lock_id"			"Env005.b2"}
 	{ "lock_stat"			"Env005.b3"}
+	{ "lock_timeout 100"		"Env005.b4"}
 	{ "log_archive"			"Env005.c0"}
-	{ "log_file {1 1}"		"Env005.c1"}
-	{ "log_flush"			"Env005.c2"}
-	{ "log_get -first"		"Env005.c3"}
+	{ "log_cursor"			"Env005.c1"}
+	{ "log_file {1 1}"		"Env005.c2"}
+	{ "log_flush"			"Env005.c3"}
 	{ "log_put record"		"Env005.c4"}
-	{ "log_register $db xxx"	"Env005.c5"}
-	{ "log_stat"			"Env005.c6"}
-	{ "log_unregister $db"		"Env005.c7"}
+	{ "log_stat"			"Env005.c5"}
 	{ "txn"				"Env005.d0"}
 	{ "txn_checkpoint"		"Env005.d1"}
 	{ "txn_stat"			"Env005.d2"}
+	{ "txn_timeout 100"		"Env005.d3"}
 	}
 
 	foreach pair $rlist {

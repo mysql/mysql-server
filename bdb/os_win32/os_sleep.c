@@ -1,18 +1,17 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: os_sleep.c,v 11.4 2000/03/30 01:46:43 ubell Exp $";
+static const char revid[] = "$Id: os_sleep.c,v 11.8 2002/07/12 18:56:56 bostic Exp $";
 #endif /* not lint */
 
 #include "db_int.h"
-#include "os_jump.h"
 
 /*
  * __os_sleep --
@@ -29,8 +28,8 @@ __os_sleep(dbenv, secs, usecs)
 	for (; usecs >= 1000000; ++secs, usecs -= 1000000)
 		;
 
-	if (__db_jump.j_sleep != NULL)
-		return (__db_jump.j_sleep(secs, usecs));
+	if (DB_GLOBAL(j_sleep) != NULL)
+		return (DB_GLOBAL(j_sleep)(secs, usecs));
 
 	/*
 	 * It's important that we yield the processor here so that other

@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -36,7 +36,7 @@
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: getopt.c,v 11.4 2000/02/14 02:59:40 bostic Exp $";
+static const char revid[] = "$Id: getopt.c,v 11.7 2002/01/11 15:51:28 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -46,6 +46,8 @@ static const char revid[] = "$Id: getopt.c,v 11.4 2000/02/14 02:59:40 bostic Exp
 #endif
 
 #include "db_int.h"
+
+int	__db_getopt_reset;	/* global reset for VxWorks. */
 
 int	opterr = 1,		/* if error message should be printed */
 	optind = 1,		/* index into parent argv vector */
@@ -78,6 +80,19 @@ getopt(nargc, nargv, ostr)
 	static char *place = EMSG;		/* option letter processing */
 	char *oli;				/* option letter list index */
 
+	/*
+	 * VxWorks needs to be able to repeatedly call getopt from multiple
+	 * programs within its global name space.
+	 */
+	if (__db_getopt_reset) {
+		__db_getopt_reset = 0;
+
+		opterr = optind = 1;
+		optopt = optreset = 0;
+		optarg = NULL;
+		progname = NULL;
+		place = EMSG;
+	}
 	if (!progname) {
 		if ((progname = __db_rpath(*nargv)) == NULL)
 	                progname = *nargv;

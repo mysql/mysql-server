@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
- *	Sleepycat Software.  All rights reserved.
+ * Copyright (c) 1997-2002
+ *      Sleepycat Software.  All rights reserved.
  *
- *	$Id: Db.java,v 11.38 2000/12/31 19:26:22 bostic Exp $
+ * $Id: Db.java,v 11.110 2002/09/09 20:47:31 bostic Exp $
  */
 
 package com.sleepycat.db;
@@ -18,228 +18,180 @@ import java.io.FileNotFoundException;
  */
 public class Db
 {
-    // All constant and flag values used with Db* classes are defined here.
-
-    // Collectively, these constants are known by the name
-    // "DBTYPE" in the documentation.
-    //
-    public static final int DB_BTREE = 1; // B+tree
-    public static final int DB_HASH  = 2; // Extended Linear Hashing.
-    public static final int DB_RECNO = 3; // Fixed and variable-length records.
-    public static final int DB_QUEUE = 4; // Queue
-    public static final int DB_UNKNOWN = 5; // Figure it out on open.
-
-    // Flags understood by DbEnv()
-    //
-    // Note: DB_CXX_NO_EXCEPTIONS will have no effect in Java.
-    //
-    public static final int DB_CXX_NO_EXCEPTIONS; // C++: return error values
-    public static final int DB_CLIENT;    // Open for a client environment.
-
-    // Flags understood by Db()
-    //
-    public static final int DB_XA_CREATE;  // Open in an XA environment.
-
-    // Flags understood by Db.open(), DbEnv.open().
-    //
-    public static final int DB_CREATE; // O_CREAT: create file as necessary.
-    public static final int DB_NOMMAP; // Don't mmap underlying file.
-    public static final int DB_THREAD; // Free-thread DB package handles.
-
-    // Flags understood by only DbEnv.open().
-    //
-    public static final int DB_LOCKDOWN; // Lock memory into physical core.
-    public static final int DB_PRIVATE;  // DB_ENV is process local.
-
-    //
-    // Flags understood by DbEnv.txn_begin().
-    //
-    public static final int DB_TXN_NOWAIT; // Do not wait for locks in this TXN.
-    public static final int DB_TXN_SYNC;   // Always sync log on commit.
-
-    // Flags understood by DbEnv.set_flags().
-    //
-    public static final int DB_CDB_ALLDB;  // In CDB, lock across environment.
-
-    //
-    // Flags understood by Db.open().
-    //
-    public static final int DB_EXCL;     // Exclusive open (O_EXCL).
-    public static final int DB_RDONLY;   // Read-only (O_RDONLY).
-    public static final int DB_TRUNCATE; // Discard existing DB.
-    public static final int DB_UPGRADE;  // Upgrade if necessary.
-
-    //
-    // DB (user visible) error return codes.
-    //
-    public static final int DB_INCOMPLETE = -30999; // Sync didn't finish.
-    public static final int DB_KEYEMPTY = -30998;   // The key/data pair was deleted or
-                                                // was never created by the user.
-    public static final int DB_KEYEXIST = -30997;   // The key/data pair already exists.
-    public static final int DB_LOCK_DEADLOCK = -30996; // Locker killed to resolve deadlock.
-    public static final int DB_LOCK_NOTGRANTED = -30995; // Lock unavailable, no-wait set.
-    public static final int DB_NOSERVER = -30994;   // Server panic return.
-    public static final int DB_NOSERVER_HOME = -30993;   // Bad home sent to server.
-    public static final int DB_NOSERVER_ID = -30992;   // Bad ID sent to server.
-    public static final int DB_NOTFOUND = -30991;      // Key/data pair not found (EOF).
-    public static final int DB_OLD_VERSION = -30990;   // Out-of-date version.
-    public static final int DB_RUNRECOVERY = -30989;   // Panic return.
-    public static final int DB_VERIFY_BAD = -30988;    // Verify failed; bad format.
-
-    //
-    // Flags used by DbEnv.open and DbEnv.remove.
-    //
-    public static final int DB_FORCE;            // Force (anything).
-    public static final int DB_INIT_CDB;         // Concurrent Access Methods.
-    public static final int DB_INIT_LOCK;        // Initialize locking.
-    public static final int DB_INIT_LOG;         // Initialize logging.
-    public static final int DB_INIT_MPOOL;       // Initialize mpool.
-    public static final int DB_INIT_TXN;         // Initialize transactions.
-    public static final int DB_JOINENV;          // Initialize all subsystems present.
-    public static final int DB_RECOVER;          // Run normal recovery.
-    public static final int DB_RECOVER_FATAL;    // Run catastrophic recovery.
-    public static final int DB_SYSTEM_MEM;       // Use system-backed memory.
-    public static final int DB_TXN_NOSYNC;       // Do not sync log on commit.
-    public static final int DB_USE_ENVIRON;      // Use the environment.
-    public static final int DB_USE_ENVIRON_ROOT; // Use the environment if root.
-
-    //
-    // Operations values to the tx_recover() function.
-    //
-    public static final int DB_TXN_BACKWARD_ROLL = 1;
-    public static final int DB_TXN_FORWARD_ROLL = 2;
-    public static final int DB_TXN_OPENFILES = 3;
-    public static final int DB_TXN_REDO = 4;
-    public static final int DB_TXN_UNDO = 5;
-
-    //
-    // Verbose flags; used for DbEnv.set_verbose
-    //
-    public static final int DB_VERB_CHKPOINT;  // List checkpoints.
-    public static final int DB_VERB_DEADLOCK;  // Deadlock detection information.
-    public static final int DB_VERB_RECOVERY;  // Recovery information.
-    public static final int DB_VERB_WAITSFOR;  // Dump waits-for table.
-
-    //
-    // Deadlock detector modes; used in the DBENV structure to configure the
-    // locking subsystem.
-    //
-    public static final int DB_LOCK_NORUN;
-    public static final int DB_LOCK_DEFAULT;
-    public static final int DB_LOCK_OLDEST;
-    public static final int DB_LOCK_RANDOM;
-    public static final int DB_LOCK_YOUNGEST;
-
-    //
-    // Flags understood by only Db.set_flags.
-    //
-    public static final int DB_DUP;        // Btree, Hash: duplicate keys.
-    public static final int DB_DUPSORT;    // Btree, Hash: duplicate keys.
-    public static final int DB_RECNUM;     // Btree: record numbers.
-    public static final int DB_RENUMBER;   // Recno: renumber on insert/delete.
-    public static final int DB_REVSPLITOFF;// Btree: turn off reverse splits.
-    public static final int DB_SNAPSHOT;   // Recno: snapshot the input.
-
-    //
-    // Flags understood by only Db.join
-    //
-    public static final int DB_JOIN_NOSORT;// Don't try to optimize join.
-
-    //
-    // Flags understood by only Db.verify
-    //
-    public static final int DB_NOORDERCHK;  // Skip order check; subdb w/ user func
-    public static final int DB_ORDERCHKONLY;// Only perform an order check on subdb
-    public static final int DB_SALVAGE;     // Salvage what looks like data.
-    public static final int DB_AGGRESSIVE;  // Salvage anything which might be data.
-
-    // Collectively, these constants are known by the name
-    // "db_lockmode_t" in the documentation.
-    //
-    public static final int DB_LOCK_NG = 0;	// Not granted.
-    public static final int DB_LOCK_READ = 1;	// Shared/read.
-    public static final int DB_LOCK_WRITE = 2;	// Exclusive/write.
-    public static final int DB_LOCK_IWRITE = 3;	// Intent exclusive/write.
-    public static final int DB_LOCK_IREAD = 4;	// Intent to share/read.
-    public static final int DB_LOCK_IWR = 5;	// Intent to read and write.
-
-    // Collectively, these constants are known by the name
-    // "db_lockop_t" in the documentation.
-    //
-    public static final int DB_LOCK_DUMP = 0;	// Display held locks.
-    public static final int DB_LOCK_GET = 1;	// Get the lock.
-    /* Not visible to API:  DB_LOCK_INHERIT = 2 // Pass locks to parent. */
-    public static final int DB_LOCK_PUT = 3;	// Release the lock.
-    public static final int DB_LOCK_PUT_ALL = 4;// Release locker's locks.
-    public static final int DB_LOCK_PUT_OBJ = 5;// Release locker's locks on obj.
-
-    // Flag values for DbLock.vec()
-    public static final int DB_LOCK_NOWAIT; // Don't wait on unavailable lock.
-
-    // Flag values for DbLock.detect()
-    public static final int DB_LOCK_CONFLICT; // Run on any conflict.
-
-    //
-    // Flag values for DbLog.archive()
-    //
-    public static final int DB_ARCH_ABS;      // Absolute pathnames.
-    public static final int DB_ARCH_DATA;     // Data files.
-    public static final int DB_ARCH_LOG;      // Log files.
-
-    //
-    // DB access method and cursor operation values.
-    // Each value is an operation code to which
-    // additional bit flags are added.
-    //
-    public static final int DB_AFTER;      // Dbc.put()
-    public static final int DB_APPEND;     // Db.put()
-    public static final int DB_BEFORE;     // Dbc.put()
-    public static final int DB_CACHED_COUNTS; // Db.stat()
-    public static final int DB_CHECKPOINT; // DbLog.put(), DbLog.get()
-    public static final int DB_CONSUME;    // Db.get()
-    public static final int DB_CONSUME_WAIT; // Db.get()
-    public static final int DB_CURLSN;     // DbLog.put()
-    public static final int DB_CURRENT;    // Dbc.get(), Dbc.put(), DbLog.get()
-    public static final int DB_FIRST;      // Dbc.get(), DbLog.get()
-    public static final int DB_FLUSH;      // DbLog.put()
-    public static final int DB_GET_BOTH;   // Db.get(), Dbc.get()
-    public static final int DB_GET_RECNO;  // Dbc.get()
-    public static final int DB_JOIN_ITEM;  // Dbc.get()
-    public static final int DB_KEYFIRST;   // Dbc.put()
-    public static final int DB_KEYLAST;    // Dbc.put()
-    public static final int DB_LAST;       // Dbc.get(), DbLog.get()
-    public static final int DB_NEXT;       // Dbc.get(), DbLog.get()
-    public static final int DB_NEXT_DUP;   // Dbc.get()
-    public static final int DB_NEXT_NODUP; // Dbc.get()
-    public static final int DB_NODUPDATA;  // Don't permit duplicated data
-    public static final int DB_NOOVERWRITE;// Db.put()
-    public static final int DB_NOSYNC;     // Db.close()
-    public static final int DB_POSITION;   // Dbc.dup()
-    public static final int DB_PREV;       // Dbc.get(), DbLog.get()
-    public static final int DB_PREV_NODUP; // Dbc.get()
-    public static final int DB_RECORDCOUNT;// Db.stat()
-    public static final int DB_SET;        // Dbc.get(), DbLog.get()
-    public static final int DB_SET_RANGE;  // Dbc.get()
-    public static final int DB_SET_RECNO;  // Dbc.get()
-    public static final int DB_WRITECURSOR;// Db.cursor()
-
-    // Other flags that can be added to an operation codes above.
-    //
-    public static final int DB_RMW;        // Acquire write flag immediately.
-
-    // Collectively, these values are used for Dbt flags
-    //
-    // Return in allocated memory.
+    // BEGIN-JAVA-SPECIAL-CONSTANTS
+    /* DO NOT EDIT: automatically built by dist/s_java. */
+    public static final int DB_BTREE = 1;
+    public static final int DB_DONOTINDEX = -30999;
+    public static final int DB_HASH = 2;
+    public static final int DB_KEYEMPTY = -30998;
+    public static final int DB_KEYEXIST = -30997;
+    public static final int DB_LOCK_DEADLOCK = -30996;
+    public static final int DB_LOCK_NOTGRANTED = -30995;
+    public static final int DB_NOSERVER = -30994;
+    public static final int DB_NOSERVER_HOME = -30993;
+    public static final int DB_NOSERVER_ID = -30992;
+    public static final int DB_NOTFOUND = -30991;
+    public static final int DB_OLD_VERSION = -30990;
+    public static final int DB_PAGE_NOTFOUND = -30989;
+    public static final int DB_QUEUE = 4;
+    public static final int DB_RECNO = 3;
+    public static final int DB_REP_DUPMASTER = -30988;
+    public static final int DB_REP_HOLDELECTION = -30987;
+    public static final int DB_REP_NEWMASTER = -30986;
+    public static final int DB_REP_NEWSITE = -30985;
+    public static final int DB_REP_OUTDATED = -30984;
+    public static final int DB_RUNRECOVERY = -30982;
+    public static final int DB_SECONDARY_BAD = -30981;
+    public static final int DB_TXN_ABORT = 0;
+    public static final int DB_TXN_APPLY = 1;
+    public static final int DB_TXN_BACKWARD_ROLL = 3;
+    public static final int DB_TXN_FORWARD_ROLL = 4;
+    public static final int DB_TXN_PRINT = 8;
+    public static final int DB_UNKNOWN = 5;
+    public static final int DB_VERIFY_BAD = -30980;
+    public static final int DB_AFTER;
+    public static final int DB_AGGRESSIVE;
+    public static final int DB_APPEND;
+    public static final int DB_ARCH_ABS;
+    public static final int DB_ARCH_DATA;
+    public static final int DB_ARCH_LOG;
+    public static final int DB_AUTO_COMMIT;
+    public static final int DB_BEFORE;
+    public static final int DB_CACHED_COUNTS;
+    public static final int DB_CDB_ALLDB;
+    public static final int DB_CHKSUM_SHA1;
+    public static final int DB_CLIENT;
+    public static final int DB_CONSUME;
+    public static final int DB_CONSUME_WAIT;
+    public static final int DB_CREATE;
+    public static final int DB_CURRENT;
+    public static final int DB_CXX_NO_EXCEPTIONS;
     public static final int DB_DBT_MALLOC;
-
-    // Partial put/get.
     public static final int DB_DBT_PARTIAL;
-
-    // Return in realloc'd memory.
     public static final int DB_DBT_REALLOC;
-
-    // Return in user's memory.
     public static final int DB_DBT_USERMEM;
+    public static final int DB_DIRECT;
+    public static final int DB_DIRECT_DB;
+    public static final int DB_DIRECT_LOG;
+    public static final int DB_DIRTY_READ;
+    public static final int DB_DUP;
+    public static final int DB_DUPSORT;
+    public static final int DB_EID_BROADCAST;
+    public static final int DB_EID_INVALID;
+    public static final int DB_ENCRYPT;
+    public static final int DB_ENCRYPT_AES;
+    public static final int DB_EXCL;
+    public static final int DB_FAST_STAT;
+    public static final int DB_FIRST;
+    public static final int DB_FLUSH;
+    public static final int DB_FORCE;
+    public static final int DB_GET_BOTH;
+    public static final int DB_GET_BOTH_RANGE;
+    public static final int DB_GET_RECNO;
+    public static final int DB_INIT_CDB;
+    public static final int DB_INIT_LOCK;
+    public static final int DB_INIT_LOG;
+    public static final int DB_INIT_MPOOL;
+    public static final int DB_INIT_TXN;
+    public static final int DB_JOINENV;
+    public static final int DB_JOIN_ITEM;
+    public static final int DB_JOIN_NOSORT;
+    public static final int DB_KEYFIRST;
+    public static final int DB_KEYLAST;
+    public static final int DB_LAST;
+    public static final int DB_LOCKDOWN;
+    public static final int DB_LOCK_DEFAULT;
+    public static final int DB_LOCK_EXPIRE;
+    public static final int DB_LOCK_GET;
+    public static final int DB_LOCK_GET_TIMEOUT;
+    public static final int DB_LOCK_IREAD;
+    public static final int DB_LOCK_IWR;
+    public static final int DB_LOCK_IWRITE;
+    public static final int DB_LOCK_MAXLOCKS;
+    public static final int DB_LOCK_MINLOCKS;
+    public static final int DB_LOCK_MINWRITE;
+    public static final int DB_LOCK_NOWAIT;
+    public static final int DB_LOCK_OLDEST;
+    public static final int DB_LOCK_PUT;
+    public static final int DB_LOCK_PUT_ALL;
+    public static final int DB_LOCK_PUT_OBJ;
+    public static final int DB_LOCK_RANDOM;
+    public static final int DB_LOCK_READ;
+    public static final int DB_LOCK_TIMEOUT;
+    public static final int DB_LOCK_WRITE;
+    public static final int DB_LOCK_YOUNGEST;
+    public static final int DB_MULTIPLE;
+    public static final int DB_MULTIPLE_KEY;
+    public static final int DB_NEXT;
+    public static final int DB_NEXT_DUP;
+    public static final int DB_NEXT_NODUP;
+    public static final int DB_NODUPDATA;
+    public static final int DB_NOLOCKING;
+    public static final int DB_NOMMAP;
+    public static final int DB_NOORDERCHK;
+    public static final int DB_NOOVERWRITE;
+    public static final int DB_NOPANIC;
+    public static final int DB_NOSYNC;
+    public static final int DB_ODDFILESIZE;
+    public static final int DB_ORDERCHKONLY;
+    public static final int DB_OVERWRITE;
+    public static final int DB_PANIC_ENVIRONMENT;
+    public static final int DB_POSITION;
+    public static final int DB_PREV;
+    public static final int DB_PREV_NODUP;
+    public static final int DB_PRINTABLE;
+    public static final int DB_PRIORITY_DEFAULT;
+    public static final int DB_PRIORITY_HIGH;
+    public static final int DB_PRIORITY_LOW;
+    public static final int DB_PRIORITY_VERY_HIGH;
+    public static final int DB_PRIORITY_VERY_LOW;
+    public static final int DB_PRIVATE;
+    public static final int DB_RDONLY;
+    public static final int DB_RECNUM;
+    public static final int DB_RECORDCOUNT;
+    public static final int DB_RECOVER;
+    public static final int DB_RECOVER_FATAL;
+    public static final int DB_REGION_INIT;
+    public static final int DB_RENUMBER;
+    public static final int DB_REP_CLIENT;
+    public static final int DB_REP_LOGSONLY;
+    public static final int DB_REP_MASTER;
+    public static final int DB_REP_PERMANENT;
+    public static final int DB_REP_UNAVAIL;
+    public static final int DB_REVSPLITOFF;
+    public static final int DB_RMW;
+    public static final int DB_SALVAGE;
+    public static final int DB_SET;
+    public static final int DB_SET_LOCK_TIMEOUT;
+    public static final int DB_SET_RANGE;
+    public static final int DB_SET_RECNO;
+    public static final int DB_SET_TXN_TIMEOUT;
+    public static final int DB_SNAPSHOT;
+    public static final int DB_STAT_CLEAR;
+    public static final int DB_SYSTEM_MEM;
+    public static final int DB_THREAD;
+    public static final int DB_TRUNCATE;
+    public static final int DB_TXN_NOSYNC;
+    public static final int DB_TXN_NOWAIT;
+    public static final int DB_TXN_SYNC;
+    public static final int DB_TXN_WRITE_NOSYNC;
+    public static final int DB_UPGRADE;
+    public static final int DB_USE_ENVIRON;
+    public static final int DB_USE_ENVIRON_ROOT;
+    public static final int DB_VERB_CHKPOINT;
+    public static final int DB_VERB_DEADLOCK;
+    public static final int DB_VERB_RECOVERY;
+    public static final int DB_VERB_REPLICATION;
+    public static final int DB_VERB_WAITSFOR;
+    public static final int DB_VERIFY;
+    public static final int DB_VERSION_MAJOR;
+    public static final int DB_VERSION_MINOR;
+    public static final int DB_VERSION_PATCH;
+    public static final int DB_WRITECURSOR;
+    public static final int DB_XA_CREATE;
+    public static final int DB_XIDDATASIZE;
+    public static final int DB_YIELDCPU;
+    // END-JAVA-SPECIAL-CONSTANTS
 
     // Note: the env can be null
     //
@@ -265,7 +217,7 @@ public class Db
         dbenv_ = null;
         _notify_internal();
     }
-    
+
     private native void _init(DbEnv env, int flags)
          throws DbException;
 
@@ -274,17 +226,32 @@ public class Db
     // methods
     //
 
+    public synchronized void associate(DbTxn txn, Db secondary,
+                                       DbSecondaryKeyCreate key_creator,
+                                       int flags)
+        throws DbException
+    {
+        secondary.secondary_key_create_ = key_creator;
+        _associate(txn, secondary, key_creator, flags);
+    }
+
+    public native void _associate(DbTxn txn, Db secondary,
+                                  DbSecondaryKeyCreate key_creator, int flags)
+        throws DbException;
+
     public synchronized int close(int flags)
         throws DbException
     {
-        int err;
-        
-        dbenv_._remove_db(this);
-        err = _close(flags);
-        if (constructor_env_ == null) {
-            dbenv_._notify_db_close();
+        try {
+            dbenv_._remove_db(this);
+            return _close(flags);
         }
-        return err;
+        finally {
+            if (constructor_env_ == null) {
+                dbenv_._notify_db_close();
+            }
+            dbenv_ = null;
+        }
     }
 
     public native int _close(int flags)
@@ -307,7 +274,10 @@ public class Db
     protected void finalize()
         throws Throwable
     {
-        _finalize(dbenv_.errcall_, dbenv_.errpfx_);
+        if (dbenv_ == null)
+            _finalize(null, null);
+        else
+            _finalize(dbenv_.errcall_, dbenv_.errpfx_);
     }
 
     protected native void _finalize(DbErrcall errcall, String errpfx)
@@ -324,36 +294,71 @@ public class Db
     public native Dbc join(Dbc curslist[], int flags)
          throws DbException;
 
-    public native void key_range(DbTxn txn, Dbt key,
+    public native void key_range(DbTxn txnid, Dbt key,
                                  DbKeyRange range, int flags)
          throws DbException;
 
-    public synchronized void open(String file, String database,
-                     /*DBTYPE*/ int type,
+    public synchronized void open(DbTxn txnid, String file,
+                     String database, /*DBTYPE*/ int type,
                      int flags, int mode)
          throws DbException, FileNotFoundException
     {
-        _open(file, database, type, flags, mode);
+        _open(txnid, file, database, type, flags, mode);
     }
-        
+
     // (Internal)
-    public native void _open(String file, String database,
-                            /*DBTYPE*/ int type,
+    public native void _open(DbTxn txnid, String file,
+                            String database, /*DBTYPE*/ int type,
                             int flags, int mode)
          throws DbException, FileNotFoundException;
-        
+
+
+    // returns: 0, DB_NOTFOUND, or throws error
+    public native int pget(DbTxn txnid, Dbt key, Dbt pkey, Dbt data, int flags)
+         throws DbException;
 
     // returns: 0, DB_KEYEXIST, or throws error
     public native int put(DbTxn txnid, Dbt key, Dbt data, int flags)
          throws DbException;
 
-    public synchronized native void rename(String file, String database,
-                                           String newname, int flags)
-         throws DbException, FileNotFoundException;
+    public synchronized void rename(String file, String database,
+                                    String newname, int flags)
+        throws DbException, FileNotFoundException
+    {
+        try {
+            _rename(file, database, newname, flags);
+        }
+        finally {
+            if (constructor_env_ == null) {
+                dbenv_._notify_db_close();
+            }
+            dbenv_ = null;
+        }
+    }
 
-    public synchronized native void remove(String file, String database,
-                                           int flags)
-         throws DbException, FileNotFoundException;
+    public native void _rename(String file, String database,
+                               String newname, int flags)
+        throws DbException, FileNotFoundException;
+
+
+    public synchronized void remove(String file,
+                                           String database, int flags)
+        throws DbException, FileNotFoundException
+    {
+        try {
+            _remove(file, database, flags);
+        }
+        finally {
+            if (constructor_env_ == null) {
+                dbenv_._notify_db_close();
+            }
+            dbenv_ = null;
+        }
+    }
+
+    public native void _remove(String file, String database,
+                               int flags)
+        throws DbException, FileNotFoundException;
 
     // Comparison function.
     public void set_append_recno(DbAppendRecno append_recno)
@@ -394,13 +399,17 @@ public class Db
         bt_prefix_ = bt_prefix;
         bt_prefix_changed(bt_prefix);
     }
-    
+
     // (Internal)
     private native void bt_prefix_changed(DbBtreePrefix bt_prefix)
         throws DbException;
 
     // Set cache size
     public native void set_cachesize(int gbytes, int bytes, int ncaches)
+        throws DbException;
+
+    // Set cache priority
+    public native void set_cache_priority(/* DB_CACHE_PRIORITY */ int priority)
         throws DbException;
 
     // Duplication resolution
@@ -413,6 +422,10 @@ public class Db
 
     // (Internal)
     private native void dup_compare_changed(DbDupCompare dup_compare)
+        throws DbException;
+
+    // Encryption
+    public native void set_encrypt(String passwd, /*u_int32_t*/ int flags)
         throws DbException;
 
     // Error message callback.
@@ -435,7 +448,7 @@ public class Db
         if (dbenv_ != null)
             dbenv_.set_errpfx(errpfx);
     }
-    
+
 
     // Feedback
     public void set_feedback(DbFeedback feedback)
@@ -450,10 +463,16 @@ public class Db
         throws DbException;
 
     // Flags.
-    public native void set_flags(/*u_int32_t*/ int flags);
+    public native void set_flags(/*u_int32_t*/ int flags)
+        throws DbException;
+
+    // Internal - only intended for testing purposes in the Java RPC server
+    public native int get_flags_raw()
+        throws DbException;
 
     // Fill factor.
-    public native void set_h_ffactor(/*unsigned*/ int h_ffactor);
+    public native void set_h_ffactor(/*unsigned*/ int h_ffactor)
+        throws DbException;
 
     // Hash function.
     public void set_h_hash(DbHash h_hash)
@@ -464,38 +483,49 @@ public class Db
     }
 
     // (Internal)
-    private native void hash_changed(DbHash hash)        
+    private native void hash_changed(DbHash hash)
         throws DbException;
 
     // Number of elements.
-    public native void set_h_nelem(/*unsigned*/ int h_nelem);
+    public native void set_h_nelem(/*unsigned*/ int h_nelem)
+        throws DbException;
 
     // Byte order.
-    public native void set_lorder(int lorder);
+    public native void set_lorder(int lorder)
+        throws DbException;
 
     // Underlying page size.
-    public native void set_pagesize(/*size_t*/ long pagesize);
+    public native void set_pagesize(/*size_t*/ long pagesize)
+        throws DbException;
 
     // Variable-length delimiting byte.
-    public native void set_re_delim(int re_delim);
+    public native void set_re_delim(int re_delim)
+        throws DbException;
 
     // Length for fixed-length records.
-    public native void set_re_len(/*u_int32_t*/ int re_len);
+    public native void set_re_len(/*u_int32_t*/ int re_len)
+        throws DbException;
 
     // Fixed-length padding byte.
-    public native void set_re_pad(int re_pad);
+    public native void set_re_pad(int re_pad)
+        throws DbException;
 
     // Source file name.
-    public native void set_re_source(String re_source);
+    public native void set_re_source(String re_source)
+        throws DbException;
 
     // Extent size of Queue
-    public native void set_q_extentsize(/*u_int32_t*/ int extent_size);
+    public native void set_q_extentsize(/*u_int32_t*/ int extent_size)
+        throws DbException;
 
     // returns a DbBtreeStat or DbHashStat
     public native Object stat(int flags)
          throws DbException;
 
-    public native int sync(int flags)
+    public native void sync(int flags)
+         throws DbException;
+
+    public native int truncate(DbTxn txnid, int flags)
          throws DbException;
 
     public native void upgrade(String name, int flags)
@@ -519,6 +549,7 @@ public class Db
     private DbBtreePrefix bt_prefix_ = null;
     private DbDupCompare dup_compare_ = null;
     private DbHash h_hash_ = null;
+    private DbSecondaryKeyCreate secondary_key_create_ = null;
 
     ////////////////////////////////////////////////////////////////
     //
@@ -535,9 +566,13 @@ public class Db
 
         // An alternate library name can be specified via a property.
         //
-        String overrideLibname = System.getProperty("sleepycat.db.libname");
-        if (overrideLibname != null) {
-            System.loadLibrary(overrideLibname);
+        String override;
+
+        if ((override = System.getProperty("sleepycat.db.libfile")) != null) {
+            System.load(override);
+        }
+        else if ((override = System.getProperty("sleepycat.db.libname")) != null) {
+            System.loadLibrary(override);
         }
         else {
             String os = System.getProperty("os.name");
@@ -566,6 +601,7 @@ public class Db
     {
         if (c1 != c2) {
             System.err.println("Db: constant mismatch");
+            Thread.dumpStack();
             System.exit(1);
         }
     }
@@ -573,138 +609,153 @@ public class Db
     static {
         Db.load_db();
 
-        // Note: constant values are stored in DbConstants, which
-        // is automatically generated.  Initializing constants in
-        // static code insulates users from the possibility of
-        // changing constants.
-        //
-        DB_CXX_NO_EXCEPTIONS = DbConstants.DB_CXX_NO_EXCEPTIONS;
-        DB_CLIENT = DbConstants.DB_CLIENT;
-        DB_XA_CREATE = DbConstants.DB_XA_CREATE;
-
-        DB_CREATE = DbConstants.DB_CREATE;
-        DB_NOMMAP = DbConstants.DB_NOMMAP;
-        DB_THREAD = DbConstants.DB_THREAD;
-
-        DB_LOCKDOWN = DbConstants.DB_LOCKDOWN;
-        DB_PRIVATE = DbConstants.DB_PRIVATE;
-        DB_TXN_NOWAIT = DbConstants.DB_TXN_NOWAIT;
-        DB_TXN_SYNC = DbConstants.DB_TXN_SYNC;
+        // BEGIN-JAVA-CONSTANT-INITIALIZATION
+        /* DO NOT EDIT: automatically built by dist/s_java. */
+        DB_AFTER = DbConstants.DB_AFTER;
+        DB_AGGRESSIVE = DbConstants.DB_AGGRESSIVE;
+        DB_APPEND = DbConstants.DB_APPEND;
+        DB_ARCH_ABS = DbConstants.DB_ARCH_ABS;
+        DB_ARCH_DATA = DbConstants.DB_ARCH_DATA;
+        DB_ARCH_LOG = DbConstants.DB_ARCH_LOG;
+        DB_AUTO_COMMIT = DbConstants.DB_AUTO_COMMIT;
+        DB_BEFORE = DbConstants.DB_BEFORE;
+        DB_CACHED_COUNTS = DbConstants.DB_CACHED_COUNTS;
         DB_CDB_ALLDB = DbConstants.DB_CDB_ALLDB;
-
+        DB_CHKSUM_SHA1 = DbConstants.DB_CHKSUM_SHA1;
+        DB_CLIENT = DbConstants.DB_CLIENT;
+        DB_CONSUME = DbConstants.DB_CONSUME;
+        DB_CONSUME_WAIT = DbConstants.DB_CONSUME_WAIT;
+        DB_CREATE = DbConstants.DB_CREATE;
+        DB_CURRENT = DbConstants.DB_CURRENT;
+        DB_CXX_NO_EXCEPTIONS = DbConstants.DB_CXX_NO_EXCEPTIONS;
+        DB_DBT_MALLOC = DbConstants.DB_DBT_MALLOC;
+        DB_DBT_PARTIAL = DbConstants.DB_DBT_PARTIAL;
+        DB_DBT_REALLOC = DbConstants.DB_DBT_REALLOC;
+        DB_DBT_USERMEM = DbConstants.DB_DBT_USERMEM;
+        DB_DIRECT = DbConstants.DB_DIRECT;
+        DB_DIRECT_DB = DbConstants.DB_DIRECT_DB;
+        DB_DIRECT_LOG = DbConstants.DB_DIRECT_LOG;
+        DB_DIRTY_READ = DbConstants.DB_DIRTY_READ;
+        DB_DUP = DbConstants.DB_DUP;
+        DB_DUPSORT = DbConstants.DB_DUPSORT;
+        DB_EID_BROADCAST = DbConstants.DB_EID_BROADCAST;
+        DB_EID_INVALID = DbConstants.DB_EID_INVALID;
+        DB_ENCRYPT = DbConstants.DB_ENCRYPT;
+        DB_ENCRYPT_AES = DbConstants.DB_ENCRYPT_AES;
         DB_EXCL = DbConstants.DB_EXCL;
-        DB_RDONLY = DbConstants.DB_RDONLY;
-        DB_TRUNCATE = DbConstants.DB_TRUNCATE;
-        DB_UPGRADE = DbConstants.DB_UPGRADE;
-
-        // These constants are not assigned, but rather checked.
-        // Having initialized constants for these values allows
-        // them to be used as case values in switch statements.
-        //
-        check_constant(DB_INCOMPLETE, DbConstants.DB_INCOMPLETE);
-        check_constant(DB_KEYEMPTY, DbConstants.DB_KEYEMPTY);
-        check_constant(DB_KEYEXIST, DbConstants.DB_KEYEXIST);
-        check_constant(DB_LOCK_DEADLOCK, DbConstants.DB_LOCK_DEADLOCK);
-        check_constant(DB_LOCK_NOTGRANTED, DbConstants.DB_LOCK_NOTGRANTED);
-        check_constant(DB_NOSERVER, DbConstants.DB_NOSERVER);
-        check_constant(DB_NOSERVER_HOME, DbConstants.DB_NOSERVER_HOME);
-        check_constant(DB_NOSERVER_ID, DbConstants.DB_NOSERVER_ID);
-        check_constant(DB_NOTFOUND, DbConstants.DB_NOTFOUND);
-        check_constant(DB_OLD_VERSION, DbConstants.DB_OLD_VERSION);
-        check_constant(DB_RUNRECOVERY, DbConstants.DB_RUNRECOVERY);
-        check_constant(DB_VERIFY_BAD, DbConstants.DB_VERIFY_BAD);
-        check_constant(DB_TXN_BACKWARD_ROLL, DbConstants.DB_TXN_BACKWARD_ROLL);
-        check_constant(DB_TXN_FORWARD_ROLL, DbConstants.DB_TXN_FORWARD_ROLL);
-        check_constant(DB_TXN_OPENFILES, DbConstants.DB_TXN_OPENFILES);
-        check_constant(DB_TXN_REDO, DbConstants.DB_TXN_REDO);
-        check_constant(DB_TXN_UNDO, DbConstants.DB_TXN_UNDO);
-
+        DB_FAST_STAT = DbConstants.DB_FAST_STAT;
+        DB_FIRST = DbConstants.DB_FIRST;
+        DB_FLUSH = DbConstants.DB_FLUSH;
         DB_FORCE = DbConstants.DB_FORCE;
+        DB_GET_BOTH = DbConstants.DB_GET_BOTH;
+        DB_GET_BOTH_RANGE = DbConstants.DB_GET_BOTH_RANGE;
+        DB_GET_RECNO = DbConstants.DB_GET_RECNO;
         DB_INIT_CDB = DbConstants.DB_INIT_CDB;
         DB_INIT_LOCK = DbConstants.DB_INIT_LOCK;
         DB_INIT_LOG = DbConstants.DB_INIT_LOG;
         DB_INIT_MPOOL = DbConstants.DB_INIT_MPOOL;
         DB_INIT_TXN = DbConstants.DB_INIT_TXN;
         DB_JOINENV = DbConstants.DB_JOINENV;
-        DB_RECOVER = DbConstants.DB_RECOVER;
-        DB_RECOVER_FATAL = DbConstants.DB_RECOVER_FATAL;
-        DB_SYSTEM_MEM = DbConstants.DB_SYSTEM_MEM;
-        DB_TXN_NOSYNC = DbConstants.DB_TXN_NOSYNC;
-        DB_USE_ENVIRON = DbConstants.DB_USE_ENVIRON;
-        DB_USE_ENVIRON_ROOT = DbConstants.DB_USE_ENVIRON_ROOT;
-
-        DB_VERB_CHKPOINT = DbConstants.DB_VERB_CHKPOINT;
-        DB_VERB_DEADLOCK = DbConstants.DB_VERB_DEADLOCK;
-        DB_VERB_RECOVERY = DbConstants.DB_VERB_RECOVERY;
-        DB_VERB_WAITSFOR = DbConstants.DB_VERB_WAITSFOR;
-
-        DB_LOCK_NORUN = DbConstants.DB_LOCK_NORUN;
-        DB_LOCK_DEFAULT = DbConstants.DB_LOCK_DEFAULT;
-        DB_LOCK_OLDEST = DbConstants.DB_LOCK_OLDEST;
-        DB_LOCK_RANDOM = DbConstants.DB_LOCK_RANDOM;
-        DB_LOCK_YOUNGEST = DbConstants.DB_LOCK_YOUNGEST;
-
-        DB_DUP = DbConstants.DB_DUP;
-        DB_DUPSORT = DbConstants.DB_DUPSORT;
-        DB_RECNUM = DbConstants.DB_RECNUM;
-        DB_RENUMBER = DbConstants.DB_RENUMBER;
-        DB_REVSPLITOFF = DbConstants.DB_REVSPLITOFF;
-        DB_SNAPSHOT = DbConstants.DB_SNAPSHOT;
-
-        DB_JOIN_NOSORT = DbConstants.DB_JOIN_NOSORT;
-
-        DB_NOORDERCHK = DbConstants.DB_NOORDERCHK;
-        DB_ORDERCHKONLY = DbConstants.DB_ORDERCHKONLY;
-        DB_SALVAGE = DbConstants.DB_SALVAGE;
-        DB_AGGRESSIVE = DbConstants.DB_AGGRESSIVE;
-
-        DB_LOCK_NOWAIT = DbConstants.DB_LOCK_NOWAIT;
-        DB_LOCK_CONFLICT = DbConstants.DB_LOCK_CONFLICT;
-
-        DB_ARCH_ABS = DbConstants.DB_ARCH_ABS;
-        DB_ARCH_DATA = DbConstants.DB_ARCH_DATA;
-        DB_ARCH_LOG = DbConstants.DB_ARCH_LOG;
-
-        DB_AFTER = DbConstants.DB_AFTER;
-        DB_APPEND = DbConstants.DB_APPEND;
-        DB_BEFORE = DbConstants.DB_BEFORE;
-        DB_CACHED_COUNTS = DbConstants.DB_CACHED_COUNTS;
-        DB_CHECKPOINT = DbConstants.DB_CHECKPOINT;
-        DB_CONSUME = DbConstants.DB_CONSUME;
-        DB_CONSUME_WAIT = DbConstants.DB_CONSUME_WAIT;
-        DB_CURLSN = DbConstants.DB_CURLSN;
-        DB_CURRENT = DbConstants.DB_CURRENT;
-        DB_FIRST = DbConstants.DB_FIRST;
-        DB_FLUSH = DbConstants.DB_FLUSH;
-        DB_GET_BOTH = DbConstants.DB_GET_BOTH;
-        DB_GET_RECNO = DbConstants.DB_GET_RECNO;
         DB_JOIN_ITEM = DbConstants.DB_JOIN_ITEM;
+        DB_JOIN_NOSORT = DbConstants.DB_JOIN_NOSORT;
         DB_KEYFIRST = DbConstants.DB_KEYFIRST;
         DB_KEYLAST = DbConstants.DB_KEYLAST;
         DB_LAST = DbConstants.DB_LAST;
+        DB_LOCKDOWN = DbConstants.DB_LOCKDOWN;
+        DB_LOCK_DEFAULT = DbConstants.DB_LOCK_DEFAULT;
+        DB_LOCK_EXPIRE = DbConstants.DB_LOCK_EXPIRE;
+        DB_LOCK_GET = DbConstants.DB_LOCK_GET;
+        DB_LOCK_GET_TIMEOUT = DbConstants.DB_LOCK_GET_TIMEOUT;
+        DB_LOCK_IREAD = DbConstants.DB_LOCK_IREAD;
+        DB_LOCK_IWR = DbConstants.DB_LOCK_IWR;
+        DB_LOCK_IWRITE = DbConstants.DB_LOCK_IWRITE;
+        DB_LOCK_MAXLOCKS = DbConstants.DB_LOCK_MAXLOCKS;
+        DB_LOCK_MINLOCKS = DbConstants.DB_LOCK_MINLOCKS;
+        DB_LOCK_MINWRITE = DbConstants.DB_LOCK_MINWRITE;
+        DB_LOCK_NOWAIT = DbConstants.DB_LOCK_NOWAIT;
+        DB_LOCK_OLDEST = DbConstants.DB_LOCK_OLDEST;
+        DB_LOCK_PUT = DbConstants.DB_LOCK_PUT;
+        DB_LOCK_PUT_ALL = DbConstants.DB_LOCK_PUT_ALL;
+        DB_LOCK_PUT_OBJ = DbConstants.DB_LOCK_PUT_OBJ;
+        DB_LOCK_RANDOM = DbConstants.DB_LOCK_RANDOM;
+        DB_LOCK_READ = DbConstants.DB_LOCK_READ;
+        DB_LOCK_TIMEOUT = DbConstants.DB_LOCK_TIMEOUT;
+        DB_LOCK_WRITE = DbConstants.DB_LOCK_WRITE;
+        DB_LOCK_YOUNGEST = DbConstants.DB_LOCK_YOUNGEST;
+        DB_MULTIPLE = DbConstants.DB_MULTIPLE;
+        DB_MULTIPLE_KEY = DbConstants.DB_MULTIPLE_KEY;
         DB_NEXT = DbConstants.DB_NEXT;
         DB_NEXT_DUP = DbConstants.DB_NEXT_DUP;
         DB_NEXT_NODUP = DbConstants.DB_NEXT_NODUP;
         DB_NODUPDATA = DbConstants.DB_NODUPDATA;
+        DB_NOLOCKING = DbConstants.DB_NOLOCKING;
+        DB_NOMMAP = DbConstants.DB_NOMMAP;
+        DB_NOORDERCHK = DbConstants.DB_NOORDERCHK;
         DB_NOOVERWRITE = DbConstants.DB_NOOVERWRITE;
+        DB_NOPANIC = DbConstants.DB_NOPANIC;
         DB_NOSYNC = DbConstants.DB_NOSYNC;
+        DB_ODDFILESIZE = DbConstants.DB_ODDFILESIZE;
+        DB_ORDERCHKONLY = DbConstants.DB_ORDERCHKONLY;
+        DB_OVERWRITE = DbConstants.DB_OVERWRITE;
+        DB_PANIC_ENVIRONMENT = DbConstants.DB_PANIC_ENVIRONMENT;
         DB_POSITION = DbConstants.DB_POSITION;
         DB_PREV = DbConstants.DB_PREV;
         DB_PREV_NODUP = DbConstants.DB_PREV_NODUP;
+        DB_PRINTABLE = DbConstants.DB_PRINTABLE;
+        DB_PRIORITY_DEFAULT = DbConstants.DB_PRIORITY_DEFAULT;
+        DB_PRIORITY_HIGH = DbConstants.DB_PRIORITY_HIGH;
+        DB_PRIORITY_LOW = DbConstants.DB_PRIORITY_LOW;
+        DB_PRIORITY_VERY_HIGH = DbConstants.DB_PRIORITY_VERY_HIGH;
+        DB_PRIORITY_VERY_LOW = DbConstants.DB_PRIORITY_VERY_LOW;
+        DB_PRIVATE = DbConstants.DB_PRIVATE;
+        DB_RDONLY = DbConstants.DB_RDONLY;
+        DB_RECNUM = DbConstants.DB_RECNUM;
         DB_RECORDCOUNT = DbConstants.DB_RECORDCOUNT;
+        DB_RECOVER = DbConstants.DB_RECOVER;
+        DB_RECOVER_FATAL = DbConstants.DB_RECOVER_FATAL;
+        DB_REGION_INIT = DbConstants.DB_REGION_INIT;
+        DB_RENUMBER = DbConstants.DB_RENUMBER;
+        DB_REP_CLIENT = DbConstants.DB_REP_CLIENT;
+        DB_REP_LOGSONLY = DbConstants.DB_REP_LOGSONLY;
+        DB_REP_MASTER = DbConstants.DB_REP_MASTER;
+        DB_REP_PERMANENT = DbConstants.DB_REP_PERMANENT;
+        DB_REP_UNAVAIL = DbConstants.DB_REP_UNAVAIL;
+        DB_REVSPLITOFF = DbConstants.DB_REVSPLITOFF;
         DB_RMW = DbConstants.DB_RMW;
+        DB_SALVAGE = DbConstants.DB_SALVAGE;
         DB_SET = DbConstants.DB_SET;
+        DB_SET_LOCK_TIMEOUT = DbConstants.DB_SET_LOCK_TIMEOUT;
         DB_SET_RANGE = DbConstants.DB_SET_RANGE;
         DB_SET_RECNO = DbConstants.DB_SET_RECNO;
+        DB_SET_TXN_TIMEOUT = DbConstants.DB_SET_TXN_TIMEOUT;
+        DB_SNAPSHOT = DbConstants.DB_SNAPSHOT;
+        DB_STAT_CLEAR = DbConstants.DB_STAT_CLEAR;
+        DB_SYSTEM_MEM = DbConstants.DB_SYSTEM_MEM;
+        DB_THREAD = DbConstants.DB_THREAD;
+        DB_TRUNCATE = DbConstants.DB_TRUNCATE;
+        DB_TXN_NOSYNC = DbConstants.DB_TXN_NOSYNC;
+        DB_TXN_NOWAIT = DbConstants.DB_TXN_NOWAIT;
+        DB_TXN_SYNC = DbConstants.DB_TXN_SYNC;
+        DB_TXN_WRITE_NOSYNC = DbConstants.DB_TXN_WRITE_NOSYNC;
+        DB_UPGRADE = DbConstants.DB_UPGRADE;
+        DB_USE_ENVIRON = DbConstants.DB_USE_ENVIRON;
+        DB_USE_ENVIRON_ROOT = DbConstants.DB_USE_ENVIRON_ROOT;
+        DB_VERB_CHKPOINT = DbConstants.DB_VERB_CHKPOINT;
+        DB_VERB_DEADLOCK = DbConstants.DB_VERB_DEADLOCK;
+        DB_VERB_RECOVERY = DbConstants.DB_VERB_RECOVERY;
+        DB_VERB_REPLICATION = DbConstants.DB_VERB_REPLICATION;
+        DB_VERB_WAITSFOR = DbConstants.DB_VERB_WAITSFOR;
+        DB_VERIFY = DbConstants.DB_VERIFY;
+        DB_VERSION_MAJOR = DbConstants.DB_VERSION_MAJOR;
+        DB_VERSION_MINOR = DbConstants.DB_VERSION_MINOR;
+        DB_VERSION_PATCH = DbConstants.DB_VERSION_PATCH;
         DB_WRITECURSOR = DbConstants.DB_WRITECURSOR;
-
-        DB_DBT_MALLOC = DbConstants.DB_DBT_MALLOC;
-        DB_DBT_PARTIAL = DbConstants.DB_DBT_PARTIAL;
-        DB_DBT_REALLOC = DbConstants.DB_DBT_REALLOC;
-        DB_DBT_USERMEM = DbConstants.DB_DBT_USERMEM;
+        DB_XA_CREATE = DbConstants.DB_XA_CREATE;
+        DB_XIDDATASIZE = DbConstants.DB_XIDDATASIZE;
+        DB_YIELDCPU = DbConstants.DB_YIELDCPU;
+        // END-JAVA-CONSTANT-INITIALIZATION
 
         one_time_init();
     }
 }
-
 // end of Db.java

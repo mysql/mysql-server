@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: AccessExample.java,v 11.5 2000/12/13 07:09:42 krinsky Exp $
+ * $Id: AccessExample.java,v 11.12 2002/02/05 22:27:13 mjc Exp $
  */
 
 package com.sleepycat.examples;
@@ -22,12 +22,6 @@ class AccessExample
 
     public AccessExample()
     {
-    }
-
-    private static void usage()
-    {
-        System.err.println("usage: AccessExample\n");
-        System.exit(1);
     }
 
     public static void main(String argv[])
@@ -101,7 +95,7 @@ class AccessExample
         Db table = new Db(null, 0);
         table.set_error_stream(System.err);
         table.set_errpfx("AccessExample");
-        table.open(FileName, null, Db.DB_BTREE, Db.DB_CREATE, 0644);
+        table.open(null, FileName, null, Db.DB_BTREE, Db.DB_CREATE, 0644);
 
         //
         // Insert records into the database, where the key is the user
@@ -124,7 +118,7 @@ class AccessExample
             try
             {
                 int err;
-                if ((err = table.put(null, 
+                if ((err = table.put(null,
 		    key, data, Db.DB_NOOVERWRITE)) == Db.DB_KEYEXIST) {
                         System.out.println("Key " + line + " already exists.");
                 }
@@ -174,8 +168,9 @@ class AccessExample
 
         void setString(String value)
         {
-            set_data(value.getBytes());
-            set_size(value.length());
+            byte[] data = value.getBytes();
+            set_data(data);
+            set_size(data.length);
         }
 
         String getString()

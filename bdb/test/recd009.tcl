@@ -1,13 +1,12 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: recd009.tcl,v 1.13 2000/12/07 19:13:46 sue Exp $
+# $Id: recd009.tcl,v 1.18 2002/04/01 20:11:44 krinsky Exp $
 #
-# Recovery Test 9.
-# Test stability of record numbers across splits
-# and reverse splits and across recovery.
+# TEST	recd009
+# TEST	Verify record numbering across split/reverse splits and recovery.
 proc recd009 { method {select 0} args} {
 	global fixed_len
 	source ./include.tcl
@@ -31,11 +30,11 @@ proc recd009 { method {select 0} args} {
 	puts "\tRecd009.a: Create $method environment and database."
 	set flags "-create -txn -home $testdir"
 
-	set env_cmd "berkdb env $flags"
+	set env_cmd "berkdb_env $flags"
 	set dbenv [eval $env_cmd]
 	error_check_good dbenv [is_valid_env $dbenv] TRUE
 
-	set oflags "-env $dbenv -create -mode 0644 $opts $method"
+	set oflags "-env $dbenv -pagesize 8192 -create -mode 0644 $opts $method"
 	set db [eval {berkdb_open} $oflags $testfile]
 	error_check_good dbopen [is_valid_db $db] TRUE
 

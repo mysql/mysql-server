@@ -1,12 +1,12 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test052.tcl,v 11.10 2000/10/06 19:29:52 krinsky Exp $
+# $Id: test052.tcl,v 11.16 2002/07/08 20:48:58 sandstro Exp $
 #
-# Test52
-# Renumbering recno test.
+# TEST	test052
+# TEST	Renumbering record Recno test.
 proc test052 { method args } {
 	global alphabet
 	global errorInfo
@@ -27,6 +27,7 @@ proc test052 { method args } {
 	set flags ""
 
 	puts "\tTest052: Create $method database."
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -38,17 +39,18 @@ proc test052 { method args } {
 		set testfile test052.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+		}
+		set testdir [get_home $env]
 	}
 	set t1 $testdir/t1
 	cleanup $testdir $env
 
-	set oflags "-create -truncate -mode 0644 $args $omethod"
+	set oflags "-create -mode 0644 $args $omethod"
 	set db [eval {berkdb_open} $oflags $testfile]
 	error_check_good dbopen [is_valid_db $db] TRUE
-
-	# open curs to db
-	set dbc [$db cursor]
-	error_check_good db_cursor [is_substr $dbc $db] 1
 
 	# keep nkeys even
 	set nkeys 20
@@ -56,9 +58,26 @@ proc test052 { method args } {
 	# Fill page w/ small key/data pairs
 	puts "\tTest052: Fill page with $nkeys small key/data pairs."
 	for { set i 1 } { $i <= $nkeys } { incr i } {
-		set ret [$db put $i $data$i]
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
+		set ret [eval {$db put} $txn {$i $data$i}]
 		error_check_good dbput $ret 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 	}
+
+	# open curs to db
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
+	set dbc [eval {$db cursor} $txn]
+	error_check_good db_cursor [is_valid_cursor $dbc $db] TRUE
 
 	# get db order of keys
 	for {set i 1; set ret [$dbc get -first]} { [llength $ret] != 0} { \
@@ -79,7 +98,7 @@ proc test052 { method args } {
 
 	# delete by key before current
 	set i [incr i -1]
-	error_check_good db_del:before [$db del $keys($i)] 0
+	error_check_good db_del:before [eval {$db del} $txn {$keys($i)}] 0
 	# with renumber, current's data should be constant, but key==--key
 	set i [incr i +1]
 	error_check_good dbc:data \
@@ -94,7 +113,7 @@ proc test052 { method args } {
 	error_check_bad dbc:get [llength $ret] 0
 	error_check_good dbc:get:curs [lindex [lindex $ret 0] 1] \
 	    $darray([expr $i + 1])
-	error_check_good db_del:curr [$db del $keys($i)] 0
+	error_check_good db_del:curr [eval {$db del} $txn {$keys($i)}] 0
 	set ret [$dbc get -current]
 
 	# After a delete, cursor should return DB_NOTFOUND.
@@ -114,7 +133,7 @@ proc test052 { method args } {
 	# should be { keys($nkeys/2), darray($nkeys/2 + 2) }
 	set i [expr $nkeys/2]
 	# deleting data for key after current (key $nkeys/2 + 1)
-	error_check_good db_del [$db del $keys([expr $i + 1])] 0
+	error_check_good db_del [eval {$db del} $txn {$keys([expr $i + 1])}] 0
 
 	# current should be constant
 	set ret [$dbc get -current]
@@ -248,6 +267,9 @@ proc test052 { method args } {
 	    $ret [list [list $keys($i) $darray($i)]]
 
 	error_check_good dbc_close [$dbc close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 
 	puts "\tTest052 complete."

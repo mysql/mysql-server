@@ -1,0 +1,79 @@
+#!/bin/sh -
+#
+# $Id: chk.javatests,v 1.5 2002/08/16 19:35:56 dda Exp $
+#
+# Check to make sure that regression tests for Java run.
+
+TEST_JAVA_SRCDIR=../test/scr016  # must be a relative directory
+JAVA=${JAVA:-java}
+JAVAC=${JAVAC:-javac}
+
+# CLASSPATH is used by javac and java.
+# We use CLASSPATH rather than the -classpath command line option
+# because the latter behaves differently from JDK1.1 and JDK1.2
+export CLASSPATH="./classes:../db.jar"
+export LD_LIBRARY_PATH="../.libs"
+
+
+# All paths must be relative to a subdirectory of the build directory
+LIBS="-L.. -ldb -ldb_cxx"
+CXXFLAGS="-I.. -I../../dbinc"
+
+# Test must be run from a local build directory, not from a test
+# directory.
+cd ..
+[ -f db_config.h ] || {
+	echo 'FAIL: chk.javatests must be run from a local build directory.'
+	exit 1
+}
+[ -d ../docs_src ] || {
+	echo 'FAIL: chk.javatests must be run from a local build directory.'
+	exit 1
+}
+version=`sed -e 's/.* \([0-9]*\.[0-9]*\)\..*/\1/' -e q ../README `
+[ -f libdb_java-$version.la ] || make libdb_java-$version.la || {
+	echo "FAIL: unable to build libdb_java-$version.la"
+	exit 1
+}
+[ -f db.jar ] || make db.jar || {
+	echo 'FAIL: unable to build db.jar'
+	exit 1
+}
+testnames=`cd $TEST_JAVA_SRCDIR; ls *.java | sed -e 's/\.java$//'`
+
+for testname in $testnames; do
+	if grep -x $testname $TEST_JAVA_SRCDIR/ignore > /dev/null; then
+		echo "    **** java test $testname ignored"
+		continue
+	fi
+
+	echo "    ==== java test $testname"
+	rm -rf TESTJAVA; mkdir -p TESTJAVA/classes
+	cd ./TESTJAVA
+	testprefix=../$TEST_JAVA_SRCDIR/$testname
+	${JAVAC} -d ./classes $testprefix.java ../$TEST_JAVA_SRCDIR/TestUtil.java > ../$testname.compileout 2>&1 || {
+pwd
+		echo "FAIL: compilation of $testname failed, see ../$testname.compileout"
+		exit 1
+	}
+	rm -f ../$testname.compileout
+	infile=$testprefix.testin
+	[ -f $infile ] || infile=/dev/null
+	goodoutfile=$testprefix.testout
+	[ -f $goodoutfile ] || goodoutfile=/dev/null
+	gooderrfile=$testprefix.testerr
+	[ -f $gooderrfile ] || gooderrfile=/dev/null
+	${JAVA} com.sleepycat.test.$testname <$infile >../$testname.out 2>../$testname.err
+	cmp ../$testname.out $goodoutfile > /dev/null || {
+		echo "FAIL: $testname output differs: see ../$testname.out, $goodoutfile"
+		exit 1
+	}
+	cmp ../$testname.err $gooderrfile > /dev/null || {
+		echo "FAIL: $testname error differs: see ../$testname.err, $gooderrfile"
+		exit 1
+	}
+	cd ..
+	rm -f $testname.err $testname.out
+done
+rm -rf TESTJAVA
+exit 0

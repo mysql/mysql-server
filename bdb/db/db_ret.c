@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: db_ret.c,v 11.12 2000/11/30 00:58:33 ubell Exp $";
+static const char revid[] = "$Id: db_ret.c,v 11.21 2002/03/28 19:21:47 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -18,9 +18,8 @@ static const char revid[] = "$Id: db_ret.c,v 11.12 2000/11/30 00:58:33 ubell Exp
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "btree.h"
-#include "db_am.h"
+#include "dbinc/db_page.h"
+#include "dbinc/db_am.h"
 
 /*
  * __db_ret --
@@ -47,19 +46,19 @@ __db_ret(dbp, h, indx, dbt, memp, memsize)
 
 	switch (TYPE(h)) {
 	case P_HASH:
-		hk = P_ENTRY(h, indx);
+		hk = P_ENTRY(dbp, h, indx);
 		if (HPAGE_PTYPE(hk) == H_OFFPAGE) {
 			memcpy(&ho, hk, sizeof(HOFFPAGE));
 			return (__db_goff(dbp, dbt,
 			    ho.tlen, ho.pgno, memp, memsize));
 		}
-		len = LEN_HKEYDATA(h, dbp->pgsize, indx);
+		len = LEN_HKEYDATA(dbp, h, dbp->pgsize, indx);
 		data = HKEYDATA_DATA(hk);
 		break;
 	case P_LBTREE:
 	case P_LDUP:
 	case P_LRECNO:
-		bk = GET_BKEYDATA(h, indx);
+		bk = GET_BKEYDATA(dbp, h, indx);
 		if (B_TYPE(bk->type) == B_OVERFLOW) {
 			bo = (BOVERFLOW *)bk;
 			return (__db_goff(dbp, dbt,
@@ -69,32 +68,29 @@ __db_ret(dbp, h, indx, dbt, memp, memsize)
 		data = bk->data;
 		break;
 	default:
-		return (__db_pgfmt(dbp, h->pgno));
+		return (__db_pgfmt(dbp->dbenv, h->pgno));
 	}
 
-	return (__db_retcopy(dbp, dbt, data, len, memp, memsize));
+	return (__db_retcopy(dbp->dbenv, dbt, data, len, memp, memsize));
 }
 
 /*
  * __db_retcopy --
  *	Copy the returned data into the user's DBT, handling special flags.
  *
- * PUBLIC: int __db_retcopy __P((DB *, DBT *,
+ * PUBLIC: int __db_retcopy __P((DB_ENV *, DBT *,
  * PUBLIC:    void *, u_int32_t, void **, u_int32_t *));
  */
 int
-__db_retcopy(dbp, dbt, data, len, memp, memsize)
-	DB *dbp;
+__db_retcopy(dbenv, dbt, data, len, memp, memsize)
+	DB_ENV *dbenv;
 	DBT *dbt;
 	void *data;
 	u_int32_t len;
 	void **memp;
 	u_int32_t *memsize;
 {
-	DB_ENV *dbenv;
 	int ret;
-
-	dbenv = dbp == NULL ? NULL : dbp->dbenv;
 
 	/* If returning a partial record, reset the length. */
 	if (F_ISSET(dbt, DB_DBT_PARTIAL)) {
@@ -131,12 +127,10 @@ __db_retcopy(dbp, dbt, data, len, memp, memsize)
 	 * memory pointer is allowed to be NULL.
 	 */
 	if (F_ISSET(dbt, DB_DBT_MALLOC)) {
-		if ((ret = __os_malloc(dbenv, len,
-		    dbp == NULL ? NULL : dbp->db_malloc, &dbt->data)) != 0)
+		if ((ret = __os_umalloc(dbenv, len, &dbt->data)) != 0)
 			return (ret);
 	} else if (F_ISSET(dbt, DB_DBT_REALLOC)) {
-		if ((ret = __os_realloc(dbenv, len,
-		    dbp == NULL ? NULL : dbp->db_realloc, &dbt->data)) != 0)
+		if ((ret = __os_urealloc(dbenv, len, &dbt->data)) != 0)
 			return (ret);
 	} else if (F_ISSET(dbt, DB_DBT_USERMEM)) {
 		if (len != 0 && (dbt->data == NULL || dbt->ulen < len))
@@ -145,7 +139,7 @@ __db_retcopy(dbp, dbt, data, len, memp, memsize)
 		return (EINVAL);
 	} else {
 		if (len != 0 && (*memsize == 0 || *memsize < len)) {
-			if ((ret = __os_realloc(dbenv, len, NULL, memp)) != 0) {
+			if ((ret = __os_realloc(dbenv, len, memp)) != 0) {
 				*memsize = 0;
 				return (ret);
 			}

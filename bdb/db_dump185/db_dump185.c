@@ -1,15 +1,15 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #ifndef lint
 static char copyright[] =
-    "Copyright (c) 1996-2000\nSleepycat Software Inc.  All rights reserved.\n";
+    "Copyright (c) 1996-2002\nSleepycat Software Inc.  All rights reserved.\n";
 static char revid[] =
-    "$Id: db_dump185.c,v 11.8 2001/01/10 17:26:21 bostic Exp $";
+    "$Id: db_dump185.c,v 11.17 2002/08/08 03:50:35 bostic Exp $";
 #endif
 
 #include <sys/types.h>
@@ -65,9 +65,11 @@ typedef struct hashhdr186 {	/* Disk resident portion */
 	int32_t	h_charkey;	/* value of hash(CHARKEY) */
 #define	NCACHED	32		/* number of bit maps and spare points */
 	int32_t	spares[NCACHED];/* spare pages for overflow */
-	u_int16_t	bitmaps[NCACHED];	/* address of overflow page bitmaps */
+				/* address of overflow page bitmaps */
+	u_int16_t bitmaps[NCACHED];
 } HASHHDR186;
 typedef struct htab186	 {		/* Memory resident data structure */
+	void *unused[2];
 	HASHHDR186	hdr;		/* Header */
 } HTAB186;
 
@@ -171,7 +173,7 @@ void	db_hash __P((DB *, int));
 void	dbt_dump __P((DBT *));
 void	dbt_print __P((DBT *));
 int	main __P((int, char *[]));
-void	usage __P((void));
+int	usage __P((void));
 
 int
 main(argc, argv)
@@ -191,7 +193,7 @@ main(argc, argv)
 			if (freopen(optarg, "w", stdout) == NULL) {
 				fprintf(stderr, "db_dump185: %s: %s\n",
 				    optarg, strerror(errno));
-				exit (1);
+				return (EXIT_FAILURE);
 			}
 			break;
 		case 'p':
@@ -199,20 +201,20 @@ main(argc, argv)
 			break;
 		case '?':
 		default:
-			usage();
+			return (usage());
 		}
 	argc -= optind;
 	argv += optind;
 
 	if (argc != 1)
-		usage();
+		return (usage());
 
 	if ((dbp = dbopen(argv[0], O_RDONLY, 0, DB_BTREE, NULL)) == NULL) {
 		if ((dbp =
 		    dbopen(argv[0], O_RDONLY, 0, DB_HASH, NULL)) == NULL) {
 			fprintf(stderr,
 			    "db_dump185: %s: %s\n", argv[0], strerror(errno));
-			exit (1);
+			return (EXIT_FAILURE);
 		}
 		db_hash(dbp, pflag);
 	} else
@@ -236,9 +238,9 @@ main(argc, argv)
 
 	if (rval == -1) {
 		fprintf(stderr, "db_dump185: seq: %s\n", strerror(errno));
-		exit (1);
+		return (EXIT_FAILURE);
 	}
-	return (0);
+	return (EXIT_SUCCESS);
 }
 
 /*
@@ -345,9 +347,9 @@ dbt_print(dbtp)
  * usage --
  *	Display the usage message.
  */
-void
+int
 usage()
 {
 	(void)fprintf(stderr, "usage: db_dump185 [-p] [-f file] db_file\n");
-	exit(1);
+	return (EXIT_FAILURE);
 }
