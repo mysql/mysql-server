@@ -262,7 +262,7 @@ Dbtux::readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, Data keyData)
       debugOut << endl;
       totalSize += 1 + dataSize;
     }
-    ndbassert(totalSize == ret);
+    ndbassert((int)totalSize == ret);
   }
 #endif
 }
