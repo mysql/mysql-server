@@ -352,7 +352,6 @@ static SYMBOL symbols[] = {
   { "SONAME",		SYM(UDF_SONAME_SYM),0,0},
   { "SPATIAL",		SYM(SPATIAL_SYM),0,0},
   { "SPECIFIC",		SYM(SPECIFIC_SYM),0,0},
-  { "SPSET",		SYM(SPSET_SYM),0,0}, /* Temp. until SET parsing solved.  */
   { "SQL_BIG_RESULT",	SYM(SQL_BIG_RESULT),0,0},
   { "SQL_BUFFER_RESULT", SYM(SQL_BUFFER_RESULT),0,0},
   { "SQL_CACHE",        SYM(SQL_CACHE_SYM), 0, 0},
