@@ -6361,6 +6361,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{ftp://mysql.tiszanet.hu/pub/mirrors/mysql/, FTP}
 
 @item
+@c EMAIL: i.habencius@telnet.hu (Habencius Istvan)
+@image{Flags/hungary} Hungary [stop.hu] @
+@uref{http://mysql.mirror.stop.hu/, WWW}
+
+@item
 @c EMAIL: mirrors@gm.is (Tomas Edwardsson)
 @image{Flags/iceland} Iceland [GM] @
 @uref{http://mysql.gm.is/, WWW}
@@ -6547,10 +6552,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://ftp.plig.org/pub/mysql/, WWW}
 @uref{ftp://ftp.plig.org/pub/mysql/, FTP}
 
-@item
+@c @item
+@c Not ok 20010808; Non-existent (Matt)
 @c EMAIL: sean@telekon.co.uk (Sean Gibson)
-@image{Flags/great-britain} UK [Telekon Internet/UK] @
-@uref{ftp://ftp.telekon.co.uk/pub/mysql/, FTP}
+@c @image{Flags/great-britain} UK [Telekon Internet/UK] @
+@c @uref{ftp://ftp.telekon.co.uk/pub/mysql/, FTP}
 
 @c @item
 @c lance@uklinux.net (Lance)
@@ -6571,15 +6577,21 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c @uref{ftp://sunsite.org.uk/packages/mysql/, FTP}
 
 @item
-@c sander@paco.net (Alexander Ivanov)
+@c EMAIL: sander@paco.net (Alexander Ivanov)
 @image{Flags/ukraine} Ukraine [PACO] @
 @uref{http://mysql.paco.net.ua, WWW}
 @uref{ftp://mysql.paco.net.ua/, FTP}
 
 @item
-@c mizi@alkar.net (Alexander Ryumshin)
+@c EMAIL: mizi@alkar.net (Alexander Ryumshin)
 @image{Flags/ukraine} Ukraine [ISP Alkar Teleport/Dnepropetrovsk] @
 @uref{http://mysql.dp.ua/, WWW}
+
+@item
+@c EMAIL: bole@bolex.bolex.co.yu (Bosko Radivojevic)
+@image{Flags/yugoslavia} Yugoslavia [bolex.co.yu] @
+@uref{http://mysql.boa.org.yu/, WWW}
+@uref{ftp://ftp.linux.org.yu/pub/MySQL/, FTP}
 
 @end itemize
 
@@ -6709,6 +6721,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @image{Flags/usa} USA [netNumina/Cambridge, MA] @
 @uref{http://mysql.mirrors.netnumina.com/, WWW}
 
+@item
+@c EMAIL: hagler@ahaza.com (Mark Hagler)
+@image{Flags/usa} USA [Ahaza Systems/Seattle, WA] @
+@uref{http://mysql.mirrortree.com/, WWW}
+@uref{ftp://mysql.mirrortree.com/pub/mysql/, FTP}
+
 @end itemize
 
 @strong{South America:}
@@ -6794,27 +6812,10 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c @image{Flags/china} China [Netfirm] @
 @c @uref{http://mysql.netfirm.net, WWW}
 
-@c @item
-@c Not ok 20000919; Old site (Matt)
-@c EMAIL: ahmlhs@nmsvr.chosun.com (Ho-sun Lee)
-@c @image{Flags/south-korea} South Korea [KREONet] @
-@c @uref{http://linux.kreonet.re.kr/mysql/, WWW}
-
 @item
-@c EMAIL: jasper@webiiz.com (Kang, Tae-jin)
-@image{Flags/south-korea} South Korea [Webiiz] @
-@uref{http://mysql.webiiz.com/, WWW}
-
-@item
-@c EMAIL: hollywar@holywar.net (Oh Junseon)
-@image{Flags/south-korea} South Korea [PanworldNet] @
-@uref{http://mysql.holywar.net/, WWW}
-
-@c @item
-@c ftp -> remove old files
-@c EX: ahmlhs@nmsvr.chosun.com (Ho-sun Lee)
-@c @image{Flags/south-korea} South Korea [KREONet] @
-@c @uref{ftp://linux.kreonet.re.kr/pub/tools/db/mysql/, FTP}
+@c EMAIL: dnata@incaf.net "Denie Nataprawira"
+@image{Flags/indonesia} Indonesia [incaf.net]
+@uref{http://mysql.incaf.net/, WWW}
 
 @item
 @c Ok 980805
@@ -6841,6 +6842,28 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c @image{Flags/japan} Japan [Nagoya Syouka University] @
 @c @uref{http://mirror.nucba.ac.jp/mirror/mysql, WWW}
 @c @uref{ftp://mirror.nucba.ac.jp/mirror/mysql, FTP}
+
+@c @item
+@c Not ok 20000919; Old site (Matt)
+@c EMAIL: ahmlhs@nmsvr.chosun.com (Ho-sun Lee)
+@c @image{Flags/south-korea} South Korea [KREONet] @
+@c @uref{http://linux.kreonet.re.kr/mysql/, WWW}
+
+@item
+@c EMAIL: jasper@webiiz.com (Kang, Tae-jin)
+@image{Flags/south-korea} South Korea [Webiiz] @
+@uref{http://mysql.webiiz.com/, WWW}
+
+@item
+@c EMAIL: hollywar@holywar.net (Oh Junseon)
+@image{Flags/south-korea} South Korea [PanworldNet] @
+@uref{http://mysql.holywar.net/, WWW}
+
+@c @item
+@c ftp -> remove old files
+@c EX: ahmlhs@nmsvr.chosun.com (Ho-sun Lee)
+@c @image{Flags/south-korea} South Korea [KREONet] @
+@c @uref{ftp://linux.kreonet.re.kr/pub/tools/db/mysql/, FTP}
 
 @c @item
 @c Removed 990308
@@ -6902,10 +6925,10 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 
 @end itemize
 
-@strong{Australia:}
+@c @strong{Australia:}
 
-@itemize @bullet
-@item
+@c @itemize @bullet
+@c @item
 @c Added 980610
 @c EMAIL: jason@dstc.edu.au (Jason Andrade)
 @c @image{Flags/australia} Australia [AARNet/Queensland] @
@@ -6939,7 +6962,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c EMAIL: lucifer@maths.uq.edu.au (David Conran)
 @c @image{Flags/australia} Australia FTP @
 @c @uref{ftp://ftp.sage-au.org.au/pub/database/mysql, [Sage]}
-@end itemize
+@c @end itemize
 
 @strong{Africa:}
 
