@@ -5218,8 +5218,10 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields)
   List_iterator<Item> it(fields);
   Item *item;
   while ((item=it++))
-    if (item->tmp_table_field())
+  {
+    if (item->tmp_table_field() && ! item->const_item())
       field_count++;
+  }
 
   if (!field_count)
   {						// only const items
