@@ -2644,6 +2644,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list,
 	       uint wild_num)
 {
+  DBUG_ENTER("setup_wild");
   if (!wild_num)
     return(0);
 
