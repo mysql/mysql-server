@@ -2685,6 +2685,21 @@ row_search_for_mysql(
 		mode = pcur->search_mode;
 	}
 
+	if ((direction == ROW_SEL_NEXT || direction == ROW_SEL_PREV)
+	    && pcur->old_stored != BTR_PCUR_OLD_STORED) {
+
+		/* MySQL sometimes seems to do fetch next or fetch prev even
+		if the search condition is unique; this can, for example,
+		happen with the HANDLER commands; we do not store pcur position
+		in this case, so we cannot restore cursor position, and must
+		return immediately */
+
+		/* printf("%s record not found 1\n", index->name); */
+	
+		trx->op_info = (char *) "";
+		return(DB_RECORD_NOT_FOUND);
+	}
+
 	mtr_start(&mtr);
 
 	/* In a search where at most one record in the index may match, we
@@ -2716,21 +2731,6 @@ row_search_for_mysql(
 	    && index->type & DICT_CLUSTERED
 	    && !prebuilt->templ_contains_blob
 	    && (prebuilt->mysql_row_len < UNIV_PAGE_SIZE / 8)) {
-
-		if (direction == ROW_SEL_NEXT) {
-			/* MySQL sometimes seems to do fetch next even
-			if the search condition is unique; we do not store
-			pcur position in this case, so we cannot
-			restore cursor position, and must return
- 			immediately */
-
- 			mtr_commit(&mtr);
-
-			/* printf("%s record not found 1\n", index->name); */
-	
-			trx->op_info = (char *) "";
-			return(DB_RECORD_NOT_FOUND);
-		}
 
 		ut_a(direction == 0);	/* We cannot do fetch prev, as we have
 					not stored the cursor position */
