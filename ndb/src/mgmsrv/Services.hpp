@@ -99,6 +99,8 @@ public:
   void check_connection(Parser_t::Context &ctx, const class Properties &args);
 
   void transporter_connect(Parser_t::Context &ctx, Properties const &args);
+
+  void get_mgmd_nodeid(Parser_t::Context &ctx, Properties const &args);
   
   void repCommand(Parser_t::Context &ctx, const class Properties &args);
 };
