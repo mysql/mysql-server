@@ -1403,6 +1403,52 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
   DBUG_RETURN(0);
 }
 
+inline 
+int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
+{
+  uint i;
+  THD *thd= current_thd;
+  NdbConnection *trans= m_active_trans;
+
+  DBUG_ENTER("define_read_attrs");  
+
+  // Define attributes to read
+  for (i= 0; i < table->fields; i++) 
+  {
+    Field *field= table->field[i];
+    if ((thd->query_id == field->query_id) ||
+	(field->flags & PRI_KEY_FLAG) || 
+	retrieve_all_fields)
+    {      
+      if (get_ndb_value(op, field, i, buf))
+	ERR_RETURN(op->getNdbError());
+    } 
+    else 
+    {
+      m_value[i].ptr= NULL;
+    }
+  }
+    
+  if (table->primary_key == MAX_KEY) 
+  {
+    DBUG_PRINT("info", ("Getting hidden key"));
+    // Scanning table with no primary key
+    int hidden_no= table->fields;      
+#ifndef DBUG_OFF
+    const NDBTAB *tab= (const NDBTAB *) m_table;    
+    if (!tab->getColumn(hidden_no))
+      DBUG_RETURN(1);
+#endif
+    if (get_ndb_value(op, NULL, hidden_no, NULL))
+      ERR_RETURN(op->getNdbError());
+  }
+
+  if (execute_no_commit(this,trans) != 0)
+    DBUG_RETURN(ndb_err(trans));
+  DBUG_PRINT("exit", ("Scan started successfully"));
+  DBUG_RETURN(next_result(buf));
+} 
+
 /*
   Start ordered index scan in NDB
 */
@@ -1572,53 +1618,6 @@ int ha_ndbcluster::full_table_scan(byte *buf)
   m_active_cursor= cursor;
   DBUG_RETURN(define_read_attrs(buf, op));
 }
-
-inline 
-int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
-{
-  uint i;
-  THD *thd= current_thd;
-  NdbConnection *trans= m_active_trans;
-
-  DBUG_ENTER("define_read_attrs");  
-
-  // Define attributes to read
-  for (i= 0; i < table->fields; i++) 
-  {
-    Field *field= table->field[i];
-    if ((thd->query_id == field->query_id) ||
-	(field->flags & PRI_KEY_FLAG) || 
-	retrieve_all_fields)
-    {      
-      if (get_ndb_value(op, field, i, buf))
-	ERR_RETURN(op->getNdbError());
-    } 
-    else 
-    {
-      m_value[i].ptr= NULL;
-    }
-  }
-    
-  if (table->primary_key == MAX_KEY) 
-  {
-    DBUG_PRINT("info", ("Getting hidden key"));
-    // Scanning table with no primary key
-    int hidden_no= table->fields;      
-#ifndef DBUG_OFF
-    const NDBTAB *tab= (const NDBTAB *) m_table;    
-    if (!tab->getColumn(hidden_no))
-      DBUG_RETURN(1);
-#endif
-    if (get_ndb_value(op, NULL, hidden_no, NULL))
-      ERR_RETURN(op->getNdbError());
-  }
-
-  if (execute_no_commit(this,trans) != 0)
-    DBUG_RETURN(ndb_err(trans));
-  DBUG_PRINT("exit", ("Scan started successfully"));
-  DBUG_RETURN(next_result(buf));
-} 
-
 
 /*
   Insert one record into NDB
@@ -2315,20 +2314,6 @@ int ha_ndbcluster::index_last(byte *buf)
 }
 
 
-int ha_ndbcluster::read_range_first(const key_range *start_key,
-				    const key_range *end_key,
-				    bool eq_range, bool sorted)
-{
-  byte* buf= table->record[0];
-  DBUG_ENTER("ha_ndbcluster::read_range_first");
-  
-  DBUG_RETURN(read_range_first_to_buf(start_key,
-				      end_key,
-				      eq_range, 
-				      sorted,
-				      buf));
-}
-
 inline
 int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
 					   const key_range *end_key,
@@ -2372,6 +2357,20 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
   DBUG_RETURN(error);
 }
 
+
+int ha_ndbcluster::read_range_first(const key_range *start_key,
+				    const key_range *end_key,
+				    bool eq_range, bool sorted)
+{
+  byte* buf= table->record[0];
+  DBUG_ENTER("ha_ndbcluster::read_range_first");
+  
+  DBUG_RETURN(read_range_first_to_buf(start_key,
+				      end_key,
+				      eq_range, 
+				      sorted,
+				      buf));
+}
 
 int ha_ndbcluster::read_range_next()
 {

@@ -2189,7 +2189,7 @@ ConfigInfo::ConfigInfo()
 	break;
       }
       case SECTION:
-	pinfo.put("SectionType", (Uint32)param._default);
+	pinfo.put("SectionType", (Uint32)UintPtr(param._default));
 	break;
       case STRING:
 	break;
