@@ -322,11 +322,11 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255), KEY t1 (a, b, c));
-ERROR 42000: Specified key was too long; max key length is 500 bytes
-CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255));
-ALTER TABLE t1 ADD INDEX t1 (a, b, c);
-ERROR 42000: Specified key was too long; max key length is 500 bytes
+CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255), d varchar(255), e varchar(255), KEY t1 (a, b, c, d, e));
+ERROR 42000: Specified key was too long; max key length is 1000 bytes
+CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255), d varchar(255), e varchar(255));
+ALTER TABLE t1 ADD INDEX t1 (a, b, c, d, e);
+ERROR 42000: Specified key was too long; max key length is 1000 bytes
 DROP TABLE t1;
 CREATE TABLE t1 (a int not null, b int, c int, key(b), key(c), key(a,b), key(c,a));
 INSERT into t1 values (0, null, 0), (0, null, 1), (0, null, 2), (0, null,3), (1,1,4);

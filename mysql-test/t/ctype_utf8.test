@@ -104,4 +104,4 @@ drop table t1;
 # UTF8 breaks primary keys for cols > 85 characters
 #
 --error 1071
-create table t1 (a char(160) character set utf8, primary key(a));
+create table t1 (a text character set utf8, primary key(a(360)));
