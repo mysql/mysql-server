@@ -123,7 +123,7 @@ if ($opt_stage == 0 && ! $opt_use_old_distribution)
   system("touch timestamp");
   sleep(2);
   system("touch timestamp2");
-  system("find . -newer timestamp -print | xargs touch; rm -f timestamp");
+  system("find . -newer timestamp -print | xargs touch; rm -f timestamp timestamp2");
   sleep(2);
   # Ensure that files we don't want to rebuild are newer than other files
   safe_cd($ver);
