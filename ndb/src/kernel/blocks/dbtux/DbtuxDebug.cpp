@@ -404,6 +404,19 @@ operator<<(NdbOut& out, const Dbtux::Frag& frag)
 }
 
 NdbOut&
+operator<<(NdbOut& out, const Dbtux::FragOp& fragOp)
+{
+  out << "[FragOp " << hex << &fragOp;
+  out << " [userPtr " << dec << fragOp.m_userPtr << "]";
+  out << " [indexId " << dec << fragOp.m_indexId << "]";
+  out << " [fragId " << dec << fragOp.m_fragId << "]";
+  out << " [fragNo " << dec << fragOp.m_fragNo << "]";
+  out << " numAttrsRecvd " << dec << fragOp.m_numAttrsRecvd << "]";
+  out << "]";
+  return out;
+}
+
+NdbOut&
 operator<<(NdbOut& out, const Dbtux::NodeHandle& node)
 {
   const Dbtux::Frag& frag = node.m_frag;
