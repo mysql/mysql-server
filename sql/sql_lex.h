@@ -701,8 +701,9 @@ typedef struct st_lex
   TABLE_LIST *query_tables;	/* global list of all tables in this query */
   /*
     last element next_global of previous list (used only for list building
-    during parsing and VIEW processing. This pointer is not valid in
-    mysql_execute_command
+    during parsing and VIEW processing. This pointer could be invalid during
+    processing of information schema tables(see get_schema_tables_result
+    function)
   */
   TABLE_LIST **query_tables_last;
   TABLE_LIST *proc_table; /* refer to mysql.proc if it was opened by VIEW */
