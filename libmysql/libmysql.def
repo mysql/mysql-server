@@ -101,6 +101,12 @@ EXPORTS
 	mysql_rpl_probe
 	mysql_set_master
 	mysql_add_slave
+	my_getopt_print_errors
+	handle_options
+	my_print_help
+	my_print_variables
+	getopt_ull_limit_value
+	getopt_compare_strings
 
 	
 	
