@@ -883,13 +883,9 @@ subselect_single_select_engine(st_select_lex *select,
 {
   select_lex= select;
   SELECT_LEX_UNIT *unit= select_lex->master_unit();
-  unit->offset_limit_cnt= unit->global_parameters->offset_limit;
-  unit->select_limit_cnt= unit->global_parameters->select_limit+
-    unit->global_parameters ->offset_limit;
-  if (unit->select_limit_cnt < unit->global_parameters->select_limit)
-    unit->select_limit_cnt= HA_POS_ERROR;	// no limit
-  if (unit->select_limit_cnt == HA_POS_ERROR)
-    select_lex->options&= ~OPTION_FOUND_ROWS;
+  unit->set_limit(unit->global_parameters->select_limit,
+		  unit->global_parameters->offset_limit,
+		  select_lex);
   unit->item= item;
   this->select_lex= select_lex;
 }
