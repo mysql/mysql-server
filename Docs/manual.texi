@@ -1172,7 +1172,7 @@ on their websites, on their books or boxed products. We welcome and
 encourage this although it should be noted that the word @code{MySQL} and the
 MySQL dolphin logo are trademarks of MySQL AB and may only be used as
 stated in our trademark policy at
-@uref{@uref{http://www.mysql.com/company/trademark.html}.
+@uref{http://www.mysql.com/company/trademark.html}.
 
 @menu
 * The Original MySQL logo::     The Original MySQL logo
@@ -1237,7 +1237,7 @@ application must (i) be Open Source, (ii) be able to connect to a MySQL
 server.
 @end itemize
 
-Contact us at email{trademark@@mysql.com} to inquire about special
+Contact us at @email{trademark@@mysql.com} to inquire about special
 arrangements to fit your needs.
 
 
@@ -1272,7 +1272,7 @@ MySQL partnership logos may only be used by companies and persons having
 a written partnership agreement with MySQL AB. Partnerships include
 certification as a MySQL trainer or consultant. If you are interested in
 entering our partnership programmes, please visit our website for details
-or mail to email{partner@@mysql.com}.
+or mail to @email{partner@@mysql.com}.
 
 
 @node Using MySQL word in presentations, Using MySQL word in company and product names, MySQL AB partnership logos, MySQL AB Logos and Trademarks
@@ -1460,6 +1460,7 @@ further increased speed through the rewritten @code{key cache}.
 @item
 Many developers will also be happy to see the @code{MySQL command help}
 in the client.
+@end itemize
 
 
 @node 4.0 Nutshell 4.1 development release,  , 4.0 Nutshell Future features, MySQL 4.0 In A Nutshell
@@ -3258,7 +3259,7 @@ Michael @code{Monty} Widenius himself, the author of the MySQL server.
 
 To order support at different levels, please visit the order section at
 @uref{http://www.mysql.com/support/}. If you have restricted access to the
-Internet, please contact our sales staff at email{sales@@mysql.com}.
+Internet, please contact our sales staff at @email{sales@@mysql.com}.
 
 
 @node Business Services Training, Business Services Consulting, Business Services Support, MySQL AB business model and services
@@ -3286,7 +3287,7 @@ work.
 If you're interested in consulting, please visit the consulting section
 at @uref{http://www.mysql.com/consulting/}. If you have restricted access
 to the Internet, please contact our sales staff at
-email{consulting@@mysql.com}.
+@email{consulting@@mysql.com}.
 
 
 @node Business Services Commercial licenses, Business Services Royalties, Business Services Consulting, MySQL AB business model and services
@@ -3317,7 +3318,7 @@ royalty. Also special versions of the trademarks are used as proofs
 of certification in our partner programmes.
 
 If you are interested in becoming a MySQL AB partner, please mail to
-email{partner@@mysql.com}.
+@email{partner@@mysql.com}.
 
 
 @c FIX: End new by AGL - Erik's text on business model and services
