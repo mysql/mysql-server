@@ -41,7 +41,8 @@ static void unlink_blobs(register TABLE *table);
 
 /*
   Check if insert fields are correct
-  Resets form->time_stamp if a timestamp value is set
+  Updates table->time_stamp to point to timestamp field or 0, depending on
+  if timestamp should be updated or not.
 */
 
 static int
@@ -87,11 +88,12 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
       my_error(ER_FIELD_SPECIFIED_TWICE,MYF(0), thd->dupp_field->field_name);
       return -1;
     }
+    table->time_stamp=0;
     if (table->timestamp_field &&	// Don't set timestamp if used
-	table->timestamp_field->query_id == thd->query_id)
-      table->time_stamp=0;		// This should be saved
+	table->timestamp_field->query_id != thd->query_id)
+      table->time_stamp= table->timestamp_field->offset()+1;
   }
- // For the values we need select_priv
+  // For the values we need select_priv
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
   return 0;
 }
@@ -105,7 +107,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
 		!(thd->master_access & SUPER_ACL));
   bool transactional_table, log_delayed, bulk_insert=0;
   uint value_count;
-  uint save_time_stamp;
   ulong counter = 1;
   ulonglong id;
   COPY_INFO info;
@@ -150,14 +151,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
     DBUG_RETURN(-1);
   thd->proc_info="init";
   thd->used_tables=0;
-  save_time_stamp=table->time_stamp;
   values= its++;
   if (check_insert_fields(thd,table,fields,*values,1) ||
       setup_tables(table_list) || setup_fields(thd,table_list,*values,0,0,0))
-  {
-    table->time_stamp=save_time_stamp;
     goto abort;
-  }
   value_count= values->elements;
   while ((values = its++))
   {
@@ -167,14 +164,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
       my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
 		      ER(ER_WRONG_VALUE_COUNT_ON_ROW),
 		      MYF(0),counter);
-      table->time_stamp=save_time_stamp;
       goto abort;
     }
     if (setup_fields(thd,table_list,*values,0,0,0))
-    {
-      table->time_stamp=save_time_stamp;
       goto abort;
-    }
   }
   its.rewind ();
   /*
@@ -333,7 +326,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
     }
   }
   thd->proc_info="end";
-  table->time_stamp=save_time_stamp;		// Restore auto timestamp ptr
   table->next_number_field=0;
   thd->count_cuted_fields=0;
   thd->next_insert_id=0;			// Reset this if wrongly used
@@ -1287,7 +1279,6 @@ select_insert::prepare(List<Item> &values)
 {
   DBUG_ENTER("select_insert::prepare");
 
-  save_time_stamp=table->time_stamp;
   if (check_insert_fields(thd,table,*fields,values,1))
     DBUG_RETURN(1);
 
@@ -1308,8 +1299,6 @@ select_insert::~select_insert()
 {
   if (table)
   {
-    if (save_time_stamp)
-      table->time_stamp=save_time_stamp;
     table->next_number_field=0;
     table->file->extra(HA_EXTRA_RESET);
   }
@@ -1412,7 +1401,6 @@ select_create::prepare(List<Item> &values)
   /* First field to copy */
   field=table->field+table->fields - values.elements;
 
-  save_time_stamp=table->time_stamp;
   if (table->timestamp_field)			// Don't set timestamp if used
   {
     table->timestamp_field->set_time();

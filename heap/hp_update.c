@@ -46,6 +46,10 @@ int heap_update(HP_INFO *info, const byte *old, const byte *heap_new)
 
   memcpy(pos,heap_new,(size_t) share->reclength);
   if (++(share->records) == share->blength) share->blength+= share->blength;
+
+#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+  DBUG_EXECUTE("check_heap",heap_check_heap(info, 0););
+#endif
   DBUG_RETURN(0);
 
  err:
