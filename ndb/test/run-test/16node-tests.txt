@@ -377,7 +377,7 @@ args: -n FragmentTypeSingle T1
 
 max-time: 1500
 cmd: testDict
-args: -n FragmentTypeAll T1 T6 T7 T8 
+args: -n FragmentTypeAllSmall T1 T6 T7 T8 
 
 max-time: 1500
 cmd: testDict
