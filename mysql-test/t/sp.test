@@ -3087,11 +3087,12 @@ begin
 end
 |
 delimiter ;|
-begin;
+set autocommit=0;
 insert t1 values (2);
 --error 1192
 call sp1();
 commit;
+set autocommit=1;
 select * from t1;
 call sp1();
 select * from t1;
