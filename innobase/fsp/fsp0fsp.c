@@ -2659,7 +2659,7 @@ fseg_free_page_low(
 "InnoDB: Dump of the tablespace extent descriptor: %s\n", errbuf);
 
 		fprintf(stderr,
-"InnoDB: Serious error! InnoDB is trying to free page %lu\n",
+"InnoDB: Serious error! InnoDB is trying to free page %lu\n"
 "InnoDB: though it is already marked as free in the tablespace!\n"
 "InnoDB: The tablespace free space info is corrupt.\n"
 "InnoDB: You may need to dump your InnoDB tables and recreate the whole\n"

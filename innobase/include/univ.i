@@ -116,7 +116,7 @@ memory is read outside the allocated blocks. */
 #define UNIV_INLINE  extern inline
 #else
 /* extern inline doesn't work with gcc 3.0.2 */
-#define UNIV_INLINE  inline
+#define UNIV_INLINE static inline
 #endif
 #endif
 
