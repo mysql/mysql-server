@@ -201,7 +201,7 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
     DescAttr& descAttr = descEnt.m_descAttr[attrId];
     descAttr.m_attrDesc = req->attrDescriptor;
     descAttr.m_primaryAttrId = req->primaryAttrId;
-    descAttr.m_typeId = req->extTypeInfo & 0xFF;
+    descAttr.m_typeId = AttributeDescriptor::getType(req->attrDescriptor);
     descAttr.m_charset = (req->extTypeInfo >> 16);
 #ifdef VM_TRACE
     if (debugFlags & DebugMeta) {

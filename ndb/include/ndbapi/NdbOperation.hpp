@@ -265,21 +265,6 @@ public:
   int  equal(Uint32 anAttrId, Int64 aValue);	
   int  equal(Uint32 anAttrId, Uint64 aValue);
 	
-  /**
-   * Generate a tuple id and set it as search argument.
-   *
-   * The Tuple id has NDB$TID as attribute name and 0 as attribute id.
-   *
-   * The generated tuple id is returned by the method.
-   * If zero is returned there is an error.
-   *
-   * This is mostly used for tables without any primary key 
-   * attributes.
-   * 
-   * @return    Generated tuple id if successful, otherwise 0.
-   */
-  Uint64       setTupleId();			
-
   /** @} *********************************************************************/
   /** 
    * @name Specify Attribute Actions for Operations
@@ -592,21 +577,21 @@ public:
    * @param  Label   label to jump to
    * @return -1 if unsuccessful
    */
-  int branch_col_eq(Uint32 ColId, const char * val, Uint32 len, 
+  int branch_col_eq(Uint32 ColId, const void * val, Uint32 len, 
 		    bool nopad, Uint32 Label);
-  int branch_col_ne(Uint32 ColId, const char * val, Uint32 len, 
+  int branch_col_ne(Uint32 ColId, const void * val, Uint32 len, 
 		    bool nopad, Uint32 Label);
-  int branch_col_lt(Uint32 ColId, const char * val, Uint32 len, 
+  int branch_col_lt(Uint32 ColId, const void * val, Uint32 len, 
 		    bool nopad, Uint32 Label);
-  int branch_col_le(Uint32 ColId, const char * val, Uint32 len, 
+  int branch_col_le(Uint32 ColId, const void * val, Uint32 len, 
 		    bool nopad, Uint32 Label);
-  int branch_col_gt(Uint32 ColId, const char * val, Uint32 len, 
+  int branch_col_gt(Uint32 ColId, const void * val, Uint32 len, 
 		    bool nopad, Uint32 Label);
-  int branch_col_ge(Uint32 ColId, const char * val, Uint32 len, 
+  int branch_col_ge(Uint32 ColId, const void * val, Uint32 len, 
 		    bool nopad, Uint32 Label);
-  int branch_col_like(Uint32 ColId, const char *, Uint32 len, 
+  int branch_col_like(Uint32 ColId, const void *, Uint32 len, 
 		      bool nopad, Uint32 Label);
-  int branch_col_notlike(Uint32 ColId, const char *, Uint32 len, 
+  int branch_col_notlike(Uint32 ColId, const void *, Uint32 len, 
 			 bool nopad, Uint32 Label);
   
   /**
@@ -708,6 +693,7 @@ public:
 
   /** @} *********************************************************************/
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    * Type of operation
    */
@@ -723,11 +709,16 @@ public:
     NotDefined2,                  ///< Internal for debugging
     NotDefined                    ///< Internal for debugging
   };
+#endif
 
+  /**
+   * Return lock mode for operation
+   */
   LockMode getLockMode() const { return theLockMode; }
-  void setAbortOption(Int8 ao) { m_abortOption = ao; }
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  void setAbortOption(Int8 ao) { m_abortOption = ao; }
+  
   /**
    * Set/get distribution/partition key
    */
@@ -758,8 +749,10 @@ protected:
   void	next(NdbOperation*);		// Set next pointer		      
   NdbOperation*	    next();	        // Get next pointer		       
 public:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   const NdbOperation* next() const;
   const NdbRecAttr* getFirstRecAttr() const;
+#endif
 protected:
 
   enum OperationStatus
@@ -829,7 +822,7 @@ protected:
   int read_attr(const NdbColumnImpl* anAttrObject, Uint32 RegDest);
   int write_attr(const NdbColumnImpl* anAttrObject, Uint32 RegSource);
   int branch_reg_reg(Uint32 type, Uint32, Uint32, Uint32);
-  int branch_col(Uint32 type, Uint32, const char *, Uint32, bool, Uint32 Label);
+  int branch_col(Uint32 type, Uint32, const void *, Uint32, bool, Uint32 Label);
   int branch_col_null(Uint32 type, Uint32 col, Uint32 Label);
   
   // Handle ATTRINFO signals   

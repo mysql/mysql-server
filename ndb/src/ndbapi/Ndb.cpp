@@ -912,7 +912,8 @@ Ndb::setTupleIdInNdb(Uint32 aTableId, Uint64 val, bool increase )
 Uint64
 Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
 {
-  DEBUG_TRACE("opTupleIdOnNdb");
+  DBUG_ENTER("Ndb::opTupleIdOnNdb");
+  DBUG_PRINT("enter", ("table=%u value=%llu op=%u", aTableId, opValue, op));
 
   NdbTransaction*     tConnection;
   NdbOperation*      tOperation;
@@ -1008,7 +1009,7 @@ Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
   setDatabaseName(currentDb.c_str());
   setDatabaseSchemaName(currentSchema.c_str());
 
-  return ret;
+  DBUG_RETURN(ret);
 
   error_handler:
     theError.code = tConnection->theError.code;
@@ -1018,7 +1019,11 @@ Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
     setDatabaseName(currentDb.c_str());
     setDatabaseSchemaName(currentSchema.c_str());
 
-  return ~0;
+  DBUG_PRINT("error", ("ndb=%d con=%d op=%d",
+             theError.code,
+             tConnection ? tConnection->theError.code : -1,
+             tOperation ? tOperation->theError.code : -1));
+  DBUG_RETURN(~0);
 }
 
 static const Uint32 MAX_KEY_LEN_64_WORDS = 4;

@@ -288,8 +288,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   ptrCheckGuard(fragOperPtr, cnoOfFragoprec, fragoperrec);
   Uint32 attrId = signal->theData[2];
   Uint32 attrDescriptor = signal->theData[3];
-  // DICT sends extended type (ignored) and charset number
-  Uint32 extType = (signal->theData[4] & 0xFF);
+  // DICT sends charset number in upper half
   Uint32 csNumber = (signal->theData[4] >> 16);
 
   regTabPtr.i = fragOperPtr.p->tableidFrag;

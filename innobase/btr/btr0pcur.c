@@ -268,9 +268,7 @@ btr_pcur_restore_position(
 						cursor->old_n_fields, &heap);
 
 				ut_ad(cmp_rec_rec(cursor->old_rec,
-					rec, offsets1, offsets2,
-					cursor->old_n_fields,
-					index) == 0);
+					rec, offsets1, offsets2, index) == 0);
 				mem_heap_free(heap);
 #endif /* UNIV_DEBUG */
 				return(TRUE);

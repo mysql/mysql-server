@@ -3843,7 +3843,8 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
 		HA_NULL_IN_KEY |
 		HA_AUTO_PART_KEY |
                 HA_NO_VARCHAR |
-		HA_NO_PREFIX_CHAR_KEYS),
+		HA_NO_PREFIX_CHAR_KEYS |
+		HA_NEED_READ_RANGE_BUFFER),
   m_share(0),
   m_use_write(FALSE),
   m_ignore_dup_key(FALSE),
@@ -4829,18 +4830,16 @@ int ha_ndbcluster::write_ndb_file()
   DBUG_RETURN(error);
 }
 
-#ifdef key_multi_range
 int
-ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
-				      key_multi_range *ranges, 
+ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
+				      KEY_MULTI_RANGE *ranges, 
 				      uint range_count,
 				      bool sorted, 
-				      handler_buffer *buffer)
+				      HANDLER_BUFFER *buffer)
 {
   DBUG_ENTER("ha_ndbcluster::read_multi_range_first");
   
   int res;
-  uint i;
   KEY* key_info= table->key_info + active_index;
   NDB_INDEX_TYPE index_type= get_index_type(active_index);
   ulong reclength= table->reclength;
@@ -4864,8 +4863,9 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
   /**
    * Copy arguments into member variables
    */
-  multi_ranges= ranges;
-  multi_range_count= range_count;
+  m_multi_ranges= ranges;
+  multi_range_curr= ranges;
+  multi_range_end= ranges+range_count;
   multi_range_sorted= sorted;
   multi_range_buffer= buffer;
 
@@ -4893,18 +4893,19 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
   const NDBINDEX *idx= (NDBINDEX *) m_index[active_index].index; 
   const NdbOperation* lastOp= m_active_trans->getLastDefinedOperation();
   NdbIndexScanOperation* scanOp= 0;
-  for(i= 0; i<range_count && curr+reclength <= end_of_buffer; i++)
+  for(; multi_range_curr<multi_range_end && curr+reclength <= end_of_buffer; 
+      multi_range_curr++)
   {
     switch(index_type){
     case PRIMARY_KEY_INDEX:
   pk:
     {
-      ranges[i].range_flag |= UNIQUE_RANGE;
+      multi_range_curr->range_flag |= UNIQUE_RANGE;
       if ((op= m_active_trans->getNdbOperation(tab)) && 
 	  !op->readTuple(lm) && 
-	  !set_primary_key(op, ranges[i].start_key.key) &&
+	  !set_primary_key(op, multi_range_curr->start_key.key) &&
 	  !define_read_attrs(curr, op) &&
-	  (op->setAbortOption(IgnoreError), true))
+	  (op->setAbortOption(AO_IgnoreError), true))
 	curr += reclength;
       else
 	ERR_RETURN(op ? op->getNdbError() : m_active_trans->getNdbError());
@@ -4914,32 +4915,32 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
     case UNIQUE_INDEX:
   sk:
     {
-      ranges[i].range_flag |= UNIQUE_RANGE;
+      multi_range_curr->range_flag |= UNIQUE_RANGE;
       if ((op= m_active_trans->getNdbIndexOperation(unique_idx, tab)) && 
 	  !op->readTuple(lm) && 
-	  !set_index_key(op, key_info, ranges[i].start_key.key) &&
+	  !set_index_key(op, key_info, multi_range_curr->start_key.key) &&
 	  !define_read_attrs(curr, op) &&
-	  (op->setAbortOption(IgnoreError), true))
+	  (op->setAbortOption(AO_IgnoreError), true))
 	curr += reclength;
       else
 	ERR_RETURN(op ? op->getNdbError() : m_active_trans->getNdbError());
       break;
     }
     case PRIMARY_KEY_ORDERED_INDEX:
-      if (ranges[i].start_key.length == key_info->key_length &&
-	  ranges[i].start_key.flag == HA_READ_KEY_EXACT)
+      if (multi_range_curr->start_key.length == key_info->key_length &&
+	  multi_range_curr->start_key.flag == HA_READ_KEY_EXACT)
 	goto pk;
       goto range;
     case UNIQUE_ORDERED_INDEX:
-      if (ranges[i].start_key.length == key_info->key_length &&
-	  ranges[i].start_key.flag == HA_READ_KEY_EXACT &&
-	  !check_null_in_key(key_info, ranges[i].start_key.key,
-			     ranges[i].start_key.length))
+      if (multi_range_curr->start_key.length == key_info->key_length &&
+	  multi_range_curr->start_key.flag == HA_READ_KEY_EXACT &&
+	  !check_null_in_key(key_info, multi_range_curr->start_key.key,
+			     multi_range_curr->start_key.length))
 	goto sk;
       goto range;
     case ORDERED_INDEX:
   range:
-      ranges[i].range_flag &= ~(uint)UNIQUE_RANGE;
+      multi_range_curr->range_flag &= ~(uint)UNIQUE_RANGE;
       if (scanOp == 0)
       {
 	if (m_multi_cursor)
@@ -4954,8 +4955,8 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
 	  end_of_buffer -= reclength;
 	}
 	else if ((scanOp= m_active_trans->getNdbIndexScanOperation(idx, tab)) 
-		 && !scanOp->readTuples(lm, 0, parallelism, sorted, false, true) &&
-		 !define_read_attrs(end_of_buffer-reclength, scanOp))
+		 &&!scanOp->readTuples(lm, 0, parallelism, sorted, false, true)
+		 &&!define_read_attrs(end_of_buffer-reclength, scanOp))
 	{
 	  m_multi_cursor= scanOp;
 	  m_multi_range_cursor_result_ptr= end_of_buffer-reclength;
@@ -4966,14 +4967,15 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
 		     m_active_trans->getNdbError());
 	}
       }
-      const key_range *keys[2]= { &ranges[i].start_key, &ranges[i].end_key };
-      if ((res= set_bounds(scanOp, keys, i)))
+      const key_range *keys[2]= { &multi_range_curr->start_key, 
+				  &multi_range_curr->end_key };
+      if ((res= set_bounds(scanOp, keys, multi_range_curr-ranges)))
 	DBUG_RETURN(res);
       break;
     }
   }
   
-  if (i != range_count)
+  if (multi_range_curr != multi_range_end)
   {
     /**
      * Mark that we're using entire buffer (even if might not) as
@@ -4995,8 +4997,8 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
     lastOp ? lastOp->next() : m_active_trans->getFirstDefinedOperation();
   if (!(res= execute_no_commit_ie(this, m_active_trans)))
   {
-    multi_range_curr= 0;
-    m_multi_range_defined_count= i;
+    m_multi_range_defined= multi_range_curr;
+    multi_range_curr= ranges;
     m_multi_range_result_ptr= (byte*)buffer->buffer;
     DBUG_RETURN(read_multi_range_next(found_range_p));
   }
@@ -5010,7 +5012,7 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
 #endif
 
 int
-ha_ndbcluster::read_multi_range_next(key_multi_range ** multi_range_found_p)
+ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
 {
   DBUG_ENTER("ha_ndbcluster::read_multi_range_next");
   if (m_disable_multi_read)
@@ -5022,9 +5024,9 @@ ha_ndbcluster::read_multi_range_next(key_multi_range ** multi_range_found_p)
   int range_no;
   ulong reclength= table->reclength;
   const NdbOperation* op= m_current_multi_operation;
-  for(;multi_range_curr < m_multi_range_defined_count; multi_range_curr++)
+  for(;multi_range_curr < m_multi_range_defined; multi_range_curr++)
   {
-    if (multi_ranges[multi_range_curr].range_flag & UNIQUE_RANGE)
+    if (multi_range_curr->range_flag & UNIQUE_RANGE)
     {
       if (op->getNdbError().code == 0)
 	goto found_next;
@@ -5056,13 +5058,14 @@ ha_ndbcluster::read_multi_range_next(key_multi_range ** multi_range_found_p)
       }
       
       range_no= m_multi_cursor->get_range_no();
-      if (range_no == multi_range_curr)
+      uint current_range_no= multi_range_curr - m_multi_ranges;
+      if (range_no == current_range_no)
       {
 	DBUG_MULTI_RANGE(4);
         // return current row
 	goto found;
       }
-      else if (range_no > (int)multi_range_curr)
+      else if (range_no > (int)current_range_no)
       {
 	DBUG_MULTI_RANGE(5);
 	// wait with current row
@@ -5107,16 +5110,15 @@ close_scan:
     }
   }
   
-  if (multi_range_curr == multi_range_count)
+  if (multi_range_curr == multi_range_end)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   
   /**
    * Read remaining ranges
    */
-  uint left= multi_range_count - multi_range_curr;
   DBUG_RETURN(read_multi_range_first(multi_range_found_p, 
-				     multi_ranges + multi_range_curr,
-				     left, 
+				     multi_range_curr,
+				     multi_range_end - multi_range_curr, 
 				     multi_range_sorted,
 				     multi_range_buffer));
   
@@ -5125,7 +5127,7 @@ found:
    * Found a record belonging to a scan
    */
   m_active_cursor= m_multi_cursor;
-  * multi_range_found_p= multi_ranges + range_no;
+  * multi_range_found_p= m_multi_ranges + range_no;
   memcpy(table->record[0], m_multi_range_cursor_result_ptr, reclength);
   setup_recattr(m_active_cursor->getFirstRecAttr());
   unpack_record(table->record[0]);
@@ -5137,7 +5139,7 @@ found_next:
    * Found a record belonging to a pk/index op,
    *   copy result and move to next to prepare for next call
    */
-  * multi_range_found_p= multi_ranges + multi_range_curr;
+  * multi_range_found_p= multi_range_curr;
   memcpy(table->record[0], m_multi_range_result_ptr, reclength);
   setup_recattr(op->getFirstRecAttr());
   unpack_record(table->record[0]);
@@ -5171,6 +5173,5 @@ ha_ndbcluster::setup_recattr(const NdbRecAttr* curr)
   
   DBUG_RETURN(0);
 }
-#endif
 
 #endif /* HAVE_NDBCLUSTER_DB */
