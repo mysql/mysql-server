@@ -386,6 +386,7 @@ sync_down(NDBT_Context* ctx){
   if(threads){
     ctx->decProperty("PauseThreads");
   }
+  return 0;
 }
 
 int
@@ -397,6 +398,7 @@ sync_up_and_wait(NDBT_Context* ctx){
   if(threads){
     ndbout_c("wait completed");
   }
+  return 0;
 }
 
 int

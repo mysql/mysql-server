@@ -402,7 +402,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   }
 
   struct sockaddr addr;
-  socklen_t addrlen= sizeof(addr);
+  SOCKET_SIZE_TYPE addrlen= sizeof(addr);
   int r = getpeername(m_socket, &addr, &addrlen);
   if (r != 0 ) {
     m_output->println(cmd);
