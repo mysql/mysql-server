@@ -3392,9 +3392,9 @@ dict_tree_create(
 	tree->id = index->id;
 	
 	UT_LIST_INIT(tree->tree_indexes);
-#ifdef UNIV_DEBUG
+
 	tree->magic_n = DICT_TREE_MAGIC_N;
-#endif /* UNIV_DEBUG */
+
 	rw_lock_create(&(tree->lock));
 
 	rw_lock_set_level(&(tree->lock), SYNC_INDEX_TREE);
