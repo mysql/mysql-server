@@ -36,8 +36,6 @@ class Item_subselect :public Item_result_field
 protected:
   /* thread handler, will be assigned in fix_fields only */
   THD *thd;
-  /* prepared statement, or 0 */
-  Statement *stmt;
   /* substitution instead of subselect in case of optimization */
   Item *substitution;
   /* unit of subquery */
