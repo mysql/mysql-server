@@ -28,3 +28,8 @@ select * from t1;
 n
 345
 drop table t1;
+flush query cache;
+reset query cache;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0

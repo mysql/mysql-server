@@ -211,6 +211,9 @@ buf_block_align(
 
 	block = buf_pool_get_nth_block(buf_pool, (ptr - frame_zero)
 						>> UNIV_PAGE_SIZE_SHIFT);
+	ut_a(block >= buf_pool->blocks);
+	ut_a(block < buf_pool->blocks + buf_pool->max_size);
+
 	return(block);
 }	
 
@@ -235,6 +238,9 @@ buf_block_align_low(
 
 	block = buf_pool_get_nth_block(buf_pool, (ptr - frame_zero)
 						>> UNIV_PAGE_SIZE_SHIFT);
+	ut_a(block >= buf_pool->blocks);
+	ut_a(block < buf_pool->blocks + buf_pool->max_size);
+
 	return(block);
 }	
 
@@ -253,9 +259,9 @@ buf_frame_align(
 
 	frame = ut_align_down(ptr, UNIV_PAGE_SIZE);
 
-	ut_ad((ulint)frame
+	ut_a((ulint)frame
 		>= (ulint)(buf_pool_get_nth_block(buf_pool, 0)->frame));
-	ut_ad((ulint)frame <= (ulint)(buf_pool_get_nth_block(buf_pool,
+	ut_a((ulint)frame <= (ulint)(buf_pool_get_nth_block(buf_pool,
 					buf_pool->max_size - 1)->frame));
 	return(frame);
 }

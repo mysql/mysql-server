@@ -277,7 +277,7 @@ bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
 bool check_stack_overrun(THD *thd,char *dummy);
-bool reload_acl_and_cache(THD *thd, uint options, TABLE_LIST *tables);
+bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables);
 void table_cache_init(void);
 void table_cache_free(void);
 uint cached_tables(void);
@@ -697,7 +697,6 @@ void hostname_cache_refresh(void);
 bool get_interval_info(const char *str,uint length,uint count,
 		       long *values);
 /* sql_cache */
-
 extern bool sql_cache_init();
 extern void sql_cache_free();
 extern int sql_cache_hit(THD *thd, char *inBuf, uint length);

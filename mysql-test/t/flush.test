@@ -66,3 +66,12 @@ connection con2;
 insert into t1 values (345);
 select * from t1;
 drop table t1;
+
+#
+# Test that QUERY CACHE commands doesn't core dump.
+# (Normally we don't have a cache active at this point)
+#
+
+flush query cache;
+reset query cache;
+show status like "Qcache_queries_in_cache";

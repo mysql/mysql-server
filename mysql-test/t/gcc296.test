@@ -1,0 +1,17 @@
+#try to crash gcc 2.96
+drop table if exists obory;
+CREATE TABLE obory (
+  kodoboru varchar(10) default NULL,
+  obor tinytext,
+  aobor tinytext,
+  UNIQUE INDEX kodoboru (kodoboru),
+  FULLTEXT KEY obor (obor),
+  FULLTEXT KEY aobor (aobor)
+);
+INSERT INTO obory VALUES ('0101000000','aaa','AAA');
+INSERT INTO obory VALUES ('0102000000','bbb','BBB');
+INSERT INTO obory VALUES ('0103000000','ccc','CCC');
+INSERT INTO obory VALUES ('0104000000','xxx','XXX');
+
+select * from obory;
+drop table obory;

@@ -46,7 +46,7 @@ $opt_loop_count=min(1000, $opt_loop_count) if ($opt_tcpip);
 $small_loop_count=$opt_loop_count/10; # For connect tests
 
 print "Testing the speed of connecting to the server and sending of data\n";
-print "Connect tests are done $opt_small_loop_count and other tests $opt_loop_count times\n\n";
+print "Connect tests are done $small_loop_count times and other tests $opt_loop_count times\n\n";
 
 ################################# PART:1 ###################################
 ####
@@ -139,7 +139,7 @@ if ($limits->{'select_without_from'})
     $sth = $dbh->do("select 10000") or die $DBI::errstr;
   }
   $end_time=new Benchmark;
-  print "Time for select_simple_query_cache ($opt_loop_count): " .
+  print "Time for select_simple_cache ($opt_loop_count): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 }
 
@@ -208,8 +208,24 @@ print "Time to select_1_row ($opt_loop_count): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
 #
-# The same test, but with 2 rows.
+# Same test (as with one row) but now with a cacheable query
 #
+
+$loop_time=new Benchmark;
+
+for ($i=0 ; $i < $opt_loop_count ; $i++)
+{
+  $sth = $dbh->do("select a,i,s from bench1") # Select * from table with 1 record
+    or die $DBI::errstr;
+}
+$end_time=new Benchmark;
+print "Time to select_1_row_cache ($opt_loop_count): " .
+  timestr(timediff($end_time, $loop_time),"all") . "\n\n";
+
+#
+# The same test, but with 2 rows (not cacheable).
+#
+
 print "Testing select 2 rows from table\n";
 
 $sth = $dbh->do("insert into bench1 values(2,200,'BBB')")
@@ -226,6 +242,10 @@ for ($i=0 ; $i < $opt_loop_count ; $i++)
 $end_time=new Benchmark;
 print "Time to select_2_rows ($opt_loop_count): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
+
+#
+# Simple test to test speed of functions.
+#
 
 if ($limits->{'functions'})
 {

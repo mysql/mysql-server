@@ -241,12 +241,12 @@ protected:
   Query_cache_memory_bin *bins;			// free block lists
   Query_cache_memory_bin_step *steps;		// bins spacing info
   HASH queries, tables;
-  uint mem_bin_num, mem_bin_steps;		// See at init_cache & find_bin
-  my_bool initialized;
-
   /* options */
   ulong min_allocation_unit, min_result_data_size;
   uint def_query_hash_size, def_table_hash_size;
+  uint mem_bin_num, mem_bin_steps;		// See at init_cache & find_bin
+
+  my_bool initialized;
 
   /* Exclude/include from cyclic double linked list */
   static void double_linked_list_exclude(Query_cache_block *point,
@@ -368,10 +368,7 @@ protected:
   /* Remove all queries that uses any of the listed following table */
   void invalidate_by_MyISAM_filename(const char *filename);
 
-  /* Remove all queries from cache */
   void flush();
-
-  /* Join result in cache in 1 block (if result length > join_limit) */
   void pack(ulong join_limit = QUERY_CACHE_PACK_LIMIT,
 	    uint iteration_limit = QUERY_CACHE_PACK_ITERATION);
 
