@@ -1092,7 +1092,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
 
   if (!db || check_db_name(db))
   {
-    net_printf(thd,ER_WRONG_NAME_FOR_DATABASE, db ? db : "NULL");
+    net_printf(thd,ER_WRONG_DB_NAME, db ? db : "NULL");
     goto err;
   }
   if (lower_case_table_names)
@@ -1436,7 +1436,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       // null test to handle EOM
       if (!db || !strip_sp(db) || check_db_name(db))
       {
-	net_printf(thd,ER_WRONG_NAME_FOR_DATABASE, db ? db : "NULL");
+	net_printf(thd,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
       }
       if (check_access(thd,CREATE_ACL,db,0,1,0))
@@ -1452,7 +1452,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       // null test to handle EOM
       if (!db || !strip_sp(db) || check_db_name(db))
       {
-	net_printf(thd,ER_WRONG_NAME_FOR_DATABASE, db ? db : "NULL");
+	net_printf(thd,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
       }
       if (check_access(thd,DROP_ACL,db,0,1,0))
@@ -2072,7 +2072,7 @@ mysql_execute_command(THD *thd)
 #endif
     if (strlen(tables->real_name) > NAME_LEN)
     {
-      net_printf(thd,ER_WRONG_NAME_FOR_TABLE, tables->real_name);
+      net_printf(thd,ER_WRONG_TABLE_NAME, tables->real_name);
       break;
     }
     LOCK_ACTIVE_MI;
@@ -2117,7 +2117,7 @@ mysql_execute_command(THD *thd)
 #endif
     if (strlen(tables->real_name) > NAME_LEN)
     {
-      net_printf(thd, ER_WRONG_NAME_FOR_TABLE, tables->alias);
+      net_printf(thd, ER_WRONG_TABLE_NAME, tables->alias);
       res=0;
       break;
     }
@@ -2263,7 +2263,7 @@ mysql_execute_command(THD *thd)
       ulong priv=0;
       if (lex->name && (!lex->name[0] || strlen(lex->name) > NAME_LEN))
       {
-	net_printf(thd, ER_WRONG_NAME_FOR_TABLE, lex->name);
+	net_printf(thd, ER_WRONG_TABLE_NAME, lex->name);
 	res=0;
 	break;
       }
@@ -2842,7 +2842,7 @@ mysql_execute_command(THD *thd)
       remove_escape(db);				// Fix escaped '_'
       if (check_db_name(db))
       {
-        net_printf(thd,ER_WRONG_NAME_FOR_DATABASE, db);
+        net_printf(thd,ER_WRONG_DB_NAME, db);
         goto error;
       }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -3007,7 +3007,7 @@ mysql_execute_command(THD *thd)
   {
     if (!strip_sp(lex->name) || check_db_name(lex->name))
     {
-      net_printf(thd,ER_WRONG_NAME_FOR_DATABASE, lex->name);
+      net_printf(thd,ER_WRONG_DB_NAME, lex->name);
       break;
     }
     /*
@@ -3035,7 +3035,7 @@ mysql_execute_command(THD *thd)
   {
     if (!strip_sp(lex->name) || check_db_name(lex->name))
     {
-      net_printf(thd, ER_WRONG_NAME_FOR_DATABASE, lex->name);
+      net_printf(thd, ER_WRONG_DB_NAME, lex->name);
       break;
     }
     /*
@@ -3068,7 +3068,7 @@ mysql_execute_command(THD *thd)
   {
     if (!strip_sp(lex->name) || check_db_name(lex->name))
     {
-      net_printf(thd, ER_WRONG_NAME_FOR_DATABASE, lex->name);
+      net_printf(thd, ER_WRONG_DB_NAME, lex->name);
       break;
     }
     if (check_access(thd,ALTER_ACL,lex->name,0,1,0))
@@ -3085,7 +3085,7 @@ mysql_execute_command(THD *thd)
   {
     if (!strip_sp(lex->name) || check_db_name(lex->name))
     {
-      net_printf(thd,ER_WRONG_NAME_FOR_DATABASE, lex->name);
+      net_printf(thd,ER_WRONG_DB_NAME, lex->name);
       break;
     }
     if (check_access(thd,DROP_ACL,lex->name,0,1,0))
@@ -4335,7 +4335,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (check_table_name(table->table.str,table->table.length) ||
       table->db.str && check_db_name(table->db.str))
   {
-    net_printf(thd, ER_WRONG_NAME_FOR_TABLE, table->table.str);
+    net_printf(thd, ER_WRONG_TABLE_NAME, table->table.str);
     DBUG_RETURN(0);
   }
 
@@ -4698,7 +4698,7 @@ static bool append_file_to_dir(THD *thd, char **filename_ptr, char *table_name)
   if (strlen(*filename_ptr)+strlen(table_name) >= FN_REFLEN-1 ||
       !test_if_hard_path(*filename_ptr))
   {
-    my_error(ER_WRONG_NAME_FOR_TABLE, MYF(0), *filename_ptr);
+    my_error(ER_WRONG_TABLE_NAME, MYF(0), *filename_ptr);
     return 1;
   }
   /* Fix is using unix filename format on dos */
