@@ -176,7 +176,7 @@ show status like 'handler_discover%';
 flush tables;
 system rm var/master-data/test/t7.frm ;
 
---replace_column 7 # 8 # 9 # 12 # 13 # 15 #
+--replace_column 7 # 8 # 9 # 12 # 13 # 15 # 18 #
 show table status;
 show status like 'handler_discover%';
 
