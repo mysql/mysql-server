@@ -172,16 +172,26 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
   cs->mbmaxlen    = 1;
 }
 
+/* FIXME: BAR: move to more proper place, my_alloc.c I suppose */
+static char *my_once_strdup(const char *src,myf myflags)
+{
+  uint len=strlen(src);
+  char *dst=my_once_alloc(len+1,myflags);
+  if (dst)
+    memcpy(dst,src,len+1);
+  return dst;
+}
+
 static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
 {
   to->number = from->number ? from->number : to->number;
   to->state  |= from->state;
 
   if (from->csname)
-    to->csname=my_strdup(from->csname,MYF(MY_WME));
+    to->csname=my_once_strdup(from->csname,MYF(MY_WME));
   
   if (from->name)
-    to->name=my_strdup(from->name,MYF(MY_WME));
+    to->name=my_once_strdup(from->name,MYF(MY_WME));
   
   if (from->ctype)
   {
