@@ -167,6 +167,7 @@ void my_end(int infoflag)
   if (have_tcpip);
     WSACleanup( );
 #endif /* __WIN__ */
+    my_init_done=0;
 } /* my_end */
 
 #ifdef __WIN__

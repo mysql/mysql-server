@@ -526,7 +526,8 @@ int yylex(void *arg)
       }
       if (c == 'e' || c == 'E')
       {
-	if ((c=(yyGet())) == '+' || c == '-')
+	// The following test is written this way to allow numbers of type 1e1
+	if (isdigit(yyPeek()) || (c=(yyGet())) == '+' || c == '-')
 	{				// Allow 1E+10
 	  if (isdigit(yyPeek()))	// Number must have digit after sign
 	  {
@@ -628,7 +629,8 @@ int yylex(void *arg)
 	yyUnget();			// Fix for next loop
       }
       while (isdigit(c=yyGet())) ;	// Incomplete real or int number
-      if ((c == 'e' || c == 'E') && (yyPeek() == '+' || yyPeek() == '-'))
+      if ((c == 'e' || c == 'E') &&
+	  (yyPeek() == '+' || yyPeek() == '-' || isdigit(yyPeek())))
       {					// Real number
 	yyUnget();
 	c= '.';				// Fool next test
@@ -647,7 +649,7 @@ int yylex(void *arg)
       if (c == 'e' || c == 'E')
       {
 	c = yyGet();
-	if (c != '-' && c != '+')
+	if (c != '-' && c != '+' && !isdigit(c))
 	{				// No exp sig found
 	  state= STATE_CHAR;
 	  break;
