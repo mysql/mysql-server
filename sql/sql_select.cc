@@ -7152,6 +7152,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  /* fall through */
 	}
       }
+      else if (select && select->quick)
+	  select->quick->sorted= 1;
       DBUG_RETURN(1);			/* No need to sort */
     }
   }

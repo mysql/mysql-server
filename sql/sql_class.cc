@@ -84,10 +84,10 @@ extern "C" void free_user_var(user_var_entry *entry)
 ****************************************************************************/
 
 THD::THD():user_time(0), current_statement(0), is_fatal_error(0),
-	   no_table_fix_fields_cache(0),
 	   last_insert_id_used(0),
 	   insert_id_used(0), rand_used(0), in_lock_tables(0),
-	   global_read_lock(0), bootstrap(0)
+	   global_read_lock(0), bootstrap(0),
+ 	   no_table_fix_fields_cache(0)
 {
   host= user= priv_user= db= ip=0;
   host_or_ip= "connecting host";
