@@ -4475,7 +4475,7 @@ my_mb_wc_sjis(CHARSET_INFO *cs  __attribute__((unused)),
 
 CHARSET_INFO my_charset_sjis =
 {
-    13,			/* number */
+    13,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */
     "sjis",		/* cs name    */
     "sjis",		/* name */

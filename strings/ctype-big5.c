@@ -6233,7 +6233,7 @@ my_mb_wc_big5(CHARSET_INFO *cs __attribute__((unused)),
 
 CHARSET_INFO my_charset_big5 =
 {
-    1,			/* number     */
+    1,0,0, 		/* number     */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */
     "big5",		/* cs name    */
     "big5",		/* name       */
