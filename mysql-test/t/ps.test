@@ -415,3 +415,17 @@ execute stmt;
 execute stmt;
 execute stmt;
 deallocate prepare stmt;
+
+#
+# Bug#6088 "FOUND_ROWS returns wrong values for prepared statements when
+# LIMIT is used"
+# 
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+prepare stmt from "select sql_calc_found_rows * from t1 limit 2";
+execute stmt;
+select found_rows();
+execute stmt;
+select found_rows();
+execute stmt;
+select found_rows();

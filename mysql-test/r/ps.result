@@ -410,3 +410,27 @@ a	a
 1.1	1.2
 2.1	2.2
 deallocate prepare stmt;
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+prepare stmt from "select sql_calc_found_rows * from t1 limit 2";
+execute stmt;
+a
+1
+2
+select found_rows();
+found_rows()
+10
+execute stmt;
+a
+1
+2
+select found_rows();
+found_rows()
+10
+execute stmt;
+a
+1
+2
+select found_rows();
+found_rows()
+10
