@@ -440,7 +440,7 @@ multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
   :all_tables(table_list), update_tables(0), thd(thd_arg), tmp_tables(0),
    updated(0), found(0), fields(field_list), values(value_list),
    table_count(0), copy_field(0), handle_duplicates(handle_duplicates_arg),
-   do_update(1), trans_safe(0), tmp_tables_inited(0)
+   do_update(1), trans_safe(0)
 {}
 
 
@@ -622,7 +622,6 @@ multi_update::initialize_tables(JOIN *join)
       DBUG_RETURN(1);
     tmp_tables[cnt]->file->extra(HA_EXTRA_WRITE_CACHE);
   }
-  tmp_tables_inited= 1;
   DBUG_RETURN(0);
 }
 
@@ -823,7 +822,7 @@ int multi_update::do_updates(bool from_send_error)
   
 
   do_update= 0;					// Don't retry this function  
-  if (!tmp_tables_inited)
+  if (!found)
     DBUG_RETURN(0);
   for (cur_table= update_tables; cur_table ; cur_table= cur_table->next)
   {
