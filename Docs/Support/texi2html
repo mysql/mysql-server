@@ -845,7 +845,7 @@ READ_LINE: while ($_ = &next_line)
       print "# end of multitable with $multitable_cols columns\n"
 	if $debug and $DEBUG_USER;
       $in_multitable = 0;
-      push(@lines, "</TR>\n");
+      push(@lines, "</TD></TR>\n");
       &html_pop_if('TR');
       push(@lines, "</TABLE>\n");
 &html_pop_if('TABLE');
@@ -1076,9 +1076,9 @@ EOC
 	{
 	  # All this is a **HACK**.
 	  # It does only work for a FEW SIMPLE CASES !!!
-	  push(@lines, &debug("</TR>\n", __LINE__))
-	    unless $html_element eq 'TABLE';;
-&html_pop_if('TR');
+	  push(@lines, &debug("</TD></TR>\n", __LINE__))
+	    unless $html_element eq 'TABLE';
+	  &html_pop_if('TR');
 	  $what =~ s|\s+\@tab\s*| </TD><TD> |g;
 	  push(@lines, &debug("<TR><TD>$what\n", __LINE__));
 	  &html_push('TR');
