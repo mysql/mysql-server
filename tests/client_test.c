@@ -28,6 +28,7 @@
 #include <m_string.h>
 #include <assert.h>
 #ifdef HAVE_SYS_PARAM_H
+/* Include to get MAXPATHLEN */
 #include <sys/param.h>
 #endif
 
@@ -6588,7 +6589,7 @@ static void test_frm_bug()
 
   bind[0].buffer_type= MYSQL_TYPE_STRING;
   bind[0].buffer= data_dir;
-  bind[0].buffer_length= NAME_LEN;
+  bind[0].buffer_length= MAXPATHLEN;
   bind[0].is_null= 0;
   bind[0].length= 0;
   bind[1]= bind[0];
@@ -10454,7 +10455,7 @@ static struct my_option client_test_long_options[] =
    (char **) &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection", (char **) &opt_unix_socket,
    (char **) &opt_unix_socket, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"testcase", 'c', "Runs as mysql-test-run testcase.",
+  {"testcase", 'c', "May disable some code when runs as mysql-test-run testcase.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"count", 't', "Number of times test to be executed", (char **) &opt_count,
    (char **) &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
@@ -10642,8 +10643,7 @@ int main(int argc, char **argv)
     test_warnings();        /* show warnings test */
     test_errors();          /* show errors test */
     test_prepare_resultset();/* prepare meta info test */
-    if (!opt_testcase)      /* FIXME: skipped because it hangs */
-      test_stmt_close();      /* mysql_stmt_close() test -- hangs */
+    test_stmt_close();      /* mysql_stmt_close() test -- hangs */
     test_prepare_field_result(); /* prepare meta info */
     test_multi_stmt();      /* multi stmt test */
     test_multi_statements();/* test multi statement execution */
@@ -10671,8 +10671,7 @@ int main(int argc, char **argv)
 #ifndef EMBEDDED_LIBRARY
     test_prepare_grant();   /* Test the GRANT command, bug #89 */
 #endif
-    if (!opt_testcase)      /* FIXME: skipped because it fails */
-      test_frm_bug();         /* test the crash when .frm is invalid, bug #93 */
+    test_frm_bug();         /* test the crash when .frm is invalid, bug #93 */
     test_explain_bug();     /* test for the EXPLAIN, bug #115 */
     test_decimal_bug();     /* test for the decimal bug */
     test_nstmts();          /* test n statements */
@@ -10735,8 +10734,7 @@ int main(int argc, char **argv)
                                dates in the server */
     test_bug5399();         /* check that statement id uniquely identifies
                                statement */
-    if (!opt_testcase)
-      test_bug5194();         /* bulk inserts in prepared mode */
+    test_bug5194();         /* bulk inserts in prepared mode */
     test_bug5315();         /* check that mysql_change_user closes all
                                prepared statements */
     /*
