@@ -1456,8 +1456,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		      user ? user : "(Null)"));
 
   /* Don't give sigpipe errors if the client doesn't want them */
-  mysql->methods= &client_methods;
   set_sigpipe(mysql);
+  mysql->methods= &client_methods;
   net->vio = 0;				/* If something goes wrong */
   mysql->client_flag=0;			/* For handshake */
 
