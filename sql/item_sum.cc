@@ -656,7 +656,8 @@ my_decimal *Item_sum_sum_distinct::val_decimal(my_decimal *fake)
   else
   {
     double real= val_real();
-    double2my_decimal(E_DEC_FATAL_ERROR, real, dec_buffs + curr_dec_buff);
+    curr_dec_buff= 0;
+    double2my_decimal(E_DEC_FATAL_ERROR, real, dec_buffs);
   }
   return(dec_buffs + curr_dec_buff);
 }
