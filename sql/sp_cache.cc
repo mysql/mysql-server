@@ -71,7 +71,7 @@ sp_cache_insert(sp_cache **cp, sp_head *sp)
 }
 
 sp_head *
-sp_cache_lookup(sp_cache **cp, char *name, uint namelen)
+sp_cache_lookup(sp_cache **cp, sp_name *name)
 {
   ulong v;
   sp_cache *c= *cp;
@@ -89,11 +89,11 @@ sp_cache_lookup(sp_cache **cp, char *name, uint namelen)
     c->version= v;
     return NULL;
   }
-  return c->lookup(name, namelen);
+  return c->lookup(name->m_name.str, name->m_name.length);
 }
 
 bool
-sp_cache_remove(sp_cache **cp, char *name, uint namelen)
+sp_cache_remove(sp_cache **cp, sp_name *name)
 {
   sp_cache *c= *cp;
   bool found= FALSE;
@@ -109,7 +109,7 @@ sp_cache_remove(sp_cache **cp, char *name, uint namelen)
     if (c->version < v)
       c->remove_all();
     else
-      found= c->remove(name, namelen);
+      found= c->remove(name->m_name.str, name->m_name.length);
     c->version= v+1;
   }
   return found;

@@ -3101,9 +3101,9 @@ mysql_execute_command(THD *thd)
     if (check_access(thd,INSERT_ACL,"mysql",0,1,0))
       break;
 #ifdef HAVE_DLOPEN
-    if ((sph= sp_find_function(thd, &lex->udf.name)))
+    if ((sph= sp_find_function(thd, lex->spname)))
     {
-      net_printf(thd, ER_UDF_EXISTS, lex->udf.name.str);
+      net_printf(thd, ER_UDF_EXISTS, lex->spname->m_name.str);
       goto error;
     }
     if (!(res = mysql_create_function(thd,&lex->udf)))
@@ -3441,9 +3441,10 @@ mysql_execute_command(THD *thd)
     {
       sp_head *sp;
 
-      if (!(sp= sp_find_procedure(thd, &lex->udf.name)))
+      if (!(sp= sp_find_procedure(thd, lex->spname)))
       {
-	net_printf(thd, ER_SP_DOES_NOT_EXIST, "PROCEDURE", lex->udf.name);
+	net_printf(thd, ER_SP_DOES_NOT_EXIST, "PROCEDURE",
+		   lex->spname->m_name.str);
 	goto error;
       }
       else
@@ -3521,10 +3522,10 @@ mysql_execute_command(THD *thd)
 	goto error;
       }
       if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
-	res= sp_update_procedure(thd, lex->udf.name.str, lex->udf.name.length,
+	res= sp_update_procedure(thd, lex->spname,
 				 lex->name, newname_len, &lex->sp_chistics);
       else
-	res= sp_update_function(thd, lex->udf.name.str, lex->udf.name.length,
+	res= sp_update_function(thd, lex->spname,
 				lex->name, newname_len,	&lex->sp_chistics);
       switch (res)
       {
@@ -3532,10 +3533,12 @@ mysql_execute_command(THD *thd)
 	send_ok(thd);
 	break;
       case SP_KEY_NOT_FOUND:
-	net_printf(thd, ER_SP_DOES_NOT_EXIST, SP_COM_STRING(lex),lex->udf.name);
+	net_printf(thd, ER_SP_DOES_NOT_EXIST, SP_COM_STRING(lex),
+		   lex->spname->m_name.str);
 	goto error;
       default:
-	net_printf(thd, ER_SP_CANT_ALTER, SP_COM_STRING(lex),lex->udf.name);
+	net_printf(thd, ER_SP_CANT_ALTER, SP_COM_STRING(lex),
+		   lex->spname->m_name.str);
 	goto error;
       }
       break;
@@ -3544,19 +3547,20 @@ mysql_execute_command(THD *thd)
   case SQLCOM_DROP_FUNCTION:
     {
       if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
-	res= sp_drop_procedure(thd, lex->udf.name.str, lex->udf.name.length);
+	res= sp_drop_procedure(thd, lex->spname);
       else
       {
-	res= sp_drop_function(thd, lex->udf.name.str, lex->udf.name.length);
+	res= sp_drop_function(thd, lex->spname);
 #ifdef HAVE_DLOPEN
 	if (res == SP_KEY_NOT_FOUND)
 	{
-	  udf_func *udf = find_udf(lex->udf.name.str, lex->udf.name.length);
+	  udf_func *udf = find_udf(lex->spname->m_name.str,
+				   lex->spname->m_name.length);
 	  if (udf)
 	  {
 	    if (check_access(thd, DELETE_ACL, "mysql", 0, 1, 0))
 	      goto error;
-	    if (!(res = mysql_drop_function(thd,&lex->udf.name)))
+	    if (!(res = mysql_drop_function(thd,&lex->spname->m_name)))
 	    {
 	      send_ok(thd);
 	      break;
@@ -3575,17 +3579,17 @@ mysql_execute_command(THD *thd)
 	{
 	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
-			      SP_COM_STRING(lex), lex->udf.name.str);
+			      SP_COM_STRING(lex), lex->spname->m_name.str);
 	  res= 0;
 	  send_ok(thd);
 	  break;
 	}
 	net_printf(thd, ER_SP_DOES_NOT_EXIST, SP_COM_STRING(lex),
-		   lex->udf.name.str);
+		   lex->spname->m_name.str);
 	goto error;
       default:
 	net_printf(thd, ER_SP_DROP_FAILED, SP_COM_STRING(lex),
-		   lex->udf.name.str);
+		   lex->spname->m_name.str);
 	goto error;
       }
       break;
@@ -3593,16 +3597,16 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_CREATE_PROC:
     {
       res= -1;
-      if (lex->udf.name.length > NAME_LEN)
+      if (lex->spname->m_name.length > NAME_LEN)
       {
-	net_printf(thd, ER_TOO_LONG_IDENT, lex->udf.name.str);
+	net_printf(thd, ER_TOO_LONG_IDENT, lex->spname->m_name.str);
 	goto error;
       }
-      res= sp_show_create_procedure(thd, &lex->udf.name);
+      res= sp_show_create_procedure(thd, lex->spname);
       if (res != SP_OK)
       {			/* We don't distinguish between errors for now */
 	net_printf(thd, ER_SP_DOES_NOT_EXIST,
-		   SP_COM_STRING(lex), lex->udf.name.str);
+		   SP_COM_STRING(lex), lex->spname->m_name.str);
 	res= 0;
 	goto error;
       }
@@ -3610,16 +3614,16 @@ mysql_execute_command(THD *thd)
     }
   case SQLCOM_SHOW_CREATE_FUNC:
     {
-      if (lex->udf.name.length > NAME_LEN)
+      if (lex->spname->m_name.length > NAME_LEN)
       {
-	net_printf(thd, ER_TOO_LONG_IDENT, lex->udf.name.str);
+	net_printf(thd, ER_TOO_LONG_IDENT, lex->spname->m_name.str);
 	goto error;
       }
-      res= sp_show_create_function(thd, &lex->udf.name);
+      res= sp_show_create_function(thd, lex->spname);
       if (res != SP_OK)
       {			/* We don't distinguish between errors for now */
 	net_printf(thd, ER_SP_DOES_NOT_EXIST,
-		   SP_COM_STRING(lex), lex->udf.name.str);
+		   SP_COM_STRING(lex), lex->spname->m_name.str);
 	res= 0;
 	goto error;
       }

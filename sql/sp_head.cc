@@ -130,6 +130,32 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
   DBUG_RETURN(it);
 }
 
+
+/*
+ *
+ *  sp_name
+ *
+ */
+
+void
+sp_name::init_qname(THD *thd)
+{
+  m_qname.length= m_db.length+m_name.length+1;
+  m_qname.str= alloc_root(&thd->mem_root, m_qname.length+1);
+  sprintf(m_qname.str, "%*s.%*s",
+	  m_db.length, (m_db.length ? m_db.str : ""),
+	  m_name.length, m_name.str);
+}
+
+/* ------------------------------------------------------------------ */
+
+
+/*
+ *
+ *  sp_head
+ *
+ */
+
 void *
 sp_head::operator new(size_t size)
 {
@@ -178,22 +204,42 @@ sp_head::init(LEX *lex)
   lex->spcont= m_pcont= new sp_pcontext();
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
   m_param_begin= m_param_end= m_returns_begin= m_returns_end= m_body_begin= 0;
-  m_name.str= m_params.str= m_retstr.str= m_body.str= m_defstr.str= 0;
-  m_name.length= m_params.length= m_retstr.length= m_body.length=
-    m_defstr.length= 0;
+  m_qname.str= m_db.str= m_name.str= m_params.str= m_retstr.str=
+    m_body.str= m_defstr.str= 0;
+  m_qname.length= m_db.length= m_name.length= m_params.length=
+    m_retstr.length= m_body.length= m_defstr.length= 0;
   DBUG_VOID_RETURN;
 }
 
 void
-sp_head::init_strings(THD *thd, LEX *lex, LEX_STRING *name)
+sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
 {
   DBUG_ENTER("sp_head::init_strings");
   /* During parsing, we must use thd->mem_root */
   MEM_ROOT *root= &thd->mem_root;
 
-  DBUG_PRINT("info", ("name: %*s", name->length, name->str));
-  m_name.length= name->length;
-  m_name.str= strmake_root(root, name->str, name->length);
+  DBUG_PRINT("info", ("name: %*.s%*s",
+		      name->m_db.length, name->m_db.str,
+		      name->m_name.length, name->m_name.str));
+  /* We have to copy strings to get them into the right memroot */
+  if (name->m_db.length == 0)
+  {
+    m_db.length= strlen(thd->db);
+    m_db.str= strmake_root(root, thd->db, m_db.length);
+  }
+  else
+  {
+    m_db.length= name->m_db.length;
+    m_db.str= strmake_root(root, name->m_db.str, name->m_db.length);
+  }
+  m_name.length= name->m_name.length;
+  m_name.str= strmake_root(root, name->m_name.str, name->m_name.length);
+
+  if (name->m_qname.length == 0)
+    name->init_qname(thd);
+  m_qname.length= name->m_qname.length;
+  m_qname.str= strmake_root(root, name->m_qname.str, m_qname.length);
+
   m_params.length= m_param_end- m_param_begin;
   m_params.str= strmake_root(root,
 			     (char *)m_param_begin, m_params.length);
@@ -1089,10 +1135,13 @@ sp_instr_cfetch::execute(THD *thd, uint *nextp)
   DBUG_RETURN(res);
 }
 
+/* ------------------------------------------------------------------ */
+
 
 //
 // Security context swapping
 //
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 void
 sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)

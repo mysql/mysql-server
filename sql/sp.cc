@@ -58,21 +58,22 @@ enum
 
 /* *opened=true means we opened ourselves */
 static int
-db_find_routine_aux(THD *thd, int type, char *name, uint namelen,
+db_find_routine_aux(THD *thd, int type, sp_name *name,
 		    enum thr_lock_type ltype, TABLE **tablep, bool *opened)
 {
   TABLE *table;
   byte key[64+64+1];		// db, name, type
   uint keylen;
   DBUG_ENTER("db_find_routine_aux");
-  DBUG_PRINT("enter", ("type: %d name: %*s", type, namelen, name));
+  DBUG_PRINT("enter", ("type: %d name: %*s",
+		       type, name->m_name.length, name->m_name.str));
 
   // Put the key used to read the row together
   memset(key, (int)' ', 64);	// QQ Empty db for now
-  keylen= namelen;
+  keylen= name->m_name.length;
   if (keylen > 64)
     keylen= 64;
-  memcpy(key+64, name, keylen);
+  memcpy(key+64, name->m_name.str, keylen);
   memset(key+64+keylen, (int)' ', 64-keylen); // Pad with space
   key[128]= type;
   keylen= sizeof(key);
@@ -112,7 +113,7 @@ db_find_routine_aux(THD *thd, int type, char *name, uint namelen,
 
 
 static int
-db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
+db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
 {
   extern int yyparse(void *thd);
   TABLE *table;
@@ -129,9 +130,10 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   String str(buff, sizeof(buff), &my_charset_bin);
   ulong sql_mode;
   DBUG_ENTER("db_find_routine");
-  DBUG_PRINT("enter", ("type: %d name: %*s", type, namelen, name));
+  DBUG_PRINT("enter", ("type: %d name: %*s",
+		       type, name->m_name.length, name->m_name.str));
 
-  ret= db_find_routine_aux(thd, type, name, namelen, TL_READ, &table, &opened);
+  ret= db_find_routine_aux(thd, type, name, TL_READ, &table, &opened);
   if (ret != SP_OK)
     goto done;
 
@@ -220,7 +222,7 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
 
     if (!(defstr= create_string(thd, &deflen,
 			  type,
-			  name, namelen,
+			  name->m_name.str, name->m_name.length,
 			  params, strlen(params),
 			  returns, strlen(returns),
 			  body, strlen(body),
@@ -289,6 +291,9 @@ db_create_routine(THD *thd, int type, sp_head *sp)
       ret= SP_GET_FIELD_FAILED;
       goto done;
     }
+// QQ Not yet
+//     table->field[MYSQL_PROC_FIELD_DB]->
+//       store(sp->m_db.str, sp->m_db.length, system_charset_info);
     table->field[MYSQL_PROC_FIELD_NAME]->
       store(sp->m_name.str, sp->m_name.length, system_charset_info);
     table->field[MYSQL_PROC_FIELD_TYPE]->
@@ -329,15 +334,16 @@ done:
 
 
 static int
-db_drop_routine(THD *thd, int type, char *name, uint namelen)
+db_drop_routine(THD *thd, int type, sp_name *name)
 {
   TABLE *table;
   int ret;
   bool opened;
   DBUG_ENTER("db_drop_routine");
-  DBUG_PRINT("enter", ("type: %d name: %*s", type, namelen, name));
+  DBUG_PRINT("enter", ("type: %d name: %*s",
+		       type, name->m_name.length, name->m_name.str));
 
-  ret= db_find_routine_aux(thd, type, name, namelen, TL_WRITE, &table, &opened);
+  ret= db_find_routine_aux(thd, type, name, TL_WRITE, &table, &opened);
   if (ret == SP_OK)
   {
     if (table->file->delete_row(table->record[0]))
@@ -351,7 +357,7 @@ db_drop_routine(THD *thd, int type, char *name, uint namelen)
 
 
 static int
-db_update_routine(THD *thd, int type, char *name, uint namelen,
+db_update_routine(THD *thd, int type, sp_name *name,
 		  char *newname, uint newnamelen,
 		  st_sp_chistics *chistics)
 {
@@ -359,9 +365,10 @@ db_update_routine(THD *thd, int type, char *name, uint namelen,
   int ret;
   bool opened;
   DBUG_ENTER("db_update_routine");
-  DBUG_PRINT("enter", ("type: %d name: %*s", type, namelen, name));
+  DBUG_PRINT("enter", ("type: %d name: %*s",
+		       type, name->m_name.length, name->m_name.str));
 
-  ret= db_find_routine_aux(thd, type, name, namelen, TL_WRITE, &table, &opened);
+  ret= db_find_routine_aux(thd, type, name, TL_WRITE, &table, &opened);
   if (ret == SP_OK)
   {
     store_record(table,record[1]);
@@ -395,6 +402,8 @@ struct st_used_field
 
 static struct st_used_field init_fields[]=
 {
+// QQ Not yet
+//   { "Db",       NAME_LEN, MYSQL_TYPE_STRING,    0},
   { "Name",     NAME_LEN, MYSQL_TYPE_STRING,    0},
   { "Type",            9, MYSQL_TYPE_STRING,    0},
   { "Definer",        77, MYSQL_TYPE_STRING,    0},
@@ -550,16 +559,17 @@ done:
 ******************************************************************************/
 
 sp_head *
-sp_find_procedure(THD *thd, LEX_STRING *name)
+sp_find_procedure(THD *thd, sp_name *name)
 {
   sp_head *sp;
   DBUG_ENTER("sp_find_procedure");
-  DBUG_PRINT("enter", ("name: %*s", name->length, name->str));
+  DBUG_PRINT("enter", ("name: %*s.%*s",
+		       name->m_db.length, name->m_db.str,
+		       name->m_name.length, name->m_name.str));
 
-  if (!(sp= sp_cache_lookup(&thd->sp_proc_cache, name->str, name->length)))
+  if (!(sp= sp_cache_lookup(&thd->sp_proc_cache, name)))
   {
-    if (db_find_routine(thd, TYPE_ENUM_PROCEDURE,
-			name->str, name->length, &sp) == SP_OK)
+    if (db_find_routine(thd, TYPE_ENUM_PROCEDURE, name, &sp) == SP_OK)
       sp_cache_insert(&thd->sp_proc_cache, sp);
   }
 
@@ -580,40 +590,40 @@ sp_create_procedure(THD *thd, sp_head *sp)
 
 
 int
-sp_drop_procedure(THD *thd, char *name, uint namelen)
+sp_drop_procedure(THD *thd, sp_name *name)
 {
   int ret;
   DBUG_ENTER("sp_drop_procedure");
-  DBUG_PRINT("enter", ("name: %*s", namelen, name));
+  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-  sp_cache_remove(&thd->sp_proc_cache, name, namelen);
-  ret= db_drop_routine(thd, TYPE_ENUM_PROCEDURE, name, namelen);
+  sp_cache_remove(&thd->sp_proc_cache, name);
+  ret= db_drop_routine(thd, TYPE_ENUM_PROCEDURE, name);
   DBUG_RETURN(ret);
 }
 
 
 int
-sp_update_procedure(THD *thd, char *name, uint namelen,
+sp_update_procedure(THD *thd, sp_name *name,
 		    char *newname, uint newnamelen,
 		    st_sp_chistics *chistics)
 {
   int ret;
   DBUG_ENTER("sp_update_procedure");
-  DBUG_PRINT("enter", ("name: %*s", namelen, name));
+  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-  sp_cache_remove(&thd->sp_proc_cache, name, namelen);
-  ret= db_update_routine(thd, TYPE_ENUM_PROCEDURE, name, namelen,
+  sp_cache_remove(&thd->sp_proc_cache, name);
+  ret= db_update_routine(thd, TYPE_ENUM_PROCEDURE, name,
 			 newname, newnamelen, chistics);
   DBUG_RETURN(ret);
 }
 
 
 int
-sp_show_create_procedure(THD *thd, LEX_STRING *name)
+sp_show_create_procedure(THD *thd, sp_name *name)
 {
   sp_head *sp;
   DBUG_ENTER("sp_show_create_procedure");
-  DBUG_PRINT("enter", ("name: %*s", name->length, name->str));
+  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
   if ((sp= sp_find_procedure(thd, name)))
   {
@@ -642,16 +652,15 @@ sp_show_status_procedure(THD *thd, const char *wild)
 ******************************************************************************/
 
 sp_head *
-sp_find_function(THD *thd, LEX_STRING *name)
+sp_find_function(THD *thd, sp_name *name)
 {
   sp_head *sp;
   DBUG_ENTER("sp_find_function");
-  DBUG_PRINT("enter", ("name: %*s", name->length, name->str));
+  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-  if (!(sp= sp_cache_lookup(&thd->sp_func_cache, name->str, name->length)))
+  if (!(sp= sp_cache_lookup(&thd->sp_func_cache, name)))
   {
-    if (db_find_routine(thd, TYPE_ENUM_FUNCTION,
-			name->str, name->length, &sp) != SP_OK)
+    if (db_find_routine(thd, TYPE_ENUM_FUNCTION, name, &sp) != SP_OK)
       sp= NULL;
     else
       sp_cache_insert(&thd->sp_func_cache, sp);
@@ -673,40 +682,40 @@ sp_create_function(THD *thd, sp_head *sp)
 
 
 int
-sp_drop_function(THD *thd, char *name, uint namelen)
+sp_drop_function(THD *thd, sp_name *name)
 {
   int ret;
   DBUG_ENTER("sp_drop_function");
-  DBUG_PRINT("enter", ("name: %*s", namelen, name));
+  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-  sp_cache_remove(&thd->sp_func_cache, name, namelen);
-  ret= db_drop_routine(thd, TYPE_ENUM_FUNCTION, name, namelen);
+  sp_cache_remove(&thd->sp_func_cache, name);
+  ret= db_drop_routine(thd, TYPE_ENUM_FUNCTION, name);
   DBUG_RETURN(ret);
 }
 
 
 int
-sp_update_function(THD *thd, char *name, uint namelen,
+sp_update_function(THD *thd, sp_name *name,
 		    char *newname, uint newnamelen,
 		    st_sp_chistics *chistics)
 {
   int ret;
   DBUG_ENTER("sp_update_procedure");
-  DBUG_PRINT("enter", ("name: %*s", namelen, name));
+  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-  sp_cache_remove(&thd->sp_func_cache, name, namelen);
-  ret= db_update_routine(thd, TYPE_ENUM_FUNCTION, name, namelen,
+  sp_cache_remove(&thd->sp_func_cache, name);
+  ret= db_update_routine(thd, TYPE_ENUM_FUNCTION, name,
 			 newname, newnamelen, chistics);
   DBUG_RETURN(ret);
 }
 
 
 int
-sp_show_create_function(THD *thd, LEX_STRING *name)
+sp_show_create_function(THD *thd, sp_name *name)
 {
   sp_head *sp;
   DBUG_ENTER("sp_show_create_function");
-  DBUG_PRINT("enter", ("name: %*s", name->length, name->str));
+  DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
   if ((sp= sp_find_function(thd, name)))
   {
@@ -728,18 +737,18 @@ sp_show_status_function(THD *thd, const char *wild)
 }
 
 
-// QQ Temporary until the function call detection in sql_lex has been reworked.
 bool
 sp_function_exists(THD *thd, LEX_STRING *name)
 {
   TABLE *table;
   bool ret= FALSE;
   bool opened= FALSE;
+  sp_name n(*name);
   DBUG_ENTER("sp_function_exists");
 
-  if (sp_cache_lookup(&thd->sp_func_cache, name->str, name->length) ||
+  if (sp_cache_lookup(&thd->sp_func_cache, &n) ||
       db_find_routine_aux(thd, TYPE_ENUM_FUNCTION,
-			  name->str, name->length, TL_READ,
+			  &n, TL_READ,
 			  &table, &opened) == SP_OK)
     ret= TRUE;
   if (opened)
@@ -758,13 +767,14 @@ sp_lex_spfuns_key(const byte *ptr, uint *plen, my_bool first)
 
 
 void
-sp_add_fun_to_lex(LEX *lex, LEX_STRING fun)
+sp_add_fun_to_lex(LEX *lex, sp_name *fun)
 {
-  if (! hash_search(&lex->spfuns, (byte *)fun.str, fun.length))
+  if (! hash_search(&lex->spfuns,
+		    (byte *)fun->m_name.str, fun->m_name.length))
   {
     LEX_STRING *ls= (LEX_STRING *)sql_alloc(sizeof(LEX_STRING));
-    ls->str= sql_strmake(fun.str, fun.length);
-    ls->length= fun.length;
+    ls->str= sql_strmake(fun->m_name.str, fun->m_name.length);
+    ls->length= fun->m_name.length;
 
     my_hash_insert(&lex->spfuns, (byte *)ls);
   }
@@ -793,15 +803,17 @@ sp_cache_functions(THD *thd, LEX *lex)
   for (uint i=0 ; i < h->records ; i++)
   {
     LEX_STRING *ls= (LEX_STRING *)hash_element(h, i);
+    sp_name name(*ls);
 
-    if (! sp_cache_lookup(&thd->sp_func_cache, ls->str, ls->length))
+    if (! sp_cache_lookup(&thd->sp_func_cache, &name))
     {
       sp_head *sp;
       LEX *oldlex= thd->lex;
       LEX *newlex= new st_lex;
 
       thd->lex= newlex;
-      if (db_find_routine(thd, TYPE_ENUM_FUNCTION, ls->str, ls->length, &sp) == SP_OK)
+      if (db_find_routine(thd, TYPE_ENUM_FUNCTION, &name, &sp)
+	  == SP_OK)
       {
 	ret= sp_cache_functions(thd, newlex);
 	delete newlex;
@@ -836,11 +848,13 @@ create_string(THD *thd, ulong *lenp,
   char *buf, *ptr;
   ulong buflen;
 
-  buflen= 100 + namelen + paramslen + returnslen + bodylen + chistics->comment.length;
+  buflen= 100 + namelen + paramslen + returnslen + bodylen +
+    chistics->comment.length;
   if (!(buf= thd->alloc(buflen)))
     return 0;
 
-  ptr= strxmov(buf, "CREATE ", (type == TYPE_ENUM_FUNCTION) ? "FUNCTION" : "PROCEDURE",
+  ptr= strxmov(buf, "CREATE ",
+	       (type == TYPE_ENUM_FUNCTION) ? "FUNCTION" : "PROCEDURE",
 	       " `", name, "`(", params, ")", NullS);
 
   if (type == TYPE_ENUM_FUNCTION)

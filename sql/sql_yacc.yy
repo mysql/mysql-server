@@ -92,6 +92,7 @@ inline Item *or_or_concat(THD *thd, Item* A, Item* B)
   chooser_compare_func_creator boolfunc2creator;
   struct sp_cond_type *spcondtype;
   struct { int vars, conds, hndlrs, curs; } spblock;
+  sp_name *spname;
   struct st_lex *lex;
 }
 
@@ -771,6 +772,7 @@ END_OF_INPUT
 %type <spcondtype> sp_cond sp_hcond
 %type <spblock> sp_decls sp_decl
 %type <lex> sp_cursor_stmt
+%type <spname> sp_name
 
 %type <NONE>
 	'-' '+' '*' '/' '%' '(' ')'
@@ -1019,15 +1021,15 @@ create:
 	    lex->name=$4.str;
             lex->create_info.options=$3;
 	  }
-	| CREATE udf_func_type FUNCTION_SYM IDENT_sys
+	| CREATE udf_func_type FUNCTION_SYM sp_name
 	  {
 	    LEX *lex=Lex;
-	    lex->udf.name = $4;
+	    lex->spname= $4;
 	    lex->udf.type= $2;
 	  }
 	  create_function_tail
 	  {}
-	| CREATE PROCEDURE ident
+	| CREATE PROCEDURE sp_name
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp;
@@ -1078,7 +1080,7 @@ create:
 	  {
 	    LEX *lex= Lex;
 
-	    lex->sphead->init_strings(YYTHD, lex, &$3);
+	    lex->sphead->init_strings(YYTHD, lex, $3);
 	    lex->sql_command= SQLCOM_CREATE_PROCEDURE;
 	    /* Restore flag if it was cleared above */
 	    if (lex->sphead->m_old_cmq)
@@ -1087,11 +1089,17 @@ create:
 	  } 
 	;
 
+sp_name:
+	  IDENT_sys '.' IDENT_sys { $$= new sp_name($1, $3); }
+	| IDENT_sys               { $$= new sp_name($1); }
+	;
+
 create_function_tail:
 	  RETURNS_SYM udf_type UDF_SONAME_SYM TEXT_STRING_sys
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_CREATE_FUNCTION;
+	    lex->udf.name = lex->spname->m_name;
 	    lex->udf.returns=(Item_result) $2;
 	    lex->udf.dl=$4.str;
 	  }
@@ -1153,7 +1161,7 @@ create_function_tail:
 	    sp_head *sp= lex->sphead;
 
 	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
-	    sp->init_strings(YYTHD, lex, &lex->udf.name);
+	    sp->init_strings(YYTHD, lex, lex->spname);
 	    /* Restore flag if it was cleared above */
 	    if (sp->m_old_cmq)
 	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
@@ -1203,12 +1211,12 @@ sp_suid:
 	;
 
 call:
-	  CALL_SYM IDENT_sys
+	  CALL_SYM sp_name
 	  {
 	    LEX *lex = Lex;
 
 	    lex->sql_command= SQLCOM_CALL;
-	    lex->udf.name= $2;
+	    lex->spname= $2;
 	    lex->value_list.empty();
 	  }
           '(' sp_cparam_list ')' {}
@@ -2723,7 +2731,7 @@ alter:
 	    lex->sql_command=SQLCOM_ALTER_DB;
 	    lex->name=$3.str;
 	  }
-	| ALTER PROCEDURE ident
+	| ALTER PROCEDURE sp_name
 	  {
 	    LEX *lex= Lex;
 
@@ -2736,9 +2744,9 @@ alter:
 	    LEX *lex=Lex;
 
 	    lex->sql_command= SQLCOM_ALTER_PROCEDURE;
-	    lex->udf.name= $3;
+	    lex->spname= $3;
 	  }
-	| ALTER FUNCTION_SYM ident
+	| ALTER FUNCTION_SYM sp_name
 	  {
 	    LEX *lex= Lex;
 
@@ -2751,7 +2759,7 @@ alter:
 	    LEX *lex=Lex;
 
 	    lex->sql_command= SQLCOM_ALTER_FUNCTION;
-	    lex->udf.name= $3;
+	    lex->spname= $3;
 	  }
 	;
 
@@ -3908,12 +3916,13 @@ simple_expr:
 	    if (sp_function_exists(YYTHD, &$1))
 	    {
 	      LEX *lex= Lex;
+	      sp_name *name= new sp_name($1);
 
-	      sp_add_fun_to_lex(lex, $1);
+	      sp_add_fun_to_lex(lex, name);
 	      if ($3)
-	        $$= new Item_func_sp($1, *$3);
+	        $$= new Item_func_sp(name, *$3);
 	      else
-	        $$= new Item_func_sp($1);
+	        $$= new Item_func_sp(name);
 	    }
 	    else
 	    {
@@ -4830,19 +4839,19 @@ drop:
 	    lex->drop_if_exists=$3;
 	    lex->name=$4.str;
 	 }
-	| DROP FUNCTION_SYM if_exists IDENT_sys opt_restrict
+	| DROP FUNCTION_SYM if_exists sp_name opt_restrict
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_FUNCTION;
 	    lex->drop_if_exists= $3;
-	    lex->udf.name= $4;
+	    lex->spname= $4;
 	  }
-	| DROP PROCEDURE if_exists IDENT_sys opt_restrict
+	| DROP PROCEDURE if_exists sp_name opt_restrict
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_PROCEDURE;
 	    lex->drop_if_exists= $3;
-	    lex->udf.name= $4;
+	    lex->spname= $4;
 	  }
 	| DROP USER
 	  {
@@ -5321,15 +5330,19 @@ show_param:
           {
 	    Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
           }
-	| CREATE PROCEDURE ident
+	| CREATE PROCEDURE sp_name
 	  {
-	    Lex->sql_command = SQLCOM_SHOW_CREATE_PROC;
-	    Lex->udf.name= $3;
+	    LEX *lex= Lex;
+
+	    lex->sql_command = SQLCOM_SHOW_CREATE_PROC;
+	    lex->spname= $3;
 	  }
-	| CREATE FUNCTION_SYM ident
+	| CREATE FUNCTION_SYM sp_name
 	  {
-	    Lex->sql_command = SQLCOM_SHOW_CREATE_FUNC;
-	    Lex->udf.name= $3;
+	    LEX *lex= Lex;
+
+	    lex->sql_command = SQLCOM_SHOW_CREATE_FUNC;
+	    lex->spname= $3;
 	  }
 	| PROCEDURE STATUS_SYM wild
 	  {
