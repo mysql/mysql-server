@@ -637,8 +637,18 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 
 void ha_myisam::deactivate_non_unique_index(ha_rows rows)
 {
-  if (!(specialflag & SPECIAL_SAFE_MODE))
-    mi_disable_non_unique_index(file,rows);
+  MYISAM_SHARE* share = file->s;
+  if (share->state.key_map == ((ulonglong) 1L << share->base.keys)-1)
+  {
+    if (!(specialflag & SPECIAL_SAFE_MODE))
+      if (rows==HA_POS_ERROR)
+        mi_extra(file, HA_EXTRA_NO_KEYS);
+      else
+        mi_disable_non_unique_index(file,rows);
+    enable_activate_all_index=1;
+  }
+  else
+    enable_activate_all_index=0;
 }
 
 
@@ -648,7 +658,8 @@ bool ha_myisam::activate_all_index(THD *thd)
   MI_CHECK param;
   MYISAM_SHARE* share = file->s;
   DBUG_ENTER("activate_all_index");
-  if (share->state.key_map != ((ulonglong) 1L << share->base.keys)-1)
+  if (enable_activate_all_index &&
+      share->state.key_map != ((ulonglong) 1L << share->base.keys)-1)
   {
     const char *save_proc_info=thd->proc_info;
     thd->proc_info="Creating index";
@@ -663,6 +674,8 @@ bool ha_myisam::activate_all_index(THD *thd)
     error=repair(thd,param,0) != HA_ADMIN_OK;
     thd->proc_info=save_proc_info;
   }
+  else
+    enable_activate_all_index=1;
   DBUG_RETURN(error);
 }
 
