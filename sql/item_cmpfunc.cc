@@ -109,7 +109,7 @@ longlong Item_func_not::val_int()
 
 static bool convert_constant_item(Field *field, Item **item)
 {
-  if ((*item)->const_item() && (*item)->type() != Item::INT_ITEM)
+  if ((*item)->const_item())
   {
     if (!(*item)->save_in_field(field, 1) && !((*item)->null_value))
     {
@@ -541,6 +541,7 @@ void Item_func_interval::fix_length_and_dec()
   maybe_null= 0;
   max_length= 2;
   used_tables_cache|= row->used_tables();
+  not_null_tables_cache&= row->not_null_tables();
   with_sum_func= with_sum_func || row->with_sum_func;
 }
 
@@ -554,25 +555,27 @@ void Item_func_interval::fix_length_and_dec()
 
 longlong Item_func_interval::val_int()
 {
-  double value=row->el(0)->val();
+  double value= row->el(0)->val();
+  uint i;
+
   if (row->el(0)->null_value)
     return -1;				// -1 if null
   if (intervals)
   {					// Use binary search to find interval
     uint start,end;
-    start=1; end=row->cols()-2;
+    start= 1;
+    end=   row->cols()-2;
     while (start != end)
     {
-      uint mid=(start+end+1)/2;
+      uint mid= (start + end + 1) / 2;
       if (intervals[mid] <= value)
-	start=mid;
+	start= mid;
       else
-	end=mid-1;
+	end= mid - 1;
     }
-    return (value < intervals[start]) ? 0 : start+1;
+    return (value < intervals[start]) ? 0 : start + 1;
   }
 
-  uint i;
   for (i=1 ; i < row->cols() ; i++)
   {
     if (row->el(i)->val() > value)
@@ -1460,7 +1463,6 @@ void Item_func_in::fix_length_and_dec()
   }
   maybe_null= args[0]->maybe_null;
   max_length= 1;
-  const_item_cache&=args[0]->const_item();
 }
 
 
@@ -1541,13 +1543,19 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 #ifndef EMBEDDED_LIBRARY
   char buff[sizeof(char*)];			// Max local vars in function
 #endif
-  used_tables_cache=0;
-  const_item_cache=0;
+  not_null_tables_cache= used_tables_cache= 0;
+  const_item_cache= 0;
+  /*
+    and_table_cache is the value that Item_cond_or() returns for
+    not_null_tables()
+  */
+  and_tables_cache= ~(table_map) 0;
 
   if (thd && check_stack_overrun(thd,buff))
     return 0;					// Fatal error flag is set!
   while ((item=li++))
   {
+    table_map tmp_table_map;
     while (item->type() == Item::COND_ITEM &&
 	   ((Item_cond*) item)->functype() == functype())
     {						// Identical function
@@ -1563,9 +1571,12 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     if ((!item->fixed &&
 	 item->fix_fields(thd, tables, li.ref())) || item->check_cols(1))
       return 1; /* purecov: inspected */
-    used_tables_cache|=item->used_tables();
-    with_sum_func= with_sum_func || item->with_sum_func;
-    const_item_cache&=item->const_item();
+    used_tables_cache|=     item->used_tables();
+    tmp_table_map=	    item->not_null_tables();
+    not_null_tables_cache|= tmp_table_map;
+    and_tables_cache&=      tmp_table_map;
+    const_item_cache&=	    item->const_item();
+    with_sum_func=	    with_sum_func || item->with_sum_func;
     if (item->maybe_null)
       maybe_null=1;
   }
@@ -1616,17 +1627,19 @@ Item_cond::used_tables() const
   return used_tables_cache;
 }
 
+
 void Item_cond::update_used_tables()
 {
-  used_tables_cache=0;
-  const_item_cache=1;
   List_iterator_fast<Item> li(list);
   Item *item;
+
+  used_tables_cache=0;
+  const_item_cache=1;
   while ((item=li++))
   {
     item->update_used_tables();
-    used_tables_cache|=item->used_tables();
-    const_item_cache&= item->const_item();
+    used_tables_cache|= item->used_tables();
+    const_item_cache&=  item->const_item();
   }
 }
 
@@ -1730,12 +1743,16 @@ Item *and_expressions(Item *a, Item *b, Item **org_item)
   {
     Item_cond *res;
     if ((res= new Item_cond_and(a, (Item*) b)))
+    {
       res->used_tables_cache= a->used_tables() | b->used_tables();
+      res->not_null_tables_cache= a->not_null_tables() | b->not_null_tables();
+    }
     return res;
   }
   if (((Item_cond_and*) a)->add((Item*) b))
     return 0;
   ((Item_cond_and*) a)->used_tables_cache|= b->used_tables();
+  ((Item_cond_and*) a)->not_null_tables_cache|= b->not_null_tables();
   return a;
 }
 
@@ -1906,6 +1923,8 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     return 1;
 
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();
+  not_null_tables_cache= (args[0]->not_null_tables() |
+			  args[1]->not_null_tables());
   const_item_cache=args[0]->const_item() && args[1]->const_item();
   if (!regex_compiled && args[1]->const_item())
   {

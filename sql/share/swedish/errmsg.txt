@@ -237,7 +237,8 @@
 "Variabeln '%-.64s' kan endast sättas, inte läsas",
 "Fel använding/placering av '%s'",
 "Denna version av MySQL kan ännu inte utföra '%s'",
-"Fick fatalt fel %d: '%-.128s' från master vid läsning av binärloggen"
+"Fick fatalt fel %d: '%-.128s' från master vid läsning av binärloggen",
+"Slav SQL tråden ignorerade frågan pga en replicate-*-table regel",
 "Felaktig FOREIGN KEY-definition för '%-.64s': %s",
 "Nyckelreferensen och tabellreferensen stämmer inte överens",
 "Kardinalitetsfel (fler/färre än %d kolumner)",

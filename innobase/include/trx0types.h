@@ -24,6 +24,7 @@ typedef struct trx_undo_inf_struct trx_undo_inf_t;
 typedef struct trx_purge_struct	trx_purge_t;
 typedef struct roll_node_struct	roll_node_t;
 typedef struct commit_node_struct commit_node_t;
+typedef struct trx_named_savept_struct trx_named_savept_t;
 
 /* Transaction savepoint */
 typedef struct trx_savept_struct trx_savept_t;

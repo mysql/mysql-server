@@ -755,7 +755,7 @@ AC_CHECK_LIB(crypt, crypt)
 AC_CHECK_FUNC(crypt, AC_DEFINE(HAVE_CRYPT)) 
 
 # For sem_xxx functions on Solaris 2.6
-AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4))
+AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4, sem_init))
 
 # For compress in zlib
 MYSQL_CHECK_ZLIB_WITH_COMPRESS($with_named_zlib)
@@ -1280,12 +1280,12 @@ then
 	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.]);
       fi
       AC_MSG_RESULT("yes")
-    # Hack for SCO UnixWare 7.1
+    # Hack for SCO UnixWare 7.1.x
     #
     elif test "$with_named_thread" = "no"
     then
       AC_MSG_RESULT("no")
-      AC_MSG_CHECKING("SCO UnixWare 7.1 native threads")
+      AC_MSG_CHECKING("SCO UnixWare 7.1.x native threads")
       if expr "$SYSTEM_TYPE" : ".*sco.*" > /dev/null
       then
         if test -f /usr/lib/libthread.so -o -f /usr/lib/libthreadT.so
@@ -1308,11 +1308,11 @@ then
           AC_MSG_CHECKING("for gcc")
           if expr "$CC" : ".*gcc.*"
           then
-	    CC="$CC -pthread -DUNIXWARE_7";
-	    CXX="$CXX -pthread -DUNIXWARE_7";
+	    CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	    CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
           else
-	    CC="$CC -Kthread -DUNIXWARE_7";
-	    CXX="$CXX -Kthread -DUNIXWARE_7";
+	    CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	    CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
           fi
         else
           { echo "configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
@@ -1348,10 +1348,11 @@ then
       AC_MSG_CHECKING("for gcc")
       if expr "$CC" : ".*gcc.*"
       then
-	{ echo "configure: error: On SCO UnixWare7 MySQL must be compiled with cc. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
+	CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
       else
-	CC="$CC -Kthread -DUNIXWARE_7";
-	CXX="$CXX -Kthread -DUNIXWARE_7";
+	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
       fi
       AC_MSG_RESULT("yes")
     else
@@ -1383,7 +1384,8 @@ then
       AC_MSG_CHECKING("for gcc")
       if expr "$CC" : ".*gcc.*"
       then
-	{ echo "configure: error: On OpenUNIX8 and UnixWare7 MySQL must be compiled with cc. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
+	CC="$CC -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+	CXX="$CXX -pthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
       else
  	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
  	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";

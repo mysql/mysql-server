@@ -187,8 +187,8 @@ os_thread_exit(
 				is cast as a DWORD */
 {
 #ifdef UNIV_DEBUG_THREAD_CREATION
-        printf("A thread exits.\n");
-        printf("Thread id %lu\n", os_thread_pf(os_thread_get_curr_id()));
+        printf("Thread exits, id %lu\n",
+			      os_thread_pf(os_thread_get_curr_id()));
 #endif
 	os_mutex_enter(os_sync_mutex);
 	os_thread_count--;

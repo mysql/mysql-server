@@ -15,6 +15,7 @@ select export_set(9,"Y","N","-",5),export_set(9,"Y","N"),export_set(9,"Y","N",""
 select elt(2,1),field(NULL,"a","b","c");
 select find_in_set("","a,b,c"),find_in_set("","a,b,c,"),find_in_set("",",a,b,c");
 select find_in_set("abc","abc"),find_in_set("ab","abc"),find_in_set("abcd","abc");
+select interval(null, 1, 10, 100);
 
 #
 # test for a bug with elt()

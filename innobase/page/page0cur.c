@@ -14,6 +14,7 @@ Created 10/4/1994 Heikki Tuuri
 #include "rem0cmp.h"
 #include "mtr0log.h"
 #include "log0recv.h"
+#include "rem0cmp.h"
 
 ulint	page_cur_short_succ	= 0;
 
@@ -218,6 +219,8 @@ page_cur_search_with_match(
 	      || (mode == PAGE_CUR_G) || (mode == PAGE_CUR_GE)
 	      || (mode == PAGE_CUR_LE_OR_EXTENDS) || (mode == PAGE_CUR_DBG));
 	      
+	page_check_dir(page);
+
 #ifdef PAGE_CUR_ADAPT
 	if ((page_header_get_field(page, PAGE_LEVEL) == 0)
 	    && (mode == PAGE_CUR_LE)
@@ -595,6 +598,7 @@ page_cur_parse_insert_rec(
 	rec_t*	cursor_rec;
 	byte	buf1[1024];
 	byte*	buf;
+	byte*   ptr2 = ptr;
 	ulint	info_bits = 0; /* remove warning */
 	page_cur_t cursor;
 
@@ -697,7 +701,20 @@ page_cur_parse_insert_rec(
 
 	/* Build the inserted record to buf */
 	
-	ut_a(mismatch_index < UNIV_PAGE_SIZE);
+        if (mismatch_index >= UNIV_PAGE_SIZE) {
+               printf("Is short %lu, info_bits %lu, offset %lu, o_offset %lu\n"
+                    "mismatch index %lu, end_seg_len %lu\n"
+                    "parsed len %lu\n",
+                    is_short, info_bits, offset, origin_offset,
+                    mismatch_index, end_seg_len, (ulint)(ptr - ptr2));
+
+	       printf("Dump of 300 bytes of log:\n");
+	       ut_print_buf(ptr2, 300);
+
+	       buf_page_print(page);
+
+	       ut_a(0);
+	}
 
 	ut_memcpy(buf, rec_get_start(cursor_rec), mismatch_index);
 	ut_memcpy(buf + mismatch_index, ptr, end_seg_len);

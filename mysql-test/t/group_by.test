@@ -132,7 +132,7 @@ CREATE TABLE t1 (
   assigned_to mediumint(9) DEFAULT '0' NOT NULL,
   bug_file_loc text,
   bug_severity enum('blocker','critical','major','normal','minor','trivial','enhancement') DEFAULT 'blocker' NOT NULL,
-  bug_status enum('NEW','ASSIGNED','REOPENED','RESOLVED','VERIFIED','CLOSED') DEFAULT 'NEW' NOT NULL,
+  bug_status enum('','NEW','ASSIGNED','REOPENED','RESOLVED','VERIFIED','CLOSED') DEFAULT 'NEW' NOT NULL,
   creation_ts datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
   delta_ts timestamp(14),
   short_desc mediumtext,

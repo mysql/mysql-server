@@ -83,7 +83,7 @@ bool select_union::send_data(List<Item> &values)
     {
       thd->clear_error(); // do not report user about table overflow
       if (create_myisam_from_heap(thd, table, &tmp_table_param,
-				  info.last_errno, 0))
+				  info.last_errno, 1))
 	return 1;
     }
     else
@@ -201,7 +201,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
     select_limit_cnt= sl->select_limit+sl->offset_limit;
     if (select_limit_cnt < sl->select_limit)
       select_limit_cnt= HA_POS_ERROR;		// no limit
-    if (select_limit_cnt == HA_POS_ERROR)
+    if (select_limit_cnt == HA_POS_ERROR && !sl->braces)
       sl->options&= ~OPTION_FOUND_ROWS;
     
     res= join->prepare(&sl->ref_pointer_array,

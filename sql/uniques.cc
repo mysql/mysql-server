@@ -49,8 +49,8 @@ int unique_write_to_ptrs(gptr key, element_count count, Unique *unique)
 }
 
 Unique::Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
-	       uint size, ulong max_in_memory_size_arg)
-  :max_in_memory_size(max_in_memory_size_arg),elements(0)
+	       uint size_arg, ulong max_in_memory_size_arg)
+  :max_in_memory_size(max_in_memory_size_arg), size(size_arg), elements(0)
 {
   my_b_clear(&file);
   init_tree(&tree, max_in_memory_size / 16, 0, size, comp_func, 0, NULL,
@@ -101,7 +101,7 @@ bool Unique::get(TABLE *table)
   {
     /* Whole tree is in memory;  Don't use disk if you don't need to */
     if ((record_pointers=table->sort.record_pointers= (byte*)
-	 my_malloc(tree.size_of_element * tree.elements_in_tree, MYF(0))))
+	 my_malloc(size * tree.elements_in_tree, MYF(0))))
     {
       (void) tree_walk(&tree, (tree_walk_action) unique_write_to_ptrs,
 		       this, left_root_right);

@@ -760,6 +760,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	  sql_field->flags|= NOT_NULL_FLAG;
 	  sql_field->pack_flag&= ~FIELDFLAG_MAYBE_NULL;
 	}
+	else
+	   key_info->flags|= HA_NULL_PART_KEY;
 	if (!(file->table_flags() & HA_NULL_KEY))
 	{
 	  my_printf_error(ER_NULL_COLUMN_IN_INDEX,ER(ER_NULL_COLUMN_IN_INDEX),
@@ -771,7 +773,6 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	  my_error(ER_SPATIAL_CANT_HAVE_NULL, MYF(0));
 	  DBUG_RETURN(-1);
 	}
-	key_info->flags|= HA_NULL_PART_KEY;
       }
       if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       {
@@ -1087,7 +1088,8 @@ mysql_rename_table(enum db_type base,
     wait_while_table_is_used()
     thd			Thread handler
     table		Table to remove from cache
-
+    function		HA_EXTRA_PREPARE_FOR_DELETE if table is to be deleted
+			HA_EXTRA_FORCE_REOPEN if table is not be used    
   NOTES
    When returning, the table will be unusable for other threads until
    the table is closed.
@@ -1097,13 +1099,14 @@ mysql_rename_table(enum db_type base,
     Win32 clients must also have a WRITE LOCK on the table !
 */
 
-static void wait_while_table_is_used(THD *thd,TABLE *table)
+static void wait_while_table_is_used(THD *thd,TABLE *table,
+				     enum ha_extra_function function)
 {
   DBUG_PRINT("enter",("table: %s", table->real_name));
   DBUG_ENTER("wait_while_table_is_used");
   safe_mutex_assert_owner(&LOCK_open);
 
-  VOID(table->file->extra(HA_EXTRA_FORCE_REOPEN)); // Close all data files
+  VOID(table->file->extra(function));
   /* Mark all tables that are in use as 'old' */
   mysql_lock_abort(thd, table);			// end threads waiting on lock
 
@@ -1139,7 +1142,7 @@ static bool close_cached_table(THD *thd, TABLE *table)
 {
   DBUG_ENTER("close_cached_table");
   
-  wait_while_table_is_used(thd,table);
+  wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_DELETE);
   /* Close lock if this is not got with LOCK TABLES */
   if (thd->lock)
   {
@@ -1365,6 +1368,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(-1);
 
+  mysql_ha_closeall(thd, tables);
   for (table = tables; table; table = table->next)
   {
     char table_name[NAME_LEN*2+2];
@@ -1851,7 +1855,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	break;
       case ENABLE:
 	VOID(pthread_mutex_lock(&LOCK_open));
-	wait_while_table_is_used(thd, table);
+	wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
 	VOID(pthread_mutex_unlock(&LOCK_open));
 	error= table->file->activate_all_index(thd);
 	/* COND_refresh will be signaled in close_thread_tables() */
@@ -1860,7 +1864,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
  	if (table->db_type == DB_TYPE_MYISAM)
  	{
 	  VOID(pthread_mutex_lock(&LOCK_open));
-	  wait_while_table_is_used(thd, table);
+	  wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
 	  VOID(pthread_mutex_unlock(&LOCK_open));
  	  table->file->deactivate_non_unique_index(HA_POS_ERROR);
  	}

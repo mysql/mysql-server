@@ -298,6 +298,7 @@ ulint	srv_test_n_mutexes	= ULINT_MAX;
 i/o handler thread */
 
 char* srv_io_thread_op_info[SRV_MAX_N_IO_THREADS];
+char* srv_io_thread_function[SRV_MAX_N_IO_THREADS];
 
 time_t	srv_last_monitor_time;
 
@@ -1750,7 +1751,7 @@ srv_conc_enter_innodb(
 	trx_t*	trx)	/* in: transaction object associated with the
 			thread */
 {
-	ibool			has_slept	= FALSE;
+	ibool			has_slept = FALSE;
 	srv_conc_slot_t*	slot;
 	ulint			i;
 	char                    err_buf[1000];
@@ -1769,9 +1770,9 @@ srv_conc_enter_innodb(
 
 		return;
 	}
-retry:
-	os_fast_mutex_lock(&srv_conc_mutex);
 
+	os_fast_mutex_lock(&srv_conc_mutex);
+retry:
 	if (trx->declared_to_be_inside_innodb) {
 	        ut_print_timestamp(stderr);
 
@@ -1780,6 +1781,9 @@ retry:
 	        fprintf(stderr,
 "  InnoDB: Error: trying to declare trx to enter InnoDB, but\n"
 "InnoDB: it already is declared.\n%s\n", err_buf);
+		os_fast_mutex_unlock(&srv_conc_mutex);
+
+		return;
 	}
 
 	if (srv_conc_n_threads < (lint)srv_thread_concurrency) {
@@ -1793,21 +1797,31 @@ retry:
 		return;
 	}
 
-	/* If the transaction is not holding resources, let it sleep
-	for 100 milliseconds, and try again then */
-	
+	/* If the transaction is not holding resources, let it sleep for 50
+	milliseconds, and try again then */
+ 
 	if (!has_slept && !trx->has_search_latch
 	    && NULL == UT_LIST_GET_FIRST(trx->trx_locks)) {
 
-	    	has_slept = TRUE; /* We let is sleep only once to avoid
-	    			  starvation */
+	        has_slept = TRUE; /* We let is sleep only once to avoid
+				  starvation */
 
-	    	os_fast_mutex_unlock(&srv_conc_mutex);
+		srv_conc_n_waiting_threads++;
 
-	    	os_thread_sleep(100000);
+		os_fast_mutex_unlock(&srv_conc_mutex);
+
+		trx->op_info = (char*)"sleeping before joining InnoDB queue";
+
+		os_thread_sleep(50000);
+
+		trx->op_info = (char*)"";
+
+		os_fast_mutex_lock(&srv_conc_mutex);
+
+		srv_conc_n_waiting_threads--;
 
 		goto retry;
-	}	    	
+	}   
 
 	/* Too many threads inside: put the current thread to a queue */
 
@@ -2131,7 +2145,8 @@ srv_suspend_mysql_thread(
 	os_event_t	event;
 	double		wait_time;
 	trx_t*		trx;
-	ibool		had_dict_lock	= FALSE;
+	ibool		had_dict_lock			= FALSE;
+	ibool		was_declared_inside_innodb	= FALSE;
 	
 	ut_ad(!mutex_own(&kernel_mutex));
 
@@ -2179,11 +2194,16 @@ srv_suspend_mysql_thread(
 	
 	mutex_exit(&kernel_mutex);
 
-	/* We must declare this OS thread to exit InnoDB, since a possible
-	other thread holding a lock which this thread waits for must be
-	allowed to enter, sooner or later */
+	if (trx->declared_to_be_inside_innodb) {
+
+		was_declared_inside_innodb = TRUE;
 	
-	srv_conc_force_exit_innodb(thr_get_trx(thr));
+		/* We must declare this OS thread to exit InnoDB, since a
+		possible other thread holding a lock which this thread waits
+		for must be allowed to enter, sooner or later */
+	
+		srv_conc_force_exit_innodb(trx);
+	}
 
 	/* Release possible foreign key check latch */
 	if (trx->dict_operation_lock_mode == RW_S_LATCH) {
@@ -2204,9 +2224,12 @@ srv_suspend_mysql_thread(
 		row_mysql_freeze_data_dictionary(trx);
 	}
 
-	/* Return back inside InnoDB */
+	if (was_declared_inside_innodb) {
+
+		/* Return back inside InnoDB */
 	
-	srv_conc_force_enter_innodb(thr_get_trx(thr));
+		srv_conc_force_enter_innodb(trx);
+	}
 
 	mutex_enter(&kernel_mutex);
 
@@ -2302,6 +2325,7 @@ srv_sprintf_innodb_monitor(
 	char*	buf_end	= buf + len - 2000;
 	double	time_elapsed;
 	time_t	current_time;
+	ulint	n_reserved;
 
 	mutex_enter(&srv_innodb_monitor_mutex);
 
@@ -2429,12 +2453,21 @@ srv_sprintf_innodb_monitor(
 		       "ROW OPERATIONS\n"
 		       "--------------\n");
 	buf += sprintf(buf,
-	"%ld queries inside InnoDB, %ld queries in queue\n",
+	"%ld queries inside InnoDB, %lu queries in queue\n",
 			srv_conc_n_threads, srv_conc_n_waiting_threads);
+
+	n_reserved = fil_space_get_n_reserved_extents(0);
+	if (n_reserved > 0) {
+	        buf += sprintf(buf,
+	"%lu tablespace extents now reserved for B-tree split operations\n",
+						    n_reserved);
+	}
+
 #ifdef UNIV_LINUX
 	buf += sprintf(buf,
-	"Main thread process no %lu, state: %s\n",
+	"Main thread process no. %lu, id %lu, state: %s\n",
 			srv_main_thread_process_no,
+			srv_main_thread_id,
 			srv_main_thread_op_info);
 #else
 	buf += sprintf(buf,
@@ -2498,8 +2531,8 @@ srv_lock_timeout_and_monitor_thread(
 	ulint		i;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	printf("Lock timeout thread starts\n");
-	printf("Thread id %lu\n", os_thread_pf(os_thread_get_curr_id()));
+	printf("Lock timeout thread starts, id %lu\n",
+			     os_thread_pf(os_thread_get_curr_id()));
 #endif
 	UT_NOT_USED(arg);
 	srv_last_monitor_time = time(NULL);
@@ -2671,8 +2704,8 @@ srv_error_monitor_thread(
 
 	UT_NOT_USED(arg);
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	printf("Error monitor thread starts\n");
-	printf("Thread id %lu\n", os_thread_pf(os_thread_get_curr_id()));
+	printf("Error monitor thread starts, id %lu\n",
+			      os_thread_pf(os_thread_get_curr_id()));
 #endif
 loop:
 	srv_error_monitor_active = TRUE;
@@ -2794,8 +2827,8 @@ srv_master_thread(
 	UT_NOT_USED(arg);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	printf("Master thread starts\n");
-	printf("Thread id %lu\n", os_thread_pf(os_thread_get_curr_id()));
+	printf("Master thread starts, id %lu\n",
+			      os_thread_pf(os_thread_get_curr_id()));
 #endif
 	srv_main_thread_process_no = os_proc_get_number();
 	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
@@ -2868,7 +2901,7 @@ loop:
 		at transaction commit */
 
 		srv_main_thread_op_info = (char*)"flushing log";
-		log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
+		log_buffer_flush_to_disk();
 
 		/* If there were less than 5 i/os during the
 		one second sleep, we assume that there is free
@@ -2884,10 +2917,9 @@ loop:
 					(char*)"doing insert buffer merge";
 			ibuf_contract_for_n_pages(TRUE, 5);
 
-			srv_main_thread_op_info =
-						(char*)"flushing log";
-			log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP,
-									TRUE);
+			srv_main_thread_op_info = (char*)"flushing log";
+
+			log_buffer_flush_to_disk();
 		}
 
 		if (buf_get_modified_ratio_pct() >
@@ -2937,7 +2969,7 @@ loop:
 		buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
 
 		srv_main_thread_op_info = (char*) "flushing log";
-		log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
+		log_buffer_flush_to_disk();
 	}
 
 	/* We run a batch of insert buffer merge every 10 seconds,
@@ -2947,7 +2979,7 @@ loop:
 	ibuf_contract_for_n_pages(TRUE, 5);
 
 	srv_main_thread_op_info = (char*)"flushing log";
-	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
+	log_buffer_flush_to_disk();
 
 	/* We run a full purge every 10 seconds, even if the server
 	were active */
@@ -2971,8 +3003,7 @@ loop:
 		if (difftime(current_time, last_flush_time) > 1) {
 			srv_main_thread_op_info = (char*) "flushing log";
 
-		        log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP,
-									TRUE);
+		        log_buffer_flush_to_disk();
 			last_flush_time = current_time;
 		}
 	}
@@ -3043,10 +3074,29 @@ background_loop:
  
 	srv_main_thread_op_info = (char*)"purging";
 
-	if (srv_fast_shutdown && srv_shutdown_state > 0) {
-	        n_pages_purged = 0;
-	} else {
-	        n_pages_purged = trx_purge();
+	/* Run a full purge */
+	
+	n_pages_purged = 1;
+
+	last_flush_time = time(NULL);
+
+	while (n_pages_purged) {
+		if (srv_fast_shutdown && srv_shutdown_state > 0) {
+
+			break;
+		}
+
+		srv_main_thread_op_info = (char*)"purging";
+		n_pages_purged = trx_purge();
+
+		current_time = time(NULL);
+
+		if (difftime(current_time, last_flush_time) > 1) {
+			srv_main_thread_op_info = (char*) "flushing log";
+
+		        log_buffer_flush_to_disk();
+			last_flush_time = current_time;
+		}
 	}
 
 	srv_main_thread_op_info = (char*)"reserving kernel mutex";
@@ -3091,6 +3141,10 @@ flush_loop:
 	srv_main_thread_op_info =
 			(char*) "waiting for buffer pool flush to end";
 	buf_flush_wait_batch_end(BUF_FLUSH_LIST);
+
+	srv_main_thread_op_info = (char*) "flushing log";
+
+	log_buffer_flush_to_disk();
 
 	srv_main_thread_op_info = (char*)"making checkpoint";
 

@@ -36,8 +36,12 @@ typedef os_event_struct_t*     os_event_t;
 struct os_event_struct {
 	os_fast_mutex_t	os_mutex;	/* this mutex protects the next
 					fields */
-	ibool		is_set;		/* this is TRUE if the next mutex is
-					not reserved */
+	ibool		is_set;		/* this is TRUE when the event is
+					in the signaled state, i.e., a thread
+					does not stop if it tries to wait for
+					this event */
+	ib_longlong	signal_count;	/* this is incremented each time
+					the event becomes signaled */
 	pthread_cond_t	cond_var;	/* condition variable is used in
 					waiting for the event */
 	UT_LIST_NODE_T(os_event_struct_t) os_event_list;

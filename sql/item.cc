@@ -49,7 +49,7 @@ Item::Item():
   next= thd->free_list;			// Put in free list
   thd->free_list= this;
   /*
-    Item constructor can be called during execution other tnen SQL_COM
+    Item constructor can be called during execution other then SQL_COM
     command => we should check thd->lex.current_select on zero (thd->lex
     can be uninitialised)
   */

@@ -1,9 +1,13 @@
 #
 # Test latin_de character set
 #
+
+select @@collation_connection;
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
+
 create table t1 (a char (20) not null, b int not null auto_increment, index (a,b));
 insert into t1 (a) values ('ä'),('ac'),('ae'),('ad'),('Äc'),('aeb');
 insert into t1 (a) values ('üc'),('uc'),('ue'),('ud'),('Ü'),('ueb'),('uf');
@@ -36,6 +40,10 @@ select strcmp('af','ä'),strcmp('ä','a'),strcmp('aeq','ää'),strcmp('aeaeq','ää');
 select strcmp('ßa','ss'),strcmp('ssa','ß'),strcmp('sssb','sßa'),strcmp('ß','s');
 select strcmp('u','öa'),strcmp('u','ö');
 
+#
+# overlapping combo's
+#
+select strcmp('sä', 'ßa'), strcmp('aä', 'äx');
 #
 # Some other simple tests with the current character set
 #

@@ -216,7 +216,7 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
   thd->db=0;
   thd->db_length=0;
   USER_RESOURCES ur;
-  char tmp_passwd[SCRAMBLE41_LENGTH];
+  char tmp_passwd[SCRAMBLE41_LENGTH+1];
   DBUG_ENTER("check_user");
   
   /*
@@ -304,10 +304,11 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
 		  db ? db : (char*) "");
   thd->db_access=0;
   /* Don't allow user to connect if he has done too many queries */
-  if ((ur.questions || ur.updates || ur.connections) &&
+  if ((ur.questions || ur.updates || ur.connections || max_user_connections) &&
       get_or_create_user_conn(thd,user,thd->host_or_ip,&ur))
     DBUG_RETURN(1);
-  if (thd->user_connect && thd->user_connect->user_resources.connections &&
+  if (thd->user_connect && ((thd->user_connect->user_resources.connections) ||
+			    max_user_connections) && 
       check_for_max_user_connections(thd, thd->user_connect))
     DBUG_RETURN(1);
 
@@ -356,7 +357,7 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc)
   DBUG_ENTER("check_for_max_user_connections");
 
   if (max_user_connections &&
-      (max_user_connections <=  (uint) uc->connections))
+      (max_user_connections <  (uint) uc->connections))
   {
     net_printf(thd,ER_TOO_MANY_USER_CONNECTIONS, uc->user);
     error=1;
@@ -548,8 +549,8 @@ check_connections(THD *thd)
   NET *net= &thd->net;
   char *end, *user, *passwd, *db;
   char prepared_scramble[SCRAMBLE41_LENGTH+4];  /* Buffer for scramble&hash */
+  char db_buff[NAME_LEN+1];
   ACL_USER* cached_user=NULL; /* Initialise to NULL for first stage */
-  String convdb;
   DBUG_PRINT("info",("New connection received on %s",
 		     vio_description(net->vio)));
 
@@ -567,7 +568,10 @@ check_connections(THD *thd)
 #if !defined(HAVE_SYS_UN_H) || defined(HAVE_mit_thread)
     /* Fast local hostname resolve for Win32 */
     if (!strcmp(thd->ip,"127.0.0.1"))
-      thd->host=(char*) localhost;
+    {
+      thd->host= (char*) localhost;
+      thd->host_or_ip= localhost;
+    }
     else
 #endif
     {
@@ -663,8 +667,18 @@ check_connections(THD *thd)
   {
     thd->client_capabilities|= ((ulong) uint2korr(net->read_pos+2)) << 16;
     thd->max_client_packet_length= uint4korr(net->read_pos+4);
+    DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
+    /*
+      Use server character set and collation if
+      - client has not specified a character set
+      - client character set is the same as the servers
+      - client character set doesn't exists in server
+    */
     if (!(thd->variables.character_set_client=
-	  get_charset((uint) net->read_pos[8], MYF(0))))
+	  get_charset((uint) net->read_pos[8], MYF(0))) ||
+	!my_strcasecmp(&my_charset_latin1,
+		       global_system_variables.character_set_client->name,
+		       thd->variables.character_set_client->name))
     {
       thd->variables.character_set_client=
 	global_system_variables.character_set_client;
@@ -679,6 +693,7 @@ check_connections(THD *thd)
       thd->variables.collation_connection= 
 	thd->variables.character_set_client;
     }
+    thd->update_charset();
     end= (char*) net->read_pos+32;
   }
   else
@@ -694,6 +709,11 @@ check_connections(THD *thd)
   if (thd->client_capabilities & CLIENT_SSL)
   {
     /* Do the SSL layering. */
+    if (!ssl_acceptor_fd)
+    {
+      inc_host_errors(&thd->remote.sin_addr);
+      return(ER_HANDSHAKE_ERROR);
+    }
     DBUG_PRINT("info", ("IO layer change in progress..."));
     if (sslaccept(ssl_acceptor_fd, net->vio, thd->variables.net_wait_timeout))
     {
@@ -726,10 +746,13 @@ check_connections(THD *thd)
   using_password= test(passwd[0]);
   if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
   {
-    db=strend(passwd)+1;
-    convdb.copy(db, strlen(db), 
-		thd->variables.character_set_client, system_charset_info);
-    db= convdb.c_ptr();
+    db= strend(passwd)+1;
+    uint32 length= copy_and_convert(db_buff, sizeof(db_buff)-1,
+				    system_charset_info,
+				    db, strlen(db),
+				    thd->charset());
+    db_buff[length]= 0;
+    db= db_buff;
   }
 
   /* We can get only old hash at this point */
@@ -959,7 +982,6 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
            buff[length-1] == ';'))
       length--;
     buff[length]=0;
-    thd->current_tablenr=0;
     thd->query_length=length;
     thd->query= thd->memdup_w_gap(buff, length+1, thd->db_length+1);
     thd->query[length] = '\0';
@@ -1062,7 +1084,6 @@ bool do_command(THD *thd)
   DBUG_ENTER("do_command");
 
   net= &thd->net;
-  thd->current_tablenr=0;
   /*
     indicator of uninitialized lex => normal flow of errors handling
     (see my_message_sql)
@@ -1131,15 +1152,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->lex.select_lex.options=0;		// We store status here
   switch (command) {
   case COM_INIT_DB:
-    {
-      String convname;
-      statistic_increment(com_stat[SQLCOM_CHANGE_DB],&LOCK_status);
-      convname.copy(packet, strlen(packet),
-		    thd->variables.character_set_client, system_charset_info);
-      if (!mysql_change_db(thd,convname.c_ptr()))
-	mysql_log.write(thd,command,"%s",thd->db);
-      break;
-    }
+  {
+    LEX_STRING tmp;
+    statistic_increment(com_stat[SQLCOM_CHANGE_DB],&LOCK_status);
+    thd->convert_string(&tmp, system_charset_info,
+			packet, strlen(packet), thd->charset());
+    if (!mysql_change_db(thd, tmp.str))
+      mysql_log.write(thd,command,"%s",thd->db);
+    break;
+  }
 #ifndef EMBEDDED_LIBRARY
   case COM_REGISTER_SLAVE:
   {
@@ -1149,21 +1170,20 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
 #endif
   case COM_TABLE_DUMP:
-    {
-      statistic_increment(com_other, &LOCK_status);
-      slow_command = TRUE;
-      uint db_len = *(uchar*)packet;
-      uint tbl_len = *(uchar*)(packet + db_len + 1);
-      char* db = thd->alloc(db_len + tbl_len + 2);
-      memcpy(db, packet + 1, db_len);
-      char* tbl_name = db + db_len;
-      *tbl_name++ = 0;
-      memcpy(tbl_name, packet + db_len + 2, tbl_len);
-      tbl_name[tbl_len] = 0;
-      if (mysql_table_dump(thd, db, tbl_name, -1))
-	send_error(thd); // dump to NET
-      break;
-    }
+  {
+    char *db, *tbl_name;
+    uint db_len= *(uchar*) packet;
+    uint tbl_len= *(uchar*) (packet + db_len + 1);
+
+    statistic_increment(com_other, &LOCK_status);
+    slow_command= TRUE;
+    db= thd->alloc(db_len + tbl_len + 2);
+    tbl_name= strmake(db, packet + 1, db_len)+1;
+    strmake(tbl_name, packet + db_len + 2, tbl_len);
+    if (mysql_table_dump(thd, db, tbl_name, -1))
+      send_error(thd); // dump to NET
+    break;
+  }
 #ifndef EMBEDDED_LIBRARY
   case COM_CHANGE_USER:
   {
@@ -1351,8 +1371,9 @@ restore_user:
 #else
   {
     char *fields, *pend;
-    String convname;
     TABLE_LIST table_list;
+    LEX_STRING conv_name;
+
     statistic_increment(com_stat[SQLCOM_SHOW_FIELDS],&LOCK_status);
     bzero((char*) &table_list,sizeof(table_list));
     if (!(table_list.db=thd->db))
@@ -1362,9 +1383,9 @@ restore_user:
     }
     thd->free_list=0;
     pend= strend(packet);
-    convname.copy(packet, pend-packet, 
-		  thd->variables.character_set_client, system_charset_info);
-    table_list.alias= table_list.real_name= convname.c_ptr();
+    thd->convert_string(&conv_name, system_charset_info,
+			packet, (uint) (pend-packet), thd->charset());
+    table_list.alias= table_list.real_name= conv_name.str;
     packet= pend+1;
     // command not cachable => no gap for data base name
     if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
@@ -1444,7 +1465,8 @@ restore_user:
       pos = uint4korr(packet);
       flags = uint2korr(packet + 4);
       thd->server_id=0; /* avoid suicide */
-      kill_zombie_dump_threads(slave_server_id = uint4korr(packet+6));
+      if ((slave_server_id= uint4korr(packet+6))) // mysqlbinlog.server_id==0
+	kill_zombie_dump_threads(slave_server_id);
       thd->server_id = slave_server_id;
       mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos, flags);
       unregister_slave(thd,1,1);
@@ -1503,9 +1525,10 @@ restore_user:
 	    opened_tables,refresh_version, cached_tables(),
 	    uptime ? (float)thd->query_id/(float)uptime : 0);
 #ifdef SAFEMALLOC
-    if (lCurMemory)				// Using SAFEMALLOC
+    if (sf_malloc_cur_memory)				// Using SAFEMALLOC
       sprintf(strend(buff), "  Memory in use: %ldK  Max memory used: %ldK",
-	      (lCurMemory+1023L)/1024L,(lMaxMemory+1023L)/1024L);
+	      (sf_malloc_cur_memory+1023L)/1024L,
+	      (sf_malloc_max_memory+1023L)/1024L);
  #endif
     VOID(my_net_write(net, buff,(uint) strlen(buff)));
     VOID(net_flush(net));
@@ -1670,12 +1693,16 @@ mysql_execute_command(THD *thd)
       given and the table list says the query should not be replicated
     */
     if (table_rules_on && tables && !tables_ok(thd,tables))
+    {
+      /* we warn the slave SQL thread */
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       DBUG_VOID_RETURN;
+    }
 #ifndef TO_BE_DELETED
     /*
-       This is a workaround to deal with the shortcoming in 3.23.44-3.23.46
-       masters in RELEASE_LOCK() logging. We re-write SELECT RELEASE_LOCK()
-       as DO RELEASE_LOCK()
+      This is a workaround to deal with the shortcoming in 3.23.44-3.23.46
+      masters in RELEASE_LOCK() logging. We re-write SELECT RELEASE_LOCK()
+      as DO RELEASE_LOCK()
     */
     if (lex->sql_command == SQLCOM_SELECT)
     {
@@ -1710,14 +1737,8 @@ mysql_execute_command(THD *thd)
       }
     }
   }
-  if ((&lex->select_lex != lex->all_selects_list &&
-       lex->unit.create_total_list(thd, lex, &tables, 0)) 
-#ifdef HAVE_REPLICATION
-      ||
-      (table_rules_on && tables && thd->slave_thread &&
-       !tables_ok(thd,tables))
-#endif
-      )
+  if (&lex->select_lex != lex->all_selects_list &&
+      lex->unit.create_total_list(thd, lex, &tables, 0))
     DBUG_VOID_RETURN;
   
   /*
@@ -2455,13 +2476,15 @@ mysql_execute_command(THD *thd)
 
     if (find_real_table_in_list(tables->next, tables->db, tables->real_name))
     {
-      net_printf(thd,ER_UPDATE_TABLE_USED,tables->real_name);
-      DBUG_VOID_RETURN;
+      /* Using same table for INSERT and SELECT */
+      select_lex->options |= OPTION_BUFFER_RESULT;
     }
 
     /* Skip first table, which is the table we are inserting in */
     lex->select_lex.table_list.first=
       (byte*) (((TABLE_LIST *) lex->select_lex.table_list.first)->next);
+    lex->select_lex.resolve_mode= SELECT_LEX::NOMATTER_MODE;
+
     if (!(res=open_and_lock_tables(thd, tables)))
     {
       if ((result=new select_insert(tables->table,&lex->field_list,
@@ -2694,6 +2717,14 @@ mysql_execute_command(THD *thd)
       }
       if (check_access(thd,SELECT_ACL,db,&thd->col_access))
 	goto error;				/* purecov: inspected */
+      if (!thd->col_access && check_grant_db(thd,db))
+      {
+	net_printf(thd, ER_DBACCESS_DENIED_ERROR,
+		   thd->priv_user,
+		   thd->priv_host,
+		   db);
+	goto error;
+      }
       /* grant is checked in mysqld_show_tables */
       if (select_lex->options & SELECT_DESCRIBE)
         res= mysqld_extend_show_tables(thd,db,
@@ -2852,7 +2883,10 @@ mysql_execute_command(THD *thd)
     if (thd->slave_thread && 
 	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
 	 !db_ok_with_wild_table(lex->name)))
+    {
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
+    }
 #endif
     if (check_access(thd,CREATE_ACL,lex->name,0,1))
       break;
@@ -2877,7 +2911,10 @@ mysql_execute_command(THD *thd)
     if (thd->slave_thread && 
 	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
 	 !db_ok_with_wild_table(lex->name)))
+    {
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
+    }
 #endif
     if (check_access(thd,DROP_ACL,lex->name,0,1))
       break;
@@ -3115,8 +3152,12 @@ mysql_execute_command(THD *thd)
     res = mysql_ha_close(thd, tables);
     break;
   case SQLCOM_HA_READ:
-    if (check_db_used(thd,tables) ||
-	check_table_access(thd,SELECT_ACL, tables))
+    /*
+      There is no need to check for table permissions here, because
+      if a user has no permissions to read a table, he won't be
+      able to open it (with SQLCOM_HA_OPEN) in the first place.
+    */
+    if (check_db_used(thd,tables))
       goto error;
     res = mysql_ha_read(thd, tables, lex->ha_read_mode, lex->backup_dir,
 			lex->insert_list, lex->ha_rkey_mode, select_lex->where,
@@ -3171,6 +3212,23 @@ mysql_execute_command(THD *thd)
     else
       res= -1;
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    break;
+  case SQLCOM_ROLLBACK_TO_SAVEPOINT:
+    if (!ha_rollback_to_savepoint(thd, lex->savepoint_name))
+    {
+      if (thd->options & OPTION_STATUS_NO_TRANS_UPDATE)
+	send_warning(thd, ER_WARNING_NOT_COMPLETE_ROLLBACK, 0);
+      else
+	send_ok(thd);
+    }
+    else
+      res= -1;
+    break;
+  case SQLCOM_SAVEPOINT:
+    if (!ha_savepoint(thd, lex->savepoint_name))
+      send_ok(thd);
+    else
+      res= -1;
     break;
   default:					/* Impossible */
     send_ok(thd);
@@ -3547,7 +3605,7 @@ mysql_init_select(LEX *lex)
 bool
 mysql_new_select(LEX *lex, bool move_down)
 {
-  SELECT_LEX *select_lex = new SELECT_LEX();
+  SELECT_LEX *select_lex = new(&lex->thd->mem_root) SELECT_LEX();
   if (!select_lex)
     return 1;
   select_lex->select_number= ++lex->thd->select_number;
@@ -3636,8 +3694,7 @@ void mysql_init_multi_delete(LEX *lex)
   mysql_init_select(lex);
   lex->select_lex.select_limit= lex->unit.select_limit_cnt=
     HA_POS_ERROR;
-  lex->auxilliary_table_list= lex->select_lex.table_list;
-  lex->select_lex.table_list.empty();
+  lex->select_lex.table_list.save_and_clear(&lex->auxilliary_table_list);
 }
 
 
@@ -4297,6 +4354,11 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   }
   if (options & REFRESH_LOG)
   {
+    /*
+      Flush the normal query log, the update log, the binary log,
+      the slow query log, and the relay log (if it exists).
+    */
+
     /* 
      Writing this command to the binlog may result in infinite loops when doing
      mysqlbinlog|mysql, and anyway it does not really make sense to log it
@@ -4306,6 +4368,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     mysql_log.new_file(1);
     mysql_update_log.new_file(1);
     mysql_bin_log.new_file(1);
+    mysql_slow_log.new_file(1);
 #ifdef HAVE_REPLICATION
     if (expire_logs_days)
     {
@@ -4313,8 +4376,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       if (purge_time >= 0)
 	mysql_bin_log.purge_logs_before_date(purge_time);
     }
+    LOCK_ACTIVE_MI;
+    rotate_relay_log(active_mi);
+    UNLOCK_ACTIVE_MI;
 #endif
-    mysql_slow_log.new_file(1);
     if (ha_flush_logs())
       result=1;
     if (flush_error_log())
