@@ -264,82 +264,35 @@ innobase_mysql_print_thd(
         void* input_thd)/* in: pointer to a MySQL THD object */
 {
   	THD*  thd;
+	char* old_buf = buf;
 
         thd = (THD*) input_thd;
 
-        buf += sprintf(buf, "MySQL thread id %lu, query id %lu",
+        buf += ut_sprintf(buf, "MySQL thread id %lu, query id %lu",
                        thd->thread_id, thd->query_id);
         if (thd->host) {
-                buf += sprintf(buf, " %.30s", thd->host);
+                buf += ut_sprintf(buf, " %.30s", thd->host);
         }
 
         if (thd->ip) {
-                buf += sprintf(buf, " %.20s", thd->ip);
+                buf += ut_sprintf(buf, " %.20s", thd->ip);
         }
 
         if (thd->user) {
-                buf += sprintf(buf, " %.20s", thd->user);
+                buf += ut_sprintf(buf, " %.20s", thd->user);
         }
 
         if (thd->proc_info) {
-                buf += sprintf(buf, " %.50s", thd->proc_info);
+                buf += ut_sprintf(buf, " %.50s", thd->proc_info);
         }
 
         if (thd->query) {
-                buf += sprintf(buf, "\n%.150s", thd->query);
+                buf += ut_sprintf(buf, "\n%.150s", thd->query);
         }
 
-        buf += sprintf(buf, "\n");
+        buf += ut_sprintf(buf, "\n");
 
-#ifdef notdefined
-        /* August 8, 2002
-        Revert these changes because they make control characters sometimes
-	appear in the output and scramble it:
-	the reason is that the last character of the ouptput will be
-	'\n', not the null character '\0'. We do not know where the output
-	ends in buf!
-
-        On platforms (what are those?) where sprintf does not work
-        we should define sprintf as 'my_emulated_sprintf'; InnoDB code
-        contains lots of sprintfs, it does not help to remove them from
-	just a single file. */
-
-	/*  We can't use value of sprintf() as this is not portable */
-  	buf+= my_sprintf(buf,
-			 (buf, "MySQL thread id %lu",
-			  thd->thread_id));
-    	if (thd->host)
-	{
-	  *buf++=' ';
-	  buf=strnmov(buf, thd->host, 30);
-  	}
-
-  	if (thd->ip)
-	{
-	  *buf++=' ';
-	  buf=strnmov(buf, thd->ip, 20);
-  	}
-
-  	if (thd->user)
-	{
-	  *buf++=' ';
-	  buf=strnmov(buf, thd->user, 20);
-  	}
-
-  	if (thd->proc_info)
-	{
-	  *buf++=' ';
-	  buf=strnmov(buf, thd->proc_info, 50);
-  	}
-
-  	if (thd->query)
-	{
-	  *buf++='\n';
-	  buf=strnmov(buf, thd->query, 150);
-  	}  
-	*buf='\n';
-	/* Here we should add '\0' to the end of output to mark its end */
-#endif
+	ut_a(strlen(old_buf) < 400);
 }
 }
 
@@ -3467,8 +3420,10 @@ innodb_show_status(
 
   	DBUG_ENTER("innodb_show_status");
 
-	/* We let the InnoDB Monitor to output at most 100 kB of text */
-	buf = (char*)ut_malloc(100 * 1024);
+	/* We let the InnoDB Monitor to output at most 100 kB of text, add
+	a safety margin of 10 kB for buffer overruns */
+
+	buf = (char*)ut_malloc(110 * 1024);
 	
 	srv_sprintf_innodb_monitor(buf, 100 * 1024);
 	
