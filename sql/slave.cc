@@ -2769,6 +2769,7 @@ void set_slave_thread_options(THD* thd)
 {
   thd->options = ((opt_log_slave_updates) ? OPTION_BIN_LOG:0) |
     OPTION_AUTO_IS_NULL;
+  thd->variables.completion_type= 0;
 }
 
 /*
