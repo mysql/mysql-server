@@ -2441,6 +2441,9 @@ New Client libraries for the Mac OS Classic (Macintosh).
 
 @item @uref{http://www.lilback.com/macsql/}
 Client libraries for Mac OS Classic (Macintosh).
+
+@item @uref{http://mapage.noos.fr/vpenvern01/index_en.html}
+MySQL for Amiga
 @end table
 
 @subheading Perl-related Links
@@ -5008,6 +5011,8 @@ sucessfully on the following operating system/thread package combinations:
 @itemize @bullet
 @item
 AIX 4.x with native threads.  @xref{IBM-AIX}.
+@item
+Amiga.
 @item
 BSDI 2.x with the included MIT-pthreads package.  @xref{BSDI}.
 @item
@@ -31643,6 +31648,21 @@ feature. It just installs the @code{mysqld-max} executable and
 @code{safe_mysqld} will automaticly use this executable when
 @code{safe_mysqld} is restarted.
 
+The following table shows which table types our standard @strong{MySQL-Max}
+binaries includes:
+
+@multitable @columnfractions .4 .3 .3
+@item @strong{System} @tab @strong{BDB} @tab @strong{InnoDB}
+@item AIX 4.3 @tab N @tab Y
+@item HPUX 11.0 @tab N @tab Y
+@item Linux-Alpha @tab N	@tab Y
+@item Linux-Intel @tab Y @tab Y
+@item Solaris-intel @tab N @tab Y
+@item Solaris-sparc @tab Y @tab Y
+@item SCO OSR5 @tab Y @tab Y
+@item UnixWare @tab Y @tab Y
+@end multitable
+
 @cindex tools, safe_mysqld
 @cindex scripts
 @cindex @code{safe_mysqld}
@@ -42847,13 +42867,13 @@ of several databases simultaneously. By Innovative-IT Development AB.
 @item @uref{http://www.mysql.com/downloads/gui-clients.html, MySQLGUI}
 The @strong{MySQL} GUI client homepage. By Sinisa at @strong{MySQL AB}.
 
-@item @uref{http://www.mysql.com/downloads/gui-clients.html, MySQL navigator}
+@item @uref{http://www.mysql.com/Downloads/Contrib/mysql_navigator_0.9.0.tar.gz, MySQL navigator 0.9}
 MySQL Navigator is MySQL database server GUI client program. The purpose
 of MySQL Navigator is to provide a useful client interface to MySQL
 database servers, whilst supporting multiple operating systems and
 languages. You can currently import/export database, enter queries, get
 result sets, edit scripts, run scripts, add, alter, and delete users,
-and retrieve client and server information. GPL.
+and retrieve client and server information. Uses QT 2.2. GPL
 @uref{http://sql.kldp.org/mysql, Home page for MySQL Navigator}.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/secman.zip,  MySQL Security GUI}
