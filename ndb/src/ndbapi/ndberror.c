@@ -241,11 +241,12 @@ ErrorBundle ErrorCodes[] = {
   { 877,  AE, "877" },
   { 878,  AE, "878" },
   { 879,  AE, "879" },
+  { 880,  AE, "Tried to read too much - too many getValue calls" },
   { 884,  AE, "Stack overflow in interpreter" },
   { 885,  AE, "Stack underflow in interpreter" },
   { 886,  AE, "More than 65535 instructions executed in interpreter" },
+  { 897,  AE, "Update attempt of primary key via ndbcluster internal api (if this occurs via the MySQL server it is a bug, please report)" },
   { 4256, AE, "Must call Ndb::init() before this function" },
-  { 880,  AE, "Tried to read too much - too many getValue calls" },
   { 4257, AE, "Tried to read too much - too many getValue calls" },
 
   /** 
