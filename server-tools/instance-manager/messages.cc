@@ -13,11 +13,14 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-#include "messages.h"
 
 #include <my_global.h>
-#include <mysql_com.h>
+#include "messages.h"
 
+#include "mysqld_error.h"
+#include "mysql_manager_error.h"
+
+#include <mysql_com.h>
 #include <assert.h>
 
 

@@ -6646,7 +6646,6 @@ static COND *build_equal_items(THD *thd, COND *cond,
     {
       if (table->on_expr)
       {
-        Item *expr;
         List<TABLE_LIST> *join_list= table->nested_join ?
 	                             &table->nested_join->join_list : NULL;
         /*
@@ -8545,7 +8544,7 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
 	seg->type=
 	((keyinfo->key_part[i].key_type & FIELDFLAG_BINARY) ?
 	 HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2);
-	seg->bit_start= field->pack_length() - table->s->blob_ptr_size;
+	seg->bit_start= (uint8)(field->pack_length() - table->s->blob_ptr_size);
 	seg->flag= HA_BLOB_PART;
 	seg->length=0;			// Whole blob in unique constraint
       }
@@ -10145,20 +10144,18 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
                        join->sum_funcs_end[send_group_parts]);
 	if (join->having && join->having->val_int() == 0)
           error= -1;
-        else if ((error=table->file->write_row(table->record[0])))
+        else if ((error= table->file->write_row(table->record[0])))
 	{
 	  if (create_myisam_from_heap(join->thd, table,
 				      &join->tmp_table_param,
 				      error, 0))
 	    DBUG_RETURN(-1);		       
         }
-        if (join->rollup.state != ROLLUP::STATE_NONE && error <= 0)
+        if (join->rollup.state != ROLLUP::STATE_NONE)
 	{
 	  if (join->rollup_write_data((uint) (idx+1), table))
-	    error= 1;
+	    DBUG_RETURN(-1);
 	}
-	if (error > 0)
-	  DBUG_RETURN(-1);	  
 	if (end_of_records)
 	  DBUG_RETURN(0);
       }
@@ -12685,17 +12682,21 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
       {
 	/* Check if this is something that is part of this group by */
 	ORDER *group_tmp;
-	for (group_tmp= start_group, i-- ;
+	for (group_tmp= start_group, i= pos ;
              group_tmp ; group_tmp= group_tmp->next, i++)
 	{
 	  if (*group_tmp->item == item)
 	  {
+            Item_null_result *null_item;
 	    /*
 	      This is an element that is used by the GROUP BY and should be
 	      set to NULL in this level
 	    */
 	    item->maybe_null= 1;		// Value will be null sometimes
-            Item_null_result *null_item= rollup.null_items[i];
+            null_item= rollup.null_items[i];
+            DBUG_ASSERT(null_item->result_field == 0 ||
+                        null_item->result_field ==
+                        ((Item_field *) item)->result_field);
             null_item->result_field= ((Item_field *) item)->result_field;
             item= null_item;
 	    break;

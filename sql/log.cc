@@ -1638,57 +1638,6 @@ bool MYSQL_LOG::write(Log_event *event_info)
 
     if (thd)
     {
-#if MYSQL_VERSION_ID < 50003
-      /*
-        To make replication of charsets working in 4.1 we are writing values
-        of charset related variables before every statement in the binlog,
-        if values of those variables differ from global server-wide defaults.
-        We are using SET ONE_SHOT command so that the charset vars get reset
-        to default after the first non-SET statement.
-        In the next 5.0 this won't be needed as we will use the new binlog
-        format to store charset info.
-      */
-      if ((thd->variables.character_set_client->number !=
-           global_system_variables.collation_server->number) ||
-          (thd->variables.character_set_client->number !=
-           thd->variables.collation_connection->number) ||
-          (thd->variables.collation_server->number !=
-           thd->variables.collation_connection->number))
-      {
-	char buf[200];
-        int written= my_snprintf(buf, sizeof(buf)-1,
-                                 "SET ONE_SHOT CHARACTER_SET_CLIENT=%u,\
-COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
-                                 (uint) thd->variables.character_set_client->number,
-                                 (uint) thd->variables.collation_connection->number,
-                                 (uint) thd->variables.collation_database->number,
-                                 (uint) thd->variables.collation_server->number);
-	Query_log_event e(thd, buf, written, 0, FALSE);
-	if (e.write(file))
-	  goto err;
-      }
-#endif
-      /*
-        We use the same ONE_SHOT trick for making replication of time zones 
-        working in 4.1. Again in 5.0 we have better means for doing this.
-
-        TODO: we should do like we now do with charsets (no more ONE_SHOT;
-        logging in each event in a compact format). Dmitri says we can do:
-        if (time_zone_used) write the timezone to binlog (in a format to be
-        defined).
-      */
-      if (thd->time_zone_used &&
-          thd->variables.time_zone != global_system_variables.time_zone)
-      {
-        char buf[MAX_TIME_ZONE_NAME_LENGTH + 26];
-        char *buf_end= strxmov(buf, "SET ONE_SHOT TIME_ZONE='", 
-                               thd->variables.time_zone->get_name()->ptr(),
-                               "'", NullS);
-        Query_log_event e(thd, buf, buf_end - buf, 0, FALSE);
-        if (e.write(file))
-          goto err;
-      }
-
       if (thd->last_insert_id_used)
       {
 	Intvar_log_event e(thd,(uchar) LAST_INSERT_ID_EVENT,
@@ -2505,7 +2454,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
       goto err;
   }
 
-  data= (uchar *)my_mmap(0, file_length, PROT_READ|PROT_WRITE,
+  data= (uchar *)my_mmap(0, (size_t)file_length, PROT_READ|PROT_WRITE,
                         MAP_NOSYNC|MAP_SHARED, fd, 0);
   if (data == MAP_FAILED)
   {
@@ -2514,7 +2463,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
   }
   inited=2;
 
-  npages=file_length/tc_log_page_size;
+  npages=(uint)file_length/tc_log_page_size;
   DBUG_ASSERT(npages >= 3);             // to guarantee non-empty pool
   if (!(pages=(PAGE *)my_malloc(npages*sizeof(PAGE), MYF(MY_WME|MY_ZEROFILL))))
     goto err;
@@ -2540,7 +2489,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
       goto err;
 
   memcpy(data, tc_log_magic, sizeof(tc_log_magic));
-  data[sizeof(tc_log_magic)]= total_ha_2pc;
+  data[sizeof(tc_log_magic)]= (uchar)total_ha_2pc;
   my_msync(fd, data, tc_log_page_size, MS_SYNC);
   inited=5;
 
@@ -2794,7 +2743,7 @@ void TC_LOG_MMAP::close()
   case 3:
     my_free((gptr)pages, MYF(0));
   case 2:
-    my_munmap(data, file_length);
+    my_munmap(data, (size_t)file_length);
   case 1:
     my_close(fd, MYF(0));
   }
@@ -2842,7 +2791,7 @@ int TC_LOG_MMAP::recover()
     goto err2;
 
   hash_free(&xids);
-  bzero(data, file_length);
+  bzero(data, (size_t)file_length);
   return 0;
 
 err2:

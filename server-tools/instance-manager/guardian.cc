@@ -20,10 +20,12 @@
 #endif
 
 #include "guardian.h"
+
 #include "instance_map.h"
 #include "instance.h"
 #include "mysql_manager_error.h"
 #include "log.h"
+
 #include <string.h>
 #include <sys/types.h>
 #include <signal.h>

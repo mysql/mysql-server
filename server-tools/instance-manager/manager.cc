@@ -14,6 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <my_global.h>
 #include "manager.h"
 
 #include "priv.h"
@@ -25,7 +26,6 @@
 #include "log.h"
 #include "guardian.h"
 
-#include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
 #include <signal.h>

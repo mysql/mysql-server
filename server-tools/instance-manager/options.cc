@@ -20,13 +20,12 @@
 
 #include "options.h"
 
-#include <my_global.h>
+#include "priv.h"
+
 #include <my_sys.h>
 #include <my_getopt.h>
 #include <m_string.h>
 #include <mysql_com.h>
-
-#include "priv.h"
 
 #define QUOTE2(x) #x
 #define QUOTE(x) QUOTE2(x)

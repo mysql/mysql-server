@@ -17,15 +17,16 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
+
+#include "protocol.h"
+#include "guardian.h"
+
 #include <my_sys.h>
 #include <hash.h>
 
 #ifdef __GNUC__
 #pragma interface
 #endif
-
-#include "protocol.h"
-#include "guardian.h"
 
 class Instance;
 extern int load_all_groups(char ***groups, const char *filename);

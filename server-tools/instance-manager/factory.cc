@@ -15,11 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "factory.h"
-#include "my_global.h"
-
-#include <stdio.h>
-#include <ctype.h>
-
 
 Show_instances *Command_factory::new_Show_instances()
 {
