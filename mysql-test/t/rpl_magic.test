@@ -28,3 +28,4 @@ disable_rpl_parse;
 select * from t1;
 connection slave;
 select * from t1;
+drop table t1;

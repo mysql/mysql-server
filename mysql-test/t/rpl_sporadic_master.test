@@ -19,9 +19,7 @@ connection master;
 insert into t1 values (NULL),(NULL);
 flush logs;
 truncate table t1;
-insert into t1 values (10),(NULL);
-insert into t1 values (NULL),(NULL)
-insert into t1 values (NULL),(NULL);
+insert into t1 values (10),(NULL),(NULL),(NULL),(NULL),(NULL);
 save_master_pos;
 connection slave;
 sync_with_master;

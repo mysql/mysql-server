@@ -1,5 +1,6 @@
 # test case to make slave thread get ahead by 22 bytes
 
+drop table if exists t1;
 source include/master-slave.inc;
 connection master;
 # first, cause a duplicate key problem on the slave
