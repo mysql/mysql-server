@@ -2085,6 +2085,30 @@ bool flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache)
   DBUG_PRINT("enter",("master_pos: %ld", (long) mi->master_log_pos));
 
   /*
+    Flush the relay log to disk. If we don't do it, then the relay log while
+    have some part (its last kilobytes) in memory only, so if the slave server
+    dies now, with, say, from master's position 100 to 150 in memory only (not
+    on disk), and with position 150 in master.info, then when the slave
+    restarts, the I/O thread will fetch binlogs from 150, so in the relay log
+    we will have "[0, 100] U [150, infinity[" and nobody will notice it, so the
+    SQL thread will jump from 100 to 150, and replication will silently break.
+
+    When we come to this place in code, relay log may or not be initialized;
+    the caller is responsible for setting 'flush_relay_log_cache' accordingly.
+  */
+  if (flush_relay_log_cache)
+    flush_io_cache(mi->rli.relay_log.get_log_file());
+
+  /*
+    We flushed the relay log BEFORE the master.info file, because if we crash
+    now, we will get a duplicate event in the relay log at restart. If we
+    flushed in the other order, we would get a hole in the relay log.
+    And duplicate is better than hole (with a duplicate, in later versions we
+    can add detection and scrap one event; with a hole there's nothing we can
+    do).
+  */
+
+  /*
      In certain cases this code may create master.info files that seems 
      corrupted, because of extra lines filled with garbage in the end 
      file (this happens if new contents take less space than previous 
@@ -2101,20 +2125,6 @@ bool flush_master_info(MASTER_INFO* mi, bool flush_relay_log_cache)
               (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
               mi->ssl_cipher, mi->ssl_key);
   flush_io_cache(file);
-  /*
-    Flush the relay log to disk. If we don't do it, then the relay log while
-    have some part (its last kilobytes) in memory only, so if the slave server
-    dies now, with, say, from master's position 100 to 150 in memory only (not
-    on disk), and with position 150 in master.info, then when the slave
-    restarts, the I/O thread will fetch binlogs from 150, so in the relay log
-    we will have "[0, 100] U [150, infinity[" and nobody will notice it, so the
-    SQL thread will jump from 100 to 150, and replication will silently break.
-
-    When we come to this place in code, relay log may or not be initialized;
-    the caller is responsible for setting 'flush_relay_log_cache' accordingly.
-  */
-  if (flush_relay_log_cache)
-    flush_io_cache(mi->rli.relay_log.get_log_file());
   DBUG_RETURN(0);
 }
 
