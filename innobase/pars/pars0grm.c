@@ -94,14 +94,14 @@
 /* The value of the semantic attribute is a pointer to a query tree node
 que_node_t */
 
-#include <math.h>
-
 #include "univ.i"
 #include "pars0pars.h"
 #include "mem0mem.h"
 #include "que0types.h"
 #include "que0que.h"
 #include "row0sel.h"
+
+#include <math.h>
 
 #define YYSTYPE que_node_t*
 
