@@ -1452,7 +1452,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
     mysql_log.write(thd,COM_QUERY,"%s",thd->query);
     DBUG_PRINT("query",("%s",thd->query));
-    
+
     if (ignored_error_code((expected_error= error_code)) ||
 	!check_expected_error(thd,rli,expected_error))
     {
@@ -3139,6 +3139,7 @@ int Xid_log_event::exec_event(struct st_relay_log_info* rli)
 {
   rli->inc_event_relay_log_pos();
   /* For a slave Xid_log_event is COMMIT */
+  mysql_log.write(thd,COM_QUERY,"COMMIT /* implicit, from Xid_log_event */");
   return end_trans(thd, COMMIT);
 }
 #endif /* !MYSQL_CLIENT */
