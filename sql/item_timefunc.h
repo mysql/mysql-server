@@ -69,7 +69,7 @@ public:
   double val() { return (double) Item_func_month::val_int(); }
   String *val_str(String *str) 
   {
-    str->set(val_int(), my_thd_charset);
+    str->set(val_int(), thd_charset());
     return null_value ? 0 : str;
   }
   const char *func_name() const { return "month"; }
@@ -177,7 +177,7 @@ public:
   longlong val_int();
   double val() { return (double) val_int(); }
   String *val_str(String *str) { 
-    str->set(val_int(), my_thd_charset);
+    str->set(val_int(), thd_charset());
     return null_value ? 0 : str;
   }
   const char *func_name() const { return "weekday"; }
@@ -243,7 +243,7 @@ public:
   }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (!t_arg) ? result_field : new Field_date(maybe_null, name, t_arg, my_thd_charset);
+    return (!t_arg) ? result_field : new Field_date(maybe_null, name, t_arg, thd_charset());
   }  
 };
 
@@ -261,7 +261,7 @@ public:
   Field *tmp_table_field(TABLE *t_arg)
   {
     return  (!t_arg) ? result_field : new Field_datetime(maybe_null, name,
-							 t_arg, my_thd_charset);
+							 t_arg, thd_charset());
   }
 };
 
@@ -288,7 +288,7 @@ public:
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (!t_arg) ? result_field : 
-    		      new Field_time(maybe_null, name, t_arg, my_thd_charset);
+    		      new Field_time(maybe_null, name, t_arg, thd_charset());
   }  
 };
 
@@ -381,7 +381,7 @@ public:
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (!t_arg) ? result_field : 
-    		      new Field_time(maybe_null, name, t_arg, my_thd_charset);
+    		      new Field_time(maybe_null, name, t_arg, thd_charset());
   }
 };
 
@@ -446,7 +446,7 @@ public:
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (!t_arg) ? result_field : 
-    		      new Field_date(maybe_null, name, t_arg, my_thd_charset);
+    		      new Field_date(maybe_null, name, t_arg, thd_charset());
   }  
 };
 
@@ -462,7 +462,7 @@ public:
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (!t_arg) ? result_field : 
-    		      new Field_time(maybe_null, name, t_arg, my_thd_charset);
+    		      new Field_time(maybe_null, name, t_arg, thd_charset());
   }
 };
 
@@ -478,6 +478,6 @@ public:
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (!t_arg) ? result_field : new Field_datetime(maybe_null, name,
-							t_arg, my_thd_charset);
+							t_arg, thd_charset());
   }
 };
