@@ -146,7 +146,7 @@ fi
 rm -f "$cfgfile" 2>&1 | cat > /dev/null
 rm -f "$fs_ndb/$cfgfile" 2>&1 | cat > /dev/null
 
-if ( cd "$fs_ndb" ; $exec_mgmtsrvr -c config.ini ) ; then :; else
+if ( cd "$fs_ndb" ; $exec_mgmtsrvr -f config.ini ) ; then :; else
   echo "Unable to start $exec_mgmtsrvr from `pwd`"
   exit 1
 fi
@@ -212,8 +212,8 @@ if [ -f "$fs_ndb/$pidfile" ] ; then
     attempt=`expr $attempt + 1`
   done
   if [ "$kill_pids" != "" ] ; then
-    echo "Failed to shutdown ndbcluster, executing kill -9 "$kill_pids
-    kill -9 $kill_pids
+    echo "Failed to shutdown ndbcluster, executing kill "$kill_pids
+    kill $kill_pids
   fi
   rm "$fs_ndb/$pidfile"
 fi

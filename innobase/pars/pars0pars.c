@@ -259,9 +259,13 @@ pars_resolve_func_data_type(
 		dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
 							DATA_ENGLISH, 0, 0);
 	} else if (func == PARS_TO_BINARY_TOKEN) {
-		ut_a(dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT);
-		dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
+		if (dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT) {
+			dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
 							DATA_ENGLISH, 0, 0);
+		} else {
+			dtype_set(que_node_get_data_type(node), DATA_BINARY,
+								0, 0, 0);
+		}
 	} else if (func == PARS_TO_NUMBER_TOKEN) {
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
 							== DATA_VARCHAR);

@@ -38,6 +38,25 @@ enum Derivation
   DERIVATION_EXPLICIT= 0
 };
 
+/*
+  Flags for collation aggregation modes:
+  MY_COLL_ALLOW_SUPERSET_CONV  - allow conversion to a superset
+  MY_COLL_ALLOW_COERCIBLE_CONV - allow conversion of a coercible value
+                                 (i.e. constant).
+  MY_COLL_ALLOW_CONV           - allow any kind of conversion
+                                 (combintion of the above two)
+  MY_COLL_DISALLOW_NONE        - don't allow return DERIVATION_NONE
+                                 (e.g. when aggregating for comparison)
+  MY_COLL_CMP_CONV             - combination of MY_COLL_ALLOW_CONV
+                                 and MY_COLL_DISALLOW_NONE
+*/
+
+#define MY_COLL_ALLOW_SUPERSET_CONV   1
+#define MY_COLL_ALLOW_COERCIBLE_CONV  2
+#define MY_COLL_ALLOW_CONV            3
+#define MY_COLL_DISALLOW_NONE         4
+#define MY_COLL_CMP_CONV              7
+
 class DTCollation {
 public:
   CHARSET_INFO     *collation;
@@ -73,9 +92,9 @@ public:
   { collation= collation_arg; }
   void set(Derivation derivation_arg)
   { derivation= derivation_arg; }
-  bool aggregate(DTCollation &dt, bool superset_conversion= FALSE);
-  bool set(DTCollation &dt1, DTCollation &dt2, bool superset_conversion= FALSE)
-  { set(dt1); return aggregate(dt2, superset_conversion); }
+  bool aggregate(DTCollation &dt, uint flags= 0);
+  bool set(DTCollation &dt1, DTCollation &dt2, uint flags= 0)
+  { set(dt1); return aggregate(dt2, flags); }
   const char *derivation_name() const
   {
     switch(derivation)
@@ -305,6 +324,7 @@ public:
   virtual Item_field *filed_for_view_update() { return 0; }
 
   virtual Item *neg_transformer(THD *thd) { return NULL; }
+  virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
   void delete_self()
   {
     cleanup();
@@ -572,6 +592,7 @@ public:
   Item *new_item() { return new Item_null(name); }
   bool is_null() { return 1; }
   void print(String *str) { str->append("NULL", 4); }
+  Item *safe_charset_converter(CHARSET_INFO *tocs);
 };
 
 
@@ -861,6 +882,7 @@ public:
     return new Item_string(name, str_value.ptr(), 
     			   str_value.length(), &my_charset_bin);
   }
+  Item *safe_charset_converter(CHARSET_INFO *tocs);
   String *const_string() { return &str_value; }
   inline void append(char *str, uint length) { str_value.append(str, length); }
   void print(String *str);

@@ -60,3 +60,14 @@ hex(c)
 9353
 9373
 drop table t1;
+SET NAMES sjis;
+CREATE TABLE t1 (
+c char(16) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=sjis;
+insert into t1 values(0xb1),(0xb2),(0xb3);
+select hex(c) from t1;
+hex(c)
+B1
+B2
+B3
+drop table t1;

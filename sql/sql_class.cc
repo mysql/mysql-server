@@ -567,13 +567,14 @@ bool THD::convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
 {
   DBUG_ENTER("convert_string");
   size_s new_length= to_cs->mbmaxlen * from_length;
+  uint dummy_errors;
   if (!(to->str= alloc(new_length+1)))
   {
     to->length= 0;				// Safety fix
     DBUG_RETURN(1);				// EOM
   }
   to->length= copy_and_convert((char*) to->str, new_length, to_cs,
-			       from, from_length, from_cs);
+			       from, from_length, from_cs, &dummy_errors);
   to->str[to->length]=0;			// Safety
   DBUG_RETURN(0);
 }
@@ -596,7 +597,8 @@ bool THD::convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
 
 bool THD::convert_string(String *s, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
 {
-  if (convert_buffer.copy(s->ptr(), s->length(), from_cs, to_cs))
+  uint dummy_errors;
+  if (convert_buffer.copy(s->ptr(), s->length(), from_cs, to_cs, &dummy_errors))
     return TRUE;
   /* If convert_buffer >> s copying is more efficient long term */
   if (convert_buffer.alloced_length() >= convert_buffer.length() * 2 ||

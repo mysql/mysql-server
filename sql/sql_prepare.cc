@@ -170,8 +170,7 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
               (stmt->param_count &&
                stmt->thd->protocol_simple.send_fields((List<Item> *)
                                                       &stmt->lex->param_list,
-                                                      Protocol::SEND_EOF)) ||
-              net_flush(net));
+                                                      Protocol::SEND_EOF)));
 }
 #else
 static bool send_prep_stmt(Prepared_statement *stmt,
@@ -1097,7 +1096,7 @@ static int mysql_test_select(Prepared_statement *stmt,
   {
     if (lex->describe)
     {
-      if (send_prep_stmt(stmt, 0))
+      if (send_prep_stmt(stmt, 0) || thd->protocol->flush())
         goto err_prep;
     }
     else
@@ -1115,11 +1114,8 @@ static int mysql_test_select(Prepared_statement *stmt,
         prepared in unit->prepare call above.
       */
       if (send_prep_stmt(stmt, lex->result->field_count(fields)) ||
-          lex->result->send_fields(fields, Protocol::SEND_EOF)
-#ifndef EMBEDDED_LIBRARY
-          || net_flush(&thd->net)
-#endif
-         )
+          lex->result->send_fields(fields, Protocol::SEND_EOF) ||
+          thd->protocol->flush())
         goto err_prep;
     }
   }
@@ -1402,7 +1398,6 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
   enum enum_sql_command sql_command= lex->sql_command;
   int res= 0;
   DBUG_ENTER("send_prepare_results");
-
   DBUG_PRINT("enter",("command: %d, param_count: %ld",
                       sql_command, stmt->param_count));
 
@@ -1453,6 +1448,7 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
     break;
 
   case SQLCOM_INSERT_SELECT:
+  case SQLCOM_REPLACE_SELECT:
     res= mysql_test_insert_select(stmt, tables);
     break;
 
@@ -1491,7 +1487,8 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
     goto error;
   }
   if (res == 0)
-    DBUG_RETURN(text_protocol? 0 : send_prep_stmt(stmt, 0));
+    DBUG_RETURN(text_protocol? 0 : (send_prep_stmt(stmt, 0) ||
+                                    thd->protocol->flush()));
 error:
   if (res < 0)
     send_error(thd,thd->killed_errno());

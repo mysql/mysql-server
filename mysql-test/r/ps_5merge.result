@@ -1606,7 +1606,9 @@ a	b
 1200	x1000_1updatedupdated
 delete from t1 where a >= 1000 ;
 prepare stmt1 from ' replace into t1 (a,b) select 100, ''hundred'' ';
-ERROR HY000: This command is not supported in the prepared statement protocol yet
+execute stmt1;
+execute stmt1;
+execute stmt1;
 test_sequence
 ------ multi table tests ------
 delete from t1 ;
@@ -4613,7 +4615,9 @@ a	b
 1200	x1000_1updatedupdated
 delete from t1 where a >= 1000 ;
 prepare stmt1 from ' replace into t1 (a,b) select 100, ''hundred'' ';
-ERROR HY000: This command is not supported in the prepared statement protocol yet
+execute stmt1;
+execute stmt1;
+execute stmt1;
 test_sequence
 ------ multi table tests ------
 delete from t1 ;

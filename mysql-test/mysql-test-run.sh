@@ -996,9 +996,11 @@ start_master()
   if [ -n "$1" ] ; then
    id=`$EXPR $1 + 101`;
    this_master_myport=`$EXPR $MASTER_MYPORT + $1`
+   NOT_FIRST_MASTER_EXTRA_OPTS="--skip-innodb"
   else
    id=1;
    this_master_myport=$MASTER_MYPORT
+   NOT_FIRST_MASTER_EXTRA_OPTS=""
   fi
   if [ -z "$DO_BENCH" ]
   then
@@ -1022,7 +1024,8 @@ start_master()
 	  --open-files-limit=1024 \
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
-           $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
+           $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT \
+           $NOT_FIRST_MASTER_EXTRA_OPTS"
   else
     master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1 \
           --server-id=$id --rpl-recovery-rank=1 \
@@ -1041,7 +1044,8 @@ start_master()
           --innodb_data_file_path=ibdata1:50M \
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
-           $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
+           $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT \
+           $NOT_FIRST_MASTER_EXTRA_OPTS"
   fi
 
   CUR_MYERR=$MASTER_MYERR

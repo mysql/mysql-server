@@ -899,18 +899,20 @@ static int check_connection(THD *thd)
   /* Since 4.1 all database names are stored in utf8 */
   if (db)
   {
+    uint dummy_errors;
     db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
                              system_charset_info,
                              db, strlen(db),
-                             thd->charset())]= 0;
+                             thd->charset(), &dummy_errors)]= 0;
     db= db_buff;
   }
 
   if (user)
   {
+    uint dummy_errors;
     user_buff[copy_and_convert(user_buff, sizeof(user_buff)-1,
 			       system_charset_info, user, strlen(user),
-			       thd->charset())]= '\0';
+			       thd->charset(), &dummy_errors)]= '\0';
     user= user_buff;
   }
 
@@ -1412,9 +1414,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
 #endif
     /* Convert database name to utf8 */
+    uint dummy_errors;
     db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
                              system_charset_info, db, strlen(db),
-                             thd->charset())]= 0;
+                             thd->charset(), &dummy_errors)]= 0;
     db= db_buff;
 
     /* Save user and privileges */
@@ -2148,8 +2151,12 @@ mysql_execute_command(THD *thd)
       }
 
       if (need_conversion)
-        query_len= copy_and_convert(query_str, query_len, to_cs, pstr->ptr(),
-                                    pstr->length(), pstr->charset());
+      {
+        uint dummy_errors;
+        query_len= copy_and_convert(query_str, query_len, to_cs,
+                                    pstr->ptr(), pstr->length(),
+                                    pstr->charset(), &dummy_errors);
+      }
       else
         memcpy(query_str, pstr->ptr(), pstr->length());
       query_str[query_len]= 0;
@@ -2716,6 +2723,7 @@ unsent_create_error:
     {
       if (mysql_bin_log.is_open())
       {
+	thd->clear_error(); // No binlog error generated
         Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
         mysql_bin_log.write(&qinfo);
       }
@@ -2745,6 +2753,7 @@ unsent_create_error:
     {
       if (mysql_bin_log.is_open())
       {
+	thd->clear_error(); // No binlog error generated
         Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
         mysql_bin_log.write(&qinfo);
       }
@@ -2767,6 +2776,7 @@ unsent_create_error:
     {
       if (mysql_bin_log.is_open())
       {
+	thd->clear_error(); // No binlog error generated
         Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
         mysql_bin_log.write(&qinfo);
       }
