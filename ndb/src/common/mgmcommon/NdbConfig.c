@@ -18,6 +18,7 @@
 #include <NdbConfig.h>
 #include <NdbEnv.h>
 #include <NdbMem.h>
+#include <basestring_vsnprintf.h>
 
 static const char *datadir_path= 0;
 
@@ -48,7 +49,7 @@ NdbConfig_AllocHomePath(int _len)
   const char *path= NdbConfig_get_path(&path_len);
   int len= _len+path_len;
   char *buf= NdbMem_Allocate(len);
-  snprintf(buf, len, "%s%s", path, DIR_SEPARATOR);
+  basestring_snprintf(buf, len, "%s%s", path, DIR_SEPARATOR);
   return buf;
 }
 
@@ -67,7 +68,7 @@ NdbConfig_NdbCfgName(int with_ndb_home){
     len= strlen(buf);
   } else
     buf= NdbMem_Allocate(128);
-  snprintf(buf+len, 128, "Ndb.cfg");
+  basestring_snprintf(buf+len, 128, "Ndb.cfg");
   return buf;
 }
 
@@ -77,9 +78,9 @@ char *get_prefix_buf(int len, int node_id)
   char tmp_buf[sizeof("ndb_pid#########")+1];
   char *buf;
   if (node_id > 0)
-    snprintf(tmp_buf, sizeof(tmp_buf), "ndb_%u", node_id);
+    basestring_snprintf(tmp_buf, sizeof(tmp_buf), "ndb_%u", node_id);
   else
-    snprintf(tmp_buf, sizeof(tmp_buf), "ndb_pid%u", getpid());
+    basestring_snprintf(tmp_buf, sizeof(tmp_buf), "ndb_pid%u", getpid());
   tmp_buf[sizeof(tmp_buf)-1]= 0;
 
   buf= NdbConfig_AllocHomePath(len+strlen(tmp_buf));
@@ -91,7 +92,7 @@ char*
 NdbConfig_ErrorFileName(int node_id){
   char *buf= get_prefix_buf(128, node_id);
   int len= strlen(buf);
-  snprintf(buf+len, 128, "_error.log");
+  basestring_snprintf(buf+len, 128, "_error.log");
   return buf;
 }
 
@@ -99,7 +100,7 @@ char*
 NdbConfig_ClusterLogFileName(int node_id){
   char *buf= get_prefix_buf(128, node_id);
   int len= strlen(buf);
-  snprintf(buf+len, 128, "_cluster.log");
+  basestring_snprintf(buf+len, 128, "_cluster.log");
   return buf;
 }
 
@@ -107,7 +108,7 @@ char*
 NdbConfig_SignalLogFileName(int node_id){
   char *buf= get_prefix_buf(128, node_id);
   int len= strlen(buf);
-  snprintf(buf+len, 128, "_signal.log");
+  basestring_snprintf(buf+len, 128, "_signal.log");
   return buf;
 }
 
@@ -115,7 +116,7 @@ char*
 NdbConfig_TraceFileName(int node_id, int file_no){
   char *buf= get_prefix_buf(128, node_id);
   int len= strlen(buf);
-  snprintf(buf+len, 128, "_trace.log.%u", file_no);
+  basestring_snprintf(buf+len, 128, "_trace.log.%u", file_no);
   return buf;
 }
 
@@ -123,7 +124,7 @@ char*
 NdbConfig_NextTraceFileName(int node_id){
   char *buf= get_prefix_buf(128, node_id);
   int len= strlen(buf);
-  snprintf(buf+len, 128, "_trace.log.next");
+  basestring_snprintf(buf+len, 128, "_trace.log.next");
   return buf;
 }
 
@@ -131,7 +132,7 @@ char*
 NdbConfig_PidFileName(int node_id){
   char *buf= get_prefix_buf(128, node_id);
   int len= strlen(buf);
-  snprintf(buf+len, 128, ".pid");
+  basestring_snprintf(buf+len, 128, ".pid");
   return buf;
 }
 
@@ -139,6 +140,6 @@ char*
 NdbConfig_StdoutFileName(int node_id){
   char *buf= get_prefix_buf(128, node_id);
   int len= strlen(buf);
-  snprintf(buf+len, 128, "_out.log");
+  basestring_snprintf(buf+len, 128, "_out.log");
   return buf;
 }
