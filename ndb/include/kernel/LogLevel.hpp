@@ -130,18 +130,25 @@ public:
    */
   Uint32 getLogLevel(EventCategory ec) const;
   
+  /**
+   * Set this= max(this, ll) per category
+   */
+  LogLevel& set_max(const LogLevel& ll);
+  
+  bool operator==(const LogLevel& l) const { 
+    return memcmp(this, &l, sizeof(* this)) == 0;
+  }
+  
 private:
   /**
    * The actual data
    */
-  Uint32 logLevelData[LOGLEVEL_CATEGORIES];
-  
-  LogLevel(const LogLevel &);
+  Uint8 logLevelData[LOGLEVEL_CATEGORIES];
 };
 
 inline
 LogLevel::LogLevel(){
-  clear();  
+  clear();
 }
 
 inline
@@ -176,5 +183,14 @@ LogLevel::getLogLevel(EventCategory ec) const{
   return logLevelData[ec];
 }
 
+inline
+LogLevel & 
+LogLevel::set_max(const LogLevel & org){
+  for(Uint32 i = 0; i<LOGLEVEL_CATEGORIES; i++){
+    if(logLevelData[i] < org.logLevelData[i])
+      logLevelData[i] = org.logLevelData[i];
+  }
+  return * this;
+}
 
 #endif
