@@ -976,7 +976,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
 			    &min_length,&max_length);
     else
     {
-      CHARSET_INFO *charset=((Field_str*)(field))->charset();
+      CHARSET_INFO *charset=field->charset();
 #ifdef USE_STRCOLL
       if (use_strnxfrm(charset))
         like_error= my_like_range(charset,

@@ -291,7 +291,7 @@ int ha_heap::create(const char *name, TABLE *table,
       seg->start=   (uint) key_part->offset;
       seg->length=  (uint) key_part->length;
       seg->flag =   0;
-      seg->charset= field->binary() ? NULL : ((Field_str*)field)->charset();
+      seg->charset= field->charset();
       if (field->null_ptr)
       {
 	seg->null_bit= field->null_bit;
