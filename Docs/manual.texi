@@ -6543,8 +6543,8 @@ shell> make
 
 A collection of our standard configure scripts is located in the
 @file{BUILD/} subdirectory.  If you are lazy, you can use
-@file{BUILD/compile-pentium-debug}.  It will actually work on a lot of
-non-x86 machines despite its name.
+@file{BUILD/compile-pentium-debug}. To compile on a different architecture,
+modify the script removing flags that are Pentium-specific.
 
 @item
 When the build is done, run @code{make install}.  Be careful with this
@@ -29828,8 +29828,11 @@ query from the master.
 @item
 If you have decided you can skip the next query, do
 @code{SET SQL_SLAVE_SKIP_COUNTER=1; SLAVE START;} to skip a query that
-does not use auto_increment, last_insert_id or timestamp, or
-@code{SET SQL_SLAVE_SKIP_COUNTER=2; SLAVE START;} otherwise
+does not use auto_increment, or last_insert_id  or
+@code{SET SQL_SLAVE_SKIP_COUNTER=2; SLAVE START;} otherwise. The reason
+auto_increment/last_insert_id queries are different is that they take
+two events in the binary log of the master.
+
 @item
 If you are sure the slave started out perfectly in sync with the master,
 and no one has updated  the tables involved outside of slave thread,
@@ -45727,6 +45730,9 @@ not yet 100% confident in this code.
 @node News-3.23.40, News-3.23.39, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.40
 @itemize @bullet
+@item
+Fixed bug in slave thread when under some rare circumstances it could
+get 22 bytes ahead on the offset in the master
 @item
 Added @code{slave_wait_timeout} for replication.
 @item

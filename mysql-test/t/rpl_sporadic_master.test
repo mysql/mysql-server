@@ -3,12 +3,19 @@
 
 source include/master-slave.inc;
 connection master;
-drop table if exists t1;
+drop table if exists t1,t2;
+create table t2(n int);
 create table t1(n int not null auto_increment primary key);
 insert into t1 values (NULL),(NULL);
 delete from t1;
 # We have to use 4 in the following to make this test work with all table types
 insert into t1 values (4),(NULL);
+save_master_pos;
+connection slave;
+sync_with_master;
+slave stop;
+slave start;
+connection master;
 insert into t1 values (NULL),(NULL);
 flush logs;
 delete from t1;
@@ -20,7 +27,7 @@ connection slave;
 sync_with_master;
 select * from t1;
 connection master;
-drop table t1;
+drop table t1,t2;
 save_master_pos;
 connection slave;
 sync_with_master;
