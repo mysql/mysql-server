@@ -29,8 +29,7 @@ int mi_close(register MI_INFO *info)
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("mi_close");
   DBUG_PRINT("enter",("base: %lx  reopen: %u  locks: %u",
-		      info,(uint) share->reopen,
-		      (uint) (share->w_locks+share->r_locks)));
+		      info,(uint) share->reopen, (uint) share->tot_locks));
 
   pthread_mutex_lock(&THR_LOCK_myisam);
   if (info->lock_type == F_EXTRA_LCK)
@@ -47,7 +46,10 @@ int mi_close(register MI_INFO *info)
   pthread_mutex_lock(&share->intern_lock);
 
   if (share->options & HA_OPTION_READ_ONLY_DATA)
+  {
     share->r_locks--;
+    share->tot_locks--;
+  }
   if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
   {
     if (end_io_cache(&info->rec_cache))

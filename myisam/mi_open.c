@@ -486,6 +486,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   {
     info.lock_type=F_RDLCK;
     share->r_locks++;
+    share->tot_locks++;
   }
   if ((open_flags & HA_OPEN_TMP_TABLE) ||
       (share->options & HA_OPTION_TMP_TABLE))
@@ -493,6 +494,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     share->temporary=share->delay_key_write=1;
     share->write_flag=MYF(MY_NABP);
     share->w_locks++;			/* We don't have to update status */
+    share->tot_locks++;
     info.lock_type=F_WRLCK;
   }
   if (((open_flags & HA_OPEN_DELAY_KEY_WRITE) ||

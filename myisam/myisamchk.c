@@ -729,6 +729,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
   }
   share=info->s;
   share->options&= ~HA_OPTION_READ_ONLY_DATA; /* We are modifing it */
+  share->tot_locks-= share->r_locks;
   share->r_locks=0;
   raid_chunks=share->base.raid_chunks;
 
@@ -806,6 +807,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
       rep_quick|=T_QUICK;
     }
     share=info->s;
+    share->tot_locks-= share->r_locks;
     share->r_locks=0;
   }
 
@@ -835,6 +837,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
       goto end2;
     }
     share->w_locks++;				/* Mark for writeinfo */
+    share->tot_locks++;
     info->lock_type= F_EXTRA_LCK;		/* Simulate as locked */
     info->tmp_lock_type=lock_type;
     datafile=info->dfile;
@@ -1011,6 +1014,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
     info->update&= ~HA_STATE_CHANGED;
   }
   share->w_locks--;
+  share->tot_locks--;
 end2:
   if (mi_close(info))
   {
