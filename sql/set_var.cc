@@ -736,6 +736,8 @@ struct show_var_st init_vars[]= {
   {"innodb_buffer_pool_size", (char*) &innobase_buffer_pool_size, SHOW_LONG },
   {"innodb_data_file_path", (char*) &innobase_data_file_path,	    SHOW_CHAR_PTR},
   {"innodb_data_home_dir",  (char*) &innobase_data_home_dir,	    SHOW_CHAR_PTR},
+  {"innodb_doublewrite", (char*) &innobase_use_doublewrite, SHOW_MY_BOOL},
+  {"innodb_checksums", (char*) &innobase_use_checksums, SHOW_MY_BOOL},
   {"innodb_fast_shutdown", (char*) &innobase_fast_shutdown, SHOW_MY_BOOL},
   {"innodb_file_io_threads", (char*) &innobase_file_io_threads, SHOW_LONG },
   {"innodb_file_per_table", (char*) &innobase_file_per_table, SHOW_MY_BOOL},
@@ -769,6 +771,8 @@ struct show_var_st init_vars[]= {
                                                                     SHOW_SYS},
   {"language",                language,                             SHOW_CHAR},
   {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},
+  {"large_pages",             (char*) &opt_large_pages,             SHOW_MY_BOOL},
+  {"large_page_size",         (char*) &opt_large_page_size,         SHOW_INT},
   {sys_license.name,	      (char*) &sys_license,                 SHOW_SYS},
   {sys_local_infile.name,     (char*) &sys_local_infile,	    SHOW_SYS},
 #ifdef HAVE_MLOCKALL

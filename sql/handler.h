@@ -75,6 +75,7 @@
 /* Table data are stored in separate files (for lower_case_table_names) */
 #define HA_FILE_BASED	       (1 << 26)
 #define HA_NO_VARCHAR	       (1 << 27)
+#define HA_CAN_BIT_FIELD       (1 << 28) /* supports bit fields */
 
 
 /* bits in index_flags(index_number) for what you can do with index */
