@@ -445,7 +445,6 @@ bool ha_ndbcluster::get_error_message(int error,
 static inline bool ndb_supported_type(enum_field_types type)
 {
   switch (type) {
-  case MYSQL_TYPE_DECIMAL:    
   case MYSQL_TYPE_TINY:        
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_LONG:
@@ -453,6 +452,8 @@ static inline bool ndb_supported_type(enum_field_types type)
   case MYSQL_TYPE_LONGLONG:
   case MYSQL_TYPE_FLOAT:
   case MYSQL_TYPE_DOUBLE:
+  case MYSQL_TYPE_DECIMAL:    
+  case MYSQL_TYPE_NEWDECIMAL:
   case MYSQL_TYPE_TIMESTAMP:
   case MYSQL_TYPE_DATETIME:    
   case MYSQL_TYPE_DATE:
@@ -3337,10 +3338,6 @@ static int create_ndb_column(NDBCOL &col,
   const enum enum_field_types mysql_type= field->real_type();
   switch (mysql_type) {
   // Numeric types
-  case MYSQL_TYPE_DECIMAL:    
-    col.setType(NDBCOL::Char);
-    col.setLength(field->pack_length());
-    break;
   case MYSQL_TYPE_TINY:        
     if (field->flags & UNSIGNED_FLAG)
       col.setType(NDBCOL::Tinyunsigned);
@@ -3383,6 +3380,44 @@ static int create_ndb_column(NDBCOL &col,
   case MYSQL_TYPE_DOUBLE:
     col.setType(NDBCOL::Double);
     col.setLength(1);
+    break;
+  case MYSQL_TYPE_DECIMAL:    
+    {
+      Field_decimal *f= (Field_decimal*)field;
+      uint precision= f->pack_length();
+      uint scale= f->decimals();
+      if (field->flags & UNSIGNED_FLAG)
+      {
+        col.setType(NDBCOL::Olddecimalunsigned);
+        precision-= (scale > 0);
+      }
+      else
+      {
+        col.setType(NDBCOL::Olddecimal);
+        precision-= 1 + (scale > 0);
+      }
+      col.setPrecision(precision);
+      col.setScale(scale);
+      col.setLength(1);
+    }
+    break;
+  case MYSQL_TYPE_NEWDECIMAL:    
+    {
+      Field_new_decimal *f= (Field_new_decimal*)field;
+      uint precision= f->field_length;
+      uint scale= f->decimals();
+      if (field->flags & UNSIGNED_FLAG)
+      {
+        col.setType(NDBCOL::Decimalunsigned);
+      }
+      else
+      {
+        col.setType(NDBCOL::Decimal);
+      }
+      col.setPrecision(precision);
+      col.setScale(scale);
+      col.setLength(1);
+    }
     break;
   // Date types
   case MYSQL_TYPE_DATETIME:    

@@ -84,7 +84,9 @@ NdbTransaction* Ndb::doConnect(Uint32 tConNode)
       } else if (TretCode != 0) {
 	tAnyAlive= 1;
       }//if
-      DBUG_PRINT("info",("tried node %d TretCode %d", tNode, TretCode));
+      DBUG_PRINT("info",("tried node %d, TretCode %d, error code %d, %s",
+			 tNode, TretCode, getNdbError().code,
+			 getNdbError().message));
     }
   }
   else // just do a regular round robin
