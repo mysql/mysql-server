@@ -564,9 +564,11 @@ innobase_invalidate_query_cache(
 /*============================*/
 	trx_t*	trx,		/* in: transaction which modifies the table */
 	char*	full_name,	/* in: concatenation of database name, null
-				char '\0', table name; NOTE that in
-				Windows this is always in LOWER CASE! */
-	ulint	full_name_len)	/* in: full name length */
+				char '\0', table name, null char'\0';
+				NOTE that in Windows this is always
+				in LOWER CASE! */
+	ulint	full_name_len)	/* in: full name length where also the null
+				chars count */
 {
 	/* Argument TRUE below means we are using transactions */
 	query_cache.invalidate((THD*)(trx->mysql_thd),
