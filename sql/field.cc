@@ -4147,8 +4147,11 @@ void Field_blob::store(const char *from,uint len)
 	}
       }
 #endif /* USE_TIS620 */
-      value.copy(from,len);
-      from=value.ptr();
+      if (from != value.ptr())			// For valgrind
+      {
+	value.copy(from, len);
+	from= value.ptr();
+      }
 #ifdef USE_TIS620
       my_free(th_ptr,MYF(MY_ALLOW_ZERO_PTR));
 #endif
