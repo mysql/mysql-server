@@ -23,6 +23,7 @@ extern FilteredNdbOut debug;
 
 static void callback(int, NdbConnection*, void*);
 
+extern const char * g_connect_string;
 bool
 BackupRestore::init()
 {
@@ -31,7 +32,13 @@ BackupRestore::init()
   if (!m_restore && !m_restore_meta)
     return true;
 
-  m_ndb = new Ndb();
+  m_cluster_connection = new Ndb_cluster_connection(g_connect_string);
+  if(m_cluster_connection->connect(12, 5, 1) != 0)
+  {
+    return -1;
+  }
+
+  m_ndb = new Ndb(m_cluster_connection);
 
   if (m_ndb == NULL)
     return false;
@@ -76,6 +83,12 @@ void BackupRestore::release()
   {
     delete [] m_callback;
     m_callback= 0;
+  }
+
+  if (m_cluster_connection)
+  {
+    delete m_cluster_connection;
+    m_cluster_connection= 0;
   }
 }
 

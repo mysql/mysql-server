@@ -1038,9 +1038,6 @@ public:
   Ndb(Ndb_cluster_connection *ndb_cluster_connection,
       const char* aCatalogName = "", const char* aSchemaName = "def");
 
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
-  Ndb(const char* aCatalogName = "", const char* aSchemaName = "def");
-#endif
   ~Ndb();
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -1348,13 +1345,6 @@ public:
    * @return Node id of this application.
    */
   int getNodeId();
-
-  /**
-   * setConnectString
-   *
-   * @param connectString - see MySQL ref manual for format
-   */
-  static void setConnectString(const char * connectString);
 
   bool usingFullyQualifiedNames();
 

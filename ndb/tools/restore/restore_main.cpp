@@ -240,6 +240,8 @@ free_data_callback()
     g_consumers[i]->tuple_free();
 }
 
+const char * g_connect_string = 0;
+
 int
 main(int argc, char** argv)
 {
@@ -250,7 +252,7 @@ main(int argc, char** argv)
     return -1;
   }
 
-  Ndb::setConnectString(opt_connect_str);
+  g_connect_string = opt_connect_str;
 
   /**
    * we must always load meta data, even if we will only print it to stdout
