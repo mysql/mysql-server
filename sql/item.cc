@@ -87,6 +87,19 @@ Item::Item(THD *c_thd, Item &item):
   thd->free_list= this;
 }
 
+
+void Item::print_item_w_name(String *str)
+{
+  print(str);
+  if (name)
+  {
+    str->append(" AS `");
+    str->append(name);
+    str->append('`');
+  }
+}
+
+
 // Constructor used by Item_field & Item_ref (see Item comment)
 Item_ident::Item_ident(THD *thd, Item_ident &item):
   Item(thd, item),
@@ -445,12 +458,8 @@ String *Item_int::val_str(String *str)
 
 void Item_int::print(String *str)
 {
-  if (!name)
-  {
-    str_value.set(value, default_charset());
-    name=str_value.c_ptr();
-  }
-  str->append(name);
+  str_value.set(value, default_charset());
+  str->append(str_value);
 }
 
 String *Item_uint::val_str(String *str)
@@ -461,12 +470,8 @@ String *Item_uint::val_str(String *str)
 
 void Item_uint::print(String *str)
 {
-  if (!name)
-  {
-    str_value.set((ulonglong) value, default_charset());
-    name=str_value.c_ptr();
-  }
-  str->append(name);
+  str_value.set((ulonglong) value, default_charset());
+  str->append(str_value);
 }
 
 
@@ -478,8 +483,10 @@ String *Item_real::val_str(String *str)
 
 void Item_string::print(String *str)
 {
+  str->append('_');
+  str->append(collation.collation->csname);
   str->append('\'');
-  str->append(full_name());
+  str->append(str_value);
   str->append('\'');
 }
 
@@ -777,7 +784,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   // store pointer on SELECT_LEX from wich item is dependent
   item->depended_from= last;
   current->mark_as_dependent(last);
-  if (thd->lex.describe)
+  if (thd->lex.describe & DESCRIBE_EXTENDED)
   {
     char warn_buff[MYSQL_ERRMSG_SIZE];
     sprintf(warn_buff, ER(ER_WARN_FIELD_RESOLVED),
@@ -1533,6 +1540,34 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 }
 
 
+void Item_ref::print(String *str)
+{
+  if (ref && *ref)
+    (*ref)->print(str);
+  else
+    Item_ident::print(str);
+}
+
+
+void Item_ref_null_helper::print(String *str)
+{
+  str->append("<ref_null_helper>(");
+  if (ref && *ref)
+    (*ref)->print(str);
+  else
+    str->append('?');
+  str->append(')');
+}
+
+
+void Item_null_helper::print(String *str)
+{
+  str->append("<null_helper>(");
+  store->print(str);
+  str->append(')');
+}
+
+
 bool Item_default_value::eq(const Item *item, bool binary_cmp) const
 {
   return item->type() == DEFAULT_VALUE_ITEM && 
@@ -1754,6 +1789,34 @@ Item_cache* Item_cache::get_cache(Item_result type)
   }
 }
 
+
+void Item_cache::print(String *str)
+{
+  str->append("<cache>(");
+  if (example)
+    example->print(str);
+  else
+    Item::print(str);
+  str->append(')');
+}
+
+
+void Item_cache_int::store(Item *item)
+{
+  value= item->val_int_result();
+  null_value= item->null_value;
+  collation.set(item->collation);
+}
+
+
+void Item_cache_real::store(Item *item)
+{
+  value= item->val_result();
+  null_value= item->null_value;
+  collation.set(item->collation);
+}
+
+
 void Item_cache_str::store(Item *item)
 {
   value_buff.set(buffer, sizeof(buffer), item->collation.collation);
@@ -1804,6 +1867,7 @@ bool Item_cache_row::allocate(uint num)
 
 bool Item_cache_row::setup(Item * item)
 {
+  example= item;
   if (!values && allocate(item->cols()))
     return 1;
   for (uint i= 0; i < item_count; i++)

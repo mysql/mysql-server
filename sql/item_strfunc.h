@@ -120,6 +120,7 @@ public:
   Item_func_reverse(Item *a) :Item_str_func(a) {}
   String *val_str(String *);
   void fix_length_and_dec();
+  const char *func_name() const { return "reverse"; }
 };
 
 
@@ -324,9 +325,11 @@ public:
   Item_func_encrypt(Item *a, Item *b): Item_str_func(a,b) {}
   String *val_str(String *);
   void fix_length_and_dec() { maybe_null=1; max_length = 13; }
+  const char *func_name() const { return "ecrypt"; }
 };
 
 #include "sql_crypt.h"
+
 
 class Item_func_encode :public Item_str_func
 {
@@ -337,13 +340,16 @@ public:
     Item_str_func(a),sql_crypt(seed) {}
   String *val_str(String *);
   void fix_length_and_dec();
+  const char *func_name() const { return "encode"; }
 };
+
 
 class Item_func_decode :public Item_func_encode
 {
 public:
   Item_func_decode(Item *a, char *seed): Item_func_encode(a,seed) {}
   String *val_str(String *);
+  const char *func_name() const { return "decode"; }
 };
 
 
@@ -520,7 +526,6 @@ class Item_func_binary :public Item_str_func
 {
 public:
   Item_func_binary(Item *a) :Item_str_func(a) {}
-  const char *func_name() const { return "binary"; }
   String *val_str(String *a)
   {
     String *tmp=args[0]->val_str(a);
@@ -534,7 +539,7 @@ public:
     collation.set(&my_charset_bin); 
     max_length=args[0]->max_length; 
   }
-  void print(String *str) { print_op(str); }
+  void print(String *str);
 };
 
 

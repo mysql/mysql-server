@@ -462,6 +462,24 @@ String *Item_num_op::val_str(String *str)
 }
 
 
+void Item_func_signed::print(String *str)
+{
+  str->append("cast(");
+  args[0]->print(str);
+  str->append("as signed)");
+
+}
+
+
+void Item_func_unsigned::print(String *str)
+{
+  str->append("cast(");
+  args[0]->print(str);
+  str->append("as unsigned)");
+
+}
+
+
 double Item_func_plus::val()
 {
   double value=args[0]->val()+args[1]->val();
@@ -2820,6 +2838,26 @@ double Item_func_match::val()
     DBUG_RETURN(ft_handler->please->find_relevance(ft_handler, record, 0));
 }
 
+void Item_func_match::print(String *str)
+{
+  str->append("(match ");
+  List_iterator_fast<Item> li(fields);
+  Item *item;
+  bool first= 1;
+  while ((item= li++))
+  {
+    if (first)
+      first= 0;
+    else
+      str->append(',');
+    item->print(str);
+  }
+  str->append(" against (");
+  args[0]->print(str);
+  if (mode == FT_BOOL)
+    str->append(" in boolean mode");
+  str->append("))");
+}
 
 longlong Item_func_bit_xor::val_int()
 {

@@ -118,6 +118,7 @@ public:
       case SP_EXTERIORRING:
         return "exteriorring";
       default:
+	DBUG_ASSERT(0);  // Should never happened
         return "spatial_decomp_unknown"; 
     }
   }
@@ -142,6 +143,7 @@ public:
       case SP_INTERIORRINGN:
         return "interiorringn";
       default:
+	DBUG_ASSERT(0);  // Should never happened
         return "spatial_decomp_n_unknown"; 
     }
   }
@@ -210,6 +212,7 @@ public:
     case SP_OVERLAPS_FUNC:
       return "overlaps";
     default:
+      DBUG_ASSERT(0);  // Should never happened
       return "sp_unknown"; 
     }
     }
