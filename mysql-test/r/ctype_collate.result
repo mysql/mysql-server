@@ -484,7 +484,7 @@ ERROR HY000: Unknown collation: 'koi8r'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `latin1_f` char(32) NOT NULL default ''
+  `latin1_f` char(32) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SHOW FIELDS FROM  t1;
 Field	Type	Null	Key	Default	Extra

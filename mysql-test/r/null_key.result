@@ -342,7 +342,7 @@ index (id2)
 );
 insert into t1 values(null,null),(1,1);
 Warnings:
-Warning	1263	Data truncated; NULL supplied to NOT NULL column 'id2' at row 1
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'id2' at row 1
 select * from t1;
 id	id2
 NULL	0
