@@ -324,10 +324,11 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
       file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_NO_LOCK);
       net_store_data(packet, file->table_type());
       net_store_data(packet,
-                     (table->db_options_in_use & HA_OPTION_PACK_RECORD) ?
-                     "Dynamic" :
                      (table->db_options_in_use & HA_OPTION_COMPRESS_RECORD)
-                     ? "Compressed" : "Fixed");
+                     ? "Compressed" :
+                     (table->db_options_in_use & HA_OPTION_PACK_RECORD) ?
+                     "Dynamic" : "Fixed");
+
       net_store_data(packet, (longlong) file->records);
       net_store_data(packet, (uint32) file->mean_rec_length);
       net_store_data(packet, (longlong) file->data_file_length);
