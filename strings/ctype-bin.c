@@ -341,13 +341,27 @@ static int my_wildcmp_bin(CHARSET_INFO *cs,
 
 
 static int my_strnxfrm_bin(CHARSET_INFO *cs __attribute__((unused)),
-			    uchar * dest, uint len,
-			    const uchar *src, 
-			    uint srclen __attribute__((unused)))
+                           uchar * dest, uint dstlen,
+                           const uchar *src, uint srclen)
 {
   if (dest != src)
-    memcpy(dest,src,len= min(len,srclen));
-  return len;
+    memcpy(dest, src, min(dstlen,srclen));
+  if (dstlen > srclen)
+    bfill(dest + srclen, dstlen - srclen, 0);
+  return dstlen;
+}
+
+
+static
+int my_strnxfrm_8bit_bin(CHARSET_INFO *cs __attribute__((unused)),
+                         uchar * dest, uint dstlen,
+                         const uchar *src, uint srclen)
+{
+  if (dest != src)
+    memcpy(dest, src, min(dstlen,srclen));
+  if (dstlen > srclen)
+    bfill(dest + srclen, dstlen - srclen, ' ');
+  return dstlen;
 }
 
 
@@ -417,7 +431,7 @@ MY_COLLATION_HANDLER my_collation_8bit_bin_handler =
     NULL,			/* init */
     my_strnncoll_8bit_bin,
     my_strnncollsp_8bit_bin,
-    my_strnxfrm_bin,
+    my_strnxfrm_8bit_bin,
     my_like_range_simple,
     my_wildcmp_bin,
     my_strcasecmp_bin,
