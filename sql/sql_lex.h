@@ -334,6 +334,7 @@ typedef struct st_lex
   enum SSL_type ssl_type;			/* defined in violite.h */
   String *wild;
   sql_exchange *exchange;
+  select_result *result;
 
   List<key_part_spec> col_list;
   List<key_part_spec> ref_list;
@@ -377,7 +378,7 @@ typedef struct st_lex
   uint param_count;
   bool drop_primary, drop_if_exists, local_file, olap;
   bool in_comment, ignore_space, verbose, simple_alter;
-  bool derived_tables;
+  bool derived_tables, describe;
   uint slave_thd_opt;
   CHARSET_INFO *charset;
 } LEX;

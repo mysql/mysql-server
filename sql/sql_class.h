@@ -966,3 +966,15 @@ public:
    bool send_eof();
  };
 
+class select_dumpvar :public select_result {
+  ha_rows row_count;
+public:
+  List<LEX_STRING> var_list;
+  List<Item_func_set_user_var> vars;
+  select_dumpvar(void)  { var_list.empty(); vars.empty(); row_count=0;}
+  ~select_dumpvar() {}
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+  bool send_fields(List<Item> &list, uint flag) {return 0;}
+  bool send_data(List<Item> &items);
+  bool send_eof();
+};

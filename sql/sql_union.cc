@@ -109,7 +109,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
   if (prepared)
     DBUG_RETURN(0);
   prepared= 1;
-    
+  union_result=0;
   describe=(first_select()->options & SELECT_DESCRIBE) ? 1 : 0;
   res= 0;
   found_rows_for_union= false;
@@ -309,10 +309,12 @@ int st_select_lex_unit::exec()
 int st_select_lex_unit::cleanup()
 {
   DBUG_ENTER("st_select_lex_unit::cleanup");
-  delete union_result;
-  free_tmp_table(thd,table);
-  table= 0; // Safety
-  
+  if (union_result)
+  {
+    delete union_result;
+    free_tmp_table(thd,table);
+    table= 0; // Safety
+  }
   List_iterator<JOIN*> j(joins);
   JOIN** join;
   while ((join= j++))

@@ -1751,6 +1751,10 @@ select wss_type from t1 where wss_type ='102935229216544104';
 select wss_type from t1 where wss_type ='102935229216544093';
 select wss_type from t1 where wss_type =102935229216544093;
 drop table t1;
+select 1+2,"aaaa",3.13*2.0 into @a,@b,@c;
+select @a;
+select @b;
+select @c;
 
 #
 # Test of removing redundant braces in the FROM part
