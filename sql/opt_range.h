@@ -68,7 +68,7 @@ class QUICK_RANGE :public Sql_alloc {
 
 /*
   Quick select interface. 
-  This class is parent for all QUICK_*_SELECT and FT_SELECT classes.
+  This class is a parent for all QUICK_*_SELECT and FT_SELECT classes.
 */
 
 class QUICK_SELECT_I
@@ -128,19 +128,29 @@ protected:
                                               SEL_ARG *key_tree,
                                               MEM_ROOT *alloc);
   friend class QUICK_SELECT_DESC;
+  friend class QUICK_INDEX_MERGE_SELECT;
 
-  List<QUICK_RANGE> ranges;
-  List_iterator<QUICK_RANGE> it;
+  DYNAMIC_ARRAY ranges;     /* ordered array of range ptrs */
+  QUICK_RANGE **cur_range;  /* current element in ranges  */
+
   QUICK_RANGE *range;
   MEM_ROOT alloc;
   KEY_PART *key_parts;  
   int cmp_next(QUICK_RANGE *range);
+  int cmp_prev(QUICK_RANGE *range);
+  bool row_in_ranges();
 public:
   QUICK_RANGE_SELECT(THD *thd, TABLE *table,uint index_arg,bool no_alloc=0,
                      MEM_ROOT *parent_alloc=NULL);
   ~QUICK_RANGE_SELECT();
   
-  int reset(void) { next=0; it.rewind(); return 0; }
+  int reset(void)
+  {
+    next=0; 
+    range= NULL; 
+    cur_range= NULL;
+    return 0;
+  }
   int init();
   int get_next();
   bool reverse_sorted() { return 0; }
@@ -148,9 +158,60 @@ public:
   int get_type() { return QS_TYPE_RANGE; }
 };
 
+
 /*
-  Index merge quick select. 
-  It is implemented as a container for several QUICK_RANGE_SELECTs.
+QUICK_INDEX_MERGE_SELECT - index_merge acces method quick select.
+
+  QUICK_INDEX_MERGE_SELECT uses 
+   * QUICK_RANGE_SELECTs to get rows
+   * Unique class to remove duplicate rows
+
+INDEX MERGE OPTIMIZER
+  Current implementation doesn't detect all cases where index_merge could be 
+  used, in particular:
+   * index_merge will never be used if range scan is possible (even if range 
+     scan is more expensive)
+
+   * index_merge+'using index' is not supported (this the consequence of the 
+     above restriction)
+   
+   * If WHERE part contains complex nested AND and OR conditions, some ways to
+     retrieve rows using index_merge will not be considered. The choice of 
+     read plan may depend on the order of conjuncts/disjuncts in WHERE part of
+     the query, see comments near SEL_IMERGE::or_sel_tree_with_checks and 
+     imerge_list_or_list function for details.
+
+   * there is no "index_merge_ref" method (but index_merge on non-first table 
+     in join is possible with 'range checked for each record').
+
+   See comments around SEL_IMERGE class and test_quick_select for more details.
+
+ROW RETRIEVAL ALGORITHM
+
+  index_merge uses Unique class for duplicates removal.  Index merge takes 
+  advantage of clustered covering primary key (CCPK) if the table has one.
+  The algorithm is as follows:
+
+  prepare() //implemented in QUICK_INDEX_MERGE_SELECT::prepare_unique
+  {
+    activate 'index only';
+    while(retrieve next row for non-CCPK scan)
+    {
+      if (there is a CCPK scan and row will be retrieved by it)
+        skip this row;
+      else
+        put rowid into Unique;
+    }
+    deactivate 'index only';
+  }
+
+  fetch() //implemented as sequence of QUICK_INDEX_MERGE_SELECT::get_next calls
+  {
+    retrieve all rows from row pointers stored in Unique;
+    free Unique;
+    retrieve all rows for CCPK scan;
+  }
+
 */
 
 class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I 
@@ -175,8 +236,14 @@ public:
   List_iterator_fast<QUICK_RANGE_SELECT> cur_quick_it;
   QUICK_RANGE_SELECT* cur_quick_select;
   
-  /* last element in quick_selects list. */
+  /* last element in quick_selects list */
   QUICK_RANGE_SELECT* last_quick_select;
+
+  /* quick select that uses Covering Clustered Primary Key (NULL if none) */
+  QUICK_RANGE_SELECT* pk_quick_select;
+  
+  /* true if this select is currently doing a CCPK scan */
+  bool  doing_pk_scan;
   
   Unique  *unique;
   MEM_ROOT alloc;
@@ -184,6 +251,9 @@ public:
   THD *thd;
   int prepare_unique();
   bool reset_called;
+  
+  /* used to get rows collected in Unique */
+  READ_RECORD read_record;
 };
 
 class QUICK_SELECT_DESC: public QUICK_RANGE_SELECT
@@ -194,7 +264,6 @@ public:
   bool reverse_sorted() { return 1; }
   int get_type() { return QS_TYPE_RANGE_DESC; }
 private:
-  int cmp_prev(QUICK_RANGE *range);
   bool range_reads_after_key(QUICK_RANGE *range);
 #ifdef NOT_USED
   bool test_if_null_range(QUICK_RANGE *range, uint used_key_parts);

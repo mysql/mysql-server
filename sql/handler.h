@@ -368,6 +368,13 @@ public:
   */
   static bool caching_allowed(THD* thd, char* table_key,
 			      uint key_length, uint8 cahe_type);
+
+  /*
+   RETURN
+     true  primary key (if there is one) is clustered key covering all fields
+     false otherwise
+  */
+  virtual bool primary_key_is_clustered_covering() { return false; }
 };
 
 	/* Some extern variables used with handlers */
