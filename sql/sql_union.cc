@@ -120,7 +120,7 @@ bool select_union::flush()
 ulong
 st_select_lex_unit::init_prepare_fake_select_lex(THD *thd) 
 {
-  ulong options_tmp= thd->options;
+  ulong options_tmp= thd->options | fake_select_lex->options;
   thd->lex->current_select= fake_select_lex;
   offset_limit_cnt= global_parameters->offset_limit;
   select_limit_cnt= global_parameters->select_limit +
