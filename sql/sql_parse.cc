@@ -51,6 +51,8 @@
 #define TRANS_MEM_ROOT_BLOCK_SIZE 4096
 #define TRANS_MEM_ROOT_PREALLOC   4096
 
+extern uint connection_auth_flag;
+
 extern int yyparse(void);
 extern "C" pthread_mutex_t THR_LOCK_keycache;
 #ifdef SOLARIS
@@ -504,7 +506,8 @@ check_connections(THD *thd)
   {
     /* buff[] needs to big enough to hold the server_version variable */
     char buff[SERVER_VERSION_LENGTH + SCRAMBLE_LENGTH+32],*end;
-    int client_flags = CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB | CLIENT_PROTOCOL_41;
+    int client_flags = CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB | 
+                       CLIENT_PROTOCOL_41 | connection_auth_flag;
 
     if (opt_using_transactions)
       client_flags|=CLIENT_TRANSACTIONS;

@@ -32,7 +32,7 @@
 #include <assert.h>
 #include <stdarg.h>
 
-extern uint connection_auth_flag;
+extern uint connection_auth_flag; // any better way to do it ?
 
 struct acl_host_and_ip
 {
@@ -329,7 +329,7 @@ my_bool acl_init(bool dont_read_acl_tables)
      connection_auth_flag=CLIENT_SECURE_CONNECTION;
     else connection_auth_flag=CLIENT_LONG_PASSWORD; 
   }
-  printf("Set flag after read: %d\n",connection_auth_flag);
+  printf("Set flag after read: %d\n",connection_auth_flag); /* DEBUG to be removed */
   init_read_record(&read_record_info,thd,table=tables[2].table,NULL,1,0);
   VOID(my_init_dynamic_array(&acl_dbs,sizeof(ACL_DB),50,100));
   while (!(read_record_info.read_record(&read_record_info)))
@@ -746,6 +746,10 @@ static void acl_insert_user(const char *user, const char *host,
     acl_user.password=(char*) "";		// Just point at something
     get_salt_from_password(acl_user.salt,password);
     acl_user.pversion=get_password_version(acl_user.password);
+    if (acl_user.pversion)
+      connection_auth_flag|=CLIENT_SECURE_CONNECTION;
+    else
+      connection_auth_flag|=CLIENT_LONG_PASSWORD;
   }
 
   VOID(push_dynamic(&acl_users,(gptr) &acl_user));
@@ -2844,7 +2848,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     if (acl_user->password)
     {
       char passd_buff[HASH_PASSWORD_LENGTH+1];
-      make_password_from_salt(passd_buff,acl_user->salt);
+      make_password_from_salt(passd_buff,acl_user->salt,acl_user->pversion);
       global.append(" IDENTIFIED BY PASSWORD '",25);
       global.append(passd_buff);
       global.append('\'');

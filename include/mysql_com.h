@@ -284,7 +284,7 @@ void make_scrambled_password(char *to,const char *password,my_bool force_old_scr
 uint get_password_length(my_bool force_old_scramble);
 uint8 get_password_version(const char* password);
 void get_salt_from_password(unsigned long *res,const char *password);
-void make_password_from_salt(char *to, unsigned long *hash_res);
+void make_password_from_salt(char *to, unsigned long *hash_res, uint8 password_version);
 char *scramble(char *to,const char *message,const char *password,
 	       my_bool old_ver);
 my_bool check_scramble(const char *, const char *message,
