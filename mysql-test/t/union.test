@@ -682,3 +682,38 @@ show create table t1;
 drop table t1;
 drop table t2;
 
+#
+# Bug 6931: Date Type column problem when using UNION-Table.
+#
+create table t1(a1 int, f1 char(10));
+create table t2
+select f2,a1 from (select a1, CAST('2004-12-31' AS DATE) f2 from t1) a
+union
+select f2,a1 from (select a1, CAST('2004-12-31' AS DATE) f2 from t1) a
+order by f2, a1;
+show columns from t2;
+drop table t1, t2;
+
+create table t1 (f1 int);
+create table t2 (f1 int, f2 int ,f3 date);
+create table t3 (f1 int, f2 char(10));
+create table t4
+(
+  select t2.f3 as sdate
+  from t1
+  left outer join t2 on (t1.f1 = t2.f1)
+  inner join t3 on (t2.f2 = t3.f1)
+  order by t1.f1, t3.f1, t2.f3
+)
+union
+(
+  select cast('2004-12-31' as date) as sdate
+  from t1
+  left outer join t2 on (t1.f1 = t2.f1)
+  inner join t3 on (t2.f2 = t3.f1)
+  group by t1.f1
+  order by t1.f1, t3.f1, t2.f3
+)
+order by sdate;
+show columns from t4;
+drop table t1, t2, t3, t4;

@@ -3633,7 +3633,53 @@ void Item_cache_row::bring_value()
 }
 
 
-Item_type_holder::Item_type_holder(THD *thd, Item *item)
+/*
+  Returns field for temporary table dependind on item type
+
+  SYNOPSIS
+    get_holder_example_field()
+    thd            - thread handler
+    item           - pointer to item
+    table          - empty table object
+
+  NOTE
+    It is possible to return field for Item_func 
+    items only if field type of this item is 
+    date or time or datetime type.
+    also see function field_types_to_be_kept() from
+    field.cc
+
+  RETURN
+    # - field
+    0 - no field
+*/
+
+Field *get_holder_example_field(THD *thd, Item *item, TABLE *table)
+{
+  DBUG_ASSERT(table);
+
+  Item_func *tmp_item= 0;
+  if (item->type() == Item::FIELD_ITEM)
+    return (((Item_field*) item)->field);
+  if (item->type() == Item::FUNC_ITEM)
+    tmp_item= (Item_func *) item;
+  else if (item->type() == Item::SUM_FUNC_ITEM)
+  {
+    Item_sum *item_sum= (Item_sum *) item;
+    if (item_sum->keep_field_type())
+    {
+      if (item_sum->args[0]->type() == Item::FIELD_ITEM)
+        return (((Item_field*) item_sum->args[0])->field);
+      if (item_sum->args[0]->type() == Item::FUNC_ITEM)
+        tmp_item= (Item_func *) item_sum->args[0];
+    }
+  }
+  return (tmp_item && field_types_to_be_kept(tmp_item->field_type()) ?
+          tmp_item->tmp_table_field(table) : 0);
+}
+
+
+Item_type_holder::Item_type_holder(THD *thd, Item *item, TABLE *table)
   :Item(thd, item), item_type(item->result_type()),
    orig_type(item_type)
 {
@@ -3643,10 +3689,7 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
     It is safe assign pointer on field, because it will be used just after
     all JOIN::prepare calls and before any SELECT execution
   */
-  if (item->type() == Item::FIELD_ITEM)
-    field_example= ((Item_field*) item)->field;
-  else
-    field_example= 0;
+  field_example= get_holder_example_field(thd, item, table);
   max_length= real_length(item);
   maybe_null= item->maybe_null;
   collation.set(item->collation);
@@ -3686,25 +3729,23 @@ inline bool is_attr_compatible(Item *from, Item *to)
           (to->maybe_null || !from->maybe_null) &&
           (to->result_type() != STRING_RESULT ||
            from->result_type() != STRING_RESULT ||
-           my_charset_same(from->collation.collation,
-                           to->collation.collation)));
+          (from->collation.collation == to->collation.collation)));
 }
 
 
-bool Item_type_holder::join_types(THD *thd, Item *item)
+bool Item_type_holder::join_types(THD *thd, Item *item, TABLE *table)
 {
   uint32 new_length= real_length(item);
   bool use_new_field= 0, use_expression_type= 0;
   Item_result new_result_type= type_convertor[item_type][item->result_type()];
-  bool item_is_a_field= item->type() == Item::FIELD_ITEM;
-
+  Field *field= get_holder_example_field(thd, item, table);
+  bool item_is_a_field= field;
   /*
     Check if both items point to fields: in this case we
     can adjust column types of result table in the union smartly.
   */
   if (field_example && item_is_a_field)
   {
-    Field *field= ((Item_field *)item)->field;
     /* Can 'field_example' field store data of the column? */
     if ((use_new_field=
          (!field->field_cast_compatible(field_example->field_cast_type()) ||
@@ -3745,7 +3786,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
         It is safe to assign a pointer to field here, because it will be used
         before any table is closed.
       */
-      field_example= ((Item_field*) item)->field;
+      field_example= field;
     }
 
     old_cs= collation.collation->name;

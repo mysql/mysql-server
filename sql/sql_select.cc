@@ -9181,7 +9181,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       tab->info="const row not found";
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
-      if (!table->outer_join || error > 0)
+      if (!table->maybe_null || error > 0)
 	DBUG_RETURN(error);
     }
   }
@@ -9200,7 +9200,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       tab->info="unique row not found";
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
-      if (!table->outer_join || error > 0)
+      if (!table->maybe_null || error > 0)
 	DBUG_RETURN(error);
     }
     if (table->key_read)

@@ -366,6 +366,7 @@ static void _ftb_init_index_search(FT_INFO *ftb)
         reset_tree(& ftb->no_dupes);
     }
 
+    ftbw->off=0; /* in case of reinit */
     if (_ft2_search(ftb, ftbw, 1))
       return;
   }
@@ -374,7 +375,7 @@ static void _ftb_init_index_search(FT_INFO *ftb)
 
 
 FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
-                                 uint query_len)
+                                 uint query_len, CHARSET_INFO *cs)
 {
   FTB       *ftb;
   FTB_EXPR  *ftbe;
@@ -386,8 +387,8 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   ftb->state=UNINITIALIZED;
   ftb->info=info;
   ftb->keynr=keynr;
-  ftb->charset= ((keynr==NO_SUCH_KEY) ?
-           default_charset_info : info->s->keyinfo[keynr].seg->charset);
+  ftb->charset=cs;
+  DBUG_ASSERT(keynr==NO_SUCH_KEY || cs == info->s->keyinfo[keynr].seg->charset);
   ftb->with_scan=0;
   ftb->lastpos=HA_OFFSET_ERROR;
   bzero(& ftb->no_dupes, sizeof(TREE));
