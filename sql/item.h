@@ -84,6 +84,7 @@ public:
   virtual bool get_date(TIME *ltime,bool fuzzydate);
   virtual bool get_time(TIME *ltime);
   virtual bool is_null() { return 0; };
+  virtual CHARSET_INFO *thd_charset() const;
   virtual CHARSET_INFO *charset() const { return str_value.charset(); };
   virtual bool binary() const { return str_value.charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
   virtual void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
