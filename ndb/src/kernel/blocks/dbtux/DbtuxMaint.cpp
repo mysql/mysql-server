@@ -72,7 +72,6 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   }
   ndbrequire(fragPtr.i != RNIL);
   Frag& frag = *fragPtr.p;
-  ndbrequire(frag.m_nodeList == RNIL);
   // set up index entry
   TreeEnt ent;
   ent.m_tupAddr = req->tupAddr;
@@ -143,17 +142,18 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     }
     /*
      * At most one new node is inserted in the operation.  We keep one
-     * free node pre-allocated so the operation cannot fail.  This also
-     * gives a real TupAddr for links to the new node.
+     * free node pre-allocated so the operation cannot fail.
      */
-    if (frag.m_nodeFree == RNIL) {
+    if (frag.m_freeLoc == NullTupLoc) {
       jam();
-      preallocNode(signal, frag, req->errorCode);
+      NodeHandle node(frag);
+      req->errorCode = allocNode(signal, node);
       if (req->errorCode != 0) {
         jam();
         break;
       }
-      ndbrequire(frag.m_nodeFree != RNIL);
+      frag.m_freeLoc = node.m_loc;
+      ndbrequire(frag.m_freeLoc != NullTupLoc);
     }
     treeAdd(signal, frag, treePos, ent);
     break;
@@ -175,7 +175,6 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     break;
   }
   // commit and release nodes
-  commitNodes(signal, frag, req->errorCode == 0);
 #ifdef VM_TRACE
   if (debugFlags & DebugTree) {
     printTree(signal, frag, debugOut);

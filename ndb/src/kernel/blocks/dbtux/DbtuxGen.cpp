@@ -178,7 +178,6 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   c_fragPool.setSize(nFragment);
   c_descPagePool.setSize(nDescPage);
   c_fragOpPool.setSize(MaxIndexFragments);
-  c_nodeHandlePool.setSize(MaxNodeHandles);
   c_scanOpPool.setSize(nScanOp);
   c_scanBoundPool.setSize(nScanBoundWords);
   /*

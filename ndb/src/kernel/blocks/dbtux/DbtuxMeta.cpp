@@ -316,12 +316,6 @@ Dbtux::dropIndex(Signal* signal, IndexPtr indexPtr, Uint32 senderRef, Uint32 sen
     unsigned i = --indexPtr.p->m_numFrags;
     FragPtr fragPtr;
     c_fragPool.getPtr(fragPtr, indexPtr.p->m_fragPtrI[i]);
-    Frag& frag = *fragPtr.p;
-    ndbrequire(frag.m_nodeList == RNIL);
-    if (frag.m_nodeFree != RNIL) {
-      c_nodeHandlePool.release(frag.m_nodeFree);
-      frag.m_nodeFree = RNIL;
-    }
     c_fragPool.release(fragPtr);
     // the real time break is not used for anything currently
     signal->theData[0] = TuxContinueB::DropIndex;
