@@ -180,14 +180,6 @@ t1	CREATE TABLE `t1` (
   `-(-1.1)` decimal(7,1) NOT NULL default '0.0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
-CREATE TABLE t1 (a varchar(64) character set ucs2, b decimal(10,3));
-INSERT INTO t1 VALUES ("1.1", 0), ("2.1", 0);
-update t1 set b=a;
-SELECT * FROM t1;
-a	b
-1.1	1.100
-2.1	2.100
-DROP TABLE t1;
 set session sql_mode='traditional';
 select 1e10/0e0;
 1e10/0e0
