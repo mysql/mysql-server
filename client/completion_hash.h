@@ -43,14 +43,14 @@ typedef struct hashtable {
   uint nTableSize;
   uint initialized;
   MEM_ROOT mem_root;
-  uint(*pHashFunction) (char *arKey, uint nKeyLength);
+  uint(*pHashFunction) (const char *arKey, uint nKeyLength);
   Bucket **arBuckets;
 } HashTable;
 
 extern int completion_hash_init(HashTable *ht, uint nSize);
 extern int completion_hash_update(HashTable *ht, char *arKey, uint nKeyLength, char *str);
 extern int hash_exists(HashTable *ht, char *arKey);
-extern Bucket *find_all_matches(HashTable *ht, char *str, uint length, uint *res_length);
+extern Bucket *find_all_matches(HashTable *ht, const char *str, uint length, uint *res_length);
 extern Bucket *find_longest_match(HashTable *ht, char *str, uint length, uint *res_length);
 extern void add_word(HashTable *ht,char *str);
 extern void completion_hash_clean(HashTable *ht);
