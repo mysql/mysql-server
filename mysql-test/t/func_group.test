@@ -241,8 +241,8 @@ explain
 select max(a3) from t1 where a3 < 'SEA' and a2 = 2 and a3 <= 'MIN';
 select max(a3) from t1 where a3 < 'SEA' and a2 = 2 and a3 <= 'MIN';
 explain 
-select max(a3) from t1 where a3 = 'SEA' and a2 = 2;
-select max(a3) from t1 where a3 = 'SEA' and a2 = 2;
+select max(a3) from t1 where a3 = 'MIN' and a2 = 2;
+select max(a3) from t1 where a3 = 'MIN' and a2 = 2;
 explain 
 select max(a3) from t1 where a3 = 'DEN' and a2 = 2;
 select max(a3) from t1 where a3 = 'DEN' and a2 = 2;
@@ -261,6 +261,41 @@ select max(a2) from t1 where a2 >= 1;
 explain
 select min(a3) from t1 where a2 = 2 and a3 < 'SEA';
 select min(a3) from t1 where a2 = 2 and a3 < 'SEA';
+
+explain
+select min(a3) from t1 where a2 = 4;
+select min(a3) from t1 where a2 = 4;
+explain
+select min(a3) from t1 where a2 = 2 and a3 > 'SEA';
+select min(a3) from t1 where a2 = 2 and a3 > 'SEA';
+explain
+select (min(a4)+max(a4))/2 from t1;
+select (min(a4)+max(a4))/2 from t1;
+explain
+select min(a3) from t1 where 2 = a2;
+select min(a3) from t1 where 2 = a2;
+explain
+select max(a3) from t1 where a2 = 2 and 'SEA' > a3;
+select max(a3) from t1 where a2 = 2 and 'SEA' > a3;
+explain
+select max(a3) from t1 where a2 = 2 and 'SEA' < a3;
+select max(a3) from t1 where a2 = 2 and 'SEA' < a3;
+explain
+select min(a3) from t1 where a2 = 2 and a3 >= 'CHI';
+select min(a3) from t1 where a2 = 2 and a3 >= 'CHI';
+explain
+select min(a3) from t1 where a2 = 2 and a3 >= 'CHI' and a3 < 'SEA';
+select min(a3) from t1 where a2 = 2 and a3 >= 'CHI' and a3 < 'SEA';
+explain
+select min(a3) from t1 where a2 = 2 and a3 >= 'CHI' and a3 = 'MIN';
+select min(a3) from t1 where a2 = 2 and a3 >= 'CHI' and a3 = 'MIN';
+explain
+select min(a3) from t1 where a2 = 2 and a3 >= 'SEA' and a3 = 'MIN';
+select min(a3) from t1 where a2 = 2 and a3 >= 'SEA' and a3 = 'MIN';
+
+explain
+select min(t1.a1), min(t2.a4) from t1,t2 where t1.a1 < 'KKK' and t2.a4 < 'KKK';
+select min(t1.a1), min(t2.a4) from t1,t2 where t1.a1 < 'KKK' and t2.a4 < 'KKK';
 
 # Queries to which max/min optimization is not applied
 
@@ -273,6 +308,24 @@ select max(a3) from t1 where a2 < 2 and a3 < 'SEA';
 explain
 select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 > 'CA';
 
+explain
+select min(a4 - 0.01) from t1;
+explain
+select max(a4 + 0.01) from t1;
+explain
+select min(a3) from t1 where (a2 +1 ) is null;
+explain
+select min(a3) from t1 where (a2 + 1) = 2;
+explain
+select min(a3) from t1 where 2 = (a2 + 1);
+explain
+select min(a2) from t1 where a2 < 2 * a2 - 8;
+explain
+select min(a1) from t1  where a1 between a3 and 'KKK';
+explain
+select min(a4) from t1  where (a4 + 0.01) between 0.07 and 0.08;
+explain
+select concat(min(t1.a1),min(t2.a4)) from t1, t2 where t2.a4 <> 'AME';
 
 # Clean up
 drop table if exists t1, t2;

@@ -389,12 +389,12 @@ select max(a3) from t1 where a3 < 'SEA' and a2 = 2 and a3 <= 'MIN';
 max(a3)
 MIN
 explain 
-select max(a3) from t1 where a3 = 'SEA' and a2 = 2;
+select max(a3) from t1 where a3 = 'MIN' and a2 = 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
-select max(a3) from t1 where a3 = 'SEA' and a2 = 2;
+select max(a3) from t1 where a3 = 'MIN' and a2 = 2;
 max(a3)
-SEA
+MIN
 explain 
 select max(a3) from t1 where a3 = 'DEN' and a2 = 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -430,6 +430,83 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select min(a3) from t1 where a2 = 2 and a3 < 'SEA';
 min(a3)
 CHI
+explain
+select min(a3) from t1 where a2 = 4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select min(a3) from t1 where a2 = 4;
+min(a3)
+NULL
+explain
+select min(a3) from t1 where a2 = 2 and a3 > 'SEA';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select min(a3) from t1 where a2 = 2 and a3 > 'SEA';
+min(a3)
+NULL
+explain
+select (min(a4)+max(a4))/2 from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select (min(a4)+max(a4))/2 from t1;
+(min(a4)+max(a4))/2
+0.085
+explain
+select min(a3) from t1 where 2 = a2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select min(a3) from t1 where 2 = a2;
+min(a3)
+CHI
+explain
+select max(a3) from t1 where a2 = 2 and 'SEA' > a3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select max(a3) from t1 where a2 = 2 and 'SEA' > a3;
+max(a3)
+MIN
+explain
+select max(a3) from t1 where a2 = 2 and 'SEA' < a3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select max(a3) from t1 where a2 = 2 and 'SEA' < a3;
+max(a3)
+NULL
+explain
+select min(a3) from t1 where a2 = 2 and a3 >= 'CHI';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select min(a3) from t1 where a2 = 2 and a3 >= 'CHI';
+min(a3)
+CHI
+explain
+select min(a3) from t1 where a2 = 2 and a3 >= 'CHI' and a3 < 'SEA';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select min(a3) from t1 where a2 = 2 and a3 >= 'CHI' and a3 < 'SEA';
+min(a3)
+CHI
+explain
+select min(a3) from t1 where a2 = 2 and a3 >= 'CHI' and a3 = 'MIN';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select min(a3) from t1 where a2 = 2 and a3 >= 'CHI' and a3 = 'MIN';
+min(a3)
+MIN
+explain
+select min(a3) from t1 where a2 = 2 and a3 >= 'SEA' and a3 = 'MIN';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+select min(a3) from t1 where a2 = 2 and a3 >= 'SEA' and a3 = 'MIN';
+min(a3)
+NULL
+explain
+select min(t1.a1), min(t2.a4) from t1,t2 where t1.a1 < 'KKK' and t2.a4 < 'KKK';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select min(t1.a1), min(t2.a4) from t1,t2 where t1.a1 < 'KKK' and t2.a4 < 'KKK';
+min(t1.a1)	min(t2.a4)
+AME	AME
 explain 
 select min(a1) from t1 where a1 > 'KKK' or a1 < 'XXX';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -447,4 +524,41 @@ select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and 
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	k1	k1	7	NULL	1	Using where; Using index
 1	SIMPLE	t2	range	k1	k1	3	NULL	4	Using where; Using index
+explain
+select min(a4 - 0.01) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	k2	12	NULL	14	Using index
+explain
+select max(a4 + 0.01) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	k2	12	NULL	14	Using index
+explain
+select min(a3) from t1 where (a2 +1 ) is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	k1	7	NULL	14	Using where; Using index
+explain
+select min(a3) from t1 where (a2 + 1) = 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	k1	7	NULL	14	Using where; Using index
+explain
+select min(a3) from t1 where 2 = (a2 + 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	k1	7	NULL	14	Using where; Using index
+explain
+select min(a2) from t1 where a2 < 2 * a2 - 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	k1	7	NULL	14	Using where; Using index
+explain
+select min(a1) from t1  where a1 between a3 and 'KKK';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	14	Using where
+explain
+select min(a4) from t1  where (a4 + 0.01) between 0.07 and 0.08;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	k2	12	NULL	14	Using where; Using index
+explain
+select concat(min(t1.a1),min(t2.a4)) from t1, t2 where t2.a4 <> 'AME';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	3	NULL	14	Using index
+1	SIMPLE	t2	index	NULL	k2	4	NULL	6	Using where; Using index
 drop table if exists t1, t2;
