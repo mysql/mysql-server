@@ -1860,7 +1860,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	if (s->dependent & ~(found_const_table_map))
 	  continue;
 	if (table->file->records <= 1L &&
-	    !(table->file->table_flags() & HA_NOT_EXACT_COUNT))
+	    !(table->file->table_flags() & HA_NOT_EXACT_COUNT) &&
+            !table->pos_in_table_list->embedding)
 	{					// system table
 	  int tmp= 0;
 	  s->type=JT_SYSTEM;
