@@ -861,10 +861,10 @@ int do_source(struct st_query* q)
     1	error
 */
 
-int do_exec(struct st_query* q)
+static void do_exec(struct st_query* q)
 {
-  int error= 0;
-  DYNAMIC_STRING *ds;
+  int error;
+  DYNAMIC_STRING *ds= NULL;			/* Assign just to avoid warning */
   DYNAMIC_STRING ds_tmp;
   char buf[1024];
   FILE *res_file;
@@ -901,7 +901,15 @@ int do_exec(struct st_query* q)
 
     while (fgets(buf, sizeof(buf), res_file))
       replace_dynstr_append_mem(ds, buf, strlen(buf));
+  }
 
+  error= pclose(res_file);
+
+  if (error != 0)
+    die("command \"%s\" failed", cmd);
+
+  if (!disable_result_log)
+  {
     if (glob_replace)
       free_replace();
 
@@ -919,9 +927,6 @@ int do_exec(struct st_query* q)
     if (ds == &ds_tmp)
       dynstr_free(&ds_tmp);
   }
-  pclose(res_file);
-  
-  DBUG_RETURN(error);
 }
 
 
@@ -2846,7 +2851,7 @@ int main(int argc, char **argv)
 	(void) mysql_ping(&cur_con->mysql);
 	break;
       case Q_EXEC: 
-	(void) do_exec(q);
+	do_exec(q);
 	break;
       case Q_START_TIMER:
 	/* Overwrite possible earlier start of timer */
