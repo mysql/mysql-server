@@ -35,13 +35,13 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   SQL_SELECT	*select=0;
   READ_RECORD	info;
   bool 		using_limit=limit != HA_POS_ERROR;
-  bool		transactional_table, log_delayed;
+  bool		transactional_table, log_delayed, safe_update;
   ha_rows	deleted;
   DBUG_ENTER("mysql_delete");
 
   if (!table_list->db)
     table_list->db=thd->db;
-  if ((thd->options & OPTION_SAFE_UPDATES) && !conds)
+  if (((safe_update=thd->options & OPTION_SAFE_UPDATES)) && !conds)
   {
     send_error(&thd->net,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
     DBUG_RETURN(1);
@@ -57,7 +57,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
 
   /* Test if the user wants to delete all rows */
   if (!using_limit && (!conds || conds->const_item()) &&
-      !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)))
+      !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) && !safe_update)
   {
     deleted= table->file->records;
     if (!(error=table->file->delete_all_rows()))
@@ -91,7 +91,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   if (!table->quick_keys)
   {
     thd->lex.select_lex.options|=QUERY_NO_INDEX_USED;
-    if ((thd->options & OPTION_SAFE_UPDATES) && limit == HA_POS_ERROR)
+    if (safe_update && !using_limit)
     {
       delete select;
       send_error(&thd->net,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
