@@ -1,0 +1,66 @@
+#! /bin/sh
+
+# This script is a hack for lazy developers who want to get a quick
+# start on the result file. The code here is rather dirty, but it works
+# If you have a spare moment feel free to improve it - the right way is
+# to start mysqld yourself and run mysqltest -r
+
+RESULT_DIR=r/3.23
+if [ -z $EDITOR] then;
+ EDITOR=vi
+fi
+
+function die()
+{
+  echo $1
+  exit 1
+}
+
+function usage()
+{
+  echo "Usage: $0 test_name"
+  exit 1
+}
+
+test_name=$1
+
+[ -z $test_name ] && usage
+
+result_file=$result_dir/$test_name.result
+
+[ -f $result_file ] && die "result file $result_file  has already been created"
+
+touch $result_file
+echo "Running the test case against empty file, will fail, but don't worry"
+./mysql-test-run $test_name
+
+reject_file=$result_file.reject
+
+if [ -f $reject_file ] ; then
+  echo "Below are the contents of the reject file:"
+  echo "-----start---------------------"
+  cat $result_file.
+  echo "-----end-----------------------"
+  echo "Is this the output you expected from your test case?(y/n)[n]"
+  read yes_no
+  if [ x$yes_no = xy ] then;
+    echo "Press any key to edit it in $EDITOR, or Ctrl-C to abort"
+    read junk
+    $EDITOR $reject_file
+    edited="edited"
+  fi
+  echo "Save $edited file as master result? (y/n)[y]"
+  read yes_no
+  if [ x$yes_no != xn ]; then
+      mv $reject_file $result_file
+  fi
+else
+  echo "Your test failed so bad, it did not even produce a reject file"
+  echo "You need to fix your bugs in the test case, the code, or both"
+  exit 1
+fi
+
+
+
+
+
