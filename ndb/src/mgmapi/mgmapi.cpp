@@ -379,18 +379,30 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
       setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
 	       "Unable to connect with connect string: %s",
 	       cfg.makeConnectString(buf,sizeof(buf)));
+      if (verbose == -2)
+	ndbout << ", failed." << endl;
       return -1;
     }
     if (verbose == -1) {
-      ndbout << "retrying every " << retry_delay_in_seconds << " seconds:";
+      ndbout << "Retrying every " << retry_delay_in_seconds << " seconds";
+      if (no_retries > 0)
+	ndbout << ". Attempts left:";
+      else
+	ndbout << ", until connected.";;	
+      ndbout << flush;
       verbose= -2;
     }
-    NdbSleep_SecSleep(retry_delay_in_seconds);
-    if (verbose == -2) {
-      ndbout << " " << no_retries;
+    if (no_retries > 0) {
+      if (verbose == -2) {
+	ndbout << " " << no_retries;
+	ndbout << flush;
+      }
+      no_retries--;
     }
-    no_retries--;
+    NdbSleep_SecSleep(retry_delay_in_seconds);
   }
+  if (verbose == -2)
+    ndbout << endl;
 
   handle->cfg_i = i;
 
