@@ -24,7 +24,7 @@ EXTRA_DIST =		INSTALL-SOURCE README \
 SUBDIRS =		include @docs_dirs@ @readline_dir@ \
 			@thread_dirs@ pstack @sql_client_dirs@ \
 			@sql_server_dirs@ @libmysqld_dirs@ scripts man \
-			tests BUILD \
+			tests BUILD os2 \
 			@bench_dirs@ support-files @fs_dirs@ @tools_dirs@
 
 # Relink after clean
