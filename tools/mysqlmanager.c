@@ -687,7 +687,7 @@ HANDLE_DECL(handle_stop_exec)
     error="Process not running";
     goto err;
   }
-  if (mysql_shutdown(&e->mysql))
+  if (mysql_shutdown(&e->mysql, SHUTDOWN_DEFAULT))
   {
     /* e->th=0; */	/* th may be a struct */
     pthread_mutex_unlock(&e->lock);
