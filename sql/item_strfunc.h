@@ -108,14 +108,19 @@ public:
 	    separator->fix_fields(thd, tlist, &separator) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }
- const char *func_name() const { return "concat_ws"; }
- bool check_loop(uint id)
- {
-   DBUG_ENTER("Item_func_concat_ws::check_loop");
-   if (Item_str_func::check_loop(id))
-     DBUG_RETURN(1);
-   DBUG_RETURN(separator->check_loop(id));
- }
+  const char *func_name() const { return "concat_ws"; }
+  bool check_loop(uint id)
+  {
+    DBUG_ENTER("Item_func_concat_ws::check_loop");
+    if (Item_str_func::check_loop(id))
+      DBUG_RETURN(1);
+    DBUG_RETURN(separator->check_loop(id));
+  }
+  void set_outer_resolving()
+  {
+    separator->set_outer_resolving();
+    Item_func::set_outer_resolving();
+  }
 };
 
 class Item_func_reverse :public Item_str_func
@@ -393,6 +398,11 @@ public:
       DBUG_RETURN(1);
     DBUG_RETURN(item->check_loop(id));
   }
+  void set_outer_resolving()
+  {
+    item->set_outer_resolving();
+    Item_str_func::set_outer_resolving();
+  }
 };
 
 
@@ -420,6 +430,11 @@ public:
     if (Item_str_func::check_loop(id))
       DBUG_RETURN(1);
     DBUG_RETURN(item->check_loop(id));
+  }
+  void set_outer_resolving()
+  {
+    item->set_outer_resolving();
+    Item_str_func::set_outer_resolving();
   }
 };
 

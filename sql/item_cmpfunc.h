@@ -277,6 +277,11 @@ public:
   const char *func_name() const { return "interval"; }
   void update_used_tables();
   bool check_loop(uint id);
+  void set_outer_resolving()
+  {
+    item->set_outer_resolving();
+    Item_func::set_outer_resolving();
+  }
 };
 
 
@@ -359,6 +364,7 @@ public:
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   Item *find_item(String *str);
   bool check_loop(uint id);
+  void set_outer_resolving();
 };
 
 
@@ -643,6 +649,11 @@ class Item_func_in :public Item_int_func
     DBUG_RETURN(item->check_loop(id));
   }
   bool nulls_in_row();
+  void set_outer_resolving()
+  {
+    item->set_outer_resolving();
+    Item_int_func::set_outer_resolving();
+  }
 };
 
 /* Functions used by where clause */
@@ -784,6 +795,7 @@ public:
   friend int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
   bool check_loop(uint id);
   void top_level_item() { abort_on_null=1; }
+  void set_outer_resolving();
 };
 
 
