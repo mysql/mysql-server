@@ -45,8 +45,11 @@ void caseup_str(my_string str)
   }
   else
 #endif
-    while ((*str = toupper(*str)) != 0)
+    while (*str!=0) /* iterate till the end of string */
+    {
+      *str= toupper(*str);
       str++;
+    }  
 } /* caseup_str */
 
 	/* string to lowercase */
@@ -66,8 +69,11 @@ void casedn_str(my_string str)
   }
   else
 #endif
-    while ((*str= tolower(*str)) != 0)
+    while (*str!=0) /* iterate till the end of string */
+    {
+      *str= tolower(*str);
       str++;
+    }  
 } /* casedn_str */
 
 
