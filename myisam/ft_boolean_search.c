@@ -413,11 +413,6 @@ float ft_boolean_get_relevance(FT_INFO *ftb)
   return ftb->root->cur_weight;
 }
 
-my_off_t ft_boolean_get_docid(FT_INFO *ftb)
-{
-  return HA_POS_ERROR;
-}
-
 void ft_boolean_reinit_search(FT_INFO *ftb)
 {
   _ftb_init_index_search(ftb);
