@@ -6369,8 +6369,8 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 	snprintf(buf, sizeof(buf), "TC %d: %d ops:",
 		 __LINE__, apiConnectptr.i);
 	for(Uint32 i = 0; i<TloopCount; i++){
-	  snprintf(buf2, sizeof(buf2), "%s %d", buf, tmp[i]);
-	  snprintf(buf, sizeof(buf), buf2);
+	  BaseString::snprintf(buf2, sizeof(buf2), "%s %d", buf, tmp[i]);
+	  BaseString::snprintf(buf, sizeof(buf), buf2);
 	}
 	warningEvent(buf);
 	ndbout_c(buf);

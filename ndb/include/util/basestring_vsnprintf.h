@@ -14,23 +14,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-// define on IRIX to get posix complian vsnprintf
-#define _XOPEN_SOURCE 500
-#include <stdio.h>
-#include <basestring_vsnprintf.h>
-
-int
-basestring_snprintf(char *str, size_t size, const char *format, ...)
+#ifndef BASESTRING_VSNPRINTF_H
+#define BASESTRING_VSNPRINTF_H
+#include <stdarg.h>
+#if defined(__cplusplus)
+extern "C"
 {
-  va_list ap;
-  va_start(ap, format);
-  int ret= basestring_vsnprintf(str, size, format, ap);
-  va_end(ap);
-  return(ret);
+#endif
+int basestring_snprintf(char*, size_t, const char*, ...);
+int basestring_vsnprintf(char*,size_t, const char*,va_list);
+#if defined(__cplusplus)
 }
-
-int
-basestring_vsnprintf(char *str, size_t size, const char *format, va_list ap)
-{
-  return(vsnprintf(str, size, format, ap));
-}
+#endif
+#endif

@@ -131,6 +131,7 @@ int num_args = sizeof(args) / sizeof(args[0]);
  */
 NDB_MAIN(mgmsrv){
   ndb_init();
+
   /**
    * OSE specific. Enable shared ownership of file system resources. 
    * This is needed in order to use the cluster log since the events 
@@ -266,12 +267,12 @@ NDB_MAIN(mgmsrv){
   mapi->setMgm(glob.mgmObject);
 
   char msg[256];
-  snprintf(msg, sizeof(msg),
+  BaseString::snprintf(msg, sizeof(msg),
 	   "NDB Cluster Management Server. %s", NDB_VERSION_STRING);
   ndbout_c(msg);
   g_EventLogger.info(msg);
 
-  snprintf(msg, 256, "Id: %d, Command port: %d",
+  BaseString::snprintf(msg, 256, "Id: %d, Command port: %d",
 	   glob.localNodeId, glob.port);
   ndbout_c(msg);
   g_EventLogger.info(msg);

@@ -135,42 +135,42 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
   jamEntry();
   switch (sysErr->errorCode){
   case SystemError::StartInProgressError:    
-    snprintf(buf, sizeof(buf), 
+    BaseString::snprintf(buf, sizeof(buf), 
 	     "Node %d killed this node because "
 	     "master start in progress error",     
 	     killingNode);
     break;
 
   case SystemError::GCPStopDetected:
-    snprintf(buf, sizeof(buf), 
+    BaseString::snprintf(buf, sizeof(buf), 
 	     "Node %d killed this node because "
 	     "GCP stop was detected",     
 	     killingNode);
     break;
 
   case SystemError::ScanfragTimeout:
-    snprintf(buf, sizeof(buf), 
+    BaseString::snprintf(buf, sizeof(buf), 
 	     "Node %d killed this node because "
 	     "a fragment scan timed out and could not be stopped",     
 	     killingNode);
     break;
 
   case SystemError::ScanfragStateError:
-    snprintf(buf, sizeof(buf), 
+    BaseString::snprintf(buf, sizeof(buf), 
 	     "Node %d killed this node because "
 	     "the state of a fragment scan was out of sync.",     
 	     killingNode);
     break;
 
   case SystemError::CopyFragRefError:
-    snprintf(buf, sizeof(buf), 
+    BaseString::snprintf(buf, sizeof(buf), 
 	     "Node %d killed this node because "
 	     "it could not copy a fragment during node restart",     
 	     killingNode);
     break;
 
   default:
-    snprintf(buf, sizeof(buf), "System error %d, "
+    BaseString::snprintf(buf, sizeof(buf), "System error %d, "
 	     " this node was killed by node %d", 
 	     sysErr->errorCode, killingNode);
     break;

@@ -17,10 +17,7 @@
 /* -*- c-basic-offset: 4; -*- */
 #include <ndb_global.h>
 #include <BaseString.hpp>
-
-extern "C"
-int
-basestring_vsnprintf(char *str, size_t size, const char *format, va_list ap);
+#include <basestring_vsnprintf.h>
 
 BaseString::BaseString()
 {

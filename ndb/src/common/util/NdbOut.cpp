@@ -102,7 +102,7 @@ NdbOut::print(const char * fmt, ...){
   
   va_start(ap, fmt);
   if (fmt != 0)
-    vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+    BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   ndbout << buf;
   va_end(ap);
 }
@@ -114,7 +114,7 @@ NdbOut::println(const char * fmt, ...){
   
   va_start(ap, fmt);
   if (fmt != 0)
-    vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+    BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   ndbout << buf << endl;
   va_end(ap);
 }
@@ -127,7 +127,7 @@ ndbout_c(const char * fmt, ...){
   
   va_start(ap, fmt);
   if (fmt != 0)
-    vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+    BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   ndbout << buf << endl;
   va_end(ap);
 }

@@ -150,7 +150,7 @@ int create_index(NDBT_Context* ctx, int indxNum,
   }
 
   // Create index    
-  snprintf(idxName, 255, "IDC%d", indxNum);
+  BaseString::snprintf(idxName, 255, "IDC%d", indxNum);
   if (orderedIndex)
     ndbout << "Creating " << ((logged)?"logged ": "temporary ") << "ordered index "<<idxName << " (";
   else
@@ -194,7 +194,7 @@ int drop_index(int indxNum, Ndb* pNdb,
   if (attr->indexCreated == false)
     return NDBT_OK;	
 
-  snprintf(idxName, 255, "IDC%d", indxNum);
+  BaseString::snprintf(idxName, 255, "IDC%d", indxNum);
   
   // Drop index
   ndbout << "Dropping index "<<idxName<<"(" << pTab->getName() << ") ";
@@ -284,7 +284,7 @@ int createRandomIndex_Drop(NDBT_Context* ctx, NDBT_Step* step){
 
   Uint32 i = ctx->getProperty("createRandomIndex");
   
-  snprintf(idxName, 255, "IDC%d", i);
+  BaseString::snprintf(idxName, 255, "IDC%d", i);
   
   // Drop index
   ndbout << "Dropping index " << idxName << " ";
@@ -309,7 +309,7 @@ int createPkIndex(NDBT_Context* ctx, NDBT_Step* step){
   bool logged = ctx->getProperty("LoggedIndexes", 1);
 
   // Create index    
-  snprintf(pkIdxName, 255, "IDC_PK_%s", pTab->getName());
+  BaseString::snprintf(pkIdxName, 255, "IDC_PK_%s", pTab->getName());
   if (orderedIndex)
     ndbout << "Creating " << ((logged)?"logged ": "temporary ") << "ordered index "
 	   << pkIdxName << " (";
@@ -1068,7 +1068,7 @@ runUniqueNullTransactions(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table* pTab = ctx->getTab();
   // Create index    
   char nullIndex[255];
-  snprintf(nullIndex, 255, "IDC_PK_%s_NULL", pTab->getName());
+  BaseString::snprintf(nullIndex, 255, "IDC_PK_%s_NULL", pTab->getName());
   if (orderedIndex)
     ndbout << "Creating " << ((logged)?"logged ": "temporary ") << "ordered index "
 	   << pkIdxName << " (";

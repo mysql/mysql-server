@@ -143,7 +143,7 @@ NdbBackup::execRestore(bool _restore_data,
    * Copy  backup files to local dir
    */ 
 
-  snprintf(buf, buf_len,
+  BaseString::snprintf(buf, buf_len,
 	   "scp %s:%s/BACKUP/BACKUP-%d/BACKUP-%d*.%d.* .",
 	   host, path,
 	   _backup_id,
@@ -155,7 +155,7 @@ NdbBackup::execRestore(bool _restore_data,
   
   ndbout << "scp res: " << res << endl;
   
-  snprintf(buf, 255, "%sndb_restore -c \"host=%s\" -n %d -b %d %s %s .", 
+  BaseString::snprintf(buf, 255, "%sndb_restore -c \"host=%s\" -n %d -b %d %s %s .", 
 #if 1
 	   "",
 #else

@@ -38,7 +38,7 @@ fatal(char const* fmt, ...)
     va_list ap;
     char buf[500];
     va_start(ap, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, ap);
+    BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
     ndbout << buf;
     if (ndb)
@@ -54,7 +54,7 @@ fatal_dict(char const* fmt, ...)
     va_list ap;
     char buf[500];
     va_start(ap, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, ap);
+    BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
     ndbout << buf;
     if (dic)

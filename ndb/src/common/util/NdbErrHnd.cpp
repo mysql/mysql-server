@@ -359,13 +359,13 @@ extern "C" OSBOOLEAN ndb_err_hnd(bool user_called,
             "An Error has been reported:\r\n");
   
   if (user_called == (OSBOOLEAN) 0 ) {
-    snprintf(error_message.user_called_line,
+    BaseString::snprintf(error_message.user_called_line,
              BUFSIZE,
              "user_called:      0x%x (Error detected by the kernel)\r\n",
              user_called);
   }
   else {
-    snprintf(error_message.user_called_line,
+    BaseString::snprintf(error_message.user_called_line,
              BUFSIZE,
              "user_called:      0x%x (Error detected by an application)\r\n",
              user_called);
@@ -401,22 +401,22 @@ extern "C" OSBOOLEAN ndb_err_hnd(bool user_called,
     struct OS_pcb *pcb = get_pcb(current_process());
     const char *process_name = &pcb->strings[pcb->name];
       
-    snprintf(error_message.current_process_id_line,
+    BaseString::snprintf(error_message.current_process_id_line,
              BUFSIZE,
              "Current Process:  0x%08x\r\n",
              current_process());
       
-    snprintf(error_message.current_process_name_line,
+    BaseString::snprintf(error_message.current_process_name_line,
              BUFSIZE,
              "Process Name:     %s\r\n",
              process_name);
       
-    snprintf(error_message.file_line,
+    BaseString::snprintf(error_message.file_line,
              BUFSIZE,
              "File:             %s\r\n",
              &pcb->strings[pcb->file]);
       
-    snprintf(error_message.line_line,
+    BaseString::snprintf(error_message.line_line,
              BUFSIZE,
              "Line:             %d\r\n",
              pcb->line);
@@ -452,7 +452,7 @@ extern "C" OSBOOLEAN ndb_err_hnd(bool user_called,
           char *expr = ((char **)extra)[0];
           char *file = ((char **)extra)[1];
           unsigned line = ((unsigned *)extra)[2];
-          snprintf(assert_line, BUFSIZE, "Assertion Failed: %s:%u: %s\r\n", file, line, expr);
+          BaseString::snprintf(assert_line, BUFSIZE, "Assertion Failed: %s:%u: %s\r\n", file, line, expr);
           ndbout << assert_line;
         }
       }
@@ -467,13 +467,13 @@ extern "C" OSBOOLEAN ndb_err_hnd(bool user_called,
         const char *rcv_name = &rcv->strings[rcv->name];
         struct OS_pcb *snd = get_pcb(snd_);
         const char *snd_name = &snd->strings[snd->name];
-        snprintf(unknown_signal_line, BUFSIZE, 
+        BaseString::snprintf(unknown_signal_line, BUFSIZE, 
                  "Unknown Signal Received\r\n");
-        snprintf(unknown_signal_line, BUFSIZE, 
+        BaseString::snprintf(unknown_signal_line, BUFSIZE, 
                  "Signal Number: 0x%08lx\r\n", signo);
-        snprintf(unknown_signal_line, BUFSIZE, 
+        BaseString::snprintf(unknown_signal_line, BUFSIZE, 
                  "Sending Process: 0x%08lx (%s))\r\n", snd_, snd_name);
-        snprintf(unknown_signal_line, BUFSIZE, 
+        BaseString::snprintf(unknown_signal_line, BUFSIZE, 
                  "Receiving Process: 0x%08lx (%s))\r\n", rcv_, rcv_name);
         free_buf((union SIGNAL **)&rcv);
         free_buf((union SIGNAL **)&snd);          }

@@ -160,12 +160,12 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
     theLastTupleId[i] = 0;
   }//for
   
-  snprintf(theDataBase, sizeof(theDataBase), "%s",
+  BaseString::snprintf(theDataBase, sizeof(theDataBase), "%s",
            aDataBase ? aDataBase : "");
-  snprintf(theDataBaseSchema, sizeof(theDataBaseSchema), "%s",
+  BaseString::snprintf(theDataBaseSchema, sizeof(theDataBaseSchema), "%s",
 	   aSchema ? aSchema : "");
 
-  int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
+  int len = BaseString::snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
                      theDataBase, table_name_separator,
                      theDataBaseSchema, table_name_separator);
   prefixEnd = prefixName + (len < (int) sizeof(prefixName) ? len : 

@@ -140,7 +140,7 @@ CPCD::Process::readPid() {
 
   memset(buf, 0, sizeof(buf));
   
-  snprintf(filename, sizeof(filename), "%d", m_id);
+  BaseString::snprintf(filename, sizeof(filename), "%d", m_id);
   
   f = fopen(filename, "r");
   
@@ -167,8 +167,8 @@ CPCD::Process::writePid(int pid) {
   char filename[PATH_MAX*2+1];
   FILE *f;
 
-  snprintf(tmpfilename, sizeof(tmpfilename), "tmp.XXXXXX");
-  snprintf(filename, sizeof(filename), "%d", m_id);
+  BaseString::snprintf(tmpfilename, sizeof(tmpfilename), "tmp.XXXXXX");
+  BaseString::snprintf(filename, sizeof(filename), "%d", m_id);
   
   int fd = mkstemp(tmpfilename);
   if(fd < 0) {
@@ -439,7 +439,7 @@ void
 CPCD::Process::stop() {
 
   char filename[PATH_MAX*2+1];
-  snprintf(filename, sizeof(filename), "%d", m_id);
+  BaseString::snprintf(filename, sizeof(filename), "%d", m_id);
   unlink(filename);
   
   if(m_pid <= 1){
