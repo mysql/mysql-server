@@ -3013,7 +3013,7 @@ struct show_var_st init_vars[]= {
   {"innodb_file_io_threads", (char*) &innobase_file_io_threads, SHOW_LONG },
   {"innodb_force_recovery", (char*) &innobase_force_recovery, SHOW_LONG },
   {"innodb_thread_concurrency", (char*) &innobase_thread_concurrency, SHOW_LONG },
-  {"innodb_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_MY_BOOL},
+  {"innodb_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_LONG},
   {"innodb_fast_shutdown", (char*) &innobase_fast_shutdown, SHOW_MY_BOOL},
   {"innodb_flush_method",    (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
   {"innodb_lock_wait_timeout", (char*) &innobase_lock_wait_timeout, SHOW_LONG },
@@ -3995,7 +3995,7 @@ static void get_options(int argc,char **argv)
       innobase_log_archive= optarg ? test(atoi(optarg)) : 1;
       break;
     case OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT:
-      innobase_flush_log_at_trx_commit= optarg ? test(atoi(optarg)) : 1;
+      innobase_flush_log_at_trx_commit= optarg ? atoi(optarg) : 1;
       break;
     case OPT_INNODB_FAST_SHUTDOWN:
       innobase_fast_shutdown= optarg ? test(atoi(optarg)) : 1;
