@@ -166,6 +166,8 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   char  *data_file_name,		/* Resolved path names from symlinks */
         *index_file_name;
   byte *file_map;			/* mem-map of file if possible */
+  KEY_CACHE_HANDLE *keycache;           /* ref to the current key cache */
+  KEY_CACHE_HANDLE *reg_keycache;       /* ref to the registered key cache */
   MI_DECODE_TREE *decode_trees;
   uint16 *decode_tables;
   int (*read_record)(struct st_myisam_info*, my_off_t, byte*);

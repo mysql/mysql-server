@@ -411,7 +411,7 @@ int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows);
 void mi_flush_bulk_insert(MI_INFO *info, uint inx);
 void mi_end_bulk_insert(MI_INFO *info);
 int mi_assign_to_keycache(MI_INFO *info, ulonglong key_map,
-                          char *keycache_name);
+                          KEY_CACHE_HANDLE *reg_keycache);
 int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves);
 
 #ifdef	__cplusplus
