@@ -3444,21 +3444,18 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   ulong save_sql_mode;
   DBUG_ENTER("copy_data_between_tables");
 
-  if (!(copy= new Copy_field[to->fields]))
-    DBUG_RETURN(-1);				/* purecov: inspected */
-
   /*
     Turn off recovery logging since rollback of an alter table is to
     delete the new table so there is no need to log the changes to it.
     
     This needs to be done before external_lock
   */
-  error= ha_enable_transaction(thd,FALSE);
+  error= ha_enable_transaction(thd, FALSE);
   if (error)
-  {
     DBUG_RETURN(-1);
-  }
-
+  
+  if (!(copy= new Copy_field[to->fields]))
+    DBUG_RETURN(-1);				/* purecov: inspected */
 
   if (to->file->external_lock(thd, F_WRLCK))
     DBUG_RETURN(-1);
