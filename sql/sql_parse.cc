@@ -3043,8 +3043,8 @@ static void remove_escape(char *name)
 #ifdef USE_MB
     int l;
 /*    if ((l = ismbchar(name, name+MBMAXLEN))) { Wei He: I think it's wrong */
-    if (use_mb(default_charset_info) &&
-        (l = my_ismbchar(default_charset_info, name, strend)))
+    if (use_mb(system_charset_info) &&
+        (l = my_ismbchar(system_charset_info, name, strend)))
     {
 	while (l--)
 	    *to++ = *name++;
