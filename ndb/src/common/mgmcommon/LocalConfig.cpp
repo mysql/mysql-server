@@ -169,6 +169,7 @@ LocalConfig::parseHostName(const char * buf){
       mgmtSrvrId.type = MgmId_TCP;
       mgmtSrvrId.name.assign(tempString);
       mgmtSrvrId.port = port;
+      printf("LocalConfig::parseHostName %d %s\n", port, tempString);
       ids.push_back(mgmtSrvrId);
       return true;
     }
@@ -200,9 +201,8 @@ LocalConfig::parseString(const char * connectString, char *line){
   bool b_nodeId = false;
   bool found_other = false;
 
-  for (char *tok = strtok_r(copy,";",&for_strtok); tok != 0;
-       tok = strtok_r(NULL, ";", &for_strtok)) {
-
+  for (char *tok = strtok_r(copy,";,",&for_strtok); tok != 0;
+       tok = strtok_r(NULL, ";,", &for_strtok)) {
     if (tok[0] == '#') continue;
 
     if (!b_nodeId) // only one nodeid definition allowed
