@@ -41862,12 +41862,11 @@ None.
 
 You should use @code{mysql_real_escape_string()} instead!
 
-This is identical to @code{mysql_real_escape_string()} except that it
-takes the connection as the first
-argument. @code{mysql_real_escape_string()} will escape the string
-according to the current character set while
-@code{mysql_escape_string()} does not respect the current charset
-setting.
+This function is identical to @code{mysql_real_escape_string()} except
+that @code{mysql_real_escape_string()} takes a connection handler as
+its first argument and escapes the string according to the current
+character set.  @code{mysql_escape_string()} does not take a connection
+argument and does not respect the current charset setting.
 
 
 @node mysql_fetch_field, mysql_fetch_fields, mysql_escape_string, C API functions
@@ -43486,6 +43485,8 @@ threaded client. @xref{Threaded clients}.
 
 @findex @code{my_init()}
 
+@code{void my_init(void)}
+
 @subsubheading Description
 
 This function needs to be called once in the program before calling any
@@ -43498,12 +43499,14 @@ This is automatically called by @code{mysql_init()},
 
 @subsubheading Return Values
 
-none.
+None.
 
 @node mysql_thread_init, mysql_thread_end, my_init, C Thread functions
 @subsubsection @code{mysql_thread_init()}
 
 @findex @code{mysql_thread_init()}
+
+@code{my_bool mysql_thread_init(void)}
 
 @subsubheading Description
 
@@ -43514,12 +43517,14 @@ This is automatically called by @code{my_init()} and @code{mysql_connect()}.
 
 @subsubheading Return Values
 
-none.
+None.
 
 @node mysql_thread_end,  , mysql_thread_init, C Thread functions
 @subsubsection @code{mysql_thread_end()}
 
 @findex @code{mysql_thread_end()}
+
+@code{void mysql_thread_end(void)}
 
 @subsubheading Description
 
@@ -43531,7 +43536,7 @@ library.  It must be called explicitly to avoid a memory leak.
 
 @subsubheading Return Values
 
-none.
+None.
 
 @node C Embedded Server func, C API problems, C Thread functions, C
 @subsection C Embedded Server Function Descriptions
@@ -43617,6 +43622,8 @@ int main(void) @{
 
 @findex @code{mysql_server_end()}
 
+@code{void mysql_server_end(void)}
+
 @subsubheading Description
 
 This function @strong{must} be called once in the program after
@@ -43624,7 +43631,7 @@ all other MySQL functions.  It shuts down the embedded server.
 
 @subsubheading Return Values
 
-none.
+None.
 
 @node C API problems, Building clients, C Embedded Server func, C
 @subsection Common questions and problems when using the C API
