@@ -39,12 +39,12 @@
    It is also possible to receive "events" triggered when data in the database in changed.
    This is done through the NdbEventOperation class.
 
-   There are also some auxiliary classes, which are listed in the @ref hierarchy.
+   There are also some auxiliary classes, which are listed in the class hierarchy.
      
    The main structure of an application program is as follows:
-   -# Construct and connect to a cluster using the Ndb_cluster_connection
+   -# Connect to a cluster using the Ndb_cluster_connection
       object.
-   -#  initiate a database connection by constructing and initialising one or more Ndb objects.
+   -# Initiate a database connection by constructing and initialising one or more Ndb objects.
    -# Define and execute transactions using the NdbTransaction class.
    -# Delete Ndb objects.
    -# Terminate the connection to the cluster (terminate instance of Ndb_cluster_connection).
@@ -68,8 +68,6 @@
    immediately committed. The transaction <em>must</em> be closed after it has been 
    commited (event if commit fails), and no further addition or definition of 
    operations for this transaction is allowed.
-
-  @c STOP POINT -- js
 
    @section secSync                     Synchronous Transactions
   
@@ -95,12 +93,12 @@
 
    To execute several parallel synchronous transactions, one can either 
    use multiple Ndb objects in several threads, or start multiple 
-   applications programs.  
+   application programs.  
 
    @section secNdbOperations            Operations
 
-   Each NdbTransaction consists of a list of operations which are represented 
-   by instances of NdbOperation, NdbScanOperation, NdbIndexOperation, and/or
+   Each NdbTransaction consists of a list of operations, each of which is represented 
+   by an instance of NdbOperation, NdbScanOperation, NdbIndexOperation, or
    NdbIndexScanOperation.
 
    <h3>Single row operations</h3>
@@ -112,7 +110,7 @@
    -# Specify attribute actions, using NdbOperation::getValue()
 
    Here are two brief examples illustrating this process. For the sake of 
-   brevity, we omit error-handling.
+   brevity, we omit error handling.
    
    This first example uses an NdbOperation:
    @code
@@ -151,17 +149,17 @@
    creation and use of synchronous transactions.
 
    <h4>Step 1: Define single row operation type</h4>
-   The following types of operations exist:
-    -# NdbOperation::insertTuple : 
+   The following operation types are supported:
+    -# NdbOperation::insertTuple() : 
        inserts a non-existing tuple
-    -# NdbOperation::writeTuple : 
+    -# NdbOperation::writeTuple() : 
        updates an existing tuple if is exists,
        otherwise inserts a new tuple
-    -# NdbOperation::updateTuple : 
+    -# NdbOperation::updateTuple() : 
        updates an existing tuple
-    -# NdbOperation::deleteTuple : 
+    -# NdbOperation::deleteTuple() : 
        deletes an existing tuple
-    -# NdbOperation::readTuple : 
+    -# NdbOperation::readTuple() : 
        reads an existing tuple with specified lock mode
 
    All of these operations operate on the unique tuple key.
@@ -173,20 +171,22 @@
 	 NdbTransaction::getNdbIndexOperation() for each operation.
 
    <h4>Step 2: Specify Search Conditions</h4>
-   The search condition is used to select tuples using NdbOperation::equal()
+   The search condition is used to select tuples. Search conditions are set using NdbOperation::equal().
 
    <h4>Step 3: Specify Attribute Actions</h4>
-   Now it is time to define which attributes should be read or updated.
-   Deletes can neither read nor set values, read can only read values and
-   updates can only set values.
-   Normally the attribute is defined by its name but it is
-   also possible to use the attribute identity to define the
+   Next, it is necessary to determine which attributes should be read or updated.
+   It is important to remember that: 
+   - Deletes can neither read nor set values, but only delete them
+   - Reads can only read values
+   - Updates can only set values
+   Normally the attribute is identified by name, but it is
+   also possible to use the attribute's identity to determine the
    attribute.
 
    NdbOperation::getValue() returns an NdbRecAttr object
    containing the read value.
-   To get the value, there is actually two methods.
-   The application can either
+   To obtain the actual value, one of two methods can be used;
+   the application can either
    - use its own memory (passed through a pointer aValue) to
      NdbOperation::getValue(), or
    - receive the attribute value in an NdbRecAttr object allocated
@@ -194,28 +194,28 @@
 
    The NdbRecAttr object is released when Ndb::closeTransaction()
    is called.
-   Thus, the application can not reference this object after
-   Ndb::closeTransaction() have been called.
-   The result of reading data from an NdbRecAttr object before
-   calling NdbTransaction::execute() is undefined.
+   Thus, the application cannot reference this object following
+   any subsequent call to Ndb::closeTransaction().
+   Attempting to read data from an NdbRecAttr object before
+   calling NdbTransaction::execute() yields an undefined result.
 
 
    @subsection secScan              Scan Operations 
    
-   Scans are roughly the equivalent of SQL cursors.
+   Scans are roughly the equivalent of SQL cursors, providing a means to
+   preform high-speed row processing. A scan can be performed 
+   on either a table (using @ref NdbScanOperation) or 
+   an ordered index (by means of an @ref NdbIndexScanOperation).
 
-   Scans can either be performed on a table (@ref NdbScanOperation) or 
-   on an ordered index (@ref NdbIndexScanOperation).
-
-   Scan operation are characteriesed by the following:
-   - They can only perform reads (shared, exclusive or dirty)
+   Scan operations are characterised by the following:
+   - They can perform only reads (shared, exclusive or dirty)
    - They can potentially work with multiple rows
    - They can be used to update or delete multiple rows
-   - They can operate on several nodes in parallell
+   - They can operate on several nodes in parallel
 
    After the operation is created using NdbTransaction::getNdbScanOperation()
    (or NdbTransaction::getNdbIndexScanOperation()), 
-   it is defined in the following three steps:
+   it is carried out in the following three steps:
    -# Define the standard operation type, using NdbScanOperation::readTuples()
    -# Specify search conditions, using @ref NdbScanFilter and/or 
       @ref NdbIndexScanOperation::setBound()
@@ -223,10 +223,10 @@
    -# Executing the transaction, using NdbTransaction::execute()
    -# Iterating through the result set using NdbScanOperation::nextResult()
 
-   Here are two brief examples illustrating this process. For the sake of 
-   brevity, we omit error-handling.
+   Here are two brief examples illustrating this process. Once again, in order
+   to keep things relatively short and simple, we will forego any error handling.
    
-   This first example uses an NdbScanOperation:
+   This first example performs a table scan, using an NdbScanOperation:
    @code
      // 1. Create
      MyOperation= MyTransaction->getNdbScanOperation("MYTABLENAME");
@@ -245,7 +245,7 @@
      MyRecAttr= MyOperation->getValue("ATTR2", NULL);
    @endcode
 
-   The second example uses an NdbIndexScanOperation:
+   Our second example uses an NdbIndexScanOperation to perform an index scan:
    @code
      // 1. Create
      MyOperation= MyTransaction->getNdbIndexScanOperation("MYORDEREDINDEX", "MYTABLENAME");
@@ -262,77 +262,67 @@
      MyRecAttr = MyOperation->getValue("ATTR2", NULL);
    @endcode
 
+   Some additional discussion of each step required to perform a scan follows:
+
    <h4>Step 1: Define scan operation operation type</h4>
-   Scan operations only support 1 operation, 
-   @ref NdbScanOperation::readTuples() 
-   or @ref NdbIndexScanOperation::readTuples()
+   It is important to remember that only a single operation is supported for each scan operation 
+   (@ref NdbScanOperation::readTuples() or @ref NdbIndexScanOperation::readTuples()).
 
    @note If you want to define multiple scan operations within the same 
          transaction, then you need to call 
 	 NdbTransaction::getNdbScanOperation() or 
-	 NdbTransaction::getNdbIndexScanOperation() for each operation.
+	 NdbTransaction::getNdbIndexScanOperation() separately for <b>each</b> operation.
 
    <h4>Step 2: Specify Search Conditions</h4>
    The search condition is used to select tuples.
    If no search condition is specified, the scan will return all rows
    in the table.
 
-   Search condition can be @ref NdbScanFilter which can be used on both
-   @ref NdbScanOperation and @ref NdbIndexScanOperation or bounds which
-   can only be used on index scans, @ref NdbIndexScanOperation::setBound.
-   An index scan can have both NdbScanFilter and bounds
+   The search condition can be an @ref NdbScanFilter (which can be used on both
+   @ref NdbScanOperation and @ref NdbIndexScanOperation) or bounds which
+   can only be used on index scans (@ref NdbIndexScanOperation::setBound()).
+   An index scan can use both NdbScanFilter and bounds.
 
-   @note When NdbScanFilter is used each row is examined but maybe not 
-   returned. But when using bounds, only rows within bounds will be examined.
+   @note When NdbScanFilter is used, each row is examined, whether or not it is
+   actually returned. However, when using bounds, only rows within the bounds will be examined.
 
    <h4>Step 3: Specify Attribute Actions</h4>
 
-   Now it is time to define which attributes should be read.
-   Normally the attribute is defined by its name but it is
-   also possible to use the attribute identity to define the
-   attribute.
+   Next, it is necessary to define which attributes should be read.
+   As with transaction attributes, scan attributes are defined by name but it is
+   also possible to use the attributes' identities to define attributes.
 
-   NdbOperation::getValue() returns an NdbRecAttr object
-   containing the read value.
-   To get the value, there is actually two methods.
-   The application can either
-   - use its own memory (passed through a pointer aValue) to
-     NdbOperation::getValue(), or
-   - receive the attribute value in an NdbRecAttr object allocated
-     by the NDB API.
+   As previously discussed (see @ref secSync), the value read is returned as an NdbRecAttr object by
+   the NdbOperation::getValue() method.
 
-   The NdbRecAttr object is released when Ndb::closeTransaction()
-   is called. Thus, the application can not reference this object after
-   Ndb::closeTransaction() have been called.
-   The result of reading data from an NdbRecAttr object before
-   calling NdbTransaction::execute() is undefined.
-
-   <h3> Using Scan to update/delete </h3>
-   Scanning can also be used to update/delete rows.
+   <h3>Using Scan to Update/Delete</h3>
+   Scanning can also be used to update or delete rows.
    This is performed by
-   -# Scan using exclusive locks, NdbOperation::LM_Exclusive
-   -# When iterating through the result set, for each row optionally call 
+   -# Scanning using exclusive locks (using NdbOperation::LM_Exclusive)
+   -# When iterating through the result set, for each row optionally calling 
       either NdbScanOperation::updateCurrentTuple() or 
       NdbScanOperation::deleteCurrentTuple()
-   -# If performing NdbScanOperation::updateCurrentTuple(), 
-      set new values on record using ordinary @ref NdbOperation::setValue().
-      NdbOperation::equal() should <em>not</em> be called as the primary 
-      key is retreived from the scan.
+   -# (If performing NdbScanOperation::updateCurrentTuple():) 
+      Setting new values for records simply by using @ref NdbOperation::setValue().
+      NdbOperation::equal() should <em>not</em> be called in such cases, as the primary 
+      key is retrieved from the scan.
 
-   @note that the actual update/delete will not be performed until next 
-   NdbTransaction::execute (as with single row operations), 
-   NdbTransaction::execute needs to be called before locks are released,
-     see @ref secScanLocks
+   @note The actual update or delete will not be performed until the next 
+   call to NdbTransaction::execute(), just as with single row operations. 
+   NdbTransaction::execute() also must be called before any locks are released;
+   see @ref secScanLocks for more information.
 
-   <h4> Index scans specific features </h4> 
-   The following features are available when performing an index scan
-   - Scan subset of table using @ref NdbIndexScanOperation::setBound()
-   - Ordering result set ascending or descending, 
-     @ref NdbIndexScanOperation::readTuples()
-   - When using NdbIndexScanOperation::BoundEQ on partition key 
-     only fragments containing rows will be scanned.
+   <h4>Features Specific to Index Scans</h4> 
    
-   Rows are returned unordered unless sorted is set to true.
+   When performing an index scan, it is possible to 
+   scan only a subset of a table using @ref NdbIndexScanOperation::setBound().
+   In addition, result sets can be sorted in either ascending or descending order, using
+   @ref NdbIndexScanOperation::readTuples(). Note that rows are returned unordered 
+   by default, that is, unless <code>sorted</code> is set to <var>true</var>.
+   IN addition, when using NdbIndexScanOperation::BoundEQ on a partition key, 
+   only fragments containing rows will actually be scanned.
+   
+   @comment STOP POINT 20050108 13.35 GMT JS
 
    @note When performing sorted scan, parameter parallelism to 
    NdbIndexScanOperation::readTuples() will
