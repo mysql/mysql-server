@@ -20,9 +20,11 @@ pkginclude_HEADERS =	readline/readline.h
 
 noinst_HEADERS =	chared.h el.h histedit.h key.h \
 			parse.h refresh.h sig.h sys.h \
-			tokenizer.h compat.h fgetln.h \
+			tokenizer.h compat.h compat_conf.h fgetln.h \
 			hist.h map.h prompt.h search.h \
 			strlcpy.h term.h tty.h
+
+EXTRA_DIST = makelist
 
 DEFS =			-DUNDEF_THREADS_HACK -DHAVE_CONFIG_H -DNO_KILL_INTR
 
