@@ -155,11 +155,13 @@ bool foreign_key_prefix(Key *a, Key *b)
 ** Thread specific functions
 ****************************************************************************/
 
-THD::THD():user_time(0), current_arena(this), is_fatal_error(0),
-	   last_insert_id_used(0),
-           insert_id_used(0), rand_used(0), time_zone_used(0),
-           in_lock_tables(0), global_read_lock(0), bootstrap(0)
+THD::THD()
+  :user_time(0), global_read_lock(0), is_fatal_error(0),
+   last_insert_id_used(0),
+   insert_id_used(0), rand_used(0), time_zone_used(0),
+   in_lock_tables(0), bootstrap(0)
 {
+  current_arena= this;
   host= user= priv_user= db= ip=0;
   host_or_ip= "connecting host";
   locked=some_tables_deleted=no_errors=password= 0;
@@ -439,10 +441,13 @@ void THD::awake(bool prepare_to_die)
       it is the true value but maybe current_mutex is not yet non-zero (we're
       in the middle of enter_cond() and there is a "memory order
       inversion"). So we test the mutex too to not lock 0.
+
       Note that there is a small chance we fail to kill. If victim has locked
-      current_mutex, and hasn't entered enter_cond(), then we don't know it's
-      going to wait on cond. Then victim goes into its cond "forever" (until
-      we issue a second KILL). True we have set its thd->killed but it may not
+      current_mutex, but hasn't yet entered enter_cond() (which means that
+      current_cond and current_mutex are 0), then the victim will not get
+      a signal and it may wait "forever" on the cond (until
+      we issue a second KILL or the status it's waiting for happens).
+      It's true that we have set its thd->killed but it may not
       see it immediately and so may have time to reach the cond_wait().
     */
     if (mysys_var->current_cond && mysys_var->current_mutex)
@@ -703,6 +708,12 @@ void select_result::send_error(uint errcode,const char *err)
   ::send_error(thd, errcode, err);
 }
 
+
+void select_result::cleanup()
+{
+  /* do nothing */
+}
+
 static String default_line_term("\n",default_charset_info);
 static String default_escaped("\\",default_charset_info);
 static String default_field_term("\t",default_charset_info);
@@ -805,6 +816,32 @@ void select_to_file::send_error(uint errcode,const char *err)
     (void) my_delete(path,MYF(0));		// Delete file on error
     file= -1;
   }
+}
+
+
+bool select_to_file::send_eof()
+{
+  int error= test(end_io_cache(&cache));
+  if (my_close(file,MYF(MY_WME)))
+    error= 1;
+  if (!error)
+    ::send_ok(thd,row_count);
+  file= -1;
+  return error;
+}
+
+
+void select_to_file::cleanup()
+{
+  /* In case of error send_eof() may be not called: close the file here. */
+  if (file >= 0)
+  {
+    (void) end_io_cache(&cache);
+    (void) my_close(file,MYF(0));
+    file= -1;
+  }
+  path[0]= '\0';
+  row_count= 0;
 }
 
 
@@ -1058,18 +1095,6 @@ err:
 }
 
 
-bool select_export::send_eof()
-{
-  int error=test(end_io_cache(&cache));
-  if (my_close(file,MYF(MY_WME)))
-    error=1;
-  if (!error)
-    ::send_ok(thd,row_count);
-  file= -1;
-  return error;
-}
-
-
 /***************************************************************************
 ** Dump  of select to a binary file
 ***************************************************************************/
@@ -1120,18 +1145,6 @@ bool select_dump::send_data(List<Item> &items)
   DBUG_RETURN(0);
 err:
   DBUG_RETURN(1);
-}
-
-
-bool select_dump::send_eof()
-{
-  int error=test(end_io_cache(&cache));
-  if (my_close(file,MYF(MY_WME)))
-    error=1;
-  if (!error)
-    ::send_ok(thd,row_count);
-  file= -1;
-  return error;
 }
 
 
@@ -1301,6 +1314,13 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 }
 
 
+void select_dumpvar::cleanup()
+{
+  vars.empty();
+  row_count=0;
+}
+
+
 Item_arena::Item_arena(THD* thd)
   :free_list(0),
   state((int)INITIALIZED)
@@ -1402,6 +1422,21 @@ void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
 {
   stmt->set_statement(this);
   set_statement(backup);
+}
+
+
+void Statement::end_statement()
+{
+  /* Cleanup SQL processing state to resuse this statement in next query. */
+  lex_end(lex);
+  delete lex->result;
+  lex->result= 0;
+  free_items(free_list);
+  free_list= 0;
+  /*
+    Don't free mem_root, as mem_root is freed in the end of dispatch_command
+    (once for any command).
+  */
 }
 
 

@@ -3,8 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t1;
-drop table if exists t2;
+drop table if exists t1,t2;
 --enable_warnings
 set names utf8;
 
@@ -294,6 +293,30 @@ select c as c_a from t1 where c='a';
 select c as c_a from t1 where c='б';
 drop table t1;
 
+#
+# Bug 4531: unique key prefix interacts poorly with utf8
+# Check BDB, case insensitive collation
+#
+--disable_warnings
+create table t1 (
+c char(10) character set utf8,
+unique key a (c(1))
+) engine=bdb;
+--enable_warnings
+insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
+--error 1062
+insert into t1 values ('aa');
+--error 1062
+insert into t1 values ('aaa');
+insert into t1 values ('б');
+--error 1062
+insert into t1 values ('бб');
+--error 1062
+insert into t1 values ('ббб');
+select c as c_all from t1 order by c;
+select c as c_a from t1 where c='a';
+select c as c_a from t1 where c='б';
+drop table t1;
 
 #
 # Bug 4521: unique key prefix interacts poorly with utf8
@@ -393,6 +416,31 @@ select c as c_a from t1 where c='a';
 select c as c_a from t1 where c='б';
 drop table t1;
 
+#
+# Bug 4531: unique key prefix interacts poorly with utf8
+# Check BDB, binary collation
+#
+--disable_warnings
+create table t1 (
+c char(10) character set utf8 collate utf8_bin,
+unique key a (c(1))
+) engine=bdb;
+--enable_warnings
+insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
+--error 1062
+insert into t1 values ('aa');
+--error 1062
+insert into t1 values ('aaa');
+insert into t1 values ('б');
+--error 1062
+insert into t1 values ('бб');
+--error 1062
+insert into t1 values ('ббб');
+select c as c_all from t1 order by c;
+select c as c_a from t1 where c='a';
+select c as c_a from t1 where c='б';
+drop table t1;
+
 
 # Bug#4594: column index make = failed for gbk, but like works
 # Check MYISAM
@@ -429,3 +477,18 @@ INSERT INTO t1 VALUES ('str');
 INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
 drop table t1;
+
+# the same for BDB
+#
+
+--disable_warnings
+create table t1 (
+  str varchar(255) character set utf8 not null,
+  key str (str(2))
+) engine=bdb;
+--enable_warnings
+INSERT INTO t1 VALUES ('str');
+INSERT INTO t1 VALUES ('str2');
+select * from t1 where str='str';
+drop table t1;
+

@@ -1,4 +1,4 @@
-/*	$NetBSD: sig.c,v 1.8 2001/01/09 17:31:04 jdolecek Exp $	*/
+/*	$NetBSD: sig.c,v 1.10 2003/03/10 00:58:05 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -36,14 +36,20 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "config.h"
+#if !defined(lint) && !defined(SCCSID)
+#if 0
+static char sccsid[] = "@(#)sig.c	8.1 (Berkeley) 6/4/93";
+#else
+__RCSID("$NetBSD: sig.c,v 1.10 2003/03/10 00:58:05 christos Exp $");
+#endif
+#endif /* not lint && not SCCSID */
 
 /*
  * sig.c: Signal handling stuff.
  *	  our policy is to trap all signals, set a good state
  *	  and pass the ball to our caller.
  */
-#include "sys.h"
 #include "el.h"
 #include <stdlib.h>
 
@@ -115,9 +121,9 @@ sig_init(EditLine *el)
 #undef	_DO
 	    (void) sigprocmask(SIG_BLOCK, &nset, &oset);
 
-#define	SIGSIZE (sizeof(sighdl) / sizeof(sighdl[0]) * sizeof(libedit_sig_t))
+#define	SIGSIZE (sizeof(sighdl) / sizeof(sighdl[0]) * sizeof(el_signalhandler_t))
 
-	el->el_signal = (el_signal_t) el_malloc(SIGSIZE);
+	el->el_signal = (el_signalhandler_t *) el_malloc(SIGSIZE);
 	if (el->el_signal == NULL)
 		return (-1);
 	for (i = 0; sighdl[i] != -1; i++)
@@ -157,7 +163,7 @@ sig_set(EditLine *el)
 	    (void) sigprocmask(SIG_BLOCK, &nset, &oset);
 
 	for (i = 0; sighdl[i] != -1; i++) {
-		libedit_sig_t s;
+		el_signalhandler_t s;
 		/* This could happen if we get interrupted */
 		if ((s = signal(sighdl[i], sig_handler)) != sig_handler)
 			el->el_signal[i] = s;

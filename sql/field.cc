@@ -1753,7 +1753,7 @@ void Field_medium::sql_type(String &res) const
 int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   long tmp;
-  int error= 0, cuted_fields= 0;
+  int error= 0;
   char *end;
   
   tmp= cs->cset->scan(cs, from, from+len, MY_SEQ_SPACES);
@@ -1781,7 +1781,7 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
 #if SIZEOF_LONG > 4
   if (unsigned_flag)
   {
-    if (tmp > UINT_MAX32)
+    if ((ulong) tmp > UINT_MAX32)
     {
       tmp= UINT_MAX32;
       error= 1;
@@ -4277,27 +4277,17 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
 
 int Field_str::store(double nr)
 {
-  bool use_scientific_notation=TRUE;
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
   uint length;
-  if (field_length < 32 && nr > 1) // TODO: negative numbers
-  {
-    if (ceiling == 0)
-    {
-      static double e[]= {1e1, 1e2, 1e4, 1e8, 1e16 };
-      double p= 1;
-      for (int i= sizeof(e)/sizeof(e[0]), j= 1<<i ; j; i--,  j>>= 1 )
-      {
-        if (field_length & j)
-          p*= e[i];
-      }
-      ceiling= p-1;
-    }
-    use_scientific_notation= (ceiling < nr);
-  }
-  length= (uint)sprintf(buff, "%-.*g",
-              use_scientific_notation ? max(0,(int)field_length-5) : field_length,
-              nr);
+  bool use_scientific_notation= TRUE;
+  use_scientific_notation= TRUE;
+if (field_length < 32 && fabs(nr) < log_10[field_length]-1)
+    use_scientific_notation= FALSE;
+  length= (uint) my_sprintf(buff, (buff, "%-.*g",
+                                   (use_scientific_notation ?
+                                    max(0, (int)field_length-5) :
+                                    field_length),
+                                   nr));
   /*
     +1 below is because "precision" in %g above means the
     max. number of significant digits, not the output width.
@@ -4309,6 +4299,7 @@ int Field_str::store(double nr)
   DBUG_ASSERT(field_length < 5 || length <= field_length+1);
   return store((const char *)buff, min(length, field_length), charset());
 }
+
 
 int Field_string::store(longlong nr)
 {
@@ -4382,7 +4373,7 @@ void Field_string::sql_type(String &res) const
 			    (field_length > 3 &&
 			     (table->db_options_in_use &
 			      HA_OPTION_PACK_RECORD) ?
-			      (has_charset() ? "varchar" : "varbinary") : 
+			      (has_charset() ? "varchar" : "varbinary") :
 			      (has_charset() ? "char" : "binary")),
 			    (int) field_length / charset()->mbmaxlen);
   res.length(length);
@@ -4397,6 +4388,21 @@ char *Field_string::pack(char *to, const char *from, uint max_length)
     end--;
   *to= length=(uchar) (end-from);
   memcpy(to+1, from, (int) length);
+  return to+1+length;
+}
+
+
+char *Field_string::pack_key(char *to, const char *from, uint max_length)
+{
+  uint length=      min(field_length,max_length);
+  uint char_length= max_length/field_charset->mbmaxlen;
+  if (length > char_length)
+    char_length= my_charpos(field_charset, from, from+length, char_length);
+  set_if_smaller(length, char_length);
+  while (length && from[length-1] == ' ')
+    length--;
+  *to= (uchar)length;
+  memcpy(to+1, from, length);
   return to+1+length;
 }
 
@@ -4560,6 +4566,24 @@ char *Field_varstring::pack(char *to, const char *from, uint max_length)
     *to++= (char) (length >> 8);
   if (length)
     memcpy(to, from+HA_KEY_BLOB_LENGTH, length);
+  return to+length;
+}
+
+
+char *Field_varstring::pack_key(char *to, const char *from, uint max_length)
+{
+  uint length=uint2korr(from);
+  uint char_length= (field_charset->mbmaxlen > 1) ?
+              max_length/field_charset->mbmaxlen : max_length;
+  from+=HA_KEY_BLOB_LENGTH;
+  if (length > char_length)
+    char_length= my_charpos(field_charset, from, from+length, char_length);
+  set_if_smaller(length, char_length);
+  *to++= (char) (length & 255);
+  if (max_length > 255)
+    *to++= (char) (length >> 8);
+  if (length)
+    memcpy(to, from, length);
   return to+length;
 }
 
@@ -5139,16 +5163,17 @@ char *Field_blob::pack_key(char *to, const char *from, uint max_length)
   char *save=ptr;
   ptr=(char*) from;
   uint32 length=get_length();			// Length of from string
-  if (length > max_length)
-    length=max_length;
+  uint char_length= (field_charset->mbmaxlen > 1) ?
+              max_length/field_charset->mbmaxlen : max_length;
+  if (length)
+    get_ptr((char**) &from);
+  if (length > char_length)
+    char_length= my_charpos(field_charset, from, from+length, char_length);
+  set_if_smaller(length, char_length);
   *to++= (uchar) length;
   if (max_length > 255)				// 2 byte length
     *to++= (uchar) (length >> 8);
-  if (length)
-  {
-    get_ptr((char**) &from);
-    memcpy(to, from, length);
-  }
+  memcpy(to, from, length);
   ptr=save;					// Restore org row pointer
   return to+length;
 }

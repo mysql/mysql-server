@@ -127,3 +127,4 @@ having (a.description is not null) and (c=0);
 id	description	c
 1	test	0
 2	test2	0
+drop table t1,t2,t3;

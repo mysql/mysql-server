@@ -633,8 +633,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_MYSQL_PROTOCOL:
   {
-    if ((opt_protocol= find_type(argument, &sql_protocol_typelib,0)) ==
-	~(ulong) 0)
+    if ((opt_protocol= find_type(argument, &sql_protocol_typelib,0)) <= 0)
     {
       fprintf(stderr, "Unknown option to protocol: %s\n", argument);
       exit(1);
@@ -667,7 +666,7 @@ static int parse_args(int *argc, char*** argv)
 
   result_file = stdout;
   load_defaults("my",load_default_groups,argc,argv);
-  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option, NULL)))
     exit(ho_error);
 
   return 0;
