@@ -27,6 +27,8 @@
 #include <time.h>
 #include <ft_global.h>
 #include "slave.h" // for wait_for_master_pos
+#include "gstream.h"
+
 
 /* return TRUE if item is a constant */
 
@@ -2251,4 +2253,131 @@ Item *get_system_var(LEX_STRING name)
 			current_thd->insert_id(),21);
   my_error(ER_UNKNOWN_SYSTEM_VARIABLE,MYF(0),name);
   return 0;
+}
+
+
+/**************************************************************************
+Spatial functions
+***************************************************************************/
+
+longlong Item_func_dimension::val_int()
+{
+  uint32 dim;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb || 
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               geom.dimension(&dim));
+
+  return (longlong) dim;
+}
+
+longlong Item_func_numinteriorring::val_int()
+{
+  uint32 num;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb || 
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,num_interior_ring) || 
+	       geom.num_interior_ring(&num));
+
+  return (longlong) num;
+}
+
+longlong Item_func_numgeometries::val_int()
+{
+  uint32 num;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb ||
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,num_geometries) || 
+               geom.num_geometries(&num));
+
+  return (longlong) num;
+}
+
+longlong Item_func_numpoints::val_int()
+{
+  uint32 num;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb ||
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) ||
+               !GEOM_METHOD_PRESENT(geom,num_points) ||
+               geom.num_points(&num));
+
+  return (longlong) num;
+}
+
+
+double Item_func_x::val()
+{
+  double res;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb ||
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,get_x) || 
+               geom.get_x(&res));
+
+  return res;
+}
+
+
+double Item_func_y::val()
+{
+  double res;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb ||
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,get_y) || 
+               geom.get_y(&res));
+
+  return res;
+}
+
+
+double Item_func_area::val()
+{
+  double res;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb ||
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,area) || 
+               geom.area(&res));
+
+  return res;
+}
+
+
+double Item_func_glength::val()
+{
+  double res;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb || 
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,length) || 
+               geom.length(&res));
+  return res;
 }

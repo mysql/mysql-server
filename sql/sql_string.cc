@@ -459,6 +459,44 @@ bool String::replace(uint32 offset,uint32 arg_length,const String &to)
   return FALSE;
 }
 
+// added by Holyfoot for "geometry" needs
+int String::reserve(uint32 space_needed, uint32 grow_by)
+{
+  if (Alloced_length < str_length + space_needed)
+  {
+    if (realloc(Alloced_length + max(space_needed, grow_by) - 1))
+      return TRUE;
+  }
+  return FALSE;
+}
+
+void String::qs_append(const char *str)
+{
+  int len = strlen(str);
+  memcpy(Ptr + str_length, str, len + 1);
+  str_length += len;
+}
+
+void String::qs_append(double d)
+{
+  char *buff = Ptr + str_length;
+  sprintf(buff,"%.14g", d);
+  str_length += strlen(buff);
+}
+
+void String::qs_append(double *d)
+{
+  double ld;
+  float8get(ld, d);
+  qs_append(ld);
+}
+
+void String::qs_append(const char &c)
+{
+  Ptr[str_length] = c;
+  str_length += sizeof(c);
+}
+
 
 int sortcmp(const String *x,const String *y)
 {
@@ -805,3 +843,5 @@ int wild_compare(String &match,String &wild, char escape)
   DBUG_RETURN(wild_compare(match.ptr(),match.ptr()+match.length(),
 		      wild.ptr(), wild.ptr()+wild.length(),escape));
 }
+
+

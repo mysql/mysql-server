@@ -438,8 +438,21 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     uint key_length=0;
     key_part_spec *column;
 
-    key_info->flags= (key->type == Key::MULTIPLE) ? 0 :
-                     (key->type == Key::FULLTEXT) ? HA_FULLTEXT : HA_NOSAME;
+    switch(key->type){
+      case Key::MULTIPLE:
+        key_info->flags = 0;
+        break;
+      case Key::FULLTEXT:
+        key_info->flags = HA_FULLTEXT;
+        break;
+      case Key::SPATIAL:
+        key_info->flags = HA_SPATIAL;
+        break;
+      default:
+        key_info->flags = HA_NOSAME;
+    }
+
+    key_info->key_alg = key->alg;
     key_info->key_parts=(uint8) key->columns.elements;
     key_info->key_part=key_part_info;
     key_info->usable_key_parts= key_number;
@@ -452,7 +465,31 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
         DBUG_RETURN(-1);
       }
     }
-
+    /*
+       Make SPATIAL to be RTREE by default
+       SPATIAL only on BLOB or at least BINARY, this
+       actually should be replaced by special GEOM type 
+       in near future when new frm file is ready
+       checking for proper key parts number:
+    */
+    
+    if(key_info->flags == HA_SPATIAL){
+      if(key_info->key_parts!=1){
+        my_printf_error(ER_WRONG_ARGUMENTS,
+                        ER(ER_WRONG_ARGUMENTS),MYF(0),"SPATIAL INDEX");
+        DBUG_RETURN(-1);
+      }
+    }else
+    {
+      if(key_info->key_alg == HA_KEY_ALG_RTREE){
+        if((key_info->key_parts&1)==1){
+          my_printf_error(ER_WRONG_ARGUMENTS,
+                          ER(ER_WRONG_ARGUMENTS),MYF(0),"RTREE INDEX");
+          DBUG_RETURN(-1);
+        }
+      }
+    }
+    
     List_iterator<key_part_spec> cols(key->columns);
     for (uint column_nr=0 ; (column=cols++) ; column_nr++)
     {
@@ -480,6 +517,14 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	{
           if (key->type == Key::FULLTEXT)
             column->length=1; /* ft-code ignores it anyway :-) */
+          else if (key->type == Key::SPATIAL)
+          {
+            /* 
+               BAR: 4 is: (Xmin,Xmax,Ymin,Ymax), this is for 2D case
+               Lately we'll extend this code to support more dimensions 
+            */
+            column->length=4*sizeof(double);
+          }
           else
           {
             my_printf_error(ER_BLOB_KEY_WITHOUT_LENGTH,
@@ -1471,11 +1516,13 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 					    key_part_length));
     }
     if (key_parts.elements)
-      key_list.push_back(new Key(key_info->flags & HA_NOSAME ?
+      key_list.push_back(new Key(key_info->flags & HA_SPATIAL ? Key::SPATIAL :
+                                 (key_info->flags & HA_NOSAME ?
 				 (!my_strcasecmp(key_name, "PRIMARY") ?
 				  Key::PRIMARY  : Key::UNIQUE) :
                                  (key_info->flags & HA_FULLTEXT ?
-                                 Key::FULLTEXT : Key::MULTIPLE),
+                                 Key::FULLTEXT : Key::MULTIPLE)),
+                                 key_info->key_alg,
 				 key_name,key_parts));
   }
   key_it.rewind();

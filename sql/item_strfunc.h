@@ -475,3 +475,196 @@ public:
   const char *func_name() const { return "inet_ntoa"; }
   void fix_length_and_dec() { decimals = 0; max_length=3*8+7; }
 };
+
+
+/*******************************************************
+Spatial functions
+********************************************************/
+
+class Item_func_geometry_from_text :public Item_str_func
+{
+public:
+  Item_func_geometry_from_text(Item *a) :Item_str_func(a) {}
+  const char *func_name() const { return "geometryfromtext"; }
+  String *val_str(String *);
+  void fix_length_and_dec();
+};
+
+class Item_func_as_text :public Item_str_func
+{
+public:
+  Item_func_as_text(Item *a) :Item_str_func(a) {}
+  const char *func_name() const { return "astext"; }
+  String *val_str(String *);
+  void fix_length_and_dec();
+};
+
+class Item_func_geometry_type :public Item_str_func
+{
+public:
+  Item_func_geometry_type(Item *a) :Item_str_func(a) {}
+  String *val_str(String *);
+  const char *func_name() const { return "geometrytype"; }
+  void fix_length_and_dec() 
+  {
+     max_length=20; // "GeometryCollection" is the most long
+  };
+};
+
+class Item_func_centroid :public Item_str_func
+{
+public:
+  Item_func_centroid(Item *a) :Item_str_func(a) {}
+  const char *func_name() const { return "centroid"; }
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+};
+
+class Item_func_envelope :public Item_str_func
+{
+public:
+  Item_func_envelope(Item *a) :Item_str_func(a) {}
+  const char *func_name() const { return "envelope"; }
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+};
+
+class Item_func_point :public Item_str_func
+{
+public:
+  Item_func_point(Item *a,Item *b) :Item_str_func(a,b) {}
+  const char *func_name() const { return "point"; }
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+};
+
+class Item_func_spatial_decomp :public Item_str_func
+{
+  enum Functype decomp_func;
+public:
+  Item_func_spatial_decomp(Item *a, Item_func::Functype ft) :
+  	Item_str_func(a) { decomp_func = ft; }
+  const char *func_name() const 
+  { 
+    switch (decomp_func)
+    {
+      case SP_STARTPOINT:
+        return "startpoint";
+      case SP_ENDPOINT:
+        return "endpoint";
+      case SP_EXTERIORRING:
+        return "exteriorring";
+      default:
+        return "spatial_decomp_unknown"; 
+    }
+  }
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+};
+
+class Item_func_spatial_decomp_n :public Item_str_func
+{
+  enum Functype decomp_func_n;
+public:
+  Item_func_spatial_decomp_n(Item *a, Item *b, Item_func::Functype ft) :
+  	Item_str_func(a, b) { decomp_func_n = ft; }
+  const char *func_name() const 
+  { 
+    switch (decomp_func_n)
+    {
+      case SP_POINTN:
+        return "pointn";
+      case SP_GEOMETRYN:
+        return "geometryn";
+      case SP_INTERIORRINGN:
+        return "interiorringn";
+      default:
+        return "spatial_decomp_n_unknown"; 
+    }
+  }
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+};
+
+
+class Item_func_spatial_collection :public Item_str_func
+{
+  String tmp_value;
+  enum Geometry::wkbType coll_type; 
+  enum Geometry::wkbType item_type;
+public:
+  Item_func_spatial_collection(
+     List<Item> &list, enum Geometry::wkbType ct, enum Geometry::wkbType it) :
+  Item_str_func(list)
+  {
+    coll_type=ct;
+    item_type=it;
+  }
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+  const char *func_name() const { return "multipoint"; }
+};
+
+
+/*
+class Item_func_multipoint :public Item_str_func
+{
+  String tmp_value;
+public:
+  Item_func_multipoint(List<Item> &list) :Item_str_func(list) {}
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+  const char *func_name() const { return "multipoint"; }
+};
+
+class Item_func_linestring :public Item_str_func
+{
+  String tmp_value;
+public:
+  Item_func_linestring(List<Item> &list) :Item_str_func(list) {}
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+  const char *func_name() const { return "linestring"; }
+};
+
+class Item_func_multilinestring :public Item_str_func
+{
+  String tmp_value;
+public:
+  Item_func_multilinestring(List<Item> &list) :Item_str_func(list) {}
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+  const char *func_name() const { return "multilinestring"; }
+};
+
+class Item_func_polygon :public Item_str_func
+{
+  String tmp_value;
+public:
+  Item_func_polygon(List<Item> &list) :Item_str_func(list) {}
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+  const char *func_name() const { return "polygon"; }
+};
+
+class Item_func_multipolygon :public Item_str_func
+{
+  String tmp_value;
+public:
+  Item_func_multipolygon(List<Item> &list) :Item_str_func(list) {}
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+  const char *func_name() const { return "multipolygon"; }
+};
+
+class Item_func_geometrycollection :public Item_str_func
+{
+  String tmp_value;
+public:
+  Item_func_geometrycollection(List<Item> &list) :Item_str_func(list) {}
+  String *val_str(String *);
+  void fix_length_and_dec(){max_length=MAX_BLOB_WIDTH;}
+  const char *func_name() const { return "geometrycollection"; }
+};
+
+*/

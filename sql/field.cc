@@ -3712,7 +3712,7 @@ Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
   :Field_str(ptr_arg, (1L << min(blob_pack_length,3)*8)-1L,
 	     null_ptr_arg, null_bit_arg, unireg_check_arg, field_name_arg,
 	     table_arg),
-   packlength(blob_pack_length),binary_flag(binary_arg)
+   packlength(blob_pack_length),binary_flag(binary_arg), geom_flag(true)
 {
   flags|= BLOB_FLAG;
   if (binary_arg)
@@ -3954,8 +3954,30 @@ int Field_blob::cmp_binary(const char *a_ptr, const char *b_ptr,
 
 /* The following is used only when comparing a key */
 
-void Field_blob::get_key_image(char *buff,uint length)
+void Field_blob::get_key_image(char *buff,uint length, imagetype type)
 {
+  if(type == itMBR)
+  {
+    length-=HA_KEY_BLOB_LENGTH;
+    ulong blob_length=get_length(ptr);
+    char *blob;
+    get_ptr(&blob);
+    if(!blob_length)
+    {
+      return;
+    }
+
+    MBR mbr;
+    Geometry gobj;
+    gobj.create_from_wkb(blob,blob_length);
+    gobj.get_mbr(&mbr);
+    float8store(buff,    mbr.xmin);
+    float8store(buff+8,  mbr.xmax);
+    float8store(buff+16, mbr.ymin);
+    float8store(buff+24, mbr.ymax);
+    return;
+  }
+
   length-=HA_KEY_BLOB_LENGTH;
   uint32 blob_length=get_length(ptr);
   char *blob;
@@ -3976,6 +3998,31 @@ void Field_blob::set_key_image(char *buff,uint length)
   length=uint2korr(buff);
   Field_blob::store(buff+2,length);
 }
+
+void Field_geom::get_key_image(char *buff,uint length, imagetype type)
+{
+  length-=HA_KEY_BLOB_LENGTH;
+  ulong blob_length=get_length(ptr);
+  char *blob;
+  get_ptr(&blob);
+  memcpy(buff+2,blob,length);
+
+  MBR mbr;
+  Geometry gobj;
+  gobj.create_from_wkb(blob,blob_length);
+  gobj.get_mbr(&mbr);
+  float8store(buff,    mbr.xmin);
+  float8store(buff+8,  mbr.xmax);
+  float8store(buff+16, mbr.ymin);
+  float8store(buff+24, mbr.ymax);
+  return;
+}
+
+void Field_geom::set_key_image(char *buff,uint length)
+{
+}
+
+
 
 int Field_blob::key_cmp(const byte *key_ptr, uint max_key_length)
 {
@@ -4606,6 +4653,7 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
   case FIELD_TYPE_LONG_BLOB:	return 4+portable_sizeof_char_ptr;
   case FIELD_TYPE_SET:
   case FIELD_TYPE_ENUM: abort(); return 0;	// This shouldn't happen
+  default: return 0;
   }
   return 0;					// This shouldn't happen
 }
@@ -4652,6 +4700,11 @@ Field *make_field(char *ptr, uint32 field_length,
       return new Field_blob(ptr,null_pos,null_bit,
 			    unireg_check, field_name, table,
 			    pack_length,f_is_binary(pack_flag) != 0);
+    if (f_is_geom(pack_flag))
+      return new Field_geom(ptr,null_pos,null_bit,
+			    unireg_check, field_name, table,
+			    pack_length,f_is_binary(pack_flag) != 0);
+
     if (interval)
     {
       if (f_is_enum(pack_flag))
