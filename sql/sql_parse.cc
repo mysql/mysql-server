@@ -2861,14 +2861,11 @@ mysql_execute_command(THD *thd)
 	goto error;
       if (!(res = mysql_table_grant(thd,tables,lex->users_list, lex->columns,
 				    lex->grant,
-				    lex->sql_command == SQLCOM_REVOKE)))
+				    lex->sql_command == SQLCOM_REVOKE)) &&
+          mysql_bin_log.is_open())
       {
-	mysql_update_log.write(thd, thd->query, thd->query_length);
-	if (mysql_bin_log.is_open())
-	{
-	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
-	  mysql_bin_log.write(&qinfo);
-	}
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        mysql_bin_log.write(&qinfo);
       }
     }
     else
@@ -2883,7 +2880,6 @@ mysql_execute_command(THD *thd)
 			  lex->sql_command == SQLCOM_REVOKE);
       if (!res)
       {
-	mysql_update_log.write(thd, thd->query, thd->query_length);
 	if (mysql_bin_log.is_open())
 	{
 	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
@@ -4114,7 +4110,6 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
   if (options & REFRESH_LOG)
   {
     mysql_log.new_file(1);
-    mysql_update_log.new_file(1);
     mysql_bin_log.new_file(1);
 #ifdef HAVE_REPLICATION
     if (expire_logs_days)

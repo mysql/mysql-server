@@ -315,9 +315,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   sprintf(name,ER(ER_LOAD_INFO),info.records,info.deleted,
 	  info.records-info.copied,thd->cuted_fields);
   send_ok(thd,info.copied+info.deleted,0L,name);
-  // on the slave thd->query is never initialized
-  if (!thd->slave_thread)
-    mysql_update_log.write(thd,thd->query,thd->query_length);
 
   if (!log_delayed)
     thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
