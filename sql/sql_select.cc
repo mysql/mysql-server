@@ -4376,7 +4376,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     if (!(table->record[0]= (byte *) my_malloc(alloc_length*3, MYF(MY_WME))))
       goto err;
     table->record[1]= table->record[0]+alloc_length;
-    table->record[2]= table->record[1]+alloc_length;
+    table->default_values= table->record[1]+alloc_length;
   }
   copy_func[0]=0;				// End marker
 
@@ -4450,7 +4450,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
   param->copy_field_end=copy;
   param->recinfo=recinfo;
-  store_record(table,2);			// Make empty default record
+  store_record(table,default_values);			// Make empty default record
 
   if (thd->variables.tmp_table_size == ~(ulong) 0)		// No limit
     table->max_rows= ~(ha_rows) 0;
@@ -5053,7 +5053,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
   if (!found && on_expr)
   {						// OUTER JOIN
-    restore_record(join_tab->table,2);		// Make empty record
+    restore_record(join_tab->table,default_values);		// Make empty record
     mark_as_null_row(join_tab->table);		// For group by without error
     if (!select_cond || select_cond->val_int())
     {
@@ -5199,10 +5199,10 @@ join_read_system(JOIN_TAB *tab)
       empty_record(table);			// Make empty record
       return -1;
     }
-    store_record(table,1);
+    store_record(table,record[1]);
   }
   else if (!table->status)			// Only happens with left join
-    restore_record(table,1);			// restore old record
+    restore_record(table,record[1]);			// restore old record
   table->null_row=0;
   return table->status ? -1 : 0;
 }
@@ -5239,12 +5239,12 @@ join_read_const(JOIN_TAB *tab)
       }
       return -1;
     }
-    store_record(table,1);
+    store_record(table,record[1]);
   }
   else if (!(table->status & ~STATUS_NULL_ROW))	// Only happens with left join
   {
     table->status=0;
-    restore_record(table,1);			// restore old record
+    restore_record(table,record[1]);			// restore old record
   }
   table->null_row=0;
   return table->status ? -1 : 0;
@@ -5841,7 +5841,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 			       join->tmp_table_param.group_buff,0,
 			       HA_READ_KEY_EXACT))
   {						/* Update old record */
-    restore_record(table,1);
+    restore_record(table,record[1]);
     update_tmptable_sum_func(join->sum_funcs,table);
     if ((error=table->file->update_row(table->record[1],
 				       table->record[0])))
@@ -5910,7 +5910,7 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       table->file->print_error(error,MYF(0));	/* purecov: inspected */
       DBUG_RETURN(-1);				/* purecov: inspected */
     }
-    restore_record(table,1);
+    restore_record(table,record[1]);
     update_tmptable_sum_func(join->sum_funcs,table);
     if ((error=table->file->update_row(table->record[1],
 				       table->record[0])))
