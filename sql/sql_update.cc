@@ -506,7 +506,7 @@ multi_update::prepare(List<Item> &values)
 void
 multi_update::initialize_tables(JOIN *join)
 {
-/* 
+#ifdef NOT_YET
    We skip it as it only makes a mess ...........
   TABLE_LIST *walk;
   table_map tables_to_update_from=0;
@@ -522,12 +522,12 @@ multi_update::initialize_tables(JOIN *join)
     {
        We are going to update from this table 
        TABLE *tbl=walk->table=tab->table;
-       Don't use KEYREAD optimization on this table 
+       /* Don't use KEYREAD optimization on this table */
        tbl->no_keyread=1;
        walk=walk->next;
     }
   }
-*/
+#endif
 }
 
 
