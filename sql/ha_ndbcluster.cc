@@ -147,7 +147,25 @@ int execute_no_commit(ha_ndbcluster *h, NdbConnection *trans)
   int m_batch_execute= 0;
   if (false && m_batch_execute)
     return 0;
-  return trans->execute(NoCommit);
+  return trans->execute(NoCommit,AbortOnError,1);
+}
+
+inline
+int execute_commit(ha_ndbcluster *h, NdbConnection *trans)
+{
+  int m_batch_execute= 0;
+  if (false && m_batch_execute)
+    return 0;
+  return trans->execute(Commit,AbortOnError,1);
+}
+
+inline
+int execute_no_commit_ie(ha_ndbcluster *h, NdbConnection *trans)
+{
+  int m_batch_execute= 0;
+  if (false && m_batch_execute)
+    return 0;
+  return trans->execute(NoCommit,IgnoreError,1);
 }
 
 /*
@@ -802,7 +820,7 @@ void ha_ndbcluster::release_metadata()
 int ha_ndbcluster::get_ndb_lock_type(enum thr_lock_type type)
 {
   int lm;
-  if (type == TL_WRITE_ALLOW_WRITE)
+  if (type >= TL_WRITE_ALLOW_WRITE)
     lm= NdbScanOperation::LM_Exclusive;
   else if (uses_blob_value(retrieve_all_fields))
     /*
@@ -992,7 +1010,7 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
     }
   }
   
-  if (trans->execute(NoCommit, IgnoreError) != 0) 
+  if (execute_no_commit_ie(this,trans) != 0) 
   {
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(ndb_err(trans));
@@ -1109,7 +1127,7 @@ int ha_ndbcluster::unique_index_read(const byte *key,
     }
   }
 
-  if (trans->execute(NoCommit, IgnoreError) != 0) 
+  if (execute_no_commit_ie(this,trans) != 0) 
   {
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(ndb_err(trans));
@@ -1186,7 +1204,7 @@ inline int ha_ndbcluster::next_result(byte *buf)
       }
       else
       {
-	if (ops_pending && (trans->execute(Commit) != 0))
+	if (ops_pending && (execute_commit(this,trans) != 0))
 	  DBUG_RETURN(ndb_err(trans));
 	trans->restart();
       }
@@ -1623,7 +1641,7 @@ int ha_ndbcluster::write_row(byte *record)
     }
     else
     {
-      if (trans->execute(Commit) != 0)
+      if (execute_commit(this,trans) != 0)
       {
 	skip_auto_increment= true;
 	no_uncommitted_rows_execute_failure();
@@ -2665,14 +2683,13 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
                                           enum thr_lock_type lock_type)
 {
   DBUG_ENTER("store_lock");
-  
   if (lock_type != TL_IGNORE && m_lock.type == TL_UNLOCK) 
   {
-    
+
     /* If we are not doing a LOCK TABLE, then allow multiple
        writers */
     
-    if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
+    if ((lock_type >= TL_WRITE_ALLOW_WRITE &&
          lock_type <= TL_WRITE) && !thd->in_lock_tables)      
       lock_type= TL_WRITE_ALLOW_WRITE;
     
@@ -2910,7 +2927,7 @@ int ndbcluster_commit(THD *thd, void *ndb_transaction)
                             "stmt" : "all"));
   DBUG_ASSERT(ndb && trans);
 
-  if (trans->execute(Commit) != 0)
+  if (execute_commit(0,trans) != 0)
   {
     const NdbError err= trans->getNdbError();
     const NdbOperation *error_op= trans->getNdbErrorOperation();
