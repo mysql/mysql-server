@@ -1,0 +1,27 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+flush logs;
+set autocommit=1;
+set sql_log_bin=0;
+create table t1 (n int) engine=innodb;
+set sql_log_bin=1;
+create table t1 (n int) engine=myisam;
+insert into t1 values (3);
+show master status;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000002	64		
+ insert into t1 values (4);
+select * from t1;
+n
+3
+set @a=load_file("MYSQL_TEST_DIR/var/log/master-bin.000002");
+select length(@a);
+length(@a)
+124
+select @a like "%values (4)%";
+@a like "%values (4)%"
+1

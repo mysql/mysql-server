@@ -25,6 +25,7 @@
 #include "mysql_priv.h"
 #include "sql_acl.h"
 #include "sql_repl.h"
+#include "ha_innodb.h" // necessary to cut the binlog when crash recovery
 
 #include <my_dir.h>
 #include <stdarg.h>
@@ -296,6 +297,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
       if ((index_file_nr= my_open(index_file_name,
 				  O_RDWR | O_CREAT | O_BINARY ,
 				  MYF(MY_WME))) < 0 ||
+          my_sync(index_file_nr, MYF(MY_WME)) ||
 	  init_io_cache(&index_file, index_file_nr,
 			IO_SIZE, WRITE_CACHE,
 			my_seek(index_file_nr,0L,MY_SEEK_END,MYF(0)),
@@ -315,16 +317,21 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
       s.set_log_pos(this);
       s.write(&log_file);
     }
-    if (flush_io_cache(&log_file))
+    if (flush_io_cache(&log_file) ||
+        my_sync(log_file.file, MYF(MY_WME)))
       goto err;
 
     if (write_file_name_to_index_file)
     {
-      /* As this is a new log file, we write the file name to the index file */
+      /*
+        As this is a new log file, we write the file name to the index
+        file. As every time we write to the index file, we sync it.
+      */
       if (my_b_write(&index_file, (byte*) log_file_name,
 		     strlen(log_file_name)) ||
 	  my_b_write(&index_file, (byte*) "\n", 1) ||
-	  flush_io_cache(&index_file))
+	  flush_io_cache(&index_file) ||
+          my_sync(index_file.file, MYF(MY_WME)))
 	goto err;
     }
     break;
@@ -405,7 +412,8 @@ static bool copy_up_file_and_fill(IO_CACHE *index_file, my_off_t offset)
       goto err;
   }
   /* The following will either truncate the file or fill the end with \n' */
-  if (my_chsize(file, offset - init_offset, '\n', MYF(MY_WME)))
+  if (my_chsize(file, offset - init_offset, '\n', MYF(MY_WME)) ||
+      my_sync(file, MYF(MY_WME)))
     goto err;
 
   /* Reset data in old index cache */
@@ -995,6 +1003,8 @@ void MYSQL_LOG::new_file(bool need_lock)
 
   open(old_name, save_log_type, new_name_ptr, index_file_name, io_cache_type,
        no_auto_events, max_size);
+  if (this == &mysql_bin_log)
+    report_pos_in_innodb();
   my_free(old_name,MYF(0));
 
 end:
@@ -1406,6 +1416,30 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
         if (event_info->get_type_code() == QUERY_EVENT ||
             event_info->get_type_code() == EXEC_LOAD_EVENT)
         {
+#ifndef DBUG_OFF
+          if (unlikely(opt_crash_binlog_innodb))
+          {
+            /*
+              This option is for use in rpl_crash_binlog_innodb.test.
+              1st we want to verify that Binlog_dump thread cannot send the
+              event now (because of LOCK_log): we here tell the Binlog_dump
+              thread to wake up, sleep for the slave to have time to possibly
+              receive data from the master (it should not), and then crash.
+              2nd we want to verify that at crash recovery the rolled back
+              event is cut from the binlog.
+            */
+            if (!(--opt_crash_binlog_innodb))
+            {
+              signal_update();
+              sleep(2);
+              fprintf(stderr,"This is a normal crash because of"
+                      " --crash-binlog-innodb\n");
+              assert(0);
+            }
+            DBUG_PRINT("info",("opt_crash_binlog_innodb: %d",
+                               opt_crash_binlog_innodb));
+          }
+#endif
           error = ha_report_binlog_offset_and_commit(thd, log_file_name,
                                                      file->pos_in_file);
           called_handler_commit=1;
@@ -1561,6 +1595,22 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
       write_error=1;				// Don't give more errors
       goto err;
     }
+#ifndef DBUG_OFF
+    if (unlikely(opt_crash_binlog_innodb))
+    {
+      /* see the previous MYSQL_LOG::write() method for a comment */
+      if (!(--opt_crash_binlog_innodb))
+      {
+        signal_update();
+        sleep(2);
+        fprintf(stderr, "This is a normal crash because of"
+                " --crash-binlog-innodb\n");
+        assert(0);
+      }
+      DBUG_PRINT("info",("opt_crash_binlog_innodb: %d",
+                         opt_crash_binlog_innodb));
+    }
+#endif
     if ((ha_report_binlog_offset_and_commit(thd, log_file_name,
 					    log_file.pos_in_file)))
       goto err;
@@ -1978,4 +2028,131 @@ bool flush_error_log()
 }
 
 
+/*
+  If the server has InnoDB on, and InnoDB has published the position of the
+  last committed transaction (which happens only if a crash recovery occured at
+  this startup) then truncate the previous binary log at the position given by
+  InnoDB. If binlog is shorter than the position, print a message to the error
+  log.
 
+  SYNOPSIS
+    cut_spurious_tail()
+
+  RETURN VALUES
+    1	Error
+    0	Ok
+*/
+
+bool MYSQL_LOG::cut_spurious_tail()
+{
+  int error= 0;
+  char llbuf1[22], llbuf2[22];
+  ulonglong actual_size;
+
+  DBUG_ENTER("cut_spurious_tail");
+#ifdef HAVE_INNOBASE_DB
+  if (have_innodb != SHOW_OPTION_YES)
+    DBUG_RETURN(0);
+  /*
+    This is the place where we use information from InnoDB to cut the
+    binlog.
+  */
+  char *name= ha_innobase::get_mysql_bin_log_name();
+  ulonglong pos= ha_innobase::get_mysql_bin_log_pos();
+  if (name[0] == 0 || pos == ULONGLONG_MAX)
+  {
+    DBUG_PRINT("info", ("InnoDB has not set binlog info"));
+    DBUG_RETURN(0);
+  }
+  /* The binlog given by InnoDB normally is never an active binlog */
+  if (is_open() && is_active(name))
+  {
+    sql_print_error("Warning: after InnoDB crash recovery, InnoDB says that "
+                    "the binary log of the previous run has the same name "
+                    "'%s' as the current one; this is likely to be abnormal.",
+                    name);
+    DBUG_RETURN(1);
+  }
+  sql_print_error("After InnoDB crash recovery, trying to truncate "
+                  "the binary log '%s' at position %s corresponding to the "
+                  "last committed transaction...", name, llstr(pos, llbuf1));
+  /* If we have a too long binlog, cut. If too short, print error */
+  int fd= my_open(name, O_EXCL | O_APPEND | O_BINARY | O_WRONLY, MYF(MY_WME));
+  if (fd < 0)
+  {
+    int save_errno= my_errno;
+    sql_print_error("Could not open the binary log '%s' for truncation.",
+                    name);
+    if (save_errno != ENOENT)
+      sql_print_error("The binary log '%s' should not be used for "
+                      "replication.", name);    
+    DBUG_RETURN(1);
+  }
+
+  if (pos > (actual_size= my_seek(fd, 0L, MY_SEEK_END, MYF(MY_WME))))
+  {
+    sql_print_error("The binary log '%s' is shorter than its expected size "
+                    "(actual: %s, expected: %s) so it misses at least one "
+                    "committed transaction; so it should not be used for "
+                    "replication.", name, llstr(actual_size, llbuf1),
+                    llstr(pos, llbuf2));
+    error= 1;
+    goto err;
+  }
+  if (pos < actual_size)
+  {
+    sql_print_error("The binary log '%s' is bigger than its expected size "
+                    "(actual: %s, expected: %s) so it contains a rolled back "
+                    "transaction; now truncating that.", name,
+                    llstr(actual_size, llbuf1), llstr(pos, llbuf2));
+    /*
+      As on some OS, my_chsize() can only pad with 0s instead of really
+      truncating. Then mysqlbinlog (and Binlog_dump thread) will error on
+      these zeroes. This is annoying, but not more (you just need to manually
+      switch replication to the next binlog). Fortunately, in my_chsize.c, it
+      says that all modern machines support real ftruncate().
+      
+    */
+    if ((error= my_chsize(fd, pos, 0, MYF(MY_WME))))
+      goto err;
+  }
+err:
+  if (my_close(fd, MYF(MY_WME)))
+    error= 1;
+#endif
+  DBUG_RETURN(error);
+}
+
+
+/*
+  If the server has InnoDB on, store the binlog name and position into
+  InnoDB. This function is used every time we create a new binlog.
+
+  SYNOPSIS
+    report_pos_in_innodb()
+
+  NOTES
+    This cannot simply be done in MYSQL_LOG::open(), because when we create
+    the first binlog at startup, we have not called ha_init() yet so we cannot
+    write into InnoDB yet.
+
+  RETURN VALUES
+    1	Error
+    0	Ok
+*/
+
+void MYSQL_LOG::report_pos_in_innodb()
+{
+  DBUG_ENTER("report_pos_in_innodb");
+#ifdef HAVE_INNOBASE_DB
+  if (is_open() && have_innodb == SHOW_OPTION_YES)
+  {
+    DBUG_PRINT("info", ("Reporting binlog info into InnoDB - "
+                        "name: '%s' position: %d",
+                        log_file_name, my_b_tell(&log_file)));
+    innobase_store_binlog_offset_and_flush_log(log_file_name,
+                                               my_b_tell(&log_file));
+  }
+#endif
+  DBUG_VOID_RETURN;
+}
