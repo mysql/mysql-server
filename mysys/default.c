@@ -120,7 +120,7 @@ int load_defaults(const char *conf_file, const char **groups,
   uint args_used=0;
   int error= 0;
   MEM_ROOT alloc;
-  char *ptr, **res, **ext;
+  char *ptr, **res;
 
   DBUG_ENTER("load_defaults");
 
@@ -176,10 +176,9 @@ int load_defaults(const char *conf_file, const char **groups,
   }
   else if (dirname_length(conf_file))
   {
-    for (ext= (char**) f_extensions; *ext; *ext++)
-      if ((error= search_default_file(&args, &alloc, NullS, conf_file,
-				      &group)) < 0)
-	goto err;
+    if ((error= search_default_file(&args, &alloc, NullS, conf_file,
+				    &group)) < 0)
+      goto err;
   }
   else
   {
