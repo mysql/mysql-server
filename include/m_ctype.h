@@ -208,8 +208,8 @@ typedef struct charset_info_st
   uint16   **sort_order_big;
   uint16      *tab_to_uni;
   MY_UNI_IDX  *tab_from_uni;
-  uchar state_map[256];
-  uchar ident_map[256];
+  uchar     *state_map;
+  uchar     *ident_map;
   uint      strxfrm_multiply;
   uint      mbminlen;
   uint      mbmaxlen;
