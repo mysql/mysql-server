@@ -2796,7 +2796,7 @@ int main(int argc, char **argv)
 	  but we started a bad tradition by calling it MySQL from the start
 	  and we are now stuck with it.
 	*/
-	if (my_strcasecmp(argv[1],"mysql"))
+	if (my_strcasecmp(system_charset_info, argv[1],"mysql"))
 	  load_default_groups[3]= argv[1];
         start_mode= 1;
         Service.Init(argv[1], mysql_service);
@@ -2817,7 +2817,7 @@ int main(int argc, char **argv)
 	opt_argc= 2;				// Skip service-name
 	opt_argv=argv;
 	start_mode= 1;
-	if (my_strcasecmp(argv[2],"mysql"))
+	if (my_strcasecmp(system_charset_info, argv[2],"mysql"))
 	  load_default_groups[3]= argv[2];
 	Service.Init(argv[2], mysql_service);
 	return 0;
