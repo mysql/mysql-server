@@ -29,7 +29,7 @@ public:
 
   Bank();
 
-  int createAndLoadBank(bool overWrite);
+  int createAndLoadBank(bool overWrite, int num_accounts=10);
   int dropBank();
   
   int performTransactions(int maxSleepBetweenTrans = 20, int yield=0);

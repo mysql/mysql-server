@@ -331,7 +331,7 @@ main(int argc, const char** argv)
       
       for (i= 0; i < g_consumers.size(); i++)
 	g_consumers[i]->endOfTuples();
-      
+
       RestoreLogIterator logIter(metaData);
       if (!logIter.readHeader())
       {
@@ -357,7 +357,7 @@ main(int argc, const char** argv)
     }
   }
   clearConsumers();
-  return 1;
+  return 0;
 } // main
 
 template class Vector<BackupConsumer*>;
