@@ -4598,6 +4598,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://mysql.fastorama.com/} (WWW)
 @uref{ftp://ftp.fastorama.com/unix/mysql/} (FTP)
 
+@item
+@c EMAIL: vincen@netsample.com (Vincèn Pujol)
+@image{Flags/france} France [NetSample] @
+@uref{http://www.mysql.netsample.fr/} (WWW)
+
 @c @item
 @c Not ok 20000919; Old site (Matt)
 @c EMAIL: Jaakko.Hyvatti@eunet.fi
@@ -4792,6 +4797,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @image{Flags/portugal} Portugal [Netc] @
 @uref{http://ftp.netc.pt/pub/mysql/} (WWW)
 @uref{ftp://ftp.netc.pt/pub/mysql/} (FTP)
+
+@item
+@c ripper@joel.ist.utl.pt (Ricardo Pascoal)
+@image{Flags/portugal} Portugal [Instituto Supertior Técnico] @
+@uref{http://darkstar.ist.utl.pt/mysql/} (WWW)
+@uref{ftp://darkstar.ist.utl.pt/pub/mysql/} (FTP)
 
 @item
 @c EMAIL: keeper@roedu.net (Mihai RUSU)
@@ -5026,7 +5037,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 
 @item
 @c EMAIL: ftpkeeper@mirror.sit.wisc.edu
-@image{Flags/usa} USA [Wisconsin University/Wisconsin] @
+@image{Flags/usa} USA [University of Wisconsin/Wisconsin] @
 @uref{http://mirror.sit.wisc.edu/mysql/} (WWW)
 @uref{ftp://mirror.sit.wisc.edu/mirrors/mysql/} (FTP)
 
@@ -5036,11 +5047,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c @image{Flags/usa} USA [DIGEX] @
 @c @uref{ftp://ftp.digex.net/pub/packages/database/mysql/} (FTP)
 
-@item
+@c item
+@c Not ok 2001-11-11; Not responding (Indrek)
 @c EMAIL: andrew.sawyers@thelinuxstore.com
-@image{Flags/usa} USA [LinuxWired/Scottsdale, AZ] @
-@uref{http://mysql.linuxwired.net/} (WWW)
-@uref{ftp://ftp.linuxwired.net/pub/mirrors/mysql/} (FTP)
+@c image{Flags/usa} USA [LinuxWired/Scottsdale, AZ] @
+@c uref{http://mysql.linuxwired.net/} (WWW)
+@c uref{ftp://ftp.linuxwired.net/pub/mirrors/mysql/} (FTP)
 
 @c @item
 @c EMAIL: dan@surfsouth.com (Dan Muntz)
