@@ -2661,20 +2661,25 @@ void store_schema_proc(THD *thd, TABLE *table,
       tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[2], &tmp_string);
       table->field[4]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      tmp_string.length(0);
-      get_field(thd->mem_root, proc_table->field[9], &tmp_string);
-      table->field[5]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      if (proc_table->field[2]->val_int() == TYPE_ENUM_FUNCTION)
+      {
+        tmp_string.length(0);
+        get_field(thd->mem_root, proc_table->field[9], &tmp_string);
+        table->field[5]->store(tmp_string.ptr(), tmp_string.length(), cs);
+        table->field[5]->set_notnull();
+      }
       table->field[6]->store("SQL", 3, cs);
       tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[10], &tmp_string);
       table->field[7]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      table->field[8]->store("SQL", 3, cs);
+      table->field[10]->store("SQL", 3, cs);
       tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[6], &tmp_string);
       table->field[11]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      tmp_string.length(0);
-      get_field(thd->mem_root, proc_table->field[5], &tmp_string);
-      table->field[12]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      if (proc_table->field[5]->val_int() == SP_CONTAINS_SQL)
+      {
+        table->field[12]->store("CONTAINS SQL", 12 , cs);
+      }
       tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[7], &tmp_string);
       table->field[14]->store(tmp_string.ptr(), tmp_string.length(), cs);
@@ -3476,12 +3481,12 @@ ST_FIELD_INFO proc_fields_info[]=
   {"ROUTINE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Db"},
   {"ROUTINE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
   {"ROUTINE_TYPE", 9, MYSQL_TYPE_STRING, 0, 0, "Type"},
-  {"DTD_IDENTIFIER", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"ROUTINE_BODY", 3, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"DTD_IDENTIFIER", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"ROUTINE_BODY", 8, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ROUTINE_DEFINITION", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
   {"EXTERNAL_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"EXTERNAL_LANGUAGE", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"PARAMETER_STYLE", 3, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"PARAMETER_STYLE", 8, MYSQL_TYPE_STRING, 0, 0, 0},
   {"IS_DETERMINISTIC", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {"SQL_DATA_ACCESS", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"SQL_PATH", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
