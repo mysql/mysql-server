@@ -25,7 +25,7 @@ dtype_validate(
 	dtype_t*	type)	/* in: type struct to validate */
 {
 	ut_a(type);
-	ut_a((type->mtype >= DATA_VARCHAR) && (type->mtype <= DATA_SYS));
+	ut_a((type->mtype >= DATA_VARCHAR) && (type->mtype <= DATA_MYSQL));
 	
 	if (type->mtype == DATA_SYS) {
 		ut_a(type->prtype >= DATA_ROW_ID);
