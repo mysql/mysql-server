@@ -8342,18 +8342,14 @@ my_mb_wc_euc_jp(CHARSET_INFO *cs,my_wc_t *pwc, const uchar *s, const uchar *e)
 static int
 my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
 {
-  unsigned char buf[2];
   unsigned char c1;
-  int ret,jp;
-
+  int jp;
+  
   if (s >= e)
     return MY_CS_TOOSMALL;
   
   if ((int) wc < 0x80)
   { 
-    if (s>e)
-      return MY_CS_TOOSMALL;
-      
     *s= (uchar) wc;
     return 1;
   }
@@ -8368,22 +8364,21 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
     s[1]=jp&0xFF;
     return 2;
   }
-
-  ret=my_wc_mb_jisx0201(c,wc,buf,buf+2);
-  if (ret==1)
-  {
-    if (s+1>e)
-      return MY_CS_TOOSMALL;
-      
-    s[0]=0x8E;
-    s[1]=buf[0];
-    return 1;
-  }
   
-
-  if ((jp=my_uni_jisx0212_onechar(wc)))
+  /* Half width Katakana */
+  if (my_wc_mb_jisx0201(c,wc,s,e) == 1)
   {
     if (s+2>e)
+      return MY_CS_TOOSMALL;
+    s[1]= s[0];
+    s[0]= 0x8E;
+    return 2;
+  }
+  
+  
+  if ((jp=my_uni_jisx0212_onechar(wc)))
+  {
+    if (s+3>e)
       return MY_CS_TOOSMALL;
       
     jp+=0x8080;
@@ -8393,7 +8388,7 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
     return 3;
   }
   
-
+  
   /* User defined range */
   if (wc>=0xE000 && wc<0xE3AC)
   { 
