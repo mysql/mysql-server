@@ -168,14 +168,6 @@ SOURCE=.\buf\buf0rea.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\com\com0com.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\com\com0shm.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\data\data0data.c
 # End Source File
 # Begin Source File
