@@ -30,3 +30,14 @@ select count(T1.a) from t1;
 --error 1109
 select count(bags.a) from t1 as Bags;
 drop table t1;
+
+#
+# Test all caps database name
+#
+create database foo;
+use foo;
+create table t1 (a int);
+select FOO.t1.* from FOO.t1;
+alter table t1 rename to T1;
+select FOO.t1.* from FOO.t1;
+drop database FOO;
