@@ -337,7 +337,8 @@ static char *get_text(LEX *lex)
 	      continue;
 	  }
 #endif
-	  if (*str == '\\' && str+1 != end)
+	  if (!(lex->thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) &&
+              *str == '\\' && str+1 != end)
 	  {
 	    switch(*++str) {
 	    case 'n':

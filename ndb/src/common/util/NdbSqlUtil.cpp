@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <NdbSqlUtil.hpp>
+#include <NdbOut.hpp>
 
 int
 NdbSqlUtil::char_compare(const char* s1, unsigned n1,
@@ -858,6 +859,8 @@ NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstL
   int n2 = (*cs->coll->strnxfrm)(cs, xsp, sizeof(xsp), nsp, n1);
   if (n2 <= 0)
     return -1;
+  // XXX bug workaround - strnxfrm may not write full string
+  memset(dst, 0x0, dstLen);
   // strxfrm argument string - returns no error indication
   int n3 = (*cs->coll->strnxfrm)(cs, dst, dstLen, src, srcLen);
   // pad with strxfrm-ed space chars
