@@ -459,7 +459,7 @@ os_file_get_size(
 
 	if (sizeof(off_t) > 4) {
 	        *size = (ulint)(offs & 0xFFFFFFFF);
-		*size_high = (ulint)((offs / (256 * 256)) / (256 * 256));
+		*size_high = (ulint)(offs >> 32);
 	} else {
 		*size = (ulint) offs;
 		*size_high = 0;
@@ -491,7 +491,7 @@ os_file_set_size(
 	byte*   	buf;
 	ulint   	i;
 
-	ut_a(((((size / 256) / 256) / 256) / 256) == 0);
+	ut_a(size == (size & 0xFFFFFFFF));
 
 try_again:
 	/* We use a very big 8 MB buffer in writing because Linux may be
@@ -505,8 +505,8 @@ try_again:
 	}
 
 	offset = 0;
-	low = (ib_longlong)size + (((ib_longlong)size_high)
-					* 256) * 256 * 256 * 256;
+	low = (ib_longlong)size + (((ib_longlong)size_high) << 32);
+				
 	while (offset < low) {
 	        if (low - offset < UNIV_PAGE_SIZE * 512) {
 	        	n_bytes = (ulint)(low - offset);
@@ -516,7 +516,7 @@ try_again:
 	  
 	        ret = os_file_write(name, file, buf,
 				(ulint)(offset & 0xFFFFFFFF),
-				(ulint)((((offset / 256) / 256) / 256) / 256),
+				    (ulint)(offset >> 32),
 				n_bytes);
 	        if (!ret) {
 			ut_free(buf);
@@ -609,14 +609,14 @@ os_file_pread(
 {
         off_t	offs;
 
-	ut_a(((((offset / 256) / 256) / 256) / 256) == 0);
+	ut_a((offset & 0xFFFFFFFF) == offset);
         
         /* If off_t is > 4 bytes in size, then we assume we can pass a
 	64-bit address */
 
         if (sizeof(off_t) > 4) {
-        	offs = (off_t)offset + ((((off_t)offset_high)
-        				* 256) * 256 * 256 * 256);
+	        offs = (off_t)offset + (((off_t)offset_high) << 32);
+        				
         } else {
         	offs = (off_t)offset;
 
@@ -675,14 +675,14 @@ os_file_pwrite(
 	ssize_t	ret;
         off_t	offs;
 
-	ut_a(((((offset / 256) / 256) / 256) / 256) == 0);
+	ut_a((offset & 0xFFFFFFFF) == offset);
 
         /* If off_t is > 4 bytes in size, then we assume we can pass a
 	64-bit address */
 
         if (sizeof(off_t) > 4) {
-        	offs = (off_t)offset + ((((off_t)offset_high)
-        				* 256) * 256 * 256 * 256);
+	  offs = (off_t)offset + (((off_t)offset_high) << 32);
+        				
         } else {
         	offs = (off_t)offset;
 
@@ -772,7 +772,7 @@ os_file_read(
 	ibool		retry;
 	ulint		i;
 	
-	ut_a(((((offset / 256) / 256) / 256) / 256) == 0);
+	ut_a((offset & 0xFFFFFFFF) == offset);
 
 	os_n_file_reads++;
 
@@ -856,7 +856,7 @@ os_file_write(
 	ibool		retry;
 	ulint		i;
 
-	ut_a(((((offset / 256) / 256) / 256) / 256) == 0);
+	ut_a((offset & 0xFFFFFFFF) == offset);
 
 	os_n_file_writes++;
 try_again:	
@@ -1466,7 +1466,6 @@ os_aio(
 	ibool		retry;
 	ulint		wake_later;
 
-	ut_a(((((offset / 256) / 256) / 256) / 256) == 0);
 	ut_ad(file);
 	ut_ad(buf);
 	ut_ad(n > 0);
