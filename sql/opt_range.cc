@@ -1455,8 +1455,6 @@ public:
 class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN
 {
 private:
-  JOIN *join;
-  TABLE* table;
   bool have_min, have_max;
   KEY_PART_INFO *min_max_arg_part;
   uint group_prefix_len;
@@ -1473,12 +1471,12 @@ private:
 public:
   ha_rows quick_prefix_records;
 public:
-  TRP_GROUP_MIN_MAX(JOIN *join, TABLE* table, bool have_min, bool have_max,
+  TRP_GROUP_MIN_MAX(bool have_min, bool have_max,
                     KEY_PART_INFO *min_max_arg_part, uint group_prefix_len,
                     uint used_key_parts, uint group_key_parts, KEY *index_info,
                     uint index, uint key_infix_len, byte *key_infix,
                     SEL_TREE *tree, SEL_ARG *index_tree, uint param_idx,
-                    ha_rows quick_prefix_records, PARAM *param);
+                    ha_rows quick_prefix_records);
 
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
@@ -6369,7 +6367,8 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
                        byte *key_infix, uint *key_infix_len,
                        KEY_PART_INFO **first_non_infix_part);
 static bool
-check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item);
+check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
+                               Field::imagetype image_type);
 
 static void
 cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
@@ -6778,25 +6777,26 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
   next_index:
     cur_group_key_parts= 0;
     cur_group_prefix_len= 0;
-    continue;
   }
   if (!index_info) /* No usable index found. */
     DBUG_RETURN(NULL);
 
 
   /* Check (SA3,WA1) for the where clause. */
-  if (!check_group_min_max_predicates(join->conds, min_max_arg_item))
+  if (!check_group_min_max_predicates(join->conds, min_max_arg_item,
+                                      (index_info->flags & HA_SPATIAL) ?
+                                      Field::itMBR : Field::itRAW))
     DBUG_RETURN(NULL);
 
   /* The query passes all tests, so construct a new TRP object. */
   read_plan= new (param->mem_root)
-                 TRP_GROUP_MIN_MAX(join, table, have_min, have_max,
-                                   min_max_arg_part, group_prefix_len,
-                                   used_key_parts, group_key_parts, index_info,
-                                   index, key_infix_len,
+                 TRP_GROUP_MIN_MAX(have_min, have_max, min_max_arg_part,
+                                   group_prefix_len, used_key_parts,
+                                   group_key_parts, index_info, index,
+                                   key_infix_len,
                                    (key_infix_len > 0) ? key_infix : NULL,
                                    tree, best_index_tree, best_param_idx,
-                                   best_quick_prefix_records, param);
+                                   best_quick_prefix_records);
   if (read_plan)
   {
     if (tree && read_plan->quick_prefix_records == 0)
@@ -6823,12 +6823,13 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     cond              tree (or subtree) describing all or part of the WHERE
                       clause being analyzed
     min_max_arg_item  the field referenced by the MIN/MAX function(s)
+    min_max_arg_part  the keypart of the MIN/MAX argument if any
 
   DESCRIPTION
     The function walks recursively over the cond tree representing a WHERE
     clause, and checks condition (SA3) - if a field is referenced by a MIN/MAX
-    aggregate function, it is referenced only by the following predicates:
-      {=, !=, <, <=, >, >=, between, is null, is not null}.
+    aggregate function, it is referenced only by one of the following
+    predicates: {=, !=, <, <=, >, >=, between, is null, is not null}.
 
   RETURN
     TRUE  if cond passes the test
@@ -6836,7 +6837,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
 */
 
 static bool
-check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item)
+check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
+                               Field::imagetype image_type)
 {
   DBUG_ENTER("check_group_min_max_predicates");
   if (!cond) /* If no WHERE clause, then all is OK. */
@@ -6850,7 +6852,8 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item)
     Item *and_or_arg;
     while ((and_or_arg= li++))
     {
-      if(!check_group_min_max_predicates(and_or_arg, min_max_arg_item))
+      if(!check_group_min_max_predicates(and_or_arg, min_max_arg_item,
+                                         image_type))
         DBUG_RETURN(FALSE);
     }
     DBUG_RETURN(TRUE);
@@ -6890,15 +6893,36 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item)
 
         /* Check that pred compares min_max_arg_item with a constant. */
         Item *args[3];
+        bzero(args, 3 * sizeof(Item*));
         bool inv;
         /* Test if this is a comparison of a field and a constant. */
         if (!simple_pred(pred, args, &inv))
+          DBUG_RETURN(FALSE);
+
+        /* Check for compatible string comparisons - similar to get_mm_leaf. */
+        if (args[0] && args[1] && !args[2] && // this is a binary function
+            min_max_arg_item->result_type() == STRING_RESULT &&
+            /*
+              Don't use an index when comparing strings of different collations.
+            */
+            ((args[1]->result_type() == STRING_RESULT &&
+              image_type == Field::itRAW &&
+              ((Field_str*) min_max_arg_item->field)->charset() !=
+              pred->compare_collation())
+             ||
+             /*
+               We can't always use indexes when comparing a string index to a
+               number.
+             */
+             (args[1]->result_type() != STRING_RESULT &&
+              min_max_arg_item->field->cmp_type() != args[1]->result_type())))
           DBUG_RETURN(FALSE);
       }
     }
     else if (cur_arg->type() == Item::FUNC_ITEM)
     {
-      if(!check_group_min_max_predicates(cur_arg, min_max_arg_item))
+      if(!check_group_min_max_predicates(cur_arg, min_max_arg_item,
+                                         image_type))
         DBUG_RETURN(FALSE);
     }
     else if (cur_arg->const_item())
@@ -7083,24 +7107,22 @@ SEL_ARG * get_index_range_tree(uint index, SEL_TREE* range_tree, PARAM *param,
 }
 
 
-TRP_GROUP_MIN_MAX::TRP_GROUP_MIN_MAX(JOIN *join, TABLE* table,
-                                     bool have_min, bool have_max,
+TRP_GROUP_MIN_MAX::TRP_GROUP_MIN_MAX(bool have_min, bool have_max,
                                      KEY_PART_INFO *min_max_arg_part,
                                      uint group_prefix_len, uint used_key_parts,
                                      uint group_key_parts, KEY *index_info,
                                      uint index, uint key_infix_len,
                                      byte *key_infix, SEL_TREE *tree,
                                      SEL_ARG *index_tree, uint param_idx,
-                                     ha_rows quick_prefix_records, PARAM *param)
-  : join(join), table(table), have_min(have_min), have_max(have_max),
-    min_max_arg_part(min_max_arg_part), group_prefix_len(group_prefix_len),
-    used_key_parts(used_key_parts), group_key_parts(group_key_parts),
-    index_info(index_info), index(index), key_infix_len(key_infix_len),
-    range_tree(tree), index_tree(index_tree), param_idx(param_idx),
-    quick_prefix_records(quick_prefix_records)
+                                     ha_rows quick_prefix_records)
+  : have_min(have_min), have_max(have_max), min_max_arg_part(min_max_arg_part),
+    group_prefix_len(group_prefix_len), used_key_parts(used_key_parts),
+    group_key_parts(group_key_parts), index_info(index_info), index(index),
+    key_infix_len(key_infix_len), range_tree(tree), index_tree(index_tree),
+    param_idx(param_idx), quick_prefix_records(quick_prefix_records)
 {
   if (key_infix_len)
-    memcpy(this->key_infix, key_infix, MAX_KEY_LENGTH);
+    memcpy(this->key_infix, key_infix, key_infix_len);
 }
 
 
@@ -7233,7 +7255,7 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   */
   cpu_cost= (double) num_groups / TIME_FOR_COMPARE;
 
-  *read_cost= io_cost /*+ cpu_cost*/;
+  *read_cost= io_cost + cpu_cost;
   *records= num_groups;
 
   DBUG_PRINT("info",
@@ -7273,11 +7295,12 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
 
   DBUG_ENTER("TRP_GROUP_MIN_MAX::make_quick");
 
-  quick= new QUICK_GROUP_MIN_MAX_SELECT(table, join, have_min, have_max,
-                                        min_max_arg_part, group_prefix_len,
-                                        used_key_parts, index_info, index,
-                                        read_cost, records, key_infix_len,
-                                        key_infix, parent_alloc);
+  quick= new QUICK_GROUP_MIN_MAX_SELECT(param->table,
+                                        param->thd->lex->select_lex.join,
+                                        have_min, have_max, min_max_arg_part,
+                                        group_prefix_len, used_key_parts,
+                                        index_info, index, read_cost, records,
+                                        key_infix_len, key_infix, parent_alloc);
   if (!quick)
     DBUG_RETURN(NULL);
 
@@ -7317,7 +7340,7 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
       /* Create an array of QUICK_RANGEs for the MIN/MAX argument. */
       while (min_max_range)
       {
-        if (!quick->add_range(min_max_range))
+        if (quick->add_range(min_max_range))
         {
           delete quick;
           quick= NULL;
@@ -7514,8 +7537,8 @@ QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT()
     a quick range.
 
   RETURN
-    TRUE  on success
-    FALSE otherwise
+    FALSE on success
+    TRUE  otherwise
 */
 
 bool QUICK_GROUP_MIN_MAX_SELECT::add_range(SEL_ARG *sel_range)
@@ -7525,7 +7548,7 @@ bool QUICK_GROUP_MIN_MAX_SELECT::add_range(SEL_ARG *sel_range)
 
   /* Skip (-inf,+inf) ranges, e.g. (x < 5 or x > 4). */
   if((range_flag & NO_MIN_RANGE) && (range_flag & NO_MAX_RANGE))
-    return TRUE;
+    return FALSE;
 
   if (!(sel_range->min_flag & NO_MIN_RANGE) &&
       !(sel_range->max_flag & NO_MAX_RANGE))
@@ -7541,10 +7564,10 @@ bool QUICK_GROUP_MIN_MAX_SELECT::add_range(SEL_ARG *sel_range)
                          sel_range->max_value, min_max_arg_len,
                          range_flag);
   if (!range)
-    return FALSE;
+    return TRUE;
   if (insert_dynamic(&min_max_ranges, (gptr)&range))
-    return FALSE;
-  return TRUE;
+    return TRUE;
+  return FALSE;
 }
 
 

@@ -5020,8 +5020,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       }
       if (tmp || !cond)
       {
-        if (tmp)
-          DBUG_EXECUTE("where",print_where(tmp,tab->table->table_name););
+        DBUG_EXECUTE("where",print_where(tmp,tab->table->table_name););
 	SQL_SELECT *sel=tab->select=(SQL_SELECT*)
 	  join->thd->memdup((gptr) select, sizeof(SQL_SELECT));
 	if (!sel)
