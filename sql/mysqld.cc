@@ -552,6 +552,7 @@ extern "C" pthread_handler_decl(handle_slave,arg);
 static ulong find_bit_type(const char *x, TYPELIB *bit_lib);
 static void clean_up(bool print_message);
 static void clean_up_mutexes(void);
+static void wait_for_signal_thread_to_end(void);
 static int test_if_case_insensitive(const char *dir_name);
 static void create_pid_file();
 
@@ -843,9 +844,9 @@ static void __cdecl kill_server(int sig_ptr)
 #define RETURN_FROM_KILL_SERVER DBUG_VOID_RETURN
 #endif
 {
-  int sig=(int) (long) sig_ptr;			// This is passed a int
   DBUG_ENTER("kill_server");
 #ifndef EMBEDDED_LIBRARY
+  int sig=(int) (long) sig_ptr;			// This is passed a int
   // if there is a signal during the kill in progress, ignore the other
   if (kill_in_progress)				// Safety
     RETURN_FROM_KILL_SERVER;
@@ -943,6 +944,7 @@ extern "C" void unireg_abort(int exit_code)
     sql_print_error("Aborting\n");
   clean_up(exit_code || !opt_bootstrap); /* purecov: inspected */
   DBUG_PRINT("quit",("done with cleanup in unireg_abort"));
+  wait_for_signal_thread_to_end();
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   exit(exit_code); /* purecov: inspected */
@@ -1049,6 +1051,29 @@ void clean_up(bool print_message)
   */
   DBUG_PRINT("quit", ("done with cleanup"));
 } /* clean_up */
+
+
+/*
+  This is mainly needed when running with purify, but it's still nice to
+  know that all child threads have died when mysqld exits
+*/
+
+static void wait_for_signal_thread_to_end()
+{
+#ifndef __NETWARE__
+  uint i;
+  /*
+    Wait up to 10 seconds for signal thread to die. We use this mainly to
+    avoid getting warnings that my_thread_end has not been called
+  */
+  for (i= 0 ; i < 100 && signal_thread_in_use; i++)
+  {
+    if (pthread_kill(signal_thread, MYSQL_KILL_SIGNAL))
+      break;
+    my_sleep(100);				// Give it time to die
+  }
+#endif
+}
 
 
 static void clean_up_mutexes()
@@ -1171,7 +1196,7 @@ err:
 static void set_user(const char *user, struct passwd *user_info)
 {
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
-  DBUG_ASSERT(user_info);
+  DBUG_ASSERT(user_info != 0);
 #ifdef HAVE_INITGROUPS
   /*
     We can get a SIGSEGV when calling initgroups() on some systems when NSS
@@ -1200,7 +1225,7 @@ static void set_user(const char *user, struct passwd *user_info)
 static void set_effective_user(struct passwd *user_info)
 {
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
-  DBUG_ASSERT(user_info);
+  DBUG_ASSERT(user_info != 0);
   if (setregid((gid_t)-1, user_info->pw_gid) == -1)
   {
     sql_perror("setregid");
@@ -2146,6 +2171,7 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
       while ((error=my_sigwait(&set,&sig)) == EINTR) ;
     if (cleanup_done)
     {
+      DBUG_PRINT("quit",("signal_handler: calling my_thread_end()"));
       my_thread_end();
       signal_thread_in_use= 0;
       pthread_exit(0);				// Safety
@@ -2233,6 +2259,8 @@ extern "C" int my_message_sql(uint error, const char *str, myf MyFlags)
 
     thd->query_error=  1; // needed to catch query errors during replication
 
+    if (!thd->no_warnings_for_error)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
     /*
       thd->lex->current_select == 0 if lex structure is not inited
       (not query command (COM_QUERY))
@@ -2244,8 +2272,6 @@ extern "C" int my_message_sql(uint error, const char *str, myf MyFlags)
                            (thd->lex->current_select ?
                             thd->lex->current_select->no_error : 0),
                            (int) thd->is_fatal_error));
-
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
     }
     else
     {
@@ -2339,8 +2365,11 @@ const char *load_default_groups[]= {
 "mysql_cluster",
 #endif
 "mysqld","server", MYSQL_BASE_VERSION, 0, 0};
+
+#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
 static const int load_default_groups_sz=
 sizeof(load_default_groups)/sizeof(load_default_groups[0]);
+#endif
 
 /*
   Initialize one of the global date/time format variables
@@ -3173,21 +3202,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
       CloseHandle(hEventShutdown);
   }
 #endif
-#ifndef __NETWARE__
-  {
-    uint i;
-    /*
-      Wait up to 10 seconds for signal thread to die. We use this mainly to
-      avoid getting warnings that my_thread_end has not been called
-    */
-    for (i= 0 ; i < 100 && signal_thread_in_use; i++)
-    {
-      if (pthread_kill(signal_thread, MYSQL_KILL_SIGNAL))
-	break;
-      my_sleep(100);				// Give it time to die
-    }
-  }
-#endif
+  wait_for_signal_thread_to_end();
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
  
@@ -3396,7 +3411,6 @@ int main(int argc, char **argv)
 
 static void bootstrap(FILE *file)
 {
-  int error= 0;
   DBUG_ENTER("bootstrap");
 
   THD *thd= new THD;
@@ -4254,7 +4268,7 @@ struct my_option my_long_options[] =
    (gptr*) &abort_slave_event_count,  (gptr*) &abort_slave_event_count,
    0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif /* HAVE_REPLICATION */
-  {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax.", 0, 0, 0,
+  {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax. This mode will also set transaction isolation level 'serializable'.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-increment-increment", OPT_AUTO_INCREMENT,
    "Auto-increment columns are incremented by this",

@@ -20,4 +20,34 @@
 
 Command *parse_command(Command_factory *factory, const char  *text);
 
+/* define kinds of the word seek method */
+enum { ALPHANUM= 1, NONSPACE };
+
+/*
+  tries to find next word in the text
+  if found, returns the beginning and puts word length to word_len argument.
+  if not found returns pointer to first non-space or to '\0', word_len == 0
+*/
+
+inline void get_word(const char **text, uint *word_len,
+                     int seek_method= ALPHANUM)
+{
+  const char *word_end;
+
+  /* skip space */
+  while (my_isspace(default_charset_info, **text))
+    ++(*text);
+
+  word_end= *text;
+
+  if (seek_method == ALPHANUM)
+    while (my_isalnum(default_charset_info, *word_end))
+      ++word_end;
+  else
+    while (!my_isspace(default_charset_info, *word_end))
+      ++word_end;
+
+  *word_len= word_end - *text;
+}
+
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_PARSE_H */

@@ -112,7 +112,7 @@ row_sel_sec_rec_is_for_clust_rec(
 			clust_len = dtype_get_at_most_n_mbchars(
 				cur_type,
 				ifield->prefix_len,
-				clust_len, clust_field);
+				clust_len, (char*) clust_field);
 		}
 
                 if (0 != cmp_data_data(dict_col_get_type(col),
@@ -2501,7 +2501,7 @@ row_sel_store_mysql_rec(
 			}
 
 			/* Handle UCS2 strings differently. */
-			if (templ->mbminlen == 2) {
+			if (pad_char != '\0' && templ->mbminlen == 2) {
 				/* There are two bytes per char, so the length
 				has to be an even number. */
 				ut_a(!(templ->mysql_col_len & 1));
@@ -3058,14 +3058,19 @@ row_search_for_mysql(
 		ut_error;
 	}
 
-	if (trx->n_mysql_tables_in_use == 0) {
+	if (trx->n_mysql_tables_in_use == 0
+            && prebuilt->select_lock_type == LOCK_NONE) {
+		/* Note that if MySQL uses an InnoDB temp table that it
+		created inside LOCK TABLES, then n_mysql_tables_in_use can
+		be zero; in that case select_lock_type is set to LOCK_X in
+		::start_stmt. */
+
 		fputs(
 "InnoDB: Error: MySQL is trying to perform a SELECT\n"
 "InnoDB: but it has not locked any tables in ::external_lock()!\n",
                       stderr);
 		trx_print(stderr, trx);
                 fputc('\n', stderr);
-		ut_a(0);
 	}
 
 /*	fprintf(stderr, "Match mode %lu\n search tuple ", (ulong) match_mode);

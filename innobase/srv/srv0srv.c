@@ -97,7 +97,7 @@ ulint	srv_last_file_size_max	= 0;		 /* if != 0, this tells
 						 the max size auto-extending
 						 may increase the last data
 						 file size */
-ulint	srv_auto_extend_increment = 8;		 /* If the last data file is
+ulong	srv_auto_extend_increment = 8;		 /* If the last data file is
 						 auto-extended, we add this
 						 many pages to it at a time */
 ulint*  srv_data_file_is_raw_partition = NULL;
@@ -322,9 +322,6 @@ int     srv_query_thread_priority = 0;
 disable adaptive hash indexes */
 ibool	srv_use_awe			= FALSE;
 ibool	srv_use_adaptive_hash_indexes 	= TRUE;
-
-/* Maximum allowable purge history length.  <=0 means 'infinite'. */
-ulint	srv_max_purge_lag		= 0;
 
 /*-------------------------------------------*/
 ulint	srv_n_spin_wait_rounds	= 20;
@@ -972,6 +969,8 @@ srv_general_init(void)
 
 /*======================= InnoDB Server FIFO queue =======================*/
 
+/* Maximum allowable purge history length.  <=0 means 'infinite'. */
+ulong	srv_max_purge_lag		= 0;
 
 /*************************************************************************
 Puts an OS thread to wait if there are too many concurrent threads
@@ -1501,7 +1500,7 @@ srv_suspend_mysql_thread(
 		ut_usectime(&sec, &ms);
 		finish_time = (ib_longlong)sec * 1000000 + ms;
 
-		diff_time = finish_time - start_time;
+		diff_time = (ulint) (finish_time - start_time);
   
 		srv_n_lock_wait_current_count--;
 		srv_n_lock_wait_time = srv_n_lock_wait_time + diff_time;
@@ -1799,9 +1798,12 @@ srv_export_innodb_status(void)
         export_vars.innodb_row_lock_waits= srv_n_lock_wait_count;
         export_vars.innodb_row_lock_current_waits= srv_n_lock_wait_current_count;
         export_vars.innodb_row_lock_time= srv_n_lock_wait_time / 10000;
-        export_vars.innodb_row_lock_time_avg= 
-            (srv_n_lock_wait_count > 0) ? 
-            (srv_n_lock_wait_time / 10000 / srv_n_lock_wait_count) : 0;
+	if (srv_n_lock_wait_count > 0) {
+		export_vars.innodb_row_lock_time_avg = (ulint)
+			(srv_n_lock_wait_time / 10000 / srv_n_lock_wait_count);
+	} else {
+		export_vars.innodb_row_lock_time_avg = 0;
+	}
         export_vars.innodb_row_lock_time_max= srv_n_lock_max_wait_time / 10000;
         export_vars.innodb_rows_read= srv_n_rows_read;
         export_vars.innodb_rows_inserted= srv_n_rows_inserted;

@@ -186,7 +186,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
     FIX_LENGTH(cs, pos, length, char_length);
     memcpy((byte*) key, pos, char_length);
     if (length > char_length)
-      cs->cset->fill(cs, key+char_length, length-char_length, ' ');
+      cs->cset->fill(cs, (char*) key+char_length, length-char_length, ' ');
     key+= length;
   }
   _mi_dpointer(info,key,filepos);
@@ -296,7 +296,7 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
     FIX_LENGTH(cs, pos, length, char_length);
     memcpy((byte*) key, pos, char_length);
     if (length > char_length)
-      cs->cset->fill(cs,key+char_length, length-char_length, ' ');
+      cs->cset->fill(cs, (char*) key+char_length, length-char_length, ' ');
     key+= length;
     k_length-=length;
   }

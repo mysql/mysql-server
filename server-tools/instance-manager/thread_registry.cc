@@ -197,6 +197,7 @@ void Thread_registry::deliver_shutdown()
     if (info->current_cond)
       pthread_cond_signal(info->current_cond);
   }
+
   pthread_mutex_unlock(&LOCK_thread_registry);
 }
 

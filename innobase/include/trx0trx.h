@@ -157,7 +157,6 @@ trx_commit_for_mysql(
 /*=================*/
 			/* out: 0 or error number */
 	trx_t*	trx);	/* in: trx handle */
-
 /**************************************************************************
 Does the transaction prepare for MySQL. */
 
@@ -166,7 +165,6 @@ trx_prepare_for_mysql(
 /*=================*/
 			/* out: 0 or error number */
 	trx_t*	trx);	/* in: trx handle */
-
 /**************************************************************************
 This function is used to find number of prepared transactions and
 their transaction objects for a recovery. */
@@ -177,7 +175,6 @@ trx_recover_for_mysql(
 				/* out: number of prepared transactions */
 	XID*    xid_list, 	/* in/out: prepared transactions */
 	ulint	len);		/* in: number of slots in xid_list */
-
 /***********************************************************************
 This function is used to commit one X/Open XA distributed transaction
 which is in the prepared state */
@@ -185,8 +182,7 @@ trx_t *
 trx_get_trx_by_xid(
 /*===============*/
 			/* out: trx or NULL */
-	XID*	xid);	/*  in: X/Open XA Transaction Idenfication */
-
+	XID*	xid);	/*  in: X/Open XA transaction identification */
 /**************************************************************************
 If required, flushes the log to disk if we called trx_commit_for_mysql()
 with trx->flush_log_later == TRUE. */

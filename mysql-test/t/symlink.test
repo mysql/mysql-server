@@ -83,7 +83,7 @@ create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, p
 create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="not-hard-path";
 
 # Should fail becasue the file t9.MYI already exist in 'run'
---error 1,1
+--error 1,1,1105
 eval create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="$MYSQL_TEST_DIR/var/run";
 
 # Should fail becasue the file t9.MYD already exist in 'tmp'

@@ -16,6 +16,15 @@
 
 #include "priv.h"
 
+/* the pid of the manager process (of the signal thread on the LinuxThreads) */
+pid_t manager_pid;
+
+/*
+  This flag is set if mysqlmanager has detected that it is running on the
+  system using LinuxThreads
+*/
+bool linuxthreads;
+
 /*
   The following string must be less then 80 characters, as
   mysql_connection.cc relies on it
