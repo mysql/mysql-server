@@ -92,8 +92,8 @@ Ndb::init(int aMaxNoOfTransactions)
   
   theDictionary->setTransporter(this, theFacade);
   
-  aNrOfCon = theNoOfDBnodes;
-  aNrOfOp = 2*theNoOfDBnodes;
+  aNrOfCon = theImpl->theNoOfDBnodes;
+  aNrOfOp = 2*theImpl->theNoOfDBnodes;
   
   // Create connection object in a linked list 
   if((createConIdleList(aNrOfCon)) == -1){
@@ -192,14 +192,14 @@ void Ndb::connected(Uint32 ref)
   }
   
   TransporterFacade * theFacade =  TransporterFacade::instance();
-  int i;
-  theNoOfDBnodes= 0;
+  int i, n= 0;
   for (i = 1; i < MAX_NDB_NODES; i++){
     if (theFacade->getIsDbNode(i)){
-      theDBnodes[theNoOfDBnodes] = i;
-      theNoOfDBnodes++;
+      theImpl->theDBnodes[n] = i;
+      n++;
     }
   }
+  theImpl->theNoOfDBnodes= n;
   theFirstTransId = ((Uint64)tBlockNo << 52)+
     ((Uint64)tmpTheNode << 40);
   theFirstTransId += theFacade->m_max_trans_id;
@@ -207,9 +207,10 @@ void Ndb::connected(Uint32 ref)
   DBUG_PRINT("info",("connected with ref=%x, id=%d, no_db_nodes=%d, first_trans_id=%lx",
 		     theMyRef,
 		     tmpTheNode,
-		     theNoOfDBnodes,
+		     theImpl->theNoOfDBnodes,
 		     theFirstTransId));
-  startTransactionNodeSelectionData.init(theNoOfDBnodes, theDBnodes);
+  startTransactionNodeSelectionData.init(theImpl->theNoOfDBnodes,
+					 theImpl->theDBnodes);
   theCommitAckSignal = new NdbApiSignal(theMyRef);
 
   theDictionary->m_receiver.m_reference= theMyRef;
@@ -247,7 +248,9 @@ Ndb::report_node_failure(Uint32 node_id)
    * 
    * This method is only called by ClusterMgr (via lots of methods)
    */
-  the_release_ind[node_id] = 1;
+  theImpl->the_release_ind[node_id] = 1;
+  // must come after
+  theImpl->the_release_ind[0] = 1;
   theWaiter.nodeFail(node_id);
   return;
 }//Ndb::report_node_failure()
