@@ -1370,6 +1370,10 @@ bool Item_param::convert_str_value(THD *thd)
                               value.cs_info.character_set_client,
                               value.cs_info.final_character_set_of_str_value);
     }
+    else
+      str_value.set_charset(value.cs_info.final_character_set_of_str_value);
+    /* Here str_value is guaranteed to be in final_character_set_of_str_value */
+
     max_length= str_value.length();
     decimals= 0;
     /*

@@ -164,10 +164,10 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   CHARSET_INFO *cs= &my_charset_bin;
   int error= 0;
   bool usa_time= 0;
-  bool sunday_first_n_first_week_non_iso;
+  bool sunday_first_n_first_week_non_iso= -2;
   bool strict_week_number;
   int  strict_week_number_year= -1;
-  bool strict_week_number_year_type;
+  bool strict_week_number_year_type= -1;
   int frac_part;
   const char *val_begin= val;
   const char *val_end= val + length;
@@ -175,9 +175,7 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   const char *end= ptr + format->format.length;
   DBUG_ENTER("extract_date_time");
 
-  LINT_INIT(sunday_first_n_first_week_non_iso);
   LINT_INIT(strict_week_number);
-  LINT_INIT(strict_week_number_year_type);
 
   if (!sub_pattern_end)
     bzero((char*) l_time, sizeof(*l_time));

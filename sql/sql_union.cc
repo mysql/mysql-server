@@ -314,27 +314,23 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     thd_arg->lex->current_select= lex_select_save;
     if (!item_list.elements)
     {
-      Field **field;
-      Item_arena backup;
-      if (arena->is_conventional())
-        arena= 0;
-      else
-	thd->set_n_backup_item_arena(arena, &backup);
+      Item_arena *tmp_arena,backup;
+      tmp_arena= thd->change_arena_if_needed(&backup);
 
       for (field= table->field; *field; field++)
       {
 	Item_field *item= new Item_field(*field);
 	if (!item || item_list.push_back(item))
 	{
-	  if (arena)
-	    thd->restore_backup_item_arena(arena, &backup);
+          if (tmp_arena)
+	    thd->restore_backup_item_arena(tmp_arena, &backup);
 	  DBUG_RETURN(-1);
 	}
       }
-      if (arena)
+      if (tmp_arena)
+        thd->restore_backup_item_arena(tmp_arena, &backup);
+      if (arena->is_stmt_prepare())
       {
-	thd->restore_backup_item_arena(arena, &backup);
-
 	/* prepare fake select to initialize it correctly */
 	ulong options_tmp= init_prepare_fake_select_lex(thd);
         /*

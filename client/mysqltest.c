@@ -951,7 +951,6 @@ static void do_exec(struct st_query* q)
     while (fgets(buf, sizeof(buf), res_file))
       replace_dynstr_append_mem(ds, buf, strlen(buf));
   }
-
   error= pclose(res_file);
 
   if (error != 0)
@@ -4520,8 +4519,7 @@ static void get_replace_column(struct st_query *q)
   my_free(start, MYF(0));
 }
 
-#ifdef __NETWARE__
-
+#if defined(__NETWARE__) || defined(__WIN__)
 /*
   Substitute environment variables with text.
 
@@ -4617,4 +4615,4 @@ FILE *my_popen(const char *cmd, const char *mode __attribute__((unused)))
   return res_file;
 }
 
-#endif /* __NETWARE__ */
+#endif /* __NETWARE__ or  __WIN__*/

@@ -38,7 +38,7 @@ void init_sql_alloc(MEM_ROOT *mem_root, uint block_size, uint pre_alloc)
 
 gptr sql_alloc(uint Size)
 {
-  MEM_ROOT *root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
+  MEM_ROOT *root= *my_pthread_getspecific_ptr(MEM_ROOT**,THR_MALLOC);
   char *ptr= (char*) alloc_root(root,Size);
   return ptr;
 }
