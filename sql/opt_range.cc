@@ -393,6 +393,7 @@ QUICK_SELECT::QUICK_SELECT(TABLE *table,uint key_nr,bool no_alloc)
   else
     bzero((char*) &alloc,sizeof(alloc));
   file=head->file;
+  error=file->index_init(index);
   record=head->record[0];
   init();
 }
