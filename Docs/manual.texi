@@ -17649,8 +17649,9 @@ LOAD DATA [LOW_PRIORITY] [LOCAL] INFILE 'file_name.txt' [REPLACE | IGNORE]
     INTO TABLE tbl_name
     [FIELDS
         [TERMINATED BY '\t']
-        [OPTIONALLY] ENCLOSED BY '']
-        [ESCAPED BY '\\' ]]
+        [[OPTIONALLY] ENCLOSED BY '']
+        [ESCAPED BY '\\' ]
+    ]
     [LINES TERMINATED BY '\n']
     [IGNORE number LINES]
     [(col_name,...)]
