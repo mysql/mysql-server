@@ -543,7 +543,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_mi_check_type opt_to mi_check_types normal_join
 	table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_rkey_mode handler_read_or_scan
-	single_multi table_multi_delete table_sini_wild
+	single_multi table_multi_delete table_sini_wild union union_list
 END_OF_INPUT
 
 %type <NONE>
@@ -1260,11 +1260,11 @@ select:
 	SELECT_SYM
 	{
 	  LEX *lex=Lex;
-	  lex->sql_command= SQLCOM_SELECT;
+	  if (lex->sql_command!=SQLCOM_UNION_SELECT)  lex->sql_command= SQLCOM_SELECT;
 	  lex->lock_option=TL_READ;
 	  mysql_init_select(lex);
 	}
-	select_options select_item_list select_into select_lock_type
+	select_options select_item_list select_into select_lock_type union
 
 select_into:
 	limit_clause {}
@@ -3155,3 +3155,23 @@ commit:
 
 rollback:
 	ROLLBACK_SYM { Lex->sql_command = SQLCOM_ROLLBACK;}
+
+
+/*
+** UNIONS : glue selects together
+*/
+
+
+union:	
+  /* empty */ {}
+  | union_list
+
+union_list:
+  UNION_SYM  
+  {
+    LEX *lex=Lex;
+    if (lex->exchange) YYABORT; /* Only the last SELECT can have  INTO...... */
+    lex->sql_command=SQLCOM_UNION_SELECT;
+    mysql_new_select(lex); lex->select->linkage=UNION_TYPE;
+  } 
+  select

@@ -232,6 +232,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
 bool mysql_change_db(THD *thd,const char *name);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 void mysql_init_select(LEX *lex);
+void mysql_new_select(LEX *lex);
 void init_max_user_conn(void);
 void free_max_user_conn(void);
 pthread_handler_decl(handle_one_connection,arg);
@@ -304,6 +305,7 @@ int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
                  List<Item_func_match> &ftfuncs,
 		 ORDER *order, ORDER *group,Item *having,ORDER *proc_param,
 		 uint select_type,select_result *result);
+int mysql_union(THD *thd,LEX *lex, uint no);
 Field *create_tmp_field(TABLE *table,Item *item, Item::Type type,
 			Item_result_field ***copy_func, Field **from_field,
 			bool group,bool modify_item);
