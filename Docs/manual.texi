@@ -46926,8 +46926,13 @@ Fixed core dump problem on OSF in @code{gethostbyname_r}.
 @item
 Fixed that underflowed decimal fields is not zero filled.
 @item
-@code{'+11111'} in overflow for @code{decimal(5,0) unsigned} columns,
-Just sign will be dropped.
+If we get an overflow when inserting @code{'+11111'} for
+@code{decimal(5,0) unsigned} columns, we will just drop the sign.
+@item
+Fixed bug with @code{ISNULL(expression_which_cannot_be_null)}.
+@item
+Fixed host lookup bug in the glibc library that we used with the 3.23.50
+Linux-x86 binaries.
 @end itemize
 
 @node News-3.23.50, News-3.23.49, News-3.23.51, News-3.23.x

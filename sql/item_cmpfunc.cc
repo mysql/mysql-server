@@ -25,9 +25,9 @@
 #include <m_ctype.h>
 
 /*
-** Test functions
-** These returns 0LL if false and 1LL if true and null if some arg is null
-** 'AND' and 'OR' never return null
+  Test functions
+  These returns 0LL if false and 1LL if true and null if some arg is null
+  'AND' and 'OR' never return null
 */
 
 longlong Item_func_not::val_int()
@@ -59,8 +59,10 @@ void Item_bool_func2::fix_length_and_dec()
 {
   max_length=1;
 
-  /* As some compare functions are generated after sql_yacc,
-     we have to check for out of memory conditons here */
+  /*
+    As some compare functions are generated after sql_yacc,
+    we have to check for out of memory conditons here
+  */
   if (!args[0] || !args[1])
     return;
   // Make a special case of compare with fields to get nicer DATE comparisons
@@ -336,8 +338,10 @@ void Item_func_between::fix_length_and_dec()
 {
    max_length=1;
 
-  /* As some compare functions are generated after sql_yacc,
-     we have to check for out of memory conditons here */
+  /*
+    As some compare functions are generated after sql_yacc,
+    we have to check for out of memory conditons here
+  */
   if (!args[0] || !args[1] || !args[2])
     return;
   cmp_type=args[0]->result_type();
@@ -389,7 +393,7 @@ longlong Item_func_between::val_int()
   {
     longlong value=args[0]->val_int(),a,b;
     if ((null_value=args[0]->null_value))
-      return 0; /* purecov: inspected */
+      return 0;					/* purecov: inspected */
     a=args[1]->val_int();
     b=args[2]->val_int();
     if (!args[1]->null_value && !args[2]->null_value)
@@ -409,7 +413,7 @@ longlong Item_func_between::val_int()
   {
     double value=args[0]->val(),a,b;
     if ((null_value=args[0]->null_value))
-      return 0; /* purecov: inspected */
+      return 0;					/* purecov: inspected */
     a=args[1]->val();
     b=args[2]->val();
     if (!args[1]->null_value && !args[2]->null_value)
@@ -594,10 +598,9 @@ Item_func_nullif::val_str(String *str)
 }
 
 /*
-** CASE expression 
+  CASE expression 
+  Return the matching ITEM or NULL if all compares (including else) failed
 */
-
-/* Return the matching ITEM or NULL if all compares (including else) failed */
 
 Item *Item_func_case::find_item(String *str)
 {
@@ -786,7 +789,7 @@ void Item_func_case::print(String *str)
 }
 
 /*
-** Coalesce - return first not NULL argument.
+  Coalesce - return first not NULL argument.
 */
 
 String *Item_func_coalesce::val_str(String *str)
@@ -841,7 +844,7 @@ void Item_func_coalesce::fix_length_and_dec()
 }
 
 /****************************************************************************
-** classes and function for the IN operator
+ Classes and function for the IN operator
 ****************************************************************************/
 
 static int cmp_longlong(longlong *a,longlong *b)
@@ -914,7 +917,7 @@ byte *in_longlong::get_value(Item *item)
 {
   tmp=item->val_int();
   if (item->null_value)
-    return 0; /* purecov: inspected */
+    return 0;					/* purecov: inspected */
   return (byte*) &tmp;
 }
 
@@ -932,7 +935,7 @@ byte *in_double::get_value(Item *item)
 {
   tmp=item->val();
   if (item->null_value)
-    return 0; /* purecov: inspected */
+    return 0;					/* purecov: inspected */
   return (byte*) &tmp;
 }
 
@@ -1170,9 +1173,11 @@ longlong Item_cond_and::val_int()
   {
     if (item->val_int() == 0)
     {
-      /* TODO: In case of NULL, ANSI would require us to continue evaluation
-	 until we get a FALSE value or run out of values; This would
-	 require a lot of unnecessary evaluation, which we skip for now */
+      /*
+	TODO: In case of NULL, ANSI would require us to continue evaluation
+	until we get a FALSE value or run out of values; This would
+	require a lot of unnecessary evaluation, which we skip for now
+      */
       null_value=item->null_value;
       return 0;
     }
@@ -1201,6 +1206,12 @@ longlong Item_cond_or::val_int()
 
 longlong Item_func_isnull::val_int()
 {
+  /*
+    Handle optimization if the argument can't be null
+    This has to be here because of the test in update_used_tables().
+  */
+  if (!used_tables_cache)
+    return 0;
   (void) args[0]->val();
   return (args[0]->null_value) ? 1 : 0;
 }
