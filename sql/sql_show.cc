@@ -1831,6 +1831,11 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
         end= strend(pos);
         break;
       }
+      case SHOW_DOUBLE:
+      {
+        end= buff + sprintf(buff, "%f", *(double*) value);
+        break;
+      }
 #ifdef HAVE_OPENSSL
 	/* First group - functions relying on CTX */
       case SHOW_SSL_CTX_SESS_ACCEPT:
