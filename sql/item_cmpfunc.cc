@@ -432,10 +432,16 @@ int Arg_comparator::compare_e_binary_string()
 
 int Arg_comparator::compare_real()
 {
-  double val1= (*a)->val_real();
+  /*
+    Fix yet another manifestation of Bug#2338. 'Volatile' will instruct
+    gcc to flush double values out of 80-bit Intel FPU registers before
+    performing the comparison.
+  */
+  volatile double val1, val2;
+  val1= (*a)->val_real();
   if (!(*a)->null_value)
   {
-    double val2= (*b)->val_real();
+    val2= (*b)->val_real();
     if (!(*b)->null_value)
     {
       owner->null_value= 0;
