@@ -358,11 +358,9 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     */
     if (!tables)
       kill_delayed_threads();
-    pthread_mutex_lock(&thd->mysys_var->mutex);
     thd->mysys_var->current_mutex= &LOCK_open;
     thd->mysys_var->current_cond= &COND_refresh;
     thd->proc_info="Flushing tables";
-    pthread_mutex_unlock(&thd->mysys_var->mutex);
 
     close_old_data_files(thd,thd->open_tables,1,1);
     bool found=1;
@@ -667,13 +665,12 @@ void wait_for_refresh(THD *thd)
 {
   /* Wait until the current table is up to date */
   const char *proc_info;
-  pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= &LOCK_open;
   thd->mysys_var->current_cond= &COND_refresh;
   proc_info=thd->proc_info;
   thd->proc_info="Waiting for table";
-  pthread_mutex_unlock(&thd->mysys_var->mutex);
-  (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
+  if (!thd->killed)
+    (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
 
   pthread_mutex_unlock(&LOCK_open);	// Must be unlocked first
   pthread_mutex_lock(&thd->mysys_var->mutex);
@@ -2182,7 +2179,7 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
       {
 	in_use->killed=1;
 	pthread_mutex_lock(&in_use->mysys_var->mutex);
-	if (in_use->mysys_var->current_mutex)
+	if (in_use->mysys_var->current_cond)
 	{
 	  pthread_mutex_lock(in_use->mysys_var->current_mutex);
 	  pthread_cond_broadcast(in_use->mysys_var->current_cond);

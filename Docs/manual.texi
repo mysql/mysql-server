@@ -46712,6 +46712,9 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.42
 @itemize @bullet
 @item
+Fixed rare hang when doing @code{mysqladmin shutdown} when there was
+a lot of activity in other threads.
+@item
 Fixed problem with @code{INSERT DELAYED} where delay thread could be
 hanging on @code{upgrading locks} without any apparent reasons.
 @item

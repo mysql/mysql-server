@@ -374,16 +374,16 @@ static my_bool wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   }
 
   /* Set up control struct to allow others to abort locks */
-  pthread_mutex_lock(&thread_var->mutex);
   thread_var->current_mutex= &data->lock->mutex;
   thread_var->current_cond=  cond;
-  pthread_mutex_unlock(&thread_var->mutex);
 
   data->cond=cond;
-  do
+  while (!thread_var->abort || in_wait_list)
   {
     pthread_cond_wait(cond,&data->lock->mutex);
-  } while (data->cond == cond && (!thread_var->abort || in_wait_list));
+    if (data->cond != cond)
+      break;
+  }
 
   if (data->cond || data->type == TL_UNLOCK)
   {
