@@ -9968,6 +9968,7 @@ CHARSET_INFO my_charset_gbk_chinese_ci=
     sort_order_gbk,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    NULL,		/* sort_order_big*/
     "",
     "",
     1,			/* strxfrm_multiply */
@@ -9992,6 +9993,7 @@ CHARSET_INFO my_charset_gbk_bin=
     sort_order_gbk,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    NULL,		/* sort_order_big*/
     "",
     "",
     1,			/* strxfrm_multiply */
