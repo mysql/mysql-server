@@ -34,6 +34,10 @@
 #include <rep/storage/GCIContainerPS.hpp>
 #include "ExtAPI.hpp"
 
+extern "C" {
+static void * signalExecThread_C(void *);
+}
+
 /**
  * @class ExtNDB
  * @brief Class responsible for connection to primary system GREP
@@ -58,14 +62,14 @@ public:
   void           signalErrorHandler(NdbApiSignal * s, Uint32 nodeId);
 
 private:
+  friend void * signalExecThread_C(void *);
+  void           signalExecThreadRun();
+  
   static void    execSignal(void* signalSender, NdbApiSignal* signal, 
 			    class LinearSectionPtr ptr[3]);
   
   static void    execNodeStatus(void* signalSender, NodeId, 
 				bool alive, bool nfCompleted);
-  
-  void           signalExecThreadRun();
-  static void *  signalExecThread_C(void *);
   
   void           sendSignalRep(NdbApiSignal *);
   void           sendDisconnectRep(Uint32 nodeId);

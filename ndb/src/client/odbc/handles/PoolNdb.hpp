@@ -17,8 +17,8 @@
 #ifndef ODBC_HANDLES_PoolNdb_hpp
 #define ODBC_HANDLES_PoolNdb_hpp
 
-#include <list>
 #include <common/common.hpp>
+#include <list>
 
 class Ndb;
 

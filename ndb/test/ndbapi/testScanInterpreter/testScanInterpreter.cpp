@@ -214,8 +214,8 @@ TESTCASE("ScanLessThan",
 	 "Read all records in table TX with attrX less "\
 	 "than a value and store the resultset in TX_RES."\
 	 "Then compare records in TX_RES with records in TX."){
-  TABLE("T1");
-  TABLE("T2");
+  //  TABLE("T1");
+  //  TABLE("T2");
   INITIALIZER(runLoadTable);
   INITIALIZER(runCreateResultTable);
   STEP(runScanLessThan);
@@ -227,8 +227,8 @@ TESTCASE("ScanEqual",
 	 "Read all records in table TX with attrX equal "\
 	 "to a value and store the resultset in TX_RES."\
 	 "Then compare records in TX_RES with records in TX."){
-  TABLE("T1");
-  TABLE("T2");
+  //  TABLE("T1");
+  //  TABLE("T2");
   INITIALIZER(runLoadTable);
   INITIALIZER(runCreateResultTable);
   STEP(runScanEqual);
@@ -239,8 +239,8 @@ TESTCASE("ScanEqual",
 TESTCASE("ScanEqualLoop", 
 	 "Scan all records in TX equal to a value."\
 	 "Do this loop number of times"){
-  TABLE("T1");
-  TABLE("T2");
+  //  TABLE("T1");
+  //  TABLE("T2");
   INITIALIZER(runLoadTable);
   INITIALIZER(runCreateResultTable);
   STEP(runScanEqualLoop);
@@ -251,8 +251,8 @@ TESTCASE("ScanEqualVerifyLoop",
 	 "Scan all records in TX equal to a value."\
 	 "Verify record in TX_RES table"\
 	 "Do this loop number of times"){
-  TABLE("T1");
-  TABLE("T2");
+  //  TABLE("T1");
+  //  TABLE("T2");
   INITIALIZER(runLoadTable);
   INITIALIZER(runCreateResultTable);
   STEP(runScanEqualVerifyLoop);
@@ -262,8 +262,8 @@ TESTCASE("ScanEqualVerifyLoop",
 TESTCASE("ScanLessThanLoop", 
 	 "Scan all records in TX less than a value."\
 	 "Do this loop number of times"){
-  TABLE("T1");
-  TABLE("T2");
+  //  TABLE("T1");
+  //  TABLE("T2");
   INITIALIZER(runLoadTable);
   INITIALIZER(runCreateResultTable);
   STEP(runScanLessThanLoop);

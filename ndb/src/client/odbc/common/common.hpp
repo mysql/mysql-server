@@ -17,9 +17,13 @@
 #ifndef ODBC_COMMON_common_hpp
 #define ODBC_COMMON_common_hpp
 
+#define stpcpy stpcpy
+#include <ndb_global.h>
+#undef swap
+
 // misc defs
 
-#ifdef NDB_GCC
+#ifdef NDB_GCC // only for odbc
 #define PRINTFLIKE(i,j)	__attribute__ ((format (printf, i, j)))
 #else
 #define PRINTFLIKE(i,j)
