@@ -208,7 +208,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     if (!drop_temporary)
     {
       abort_locked_tables(thd,db,table->table_name);
-      while (remove_table_from_cache(thd,db,table->table_name) && !thd->killed)
+      while (remove_table_from_cache(thd, db, table->table_name, 0) &&
+             !thd->killed)
       {
 	dropping_tables++;
 	(void) pthread_cond_wait(&COND_refresh,&LOCK_open);
@@ -291,7 +292,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
   }
 
-  unlock_table_names(thd, tables);
+  unlock_table_names(thd, tables, (TABLE_LIST*) 0);
   thd->no_warnings_for_error= 0;
   DBUG_RETURN(error);
 }
@@ -451,150 +452,151 @@ void calculate_interval_lengths(CHARSET_INFO *cs, TYPELIB *interval,
 */
 
 int prepare_create_field(create_field *sql_field, 
-			 uint &blob_columns, 
-			 int &timestamps, int &timestamps_with_niladic,
+			 uint *blob_columns, 
+			 int *timestamps, int *timestamps_with_niladic,
 			 uint table_flags)
 {
   DBUG_ENTER("prepare_field");
-  {
-    /* This code came from mysql_prepare_table.
-       Indent preserved to make patching easier */
-    DBUG_ASSERT(sql_field->charset);
 
-    switch (sql_field->sql_type) {
-    case FIELD_TYPE_BLOB:
-    case FIELD_TYPE_MEDIUM_BLOB:
-    case FIELD_TYPE_TINY_BLOB:
-    case FIELD_TYPE_LONG_BLOB:
-      sql_field->pack_flag=FIELDFLAG_BLOB |
-	pack_length_to_packflag(sql_field->pack_length -
-				portable_sizeof_char_ptr);
-      if (sql_field->charset->state & MY_CS_BINSORT)
-	sql_field->pack_flag|=FIELDFLAG_BINARY;
-      sql_field->length=8;			// Unireg field length
-      sql_field->unireg_check=Field::BLOB_FIELD;
-      blob_columns++;
-      break;
-    case FIELD_TYPE_GEOMETRY:
+  /*
+    This code came from mysql_prepare_table.
+    Indent preserved to make patching easier
+  */
+  DBUG_ASSERT(sql_field->charset);
+
+  switch (sql_field->sql_type) {
+  case FIELD_TYPE_BLOB:
+  case FIELD_TYPE_MEDIUM_BLOB:
+  case FIELD_TYPE_TINY_BLOB:
+  case FIELD_TYPE_LONG_BLOB:
+    sql_field->pack_flag=FIELDFLAG_BLOB |
+      pack_length_to_packflag(sql_field->pack_length -
+                              portable_sizeof_char_ptr);
+    if (sql_field->charset->state & MY_CS_BINSORT)
+      sql_field->pack_flag|=FIELDFLAG_BINARY;
+    sql_field->length=8;			// Unireg field length
+    sql_field->unireg_check=Field::BLOB_FIELD;
+    blob_columns++;
+    break;
+  case FIELD_TYPE_GEOMETRY:
 #ifdef HAVE_SPATIAL
-      if (!(table_flags & HA_CAN_GEOMETRY))
-      {
-	my_printf_error(ER_CHECK_NOT_IMPLEMENTED, ER(ER_CHECK_NOT_IMPLEMENTED),
-			MYF(0), "GEOMETRY");
-	DBUG_RETURN(1);
-      }
-      sql_field->pack_flag=FIELDFLAG_GEOM |
-	pack_length_to_packflag(sql_field->pack_length -
-				portable_sizeof_char_ptr);
-      if (sql_field->charset->state & MY_CS_BINSORT)
-	sql_field->pack_flag|=FIELDFLAG_BINARY;
-      sql_field->length=8;			// Unireg field length
-      sql_field->unireg_check=Field::BLOB_FIELD;
-      blob_columns++;
-      break;
-#else
-      my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED), MYF(0),
-		      sym_group_geom.name, sym_group_geom.needed_define);
+    if (!(table_flags & HA_CAN_GEOMETRY))
+    {
+      my_printf_error(ER_CHECK_NOT_IMPLEMENTED, ER(ER_CHECK_NOT_IMPLEMENTED),
+                      MYF(0), "GEOMETRY");
       DBUG_RETURN(1);
+    }
+    sql_field->pack_flag=FIELDFLAG_GEOM |
+      pack_length_to_packflag(sql_field->pack_length -
+                              portable_sizeof_char_ptr);
+    if (sql_field->charset->state & MY_CS_BINSORT)
+      sql_field->pack_flag|=FIELDFLAG_BINARY;
+    sql_field->length=8;			// Unireg field length
+    sql_field->unireg_check=Field::BLOB_FIELD;
+    blob_columns++;
+    break;
+#else
+    my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED), MYF(0),
+                    sym_group_geom.name, sym_group_geom.needed_define);
+    DBUG_RETURN(1);
 #endif /*HAVE_SPATIAL*/
-    case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_VARCHAR:
 #ifndef QQ_ALL_HANDLERS_SUPPORT_VARCHAR
-      if (table_flags & HA_NO_VARCHAR)
+    if (table_flags & HA_NO_VARCHAR)
+    {
+      /* convert VARCHAR to CHAR because handler is not yet up to date */
+      sql_field->sql_type=    MYSQL_TYPE_VAR_STRING;
+      sql_field->pack_length= calc_pack_length(sql_field->sql_type,
+                                               (uint) sql_field->length);
+      if ((sql_field->length / sql_field->charset->mbmaxlen) >
+          MAX_FIELD_CHARLENGTH)
       {
-        /* convert VARCHAR to CHAR because handler is not yet up to date */
-        sql_field->sql_type=    MYSQL_TYPE_VAR_STRING;
-        sql_field->pack_length= calc_pack_length(sql_field->sql_type,
-                                                 (uint) sql_field->length);
-        if ((sql_field->length / sql_field->charset->mbmaxlen) >
-            MAX_FIELD_CHARLENGTH)
-        {
-          my_printf_error(ER_TOO_BIG_FIELDLENGTH, ER(ER_TOO_BIG_FIELDLENGTH),
-                          MYF(0), sql_field->field_name, MAX_FIELD_CHARLENGTH);
-          DBUG_RETURN(1);
-        }
-      }
-#endif
-      /* fall through */
-    case FIELD_TYPE_STRING:
-      sql_field->pack_flag=0;
-      if (sql_field->charset->state & MY_CS_BINSORT)
-	sql_field->pack_flag|=FIELDFLAG_BINARY;
-      break;
-    case FIELD_TYPE_ENUM:
-      sql_field->pack_flag=pack_length_to_packflag(sql_field->pack_length) |
-	FIELDFLAG_INTERVAL;
-      if (sql_field->charset->state & MY_CS_BINSORT)
-	sql_field->pack_flag|=FIELDFLAG_BINARY;
-      sql_field->unireg_check=Field::INTERVAL_FIELD;
-      check_duplicates_in_interval("ENUM",sql_field->field_name,
-				   sql_field->interval,
-                                   sql_field->charset);
-      break;
-    case FIELD_TYPE_SET:
-      sql_field->pack_flag=pack_length_to_packflag(sql_field->pack_length) |
-	FIELDFLAG_BITFIELD;
-      if (sql_field->charset->state & MY_CS_BINSORT)
-	sql_field->pack_flag|=FIELDFLAG_BINARY;
-      sql_field->unireg_check=Field::BIT_FIELD;
-      check_duplicates_in_interval("SET",sql_field->field_name,
-				   sql_field->interval,
-                                   sql_field->charset);
-      break;
-    case FIELD_TYPE_DATE:			// Rest of string types
-    case FIELD_TYPE_NEWDATE:
-    case FIELD_TYPE_TIME:
-    case FIELD_TYPE_DATETIME:
-    case FIELD_TYPE_NULL:
-      sql_field->pack_flag=f_settype((uint) sql_field->sql_type);
-      break;
-    case FIELD_TYPE_BIT:
-      if (!(table_flags & HA_CAN_BIT_FIELD))
-      {
-        my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "BIT FIELD");
+        my_printf_error(ER_TOO_BIG_FIELDLENGTH, ER(ER_TOO_BIG_FIELDLENGTH),
+                        MYF(0), sql_field->field_name, MAX_FIELD_CHARLENGTH);
         DBUG_RETURN(1);
       }
-      sql_field->pack_flag= FIELDFLAG_NUMBER;
-      break;
-    case FIELD_TYPE_NEWDECIMAL:
-      sql_field->pack_flag=(FIELDFLAG_NUMBER |
-                            (sql_field->flags & UNSIGNED_FLAG ? 0 :
-                             FIELDFLAG_DECIMAL) |
-                            (sql_field->flags & ZEROFILL_FLAG ?
-                             FIELDFLAG_ZEROFILL : 0) |
-                            (sql_field->decimals << FIELDFLAG_DEC_SHIFT));
-      break;
-    case FIELD_TYPE_TIMESTAMP:
-      /* We should replace old TIMESTAMP fields with their newer analogs */
-      if (sql_field->unireg_check == Field::TIMESTAMP_OLD_FIELD)
-      {
-	if (!timestamps)
-	{
-	  sql_field->unireg_check= Field::TIMESTAMP_DNUN_FIELD;
-	  timestamps_with_niladic++;
-	}
-	else
-	  sql_field->unireg_check= Field::NONE;
-      }
-      else if (sql_field->unireg_check != Field::NONE)
-	timestamps_with_niladic++;
-
-      timestamps++;
-      /* fall-through */
-    default:
-      sql_field->pack_flag=(FIELDFLAG_NUMBER |
-			    (sql_field->flags & UNSIGNED_FLAG ? 0 :
-			     FIELDFLAG_DECIMAL) |
-			    (sql_field->flags & ZEROFILL_FLAG ?
-			     FIELDFLAG_ZEROFILL : 0) |
-			    f_settype((uint) sql_field->sql_type) |
-			    (sql_field->decimals << FIELDFLAG_DEC_SHIFT));
-      break;
     }
-    if (!(sql_field->flags & NOT_NULL_FLAG))
-      sql_field->pack_flag|= FIELDFLAG_MAYBE_NULL;
-    if (sql_field->flags & NO_DEFAULT_VALUE_FLAG)
-      sql_field->pack_flag|= FIELDFLAG_NO_DEFAULT;
+#endif
+    /* fall through */
+  case FIELD_TYPE_STRING:
+    sql_field->pack_flag=0;
+    if (sql_field->charset->state & MY_CS_BINSORT)
+      sql_field->pack_flag|=FIELDFLAG_BINARY;
+    break;
+  case FIELD_TYPE_ENUM:
+    sql_field->pack_flag=pack_length_to_packflag(sql_field->pack_length) |
+      FIELDFLAG_INTERVAL;
+    if (sql_field->charset->state & MY_CS_BINSORT)
+      sql_field->pack_flag|=FIELDFLAG_BINARY;
+    sql_field->unireg_check=Field::INTERVAL_FIELD;
+    check_duplicates_in_interval("ENUM",sql_field->field_name,
+                                 sql_field->interval,
+                                 sql_field->charset);
+    break;
+  case FIELD_TYPE_SET:
+    sql_field->pack_flag=pack_length_to_packflag(sql_field->pack_length) |
+      FIELDFLAG_BITFIELD;
+    if (sql_field->charset->state & MY_CS_BINSORT)
+      sql_field->pack_flag|=FIELDFLAG_BINARY;
+    sql_field->unireg_check=Field::BIT_FIELD;
+    check_duplicates_in_interval("SET",sql_field->field_name,
+                                 sql_field->interval,
+                                 sql_field->charset);
+    break;
+  case FIELD_TYPE_DATE:			// Rest of string types
+  case FIELD_TYPE_NEWDATE:
+  case FIELD_TYPE_TIME:
+  case FIELD_TYPE_DATETIME:
+  case FIELD_TYPE_NULL:
+    sql_field->pack_flag=f_settype((uint) sql_field->sql_type);
+    break;
+  case FIELD_TYPE_BIT:
+    if (!(table_flags & HA_CAN_BIT_FIELD))
+    {
+      my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "BIT FIELD");
+      DBUG_RETURN(1);
+    }
+    sql_field->pack_flag= FIELDFLAG_NUMBER;
+    break;
+  case FIELD_TYPE_NEWDECIMAL:
+    sql_field->pack_flag=(FIELDFLAG_NUMBER |
+                          (sql_field->flags & UNSIGNED_FLAG ? 0 :
+                           FIELDFLAG_DECIMAL) |
+                          (sql_field->flags & ZEROFILL_FLAG ?
+                           FIELDFLAG_ZEROFILL : 0) |
+                          (sql_field->decimals << FIELDFLAG_DEC_SHIFT));
+    break;
+  case FIELD_TYPE_TIMESTAMP:
+    /* We should replace old TIMESTAMP fields with their newer analogs */
+    if (sql_field->unireg_check == Field::TIMESTAMP_OLD_FIELD)
+    {
+      if (!timestamps)
+      {
+        sql_field->unireg_check= Field::TIMESTAMP_DNUN_FIELD;
+        timestamps_with_niladic++;
+      }
+      else
+        sql_field->unireg_check= Field::NONE;
+    }
+    else if (sql_field->unireg_check != Field::NONE)
+      timestamps_with_niladic++;
+
+    timestamps++;
+    /* fall-through */
+  default:
+    sql_field->pack_flag=(FIELDFLAG_NUMBER |
+                          (sql_field->flags & UNSIGNED_FLAG ? 0 :
+                           FIELDFLAG_DECIMAL) |
+                          (sql_field->flags & ZEROFILL_FLAG ?
+                           FIELDFLAG_ZEROFILL : 0) |
+                          f_settype((uint) sql_field->sql_type) |
+                          (sql_field->decimals << FIELDFLAG_DEC_SHIFT));
+    break;
   }
+  if (!(sql_field->flags & NOT_NULL_FLAG))
+    sql_field->pack_flag|= FIELDFLAG_MAYBE_NULL;
+  if (sql_field->flags & NO_DEFAULT_VALUE_FLAG)
+    sql_field->pack_flag|= FIELDFLAG_NO_DEFAULT;
   DBUG_RETURN(0);
 }
 
@@ -857,8 +859,8 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
   {
     DBUG_ASSERT(sql_field->charset != 0);
 
-    if (prepare_create_field(sql_field, blob_columns, 
-			     timestamps, timestamps_with_niladic,
+    if (prepare_create_field(sql_field, &blob_columns, 
+			     &timestamps, &timestamps_with_niladic,
 			     file->table_flags()))
       DBUG_RETURN(-1);
     if (sql_field->sql_type == FIELD_TYPE_BLOB ||
@@ -1765,7 +1767,7 @@ static void wait_while_table_is_used(THD *thd,TABLE *table,
   mysql_lock_abort(thd, table);			// end threads waiting on lock
 
   /* Wait until all there are no other threads that has this table open */
-  while (remove_table_from_cache(thd, table->s->db, table->s->table_name))
+  while (remove_table_from_cache(thd, table->s->db, table->s->table_name, 0))
   {
     dropping_tables++;
     (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
@@ -2134,7 +2136,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 					      "Waiting to get writelock");
       mysql_lock_abort(thd,table->table);
       while (remove_table_from_cache(thd, table->table->s->db,
-				     table->table->s->table_name) &&
+				     table->table->s->table_name, 0) &&
 	     ! thd->killed)
       {
 	dropping_tables++;
@@ -2249,7 +2251,7 @@ send_result_message:
     {
       pthread_mutex_lock(&LOCK_open);
       remove_table_from_cache(thd, table->table->s->db,
-			      table->table->s->table_name);
+			      table->table->s->table_name, 0);
       pthread_mutex_unlock(&LOCK_open);
       /* May be something modified consequently we have to invalidate cache */
       query_cache_invalidate3(thd, table->table, 0);
@@ -3558,7 +3560,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (table)
     {
       VOID(table->file->extra(HA_EXTRA_FORCE_REOPEN)); // Use new file
-      remove_table_from_cache(thd,db,table_name); // Mark all in-use copies old
+      remove_table_from_cache(thd,db,table_name, 0); // Mark in-use copies old
       mysql_lock_abort(thd,table);		 // end threads waiting on lock
     }
     VOID(quick_rm_table(old_db_type,db,old_name));

@@ -727,7 +727,7 @@ Item_sum_avg_distinct::fix_length_and_dec()
     AVG() will divide val by count. We need to reserve digits
     after decimal point as the result can be fractional.
   */
-  decimals+= 4;
+  decimals= min(decimals + 4, NOT_FIXED_DEC);
 }
 
 
@@ -927,7 +927,7 @@ void Item_sum_variance::fix_length_and_dec()
 {
   DBUG_ENTER("Item_sum_variance::fix_length_and_dec");
   maybe_null= null_value= 1;
-  decimals= args[0]->decimals + 4;
+  decimals= min(args[0]->decimals + 4, NOT_FIXED_DEC);
   switch (args[0]->result_type()) {
   case REAL_RESULT:
   case STRING_RESULT:

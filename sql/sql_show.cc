@@ -704,14 +704,17 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
     packet->append(dir_type);
     packet->append(" DIRECTORY='", 12);
 #ifdef __WIN__
-    char *winfilename = thd->memdup(filename, length);
-    for (uint i=0; i < length; i++)
-	    if (winfilename[i] == '\\')
-		    winfilename[i] = '/';
-    packet->append(winfilename, length);
-#else
-    packet->append(filename, length);
+    /* Convert \ to / to be able to create table on unix */
+    char *winfilename= (char*) thd->memdup(filename, length);
+    char *pos, *end;
+    for (pos= winfilename, end= pos+length ; pos < end ; pos++)
+    {
+      if (*pos == '\\')
+        *pos = '/';
+    }
+    filename= winfilename;
 #endif
+    packet->append(filename, length);
     packet->append('\'');
   }
 }

@@ -562,7 +562,7 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
     my_free((gptr) table,MYF(0));
     DBUG_RETURN(-1);
   }
-  if (remove_table_from_cache(thd, db, table_list->table_name))
+  if (remove_table_from_cache(thd, db, table_list->table_name, 0))
     DBUG_RETURN(1);					// Table is in use
   DBUG_RETURN(0);
 }

@@ -1386,14 +1386,18 @@ create_function_tail:
 	    uint unused1= 0;
 	    int unused2= 0;
 
-	    if (!(new_field= new_create_field(YYTHD, "", (enum enum_field_types)$8,
-			  lex->length, lex->dec, lex->type,
-			  (Item *)0, (Item *) 0, &cmt, 0, &lex->interval_list, 
-			  (lex->charset ? lex->charset : default_charset_info),
-			  lex->uint_geom_type)))
+	    if (!(new_field= new_create_field(YYTHD, "",
+					      (enum enum_field_types)$8,
+			  		      lex->length, lex->dec, lex->type,
+			  		      (Item *)0, (Item *) 0, &cmt, 0,
+					      &lex->interval_list, 
+			  		      (lex->charset ? lex->charset :
+					       default_charset_info),
+					      lex->uint_geom_type)))
 	      YYABORT;
 
-	    if (prepare_create_field(new_field, unused1, unused2, unused2, 0))
+	    if (prepare_create_field(new_field, &unused1, &unused2, &unused2,
+				     0))
 	      YYABORT;
 
 	    sp->m_returns= new_field->sql_type;

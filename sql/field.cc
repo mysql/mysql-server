@@ -5328,11 +5328,11 @@ Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table)
 
 int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
 {
-  int error= 0;
   uint32 not_used, copy_length;
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
-  bool lost_only_spaces= FALSE;
+  int error_code= 0;
+  enum MYSQL_ERROR::enum_warning_level level= MYSQL_ERROR::WARN_LEVEL_WARN;
 
   /* Convert character set if necessary */
   if (String::needs_conversion(length, cs, field_charset, &not_used))
@@ -5342,7 +5342,7 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
     from= tmpstr.ptr();
     length=  tmpstr.length();
     if (conv_errors)
-      error= 1;
+      error_code= WARN_DATA_TRUNCATED;
   }
   /* 
     Make sure we don't break a multibyte sequence
@@ -5359,30 +5359,26 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
     int2store(ptr, copy_length);
 
   // Check if we lost something other than just trailing spaces
-  if ((copy_length < length) && table->in_use->count_cuted_fields)
+  if ((copy_length < length) && table->in_use->count_cuted_fields &&
+      !error_code)
   {
     const char *end= from + length;
     from+= copy_length;
     from+= field_charset->cset->scan(field_charset, from, end, MY_SEQ_SPACES);
-    /*
-      If we lost only spaces then produce a NOTE, not a WARNING.
-      But if we have already had errors (e.g with charset conversion),
-      then don't reset level to NOTE.
-    */
-    if (from == end && !error)
-      lost_only_spaces= TRUE;
-    error= 1;
+    /* If we lost only spaces then produce a NOTE, not a WARNING */
+    if (from == end)
+      level= MYSQL_ERROR::WARN_LEVEL_NOTE;
+    error_code= WARN_DATA_TRUNCATED;
   }
-  if (error)
+  if (error_code)
   {
-    if (lost_only_spaces)
-      set_warning(MYSQL_ERROR::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
-    else if (table->in_use->abort_on_warning)
-      set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
-    else
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+    if (level == MYSQL_ERROR::WARN_LEVEL_WARN &&
+        table->in_use->abort_on_warning)
+      error_code= ER_DATA_TOO_LONG;
+    set_warning(level, error_code, 1);
+    return 1;
   }
-  return error;
+  return 0;
 }
 
 
@@ -7562,7 +7558,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
     false - otherwise
 */
 bool 
-Field::set_warning(const uint level, const uint code, int cuted_increment)
+Field::set_warning(uint level, uint code, int cuted_increment)
 {
   THD *thd= table->in_use;
   if (thd->count_cuted_fields)
