@@ -102,7 +102,7 @@ enum db_type { DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
 	       DB_TYPE_HASH,DB_TYPE_MISAM,DB_TYPE_PISAM,
 	       DB_TYPE_RMS_ISAM, DB_TYPE_HEAP, DB_TYPE_ISAM,
 	       DB_TYPE_MRG_ISAM, DB_TYPE_MYISAM, DB_TYPE_MRG_MYISAM,
-	       DB_TYPE_BERKELEY_DB,
+	       DB_TYPE_BERKELEY_DB, DB_TYPE_INNOBASE,
 	       DB_TYPE_DEFAULT };
 
 enum row_type { ROW_TYPE_DEFAULT, ROW_TYPE_FIXED, ROW_TYPE_DYNAMIC,
@@ -273,6 +273,7 @@ public:
   virtual uint max_keys() const =0;
   virtual uint max_key_parts() const =0;
   virtual uint max_key_length()const =0;
+  virtual uint max_key_part_length() { return 255; }
   virtual uint min_record_length(uint options) const { return 1; }
   virtual bool low_byte_first() const { return 1; }
   virtual bool is_crashed() const  { return 0; }

@@ -843,7 +843,7 @@ public:
   FT_DOCLIST *ft_handler;
 
   Item_func_match(List<Item> &a, Item *b): Item_real_func(b),
-  fields(a), table(0),  master(0), ft_handler(0) {}
+  fields(a), table(0),  join_key(0), master(0), ft_handler(0) {}
   ~Item_func_match()
   {
     if (!master)

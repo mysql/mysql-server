@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 3.23.26-beta)
+AM_INIT_AUTOMAKE(mysql, 3.23.27-beta)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -1549,7 +1549,7 @@ dnl sql/share/charsets/Index.  If the character set uses strcoll
 dnl or other special handling, you must also create
 dnl strings/ctype-$charset_name.c
 
-CHARSETS_AVAILABLE="big5 cp1251 cp1257 croat czech danish dec8 dos estonia euc_kr gb2312 gbk german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr latin1 latin2 swe7 usa7 win1250 win1251 win1251ukr ujis sjis tis620"
+CHARSETS_AVAILABLE="big5 cp1251 cp1257 croat czech danish dec8 dos estonia euc_kr gb2312 gbk german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr latin1 latin2 latin5 swe7 usa7 win1250 win1251 win1251ukr ujis sjis tis620"
 DEFAULT_CHARSET=latin1
 
 dnl win1251 is deprecated - it's available, but not listed here in the help
@@ -1557,7 +1557,7 @@ AC_ARG_WITH(charset,
   [  --with-charset=CHARSET  Use CHARSET by default (one of: big5 cp1251 cp1257
                           croat czech danish dec8 dos estonia euc_kr gb2312 gbk
                           german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr
-                          latin1 latin2 swe7 usa7 win1250 win1251ukr
+                          latin1 latin2 latin5 swe7 usa7 win1250 win1251ukr
                           ujis sjis tis620; Default is latin1)],
   [default_charset="$withval"],
   [default_charset="$DEFAULT_CHARSET"])
@@ -1860,11 +1860,11 @@ AC_SUBST(sql_server_dirs)
 AC_SUBST(thread_dirs)
 AC_SUBST(server_scripts)
 
-if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"
-then
-  # MIT pthreads does not support connecting with unix sockets
-  AC_DEFINE(HAVE_THREADS_WITHOUT_SOCKETS)
-fi
+#if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"
+#then
+  # MIT pthreads does now support connecting with unix sockets
+  # AC_DEFINE(HAVE_THREADS_WITHOUT_SOCKETS)
+#fi
 
 # Some usefull subst
 AC_SUBST(CC)

@@ -81,7 +81,8 @@ bool String::realloc(uint32 alloc_length)
     }
     else if ((new_ptr= (char*) my_malloc(len,MYF(MY_WME))))
     {
-      memcpy(new_ptr,Ptr,str_length);
+      if (str_length)				// Avoid bugs in memcpy on AIX
+	memcpy(new_ptr,Ptr,str_length);
       new_ptr[str_length]=0;
       Ptr=new_ptr;
       Alloced_length=len;
@@ -221,8 +222,8 @@ bool String::copy(const char *str,uint32 arg_length)
 {
   if (alloc(arg_length))
     return TRUE;
-  str_length=arg_length;
-  memcpy(Ptr,str,arg_length);
+  if ((str_length=arg_length))
+    memcpy(Ptr,str,arg_length);
   Ptr[arg_length]=0;
   return FALSE;
 }
@@ -251,17 +252,21 @@ void String::strip_sp()
 
 bool String::append(const String &s)
 {
-  if (realloc(str_length+s.length()))
-    return TRUE;
-  memcpy(Ptr+str_length,s.ptr(),s.length());
-  str_length+=s.length();
+  if (s.length())
+  {
+    if (realloc(str_length+s.length()))
+      return TRUE;
+    memcpy(Ptr+str_length,s.ptr(),s.length());
+    str_length+=s.length();
+  }
   return FALSE;
 }
 
 bool String::append(const char *s,uint32 arg_length)
 {
   if (!arg_length)				// Default argument
-    arg_length= (uint32) strlen(s);
+    if (!(arg_length= (uint32) strlen(s)))
+      return FALSE;
   if (realloc(str_length+arg_length))
     return TRUE;
   memcpy(Ptr+str_length,s,arg_length);
@@ -398,7 +403,8 @@ bool String::replace(uint32 offset,uint32 arg_length,const String &to)
   {
     if (diff < 0)
     {
-      memcpy(Ptr+offset,to.ptr(),to.length());
+      if (to.length())
+	memcpy(Ptr+offset,to.ptr(),to.length());
       bmove(Ptr+offset+to.length(),Ptr+offset+arg_length,
 	    str_length-offset-arg_length);
     }
@@ -411,7 +417,8 @@ bool String::replace(uint32 offset,uint32 arg_length,const String &to)
 	bmove_upp(Ptr+str_length+diff,Ptr+str_length,
 		  str_length-offset-arg_length);
       }
-      memcpy(Ptr+offset,to.ptr(),to.length());
+      if (to.length())
+	memcpy(Ptr+offset,to.ptr(),to.length());
     }
     str_length+=(uint32) diff;
   }
@@ -502,8 +509,8 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
   }
   if (to->realloc(from_length))
     return from;				// Actually an error
-  to->str_length=min(from->str_length,from_length);
-  memcpy(to->Ptr,from->Ptr,to->str_length);
+  if ((to->str_length=min(from->str_length,from_length)))
+    memcpy(to->Ptr,from->Ptr,to->str_length);
   return to;
 }
 

@@ -171,7 +171,7 @@ int key_cmp(TABLE *table,const byte *key,uint idx,uint key_length)
     {
       key_length--;
       if (*key != test(table->record[0][key_part->null_offset] & 
-			 key_part->null_bit))
+		       key_part->null_bit))
 	return 1;
       if (*key)
       {

@@ -196,7 +196,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.35 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.36 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -1378,7 +1378,6 @@ void mi_check_print_info(MI_CHECK *param __attribute__((unused)),
   VOID(vfprintf(stdout, fmt, args));
   VOID(fputc('\n',stdout));
   va_end(args);
-  return;
 }
 
 /* VARARGS */

@@ -3721,6 +3721,7 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
     table->db_stat=0;
     goto err;
   }
+  statistic_increment(created_tmp_disk_tables, &LOCK_status);
   table->db_record_offset=1;
   DBUG_RETURN(0);
  err:
@@ -3781,7 +3782,6 @@ bool create_myisam_from_heap(TABLE *table, TMP_TABLE_PARAM *param, int error,
   save_proc_info=thd->proc_info;
   thd->proc_info="converting HEAP to MyISAM";
 
-  statistic_increment(created_tmp_disk_tables, &LOCK_status);
   if (create_myisam_tmp_table(&new_table,param,
 			      thd->lex.options | thd->options))
     goto err2;
@@ -3905,12 +3905,16 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     if (error == -3)
       error=0;					/* select_limit used */
   }
-  if (!table)
+  if (!table)					/* If sending data to client */
   {
     if (error < 0)
-      join->result->send_error(0,NullS); /* purecov: inspected */
-    else if (join->result->send_eof())
-      error= -1;
+      join->result->send_error(0,NullS);	/* purecov: inspected */
+    else
+    {
+      join_free(join);				// Unlock all cursors
+      if (join->result->send_eof())
+	error= -1;
+    }
   }
   else if (error < 0)
     join->result->send_error(0,NullS); /* purecov: inspected */
@@ -4196,7 +4200,7 @@ join_read_const(JOIN_TAB *tab)
       if (error != HA_ERR_KEY_NOT_FOUND)
       {
 	sql_print_error("read_const: Got error %d when reading table %s",
-			error, table->real_name);
+			error, table->path);
 	table->file->print_error(error,MYF(0));
 	return 1;
       }
@@ -4231,7 +4235,7 @@ join_read_key(JOIN_TAB *tab)
     if (error && error != HA_ERR_KEY_NOT_FOUND)
     {
       sql_print_error("read_key: Got error %d when reading table '%s'",error,
-		      table->real_name);
+		      table->path);
       table->file->print_error(error,MYF(0));
       return 1;
     }
@@ -4255,7 +4259,7 @@ join_read_always_key(JOIN_TAB *tab)
     if (error != HA_ERR_KEY_NOT_FOUND)
     {
       sql_print_error("read_const: Got error %d when reading table %s",error,
-		      table->real_name);
+		      table->path);
       table->file->print_error(error,MYF(0));
       return 1;
     }
@@ -4287,7 +4291,7 @@ join_read_next(READ_RECORD *info)
     if (error != HA_ERR_END_OF_FILE)
     {
       sql_print_error("read_next: Got error %d when reading table %s",error,
-		      table->real_name);
+		      table->path);
       table->file->print_error(error,MYF(0));
       return 1;
     }
@@ -4365,7 +4369,7 @@ join_init_read_next_with_key(READ_RECORD *info)
     if (error != HA_ERR_END_OF_FILE)
     {
       sql_print_error("read_next_with_key: Got error %d when reading table %s",
-		      error, info->table->real_name);
+		      error, info->table->path);
       info->file->print_error(error,MYF(0));
       return 1;
     }
@@ -4397,7 +4401,7 @@ join_init_read_last_with_key(JOIN_TAB *tab)
     if (error != HA_ERR_END_OF_FILE)
     {
       sql_print_error("read_first_with_key: Got error %d when reading table",
-		      error, table->real_name);
+		      error, table->path);
       table->file->print_error(error,MYF(0));
       return 1;
     }
@@ -4415,7 +4419,7 @@ join_init_read_prev_with_key(READ_RECORD *info)
     if (error != HA_ERR_END_OF_FILE)
     {
       sql_print_error("read_prev_with_key: Got error %d when reading table: %s",
-		      error,info->table->real_name);
+		      error,info->table->path);
       info->file->print_error(error,MYF(0));
       return 1;
     }
@@ -4441,7 +4445,7 @@ join_ft_read_first(JOIN_TAB *tab)
     if (error != HA_ERR_KEY_NOT_FOUND)
     {
       sql_print_error("ft_read_first/init: Got error %d when reading table %s",error,
-                      table->real_name);
+                      table->path);
       table->file->print_error(error,MYF(0));
       return 1;
     }
@@ -4454,7 +4458,7 @@ join_ft_read_first(JOIN_TAB *tab)
     if (error != HA_ERR_END_OF_FILE)
     {
       sql_print_error("ft_read_first/read: Got error %d when reading table %s",
-                      error, table->real_name);
+                      error, table->path);
       table->file->print_error(error,MYF(0));
       return 1;
     }
@@ -4472,7 +4476,7 @@ join_ft_read_next(READ_RECORD *info)
     if (error != HA_ERR_END_OF_FILE)
     {
       sql_print_error("ft_read_next: Got error %d when reading table %s",
-                      error, info->table->real_name);
+                      error, info->table->path);
       info->file->print_error(error,MYF(0));
       return 1;
     }

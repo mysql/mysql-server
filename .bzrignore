@@ -157,3 +157,5 @@ PENDING/2000-10-11.04
 PENDING/2000-10-11.05
 PENDING/2000-10-11.06
 BitKeeper/etc/csets-out
+BitKeeper/etc/csets-in
+support-files/mysql-3.23.26-beta.spec
