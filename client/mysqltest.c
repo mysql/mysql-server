@@ -164,7 +164,7 @@ Q_SEND,             Q_REAP,
 Q_DIRTY_CLOSE,      Q_REPLACE,
 Q_PING,             Q_EVAL,
 Q_RPL_PROBE,        Q_ENABLE_RPL_PARSE,
-Q_DISABLE_RPL_PARSE,
+Q_DISABLE_RPL_PARSE, Q_EVAL_RESULT,
 Q_UNKNOWN,                             /* Unknown command.   */
 Q_COMMENT,                             /* Comments, ignored. */
 Q_COMMENT_WITH_COMMAND
@@ -173,7 +173,7 @@ Q_COMMENT_WITH_COMMAND
 /* this should really be called command */
 struct st_query
 {
-  char *query, *query_buf,*first_argument;
+  char *query, *query_buf,*first_argument,*end;
   int first_word_len;
   my_bool abort_on_error, require_file;
   uint expected_errno[MAX_EXPECTED_ERRORS];
@@ -195,7 +195,7 @@ const char *command_names[] = {
   "dirty_close",      "replace_result",
   "ping",             "eval",
   "rpl_probe",        "enable_rpl_parse",
-  "disable_rpl_parse",
+  "disable_rpl_parse", "eval_result",
   0
 };
 
@@ -238,10 +238,12 @@ void free_pointer_array(POINTER_ARRAY *pa);
 static int initialize_replace_buffer(void);
 static void free_replace_buffer(void);
 static void do_eval(DYNAMIC_STRING* query_eval, const char* query);
+void str_to_file(const char* fname, char* str, int size);
 
 struct st_replace *glob_replace;
 static char *out_buff;
 static uint out_length;
+static int eval_result = 0;
 
 static void do_eval(DYNAMIC_STRING* query_eval, const char* query)
 {
@@ -298,7 +300,7 @@ static void close_files()
 {
   do
   {
-    if (*cur_file != stdin)
+    if (*cur_file != stdin && *cur_file)
       my_fclose(*cur_file,MYF(0));
   } while (cur_file-- != file_stack);
 }
@@ -393,25 +395,53 @@ int hex_val(int c)
 int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname)
 {
   MY_STAT stat_info;
-  char *tmp;
+  char *tmp, *res_ptr;
+  char eval_file[FN_REFLEN];
   int res;
+  uint res_len;
   int fd;
+  DYNAMIC_STRING res_ds;
   DBUG_ENTER("dyn_string_cmp");
 
   if (!my_stat(fname, &stat_info, MYF(MY_WME)))
     die(NullS);
-  if (stat_info.st_size != ds->length)
+  if (!eval_result && stat_info.st_size != ds->length)
     DBUG_RETURN(2);
-  if (!(tmp = (char*) my_malloc(ds->length, MYF(MY_WME))))
+  if (!(tmp = (char*) my_malloc(stat_info.st_size + 1, MYF(MY_WME))))
     die(NullS);
   if ((fd = my_open(fname, O_RDONLY, MYF(MY_WME))) < 0)
     die(NullS);
   if (my_read(fd, (byte*)tmp, stat_info.st_size, MYF(MY_WME|MY_NABP)))
     die(NullS);
-  res = (memcmp(tmp, ds->str, stat_info.st_size)) ?  1 : 0;
+  tmp[stat_info.st_size] = 0;
+  init_dynamic_string(&res_ds, "", 0, 65536);
+  if (eval_result)
+  {
+    do_eval(&res_ds, tmp);
+    res_ptr = res_ds.str;
+    if((res_len = res_ds.length) != ds->length)
+    {
+      res = 2;
+      goto err;
+    }
+  }
+  else
+  {
+    res_ptr = tmp;
+    res_len = stat_info.st_size;
+  }
+  
+  res = (memcmp(res_ptr, ds->str, res_len)) ?  1 : 0;
+  
+err:  
+  if(res && eval_result)
+     str_to_file(fn_format(eval_file, fname, "", ".eval",2), res_ptr,
+		  res_len);
+    
   my_free((gptr) tmp, MYF(0));
   my_close(fd, MYF(MY_WME));
-
+  dynstr_free(&res_ds);
+  
   DBUG_RETURN(res);
 }
 
@@ -508,7 +538,6 @@ int var_set(char* var_name, char* var_name_end, char* var_val,
 	    char* var_val_end)
 {
   int digit;
-  int val_len;
   VAR* v;
   if (*var_name++ != '$')
     {
@@ -523,21 +552,8 @@ int var_set(char* var_name, char* var_name_end, char* var_val,
     }
   else 
    v = var_reg + digit;
-  if (v->alloced_len < (val_len = (int)(var_val_end - var_val)+1))
-    {
-      v->alloced_len = (val_len < MIN_VAR_ALLOC) ? MIN_VAR_ALLOC : val_len;
-     if (!(v->str_val =
-	  v->str_val ? my_realloc(v->str_val, v->alloced_len,  MYF(MY_WME)) :
-	   my_malloc(v->alloced_len, MYF(MY_WME))))
-	 die("Out of memory");
-    }
-  val_len--;
-  memcpy(v->str_val, var_val, val_len);
-  v->str_val_len = val_len;
-  v->str_val[val_len] = 0;
-  v->int_val = atoi(v->str_val);
-  v->int_dirty=0;
-  return 0;
+  
+  return eval_expr(v, var_val, (const char**)&var_val_end);
 }
 
 int open_file(const char* name)
@@ -565,6 +581,35 @@ int do_source(struct st_query* q)
   return open_file(name);
 }
 
+int var_query_set(VAR* v, const char* p, const char** p_end)
+{
+  char* end = (char*)((p_end && *p_end) ? *p_end : p + strlen(p));
+  MYSQL_RES *res;
+  MYSQL_ROW row;
+  MYSQL* mysql = &cur_con->mysql;
+  LINT_INIT(res);
+  
+  while (end > p && *end != '`')
+    --end;
+  if (p == end)
+    die("Syntax error in query, missing '`'");
+  ++p;
+
+  if (mysql_real_query(mysql, p, (int)(end - p)) ||
+      !(res = mysql_store_result(mysql)))
+  {
+    *end = 0;
+    die("Error running query '%s': %s", p, mysql_error(mysql));
+  }
+
+  if ((row = mysql_fetch_row(res)) && row[0])
+    eval_expr(v, row[0], 0);
+  else
+    eval_expr(v, "", 0);
+
+  mysql_free_result(res);
+  return 0;
+}
 
 int eval_expr(VAR* v, const char* p, const char** p_end)
 {
@@ -577,10 +622,27 @@ int eval_expr(VAR* v, const char* p, const char** p_end)
 	  return 0;
 	}
     }
+  else if(*p == '`')
+  {
+    return var_query_set(v, p, p_end);
+  }
   else
     {
-      v->str_val = (char*)p;
-      v->str_val_len = (p_end && *p_end) ? (int) (*p_end - p) : (int) strlen(p);
+      int new_val_len = (p_end && *p_end) ?
+	 (int) (*p_end - p) : (int) strlen(p);
+      if (new_val_len + 1 >= v->alloced_len)
+      {
+        v->alloced_len = (new_val_len < MIN_VAR_ALLOC - 1) ?
+	  MIN_VAR_ALLOC : new_val_len + 1;
+	if (!(v->str_val =
+	      v->str_val ? my_realloc(v->str_val, v->alloced_len,
+				      MYF(MY_WME)) :
+	      my_malloc(v->alloced_len, MYF(MY_WME))))
+	  die("Out of memory");
+      }
+      v->str_val_len = new_val_len;
+      memcpy(v->str_val, p, new_val_len);
+      v->str_val[new_val_len] = 0;
       v->int_val=atoi(p);
       v->int_dirty=0;
       return 0;
@@ -724,9 +786,7 @@ int do_let(struct st_query* q)
   while(*p && isspace(*p))
     p++;
   var_val_start = p;
-  while(*p && !isspace(*p))
-    p++;
-  return var_set(var_name, var_name_end, var_val_start, p);
+  return var_set(var_name, var_name_end, var_val_start, q->end);
 }
 
 int do_rpl_probe(struct st_query* __attribute__((unused)) q)
@@ -1400,7 +1460,7 @@ int read_query(struct st_query** q_ptr)
   q->first_word_len = (uint) (p - q->query);
   while (*p && isspace(*p)) p++;
   q->first_argument=p;
-
+  q->end = strend(q->query);
   parser.read_lines++;
   return 0;
 }
@@ -1787,11 +1847,13 @@ static VAR* var_init(const char* name, int name_len, const char* val,
   if(!val_len)
     val_len = strlen(val) ;
   val_alloc_len = val_len + 16; /* room to grow */
-  if(!(tmp_var = (VAR*)my_malloc(sizeof(*tmp_var) + val_alloc_len
+  if(!(tmp_var = (VAR*)my_malloc(sizeof(*tmp_var) 
 				 + name_len, MYF(MY_WME))))
     die("Out of memory");
   tmp_var->name = (char*)tmp_var + sizeof(*tmp_var);
-  tmp_var->str_val = tmp_var->name + name_len;
+  if(!(tmp_var->str_val = my_malloc(val_alloc_len, MYF(MY_WME))))
+    die("Out of memory");
+  
   memcpy(tmp_var->name, name, name_len);
   memcpy(tmp_var->str_val, val, val_len + 1);
   tmp_var->name_len = name_len;
@@ -1804,6 +1866,7 @@ static VAR* var_init(const char* name, int name_len, const char* val,
 
 static void var_free(void* v)
 {
+  my_free(((VAR*)v)->str_val, MYF(MY_WME));
   my_free(v, MYF(MY_WME));
 }
 
@@ -1901,6 +1964,7 @@ int main(int argc, char** argv)
       case Q_ECHO: do_echo(q); break;
       case Q_SYSTEM: do_system(q); break;
       case Q_LET: do_let(q); break;
+      case Q_EVAL_RESULT: eval_result = 1; break;	
       case Q_EVAL:
         if (q->query == q->query_buf)
 	  q->query += q->first_word_len;

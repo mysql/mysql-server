@@ -371,3 +371,4 @@ sql/share/mysql
 .gdbinit
 .vimrc
 scripts/mysqld_safe
+mysql-test/r/rpl_log.eval

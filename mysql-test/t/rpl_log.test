@@ -1,4 +1,5 @@
 source include/master-slave.inc;
+eval_result; #result depends on some server specific params
 
 #clean up slave binlogs
 connection slave;
@@ -28,10 +29,10 @@ show binlog events in 'master-bin.002';
 show master logs;
 save_master_pos;
 connection slave;
+let $VERSION=`select version()`;
 slave start;
 sync_with_master;
 show master logs;
 show binlog events in 'slave-bin.001' from 4;
 show binlog events in 'slave-bin.002' from 4;
---replace_result 9306 9999 3334 9999 3335 9999
 show slave status;

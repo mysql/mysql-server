@@ -333,6 +333,13 @@ show_failed_diff ()
 {
   reject_file=r/$1.reject
   result_file=r/$1.result
+  eval_file=r/$1.eval
+  
+  if [ -f $eval_file ]
+  then
+    result_file=$eval_file
+  fi
+    
   if [ -x "$DIFF" ] && [ -f $reject_file ]
   then
     echo "Below are the diffs between actual and expected results:"
