@@ -41,6 +41,7 @@ enum enum_check_fields { CHECK_FIELD_IGNORE, CHECK_FIELD_WARN,
 			 CHECK_FIELD_ERROR_FOR_NULL };
 
 extern char internal_table_name[2];
+extern const char **errmesg;
 
 /* log info errors */
 #define LOG_INFO_EOF -1
@@ -1157,6 +1158,7 @@ public:
     net.last_error[0]= 0;
     net.last_errno= 0;
     net.report_error= 0;
+    query_error= 0;
   }
   inline bool vio_ok() const { return net.vio != 0; }
 #else
@@ -1209,7 +1211,8 @@ public:
   }
   inline void send_kill_message() const
   {
-    my_error(killed_errno(), MYF(0));
+    int err= killed_errno();
+    my_message(err, ER(err), MYF(0));
   }
   /* return TRUE if we will abort query if we make a warning now */
   inline bool really_abort_on_warning()
@@ -1250,8 +1253,6 @@ public:
 */
 
 class JOIN;
-
-void send_error(THD *thd, uint sql_errno=0, const char *err=0);
 
 class select_result :public Sql_alloc {
 protected:

@@ -42,13 +42,12 @@ TYPELIB updatable_views_with_limit_typelib=
     mode	- VIEW_CREATE_NEW, VIEW_ALTER, VIEW_CREATE_OR_REPLACE
 
   RETURN VALUE
-     0	OK
-    -1	Error
-     1	Error and error message given
+     FALSE OK
+     TRUE  Error
 */
 
-int mysql_create_view(THD *thd,
-		      enum_view_create_mode mode)
+bool mysql_create_view(THD *thd,
+                       enum_view_create_mode mode)
 {
   LEX *lex= thd->lex;
   bool link_to_local;
@@ -58,7 +57,7 @@ int mysql_create_view(THD *thd,
   TABLE_LIST *tbl;
   SELECT_LEX *select_lex= &lex->select_lex, *sl;
   SELECT_LEX_UNIT *unit= &lex->unit;
-  int res= 0;
+  bool res= FALSE;
   DBUG_ENTER("mysql_create_view");
 
   if (lex->proc_list.first ||
@@ -67,16 +66,17 @@ int mysql_create_view(THD *thd,
     my_error(ER_VIEW_SELECT_CLAUSE, MYF(0), (lex->result ?
                                              "INTO" :
                                              "PROCEDURE"));
-    res= -1;
+    res= TRUE;
     goto err;
   }
   if (lex->derived_tables ||
       lex->variables_used || lex->param_list.elements)
   {
-    my_error((lex->derived_tables ?
+    int err= (lex->derived_tables ?
               ER_VIEW_SELECT_DERIVED :
-              ER_VIEW_SELECT_VARIABLE), MYF(0));
-    res= -1;
+              ER_VIEW_SELECT_VARIABLE);
+    my_message(err, ER(err), MYF(0));
+    res= TRUE;
     goto err;
   }
 
@@ -102,7 +102,7 @@ int mysql_create_view(THD *thd,
        (check_access(thd, DELETE_ACL, view->db, &view->grant.privilege,
                      0, 0) ||
         grant_option && check_grant(thd, DELETE_ACL, view, 0, 1, 0))))
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   for (sl= select_lex; sl; sl= sl->next_select())
   {
     for (tbl= sl->get_table_list(); tbl; tbl= tbl->next_local)
@@ -113,14 +113,9 @@ int mysql_create_view(THD *thd,
       */
       if (check_some_access(thd, VIEW_ANY_ACL, tbl))
       {
-        my_printf_error(ER_TABLEACCESS_DENIED_ERROR,
-                        ER(ER_TABLEACCESS_DENIED_ERROR),
-                        MYF(0),
-                        "ANY",
-                        thd->priv_user,
-                        thd->host_or_ip,
-                        tbl->real_name);
-        DBUG_RETURN(-1);
+        my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
+                 "ANY", thd->priv_user, thd->host_or_ip, tbl->real_name);
+        DBUG_RETURN(TRUE);
       }
       /*
         Mark this table as a table which will be checked after the prepare
@@ -156,7 +151,7 @@ int mysql_create_view(THD *thd,
                          &tbl->grant.privilege, 0, 0) ||
             grant_option && check_grant(thd, SELECT_ACL, tbl, 0, 1, 0))
         {
-          res= 1;
+          res= TRUE;
           goto err;
         }
       }
@@ -178,8 +173,8 @@ int mysql_create_view(THD *thd,
   }
 #endif
 
-  if ((res= open_and_lock_tables(thd, tables)))
-    DBUG_RETURN(res);
+  if (open_and_lock_tables(thd, tables))
+    DBUG_RETURN(TRUE);
 
   /*
     check that tables are not temporary  and this VIEW do not used in query
@@ -192,7 +187,7 @@ int mysql_create_view(THD *thd,
         !tbl->schema_table)
     {
       my_error(ER_VIEW_SELECT_TMPTABLE, MYF(0), tbl->alias);
-      res= -1;
+      res= TRUE;
       goto err;
     }
 
@@ -202,7 +197,7 @@ int mysql_create_view(THD *thd,
         strcmp(tbl->view_name.str, view->real_name) == 0)
     {
       my_error(ER_NO_SUCH_TABLE, MYF(0), tbl->view_db.str, tbl->view_name.str);
-      res= -1;
+      res= TRUE;
       goto err;
     }
 
@@ -222,7 +217,7 @@ int mysql_create_view(THD *thd,
       some errors from prepare are reported to user, if is not then
       it will be checked after err: label
     */
-    res= 1;
+    res= TRUE;
     goto err;
   }
 
@@ -257,7 +252,7 @@ int mysql_create_view(THD *thd,
         if (strcmp(item->name, check->name) == 0)
         {
           my_error(ER_DUP_FIELDNAME, MYF(0), item->name);
-          DBUG_RETURN(-1);
+          DBUG_RETURN(TRUE);
         }
       }
     }
@@ -288,15 +283,10 @@ int mysql_create_view(THD *thd,
         if ((~fld->have_privileges & priv))
         {
           /* VIEW column has more privileges */
-          my_printf_error(ER_COLUMNACCESS_DENIED_ERROR,
-                          ER(ER_COLUMNACCESS_DENIED_ERROR),
-                          MYF(0),
-                          "create view",
-                          thd->priv_user,
-                          thd->host_or_ip,
-                          item->name,
-                          view->real_name);
-          DBUG_RETURN(-1);
+          my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
+                   "create view", thd->priv_user, thd->host_or_ip, item->name,
+                   view->real_name);
+          DBUG_RETURN(TRUE);
         }
       }
     }
@@ -305,7 +295,7 @@ int mysql_create_view(THD *thd,
 
   if (wait_if_global_read_lock(thd, 0, 0))
   {
-    res= -1;
+    res= TRUE;
     goto err;
   }
   VOID(pthread_mutex_lock(&LOCK_open));
@@ -323,9 +313,7 @@ err:
   thd->proc_info= "end";
   lex->link_first_table_back(view, link_to_local);
   unit->cleanup();
-  if (thd->net.report_error)
-    res= -1;
-  DBUG_RETURN(res);
+  DBUG_RETURN(res || thd->net.report_error);
 }
 
 
@@ -442,8 +430,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
       if (!parser->ok() ||
           strncmp("VIEW", parser->type()->str, parser->type()->length))
       {
-        my_error(ER_WRONG_OBJECT, MYF(0), (view->db ? view->db : thd->db),
-                 view->real_name, "VIEW");
+        my_error(ER_WRONG_OBJECT, MYF(0),
+                 (view->db ? view->db : thd->db), view->real_name, "VIEW");
         DBUG_RETURN(-1);
       }
 
@@ -697,7 +685,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       if (check_table_access(thd, SELECT_ACL, view_tables, 1) &&
           check_table_access(thd, SHOW_VIEW_ACL, table, 1))
       {
-        my_error(ER_VIEW_NO_EXPLAIN, MYF(0));
+        my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
         goto err;
       }
     }
@@ -846,12 +834,11 @@ err:
     drop_mode	- cascade/check
 
   RETURN VALUE
-     0	OK
-    -1	Error
-     1	Error and error message given
+    FALSE OK
+    TRUE  Error
 */
 
-int mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
+bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
 {
   DBUG_ENTER("mysql_drop_view");
   char path[FN_REFLEN];
@@ -887,11 +874,11 @@ int mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
   send_ok(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 
 err:
   VOID(pthread_mutex_unlock(&LOCK_open));
-  DBUG_RETURN(-1);
+  DBUG_RETURN(TRUE);
 
 }
 

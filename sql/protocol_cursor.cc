@@ -84,7 +84,8 @@ bool Protocol_cursor::send_fields(List<Item> *list, uint flags)
   DBUG_RETURN(FALSE);
 
 err:
-  send_error(thd, ER_OUT_OF_RESOURCES);	/* purecov: inspected */
+  my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES),
+             MYF(0));	/* purecov: inspected */
   DBUG_RETURN(TRUE);				/* purecov: inspected */
 }
 

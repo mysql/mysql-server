@@ -1493,7 +1493,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   packet_len= my_net_read(net); // read create table statement
   if (packet_len == packet_error)
   {
-    send_error(thd, ER_MASTER_NET_READ);
+    my_message(ER_MASTER_NET_READ, ER(ER_MASTER_NET_READ), MYF(0));
     DBUG_RETURN(1);
   }
   if (net->read_pos[0] == 255) // error from master
@@ -1502,7 +1502,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
     err_msg= (char*) net->read_pos + ((mysql->server_capabilities &
 				       CLIENT_PROTOCOL_41) ?
 				      3+SQLSTATE_LENGTH+1 : 3);
-    net_printf(thd, ER_MASTER, err_msg);
+    my_error(ER_MASTER, MYF(0), err_msg);
     DBUG_RETURN(1);
   }
   thd->command = COM_TABLE_DUMP;
@@ -1511,7 +1511,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   if (!(query = thd->strmake((char*) net->read_pos, packet_len)))
   {
     sql_print_error("create_table_from_dump: out of memory");
-    net_printf(thd, ER_GET_ERRNO, "Out of memory");
+    my_message(ER_GET_ERRNO, "Out of memory", MYF(0));
     DBUG_RETURN(1);
   }
   thd->query= query;
@@ -1525,7 +1525,6 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   /* Drop the table if 'overwrite' is true */
   if (overwrite && mysql_rm_table(thd,&tables,1,0)) /* drop if exists */
   {
-    send_error(thd);
     sql_print_error("create_table_from_dump: failed to drop the table");
     goto err;
   }
@@ -1552,7 +1551,6 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   tables.lock_type = TL_WRITE;
   if (!open_ltable(thd, &tables, TL_WRITE))
   {
-    send_error(thd,0,0);			// Send error from open_ltable
     sql_print_error("create_table_from_dump: could not open created table");
     goto err;
   }
@@ -1562,7 +1560,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   /* Copy the data file */
   if (file->net_read_dump(net))
   {
-    net_printf(thd, ER_MASTER_NET_READ);
+    my_message(ER_MASTER_NET_READ, ER(ER_MASTER_NET_READ), MYF(0));
     sql_print_error("create_table_from_dump: failed in\
  handler::net_read_dump()");
     goto err;
@@ -1582,7 +1580,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   error=file->repair(thd,&check_opt) != 0;
   thd->net.vio = save_vio;
   if (error)
-    net_printf(thd, ER_INDEX_REBUILD,tables.table->real_name);
+    my_error(ER_INDEX_REBUILD, MYF(0), tables.table->real_name);
 
 err:
   close_thread_tables(thd);
@@ -1605,12 +1603,11 @@ int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
   { 
     if (!(mysql = mysql_init(NULL)))
     {
-      send_error(thd);			// EOM
       DBUG_RETURN(1);
     }
     if (connect_to_master(thd, mysql, mi))
     {
-      net_printf(thd, ER_CONNECT_TO_MASTER, mysql_error(mysql));
+      my_error(ER_CONNECT_TO_MASTER, MYF(0), mysql_error(mysql));
       mysql_close(mysql);
       DBUG_RETURN(1);
     }
@@ -1634,7 +1631,7 @@ int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
   if (!called_connected)
     mysql_close(mysql);
   if (errmsg && thd->vio_ok())
-    send_error(thd, error, errmsg);
+    my_message(error, errmsg, MYF(0));
   DBUG_RETURN(test(error));			// Return 1 on error
 }
 
@@ -2271,7 +2268,7 @@ void table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a)
   }
 }
 
-int show_master_info(THD* thd, MASTER_INFO* mi)
+bool show_master_info(THD* thd, MASTER_INFO* mi)
 {
   // TODO: fix this for multi-master
   List<Item> field_list;
@@ -2335,7 +2332,7 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
   
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   if (mi->host[0])
   {
@@ -2434,10 +2431,10 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
     pthread_mutex_unlock(&mi->data_lock);
   
     if (my_net_write(&thd->net, (char*)thd->packet.ptr(), packet->length()))
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
   }
   send_eof(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 

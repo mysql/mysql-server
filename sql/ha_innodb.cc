@@ -495,9 +495,10 @@ innobase_mysql_tmpfile(void)
 		if (fd2 < 0) {
 			DBUG_PRINT("error",("Got error %d on dup",fd2));
 			my_errno=errno;
-			my_error(EE_OUT_OF_FILERESOURCES,
-				MYF(ME_BELL+ME_WAITTANG), filename, my_errno);
-		}
+                        my_error(EE_OUT_OF_FILERESOURCES,
+                                 MYF(ME_BELL+ME_WAITTANG),
+                                 filename, my_errno);
+                }
 		my_close(fd, MYF(MY_WME));
 	}
 	return(fd2);
@@ -5126,7 +5127,7 @@ ha_innobase::external_lock(
 Implements the SHOW INNODB STATUS command. Sends the output of the InnoDB
 Monitor to the client. */
 
-int
+bool
 innodb_show_status(
 /*===============*/
 	THD*	thd)	/* in: the MySQL query thread of the caller */
@@ -5140,7 +5141,7 @@ innodb_show_status(
                 my_message(ER_NOT_SUPPORTED_YET,
           "Cannot call SHOW INNODB STATUS because skip-innodb is defined",
                            MYF(0));
-                DBUG_RETURN(-1);
+                DBUG_RETURN(TRUE);
         }
 
 	trx = check_trx_exists(thd);
@@ -5169,7 +5170,7 @@ innodb_show_status(
 	if (!(str = my_malloc(flen + 1, MYF(0))))
         {
           mutex_exit_noninline(&srv_monitor_file_mutex);
-          DBUG_RETURN(-1);
+          DBUG_RETURN(TRUE);
         }
 
 	rewind(srv_monitor_file);
@@ -5186,7 +5187,7 @@ innodb_show_status(
 
 		my_free(str, MYF(0));
 
-		DBUG_RETURN(-1);
+		DBUG_RETURN(TRUE);
 	}
 
         protocol->prepare_for_resend();
@@ -5194,10 +5195,10 @@ innodb_show_status(
         my_free(str, MYF(0));
 
         if (protocol->write())
-          DBUG_RETURN(-1);
+          DBUG_RETURN(TRUE);
 
 	send_eof(thd);
-  	DBUG_RETURN(0);
+  	DBUG_RETURN(FALSE);
 }
 
 /****************************************************************************
