@@ -101,7 +101,7 @@ sp_head::sp_head(LEX_STRING *name, LEX *lex, LEX_STRING *comment, char suid)
   m_name.length= name->length;
   m_name.str= name->str;
   m_defstr.length= lex->end_of_query - lex->buf;
-  m_defstr.str= sql_strmake(dstr, m_defstr.length);
+  m_defstr.str= lex->thd->strmake(dstr, m_defstr.length);
 
   m_comment.length= 0;
   m_comment.str= 0;
