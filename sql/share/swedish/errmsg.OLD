@@ -206,3 +206,8 @@
 "Kunde inte starta en tråd för replikering",
 "Användare '%-.64s' har redan 'max_user_connections' aktiva inloggningar",
 "Du kan endast använda konstant-uttryck med SET",
+"Tiden att få ett lås var för lång",
+"Antal lås är större än vad som ryms i lock tabellen",
+"Du kan inte låsa tabeller/poster under READ UNCOMMITTED",
+"Fick fel vid inloggning till master: %-.128s",
+"Fick fel vid exekvering av fråga på master: %-.128s",

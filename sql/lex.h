@@ -113,6 +113,7 @@ static SYMBOL symbols[] = {
   { "DELETE",		SYM(DELETE_SYM),0,0},
   { "DESC",		SYM(DESC),0,0},
   { "DESCRIBE",		SYM(DESCRIBE),0,0},
+  { "DIRECTORY",	SYM(DIRECTORY_SYM),0,0},
   { "DISABLE",		SYM(DISABLE_SYM),0,0},
   { "DISTINCT",		SYM(DISTINCT),0,0},
   { "DISTINCTROW",	SYM(DISTINCT),0,0},	/* Access likes this */

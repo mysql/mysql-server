@@ -132,10 +132,10 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     }
     /* Don't call realpath() if the name can't be a link */
     if (strcmp(name_buff, org_name))
-      my_readlink(index_name, org_name, MYF(0));
+      (void) my_readlink(index_name, org_name, MYF(0));
     else
-      strmov(index_name, org_name);
-    fn_format(data_name,org_name,"",MI_NAME_DEXT,4+16);
+      (void) strmov(index_name, org_name);
+    (void) fn_format(data_name,org_name,"",MI_NAME_DEXT,2+4+16);
 
     info_length=mi_uint2korr(share->state.header.header_length);
     base_pos=mi_uint2korr(share->state.header.base_pos);

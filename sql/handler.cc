@@ -853,5 +853,5 @@ static int NEAR_F delete_file(const char *name,const char *ext,int extflag)
 {
   char buff[FN_REFLEN];
   VOID(fn_format(buff,name,"",ext,extflag | 4));
-  return(my_delete(buff,MYF(MY_WME)));
+  return(my_delete_with_symlink(buff,MYF(MY_WME)));
 }

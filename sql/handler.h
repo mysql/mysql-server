@@ -142,6 +142,7 @@ typedef struct st_ha_create_information
   ulonglong max_rows,min_rows;
   ulonglong auto_increment_value;
   char *comment,*password;
+  char *data_file_name, *index_file_name;
   uint options;					/* OR of HA_CREATE_ options */
   uint raid_type,raid_chunks;
   ulong raid_chunksize;

@@ -1098,7 +1098,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   TABLE *table,*new_table;
   int error;
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN],
-    *table_name,*db;
+       *table_name,*db;
+  char index_file[FN_REFLEN], data_file[FN_REFLEN];
   bool use_timestamp=0;
   ha_rows copied,deleted;
   ulonglong next_insert_id;
@@ -1120,10 +1121,11 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   {
     strmov(new_name_buff,new_name);
     fn_same(new_name_buff,table_name,3);
+    // Check if name changed
 #ifdef FN_LOWER_CASE
-    if (!my_strcasecmp(new_name_buff,table_name))// Check if name changed
+    if (!strcmp(db,new_db) && !my_strcasecmp(new_name_buff,table_name))
 #else
-    if (!strcmp(new_name_buff,table_name))	// Check if name changed
+    if (!strcmp(db,new_db) && !strcmp(new_name_buff,table_name))
 #endif
       new_name=table_name;			// No. Make later check easier
     else
@@ -1444,6 +1446,51 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   if (table->tmp_table)
     create_info->options|=HA_LEX_CREATE_TMP_TABLE;
+
+  /*
+    Handling of symlinked tables:
+    If no rename:
+      Create new data file and index file on the same disk as the
+      old data and index files.
+      Copy data.
+      Rename new data file over old data file and new index file over
+      old index file.
+      Symlinks are not changed.
+
+   If rename:
+      Create new data file and index file on the same disk as the
+      old data and index files.  Create also symlinks to point at
+      the new tables.
+      Copy data.
+      At end, rename temporary tables and symlinks to temporary table
+      to final table name.
+      Remove old table and old symlinks
+
+    If rename is made to another database:
+      Create new tables in new database.
+      Copy data.
+      Remove old table and symlinks.
+  */
+
+  if (!strcmp(db, new_db))		// Ignore symlink if db changed
+  {
+    if (create_info->index_file_name)
+    {
+      /* Fix index_file_name to have 'tmp_name' as basename */
+      strmov(index_file, tmp_name);
+      create_info->index_file_name=fn_same(index_file,
+					   create_info->index_file_name,
+					   1);
+    }
+    if (create_info->data_file_name)
+    {
+      /* Fix data_file_name to have 'tmp_name' as basename */
+      strmov(data_file, tmp_name);
+      create_info->data_file_name=fn_same(data_file,
+					  create_info->data_file_name,
+					  1);
+    }
+  }
 
   if ((error=mysql_create_table(thd, new_db, tmp_name,
 				create_info,

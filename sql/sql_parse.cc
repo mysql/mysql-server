@@ -46,6 +46,7 @@ static bool check_dup(THD *thd,const char *db,const char *name,
 static void mysql_init_query(THD *thd);
 static void remove_escape(char *name);
 static void refresh_status(void);
+static bool append_file_to_dir(char **filename_ptr, char *table_name);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -1286,6 +1287,14 @@ mysql_execute_command(void)
       res=0;
       break;
     }
+    /* Fix names if symlinked tables */
+    if (append_file_to_dir(&lex->create_info.data_file_name, tables->name) ||
+	append_file_to_dir(&lex->create_info.index_file_name, tables->name))
+    {
+      res=-1;
+      break;
+    }
+
     if (lex->item_list.elements)		// With select
     {
       select_result *result;
@@ -1404,6 +1413,8 @@ mysql_execute_command(void)
 	    goto error;
 	}
       }
+      /* Don't yet allow changing of symlinks with ALTER TABLE */
+      lex->create_info.data_file_name=lex->create_info.index_file_name=0;
       /* ALTER TABLE ends previous transaction */
       if (end_active_trans(thd))
 	res= -1;
@@ -2883,4 +2894,32 @@ static void refresh_status(void)
   }
   pthread_mutex_unlock(&LOCK_status);
   pthread_mutex_unlock(&THR_LOCK_keycache);
+}
+
+
+	/* If pointer is not a null pointer, append filename to it */
+
+static bool append_file_to_dir(char **filename_ptr, char *table_name)
+{
+  char buff[FN_REFLEN],*ptr;
+  if (!*filename_ptr)
+    return 0;					// nothing to do
+
+  /* Check that the filename is not too long and it's a hard path */
+  if (strlen(*filename_ptr)+strlen(table_name) >= FN_REFLEN-1 ||
+      !test_if_hard_path(*filename_ptr))
+  {
+    my_error(ER_WRONG_TABLE_NAME, MYF(0), *filename_ptr);
+    return 1;
+  }
+  /* Fix is using unix filename format on dos */
+  strmov(buff,*filename_ptr);
+  convert_dirname(buff);
+  if (!(ptr=sql_alloc(strlen(buff)+strlen(table_name+1))))
+    return 1;					// End of memory
+  *filename_ptr=ptr;
+  ptr=strmov(ptr,buff);
+  *ptr=FN_LIBCHAR;
+  strmov(ptr+1,table_name);
+  return 0;
 }

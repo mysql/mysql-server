@@ -38,6 +38,7 @@ class ha_myisam: public handler
 {
   MI_INFO *file;
   uint    int_option_flag;
+  char    *data_file_name, *index_file_name;
   int repair(THD *thd, MI_CHECK &param, bool optimize);
 
  public:

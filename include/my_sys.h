@@ -110,10 +110,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 
 	/* root_alloc flags */
 #define MY_KEEP_PREALLOC	1
-#define MY_MARK_BLOCKS_FREE     2 /* do not my_free() blocks,
-				     just move used into free list
-				     and mark all blocks as fully free
-				  */
+#define MY_MARK_BLOCKS_FREE     2  /* move used to free list and reuse them */
   
 	/* defines when allocating data */
 
