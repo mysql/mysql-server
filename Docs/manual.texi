@@ -19701,7 +19701,7 @@ cat < /dev/tcp/10.1.1.12/4711 > /nt/mysql/db/x/x
 mysql -e "LOAD DATA INFILE 'x' INTO TABLE x" x
 @end example
 
-If you are using and older @strong{MySQL} version than 3.23.25
+If you are using a version of @strong{MySQL} older than 3.23.25
 you can only do the above with @code{LOAD DATA LOCAL INFILE}.
 
 For more information about the efficiency of @code{INSERT} versus
