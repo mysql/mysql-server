@@ -122,8 +122,9 @@ void send_error(THD *thd, uint sql_errno, const char *err)
   }
   VOID(net_write_command(net,(uchar) 255, "", 0, (char*) err,length));
 #endif  /* EMBEDDED_LIBRARY*/
-  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, sql_errno,
-	       orig_err ? orig_err : ER(sql_errno));
+  if (!thd->killed)
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, sql_errno,
+                 orig_err ? orig_err : ER(sql_errno));
   thd->is_fatal_error=0;			// Error message is given
   thd->net.report_error= 0;
 
