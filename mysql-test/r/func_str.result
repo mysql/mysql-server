@@ -304,3 +304,18 @@ QUOTE('A')
 'A'
 'A'
 DROP TABLE t1;
+CREATE TABLE t1 (id int PRIMARY KEY, str char(255) NOT NULL);
+CREATE TABLE t2 (id int NOT NULL UNIQUE);
+INSERT INTO t2 VALUES (1),(2);
+INSERT INTO t1 VALUES (1, aes_encrypt('foo', 'bar'));
+INSERT INTO t1 VALUES (2, 'not valid');
+SELECT t1.id, aes_decrypt(str, 'bar') FROM t1, t2 WHERE t1.id = t2.id;
+id	aes_decrypt(str, 'bar')
+1	foo
+2	NULL
+SELECT t1.id, aes_decrypt(str, 'bar') FROM t1, t2 WHERE t1.id = t2.id
+ORDER BY t1.id;
+id	aes_decrypt(str, 'bar')
+1	foo
+2	NULL
+DROP TABLE t1, t2;
