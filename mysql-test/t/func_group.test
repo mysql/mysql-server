@@ -147,3 +147,11 @@ insert into t1 values (3,1);
 select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
 select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
 drop table t1;
+#
+# Bug #1972: test for bit_and(), bit_or() and negative values
+# 
+create table t1 (col int);
+insert into t1 values (-1), (-2), (-3);
+select bit_and(col), bit_or(col) from t1;
+select SQL_BIG_RESULT bit_and(col), bit_or(col) from t1 group by col;
+drop table t1;
