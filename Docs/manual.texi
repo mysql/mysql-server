@@ -13656,7 +13656,7 @@ column, you cannot index the entire thing.
 In @strong{MySQL} 3.23.23 or later, you can also create special
 @strong{FULLTEXT} indexes. They are used for full-text search. Only the
 @code{MyISAM} table type supports @code{FULLTEXT} indexes. They can be created
-only from @code{VARCHAR}, @code{BLOB}, and @code{TEXT} columns.
+only from @code{VARCHAR} and @code{TEXT} columns.
 Indexing always happens over the entire column, partial indexing is not
 supported. See @ref{MySQL full-text search} for details of operation.
 
@@ -16644,7 +16644,7 @@ When you use @code{ORDER BY} or @code{GROUP BY} with a @code{TEXT} or
 In @strong{MySQL} 3.23.23 or later, you can also create special
 @strong{FULLTEXT} indexes. They are used for full-text search. Only the
 @code{MyISAM} table type supports @code{FULLTEXT} indexes. They can be created
-only from @code{VARCHAR}, @code{BLOB}, and @code{TEXT} columns.
+only from @code{VARCHAR} and @code{TEXT} columns.
 Indexing always happens over the entire column, partial indexing is not
 supported. See @ref{MySQL full-text search} for details of operation.
 
@@ -20070,7 +20070,7 @@ table type.
 For more information about how @strong{MySQL} uses indexes, see
 @ref{MySQL indexes, , @strong{MySQL} indexes}.
 
-@code{FULLTEXT} indexes can index only @code{VARCHAR}, @code{BLOB}, and
+@code{FULLTEXT} indexes can index only @code{VARCHAR} and
 @code{TEXT} columns, and only in @code{MyISAM} tables. @code{FULLTEXT} indexes
 are available in @strong{MySQL} 3.23.23 and later. 
 @ref{MySQL full-text search}.
@@ -34776,9 +34776,9 @@ DELAYED} threads.
 Since version 3.23.23, @strong{MySQL} has support for full-text indexing
 and searching. Full-text index in @strong{MySQL} is an
 index of type @code{FULLTEXT}. @code{FULLTEXT} indexes can be created from
-@code{VARCHAR}, @code{TEXT}, and @code{BLOB} columns at
-@code{CREATE TABLE} time or added later with @code{ALTER TABLE} or
-@code{CREATE INDEX}. Full-text search is performed with the @code{MATCH}
+@code{VARCHAR} and @code{TEXT} columns at @code{CREATE TABLE} time or added 
+later with @code{ALTER TABLE} or @code{CREATE INDEX}. Full-text search is 
+performed with the @code{MATCH}
 function.
 
 @example
