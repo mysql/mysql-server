@@ -2425,6 +2425,8 @@ build_template(
 
 		templ->mysql_col_len = (ulint) field->pack_length();
 		templ->type = get_innobase_type_from_mysql_type(field);
+		templ->charset = dtype_get_charset_coll_noninline(
+				index->table->cols[i].type.prtype);
 		templ->is_unsigned = (ulint) (field->flags & UNSIGNED_FLAG);
 
 		if (templ->type == DATA_BLOB) {
@@ -4033,8 +4035,8 @@ ha_innobase::create(
 
 	DBUG_ASSERT(innobase_table != 0);
 
-	if ((thd->lex->create_info.used_fields & HA_CREATE_USED_AUTO) &&
-	   (thd->lex->create_info.auto_increment_value != 0)) {
+	if ((create_info->used_fields & HA_CREATE_USED_AUTO) &&
+	   (create_info->auto_increment_value != 0)) {
 
 		/* Query was ALTER TABLE...AUTO_INCREMENT = x; or 
 		CREATE TABLE ...AUTO_INCREMENT = x; Find out a table
@@ -4043,7 +4045,7 @@ ha_innobase::create(
 		auto increment field if the value is greater than the
 		maximum value in the column. */
 
-		auto_inc_value = thd->lex->create_info.auto_increment_value;
+		auto_inc_value = create_info->auto_increment_value;
 		dict_table_autoinc_initialize(innobase_table, auto_inc_value);
 	}
 
@@ -4089,6 +4091,48 @@ ha_innobase::discard_or_import_tablespace(
 	err = convert_error_code_to_mysql(err, NULL);
 
 	DBUG_RETURN(err);
+}
+
+/*********************************************************************
+Deletes all rows of an InnoDB table. */
+
+int
+ha_innobase::delete_all_rows(void)
+/*==============================*/
+				/* out: error number */
+{
+	row_prebuilt_t*	prebuilt	= (row_prebuilt_t*)innobase_prebuilt;
+	int		error;
+	trx_t*		trx;
+	THD*		thd		= current_thd;
+
+	DBUG_ENTER("ha_innobase::delete_all_rows");
+
+	if (thd->lex->sql_command != SQLCOM_TRUNCATE) {
+	fallback:
+		/* We only handle TRUNCATE TABLE t as a special case.
+		DELETE FROM t will have to use ha_innobase::delete_row(). */
+		DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
+	}
+
+	/* Get the transaction associated with the current thd, or create one
+	if not yet created */
+
+	trx = check_trx_exists(thd);
+
+	/* Truncate the table in InnoDB */
+
+	error = row_truncate_table_for_mysql(prebuilt->table, trx);
+	if (error == DB_ERROR) {
+		/* Cannot truncate; resort to ha_innobase::delete_row() */
+		goto fallback;
+	}
+
+	innobase_commit_low(trx);
+
+	error = convert_error_code_to_mysql(error, NULL);
+
+	DBUG_RETURN(error);
 }
 
 /*********************************************************************
@@ -5704,7 +5748,9 @@ ha_innobase::store_lock(
 	if ((lock_type == TL_READ && thd->in_lock_tables) ||
 	    (lock_type == TL_READ_HIGH_PRIORITY && thd->in_lock_tables) ||
 	    lock_type == TL_READ_WITH_SHARED_LOCKS ||
-	    lock_type == TL_READ_NO_INSERT) {
+	    lock_type == TL_READ_NO_INSERT ||
+	    thd->lex->sql_command != SQLCOM_SELECT) {
+
 		/* The OR cases above are in this order:
 		1) MySQL is doing LOCK TABLES ... READ LOCAL, or
 		2) (we do not know when TL_READ_HIGH_PRIORITY is used), or
@@ -5712,7 +5758,15 @@ ha_innobase::store_lock(
 		4) we are doing a complex SQL statement like
 		INSERT INTO ... SELECT ... and the logical logging (MySQL
 		binlog) requires the use of a locking read, or
-		MySQL is doing LOCK TABLES ... READ. */
+		MySQL is doing LOCK TABLES ... READ.
+		5) we let InnoDB do locking reads for all SQL statements that
+		are not simple SELECTs; note that select_lock_type in this
+		case may get strengthened in ::external_lock() to LOCK_X.
+		Note that we MUST use a locking read in all data modifying
+		SQL statements, because otherwise the execution would not be
+		serializable, and also the results from the update could be
+		unexpected if an obsolete consistent read view would be
+		used. */
 
 		prebuilt->select_lock_type = LOCK_S;
 		prebuilt->stored_select_lock_type = LOCK_S;

@@ -1035,7 +1035,9 @@ int Field_decimal::store(longlong nr)
 double Field_decimal::val_real(void)
 {
   int not_used;
-  return my_strntod(&my_charset_bin, ptr, field_length, NULL, &not_used);
+  char *end_not_used;
+  return my_strntod(&my_charset_bin, ptr, field_length, &end_not_used,
+                    &not_used);
 }
 
 longlong Field_decimal::val_int(void)
@@ -4390,13 +4392,20 @@ int Field_str::store(double nr)
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
   uint length;
   bool use_scientific_notation= TRUE;
-  use_scientific_notation= TRUE;
-  if (field_length < 32 && fabs(nr) < log_10[field_length]-1)
+  /*
+    Check fabs(nr) against longest value that can be stored in field,
+    which depends on whether the value is < 1 or not, and negative or not
+  */
+  double anr= fabs(nr);
+  int neg= (nr < 0.0) ? 1 : 0;
+  if (field_length > 4 && field_length < 32 &&
+      (anr < 1.0 ? anr > 1/(log_10[max(0,field_length-neg-2)]) /* -2 for "0." */
+                 : anr < log_10[field_length-neg]-1))
     use_scientific_notation= FALSE;
 
   length= (uint) my_sprintf(buff, (buff, "%-.*g",
                                    (use_scientific_notation ?
-                                    max(0, (int)field_length-5) :
+                                    max(0, (int)field_length-neg-5) :
                                     field_length),
                                    nr));
   /*
@@ -4425,16 +4434,18 @@ int Field_string::store(longlong nr)
 double Field_string::val_real(void)
 {
   int not_used;
-  CHARSET_INFO *cs=charset();
-  return my_strntod(cs,ptr,field_length,(char**)0,&not_used);
+  char *end_not_used;
+  CHARSET_INFO *cs= charset();
+  return my_strntod(cs,ptr,field_length,&end_not_used,&not_used);
 }
 
 
 longlong Field_string::val_int(void)
 {
   int not_used;
+  char *end_not_used;
   CHARSET_INFO *cs=charset();
-  return my_strntoll(cs,ptr,field_length,10,NULL,&not_used);
+  return my_strntoll(cs,ptr,field_length,10,&end_not_used,&not_used);
 }
 
 
@@ -4482,8 +4493,7 @@ void Field_string::sort_string(char *to,uint length)
   uint tmp=my_strnxfrm(field_charset,
 		       (unsigned char *) to, length,
 		       (unsigned char *) ptr, field_length);
-  if (tmp < length)
-    field_charset->cset->fill(field_charset, to + tmp, length - tmp, ' ');
+  DBUG_ASSERT(tmp == length);
 }
 
 
@@ -4734,8 +4744,9 @@ int Field_varstring::store(longlong nr)
 double Field_varstring::val_real(void)
 {
   int not_used;
+  char *end_not_used;
   uint length= length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
-  return my_strntod(field_charset, ptr+length_bytes, length, (char**) 0,
+  return my_strntod(field_charset, ptr+length_bytes, length, &end_not_used,
                     &not_used);
 }
 
@@ -4743,9 +4754,10 @@ double Field_varstring::val_real(void)
 longlong Field_varstring::val_int(void)
 {
   int not_used;
+  char *end_not_used;
   uint length= length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
-  return my_strntoll(field_charset, ptr+length_bytes, length, 10, NULL,
-                     &not_used);
+  return my_strntoll(field_charset, ptr+length_bytes, length, 10,
+                     &end_not_used, &not_used);
 }
 
 
@@ -4834,9 +4846,7 @@ void Field_varstring::sort_string(char *to,uint length)
 			  (uchar*) to, length,
 			  (uchar*) ptr + length_bytes,
 			  tot_length);
-  if (tot_length < length)
-    field_charset->cset->fill(field_charset, to+tot_length,length-tot_length,
-			      binary() ? (char) 0 : ' ');
+  DBUG_ASSERT(tot_length == length);
 }
 
 
@@ -5339,13 +5349,16 @@ int Field_blob::store(longlong nr)
 double Field_blob::val_real(void)
 {
   int not_used;
-  char *blob;
+  char *end_not_used, *blob;
+  uint32 length;
+  CHARSET_INFO *cs;
+
   memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
   if (!blob)
     return 0.0;
-  uint32 length=get_length(ptr);
-  CHARSET_INFO *cs=charset();
-  return my_strntod(cs,blob,length,(char**)0, &not_used);
+  length= get_length(ptr);
+  cs= charset();
+  return my_strntod(cs, blob, length, &end_not_used, &not_used);
 }
 
 
@@ -5511,10 +5524,7 @@ void Field_blob::sort_string(char *to,uint length)
     blob_length=my_strnxfrm(field_charset,
                             (uchar*) to, length, 
                             (uchar*) blob, blob_length);
-    if (blob_length < length)
-      field_charset->cset->fill(field_charset, to+blob_length,
-				length-blob_length,
-				binary() ? (char) 0 : ' ');
+    DBUG_ASSERT(blob_length == length);
   }
 }
 
@@ -6352,11 +6362,13 @@ longlong Field_bit::val_int(void)
 String *Field_bit::val_str(String *val_buffer,
                            String *val_ptr __attribute__((unused)))
 {
+  char buff[sizeof(longlong)];
   uint length= min(pack_length(), sizeof(longlong));
   ulonglong bits= val_int();
+  mi_int8store(buff,bits);
 
   val_buffer->alloc(length);
-  memcpy_fixed((char*) val_buffer->ptr(), (char*) &bits, length);
+  memcpy_fixed((char*) val_buffer->ptr(), buff+8-length, length);
   val_buffer->length(length);
   val_buffer->set_charset(&my_charset_bin);
   return val_buffer;
