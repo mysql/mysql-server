@@ -863,58 +863,60 @@ Item *Item_func_case::find_item(String *str)
   String *first_expr_str,*tmp;
   longlong first_expr_int;
   double   first_expr_real;
-  bool int_used, real_used,str_used;
-  int_used=real_used=str_used=0;
-
+  
   /* These will be initialized later */
   LINT_INIT(first_expr_str);
   LINT_INIT(first_expr_int);
   LINT_INIT(first_expr_real);
+
+  if (first_expr_num != -1)
+  {
+    switch (cmp_type)
+    {
+      case STRING_RESULT:
+      	// We can't use 'str' here as this may be overwritten
+	if (!(first_expr_str= args[first_expr_num]->val_str(&str_value)))
+	  return else_expr_num != -1 ? args[else_expr_num] : 0;	// Impossible
+        break;
+      case INT_RESULT:
+	first_expr_int= args[first_expr_num]->val_int();
+	if (args[first_expr_num]->null_value)
+	  return else_expr_num != -1 ? args[else_expr_num] : 0;
+	break;
+      case REAL_RESULT:
+	first_expr_real= args[first_expr_num]->val();
+	if (args[first_expr_num]->null_value)
+	  return else_expr_num != -1 ? args[else_expr_num] : 0;
+	break;
+      case ROW_RESULT:
+      default:
+	// This case should never be choosen
+	DBUG_ASSERT(0);
+	break;
+    }
+  }
 
   // Compare every WHEN argument with it and return the first match
   for (uint i=0 ; i < ncases ; i+=2)
   {
     if (first_expr_num == -1)
     {
-      // No expression between CASE and first WHEN
+      // No expression between CASE and the first WHEN
       if (args[i]->val_int())
 	return args[i+1];
       continue;
     }
-    switch (args[i]->result_type()) {
+    switch (cmp_type) {
     case STRING_RESULT:
-      if (!str_used)
-      {
-	str_used=1;
-	// We can't use 'str' here as this may be overwritten
-	if (!(first_expr_str= args[first_expr_num]->val_str(&str_value)))
-	  return else_expr_num != -1 ? args[else_expr_num] : 0;	// Impossible
-      }
       if ((tmp=args[i]->val_str(str)))		// If not null
-      {
 	if (sortcmp(tmp,first_expr_str,cmp_collation.collation)==0)
 	  return args[i+1];
-      }
       break;
     case INT_RESULT:
-      if (!int_used)
-      {
-	int_used=1;
-	first_expr_int= args[first_expr_num]->val_int();
-	if (args[first_expr_num]->null_value)
-	  return else_expr_num != -1 ? args[else_expr_num] : 0;
-      }
       if (args[i]->val_int()==first_expr_int && !args[i]->null_value) 
         return args[i+1];
       break;
     case REAL_RESULT: 
-      if (!real_used)
-      {
-	real_used=1;
-	first_expr_real= args[first_expr_num]->val();
-	if (args[first_expr_num]->null_value)
-	  return else_expr_num != -1 ? args[else_expr_num] : 0;
-      }
       if (args[i]->val()==first_expr_real && !args[i]->null_value) 
         return args[i+1];
       break;
