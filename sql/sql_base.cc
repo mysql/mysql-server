@@ -2061,9 +2061,9 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     if (item->type() == Item::FIELD_ITEM &&
 	((Item_field*) item)->field_name[0] == '*')
     {
-      uint elem=fields.elements;
+      uint elem= fields.elements;
       if (insert_fields(thd,tables,((Item_field*) item)->db_name,
-			((Item_field*) item)->table_name,&it))
+			((Item_field*) item)->table_name, &it))
 	DBUG_RETURN(-1); /* purecov: inspected */
       if (sum_func_list)
       {
@@ -2079,6 +2079,7 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     {
       if (item->fix_fields(thd, tables, it.ref()))
 	DBUG_RETURN(-1); /* purecov: inspected */
+      item= *(it.ref()); //Item can be chenged in fix fields
       if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	  sum_func_list)
 	item->split_sum_func(*sum_func_list);
