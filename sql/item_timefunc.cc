@@ -57,13 +57,13 @@ static String day_names[] =
   String("Sunday",	&my_charset_latin1)
 };
 
-enum date_time_format_types 
-{ 
+enum date_time_format_types
+{
   TIME_ONLY= 0, TIME_MICROSECOND,
   DATE_ONLY, DATE_TIME, DATE_TIME_MICROSECOND
 };
 
-typedef struct date_time_format 
+struct date_time_format
 {
   const char* format_str;
   uint length;
