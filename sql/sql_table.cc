@@ -454,7 +454,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
         key_info->flags = HA_NOSAME;
     }
 
-    key_info->key_alg = key->algorithm;
+    key_info->algorithm = key->algorithm;
     key_info->key_parts=(uint8) key->columns.elements;
     key_info->key_part=key_part_info;
     key_info->usable_key_parts= key_number;
@@ -476,7 +476,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
        in near future when new frm file is ready
        checking for proper key parts number:
     */
-    
+   
+printf("key_info->flags=%d key_info->algorithm=%d\n",
+  key_info->flags,key_info->algorithm);
+ 
     if(key_info->flags == HA_SPATIAL){
       if(key_info->key_parts!=1){
         my_printf_error(ER_WRONG_ARGUMENTS,
@@ -485,7 +488,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       }
     }else
     {
-      if(key_info->key_alg == HA_KEY_ALG_RTREE){
+      if(key_info->algorithm == HA_KEY_ALG_RTREE){
         if((key_info->key_parts&1)==1){
           my_printf_error(ER_WRONG_ARGUMENTS,
                           ER(ER_WRONG_ARGUMENTS),MYF(0),"RTREE INDEX");
@@ -1584,7 +1587,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 				  Key::PRIMARY  : Key::UNIQUE) :
                                  (key_info->flags & HA_FULLTEXT ?
                                  Key::FULLTEXT : Key::MULTIPLE)),
-                                 key_info->key_alg,
+                                 key_info->algorithm,
 				 key_name,key_parts));
   }
   key_it.rewind();

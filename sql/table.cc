@@ -201,6 +201,13 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     for (i=0 ; i < keys ; i++, keyinfo++)
       keyinfo->algorithm= (enum ha_key_alg) *(strpos++);
   }
+  else
+  {
+    /* Set key types to BTREE, BAR TODO: how to be with HASH/RBTREE? */
+    keyinfo=outparam->key_info;
+    for (i=0 ; i < keys ; i++, keyinfo++)
+      keyinfo->algorithm= HA_KEY_ALG_BTREE;
+  }
   outparam->reclength = uint2korr((head+16));
   if (*(head+26) == 1)
     outparam->system=1;				/* one-record-database */
@@ -408,10 +415,12 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	}
       }
 
+      if (keyinfo->name[0]=='S')
+	keyinfo->flags |= HA_SPATIAL;
+
+#ifdef BAR_DIRTY_HACK
       keyinfo->key_alg=HA_KEY_ALG_BTREE;  // BAR : btree by default
 
-#define BAR_DIRTY_HACK
-#ifdef BAR_DIRTY_HACK
       // BAR FIXME: Dirty hack while waiting for new .frm format
       switch(keyinfo->name[0]){
         case 'R':

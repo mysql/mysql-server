@@ -124,8 +124,12 @@ const char **ha_myisam::bas_ext() const
 
 const char *ha_myisam::index_type(uint key_number)
 {
-  return ((table->key_info[key_number].flags & HA_FULLTEXT) ?
+  return ((table->key_info[key_number].flags & HA_FULLTEXT) ? 
 	  "FULLTEXT" :
+	  (table->key_info[key_number].flags & HA_SPATIAL) ?
+	  "SPATIAL" :
+	  (table->key_info[key_number].algorithm == HA_KEY_ALG_RTREE) ?
+	  "RTREE" :
 	  "BTREE");
 }
 
@@ -1006,7 +1010,7 @@ int ha_myisam::create(const char *name, register TABLE *table,
   for (i=0; i < table->keys ; i++, pos++)
   {
     keydef[i].flag= (pos->flags & (HA_NOSAME | HA_FULLTEXT | HA_SPATIAL));
-    keydef[i].key_alg=pos->key_alg; // +BAR
+    keydef[i].key_alg=pos->algorithm;
     keydef[i].seg=keyseg;
     keydef[i].keysegs=pos->key_parts;
     for (j=0 ; j < pos->key_parts ; j++)

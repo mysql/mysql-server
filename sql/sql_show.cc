@@ -890,7 +890,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
      append_identifier(thd,packet,key_info->name);
 
     // +BAR: send USING only in non-default case: non-spatial rtree
-    if((key_info->key_alg == HA_KEY_ALG_RTREE) && !(key_info->flags & HA_SPATIAL))
+    if((key_info->algorithm == HA_KEY_ALG_RTREE) && !(key_info->flags & HA_SPATIAL))
           packet->append(" USING RTREE",12);
 
     packet->append(" (", 2);
