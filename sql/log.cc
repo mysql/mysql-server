@@ -255,7 +255,9 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   if ((file=my_open(log_file_name,open_flags,
 		    MYF(MY_WME | ME_WAITTANG))) < 0 ||
       init_io_cache(&log_file, file, IO_SIZE, io_cache_type,
-		    my_tell(file,MYF(MY_WME)), 0, MYF(MY_WME | MY_NABP)))
+		    my_tell(file,MYF(MY_WME)), 0, 
+                    MYF(MY_WME | MY_NABP |
+                        ((log_type == LOG_BIN) ? MY_WAIT_IF_FULL : 0))))
     goto err;
 
   switch (log_type) {
@@ -333,6 +335,8 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 	First open of this class instance
 	Create an index file that will hold all file names uses for logging.
 	Add new entries to the end of it.
+	Index file (and binlog) are so critical for recovery/replication
+	that we create them with MY_WAIT_IF_FULL.
       */
       fn_format(index_file_name, index_file_name_arg, mysql_data_home,
 		".index", opt);
@@ -343,7 +347,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 	  init_io_cache(&index_file, index_file_nr,
 			IO_SIZE, WRITE_CACHE,
 			my_seek(index_file_nr,0L,MY_SEEK_END,MYF(0)),
-			0, MYF(MY_WME)))
+			0, MYF(MY_WME | MY_WAIT_IF_FULL)))
 	goto err;
     }
     else
@@ -1574,6 +1578,7 @@ uint MYSQL_LOG::next_file_id()
 
 bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
 {
+  bool should_rotate= 0, error= 0;
   VOID(pthread_mutex_lock(&LOCK_log));
   DBUG_ENTER("MYSQL_LOG::write(cache");
   
@@ -1671,7 +1676,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
       goto err;
     signal_update();
     DBUG_PRINT("info",("max_size: %lu",max_size));
-    if (my_b_tell(&log_file) >= (my_off_t) max_size)
+    if (should_rotate= (my_b_tell(&log_file) >= (my_off_t) max_size))
     {
       pthread_mutex_lock(&LOCK_index);
       new_file(0); // inside mutex
@@ -1687,7 +1692,16 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
 
   ha_commit_complete(thd);
 
-  DBUG_RETURN(0);
+#ifdef HAVE_REPLICATION
+  if (should_rotate && expire_logs_days)
+  {
+    long purge_time= time(0) - expire_logs_days*24*60*60;
+    if (purge_time >= 0)
+      error= purge_logs_before_date(purge_time);
+  }
+#endif
+
+  DBUG_RETURN(error);
 
 err:
   if (!write_error)
