@@ -255,7 +255,7 @@ if ($opt_stage <= 1)
 	}
 	else
 	{
-		$opt_config_options.= " --without-readline --with-libedit";
+		$opt_config_options.= " --with-libedit";
 	}
   $opt_config_options.= " --with-embedded-server" unless ($opt_without_embedded);
   $opt_config_options.= " --with-ndbcluster" if ($opt_with_cluster);
