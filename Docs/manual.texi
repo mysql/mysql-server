@@ -9233,11 +9233,19 @@ Windows only waited for a few seconds for the shutdown to complete, and
 killed the database server process if the time limit was exceeded
 (potentially causing problems). For instance, at the next startup the
 @code{InnoDB} table handler had to do crash recovery. Starting from
-MySQL version 3.23.48, the Windows will wait upto 4 minutes for the
-MySQL server shutdown to complete. If you notice that 4 minutes is not
-enough for your intallation, it is safest to run the MySQL server not as
-a service, but from the Command prompt, and shut it down with
-@code{mysqladmin shutdown}.
+MySQL version 3.23.48, the Windows will wait longer for the MySQL server
+shutdown to complete. If you notice this is not enough for your
+intallation, it is safest to run the MySQL server not as a service, but
+from the Command prompt, and shut it down with @code{mysqladmin shutdown}.
+
+There is a problem that Windows NT (but not Windows 2000) by default only
+waits 20 seconds for a service to shut down, and after that kills the
+service process. You can increase this default by opening the Registry
+Editor @file{\winnt\system32\regedt32.exe} and editing the value of
+@code{WaitToKillServiceTimeout} at
+@file{HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control}
+in the Registry tree. Specify the new larger value in milliseconds,
+for example 120000 to have Windows NT wait upto 120 seconds.
 
 Please note that when run as a service, @code{mysqld-max-nt}
 has no access to a console and so no messages can be seen.
@@ -15094,7 +15102,7 @@ theoretically create a patched MySQL server that could read any file one
 the client machine, for which the current user have read privilege, when
 the client issues a query against the table.
 
-In a web environment where the clients are connection from an web
+In a web environment where the clients are connection from a web
 server, a user could use @code{LOAD DATA LOCAL} to read any files for
 which the web server process have read access to (assuming a user could
 run any command against the SQL server).
