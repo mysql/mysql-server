@@ -15,6 +15,6 @@ All changes that I or other people at MySQL AB have done to all files
 in the dbug library (Mainly in dbug.c, dbug_analyze.c, dbug_long.h,
 dbug.h) are put in public domain, as the rest of the dbug.c library)
 
-To my knowledge, all code in dbug library are in public domain.
+To my knowledge, all code in dbug library is in public domain.
 
 Michael Widenius
