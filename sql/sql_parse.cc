@@ -2308,7 +2308,6 @@ mysql_execute_command(THD *thd)
     break;
   }
   case SQLCOM_UPDATE:
-    TABLE_LIST *table;
     if (check_db_used(thd,tables))
       goto error;
 

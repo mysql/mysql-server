@@ -3850,7 +3850,7 @@ purge_option:
 	  }
 	  Item *tmp= new Item_func_unix_timestamp($2);
 	  Lex->sql_command = SQLCOM_PURGE_BEFORE;
-	  Lex->purge_time= tmp->val_int();
+	  Lex->purge_time= (ulong) tmp->val_int();
 	}
 	;
 
