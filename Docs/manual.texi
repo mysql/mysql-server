@@ -1079,7 +1079,7 @@ to expand the MySQL business.
 
 @menu
 * Business Services Support::   Support
-* Business Services Training::  Training
+* Business Services Training::  Training and Certification
 * Business Services Consulting::  Consulting
 * Business Services Commercial licenses::  Commercial Licenses
 * Business Services Partnering::  Partnering
@@ -1108,43 +1108,71 @@ Internet, please contact our sales staff at @email{sales@@mysql.com}.
 
 
 @node Business Services Training, Business Services Consulting, Business Services Support, MySQL AB business model and services
-@subsubsection Training
-MySQL AB and its authorized training partners offer  MySQL and related
-training on various levels all over the world. Our training material
-uses the same example databases as our documentation and our sample
-applications, and it is always updated to reflect the latest MySQL
-version. Our trainers are backed by the development team to guarantee
-the quality of the training and the continuous development of the
-course material. Also, this ensures that no questions raised during
-the courses remain unanswered."
+@subsubsection Training and Certification
+MySQL AB delivers MySQL and related training worldwide. We offer both
+open courses and In-House courses tailored to specific needs of your
+company. MySQL Training is also available through our partners, the
+Authorized MySQL Training Centers.
 
-If you're interested in our training as a potential participant or
+Our training material uses the same example databases as our
+documentation and our sample applications, and it is always updated
+to reflect the latest MySQL version. Our trainers are backed by the
+development team to guarantee the quality of the training and the
+continuous development of the course material. This also ensures
+that no questions raised during the courses remain unanswered.
+
+Attending our training courses will enable you to achieve your goals
+related to your MySQL applications. You will also:
+@itemize @bullet
+@item
+Save time.
+@item
+Improve the performance of your application(s).
+@item
+Reduce or eliminate the need for additional hardware, decreasing cost.
+@item
+Enhance security.
+@item
+Increase customers and co-workers satisfaction.
+@item
+Prepare yourself for MySQL Certification.
+@end itemize
+
+If you are interested in our training as a potential participant or
 training partner, please visit the training section at
 @uref{http://www.mysql.com/training/}.
 If you have restricted access to the Internet, please contact our
 training staff at @email{training@@mysql.com}.
 
+We plan to release the MySQL Certification Program in 2002, for
+details see @uref{http://www.mysql.com/training/certification.html}.
+If you would like to be kept informed about the MySQL Certification
+Program, please e-mail @email{certification@@mysql.com}.
+
 
 @node Business Services Consulting, Business Services Commercial licenses, Business Services Training, MySQL AB business model and services
 @subsubsection Consulting
-MySQL AB offers consulting services to users of MySQL and to those who
-embed MySQL in their own software, all over the world. Our consultants
-can help you design and tune your databases, construct efficient
-queries, tune your platform for optimal performance, resolve migration
-issues, set up replication, build robust transactional applications,
-and more.
+MySQL AB and its Authorised Partners offer consulting services to
+users of MySQL and to those who embed MySQL in their own software,
+all over the world.
+
+Our consultants can help you design and tune your databases, construct
+efficient queries, tune your platform for optimal performance, resolve
+migration issues, set up replication, build robust transactional
+applications, and more.
 We also help customers embed MySQL in their products and applications
-for large-scale deployment. Our consultants work in close collaboration
-with our development team which ensures the technical quality of our
-professional services.
+for large-scale deployment.
+
+Our consultants work in close collaboration with our development team
+which ensures the technical quality of our professional services.
 Consulting assignments range from 2-day power start sessions to
 projects that span weeks and months. Our expertise does not only cover
 MySQL, but extends into programming and scripting languages such as
 PHP, Perl and more.
 
-If you're interested in our consulting services or want to become a
-consulting partner, please visit the consulting section at
-@uref{http://www.mysql.com/consulting/}.
+If you are interested in our consulting services or want to become a
+consulting partner, please visit the consulting section of our website
+at @uref{http://www.mysql.com/consulting/}.
 If you have restricted access to the Internet, please contact our
 consulting staff at @email{consulting@@mysql.com}.
 
@@ -1217,6 +1245,10 @@ an email to @email{advertising@@mysql.com}.
 @uref{http://www.mysql.com/, The MySQL website}
 provides the latest information about MySQL and MySQL AB.
 
+For press service and inquiries not covered in our News releases
+(@uref{http://www.mysql.com/news/}), please mail to
+@email{press@@mysql.com}.
+
 If you have a valid support contract with MySQL AB; you will get
 timely, precise answers to your technical questions about MySQL.
 For more information, see @ref{Support}.
@@ -1228,6 +1260,12 @@ For information about MySQL training, please visit the training
 section at @uref{http://www.mysql.com/training/}. If you have
 restricted access to the Internet, please contact the MySQL AB
 training staff at @email{training@@mysql.com}.
+@xref{Business Services Training}.
+
+For information on the MySQL Certification Program, please see
+@uref{http://www.mysql.com/training/certification.html}.
+If you would like to be kept informed about the MySQL Certification
+Program, please e-mail @email{certification@@mysql.com}.
 @xref{Business Services Training}.
 
 If you're interested in consulting, please visit the consulting
@@ -3344,15 +3382,14 @@ server.
 
 @menu
 * Standards::                   What standards does MySQL follow?
+* ANSI mode::                   Running MySQL in ANSI mode
 * Extensions to ANSI::          MySQL extensions to ANSI SQL92
 * Differences from ANSI::       MySQL differences compared to ANSI SQL92
-* ANSI mode::                   Running MySQL in ANSI mode
-* Commit-rollback::             How to cope without @code{COMMIT}-@code{ROLLBACK}
 * Bugs::                        Known errors and design deficiencies in MySQL
 @end menu
 
 
-@node Standards, Extensions to ANSI, Compatibility, Compatibility
+@node Standards, ANSI mode, Compatibility, Compatibility
 @subsection What Standards Does MySQL Follow?
 
 Entry level SQL92. ODBC levels 0-2.
@@ -3361,7 +3398,40 @@ We are aiming towards supporting the full ANSI SQL99 standard,
 but without concessions to speed and quality of the code.
 
 
-@node Extensions to ANSI, Differences from ANSI, Standards, Compatibility
+@node ANSI mode, Extensions to ANSI, Standards, Compatibility
+@subsection Running MySQL in ANSI Mode
+
+@cindex running, ANSI mode
+@cindex ANSI mode, running
+
+If you start @code{mysqld} with the @code{--ansi} option, the following
+behavior of MySQL changes:
+
+@itemize @bullet
+@item
+@code{||} is string concatenation instead of @code{OR}.
+
+@item
+You can have any number of spaces between a function name and the @samp{(}.
+This forces all function names to be treated as reserved words.
+
+@item
+@samp{"} will be an identifier quote character (like the MySQL
+@samp{`} quote character) and not a string quote character.
+
+@item
+@code{REAL} will be a synonym for @code{FLOAT} instead of a synonym of
+@code{DOUBLE}.
+
+@item
+The default transaction isolation level is @code{SERIALIZABLE}.
+@xref{SET TRANSACTION}.
+@end itemize
+
+This is the same as using @code{--sql-mode=REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,SERIALIZE,ONLY_FULL_GROUP_BY}.
+
+
+@node Extensions to ANSI, Differences from ANSI, ANSI mode, Compatibility
 @subsection MySQL Extensions to ANSI SQL92
 
 @cindex hints
@@ -3608,7 +3678,7 @@ SELECT @@t1:=(@@t2:=1)+@@t3:=4,@@t1,@@t2,@@t3;
 @end itemize
 
 
-@node Differences from ANSI, ANSI mode, Extensions to ANSI, Compatibility
+@node Differences from ANSI, Bugs, Extensions to ANSI, Compatibility
 @subsection MySQL Differences Compared to ANSI SQL92
 
 We try to make MySQL follow the ANSI SQL standard and the
@@ -3616,10 +3686,6 @@ ODBC SQL standard, but in some cases MySQL does some things
 differently:
 
 @itemize @bullet
-@item
-@code{--} is only a comment if followed by a white space. @xref{Missing
-comments}.
-
 @item
 For @code{VARCHAR} columns, trailing spaces are removed when the value is
 stored. @xref{Bugs}.
@@ -3639,35 +3705,33 @@ This is because we don't think it's good to have to evaluate a lot of
 extra conditions in this case.
 @end itemize
 
-The following functionality is missing in the current version of
-MySQL.  For a prioritized list indicating when new extensions
-may be added to MySQL, you should consult
-@uref{http://www.mysql.com/documentation/manual.php?section=TODO, the
-online MySQL TODO list}. That is the latest version of the TODO
-list in this manual. @xref{TODO}.
-
 @menu
-* Missing Sub-selects::         Sub-selects
-* Missing SELECT INTO TABLE::   @code{SELECT INTO TABLE}
-* Missing Transactions::        Transactions
-* Missing Triggers::            Triggers
-* Missing Foreign Keys::        Foreign Keys
-* Broken Foreign KEY::          Why We Did Not Implement Foreign Keys
-* Missing Views::               Views
-* Missing comments::            @samp{--} as the start of a comment
+* ANSI diff Sub-selects::       Sub-@code{SELECT}s
+* ANSI diff SELECT INTO TABLE::  @code{SELECT INTO TABLE}
+* ANSI diff Transactions::      Transactions and Atomic Operations
+* ANSI diff Triggers::          Stored Procedures and Triggers
+* ANSI diff Foreign Keys::      Foreign Keys
+* ANSI diff Views::             Views
+* ANSI diff comments::          @samp{--} as the Start of a Comment
 @end menu
 
+For a prioritized list indicating when new extensions will be added to
+MySQL, you should consult the online MySQL TODO list at
+@uref{http://www.mysql.com/documentation/manual.php?section=TODO}.
+That is the latest version of the TODO list in this manual. @xref{TODO}.
 
-@node Missing Sub-selects, Missing SELECT INTO TABLE, Differences from ANSI, Differences from ANSI
-@subsubsection Sub-selects
+
+@node ANSI diff Sub-selects, ANSI diff SELECT INTO TABLE, Differences from ANSI, Differences from ANSI
+@subsubsection Sub-@code{SELECT}s
 
 @cindex sub-selects
 
-MySQL currently only supports sub selects of the form @code{INSERT
+MySQL currently only supports nested queries of the form @code{INSERT
 ... SELECT ...} and @code{REPLACE ... SELECT ...}. You can however use
 the function @code{IN()} in other contexts.
+Sub-selects are scheduled for implementation in Version 4.x.
 
-In many cases you can rewrite the query without a sub-select:
+Meanwhile, you can often rewrite the query without a sub-select:
 
 @example
 SELECT * FROM table1 WHERE id IN (SELECT id FROM table2);
@@ -3727,7 +3791,8 @@ MySQL 4.0 supports multi-table deletes that can be used to efficiently
 delete rows based on information from one table or even from many tables
 at the same time.
 
-@node Missing SELECT INTO TABLE, Missing Transactions, Missing Sub-selects, Differences from ANSI
+
+@node ANSI diff SELECT INTO TABLE, ANSI diff Transactions, ANSI diff Sub-selects, Differences from ANSI
 @subsubsection @code{SELECT INTO TABLE}
 
 @findex SELECT INTO TABLE
@@ -3743,126 +3808,203 @@ tblTemp1.fldOrder_ID > 100;
 @end example
 
 Alternatively, you can use @code{SELECT INTO OUTFILE...} or @code{CREATE
-TABLE ... SELECT} to solve your problem.
+TABLE ... SELECT}.
 
 
-@node Missing Transactions, Missing Triggers, Missing SELECT INTO TABLE, Differences from ANSI
-@subsubsection Transactions
+@node ANSI diff Transactions, ANSI diff Triggers, ANSI diff SELECT INTO TABLE, Differences from ANSI
+@subsubsection Transactions and Atomic Operations
 
+@findex COMMIT
+@findex ROLLBACK
 @cindex transactions, support
+@cindex transaction-safe tables
+@cindex tables, updating
+@cindex updating, tables
+@cindex @code{InnoDB} tables
+@cindex @code{BDB} tables
 
-As MySQL does nowadays support transactions, the following
-discussion is only valid if you are only using the non-transaction-safe
-table types. @xref{COMMIT}.
+MySQL supports transactions with the @code{InnoDB} and @code{BDB}
+@code{Transactional table handlers}. @xref{Table types}.
 
-The question is often asked, by the curious and the critical, ``Why is
-MySQL not a transactional database?'' or ``Why does MySQL
-not support transactions?''
-
-MySQL has made a conscious decision to support another paradigm
-for data integrity, ``atomic operations.'' It is our thinking and
-experience that atomic operations offer equal or even better integrity
-with much better performance. We, nonetheless, appreciate and understand
-the transactional database paradigm and plan, within the next few releases,
-to introduce transaction-safe tables on a per table basis. We will be
-giving our users the possibility to decide if they need the speed of
-atomic operations or if they need to use transactional features in their
-applications.
+However, the non-transactional table types in MySQL such as
+@code{MyISAM} follow another paradigm for data integrity called
+``@code{Atomic Operations}.'' Atomic operations often offer equal or
+even better integrity with much better performance.
+With MySQL supporting both paradigms, the user is able to decide if
+they need the speed of atomic operations or if they need to use
+transactional features in their applications. This choice can be made
+on a per-table basis.
 
 How does one use the features of MySQL to maintain rigorous integrity
 and how do these features compare with the transactional paradigm?
 
-First, in the transactional paradigm, if your applications are written
-in a way that is dependent on the calling of ``rollback'' instead of
-``commit'' in critical situations, then transactions are more
-convenient. Moreover, transactions ensure that unfinished updates or
+@enumerate
+@item
+In the transactional paradigm, if your applications are written in a
+way that is dependent on the calling of @code{ROLLBACK} instead of
+@code{COMMIT} in critical situations, then transactions are more
+convenient. Transactions also ensure that unfinished updates or
 corrupting activities are not committed to the database; the server is
 given the opportunity to do an automatic rollback and your database is
 saved.
 
-MySQL, in almost all cases, allows you to solve for potential
-problems by including simple checks before updates and by running simple
-scripts that check the databases for inconsistencies and automatically
-repair or warn if such occurs. Note that just by using the
-MySQL log or even adding one extra log, one can normally fix
-tables perfectly with no data integrity loss.
+MySQL, in almost all cases, allows you to resolve potential problems
+by including simple checks before updates and by running simple scripts
+that check the databases for inconsistencies and automatically repair
+or warn if such an inconsistency occurs. Note that just by using the
+MySQL log or even adding one extra log, one can normally fix tables
+perfectly with no data integrity loss.
 
-Moreover, fatal transactional updates can be rewritten to be
-atomic. In fact,we will go so far as to say that all integrity problems
-that transactions solve can be done with @code{LOCK TABLES} or atomic updates,
-ensuring that you never will get an automatic abort from the database,
-which is a common problem with transactional databases.
+@item
+More often than not, fatal transactional updates can be rewritten to be
+atomic. Generally speaking, all integrity problems that transactions
+solve can be done with @code{LOCK TABLES} or atomic updates, ensuring
+that you never will get an automatic abort from the database, which is
+a common problem with transactional databases.
 
-Not even transactions can prevent all loss if the server goes down.  In
-such cases even a transactional system can lose data.  The difference
-between different systems lies in just how small the time-lap is where
-they could lose data. No system is 100% secure, only ``secure
-enough.'' Even Oracle, reputed to be the safest of transactional
-databases, is reported to sometimes lose data in such situations.
+@item
+Even a transactional system can lose data if the server goes down.
+The difference between different systems lies in just how small the
+time-lap is where they could lose data. No system is 100% secure, only
+``secure enough.'' Even Oracle, reputed to be the safest of
+transactional databases, is reported to sometimes lose data in such
+situations.
 
-To be safe with MySQL, you only need to have backups and have
-the update logging turned on.  With this you can recover from any
-situation that you could with any transactional database.  It is, of
-course, always good to have backups, independent of which database you
-use.
+To be safe with MySQL, whether using transactional tables or not, you
+only need to have backups and have the update logging turned on. With
+this you can recover from any situation that you could with any
+other transactional database.  It is, of course, always good to have
+backups, independent of which database you use.
+@end enumerate
 
 The transactional paradigm has its benefits and its drawbacks. Many
-users and application developers depend on the ease with which they can
-code around problems where an abort appears to be, or is necessary, and they
-may have to do a little more work with MySQL to either think
-differently or write more. If you are new to the atomic operations
-paradigm, or more familiar or more comfortable with transactions, do not
-jump to the conclusion that MySQL has not addressed these
-issues. Reliability and integrity are foremost in our minds.  Recent
-estimates indicate that there are more than 1,000,000 @code{mysqld} servers
-currently running, many of which are in production environments.  We
-hear very, very seldom from our users that they have lost any data, and
-in almost all of those cases user error is involved. This is, in our
-opinion, the best proof of MySQL's stability and reliability.
+users and application developers depend on the ease with which they
+can code around problems where an abort appears to be, or is necessary.
+However, even if you are new to the atomic operations paradigm, or more
+familiar with transactions, do consider the speed benefit that
+non-transactional tables can offer, on the order of three to five times
+the speed of the fastest and most optimally tuned transactional tables.
 
-Lastly, in situations where integrity is of highest importance,
-MySQL's current features allow for transaction-level or better
-reliability and integrity. If you lock tables with @code{LOCK TABLES}, all
-updates will stall until any integrity checks are made.  If you only obtain
-a read lock (as opposed to a write lock), then reads and inserts are
-still allowed to happen.  The new inserted records will not be seen by
-any of the clients that have a @code{READ} lock until they release their read
-locks.  With @code{INSERT DELAYED} you can queue inserts into a local queue,
-until the locks are released, without having the client wait for the insert
-to complete. @xref{INSERT DELAYED}.
+In situations where integrity is of highest importance, MySQL offers
+transaction-level or better reliability and integrity even for
+non-transactional tables.
+If you lock tables with @code{LOCK TABLES}, all updates will stall
+until any integrity checks are made. If you only obtain a read lock
+(as opposed to a write lock), then reads and inserts are still allowed
+to happen. The new inserted records will not be seen by any of the
+clients that have a @code{READ} lock until they release their read
+locks. With @code{INSERT DELAYED} you can queue inserts into a local
+queue, until the locks are released, without having the client wait
+for the insert to complete. @xref{INSERT DELAYED}.
 
-``Atomic,'' in the sense that we mean it, is nothing magical. It only means
-that you can be sure that while each specific update is running, no other
-user can interfere with it, and there will never be an automatic
-rollback (which can happen on transaction based systems if you are not
-very careful).  MySQL also guarantees that there will not be
-any dirty reads.  You can find some example of how to write atomic updates
-in the commit-rollback section. @xref{Commit-rollback}.
+``Atomic,'' in the sense that we mean it, is nothing magical. It only
+means that you can be sure that while each specific update is running,
+no other user can interfere with it, and there will never be an
+automatic rollback (which can happen with transactional tables if you
+are not very careful).  MySQL also guarantees that there will not be
+any dirty reads.
 
-We have thought quite a bit about integrity and performance, and we
-believe that our atomic operations paradigm allows for both high
-reliability and extremely high performance, on the order of three to
-five times the speed of the fastest and most optimally tuned of
-transactional databases. We didn't leave out transactions because they
-are hard to do. The main reason we went with atomic operations as
-opposed to transactions is that by doing this we could apply many speed
-optimizations that would not otherwise have been possible.
+Following are some techniques for working with non-transactional tables:
 
-Many of our users who have speed foremost in their minds are not at all
-concerned about transactions. For them transactions are not an
-issue. For those of our users who are concerned with or have wondered
-about transactions vis-a-vis MySQL, there is a ``MySQL
-way'' as we have outlined above.  For those where safety is more
-important than speed, we recommend them to use the @code{InnoDB},
-or @code{BDB} tables for all their critical data. @xref{Table types}.
+@itemize @bullet
+@item
+Loops that need transactions normally can be coded with the help of
+@code{LOCK TABLES}, and you don't need cursors when you can update
+records on the fly.
 
-One final note: We are currently working on a safe replication schema
-that we believe to be better than any commercial replication system we
-know of. This system will work most reliably under the atomic
-operations, non-transactional, paradigm. Stay tuned.
+@item
+To avoid using @code{ROLLBACK}, you can use the following strategy:
+
+@enumerate
+@item
+Use @code{LOCK TABLES ...} to lock all the tables you want to access.
+@item
+Test conditions.
+@item
+Update if everything is okay.
+@item
+Use @code{UNLOCK TABLES} to release your locks.
+@end enumerate
+
+This is usually a much faster method than using transactions with
+possible @code{ROLLBACK}s, although not always. The only situation
+this solution doesn't handle is when someone kills the threads in the
+middle of an update. In this case, all locks will be released but some
+of the updates may not have been executed.
+
+@item
+You can also use functions to update records in a single operation.
+You can get a very efficient application by using the following
+techniques:
+
+@itemize @bullet
+@item Modify fields relative to their current value.
+@item Update only those fields that actually have changed.
+@end itemize
+
+For example, when we are doing updates to some customer information, we
+update only the customer data that has changed and test only that none of
+the changed data, or data that depend on the changed data, has changed
+compared to the original row. The test for changed data is done with the
+@code{WHERE} clause in the @code{UPDATE} statement. If the record wasn't
+updated, we give the client a message: "Some of the data you have changed
+have been changed by another user". Then we show the old row versus the new
+row in a window, so the user can decide which version of the customer record
+he should use.
+
+This gives us something that is similar to column locking but is actually
+even better, because we only update some of the columns, using values that
+are relative to their current values.  This means that typical @code{UPDATE}
+statements look something like these:
+
+@example
+UPDATE tablename SET pay_back=pay_back+'relative change';
+
+UPDATE customer
+  SET
+    customer_date='current_date',
+    address='new address',
+    phone='new phone',
+    money_he_owes_us=money_he_owes_us+'new_money'
+  WHERE
+    customer_id=id AND address='old address' AND phone='old phone';
+@end example
+
+As you can see, this is very efficient and works even if another client
+has changed the values in the @code{pay_back} or @code{money_he_owes_us}
+columns.
+
+@item
+@findex mysql_insert_id()
+@findex LAST_INSERT_ID()
+In many cases, users have wanted @code{ROLLBACK} and/or @code{LOCK
+TABLES} for the purpose of managing unique identifiers for some tables.
+This can be handled much more efficiently by using an
+@code{AUTO_INCREMENT} column and either the SQL function
+@code{LAST_INSERT_ID()} or the C API function @code{mysql_insert_id()}.
+@xref{mysql_insert_id, , @code{mysql_insert_id()}}.
+
+@cindex rows, locking
+Generally, you can code around row-level locking. Some cases really
+need it, but they are very few. For instance, you can use a flag
+column in the table and do something like this:
+
+@example
+UPDATE tbl_name SET row_flag=1 WHERE id=ID;
+@end example
+
+MySQL returns 1 for the number of affected rows if the row was
+found and @code{row_flag} wasn't already 1 in the original row.
+
+You can think of it as MySQL changed the above query to:
+
+@example
+UPDATE tbl_name SET row_flag=1 WHERE id=ID and row_flag <> 1;
+@end example
+@end itemize
 
 
-@node Missing Triggers, Missing Foreign Keys, Missing Transactions, Differences from ANSI
+@node ANSI diff Triggers, ANSI diff Foreign Keys, ANSI diff Transactions, Differences from ANSI
 @subsubsection Stored Procedures and Triggers
 
 @cindex stored procedures and triggers, defined
@@ -3882,14 +4024,13 @@ each time a record is deleted from a transaction table and that automatically
 deletes the corresponding customer from a customer table when all his
 transactions are deleted.
 
-The planned update language will be able to
-handle stored procedures, but without triggers. Triggers usually slow
-down everything, even queries for which they are not needed.
+The planned update language will be able to handle stored procedures, but
+without triggers. Triggers usually slow down everything, even queries for
+which they are not needed. To see when MySQL will get stored procedures,
+see @ref{TODO}.
 
-To see when MySQL might get stored procedures, see @ref{TODO}.
 
-
-@node Missing Foreign Keys, Broken Foreign KEY, Missing Triggers, Differences from ANSI
+@node ANSI diff Foreign Keys, ANSI diff Views, ANSI diff Triggers, Differences from ANSI
 @subsubsection Foreign Keys
 
 @cindex foreign keys
@@ -3906,113 +4047,81 @@ SELECT * from table1,table2 where table1.id = table2.id;
 
 @xref{JOIN, , @code{JOIN}}. @xref{example-Foreign keys}.
 
-The @code{FOREIGN KEY} syntax in MySQL exists only for compatibility
-with other SQL vendors' @code{CREATE TABLE} commands; it doesn't do
-anything.  The @code{FOREIGN KEY} syntax without @code{ON DELETE ...} is
-mostly used for documentation purposes. Some ODBC applications may use this
-to produce automatic @code{WHERE} clauses, but this is usually easy to
-override. @code{FOREIGN KEY} is sometimes used as a constraint check, but
-this check is unnecessary in practice if rows are inserted into the tables in
-the right order. MySQL only supports these clauses because some
-applications require them to exist (regardless of whether or not they
-work).
+In MySQL 3.23.44 and up, @code{InnoDB} tables supports checking of
+foreign key constraints. @xref{InnoDB}. For other table types, MySQL
+does parse the @code{FOREIGN KEY} syntax in @code{CREATE TABLE}
+commands, but without further action being taken.
 
-In MySQL, you can work around the problem of @code{ON DELETE
-...} not being implemented by adding the appropriate @code{DELETE} statement to
-an application when you delete records from a table that has a foreign key.
-In practice this is as quick (in some cases quicker) and much more portable
-than using foreign keys.
+The @code{FOREIGN KEY} syntax without @code{ON DELETE ...} is mostly
+used for documentation purposes. Some ODBC applications may use this
+to produce automatic @code{WHERE} clauses, but this is usually easy to
+override. @code{FOREIGN KEY} is sometimes used as a constraint check,
+but this check is unnecessary in practice if rows are inserted into the
+tables in the right order.
+
+In MySQL, you can work around the problem of @code{ON DELETE ...} not
+being implemented by adding the appropriate @code{DELETE} statement to
+an application when you delete records from a table that has a foreign
+key. In practice this is as quick (in some cases quicker) and much more
+portable than using foreign keys.
 
 In MySQL 4.0 you can use multi-table delete to delete rows from many
 tables with one command. @xref{DELETE}.
 
-In the near future we will extend the @code{FOREIGN KEY} implementation so
-that at least the information will be saved in the table specification file
-and may be retrieved by @code{mysqldump} and ODBC. At a later stage we will
-implement the foreign key constraints for application that can't easily be
-coded to avoid them.
+In the near future we will extend the @code{FOREIGN KEY} implementation
+so that the information will be saved in the table specification file
+and may be retrieved by @code{mysqldump} and ODBC. At a later stage we
+will implement the foreign key constraints for applications that can't
+easily be coded to avoid them.
 
-In MySQL 3.23.44 and up, InnoDB tables supports checking of foreign
-key constraints. @xref{InnoDB}.
-
-@menu
-* Broken Foreign KEY::          Reasons NOT to use foreign keys constraints
-@end menu
-
-
-@node Broken Foreign KEY, Missing Views, Missing Foreign Keys, Differences from ANSI
-@subsubsection Why We Did Not Implement Foreign Keys
-
-@cindex foreign keys, why not implemented
-
-Many database scholars and programmers feel very strongly that
-referential integrity should be enforced inside the database server. Indeed,
-in many cases, this approach is very helpful. However, in talking with many
-database users we have observed that foreign keys are often misused, which
-can cause severe problems. Even when used properly, it is not a
-magic solution for the referential integrity problem, although it does make
-things easier in some cases.
-
-Because of the above observations, we did not assign implementing foreign
-keys a high priority. Our user base consisted of mostly of developers who
-did not mind enforcing referential integerity inside the application code,
-and in fact, preferred to do it that way because it gave them more control.
-
-However, in the last couple of years, our user base has expanded a great deal
-and we now have many users who would like to have the enforced referential
-integrity support inside MySQL. So we will implement the foreign keys in
-the near future, although at this point we cannot provide a definite
-delivery date.
+Do keep in mind that foreign keys are often misused, which can cause
+severe problems. Even when used properly, it is not a magic solution for
+the referential integrity problem, although it does make things easier
+in some cases.
 
 Some advantages of foreign key enforcement:
 
 @itemize @bullet
 @item
-Assuming proper design of the relations, foreign key constraints will make it
-more difficult for a programmer to introduce an inconsistency into the
-database
+Assuming proper design of the relations, foreign key constraints will
+make it more difficult for a programmer to introduce an inconsistency
+into the database.
 
 @item
-Using cascading updates and deletes can simplify the client code
+Using cascading updates and deletes can simplify the client code.
 
 @item
-Properly designed foreign key rules aid in documenting relations between
-tables
+Properly designed foreign key rules aid in documenting relations
+between tables.
 @end itemize
 
 Disadvantages:
 
 @itemize @bullet
 @item
-MySQL does not yet support enforced referential integrity, so if your
-application depends on it, you will not be able to use it with MySQL until
-we implement this feature.
+Mistakes, that are easy to make in designing key relations, can cause
+severe problems, for example, circular rules, or the wrong combination
+of cascading deletes.
 
 @item
-Mistakes, that are easy to make in designing key relations, can cause severe
-problems, for example, circular rules, or the wrong combination of cascading
-deletes.
+A properly written application will make sure internally that it is
+not violating referential integrity constraints before proceding with
+a query. Thus, additionaly checks on the database level will only slow
+down performance for such application.
 
 @item
-A properly written application will make sure internally that it is not
-violating referential integrity constraints before proceding with a query.
-Thus, additionaly checks on the database level will only slow down performance
-for such application.
-
-@item
-It is not uncommon for a DBA to make such a complex topology of relations that
-it becomes very difficult, and in some cases impossible to backup or restore
-individual tables.
+It is not uncommon for a DBA to make such a complex topology of
+relations that it becomes very difficult, and in some cases impossible
+to backup or restore individual tables.
 @end itemize
 
 
-@node Missing Views, Missing comments, Broken Foreign KEY, Differences from ANSI
+@node ANSI diff Views, ANSI diff comments, ANSI diff Foreign Keys, Differences from ANSI
 @subsubsection Views
 
 @cindex views
 
-MySQL doesn't yet support views, but we plan to implement these
-to about 4.1.
+It is planned to implement views in MySQL around Version 4.1.
 
 Views are mostly useful for letting users access a set of relations as one
 table (in read-only mode).  Many SQL databases don't allow one to update
@@ -4020,16 +4129,16 @@ any rows in a view, but you have to do the updates in the separate tables.
 
 As MySQL is mostly used in applications and on web system where
 the application writer has full control on the database usage, most of
-our users haven't regarded views to be very important. (At least no one
-has been interested enough in this to be prepared to finance the
-implementation of views).
+our users haven't regarded views to be very important.
+(At least no one has been interested enough in this to be prepared to
+finance the implementation of views).
 
 One doesn't need views in MySQL to restrict access to columns
-as MySQL has a very sophisticated privilege
-system. @xref{Privilege system}.
+as MySQL has a very sophisticated privilege system.
+@xref{Privilege system}.
 
 
-@node Missing comments,  , Missing Views, Differences from ANSI
+@node ANSI diff comments,  , ANSI diff Views, Differences from ANSI
 @subsubsection @samp{--} as the Start of a Comment
 
 @cindex comments, starting
@@ -4093,175 +4202,7 @@ shell> replace " #" " --" -- text-file-with-funny-comments.sql
 @end example
 
 
-@node ANSI mode, Commit-rollback, Differences from ANSI, Compatibility
-@subsection Running MySQL in ANSI Mode
-
-@cindex running, ANSI mode
-@cindex ANSI mode, running
-
-If you start @code{mysqld} with the @code{--ansi} option, the following
-behavior of MySQL changes:
-
-@itemize @bullet
-@item
-@code{||} is string concatenation instead of @code{OR}.
-
-@item
-You can have any number of spaces between a function name and the @samp{(}.
-This forces all function names to be treated as reserved words.
-
-@item
-@samp{"} will be an identifier quote character (like the MySQL
-@samp{`} quote character) and not a string quote character.
-
-@item
-@code{REAL} will be a synonym for @code{FLOAT} instead of a synonym of
-@code{DOUBLE}.
-
-@item
-The default transaction isolation level is @code{SERIALIZABLE}.
-@xref{SET TRANSACTION}.
-@end itemize
-
-This is the same as using @code{--sql-mode=REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,SERIALIZE,ONLY_FULL_GROUP_BY}.
-
-
-@node Commit-rollback, Bugs, ANSI mode, Compatibility
-@subsection How to Cope Without @code{COMMIT}/@code{ROLLBACK}
-
-@findex COMMIT
-@findex ROLLBACK
-@cindex transaction-safe tables
-@cindex tables, updating
-@cindex updating, tables
-@cindex @code{InnoDB} tables
-@cindex @code{BDB} tables
-
-The following mostly applies only for @code{ISAM}, @code{MyISAM}, and
-@code{HEAP} tables. If you only use transaction-safe tables (@code{InnoDB},
-or @code{BDB} tables) in an an update, you can do
-@code{COMMIT} and @code{ROLLBACK} also with MySQL.
-@xref{COMMIT}.
-
-The problem with handling @code{COMMIT}-@code{ROLLBACK} efficiently with
-the above table types would require a completely different table layout
-than MySQL uses today.  The table type would also need extra
-threads that do automatic cleanups on the tables, and the disk usage
-would be much higher. This would make these table types about 2-4 times
-slower than they are today.
-
-For the moment, we prefer implementing the SQL server language (something
-like stored procedures). With this you would very seldom really need
-@code{COMMIT}-@code{ROLLBACK.} This would also give much better performance.
-
-Loops that need transactions normally can be coded with the help of
-@code{LOCK TABLES}, and you don't need cursors when you can update records
-on the fly.
-
-We at TcX had a greater need for a real fast database than a 100%
-general database. Whenever we find a way to implement these features without
-any speed loss, we will probably do it. For the moment, there are many more
-important things to do. Check the TODO for how we prioritize things at
-the moment. (Customers with higher levels of support can alter this, so
-things may be reprioritized.)
-
-The current problem is actually @code{ROLLBACK}. Without
-@code{ROLLBACK}, you can do any kind of @code{COMMIT} action with
-@code{LOCK TABLES}. To support @code{ROLLBACK} with the above table
-types, MySQL would have to be changed to store all old records
-that were updated and revert everything back to the starting point if
-@code{ROLLBACK} was issued. For simple cases, this isn't that hard to do
-(the current @code{isamlog} could be used for this purpose), but it
-would be much more difficult to implement @code{ROLLBACK} for
-@code{ALTER/DROP/CREATE TABLE}.
-
-To avoid using @code{ROLLBACK}, you can use the following strategy:
-
-@enumerate
-@item
-Use @code{LOCK TABLES ...} to lock all the tables you want to access.
-@item
-Test conditions.
-@item
-Update if everything is okay.
-@item
-Use @code{UNLOCK TABLES} to release your locks.
-@end enumerate
-
-This is usually a much faster method than using transactions with possible
-@code{ROLLBACK}s, although not always. The only situation this solution
-doesn't handle is when someone kills the threads in the middle of an
-update. In this case, all locks will be released but some of the updates may
-not have been executed.
-
-You can also use functions to update records in a single operation.
-You can get a very efficient application by using the following techniques:
-
-@itemize @bullet
-@item Modify fields relative to their current value.
-@item Update only those fields that actually have changed.
-@end itemize
-
-For example, when we are doing updates to some customer information, we
-update only the customer data that has changed and test only that none of
-the changed data, or data that depend on the changed data, has changed
-compared to the original row. The test for changed data is done with the
-@code{WHERE} clause in the @code{UPDATE} statement. If the record wasn't
-updated, we give the client a message: "Some of the data you have changed
-have been changed by another user". Then we show the old row versus the new
-row in a window, so the user can decide which version of the customer record
-he should use.
-
-This gives us something that is similar to column locking but is actually
-even better, because we only update some of the columns, using values that
-are relative to their current values.  This means that typical @code{UPDATE}
-statements look something like these:
-
-@example
-UPDATE tablename SET pay_back=pay_back+'relative change';
-
-UPDATE customer
-  SET
-    customer_date='current_date',
-    address='new address',
-    phone='new phone',
-    money_he_owes_us=money_he_owes_us+'new_money'
-  WHERE
-    customer_id=id AND address='old address' AND phone='old phone';
-@end example
-
-As you can see, this is very efficient and works even if another client has
-changed the values in the @code{pay_back} or @code{money_he_owes_us} columns.
-
-@findex mysql_insert_id()
-@findex LAST_INSERT_ID()
-In many cases, users have wanted @code{ROLLBACK} and/or @code{LOCK
-TABLES} for the purpose of managing unique identifiers for some tables. This
-can be handled much more efficiently by using an @code{AUTO_INCREMENT} column
-and either the SQL function @code{LAST_INSERT_ID()} or the C API function
-@code{mysql_insert_id()}. @xref{mysql_insert_id, , @code{mysql_insert_id()}}.
-
-@cindex rows, locking
-At MySQL AB, we have never had any need for row-level locking
-because we have always been able to code around it. Some cases really need
-row locking, but they are very few. If you want row-level locking, you
-can use a flag column in the table and do something like this:
-
-@example
-UPDATE tbl_name SET row_flag=1 WHERE id=ID;
-@end example
-
-MySQL returns 1 for the number of affected rows if the row was
-found and @code{row_flag} wasn't already 1 in the original row.
-
-You can think of it as MySQL changed the above query to:
-
-@example
-UPDATE tbl_name SET row_flag=1 WHERE id=ID and row_flag <> 1;
-@end example
-
-
-@node Bugs,  , Commit-rollback, Compatibility
+@node Bugs,  , Differences from ANSI, Compatibility
 @subsection Known errors and design deficiencies in MySQL
 
 @cindex bugs, known
@@ -7500,9 +7441,8 @@ release or the last stable release:
 Normally, if you are beginning to use MySQL for the first time
 or trying to port it to some system for which there is no binary
 distribution, we recommend going with the stable release (currently
-Version @value{mysql_version}.  Note that all MySQL releases are
-checked with the MySQL benchmarks and an extensive test suite
-before each release.
+Version 3.23.  Note that all MySQL releases are checked with the
+MySQL benchmarks and an extensive test suite before each release.
 
 @item
 Otherwise, if you are running an old system and want to upgrade, but
@@ -28988,8 +28928,8 @@ These limitations apply both when you run @code{mysql} interactively
 and when you put commands in a file and tell @code{mysql} to read its
 input from that file with @code{mysql < some-file}.
 
-MySQL doesn't support the @samp{--} ANSI SQL comment style.
-@xref{Missing comments}.
+MySQL only supports the @samp{--} ANSI SQL comment style if it is
+followed by a space. @xref{ANSI diff comments}.
 
 
 @node Reserved words,  , Comments, Language Structure
