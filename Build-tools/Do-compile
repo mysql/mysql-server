@@ -11,7 +11,7 @@ $opt_distribution=$opt_user=$opt_config_env=$opt_config_extra_env="";
 $opt_dbd_options=$opt_perl_options=$opt_config_options=$opt_make_options=$opt_suffix="";
 $opt_tmp=$opt_version_suffix="";
 $opt_bundled_zlib=$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_one_error=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_archive=$opt_with_cluster=$opt_with_csv=$opt_with_example=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=$opt_readline=0;
-$opt_embedded_test=$opt_ps_test=$opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=$opt_clearlogs=0;
+$opt_skip_embedded_test=$opt_skip_ps_test=$opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=$opt_clearlogs=$opt_with_federated=0;
 
 GetOptions(
 	"bdb",
@@ -25,7 +25,6 @@ GetOptions(
 	"delete",
 	"distribution=s",
 	"enable-shared",
-	"embedded-test",
 	"fast-benchmark",
 	"help|Information",
 	"innodb",
@@ -41,9 +40,10 @@ GetOptions(
 	"one-error",
 	"perl-files=s",
 	"perl-options=s",
- 	"ps-test",
 	"raid",
 	"readline",
+	"skip-embedded-test",
+ 	"skip-ps-test",
 	"stage=i",
 	"static-client",
 	"static-perl",
@@ -57,9 +57,10 @@ GetOptions(
 	"version-suffix=s",
 	"with-archive",
 	"with-cluster",
-        "with-csv",
-        "with-example",
+	"with-csv",
 	"with-debug",
+	"with-example",
+  "with-federated",
 	"with-low-memory",
 	"with-other-libc=s",
 	"with-small-disk",
@@ -278,11 +279,12 @@ if ($opt_stage <= 1)
 		$opt_config_options.= " --with-libedit";
 	}
   $opt_config_options.= " --with-embedded-server" unless ($opt_without_embedded);
-  $opt_embedded_test= 0 if ($opt_without_embedded);
+  $opt_skip_embedded_test= 1 if ($opt_without_embedded);
   $opt_config_options.= " --with-archive-storage-engine" if ($opt_with_archive);
   $opt_config_options.= " --with-ndbcluster" if ($opt_with_cluster);
   $opt_config_options.= " --with-csv-storage-engine" if ($opt_with_csv);
   $opt_config_options.= " --with-example-storage-engine" if ($opt_with_example);
+  $opt_config_options.= " --with-federated-storage-engine" if ($opt_with_federated);
 
   # Only enable InnoDB when requested (required to be able to
   # build the "Classic" packages that do not include InnoDB)
@@ -391,14 +393,14 @@ if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
   safe_cd("${test_dir}/mysql-test");
   check_system("./mysql-test-run $flags --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --ndbcluster_port=$ndbcluster_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
 
-  if ($opt_ps_test)
+  unless ($opt_skip_ps_test)
   {
     log_timestamp();
     info("Running test suite using prepared statements");
     check_system("./mysql-test-run $flags --ps-protocol --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --ndbcluster_port=$ndbcluster_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
   }
   
-  if ($opt_embedded_test)
+  unless ($opt_skip_embedded_test)
   {
     log_timestamp();
     info("Running embedded server test suite");
@@ -551,9 +553,6 @@ Delete the distribution file.
 --distribution=<distribution_file>
 Name of the MySQL source distribution file.
 
---embedded-test
-Run the test suite against the embedded server
-
 --enable-shared
 Compile with shared libraries
 
@@ -602,14 +601,17 @@ Compile and install the given perl modules.
 --perl-options=<options>
 Build Perl modules with the additional options
 
---ps-test
-Run an additional test run, using prepared statements
-
 --raid
 Compile with RAID support
 
 --readline
 Compile against readline library instead of libedit
+
+--skip-embedded-test
+Skip running the test suite against the embedded server
+
+--skip-ps-test
+Skip running the additional test run that uses the prepared statement protocol
 
 --stage=[1-6]
 Start script from some specific point.
@@ -640,10 +642,10 @@ If user is empty then no mail is sent.
 --version-suffix=suffix
 Set name suffix (e.g. 'com' or '-max') for a distribution
 
---with archive
+--with-archive
 Enable the Archive storage engine
 
---with cluster
+--with-cluster
 Compile and test with NDB Cluster enabled
 
 --with-csv
@@ -651,6 +653,9 @@ Enable the CSV storage engine
 
 --with-example
 Enable the Example storage engine
+
+--with-federated
+Enable the Federated storage engine
 
 --with-debug
 Build binaries with debug information (implies "--no-strip")

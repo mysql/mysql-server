@@ -824,7 +824,8 @@ Suma::execUTIL_SEQUENCE_CONF(Signal* signal)
     return;
   }
 
-  Uint32 subId = conf->sequenceValue[0];
+  Uint64 subId;
+  memcpy(&subId,conf->sequenceValue,8);
   Uint32 subData = conf->senderData;
 
   SubscriberPtr subbPtr;
@@ -832,8 +833,8 @@ Suma::execUTIL_SEQUENCE_CONF(Signal* signal)
   
 
   CreateSubscriptionIdConf * subconf = (CreateSubscriptionIdConf*)conf;
-  subconf->subscriptionId = subId;
-  subconf->subscriptionKey =(getOwnNodeId() << 16) | (subId & 0xFFFF);
+  subconf->subscriptionId = (Uint32)subId;
+  subconf->subscriptionKey =(getOwnNodeId() << 16) | (Uint32)(subId & 0xFFFF);
   subconf->subscriberData = subbPtr.p->m_senderData;
   
   sendSignal(subbPtr.p->m_subscriberRef, GSN_CREATE_SUBID_CONF, signal,
@@ -3279,7 +3280,7 @@ SumaParticipant::execSUB_STOP_REQ(Signal* signal){
     for (;!subbPtr.isNull(); c_dataSubscribers.next(subbPtr)){
       jam();
       if (subbPtr.p->m_subPtrI == subPtr.i && 
-	  subbPtr.p->m_subscriberRef == subscriberRef &&
+	  refToNode(subbPtr.p->m_subscriberRef) == refToNode(subscriberRef) &&
 	  subbPtr.p->m_subscriberData == subscriberData){
 	//	ndbout_c("STOP_REQ: before c_dataSubscribers.release");
 	jam();
@@ -3507,6 +3508,8 @@ SumaParticipant::sendSubRemoveRef(Signal* signal, const SubRemoveReq& req,
   jam();
   SubRemoveRef  * ref = (SubRemoveRef *)signal->getDataPtrSend();
   ref->senderRef  = reference();
+  ref->subscriptionId = req.subscriptionId;
+  ref->subscriptionKey = req.subscriptionKey;
   ref->senderData = req.senderData;
   ref->err = errCode;
   if (temporary)

@@ -2207,3 +2207,23 @@ F4FC
 F4FD
 F4FE
 DROP TABLE t1;
+SET collation_connection='ujis_japanese_ci';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+ujis_japanese_ci	6109
+ujis_japanese_ci	61
+ujis_japanese_ci	6120
+drop table t1;
+SET collation_connection='ujis_bin';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+ujis_bin	6109
+ujis_bin	61
+ujis_bin	6120
+drop table t1;
