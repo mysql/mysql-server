@@ -1587,7 +1587,7 @@ static int replace_db_table(TABLE *table, const char *db,
 	goto table_error;			/* purecov: deadcode */
     }
   }
-  else if ((error=table->file->write_row(table->record[0])))
+  else if (rights && (error=table->file->write_row(table->record[0])))
   {
     if (error && error != HA_ERR_FOUND_DUPP_KEY) /* purecov: inspected */
       goto table_error; /* purecov: deadcode */
@@ -1597,6 +1597,7 @@ static int replace_db_table(TABLE *table, const char *db,
   if (old_row_exists)
     acl_update_db(combo.user.str,combo.host.str,db,rights);
   else
+  if (rights)
     acl_insert_db(combo.user.str,combo.host.str,db,rights);
   table->file->index_end();
   DBUG_RETURN(0);
