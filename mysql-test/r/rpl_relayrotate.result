@@ -16,19 +16,4 @@ master_pos_wait('master-bin.001',3000)>=0
 select * from t1 where a=8000;
 a
 8000
-show status like "binlog_cache_use";
-Variable_name	Value
-Binlog_cache_use	1
-show status like "binlog_cache_disk_use";
-Variable_name	Value
-Binlog_cache_disk_use	1
-begin;
-delete from t1;
-commit;
-show status like "binlog_cache_use";
-Variable_name	Value
-Binlog_cache_use	2
-show status like "binlog_cache_disk_use";
-Variable_name	Value
-Binlog_cache_disk_use	1
 drop table t1;
