@@ -251,9 +251,9 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     {
       global_system_variables.old_passwords= 1;
       pthread_mutex_unlock(&LOCK_global_system_variables);
-      sql_print_error("mysql.user table is not updated to new password format; "
-                      "Disabling new password usage until "
-                      "mysql_fix_privilege_tables is run");
+      sql_print_warning("mysql.user table is not updated to new password format; "
+                        "Disabling new password usage until "
+                        "mysql_fix_privilege_tables is run");
     }
     thd->variables.old_passwords= 1;
   }
@@ -543,22 +543,28 @@ static ulong get_sort(uint count,...)
   va_start(args,count);
   ulong sort=0;
 
+  /* Should not use this function with more than 4 arguments for compare. */
+  DBUG_ASSERT(count <= 4);
+
   while (count--)
   {
-    char *str=va_arg(args,char*);
-    uint chars=0,wild=0;
+    char *start, *str= va_arg(args,char*);
+    uint chars= 0;
+    uint wild_pos= 0;           /* first wildcard position */
 
-    if (str)
+    if ((start= str))
     {
       for (; *str ; str++)
       {
 	if (*str == wild_many || *str == wild_one || *str == wild_prefix)
-	  wild++;
-	else
-	  chars++;
+        {
+          wild_pos= (uint) (str - start) + 1;
+          break;
+        }
+        chars= 128;                             // Marker that chars existed
       }
     }
-    sort= (sort << 8) + (wild ? 1 : chars ? 2 : 0);
+    sort= (sort << 8) + (wild_pos ? min(wild_pos, 127) : chars);
   }
   va_end(args);
   return sort;
@@ -1208,13 +1214,14 @@ bool acl_check_host(const char *host, const char *ip)
       1		ERROR  ; In this case the error is sent to the client.
 */
 
-bool check_change_password(THD *thd, const char *host, const char *user)
+bool check_change_password(THD *thd, const char *host, const char *user,
+                           char *new_password)
 {
   if (!initialized)
   {
     net_printf(thd,ER_OPTION_PREVENTS_STATEMENT,
-             "--skip-grant-tables"); /* purecov: inspected */
-    return(1);                             /* purecov: inspected */
+             "--skip-grant-tables");
+    return(1);
   }
   if (!thd->slave_thread &&
       (strcmp(thd->user,user) ||
@@ -1227,6 +1234,15 @@ bool check_change_password(THD *thd, const char *host, const char *user)
   {
     send_error(thd, ER_PASSWORD_ANONYMOUS_USER);
     return(1);
+  }
+  uint len=strlen(new_password);
+  if (len && len != SCRAMBLED_PASSWORD_CHAR_LENGTH &&
+      len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
+  {
+    net_printf(thd, 0,
+               "Password hash should be a %d-digit hexadecimal number",
+               SCRAMBLED_PASSWORD_CHAR_LENGTH);
+    return -1;
   }
   return(0);
 }
@@ -1255,7 +1271,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 		      host,user,new_password));
   DBUG_ASSERT(host != 0);			// Ensured by parent
 
-  if (check_change_password(thd, host, user))
+  if (check_change_password(thd, host, user, new_password))
     DBUG_RETURN(1);
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
@@ -1513,7 +1529,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     if (combo.password.length != SCRAMBLED_PASSWORD_CHAR_LENGTH &&
         combo.password.length != SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
     {
-      my_printf_error(ER_PASSWORD_NO_MATCH,
+      my_printf_error(ER_UNKNOWN_ERROR,
                       "Password hash should be a %d-digit hexadecimal number",
                       MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH);
       DBUG_RETURN(-1);
@@ -2310,6 +2326,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     {
       uint unused_field_idx= NO_CACHED_FIELD_INDEX;
       if (!find_field_in_table(thd, table_list, column->column.ptr(),
+                               column->column.ptr(),
                                column->column.length(), 0, 0, 0, 0,
                                &unused_field_idx))
       {
@@ -2760,7 +2777,22 @@ void grant_reload(THD *thd)
 
 /****************************************************************************
   Check table level grants
-  All errors are written directly to the client if no_errors is given !
+
+  SYNPOSIS
+   bool check_grant()
+   thd		Thread handler
+   want_access  Bits of privileges user needs to have
+   tables	List of tables to check. The user should have 'want_access'
+		to all tables in list.
+   show_table	<> 0 if we are in show table. In this case it's enough to have
+	        any privilege for the table
+   number	Check at most this number of tables.
+   no_errors	If 0 then we write an error. The error is sent directly to
+		the client
+
+   RETURN
+     0  ok
+     1  Error: User did not have the requested privielges
 ****************************************************************************/
 
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
@@ -2768,14 +2800,17 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
 {
   TABLE_LIST *table;
   char *user = thd->priv_user;
+  DBUG_ENTER("check_grant");
+  DBUG_ASSERT(number > 0);
 
-  want_access &= ~thd->master_access;
+  want_access&= ~thd->master_access;
   if (!want_access)
-    return 0;					// ok
+    DBUG_RETURN(0);                             // ok
 
   rw_rdlock(&LOCK_grant);
   for (table= tables; table && number--; table= table->next_global)
   {
+    GRANT_TABLE *grant_table;
     if (!(~table->grant.privilege & want_access) || table->derived)
     {
       /*
@@ -2785,10 +2820,8 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       table->grant.want_privilege= 0;
       continue;					// Already checked
     }
-    GRANT_TABLE *grant_table = table_hash_search(thd->host,thd->ip,
-						 table->db,user,
-						 table->real_name,0);
-    if (!grant_table)
+    if (!(grant_table= table_hash_search(thd->host,thd->ip,
+                                         table->db,user, table->real_name,0)))
     {
       want_access &= ~table->grant.privilege;
       goto err;					// No grants
@@ -2812,7 +2845,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     }
   }
   rw_unlock(&LOCK_grant);
-  return 0;
+  DBUG_RETURN(0);
 
 err:
   rw_unlock(&LOCK_grant);
@@ -2840,14 +2873,14 @@ err:
     else if (want_access & CREATE_VIEW_ACL)
       command= "create view";
     else if (want_access & SHOW_VIEW_ACL)
-      command= "show view";
+      command= "show create view";
     net_printf(thd,ER_TABLEACCESS_DENIED_ERROR,
 	       command,
 	       thd->priv_user,
 	       thd->host_or_ip,
 	       table ? table->real_name : "unknown");
   }
-  return 1;
+  DBUG_RETURN(1);
 }
 
 
@@ -2941,7 +2974,7 @@ bool check_grant_all_columns(THD *thd, ulong want_access, GRANT_INFO *grant,
   if (!(grant_table= grant->grant_table))
     goto err;					/* purecov: inspected */
 
-  for (; fields->end(); fields->next())
+  for (; !fields->end_of_fields(); fields->next())
   {
     const char *field_name= fields->name();
     grant_column= column_hash_search(grant_table, field_name,

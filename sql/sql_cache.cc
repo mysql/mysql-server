@@ -611,6 +611,7 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
       DBUG_VOID_RETURN;
     }
     header->result(result);
+    header->last_pkt_nr= net->pkt_nr;
     BLOCK_UNLOCK_WR(query_block);
   }
   else
@@ -1085,6 +1086,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 		       ALIGN_SIZE(sizeof(Query_cache_result))))
       break;					// Client aborted
     result_block = result_block->next;
+    thd->net.pkt_nr= query->last_pkt_nr; // Keep packet number updated
   } while (result_block != first_result_block);
 #else
   {

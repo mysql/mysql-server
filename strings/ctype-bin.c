@@ -68,31 +68,10 @@ static uchar bin_char_array[] =
 
 
 
-/*
-  Compare two strings. Result is sign(first_argument - second_argument)
-
-  SYNOPSIS
-    my_strnncoll_binary()
-    cs			Chararacter set
-    s			String to compare
-    slen		Length of 's'
-    t			String to compare
-    tlen		Length of 't'
-
-  NOTE
-   This is used also when comparing with end space removal, as end space
-   is significant for binary strings
-
-  RETURN
-  < 0	s < t
-  0	s == t
-  > 0	s > t
-*/
-
 static int my_strnncoll_binary(CHARSET_INFO * cs __attribute__((unused)),
-				const uchar *s, uint slen,
-				const uchar *t, uint tlen,
-                                my_bool t_is_prefix)
+                               const uchar *s, uint slen,
+                               const uchar *t, uint tlen,
+                               my_bool t_is_prefix)
 {
   uint len=min(slen,tlen);
   int cmp= memcmp(s,t,len);
@@ -100,11 +79,103 @@ static int my_strnncoll_binary(CHARSET_INFO * cs __attribute__((unused)),
 }
 
 
+/*
+  Compare two strings. Result is sign(first_argument - second_argument)
+
+  SYNOPSIS
+    my_strnncollsp_binary()
+    cs			Chararacter set
+    s			String to compare
+    slen		Length of 's'
+    t			String to compare
+    tlen		Length of 't'
+
+  NOTE
+   This function is used for real binary strings, i.e. for
+   BLOB, BINARY(N) and VARBINARY(N).
+   It compares trailing spaces as spaces.
+
+  RETURN
+  < 0	s < t
+  0	s == t
+  > 0	s > t
+*/
+
 static int my_strnncollsp_binary(CHARSET_INFO * cs __attribute__((unused)),
-                                const uchar *s, uint slen,
-                                const uchar *t, uint tlen)
+                                 const uchar *s, uint slen,
+                                 const uchar *t, uint tlen)
 {
   return my_strnncoll_binary(cs,s,slen,t,tlen,0);
+}
+
+
+static int my_strnncoll_8bit_bin(CHARSET_INFO * cs __attribute__((unused)),
+                                 const uchar *s, uint slen,
+                                 const uchar *t, uint tlen,
+                                 my_bool t_is_prefix)
+{
+  uint len=min(slen,tlen);
+  int cmp= memcmp(s,t,len);
+  return cmp ? cmp : (int)((t_is_prefix ? len : slen) - tlen);
+}
+
+
+/*
+  Compare two strings. Result is sign(first_argument - second_argument)
+
+  SYNOPSIS
+    my_strnncollsp_8bit_bin()
+    cs			Chararacter set
+    s			String to compare
+    slen		Length of 's'
+    t			String to compare
+    tlen		Length of 't'
+
+  NOTE
+   This function is used for character strings with binary collations.
+   The shorter string is extended with end space to be as long as the longer
+   one.
+
+  RETURN
+  < 0	s < t
+  0	s == t
+  > 0	s > t
+*/
+
+static int my_strnncollsp_8bit_bin(CHARSET_INFO * cs __attribute__((unused)),
+                                   const uchar *a, uint a_length, 
+                                   const uchar *b, uint b_length)
+{
+  const uchar *end;
+  uint length;
+
+  end= a + (length= min(a_length, b_length));
+  while (a < end)
+  {
+    if (*a++ != *b++)
+      return ((int) a[-1] - (int) b[-1]);
+  }
+  if (a_length != b_length)
+  {
+    int swap= 0;
+    /*
+      Check the next not space character of the longer key. If it's < ' ',
+      then it's smaller than the other key.
+    */
+    if (a_length < b_length)
+    {
+      /* put shorter key in s */
+      a_length= b_length;
+      a= b;
+      swap= -1;					/* swap sign of result */
+    }
+    for (end= a + a_length-length; a < end ; a++)
+    {
+      if (*a != ' ')
+	return ((int) *a - (int) ' ') ^ swap;
+    }
+  }
+  return 0;
 }
 
 
@@ -344,6 +415,20 @@ skip:
 MY_COLLATION_HANDLER my_collation_8bit_bin_handler =
 {
     NULL,			/* init */
+    my_strnncoll_8bit_bin,
+    my_strnncollsp_8bit_bin,
+    my_strnxfrm_bin,
+    my_like_range_simple,
+    my_wildcmp_bin,
+    my_strcasecmp_bin,
+    my_instr_bin,
+    my_hash_sort_bin
+};
+
+
+static MY_COLLATION_HANDLER my_collation_binary_handler =
+{
+    NULL,			/* init */
     my_strnncoll_binary,
     my_strnncollsp_binary,
     my_strnxfrm_bin,
@@ -364,6 +449,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_charpos_8bit,
     my_well_formed_len_8bit,
     my_lengthsp_8bit,
+    my_numcells_8bit,
     my_mb_wc_bin,
     my_wc_mb_bin,
     my_case_str_bin,
@@ -394,7 +480,7 @@ CHARSET_INFO my_charset_bin =
     ctype_bin,			/* ctype         */
     bin_char_array,		/* to_lower      */
     bin_char_array,		/* to_upper      */
-    bin_char_array,		/* sort_order    */
+    NULL,			/* sort_order    */
     NULL,			/* contractions */
     NULL,			/* sort_order_big*/
     NULL,			/* tab_to_uni    */
@@ -407,5 +493,5 @@ CHARSET_INFO my_charset_bin =
     0,				/* min_sort_char */
     255,			/* max_sort_char */
     &my_charset_handler,
-    &my_collation_8bit_bin_handler
+    &my_collation_binary_handler
 };

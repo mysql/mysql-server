@@ -132,6 +132,17 @@ void  NDBT_Context::setProperty(const char* _name, Uint32 _val){
   assert(b == true);
   NdbMutex_Unlock(propertyMutexPtr);
 }
+void
+NDBT_Context::decProperty(const char * name){
+  NdbMutex_Lock(propertyMutexPtr);
+  Uint32 val = 0;
+  if(props.get(name, &val)){
+    assert(val > 0);
+    props.put(name, (val - 1), true);
+  }
+  NdbCondition_Broadcast(propertyCondPtr);
+  NdbMutex_Unlock(propertyMutexPtr);
+}
 
 void  NDBT_Context::setProperty(const char* _name, const char* _val){ 
   NdbMutex_Lock(propertyMutexPtr);
@@ -336,24 +347,24 @@ NDBT_TestCaseImpl1::NDBT_TestCaseImpl1(NDBT_TestSuite* psuite,
 NDBT_TestCaseImpl1::~NDBT_TestCaseImpl1(){
   NdbCondition_Destroy(waitThreadsCondPtr);
   NdbMutex_Destroy(waitThreadsMutexPtr);
-
-  for(size_t i = 0; i < initializers.size();  i++)
+  size_t i;
+  for(i = 0; i < initializers.size();  i++)
     delete initializers[i];
   initializers.clear();
-  for(size_t i = 0; i < verifiers.size();  i++)
+  for(i = 0; i < verifiers.size();  i++)
     delete verifiers[i];
   verifiers.clear();
-  for(size_t i = 0; i < finalizers.size();  i++)
+  for(i = 0; i < finalizers.size();  i++)
     delete finalizers[i];
   finalizers.clear();
-  for(size_t i = 0; i < steps.size();  i++)
+  for(i = 0; i < steps.size();  i++)
     delete steps[i];
   steps.clear();
   results.clear();
-  for(size_t i = 0; i < testTables.size();  i++)
+  for(i = 0; i < testTables.size();  i++)
     delete testTables[i];
   testTables.clear();
-  for(size_t i = 0; i < testResults.size();  i++)
+  for(i = 0; i < testResults.size();  i++)
     delete testResults[i];
   testResults.clear();
 
@@ -487,7 +498,8 @@ void NDBT_TestCaseImpl1::waitSteps(){
 		     waitThreadsMutexPtr);
 
   unsigned completedSteps = 0;  
-  for(unsigned i=0; i<steps.size(); i++){
+  unsigned i;
+  for(i=0; i<steps.size(); i++){
     if (results[i] != NORESULT){
       completedSteps++;
       if (results[i] == NDBT_OK)
@@ -501,7 +513,7 @@ void NDBT_TestCaseImpl1::waitSteps(){
   
   NdbMutex_Unlock(waitThreadsMutexPtr);
   void *status;
-  for(unsigned i=0; i<steps.size();i++){
+  for(i=0; i<steps.size();i++){
     NdbThread_WaitFor(threads[i], &status);
     NdbThread_Destroy(&threads[i]);   
   }
@@ -633,12 +645,12 @@ int NDBT_TestCaseImpl1::runSteps(NDBT_Context* ctx){
   numStepsOk = 0;
   numStepsFail = 0;
   numStepsCompleted = 0;
-
-  for (unsigned i = 0; i < steps.size(); i++)
+  unsigned i;
+  for (i = 0; i < steps.size(); i++)
     startStepInThread(i, ctx);
   waitSteps();
 
-  for(unsigned i = 0; i < steps.size(); i++)
+  for(i = 0; i < steps.size(); i++)
     if (results[i] != NDBT_OK)
       res = NDBT_FAILED;
   return res;
@@ -808,18 +820,19 @@ void NDBT_TestSuite::execute(Ndb* ndb, const NdbDictionary::Table* pTab,
     const NdbDictionary::Table* pTab2 = pDict->getTable(pTab->getName());
     if (createTable == true){
 
-      if (pTab2 != 0 && !pTab->equal(* pTab2)){
+      if(pTab2 != 0 && pDict->dropTable(pTab->getName()) != 0){
 	numTestsFail++;
 	numTestsExecuted++;
-	g_err << "ERROR0: Failed to create table " << pTab->getName() << endl;
+	g_err << "ERROR0: Failed to drop table " << pTab->getName() << endl;
 	tests[t]->saveTestResult(pTab, FAILED_TO_CREATE);
 	continue;
       }
-
-      if(pTab2 == 0 && pDict->createTable(* pTab) != 0){
+      
+      if(NDBT_Tables::createTable(ndb, pTab->getName()) != 0){
 	numTestsFail++;
 	numTestsExecuted++;
-	g_err << "ERROR1: Failed to create table " << pTab->getName() << endl;
+	g_err << "ERROR1: Failed to create table " << pTab->getName()
+              << pDict->getNdbError() << endl;
 	tests[t]->saveTestResult(pTab, FAILED_TO_CREATE);
 	continue;
       }
@@ -994,6 +1007,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     res = executeAll(_testname);
   } else {
     testSuiteTimer.doStart(); 
+    Ndb ndb("TEST_DB"); ndb.init();
     for(int i = optind; i<argc; i++){
       executeOne(argv[i], _testname);
     }
@@ -1091,20 +1105,20 @@ void NDBT_TestCaseImpl1::print(){
       abort();
     }  
   }
-  
-  for(unsigned i=0; i<initializers.size(); i++){
+  unsigned i; 
+  for(i=0; i<initializers.size(); i++){
     ndbout << "Initializers[" << i << "]: " << endl;
     initializers[i]->print();
   }
-  for(unsigned i=0; i<steps.size(); i++){
+  for(i=0; i<steps.size(); i++){
     ndbout << "Step[" << i << "]: " << endl;
     steps[i]->print();
   }
-  for(unsigned i=0; i<verifiers.size(); i++){
+  for(i=0; i<verifiers.size(); i++){
     ndbout << "Verifier[" << i << "]: " << endl;
     verifiers[i]->print();
   }
-  for(unsigned i=0; i<finalizers.size(); i++){
+  for(i=0; i<finalizers.size(); i++){
     ndbout << "Finalizer[" << i << "]: " << endl;
     finalizers[i]->print();
   }
@@ -1116,6 +1130,11 @@ void NDBT_Step::print(){
 
 }
 
-
-
-
+template class Vector<NDBT_TestCase*>;
+template class Vector<NDBT_TestCaseResult*>;
+template class Vector<NDBT_Step*>;
+template class Vector<NdbThread*>;
+template class Vector<NDBT_Verifier*>;
+template class Vector<NDBT_Initializer*>;
+template class Vector<NDBT_Finalizer*>;
+template class Vector<const NdbDictionary::Table*>;

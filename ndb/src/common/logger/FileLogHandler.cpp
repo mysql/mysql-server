@@ -14,8 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
 #include <FileLogHandler.hpp>
-
 #include <File.hpp>
 
 //
@@ -146,7 +146,7 @@ FileLogHandler::createNewFile()
 {
   bool rc = true;	
   int fileNo = 1;
-  char newName[MAXPATHLEN];
+  char newName[PATH_MAX];
 
   do
   {

@@ -29,7 +29,7 @@
 #ifndef NdbIndexOperation_H
 #define NdbIndexOperation_H
 
-#include <NdbCursorOperation.hpp>
+#include "NdbOperation.hpp"
 
 class Index;
 class NdbResultSet;

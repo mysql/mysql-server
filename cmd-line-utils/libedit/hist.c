@@ -1,4 +1,4 @@
-/*	$NetBSD: hist.c,v 1.9 2001/05/17 01:02:17 christos Exp $	*/
+/*	$NetBSD: hist.c,v 1.12 2003/01/21 18:40:23 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -36,12 +36,18 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "config.h"
+#if !defined(lint) && !defined(SCCSID)
+#if 0
+static char sccsid[] = "@(#)hist.c	8.1 (Berkeley) 6/4/93";
+#else
+__RCSID("$NetBSD: hist.c,v 1.12 2003/01/21 18:40:23 christos Exp $");
+#endif
+#endif /* not lint && not SCCSID */
 
 /*
  * hist.c: History access functions
  */
-#include "sys.h"
 #include <stdlib.h>
 #include "el.h"
 
@@ -126,18 +132,16 @@ hist_get(EditLine *el)
 			el->el_history.eventno = h;
 			return (CC_ERROR);
 		}
-	(void) strncpy(el->el_line.buffer, hp,
+	(void) strlcpy(el->el_line.buffer, hp,
 			(size_t)(el->el_line.limit - el->el_line.buffer));
 	el->el_line.lastchar = el->el_line.buffer + strlen(el->el_line.buffer);
 
-	if (el->el_line.lastchar > el->el_line.buffer) {
-		if (el->el_line.lastchar[-1] == '\n')
-			el->el_line.lastchar--;
-		if (el->el_line.lastchar[-1] == ' ')
-			el->el_line.lastchar--;
-		if (el->el_line.lastchar < el->el_line.buffer)
-			el->el_line.lastchar = el->el_line.buffer;
-	}
+	if (el->el_line.lastchar > el->el_line.buffer
+	    && el->el_line.lastchar[-1] == '\n')
+		el->el_line.lastchar--;
+	if (el->el_line.lastchar > el->el_line.buffer
+	    && el->el_line.lastchar[-1] == ' ')
+		el->el_line.lastchar--;
 #ifdef KSHVI
 	if (el->el_map.type == MAP_VI)
 		el->el_line.cursor = el->el_line.buffer;
@@ -149,22 +153,41 @@ hist_get(EditLine *el)
 }
 
 
-/* hist_list()
- *	List history entries
+/* hist_command()
+ *	process a history command
  */
 protected int
 /*ARGSUSED*/
-hist_list(EditLine *el, int argc __attribute__((unused)), 
-	  const char **argv __attribute__((unused)))
+hist_command(EditLine *el, int argc, const char **argv)
 {
 	const char *str;
+	int num;
+	HistEvent ev;
 
 	if (el->el_history.ref == NULL)
 		return (-1);
-	for (str = HIST_LAST(el); str != NULL; str = HIST_PREV(el))
-		(void) fprintf(el->el_outfile, "%d %s",
-		    el->el_history.ev.num, str);
-	return (0);
+
+	if (argc == 0 || strcmp(argv[0], "list") == 1) {
+		 /* List history entries */
+
+		for (str = HIST_LAST(el); str != NULL; str = HIST_PREV(el))
+			(void) fprintf(el->el_outfile, "%d %s",
+			    el->el_history.ev.num, str);
+		return (0);
+	}
+
+	if (argc != 2)
+		return (-1);
+
+	num = (int)strtol(argv[1], NULL, 0);
+
+	if (strcmp(argv[0], "size") == 0)
+		return history(el->el_history.ref, &ev, H_SETSIZE, num);
+
+	if (strcmp(argv[0], "unique") == 0)
+		return history(el->el_history.ref, &ev, H_SETUNIQUE, num);
+
+	return -1;
 }
 
 /* hist_enlargebuf()

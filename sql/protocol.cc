@@ -65,7 +65,8 @@ void send_error(THD *thd, uint sql_errno, const char *err)
 		      err ? err : net->last_error[0] ?
 		      net->last_error : "NULL"));
 
-  if (thd->spcont && thd->spcont->find_handler(sql_errno))
+  if (thd->spcont && thd->spcont->find_handler(sql_errno,
+                                               MYSQL_ERROR::WARN_LEVEL_ERROR))
   {
     DBUG_VOID_RETURN;
   }
@@ -152,7 +153,8 @@ void send_error(THD *thd, uint sql_errno, const char *err)
 void send_warning(THD *thd, uint sql_errno, const char *err)
 {
   DBUG_ENTER("send_warning");  
-  if (thd->spcont && thd->spcont->find_handler(sql_errno))
+  if (thd->spcont &&
+      thd->spcont->find_handler(sql_errno, MYSQL_ERROR::WARN_LEVEL_WARN))
   {
     DBUG_VOID_RETURN;
   }
@@ -186,7 +188,8 @@ net_printf(THD *thd, uint errcode, ...)
   DBUG_ENTER("net_printf");
   DBUG_PRINT("enter",("message: %u",errcode));
 
-  if (thd->spcont && thd->spcont->find_handler(errcode))
+  if (thd->spcont && thd->spcont->find_handler(errcode,
+                                               MYSQL_ERROR::WARN_LEVEL_ERROR))
   {
     DBUG_VOID_RETURN;
   }
@@ -213,11 +216,13 @@ net_printf(THD *thd, uint errcode, ...)
 	    2+SQLSTATE_LENGTH+1 : 2) : 0);
 #ifndef EMBEDDED_LIBRARY
   text_pos=(char*) net->buff + head_length + offset + 1;
+  length= (uint) ((char*)net->buff_end - text_pos);
+#else
+  length=sizeof(text_pos)-1;
 #endif
-  (void) vsprintf(my_const_cast(char*) (text_pos),format,args);
-  length=(uint) strlen((char*) text_pos);
-  if (length >= sizeof(net->last_error))
-    length=sizeof(net->last_error)-1;		/* purecov: inspected */
+  length=my_vsnprintf(my_const_cast(char*) (text_pos),
+                      min(length, sizeof(net->last_error)),
+                      format,args);
   va_end(args);
 
 #ifndef EMBEDDED_LIBRARY
@@ -498,7 +503,7 @@ void Protocol::init(THD *thd_arg)
 */
 
 #ifndef EMBEDDED_LIBRARY
-bool Protocol::send_fields(List<Item> *list, uint flags)
+bool Protocol::send_fields(List<Item> *list, int flags)
 {
   List_iterator_fast<Item> it(*list);
   Item *item;

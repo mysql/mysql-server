@@ -15,8 +15,8 @@ f1	float	NULL	YES		NULL		select,insert,update,references
 f2	double	NULL	YES		NULL		select,insert,update,references	
 insert into t1 values(10,10),(1e+5,1e+5),(1234567890,1234567890),(1e+10,1e+10),(1e+15,1e+15),(1e+20,1e+20),(1e+50,1e+50),(1e+150,1e+150);
 Warnings:
-Warning	1264	Data truncated; out of range for column 'f1' at row 7
-Warning	1264	Data truncated; out of range for column 'f1' at row 8
+Warning	1264	Out of range value adjusted for column 'f1' at row 7
+Warning	1264	Out of range value adjusted for column 'f1' at row 8
 insert into t1 values(-10,-10),(1e-5,1e-5),(1e-10,1e-10),(1e-15,1e-15),(1e-20,1e-20),(1e-50,1e-50),(1e-150,1e-150);
 select * from t1;
 f1	f2
@@ -75,14 +75,17 @@ insert t1 values (121,"16");
 select c1 + c1 * (c2 / 100) as col from t1;
 col
 140.36
-create table t2 select c1 + c1 * (c2 / 100) as col from t1;
+create table t2 select c1 + c1 * (c2 / 100) as col1, round(c1, 5) as col2, round(c1, 35) as col3, sqrt(c1*1e-15) col4 from t1;
 select * from t2;
-col
-140.36
+col1	col2	col3	col4
+140.36	121.00000	121	3.47850542618522e-07
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col` double default NULL
+  `col1` double default NULL,
+  `col2` double(22,5) default NULL,
+  `col3` double default NULL,
+  `col4` double default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1,t2;
 create table t1 (a float);
@@ -131,6 +134,9 @@ t1	CREATE TABLE `t1` (
   `a` float(200,30) default NULL,
   `b` double(200,30) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (c20 char);
+insert into t1 values (5000.0);
 drop table t1;
 create table t1 (f float(54));
 ERROR 42000: Incorrect column specifier for column 'f'

@@ -69,17 +69,24 @@ NdbBackup::getFileSystemPathForNode(int _node_id){
   /**
    * Fetch configuration from management server
    */
-  ConfigRetriever cr;
+  ConfigRetriever cr(0, NODE_TYPE_API);
+  ndb_mgm_configuration * p = 0;
 
-  ndb_mgm_configuration * p = cr.getConfig(host, port, 0);
-  if(p == 0){
-    const char * s = cr.getErrorString();
-    if(s == 0)
-      s = "No error given!";
+  BaseString tmp; tmp.assfmt("%s:%d", host.c_str(), port);
+  NdbMgmHandle handle = ndb_mgm_create_handle();
+  if(handle == 0 || ndb_mgm_connect(handle, tmp.c_str()) != 0 ||
+     (p = ndb_mgm_get_configuration(handle, 0)) == 0){
     
-    ndbout << "Could not fetch configuration" << endl;
-    ndbout << s << endl;
-    return NULL;
+    const char * s = 0;
+    if(p == 0 && handle != 0){
+      s = ndb_mgm_get_latest_error_msg(handle);
+      if(s == 0)
+	s = "No error given!";
+      
+      ndbout << "Could not fetch configuration" << endl;
+      ndbout << s << endl;
+      return NULL;
+    }
   }
   
   /**
@@ -90,7 +97,8 @@ NdbBackup::getFileSystemPathForNode(int _node_id){
     ndbout << "Invalid configuration fetched, DB missing" << endl;
     return NULL;
   }
-  unsigned int type = 123456;
+
+  unsigned int type = NODE_TYPE_DB + 1;
   if(iter.get(CFG_TYPE_OF_SECTION, &type) || type != NODE_TYPE_DB){
     ndbout <<"type = " << type << endl;
     ndbout <<"Invalid configuration fetched, I'm wrong type of node" << endl;
@@ -141,30 +149,17 @@ NdbBackup::execRestore(bool _restore_data,
   
   ndbout << "res: " << res << endl;
   
-#if 0
-  snprintf(buf, 255, "ndb_restore -c \"nodeid=%d;host=%s\" -n %d -b %d %s %s %s/BACKUP/BACKUP-%d", 
-	   ownNodeId,
-	   addr,
-	   _node_id, 
-	   _backup_id,
-	   _restore_data?"-r":"",
-	   _restore_meta?"-m":"",
-	   path,
-	   _backup_id);
-
+  snprintf(buf, 255, "%sndb_restore -c \"host=%s\" -n %d -b %d %s %s .", 
+#if 1
+	   "",
+#else
+	   "valgrind --leak-check=yes -v "
 #endif
-
-  snprintf(buf, 255, "ndb_restore -c \"nodeid=%d;host=%s\" -n %d -b %d %s %s .", 
-	   ownNodeId,
-	   addr,
+	   addr.c_str(),
 	   _node_id, 
 	   _backup_id,
 	   _restore_data?"-r":"",
 	   _restore_meta?"-m":"");
-
-  //	   path,
-  //	   _backup_id);
-
 
   ndbout << "buf: "<< buf <<endl;
   res = system(buf);  

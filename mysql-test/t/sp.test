@@ -1,17 +1,37 @@
 #
 # Basic stored PROCEDURE tests
 #
-#
-
-# Let us reset binary logs in order to make show master status 
-# in test for bug 4902 repeatable.
-reset master;
+# Please keep this file free of --error cases and other
+# things that will not run in a single debugged mysqld
+# process (e.g. master-slave things).
 
 use test;
 
 --disable_warnings
-drop table if exists t1;
-drop table if exists t2;
+drop table if exists t1,t2,t3,t4;
+drop procedure if exists goto1;
+drop procedure if exists goto2;
+drop procedure if exists goto3;
+drop procedure if exists goto4;
+drop procedure if exists goto5;
+drop procedure if exists goto6;
+drop procedure if exists into_outfile;
+drop procedure if exists into_dumpfile;
+drop procedure if exists create_select;
+drop procedure if exists bar;
+drop procedure if exists hndlr1;
+drop procedure if exists hndlr2;
+drop procedure if exists hndlr3;
+drop procedure if exists hndlr4;
+drop procedure if exists cur1;
+drop procedure if exists cur2;
+drop procedure if exists chistics;
+drop procedure if exists chistics2;
+drop procedure if exists modes;
+drop procedure if exists dummy;
+drop procedure if exists bug;
+drop procedure if exists bug2;
+drop function if exists fac;
 --enable_warnings
 
 create table t1 (
@@ -116,9 +136,6 @@ drop procedure setcontext|
 
 
 # Set things to null
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 ( d date, i int, f double, s varchar(32) )|
 
 create procedure nullset()
@@ -467,6 +484,121 @@ select * from t1|
 delete from t1|
 drop procedure i|
 
+
+# The non-standard GOTO, for compatibility
+#
+# QQQ The "label" syntax is temporary, it will (hopefully)
+#     change to the more common "L:" syntax soon.
+#
+create procedure goto1()
+begin
+  declare y int;
+
+label a;
+  select * from t1;
+  select count(*) into y from t1;
+  if y > 2 then
+    goto b;
+  end if;
+  insert into t1 values ("j", y);
+  goto a;
+label b;
+end|
+
+call goto1()|
+drop procedure goto1|
+
+# With dummy handlers, just to test restore of contexts with jumps
+create procedure goto2(a int)
+begin
+  declare x int default 0;
+  declare continue handler for sqlstate '42S98' set x = 1;
+
+label a;
+  select * from t1;
+b:
+  while x < 2 do
+    begin
+      declare continue handler for sqlstate '42S99' set x = 2;
+
+      if a = 0 then
+        set x = x + 1;
+        iterate b;
+      elseif a = 1 then
+        leave b;
+      elseif a = 2 then
+        set a = 1;
+        goto a;
+      end if;
+    end;
+  end while b;
+
+  select * from t1;
+end|
+
+call goto2(0)|
+call goto2(1)|
+call goto2(2)|
+
+drop procedure goto2|
+delete from t1|
+
+# Check label visibility for some more cases. We don't call these.
+create procedure goto3()
+begin
+ label L1;
+   begin
+   end;
+ goto L1;
+end|
+drop procedure goto3|
+
+create procedure goto4()
+begin
+  begin
+   label lab1;
+    begin
+      goto lab1;
+    end;
+  end;
+end|
+drop procedure goto4|
+
+create procedure goto5()
+begin
+  begin
+    begin
+      goto lab1;
+    end;
+   label lab1;
+  end;
+end|
+drop procedure goto5|
+
+create procedure goto6()
+begin
+  label L1;
+  goto L5;
+  begin
+    label L2;
+    goto L1;
+    goto L5;
+    begin
+      label L3;
+      goto L1;
+      goto L2;
+      goto L3;
+      goto L4;
+      goto L5;
+    end;
+    goto L2;
+    goto L4;
+    label L4;
+  end;
+  label L5;
+  goto L1;
+end|
+drop procedure goto6|
 
 # SELECT with one of more result set sent back to the clinet
 insert into t1 values ("foo", 3), ("bar", 19)|
@@ -963,7 +1095,7 @@ drop procedure rc|
 #
 # BUG#822
 #
-create procedure bug822(a_id char(16), a_data int)
+create procedure bug(a_id char(16), a_data int)
 begin
   declare n int;
   select count(*) into n from t1 where id = a_id and data = a_data;
@@ -972,17 +1104,17 @@ begin
   end if;
 end|
 
-call bug822('foo', 42)|
-call bug822('foo', 42)|
-call bug822('bar', 666)|
+call bug('foo', 42)|
+call bug('foo', 42)|
+call bug('bar', 666)|
 select * from t1|
 delete from t1|
-drop procedure bug822|
+drop procedure bug|
 
 #
 # BUG#1495
 #
-create procedure bug1495()
+create procedure bug()
 begin
   declare x int;
 
@@ -995,19 +1127,19 @@ begin
 end|
 
 insert into t1 values ('foo', 12)|
-call bug1495()|
+call bug()|
 delete from t1 where id='foo'|
 insert into t1 values ('bar', 7)|
-call bug1495()|
+call bug()|
 delete from t1 where id='bar'|
 select * from t1|
 delete from t1|
-drop procedure bug1495|
+drop procedure bug|
 
 #
 # BUG#1547
 #
-create procedure bug1547(s char(16))
+create procedure bug(s char(16))
 begin
   declare x int;
 
@@ -1020,11 +1152,11 @@ begin
 end|
 
 insert into t1 values ("foo", 12), ("bar", 7)|
-call bug1547("foo")|
-call bug1547("bar")|
+call bug("foo")|
+call bug("bar")|
 select * from t1|
 delete from t1|
-drop procedure bug1547|
+drop procedure bug|
 
 #
 # BUG#1656
@@ -1035,13 +1167,13 @@ drop table if exists t70|
 create table t70 (s1 int,s2 int)|
 insert into t70 values (1,2)|
 
-create procedure bug1656(out p1 int, out p2 int)
+create procedure bug(out p1 int, out p2 int)
   select * into p1, p1 from t70|
 
-call bug1656(@1, @2)|
+call bug(@1, @2)|
 select @1, @2|
 drop table t70|
-drop procedure bug1656|
+drop procedure bug|
 
 #
 # BUG#1862
@@ -1051,23 +1183,23 @@ drop table if exists t3|
 --enable_warnings
 create table t3(a int)|
 
-create procedure bug1862()
+create procedure bug()
 begin
   insert into t3 values(2);    
   flush tables;
 end|
 
-call bug1862()|
+call bug()|
 # the second call caused a segmentation
-call bug1862()|
+call bug()|
 select * from t3|
 drop table t3|
-drop procedure bug1862|
+drop procedure bug|
 
 #
 # BUG#1874
 #
-create procedure bug1874()
+create procedure bug()
 begin
   declare x int;
   declare y double;
@@ -1082,16 +1214,16 @@ begin
 end|
 
 insert into t1 (data) values (3), (1), (5), (9), (4)|
-call bug1874()|
+call bug()|
 select * from t2|
 delete from t1|
 delete from t2|
-drop procedure bug1874|
+drop procedure bug|
 
 #
 # BUG#2260
 #
-create procedure bug2260()
+create procedure bug()
 begin
   declare v1 int;
   declare c1 cursor for select data from t1;
@@ -1103,9 +1235,9 @@ begin
   close c1;
 end|
 
-call bug2260()|
+call bug()|
 select @x2|
-drop procedure bug2260|
+drop procedure bug|
 
 #
 # BUG#2267
@@ -1145,7 +1277,7 @@ drop procedure bug2267_4|
 #
 # BUG#2227
 #
-create procedure bug2227(x int)
+create procedure bug(x int)
 begin
   declare y float default 2.6;
   declare z char(16) default "zzz";
@@ -1153,13 +1285,13 @@ begin
   select 1.3, x, y, 42, z;
 end|
 
-call bug2227(9)|
-drop procedure bug2227|
+call bug(9)|
+drop procedure bug|
 
 #
 # BUG#2614
 #
-create procedure bug2614()
+create procedure bug()
 begin
   drop table if exists t3;
   create table t3 (id int default '0' not null);
@@ -1168,22 +1300,22 @@ begin
 end|
 
 --disable_warnings
-call bug2614()|
+call bug()|
 --enable_warnings
-call bug2614()|
+call bug()|
 drop table t3|
-drop procedure bug2614|
+drop procedure bug|
 
 #
 # BUG#2674
 #
-create function bug2674 () returns int
+create function bug () returns int
   return @@sort_buffer_size|
 
 set @osbs = @@sort_buffer_size|
 set @@sort_buffer_size = 262000|
-select bug2674()|
-drop function bug2674|
+select bug()|
+drop function bug|
 set @@sort_buffer_size = @osbs|
 
 #
@@ -1207,16 +1339,16 @@ drop procedure BUG3259_3|
 #
 # BUG##2772
 #
-create function bug2772() returns char(10) character set latin2
+create function bug() returns char(10) character set latin2
   return 'a'|
 
-select bug2772()|
-drop function bug2772|
+select bug()|
+drop function bug|
 
 #
 # BUG#2776
 #
-create procedure bug2776_1(out x int)
+create procedure bug(out x int)
 begin
   declare v int;
 
@@ -1224,7 +1356,7 @@ begin
   set x = v;
 end|
 
-create procedure bug2776_2(out x int)
+create procedure bug2(out x int)
 begin
   declare v int default 42;
 
@@ -1233,12 +1365,12 @@ begin
 end|
 
 set @x = 1|
-call bug2776_1(@x)|
+call bug(@x)|
 select @x|
-call bug2776_2(@x)|
+call bug2(@x)|
 select @x|
-drop procedure bug2776_1|
-drop procedure bug2776_2|
+drop procedure bug|
+drop procedure bug2|
 
 #
 # BUG#2780
@@ -1250,7 +1382,7 @@ create table t3 (s1 smallint)|
 
 insert into t3 values (123456789012)|
 
-create procedure bug2780()
+create procedure bug()
 begin
   declare exit handler for sqlwarning set @x = 1; 
 
@@ -1259,26 +1391,19 @@ begin
   insert into t3 values (0);
 end|
 
-call bug2780()|
+call bug()|
 select @x|
 select * from t3|
 
-drop procedure bug2780|
+drop procedure bug|
 drop table t3|
 
 #
 # BUG#1863
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 (content varchar(10) )|
 insert into t3 values ("test1")|
 insert into t3 values ("test2")|
-
---disable_warnings
-drop table if exists t4|
---enable_warnings
 create table t4 (f1 int, rc int, t3 int)|
 
 create procedure bug1863(in1 int)
@@ -1478,9 +1603,7 @@ drop procedure bug3863|
 #
 # BUG#2460
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
+
 create table t3 (
   id int(10) unsigned not null default 0,
   rid int(10) unsigned not null default 0,
@@ -1702,11 +1825,8 @@ begin
   show columns from t1;
   show grants for 'root'@'localhost';
   show keys from t1;
-  show master status;
   show open tables like 'foo';
   show privileges;
-  show slave hosts;
-  show slave status;
   show status like 'foo';
   show tables like 'foo';
   show variables like 'foo';
@@ -1714,6 +1834,9 @@ begin
 end|
 #show binlog events;
 #show storage engines;
+#show master status;
+#show slave hosts;
+#show slave status;
 
 call bug4902()|
 call bug4902()|
@@ -1725,9 +1848,9 @@ create procedure bug4902_2()
 begin
   show processlist;
 end|
---replace_column 1 #
+--replace_column 1 # 6 #
 call bug4902_2()|
---replace_column 1 #
+--replace_column 1 # 6 #
 call bug4902_2()|
 drop procedure bug4902_2|
 
@@ -1748,6 +1871,219 @@ end|
 call bug4904()|
 
 drop procedure bug4904|
+
+#
+# BUG#336
+#
+create procedure bug336(out y int)
+begin
+  declare x int;
+  set x = (select sum(t.data) from test.t1 t);
+  set y = x;
+end|
+
+insert into t1 values ("a", 2), ("b", 3)|
+call bug336(@y)|
+select @y|
+delete from t1|
+drop procedure bug336|
+
+#
+# BUG#3157
+#
+create procedure bug3157()
+begin
+  if exists(select * from t1) then
+    set @n= @n + 1;
+  end if;
+  if (select count(*) from t1) then
+    set @n= @n + 1;
+  end if;
+end|
+
+set @n = 0|
+insert into t1 values ("a", 1)|
+call bug3157()|
+select @n|
+delete from t1|
+drop procedure bug3157|
+
+#
+# BUG#5251: mysql changes creation time of a procedure/function when altering
+#
+create procedure bug5251()
+begin
+end|
+
+select created into @c1 from mysql.proc
+  where db='test' and name='bug5251'|
+--sleep 2
+alter procedure bug5251 comment 'foobar'|
+select count(*) from mysql.proc
+  where  db='test' and name='bug5251' and created = @c1|
+
+drop procedure bug5251|
+
+#
+# BUG#5279: Stored procedure packets out of order if CHECKSUM TABLE
+#
+create procedure bug5251()
+  checksum table t1|
+
+call bug5251()|
+call bug5251()|
+drop procedure bug5251|
+
+#
+# BUG#5287: Stored procedure crash if leave outside loop
+#
+create procedure bug5287(param1 int)
+label1:
+  begin
+    declare c cursor for select 5;
+
+    loop
+      if param1 >= 0 then
+        leave label1;
+      end if;
+    end loop;
+end|
+call bug5287(1)|
+drop procedure bug5287|
+
+
+#
+# BUG#5307: Stored procedure allows statement after BEGIN ... END
+#
+create procedure bug5307()
+begin
+end; set @x = 3|
+
+call bug5307()|
+select @x|
+drop procedure bug5307|
+
+#
+# BUG#5258: Stored procedure modified date is 0000-00-00
+# (This was a design flaw)
+create procedure bug5258()
+begin
+end|
+
+create procedure bug5258_aux()
+begin
+  declare c, m char(19);
+
+  select created,modified into c,m from mysql.proc where name = 'bug5258';
+  if c = m then
+    select 'Ok';
+  else
+    select c, m;
+  end if;
+end|
+
+call bug5258_aux()|
+
+drop procedure bug5258|
+drop procedure bug5258_aux|
+
+#
+# BUG#4487: Stored procedure connection aborted if uninitialized char
+#
+create function bug4487() returns char
+begin
+  declare v char;
+  return v;
+end|
+
+select bug4487()|
+drop function bug4487|
+
+
+#
+# BUG#4941: Stored procedure crash fetching null value into variable.
+#
+--disable_warnings
+drop procedure if exists bug4941|
+--enable_warnings
+create procedure bug4941(out x int)
+begin
+  declare c cursor for select i from t2 limit 1;
+  open c;
+  fetch c into x;
+  close c;
+end|
+
+insert into t2 values (null, null, null)|
+set @x = 42|
+call bug4941(@x)|
+select @x|
+delete from t1|
+drop procedure bug4941|
+
+
+#
+# BUG#3583: query cache doesn't work for stored procedures
+#
+--disable_warnings
+drop procedure if exists bug3583|
+--enable_warnings
+create procedure bug3583()
+begin
+  declare c int;
+
+  select * from t1;
+  select count(*) into c from t1;
+  select c;
+end|
+
+insert into t1 values ("x", 3), ("y", 5)|
+set @x = @@query_cache_size|
+set global query_cache_size = 10*1024*1024|
+
+flush status|
+flush query cache|
+show status like 'Qcache_hits'|
+call bug3583()|
+show status like 'Qcache_hits'|
+call bug3583()|
+call bug3583()|
+show status like 'Qcache_hits'|
+
+set global query_cache_size = @x|
+flush status|
+flush query cache|
+delete from t1|
+drop procedure bug3583|
+
+#
+# BUG#4905: Stored procedure doesn't clear for "Rows affected"
+#
+--disable_warnings
+drop table if exists t3|
+drop procedure if exists bug4905|
+--enable_warnings
+
+create table t3 (s1 int,primary key (s1))|
+
+create procedure bug4905()
+begin
+  declare v int;
+  declare continue handler for sqlstate '23000' set v = 5;
+
+  insert into t3 values (1);
+end|
+
+call bug4905()|
+select row_count()|
+call bug4905()|
+select row_count()|
+call bug4905()|
+select row_count()|
+select * from t3|
+
+drop procedure bug4905|
+drop table t3|
 
 
 #
@@ -1949,3 +2285,9 @@ call p1();
 drop procedure p1;
 drop table t1;
 
+#
+# backticks
+#
+create function `foo` () returns int return 5;
+select `foo` ();
+drop function `foo`;

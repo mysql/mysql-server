@@ -75,6 +75,13 @@ select * from t1 where 'a' in (a,b,c collate latin1_bin);
 explain extended select * from t1 where 'a' in (a,b,c collate latin1_bin);
 drop table t1;
 
+set names utf8;
+create table t1 (a char(10) character set utf8 not null);
+insert into t1 values ('bbbb'),(_koi8r'ÃÃÃÃ'),(_latin1'ÄÄÄÄ');
+select a from t1 where a in ('bbbb',_koi8r'ÃÃÃÃ',_latin1'ÄÄÄÄ') order by a;
+drop table t1;
+set names latin1;
+
 select '1.0' in (1,2);
 select 1 in ('1.0',2);
 select 1 in (1,'2.0');

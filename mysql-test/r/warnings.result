@@ -4,19 +4,19 @@ create table t1 (a int);
 insert into t1 values (1);
 insert into t1 values ("hej");
 Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 1
 insert into t1 values ("hej"),("då");
 Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
-Warning	1265	Data truncated for column 'a' at row 2
+Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 2
 set SQL_WARNINGS=1;
 insert into t1 values ("hej");
 Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 1
 insert into t1 values ("hej"),("då");
 Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
-Warning	1265	Data truncated for column 'a' at row 2
+Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1264	Out of range value adjusted for column 'a' at row 2
 drop table t1;
 set SQL_WARNINGS=0;
 drop temporary table if exists not_exists;
@@ -49,7 +49,7 @@ Warning	1265	Data truncated for column 'c' at row 4
 Warning	1261	Row 5 doesn't contain data for all columns
 Warning	1265	Data truncated for column 'b' at row 6
 Warning	1262	Row 7 was truncated; it contained more data than there were input columns
-Warning	1264	Data truncated; out of range for column 'a' at row 8
+Warning	1264	Out of range value adjusted for column 'a' at row 8
 select @@warning_count;
 @@warning_count
 7
@@ -58,10 +58,10 @@ create table t1(a tinyint NOT NULL, b tinyint unsigned, c char(5));
 insert into t1 values(NULL,100,'mysql'),(10,-1,'mysql ab'),(500,256,'open source'),(20,NULL,'test');
 Warnings:
 Warning	1263	Data truncated; NULL supplied to NOT NULL column 'a' at row 1
-Warning	1264	Data truncated; out of range for column 'b' at row 2
+Warning	1264	Out of range value adjusted for column 'b' at row 2
 Warning	1265	Data truncated for column 'c' at row 2
-Warning	1264	Data truncated; out of range for column 'a' at row 3
-Warning	1264	Data truncated; out of range for column 'b' at row 3
+Warning	1264	Out of range value adjusted for column 'a' at row 3
+Warning	1264	Out of range value adjusted for column 'b' at row 3
 Warning	1265	Data truncated for column 'c' at row 3
 alter table t1 modify c char(4);
 Warnings:

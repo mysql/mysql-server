@@ -61,8 +61,8 @@ static byte* get_field_name(Field **buff,uint *length,
    5    It is new format of .frm file
 */
 
-int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
-	    uint ha_open_flags, TABLE *outparam)
+int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
+            uint prgflag, uint ha_open_flags, TABLE *outparam)
 {
   reg1 uint i;
   reg2 uchar *strpos;
@@ -85,9 +85,11 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   SQL_CRYPT *crypted=0;
   MEM_ROOT *old_root;
   DBUG_ENTER("openfrm");
-  DBUG_PRINT("enter",("name: '%s'  form: %lx",name,outparam));
+  DBUG_PRINT("enter",("name: '%s'  form: 0x%lx",name,outparam));
 
   error=1;
+  disk_buff=NULL;
+  old_root= my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
 
   if ((file=my_open(fn_format(index_file, name, "", reg_ext,
 			      MY_UNPACK_FILENAME),
@@ -117,12 +119,10 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   }
 
   bzero((char*) outparam,sizeof(*outparam));
+  outparam->in_use= thd;
   outparam->blob_ptr_size=sizeof(char*);
-  disk_buff=NULL; record= NULL; keynames=NullS;
   outparam->db_stat = db_stat;
-
   init_sql_alloc(&outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-  old_root= my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
   my_pthread_setspecific_ptr(THR_MALLOC,&outparam->mem_root);
 
   outparam->real_name=strdup_root(&outparam->mem_root,
@@ -461,6 +461,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       field_length= (uint) strpos[3];
       recpos=	    uint2korr(strpos+4),
       pack_flag=    uint2korr(strpos+6);
+      pack_flag&=   ~NO_DEFAULT_VALUE_FLAG;     // Safety for old files
       unireg_type=  (uint) strpos[8];
       interval_nr=  (uint) strpos[10];
 
@@ -734,7 +735,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   outparam->db_low_byte_first=outparam->file->low_byte_first();
 
   my_pthread_setspecific_ptr(THR_MALLOC,old_root);
-  opened_tables++;
+  thd->status_var.opened_tables++;
 #ifndef DBUG_OFF
   if (use_hash)
     (void) hash_check(&outparam->name_hash);
@@ -742,11 +743,9 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   DBUG_RETURN (0);
 
  err_w_init:
-  //awoid problem with uninitialized data
+  /* Avoid problem with uninitialized data */
   bzero((char*) outparam,sizeof(*outparam));
   outparam->real_name= (char*)name+dirname_length(name);
-  old_root= my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
-  disk_buff= 0;
 
  err_not_open:
   x_free((gptr) disk_buff);
@@ -1114,6 +1113,17 @@ void append_unescaped(String *res, const char *pos, uint length)
 
   for (; pos != end ; pos++)
   {
+#if defined(USE_MB) && MYSQL_VERSION_ID < 40100
+    uint mblen;
+    if (use_mb(default_charset_info) &&
+        (mblen= my_ismbchar(default_charset_info, pos, end)))
+    {
+      res->append(pos, mblen);
+      pos+= mblen;
+      continue;
+    }
+#endif
+
     switch (*pos) {
     case 0:				/* Must be escaped for 'mysql' */
       res->append('\\');
@@ -1447,13 +1457,14 @@ db_type get_table_type(const char *name)
     st_table_list::calc_md5()
     buffer	buffer for md5 writing
 */
+
 void  st_table_list::calc_md5(char *buffer)
 {
   my_MD5_CTX context;
-  unsigned char digest[16];
-  my_MD5Init (&context);
-  my_MD5Update (&context,(unsigned char *) query.str, query.length);
-  my_MD5Final (digest, &context);
+  uchar digest[16];
+  my_MD5Init(&context);
+  my_MD5Update(&context,(uchar *) query.str, query.length);
+  my_MD5Final(digest, &context);
   sprintf((char *) buffer,
 	    "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
 	    digest[0], digest[1], digest[2], digest[3],
@@ -1469,6 +1480,7 @@ void  st_table_list::calc_md5(char *buffer)
   SYNOPSIS
     st_table_list::set_ancestor()
 */
+
 void st_table_list::set_ancestor()
 {
   if (ancestor->ancestor)
@@ -1496,6 +1508,7 @@ void st_table_list::set_ancestor()
   (without fields) for name resolving, but substituted expressions will
   return correct used tables mask.
 */
+
 bool st_table_list::setup_ancestor(THD *thd, Item **conds)
 {
   Item **transl;
@@ -1506,6 +1519,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
   uint i= 0;
   bool save_set_query_id= thd->set_query_id;
   bool save_wrapper= thd->lex->select_lex.no_wrap_view_item;
+  bool save_allow_sum_func= thd->allow_sum_func;
   DBUG_ENTER("st_table_list::setup_ancestor");
 
   if (ancestor->ancestor &&
@@ -1519,13 +1533,15 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
     thd->set_query_id= 1;
     /* this view was prepared already on previous PS/SP execution */
     Item **end= field_translation + select->item_list.elements;
-    for (Item **i= field_translation; i < end; i++)
+    for (Item **item= field_translation; item < end; item++)
     {
-      //TODO: fix for several tables in VIEW
+      /* TODO: fix for several tables in VIEW */
       uint want_privilege= ancestor->table->grant.want_privilege;
       /* real rights will be checked in VIEW field */
       ancestor->table->grant.want_privilege= 0;
-      if (!(*i)->fixed && (*i)->fix_fields(thd, ancestor, i))
+      /* aggregate function are allowed */
+      thd->allow_sum_func= 1;
+      if (!(*item)->fixed && (*item)->fix_fields(thd, ancestor, item))
         goto err;
       ancestor->table->grant.want_privilege= want_privilege;
     }
@@ -1534,9 +1550,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
 
   /* view fields translation table */
   if (!(transl=
-	(Item**)(thd->current_arena ?
-                 thd->current_arena :
-                 thd)->alloc(select->item_list.elements * sizeof(Item*))))
+	(Item**)(thd->current_arena->alloc(select->item_list.elements * sizeof(Item*)))))
   {
     DBUG_RETURN(1);
   }
@@ -1554,39 +1568,49 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
   thd->set_query_id= 1;
   while ((item= it++))
   {
-    //TODO: fix for several tables in VIEW
+    /* TODO: fix for several tables in VIEW */
     uint want_privilege= ancestor->table->grant.want_privilege;
     /* real rights will be checked in VIEW field */
     ancestor->table->grant.want_privilege= 0;
+    /* aggregate function are allowed */
+    thd->allow_sum_func= 1;
     if (!item->fixed && item->fix_fields(thd, ancestor, &item))
-    {
       goto err;
-    }
     ancestor->table->grant.want_privilege= want_privilege;
     transl[i++]= item;
   }
   field_translation= transl;
-  //TODO: sort this list? Use hash for big number of fields
+  /* TODO: sort this list? Use hash for big number of fields */
 
   if (where)
   {
     Item_arena *arena= thd->current_arena, backup;
+    TABLE_LIST *tbl= this;
+    if (arena->is_conventional())
+      arena= 0;                                   // For easier test
+
     if (!where->fixed && where->fix_fields(thd, ancestor, &where))
       goto err;
 
     if (arena)
-    thd->set_n_backup_item_arena(arena, &backup);
-    if (outer_join)
+      thd->set_n_backup_item_arena(arena, &backup);
+
+    /* Go up to join tree and try to find left join */
+    for (; tbl; tbl= tbl->embedding)
     {
-      /*
-        Store WHERE condition to ON expression for outer join, because we
-        can't use WHERE to correctly execute jeft joins on VIEWs and  this
-        expression will not be moved to WHERE condition (i.e. will be clean
-        correctly for PS/SP)
-      */
-      on_expr= and_conds(on_expr, where);
+      if (tbl->outer_join)
+      {
+        /*
+          Store WHERE condition to ON expression for outer join, because we
+          can't use WHERE to correctly execute jeft joins on VIEWs and this
+          expression will not be moved to WHERE condition (i.e. will be clean
+          correctly for PS/SP)
+        */
+        tbl->on_expr= and_conds(tbl->on_expr, where);
+        break;
+      }
     }
-    else
+    if (tbl == 0)
     {
       /*
         It is conds of JOIN, but it will be stored in st_select_lex::prep_where
@@ -1594,14 +1618,26 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
       */
       *conds= and_conds(*conds, where);
     }
+
     if (arena)
       thd->restore_backup_item_arena(arena, &backup);
+  }
+
+  /* full text function moving to current select */
+  if (view->select_lex.ftfunc_list->elements)
+  {
+    Item_func_match *ifm;
+    List_iterator_fast<Item_func_match>
+      li(*(view->select_lex.ftfunc_list));
+    while ((ifm= li++))
+      current_select_save->ftfunc_list->push_front(ifm);
   }
 
 ok:
   thd->lex->select_lex.no_wrap_view_item= save_wrapper;
   thd->lex->current_select= current_select_save;
   thd->set_query_id= save_set_query_id;
+  thd->allow_sum_func= save_allow_sum_func;
   DBUG_RETURN(0);
 
 err:
@@ -1614,6 +1650,7 @@ err:
   thd->lex->select_lex.no_wrap_view_item= save_wrapper;
   thd->lex->current_select= current_select_save;
   thd->set_query_id= save_set_query_id;
+  thd->allow_sum_func= save_allow_sum_func;
   DBUG_RETURN(1);
 }
 

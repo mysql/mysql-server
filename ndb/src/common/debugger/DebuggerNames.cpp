@@ -29,10 +29,11 @@ static const char *            localBlockNames[NO_OF_BLOCKS];
 static
 int
 initSignalNames(const char * dst[], const GsnName src[], unsigned short len){
-  for(int i = 0; i<=MAX_GSN; i++)
+  int i;
+  for(i = 0; i<=MAX_GSN; i++)
     dst[i] = 0;
   
-  for(int i = 0; i<len; i++){
+  for(i = 0; i<len; i++){
     unsigned short gsn = src[i].gsn;
     const char * name  = src[i].name;
     
@@ -54,10 +55,11 @@ int
 initSignalPrinters(SignalDataPrintFunction dst[], 
 		   const NameFunctionPair src[], 
 		   unsigned short len){
-  for(int i = 0; i<=MAX_GSN; i++)
+  int i;
+  for(i = 0; i<=MAX_GSN; i++)
     dst[i] = 0;
   
-  for(int i = 0; i<len; i++){
+  for(i = 0; i<len; i++){
     unsigned short gsn = src[i].gsn;
     SignalDataPrintFunction fun = src[i].function;
     
@@ -79,10 +81,11 @@ int
 initBlockNames(const char * dst[],
 	       const BlockName src[],
 	       unsigned len){
-  for(int i = 0; i<NO_OF_BLOCKS; i++)
+  int i;
+  for(i = 0; i<NO_OF_BLOCKS; i++)
     dst[i] = 0;
 
-  for(unsigned i = 0; i<len; i++){
+  for(i = 0; i<len; i++){
     const int index = src[i].number - MIN_BLOCK_NO;
     if(index < 0 && index >= NO_OF_BLOCKS || dst[index] != 0){
       fprintf(stderr, 

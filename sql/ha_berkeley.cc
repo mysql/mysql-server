@@ -357,9 +357,11 @@ ulong ha_berkeley::index_flags(uint idx, uint part, bool all_parts) const
     case HA_KEYTYPE_VARTEXT:
       /*
         As BDB stores only one copy of equal strings, we can't use key read
-        on these
+        on these. Binary collations do support key read though.
       */
-      flags&= ~HA_KEYREAD_ONLY;
+      if (!(table->key_info[idx].key_part[i].field->charset()->state
+           & MY_CS_BINSORT))
+        flags&= ~HA_KEYREAD_ONLY;
       break;
     default:                                    // Keep compiler happy
       break;
@@ -853,7 +855,7 @@ int ha_berkeley::write_row(byte * record)
   int error;
   DBUG_ENTER("write_row");
 
-  statistic_increment(ha_write_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
   if (table->timestamp_default_now)
     update_timestamp(record+table->timestamp_default_now-1);
   if (table->next_number_field && record == table->record[0])
@@ -1097,10 +1099,11 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
   DB_TXN *sub_trans;
   ulong thd_options = table->tmp_table == NO_TMP_TABLE ? table->in_use->options : 0;
   bool primary_key_changed;
+
   DBUG_ENTER("update_row");
   LINT_INIT(error);
 
-  statistic_increment(ha_update_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_update_count,&LOCK_status);
   if (table->timestamp_on_update_now)
     update_timestamp(new_row+table->timestamp_on_update_now-1);
 
@@ -1290,7 +1293,7 @@ int ha_berkeley::delete_row(const byte * record)
   key_map keys=table->keys_in_use;
   ulong thd_options = table->tmp_table == NO_TMP_TABLE ? table->in_use->options : 0;
   DBUG_ENTER("delete_row");
-  statistic_increment(ha_delete_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_delete_count,&LOCK_status);
 
   if ((error=pack_row(&row, record, 0)))
     DBUG_RETURN((error)); /* purecov: inspected */
@@ -1437,7 +1440,7 @@ int ha_berkeley::read_row(int error, char *buf, uint keynr, DBT *row,
 int ha_berkeley::index_read_idx(byte * buf, uint keynr, const byte * key,
 				uint key_len, enum ha_rkey_function find_flag)
 {
-  statistic_increment(ha_read_key_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_read_key_count,&LOCK_status);
   DBUG_ENTER("index_read_idx");
   current_row.flags=DB_DBT_REALLOC;
   active_index=MAX_KEY;
@@ -1456,9 +1459,10 @@ int ha_berkeley::index_read(byte * buf, const byte * key,
   int error;
   KEY *key_info= &table->key_info[active_index];
   int do_prev= 0;
+
   DBUG_ENTER("ha_berkeley::index_read");
 
-  statistic_increment(ha_read_key_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_read_key_count,&LOCK_status);
   bzero((char*) &row,sizeof(row));
   if (find_flag == HA_READ_BEFORE_KEY)
   {
@@ -1527,7 +1531,8 @@ int ha_berkeley::index_read_last(byte * buf, const byte * key, uint key_len)
   KEY *key_info= &table->key_info[active_index];
   DBUG_ENTER("ha_berkeley::index_read");
 
-  statistic_increment(ha_read_key_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_read_key_count,
+		      &LOCK_status);
   bzero((char*) &row,sizeof(row));
 
   /* read of partial key */
@@ -1551,7 +1556,8 @@ int ha_berkeley::index_next(byte * buf)
 {
   DBT row;
   DBUG_ENTER("index_next");
-  statistic_increment(ha_read_next_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_read_next_count,
+		      &LOCK_status);
   bzero((char*) &row,sizeof(row));
   DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_NEXT),
 		       (char*) buf, active_index, &row, &last_key, 1));
@@ -1562,7 +1568,8 @@ int ha_berkeley::index_next_same(byte * buf, const byte *key, uint keylen)
   DBT row;
   int error;
   DBUG_ENTER("index_next_same");
-  statistic_increment(ha_read_next_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_read_next_count,
+		      &LOCK_status);
   bzero((char*) &row,sizeof(row));
   if (keylen == table->key_info[active_index].key_length)
     error=read_row(cursor->c_get(cursor, &last_key, &row, DB_NEXT_DUP),
@@ -1582,7 +1589,8 @@ int ha_berkeley::index_prev(byte * buf)
 {
   DBT row;
   DBUG_ENTER("index_prev");
-  statistic_increment(ha_read_prev_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_read_prev_count,
+		      &LOCK_status);
   bzero((char*) &row,sizeof(row));
   DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_PREV),
 		       (char*) buf, active_index, &row, &last_key, 1));
@@ -1593,7 +1601,8 @@ int ha_berkeley::index_first(byte * buf)
 {
   DBT row;
   DBUG_ENTER("index_first");
-  statistic_increment(ha_read_first_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_read_first_count,
+		      &LOCK_status);
   bzero((char*) &row,sizeof(row));
   DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_FIRST),
 		       (char*) buf, active_index, &row, &last_key, 1));
@@ -1603,7 +1612,8 @@ int ha_berkeley::index_last(byte * buf)
 {
   DBT row;
   DBUG_ENTER("index_last");
-  statistic_increment(ha_read_last_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_read_last_count,
+		      &LOCK_status);
   bzero((char*) &row,sizeof(row));
   DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_LAST),
 		       (char*) buf, active_index, &row, &last_key, 0));
@@ -1625,7 +1635,8 @@ int ha_berkeley::rnd_next(byte *buf)
 {
   DBT row;
   DBUG_ENTER("rnd_next");
-  statistic_increment(ha_read_rnd_next_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
+		      &LOCK_status);
   bzero((char*) &row,sizeof(row));
   DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_NEXT),
 		       (char*) buf, primary_key, &row, &last_key, 1));
@@ -1656,9 +1667,10 @@ DBT *ha_berkeley::get_pos(DBT *to, byte *pos)
 int ha_berkeley::rnd_pos(byte * buf, byte *pos)
 {
   DBT db_pos;
-  statistic_increment(ha_read_rnd_count,&LOCK_status);
+  
   DBUG_ENTER("ha_berkeley::rnd_pos");
-
+  statistic_increment(table->in_use->status_var.ha_read_rnd_count,
+		      &LOCK_status);
   active_index= MAX_KEY;
   DBUG_RETURN(read_row(file->get(file, transaction,
 				 get_pos(&db_pos, pos),
@@ -2087,9 +2099,9 @@ ha_rows ha_berkeley::records_in_range(uint keynr, key_range *start_key,
 }
 
 
-longlong ha_berkeley::get_auto_increment()
+ulonglong ha_berkeley::get_auto_increment()
 {
-  longlong nr=1;				// Default if error or new key
+  ulonglong nr=1;				// Default if error or new key
   int error;
   (void) ha_berkeley::extra(HA_EXTRA_KEYREAD);
 
@@ -2138,7 +2150,7 @@ longlong ha_berkeley::get_auto_increment()
     }
   }
   if (!error)
-    nr=(longlong)
+    nr=(ulonglong)
       table->next_number_field->val_int_offset(table->rec_buff_length)+1;
   ha_berkeley::index_end();
   (void) ha_berkeley::extra(HA_EXTRA_NO_KEYREAD);

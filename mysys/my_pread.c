@@ -29,7 +29,7 @@ uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
   uint readbytes;
   int error;
   DBUG_ENTER("my_pread");
-  DBUG_PRINT("my",("Fd: %d  Seek: %lu  Buffer: %lx  Count: %u  MyFlags: %d",
+  DBUG_PRINT("my",("Fd: %d  Seek: %lu  Buffer: 0x%lx  Count: %u  MyFlags: %d",
 		   Filedes, (ulong) offset, Buffer, Count, MyFlags));
 
   for (;;)
@@ -82,7 +82,7 @@ uint my_pwrite(int Filedes, const byte *Buffer, uint Count, my_off_t offset,
   uint writenbytes,errors;
   ulong written;
   DBUG_ENTER("my_pwrite");
-  DBUG_PRINT("my",("Fd: %d  Seek: %lu  Buffer: %lx  Count: %d  MyFlags: %d",
+  DBUG_PRINT("my",("Fd: %d  Seek: %lu  Buffer: 0x%lx  Count: %d  MyFlags: %d",
 		   Filedes, (ulong) offset,Buffer, Count, MyFlags));
   errors=0; written=0L;
 

@@ -39,7 +39,8 @@ C_MODE_END
 
 String my_empty_string("",default_charset_info);
 
-static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
+static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
+                              const char *fname)
 {
   my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
   	   c1.collation->name,c1.derivation_name(),
@@ -62,8 +63,9 @@ double Item_str_func::val()
 {
   DBUG_ASSERT(fixed == 1);
   int err;
-  String *res;
-  res=val_str(&str_value);
+  char buff[64];
+  String *res, tmp(buff,sizeof(buff), &my_charset_bin);
+  res= val_str(&tmp);
   return res ? my_strntod(res->charset(), (char*) res->ptr(),res->length(),
 			  NULL, &err) : 0.0;
 }
@@ -72,8 +74,9 @@ longlong Item_str_func::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   int err;
-  String *res;
-  res=val_str(&str_value);
+  char buff[22];
+  String *res, tmp(buff,sizeof(buff), &my_charset_bin);
+  res= val_str(&tmp);
   return (res ?
 	  my_strntoll(res->charset(), res->ptr(), res->length(), 10, NULL,
 		      &err) :
@@ -977,14 +980,16 @@ String *Item_func_left::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   String *res  =args[0]->val_str(str);
   long length  =(long) args[1]->val_int();
+  uint char_pos;
 
   if ((null_value=args[0]->null_value))
     return 0;
   if (length <= 0)
     return &my_empty_string;
-  if (res->length() <= (uint) length)
+  if (res->length() <= (uint) length ||
+      res->length() <= (char_pos= res->charpos(length)))
     return res;
-  str_value.set(*res, 0, res->charpos(length));
+  str_value.set(*res, 0, char_pos);
   return &str_value;
 }
 
@@ -2195,7 +2200,8 @@ String *Item_func_conv_charset::val_str(String *str)
     null_value=1;
     return 0;
   }
-  null_value= str_value.copy(arg->ptr(),arg->length(),arg->charset(),conv_charset);
+  null_value= str_value.copy(arg->ptr(),arg->length(),arg->charset(),
+                             conv_charset);
   return null_value ? 0 : &str_value;
 }
 
@@ -2272,6 +2278,18 @@ bool Item_func_set_collation::eq(const Item *item, bool binary_cmp) const
     if (!args[i]->eq(item_func_sc->args[i], binary_cmp))
       return 0;
   return 1;
+}
+
+
+void Item_func_set_collation::print(String *str)
+{
+  str->append('(');
+  args[0]->print(str);
+  str->append(" collate ", 9);
+  DBUG_ASSERT(args[1]->basic_const_item() &&
+              args[1]->type() == Item::STRING_ITEM);
+  args[1]->str_value.print(str);
+  str->append(')');
 }
 
 String *Item_func_charset::val_str(String *str)
@@ -2832,6 +2850,8 @@ String *Item_func_uuid::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   char *s;
+  THD *thd= current_thd;
+
   pthread_mutex_lock(&LOCK_uuid_generator);
   if (! uuid_time) /* first UUID() call. initializing data */
   {
@@ -2846,7 +2866,7 @@ String *Item_func_uuid::val_str(String *str)
         with a clock_seq value (initialized random below), we use a separate
         randominit() here
       */
-      randominit(&uuid_rand, tmp + (ulong)current_thd, tmp + query_id);
+      randominit(&uuid_rand, tmp + (ulong) thd, tmp + query_id);
       for (i=0; i < (int)sizeof(mac); i++)
         mac[i]=(uchar)(my_rnd(&uuid_rand)*255);
     }
@@ -2856,7 +2876,8 @@ String *Item_func_uuid::val_str(String *str)
       *--s=_dig_vec_lower[mac[i] & 15];
       *--s=_dig_vec_lower[mac[i] >> 4];
     }
-    randominit(&uuid_rand, tmp + (ulong)start_time, tmp + bytes_sent);
+    randominit(&uuid_rand, tmp + (ulong)start_time,
+	       tmp + thd->status_var.bytes_sent);
     set_clock_seq_str();
   }
 

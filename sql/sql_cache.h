@@ -116,6 +116,7 @@ struct Query_cache_query
   NET *wri;
   ulong len;
   uint8 tbls_type;
+  unsigned int last_pkt_nr;
 
   inline void init_n_lock();
   void unlock_n_destroy();

@@ -29,11 +29,13 @@
 
 int scanReadRecords(Ndb*, 
 		    const NdbDictionary::Table*, 
+		    const NdbDictionary::Index*,
 		    int parallel,
 		    int lockType,
 		    bool headers,
 		    bool useHexFormat,
-		    char delim);
+		    char delim,
+		    bool orderby);
 
 int main(int argc, const char** argv){
   int _parallelism = 240;
@@ -44,6 +46,7 @@ int main(int argc, const char** argv){
   const char* _dbname = "TEST_DB";
   int _help = 0;
   int _lock = 0;
+  int _order = 0;
 
   struct getargs args[] = {
     { "database", 'd', arg_string, &_dbname, "dbname", 
@@ -57,7 +60,8 @@ int main(int argc, const char** argv){
       "delimiter" },
     { "usage", '?', arg_flag, &_help, "Print help", "" },
     { "lock", 'l', arg_integer, &_lock, 
-      "Read(0), Read-hold(1), Exclusive(2)", "lock"}
+      "Read(0), Read-hold(1), Exclusive(2)", "lock"},
+    { "order", 'o', arg_flag, &_order, "Sort resultset according to index", ""}
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
@@ -90,6 +94,11 @@ int main(int argc, const char** argv){
    
   // Check if table exists in db
   const NdbDictionary::Table* pTab = NDBT_Table::discoverTableFromDb(&MyNdb, _tabname);
+  const NdbDictionary::Index * pIdx = 0;
+  if(optind+1 < argc){
+    pIdx = MyNdb.getDictionary()->getIndex(argv[optind+1], _tabname);
+  }
+
   if(pTab == NULL){
     ndbout << " Table " << _tabname << " does not exist!" << endl;
     return NDBT_ProgramExit(NDBT_WRONGARGS);
@@ -97,11 +106,12 @@ int main(int argc, const char** argv){
 
   if (scanReadRecords(&MyNdb, 
 		      pTab, 
+		      pIdx,
 		      _parallelism, 
 		      _lock,
 		      _header, 
 		      _useHexFormat, 
-		      (char)*_delimiter) != 0){
+		      (char)*_delimiter, _order) != 0){
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
@@ -111,17 +121,19 @@ int main(int argc, const char** argv){
 
 int scanReadRecords(Ndb* pNdb, 
 		    const NdbDictionary::Table* pTab, 
+		    const NdbDictionary::Index* pIdx,
 		    int parallel,
 		    int _lock,
 		    bool headers,
 		    bool useHexFormat,
-		    char delimiter){
+		    char delimiter, bool order){
 
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int                  check;
   NdbConnection	       *pTrans;
-  NdbOperation	       *pOp;
+  NdbScanOperation	       *pOp;
+  NdbIndexScanOperation * pIOp;
 
   NDBT_ResultRow * row = new NDBT_ResultRow(*pTab, delimiter);
 
@@ -146,29 +158,45 @@ int scanReadRecords(Ndb* pNdb,
       return -1;
     }
 
-    pOp = pTrans->getNdbOperation(pTab->getName());	
+    
+    pOp = (!pIdx) ? pTrans->getNdbScanOperation(pTab->getName()) : 
+      pIOp=pTrans->getNdbIndexScanOperation(pIdx->getName(), pTab->getName());
+    
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return -1;
     }
 
-    switch(_lock){
+    NdbResultSet * rs;
+    switch(_lock + (3 * order)){
     case 1:
-      check = pOp->openScanReadHoldLock(parallel);
+      rs = pOp->readTuples(NdbScanOperation::LM_Read, 0, parallel);
       break;
     case 2:
-      check = pOp->openScanExclusive(parallel);
+      rs = pOp->readTuples(NdbScanOperation::LM_Exclusive, 0, parallel);
       break;
+    case 3:
+      rs = pIOp->readTuples(NdbScanOperation::LM_CommittedRead, 0, parallel, 
+			    true);
+      break;
+    case 4:
+      rs = pIOp->readTuples(NdbScanOperation::LM_Read, 0, parallel, true);
+      break;
+    case 5:
+      rs = pIOp->readTuples(NdbScanOperation::LM_Exclusive, 0, parallel, true);
+      break;
+    case 0:
     default:
-      check = pOp->openScanRead(parallel);
+      rs = pOp->readTuples(NdbScanOperation::LM_CommittedRead, 0, parallel);
+      break;
     }
-    if( check == -1 ) {
+    if( rs == 0 ){
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return -1;
     }
-
+    
     if(0){
       NdbScanFilter sf(pOp);
 #if 0
@@ -229,10 +257,10 @@ int scanReadRecords(Ndb* pNdb,
       }
     }
 
-    check = pTrans->executeScan();   
+    check = pTrans->execute(NoCommit);   
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
-
+      
       if (err.status == NdbError::TemporaryError){
 	pNdb->closeTransaction(pTrans);
 	NdbSleep_MilliSleep(50);
@@ -246,11 +274,11 @@ int scanReadRecords(Ndb* pNdb,
 
     if (headers)
       row->header(ndbout) << endl;
-
+    
     int eof;
     int rows = 0;
-    eof = pTrans->nextScanResult();
-
+    eof = rs->nextResult();
+    
     while(eof == 0){
       rows++;
 
@@ -260,7 +288,7 @@ int scanReadRecords(Ndb* pNdb,
 	ndbout << (*row) << endl;
       }
 
-      eof = pTrans->nextScanResult();
+      eof = rs->nextResult();
     }
     if (eof == -1) {
       const NdbError err = pTrans->getNdbError();

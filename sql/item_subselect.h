@@ -36,8 +36,6 @@ class Item_subselect :public Item_result_field
 protected:
   /* thread handler, will be assigned in fix_fields only */
   THD *thd;
-  /* Item_arena used or 0 */
-  Item_arena *arena;
   /* substitution instead of subselect in case of optimization */
   Item *substitution;
   /* unit of subquery */
@@ -50,6 +48,8 @@ protected:
   table_map used_tables_cache;
   /* allowed number of columns (1 for single value subqueries) */
   uint max_columns;
+  /* where subquery is placed */
+  enum_parsing_place parsing_place;
   /* work with 'substitution' */
   bool have_to_be_excluded;
   /* cache of constant state */
@@ -84,7 +84,6 @@ public:
     null_value= 1;
   }
   virtual trans_res select_transformer(JOIN *join);
-  virtual trans_res no_select_transform() { return RES_OK; }
   bool assigned() { return value_assigned; }
   void assigned(bool a) { value_assigned= a; }
   enum Type type() const;
@@ -155,7 +154,7 @@ class Item_maxmin_subselect :public Item_singlerow_subselect
 {
   bool max;
 public:
-  Item_maxmin_subselect(Item_subselect *parent,
+  Item_maxmin_subselect(THD *thd, Item_subselect *parent,
 			st_select_lex *select_lex, bool max);
   void print(String *str);
 };
@@ -220,7 +219,6 @@ public:
     was_null= 0;
   }
   trans_res select_transformer(JOIN *join);
-  trans_res no_select_transform();
   trans_res single_value_transformer(JOIN *join,
 				     Comp_creator *func);
   trans_res row_value_transformer(JOIN * join);

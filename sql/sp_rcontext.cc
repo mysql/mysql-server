@@ -32,6 +32,7 @@ sp_rcontext::sp_rcontext(uint fsize, uint hmax, uint cmax)
   : m_count(0), m_fsize(fsize), m_result(NULL), m_hcount(0), m_hsp(0),
     m_hfound(-1), m_ccount(0)
 {
+  in_handler= FALSE;
   m_frame= (Item **)sql_alloc(fsize * sizeof(Item*));
   m_outs= (int *)sql_alloc(fsize * sizeof(int));
   m_handler= (sp_handler_t *)sql_alloc(hmax * sizeof(sp_handler_t));
@@ -56,8 +57,11 @@ sp_rcontext::set_item_eval(uint idx, Item *i, enum_field_types type)
 }
 
 int
-sp_rcontext::find_handler(uint sql_errno)
+sp_rcontext::find_handler(uint sql_errno,
+                          MYSQL_ERROR::enum_warning_level level)
 {
+  if (in_handler)
+    return 0;			// Already executing a handler
   if (m_hfound >= 0)
     return 1;			// Already got one
 
@@ -79,7 +83,8 @@ sp_rcontext::find_handler(uint sql_errno)
 	found= 1;
       break;
     case sp_cond_type_t::warning:
-      if (sqlstate[0] == '0' && sqlstate[1] == '1')
+      if (sqlstate[0] == '0' && sqlstate[1] == '1' ||
+          level == MYSQL_ERROR::WARN_LEVEL_WARN)
 	found= 1;
       break;
     case sp_cond_type_t::notfound:
@@ -87,7 +92,8 @@ sp_rcontext::find_handler(uint sql_errno)
 	found= 1;
       break;
     case sp_cond_type_t::exception:
-      if (sqlstate[0] != '0' || sqlstate[1] > '2')
+      if (sqlstate[0] != '0' || sqlstate[1] > '2' ||
+          level == MYSQL_ERROR::WARN_LEVEL_ERROR)
 	found= 1;
       break;
     }
@@ -227,21 +233,24 @@ sp_cursor::fetch(THD *thd, List<struct sp_pvar> *vars)
       return -1;
     }
     s= row[fldcount];
-    switch (sp_map_result_type(pv->type))
-    {
-    case INT_RESULT:
-      it= new Item_int(s);
-      break;
-    case REAL_RESULT:
-      it= new Item_real(s, strlen(s));
-      break;
-    default:
+    if (!s)
+      it= new Item_null();
+    else
+      switch (sp_map_result_type(pv->type))
       {
-	uint len= strlen(s);
-	it= new Item_string(thd->strmake(s, len), len, thd->db_charset);
+      case INT_RESULT:
+	it= new Item_int(s);
 	break;
+      case REAL_RESULT:
+	it= new Item_real(s, strlen(s));
+	break;
+      default:
+	{
+	  uint len= strlen(s);
+	  it= new Item_string(thd->strmake(s, len), len, thd->db_charset);
+	  break;
+	}
       }
-    }
     thd->spcont->set_item(pv->offset, it);
   }
   if (fldcount < m_prot->get_field_count())

@@ -73,7 +73,8 @@ int main(int argc, const char** argv){
         
       ndbout << "-- Indexes -- " << endl;
       ndbout << "PRIMARY KEY(";
-      for (unsigned j= 0; j < pTab->getNoOfPrimaryKeys(); j++)
+      unsigned j;
+      for (j= 0; j < pTab->getNoOfPrimaryKeys(); j++)
       {
 	const NdbDictionary::Column * col = pTab->getColumn(j);
 	ndbout << col->getName();
@@ -82,7 +83,7 @@ int main(int argc, const char** argv){
       }
       ndbout << ") - UniqueHashIndex" << endl;
 	
-      for (unsigned j= 0; j < list.count; j++) {
+      for (j= 0; j < list.count; j++) {
 	NdbDictionary::Dictionary::List::Element& elt = list.elements[j];
 	const NdbDictionary::Index *pIdx = dict->getIndex(elt.name, argv[i]);
 	if (!pIdx){
