@@ -64,6 +64,11 @@ my_bool my_thread_global_init(void)
   }
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
   pthread_mutexattr_init(&my_fast_mutexattr);
+  /*
+    Note that the following statement may give a compiler warning under
+    some configurations, but there isn't anything we can do about this as
+    this is a bug in the header files for the thread implementation
+  */
   pthread_mutexattr_setkind_np(&my_fast_mutexattr,PTHREAD_MUTEX_ADAPTIVE_NP);
 #endif
 #ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP

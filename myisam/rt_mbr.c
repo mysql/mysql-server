@@ -129,6 +129,7 @@ int rtree_key_cmp(HA_KEYSEG *keyseg, uchar *b, uchar *a, uint key_length,
       break;
 #endif
     case HA_KEYTYPE_FLOAT:
+      /* The following should be safe, even if we compare doubles */
       RT_CMP_GET(float, mi_float4get, 4, nextflag);
       break;
     case HA_KEYTYPE_DOUBLE:
