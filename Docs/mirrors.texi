@@ -176,6 +176,11 @@ WWW (@uref{http://ftp.netc.pt/pub/mysql/})
 FTP (@uref{ftp://ftp.netc.pt/pub/mysql/})
 
 @item
+@image{Flags/portugal} Portugal [Netvisão] @@
+WWW (@uref{http://mysql.netvisao.pt/})
+FTP (@uref{ftp://mirrors2.netvisao.pt/pub/mysql/})
+
+@item
 @image{Flags/romania} Romania [roedu.net/Bucharest] @@
 FTP (@uref{ftp://ftp.roedu.net/pub/mirrors/ftp.mysql.com/})
 
@@ -345,6 +350,10 @@ FTP (@uref{http://www2.linuxforum.net/mirror/mysql/})
 @image{Flags/china} China [shellhung.org/Hong Kong] @@
 WWW (@uref{http://mysql.shellhung.org/})
 FTP (@uref{ftp://ftp.shellhung.org/pub/Mirror/mysql/})
+
+@item
+@image{Flags/indonesia} Indonesia [CBN] @@
+WWW (@uref{http://mysql.cbn.net.id/})
 
 @item
 @image{Flags/indonesia} Indonesia [incaf.net] @@
