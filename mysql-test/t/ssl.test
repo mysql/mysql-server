@@ -1,0 +1,4 @@
+
+
+SHOW STATUS LIKE 'SSL%';
+

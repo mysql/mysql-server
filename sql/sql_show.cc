@@ -1155,6 +1155,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
           break;
         }
 #ifdef HAVE_OPENSSL
+	/* First group - functions relying on CTX */
       case SHOW_SSL_CTX_SESS_ACCEPT:
 	net_store_data(&packet2,(uint32) 
 			SSL_CTX_sess_accept(ssl_acceptor_fd->ssl_context_));
@@ -1167,10 +1168,6 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
 	net_store_data(&packet2,(uint32) 
 			SSL_CTX_sess_accept_renegotiate(ssl_acceptor_fd->ssl_context_));
         break;
-      case SHOW_SSL_GET_VERSION:
-	net_store_data(&packet2,
-			SSL_get_version(thd->net.vio->ssl_));
-        break;
       case SHOW_SSL_CTX_SESS_CB_HITS:
 	net_store_data(&packet2,(uint32) 
 			SSL_CTX_sess_cb_hits(ssl_acceptor_fd->ssl_context_));
@@ -1178,14 +1175,6 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
       case SHOW_SSL_CTX_SESS_NUMBER:
 	net_store_data(&packet2,(uint32) 
 			SSL_CTX_sess_number(ssl_acceptor_fd->ssl_context_));
-        break;
-      case SHOW_SSL_SESSION_REUSED:
-	net_store_data(&packet2,(uint32) 
-			SSL_session_reused(thd->net.vio->ssl_));
-        break;
-      case SHOW_SSL_GET_DEFAULT_TIMEOUT:
-	net_store_data(&packet2,(uint32) 
-			SSL_get_default_timeout(thd->net.vio->ssl_));
         break;
       case SHOW_SSL_CTX_SESS_GET_CACHE_SIZE:
 	net_store_data(&packet2,(uint32) 
@@ -1195,20 +1184,9 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
 	net_store_data(&packet2,(uint32) 
 			SSL_CTX_get_verify_mode(ssl_acceptor_fd->ssl_context_));
         break;
-      case SHOW_SSL_GET_VERIFY_MODE:
-	net_store_data(&packet2,(uint32) 
-			SSL_get_verify_mode(thd->net.vio->ssl_));
-        break;
       case SHOW_SSL_CTX_GET_VERIFY_DEPTH:
 	net_store_data(&packet2,(uint32) 
 			SSL_CTX_get_verify_depth(ssl_acceptor_fd->ssl_context_));
-        break;
-      case SHOW_SSL_GET_VERIFY_DEPTH:
-	net_store_data(&packet2,(uint32) 
-			SSL_get_verify_depth(thd->net.vio->ssl_));
-        break;
-      case SHOW_SSL_GET_CIPHER:
-	net_store_data(&packet2, SSL_get_cipher(thd->net.vio->ssl_));
         break;
       case SHOW_SSL_CTX_GET_SESSION_CACHE_MODE:
 	switch(SSL_CTX_get_session_cache_mode(ssl_acceptor_fd->ssl_context_))
@@ -1235,6 +1213,30 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
             net_store_data(&packet2,"Unknown");
 	    break;
 	}
+        break;
+	/* First group - functions relying on SSL */
+      case SHOW_SSL_GET_VERSION:
+	net_store_data(&packet2, thd->net.vio->ssl_ ? 
+			SSL_get_version(thd->net.vio->ssl_) : "");
+        break;
+      case SHOW_SSL_SESSION_REUSED:
+	net_store_data(&packet2,(uint32) (thd->net.vio->ssl_ ? 
+			SSL_session_reused(thd->net.vio->ssl_) : 0));
+        break;
+      case SHOW_SSL_GET_DEFAULT_TIMEOUT:
+	net_store_data(&packet2,(uint32) (thd->net.vio->ssl_ ?
+			SSL_get_default_timeout(thd->net.vio->ssl_):0));
+        break;
+      case SHOW_SSL_GET_VERIFY_MODE:
+	net_store_data(&packet2,(uint32) (thd->net.vio->ssl_ ?
+			SSL_get_verify_mode(thd->net.vio->ssl_):0));
+        break;
+      case SHOW_SSL_GET_VERIFY_DEPTH:
+	net_store_data(&packet2,(uint32) (thd->net.vio->ssl_ ?
+			SSL_get_verify_depth(thd->net.vio->ssl_):0));
+        break;
+      case SHOW_SSL_GET_CIPHER:
+	net_store_data(&packet2, thd->net.vio->ssl_ ? SSL_get_cipher(thd->net.vio->ssl_) : "");
         break;
 
 #endif /* HAVE_OPENSSL */
