@@ -377,6 +377,7 @@ setup_config(atrt_config& config){
 
   int lineno = 0;
   char buf[2048];
+  BaseString connect_string;
   while(fgets(buf, 2048, f)){
     lineno++;
 
@@ -446,7 +447,6 @@ setup_config(atrt_config& config){
       }
     }
     
-    BaseString connect_string;
     for(size_t i = 0; i<hosts.size(); i++){
       BaseString & tmp = hosts[i];
       atrt_host * host = find(tmp, config.m_hosts);
@@ -498,14 +498,14 @@ setup_config(atrt_config& config){
       }
       config.m_processes.push_back(proc);
     }
-
-    // Setup connect string
-    for(size_t i = 0; i<config.m_processes.size(); i++){
-      config.m_processes[i].m_proc.m_env.appfmt(" NDB_CONNECTSTRING=nodeid=%d%s", 
-					 i+1, connect_string.c_str());
-    }
   }
-  
+
+  // Setup connect string
+  for(size_t i = 0; i<config.m_processes.size(); i++){
+    config.m_processes[i].m_proc.m_env.appfmt(" NDB_CONNECTSTRING=nodeid=%d%s", 
+                                              i+1, connect_string.c_str());
+  }
+ 
  end:
   fclose(f);
   return result;
