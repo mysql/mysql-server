@@ -1194,7 +1194,6 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
   int fd,error;
   MY_STAT stat_area;
   char fname[FN_REFLEN+128];
-  const char *msg;
   DBUG_ENTER("init_master_info");
 
   if (mi->inited)
