@@ -39,7 +39,7 @@
 #include "my_readline.h"
 #include <signal.h>
 
-const char *VER="11.11";
+const char *VER="11.12";
 
 gptr sql_alloc(unsigned size);	     // Don't use mysqld alloc for these
 void sql_element_free(void *ptr);
@@ -521,7 +521,7 @@ static void usage(int version)
   puts("  -W, --pipe		Use named pipes to connect to server");
 #endif
   printf("\n\
-  -P  --port=...	Port number to use for connection.\n\
+  -P, --port=...	Port number to use for connection.\n\
   -q, --quick		Don't cache result, print it row by row. This may\n\
 			slow down the server if the output is suspended.\n\
 			Doesn't use history file.\n\
@@ -530,7 +530,7 @@ static void usage(int version)
   -S  --socket=...	Socket file to use for connection.\n");
 #include "sslopt-usage.h"
   printf("\
-  -t  --table		Output in table format.\n\
+  -t, --table		Output in table format.\n\
   -T, --debug-info	Print some debug info at exit.\n\
   --tee=...             Append everything into outfile. See interactive help\n\
                         (\\h) also. Does not work in batch mode.\n");
