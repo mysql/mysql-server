@@ -58,6 +58,7 @@ help_relation
 help_topic
 host
 proc
+procs_priv
 tables_priv
 time_zone
 time_zone_leap_second
@@ -346,8 +347,11 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 'mysqltest_1'@'localhost'	NULL	test	ALTER	YES
 'mysqltest_1'@'localhost'	NULL	test	CREATE TEMPORARY TABLES	YES
 'mysqltest_1'@'localhost'	NULL	test	LOCK TABLES	YES
+'mysqltest_1'@'localhost'	NULL	test	EXECUTE	YES
 'mysqltest_1'@'localhost'	NULL	test	CREATE VIEW	YES
 'mysqltest_1'@'localhost'	NULL	test	SHOW VIEW	YES
+'mysqltest_1'@'localhost'	NULL	test	CREATE ROUTINE	YES
+'mysqltest_1'@'localhost'	NULL	test	ALTER ROUTINE	YES
 select * from information_schema.TABLE_PRIVILEGES where grantee like '%mysqltest_1%';
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'mysqltest_1'@'localhost'	NULL	test	t1	SELECT	NO
@@ -600,6 +604,8 @@ Process_priv	select,insert,update,references
 Show_db_priv	select,insert,update,references
 Lock_tables_priv	select,insert,update,references
 Show_view_priv	select,insert,update,references
+Create_routine_priv	select,insert,update,references
+Alter_routine_priv	select,insert,update,references
 max_questions	select,insert,update,references
 max_connections	select,insert,update,references
 use test;

@@ -743,6 +743,7 @@ typedef struct st_lex
   sp_head *sphead;
   sp_name *spname;
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
+  bool all_privileges;
   sp_pcontext *spcont;
   HASH spfuns;		/* Called functions */
   st_sp_chistics sp_chistics;
