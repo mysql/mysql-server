@@ -1,0 +1,38 @@
+-- source include/have_innodb.inc
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+drop table if exists t1;
+
+#
+# Testing of FOR UPDATE
+#
+
+connection con1;
+create table t1 (id integer, x integer) type=INNODB;
+insert into t1 values(0, 0);
+set autocommit=0;
+SELECT * from t1 where id = 0 FOR UPDATE;
+
+connection con2;
+set autocommit=0;
+
+# The following query should hang because con1 is locking the page
+--send
+update t1 set x=2 where id = 0;
+--sleep 2;
+
+connection con1;
+update t1 set x=1 where id = 0;
+select * from t1;
+commit;
+
+connection con2;
+reap;
+commit;
+
+connection con1;
+select * from t1;
+commit;
+
+drop table t1;

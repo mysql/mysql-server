@@ -991,7 +991,7 @@ field_list:
 
 
 field_list_item:
-	  field_spec
+	  field_spec check_constraint
 	| field_spec references
 	  {
 	    Lex->col_list.empty();		/* Alloced by sql_alloc */
@@ -1013,10 +1013,16 @@ field_list_item:
 				    lex->fk_match_option));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
-	| opt_constraint CHECK_SYM '(' expr ')'
+	| opt_constraint check_constraint
 	  {
 	    Lex->col_list.empty();		/* Alloced by sql_alloc */
-	  };
+	  }
+	;
+
+check_constraint:
+	/* empty */
+	| CHECK_SYM expr
+	;
 
 opt_constraint:
 	/* empty */
@@ -2270,13 +2276,15 @@ in_sum_expr:
 
 cast_type:
 	BINARY 			{ $$=ITEM_CAST_BINARY; }
+	| CHAR_SYM		{ $$=ITEM_CAST_CHAR; }
 	| SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; }
 	| SIGNED_SYM INT_SYM	{ $$=ITEM_CAST_SIGNED_INT; }
 	| UNSIGNED		{ $$=ITEM_CAST_UNSIGNED_INT; }
 	| UNSIGNED INT_SYM	{ $$=ITEM_CAST_UNSIGNED_INT; }
 	| DATE_SYM		{ $$=ITEM_CAST_DATE; }
 	| TIME_SYM		{ $$=ITEM_CAST_TIME; }
-	| DATETIME		{ $$=ITEM_CAST_DATETIME; };
+	| DATETIME		{ $$=ITEM_CAST_DATETIME; }
+	;
 
 expr_list:
 	{ Select->expr_list.push_front(new List<Item>); }
@@ -2813,7 +2821,7 @@ table_name:
 	{ if (!Select->add_table_to_list($1, NULL, 1)) YYABORT; };
 
 if_exists:
-	/* empty */ { $$=0; }
+	/* empty */ { $$= 0; }
 	| IF EXISTS { $$= 1; }
 	;
 
@@ -3587,7 +3595,6 @@ keyword:
 	| CHANGED		{}
 	| CHARSET		{}
 	| CHECKSUM_SYM		{}
-	| CHECK_SYM		{}
 	| CIPHER_SYM		{}
 	| CLIENT_SYM		{}
 	| CLOSE_SYM		{}
