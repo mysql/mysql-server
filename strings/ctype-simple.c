@@ -244,34 +244,34 @@ void my_hash_sort_simple(CHARSET_INFO *cs,
   }
 }
 
-long        my_strtol_8bit(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e, int base)
+long        my_strntol_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, uint l, char **e, int base)
 {
-  return strtol(s,e,base);
+  return 0;
 }
 
-ulong      my_strtoul_8bit(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e, int base)
+ulong      my_strntoul_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, uint l, char **e, int base)
 {
-  return strtoul(s,e,base);
+  return 0;
 }
 
-longlong   my_strtoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e, int base)
+longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, uint l, char **e, int base)
 {
-  return strtoll(s,e,base);
+  return 0;
 }
 
-ulonglong my_strtoull_8bit(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e, int base)
+ulonglong my_strntoull_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, uint l, char **e, int base)
 {
-  return strtoul(s,e,base);
+  return 0;
 }
 
-double      my_strtod_8bit(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e)
+double      my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, uint l, char **e)
 {
-  return strtod(s,e);
+  return 0;
 }
 
 
