@@ -390,6 +390,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	RESTORE_SYM
 %token	RESTRICT
 %token	REVOKE
+%token	ROUTINE_SYM
 %token	ROWS_SYM
 %token	ROW_FORMAT_SYM
 %token	ROW_SYM
@@ -790,7 +791,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	opt_outer table_list table_name opt_option opt_place
 	opt_attribute opt_attribute_list attribute column_list column_list_id
 	opt_column_list grant_privileges opt_table grant_list grant_option
-	grant_privilege grant_privilege_list user_list rename_list
+	object_privilege object_privilege_list user_list rename_list
 	clear_privileges flush_options flush_option
 	equal optional_braces opt_key_definition key_usage_list2
 	opt_mi_check_type opt_to mi_check_types normal_join
@@ -1301,6 +1302,7 @@ clear_privileges:
           lex->users_list.empty();
           lex->columns.empty();
           lex->grant= lex->grant_tot_col= 0;
+	  lex->all_privileges= 0;
           lex->select_lex.db= 0;
           lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
           lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
@@ -7031,6 +7033,7 @@ keyword:
 	| RETURNS_SYM           {}
 	| ROLLBACK_SYM		{}
 	| ROLLUP_SYM		{}
+	| ROUTINE_SYM		{}
 	| ROWS_SYM		{}
 	| ROW_FORMAT_SYM	{}
 	| ROW_SYM		{}
@@ -7543,14 +7546,16 @@ revoke_command:
 grant:
 	GRANT clear_privileges grant_privileges ON opt_table TO_SYM grant_list
 	require_clause grant_options
-	{
-	  Lex->sql_command = SQLCOM_GRANT;
-        }
+	{ Lex->sql_command= SQLCOM_GRANT; }
 	;
 
 grant_privileges:
-	grant_privilege_list {}
-	| ALL opt_privileges	{ Lex->grant = GLOBAL_ACLS;}
+	object_privilege_list { }
+	| ALL opt_privileges
+        { 
+          Lex->all_privileges= 1; 
+          Lex->grant= GLOBAL_ACLS;
+        }
         ;
 
 opt_privileges:
@@ -7558,11 +7563,11 @@ opt_privileges:
 	| PRIVILEGES
 	;
 
-grant_privilege_list:
-	grant_privilege
-	| grant_privilege_list ',' grant_privilege;
+object_privilege_list:
+	object_privilege
+	| object_privilege_list ',' object_privilege;
 
-grant_privilege:
+object_privilege:
 	SELECT_SYM	{ Lex->which_columns = SELECT_ACL;} opt_column_list {}
 	| INSERT	{ Lex->which_columns = INSERT_ACL;} opt_column_list {}
 	| UPDATE_SYM	{ Lex->which_columns = UPDATE_ACL; } opt_column_list {}
@@ -7587,6 +7592,8 @@ grant_privilege:
 	| REPLICATION CLIENT_SYM { Lex->grant |= REPL_CLIENT_ACL; }
 	| CREATE VIEW_SYM { Lex->grant |= CREATE_VIEW_ACL; }
 	| SHOW VIEW_SYM { Lex->grant |= SHOW_VIEW_ACL; }
+	| CREATE ROUTINE_SYM { Lex->grant |= CREATE_PROC_ACL; }
+	| ALTER ROUTINE_SYM { Lex->grant |= ALTER_PROC_ACL; }
 	;
 
 

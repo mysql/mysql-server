@@ -40,6 +40,11 @@ call stamp(1);
 select * from t1;
 select db();
 
+grant execute on db1_secret.stamp to user1@'%';
+grant execute on db1_secret.db to user1@'%';
+grant execute on db1_secret.stamp to ''@'%';
+grant execute on db1_secret.db to ''@'%';
+
 connect (con2user1,localhost,user1,,);
 connect (con3anon,localhost,anon,,);
 
@@ -54,7 +59,7 @@ call db1_secret.stamp(2);
 select db1_secret.db();
 
 # ...but not this
---error 1044
+--error 1142
 select * from db1_secret.t1;
 
 # ...and not this
@@ -74,7 +79,7 @@ call db1_secret.stamp(3);
 select db1_secret.db();
 
 # ...but not this
---error 1044
+--error 1142
 select * from db1_secret.t1;
 
 # ...and not this
@@ -146,7 +151,8 @@ insert into t2 values (0);
 grant usage on db2.* to user1@localhost;
 grant select on db2.* to user1@localhost;
 grant usage on db2.* to user2@localhost;
-grant select,insert,update,delete on db2.* to user2@localhost;
+grant select,insert,update,delete,create routine on db2.* to user2@localhost;
+grant create routine on db2.* to user1@localhost;
 flush privileges;
 
 connection con2user1;
@@ -155,7 +161,7 @@ use db2;
 create procedure p () insert into t2 values (1);
 
 # Check that this doesn't work.
---error 1044
+--error 1142
 call p();
 
 connect (con4user2,localhost,user2,,);
@@ -164,7 +170,7 @@ connection con4user2;
 use db2;
 
 # This should not work, since p is executed with definer's (user1's) rights.
---error 1044
+--error 1370
 call p();
 select * from t2;
 
@@ -172,6 +178,12 @@ create procedure q () insert into t2 values (2);
 
 call q();
 select * from t2;
+
+connection con1root;
+grant usage on db2.q to user2@localhost with grant option;
+
+connection con4user2;
+grant execute on db2.q to user1@localhost;
 
 connection con2user1;
 use db2;
@@ -206,6 +218,9 @@ drop procedure q;
 
 # Clean up
 #Still connection con1root;
+disconnect con2user1;
+disconnect con3anon;
+disconnect con4user2;
 use test;
 select type,db,name from mysql.proc;
 drop database db1_secret;
@@ -214,3 +229,75 @@ drop database db2;
 select type,db,name from mysql.proc;
 # Get rid of the users
 delete from mysql.user where user='user1' or user='user2';
+# And any routine privileges
+delete from mysql.procs_priv where user='user1' or user='user2';
+
+#
+# Test the new security acls
+#
+grant usage on *.* to usera@localhost;
+grant usage on *.* to userb@localhost;
+grant usage on *.* to userc@localhost;
+create database sptest;
+create table t1 ( u varchar(64), i int );
+create procedure sptest.p1(i int) insert into test.t1 values (user(), i);
+grant insert on t1 to usera@localhost;
+grant execute on sptest.p1 to usera@localhost;
+show grants for usera@localhost;
+grant execute on sptest.p1 to userc@localhost with grant option;
+show grants for userc@localhost;
+
+connect (con2usera,localhost,usera,,);
+connect (con3userb,localhost,userb,,);
+connect (con4userc,localhost,userc,,);
+
+connection con2usera;
+call sptest.p1(1);
+--error 1370
+grant execute on sptest.p1 to userb@localhost;
+--error 1370
+drop procedure sptest.p1;
+
+connection con3userb;
+--error 1370
+call sptest.p1(2);
+--error 1370
+grant execute on sptest.p1 to userb@localhost;
+--error 1370
+drop procedure sptest.p1;
+
+connection con4userc;
+call sptest.p1(3);
+grant execute on sptest.p1 to userb@localhost;
+--error 1370
+drop procedure sptest.p1;
+
+connection con3userb;
+call sptest.p1(4);
+--error 1370
+grant execute on sptest.p1 to userb@localhost;
+--error 1370
+drop procedure sptest.p1;
+
+connection con1root;
+select * from t1;
+
+grant all privileges on sptest.p1 to userc@localhost;
+show grants for userc@localhost;
+show grants for userb@localhost;
+
+connection con4userc;
+revoke all privileges on sptest.p1 from userb@localhost;
+
+connection con1root;
+show grants for userb@localhost;
+
+#cleanup
+disconnect con4userc;
+disconnect con3userb;
+disconnect con2usera;
+use test;
+drop database sptest;
+delete from mysql.user where user='usera' or user='userb' or user='userc';
+delete from mysql.procs_priv where user='usera' or user='userb' or user='userc';
+

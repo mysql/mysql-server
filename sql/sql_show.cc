@@ -138,13 +138,16 @@ struct show_privileges_st {
 static struct show_privileges_st sys_privileges[]=
 {
   {"Alter", "Tables",  "To alter the table"},
+  {"Alter routine", "Functions,Procedures",  "To alter or drop stored functions/procedures"},
   {"Create", "Databases,Tables,Indexes",  "To create new databases and tables"},
+  {"Create routine","Functions,Procedures","To use CREATE FUNCTION/PROCEDURE"},
   {"Create temporary tables","Databases","To use CREATE TEMPORARY TABLE"},
   {"Create view", "Tables",  "To create new views"},
   {"Delete", "Tables",  "To delete existing rows"},
   {"Drop", "Databases,Tables", "To drop databases, tables, and views"},
+  {"Execute", "Functions,Procedures", "To execute stored routines"},
   {"File", "File access on server",   "To read and write files on the server"},
-  {"Grant option",  "Databases,Tables", "To give to other users those privileges you possess"},
+  {"Grant option",  "Databases,Tables,Functions,Procedures", "To give to other users those privileges you possess"},
   {"Index", "Tables",  "To create or drop indexes"},
   {"Insert", "Tables",  "To insert data into tables"},
   {"Lock tables","Databases","To use LOCK TABLES (together with SELECT privilege)"},
