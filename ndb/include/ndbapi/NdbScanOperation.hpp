@@ -14,18 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*****************************************************************************
- * Name:          NdbScanOperation.hpp
- * Include:
- * Link:
- * Author:        Martin Sköld
- * Date:          2002-04-01
- * Version:       0.1
- * Description:   Table scan support
- * Documentation:
- * Adjust:  2002-04-01  Martin Sköld   First version.
- ****************************************************************************/
-
 #ifndef NdbScanOperation_H
 #define NdbScanOperation_H
 
