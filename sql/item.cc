@@ -395,7 +395,7 @@ longlong Item_param::val_int()
 { 
  switch (item_result_type) {
   case STRING_RESULT:
-    return strtoll(str_value.ptr(),(char**) 0,10);
+    return my_strntoll(str_value.charset(),str_value.ptr(),str_value.length(),(char**) 0,10);
   case REAL_RESULT:
     return (longlong) (real_value+(real_value > 0 ? 0.5 : -0.5));
   default:
