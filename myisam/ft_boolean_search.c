@@ -322,7 +322,7 @@ void _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw, FT_SEG_ITERATOR *ftsi_orig)
       break;
     if (yn & FTB_FLAG_YES)
     {
-      ftbe->cur_weight+=weight;
+      ftbe->cur_weight += weight / ftbe->ythresh;
       if (++ftbe->yesses == ythresh)
       {
         yn=ftbe->flags;
@@ -360,7 +360,7 @@ void _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw, FT_SEG_ITERATOR *ftsi_orig)
     }
     else
     {
-      ftbe->cur_weight+=weight;
+      ftbe->cur_weight +=  ftbe->ythresh ? weight/3 : weight;
       if (ftbe->yesses < ythresh)
         break;
       yn= (ftbe->yesses++ == ythresh) ? ftbe->flags : 0 ;
