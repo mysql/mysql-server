@@ -90,6 +90,29 @@ void *my_pthread_getspecific_imp(pthread_key_t key)
 }
 #endif
 
+#ifdef __NETWARE__
+/*
+don't kill the LibC Reaper thread or the main thread
+*/
+#include <nks/thread.h>
+void my_pthread_exit(void *status)
+{
+#undef pthread_exit
+  NXThreadId_t tid = NXThreadGetId();
+  NXContext_t ctx;
+  char name[PATH_MAX] = "";
+
+  NXThreadGetContext(tid, &ctx);
+  NXContextGetName(ctx, name, PATH_MAX);
+
+  // "MYSQLD.NLM's LibC Reaper" or "MYSQLD.NLM's main thread"
+  // with a debug build of LibC the reaper can have different names
+  if (!strindex(name, "\'s"))
+  {
+    pthread_exit(status);
+  }
+}
+#endif
 
 /* Some functions for RTS threads, AIX, Siemens Unix and UnixWare 7
    (and DEC OSF/1 3.2 too) */
