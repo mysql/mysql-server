@@ -34,7 +34,7 @@ liboptions_a_CPPFLAGS= $(CPPFLAGS) \
 	-DDEFAULT_USER="root" \
 	-DDEFAULT_PASSWORD="" \
 	-DDEFAULT_MONITORING_INTERVAL="5" \
-	-DDEFAULT_PORT="33006" \
+	-DDEFAULT_PORT="2273" \
 	-DPROTOCOL_VERSION=@PROTOCOL_VERSION@
 
 liboptions_a_SOURCES= options.h options.cc priv.h priv.cc
