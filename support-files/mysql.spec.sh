@@ -260,7 +260,7 @@ export PATH
 
 # If we want to compile with RAID using gcc 3, we need to use
 # gcc instead of g++ to avoid linking problems (RAID code is written in C++)
-if gcc -v 2>&1 | grep 'version 3' > /dev/null 2>&1
+test -z $CXX && test -z $CC && if gcc -v 2>&1 | grep 'gcc version 3' > /dev/null 2>&1
 then
 	export CXX="gcc"
 fi
@@ -567,6 +567,10 @@ fi
 # The spec file changelog only includes changes made to the spec file
 # itself
 %changelog 
+* Thu Dec 11 2003 Lenz Grimmer <lenz@mysql.com>
+
+- made testing for gcc3 a bit more robust
+
 * Fri Nov 21 2003 Lenz Grimmer <lenz@mysql.com>
 
 - removed dependency on MySQL-client from the MySQL-devel subpackage
