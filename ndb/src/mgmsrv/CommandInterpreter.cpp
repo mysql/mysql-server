@@ -28,7 +28,7 @@
 #include "ConfigInfo.hpp"
 
 #include <version.h>
-
+#include <m_string.h>
 
 static const char* helpTexts[] = {
   "HELP                                        Print help text",
@@ -492,7 +492,7 @@ void CommandInterpreter::executeClusterLog(char* parameters) {
 	noArgs = true;
       }
       while (item != NULL) {
-	snprintf(name, 12, item);
+		  BaseString::snprintf(name, 12, item);
 
 	if (strcmp(item, "ALL") == 0) {
 	  severity = 7;	
@@ -740,9 +740,10 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
   char * tmpString = strdup(parameters);
   char * tmpPtr = 0;
   char * item = strtok_r(tmpString, " ", &tmpPtr);
+  int error;
   while(item != NULL){
-    if (0x0 <= strtoll(item, NULL, 0) && strtoll(item, NULL, 0) <= 0xffffffff) {
-      pars[no] = strtoll(item, NULL, 0); 
+	  if (0x0 <= my_strtoll10(item, NULL, &error) && my_strtoll10(item, NULL, &error) <= 0xffffffff) {
+      pars[no] = my_strtoll10(item, NULL, &error); 
     } else {
       ndbout << "Illegal value in argument to signal." << endl
 	     << "(Value must be between 0 and 0xffffffff.)" 
