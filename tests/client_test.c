@@ -12065,6 +12065,7 @@ static void test_truncation()
   MYSQL_STMT *stmt;
   const char *stmt_text;
   int rc;
+  uint bind_count;
   MYSQL_BIND *bind_array, *bind;
 
   myheader("test_truncation");
@@ -12112,7 +12113,7 @@ static void test_truncation()
   check_execute(stmt, rc);
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  uint bind_count= (uint) mysql_stmt_field_count(stmt);
+  bind_count= (uint) mysql_stmt_field_count(stmt);
 
   /*************** Fill in the bind structure and bind it **************/
   bind_array= malloc(sizeof(MYSQL_BIND) * bind_count);
