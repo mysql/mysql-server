@@ -723,8 +723,8 @@ static int dump_remote_log_entries(const char* logname)
     */
     if (old_off)
       old_off+= len-1;
-    else
-      old_off= BIN_LOG_HEADER_SIZE;
+    else                        // first event, so it's a fake Rotate event
+      old_off= position;
   }
   return 0;
 }
