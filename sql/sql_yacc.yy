@@ -579,9 +579,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %left	SHIFT_LEFT SHIFT_RIGHT
 %left	'-' '+'
 %left	'*' '/' '%' DIV_SYM MOD_SYM
-%left	NEG '~'
 %left   XOR
 %left   '^'
+%left	NEG '~'
 %right	NOT
 %right	BINARY COLLATE_SYM
 

@@ -431,3 +431,112 @@ select * from t1, t3 where t1.start between t3.ctime1 and t3.ctime2;
 start	ctime1	ctime2
 2002-11-04 00:00:00	2002-10-29 16:51:06	2002-11-05 16:47:31
 drop table t1,t2,t3;
+select @a:=FROM_UNIXTIME(1);
+@a:=FROM_UNIXTIME(1)
+1970-01-01 03:00:01
+select unix_timestamp(@a);
+unix_timestamp(@a)
+1
+select unix_timestamp('1969-12-01 19:00:01');
+unix_timestamp('1969-12-01 19:00:01')
+0
+CREATE TABLE t1 (datetime datetime, timestamp timestamp, date date, time time);
+INSERT INTO t1 values ("2001-01-02 03:04:05", "2002-01-02 03:04:05", "2003-01-02", "06:07:08");
+SELECT * from t1;
+datetime	timestamp	date	time
+2001-01-02 03:04:05	2002-01-02 03:04:05	2003-01-02	06:07:08
+select date_add("1997-12-31",INTERVAL 1 SECOND);
+date_add("1997-12-31",INTERVAL 1 SECOND)
+1997-12-31 00:00:01
+select date_add("1997-12-31",INTERVAL "1 1" YEAR_MONTH);
+date_add("1997-12-31",INTERVAL "1 1" YEAR_MONTH)
+1999-01-31
+select date_add(datetime, INTERVAL 1 SECOND) from t1;
+date_add(datetime, INTERVAL 1 SECOND)
+2001-01-02 03:04:06
+select date_add(datetime, INTERVAL 1 YEAR) from t1;
+date_add(datetime, INTERVAL 1 YEAR)
+2002-01-02 03:04:05
+select date_add(date,INTERVAL 1 SECOND) from t1;
+date_add(date,INTERVAL 1 SECOND)
+2003-01-02 00:00:01
+select date_add(date,INTERVAL 1 MINUTE) from t1;
+date_add(date,INTERVAL 1 MINUTE)
+2003-01-02 00:01:00
+select date_add(date,INTERVAL 1 HOUR) from t1;
+date_add(date,INTERVAL 1 HOUR)
+2003-01-02 01:00:00
+select date_add(date,INTERVAL 1 DAY) from t1;
+date_add(date,INTERVAL 1 DAY)
+2003-01-03
+select date_add(date,INTERVAL 1 MONTH) from t1;
+date_add(date,INTERVAL 1 MONTH)
+2003-02-02
+select date_add(date,INTERVAL 1 YEAR) from t1;
+date_add(date,INTERVAL 1 YEAR)
+2004-01-02
+select date_add(date,INTERVAL "1:1" MINUTE_SECOND) from t1;
+date_add(date,INTERVAL "1:1" MINUTE_SECOND)
+2003-01-02 00:01:01
+select date_add(date,INTERVAL "1:1" HOUR_MINUTE) from t1;
+date_add(date,INTERVAL "1:1" HOUR_MINUTE)
+2003-01-02 01:01:00
+select date_add(date,INTERVAL "1:1" DAY_HOUR) from t1;
+date_add(date,INTERVAL "1:1" DAY_HOUR)
+2003-01-03 01:00:00
+select date_add(date,INTERVAL "1 1" YEAR_MONTH) from t1;
+date_add(date,INTERVAL "1 1" YEAR_MONTH)
+2004-02-02
+select date_add(date,INTERVAL "1:1:1" HOUR_SECOND) from t1;
+date_add(date,INTERVAL "1:1:1" HOUR_SECOND)
+2003-01-02 01:01:01
+select date_add(date,INTERVAL "1 1:1" DAY_MINUTE) from t1;
+date_add(date,INTERVAL "1 1:1" DAY_MINUTE)
+2003-01-03 01:01:00
+select date_add(date,INTERVAL "1 1:1:1" DAY_SECOND) from t1;
+date_add(date,INTERVAL "1 1:1:1" DAY_SECOND)
+2003-01-03 01:01:01
+select date_add(time,INTERVAL 1 SECOND) from t1;
+date_add(time,INTERVAL 1 SECOND)
+2006-07-08 00:00:01
+drop table t1;
+select last_day('2000-02-05') as f1, last_day('2002-12-31') as f2,
+last_day('2003-03-32') as f3, last_day('2003-04-01') as f4,
+last_day('2001-01-01 01:01:01') as f5, last_day(NULL),
+last_day('2001-02-12');
+f1	f2	f3	f4	f5	last_day(NULL)	last_day('2001-02-12')
+2000-02-29	2002-12-31	NULL	2003-04-30	2001-01-31	NULL	2001-02-28
+create table t1 select last_day('2000-02-05') as a;
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	date			0000-00-00	
+select * from t1;
+a
+2000-02-29
+drop table t1;
+select last_day('2000-02-05');
+last_day('2000-02-05')
+2000-02-29
+select strcmp(date_sub(localtimestamp(), interval 3 hour), utc_timestamp())=0;
+strcmp(date_sub(localtimestamp(), interval 3 hour), utc_timestamp())=0
+1
+select strcmp(date_format(date_sub(localtimestamp(), interval 3 hour),"%T"), utc_time())=0;
+strcmp(date_format(date_sub(localtimestamp(), interval 3 hour),"%T"), utc_time())=0
+1
+select strcmp(date_format(date_sub(localtimestamp(), interval 3 hour),"%Y-%m-%d"), utc_date())=0;
+strcmp(date_format(date_sub(localtimestamp(), interval 3 hour),"%Y-%m-%d"), utc_date())=0
+1
+select strcmp(date_format(utc_timestamp(),"%T"), utc_time())=0;
+strcmp(date_format(utc_timestamp(),"%T"), utc_time())=0
+1
+select strcmp(date_format(utc_timestamp(),"%Y-%m-%d"), utc_date())=0;
+strcmp(date_format(utc_timestamp(),"%Y-%m-%d"), utc_date())=0
+1
+select strcmp(concat(utc_date(),' ',utc_time()),utc_timestamp())=0;
+strcmp(concat(utc_date(),' ',utc_time()),utc_timestamp())=0
+1
+explain extended select period_add("9602",-12),period_diff(199505,"9404"),from_days(to_days("960101")),dayofmonth("1997-01-02"), month("1997-01-02"), monthname("1972-03-04"),dayofyear("0000-00-00"),HOUR("1997-03-03 23:03:22"),MINUTE("23:03:22"),SECOND(230322),QUARTER(980303),WEEK("1998-03-03"),yearweek("2000-01-01",1),week(19950101,1),year("98-02-03"),weekday(curdate())-weekday(now()),dayname("1962-03-03"),unix_timestamp(),sec_to_time(time_to_sec("0:30:47")/6.21),curtime(),utc_time(),curdate(),utc_date(),utc_timestamp(),date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w"),from_unixtime(unix_timestamp("1994-03-02 10:11:12")),"1997-12-31 23:59:59" + INTERVAL 1 SECOND,"1998-01-01 00:00:00" - INTERVAL 1 SECOND,INTERVAL 1 DAY + "1997-12-31", extract(YEAR FROM "1999-01-02 10:11:12"),date_add("1997-12-31 23:59:59",INTERVAL 1 SECOND);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select high_priority no_cache period_add(_latin1'9602',-(12)) AS `period_add("9602",-12)`,period_diff(199505,_latin1'9404') AS `period_diff(199505,"9404")`,from_days(to_days(_latin1'960101')) AS `from_days(to_days("960101"))`,dayofmonth(_latin1'1997-01-02') AS `dayofmonth("1997-01-02")`,month(_latin1'1997-01-02') AS `month("1997-01-02")`,monthname(_latin1'1972-03-04') AS `monthname("1972-03-04")`,dayofyear(_latin1'0000-00-00') AS `dayofyear("0000-00-00")`,hour(_latin1'1997-03-03 23:03:22') AS `HOUR("1997-03-03 23:03:22")`,minute(_latin1'23:03:22') AS `MINUTE("23:03:22")`,second(230322) AS `SECOND(230322)`,quarter(980303) AS `QUARTER(980303)`,week(_latin1'1998-03-03',0) AS `WEEK("1998-03-03")`,yearweek(_latin1'2000-01-01',1) AS `yearweek("2000-01-01",1)`,week(19950101,1) AS `week(19950101,1)`,year(_latin1'98-02-03') AS `year("98-02-03")`,(weekday(to_days(curdate())) - weekday(to_days(now()))) AS `weekday(curdate())-weekday(now())`,dayname(to_days(_latin1'1962-03-03')) AS `dayname("1962-03-03")`,unix_timestamp() AS `unix_timestamp()`,sec_to_time((time_to_sec(_latin1'0:30:47') / 6.21)) AS `sec_to_time(time_to_sec("0:30:47")/6.21)`,curtime() AS `curtime()`,utc_time() AS `utc_time()`,curdate() AS `curdate()`,utc_date() AS `utc_date()`,utc_timestamp() AS `utc_timestamp()`,date_format(_latin1'1997-01-02 03:04:05',_latin1'%M %W %D %Y %y %m %d %h %i %s %w') AS `date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w")`,from_unixtime(unix_timestamp(_latin1'1994-03-02 10:11:12')) AS `from_unixtime(unix_timestamp("1994-03-02 10:11:12"))`,(_latin1'1997-12-31 23:59:59' + interval 1 second) AS `"1997-12-31 23:59:59" + INTERVAL 1 SECOND`,(_latin1'1998-01-01 00:00:00' - interval 1 second) AS `"1998-01-01 00:00:00" - INTERVAL 1 SECOND`,(_latin1'1997-12-31' + interval 1 day) AS `INTERVAL 1 DAY + "1997-12-31"`,extract(year from _latin1'1999-01-02 10:11:12') AS `extract(YEAR FROM "1999-01-02 10:11:12")`,(_latin1'1997-12-31 23:59:59' + interval 1 second) AS `date_add("1997-12-31 23:59:59",INTERVAL 1 SECOND)`

@@ -6,7 +6,7 @@
 
 source include/master-slave.inc;
 
-create table t1 (a int) type=myisam;
+create table t1 (a int) engine=myisam;
 flush tables;
 system rm ./var/master-data/test/t1.MYI ;
 drop table t1;
@@ -17,7 +17,7 @@ sync_with_master;
 # Now a real error.
 
 connection master;
-create table t1 (a int, unique(a)) type=myisam;
+create table t1 (a int, unique(a)) engine=myisam;
 set sql_log_bin=0;
 insert into t1 values(2);
 set sql_log_bin=1;

@@ -1427,24 +1427,15 @@ static void dumpTable(uint numFields, char *table)
 		       (*ptr == '-' && my_isalpha(charset_info, ptr[1])))
 	        fputs("NULL", md_result_file);
 	      else if (field->type == FIELD_TYPE_DECIMAL)
-               {
-                  /* add " signs around */
-                  fputs("\"", md_result_file);
-                  fputs(ptr, md_result_file);
-                  fputs("\"", md_result_file);
-                }
-                else
-                  fputs(ptr, md_result_file);
-              }
+	      {
+		/* add " signs around */
+		fputs("\"", md_result_file);
+		fputs(ptr, md_result_file);
+		fputs("\"", md_result_file);
+	      }
+	      else
+		fputs(ptr, md_result_file);
 	    }
-	  }
-	  else
-	  {
-	    if (opt_xml)
-	      print_xml_tag1(md_result_file, "\t\t", "field name=",
-			     field->name, "NULL</field>\n");
-	    else
-	      fputs("NULL", md_result_file);
 	  }
 	}
       }

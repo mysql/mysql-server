@@ -585,9 +585,9 @@ create table t1 (id integer primary key auto_increment, txt text, unique index t
 insert into t1 (txt) values ('Chevy'), ('Chevy '), (NULL);
 select * from t1 where txt='Chevy' or txt is NULL;
 id	txt
-3	NULL
 1	Chevy
 2	Chevy 
+3	NULL
 select * from t1 where txt='Chevy ';
 id	txt
 1	Chevy

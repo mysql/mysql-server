@@ -1,6 +1,12 @@
 drop table if exists t1;
 create table t1 (t datetime);
 insert into t1 values(101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959),(20030102030460),(20030102036301),(20030102240401),(20030132030401),(20031302030460);
+Warnings:
+Warning	1264	Data truncated for column 't' at row 13
+Warning	1264	Data truncated for column 't' at row 14
+Warning	1264	Data truncated for column 't' at row 15
+Warning	1264	Data truncated for column 't' at row 16
+Warning	1264	Data truncated for column 't' at row 17
 select * from t1;
 t
 2000-01-01 00:00:00

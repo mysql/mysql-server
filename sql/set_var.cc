@@ -787,9 +787,8 @@ bool update_sys_var_str(sys_var_str *var_str, rw_lock_t *var_mutex,
   /* If the string is "", delete old init command */
   if (var && (new_length= var->value->str_value.length()))
   {
-    if (!(res= my_strdup_with_length(var->value->str_value.ptr(),
-		     new_length,
-		     MYF(0))))
+    if (!(res= my_strdup_with_length((byte*) var->value->str_value.ptr(),
+				     new_length, MYF(0))))
       return 1;
   }
   /*
@@ -2501,6 +2500,7 @@ bool sys_var_thd_table_type::check(THD *thd, set_var *var)
     }
     return 0;
   }
+  value= "unknown";
 
 err:
   my_error(ER_UNKNOWN_TABLE_ENGINE, MYF(0), value);

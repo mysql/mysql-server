@@ -1134,8 +1134,6 @@ JOIN::exec()
       simple_order= simple_group;
       skip_sort_order= 0;
     }
-    if (!order && !no_order)
-      order=group_list;
     if (order &&
 	(const_tables == tables ||
  	 ((simple_order || skip_sort_order) &&
@@ -2487,8 +2485,6 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 		     join_tab[i].table->map);
     }
   }
-  if (my_init_dynamic_array(keyuse,sizeof(KEYUSE),20,64))
-    return TRUE;
   /* fill keyuse with found key parts */
   for ( ; field != end ; field++)
     add_key_part(keyuse,field);
@@ -3255,7 +3251,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   if (j->type == JT_CONST)
     j->table->const_table= 1;
   else if (((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY |
-			       HA_END_SPACE_KEY)) != HA_NOSAME) || 
+			       HA_END_SPACE_KEY)) != HA_NOSAME) ||
 	   keyparts != keyinfo->key_parts || null_ref_key)
   {
     /* Must read with repeat */
