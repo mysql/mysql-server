@@ -32537,7 +32537,7 @@ mysql> select MD5("testing");
 This is an "RSA Data Security, Inc. MD5 Message-Digest Algorithm".
 
 @findex DES_ENCRYPT()
-@item DES_ENCRYPT(string_to_encrypt, flag, [, (key_number | key_string) ] )
+@item DES_ENCRYPT(string_to_encrypt [, (key_number | key_string) ] )
 
 Encrypts the string with the given key using the DES algorithm, which
 provides strong encryption.
@@ -48930,6 +48930,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.2
 
 @itemize @bullet
+@item
+Don't give an error for @code{CREATE TABLE ...(... VARCHAR(0))}.
 @item
 Fixed @code{SIGINT} and @code{SIGQUIT} problems in @file{mysql.cc} on Linux
 with some @code{glibc} versions.

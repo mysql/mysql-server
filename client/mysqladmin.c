@@ -400,7 +400,7 @@ static my_bool sql_connect(MYSQL *mysql,const char *host, const char *user,
 
 static int execute_commands(MYSQL *mysql,int argc, char **argv)
 {
-  char *status;
+  const char *status;
 
   for (; argc > 0 ; argv++,argc--)
   {

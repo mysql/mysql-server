@@ -790,8 +790,9 @@ String *Item_func_coalesce::val_str(String *str)
   null_value=0;
   for (uint i=0 ; i < arg_count ; i++)
   {
-    if (args[i]->val_str(str) != NULL)
-      return args[i]->val_str(str);
+    String *res;
+    if ((res=args[i]->val_str(str)))
+      return res;
   }
   null_value=1;
   return 0;

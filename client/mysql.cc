@@ -2340,7 +2340,7 @@ static int
 com_status(String *buffer __attribute__((unused)),
 	   char *line __attribute__((unused)))
 {
-  char *status;
+  const char *status;
   tee_puts("--------------", stdout);
   usage(1);					/* Print version */
   if (connected)
@@ -2635,18 +2635,21 @@ static const char* construct_prompt() {
 	processed_prompt.append(current_db ? current_db : "(none)");
 	break;
       case 'h':
-	if (strstr(mysql_get_host_info(&mysql),"Localhost")) {
+      {
+	const char *prompt=mysql_get_host_info(&mysql);
+	if (strstr(prompt, "Localhost"))
 	  processed_prompt.append("localhost");
-	}
-	else {
-	  processed_prompt.append(strtok(mysql_get_host_info(&mysql)," "));
+	else
+	{
+	  const char *end=strcend(prompt,' ');
+	  processed_prompt.append(prompt, (uint) (end-prompt));
 	}
 	break;
+      }
       case 'p':
-	if (strstr(mysql_get_host_info(&mysql),"TCP/IP") 
-	    || ! mysql.unix_socket) {
+	if (strstr(mysql_get_host_info(&mysql),"TCP/IP") ||
+	    ! mysql.unix_socket)
 	  add_int_to_prompt(mysql.port);
-	}
 	else
 	  processed_prompt.append(strrchr(mysql.unix_socket,'/')+1);
 	break;

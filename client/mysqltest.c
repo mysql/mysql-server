@@ -268,7 +268,7 @@ struct st_replace;
 struct st_replace *init_replace(my_string *from, my_string *to, uint count,
 				my_string word_end_chars);
 uint replace_strings(struct st_replace *rep, my_string *start,
-		     uint *max_length, my_string from);
+		     uint *max_length, const char *from);
 void free_replace();
 static int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name);
 void free_pointer_array(POINTER_ARRAY *pa);
@@ -2041,7 +2041,8 @@ void reject_dump(const char* record_file, char* buf, int size)
 
 /* Append the string to ds, with optional replace */
 
-static void replace_dynstr_append_mem(DYNAMIC_STRING *ds, char *val, int len)
+static void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
+				      int len)
 {
   if (glob_replace)
   {
@@ -3236,7 +3237,7 @@ static uint replace_len(my_string str)
 	/* Replace strings;  Return length of result string */
 
 uint replace_strings(REPLACE *rep, my_string *start,uint *max_length, 
-		     my_string from)
+		     const char *from)
 {
   reg1 REPLACE *rep_pos;
   reg2 REPLACE_STRING *rep_str;
