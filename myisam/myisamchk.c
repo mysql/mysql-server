@@ -200,7 +200,6 @@ static struct my_option my_long_options[] =
   {"medium-check", 'm',
    "Faster than extended-check, but only finds 99.99% of all errors. Should be good enough for most cases.",
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
- 0},
   {"quick", 'q', "Faster repair by not modifying the data file.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"read-only", 'T', "Don't mark table as checked.", 0, 0, 0, GET_NO_ARG,

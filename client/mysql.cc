@@ -124,7 +124,7 @@ static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	       opt_compress=0, using_opt_local_infile=0,
 	       vertical=0, line_numbers=1, column_names=1,opt_html=0,
                opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
-               tty_password= 0. opt_nobeep=0;
+               tty_password= 0, opt_nobeep=0;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
@@ -469,8 +469,8 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log.", (gptr*) &default_dbug_option,
    (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"database", 'D', "Database to use.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0,
-   0, 0, 0},
+  {"database", 'D', "Database to use.", 0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0,
+   0, 0, 0, 0},
   {"execute", 'e', "Execute command and quit. (Output like with --batch).", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"vertical", 'E', "Print the output of a query (rows) vertically.",
@@ -602,8 +602,8 @@ Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB\n\
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL license\n");
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
-  print_defaults("my", load_default_groups);
   my_print_help(my_long_options);
+  print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
 }
 
@@ -618,9 +618,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     case OPT_CHARSETS_DIR:
       strmov(mysql_charsets_dir, argument);
       charsets_dir = mysql_charsets_dir;
-      break;
-    case OPT_DEFAULT_CHARSET:
-      default_charset= optarg;
       break;
     case OPT_LOCAL_INFILE:
       using_opt_local_infile=1;
@@ -711,9 +708,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	else
 	  tty_password= 1;
       }
+      break;
     case '#':
       DBUG_PUSH(argument ? argument : default_dbug_option);
       info_flag= 1;
+      break;
     case 's':
       if (argument == disabled_my_option)
 	opt_silent= 0;
@@ -753,10 +752,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     case '?':
       usage(0);
       exit(0);
-    case '#':
-      DBUG_PUSH(optarg ? optarg : default_dbug_option);
-      info_flag=1;
-      break;
 #include "sslopt-case.h"
   }
   return 0;
