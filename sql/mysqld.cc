@@ -885,6 +885,7 @@ extern "C" void unireg_abort(int exit_code)
 }
 #endif
 
+
 void clean_up(bool print_message)
 {
   DBUG_PRINT("exit",("clean_up"));
@@ -901,6 +902,7 @@ void clean_up(bool print_message)
     bitmap_free(&slave_error_mask);
 #endif
   my_tz_free();
+  my_dbopt_free();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   acl_free(1);
   grant_free();
@@ -1299,6 +1301,19 @@ void yyerror(const char *s)
 
 
 #ifndef EMBEDDED_LIBRARY
+/*
+  Close a connection
+
+  SYNOPSIS
+    close_connection()
+    thd		Thread handle
+    errcode	Error code to print to console
+    lock	1 if we have have to lock LOCK_thread_count
+
+  NOTES
+    For the connection that is doing shutdown, this is called twice
+*/
+
 void close_connection(THD *thd, uint errcode, bool lock)
 {
   st_vio *vio;
@@ -2274,7 +2289,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
   */
   global_system_variables.time_zone= my_tz_SYSTEM;
   
-
   /*
     Init mutexes for the global MYSQL_LOG objects.
     As safe_mutex depends on what MY_INIT() does, we can't init the mutexes of
@@ -2381,6 +2395,9 @@ static int init_common_variables(const char *conf_file_name, int argc,
 
   if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
     return 1;
+  if (my_dbopt_init())
+    return 1;
+
   return 0;
 }
 
@@ -4673,26 +4690,26 @@ replicating a LOAD DATA INFILE command.",
    "The size of the buffer used for index blocks for MyISAM tables. Increase this to get better index handling (for all reads and multiple writes) to as much as you can afford; 64M on a 256M machine that mainly runs MySQL is quite common.",
    (gptr*) &dflt_key_cache_var.param_buff_size,
    (gptr*) 0,
-   0, (enum get_opt_var_type) (GET_ULL | GET_ASK_ADDR),
+   0, (GET_ULL | GET_ASK_ADDR),
    REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"key_cache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,
    "The default size of key cache blocks",
    (gptr*) &dflt_key_cache_var.param_block_size,
    (gptr*) 0,
-   0, (enum get_opt_var_type) (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG,
+   0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG,
    KEY_CACHE_BLOCK_SIZE , 512, 1024*16, MALLOC_OVERHEAD, 512, 0},
   {"key_cache_division_limit", OPT_KEY_CACHE_DIVISION_LIMIT,
    "The minimum percentage of warm blocks in key cache",
    (gptr*) &dflt_key_cache_var.param_division_limit,
    (gptr*) 0,
-   0, (enum get_opt_var_type) (GET_ULONG | GET_ASK_ADDR) , REQUIRED_ARG, 100,
+   0, (GET_ULONG | GET_ASK_ADDR) , REQUIRED_ARG, 100,
    1, 100, 0, 1, 0},
   {"key_cache_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
    "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
    (gptr*) &dflt_key_cache_var.param_age_threshold,
    (gptr*) 0,
-   0, (enum get_opt_var_type) (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, 
+   0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, 
    300, 100, ~0L, 0, 100, 0},
   {"long_query_time", OPT_LONG_QUERY_TIME,
    "Log all queries that have taken more than long_query_time seconds to execute to file.",

@@ -1,3 +1,4 @@
+SET NAMES binary;
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
 flush privileges;
