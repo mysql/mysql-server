@@ -650,8 +650,10 @@ int imerge_list_or_tree(PARAM *param,
 	   */
 
 SQL_SELECT *make_select(TABLE *head, table_map const_tables,
-			table_map read_tables, COND *conds, int *error,
-                        bool allow_null_cond)
+			table_map read_tables, COND *conds,
+                        bool allow_null_cond,
+                        int *error)
+                        
 {
   SQL_SELECT *select;
   DBUG_ENTER("make_select");

@@ -229,7 +229,7 @@ int mysql_update(THD *thd,
 
   // Don't count on usage of 'only index' when calculating which key to use
   table->used_keys.clear_all();
-  select=make_select(table,0,0,conds,&error);
+  select= make_select(table, 0, 0, conds, 0, &error);
   if (error ||
       (select && select->check_quick(thd, safe_update, limit)) || !limit)
   {

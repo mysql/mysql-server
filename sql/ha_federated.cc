@@ -662,7 +662,7 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
 
 error:
     my_error(error_num, MYF(0),
-             "this connection string is not in the correct format!\n");
+             "connection string is not in the correct format",0);
     DBUG_RETURN(1);
 
 }

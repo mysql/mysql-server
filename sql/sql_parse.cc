@@ -1623,7 +1623,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_PREPARE:
   {
-    mysql_stmt_prepare(thd, packet, packet_length);
+    mysql_stmt_prepare(thd, packet, packet_length, 0);
     break;
   }
   case COM_CLOSE_STMT:
@@ -2261,7 +2261,7 @@ mysql_execute_command(THD *thd)
   */
   if (all_tables || &lex->select_lex != lex->all_selects_list ||
       lex->spfuns.records || lex->spprocs.records)
-    mysql_reset_errors(thd);
+    mysql_reset_errors(thd, 0);
 
 #ifdef HAVE_REPLICATION
   if (thd->slave_thread)
@@ -2935,7 +2935,8 @@ unsent_create_error:
 			       lex->key_list,
 			       select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
-			       lex->duplicates, lex->ignore, &lex->alter_info);
+			       lex->duplicates, lex->ignore, &lex->alter_info,
+                               1);
       }
       break;
     }
@@ -3764,7 +3765,7 @@ unsent_create_error:
     if (check_db_used(thd, all_tables) ||
 	check_table_access(thd, SELECT_ACL, all_tables, 0))
       goto error;
-    res= mysql_ha_open(thd, first_table);
+    res= mysql_ha_open(thd, first_table, 0);
     break;
   case SQLCOM_HA_CLOSE:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -4109,7 +4110,7 @@ unsent_create_error:
 	sp= sp_find_procedure(thd, lex->spname);
       else
 	sp= sp_find_function(thd, lex->spname);
-      mysql_reset_errors(thd);
+      mysql_reset_errors(thd, 0);
       if (! sp)
 	result= SP_KEY_NOT_FOUND;
       else
@@ -4150,7 +4151,7 @@ unsent_create_error:
 	sp= sp_find_procedure(thd, lex->spname);
       else
 	sp= sp_find_function(thd, lex->spname);
-      mysql_reset_errors(thd);
+      mysql_reset_errors(thd, 0);
       if (sp)
       {
         db= thd->strdup(sp->m_db.str);
@@ -6491,7 +6492,7 @@ bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->table_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,
-				DUP_ERROR, 0, &alter_info));
+				DUP_ERROR, 0, &alter_info, 1));
 }
 
 
@@ -6509,7 +6510,7 @@ bool mysql_drop_index(THD *thd, TABLE_LIST *table_list, ALTER_INFO *alter_info)
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->table_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,
-				DUP_ERROR, 0, alter_info));
+				DUP_ERROR, 0, alter_info, 1));
 }
 
 

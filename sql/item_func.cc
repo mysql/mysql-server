@@ -4370,18 +4370,18 @@ Item_func_sp::Item_func_sp(sp_name *name)
 {
   maybe_null= 1;
   m_name->init_qname(current_thd);
-  dummy_table= (TABLE *)sql_alloc(sizeof(TABLE));
-  bzero(dummy_table, sizeof(TABLE));
+  dummy_table= (TABLE*) sql_calloc(sizeof(TABLE));
 }
+
 
 Item_func_sp::Item_func_sp(sp_name *name, List<Item> &list)
   :Item_func(list), m_name(name), m_sp(NULL)
 {
   maybe_null= 1;
   m_name->init_qname(current_thd);
-  dummy_table= (TABLE *)sql_alloc(sizeof(TABLE));
-  bzero(dummy_table, sizeof(TABLE));
+  dummy_table= (TABLE*) sql_calloc(sizeof(TABLE));
 }
+
 
 const char *
 Item_func_sp::func_name() const
