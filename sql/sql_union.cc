@@ -111,7 +111,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
   DBUG_ENTER("st_select_lex_unit::prepare");
   this->thd= thd;
   this->result= result;
-  SELECT_LEX *lex_select_save= thd->lex.select;
+  SELECT_LEX *lex_select_save= thd->lex.select, *sl;
 
   /* Global option */
   if (((void*)(global_parameters)) == ((void*)this))
@@ -179,7 +179,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
 
   // prepare selects
   joins.empty();
-  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  for (sl= first_select(); sl; sl= sl->next_select())
   {
     JOIN *join= new JOIN(thd, sl->item_list, 
 			 sl->options | thd->options | SELECT_NO_UNLOCK | 

@@ -91,8 +91,8 @@ extern "C" {
 #define vidattr(A) {}			// Can't get this to work
 #endif
 
-#ifdef __WIN__
-#define cmp_database(A,B) my_strcasecmp((A),(B))
+#ifdef FN_NO_CASE_SENCE
+#define cmp_database(A,B) my_strcasecmp(system_charset_info, (A), (B))
 #else
 #define cmp_database(A,B) strcmp((A),(B))
 #endif
