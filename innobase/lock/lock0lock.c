@@ -395,6 +395,19 @@ lock_rec_get_nth_bit(
 	return(ut_bit_get_nth(b, bit_index));
 }	
 
+/*************************************************************************
+Gets the table covered by an IX table lock. */
+
+dict_table_t*
+lock_get_ix_table(
+/*==============*/
+			/* out: the table covered by the lock */
+	lock_t*	lock)	/* in: table lock */
+{
+	ut_a(lock->type_mode == (LOCK_TABLE | LOCK_IX));
+	return(lock->un_member.tab_lock.table);
+}
+
 /*************************************************************************/
 
 #define lock_mutex_enter_kernel()	mutex_enter(&kernel_mutex)
