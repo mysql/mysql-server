@@ -37,7 +37,7 @@
 ** 10 Jun 2003: SET NAMES and --no-set-names by Alexander Barkov
 */
 
-#define DUMP_VERSION "10.9"
+#define DUMP_VERSION "10.10"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -396,7 +396,7 @@ static int dump_all_databases();
 static char *quote_name(const char *name, char *buff, my_bool force);
 static const char *check_if_ignore_table(const char *table_name);
 static char *primary_key_fields(const char *table_name);
-static my_bool getViewStructure(char *table, char* db);
+static my_bool get_view_structure(char *table, char* db);
 static my_bool dump_all_views_in_db(char *database);
 
 #include <help_start.h>
@@ -777,16 +777,16 @@ static int get_options(int *argc, char ***argv)
 
 
 /*
-** DBerror -- prints mysql error message and exits the program.
+** DB_error -- prints mysql error message and exits the program.
 */
-static void DBerror(MYSQL *mysql, const char *when)
+static void DB_error(MYSQL *mysql, const char *when)
 {
-  DBUG_ENTER("DBerror");
+  DBUG_ENTER("DB_error");
   my_printf_error(0,"Got error: %d: %s %s", MYF(0),
 		  mysql_errno(mysql), mysql_error(mysql), when);
   safe_exit(EX_MYSQLERR);
   DBUG_VOID_RETURN;
-} /* DBerror */
+} /* DB_error */
 
 
 /*
@@ -862,7 +862,7 @@ static int dbConnect(char *host, char *user,char *passwd)
          NULL,opt_mysql_port,opt_mysql_unix_port,
          0)))
   {
-    DBerror(&mysql_connection, "when trying to connect");
+    DB_error(&mysql_connection, "when trying to connect");
     return 1;
   }
   /*
@@ -1093,7 +1093,7 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
     number of fields in table, 0 if error
 */
 
-static uint getTableStructure(char *table, char *db)
+static uint get_table_structure(char *table, char *db)
 {
   MYSQL_RES  *tableRes;
   MYSQL_ROW  row;
@@ -1104,7 +1104,7 @@ static uint getTableStructure(char *table, char *db)
   char	     name_buff[NAME_LEN+3],table_buff[NAME_LEN*2+3];
   char	     table_buff2[NAME_LEN*2+3];
   FILE       *sql_file = md_result_file;
-  DBUG_ENTER("getTableStructure");
+  DBUG_ENTER("get_table_structure");
 
   delayed= opt_delayed ? " DELAYED " : "";
 
@@ -1457,7 +1457,7 @@ continue_xml:
     my_fclose(sql_file, MYF(MY_WME));
   }
   DBUG_RETURN(numFields);
-} /* getTableStructure */
+} /* get_table_structure */
 
 
 static char *add_load_option(char *ptr,const char *object,
@@ -1523,10 +1523,12 @@ static char *alloc_query_str(ulong size)
   return query;
 }
 
+
 /*
-** dumpTable saves database contents as a series of INSERT statements.
+** dump_table saves database contents as a series of INSERT statements.
 */
-static void dumpTable(uint numFields, char *table)
+
+static void dump_table(uint numFields, char *table)
 {
   char query_buf[QUERY_LENGTH], *end, buff[256],table_buff[NAME_LEN+3];
   char *result_table, table_buff2[NAME_LEN*2+3], *opt_quoted_table;
@@ -1592,7 +1594,7 @@ static void dumpTable(uint numFields, char *table)
     }
     if (mysql_real_query(sock, query, (uint) (end - query)))
     {
-      DBerror(sock, "when executing 'SELECT INTO OUTFILE'");
+      DB_error(sock, "when executing 'SELECT INTO OUTFILE'");
       return;
     }
   }
@@ -1639,13 +1641,13 @@ static void dumpTable(uint numFields, char *table)
       check_io(md_result_file);
     }
     if (mysql_query_with_error_report(sock, 0, query))
-      DBerror(sock, "when retrieving data from server");
+      DB_error(sock, "when retrieving data from server");
     if (quick)
       res=mysql_use_result(sock);
     else
       res=mysql_store_result(sock);
     if (!res)
-      DBerror(sock, "when retrieving data from server");
+      DB_error(sock, "when retrieving data from server");
     if (verbose)
       fprintf(stderr, "-- Retrieving rows...\n");
     if (mysql_num_fields(res) != numFields)
@@ -1946,7 +1948,7 @@ err:
     my_free(query, MYF(MY_ALLOW_ZERO_PTR));
   safe_exit(error);
   return;
-} /* dumpTable */
+} /* dump_table */
 
 
 static char *getTableName(int reset)
@@ -2035,7 +2037,7 @@ static int init_dumping(char *database)
 
   if (mysql_select_db(sock, database))
   {
-    DBerror(sock, "when selecting the database");
+    DB_error(sock, "when selecting the database");
     return 1;			/* If --force */
   }
   if (!path && !opt_xml)
@@ -2123,14 +2125,14 @@ static int dump_all_tables_in_db(char *database)
       dynstr_append(&query, " READ /*!32311 LOCAL */,");
     }
     if (numrows && mysql_real_query(sock, query.str, query.length-1))
-      DBerror(sock, "when using LOCK TABLES");
+      DB_error(sock, "when using LOCK TABLES");
             /* We shall continue here, if --force was given */
     dynstr_free(&query);
   }
   if (flush_logs)
   {
     if (mysql_refresh(sock, REFRESH_LOG))
-      DBerror(sock, "when doing refresh");
+      DB_error(sock, "when doing refresh");
            /* We shall continue here, if --force was given */
   }
   while ((table= getTableName(0)))
@@ -2138,9 +2140,9 @@ static int dump_all_tables_in_db(char *database)
     char *end= strmov(afterdot, table);
     if (include_table(hash_key, end - hash_key))
     {
-      numrows = getTableStructure(table, database);
+      numrows = get_table_structure(table, database);
       if (!dFlag && numrows > 0)
-	dumpTable(numrows,table);
+	dump_table(numrows,table);
       my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
       order_by= 0;
     }
@@ -2188,18 +2190,18 @@ static my_bool dump_all_views_in_db(char *database)
       dynstr_append(&query, " READ /*!32311 LOCAL */,");
     }
     if (numrows && mysql_real_query(sock, query.str, query.length-1))
-      DBerror(sock, "when using LOCK TABLES");
+      DB_error(sock, "when using LOCK TABLES");
             /* We shall continue here, if --force was given */
     dynstr_free(&query);
   }
   if (flush_logs)
   {
     if (mysql_refresh(sock, REFRESH_LOG))
-      DBerror(sock, "when doing refresh");
+      DB_error(sock, "when doing refresh");
            /* We shall continue here, if --force was given */
   }
   while ((table= getTableName(0)))
-     getViewStructure(table, database);
+     get_view_structure(table, database);
   if (opt_xml)
   {
     fputs("</database>\n", md_result_file);
@@ -2226,7 +2228,7 @@ static int get_actual_table_name(const char *old_table_name,
                                   int buf_size)
 {
   int retval;
-  MYSQL_RES  *tableRes;
+  MYSQL_RES  *table_res;
   MYSQL_ROW  row;
   char query[50 + 2*NAME_LEN];
   char show_name_buff[FN_REFLEN];
@@ -2242,18 +2244,22 @@ static int get_actual_table_name(const char *old_table_name,
     safe_exit(EX_MYSQLERR);
   }
 
-  tableRes= mysql_store_result( sock );
   retval = 1;
-  if (tableRes != NULL)
+  
+  if ((table_res= mysql_store_result(sock)))
   {
-	my_ulonglong numRows = mysql_num_rows(tableRes);
-	if (numRows > 0)
-	{
-	  	row= mysql_fetch_row( tableRes );
-	  	strmake(new_table_name, row[0], buf_size-1);
-		retval = 0;
-	}
-  	mysql_free_result(tableRes);
+    my_ulonglong num_rows= mysql_num_rows(table_res);
+    if (num_rows > 0)
+    {
+      /*
+        Return first row
+        TODO: Return all matching rows
+      */
+      row= mysql_fetch_row(table_res);
+      strmake(new_table_name, row[0], buf_size-1);
+      retval= 0;
+    }
+    mysql_free_result(table_res);
   }
   return retval;
 }
@@ -2278,37 +2284,36 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
       dynstr_append(&query, " READ /*!32311 LOCAL */,");
     }
     if (mysql_real_query(sock, query.str, query.length-1))
-      DBerror(sock, "when doing LOCK TABLES");
+      DB_error(sock, "when doing LOCK TABLES");
        /* We shall countinue here, if --force was given */
     dynstr_free(&query);
   }
   if (flush_logs)
   {
     if (mysql_refresh(sock, REFRESH_LOG))
-      DBerror(sock, "when doing refresh");
+      DB_error(sock, "when doing refresh");
      /* We shall countinue here, if --force was given */
   }
   if (opt_xml)
     print_xml_tag1(md_result_file, "", "database name=", db, "\n");
   for (i=0 ; i < tables ; i++)
   {
-     char new_table_name[NAME_LEN];
+    char new_table_name[NAME_LEN];
 
-     /* the table name passed on commandline may be wrong case */
-     if (!get_actual_table_name( table_names[i], new_table_name, sizeof(new_table_name) ))
-     {
-
-    	numrows = getTableStructure(new_table_name, db);
-
-    	dumpTable(numrows, new_table_name);
-     }
+    /* the table name passed on commandline may be wrong case */
+    if (!get_actual_table_name( table_names[i], new_table_name,
+                                sizeof(new_table_name)))
+    {
+      numrows= get_table_structure(new_table_name, db);
+      dump_table(numrows, new_table_name);
+    }
     my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
     order_by= 0;
   }
   if (was_views)
   {
     for (i=0 ; i < tables ; i++)
-      getViewStructure(table_names[i], db);
+      get_view_structure(table_names[i], db);
   }
   if (opt_xml)
   {
@@ -2613,7 +2618,7 @@ cleanup:
   Getting VIEW structure
 
   SYNOPSIS
-    getViewStructure()
+    get_view_structure()
     table   view name
     db      db name
 
@@ -2622,9 +2627,9 @@ cleanup:
     1 ERROR
 */
 
-static my_bool getViewStructure(char *table, char* db)
+static my_bool get_view_structure(char *table, char* db)
 {
-  MYSQL_RES  *tableRes;
+  MYSQL_RES  *table_res;
   MYSQL_ROW  row;
   MYSQL_FIELD *field;
   char	     *result_table, *opt_quoted_table;
@@ -2632,7 +2637,7 @@ static my_bool getViewStructure(char *table, char* db)
   char	     table_buff2[NAME_LEN*2+3];
   char       buff[20+FN_REFLEN];
   FILE       *sql_file = md_result_file;
-  DBUG_ENTER("getViewStructure");
+  DBUG_ENTER("get_view_structure");
 
   if (tFlag)
     DBUG_RETURN(0);
@@ -2667,8 +2672,8 @@ static my_bool getViewStructure(char *table, char* db)
     }
     write_header(sql_file, db);
   }
-  tableRes= mysql_store_result(sock);
-  field= mysql_fetch_field_direct(tableRes, 0);
+  table_res= mysql_store_result(sock);
+  field= mysql_fetch_field_direct(table_res, 0);
   if (strcmp(field->name, "View") != 0)
   {
     if (verbose)
@@ -2688,10 +2693,10 @@ static my_bool getViewStructure(char *table, char* db)
     check_io(sql_file);
   }
 
-  row= mysql_fetch_row(tableRes);
+  row= mysql_fetch_row(table_res);
   fprintf(sql_file, "%s;\n", row[1]);
   check_io(sql_file);
-  mysql_free_result(tableRes);
+  mysql_free_result(table_res);
 
   if (sql_file != md_result_file)
   {
