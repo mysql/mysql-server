@@ -127,6 +127,7 @@ typedef struct dyn_string
 DYN_STRING ds_res;
 
 void dyn_string_init(DYN_STRING* ds);
+void dyn_string_end(DYN_STRING* ds);
 void dyn_string_append(DYN_STRING* ds, const char* str, int len);
 int dyn_string_cmp(DYN_STRING* ds, const char* fname);
 void reject_dump(const char* record_file, char* buf, int size);
@@ -160,6 +161,13 @@ void dyn_string_init(DYN_STRING* ds)
   ds->len = 0;
   ds->max_len = DS_CHUNK;
 }
+
+void dyn_string_end(DYN_STRING* ds)
+{
+  my_free(ds->str, MYF(0));
+  memset(ds, 0, sizeof(*ds)); /* safety */
+}
+
 void dyn_string_append(DYN_STRING* ds, const char* str, int len)
 {
   int new_len;
@@ -1017,10 +1025,13 @@ int run_query(MYSQL* mysql, struct query* q)
   unsigned long* lengths;
   char* val;
   int len;
-
-  if(!result_file && q->record_file[0])
+  DYN_STRING *ds = &ds_res;
+  DYN_STRING ds_tmp;
+  dyn_string_init(&ds_tmp);
+  
+  if( q->record_file[0])
     {
-      ds_res.len = 0;
+      ds = &ds_tmp;
     } 	
 
 
@@ -1075,11 +1086,11 @@ int run_query(MYSQL* mysql, struct query* q)
   num_fields =  mysql_num_fields(res);
   for( i = 0; i < num_fields; i++)
     {
-      dyn_string_append(&ds_res, fields[i].name, 0);
-      dyn_string_append(&ds_res, "\t", 1);
+      dyn_string_append(ds, fields[i].name, 0);
+      dyn_string_append(ds, "\t", 1);
     }
 
-  dyn_string_append(&ds_res, "\n", 1);
+  dyn_string_append(ds, "\n", 1);
 
 
   while((row = mysql_fetch_row(res)))
@@ -1096,11 +1107,11 @@ int run_query(MYSQL* mysql, struct query* q)
 	    len = 4;
 	  }
 	
-	dyn_string_append(&ds_res, val, len);
-	dyn_string_append(&ds_res, "\t", 1);
+	dyn_string_append(ds, val, len);
+	dyn_string_append(ds, "\t", 1);
       }
     
-    dyn_string_append(&ds_res, "\n", 1);
+    dyn_string_append(ds, "\n", 1);
   }
 
   if(record)
@@ -1108,11 +1119,11 @@ int run_query(MYSQL* mysql, struct query* q)
       if(!q->record_file[0] && !result_file)
 	die("Missing result file");
       if(!result_file)
-	str_to_file(q->record_file, ds_res.str, ds_res.len);
+	str_to_file(q->record_file, ds->str, ds->len);
     }
   else if(!result_file && q->record_file[0])
     {
-      error = check_result(&ds_res, q->record_file);
+      error = check_result(ds, q->record_file);
     }
   
  end:
@@ -1266,10 +1277,11 @@ int main(int argc, char** argv)
   close_cons();
 
   if(result_file)
-    if(!record)
+    if(!record && ds_res.len)
       error |= check_result(&ds_res, result_file);
     else
       str_to_file(result_file, ds_res.str, ds_res.len);
+  dyn_string_end(&ds_res);
   
   if (!silent) {
     if(error)

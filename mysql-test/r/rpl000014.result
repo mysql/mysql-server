@@ -1,0 +1,16 @@
+File	Position	Binlog_do_db	Binlog_ignore_db	
+master-bin.001	73			
+Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	
+127.0.0.1	root	9306	1		4	Yes			
+Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	
+127.0.0.1	root	9306	1		73	No			
+Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	
+127.0.0.1	root	9306	1		73	Yes			
+Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	
+127.0.0.1	root	9306	1		173	Yes			
+File	Position	Binlog_do_db	Binlog_ignore_db	
+master-bin.001	73			
+n	
+1	
+2	
+3	
