@@ -6349,7 +6349,7 @@ Optimized binary with support for symbolic links, BDB and InnoDB tables.
 Like @code{mysqld-max}, but compiled with support for named pipes.
 @end multitable
 
-Starting from 3.23.50, named pipes are only enabled if start mysqld with
+Starting from 3.23.50, named pipes are only enabled if mysqld is started with
 @code{--enable-named-pipe}.
 
 All of the above binaries are optimized for the Pentium Pro processor but
@@ -10337,10 +10337,10 @@ You can force a MySQL client to use named pipes by specifying the
 @code{--pipe} option or by specifying @code{.} as the host name.  Use the 
 @code{--socket} option to specify the name of the pipe.
 
-Note that starting from 3.23.50, named pipes are only enabled if start
-mysqld with @code{--enable-named-pipe}.  This is because some users have
-experienced problems shutting down the MySQL server when one uses named
-pipes.
+Note that starting from 3.23.50, named pipes are only enabled if mysqld is
+started with with @code{--enable-named-pipe}.  This is because some users
+have experienced problems shutting down the MySQL server when one uses
+named pipes.
 
 You can test whether or not MySQL is working by executing the
 following commands:
@@ -10621,8 +10621,8 @@ option to the new MySQL clients or create an option file
 host = localhost
 @end example
 
-Starting from 3.23.50, named pipes are only enabled if start mysqld with
-@code{--enable-named-pipe}.
+Starting from 3.23.50, named pipes are only enabled if mysqld is started
+with @code{--enable-named-pipe}.
 
 @item @code{Access denied for user} error
 If you get the error @code{Access denied for user: 'some-user@@unknown'
@@ -14736,8 +14736,7 @@ which a not fully working lockd() (as on Linux) you will easily get
 mysqld to deadlock.
 
 @item --enable-named-pipe
-Enable support for named pipes; This only works on NT and newer windows
-versions.
+Enable support for named pipes (only on NT/Win2000/XP).
 
 @item -T, --exit-info
 This is a bit mask of different flags one can use for debugging the
@@ -46916,7 +46915,7 @@ not yet 100% confident in this code.
 Fixed some buffer overflow problems when reading startup parameters.
 @item
 Because of problems on shutdown we have now disabled named pipes on
-windows by default.  One can enable this with by starting mysqld with
+windows by default.  One can enable named pipes by starting mysqld with
 @code{--enable-named-pipe}.
 @item
 Fixed bug when using @code{WHERE key_column = 'J' or key_column='j'}.
