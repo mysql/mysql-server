@@ -70,3 +70,33 @@ create table t1(id1 int not null  primary key, t varchar(100)) pack_keys = 1;
 create table t2(id2 int not null, t varchar(100), index(id2)) pack_keys = 1;
 delete t1  from t1,t2 where t1.id1 = t2.id2 and t1.id1 > 500;
 drop table t1,t2;
+DROP TABLE IF EXISTS a,b,c;
+CREATE TABLE a (
+id int(11) NOT NULL default '0',
+name varchar(10) default NULL,
+PRIMARY KEY  (id)
+) TYPE=MyISAM;
+INSERT INTO a VALUES (1,'aaa'),(2,'aaa'),(3,'aaa');
+CREATE TABLE b (
+id int(11) NOT NULL default '0',
+name varchar(10) default NULL,
+PRIMARY KEY  (id)
+) TYPE=MyISAM;
+INSERT INTO b VALUES (2,'bbb'),(3,'bbb'),(4,'bbb');
+CREATE TABLE c (
+id int(11) NOT NULL default '0',
+mydate datetime default NULL,
+PRIMARY KEY  (id)
+) TYPE=MyISAM;
+INSERT INTO c VALUES (1,'2002-02-04 00:00:00'),(3,'2002-05-12 00:00:00'),(5,'2002-05-12 00:00:00'),(6,'2002-06-22
+00:00:00'),(7,'2002-07-22 00:00:00');
+delete a,b,c from a,b,c
+where to_days(now())-to_days(c.mydate)>=30
+and c.id=a.id and c.id=b.id;
+select * from c;
+id	mydate
+1	2002-02-04 00:00:00
+5	2002-05-12 00:00:00
+6	2002-06-22 00:00:00
+7	2002-07-22 00:00:00
+DROP TABLE IF EXISTS a,b,c;
