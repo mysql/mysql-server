@@ -207,6 +207,7 @@ extern my_bool innobase_log_archive,
                innobase_create_status_file;
 extern "C" {
 extern ulong srv_max_buf_pool_modified_pct;
+extern ulong srv_max_purge_lag;
 }
 
 extern TYPELIB innobase_lock_typelib;

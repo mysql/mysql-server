@@ -2751,10 +2751,18 @@ update:
           lex->select->order_list.next= (byte**) &lex->select->order_list.first;
         }
         opt_low_priority opt_ignore join_table_list
-	SET update_list where_clause opt_order_clause delete_limit_clause
+	SET update_list 
 	{
-	  set_lock_for_tables($3);
+	  if (Lex->select->table_list.elements > 1)
+	  {
+	    LEX *lex=Lex;
+            lex->sql_command= SQLCOM_MULTI_UPDATE;
+	    lex->lock_option= $3;
+	  }
+	  else
+	    set_lock_for_tables($3);
 	}
+	where_clause opt_order_clause delete_limit_clause {}
 	;
 
 update_list:
@@ -2917,7 +2925,7 @@ show_param:
 	    lex->select->select_limit= lex->thd->variables.select_limit;
 	    lex->select->offset_limit= 0L;
           } limit_clause
-	| keys_or_index FROM table_ident opt_db
+	| keys_or_index from_or_in table_ident opt_db
 	  {
 	    Lex->sql_command= SQLCOM_SHOW_KEYS;
 	    if ($4)

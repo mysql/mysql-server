@@ -188,7 +188,11 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     share->state_diff_length=len-MI_STATE_INFO_SIZE;
 
     if (share->state.header.fulltext_keys)
+    {
       fprintf(stderr, "Warning: table file %s was created in MySQL 4.1+, use REPAIR TABLE ... USE_FRM to recreate it as a valid MySQL 4.0 table\n", name_buff);
+      my_errno=HA_ERR_UNSUPPORTED;
+      goto err;
+    }
 
     mi_state_info_read(disk_cache, &share->state);
     len= mi_uint2korr(share->state.header.base_info_length);

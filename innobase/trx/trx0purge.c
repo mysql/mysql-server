@@ -295,6 +295,9 @@ trx_purge_add_update_undo_to_history(
 	/* Add the log as the first in the history list */
 	flst_add_first(rseg_header + TRX_RSEG_HISTORY,
 				undo_header + TRX_UNDO_HISTORY_NODE, mtr);
+	mutex_enter(&kernel_mutex);
+	trx_sys->rseg_history_len++;
+	mutex_exit(&kernel_mutex);
 
 	/* Write the trx number to the undo log header */
 	mlog_write_dulint(undo_header + TRX_UNDO_TRX_NO, trx->no, mtr);
@@ -386,6 +389,12 @@ loop:
 
 	flst_cut_end(rseg_hdr + TRX_RSEG_HISTORY,
 			log_hdr + TRX_UNDO_HISTORY_NODE, n_removed_logs, &mtr);
+
+	mutex_enter(&kernel_mutex);
+	ut_ad(trx_sys->rseg_history_len >= n_removed_logs);
+	trx_sys->rseg_history_len -= n_removed_logs;
+	mutex_exit(&kernel_mutex);
+
 	freed = FALSE;
 
 	while (!freed) {
@@ -470,6 +479,11 @@ loop:
 	}
 
 	if (cmp >= 0) {
+		mutex_enter(&kernel_mutex);
+		ut_a(trx_sys->rseg_history_len >= n_removed_logs);
+		trx_sys->rseg_history_len -= n_removed_logs;
+		mutex_exit(&kernel_mutex);
+
 		flst_truncate_end(rseg_hdr + TRX_RSEG_HISTORY,
 	    			log_hdr + TRX_UNDO_HISTORY_NODE,
 				n_removed_logs, &mtr);
@@ -1030,6 +1044,30 @@ trx_purge(void)
 	read_view_close(purge_sys->view);
 	purge_sys->view = NULL;
 	mem_heap_empty(purge_sys->heap);
+
+	/* Determine how much data manipulation language (DML) statements
+	need to be delayed in order to reduce the lagging of the purge
+	thread. */
+	srv_dml_needed_delay = 0; /* in microseconds; default: no delay */
+
+	/* If we cannot advance the 'purge view' because of an old
+	'consistent read view', then the DML statements cannot be delayed.
+	Also, srv_max_purge_lag <= 0 means 'infinity'. */
+	if (srv_max_purge_lag > 0
+			&& !UT_LIST_GET_LAST(trx_sys->view_list)) {
+		float	ratio = (float) trx_sys->rseg_history_len
+				/ srv_max_purge_lag;
+		if (ratio > ULINT_MAX / 10000) {
+			/* Avoid overflow: maximum delay is 4295 seconds */
+			srv_dml_needed_delay = ULINT_MAX;
+		} else if (ratio > 1) {
+			/* If the history list length exceeds the
+			innodb_max_purge_lag, the
+			data manipulation statements are delayed
+			by at least 5000 microseconds. */
+			srv_dml_needed_delay = (ulint) ((ratio - .5) * 10000);
+		}
+	}
 
 	purge_sys->view = read_view_oldest_copy_or_open_new(NULL,
 							purge_sys->heap);

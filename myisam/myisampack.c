@@ -111,6 +111,8 @@ typedef struct st_isam_mrg {
   uint	ref_length;
   uint	max_blob_length;
   my_off_t records;
+  /* true if at least one source file has at least one disabled index */
+  my_bool src_file_has_indexes_disabled;
 } PACK_MRG_INFO;
 
 
@@ -350,7 +352,7 @@ static void get_options(int *argc,char ***argv)
   if (isatty(fileno(stdout)))
     write_loop=1;
 
-  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option, NULL)))
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 
   if (!*argc)
@@ -413,10 +415,15 @@ static bool open_isam_files(PACK_MRG_INFO *mrg,char **names,uint count)
   mrg->current=0;
   mrg->file=(MI_INFO**) my_malloc(sizeof(MI_INFO*)*count,MYF(MY_FAE));
   mrg->free_file=1;
+  mrg->src_file_has_indexes_disabled= 0;
   for (i=0; i < count ; i++)
   {
     if (!(mrg->file[i]=open_isam_file(names[i],O_RDONLY)))
       goto error;
+
+    mrg->src_file_has_indexes_disabled|= ((mrg->file[i]->s->state.key_map != 
+                                           (((ulonglong) 1) <<
+                                            mrg->file[i]->s->base. keys) - 1));
   }
   /* Check that files are identical */
   for (j=0 ; j < count-1 ; j++)
@@ -2040,8 +2047,21 @@ static int save_state(MI_INFO *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length,
   share->state.dellink= HA_OFFSET_ERROR;
   share->state.split=(ha_rows) mrg->records;
   share->state.version=(ulong) time((time_t*) 0);
+  if (share->state.key_map != (((ulonglong)1) << share->base.keys) - 1)
+  {
+    /*
+      Some indexes are disabled, cannot use current key_file_length value
+      as an estimate of upper bound of index file size. Use packed data file 
+      size instead.
+    */
+    share->state.state.key_file_length= new_length;
+  }
+  /*
+    If there are no disabled indexes, keep key_file_length value from 
+    original file so "myisamchk -rq" can use this value (this is necessary 
+    because index size cannot be easily calculated for fulltext keys)
+  */
   share->state.key_map=0;
-  share->state.state.key_file_length=share->base.keystart;
   for (key=0 ; key < share->base.keys ; key++)
     share->state.key_root[key]= HA_OFFSET_ERROR;
   for (key=0 ; key < share->state.header.max_block_size ; key++)
@@ -2050,8 +2070,7 @@ static int save_state(MI_INFO *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length,
   share->changed=1;			/* Force write of header */
   share->state.open_count=0;
   share->global_changed=0;
-  VOID(my_chsize(share->kfile, share->state.state.key_file_length, 0,
-		 MYF(0)));
+  VOID(my_chsize(share->kfile, share->base.keystart, 0, MYF(0)));
   if (share->base.keys)
     isamchk_neaded=1;
   DBUG_RETURN(mi_state_info_write(share->kfile,&share->state,1+2));
@@ -2074,7 +2093,12 @@ static int save_state_mrg(File file,PACK_MRG_INFO *mrg,my_off_t new_length,
   state.state.del=0;
   state.state.empty=0;
   state.state.records=state.split=(ha_rows) mrg->records;
-  state.state.key_file_length=isam_file->s->base.keystart;
+  /* See comment above in save_state about key_file_length handling. */
+  if (mrg->src_file_has_indexes_disabled)
+  {
+    isam_file->s->state.state.key_file_length=
+      max(isam_file->s->state.state.key_file_length, new_length);
+  }
   state.dellink= HA_OFFSET_ERROR;
   state.version=(ulong) time((time_t*) 0);
   state.key_map=0;

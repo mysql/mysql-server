@@ -1142,7 +1142,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (check_access(thd,CREATE_ACL,db,0,1))
 	break;
       mysql_log.write(thd,command,packet);
-      mysql_create_db(thd,(lower_case_table_names == 2 ? alias : db),0,0);
+      if (mysql_create_db(thd, (lower_case_table_names == 2 ? alias : db),
+                          0, 0) < 0)
+        send_error(&thd->net, thd->killed ? ER_SERVER_SHUTDOWN : 0);
       break;
     }
   case COM_DROP_DB:				// QQ: To be removed
@@ -1163,7 +1165,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	break;
       }
       mysql_log.write(thd,command,db);
-      mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : db), 0, 0);
+      if (mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : db),
+                      0, 0) < 0)
+        send_error(&thd->net, thd->killed ? ER_SERVER_SHUTDOWN : 0);
       break;
     }
   case COM_BINLOG_DUMP:
@@ -1655,6 +1659,19 @@ mysql_execute_command(void)
 	net_printf(&thd->net,ER_INSERT_TABLE_USED,tables->real_name);
 	DBUG_VOID_RETURN;
       }
+      if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
+      {
+        TABLE_LIST *tab;
+        for (tab= tables; tab; tab= tab->next)
+        {
+          if (check_dup(tables->db, tab->real_name,
+                        (TABLE_LIST*)lex->create_info.merge_list.first))
+          {
+            net_printf(&thd->net, ER_INSERT_TABLE_USED, tab->real_name);
+            DBUG_VOID_RETURN;
+          }
+        }  
+      }    
       if (tables->next)
       {
 	TABLE_LIST *table;
@@ -1752,7 +1769,7 @@ mysql_execute_command(void)
       if (lex->name && (!lex->name[0] || strlen(lex->name) > NAME_LEN))
       {
 	net_printf(&thd->net,ER_WRONG_TABLE_NAME,lex->name);
-	res=0;
+	res= 1;
 	break;
       }
       if (!select_lex->db)
@@ -1914,21 +1931,26 @@ mysql_execute_command(void)
       send_error(&thd->net,ER_WRONG_VALUE_COUNT);
       DBUG_VOID_RETURN;
     }
-    if (select_lex->table_list.elements == 1)
+    if (check_one_table_access(thd, UPDATE_ACL, tables, 0))
+      goto error; /* purecov: inspected */
+
+
+    res= mysql_update(thd,tables,
+		      select_lex->item_list,
+		      lex->value_list,
+		      select_lex->where,
+		      (ORDER *) select_lex->order_list.first,
+		      select_lex->select_limit,
+		      lex->duplicates);
+    break;
+  case SQLCOM_MULTI_UPDATE:
+    if (check_db_used(thd,tables))
+      goto error;
+    if (select_lex->item_list.elements != lex->value_list.elements)
     {
-      if (check_one_table_access(thd, UPDATE_ACL, tables, 0))
-	goto error; /* purecov: inspected */
-
-
-      res= mysql_update(thd,tables,
-			select_lex->item_list,
-			lex->value_list,
-			select_lex->where,
-			(ORDER *) select_lex->order_list.first,
-			select_lex->select_limit,
-			lex->duplicates);
+      send_error(&thd->net,ER_WRONG_VALUE_COUNT);
+      DBUG_VOID_RETURN;
     }
-    else
     {
       const char *msg= 0;
       TABLE_LIST *table;
@@ -3229,7 +3251,18 @@ bool add_field_to_list(char *field_name, enum_field_types type,
     }
     break;
   case FIELD_TYPE_TIMESTAMP:
+#if MYSQL_VERSION_ID < 40100
+    /*
+      When in in --new mode, we should create TIMESTAMP(19) fields by default;
+      otherwise we will have problems with ALTER TABLE changing lengths of
+      existing TIMESTAMP fields to 19 and adding new fields with length 14.
+    */
+    if (thd->variables.new_mode)
+      new_field->length= 19;
+    else if (!length)
+#else
     if (!length)
+#endif
       new_field->length= 14;			// Full date YYYYMMDDHHMMSS
     else if (new_field->length != 19)
     {

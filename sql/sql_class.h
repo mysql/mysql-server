@@ -338,6 +338,9 @@ struct system_variables
   my_bool low_priority_updates;
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;
+#ifdef HAVE_INNOBASE_DB
+  my_bool innodb_table_locks;
+#endif /* HAVE_INNOBASE_DB */
 
   CONVERT *convert_set;
 };
@@ -421,6 +424,7 @@ public:
      and are still in use by this thread
   */
   TABLE   *open_tables,*temporary_tables, *handler_tables;
+  HASH    handler_tables_hash;
   // TODO: document the variables below
   MYSQL_LOCK *lock,*locked_tables;
   ULL	  *ull;
@@ -637,27 +641,6 @@ public:
 #define SYSTEM_THREAD_DELAYED_INSERT 1
 #define SYSTEM_THREAD_SLAVE_IO 2
 #define SYSTEM_THREAD_SLAVE_SQL 4
-
-/*
-  Disables binary logging for one thread, and resets it back to what it was
-  before being disabled. 
-  Some functions (like the internal mysql_create_table() when it's called by
-  mysql_alter_table()) must NOT write to the binlog (binlogging is done at the
-  at a later stage of the command already, and must be, for locking reasons);
-  so we internally disable it temporarily by creating the Disable_binlog
-  object and reset the state by destroying the object (don't forget that! or
-  write code so that the object gets automatically destroyed when leaving a
-  block, see example in sql_table.cc).
-*/
-class Disable_binlog {
-private:
-  THD *thd;
-  ulong save_options;
-  ulong save_master_access;
-public:
-  Disable_binlog(THD *thd_arg);
-  ~Disable_binlog();
-};
 
 /*
   Used to hold information about file and file structure in exchainge 

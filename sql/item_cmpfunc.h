@@ -240,6 +240,7 @@ public:
   void fix_length_and_dec();
   const char *func_name() const { return "nullif"; }
   table_map not_null_tables() const { return 0; }
+  bool is_null();
 };
 
 

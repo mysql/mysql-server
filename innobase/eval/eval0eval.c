@@ -627,7 +627,11 @@ eval_concat(
 }
 
 /*********************************************************************
-Evaluates a predefined function node. */
+Evaluates a predefined function node. If the first argument is an integer,
+this function looks at the second argument which is the integer length in
+bytes, and converts the integer to a VARCHAR.
+If the first argument is of some other type, this function converts it to
+BINARY. */
 UNIV_INLINE
 void
 eval_to_binary(
@@ -638,11 +642,23 @@ eval_to_binary(
 	que_node_t*	arg2;
 	dfield_t*	dfield;
 	byte*		str1;
+	ulint		len;
 	ulint		len1;
 
 	arg1 = func_node->args;
 
 	str1 = dfield_get_data(que_node_get_val(arg1));
+
+	if (dtype_get_mtype(que_node_get_data_type(arg1)) != DATA_INT) {
+
+		len = dfield_get_len(que_node_get_val(arg1));
+
+		dfield = que_node_get_val(func_node);
+
+		dfield_set_data(dfield, str1, len);
+
+		return;
+	}
 
 	arg2 = que_node_get_next(arg1);
 	

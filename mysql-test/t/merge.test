@@ -250,3 +250,17 @@ select * from t3 where x = 1 and y < 5 order by y;
 # Bug is that followng query returns empty set while it must be same as above
 select * from t3 where x = 1 and y < 5 order by y desc;
 drop table t1,t2,t3;
+
+#
+# Bug#5232: CREATE TABLE ... SELECT
+#
+
+create table t1 (a int);
+create table t2 (a int);
+insert into t1 values (0);
+insert into t2 values (1);
+--error 1093
+create table t3 engine=merge union=(t1, t2) select * from t1;
+--error 1093
+create table t3 engine=merge union=(t1, t2) select * from t2;
+drop table t1, t2;

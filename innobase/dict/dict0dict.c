@@ -132,7 +132,7 @@ dict_index_build_internal_non_clust(
 	dict_index_t*	index);	/* in: user representation of a non-clustered
 				index */	
 /**************************************************************************
-Removes a foreign constraint struct from the dictionet cache. */
+Removes a foreign constraint struct from the dictionary cache. */
 static
 void
 dict_foreign_remove_from_cache(
@@ -526,8 +526,10 @@ dict_index_contains_col_or_prefix(
 }
 
 /************************************************************************
-Looks for a matching field in an index. The column and the prefix len have
-to be the same. */
+Looks for a matching field in an index. The column has to be the same. The
+column in index must be complete, or must contain a prefix longer than the
+column in index2. That is, we must be able to construct the prefix in index2
+from the prefix in index. */
 
 ulint
 dict_index_get_nth_field_pos(
@@ -555,7 +557,9 @@ dict_index_get_nth_field_pos(
 		field = dict_index_get_nth_field(index, pos);
 
 		if (field->col == field2->col
-		    && field->prefix_len == field2->prefix_len) {
+		    && (field->prefix_len == 0
+			|| (field->prefix_len >= field2->prefix_len
+			    && field2->prefix_len != 0))) {
 
 			return(pos);
 		}
@@ -577,7 +581,7 @@ dict_table_get_on_id(
 	dict_table_t*	table;
 	
 	if (ut_dulint_cmp(table_id, DICT_FIELDS_ID) <= 0
-	   || trx->dict_operation) {
+	   || trx->dict_operation_lock_mode == RW_X_LATCH) {
 		/* It is a system table which will always exist in the table
 		cache: we avoid acquiring the dictionary mutex, because
 		if we are doing a rollback to handle an error in TABLE
@@ -600,7 +604,7 @@ dict_table_get_on_id(
 }
 
 /************************************************************************
-Looks for column n postion in the clustered index. */
+Looks for column n position in the clustered index. */
 
 ulint
 dict_table_get_nth_col_pos(
@@ -2020,7 +2024,8 @@ dict_foreign_error_report(
 		fputs("\nThe index in the foreign key in table is ", file);
 		ut_print_name(file, fk->foreign_index->name);
 		fputs(
-"See http://www.innodb.com/ibman.php for correct foreign key definition.\n",
+"\nSee http://dev.mysql.com/doc/mysql/en/InnoDB_foreign_key_constraints.html\n"
+"for correct foreign key definition.\n",
 		file);
 	}
 	mutex_exit(&dict_foreign_err_mutex);
@@ -2135,8 +2140,8 @@ dict_foreign_add_to_cache(
 
 /*************************************************************************
 Scans from pointer onwards. Stops if is at the start of a copy of
-'string' where characters are compared without case sensitivity. Stops
-also at '\0'. */
+'string' where characters are compared without case sensitivity, and
+only outside `` or "" quotes. Stops also at '\0'. */
 static
 const char*
 dict_scan_to(
@@ -2145,31 +2150,34 @@ dict_scan_to(
 	const char*	ptr,	/* in: scan from */
 	const char*	string)	/* in: look for this */
 {
-	ibool	success;
-	ulint	i;
-loop:
-	if (*ptr == '\0') {
-		return(ptr);
-	}
+	char	quote	= '\0';
 
-	success = TRUE;
-	
-	for (i = 0; i < ut_strlen(string); i++) {
-		if (toupper((ulint)(ptr[i])) != toupper((ulint)(string[i]))) {
-			success = FALSE;
-
+	for (; *ptr; ptr++) {
+		if (*ptr == quote) {
+			/* Closing quote character: do not look for
+			starting quote or the keyword. */
+			quote = '\0';
+		} else if (quote) {
+			/* Within quotes: do nothing. */
+		} else if (*ptr == '`' || *ptr == '"') {
+			/* Starting quote: remember the quote character. */
+			quote = *ptr;
+		} else {
+			/* Outside quotes: look for the keyword. */
+			ulint	i;
+			for (i = 0; string[i]; i++) {
+				if (toupper((ulint)(ptr[i]))
+					!= toupper((ulint)(string[i]))) {
+					goto nomatch;
+				}
+			}
 			break;
+		nomatch:
+			;
 		}
 	}
 
-	if (success) {
-
-		return(ptr);
-	}
-
-	ptr++;
-
-	goto loop;
+	return(ptr);
 }
 
 /*************************************************************************
@@ -2495,7 +2503,9 @@ dict_strip_comments(
 	char*	str;
 	char*	sptr;
 	char*	ptr;
-	
+ 	/* unclosed quote character (0 if none) */
+ 	char		quote	= 0;
+
 	str = mem_alloc(strlen(sql_string) + 1);
 
 	sptr = sql_string;
@@ -2510,8 +2520,18 @@ scan_more:
 
 			return(str);
 		}
-		
-		if (*sptr == '#'
+
+		if (*sptr == quote) {
+			/* Closing quote character: do not look for
+			starting quote or comments. */
+			quote = 0;
+		} else if (quote) {
+			/* Within quotes: do not look for
+			starting quotes or comments. */
+		} else if (*sptr == '"' || *sptr == '`') {
+			/* Starting quote: remember the quote character. */
+			quote = *sptr;
+		} else if (*sptr == '#'
 		    || (0 == memcmp("-- ", sptr, 3))) {
 			for (;;) {
 				/* In Unix a newline is 0x0A while in Windows
@@ -2526,9 +2546,7 @@ scan_more:
 
 				sptr++;
 			}
-		}
-
-		if (*sptr == '/' && *(sptr + 1) == '*') {
+		} else if (!quote && *sptr == '/' && *(sptr + 1) == '*') {
 			for (;;) {
 				if (*sptr == '*' && *(sptr + 1) == '/') {
 
@@ -2747,13 +2765,13 @@ loop:
 
 		ut_a(success);
 
-		if (!isspace(*ptr)) {
+		if (!isspace(*ptr) && *ptr != '"' && *ptr != '`') {
 	        	goto loop;
 		}
 
-		do {
+		while (isspace(*ptr)) {
 			ptr++;
-		} while (isspace(*ptr));
+		}
 
 		/* read constraint name unless got "CONSTRAINT FOREIGN" */
 		if (ptr != ptr2) {
@@ -2856,7 +2874,8 @@ col_loop1:
 		ut_print_name(ef, name);
 		fprintf(ef, " where the columns appear\n"
 "as the first columns. Constraint:\n%s\n"
-"See http://www.innodb.com/ibman.php for correct foreign key definition.\n",
+"See http://dev.mysql.com/doc/mysql/en/InnoDB_foreign_key_constraints.html\n"
+"for correct foreign key definition.\n",
 			start_of_latest_foreign);
 		mutex_exit(&dict_foreign_err_mutex);
 
@@ -3121,7 +3140,8 @@ try_find_index:
 "Cannot find an index in the referenced table where the\n"
 "referenced columns appear as the first columns, or column types\n"
 "in the table and the referenced table do not match for constraint.\n"
-"See http://www.innodb.com/ibman.php for correct foreign key definition.\n",
+"See http://dev.mysql.com/doc/mysql/en/InnoDB_foreign_key_constraints.html\n"
+"for correct foreign key definition.\n",
 				start_of_latest_foreign);
 			mutex_exit(&dict_foreign_err_mutex);
 

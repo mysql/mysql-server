@@ -105,3 +105,12 @@ flush privileges;
 show grants for test11@localhost;
 delete from mysql.user where user='test11';
 delete from mysql.db where user='test11';
+
+#
+# Bug#6123: GRANT USAGE inserts useless Db row
+#
+create database db6123;
+grant usage on db6123.* to test6123 identified by 'magic123';
+select host,db,user,select_priv,insert_priv from mysql.db where db="db6123";
+delete from mysql.user where user='test6123';
+drop database db6123;

@@ -12,7 +12,7 @@ table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ref	a,b	a	9	const,const	1	Using where; Using index
 explain select * from t1 where a=2 and b = 2;
 table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	const	a,b	a	9	const,const	1	
+t1	const	a,b	a	9	const,const	1	Using index
 explain select * from t1 where a<=>b limit 2;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	index	NULL	a	9	NULL	12	Using where; Using index

@@ -64,3 +64,6 @@ select if(1>2,a,avg(a)) from t1;
 if(1>2,a,avg(a))
 1.5000
 drop table t1;
+SELECT NULLIF(5,5) IS NULL, NULLIF(5,5) IS NOT NULL;
+NULLIF(5,5) IS NULL	NULLIF(5,5) IS NOT NULL
+1	0

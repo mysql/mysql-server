@@ -1887,4 +1887,25 @@ explain select * from t1 left join t2 on a=c where d in (4);
 select * from t1 left join t2 on a=c where d in (4);
 explain select * from t1 left join t2 on a=c where d = 4;
 select * from t1 left join t2 on a=c where d = 4;
-drop table t1, t2;
+drop table t1, t2;R
+
+#
+# Covering index is mentioned in EXPLAIN output for const tables (bug #5333)
+#
+
+CREATE TABLE t1 (
+  i int(11) NOT NULL default '0',
+  c char(10) NOT NULL default '',
+  PRIMARY KEY  (i),
+  UNIQUE KEY c (c)
+) TYPE=MyISAM;
+
+INSERT INTO t1 VALUES (1,'a');
+INSERT INTO t1 VALUES (2,'b');
+INSERT INTO t1 VALUES (3,'c');
+
+EXPLAIN SELECT i FROM t1 WHERE i=1;
+
+EXPLAIN SELECT i FROM t1 WHERE i=1;
+
+DROP TABLE t1;

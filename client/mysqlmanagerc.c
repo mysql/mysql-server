@@ -133,7 +133,7 @@ int parse_args(int argc, char **argv)
   load_defaults("my",load_default_groups,&argc,&argv);
   default_argv= argv;
 
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option, NULL)))
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
 
   return 0;

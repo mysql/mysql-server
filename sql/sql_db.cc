@@ -385,6 +385,15 @@ err:
 }
 
 
+/*
+  Changes the current database.
+
+  NOTES
+    Do as little as possible in this function, as it is not called for the
+    replication slave SQL thread (for that thread, setting of thd->db is done
+    in ::exec_event() methods of log_event.cc).
+*/
+
 bool mysql_change_db(THD *thd,const char *name)
 {
   int length, db_length;

@@ -540,14 +540,18 @@ int mysql_find_files(THD *thd,List<char> *files, const char *db,
                 const char *path, const char *wild, bool dir);
 
 /* sql_handler.cc */
-int mysql_ha_open(THD *thd, TABLE_LIST *tables);
-int mysql_ha_close(THD *thd, TABLE_LIST *tables,
-                   bool dont_send_ok=0, bool dont_lock=0, bool no_alias=0);
-int mysql_ha_close_list(THD *thd, TABLE_LIST *tables, bool flushed=0);
+int mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen= 0);
+int mysql_ha_close(THD *thd, TABLE_LIST *tables);
 int mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
+int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags);
+/* mysql_ha_flush mode_flags bits */
+#define MYSQL_HA_CLOSE_FINAL        0x00
+#define MYSQL_HA_REOPEN_ON_USAGE    0x01
+#define MYSQL_HA_FLUSH_ALL          0x02
 
 /* sql_base.cc */
+#define TMP_TABLE_KEY_EXTRA 8
 void set_item_name(Item *item,char *pos,uint length);
 bool add_field_to_list(char *field_name, enum enum_field_types type,
 		       char *length, char *decimal,

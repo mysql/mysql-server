@@ -96,7 +96,7 @@ wait_for_slave_to_stop;
 
 # The following test can't be done because the result of Pos will differ
 # on different computers
-# --replace_result 9306 9999 3334 9999 3335 9999
+# --replace_result $MASTER_MYPORT MASTER_PORT
 # show slave status;
 
 set global sql_slave_skip_counter=1;

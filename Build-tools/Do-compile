@@ -10,7 +10,7 @@ use Sys::Hostname;
 $opt_distribution=$opt_user=$opt_config_env=$opt_config_extra_env="";
 $opt_dbd_options=$opt_perl_options=$opt_config_options=$opt_make_options=$opt_suffix="";
 $opt_tmp=$opt_version_suffix="";
-$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=0;
+$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_one_error=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=0;
 $opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=$opt_clearlogs=$opt_without_ndbcluster=0;
 
 GetOptions(
@@ -36,6 +36,7 @@ GetOptions(
 	"no-test",
 	"no-mysqltest",
 	"no-benchmark",
+	"one-error",
 	"perl-files=s",
 	"perl-options=s",
 	"raid",
@@ -298,6 +299,7 @@ if ($opt_stage <= 2)
   $command=$make;
   $command.= " $opt_make_options" if (defined($opt_make_options) && $opt_make_options ne "");
   safe_system($command);
+  print LOG "Do-compile: Build successful\n";
 }
 
 #
@@ -358,10 +360,16 @@ $ENV{"LD_LIBRARY_PATH"}= ("$test_dir/lib" .
 #
 if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 {
+  my $force= "";
+  if (!$opt_one_error)
+  {
+    $force= "--force";  # default
+  }
   log_timestamp();
   system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   safe_cd("${test_dir}/mysql-test");
-  check_system("./mysql-test-run --warnings --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
+  check_system("./mysql-test-run $force --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
+  # 'mysql-test-run' writes its own final message for log evaluation.
 }
 
 #
@@ -535,7 +543,10 @@ Do not run any tests.
 Do not run the benchmark test (written in perl)
 
 --no-mysqltest
-Do not run the the mysql-test-run test (Same as 'make test')
+Do not run the mysql-test-run test (Same as 'make test')
+
+--one-error
+Terminate the mysql-test-run test after the first difference (default: use '--force')
 
 --perl-files=list of files
 Compile and install the given perl modules.

@@ -108,7 +108,7 @@ gen_lex_hash.o:		gen_lex_hash.cc lex.h
 sql_yacc.cc:	sql_yacc.yy
 sql_yacc.h:	sql_yacc.yy
 
-sql_yacc.o:	sql_yacc.cc sql_yacc.h
+sql_yacc.o:	sql_yacc.cc sql_yacc.h $(noinst_HEADERS)
 		@echo "Note: The following compile may take a long time."
 		@echo "If it fails, re-run configure with --with-low-memory"
 		$(CXXCOMPILE) $(LM_CFLAGS) -c $<

@@ -414,6 +414,7 @@ char mysql_real_data_home[FN_REFLEN],
      max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file;
 char *language_ptr= language;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
+struct passwd *user_info;
 #ifndef EMBEDDED_LIBRARY
 bool mysql_embedded=0;
 #else
@@ -1028,27 +1029,26 @@ static void set_ports()
   }
 }
 
-/* Change to run as another user if started with --user */
 
-static void set_user(const char *user)
+static struct passwd *check_user(const char *user)
 {
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
-  struct passwd *ent;
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__) 
+  struct passwd *user_info;
   uid_t user_id= geteuid();
-
-  // don't bother if we aren't superuser
+  
+  // Don't bother if we aren't superuser
   if (user_id)
   {
     if (user)
     {
-      /* Don't give a warning, if real user is same as given with --user */
-      struct passwd *user_info= getpwnam(user);
+      // Don't give a warning, if real user is same as given with --user
+      user_info= getpwnam(user);
       if ((!user_info || user_id != user_info->pw_uid) &&
-	  global_system_variables.log_warnings)
-	fprintf(stderr,
-		"Warning: One can only use the --user switch if running as root\n");
+          global_system_variables.log_warnings)
+        fprintf(stderr,
+	        "Warning: One can only use the --user switch if running as root\n");
     }
-    return;
+    return NULL;
   }
   if (!user)
   {
@@ -1057,44 +1057,76 @@ static void set_user(const char *user)
       fprintf(stderr,"Fatal error: Please read \"Security\" section of the manual to find out how to run mysqld as root!\n");
       unireg_abort(1);
     }
-    return;
+    return NULL;
   }
   if (!strcmp(user,"root"))
-    return;				// Avoid problem with dynamic libraries
-
-  uid_t uid;
-  if (!(ent = getpwnam(user)))
+    return NULL;             // Avoid problem with dynamic libraries
+  if (!(user_info= getpwnam(user)))
   {
-    // allow a numeric uid to be used
+    // Allow a numeric uid to be used
     const char *pos;
-    for (pos=user; isdigit(*pos); pos++) ;
-    if (*pos)					// Not numeric id
-    {
-      fprintf(stderr,"Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
-      unireg_abort(1);
-    }
-    uid=atoi(user);				// Use numberic uid
+    for (pos= user; isdigit(*pos); pos++);
+    if (*pos)                // Not numeric id
+      goto err;
+    if (!(user_info= getpwuid(atoi(user))))
+      goto err;
+    else
+      return user_info;
   }
   else
   {
-#ifdef HAVE_INITGROUPS
-    initgroups((char*) user,ent->pw_gid);
-#endif
-    if (setgid(ent->pw_gid) == -1)
-    {
-      sql_perror("setgid");
-      unireg_abort(1);
-    }
-    uid=ent->pw_uid;
+    return user_info;
   }
 
-  if (setuid(uid) == -1)
+err:
+  fprintf(stderr,
+          "Fatal error: Can't change to run as user '%s'.  Please check that the user exists!\n",
+	  user);
+  unireg_abort(1);
+  return NULL;	  
+#else
+  return NULL;  
+#endif  
+}
+
+
+static void set_user(const char *user, struct passwd *user_info)
+{
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+  DBUG_ASSERT(user_info);
+#ifdef HAVE_INITGROUPS
+  initgroups((char*) user, user_info->pw_gid);
+#endif
+  if (setgid(user_info->pw_gid) == -1)
+  {
+    sql_perror("setgid");
+    unireg_abort(1);
+  }
+  if (setuid(user_info->pw_uid) == -1)
   {
     sql_perror("setuid");
     unireg_abort(1);
   }
 #endif
 }
+
+static void set_effective_user(struct passwd *user_info)
+{
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+  DBUG_ASSERT(user_info);
+  if (setregid((gid_t)-1,user_info->pw_gid) == -1)
+  {
+    sql_perror("setregid");
+    unireg_abort(1);
+  }  
+  if (setreuid((uid_t)-1,user_info->pw_uid) == -1)
+  {
+    sql_perror("setreuid");
+    unireg_abort(1);
+  }
+#endif
+}
+
 
 /* Change root user if started with  --chroot */
 
@@ -1171,7 +1203,18 @@ static void server_init(void)
       unireg_abort(1);
     }
   }
-  set_user(mysqld_user);		// Works also with mysqld_user==NULL
+
+  if ((user_info= check_user(mysqld_user)))
+  {
+#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
+    if (locked_in_memory && !getuid())
+      set_effective_user(user_info);
+    else
+      set_user(mysqld_user, user_info);
+#else
+    set_user(mysqld_user, user_info);
+#endif
+  }
 
 #ifdef __NT__
   /* create named pipe */
@@ -2037,8 +2080,7 @@ static void check_data_home(const char *path)
 
 
 /* ARGSUSED */
-extern "C" int my_message_sql(uint error, const char *str,
-			      myf MyFlags __attribute__((unused)))
+extern "C" int my_message_sql(uint error, const char *str, myf MyFlags)
 {
   NET *net;
   DBUG_ENTER("my_message_sql");
@@ -2051,7 +2093,7 @@ extern "C" int my_message_sql(uint error, const char *str,
       net->last_errno=error ? error : ER_UNKNOWN_ERROR;
     }
   }
-  else
+  if (!net || MyFlags & ME_NOREFRESH)
     sql_print_error("%s: %s",my_progname,str); /* purecov: inspected */
   DBUG_RETURN(0);
 }
@@ -2466,8 +2508,13 @@ You should consider changing lower_case_table_names to 1 or 2",
   }
   ha_key_cache();
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
-  if (locked_in_memory && !geteuid())
+  if (locked_in_memory && !getuid())
   {
+    if (setreuid((uid_t)-1,0) == -1)
+    {                        // this should never happen
+      sql_perror("setreuid");
+      unireg_abort(1);
+    }
     if (mlockall(MCL_CURRENT))
     {
       if (global_system_variables.log_warnings)
@@ -2475,6 +2522,8 @@ You should consider changing lower_case_table_names to 1 or 2",
     }
     else
       locked_in_memory=1;
+    if (user_info)
+      set_user(mysqld_user, user_info);
   }
 #else
   locked_in_memory=0;
@@ -2669,6 +2718,13 @@ server.");
     pthread_mutex_unlock(&LOCK_thread_count);
   }
 #else
+#ifdef __WIN__
+  if ( !have_tcpip || opt_disable_networking)
+  {
+    sql_print_error("TCP/IP unavailable or disabled with --skip-networking; no available interfaces");
+    unireg_abort(1);
+  }
+#endif
   handle_connections_sockets(0);
 #ifdef EXTRA_DEBUG2
   sql_print_error("Exiting main thread");
@@ -3464,12 +3520,14 @@ enum options_mysqld {
   OPT_INNODB_LOG_BUFFER_SIZE,
   OPT_INNODB_BUFFER_POOL_SIZE,
   OPT_INNODB_ADDITIONAL_MEM_POOL_SIZE,
+  OPT_INNODB_MAX_PURGE_LAG,
   OPT_INNODB_FILE_IO_THREADS,
   OPT_INNODB_LOCK_WAIT_TIMEOUT,
   OPT_INNODB_THREAD_CONCURRENCY,
   OPT_INNODB_FORCE_RECOVERY,
   OPT_INNODB_STATUS_FILE,
   OPT_INNODB_MAX_DIRTY_PAGES_PCT,
+  OPT_INNODB_TABLE_LOCKS,
   OPT_BDB_CACHE_SIZE,
   OPT_BDB_LOG_BUFFER_SIZE,
   OPT_BDB_MAX_LOCK,
@@ -3643,7 +3701,16 @@ struct my_option my_long_options[] =
   {"innodb_max_dirty_pages_pct", OPT_INNODB_MAX_DIRTY_PAGES_PCT,
    "Percentage of dirty pages allowed in bufferpool", (gptr*) &srv_max_buf_pool_modified_pct,
    (gptr*) &srv_max_buf_pool_modified_pct, 0, GET_ULONG, REQUIRED_ARG, 90, 0, 100, 0, 0, 0},
-   
+  {"innodb_max_purge_lag", OPT_INNODB_MAX_PURGE_LAG,
+   "Desired maximum length of the purge queue (0 = no limit)",
+   (gptr*) &srv_max_purge_lag,
+   (gptr*) &srv_max_purge_lag, 0, GET_LONG, REQUIRED_ARG, 0, 0, ~0L,
+   0, 1L, 0},
+  {"innodb_table_locks", OPT_INNODB_TABLE_LOCKS,
+   "Enable InnoDB locking in LOCK TABLES",
+   (gptr*) &global_system_variables.innodb_table_locks,
+   (gptr*) &global_system_variables.innodb_table_locks,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
 #endif /* End HAVE_INNOBASE_DB */
   {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
@@ -4088,7 +4155,7 @@ replicating a LOAD DATA INFILE command",
   {"key_buffer_size", OPT_KEY_BUFFER_SIZE,
    "The size of the buffer used for index blocks. Increase this to get better index handling (for all reads and multiple writes) to as much as you can afford; 64M on a 256M machine that mainly runs MySQL is quite common.",
    (gptr*) &keybuff_size, (gptr*) &keybuff_size, 0, GET_ULL,
-   REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD,
+   REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, UINT_MAX32, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"long_query_time", OPT_LONG_QUERY_TIME,
    "Log all queries that have taken more than long_query_time seconds to execute to file.",
@@ -5119,8 +5186,8 @@ static void get_options(int argc,char **argv)
 {
   int ho_error;
 
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option,
-                               option_error_reporter)))
+  my_getopt_error_reporter= option_error_reporter;
+  if ((ho_error= handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
 
 #if defined(HAVE_BROKEN_REALPATH)
