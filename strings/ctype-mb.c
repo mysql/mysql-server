@@ -502,7 +502,8 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
         representation of the max_sort_char character,
         and copy it into max_str in a loop. 
       */
-      buflen= cs->cset->wc_mb(cs, cs->max_sort_char, buf, buf + sizeof(buf));
+      buflen= cs->cset->wc_mb(cs, cs->max_sort_char, (uchar*) buf,
+                              (uchar*) buf + sizeof(buf));
       DBUG_ASSERT(buflen > 0);
       do
       {

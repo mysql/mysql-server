@@ -92,7 +92,7 @@ loop:
 
 		/* We found one */
 
-		char*	table_name = mem_strdupl(field, len);
+                char*	table_name = mem_strdupl((char*) field, len);
 		
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -154,7 +154,7 @@ loop:
 
 		/* We found one */
 
-		char*	table_name = mem_strdupl(field, len);
+                char*	table_name = mem_strdupl((char*) field, len);
 
 		btr_pcur_store_position(&pcur, &mtr);
 
@@ -246,7 +246,7 @@ loop:
 
 		/* We found one */
 
-		char*	name = mem_strdupl(field, len);
+                char*	name = mem_strdupl((char*) field, len);
 
 		field = rec_get_nth_field(rec, 9, &len);
 		ut_a(len == 4);
@@ -347,7 +347,7 @@ dict_load_columns(
 			dict_table_get_first_index(sys_columns), 4))->name));
 
 		field = rec_get_nth_field(rec, 4, &len);
-		name = mem_heap_strdupl(heap, field, len);
+		name = mem_heap_strdupl(heap, (char*) field, len);
 
 		field = rec_get_nth_field(rec, 5, &len);
 		mtype = mach_read_from_4(field);
@@ -494,7 +494,7 @@ dict_load_fields(
 		field = rec_get_nth_field(rec, 4, &len);
 
 		dict_mem_index_add_field(index,
-			mem_heap_strdupl(heap, field, len), 0, prefix_len);
+                                         mem_heap_strdupl(heap, (char*) field, len), 0, prefix_len);
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	} 
@@ -597,7 +597,7 @@ dict_load_indexes(
 			dict_table_get_first_index(sys_indexes), 4))->name));
 		
 		field = rec_get_nth_field(rec, 4, &name_len);
-		name_buf = mem_heap_strdupl(heap, field, name_len);
+		name_buf = mem_heap_strdupl(heap, (char*) field, name_len);
 
 		field = rec_get_nth_field(rec, 5, &len);
 		n_fields = mach_read_from_4(field);
@@ -805,7 +805,7 @@ dict_load_table(
 		table->mix_id = mach_read_from_8(field);
 
 		field = rec_get_nth_field(rec, 8, &len);
-		table->cluster_name = mem_heap_strdupl(heap, field, len);
+		table->cluster_name = mem_heap_strdupl(heap, (char*) field, len);
 #endif
 	}
 
@@ -938,7 +938,7 @@ dict_load_table_on_id(
 	/* Now we get the table name from the record */
 	field = rec_get_nth_field(rec, 1, &len);
 	/* Load the table definition to memory */
-	table = dict_load_table(mem_heap_strdupl(heap, field, len));
+	table = dict_load_table(mem_heap_strdupl(heap, (char*) field, len));
 	
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -1030,11 +1030,11 @@ dict_load_foreign_cols(
 
 		field = rec_get_nth_field(rec, 4, &len);
 		foreign->foreign_col_names[i] =
-			mem_heap_strdupl(foreign->heap, field, len);
+                        mem_heap_strdupl(foreign->heap, (char*) field, len);
 
 		field = rec_get_nth_field(rec, 5, &len);
 		foreign->referenced_col_names[i] =
-			mem_heap_strdupl(foreign->heap, field, len);
+                  mem_heap_strdupl(foreign->heap, (char*) field, len);
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	} 
@@ -1138,11 +1138,11 @@ dict_load_foreign(
 
 	field = rec_get_nth_field(rec, 3, &len);
 	foreign->foreign_table_name =
-		mem_heap_strdupl(foreign->heap, field, len);
+                mem_heap_strdupl(foreign->heap, (char*) field, len);
 	
 	field = rec_get_nth_field(rec, 4, &len);
 	foreign->referenced_table_name =
-		mem_heap_strdupl(foreign->heap, field, len);
+                mem_heap_strdupl(foreign->heap, (char*) field, len);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -1256,7 +1256,7 @@ loop:
 
 	/* Now we get a foreign key constraint id */
 	field = rec_get_nth_field(rec, 1, &len);
-	id = mem_heap_strdupl(heap, field, len);
+	id = mem_heap_strdupl(heap, (char*) field, len);
 	
 	btr_pcur_store_position(&pcur, &mtr);
 
