@@ -360,7 +360,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       {
         Item_field *item_field= (Item_field*) it++;
         DBUG_ASSERT(item_field);
-        item_field->set_field(*field);
+        item_field->reset_field(*field);
       }
     }
   }
