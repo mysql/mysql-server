@@ -228,3 +228,36 @@ alter table t1 add key id (id);
 select * from t1, t2 where t1.id = t2.id;
 id	id
 drop table t1,t2;
+create table t1 (
+id  integer,
+id2 integer not null,
+index (id),
+index (id2)
+);
+insert into t1 values(null,null),(1,1);
+select * from t1;
+id	id2
+NULL	0
+1	1
+select * from t1 where id <=> null;
+id	id2
+NULL	0
+select * from t1 where id <=> null or id > 0;
+id	id2
+NULL	0
+1	1
+select * from t1 where id is null or id > 0;
+id	id2
+NULL	0
+1	1
+select * from t1 where id2 <=> null or id2 > 0;
+id	id2
+1	1
+select * from t1 where id2 is null or id2 > 0;
+id	id2
+1	1
+delete from t1 where id <=> NULL;
+select * from t1;
+id	id2
+1	1
+drop table t1;

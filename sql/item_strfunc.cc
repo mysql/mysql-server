@@ -1363,17 +1363,19 @@ String *Item_func_decode::val_str(String *str)
 
 String *Item_func_database::val_str(String *str)
 {
-  if (!current_thd->db)
+  THD *thd= current_thd;
+  if (!thd->db)
     str->length(0);
   else
-    str->copy((const char*) current_thd->db,(uint) strlen(current_thd->db), system_charset_info, thd_charset());
+    str->copy((const char*) thd->db,(uint) strlen(thd->db),
+	      system_charset_info, thd->thd_charset);
   return str;
 }
 
 String *Item_func_user::val_str(String *str)
 {
   THD          *thd=current_thd;
-  CHARSET_INFO *cs=thd_charset();
+  CHARSET_INFO *cs=thd->thd_charset;
   const char   *host=thd->host ? thd->host : thd->ip ? thd->ip : "";
   uint32       res_length=(strlen(thd->user)+strlen(host)+10) * cs->mbmaxlen;
   
@@ -2130,7 +2132,8 @@ String *Item_func_charset::val_str(String *str)
 
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
-  str->copy(res->charset()->name,strlen(res->charset()->name),my_charset_latin1,thd_charset());
+  str->copy(res->charset()->name,strlen(res->charset()->name),
+	    my_charset_latin1, thd_charset());
   return str;
 }
 

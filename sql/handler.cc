@@ -314,7 +314,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
     }
 #endif
 #ifdef HAVE_QUERY_CACHE
-    if (transaction_commited)
+    if (transaction_commited && thd->transaction.changed_tables)
       query_cache.invalidate(thd->transaction.changed_tables);
 #endif /*HAVE_QUERY_CACHE*/
     if (error && trans == &thd->transaction.all && mysql_bin_log.is_open())

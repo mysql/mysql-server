@@ -76,7 +76,7 @@ inline int lex_casecmp(const char *s, const char *t, uint len)
 
 #include "lex_hash.h"
 
-static uchar state_map[256];
+static uchar state_map[256], ident_map[256];
 
 
 void lex_init(void)
@@ -91,7 +91,7 @@ void lex_init(void)
   VOID(pthread_key_create(&THR_LEX,NULL));
 
   /* Fill state_map with states to get a faster parser */
-  for (i=0; i < 256 ; i++)
+  for (i=0; i < sizeof(state_map) ; i++)
   {
     if (my_isalpha(system_charset_info,i))
       state_map[i]=(uchar) STATE_IDENT;
@@ -126,6 +126,20 @@ void lex_init(void)
   {
     state_map[(uchar) '"'] = STATE_USER_VARIABLE_DELIMITER;
   }
+
+  /*
+    Create a second map to make it faster to find identifiers
+  */
+  for (i=0; i < sizeof(ident_map) ; i++)
+  {
+    ident_map[i]= (uchar) (state_map[i] == STATE_IDENT ||
+			   state_map[i] == STATE_NUMBER_IDENT);
+  }
+
+  /* Special handling of hex and binary strings */
+  state_map[(uchar)'x']= state_map[(uchar)'X']= (uchar) STATE_IDENT_OR_HEX;
+  state_map[(uchar)'b']= state_map[(uchar)'b']= (uchar) STATE_IDENT_OR_BIN;
+
   DBUG_VOID_RETURN;
 }
 
@@ -460,7 +474,7 @@ int yylex(void *arg)
       }
     case STATE_CHAR:			// Unknown or single char token
     case STATE_SKIP:			// This should not happen
-      yylval->lex_str.str=(char*) (lex->ptr=lex->tok_start);// Set to first char
+      yylval->lex_str.str=(char*) (lex->ptr=lex->tok_start);// Set to first chr
       yylval->lex_str.length=1;
       c=yyGet();
       if (c != ')')
@@ -469,12 +483,15 @@ int yylex(void *arg)
 	lex->tok_start=lex->ptr;	// Let tok_start point at next item
       return((int) c);
 
-    case STATE_IDENT:			// Incomplete keyword or ident
-      if ((c == 'x' || c == 'X') && yyPeek() == '\'')
+    case STATE_IDENT_OR_HEX:
+      if (yyPeek() == '\'')
       {					// Found x'hex-number'
-	state=STATE_HEX_NUMBER;
+	state= STATE_HEX_NUMBER;
 	break;
       }
+      /* Fall through */
+    case STATE_IDENT_OR_BIN:		// TODO: Add binary string handling
+    case STATE_IDENT:
 #if defined(USE_MB) && defined(USE_MB_IDENT)
       if (use_mb(system_charset_info))
       {
@@ -489,8 +506,7 @@ int yylex(void *arg)
           }
           lex->ptr += l - 1;
         }
-        while (state_map[c=yyGet()] == STATE_IDENT ||
-               state_map[c] == STATE_NUMBER_IDENT)
+        while (ident_map[c=yyGet()])
         {
           if (my_ismbhead(system_charset_info, c))
           {
@@ -505,15 +521,13 @@ int yylex(void *arg)
       }
       else
 #endif
-        while (state_map[c=yyGet()] == STATE_IDENT ||
-               state_map[c] == STATE_NUMBER_IDENT) ;
+        while (ident_map[c=yyGet()]) ;
       length= (uint) (lex->ptr - lex->tok_start)-1;
       if (lex->ignore_space)
       {
 	for (; state_map[c] == STATE_SKIP ; c= yyGet());
       }
-      if (c == '.' && (state_map[yyPeek()] == STATE_IDENT ||
-		       state_map[yyPeek()] == STATE_NUMBER_IDENT))
+      if (c == '.' && ident_map[yyPeek()])
 	lex->next_state=STATE_IDENT_SEP;
       else
       {					// '(' must follow directly if function
@@ -551,7 +565,7 @@ int yylex(void *arg)
 
     case STATE_NUMBER_IDENT:		// number or ident which num-start
       while (my_isdigit(system_charset_info,(c = yyGet()))) ;
-      if (state_map[c] != STATE_IDENT)
+      if (!ident_map[c])
       {					// Can't be identifier
 	state=STATE_INT_OR_REAL;
 	break;
@@ -576,7 +590,7 @@ int yylex(void *arg)
 	  lex->tok_start[0] == '0' )
       {						// Varbinary
 	while (my_isxdigit(system_charset_info,(c = yyGet()))) ;
-	if ((lex->ptr - lex->tok_start) >= 4 && state_map[c] != STATE_IDENT)
+	if ((lex->ptr - lex->tok_start) >= 4 && !ident_map[c])
 	{
 	  yylval->lex_str=get_token(lex,yyLength());
 	  yylval->lex_str.str+=2;		// Skip 0x
@@ -603,8 +617,7 @@ int yylex(void *arg)
           }
           lex->ptr += l - 1;
         }
-        while (state_map[c=yyGet()] == STATE_IDENT ||
-               state_map[c] == STATE_NUMBER_IDENT)
+        while (ident_map[c=yyGet()])
         {
           if (my_ismbhead(system_charset_info, c))
           {
@@ -619,11 +632,9 @@ int yylex(void *arg)
       }
       else
 #endif
-        while (state_map[c = yyGet()] == STATE_IDENT ||
-               state_map[c] == STATE_NUMBER_IDENT) ;
+        while (ident_map[c = yyGet()]) ;
 
-      if (c == '.' && (state_map[yyPeek()] == STATE_IDENT ||
-		       state_map[yyPeek()] == STATE_NUMBER_IDENT))
+      if (c == '.' && ident_map[yyPeek()])
 	lex->next_state=STATE_IDENT_SEP;// Next is '.'
       // fall through
 
@@ -901,8 +912,7 @@ int yylex(void *arg)
 	[(global | local | session) .]variable_name
       */
 
-      while (state_map[c=yyGet()] == STATE_IDENT ||
-	     state_map[c] == STATE_NUMBER_IDENT) ;
+      while (ident_map[c=yyGet()]) ;
       if (c == '.')
 	lex->next_state=STATE_IDENT_SEP;
       length= (uint) (lex->ptr - lex->tok_start)-1;
