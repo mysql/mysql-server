@@ -12423,6 +12423,12 @@ mysql> SELECT name, birth FROM pet ORDER BY birth;
 +----------+------------+
 @end example
 
+On character type columns, sorting@-like all other comparison
+operations@-is normally performed in a case-insensitive fashion.
+This means that the order will be undefined for columns that are identical
+except for their case. You can force a case-sensitive sort by using the
+BINARY cast: @code{ORDER BY BINARY(field)}.
+
 To sort in reverse order, add the @code{DESC} (descending) keyword to the
 name of the column you are sorting by:
 
