@@ -1001,7 +1001,7 @@ extern ulong ha_read_count, ha_discover_count;
 extern ulong table_cache_size;
 extern ulong max_connections,max_connect_errors, connect_timeout;
 extern ulong slave_net_timeout;
-extern ulong max_user_connections;
+extern uint max_user_connections;
 extern my_bool timed_mutexes;
 extern ulong what_to_log,flush_time;
 extern ulong query_buff_size, thread_stack,thread_stack_min;
