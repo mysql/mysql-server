@@ -242,6 +242,10 @@ convert_error_code_to_mysql(
 
     		return(HA_ERR_CANNOT_ADD_FOREIGN);
 
+        } else if (error == (int) DB_CANNOT_DROP_CONSTRAINT) {
+
+		return(HA_WRONG_CREATE_OPTION);
+
         } else if (error == (int) DB_COL_APPEARS_TWICE_IN_INDEX) {
 
     		return(HA_ERR_CRASHED);
@@ -3048,6 +3052,9 @@ ha_innobase::create(
 	trx_search_latch_release_if_reserved(parent_trx);	
 	
 	trx = trx_allocate_for_mysql();
+		
+	trx->mysql_thd = thd;
+	trx->mysql_query_str = &((*thd).query);
 
 	if (thd->options & OPTION_NO_FOREIGN_KEY_CHECKS) {
 		trx->check_foreigns = FALSE;
@@ -3231,6 +3238,9 @@ ha_innobase::delete_table(
 
 	trx = trx_allocate_for_mysql();
 
+	trx->mysql_thd = current_thd;
+	trx->mysql_query_str = &((*current_thd).query);
+
 	name_len = strlen(name);
 
 	assert(name_len < 1000);
@@ -3309,6 +3319,8 @@ innobase_drop_database(
 	casedn_str(namebuf);
 #endif
 	trx = trx_allocate_for_mysql();
+	trx->mysql_thd = current_thd;
+	trx->mysql_query_str = &((*current_thd).query);
 
   	error = row_drop_database_for_mysql(namebuf, trx);
 
@@ -3368,6 +3380,8 @@ ha_innobase::rename_table(
 	}
 
 	trx = trx_allocate_for_mysql();
+	trx->mysql_thd = current_thd;
+	trx->mysql_query_str = &((*current_thd).query);
 
 	name_len1 = strlen(from);
 	name_len2 = strlen(to);
