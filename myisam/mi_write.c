@@ -774,7 +774,7 @@ static int keys_free(uchar *key, TREE_FREE mode, bulk_insert_param *param)
       keyinfo=param->info->s->keyinfo+param->keynr;
       keylen=_mi_keylength(keyinfo, key);
       memcpy(lastkey, key, keylen);
-      return _mi_ck_write_btree(param->info,param->keynr,lastkey, 
+      return _mi_ck_write_btree(param->info,param->keynr,lastkey,
                  keylen - param->info->s->rec_reflength);
     case free_end:
       if (param->info->s->concurrent_insert)
@@ -794,7 +794,7 @@ int _mi_init_bulk_insert(MI_INFO *info)
 
   if (info->bulk_insert)
     return 0;
-  
+
   for (i=num_keys=0 ; i < share->base.keys ; i++)
   {
     if (!(key[i].flag & HA_NOSAME) && share->base.auto_key != i+1
@@ -807,7 +807,7 @@ int _mi_init_bulk_insert(MI_INFO *info)
 
   if (!num_keys)
     return 0;
-  
+
   info->bulk_insert=(TREE *)
     my_malloc((sizeof(TREE)*share->base.keys+
                sizeof(bulk_insert_param)*num_keys),MYF(0));
@@ -822,13 +822,13 @@ int _mi_init_bulk_insert(MI_INFO *info)
     {
       params->info=info;
       params->keynr=i;
-      init_tree(& info->bulk_insert[i], 0, 
+      init_tree(& info->bulk_insert[i], 0,
 		myisam_bulk_insert_tree_size / num_keys, 0,
 		(qsort_cmp2)keys_compare, 0,
 		(tree_element_free) keys_free, (void *)params++);
     }
     else
-     info->bulk_insert[i].root=0; 
+     info->bulk_insert[i].root=0;
   }
 
   return 0;

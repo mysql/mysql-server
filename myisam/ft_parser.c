@@ -135,7 +135,7 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
       if (true_word_char(*doc)) break;
       if (*doc == FTB_LBR || *doc == FTB_RBR)
       {
-        param->prev=' ';
+        /* param->prev=' '; */
         *start=doc+1;
         return *doc;
       }

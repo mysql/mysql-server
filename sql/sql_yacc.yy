@@ -23,7 +23,7 @@
 #define Lex current_lex
 #define Select Lex->select
 #include "mysql_priv.h"
-#include "slave.h"  
+#include "slave.h"
 #include "sql_acl.h"
 #include "lex_symbol.h"
 #include <myisam.h>
@@ -149,6 +149,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	BINARY
 %token	BIT_SYM
 %token	BOOL_SYM
+%token	BOOLEAN_SYM
 %token	BOTH
 %token	BY
 %token	CASCADE
@@ -499,7 +500,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	using_list
 
 %type <item_list>
-	expr_list udf_expr_list when_list ident_list
+	expr_list udf_expr_list when_list ident_list ident_list_arg
 
 %type <key_type>
 	key_type opt_unique_or_fulltext
@@ -1547,12 +1548,12 @@ simple_expr:
 	| '!' expr %prec NEG	{ $$= new Item_func_not($2); }
 	| '(' expr ')'		{ $$= $2; }
 	| '{' ident expr '}'	{ $$= $3; }
-        | MATCH '(' ident_list ')' AGAINST '(' expr ')'
-          { Select->ftfunc_list.push_back(
-                   (Item_func_match *)($$=new Item_func_match_nl(*$3,$7))); }
-        | MATCH ident_list AGAINST '(' expr ')'
-          { Select->ftfunc_list.push_back(
-                   (Item_func_match *)($$=new Item_func_match_nl(*$2,$5))); }
+        | MATCH ident_list_arg AGAINST '(' expr ')'
+          { Select->ftfunc_list.push_back((Item_func_match *)
+                   $$=new Item_func_match_nl(*$2,$5)); }
+        | MATCH ident_list_arg AGAINST '(' expr IN_SYM BOOLEAN_SYM MODE_SYM ')'
+          { Select->ftfunc_list.push_back((Item_func_match *)
+                   $$=new Item_func_match_bool(*$2,$5)); }
 	| BINARY expr %prec NEG	{ $$= new Item_func_binary($2); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ) }
@@ -1797,6 +1798,10 @@ expr_list:
 expr_list2:
 	expr { Select->expr_list.head()->push_back($1); }
 	| expr_list2 ',' expr { Select->expr_list.head()->push_back($3); }
+
+ident_list_arg:
+          ident_list          { $$= $1; }
+        | '(' ident_list ')'  { $$= $2; }
 
 ident_list:
         { Select->expr_list.push_front(new List<Item>); }
@@ -2816,6 +2821,7 @@ keyword:
 	| BERKELEY_DB_SYM	{}
 	| BIT_SYM		{}
 	| BOOL_SYM		{}
+	| BOOLEAN_SYM		{}
 	| CHANGED		{}
 	| CHECKSUM_SYM		{}
 	| CHECK_SYM		{}

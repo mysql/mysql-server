@@ -262,7 +262,7 @@ int	__void__;
 #define LINT_INIT(var)
 #endif
 
-/* Define som useful general macros */
+/* Define some useful general macros */
 #if defined(__cplusplus) && defined(__GNUC__)
 #define max(a, b)	((a) >? (b))
 #define min(a, b)	((a) <? (b))
@@ -276,6 +276,7 @@ typedef unsigned int uint;
 typedef unsigned short ushort;
 #endif
 
+#define comp(a,b)	(((a) < (b)) ? -1 : ((a) > (b)) ? 1 : 0)
 #define sgn(a)		(((a) < 0) ? -1 : ((a) > 0) ? 1 : 0)
 #define swap(t,a,b)	{ register t dummy; dummy = a; a = b; b = dummy; }
 #define test(a)		((a) ? 1 : 0)

@@ -29,17 +29,21 @@ extern "C" {
 #define FT_QUERY_MAXLEN 1024
 #define HA_FT_MAXLEN 254
 
-typedef struct ft_doc_rec {
-  my_off_t  dpos;
-  double    weight;
-} FT_DOC;
+typedef struct st_ft_info FT_INFO;
+struct _ft_vft {
+  int       (*read_next)(FT_INFO *, char *);
+  float     (*find_relevance)(FT_INFO *, my_off_t);
+  void      (*close_search)(FT_INFO *);
+  float     (*get_relevance)(FT_INFO *);
+  my_off_t  (*get_docid)(FT_INFO *);
+  void      (*reinit_search)(FT_INFO *);
+};
 
-typedef struct st_ft_doclist {
-  int       ndocs;
-  int       curdoc;
-  void      *info;  /* actually (MI_INFO *) but don't want to include myisam.h */
-  FT_DOC    doc[1];
-} FT_DOCLIST;
+#ifndef FT_CORE
+struct st_ft_info {
+  struct _ft_vft *please; /* INTERCAL style :-) */
+};
+#endif
 
 extern const char *ft_precompiled_stopwords[];
 
@@ -50,12 +54,9 @@ extern uint ft_max_word_len_for_sort;
 int ft_init_stopwords(const char **);
 void ft_free_stopwords(void);
 
-FT_DOCLIST * ft_nlq_init_search(void *, uint, byte *, uint, my_bool);
-int          ft_nlq_read_next(FT_DOCLIST *, char *);
-#define      ft_nlq_close_search(handler)    my_free(((gptr)(handler)),MYF(0))
-#define      ft_nlq_get_relevance(handler)   (((FT_DOCLIST *)(handler))->doc[((FT_DOCLIST *)(handler))->curdoc].weight)
-#define      ft_nlq_get_docid(handler)       (((FT_DOCLIST *)(handler))->doc[((FT_DOCLIST *)(handler))->curdoc].dpos)
-#define      ft_nlq_reinit_search(handler)   (((FT_DOCLIST *)(handler))->curdoc=-1)
+#define FT_NL  0
+#define FT_BOOL 1
+FT_INFO *ft_init_search(uint,void *, uint, byte *, uint, my_bool);
 
 #ifdef  __cplusplus
 }

@@ -16,9 +16,23 @@
 
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
+#define FT_CORE
 #include "ftdefs.h"
 
 /* search with natural language queries */
+
+typedef struct ft_doc_rec {
+  my_off_t  dpos;
+  double    weight;
+} FT_DOC;
+
+struct st_ft_info {
+  struct _ft_vft *please;
+  MI_INFO  *info;
+  int       ndocs;
+  int       curdoc;
+  FT_DOC    doc[1];
+};
 
 typedef struct st_all_in_one {
   MI_INFO    *info;
@@ -152,27 +166,27 @@ static int FT_DOC_cmp(FT_DOC *a, FT_DOC *b)
     return sgn(b->weight - a->weight);
 }
 
-FT_DOCLIST *ft_nlq_init_search(void *info, uint keynr, byte *query,
-                               uint query_len, my_bool presort)
+FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
+                                 uint query_len, my_bool presort)
 {
   TREE	     *wtree, allocated_wtree;
   ALL_IN_ONE  aio;
   FT_DOC     *dptr;
-  FT_DOCLIST *dlist=NULL;
-  my_off_t    saved_lastpos=((MI_INFO *)info)->lastpos;
+  FT_INFO    *dlist=NULL;
+  my_off_t    saved_lastpos=info->lastpos;
 
 /* black magic ON */
-  if ((int) (keynr = _mi_check_index((MI_INFO *)info,keynr)) < 0)
+  if ((int) (keynr = _mi_check_index(info,keynr)) < 0)
     return NULL;
-  if (_mi_readinfo((MI_INFO *)info,F_RDLCK,1))
+  if (_mi_readinfo(info,F_RDLCK,1))
     return NULL;
 /* black magic OFF */
 
-  aio.info=(MI_INFO *)info;
+  aio.info=info;
   aio.keynr=keynr;
-  aio.keybuff=aio.info->lastkey+aio.info->s->base.max_key_length;
-  aio.keyinfo=aio.info->s->keyinfo+keynr;
-  aio.key_root=aio.info->s->state.key_root[keynr];
+  aio.keybuff=info->lastkey+info->s->base.max_key_length;
+  aio.keyinfo=info->s->keyinfo+keynr;
+  aio.key_root=info->s->state.key_root[keynr];
 
   bzero(&allocated_wtree,sizeof(allocated_wtree));
 
@@ -186,18 +200,19 @@ FT_DOCLIST *ft_nlq_init_search(void *info, uint keynr, byte *query,
 	     left_root_right))
     goto err2;
 
-  dlist=(FT_DOCLIST *)my_malloc(sizeof(FT_DOCLIST)+
+  dlist=(FT_INFO *)my_malloc(sizeof(FT_INFO)+
                      sizeof(FT_DOC)*(aio.dtree.elements_in_tree-1),MYF(0));
   if(!dlist)
     goto err2;
 
+  dlist->please=& _ft_vft_nlq;
   dlist->ndocs=aio.dtree.elements_in_tree;
   dlist->curdoc=-1;
   dlist->info=aio.info;
   dptr=dlist->doc;
 
-  tree_walk(&aio.dtree, (tree_walk_action)&walk_and_copy, &dptr,
-                                                           left_root_right);
+  tree_walk(&aio.dtree, (tree_walk_action)&walk_and_copy,
+                                   &dptr, left_root_right);
 
   if(presort)
     qsort(dlist->doc, dlist->ndocs, sizeof(FT_DOC), (qsort_cmp)&FT_DOC_cmp);
@@ -207,11 +222,11 @@ err2:
   delete_tree(&aio.dtree);
 
 err:
-  ((MI_INFO *)info)->lastpos=saved_lastpos;
+  info->lastpos=saved_lastpos;
   return dlist;
 }
 
-int ft_nlq_read_next(FT_DOCLIST *handler, char *record)
+int ft_nlq_read_next(FT_INFO *handler, char *record)
 {
   MI_INFO *info= (MI_INFO *) handler->info;
 
@@ -230,5 +245,45 @@ int ft_nlq_read_next(FT_DOCLIST *handler, char *record)
     return 0;
   }
   return my_errno;
+}
+
+float ft_nlq_find_relevance(FT_INFO *handler, my_off_t docid)
+{
+  int a,b,c;
+  FT_DOC  *docs=handler->doc;
+
+  // Assuming docs[] is sorted by dpos...
+
+  for (a=0, b=handler->ndocs, c=(a+b)/2; b-a>1; c=(a+b)/2)
+  {
+    if (docs[c].dpos > docid)
+      b=c;
+    else
+      a=c;
+  }
+  if (docs[a].dpos == docid)
+    return docs[a].weight;
+  else
+    return 0.0;
+}
+
+void ft_nlq_close_search(FT_INFO *handler)
+{
+  my_free((gptr)handler,MYF(0));
+}
+
+float ft_nlq_get_relevance(FT_INFO *handler)
+{
+  return handler->doc[handler->curdoc].weight;
+}
+
+my_off_t ft_nlq_get_docid(FT_INFO *handler)
+{
+  return handler->doc[handler->curdoc].dpos;
+}
+
+void ft_nlq_reinit_search(FT_INFO *handler)
+{
+  handler->curdoc=-1;
 }
 

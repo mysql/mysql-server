@@ -21,6 +21,8 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include <ft_global.h>
+
 #ifndef NO_HASH
 #define NO_HASH				/* Not yet implemented */
 #endif
@@ -201,7 +203,7 @@ public:
   time_t check_time;
   time_t update_time;
   ulong mean_rec_length;		/* physical reclength */
-  void  *ft_handler;
+  FT_INFO *ft_handler;
   bool  auto_increment_column_changed;
 
   handler(TABLE *table_arg) : table(table_arg),active_index(MAX_REF_PARTS),
@@ -247,9 +249,9 @@ public:
   virtual int index_next_same(byte *buf, const byte *key, uint keylen);
   virtual int ft_init()
     { return -1; }
-  virtual void *ft_init_ext(uint inx,const byte *key, uint keylen,
+  virtual FT_INFO *ft_init_ext(uint mode,uint inx,const byte *key, uint keylen,
 			    bool presort)
-    { return (void *)NULL; }
+    { return NULL; }
   virtual int ft_read(byte *buf) { return -1; }
   virtual int rnd_init(bool scan=1)=0;
   virtual int rnd_end() { return 0; }

@@ -412,3 +412,5 @@ libmysqld/examples/sql_string.cc
 libmysqld/examples/sql_string.h
 libmysqld/examples/mysql
 libmysqld/examples/mysqltest
+myisam/FT1.MYD
+myisam/FT1.MYI
