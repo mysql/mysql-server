@@ -43,15 +43,15 @@ INSERT INTO t1 VALUES (1, "test", "tes"), (2, "TEST", "TES");
 </database>
 </mysqldump>
 DROP TABLE t1;
-CREATE TABLE `"t"1` (`a"b"` char(2));
-INSERT INTO `"t"1` VALUES ("1\""), ("\"2");
+CREATE TABLE t1 (`a"b"` char(2));
+INSERT INTO t1 VALUES ("1\""), ("\"2");
 <?xml version="1.0"?>
 <mysqldump>
 <database name="test">
-	<table_structure name="&quot;t&quot;1">
+	<table_structure name="t1">
 		<field Field="a&quot;b&quot;" Type="char(2)" Null="YES" Key="" Extra="" />
 	</table_structure>
-	<table_data name="&quot;t&quot;1">
+	<table_data name="t1">
 	<row>
 		<field name="a&quot;b&quot;">1&quot;</field>
 	</row>
@@ -61,4 +61,4 @@ INSERT INTO `"t"1` VALUES ("1\""), ("\"2");
 	</table_data>
 </database>
 </mysqldump>
-DROP TABLE `"t"1`;
+DROP TABLE t1;
