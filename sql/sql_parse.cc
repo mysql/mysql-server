@@ -156,7 +156,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     uc->user_len= user_len;
     uc->host=uc->user + uc->user_len +  1;
     uc->len = temp_len;
-    uc->connections = 1;
+    uc->connections = 0;
     uc->questions=uc->updates=uc->conn_per_hour=0;
     uc->user_resources=*mqh;
     if (max_user_connections && mqh->connections > max_user_connections) 
@@ -171,6 +171,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     }
   }
   thd->user_connect=uc;
+  uc->connections++;
 end:
   (void) pthread_mutex_unlock(&LOCK_user_conn);
   return return_val;
@@ -255,8 +256,8 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
   if ((ur.questions || ur.updates || ur.connections || max_user_connections) &&
       get_or_create_user_conn(thd,user,thd->host_or_ip,&ur))
     return -1;
-  if (thd->user_connect && ((thd->user_connect->user_resources.connections) ||
-			    max_user_connections) && 
+  if (thd->user_connect && (thd->user_connect->user_resources.connections ||
+			    max_user_connections) &&
       check_for_max_user_connections(thd->user_connect))
     return -1;
   if (db && db[0])
@@ -303,16 +304,17 @@ static int check_for_max_user_connections(USER_CONN *uc)
   int error=0;
   DBUG_ENTER("check_for_max_user_connections");
   
+  (void) pthread_mutex_lock(&LOCK_user_conn);
   if (max_user_connections &&
-      (max_user_connections <  (uint) uc->connections))
+      max_user_connections <= uc->connections)
   {
     net_printf(&(current_thd->net),ER_TOO_MANY_USER_CONNECTIONS, uc->user);
     error=1;
+    uc->connections--;
     goto end;
   }
-  uc->connections++; 
   if (uc->user_resources.connections &&
-      uc->conn_per_hour++ >= uc->user_resources.connections)
+      uc->user_resources.connections <= uc->conn_per_hour)
   {
     net_printf(&current_thd->net, ER_USER_LIMIT_REACHED, uc->user,
 	       "max_connections",
@@ -320,7 +322,9 @@ static int check_for_max_user_connections(USER_CONN *uc)
     error=1;
     goto end;
   }
+  uc->conn_per_hour++;
 end:
+  (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
 }
 
@@ -328,13 +332,14 @@ end:
 static void decrease_user_connections(USER_CONN *uc)
 {
   DBUG_ENTER("decrease_user_connections");
-  if ((uc->connections && !--uc->connections) && !mqh_used)
+  (void) pthread_mutex_lock(&LOCK_user_conn);
+  DBUG_ASSERT(uc->connections);
+  if (!--uc->connections && !mqh_used)
   {
     /* Last connection for user; Delete it */
-    (void) pthread_mutex_lock(&LOCK_user_conn);
     (void) hash_delete(&hash_user_connections,(byte*) uc);
-    (void) pthread_mutex_unlock(&LOCK_user_conn);
   }
+  (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_VOID_RETURN;
 }
 
@@ -1026,7 +1031,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->priv_user=save_priv_user;
       break;
     }
-    if (max_connections && save_uc)
+    if (save_uc)
       decrease_user_connections(save_uc);
     x_free((gptr) save_db);
     x_free((gptr) save_user);
