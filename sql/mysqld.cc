@@ -634,7 +634,7 @@ static void close_connections(void)
   {
     DBUG_PRINT("quit",("Informing thread %ld that it's time to die",
 		       tmp->thread_id));
-    tmp->killed=1;
+    tmp->killed= THD::KILL_CONNECTION;
     if (tmp->mysys_var)
     {
       tmp->mysys_var->abort=1;
@@ -1394,7 +1394,7 @@ extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
   THD *thd=current_thd;
   DBUG_ENTER("abort_thread");
   if (thd)
-    thd->killed=1;
+    thd->killed= THD::KILL_CONNECTION;
   DBUG_VOID_RETURN;
 }
 #endif
@@ -2852,7 +2852,7 @@ static void create_new_thread(THD *thd)
 		   ("Can't create thread to handle request (error %d)",
 		    error));
 	thread_count--;
-	thd->killed=1;				// Safety
+	thd->killed= THD::KILL_CONNECTION;				// Safety
 	(void) pthread_mutex_unlock(&LOCK_thread_count);
 	net_printf(thd,ER_CANT_CREATE_THREAD,error);
 	(void) pthread_mutex_lock(&LOCK_thread_count);
