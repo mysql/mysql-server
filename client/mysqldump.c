@@ -78,7 +78,8 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick=0, extended_insert = 0,
   opt_alldbs=0,opt_create_db=0,opt_first_slave=0,
   opt_autocommit=0,opt_master_data,opt_disable_keys=0,opt_xml=0,
   opt_delete_master_logs=0, tty_password=0,
-  opt_single_transaction=0, opt_comments= 0;
+  opt_single_transaction=0, opt_comments= 0,
+  opt_hex_blob;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL  mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
@@ -248,6 +249,8 @@ static struct my_option my_long_options[] =
   {"comments", 'i', "Write additional information.",
    (gptr*) &opt_comments, (gptr*) &opt_comments, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
+  {"hex-blob", OPT_HEXBLOB, "Dump BLOBs in HEX.",
+   (gptr*) &opt_hex_blob, (gptr*) &opt_hex_blob, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1104,6 +1107,7 @@ static void dumpTable(uint numFields, char *table)
 
       for (i = 0; i < mysql_num_fields(res); i++)
       {
+        int is_blob;
 	if (!(field = mysql_fetch_field(res)))
 	{
 	  sprintf(query,"%s: Not enough fields from table %s! Aborting.\n",
@@ -1112,6 +1116,13 @@ static void dumpTable(uint numFields, char *table)
 	  error= EX_CONSCHECK;
 	  goto err;
 	}
+	
+        is_blob= (opt_hex_blob && (field->flags & BINARY_FLAG) &&
+                  (field->type == FIELD_TYPE_STRING ||
+                   field->type == FIELD_TYPE_BLOB ||
+                   field->type == FIELD_TYPE_LONG_BLOB ||
+                   field->type == FIELD_TYPE_MEDIUM_BLOB ||
+                   field->type == FIELD_TYPE_TINY_BLOB)) ? 1 : 0;
 	if (extended_insert)
 	{
 	  ulong length = lengths[i];
@@ -1126,18 +1137,37 @@ static void dumpTable(uint numFields, char *table)
 	    {
 	      if (!IS_NUM_FIELD(field))
 	      {
+	        /*
+	          "length * 2 + 2" is OK for both HEX and non-HEX modes:
+	          - In HEX mode we need exactly 2 bytes per character
+	          plus 2 bytes for '0x' prefix.
+	          - In non-HEX mode we need up to 2 bytes per character,
+	          plus 2 bytes for leading and trailing '\'' characters.
+	        */
 		if (dynstr_realloc(&extended_row,length * 2+2))
 		{
 		  fputs("Aborting dump (out of memory)",stderr);
 		  error= EX_EOM;
 		  goto err;
 		}
-		dynstr_append(&extended_row,"\'");
-		extended_row.length +=
+                if (opt_hex_blob && is_blob)
+                {
+                  dynstr_append(&extended_row, "0x");
+                  extended_row.length+= mysql_hex_string(extended_row.str + 
+                                                         extended_row.length,
+                                                         row[i], length);
+                  extended_row.str[extended_row.length]= '\0';
+                }
+                else
+                {
+		  dynstr_append(&extended_row,"\'");
+		  extended_row.length +=
 		  mysql_real_escape_string(&mysql_connection,
-					   &extended_row.str[extended_row.length],row[i],length);
-		extended_row.str[extended_row.length]='\0';
-		dynstr_append(&extended_row,"\'");
+		  			   &extended_row.str[extended_row.length],
+		  			   row[i],length);
+		  extended_row.str[extended_row.length]='\0';
+		  dynstr_append(&extended_row,"\'");
+		}
 	      }
 	      else
 	      {
@@ -1180,7 +1210,19 @@ static void dumpTable(uint numFields, char *table)
 	      if (opt_xml)
 		print_quoted_xml(md_result_file, field->name, row[i],
 				 lengths[i]);
-	      else
+	      else if (opt_hex_blob && is_blob)
+              { /* sakaik got this idea. */
+                ulong counter;
+                char xx[4];
+                unsigned char *ptr= row[i];
+                fputs("0x", md_result_file);
+                for (counter = 0; counter < lengths[i]; counter++)
+                {
+                  sprintf(xx, "%02X", ptr[counter]);
+                  fputs(xx, md_result_file);
+                }
+              }
+              else
 		unescape(md_result_file, row[i], lengths[i]);
 	    }
 	    else
