@@ -210,7 +210,7 @@ public:
   longlong val_int() { return (longlong) val(); }
   bool is_null() { (void) val_int(); return null_value; }
   String *val_str(String*);
-  void make_field(Send_field *field);
+  enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
   void fix_length_and_dec() {}
 };
 
@@ -247,7 +247,7 @@ public:
   longlong val_int() { return (longlong) val(); }
   String *val_str(String*);
   bool is_null() { (void) val_int(); return null_value; }
-  void make_field(Send_field *field);
+  enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
   void fix_length_and_dec() {}
 };
 
@@ -318,6 +318,7 @@ class Item_sum_hybrid :public Item_sum
   double sum;
   longlong sum_int;
   Item_result hybrid_type;
+  enum_field_types hybrid_field_type;
   int cmp_sign;
   table_map used_table_cache;
 
@@ -344,6 +345,7 @@ class Item_sum_hybrid :public Item_sum
   void make_const() { used_table_cache=0; }
   bool keep_field_type(void) const { return 1; }
   enum Item_result result_type () const { return hybrid_type; }
+  enum enum_field_types field_type() const { return hybrid_field_type; }
   void update_field(int offset);
   void min_max_update_str_field(int offset);
   void min_max_update_real_field(int offset);

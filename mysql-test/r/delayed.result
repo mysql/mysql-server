@@ -12,9 +12,9 @@ select * from t1 where tmsp=0;
 a	tmsp
 select * from t1 where tmsp=19711006010203;
 a	tmsp
-5	19711006010203
-6	19711006010203
-8	19711006010203
+5	1971-10-06 01:02:03
+6	1971-10-06 01:02:03
+8	1971-10-06 01:02:03
 drop table t1;
 create table t1 (a int not null auto_increment primary key, b char(10));
 insert delayed into t1 values (1,"b");

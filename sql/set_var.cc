@@ -992,8 +992,12 @@ bool sys_var_thd_conv_charset::update(THD *thd, set_var *var)
   if (var->type == OPT_GLOBAL)
     global_system_variables.convert_set= var->save_result.convert;
   else
+  {
     thd->lex.convert_set= thd->variables.convert_set=
       var->save_result.convert;
+    thd->protocol_simple.init(thd);
+    thd->protocol_prep.init(thd);
+  }
   return 0;
 }
 

@@ -928,14 +928,15 @@ int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
 
 int show_binlog_events(THD* thd)
 {
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("show_binlog_events");
   List<Item> field_list;
-  const char* errmsg = 0;
+  const char *errmsg = 0;
   IO_CACHE log;
   File file = -1;
 
   Log_event::init_show_field_list(&field_list);
-  if (send_fields(thd, field_list, 1))
+  if (protocol-> send_fields(&field_list, 1))
     DBUG_RETURN(-1);
 
   if (mysql_bin_log.is_open())
@@ -983,7 +984,7 @@ int show_binlog_events(THD* thd)
 	 (ev = Log_event::read_log_event(&log,(pthread_mutex_t*)0,0)); )
     {
       if (event_count >= limit_start &&
-	  ev->net_send(thd, linfo.log_file_name, pos))
+	  ev->net_send(protocol, linfo.log_file_name, pos))
       {
 	errmsg = "Net error";
 	delete ev;
@@ -1029,28 +1030,29 @@ err:
 
 int show_binlog_info(THD* thd)
 {
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("show_binlog_info");
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("File", FN_REFLEN));
-  field_list.push_back(new Item_empty_string("Position",20));
-  field_list.push_back(new Item_empty_string("Binlog_do_db",20));
-  field_list.push_back(new Item_empty_string("Binlog_ignore_db",20));
+  field_list.push_back(new Item_return_int("Position",20,
+					   MYSQL_TYPE_LONGLONG));
+  field_list.push_back(new Item_empty_string("Binlog_do_db",255));
+  field_list.push_back(new Item_empty_string("Binlog_ignore_db",255));
 
-  if (send_fields(thd, field_list, 1))
+  if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(-1);
-  String* packet = &thd->packet;
-  packet->length(0);
+  protocol->prepare_for_resend();
 
   if (mysql_bin_log.is_open())
   {
     LOG_INFO li;
     mysql_bin_log.get_current_log(&li);
     int dir_len = dirname_length(li.log_file_name);
-    net_store_data(packet, li.log_file_name + dir_len);
-    net_store_data(packet, (longlong)li.pos);
-    net_store_data(packet, &binlog_do_db);
-    net_store_data(packet, &binlog_ignore_db);
-    if (my_net_write(&thd->net, (char*)thd->packet.ptr(), packet->length()))
+    protocol->store(li.log_file_name + dir_len);
+    protocol->store((ulonglong) li.pos);
+    protocol->store(&binlog_do_db);
+    protocol->store(&binlog_ignore_db);
+    if (protocol->write())
       DBUG_RETURN(-1);
   }
   send_eof(thd);
@@ -1079,6 +1081,8 @@ int show_binlogs(THD* thd)
   List<Item> field_list;
   String *packet = &thd->packet;
   uint length;
+  Protocol *protocol= thd->protocol;
+  DBUG_ENTER("show_binlogs");
 
   if (!mysql_bin_log.is_open())
   {
@@ -1088,8 +1092,8 @@ int show_binlogs(THD* thd)
   }
 
   field_list.push_back(new Item_empty_string("Log_name", 255));
-  if (send_fields(thd, field_list, 1))
-    return 1;
+  if (protocol->send_fields(&field_list, 1))
+    DBUG_RETURN(1);
   mysql_bin_log.lock_index();
   index_file=mysql_bin_log.get_index_file();
   
@@ -1098,22 +1102,22 @@ int show_binlogs(THD* thd)
   /* The file ends with EOF or empty line */
   while ((length=my_b_gets(index_file, fname, sizeof(fname))) > 1)
   {
+    protocol->prepare_for_resend();
     int dir_len = dirname_length(fname);
-    packet->length(0);
     /* The -1 is for removing newline from fname */
-    net_store_data(packet, fname + dir_len, length-1-dir_len);
-    if (my_net_write(net, (char*) packet->ptr(), packet->length()))
+    protocol->store(fname + dir_len, length-1-dir_len);
+    if (protocol->write())
       goto err;
   }
   mysql_bin_log.unlock_index();
   send_eof(thd);
-  return 0;
+  DBUG_RETURN(0);
 
 err_with_msg:
   send_error(thd, ER_UNKNOWN_ERROR, errmsg);
 err:
   mysql_bin_log.unlock_index();
-  return 1;
+  DBUG_RETURN(1);
 }
 
 

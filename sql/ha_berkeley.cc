@@ -231,10 +231,9 @@ int berkeley_rollback(THD *thd, void *trans)
 }
 
 
-int berkeley_show_logs(THD *thd)
+int berkeley_show_logs(Protocol *protocol)
 {
   char **all_logs, **free_logs, **a, **f;
-  String *packet= &thd->packet;
   int error=1;
   MEM_ROOT show_logs_root;
   MEM_ROOT *old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
@@ -243,8 +242,9 @@ int berkeley_show_logs(THD *thd)
   init_alloc_root(&show_logs_root, 1024, 1024);
   my_pthread_setspecific_ptr(THR_MALLOC,&show_logs_root);
 
-  if ((error= db_env->log_archive(db_env, &all_logs, DB_ARCH_ABS | DB_ARCH_LOG))
-      || (error= db_env->log_archive(db_env, &free_logs, DB_ARCH_ABS)))
+  if ((error= db_env->log_archive(db_env, &all_logs,
+				  DB_ARCH_ABS | DB_ARCH_LOG)) ||
+      (error= db_env->log_archive(db_env, &free_logs, DB_ARCH_ABS)))
   {
     DBUG_PRINT("error", ("log_archive failed (error %d)", error));
     db_env->err(db_env, error, "log_archive: DB_ARCH_ABS");
@@ -257,18 +257,18 @@ int berkeley_show_logs(THD *thd)
   {
     for (a = all_logs, f = free_logs; *a; ++a)
     {
-      packet->length(0);
-      net_store_data(packet,*a);
-      net_store_data(packet,"BDB");
+      protocol->prepare_for_resend();
+      protocol->store(*a);
+      protocol->store("BDB", 3);
       if (f && *f && strcmp(*a, *f) == 0)
       {
-	++f;
-	net_store_data(packet, SHOW_LOG_STATUS_FREE);
+	f++;
+	protocol->store(SHOW_LOG_STATUS_FREE);
       }
       else
-	net_store_data(packet, SHOW_LOG_STATUS_INUSE);
+	protocol->store(SHOW_LOG_STATUS_INUSE);
 
-      if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+      if (protocol->write())
       {
 	error=1;
 	goto err;
@@ -2065,8 +2065,7 @@ void ha_berkeley::print_error(int error, myf errflag)
 static void print_msg(THD *thd, const char *table_name, const char *op_name,
 		      const char *msg_type, const char *fmt, ...)
 {
-  String* packet = &thd->packet;
-  packet->length(0);
+  Protocol *protocol= thd->protocol;
   char msgbuf[256];
   msgbuf[0] = 0;
   va_list args;
@@ -2074,15 +2073,14 @@ static void print_msg(THD *thd, const char *table_name, const char *op_name,
 
   my_vsnprintf(msgbuf, sizeof(msgbuf), fmt, args);
   msgbuf[sizeof(msgbuf) - 1] = 0; // healthy paranoia
-
   DBUG_PRINT(msg_type,("message: %s",msgbuf));
 
-  net_store_data(packet, table_name);
-  net_store_data(packet, op_name);
-  net_store_data(packet, msg_type);
-  net_store_data(packet, msgbuf);
-  if (my_net_write(&thd->net, (char*)thd->packet.ptr(),
-		   thd->packet.length()))
+  protocol->prepare_for_resend();
+  protocol->store(table_name);
+  protocol->store(op_name);
+  protocol->store(msg_type);
+  protocol->store(msgbuf);
+  if (protocol->write())
     thd->killed=1;
 }
 #endif

@@ -295,8 +295,8 @@ longlong Item_func_time_to_sec::val_int()
 
 
 /*
-** Convert a string to a interval value
-** To make code easy, allow interval objects without separators.
+  Convert a string to a interval value
+  To make code easy, allow interval objects without separators.
 */
 
 static bool get_interval_value(Item *args,interval_type int_type,
@@ -516,11 +516,13 @@ void Item_func_curtime::fix_length_and_dec()
 				 (int) start->tm_sec);
 }
 
+
 String *Item_func_now::val_str(String *str)
 {
   str_value.set(buff,buff_length,thd_charset());
   return &str_value;
 }
+
 
 void Item_func_now::fix_length_and_dec()
 {
@@ -540,13 +542,14 @@ void Item_func_now::fix_length_and_dec()
 		     (ulong) (((uint) start->tm_min)*100L+
 			    (uint) start->tm_sec)));
   
-  buff_length= (uint) cs->snprintf(cs,buff, sizeof(buff),"%04d-%02d-%02d %02d:%02d:%02d",
-					((int) (start->tm_year+1900)) % 10000,
-					(int) start->tm_mon+1,
-					(int) start->tm_mday,
-					(int) start->tm_hour,
-					(int) start->tm_min,
-					(int) start->tm_sec);
+  buff_length= (uint) cs->snprintf(cs,buff, sizeof(buff),
+				   "%04d-%02d-%02d %02d:%02d:%02d",
+				   ((int) (start->tm_year+1900)) % 10000,
+				   (int) start->tm_mon+1,
+				   (int) start->tm_mday,
+				   (int) start->tm_hour,
+				   (int) start->tm_min,
+				   (int) start->tm_sec);
   /* For getdate */
   ltime.year=	start->tm_year+1900;
   ltime.month=	start->tm_mon+1;
@@ -995,7 +998,42 @@ bool Item_func_from_unixtime::get_date(TIME *ltime,
   return 0;
 }
 
-  /* Here arg[1] is a Item_interval object */
+
+void Item_date_add_interval::fix_length_and_dec()
+{
+  enum_field_types arg0_field_type;
+  set_charset(thd_charset());
+  maybe_null=1;
+  max_length=19*thd_charset()->mbmaxlen;
+  value.alloc(32);
+
+  /*
+    The field type for the result of an Item_date function is defined as
+    follows:
+
+    - If first arg is a MYSQL_TYPE_DATETIME result is MYSQL_TYPE_DATETIME
+    - If first arg is a MYSQL_TYPE_DATE and the interval type uses hours,
+      minutes or seconds then type is MYSQL_TYPE_DATETIME.
+    - Otherwise the result is MYSQL_TYPE_STRING
+      (This is because you can't know if the string contains a DATE, TIME or
+      DATETIME argument)
+  */
+  cached_field_type= MYSQL_TYPE_STRING;
+  arg0_field_type= args[0]->field_type();
+  if (arg0_field_type == MYSQL_TYPE_DATETIME ||
+      arg0_field_type == MYSQL_TYPE_TIMESTAMP)
+    cached_field_type= MYSQL_TYPE_DATETIME;
+  else if (arg0_field_type == MYSQL_TYPE_DATE)
+  {
+    if (int_type <= INTERVAL_MONTH || int_type == INTERVAL_YEAR_MONTH)
+      cached_field_type= arg0_field_type;
+    else
+      cached_field_type= MYSQL_TYPE_DATETIME;
+  }
+}
+
+
+/* Here arg[1] is a Item_interval object */
 
 bool Item_date_add_interval::get_date(TIME *ltime, bool fuzzy_date)
 {

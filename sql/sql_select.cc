@@ -3059,6 +3059,7 @@ join_free(JOIN *join, bool full)
     if (join->tables > join->const_tables) // Test for not-const tables
       free_io_cache(join->table[join->const_tables]);
     if (join->select_lex->dependent && !full)
+    {
       for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
       {
 	if (tab->table)
@@ -3073,6 +3074,7 @@ join_free(JOIN *join, bool full)
 	    tab->table->file->index_end();
 	}
       }
+    }
     else
     {
       for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
@@ -3090,6 +3092,11 @@ join_free(JOIN *join, bool full)
 	  /* Don't free index if we are using read_record */
 	  if (!tab->read_record.table)
 	    tab->table->file->index_end();
+	  /*
+	    We need to reset this for next select
+	    (Tested in part_of_refkey)
+	  */
+	  tab->table->reginfo.join_tab= 0;
 	}
 	end_read_record(&tab->read_record);
       }
@@ -7500,9 +7507,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     item_list.push_back(new Item_string(join->select_lex->type,
 					strlen(join->select_lex->type),
 					default_charset_info));
-    Item *empty= new Item_empty_string("",0);
     for (uint i=0 ; i < 7; i++)
-      item_list.push_back(empty);
+      item_list.push_back(item_null);
     item_list.push_back(new Item_string(message,strlen(message),
 					default_charset_info));
     if (result->send_data(item_list))
@@ -7542,7 +7548,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(new Item_string(table->table_name,
 					    strlen(table->table_name),
 					    default_charset_info));
-      item_list.push_back(new Item_string(join_type_str[tab->type],strlen(join_type_str[tab->type]),default_charset_info));
+      item_list.push_back(new Item_string(join_type_str[tab->type],
+					  strlen(join_type_str[tab->type]),
+					  default_charset_info));
       key_map bits;
       uint j;
       for (j=0,bits=tab->keys ; bits ; j++,bits>>=1)
@@ -7600,9 +7608,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(item_null);
 	item_list.push_back(item_null);
       }
-      sprintf(buff3,"%.0f",join->best_positions[i].records_read);
-      item_list.push_back(new Item_string(buff3,strlen(buff3),
-					  default_charset_info));
+      item_list.push_back(new Item_int((longlong) (ulonglong)
+				       join->best_positions[i]. records_read,
+				       21));
       my_bool key_read=table->key_read;
       if (tab->type == JT_NEXT &&
 	  ((table->used_keys & ((key_map) 1 << tab->index))))
@@ -7658,6 +7666,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   DBUG_VOID_RETURN;
 }
 
+
 int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 {
   DBUG_ENTER("mysql_explain_union");
@@ -7687,6 +7696,7 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     res= -1; // mysql_explain_select do not report error
   DBUG_RETURN(res);
 }
+
 
 int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type, 
 			 select_result *result)

@@ -392,11 +392,71 @@ CREATE TABLE t3 (ctime1 char(19) NOT NULL, ctime2 char(19) NOT NULL);
 INSERT INTO t3 VALUES ("2002-10-29 16:51:06","2002-11-05 16:47:31");
 select * from t1, t2 where t1.start between t2.ctime1 and t2.ctime2;
 start	ctime1	ctime2
-2002-11-04 00:00:00	20021029165106	20021105164731
+2002-11-04 00:00:00	2002-10-29 16:51:06	2002-11-05 16:47:31
 select * from t1, t2 where t1.start >= t2.ctime1 and t1.start <= t2.ctime2;
 start	ctime1	ctime2
-2002-11-04 00:00:00	20021029165106	20021105164731
+2002-11-04 00:00:00	2002-10-29 16:51:06	2002-11-05 16:47:31
 select * from t1, t3 where t1.start between t3.ctime1 and t3.ctime2;
 start	ctime1	ctime2
 2002-11-04 00:00:00	2002-10-29 16:51:06	2002-11-05 16:47:31
 drop table t1,t2,t3;
+CREATE TABLE t1 (datetime datetime, timestamp timestamp, date date, time time);
+INSERT INTO t1 values ("2001-01-02 03:04:05", "2002-01-02 03:04:05", "2003-01-02", "06:07:08");
+SELECT * from t1;
+datetime	timestamp	date	time
+2001-01-02 03:04:05	2002-01-02 03:04:05	2003-01-02	06:07:08
+select date_add("1997-12-31",INTERVAL 1 SECOND);
+date_add("1997-12-31",INTERVAL 1 SECOND)
+1997-12-31 00:00:01
+select date_add("1997-12-31",INTERVAL "1 1" YEAR_MONTH);
+date_add("1997-12-31",INTERVAL "1 1" YEAR_MONTH)
+1999-01-31
+select date_add(datetime, INTERVAL 1 SECOND) from t1;
+date_add(datetime, INTERVAL 1 SECOND)
+2001-01-02 03:04:06
+select date_add(datetime, INTERVAL 1 YEAR) from t1;
+date_add(datetime, INTERVAL 1 YEAR)
+2002-01-02 03:04:05
+select date_add(date,INTERVAL 1 SECOND) from t1;
+date_add(date,INTERVAL 1 SECOND)
+2003-01-02 00:00:01
+select date_add(date,INTERVAL 1 MINUTE) from t1;
+date_add(date,INTERVAL 1 MINUTE)
+2003-01-02 00:01:00
+select date_add(date,INTERVAL 1 HOUR) from t1;
+date_add(date,INTERVAL 1 HOUR)
+2003-01-02 01:00:00
+select date_add(date,INTERVAL 1 DAY) from t1;
+date_add(date,INTERVAL 1 DAY)
+2003-01-03
+select date_add(date,INTERVAL 1 MONTH) from t1;
+date_add(date,INTERVAL 1 MONTH)
+2003-02-02
+select date_add(date,INTERVAL 1 YEAR) from t1;
+date_add(date,INTERVAL 1 YEAR)
+2004-01-02
+select date_add(date,INTERVAL "1:1" MINUTE_SECOND) from t1;
+date_add(date,INTERVAL "1:1" MINUTE_SECOND)
+2003-01-02 00:01:01
+select date_add(date,INTERVAL "1:1" HOUR_MINUTE) from t1;
+date_add(date,INTERVAL "1:1" HOUR_MINUTE)
+2003-01-02 01:01:00
+select date_add(date,INTERVAL "1:1" DAY_HOUR) from t1;
+date_add(date,INTERVAL "1:1" DAY_HOUR)
+2003-01-03 01:00:00
+select date_add(date,INTERVAL "1 1" YEAR_MONTH) from t1;
+date_add(date,INTERVAL "1 1" YEAR_MONTH)
+2004-02-02
+select date_add(date,INTERVAL "1:1:1" HOUR_SECOND) from t1;
+date_add(date,INTERVAL "1:1:1" HOUR_SECOND)
+2003-01-02 01:01:01
+select date_add(date,INTERVAL "1 1:1" DAY_MINUTE) from t1;
+date_add(date,INTERVAL "1 1:1" DAY_MINUTE)
+2003-01-03 01:01:00
+select date_add(date,INTERVAL "1 1:1:1" DAY_SECOND) from t1;
+date_add(date,INTERVAL "1 1:1:1" DAY_SECOND)
+2003-01-03 01:01:01
+select date_add(time,INTERVAL 1 SECOND) from t1;
+date_add(time,INTERVAL 1 SECOND)
+2006-07-08 00:00:01
+drop table t1;

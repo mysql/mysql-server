@@ -3922,9 +3922,8 @@ innodb_show_status(
 /*===============*/
 	THD*	thd)	/* in: the MySQL query thread of the caller */
 {
-	String* 	packet 	= &thd->packet;
 	char*		buf;
-
+	Protocol	*protocol= thd->protocol;
   	DBUG_ENTER("innodb_show_status");
 	
 	if (innodb_skip) {
@@ -3945,22 +3944,17 @@ innodb_show_status(
 
 	field_list.push_back(new Item_empty_string("Status", strlen(buf)));
 
-	if(send_fields(thd, field_list, 1)) {
+	if (protocol->send_fields(&field_list, 1))
+	{
 	  	DBUG_RETURN(-1);
 	}
 
-  	packet->length(0);
-  
-  	net_store_data(packet, buf);
-  
-  	if (my_net_write(&thd->net, (char*)thd->packet.ptr(),
-						packet->length())) {
-		ut_free(buf);
-	
-    		DBUG_RETURN(-1);
-    	}
-
+  	protocol->prepare_for_resend();
+	protocol->store(buf, strlen(buf));
 	ut_free(buf);
+  
+  	if (protocol->write())
+	  DBUG_RETURN(-1);
 
   	send_eof(thd);
 
