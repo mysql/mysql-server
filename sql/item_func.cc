@@ -82,8 +82,6 @@ bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count,
                                    uint flags)
 {
   uint i;
-  c.nagg= 0;
-  c.strong= 0;
   c.set(av[0]->collation);
   for (i= 1; i < count; i++)
   {

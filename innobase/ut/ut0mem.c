@@ -14,6 +14,7 @@ Created 5/11/1994 Heikki Tuuri
 
 #include "mem0mem.h"
 #include "os0sync.h"
+#include "os0thread.h"
 
 /* This struct is placed first in every allocated memory block */
 typedef struct ut_mem_block_struct ut_mem_block_t;
@@ -66,6 +67,7 @@ ut_malloc_low(
 	ibool	assert_on_error) /* in: if TRUE, we crash mysqld if the memory
 				cannot be allocated */
 {
+	ulint	retry_count	= 0;
 	void*	ret;
 
 	ut_ad((sizeof(ut_mem_block_t) % 8) == 0); /* check alignment ok */
@@ -73,24 +75,26 @@ ut_malloc_low(
 	if (!ut_mem_block_list_inited) {
 	        ut_mem_block_list_init();
 	}
-
+retry:
 	os_fast_mutex_lock(&ut_list_mutex);
 
 	ret = malloc(n + sizeof(ut_mem_block_t));
 
-	if (ret == NULL) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-		"  InnoDB: Fatal error: cannot allocate %lu bytes of\n"
+	if (ret == NULL && retry_count < 60) {
+		if (retry_count == 0) {
+			ut_print_timestamp(stderr);
+
+			fprintf(stderr,
+		"  InnoDB: Error: cannot allocate %lu bytes of\n"
 		"InnoDB: memory with malloc! Total allocated memory\n"
 		"InnoDB: by InnoDB %lu bytes. Operating system errno: %lu\n"
-		"InnoDB: Cannot continue operation!\n"
 		"InnoDB: Check if you should increase the swap file or\n"
 		"InnoDB: ulimits of your operating system.\n"
 		"InnoDB: On FreeBSD check you have compiled the OS with\n"
 		"InnoDB: a big enough maximum process size.\n"
 		"InnoDB: Note that in most 32-bit computers the process\n"
 		"InnoDB: memory space is limited to 2 GB or 4 GB.\n",
+		"InnoDB: We keep retrying the allocation for 60 seconds...\n",
 		                  (ulong) n, (ulong) ut_total_allocated_memory,
 #ifdef __WIN__
 			(ulong) GetLastError()
@@ -98,7 +102,21 @@ ut_malloc_low(
 			(ulong) errno
 #endif
 			);
+		}
 
+		os_fast_mutex_unlock(&ut_list_mutex);
+
+		/* Sleep for a second and retry the allocation; maybe this is
+		just a temporary shortage of memory */
+
+		os_thread_sleep(1000000);
+		
+		retry_count++;
+
+		goto retry;
+	}
+
+	if (ret == NULL) {
 		/* Flush stderr to make more probable that the error
 		message gets in the error file before we generate a seg
 		fault */
@@ -113,8 +131,10 @@ ut_malloc_low(
 		by graceful exit handling in ut_a(). */
 #if (!defined __NETWARE__) 
 		if (assert_on_error) {
+			ut_print_timestamp(stderr);
+
 			fprintf(stderr,
-		"InnoDB: We now intentionally generate a seg fault so that\n"
+		"  InnoDB: We now intentionally generate a seg fault so that\n"
 		"InnoDB: on Linux we get a stack trace.\n");
 
 			if (*ut_mem_null_ptr) ut_mem_null_ptr = 0;
