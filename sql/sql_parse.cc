@@ -1092,6 +1092,8 @@ mysql_execute_command(void)
     thd->select_limit=lex->select_limit+lex->offset_limit;
     if (thd->select_limit < lex->select_limit)
       thd->select_limit= HA_POS_ERROR;		// no limit
+    if (thd->select_limit == HA_POS_ERROR)
+      lex->options&= ~OPTION_FOUND_ROWS;
 
     if (lex->exchange)
     {

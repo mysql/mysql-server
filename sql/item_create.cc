@@ -129,6 +129,11 @@ Item *create_func_floor(Item* a)
   return new Item_func_floor(a);
 }
 
+Item *create_func_found_rows(void)
+{
+  return new Item_int("FOUND_ROWS()",(longlong) current_thd->found_rows(),21);
+}
+
 Item *create_func_from_days(Item* a)
 {
   return new Item_func_from_days(a);
