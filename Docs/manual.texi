@@ -5581,8 +5581,11 @@ edit the base section and keys:
 
 @example
 [mysqld]
-basedir=the_install_path  #e.g. c:/mysql
-datadir=the_data_path  #e.g. c:/mysql/data or d:/mydata/data
+# set basedir to installation path, e.g., c:/mysql
+basedir=the_install_path
+# set datadir to location of data directory,
+# e.g., c:/mysql/data or d:/mydata/data
+datadir=the_data_path
 @end example
 
 If the data directory is other than the default
