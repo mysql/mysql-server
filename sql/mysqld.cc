@@ -242,7 +242,7 @@ static char glob_hostname[FN_REFLEN];
 
 #include "sslopt-vars.h"
 #ifdef HAVE_OPENSSL
-static char * des_key_file = 0;
+char *des_key_file = 0;
 struct st_VioSSLAcceptorFd * ssl_acceptor_fd = 0;
 #endif /* HAVE_OPENSSL */
 

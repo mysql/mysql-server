@@ -77,9 +77,6 @@ this is a REAL test
 select soundex(''),soundex('he'),soundex('hello all folks');
 soundex('')	soundex('he')	soundex('hello all folks')
 	H000	H4142
-select password('test'),length(encrypt('test')),encrypt('test','aa');
-password('test')	length(encrypt('test'))	encrypt('test','aa')
-378b243e220ca493	13	aaqPiZY5xR5l.
 select md5('hello');
 md5('hello')
 5d41402abc4b2a76b9719d911017c592

@@ -7304,8 +7304,11 @@ version 4.0;
 @code{LOCATE()} and @code{INSTR()} are case sensitive if neither
 argument is a binary string.
 @item
-In 3.23,
-@code{INSERT INTO ... SELECT} always had @code{IGNORE} enabled.
+@code{HEX(string)} now returns the characters in string converted to
+hexadecimal.  If you want to convert a number to hexadecimal, you should
+ensure that you call @code{HEX()} with a numeric argument.
+@item
+In 3.23, @code{INSERT INTO ... SELECT} always had @code{IGNORE} enabled.
 In 4.0.1, MySQL will stop (and possibly roll back) in case of an error if you
 don't specify @code{IGNORE}.
 @item
@@ -13134,20 +13137,24 @@ specify @code{--core-file-size} to @code{safe_mysqld}. @xref{safe_mysqld, ,
 @item -h, --datadir=path
 Path to the database root.
 
+@item --debug[...]=
+If MySQL is configured with @code{--with-debug}, you can use this 
+option to get a trace file of what @code{mysqld} is doing. 
+@xref{Making trace files}.
+
 @item --default-character-set=charset
 Set the default character set.  @xref{Character sets}.
 
 @item --default-table-type=type
 Set the default table type for tables.  @xref{Table types}.
 
-@item --debug[...]=
-If MySQL is configured with @code{--with-debug}, you can use this 
-option to get a trace file of what @code{mysqld} is doing. 
-@xref{Making trace files}.
-
 @item --delay-key-write-for-all-tables
 Don't flush key buffers between writes for any @code{MyISAM} table.
 @xref{Server parameters}.
+
+@item --des-key-file=filename
+Read the default keys used by @code{des_encrypt()} and @code{des_decrypt()}
+from this file.
 
 @item --enable-locking
 Enable system locking.  Note that if you use this option on a system
@@ -17910,6 +17917,8 @@ something is wrong and blocks the host from further connection requests.
 Flushing the host tables allows the host to attempt to connect
 again. @xref{Blocked host}. You can start @code{mysqld} with
 @code{-O max_connection_errors=999999999} to avoid this error message.
+
+@item @code{DES_KEY_FILE} @tab Reloads the des keys from the file specified with @code{--des-key-file}.
 
 @item @code{LOGS} @tab Closes and reopens all log files.
 If you have specified the update log file or a binary log file without
@@ -26644,7 +26653,8 @@ mysql> select 0x5061756c;
 The x'hexstring' syntax (new in 4.0) is based on ANSI SQL and the 0x
 syntax is based on ODBC.
 Hexadecimal strings are often used by ODBC to give values for BLOB columns.
-
+You can convert a string or a number to hexadecimal with the @code{HEX()}
+function.
 
 @node NULL values,  , Hexadecimal values, Literals
 @subsubsection @code{NULL} Values
@@ -29173,14 +29183,23 @@ mysql> select OCT(12);
 @end example
 
 @findex HEX()
-@item HEX(N)
-Returns a string representation of the hexadecimal value of @code{N}, where
-@code{N} is a longlong (@code{BIGINT}) number.  This is equivalent to
-@code{CONV(N,10,16)}.  Returns @code{NULL} if @code{N} is @code{NULL}:
+@item HEX(N_or_S)
+
+If N_OR_S is a number, returns a string representation of the hexadecimal
+value of @code{N}, where @code{N} is a longlong (@code{BIGINT}) number.
+This is equivalent to @code{CONV(N,10,16)}.
+
+If N_OR_S is a string, returns a hexadecimal string of N_OR_S where each
+character in N_OR_S is converted to 2 hexadecimal digits. This is the
+invers of the @code{0xff} strings.
 
 @example
 mysql> select HEX(255);
         -> 'FF'
+mysql> select HEX("abc");
+        -> 616263
+mysql> select 0x616263;
+        -> "abc"
 @end example
 
 @findex CHAR()
@@ -31040,6 +31059,83 @@ mysql> select MD5("testing");
 @end example
 
 This is an "RSA Data Security, Inc. MD5 Message-Digest Algorithm".
+
+@findex des_encrypt()
+@item des_encrypt(string_to_encrypt, flag, [, (key_number | key_string) ] )
+
+Encrypts the string with the given key using the DES algorithm, which
+provides strong encryption.
+
+Note that this function only works if you have configured MySQL with
+SLL support. @xref{Secure connections}.
+
+The encryption key to use is chosen the following way:
+
+@multitable @columnfractions .2 .8
+@item @strong{Argument} @tab @strong{Description}
+@item Only one argument @tab
+The first key from @code{des-key-file} is used.
+@item key number @tab
+The given key (0-9) from the @code{des-key-file} is used.
+@item string @tab
+The given @code{key_string} will be used to crypt @code{string_to_encrypt}.
+@end multitable
+
+The return string will be a binary string where the first character
+will be @code{CHAR(128 | key-number)}.
+
+The 128 is added to make it easier to recognize a crypted key.
+If one uses a string key, @code{key-number} will be 127.
+
+On error, this function returns NULL.
+
+The string length for the result will be
+@code{new_length= org_length + (8-(org_length % 8))+1}.
+
+The @code{des-key-file} has the following format:
+
+@example
+key-number key-string
+key-number key-string
+@end example
+
+The @code{key-number} must be a number between 0-9. The numbers may be
+in any order.  @code{des-key-string} is string that will be used to
+crypt the message. Between the number and the key there should be at
+least one space.  The first key is the default key that will be used
+if one doesn't specify a key to @code{des_encrypt()}
+
+You can tell MySQL to read new key values from the key file with the
+@code{FLUSH DES_KEY_FILE} command.
+
+One benefit with having a set of default keys on can use is that it
+gives applications a way to check for existence of crypted column,
+without giving the end user the right to uncrypt the data.
+
+@example
+SELECT customer_address FROM customer_table WHERE
+crypted_credit_card = DES_ENCRYPT("credit_card_number");
+@end example
+
+@findex des_decrypt()
+@item des_decrypt(string_to_decrypt [, key_string])
+
+Decrypts a string crypted with @code{des_encrypt()}.
+
+Note that this function only works if you have configured MySQL with
+SLL support. @xref{Secure connections}.
+
+If one only gives this a string argument, then it will use the right key
+from the @code{des-key-file} to decrypt the message.  For this to work
+the user must have the @code{PROCESS_PRIV} privilege.
+
+If one calls this function with 2 arguments, the second argument is 
+used to decrypt the message.
+
+If the @code{string_to_decrypt} doesn't look like a crypted string MySQL will
+return the given @code{string_to_decrypt}.
+
+On error, this function returns NULL.
 
 @findex LAST_INSERT_ID([expr])
 @item LAST_INSERT_ID([expr])
@@ -46835,6 +46931,15 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.1
 
 @itemize @bullet
+@item
+Added functions @code{des_encrypt()} and @code{des_decrypt()}.
+@item
+Added statement FLUSH DES_KEY_FILE.
+@item
+Added mysqld option @code{--des-key-file}.
+@item
+@code{HEX(string)} now returns the characters in string converted to
+hexadecimal.
 @item
 Fixed problem with @code{GRANT} when using @code{lower_case_table_names == 1}.
 @item

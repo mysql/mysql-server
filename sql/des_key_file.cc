@@ -19,25 +19,37 @@
 
 #ifdef HAVE_OPENSSL
 
-/*
- Function which loads DES keys from plaintext file into memory on MySQL
- server startup and on command FLUSH DES_KEYS. Blame tonu@spam.ee on bugs ;)
-*/
-
 struct st_des_keyschedule des_keyschedule[10];
 uint   des_default_key;
+pthread_mutex_t LOCK_des_key_file;
+static int initialized;
 
-void
+/*
+ Function which loads DES keys from plaintext file into memory on MySQL
+ server startup and on command FLUSH DES_KEY_FILE.
+ Blame tonu@spam.ee on bugs ;)
+
+ RETURN
+	0	ok
+	1	Error   
+*/
+
+bool
 load_des_key_file(const char *file_name)
 {
+  bool result=1;
   File file;
-  des_cblock ivec={0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-  char offset;
   IO_CACHE io;
   DBUG_ENTER("load_des_key_file");
   DBUG_PRINT("enter",("name: %s",file_name));
 
-  VOID(pthread_mutex_lock(&LOCK_open));
+  if (!initialized)
+  {
+    initialized=1;
+    pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
+  }
+
+  VOID(pthread_mutex_lock(&LOCK_des_key_file));
   if ((file=my_open(file_name,O_RDONLY | O_BINARY ,MYF(MY_WME))) < 0 ||
       init_io_cache(&io, file, IO_SIZE*2, READ_CACHE, 0, 0, MYF(MY_WME)))
     goto error;
@@ -47,7 +59,7 @@ load_des_key_file(const char *file_name)
   for (;;)
   {
     char *start, *end;
-    char buf[1024];
+    char buf[1024], offset;
     st_des_keyblock keyblock;
     uint length;
 
@@ -60,10 +72,12 @@ load_des_key_file(const char *file_name)
       // Remove newline and possible other control characters
       for (start=buf+1 ; isspace(*start) ; start++) ;
       end=buf+length;
-      for  (end=strend(buf) ; end > start && iscntrl(end[-1]) ; end--) ;
+      for  (end=strend(buf) ; end > start && !isgraph(end[-1]) ; end--) ;
 
       if (start != end)
       {
+	des_cblock ivec;
+	bzero((char*) &ivec,sizeof(ivec));
 	// We make good 24-byte (168 bit) key from given plaintext key with MD5
 	EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
 		       (uchar *) start, (int) (end-start),1,
@@ -76,11 +90,10 @@ load_des_key_file(const char *file_name)
 	  des_default_key= (uint) offset;		// use first as def.
       }
     }
-    else
-    {
-      DBUG_PRINT("des",("wrong offset: %c",offset));
-    }
+    else if (offset != '#')
+      sql_print_error("load_des_file:  Found wrong key_number: %c",offset);
   }
+  result=0;
 
 error:
   if (file >= 0)
@@ -88,7 +101,7 @@ error:
     my_close(file,MYF(0));
     end_io_cache(&io);
   }
-  VOID(pthread_mutex_unlock(&LOCK_open));
-  DBUG_VOID_RETURN;
+  VOID(pthread_mutex_unlock(&LOCK_des_key_file));
+  DBUG_RETURN(result);
 }
 #endif /* HAVE_OPENSSL */

@@ -151,8 +151,7 @@ Item *create_func_get_lock(Item* a, Item *b)
 
 Item *create_func_hex(Item *a)
 {
-  return new Item_func_conv(a,new Item_int((int32) 10,2),
-			    new Item_int((int32) 16,2));
+  return new Item_func_hex(a);
 }
 
 Item *create_func_inet_ntoa(Item* a)
