@@ -2922,8 +2922,10 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
       !(((ulonglong) 1 << (info->s->base.auto_key-1)
 	 & info->s->state.key_map)))
   {
-    mi_check_print_info(param,"Table: %s doesn't have an auto increment key\n",
-			param->isam_file_name);
+    if (!(param->testflag & T_VERY_SILENT))
+      mi_check_print_info(param,
+			  "Table: %s doesn't have an auto increment key\n",
+			  param->isam_file_name);
     return;
   }
   if (!(param->testflag & T_SILENT) &&

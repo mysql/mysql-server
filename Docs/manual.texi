@@ -2161,7 +2161,7 @@ Webmerger -  This CGI tool interprets files and generates dynamic output
 based on a set of simple tags. Ready-to-run drivers for @strong{MySQL} and
 PostgreSQL through ODBC.
 
-@item @uref{http://phpclub.unet.ru/index_e.php3}@*
+@item @uref{http://phpclub.net/}@*
 PHPclub - Tips and tricks for PHP.
 
 @item @uref{http://www.penguinservices.com/scripts}@*
@@ -35859,7 +35859,7 @@ don't yet support:
 
 @table @code
 @item Sub select
-@item Foregin keys
+@item Foreign keys
 @item Stored procedures
 @item An extendable type system.
 @item A way to extend the SQL to handle new key types (like R-trees)
@@ -36670,13 +36670,12 @@ only on Linux.
 You can always find the latest version
 @uref{http://www.trash.net/~ffischer/admin/index.html, here}.
 
-@c Link temporary removed on request because of a bug in the current version
-@c @item @uref{http://www.mysql.com/Downloads/Win32/MySQL-Maker092.zip,MySQL-Maker 092}.
-@c Shareware @strong{MySQL} client for windows. It's WYSIWYG tool which allows
-@c you to create, change and delete databases and tables.
-@c You can change field - structure and add, change and delete data in
-@c these tables directly without ODBC-driver.
-@c @uref{http://62.26.183.157/presult/support/su_sweiche_download.html, MySQL Maker homepage}
+@item @uref{http://www.mysql.com/Downloads/Win32/MySQL-Maker-1.0.zip,MySQL-Maker 1.0}.
+Shareware @strong{MySQL} client for windows. It's WYSIWYG tool which allows
+you to create, change and delete databases and tables.
+You can change field - structure and add, change and delete data in
+these tables directly without ODBC-driver.
+@uref{http://www.presult.de/presult/frames/fs_mysqlmaker.html, MySQL Maker homepage}
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysqlwinadmn.zip, mysqlwinadmn.zip}
 Windows GUI (binary only) to administrate a database, by David B. Mansel,
@@ -36979,8 +36978,8 @@ Raw port of a SQL mode for XEmacs. Supports completion. Original by
 Peter D. Pezaris @email{pez@@atlantic2.sbi.com} and partial
 @strong{MySQL} port by David Axmark.
 
-@item @uref{http://www.mysql.com/Downloads/Win32/myaccess97_1_1.zip, MyAccess97 1.1}
-@item @uref{http://www.mysql.com/Downloads/Win32/myaccess2000_1_1.zip, MyAccess2000 1.1}
+@item @uref{http://www.mysql.com/Downloads/Win32/myaccess97_1_3.zip, MyAccess97 1.3}
+@item @uref{http://www.mysql.com/Downloads/Win32/myaccess2000_1_3.zip, MyAccess2000 1.3}
 
 MyAccess is an AddIn for MS Access 97/2000 which allows you to manage MySQL databases from within Access. Main functions are:
 @itemize @bullet

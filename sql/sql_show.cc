@@ -476,6 +476,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->real_name));
 
+  /* Only one table for now */
   if (!(table = open_ltable(thd, table_list, TL_UNLOCK)))
   {
     send_error(&thd->net);
@@ -490,34 +491,32 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(1);
 
   String *packet = &thd->packet;
-  for(;table; table = table->next)
-    {
-      packet->length(0);
-      net_store_data(packet, table->table_name);
-      // a hack - we need to reserve some space for the length before
-      // we know what it is - let's assume that the length of create table
-      // statement will fit into 3 bytes ( 16 MB max :-) )
-      ulong store_len_offset = packet->length();
-      packet->length(store_len_offset + 4);
-      if(store_create_info(thd, table, packet))
-        DBUG_RETURN(-1);
-      ulong create_len = packet->length() - store_len_offset - 4;
-      if(create_len > 0x00ffffff) // better readable in HEX ...
-        DBUG_RETURN(1);  // just in case somebody manages to create a table
-      // with *that* much stuff in the definition
+  {
+    packet->length(0);
+    net_store_data(packet, table->table_name);
+    // a hack - we need to reserve some space for the length before
+    // we know what it is - let's assume that the length of create table
+    // statement will fit into 3 bytes ( 16 MB max :-) )
+    ulong store_len_offset = packet->length();
+    packet->length(store_len_offset + 4);
+    if (store_create_info(thd, table, packet))
+      DBUG_RETURN(-1);
+    ulong create_len = packet->length() - store_len_offset - 4;
+    if (create_len > 0x00ffffff) // better readable in HEX ...
+      DBUG_RETURN(1);  // just in case somebody manages to create a table
+    // with *that* much stuff in the definition
 
-      // now we have to store the length in three bytes, even if it would fit
-      // into fewer, so we cannot use net_store_data() anymore,
-      // and do it ourselves
-      char* p = (char*)packet->ptr() + store_len_offset;
-      *p++ = (char) 253; // The client the length is stored using 3-bytes
-      int3store(p, create_len);
+    // now we have to store the length in three bytes, even if it would fit
+    // into fewer, so we cannot use net_store_data() anymore,
+    // and do it ourselves
+    char* p = (char*)packet->ptr() + store_len_offset;
+    *p++ = (char) 253; // The client the length is stored using 3-bytes
+    int3store(p, create_len);
 
-      // now we are in business :-)
-      if(my_net_write(&thd->net, (char*)packet->ptr(), packet->length()))
-        DBUG_RETURN(1);
-    }
-
+    // now we are in business :-)
+    if (my_net_write(&thd->net, (char*)packet->ptr(), packet->length()))
+      DBUG_RETURN(1);
+  }
   send_eof(&thd->net);
   DBUG_RETURN(0);
 }
