@@ -148,8 +148,9 @@ int mysql_create_view(THD *thd,
     Item *item;
     while ((item= it++))
     {
-      if (item->type() == Item::FIELD_ITEM)
-        ((Item_field *)item)->any_privileges= 1;
+      Item_field *field;
+      if ((field= item->filed_for_view_update()))
+        field->any_privileges= 1;
     }
   }
 #endif
@@ -237,39 +238,22 @@ int mysql_create_view(THD *thd,
                                     view->real_name);
     while ((item= it++))
     {
+      Item_field *fld;
       uint priv= (get_column_grant(thd, &view->grant, db,
                                     view->real_name, item->name) &
                   VIEW_ANY_ACL);
-      if (item->type() == Item::FIELD_ITEM)
+      if ((fld= item->filed_for_view_update()))
       {
-        Item_field *fld= (Item_field *)item;
         /*
-          There are no any privileges on VIEW column or there are
-          some other privileges then we have for underlaying table
+          Do we have more privilegeson view field then underlying table field
         */
-        if (priv == 0 || (~fld->have_privileges & priv))
+        if ((~fld->have_privileges & priv))
         {
           /* VIEW column has more privileges */
           my_printf_error(ER_COLUMNACCESS_DENIED_ERROR,
                           ER(ER_COLUMNACCESS_DENIED_ERROR),
                           MYF(0),
                           "create view",
-                          thd->priv_user,
-                          thd->host_or_ip,
-                          item->name,
-                          view->real_name);
-          DBUG_RETURN(-1);
-        }
-      }
-      else
-      {
-        if (!(priv & SELECT_ACL))
-        {
-          /* user have not privilege to SELECT expression */
-          my_printf_error(ER_COLUMNACCESS_DENIED_ERROR,
-                          ER(ER_COLUMNACCESS_DENIED_ERROR),
-                          MYF(0),
-                          "select",
                           thd->priv_user,
                           thd->host_or_ip,
                           item->name,
@@ -903,8 +887,9 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
         uint k;
         for (k= 0; k < elements_in_view; k++)
         {
-          if (trans[k]->type() == Item::FIELD_ITEM &&
-              ((Item_field *)trans[k])->field == key_part->field) 
+          Item_field *field;
+          if ((field= trans[k]->filed_for_view_update()) &&
+              field->field == key_part->field)
             break;
         }
         if (k == elements_in_view)
@@ -923,8 +908,9 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
     {
       for (i= 0; i < elements_in_view; i++)
       {
-        if (trans[i]->type() == Item::FIELD_ITEM &&
-            ((Item_field *)trans[i])->field == *field_ptr)
+        Item_field *field;
+        if ((field= trans[i]->filed_for_view_update()) &&
+            field->field == *field_ptr)
           break;
       }
       if (i == elements_in_view)                // If field didn't exists
@@ -976,8 +962,9 @@ void insert_view_fields(List<Item> *list, TABLE_LIST *view)
 
   for (uint i= 0; i < elements_in_view; i++)
   {
-    if (trans[i]->type() == Item::FIELD_ITEM)
-      list->push_back(trans[i]);
+    Item_field *fld;
+    if ((fld= trans[i]->filed_for_view_update()))
+      list->push_back(fld);
   }
   DBUG_VOID_RETURN;
 }

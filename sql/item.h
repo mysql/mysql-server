@@ -22,6 +22,7 @@
 class Protocol;
 struct st_table_list;
 void item_init(void);			/* Init item functions */
+class Item_field;
 
 
 /*
@@ -277,6 +278,7 @@ public:
   virtual void bring_value() {}
 
   Field *tmp_table_field_from_field_type(TABLE *table);
+  virtual Item_field *filed_for_view_update() { return 0; }
 
   virtual Item *neg_transformer(THD *thd) { return NULL; }
   void delete_self()
@@ -497,6 +499,7 @@ public:
   Item *get_tmp_table_item(THD *thd);
   void cleanup();
   inline uint32 max_disp_length() { return field->max_length(); }
+  Item_field *filed_for_view_update() { return this; }
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
