@@ -35,10 +35,10 @@ public:
   }
   enum Type type() const { return Item::PROC_ITEM; }
   virtual void set(double nr)=0;
-  virtual void set(const char *str,uint length)=0;
+  virtual void set(const char *str,uint length,CHARSET_INFO *cs)=0;
   virtual void set(longlong nr)=0;
   virtual enum_field_types field_type() const=0;
-  void set(const char *str) { set(str,(uint) strlen(str)); }
+  void set(const char *str) { set(str,(uint) strlen(str), thd_charset()); }
   void make_field(Send_field *tmp_field)
   {
     init_make_field(tmp_field,field_type());
@@ -58,8 +58,8 @@ public:
   enum_field_types field_type() const { return FIELD_TYPE_DOUBLE; }
   void set(double nr) { value=nr; }
   void set(longlong nr) { value=(double) nr; }
-  void set(const char *str,uint length __attribute__((unused)))
-  { value=atof(str); }
+  void set(const char *str,uint length,CHARSET_INFO *cs)
+  { value=my_strntod(cs,str,length,(char**)0); }
   double val() { return value; }
   longlong val_int() { return (longlong) value; }
   String *val_str(String *s) { s->set(value,decimals,thd_charset()); return s; }
@@ -76,8 +76,8 @@ public:
   enum_field_types field_type() const { return FIELD_TYPE_LONG; }
   void set(double nr) { value=(longlong) nr; }
   void set(longlong nr) { value=nr; }
-  void set(const char *str,uint length __attribute__((unused)))
-  { value=strtoll(str,NULL,10); }
+  void set(const char *str,uint length, CHARSET_INFO *cs)
+  { value=my_strntoll(cs,str,length,NULL,10); }
   double val() { return (double) value; }
   longlong val_int() { return value; }
   String *val_str(String *s) { s->set(value, thd_charset()); return s; }
@@ -94,9 +94,18 @@ public:
   enum_field_types field_type() const { return FIELD_TYPE_STRING; }
   void set(double nr) { str_value.set(nr, 2, thd_charset()); }
   void set(longlong nr) { str_value.set(nr, thd_charset()); }
-  void set(const char *str, uint length) { str_value.copy(str,length, thd_charset()); }
-  double val() { return atof(str_value.ptr()); }
-  longlong val_int() { return strtoll(str_value.ptr(),NULL,10); }
+  void set(const char *str, uint length, CHARSET_INFO *cs)
+  { str_value.copy(str,length,cs); }
+  double val() 
+  { 
+    CHARSET_INFO *cs=str_value.charset();
+    return my_strntod(cs, str_value.ptr(), str_value.length(),(char**)0);
+  }
+  longlong val_int()
+  { 
+    CHARSET_INFO *cs=str_value.charset();
+    return my_strntoll(cs,str_value.ptr(),str_value.length(),NULL,10);
+  }
   String *val_str(String*)
   {
     return null_value ? (String*) 0 : (String*) &str_value;

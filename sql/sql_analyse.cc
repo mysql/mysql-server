@@ -593,23 +593,23 @@ bool analyse::end_of_records()
     {
       func_items[1]->null_value = 0;
       res = (*f)->get_min_arg(&s_min);
-      func_items[1]->set(res->ptr(), res->length());
+      func_items[1]->set(res->ptr(), res->length(), res->charset());
       func_items[2]->null_value = 0;
       res = (*f)->get_max_arg(&s_max);
-      func_items[2]->set(res->ptr(), res->length());
+      func_items[2]->set(res->ptr(), res->length(), res->charset());
     }
     func_items[3]->set((longlong) (*f)->min_length);
     func_items[4]->set((longlong) (*f)->max_length);
     func_items[5]->set((longlong) (*f)->empty);
     func_items[6]->set((longlong) (*f)->nulls);
     res = (*f)->avg(&s_max, rows);
-    func_items[7]->set(res->ptr(), res->length());
+    func_items[7]->set(res->ptr(), res->length(), res->charset());
     func_items[8]->null_value = 0;
     res = (*f)->std(&s_max, rows);
     if (!res)
       func_items[8]->null_value = 1;
     else
-      func_items[8]->set(res->ptr(), res->length());
+      func_items[8]->set(res->ptr(), res->length(), res->charset());
     // count the dots, quotas, etc. in (ENUM("a","b","c"...))
     // if tree has been removed, don't suggest ENUM.
     // treemem is used to measure the size of tree for strings,
@@ -640,7 +640,7 @@ bool analyse::end_of_records()
       if (!(*f)->nulls)
 	tmp_str.append(" NOT NULL");
       output_str_length = tmp_str.length();
-      func_items[9]->set(tmp_str.ptr(), tmp_str.length());
+      func_items[9]->set(tmp_str.ptr(), tmp_str.length(), tmp_str.charset());
       if (result->send_data(result_fields))
 	return -1;
       continue;
@@ -687,7 +687,7 @@ bool analyse::end_of_records()
     }
     if (!(*f)->nulls)
       ans.append(" NOT NULL");
-    func_items[9]->set(ans.ptr(), ans.length());
+    func_items[9]->set(ans.ptr(), ans.length(), ans.charset());
     if (result->send_data(result_fields))
       return -1;
   }
