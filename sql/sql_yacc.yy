@@ -3305,7 +3305,6 @@ truncate:
 	  lex->sql_command= SQLCOM_TRUNCATE;
 	  lex->select_lex.options= 0;
 	  lex->select_lex.init_order();
-	  lex->lock_option= lex->thd->update_lock_default; 
 	}
 	;
 
