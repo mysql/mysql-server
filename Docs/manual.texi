@@ -40213,6 +40213,40 @@ attachemnts, you should ftp all the relevant files to:
 
 @end itemize
 
+If your @strong{MySQL} version doesn't pass the test suite you should
+do the following:
+
+@itemize @bullet
+@item
+Don't send a bug report before you have found out as much as possible of
+what when wrong!  When you do it, please use the @code{mysqlbug} script
+so that we can get information about your system and @code{MySQL}
+version. @xref{Bug reports}.
+@item
+If you have compiled @strong{MySQL} yourself, check our manual for how
+to compile @strong{MySQL} on your platform or, preferable, use one of
+the binaries we have compiled for you at
+@uref{http://www.mysql.com/downloads/}.  All our standard binaries should
+pass the test suite !
+
+@item
+If you get an error, like @code{Result length mismatch} or @code{Result
+content mismatch} it means that the output of the test didn't match
+exactly the expected output. This could be a bug in @strong{MySQL} or
+that your mysqld version produces slight different results under some
+circumstances. In this case you should compare the @code{.test}
+and @code{.reject} file in the @code{mysql-test/r} sub directory to
+see if this is something to worry about.
+
+@item
+If a test fails totally, you should check the logs file in the
+@code{mysql-test/var/log} directory for hints of what went wrong.
+
+@item
+If you have compiled @strong{MySQL} with debugging you can try to debug this
+with the @code{--gdb} and @code{--debug} options to @code{mysql-test-run}.
+@end itemize
+
 @page
 @cindex environment variables, list of
 @node Environment variables, Users, MySQL internals, Top
