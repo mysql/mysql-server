@@ -1173,4 +1173,16 @@ col1
 0000-00-00 00:00:00
 NULL
 drop table t1;
+create table t1 (col1 tinyint);
+drop procedure if exists t1;
+Warnings:
+Note	1305	PROCEDURE t1 does not exist
+create procedure t1 () begin declare exit handler for sqlexception
+select'a'; insert into t1 values (200); end;|
+call t1();
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+select * from t1;
+col1
+drop procedure t1;
+drop table t1;
 set sql_mode=@org_mode;
