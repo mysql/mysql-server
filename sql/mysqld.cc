@@ -359,15 +359,15 @@ pthread_t signal_thread;
 pthread_attr_t connection_attrib;
 
 /* replication parameters, if master_host is not NULL, we are a slave */
-my_bool master_ssl;
 uint master_port= MYSQL_PORT, master_connect_retry = 60;
 uint report_port= MYSQL_PORT;
 ulong master_retry_count=0;
 char *master_user, *master_password, *master_host, *master_info_file;
-char *relay_log_info_file, *master_ssl_key, *master_ssl_cert;
-char *master_ssl_capath, *master_ssl_cipher, *report_user;
-char *report_password, *report_host;
+char *relay_log_info_file, *report_user, *report_password, *report_host;
 char *opt_relay_logname = 0, *opt_relaylog_index_name=0;
+my_bool master_ssl;
+char *master_ssl_key, *master_ssl_cert;
+char *master_ssl_ca, *master_ssl_capath, *master_ssl_cipher;
 
 /* Static variables */
 
@@ -3389,7 +3389,7 @@ enum options
   OPT_MASTER_RETRY_COUNT,
   OPT_MASTER_SSL,              OPT_MASTER_SSL_KEY,
   OPT_MASTER_SSL_CERT,         OPT_MASTER_SSL_CAPATH,
-  OPT_MASTER_SSL_CIPHER,
+  OPT_MASTER_SSL_CIPHER,       OPT_MASTER_SSL_CA,
   OPT_SQL_BIN_UPDATE_SAME,     OPT_REPLICATE_DO_DB,
   OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
   OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
@@ -3723,27 +3723,28 @@ thread is in the master's binlogs.",
    (gptr*) &master_info_file, (gptr*) &master_info_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"master-ssl", OPT_MASTER_SSL,
-   "Planned to enable the slave to connect to the master using SSL. Does nothing yet.",
+   "Enable the slave to connect to the master using SSL.",
    (gptr*) &master_ssl, (gptr*) &master_ssl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"master-ssl-key", OPT_MASTER_SSL_KEY,
-   "Master SSL keyfile name. Only applies if you have enabled master-ssl. Does \
-nothing yet.",
+   "Master SSL keyfile name. Only applies if you have enabled master-ssl.",
    (gptr*) &master_ssl_key, (gptr*) &master_ssl_key, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"master-ssl-cert", OPT_MASTER_SSL_CERT,
    "Master SSL certificate file name. Only applies if you have enabled \
-master-ssl. Does nothing yet.",
+master-ssl",
    (gptr*) &master_ssl_cert, (gptr*) &master_ssl_cert, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
+  {"master-ssl-ca", OPT_MASTER_SSL_CA,
+   "Master SSL CA file. Only applies if you have enabled master-ssl.",
+   (gptr*) &master_ssl_ca, (gptr*) &master_ssl_ca, 0, GET_STR, OPT_ARG,
+   0, 0, 0, 0, 0, 0},
   {"master-ssl-capath", OPT_MASTER_SSL_CAPATH,
-   "Master SSL CA path. Only applies if you have enabled master-ssl. \
-Does nothing yet.",
+   "Master SSL CA path. Only applies if you have enabled master-ssl.",
    (gptr*) &master_ssl_capath, (gptr*) &master_ssl_capath, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"master-ssl-cipher", OPT_MASTER_SSL_CIPHER,
-   "Master SSL cipher. Only applies if you have enabled master-ssl. \
-Does nothing yet.",
+   "Master SSL cipher. Only applies if you have enabled master-ssl.",
    (gptr*) &master_ssl_cipher, (gptr*) &master_ssl_capath, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"myisam-recover", OPT_MYISAM_RECOVER,
@@ -4717,8 +4718,9 @@ static void mysql_init_variables(void)
   master_user= (char*) "test";
   master_password= master_host= 0;
   master_info_file= (char*) "master.info",
-    relay_log_info_file= (char*) "relay-log.info",
-    master_ssl_key= master_ssl_cert= master_ssl_capath= master_ssl_cipher= 0;
+    relay_log_info_file= (char*) "relay-log.info";
+  master_ssl_key= master_ssl_cert= master_ssl_ca= 
+    master_ssl_capath= master_ssl_cipher= 0;
   report_user= report_password = report_host= 0;	/* TO BE DELETED */
   opt_relay_logname= opt_relaylog_index_name= 0;
 

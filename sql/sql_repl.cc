@@ -888,6 +888,25 @@ int change_master(THD* thd, MASTER_INFO* mi)
     mi->port = lex_mi->port;
   if (lex_mi->connect_retry)
     mi->connect_retry = lex_mi->connect_retry;
+ 
+  if (lex_mi->ssl != LEX_MASTER_INFO::SSL_UNCHANGED)
+    mi->ssl= (lex_mi->ssl == LEX_MASTER_INFO::SSL_ENABLE);
+  if (lex_mi->ssl_ca)
+    strmake(mi->ssl_ca, lex_mi->ssl_ca, sizeof(mi->ssl_ca)-1);
+  if (lex_mi->ssl_capath)
+    strmake(mi->ssl_capath, lex_mi->ssl_capath, sizeof(mi->ssl_capath)-1);
+  if (lex_mi->ssl_cert)
+    strmake(mi->ssl_cert, lex_mi->ssl_cert, sizeof(mi->ssl_cert)-1);
+  if (lex_mi->ssl_cipher)
+    strmake(mi->ssl_cipher, lex_mi->ssl_cipher, sizeof(mi->ssl_cipher)-1);
+  if (lex_mi->ssl_key)
+    strmake(mi->ssl_key, lex_mi->ssl_key, sizeof(mi->ssl_key)-1);
+#ifndef HAVE_OPENSSL
+  if (lex_mi->ssl || lex_mi->ssl_ca || lex_mi->ssl_capath ||
+      lex_mi->ssl_cert || lex_mi->ssl_cipher || lex_mi->ssl_key )
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, 
+                 ER_SLAVE_IGNORED_SSL_PARAMS, ER(ER_SLAVE_IGNORED_SSL_PARAMS));
+#endif
 
   if (lex_mi->relay_log_name)
   {

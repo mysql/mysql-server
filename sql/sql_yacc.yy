@@ -276,6 +276,12 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MASTER_PORT_SYM
 %token	MASTER_CONNECT_RETRY_SYM
 %token	MASTER_SERVER_ID_SYM
+%token	MASTER_SSL_SYM
+%token	MASTER_SSL_CA_SYM
+%token	MASTER_SSL_CAPATH_SYM
+%token	MASTER_SSL_CERT_SYM
+%token	MASTER_SSL_CIPHER_SYM
+%token	MASTER_SSL_KEY_SYM
 %token	RELAY_LOG_FILE_SYM
 %token	RELAY_LOG_POS_SYM
 %token	MATCH
@@ -844,6 +850,31 @@ master_def:
          /* Adjust if < BIN_LOG_HEADER_SIZE (same comment as Lex->mi.pos) */
          Lex->mi.relay_log_pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.relay_log_pos);
        }
+       | MASTER_SSL_SYM EQ ULONG_NUM
+         {
+           Lex->mi.ssl= $3 ? 
+               LEX_MASTER_INFO::SSL_ENABLE : LEX_MASTER_INFO::SSL_DISABLE;
+         }
+       | MASTER_SSL_CA_SYM EQ TEXT_STRING_sys
+         {
+           Lex->mi.ssl_ca= $3.str;
+         }
+       | MASTER_SSL_CAPATH_SYM EQ TEXT_STRING_sys
+         {
+           Lex->mi.ssl_capath= $3.str;
+         }
+       | MASTER_SSL_CERT_SYM EQ TEXT_STRING_sys
+         {
+           Lex->mi.ssl_cert= $3.str;
+         }
+       | MASTER_SSL_CIPHER_SYM EQ TEXT_STRING_sys
+         {
+           Lex->mi.ssl_cipher= $3.str;
+         }
+       | MASTER_SSL_KEY_SYM EQ TEXT_STRING_sys
+         {
+           Lex->mi.ssl_key= $3.str;
+         }
        ;
 
 
@@ -4430,6 +4461,12 @@ keyword:
 	| MASTER_USER_SYM	{}
 	| MASTER_PASSWORD_SYM	{}
 	| MASTER_CONNECT_RETRY_SYM	{}
+	| MASTER_SSL_SYM	{}
+	| MASTER_SSL_CA_SYM	{}
+	| MASTER_SSL_CAPATH_SYM	{}
+	| MASTER_SSL_CERT_SYM	{}
+	| MASTER_SSL_CIPHER_SYM	{}
+	| MASTER_SSL_KEY_SYM	{}
 	| MAX_CONNECTIONS_PER_HOUR	 {}
 	| MAX_QUERIES_PER_HOUR	{}
 	| MAX_UPDATES_PER_HOUR	{}
