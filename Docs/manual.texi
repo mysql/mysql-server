@@ -9511,12 +9511,6 @@ If you see a dead @code{mysqld} daemon process with @code{ps}, this usually
 means that you have found a bug in MySQL or you have a corrupted
 table. @xref{Crashing}.
 
-To get a core dump on Linux if @code{mysqld} dies with a SIGSEGV
-signal, you can start @code{mysqld} with the @code{--core-file} option.  Note
-that you also probably need to raise the @code{core file size} by adding
-@code{ulimit -c 1000000} to @code{safe_mysqld} or starting @code{safe_mysqld}
-with @code{--core-file-sizes=1000000}. @xref{safe_mysqld, , @code{safe_mysqld}}.
-
 To get a core dump on Linux if @code{mysqld} dies with a SIGSEGV signal,
 you can start @code{mysqld} with the @code{--core-file} option.  Note
 that you also probably need to raise the @code{core file size} by adding
