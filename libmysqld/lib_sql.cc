@@ -384,7 +384,6 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   (void) pthread_mutex_init(&LOCK_bytes_sent,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_bytes_received,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_timezone,MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_server_id, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
