@@ -373,8 +373,7 @@ public:
   int compare_key(key_range *range);
   virtual int ft_init() { return HA_ERR_WRONG_COMMAND; }
   void ft_end() { ft_handler=NULL; }
-  virtual FT_INFO *ft_init_ext(uint flags,uint inx,const byte *key,
-                               uint keylen)
+  virtual FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
     { return NULL; }
   virtual int ft_read(byte *buf) { return HA_ERR_WRONG_COMMAND; }
   virtual int rnd_next(byte *buf)=0;
