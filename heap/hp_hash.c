@@ -151,7 +151,8 @@ void _hp_movelink(HASH_INFO *pos, HASH_INFO *next_link, HASH_INFO *newlink)
 
 ulong _hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
 {
-  register ulong nr=1, nr2=4;
+  /*register*/ 
+  ulong nr=1, nr2=4;
   HP_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
@@ -170,6 +171,10 @@ ulong _hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
+      if (default_charset_info->hash_sort)
+        default_charset_info->hash_sort(default_charset_info,
+        				pos,((uchar*)key)-pos,&nr,&nr2);
+      else
       for (; pos < (uchar*) key ; pos++)
       {
 	nr^=(ulong) ((((uint) nr & 63)+nr2) * 
@@ -193,7 +198,8 @@ ulong _hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
 
 ulong _hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
 {
-  register ulong nr=1, nr2=4;
+  /*register*/
+  ulong nr=1, nr2=4;
   HP_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
@@ -209,6 +215,10 @@ ulong _hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
+      if (default_charset_info->hash_sort)
+        default_charset_info->hash_sort(default_charset_info,
+        				pos,end-pos,&nr,&nr2);
+      else
       for (; pos < end ; pos++)
       {
 	nr^=(ulong) ((((uint) nr & 63)+nr2)*
