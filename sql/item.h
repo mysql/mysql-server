@@ -39,8 +39,8 @@ public:
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
-  enum coercion    { COER_NOCOLL=0,   COER_COERCIBLE=1, 
-  		     COER_IMPLICIT=2, COER_EXPLICIT=3  };
+  enum coercion    { COER_NOCOLL=3,   COER_COERCIBLE=2, 
+  		     COER_IMPLICIT=1, COER_EXPLICIT=0  };
 
   String str_value;			/* used to store value */
   my_string name;			/* Name from select */
