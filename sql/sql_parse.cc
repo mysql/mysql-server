@@ -3709,7 +3709,7 @@ mysql_parse(THD *thd, char *inBuf, uint length)
 bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 		       char *length, char *decimals,
 		       uint type_modifier,
-		       Item *default_value, Item *comment,
+		       Item *default_value, LEX_STRING *comment,
 		       char *change, TYPELIB *interval, CHARSET_INFO *cs,
 		       uint uint_geom_type)
 {
@@ -3783,8 +3783,8 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   else
   {
     /* In this case comment is always of type Item_string */
-    new_field->comment.str=   (char*) comment->str_value.ptr();
-    new_field->comment.length=comment->str_value.length();
+    new_field->comment.str=   (char*) comment->str;
+    new_field->comment.length=comment->length;
   }
   if (length && !(new_field->length= (uint) atoi(length)))
     length=0; /* purecov: inspected */
