@@ -67,7 +67,7 @@ int find_ref_key(TABLE *table,Field *field, uint *key_length)
 
 
 	/* Copy a key from record to some buffer */
-	/* if length == 0 then copy hole key */
+	/* if length == 0 then copy whole key */
 
 void key_copy(byte *key,TABLE *table,uint idx,uint key_length)
 {

@@ -89,7 +89,9 @@ connection master;
 #let slave catch up
 sync_slave_with_master;
 connection master;
-purge master logs to 'master-bin.000003';
+purge master logs to 'master-bin.000002';
+show binary logs;
+purge logs before now();
 show binary logs;
 insert into t2 values (65);
 sync_slave_with_master;

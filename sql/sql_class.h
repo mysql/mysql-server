@@ -143,7 +143,9 @@ public:
   int generate_new_name(char *new_name,const char *old_name);
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
+  int update_log_index(LOG_INFO* linfo);
   int purge_logs(THD* thd, const char* to_log);
+  int purge_logs_before_date(THD* thd, time_t purge_time);
   int purge_first_log(struct st_relay_log_info* rli); 
   bool reset_logs(THD* thd);
   // if we are exiting, we also want to close the index file

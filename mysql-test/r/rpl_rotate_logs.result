@@ -40,7 +40,12 @@ set insert_id=1234;
 insert into t2 values(NULL);
 set global sql_slave_skip_counter=1;
 start slave;
-purge master logs to 'master-bin.000003';
+purge master logs to 'master-bin.000002';
+show binary logs;
+Log_name
+master-bin.000002
+master-bin.000003
+purge logs before now();
 show binary logs;
 Log_name
 master-bin.000003

@@ -719,7 +719,8 @@ bool Protocol_simple::store(const char *from, uint length)
 bool Protocol_simple::store_tiny(longlong from)
 {
 #ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos++] == MYSQL_TYPE_TINY);
+  DBUG_ASSERT(field_types == 0 || field_types[field_pos] == MYSQL_TYPE_TINY);
+  field_pos++;
 #endif
   char buff[20];
   return net_store_data((char*) buff,
@@ -731,7 +732,8 @@ bool Protocol_simple::store_short(longlong from)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos++] == MYSQL_TYPE_SHORT);
+	      field_types[field_pos] == MYSQL_TYPE_SHORT);
+  field_pos++;
 #endif
   char buff[20];
   return net_store_data((char*) buff,
@@ -742,7 +744,10 @@ bool Protocol_simple::store_short(longlong from)
 bool Protocol_simple::store_long(longlong from)
 {
 #ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 || field_types[field_pos++] == MYSQL_TYPE_LONG);
+  DBUG_ASSERT(field_types == 0 ||
+              field_types[field_pos] == MYSQL_TYPE_INT24 ||
+              field_types[field_pos] == MYSQL_TYPE_LONG);
+  field_pos++;
 #endif
   char buff[20];
   return net_store_data((char*) buff,
@@ -754,7 +759,8 @@ bool Protocol_simple::store_longlong(longlong from, bool unsigned_flag)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos++] == MYSQL_TYPE_LONGLONG);
+	      field_types[field_pos] == MYSQL_TYPE_LONGLONG);
+  field_pos++;
 #endif
   char buff[22];
   return net_store_data((char*) buff,
@@ -768,7 +774,8 @@ bool Protocol_simple::store(float from, uint32 decimals, String *buffer)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos++] == MYSQL_TYPE_FLOAT);
+	      field_types[field_pos] == MYSQL_TYPE_FLOAT);
+  field_pos++;
 #endif
   buffer->set((double) from, decimals, thd->variables.thd_charset);
   return net_store_data((char*) buffer->ptr(), buffer->length());
@@ -779,7 +786,8 @@ bool Protocol_simple::store(double from, uint32 decimals, String *buffer)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos++] == MYSQL_TYPE_DOUBLE);
+	      field_types[field_pos] == MYSQL_TYPE_DOUBLE);
+  field_pos++;
 #endif
   buffer->set(from, decimals, thd->variables.thd_charset);
   return net_store_data((char*) buffer->ptr(), buffer->length());
@@ -827,7 +835,8 @@ bool Protocol_simple::store_date(TIME *tm)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos++] == MYSQL_TYPE_DATE);
+	      field_types[field_pos] == MYSQL_TYPE_DATE);
+  field_pos++;
 #endif
   char buff[40];
   uint length;
@@ -843,7 +852,8 @@ bool Protocol_simple::store_time(TIME *tm)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos++] == MYSQL_TYPE_TIME);
+	      field_types[field_pos] == MYSQL_TYPE_TIME);
+  field_pos++;
 #endif
   char buff[40];
   uint length;
@@ -1033,7 +1043,7 @@ bool Protocol_prep::store(TIME *tm)
   uint length;
   field_pos++;
   pos= buff+1;
-  
+
   int2store(pos, tm->year);
   pos[2]= (uchar) tm->month;
   pos[3]= (uchar) tm->day;
@@ -1072,7 +1082,7 @@ bool Protocol_prep::store_time(TIME *tm)
   field_pos++;
   pos= buff+1;
   pos[0]= tm->neg ? 1 : 0;
-  int4store(pos+1, tm->day); 
+  int4store(pos+1, tm->day);
   pos[5]= (uchar) tm->hour;
   pos[6]= (uchar) tm->minute;
   pos[7]= (uchar) tm->second;

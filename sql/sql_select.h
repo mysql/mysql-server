@@ -174,7 +174,7 @@ class JOIN :public Sql_alloc
   Item_sum  **sum_funcs;
   Procedure *procedure;
   Item	    *having;
-  Item      *tmp_having; // To store Having when processed tenporary table
+  Item      *tmp_having; // To store Having when processed temporary table
   uint	    select_options;
   select_result *result;
   TMP_TABLE_PARAM tmp_table_param;
@@ -306,7 +306,6 @@ class store_key :public Sql_alloc
 {
  protected:
   Field *to_field;				// Store data here
-  Field *key_field;				// Copy of key field
   char *null_ptr;
   char err;
  public:

@@ -75,8 +75,6 @@ inline int lex_casecmp(const char *s, const char *t, uint len)
 
 #include "lex_hash.h"
 
-static uchar state_map[256], ident_map[256];
-
 
 void lex_init(void)
 {
@@ -88,53 +86,6 @@ void lex_init(void)
     sql_functions[i].length=(uchar) strlen(sql_functions[i].name);
 
   VOID(pthread_key_create(&THR_LEX,NULL));
-
-  /* Fill state_map with states to get a faster parser */
-  for (i=0; i < sizeof(state_map) ; i++)
-  {
-    if (my_isalpha(system_charset_info,i))
-      state_map[i]=(uchar) STATE_IDENT;
-    else if (my_isdigit(system_charset_info,i))
-      state_map[i]=(uchar) STATE_NUMBER_IDENT;
-#if defined(USE_MB) && defined(USE_MB_IDENT)
-    else if (use_mb(system_charset_info) && my_ismbhead(system_charset_info, i))
-      state_map[i]=(uchar) STATE_IDENT;
-#endif
-    else if (!my_isgraph(system_charset_info,i))
-      state_map[i]=(uchar) STATE_SKIP;      
-    else
-      state_map[i]=(uchar) STATE_CHAR;
-  }
-  state_map[(uchar)'_']=state_map[(uchar)'$']=(uchar) STATE_IDENT;
-  state_map[(uchar)'\'']=(uchar) STATE_STRING;
-  state_map[(uchar)'-']=state_map[(uchar)'+']=(uchar) STATE_SIGNED_NUMBER;
-  state_map[(uchar)'.']=(uchar) STATE_REAL_OR_POINT;
-  state_map[(uchar)'>']=state_map[(uchar)'=']=state_map[(uchar)'!']= (uchar) STATE_CMP_OP;
-  state_map[(uchar)'<']= (uchar) STATE_LONG_CMP_OP;
-  state_map[(uchar)'&']=state_map[(uchar)'|']=(uchar) STATE_BOOL;
-  state_map[(uchar)'#']=(uchar) STATE_COMMENT;
-  state_map[(uchar)';']=(uchar) STATE_COLON;
-  state_map[(uchar)':']=(uchar) STATE_SET_VAR;
-  state_map[0]=(uchar) STATE_EOL;
-  state_map[(uchar)'\\']= (uchar) STATE_ESCAPE;
-  state_map[(uchar)'/']= (uchar) STATE_LONG_COMMENT;
-  state_map[(uchar)'*']= (uchar) STATE_END_LONG_COMMENT;
-  state_map[(uchar)'@']= (uchar) STATE_USER_END;
-  state_map[(uchar) '`']= (uchar) STATE_USER_VARIABLE_DELIMITER;
-  state_map[(uchar)'"']= (uchar) STAT_STRING_OR_DELIMITER;
-
-  /*
-    Create a second map to make it faster to find identifiers
-  */
-  for (i=0; i < sizeof(ident_map) ; i++)
-  {
-    ident_map[i]= (uchar) (state_map[i] == STATE_IDENT ||
-			   state_map[i] == STATE_NUMBER_IDENT);
-  }
-
-  /* Special handling of hex and binary strings */
-  state_map[(uchar)'x']= state_map[(uchar)'X']= (uchar) STATE_IDENT_OR_HEX;
-  state_map[(uchar)'b']= state_map[(uchar)'b']= (uchar) STATE_IDENT_OR_BIN;
 
   DBUG_VOID_RETURN;
 }
@@ -156,7 +107,7 @@ void lex_free(void)
 LEX *lex_start(THD *thd, uchar *buf,uint length)
 {
   LEX *lex= &thd->lex;
-  lex->next_state=STATE_START;
+  lex->next_state=MY_LEX_START;
   lex->end_of_query=(lex->ptr=buf)+length;
   lex->yylineno = 1;
   lex->select_lex.create_refs=lex->in_comment=0;
@@ -258,6 +209,7 @@ static char *get_text(LEX *lex)
 {
   reg1 uchar c,sep;
   uint found_escape=0;
+  CHARSET_INFO *cs= lex->thd->variables.thd_charset;
 
   sep= yyGetLast();			// String should end with this
   //lex->tok_start=lex->ptr-1;		// Remember '
@@ -266,8 +218,8 @@ static char *get_text(LEX *lex)
     c = yyGet();
 #ifdef USE_MB
     int l;
-    if (use_mb(system_charset_info) &&
-        (l = my_ismbchar(system_charset_info,
+    if (use_mb(cs) &&
+        (l = my_ismbchar(cs,
                          (const char *)lex->ptr-1,
                          (const char *)lex->end_of_query))) {
 	lex->ptr += l-1;
@@ -311,8 +263,8 @@ static char *get_text(LEX *lex)
 	{
 #ifdef USE_MB
 	  int l;
-	  if (use_mb(system_charset_info) &&
-              (l = my_ismbchar(system_charset_info,
+	  if (use_mb(cs) &&
+              (l = my_ismbchar(cs,
                                (const char *)str, (const char *)end))) {
 	      while (l--)
 		  *to++ = *str++;
@@ -359,8 +311,6 @@ static char *get_text(LEX *lex)
 	*to=0;
 	lex->yytoklen=(uint) (to-start);
       }
-      if (lex->convert_set)
-	lex->convert_set->convert((char*) start,lex->yytoklen);
       return (char*) start;
     }
   }
@@ -460,8 +410,8 @@ inline static uint int_token(const char *str,uint length)
 
 
 // yylex remember the following states from the following yylex()
-// STATE_EOQ ; found end of query
-// STATE_OPERATOR_OR_IDENT ; last state was an ident, text or number
+// MY_LEX_EOQ ; found end of query
+// MY_LEX_OPERATOR_OR_IDENT ; last state was an ident, text or number
 // 			     (which can't be followed by a signed number)
 
 int yylex(void *arg, void *yythd)
@@ -469,76 +419,79 @@ int yylex(void *arg, void *yythd)
   reg1	uchar c;
   int	tokval;
   uint length;
-  enum lex_states state,prev_state;
+  enum my_lex_states state,prev_state;
   LEX	*lex= &(((THD *)yythd)->lex);
   YYSTYPE *yylval=(YYSTYPE*) arg;
+  CHARSET_INFO *cs= ((THD *) yythd)->variables.thd_charset;
+  uchar *state_map= cs->state_map;
+  uchar *ident_map= cs->ident_map;
 
   lex->yylval=yylval;			// The global state
   lex->tok_start=lex->tok_end=lex->ptr;
   prev_state=state=lex->next_state;
-  lex->next_state=STATE_OPERATOR_OR_IDENT;
+  lex->next_state=MY_LEX_OPERATOR_OR_IDENT;
   LINT_INIT(c);
   for (;;)
   {
     switch (state) {
-    case STATE_OPERATOR_OR_IDENT:	// Next is operator or keyword
-    case STATE_START:			// Start of token
+    case MY_LEX_OPERATOR_OR_IDENT:	// Next is operator or keyword
+    case MY_LEX_START:			// Start of token
       // Skip startspace
-      for (c=yyGet() ; (state_map[c] == STATE_SKIP) ; c= yyGet())
+      for (c=yyGet() ; (state_map[c] == MY_LEX_SKIP) ; c= yyGet())
       {
 	if (c == '\n')
 	  lex->yylineno++;
       }
       lex->tok_start=lex->ptr-1;	// Start of real token
-      state= (enum lex_states) state_map[c];
+      state= (enum my_lex_states) state_map[c];
       break;
-    case STATE_ESCAPE:
+    case MY_LEX_ESCAPE:
       if (yyGet() == 'N')
       {					// Allow \N as shortcut for NULL
 	yylval->lex_str.str=(char*) "\\N";
 	yylval->lex_str.length=2;
 	return NULL_SYM;
       }
-    case STATE_CHAR:			// Unknown or single char token
-    case STATE_SKIP:			// This should not happen
+    case MY_LEX_CHAR:			// Unknown or single char token
+    case MY_LEX_SKIP:			// This should not happen
       yylval->lex_str.str=(char*) (lex->ptr=lex->tok_start);// Set to first chr
       yylval->lex_str.length=1;
       c=yyGet();
       if (c != ')')
-	lex->next_state= STATE_START;	// Allow signed numbers
+	lex->next_state= MY_LEX_START;	// Allow signed numbers
       if (c == ',')
 	lex->tok_start=lex->ptr;	// Let tok_start point at next item
       return((int) c);
 
-    case STATE_IDENT_OR_HEX:
+    case MY_LEX_IDENT_OR_HEX:
       if (yyPeek() == '\'')
       {					// Found x'hex-number'
-	state= STATE_HEX_NUMBER;
+	state= MY_LEX_HEX_NUMBER;
 	break;
       }
       /* Fall through */
-    case STATE_IDENT_OR_BIN:		// TODO: Add binary string handling
-    case STATE_IDENT:
+    case MY_LEX_IDENT_OR_BIN:		// TODO: Add binary string handling
+    case MY_LEX_IDENT:
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-      if (use_mb(system_charset_info))
+      if (use_mb(cs))
       {
-        if (my_ismbhead(system_charset_info, yyGetLast()))
+        if (my_ismbhead(cs, yyGetLast()))
         {
-          int l = my_ismbchar(system_charset_info,
+          int l = my_ismbchar(cs,
                               (const char *)lex->ptr-1,
                               (const char *)lex->end_of_query);
           if (l == 0) {
-            state = STATE_CHAR;
+            state = MY_LEX_CHAR;
             continue;
           }
           lex->ptr += l - 1;
         }
         while (ident_map[c=yyGet()])
         {
-          if (my_ismbhead(system_charset_info, c))
+          if (my_ismbhead(cs, c))
           {
             int l;
-            if ((l = my_ismbchar(system_charset_info,
+            if ((l = my_ismbchar(cs,
                               (const char *)lex->ptr-1,
                               (const char *)lex->end_of_query)) == 0)
               break;
@@ -552,16 +505,16 @@ int yylex(void *arg, void *yythd)
       length= (uint) (lex->ptr - lex->tok_start)-1;
       if (lex->ignore_space)
       {
-	for (; state_map[c] == STATE_SKIP ; c= yyGet());
+	for (; state_map[c] == MY_LEX_SKIP ; c= yyGet());
       }
       if (c == '.' && ident_map[yyPeek()])
-	lex->next_state=STATE_IDENT_SEP;
+	lex->next_state=MY_LEX_IDENT_SEP;
       else
       {					// '(' must follow directly if function
 	yyUnget();
 	if ((tokval = find_keyword(lex,length,c == '(')))
 	{
-	  lex->next_state= STATE_START;	// Allow signed numbers
+	  lex->next_state= MY_LEX_START;	// Allow signed numbers
 	  return(tokval);		// Was keyword
 	}
 	yySkip();			// next state does a unget
@@ -584,30 +537,30 @@ int yylex(void *arg, void *yythd)
       else
         return(IDENT);
 
-    case STATE_IDENT_SEP:		// Found ident and now '.'
-      lex->next_state=STATE_IDENT_START;// Next is an ident (not a keyword)
+    case MY_LEX_IDENT_SEP:		// Found ident and now '.'
+      lex->next_state=MY_LEX_IDENT_START;// Next is an ident (not a keyword)
       yylval->lex_str.str=(char*) lex->ptr;
       yylval->lex_str.length=1;
       c=yyGet();			// should be '.'
       return((int) c);
 
-    case STATE_NUMBER_IDENT:		// number or ident which num-start
-      while (my_isdigit(system_charset_info,(c = yyGet()))) ;
+    case MY_LEX_NUMBER_IDENT:		// number or ident which num-start
+      while (my_isdigit(cs,(c = yyGet()))) ;
       if (!ident_map[c])
       {					// Can't be identifier
-	state=STATE_INT_OR_REAL;
+	state=MY_LEX_INT_OR_REAL;
 	break;
       }
       if (c == 'e' || c == 'E')
       {
 	// The following test is written this way to allow numbers of type 1e1
-	if (my_isdigit(system_charset_info,yyPeek()) || 
+	if (my_isdigit(cs,yyPeek()) || 
             (c=(yyGet())) == '+' || c == '-')
 	{				// Allow 1E+10
-	  if (my_isdigit(system_charset_info,yyPeek()))	// Number must have digit after sign
+	  if (my_isdigit(cs,yyPeek()))	// Number must have digit after sign
 	  {
 	    yySkip();
-	    while (my_isdigit(system_charset_info,yyGet())) ;
+	    while (my_isdigit(cs,yyGet())) ;
 	    yylval->lex_str=get_token(lex,yyLength());
 	    return(FLOAT_NUM);
 	  }
@@ -617,7 +570,7 @@ int yylex(void *arg, void *yythd)
       else if (c == 'x' && (lex->ptr - lex->tok_start) == 2 &&
 	  lex->tok_start[0] == '0' )
       {						// Varbinary
-	while (my_isxdigit(system_charset_info,(c = yyGet()))) ;
+	while (my_isxdigit(cs,(c = yyGet()))) ;
 	if ((lex->ptr - lex->tok_start) >= 4 && !ident_map[c])
 	{
 	  yylval->lex_str=get_token(lex,yyLength());
@@ -629,28 +582,28 @@ int yylex(void *arg, void *yythd)
 	yyUnget();
       }
       // fall through
-    case STATE_IDENT_START:		// Incomplete ident
+    case MY_LEX_IDENT_START:		// Incomplete ident
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-      if (use_mb(system_charset_info))
+      if (use_mb(cs))
       {
-        if (my_ismbhead(system_charset_info, yyGetLast()))
+        if (my_ismbhead(cs, yyGetLast()))
         {
-          int l = my_ismbchar(system_charset_info,
+          int l = my_ismbchar(cs,
                               (const char *)lex->ptr-1,
                               (const char *)lex->end_of_query);
           if (l == 0)
           {
-            state = STATE_CHAR;
+            state = MY_LEX_CHAR;
             continue;
           }
           lex->ptr += l - 1;
         }
         while (ident_map[c=yyGet()])
         {
-          if (my_ismbhead(system_charset_info, c))
+          if (my_ismbhead(cs, c))
           {
             int l;
-            if ((l = my_ismbchar(system_charset_info,
+            if ((l = my_ismbchar(cs,
                                  (const char *)lex->ptr-1,
                                  (const char *)lex->end_of_query)) == 0)
               break;
@@ -663,28 +616,28 @@ int yylex(void *arg, void *yythd)
         while (ident_map[c = yyGet()]) ;
 
       if (c == '.' && ident_map[yyPeek()])
-	lex->next_state=STATE_IDENT_SEP;// Next is '.'
+	lex->next_state=MY_LEX_IDENT_SEP;// Next is '.'
       // fall through
 
-    case STATE_FOUND_IDENT:		// Complete ident
+    case MY_LEX_FOUND_IDENT:		// Complete ident
       yylval->lex_str=get_token(lex,yyLength());
       if (lex->convert_set)
         lex->convert_set->convert((char*) yylval->lex_str.str,lex->yytoklen);
       return(IDENT);
 
-    case STATE_USER_VARIABLE_DELIMITER:
+    case MY_LEX_USER_VARIABLE_DELIMITER:
     {
       char delim= c;				// Used char
       lex->tok_start=lex->ptr;			// Skip first `
 #ifdef USE_MB
-      if (use_mb(system_charset_info))
+      if (use_mb(cs))
       {
 	while ((c=yyGet()) && c != delim && c != (uchar) NAMES_SEP_CHAR)
 	{
-          if (my_ismbhead(system_charset_info, c))
+          if (my_ismbhead(cs, c))
           {
             int l;
-            if ((l = my_ismbchar(system_charset_info,
+            if ((l = my_ismbchar(cs,
                                  (const char *)lex->ptr-1,
                                  (const char *)lex->end_of_query)) == 0)
               break;
@@ -723,67 +676,67 @@ int yylex(void *arg, void *yythd)
 	yySkip();			// Skip end `
       return(IDENT);
     }
-    case STATE_SIGNED_NUMBER:		// Incomplete signed number
-      if (prev_state == STATE_OPERATOR_OR_IDENT)
+    case MY_LEX_SIGNED_NUMBER:		// Incomplete signed number
+      if (prev_state == MY_LEX_OPERATOR_OR_IDENT)
       {
 	if (c == '-' && yyPeek() == '-' &&
-	    (my_isspace(system_charset_info,yyPeek2()) || 
-             my_iscntrl(system_charset_info,yyPeek2())))
-	  state=STATE_COMMENT;
+	    (my_isspace(cs,yyPeek2()) || 
+             my_iscntrl(cs,yyPeek2())))
+	  state=MY_LEX_COMMENT;
 	else
-	  state= STATE_CHAR;		// Must be operator
+	  state= MY_LEX_CHAR;		// Must be operator
 	break;
       }
-      if (!my_isdigit(system_charset_info,c=yyGet()) || yyPeek() == 'x')
+      if (!my_isdigit(cs,c=yyGet()) || yyPeek() == 'x')
       {
 	if (c != '.')
 	{
-	  if (c == '-' && my_isspace(system_charset_info,yyPeek()))
-	    state=STATE_COMMENT;
+	  if (c == '-' && my_isspace(cs,yyPeek()))
+	    state=MY_LEX_COMMENT;
 	  else
-	    state = STATE_CHAR;		// Return sign as single char
+	    state = MY_LEX_CHAR;		// Return sign as single char
 	  break;
 	}
 	yyUnget();			// Fix for next loop
       }
-      while (my_isdigit(system_charset_info,c=yyGet())) ;	// Incomplete real or int number
+      while (my_isdigit(cs,c=yyGet())) ;	// Incomplete real or int number
       if ((c == 'e' || c == 'E') &&
-	  (yyPeek() == '+' || yyPeek() == '-' || my_isdigit(system_charset_info,yyPeek())))
+	  (yyPeek() == '+' || yyPeek() == '-' || my_isdigit(cs,yyPeek())))
       {					// Real number
 	yyUnget();
 	c= '.';				// Fool next test
       }
       // fall through
-    case STATE_INT_OR_REAL:		// Compleat int or incompleat real
+    case MY_LEX_INT_OR_REAL:		// Compleat int or incompleat real
       if (c != '.')
       {					// Found complete integer number.
 	yylval->lex_str=get_token(lex,yyLength());
 	return int_token(yylval->lex_str.str,yylval->lex_str.length);
       }
       // fall through
-    case STATE_REAL:			// Incomplete real number
-      while (my_isdigit(system_charset_info,c = yyGet())) ;
+    case MY_LEX_REAL:			// Incomplete real number
+      while (my_isdigit(cs,c = yyGet())) ;
 
       if (c == 'e' || c == 'E')
       {
 	c = yyGet();
 	if (c == '-' || c == '+')
 	  c = yyGet();			// Skip sign
-	if (!my_isdigit(system_charset_info,c))
+	if (!my_isdigit(cs,c))
 	{				// No digit after sign
-	  state= STATE_CHAR;
+	  state= MY_LEX_CHAR;
 	  break;
 	}
-	while (my_isdigit(system_charset_info,yyGet())) ;
+	while (my_isdigit(cs,yyGet())) ;
 	yylval->lex_str=get_token(lex,yyLength());
 	return(FLOAT_NUM);
       }
       yylval->lex_str=get_token(lex,yyLength());
       return(REAL_NUM);
 
-    case STATE_HEX_NUMBER:		// Found x'hexstring'
+    case MY_LEX_HEX_NUMBER:		// Found x'hexstring'
       yyGet();				// Skip '
-      while (my_isxdigit(system_charset_info,(c = yyGet()))) ;
+      while (my_isxdigit(cs,(c = yyGet()))) ;
       length=(lex->ptr - lex->tok_start);	// Length of hexnum+3
       if (!(length & 1) || c != '\'')
       {
@@ -796,71 +749,73 @@ int yylex(void *arg, void *yythd)
       lex->yytoklen-=3;
       return (HEX_NUM);
 
-    case STATE_CMP_OP:			// Incomplete comparison operator
-      if (state_map[yyPeek()] == STATE_CMP_OP ||
-	  state_map[yyPeek()] == STATE_LONG_CMP_OP)
+    case MY_LEX_CMP_OP:			// Incomplete comparison operator
+      if (state_map[yyPeek()] == MY_LEX_CMP_OP ||
+	  state_map[yyPeek()] == MY_LEX_LONG_CMP_OP)
 	yySkip();
       if ((tokval = find_keyword(lex,(uint) (lex->ptr - lex->tok_start),0)))
       {
-	lex->next_state= STATE_START;	// Allow signed numbers
+	lex->next_state= MY_LEX_START;	// Allow signed numbers
 	return(tokval);
       }
-      state = STATE_CHAR;		// Something fishy found
+      state = MY_LEX_CHAR;		// Something fishy found
       break;
 
-    case STATE_LONG_CMP_OP:		// Incomplete comparison operator
-      if (state_map[yyPeek()] == STATE_CMP_OP ||
-	  state_map[yyPeek()] == STATE_LONG_CMP_OP)
+    case MY_LEX_LONG_CMP_OP:		// Incomplete comparison operator
+      if (state_map[yyPeek()] == MY_LEX_CMP_OP ||
+	  state_map[yyPeek()] == MY_LEX_LONG_CMP_OP)
       {
 	yySkip();
-	if (state_map[yyPeek()] == STATE_CMP_OP)
+	if (state_map[yyPeek()] == MY_LEX_CMP_OP)
 	  yySkip();
       }
       if ((tokval = find_keyword(lex,(uint) (lex->ptr - lex->tok_start),0)))
       {
-	lex->next_state= STATE_START;	// Found long op
+	lex->next_state= MY_LEX_START;	// Found long op
 	return(tokval);
       }
-      state = STATE_CHAR;		// Something fishy found
+      state = MY_LEX_CHAR;		// Something fishy found
       break;
 
-    case STATE_BOOL:
+    case MY_LEX_BOOL:
       if (c != yyPeek())
       {
-	state=STATE_CHAR;
+	state=MY_LEX_CHAR;
 	break;
       }
       yySkip();
       tokval = find_keyword(lex,2,0);	// Is a bool operator
-      lex->next_state= STATE_START;	// Allow signed numbers
+      lex->next_state= MY_LEX_START;	// Allow signed numbers
       return(tokval);
 
-    case STAT_STRING_OR_DELIMITER:
+    case MY_LEX_STRING_OR_DELIMITER:
       if (((THD *) yythd)->variables.sql_mode & MODE_ANSI_QUOTES)
       {
-	state= STATE_USER_VARIABLE_DELIMITER;
+	state= MY_LEX_USER_VARIABLE_DELIMITER;
 	break;
       }
       /* " used for strings */
-    case STATE_STRING:			// Incomplete text string
+    case MY_LEX_STRING:			// Incomplete text string
       if (!(yylval->lex_str.str = get_text(lex)))
       {
-	state= STATE_CHAR;		// Read char by char
+	state= MY_LEX_CHAR;		// Read char by char
 	break;
       }
       yylval->lex_str.length=lex->yytoklen;
+      if (lex->convert_set)
+	lex->convert_set->convert((char*) yylval->lex_str.str,lex->yytoklen);
       return(TEXT_STRING);
 
-    case STATE_COMMENT:			//  Comment
+    case MY_LEX_COMMENT:			//  Comment
       lex->select_lex.options|= OPTION_FOUND_COMMENT;
       while ((c = yyGet()) != '\n' && c) ;
       yyUnget();			// Safety against eof
-      state = STATE_START;		// Try again
+      state = MY_LEX_START;		// Try again
       break;
-    case STATE_LONG_COMMENT:		/* Long C comment? */
+    case MY_LEX_LONG_COMMENT:		/* Long C comment? */
       if (yyPeek() != '*')
       {
-	state=STATE_CHAR;		// Probable division
+	state=MY_LEX_CHAR;		// Probable division
 	break;
       }
       yySkip();				// Skip '*'
@@ -869,8 +824,8 @@ int yylex(void *arg, void *yythd)
       {
 	ulong version=MYSQL_VERSION_ID;
 	yySkip();
-	state=STATE_START;
-	if (my_isdigit(system_charset_info,yyPeek()))
+	state=MY_LEX_START;
+	if (my_isdigit(cs,yyPeek()))
 	{				// Version number
 	  version=strtol((char*) lex->ptr,(char**) &lex->ptr,10);
 	}
@@ -888,88 +843,87 @@ int yylex(void *arg, void *yythd)
       }
       if (lex->ptr != lex->end_of_query)
 	yySkip();			// remove last '/'
-      state = STATE_START;		// Try again
+      state = MY_LEX_START;		// Try again
       break;
-    case STATE_END_LONG_COMMENT:
+    case MY_LEX_END_LONG_COMMENT:
       if (lex->in_comment && yyPeek() == '/')
       {
 	yySkip();
 	lex->in_comment=0;
-	state=STATE_START;
+	state=MY_LEX_START;
       }
       else
-	state=STATE_CHAR;		// Return '*'
+	state=MY_LEX_CHAR;		// Return '*'
       break;
-    case STATE_SET_VAR:			// Check if ':='
+    case MY_LEX_SET_VAR:			// Check if ':='
       if (yyPeek() != '=')
       {
-	state=STATE_CHAR;		// Return ':'
+	state=MY_LEX_CHAR;		// Return ':'
 	break;
       }
       yySkip();
       return (SET_VAR);
-    case STATE_COLON:			// optional line terminator
+    case MY_LEX_COLON:			// optional line terminator
       if (yyPeek())
       {
         if (((THD *)yythd)->client_capabilities & CLIENT_MULTI_QUERIES)
         {
           lex->found_colon=(char*)lex->ptr;
           ((THD *)yythd)->server_status |= SERVER_MORE_RESULTS_EXISTS;
-          lex->next_state=STATE_END;
+          lex->next_state=MY_LEX_END;
           return(END_OF_INPUT);
         }
         else
- 	  state=STATE_CHAR;		// Return ';'
+ 	  state=MY_LEX_CHAR;		// Return ';'
 	break;
       }
       /* fall true */
-    case STATE_EOL:
-      lex->next_state=STATE_END;	// Mark for next loop
+    case MY_LEX_EOL:
+      lex->next_state=MY_LEX_END;	// Mark for next loop
       return(END_OF_INPUT);
-    case STATE_END:
-      lex->next_state=STATE_END;
+    case MY_LEX_END:
+      lex->next_state=MY_LEX_END;
       return(0);			// We found end of input last time
       
       /* Actually real shouldn't start with . but allow them anyhow */
-    case STATE_REAL_OR_POINT:
-      if (my_isdigit(system_charset_info,yyPeek()))
-	state = STATE_REAL;		// Real
+    case MY_LEX_REAL_OR_POINT:
+      if (my_isdigit(cs,yyPeek()))
+	state = MY_LEX_REAL;		// Real
       else
       {
-	state = STATE_CHAR;		// return '.'
-	lex->next_state=STATE_IDENT_START;// Next is an ident (not a keyword)
+	state = MY_LEX_CHAR;		// return '.'
+	lex->next_state=MY_LEX_IDENT_START;// Next is an ident (not a keyword)
       }
       break;
-    case STATE_USER_END:		// end '@' of user@hostname
+    case MY_LEX_USER_END:		// end '@' of user@hostname
       switch (state_map[yyPeek()]) {
-      case STATE_STRING:
-      case STATE_USER_VARIABLE_DELIMITER:
-      case STAT_STRING_OR_DELIMITER:
+      case MY_LEX_STRING:
+      case MY_LEX_USER_VARIABLE_DELIMITER:
+      case MY_LEX_STRING_OR_DELIMITER:
 	break;
-      case STATE_USER_END:
-	lex->next_state=STATE_SYSTEM_VAR;
+      case MY_LEX_USER_END:
+	lex->next_state=MY_LEX_SYSTEM_VAR;
 	break;
       default:
-	lex->next_state=STATE_HOSTNAME;
+	lex->next_state=MY_LEX_HOSTNAME;
 	break;
       }
       yylval->lex_str.str=(char*) lex->ptr;
       yylval->lex_str.length=1;
       return((int) '@');
-    case STATE_HOSTNAME:		// end '@' of user@hostname
-      for (c=yyGet() ;
-	   my_isalnum(system_charset_info,c) || c == '.' || c == '_' ||
-	     c == '$';
+    case MY_LEX_HOSTNAME:		// end '@' of user@hostname
+      for (c=yyGet() ; 
+	   my_isalnum(cs,c) || c == '.' || c == '_' ||  c == '$';
 	   c= yyGet()) ;
       yylval->lex_str=get_token(lex,yyLength());
       return(LEX_HOSTNAME);
-    case STATE_SYSTEM_VAR:
+    case MY_LEX_SYSTEM_VAR:
       yylval->lex_str.str=(char*) lex->ptr;
       yylval->lex_str.length=1;
-      lex->next_state=STATE_IDENT_OR_KEYWORD;
+      lex->next_state=MY_LEX_IDENT_OR_KEYWORD;
       yySkip();					// Skip '@'
       return((int) '@');
-    case STATE_IDENT_OR_KEYWORD:
+    case MY_LEX_IDENT_OR_KEYWORD:
       /*
 	We come here when we have found two '@' in a row.
 	We should now be able to handle:
@@ -978,7 +932,7 @@ int yylex(void *arg, void *yythd)
 
       while (ident_map[c=yyGet()]) ;
       if (c == '.')
-	lex->next_state=STATE_IDENT_SEP;
+	lex->next_state=MY_LEX_IDENT_SEP;
       length= (uint) (lex->ptr - lex->tok_start)-1;
       if ((tokval= find_keyword(lex,length,0)))
       {
