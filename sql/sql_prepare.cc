@@ -1442,6 +1442,7 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
     break;
 
   case SQLCOM_INSERT_SELECT:
+  case SQLCOM_REPLACE_SELECT:
     res= mysql_test_insert_select(stmt, tables);
     break;
 
