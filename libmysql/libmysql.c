@@ -94,8 +94,9 @@ my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
 static my_bool mysql_client_init= 0;
 static my_bool org_my_init_done= 0;
 
-void mysql_once_init(void)
+int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 {
+  int result= 0;
   if (!mysql_client_init)
   {
     mysql_client_init=1;
@@ -131,24 +132,18 @@ void mysql_once_init(void)
 #if defined(SIGPIPE) && !defined(__WIN__)
     (void) signal(SIGPIPE, SIG_IGN);
 #endif
+    result= init_embedded_server(argc, argv, groups);
   }
 #ifdef THREAD
   else
     my_thread_init();         /* Init if new thread */
 #endif
-}
-
-#ifndef EMBEDDED_LIBRARY
-int STDCALL mysql_server_init(int argc __attribute__((unused)),
-			      char **argv __attribute__((unused)),
-			      char **groups __attribute__((unused)))
-{
-  mysql_once_init();
-  return 0;
+  return result;
 }
 
 void STDCALL mysql_server_end()
 {
+  end_embedded_server();
   /* If library called my_init(), free memory allocated by it */
   if (!org_my_init_done)
   {
@@ -162,8 +157,6 @@ void STDCALL mysql_server_end()
     mysql_thread_end();
   mysql_client_init= org_my_init_done= 0;
 }
-
-#endif /*EMBEDDED_LIBRARY*/
 
 my_bool STDCALL mysql_thread_init()
 {
