@@ -77,7 +77,7 @@ typedef struct st_ftb_word {
   my_off_t  docid[2];             /* for index search and for scan */
   uint      ndepth;
   int       len;
-  /* ... there can be docid cache added here. SerG */
+  /* ... docid cache can be added here. SerG */
   byte      word[1];
 } FTB_WORD;
 
@@ -90,6 +90,7 @@ typedef struct st_ft_info {
   uint       with_scan;
   FTB_EXPR  *root;
   QUEUE      queue;
+  TREE       no_dupes;
   FTB_WORD **list;
   MEM_ROOT   mem_root;
 } FTB;
@@ -165,6 +166,7 @@ void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         if ((ftbe->quot=param.quot)) ftb->with_scan|=2;
         if (param.yesno > 0) up->ythresh++;
         _ftb_parse_query(ftb, start, end, ftbe, depth+1);
+        param.quot=0;
         break;
       case 3: /* right bracket */
         if (up->quot) up->qend=param.quot;
@@ -174,7 +176,12 @@ void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
   return;
 }
 
-void  _ftb_init_index_search(FT_INFO *ftb)
+static int _ftb_no_dupes_cmp(void* not_used, const void *a,const void *b)
+{
+  return CMP_NUM((*((my_off_t*)a)), (*((my_off_t*)b)));
+}
+
+void _ftb_init_index_search(FT_INFO *ftb)
 {
   int i, r;
   FTB_WORD   *ftbw;
@@ -193,16 +200,31 @@ void  _ftb_init_index_search(FT_INFO *ftb)
   {
     ftbw=(FTB_WORD *)(ftb->queue.root[i]);
 
-    if (ftbw->flags&FTB_FLAG_TRUNC &&
-        (ftbw->up->ythresh > test(ftbw->flags&FTB_FLAG_YES)))
-    {
-      /* no need to search for this prefix in the index -
-       * it cannot ADD new matches, and to REMOVE half-matched
-       * rows we do scan anyway */
-      ftbw->docid[0]=HA_POS_ERROR;
-      ftbw->up->yweaks++;
-      continue;
-    }
+    if (ftbw->flags&FTB_FLAG_TRUNC) /* special treatment :(( */
+      if (ftbw->up->ythresh > test(ftbw->flags&FTB_FLAG_YES))
+      {
+        /* no need to search for this prefix in the index -
+         * it cannot ADD new matches, and to REMOVE half-matched
+         * rows we do scan anyway */
+        ftbw->docid[0]=HA_POS_ERROR;
+        ftbw->up->yweaks++;
+        continue;
+      }
+      else
+      {
+        /* We have to index-search for this prefix.
+         * It may cause duplicates, as in the index (sorted by <word,docid>)
+         *   <aaaa,row1>
+         *   <aabb,row2>
+         *   <aacc,row1>
+         * Searching for "aa*" will find row1 twice...
+         */
+        if (!is_tree_inited(& ftb->no_dupes))
+        {
+          init_tree(& ftb->no_dupes,0,0,sizeof(my_off_t),
+              _ftb_no_dupes_cmp,0,0,0);
+        }
+      }
 
     r=_mi_search(info, keyinfo, (uchar*) ftbw->word, ftbw->len,
                               SEARCH_FIND | SEARCH_BIGGER, keyroot);
@@ -250,6 +272,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
     default_charset_info              :
     info->s->keyinfo[keynr].seg->charset);
   ftb->with_scan=0;
+  bzero(& ftb->no_dupes, sizeof(TREE));
 
   init_alloc_root(&ftb->mem_root, 1024, 1024);
 
@@ -438,6 +461,11 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
         ftbe->yesses>=(ftbe->ythresh-ftbe->yweaks) && !ftbe->nos)
     {
       /* curdoc matched ! */
+      if (is_tree_inited(& ftb->no_dupes) &&
+          tree_insert(& ftb->no_dupes, &curdoc, 0)->count >1)
+        /* but it managed to get past this line once */
+        continue;
+
       info->lastpos=curdoc;
       info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED); /* why is this ? */
 
@@ -523,6 +551,10 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
 
 void ft_boolean_close_search(FT_INFO *ftb)
 {
+  if (is_tree_inited(& ftb->no_dupes))
+  {
+    delete_tree(& ftb->no_dupes);
+  }
   free_root(& ftb->mem_root, MYF(0));
   my_free((gptr)ftb,MYF(0));
 }

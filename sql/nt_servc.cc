@@ -479,3 +479,33 @@ If this condition persist, reboot the machine and try again\n");
 
   return ret_value;
 }
+/* ------------------------------------------------------------------------
+ -------------------------------------------------------------------------- */
+BOOL NTService::IsService(LPCSTR ServiceName)
+{
+  BOOL ret_value=FALSE;
+  SC_HANDLE service, scm;
+  
+  if (scm = OpenSCManager(0, 0,SC_MANAGER_ENUMERATE_SERVICE))
+  {
+    if ((service = OpenService(scm,ServiceName, SERVICE_ALL_ACCESS )))
+    {
+      ret_value=TRUE;
+      CloseServiceHandle(service);
+    }
+    CloseServiceHandle(scm);
+  }
+  return ret_value;
+}
+/* ------------------------------------------------------------------------
+ -------------------------------------------------------------------------- */
+BOOL NTService::got_service_option(char **argv, char *service_option)
+{
+  char *option = argv[1];
+  
+  while (*option)
+   if (!strcmp(option++, service_option))
+    return TRUE;
+  
+  return FALSE;
+}

@@ -70,6 +70,16 @@ Full-text search in MySQL	implements vector space model	0
 select * from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
 a	b
 MySQL has now support	for full-text search
+select * from t1 where MATCH a,b AGAINST ('"text search"  "now support"' IN BOOLEAN MODE);
+a	b
+MySQL has now support	for full-text search
+Full-text search in MySQL	implements vector space model
+select * from t1 where MATCH a,b AGAINST ('"text search" -"now support"' IN BOOLEAN MODE);
+a	b
+Full-text search in MySQL	implements vector space model
+select * from t1 where MATCH a,b AGAINST ('"text search" +"now support"' IN BOOLEAN MODE);
+a	b
+MySQL has now support	for full-text search
 select * from t1 where MATCH a AGAINST ("search" IN BOOLEAN MODE);
 a	b
 Full-text search in MySQL	implements vector space model
@@ -173,4 +183,9 @@ CREATE TABLE t1 (a int(11), b text, FULLTEXT KEY (b)) TYPE=MyISAM;
 insert into t1 values (1,"I wonder why the fulltext index doesnt work?");
 SELECT * from t1 where MATCH (b) AGAINST ('apples');
 a	b
+insert into t1 values (2,"fullaaa fullzzz");
+select * from t1 where match b against ('full*' in boolean mode);
+a	b
+2	fullaaa fullzzz
+1	I wonder why the fulltext index doesnt work?
 drop table t1;

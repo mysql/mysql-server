@@ -34,6 +34,9 @@ select *, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1
 select *, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
 
 select * from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('"text search"  "now support"' IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('"text search" -"now support"' IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('"text search" +"now support"' IN BOOLEAN MODE);
 
 # boolean w/o index:
 
@@ -145,4 +148,8 @@ CREATE TABLE t1 (a int(11), b text, FULLTEXT KEY (b)) TYPE=MyISAM;
 insert into t1 values (1,"I wonder why the fulltext index doesnt work?");
 SELECT * from t1 where MATCH (b) AGAINST ('apples');
 
+insert into t1 values (2,"fullaaa fullzzz");
+select * from t1 where match b against ('full*' in boolean mode);
+
 drop table t1;
+
