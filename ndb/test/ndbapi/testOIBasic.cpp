@@ -1978,7 +1978,7 @@ Val::cmpchars(Par par, const unsigned char* buf1, unsigned len1, const unsigned 
     unsigned len = maxxmulsize * col.m_bytelength;
     int n1 = NdbSqlUtil::strnxfrm_bug7284(cs, x1, chs->m_xmul * len, buf1, len1);
     int n2 = NdbSqlUtil::strnxfrm_bug7284(cs, x2, chs->m_xmul * len, buf2, len2);
-    assert(n1 == n2);
+    assert(n1 != -1 && n1 == n2);
     k = memcmp(x1, x2, n1);
   } else {
     k = (*cs->coll->strnncollsp)(cs, buf1, len1, buf2, len2, false);
