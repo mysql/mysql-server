@@ -2571,7 +2571,7 @@ PMP Computer Solutions. Database developers using @strong{MySQL} and
 @item @uref{http://www.aewa.org/}@*
 Airborne Early Warning Association.
 
-@item @uref{http://21ccs.com/~gboersm/y2kmatrix/}@*
+@item @uref{http://www.dedserius.com/y2kmatrix/}@*
 Y2K tester.
 @end itemize
 
