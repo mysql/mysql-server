@@ -1425,6 +1425,7 @@ sp_proc_stmt:
 		                     $2, lex->sphead->m_returns);
 
 	      lex->sphead->add_instr(i);
+	      lex->sphead->m_has_return= TRUE;
 	    }
 	  }
 	| IF sp_if END IF {}
@@ -1645,13 +1646,15 @@ sp_unlabeled_control:
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 	    sp_pcontext *ctx= lex->spcont;
-	    sp_instr_hpop *i;
 
   	    sp->backpatch(ctx->pop_label());
 	    ctx->pop_pvar($3.vars);
 	    ctx->pop_cond($3.conds);
-	    i= new sp_instr_hpop(sp->instructions(), $3.hndlrs);
-	    sp->add_instr(i);
+	    if ($3.hndlrs)
+	    {
+	      sp_instr_hpop *i= new sp_instr_hpop(sp->instructions(),$3.hndlrs);
+	      sp->add_instr(i);
+	    }
 	  }
 	| LOOP_SYM
 	  sp_proc_stmts END LOOP_SYM

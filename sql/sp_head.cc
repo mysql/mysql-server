@@ -120,7 +120,8 @@ sp_head::operator delete(void *ptr, size_t size)
 }
 
 sp_head::sp_head()
-  : Sql_alloc(), m_simple_case(FALSE), m_multi_results(FALSE), m_free_list(NULL)
+  : Sql_alloc(), m_has_return(FALSE), m_simple_case(FALSE),
+    m_multi_results(FALSE), m_free_list(NULL)
 {
   DBUG_ENTER("sp_head::sp_head");
 
@@ -321,7 +322,18 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
 
   ret= execute(thd);
   if (ret == 0)
-    *resp= nctx->get_result();
+  {
+    Item *it= nctx->get_result();
+
+    if (it)
+      *resp= it;
+    else
+    {
+      my_printf_error(ER_SP_NORETURNEND, ER(ER_SP_NORETURNEND), MYF(0),
+		      m_name.str);
+      ret= -1;
+    }
+  }
 
   thd->spcont= octx;
   DBUG_RETURN(ret);
@@ -481,6 +493,13 @@ sp_head::restore_lex(THD *thd)
   // Update some state in the old one first
   oldlex->ptr= sublex->ptr;
   oldlex->next_state= sublex->next_state;
+  // Save WHERE clause pointers to avoid damaging by optimisation
+  for (SELECT_LEX *sl= sublex->all_selects_list ;
+       sl ;
+       sl= sl->next_select_in_list())
+  {
+    sl->prep_where= sl->where;
+  }
 
   // Collect some data from the sub statement lex.
   sp_merge_funs(oldlex, sublex);
@@ -578,14 +597,31 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   DBUG_ENTER("sp_instr_stmt::execute");
   DBUG_PRINT("info", ("command: %d", m_lex->sql_command));
   LEX *olex;			// The other lex
+  Item *freelist;
   int res;
 
   olex= thd->lex;		// Save the other lex
   thd->lex= m_lex;		// Use my own lex
   thd->lex->thd = thd;		// QQ Not reentrant!
   thd->lex->unit.thd= thd;	// QQ Not reentrant
+  freelist= thd->free_list;
+  thd->free_list= NULL;
+  thd->query_id= query_id++;
+
+  // Copy WHERE clause pointers to avoid damaging by optimisation
+  // Also clear ref_pointer_arrays.
+  for (SELECT_LEX *sl= m_lex->all_selects_list ;
+       sl ;
+       sl= sl->next_select_in_list())
+  {
+    sl->ref_pointer_array= 0;
+    if (sl->prep_where)
+      sl->where= sl->prep_where->copy_andor_structure(thd);
+    DBUG_ASSERT(sl->join == 0);
+  }
 
   res= mysql_execute_command(thd);
+
   if (thd->lock || thd->open_tables || thd->derived_tables)
   {
     thd->proc_info="closing tables";
@@ -593,6 +629,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   }
 
   thd->lex= olex;		// Restore the other lex
+  thd->free_list= freelist;
 
   *nextp = m_ip+1;
   DBUG_RETURN(res);

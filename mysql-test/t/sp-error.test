@@ -171,4 +171,27 @@ begin
   end if;
 end|
 
+--error 1296
+create function f(val int) returns int
+begin
+  declare x int;
+
+  set x = val+3;
+end|
+
+create function f(val int) returns int
+begin
+  declare x int;
+
+  set x = val+3;
+  if x < 4 then
+    return x;
+  end if;
+end|
+
+--error 1297
+select f(10)|
+
+drop function f|
+
 delimiter ;|
