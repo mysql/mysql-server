@@ -362,6 +362,9 @@ static int my_strnncoll_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
     slen		Length of 's'
     t			String to compare
     tlen		Length of 't'
+    diff_if_only_endspace_difference
+		        Set to 1 if the strings should be regarded as different
+                        if they only difference in end space
 
   NOTE
    This function is used for character strings with binary collations.
@@ -376,10 +379,16 @@ static int my_strnncoll_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
 
 static int my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
                                  const uchar *a, uint a_length, 
-                                 const uchar *b, uint b_length)
+                                 const uchar *b, uint b_length,
+                                 my_bool diff_if_only_endspace_difference)
 {
   const uchar *end;
   uint length;
+  int res;
+
+#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
+  diff_if_only_endspace_difference= 0;
+#endif
   
   end= a + (length= min(a_length, b_length));
   while (a < end)
@@ -387,9 +396,12 @@ static int my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
     if (*a++ != *b++)
       return ((int) a[-1] - (int) b[-1]);
   }
+  res= 0;
   if (a_length != b_length)
   {
     int swap= 0;
+    if (diff_if_only_endspace_difference)
+      res= 1;                                   /* Assume 'a' is bigger */
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.
@@ -400,6 +412,7 @@ static int my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
       a_length= b_length;
       a= b;
       swap= -1;					/* swap sign of result */
+      res= -res;
     }
     for (end= a + a_length-length; a < end ; a++)
     {
@@ -407,7 +420,7 @@ static int my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
 	return ((int) *a - (int) ' ') ^ swap;
     }
   }
-  return 0;
+  return res;
 }
 
 
@@ -489,9 +502,15 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
       if (charlen < (uint) (min_str - min_org))
         min_str= min_org + charlen;
       
-      /* Write min key  */
-      *min_length= (uint) (min_str - min_org);
-      *max_length=res_length;
+      /*
+        Calculate length of keys:
+        'a\0\0... is the smallest possible string when we have space expand
+        a\ff\ff... is the biggest possible string
+      */
+      *min_length= ((cs->state & MY_CS_BINSORT) ? (uint) (min_str - min_org) :
+                    res_length);
+      *max_length= res_length;
+      /* Create min key  */
       do
       {
 	*min_str++= (char) cs->min_sort_char;
@@ -527,12 +546,13 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
     }
     *min_str++= *max_str++ = *ptr;
   }
-  *min_length= *max_length = (uint) (min_str - min_org);
 
+ *min_length= *max_length = (uint) (min_str - min_org);
   while (min_str != min_end)
-    *min_str++ = *max_str++ = ' ';	/* Because if key compression */
+    *min_str++= *max_str= ' ';            /* Because if key compression */
   return 0;
 }
+
 
 static int my_wildcmp_mb_bin(CHARSET_INFO *cs,
 		  const char *str,const char *str_end,

@@ -1369,9 +1369,9 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
     keydef[i].keysegs=pos->key_parts;
     for (j=0 ; j < pos->key_parts ; j++)
     {
-      keydef[i].seg[j].flag=pos->key_part[j].key_part_flag;
       Field *field=pos->key_part[j].field;
       type=field->key_type();
+      keydef[i].seg[j].flag=pos->key_part[j].key_part_flag;
 
       if (options & HA_OPTION_PACK_KEYS ||
 	  (pos->flags & (HA_PACK_KEY | HA_BINARY_PACK_KEY |
@@ -1386,8 +1386,8 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 	  if (j == 0)
 	    keydef[i].flag|=HA_PACK_KEY;
 	  if (!(field->flags & ZEROFILL_FLAG) &&
-	      (field->type() == FIELD_TYPE_STRING ||
-	       field->type() == FIELD_TYPE_VAR_STRING ||
+	      (field->type() == MYSQL_TYPE_STRING ||
+	       field->type() == MYSQL_TYPE_VAR_STRING ||
 	       ((int) (pos->key_part[j].length - field->decimals()))
 	       >= 4))
 	    keydef[i].seg[j].flag|=HA_SPACE_PACK;
@@ -1466,30 +1466,31 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
     {
       recinfo_pos->type= (int) FIELD_BLOB;
     }
-    else if (!(options & HA_OPTION_PACK_RECORD))
+    else if (!(options & HA_OPTION_PACK_RECORD) ||
+             found->type() == MYSQL_TYPE_VARCHAR)
       recinfo_pos->type= (int) FIELD_NORMAL;
     else if (found->zero_pack())
       recinfo_pos->type= (int) FIELD_SKIP_ZERO;
     else
       recinfo_pos->type= (int) ((length <= 3 ||
-				      (found->flags & ZEROFILL_FLAG)) ?
-				     FIELD_NORMAL :
-				     found->type() == FIELD_TYPE_STRING ||
-				     found->type() == FIELD_TYPE_VAR_STRING ?
-				     FIELD_SKIP_ENDSPACE :
-				     FIELD_SKIP_PRESPACE);
+                                 (found->flags & ZEROFILL_FLAG)) ?
+                                FIELD_NORMAL :
+                                found->type() == MYSQL_TYPE_STRING ||
+                                found->type() == MYSQL_TYPE_VAR_STRING ?
+                                FIELD_SKIP_ENDSPACE :
+                                FIELD_SKIP_PRESPACE);
     if (found->null_ptr)
     {
       recinfo_pos->null_bit=found->null_bit;
       recinfo_pos->null_pos= (uint) (found->null_ptr-
-				  (uchar*) table_arg->record[0]);
+                                     (uchar*) table_arg->record[0]);
     }
     else
     {
       recinfo_pos->null_bit=0;
       recinfo_pos->null_pos=0;
     }
-    (recinfo_pos++) ->length=(uint16) length;
+    (recinfo_pos++)->length= (uint16) length;
     recpos=minpos+length;
     DBUG_PRINT("loop",("length: %d  type: %d",
 		       recinfo_pos[-1].length,recinfo_pos[-1].type));

@@ -1421,19 +1421,19 @@ insert t2 select * from t1;
 insert t3 select * from t1;
 checksum table t1, t2, t3, t4 quick;
 Table	Checksum
-test.t1	968604391
+test.t1	272226711
 test.t2	NULL
 test.t3	NULL
 test.t4	NULL
 checksum table t1, t2, t3, t4;
 Table	Checksum
-test.t1	968604391
+test.t1	272226711
 test.t2	968604391
 test.t3	968604391
 test.t4	NULL
 checksum table t1, t2, t3, t4 extended;
 Table	Checksum
-test.t1	968604391
+test.t1	272226711
 test.t2	968604391
 test.t3	968604391
 test.t4	NULL
@@ -1664,3 +1664,5 @@ select count(*) from t1 where x = 18446744073709551601;
 count(*)
 1
 drop table t1;
+create table t1 (v varchar(16384)) engine=innodb;
+ERROR 42000: Column length too big for column 'v' (max = 255); use BLOB instead

@@ -118,15 +118,20 @@ static void unlock_locked_tables(THD *thd)
 static bool end_active_trans(THD *thd)
 {
   int error=0;
+  DBUG_ENTER("end_active_trans");
   if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN |
 		      OPTION_TABLE_LOCK))
   {
+    DBUG_PRINT("info",("options: 0x%lx", (ulong) thd->options));
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    /* Safety if one did "drop table" on locked tables */
+    if (!thd->locked_tables)
+      thd->options&= ~OPTION_TABLE_LOCK;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_commit(thd))
       error=1;
   }
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -4729,7 +4734,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   LEX  *lex= thd->lex;
   uint allowed_type_modifier=0;
   uint sign_len;
-  char warn_buff[MYSQL_ERRMSG_SIZE];
+  ulong max_field_charlength= MAX_FIELD_CHARLENGTH;
   DBUG_ENTER("add_field_to_list");
 
   if (strlen(field_name) > NAME_LEN)
@@ -4805,7 +4810,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   new_field->length=0;
   new_field->change=change;
   new_field->interval=0;
-  new_field->pack_length=0;
+  new_field->pack_length= new_field->key_length= 0;
   new_field->charset=cs;
   new_field->geom_type= (Field::geometry_type) uint_geom_type;
 
@@ -4877,36 +4882,22 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 	new_field->length++;
     }
     break;
-  case FIELD_TYPE_STRING:
-  case FIELD_TYPE_VAR_STRING:
-    if (new_field->length <= MAX_FIELD_CHARLENGTH || default_value)
-      break;
-    /* Convert long CHAR() and VARCHAR columns to TEXT or BLOB */
-    new_field->sql_type= FIELD_TYPE_BLOB;
-    sprintf(warn_buff, ER(ER_AUTO_CONVERT), field_name, "CHAR",
-	    (cs == &my_charset_bin) ? "BLOB" : "TEXT");
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_AUTO_CONVERT,
-		 warn_buff);
-    /* fall through */
+  case MYSQL_TYPE_VARCHAR:
+    /*
+      We can't use pack_length as this includes the field length
+      Long VARCHAR's are automaticly converted to blobs in mysql_prepare_table
+      if they don't have a default value
+    */
+    new_field->key_length= new_field->length;
+    max_field_charlength= MAX_FIELD_VARCHARLENGTH;
+    break;
+  case MYSQL_TYPE_STRING:
+    break;
   case FIELD_TYPE_BLOB:
   case FIELD_TYPE_TINY_BLOB:
   case FIELD_TYPE_LONG_BLOB:
   case FIELD_TYPE_MEDIUM_BLOB:
   case FIELD_TYPE_GEOMETRY:
-    if (new_field->length)
-    {
-      /* The user has given a length to the blob column */
-      if (new_field->length < 256)
-	type= FIELD_TYPE_TINY_BLOB;
-      if (new_field->length < 65536)
-	type= FIELD_TYPE_BLOB;
-      else if (new_field->length < 256L*256L*256L)
-	type= FIELD_TYPE_MEDIUM_BLOB;
-      else
-	type= FIELD_TYPE_LONG_BLOB;
-      new_field->length= 0;
-    }
-    new_field->sql_type= type;
     if (default_value)				// Allow empty as default value
     {
       String str,*res;
@@ -5037,10 +5028,10 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       if (new_field->pack_length > 4)
 	new_field->pack_length=8;
       new_field->interval=interval;
-      uint dummy_max_length;
+      uint dummy_max_length, field_length;
       calculate_interval_lengths(thd, interval,
-                                 &dummy_max_length, &new_field->length);
-      new_field->length+= (interval->count - 1);
+                                 &dummy_max_length, &field_length);
+      new_field->length= field_length+ (interval->count - 1);
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
       if (default_value)
       {
@@ -5067,10 +5058,11 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       new_field->interval=interval;
       new_field->pack_length=interval->count < 256 ? 1 : 2; // Should be safe
 
-      uint dummy_tot_length;
+      uint dummy_tot_length, field_length;
       calculate_interval_lengths(thd, interval,
-                                 &new_field->length, &dummy_tot_length);
-      set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
+                                 &field_length, &dummy_tot_length);
+      set_if_smaller(field_length, MAX_FIELD_WIDTH-1);
+      new_field->length= field_length;
       if (default_value)
       {
 	String str,*res;
@@ -5084,16 +5076,21 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       }
       break;
     }
+  case MYSQL_TYPE_VAR_STRING:
+    DBUG_ASSERT(0);                             // Impossible
+    break;
   }
 
-  if ((new_field->length > MAX_FIELD_CHARLENGTH && type != FIELD_TYPE_SET && 
-       type != FIELD_TYPE_ENUM) ||
-      (!new_field->length && !(new_field->flags & BLOB_FLAG) &&
-       type != FIELD_TYPE_STRING &&
-       type != FIELD_TYPE_VAR_STRING && type != FIELD_TYPE_GEOMETRY))
+  if (!(new_field->flags & BLOB_FLAG) &&
+      ((new_field->length > max_field_charlength && type != FIELD_TYPE_SET && 
+        type != FIELD_TYPE_ENUM &&
+        (type != MYSQL_TYPE_VARCHAR || default_value)) ||
+       (!new_field->length &&
+        type != MYSQL_TYPE_STRING &&
+        type != MYSQL_TYPE_VARCHAR && type != FIELD_TYPE_GEOMETRY)))
   {
     net_printf(thd,ER_TOO_BIG_FIELDLENGTH,field_name,
-	       MAX_FIELD_CHARLENGTH);		/* purecov: inspected */
+	       max_field_charlength);		/* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
   }
   type_modifier&= AUTO_INCREMENT_FLAG;
@@ -5103,11 +5100,10 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     DBUG_RETURN(1);
   }
   if (!new_field->pack_length)
-    new_field->pack_length=calc_pack_length(new_field->sql_type ==
-					    FIELD_TYPE_VAR_STRING ?
-					    FIELD_TYPE_STRING :
-					    new_field->sql_type,
-					    new_field->length);
+    new_field->pack_length= calc_pack_length(new_field->sql_type,
+                                             new_field->length);
+  if (!new_field->key_length)
+    new_field->key_length= new_field->pack_length;
   lex->create_list.push_back(new_field);
   lex->last_field=new_field;
   DBUG_RETURN(0);
@@ -5151,7 +5147,6 @@ static void remove_escape(char *name)
   {
 #ifdef USE_MB
     int l;
-/*    if ((l = ismbchar(name, name+MBMAXLEN))) { Wei He: I think it's wrong */
     if (use_mb(system_charset_info) &&
         (l = my_ismbchar(system_charset_info, name, strend)))
     {

@@ -450,11 +450,14 @@ drop table t1;
 # Test text and unique
 #
 create table t1 (a int not null auto_increment primary key, b text not null, unique b (b(20)));
-insert into t1 (b) values ('a'),('a '),('a  ');
+insert into t1 (b) values ('a'),('b'),('c');
 select concat(b,'.') from t1;
 update t1 set b='b ' where a=2;
 --error 1062
 update t1 set b='b  ' where a > 1;
+--error 1062
+insert into t1 (b) values ('b');
+select * from t1;
 delete from t1 where b='b';
 select a,concat(b,'.') from t1;
 drop table t1;
@@ -523,3 +526,15 @@ explain select count(*) from t1 where a is null;
 select count(*) from t1 where a is null;
 drop table t1;
 
+#
+# Test varchar
+#
+
+let $default=`select @@storage_engine`;
+set storage_engine=MyISAM;
+source include/varchar.inc;
+eval set storage_engine=$default;
+
+# MyISAM specific varchar tests
+--error 1118
+create table t1 (v varchar(65535));

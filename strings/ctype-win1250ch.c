@@ -479,7 +479,8 @@ static int my_strnncoll_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
 static
 int my_strnncollsp_win1250ch(CHARSET_INFO * cs, 
 			     const uchar *s, uint slen, 
-			     const uchar *t, uint tlen)
+			     const uchar *t, uint tlen,
+                             my_bool diff_if_only_endspace_difference)
 {
   for ( ; slen && s[slen-1] == ' ' ; slen--);
   for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
@@ -594,11 +595,19 @@ my_like_range_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
     if (*min_str != min_sort_char)
       only_min_found= 0;
     min_str++;
-    *max_str++ = like_range_prefix_max_win1250ch[(uint)(*ptr)];
+    *max_str++= like_range_prefix_max_win1250ch[(uint)(*ptr)];
   }
 
-  *min_length = (uint) (min_str - min_org);
-  *max_length = res_length;
+  if (cs->state & MY_CS_BINSORT)
+    *min_length= (uint) (min_str - min_org);
+  else
+  {
+    /* 'a\0\0... is the smallest possible string */
+    *min_length= res_length;
+  }
+  /* a\ff\ff... is the biggest possible string */
+  *max_length= res_length;
+
   while (min_str != min_end)
   {
     *min_str++ = min_sort_char;

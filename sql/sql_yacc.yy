@@ -2735,13 +2735,13 @@ type:
 					  Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_STRING; }
 	| varchar '(' NUM ')' opt_binary { Lex->length=$3.str;
-					  $$=FIELD_TYPE_VAR_STRING; }
+					  $$= MYSQL_TYPE_VARCHAR; }
 	| nvarchar '(' NUM ')'		{ Lex->length=$3.str;
-					  $$=FIELD_TYPE_VAR_STRING;
+					  $$= MYSQL_TYPE_VARCHAR;
 					  Lex->charset=national_charset_info; }
 	| VARBINARY '(' NUM ')' 	{ Lex->length=$3.str;
 					  Lex->charset=&my_charset_bin;
-					  $$=FIELD_TYPE_VAR_STRING; }
+					  $$= MYSQL_TYPE_VARCHAR; }
 	| YEAR_SYM opt_len field_options { $$=FIELD_TYPE_YEAR; }
 	| DATE_SYM			{ $$=FIELD_TYPE_DATE; }
 	| TIME_SYM			{ $$=FIELD_TYPE_TIME; }

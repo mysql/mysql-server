@@ -1052,9 +1052,8 @@ static void acl_insert_db(const char *user, const char *host, const char *db,
 ulong acl_get(const char *host, const char *ip,
               const char *user, const char *db, my_bool db_is_pattern)
 {
-  ulong host_access,db_access;
+  ulong host_access= ~0, db_access= 0;
   uint i,key_length;
-  db_access=0; host_access= ~0;
   char key[ACL_KEY_LENGTH],*tmp_db,*end;
   acl_entry *entry;
 
@@ -1437,6 +1436,7 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
   TABLE_LIST tables;
   TABLE *table;
   bool error=1;
+  char user_key[MAX_KEY_LENGTH];
   DBUG_ENTER("update_user_table");
   DBUG_PRINT("enter",("user: %s  host: %s",user,host));
 
@@ -1466,9 +1466,11 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
     DBUG_RETURN(1); /* purecov: deadcode */
   table->field[0]->store(host,(uint) strlen(host), &my_charset_latin1);
   table->field[1]->store(user,(uint) strlen(user), &my_charset_latin1);
+  key_copy(user_key, table->record[0], table->key_info,
+           table->key_info->key_length);
 
-  if (table->file->index_read_idx(table->record[0],0,
-				  (byte*) table->field[0]->ptr,0,
+  if (table->file->index_read_idx(table->record[0], 0,
+				  user_key, table->key_info->key_length,
 				  HA_READ_KEY_EXACT))
   {
     my_error(ER_PASSWORD_NO_MATCH,MYF(0));	/* purecov: deadcode */
@@ -1527,6 +1529,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   const char *password= "";
   uint password_len= 0;
   char what= (revoke_grant) ? 'N' : 'Y';
+  byte user_key[MAX_KEY_LENGTH];
   DBUG_ENTER("replace_user_table");
   safe_mutex_assert_owner(&acl_cache->lock);
 
@@ -1546,9 +1549,12 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 
   table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
   table->field[1]->store(combo.user.str,combo.user.length, &my_charset_latin1);
+  key_copy(user_key, table->record[0], table->key_info,
+           table->key_info->key_length);
+
   if (table->file->index_read_idx(table->record[0], 0,
-			      (byte*) table->field[0]->ptr,0,
-			      HA_READ_KEY_EXACT))
+                                  user_key, table->key_info->key_length,
+                                  HA_READ_KEY_EXACT))
   {
     /* what == 'N' means revoke */
     if (what == 'N')
@@ -1736,6 +1742,7 @@ static int replace_db_table(TABLE *table, const char *db,
   bool old_row_exists=0;
   int error;
   char what= (revoke_grant) ? 'N' : 'Y';
+  byte user_key[MAX_KEY_LENGTH];
   DBUG_ENTER("replace_db_table");
 
   if (!initialized)
@@ -1754,8 +1761,12 @@ static int replace_db_table(TABLE *table, const char *db,
   table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
   table->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
   table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
-  if (table->file->index_read_idx(table->record[0],0,(byte*) table->field[0]->ptr,0,
-			      HA_READ_KEY_EXACT))
+  key_copy(user_key, table->record[0], table->key_info,
+           table->key_info->key_length);
+
+  if (table->file->index_read_idx(table->record[0],0,
+                                  user_key, table->key_info->key_length,
+                                  HA_READ_KEY_EXACT))
   {
     if (what == 'N')
     { // no row, no revoke
@@ -1922,22 +1933,25 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
                    0,0,0, (hash_get_key) get_key_column,0,0);
   if (cols)
   {
-    int key_len;
+    uint key_prefix_len;
+    KEY_PART_INFO *key_part= col_privs->key_info->key_part;
     col_privs->field[0]->store(orig_host,(uint) strlen(orig_host),
                                &my_charset_latin1);
     col_privs->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
     col_privs->field[2]->store(user,(uint) strlen(user), &my_charset_latin1);
     col_privs->field[3]->store(tname,(uint) strlen(tname), &my_charset_latin1);
-    key_len=(col_privs->field[0]->pack_length()+
-             col_privs->field[1]->pack_length()+
-             col_privs->field[2]->pack_length()+
-             col_privs->field[3]->pack_length());
-    key_copy(key,col_privs->record[0],col_privs->key_info,key_len);
+
+    key_prefix_len= (key_part[0].store_length +
+                     key_part[1].store_length +
+                     key_part[2].store_length +
+                     key_part[3].store_length);
+    key_copy(key, col_privs->record[0], col_privs->key_info, key_prefix_len);
     col_privs->field[4]->store("",0, &my_charset_latin1);
     col_privs->file->ha_index_init(0);
+
     if (col_privs->file->index_read(col_privs->record[0],
-                                    (byte*) col_privs->field[0]->ptr,
-                                    key_len, HA_READ_KEY_EXACT))
+                                    (byte*) key,
+                                    key_prefix_len, HA_READ_KEY_EXACT))
     {
       cols = 0; /* purecov: deadcode */
       col_privs->file->ha_index_end();
@@ -1959,7 +1973,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
       }
       my_hash_insert(&hash_columns, (byte *) mem_check);
     } while (!col_privs->file->index_next(col_privs->record[0]) &&
-             !key_cmp_if_same(col_privs,key,0,key_len));
+             !key_cmp_if_same(col_privs,key,0,key_prefix_len));
     col_privs->file->ha_index_end();
   }
 }
@@ -2034,19 +2048,22 @@ static int replace_column_table(GRANT_TABLE *g_t,
 				ulong rights, bool revoke_grant)
 {
   int error=0,result=0;
-  uint key_length;
   byte key[MAX_KEY_LENGTH];
+  uint key_prefix_length;
+  KEY_PART_INFO *key_part= table->key_info->key_part;
   DBUG_ENTER("replace_column_table");
 
   table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
   table->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
   table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
-  table->field[3]->store(table_name,(uint) strlen(table_name), &my_charset_latin1);
-  key_length=(table->field[0]->pack_length()+ table->field[1]->pack_length()+
-	      table->field[2]->pack_length()+ table->field[3]->pack_length());
-  key_copy(key,table->record[0],table->key_info,key_length);
+  table->field[3]->store(table_name,(uint) strlen(table_name),
+                         &my_charset_latin1);
+  /* Get length of 3 first key parts */
+  key_prefix_length= (key_part[0].store_length + key_part[1].store_length +
+                      key_part[2].store_length + key_part[3].store_length);
+  key_copy(key, table->record[0], table->key_info, key_prefix_length);
 
-  rights &= COL_ACLS;				// Only ACL for columns
+  rights&= COL_ACLS;				// Only ACL for columns
 
   /* first fix privileges for all columns in column list */
 
@@ -2057,12 +2074,19 @@ static int replace_column_table(GRANT_TABLE *g_t,
   {
     ulong privileges = xx->rights;
     bool old_row_exists=0;
-    key_restore(table->record[0],key,table->key_info,key_length);
+    byte user_key[MAX_KEY_LENGTH];
+
+    key_restore(table->record[0],key,table->key_info,
+                key_prefix_length);
     table->field[4]->store(xx->column.ptr(),xx->column.length(),
                            &my_charset_latin1);
+    /* Get key for the first 4 columns */
+    key_copy(user_key, table->record[0], table->key_info,
+             table->key_info->key_length);
 
-    if (table->file->index_read(table->record[0],(byte*) table->field[0]->ptr,
-				0, HA_READ_KEY_EXACT))
+    if (table->file->index_read(table->record[0], user_key,
+				table->key_info->key_length,
+                                HA_READ_KEY_EXACT))
     {
       if (revoke_grant)
       {
@@ -2073,7 +2097,8 @@ static int replace_column_table(GRANT_TABLE *g_t,
       }
       old_row_exists = 0;
       restore_record(table,default_values);		// Get empty record
-      key_restore(table->record[0],key,table->key_info,key_length);
+      key_restore(table->record[0],key,table->key_info,
+                  key_prefix_length);
       table->field[4]->store(xx->column.ptr(),xx->column.length(),
                              &my_charset_latin1);
     }
@@ -2130,8 +2155,12 @@ static int replace_column_table(GRANT_TABLE *g_t,
 
   if (revoke_grant)
   {
-    if (table->file->index_read(table->record[0], (byte*) table->field[0]->ptr,
-				key_length, HA_READ_KEY_EXACT))
+    byte user_key[MAX_KEY_LENGTH];
+    key_copy(user_key, table->record[0], table->key_info,
+             table->key_info->key_length);
+    if (table->file->index_read(table->record[0], user_key,
+				table->key_info->key_length,
+                                HA_READ_KEY_EXACT))
       goto end;
 
     /* Scan through all rows with the same host,db,user and table */
@@ -2145,7 +2174,8 @@ static int replace_column_table(GRANT_TABLE *g_t,
       {
 	GRANT_COLUMN *grant_column = NULL;
 	char  colum_name_buf[HOSTNAME_LENGTH+1];
-	String column_name(colum_name_buf,sizeof(colum_name_buf),&my_charset_latin1);
+	String column_name(colum_name_buf,sizeof(colum_name_buf),
+                           &my_charset_latin1);
 
 	privileges&= ~rights;
 	table->field[6]->store((longlong)
@@ -2181,7 +2211,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	}
       }
     } while (!table->file->index_next(table->record[0]) &&
-	     !key_cmp_if_same(table,key,0,key_length));
+	     !key_cmp_if_same(table, key, 0, key_prefix_length));
   }
 
 end:
@@ -2200,6 +2230,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   int old_row_exists = 1;
   int error=0;
   ulong store_table_rights, store_col_rights;
+  byte user_key[MAX_KEY_LENGTH];
   DBUG_ENTER("replace_table_table");
 
   strxmov(grantor, thd->user, "@", thd->host_or_ip, NullS);
@@ -2220,9 +2251,11 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
   table->field[3]->store(table_name,(uint) strlen(table_name), &my_charset_latin1);
   store_record(table,record[1]);			// store at pos 1
+  key_copy(user_key, table->record[0], table->key_info,
+           table->key_info->key_length);
 
-  if (table->file->index_read_idx(table->record[0],0,
-				  (byte*) table->field[0]->ptr,0,
+  if (table->file->index_read_idx(table->record[0], 0,
+                                  user_key, table->key_info->key_length,
 				  HA_READ_KEY_EXACT))
   {
     /*
@@ -3631,7 +3664,8 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
   ACL_USER *acl_user;
   ACL_DB *acl_db;
   TABLE_LIST tables[4];
-
+  TABLE *table;
+  byte user_key[MAX_KEY_LENGTH];
   DBUG_ENTER("mysql_drop_user");
 
   if ((result= open_grant_tables(thd, tables)))
@@ -3707,22 +3741,25 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
-    tables[0].table->field[0]->store(user_name->host.str,(uint)
-				     user_name->host.length,
-				     system_charset_info);
-    tables[0].table->field[1]->store(user_name->user.str,(uint)
-				     user_name->user.length,
-				     system_charset_info);
-    if (!tables[0].table->file->index_read_idx(tables[0].table->record[0],0,
-					       (byte*) tables[0].table->
-					       field[0]->ptr,0,
-					       HA_READ_KEY_EXACT))
+    table= tables[0].table;
+    table->field[0]->store(user_name->host.str,(uint)
+                           user_name->host.length,
+                           system_charset_info);
+    table->field[1]->store(user_name->user.str,(uint)
+                           user_name->user.length,
+                           system_charset_info);
+    key_copy(user_key, table->record[0], table->key_info,
+             table->key_info->key_length);
+
+    if (!table->file->index_read_idx(table->record[0],0,
+                                     user_key,
+                                     table->key_info->key_length,
+                                     HA_READ_KEY_EXACT))
     {
       int error;
-      if ((error = tables[0].table->file->delete_row(tables[0].table->
-						     record[0])))
+      if ((error= table->file->delete_row(table->record[0])))
       {
-	tables[0].table->file->print_error(error, MYF(0));
+	table->file->print_error(error, MYF(0));
 	DBUG_RETURN(-1);
       }
       delete_dynamic_element(&acl_users, acl_userd);
@@ -3736,6 +3773,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
     my_error(ER_DROP_USER, MYF(0));
   DBUG_RETURN(result);
 }
+
 
 int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 {

@@ -188,27 +188,7 @@ public:
   */
   virtual bool can_be_compared_as_longlong() const { return FALSE; }
   virtual void free() {}
-  Field *new_field(MEM_ROOT *root, struct st_table *new_table)
-  {
-    Field *tmp= (Field*) memdup_root(root,(char*) this,size_of());
-    if (tmp)
-    {
-      if (tmp->table->maybe_null)
-	tmp->flags&= ~NOT_NULL_FLAG;
-      tmp->table= new_table;
-      tmp->key_start.init(0);
-      tmp->part_of_key.init(0);
-      tmp->part_of_sortkey.init(0);
-      tmp->unireg_check=Field::NONE;
-      tmp->flags&= (NOT_NULL_FLAG | BLOB_FLAG | UNSIGNED_FLAG |
-		    ZEROFILL_FLAG | BINARY_FLAG | ENUM_FLAG | SET_FLAG);
-#ifdef PROBABLY_WRONG
-      tmp->table_name= new_table->table_name;
-#endif
-      tmp->reset_fields();
-    }
-    return tmp;
-  }
+  virtual Field *new_field(MEM_ROOT *root, struct st_table *new_table);
   inline void move_field(char *ptr_arg,uchar *null_ptr_arg,uchar null_bit_arg)
   {
     ptr=ptr_arg; null_ptr=null_ptr_arg; null_bit=null_bit_arg;
@@ -224,11 +204,10 @@ public:
     { memcpy(buff,ptr,length); }
   inline void set_image(char *buff,uint length, CHARSET_INFO *cs)
     { memcpy(ptr,buff,length); }
-  virtual void get_key_image(char *buff,uint length, CHARSET_INFO *cs,
-			     imagetype type)
-    { get_image(buff,length,cs); }
-  virtual void set_key_image(char *buff,uint length, CHARSET_INFO *cs)
-    { set_image(buff,length,cs); }
+  virtual void get_key_image(char *buff, uint length, imagetype type)
+    { get_image(buff,length, &my_charset_bin); }
+  virtual void set_key_image(char *buff,uint length)
+    { set_image(buff,length, &my_charset_bin); }
   inline longlong val_int_offset(uint row_offset)
     {
       ptr+=row_offset;
@@ -267,9 +246,11 @@ public:
   virtual uint max_packed_col_length(uint max_length)
   { return max_length;}
 
-  virtual int pack_cmp(const char *a,const char *b, uint key_length_arg)
+  virtual int pack_cmp(const char *a,const char *b, uint key_length_arg,
+                       my_bool insert_or_update)
   { return cmp(a,b); }
-  virtual int pack_cmp(const char *b, uint key_length_arg)
+  virtual int pack_cmp(const char *b, uint key_length_arg,
+                       my_bool insert_or_update)
   { return cmp(ptr,b); }
   uint offset();			// Should be inline ...
   void copy_from_tmp(int offset);
@@ -912,8 +893,8 @@ public:
   enum_field_types type() const
   {
     return ((table && table->db_create_options & HA_OPTION_PACK_RECORD &&
-	     field_length >= 4) ?
-	    FIELD_TYPE_VAR_STRING : FIELD_TYPE_STRING);
+	     field_length >= 4) && table->frm_version < FRM_VER_TRUE_VARCHAR ?
+	    MYSQL_TYPE_VAR_STRING : MYSQL_TYPE_STRING);
   }
   enum ha_base_keytype key_type() const
     { return binary() ? HA_KEYTYPE_BINARY : HA_KEYTYPE_TEXT; }
@@ -930,8 +911,9 @@ public:
   void sql_type(String &str) const;
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
   const char *unpack(char* to, const char *from);
-  int pack_cmp(const char *a,const char *b,uint key_length);
-  int pack_cmp(const char *b,uint key_length);
+  int pack_cmp(const char *a,const char *b,uint key_length,
+               my_bool insert_or_update);
+  int pack_cmp(const char *b,uint key_length,my_bool insert_or_update);
   uint packed_col_length(const char *to, uint length);
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
@@ -939,6 +921,7 @@ public:
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   field_cast_enum field_cast_type() { return FIELD_CAST_STRING; }
+  Field *new_field(MEM_ROOT *root, struct st_table *new_table);
 };
 
 
@@ -958,7 +941,7 @@ public:
 	       NONE, field_name_arg, table_arg, cs)
   {}
 
-  enum_field_types type() const { return FIELD_TYPE_VAR_STRING; }
+  enum_field_types type() const { return MYSQL_TYPE_VARCHAR; }
   enum ha_base_keytype key_type() const
     { return binary() ? HA_KEYTYPE_VARBINARY : HA_KEYTYPE_VARTEXT; }
   bool zero_pack() const { return 0; }
@@ -973,18 +956,23 @@ public:
   String *val_str(String*,String *);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
-  void get_key_image(char *buff,uint length, CHARSET_INFO *cs, imagetype type);
-  void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
+  void get_key_image(char *buff,uint length, imagetype type);
+  void set_key_image(char *buff,uint length);
   void sql_type(String &str) const;
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
   char *pack_key(char *to, const char *from, uint max_length);
   const char *unpack(char* to, const char *from);
-  int pack_cmp(const char *a, const char *b, uint key_length);
-  int pack_cmp(const char *b, uint key_length);
+  int pack_cmp(const char *a, const char *b, uint key_length,
+               my_bool insert_or_update);
+  int pack_cmp(const char *b, uint key_length,my_bool insert_or_update);
+  int cmp_binary(const char *a,const char *b, uint32 max_length=~0L);
+  int cmp_binary_offset(uint row_offset);
+  int key_cmp(const byte *,const byte*);
+  int key_cmp(const byte *str, uint length);
   uint packed_col_length(const char *to, uint length);
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
-  enum_field_types real_type() const { return FIELD_TYPE_VAR_STRING; }
+  enum_field_types real_type() const { return MYSQL_TYPE_VARCHAR; }
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   field_cast_enum field_cast_type() { return FIELD_CAST_VARSTRING; }
@@ -1053,8 +1041,8 @@ public:
       store_length(length);
       memcpy_fixed(ptr+packlength,&data,sizeof(char*));
     }
-  void get_key_image(char *buff,uint length, CHARSET_INFO *cs, imagetype type);
-  void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
+  void get_key_image(char *buff,uint length, imagetype type);
+  void set_key_image(char *buff,uint length);
   void sql_type(String &str) const;
   inline bool copy()
   { char *tmp;
@@ -1072,8 +1060,9 @@ public:
   char *pack_key(char *to, const char *from, uint max_length);
   char *pack_key_from_key_image(char* to, const char *from, uint max_length);
   const char *unpack_key(char* to, const char *from, uint max_length);
-  int pack_cmp(const char *a, const char *b, uint key_length);
-  int pack_cmp(const char *b, uint key_length);
+  int pack_cmp(const char *a, const char *b, uint key_length,
+               my_bool insert_or_update);
+  int pack_cmp(const char *b, uint key_length,my_bool insert_or_update);
   uint packed_col_length(const char *col_ptr, uint length);
   uint max_packed_col_length(uint max_length);
   void free() { value.free(); }
@@ -1085,6 +1074,7 @@ public:
   field_cast_enum field_cast_type() { return FIELD_CAST_BLOB; }
   uint32 max_length();
 };
+
 
 #ifdef HAVE_SPATIAL
 class Field_geom :public Field_blob {
@@ -1110,11 +1100,11 @@ public:
   int  store(double nr) { return 1; }
   int  store(longlong nr) { return 1; }
 
-  void get_key_image(char *buff,uint length, CHARSET_INFO *cs,imagetype type);
-  void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
+  void get_key_image(char *buff,uint length,imagetype type);
   field_cast_enum field_cast_type() { return FIELD_CAST_GEOM; }
 };
 #endif /*HAVE_SPATIAL*/
+
 
 class Field_enum :public Field_str {
 protected:
@@ -1196,8 +1186,8 @@ public:
   LEX_STRING comment;			// Comment for field
   Item	*def;				// Default value
   enum	enum_field_types sql_type;
-  uint32 length;
-  uint decimals,flags,pack_length;
+  ulong length;
+  uint  decimals, flags, pack_length, key_length;
   Field::utype unireg_check;
   TYPELIB *interval;			// Which interval to use
   CHARSET_INFO *charset;
@@ -1261,6 +1251,7 @@ Field *make_field(char *ptr, uint32 field_length,
 		  TYPELIB *interval, const char *field_name,
 		  struct st_table *table);
 uint pack_length_to_packflag(uint type);
+enum_field_types get_blob_type_from_length(ulong length);
 uint32 calc_pack_length(enum_field_types type,uint32 length);
 int set_field_to_null(Field *field);
 int set_field_to_null_with_conversions(Field *field, bool no_conversions);

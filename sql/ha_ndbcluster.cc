@@ -387,6 +387,7 @@ static inline bool ndb_supported_type(enum_field_types type)
     return TRUE;
   case MYSQL_TYPE_NULL:   
   case MYSQL_TYPE_GEOMETRY:
+  case MYSQL_TYPE_VARCHAR:
     break;
   }
   return FALSE;
@@ -1764,7 +1765,7 @@ int ha_ndbcluster::key_cmp(uint keynr, const byte * old_row,
 	  (new_row[key_part->null_offset] & key_part->null_bit))
 	return 1;
     }
-    if (key_part->key_part_flag & (HA_BLOB_PART | HA_VAR_LENGTH))
+    if (key_part->key_part_flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART))
     {
 
       if (key_part->field->cmp_binary((char*) (old_row + key_part->offset),
@@ -3611,6 +3612,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_table_flags(HA_REC_NOT_IN_SEQ |
 		HA_NULL_IN_KEY |
 		HA_AUTO_PART_KEY |
+                HA_NO_VARCHAR |
 		HA_NO_PREFIX_CHAR_KEYS),
   m_share(0),
   m_use_write(FALSE),

@@ -73,6 +73,7 @@
 #define HA_HAS_CHECKSUM        (1 << 24)
 /* Table data are stored in separate files (for lower_case_table_names) */
 #define HA_FILE_BASED	       (1 << 26)
+#define HA_NO_VARCHAR	       (1 << 27)
 
 
 /* bits in index_flags(index_number) for what you can do with index */
@@ -214,6 +215,7 @@ typedef struct st_ha_create_information
   uint merge_insert_method;
   bool table_existed;			/* 1 in create if table existed */
   bool frm_only;                        /* 1 if no ha_create_table() */
+  bool varchar;                         /* 1 if table has a VARCHAR */
 } HA_CREATE_INFO;
 
 

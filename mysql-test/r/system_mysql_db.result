@@ -63,9 +63,9 @@ host	CREATE TABLE `host` (
 show create table user;
 Table	Create Table
 user	CREATE TABLE `user` (
-  `Host` varchar(60) collate utf8_bin NOT NULL default '',
-  `User` varchar(16) collate utf8_bin NOT NULL default '',
-  `Password` varchar(41) collate utf8_bin NOT NULL default '',
+  `Host` char(60) collate utf8_bin NOT NULL default '',
+  `User` char(16) collate utf8_bin NOT NULL default '',
+  `Password` char(41) collate utf8_bin NOT NULL default '',
   `Select_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
   `Insert_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',
   `Update_priv` enum('N','Y') collate utf8_bin NOT NULL default 'N',

@@ -93,6 +93,7 @@ typedef struct st_key {
   union {
     int  bdb_return_if_eq;
   } handler;
+  struct st_table *table;
 } KEY;
 
 

@@ -404,6 +404,9 @@ void check_duplicates_in_interval(const char *set_or_name,
   DESCRIPTION
     Prepares the table and key structures for table creation.
 
+  NOTES
+    sets create_info->varchar if the table has a varchar or blob.
+
   RETURN VALUES
     0	ok
     -1	error
@@ -418,20 +421,24 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
   const char	*key_name;
   create_field	*sql_field,*dup_field;
   uint		field,null_fields,blob_columns;
+  uint		max_key_length= file->max_key_length();
   ulong		pos;
   KEY		*key_info;
   KEY_PART_INFO *key_part_info;
   int		timestamps= 0, timestamps_with_niladic= 0;
   int		field_no,dup_no;
   int		select_field_pos,auto_increment=0;
+  List_iterator<create_field> it(fields),it2(fields);
   DBUG_ENTER("mysql_prepare_table");
 
-  List_iterator<create_field> it(fields),it2(fields);
   select_field_pos=fields.elements - select_field_count;
   null_fields=blob_columns=0;
+  create_info->varchar= 0;
 
   for (field_no=0; (sql_field=it++) ; field_no++)
   {
+    CHARSET_INFO *save_cs;
+
     if (!sql_field->charset)
       sql_field->charset= create_info->default_table_charset;
     /*
@@ -443,22 +450,53 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     if (create_info->table_charset && sql_field->charset != &my_charset_bin)
       sql_field->charset= create_info->table_charset;
 
-    CHARSET_INFO *savecs= sql_field->charset;
+    save_cs= sql_field->charset;
     if ((sql_field->flags & BINCMP_FLAG) &&
 	!(sql_field->charset= get_charset_by_csname(sql_field->charset->csname,
 						    MY_CS_BINSORT,MYF(0))))
     {
       char tmp[64];
-      strmake(strmake(tmp, savecs->csname, sizeof(tmp)-4), "_bin", 4);
+      strmake(strmake(tmp, save_cs->csname, sizeof(tmp)-4), "_bin", 4);
       my_error(ER_UNKNOWN_COLLATION, MYF(0), tmp);
       DBUG_RETURN(-1);
     }
 
     sql_field->create_length_to_internal_length();
+    if (sql_field->length > MAX_FIELD_VARCHARLENGTH &&
+        !(sql_field->flags & BLOB_FLAG))
+    {
+      /* Convert long VARCHAR columns to TEXT or BLOB */
+      char warn_buff[MYSQL_ERRMSG_SIZE];
 
-    /* Don't pack keys in old tables if the user has requested this */
+      if (sql_field->def)
+      {
+        my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), sql_field->field_name,
+                 MAX_FIELD_VARCHARLENGTH / sql_field->charset->mbmaxlen);
+        DBUG_RETURN(-1);
+      }
+      sql_field->sql_type= FIELD_TYPE_BLOB;
+      sql_field->flags|= BLOB_FLAG;
+      sprintf(warn_buff, ER(ER_AUTO_CONVERT), sql_field->field_name,
+              "VARCHAR",
+              (sql_field->charset == &my_charset_bin) ? "BLOB" : "TEXT");
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_AUTO_CONVERT,
+                   warn_buff);
+    }
+    
+    if ((sql_field->flags & BLOB_FLAG) && sql_field->length)
+    {
+      if (sql_field->sql_type == FIELD_TYPE_BLOB)
+      {
+        /* The user has given a length to the blob column */
+        sql_field->sql_type= get_blob_type_from_length(sql_field->length);
+        sql_field->pack_length= calc_pack_length(sql_field->sql_type, 0);
+      }
+      sql_field->length= 0;                     // Probably from an item
+    }
+
+    /* Don't pack rows in old tables if the user has requested this */
     if ((sql_field->flags & BLOB_FLAG) ||
-	sql_field->sql_type == FIELD_TYPE_VAR_STRING &&
+	sql_field->sql_type == MYSQL_TYPE_VARCHAR &&
 	create_info->row_type != ROW_TYPE_FIXED)
     {
       db_options|=HA_OPTION_PACK_RECORD;
@@ -532,6 +570,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       sql_field->length=8;			// Unireg field length
       sql_field->unireg_check=Field::BLOB_FIELD;
       blob_columns++;
+      create_info->varchar= 1;
       break;
     case FIELD_TYPE_GEOMETRY:
 #ifdef HAVE_SPATIAL
@@ -549,17 +588,37 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       sql_field->length=8;			// Unireg field length
       sql_field->unireg_check=Field::BLOB_FIELD;
       blob_columns++;
+      create_info->varchar= 1;
       break;
 #else
       my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED), MYF(0),
 		      sym_group_geom.name, sym_group_geom.needed_define);
       DBUG_RETURN(-1);
 #endif /*HAVE_SPATIAL*/
-    case FIELD_TYPE_VAR_STRING:
-    case FIELD_TYPE_STRING:
+    case MYSQL_TYPE_VARCHAR:
+#ifndef QQ_ALL_HANDLERS_SUPPORT_VARCHAR
+      if (file->table_flags() & HA_NO_VARCHAR)
+      {
+        /* convert VARCHAR to CHAR because handler is not yet up to date */
+        sql_field->sql_type=    MYSQL_TYPE_VAR_STRING;
+        sql_field->pack_length= calc_pack_length(sql_field->sql_type,
+                                                 (uint) sql_field->length);
+        if ((sql_field->length / sql_field->charset->mbmaxlen) >
+            MAX_FIELD_CHARLENGTH)
+        {
+          my_printf_error(ER_TOO_BIG_FIELDLENGTH, ER(ER_TOO_BIG_FIELDLENGTH),
+                          MYF(0), sql_field->field_name, MAX_FIELD_CHARLENGTH);
+          DBUG_RETURN(-1);
+        }
+      }
+      else
+#endif
+        create_info->varchar= 1;
+      /* fall through */
+    case MYSQL_TYPE_STRING:
       sql_field->pack_flag=0;
       if (sql_field->charset->state & MY_CS_BINSORT)
-	sql_field->pack_flag|=FIELDFLAG_BINARY;
+	sql_field->pack_flag|= FIELDFLAG_BINARY;
       break;
     case FIELD_TYPE_ENUM:
       sql_field->pack_flag=pack_length_to_packflag(sql_field->pack_length) |
@@ -840,6 +899,8 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     CHARSET_INFO *ft_key_charset=0;  // for FULLTEXT
     for (uint column_nr=0 ; (column=cols++) ; column_nr++)
     {
+      uint length;
+
       it.rewind();
       field=0;
       while ((sql_field=it++) &&
@@ -862,8 +923,8 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       */
       if (key->type == Key::FULLTEXT)
       {
-	if ((sql_field->sql_type != FIELD_TYPE_STRING &&
-	     sql_field->sql_type != FIELD_TYPE_VAR_STRING &&
+	if ((sql_field->sql_type != MYSQL_TYPE_STRING &&
+	     sql_field->sql_type != MYSQL_TYPE_VARCHAR &&
 	     !f_is_blob(sql_field->pack_flag)) ||
 	    sql_field->charset == &my_charset_bin ||
 	    sql_field->charset->mbminlen > 1 || // ucs2 doesn't work yet
@@ -904,15 +965,15 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	  }
 	}
 #ifdef HAVE_SPATIAL
-	if (key->type  == Key::SPATIAL)
+	if (key->type == Key::SPATIAL)
 	{
-	  if (!column->length )
+	  if (!column->length)
 	  {
 	    /*
-	    BAR: 4 is: (Xmin,Xmax,Ymin,Ymax), this is for 2D case
-		 Lately we'll extend this code to support more dimensions
+              4 is: (Xmin,Xmax,Ymin,Ymax), this is for 2D case
+              Lately we'll extend this code to support more dimensions
 	    */
-	    column->length=4*sizeof(double);
+	    column->length= 4*sizeof(double);
 	  }
 	}
 #endif
@@ -948,7 +1009,8 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       key_part_info->fieldnr= field;
       key_part_info->offset=  (uint16) sql_field->offset;
       key_part_info->key_type=sql_field->pack_flag;
-      uint length=sql_field->pack_length;
+      length= sql_field->key_length;
+
       if (column->length)
       {
 	if (f_is_blob(sql_field->pack_flag))
@@ -1014,12 +1076,13 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       /* Use packed keys for long strings on the first column */
       if (!(db_options & HA_OPTION_NO_PACK_KEYS) &&
 	  (length >= KEY_DEFAULT_PACK_LENGTH &&
-	   (sql_field->sql_type == FIELD_TYPE_STRING ||
-	    sql_field->sql_type == FIELD_TYPE_VAR_STRING ||
+	   (sql_field->sql_type == MYSQL_TYPE_STRING ||
+	    sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
 	    sql_field->pack_flag & FIELDFLAG_BLOB)))
       {
-	if (column_nr == 0 && (sql_field->pack_flag & FIELDFLAG_BLOB))
-	  key_info->flags|= HA_BINARY_PACK_KEY;
+	if (column_nr == 0 && (sql_field->pack_flag & FIELDFLAG_BLOB) ||
+            sql_field->sql_type == MYSQL_TYPE_VARCHAR)
+	  key_info->flags|= HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY;
 	else
 	  key_info->flags|= HA_PACK_KEY;
       }
@@ -1058,7 +1121,6 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     if (!(key_info->flags & HA_NULL_PART_KEY))
       unique_key=1;
     key_info->key_length=(uint16) key_length;
-    uint max_key_length= file->max_key_length();
     if (key_length > max_key_length && key->type != Key::FULLTEXT)
     {
       my_error(ER_TOO_LONG_KEY,MYF(0),max_key_length);

@@ -1921,11 +1921,19 @@ static void my_caseup_utf8(CHARSET_INFO *cs, char *s, uint slen)
   }
 }
 
-static void my_hash_sort_utf8(CHARSET_INFO *cs, const uchar *s, uint slen, ulong *n1, ulong *n2)
+static void my_hash_sort_utf8(CHARSET_INFO *cs, const uchar *s, uint slen,
+                              ulong *n1, ulong *n2)
 {
   my_wc_t wc;
   int res;
   const uchar *e=s+slen;
+
+  /*
+    Remove end space. We have to do this to be able to compare
+    'A ' and 'A' as identical
+  */
+  while (e > s && e[-1] == ' ')
+    e--;
 
   while ((s < e) && (res=my_utf8_uni(cs,&wc, (uchar *)s, (uchar*)e))>0 )
   {
@@ -2019,6 +2027,9 @@ static int my_strnncoll_utf8(CHARSET_INFO *cs,
     a_length            Length of 'a'
     b                   Second string to compare
     b_length            Length of 'b'
+    diff_if_only_endspace_difference
+		        Set to 1 if the strings should be regarded as different
+                        if they only difference in end space
 
   IMPLEMENTATION
     If one string is shorter as the other, then we space extend the other
@@ -2037,13 +2048,17 @@ static int my_strnncoll_utf8(CHARSET_INFO *cs,
 */
 
 static int my_strnncollsp_utf8(CHARSET_INFO *cs,
-                             const uchar *s, uint slen,
-                             const uchar *t, uint tlen)
+                               const uchar *s, uint slen,
+                               const uchar *t, uint tlen,
+                               my_bool diff_if_only_endspace_difference)
 {
-  int s_res,t_res;
+  int s_res, t_res, res;
   my_wc_t s_wc,t_wc;
-  const uchar *se= s+slen;
-  const uchar *te= t+tlen;
+  const uchar *se= s+slen, *te= t+tlen;
+
+#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
+  diff_if_only_endspace_difference= 0;
+#endif
 
   while ( s < se && t < te )
   {
@@ -2072,16 +2087,20 @@ static int my_strnncollsp_utf8(CHARSET_INFO *cs,
 
   slen= se-s;
   tlen= te-t;
+  res= 0;
 
   if (slen != tlen)
   {
     int swap= 0;
+    if (diff_if_only_endspace_difference)
+      res= 1;                                   /* Assume 'a' is bigger */
     if (slen < tlen)
     {
       slen= tlen;
       s= t;
       se= te;
       swap= -1;
+      res= -res;
     }
     /*
       This following loop uses the fact that in UTF-8
@@ -2099,7 +2118,7 @@ static int my_strnncollsp_utf8(CHARSET_INFO *cs,
         return ((int)*s -  (int) ' ') ^ swap;
     }
   }
-  return 0;
+  return res;
 }
 
 

@@ -162,10 +162,15 @@ Item_ident::Item_ident(THD *thd, Item_ident *item)
 void Item_ident::cleanup()
 {
   DBUG_ENTER("Item_ident::cleanup");
-  DBUG_PRINT("enter", ("b:%s(%s), t:%s(%s), f:%s(%s)",
-		       db_name, orig_db_name,
-		       table_name, orig_table_name,
-		       field_name, orig_field_name));
+#ifdef CANT_BE_USED_AS_MEMORY_IS_FREED
+  DBUG_PRINT("enter", ("db: %s (%s)  table: %s (%s)  field: %s (%s)",
+		       db_name ? db_name : "null",
+                       orig_db_name ? orig_db_name : "null",
+		       table_name ? table_name : "null",
+                       orig_table_name ? orig_table_name : "null",
+		       field_name ? field_name : "null",
+                       orig_field_name ? orig_field_name : "null"));
+#endif
   Item::cleanup();
   db_name= orig_db_name; 
   table_name= orig_table_name;
@@ -1935,17 +1940,28 @@ void Item::make_field(Send_field *tmp_field)
 
 void Item_empty_string::make_field(Send_field *tmp_field)
 {
-  init_make_field(tmp_field,FIELD_TYPE_VAR_STRING);
+  init_make_field(tmp_field, MYSQL_TYPE_VARCHAR);
 }
 
 
 enum_field_types Item::field_type() const
 {
-  return ((result_type() == STRING_RESULT) ? FIELD_TYPE_VAR_STRING :
+  return ((result_type() == STRING_RESULT) ? MYSQL_TYPE_VARCHAR :
 	  (result_type() == INT_RESULT) ? FIELD_TYPE_LONGLONG :
 	  FIELD_TYPE_DOUBLE);
 }
 
+
+/*
+  Create a field based on field_type of argument
+
+  For now, this is only used to create a field for
+  IFNULL(x,something)
+
+  RETURN
+    0  error
+    #  Created field
+*/
 
 Field *Item::tmp_table_field_from_field_type(TABLE *table)
 {
@@ -2002,12 +2018,17 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
   case MYSQL_TYPE_VAR_STRING:
-    if (max_length > 255)
-      break;					// If blob
+    if (max_length > MAX_FIELD_CHARLENGTH)
+      break;					// convert to blob
+    return new Field_varstring(max_length, maybe_null, name, table,
+			       collation.collation);
+  case MYSQL_TYPE_VARCHAR:
+    if (max_length > CONVERT_IF_BIGGER_TO_BLOB)
+      break;					// convert to blob
     return new Field_varstring(max_length, maybe_null, name, table,
 			       collation.collation);
   case MYSQL_TYPE_STRING:
-    if (max_length > 255)			// If blob
+    if (max_length > MAX_FIELD_CHARLENGTH)	// If blob
       break;
     return new Field_string(max_length, maybe_null, name, table,
 			    collation.collation);
@@ -2336,6 +2357,7 @@ bool Item::send(Protocol *protocol, String *buffer)
   case MYSQL_TYPE_GEOMETRY:
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_VARCHAR:
   {
     String *res;
     if ((res=val_str(buffer)))
