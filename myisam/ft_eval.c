@@ -112,7 +112,7 @@ err:
 
 }
 
-void get_options(int argc,char *argv[])
+static void get_options(int argc,char *argv[])
 {
   int c;
   char *options=(char*) "Vh#:qSs:";
@@ -167,7 +167,7 @@ void get_options(int argc,char *argv[])
   return;
 } /* get options */
 
-int create_record(char *pos, FILE *file)
+static int create_record(char *pos, FILE *file)
 { uint tmp; char *ptr;
 
   bzero((char *)pos,MAX_REC_LENGTH);
