@@ -9778,8 +9778,7 @@ the sort order!
 @item The default return type of @code{IF} will now depend on both arguments
 and not only the first argument.
 @item @code{AUTO_INCREMENT} will not work with negative numbers.
-@item @code{INNER}, @code{DELAYED}, @code{RIGHT} and @code{WHEN}
-are now reserved words.
+@item @code{INNER}, @code{DELAYED}, @code{RIGHT}, @code{CASE}, @code{THEN}, @code{WHEN}, @code{ELSE}, @code{END} and @code{WHEN} are now reserved words.
 @item @code{FLOAT(X)} is now a true floating-point type and not a value with
 a fixed number of decimals.
 @item When declaring @code{DECIMAL(length,dec)} the length argument no
@@ -9816,10 +9815,11 @@ almost always sorted.  In Version 3.23, you must use @code{GROUP BY} or
 @item
 @code{SUM()} now returns @code{NULL}, instead of 0, if there is no matching
 rows. This is according to ANSI SQL.
-@item New restricted words: @code{CASE, THEN, WHEN, ELSE, END, and RIGHT}.
 @item An @code{AND} or @code{OR} with @code{NULL} values will now return
 @code{NULL} instead of 0. This mostly affects queries that use @code{NOT}
 on an @code{AND/OR} expression as @code{NOT NULL} = @code{NULL}.
+@code{LPAD()} and @code{RPAD()} will shorten the result string if it's longer
+than the length argument.
 @end itemize
 
 @cindex compatibility, between MySQL versions
@@ -14389,11 +14389,13 @@ The values retrieved from the @code{CHAR(4)} and @code{VARCHAR(4)} columns
 will be the same in each case, because trailing spaces are removed from
 @code{CHAR} columns upon retrieval.
 
-Values in @code{CHAR} and @code{VARCHAR} columns are sorted and compared in
-case-insensitive fashion, unless the @code{BINARY} attribute was specified
-when the table was created.  The @code{BINARY} attribute means that column
-values are sorted and compared in case-sensitive fashion according to the
-ASCII order of the machine where the @strong{MySQL} server is running.
+Values in @code{CHAR} and @code{VARCHAR} columns are sorted and compared
+in case-insensitive fashion, unless the @code{BINARY} attribute was
+specified when the table was created.  The @code{BINARY} attribute means
+that column values are sorted and compared in case-sensitive fashion
+according to the ASCII order of the machine where the @strong{MySQL}
+server is running. @code{BINARY} doesn't affect how the column is stored
+or retrieved.
 
 The @code{BINARY} attribute is sticky.  This means that if a column marked
 @code{BINARY} is used in an expression, the whole expression is compared as a
@@ -14830,6 +14832,11 @@ parenthesis following it. This helps the @strong{MySQL} parser distinguish
 between function calls and references to tables or columns that happen to
 have the same name as a function.  Spaces around arguments are permitted,
 though.
+
+You can force @strong{MySQL} to accept spaces after the function name by
+starting @code{mysqld} with @code{--ansi} or using the
+@code{CLIENT_IGNORE_SPACE} to @code{mysql_connect()}, but in this case all
+function names will become reserved words. @xref{ANSI mode}.
 
 @need 2000
 For the sake of brevity, examples display the output from the @code{mysql}
@@ -16160,8 +16167,9 @@ This function is multi-byte safe.
 
 @findex LPAD()
 @item LPAD(str,len,padstr)
-Returns the string @code{str}, left-padded with the string
-@code{padstr} until @code{str} is @code{len} characters long:
+Returns the string @code{str}, left-padded with the string @code{padstr}
+until @code{str} is @code{len} characters long. If @code{str} is longer
+than @code{len'} then it will be shortened to @code{len} characters.
 
 @example
 mysql> select LPAD('hi',4,'??');
@@ -16171,7 +16179,10 @@ mysql> select LPAD('hi',4,'??');
 @findex RPAD()
 @item RPAD(str,len,padstr)
 Returns the string @code{str}, right-padded with the string
-@code{padstr} until @code{str} is @code{len} characters long.
+@code{padstr} until @code{str} is @code{len} characters long.  If
+@code{str} is longer than @code{len'} then it will be shortened to
+@code{len} characters.
+
 @example
 mysql> select RPAD('hi',5,'?');
         -> 'hi???'
@@ -20623,6 +20634,12 @@ command.  If you have the @strong{process} privilege, you can see all
 threads.  Otherwise, you can see only your own threads.  @xref{KILL, ,
 @code{KILL}}.  If you don't use the @code{FULL} option, then only
 the first 100 characters of each query will be shown.
+
+This command is very useful if you get the 'too many connections' error
+message and want to find out what's going on. @strong{MySQL} reserves
+one extra connection for a client with the @code{Process_priv} privilege
+to ensure that you should always be able to login and check the system
+(assuming you are not giving this privilege to all your users).
 
 @cindex privileges, display
 @node SHOW GRANTS, SHOW CREATE TABLE, SHOW PROCESSLIST, SHOW
@@ -26846,8 +26863,8 @@ statement. In this case the last @code{SELECT} statement in the previous
 scenario would execute before the @code{INSERT} statement.
 
 @item
-You can give a specific @code{INSERT}, @code{UPDATE}, or @code{DELETE} statement
-lower priority with the @code{LOW_PRIORITY} attribute.
+You can give a specific @code{INSERT}, @code{UPDATE}, or @code{DELETE}
+statement lower priority with the @code{LOW_PRIORITY} attribute.
 
 @item
 Start @code{mysqld} with a low value for @strong{max_write_lock_count} to give
@@ -39765,6 +39782,11 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.29
 @itemize @bullet
 @item
+Fixed bug in @code{REPLACE} with BDB tables.
+@item
+@code{LPAD()} and @code{RPAD()} will shorten the result string if it's longer
+than the length argument.
+@item
 Remove not used BDB logs on shutdown.
 @item
 When creating a table, put @code{PRIMARY} keys first, followed by
@@ -44994,6 +45016,17 @@ using @code{-O thread_cache_size= 5'} will help a lot!
 
 If you want to get a core dump on Linux if @code{mysqld} dies with a
 SIGSEGV signal, you can start mysqld with the @code{--core-file} option.
+This core file can be used to make a backtrace that may help you
+find out why @code{mysqld} died:
+
+@example
+shell> gdb mysqld core
+gdb>   backtrace
+gdb>   info local
+gdb>   exit
+@end example
+
+@xref{Crashing}.
 
 If you are using gdb 4.17.x or above on Linux, you should install a
 @file{.gdb} file, with the following information, in your current
