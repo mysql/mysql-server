@@ -664,10 +664,11 @@ extern "C" {
    * @param   handle     NDB management handle.
    * @param   version    Version of configuration, 0 means latest
    *                     @see MAKE_VERSION
-   * @Note the caller must free the pointer returned.
+   * @Note the caller must call ndb_mgm_detroy_configuration
    */
   struct ndb_mgm_configuration * ndb_mgm_get_configuration(NdbMgmHandle handle,
 							   unsigned version);
+  void ndb_mgm_destroy_configuration(struct ndb_mgm_configuration *);
 
   int ndb_mgm_alloc_nodeid(NdbMgmHandle handle,
 			   unsigned version,
