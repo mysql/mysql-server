@@ -19982,7 +19982,10 @@ If the updates from the slave should be logged.
 @item @code{long_query_time}
 If a query takes longer than this (in seconds), the @code{Slow_queries} counter
 will be incremented. If you are using @code{--log-slow-queries}, the query
-will be logged to the slow query logfile. @xref{Slow query log}.
+will be logged to the slow query logfile. This value is measured in real
+time, not CPU time, so a query that may be under the threshold on a lightly
+loaded system may be above the threshold on a heavily loaded one.
+@xref{Slow query log}.
 
 @item @code{lower_case_table_names}
 If set to 1 table names are stored in lowercase on disk and table
