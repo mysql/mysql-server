@@ -31,6 +31,15 @@ select a from t1 order by a;
 select min(a) from t1;
 drop table t1;
 
+# Bug #1022: When a table contains a 'float' field, 
+# and one of the functions MAX, MIN, or AVG is used on that field,
+# the system crashes.
+
+create table t1 (a float);
+insert into t1 values (1);
+select max(a),min(a),avg(a) from t1;
+drop table t1;
+
 #
 # FLOAT/DOUBLE/DECIMAL handling
 #
