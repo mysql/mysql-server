@@ -58,7 +58,7 @@ To make maintaining easier please:
     <order>German Duden</order>
     <order>Italian</order>
     <order>Latin</order>
-    <order>Pogtuguese</order>
+    <order>Portuguese</order>
     <order>Spanish</order>
   </collation>
 </charset>
@@ -76,7 +76,7 @@ To make maintaining easier please:
     <order>German Duden</order>
     <order>Italian</order>
     <order>Latin</order>
-    <order>Pogtuguese</order>
+    <order>Portuguese</order>
     <order>Spanish</order>
   </collation>
   <collation name="cp850_bin"	id="80"	order="Binary"	flag="binary"/>
@@ -104,7 +104,7 @@ To make maintaining easier please:
     <order>German Duden</order>
     <order>Italian</order>
     <order>Latin</order>
-    <order>Pogtuguese</order>
+    <order>Portuguese</order>
     <order>Spanish</order>
   </collation>
   <collation name="latin1_general_cs"	id="49">
@@ -114,7 +114,7 @@ To make maintaining easier please:
     <order>German Duden</order>
     <order>Italian</order>
     <order>Latin</order>
-    <order>Pogtuguese</order>
+    <order>Portuguese</order>
     <order>Spanish</order>
   </collation>
 </charset>
@@ -131,7 +131,7 @@ To make maintaining easier please:
     <order>German Duden</order>
     <order>Italian</order>
     <order>Latin</order>
-    <order>Pogtuguese</order>
+    <order>Portuguese</order>
     <order>Spanish</order>
   </collation>
 </charset>
@@ -451,7 +451,7 @@ To make maintaining easier please:
     <order>German Duden</order>
     <order>Italian</order>
     <order>Latin</order>
-    <order>Pogtuguese</order>
+    <order>Portuguese</order>
     <order>Spanish</order>
   </collation>
   <collation name="macroman_bin"	id="53"	order="Binary"	flag="binary"/>
@@ -462,7 +462,7 @@ To make maintaining easier please:
     <order>German Duden</order>
     <order>Italian</order>
     <order>Latin</order>
-    <order>Pogtuguese</order>
+    <order>Portuguese</order>
     <order>Spanish</order>
   </collation>
   <!--collation name="macroman_ci_ai"	id="55"/-->
@@ -473,7 +473,7 @@ To make maintaining easier please:
     <order>German Duden</order>
     <order>Italian</order>
     <order>Latin</order>
-    <order>Pogtuguese</order>
+    <order>Portuguese</order>
     <order>Spanish</order>
   </collation>
 </charset>
