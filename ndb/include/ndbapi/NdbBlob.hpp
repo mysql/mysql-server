@@ -36,7 +36,7 @@ class NdbColumnImpl;
  * Blob data is stored in 2 places:
  *
  * - "header" and "inline bytes" stored in the blob attribute
- * - "blob parts" stored in a separate table NDB$BLOB_<t>_<v>_<c>
+ * - "blob parts" stored in a separate table NDB$BLOB_<tid>_<cid>
  *
  * Inline and part sizes can be set via NdbDictionary::Column methods
  * when the table is created.
@@ -74,23 +74,21 @@ class NdbColumnImpl;
  * NdbBlob methods return -1 on error and 0 on success, and use output
  * parameters when necessary.
  *
- * Notes:
- * - table and its blob part tables are not created atomically
- * - scan must use the "new" interface NdbScanOperation
- * - to update a blob in a read op requires exclusive tuple lock
- * - update op in scan must do its own getBlobHandle
- * - delete creates implicit, not-accessible blob handles
- * - NdbOperation::writeTuple does not support blobs
- * - there is no support for an asynchronous interface
+ * Operation types:
+ * - insertTuple must use setValue if blob column is non-nullable
+ * - readTuple with exclusive lock can also update existing value
+ * - updateTuple can overwrite with setValue or update existing value
+ * - writeTuple always overwrites and must use setValue if non-nullable
+ * - deleteTuple creates implicit non-accessible blob handles
+ * - scan with exclusive lock can also update existing value
+ * - scan "lock takeover" update op must do its own getBlobHandle
  *
  * Bugs / limitations:
- * - scan must use exclusive locking for now
- *
- * Todo:
- * - add scan method hold-read-lock + return-keyinfo
- * - check keyinfo length when setting keys
- * - check allowed blob ops vs locking mode
- * - overload control (too many pending ops)
+ * - lock mode upgrade should be handled automatically
+ * - lock mode vs allowed operation is not checked
+ * - too many pending blob ops can blow up i/o buffers
+ * - table and its blob part tables are not created atomically
+ * - there is no support for an asynchronous interface
  */
 class NdbBlob {
 public:
@@ -173,18 +171,10 @@ public:
    */
   int readData(void* data, Uint32& bytes);
   /**
-   * Read at given position.  Does not use or update current position.
-   */
-  int readData(Uint64 pos, void* data, Uint32& bytes);
-  /**
    * Write at current position and set new position to first byte after
    * the data written.  A write past blob end extends the blob value.
    */
   int writeData(const void* data, Uint32 bytes);
-  /**
-   * Write at given position. Does not use or update current position.
-   */
-  int writeData(Uint64 pos, const void* data, Uint32 bytes);
   /**
    * Return the blob column.
    */
@@ -266,14 +256,17 @@ private:
     Buf();
     ~Buf();
     void alloc(unsigned n);
+    void copyfrom(const Buf& src);
   };
   Buf theKeyBuf;
   Buf theAccessKeyBuf;
   Buf theHeadInlineBuf;
+  Buf theHeadInlineCopyBuf;     // for writeTuple
   Buf thePartBuf;
   Head* theHead;
   char* theInlineData;
   NdbRecAttr* theHeadInlineRecAttr;
+  NdbOperation* theHeadInlineReadOp;
   bool theHeadInlineUpdateFlag;
   // length and read/write position
   int theNullFlag;
@@ -294,6 +287,7 @@ private:
   bool isReadOp();
   bool isInsertOp();
   bool isUpdateOp();
+  bool isWriteOp();
   bool isDeleteOp();
   bool isScanOp();
   // computations
@@ -309,12 +303,13 @@ private:
   void getHeadFromRecAttr();
   int setHeadInlineValue(NdbOperation* anOp);
   // data operations
-  int readDataPrivate(Uint64 pos, char* buf, Uint32& bytes);
-  int writeDataPrivate(Uint64 pos, const char* buf, Uint32 bytes);
+  int readDataPrivate(char* buf, Uint32& bytes);
+  int writeDataPrivate(const char* buf, Uint32 bytes);
   int readParts(char* buf, Uint32 part, Uint32 count);
   int insertParts(const char* buf, Uint32 part, Uint32 count);
   int updateParts(const char* buf, Uint32 part, Uint32 count);
   int deleteParts(Uint32 part, Uint32 count);
+  int deletePartsUnknown(Uint32 part);
   // pending ops
   int executePendingBlobReads();
   int executePendingBlobWrites();
