@@ -66,6 +66,16 @@ this many index pages */
 #define BTR_BLOB_HDR_SIZE		8
 
 /***********************************************************************
+Marks all extern fields in a record as owned by the record. This function
+should be called if the delete mark of a record is removed: a not delete
+marked record always owns all its extern fields. */
+static
+void
+btr_cur_unmark_extern_fields(
+/*=========================*/
+	rec_t*	rec,	/* in: record in a clustered index */
+	mtr_t*	mtr);	/* in: mtr */
+/***********************************************************************
 Adds path information to the cursor for the current page, for which
 the binary search has been performed. */
 static
@@ -2933,7 +2943,7 @@ btr_cur_mark_dtuple_inherited_extern(
 Marks all extern fields in a record as owned by the record. This function
 should be called if the delete mark of a record is removed: a not delete
 marked record always owns all its extern fields. */
-
+static
 void
 btr_cur_unmark_extern_fields(
 /*=========================*/
