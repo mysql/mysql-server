@@ -582,12 +582,6 @@ public:
   void restore_backup_statement(Statement *stmt, Statement *backup);
   /* return class type */
   virtual Type type() const;
-
-  /*
-    Cleanup statement parse state (parse tree, lex) after execution of
-    a non-prepared SQL statement.
-  */
-  void end_statement();
 };
 
 
@@ -1063,6 +1057,12 @@ public:
   void nocheck_register_item_tree_change(Item **place, Item *old_value,
                                          MEM_ROOT *runtime_memroot);
   void rollback_item_tree_changes();
+
+  /*
+    Cleanup statement parse state (parse tree, lex) and execution
+    state after execution of a non-prepared SQL statement.
+  */
+  void end_statement();
 };
 
 /* Flags for the THD::system_thread (bitmap) variable */

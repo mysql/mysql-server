@@ -1498,7 +1498,7 @@ void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
 }
 
 
-void Statement::end_statement()
+void THD::end_statement()
 {
   /* Cleanup SQL processing state to resuse this statement in next query. */
   lex_end(lex);
