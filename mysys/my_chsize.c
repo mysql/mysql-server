@@ -36,24 +36,11 @@
     0	Ok
     1	Error 
 */
-
 int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
 {
   DBUG_ENTER("my_chsize");
   DBUG_PRINT("my",("fd: %d  length: %lu  MyFlags: %d",fd,(ulong) newlength,
 		   MyFlags));
-
-#ifdef HAVE_CHSIZE
-  if (chsize(fd,(off_t) newlength))
-  {
-    DBUG_PRINT("error",("errno: %d",errno));
-    my_errno=errno;
-    if (MyFlags & MY_WME)
-      my_error(EE_CANT_CHSIZE,MYF(ME_BELL+ME_WAITTANG),errno);
-    DBUG_RETURN(1);
-  }
-  DBUG_RETURN(0);
-#else
   /* if file is shorter, expand with null, else fill unused part with null */
   {
     my_off_t oldsize;
@@ -62,7 +49,42 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
     oldsize = my_seek(fd, 0L, MY_SEEK_END, MYF(MY_WME+MY_FAE));
     DBUG_PRINT("info",("old_size: %ld", (ulong) oldsize));
 
-#ifdef HAVE_FTRUNCATE
+#ifdef HAVE_CHSIZE
+    if (oldsize > newlength || filler == 0)
+    {
+      if (chsize(fd,(off_t) newlength))
+      {
+        DBUG_PRINT("error",("errno: %d",errno));
+        my_errno=errno;
+        if (MyFlags & MY_WME)
+          my_error(EE_CANT_CHSIZE,MYF(ME_BELL+ME_WAITTANG),errno);
+        DBUG_RETURN(1);
+      }
+      else
+      {
+        if (filler == 0)
+          DBUG_RETURN(0);
+      }
+    }
+#elif defined(HAVE_SETFILEPOINTER)
+    if (oldsize > newlength)
+    {
+      LARGE_INTEGER new_length;
+      HANDLE win_file;      
+      win_file= (HANDLE)_get_osfhandle(fd);
+      new_length.QuadPart = newlength;
+      if (SetFilePointerEx(win_file,new_length,NULL,FILE_BEGIN))
+      {
+        if (SetEndOfFile(win_file))
+          DBUG_RETURN(0);   
+      } 
+      DBUG_PRINT("error",("errno: %d",errno));
+      my_errno=errno;
+      if (MyFlags & MY_WME)
+        my_error(EE_CANT_CHSIZE,MYF(ME_BELL+ME_WAITTANG),errno);
+      DBUG_RETURN(1);
+    }
+#elif defined(HAVE_FTRUNCATE)
     if (oldsize > newlength)
     {
       if (ftruncate(fd, (off_t) newlength))
@@ -99,5 +121,6 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
     DBUG_PRINT("error",("errno: %d",my_errno));
     DBUG_RETURN(1);
   }
-#endif
-}				/* my_chsize */
+} /* my_chsize */
+
+
