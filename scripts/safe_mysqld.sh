@@ -149,8 +149,10 @@ then
   fi
 fi
 
+USER=""
 if test -w /
 then
+  USER_OPTION="--user=$user"
   # If we are root, change the err log to the right user.
   touch $err_log; chown $user $err_log
   if test -n "$open_files"
@@ -211,9 +213,9 @@ do
   rm -f $MYSQL_UNIX_PORT $pid_file	# Some extra safety
   if test -z "$args"
   then
-    $NOHUP_NICENESS $ledir/$MYSQLD $defaults --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR --user=$user --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ >> $err_log 2>&1
+    $NOHUP_NICENESS $ledir/$MYSQLD $defaults --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR $USER_OPTION --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ >> $err_log 2>&1
   else
-    eval "$NOHUP_NICENESS $ledir/$MYSQLD $defaults --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR --user=$user --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ $args >> $err_log 2>&1"
+    eval "$NOHUP_NICENESS $ledir/$MYSQLD $defaults --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR $USER_OPTION --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ $args >> $err_log 2>&1"
   fi
   if test ! -f $pid_file		# This is removed if normal shutdown
   then
