@@ -2048,10 +2048,31 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
     tmp_buff= file->table_type();
     table->field[4]->store(tmp_buff, strlen(tmp_buff), cs);
     table->field[5]->store((longlong) share->frm_version);
-    tmp_buff= ((share->db_options_in_use &
-                HA_OPTION_COMPRESS_RECORD) ? "Compressed" :
-               (share->db_options_in_use & HA_OPTION_PACK_RECORD) ?
-               "Dynamic" : "Fixed");
+    enum row_type row_type = file->get_row_type();
+    switch (row_type) {
+    case ROW_TYPE_NOT_USED:
+    case ROW_TYPE_DEFAULT:
+      tmp_buff= ((share->db_options_in_use &
+		  HA_OPTION_COMPRESS_RECORD) ? "Compressed" :
+		 (share->db_options_in_use & HA_OPTION_PACK_RECORD) ?
+		 "Dynamic" : "Fixed");
+      break;
+    case ROW_TYPE_FIXED:
+      tmp_buff= "Fixed";
+      break;
+    case ROW_TYPE_DYNAMIC:
+      tmp_buff= "Dynamic";
+      break;
+    case ROW_TYPE_COMPRESSED:
+      tmp_buff= "Compressed";
+      break;
+    case ROW_TYPE_REDUNDANT:
+      tmp_buff= "Redundant";
+      break;
+    case ROW_TYPE_COMPACT:
+      tmp_buff= "Compact";
+      break;
+    }
     table->field[6]->store(tmp_buff, strlen(tmp_buff), cs);
     if (!tables->schema_table)
     {
