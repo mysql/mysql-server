@@ -538,8 +538,8 @@ recv_find_max_checkpoint(
 "InnoDB: If this error appears when you are creating an InnoDB database,\n"
 "InnoDB: the problem may be that during an earlier attempt you managed\n"
 "InnoDB: to create the InnoDB data files, but log file creation failed.\n"
-"InnoDB: If that is the case, please refer to section 3.1 of\n"
-"InnoDB: http://www.innodb.com/ibman.php\n");
+"InnoDB: If that is the case, please refer to\n"
+"InnoDB: http://dev.mysql.com/doc/mysql/en/Error_creating_InnoDB.html\n");
 
 		return(DB_ERROR);
 	}
@@ -1884,7 +1884,7 @@ recv_report_corrupt_log(
 	"InnoDB: far enough in recovery! Please run CHECK TABLE\n"
 	"InnoDB: on your InnoDB tables to check that they are ok!\n"
 	"InnoDB: If mysqld crashes after this recovery, look at\n"
-	"InnoDB: section 6.1 of http://www.innodb.com/ibman.php\n"
+	"InnoDB: http://dev.mysql.com/doc/mysql/en/Forcing_recovery.html\n"
 	"InnoDB: about forcing recovery.\n", stderr);
 
 	fflush(stderr);

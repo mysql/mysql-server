@@ -812,6 +812,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
         if the trx isolation level would have been specified as SERIALIZABLE */
 
         prebuilt->select_lock_type = LOCK_NONE;
+        prebuilt->stored_select_lock_type = LOCK_NONE;
 
         /* Always fetch all columns in the index record */
 
@@ -3171,7 +3172,7 @@ ha_innobase::index_last(
 {
 	int	error;
 
-  	DBUG_ENTER("index_first");
+  	DBUG_ENTER("index_last");
   	statistic_increment(ha_read_last_count, &LOCK_status);
 
   	error = index_read(buf, NULL, 0, HA_READ_BEFORE_KEY);
@@ -4255,7 +4256,7 @@ ha_innobase::info(
 
         if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
 
-                return;
+                DBUG_VOID_RETURN;
         }
 
 	/* We do not know if MySQL can call this function before calling
@@ -4816,6 +4817,7 @@ ha_innobase::external_lock(
 		/* If this is a SELECT, then it is in UPDATE TABLE ...
 		or SELECT ... FOR UPDATE */
 		prebuilt->select_lock_type = LOCK_X;
+		prebuilt->stored_select_lock_type = LOCK_X;
 	}
 
 	if (lock_type != F_UNLCK) {
@@ -5067,14 +5069,22 @@ ha_innobase::store_lock(
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 
-	if (lock_type == TL_READ_WITH_SHARED_LOCKS ||
+	if ((lock_type == TL_READ && thd->in_lock_tables) ||
+	    (lock_type == TL_READ_HIGH_PRIORITY && thd->in_lock_tables) ||
+	    lock_type == TL_READ_WITH_SHARED_LOCKS ||
 	    lock_type == TL_READ_NO_INSERT) {
-		/* This is a SELECT ... IN SHARE MODE, or
-		we are doing a complex SQL statement like
+		/* The OR cases above are in this order:
+		1) MySQL is doing LOCK TABLES ... READ LOCAL, or
+		2) (we do not know when TL_READ_HIGH_PRIORITY is used), or
+		3) this is a SELECT ... IN SHARE MODE, or
+		4) we are doing a complex SQL statement like
 		INSERT INTO ... SELECT ... and the logical logging (MySQL
-		binlog) requires the use of a locking read */
+		binlog) requires the use of a locking read, or
+		MySQL is doing LOCK TABLES ... READ. */
 
 		prebuilt->select_lock_type = LOCK_S;
+		prebuilt->stored_select_lock_type = LOCK_S;
+
 	} else if (lock_type != TL_IGNORE) {
 
 	        /* In ha_berkeley.cc there is a comment that MySQL
@@ -5085,6 +5095,7 @@ ha_innobase::store_lock(
 		here even if this would be SELECT ... FOR UPDATE */
 
 		prebuilt->select_lock_type = LOCK_NONE;
+		prebuilt->stored_select_lock_type = LOCK_NONE;
 	}
 
 	if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {

@@ -154,8 +154,6 @@ LOCK TABLES t1 write, t2 read;
 DELETE t1.*, t2.* FROM t1,t2 where t1.n=t2.n;
 --error 1099
 UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
-# The following should be fixed to not give an error
---error 1099
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
 unlock tables;
 LOCK TABLES t1 write, t2 write;

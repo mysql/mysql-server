@@ -197,7 +197,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table=tables ; table ; table=table->next)
   {
     char *db=table->db;
-    mysql_ha_close(thd, table, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
+    mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL);
     if (!close_temporary_table(thd, db, table->real_name))
     {
       tmp_table_deleted=1;
@@ -1762,7 +1762,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(-1);
 
-  mysql_ha_close(thd, tables, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
+  mysql_ha_flush(thd, tables, MYSQL_HA_CLOSE_FINAL);
   for (table = tables; table; table = table->next)
   {
     char table_name[NAME_LEN*2+2];
@@ -2567,8 +2567,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     new_db= db;
   used_fields=create_info->used_fields;
 
-  mysql_ha_close(thd, table_list, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
-
+  mysql_ha_flush(thd, table_list, MYSQL_HA_CLOSE_FINAL);
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
   if (alter_info->tablespace_op != NO_TABLESPACE_OP)
     DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
@@ -3307,7 +3306,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (!(copy= new Copy_field[to->fields]))
     DBUG_RETURN(-1);				/* purecov: inspected */
 
-  to->file->external_lock(thd,F_WRLCK);
+  if (to->file->external_lock(thd, F_WRLCK))
+    DBUG_RETURN(-1);
   from->file->info(HA_STATUS_VARIABLE);
   to->file->start_bulk_insert(from->file->records);
 
@@ -3434,12 +3434,13 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     error=1;
   if (ha_commit(thd))
     error=1;
-  if (to->file->external_lock(thd,F_UNLCK))
-    error=1;
+
  err:
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;
+  if (to->file->external_lock(thd,F_UNLCK))
+    error=1;
   DBUG_RETURN(error > 0 ? -1 : 0);
 }
 

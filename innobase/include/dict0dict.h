@@ -604,8 +604,10 @@ dict_index_contains_col_or_prefix(
 	dict_index_t*	index,	/* in: index */
 	ulint		n);	/* in: column number */
 /************************************************************************
-Looks for a matching field in an index. The column and the prefix len has
-to be the same. */
+Looks for a matching field in an index. The column has to be the same. The
+column in index must be complete, or must contain a prefix longer than the
+column in index2. That is, we must be able to construct the prefix in index2
+from the prefix in index. */
 
 ulint
 dict_index_get_nth_field_pos(
