@@ -264,9 +264,14 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     }
   }
 
+  if (first_select->next_select())
   {
+
+  // it is not single select
+
     /*
-     Check that it was possible to aggregate all collations together.
+      Check that it was possible to aggregate
+      all collations together for UNION.
     */
     List_iterator_fast<Item> tp(types);
     Item *type;
@@ -279,11 +284,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
         goto err;
       }
     }
-  }
 
-  // it is not single select
-  if (first_select->next_select())
-  {
     union_result->tmp_table_param.field_count= types.elements;
     if (!(table= create_tmp_table(thd_arg,
 				  &union_result->tmp_table_param, types,
