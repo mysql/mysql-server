@@ -1759,7 +1759,7 @@ void Item_func_group_concat::clear()
   result.length(0);
   result.copy();
   null_value= TRUE;
-  warning_for_row= false;
+  warning_for_row= FALSE;
   if (table)
   {
     table->file->extra(HA_EXTRA_NO_CACHE);

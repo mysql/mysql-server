@@ -1293,20 +1293,20 @@ bool hostname_requires_resolving(const char *hostname)
 {
   char cur;
   if (!hostname)
-    return false;
+    return FALSE;
   int namelen= strlen(hostname);
   int lhlen= strlen(my_localhost);
   if ((namelen == lhlen) &&
       !my_strnncoll(&my_charset_latin1, (const uchar *)hostname,  namelen,
 		    (const uchar *)my_localhost, strlen(my_localhost)))
-    return false;
+    return FALSE;
   for (; (cur=*hostname); hostname++)
   {
     if ((cur != '%') && (cur != '_') && (cur != '.') &&
 	((cur < '0') || (cur > '9')))
-      return true;
+      return TRUE;
   }
-  return false;
+  return FALSE;
 }
 
 /*

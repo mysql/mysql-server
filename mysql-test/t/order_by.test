@@ -361,7 +361,7 @@ while ($1)
 enable_query_log;
 explain select id,t from t1 order by id;
 explain select id,t from t1 force index (primary) order by id;
-drop table t1;s
+drop table t1;
 
 #
 # Test of test_if_subkey() function

@@ -731,12 +731,12 @@ int mysqld_help(THD *thd, const char *mask)
 					&categories_list,&category_id);
     if (!count_categories)
     {
-      if (send_header_2(protocol,false))
+      if (send_header_2(protocol,FALSE))
 	goto end;
     }
     else if (count_categories > 1)
     {
-      if (send_header_2(protocol,false) ||
+      if (send_header_2(protocol,FALSE) ||
 	  send_variant_2_list(mem_root,protocol,&categories_list,"Y",0))
 	goto end;
     }
@@ -780,7 +780,7 @@ int mysqld_help(THD *thd, const char *mask)
   else
   {
     /* First send header and functions */
-    if (send_header_2(protocol, false) ||
+    if (send_header_2(protocol, FALSE) ||
 	send_variant_2_list(mem_root,protocol, &topics_list, "N", 0))
       goto end;
     search_categories(thd, tables[1].table, used_fields, 

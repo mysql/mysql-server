@@ -770,11 +770,13 @@ longlong Item_func_between::val_int()
       null_value=1;
     else if (args[1]->null_value)
     {
-      null_value= sortcmp(value,b,cmp_collation.collation) <= 0; // not null if false range.
+      // Set to not null if false range.
+      null_value= sortcmp(value,b,cmp_collation.collation) <= 0;
     }
     else
     {
-      null_value= sortcmp(value,a,cmp_collation.collation) >= 0; // not null if false range.
+      // Set to not null if false range.
+      null_value= sortcmp(value,a,cmp_collation.collation) >= 0;
     }
   }
   else if (cmp_type == INT_RESULT)

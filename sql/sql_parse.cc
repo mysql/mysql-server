@@ -1389,7 +1389,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     /* Clear variables that are allocated */
     thd->user_connect= 0;
-    int res= check_user(thd, COM_CHANGE_USER, passwd, passwd_len, db, false);
+    int res= check_user(thd, COM_CHANGE_USER, passwd, passwd_len, db, FALSE);
 
     if (res)
     {

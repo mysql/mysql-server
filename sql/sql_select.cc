@@ -1089,7 +1089,7 @@ JOIN::exec()
   if (!tables_list)
   {                                           // Only test of functions
     if (select_options & SELECT_DESCRIBE)
-      select_describe(this, false, false, false,
+      select_describe(this, FALSE, FALSE, FALSE,
 		      (zero_result_cause?zero_result_cause:"No tables used"));
     else
     {
@@ -4112,7 +4112,7 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
 
   if (select_options & SELECT_DESCRIBE)
   {
-    select_describe(join, false, false, false, info);
+    select_describe(join, FALSE, FALSE, FALSE, info);
     DBUG_RETURN(0);
   }
 
@@ -7161,8 +7161,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     /* check if we can use a key to resolve the group */
     /* Tables using JT_NEXT are handled here */
     uint nr;
-    key_map keys_to_use, keys;
-    keys_to_use.set_all();
+    key_map keys;
 
     /*
       If not used with LIMIT, only use keys if the whole query can be
@@ -7170,18 +7169,18 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       retrieving all rows through an index.
     */
     if (select_limit >= table->file->records)
+    {
+      keys= *table->file->keys_to_use_for_scanning();
+      keys.merge(table->used_keys);
 
-nning();
-
-
-
-ified in FORCE INDEX clause, 
-
-n ORDER BY.
-
-
-ry);
-
+      /*
+	We are adding here also the index speified in FORCE INDEX clause, 
+	if any.
+      This is to allow users to use index in ORDER BY.
+      */
+      if (table->force_index) 
+	keys.merge(table->keys_in_use_for_query);
+      keys.intersect(usable_keys);
     }
     else
       keys= usable_keys;

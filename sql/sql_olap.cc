@@ -64,7 +64,7 @@ static int make_new_olap_select(LEX *lex, SELECT_LEX *select_lex, List<Item> new
     
   while ((item=list_it++))
   {
-    bool not_found=true;
+    bool not_found= TRUE;
     if (item->type()==Item::FIELD_ITEM)
     {
       Item_field *iif = (Item_field *)item;

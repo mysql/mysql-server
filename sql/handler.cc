@@ -879,11 +879,11 @@ void handler::update_auto_increment()
       table->auto_increment_field_not_null &&
       current_thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
   {
-    table->auto_increment_field_not_null= false;
+    table->auto_increment_field_not_null= FALSE;
     auto_increment_column_changed=0;
     DBUG_VOID_RETURN;
   }
-  table->auto_increment_field_not_null= false;
+  table->auto_increment_field_not_null= FALSE;
   thd=current_thd;
   if ((nr=thd->next_insert_id))
     thd->next_insert_id=0;			// Clear after use
