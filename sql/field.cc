@@ -279,7 +279,8 @@ bool Field::get_date(TIME *ltime,bool fuzzydate)
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),tmp2,*res;
   if (!(res=val_str(&tmp,&tmp2)) ||
-      str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate) == TIMESTAMP_NONE)
+      str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate,current_thd)<=
+      WRONG_TIMESTAMP_FULL)
     return 1;
   return 0;
 }
@@ -289,7 +290,7 @@ bool Field::get_time(TIME *ltime)
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),tmp2,*res;
   if (!(res=val_str(&tmp,&tmp2)) ||
-      str_to_time(res->ptr(),res->length(),ltime))
+      str_to_time(res->ptr(),res->length(),ltime,current_thd))
     return 1;
   return 0;
 }
@@ -299,28 +300,29 @@ bool Field::get_time(TIME *ltime)
 void Field::store_time(TIME *ltime,timestamp_type type)
 {
   char buff[25];
+  String tmp((char*) buff,sizeof(buff),&my_charset_bin);
+  DATETIME_FORMAT *tmp_format= 0;
+  bool is_time_only= 0;
+
   switch (type)  {
   case TIMESTAMP_NONE:
+  case WRONG_TIMESTAMP_FULL:
     store("",0,&my_charset_bin);	// Probably an error
-    break;
+    return;
   case TIMESTAMP_DATE:
-    sprintf(buff,"%04d-%02d-%02d", ltime->year,ltime->month,ltime->day);
-    store(buff,10,&my_charset_bin);
+    tmp_format= &t_datetime_frm(current_thd, DATE_FORMAT_TYPE).datetime_format;
     break;
   case TIMESTAMP_FULL:
-    sprintf(buff,"%04d-%02d-%02d %02d:%02d:%02d",
-	    ltime->year,ltime->month,ltime->day,
-	    ltime->hour,ltime->minute,ltime->second);
-    store(buff,19,&my_charset_bin);
+    tmp_format=&t_datetime_frm(current_thd,DATETIME_FORMAT_TYPE).datetime_format;
     break;
   case TIMESTAMP_TIME:
-  {
-    ulong length= my_sprintf(buff, (buff, "%02d:%02d:%02d",
-				    ltime->hour,ltime->minute,ltime->second));
-    store(buff,(uint) length, &my_charset_bin);
+    tmp_format= &t_datetime_frm(current_thd, TIME_FORMAT_TYPE).datetime_format;
+    is_time_only= 1;
     break;
   }
-  }
+  make_datetime(&tmp, ltime, is_time_only, 0,
+		tmp_format->format, tmp_format->format_length, 1);
+  store(tmp.ptr(),tmp.length(),&my_charset_bin);
 }
 
 
@@ -2684,7 +2686,7 @@ Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
 
 int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  long tmp=(long) str_to_timestamp(from,len);
+  long tmp=(long) str_to_timestamp(from,len,current_thd);
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -3018,7 +3020,7 @@ int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
   TIME ltime;
   long tmp;
   int error= 0;
-  if (str_to_time(from,len,&ltime))
+  if (str_to_time(from,len,&ltime,current_thd))
   {
     tmp=0L;
     error= 1;
@@ -3127,19 +3129,25 @@ longlong Field_time::val_int(void)
 String *Field_time::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
+  TIME ltime;
   val_buffer->alloc(16);
   long tmp=(long) sint3korr(ptr);
   const char *sign="";
+  ltime.neg= 0;
   if (tmp < 0)
   {
     tmp= -tmp;
-    sign= "-";
+    ltime.neg= 1;
   }
-  long length= my_sprintf((char*) val_buffer->ptr(),
-			  ((char*) val_buffer->ptr(),"%s%02d:%02d:%02d",
-			   sign,(int) (tmp/10000), (int) (tmp/100 % 100),
-			   (int) (tmp % 100)));
-  val_buffer->length(length);
+  DATETIME_FORMAT *tmp_format= (&t_datetime_frm
+				(current_thd, TIME_FORMAT_TYPE).datetime_format);
+  ltime.day= (uint) 0;
+  ltime.hour= (uint) (tmp/10000);
+  ltime.minute= (uint) (tmp/100 % 100);
+  ltime.second= (uint) (tmp % 100);
+  make_datetime(val_buffer, &ltime, 0, 0,
+		tmp_format->format,
+		tmp_format->format_length, 1);
   return val_buffer;
 }
 
@@ -3305,7 +3313,7 @@ int Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
   TIME l_time;
   uint32 tmp;
   int error= 0;
-  if (str_to_TIME(from,len,&l_time,1) == TIMESTAMP_NONE)
+  if (str_to_TIME(from,len,&l_time,1,current_thd) <= WRONG_TIMESTAMP_FULL)
   {
     tmp=0;
     error= 1;
@@ -3415,6 +3423,7 @@ longlong Field_date::val_int(void)
 String *Field_date::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
+  TIME ltime;
   val_buffer->alloc(field_length);
   val_buffer->length(field_length);
   int32 tmp;
@@ -3424,9 +3433,15 @@ String *Field_date::val_str(String *val_buffer,
   else
 #endif
     longget(tmp,ptr);
-  sprintf((char*) val_buffer->ptr(),"%04d-%02d-%02d",
-	  (int) ((uint32) tmp/10000L % 10000), (int) ((uint32) tmp/100 % 100),
-	  (int) ((uint32) tmp % 100));
+  DATETIME_FORMAT *tmp_format= (&t_datetime_frm
+				(current_thd, DATE_FORMAT_TYPE).datetime_format);
+  ltime.neg= 0;
+  ltime.year= (int) ((uint32) tmp/10000L % 10000);
+  ltime.month= (int) ((uint32) tmp/100 % 100);
+  ltime.day= (int) ((uint32) tmp % 100);
+  make_datetime(val_buffer, &ltime, 0, 0,
+		tmp_format->format,
+		tmp_format->format_length, 1);
   return val_buffer;
 }
 
@@ -3485,7 +3500,7 @@ int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
   TIME l_time;
   long tmp;
   int error= 0;
-  if (str_to_TIME(from,len,&l_time,1) == TIMESTAMP_NONE)
+  if (str_to_TIME(from,len,&l_time,1,current_thd) <= WRONG_TIMESTAMP_FULL)
   {
     tmp=0L;
     error= 1;
@@ -3654,7 +3669,7 @@ void Field_newdate::sql_type(String &res) const
 
 int Field_datetime::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  longlong tmp=str_to_datetime(from,len,1);
+  longlong tmp=str_to_datetime(from,len,1,current_thd);
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {

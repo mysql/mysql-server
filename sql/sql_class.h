@@ -406,6 +406,7 @@ struct system_variables
   CHARSET_INFO 	*character_set_client;
   CHARSET_INFO  *character_set_results;
   CHARSET_INFO  *collation_connection;
+  sys_var_datetime_format datetime_formats[3];
 };
 
 void free_tmp_table(THD *thd, TABLE *entry);

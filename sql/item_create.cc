@@ -701,3 +701,8 @@ Item *create_func_maketime(Item* a,Item* b,Item* c)
 {
   return new Item_func_maketime(a, b, c);
 }
+
+Item *create_func_str_to_date(Item* a,Item* b)
+{
+  return new Item_func_str_to_date(a, b);
+}
