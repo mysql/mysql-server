@@ -918,6 +918,7 @@ extern struct my_option my_long_options[];
 extern SHOW_COMP_OPTION have_isam, have_innodb, have_berkeley_db, have_example_db;
 extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;
 extern SHOW_COMP_OPTION have_query_cache, have_berkeley_db, have_innodb;
+extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
 

@@ -1386,7 +1386,7 @@ int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
   thd->net.no_send_ok = 0; // Clear up garbage after create_table_from_dump
   if (!called_connected)
     mysql_close(mysql);
-  if (errmsg && thd->net.vio)
+  if (errmsg && thd->vio_ok())
     send_error(thd, error, errmsg);
   DBUG_RETURN(test(error));			// Return 1 on error
 }
