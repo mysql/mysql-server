@@ -272,5 +272,16 @@ select c1 from t1 where c2='\Z\Z\Z\Z';
 DELETE FROM t1 WHERE (c1 = 3);
 check table t1;
 select c1 from t1 where c2='\Z\Z\Z\Z';
+
+#
+# test delete of keys in a different order
+#
+truncate table t1;
+insert into t1 values(1,"aaaa"),(2,"aaab"),(3,"aaac"),(4,"aaccc");
+delete from t1 where c1=3;
+delete from t1 where c1=1;
+delete from t1 where c1=4;
+check table t1;
+
 drop table t1;
 

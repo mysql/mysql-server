@@ -450,3 +450,9 @@ found_rows()
 10
 deallocate prepare stmt;
 drop table t1;
+CREATE TABLE t1 (N int, M tinyint);
+INSERT INTO t1 VALUES (1,0),(1,0),(2,0),(2,0),(3,0);
+PREPARE stmt FROM 'UPDATE t1 AS P1 INNER JOIN (SELECT N FROM t1 GROUP BY N HAVING COUNT(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2';
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
