@@ -306,6 +306,7 @@ static CHARSET_INFO my_charset_bin_st =
     my_snprintf_8bit,		/* snprintf      */
     my_long10_to_str_8bit,
     my_longlong10_to_str_8bit,
+    my_fill_8bit,
     my_strntol_8bit,
     my_strntoul_8bit,
     my_strntoll_8bit,
