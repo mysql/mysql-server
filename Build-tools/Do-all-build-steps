@@ -48,6 +48,9 @@ set -e
 /bin/rm -f config.cache
 
 aclocal; autoheader; aclocal; automake; autoconf
+cd innobase
+aclocal; autoheader; aclocal; automake; autoconf
+cd ..
 
 # Since we have moved the configure.in stuff from readline to the
 # toplevel why do this? David 990630
@@ -60,7 +63,8 @@ aclocal; autoheader; aclocal; automake; autoconf
  --with-low-memory \
  --with-mit-threads=yes $EXTRA_CONFIG \
  --enable-thread-safe-client \
- --without-berkeley-db
+ --without-berkeley-db \
+ --with-innobase-db
 
 gmake -j 2 
 
