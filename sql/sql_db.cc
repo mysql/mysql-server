@@ -166,11 +166,12 @@ void mysql_rm_db(THD *thd,char *db,bool if_exists)
 
   if ((deleted=mysql_rm_known_files(thd, dirp, path,0)) >= 0)
   {
-    /* If there are running queries on the tables, MySQL needs to get
-       access to LOCK_open to end them. InnoDB on the other hand waits
-       for the queries to end before dropping the database. That is why we
-       must do the dropping with LOCK_open released. */
-
+    /*
+      If there are running queries on the tables, MySQL needs to get
+      access to LOCK_open to end them. InnoDB on the other hand waits
+      for the queries to end before dropping the database. That is why we
+      must do the dropping with LOCK_open released.
+    */
     VOID(pthread_mutex_unlock(&LOCK_open));
     ha_drop_database(path);
     VOID(pthread_mutex_lock(&LOCK_open));

@@ -169,7 +169,7 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   select=make_select(table,0,0,conds,&error);
   if (error)
     DBUG_RETURN(-1);
-  if ((select && select->check_quick(test(thd->options & SQL_SAFE_UPDATES),
+  if ((select && select->check_quick(test(thd->options & OPTION_SAFE_UPDATES),
 				     limit)) ||
       !limit)
   {

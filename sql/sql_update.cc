@@ -110,7 +110,7 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
   table->used_keys=0;
   select=make_select(table,0,0,conds,&error);
   if (error ||
-      (select && select->check_quick(test(thd->options & SQL_SAFE_UPDATES),
+      (select && select->check_quick(test(thd->options & OPTION_SAFE_UPDATES),
 				     limit)) ||
       !limit)
   {
