@@ -31,6 +31,7 @@
 #include <winsock.h>
 #endif
 #include <my_global.h>
+#include "mysql_embed.h"
 #include <mysql_com.h>
 #include <violite.h>
 #include <my_sys.h>

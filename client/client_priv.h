@@ -19,6 +19,7 @@
 #include <my_global.h>
 #include <my_sys.h> 
 #include <m_string.h>
+#include <mysql_embed.h>
 #include <mysql.h>
 #include <errmsg.h>
 #include <getopt.h>

@@ -216,7 +216,7 @@ you have to change 'main' to print out the new function\n");
     return(1);
   }
 
-  if (opt_verbose)
+  if (opt_verbose > 1)
     fprintf (stderr,"Info: Possible add values: %d\n",found-type_count);
 
   for (prime=primes; (function_mod=*prime) ; prime++)
@@ -376,7 +376,7 @@ static int get_options(int argc, char **argv)
       opt_search=1;
       break;
     case 'v':
-      opt_verbose=1;
+      opt_verbose++;
       break;
     case 'V': usage(1); exit(0);
     case 'I':
@@ -473,7 +473,7 @@ int main(int argc,char **argv)
 
   MY_INIT(argv[0]);
 
-  start_value=2250933L;  best_t1=2721579L;  best_t2=4627039L;  best_type=3; /* mode=4567  add=4  type: 0 */
+  start_value=4198729L; best_t1=6245075L;  best_t2=3686256L;  best_type=4; /* mode=5839  add=1  type: 0 */
   if (get_options(argc,(char **) argv))
     exit(1);
 
@@ -493,7 +493,7 @@ int main(int argc,char **argv)
     printf("start_value=%ldL;  best_t1=%ldL;  best_t2=%ldL;  best_type=%d; /* mode=%d  add=%d type: %d */\n",
 	   start_value, best_t1,best_t2,best_type,best_mod,best_add,
 	   best_functype);
-
+    best_start_value=start_value;
     for (uint i=1 ; i <= opt_count ; i++)
     {
       if (i % 10 == 0)
@@ -516,6 +516,10 @@ int main(int argc,char **argv)
 	       best_start_value,best_t1,best_t2,best_type,best_mod,best_add,
 	       best_functype);
       }
+      if (opt_verbose && (i % 20000) == 0)
+	printf("\nstart_value=%ldL; best_t1=%ldL;  best_t2=%ldL;  best_type=%d; /* mode=%d  add=%d  type: %d */\n",
+	       best_start_value,best_t1,best_t2,best_type,best_mod,best_add,
+	       best_functype);
     }
   }
 
