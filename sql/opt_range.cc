@@ -1116,6 +1116,11 @@ static bool like_range(const char *ptr,uint ptr_length,char escape,
     *min_str++= *max_str++ = *ptr;
   }
   *min_length= *max_length = (uint) (min_str - min_org);
+
+  /* Temporary fix for handling wild_one at end of string (key compression) */
+  for (char *tmp= min_str ; tmp > min_org && tmp[-1] == '\0';)
+    *--tmp=' ';
+
   while (min_str != min_end)
     *min_str++ = *max_str++ = ' ';		// Because if key compression
   return 0;
