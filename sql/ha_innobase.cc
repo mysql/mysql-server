@@ -3098,6 +3098,16 @@ ha_innobase::records_in_range(
 
     	my_free((char*) key_val_buff2, MYF(0));
 
+	/* The MySQL optimizer seems to believe an estimate of 0 rows is
+	always accurate and may return the result 'Empty set' based on that.
+	The accuracy is not guaranteed, and even if it were, for a locking
+	read we should anyway perform the search to set the next-key lock.
+	Add 1 to the value to make sure MySQL does not make the assumption! */
+
+	if (n_rows == 0) {
+	        n_rows = 1;
+	}
+
 	DBUG_RETURN((ha_rows) n_rows);
 }
 
