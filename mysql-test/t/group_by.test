@@ -386,3 +386,25 @@ select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b ORDER BY NULL;
 explain select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b;
 explain select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b ORDER BY NULL;
 drop table t1,t2;
+
+#
+# group function arguments in some functions
+#
+
+create table t1 (a int, b int);
+insert into t1 values (1, 4);
+insert into t1 values (10, 40);
+insert into t1 values (1, 4);
+insert into t1 values (10, 43);
+insert into t1 values (1, 4);
+insert into t1 values (10, 41);
+insert into t1 values (1, 4);
+insert into t1 values (10, 43);
+insert into t1 values (1, 4);
+select a, MAX(b), INTERVAL (MAX(b), 1,3,10,30,39,40,50,60,100,1000) from t1 group by a;
+select a, MAX(b), CASE MAX(b) when 4 then 4 when 43 then 43 else 0 end from t1 group by a;
+select a, MAX(b), FIELD(MAX(b), '43', '4', '5') from t1 group by a;
+select a, MAX(b), CONCAT_WS(MAX(b), '43', '4', '5') from t1 group by a;
+select a, MAX(b), ELT(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f') from t1 group by a;
+select a, MAX(b), MAKE_SET(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h') from t1 group by a;
+drop table t1;

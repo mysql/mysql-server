@@ -585,6 +585,7 @@ public:
   {
     return (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
   }
+  void split_sum_func(List<Item> &fields);
   void update_used_tables()
   {
     item->update_used_tables() ; Item_func::update_used_tables();

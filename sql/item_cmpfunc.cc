@@ -293,6 +293,19 @@ void Item_func_interval::fix_length_and_dec()
   }
   maybe_null=0; max_length=2;
   used_tables_cache|=item->used_tables();
+  with_sum_func= with_sum_func || item->with_sum_func;
+}
+
+void Item_func_interval::split_sum_func(List<Item> &fields)
+{
+  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
+    item->split_sum_func(fields);
+  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
+  {
+    fields.push_front(item);
+    item= new Item_ref((Item**) fields.head_ref(), 0, item->name);
+  }
+  Item_int_func::split_sum_func(fields);
 }
 
 /*
@@ -781,15 +794,43 @@ Item_func_case::fix_fields(THD *thd,TABLE_LIST *tables)
   {
     used_tables_cache|=(first_expr)->used_tables();
     const_item_cache&= (first_expr)->const_item();
+    with_sum_func= with_sum_func || (first_expr)->with_sum_func;
   }
   if (else_expr)
   {
     used_tables_cache|=(else_expr)->used_tables();
     const_item_cache&= (else_expr)->const_item();
+    with_sum_func= with_sum_func || (else_expr)->with_sum_func;
   }
   if (!else_expr || else_expr->maybe_null)
     maybe_null=1;				// The result may be NULL
   return 0;
+}
+
+void Item_func_case::split_sum_func(List<Item> &fields)
+{
+  if (first_expr)
+  {
+    if (first_expr->with_sum_func && first_expr->type() != SUM_FUNC_ITEM)
+      first_expr->split_sum_func(fields);
+    else if (first_expr->used_tables() || first_expr->type() == SUM_FUNC_ITEM)
+    {
+      fields.push_front(first_expr);
+      first_expr= new Item_ref((Item**) fields.head_ref(), 0,
+			       first_expr->name);
+    }
+  }
+  if (else_expr)
+  {
+    if (else_expr->with_sum_func && else_expr->type() != SUM_FUNC_ITEM)
+      else_expr->split_sum_func(fields);
+    else if (else_expr->used_tables() || else_expr->type() == SUM_FUNC_ITEM)
+    {
+      fields.push_front(else_expr);
+      else_expr= new Item_ref((Item**) fields.head_ref(), 0, else_expr->name);
+    }
+  }
+  Item_func::split_sum_func(fields);
 }
 
 void Item_func_case::update_used_tables()
@@ -1081,7 +1122,7 @@ void Item_func_in::split_sum_func(List<Item> &fields)
   else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
   {
     fields.push_front(item);
-    item=new Item_ref((Item**) fields.head_ref(),0,item->name);
+    item= new Item_ref((Item**) fields.head_ref(), 0, item->name);
   }  
   Item_func::split_sum_func(fields);
 }

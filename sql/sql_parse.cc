@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -828,16 +828,19 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   table_list->real_name = table_list->alias = tbl_name;
   table_list->lock_type = TL_READ_NO_INSERT;
   table_list->next = 0;
-  remove_escape(table_list->real_name);
-
-  if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
-    DBUG_RETURN(1);
 
   if (!db || check_db_name(db))
   {
     net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
     goto err;
   }
+  if (lower_case_table_names)
+    casedn_str(tbl_name);
+  remove_escape(tbl_name);
+
+  if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
+    DBUG_RETURN(1);
+
   if (check_access(thd, SELECT_ACL, db, &table_list->grant.privilege))
     goto err;
   if (grant_option && check_grant(thd, SELECT_ACL, table_list))
@@ -1059,6 +1062,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
       break;
     mysql_log.write(thd,command,"%s %s",table_list.real_name,fields);
+    if (lower_case_table_names)
+      casedn_str(table_list.real_name);
     remove_escape(table_list.real_name);	// This can't have wildcards
 
     if (check_access(thd,SELECT_ACL,table_list.db,&thd->col_access))
@@ -1088,8 +1093,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
       }
-      if (lower_case_table_names)
-	casedn_str(db);
       if (check_access(thd,CREATE_ACL,db,0,1))
 	break;
       mysql_log.write(thd,command,packet);
@@ -1106,8 +1109,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
       }
-      if (lower_case_table_names)
-	casedn_str(db);
       if (check_access(thd,DROP_ACL,db,0,1))
 	break;
       if (thd->locked_tables || thd->active_transaction())
@@ -2277,8 +2278,6 @@ mysql_execute_command(void)
       net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
       break;
     }
-    if (lower_case_table_names)
-      casedn_str(lex->name);
     /*
       If in a slave thread :
       DROP DATABASE DB may not be preceded by USE DB.
@@ -3246,10 +3245,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
     
   ptr->alias= alias_str;
   if (lower_case_table_names)
-  {
-    casedn_str(ptr->db);
     casedn_str(table->table.str);
-  }
   ptr->real_name=table->table.str;
   ptr->real_name_length=table->table.length;
   ptr->lock_type= lock_type;
