@@ -142,7 +142,7 @@ try_again:
 
 /*************************************************************************
 Checks if possible foreign key constraints hold after a delete of the record
-under pcur. NOTE that this function will temporarily commit mtr and lose
+under pcur. NOTE that this function will temporarily commit mtr and lose the
 pcur position! */
 static
 ulint

@@ -35,7 +35,7 @@
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 */
 
-#define DUMP_VERSION "8.21"
+#define DUMP_VERSION "8.22"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -147,9 +147,9 @@ static const char *load_default_groups[]= { "mysqldump","client",0 };
 
 CHANGEABLE_VAR md_changeable_vars[] = {
   { "max_allowed_packet", (long*) &max_allowed_packet,24*1024*1024,4096,
-    24*1024L*1024L,MALLOC_OVERHEAD,1024},
+    16*1024L*1024L,MALLOC_OVERHEAD,1024},
   { "net_buffer_length", (long*) &net_buffer_length,1024*1024L-1025,4096,
-    24*1024L*1024L,MALLOC_OVERHEAD,1024},
+    16*1024L*1024L,MALLOC_OVERHEAD+1024,1024},
   { 0, 0, 0, 0, 0, 0, 0}
 };
 
@@ -651,7 +651,7 @@ static uint getTableStructure(char *table, char* db)
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
 
-      sprintf(buff,"show create table %s",table_name);
+      sprintf(buff,"show create table `%s`",table);
       if (mysql_query(sock, buff))
       {
         fprintf(stderr, "%s: Can't get CREATE TABLE for table '%s' (%s)\n",
@@ -786,7 +786,7 @@ static uint getTableStructure(char *table, char* db)
       {
         if (opt_keywords)
 	  fprintf(sql_file, "  %s.%s %s", table_name,
-		  quote_name(row[SHOW_FIELDNAME],name_buff), row[SHOW_TYPE]);
+	  quote_name(row[SHOW_FIELDNAME],name_buff), row[SHOW_TYPE]);
         else
 	  fprintf(sql_file, "  %s %s", quote_name(row[SHOW_FIELDNAME],
 						  name_buff), row[SHOW_TYPE]);
@@ -1074,6 +1074,9 @@ static void dumpTable(uint numFields, char *table)
 	fputs(insert_pat,md_result_file);
       mysql_field_seek(res,0);
 
+      if (opt_xml)
+        fprintf(md_result_file, "\t<row>\n");
+
       for (i = 0; i < mysql_num_fields(res); i++)
       {
 	if (!(field = mysql_fetch_field(res)))
@@ -1162,6 +1165,9 @@ static void dumpTable(uint numFields, char *table)
 	  }
 	}
       }
+
+      if (opt_xml)
+        fprintf(md_result_file, "\t</row>\n");
 
       if (extended_insert)
       {

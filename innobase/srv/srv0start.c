@@ -84,6 +84,308 @@ we may get an assertion failure in os0file.c */
 
 #define SRV_LOG_SPACE_FIRST_ID		1000000000
 
+/*************************************************************************
+Reads the data files and their sizes from a character string given in
+the .cnf file. */
+
+ibool
+srv_parse_data_file_paths_and_sizes(
+/*================================*/
+					/* out: TRUE if ok, FALSE if parsing
+					error */
+	char*	str,			/* in: the data file path string */
+	char***	data_file_names,	/* out, own: array of data file
+					names */
+	ulint**	data_file_sizes,	/* out, own: array of data file sizes
+					in megabytes */
+	ulint**	data_file_is_raw_partition,/* out, own: array of flags
+					showing which data files are raw
+					partitions */
+	ulint*	n_data_files,		/* out: number of data files */
+	ibool*	is_auto_extending,	/* out: TRUE if the last data file is
+					auto-extending */
+	ulint*	max_auto_extend_size)	/* out: max auto extend size for the
+					last file if specified, 0 if not */
+{
+	char*	input_str;
+	char*	endp;
+	char*	path;
+	ulint	size;
+	ulint	i	= 0;
+
+	*is_auto_extending = FALSE;
+	*max_auto_extend_size = 0;
+
+	input_str = str;
+	
+	/* First calculate the number of data files and check syntax:
+	path:size[M | G];path:size[M | G]... . Note that a Windows path may
+	contain a drive name and a ':'. */
+
+	while (*str != '\0') {
+		path = str;
+
+		while ((*str != ':' && *str != '\0')
+		       || (*str == ':'
+			   && (*(str + 1) == '\\' || *(str + 1) == '/'))) {
+			str++;
+		}
+
+		if (*str == '\0') {
+			return(FALSE);
+		}
+
+		str++;
+
+		size = strtoul(str, &endp, 10);
+
+		str = endp;
+
+		if (*str != 'M' && *str != 'G') {
+			size = size / (1024 * 1024);
+		} else if (*str == 'G') {
+		        size = size * 1024;
+			str++;
+		} else {
+		        str++;
+		}
+
+	        if (strlen(str) >= ut_strlen(":autoextend")
+	            && 0 == ut_memcmp(str, ":autoextend",
+						ut_strlen(":autoextend"))) {
+
+			str += ut_strlen(":autoextend");
+
+	        	if (strlen(str) >= ut_strlen(":max:")
+	            		&& 0 == ut_memcmp(str, ":max:",
+						ut_strlen(":max:"))) {
+
+				str += ut_strlen(":max:");
+
+				size = strtoul(str, &endp, 10);
+
+				str = endp;
+
+				if (*str != 'M' && *str != 'G') {
+					size = size / (1024 * 1024);
+				} else if (*str == 'G') {
+		        		size = size * 1024;
+					str++;
+				} else {
+		        		str++;
+				}
+			}
+
+			if (*str != '\0') {
+
+				return(FALSE);
+			}
+		}
+
+	        if (strlen(str) >= 6
+			   && *str == 'n'
+			   && *(str + 1) == 'e' 
+		           && *(str + 2) == 'w') {
+		  	str += 3;
+		}
+
+	        if (strlen(str) >= 3
+			   && *str == 'r'
+			   && *(str + 1) == 'a' 
+		           && *(str + 2) == 'w') {
+		  	str += 3;
+		}
+
+		if (size == 0) {
+			return(FALSE);
+		}
+
+		i++;
+
+		if (*str == ';') {
+			str++;
+		} else if (*str != '\0') {
+
+			return(FALSE);
+		}
+	}
+
+	*data_file_names = (char**)ut_malloc(i * sizeof(void*));
+	*data_file_sizes = (ulint*)ut_malloc(i * sizeof(ulint));
+	*data_file_is_raw_partition = (ulint*)ut_malloc(i * sizeof(ulint));
+
+	*n_data_files = i;
+
+	/* Then store the actual values to our arrays */
+
+	str = input_str;
+	i = 0;
+
+	while (*str != '\0') {
+		path = str;
+
+		/* Note that we must ignore the ':' in a Windows path */
+
+		while ((*str != ':' && *str != '\0')
+		       || (*str == ':'
+			   && (*(str + 1) == '\\' || *(str + 1) == '/'))) {
+			str++;
+		}
+
+		if (*str == ':') {
+			/* Make path a null-terminated string */
+			*str = '\0';
+			str++;
+		}
+
+		size = strtoul(str, &endp, 10);
+
+		str = endp;
+
+		if ((*str != 'M') && (*str != 'G')) {
+			size = size / (1024 * 1024);
+		} else if (*str == 'G') {
+		        size = size * 1024;
+			str++;
+		} else {
+		        str++;
+		}
+
+		(*data_file_names)[i] = path;
+		(*data_file_sizes)[i] = size;
+
+	        if (strlen(str) >= ut_strlen(":autoextend")
+	            && 0 == ut_memcmp(str, ":autoextend",
+						ut_strlen(":autoextend"))) {
+
+			*is_auto_extending = TRUE;
+
+			str += ut_strlen(":autoextend");
+
+	        	if (strlen(str) >= ut_strlen(":max:")
+	            		&& 0 == ut_memcmp(str, ":max:",
+						ut_strlen(":max:"))) {
+
+				str += ut_strlen(":max:");
+
+				size = strtoul(str, &endp, 10);
+
+				str = endp;
+
+				if (*str != 'M' && *str != 'G') {
+					size = size / (1024 * 1024);
+				} else if (*str == 'G') {
+		        		size = size * 1024;
+					str++;
+				} else {
+		        		str++;
+				}
+
+				*max_auto_extend_size = size;
+			}
+
+			if (*str != '\0') {
+
+				return(FALSE);
+			}
+		}
+		
+		(*data_file_is_raw_partition)[i] = 0;
+
+	        if (strlen(str) >= 6
+			   && *str == 'n'
+			   && *(str + 1) == 'e' 
+		           && *(str + 2) == 'w') {
+		  	str += 3;
+		  	(*data_file_is_raw_partition)[i] = SRV_NEW_RAW;
+		}
+
+	        if (strlen(str) >= 3
+			   && *str == 'r'
+			   && *(str + 1) == 'a' 
+		           && *(str + 2) == 'w') {
+		 	str += 3;
+		  
+		  	if ((*data_file_is_raw_partition)[i] == 0) {
+		    		(*data_file_is_raw_partition)[i] = SRV_OLD_RAW;
+		  	}		  
+		}
+
+		i++;
+
+		if (*str == ';') {
+			str++;
+		}
+	}
+
+	return(TRUE);
+}
+
+/*************************************************************************
+Reads log group home directories from a character string given in
+the .cnf file. */
+
+ibool
+srv_parse_log_group_home_dirs(
+/*==========================*/
+					/* out: TRUE if ok, FALSE if parsing
+					error */
+	char*	str,			/* in: character string */
+	char***	log_group_home_dirs)	/* out, own: log group home dirs */
+{
+	char*	input_str;
+	char*	path;
+	ulint	i	= 0;
+
+	input_str = str;
+	
+	/* First calculate the number of directories and check syntax:
+	path;path;... */
+
+	while (*str != '\0') {
+		path = str;
+
+		while (*str != ';' && *str != '\0') {
+			str++;
+		}
+
+		i++;
+
+		if (*str == ';') {
+			str++;
+		} else if (*str != '\0') {
+
+			return(FALSE);
+		}
+	}
+
+	*log_group_home_dirs = (char**) ut_malloc(i * sizeof(void*));
+
+	/* Then store the actual values to our array */
+
+	str = input_str;
+	i = 0;
+
+	while (*str != '\0') {
+		path = str;
+
+		while (*str != ';' && *str != '\0') {
+			str++;
+		}
+
+		if (*str == ';') {
+			*str = '\0';
+			str++;
+		}
+
+		(*log_group_home_dirs)[i] = path;
+
+		i++;
+	}
+
+	return(TRUE);
+}
+
 /************************************************************************
 I/o-handler thread function. */
 static
@@ -127,7 +429,7 @@ io_handler_thread(
 
 /*************************************************************************
 Normalizes a directory path for Windows: converts slashes to backslashes. */
-static
+
 void
 srv_normalize_path_for_win(
 /*=======================*/
@@ -148,7 +450,7 @@ srv_normalize_path_for_win(
 /*************************************************************************
 Adds a slash or a backslash to the end of a string if it is missing
 and the string is not empty. */
-static
+
 char*
 srv_add_path_separator_if_needed(
 /*=============================*/
@@ -354,6 +656,7 @@ open_or_create_data_files(
 	ibool	one_created	= FALSE;
 	ulint	size;
 	ulint	size_high;
+	ulint	rounded_size_pages;
 	char	name[10000];
 
 	if (srv_n_data_files >= 1000) {
@@ -433,17 +736,35 @@ open_or_create_data_files(
 				ret = os_file_get_size(files[i], &size,
 								&size_high);
 				ut_a(ret);
+				/* Round size downward to megabytes */
 		
-				/* File sizes in srv_... are given in
-				database pages */
+				rounded_size_pages = (size / (1024 * 1024)
+							+ 4096 * size_high)
+					     << (20 - UNIV_PAGE_SIZE_SHIFT);
 
-				if (size != srv_calc_low32(
-						srv_data_file_sizes[i])
-		    		    || size_high != srv_calc_high32(
-		    		    		srv_data_file_sizes[i])) {
+				if (i == srv_n_data_files - 1
+				    && srv_auto_extend_last_data_file) {
+
+				    	if (srv_data_file_sizes[i] >
+				    		rounded_size_pages
+				    	   || (srv_last_file_size_max > 0
+				    	      && srv_last_file_size_max <
+				    	       rounded_size_pages)) {
+				    	       	
+						fprintf(stderr,
+			"InnoDB: Error: data file %s is of a different size\n"
+			"InnoDB: than specified in the .cnf file!\n", name);	
+					}
+				    	     
+				    	srv_data_file_sizes[i] =
+				    			rounded_size_pages;
+				}
+				
+				if (rounded_size_pages
+						!= srv_data_file_sizes[i]) {
 
 					fprintf(stderr,
-			"InnoDB: Error: data file %s is of different size\n"
+			"InnoDB: Error: data file %s is of a different size\n"
 			"InnoDB: than specified in the .cnf file!\n", name);
 				
 					return(DB_ERROR);
@@ -477,7 +798,7 @@ open_or_create_data_files(
 				      >> (20 - UNIV_PAGE_SIZE_SHIFT)));
 
 			fprintf(stderr,
-	    "InnoDB: Database physically writes the file full: wait...\n");
+	"InnoDB: Database physically writes the file full: wait...\n");
 
 			ret = os_file_set_size(name, files[i],
 				srv_calc_low32(srv_data_file_sizes[i]),
@@ -675,6 +996,8 @@ innobase_start_or_create_for_mysql(void)
 	  	os_aio_use_native_aio = TRUE;
 	}
 #endif
+	os_aio_use_native_aio = FALSE;
+	
 	if (!os_aio_use_native_aio) {
 		os_aio_init(4 * SRV_N_PENDING_IOS_PER_THREAD
 						* srv_n_file_io_threads,
@@ -721,12 +1044,10 @@ innobase_start_or_create_for_mysql(void)
 		return(DB_ERROR);
 	}
 
-	if (sizeof(ulint) == 4
-			&& srv_n_log_files * srv_log_file_size >= 262144) {
+	if (srv_n_log_files * srv_log_file_size >= 262144) {
 
 		fprintf(stderr,
-		"InnoDB: Error: combined size of log files must be < 4 GB\n"
-		"InnoDB: on 32-bit computers\n");
+		"InnoDB: Error: combined size of log files must be < 4 GB\n");
 
 		return(DB_ERROR);
 	}
@@ -758,7 +1079,6 @@ innobase_start_or_create_for_mysql(void)
 					&max_flushed_lsn, &max_arch_log_no,
 					&sum_of_new_sizes);
 	if (err != DB_SUCCESS) {
-
 	        fprintf(stderr, "InnoDB: Could not open data files\n");
 
 		return((int) err);
@@ -797,9 +1117,9 @@ innobase_start_or_create_for_mysql(void)
 			    		|| (log_opened && log_created)) {
 				fprintf(stderr, 
 	"InnoDB: Error: all log files must be created at the same time.\n"
-	"InnoDB: If you want bigger or smaller log files,\n"
-	"InnoDB: shut down the database and make sure there\n"
-	"InnoDB: were no errors in shutdown.\n"
+	"InnoDB: All log files must be created also in database creation.\n"
+	"InnoDB: If you want bigger or smaller log files, shut down the\n"
+	"InnoDB: database and make sure there were no errors in shutdown.\n"
 	"InnoDB: Then delete the existing log files. Edit the .cnf file\n"
 	"InnoDB: and start the database again.\n");
 
@@ -835,9 +1155,7 @@ innobase_start_or_create_for_mysql(void)
 
 		mutex_enter(&(log_sys->mutex));
 
-		recv_reset_logs(ut_dulint_align_down(max_flushed_lsn,
-					OS_FILE_LOG_BLOCK_SIZE),
-					max_arch_log_no + 1, TRUE);
+		recv_reset_logs(max_flushed_lsn, max_arch_log_no + 1, TRUE);
 		
 		mutex_exit(&(log_sys->mutex));
 	}
@@ -877,6 +1195,10 @@ innobase_start_or_create_for_mysql(void)
 		
                 srv_startup_is_before_trx_rollback_phase = FALSE;
 
+		/* Initialize the fsp free limit global variable in the log
+		system */
+		fsp_header_get_free_limit(0);
+
 		recv_recovery_from_archive_finish();
 	} else {
 		/* We always try to do a recovery, even if the database had
@@ -893,6 +1215,7 @@ innobase_start_or_create_for_mysql(void)
 
 		/* Since ibuf init is in dict_boot, and ibuf is needed
 		in any disk i/o, first call dict_boot */
+
 		dict_boot();
 		trx_sys_init_at_db_start();
 
@@ -900,6 +1223,11 @@ innobase_start_or_create_for_mysql(void)
 		trx_sys_init_at_db_start */
 
                 srv_startup_is_before_trx_rollback_phase = FALSE;
+
+		/* Initialize the fsp free limit global variable in the log
+		system */
+		fsp_header_get_free_limit(0);
+
 		recv_recovery_from_checkpoint_finish();
 	}
 	
@@ -969,7 +1297,7 @@ innobase_start_or_create_for_mysql(void)
 	if (err != DB_SUCCESS) {
 		return((int)DB_ERROR);
 	}
-
+	
 	/* Create the master thread which monitors the database
 	server, and does purge and other utility operations */
 

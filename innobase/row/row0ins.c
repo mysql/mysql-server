@@ -391,7 +391,7 @@ row_ins_check_foreign_constraint(
 				/* out: DB_SUCCESS, DB_LOCK_WAIT,
 				DB_NO_REFERENCED_ROW,
 				or DB_ROW_IS_REFERENCED */
-	ibool		check_ref,/* in: TRUE If we want to check that
+	ibool		check_ref,/* in: TRUE if we want to check that
 				the referenced table is ok, FALSE if we
 				want to to check the foreign key table */
 	dict_foreign_t*	foreign,/* in: foreign constraint; NOTE that the
@@ -411,9 +411,22 @@ row_ins_check_foreign_constraint(
 	ibool		moved;
 	int		cmp;
 	ulint		err;
+	ulint		i;
 	mtr_t		mtr;
 
 	ut_ad(rw_lock_own(&dict_foreign_key_check_lock, RW_LOCK_SHARED));
+
+	/* If any of the foreign key fields in entry is SQL NULL, we
+	suppress the foreign key check: this is compatible with Oracle,
+	for example */
+
+	for (i = 0; i < foreign->n_fields; i++) {
+		if (UNIV_SQL_NULL == dfield_get_len(
+                                         dtuple_get_nth_field(entry, i))) {
+
+			return(DB_SUCCESS);
+		}
+	}
 
 	if (check_ref) {
 		check_table = foreign->referenced_table;
@@ -591,6 +604,8 @@ row_ins_scan_sec_index_for_duplicate(
 	dtuple_t*	entry,	/* in: index entry */
 	que_thr_t*	thr)	/* in: query thread */
 {
+	ulint		n_unique;
+	ulint		i;
 	int		cmp;
 	ulint		n_fields_cmp;
 	rec_t*		rec;
@@ -598,6 +613,20 @@ row_ins_scan_sec_index_for_duplicate(
 	ulint		err		= DB_SUCCESS;
 	ibool		moved;
 	mtr_t		mtr;
+
+	n_unique = dict_index_get_n_unique(index);
+
+	/* If the secondary index is unique, but one of the fields in the
+	n_unique first fields is NULL, a unique key violation cannot occur,
+	since we define NULL != NULL in this case */
+
+	for (i = 0; i < n_unique; i++) {
+		if (UNIV_SQL_NULL == dfield_get_len(
+                                         dtuple_get_nth_field(entry, i))) {
+
+			return(DB_SUCCESS);
+		}
+	}
 
 	mtr_start(&mtr);
 

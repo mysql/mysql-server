@@ -6349,6 +6349,9 @@ Optimized binary with support for symbolic links, BDB and InnoDB tables.
 Like @code{mysqld-max}, but compiled with support for named pipes.
 @end multitable
 
+Starting from 3.23.50, named pipes are only enabled if mysqld is started with
+@code{--enable-named-pipe}.
+
 All of the above binaries are optimized for the Pentium Pro processor but
 should work on any Intel processor >= i386.
 
@@ -10334,6 +10337,11 @@ You can force a MySQL client to use named pipes by specifying the
 @code{--pipe} option or by specifying @code{.} as the host name.  Use the 
 @code{--socket} option to specify the name of the pipe.
 
+Note that starting from 3.23.50, named pipes are only enabled if mysqld is
+started with with @code{--enable-named-pipe}.  This is because some users
+have experienced problems shutting down the MySQL server when one uses
+named pipes.
+
 You can test whether or not MySQL is working by executing the
 following commands:
 
@@ -10612,6 +10620,9 @@ option to the new MySQL clients or create an option file
 [client]
 host = localhost
 @end example
+
+Starting from 3.23.50, named pipes are only enabled if mysqld is started
+with @code{--enable-named-pipe}.
 
 @item @code{Access denied for user} error
 If you get the error @code{Access denied for user: 'some-user@@unknown'
@@ -12010,6 +12021,12 @@ make sure that @file{gmalloc.o} is included in @file{libgthreads.a} and
 In FSU Pthreads, the following system calls are pthreads-aware: @code{read()},
 @code{write()}, @code{getmsg()}, @code{connect()}, @code{accept()},
 @code{select()}, and @code{wait()}.
+
+@item
+The CSSA-2001-SCO.35.2 (the patch is listed in custom as
+erg711905-dscr_remap security patch (ver 2.0.0) breaks FSU threads and
+makes mysqld instable.  You have to remove this one if you want to run
+mysqld on an OpenServer 5.0.6 machine.
 @end itemize
 
 If you want to install DBI on SCO, you have to edit the @file{Makefile} in
@@ -14717,6 +14734,9 @@ Don't flush key buffers between writes for any @code{MyISAM} table.
 Enable system locking.  Note that if you use this option on a system
 which a not fully working lockd() (as on Linux) you will easily get
 mysqld to deadlock.
+
+@item --enable-named-pipe
+Enable support for named pipes (only on NT/Win2000/XP).
 
 @item -T, --exit-info
 This is a bit mask of different flags one can use for debugging the
@@ -32038,7 +32058,7 @@ mysql> select INET_ATON("209.207.224.40");
 @end example
 
 The generated number is always in network byte order; For example the
-above number is calculated as @code{209*255^3 + 207*255^2 + 224*255 +40}.
+above number is calculated as @code{209*256^3 + 207*256^2 + 224*256 +40}.
 
 @findex MASTER_POS_WAIT()
 @item MASTER_POS_WAIT(log_name, log_pos)
@@ -43388,12 +43408,13 @@ are used if you don't specify a hostname or if you specify the special
 hostname @code{localhost}.
 
 On Windows you can connect only with TCP/IP if the @code{mysqld} server
-is running on Win95/Win98. If it's running on NT, you can also connect
-with named pipes.  The name of the named pipe is MySQL.  If you
-don't give a hostname when connecting to @code{mysqld}, a MySQL client
-will first try to connect to the named pipe, and if this doesn't work it
-will connect to the TCP/IP port.  You can force the use of named pipes
-on Windows by using @code{.} as the hostname.
+is running on Win95/Win98. If mysqld is running on NT and started with
+@code{enable-named-pipe}, you can also connect with named pipes.  The
+name of the named pipe is MySQL.  If you don't give a hostname when
+connecting to @code{mysqld}, a MySQL client will first try to connect to
+the named pipe, and if this doesn't work it will connect to the TCP/IP
+port.  You can force the use of named pipes on Windows by using @code{.} 
+as the hostname.
 
 The error (2002) @code{Can't connect to ...} normally means that there
 isn't a MySQL server running on the system or that you are
@@ -46747,6 +46768,11 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed @code{SIGINT} and @code{SIGQUIT} problems in mysql.cc
+@item
+Fixed bug in convert.cc, which is caused by having a wrong net_store_length 
+linked in CONVERT::store method
+@item
 Multi-table @code{DELETE}.
 @item
 Don't support old client protocols prior to MySQL 3.21 any more.
@@ -46889,9 +46915,52 @@ not yet 100% confident in this code.
 
 @node News-3.23.50, News-3.23.49, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.50
+
 @itemize @bullet
 @item
+@code{InnoDB} now retains foreign key constraints through @code{ALTER TABLE}
+and @code{CREATE/DROP INDEX}.
+@item
+@code{InnoDB} now allows foreign key constraints to be added through the
+@code{ALTER TABLE} syntax.
+@item
+@code{InnoDB} tables can now be set to automatically grow in size (autoextend).
+@item
+Fixed some buffer overflow problems when reading startup parameters.
+@item
+Because of problems on shutdown we have now disabled named pipes on
+windows by default.  One can enable named pipes by starting mysqld with
+@code{--enable-named-pipe}.
+@item
+Fixed bug when using @code{WHERE key_column = 'J' or key_column='j'}.
+@item
+Fixed core-dump bug when using @code{--log-bin} with @code{LOAD DATA
+INFILE} without an active database.
+@item
+Fixed bug in @code{RENAME TABLE} when used with
+@code{lower_case_table_names=1} (default on Windows).
+@item
+Fixed unlikely core-dump bug when using @code{DROP TABLE} on a table
+that was in use by a thread that also used queries on only temporary tables.
+@item
+Fixed problem with @code{SHOW CREATE TABLE} and @code{PRIMARY KEY} when using
+32 indexes.
+@item
+Fixed that one can use @code{SET PASSWORD} for the anonymous user.
+@item
+Fixed core-dump bug when reading client groups from option files using
+@code{mysql_options()}.
+@item
 Memory leak (16 bytes per every @strong{corrupted} table) closed.
+@item
+Fixed binary builds to use @code{--enable-local-infile}.
+@item
+Update source to work with new @code{bison} version.
+@item
+Updated shell scripts to new agree with new POSIX standard.
+@item
+Fixed bug where @code{DATE_FORMAT()} returned empty string when used
+with @code{GROUP BY}.
 @end itemize
 
 @node News-3.23.49, News-3.23.48, News-3.23.50, News-3.23.x
@@ -46902,13 +46971,15 @@ Don't give warning for statement that is only a comment;  This is needed for
 @code{mysqldump --disable-keys} to work.
 @item
 Fixed unlikely caching bug when doing a join without keys. In this case
-the last used field for a table always returned @code{NULL}.
+the last used column for a table always returned @code{NULL}.
 @item
 Added options to make @code{LOAD DATA LOCAL INFILE} more secure.
 @item
 MySQL binary release 3.23.48 for Linux contained a new glibc library, which
 has serious problems under high load and RedHat 7.2.  The 3.23.49 binary
 release doesn't have this problem.
+@item
+Fixed shutdown problem on NT.
 @end itemize
 
 @node News-3.23.48, News-3.23.47, News-3.23.49, News-3.23.x
