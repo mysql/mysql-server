@@ -2732,6 +2732,60 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
   return 0;
 }
 
+int
+MgmtSrvr::setConnectionDbParameter(int node1, 
+				   int node2,
+				   int param,
+				   int value,
+				   BaseString& msg){
+  Uint32 current_value,new_value;
+
+  DBUG_ENTER("MgmtSrvr::setConnectionDbParameter");
+
+  ndb_mgm_configuration_iterator iter(* _config->m_configValues,
+				      CFG_SECTION_CONNECTION);
+
+  if(iter.first() != 0){
+    msg.assign("Unable to find connection section (iter.first())");
+    return -1;
+  }
+
+  for(;iter.valid();iter.next()) {
+    Uint32 n1,n2;
+    iter.get(CFG_CONNECTION_NODE_1, &n1);
+    iter.get(CFG_CONNECTION_NODE_2, &n2);
+    if(n1 == (unsigned)node1 && n2 == (unsigned)node2)
+      break;
+  }
+  if(!iter.valid()) {
+    msg.assign("Unable to find connection between nodes");
+    return -1;
+  }
+  
+  if(iter.get(param, &current_value) < 0) {
+    msg.assign("Unable to get current value of parameter");
+    return -1;
+  }
+
+  ConfigValues::Iterator i2(_config->m_configValues->m_config, 
+			    iter.m_config);
+
+  if(i2.set(param, (unsigned)value) < 0) {
+    msg.assign("Unable to set new value of parameter");
+    return -1;
+  }
+  
+  if(iter.get(param, &new_value) < 0) {
+    msg.assign("Unable to get parameter after setting it.");
+    return -1;
+  }
+
+  msg.assfmt("%u -> %u",current_value,new_value);
+  return 1;
+}
+
+
+
 template class Vector<SigMatch>;
 #if __SUNPRO_CC != 0x560
 template bool SignalQueue::waitFor<SigMatch>(Vector<SigMatch>&, SigMatch*&, NdbApiSignal*&, unsigned);

@@ -1180,7 +1180,8 @@ TransporterRegistry::stop_clients()
 }
 
 void
-TransporterRegistry::add_transporter_interface(const char *interface, 
+TransporterRegistry::add_transporter_interface(NodeId remoteNodeId,
+					       const char *interface, 
 					       unsigned short port)
 {
   DBUG_ENTER("TransporterRegistry::add_transporter_interface");
@@ -1204,6 +1205,7 @@ TransporterRegistry::add_transporter_interface(const char *interface,
     }
   }
   Transporter_interface t;
+  t.m_remote_nodeId= remoteNodeId;
   t.m_service_port= port;
   t.m_interface= interface;
   m_transporter_interface.push_back(t);
@@ -1328,5 +1330,10 @@ NdbOut & operator <<(NdbOut & out, SignalHeader & sh){
   out << "trace:        " << (int)sh.theTrace << endl;
   return out;
 } 
+
+Transporter*
+TransporterRegistry::get_transporter(NodeId nodeId) {
+  return theTransporters[nodeId];
+};
 
 template class Vector<TransporterRegistry::Transporter_interface>;
