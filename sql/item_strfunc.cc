@@ -1546,12 +1546,10 @@ double Item_func_elt::val()
     return 0.0;
 
   double result= args[tmp-1]->val();
-  if (args[tmp-1]->is_null())
-    return 0.0;
-
-  null_value=0;
+  null_value= args[tmp-1]->null_value;
   return result;
 }
+
 
 longlong Item_func_elt::val_int()
 {
@@ -1561,12 +1559,10 @@ longlong Item_func_elt::val_int()
     return 0;
   
   int result= args[tmp-1]->val_int();
-  if (args[tmp-1]->is_null())
-    return 0;
-
-  null_value=0;
+  null_value= args[tmp-1]->null_value;
   return result;
 }
+
 
 String *Item_func_elt::val_str(String *str)
 {
@@ -1576,10 +1572,7 @@ String *Item_func_elt::val_str(String *str)
     return NULL;
 
   String *result= args[tmp-1]->val_str(str);
-  if (args[tmp-1]->is_null())
-    return NULL;
-
-  null_value=0;
+  null_value= args[tmp-1]->null_value;
   return result;
 }
 
