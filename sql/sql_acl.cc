@@ -2256,39 +2256,58 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     DBUG_RETURN(-1);
   }
 
-  if (columns.elements && !revoke_grant)
+  if (!revoke_grant)
   {
-    TABLE *table;
-    class LEX_COLUMN *column;
-    List_iterator <LEX_COLUMN> column_iter(columns);
+    if (columns.elements && !revoke_grant)
+    {
+      TABLE *table;
+      class LEX_COLUMN *column;
+      List_iterator <LEX_COLUMN> column_iter(columns);
 
-    if (!(table=open_ltable(thd,table_list,TL_READ)))
-      DBUG_RETURN(-1);
-    while ((column = column_iter++))
-    {
-      uint unused_field_idx= NO_CACHED_FIELD_INDEX;
-      if (!find_field_in_table(thd,table,column->column.ptr(),
-                               column->column.length(),0,0,
-                               &unused_field_idx))
+      if (!(table=open_ltable(thd,table_list,TL_READ)))
+        DBUG_RETURN(-1);
+      while ((column = column_iter++))
       {
-	my_error(ER_BAD_FIELD_ERROR, MYF(0),
-                 column->column.c_ptr(), table_list->alias);
-	DBUG_RETURN(-1);
+        uint unused_field_idx= NO_CACHED_FIELD_INDEX;
+        Field *f= find_field_in_table(thd,table,column->column.ptr(),
+                              column->column.length(),1,0,&unused_field_idx);
+        if (!f)
+        {
+          my_error(ER_BAD_FIELD_ERROR, MYF(0),
+                   column->column.c_ptr(), table_list->alias);
+          DBUG_RETURN(-1);
+        }
+        if (f == (Field*)-1)
+        {
+          DBUG_RETURN(-1);
+        }
+        column_priv|= column->rights;
       }
-      column_priv|= column->rights;
+      close_thread_tables(thd);
     }
-    close_thread_tables(thd);
-  }
-  else if (!(rights & CREATE_ACL) && !revoke_grant)
-  {
-    char buf[FN_REFLEN];
-    sprintf(buf,"%s/%s/%s.frm",mysql_data_home, table_list->db,
-	    table_list->real_name);
-    fn_format(buf,buf,"","",4+16+32);
-    if (access(buf,F_OK))
+    else
     {
-      my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->alias);
-      DBUG_RETURN(-1);
+      if (!(rights & CREATE_ACL))
+      {
+        char buf[FN_REFLEN];
+        sprintf(buf,"%s/%s/%s.frm",mysql_data_home, table_list->db,
+                table_list->real_name);
+        fn_format(buf,buf,"","",4+16+32);
+        if (access(buf,F_OK))
+        {
+          my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->alias);
+          DBUG_RETURN(-1);
+        }
+      }
+      if (table_list->grant.want_privilege)
+      {
+        char command[128];
+        get_privilege_desc(command, sizeof(command),
+                           table_list->grant.want_privilege);
+        my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
+	         command, thd->priv_user, thd->host_or_ip, table_list->alias);
+        DBUG_RETURN(-1);
+      }
     }
   }
 
@@ -2773,25 +2792,8 @@ err:
   rw_unlock(&LOCK_grant);
   if (!no_errors)				// Not a silent skip of table
   {
-    const char *command="";
-    if (want_access & SELECT_ACL)
-      command= "select";
-    else if (want_access & INSERT_ACL)
-      command= "insert";
-    else if (want_access & UPDATE_ACL)
-      command= "update";
-    else if (want_access & DELETE_ACL)
-      command= "delete";
-    else if (want_access & DROP_ACL)
-      command= "drop";
-    else if (want_access & CREATE_ACL)
-      command= "create";
-    else if (want_access & ALTER_ACL)
-      command= "alter";
-    else if (want_access & INDEX_ACL)
-      command= "index";
-    else if (want_access & GRANT_ACL)
-      command= "grant";
+    char command[128];
+    get_privilege_desc(command, sizeof(command), want_access);
     net_printf(thd,ER_TABLEACCESS_DENIED_ERROR,
 	       command,
 	       thd->priv_user,
@@ -2906,11 +2908,8 @@ bool check_grant_all_columns(THD *thd, ulong want_access, TABLE *table)
 err:
   rw_unlock(&LOCK_grant);
 err2:
-  const char *command= "";
-  if (want_access & SELECT_ACL)
-    command= "select";
-  else if (want_access & INSERT_ACL)
-    command= "insert";
+  char command[128];
+  get_privilege_desc(command, sizeof(command), want_access);
   my_printf_error(ER_COLUMNACCESS_DENIED_ERROR,
 		  ER(ER_COLUMNACCESS_DENIED_ERROR),
 		  MYF(0),
