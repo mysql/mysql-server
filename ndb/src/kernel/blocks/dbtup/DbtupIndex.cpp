@@ -33,6 +33,7 @@
 void
 Dbtup::tuxGetTupAddr(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32& tupAddr)
 {
+  ljamEntry();
   FragrecordPtr fragPtr;
   fragPtr.i = fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
@@ -54,6 +55,7 @@ Dbtup::tuxGetTupAddr(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32& 
 int
 Dbtup::tuxAllocNode(Signal* signal, Uint32 fragPtrI, Uint32& pageId, Uint32& pageOffset, Uint32*& node)
 {
+  ljamEntry();
   FragrecordPtr fragPtr;
   fragPtr.i = fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
@@ -63,7 +65,7 @@ Dbtup::tuxAllocNode(Signal* signal, Uint32 fragPtrI, Uint32& pageId, Uint32& pag
   PagePtr pagePtr;
   terrorCode = 0;
   if (! allocTh(fragPtr.p, tablePtr.p, NORMAL_PAGE, signal, pageOffset, pagePtr)) {
-    jam();
+    ljam();
     ndbrequire(terrorCode != 0);
     return terrorCode;
   }
@@ -77,6 +79,7 @@ Dbtup::tuxAllocNode(Signal* signal, Uint32 fragPtrI, Uint32& pageId, Uint32& pag
 void
 Dbtup::tuxFreeNode(Signal* signal, Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* node)
 {
+  ljamEntry();
   FragrecordPtr fragPtr;
   fragPtr.i = fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
@@ -95,6 +98,7 @@ Dbtup::tuxFreeNode(Signal* signal, Uint32 fragPtrI, Uint32 pageId, Uint32 pageOf
 void
 Dbtup::tuxGetNode(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32*& node)
 {
+  ljamEntry();
   FragrecordPtr fragPtr;
   fragPtr.i = fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
@@ -109,9 +113,62 @@ Dbtup::tuxGetNode(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32*& no
   node = &pagePtr.p->pageWord[pageOffset] + attrDataOffset;
 }
 
-void    // under construction
-Dbtup::tuxReadAttrs()
+void
+Dbtup::tuxReadAttrs(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion, Uint32 numAttrs, const Uint32* attrIds, const Uint32** attrData)
 {
+  ljamEntry();
+  FragrecordPtr fragPtr;
+  fragPtr.i = fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+  TablerecPtr tablePtr;
+  tablePtr.i = fragPtr.p->fragTableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  PagePtr pagePtr;
+  pagePtr.i = pageId;
+  ptrCheckGuard(pagePtr, cnoOfPage, page);
+  // search for tuple version if not original
+  if (pagePtr.p->pageWord[pageOffset + 1] != tupVersion) {
+    ljam();
+    OperationrecPtr opPtr;
+    opPtr.i = pagePtr.p->pageWord[pageOffset];
+    Uint32 loopGuard = 0;
+    while (true) {
+      ptrCheckGuard(opPtr, cnoOfOprec, operationrec);
+      if (opPtr.p->realPageIdC != RNIL) {
+        pagePtr.i = opPtr.p->realPageIdC;
+        pageOffset = opPtr.p->pageOffsetC;
+        ptrCheckGuard(pagePtr, cnoOfPage, page);
+        if (pagePtr.p->pageWord[pageOffset + 1] == tupVersion) {
+          ljam();
+          break;
+        }
+      }
+      ljam();
+      opPtr.i = opPtr.p->nextActiveOp;
+      ndbrequire(++loopGuard < (1 << ZTUP_VERSION_BITS));
+    }
+  }
+  const Uint32 tabDescriptor = tablePtr.p->tabDescriptor;
+  const Uint32* tupleHeader = &pagePtr.p->pageWord[pageOffset];
+  for (Uint32 i = 0; i < numAttrs; i++) {
+    AttributeHeader ah(attrIds[i]);
+    Uint32 attrId = ah.getAttributeId();
+    Uint32 index = tabDescriptor + (attrId << ZAD_LOG_SIZE);
+    Uint32 desc1 = tableDescriptor[index].tabDescr;
+    Uint32 desc2 = tableDescriptor[index + 1].tabDescr;
+    if (AttributeDescriptor::getNullable(desc1)) {
+      Uint32 offset = AttributeOffset::getNullFlagOffset(desc2);
+      ndbrequire(offset < tablePtr.p->tupNullWords);
+      offset += tablePtr.p->tupNullIndex;
+      ndbrequire(offset < tablePtr.p->tupheadsize);
+      if (AttributeOffset::isNULL(tupleHeader[offset], desc2)) {
+        ljam();
+        attrData[i] = 0;
+        continue;
+      }
+    }
+    attrData[i] = tupleHeader + AttributeOffset::getOffset(desc2);
+  }
 }
 
 void    // under construction
@@ -259,10 +316,10 @@ Dbtup::execTUP_QUERY_TH(Signal* signal)
     for this transaction and savepoint id. If its tuple version equals
     the requested then we have a visible tuple otherwise not.
     */
-    jam();
+    ljam();
     Uint32 read_tupVersion = pagePtr.p->pageWord[tempOp.pageOffset + 1];
     if (read_tupVersion == req_tupVersion) {
-      jam();
+      ljam();
       ret_result = 1;
     }
   }
@@ -580,7 +637,7 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
       tuple as a copy tuple. The original tuple is stable and is thus
       preferrable to store in TUX.
       */
-      jam();
+      ljam();
       ptrCheckGuard(pageOperPtr, cnoOfOprec, operationrec);
       realPageId = pageOperPtr.p->realPageId;
       pageOffset = pageOperPtr.p->pageOffset;
