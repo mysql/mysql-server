@@ -2522,29 +2522,32 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
       // to prevent natural join processing during PS re-execution
       table->natural_join= 0;
 
-      if (!table->outer_join)			// Not left join
+      if (cond_and->list.elements)
       {
-	*conds= and_conds(*conds, cond_and);
-	// fix_fields() should be made with temporary memory pool
-	if (stmt)
-	  thd->restore_backup_item_arena(stmt, &backup);
-	if (*conds && !(*conds)->fixed)
-	{
-	  if ((*conds)->fix_fields(thd, tables, conds))
-	    DBUG_RETURN(1);
-	}
-      }
-      else
-      {
-	table->on_expr= and_conds(table->on_expr, cond_and);
-	// fix_fields() should be made with temporary memory pool
-	if (stmt)
-	  thd->restore_backup_item_arena(stmt, &backup);
-	if (table->on_expr && !table->on_expr->fixed)
-	{
-	  if (table->on_expr->fix_fields(thd, tables, &table->on_expr))
-	   DBUG_RETURN(1);
-	}
+        if (!table->outer_join)			// Not left join
+        {
+          *conds= and_conds(*conds, cond_and);
+          // fix_fields() should be made with temporary memory pool
+          if (stmt)
+            thd->restore_backup_item_arena(stmt, &backup);
+          if (*conds && !(*conds)->fixed)
+          {
+            if ((*conds)->fix_fields(thd, tables, conds))
+              DBUG_RETURN(1);
+          }
+        }
+        else
+        {
+          table->on_expr= and_conds(table->on_expr, cond_and);
+          // fix_fields() should be made with temporary memory pool
+          if (stmt)
+            thd->restore_backup_item_arena(stmt, &backup);
+          if (table->on_expr && !table->on_expr->fixed)
+          {
+            if (table->on_expr->fix_fields(thd, tables, &table->on_expr))
+             DBUG_RETURN(1);
+          }
+        }
       }
     }
   }

@@ -283,6 +283,12 @@ ID	Value1	Value2
 SELECT * FROM t1 NATURAL JOIN t2 WHERE (Value1 = 'A' AND Value2 <> 'B') AND 1;
 ID	Value1	Value2
 drop table t1,t2;
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (b int);
+CREATE TABLE t3 (c int);
+SELECT * FROM t1 NATURAL JOIN t2 NATURAL JOIN t3;
+a	b	c
+DROP TABLE t1, t2, t3;
 create table t1 (i int);
 create table t2 (i int);
 create table t3 (i int);
