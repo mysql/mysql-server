@@ -3217,7 +3217,7 @@ it should give its customers at least read access to the source of
 the @strong{MySQL} installation so that its customer can verify that
 it is patched correctly.
 
-@cindexweb server, running
+@cindex web server, running
 @cindex running, a web server
 @node Web server,  , ISP, Licensing examples
 @subsection Running a Web Server Using @strong{MySQL}
@@ -5008,7 +5008,7 @@ and clients on the same machine.  We hope that the @code{Linux 2.4}
 kernel will fix this problem in the future.
 
 @cindex HP-UX, binary distribution
-@cindexbinary distribution, on HP-UX
+@cindex binary distribution, on HP-UX
 @node Binary notes-HP-UX,  , Binary notes-Linux, Binary install system issues
 @subsubsection HP-UX Notes for Binary Distributions
 
@@ -11533,8 +11533,8 @@ A @code{'%'} or blank @code{Db} value in either table means ``any database.''
 A blank @code{User} value in either table matches the anonymous user.
 @end itemize
 
-@cindex Grant tables, sorting
-@cindex Sorting, grant tables
+@cindex grant tables, sorting
+@cindex sorting, grant tables
 @cindex @code{db} table, sorting
 @cindex @code{host} table, sorting
 The @code{db} and @code{host} tables are read in and sorted when the server
@@ -11546,8 +11546,8 @@ values first and least-specific values last, and when the server looks for
 matching entries, it uses the first match that it finds.
 
 
-@cindex Wildcards, in @code{mysql.tables_priv} table
-@cindex Wildcards, in @code{mysql.columns_priv} table
+@cindex wildcards, in @code{mysql.tables_priv} table
+@cindex wildcards, in @code{mysql.columns_priv} table
 The @code{tables_priv} and @code{columns_priv} tables grant table- and
 column-specific privileges.  Values in the scope fields may be specified as
 follows:
@@ -11738,7 +11738,7 @@ The initial @code{root} password is empty, so anyone can connect as @code{root}
 @emph{without a password} and be granted all privileges.
 
 @item
-@cindex Anonymous user
+@cindex anonymous user
 An anonymous user is created that can do anything with databases that have a
 name of @code{'test'} or starting with @code{'test_'}.  Connections must be
 made from the local host.  This means any local user can connect without a
@@ -12546,7 +12546,7 @@ lines |
 +--------------------+
 @end example
 
-@cindex Quoting binary data
+@cindex quoting binary data
 
 If you want to insert binary data into a @code{BLOB} column, the following
 characters must be represented by escape sequences:
@@ -12561,7 +12561,7 @@ ASCII 39, single quote.  Represent this by @samp{\'}.
 ASCII 34, double quote.  Represent this by @samp{\"}.
 @end table
 
-@cindex Quoting
+@cindex quoting
 @cindex @code{BLOB}, inserting binary data
 @findex mysql_escape_string()
 @findex DBI->quote
@@ -12652,7 +12652,7 @@ or export formats (@code{LOAD DATA INFILE}, @code{SELECT ... INTO OUTFILE}).
 Database, table, index, column and alias names all follow the same rules in
 @strong{MySQL}:
 
-@tindex, identifiers, quoting
+@tindex identifiers, quoting
 @tindex quoting of identifiers
 @tindex `
 @tindex "
@@ -12739,14 +12739,10 @@ programs prefix table names with a @samp{.} character.
 @cindex case-sensitivity, in names
 @node Name case sensitivity,  , Legal names, Legal names
 @subsubsection Case sensitivity in names
-@cindex Database names, case sensitivity
-@cindex Table names, case sensitivity
-@cindex Column names, case sensitivity
-@cindex Alias names, case sensitivity
-@cindex Case sensitivity, of database names
-@cindex Case sensitivity, of table names
-@cindex Case sensitivity, of column names
-@cindex Case sensitivity, of alias names
+@cindex database names, case sensitivity
+@cindex table names, case sensitivity
+@cindex column names, case sensitivity
+@cindex alias names, case sensitivity
 
 In @strong{MySQL}, databases and tables correspond to directories and files
 within those directories.  Consequently, the case sensitivity of the
@@ -13366,7 +13362,7 @@ Conversions that occur due to clipping are reported as ``warnings'' for
 @code{ALTER TABLE}, @code{LOAD DATA INFILE}, @code{UPDATE} and
 multi-row @code{INSERT} statements.
 
-@cindex Types, Date and Time
+@cindex types, Date and Time
 @cindex Date and Time types
 @node Date and time types, String types, Numeric types, Column types
 @subsection Date and time types
@@ -13962,7 +13958,7 @@ There is no trailing-space removal for @code{BLOB} and @code{TEXT} columns
 when values are stored, as there is for @code{VARCHAR} columns.
 
 @item
-@cindex Default values, @code{BLOB} and @code{TEXT} columns
+@cindex default values, @code{BLOB} and @code{TEXT} columns
 @cindex @code{BLOB} columns, default values
 @cindex @code{TEXT} columns, default values
 @code{BLOB} and @code{TEXT} columns cannot have @code{DEFAULT} values.
@@ -14321,7 +14317,7 @@ with types used by other vendors and then issue a @code{DESCRIBE tbl_name}
 statement, @strong{MySQL} reports the table structure using the equivalent
 @strong{MySQL} types.
 
-@cindex Functions for @code{SELECT} and @code{WHERE} clauses
+@cindex functions for @code{SELECT} and @code{WHERE} clauses
 @node Functions, CREATE DATABASE, Column types, Reference
 @section Functions for use in @code{SELECT} and @code{WHERE} clauses
 
@@ -14609,7 +14605,7 @@ Hexadecimal values are treated as binary strings if not compared to a number.
 
 @item
 @cindex ODBC compatibility
-@cindex Compatibility, with ODBC
+@cindex compatibility, with ODBC
 If one of the arguments is a @code{TIMESTAMP} or @code{DATETIME} column and
 the other argument is a constant, the constant is converted
 to a timestamp before the comparison is performed. This is done to be more
@@ -14833,8 +14829,8 @@ mysql> select INTERVAL(22, 23, 30, 44, 200);
 @node String comparison functions, Casts, Comparison functions, Functions
 @subsection String comparison functions
 
-@cindex Case sensitivity, in string comparisons
-@cindex String comparisons, case sensitivity
+@cindex case sensitivity, in string comparisons
+@cindex string comparisons, case sensitivity
 Normally, if any expression in a string comparison is case sensitive, the
 comparison is performed in case-sensitive fashion.
 
@@ -14901,7 +14897,7 @@ a single backslash to be matched).
 Same as @code{NOT (expr LIKE pat [ESCAPE 'escape-char'])}.
 
 @cindex mSQL compatibility
-@cindex Compatibility, with mSQL
+@cindex compatibility, with mSQL
 @findex REGEXP
 @findex RLIKE
 @item expr REGEXP pat
@@ -14965,7 +14961,7 @@ For details and usage examples see @xref{MySQL full-text search}.
 
 @findex casts
 @cindex cast operators
-@cindex oeprators, cast
+@cindex operators, cast
 @node Casts, Control flow functions, String comparison functions, Functions
 @subsection Cast operators
 
@@ -16550,7 +16546,7 @@ mysql> select PASSWORD('badpwd');
         -> '7f84554057dd964b'
 @end example
 
-@cindex Password encryption, reversibility of
+@cindex password encryption, reversibility of
 @code{PASSWORD()} encryption is non-reversible.
 
 @code{PASSWORD()} does not perform password encryption in the same way that
@@ -16619,7 +16615,7 @@ per-connection basis.  It will not be changed by another client. It will not
 even be changed if you update another @code{AUTO_INCREMENT} column with a
 non-magic value (that is, a value that is not @code{NULL} and not @code{0}).
 
-@cindex Sequence emulation
+@cindex sequence emulation
 If @code{expr} is given as an argument to @code{LAST_INSERT_ID()} in an
 @code{UPDATE} clause, then the value of the argument is returned as a
 @code{LAST_INSERT_ID()} value.  This can be used to simulate sequences:
@@ -16840,7 +16836,7 @@ it returns NULL!
 @findex STD()
 @findex STDDEV()
 @cindex Oracle compatibility
-@cindex Compatibility, with Oracle
+@cindex compatibility, with Oracle
 @item STD(expr)
 @itemx STDDEV(expr)
 Returns the standard deviation of @code{expr}. This is an extension to
@@ -16889,11 +16885,11 @@ substr(MIN(concat(sort,space(6-length(sort)),column),7,length(column)))
 @end example
 
 @cindex @code{ORDER BY}, aliases in
-@cindex Aliases, in @code{ORDER BY} clauses
+@cindex aliases, in @code{ORDER BY} clauses
 @cindex @code{GROUP BY}, aliases in
-@cindex Aliases, in @code{GROUP BY} clauses
-@cindex Expressions, aliases for
-@cindex Aliases, for expressions
+@cindex aliases, in @code{GROUP BY} clauses
+@cindex expressions, aliases for
+@cindex aliases, for expressions
 Note that if you are using @strong{MySQL} 3.22 (or earlier) or if you
 are trying to follow ANSI SQL, you can't use expressions in @code{GROUP
 BY} or @code{ORDER BY} clauses.  You can work around this limitation by
@@ -17111,7 +17107,7 @@ numbers 'wrap' over from positive to negative and also to ensure that one
 doesn't accidently get a auto_increment column that contains 0.
 
 @cindex ODBC compatibility
-@cindex Compatibility, with ODBC
+@cindex compatibility, with ODBC
 To make @strong{MySQL} compatible with some ODBC applications, you can find
 the last inserted row with the following query:
 
@@ -17201,7 +17197,7 @@ table using @code{SHOW INDEX FROM tbl_name}.
 
 @item
 @cindex @code{NULL} values, and indexes
-@cindex Indexes, and @code{NULL} values
+@cindex indexes, and @code{NULL} values
 Only the @code{MyISAM} table type supports indexes on columns that can have
 @code{NULL} values. In other cases you must declare such columns
 @code{NOT NULL} or an error results.
@@ -17214,9 +17210,9 @@ make the index file much smaller.
 
 @item
 @cindex @code{BLOB} columns, indexing
-@cindex Indexes, and @code{BLOB} columns
+@cindex indexes, and @code{BLOB} columns
 @cindex @code{TEXT} columns, indexing
-@cindex Indexes, and @code{TEXT} columns
+@cindex indexes, and @code{TEXT} columns
 Only the @code{MyISAM} table type supports indexing on @code{BLOB} and
 @code{TEXT} columns.  When putting an index on a @code{BLOB} or @code{TEXT}
 column you MUST always specify the length of the index:
@@ -17568,8 +17564,8 @@ records were copied, and (when @code{IGNORE} is used) how many records were
 deleted due to duplication of unique key values.
 
 @item
-@cindex Foreign keys
-@cindex References
+@cindex foreign keys
+@cindex references
 The @code{FOREIGN KEY}, @code{CHECK} and @code{REFERENCES} clauses don't
 actually do anything.  The syntax for them is provided only for compatibility,
 to make it easier to port code from other SQL servers and to run applications
@@ -17975,8 +17971,8 @@ any @code{ORDER BY} clause.
 @itemize @bullet
 
 @item
-@cindex Aliases, on expressions
-@cindex Expression aliases
+@cindex aliases, on expressions
+@cindex expression aliases
 A @code{SELECT} expression may be given an alias using @code{AS}. The alias
 is used as the expression's column name and can be used with
 @code{ORDER BY} or @code{HAVING} clauses.  For example:
@@ -18000,8 +17996,8 @@ for examples of ambiguity that require the more explicit column reference
 forms.
 
 @item
-@cindex Aliases, for tables
-@cindex Table aliases
+@cindex aliases, for tables
+@cindex table aliases
 A table reference may be aliased using @code{tbl_name [AS] alias_name}.
 
 @example
@@ -18208,7 +18204,7 @@ Note that in version before 3.23.16 the @code{INNER JOIN} didn't take
 a join condition!
 
 @cindex ODBC compatibility
-@cindex Compatibility, with ODBC
+@cindex compatibility, with ODBC
 The last @code{LEFT OUTER JOIN} syntax shown above exists only for
 compatibility with ODBC.
 
@@ -19134,7 +19130,7 @@ mysql> SELECT author_name,editor_name FROM author,db2.editor
 @end example
 
 @cindex Sybase compatibility
-@cindex Compatibility, with Sybase
+@cindex compatibility, with Sybase
 The @code{USE} statement is provided for Sybase compatibility.
 
 @cindex @code{mysqladmin}
@@ -19998,15 +19994,15 @@ If you want to get your queries as fast as possible, you should look out for
 
 The different join types are listed below, ordered from best to worst type:
 
-@cindex System table
-@cindex Table, system
+@cindex system table
+@cindex tables, system
 @table @code
 @item system
 The table has only one row (= system table). This is a special case of
 the @code{const} join type.
 
-@cindex Constant table
-@cindex Table, constant
+@cindex constant table
+@cindex tables, constant
 @item const
 The table has at most one matching row, which will be read at the start
 of the query. Because there is only one row, values from the column in
@@ -20220,7 +20216,7 @@ If the column types are different than you expect them to be based on a
 changes column types.  @xref{Silent column changes}.
 
 @cindex Oracle compatibility
-@cindex Compatibility, with Oracle
+@cindex compatibility, with Oracle
 This statement is provided for Oracle compatibility.
 
 The @code{SHOW} statement provides similar information.
@@ -20386,12 +20382,11 @@ Note that the syntax for setting the @code{CHARACTER SET} option differs
 from the syntax for setting the other options.
 
 @item PASSWORD = PASSWORD('some password')
-@cindex Passwords, setting
+@cindex passwords, setting
 Set the password for the current user. Any non-anonymous user can change his
 own password!
 
 @item PASSWORD FOR user = PASSWORD('some password')
-@cindex Passwords, setting
 Set the password for a specific user on the current server host. Only a user
 with access to the @code{mysql} database can do this.  The user should be
 given in @code{user@@hostname} format, where @code{user} and @code{hostname}
@@ -20424,7 +20419,7 @@ that when you change from not @code{AUTOCOMMIT} mode to
 @code{COMMIT} on any open transactions.
 
 @item SQL_BIG_TABLES = 0 | 1
-@cindex The table is full
+@cindex table is full
 If set to @code{1}, all temporary tables are stored on disk rather than in
 memory.  This will be a little slower, but you will not get the error
 @code{The table tbl_name is full} for big @code{SELECT} operations that
@@ -20639,7 +20634,7 @@ deleted with a @code{DELETE} command.  In other words, @code{GRANT} may
 create @code{user} table entries, but @code{REVOKE} will not remove them;
 you must do that explicitly using @code{DELETE}.
 
-@cindex Passwords, setting
+@cindex passwords, setting
 In @strong{MySQL} 3.22.12 or later,
 if a new user is created or if you have global grant privileges, the user's
 password will be set to the password specified by the @code{IDENTIFIED BY}
@@ -20715,9 +20710,9 @@ dropped only with explicit @code{REVOKE} commands or by manipulating the
 @strong{MySQL} grant tables.
 @end itemize
 
-@cindex Indexes
-@cindex Indexes, multi-part
-@cindex Multi-part index
+@cindex indexes
+@cindex indexes, multi-part
+@cindex multi-part index
 @findex CREATE INDEX
 @node CREATE INDEX, DROP INDEX, GRANT, Reference
 @section @code{CREATE INDEX} syntax
@@ -20872,8 +20867,7 @@ C++, your operating system must support dynamic loading and you must have
 compiled @code{mysqld} dynamically (not statically).
 
 @cindex keywords
-@cindex reserved words
-@cindex Reserved words, exceptions
+@cindex reserved words, exceptions
 @node Reserved words,  , CREATE FUNCTION, Reference
 @section Is MySQL picky about reserved words?
 
@@ -20984,7 +20978,7 @@ used them.
 @item @code{TIMESTAMP}
 @end itemize
 
-@cindex table types, Choosing
+@cindex table types, choosing
 @cindex BDB table type
 @cindex Berkeley_db table type
 @cindex ISAM table type
@@ -22932,7 +22926,7 @@ mysql> SELECT name, species, birth FROM pet
 @cindex rows, sorting
 @cindex sorting, table rows
 @cindex sorting, data
-@cindex tabls, sorting rows
+@cindex tables, sorting rows
 @node Sorting rows, Date calculations, Selecting columns, Retrieving data
 @subsubsection Sorting rows
 
@@ -24024,7 +24018,7 @@ group by
 
 @cindex error messages, languages
 @cindex messages, languages
-@cindex files, erroe messages
+@cindex files, error messages
 @cindex language support
 @node Languages, Table size, Server, Server
 @section What languages are supported by MySQL?
@@ -24277,7 +24271,7 @@ the size in bytes of the largest character in the set.
 
 @cindex tables, maximum size
 @cindex size of tables
-@cindex oerating systems, file size limits
+@cindex operating systems, file size limits
 @cindex limits, file size
 @cindex files, size limits
 @node Table size,  , Languages, Server
@@ -24622,7 +24616,7 @@ to the binary log
 @end multitable
 
 @cindex SQL commands, replication
-@cindex commans, replication
+@cindex commands, replication
 @cindex replication, commands
 @node Replication SQL, Replication FAQ, Replication Options, Replication
 @section SQL commands related to replication
@@ -25439,7 +25433,7 @@ variable @code{opened_tables}.  If this is quite big, even if you
 haven't done alot of @code{FLUSH TABLES}, you should increase your table
 cache. @xref{SHOW STATUS}.
 
-@cindex tabls, too many
+@cindex tables, too many
 @node Creating many tables, Open tables, Table cache, System
 @subsection Drawbacks of creating large numbers of tables in the same database
 
@@ -25793,7 +25787,7 @@ format table and it is possible to use a smaller static format table that
 can be used to find the relevant rows when scanning the table.
 @end itemize
 
-@cindexindexes, uses for
+@cindex indexes, uses for
 @node MySQL indexes, Query Speed, Data size, Performance
 @section How @strong{MySQL} uses indexes
 
@@ -25871,8 +25865,8 @@ indexes exist on @code{col1} and @code{col2}, the optimizer tries to
 find the most restrictive index by deciding which index will find fewer
 rows and using that index to fetch the rows.
 
-@cindex Indexes, leftmost prefix of
-@cindex Leftmost prefix of indexes
+@cindex indexes, leftmost prefix of
+@cindex leftmost prefix of indexes
 If the table has a multiple-column index, any leftmost prefix of the
 index can be used by the optimizer to find rows. For example, if you
 have a three-column index on @code{(col1,col2,col3)}, you have indexed
@@ -25896,8 +25890,8 @@ leftmost prefixes of @code{(col1,col2,col3)}.
 
 @findex LIKE, and indexes
 @findex LIKE, and wildcards
-@cindex Indexes, and @code{LIKE}
-@cindex Wildcards, and @code{LIKE}
+@cindex indexes, and @code{LIKE}
+@cindex wildcards, and @code{LIKE}
 @strong{MySQL} also uses indexes for @code{LIKE} comparisons if the argument
 to @code{LIKE} is a constant string that doesn't start with a wildcard
 character.  For example, the following @code{SELECT} statements use indexes:
@@ -25921,7 +25915,7 @@ In the first statement, the @code{LIKE} value begins with a wildcard character.
 In the second statement, the @code{LIKE} value is not a constant.
 
 @findex IS NULL, and indexes
-@cindex Indexes, and @code{IS NULL}
+@cindex indexes, and @code{IS NULL}
 Searching using @code{column_name IS NULL} will use indexes if column_name
 is an index.
 
@@ -26128,8 +26122,8 @@ or group functions (@code{COUNT()}, @code{MIN()}...)
 For each sub-join, a simpler @code{WHERE} is constructed to get a fast
 @code{WHERE} evaluation for each sub-join and also to skip records as
 soon as possible.
-@cindex Constant table
-@cindex Table, constant
+@cindex constant table
+@cindex tables, constant
 @item
 All constant tables are read first, before any other tables in the query.
 A constant table is:
@@ -26965,8 +26959,8 @@ Use of @code{MYSQL_PWD} is insecure.
 @tindex Environment variable, MYSQL_HISTFILE
 @tindex HOME environment variable
 @tindex Environment variable, HOME
-@cindex History file
-@cindex Command line history
+@cindex history file
+@cindex command line history
 @tindex .mysql_history file
 The @file{mysql} client uses the file named in the @code{MYSQL_HISTFILE}
 environment variable to save the command line history. The default value for
@@ -27092,63 +27086,88 @@ Using @code{mysql} is very easy;  Just start it as follows
 @code{mysql database} or @code{mysql --user=user_name --password=your_password database}. Type a SQL statement, end it with @samp{;}, @samp{\g} or @samp{\G}
 and press return/enter.
 
+@cindex command line, options
+@cindex options, command line
+@cindex startup parameters
 @code{mysql} supports the following options:
 
 @table @code
+@cindex help option
 @item -?, --help
 Display this help and exit
+@cindex automatic rehash option
 @item -A, --no-auto-rehash
 No automatic rehashing. One has to use 'rehash' to get table and field
 completion. This gives a quicker start of mysql.
+@cindex batch option
 @item -B, --batch
 Print results with a tab as separator, each row on a new line. Doesn't use
 history file.
+@cindex character sets option
 @item
 --character-sets-dir=...
 Directory where character sets are located.
+@cindex compress option.
 @item -C, --compress
 Use compression in server/client protocol.
+@cindex debug option
 @item -#, --debug[=...]
 Debug log. Default is 'd:t:o,/tmp/mysql.trace'
+@cindex database option
 @item -D, --database=..
 Database to use;  This is mainly useful in the @code{my.cnf} file.
+@cindex defualt character set option
 @item
 --default-character-set=...    Set the default character set.
+@cindex execute option
 @item -e, --execute=...
 Execute command and quit. (Output like with --batch)
+@cindex vertcial option
 @item -E, --vertical
 Print the output of a query (rows) vertically. Without this option you
 can also force this output by ending your statements with @code{\G}.
+@cindex force option
 @item -f, --force
 Continue even if we get an SQL error.
+@cindex no-named-commands option
 @item -g, --no-named-commands
 Named commands are disabled. Use \* form only, or use named commands
 only in the beginning of a line ending with a semicolon (;) Since
 version 10.9 the client now starts with this option ENABLED by default!
 With the -g option, long format commands will still work from the first 
 line, however.
+@cindex enable-named-commands option
 @item -G, --enable-named-commands
 Named commands are @strong{enabled}.  Long format commands are allowed as
 well as shortened \* commands.
+@cindex ignore space option.
 @item -i, --ignore-space
 Ignore space after function names.
+@cindex host option
 @item -h, --host=...
 Connect to the given host.
+@cindex html option
 @item -H, --html
 Produce HTML output.
+@cindex skip line numbers option
 @item -L, --skip-line-numbers
 Don't write line number for errors. Useful when one want's to compare result
-files that includes error messages.
+files that includes error messages
+@cindex unbuffered option.
 @item -n, --unbuffered
 Flush buffer after each query.
+@cindex skip column names option
 @item -N, --skip-column-names
 Don't write column names in results.
+@cindex set variable option
 @item -O, --set-variable var=option
 Give a variable a value. @code{--help} lists variables.
+@cindex one database option
 @item -o, --one-database
 Only update the default database. This is useful for skipping updates to
 other database in the update log.
 @item
+@cindex password option
 @item -p[password], --password[=...]
 Password to use when connecting to server. If password is not given on
 the command line, you will be prompted for it.  Note that if you use the
@@ -27156,29 +27175,38 @@ short form @code{-p} you can't have a space between the option and the
 password.
 @item -P  --port=...
 TCP/IP port number to use for connection.
+@cindex quick option
 @item -q, --quick
 Don't cache result, print it row-by-row. This may slow down the server
 if the output is suspended. Doesn't use history file.
+@cindex raw option
 @item -r, --raw
 Write column values without escape conversion. Used with @code{--batch}
+@cindex silent option
 @item -s, --silent
 Be more silent.
 @item -S  --socket=...
 Socket file to use for connection.
+@cindex table option
 @item -t  --table
 Output in table format. This is default in non-batch mode.
 @item -T, --debug-info
 Print some debug info at exit.
+@cindex user option
 @item -u, --user=#
 User for login if not current user.
+@cindex safe updates option
 @item -U, --safe-updates[=#], --i-am-a-dummy[=#]
 Only allow @code{UPDATE} and @code{DELETE} that uses keys. See below for
 more information about this option.  You can reset this option if you have
 it in your @code{my.cnf} file by using @code{--safe-updates=0}.
+@cindex verbose option
 @item -v, --verbose
 More verbose output (-v -v -v gives the table output format).
+@cindex version option
 @item -V, --version
 Output version information and exit.
+@cindex wait option
 @item -w, --wait
 Wait and retry if connection is down instead of aborting.
 @end table
@@ -27186,6 +27214,7 @@ Wait and retry if connection is down instead of aborting.
 If you type 'help' on the command line, @code{mysql} will print out the
 commands that it supports:
 
+@cindex commands, list of
 @example
 mysql> help
 
@@ -27206,11 +27235,13 @@ status  (\s)    Get status information from the server
 use     (\u)    Use another database. Takes database name as argument
 @end example
 
+@cindex status command
 The @code{status} command gives you some information about the
 connection and the server you are using. If you are running in the
 @code{--safe-updates} mode, @code{status} will also print the values for
 the @code{mysql} variables that affects your queries.
 
+@cindex safe-mode command
 A useful startup option for beginners (introduced in @strong{MySQL} 3.23.11) is
 @code{--safe-mode} (or @code{--i-am-a-dummy} for users that has at some
 time done a @code{DELETE FROM table_name} but forgot the @code{WHERE}
@@ -27242,6 +27273,9 @@ All big results are automatically limited to @code{#select_limit#} rows.
 @code{#max_join_size} row combinations will be aborted.
 @end itemize
 
+@cindex administration, server
+@cindex server, administration
+@cindex mysladmn
 @node mysqladmin, mysqldump, mysql, Tools
 @section Administering a MySQL server
 
@@ -27290,17 +27324,28 @@ shell> mysqladmin proc stat
 Uptime: 10077  Threads: 1  Questions: 9  Slow queries: 0  Opens: 6  Flush tables: 1  Open tables: 2  Memory in use: 1092K  Max memory used: 1116K
 @end example
 
+@cindex status command, results
 The @code{mysqladmin status} command result has the following columns:
 
 @multitable @columnfractions .3 .7
+@cindex uptime
 @item Uptime @tab Number of seconds the @strong{MySQL} server has been up.
+@cindex threads
 @item Threads @tab Number of active threads (clients).
+@cindex questions
 @item Questions @tab Number of questions from clients since @code{mysqld} was started.
+@cindex slow queries
 @item Slow queries @tab Queries that have taken more than @code{long_query_time} seconds. @xref{Slow query log}.
+@cindex opens
 @item Opens @tab How many tables @code{mysqld} has opened.
+@cindex flush tables
+@cindex tables, flush
 @item Flush tables @tab Number of @code{flush ...}, @code{refresh} and @code{reload} commands.
+@cindex open tables
 @item Open tables @tab Number of tables that are open now.
+@cindex memory in use
 @item Memory in use @tab Memory allocated directly by the mysqld code (only available when @strong{MySQL} is compiled with --with-debug).
+@cindex max memoory used
 @item Max memory used @tab Maximum memory allocated directly by the mysqld code (only available when @strong{MySQL} is compiled with --with-debug).
 @end multitable
 
@@ -27308,10 +27353,14 @@ If you do @code{myslqadmin shutdown} on a socket (in other words, on a
 the computer where @code{mysqld} is running), @code{mysqladmin} will
 wait until the @strong{MySQL} @code{pid-file} is removed to ensure that
 the @code{mysqld} server has stopped properly.
-
+@cindex dumping, databases
+@cindex databases, dumping
+@cindex tables, dumping
+@cindex backing up, databases
 @node mysqldump, mysqlimport, mysqladmin, Tools
 @section Dumping the structure and data from MySQL databases and tables
 
+@cindex mysqldump
 Utility to dump a database or a collection of database for backup or
 for transferring the data to another SQL server.  The dump will contain SQL
 statements to create the table and/or populate the table.
@@ -27487,6 +27536,11 @@ If all the databases are wanted, one can use:
 mysqldump --all-databases > all_databases.sql
 @end example
 
+@cindex importing, data
+@cindex data, importing
+@cindex files, text
+@cindex text files, importing
+@cindex mysqlimport
 @node mysqlimport, mysqlshow, mysqldump, Tools
 @section Importing data from text files
 
@@ -27624,6 +27678,11 @@ $ mysql -e 'SELECT * FROM imptest' test
 +------+---------------+
 @end example
 
+@cindex databases, displaying
+@cindex displaying, database information
+@cindex tables, displaying
+@cindex columns, displaying
+@cindex showing, database information
 @node mysqlshow, myisampack, mysqlimport, Tools
 @section Showing databases, tables and columns
 
@@ -27660,6 +27719,9 @@ the table names that matches the pattern.  This is easily fixed by
 adding an extra @code{%} last on the command line (as a separate
 argument).
 
+@cindex compressed tables
+@cindex tables, compressed
+@cindex MyISAM, compressed tables
 @cindex @code{myisampack}
 @cindex @code{pack_isam}
 @node myisampack,  , mysqlshow, Tools
@@ -27759,6 +27821,7 @@ invoke @code{myisampack} if the table might be updated during the
 packing process.
 @end table
 
+@cindex examples, compressed tables
 The sequence of commands shown below illustrates a typical table compression
 session:
 
@@ -28035,6 +28098,13 @@ After you have installed the packed table into the @strong{MySQL} database
 directory you should do @code{mysqladmin flush-tables} to force @code{mysqld}
 to start using the new table.
 
+@cindex installation, maintenance
+@cindex maintaining, tables
+@cindex tables, maintaining
+@cindex databases, maintaining
+@cindex mysiamchk
+@cindex crash, recovery
+@cindex recovery, from crash
 @node Maintenance, Adding functions, Tools, Top
 @chapter Maintaining a MySQL installation
 
@@ -28136,6 +28206,8 @@ shell> myisamchk /path/to/datadir/*/*.MYI
 * myisamchk other options::     
 @end menu
 
+@cindex options, myisamchk
+@cindex myisamck, options
 @node myisamchk general options, myisamchk check options, myisamchk syntax, myisamchk syntax
 @subsubsection General options for myisamchk
 
@@ -28181,6 +28253,8 @@ on the table with @code{--skip-locking}, the table is can only be locked
 by another @code{myisamchk} command.
 @end table
 
+@cindex check options, myisamchk
+@cindex tables, checking
 @node myisamchk check options, myisamchk repair options, myisamchk general options, myisamchk syntax
 @subsubsection Check options for myisamchk
 
@@ -28222,6 +28296,8 @@ to check a table that is in use by some other application that doesn't
 use locking (like @code{mysqld --skip-locking})
 @end table
 
+@cindex repair options, myisamchk
+@cindex files, repairing
 @node myisamchk repair options, myisamchk other options, myisamchk check options, myisamchk syntax
 @subsubsection Repair options for myisamchk
 
@@ -28310,6 +28386,7 @@ table's indexes in the same order that @code{myisamchk} sees them.  Indexes are
 numbered beginning with 1.
 @end table
 
+@cindex memory usage, myisamchk
 @node myisamchk memory,  , myisamchk syntax, Table maintenance
 @subsection @code{myisamchk} memory usage
 
@@ -28358,6 +28435,8 @@ This space is allocated on the temporary disk (specified by @code{TMPDIR} or
 If you have a problem with disk space during repair, you can try to use
 @code{--safe-repair} instead of @code{--repair}.
 
+@cindex maintaining, tables
+@cindex tables, maintenance regimen
 @node Maintenance regimen, Table-info, Table maintenance, Maintenance
 @section Setting up a table maintenance regimen
 
@@ -28406,6 +28485,7 @@ We recommend that to start with, you execute @code{myisamchk -s} each
 night on all tables that have been updated during the last 24 hours,
 until you come to trust @strong{MySQL} as much as we do.
 
+@cindex tables, information
 @node Table-info, Crash recovery, Maintenance regimen, Maintenance
 @section Getting information about a table
 
@@ -28432,6 +28512,8 @@ must read the whole table.
 This is like @code{-eis}, but tells you what is being done.
 @end table
 
+@cindex examples, myisamchk output
+@cindex myisamchk, example output
 Example of @code{myisamchk -d} output:
 @example
 MyISAM file:     company.MYI
@@ -28741,6 +28823,8 @@ If a table has been compressed with @code{myisampack}, @code{myisamchk
 @ref{myisampack, , @code{myisampack}}, for an example of this
 information and a description of what it means.
 
+@cindex crash, recovery
+@cindex recovery, from crash
 @node Crash recovery, Log files, Table-info, Maintenance
 @section Using @code{myisamchk} for crash recovery
 
@@ -28819,7 +28903,9 @@ case you should at least make a backup before running @code{myisamchk}.
 * Optimization::                Table optimization
 @end menu
 
-@cindex Checking tables for errors
+@cindex checking, tables for errors
+@cindex tables, error checking
+@cindex errors, checking tables for
 @node Check, Repair, Crash recovery, Crash recovery
 @subsection How to check tables for errors
 
@@ -28853,6 +28939,8 @@ Like the previous command, but the @code{-i} option tells @code{myisamchk} to
 print some informational statistics, too.
 @end table
 
+@cindex tables, repairing
+@cindex repairing, tables
 @node Repair, Optimization, Check, Crash recovery
 @subsection How to repair tables
 
@@ -29004,6 +29092,8 @@ the data file alone.  Go back to Stage 2 and attempt to reconstruct
 the index file.
 @end enumerate
 
+@cindex tables, optimizing
+@cindex optimizing, tables
 @node Optimization,  , Repair, Crash recovery
 @subsection Table optimization
 
@@ -29032,6 +29122,9 @@ the performance of a table:
 
 For a full description of the option see @xref{myisamchk syntax}.
 
+@cindex files, log
+@cindex maintaining, log files
+@cindex log files, maintaining
 @node Log files,  , Crash recovery, Maintenance
 @section Log file maintenance
 
@@ -29075,6 +29168,11 @@ shell> mysqladmin flush-logs
 
 and then take a backup and remove @file{mysql.old}.
 
+@cindex functions, new
+@cindex adding, new functions
+@cindex user-defined functions, adding
+@cindex UDFs, defined
+@cindex functions, user-defined
 @node Adding functions, Adding procedures, Maintenance, Top
 @chapter Adding new functions to MySQL
 
@@ -29115,9 +29213,9 @@ native functions such as @code{ABS()} or @code{SOUNDEX()}.
 * Adding native function::      Adding a new native function
 @end menu
 
-@cindex Adding user-definable functions
-@cindex User-definable functions, adding
-@cindex Functions, user-definable, adding
+@cindex adding user-definable functions
+@cindex user-definable functions, adding
+@cindex functions, user-definable, adding
 @node Adding UDF, Adding native function, Adding functions, Adding functions
 @section Adding a new user-definable function
 
@@ -29195,6 +29293,7 @@ that you are not allowed to allocate any global or static variables that
 change!  If you need memory, you should allocate it in @code{xxx_init()}
 and free it in @code{xxx_deinit()}.
 
+@cindex calling sequences, UDF
 @node UDF calling sequences, UDF arguments, Adding UDF, Adding UDF
 @subsection UDF calling sequences
 
@@ -29276,6 +29375,8 @@ In @code{xxx()} and @code{xxx_deinit()}, refer to @code{initid->ptr} to use
 or deallocate the memory.
 @end table
 
+@cindex argument processing
+@cindex processing, arguments
 @node UDF arguments, UDF return values, UDF calling sequences, Adding UDF
 @subsection Argument processing
 
@@ -29378,6 +29479,10 @@ types @code{INT_RESULT} or @code{REAL_RESULT}, @code{lengths} still contains
 the maximum length of the argument (as for the initialization function).
 @end table
 
+@cindex UDFs, return values
+@cindex return values, UDFs
+@cindex errors, handling for UDFs
+@cindex handling, errors
 @node UDF return values, UDF compiling, UDF arguments, Adding UDF
 @subsection Return values and error handling
 
@@ -29428,6 +29533,9 @@ and @code{*is_null}:
 *is_null = 1;
 @end example
 
+@cindex compiling, user-defined functions
+@cindex UDFs, compiling
+@cindex installing, user-defined functions
 @node UDF compiling,  , UDF return values, Adding UDF
 @subsection Compiling and installing user-definable functions
 
@@ -29524,9 +29632,9 @@ initialization is skipped and UDFs are unavailable.  (An active function is
 one that has been loaded with @code{CREATE FUNCTION} and not removed with
 @code{DROP FUNCTION}.)
 
-@cindex Adding native functions
-@cindex Native functions, adding
-@cindex Functions, native, adding
+@cindex adding, native functions
+@cindex native functions, adding
+@cindex functions, native, adding
 @node Adding native function,  , Adding UDF, Adding functions
 @section Adding a new native function
 
@@ -29589,6 +29697,9 @@ All current string functions try to avoid allocating any memory unless
 absolutely necessary!
 @end itemize
 
+@cindex procedures, adding
+@cindex adding, procedures
+@cindex new procedures, adding
 @node Adding procedures, ODBC, Adding functions, Top
 @chapter Adding new procedures to MySQL
 
@@ -29734,6 +29845,7 @@ Notice that there are other configuration options in the screen of
 @strong{MySQL} (trace, don't prompt on connect, etc) that you can try if
 you run into problems.
 
+@cindex ODBC, administrator
 @node ODBC administrator, ODBC Problems, Which ODBC OS, ODBC
 @section How to fill in the various fields in the ODBC administrator program
 
@@ -29828,6 +29940,7 @@ some user that it works:
 @table @asis
 @item @strong{Program}
 @strong{Comment}
+@cindex Access program
 @item Access
 To make Access work:
 @itemize @bullet
@@ -29879,6 +29992,7 @@ In some cases, Access may generate illegal SQL queries that
 @code{"Query|SQLSpecific|Pass-Through"} from the Access menu.
 @end itemize
 
+@cindex ADO program
 @item ADO
 When you access @strong{MyODBC} through ADO, @strong{MyODBC} doesn't
 return a result for @code{SQLRowCount} for a query.  We have tried to
@@ -29889,6 +30003,7 @@ manager.  Because of this we can only assume this is a bug in ADO.
 The only known workaround is to use a @code{SELECT COUNT(*)} statement
 for a similar query to get the correct row count.
 
+@cindex Borland Buidler 4 program
 @item Borland Builder 4
 When you start a query you can use the property @code{Active} or use the
 method @code{Open}.  Note that @code{Active} will start by automatically issue
@@ -29904,15 +30019,18 @@ works with @strong{MySQL} version 3.22.27 and ColdFusion for Linux. (Any
 newer version should also work). You can download @strong{MyODBC} at
 @uref{http://www.mysql.com/downloads/api-myodbc.html}
 
+@cindex ColdFusion program
 ColdFusion 4.5.1 allows you to us the ColdFusion Administrator to add
 the @strong{MySQL} data source. However, the driver is not included with
 ColdFusion 4.5.1. Before the @strong{MySQL} driver will appear in the ODBC
 datasources drop-down list, you must build and copy the @strong{MyODBC} driver
 to @file{/opt/coldfusion/lib/libmyodbc.so}.
 
+@cindex DataJunction
 @item DataJunction
 You have to change it to output @code{VARCHAR} rather than @code{ENUM}, as
 it exports the latter in a manner that causes @strong{MySQL} grief.
+@cindex Excel
 @item Excel
 Works. Some tips:
 @itemize @bullet
@@ -29935,6 +30053,7 @@ string to a time. This would be great if the source was a text file, but
 is plain stupid when the source is an ODBC connection that reports
 exact types for each column.
 @end itemize
+@cindex Word program
 @item Word
 
 To retrieve data from @strong{MySQL}to Word/Excel documents, you need to
@@ -29977,8 +30096,10 @@ Click Insert data and select the records.
 Click OK and you see the rows in your Word document.
 @end itemize 
 
+@cindex odbcadmin program
 @item odbcadmin
 Test program for ODBC.
+@cindex Delphi program
 @item Delphi
 You must use DBE 3.2 or newer.  Set the `Don't optimize column width'
 option field when connecting to @strong{MySQL}.
@@ -30025,11 +30146,13 @@ fReg:= TRegistry.Create;
   AliasEditor.Add('DocumentsFab','MySQL',Memo1.Lines);
 @end example
 
+@cindex C++Builder
 @item C++Builder
 Tested with BDE 3.0. The only known problem is that when the table
 schema changes, query fields are not updated. BDE however does not seem
 to recognize primary keys, only the index PRIMARY, though this has not
 been a problem.
+@cindex Visual Basic
 @item Visual Basic
 To be able to update a table, you must define a primary key for the table.
 
@@ -30039,6 +30162,7 @@ add the option @code{OPTION=16834} in the ODBC connect string or set
 the @code{Change BIGINT columns to INT} option in the MyODBC connect screen.
 @end table
 
+@cindex AUTO-INCREMENT, ODBC
 @node ODBC and last_insert_id, MyODBC bug report, MyODBC clients, ODBC
 @section How to get the value of an @code{AUTO_INCREMENT} column in ODBC
 
@@ -30064,6 +30188,9 @@ the following query can be used to find a newly-inserted row:
 SELECT * FROM tbl_name WHERE auto IS NULL;
 @end example
 
+@cindex reporting, MyODBC problems
+@cindex problems, ODBC
+@cindex MyODBC, reporting problems
 @node MyODBC bug report,  , ODBC and last_insert_id, ODBC
 @section Reporting problems with MyODBC
 
@@ -30109,6 +30236,7 @@ likely it is that we can fix the problem!
 * Apache::                      Using @strong{MySQL} with Apache
 @end menu
 
+@cindex Apache
 @node Apache,  , Common programs, Common programs
 @section Using MySQL with Apache
 
@@ -30132,6 +30260,8 @@ LOAD DATA INFILE '/local/access_log' INTO TABLE table_name
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 @end example
 
+@cindex problems, common errors
+@cindex errors, common
 @node Problems, Common problems, Common programs, Top
 @chapter Problems and common errors
 
@@ -30257,6 +30387,7 @@ Does the client jam?  Do you get any output from the program?
 When send a bug report, you should of course follow the outlines
 described in this manual. @xref{Asking questions}.
 
+@cindex crash, repeated
 @node Crashing, Link errors, What is crashing, Problems
 @section What to do if MySQL keeps crashing
 
@@ -30473,6 +30604,9 @@ years without any problems, but by nature dynamic length rows are more
 prone to errors, so it may be a good idea to try the above to see if it helps!
 @end itemize
 
+@cindex linking, errors
+@cindex erros, linking
+@cindex problems, linking
 @node Link errors, Common errors, Crashing, Problems
 @section Problems when linking with the MySQL client library
 
@@ -30537,6 +30671,7 @@ Another way to solve this problem is to link your program staticly, with
 before linking your code. In the second case you should of course be
 sure that no other programs is using the dynamic libraries!
 
+@cindex errors, list of
 @node Common errors, Full disk, Link errors, Problems
 @section Some common errors when using MySQL
 
@@ -30798,7 +30933,8 @@ expecting to store the full length of a @code{BLOB} into a table, you'll need
 to start the server with the @code{--set-variable=max_allowed_packet=24M}
 option.
 
-@cindex Aborted connection
+@cindex aborted connection
+@cindex connection, aborted
 @node Communication errors, Full table, Packet too large, Common errors
 @subsection Communication errors / Aborted connection
 
@@ -30830,7 +30966,7 @@ Faulty Ethernets or hubs or switches, cables .. This can be diagnosed
 properly only by replacing hardware
 @end itemize
 
-@cindex The table is full
+@cindex table is full
 @node Full table, Cannot create, Communication errors, Common errors
 @subsection @code{The table is full} error
 
@@ -30848,7 +30984,7 @@ In @strong{MySQL} 3.23 in-memory temporary tables will automaticly be
 converted to a disk based @code{MyISAM} table after the table size gets
 bigger than @code{tmp_table_size}.
 
-@cindex Can't create/write to file
+@cindex can't create/write to file
 @node Cannot create, Commands out of sync, Full table, Common errors
 @subsection @code{Can't create/write to file} error.
 
@@ -30871,7 +31007,7 @@ tmpdir=C:/temp
 
 assuming that the @file{c:\\temp} directory exists. @xref{Option files}.
 
-@cindex Commands out of sync
+@cindex commands out of sync
 @node Commands out of sync, Ignoring user, Cannot create, Common errors
 @subsection @code{Commands out of sync} error in client
 
@@ -30939,8 +31075,8 @@ references to a given table within a query must use the same case!)
 You can check which tables you have in the current database with
 @code{SHOW TABLES}. @xref{SHOW, , @code{SHOW}}.
 
-@cindex Full disk
-@cindex Disk full
+@cindex full disk
+@cindex disk full
 @node Full disk, Multiple sql commands, Common errors, Problems
 @section How MySQL handles a full disk
 
@@ -31037,6 +31173,8 @@ tables. These are not hidden and have names of the form @file{SQL_*}.
 @code{ALTER TABLE} creates a temporary table in the same directory as
 the original table.
 
+@cindex mysql.sock, protection
+@cindex deletion, mysql.sock
 @node  Problems with mysql.sock, Error Access denied, Temporary files, Problems
 @section How to protect @file{/tmp/mysql.sock} from being deleted
 
@@ -31063,6 +31201,8 @@ If the last permission bit is @code{t}, the bit is set.
 
 @xref{Privileges}. And especially see @ref{Access denied}.
 
+@cindex starting, mysqld
+@cindex mysqld, starting
 @node Changing MySQL user, Resetting permissions, Error Access denied, Problems
 @section How to run MySQL as a normal user
 
@@ -31127,6 +31267,9 @@ password on the @strong{MySQL} @code{root} users in the access tables.
 Otherwise, any user with an account on that machine can run @code{mysql -u
 root db_name} and do whatever he likes.
 
+@cindex passwords, forgotten
+@cindex passowrds, resetting
+@cindex root user, password resetting
 @node Resetting permissions, File permissions , Changing MySQL user, Problems
 @section How to reset a forgotten password.
 
@@ -31158,6 +31301,9 @@ Load the privilege tables with: @code{mysqladmin -h hostname
 flush-privileges} or with the SQL command @code{FLUSH PRIVILEGES}.
 @end enumerate
 
+@cindex files, permissions
+@cindex error mesaages, can't find file
+@cindex files, not found message
 @node File permissions , Not enough file handles, Resetting permissions, Problems
 @section Problems with file permissions
 
@@ -31245,6 +31391,9 @@ Note that if you run the @code{tcsh} shell, @code{ulimit} will not work!
 @code{tcsh} will also report incorrect values when you ask for the current
 limits!  In this case you should start @code{safe_mysqld} with @code{sh}!
 
+@findex DATE
+@cindex DATE columns, problems
+@cindex problems, DATE columns 
 @node Using DATE, Timezone problems, Not enough file handles, Problems
 @section Problems using @code{DATE} columns
 
@@ -31308,7 +31457,8 @@ value, a @code{0} is stored in the @code{DATE} field.  This is mainly a speed
 issue and we think it is up to the application to check the dates, and not
 the server.
 
-@cindex Timezone problems
+@cindex timezone problems
+@cindex problems, timezone
 @tindex TZ environment variable
 @tindex Environment variable, TZ
 @node Timezone problems, Case sensitivity, Using DATE, Problems
@@ -31320,7 +31470,8 @@ your current timezone.  This should be done for the environment in which
 the server runs, for example in @code{safe_mysqld} or @code{mysql.server}.
 @xref{Environment variables}.
 
-@cindex Case sensitivity, in searches
+@cindex case sensitivity, in searches
+@cindex searching, and case-sensitivity
 @cindex Chinese
 @cindex Big5 Chinese character encoding
 @node Case sensitivity, Problems with NULL, Timezone problems, Problems
@@ -31350,7 +31501,7 @@ If you are using Chinese data in the so-called big5 encoding, you want to
 make all character columns @code{BINARY}. This works because the sorting
 order of big5 encoding characters is based on the order of ASCII codes.
 
-@cindex @code{NULL} values vs. empty values
+@cindex @code{NULL} values, vs. empty values
 @tindex NULL
 @node Problems with NULL, Problems with alias, Case sensitivity, Problems
 @section Problems with @code{NULL} values
@@ -31453,6 +31604,9 @@ The @code{WHERE} statement is executed to determine which rows should
 be included in the @code{GROUP BY} part while @code{HAVING} is used to
 decide which rows from the result set should be used.
 
+@cindex deleting, rows
+@cindex rows, deleting
+@cindex tables, deleting rows
 @node Deleting from related tables, No matching rows, Problems with alias, Problems
 @section Deleting rows from related tables
 
@@ -31478,6 +31632,8 @@ id's per query if the @code{related_column} is an index.  If the
 @code{related_column} isn't an index, the speed is independent of the
 number of arguments in the @code{IN} clause.
 
+@cindex no matching rows
+@cindex rows, matching problems
 @node No matching rows, ALTER TABLE problems, Deleting from related tables, Problems
 @section Solving problems with no matching rows
 
@@ -31530,6 +31686,7 @@ shell> mysql test2 < query.sql
 Post the test file using @code{mysqlbug} to @email{mysql@@lists.mysql.com}.
 @end enumerate
 
+@tindex ALTER TABLE
 @node ALTER TABLE problems, Change column order, No matching rows, Problems
 @section Problems with @code{ALTER TABLE}.
 
@@ -31560,6 +31717,10 @@ undo the changes.  If something goes seriously wrong (this shouldn't happen,
 of course), @strong{MySQL} may leave the old table as @file{B-xxx} but a
 simple rename should get your data back.
 
+@cindex reordering, columns
+@cindex columns, changing
+@cindex changing, column order
+@cindex tables, changing column order
 @node Change column order,  , ALTER TABLE problems, Problems
 @section How to change the order of columns in a table
 
@@ -31598,10 +31759,13 @@ Drop or rename @code{old_table}
 @code{ALTER TABLE new_table RENAME old_table}
 @end enumerate
 
+@cindex problems, solving
+@cindex solving, problems
+@cindex databases, replicating
 @node Common problems, Clients, Problems, Top
 @chapter Solving some common problems with MySQL
 
-@cindex Replication
+@cindex replication
 @menu
 * Log Replication::             Database replication with  update log
 * Backup::                      Database backups
@@ -31611,8 +31775,8 @@ Drop or rename @code{old_table}
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 @end menu
 
-@cindex Database replication
-@cindex Replication, database
+@cindex database replication
+@cindex replication, database
 @node Log Replication, Backup, Common problems, Common problems
 @section Database replication with update log
 
@@ -31653,7 +31817,8 @@ not return the same value as in the original database:
 All time functions are safe to use, as the timestamp is sent to the
 mirror if needed. @code{LAST_INSERT_ID()} is also safe to use.
 
-@cindex Backups
+@cindex databases, backups
+@cindex backups
 @node Backup, Update log, Log Replication, Common problems
 @section Database backups
 
@@ -31680,7 +31845,7 @@ You can also simply copy all table files (@file{*.frm}, @file{*.MYD} and
 The script @code{mysqlhotcopy} does use this method.
 
 @item
-@cindex Log file, names
+@cindex log file, names
 Stop @code{mysqld} if it's running, then start it with the
 @code{--log-update[=file_name]} option.  @xref{Update log}. The update
 log file(s) provide you with the information you need to replicate
@@ -31713,7 +31878,8 @@ FROM tbl_name} and restore with @code{LOAD DATA INFILE 'file_name' REPLACE
 to be replaced with new ones when a new record duplicates an old record on
 a unique key value.
 
-@cindex Update log
+@cindex update log
+@cindex files, update log
 @node Update log, Binary log, Backup, Common problems
 @section The update log
 
@@ -31768,7 +31934,8 @@ This can be useful if you have to revert to backup files after a crash
 and you want to redo the updates that occurred between the time of the backup
 and the crash.
 
-@cindex Binary log
+@cindex binary log
+@cindex files, binary log
 @node Binary log, Slow query log, Update log, Common problems
 @section The binary log 
 
@@ -31818,7 +31985,8 @@ direct from a remote mysql server!
 @code{mysqlbinlog --help} will give you more information of how to use
 this program!
 
-@cindex Slow query log
+@cindex slow query log
+@cindex files, slow query log
 @node Slow query log, Multiple servers, Binary log, Common problems
 @section The slow query log
 
@@ -31832,15 +32000,17 @@ the file is written in the data directory.
 The slow query log can be used to find queries that takes a long time to
 execute and are thus candidates for optimization.
 
-@cindex Database replication
-@cindex Replication, database
-@cindex Database mirroring
-@cindex Mirroring, database
+@cindex database replication
+@cindex replication, database
+@cindex database mirroring
+@cindex mirroring, database
 You can also use the update logs when you have a mirrored database on
 another host and you want to replicate the changes that have been made
 to the master database. @xref{Log Replication}.
 
-@cindex Multiple servers
+@cindex multiple servers
+@cindex servers, multiple
+@cindex running, multiple servers
 @node Multiple servers,  , Slow query log, Common problems
 @section Running multiple MySQL servers on the same machine
 
@@ -31943,6 +32113,11 @@ Specify the default socket and TCP/IP port in the @file{.my.cnf} file in your
 home directory. @xref{Option files}.
 @end itemize
 
+@cindex client tools
+@cindex APIs
+@cindex mysqlclient library
+@cindex buffer size, client
+@cindex library, mysqlclient
 @node Clients, Comparisons, Common problems, Top
 @chapter MySQL client tools and APIs
 
@@ -31960,6 +32135,8 @@ home directory. @xref{Option files}.
 * Tcl::                         @strong{MySQL} Tcl APIs
 @end menu
 
+@cindex C API, datatypes
+@cindex datatypes, C API
 @node C, C API datatypes, Clients, Clients
 @section MySQL C API
 
@@ -32164,6 +32341,8 @@ status of the @code{flags} value:
 The number of decimals for numeric fields.
 @end table
 
+@cindex C API, functions
+@cindex functions, C API
 @node C API function overview, C API functions, C API datatypes, Clients
 @section C API function overview
 
@@ -34520,6 +34699,8 @@ The connection to the server was lost during the query.
 An unknown error occurred.
 @end table
 
+@tindex @code{mysql_query()}
+@tindex @code{mysql_store_result()}
 @node NULL mysql_store_result, Query results, mysql_use_result, C API functions
 @subsection Why is it that after @code{mysql_query()} returns success, @code{mysql_store_result()} sometimes returns @code{NULL?}
 
@@ -34552,6 +34733,7 @@ example.
 You can test for an error by calling @code{mysql_error()} or
 @code{mysql_errno()}.
 
+@cindex queries, C API results
 @node Query results, Getting unique ID, NULL mysql_store_result, C API functions
 @subsection What results can I get from a query?
 
@@ -34587,6 +34769,10 @@ for the format of the string that it returns.  @code{mysql_info()} returns a
 @code{NULL} pointer if there is no additional information.
 @end itemize
 
+@cindex unique ID
+@cindex last row, unique ID
+@cindex ID, unique
+@cindex tables, unique ID for last row
 @node Getting unique ID, C API linking problems, Query results, C API functions
 @subsection How can I get the unique ID for the last inserted row?
 
@@ -34625,6 +34811,8 @@ INSERT INTO foo2 (id,text)
     VALUES(LAST_INSERT_ID(),'text');  # use ID in second table
 @end example
 
+@cindex linking, problems
+@cindex C API, linking problems
 @node C API linking problems, Thread-safe clients, Getting unique ID, C API functions
 @subsection Problems linking with the C API
 
@@ -34642,6 +34830,8 @@ ld: fatal: Symbol referencing errors. No output written to client
 If this happens on your system, you must include the math library by
 adding @code{-lm} to the end of the compile/link line.
 
+@cindex clients, thread-safe
+@cindex thread-safe clients
 @node Thread-safe clients,  , C API linking problems, C API functions
 @subsection How to make a thread-safe client
 
@@ -34722,6 +34912,8 @@ You may get some errors because of undefined symbols when linking your
 client with @code{mysqlclient_r};  In most cases this is because you haven't
 included the thread libraries on the link/compile line.
 
+@cindex APIs, Perl
+@cindex Perl API
 @node Perl, Eiffel, C API functions, Clients
 @section MySQL Perl API
 
@@ -34736,6 +34928,7 @@ documented here.
 * DBI-info::                    More @code{DBI}/@code{DBD} information
 @end menu
 
+@cindex DBI interface
 @node DBI with DBD, Perl DBI Class, Perl, Perl
 @subsection @code{DBI} with @code{DBD::mysql}
 
@@ -34951,8 +35144,8 @@ than prepare/execute for statements that doesn't contain parameters.
 
 @findex DBI->quote()
 @findex quote() DBI method
-@cindex Quoting strings
-@cindex Strings, quoting
+@cindex quoting strings
+@cindex strings, quoting
 @item quote($string)
 The @code{quote} method is used to "escape" any special characters contained in
 the string and to add the required outer quotation marks.
@@ -35233,6 +35426,7 @@ $types = $sth->@{type@};
 
 @end table
 
+@cindex DBI/DBD
 @node DBI-info,  , Perl DBI Class, Perl
 @subsection More @code{DBI}/@code{DBD} information
 
@@ -35254,6 +35448,8 @@ the @code{DBI} web page:
 @uref{http://www.symbolstone.org/technology/perl/DBI/index.html}
 @end example
 
+@cindex Eiffel wrapper
+@cindex wrappers, Eiffel
 @node Eiffel, Java, Perl, Clients
 @section MySQL Eiffel wrapper
 
@@ -35263,6 +35459,8 @@ contains an Eiffel wrapper written by Michael Ravits.
 You can also find this at:
 @url{http://www.netpedia.net/hosting/newplayer/}
 
+@cindex Java connectivity
+@cindex JDBC
 @node Java, PHP, Eiffel, Clients
 @section MySQL Java connectivity (JDBC)
 
@@ -35273,6 +35471,7 @@ the Reisin JDBC driver).  You can find a copy of the mm driver at
 documentation consult any JDBC documentation and the drivers own
 documentation for @strong{MySQL} specific features.
 
+@cindex PHP API
 @node PHP, Cplusplus, Java, Clients
 @section MySQL PHP API
 
@@ -35304,12 +35503,14 @@ recompile PHP with built-in @strong{MySQL} support.  This is described in
 detail in the PHP manual.
 @end itemize
 
+@cindex C++ APIs
 @node Cplusplus, Python, PHP, Clients
 @section MySQL C++ APIs
 
 Two APIs are available in the @strong{MySQL}
 @uref{http://www.mysql.com/Contrib/,Contrib directory}.
 
+@cindex Python APIs
 @node Python, Tcl, Cplusplus, Clients
 @section MySQL Python APIs
 
@@ -35321,6 +35522,7 @@ You can also use the Python interface to iODBC to access a
 @strong{MySQL} server.
 @uref{http://starship.skyport.net/~lemburg/,mxODBC}
 
+@cindex Tcl APIs
 @node Tcl,  , Python, Clients
 @section MySQL Tcl APIs
 
@@ -35329,6 +35531,8 @@ The
 @uref{http://www.mysql.com/Contrib,Contrib directory} contains a Tcl
 interface that is based on msqltcl 1.50.
 
+@cindex databases, @strong{MySQL} vs. others
+@cindex comparisons, @strong{MySQL} vs. others 
 @node Comparisons, MySQL internals, Clients, Top
 @chapter How MySQL compares to other databases
 
@@ -35536,6 +35740,9 @@ For example, it changes instances of @code{msqlConnect()} to
 * Syntax differences::          How @code{mSQL} 2.0 SQL syntax differs from @strong{MySQL}
 @end menu
 
+@cindex @strong{MySQL} tools, conversion
+@cindex converting, tools
+@cindex tools, converting
 @node Using mSQL tools, Protocol differences, Compare mSQL, Compare mSQL
 @subsection How to convert @code{mSQL} tools for MySQL
 
@@ -35577,6 +35784,8 @@ Some incompatibilities exist as a result of @strong{MySQL} supporting
 multiple connections to the server from the same process.
 @end itemize
 
+@cindex communications protocols
+@cindex mSQL vs. MySQL
 @node Protocol differences, Syntax differences, Using mSQL tools, Compare mSQL
 @subsection How @code{mSQL} and MySQL client/server communications protocols differ
 
@@ -35796,6 +36005,7 @@ users.
 @item
 @end table
 
+@cindex PostgreSQL, comparison
 @node Compare PostgreSQL,  , Compare mSQL, Comparisons
 @section How MySQL compares to PostgreSQL
 
@@ -35844,6 +36054,8 @@ If you really need the rich type system @code{PostgreSQL} offers and you
 can afford the speed penalty of having to do everything transaction
 safe, you should take a look at @code{PostgreSQL}.
 
+@cindex internals
+@cindex threads
 @node MySQL internals, Environment variables, Comparisons, Top
 @chapter MySQL internals
 
@@ -35894,6 +36106,8 @@ started to read and apply updates from the master.
 @code{mysqladmin processlist} only shows the connection and @code{INSERT
 DELAYED} threads.
 
+@cindex searching, full-text
+@cindex full-text search
 @node MySQL full-text search,  , MySQL threads, MySQL internals
 @section MySQL full-text search
 
@@ -35971,6 +36185,7 @@ does not reflect adequately their semantical value, and this model
 may sometimes produce bizarre results.
 
 @page
+@cindex environment variables, list of
 @node Environment variables, Users, MySQL internals, Top
 @appendix  Environment variables
 
@@ -36051,6 +36266,8 @@ variables to modify the behaviour of @strong{MySQL}. @xref{Option files}.
 @end multitable
 
 @page
+@cindex users, of @strong{MySQL}
+@cindex news sites
 @node Users, Contrib, Environment variables, Top
 @appendix Some MySQL users
 
@@ -36073,6 +36290,8 @@ more than one way to compute}
 
 @end itemize
 
+@cindex search engines, web
+@cindex web search engines
 @appendixsec Some Web search engines
 
 @itemize @bullet
@@ -36147,6 +36366,8 @@ Montreal Children's Hospital using MySQL}
 @c saeed@www.debelle.mcgill.ca
 @end itemize
 
+@cindex online magazines
+@cindex magazines, online
 @appendixsec Online magazines
 
 @itemize @bullet
@@ -36157,6 +36378,7 @@ An online magazine featuring music, literature, arts, and design content.
 @item @uref{http://www.currents.net/ccinfo/aboutcc.html,Computer Currents Magazine}
 @end itemize
 
+@cindex web sites
 @appendixsec Web sites that use MySQL as a backend
 
 @itemize @bullet
@@ -36177,6 +36399,7 @@ service with millions of users.}
 @item @uref{http://f1.tauzero.se, Forza Motorsport}
 @end itemize
 
+@cindex services
 @appendixsec Some Domain/Internet/Web and related services
 
 @itemize @bullet
@@ -36245,6 +36468,7 @@ Made with @strong{MySQL} and Modperl, all pages are generated dynamically out of
 the @strong{MySQL} database
 @end itemize
 
+@cindex PHP, web sites
 @appendixsec Web sites that use @code{PHP} and MySQL
 
 @itemize @bullet
@@ -36280,6 +36504,7 @@ a database.
 
 @end itemize
 
+@cindex consultants, list of
 @appendixsec Some MySQL consultants
 
 @itemize @bullet
@@ -36315,7 +36540,7 @@ a database.
 @item @uref{http://www.perl.org/cpan-testers, The Perl CPAN Testers results page}
 @end itemize
 
-
+@cindex web pages, miscellaneous
 @appendixsec Uncategorized pages
 
 @itemize @bullet
@@ -36446,6 +36671,8 @@ Washington's Eastside residents and businesses}
 Send any additions to this list to @email{webmaster@@mysql.com}.
 
 @page
+@cindex contributed programs
+@cindex programs, contributed
 @node Contrib, Credits, Users, Top
 @appendix Contributed programs
 
@@ -36467,6 +36694,7 @@ This listing.
 
 @appendixsec APIs
 
+@cindex Perl, modules
 @itemize @bullet
 @item Perl modules
 @itemize @bullet
@@ -36490,6 +36718,7 @@ Perl @code{DBD} module to access mSQL and @strong{MySQL} databases..
 Perl @code{Data-ShowTable} module.  Useful with @code{DBI}/@code{DBD} support.
 @end itemize
 
+@cindex JDBC
 @item JDBC
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/mm.mysql.jdbc-1.2c.tar.gz, mm.mysql.jdbc-1.2c.tar.gz}
@@ -36522,6 +36751,7 @@ A @strong{MySQL} PMDA. Provides @strong{MySQL} server status and configuration
 variables.
 @end itemize
 
+@cindex C++
 @item C++
 @itemize @bullet
 
@@ -36541,6 +36771,7 @@ by Roland Haenel's C++ API and Ed Carp's MyC library.
 A C++ database independent library that supports @strong{MySQL}.
 @end itemize
 
+@cindex Delphi
 @item Delphi
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/delphi-interface.gz, delphi-interface.gz}
@@ -36702,6 +36933,7 @@ You can get the newest one from
 DBUI is a Gtk graphical database editor.
 @end itemize
 
+@cindex Web clients
 @item Web clients
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysqladmin-atif-1.0.tar.gz, mysqladmin-atif-1.0.tar.gz}
@@ -36759,6 +36991,8 @@ dictionary, configuration files and templates, and allows "pre-processing"
 and "post-processing" on both fields, records and operations.
 @end itemize
 
+@cindex web tools
+@cindex tools,, web
 @appendixsec Web tools
 
 @itemize @bullet
@@ -36807,6 +37041,8 @@ EU-Industries Internet-Message-Board.
 Full-text searching with Perl on @code{BLOB}/@code{TEXT} columns by Daniel Koch.
 @end itemize
 
+@cindex tools, benchmarking
+@cindex benchmarking, tools
 @appendixsec Performance Benchmarking tools
 
 @itemize @bullet
@@ -36814,6 +37050,8 @@ Full-text searching with Perl on @code{BLOB}/@code{TEXT} columns by Daniel Koch.
 User-customizable multi-threaded tool set to benchmark @strong{MySQL}. By Sasha Pachev.
 @end itemize
 
+@cindex tools, authentication
+@cindex authentication tools
 @appendixsec Authentication tools
 
 @itemize @bullet
@@ -36877,6 +37115,7 @@ An authentication module for the Cyrus IMAP server. By Aaron Newsome.
 
 @end itemize
 
+@cindex converters
 @appendixsec Converters
 
 @itemize @bullet
@@ -36965,6 +37204,7 @@ Patches for @code{radiusd} to make it support @strong{MySQL}. By Wim Bonis,
 @email{bonis@@kiss.de}.
 @end itemize
 
+@cindex tools, useful
 @appendixsec Useful tools
 
 @itemize @bullet
@@ -37013,6 +37253,8 @@ By Elizabeth.
 Wrapper for mysqldump to backup all databases. By Marc Swanson.
 @end itemize
 
+@cindex RPMs, for common tools
+@cindex tools, RPMs for
 @appendixsec RPMs for common tools (Most are for RedHat 6.1)
 
 @itemize @bullet
@@ -37024,6 +37266,7 @@ Wrapper for mysqldump to backup all databases. By Marc Swanson.
 @item @uref{http://www.mysql.com/Downloads/Contrib/phpMyAdmin-2.0.5-1.noarch.rpm,phpMyAdmin-2.0.5-1.noarch.rpm}
 @end itemize
 
+@cindex functions, useful
 @appendixsec Useful functions
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysnprintf.c,mysnprintf.c}
@@ -37063,6 +37306,8 @@ interested in.
 
 
 @page
+@cindex contributors, list of
+@cindex credits
 @node Credits, News, Contrib, Top
 @appendix Contributors to MySQL
 
@@ -41560,6 +41805,9 @@ Fixed @code{DISTINCT} with calculated columns.
 @end itemize
 @end ifclear
 
+@cindex errors, known
+@cindex design, issues
+@cindex known errors+
 @node Bugs, TODO, News, Top
 @appendix Known errors and design deficiencies in MySQL
 
@@ -42038,6 +42286,7 @@ Time is given according to amount of work, not real time.
 Nothing;  In the long run we plan to be fully ANSI 92 / ANSI 99 compliant.
 @end itemize
 
+@cindex porting, to other systems
 @node Porting, Regexp, TODO, Top
 @appendix Comments on porting to other systems
 
@@ -42112,6 +42361,9 @@ will ensure that your thread installation has even a remote chance to work!
 * Thread packages::             Differences between different thread packages
 @end menu
 
+@cindex server, debugging
+@cindex debugging, server
+@cindex crash
 @node Debugging server, Debugging client, Porting, Porting
 @appendixsec Debugging a MySQL server
 
@@ -42328,6 +42580,8 @@ debugging information by using the @code{trace} method or by
 setting the @code{DBI_TRACE} environment variable.
 @xref{Perl DBI Class, , Perl @code{DBI} Class}.
 
+@cindex debugging, client
+@cindex client, debugging
 @node Debugging client, The DBUG package, Debugging server, Porting
 @appendixsec Debugging a MySQL client
 
@@ -42365,6 +42619,7 @@ A very common mistake is to use an old @file{mysql.h} file from an old
 @strong{MySQL} installation with new @strong{MySQL} library.
 
 
+@cindex DBUG package
 @node The DBUG package, Locking methods, Debugging client, Porting
 @appendixsec The DBUG package.
 
@@ -42426,6 +42681,8 @@ In @strong{MySQL}, common tags to print (with the @code{d} option) are:
 @code{enter},@code{exit},@code{error},@code{warning},@code{info} and
 @code{loop}.
 
+@cindex locking methods
+@cindex methods, locking
 @node Locking methods, RTS-threads, The DBUG package, Porting
 @appendixsec Locking methods
 
@@ -42532,6 +42789,8 @@ may be able to solve these to convert some of your tables to @code{BDB} tables.
 The optimization section in the manual covers a lot of different aspects of
 how to tune ones application. @xref{Tips}.
 
+@cindex RTS-threads
+@cindex threads, RTS
 @node RTS-threads, Thread packages, Locking methods, Porting
 @appendixsec Comments about RTS threads
 
@@ -42626,6 +42885,7 @@ end
 @end example
 @end itemize
 
+@cindex thread packages, differences between
 @node Thread packages,  , RTS-threads, Porting
 @appendixsec Differences between different thread packages
 
@@ -42673,6 +42933,9 @@ level threads in the system libraries. In such cases, the thread
 switching can only be done by the thread library and the kernel isn't
 really ``thread aware''.
 
+@cindex regex
+@cindex regular expression syntax, described
+@cindex syntax, regular expression
 @node Regexp, Unireg, Porting, Top
 @appendix Description of MySQL regular expression syntax
 
@@ -42853,6 +43116,8 @@ mysql> select "a xword a" REGEXP "[[:<:]]word[[:>:]]";     -> 0
 mysql> select "weeknights" REGEXP "^(wee|week)(knights|nights)$"; -> 1
 @end example
 
+@cindex Unireg, described
+@cindex interface builder
 @node Unireg, GPL license, Regexp, Top
 @appendix What is Unireg?
 
@@ -42919,6 +43184,8 @@ All new development is concentrated to @strong{MySQL}.
 @c This node name is special
 
 @ifset nusphere
+@cindex GNU General Public License
+@cindex licenses, GNU General Public License
 @node GPL license, LGPL license, Unireg, Top
 @appendix GNU General Public License
 
