@@ -176,6 +176,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->sphead= NULL;
   lex->spcont= NULL;
   lex->trg_table= NULL;
+  lex->proc_list.first= 0;
 
   extern byte *sp_lex_spfuns_key(const byte *ptr, uint *plen, my_bool first);
   hash_free(&lex->spfuns);

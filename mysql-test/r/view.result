@@ -1339,16 +1339,14 @@ c
 prepare stmt1 from "update v1,t1 set v1.s1=? where t1.s1=v1.s1";
 set @arg='d';
 execute stmt1 using @arg;
-ERROR HY000: Table 't1' is read only
 select * from v1;
 s1
-c
+d
 set @arg='e';
 execute stmt1 using @arg;
-ERROR HY000: Table 't1' is read only
 select * from v1;
 s1
-c
+e
 deallocate prepare stmt1;
 drop view v1;
 drop table t1;

@@ -1736,6 +1736,24 @@ err:
 
 
 /*
+  cleunup items belonged to view fields translation table
+
+  SYNOPSIS
+    st_table_list::cleanup_items()
+*/
+
+void st_table_list::cleanup_items()
+{
+  if (!field_translation)
+    return;
+
+  Item **end= field_translation + view->select_lex.item_list.elements;
+  for (Item **item= field_translation; item < end; item++)
+    (*item)->walk(&Item::cleanup_processor, 0);
+}
+
+
+/*
   check CHECK OPTION condition
 
   SYNOPSIS

@@ -921,6 +921,8 @@ int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode
     *buf1-=DIG_BASE;
     while (carry && --buf1 >= to->buf)
       ADD(*buf1, *buf1, 0, carry);
+    if (to->buf[0] > from->buf[0])
+      to->intg++;
     if (unlikely(carry))
     {
       /* shifting the number to create space for new digit */
@@ -1150,6 +1152,8 @@ static int do_sub(decimal *from1, decimal *from2, decimal *to)
     buf1=start1+intg1+frac1;
     stop1=start1+intg1+frac2;
     buf2=start2+intg2+frac2;
+    while (frac0-- > frac1)
+      *--buf0=0;
     while (buf1 > stop1)
       *--buf0=*--buf1;
   }
@@ -1158,6 +1162,8 @@ static int do_sub(decimal *from1, decimal *from2, decimal *to)
     buf1=start1+intg1+frac1;
     buf2=start2+intg2+frac2;
     stop2=start2+intg2+frac1;
+    while (frac0-- > frac2)
+      *--buf0=0;
     while (buf2 > stop2)
     {
       SUB(*--buf0, 0, *--buf2, carry);
@@ -1968,6 +1974,7 @@ main()
   test_ds("-123.45", "-12345");
   test_da("123.45", "-12345");
   test_da("-123.45", "12345");
+  test_da("5", "-6.0");
 
   printf("==== decimal_mul ====\n");
   test_dm("12", "10");
@@ -2059,6 +2066,9 @@ main()
   test_ro("-15.1",0,CEILING);
   test_ro("15.1",0,FLOOR);
   test_ro("-15.1",0,FLOOR);
+  test_ro("999999999999999999999.999", 0, CEILING);
+  test_ro("-999999999999999999999.999", 0, FLOOR);
+
 
   return 0;
 }
