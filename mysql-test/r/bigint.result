@@ -25,3 +25,33 @@ select * from t1;
 a
 18446744073709551614
 drop table t1;
+create table t1 ( a int not null default 1, big bigint );
+insert into t1 (big) values (-1),(12345678901234567),(9223372036854775807),(18446744073709551615);
+select min(big),max(big),max(big)-1 from t1;
+min(big)	max(big)	max(big)-1
+-1	9223372036854775807	9223372036854775806
+select min(big),max(big),max(big)-1 from t1 group by a;
+min(big)	max(big)	max(big)-1
+-1	9223372036854775807	9223372036854775806
+alter table t1 modify big bigint unsigned not null;
+select min(big),max(big),max(big)-1 from t1;
+min(big)	max(big)	max(big)-1
+12345678901234567	18446744073709551615	18446744073709551614
+select min(big),max(big),max(big)-1 from t1 group by a;
+min(big)	max(big)	max(big)-1
+12345678901234567	18446744073709551615	18446744073709551614
+alter table t1 add key (big);
+select min(big),max(big),max(big)-1 from t1;
+min(big)	max(big)	max(big)-1
+12345678901234567	18446744073709551615	18446744073709551614
+select min(big),max(big),max(big)-1 from t1 group by a;
+min(big)	max(big)	max(big)-1
+12345678901234567	18446744073709551615	18446744073709551614
+alter table t1 modify big bigint not null;
+select min(big),max(big),max(big)-1 from t1;
+min(big)	max(big)	max(big)-1
+-1	9223372036854775807	9223372036854775806
+select min(big),max(big),max(big)-1 from t1 group by a;
+min(big)	max(big)	max(big)-1
+-1	9223372036854775807	9223372036854775806
+drop table t1;

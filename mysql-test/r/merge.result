@@ -1,4 +1,4 @@
-drop table if exists t1,t2,t3;
+drop table if exists t1,t2,t3,t4,t5,t6;
 create table t1 (a int not null primary key auto_increment, message char(20));
 create table t2 (a int not null primary key auto_increment, message char(20));
 INSERT INTO t1 (message) VALUES ("Testing"),("table"),("t1");
@@ -110,6 +110,64 @@ a
 412
 412
 411
+delete from t3 where a=3;
+select * from t3 where a < 10;
+a	b
+1	Testing
+1	Testing
+2	table
+2	table
+4	Testing
+4	Testing
+5	table
+5	table
+6	t2
+6	t1
+7	Testing
+7	Testing
+8	table
+8	table
+9	t2
+9	t2
+delete from t3 where a >= 6 and a <= 8;
+select * from t3 where a < 10;
+a	b
+1	Testing
+1	Testing
+2	table
+2	table
+4	Testing
+4	Testing
+5	table
+5	table
+9	t2
+9	t2
+update t3 set a=3 where a=9;
+select * from t3 where a < 10;
+a	b
+1	Testing
+1	Testing
+2	table
+2	table
+3	t2
+3	t2
+4	Testing
+4	Testing
+5	table
+5	table
+update t3 set a=6 where a=7;
+select * from t3 where a < 10;
+a	b
+1	Testing
+1	Testing
+2	table
+2	table
+3	t2
+3	t2
+4	Testing
+4	Testing
+5	table
+5	table
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
@@ -216,3 +274,191 @@ a	b
 1	1
 1	2
 drop table t3,t1,t2;
+drop table if exists t6, t5, t4, t3, t2, t1;
+create table t1 (a int not null, b int not null, key(a,b));
+create table t2 (a int not null, b int not null, key(a,b));
+create table t3 (a int not null, b int not null, key(a,b)) UNION=(t1,t2) INSERT_METHOD=NO;
+create table t4 (a int not null, b int not null, key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=NO;
+create table t5 (a int not null, b int not null, key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=FIRST;
+create table t6 (a int not null, b int not null, key(a,b)) TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=LAST;
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL default '0',
+  `b` int(11) NOT NULL default '0',
+  KEY `a` (`a`,`b`)
+) TYPE=MyISAM
+show create table t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` int(11) NOT NULL default '0',
+  `b` int(11) NOT NULL default '0',
+  KEY `a` (`a`,`b`)
+) TYPE=MRG_MyISAM UNION=(t1,t2)
+show create table t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` int(11) NOT NULL default '0',
+  `b` int(11) NOT NULL default '0',
+  KEY `a` (`a`,`b`)
+) TYPE=MRG_MyISAM INSERT_METHOD=FIRST UNION=(t1,t2)
+show create table t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `a` int(11) NOT NULL default '0',
+  `b` int(11) NOT NULL default '0',
+  KEY `a` (`a`,`b`)
+) TYPE=MRG_MyISAM INSERT_METHOD=LAST UNION=(t1,t2)
+insert into t1 values (1,1),(1,2),(1,3),(1,4);
+insert into t2 values (2,1),(2,2),(2,3),(2,4);
+select * from t3 order by b,a limit 3;
+a	b
+select * from t4 order by b,a limit 3;
+a	b
+1	1
+2	1
+1	2
+select * from t5 order by b,a limit 3,3;
+a	b
+2	2
+1	3
+2	3
+select * from t6 order by b,a limit 6,3;
+a	b
+1	4
+2	4
+insert into t5 values (5,1),(5,2);
+insert into t6 values (6,1),(6,2);
+select * from t1 order by a,b;
+a	b
+1	1
+1	2
+1	3
+1	4
+5	1
+5	2
+select * from t2 order by a,b;
+a	b
+2	1
+2	2
+2	3
+2	4
+6	1
+6	2
+select * from t4 order by a,b;
+a	b
+1	1
+1	2
+1	3
+1	4
+2	1
+2	2
+2	3
+2	4
+5	1
+5	2
+6	1
+6	2
+insert into t3 values (3,1),(3,2),(3,3),(3,4);
+select * from t3 order by a,b;
+a	b
+3	1
+3	2
+3	3
+3	4
+alter table t4 UNION=(t1,t2,t3);
+show create table t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` int(11) NOT NULL default '0',
+  `b` int(11) NOT NULL default '0',
+  KEY `a` (`a`,`b`)
+) TYPE=MRG_MyISAM UNION=(t1,t2,t3)
+select * from t4 order by a,b;
+a	b
+1	1
+1	2
+1	3
+1	4
+2	1
+2	2
+2	3
+2	4
+3	1
+3	2
+3	3
+3	4
+5	1
+5	2
+6	1
+6	2
+alter table t4 INSERT_METHOD=FIRST;
+show create table t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` int(11) NOT NULL default '0',
+  `b` int(11) NOT NULL default '0',
+  KEY `a` (`a`,`b`)
+) TYPE=MRG_MyISAM INSERT_METHOD=FIRST UNION=(t1,t2,t3)
+insert into t4 values (4,1),(4,2);
+select * from t1 order by a,b;
+a	b
+1	1
+1	2
+1	3
+1	4
+4	1
+4	2
+5	1
+5	2
+select * from t2 order by a,b;
+a	b
+2	1
+2	2
+2	3
+2	4
+6	1
+6	2
+select * from t3 order by a,b;
+a	b
+3	1
+3	2
+3	3
+3	4
+select * from t4 order by a,b;
+a	b
+1	1
+1	2
+1	3
+1	4
+2	1
+2	2
+2	3
+2	4
+3	1
+3	2
+3	3
+3	4
+4	1
+4	2
+5	1
+5	2
+6	1
+6	2
+select * from t5 order by a,b;
+a	b
+1	1
+1	2
+1	3
+1	4
+2	1
+2	2
+2	3
+2	4
+4	1
+4	2
+5	1
+5	2
+6	1
+6	2
+drop table if exists t6, t5, t4, t3, t2, t1;
