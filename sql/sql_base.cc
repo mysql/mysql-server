@@ -635,14 +635,14 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
 
 TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
 {
-  DBUG_ENTER("unique_table");
-  DBUG_PRINT("enter", ("table alias: %s", table->alias));
   TABLE_LIST *res;
   const char *d_name= table->db, *t_name= table->table_name;
   char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
+  DBUG_ENTER("unique_table");
+  DBUG_PRINT("enter", ("table alias: %s", table->alias));
   /* temporary table is always unique */
   if (table->table && table->table->s->tmp_table != NO_TMP_TABLE)
-    return 0;
+    DBUG_RETURN(0);
   if (table->view)
   {
     /* it is view and table opened */
