@@ -30,6 +30,8 @@ Unknown column 'a' in 'field list'
 SELECT 1 as a FROM (SELECT 1) HAVING (SELECT a)=1;
 a
 1
+SELECT 1 FROM (SELECT (SELECT a));
+Unknown column 'a' in 'field list'
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 create table t1 (a int);
 create table t2 (a int, b int);

@@ -472,7 +472,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 				       REPORT_EXCEPT_NOT_FOUND)) !=
 	     (Item **)not_found_item)
 	    break;
-	  
+	  if (sl->linkage == DERIVED_TABLE_TYPE)
+	    break; // do not look over derived table
 	}
       if (!tmp)
 	return -1;
@@ -887,6 +888,8 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	if ((tmp= find_field_in_tables(thd, this,
 				       sl->get_table_list(),
 				       0)) != not_found_field);
+	if (sl->linkage == DERIVED_TABLE_TYPE)
+	  break; // do not look over derived table
       }
 
       if (!ref)
