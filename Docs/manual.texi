@@ -29836,6 +29836,32 @@ mysql> select 1 IS NOT NULL, 0 IS NOT NULL, NULL IS NOT NULL;
         -> 1 1 0
 @end example
 
+@cindex ODBC compatibility
+@cindex compatibility, with ODBC
+To be able to work good with other programs, MySQL supports the following
+extra features when using @code{IS NULL}:
+
+@itemize @bullet
+@item
+You can find the last inserted row with:
+
+@example
+SELECT * FROM tbl_name WHERE auto_col IS NULL
+@end example
+
+This can be disabled by setting @code{SQL_AUTO_IS_NULL=0}. @xref{SET OPTION}.
+@item
+For @code{NOT NULL} @code{DATE} and @code{DATETIME} columns you can find
+the special date @code{0000-00-00} by using:
+
+@example
+SELECT * FROM tbl_name WHERE date_column IS NULL
+@end example
+
+This is needed to get some ODBC applications to work (as ODBC doesn't
+support a @code{0000-00-00} date)
+@end itemize
+
 @findex BETWEEN ... AND
 @item expr BETWEEN min AND max
 If @code{expr} is greater than or equal to @code{min} and @code{expr} is
@@ -48435,8 +48461,8 @@ Fixed bug in multi table delete.
 @item
 Fixed bug in @code{SELECT CONCAT(argument-list) ... GROUP BY 1}.
 @item
-@code{SELECT ... INSERT} did a full rollback in case of an error. Fixed
-so that we only roll back the last statement.
+@code{INSERT ... SELECT} did a full rollback in case of an error. Fixed
+so that we only roll back the last statement in the current transaction.
 @item
 Fixed bug with empty expression for boolean fulltext search.
 @item
