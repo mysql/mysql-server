@@ -1402,6 +1402,13 @@ static int mi_sort_records(MI_CHECK *param,
     param->error_printed=0;
     DBUG_RETURN(-1);
   }
+  if (keyinfo->flag & HA_FULLTEXT)
+  {
+    mi_check_print_error(param,"Can't sort table '%s' on FULLTEXT key %d",
+		name,sort_key+1);
+    param->error_printed=0;
+    DBUG_RETURN(-1);
+  }
   if (!(param->testflag & T_SILENT))
   {
     printf("- Sorting records for MyISAM-table '%s'\n",name);
