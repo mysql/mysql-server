@@ -139,9 +139,15 @@ while test $# -gt 0; do
       fi
       DO_DDD=1
       ;;
+    --skip-*)
+      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT $1"
+      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT $1"
+      ;;
     --debug)
-      EXTRA_MASTER_MYSQLD_OPT=--debug=d:t:O,$MYSQL_TMP_DIR/master.trace
-      EXTRA_SLAVE_MYSQLD_OPT=--debug=d:t:O,$MYSQL_TMP_DIR/slave.trace
+      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
+       --debug=d:t:O,$MYSQL_TMP_DIR/master.trace"
+      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT \
+       --debug=d:t:O,$MYSQL_TMP_DIR/slave.trace"
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT --debug"
       ;;
     -- )  shift; break ;;

@@ -139,7 +139,7 @@ struct connection* cur_con, *next_con, *cons_end;
 /* this should really be called command */
 struct st_query
 {
-  char *query, *first_argument;
+  char *query, *query_buf,*first_argument;
   int first_word_len;
   my_bool abort_on_error, require_file;
   uint expected_errno[MAX_EXPECTED_ERRORS];
@@ -243,9 +243,14 @@ static void free_used_memory()
   for (i=0 ; i < q_lines.elements ; i++)
   {
     struct st_query **q= dynamic_element(&q_lines, i, struct st_query**);
-    my_free((gptr) (*q)->query,MYF(MY_ALLOW_ZERO_PTR));
+    my_free((gptr) (*q)->query_buf,MYF(MY_ALLOW_ZERO_PTR));
     my_free((gptr) (*q),MYF(0));
   }
+  for(i=0; i < 10; i++)
+    {
+      if(var_reg[i].alloced_len)
+	my_free(var_reg[i].str_val, MYF(MY_WME));
+    }
   delete_dynamic(&q_lines);
   dynstr_free(&ds_res);
   my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
@@ -1165,7 +1170,7 @@ int read_query(struct st_query** q_ptr)
   q->abort_on_error = global_expected_errno[0] == 0;
   bzero((gptr) global_expected_errno,sizeof(global_expected_errno));
   q->type = Q_UNKNOWN;
-  q->query=0;
+  q->query_buf=q->query=0;
   if (read_line(read_query_buf, sizeof(read_query_buf)))
     return 1;
 
@@ -1207,7 +1212,7 @@ int read_query(struct st_query** q_ptr)
     }
   }
   while (*p && isspace(*p)) p++;
-  if (!(q->query=my_strdup(p,MYF(MY_WME))))
+  if (!(q->query_buf=q->query=my_strdup(p,MYF(MY_WME))))
     die(NullS);
 
   /* Calculate first word and first argument */
@@ -1391,7 +1396,10 @@ void reject_dump(const char* record_file, char* buf, int size)
   str_to_file(fn_format(reject_file, record_file,"",".reject",2), buf, size);
 }
 
-
+/* flags control the phased/stages of query execution to be performed 
+* if QUERY_SEND bit is on, the query will be sent. If QUERY_REAP is on
+* the result will be read - for regular query, both bits must be on
+*/
 int run_query(MYSQL* mysql, struct st_query* q, int flags)
 {
   MYSQL_RES* res = 0;
@@ -1564,7 +1572,7 @@ int main(int argc, char** argv)
 {
   int error = 0;
   struct st_query* q;
-  my_bool require_file=0,q_send_flag=0;
+  my_bool require_file=0;
   char save_file[FN_REFLEN];
   MY_INIT(argv[0]);
 
@@ -1626,14 +1634,11 @@ int main(int argc, char** argv)
       case Q_QUERY:
       case Q_REAP:	
       {
-	int flags = QUERY_REAP;
-	if (q->type == Q_QUERY)
+	int flags = QUERY_REAP; /* we read the result always regardless
+				* of the mode for both full query and
+				* read-result only ( reap) */
+	if (q->type == Q_QUERY) /* for a full query, enable the send stage */
 	  flags |= QUERY_SEND;
-	if (q_send_flag)
-	{
-	  flags=QUERY_SEND;
-	  q_send_flag=0;
-	}
 	if (save_file[0])
 	{
 	  strmov(q->record_file,save_file);
@@ -1644,7 +1649,16 @@ int main(int argc, char** argv)
 	break;
       }
       case Q_SEND:
-	q_send_flag=1;
+	if(q->query == q->query_buf) /* fix up query pointer if this is
+				      * first iteration for this line
+				      */
+	  q->query += q->first_word_len;
+	error |= run_query(&cur_con->mysql, q, QUERY_SEND);
+	/* run query can execute a query partially, depending on the flags
+	 * QUERY_SEND flag without QUERY_REAP tells it to just send the
+	 * query and read the result some time later when reap instruction
+	 * is given on this connection
+	 */
 	break;
       case Q_RESULT:
 	get_file_name(save_file,q);
