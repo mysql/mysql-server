@@ -5358,7 +5358,7 @@ double Field_blob::val_real(void)
     return 0.0;
   length= get_length(ptr);
   cs= charset();
-  return my_strntod(cs,blob,length,(char**)0, &not_used);
+  return my_strntod(cs, blob, length, &end_not_used, &not_used);
 }
 
 
@@ -6362,11 +6362,13 @@ longlong Field_bit::val_int(void)
 String *Field_bit::val_str(String *val_buffer,
                            String *val_ptr __attribute__((unused)))
 {
+  char buff[sizeof(longlong)];
   uint length= min(pack_length(), sizeof(longlong));
   ulonglong bits= val_int();
+  mi_int8store(buff,bits);
 
   val_buffer->alloc(length);
-  memcpy_fixed((char*) val_buffer->ptr(), (char*) &bits, length);
+  memcpy_fixed((char*) val_buffer->ptr(), buff+8-length, length);
   val_buffer->length(length);
   val_buffer->set_charset(&my_charset_bin);
   return val_buffer;
