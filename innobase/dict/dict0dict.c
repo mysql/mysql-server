@@ -1765,9 +1765,8 @@ dict_scan_col(
 		col = dict_table_get_nth_col(table, i);
 
 		if (ut_strlen(col->name) == (ulint)(ptr - old_ptr)
-		    && 0 == ut_memcmp(col->name, old_ptr,
+		    && 0 == ut_cmp_in_lower_case(col->name, old_ptr,
 						(ulint)(ptr - old_ptr))) {
-
 		    	/* Found */
 
 		    	*success = TRUE;
@@ -1831,11 +1830,20 @@ dict_scan_table_name(
 				break;
 			}
 		}
-
+#ifdef __WIN__
+		ut_cpy_in_lower_case(second_table_name + i, old_ptr,
+				     ptr - old_ptr);
+#else
 		ut_memcpy(second_table_name + i, old_ptr, ptr - old_ptr);
+#endif
 		second_table_name[i + (ptr - old_ptr)] = '\0';
 	} else {
+#ifdef __WIN__
+		ut_cpy_in_lower_case(second_table_name, old_ptr,
+				     ptr - old_ptr);
+#else
 		ut_memcpy(second_table_name, old_ptr, ptr - old_ptr);
+#endif
 		second_table_name[dot_ptr - old_ptr] = '/';
 		second_table_name[ptr - old_ptr] = '\0';
 	}

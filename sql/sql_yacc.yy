@@ -2406,7 +2406,7 @@ single_multi:
 	| table_wild_list
 	  {
 	    LEX *lex=Lex;
-	    lex->sql_command =  SQLCOM_MULTI_DELETE;
+	    lex->sql_command =  SQLCOM_DELETE_MULTI;
             mysql_init_select(lex);
             lex->select->select_limit=HA_POS_ERROR;
             lex->auxilliary_table_list.elements=0; 
