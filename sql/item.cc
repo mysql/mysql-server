@@ -819,9 +819,11 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       // Prevent using outer fields in subselects, that is not supported now
       SELECT_LEX *cursel=(SELECT_LEX *) thd->lex.current_select;
       if (cursel->master_unit()->first_select()->linkage != DERIVED_TABLE_TYPE)
-	for (SELECT_LEX *sl= cursel->outer_select();
+      {
+	SELECT_LEX_UNIT *prev_unit= cursel->master_unit();
+	for (SELECT_LEX *sl= prev_unit->outer_select();
 	     sl;
-	     sl= sl->outer_select())
+	     sl= (prev_unit= sl->master_unit())->outer_select())
 	{
 	  table_list= (last= sl)->get_table_list();
 	  if (sl->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
@@ -829,19 +831,38 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	    // it is primary INSERT st_select_lex => skip first table resolving
 	    table_list= table_list->next;
 	  }
+
+	  Item_subselect *prev_subselect_item= prev_unit->item;
 	  if ((tmp= find_field_in_tables(thd, this,
 					 table_list, &where,
 					 0)) != not_found_field)
+	  {
+	    prev_subselect_item->used_tables_cache|= tmp->table->map;
+	    prev_subselect_item->const_item_cache= 0;
 	    break;
+	  }
 	  if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
 	      (refer= find_item_in_list(this, sl->item_list, &counter,
 					 REPORT_EXCEPT_NOT_FOUND)) !=
 	       (Item **) not_found_item)
+	  {
+	    if (*refer && (*refer)->fixed) // Avoid crash in case of error
+	    {
+	      prev_subselect_item->used_tables_cache|= (*refer)->used_tables();
+	      prev_subselect_item->const_item_cache&= (*refer)->const_item();
+	    }
 	    break;
+	  }
+
+	  // Reference is not found => depend from outer (or just error)
+	  prev_subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
+	  prev_subselect_item->const_item_cache= 0;
+
 	  if (sl->master_unit()->first_select()->linkage ==
 	      DERIVED_TABLE_TYPE)
 	    break; // do not look over derived table
 	}
+      }
       if (!tmp)
 	return -1;
       else if (!refer)
@@ -1360,7 +1381,8 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   if (!ref)
   {
     TABLE_LIST *where= 0, *table_list;
-    SELECT_LEX *sl= thd->lex.current_select->outer_select();
+    SELECT_LEX_UNIT *prev_unit= thd->lex.current_select->master_unit();
+    SELECT_LEX *sl= prev_unit->outer_select();
     /*
       Finding only in current select will be performed for selects that have 
       not outer one and for derived tables (which not support using outer 
@@ -1388,15 +1410,23 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	cause error ER_NON_UNIQ_ERROR in find_item_in_list.
       */
       SELECT_LEX *last=0;
-      for ( ; sl ; sl= sl->outer_select())
+      for ( ; sl ; sl= (prev_unit= sl->master_unit())->outer_select())
       {
 	last= sl;
+	Item_subselect *prev_subselect_item= prev_unit->item;
 	if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
 	    (ref= find_item_in_list(this, sl->item_list,
 				    &counter,
 				    REPORT_EXCEPT_NOT_FOUND)) !=
 	   (Item **)not_found_item)
+	{
+	  if (*ref && (*ref)->fixed) // Avoid crash in case of error
+	  {
+	    prev_subselect_item->used_tables_cache|= (*ref)->used_tables();
+	    prev_subselect_item->const_item_cache&= (*ref)->const_item();
+	  }
 	  break;
+	}
 	table_list= sl->get_table_list();
 	if (sl->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
 	{
@@ -1406,7 +1436,16 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	if ((tmp= find_field_in_tables(thd, this,
 				       table_list, &where,
 				       0)) != not_found_field)
+	{
+	  prev_subselect_item->used_tables_cache|= tmp->table->map;
+	  prev_subselect_item->const_item_cache= 0;
 	  break;
+	}
+
+	// Reference is not found => depend from outer (or just error)
+	prev_subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
+	prev_subselect_item->const_item_cache= 0;
+
 	if (sl->master_unit()->first_select()->linkage ==
 	    DERIVED_TABLE_TYPE)
 	  break; // do not look over derived table

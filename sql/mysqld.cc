@@ -851,6 +851,7 @@ extern "C" sig_handler print_signal_warning(int sig)
     (Mac OS X) we have to call exit() instead if pthread_exit().
 */
 
+#ifndef EMBEDDED_LIBRARY
 void unireg_end(void)
 {
   clean_up(1);
@@ -861,7 +862,6 @@ void unireg_end(void)
   pthread_exit(0);				// Exit is in main thread
 #endif
 }
-
 
 extern "C" void unireg_abort(int exit_code)
 {
@@ -874,7 +874,7 @@ extern "C" void unireg_abort(int exit_code)
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   exit(exit_code); /* purecov: inspected */
 }
-
+#endif
 
 void clean_up(bool print_message)
 {
@@ -1024,6 +1024,7 @@ static void set_ports()
   }
 }
 
+#ifndef EMBEDDED_LIBRARY
 /* Change to run as another user if started with --user */
 
 static void set_user(const char *user)
@@ -1105,7 +1106,6 @@ static void set_root(const char *path)
   my_setwd("/", MYF(0));
 #endif
 }
-
 
 static void server_init(void)
 {
@@ -1257,6 +1257,7 @@ static void server_init(void)
   DBUG_VOID_RETURN;
 }
 
+#endif /*!EMBEDDED_LIBRARY*/
 
 void yyerror(const char *s)
 {
@@ -2120,7 +2121,8 @@ static int init_common_variables(const char *conf_file_name, int argc,
   open_files_limit= 0;		/* Can't set or detect limit */
 #endif
   unireg_init(opt_specialflag); /* Set up extern variabels */
-  init_errmessage();		/* Read error messages from file */
+  if (init_errmessage())	/* Read error messages from file */
+    return 1;
   init_client_errs();
   lex_init();
   item_init();
@@ -2233,6 +2235,7 @@ static void init_ssl()
 
 static int init_server_components()
 {
+  DBUG_ENTER("init_server_components");
   table_cache_init();
   hostname_cache_init();
   query_cache_result_size_limit(query_cache_limit);
@@ -2324,7 +2327,7 @@ Now disabling --log-slave-updates.");
 
   init_max_user_conn();
   init_update_queries();
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -5604,8 +5607,10 @@ static void get_options(int argc,char **argv)
   /* Set global MyISAM variables from delay_key_write_options */
   fix_delay_key_write((THD*) 0, OPT_GLOBAL);
 
+#ifndef EMBEDDED_LIBRARY
   if (mysqld_chroot)
     set_root(mysqld_chroot);
+#endif
   fix_paths();
 
   /*

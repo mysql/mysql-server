@@ -435,11 +435,6 @@ void STDCALL mysql_server_end()
   my_free((char*) copy_arguments_ptr, MYF(MY_ALLOW_ZERO_PTR));
   copy_arguments_ptr=0;
   clean_up(0);
-#ifdef THREAD
-  /* Don't call my_thread_end() if the application is using MY_INIT() */
-  if (!org_my_init_done)
-    my_thread_end();
-#endif
   /* If library called my_init(), free memory allocated by it */
   if (!org_my_init_done)
     my_end(0);
