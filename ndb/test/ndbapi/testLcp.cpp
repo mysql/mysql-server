@@ -182,10 +182,6 @@ static int drop_all_tables()
     case NdbDictionary::Object::IndexTrigger:
     case NdbDictionary::Object::SubscriptionTrigger:
     case NdbDictionary::Object::ReadOnlyConstraint:
-    case NdbDictionary::Object::Tablespace:
-    case NdbDictionary::Object::LogfileGroup:
-    case NdbDictionary::Object::Datafile:
-    case NdbDictionary::Object::Undofile:
     default:
       break;
     }
