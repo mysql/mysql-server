@@ -762,7 +762,7 @@ create:
 	  lex->create_info.db_type= (enum db_type) lex->thd->variables.table_type;
 	}
 	create2
-	  {}
+	  {Lex->select= &Lex->select_lex;}
 	| CREATE opt_unique_or_fulltext INDEX ident ON table_ident
 	  {
 	    LEX *lex=Lex;
@@ -2587,6 +2587,7 @@ insert:
 	opt_ignore insert2
 	{
 	  set_lock_for_tables($3);
+	  Lex->select= &Lex->select_lex;
 	}
 	insert_field_spec
 	{}
@@ -2602,6 +2603,7 @@ replace:
 	replace_lock_option insert2
 	{
 	  set_lock_for_tables($3);
+          Lex->select= &Lex->select_lex;
 	}
 	insert_field_spec
 	{}
@@ -3685,7 +3687,7 @@ grant:
 	  lex->select->db= 0;
 	  lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
 	  lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
-	  bzero(&(lex->mqh),sizeof(lex->mqh));
+	  bzero((char *)&(lex->mqh),sizeof(lex->mqh));
 	}
 	grant_privileges ON opt_table TO_SYM user_list
 	require_clause grant_options

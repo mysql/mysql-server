@@ -36,8 +36,11 @@ drop table t1;
 #
 
 create table t1 (id int, dt datetime);
-insert into t1 values (1,"2001-08-14 00:00:00"),(2,"2001-08-15 00:00:00"),(3,"2001-08-16 00:00:00");
+insert into t1 values (1,"2001-08-14 00:00:00"),(2,"2001-08-15 00:00:00"),(3,"2001-08-16 00:00:00"),(4,"2003-09-15 01:20:30");
 select * from t1 where dt='2001-08-14 00:00:00' and dt =  if(id=1,'2001-08-14 00:00:00','1999-08-15');
+create index dt on t1 (dt);
+select * from t1 where dt > 20021020;
+select * from t1 ignore index (dt) where dt > 20021020;
 drop table t1;
 
 #

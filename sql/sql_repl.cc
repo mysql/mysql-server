@@ -522,6 +522,11 @@ Increase max_allowed_packet on master";
 
 	case LOG_READ_EOF:
 	  DBUG_PRINT("wait",("waiting for data in binary log"));
+	  if (thd->server_id==0) // for mysqlbinlog (mysqlbinlog.server_id==0)
+	  {
+	    pthread_mutex_unlock(log_lock);
+	    goto end;
+	  }
 	  if (!thd->killed)
 	  {
 	    /* Note that the following call unlocks lock_log */
@@ -611,6 +616,7 @@ Increase max_allowed_packet on master";
     }
   }
 
+end:
   end_io_cache(&log);
   (void)my_close(file, MYF(MY_WME));
 
@@ -621,7 +627,7 @@ Increase max_allowed_packet on master";
   pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_VOID_RETURN;
 
- err:
+err:
   thd->proc_info = "waiting to finalize termination";
   end_io_cache(&log);
   /*
@@ -790,6 +796,25 @@ err:
   DBUG_RETURN(error);
 }
 
+/*
+
+  Kill all Binlog_dump threads which previously talked to the same slave
+  ("same" means with the same server id). Indeed, if the slave stops, if the
+  Binlog_dump thread is waiting (pthread_cond_wait) for binlog update, then it
+  will keep existing until a query is written to the binlog. If the master is
+  idle, then this could last long, and if the slave reconnects, we could have 2
+  Binlog_dump threads in SHOW PROCESSLIST, until a query is written to the
+  binlog. To avoid this, when the slave reconnects and sends COM_BINLOG_DUMP,
+  the master kills any existing thread with the slave's server id (if this id is
+  not zero; it will be true for real slaves, but false for mysqlbinlog when it
+  sends COM_BINLOG_DUMP to get a remote binlog dump).
+
+  SYNOPSIS
+    kill_zombie_dump_threads()
+    slave_server_id     the slave's server id
+
+*/
+  
 
 void kill_zombie_dump_threads(uint32 slave_server_id)
 {

@@ -83,10 +83,6 @@ x-lock also has an explicit non-gap record x-lock. Therefore, as locks are
 released, we can grant locks to waiting lock requests purely by looking at
 the explicit lock requests in the queue.
 
-RULE 2: Granted non-gap locks on a record are always ahead in the queue
--------
-of waiting non-gap locks on a record.
-
 RULE 3: Different transactions cannot have conflicting granted non-gap locks
 -------
 on a record at the same time. However, they can have conflicting granted gap
@@ -4271,7 +4267,6 @@ lock_rec_queue_validate(
 {
 	trx_t*	impl_trx;	
 	lock_t*	lock;
-	ibool	is_waiting;
 	
 	ut_a(rec);
 
@@ -4332,8 +4327,6 @@ lock_rec_queue_validate(
 		}
 	}
 
-	is_waiting = FALSE;
-
 	lock = lock_rec_get_first(rec);
 
 	while (lock) {
@@ -4346,8 +4339,6 @@ lock_rec_queue_validate(
 		}
 
 		if (!lock_rec_get_gap(lock) && !lock_get_wait(lock)) {
-
-			ut_a(!is_waiting);
 		
 			if (lock_get_mode(lock) == LOCK_S) {
 				ut_a(!lock_rec_other_has_expl_req(LOCK_X,
@@ -4359,7 +4350,6 @@ lock_rec_queue_validate(
 
 		} else if (lock_get_wait(lock) && !lock_rec_get_gap(lock)) {
 
-			is_waiting = TRUE;
 			ut_a(lock_rec_has_to_wait_in_queue(lock));
 		}
 
