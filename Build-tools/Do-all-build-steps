@@ -60,7 +60,7 @@ aclocal; autoheader; aclocal; automake; autoconf
  --with-mit-threads=yes $EXTRA_CONFIG \
  --enable-thread-safe-client
 
-gmake # --jobs=4 does not work.
+gmake -j 2 # --jobs=4 does not work.
 
 time gmake distcheck \
  EXTRA_CONF_ARGS="--with-unix-socket-path=/var/tmp/mysql.sock --with-low-memory $EXTRA_CONFIG"

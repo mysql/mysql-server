@@ -43,7 +43,7 @@ else
 }
 $ENV{'PATH'}= "$pwd/$host/bin:" . $ENV{'PATH'}; 
 $rsh=which("rcmd","rsh");
-$make=which("gmake","make");
+$make=which("gmake -j 2","make");
 $tar=which("gtar","tar");
 $sendmail=find("/usr/lib/sendmail","/usr/sbin/sendmail");
 $sur= $opt_sur ? "/my/local/bin/sur" : "";

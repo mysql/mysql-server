@@ -4,5 +4,5 @@ make -k clean
 aclocal; autoheader; aclocal; automake; autoconf
 
 CFLAGS="-O6 -mpentiumpro -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared --with-extra-charsets=complex --enable-thread-safe-client
-make
+make -j 2
 strip sql/mysqld
