@@ -1490,7 +1490,6 @@ srv_printf_innodb_monitor(
 
 	srv_last_monitor_time = time(NULL);
 
-	rewind(file);
 	fputs("\n=====================================\n", file);
 
 	ut_print_timestamp(file);
