@@ -841,3 +841,15 @@ insert into t2 values (1);
 update t1 set  s1 = s1 + 1 where 1 = (select x.s1 as A from t2 WHERE t2.s1 > t1.s1 order by A);
 DROP TABLE t1, t2;
 
+#
+# UNION unlocking test
+#
+create table t1 (a int) type=innodb;
+create table t2 (a int) type=innodb;
+create table t3 (a int) type=innodb;
+insert into t1 values (1),(2),(3),(4);
+insert into t2 values (10),(20),(30),(40);
+insert into t3 values (1),(2),(10),(50);
+select a from t3 where t3.a in (select a from t1 where a <= 3 union select * from t2 where a <= 30);
+drop table t1,t2;
+
