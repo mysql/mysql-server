@@ -391,6 +391,8 @@ class ha_ndbcluster: public handler
   int ndb_err(NdbTransaction*);
   bool uses_blob_value(bool all_fields);
 
+  char *update_table_comment(const char * comment);
+
   int write_ndb_file();
 
   int check_ndb_connection();
