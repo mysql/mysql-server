@@ -1093,8 +1093,7 @@ que_node_print_info(
 		str = "UNKNOWN NODE TYPE";
 	}
 
-	fprintf(stderr, "Node type %lu: %s, address %lx\n", (unsigned long) type, str,
-	       (unsigned long) addr);
+	fprintf(stderr, "Node type %lu: %s, address %p\n", (ulong) type, str, node);
 }
 
 /**************************************************************************

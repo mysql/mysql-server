@@ -488,7 +488,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 	if ((mysql_rm_known_files(thd, new_dirp, NullS, newpath,1)) < 0)
 	  goto err;
 	if (!(copy_of_path= thd->memdup(newpath, length+1)) ||
-	    !(dir= new (&thd->mem_root) String(copy_of_path, length)) ||
+	    !(dir= new (&thd->mem_root) String(copy_of_path, length,
+					       &my_charset_bin)) ||
 	    raid_dirs.push_back(dir))
 	  goto err;
 	continue;
@@ -529,9 +530,6 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       deleted++;
     }
   }
-  List_iterator<String> it(raid_dirs);
-  String *dir;
-
   if (thd->killed ||
       (tot_list && mysql_rm_table_part2_with_lock(thd, tot_list, 1, 0, 1)))
     goto err;

@@ -134,7 +134,9 @@ trx_sys_mark_upgraded_to_multiple_tablespaces(void)
 	mtr_start(&mtr);
 
 	page = buf_page_get(TRX_SYS_SPACE, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_NO_ORDER_CHECK);
+#endif /* UNIV_SYNC_DEBUG */
 
 	doublewrite = page + TRX_SYS_DOUBLEWRITE;
 

@@ -120,7 +120,7 @@ static bool end_active_trans(THD *thd)
 inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
 {
   return (table_rules_on && tables && !tables_ok(thd,tables) &&
-          ((thd->lex.sql_command != SQLCOM_DELETE_MULTI) ||
+          ((thd->lex->sql_command != SQLCOM_DELETE_MULTI) ||
            !tables_ok(thd,
 		      (TABLE_LIST *)thd->lex->auxilliary_table_list.first)));
 }

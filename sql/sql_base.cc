@@ -50,7 +50,7 @@ bool table_cache_init(void)
 {
   mysql_rm_tmp_tables();
   return hash_init(&open_cache, &my_charset_bin, table_cache_size+16,
-		   0, 0,t able_cache_key,
+		   0, 0,table_cache_key,
 		   (hash_free_key) free_cache_entry, 0) != 0;
 }
 
