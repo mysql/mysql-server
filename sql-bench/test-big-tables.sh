@@ -127,14 +127,28 @@ end_benchmark($start_time);
 sub test_query
 {
   my($test_text,$result_text,$query,$dbh,$count)=@_;
-  my($i,$loop_time,$end_time);
+  my($i,$loop_time,$end_time, $using_transactions);
 
   print $test_text . "\n";
   $loop_time=new Benchmark;
+
+  $using_transactions=0;
+  if ($opt_fast && server->{transactions} && $query=~ /^insert /i)
+  {
+    $using_transactions=1;
+    $dbh->{AutoCommit} = 0;
+    print "Transactions enabled\n" if ($opt_debug);
+  }
   for ($i=0 ; $i < $count ; $i++)
   {
     defined(fetch_all_rows($dbh,$query)) or die $DBI::errstr;
   }
+  if ($using_transactions)
+  {
+    $dbh->commit;
+    $dbh->{AutoCommit} = 1;
+  }
+
   $end_time=new Benchmark;
   print $result_text . "($count): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";

@@ -148,7 +148,7 @@ int mysql_update(THD *thd,
     used_key_is_modified=check_if_key_used(table, used_index, fields);
   else
     used_key_is_modified=0;
-  if (used_key_is_modified)
+  if (used_key_is_modified || order)
   {
     /*
     ** We can't update table directly;  We must first search after all

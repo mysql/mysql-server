@@ -2188,7 +2188,13 @@ insert:
 	INSERT { Lex->sql_command = SQLCOM_INSERT; } insert_lock_option opt_ignore insert2 insert_field_spec
 
 replace:
-	REPLACE { Lex->sql_command = SQLCOM_REPLACE; } replace_lock_option insert2 insert_field_spec
+	REPLACE
+	{
+	  LEX *lex=Lex;	
+	  lex->sql_command = SQLCOM_REPLACE;
+	  lex->duplicates= DUP_REPLACE;
+	}
+	replace_lock_option insert2 insert_field_spec
 
 insert_lock_option:
 	/* empty */	{ Lex->lock_option= TL_WRITE_CONCURRENT_INSERT; }
@@ -2299,10 +2305,6 @@ values:
 
 update:
 	UPDATE_SYM opt_low_priority opt_ignore table_name
-        SET update_list 
-        where_clause 
-        opt_order_clause
-        delete_limit_clause
 	{ 
 	  LEX *lex=Lex;
           lex->sql_command = SQLCOM_UPDATE;
@@ -2310,6 +2312,10 @@ update:
           lex->select->order_list.first=0;
           lex->select->order_list.next= (byte**) &lex->select->order_list.first;
         }
+        SET update_list 
+        where_clause 
+        opt_order_clause
+        delete_limit_clause
 
 update_list:
 	update_list ',' simple_ident equal expr

@@ -102,3 +102,13 @@ select status from t1;
 status
 1
 drop table t1;
+create table t1 (a int not null, b int not null);
+insert into t1 values (1,1),(1,2),(1,3);
+update t1 set b=4 where a=1 order by b asc limit 1;
+update t1 set b=4 where a=1 order by b desc limit 1;
+select * from t1;
+a	b
+1	4
+1	4
+1	2
+drop table t1;

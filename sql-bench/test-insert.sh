@@ -29,6 +29,7 @@
 
 use DBI;
 use Benchmark;
+use Data::Dumper;
 
 $opt_loop_count=100000;		# number of rows/3
 $small_loop_count=10;		# Loop for full table retrieval
@@ -132,6 +133,12 @@ else
   $query="insert into bench1 (id,id2,id3,dummy1) values ";
 }
 
+if ($opt_fast && $server->{transactions})
+{
+  $dbh->{AutoCommit} = 0;
+  print "Transactions enabled\n" if ($opt_debug);
+}
+
 if (($opt_fast || $opt_fast_insert) && $server->{'limits'}->{'insert_multi_value'})
 {
   $query_size=$server->{'limits'}->{'query_size'};
@@ -209,6 +216,12 @@ else
   }
 }
 
+if ($opt_fast && $server->{transactions})
+{
+  $dbh->commit;
+  $dbh->{AutoCommit} = 1;
+}
+
 $end_time=new Benchmark;
 print "Time for insert (" . ($total_rows) . "): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
@@ -234,6 +247,12 @@ if ($limits->{'unique_index'})
 {
   print "Testing insert of duplicates\n";
   $loop_time=new Benchmark;
+
+  if ($opt_fast && $server->{transactions})
+  {
+    $dbh->{AutoCommit} = 0;
+  }
+
   for ($i=0 ; $i < $opt_loop_count ; $i++)
   {
     $tmpvar^= ((($tmpvar + 63) + $i)*3 % $opt_loop_count);
@@ -243,6 +262,11 @@ if ($limits->{'unique_index'})
     {
       die "Didn't get an error when inserting duplicate record $tmp\n";
     }
+  }
+  if ($opt_fast && $server->{transactions})
+  {
+    $dbh->commit;
+    $dbh->{AutoCommit} = 1;
   }
 
   $end_time=new Benchmark;
@@ -576,7 +600,6 @@ if ($limits->{'group_functions'})
       print "Warning: '$query' returned wrong result\n";
     }
     $sth->finish;
-
 
     $count++;
     $sth=$dbh->prepare($query="select count(*),sum(id+0.0),min(id),max(id),avg(id-0.0) from bench1") or die $DBI::errstr;
@@ -1250,6 +1273,11 @@ if ($server->small_rollback_segment())
 }
 
 $loop_time=new Benchmark;
+if ($opt_fast && $server->{transactions})
+{
+  $dbh->{AutoCommit} = 0;
+}
+
 $fields=$#fields;
 if (($opt_fast || $opt_fast_insert) && $server->{'limits'}->{'insert_multi_value'})
 {
@@ -1297,6 +1325,13 @@ else
     $dbh->do($query) or die "Got error $DBI::errstr with query: $query\n";
   }
 }
+
+if ($opt_fast && $server->{transactions})
+{
+  $dbh->commit;
+  $dbh->{AutoCommit} = 1;
+}
+
 $end_time=new Benchmark;
 print "Time for insert_key ($many_keys_loop_count): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
@@ -1325,11 +1360,24 @@ if ($opt_fast && defined($server->{vacuum}))
 
 print "Testing update of keys\n";
 $loop_time=new Benchmark;
+
+if ($opt_fast && $server->{transactions})
+{
+  $dbh->{AutoCommit} = 0;
+}
+
 for ($i=0 ; $i< 256; $i++)
 {
   $dbh->do("update bench1 set field5=1 where field_search=$i")
     or die "Got error $DBI::errstr with query: update bench1 set field5=1 where field_search=$i\n";
 }
+
+if ($opt_fast && $server->{transactions})
+{
+  $dbh->commit;
+  $dbh->{AutoCommit} = 1;
+}
+
 $end_time=new Benchmark;
 print "Time for update_of_primary_key_many_keys (256): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
@@ -1420,12 +1468,18 @@ if ($limits->{'insert_multi_value'})
 				"dummy1 char(30)"],
 			       ["primary key (id,id2)",
 			       "index index_id3 (id3)"]));
+
+  $loop_time=new Benchmark;
+
   if ($opt_lock_tables)
   {
     $sth = $dbh->do("LOCK TABLES bench1 write") || die $DBI::errstr;
   }
+  if ($opt_fast && $server->{transactions})
+  {
+    $dbh->{AutoCommit} = 0;
+  }
 
-  $loop_time=new Benchmark;
   print "Inserting $opt_loop_count rows with multiple values\n";
   $query="insert into bench1 values ";
   $res=$query;
@@ -1447,6 +1501,11 @@ if ($limits->{'insert_multi_value'})
   if ($opt_lock_tables)
   {
     $sth = $dbh->do("UNLOCK TABLES ") || die $DBI::errstr;
+  }
+  if ($opt_fast && $server->{transactions})
+  {
+    $dbh->commit;
+    $dbh->{AutoCommit} = 1;
   }
 
   $end_time=new Benchmark;

@@ -121,6 +121,7 @@ sub new
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
   $self->{'vacuum'}		= 1; # When using with --fast
   $self->{'drop_attr'}		= "";
+  $self->{'transactions'}	= 1; # Transactions enabled
 
   $limits{'NEG'}		= 1; # Supports -id
   $limits{'alter_add_multi_col'}= 1; #Have ALTER TABLE t add a int,add b int;
@@ -370,6 +371,7 @@ sub new
   $self->{'limits'}		= \%limits;
   $self->{'double_quotes'}	= 0;
   $self->{'drop_attr'}		= "";
+  $self->{'transactions'}	= 0;  # No transactions
   $self->{'blob'}		= "text(" . $limits{'max_text_size'} .")";
   $self->{'text'}		= "text(" . $limits{'max_text_size'} .")";
 
@@ -565,6 +567,7 @@ sub new
   $self->{'text'}		= "text";
   $self->{'double_quotes'}	= 1;
   $self->{'drop_attr'}		= "";
+  $self->{'transactions'}	= 1; # Transactions enabled
   $self->{"vacuum"}		= 1;
   $limits{'join_optimizer'}	= 1;		# Can optimize FROM tables
   $limits{'load_data_infile'}	= 0;
@@ -854,6 +857,7 @@ sub new
   $self->{'text'}		= "long varchar";
   $self->{'double_quotes'}	= 1;
   $self->{'drop_attr'}		= "";
+  $self->{'transactions'}	= 1; # Transactions enabled
 
   $limits{'max_conditions'}	= 9999;		# Probably big enough
   $limits{'max_columns'}	= 2000;		# From crash-me
@@ -1095,6 +1099,7 @@ sub new
   $self->{'text'}		= "text";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
   $self->{'drop_attr'}		= "";
+  $self->{'transactions'}	= 1; # Transactions enabled
 
   $limits{'max_conditions'}	= 1258;
   $limits{'max_columns'}	= 226;		# server is disconnecting????
@@ -1377,6 +1382,7 @@ sub new
   $self->{'text'}		= "long";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
   $self->{'drop_attr'}		= "";
+  $self->{'transactions'}	= 1; # Transactions enabled
   $self->{"vacuum"}		= 1;
 
   $limits{'max_conditions'}	= 9999; # (Actually not a limit)
@@ -1633,6 +1639,7 @@ sub new
   $self->{'text'}		= "byte in table";
   $self->{'double_quotes'}	= 0; # Can handle:  'Walker''s'
   $self->{'drop_attr'}		= "";
+  $self->{'transactions'}	= 1; # Transactions enabled
   $self->{'host'}		= $host;
 
   $limits{'NEG'}		= 1; # Supports -id
@@ -1834,6 +1841,7 @@ sub new
   $self->{'text'}		= "blob"; # text ? 
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
   $self->{'drop_attr'}		= "";
+  $self->{'transactions'}	= 1; # Transactions enabled
 
   $limits{'max_conditions'}	= 97; # We get 'Query is too complex'
   $limits{'max_columns'}	= 255;	# Max number of columns in table
@@ -2010,6 +2018,7 @@ sub new
   $self->{'text'}		= "text";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
   $self->{'drop_attr'}		= "";
+  $self->{'transactions'}	= 1; # Transactions enabled
 
   $limits{'max_conditions'}	= 1030; # We get 'Query is too complex'
   $limits{'max_columns'}	= 250;	# Max number of columns in table
@@ -2197,6 +2206,7 @@ sub new
   $self->{'text'}		= "text";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
   $self->{'drop_attr'}		= "";
+  $self->{'transactions'}	= 1; # Transactions enabled
   $self->{"vacuum"}		= 1;
 
   $limits{'max_conditions'}	= 1030; # We get 'Query is too complex'
@@ -2389,6 +2399,7 @@ sub new
   $self->{'text'}		= "long";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
   $self->{'drop_attr'}		= "";
+  $self->{'transactions'}	= 1; # Transactions enabled
 
   $limits{'max_conditions'}	= 50; # (Actually not a limit)
   $limits{'max_columns'}	= 254;	# Max number of columns in table
@@ -2603,6 +2614,7 @@ sub new
   $self->{'text'}		= "varchar(255)";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
   $self->{'drop_attr'}		= "";
+  $self->{'transactions'}	= 1; # Transactions enabled
 
   $limits{'max_conditions'}	= 418; # We get 'Query is too complex'
   $limits{'max_columns'}	= 500;	# Max number of columns in table
@@ -2772,6 +2784,7 @@ sub new
   $self->{'text'}		= "character varying(15000)";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
   $self->{'drop_attr'}		= "";
+  $self->{'transactions'}	= 1; # Transactions enabled
   $self->{'char_null'}          = "cast(NULL as char(1))";
   $self->{'numeric_null'}       = "cast(NULL as int)";
 
@@ -2972,6 +2985,7 @@ sub new
   $self->{'text'}		= "";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
   $self->{'drop_attr'}		= "";
+  $self->{'transactions'}	= 1; # Transactions enabled
   $self->{'char_null'}          = "";
   $self->{'numeric_null'}       = "";
 
@@ -3184,6 +3198,7 @@ sub new
   $self->{'text'}		= "varchar(8000000)";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
   $self->{'drop_attr'}		= ' restrict';
+  $self->{'transactions'}	= 1; # Transactions enabled
   $self->{'error_on_execute_means_zero_rows'}=1;
 
   $limits{'max_conditions'}	= 5427; # (Actually not a limit)

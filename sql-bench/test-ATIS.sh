@@ -106,6 +106,12 @@ if (!$opt_skip_create)
   }
   else
   {
+    if ($opt_fast && $server->{transactions})
+    {
+      $dbh->{AutoCommit} = 0;
+      print "Transactions enabled\n" if ($opt_debug);
+    }
+
     for ($ti = 0; $ti <= $#table_names; $ti++)
     {
       my $table_name = $table_names[$ti];
@@ -128,8 +134,14 @@ if (!$opt_skip_create)
 	$row_count++;
       }
     }
+    if ($opt_fast && $server->{transactions})
+    {
+      $dbh->commit;
+      $dbh->{AutoCommit} = 1;
+    }
     close(DATA);
   }
+
   if ($opt_lock_tables)
   {
     $dbh->do("UNLOCK TABLES");
