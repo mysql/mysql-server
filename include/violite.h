@@ -137,11 +137,9 @@ my_bool vio_poll_read(Vio *vio,uint timeout);
 
 
 #ifdef HAVE_OPENSSL
-#include <openssl/x509.h>
+#define HEADER_DES_LOCL_H dummy_something
 #include <openssl/ssl.h>
 #include <openssl/err.h>
-#include <openssl/pem.h>
-#include <openssl/asn1.h>
 #include "my_net.h"			/* needed because of struct in_addr */
 
 
@@ -184,10 +182,9 @@ struct st_VioSSLAcceptorFd
     state_connect       = 1,
     state_accept        = 2
   };
-  BIO* bio_;
-  char *ssl_cip_;
-  char desc_[100];
-  Vio* sd_;
+//  BIO* bio_;
+//  char desc_[100];
+//  Vio* sd_;
 
   /* function pointers which are only once for SSL server 
   Vio*(*sslaccept)(struct st_VioSSLAcceptorFd*,Vio*); */
@@ -200,8 +197,8 @@ struct st_VioSSLConnectorFd
   SSL_METHOD* ssl_method_;
   /* function pointers which are only once for SSL client */ 
 };
-Vio *sslaccept(struct st_VioSSLAcceptorFd*, Vio*);
-Vio *sslconnect(struct st_VioSSLConnectorFd*, Vio*);
+void sslaccept(struct st_VioSSLAcceptorFd*, Vio*);
+void sslconnect(struct st_VioSSLConnectorFd*, Vio*);
 
 #else /* HAVE_OPENSSL */
 /* This dummy is required to maintain proper size of st_mysql in mysql.h */
@@ -250,6 +247,7 @@ struct st_vio
   BIO* bio_;
   SSL* ssl_;
   my_bool open_;
+  char *ssl_cip_;
 #endif /* HAVE_OPENSSL */
 #endif /* HAVE_VIO */
 };

@@ -189,7 +189,13 @@
 # endif
 #endif /* TIME_WITH_SYS_TIME */
 #ifdef HAVE_UNISTD_H
+#ifdef HAVE_OPENSSL
+#define crypt dummy
+#endif
 #include <unistd.h>
+#ifdef HAVE_OPENSSL
+#undef crypt
+#endif
 #endif
 #if defined(__cplusplus) && defined(NO_CPLUSPLUS_ALLOCA)
 #undef HAVE_ALLOCA
