@@ -695,6 +695,7 @@ static bool make_empty_rec(File file,enum db_type table_type,
 			       field->interval,
 			       field->field_name,
 			       &table);
+    DBUG_ASSERT(regfield);
 
     if (!(field->flags & NOT_NULL_FLAG))
       null_count++;
