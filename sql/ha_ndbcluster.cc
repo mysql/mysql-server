@@ -6620,7 +6620,9 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
     }
     case(Item_func::LIKE_FUNC): {
       if (!value || !field) break;
-      if (value->qualification.value_type != Item::STRING_ITEM) break;
+      if ((value->qualification.value_type != Item::STRING_ITEM) &&
+          (value->qualification.value_type != Item::VARBIN_ITEM))
+          break;
       // Save value in right format for the field type
       value->save_in_field(field);
       DBUG_PRINT("info", ("Generating LIKE filter: like(%d,%s,%d)", 
@@ -6636,7 +6638,9 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
     }
     case(Item_func::NOTLIKE_FUNC): {
       if (!value || !field) break;
-      if (value->qualification.value_type != Item::STRING_ITEM) break;
+      if ((value->qualification.value_type != Item::STRING_ITEM) &&
+          (value->qualification.value_type != Item::VARBIN_ITEM))
+        break;
       // Save value in right format for the field type
       value->save_in_field(field);
       DBUG_PRINT("info", ("Generating NOTLIKE filter: notlike(%d,%s,%d)", 
