@@ -1189,7 +1189,7 @@ int bin2decimal(char *from, decimal *to, int precision, int scale)
       intg0=intg/DIG_PER_DEC1, frac0=scale/DIG_PER_DEC1,
       intg0x=intg-intg0*DIG_PER_DEC1, frac0x=scale-frac0*DIG_PER_DEC1,
       intg1=intg0+(intg0x>0), frac1=frac0+(frac0x>0);
-  dec1 *buf=to->buf, mask=(*from <0) ? 0 : -1;
+  dec1 *buf=to->buf, mask=(*from & 0x80) ? 0 : -1;
   char *stop;
   char *d_copy;
   int bin_size= decimal_bin_size(precision, scale);
