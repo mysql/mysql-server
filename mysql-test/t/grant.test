@@ -33,6 +33,23 @@ delete from mysql.user where user='mysqltest_1';
 flush privileges;
 
 #
+# Test of GRANTS specifying user limits
+#
+delete from mysql.user where user='mysqltest_1';
+flush privileges;
+grant usage on *.* to mysqltest_1@localhost with max_queries_per_hour 10;
+select * from mysql.user where user="mysqltest_1";
+show grants for mysqltest_1@localhost;
+grant usage on *.* to mysqltest_1@localhost with max_updates_per_hour 20 max_connections_per_hour 30;
+select * from mysql.user where user="mysqltest_1";
+show grants for mysqltest_1@localhost;
+# This is just to double check that one won't ignore results of selects
+flush privileges;
+show grants for mysqltest_1@localhost;
+delete from mysql.user where user='mysqltest_1';
+flush privileges;
+
+#
 # Test that the new db privileges are stored/retrieved correctly
 #
 

@@ -469,6 +469,10 @@ fil_node_open_file(
 	ulint		size_low;
 	ulint		size_high;
 	ibool		ret;
+	byte*		buf2;
+	byte*		page;
+	ibool		success;
+	ulint		space_id;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
@@ -497,6 +501,8 @@ fil_node_open_file(
 	system->n_open++;
 
 	if (node->size == 0) {
+		ut_a(space->purpose != FIL_LOG);
+
 		os_file_get_size(node->handle, &size_low, &size_high);
 
 		size_bytes = (((ib_longlong)size_high) << 32)
@@ -509,6 +515,46 @@ fil_node_open_file(
 		size of the file yet */
 
 		ut_a(space->id != 0);
+
+		if (size_bytes < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
+	        	fprintf(stderr,
+"InnoDB: Error: the size of single-table tablespace file %s\n"
+"InnoDB: is only %lu %lu, should be at least %lu!", node->name,
+			(ulong) size_high,
+			(ulong) size_low, (ulong) (4 * UNIV_PAGE_SIZE));
+			
+			ut_a(0);
+		}
+
+		/* Read the first page of the tablespace */
+
+		buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
+		/* Align the memory for file i/o if we might have O_DIRECT
+		set */
+		page = ut_align(buf2, UNIV_PAGE_SIZE);
+
+		success = os_file_read(node->handle, page, 0, 0,
+							UNIV_PAGE_SIZE);
+		space_id = fsp_header_get_space_id(page);
+
+		ut_free(buf2);
+		
+		if (space_id == ULINT_UNDEFINED || space_id == 0) {
+	        	fprintf(stderr,
+"InnoDB: Error: tablespace id %lu in file %s is not sensible\n",
+			(ulong) space_id,
+			node->name);
+			
+			ut_a(0);			
+		}
+
+		if (space_id != space->id) {
+	        	fprintf(stderr,
+"InnoDB: Error: tablespace id is %lu in the data dictionary\n"
+"InnoDB: but in file %s it is %lu!\n", space->id, node->name, space_id);
+
+			ut_a(0);
+		}
 
 		if (size_bytes >= FSP_EXTENT_SIZE * UNIV_PAGE_SIZE) {
 			node->size = (ulint) ((size_bytes / (1024 * 1024))
@@ -2498,21 +2544,29 @@ func_exit:
 }
 
 /************************************************************************
-Tries to open a single-table tablespace and checks the space id is right in
-it. If does not succeed, prints an error message to the .err log. This
-function is used to open the tablespace when we load a table definition
-to the dictionary cache. NOTE that we assume this operation is used under the
-protection of the dictionary mutex, so that two users cannot race here. This
-operation does not leave the file associated with the tablespace open, but
-closes it after we have looked at the space id in it. */
+Tries to open a single-table tablespace and optionally checks the space id is
+right in it. If does not succeed, prints an error message to the .err log. This
+function is used to open a tablespace when we start up mysqld, and also in
+IMPORT TABLESPACE.
+NOTE that we assume this operation is used either at the database startup
+or under the protection of the dictionary mutex, so that two users cannot
+race here. This operation does not leave the file associated with the
+tablespace open, but closes it after we have looked at the space id in it. */
 
 ibool
 fil_open_single_table_tablespace(
 /*=============================*/
-				/* out: TRUE if success */
-	ulint		id,	/* in: space id */
-	const char*	name)	/* in: table name in the
-				databasename/tablename format */
+					/* out: TRUE if success */
+	ibool		check_space_id,	/* in: should we check that the space
+					id in the file is right; we assume
+					that this function runs much faster
+					if no check is made, since accessing
+					the file inode probably is much
+					faster (the OS caches them) than
+					accessing the first page of the file */
+	ulint		id,		/* in: space id */
+	const char*	name)		/* in: table name in the
+					databasename/tablename format */
 {
 	os_file_t	file;
 	char*		filepath;
@@ -2551,6 +2605,12 @@ fil_open_single_table_tablespace(
 		return(FALSE);
 	}
 
+	if (!check_space_id) {
+		space_id = id;
+
+		goto skip_check;
+	}
+
 	/* Read the first page of the tablespace */
 
 	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
@@ -2562,6 +2622,8 @@ fil_open_single_table_tablespace(
 	/* We have to read the tablespace id from the file */
 
 	space_id = fsp_header_get_space_id(page);
+
+	ut_free(buf2);
 
 	if (space_id != id) {
 		ut_print_timestamp(stderr);
@@ -2583,6 +2645,7 @@ fil_open_single_table_tablespace(
 		goto func_exit;
 	}
 
+skip_check:
 	success = fil_space_create(filepath, space_id, FIL_TABLESPACE);
 
 	if (!success) {
@@ -2595,7 +2658,6 @@ fil_open_single_table_tablespace(
 	fil_node_create(filepath, 0, space_id, FALSE);
 func_exit:
 	os_file_close(file);
-	ut_free(buf2);
 	mem_free(filepath);
 
 	return(ret);
@@ -2662,7 +2724,7 @@ fil_load_single_table_tablespace(
 	        fprintf(stderr,
 "InnoDB: Error: could not open single-table tablespace file\n"
 "InnoDB: %s!\n"
-"InnoDB: We do not continue crash recovery, because the table will become\n"
+"InnoDB: We do not continue the crash recovery, because the table may become\n"
 "InnoDB: corrupt if we cannot apply the log records in the InnoDB log to it.\n"
 "InnoDB: To fix the problem and start mysqld:\n"
 "InnoDB: 1) If there is a permission problem in the file and mysqld cannot\n"
@@ -2833,8 +2895,9 @@ fil_load_single_table_tablespace(
 		goto func_exit;
 	}
 
-	/* We do not measure the size of the file, that is why we pass the 0
-	below */
+	/* We do not use the size information we have about the file, because
+	the rounding formula for extents and pages is somewhat complex; we
+	let fil_node_open() do that task. */
 
 	fil_node_create(filepath, 0, space_id, FALSE);
 func_exit:

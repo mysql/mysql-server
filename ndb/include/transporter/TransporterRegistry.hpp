@@ -104,7 +104,12 @@ public:
   void set_mgm_handle(NdbMgmHandle h) { m_mgm_handle = h; };
 
   bool init(NodeId localNodeId);
-  
+
+  /**
+   * after a connect from client, perform connection using correct transporter
+   */
+  bool connect_server(NDB_SOCKET_TYPE sockfd);
+
   /**
    * Remove all transporters
    */

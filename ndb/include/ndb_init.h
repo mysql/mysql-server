@@ -14,22 +14,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef NdbApi_H
-#define NdbApi_H
 
-#include "ndb_init.h"
-#include "ndb_cluster_connection.hpp"
-#include "ndbapi_limits.h"
-#include "Ndb.hpp"
-#include "NdbTransaction.hpp"
-#include "NdbOperation.hpp"
-#include "NdbScanOperation.hpp"
-#include "NdbIndexOperation.hpp"
-#include "NdbIndexScanOperation.hpp"
-#include "NdbScanFilter.hpp"
-#include "NdbRecAttr.hpp"
-#include "NdbDictionary.hpp"
-#include "NdbEventOperation.hpp"
-#include "NdbPool.hpp"
-#include "NdbBlob.hpp"
+#ifndef NDB_INIT_H
+#define NDB_INIT_H
+
+#ifdef  __cplusplus
+extern "C" {
+#endif
+/* call in main() - does not return on error */
+extern int ndb_init(void);
+extern void ndb_end(int);
+#define NDB_INIT(prog_name) {my_progname=(prog_name); ndb_init();}
+#ifdef  __cplusplus
+}
+#endif
+
 #endif

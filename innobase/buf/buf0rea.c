@@ -332,7 +332,7 @@ buf_read_page(
 	if (err == DB_TABLESPACE_DELETED) {
 	        ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: error: trying to access tablespace %lu page no. %lu,\n"
+"  InnoDB: Error: trying to access tablespace %lu page no. %lu,\n"
 "InnoDB: but the tablespace does not exist or is just being dropped.\n",
 				 (ulong) space, (ulong) offset);
 	}
