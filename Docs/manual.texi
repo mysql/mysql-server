@@ -41010,15 +41010,16 @@ or more of the following bits set:
 @item @code{AUTO_INCREMENT_FLAG} @tab Field has the @code{AUTO_INCREMENT}
 attribute
 @item @code{ENUM_FLAG}           @tab Field is an @code{ENUM} (deprecated)
+@item @code{SET_FLAG}            @tab Field is a @code{SET} (deprecated)
 @item @code{BLOB_FLAG}           @tab Field is a @code{BLOB} or @code{TEXT} (deprecated)
 @item @code{TIMESTAMP_FLAG}      @tab Field is a @code{TIMESTAMP} (deprecated)
 @end multitable
 
-Use of the @code{BLOB_FLAG}, @code{ENUM_FLAG}, and @code{TIMESTAMP_FLAG}
-flags is deprecated because they indicate the type of a field rather
-than an attribute of its type.  It is preferable to test
-@code{field->type} against @code{FIELD_TYPE_BLOB},
-@code{FIELD_TYPE_ENUM}, or @code{FIELD_TYPE_TIMESTAMP} instead.
+Use of the @code{BLOB_FLAG}, @code{ENUM_FLAG}, @code{SET_FLAG}, and
+@code{TIMESTAMP_FLAG} flags is deprecated because they indicate the type of
+a field rather than an attribute of its type.  It is preferable to test
+@code{field->type} against @code{FIELD_TYPE_BLOB}, @code{FIELD_TYPE_ENUM},
+@code{FIELD_TYPE_SET}, or @code{FIELD_TYPE_TIMESTAMP} instead.
 
 @noindent
 The example below illustrates a typical use of the @code{flags} value:
