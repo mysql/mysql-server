@@ -1080,6 +1080,27 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
   check_io(xml_file);
 }
 
+
+/*  fixPaths -- on Windows only, this function will iterate through the output
+  of show create table and change any \ characters that appear in the data directory
+  or index directory elements to be /  
+
+  RETURN    
+     void
+*/
+static void fixPaths(char *buf, int buflen) 
+{
+#ifdef __WIN__
+   int i = 0;
+   for (i=0; i < buflen; i++)
+   {
+      if (buf[i] != '\\') continue;
+      if (i != 0 && buf[i-1] == '\\') continue;
+      if (i != (buflen-1) && buf[i+1] == '\\') continue;
+      buf[i] = '/';}
+#endif
+}
+
 /*
   getStructure -- retrievs database structure, prints out corresponding
   CREATE statement and fills out insert_pat.
@@ -1159,6 +1180,7 @@ static uint getTableStructure(char *table, char* db)
 
       tableRes=mysql_store_result(sock);
       row=mysql_fetch_row(tableRes);
+      fixPaths(row[1], strlen(row[1]));    // this really only does something on Windows
       fprintf(sql_file, "%s;\n", row[1]);
       check_io(sql_file);
       mysql_free_result(tableRes);
