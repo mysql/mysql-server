@@ -18,7 +18,7 @@ call .p1();
 call p1();
 
 # This is not ok:
---error 1304
+--error 1305
 select f1();
 
 select db,name,type,security_type from mysql.proc;
