@@ -374,6 +374,7 @@ static SYMBOL symbols[] = {
   { "TYPE",		SYM(TYPE_SYM),0,0},
   { "TYPES",		SYM(TYPES_SYM),0,0},
   { "UNCOMMITTED",	SYM(UNCOMMITTED_SYM),0,0},
+  { "UNICODE",	        SYM(UNICODE_SYM),0,0},
   { "UNION",	        SYM(UNION_SYM),0,0},
   { "UNIQUE",		SYM(UNIQUE_SYM),0,0},
   { "UNLOCK",		SYM(UNLOCK_SYM),0,0},
