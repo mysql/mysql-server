@@ -81,7 +81,7 @@ class ha_ndbcluster: public handler
 		       bool sorted);
   int read_range_next(bool eq_range);
 
-
+  void print_error(int error, myf errflag);
   void info(uint);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
@@ -152,7 +152,6 @@ class ha_ndbcluster: public handler
   const char* get_unique_index_name(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
-  int get_ndb_lock_type();
   
   int pk_read(const byte *key, uint key_len, 
 	      byte *buf);
@@ -167,6 +166,7 @@ class ha_ndbcluster: public handler
   int filtered_scan(const byte *key, uint key_len, 
 		    byte *buf,
 		    enum ha_rkey_function find_flag);
+  int close_scan();
   void unpack_record(byte *buf);
 
   void set_dbname(const char *pathname);
