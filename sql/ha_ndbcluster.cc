@@ -524,7 +524,8 @@ inline NDB_INDEX_TYPE ha_ndbcluster::get_index_type(uint idx_no) const
     flags depending on the type of the index.
 */
 
-inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part) const 
+inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part,
+                                        bool all_parts) const 
 { 
   DBUG_ENTER("index_flags");
   DBUG_PRINT("info", ("idx_no: %d", idx_no));

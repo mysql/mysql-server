@@ -36,7 +36,7 @@ class ha_isam: public handler
 		    HA_DUPP_POS | HA_NOT_DELETE_WITH_CACHE | HA_FILE_BASED)
   {}
   ~ha_isam() {}
-  ulong index_flags(uint idx, uint part) const
+  ulong index_flags(uint idx, uint part, bool all_parts) const
   { return HA_READ_NEXT; } // but no HA_READ_PREV here!!!
   const char *table_type() const { return "ISAM"; }
   const char *index_type(uint key_number) { return "BTREE"; }
