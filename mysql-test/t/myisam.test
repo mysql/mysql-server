@@ -498,7 +498,6 @@ show keys from t1;
 alter table t1 enable keys;
 show keys from t1;
 alter table t1 engine=heap;
---error 1031
 alter table t1 disable keys;
 show keys from t1;
 drop table t1,t2;

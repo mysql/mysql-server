@@ -98,8 +98,9 @@ public:
   virtual void store_time(TIME *ltime,timestamp_type t_type);
   virtual double val_real(void)=0;
   virtual longlong val_int(void)=0;
-  String *val_str(String *str) { return val_str(str, str); }
-  /* val_str(buf1, buf2) gets two buffers and should use them as follows:
+  inline String *val_str(String *str) { return val_str(str, str); }
+  /*
+     val_str(buf1, buf2) gets two buffers and should use them as follows:
      if it needs a temp buffer to convert result to string - use buf1
        example Field_tiny::val_str()
      if the value exists as a string already - use buf2

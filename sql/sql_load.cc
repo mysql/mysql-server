@@ -276,10 +276,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   {
     if (use_timestamp)
       table->timestamp_default_now= table->timestamp_on_update_now= 0;
-    
+
     table->next_number_field=table->found_next_number_field;
-    VOID(table->file->extra_opt(HA_EXTRA_WRITE_CACHE,
-			    thd->variables.read_buff_size));
     if (handle_duplicates == DUP_IGNORE ||
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -291,8 +289,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     else
       error=read_sep_field(thd,info,table,fields,read_info,*enclosed,
 			   skip_lines);
-    if (table->file->extra(HA_EXTRA_NO_CACHE))
-      error=1;					/* purecov: inspected */
     if (table->file->end_bulk_insert())
       error=1;					/* purecov: inspected */
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
