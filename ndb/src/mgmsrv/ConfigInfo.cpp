@@ -3116,37 +3116,6 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
   Uint32 port= 0;
   if (!node->get("ServerPort", &port) &&
       !ctx.m_userProperties.get("ServerPort_", id1, &port)) {
-    Uint32 adder= 0;
-    {
-      BaseString server_port_adder(hostname);
-      server_port_adder.append("_ServerPortAdder");
-      ctx.m_userProperties.get(server_port_adder.c_str(), &adder);
-      ctx.m_userProperties.put(server_port_adder.c_str(), adder+1, true);
-    }
-
-    Uint32 base= 0;
-    if (!ctx.m_userProperties.get("ServerPortBase", &base)){
-      if(!(ctx.m_userDefaults &&
-	   ctx.m_userDefaults->get("PortNumber", &base)) &&
-	 !ctx.m_systemDefaults->get("PortNumber", &base)) {
-	base= strtoll(NDB_TCP_BASE_PORT,0,0);
-      //      ctx.reportError("Cannot retrieve base port number");
-      //      return false;
-      }
-      ctx.m_userProperties.put("ServerPortBase", base);
-    }
-    port= base + adder;
-    ctx.m_userProperties.put("ServerPort_", id1, port);
-  }
-
-  if(ctx.m_currentSection->contains("PortNumber")) {
-    ndbout << "PortNumber should no longer be specificied "
-	   << "per connection, please remove from config. "
-	   << "Will be changed to " << port << endl;
-    ctx.m_currentSection->put("PortNumber", port, true);
-  } 
-  else
-  {
     ctx.m_currentSection->put("PortNumber", port);
   }
   DBUG_PRINT("info", ("connection %d-%d port %d host %s",

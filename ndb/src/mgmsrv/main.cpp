@@ -67,7 +67,7 @@ struct MgmGlobals {
   NodeId localNodeId;
   bool use_specific_ip;
   char * interface_name;
-  int port;
+  short unsigned int port;
   
   /** The Mgmt Server */
   MgmtSrvr * mgmObject;
@@ -236,7 +236,7 @@ int main(int argc, char** argv)
     glob.interface_name = 0;
   }
 
-  if(!glob.socketServer->setup(mapi, glob.port, glob.interface_name)){
+  if(!glob.socketServer->setup(mapi, &glob.port, glob.interface_name)){
     ndbout_c("Unable to setup management port: %d!\n"
 	     "Please check if the port is already used,\n"
 	     "(perhaps a ndb_mgmd is already running),\n"
