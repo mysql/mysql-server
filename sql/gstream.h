@@ -29,8 +29,8 @@ public:
     comma
   };
 
-  Gis_read_stream(const char *buffer, int size)
-    :m_cur(buffer), m_limit(buffer + size), m_err_msg(NULL)
+  Gis_read_stream(CHARSET_INFO *charset, const char *buffer, int size)
+    :m_cur(buffer), m_limit(buffer + size), m_err_msg(NULL), m_charset(charset)
   {}
   Gis_read_stream(): m_cur(NullS), m_limit(NullS), m_err_msg(NullS)
   {}
@@ -46,14 +46,14 @@ public:
 
   inline void skip_space()
   {
-    while (my_isspace(&my_charset_latin1, *m_cur))
+    while ((m_cur < m_limit) && my_isspace(&my_charset_latin1, *m_cur))
       m_cur++;
   }
   /* Skip next character, if match. Return 1 if no match */
   inline bool skip_char(char skip)
   {
     skip_space();
-    if (*m_cur != skip)
+    if ((m_cur >= m_limit) || *m_cur != skip)
       return 1;					/* Didn't find char */
     m_cur++;
     return 0;
@@ -72,4 +72,5 @@ protected:
   const char *m_cur;
   const char *m_limit;
   char *m_err_msg;
+  CHARSET_INFO *m_charset;
 };

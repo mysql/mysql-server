@@ -2241,7 +2241,7 @@ String *Item_func_hex::val_str(String *str)
   return &tmp_value;
 }
 
-int inline hexchar_to_int(char c)
+inline int hexchar_to_int(char c)
 {
   if (c <= '9' && c >= '0')
     return c-'0';
@@ -2721,7 +2721,7 @@ String *Item_func_uuid::val_str(String *str)
   {
     ulong tmp=sql_rnd_with_mutex();
     uchar mac[6];
-    int i;
+    unsigned int i;
     if (my_gethwaddr(mac))
     {
       /*
