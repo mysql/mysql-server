@@ -293,7 +293,7 @@ inline THD *_current_thd(void)
 
 int mysql_create_db(THD *thd, char *db, uint create_info, bool silent);
 int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
-void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags);
+void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos, ushort flags);
 int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists);
 int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 			 bool log_query);

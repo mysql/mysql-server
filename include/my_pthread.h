@@ -487,6 +487,12 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
 
 	/* READ-WRITE thread locking */
 
+#ifdef HAVE_BROKEN_RWLOCK			/* For OpenUnix */
+#undef HAVE_PTHREAD_RWLOCK_RDLOCK
+#undef HAVE_RWLOCK_INIT
+#undef HAVE_RWLOCK_T
+#endif
+
 #if defined(USE_MUTEX_INSTEAD_OF_RW_LOCKS)
 /* use these defs for simple mutex locking */
 #define rw_lock_t pthread_mutex_t

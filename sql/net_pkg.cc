@@ -37,7 +37,7 @@ void send_error(NET *net, uint sql_errno, const char *err)
   {
     if (sql_errno)
       err=ER(sql_errno);
-    else if (!err)
+    else
     {
       if ((err=net->last_error)[0])
 	sql_errno=net->last_errno;

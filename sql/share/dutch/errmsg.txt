@@ -247,3 +247,4 @@
 "Variabele '%-.64s' kan alleen worden gewijzigd, niet gelezen",
 "Foutieve toepassing/plaatsing van '%s'",
 "Deze versie van MySQL ondersteunt nog geen '%s'",
+"Got fatal error %d: '%-.128s' from master when reading data from binary log",

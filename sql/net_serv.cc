@@ -392,6 +392,9 @@ net_real_write(NET *net,const char *packet,ulong len)
 		    "%s: my_net_write: fcntl returned error %d, aborting thread\n",
 		    my_progname,vio_errno(net->vio));
 #endif /* EXTRA_DEBUG */
+#ifdef MYSQL_SERVER	    
+	    net->last_errno=ER_NET_ERROR_ON_WRITE;
+#endif
 	    net->error=2;                     /* Close socket */
 	    goto end;
 	  }

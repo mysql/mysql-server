@@ -291,8 +291,12 @@ binlog purge"; break;
   return 0;
 }
 
+/*
+  TODO: Clean up loop to only have one call to send_file()
+*/
 
-void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
+void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
+		       ushort flags)
 {
   LOG_INFO linfo;
   char *log_file_name = linfo.log_file_name;
@@ -307,12 +311,15 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
   int left_events = max_binlog_dump_events;
 #endif
   DBUG_ENTER("mysql_binlog_send");
+  DBUG_PRINT("enter",("log_ident: '%s'  pos: %ld", log_ident, (long) pos));
+
   bzero((char*) &log,sizeof(log));
 
 #ifndef DBUG_OFF
   if (opt_sporadic_binlog_dump_fail && (binlog_dump_count++ % 2))
   {
     errmsg = "Master failed COM_BINLOG_DUMP to test if slave can recover";
+    my_errno= ER_UNKNOWN_ERROR;
     goto err;
   }
 #endif
@@ -320,11 +327,13 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
   if (!mysql_bin_log.is_open())
   {
     errmsg = "Binary log is not open";
+    my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
     goto err;
   }
   if (!server_id_supplied)
   {
     errmsg = "Misconfigured master - server id was not set";
+    my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
     goto err;
   }
 
@@ -340,16 +349,20 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
   if (mysql_bin_log.find_log_pos(&linfo, name))
   {
     errmsg = "Could not find first log file name in binary log index file";
+    my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
     goto err;
   }
 
   if ((file=open_binlog(&log, log_file_name, &errmsg)) < 0)
+  {
+    my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
     goto err;
-
-  if (pos < 4)
+  }
+  if (pos < BIN_LOG_HEADER_SIZE || pos > my_b_filelength(&log))
   {
     errmsg= "Client requested master to start replication from \
 impossible position";
+    my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
     goto err;
   }
 
@@ -365,7 +378,10 @@ impossible position";
   {
     // tell the client log name with a fake rotate_event
     if (fake_rotate_event(net, packet, log_file_name, &errmsg))
+    {
+      my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
       goto err;
+    }
     packet->set("\0", 1);
   }
 
@@ -380,12 +396,14 @@ impossible position";
       {
 	net_flush(net);
 	errmsg = "Debugging binlog dump abort";
+	my_errno= ER_UNKNOWN_ERROR;
 	goto err;
       }
 #endif
       if (my_net_write(net, (char*)packet->ptr(), packet->length()) )
       {
 	errmsg = "Failed on my_net_write()";
+	my_errno= ER_UNKNOWN_ERROR;
 	goto err;
       }
       DBUG_PRINT("info", ("log event code %d",
@@ -395,6 +413,7 @@ impossible position";
 	if (send_file(thd))
 	{
 	  errmsg = "failed in send_file()";
+	  my_errno= ER_UNKNOWN_ERROR;
 	  goto err;
 	}
       }
@@ -406,6 +425,7 @@ impossible position";
     */
     if (error != LOG_READ_EOF)
     {
+      my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
       switch (error) {
       case LOG_READ_BOGUS:
 	errmsg = "bogus data in log event";
@@ -439,6 +459,7 @@ Increase max_allowed_packet on master";
       if (net_flush(net))
       {
 	errmsg = "failed on net_flush()";
+	my_errno= ER_UNKNOWN_ERROR;
 	goto err;
       }
 
@@ -455,8 +476,8 @@ Increase max_allowed_packet on master";
 #ifndef DBUG_OFF
 	if (max_binlog_dump_events && !left_events--)
 	{
-	  net_flush(net);
 	  errmsg = "Debugging binlog dump abort";
+	  my_errno= ER_UNKNOWN_ERROR;
 	  goto err;
 	}
 #endif
@@ -465,9 +486,12 @@ Increase max_allowed_packet on master";
 	  No one will update the log while we are reading
 	  now, but we'll be quick and just read one record
 
-	  To be able to handle EOF properly, we have to have the
-	  pthread_mutex_unlock() statements in the case statements.
+	  TODO:
+	  Add an counter that is incremented for each time we update
+	  the binary log.  We can avoid the following read if the counter
+	  has not been updated since last read.
 	*/
+
 	pthread_mutex_lock(log_lock);
 	switch (Log_event::read_log_event(&log, packet, (pthread_mutex_t*)0)) {
 	case 0:
@@ -494,6 +518,7 @@ Increase max_allowed_packet on master";
 	  if (my_net_write(net, (char*)packet->ptr(), packet->length()) )
 	  {
 	    errmsg = "Failed on my_net_write()";
+	    my_errno= ER_UNKNOWN_ERROR;
 	    goto err;
 	  }
 
@@ -502,6 +527,7 @@ Increase max_allowed_packet on master";
 	    if (send_file(thd))
 	    {
 	      errmsg = "failed in send_file()";
+	      my_errno= ER_UNKNOWN_ERROR;
 	      goto err;
 	    }
 	  }
@@ -515,6 +541,7 @@ Increase max_allowed_packet on master";
 	if (fatal_error)
 	{
 	  errmsg = "error reading log entry";
+          my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
 	  goto err;
 	}
 	log.error=0;
@@ -533,6 +560,7 @@ Increase max_allowed_packet on master";
 	break;
       default:
 	errmsg = "could not find next log";
+	my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
 	goto err;
       }
 
@@ -546,8 +574,10 @@ Increase max_allowed_packet on master";
       // otherwise the slave make get confused about the offset
       if ((file=open_binlog(&log, log_file_name, &errmsg)) < 0 ||
 	  fake_rotate_event(net, packet, log_file_name, &errmsg))
+      {
+	my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
 	goto err;
-
+      }
       packet->length(0);
       packet->append("\0",1);
     }
@@ -836,7 +866,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
     mi->rli.master_log_pos=0;
 
   pthread_mutex_lock(&mi->rli.data_lock);
-  mi->rli.abort_pos_wait = 1;
+  mi->rli.abort_pos_wait++;
   pthread_cond_broadcast(&mi->data_cond);
   pthread_mutex_unlock(&mi->rli.data_lock);
 

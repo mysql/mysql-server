@@ -787,9 +787,12 @@ static pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
 
 static sig_handler print_signal_warning(int sig)
 {
-  if (global_system_variables.log_warnings)
-    sql_print_error("Warning: Got signal %d from thread %d",
-		    sig,my_thread_id());
+  if (!DBUG_IN_USE)
+  {
+    if (global_system_variables.log_warnings)
+      sql_print_error("Warning: Got signal %d from thread %d",
+		      sig,my_thread_id());
+  }
 #ifdef DONT_REMEMBER_SIGNAL
   sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
@@ -1555,6 +1558,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
   (void) pthread_cond_signal(&COND_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
 
+  (void) pthread_sigmask(SIG_BLOCK,&set,NULL);
   for (;;)
   {
     int error;					// Used when debugging
@@ -1608,7 +1612,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
 #endif
     default:
 #ifdef EXTRA_DEBUG
-      sql_print_error("Warning: Got signal: %d, error: %d",sig,error); /* purecov: tested */
+      sql_print_error("Warning: Got signal: %d  error: %d",sig,error); /* purecov: tested */
 #endif
       break;					/* purecov: tested */
     }
