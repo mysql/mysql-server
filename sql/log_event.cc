@@ -1189,7 +1189,7 @@ Load_log_event::Load_log_event(THD* thd_arg, sql_exchange* ex,
    num_fields(0),fields(0),
    field_lens(0),field_block_len(0),
    table_name(table_name_arg ? table_name_arg : ""),
-   db(db_arg), fname(ex->file_name)
+   db(db_arg), fname(ex->file_name), local_fname(FALSE)
 {
   time_t end_time;
   time(&end_time);
@@ -1265,7 +1265,7 @@ Load_log_event::Load_log_event(const char* buf, int event_len,
 			       bool old_format)
   :Log_event(buf, old_format),num_fields(0),fields(0),
   field_lens(0),field_block_len(0),
-  table_name(0),db(0),fname(0)
+  table_name(0),db(0),fname(0),local_fname(FALSE)
 {
   if (!event_len) // derived class, will call copy_log_event() itself
     return;
