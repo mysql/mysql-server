@@ -16702,8 +16702,8 @@ and not only for an username.
 @item
 ANSI SQL doesn't have global or database-level privileges, and ANSI SQL
 doesn't support all privilege types that MySQL supports.
-MySQL doesn't support the ANSI SQL @code{TRIGGER}, @code{EXECUTE} or
-@code{UNDER} privileges.
+MySQL doesn't support the ANSI SQL @code{TRIGGER} or @code{UNDER}
+privileges.
 
 @item
 ANSI SQL privileges are structured in a hierarchal manner. If you remove
