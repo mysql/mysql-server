@@ -379,6 +379,8 @@ const char *sql_mode_str="OFF";
 const char *default_tx_isolation_name;
 enum_tx_isolation default_tx_isolation=ISO_READ_COMMITTED;
 
+bool old_passwords=0; // force using old passwords when creating users
+
 uint rpl_recovery_rank=0;
 
 my_string mysql_unix_port=NULL, mysql_tmpdir=NULL, allocated_mysql_tmpdir=NULL;
@@ -2819,7 +2821,8 @@ enum options {
 	       OPT_INNODB_FORCE_RECOVERY,
 	       OPT_BDB_CACHE_SIZE,
 	       OPT_BDB_LOG_BUFFER_SIZE,
-	       OPT_BDB_MAX_LOCK
+	       OPT_BDB_MAX_LOCK,
+	       OPT_OLD_PASSWORDS
 };
 
 
@@ -3535,7 +3538,9 @@ static struct my_option my_long_options[] =
    "The number of seconds the server waits for activity on a connection before closing it",
    (gptr*) &net_wait_timeout, (gptr*) &net_wait_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
-  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"old_passwords",OPT_OLD_PASSWORDS,"Use old password hash functions then storing passwords",
+    (gptr*) &old_passwords, (gptr*) &old_passwords, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 struct show_var_st init_vars[]= {
