@@ -23,3 +23,18 @@ select length(format('nan', 2)) > 0;
 # Test for bug #628
 #
 select concat("$",format(2500,2));
+
+# Test for BUG#7716
+create table t1 ( a timestamp );
+insert into t1 values ( '2004-01-06 12:34' );
+select a from t1 where left(a+0,6) in ( left(20040106,6) );
+select a from t1 where left(a+0,6) = ( left(20040106,6) );
+
+select a from t1 where right(a+0,6) in ( right(20040106123400,6) );
+select a from t1 where right(a+0,6) = ( right(20040106123400,6) );
+
+select a from t1 where mid(a+0,6,3) in ( mid(20040106123400,6,3) );
+select a from t1 where mid(a+0,6,3) = ( mid(20040106123400,6,3) );
+
+drop table t1;
+
