@@ -2831,6 +2831,7 @@ keyword:
 	| BACKUP_SYM		{}
 	| BEGIN_SYM		{}
 	| BERKELEY_DB_SYM	{}
+	| BINLOG_SYM		{}
 	| BIT_SYM		{}
 	| BOOL_SYM		{}
 	| BOOLEAN_SYM		{}
@@ -2857,6 +2858,7 @@ keyword:
 	| END			{}
 	| ENUM			{}
 	| ESCAPE_SYM		{}
+	| EVENTS_SYM		{}
 	| EXTENDED_SYM		{}
 	| FAST_SYM		{}
 	| FULL			{}
