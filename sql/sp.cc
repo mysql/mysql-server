@@ -134,7 +134,7 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   if (opened)
   {
     close_thread_tables(thd, 0, 1);
-    table= NULL;
+    opened= FALSE;
   }
 
   {
@@ -167,7 +167,7 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   }
 
  done:
-  if (table && opened)
+  if (opened)
     close_thread_tables(thd);
   DBUG_RETURN(ret);
 }
