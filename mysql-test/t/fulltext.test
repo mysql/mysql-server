@@ -173,3 +173,16 @@ repair table t1;
 select * from t1 where match (a) against ('aaaa');
 drop table t1;
 
+#
+# bug 283 by jocelyn fournier <joc@presence-pc.com>
+# FULLTEXT index on a TEXT filed converted to a CHAR field doesn't work anymore
+# 
+
+drop table if exists t1;
+create table t1 ( ref_mag text not null, fulltext (ref_mag));
+insert into t1 values ('test');
+select ref_mag from t1 where match ref_mag against ('+test' in boolean mode);
+alter table t1 change ref_mag ref_mag char (255) not null;
+select ref_mag from t1 where match ref_mag against ('+test' in boolean mode);
+drop table t1;
+
