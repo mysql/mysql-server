@@ -78,7 +78,7 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
     table_list.grant=table->grant;
 
     thd->dupp_field=0;
-    if (setup_fields(thd,&table_list,fields,1,0))
+    if (setup_tables(&table_list) || setup_fields(thd,&table_list,fields,1,0))
       return -1;
     if (thd->dupp_field)
     {
@@ -151,7 +151,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   save_time_stamp=table->time_stamp;
   values= its++;
   if (check_insert_fields(thd,table,fields,*values,1) ||
-      setup_fields(thd,table_list,*values,0,0))
+      setup_tables(table_list) || setup_fields(thd,table_list,*values,0,0))
   {
     table->time_stamp=save_time_stamp;
     goto abort;
@@ -168,7 +168,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
       table->time_stamp=save_time_stamp;
       goto abort;
     }
-    if (setup_fields(thd,table_list,*values,0,0))
+    if (setup_tables(table_list) || setup_fields(thd,table_list,*values,0,0))
     {
       table->time_stamp=save_time_stamp;
       goto abort;

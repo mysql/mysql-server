@@ -18704,7 +18704,13 @@ deleted and the new one is renamed. This is done in such a way that
 all updates are automatically redirected to the new table without
 any failed updates. While @code{ALTER TABLE} is executing, the original
 table is readable by other clients. Updates and writes to the table
-are stalled until the new table is ready:
+are stalled until the new table is ready.
+
+Note that if you use any other option to @code{ALTER TABLE} than
+@code{RENAME}, @strong{MySQL} will always create a temporary table, even
+if the data wouldn't strictly need to be copied (like when you change the
+name of a column). We plan to fix this in the future, but as one doesn't
+normally do @code{ALTER TABLE} that often this isn't that high on our TODO.
 
 @itemize @bullet
 @item

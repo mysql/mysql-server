@@ -2785,7 +2785,7 @@ set_isolation:
 	  default_tx_isolation= $2;
         }
 	| SESSION_SYM tx_isolation
-	{ current_thd->session_tx_isolation= $2; }
+	{ current_thd->session_tx_isolation= Lex->tx_isolation= $2; }
 	| tx_isolation
 	{ Lex->tx_isolation= $1; }
 
