@@ -30,6 +30,18 @@ Package=<4>
 
 ###############################################################################
 
+Project: "comp_err"=".\comp_err\comp_err.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
 Project: "dbug"=".\dbug\dbug.dsp" - Package Owner=<4>
 
 Package=<5>
@@ -181,6 +193,27 @@ Package=<4>
 {{{
     Begin Project Dependency
     Project_Dep_Name libmySQL
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "my_print_defaults"=".\my_print_defaults\my_print_defaults.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name strings
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name dbug
     End Project Dependency
 }}}
 
@@ -426,14 +459,26 @@ Package=<4>
     Project_Dep_Name myisammrg
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name innobase
-    End Project Dependency
-    Begin Project Dependency
     Project_Dep_Name bdb
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name vio
     End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name innobase
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mysqldemb"=".\mysqldemb\mysqldemb.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
 }}}
 
 ###############################################################################
@@ -463,6 +508,51 @@ Package=<4>
 {{{
     Begin Project Dependency
     Project_Dep_Name mysqlclient
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mysqlserver"=".\mysqlserver\mysqlserver.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name dbug
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name heap
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name innobase
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name merge
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name myisam
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name myisammrg
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysqldemb
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name regex
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name strings
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name zlib
     End Project Dependency
 }}}
 
@@ -624,7 +714,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "thr_insert_test"=".\thr_insert_test\thr_insert_test.dsp" - Package Owner=<4>
+Project: "test_libmysqld"=".\libmysqld\examples\test_libmysqld.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -633,7 +723,19 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name mysqlclient
+    Project_Dep_Name strings
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name libmysqld
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name vio
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name zlib
     End Project Dependency
 }}}
 
