@@ -189,7 +189,10 @@ copy_dir_files()
        mkdir $BASE/$arg
      fi
     for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def \
-             README INSTALL* LICENSE
+             README INSTALL* LICENSE *.inc *.test *.result \
+	     *.pem Moscow_leap des_key_file *.dat *.000001 \
+	     *.require *.opt
+
     do
       if [ -f $i ]
       then
@@ -247,7 +250,7 @@ done
 # Input directories to be copied recursively
 #
 
-for i in bdb innobase
+for i in bdb innobase mysql-test
 do
   copy_dir_dirs $i
 done

@@ -267,6 +267,8 @@ void install_db(char *datadir)
   snprintf(output, FN_REFLEN, "%s/install.out", datadir);
   snprintf(error, FN_REFLEN, "%s/install.err", datadir);
 
+  if (create_system_files(datadir,input, TRUE))
+    die("Unable to create init_db.sql.");
   /* args */
   init_args(&al);
   add_arg(&al, mysqld_file);
@@ -306,9 +308,6 @@ void mysql_install_db()
 
   /* var directory */
   snprintf(temp, FN_REFLEN, "%s/var", mysql_test_dir);
-
-  /* clean up old direcotry */
-  del_tree(temp);
 
   /* create var directory */
 #ifndef __WIN__
@@ -1434,6 +1433,17 @@ void setup(char *file __attribute__((unused)))
 #endif
 
 }
+
+/*
+  Compare names of testes for right order
+*/
+#ifdef __WIN__
+int compare( const void *arg1, const void *arg2 )
+{
+  return _stricmp( * ( char** ) arg1, * ( char** ) arg2 );
+}
+#endif
+
 
 /******************************************************************************
 
