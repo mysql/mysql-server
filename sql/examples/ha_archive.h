@@ -36,7 +36,6 @@ typedef struct st_archive_share {
   gzFile archive_write;     /* Archive file we are working with */
   bool dirty;               /* Flag for if a flush should occur */
   ulonglong rows_recorded;  /* Number of rows in tables */
-  bool delayed;             /* If a delayed insert has happened since opena */
 } ARCHIVE_SHARE;
 
 /*
@@ -55,9 +54,10 @@ class ha_archive: public handler
   String buffer;             /* Buffer used for blob storage */
   ulonglong scan_rows;       /* Number of rows left in scan */
   bool delayed_insert;       /* If the insert is delayed */
+  bool bulk_insert;          /* If we are performing a bulk insert */
 
 public:
-  ha_archive(TABLE *table): handler(table), delayed_insert(0)
+  ha_archive(TABLE *table): handler(table), delayed_insert(0), bulk_insert(0)
   {
     /* Set our original buffer from pre-allocated memory */
     buffer.set(byte_buffer, IO_SIZE, system_charset_info);
@@ -99,6 +99,8 @@ public:
   int external_lock(THD *thd, int lock_type);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
+  void start_bulk_insert(ha_rows rows);
+  int end_bulk_insert();
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
 };

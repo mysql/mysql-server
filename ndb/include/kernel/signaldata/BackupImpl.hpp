@@ -78,15 +78,15 @@ public:
   STATIC_CONST( SignalLength = 3 );
   
   enum ErrorCode {
-    Undefined = 200,
-    FailedToAllocateBuffers = 202,
-    FailedToSetupFsBuffers = 203,
-    FailedToAllocateTables = 204,
-    FailedInsertFileHeader = 205,
-    FailedInsertTableList = 206,
-    FailedAllocateTableMem = 207,
-    FailedToAllocateFileRecord = 208,
-    FailedToAllocateAttributeRecord = 209
+    Undefined = 1340,
+    FailedToAllocateBuffers = 1342,
+    FailedToSetupFsBuffers = 1343,
+    FailedToAllocateTables = 1344,
+    FailedInsertFileHeader = 1345,
+    FailedInsertTableList = 1346,
+    FailedAllocateTableMem = 1347,
+    FailedToAllocateFileRecord = 1348,
+    FailedToAllocateAttributeRecord = 1349
   };
 private:
   Uint32 backupId;
