@@ -114,7 +114,7 @@ fi
 pid_file=
 err_log=
 
-# Get first arguments from the my.cfg file, groups [mysqld] and [safe_mysqld]
+# Get first arguments from the my.cnf file, groups [mysqld] and [safe_mysqld]
 # and then merge with the command line arguments
 if test -x ./bin/my_print_defaults
 then

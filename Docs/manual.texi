@@ -46707,7 +46707,7 @@ Added table locks to Berkeley DB.
 Fixed a bug with @code{LEFT JOIN} and @code{ORDER BY} where the first
 table had only one matching row.
 @item
-Added 4 sample @code{my.cfg} example files in the @file{support-files}
+Added 4 sample @code{my.cnf} example files in the @file{support-files}
 directory.
 @item
 Fixed @code{duplicated key} problem when doing big @code{GROUP BY}'s.
