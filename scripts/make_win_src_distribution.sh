@@ -287,7 +287,7 @@ for i in COPYING COPYING.LIB ChangeLog README \
          INSTALL-WIN-SOURCE \
          Docs/manual_toc.html  Docs/manual.html \
          Docs/manual.txt Docs/mysqld_error.txt \
-         Docs/INSTALL-BINARY
+         Docs/INSTALL-BINARY Docs/internals.texi
 
 do
   print_debug "Copying file '$i'"
