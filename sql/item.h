@@ -342,6 +342,25 @@ public:
 };
 
 
+/*
+  The following class is used to optimize comparing of date columns
+  We need to save the original item, to be able to set the field to the
+  original value in 'opt_range'.
+*/
+
+class Item_int_with_ref :public Item_int
+{
+  Item *ref;
+public:
+  Item_int_with_ref(longlong i, Item *ref_arg) :Item_int(i), ref(ref_arg)
+  {}
+  bool save_in_field(Field *field)
+  {
+    return ref->save_in_field(field);
+  }
+};
+
+
 #include "item_sum.h"
 #include "item_func.h"
 #include "item_cmpfunc.h"

@@ -46771,8 +46771,6 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Fixed bug in DROP DATABASE with symlink
-@item
 Multi-table @code{DELETE}.
 @item
 Don't support old client protocols prior to MySQL 3.21 any more.
@@ -46917,6 +46915,11 @@ not yet 100% confident in this code.
 @node News-3.23.51, News-3.23.50, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.51
 @itemize @bullet
+@item
+Fixed bug in @code{DROP DATABASE} with symlinked directory.
+@item
+Fixed optimization problem with @code{DATETIME} and value outside
+@code{DATETIME} range.
 @item
 Removed BDB documentation.
 @item
