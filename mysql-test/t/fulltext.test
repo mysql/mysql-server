@@ -35,6 +35,7 @@ select *, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1
 
 select * from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
 
+select * from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('"text search"  "now support"' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('"text search" -"now support"' IN BOOLEAN MODE);
