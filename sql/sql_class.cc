@@ -1303,6 +1303,14 @@ bool select_singlerow_subselect::send_data(List<Item> &items)
 }
 
 
+void select_max_min_finder_subselect::cleanup()
+{
+  DBUG_ENTER("select_max_min_finder_subselect::cleanup");
+  cache= 0;
+  DBUG_VOID_RETURN;
+}
+
+
 bool select_max_min_finder_subselect::send_data(List<Item> &items)
 {
   DBUG_ENTER("select_max_min_finder_subselect::send_data");
@@ -1332,6 +1340,9 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
       case STRING_RESULT:
 	op= &select_max_min_finder_subselect::cmp_str;
 	break;
+      case DECIMAL_RESULT:
+        op= &select_max_min_finder_subselect::cmp_decimal;
+        break;
       case ROW_RESULT:
         // This case should never be choosen
 	DBUG_ASSERT(0);
@@ -1371,6 +1382,26 @@ bool select_max_min_finder_subselect::cmp_int()
     return (maxmin->null_value && !cache->null_value) ||
       (!cache->null_value && !maxmin->null_value &&
        val1 < val2);
+}
+
+bool select_max_min_finder_subselect::cmp_decimal()
+{
+  String *val1, *val2, buf1, buf2;
+  Item *maxmin= ((Item_singlerow_subselect *)item)->el(0);
+  /*
+    as far as both operand is Item_cache buf1 & buf2 will not be used,
+    but added for safety
+  */
+  my_decimal cval, *cvalue= cache->val_decimal(&cval);
+  my_decimal mval, *mvalue= maxmin->val_decimal(&mval);
+  if (fmax)
+    return (cache->null_value && !maxmin->null_value) ||
+      (!cache->null_value && !maxmin->null_value &&
+       my_decimal_cmp(cvalue, mvalue) > 0) ;
+  else
+    return (maxmin->null_value && !cache->null_value) ||
+      (!cache->null_value && !maxmin->null_value &&
+       my_decimal_cmp(cvalue,mvalue) < 0);
 }
 
 bool select_max_min_finder_subselect::cmp_str()
@@ -1439,6 +1470,8 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
       /*
         Item_func_set_user_var can't substitute something else on its place =>
         0 can be passed as last argument (reference on item)
+        Item_func_set_user_var can't be fixed after creation, so we do not
+        check xx->fixed
       */
       xx->fix_fields(thd, (TABLE_LIST*) thd->lex->select_lex.table_list.first,
 		     0);

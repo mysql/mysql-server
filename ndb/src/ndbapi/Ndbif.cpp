@@ -388,24 +388,24 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	com = tRec->execTRANSID_AI(tDataPtr + TransIdAI::HeaderLength, 
 				   tLen - TransIdAI::HeaderLength);
       }
+
+      if(com == 0)
+	return;
       
-      if(com == 1){
-	switch(tRec->getType()){
-	case NdbReceiver::NDB_OPERATION:
-	case NdbReceiver::NDB_INDEX_OPERATION:
-	  if(tCon->OpCompleteSuccess() != -1){
-	    completedTransaction(tCon);
-	    return;
-	  }
-	  break;
-	case NdbReceiver::NDB_SCANRECEIVER:
-	  tCon->theScanningOp->receiver_delivered(tRec);
-	  theImpl->theWaiter.m_state = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
-			       (Uint32) NO_WAIT : tWaitState);
-	  break;
-	default:
-	  goto InvalidSignal;
+      switch(tRec->getType()){
+      case NdbReceiver::NDB_OPERATION:
+      case NdbReceiver::NDB_INDEX_OPERATION:
+	if(tCon->OpCompleteSuccess() != -1){
+	  completedTransaction(tCon);
 	}
+	return;
+      case NdbReceiver::NDB_SCANRECEIVER:
+	tCon->theScanningOp->receiver_delivered(tRec);
+	theImpl->theWaiter.m_state = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
+				      (Uint32) NO_WAIT : tWaitState);
+	break;
+      default:
+	goto InvalidSignal;
       }
       break;
     } else {

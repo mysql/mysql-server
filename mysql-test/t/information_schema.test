@@ -2,16 +2,14 @@
 # Test for information_schema.schemata &
 # show databases
 
-show variables variable_name where variable_name like "skip_show_database";
+show variables where variable_name like "skip_show_database";
 grant all privileges on test.* to mysqltest_1@localhost;
 
 select * from information_schema.SCHEMATA where schema_name > 'm';
 select schema_name from information_schema.schemata;
-show databases *;
 show databases like 't%';
 show databases;
-show databases * where schema_name like 't%';
-show databases * where schema_name = 't%';
+show databases where `database` = 't%';
 
 # Test for information_schema.tables &
 # show tables
@@ -35,12 +33,9 @@ select table_name from information_schema.TABLES
 where table_schema = "testtets" and table_name like "t%";
 
 select * from information_schema.STATISTICS where TABLE_SCHEMA = "testtets";
-show keys * from t3 where TABLE_SCHEMA Like "test%";
-show keys from t3 where INDEX_NAME = "a_data";
+show keys from t3 where Key_name = "a_data";
 
 show tables like 't%';
---replace_column 15 # 16 #
-show tables * from test where table_name like 't%';
 --replace_column 12 # 13 #
 --replace_result "2147483647	" "21474836479	"
 show table status;
@@ -49,7 +44,7 @@ show full columns from mysql.db like "Insert%";
 show full columns from v1;
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a";
-show columns * from testtets.t1 where table_name = "t1";
+show columns from testtets.t1 where field like "%a%";
 
 drop view v1;
 drop tables testtets.t4, testtets.t1, t2, t3;
@@ -61,10 +56,7 @@ drop database testtets;
 select * from information_schema.CHARACTER_SETS
 where CHARACTER_SET_NAME like 'latin1%';
 SHOW CHARACTER SET LIKE 'latin1%';
-SHOW CHARACTER SET * LIKE 'latin1%';
-SHOW CHARACTER SET WHERE CHARACTER_SET_NAME like 'latin1%';
-SHOW CHARACTER SET CHARACTER_SET_NAME WHERE CHARACTER_SET_NAME like 'latin1%';
-SHOW CHARACTER SET *  WHERE CHARACTER_SET_NAME like 'latin1%';
+SHOW CHARACTER SET WHERE charset like 'latin1%';
 
 # Test for information_schema.COLLATIONS &
 # SHOW COLLATION
@@ -72,10 +64,7 @@ SHOW CHARACTER SET *  WHERE CHARACTER_SET_NAME like 'latin1%';
 select * from information_schema.COLLATIONS
 where COLLATION_NAME like 'latin1%';
 SHOW COLLATION LIKE 'latin1%';
-SHOW COLLATION * LIKE 'latin1%';
-SHOW COLLATION WHERE COLLATION_NAME like 'latin1%';
-SHOW COLLATION COLLATION_NAME WHERE COLLATION_NAME like 'latin1%';
-SHOW COLLATION *  WHERE COLLATION_NAME like 'latin1%';
+SHOW COLLATION WHERE collation like 'latin1%';
 
 select * from information_schema.COLLATION_CHARACTER_SET_APPLICABILITY
 where COLLATION_NAME like 'latin1%';
@@ -200,23 +189,27 @@ delete from mysql.tables_priv where user='joe';
 delete from mysql.columns_priv where user='joe';
 flush privileges;
 
-delimiter //;
-create procedure px5 ()
-begin
-declare v int;
-declare c cursor for select version from
-information_schema.tables where table_schema <> 'information_schema';
-open c;
-fetch c into v;
-select v;
-close c;
-end;//
-
-call px5()//
-call px5()//
-delimiter ;//
-select sql_mode from information_schema.ROUTINES;
-drop procedure px5;
+# QQ This results in NULLs instead of the version numbers when
+# QQ a LOCK TABLES is in effect when selecting from
+# QQ information_schema.tables. Until this bug has been fixed,
+# QQ this test is disabled /pem
+#delimiter //;
+#create procedure px5 ()
+#begin
+#declare v int;
+#declare c cursor for select version from
+#information_schema.tables where table_schema <> 'information_schema';
+#open c;
+#fetch c into v;
+#select v;
+#close c;
+#end;//
+#
+#call px5()//
+#call px5()//
+#delimiter ;//
+#select sql_mode from information_schema.ROUTINES;
+#drop procedure px5;
 
 create table t1 (a int not null auto_increment,b int, primary key (a));
 insert into t1 values (1,1),(NULL,3),(NULL,4);
@@ -351,9 +344,9 @@ where table_schema="mysql" and table_name="user";
 # test for 'show open tables ... where'
 show open tables where `table` like "user";
 # test for 'show status ... where'
-show status variable_name where variable_name like "%database%";
+show status where variable_name like "%database%";
 # test for 'show variables ... where'
-show variables variable_name where variable_name like "%database%";
+show variables where variable_name like "skip_show_databas";
 
 #
 # Bug #7981:SHOW GLOBAL STATUS crashes server

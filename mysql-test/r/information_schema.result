@@ -1,6 +1,6 @@
-show variables variable_name where variable_name like "skip_show_database";
-variable_name
-skip_show_database
+show variables where variable_name like "skip_show_database";
+Variable_name	Value
+skip_show_database	OFF
 grant all privileges on test.* to mysqltest_1@localhost;
 select * from information_schema.SCHEMATA where schema_name > 'm';
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	SQL_PATH
@@ -11,11 +11,6 @@ schema_name
 information_schema
 mysql
 test
-show databases *;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	SQL_PATH
-NULL	information_schema	utf8	NULL
-NULL	mysql	latin1	NULL
-NULL	test	latin1	NULL
 show databases like 't%';
 Database (t%)
 test
@@ -24,11 +19,8 @@ Database
 information_schema
 mysql
 test
-show databases * where schema_name like 't%';
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	SQL_PATH
-NULL	test	latin1	NULL
-show databases * where schema_name = 't%';
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	SQL_PATH
+show databases where `database` = 't%';
+Database
 create database testtets;
 create table testtets.t1(a int, b VARCHAR(30), KEY string_data (b));
 create table test.t2(a int);
@@ -116,20 +108,13 @@ t4
 select * from information_schema.STATISTICS where TABLE_SCHEMA = "testtets";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
 NULL	testtets	t1	1	testtets	string_data	1	b	A	NULL	NULL	NULL	YES	BTREE	
-show keys * from t3 where TABLE_SCHEMA Like "test%";
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
-NULL	test	t3	1	test	a_data	1	a	A	NULL	NULL	NULL	YES	BTREE	
-show keys from t3 where INDEX_NAME = "a_data";
+show keys from t3 where Key_name = "a_data";
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t3	1	a_data	1	a	A	NULL	NULL	NULL	YES	BTREE	
 show tables like 't%';
 Tables_in_test (t%)
 t2
 t3
-show tables * from test where table_name like 't%';
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE
-NULL	test	t2	
-NULL	test	t3	
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t2	MyISAM	9	Fixed	0	0	0	21474836479	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
@@ -148,10 +133,9 @@ select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 NULL	testtets	t1	a	1	NULL	YES	int	11	11	11	0	NULL	NULL	int(11)			select,insert,update,references	
-show columns * from testtets.t1 where table_name = "t1";
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-NULL	testtets	t1	a	1	NULL	YES	int	11	11	11	0	NULL	NULL	int(11)			select,insert,update,references	
-NULL	testtets	t1	b	2	NULL	YES	varchar	30	30	NULL	NULL	latin1	latin1_swedish_ci	varchar(30)	MUL		select,insert,update,references	
+show columns from testtets.t1 where field like "%a%";
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
 drop view v1;
 drop tables testtets.t4, testtets.t1, t2, t3;
 drop database testtets;
@@ -162,18 +146,9 @@ latin1	latin1_swedish_ci	ISO 8859-1 West European	1
 SHOW CHARACTER SET LIKE 'latin1%';
 Charset	Description	Default collation	Maxlen
 latin1	ISO 8859-1 West European	latin1_swedish_ci	1
-SHOW CHARACTER SET * LIKE 'latin1%';
-CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
-latin1	latin1_swedish_ci	ISO 8859-1 West European	1
-SHOW CHARACTER SET WHERE CHARACTER_SET_NAME like 'latin1%';
+SHOW CHARACTER SET WHERE charset like 'latin1%';
 Charset	Description	Default collation	Maxlen
 latin1	ISO 8859-1 West European	latin1_swedish_ci	1
-SHOW CHARACTER SET CHARACTER_SET_NAME WHERE CHARACTER_SET_NAME like 'latin1%';
-CHARACTER_SET_NAME
-latin1
-SHOW CHARACTER SET *  WHERE CHARACTER_SET_NAME like 'latin1%';
-CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
-latin1	latin1_swedish_ci	ISO 8859-1 West European	1
 select * from information_schema.COLLATIONS
 where COLLATION_NAME like 'latin1%';
 COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
@@ -195,38 +170,8 @@ latin1_bin	latin1	47		Yes	1
 latin1_general_ci	latin1	48			0
 latin1_general_cs	latin1	49			0
 latin1_spanish_ci	latin1	94			0
-SHOW COLLATION * LIKE 'latin1%';
-COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
-latin1_german1_ci	latin1	5			0
-latin1_swedish_ci	latin1	8	Yes	Yes	1
-latin1_danish_ci	latin1	15			0
-latin1_german2_ci	latin1	31		Yes	2
-latin1_bin	latin1	47		Yes	1
-latin1_general_ci	latin1	48			0
-latin1_general_cs	latin1	49			0
-latin1_spanish_ci	latin1	94			0
-SHOW COLLATION WHERE COLLATION_NAME like 'latin1%';
+SHOW COLLATION WHERE collation like 'latin1%';
 Collation	Charset	Id	Default	Compiled	Sortlen
-latin1_german1_ci	latin1	5			0
-latin1_swedish_ci	latin1	8	Yes	Yes	1
-latin1_danish_ci	latin1	15			0
-latin1_german2_ci	latin1	31		Yes	2
-latin1_bin	latin1	47		Yes	1
-latin1_general_ci	latin1	48			0
-latin1_general_cs	latin1	49			0
-latin1_spanish_ci	latin1	94			0
-SHOW COLLATION COLLATION_NAME WHERE COLLATION_NAME like 'latin1%';
-COLLATION_NAME
-latin1_german1_ci
-latin1_swedish_ci
-latin1_danish_ci
-latin1_german2_ci
-latin1_bin
-latin1_general_ci
-latin1_general_cs
-latin1_spanish_ci
-SHOW COLLATION *  WHERE COLLATION_NAME like 'latin1%';
-COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
 latin1_german1_ci	latin1	5			0
 latin1_swedish_ci	latin1	8	Yes	Yes	1
 latin1_danish_ci	latin1	15			0
@@ -435,26 +380,6 @@ delete from mysql.db where user='joe';
 delete from mysql.tables_priv where user='joe';
 delete from mysql.columns_priv where user='joe';
 flush privileges;
-create procedure px5 ()
-begin
-declare v int;
-declare c cursor for select version from
-information_schema.tables where table_schema <> 'information_schema';
-open c;
-fetch c into v;
-select v;
-close c;
-end;//
-call px5()//
-v
-9
-call px5()//
-v
-9
-select sql_mode from information_schema.ROUTINES;
-sql_mode
-
-drop procedure px5;
 create table t1 (a int not null auto_increment,b int, primary key (a));
 insert into t1 values (1,1),(NULL,3),(NULL,4);
 select AUTO_INCREMENT from information_schema.tables where table_name = 't1';
@@ -671,14 +596,11 @@ BASE TABLE
 show open tables where `table` like "user";
 Database	Table	In_use	Name_locked
 mysql	user	0	0
-show status variable_name where variable_name like "%database%";
-variable_name
-Com_show_databases
-show variables variable_name where variable_name like "%database%";
-variable_name
-character_set_database
-collation_database
-skip_show_database
+show status where variable_name like "%database%";
+Variable_name	Value
+Com_show_databases	0
+show variables where variable_name like "skip_show_databas";
+Variable_name	Value
 show global status like "Threads_running";
 Variable_name	Value
 Threads_running	1

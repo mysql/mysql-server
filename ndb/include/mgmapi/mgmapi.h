@@ -140,6 +140,7 @@
  */
 
 #include <ndb_types.h>
+#include <NdbTCP.h>
 #include "ndb_logevent.h"
 #include "mgmapi_config_parameters.h"
 
@@ -970,6 +971,19 @@ extern "C" {
 
   int ndb_mgm_alloc_nodeid(NdbMgmHandle handle,
 			   unsigned version, int nodetype);
+
+
+  /**
+   * Convert connection to transporter
+   * @param   handle    NDB management handle.
+   *
+   * @return socket
+   *
+   * @note the socket is now able to be used as a transporter connection
+   */
+  NDB_SOCKET_TYPE ndb_mgm_convert_to_transporter(NdbMgmHandle handle);
+
+
   /**
    * Config iterator
    */

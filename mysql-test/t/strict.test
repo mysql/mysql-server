@@ -388,9 +388,7 @@ INSERT INTO t1 VALUES(-9223372036854775808,0),(0,0),(9223372036854775807,1844674
 INSERT INTO t1 VALUES('-9223372036854775808','0'),('9223372036854775807','18446744073709551615');
 INSERT INTO t1 VALUES(-9223372036854774000.0,0.0),(9223372036854775700.0,1844674407370954000.0);
 
-# The following should give an error, but doesn't until we fix the interface
-# for Field_longlong::store()
-
+-- error 1264
 INSERT INTO t1 (col1) VALUES(-9223372036854775809);
 INSERT INTO t1 (col1) VALUES(9223372036854775808);
 INSERT INTO t1 (col2) VALUES(-1);
@@ -449,7 +447,9 @@ INSERT INTO t1 VALUES ('10.55'),('10.5555'),('-10.55'),('-10.5555'),('11'),('1e+
 
 -- The 2 following inserts should generate a warning, but doesn't yet
 -- because NUMERIC works like DECIMAL
+--error 1264
 INSERT INTO t1 VALUES (101.55);
+--error 1264
 INSERT INTO t1 VALUES (101);
 --error 1264
 INSERT INTO t1 VALUES (-101.55);
@@ -459,7 +459,9 @@ INSERT INTO t1 VALUES (1010.55);
 INSERT INTO t1 VALUES (1010);
 -- The 2 following inserts should generate a warning, but doesn't yet
 -- because NUMERIC works like DECIMAL
+--error 1264
 INSERT INTO t1 VALUES ('101.55');
+--error 1264
 INSERT INTO t1 VALUES ('101');
 --error 1264
 INSERT INTO t1 VALUES ('-101.55');
@@ -475,11 +477,13 @@ UPDATE t1 SET col1 =col1 * 50000 WHERE col1 =11;
 UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
 --error 1365
 UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
---error 1265
+#--error 1265
+--error 1366
 INSERT INTO t1 (col1) VALUES ('');
---error 1265
+#--error 1265
+--error 1366
 INSERT INTO t1 (col1) VALUES ('a59b');
---error 1265
+#--error 1265
 INSERT INTO t1 (col1) VALUES ('1a');
 INSERT IGNORE INTO t1 (col1) VALUES ('2a');
 INSERT IGNORE INTO t1 values (1/0);

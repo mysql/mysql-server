@@ -315,7 +315,9 @@ public:
 };
 
 
-/* This can't be a Item_str_func, because the val() functions are special */
+/*
+  This can't be a Item_str_func, because the val_real() functions are special
+*/
 
 class Item_date :public Item_func
 {
@@ -545,12 +547,15 @@ class Item_func_convert_tz :public Item_date_func
   TABLE_LIST *tz_tables;
   /*
     If time zone parameters are constants we are caching objects that
-    represent them.
+    represent them (we use separate from_tz_cached/to_tz_cached members
+    to indicate this fact, since NULL is legal value for from_tz/to_tz
+    members.
   */
+  bool from_tz_cached, to_tz_cached;
   Time_zone *from_tz, *to_tz;
  public:
   Item_func_convert_tz(Item *a, Item *b, Item *c):
-    Item_date_func(a, b, c) {}
+    Item_date_func(a, b, c), from_tz_cached(0), to_tz_cached(0) {}
   longlong val_int();
   double val_real() { return (double) val_int(); }
   String *val_str(String *str);
@@ -558,6 +563,7 @@ class Item_func_convert_tz :public Item_date_func
   bool fix_fields(THD *, struct st_table_list *, Item **);
   void fix_length_and_dec();
   bool get_date(TIME *res, uint fuzzy_date);
+  void cleanup();
 };
 
 

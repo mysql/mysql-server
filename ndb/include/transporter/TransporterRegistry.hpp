@@ -30,6 +30,7 @@
 
 #include "TransporterDefinitions.hpp"
 #include <SocketServer.hpp>
+#include <SocketClient.hpp>
 
 #include <NdbTCP.h>
 
@@ -102,6 +103,7 @@ public:
 		      unsigned sizeOfLongSignalMemory = 100);
 
   void set_mgm_handle(NdbMgmHandle h) { m_mgm_handle = h; };
+  NdbMgmHandle get_mgm_handle(void) { return m_mgm_handle; };
 
   bool init(NodeId localNodeId);
 
@@ -109,6 +111,11 @@ public:
    * after a connect from client, perform connection using correct transporter
    */
   bool connect_server(NDB_SOCKET_TYPE sockfd);
+
+  /**
+   * use a mgmd connection to connect as a transporter
+   */
+  NDB_SOCKET_TYPE connect_ndb_mgmd(SocketClient *sc);
 
   /**
    * Remove all transporters
@@ -179,10 +186,10 @@ public:
    * started, startServer is called. A transporter of the selected kind
    * is created and it is put in the transporter arrays.
    */
-  bool createTransporter(struct TCP_TransporterConfiguration * config);
-  bool createTransporter(struct SCI_TransporterConfiguration * config);
-  bool createTransporter(struct SHM_TransporterConfiguration * config);
-  bool createTransporter(struct OSE_TransporterConfiguration * config);
+  bool createTCPTransporter(struct TransporterConfiguration * config);
+  bool createSCITransporter(struct TransporterConfiguration * config);
+  bool createSHMTransporter(struct TransporterConfiguration * config);
+  bool createOSETransporter(struct TransporterConfiguration * config);
   
   /**
    * prepareSend
@@ -232,12 +239,12 @@ public:
   class Transporter_interface {
   public:
     NodeId m_remote_nodeId;
-    unsigned short m_service_port;
+    int m_s_service_port;			// signed port number
     const char *m_interface;
   };
   Vector<Transporter_interface> m_transporter_interface;
   void add_transporter_interface(NodeId remoteNodeId, const char *interf,
-		  		 unsigned short port);
+		  		 int s_port);	// signed port. <0 is dynamic
   Transporter* get_transporter(NodeId nodeId);
   NodeId get_localNodeId() { return localNodeId; };
 

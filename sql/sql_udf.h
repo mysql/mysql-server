@@ -103,6 +103,7 @@ class udf_handler :public Sql_alloc
     *null_value=0;
     return tmp;
   }
+  my_decimal *val_decimal(my_bool *null_value, my_decimal *dec_buf);
   void clear()
   {
     is_null= 0;

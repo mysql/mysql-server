@@ -534,13 +534,6 @@ int runTestFragmentTypes(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   NdbRestarter restarter;
 
-  // enum FragmentType { 
-  //  Unknown = 0,
-  //  Single = 1,     ///< Only one fragment
-  //  All = 2,        ///< Default value.  One fragment per node group
-  //  AllLarge = 3    ///< Sixten fragments per node group.
-  // };
-  
   if (pNdb->waitUntilReady(30) != 0){
     // Db is not ready, return with failure
     return NDBT_FAILED;
@@ -575,13 +568,17 @@ int runTestFragmentTypes(NDBT_Context* ctx, NDBT_Step* step){
     result = NDBT_FAILED;
     goto drop_the_tab;
   }
-  
+/**
+   This test does not work since fragmentation is
+   decided by the kernel, hence the fragementation
+   attribute on the column will differ
+
   if (newTab.equal(*pTab3) == false){
     ndbout << "It was not equal" << endl;
     result = NDBT_FAILED;
     goto drop_the_tab;
   } 
-  
+*/
   do {
     
     HugoTransactions hugoTrans(*pTab3);
@@ -1598,17 +1595,22 @@ TESTCASE("CreateTableWhenDbIsFull",
 }
 TESTCASE("FragmentTypeSingle", 
 	 "Create the table with fragment type Single\n"){
-  TC_PROPERTY("FragmentType", 1);
+  TC_PROPERTY("FragmentType", NdbDictionary::Table::FragSingle);
   INITIALIZER(runTestFragmentTypes);
 }
-TESTCASE("FragmentTypeAll", 
-	 "Create the table with fragment type All\n"){ 
-  TC_PROPERTY("FragmentType", 2);
+TESTCASE("FragmentTypeAllSmall", 
+	 "Create the table with fragment type AllSmall\n"){ 
+  TC_PROPERTY("FragmentType", NdbDictionary::Table::FragAllSmall);
+  INITIALIZER(runTestFragmentTypes);
+}
+TESTCASE("FragmentTypeAllMedium", 
+	 "Create the table with fragment type AllMedium\n"){ 
+  TC_PROPERTY("FragmentType", NdbDictionary::Table::FragAllMedium);
   INITIALIZER(runTestFragmentTypes);
 }
 TESTCASE("FragmentTypeAllLarge", 
 	 "Create the table with fragment type AllLarge\n"){ 
-  TC_PROPERTY("FragmentType", 3);
+  TC_PROPERTY("FragmentType", NdbDictionary::Table::FragAllLarge);
   INITIALIZER(runTestFragmentTypes);
 }
 TESTCASE("TemporaryTables", 

@@ -1807,8 +1807,11 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
                               0, HA_READ_KEY_EXACT))
   {
 #ifdef EXTRA_DEBUG    
-    sql_print_error("Can't find description of time zone '%.*s'", tz_name->length(),
-                    tz_name->ptr());
+    /*
+      Most probably user has mistyped time zone name, so no need to bark here
+      unless we need it for debugging.
+    */
+    sql_print_error("Can't find description of time zone '%s'", tz_name_buff);
 #endif
     goto end;
   }

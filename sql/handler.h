@@ -268,9 +268,6 @@ typedef struct st_table TABLE;
 struct st_foreign_key_info;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
 
-/* Forward declaration for Condition Pushdown to Handler (CPDH) */
-typedef struct Item COND;
-
 typedef struct st_ha_check_opt
 {
   ulong sort_buffer_size;
@@ -458,8 +455,7 @@ public:
   int compare_key(key_range *range);
   virtual int ft_init() { return HA_ERR_WRONG_COMMAND; }
   void ft_end() { ft_handler=NULL; }
-  virtual FT_INFO *ft_init_ext(uint flags,uint inx,const byte *key,
-                               uint keylen)
+  virtual FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
     { return NULL; }
   virtual int ft_read(byte *buf) { return HA_ERR_WRONG_COMMAND; }
   virtual int rnd_next(byte *buf)=0;
@@ -595,7 +591,17 @@ public:
 
   /* Type of table for caching query */
   virtual uint8 table_cache_type() { return HA_CACHE_TBL_NONTRANSACT; }
-
+  /* ask handler about permission to cache table when query is to be cached */
+  virtual my_bool register_query_cache_table(THD *thd, char *table_key,
+					     uint key_length,
+					     qc_engine_callback 
+					     *engine_callback,
+					     ulonglong *engine_data)
+  {
+    *engine_callback= 0;
+    return 1;
+  }
+ 
  /*
   RETURN
     true  Primary key (if there is one) is clustered key covering all fields
@@ -607,12 +613,6 @@ public:
  {
    return memcmp(ref1, ref2, ref_length);
  }
- 
- /*
-   Condition pushdown to storage engines
- */
- virtual const COND *cond_push(const COND *cond) { return cond; };
- virtual void cond_pop() { return; };
 };
 
 	/* Some extern variables used with handlers */
@@ -631,8 +631,6 @@ extern TYPELIB tx_isolation_typelib;
                                  T != DB_TYPE_BERKELEY_DB && \
                                  T != DB_TYPE_NDBCLUSTER)
 
-bool ha_caching_allowed(THD* thd, char* table_key,
-                        uint key_length, uint8 cache_type);
 enum db_type ha_resolve_by_name(const char *name, uint namelen);
 const char *ha_get_storage_engine(enum db_type db_type);
 handler *get_new_handler(TABLE *table, enum db_type db_type);
@@ -662,6 +660,7 @@ int ha_commit_trans(THD *thd, THD_TRANS *trans);
 int ha_rollback_trans(THD *thd, THD_TRANS *trans);
 int ha_rollback_to_savepoint(THD *thd, char *savepoint_name);
 int ha_savepoint(THD *thd, char *savepoint_name);
+int ha_release_savepoint_name(THD *thd, char *savepoint_name);
 int ha_autocommit_or_rollback(THD *thd, int error);
 void ha_set_spin_retries(uint retries);
 bool ha_flush_logs(void);

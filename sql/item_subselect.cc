@@ -53,7 +53,7 @@ void Item_subselect::init(st_select_lex *select_lex,
 {
 
   DBUG_ENTER("Item_subselect::init");
-  DBUG_PRINT("subs", ("select_lex 0x%xl", (ulong) select_lex));
+  DBUG_PRINT("enter", ("select_lex: 0x%x", (ulong) select_lex));
   unit= select_lex->master_unit();
 
   if (unit->item)
@@ -143,7 +143,7 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
 
   res= engine->prepare();
 
-  // all transformetion is done (used by prepared statements)
+  // all transformation is done (used by prepared statements)
   changed= 1;
 
   if (!res)
@@ -246,7 +246,7 @@ void Item_subselect::update_used_tables()
 {
   if (!engine->uncacheable())
   {
-    // did all used tables become ststic?
+    // did all used tables become static?
     if (!(used_tables_cache & ~engine->upper_select_const_tables()))
       const_item_cache= 1;
   }
@@ -292,7 +292,7 @@ Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
   const_item_cache= parent->get_const_item_cache();
 
   /*
-    this subquery alwais creates during preparation, so we can assign
+    this subquery always creates during preparation, so we can assign
     thd here
   */
   thd= thd_param;
@@ -356,7 +356,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
       !(select_lex->item_list.head()->type() == FIELD_ITEM ||
 	select_lex->item_list.head()->type() == REF_ITEM) &&
       /*
-        switch off this optimisation for prepare statement,
+        switch off this optimization for prepare statement,
         because we do not rollback this changes
         TODO: make rollback for it, or special name resolving mode in 5.0.
       */
@@ -374,7 +374,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     }
     substitution= select_lex->item_list.head();
     /*
-      as far as we moved content to upper leven, field which depend of
+      as far as we moved content to upper level, field which depend of
       'upper' select is not really dependent => we remove this dependence
     */
     substitution->walk(&Item::remove_dependence_processor,
@@ -494,7 +494,7 @@ longlong Item_singlerow_subselect::val_int()
   }
 }
 
-String *Item_singlerow_subselect::val_str (String *str)
+String *Item_singlerow_subselect::val_str(String *str)
 {
   if (!exec() && !value->null_value)
   {
@@ -509,10 +509,41 @@ String *Item_singlerow_subselect::val_str (String *str)
 }
 
 
+my_decimal *Item_singlerow_subselect::val_decimal(my_decimal *decimal_value)
+{
+  if (!exec() && !value->null_value)
+  {
+    null_value= 0;
+    return value->val_decimal(decimal_value);
+  }
+  else
+  {
+    reset();
+    return 0;
+  }
+}
+
+
+bool Item_singlerow_subselect::val_bool()
+{
+  if (!exec() && !value->null_value)
+  {
+    null_value= 0;
+    return value->val_bool();
+  }
+  else
+  {
+    reset();
+    return 0;
+  }
+}
+
+
 Item_exists_subselect::Item_exists_subselect(st_select_lex *select_lex):
   Item_subselect()
 {
   DBUG_ENTER("Item_exists_subselect::Item_exists_subselect");
+  bool val_bool();
   init(select_lex, new select_exists_subselect(this));
   max_columns= UINT_MAX;
   null_value= 0; //can't be NULL
@@ -621,6 +652,32 @@ String *Item_exists_subselect::val_str(String *str)
   str->set(value,&my_charset_bin);
   return str;
 }
+
+
+my_decimal *Item_exists_subselect::val_decimal(my_decimal *decimal_value)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (exec())
+  {
+    reset();
+    return 0;
+  }
+  int2my_decimal(E_DEC_FATAL_ERROR, value, 0, decimal_value);
+  return decimal_value;
+}
+
+
+bool Item_exists_subselect::val_bool()
+{
+  DBUG_ASSERT(fixed == 1);
+  if (exec())
+  {
+    reset();
+    return 0;
+  }
+  return value;
+}
+
 
 double Item_in_subselect::val_real()
 {
@@ -752,7 +809,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 
       /*
 	Item_sum_(max|min) can't substitute other item => we can use 0 as
-	reference
+        reference, also Item_sum_(max|min) can't be fixed after creation, so
+        we do not check item->fixed
       */
       if (item->fix_fields(thd, join->tables_list, 0))
 	goto err;
@@ -774,7 +832,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     // left expression belong to outer select
     SELECT_LEX *current= thd->lex->current_select, *up;
     thd->lex->current_select= up= current->return_after_parsing();
-    if (!left_expr->fixed && 
+    if (!left_expr->fixed &&
         left_expr->fix_fields(thd, up->get_table_list(), &left_expr))
     {
       thd->lex->current_select= current;
@@ -803,7 +861,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     thd->lex->current_select= current;
 
     /*
-      As far as  Item_ref_in_optimizer do not substitude itself on fix_fields
+      As far as  Item_ref_in_optimizer do not substitute itself on fix_fields
       we can use same item for all selects.
     */
     expr= new Item_direct_ref((Item**)optimizer->get_cache(),
@@ -831,8 +889,10 @@ Item_in_subselect::single_value_transformer(JOIN *join,
                                                       ref_pointer_array,
                                                       (char *)"<ref>",
                                                       this->full_name()));
+#ifdef CORRECT_BUT_TOO_SLOW_TO_BE_USABLE
     if (!abort_on_null && left_expr->maybe_null)
       item= new Item_cond_or(new Item_func_isnull(left_expr), item); 
+#endif
     /*
       AND and comparison functions can't be changed during fix_fields()
       we can assign select_lex->having here, and pass 0 as last
@@ -840,6 +900,10 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     */
     select_lex->having= join->having= and_items(join->having, item);
     select_lex->having_fix_field= 1;
+    /*
+      we do not check join->having->fixed, because Item_and (from and_items)
+      or comparison function (from func->create) can't be fixed after creation
+    */
     tmp= join->having->fix_fields(thd, join->tables_list, 0);
     select_lex->having_fix_field= 0;
     if (tmp)
@@ -871,14 +935,21 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 			 new Item_cond_and(having, join->having) :
 			 having);
 	select_lex->having_fix_field= 1;
+        /*
+          we do not check join->having->fixed, because Item_and (from
+          and_items) or comparison function (from func->create) can't be
+          fixed after creation
+        */
 	tmp= join->having->fix_fields(thd, join->tables_list, 0);
         select_lex->having_fix_field= 0;
         if (tmp)
 	  goto err;
 	item= new Item_cond_or(item,
 			       new Item_func_isnull(orig_item));
+#ifdef CORRECT_BUT_TOO_SLOW_TO_BE_USABLE
         if (left_expr->maybe_null)
           item= new Item_cond_or(new Item_func_isnull(left_expr), item);
+#endif
       }
       item->name= (char *)in_additional_cond;
       /*
@@ -887,6 +958,10 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	argument (reference) to fix_fields()
       */
       select_lex->where= join->conds= and_items(join->conds, item);
+      /*
+        we do not check join->conds->fixed, because Item_and can't be fixed
+        after creation
+      */
       if (join->conds->fix_fields(thd, join->tables_list, 0))
 	goto err;
     }
@@ -904,10 +979,16 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 		       new Item_null_helper(this, item,
 					    (char *)"<no matter>",
 					    (char *)"<result>"));
+#ifdef CORRECT_BUT_TOO_SLOW_TO_BE_USABLE
         if (!abort_on_null && left_expr->maybe_null)
           item= new Item_cond_or(new Item_func_isnull(left_expr), item);
+#endif
 	select_lex->having= join->having= item;   
 	select_lex->having_fix_field= 1;
+        /*
+          we do not check join->having->fixed, because comparison function
+          (from func->create) can't be fixed after creation
+        */
 	tmp= join->having->fix_fields(thd, join->tables_list, 0);
         select_lex->having_fix_field= 0;
         if (tmp)
@@ -982,7 +1063,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
       goto err;
     }
 
-    // we will refer to apper level cache array => we have to save it in PS
+    // we will refer to upper level cache array => we have to save it in PS
     optimizer->keep_top_level_cache();
 
     thd->lex->current_select= current;
@@ -995,10 +1076,14 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     List_iterator_fast<Item> li(select_lex->item_list);
     for (uint i= 0; i < n; i++)
     {
+      DBUG_ASSERT(left_expr->fixed && select_lex->ref_pointer_array[i]->fixed);
+      if (select_lex->ref_pointer_array[i]->
+          check_cols(left_expr->el(i)->cols()))
+        goto err;
       Item *func= new Item_ref_null_helper(this,
-					   select_lex->ref_pointer_array+i,
-					   (char *) "<no matter>",
-					   (char *) "<list ref>");
+                                           select_lex->ref_pointer_array+i,
+                                           (char *) "<no matter>",
+                                           (char *) "<list ref>");
       func=
 	eq_creator.create(new Item_direct_ref((*optimizer->get_cache())->
 					      addr(i),
@@ -1019,6 +1104,10 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     */
     select_lex->having= join->having= and_items(join->having, item);
     select_lex->having_fix_field= 1;
+    /*
+      join->having can't be fixed after creation, so we do not check
+      join->having->fixed
+    */
     if (join->having->fix_fields(thd, join->tables_list, 0))
     {
       select_lex->having_fix_field= 0;
@@ -1034,6 +1123,10 @@ Item_in_subselect::row_value_transformer(JOIN *join)
       argument (reference) to fix_fields()
     */
     select_lex->where= join->conds= and_items(join->conds, item);
+    /*
+      join->conds can't be fixed after creation, so we do not check
+      join->conds->fixed
+    */
     if (join->conds->fix_fields(thd, join->tables_list, 0))
       goto err;
   }
@@ -1117,6 +1210,7 @@ void subselect_single_select_engine::cleanup()
   DBUG_ENTER("subselect_single_select_engine::cleanup");
   prepared= optimized= executed= 0;
   join= 0;
+  result->cleanup();
   DBUG_VOID_RETURN;
 }
 
@@ -1125,6 +1219,7 @@ void subselect_union_engine::cleanup()
 {
   DBUG_ENTER("subselect_union_engine::cleanup");
   unit->reinit_exec_mechanism();
+  result->cleanup();
   DBUG_VOID_RETURN;
 }
 
@@ -1132,6 +1227,10 @@ void subselect_union_engine::cleanup()
 void subselect_uniquesubquery_engine::cleanup()
 {
   DBUG_ENTER("subselect_uniquesubquery_engine::cleanup");
+  /*
+    subselect_uniquesubquery_engine have not 'result' assigbed, so we do not
+    cleanup() it
+  */
   DBUG_VOID_RETURN;
 }
 
@@ -1415,13 +1514,15 @@ int subselect_indexsubquery_engine::exec()
 
 uint subselect_single_select_engine::cols()
 {
-  return select_lex->item_list.elements;
+  DBUG_ASSERT(select_lex->join); // should be called after fix_fields()
+  return select_lex->join->fields_list.elements;
 }
 
 
 uint subselect_union_engine::cols()
 {
-  return unit->first_select()->item_list.elements;
+  DBUG_ASSERT(unit->is_prepared());  // should be called after fix_fields()
+  return unit->types.elements;
 }
 
 
@@ -1521,7 +1622,7 @@ void subselect_indexsubquery_engine::print(String *str)
   str->append(" on ", 4);
   str->append(key_info->name);
   if (check_null)
-    str->append(" chicking NULL", 14);
+    str->append(" checking NULL", 14);
     if (cond)
   {
     str->append(" where ", 7);
@@ -1533,7 +1634,7 @@ void subselect_indexsubquery_engine::print(String *str)
 /*
   change select_result object of engine
 
-  SINOPSYS
+  SYNOPSIS
     subselect_single_select_engine::change_result()
     si		new subselect Item
     res		new select_result object
@@ -1555,7 +1656,7 @@ bool subselect_single_select_engine::change_result(Item_subselect *si,
 /*
   change select_result object of engine
 
-  SINOPSYS
+  SYNOPSIS
     subselect_single_select_engine::change_result()
     si		new subselect Item
     res		new select_result object
@@ -1578,7 +1679,7 @@ bool subselect_union_engine::change_result(Item_subselect *si,
 /*
   change select_result emulation, never should be called
 
-  SINOPSYS
+  SYNOPSIS
     subselect_single_select_engine::change_result()
     si		new subselect Item
     res		new select_result object
@@ -1599,7 +1700,7 @@ bool subselect_uniquesubquery_engine::change_result(Item_subselect *si,
 /*
   Report about presence of tables in subquery
 
-  SINOPSYS
+  SYNOPSIS
     subselect_single_select_engine::no_tables()
 
   RETURN
@@ -1615,7 +1716,7 @@ bool subselect_single_select_engine::no_tables()
 /*
   Report about presence of tables in subquery
 
-  SINOPSYS
+  SYNOPSIS
     subselect_union_engine::no_tables()
 
   RETURN
@@ -1636,7 +1737,7 @@ bool subselect_union_engine::no_tables()
 /*
   Report about presence of tables in subquery
 
-  SINOPSYS
+  SYNOPSIS
     subselect_uniquesubquery_engine::no_tables()
 
   RETURN

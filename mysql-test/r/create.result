@@ -103,9 +103,9 @@ Field	Type	Null	Key	Default	Extra
 a	datetime	NO		0000-00-00 00:00:00	
 b	time	NO		00:00:00	
 c	date	NO		0000-00-00	
-d	bigint(17)	NO		0	
-e	double(18,1)	NO		0.0	
-f	bigint(17)	NO		0	
+d	int(2)	NO		0	
+e	decimal(6,1)	NO		0.0	
+f	bigint(18)	NO		0	
 drop table t2;
 create table t2 select CAST("2001-12-29" AS DATE) as d, CAST("20:45:11" AS TIME) as t, CAST("2001-12-29  20:45:11" AS DATETIME) as dt;
 describe t2;
@@ -418,7 +418,7 @@ d	date	YES		NULL
 e	varchar(1)	NO			
 f	datetime	YES		NULL	
 g	time	YES		NULL	
-h	longblob	NO			
+h	varbinary(23)	NO			
 dd	time	YES		NULL	
 select * from t2;
 a	b	c	d	e	f	g	h	dd
@@ -437,7 +437,7 @@ t2	CREATE TABLE `t2` (
   `ifnull(e,e)` bigint(20) default NULL,
   `ifnull(f,f)` float(3,2) default NULL,
   `ifnull(g,g)` double(4,3) default NULL,
-  `ifnull(h,h)` decimal(5,4) default NULL,
+  `ifnull(h,h)` decimal(6,4) default NULL,
   `ifnull(i,i)` year(4) default NULL,
   `ifnull(j,j)` date default NULL,
   `ifnull(k,k)` datetime NOT NULL default '0000-00-00 00:00:00',

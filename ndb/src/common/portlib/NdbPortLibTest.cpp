@@ -54,10 +54,7 @@ extern "C"  void* thread1func(void* arg)
   if (arg1 != 7)
     fail("TEST1", "Wrong arg");
 
-  NdbThread_Exit(returnvalue);
-
-  return NULL;
-  
+  return returnvalue;
 }
 
 // test 2 variables and funcs
@@ -80,10 +77,7 @@ extern "C" void* test2func(void* arg)
     fail("TEST2", "Failed to unlock mutex");
 
   int returnvalue = arg1;
-  NdbThread_Exit(returnvalue);
-
-  return NULL;
-  
+  return returnvalue;
 }
 
 
@@ -129,8 +123,7 @@ extern "C" void* testfunc(void* arg)
     }
   while(tmpVar<100);
   
-  NdbThread_Exit(0);
-  return NULL;
+  return 0;
 }
 
 extern "C" void* testTryLockfunc(void* arg)
@@ -169,8 +162,7 @@ extern "C" void* testTryLockfunc(void* arg)
     }
   while(tmpVar<100);
   
-  NdbThread_Exit(0);
-  return NULL;
+  return 0;
 }
 
 

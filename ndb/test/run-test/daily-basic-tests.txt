@@ -1,4 +1,4 @@
-max-time: 25000
+max-time: 3600
 cmd: atrt-mysql-test-run
 args: --force
 
@@ -23,7 +23,7 @@ max-time: 500
 cmd: testBasic
 args: -n PkInsert 
 
-max-time: 600
+max-time: 660
 cmd: testBasic
 args: -n UpdateAndRead 
 
@@ -355,6 +355,10 @@ args: -n ScanRestart T1
 
 max-time: 500
 cmd: testScan
+args: -l 100 -n Scan-bug8262 T7
+
+max-time: 500
+cmd: testScan
 args: -n ScanParallelism
 
 #
@@ -389,7 +393,7 @@ args: -n FragmentTypeSingle T1
 
 max-time: 1500
 cmd: testDict
-args: -n FragmentTypeAll T1 T6 T7 T8 
+args: -n FragmentTypeAllSmall T1 T6 T7 T8 
 
 max-time: 1500
 cmd: testDict

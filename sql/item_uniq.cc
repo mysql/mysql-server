@@ -20,3 +20,9 @@
 #endif
 
 #include "mysql_priv.h"
+
+Field *Item_sum_unique_users::create_tmp_field(bool group, TABLE *table,
+                                               uint convert_blob_length)
+{
+  return new Field_long(9,maybe_null,name,table,1);
+}

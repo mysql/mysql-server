@@ -3611,7 +3611,7 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
 
   if (!value)					// IS NULL or IS NOT NULL
   {
-    if (field->table->outer_join)		// Can't use a key on this
+    if (field->table->maybe_null)		// Can't use a key on this
       DBUG_RETURN(0);
     if (!maybe_null)				// Not null field
       DBUG_RETURN(type == Item_func::ISNULL_FUNC ? &null_element : 0);
