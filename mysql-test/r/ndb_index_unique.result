@@ -87,6 +87,13 @@ a	b	c
 7	8	3
 8	2	3
 drop table t2;
+CREATE TABLE t2 (
+a int unsigned NOT NULL PRIMARY KEY,
+b int unsigned not null,
+c int unsigned,
+UNIQUE USING HASH (b, c)	
+) engine=ndbcluster;
+ERROR 42000: Column 'c' is used with UNIQUE or INDEX but is not defined as NOT NULL
 CREATE TABLE t3 (
 a int unsigned NOT NULL,
 b int unsigned not null,
