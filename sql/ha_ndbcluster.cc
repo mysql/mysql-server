@@ -428,7 +428,7 @@ void ha_ndbcluster::invalidateDictionaryCache()
     case(PRIMARY_KEY_ORDERED_INDEX):
     case(ORDERED_INDEX):
       dict->invalidateIndex(index->getName(), m_tabname);
-      break;      
+      break;
     case(UNIQUE_ORDERED_INDEX):
       dict->invalidateIndex(index->getName(), m_tabname);
     case(UNIQUE_INDEX):
