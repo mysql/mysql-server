@@ -556,7 +556,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
       noOfDBNodes++; // No of NDB processes
       
       if(nodeId > MAX_NDB_NODES){
-	snprintf(buf, sizeof(buf), "Maximum node id for a ndb node is: %d", 
+		  BaseString::snprintf(buf, sizeof(buf), "Maximum node id for a ndb node is: %d", 
 		 MAX_NDB_NODES);
 	ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
       }

@@ -730,7 +730,7 @@ extern "C" {
   int ndb_mgm_get_int_parameter(const ndb_mgm_configuration_iterator*, 
 				int param, unsigned * value);
   int ndb_mgm_get_int64_parameter(const ndb_mgm_configuration_iterator*,
-				  int param, unsigned long long * value);
+				  int param, Uint64 * value);
   int ndb_mgm_get_string_parameter(const ndb_mgm_configuration_iterator*,
 				   int param, const char  ** value);
 #ifdef __cplusplus

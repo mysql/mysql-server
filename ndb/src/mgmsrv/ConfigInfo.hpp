@@ -38,11 +38,11 @@ static const char* UNDEFINED = 0;                 // Default value for undefined
  */
 class ConfigInfo {
 public:
-  enum Type        { BOOL, INT, INT64, STRING, SECTION };
-  enum Status      { USED,            ///< Active
-		     DEPRICATED,      ///< Can be, but shouldn't
-		     NOTIMPLEMENTED,  ///< Is ignored.
-		     INTERNAL         ///< Not configurable by the user
+  enum Type        { CI_BOOL, CI_INT, CI_INT64, CI_STRING, CI_SECTION };
+  enum Status      { CI_USED,            ///< Active
+		     CI_DEPRICATED,      ///< Can be, but shouldn't
+		     CI_NOTIMPLEMENTED,  ///< Is ignored.
+		     CI_INTERNAL         ///< Not configurable by the user
   };
 
   /**
