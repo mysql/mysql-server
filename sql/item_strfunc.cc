@@ -2104,8 +2104,8 @@ String *Item_func_conv_charset::val_str(String *str)
     null_value=1;
     return 0;
   }
-  null_value= str->copy(arg->ptr(),arg->length(),arg->charset(),conv_charset);
-  return null_value ? 0 : str;
+  null_value= str_value.copy(arg->ptr(),arg->length(),arg->charset(),conv_charset);
+  return null_value ? 0 : &str_value;
 }
 
 void Item_func_conv_charset::fix_length_and_dec()
