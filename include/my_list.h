@@ -32,7 +32,7 @@ extern LIST *list_add(LIST *root,LIST *element);
 extern LIST *list_delete(LIST *root,LIST *element);
 extern LIST *list_cons(void *data,LIST *root);
 extern LIST *list_reverse(LIST *root);
-extern void list_free(LIST *root,pbool free_data);
+extern void list_free(LIST *root,uint free_data);
 extern uint list_length(LIST *list);
 extern int list_walk(LIST *list,list_walk_action action,gptr argument);
 
