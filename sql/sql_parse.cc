@@ -2519,12 +2519,20 @@ error:
 
 /****************************************************************************
   Get the user (global) and database privileges for all used tables
-  Returns true (error) if we can't get the privileges and we don't use
-  table/column grants.
-  The idea of EXTRA_ACL is that one will be granted access to the table if
-  one has the asked privilege on any column combination of the table; For
-  example to be able to check a table one needs to have SELECT privilege on
-  any column of the table.
+
+  NOTES
+    The idea of EXTRA_ACL is that one will be granted access to the table if
+    one has the asked privilege on any column combination of the table; For
+    example to be able to check a table one needs to have SELECT privilege on
+    any column of the table.
+
+  RETURN
+    0  ok
+    1  If we can't get the privileges and we don't use table/column grants.
+
+    save_priv	In this we store global and db level grants for the table
+		Note that we don't store db level grants if the global grants
+		is enough to satisfy the request.
 ****************************************************************************/
 
 bool
