@@ -215,21 +215,8 @@ multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
     num_of_tables(num_of_tables_arg), error(0), lock_option(lock_option_arg),
     do_delete(false)
 {
-  uint counter=0;
   not_trans_safe=false;
   tempfiles = (Unique **) sql_calloc(sizeof(Unique *) * (num_of_tables-1));
-
-  /* Don't use key read with MULTI-TABLE-DELETE */
-  dt->table->used_keys=0;
-  for (dt=dt->next ; dt ; dt=dt->next,counter++)
-  {
-    TABLE *table=dt->table;
-    table->used_keys=0;
-    tempfiles[counter] = new Unique (refposcmp2,
-				     (void *) &table->file->ref_length,
-				     table->file->ref_length,
-				     MEM_STRIP_BUF_SIZE);
-  }
 }
 
 
@@ -260,6 +247,7 @@ multi_delete::prepare(List<Item> &values)
 void
 multi_delete::initialize_tables(JOIN *join)
 {
+  int counter=0;
   TABLE_LIST *walk;
   table_map tables_to_delete_from=0;
   for (walk= delete_tables ; walk ; walk=walk->next)
@@ -280,6 +268,19 @@ multi_delete::initialize_tables(JOIN *join)
       if (!not_trans_safe && !tbl->file->has_transactions())
 	not_trans_safe=true;
     }
+  }
+  walk= delete_tables;
+  walk->table->used_keys=0;
+  for (walk=walk->next ; walk ; walk=walk->next, counter++)
+  {
+    tables_to_delete_from|= walk->table->map;
+    TABLE *table=walk->table;
+  /* Don't use key read with MULTI-TABLE-DELETE */
+    table->used_keys=0;
+    tempfiles[counter] = new Unique (refposcmp2,
+				     (void *) &table->file->ref_length,
+				     table->file->ref_length,
+				     MEM_STRIP_BUF_SIZE);
   }
   init_ftfuncs(thd,1);
 }
