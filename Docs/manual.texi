@@ -7830,7 +7830,7 @@ reload the grant tables.
 @cindex problems, starting the server
 
 If you are going to use tables that support transactions (InnoDB, BDB),
-you should first create a my.cnf file and set startup options
+you should first create a @file{my.cnf} file and set startup options
 for the table types you plan to use. @xref{Table types}.
 
 Generally, you start the @code{mysqld} server in one of these ways:
@@ -40421,7 +40421,7 @@ they roll back the corresponding SQL statement.
 @strong{Warning}: do @strong{NOT} convert MySQL system tables from
 MyISAM TO InnoDB tables!  This is not supported; if you do this MySQL
 will not restart until you restore the old system tables from a backup
-or re-generate them with the mysql_install_db script.
+or re-generate them with the @code{mysql_install_db} script.
 
 @item
 @code{SHOW TABLE STATUS} does not give accurate statistics
@@ -40593,7 +40593,7 @@ BDB tables:
 @item @code{--bdb-no-sync} @tab Don't synchronously flush logs.
 @item @code{--bdb-no-recover} @tab Don't start Berkeley DB in recover mode.
 @item @code{--bdb-shared-data} @tab Start Berkeley DB in multi-process mode (Don't use @code{DB_PRIVATE} when initialising Berkeley DB)
-@item @code{--bdb-tmpdir=directory} @tab Berkeley DB tempfile name.
+@item @code{--bdb-tmpdir=directory} @tab Berkeley DB temporary file directory.
 @item @code{--skip-bdb} @tab Disable usage of BDB tables.
 @item @code{-O bdb_max_lock=1000} @tab Set the maximum number of locks possible. @xref{SHOW VARIABLES}.
 @end multitable
@@ -40767,7 +40767,8 @@ Here follows the restrictions you have when using BDB tables:
 
 @itemize @bullet
 @item
-BDB tables store in the .db file the path to the file as it was created
+BDB tables store in the @file{.db} file the path to the file as it was
+created.
 This was done to be able to detect locks in a multi-user
 environment that supports symlinks).
 
