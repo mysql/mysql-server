@@ -864,6 +864,17 @@ longlong Item_func_field::val_int()
   return 0;
 }
 
+void Item_func_field::split_sum_func(List<Item> &fields)
+{
+  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
+    item->split_sum_func(fields);
+  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
+  {
+    fields.push_front(item);
+    item= new Item_ref((Item**) fields.head_ref(), 0, item->name);
+  }  
+  Item_func::split_sum_func(fields);
+}
 
 longlong Item_func_ascii::val_int()
 {

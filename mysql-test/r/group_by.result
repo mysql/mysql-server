@@ -110,3 +110,21 @@ a	count(*)
 NULL	9
 	3
 b	1
+a	MAX(b)	INTERVAL (MAX(b), 1,3,10,30,39,40,50,60,100,1000)
+1	4	2
+10	43	6
+a	MAX(b)	CASE MAX(b) when 4 then 4 when 43 then 43 else 0 end
+1	4	4
+10	43	43
+a	MAX(b)	FIELD(MAX(b), '43', '4', '5')
+1	4	2
+10	43	1
+a	MAX(b)	CONCAT_WS(MAX(b), '43', '4', '5')
+1	4	434445
+10	43	43434435
+a	MAX(b)	ELT(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f')
+1	4	d
+10	43	NULL
+a	MAX(b)	MAKE_SET(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h')
+1	4	c
+10	43	a,b,d,f
