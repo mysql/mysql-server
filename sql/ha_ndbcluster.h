@@ -103,11 +103,6 @@ class Ndb_item {
   Ndb_item(Item_func::Functype func_type);
   ~Ndb_item();
   void print(String *str);
-  bool is_big() 
-  {
-    enum_field_types type= value.field_value->field->type(); 
-    return (type == MYSQL_TYPE_LONGLONG || type == MYSQL_TYPE_INT24); 
-  };
   uint32 pack_length() { return value.field_value->field->pack_length(); };
   // Getters and Setters
   longlong get_int_value() { return value.int_value; };
