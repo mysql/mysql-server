@@ -285,6 +285,8 @@ UNLOCK TABLES;
 /*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
 
 set global sql_mode='';
+drop table t1;
+create table t1(a int);
 insert into t1 values (1),(2),(3);
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT, CHARACTER_SET_CLIENT=utf8 */;
