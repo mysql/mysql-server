@@ -56,7 +56,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_OPEN_TABLES, SQLCOM_LOAD_MASTER_DATA,
   SQLCOM_HA_OPEN, SQLCOM_HA_CLOSE, SQLCOM_HA_READ,
   SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_MULTI_DELETE, SQLCOM_UNION_SELECT,
-  SQLCOM_SHOW_BINLOG_EVENTS
+  SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER
 };
 
 enum lex_states { STATE_START, STATE_CHAR, STATE_IDENT,
@@ -93,7 +93,9 @@ typedef struct st_lex_master_info
 {
   char* host, *user, *password,*log_file_name;
   uint port, connect_retry;
+  ulong last_log_seq;
   ulonglong pos;
+  ulong server_id;
 } LEX_MASTER_INFO;
 
 
