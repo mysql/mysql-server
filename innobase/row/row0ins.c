@@ -651,25 +651,27 @@ row_ins_foreign_check_on_constraint(
 	ulint		n_to_update;
 	ulint		err;
 	ulint		i;
-	const char*	ptr;
-	char*		table_name;
+	char*		ptr;
+	char*		table_name_buf;
 	
 	ut_a(thr && foreign && pcur && mtr);
 
-#ifndef UNIV_HOTBACKUP
 	/* Since we are going to delete or update a row, we have to invalidate
 	the MySQL query cache for table */
 
-	ptr = strchr(table->name, '/');
+	table_name_buf = mem_strdup(table->name);
+
+	ptr = strchr(table_name_buf, '/');
 	ut_a(ptr);
-	table_name = mem_strdup(table->name);
-	table_name[ptr - table->name] = 0;
+	*ptr = '\0';
 	
+#ifndef UNIV_HOTBACKUP
 	/* We call a function in ha_innodb.cc */
-	innobase_invalidate_query_cache(thr_get_trx(thr), table_name,
+	innobase_invalidate_query_cache(thr_get_trx(thr), table_name_buf,
 						strlen(table->name) + 1);
-	mem_free(table_name);
 #endif
+	mem_free(table_name_buf);
+
 	node = thr->run_node;
 
 	if (node->is_delete && 0 == (foreign->type &
