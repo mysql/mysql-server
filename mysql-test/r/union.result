@@ -823,3 +823,41 @@ count(*)
 13
 drop table t1,t2;
 set local tmp_table_size=default;
+create table t1 (a int, index (a), b int);
+insert t1 values (1,1),(2,2),(3,3),(4,4),(5,5);
+insert t1 select a+1, a+b from t1;
+insert t1 select a+1, a+b from t1;
+insert t1 select a+1, a+b from t1;
+insert t1 select a+1, a+b from t1;
+insert t1 select a+1, a+b from t1;
+FLUSH STATUS;
+show status like 'Slow_queries';
+Variable_name	Value
+Slow_queries	0
+select count(*) from t1 where a=7;
+count(*)
+26
+show status like 'Slow_queries';
+Variable_name	Value
+Slow_queries	0
+select count(*) from t1 where b=13;
+count(*)
+10
+show status like 'Slow_queries';
+Variable_name	Value
+Slow_queries	1
+select count(*) from t1 where b=13 union select count(*) from t1 where a=7;
+count(*)
+0
+26
+show status like 'Slow_queries';
+Variable_name	Value
+Slow_queries	2
+select count(*) from t1 where a=7 union select count(*) from t1 where b=13;
+count(*)
+26
+10
+show status like 'Slow_queries';
+Variable_name	Value
+Slow_queries	3
+drop table t1;

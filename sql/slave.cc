@@ -3157,6 +3157,18 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
 		    llstr(rli->group_master_log_pos,llbuff),rli->group_relay_log_name,
 		    llstr(rli->group_relay_log_pos,llbuff1));
 
+  /* execute init_slave variable */
+  if (sys_init_slave.value)
+  {
+    execute_init_command(thd, &sys_init_slave, &LOCK_sys_init_slave);
+    if (thd->query_error)
+    {
+      sql_print_error("\
+Slave SQL thread aborted. Can't execute init_slave query");
+      goto err;
+    }
+  }
+
   /* Read queries from the IO/THREAD until this thread is killed */
 
   while (!sql_slave_killed(thd,rli))
