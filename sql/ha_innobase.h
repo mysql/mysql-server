@@ -139,6 +139,8 @@ class ha_innobase: public handler
   	int extra(enum ha_extra_function operation);
   	int reset(void);
   	int external_lock(THD *thd, int lock_type);
+	int start_stmt(THD *thd);
+
   	void position(byte *record);
   	ha_rows records_in_range(int inx,
 			   const byte *start_key,uint start_key_len,
