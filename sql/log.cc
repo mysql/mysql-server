@@ -742,11 +742,12 @@ bool MYSQL_LOG::appendv(const char* buf, uint len,...)
       error = 1;
       break;
     }
-    if ((uint)my_b_append_tell(&log_file) > max_binlog_size)
-    {
-      new_file(1);
-    }
   } while ((buf=va_arg(args,const char*)) && (len=va_arg(args,uint)));
+  
+  if ((uint)my_b_append_tell(&log_file) > max_binlog_size)
+  {
+    new_file(1);
+  }
   
   if (!error)
     signal_update();

@@ -75,7 +75,7 @@ slave-bin.002	115	Query	1	62	use test; insert into t1 values (1)
 slave-bin.002	175	Query	1	122	use test; drop table t1
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos
-127.0.0.1	root	MASTER_PORT	1	master-bin.002	170	mysql-relay-bin.002	935	master-bin.002	Yes	Yes			0		0	170
+127.0.0.1	root	MASTER_PORT	1	master-bin.002	170	slave-relay-bin.002	916	master-bin.002	Yes	Yes			0		0	170
 show new master for slave with master_log_file='master-bin.001' and
 master_log_pos=4 and  master_server_id=1;
 Log_name	Log_pos

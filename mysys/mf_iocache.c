@@ -542,7 +542,7 @@ read_append_buffer:
 
     DBUG_ASSERT(info->append_read_pos <= info->write_pos);
     /*
-      TODO: figure out if the below assert is needed or correct.
+      TODO: figure out if the assert below is needed or correct.
     */
     DBUG_ASSERT(pos_in_file == info->end_of_file); 
     copy_len=min(Count, len_in_buff);
@@ -889,6 +889,17 @@ int my_block_write(register IO_CACHE *info, const byte *Buffer, uint Count,
 
 	/* Flush write cache */
 
+#ifdef THREAD
+#define LOCK_APPEND_BUFFER if (need_append_buffer_lock) \
+  lock_append_buffer(info);
+#define UNLOCK_APPEND_BUFFER if (need_append_buffer_lock) \
+  unlock_append_buffer(info);
+#else
+#define LOCK_APPEND_BUFFER
+#define UNLOCK_APPEND_BUFFER
+#endif
+
+
 int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
 {
   uint length;
@@ -906,8 +917,8 @@ int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
       if (real_open_cached_file(info))
 	DBUG_RETURN((info->error= -1));
     }
-    if (need_append_buffer_lock)
-      lock_append_buffer(info);
+    LOCK_APPEND_BUFFER;
+    
     if ((length=(uint) (info->write_pos - info->write_buffer)))
     {
       pos_in_file=info->pos_in_file;
@@ -919,8 +930,7 @@ int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
 	if (my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)) ==
 	    MY_FILEPOS_ERROR)
 	{
-	  if (need_append_buffer_lock)
-	    unlock_append_buffer(info);
+	  UNLOCK_APPEND_BUFFER;
 	  DBUG_RETURN((info->error= -1));
 	}
 	if (!append_cache)
@@ -941,11 +951,13 @@ int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
         set_if_bigger(info->end_of_file,(pos_in_file+length));
       }
       else
+      {
 	info->end_of_file+=(info->write_pos-info->append_read_pos);
+	DBUG_ASSERT(info->end_of_file == my_tell(info->file,MYF(0)));
+      }
       
       info->append_read_pos=info->write_pos=info->write_buffer;
-      if (need_append_buffer_lock)
-        unlock_append_buffer(info);
+      UNLOCK_APPEND_BUFFER;
       DBUG_RETURN(info->error);
     }
   }
@@ -956,8 +968,7 @@ int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
     info->inited=0;
   }
 #endif
-  if (need_append_buffer_lock)
-    unlock_append_buffer(info);
+  UNLOCK_APPEND_BUFFER;
   DBUG_RETURN(0);
 }
 
