@@ -1037,7 +1037,7 @@ case $SYSTEM_TYPE in
       MAX_C_OPTIMIZE="-O"
     fi
     ;;
-  *darwin7*)
+  *darwin[7-8]*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
       FLAGS="-DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ"
