@@ -218,11 +218,78 @@ static int my_strnncoll_ucs2(CHARSET_INFO *cs,
   return t_is_prefix ? t-te : ((se-s) - (te-t));
 }
 
-static int my_strnncollsp_ucs2(CHARSET_INFO *cs, 
-                               const uchar *s, uint slen, 
+/*
+  Compare strings, discarding end space
+
+  SYNOPSIS
+    my_strnncollsp_ucs2()
+    cs                  character set handler
+    a                   First string to compare
+    a_length            Length of 'a'
+    b                   Second string to compare
+    b_length            Length of 'b'
+
+  IMPLEMENTATION
+    If one string is shorter as the other, then we space extend the other
+    so that the strings have equal length.
+
+    This will ensure that the following things hold:
+
+    "a"  == "a "
+    "a\0" < "a"
+    "a\0" < "a "
+
+  RETURN
+    < 0  a <  b
+    = 0  a == b
+    > 0  a > b
+*/
+
+static int my_strnncollsp_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+                               const uchar *s, uint slen,
                                const uchar *t, uint tlen)
 {
-  return my_strnncoll_ucs2(cs,s,slen,t,tlen,0);
+  const uchar *se, *te;
+  uint minlen;
+
+  /* extra safety to make sure the lengths are even numbers */
+  slen= (slen >> 1) << 1;
+  tlen= (tlen >> 1) << 1;
+
+  se= s + slen;
+  te= t + tlen;
+
+  for (minlen= min(slen, tlen); minlen; minlen-= 2)
+  {
+    int s_wc = uni_plane[s[0]] ? (int) uni_plane[s[0]][s[1]].sort :
+                                 (((int) s[0]) << 8) + (int) s[1];
+
+    int t_wc = uni_plane[t[0]] ? (int) uni_plane[t[0]][t[1]].sort : 
+                                 (((int) t[0]) << 8) + (int) t[1];
+    if ( s_wc != t_wc )
+      return  s_wc - t_wc;
+
+    s+= 2;
+    t+= 2;
+  }
+
+  if (slen != tlen)
+  {
+    int swap= 0;
+    if (slen < tlen)
+    {
+      s= t;
+      se= te;
+      swap= -1;
+    }
+
+    for ( ; s < se ; s+= 2)
+    {
+      if (s[0] || s[1] != ' ')
+        return (((int)s[0] << 8) + (int) s[1] - (int) ' ') ^ swap;
+    }
+  }
+  return 0;
 }
 
 

@@ -1,4 +1,27 @@
 DROP TABLE IF EXISTS t1;
+SET NAMES latin1;
+SET character_set_connection=ucs2;
+select 'a' = 'a', 'a' = 'a ', 'a ' = 'a';
+'a' = 'a'	'a' = 'a '	'a ' = 'a'
+1	1	1
+select 'a\0' = 'a', 'a\0' < 'a', 'a\0' > 'a';
+'a\0' = 'a'	'a\0' < 'a'	'a\0' > 'a'
+0	1	0
+select 'a' = 'a\0', 'a' < 'a\0', 'a' > 'a\0';
+'a' = 'a\0'	'a' < 'a\0'	'a' > 'a\0'
+0	0	1
+select 'a\0' = 'a ', 'a\0' < 'a ', 'a\0' > 'a ';
+'a\0' = 'a '	'a\0' < 'a '	'a\0' > 'a '
+0	1	0
+select 'a ' = 'a\0', 'a ' < 'a\0', 'a ' > 'a\0';
+'a ' = 'a\0'	'a ' < 'a\0'	'a ' > 'a\0'
+0	0	1
+select 'a  a' > 'a', 'a  \0' < 'a';
+'a  a' > 'a'	'a  \0' < 'a'
+1	1
+select binary 'a  a' > 'a', binary 'a  \0' > 'a', binary 'a\0' > 'a';
+binary 'a  a' > 'a'	binary 'a  \0' > 'a'	binary 'a\0' > 'a'
+1	1	1
 SET CHARACTER SET koi8r;
 CREATE TABLE t1 (word VARCHAR(64) CHARACTER SET ucs2);
 INSERT INTO t1 VALUES (_koi8r'ò'), (X'2004');

@@ -144,7 +144,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->select_lex.init_order();
   lex->select_lex.group_list.empty();
   lex->describe= 0;
-  lex->derived_tables= FALSE;
+  lex->subqueries= lex->derived_tables= FALSE;
   lex->view_prepare_mode= FALSE;
   lex->lock_option= TL_READ;
   lex->found_colon= 0;

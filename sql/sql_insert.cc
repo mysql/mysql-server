@@ -455,7 +455,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         if (error <= 0)
           thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
-			      log_delayed);
+			      log_delayed, FALSE);
 	if (mysql_bin_log.write(&qinfo) && transactional_table)
 	  error=1;
       }
@@ -1614,7 +1614,7 @@ bool delayed_insert::handle_inserts(void)
     }
     if (row->query && row->log_query && using_bin_log)
     {
-      Query_log_event qinfo(&thd, row->query, row->query_length,0);
+      Query_log_event qinfo(&thd, row->query, row->query_length, 0, FALSE);
       mysql_bin_log.write(&qinfo);
     }
     if (table->blob_fields)
@@ -1795,7 +1795,6 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   restore_record(table,default_values);			// Get empty record
   table->next_number_field=table->found_next_number_field;
-  thd->count_cuted_fields= CHECK_FIELD_WARN;		// calc cuted fields
   thd->cuted_fields=0;
   if (info.handle_duplicates == DUP_IGNORE ||
       info.handle_duplicates == DUP_REPLACE)
@@ -1834,34 +1833,43 @@ select_insert::~select_insert()
 bool select_insert::send_data(List<Item> &values)
 {
   DBUG_ENTER("select_insert::send_data");
+  bool error=0;
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
     unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
-  if (fields->elements)
-    fill_record(thd, *fields, values, 1);
-  else
-    fill_record(thd, table->field, values, 1);
+
+  thd->count_cuted_fields= CHECK_FIELD_WARN;		// calc cuted fields
+  store_values(values);
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  if (thd->net.report_error)
+    DBUG_RETURN(1);
   switch (table_list->view_check_option(thd,
-                                        thd->lex->duplicates == DUP_IGNORE))
-  {
+                                        thd->lex->duplicates == DUP_IGNORE)) {
   case VIEW_CHECK_SKIP:
     DBUG_RETURN(0);
   case VIEW_CHECK_ERROR:
     DBUG_RETURN(1);
   }
-  if (thd->net.report_error || write_record(thd, table, &info))
-    DBUG_RETURN(1);
-  if (table->next_number_field)		// Clear for next record
+  if (!(error= write_record(table,&info)) && table->next_number_field)
   {
+    /* Clear for next record */
     table->next_number_field->reset();
     if (! last_insert_id && thd->insert_id_used)
       last_insert_id=thd->insert_id();
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
+
+void select_insert::store_values(List<Item> &values)
+{
+  if (fields->elements)
+    fill_record(*fields, values, 1);
+  else
+    fill_record(table->field, values, 1);
+}
 
 void select_insert::send_error(uint errcode,const char *err)
 {
@@ -1892,7 +1900,7 @@ void select_insert::send_error(uint errcode,const char *err)
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-                            table->file->has_transactions());
+                            table->file->has_transactions(), FALSE);
       mysql_bin_log.write(&qinfo);
     }
     if (!table->tmp_table)
@@ -1935,7 +1943,7 @@ bool select_insert::send_eof()
     if (!error)
       thd->clear_error();
     Query_log_event qinfo(thd, thd->query, thd->query_length,
-			  table->file->has_transactions());
+			  table->file->has_transactions(), FALSE);
     mysql_bin_log.write(&qinfo);
   }
   if ((error2=ha_autocommit_or_rollback(thd,error)) && ! error)
@@ -1988,8 +1996,6 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   table->next_number_field=table->found_next_number_field;
 
   restore_record(table,default_values);			// Get empty record
-  /* Count warnings. This is reset in ~select_insert() */
-  thd->count_cuted_fields= CHECK_FIELD_WARN;
   thd->cuted_fields=0;
   if (info.handle_duplicates == DUP_IGNORE ||
       info.handle_duplicates == DUP_REPLACE)
@@ -2004,23 +2010,21 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 }
 
 
-bool select_create::send_data(List<Item> &values)
+void select_create::store_values(List<Item> &values)
 {
-  if (unit->offset_limit_cnt)
-  {						// using limit offset,count
-    unit->offset_limit_cnt--;
-    return 0;
-  }
   fill_record(thd, field, values, 1);
-  if (thd->net.report_error || write_record(thd, table, &info))
-    return 1;
-  if (table->next_number_field)		// Clear for next record
-  {
-    table->next_number_field->reset();
-    if (! last_insert_id && thd->insert_id_used)
-      last_insert_id=thd->insert_id();
-  }
-  return 0;
+}
+
+
+void select_create::send_error(uint errcode,const char *err)
+{
+  /*
+   Disable binlog, because we "roll back" partial inserts in ::abort
+   by removing the table, even for non-transactional tables.
+  */
+  tmp_disable_binlog(thd);
+  select_insert::send_error(errcode, err);
+  reenable_binlog(thd);
 }
 
 
@@ -2068,7 +2072,7 @@ void select_create::abort()
     enum db_type table_type=table->db_type;
     if (!table->tmp_table)
     {
-      ulong version= table->version;      
+      ulong version= table->version;
       hash_delete(&open_cache,(byte*) table);
       if (!create_info->table_existed)
         quick_rm_table(table_type, create_table->db, create_table->real_name);
