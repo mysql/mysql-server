@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t11,t12,t2;
 --enable_warnings
 CREATE TABLE t1 (a tinyint(3), b tinyint(5));
 INSERT INTO t1 VALUES (1,1);
@@ -71,3 +71,30 @@ delete from t1 where 3 > 2;
 select count(*) from t1;
 
 drop table t1;
+
+#
+# IGNORE option
+#
+create table t11 (a int NOT NULL, b int, primary key (a));
+create table t12 (a int NOT NULL, b int, primary key (a));
+create table t2 (a int NOT NULL, b int, primary key (a));
+insert into t11 values (0, 10),(1, 11),(2, 12);
+insert into t12 values (33, 10),(0, 11),(2, 12);
+insert into t2 values (1, 21),(2, 12),(3, 23);
+select * from t11;
+select * from t12;
+select * from t2;
+-- error 1241
+delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select b from t2 where t11.a < t2.a);
+select * from t11;
+select * from t12;
+delete ignore t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select b from t2 where t11.a < t2.a);
+select * from t11;
+select * from t12;
+insert into t11 values (2, 12);
+-- error 1241
+delete from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
+select * from t11;
+delete ignore from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
+select * from t11;
+drop table t11, t12, t2;
