@@ -344,6 +344,14 @@ void Item_func_interval::update_used_tables()
   const_item_cache&=item->const_item();
 }
 
+bool Item_func_interval::check_loop(uint id)
+{
+  DBUG_ENTER("Item_func_interval::check_loop");
+  if (Item_func::check_loop(id))
+    DBUG_RETURN(1);
+  DBUG_RETURN(item->check_loop(id));
+}
+
 void Item_func_between::fix_length_and_dec()
 {
    max_length=1;
@@ -776,6 +784,16 @@ Item_func_case::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   return 0;
 }
 
+bool Item_func_case::check_loop(uint id)
+{
+  DBUG_ENTER("Item_func_case::check_loop");
+  if (Item_func::check_loop(id))
+    DBUG_RETURN(1);
+
+  DBUG_RETURN((first_expr && first_expr->check_loop(id)) ||
+	      (else_expr && else_expr->check_loop(id)));
+}
+
 void Item_func_case::update_used_tables()
 {
   Item_func::update_used_tables();
@@ -1137,6 +1155,20 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   return 0;
 }
 
+bool Item_cond::check_loop(uint id)
+{
+  DBUG_ENTER("Item_cond::check_loop");
+  if (Item_func::check_loop(id))
+    DBUG_RETURN(1);
+  List_iterator<Item> li(list);
+  Item *item;
+  while ((item= li++))
+  {
+    if (item->check_loop(id))
+      DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
+}
 
 void Item_cond::split_sum_func(List<Item> &fields)
 {
