@@ -58,6 +58,7 @@ static struct option long_options[] =
   {"table", 	required_argument, 	0, 't'},
   {"user",	required_argument,	0, 'u'},
   {"version",	 no_argument, 		0, 'V'},
+  {0, 0, 0, 0}
 };
 
 void sql_print_error(const char *format,...);

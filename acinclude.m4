@@ -199,7 +199,7 @@ fi
 
 AC_DEFUN(MYSQL_PTHREAD_YIELD,
 [AC_CACHE_CHECK([if pthread_yield takes zero arguments], ac_cv_pthread_yield_zero_arg,
-[AC_TRY_COMPILE([#define _GNU_SOURCE
+[AC_TRY_LINK([#define _GNU_SOURCE
 #include <pthread.h>
 #ifdef __cplusplus
 extern "C"
@@ -214,7 +214,7 @@ then
 fi
 ]
 [AC_CACHE_CHECK([if pthread_yield takes 1 argument], ac_cv_pthread_yield_one_arg,
-[AC_TRY_COMPILE([#define _GNU_SOURCE
+[AC_TRY_LINK([#define _GNU_SOURCE
 #include <pthread.h>
 #ifdef __cplusplus
 extern "C"
@@ -550,7 +550,8 @@ AC_DEFUN(MYSQL_STACK_DIRECTION,
 
 AC_DEFUN(MYSQL_FUNC_ALLOCA,
 [
-# Since we have heard that alloca fails on IRIX never define it on a SGI machine
+# Since we have heard that alloca fails on IRIX never define it on a
+# SGI machine
 if test ! "$host_vendor" = "sgi"
 then
  AC_REQUIRE_CPP()dnl Set CPP; we run AC_EGREP_CPP conditionally.

@@ -825,11 +825,12 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
       {
 	/* For slow query log */
 	if (my_b_printf(&log_file,
-			"# Time: %lu  Lock_time: %lu  Rows_sent: %lu\n",
+			"# Time: %lu  Lock_time: %lu  Rows_sent: %lu  Rows_examined: %lu\n",
 			(ulong) (current_time - query_start),
 			(ulong) (thd->time_after_lock - query_start),
-			(ulong) thd->sent_row_count) == (uint) -1)
-	    tmp_errno=errno;
+			(ulong) thd->sent_row_count,
+			(ulong) thd->examined_row_count) == (uint) -1)
+	  tmp_errno=errno;
       }
       if (thd->db && strcmp(thd->db,db))
       {						// Database changed

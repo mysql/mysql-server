@@ -49,7 +49,7 @@ typedef struct st_sort_param {
   uint sort_length;			/* Length of sortarg */
   uint keys;				/* Max antal nycklar / buffert */
   uint ref_length;			/* Length of record ref. */
-  ha_rows max_rows;
+  ha_rows max_rows,examined_rows;
   TABLE *sort_form;			/* For quicker make_sortkey */
   SORT_FIELD *local_sortorder;
   SORT_FIELD *end;
@@ -91,7 +91,8 @@ static uint sortlength(SORT_FIELD *sortorder,uint length);
 	 open a new file is opened */
 
 ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
-		 SQL_SELECT *select, ha_rows special, ha_rows max_rows)
+		 SQL_SELECT *select, ha_rows special, ha_rows max_rows,
+		 ha_rows *examined_rows)
 {
   int error;
   uint memavl,old_memavl,maxbuffer,skr;
@@ -113,6 +114,7 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
   param.ref_length= table[0]->file->ref_length;
   param.sort_length=sortlength(sortorder,s_length)+ param.ref_length;
   param.max_rows= max_rows;
+  param.examined_rows=0;
 
   if (select && select->quick)
   {
@@ -259,7 +261,7 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
     my_error(ER_FILSORT_ABORT,MYF(ME_ERROR+ME_WAITTANG));
   else
     statistic_add(filesort_rows, records, &LOCK_status);
-
+  *examined_rows= param.examined_rows;
 #ifdef SKIPP_DBUG_IN_FILESORT
   DBUG_POP();			/* Ok to DBUG */
 #endif
@@ -367,6 +369,8 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
       file->rnd_end();
       DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */
     }
+    if (error == 0)
+      param->examined_rows++;
     if (error == 0 && (!select || select->skipp_record() == 0))
     {
       if (idx == param->keys)
