@@ -89,11 +89,7 @@ static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *where=0,
              *opt_compatible_mode_str= 0,
              *err_ptr= 0;
-#ifdef HAVE_CHARSET_utf8
-static char *default_charset= (char*) "utf8";
-#else
-static char *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
-#endif
+static char *default_charset= (char*) MYSQL_UNIVERSAL_CLIENT_CHARSET;
 static ulong opt_compatible_mode= 0;
 static uint     opt_mysql_port= 0, err_len= 0;
 static my_string opt_mysql_unix_port=0;

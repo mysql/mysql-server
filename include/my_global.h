@@ -1144,4 +1144,10 @@ typedef union {
 #endif
 #endif
 
+#ifdef HAVE_CHARSET_utf8
+#define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8"
+#else
+#define MYSQL_UNIVERSAL_CLIENT_CHARSET MYSQL_DEFAULT_CHARSET_NAME
+#endif
+
 #endif /* my_global_h */
