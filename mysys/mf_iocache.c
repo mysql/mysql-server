@@ -392,8 +392,8 @@ int _my_b_read(register IO_CACHE *info, byte *Buffer, uint Count)
     if ((read_length=my_read(info->file,Buffer,(uint) length,info->myflags))
 	!= (uint) length)
     {
-      info->error= read_length == (uint) -1 ? -1 :
-	(int) (read_length+left_length);
+      info->error= (read_length == (uint) -1 ? -1 :
+		    (int) (read_length+left_length));
       DBUG_RETURN(1);
     }
     Count-=length;
@@ -422,6 +422,7 @@ int _my_b_read(register IO_CACHE *info, byte *Buffer, uint Count)
   {
     if (length != (uint) -1)
       memcpy(Buffer,info->buffer,(size_t) length);
+    info->pos_in_file= pos_in_file;
     info->error= length == (uint) -1 ? -1 : (int) (length+left_length);
     info->read_pos=info->read_end=info->buffer;
     DBUG_RETURN(1);

@@ -1186,7 +1186,7 @@ then
       else
 #	CC="$CC -Kthread -DOpenUNIX8";
 #	CXX="$CXX -Kthread -DOpenUNIX8";
-	CC="$CC -Kthread -DUNIXWARE_7";
+	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
 	CXX="$CXX -Kthread -DUNIXWARE_7";
       fi
       AC_MSG_RESULT("yes")

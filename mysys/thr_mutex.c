@@ -53,8 +53,8 @@ int safe_mutex_lock(safe_mutex_t *mp,const char *file, uint line)
   pthread_mutex_lock(&mp->global);
   if (mp->count > 0 && pthread_equal(pthread_self(),mp->thread))
   {
-    fprintf(stderr,"safe_mutex: Trying to lock mutex at %s, line %d, when the mutex was already locked at %s, line %d\n",
-	    file,line,mp->file,mp->line);
+    fprintf(stderr,"safe_mutex: Trying to lock mutex at %s, line %d, when the mutex was already locked at %s, line %d in thread %s\n",
+	    file,line,mp->file, mp->line, my_thread_name());
     fflush(stderr);
     abort();
   }

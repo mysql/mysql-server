@@ -465,11 +465,7 @@ simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
   if (mysql->net.vio == 0)
   {						/* Do reconnect if possible */
     if (mysql_reconnect(mysql))
-    {
-      net->last_errno=CR_SERVER_GONE_ERROR;
-      strmov(net->last_error,ER(net->last_errno));
       goto end;
-    }
   }
   if (mysql->status != MYSQL_STATUS_READY)
   {
@@ -490,8 +486,9 @@ simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
   {
     DBUG_PRINT("error",("Can't send command to server. Error: %d",socket_errno));
     end_server(mysql);
-    if (mysql_reconnect(mysql) ||
-	net_write_command(net,(uchar) command,arg,
+    if (mysql_reconnect(mysql))
+      goto end;
+    if (net_write_command(net,(uchar) command,arg,
 			  length ? length : (ulong) strlen(arg)))
     {
       net->last_errno=CR_SERVER_GONE_ERROR;
@@ -1136,17 +1133,22 @@ int STDCALL mysql_reads_from_master_enabled(MYSQL* mysql)
   return !(mysql->options.no_master_reads);
 }
 
-/* We may get an error while doing replication internals.
-   In this case, we add a special explanation to the original
-   error
+
+/*
+  We may get an error while doing replication internals.
+  In this case, we add a special explanation to the original
+  error
 */
-static inline void expand_error(MYSQL* mysql, int error)
+
+static void expand_error(MYSQL* mysql, int error)
 {
   char tmp[MYSQL_ERRMSG_SIZE];
-  char* p, *tmp_end;
-  tmp_end = strnmov(tmp, mysql->net.last_error, MYSQL_ERRMSG_SIZE);
-  p = strnmov(mysql->net.last_error, ER(error), MYSQL_ERRMSG_SIZE);
-  memcpy(p, tmp, tmp_end - tmp);
+  char *p;
+  uint err_length;
+  strmake(tmp, mysql->net.last_error, MYSQL_ERRMSG_SIZE-1);
+  p = strmake(mysql->net.last_error, ER(error), MYSQL_ERRMSG_SIZE-1);
+  err_length= (uint) (p - mysql->net.last_error);
+  strmake(p, tmp, MYSQL_ERRMSG_SIZE-1 - err_length);
   mysql->net.last_errno = error;
 }
 
@@ -1155,7 +1157,7 @@ static inline void expand_error(MYSQL* mysql, int error)
   read the given result and row
 */
 
-static inline int get_master(MYSQL* mysql, MYSQL_RES* res, MYSQL_ROW row)
+static int get_master(MYSQL* mysql, MYSQL_RES* res, MYSQL_ROW row)
 {
   MYSQL* master;
   if (mysql_num_fields(res) < 3)
@@ -1174,7 +1176,7 @@ static inline int get_master(MYSQL* mysql, MYSQL_RES* res, MYSQL_ROW row)
   retrieve all the slaves
 */
 
-static inline int get_slaves_from_master(MYSQL* mysql)
+static int get_slaves_from_master(MYSQL* mysql)
 {
   MYSQL_RES* res = 0;
   MYSQL_ROW row;
@@ -1238,6 +1240,7 @@ err:
    mysql_free_result(res);
   return error;
 }
+
 
 int STDCALL mysql_rpl_probe(MYSQL* mysql)
 {
@@ -1620,7 +1623,11 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 	if (mysql->options.named_pipe ||
 	    (host && !strcmp(host,LOCAL_HOST_NAMEDPIPE)) ||
 	    (unix_socket && !strcmp(unix_socket,MYSQL_NAMEDPIPE)))
+	{
+	  net->last_errno= CR_SERVER_LOST;
+	  strmov(net->last_error,ER(net->last_errno));    
 	  goto error;		/* User only requested named pipes */
+	}
 	/* Try also with TCP/IP */
       }
       else
@@ -1669,9 +1676,9 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 			      &tmp_errno);
       if (!hp)
       {
+	my_gethostbyname_r_free();
 	net->last_errno=CR_UNKNOWN_HOST;
 	sprintf(net->last_error, ER(CR_UNKNOWN_HOST), host, tmp_errno);
-	my_gethostbyname_r_free();
 	goto error;
       }
       memcpy(&sock_addr.sin_addr,hp->h_addr, (size_t) hp->h_length);
@@ -1853,7 +1860,11 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if (client_flag & CLIENT_SSL)
   {
     if (my_net_write(net,buff,(uint) (2)) || net_flush(net))
+    {
+      net->last_errno= CR_SERVER_LOST;
+      strmov(net->last_error,ER(net->last_errno));    
       goto error;
+    }
     /* Do the SSL layering. */
     DBUG_PRINT("info", ("IO layer change in progress..."));
     DBUG_PRINT("info", ("IO context %p",((struct st_VioSSLConnectorFd*)mysql->connector_fd)->ssl_context_));
@@ -1883,8 +1894,13 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     mysql->db=my_strdup(db,MYF(MY_WME));
     db=0;
   }
-  if (my_net_write(net,buff,(ulong) (end-buff)) || net_flush(net) ||
-      net_safe_read(mysql) == packet_error)
+  if (my_net_write(net,buff,(ulong) (end-buff)) || net_flush(net))
+  {
+    net->last_errno= CR_SERVER_LOST;
+    strmov(net->last_error,ER(net->last_errno));    
+    goto error;
+  }
+  if (net_safe_read(mysql) == packet_error)
     goto error;
   if (client_flag & CLIENT_COMPRESS)		/* We will use compression */
     net->compress=1;
@@ -1952,6 +1968,8 @@ static my_bool mysql_reconnect(MYSQL *mysql)
   {
    /* Allow reconnect next time */
     mysql->server_status&= ~SERVER_STATUS_IN_TRANS;
+    mysql->net.last_errno=CR_SERVER_GONE_ERROR;
+    strmov(mysql->net.last_error,ER(mysql->net.last_errno));
     DBUG_RETURN(1);
   }
   mysql_init(&tmp_mysql);

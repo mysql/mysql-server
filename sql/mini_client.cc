@@ -407,20 +407,23 @@ my_bool mc_mysql_reconnect(MYSQL *mysql)
   DBUG_ENTER("mc_mysql_reconnect");
 
   if (!mysql->reconnect)
+  {
+    mysql->net.last_errno=CR_SERVER_GONE_ERROR;
+    strmov(mysql->net.last_error, ER(mysql->net.last_errno));
     DBUG_RETURN(1);
-
+  }
   mc_mysql_init(&tmp_mysql);
   tmp_mysql.options=mysql->options;
   if (!mc_mysql_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
 			mysql->db, mysql->port, mysql->unix_socket,
 			mysql->client_flag, mysql->net.read_timeout))
-    {
-      tmp_mysql.reconnect=0;
-      mc_mysql_close(&tmp_mysql);
-      mysql->net.last_errno=CR_SERVER_GONE_ERROR;
-      strmov(mysql->net.last_error,ER(mysql->net.last_errno));
-      DBUG_RETURN(1);
-    }
+  {
+#ifdef NOT_USED
+    mysql->net.last_errno=CR_RECONNECT_FAILED;
+    strmov(mysql->net.last_error, ER(mysql->net.last_errno));
+#endif
+    DBUG_RETURN(1);
+  }
   tmp_mysql.free_me=mysql->free_me;
   mysql->free_me=0;
   bzero((char*) &mysql->options,sizeof(&mysql->options));
@@ -443,11 +446,7 @@ mc_simple_command(MYSQL *mysql,enum enum_server_command command,
   if (mysql->net.vio == 0)
   {						/* Do reconnect if possible */
     if (mc_mysql_reconnect(mysql))
-    {
-      net->last_errno=CR_SERVER_GONE_ERROR;
-      strmov(net->last_error,ER(net->last_errno));
       goto end;
-    }
   }
   if (mysql->status != MYSQL_STATUS_READY)
   {
@@ -468,8 +467,9 @@ mc_simple_command(MYSQL *mysql,enum enum_server_command command,
   {
     DBUG_PRINT("error",("Can't send command to server. Error: %d",socket_errno));
     mc_end_server(mysql);
-    if (mc_mysql_reconnect(mysql) ||
-	net_write_command(net,(uchar) command,arg,
+    if (mc_mysql_reconnect(mysql))
+      goto end;
+    if (net_write_command(net,(uchar) command,arg,
 			  length ? length :(uint) strlen(arg)))
     {
       net->last_errno=CR_SERVER_GONE_ERROR;
@@ -515,8 +515,6 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
 		      user ? user : "(Null)",
 		      net_read_timeout,
 		      (uint) slave_net_timeout));
-  thr_alarm_init(&alarmed);
-  thr_alarm(&alarmed, net_read_timeout, &alarm_buff);
 
   net->vio = 0;				/* If something goes wrong */
   mysql->charset=default_charset_info;  /* Set character set */
@@ -527,6 +525,8 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
 
   mysql->reconnect=1;			/* Reconnect as default */
   mysql->server_status=SERVER_STATUS_AUTOCOMMIT;
+  if (!mysql->options.connect_timeout)
+    mysql->options.connect_timeout= net_read_timeout;
 
   /*
   ** Grab a socket and connect it to the server
@@ -598,7 +598,11 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
       host=LOCAL_HOST;
     sprintf(host_info=buff,ER(CR_TCP_CONNECTION),host);
     DBUG_PRINT("info",("Server name: '%s'.  TCP sock: %d", host,port));
-    if ((sock = (my_socket) socket(AF_INET,SOCK_STREAM,0)) == SOCKET_ERROR)
+    thr_alarm_init(&alarmed);
+    thr_alarm(&alarmed, net_read_timeout, &alarm_buff);
+    sock = (my_socket) socket(AF_INET,SOCK_STREAM,0);
+    thr_end_alarm(&alarmed);
+    if (sock == SOCKET_ERROR)
     {
       net->last_errno=CR_IPSOCK_ERROR;
       sprintf(net->last_error,ER(net->last_errno),socket_errno);
@@ -641,12 +645,8 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
 			  socket_errno,host));
       net->last_errno= CR_CONN_HOST_ERROR;
       sprintf(net->last_error ,ER(CR_CONN_HOST_ERROR), host, socket_errno);
-      if (thr_alarm_in_use(&alarmed))
-	thr_end_alarm(&alarmed);
       goto error;
     }
-    if (thr_alarm_in_use(&alarmed))
-      thr_end_alarm(&alarmed);
   }
 
   if (!net->vio || my_net_init(net, net->vio))
@@ -778,7 +778,11 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   if (client_flag & CLIENT_SSL)
   {
     if (my_net_write(net,buff,(uint) (2)) || net_flush(net))
+    {
+      net->last_errno= CR_SERVER_LOST;
+      strmov(net->last_error,ER(net->last_errno));    
       goto error;
+    }
     /* Do the SSL layering. */
     DBUG_PRINT("info", ("IO layer change in progress..."));
     DBUG_PRINT("info", ("IO context %p",((struct st_VioSSLConnectorFd*)mysql->connector_fd)->ssl_context_));
@@ -808,8 +812,13 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
     mysql->db=my_strdup(db,MYF(MY_WME));
     db=0;
   }
-  if (my_net_write(net,buff,(ulong) (end-buff)) || net_flush(net) ||
-      mc_net_safe_read(mysql) == packet_error)
+  if (my_net_write(net,buff,(ulong) (end-buff)) || net_flush(net))
+  {
+    net->last_errno= CR_SERVER_LOST;
+    strmov(net->last_error,ER(net->last_errno));    
+    goto error;
+  }
+  if (mc_net_safe_read(mysql) == packet_error)
     goto error;
   if (client_flag & CLIENT_COMPRESS)		/* We will use compression */
     net->compress=1;

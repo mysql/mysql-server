@@ -93,7 +93,7 @@ FIND=find
 GCOV=`which gcov | $SED q`
 PRINTF=printf
 RM=rm
-TIME=time
+TIME=`which time | $SED q`
 TR=tr
 XARGS=`which xargs | $SED q`
 
@@ -391,7 +391,12 @@ if [ x$SOURCE_DIST = x1 ] ; then
  CHARSETSDIR="$BASEDIR/sql/share/charsets"
  INSTALL_DB="./install_test_db"
 else
- MYSQLD="$BASEDIR/bin/mysqld"
+ if test -x "$BASEDIR/libexec/mysqld"
+ then
+   MYSQLD="$BASEDIR/libexec/mysqld"
+ else
+   MYSQLD="$BASEDIR/bin/mysqld"
+ fi
  MYSQL_TEST="$BASEDIR/bin/mysqltest"
  MYSQLADMIN="$BASEDIR/bin/mysqladmin"
  MYSQL_MANAGER="$BASEDIR/bin/mysqlmanager"
@@ -530,6 +535,18 @@ total_inc () {
     TOT_TEST=`$EXPR $TOT_TEST + 1`
 }
 
+
+skip_test() {
+   USERT="    ...."
+   SYST="    ...."
+   REALT="    ...."
+   timestr="$USERT $SYST $REALT"
+   pname=`$ECHO "$1                        "|$CUT -c 1-24`
+   RES="$pname  $timestr"
+   skip_inc
+   $ECHO "$RES$RES_SPACE [ skipped ]"
+}
+
 report_stats () {
     if [ $TOT_FAIL = 0 ]; then
 	$ECHO "All $TOT_TEST tests were successful."
@@ -567,7 +584,7 @@ mysql_install_db () {
 
     for slave_num in 1 2 ;
     do
-      $RM -rf var/slave$slave_num-data/
+      $RM -rf var/slave$slave_num-data
       mkdir -p var/slave$slave_num-data/mysql
       mkdir -p var/slave$slave_num-data/test
       cp var/slave-data/mysql/* var/slave$slave_num-data/mysql
@@ -1026,7 +1043,8 @@ run_testcase ()
    SKIP_THIS_TEST=`$EXPR \( $tname : "$SKIP_TEST" \) != 0`
    if [ x$SKIP_THIS_TEST = x1 ] ;
    then
-    return;
+     skip_test $tname;
+     return;
    fi
   fi
 
@@ -1034,21 +1052,15 @@ run_testcase ()
    DO_THIS_TEST=`$EXPR \( $tname : "$DO_TEST" \) != 0`
    if [ x$DO_THIS_TEST = x0 ] ;
    then
-    return;
+     skip_test $tname;
+     return;
    fi
   fi
 
 
  if [ x${NO_SLAVE}x$SKIP_SLAVE = x1x0 ] ;
  then
-   USERT="    ...."
-   SYST="    ...."
-   REALT="    ...."
-   timestr="$USERT $SYST $REALT"
-   pname=`$ECHO "$tname                        "|$CUT -c 1-24`
-   RES="$pname  $timestr"
-   skip_inc
-   $ECHO "$RES$RES_SPACE [ skipped ]"
+   skip_test $tname;
    return
  fi
 
