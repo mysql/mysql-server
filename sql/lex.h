@@ -20,8 +20,9 @@
 #include "lex_symbol.h"
 
 /* We don't want to include sql_yacc.h into gen_lex_hash */
-static SYM_GROUP sym_group_common= {"", ""};
-static SYM_GROUP sym_group_geom= {"Spatial extentions", "HAVE_SPATIAL"};
+SYM_GROUP sym_group_common= {"", ""};
+SYM_GROUP sym_group_geom= {"Spatial extentions", "HAVE_SPATIAL"};
+SYM_GROUP sym_group_rtree= {"RTree keys", "HAVE_RTREE_KEYS"};
 
 #ifdef NO_YACC_SYMBOLS
 #define SYM_OR_NULL(A) 0
@@ -457,7 +458,6 @@ static SYMBOL symbols[] = {
 
 static SYMBOL sql_functions[] = {
   { "ABS",		F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_abs)},
-#ifdef DUMMY
   { "ACOS",		F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_acos)},
   { "ADDDATE",		SYM(ADDDATE_SYM)},
   { "ADDTIME",		F_SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_addtime)},
@@ -534,7 +534,7 @@ static SYMBOL sql_functions[] = {
   { "FROM_UNIXTIME",	SYM(FROM_UNIXTIME)},
   { "GET_LOCK",		F_SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_get_lock)},
   { "GEOMETRYN",	F_SYM(FUNC_ARG2),0,CREATE_FUNC_GEOM(create_func_geometryn)},
-  { "GEOMETRYTYPE",	SYM(FUNC_ARG1),0,CREATE_FUNC_GEOM(create_func_geometry_type)},
+  { "GEOMETRYTYPE",	F_SYM(FUNC_ARG1),0,CREATE_FUNC_GEOM(create_func_geometry_type)},
   { "GEOMCOLLFROMTEXT",	SYM(GEOMCOLLFROMTEXT)},
   { "GEOMCOLLFROMWKB",	SYM(GEOMFROMWKB)},
   { "GEOMETRYCOLLECTIONFROMTEXT",SYM(GEOMCOLLFROMTEXT)},
@@ -657,7 +657,6 @@ static SYMBOL sql_functions[] = {
   { "SUBSTR",	  	SYM(SUBSTRING)},
   { "SUBSTRING",	SYM(SUBSTRING)},
   { "SUBSTRING_INDEX",	SYM(SUBSTRING_INDEX)},
-#endif /*dummy*/
   { "SUBTIME",          F_SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_subtime)},
   { "SUM",		SYM(SUM_SYM)},
   { "SYSDATE",		SYM(NOW_SYM)},
