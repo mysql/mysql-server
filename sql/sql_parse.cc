@@ -705,7 +705,6 @@ err:
 }
 
 
-
 	/* Execute one command from socket (query or simple command) */
 
 bool do_command(THD *thd)
@@ -756,11 +755,13 @@ bool do_command(THD *thd)
   thd->lex.options=0;				// We store status here
   switch(command) {
   case COM_INIT_DB:
+    thread_safe_increment(com_stat[SQLCOM_CHANGE_DB],&LOCK_thread_count);
     if (!mysql_change_db(thd,packet+1))
       mysql_log.write(thd,command,"%s",thd->db);
     break;
   case COM_TABLE_DUMP:
     {
+      thread_safe_increment(com_other,&LOCK_thread_count);
       slow_command = TRUE;
       char* data = packet + 1;
       uint db_len = *data;
@@ -778,6 +779,7 @@ bool do_command(THD *thd)
     }
   case COM_CHANGE_USER:
   {
+    thread_safe_increment(com_other,&LOCK_thread_count);
     char *user=   (char*) packet+1;
     char *passwd= strend(user)+1;
     char *db=     strend(passwd)+1;
@@ -843,6 +845,7 @@ bool do_command(THD *thd)
   {
     char *fields;
     TABLE_LIST table_list;
+    thread_safe_increment(com_stat[SQLCOM_SHOW_FIELDS],&LOCK_thread_count);
     bzero((char*) &table_list,sizeof(table_list));
     if (!(table_list.db=thd->db))
     {
@@ -866,6 +869,7 @@ bool do_command(THD *thd)
   }
 #endif
   case COM_QUIT:
+    /* We don't calculate statistics for this command */
     mysql_log.write(thd,command,NullS);
     net->error=0;				// Don't give 'abort' message
     error=TRUE;					// End server
@@ -874,6 +878,7 @@ bool do_command(THD *thd)
   case COM_CREATE_DB:
     {
       char *db=thd->strdup(packet+1);
+      thread_safe_increment(com_stat[SQLCOM_CREATE_DB],&LOCK_thread_count);
       // null test to handle EOM
       if (!db || !stripp_sp(db) || check_db_name(db))
       {
@@ -889,6 +894,7 @@ bool do_command(THD *thd)
   case COM_DROP_DB:
     {
       char *db=thd->strdup(packet+1);
+      thread_safe_increment(com_stat[SQLCOM_DROP_DB],&LOCK_thread_count);
       // null test to handle EOM
       if (!db || !stripp_sp(db) || check_db_name(db))
       {
@@ -903,6 +909,7 @@ bool do_command(THD *thd)
     }
   case COM_BINLOG_DUMP:
     {
+      thread_safe_increment(com_other,&LOCK_thread_count);
       slow_command = TRUE;
       if(check_access(thd, FILE_ACL, any_db))
 	break;
@@ -926,6 +933,7 @@ bool do_command(THD *thd)
   case COM_REFRESH:
     {
       uint options=(uchar) packet[1];
+      thread_safe_increment(com_stat[SQLCOM_FLUSH],&LOCK_thread_count);
       if (check_access(thd,RELOAD_ACL,any_db))
 	break;
       mysql_log.write(thd,command,NullS);
@@ -936,6 +944,7 @@ bool do_command(THD *thd)
       break;
     }
   case COM_SHUTDOWN:
+    thread_safe_increment(com_other,&LOCK_thread_count);
     if (check_access(thd,SHUTDOWN_ACL,any_db))
       break; /* purecov: inspected */
     DBUG_PRINT("quit",("Got shutdown command"));
@@ -957,6 +966,7 @@ bool do_command(THD *thd)
   case COM_STATISTICS:
   {
     mysql_log.write(thd,command,NullS);
+    thread_safe_increment(com_stat[SQLCOM_SHOW_STATUS],&LOCK_thread_count);
     char buff[200];
     ulong uptime = (ulong) (thd->start_time - start_time);
     sprintf((char*) buff,
@@ -975,9 +985,11 @@ bool do_command(THD *thd)
     break;
   }
   case COM_PING:
+    thread_safe_increment(com_other,&LOCK_thread_count);
     send_ok(net);				// Tell client we are alive
     break;
   case COM_PROCESS_INFO:
+    thread_safe_increment(com_stat[SQLCOM_SHOW_PROCESSLIST],&LOCK_thread_count);
     if (!thd->priv_user[0] && check_process_priv(thd))
       break;
     mysql_log.write(thd,command,NullS);
@@ -986,11 +998,13 @@ bool do_command(THD *thd)
     break;
   case COM_PROCESS_KILL:
   {
+    thread_safe_increment(com_stat[SQLCOM_KILL],&LOCK_thread_count);
     ulong id=(ulong) uint4korr(packet+1);
     kill_one_thread(thd,id);
     break;
   }
   case COM_DEBUG:
+    thread_safe_increment(com_other,&LOCK_thread_count);
     if (check_process_priv(thd))
       break;					/* purecov: inspected */
     mysql_print_status(thd);
@@ -1062,6 +1076,7 @@ mysql_execute_command(void)
   // rules have been given and the table list says the query should not be
   // replicated
   
+  thread_safe_increment(com_stat[lex->sql_command],&LOCK_thread_count);
   switch (lex->sql_command) {
   case SQLCOM_SELECT:
   {
