@@ -490,8 +490,8 @@ If you represent a business that is interested in partnering with
 MySQL, please send e-mail to @email{partner@@mysql.com}.
 
 For timely, precise answers to technical questions about MySQL
-you should @uref{https://order.mysql.com/, order} one of our
-@uref{http://www.mysql.com/support/arrangements/types.html, support contracts}.
+you should order one of our
+@uref{https://order.mysql.com/, support contracts}.
 MySQL support is provided by the MySQL developers so the
 standard is extremely high.
 
@@ -2673,7 +2673,6 @@ Many users don't read mail with a browser!
 * Copyright::                   Copyrights used by MySQL
 * Licensing policy::            MySQL licensing policy
 * Licensing examples::          Example licensing situations
-* Payment information::         Payment information
 @end menu
 
 This section describes MySQL support and licensing arrangements:
@@ -2692,9 +2691,6 @@ This section describes MySQL support and licensing arrangements:
 @item Sample situations illustrating when a license is required
 (@pxref{Licensing examples})
 
-@item How to make payments
-(@pxref{Payment information})
-
 @end itemize
 
 
@@ -2709,30 +2705,33 @@ This section describes MySQL support and licensing arrangements:
 @cindex support costs
 @cindex prices, licensing and support
 
-MySQL AB offers several support options.  A description
+MySQL AB offers several commercial support options.  A description
 of what each level of support includes is given at
-@uref{http://www.mysql.com/support/arrangements/types.html}.  As
-a support customer, you have access to the people who develop the
-MySQL source code.  The standard is high for both quality and
-speed.
+@uref{https://order.mysql.com}.  If you have restricted access to the
+Internet, contact our sales staff at @email{sales@@mysql.com}.
 
-Our current support and license prices are available from our
-web site.  For options and pricing, and to order support and
-licenses, please see
-@uref{https://order.mysql.com/}.
+Technical support from MySQL AB means personal answers to your
+personal problems direct from the software engineers who code the
+MySQL database engine.  It is often very helpful to receive
+quick, personally prepared answers tailored to your exact needs.
+This is what MySQL AB paid technical support offers. Our pricing
+model ensures that basic support is affordable even for those on
+limited budgets.
 
-A license is not a support agreement and includes very minimal
-support.  This means that we try to answer any questions relevant
-to installation.  If the answer is in the documentation, we will
-direct you to the appropriate section.  If you have not purchased
-a license or support, we will simply direct you to the freely
-available public resources.
+We try to take a broad and inclusive view of technical support.
+Almost any problem involving MySQL is important to us if it's
+important to you.  Typically customers seek help on how to get
+different commands and utilities to work, remove performance
+bottlenecks, restore crashed systems, understand operating system
+or networking impacts on MySQL, establish best practises for backup
+and recovery, utilize APIs, etc.
 
 We consider reliability to be crucial to MySQL's success, and
 fixing bugs is important to us.  If you discover a bug that can
 be repeated reliably, we will fix it in any case.  But if you pay
 for support we will also notify you about the fix status instead
 of just fixing it in a later release.
+@xref{Bug reports}.
 
 
 @node Copyright, Licensing policy, Support, Licensing and Support
@@ -2766,7 +2765,7 @@ This is also available as the file @file{COPYING} in the distributions.
 
 @end enumerate
 
-One goal is that the SQL client library should be free enough that it is
+The SQL client library should be free enough that it is
 possible to add MySQL support into commercial products
 without a license.  For this reason, we chose the LGPL license for the
 client code.
@@ -2775,7 +2774,7 @@ client code.
 
 This means that you can use MySQL for free with any program that uses
 any of the free software licenses.  MySQL is also free for any end
-user for his own or company usage.
+user for personal or company usage.
 
 However, if you use MySQL for something important to you, you may
 want to help secure its development by purchasing licenses or a support
@@ -2798,6 +2797,9 @@ See the documentation for that version for more information.
 @cindex General Public License, MySQL
 
 The formal terms of the GPL license can be found at @ref{GPL license}.
+For pricing and ordering information, see
+@uref{https://order.mysql.com/}.
+
 Basically, our licensing policy and interpretation of the GPL is as follows:
 
 For normal internal use, MySQL costs nothing.  You do not have
@@ -2871,11 +2873,12 @@ contact us.  @xref{Contact information}.
 
 If you require a MySQL license, the easiest way to pay for it
 is to use the license form on MySQL's secure server at
-@uref{https://order.mysql.com/}.  Other forms of payment are
-discussed in @ref{Payment information}.
+@uref{https://order.mysql.com/}.
+You can also get the latest pricing and ordering information by sending
+an e-mail to @email{sales@@mysql.com}.
 
 
-@node Licensing examples, Payment information, Licensing policy, Licensing and Support
+@node Licensing examples,  , Licensing policy, Licensing and Support
 @subsection Example Licensing Situations
 
 @menu
@@ -2976,71 +2979,12 @@ it is patched correctly.
 @cindex running, a web server
 
 If you use MySQL in conjunction with a Web server, you
-don't have to pay for a license.
+do not have to pay for a license.
 
 This is true even if you run a commercial Web server that uses
 MySQL, because you are not selling an embedded MySQL
 version yourself.  However, in this case we would like you to purchase
 MySQL support, because MySQL is helping your enterprise.
-
-
-@node Payment information, , Licensing examples, Licensing and Support
-@subsection Payment information
-
-@cindex payment information
-
-The most efficient way to pay for support and licenses is through
-@uref{https://order.mysql.com/, MySQL AB's secure license form}.
-Please check this site for the latest support options and
-pricing details.
-
-Also, we can take SWIFT payments, checks, or credit cards.
-
-@itemize @bullet
-
-@item
-SWIFT payments should be made to:
-
-@example
-Postgirot Bank AB
-105 06 STOCKHOLM, SWEDEN
-
-MySQL AB
-BOX 6434
-11382 STOCKHOLM, SWEDEN
-
-SWIFT address: PGSI SESS
-Account number: 96 77 06 - 3
-@end example
-
-Specify: license and/or support and your name and e-mail address.
-
-In Europe and Japan you can use EuroGiro (which should be less
-expensive) to the same account.
-
-@item
-If you want to pay by check, make it payable to ``MySQL Finland AB'' and
-mail it to the address below:
-
-@example
-MySQL AB
-BOX 6434, Torsgatan 21
-11382 STOCKHOLM, SWEDEN
-@end example
-
-@item
-You can also print a copy of the license form, fill it in, and send it by fax
-to:
-
-+46-8-729 69 05
-
-@item
-If you want us to bill you, you can use the license form and write ``bill
-us'' in the comment field.  You can also mail a message to
-@email{sales@@mysql.com} (@strong{not} @code{mysql@@lists.mysql.com}!)
-with your company information and ask us to bill you.
-
-@end itemize
 
 
 @node Compatibility, Comparisons, Licensing and Support, Introduction
