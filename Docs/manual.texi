@@ -46838,6 +46838,9 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.46
 @itemize @bullet
 @item
+InnoDB and BDB tables will now use index when doing an @code{ORDER BY}
+on the whole table.
+@item
 Fixed bug where one got an empty set instead of a DEADLOCK error when using
 BDB tables.
 @item
