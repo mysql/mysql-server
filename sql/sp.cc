@@ -20,27 +20,41 @@
 #include "sp_head.h"
 #include "sp_cache.h"
 
+static char *
+create_string(THD *thd, ulong *lenp,
+	      int sp_type,
+	      char *name, ulong namelen,
+	      const char *params, ulong paramslen,
+	      const char *returns, ulong returnslen,
+	      const char *body, ulong bodylen,
+	      st_sp_chistics *chistics);
+
 /*
  *
  * DB storage of Stored PROCEDUREs and FUNCTIONs
  *
  */
 
-#define MYSQL_PROC_FIELD_SCHEMA         0
-#define MYSQL_PROC_FIELD_NAME           1
-#define MYSQL_PROC_FIELD_TYPE           2
-#define MYSQL_PROC_FIELD_SPECIFIC_NAME  3
-#define MYSQL_PROC_FIELD_LANGUAGE       4
-#define MYSQL_PROC_FIELD_ACCESS         5
-#define MYSQL_PROC_FIELD_DETERMINISTIC  6
-#define MYSQL_PROC_FIELD_DEFINITION     7
-#define MYSQL_PROC_FIELD_SECURITY_TYPE  8
-#define MYSQL_PROC_FIELD_DEFINER        9
-#define MYSQL_PROC_FIELD_CREATED       10
-#define MYSQL_PROC_FIELD_MODIFIED      11
-#define MYSQL_PROC_FIELD_SQL_MODE      12
-#define MYSQL_PROC_FIELD_COMMENT       13
-#define MYSQL_PROC_FIELD_COUNT         14
+enum
+{
+  MYSQL_PROC_FIELD_SCHEMA = 0,
+  MYSQL_PROC_FIELD_NAME,
+  MYSQL_PROC_FIELD_TYPE,
+  MYSQL_PROC_FIELD_SPECIFIC_NAME,
+  MYSQL_PROC_FIELD_LANGUAGE,
+  MYSQL_PROC_FIELD_ACCESS,
+  MYSQL_PROC_FIELD_DETERMINISTIC,
+  MYSQL_PROC_FIELD_SECURITY_TYPE,
+  MYSQL_PROC_FIELD_PARAM_LIST,
+  MYSQL_PROC_FIELD_RETURNS,
+  MYSQL_PROC_FIELD_BODY,
+  MYSQL_PROC_FIELD_DEFINER,
+  MYSQL_PROC_FIELD_CREATED,
+  MYSQL_PROC_FIELD_MODIFIED,
+  MYSQL_PROC_FIELD_SQL_MODE,
+  MYSQL_PROC_FIELD_COMMENT,
+  MYSQL_PROC_FIELD_COUNT
+};
 
 /* *opened=true means we opened ourselves */
 static int
@@ -104,13 +118,13 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   DBUG_PRINT("enter", ("type: %d name: %*s", type, namelen, name));
   extern int yyparse(void *thd);
   TABLE *table;
-  const char *defstr;
+  const char *params, *returns, *body;
   int ret;
   bool opened;
   const char *creator;
   longlong created;
   longlong modified;
-  bool suid= 1;
+  st_sp_chistics *chistics;
   char *ptr;
   uint length;
   char buff[65];
@@ -127,8 +141,40 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
     goto done;
   }
 
-  if ((defstr= get_field(&thd->mem_root,
-			 table->field[MYSQL_PROC_FIELD_DEFINITION])) == NULL)
+  if ((ptr= get_field(&thd->mem_root,
+		      table->field[MYSQL_PROC_FIELD_DETERMINISTIC])) == NULL)
+  {
+    ret= SP_GET_FIELD_FAILED;
+    goto done;
+  }
+  chistics= (st_sp_chistics *)thd->alloc(sizeof(st_sp_chistics));
+  chistics->detistic= (ptr[0] == 'N' ? FALSE : TRUE);    
+
+  if ((ptr= get_field(&thd->mem_root,
+		      table->field[MYSQL_PROC_FIELD_SECURITY_TYPE])) == NULL)
+  {
+    ret= SP_GET_FIELD_FAILED;
+    goto done;
+  }
+  chistics->suid= (ptr[0] == 'I' ? IS_NOT_SUID : IS_SUID);    
+
+  if ((params= get_field(&thd->mem_root,
+			 table->field[MYSQL_PROC_FIELD_PARAM_LIST])) == NULL)
+  {
+    params= "";
+  }
+
+  if (type == TYPE_ENUM_PROCEDURE)
+    returns= "";
+  else if ((returns= get_field(&thd->mem_root,
+			       table->field[MYSQL_PROC_FIELD_RETURNS])) == NULL)
+  {
+    ret= SP_GET_FIELD_FAILED;
+    goto done;
+  }
+
+  if ((body= get_field(&thd->mem_root,
+		       table->field[MYSQL_PROC_FIELD_BODY])) == NULL)
   {
     ret= SP_GET_FIELD_FAILED;
     goto done;
@@ -145,22 +191,15 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   modified= table->field[MYSQL_PROC_FIELD_MODIFIED]->val_int();
   created= table->field[MYSQL_PROC_FIELD_CREATED]->val_int();
 
-  if ((ptr= get_field(&thd->mem_root,
-		      table->field[MYSQL_PROC_FIELD_SECURITY_TYPE])) == NULL)
-  {
-    ret= SP_GET_FIELD_FAILED;
-    goto done;
-  }
-  if (ptr[0] == 'N')
-    suid= 0;
-
   sql_mode= table->field[MYSQL_PROC_FIELD_SQL_MODE]->val_int();
 
   table->field[MYSQL_PROC_FIELD_COMMENT]->val_str(&str, &str);
 
   ptr= 0;
   if ((length= str.length()))
-    ptr= strmake_root(&thd->mem_root, str.ptr(), length);
+    ptr= thd->strmake(str.ptr(), length);
+  chistics->comment.str= ptr;
+  chistics->comment.length= length;
 
   if (opened)
   {
@@ -169,6 +208,8 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   }
 
   {
+    char *defstr;
+    ulong deflen;
     LEX *oldlex= thd->lex;
     enum enum_sql_command oldcmd= thd->lex->sql_command;
     ulong old_sql_mode= thd->variables.sql_mode;
@@ -177,7 +218,14 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
     thd->variables.sql_mode= sql_mode;
     thd->variables.select_limit= HA_POS_ERROR;
 
-    lex_start(thd, (uchar*)defstr, strlen(defstr));
+    defstr= create_string(thd, &deflen,
+			  type,
+			  name, namelen,
+			  params, strlen(params),
+			  returns, strlen(returns),
+			  body, strlen(body),
+			  chistics);
+    lex_start(thd, (uchar*)defstr, deflen);
     if (yyparse(thd) || thd->is_fatal_error || thd->lex->sphead == NULL)
     {
       LEX *newlex= thd->lex;
@@ -196,8 +244,7 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
     {
       *sphp= thd->lex->sphead;
       (*sphp)->set_info((char *) creator, (uint) strlen(creator),
-			created, modified, suid,
-			ptr, length);
+			created, modified, chistics);
     }
     thd->lex->sql_command= oldcmd;
     thd->variables.sql_mode= old_sql_mode;
@@ -211,12 +258,10 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
 }
 
 static int
-db_create_routine(THD *thd, int type,
-		  char *name, uint namelen, char *def, uint deflen,
-		  st_sp_chistics *chistics)
+db_create_routine(THD *thd, int type, sp_head *sp)
 {
   DBUG_ENTER("db_create_routine");
-  DBUG_PRINT("enter", ("type: %d name: %*s def: %*s", type, namelen, name, deflen, def));
+  DBUG_PRINT("enter", ("type: %d name: %*s",type,sp->m_name.length,sp->m_name.str));
   int ret;
   TABLE *table;
   TABLE_LIST tables;
@@ -238,27 +283,33 @@ db_create_routine(THD *thd, int type,
       ret= SP_GET_FIELD_FAILED;
       goto done;
     }
-    table->field[MYSQL_PROC_FIELD_NAME]->store(name, namelen,
-					       system_charset_info);
-    table->field[MYSQL_PROC_FIELD_TYPE]->store((longlong)type);
-    table->field[MYSQL_PROC_FIELD_SPECIFIC_NAME]->store(name, namelen,
-							system_charset_info);
-    table->field[MYSQL_PROC_FIELD_DEFINITION]->store(def, deflen,
-						     system_charset_info);
-    table->field[MYSQL_PROC_FIELD_DEFINER]->store(creator,
-						  (uint)strlen(creator),
-						  system_charset_info);
+    table->field[MYSQL_PROC_FIELD_NAME]->
+      store(sp->m_name.str, sp->m_name.length, system_charset_info);
+    table->field[MYSQL_PROC_FIELD_TYPE]->
+      store((longlong)type);
+    table->field[MYSQL_PROC_FIELD_SPECIFIC_NAME]->
+      store(sp->m_name.str, sp->m_name.length, system_charset_info);
+    table->field[MYSQL_PROC_FIELD_DETERMINISTIC]->
+      store((longlong)(sp->m_chistics->detistic ? 1 : 2));
+    if (sp->m_chistics->suid != IS_DEFAULT_SUID)
+      table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]->
+	store((longlong)sp->m_chistics->suid);
+    table->field[MYSQL_PROC_FIELD_PARAM_LIST]->
+      store(sp->m_params.str, sp->m_params.length, system_charset_info);
+    if (sp->m_retstr.str)
+      table->field[MYSQL_PROC_FIELD_RETURNS]->
+	store(sp->m_retstr.str, sp->m_retstr.length, system_charset_info);
+    table->field[MYSQL_PROC_FIELD_BODY]->
+      store(sp->m_body.str, sp->m_body.length, system_charset_info);
+    table->field[MYSQL_PROC_FIELD_DEFINER]->
+      store(creator, (uint)strlen(creator), system_charset_info);
     ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_CREATED])->set_time();
-    if (chistics->suid != IS_DEFAULT_SUID)
-      table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]->store(
-                                                     (longlong)chistics->suid);
-    table->field[MYSQL_PROC_FIELD_SQL_MODE]->store(
-					   (longlong)thd->variables.sql_mode);
-    if (chistics->comment.str)
-      table->field[MYSQL_PROC_FIELD_COMMENT]->store(
-		                               chistics->comment.str,
-					       chistics->comment.length,
-					       system_charset_info);
+    table->field[MYSQL_PROC_FIELD_SQL_MODE]->
+      store((longlong)thd->variables.sql_mode);
+    if (sp->m_chistics->comment.str)
+      table->field[MYSQL_PROC_FIELD_COMMENT]->
+	store(sp->m_chistics->comment.str, sp->m_chistics->comment.length,
+	      system_charset_info);
 
     if (table->file->write_row(table->record[0]))
       ret= SP_WRITE_ROW_FAILED;
@@ -308,7 +359,7 @@ db_update_routine(THD *thd, int type, char *name, uint namelen,
   {
     store_record(table,record[1]);
     ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_MODIFIED])->set_time();
-    if (chistics->suid)
+    if (chistics->suid != IS_DEFAULT_SUID)
       table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]->store((longlong)chistics->suid);
     if (newname)
       table->field[MYSQL_PROC_FIELD_NAME]->store(newname,
@@ -516,15 +567,13 @@ sp_find_procedure(THD *thd, LEX_STRING *name)
 }
 
 int
-sp_create_procedure(THD *thd, char *name, uint namelen, char *def, uint deflen,
-		    st_sp_chistics *chistics)
+sp_create_procedure(THD *thd, sp_head *sp)
 {
   DBUG_ENTER("sp_create_procedure");
-  DBUG_PRINT("enter", ("name: %*s def: %*s", namelen, name, deflen, def));
+  DBUG_PRINT("enter", ("name: %*s", sp->m_name.length, sp->m_name.str));
   int ret;
 
-  ret= db_create_routine(thd, TYPE_ENUM_PROCEDURE, name, namelen, def, deflen,
-			 chistics);
+  ret= db_create_routine(thd, TYPE_ENUM_PROCEDURE, sp);
 
   DBUG_RETURN(ret);
 }
@@ -611,15 +660,13 @@ sp_find_function(THD *thd, LEX_STRING *name)
 }
 
 int
-sp_create_function(THD *thd, char *name, uint namelen, char *def, uint deflen,
-		   st_sp_chistics *chistics)
+sp_create_function(THD *thd, sp_head *sp)
 {
   DBUG_ENTER("sp_create_function");
-  DBUG_PRINT("enter", ("name: %*s def: %*s", namelen, name, deflen, def));
+  DBUG_PRINT("enter", ("name: %*s", sp->m_name.length, sp->m_name.str));
   int ret;
 
-  ret= db_create_routine(thd, TYPE_ENUM_FUNCTION, name, namelen, def, deflen,
-			 chistics);
+  ret= db_create_routine(thd, TYPE_ENUM_FUNCTION, sp);
 
   DBUG_RETURN(ret);
 }
@@ -773,4 +820,46 @@ sp_cache_functions(THD *thd, LEX *lex)
     }
   }
   return ret;
+}
+
+static char *
+create_string(THD *thd, ulong *lenp,
+	      int type,
+	      char *name, ulong namelen,
+	      const char *params, ulong paramslen,
+	      const char *returns, ulong returnslen,
+	      const char *body, ulong bodylen,
+	      st_sp_chistics *chistics)
+{
+  char *buf, *ptr;
+  ulong buflen, pos;
+
+  buflen= 100 + namelen + paramslen + returnslen + bodylen +
+    chistics->comment.length;
+  ptr= buf= thd->alloc(buflen);
+  if (type == TYPE_ENUM_FUNCTION)
+  {
+    ptr+= my_sprintf(buf,
+		     (buf, (char *)
+		      "CREATE FUNCTION %s(%s) RETURNS %s\n",
+		      name, params, returns));
+  }
+  else
+  {
+    ptr+= my_sprintf(buf,
+		     (buf, (char *)
+		      "CREATE PROCEDURE %s(%s)\n",
+		      name, params));
+  }
+  if (chistics->detistic)
+    ptr+= my_sprintf(ptr, (ptr, (char *)"    DETERMINISTIC\n"));
+  if (chistics->suid == IS_NOT_SUID)
+    ptr+= my_sprintf(ptr, (ptr, (char *)"    SQL SECURITY INVOKER\n"));
+  if (chistics->comment.str)
+    ptr+= my_sprintf(ptr, (ptr, (char *)"    COMMENT '%*s'\n",
+			   chistics->comment.length,
+			   chistics->comment.str));
+  strcpy(ptr, body);
+  *lenp= (ptr-buf)+bodylen;
+  return buf;
 }

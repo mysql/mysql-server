@@ -1063,8 +1063,10 @@
       language          enum('SQL') DEFAULT 'SQL' NOT NULL,
       sql_data_access   enum('CONTAINS_SQL') DEFAULT 'CONTAINS_SQL' NOT NULL,
       is_deterministic  enum('YES','NO') DEFAULT 'NO' NOT NULL,
-      definition        blob DEFAULT '' NOT NULL,
-      security_type     enum('INVOKER','DEFINER') DEFAULT 'INVOKER' NOT NULL,
+      security_type     enum('INVOKER','DEFINER') DEFAULT 'DEFINER' NOT NULL,
+      param_list        blob DEFAULT '' NOT NULL,
+      returns           char(64) DEFAULT '' NOT NULL,
+      body              blob DEFAULT '' NOT NULL,
       definer           char(77) binary DEFAULT '' NOT NULL,
       created           timestamp,
       modified          timestamp,
@@ -1093,5 +1095,6 @@
       comment           char(64) binary DEFAULT '' NOT NULL,
       PRIMARY KEY (schema,name,type)
     ) comment='Stored Procedures';
-    
---
+        
+ --
+ 

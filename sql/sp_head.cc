@@ -163,18 +163,51 @@ sp_head::sp_head()
 }
 
 void
-sp_head::init(LEX_STRING *name, LEX *lex)
+sp_head::init(LEX *lex)
 {
   DBUG_ENTER("sp_head::init");
-  const char *dstr = (const char*)lex->buf;
+
+  lex->spcont= m_pcont= new sp_pcontext();
+  my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
+  m_param_begin= m_param_end= m_returns_begin= m_returns_end= m_body_begin= 0;
+  m_name.str= m_params.str= m_retstr.str= m_body.str= m_defstr.str= 0;
+  m_name.length= m_params.length= m_retstr.length= m_body.length=
+    m_defstr.length= 0;
+  DBUG_VOID_RETURN;
+}
+
+void
+sp_head::init_strings(LEX_STRING *name, LEX *lex)
+{
+  DBUG_ENTER("sp_head::init_strings");
 
   DBUG_PRINT("info", ("name: %*s", name->length, name->str));
   m_name.length= name->length;
   m_name.str= lex->thd->strmake(name->str, name->length);
+  m_params.length= m_param_end- m_param_begin;
+  m_params.str= lex->thd->strmake((char *)m_param_begin, m_params.length);
+  if (m_returns_begin && m_returns_end)
+  {
+    /* QQ KLUDGE: We can't seem to cut out just the type in the parser
+       (without the RETURNS), so we'll have to do it here. :-( */
+    char *p= (char *)m_returns_begin+strspn((char *)m_returns_begin,"\t\n\r ");
+    p+= strcspn(p, "\t\n\r ");
+    p+= strspn(p, "\t\n\r ");
+    if (p < (char *)m_returns_end)
+      m_returns_begin= (uchar *)p;
+    /* While we're at it, trim the end too. */
+    p= (char *)m_returns_end-1;
+    while (p > (char *)m_returns_begin &&
+	   (*p == '\t' || *p == '\n' || *p == '\r' || *p == ' '))
+      p-= 1;
+    m_returns_end= (uchar *)p+1;
+    m_retstr.length=  m_returns_end - m_returns_begin;
+    m_retstr.str= lex->thd->strmake((char *)m_returns_begin, m_retstr.length);
+  }
+  m_body.length= lex->end_of_query - m_body_begin;
+  m_body.str= lex->thd->strmake((char *)m_body_begin, m_body.length);
   m_defstr.length= lex->end_of_query - lex->buf;
-  m_defstr.str= lex->thd->strmake(dstr, m_defstr.length);
-  lex->spcont= m_pcont= new sp_pcontext();
-  my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
+  m_defstr.str= lex->thd->strmake((char *)lex->buf, m_defstr.length);
   DBUG_VOID_RETURN;
 }
 
@@ -184,18 +217,12 @@ sp_head::create(THD *thd)
   DBUG_ENTER("sp_head::create");
   int ret;
 
-  DBUG_PRINT("info", ("type: %d name: %s def: %s",
-		      m_type, m_name.str, m_defstr.str));
+  DBUG_PRINT("info", ("type: %d name: %s params: %s body: %s",
+		      m_type, m_name.str, m_params.str, m_body.str));
   if (m_type == TYPE_ENUM_FUNCTION)
-    ret= sp_create_function(thd,
-			    m_name.str, m_name.length,
-			    m_defstr.str, m_defstr.length,
-			    m_chistics);
+    ret= sp_create_function(thd, this);
   else
-    ret= sp_create_procedure(thd,
-			     m_name.str, m_name.length,
-			     m_defstr.str, m_defstr.length,
-			     m_chistics);
+    ret= sp_create_procedure(thd, this);
 
   DBUG_RETURN(ret);
 }
