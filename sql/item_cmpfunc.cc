@@ -303,10 +303,10 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
       my_coll_agg_error((*a)->collation, (*b)->collation, owner->func_name());
       return 1;
     }
-    if (my_binary_compare(cmp_collation.collation))
+    if (cmp_collation.collation == &my_charset_bin)
     {
       /*
-	We are using binary collation, change to compare byte by byte,
+	We are using BLOB/BINARY/VARBINARY, change to compare byte by byte,
 	without removing end space
       */
       if (func == &Arg_comparator::compare_string)
