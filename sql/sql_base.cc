@@ -1790,33 +1790,44 @@ bool rm_temporary_table(enum db_type base, char *path)
 #define WRONG_GRANT (Field*) -1
 
 Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
-			   bool check_grants, bool allow_rowid)
+                           bool check_grants, bool allow_rowid, 
+                           int *cached_field_index_ptr)
 {
-  Field *field;
-  if (table->name_hash.records)
+  Field **field_ptr= 0, *field;
+  int cached_field_index= *cached_field_index_ptr;
+
+  if (cached_field_index >= 0 && cached_field_index < table->fields &&
+      !my_strcasecmp(system_charset_info, 
+                     table->field[cached_field_index]->field_name, name))
+      field_ptr= table->field + cached_field_index;
+  else if (table->name_hash.records)
+    field_ptr= (Field**)hash_search(&table->name_hash,(byte*) name,
+                                    length);
+  else
   {
-    if ((field=(Field*) hash_search(&table->name_hash,(byte*) name,
-				    length)))
-      goto found;
+    if (!(field_ptr=table->field))
+      return (Field *)0;
+    while (*field_ptr)
+    {
+      if (!my_strcasecmp(system_charset_info, (*field_ptr)->field_name, name))
+        break;
+      ++field_ptr;
+    }
+  }
+
+  if (field_ptr && *field_ptr)
+  {
+    *cached_field_index_ptr= field_ptr - table->field;
+    field= *field_ptr;
   }
   else
   {
-    Field **ptr;
-    if (!(ptr=table->field))
-      return (Field *)0;
-    while ((field = *ptr++))
-    {
-      if (!my_strcasecmp(system_charset_info, field->field_name, name))
-	goto found;
-    }
+    if (!allow_rowid ||
+        my_strcasecmp(system_charset_info, name, "_rowid") ||
+        !(field=table->rowid_field))
+      return (Field*) 0;
   }
-  if (allow_rowid &&
-      !my_strcasecmp(system_charset_info, name, "_rowid") &&
-      (field=table->rowid_field))
-    goto found;
-  return (Field*) 0;
 
- found:
   if (thd->set_query_id)
   {
     if (field->query_id != thd->query_id)
@@ -1895,7 +1906,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	Field *find=find_field_in_table(thd,tables->table,name,length,
 					test(tables->table->grant.
 					     want_privilege),
-					1);
+					1, &(item->cached_field_index));
 	if (find)
 	{
 	  (*where)= tables;
@@ -1952,7 +1963,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 
     Field *field=find_field_in_table(thd,tables->table,name,length,
 				     test(tables->table->grant.want_privilege),
-				     allow_rowid);
+				     allow_rowid, &(item->cached_field_index));
     if (field)
     {
       if (field == WRONG_GRANT)

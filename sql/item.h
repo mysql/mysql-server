@@ -262,6 +262,11 @@ public:
   const char *db_name;
   const char *table_name;
   const char *field_name;
+  /* 
+    Cached value of index for this field in table->field array, used by prep. 
+    stmts for speeding up their re-execution, -1 if index value is not known.
+  */
+  int cached_field_index;
   st_select_lex *depended_from;
   Item_ident(const char *db_name_par,const char *table_name_par,
 	     const char *field_name_par);

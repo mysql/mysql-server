@@ -30,11 +30,11 @@ static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
 static uint find_field(TABLE *form,uint start,uint length);
 
 
-static byte* get_field_name(Field *buff,uint *length,
+static byte* get_field_name(Field **buff,uint *length,
 			    my_bool not_used __attribute__((unused)))
 {
-  *length= (uint) strlen(buff->field_name);
-  return (byte*) buff->field_name;
+  *length= (uint) strlen((*buff)->field_name);
+  return (byte*) (*buff)->field_name;
 }
 
 /*
@@ -479,7 +479,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     if (outparam->timestamp_field == reg_field)
       outparam->timestamp_field_offset=i;
     if (use_hash)
-      (void) my_hash_insert(&outparam->name_hash,(byte*) *field_ptr); // Will never fail
+      (void) my_hash_insert(&outparam->name_hash,(byte*) field_ptr); // Will never fail
   }
   *field_ptr=0;					// End marker
 
