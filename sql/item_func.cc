@@ -2618,6 +2618,7 @@ longlong Item_func_inet_aton::val_int()
   const char *p,* end;
   char c = '.'; // we mark c to indicate invalid IP in case length is 0
   char buff[36];
+  int dot_count= 0;
 
   String *s,tmp(buff,sizeof(buff),&my_charset_bin);
   if (!(s = args[0]->val_str(&tmp)))		// If null value
@@ -2636,6 +2637,7 @@ longlong Item_func_inet_aton::val_int()
     }
     else if (c == '.')
     {
+      dot_count++;
       result= (result << 8) + (ulonglong) byte_result;
       byte_result = 0;
     }
@@ -2643,7 +2645,14 @@ longlong Item_func_inet_aton::val_int()
       goto err;					// Invalid character
   }
   if (c != '.')					// IP number can't end on '.'
+  {
+    switch (dot_count)
+    {
+    case 1: result<<= 8;
+    case 2: result<<= 8;
+    }
     return (result << 8) + (ulonglong) byte_result;
+  }
 
 err:
   null_value=1;
