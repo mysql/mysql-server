@@ -28,6 +28,10 @@
 #define SP_PARSE_ERROR       -6
 #define SP_INTERNAL_ERROR    -7
 
+/* Drop all routines in database 'db' */
+int
+sp_drop_db_routines(THD *thd, char *db);
+
 sp_head *
 sp_find_procedure(THD *thd, sp_name *name);
 

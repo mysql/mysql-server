@@ -97,11 +97,15 @@ s1
 0
 2
 2
-drop procedure db1_secret.stamp;
-drop function db1_secret.db;
-drop procedure db2.p;
-drop procedure db2.q;
 use test;
+select type,db,name from mysql.proc;
+type	db	name
+FUNCTION	db1_secret	db
+PROCEDURE	db1_secret	stamp
+PROCEDURE	db2	p
+PROCEDURE	db2	q
 drop database db1_secret;
 drop database db2;
+select type,db,name from mysql.proc;
+type	db	name
 delete from mysql.user where user='user1' or user='user2';

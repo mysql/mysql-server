@@ -163,11 +163,11 @@ select * from t2;
 
 # Clean up
 connection con1root;
-drop procedure db1_secret.stamp;
-drop function db1_secret.db;
-drop procedure db2.p;
-drop procedure db2.q;
 use test;
+select type,db,name from mysql.proc;
 drop database db1_secret;
 drop database db2;
+# Make sure the routines are gone
+select type,db,name from mysql.proc;
+# Get rid of the users
 delete from mysql.user where user='user1' or user='user2';
