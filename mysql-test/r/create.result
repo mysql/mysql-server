@@ -411,6 +411,22 @@ a	b	c	d	e	f	g	h	dd
 1	-7	7	2000-01-01	b	2000-01-01 00:00:00	05:04:03	yet another binary data	02:00:00
 2	-2	2	1825-12-14	a	2003-01-01 03:02:01	04:03:02	binary data	02:00:00
 drop table t1, t2;
+create table t1(str varchar(10) default 'def',strnull varchar(10),intg int default '10',rel double default '3.14');
+insert into t1 values ('','',0,0.0);
+describe t1;
+Field	Type	Null	Key	Default	Extra
+str	varchar(10)	YES		def	
+strnull	varchar(10)	YES		NULL	
+intg	int(11)	YES		10	
+rel	double	YES		3.14	
+create table t2 select default(str) as str, default(strnull) as strnull, default(intg) as intg, default(rel) as rel from t1;
+describe t2;
+Field	Type	Null	Key	Default	Extra
+str	varchar(10)	YES		NULL	
+strnull	varchar(10)	YES		NULL	
+intg	int(11)	YES		NULL	
+rel	double	YES		NULL	
+drop table t1, t2;
 drop database if exists test_$1;
 create database test_$1;
 use test_$1;
