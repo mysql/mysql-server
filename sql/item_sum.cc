@@ -2158,11 +2158,15 @@ int composite_key_cmp(void* arg, byte* key1, byte* key2)
 }
 
 
+C_MODE_START
+
 static int count_distinct_walk(void *elem, element_count count, void *arg)
 {
   (*((ulonglong*)arg))++;
   return 0;
 }
+
+C_MODE_END
 
 
 void Item_sum_count_distinct::cleanup()
@@ -2658,7 +2662,7 @@ int group_concat_key_cmp_with_distinct_and_order(void* arg,byte* key1,
   Append data from current leaf to item->result
 */
 
-int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
+int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
                   Item_func_group_concat *item)
 {
   char buff[MAX_FIELD_WIDTH];
