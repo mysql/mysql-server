@@ -35,6 +35,7 @@ class NdbRecAttr;      // Forward declaration
 class NdbResultSet;    // Forward declaration
 class NdbScanOperation; 
 class NdbIndexScanOperation; 
+class NdbBlob;
 
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,
@@ -171,6 +172,7 @@ class ha_ndbcluster: public handler
 		    enum ha_rkey_function find_flag);
   int close_scan();
   void unpack_record(byte *buf);
+  int get_ndb_lock_type(enum thr_lock_type type);
 
   void set_dbname(const char *pathname);
   void set_tabname(const char *pathname);
@@ -181,7 +183,9 @@ class ha_ndbcluster: public handler
   int set_ndb_key(NdbOperation*, Field *field,
 		  uint fieldnr, const byte* field_ptr);
   int set_ndb_value(NdbOperation*, Field *field, uint fieldnr);
-  int get_ndb_value(NdbOperation*, uint fieldnr, byte *field_ptr);
+  int get_ndb_value(NdbOperation*, Field *field, uint fieldnr);
+  friend int ::get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
+  int get_ndb_blobs_value(NdbBlob *last_ndb_blob);
   int set_primary_key(NdbOperation *op, const byte *key);
   int set_primary_key(NdbOperation *op);
   int set_primary_key_from_old_data(NdbOperation *op, const byte *old_data);
@@ -191,8 +195,8 @@ class ha_ndbcluster: public handler
   void print_results();
 
   longlong get_auto_increment();
-
   int ndb_err(NdbConnection*);
+  bool uses_blob_value(bool all_fields);
 
  private:
   int check_ndb_connection();
@@ -209,13 +213,19 @@ class ha_ndbcluster: public handler
   NDB_SHARE *m_share;
   NDB_INDEX_TYPE  m_indextype[MAX_KEY];
   const char*  m_unique_index_name[MAX_KEY];
-  NdbRecAttr *m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
+  // NdbRecAttr has no reference to blob
+  typedef union { NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
+  NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   bool m_use_write;
   bool retrieve_all_fields;
   ha_rows rows_to_insert;
   ha_rows rows_inserted;
   ha_rows bulk_insert_rows;
   ha_rows ops_pending;
+  bool blobs_pending;
+  // memory for blobs in one tuple
+  char *blobs_buffer;
+  uint32 blobs_buffer_size;
 };
 
 bool ndbcluster_init(void);
@@ -231,10 +241,3 @@ int ndbcluster_discover(const char* dbname, const char* name,
 int ndbcluster_drop_database(const char* path);
 
 void ndbcluster_print_error(int error, const NdbOperation *error_op);
-
-
-
-
-
-
-
