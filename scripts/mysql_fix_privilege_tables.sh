@@ -160,7 +160,7 @@ then
   echo ""
   echo "Updating new privileges in MySQL 4.0.2 from old ones"
   @bindir@/mysql --user=root --password="$root_password" --host="$host" mysql <<END_OF_DATA
-  update user set show_db_priv= select_priv, super_priv=process_priv, execute_priv=process_priv, create_tmp_table_priv='Y', Lock_tables_priv='Y', Repl_slave_priv=file_priv, Repl_client_priv=file_priv;
+  update user set show_db_priv= select_priv, super_priv=process_priv, execute_priv=process_priv, create_tmp_table_priv='Y', Lock_tables_priv='Y', Repl_slave_priv=file_priv, Repl_client_priv=file_priv where user<>"";
 END_OF_DATA
   echo ""
 fi

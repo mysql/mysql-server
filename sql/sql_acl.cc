@@ -741,11 +741,25 @@ static void acl_update_db(const char *user, const char *host, const char *db,
 }
 
 
+/*
+  Insert a user/db/host combination into the global acl_cache
+
+  SYNOPSIS
+    acl_insert_db()
+    user		User name
+    host		Host name
+    db			Database name
+    privileges		Bitmap of privileges
+
+  NOTES
+    acl_cache->lock must be locked when calling this
+*/
+
 static void acl_insert_db(const char *user, const char *host, const char *db,
 			  ulong privileges)
 {
   ACL_DB acl_db;
-  /* The acl_cache mutex is locked by mysql_grant */
+  safe_mutex_assert_owner(&acl_cache->lock);
   acl_db.user=strdup_root(&mem,user);
   update_hostname(&acl_db.host,strdup_root(&mem,host));
   acl_db.db=strdup_root(&mem,db);
@@ -769,7 +783,6 @@ ulong acl_get(const char *host, const char *ip, const char *bin_ip,
   db_access=0; host_access= ~0;
   char key[ACL_KEY_LENGTH],*tmp_db,*end;
   acl_entry *entry;
-  THD *thd= current_thd;
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
   memcpy_fixed(&key,bin_ip,sizeof(struct in_addr));
@@ -1001,6 +1014,21 @@ bool check_change_password(THD *thd, const char *host, const char *user)
 }
 
 
+/*
+  Change a password for a user
+
+  SYNOPSIS
+    change_password()
+    thd			Thread handle
+    host		Hostname
+    user		User name
+    new_password	New password for host@user
+
+  RETURN VALUES
+    0	ok
+    1	ERROR; In this case the error is sent to the client.
+*/    
+
 bool change_password(THD *thd, const char *host, const char *user,
 		     char *new_password)
 {
@@ -1217,6 +1245,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   char *password,empty_string[1];
   char what= (revoke_grant) ? 'N' : 'Y';
   DBUG_ENTER("replace_user_table");
+  safe_mutex_assert_owner(&acl_cache->lock);
 
   password=empty_string;
   empty_string[0]=0;
@@ -1240,7 +1269,6 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   {
     if (!create_user)
     {
-      THD *thd=current_thd;
       if (what == 'N')
 	my_printf_error(ER_NONEXISTING_GRANT,ER(ER_NONEXISTING_GRANT),
 			MYF(0),combo.user.str,combo.host.str);
@@ -1621,6 +1649,7 @@ static GRANT_TABLE *table_hash_search(const char *host,const char* ip,
   char helping [NAME_LEN*2+USERNAME_LENGTH+3];
   uint len;
   GRANT_TABLE *grant_table,*found=0;
+  safe_mutex_assert_owner(&LOCK_grant);
 
   len  = (uint) (strmov(strmov(strmov(helping,user)+1,db)+1,tname)-helping)+ 1;
   for (grant_table=(GRANT_TABLE*) hash_search(&hash_tables,(byte*) helping,
@@ -1828,6 +1857,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   int error=0;
   ulong store_table_rights, store_col_rights;
   DBUG_ENTER("replace_table_table");
+  safe_mutex_assert_owner(&LOCK_grant);
 
   strxmov(grantor, thd->user, "@", thd->host_or_ip, NullS);
 
@@ -2017,6 +2047,7 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
 
   while ((Str = str_list++))
   {
+    int error;
     GRANT_TABLE *grant_table;
     if (!Str->host.str)
     {
@@ -2031,8 +2062,11 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
       continue;
     }
     /* Create user if needed */
-    if (replace_user_table(thd, tables[0].table, *Str,
-			   0, revoke_grant, create_new_users))
+    pthread_mutex_lock(&acl_cache->lock);
+    error=replace_user_table(thd, tables[0].table, *Str,
+			     0, revoke_grant, create_new_users);
+    pthread_mutex_unlock(&acl_cache->lock);
+    if (error)
     {
       result= -1;				// Remember error
       continue;					// Add next user
@@ -2048,7 +2082,7 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
       {
 	my_printf_error(ER_NONEXISTING_TABLE_GRANT,
 			ER(ER_NONEXISTING_TABLE_GRANT),MYF(0),
-			Str->user.str, Str->host.str, table_list->alias);
+			Str->user.str, Str->host.str, table_list->real_name);
 	result= -1;
 	continue;
       }
@@ -2577,6 +2611,7 @@ bool check_grant_db(THD *thd,const char *db)
 
 ulong get_table_grant(THD *thd, TABLE_LIST *table)
 {
+  uint privilege;
   char *user = thd->priv_user;
   const char *db = table->db ? table->db : thd->db;
   GRANT_TABLE *grant_table;
@@ -2588,8 +2623,9 @@ ulong get_table_grant(THD *thd, TABLE_LIST *table)
   table->grant.version=grant_version;
   if (grant_table)
     table->grant.privilege|= grant_table->privs;
+  privilege= table->grant.privilege;
   pthread_mutex_unlock(&LOCK_grant);
-  return table->grant.privilege;
+  return privilege;
 }
 
 
@@ -2700,6 +2736,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   if (send_fields(thd,field_list,1))
     DBUG_RETURN(-1);
 
+  pthread_mutex_lock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
   /* Add first global access grants */
@@ -2955,13 +2992,16 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 			 thd->packet.length()))
 	{
 	  error=-1;
-	  goto end;
+	  break;
 	}
       }
     }
   }
+
  end:
   VOID(pthread_mutex_unlock(&acl_cache->lock));
+  pthread_mutex_unlock(&LOCK_grant);
+
   send_eof(&thd->net);
   DBUG_RETURN(error);
 }

@@ -359,8 +359,8 @@ class set_var_base :public Sql_alloc
 public:
   set_var_base() {}
   virtual ~set_var_base() {}
-  virtual bool check(THD *thd)=0;	/* To check privileges etc. */
-  virtual bool update(THD *thd)=0;	/* To set the value */
+  virtual int check(THD *thd)=0;	/* To check privileges etc. */
+  virtual int update(THD *thd)=0;	/* To set the value */
 };
 
 
@@ -394,8 +394,8 @@ public:
     else
       value=value_arg;
   }
-  bool check(THD *thd);
-  bool update(THD *thd);
+  int check(THD *thd);
+  int update(THD *thd);
 };
 
 
@@ -408,8 +408,8 @@ public:
   set_var_user(Item_func_set_user_var *item)
     :user_var_item(item)
   {}
-  bool check(THD *thd);
-  bool update(THD *thd);
+  int check(THD *thd);
+  int update(THD *thd);
 };
 
 /* For SET PASSWORD */
@@ -422,8 +422,8 @@ public:
   set_var_password(LEX_USER *user_arg,char *password_arg)
     :user(user_arg), password(password_arg)
   {}
-  bool check(THD *thd);
-  bool update(THD *thd);
+  int check(THD *thd);
+  int update(THD *thd);
 };
 
 
@@ -434,7 +434,7 @@ public:
 void set_var_init();
 void set_var_free();
 sys_var *find_sys_var(const char *str, uint length=0);
-bool sql_set_variables(THD *thd, List<set_var_base> *var_list);
+int sql_set_variables(THD *thd, List<set_var_base> *var_list);
 void fix_delay_key_write(THD *thd, enum_var_type type);
 
 extern sys_var_str sys_charset;

@@ -424,7 +424,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
 
 
 /***************************************************************************
-** List all columns in a table
+** List all columns in a table_list->real_name
 ***************************************************************************/
 
 int

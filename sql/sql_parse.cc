@@ -2202,9 +2202,7 @@ mysql_execute_command(void)
     break;
   }
   case SQLCOM_SET_OPTION:
-    if (sql_set_variables(thd, &lex->var_list))
-      res= -1;
-    else
+    if (!(res=sql_set_variables(thd, &lex->var_list)))
       send_ok(&thd->net);
     break;
   case SQLCOM_UNLOCK_TABLES:
