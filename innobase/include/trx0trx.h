@@ -118,6 +118,14 @@ trx_start_if_not_started(
 /*=====================*/
 	trx_t*	trx);	/* in: transaction */
 /*****************************************************************
+Starts the transaction if it is not yet started. Assumes we have reserved
+the kernel mutex! */
+UNIV_INLINE
+void
+trx_start_if_not_started_low(
+/*=========================*/
+	trx_t*	trx);	/* in: transaction */
+/*****************************************************************
 Starts the transaction if it is not yet started. */
 
 void
