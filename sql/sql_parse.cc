@@ -842,7 +842,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     char *pos=packet-1+packet_length;		// Point at end null
     /* Remove garage at end of query */
-    while (packet_length > 0 && pos[-1] == ';')
+    while (packet_length > 0 && (pos[-1] == ';' || isspace(pos[-1])))
     {
       pos--;
       packet_length--;
@@ -2261,7 +2261,7 @@ error:
 
 bool
 check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
-	     bool dont_check_global_grants)
+	     bool dont_check_global_grants, bool no_errors)
 {
   uint db_access,dummy;
   if (save_priv)
@@ -2271,7 +2271,8 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
 
   if ((!db || !db[0]) && !thd->db && !dont_check_global_grants)
   {
-    send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: tested */
+    if (!no_errors)
+      send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: tested */
     return TRUE;				/* purecov: tested */
   }
 
@@ -2283,10 +2284,11 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
   if ((want_access & ~thd->master_access) & ~(DB_ACLS | EXTRA_ACL) ||
       ! db && dont_check_global_grants)
   {						// We can never grant this
-    net_printf(&thd->net,ER_ACCESS_DENIED_ERROR,
-	       thd->priv_user,
-	       thd->host_or_ip,
-	       thd->password ? ER(ER_YES) : ER(ER_NO));/* purecov: tested */
+    if (!no_errors)
+      net_printf(&thd->net,ER_ACCESS_DENIED_ERROR,
+		 thd->priv_user,
+		 thd->host_or_ip,
+		 thd->password ? ER(ER_YES) : ER(ER_NO));/* purecov: tested */
     return TRUE;				/* purecov: tested */
   }
 
@@ -2306,10 +2308,11 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
       ((grant_option && !dont_check_global_grants) &&
        !(want_access & ~TABLE_ACLS)))
     return FALSE;				/* Ok */
-  net_printf(&thd->net,ER_DBACCESS_DENIED_ERROR,
-	     thd->priv_user,
-	     thd->host_or_ip,
-	     db ? db : thd->db ? thd->db : "unknown"); /* purecov: tested */
+  if (!no_errors)
+    net_printf(&thd->net,ER_DBACCESS_DENIED_ERROR,
+	       thd->priv_user,
+	       thd->host_or_ip,
+	       db ? db : thd->db ? thd->db : "unknown"); /* purecov: tested */
   return TRUE;					/* purecov: tested */
 }
 
@@ -2326,7 +2329,8 @@ bool check_process_priv(THD *thd)
 */
 
 bool
-check_table_access(THD *thd,uint want_access,TABLE_LIST *tables)
+check_table_access(THD *thd,uint want_access,TABLE_LIST *tables,
+		   bool no_errors)
 {
   uint found=0,found_access=0;
   TABLE_LIST *org_tables=tables;
@@ -2341,18 +2345,20 @@ check_table_access(THD *thd,uint want_access,TABLE_LIST *tables)
 	tables->grant.privilege=found_access;
       else
       {
-	if (check_access(thd,want_access,tables->db,&tables->grant.privilege))
+	if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
+			 0, no_errors))
 	  return TRUE;				// Access denied
 	found_access=tables->grant.privilege;
 	found=1;
       }
     }
-    else if (check_access(thd,want_access,tables->db,&tables->grant.privilege))
+    else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
+			  0, no_errors))
       return TRUE;				// Access denied
   }
   if (grant_option)
     return check_grant(thd,want_access & ~EXTRA_ACL,org_tables,
-		       test(want_access & EXTRA_ACL));
+		       test(want_access & EXTRA_ACL), no_errors);
   return FALSE;
 }
 
@@ -2474,6 +2480,7 @@ mysql_init_query(THD *thd)
   thd->fatal_error=0;				// Safety
   thd->last_insert_id_used=thd->query_start_used=thd->insert_id_used=0;
   thd->sent_row_count=thd->examined_row_count=0;
+  thd->safe_to_cache_query=1;
   DBUG_VOID_RETURN;
 }
 
@@ -2522,9 +2529,8 @@ mysql_parse(THD *thd,char *inBuf,uint length)
 
   mysql_init_query(thd);
   thd->query_length = length;
-  if (query_cache.send_result_to_client(thd, inBuf, length))
+  if (query_cache.send_result_to_client(thd, inBuf, length) <= 0)
   {
-    thd->safe_to_cache_query=1;
     LEX *lex=lex_start(thd, (uchar*) inBuf, length);
     if (!yyparse() && ! thd->fatal_error)
     {

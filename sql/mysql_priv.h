@@ -283,8 +283,9 @@ uint cached_tables(void);
 void kill_mysql(void);
 void close_connection(NET *net,uint errcode=0,bool lock=1);
 bool check_access(THD *thd,uint access,const char *db=0,uint *save_priv=0,
-		  bool no_grant=0);
-bool check_table_access(THD *thd,uint want_access, TABLE_LIST *tables);
+		  bool no_grant=0, bool no_errors=0);
+bool check_table_access(THD *thd,uint want_access, TABLE_LIST *tables,
+			bool no_errors=0);
 bool check_process_priv(THD *thd=0);
 
 int mysql_backup_table(THD* thd, TABLE_LIST* table_list);

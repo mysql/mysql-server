@@ -346,19 +346,19 @@ show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
 drop table t1,t2;
-create database foo;
-create table foo.t1 (i int not null auto_increment, a int, primary key (i));
-insert into foo.t1 (a) values (1);
-select * from foo.t1 where i is null;
+create database mysqltest;
+create table mysqltest.t1 (i int not null auto_increment, a int, primary key (i));
+insert into mysqltest.t1 (a) values (1);
+select * from mysqltest.t1 where i is null;
 i	a
 1	1
-select * from foo.t1;
+select * from mysqltest.t1;
 i	a
 1	1
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
-drop database foo;
+drop database mysqltest;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0

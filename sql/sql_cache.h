@@ -354,7 +354,7 @@ protected:
     Check if the query is in the cache and if this is true send the
     data to client.
   */
-  my_bool send_result_to_client(THD *thd, char *query, uint query_length);
+  int send_result_to_client(THD *thd, char *query, uint query_length);
 
   /* Remove all queries that uses any of the listed following tables */
   void invalidate(TABLE_LIST *tables_used);
@@ -375,7 +375,15 @@ protected:
 
   void destroy();
 
-#ifndef DBUG_OFF
+  friend void query_cache_insert(NET *net, const char *packet, ulong length);
+  friend void query_cache_end_of_result(NET *net);
+  friend void query_cache_abort(NET *net);
+
+  /*
+    The following functions are only used when debugging
+    We don't protect these with ifndef DEBUG_OFF to not have to recompile
+    everything if we want to add checks of the cache at some places.
+  */
   void wreck(uint line, const char *message);
   void bins_dump();
   void cache_dump();
@@ -385,10 +393,6 @@ protected:
   my_bool in_list(Query_cache_block * root, Query_cache_block * point,
 		  const char *name);
   my_bool in_blocks(Query_cache_block * point);
-#endif
-  friend void query_cache_insert(NET *net, const char *packet, ulong length);
-  friend void query_cache_end_of_result(NET *net);
-  friend void query_cache_abort(NET *net);
 };
 
 extern Query_cache query_cache;

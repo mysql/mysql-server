@@ -35574,6 +35574,10 @@ In addition, a query may be seen as different if for instance one
 client is using a new communication protocol format or another
 character set than another client.
 
+Queries that uses different databases, uses different protocol versions
+or the uses different default character sets are considered different
+queries and cached separately.
+
 The cache does work for @code{SELECT CALC_ROWS ...} and
 @code{SELECT FOUND_ROWS() ...} type queries because the number of
 found rows is also stored in the cache.
@@ -35612,8 +35616,12 @@ of the form @code{SELECT * FROM AUTOINCREMENT_FIELD IS NULL}
 However, @code{FOUND ROWS()} will return the correct value,
 even if the preceding query was fetched from the cache.
 
-Queries that don't use any tables are not cached.
+Queries that don't use any tables or if the user has a column privilege for
+any of the involved tables are not cached.
 
+Before a query is fetched from the query cache, MySQL will check that
+the user has SELECT privilege to all the involved databases and
+tables. If this is not the case, the cached result will not be used.
 
 @node Query Cache Configuration, Query Cache in SELECT, Query Cache How, Query Cache
 @subsection Query Cache Configuration
