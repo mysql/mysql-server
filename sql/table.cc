@@ -1497,8 +1497,10 @@ void st_table_list::set_ancestor()
 
   SYNOPSIS
     st_table_list::setup_ancestor()
-    thd		- thread handler
-    conds       - condition of this JOIN
+    thd		    - thread handler
+    conds           - condition of this JOIN
+    check_opt_type  - WHITH CHECK OPTION type (VIEW_CHECK_NONE,
+                      VIEW_CHECK_LOCAL, VIEW_CHECK_CASCADED)
 
   DESCRIPTION
     It is:
@@ -1513,7 +1515,8 @@ void st_table_list::set_ancestor()
     1 - error
 */
 
-bool st_table_list::setup_ancestor(THD *thd, Item **conds)
+bool st_table_list::setup_ancestor(THD *thd, Item **conds,
+				   uint8 check_opt_type)
 {
   Item **transl;
   SELECT_LEX *select= &view->select_lex;
@@ -1527,7 +1530,10 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
   DBUG_ENTER("st_table_list::setup_ancestor");
 
   if (ancestor->ancestor &&
-      ancestor->setup_ancestor(thd, conds))
+      ancestor->setup_ancestor(thd, conds,
+                               (check_opt_type == VIEW_CHECK_CASCADED ?
+                                VIEW_CHECK_CASCADED :
+                                VIEW_CHECK_NONE)))
     DBUG_RETURN(1);
 
   if (field_translation)
@@ -1587,7 +1593,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
   /* TODO: sort this list? Use hash for big number of fields */
 
   if (where ||
-      (effective_with_check == VIEW_CHECK_CASCADED &&
+      (check_opt_type == VIEW_CHECK_CASCADED &&
        ancestor->check_option))
   {
     Item_arena *arena= thd->current_arena, backup;
@@ -1601,11 +1607,11 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
     if (arena)
       thd->set_n_backup_item_arena(arena, &backup);
 
-    if (effective_with_check)
+    if (check_opt_type)
     {
       if (where)
 	check_option= where->copy_andor_structure(thd);
-      if (effective_with_check == VIEW_CHECK_CASCADED)
+      if (check_opt_type == VIEW_CHECK_CASCADED)
       {
         check_option= and_conds(check_option, ancestor->check_option);
       }
