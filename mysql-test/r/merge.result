@@ -35,10 +35,10 @@ insert into t1 select NULL,message from t2;
 create table t3 (a int not null, b char(20), key(a)) type=MERGE UNION=(test.t1,test.t2);
 explain select * from t3 where a < 10;
 table	type	possible_keys	key	key_len	ref	rows	Extra
-t3	range	a	a	4	NULL	10	where used
+t3	range	a	a	4	NULL	10	Using where
 explain select * from t3 where a > 10 and a < 20;
 table	type	possible_keys	key	key_len	ref	rows	Extra
-t3	range	a	a	4	NULL	10	where used
+t3	range	a	a	4	NULL	10	Using where
 select * from t3 where a = 10;
 a	b
 10	Testing
