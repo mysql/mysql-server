@@ -232,6 +232,102 @@ TEST_join(JOIN *join)
   DBUG_VOID_RETURN;
 }
 
+
+/* 
+  Print the current state during query optimization.
+
+  SYNOPSIS
+    print_plan()
+    join         pointer to the structure providing all context info for
+                 the query
+    read_time    the cost of the best partial plan
+    record_count estimate for the number of records returned by the best
+                 partial plan
+    idx          length of the partial QEP in 'join->positions';
+                 also an index in the array 'join->best_ref';
+    info         comment string to appear above the printout
+
+  DESCRIPTION
+    This function prints to the log file DBUG_FILE the members of 'join' that
+    are used during query optimization (join->positions, join->best_positions,
+    and join->best_ref) and few other related variables (read_time,
+    record_count).
+    Useful to trace query optimizer functions.
+
+  RETURN
+    None
+*/
+
+void
+print_plan(JOIN* join, double read_time, double record_count,
+           uint idx, const char *info)
+{
+  uint i;
+  POSITION pos;
+  JOIN_TAB *join_table;
+  JOIN_TAB **plan_nodes;
+  TABLE*   table;
+
+  if (info == 0)
+    info= "";
+
+  DBUG_LOCK_FILE;
+  if (join->best_read == DBL_MAX)
+  {
+    fprintf(DBUG_FILE,"%s; idx:%u, best: DBL_MAX, current:%g\n",
+            info, idx, read_time);
+  }
+  else
+  {
+    fprintf(DBUG_FILE,"%s; idx: %u, best: %g, current: %g\n",
+            info, idx, join->best_read, read_time);
+  }
+
+  /* Print the tables in JOIN->positions */
+  fputs("     POSITIONS: ", DBUG_FILE);
+  for (i= 0; i < idx ; i++)
+  {
+    pos = join->positions[i];
+    table= pos.table->table;
+    if (table)
+      fputs(table->real_name, DBUG_FILE);
+    fputc(' ', DBUG_FILE);
+  }
+  fputc('\n', DBUG_FILE);
+
+  /*
+    Print the tables in JOIN->best_positions only if at least one complete plan
+    has been found. An indicator for this is the value of 'join->best_read'.
+  */
+  fputs("BEST_POSITIONS: ", DBUG_FILE);
+  if (join->best_read < DBL_MAX)
+  {
+    for (i= 0; i < idx ; i++)
+    {
+      pos= join->best_positions[i];
+      table= pos.table->table;
+      if (table)
+        fputs(table->real_name, DBUG_FILE);
+      fputc(' ', DBUG_FILE);
+    }
+  }
+  fputc('\n', DBUG_FILE);
+
+  /* Print the tables in JOIN->best_ref */
+  fputs("      BEST_REF: ", DBUG_FILE);
+  for (plan_nodes= join->best_ref ; *plan_nodes ; plan_nodes++)
+  {
+    join_table= (*plan_nodes);
+    fputs(join_table->table->real_name, DBUG_FILE);
+    fprintf(DBUG_FILE, "(%u,%u,%u)",
+            join_table->found_records, join_table->records, join_table->read_time);
+    fputc(' ', DBUG_FILE);
+  }
+  fputc('\n', DBUG_FILE);
+
+  DBUG_UNLOCK_FILE;
+}
+
 #endif
 
 typedef struct st_debug_lock
