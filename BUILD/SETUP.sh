@@ -57,6 +57,10 @@ static_link="--with-mysqld-ldflags=-all-static --with-client-ldflags=-all-static
 alpha_configs=""	# Not used yet
 pentium_configs=""
 sparc_configs=""
+# we need local-infile in all binaries for rpl000001
+# if you need to disable local-infile in the client, write a build script
+# and unset local_infile_configs
+local_infile_configs="--enable-local-infile"
 
 debug_configs="--with-debug"
 
