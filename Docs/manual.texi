@@ -9533,7 +9533,7 @@ and not only the first argument.
 @item @code{AUTO_INCREMENT} will not work with negative numbers.
 @item @code{INNER}, @code{DELAYED}, @code{RIGHT} and @code{WHEN}
 are now reserved words.
-@item @code{FLOAT(X)} is now a true floating point type and not a value with
+@item @code{FLOAT(X)} is now a true floating-point type and not a value with
 a fixed number of decimals.
 @item When declaring @code{DECIMAL(length,dec)} the length argument no
 longer includes a place for the sign or the decimal point.
@@ -9680,7 +9680,7 @@ There are some new reserved words. The most notable are @code{DATE},
 
 If you are using @strong{MySQL} Version 3.23, you can copy the @code{.frm},
 @code{.MYI}, and @code{.MYD} files between different architectures that
-support the same floating point format.  (@strong{MySQL} takes care of any
+support the same floating-point format.  (@strong{MySQL} takes care of any
 byte swapping issues.)
 
 The @strong{MySQL} @code{ISAM} data and index files (@file{.ISD} and
@@ -12934,9 +12934,9 @@ In @strong{MySQL} you can refer to a column using any of the following forms:
 @multitable @columnfractions .35 .65
 @item @strong{Column reference} @tab @strong{Meaning}
 @item @code{col_name} @tab Column @code{col_name}
-from whichever table used in the query contains a column of that name
+from whichever table used in the query contains a column of that name.
 @item @code{tbl_name.col_name} @tab Column @code{col_name} from table
-@code{tbl_name} of the current database
+@code{tbl_name} of the current database.
 @item @code{db_name.tbl_name.col_name} @tab Column @code{col_name} from table
 @code{tbl_name} of the database @code{db_name}.  This form is available in
 @strong{MySQL} Version 3.22 or later.
@@ -13143,7 +13143,7 @@ values!  This means that if you multiply two big integers (or results
 from functions that return integers) you may get unexpected results if
 the result is larger than @code{9223372036854775807}.
 
-@cindex floating point number
+@cindex floating-point number
 @tindex FLOAT
 @tindex FLOAT(precision)
 @item FLOAT(precision) [ZEROFILL]
@@ -13237,7 +13237,7 @@ A timestamp.  The range is @code{'1970-01-01 00:00:00'} to sometime in the
 year @code{2037}.  @strong{MySQL} displays @code{TIMESTAMP} values in
 @code{YYYYMMDDHHMMSS}, @code{YYMMDDHHMMSS}, @code{YYYYMMDD}, or @code{YYMMDD}
 format, depending on whether @code{M} is @code{14} (or missing), @code{12},
-@code{8} or @code{6}, but allows you to assign values to @code{TIMESTAMP}
+@code{8}, or @code{6}, but allows you to assign values to @code{TIMESTAMP}
 columns using either strings or numbers.  A @code{TIMESTAMP} column is useful
 for recording the date and time of an @code{INSERT} or @code{UPDATE}
 operation because it is automatically set to the date and time of the most
@@ -13245,7 +13245,7 @@ recent operation if you don't give it a value yourself.  You can also set it
 to the current date and time by assigning it a @code{NULL} value.  @xref{Date
 and time types}.
 
-A @code{TIMESTAMP} is always stored in 4 bytes. The @code{M} argument only
+A @code{TIMESTAMP} is always stored in 4 bytes.  The @code{M} argument only
 affects how the @code{TIMESTAMP} column is displayed.
 
 Note that @code{TIMESTAMP(X)} columns where X is 8 or 14 are reported to
@@ -13501,7 +13501,7 @@ a serious problem, as the principal benefits of these types derive from
 the ability to control both precision and scale explicitly.
 
 @code{DECIMAL} and @code{NUMERIC} values are stored as strings, rather
-than as binary floating point numbers, in order to preserve the decimal
+than as binary floating-point numbers, in order to preserve the decimal
 precision of those values.  One character is used for each digit of the
 value, the decimal point (if @code{scale} > 0), and the @samp{-} sign
 (for negative numbers).  If @code{scale} is 0, @code{DECIMAL} and
@@ -15299,7 +15299,7 @@ a temporary table) is calculated in @strong{MySQL} Version 3.23 as follows:
 @multitable @columnfractions .55 .45
 @item @strong{Expression} @tab @strong{Return value}
 @item expr2 or expr3 returns string @tab string
-@item expr2 or expr3 returns a floating point value @tab floating point
+@item expr2 or expr3 returns a floating-point value @tab floating-point
 @item expr2 or expr3 returns an integer @tab integer
 @end multitable
 
@@ -19572,7 +19572,7 @@ or SHOW CREATE TABLE table_name
 @code{SHOW} provides information about databases, tables, columns or
 status information about the server. If the @code{LIKE wild} part is
 used, the @code{wild} string can be a string that uses the SQL @samp{%}
-and @samp{_} wildcard characters.
+and @samp{_} wild card characters.
 
 @findex SHOW DATABASES
 @findex SHOW TABLES
@@ -20569,7 +20569,7 @@ the @code{FROM} clause.
 
 @code{DESCRIBE} provides information about a table's columns.  @code{col_name}
 may be a column name or a string containing the SQL @samp{%} and @samp{_}
-wildcard characters.
+wild card characters.
 
 If the column types are different than you expect them to be based on a
 @code{CREATE TABLE} statement, note that @strong{MySQL} sometimes
@@ -20948,10 +20948,10 @@ In order to accommodate granting rights to users from arbitrary hosts,
 @strong{MySQL} supports specifying the @code{user_name} value in the form
 @code{user@@host}.  If you want to specify a @code{user} string
 containing special characters (such as @samp{-}), or a @code{host} string
-containing special characters or wildcard characters (such as @samp{%}), you
+containing special characters or wild card characters (such as @samp{%}), you
 can quote the user or host name (e.g., @code{'test-user'@@'test-hostname'}).
 
-You can specify wildcards in the hostname.  For example,
+You can specify wild cards in the hostname.  For example,
 @code{user@@"%.loc.gov"} applies to @code{user} for any host in the
 @code{loc.gov} domain, and @code{user@@"144.155.166.%"} applies to @code{user}
 for any host in the @code{144.155.166} class C subnet.
@@ -21460,7 +21460,7 @@ support big files.
 All data is stored with the low byte first. This makes the data machine and
 OS independent. The only requirement is that the machine uses two's-complement
 signed integers (as every machine for the last 20 years has)
-and IEEE floating point format (also totally dominant among mainstream
+and IEEE floating-point format (also totally dominant among mainstream
 machines). The only area of machines that may not support binary
 compatibility are embedded systems (because they sometimes have peculiar
 processors).
@@ -23813,7 +23813,7 @@ mysql> SELECT * FROM pet WHERE name REGEXP "[wW]";
 @end example
 
 Because a regular expression pattern matches if it occurs anywhere in the
-value, it is not necessary in the previous query to put a wildcard on either
+value, it is not necessary in the previous query to put a wild card on either
 side of the pattern to get it to match the entire value like it would be if
 you used a SQL pattern.
 
@@ -26460,7 +26460,7 @@ leftmost prefixes of @code{(col1,col2,col3)}.
 @cindex indexes, and @code{LIKE}
 @cindex wildcards, and @code{LIKE}
 @strong{MySQL} also uses indexes for @code{LIKE} comparisons if the argument
-to @code{LIKE} is a constant string that doesn't start with a wildcard
+to @code{LIKE} is a constant string that doesn't start with a wild card
 character.  For example, the following @code{SELECT} statements use indexes:
 
 @example
@@ -32272,7 +32272,7 @@ against the table that was last removed from the query.
 @item
 If you are comparing @code{FLOAT} or @code{DOUBLE} columns with numbers that
 have decimals, you can't use @code{=}!  This problem is common in most
-computer languages because floating point values are not exact values.
+computer languages because floating-point values are not exact values.
 
 @example
 mysql> SELECT * FROM table_name WHERE float_column=3.5;
@@ -36777,7 +36777,7 @@ relevance - similarity measure between the text in that row (in the columns
 that are part of the collection) and the query. When it is used in a
 @code{WHERE} clause (see example above) the rows returned are
 automatically sorted with relevance decreasing. Relevance is a non-
-negative floating point number. Zero relevance means no similarity.
+negative floating-point number. Zero relevance means no similarity.
 Relevance is computed based on number of words in the row and number of
 unique words in that row, total number of words in the collection,
 number of documents (rows), that contain a particular word, etc.
@@ -38406,7 +38406,7 @@ values (1),(1)}) erroneously terminated the slave thread.
 Added optimization of queries where @code{DISTINCT} is only used on columns
 from some of the tables.
 @item
-Allow floating point numbers where there is no sign after the exponent
+Allow floating-point numbers where there is no sign after the exponent
 (like 1e1).
 @item
 @code{SHOW GRANTS} didn't always show all column grants.
@@ -39162,7 +39162,7 @@ be faster: @code{SELECT * from key_part_1=const and key_part_2 > const2}
 Fixed bug that a change of all @code{VARCHAR} columns to @code{CHAR} columns
 didn't change row type from dynamic to fixed.
 @item
-Disabled floating point exceptions for FreeBSD to fix core dump when
+Disabled floating-point exceptions for FreeBSD to fix core dump when
 doing @code{SELECT floor(pow(2,63))}.
 @item
 Changed @code{mysqld} startup option @code{--delay-key-write} to
@@ -39626,7 +39626,7 @@ applications.  (By @email{shreeve@@uci.edu}).
 ensure that @code{null_column NOT IN (...)} doesn't match
 @code{NULL} values.
 @item
-Fix storage of floating point values in @code{TIME} columns.
+Fix storage of floating-point values in @code{TIME} columns.
 @item
 Changed parsing of @code{TIME} strings to be more strict.  Now the
 fractional second part is detected (and currently skipped). The
@@ -39811,7 +39811,7 @@ A few small fixes for the Windows version.
 @item
 Fixed optimizer problem on @code{SELECT} when using many overlapping indexes.
 @item
-Disabled floating point exceptions for FreeBSD to fix core dump when
+Disabled floating-point exceptions for FreeBSD to fix core dump when
 doing @code{SELECT floor(pow(2,63))}.
 @item
 Added print of default arguments options to all clients.
