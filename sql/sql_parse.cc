@@ -2982,13 +2982,17 @@ mysql_execute_command(THD *thd)
       }
       else
       {
+#ifndef EMBEDDED_LIBRARY
 	// When executing substatements, they're assumed to send_error when
 	// it happens, but not to send_ok.
 	my_bool nsok= thd->net.no_send_ok;
 
 	thd->net.no_send_ok= TRUE;
+#endif
 	res= sp->execute(thd);
+#ifndef EMBEDDED_LIBRARY
 	thd->net.no_send_ok= nsok;
+#endif
 
 	if (res == 0)
 	  send_ok(thd);

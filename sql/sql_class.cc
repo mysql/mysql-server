@@ -1043,6 +1043,15 @@ bool select_dumpvar::send_data(List<Item> &items)
 
 bool select_dumpvar::send_eof()
 {
+  /* This mimics select_send::send_eof(), which unlocks this way.
+   * It appears to be necessary, since tables aren't unlock after
+   * selects otherwise.
+   */
+  if (thd->lock)
+  {
+    mysql_unlock_tables(thd, thd->lock);
+    thd->lock=0;
+  }
   if (row_count)
   {
     ::send_ok(thd,row_count);
