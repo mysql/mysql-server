@@ -1284,8 +1284,8 @@ int Item::save_in_field(Field *field, bool no_conversions)
     String *result;
     CHARSET_INFO *cs= collation.collation;
     char buff[MAX_FIELD_WIDTH];		// Alloc buffer for small columns
-    str_value.set_quick(buff,sizeof(buff),cs);
-    result=val_str(&str_value);
+    String loc_value(buff, sizeof(buff), cs);
+    result=val_str(&loc_value);
     if (null_value)
       return set_field_to_null_with_conversions(field, no_conversions);
     field->set_notnull();
