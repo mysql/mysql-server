@@ -29,7 +29,7 @@ mysql_SOURCES = mysql.cc readline.cc completion_hash.cc \
 mysql_LDADD = @readline_link@ @TERMCAP_LIB@ $(LDADD)
 
 mysql_client_test_embedded_LINK = $(CXXLINK)
-mysql_client_test_embedded_SOURCES =	mysql_client_test.c
+mysql_client_test_embedded_SOURCES = $(top_srcdir)/tests/mysql_client_test.c
 
 clean:
 	rm -f $(client_sources)
