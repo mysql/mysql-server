@@ -2533,7 +2533,8 @@ error:
 
     save_priv	In this we store global and db level grants for the table
 		Note that we don't store db level grants if the global grants
-		is enough to satisfy the request.
+                is enough to satisfy the request and the global grants contains
+                a SELECT grant.
 ****************************************************************************/
 
 bool
@@ -2558,7 +2559,17 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
   if ((thd->master_access & want_access) == want_access)
   {
-    *save_priv=thd->master_access | thd->db_access;
+    /*
+      If we don't have a global SELECT privilege, we have to get the database
+      specific access rights to be able to handle queries of type
+      UPDATE t1 SET a=1 WHERE b > 0
+    */
+    db_access= thd->db_access;
+    if (!(thd->master_access & SELECT_ACL) &&
+	(db && (!thd->db || strcmp(db,thd->db))))
+      db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
+			thd->priv_user, db); /* purecov: inspected */
+    *save_priv=thd->master_access | db_access;
     DBUG_RETURN(FALSE);
   }
   if (((want_access & ~thd->master_access) & ~(DB_ACLS | EXTRA_ACL)) ||

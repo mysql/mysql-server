@@ -10,3 +10,6 @@ inet_aton("255.255.255.255.255")	inet_aton("255.255.1.255")	inet_aton("0.1.255")
 select inet_ntoa(1099511627775),inet_ntoa(4294902271),inet_ntoa(511);
 inet_ntoa(1099511627775)	inet_ntoa(4294902271)	inet_ntoa(511)
 NULL	255.255.1.255	0.0.1.255
+select length(format('nan', 2)) > 0;
+length(format('nan', 2)) > 0
+1

@@ -28,6 +28,7 @@ grant select on *.* to grant_user@localhost,grant_user@localhost
 show grants for grant_user@localhost
 GRANT SELECT ON *.* TO 'grant_user'@'localhost'
 
+Connecting grant_user
 insert into mysql.user (host,user) values ('error','grant_user')
 Error in execute: insert command denied to user: 'grant_user@localhost' for table 'user'
 update mysql.user set host='error' WHERE user='grant_user'
@@ -50,6 +51,7 @@ grant select on *.* to wrong___________user_name
 Error in execute: The host or user argument to GRANT is too long
 grant select on grant_test.* to wrong___________user_name
 Error in execute: The host or user argument to GRANT is too long
+Connecting grant_user
 grant select on grant_test.test to grant_user with grant option
 Error in execute: grant command denied to user: 'grant_user@localhost' for table 'test'
 set password FOR ''@''=''
@@ -57,9 +59,17 @@ Error in execute: Can't find any matching row in the user table
 set password FOR root@localhost = password('test')
 Error in execute: Access denied for user: 'grant_user@localhost' to database 'mysql'
 revoke select on *.* from grant_user@localhost
-grant create on *.* to grant_user@localhost
+grant create,update on *.* to grant_user@localhost
 Connecting grant_user
+flush privileges
 create table grant_test.test (a int,b int)
+update grant_test.test set b=b+1 where a > 0
+Error in execute: SELECT command denied to user: 'grant_user@localhost' for column 'a' in table 'test'
+show grants for grant_user@localhost
+GRANT UPDATE, CREATE ON *.* TO 'grant_user'@'localhost'
+
+revoke update on *.* from grant_user@localhost
+Connecting grant_user
 grant select(c) on grant_test.test to grant_user@localhost
 Error in execute: Unknown column 'c' in 'test'
 revoke select(c) on grant_test.test from grant_user@localhost
@@ -200,8 +210,23 @@ Error in execute: SELECT command denied to user: 'grant_user@localhost' for colu
 grant SELECT on *.* to grant_user@localhost
 Connecting grant_user
 update grant_test.test set b=b+1
+update grant_test.test set b=b+1 where a > 0
 revoke SELECT on *.* from grant_user@localhost
+grant SELECT on grant_test.* to grant_user@localhost
 Connecting grant_user
+update grant_test.test set b=b+1
+update grant_test.test set b=b+1 where a > 0
+grant UPDATE on *.* to grant_user@localhost
+Connecting grant_user
+update grant_test.test set b=b+1
+update grant_test.test set b=b+1 where a > 0
+revoke UPDATE on *.* from grant_user@localhost
+revoke SELECT on grant_test.* from grant_user@localhost
+Connecting grant_user
+update grant_test.test set b=b+1 where a > 0
+Error in execute: SELECT command denied to user: 'grant_user@localhost' for column 'a' in table 'test'
+update grant_test.test set b=b+1
+Error in execute: SELECT command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
 select * from test
 Error in execute: select command denied to user: 'grant_user@localhost' for table 'test'
 grant select on grant_test.test to grant_user@localhost
@@ -489,7 +514,7 @@ Error in execute: Access denied for user: 'grant_user@localhost' to database 'gr
 grant LOCK TABLES on *.* to grant_user@localhost
 show grants for grant_user@localhost
 GRANT LOCK TABLES ON *.* TO 'grant_user'@'localhost'
-GRANT SELECT, INSERT ON grant_test.test3 TO 'grant_user'@'localhost'
+GRANT SELECT, INSERT ON `grant_test`.`test3` TO 'grant_user'@'localhost'
 
 select * from mysql.user where user='grant_user'
 127.0.0.1	grant_user	7f70e8b858ee6782	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0

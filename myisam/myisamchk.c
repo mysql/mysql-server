@@ -44,6 +44,7 @@ static const char *load_default_groups[]= { "myisamchk", 0 };
 static const char *set_charset_name;
 static CHARSET_INFO *set_charset;
 static long opt_myisam_block_size;
+static const char *my_progname_short;
 
 static const char *type_names[]=
 { "?","char","binary", "short", "long", "float",
@@ -85,6 +86,7 @@ int main(int argc, char **argv)
 {
   int error;
   MY_INIT(argv[0]);
+  my_progname_short= my_progname+dirname_length(my_progname);
 
 #ifdef __EMX__
   _wildcard (&argc, &argv);
@@ -330,7 +332,7 @@ static void usage(void)
   puts("This software comes with NO WARRANTY: see the PUBLIC for details.\n");
   puts("Description, check and repair of MyISAM tables.");
   puts("Used without options all tables on the command will be checked for errors");
-  printf("Usage: %s [OPTIONS] tables[.MYI]\n", my_progname);
+  printf("Usage: %s [OPTIONS] tables[.MYI]\n", my_progname_short);
   puts("\nGlobal options:\n\
   -#, --debug=...     Output debug log. Often this is 'd:t:o,filename'\n\
   -?, --help          Display this help and exit.\n\
@@ -679,7 +681,7 @@ static void get_options(register int *argc,register char ***argv)
   {
     VOID(fprintf(stderr,
 		 "%s: --unpack can't be used with --quick or --sort-records\n",
-		 my_progname));
+		 my_progname_short));
     exit(1);
   }
   if ((check_param.testflag & T_READONLY) &&
@@ -689,7 +691,7 @@ static void get_options(register int *argc,register char ***argv)
   {
     VOID(fprintf(stderr,
 		 "%s: Can't use --readonly when repairing or sorting\n",
-		 my_progname));
+		 my_progname_short));
     exit(1);
   }
 
@@ -1655,13 +1657,13 @@ void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
   if (!param->warning_printed && !param->error_printed)
   {
     if (param->testflag & T_SILENT)
-      fprintf(stderr,"%s: MyISAM file %s\n",my_progname,
+      fprintf(stderr,"%s: MyISAM file %s\n",my_progname_short,
 	      param->isam_file_name);
     param->out_flag|= O_DATA_LOST;
   }
   param->warning_printed=1;
   va_start(args,fmt);
-  fprintf(stderr,"%s: warning: ",my_progname);
+  fprintf(stderr,"%s: warning: ",my_progname_short);
   VOID(vfprintf(stderr, fmt, args));
   VOID(fputc('\n',stderr));
   fflush(stderr);
@@ -1681,12 +1683,12 @@ void mi_check_print_error(MI_CHECK *param, const char *fmt,...)
   if (!param->warning_printed && !param->error_printed)
   {
     if (param->testflag & T_SILENT)
-      fprintf(stderr,"%s: MyISAM file %s\n",my_progname,param->isam_file_name);
+      fprintf(stderr,"%s: MyISAM file %s\n",my_progname_short,param->isam_file_name);
     param->out_flag|= O_DATA_LOST;
   }
   param->error_printed|=1;
   va_start(args,fmt);
-  fprintf(stderr,"%s: error: ",my_progname);
+  fprintf(stderr,"%s: error: ",my_progname_short);
   VOID(vfprintf(stderr, fmt, args));
   VOID(fputc('\n',stderr));
   fflush(stderr);

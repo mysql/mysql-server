@@ -485,7 +485,7 @@ int _mi_write_part_record(MI_INFO *info,
     {
       info->update&= ~HA_STATE_EXTEND_BLOCK;
       if (my_block_write(&info->rec_cache,(byte*) *record-head_length,
-		       length+extra_length+del_length,filepos))
+			 length+extra_length+del_length,filepos))
       goto err;
     }
     else if (my_b_write(&info->rec_cache,(byte*) *record-head_length,
@@ -1412,10 +1412,7 @@ uint _mi_get_block_info(MI_BLOCK_INFO *info, File file, my_off_t filepos)
     VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
     if (my_read(file,(char*) header,sizeof(info->header),MYF(0)) !=
 	sizeof(info->header))
-    {
-      my_errno=HA_ERR_WRONG_IN_RECORD;
-      return BLOCK_FATAL_ERROR;
-    }
+      goto err;
   }
   DBUG_DUMP("header",(byte*) header,MI_BLOCK_INFO_HEADER_LENGTH);
   if (info->second_read)
@@ -1435,10 +1432,7 @@ uint _mi_get_block_info(MI_BLOCK_INFO *info, File file, my_off_t filepos)
     if ((info->block_len=(uint) mi_uint3korr(header+1)) <
 	MI_MIN_BLOCK_LENGTH ||
 	(info->block_len & (MI_DYN_ALIGN_SIZE -1)))
-    {
-      my_errno=HA_ERR_WRONG_IN_RECORD;
-      return BLOCK_ERROR;
-    }
+      goto err;
     info->filepos=filepos;
     info->next_filepos=mi_sizekorr(header+4);
     info->prev_filepos=mi_sizekorr(header+12);
@@ -1449,7 +1443,7 @@ uint _mi_get_block_info(MI_BLOCK_INFO *info, File file, my_off_t filepos)
 	(mi_uint4korr(header+12) != 0 &&
 	 (mi_uint4korr(header+12) != (ulong) ~0 ||
 	  info->prev_filepos != (ulong) ~0)))
-      return BLOCK_FATAL_ERROR;
+      goto err;
 #endif
     return return_val | BLOCK_DELETED;		/* Deleted block */
 
@@ -1529,8 +1523,9 @@ uint _mi_get_block_info(MI_BLOCK_INFO *info, File file, my_off_t filepos)
     info->second_read=1;
     info->filepos=filepos+12;
     return return_val;
-  default:
-    my_errno=HA_ERR_WRONG_IN_RECORD;	 /* Garbage */
-    return BLOCK_ERROR;
   }
+
+err:
+  my_errno=HA_ERR_WRONG_IN_RECORD;	 /* Garbage */
+  return BLOCK_ERROR;
 }
