@@ -102,3 +102,10 @@ select * from t1 procedure analyse();
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
 test.t1.v	"	\\	1	19	0	0	3.7619	NULL	ENUM('"','""','"c','\'\0\\"','\'','\'\'','\'b','a\0\0\0b','a\0','a""""b','a\'\'\'\'b','abc','abc\'def\\hij"klm\0opq','a\\\\\\\\b','b\'','c"','d\\','The\ZEnd','\\','\\d','\\\\') NOT NULL
 drop table t1;
+create table t1 (df decimal(5,1));
+insert into t1 values(1.1);
+insert into t1 values(2.2);
+select * from t1 procedure analyse();
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+test.t1.df	1.1	2.2	8	8	0	0	1.650000000	0.302500000	ENUM('1.1','2.2') NOT NULL
+drop table t1;
