@@ -212,3 +212,4 @@
 "DROP DATABASE não permitido enquanto uma 'thread' está assegurando um travamento global de leitura",
 "CREATE DATABASE não permitido enquanto uma 'thread' está assegurando um travamento global de leitura",
 "Wrong arguments to %s",
+"%-.32s@%-.64s is not allowed to create new users",

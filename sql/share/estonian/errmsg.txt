@@ -216,3 +216,4 @@
 "DROP DATABASE not allowed while thread is holding global read lock",
 "CREATE DATABASE not allowed while thread is holding global read lock",
 "Wrong arguments to %s",
+"%-.32s@%-.64s is not allowed to create new users",
