@@ -319,8 +319,8 @@ err:
  
 int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
 {
-  if(!index_file) return LOG_INFO_INVALID;
-  if(no_rotate) return LOG_INFO_PURGE_NO_ROTATE;
+  if (index_file < 0) return LOG_INFO_INVALID;
+  if (no_rotate) return LOG_INFO_PURGE_NO_ROTATE;
   int error;
   char fname[FN_REFLEN];
   char* fname_end, *p;
@@ -329,124 +329,131 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
   DYNAMIC_ARRAY logs_to_purge, logs_to_keep;
   my_off_t purge_offset ;
   LINT_INIT(purge_offset);
+  IO_CACHE io_cache;
+
   pthread_mutex_lock(&LOCK_index);
   
-  if(my_fseek(index_file, 0, MY_SEEK_SET,
-		MYF(MY_WME) ) == MY_FILEPOS_ERROR)
-    {
-      error = LOG_INFO_SEEK;
-      goto err;
-    }
-  
-  if(init_dynamic_array(&logs_to_purge, sizeof(char*), 1024, 1024))
-    {
-      error = LOG_INFO_MEM;
-      goto err;
-    }
+  if (init_io_cache(&io_cache,index_file, IO_SIZE*2, READ_CACHE, (my_off_t) 0,
+		    0, MYF(MY_WME)))
+  {
+    error = LOG_INFO_MEM;
+    goto err;
+  }
+  if (init_dynamic_array(&logs_to_purge, sizeof(char*), 1024, 1024))
+  {
+    error = LOG_INFO_MEM;
+    goto err;
+  }
   logs_to_purge_inited = 1;
   
-  if(init_dynamic_array(&logs_to_keep, sizeof(char*), 1024, 1024))
-    {
-      error = LOG_INFO_MEM;
-      goto err;
-    }
+  if (init_dynamic_array(&logs_to_keep, sizeof(char*), 1024, 1024))
+  {
+    error = LOG_INFO_MEM;
+    goto err;
+  }
   logs_to_keep_inited = 1;
 
   
   for(;;)
+  {
+    my_off_t init_purge_offset= my_b_tell(&io_cache);
+    if (!(fname_len=my_b_gets(&io_cache, fname, FN_REFLEN)))
     {
-      if(!fgets(fname, FN_REFLEN, index_file))
-	{
-	  if(feof(index_file))
-	    break;
-	  else
-	    error = LOG_INFO_IO;
-	  goto err;
-	}
-
-      *(fname_end = (strend(fname) - 1)) = 0; // kill \n
-      fname_len = (uint)(fname_end - fname);
-      
-      if(!memcmp(fname, to_log, fname_len + 1 ))
-	{
-	  found_log = 1;
-	  purge_offset = my_ftell(index_file, MYF(MY_WME)) - fname_len - 1;
-	}
-      
-      if(!found_log && log_in_use(fname))
-	// if one of the logs before the target is in use
-	{
-	  error = LOG_INFO_IN_USE;
-	  goto err;
-	}
-      
-      p = sql_memdup(fname, (uint)(fname_end - fname) + 1);
-      if((found_log) ?
-	  insert_dynamic(&logs_to_keep, (gptr) &p) :
-	  insert_dynamic(&logs_to_purge, (gptr) &p) 
-	 )
-	{
-	  error = LOG_INFO_MEM;
-	  goto err;
-	}
-     }
-  
-  if(!found_log)
-    {
-      error = LOG_INFO_EOF;
+      if(!io_cache.error)
+	break;
+      error = LOG_INFO_IO;
       goto err;
     }
+
+    fname[--fname_len]=0;			// kill \n
+    if(!memcmp(fname, to_log, fname_len + 1 ))
+    {
+      found_log = 1;
+      purge_offset = init_purge_offset;
+    }
+      
+    // if one of the logs before the target is in use
+    if(!found_log && log_in_use(fname))
+    {
+      error = LOG_INFO_IN_USE;
+      goto err;
+    }
+      
+    if (!(p = sql_memdup(fname, (uint)(fname_end - fname) + 1)) ||
+	insert_dynamic(found_log ? &logs_to_keep : &logs_to_purge,
+		       (gptr) &p))
+    {
+      error = LOG_INFO_MEM;
+      goto err;
+    }
+  }
+  
+  end_io_cache(&io_cache);
+  if(!found_log)
+  {
+    error = LOG_INFO_EOF;
+    goto err;
+  }
   
   for(i = 0; i < logs_to_purge.elements; i++)
-    {
-      char* l;
-      get_dynamic(&logs_to_purge, (gptr)&l, i);
-      if(my_delete(l, MYF(MY_WME)))
-	sql_print_error("Error deleting %s during purge", l);
-    }
+  {
+    char* l;
+    get_dynamic(&logs_to_purge, (gptr)&l, i);
+    if (my_delete(l, MYF(MY_WME)))
+      sql_print_error("Error deleting %s during purge", l);
+  }
   
   // if we get killed -9 here, the sysadmin would have to do a small
   // vi job on the log index file after restart - otherwise, this should
   // be safe
-  my_fclose(index_file, MYF(MY_WME));
-  if(!(index_file = my_fopen(index_file_name, O_BINARY|O_WRONLY,
-			     MYF(MY_WME))))
+#ifdef HAVE_FTRUNCATE
+  if (ftruncate(index_file,0))
+  {
+    sql_print_error("Ouch! Could not truncate the binlog index file \
+during log purge for write");
+    error = LOG_INFO_FATAL;
+    goto err;
+  }
+  my_seek(index_file, 0, MY_SEEK_CUR,MYF(MY_WME));
+#else
+  my_close(index_file, MYF(MY_WME));
+  my_delete(index_file_name, MYF(MY_WME));
+  if(!(index_file = my_open(index_file_name, O_BINARY | O_RDWR | O_APPEND,
+			    MYF(MY_WME))))
   {
     sql_print_error("Ouch! Could not re-open the binlog index file \
 during log purge for write");
     error = LOG_INFO_FATAL;
     goto err;
   }
+#endif
   
   for(i = 0; i < logs_to_keep.elements; i++)
-    {
-      char* l;
-      get_dynamic(&logs_to_keep, (gptr)&l, i);
-      fprintf(index_file, "%s\n", l);
-    }
-  my_fclose(index_file, MYF(MY_WME));
-  
-  if(!(index_file = my_fopen(index_file_name, O_BINARY|O_RDWR|O_APPEND,
-			     MYF(MY_WME))))
   {
-    sql_print_error("Ouch! Could not re-open the binlog index file \
-during log purge for append");
-    error = LOG_INFO_FATAL;
-    goto err;
+    char* l;
+    get_dynamic(&logs_to_keep, (gptr)&l, i);
+    if (my_write(index_file, l, strlen(l), MYF(MY_WME)) ||
+	my_write(index_file, "\n", 1, MYF(MY_WME)))
+    {
+      error = LOG_INFO_FATAL;
+      goto err;
+    }
   }
+
   // now update offsets
   adjust_linfo_offsets(purge_offset);
   error = 0;
+
 err:
   pthread_mutex_unlock(&LOCK_index);
   if(logs_to_purge_inited)
     delete_dynamic(&logs_to_purge);
   if(logs_to_keep_inited)
     delete_dynamic(&logs_to_keep);
-    
+  end_io_cache(&io_cache);
   return error;
-  
 }
+
 
 // we assume that buf has at least FN_REFLEN bytes alloced
 void MYSQL_LOG::make_log_name(char* buf, const char* log_ident)

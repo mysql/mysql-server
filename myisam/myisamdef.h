@@ -64,6 +64,7 @@ typedef struct st_mi_state_info
   ulonglong auto_increment;
   ulong process;			/* process that updated table last */
   ulong unique;				/* Unique number for this process */
+  ulong update_count;			/* Updated for each write lock */
   ulong status;
   my_off_t *key_root;			/* Start of key trees */
   my_off_t *key_del;			/* delete links for trees */

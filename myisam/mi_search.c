@@ -1214,7 +1214,11 @@ int _mi_search_next(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   DBUG_EXECUTE("key",_mi_print_key(DBUG_FILE,keyinfo->seg,key,key_length););
 
   /* Force full read if we are at last key or if we are not on a leaf
-     and the key tree has changed since we used it last time */
+     and the key tree has changed since we used it last time
+     Note that even if the key tree has changed since last read, we can use
+     the last read data from the leaf if we haven't used the buffer for
+     something else.
+  */
 
   if (((nextflag & SEARCH_BIGGER) && info->int_keypos >= info->int_maxpos) ||
       info->page_changed ||

@@ -16867,7 +16867,7 @@ This is an "RSA Data Security, Inc. MD5 Message-Digest Algorithm".
 @item LAST_INSERT_ID([expr])
 Returns the last automatically generated value that was inserted into an
 @code{AUTO_INCREMENT} column.
-@xref{mysql_insert_id,, @code{mysql_insert_id()}}:
+@xref{mysql_insert_id,, @code{mysql_insert_id()}}.
 
 @example
 mysql> select LAST_INSERT_ID();
@@ -17086,7 +17086,7 @@ mysql> select student_name, AVG(test_score)
 @itemx MAX(expr)
 Returns the minimum or maximum value of @code{expr}.  @code{MIN()} and
 @code{MAX()} may take a string argument; in such cases they return the
-minimum or maximum string value. @xref{MySQL indexes}:
+minimum or maximum string value. @xref{MySQL indexes}.
 
 @example
 mysql> select student_name, MIN(test_score), MAX(test_score)
@@ -19753,8 +19753,8 @@ The status variables listed above have the following meaning:
 @item @strong{Variable} @tab @strong{Meaning}
 @item @code{Aborted_clients} @tab Number of connections that has been aborted because the client has died without closing the connection properly.
 @item @code{Aborted_connects} @tab Number of tries to connect to the @strong{MySQL} server that has failed.
-@item @code{Bytes_received} @tab Number of bytes received from the client
-@item @code{Bytes_sent} @tab Number of bytes received from the client
+@item @code{Bytes_received} @tab Number of bytes received from all clients
+@item @code{Bytes_sent} @tab Number of bytes sent to all clients
 @item @code{Connections} @tab Number of connection attempts to the @strong{MySQL} server.
 @item @code{Created_tmp_disk_tables} @tab Number of implicit temporary tables on disk that have been created while executing statements.
 @item @code{Created_tmp_tables} @tab Number of implicit temporary tables in memory that have been created while executing statements.
