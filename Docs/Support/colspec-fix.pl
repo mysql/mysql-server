@@ -29,7 +29,8 @@ sub msg {
 
 sub rel2abs {
     my $str = shift;
-
+    my $colnum = 1;
+    
     my @widths = ();
     my $total  = 0;
     my $output = '';
@@ -45,7 +46,8 @@ sub rel2abs {
     my $unit = ($table_width - ($#widths * $gutter_width)) / ($total);
 
     foreach (@widths) {
-        $output .= $ws . '<colspec colwidth="'. sprintf ("%0.2f", $_ * $unit) .'cm" />' . "\n";
+        $output .= $ws . '<colspec colnum="'. $colnum .'" colwidth="'. sprintf ("%0.2f", $_ * $unit) .'cm" />' . "\n";
+        ++$colnum;
     }
     
     return $output . "\n$ws";
