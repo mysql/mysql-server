@@ -129,7 +129,7 @@ total_inc () {
 }
 
 report_stats () {
-    if [ $TOT_FAIL == 0 ]; then
+    if [ $TOT_FAIL = 0 ]; then
 	echo "All tests successful."
     else
 	echo -n "Failed ${TOT_FAIL}/${TOT_TEST} tests, "
@@ -146,10 +146,11 @@ report_stats () {
 }
 	
 mysql_install_db () {
-    if [ `$INSTALL_DB` ]; then
+    `$INSTALL_DB`
+    if [ $? != 0 ]; then
 	error "Could not install tmp DBs"
+	exit 1
     fi
-
     return 0
 }
 
@@ -201,13 +202,13 @@ mysql_start
 res=$?
 res=1
 [ $res != 1 ] && echo_notok && error "Starting mysqld"
-[ $res == 1 ] && echo_ok
+[ $res = 1 ] && echo_ok
 
 $SETCOLOR_NORMAL && echo -n "Loading Standard Test Database"
 mysql_loadstd
 res=$?
 [ $res != 1 ] && echo_notok && error "Loading STD"
-[ $res == 1 ] && echo_ok
+[ $res = 1 ] && echo_ok
 
 $SETCOLOR_NORMAL && echo -n "Starting Tests for MySQL $TESTVER Series"
 $SETCOLOR_SUCCESS && echo_ok
@@ -223,9 +224,9 @@ do
 
     tf=`basename $tf`
 
-    [ $res == 1 ] && mytime=`echo -ne $mytime | cut -b 39-` && mytime=${mytime// /\\t}
+    [ $res = 1 ] && mytime=`echo -ne $mytime | cut -b 39-` && mytime=${mytime// /\\t}
     $SETCOLOR_NORMAL && echo -ne "$tf\t\t$mytime"
-    [ $res == 1 ] && fail_inc && echo_fail 
+    [ $res = 1 ] && fail_inc && echo_fail 
     [ $res != 1 ] && pass_inc && echo_pass
 
     total_inc
@@ -251,7 +252,7 @@ mysql_stop
 res=$?
 res=1
 [ $res != 1 ] && echo_notok && error "Shutdown mysqld"
-[ $res == 1 ] && echo_ok
+[ $res = 1 ] && echo_ok
 
 $SETCOLOR_NORMAL
 
