@@ -879,6 +879,7 @@ int main()
 #
 
 MAX_C_OPTIMIZE="-O3"
+MAX_CXX_OPTIMIZE="-O3"
 
 case $SYSTEM_TYPE in
   *solaris2.7*)
@@ -946,6 +947,8 @@ case $SYSTEM_TYPE in
     then
       CFLAGS="$CFLAGS +DD64 -DHAVE_BROKEN_INLINE"
       CXXFLAGS="$CXXFLAGS +DD64 +O2"
+      MAX_C_OPTIMIZE=""
+      MAX_CXX_OPTIMIZE=""
     fi
     ;;
   *rhapsody*)
@@ -1404,7 +1407,7 @@ if test "$ac_cv_prog_cxx_g" = "yes"
 then
   DEBUG_CXXFLAGS="-g"
   DEBUG_OPTIMIZE_CXX="-O"
-  OPTIMIZE_CXXFLAGS="-O3"
+  OPTIMIZE_CXXFLAGS="$MAX_CXX_OPTIMIZE"
 else
   DEBUG_CXXFLAGS="-g"
   DEBUG_OPTIMIZE_CXX=""

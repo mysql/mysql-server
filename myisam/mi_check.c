@@ -3650,7 +3650,7 @@ void update_key_parts(MI_KEYDEF *keyinfo, ulong *rec_per_key_part,
 }
 
 
-ha_checksum mi_byte_checksum(const byte *buf, uint length)
+static ha_checksum mi_byte_checksum(const byte *buf, uint length)
 {
   ha_checksum crc;
   const byte *end=buf+length;

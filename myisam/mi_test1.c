@@ -57,7 +57,7 @@ int main(int argc,char *argv[])
 }
 
 
-int run_test(const char *filename)
+static int run_test(const char *filename)
 {
   MI_INFO *file;
   int i,j,error,deleted,rec_length,uniques=0;

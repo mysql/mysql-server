@@ -144,7 +144,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   bzero((char*) keyinfo,n_length);
   outparam->key_info=keyinfo;
   outparam->max_key_length= outparam->total_key_length= 0;
-  key_part= (KEY_PART_INFO*) (keyinfo+keys);
+  key_part= my_reinterpret_cast(KEY_PART_INFO*) (keyinfo+keys);
   strpos=disk_buff+6;
 
   ulong *rec_per_key;
