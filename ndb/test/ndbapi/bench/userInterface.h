@@ -101,7 +101,7 @@ extern "C" {
 typedef struct {
   struct Ndb_cluster_connection* pNCC;
   struct Ndb           * pNDB;
-  struct NdbConnection * pCurrTrans;
+  struct NdbTransaction * pCurrTrans;
 } UserHandle;
 
 /***************************************************************
