@@ -50448,6 +50448,9 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+@code{SET PASSWORD FOR ...} closed the connection in case of errors (bug
+from 4.0.3).
+@item
 Increased max possible @code{max_allowed_packet} in @code{mysqld} to 1G.
 @item
 Fixed bug when doing a multi-line @code{INSERT} on a table with an

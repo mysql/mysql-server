@@ -332,7 +332,7 @@ bool mysql_change_db(THD *thd,const char *name)
   int length, db_length;
   char *dbname=my_strdup((char*) name,MYF(MY_WME));
   char	path[FN_REFLEN];
-  uint db_access;
+  ulong db_access;
   DBUG_ENTER("mysql_change_db");
 
   if (!dbname || !(db_length=strip_sp(dbname)))
