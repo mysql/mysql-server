@@ -9818,7 +9818,7 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
     ops += 21;
   }
   
-  Uint32 left = scanPtr.p->scanNoFrag - scanPtr.p->scanNextFragId;
+  int left = scanPtr.p->scanNoFrag - scanPtr.p->scanNextFragId;
   Uint32 booked = scanPtr.p->m_booked_fragments_count;
   
   ScanTabConf * conf = (ScanTabConf*)&signal->theData[0];
@@ -9835,8 +9835,8 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
       ScanFragRecPtr curr = ptr; // Remove while iterating...
       queued.next(ptr);
       
-      bool done = curr.p->m_scan_frag_conf_status && (left == booked);
-      if(curr.p->m_scan_frag_conf_status && (booked < left))
+      bool done = curr.p->m_scan_frag_conf_status && (left <= (int)booked);
+      if(curr.p->m_scan_frag_conf_status && ((int)booked < left))
 	booked++;
       
       * ops++ = curr.p->m_apiPtr;
