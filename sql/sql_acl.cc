@@ -3889,12 +3889,13 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
   /* global privileges */
   grant->privilege= thd->master_access;
 
+  /* db privileges */
+  grant->privilege|= acl_get(thd->host, thd->ip, thd->priv_user, db, 0);
+
   /* if privileges ignored (--skip-grant-tables) above is enough */
   if (!grant_option)
     return;
 
-  /* db privileges */
-  grant->privilege|= acl_get(thd->host, thd->ip, thd->priv_user, db, 0);
   /* table privileges */
   if (grant->version != grant_version)
   {
