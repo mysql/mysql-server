@@ -2294,8 +2294,9 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
       if (found_matching_type)
 	if (found_free_node)
 	  error_string.appfmt("Connection done from wrong host ip %s.",
-			      inet_ntoa(((struct sockaddr_in *)
-					 (client_addr))->sin_addr));
+			      (client_addr)?
+			        inet_ntoa(((struct sockaddr_in *)
+					 (client_addr))->sin_addr):"");
 	else
 	  error_string.appfmt("No free node id found for %s.",
 			      type_string.c_str());
