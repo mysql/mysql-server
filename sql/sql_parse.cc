@@ -2704,6 +2704,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   DBUG_PRINT("enter",("want_access: %lu  master_access: %lu", want_access,
 		      thd->master_access));
   ulong db_access,dummy;
+  bool  db_is_pattern= test(want_access & GRANT_ACL);
   if (save_priv)
     *save_priv=0;
   else
@@ -2725,9 +2726,9 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     */
     db_access= thd->db_access;
     if (!(thd->master_access & SELECT_ACL) &&
-	(db && (!thd->db || strcmp(db,thd->db))))
+	(db && (!thd->db || db_is_pattern || strcmp(db,thd->db))))
       db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
-			thd->priv_user, db, test(want_access & GRANT_ACL));
+			thd->priv_user, db, db_is_pattern);
     *save_priv=thd->master_access | db_access;
     DBUG_RETURN(FALSE);
   }
@@ -2745,9 +2746,9 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   if (db == any_db)
     DBUG_RETURN(FALSE);				// Allow select on anything
 
-  if (db && (!thd->db || strcmp(db,thd->db)))
+  if (db && (!thd->db || db_is_pattern || strcmp(db,thd->db)))
     db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
-		      thd->priv_user, db, test(want_access & GRANT_ACL));
+		      thd->priv_user, db, db_is_pattern);
   else
     db_access=thd->db_access;
   // Remove SHOW attribute and access rights we already have
