@@ -59,7 +59,7 @@
 #endif
 
 void free_old_query(MYSQL *mysql);
-my_bool
+my_bool STDCALL
 emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const char *header, ulong header_length,
 		     const char *arg, ulong arg_length, my_bool skip_check);
@@ -78,6 +78,8 @@ void STDCALL cli_mysql_close(MYSQL *mysql);
 struct passwd *getpwuid(uid_t);
 char* getlogin(void);
 #endif
+
+extern char server_inited;
 
 #ifdef __WIN__
 static my_bool is_NT(void)
@@ -169,7 +171,7 @@ static inline int mysql_init_charset(MYSQL *mysql)
   else the lengths are calculated from the offset between pointers.
 **************************************************************************/
 
-static void emb_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
+static void STDCALL emb_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
 { 
   MYSQL_ROW end;
 
@@ -209,6 +211,20 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		      host ? host : "(Null)",
 		      db ? db : "(Null)",
 		      user ? user : "(Null)"));
+
+#ifdef EMBEDDED_LIBRARY
+  /*
+    Here we check that mysql_server_init was called before.
+    Actually we can perform the test for client (not embedded) library as well.
+    But i'm afraid some old applications will be broken then.
+  */
+  if (!server_inited)
+  {
+    mysql->net.last_errno=CR_MYSQL_SERVER_INIT_MISSED;
+    strmov(mysql->net.last_error,ER(mysql->net.last_errno));
+    goto error;
+  }
+#endif /*EMBEDDED_LIBRARY*/
 
   if (mysql->options.methods_to_use == MYSQL_OPT_USE_REMOTE_CONNECTION)
     cli_mysql_real_connect(mysql, host, user, 

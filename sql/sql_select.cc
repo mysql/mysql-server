@@ -117,10 +117,8 @@ static Item* part_of_refkey(TABLE *form,Field *field);
 static uint find_shortest_key(TABLE *table, key_map usable_keys);
 static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
 				    ha_rows select_limit, bool no_changes);
-static int create_sort_index(THD *thd, JOIN_TAB *tab,ORDER *order,
+static int create_sort_index(THD *thd, JOIN *join, ORDER *order,
 			     ha_rows filesort_limit, ha_rows select_limit);
-static int create_sort_index(THD *thd, JOIN_TAB *tab,ORDER *order,
-			     ha_rows select_limit);
 static int remove_duplicates(JOIN *join,TABLE *entry,List<Item> &fields,
 			     Item *having);
 static int remove_dup_with_compare(THD *thd, TABLE *entry, Field **field,
@@ -326,8 +324,8 @@ JOIN::prepare(Item ***rref_pointer_array,
     {
       Item_subselect::trans_res res;
       if ((res= subselect->select_transformer(this)) !=
-	  Item_subselect::OK)
-	DBUG_RETURN((res == Item_subselect::ERROR));
+	  Item_subselect::RES_OK)
+	DBUG_RETURN((res == Item_subselect::RES_ERROR));
     }
   }
 
@@ -916,7 +914,7 @@ JOIN::optimize()
     {
       DBUG_PRINT("info",("Sorting for group"));
       thd->proc_info="Sorting for group";
-      if (create_sort_index(thd, &join_tab[const_tables], group_list,
+      if (create_sort_index(thd, this, group_list,
 			    HA_POS_ERROR, HA_POS_ERROR) ||
 	  alloc_group_fields(this, group_list) ||
 	  make_sum_func_list(all_fields, fields_list, 1))
@@ -931,7 +929,7 @@ JOIN::optimize()
       {
 	DBUG_PRINT("info",("Sorting for order"));
 	thd->proc_info="Sorting for order";
-	if (create_sort_index(thd, &join_tab[const_tables], order,
+	if (create_sort_index(thd, this, order,
                               HA_POS_ERROR, HA_POS_ERROR))
 	  DBUG_RETURN(1);
 	order=0;
@@ -1005,12 +1003,6 @@ JOIN::reinit()
   
   /* Reset of sum functions */
   first_record= 0;
-  if (sum_funcs)
-  {
-    Item_sum *func, **func_ptr= sum_funcs;
-    while ((func= *(func_ptr++)))
-      func->null_value= 1;
-  }
 
   if (exec_tmp_table1)
   {
@@ -1045,6 +1037,7 @@ JOIN::exec()
   DBUG_ENTER("JOIN::exec");
   
   error= 0;
+  thd->limit_found_rows= thd->examined_row_count= 0;
   if (procedure)
   {
     if (procedure->change_columns(fields_list) ||
@@ -1235,7 +1228,7 @@ JOIN::exec()
       if (curr_join->group_list)
       {
 	thd->proc_info= "Creating sort index";
-	if (create_sort_index(thd, curr_join->join_tab, curr_join->group_list,
+	if (create_sort_index(thd, curr_join, curr_join->group_list,
 			      HA_POS_ERROR, HA_POS_ERROR) ||
 	    make_group_fields(this, curr_join))
 	{
@@ -1416,7 +1409,7 @@ JOIN::exec()
 	  }
 	}
       }
-      if (create_sort_index(thd, &curr_join->join_tab[curr_join->const_tables],
+      if (create_sort_index(thd, curr_join,
 			    curr_join->group_list ? 
 			    curr_join->group_list : curr_join->order,
 			    curr_join->select_limit, unit->select_limit_cnt))
@@ -1427,6 +1420,8 @@ JOIN::exec()
   thd->proc_info="Sending data";
   error= thd->net.report_error ||
     do_select(curr_join, curr_fields_list, NULL, procedure);
+  thd->limit_found_rows= curr_join->send_records;
+  thd->examined_row_count= curr_join->examined_rows;
   DBUG_VOID_RETURN;
 }
 
@@ -1549,8 +1544,6 @@ err:
 		      (join->tmp_join->error=join->error,join->tmp_join):
 		      join);
     
-    thd->limit_found_rows= curr_join->send_records;
-    thd->examined_row_count= curr_join->examined_rows;
     thd->proc_info="end";
     err= join->cleanup();
     if (thd->net.report_error)
@@ -2461,7 +2454,7 @@ static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
       Constant tables are ignored.
       To avoid bad matches, we don't make ref_table_rows less than 100.
     */
-    keyuse->ref_table_rows= ~(table_map) 0;	// If no ref
+    keyuse->ref_table_rows= ~(ha_rows) 0;	// If no ref
     if (keyuse->used_tables &
 	(map= (keyuse->used_tables & ~join->const_table_map &
 	       ~OUTER_REF_TABLE_BIT)))
@@ -4796,7 +4789,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
     for (; group ; group=group->next,key_part_info++)
     {
-      Field *field=(*group->item)->tmp_table_field();
+      Field *field=(*group->item)->get_tmp_table_field();
       bool maybe_null=(*group->item)->maybe_null;
       key_part_info->null_bit=0;
       key_part_info->field=  field;
@@ -5980,8 +5973,7 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  if (!join->first_record)
 	  {
 	    /* No matching rows for group function */
-	    clear_tables(join);
-	    copy_fields(&join->tmp_table_param);
+	    join->clear();
 	  }
 	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
@@ -6065,7 +6057,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	Item *item= *group->item;
 	if (item->maybe_null)
 	{
-	  Field *field=item->tmp_table_field();
+	  Field *field=item->get_tmp_table_field();
 	  field->ptr[-1]= (byte) (field->is_null() ? 1 : 0);
 	}
       }
@@ -6247,8 +6239,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	if (!join->first_record)
 	{
 	  /* No matching rows for group function */
-	  clear_tables(join);
-	  copy_fields(&join->tmp_table_param);
+	  join->clear();
 	}
 	copy_sum_funcs(join->sum_funcs);
 	if (!join->having || join->having->val_int())
@@ -6770,15 +6761,22 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 */
 
 static int
-create_sort_index(THD *thd, JOIN_TAB *tab, ORDER *order,
+create_sort_index(THD *thd, JOIN *join, ORDER *order,
 		  ha_rows filesort_limit, ha_rows select_limit)
 {
   SORT_FIELD *sortorder;
   uint length;
   ha_rows examined_rows;
-  TABLE *table=tab->table;
-  SQL_SELECT *select=tab->select;
+  TABLE *table;
+  SQL_SELECT *select;
+  JOIN_TAB *tab;
   DBUG_ENTER("create_sort_index");
+
+  if (join->tables == join->const_tables)
+    DBUG_RETURN(0);				// One row, no need to sort
+  tab=    join->join_tab + join->const_tables;
+  table=  tab->table;
+  select= tab->select;
 
   if (test_if_skip_sort_order(tab,order,select_limit,0))
     DBUG_RETURN(0);
@@ -6928,7 +6926,7 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
   Item *item;
   while ((item=it++))
   {
-    if (item->tmp_table_field() && ! item->const_item())
+    if (item->get_tmp_table_field() && ! item->const_item())
       field_count++;
   }
 
@@ -7164,7 +7162,7 @@ SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length)
       pos->field= ((Item_field*) (*order->item))->field;
     else if (order->item[0]->type() == Item::SUM_FUNC_ITEM &&
 	     !order->item[0]->const_item())
-      pos->field= ((Item_sum*) order->item[0])->tmp_table_field();
+      pos->field= ((Item_sum*) order->item[0])->get_tmp_table_field();
     else if (order->item[0]->type() == Item::COPY_STR_ITEM)
     {						// Blob patch
       pos->item= ((Item_copy_string*) (*order->item))->item;
@@ -7761,7 +7759,7 @@ calc_group_buffer(JOIN *join,ORDER *group)
     join->group= 1;
   for (; group ; group=group->next)
   {
-    Field *field=(*group->item)->tmp_table_field();
+    Field *field=(*group->item)->get_tmp_table_field();
     if (field)
     {
       if (field->type() == FIELD_TYPE_BLOB)
@@ -8105,7 +8103,7 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
       {
 	item_field= item->get_tmp_table_item(thd);
       }
-      else if ((field= item->tmp_table_field()))
+      else if ((field= item->get_tmp_table_field()))
       {
 	if (item->type() == Item::SUM_FUNC_ITEM && field->table->group)
 	  item_field= ((Item_sum*) item)->result_item(field);
@@ -8536,6 +8534,26 @@ int JOIN::rollup_send_data(uint idx)
   return 0;
 }
 
+/*
+  clear results if there are not rows found for group
+  (end_send_group/end_write_group)
+
+  SYNOPSYS
+     JOIN::clear()
+*/
+
+void JOIN::clear()
+{
+  clear_tables(this);
+  copy_fields(&tmp_table_param);
+
+  if (sum_funcs)
+  {
+    Item_sum *func, **func_ptr= sum_funcs;
+    while ((func= *(func_ptr++)))
+      func->clear();
+  }
+}
 
 /****************************************************************************
   EXPLAIN handling

@@ -108,7 +108,7 @@ then
   c_u="$c_u CREATE TABLE user ("
   c_u="$c_u   Host char(60) binary DEFAULT '' NOT NULL,"
   c_u="$c_u   User char(16) binary DEFAULT '' NOT NULL,"
-  c_u="$c_u   Password char(45) binary DEFAULT '' NOT NULL,"
+  c_u="$c_u   Password char(41) binary DEFAULT '' NOT NULL,"
   c_u="$c_u   Select_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Insert_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Update_priv enum('N','Y') DEFAULT 'N' NOT NULL,"

@@ -77,3 +77,14 @@ select product, country_id , year, sum(profit) from t1 group by product, country
 
 drop table t1,t2;
 
+#
+# Test bug with const tables
+#
+
+CREATE TABLE t1 (i int);
+INSERT INTO t1 VALUES(100);
+CREATE TABLE t2 (i int);
+INSERT INTO t2 VALUES (100),(200);
+SELECT i, COUNT(*) FROM t1 GROUP BY i WITH ROLLUP;
+SELECT t1.i, t2.i, COUNT(*) FROM t1,t2 GROUP BY t1.i,t2.i WITH ROLLUP;
+drop table t1,t2;

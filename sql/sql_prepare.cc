@@ -873,11 +873,21 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),WAIT_PRIOR);
+
+  // save WHERE clause pointers to avoid damaging they by optimisation
+  for (SELECT_LEX *sl= thd->lex.all_selects_list;
+       sl;
+       sl= sl->next_select_in_list())
+  {
+    sl->prep_where= sl->where;
+  }
+
   
   if (init_param_items(&stmt))
     goto err;
+
   
-  stmt.mem_root= stmt.thd->mem_root;  
+  stmt.mem_root= stmt.thd->mem_root;
   tree_insert(&thd->prepared_statements, (void *)&stmt, 0, (void *)0);
   thd->mem_root= thd_root; // restore main mem_root
   DBUG_RETURN(0);
@@ -919,6 +929,16 @@ void mysql_stmt_execute(THD *thd, char *packet)
 
   LEX thd_lex= thd->lex;
   thd->lex= stmt->lex;
+  
+  for (SELECT_LEX *sl= stmt->lex.all_selects_list;
+       sl;
+       sl= sl->next_select_in_list())
+  {
+    // copy WHERE clause pointers to avoid damaging they by optimisation
+    if (sl->prep_where)
+      sl->where= sl->prep_where->copy_andor_structure(thd);
+    DBUG_ASSERT(sl->join == 0);
+  }
   init_stmt_execute(stmt);
 
   if (stmt->param_count && setup_params_data(stmt))

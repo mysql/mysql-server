@@ -1,10 +1,22 @@
+-- This script converts any old privilege tables to privilege tables suitable
+-- for MySQL 4.0.
+
+-- You can safely ignore all 'Duplicate column' and 'Unknown column' errors"
+-- as this just means that your tables where already up to date.
+-- This script is safe to run even if your tables are already up to date!
+
+-- On unix, you should use the mysql_fix_privilege_tables script to execute
+-- this sql script.
+-- On windows you should do 'mysql --force < mysql_fix_privilege_tables.sql'
+
+USE mysql;
 ALTER TABLE user type=MyISAM;
 ALTER TABLE db type=MyISAM;
 ALTER TABLE host type=MyISAM;
 ALTER TABLE func type=MyISAM;
 ALTER TABLE columns_priv type=MyISAM;
 ALTER TABLE tables_priv type=MyISAM;
-ALTER TABLE user change Password Password char(45) not null;
+ALTER TABLE user change Password Password char(41) not null;
 ALTER TABLE user add File_priv enum('N','Y') NOT NULL;
 CREATE TABLE IF NOT EXISTS func (
   name char(64) DEFAULT '' NOT NULL,

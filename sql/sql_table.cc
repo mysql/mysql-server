@@ -350,10 +350,10 @@ static int sort_keys(KEY *a, KEY *b)
     fields		List of fields to create
     keys		List of keys to create
     tmp_table		Set to 1 if this is an internal temporary table
-			(From ALTER TABLE)    
+			(From ALTER TABLE)
     no_log		Don't log the query to binary log.
 
-  DESCRIPTION		       
+  DESCRIPTION
     If one creates a temporary table, this is automaticly opened
 
     no_log is needed for the case of CREATE ... SELECT,
@@ -672,11 +672,11 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     /*
        Make SPATIAL to be RTREE by default
        SPATIAL only on BLOB or at least BINARY, this
-       actually should be replaced by special GEOM type 
+       actually should be replaced by special GEOM type
        in near future when new frm file is ready
        checking for proper key parts number:
     */
-   
+
     if (key_info->flags == HA_SPATIAL)
     {
       if (key_info->key_parts != 1)
@@ -699,7 +699,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 		      MYF(0), "RTREE INDEX");
       DBUG_RETURN(-1);
     }
-    
+
     List_iterator<key_part_spec> cols(key->columns);
     for (uint column_nr=0 ; (column=cols++) ; column_nr++)
     {
@@ -745,9 +745,9 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       {
 	if (!column->length )
 	{
-	  /* 
+	  /*
           BAR: 4 is: (Xmin,Xmax,Ymin,Ymax), this is for 2D case
-               Lately we'll extend this code to support more dimensions 
+               Lately we'll extend this code to support more dimensions
           */
           column->length=4*sizeof(double);
 	}
@@ -798,7 +798,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	{
 	}
 	else if (column->length > length ||
-		 ((f_is_packed(sql_field->pack_flag) || 
+		 ((f_is_packed(sql_field->pack_flag) ||
 		   ((file->table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
 		    (key_info->flags & HA_NOSAME))) &&
 		  column->length != length))
@@ -899,16 +899,18 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
     DBUG_RETURN(-1);
   }
+  if (wait_if_global_read_lock(thd, 0))
+    DBUG_RETURN(error);
   VOID(pthread_mutex_lock(&LOCK_open));
   if (!tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
     if (!access(path,F_OK))
     {
-      VOID(pthread_mutex_unlock(&LOCK_open));
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-	DBUG_RETURN(0);
-      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
-      DBUG_RETURN(-1);
+	error= 0;
+      else
+	my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
+      goto end;
     }
   }
 
@@ -946,6 +948,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   error=0;
 end:
   VOID(pthread_mutex_unlock(&LOCK_open));
+  start_waiting_global_read_lock(thd);
   thd->proc_info="After create";
   DBUG_RETURN(error);
 }
@@ -2558,7 +2561,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       delete_count++;
     }
     else
-      found_count++;    
+      found_count++;
   }
   end_read_record(&info);
   free_io_cache(from);
@@ -2590,3 +2593,103 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   *deleted=delete_count;
   DBUG_RETURN(error > 0 ? -1 : 0);
 }
+
+int mysql_checksum_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT *check_opt)
+{
+  TABLE_LIST *table;
+  List<Item> field_list;
+  Item *item;
+  Protocol *protocol= thd->protocol;
+  DBUG_ENTER("mysql_admin_table");
+
+  field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
+  item->maybe_null= 1;
+  field_list.push_back(item=new Item_int("Checksum",(longlong) 1,21));
+  item->maybe_null= 1;
+  if (protocol->send_fields(&field_list, 1))
+    DBUG_RETURN(-1);
+
+  for (table = tables; table; table = table->next)
+  {
+    char table_name[NAME_LEN*2+2];
+    char* db = (table->db) ? table->db : thd->db;
+    bool fatal_error=0;
+    TABLE *t;
+    strxmov(table_name,db ? db : "",".",table->real_name,NullS);
+
+    t=table->table = open_ltable(thd, table, TL_READ_NO_INSERT);
+#ifdef EMBEDDED_LIBRARY
+    thd->net.last_errno= 0;  // these errors shouldn't get client
+#endif
+
+    protocol->prepare_for_resend();
+    protocol->store(table_name, system_charset_info);
+
+    if (!t)
+    {
+      protocol->store_null();
+      thd->net.last_error[0]=0;
+    }
+    else
+    {
+      t->pos_in_table_list= table;
+
+      if (t->file->table_flags() & HA_HAS_CHECKSUM &&
+          !(check_opt->flags & T_EXTEND))
+        protocol->store((ulonglong)t->file->checksum());
+      else if (!(t->file->table_flags() & HA_HAS_CHECKSUM) &&
+          check_opt->flags & T_QUICK)
+        protocol->store_null();
+      else
+      {
+        /* calculating table's checksum */
+        ha_checksum crc=0;
+        if (t->file->rnd_init(1))
+          protocol->store_null();
+        else
+        {
+          while (!t->file->rnd_next(t->record[0]))
+          {
+            ha_checksum row_crc=0;
+            if (t->record[0] != t->field[0]->ptr)
+              row_crc=my_checksum(row_crc, t->record[0],
+                                  t->field[0]->ptr - t->record[0]);
+
+            for (uint i=0; i < t->fields; i++ )
+            {
+              Field *f=t->field[i];
+              if (f->type() == FIELD_TYPE_BLOB)
+              {
+                String tmp;
+                f->val_str(&tmp,&tmp);
+                row_crc=my_checksum(row_crc, tmp.ptr(), tmp.length());
+              }
+              else
+                row_crc=my_checksum(row_crc, f->ptr, f->pack_length());
+            }
+
+            crc+=row_crc;
+          }
+          protocol->store((ulonglong)crc);
+        }
+      }
+#ifdef EMBEDDED_LIBRARY
+      thd->net.last_errno= 0;  // these errors shouldn't get client
+#endif
+
+      close_thread_tables(thd);
+      table->table=0;				// For query cache
+    }
+    if (protocol->write())
+      goto err;
+  }
+
+  send_eof(thd);
+  DBUG_RETURN(0);
+ err:
+  close_thread_tables(thd);			// Shouldn't be needed
+  if (table)
+    table->table=0;
+  DBUG_RETURN(-1);
+}
+

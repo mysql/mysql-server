@@ -901,3 +901,36 @@ insert into t3 values (1),(2),(10),(50);
 select a from t3 where t3.a in (select a from t1 where a <= 3 union select * from t2 where a <= 30);
 drop table t1,t2;
 
+#
+# collation test
+#
+CREATE TABLE t1 (s1 CHAR(5) COLLATE latin1_german1_ci,
+                 s2 CHAR(5) COLLATE latin1_swedish_ci);
+INSERT INTO t1 VALUES ('z','?');
+-- error 1266
+select * from t1 where s1 > (select max(s2) from t1);
+-- error 1266
+select * from t1 where s1 > any (select max(s2) from t1);
+drop table t1;
+
+#
+# aggregate functions reinitialization
+#
+create table t1(toid int,rd int);
+create table t2(userid int,pmnew int,pmtotal int);
+insert into t2 values(1,0,0),(2,0,0);
+insert into t1 values(1,0),(1,0),(1,0),(1,12),(1,15),(1,123),(1,12312),(1,12312),(1,123),(2,0),(2,0),(2,1),(2,2);
+select userid,pmtotal,pmnew, (select count(rd) from t1 where toid=t2.userid) calc_total, (select count(rd) from t1 where rd=0 and toid=t2.userid) calc_new from t2 where userid in (select distinct toid from t1);
+drop table t1, t2;
+
+#
+# row union
+#
+create table t1 (s1 char(5));
+-- error 1240
+select (select 'a','b' from t1 union select 'a','b' from t1) from t1;
+insert into t1 values ('tttt');
+select * from t1 where ('a','b')=(select 'a','b' from t1 union select 'a','b' from t1);
+explain (select * from t1);
+(select * from t1);
+drop table t1;

@@ -15,7 +15,3 @@ truncate table t1;
 load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' LINES STARTING BY ',' (b,c,d);
 SELECT * from t1;
 drop table t1;
-
-
-
-

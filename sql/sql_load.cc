@@ -77,9 +77,6 @@ static int read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
 			  List<Item> &fields, READ_INFO &read_info,
 			  String &enclosed);
 
-
-#ifndef EMBEDDED_LIBRARY
-
 int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	       List<Item> &fields, enum enum_duplicates handle_duplicates,
 	       bool read_file_from_client,thr_lock_type lock_type)
@@ -91,7 +88,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   String *field_term=ex->field_term,*escaped=ex->escaped,
     *enclosed=ex->enclosed;
   bool is_fifo=0;
+#ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
+#endif
   char *db = table_list->db;			// This is never null
   /* If no current database, use database where table is located */
   char *tdb= thd->db ? thd->db : db;
@@ -184,6 +183,17 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     }
     else
     {
+#ifdef EMBEDDED_LIBRARY
+      char *chk_name= ex->file_name;
+      while ((*chk_name == ' ') || (*chk_name == 't'))
+	chk_name++;
+      if (*chk_name == FN_CURLIB)
+      {
+	sprintf(name, "%s%s", mysql_data_home, ex->file_name);
+	unpack_filename(name, name);
+      }
+      else
+#endif /*EMBEDDED_LIBRARY*/
       unpack_filename(name,ex->file_name);
 #if !defined(__WIN__) && !defined(OS2) && ! defined(__NETWARE__)
       MY_STAT stat_info;
@@ -225,6 +235,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     DBUG_RETURN(-1);				// Can't allocate buffers
   }
 
+#ifndef EMBEDDED_LIBRARY
   if (!opt_old_rpl_compat && mysql_bin_log.is_open())
   {
     lf_info.thd = thd;
@@ -238,6 +249,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     lf_info.log_delayed= log_delayed;
     read_info.set_io_cache_arg((void*) &lf_info);
   }
+#endif /*!EMBEDDED_LIBRARY*/
+
   restore_record(table,default_values);
 
   thd->count_cuted_fields=1;			/* calc cuted fields */
@@ -293,6 +306,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   {
     if (transactional_table)
       ha_autocommit_or_rollback(thd,error);
+#ifndef EMBEDDED_LIBRARY
     if (!opt_old_rpl_compat && mysql_bin_log.is_open())
     {
       if (lf_info.wrote_create_file)
@@ -315,6 +329,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
         mysql_bin_log.write(&d);
       }
     }
+#endif /*!EMBEDDED_LIBRARY*/
     error= -1;				// Error on read
     goto err;
   }
@@ -327,6 +342,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (!log_delayed)
     thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
+#ifndef EMBEDDED_LIBRARY
   if (mysql_bin_log.is_open())
   {
     if (opt_old_rpl_compat)
@@ -348,6 +364,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       }
     }
   }
+#endif /*!EMBEDDED_LIBRARY*/
   if (transactional_table)
     error=ha_autocommit_or_rollback(thd,error); 
 err:
@@ -358,8 +375,6 @@ err:
   }
   DBUG_RETURN(error);
 }
-
-#endif /* EMBEDDED_LIBRARY */
 
 /****************************************************************************
 ** Read of rows of fixed size + optional garage + optonal newline
@@ -640,11 +655,12 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 	mysys/mf_iocache.c. So we work around the problem with a
 	manual assignment
       */
+      need_end_io_cache = 1;
+
+#ifndef EMBEDDED_LIBRARY
       if (get_it_from_net)
 	cache.read_function = _my_b_net_read;
 
-      need_end_io_cache = 1;
-#ifndef EMBEDDED_LIBRARY
       if (!opt_old_rpl_compat && mysql_bin_log.is_open())
 	cache.pre_read = cache.pre_close =
 	  (IO_CACHE_CALLBACK) log_loaded_block;

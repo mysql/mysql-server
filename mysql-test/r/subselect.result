@@ -1355,3 +1355,34 @@ a
 2
 10
 drop table t1,t2;
+CREATE TABLE t1 (s1 CHAR(5) COLLATE latin1_german1_ci,
+s2 CHAR(5) COLLATE latin1_swedish_ci);
+INSERT INTO t1 VALUES ('z','?');
+select * from t1 where s1 > (select max(s2) from t1);
+ERROR HY000: Illegal mix of collations (latin1_german1_ci,IMPLICIT) and (latin1_swedish_ci,IMPLICIT) for operation '>'
+select * from t1 where s1 > any (select max(s2) from t1);
+ERROR HY000: Illegal mix of collations (latin1_german1_ci,IMPLICIT) and (latin1_swedish_ci,IMPLICIT) for operation '>'
+drop table t1;
+create table t1(toid int,rd int);
+create table t2(userid int,pmnew int,pmtotal int);
+insert into t2 values(1,0,0),(2,0,0);
+insert into t1 values(1,0),(1,0),(1,0),(1,12),(1,15),(1,123),(1,12312),(1,12312),(1,123),(2,0),(2,0),(2,1),(2,2);
+select userid,pmtotal,pmnew, (select count(rd) from t1 where toid=t2.userid) calc_total, (select count(rd) from t1 where rd=0 and toid=t2.userid) calc_new from t2 where userid in (select distinct toid from t1);
+userid	pmtotal	pmnew	calc_total	calc_new
+1	0	0	9	3
+2	0	0	4	2
+drop table t1, t2;
+create table t1 (s1 char(5));
+select (select 'a','b' from t1 union select 'a','b' from t1) from t1;
+ERROR 21000: Cardinality error (more/less than 1 columns)
+insert into t1 values ('tttt');
+select * from t1 where ('a','b')=(select 'a','b' from t1 union select 'a','b' from t1);
+s1
+tttt
+explain (select * from t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+(select * from t1);
+s1
+tttt
+drop table t1;

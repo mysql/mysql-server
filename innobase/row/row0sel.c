@@ -2170,7 +2170,7 @@ row_sel_store_mysql_rec(
 	ulint			len;
 	byte*			blob_buf;
 	ulint			i;
-	
+
 	ut_ad(prebuilt->mysql_template);
 
 	if (prebuilt->blob_heap != NULL) {
@@ -2178,9 +2178,9 @@ row_sel_store_mysql_rec(
 		prebuilt->blob_heap = NULL;
 	}
 
-	/* Mark all columns as not SQL NULL */
+	/* Mark all columns as SQL NULL */
 
-	memset(mysql_rec, '\0', prebuilt->null_bitmap_len);
+	memset(mysql_rec, 255, prebuilt->null_bitmap_len);
 
 	for (i = 0; i < prebuilt->n_template; i++) {
 
@@ -2235,16 +2235,21 @@ row_sel_store_mysql_rec(
 
 				data = blob_buf;
 			}
-		
+
 			row_sel_field_store_in_mysql_format(
 				mysql_rec + templ->mysql_col_offset,
 				templ->mysql_col_len, data, len,
 				templ->type, templ->is_unsigned);
 
 			if (extern_field_heap) {
- 				mem_heap_free(extern_field_heap);
+				mem_heap_free(extern_field_heap);
 				extern_field_heap = NULL;
- 			}
+			}
+
+			if (templ->mysql_null_bit_mask) {
+				mysql_rec[templ->mysql_null_byte_offset] &=
+					~(byte) (templ->mysql_null_bit_mask);
+			}
 		} else {
 		        /* MySQL seems to assume the field for an SQL NULL
 		        value is set to zero. Not taking this into account
@@ -2252,19 +2257,13 @@ row_sel_store_mysql_rec(
 		        bug number 154 in the MySQL bug database: GROUP BY
 		        and DISTINCT could treat NULL values inequal. */
 
-		        memset(mysql_rec + templ->mysql_col_offset, '\0',
+		        memset(mysql_rec + templ->mysql_col_offset,
+                            ((templ->type == DATA_VARCHAR  ||
+                              templ->type == DATA_VARMYSQL ||
+                              templ->type == DATA_BINARY) ? ' ' : '\0'),
 			       templ->mysql_col_len);
-
-			if (!templ->mysql_null_bit_mask) {
-				fprintf(stderr,
-"InnoDB: Error: trying to return an SQL NULL field in a non-null\n"
-"innoDB: column! Table name %s\n", prebuilt->table->name);
-			} else {
-				mysql_rec[templ->mysql_null_byte_offset] |=
-					(byte) (templ->mysql_null_bit_mask);
-			}
 		}
-	} 
+	}
 
 	return(TRUE);
 }

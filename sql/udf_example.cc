@@ -149,6 +149,7 @@ longlong sequence(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 my_bool avgcost_init( UDF_INIT* initid, UDF_ARGS* args, char* message );
 void avgcost_deinit( UDF_INIT* initid );
 void avgcost_reset( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
+void avgcost_clear( UDF_INIT* initid, char* is_null, char *error );
 void avgcost_add( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
 double avgcost( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
 }
@@ -902,21 +903,29 @@ avgcost_deinit( UDF_INIT* initid )
   delete initid->ptr;
 }
 
+
+/* This is only for MySQL 4.0 compability */
 void
-avgcost_reset( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char* message )
+avgcost_reset(UDF_INIT* initid, UDF_ARGS* args, char* is_null, char* message)
+{
+  avgcost_clear(initid, is_null, message);
+  avgcost_add(initid, args, is_null, message);
+}
+
+/* This is needed to get things to work in MySQL 4.1.1 and above */
+
+void
+avgcost_clear(UDF_INIT* initid, char* is_null, char* message)
 {
   struct avgcost_data* data = (struct avgcost_data*)initid->ptr;
-  data->totalprice	= 0.0;
-  data->totalquantity	= 0;
-  data->count			= 0;
-
-  *is_null = 0;
-  avgcost_add( initid, args, is_null, message );
+  data->totalprice=	0.0;
+  data->totalquantity=	0;
+  data->count=		0;
 }
 
 
 void
-avgcost_add( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char* message )
+avgcost_add(UDF_INIT* initid, UDF_ARGS* args, char* is_null, char* message)
 {
   if (args->args[0] && args->args[1])
   {

@@ -689,6 +689,9 @@ public:
   }
 };
 
+/* updated in sql_acl.cc */
+
+extern sys_var_thd_bool sys_old_passwords;
 
 /* For sql_yacc */
 struct sys_var_with_base
