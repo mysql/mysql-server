@@ -2687,7 +2687,7 @@ static void handle_connections_methods()
       (!have_tcpip || opt_disable_networking) &&
       !opt_enable_shared_memory)
   {
-    sql_print_error("TCP/IP,--shared-memory or --named-pipe should be configured on NT OS");
+    sql_print_error("TCP/IP, --shared-memory, or --named-pipe should be configured on NT OS");
     unireg_abort(1);				// Will not return
   }
 #endif
