@@ -1916,6 +1916,7 @@ INSERT INTO t1(`IZAVORGANG_ID`,`KUERZEL`,`IZAANALYSEART_ID`,`IZAPMKZ_ID`)VALUES(
 SELECT `IZAVORGANG_ID` FROM t1 WHERE `KUERZEL` IN(SELECT MIN(`KUERZEL`)`Feld1` FROM t1 WHERE `KUERZEL` LIKE'601%'And`IZAANALYSEART_ID`='D0000000001');
 IZAVORGANG_ID
 D0000000001
+drop table t1;
 CREATE TABLE `t1` ( `aid` int(11) NOT NULL default '0', `bid` int(11) NOT NULL default '0', PRIMARY KEY  (`aid`,`bid`));
 CREATE TABLE `t2` ( `aid` int(11) NOT NULL default '0', `bid` int(11) NOT NULL default '0', PRIMARY KEY  (`aid`,`bid`));
 insert into t1 values (1,1),(1,2),(2,1),(2,2);
