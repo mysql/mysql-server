@@ -47,6 +47,7 @@ my_bool _hash_init(HASH *hash, CHARSET_INFO *charset,
 		   uint key_length, hash_get_key get_key,
 		   void (*free_element)(void*), uint flags CALLER_INFO_PROTO);
 void hash_free(HASH *tree);
+void hash_reset(HASH *hash);
 byte *hash_element(HASH *hash,uint idx);
 gptr hash_search(HASH *info,const byte *key,uint length);
 gptr hash_next(HASH *info,const byte *key,uint length);

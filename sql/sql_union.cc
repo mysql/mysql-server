@@ -346,6 +346,7 @@ int st_select_lex_unit::exec()
   SELECT_LEX *lex_select_save= thd->lex->current_select;
   SELECT_LEX *select_cursor=first_select_in_union();
   ulonglong add_rows=0;
+  ha_rows examined_rows= 0;
   DBUG_ENTER("st_select_lex_unit::exec");
 
   if (executed && !uncacheable && !describe)
@@ -426,6 +427,7 @@ int st_select_lex_unit::exec()
 	offset_limit_cnt= sl->offset_limit;
 	if (!res && union_result->flush())
 	{
+          examined_rows+= thd->examined_row_count;
 	  thd->lex->current_select= lex_select_save;
 	  DBUG_RETURN(1);
 	}
@@ -502,7 +504,10 @@ int st_select_lex_unit::exec()
 
       fake_select_lex->table_list.empty();
       if (!res)
+      {
 	thd->limit_found_rows = (ulonglong)table->file->records + add_rows;
+        thd->examined_row_count+= examined_rows;
+      }
       /*
 	Mark for slow query log if any of the union parts didn't use
 	indexes efficiently

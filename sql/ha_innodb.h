@@ -183,7 +183,6 @@ extern long innobase_buffer_pool_awe_mem_mb;
 extern long innobase_file_io_threads, innobase_lock_wait_timeout;
 extern long innobase_force_recovery, innobase_thread_concurrency;
 extern long innobase_open_files;
-extern long innobase_auto_extend_increment;
 extern char *innobase_data_home_dir, *innobase_data_file_path;
 extern char *innobase_log_group_home_dir, *innobase_log_arch_dir;
 extern char *innobase_unix_file_flush_method;
@@ -194,6 +193,8 @@ extern my_bool innobase_log_archive,
                innobase_create_status_file;
 extern "C" {
 extern ulong srv_max_buf_pool_modified_pct;
+extern ulong srv_auto_extend_increment;
+extern ulong srv_max_purge_lag;
 }
 
 extern TYPELIB innobase_lock_typelib;
@@ -229,3 +230,4 @@ my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
 void innobase_release_temporary_latches(void* innobase_tid);
 
 void innobase_store_binlog_offset_and_flush_log(char *binlog_name,longlong offset);
+

@@ -1,5 +1,8 @@
 drop table if exists t1,t2,t3;
 drop database if exists mysqltest;
+revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
+revoke all privileges on mysqltest.* from mysqltest_1@localhost;
+delete from mysql.user where user=_binary'mysqltest_1';
 create table t1(id1 int not null auto_increment primary key, t char(12));
 create table t2(id2 int not null, t char(12));
 create table t3(id3 int not null, t char(12), index(id3));
@@ -152,7 +155,6 @@ ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
 ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
-ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 unlock tables;
 LOCK TABLES t1 write, t2 write;
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;

@@ -57,6 +57,16 @@ typedef struct st_filesort_info
 } FILESORT_INFO;
 
 
+/*
+  Values in this enum are used to indicate during which operations value
+  of TIMESTAMP field should be set to current timestamp.
+*/
+enum timestamp_auto_set_type
+{
+  TIMESTAMP_NO_AUTO_SET= 0, TIMESTAMP_AUTO_SET_ON_INSERT= 1,
+  TIMESTAMP_AUTO_SET_ON_UPDATE= 2, TIMESTAMP_AUTO_SET_ON_BOTH= 3
+};
+
 /* Table cache entry struct */
 
 class Field_timestamp;
@@ -99,16 +109,19 @@ struct st_table {
   uint status;				/* Used by postfix.. */
   uint system;				/* Set if system record */
 
-  /* 
-    These two members hold offset in record + 1 for TIMESTAMP field
-    with NOW() as default value or/and with ON UPDATE NOW() option. 
-    If 0 then such field is absent in this table or auto-set for default
-    or/and on update should be temporaly disabled for some reason.
-    These values is setup to offset value for each statement in open_table()
-    and turned off in statement processing code (see mysql_update as example).
+  /*
+    If this table has TIMESTAMP field with auto-set property (pointed by
+    timestamp_field member) then this variable indicates during which
+    operations (insert only/on update/in both cases) we should set this
+    field to current timestamp. If there are no such field in this table
+    or we should not automatically set its value during execution of current
+    statement then the variable contains TIMESTAMP_NO_AUTO_SET (i.e. 0).
+
+    Value of this variable is set for each statement in open_table() and
+    if needed cleared later in statement processing code (see mysql_update()
+    as example).
   */
-  ulong timestamp_default_now;
-  ulong timestamp_on_update_now;
+  timestamp_auto_set_type timestamp_field_type;
   /* Index of auto-updated TIMESTAMP field in field array */
   uint timestamp_field_offset;
   
@@ -137,6 +150,14 @@ struct st_table {
 	*found_next_number_field,	/* Set on open */
         *rowid_field;
   Field_timestamp *timestamp_field;
+#if MYSQL_VERSION_ID < 40100
+  /*
+    Indicates whenever we have to set field_length members of all TIMESTAMP
+    fields to 19 (to honour 'new_mode' variable) or to original
+    field_length values.
+  */
+  my_bool timestamp_mode;
+#endif
   my_string comment;			/* Comment about table */
   CHARSET_INFO *table_charset;		/* Default charset of string fields */
   REGINFO reginfo;			/* field connections */

@@ -963,7 +963,7 @@ void clean_up(bool print_message)
 
   if (print_message && errmesg)
     sql_print_information(ER(ER_SHUTDOWN_COMPLETE),my_progname);
-#if !defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
+#if !defined(EMBEDDED_LIBRARY)
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
 #endif
@@ -1500,7 +1500,11 @@ static void init_signals(void)
 }
 
 static void start_signal_handler(void)
-{}
+{
+  // Save vm id of this process
+  if (!opt_bootstrap)
+    create_pid_file();
+}
 
 static void check_data_home(const char *path)
 {}
@@ -2118,8 +2122,7 @@ static void check_data_home(const char *path)
 
 
 /* ARGSUSED */
-extern "C" int my_message_sql(uint error, const char *str,
-			      myf MyFlags __attribute__((unused)))
+extern "C" int my_message_sql(uint error, const char *str, myf MyFlags)
 {
   THD *thd;
   DBUG_ENTER("my_message_sql");
@@ -2133,7 +2136,11 @@ extern "C" int my_message_sql(uint error, const char *str,
     if (thd->lex->current_select &&
 	thd->lex->current_select->no_error && !thd->is_fatal_error)
     {
-      DBUG_PRINT("error", ("above error converted to warning"));
+      DBUG_PRINT("error", ("Error converted to warning: current_select: no_error %d  fatal_error: %d",
+                           (thd->lex->current_select ?
+                            thd->lex->current_select->no_error : 0),
+                           (int) thd->is_fatal_error));
+                           
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
     }
     else
@@ -2147,7 +2154,7 @@ extern "C" int my_message_sql(uint error, const char *str,
       }
     }
   }
-  else
+  if (!thd || MyFlags & ME_NOREFRESH)
     sql_print_error("%s: %s",my_progname,str); /* purecov: inspected */
   DBUG_RETURN(0);
 }
@@ -2934,10 +2941,10 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #ifndef __NETWARE__
     (void) pthread_kill(signal_thread, MYSQL_KILL_SIGNAL);
 #endif /* __NETWARE__ */
-#ifndef __WIN__
+    
     if (!opt_bootstrap)
       (void) my_delete(pidfile_name,MYF(MY_WME));	// Not needed anymore
-#endif
+
     if (unix_sock != INVALID_SOCKET)
       unlink(mysqld_unix_port);
     exit(1);
@@ -3998,6 +4005,7 @@ enum options_mysqld
   OPT_INNODB_BUFFER_POOL_SIZE,
   OPT_INNODB_BUFFER_POOL_AWE_MEM_MB,
   OPT_INNODB_ADDITIONAL_MEM_POOL_SIZE,
+  OPT_INNODB_MAX_PURGE_LAG,
   OPT_INNODB_FILE_IO_THREADS,
   OPT_INNODB_LOCK_WAIT_TIMEOUT,
   OPT_INNODB_THREAD_CONCURRENCY,
@@ -4233,6 +4241,11 @@ Disable with --skip-innodb (will save memory).",
   {"innodb_max_dirty_pages_pct", OPT_INNODB_MAX_DIRTY_PAGES_PCT,
    "Percentage of dirty pages allowed in bufferpool.", (gptr*) &srv_max_buf_pool_modified_pct,
    (gptr*) &srv_max_buf_pool_modified_pct, 0, GET_ULONG, REQUIRED_ARG, 90, 0, 100, 0, 0, 0},
+  {"innodb_max_purge_lag", OPT_INNODB_MAX_PURGE_LAG,
+   "",
+   (gptr*) &srv_max_purge_lag,
+   (gptr*) &srv_max_purge_lag, 0, GET_LONG, REQUIRED_ARG, 0, 0, ~0L,
+   0, 1L, 0},
   {"innodb_status_file", OPT_INNODB_STATUS_FILE,
    "Enable SHOW INNODB STATUS output in the innodb_status.<pid> file",
    (gptr*) &innobase_create_status_file, (gptr*) &innobase_create_status_file,
@@ -4712,6 +4725,11 @@ replicating a LOAD DATA INFILE command.",
    (gptr*) &innobase_additional_mem_pool_size,
    (gptr*) &innobase_additional_mem_pool_size, 0, GET_LONG, REQUIRED_ARG,
    1*1024*1024L, 512*1024L, ~0L, 0, 1024, 0},
+  {"innodb_autoextend_increment", OPT_INNODB_AUTOEXTEND_INCREMENT,
+   "Data file autoextend increment in megabytes",
+   (gptr*) &srv_auto_extend_increment,
+   (gptr*) &srv_auto_extend_increment,
+   0, GET_LONG, REQUIRED_ARG, 8L, 1L, ~0L, 0, 1L, 0},
   {"innodb_buffer_pool_awe_mem_mb", OPT_INNODB_BUFFER_POOL_AWE_MEM_MB,
    "If Windows AWE is used, the size of InnoDB buffer pool allocated from the AWE memory.",
    (gptr*) &innobase_buffer_pool_awe_mem_mb, (gptr*) &innobase_buffer_pool_awe_mem_mb, 0,
@@ -4753,11 +4771,6 @@ replicating a LOAD DATA INFILE command.",
    "How many files at the maximum InnoDB keeps open at the same time.",
    (gptr*) &innobase_open_files, (gptr*) &innobase_open_files, 0,
    GET_LONG, REQUIRED_ARG, 300L, 10L, ~0L, 0, 1L, 0},
-  {"innodb_autoextend_increment", OPT_INNODB_AUTOEXTEND_INCREMENT,
-   "Data file autoextend increment in megabytes",
-   (gptr*) &innobase_auto_extend_increment,
-   (gptr*) &innobase_auto_extend_increment,
-   0, GET_LONG, REQUIRED_ARG, 8L, 1L, ~0L, 0, 1L, 0},
 #ifdef HAVE_REPLICATION
   /*
     Disabled for the 4.1.3 release. Disabling just this paragraph of code is

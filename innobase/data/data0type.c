@@ -12,6 +12,27 @@ Created 1/16/1996 Heikki Tuuri
 #include "data0type.ic"
 #endif
 
+/**********************************************************************
+This function is used to find the storage length in bytes of the first n
+characters for prefix indexes using a multibyte character set. The function
+finds charset information and returns length of prefix_len characters in the
+index field in bytes.
+
+NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
+this function, you MUST change also the prototype here! */
+
+ulint
+innobase_get_at_most_n_mbchars(
+/*===========================*/
+				/* out: number of bytes occupied by the first
+				n characters */
+	ulint charset_id,	/* in: character set id */
+	ulint prefix_len,	/* in: prefix length in bytes of the index
+				(this has to be divided by mbmaxlen to get the
+				number of CHARACTERS n in the prefix) */
+	ulint data_len,         /* in: length of the string in bytes */
+	const char* str);	/* in: character string */
+
 /* At the database startup we store the default-charset collation number of
 this MySQL installation to this global variable. If we have < 4.1.2 format
 column definitions, or records in the insert buffer, we use this
@@ -22,6 +43,63 @@ ulint	data_mysql_latin1_swedish_charset_coll	= 99999999;
 
 dtype_t		dtype_binary_val = {DATA_BINARY, 0, 0, 0};
 dtype_t* 	dtype_binary 	= &dtype_binary_val;
+
+/*************************************************************************
+Checks if a string type has to be compared by the MySQL comparison functions.
+InnoDB internally only handles binary byte string comparisons, as well as
+latin1_swedish_ci strings. For example, UTF-8 strings have to be compared
+by MySQL. */
+
+ibool
+dtype_str_needs_mysql_cmp(
+/*======================*/
+				/* out: TRUE if a string type that requires
+				comparison with MySQL functions */
+	dtype_t*	dtype)	/* in: type struct */
+{
+	if (dtype->mtype == DATA_MYSQL
+	    || dtype->mtype == DATA_VARMYSQL
+	    || (dtype->mtype == DATA_BLOB
+	        && 0 == (dtype->prtype & DATA_BINARY_TYPE)
+		&& dtype_get_charset_coll(dtype->prtype) !=
+				data_mysql_latin1_swedish_charset_coll)) {
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/*************************************************************************
+For the documentation of this function, see innobase_get_at_most_n_mbchars()
+in ha_innodb.cc. */
+
+ulint
+dtype_get_at_most_n_mbchars(
+/*========================*/
+	dtype_t*	dtype,
+	ulint		prefix_len,
+	ulint		data_len,
+	const char*	str)
+{
+	ut_a(data_len != UNIV_SQL_NULL);
+
+	if (dtype_str_needs_mysql_cmp(dtype)) {
+		return(innobase_get_at_most_n_mbchars(
+				dtype_get_charset_coll(dtype->prtype),
+				prefix_len, data_len, str));
+	}
+
+	/* We assume here that the string types that InnoDB itself can compare
+	are single-byte charsets! */
+
+	if (prefix_len < data_len) {
+
+		return(prefix_len);
+
+	}
+
+	return(data_len);
+}
 
 /*************************************************************************
 Checks if a data main type is a string type. Also a BLOB is considered a

@@ -441,14 +441,28 @@ public:
     STATEMENT, PREPARED_STATEMENT, STORED_PROCEDURE
   };
 
+  /*
+    This constructor is used only when Item_arena is created as
+    backup storage for another instance of Item_arena.
+  */
+  Item_arena() {};
+  /*
+    Create arena for already constructed THD using its variables as
+    parameters for memory root initialization.
+  */
   Item_arena(THD *thd);
-  Item_arena();
+  /*
+    Create arena and optionally init memory root with minimal values.
+    Particularly used if Item_arena is part of Statement.
+  */
   Item_arena(bool init_mem_root);
   virtual Type type() const;
-  virtual ~Item_arena();
+  virtual ~Item_arena() {};
 
   inline bool is_stmt_prepare() const { return (int)state < (int)PREPARED; }
   inline bool is_first_stmt_execute() const { return state == PREPARED; }
+  inline bool is_conventional_execution() const
+  { return state == CONVENTIONAL_EXECUTION; }
   inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
   inline gptr calloc(unsigned int size)
   {
@@ -566,7 +580,7 @@ public:
   assignment in Statement::Statement)
   Non-empty statement names are unique too: attempt to insert a new statement
   with duplicate name causes older statement to be deleted
-  
+
   Statements are auto-deleted when they are removed from the map and when the
   map is deleted.
 */
@@ -575,7 +589,7 @@ class Statement_map
 {
 public:
   Statement_map();
-  
+
   int insert(Statement *statement);
 
   Statement *find_by_name(LEX_STRING *name)
@@ -608,17 +622,35 @@ public:
     }
     hash_delete(&st_hash, (byte *) statement);
   }
+  /* Erase all statements (calls Statement destructor) */
+  void reset()
+  {
+    hash_reset(&names_hash);
+    hash_reset(&st_hash);
+    last_found_statement= 0;
+  }
 
   ~Statement_map()
   {
-    hash_free(&st_hash);
     hash_free(&names_hash);
+    hash_free(&st_hash);
   }
 private:
   HASH st_hash;
   HASH names_hash;
   Statement *last_found_statement;
 };
+
+
+/*
+  A registry for item tree transformations performed during
+  query optimization. We register only those changes which require
+  a rollback to re-execute a prepared statement or stored procedure
+  yet another time.
+*/
+
+struct Item_change_record;
+typedef I_List<Item_change_record> Item_change_list;
 
 
 /*
@@ -731,6 +763,7 @@ public:
   */
   MYSQL_LOCK	*lock;				/* Current locks */
   MYSQL_LOCK	*locked_tables;			/* Tables locked with LOCK */
+  HASH		handler_tables_hash;
   /*
     One thread can hold up to one named user-level lock. This variable
     points to a lock object if the lock is present. See item_func.cc and
@@ -788,6 +821,14 @@ public:
 #ifdef SIGNAL_WITH_VIO_CLOSE
   Vio* active_vio;
 #endif
+  /*
+    This is to track items changed during execution of a prepared
+    statement/stored procedure. It's created by
+    register_item_tree_change() in memory root of THD, and freed in
+    rollback_item_tree_changes(). For conventional execution it's always 0.
+  */
+  Item_change_list change_list;
+
   /*
     Current prepared Item_arena if there one, or 0
   */
@@ -1012,6 +1053,17 @@ public:
   }
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
+
+  void change_item_tree(Item **place, Item *new_value)
+  {
+    /* TODO: check for OOM condition here */
+    if (!current_arena->is_conventional_execution())
+      nocheck_register_item_tree_change(place, *place, &mem_root);
+    *place= new_value;
+  }
+  void nocheck_register_item_tree_change(Item **place, Item *old_value,
+                                         MEM_ROOT *runtime_memroot);
+  void rollback_item_tree_changes();
 };
 
 /* Flags for the THD::system_thread (bitmap) variable */
@@ -1198,10 +1250,12 @@ public:
   uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
   bool  using_indirect_summary_function;
+  /* If >0 convert all blob fields to varchar(convert_blob_length) */
+  uint  convert_blob_length; 
 
   TMP_TABLE_PARAM()
     :copy_funcs_it(copy_funcs), copy_field(0), group_parts(0),
-    group_length(0), group_null_parts(0)
+    group_length(0), group_null_parts(0), convert_blob_length(0)
   {}
   ~TMP_TABLE_PARAM()
   {
@@ -1245,8 +1299,6 @@ public:
   bool send_fields(List<Item> &list, uint flag) { return 0; };
   bool send_data(List<Item> &items)=0;
   bool send_eof() { return 0; };
-
-  friend class Ttem_subselect;
 };
 
 /* Single value subselect interface class */

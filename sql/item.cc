@@ -106,7 +106,7 @@ void Item::print_item_w_name(String *str)
 Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
 		       const char *field_name_par)
   :orig_db_name(db_name_par), orig_table_name(table_name_par), 
-   orig_field_name(field_name_par), changed_during_fix_field(0), 
+   orig_field_name(field_name_par),
    db_name(db_name_par), table_name(table_name_par), 
    field_name(field_name_par), cached_field_index(NO_CACHED_FIELD_INDEX), 
    cached_table(0), depended_from(0)
@@ -120,7 +120,6 @@ Item_ident::Item_ident(THD *thd, Item_ident *item)
    orig_db_name(item->orig_db_name),
    orig_table_name(item->orig_table_name), 
    orig_field_name(item->orig_field_name),
-   changed_during_fix_field(0),
    db_name(item->db_name),
    table_name(item->table_name),
    field_name(item->field_name),
@@ -137,11 +136,6 @@ void Item_ident::cleanup()
 		       table_name, orig_table_name,
 		       field_name, orig_field_name));
   Item::cleanup();
-  if (changed_during_fix_field)
-  {
-    *changed_during_fix_field= this;
-    changed_during_fix_field= 0;
-  }
   db_name= orig_db_name; 
   table_name= orig_table_name;
   field_name= orig_field_name;
@@ -1246,6 +1240,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       TABLE_LIST *table_list;
       Item **refer= (Item **)not_found_item;
       uint counter;
+      bool not_used;
       // Prevent using outer fields in subselects, that is not supported now
       SELECT_LEX *cursel= (SELECT_LEX *) thd->lex->current_select;
       if (cursel->master_unit()->first_select()->linkage != DERIVED_TABLE_TYPE)
@@ -1288,7 +1283,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
           }
 	  if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
 	      (refer= find_item_in_list(this, sl->item_list, &counter,
-					 REPORT_EXCEPT_NOT_FOUND)) !=
+                                        REPORT_EXCEPT_NOT_FOUND,
+                                        &not_used)) !=
 	       (Item **) not_found_item)
 	  {
 	    if (*refer && (*refer)->fixed) // Avoid crash in case of error
@@ -1336,14 +1332,11 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  return -1;
 	}
 
-	Item_ref *rf;
-	*ref= rf= new Item_ref(last->ref_pointer_array + counter,
-			       ref,
-			       (char *)table_name,
-			       (char *)field_name);
-	register_item_tree_changing(ref);
+	Item_ref *rf= new Item_ref(last->ref_pointer_array + counter,
+                                   (char *)table_name, (char *)field_name);
 	if (!rf)
 	  return 1;
+        thd->change_item_tree(ref, rf);
 	/*
 	  rf is Item_ref => never substitute other items (in this case)
 	  during fix_fields() => we can use rf after fix_fields()
@@ -1360,12 +1353,11 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	if (last->having_fix_field)
 	{
 	  Item_ref *rf;
-	  *ref= rf= new Item_ref(ref, *ref,
-				 (where->db[0]?where->db:0), 
-				 (char *)where->alias,
-				 (char *)field_name);
+          rf= new Item_ref((where->db[0] ? where->db : 0),
+                           (char*) where->alias, (char*) field_name);
 	  if (!rf)
 	    return 1;
+          thd->change_item_tree(ref, rf);
 	  /*
 	    rf is Item_ref => never substitute other items (in this case)
 	    during fix_fields() => we can use rf after fix_fields()
@@ -1889,6 +1881,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
   DBUG_ASSERT(fixed == 0);
   uint counter;
+  bool not_used;
   if (!ref)
   {
     TABLE_LIST *where= 0, *table_list;
@@ -1908,13 +1901,13 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 				  first_select()->linkage !=
 				  DERIVED_TABLE_TYPE) ? 
 				  REPORT_EXCEPT_NOT_FOUND :
-				  REPORT_ALL_ERRORS))) ==
+				  REPORT_ALL_ERRORS ), &not_used)) ==
 	(Item **)not_found_item)
     {
       upward_lookup= 1;
       Field *tmp= (Field*) not_found_field;
       /*
-	We can't find table field in table list of current select,
+	We can't find table field in select list of current select,
 	consequently we have to find it in outer subselect(s).
 	We can't join lists of outer & current select, because of scope
 	of view rules. For example if both tables (outer & current) have
@@ -1929,8 +1922,8 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	Item_subselect *prev_subselect_item= prev_unit->item;
 	if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
 	    (ref= find_item_in_list(this, sl->item_list,
-				    &counter,
-				    REPORT_EXCEPT_NOT_FOUND)) !=
+                                    &counter, REPORT_EXCEPT_NOT_FOUND,
+                                    &not_used)) !=
 	   (Item **)not_found_item)
 	{
 	  if (*ref && (*ref)->fixed) // Avoid crash in case of error
@@ -1989,19 +1982,18 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	  // Call to report error
 	  find_item_in_list(this,
 			    *(thd->lex->current_select->get_item_list()),
-			    &counter,
-			    REPORT_ALL_ERRORS);
+			    &counter, REPORT_ALL_ERRORS, &not_used);
 	}
         ref= 0;
 	return 1;
       }
       else if (tmp != not_found_field)
       {
-	ref= 0; // To prevent "delete *ref;" on ~Item_erf() of this item
-	Item_field* fld;
-	if (!((*reference)= fld= new Item_field(tmp)))
+	ref= 0; // To prevent "delete *ref;" on ~Item_ref() of this item
+	Item_field* fld= new Item_field(tmp);
+	if (!fld)
 	  return 1;
-	register_item_tree_changing(reference);
+	thd->change_item_tree(reference, fld);
 	mark_as_dependent(thd, last, thd->lex->current_select, fld);
 	return 0;
       }
@@ -2061,16 +2053,6 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   if (ref && (*ref)->check_cols(1))
     return 1;
   return 0;
-}
-
-
-void Item_ref::cleanup()
-{
-  DBUG_ENTER("Item_ref::cleanup");
-  Item_ident::cleanup();
-  if (hook_ptr)
-    *hook_ptr= orig_item;
-  DBUG_VOID_RETURN;
 }
 
 
@@ -2225,10 +2207,12 @@ Item_result item_cmp_type(Item_result a,Item_result b)
 }
 
 
-Item *resolve_const_item(Item *item,Item *comp_item)
+void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 {
+  Item *item= *ref;
+  Item *new_item;
   if (item->basic_const_item())
-    return item;				// Can't be better
+    return;                                     // Can't be better
   Item_result res_type=item_cmp_type(comp_item->result_type(),
 				     item->result_type());
   char *name=item->name;			// Alloced by sql_alloc
@@ -2239,27 +2223,32 @@ Item *resolve_const_item(Item *item,Item *comp_item)
     String tmp(buff,sizeof(buff),&my_charset_bin),*result;
     result=item->val_str(&tmp);
     if (item->null_value)
-      return new Item_null(name);
-    uint length=result->length();
-    char *tmp_str=sql_strmake(result->ptr(),length);
-    return new Item_string(name,tmp_str,length,result->charset());
+      new_item= new Item_null(name);
+    else
+    {
+      uint length= result->length();
+      char *tmp_str= sql_strmake(result->ptr(), length);
+      new_item= new Item_string(name, tmp_str, length, result->charset());
+    }
   }
-  if (res_type == INT_RESULT)
+  else if (res_type == INT_RESULT)
   {
     longlong result=item->val_int();
     uint length=item->max_length;
     bool null_value=item->null_value;
-    return (null_value ? (Item*) new Item_null(name) :
-	    (Item*) new Item_int(name,result,length));
+    new_item= (null_value ? (Item*) new Item_null(name) :
+               (Item*) new Item_int(name, result, length));
   }
   else
   {						// It must REAL_RESULT
     double result=item->val();
     uint length=item->max_length,decimals=item->decimals;
     bool null_value=item->null_value;
-    return (null_value ? (Item*) new Item_null(name) :
-	    (Item*) new Item_real(name,result,decimals,length));
+    new_item= (null_value ? (Item*) new Item_null(name) : (Item*)
+               new Item_real(name, result, decimals, length));
   }
+  if (new_item)
+    thd->change_item_tree(ref, new_item);
 }
 
 /*
@@ -2486,6 +2475,7 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
   else
     field_example= 0;
   max_length= real_length(item);
+  maybe_null= item->maybe_null;
   collation.set(item->collation);
 }
 
@@ -2503,59 +2493,84 @@ static Item_result type_convertor[4][4]=
  {STRING_RESULT, REAL_RESULT,   INT_RESULT,    ROW_RESULT},
  {ROW_RESULT,    ROW_RESULT,    ROW_RESULT,    ROW_RESULT}};
 
+
+/*
+  Values of 'from' field can be stored in 'to' field.
+
+  SYNOPSIS
+    is_attr_compatible()
+    from        Item which values should be saved
+    to          Item where values should be saved
+
+  RETURN
+    1   can be saved
+    0   can not be saved
+*/
+
+inline bool is_attr_compatible(Item *from, Item *to)
+{
+  return ((to->max_length >= from->max_length) &&
+          (to->maybe_null || !from->maybe_null) &&
+          (to->result_type() != STRING_RESULT ||
+           from->result_type() != STRING_RESULT ||
+           my_charset_same(from->collation.collation,
+                           to->collation.collation)));
+}
+
+
 bool Item_type_holder::join_types(THD *thd, Item *item)
 {
   uint32 new_length= real_length(item);
-  bool change_field= 0, skip_store_field= 0;
-  Item_result new_type= type_convertor[item_type][item->result_type()];
+  bool use_new_field= 0, use_expression_type= 0;
+  Item_result new_result_type= type_convertor[item_type][item->result_type()];
 
-  // we have both fields
+  /*
+    Check if both items point to fields: in this case we
+    can adjust column types of result table in the union smartly.
+  */
   if (field_example && item->type() == Item::FIELD_ITEM)
   {
     Field *field= ((Item_field *)item)->field;
-    if (field_example->field_cast_type() != field->field_cast_type())
+    /* Can 'field_example' field store data of the column? */
+    if ((use_new_field=
+         (!field->field_cast_compatible(field_example->field_cast_type()) ||
+          !is_attr_compatible(item, this))))
     {
-      if (!(change_field=
-	    field_example->field_cast_compatible(field->field_cast_type())))
-      {
-	/*
-	  if old field can't store value of 'worse' new field we will make
-	  decision about result field type based only on Item result type
-	*/
-	if (!field->field_cast_compatible(field_example->field_cast_type()))
-	  skip_store_field= 1;
-      }
+      /*
+        The old field can't store value of the new field.
+        Check if the new field can store value of the old one.
+      */
+      use_expression_type|=
+        (!field_example->field_cast_compatible(field->field_cast_type()) ||
+         !is_attr_compatible(this, item));
     }
   }
+  else if (field_example || item->type() == Item::FIELD_ITEM)
+  {
+    /*
+      Expression types can't be mixed with field types, we have to use
+      expression types.
+    */
+    use_expression_type= 1;
+  }
 
-  // size/type should be changed
-  if (change_field ||
-      (new_type != item_type) ||
-      (max_length < new_length) ||
-      ((new_type == INT_RESULT) &&
-       (decimals < item->decimals)) ||
+  /* Check whether size/type of the result item should be changed */
+  if (use_new_field || use_expression_type ||
+      (new_result_type != item_type) || (new_length > max_length) ||
       (!maybe_null && item->maybe_null) ||
-      (item_type == STRING_RESULT && new_type == STRING_RESULT &&
+      (item_type == STRING_RESULT &&
        !my_charset_same(collation.collation, item->collation.collation)))
   {
-    // new field has some parameters worse then current
-    skip_store_field|= (change_field &&
-			(max_length > new_length) ||
-			((new_type == INT_RESULT) &&
-			 (decimals > item->decimals)) ||
-			(maybe_null && !item->maybe_null) ||
-			(item_type == STRING_RESULT &&
-			 new_type == STRING_RESULT &&
-			 !my_charset_same(collation.collation,
-					  item->collation.collation)));
-    /*
-      It is safe assign pointer on field, because it will be used just after
-      all JOIN::prepare calls and before any SELECT execution
-    */
-    if (skip_store_field || item->type() != Item::FIELD_ITEM)
+    if (use_expression_type || item->type() != Item::FIELD_ITEM)
       field_example= 0;
     else
+    {
+      /*
+        It is safe to assign a pointer to field here, because it will be used
+        before any table is closed.
+      */
       field_example= ((Item_field*) item)->field;
+    }
 
     const char *old_cs= collation.collation->name,
       *old_derivation= collation.derivation_name();
@@ -2572,7 +2587,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     max_length= max(max_length, new_length);
     decimals= max(decimals, item->decimals);
     maybe_null|= item->maybe_null;
-    item_type= new_type;
+    item_type= new_result_type;
   }
   DBUG_ASSERT(item_type != ROW_RESULT);
   return 0;
@@ -2617,6 +2632,14 @@ String *Item_type_holder::val_str(String*)
 {
   DBUG_ASSERT(0); // should never be called
   return 0;
+}
+
+void Item_result_field::cleanup()
+{
+  DBUG_ENTER("Item_result_field::cleanup()");
+  Item::cleanup();
+  result_field= 0;
+  DBUG_VOID_RETURN;
 }
 
 /*****************************************************************************

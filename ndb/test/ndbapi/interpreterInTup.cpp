@@ -105,6 +105,7 @@ int         bTestPassed = 0;
 
 
 int main(int argc, const char** argv) {
+  ndb_init();
 
   int operationType = 0;
   int tupTest = 0;

@@ -19,5 +19,6 @@ let $type= 'InnoDB' ;
 -- source include/ps_query.inc
 -- source include/ps_modify.inc
 -- source include/ps_modify1.inc
+-- source include/ps_conv.inc
 
-drop table t1, t_many_col_types;
+drop table t1, t9;

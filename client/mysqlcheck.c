@@ -16,7 +16,7 @@
 
 /* By Jani Tolonen, 2001-04-20, MySQL Development Team */
 
-#define CHECK_VERSION "2.4.3"
+#define CHECK_VERSION "2.4.4"
 
 #include "client_priv.h"
 #include <m_ctype.h>
@@ -246,6 +246,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
 	start[1] = 0;                             /* Cut length of argument */
+      tty_password= 0;
     }
     else
       tty_password = 1;

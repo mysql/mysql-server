@@ -452,7 +452,7 @@ cmp_dtuple_rec_with_match(
 	ulint		cur_bytes; 	/* number of already matched bytes 
 					in current field */
 	int		ret = 3333;	/* return value */
-	
+
 	ut_ad(dtuple && rec && matched_fields && matched_bytes);
 	ut_ad(dtuple_check_typed(dtuple));
 
@@ -541,7 +541,8 @@ cmp_dtuple_rec_with_match(
 			&& dtype_get_charset_coll(cur_type->prtype) !=
 				data_mysql_latin1_swedish_charset_coll)) {
 
-			ret = cmp_whole_field(cur_type,
+			ret = cmp_whole_field(
+				cur_type,
 				dfield_get_data(dtuple_field), dtuple_f_len,
 				rec_b_ptr, rec_f_len);
 

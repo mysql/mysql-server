@@ -52,6 +52,19 @@ public:
    */
 
   /**
+   * Lock when performing read
+   */
+  
+  enum LockMode {
+    LM_Read = 0,
+    LM_Exclusive = 1,
+    LM_CommittedRead = 2,
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    LM_Dirty = 2
+#endif
+  };
+
+  /**
    * Define the NdbOperation to be a standard operation of type insertTuple.
    * When calling NdbConnection::execute, this operation 
    * adds a new tuple to the table.
@@ -88,6 +101,15 @@ public:
    */
   virtual int 			deleteTuple();
 		
+  /**
+   * Define the NdbOperation to be a standard operation of type readTuple.
+   * When calling NdbConnection::execute, this operation 
+   * reads a tuple.
+   *
+   * @return 0 if successful otherwise -1.
+   */
+  virtual int 			readTuple(LockMode);
+
   /**
    * Define the NdbOperation to be a standard operation of type readTuple.
    * When calling NdbConnection::execute, this operation 

@@ -198,9 +198,11 @@ DYLD_LIBRARY_PATH="$BASEDIR/lib:$BASEDIR/libmysql/.libs:$DYLD_LIBRARY_PATH"
 export LD_LIBRARY_PATH DYLD_LIBRARY_PATH
 
 MASTER_RUNNING=0
+MASTER1_RUNNING=0
 MASTER_MYPORT=9306
+MASTER_MYPORT1=9307
 SLAVE_RUNNING=0
-SLAVE_MYPORT=9307
+SLAVE_MYPORT=9308 # leave room for 2 masters for cluster tests
 MYSQL_MANAGER_PORT=9305 # needs to be out of the way of slaves
 NDBCLUSTER_PORT=9350
 MYSQL_MANAGER_PW_FILE=$MYSQL_TEST_DIR/var/tmp/manager.pwd
@@ -208,6 +210,7 @@ MYSQL_MANAGER_LOG=$MYSQL_TEST_DIR/var/log/manager.log
 MYSQL_MANAGER_USER=root
 NO_SLAVE=0
 USER_TEST=
+FAILED_CASES=
 
 EXTRA_MASTER_OPT=""
 EXTRA_MYSQL_TEST_OPT=""
@@ -232,11 +235,17 @@ DBUSER=""
 START_WAIT_TIMEOUT=10
 STOP_WAIT_TIMEOUT=10
 MYSQL_TEST_SSL_OPTS=""
+USE_TIMER=""
+USE_EMBEDDED_SERVER=""
+RESULT_EXT=""
 
 while test $# -gt 0; do
   case "$1" in
+    --embedded-server) USE_EMBEDDED_SERVER=1 ; USE_MANAGER=0 ; NO_SLAVE=1 ; \
+      USE_RUNNING_SERVER="" RESULT_EXT=".es" ;;
     --user=*) DBUSER=`$ECHO "$1" | $SED -e "s;--user=;;"` ;;
     --force)  FORCE=1 ;;
+    --timer)  USE_TIMER=1 ;;
     --verbose-manager)  MANAGER_QUIET_OPT="" ;;
     --old-master) MASTER_40_ARGS="";;
     --master-binary=*)
@@ -247,9 +256,9 @@ while test $# -gt 0; do
     --extern)  USE_RUNNING_SERVER="1" ;;
     --with-ndbcluster)
       USE_NDBCLUSTER="--ndbcluster" ;;
-    --ndbconnectstring=*)
+    --ndb-connectstring=*)
       USE_NDBCLUSTER="--ndbcluster" ;
-      USE_RUNNING_NDBCLUSTER=`$ECHO "$1" | $SED -e "s;--ndbconnectstring=;;"` ;;
+      USE_RUNNING_NDBCLUSTER=`$ECHO "$1" | $SED -e "s;--ndb-connectstring=;;"` ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --local-master)
       MASTER_MYPORT=3306;
@@ -295,6 +304,11 @@ while test $# -gt 0; do
     --record)
       RECORD=1;
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
+    --small-bench)
+      DO_SMALL_BENCH=1
+      DO_BENCH=1
+      NO_SLAVE=1
+      ;;
     --bench)
       DO_BENCH=1
       NO_SLAVE=1
@@ -425,6 +439,7 @@ MANAGER_PID_FILE="$MYRUN_DIR/manager.pid"
 
 MASTER_MYDDIR="$MYSQL_TEST_DIR/var/master-data"
 MASTER_MYSOCK="$MYSQL_TMP_DIR/master.sock"
+MASTER_MYSOCK1=$MYSQL_MYSOCK"1"
 MASTER_MYPID="$MYRUN_DIR/master.pid"
 MASTER_MYLOG="$MYSQL_TEST_DIR/var/log/master.log"
 MASTER_MYERR="$MYSQL_TEST_DIR/var/log/master.err"
@@ -438,7 +453,7 @@ SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/slave.err"
 CURRENT_TEST="$MYSQL_TEST_DIR/var/log/current_test"
 SMALL_SERVER="--key_buffer_size=1M --sort_buffer=256K --max_heap_table_size=1M"
 
-export MASTER_MYPORT SLAVE_MYPORT MYSQL_TCP_PORT MASTER_MYSOCK
+export MASTER_MYPORT MASTER_MYPORT1 SLAVE_MYPORT MYSQL_TCP_PORT MASTER_MYSOCK MASTER_MYSOCK1
 
 if [ x$SOURCE_DIST = x1 ] ; then
  MY_BASEDIR=$MYSQL_TEST_DIR
@@ -458,18 +473,27 @@ fi
 
 if test ${COLUMNS:-0} -lt 80 ; then COLUMNS=80 ; fi
 E=`$EXPR $COLUMNS - 8`
-DASH72=`$ECHO '------------------------------------------'|$CUT -c 1-$E`
+DASH72=`$ECHO '-------------------------------------------------------'|$CUT -c 1-$E`
 
 # on source dist, we pick up freshly build executables
 # on binary, use what is installed
 if [ x$SOURCE_DIST = x1 ] ; then
- MYSQLD="$VALGRIND $BASEDIR/sql/mysqld"
- if [ -f "$BASEDIR/client/.libs/lt-mysqltest" ] ; then
-   MYSQL_TEST="$BASEDIR/client/.libs/lt-mysqltest"
- elif [ -f "$BASEDIR/client/.libs/mysqltest" ] ; then
-   MYSQL_TEST="$BASEDIR/client/.libs/mysqltest"
+ if [ "x$USE_EMBEDDED_SERVER" = "x1" ] ; then
+   if [ -f "$BASEDIR/libmysqld/examples/mysqltest" ] ; then
+     MYSQL_TEST="$VALGRIND $BASEDIR/libmysqld/examples/mysqltest"
+   else
+     echo "Fatal error: Cannot find embedded server 'mysqltest'" 1>&2
+     exit 1
+   fi
  else
-   MYSQL_TEST="$BASEDIR/client/mysqltest"
+   MYSQLD="$VALGRIND $BASEDIR/sql/mysqld"
+   if [ -f "$BASEDIR/client/.libs/lt-mysqltest" ] ; then
+     MYSQL_TEST="$BASEDIR/client/.libs/lt-mysqltest"
+   elif [ -f "$BASEDIR/client/.libs/mysqltest" ] ; then
+     MYSQL_TEST="$BASEDIR/client/.libs/mysqltest"
+   else
+     MYSQL_TEST="$BASEDIR/client/mysqltest"
+   fi
  fi
  if [ -f "$BASEDIR/client/.libs/mysqldump" ] ; then
    MYSQL_DUMP="$BASEDIR/client/.libs/mysqldump"
@@ -486,6 +510,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
  fi
 
  CLIENT_BINDIR="$BASEDIR/client"
+ TESTS_BINDIR="$BASEDIR/tests"
  MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
  WAIT_PID="$BASEDIR/extra/mysql_waitpid"
  MYSQL_MANAGER_CLIENT="$CLIENT_BINDIR/mysqlmanagerc"
@@ -496,6 +521,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
  CHARSETSDIR="$BASEDIR/sql/share/charsets"
  INSTALL_DB="./install_test_db"
  MYSQL_FIX_SYSTEM_TABLES="$BASEDIR/scripts/mysql_fix_privilege_tables"
+ NDB_TOOLS_DIR="$BASEDIR/ndb/tools"
 else
  if test -x "$BASEDIR/libexec/mysqld"
  then
@@ -504,6 +530,7 @@ else
    MYSQLD="$VALGRIND $BASEDIR/bin/mysqld"
  fi
  CLIENT_BINDIR="$BASEDIR/bin"
+ TESTS_BINDIR="$BASEDIR/tests"
  MYSQL_TEST="$CLIENT_BINDIR/mysqltest"
  MYSQL_DUMP="$CLIENT_BINDIR/mysqldump"
  MYSQL_BINLOG="$CLIENT_BINDIR/mysqlbinlog"
@@ -515,6 +542,7 @@ else
  MYSQL="$CLIENT_BINDIR/mysql"
  INSTALL_DB="./install_test_db --bin"
  MYSQL_FIX_SYSTEM_TABLES="$CLIENT_BINDIR/mysql_fix_privilege_tables"
+ NDB_TOOLS_DIR="$CLIENT_BINDIR"
  if test -d "$BASEDIR/share/mysql/english"
  then
    LANGUAGE="$BASEDIR/share/mysql/english/"
@@ -561,11 +589,15 @@ MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=
 MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR $EXTRA_MYSQLBINLOG_OPT"
 MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
 MYSQL="$MYSQL --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
-export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES CLIENT_BINDIR
+export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES CLIENT_BINDIR TESTS_BINDIR
+export NDB_TOOLS_DIR
 
 MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB \
  --user=$DBUSER --password=$DBPASSWD --silent -v --skip-safemalloc \
  --tmpdir=$MYSQL_TMP_DIR --port=$MASTER_MYPORT $MYSQL_TEST_SSL_OPTS"
+if [ x$USE_TIMER = x1 ] ; then
+  MYSQL_TEST_ARGS="$MYSQL_TEST_ARGS --timer-file=$MY_LOG_DIR/timer"
+fi
 MYSQL_TEST_BIN=$MYSQL_TEST
 MYSQL_TEST="$MYSQL_TEST $MYSQL_TEST_ARGS"
 GDB_CLIENT_INIT=$MYSQL_TMP_DIR/gdbinit.client
@@ -598,6 +630,13 @@ show_failed_diff ()
   reject_file=r/$1.reject
   result_file=r/$1.result
   eval_file=r/$1.eval
+
+  # If we have an special externsion for result files we use it if we are recording
+  # or a result file with that extension exists.
+  if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ]
+  then
+    result_file="$result_file$RESULT_EXT"
+  fi
 
   if [ -f $eval_file ]
   then
@@ -718,12 +757,21 @@ report_stats () {
 
 mysql_install_db () {
     $ECHO "Removing Stale Files"
-    $RM -rf $MASTER_MYDDIR $SLAVE_MYDDIR $MY_LOG_DIR/* 
+    $RM -rf $MASTER_MYDDIR $MASTER_MYDDIR"1" $SLAVE_MYDDIR $MY_LOG_DIR/* 
     $ECHO "Installing Master Databases"
     $INSTALL_DB
     if [ $? != 0 ]; then
 	error "Could not install master test DBs"
 	exit 1
+    fi
+    if [ ! -z "$USE_NDBCLUSTER" ]
+    then
+      $ECHO "Installing Master Databases 1"
+      $INSTALL_DB -1
+      if [ $? != 0 ]; then
+	error "Could not install master test DBs 1"
+	exit 1
+      fi
     fi
     $ECHO "Installing Slave Databases"
     $INSTALL_DB -slave
@@ -863,10 +911,10 @@ manager_term()
   ident=$2
   if [ $USE_MANAGER = 0 ] ; then
     # Shutdown time must be high as slave may be in reconnect
-    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock --connect_timeout=5 --shutdown_timeout=70 shutdown >> $MYSQL_MANAGER_LOG 2>&1
+    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock$3 --connect_timeout=5 --shutdown_timeout=70 shutdown >> $MYSQL_MANAGER_LOG 2>&1
     res=$?
     # Some systems require an extra connect
-    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock --connect_timeout=1 ping >> $MYSQL_MANAGER_LOG 2>&1
+    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock$3 --connect_timeout=1 ping >> $MYSQL_MANAGER_LOG 2>&1
     if test $res = 0
     then
       wait_for_pid $pid
@@ -880,20 +928,59 @@ EOF
  abort_if_failed "Could not execute manager command"
 }
 
+start_ndbcluster()
+{
+  if [ ! -z "$USE_NDBCLUSTER" ]
+  then
+  if [ -z "$USE_RUNNING_NDBCLUSTER" ]
+  then
+    echo "Starting ndbcluster"
+    if [ "$DO_BENCH" = 1 ]
+    then
+      NDBCLUSTER_OPTS=""
+    else
+      NDBCLUSTER_OPTS="--small"
+    fi
+    ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT $NDBCLUSTER_OPTS --diskless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
+    NDB_CONNECTSTRING="host=localhost:$NDBCLUSTER_PORT"
+  else
+    NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
+    echo "Using ndbcluster at $NDB_CONNECTSTRING"
+  fi
+  USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"$NDB_CONNECTSTRING\""
+  export NDB_CONNECTSTRING
+  fi
+}
+
+stop_ndbcluster()
+{
+ if [ ! -z "$USE_NDBCLUSTER" ]
+ then
+ if [ -z "$USE_RUNNING_NDBCLUSTER" ]
+ then
+   # Kill any running ndbcluster stuff
+   ./ndb/ndbcluster --data-dir=$MYSQL_TEST_DIR/var --port-base=$NDBCLUSTER_PORT --stop
+ fi
+ fi
+}
+
+# The embedded server needs the cleanup so we do some of the start work
+# but stop before actually running mysqld or anything.
 
 start_master()
 {
-  if [ x$MASTER_RUNNING = x1 ] || [ x$LOCAL_MASTER = x1 ] ; then
+  eval "this_master_running=\$MASTER$1_RUNNING"
+  if [ x$this_master_running = x1 ] || [ x$LOCAL_MASTER = x1 ] ; then
     return
   fi
   # Remove stale binary logs except for 2 tests which need them
   if [ "$tname" != "rpl_crash_binlog_ib_1b" ] && [ "$tname" != "rpl_crash_binlog_ib_2b" ] && [ "$tname" != "rpl_crash_binlog_ib_3b" ] 
   then
-    $RM -f $MYSQL_TEST_DIR/var/log/master-bin.*
+    $RM -f $MYSQL_TEST_DIR/var/log/master-bin$1.*
   fi
 
   # Remove old master.info and relay-log.info files
-  $RM -f $MYSQL_TEST_DIR/var/master-data/master.info $MYSQL_TEST_DIR/var/master-data/relay-log.info
+  $RM -f $MYSQL_TEST_DIR/var/master-data$1/master.info $MYSQL_TEST_DIR/var/master-data$1/relay-log.info
 
   #run master initialization shell script if one exists
 
@@ -902,20 +989,27 @@ start_master()
       /bin/sh $master_init_script
   fi
   cd $BASEDIR # for gcov
+  if [ -n "$1" ] ; then
+   id=`$EXPR $1 + 101`;
+   this_master_myport=`$EXPR $MASTER_MYPORT + $1`
+  else
+   id=1;
+   this_master_myport=$MASTER_MYPORT
+  fi
   if [ -z "$DO_BENCH" ]
   then
-    master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
-  	    --server-id=1  \
+    master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1 \
+  	    --server-id=$id  \
           --basedir=$MY_BASEDIR \
-          --port=$MASTER_MYPORT \
+          --port=$this_master_myport \
           --local-infile \
           --exit-info=256 \
           --core \
           $USE_NDBCLUSTER \
-          --datadir=$MASTER_MYDDIR \
-          --pid-file=$MASTER_MYPID \
-          --socket=$MASTER_MYSOCK \
-          --log=$MASTER_MYLOG \
+          --datadir=$MASTER_MYDDIR$1 \
+          --pid-file=$MASTER_MYPID$1 \
+          --socket=$MASTER_MYSOCK$1 \
+          --log=$MASTER_MYLOG$1 \
           --character-sets-dir=$CHARSETSDIR \
           --default-character-set=$CHARACTER_SET \
           --tmpdir=$MYSQL_TMP_DIR \
@@ -926,14 +1020,14 @@ start_master()
            $SMALL_SERVER \
            $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
   else
-    master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
-          --server-id=1 --rpl-recovery-rank=1 \
+    master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1 \
+          --server-id=$id --rpl-recovery-rank=1 \
           --basedir=$MY_BASEDIR --init-rpl-role=master \
-          --port=$MASTER_MYPORT \
+          --port=$this_master_myport \
           --local-infile \
-          --datadir=$MASTER_MYDDIR \
-          --pid-file=$MASTER_MYPID \
-          --socket=$MASTER_MYSOCK \
+          --datadir=$MASTER_MYDDIR$1 \
+          --pid-file=$MASTER_MYPID$1 \
+          --socket=$MASTER_MYSOCK$1 \
           --character-sets-dir=$CHARSETSDIR \
           --default-character-set=$CHARACTER_SET \
           --core \
@@ -948,6 +1042,18 @@ start_master()
 
   CUR_MYERR=$MASTER_MYERR
   CUR_MYSOCK=$MASTER_MYSOCK
+
+  # For embedded server we collect the server flags and return
+  if [ "x$USE_EMBEDDED_SERVER" = "x1" ] ; then
+    # Add a -A to each argument to pass it to embedded server
+    EMBEDDED_SERVER_OPTS=""
+    for opt in $master_args
+    do
+      EMBEDDED_SERVER_OPTS="$EMBEDDED_SERVER_OPTS -A $opt"
+    done
+    EXTRA_MYSQL_TEST_OPT="$EMBEDDED_SERVER_OPTS"
+    return
+  fi
 
   if [ x$DO_DDD = x1 ]
   then
@@ -979,9 +1085,9 @@ EOF
   else
     manager_launch master $MASTER_MYSQLD $master_args
   fi
-  sleep_until_file_created $MASTER_MYPID $wait_for_master
+  sleep_until_file_created $MASTER_MYPID$1 $wait_for_master
   wait_for_master=$SLEEP_TIME_FOR_SECOND_MASTER
-  MASTER_RUNNING=1
+  eval "MASTER$1_RUNNING=1"
 }
 
 start_slave()
@@ -1109,6 +1215,7 @@ mysql_start ()
 #  start_master
 #  start_slave
   cd $MYSQL_TEST_DIR
+  start_ndbcluster
   return 1
 }
 
@@ -1157,26 +1264,31 @@ stop_slave_threads ()
 
 stop_master ()
 {
-  if [ x$MASTER_RUNNING = x1 ]
+  eval "this_master_running=\$MASTER$1_RUNNING"
+  if [ x$this_master_running = x1 ]
   then
-    pid=`$CAT $MASTER_MYPID`
-    manager_term $pid master
-    if [ $? != 0 ] && [ -f $MASTER_MYPID ]
-    then # try harder!
-      $ECHO "master not cooperating with mysqladmin, will try manual kill"
-      kill $pid
-      sleep_until_file_deleted $pid $MASTER_MYPID
-      if [ -f $MASTER_MYPID ] ; then
-        $ECHO "master refused to die. Sending SIGKILL"
-        kill -9 `$CAT $MASTER_MYPID`
-        $RM -f $MASTER_MYPID
+    # For embedded server we don't stop anyting but mark that
+    # MASTER_RUNNING=0 to get cleanup when calling start_master().
+    if [ x$USE_EMBEDDED_SERVER != x1 ] ; then
+      pid=`$CAT $MASTER_MYPID$1`
+      manager_term $pid master $1
+      if [ $? != 0 ] && [ -f $MASTER_MYPID$1 ]
+      then # try harder!
+	$ECHO "master not cooperating with mysqladmin, will try manual kill"
+	kill $pid
+	sleep_until_file_deleted $pid $MASTER_MYPID$1
+	if [ -f $MASTER_MYPID$1 ] ; then
+	  $ECHO "master refused to die. Sending SIGKILL"
+	  kill -9 `$CAT $MASTER_MYPID$1`
+	  $RM -f $MASTER_MYPID$1
+	else
+	  $ECHO "master responded to SIGTERM "
+	fi
       else
-        $ECHO "master responded to SIGTERM "
+	sleep $SLEEP_TIME_AFTER_RESTART
       fi
-    else
-      sleep $SLEEP_TIME_AFTER_RESTART
     fi
-    MASTER_RUNNING=0
+    eval "MASTER$1_RUNNING=0"
   fi
 }
 
@@ -1186,12 +1298,13 @@ mysql_stop ()
  $ECHO  "Shutting-down MySQL daemon"
  $ECHO  ""
  stop_master
+ stop_master 1
  $ECHO "Master shutdown finished"
  stop_slave
  stop_slave 1
  stop_slave 2
  $ECHO "Slave shutdown finished"
-
+ stop_ndbcluster
  return 1
 }
 
@@ -1217,9 +1330,13 @@ run_testcase ()
  master_init_script=$TESTDIR/$tname-master.sh
  slave_init_script=$TESTDIR/$tname-slave.sh
  slave_master_info_file=$TESTDIR/$tname.slave-mi
- result_file=$tname
+ tsrcdir=$TESTDIR/$tname-src
+ result_file="r/$tname.result"
  echo $tname > $CURRENT_TEST
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
+ if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ] ; then
+   result_file="$result_file$RESULT_EXT"
+ fi
  if [ "$USE_MANAGER" = 1 ] ; then
    many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
  fi
@@ -1249,11 +1366,45 @@ run_testcase ()
    return
  fi
 
- # Stop all slave threads, so that we don't have useless reconnection attempts
- # and error messages in case the slave and master servers restart.
- stop_slave_threads
- stop_slave_threads 1
- stop_slave_threads 2
+ if [ "x$USE_EMBEDDED_SERVER" != "x1" ] ; then
+   # Stop all slave threads, so that we don't have useless reconnection
+   #  attempts and error messages in case the slave and master servers restart.
+   stop_slave_threads
+   stop_slave_threads 1
+   stop_slave_threads 2
+ fi
+
+ # FIXME temporary solution, we will get a new C version of this
+ # script soon anyway so it is not worth it spending the time
+ if [ "x$USE_EMBEDDED_SERVER" = "x1" -a -z "$DO_TEST" ] ; then
+   for t in \
+	"bdb-deadlock" \
+	"connect" \
+	"flush_block_commit" \
+	"grant2" \
+	"grant_cache" \
+	"grant" \
+	"init_connect" \
+	"innodb-deadlock" \
+	"innodb-lock" \
+	"mix_innodb_myisam_binlog" \
+	"mysqlbinlog2" \
+	"mysqlbinlog" \
+	"mysqldump" \
+	"mysql_protocols" \
+	"ps_1general" \
+	"rename" \
+	"show_check" \
+        "system_mysql_db_fix" \
+	"user_var" \
+	"variables"
+   do
+     if [ "$tname" = "$t" ] ; then
+       skip_test $tname
+       return
+     fi
+   done
+ fi
 
  if [ -z "$USE_RUNNING_SERVER" ] ;
  then
@@ -1269,67 +1420,86 @@ run_testcase ()
 	 ;;
        --result-file=*)
          result_file=`$ECHO "$EXTRA_MASTER_OPT" | $SED -e "s;--result-file=;;"`
+         result_file="r/$result_file.result"
+         if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ] ; then
+	   result_file="$result_file$RESULT_EXT"
+	 fi
 	 # Note that this must be set to space, not "" for test-reset to work
 	 EXTRA_MASTER_OPT=" "
          ;;
      esac
      stop_master
+     stop_master 1
      echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
      start_master
+     if [ -n "$USE_NDBCLUSTER" -a -z "$DO_BENCH" ] ; then
+       start_master 1
+     fi
      TZ=$MY_TZ; export TZ
    else
-     if [ ! -z "$EXTRA_MASTER_OPT" ] || [ x$MASTER_RUNNING != x1 ] || [ -f $master_init_script ]
+     # If we had extra master opts to the previous run
+     # or there is no master running (FIXME strange.....)
+     # or there is a master init script
+     if [ ! -z "$EXTRA_MASTER_OPT" ] || [ x$MASTER_RUNNING != x1 ] || \
+	[ -f $master_init_script ]
      then
        EXTRA_MASTER_OPT=""
        stop_master
+       stop_master 1
        echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
        start_master
+       if [ -n "$USE_NDBCLUSTER"  -a -z "$DO_BENCH" ] ; then
+         start_master 1
+       fi
      else
        echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
      fi
    fi
 
-   do_slave_restart=0
-   if [ -f $slave_opt_file ] ;
-   then
-     EXTRA_SLAVE_OPT=`$CAT $slave_opt_file | $SED -e "s;\\$MYSQL_TEST_DIR;$MYSQL_TEST_DIR;"`
-     do_slave_restart=1
-   else
-    if [ ! -z "$EXTRA_SLAVE_OPT" ] || [ x$SLAVE_RUNNING != x1 ] ;
-    then
-      EXTRA_SLAVE_OPT=""
-      do_slave_restart=1
-    fi
-   fi
-
-   if [ -f $slave_master_info_file ] ; then
-     SLAVE_MASTER_INFO=`$CAT $slave_master_info_file`
-     do_slave_restart=1
-   else
-     if [ ! -z "$SLAVE_MASTER_INFO" ] || [ x$SLAVE_RUNNING != x1 ] ;
+   # We never start a slave if embedded server is used
+   if [ "x$USE_EMBEDDED_SERVER" != "x1" ] ; then
+     do_slave_restart=0
+     if [ -f $slave_opt_file ] ;
      then
-       SLAVE_MASTER_INFO=""
+       EXTRA_SLAVE_OPT=`$CAT $slave_opt_file | $SED -e "s;\\$MYSQL_TEST_DIR;$MYSQL_TEST_DIR;"`
        do_slave_restart=1
+     else
+      if [ ! -z "$EXTRA_SLAVE_OPT" ] || [ x$SLAVE_RUNNING != x1 ] ;
+      then
+	EXTRA_SLAVE_OPT=""
+	do_slave_restart=1
+      fi
      fi
-   fi
 
-   if [ x$do_slave_restart = x1 ] ; then
-     stop_slave
-     echo "CURRENT_TEST: $tname" >> $SLAVE_MYERR
-     start_slave
-   else
-     echo "CURRENT_TEST: $tname" >> $SLAVE_MYERR
-   fi
-   if [ x$many_slaves = x1 ]; then
-    start_slave 1
-    start_slave 2
+     if [ -f $slave_master_info_file ] ; then
+       SLAVE_MASTER_INFO=`$CAT $slave_master_info_file`
+       do_slave_restart=1
+     else
+       if [ ! -z "$SLAVE_MASTER_INFO" ] || [ x$SLAVE_RUNNING != x1 ] ;
+       then
+	 SLAVE_MASTER_INFO=""
+	 do_slave_restart=1
+       fi
+     fi
+
+     if [ x$do_slave_restart = x1 ] ; then
+       stop_slave
+       echo "CURRENT_TEST: $tname" >> $SLAVE_MYERR
+       start_slave
+     else
+       echo "CURRENT_TEST: $tname" >> $SLAVE_MYERR
+     fi
+     if [ x$many_slaves = x1 ]; then
+      start_slave 1
+      start_slave 2
+     fi
    fi
  fi
  cd $MYSQL_TEST_DIR
 
  if [ -f $tf ] ; then
     $RM -f r/$tname.*reject
-    mysql_test_args="-R r/$result_file.result $EXTRA_MYSQL_TEST_OPT"
+    mysql_test_args="-R $result_file $EXTRA_MYSQL_TEST_OPT"
     if [ -z "$DO_CLIENT_GDB" ] ; then
       `$MYSQL_TEST  $mysql_test_args < $tf 2> $TIMEFILE`;
     else
@@ -1349,7 +1519,12 @@ run_testcase ()
     if [ $res = 0 ]; then
       total_inc
       pass_inc
-      $ECHO "$RES$RES_SPACE [ pass ]"
+      TIMER=""
+      if [ x$USE_TIMER = x1 -a -f "$MY_LOG_DIR/timer" ]; then
+	TIMER=`cat $MY_LOG_DIR/timer`
+	TIMER=`$PRINTF "%13s" $TIMER`
+      fi
+      $ECHO "$RES$RES_SPACE [ pass ]   $TIMER"
     else
       # why the following ``if'' ? That is why res==1 is special ?
       if [ $res = 2 ]; then
@@ -1364,20 +1539,22 @@ run_testcase ()
 	$ECHO "$RES$RES_SPACE [ fail ]"
         $ECHO
 	error_is
-	show_failed_diff $result_file
+	show_failed_diff $tname
 	$ECHO
 	if [ x$FORCE != x1 ] ; then
 	 $ECHO "Aborting: $tname failed. To continue, re-run with '--force'."
 	 $ECHO
-         if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
+         if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && \
+	    [ -z "$DO_DDD" ] && [ -z "$USE_EMBEDDED_SERVER" ]
 	 then
 	   mysql_stop
 	   stop_manager
    	 fi
 	 exit 1
 	fi
-
-        if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
+	FAILED_CASES="$FAILED_CASES $tname"
+        if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && \
+	   [ -z "$DO_DDD" ] && [ -z "$USE_EMBEDDED_SERVER" ]
 	then
 	  mysql_restart
 	fi
@@ -1403,14 +1580,17 @@ then
   then
     # Ensure that no old mysqld test servers are running
     $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+    $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK1 -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
     $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
     $MYSQLADMIN --no-defaults --host=$hostname --port=$MASTER_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+    $MYSQLADMIN --no-defaults --host=$hostname --port=$MASTER_MYPORT1 -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
     $MYSQLADMIN --no-defaults --host=$hostname --port=$SLAVE_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
     $MYSQLADMIN --no-defaults --host=$hostname --port=`expr $SLAVE_MYPORT + 1` -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
     sleep_until_file_deleted 0 $MASTER_MYPID
+    sleep_until_file_deleted 0 $MASTER_MYPID"1"
     sleep_until_file_deleted 0 $SLAVE_MYPID
   else
-    rm $MASTER_MYPID $SLAVE_MYPID
+    rm $MASTER_MYPID $MASTER_MYPID"1" $SLAVE_MYPID
   fi
 
   # Kill any running managers
@@ -1425,14 +1605,7 @@ then
     fi
   fi
 
-  if [ ! -z "$USE_NDBCLUSTER" ]
-  then
-  if [ -z "$USE_RUNNING_NDBCLUSTER" ]
-  then
-    # Kill any running ndbcluster stuff
-    ./ndb/ndbcluster --data-dir=$MYSQL_TEST_DIR/var --port-base=$NDBCLUSTER_PORT --stop
-  fi
-  fi
+  stop_ndbcluster
 
   # Remove files that can cause problems
   $RM -rf $MYSQL_TEST_DIR/var/ndbcluster
@@ -1440,24 +1613,12 @@ then
 
   # Remove old berkeley db log files that can confuse the server
   $RM -f $MASTER_MYDDIR/log.*
+  $RM -f $MASTER_MYDDIR"1"/log.*
 
   wait_for_master=$SLEEP_TIME_FOR_FIRST_MASTER
   wait_for_slave=$SLEEP_TIME_FOR_FIRST_SLAVE
   $ECHO "Installing Test Databases"
   mysql_install_db
-
-  if [ ! -z "$USE_NDBCLUSTER" ]
-  then
-  if [ -z "$USE_RUNNING_NDBCLUSTER" ]
-  then
-    echo "Starting ndbcluster"
-    ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT --small --diskless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
-    USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"host=localhost:$NDBCLUSTER_PORT\""
-  else
-    USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"$USE_RUNNING_NDBCLUSTER\""
-    echo "Using ndbcluster at $USE_NDBCLUSTER"
-  fi
-  fi
 
   start_manager
 
@@ -1485,9 +1646,14 @@ if [ "$DO_BENCH" = 1 ]
 then
   start_master
 
+  if [ "$DO_SMALL_BENCH" = 1 ]
+  then
+    EXTRA_BENCH_ARGS="--small-test --small-tables"
+  fi
+
   if [ ! -z "$USE_NDBCLUSTER" ]
   then
-    EXTRA_BENCH_ARGS="--create-options=TYPE=ndb"
+    EXTRA_BENCH_ARGS="--create-options=TYPE=ndb $EXTRA_BENCH_ARGS"
   fi 
 
   BENCHDIR=$BASEDIR/sql-bench/
@@ -1495,7 +1661,7 @@ then
   cd $BENCHDIR
   if [ -z "$1" ]
   then
-    ./run-all-tests --socket=$MASTER_MYSOCK --user=root $EXTRA_BENCH_ARGS
+    ./run-all-tests --socket=$MASTER_MYSOCK --user=root $EXTRA_BENCH_ARGS --log
   else
     if [ -x "./$1" ]
     then
@@ -1511,7 +1677,11 @@ then
 fi
 
 $ECHO
-$ECHO " TEST                           RESULT"
+if [ x$USE_TIMER = x1 ] ; then
+$ECHO "TEST                            RESULT        TIME (ms)"
+else
+$ECHO "TEST                            RESULT"
+fi
 $ECHO $DASH72
 
 if [ -z "$1" ] ;
@@ -1545,16 +1715,6 @@ if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
 then
     mysql_stop
 fi
-
-if [ ! -z "$USE_NDBCLUSTER" ]
-then
-if [ -z "$USE_RUNNING_NDBCLUSTER" ]
-then
-  # Kill any running ndbcluster stuff
-  ./ndb/ndbcluster --data-dir=$MYSQL_TEST_DIR/var --port-base=$NDBCLUSTER_PORT --stop
-fi
-fi
-
 stop_manager
 report_stats
 $ECHO
@@ -1562,4 +1722,10 @@ $ECHO
 [ "$DO_GCOV" ] && gcov_collect # collect coverage information
 [ "$DO_GPROF" ] && gprof_collect # collect coverage information
 
-exit 0
+if [ $TOT_FAIL -ne 0 ]; then
+  $ECHO "mysql-test-run: *** Failing the test(s):$FAILED_CASES"
+  $ECHO
+  exit 1
+else
+  exit 0
+fi

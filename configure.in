@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 4.1.5-gamma)
+AM_INIT_AUTOMAKE(mysql, 4.1.6-gamma)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -15,8 +15,8 @@ SHARED_LIB_VERSION=14:0:0
 # ndb version
 NDB_VERSION_MAJOR=3
 NDB_VERSION_MINOR=5
-NDB_VERSION_BUILD=1
-NDB_VERSION_STATUS=beta
+NDB_VERSION_BUILD=2
+NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
@@ -2282,6 +2282,21 @@ else
 fi
 AC_SUBST(docs_dirs)
 
+# Shall we build the man pages?
+AC_ARG_WITH(man,
+    [  --without-man          Skip building of the man pages.],
+    [with_man=$withval],
+    [with_man=yes]
+)
+
+if test "$with_man" = "yes"
+then
+  man_dirs="man"
+else
+  man_dirs=""
+fi
+AC_SUBST(man_dirs)
+
 # Shall we build the bench code?
 AC_ARG_WITH(bench,
     [  --without-bench         Skip building of the benchmark suite.],
@@ -3024,11 +3039,11 @@ AC_SUBST([ndb_port_base])
 ndb_transporter_opt_objs=""
 if test X"$have_ndb_shm" = Xyes
 then
-  ndb_transporter_opt_objs="$(ndb_transporter_opt_objs) SHM_Transporter.lo SHM_Transporter.unix.lo"
+  ndb_transporter_opt_objs="$ndb_transporter_opt_objs SHM_Transporter.lo SHM_Transporter.unix.lo"
 fi
 if test X"$have_ndb_sci" = Xyes
 then
-  ndb_transporter_opt_objs="$(ndb_transporter_opt_objs) SCI_Transporter.lo"
+  ndb_transporter_opt_objs="$ndb_transporter_opt_objs SCI_Transporter.lo"
 fi
 AC_SUBST([ndb_transporter_opt_objs])
 

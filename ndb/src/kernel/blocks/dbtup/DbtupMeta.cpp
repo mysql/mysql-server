@@ -20,12 +20,14 @@
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
 #include <pc.hpp>
+#include <signaldata/TupFrag.hpp>
 #include <signaldata/FsConf.hpp>
 #include <signaldata/FsRemoveReq.hpp>
 #include <signaldata/DropTab.hpp>
 #include <signaldata/AlterTab.hpp>
 #include <AttributeDescriptor.hpp>
 #include "AttributeOffset.hpp"
+#include <my_sys.h>
 
 #define ljam() { jamLine(20000 + __LINE__); }
 #define ljamEntry() { jamEntryLine(20000 + __LINE__); }
@@ -52,7 +54,10 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   /*  Uint32 schemaVersion = signal->theData[8];*/
   Uint32 noOfKeyAttr = signal->theData[9];
 
-  Uint32 noOfNewAttr = signal->theData[10];
+  Uint32 noOfNewAttr = (signal->theData[10] & 0xFFFF);
+  /* DICT sends number of character sets in upper half */
+  Uint32 noOfCharsets = (signal->theData[10] >> 16);
+
   Uint32 checksumIndicator = signal->theData[11];
   Uint32 noOfAttributeGroups = signal->theData[12];
   Uint32 globalCheckpointIdIndicator = signal->theData[13];
@@ -75,6 +80,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   fragOperPtr.p->attributeCount = noOfAttributes;
   fragOperPtr.p->freeNullBit = noOfNullAttr;
   fragOperPtr.p->noOfNewAttrCount = noOfNewAttr;
+  fragOperPtr.p->charsetIndex = 0;
 
   ndbrequire(reqinfo == ZADDFRAG);
 
@@ -156,6 +162,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
     regTabPtr.p->tupheadsize = regTabPtr.p->tupGCPIndex;
 
     regTabPtr.p->noOfKeyAttr = noOfKeyAttr;
+    regTabPtr.p->noOfCharsets = noOfCharsets;
     regTabPtr.p->noOfAttr = noOfAttributes;
     regTabPtr.p->noOfNewAttr = noOfNewAttr;
     regTabPtr.p->noOfNullAttr = noOfNullAttr;
@@ -163,13 +170,14 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
 
     regTabPtr.p->notNullAttributeMask.clear();
 
-    Uint32 tableDescriptorRef = allocTabDescr(noOfAttributes, noOfKeyAttr, noOfAttributeGroups);
+    Uint32 offset[10];
+    Uint32 tableDescriptorRef = allocTabDescr(regTabPtr.p, offset);
     if (tableDescriptorRef == RNIL) {
       ljam();
       fragrefuse4Lab(signal, fragOperPtr, regFragPtr, regTabPtr.p, fragId);
       return;
     }//if
-    setUpDescriptorReferences(tableDescriptorRef, regTabPtr.p);
+    setUpDescriptorReferences(tableDescriptorRef, regTabPtr.p, offset);
   } else {
     ljam();
     fragOperPtr.p->definingFragment = false;
@@ -251,6 +259,9 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   ptrCheckGuard(fragOperPtr, cnoOfFragoprec, fragoperrec);
   Uint32 attrId = signal->theData[2];
   Uint32 attrDescriptor = signal->theData[3];
+  // DICT sends extended type (ignored) and charset number
+  Uint32 extType = (signal->theData[4] & 0xFF);
+  Uint32 csNumber = (signal->theData[4] >> 16);
 
   regTabPtr.i = fragOperPtr.p->tableidFrag;
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
@@ -304,6 +315,29 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
     } else {
       ndbrequire(false);
     }//if
+    if (csNumber != 0) { 
+      CHARSET_INFO* cs = get_charset(csNumber, MYF(0));
+      if (cs == NULL) {
+        ljam();
+        terrorCode = TupAddAttrRef::InvalidCharset;
+        addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
+        return;
+      }
+      Uint32 i = 0;
+      while (i < fragOperPtr.p->charsetIndex) {
+        ljam();
+        if (regTabPtr.p->charsetArray[i] == cs)
+          break;
+        i++;
+      }
+      if (i == fragOperPtr.p->charsetIndex) {
+        ljam();
+        fragOperPtr.p->charsetIndex++;
+      }
+      ndbrequire(i < regTabPtr.p->noOfCharsets);
+      regTabPtr.p->charsetArray[i] = cs;
+      AttributeOffset::setCharsetPos(attrDes2, i);
+    }
     setTabDescrWord(firstTabDesIndex + 1, attrDes2);
 
     if (regTabPtr.p->tupheadsize > MAX_TUPLE_SIZE_IN_WORDS) {
@@ -340,20 +374,28 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   return;
 }//Dbtup::execTUP_ADD_ATTRREQ()
 
-void Dbtup::setUpDescriptorReferences(Uint32 descriptorReference,
-                                      Tablerec* const regTabPtr)
-{
-  Uint32 noOfAttributes = regTabPtr->noOfAttr;
-  descriptorReference += ZTD_SIZE;
-  ReadFunction * tmp = (ReadFunction*)&tableDescriptor[descriptorReference].tabDescr;
-  regTabPtr->readFunctionArray = tmp;
-  regTabPtr->updateFunctionArray = (UpdateFunction*)(tmp + noOfAttributes);
+/*
+ * Descriptor has these parts:
+ *
+ * 0 readFunctionArray ( one for each attribute )
+ * 1 updateFunctionArray ( ditto )
+ * 2 charsetArray ( pointers to distinct CHARSET_INFO )
+ * 3 readKeyArray ( attribute ids of keys )
+ * 4 attributeGroupDescriptor ( currently size 1 but unused )
+ * 5 tabDescriptor ( attribute descriptors, each ZAD_SIZE )
+ */
 
-  TableDescriptor * start = &tableDescriptor[descriptorReference];
-  TableDescriptor * end = (TableDescriptor*)(tmp + 2 * noOfAttributes);
-  regTabPtr->readKeyArray = descriptorReference + (end - start);
-  regTabPtr->attributeGroupDescriptor = regTabPtr->readKeyArray + regTabPtr->noOfKeyAttr;
-  regTabPtr->tabDescriptor = regTabPtr->attributeGroupDescriptor + regTabPtr->noOfAttributeGroups;
+void Dbtup::setUpDescriptorReferences(Uint32 descriptorReference,
+                                      Tablerec* const regTabPtr,
+                                      const Uint32* offset)
+{
+  Uint32* desc = &tableDescriptor[descriptorReference].tabDescr;
+  regTabPtr->readFunctionArray = (ReadFunction*)(desc + offset[0]);
+  regTabPtr->updateFunctionArray = (UpdateFunction*)(desc + offset[1]);
+  regTabPtr->charsetArray = (CHARSET_INFO**)(desc + offset[2]);
+  regTabPtr->readKeyArray = descriptorReference + offset[3];
+  regTabPtr->attributeGroupDescriptor = descriptorReference + offset[4];
+  regTabPtr->tabDescriptor = descriptorReference + offset[5];
 }//Dbtup::setUpDescriptorReferences()
 
 Uint32
@@ -491,14 +533,18 @@ void Dbtup::releaseTabDescr(Tablerec* const regTabPtr)
   Uint32 descriptor = regTabPtr->readKeyArray;
   if (descriptor != RNIL) {
     ljam();
+    Uint32 offset[10];
+    getTabDescrOffsets(regTabPtr, offset);
+
     regTabPtr->tabDescriptor = RNIL;
     regTabPtr->readKeyArray = RNIL;
     regTabPtr->readFunctionArray = NULL;
     regTabPtr->updateFunctionArray = NULL;
+    regTabPtr->charsetArray = NULL;
     regTabPtr->attributeGroupDescriptor= RNIL;
 
-    Uint32 sizeFunctionArrays = 2 * (regTabPtr->noOfAttr * sizeOfReadFunction());
-    descriptor -= (sizeFunctionArrays + ZTD_SIZE);
+    // move to start of descriptor
+    descriptor -= offset[3];
     Uint32 retNo = getTabDescrWord(descriptor + ZTD_DATASIZE);
     ndbrequire(getTabDescrWord(descriptor + ZTD_HEADER) == ZTD_TYPE_NORMAL);
     ndbrequire(retNo == getTabDescrWord((descriptor + retNo) - ZTD_TR_SIZE));

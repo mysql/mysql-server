@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -374,6 +374,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
 
   if (wild && !wild[0])
     wild=0;
+
   bzero((char*) &table_list,sizeof(table_list));
 
   if (!(dirp = my_dir(path,MYF(MY_WME | (dir ? MY_WANT_STAT : 0)))))
@@ -386,27 +387,23 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
     {                                           /* Return databases */
 #ifdef USE_SYMDIR
       char *ext;
+      char buff[FN_REFLEN];
       if (my_use_symdir && !strcmp(ext=fn_ext(file->name), ".sym"))
       {
 	/* Only show the sym file if it points to a directory */
-	char buff[FN_REFLEN], *end;
-	MY_STAT status;
+	char *end;
         *ext=0;                                 /* Remove extension */
 	unpack_dirname(buff, file->name);
 	end= strend(buff);
 	if (end != buff && end[-1] == FN_LIBCHAR)
 	  end[-1]= 0;				// Remove end FN_LIBCHAR
-	if (!my_stat(buff, &status, MYF(0)) ||
-	    !MY_S_ISDIR(status.st_mode))
-	  continue;
-      }
-      else
+        if (!my_stat(buff, file->mystat, MYF(0)))
+               continue;
+       }
 #endif
-      {
         if (file->name[0] == '.' || !MY_S_ISDIR(file->mystat->st_mode) ||
             (wild && wild_compare(file->name,wild,0)))
           continue;
-      }
     }
     else
     {
@@ -445,6 +442,9 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
   }
   DBUG_PRINT("info",("found: %d files", files->elements));
   my_dirend(dirp);
+
+  VOID(ha_find_files(thd,db,path,wild,dir,files));
+
   DBUG_RETURN(0);
 }
 
@@ -710,10 +710,11 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	  protocol->store(field->has_charset() ? field->charset()->name : "NULL",
 			system_charset_info);
         /*
-          Altough TIMESTAMP fields can't contain NULL as its value they
+          Even if TIMESTAMP field can't contain NULL as its value it
           will accept NULL if you will try to insert such value and will
-          convert it to current TIMESTAMP. So YES here means that NULL 
-          is allowed for assignment but can't be returned.
+          convert NULL value to current TIMESTAMP. So YES here means
+          that NULL is allowed for assignment (but may be won't be
+          returned).
         */
         pos=(byte*) ((flags & NOT_NULL_FLAG) &&
                      field->type() != FIELD_TYPE_TIMESTAMP ?
@@ -1135,7 +1136,7 @@ static const char *require_quotes(const char *name, uint name_length)
   for ( ; name < end ; name++)
   {
     uchar chr= (uchar) *name;
-    length= my_mbcharlen(system_charset_info, chr);
+    length= my_mbcharlen(system_charset_info, (uchar) chr);
     if (length == 1 && !system_charset_info->ident_map[chr])
       return name;
   }
@@ -1143,40 +1144,18 @@ static const char *require_quotes(const char *name, uint name_length)
 }
 
 
-static void append_quoted_simple_identifier(String *packet, char quote_char,
-					    const char *name, uint length)
-{
-  packet->append(&quote_char, 1, system_charset_info);
-  packet->append(name, length, system_charset_info);
-  packet->append(&quote_char, 1, system_charset_info);
-}  
-
-
 void
 append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
   const char *name_end;
-  char quote_char;
+  int q= get_quote_char_for_identifier(thd, name, length);
 
-  if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
-    quote_char= '\"';
-  else
-    quote_char= '`';
-
-  if (is_keyword(name,length))
-  {
-    append_quoted_simple_identifier(packet, quote_char, name, length);
+  if (q == EOF) {
+    packet->append(name, length, system_charset_info);
     return;
   }
 
-  if (!require_quotes(name, length))
-  {
-    if (!(thd->options & OPTION_QUOTE_SHOW_CREATE))
-      packet->append(name, length, system_charset_info);
-    else
-      append_quoted_simple_identifier(packet, quote_char, name, length);
-    return;
-  }
+  char quote_char= q;
 
   /* The identifier must be quoted as it includes a quote character */
 
@@ -1186,12 +1165,28 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
   for (name_end= name+length ; name < name_end ; name+= length)
   {
     char chr= *name;
-    length= my_mbcharlen(system_charset_info, chr);
+    length= my_mbcharlen(system_charset_info, (uchar) chr);
     if (length == 1 && chr == quote_char)
       packet->append(&quote_char, 1, system_charset_info);
     packet->append(name, length, packet->charset());
   }
   packet->append(&quote_char, 1, system_charset_info);
+}
+
+
+/* Get the quote character for displaying an identifier.
+   If no quote character is needed, return EOF. */
+
+int get_quote_char_for_identifier(THD *thd, const char *name, uint length)
+{
+  if (!is_keyword(name,length) &&
+      !require_quotes(name, length) &&
+      !(thd->options & OPTION_QUOTE_SHOW_CREATE))
+    return EOF;
+  else if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
+    return '"';
+  else
+    return '`';
 }
 
 
@@ -1265,6 +1260,8 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     // check for surprises from the previous call to Field::sql_type()
     if (type.ptr() != tmp)
       type.set(tmp, sizeof(tmp), system_charset_info);
+    else
+      type.set_charset(system_charset_info);
 
     field->sql_type(type);
     packet->append(type.ptr(), type.length(), system_charset_info);
@@ -1289,7 +1286,14 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 
     if (flags & NOT_NULL_FLAG)
       packet->append(" NOT NULL", 9);
-
+    else if (field->type() == FIELD_TYPE_TIMESTAMP)
+    {
+      /*
+        TIMESTAMP field require explicit NULL flag, because unlike
+        all other fields they are treated as NOT NULL by default.
+      */
+      packet->append(" NULL", 5);
+    }
 
     /* 
       Again we are using CURRENT_TIMESTAMP instead of NOW because it is

@@ -1,7 +1,7 @@
 -- source include/have_ndb.inc
 
 --disable_warnings
-drop table if exists t1,t2,t3,t4,t5,t6,t9;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 --enable_warnings
 
 ################################################
@@ -122,7 +122,6 @@ create table t3(
 # IF NOT EXISTS wasn't specified
 
 show status like 'handler_discover%';
-SHOW TABLES FROM test;
 
 # now it should be discovered
 create table IF NOT EXISTS t3(
@@ -145,38 +144,226 @@ show status like 'handler_discover%';
 
 drop table t3;
 
-#######################################################
-# Test that a table that already exists as frm file
-# but not in NDB can be deleted from disk.
+##################################################
+# Test that a table that already exists in NDB 
+# is discovered when SHOW TABLES
+# is used
 #
 
-# Manual test
-#flush status;
+flush status;
+
+create table t7(
+  id int not null primary key,
+  name char(255)
+) engine=ndb;
+create table t6(
+  id int not null primary key,
+  name char(255)
+) engine=MyISAM;
+insert into t7 values (1, "Explorer");
+insert into t6 values (2, "MyISAM table");
+select * from t7;
+show status like 'handler_discover%';
+
+# Remove the frm file from disk
+flush tables;
+system rm var/master-data/test/t7.frm ;
+
+show tables from test;
+show status like 'handler_discover%';
+
+# Remove the frm file from disk again
+flush tables;
+system rm var/master-data/test/t7.frm ;
+
+--replace_column 7 # 8 # 9 # 12 # 13 # 15 #
+show table status;
+show status like 'handler_discover%';
+
+drop table t6, t7;
+
+
+#######################################################
+# Test that a table that has been dropped from NDB
+# but still exists on disk, get a consistent error message
+# saying "No such table existed"
 #
-#create table t4(
-#  id int not null primary key,
-#  name char(27)
-#) engine=ndb;
-#insert into t4 values (1, "Automatic");
-#select * from t4;
-#
+
+flush status;
+
+create table t4(
+  id int not null primary key,
+  name char(27)
+) engine=ndb;
+insert into t4 values (1, "Automatic");
+select * from t4;
+
 # Remove the table from NDB
-#system drop_tab -c "$NDB_CONNECTSTRING2" -d test t4 > /dev/null ;
-#system drop_tab -c "host=localhost:2200;nodeid=5" -d test t4 > /dev/null ;
+system exec $NDB_TOOLS_DIR/ndb_drop_table -d test t4 > /dev/null ; 
+
 #
-#--error 1296
-#select * from t4;
+# Test that correct error is returned
+--error 1146
+select * from t4;
+--error 1146
+select * from t4;
+
+show status like 'handler_discover%';
+drop table t4;
+
+
+#######################################################
+# Test that a table that has been dropped from NDB
+# but still exists on disk is deleted from disk 
+# when SHOW TABLES is called
 #
-#flush table t4;
-#--error 1016
-#select * from t4;
+
+flush status;
+
+create table t4(
+  id int not null primary key,
+  id2 int,
+  name char(27)
+) engine=ndb;
+insert into t4 values (1, 76, "Automatic2");
+select * from t4;
+flush tables;
+
+# Remove the table from NDB
+system exec $NDB_TOOLS_DIR/ndb_drop_table -d test t4 > /dev/null ; 
+
+SHOW TABLES;
+
+--error 1146
+select * from t4;
+
+#######################################################
+# Test SHOW TABLES ability to detect new and delete old
+# tables. Test all at once using many tables
 #
-#show status like 'handler_discover%';
-#drop table t4;
-#flush tables;
-#show tables;
-#--error 1146
-#select * from t4;
+
+flush status;
+
+# Create tables
+create table t1(id int) engine=ndbcluster;
+create table t2(id int, b char(255)) engine=myisam;
+create table t3(id int, c char(255)) engine=ndbcluster;
+create table t4(id int) engine=myisam;
+create table t5(id int, d char(56)) engine=ndbcluster;
+create table t6(id int) engine=ndbcluster;
+create table t7(id int) engine=ndbcluster;
+create table t8(id int, e char(34)) engine=myisam;
+create table t9(id int) engine=myisam;
+
+# Populate tables
+insert into t2 values (2, "myisam table 2");
+insert into t3 values (3, "ndb table 3");
+insert into t5 values (5, "ndb table 5");
+insert into t6 values (6);
+insert into t8 values (8, "myisam table 8");
+insert into t9 values (9);
+
+# Remove t3, t5 from NDB
+system exec $NDB_TOOLS_DIR/ndb_drop_table -d test t3 > /dev/null  ;
+system exec $NDB_TOOLS_DIR/ndb_drop_table -d test t5 > /dev/null  ;
+# Remove t6, t7 from disk
+system rm var/master-data/test/t6.frm > /dev/null ; 
+system rm var/master-data/test/t7.frm > /dev/null ; 
+
+SHOW TABLES;
+
+select * from t6;
+select * from t7;
+
+show status like 'handler_discover%';
+
+drop table t1, t2, t4, t6, t7, t8, t9;
+
+#######################################################
+# Test SHOW TABLES LIKE ability to detect new and delete old
+# tables. Test all at once using many tables.
+#
+
+flush status;
+
+# Create tables
+create table t1(id int) engine=ndbcluster;
+create table t2(id int, b char(255)) engine=myisam;
+create table t3(id int, c char(255)) engine=ndbcluster;
+create table t4(id int) engine=myisam;
+create table t5(id int, d char(56)) engine=ndbcluster;
+create table t6(id int) engine=ndbcluster;
+create table t7(id int) engine=ndbcluster;
+create table t8(id int, e char(34)) engine=myisam;
+create table t9(id int) engine=myisam;
+
+# Populate tables
+insert into t2 values (2, "myisam table 2");
+insert into t3 values (3, "ndb table 3");
+insert into t5 values (5, "ndb table 5");
+insert into t6 values (6);
+insert into t8 values (8, "myisam table 8");
+insert into t9 values (9);
+
+# Remove t3, t5 from NDB
+system exec $NDB_TOOLS_DIR/ndb_drop_table -d test t3 > /dev/null  ;
+system exec $NDB_TOOLS_DIR/ndb_drop_table -d test t5 > /dev/null  ;
+# Remove t6, t7 from disk
+system rm var/master-data/test/t6.frm > /dev/null ; 
+system rm var/master-data/test/t7.frm > /dev/null ; 
+
+
+SHOW TABLES LIKE 't6';
+
+show status like 'handler_discover%';
+
+# Check that t3 or t5 can't be created
+# frm files for these tables is stilll on disk
+--error 1050
+create table t3(a int);
+--error 1050
+create table t5(a int);
+
+SHOW TABLES LIKE 't%';
+
+show status like 'handler_discover%';
+
+drop table t1, t2, t4, t6, t7, t8, t9;
+
+
+
+######################################################
+# Test that several tables can be discovered when 
+# one statement access several table at once.
+#
+
+flush status;
+
+# Create tables
+create table t1(id int) engine=ndbcluster;
+create table t2(id int, b char(255)) engine=ndbcluster;
+create table t3(id int, c char(255)) engine=ndbcluster;
+create table t4(id int) engine=myisam;
+
+# Populate tables
+insert into t1 values (1);
+insert into t2 values (2, "table 2");
+insert into t3 values (3, "ndb table 3");
+insert into t4 values (4);
+
+# Remove t1, t2, t3 from disk
+system rm var/master-data/test/t1.frm > /dev/null ; 
+system rm var/master-data/test/t2.frm > /dev/null ; 
+system rm var/master-data/test/t3.frm > /dev/null ; 
+flush tables;
+
+# Select from the table which only exists in NDB.
+select * from t1, t2, t3, t4;
+
+# 3 table should have been discovered
+show status like 'handler_discover%';
+
+drop table t1, t2, t3, t4;
 
 
 #########################################################
@@ -240,8 +427,32 @@ show status like 'handler_discover%';
 
 drop table t6;
 
+#####################################################
+# Test that only tables in the current database shows 
+# up in SHOW TABLES
+#
+
+show tables;
+
+create table t1 (a int,b longblob) engine=ndb;
+show tables;
+create database test2;
+use test2;
+show tables;
+--error 1146
+select * from t1;
+create table t2 (b int,c longblob) engine=ndb;
+use test;
+select * from t1;
+show tables;
+drop table t1;
+use test2;
+drop table t2;
+drop database test2;
+show databases;
+use test;
+
 ######################################################
-# Simple test to show use of discover on startup
 # Note! This should always be the last step in this 
 # file, the table t9 will be used and dropped 
 # by ndb_autodiscover2
@@ -259,9 +470,7 @@ system rm var/master-data/test/t9.frm ;
 
 # Now leave test case, when ndb_autodiscover2 will  run, this 
 # MySQL Server will have been restarted because it has a 
-# ndb_autodiscover2-master.opt file. And thus the table should 
-# have been discovered by the "discover on startup" function.
+# ndb_autodiscover2-master.opt file.
 
-#TODO
-#SLECT * FROM t1, t2, t4;
-#handler discover 3;
+
+

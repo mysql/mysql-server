@@ -32,6 +32,7 @@ void usage(const char * prg){
 NDB_COMMAND(mkconfig, 
 	    "mkconfig", "mkconfig", 
 	    "Make a binary configuration from a config file", 16384){ 
+  ndb_init();
   if(argc < 3){
     usage(argv[0]);
     return 0;

@@ -33,6 +33,7 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 	     UtilTransactions::ScanLock lock);
 
 int main(int argc, const char** argv){
+  ndb_init();
   const char* _dbname = "TEST_DB";
   int _parallelism = 240;
   int _help = 0;

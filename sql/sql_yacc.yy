@@ -1415,10 +1415,21 @@ type:
 	    if (YYTHD->variables.sql_mode & MODE_MAXDB)
 	      $$=FIELD_TYPE_DATETIME;
 	    else
+            {
+              /* 
+                Unlike other types TIMESTAMP fields are NOT NULL by default.
+              */
+              Lex->type|= NOT_NULL_FLAG;
 	      $$=FIELD_TYPE_TIMESTAMP;
+            }
 	   }
-	| TIMESTAMP '(' NUM ')'		{ Lex->length=$3.str;
-					  $$=FIELD_TYPE_TIMESTAMP; }
+	| TIMESTAMP '(' NUM ')'
+          { 
+            LEX *lex= Lex;
+            lex->length= $3.str;
+            lex->type|= NOT_NULL_FLAG;
+            $$= FIELD_TYPE_TIMESTAMP;
+          }
 	| DATETIME			{ $$=FIELD_TYPE_DATETIME; }
 	| TINYBLOB			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_TINY_BLOB; }
@@ -3859,15 +3870,11 @@ select_var_ident:  '@' ident_or_text
 into:
         INTO OUTFILE TEXT_STRING_sys
 	{
-	  LEX *lex=Lex;
-	  if (!lex->describe)
-	  {
-	    lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
-	    if (!(lex->exchange= new sql_exchange($3.str,0)))
-	      YYABORT;
-	    if (!(lex->result= new select_export(lex->exchange)))
-	      YYABORT;
-	  }
+          LEX *lex= Lex;
+          lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+          if (!(lex->exchange= new sql_exchange($3.str, 0)) ||
+              !(lex->result= new select_export(lex->exchange)))
+            YYABORT;
 	}
 	opt_field_term opt_line_term
 	| INTO DUMPFILE TEXT_STRING_sys
@@ -4152,12 +4159,14 @@ update:
 	  lex->lock_option= TL_UNLOCK; 	/* Will be set later */
         }
         opt_low_priority opt_ignore join_table_list
-	SET update_list where_clause opt_order_clause delete_limit_clause
+	SET update_list
 	{
 	  LEX *lex= Lex;
-	  Select->set_lock_for_tables($3);
           if (lex->select_lex.table_list.elements > 1)
+	  {
             lex->sql_command= SQLCOM_UPDATE_MULTI;
+	    lex->multi_lock_option= $3;
+	  }
 	  else if (lex->select_lex.get_table_list()->derived)
 	  {
 	    /* it is single table update and it is update of derived table */
@@ -4165,7 +4174,10 @@ update:
 		       lex->select_lex.get_table_list()->alias, "UPDATE");
 	    YYABORT;
 	  }
+	  else
+	    Select->set_lock_for_tables($3);
 	}
+	where_clause opt_order_clause delete_limit_clause {}
 	;
 
 update_list:
@@ -4705,15 +4717,28 @@ field_term_list:
 	| field_term;
 
 field_term:
-	TERMINATED BY text_string { Lex->exchange->field_term= $3;}
+	TERMINATED BY text_string 
+          {
+            DBUG_ASSERT(Lex->exchange);
+            Lex->exchange->field_term= $3;
+          }
 	| OPTIONALLY ENCLOSED BY text_string
 	  {
-	    LEX *lex=Lex;
-	    lex->exchange->enclosed= $4;
-	    lex->exchange->opt_enclosed=1;
+            LEX *lex= Lex;
+            DBUG_ASSERT(lex->exchange);
+            lex->exchange->enclosed= $4;
+            lex->exchange->opt_enclosed= 1;
 	  }
-	| ENCLOSED BY text_string { Lex->exchange->enclosed= $3;}
-	| ESCAPED BY text_string  { Lex->exchange->escaped= $3;};
+        | ENCLOSED BY text_string
+          {
+            DBUG_ASSERT(Lex->exchange);
+            Lex->exchange->enclosed= $3;
+          }
+        | ESCAPED BY text_string
+          {
+            DBUG_ASSERT(Lex->exchange);
+            Lex->exchange->escaped= $3;
+          };
 
 opt_line_term:
 	/* empty */
@@ -4724,13 +4749,24 @@ line_term_list:
 	| line_term;
 
 line_term:
-	TERMINATED BY text_string { Lex->exchange->line_term= $3;}
-	| STARTING BY text_string { Lex->exchange->line_start= $3;};
+        TERMINATED BY text_string
+          {
+            DBUG_ASSERT(Lex->exchange);
+            Lex->exchange->line_term= $3;
+          }
+        | STARTING BY text_string
+          {
+            DBUG_ASSERT(Lex->exchange);
+            Lex->exchange->line_start= $3;
+          };
 
 opt_ignore_lines:
 	/* empty */
-	| IGNORE_SYM NUM LINES
-	  { Lex->exchange->skip_lines=atol($2.str); };
+        | IGNORE_SYM NUM LINES
+          {
+            DBUG_ASSERT(Lex->exchange);
+            Lex->exchange->skip_lines= atol($2.str);
+          };
 
 /* Common definitions */
 
@@ -4863,7 +4899,7 @@ simple_ident:
 	  $$= (sel->parsing_place != IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
               (Item*) new Item_field(NullS,NullS,$1.str) :
-	      (Item*) new Item_ref(0,0, NullS,NullS,$1.str);
+	      (Item*) new Item_ref(NullS, NullS, $1.str);
 	}
 	| ident '.' ident
 	{
@@ -4879,7 +4915,7 @@ simple_ident:
 	  $$= (sel->parsing_place != IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
 	      (Item*) new Item_field(NullS,$1.str,$3.str) :
-	      (Item*) new Item_ref(0,0,NullS,$1.str,$3.str);
+	      (Item*) new Item_ref(NullS, $1.str, $3.str);
 	}
 	| '.' ident '.' ident
 	{
@@ -4895,7 +4931,7 @@ simple_ident:
 	  $$= (sel->parsing_place != IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
 	      (Item*) new Item_field(NullS,$2.str,$4.str) :
-              (Item*) new Item_ref(0,0,NullS,$2.str,$4.str);
+              (Item*) new Item_ref(NullS, $2.str, $4.str);
 	}
 	| ident '.' ident '.' ident
 	{
@@ -4913,8 +4949,8 @@ simple_ident:
 	      (Item*) new Item_field((YYTHD->client_capabilities &
 				      CLIENT_NO_SCHEMA ? NullS : $1.str),
 				     $3.str, $5.str) :
-	      (Item*) new Item_ref(0,0,(YYTHD->client_capabilities &
-				        CLIENT_NO_SCHEMA ? NullS : $1.str),
+	      (Item*) new Item_ref((YYTHD->client_capabilities &
+				    CLIENT_NO_SCHEMA ? NullS : $1.str),
                                    $3.str, $5.str);
 	};
 

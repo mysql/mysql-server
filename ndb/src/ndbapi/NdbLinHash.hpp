@@ -287,17 +287,14 @@ NdbLinHash<C>::deleteKey ( const char* str, Uint32 len){
   NdbElement_t<C> **chainp = &directory[dir]->elements[seg];
   for(NdbElement_t<C> * chain = *chainp; chain != 0; chain = chain->next){
     if(chain->len == len && !memcmp(chain->str, str, len)){
+      C *data= chain->theData;
       if (oldChain == 0) {
-	C *data= chain->theData;
-	delete chain;
-	* chainp = 0;
-	return data;
+	* chainp = chain->next;
       } else {
-	C *data= chain->theData;
 	oldChain->next = chain->next;
-	delete chain;
-	return data;
       }
+      delete chain;
+      return data;
     } else {
       oldChain = chain;
     }
