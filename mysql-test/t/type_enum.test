@@ -100,3 +100,16 @@ set names latin1;
 show create table t1;
 select a from t1 order by a;
 drop table t1;
+
+#
+# Test bug where enum fields where extended for each ALTER TABLE
+#
+
+create table t1 (a enum ('Y','N') CHARACTER SET utf8 COLLATE utf8_bin);
+insert into t1 values ('Y');
+alter table t1 add b set ('Y','N') CHARACTER SET utf8 COLLATE utf8_bin;
+alter table t1 add c enum ('Y','N') CHARACTER SET utf8 COLLATE utf8_bin;
+--enable_metadata
+select * from t1;
+--disable metadata
+drop table t1;
