@@ -557,7 +557,7 @@ int ha_ndbcluster::get_metadata(const char *path)
   // All checks OK, lets use the table
   m_table= (void*)tab;
   Uint64 rows;
-  if(ndb_get_table_statistics(m_ndb, m_tabname, &rows, 0) == 0){
+  if(false && ndb_get_table_statistics(m_ndb, m_tabname, &rows, 0) == 0){
     records= rows;
   }
   
