@@ -597,7 +597,7 @@ multi_update::initialize_tables(JOIN *join)
 
     /* ok to be on stack as this is not referenced outside of this func */
     Field_string offset(table->file->ref_length, 0, "offset",
-			table, 1, &my_charset_bin);
+			table, &my_charset_bin);
     if (temp_fields.push_front(new Item_field(((Field *) &offset))))
       DBUG_RETURN(1);
 
