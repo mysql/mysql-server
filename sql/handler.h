@@ -213,13 +213,22 @@ struct xid_t {
   long bqual_length;
   char data[XIDDATASIZE];  // not \0-terminated !
 
-  bool eq(LEX_STRING *l) { return eq(l->length, 0, l->str); }
+  bool eq(struct xid_t *xid)
+  { return !memcmp(this, xid, sizeof(long)*3+gtrid_length+bqual_length); }
   bool eq(long g, long b, const char *d)
   { return g == gtrid_length && b == bqual_length && !memcmp(d, data, g+b); }
-  void set(LEX_STRING *l) { set(l->length, 0, l->str); }
+  void set(struct xid_t *xid)
+  { memcpy(this, xid, sizeof(long)*3+xid->gtrid_length+xid->bqual_length); }
+  void set(long f, const char *g, long gl, const char *b, long bl)
+  {
+    formatID= f;
+    memcpy(data, g, gtrid_length= gl);
+    memcpy(data+gl, b, bqual_length= bl);
+  }
   void set(ulonglong xid)
   {
     my_xid tmp;
+    formatID= 1;
     set(MYSQL_XID_PREFIX_LEN, 0, MYSQL_XID_PREFIX);
     memcpy(data+MYSQL_XID_PREFIX_LEN, &server_id, sizeof(server_id));
     tmp= xid;
@@ -228,7 +237,7 @@ struct xid_t {
   }
   void set(long g, long b, const char *d)
   {
-    formatID=1;
+    formatID= 1;
     gtrid_length= g;
     bqual_length= b;
     memcpy(data, d, g+b);
@@ -244,7 +253,7 @@ struct xid_t {
   my_xid get_my_xid()
   {
     return gtrid_length == MYSQL_XID_GTRID_LEN && bqual_length == 0 &&
-           *(ulong*)(data+MYSQL_XID_PREFIX_LEN) == server_id &&
+           !memcmp(data+MYSQL_XID_PREFIX_LEN, &server_id, sizeof(server_id)) &&
            !memcmp(data, MYSQL_XID_PREFIX, MYSQL_XID_PREFIX_LEN) ?
            quick_get_my_xid() : 0;
   }
@@ -261,8 +270,8 @@ typedef struct xid_t XID;
 
 /*
   handlerton is a singleton structure - one instance per storage engine -
-  to provide access to storage engine functionality that works on
-  "global" level (unlike handler class that works on per-table basis)
+  to provide access to storage engine functionality that works on the
+  "global" level (unlike handler class that works on a per-table basis)
 
   usually handlerton instance is defined statically in ha_xxx.cc as
 
@@ -826,7 +835,7 @@ int ha_release_temporary_latches(THD *thd);
 
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
-int ha_commit_or_rollback_by_xid(LEX_STRING *ident, bool commit);
+int ha_commit_or_rollback_by_xid(XID *xid, bool commit);
 int ha_commit_one_phase(THD *thd, bool all);
 int ha_rollback_trans(THD *thd, bool all);
 int ha_prepare(THD *thd);

@@ -327,6 +327,7 @@ public:
   bool is_active(const char* log_file_name);
   int update_log_index(LOG_INFO* linfo, bool need_update_threads);
   void rotate_and_purge(uint flags);
+  bool flush_and_sync();
   int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);
@@ -1264,18 +1265,18 @@ public:
     pthread_mutex_unlock(&LOCK_delete);
   }
   void close_active_vio();
-#endif  
+#endif
   void awake(THD::killed_state state_to_set);
   /*
     For enter_cond() / exit_cond() to work the mutex must be got before
-    enter_cond() (in 4.1 an assertion will soon ensure this); this mutex is
-    then released by exit_cond(). Use must be:
-    lock mutex; enter_cond(); your code; exit_cond().
+    enter_cond(); this mutex is then released by exit_cond().
+    Usage must be: lock mutex; enter_cond(); your code; exit_cond().
   */
   inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
 			  const char* msg)
   {
     const char* old_msg = proc_info;
+    safe_mutex_assert_owner(mutex);
     mysys_var->current_mutex = mutex;
     mysys_var->current_cond = cond;
     proc_info = msg;
