@@ -16,7 +16,16 @@
 
 /*
   Handling of uchar arrays as large bitmaps.
-  We assume that the size of the used bitmap is less than ~(uint) 0
+
+  API limitations (or, rather asserted safety assumptions,
+  to encourage correct programming)
+
+    * the size of the used bitmap is less than ~(uint) 0
+    * it's a multiple of 8 (for efficiency reasons)
+    * when arguments are a bitmap and a bit number, the number
+      must be within bitmap size
+    * bitmap_set_prefix() is an exception - one can use ~0 to set all bits
+    * when both arguments are bitmaps, they must be of the same size
 
   TODO:
   Make assembler THREAD safe versions of these using test-and-set instructions
@@ -45,11 +54,11 @@ inline void bitmap_unlock(MY_BITMAP *map)
 
 my_bool bitmap_init(MY_BITMAP *map, uchar *buf, uint bitmap_size, my_bool thread_safe)
 {
-  // for efficiency reasons - MY_BITMAP is heavily used
   DBUG_ASSERT((bitmap_size & 7) == 0);
   bitmap_size/=8;
   if (!(map->bitmap=buf) &&
-       !(map->bitmap=(uchar*)my_malloc(bitmap_size + sizeof(pthread_mutex_t),
+       !(map->bitmap=(uchar*)my_malloc(bitmap_size +
+                                       (thread_safe ? sizeof(pthread_mutex_t) : 0),
                                        MYF(MY_WME | MY_ZEROFILL))))
     return 1;
   map->bitmap_size=bitmap_size;
@@ -128,7 +137,8 @@ void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size)
 {
   uint prefix_bytes, prefix_bits;
 
-  DBUG_ASSERT(map->bitmap);
+  DBUG_ASSERT(map->bitmap &&
+      (prefix_size <= map->bitmap_size*8 || prefix_size == ~0));
   bitmap_lock(map);
   set_if_smaller(prefix_size, map->bitmap_size*8);
   if ((prefix_bytes= prefix_size / 8))
@@ -150,7 +160,7 @@ void bitmap_set_all(MY_BITMAP *map)
   bitmap_set_prefix(map, ~0);
 }
 
-my_bool bitmap_is_prefix(MY_BITMAP *map, uint prefix_size)
+my_bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size)
 {
   uint prefix_bits= prefix_size & 7, res= 0;
   uchar *m= map->bitmap, *end_prefix= map->bitmap+prefix_size/8,
@@ -167,7 +177,7 @@ my_bool bitmap_is_prefix(MY_BITMAP *map, uint prefix_size)
     goto ret;
 
   while (m < end)
-    if (m++ != 0)
+    if (*m++ != 0)
       goto ret;
 
   res=1;
@@ -176,23 +186,23 @@ ret:
   return res;
 }
 
-my_bool bitmap_is_clear_all(MY_BITMAP *map)
+my_bool bitmap_is_clear_all(const MY_BITMAP *map)
 {
   return bitmap_is_prefix(map, 0);
 }
 
-my_bool bitmap_is_set_all(MY_BITMAP *map)
+my_bool bitmap_is_set_all(const MY_BITMAP *map)
 {
   return bitmap_is_prefix(map, map->bitmap_size*8);
 }
 
-my_bool bitmap_is_set(MY_BITMAP *map, uint bitmap_bit)
+my_bool bitmap_is_set(const MY_BITMAP *map, uint bitmap_bit)
 {
   DBUG_ASSERT(map->bitmap && bitmap_bit < map->bitmap_size*8);
   return map->bitmap[bitmap_bit / 8] & (1 << (bitmap_bit & 7));
 }
 
-my_bool bitmap_is_subset(MY_BITMAP *map1, MY_BITMAP *map2)
+my_bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2)
 {
   uint length, res=0;
   uchar *m1=map1->bitmap, *m2=map2->bitmap, *end;
@@ -215,7 +225,7 @@ ret:
   return res;
 }
 
-my_bool bitmap_cmp(MY_BITMAP *map1, MY_BITMAP *map2)
+my_bool bitmap_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2)
 {
   uint res;
 
@@ -231,7 +241,7 @@ my_bool bitmap_cmp(MY_BITMAP *map1, MY_BITMAP *map2)
   return res;
 }
 
-void bitmap_intersect(MY_BITMAP *map, MY_BITMAP *map2)
+void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2)
 {
   uchar *to=map->bitmap, *from=map2->bitmap, *end;
 
@@ -249,7 +259,7 @@ void bitmap_intersect(MY_BITMAP *map, MY_BITMAP *map2)
   bitmap_unlock(map);
 }
 
-void bitmap_subtract(MY_BITMAP *map, MY_BITMAP *map2)
+void bitmap_subtract(MY_BITMAP *map, const MY_BITMAP *map2)
 {
   uchar *to=map->bitmap, *from=map2->bitmap, *end;
 
@@ -267,7 +277,7 @@ void bitmap_subtract(MY_BITMAP *map, MY_BITMAP *map2)
   bitmap_unlock(map);
 }
 
-void bitmap_union(MY_BITMAP *map, MY_BITMAP *map2)
+void bitmap_union(MY_BITMAP *map, const MY_BITMAP *map2)
 {
   uchar *to=map->bitmap, *from=map2->bitmap, *end;
 

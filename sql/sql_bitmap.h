@@ -16,6 +16,7 @@ template <uint default_width> class Bitmap
   uchar buffer[(default_width+7)/8];
 public:
   Bitmap() { init(); }
+  Bitmap(Bitmap& from) { *this=from; }
   Bitmap(uint prefix_to_set) { init(prefix_to_set); }
   void init() { bitmap_init(&map, buffer, default_width, 0); }
   void init(uint prefix_to_set) { init(); set_prefix(prefix_to_set); }
@@ -24,6 +25,7 @@ public:
   {
     init();
     memcpy(buffer, map2.buffer, sizeof(buffer));
+    return *this;
   }
   void set_bit(uint n) { bitmap_set_bit(&map, n); }
   void clear_bit(uint n) { bitmap_clear_bit(&map, n); }

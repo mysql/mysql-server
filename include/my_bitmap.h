@@ -38,23 +38,23 @@ typedef struct st_bitmap
 #ifdef	__cplusplus
 extern "C" {
 #endif
-extern my_bool bitmap_cmp(MY_BITMAP *map1, MY_BITMAP *map2);
+extern my_bool bitmap_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2);
 extern my_bool bitmap_init(MY_BITMAP *map, uchar *buf, uint bitmap_size, my_bool thread_safe);
-extern my_bool bitmap_is_clear_all(MY_BITMAP *map);
-extern my_bool bitmap_is_prefix(MY_BITMAP *map, uint prefix_size);
-extern my_bool bitmap_is_set(MY_BITMAP *map, uint bitmap_bit);
-extern my_bool bitmap_is_set_all(MY_BITMAP *map);
-extern my_bool bitmap_is_subset(MY_BITMAP *map1, MY_BITMAP *map2);
+extern my_bool bitmap_is_clear_all(const MY_BITMAP *map);
+extern my_bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size);
+extern my_bool bitmap_is_set(const MY_BITMAP *map, uint bitmap_bit);
+extern my_bool bitmap_is_set_all(const MY_BITMAP *map);
+extern my_bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2);
 extern uint bitmap_set_next(MY_BITMAP *map);
 extern void bitmap_clear_all(MY_BITMAP *map);
 extern void bitmap_clear_bit(MY_BITMAP *map, uint bitmap_bit);
 extern void bitmap_free(MY_BITMAP *map);
-extern void bitmap_intersect(MY_BITMAP *map, MY_BITMAP *map2);
+extern void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2);
 extern void bitmap_set_all(MY_BITMAP *map);
 extern void bitmap_set_bit(MY_BITMAP *map, uint bitmap_bit);
 extern void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size);
-extern void bitmap_subtract(MY_BITMAP *map, MY_BITMAP *map2);
-extern void bitmap_union(MY_BITMAP *map, MY_BITMAP *map2);
+extern void bitmap_subtract(MY_BITMAP *map, const MY_BITMAP *map2);
+extern void bitmap_union(MY_BITMAP *map, const MY_BITMAP *map2);
 #ifdef	__cplusplus
 }
 #endif

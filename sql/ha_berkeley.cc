@@ -844,7 +844,7 @@ int ha_berkeley::write_row(byte * record)
     ulong thd_options = table->in_use ? table->in_use->options : 0;
     for (uint retry=0 ; retry < berkeley_trans_retry ; retry++)
     {
-      key_map changed_keys;
+      key_map changed_keys(0);
       if (using_ignore && (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
       {
 	if ((error=txn_begin(db_env, transaction, &sub_trans, 0))) /* purecov: deadcode */
@@ -888,7 +888,8 @@ int ha_berkeley::write_row(byte * record)
 	  else if (!changed_keys.is_clear_all())
 	  {
 	    new_error = 0;
-	    for (uint keynr=0; keynr < changed_keys.length(); keynr++)
+	    for (uint keynr=0 ; keynr < table->keys+test(hidden_primary_key) ;
+                 keynr++)
 	    {
 	      if (changed_keys.is_set(keynr))
 	      {
@@ -1012,7 +1013,7 @@ int ha_berkeley::update_primary_key(DB_TXN *trans, bool primary_key_changed,
   Clobbers keybuff2
 */
 
-int ha_berkeley::restore_keys(DB_TXN *trans, key_map changed_keys,
+int ha_berkeley::restore_keys(DB_TXN *trans, key_map *changed_keys,
 			      uint primary_key,
 			      const byte *old_row, DBT *old_key,
 			      const byte *new_row, DBT *new_key,
@@ -1034,14 +1035,13 @@ int ha_berkeley::restore_keys(DB_TXN *trans, key_map changed_keys,
      rolled back.  The last key set in changed_keys is the one that
      triggered the duplicate key error (it wasn't inserted), so for
      that one just put back the old value. */
-  if (!changed_keys.is_clear_all())
+  if (!changed_keys->is_clear_all())
   {
-    key_map map1(1);
-    for (keynr=0; keynr < changed_keys.length(); keynr++)
+    for (keynr=0 ; keynr < table->keys+test(hidden_primary_key) ; keynr++)
     {
-      if (changed_keys.is_set(keynr))
+      if (changed_keys->is_set(keynr))
       {
-        if (changed_keys.is_subset(map1) &&
+        if (changed_keys->is_prefix(1) &&
             (error = remove_key(trans, keynr, new_row, new_key)))
           break; /* purecov: inspected */
         if ((error = key_file[keynr]->put(key_file[keynr], trans,
@@ -1094,7 +1094,7 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
   sub_trans = transaction;
   for (uint retry=0 ; retry < berkeley_trans_retry ; retry++)
   {
-    key_map changed_keys;
+    key_map changed_keys(0);
     if (using_ignore &&	(thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
     {
       if ((error=txn_begin(db_env, transaction, &sub_trans, 0))) /* purecov: deadcode */
@@ -1152,7 +1152,7 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
 	  new_error=txn_abort(sub_trans); /* purecov: deadcode */
 	}
 	else if (!changed_keys.is_clear_all())
-	  new_error=restore_keys(transaction, changed_keys, primary_key,
+	  new_error=restore_keys(transaction, &changed_keys, primary_key,
 				 old_row, &old_prim_key, new_row, &prim_key,
 				 thd_options);
 	if (new_error)
@@ -1233,12 +1233,12 @@ int ha_berkeley::remove_key(DB_TXN *trans, uint keynr, const byte *record,
 /* Delete all keys for new_record */
 
 int ha_berkeley::remove_keys(DB_TXN *trans, const byte *record,
-			     DBT *new_record, DBT *prim_key, key_map keys)
+			     DBT *new_record, DBT *prim_key, key_map *keys)
 {
   int result = 0;
-  for (uint keynr=0; keynr < keys.length(); keynr++)
+  for (uint keynr=0 ; keynr < table->keys+test(hidden_primary_key) ; keynr++)
   {
-    if (keys.is_set(keynr))
+    if (keys->is_set(keynr))
     {
       int new_error=remove_key(trans, keynr, record, prim_key);
       if (new_error)
@@ -1278,7 +1278,7 @@ int ha_berkeley::delete_row(const byte * record)
 	break; /* purecov: deadcode */
       DBUG_PRINT("trans",("starting sub transaction")); /* purecov: deadcode */
     }
-    error=remove_keys(sub_trans, record, &row, &prim_key, keys);
+    error=remove_keys(sub_trans, record, &row, &prim_key, &keys);
     if (!error && (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
     {
       DBUG_PRINT("trans",("ending sub transaction")); /* purecov: deadcode */

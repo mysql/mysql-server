@@ -1579,7 +1579,7 @@ err:
 
 static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
 				      TABLE *table,
-				      const key_map& keys,ha_rows limit)
+				      const key_map *keys,ha_rows limit)
 {
   int error;
   DBUG_ENTER("get_quick_record_count");
@@ -1587,7 +1587,7 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
   {
     select->head=table;
     table->reginfo.impossible_range=0;
-    if ((error=select->test_quick_select(thd, keys,(table_map) 0,limit))
+    if ((error=select->test_quick_select(thd, *(key_map *)keys,(table_map) 0,limit))
 	== 1)
       DBUG_RETURN(select->quick->records);
     if (error == -1)
@@ -1876,7 +1876,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 			  s->on_expr ? s->on_expr : conds,
 			  &error);
       records= get_quick_record_count(join->thd, select, s->table,
-				      s->const_keys, join->row_limit);
+				      &s->const_keys, join->row_limit);
       s->quick=select->quick;
       s->needed_reg=select->needed_reg;
       select->quick=0;
@@ -2104,8 +2104,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level,
     else
     {
       JOIN_TAB *stat=field->table->reginfo.join_tab;
-      key_map possible_keys;
-      possible_keys=field->key_start;
+      key_map possible_keys=field->key_start;
       possible_keys.intersect(field->table->keys_in_use_for_query);
       stat[0].keys.merge(possible_keys);             // Add possible keys
 
@@ -8777,7 +8776,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       uint j;
       if (!tab->keys.is_clear_all())
       {
-        for (j=0 ; j < tab->keys.length() ; j++)
+        for (j=0 ; j < table->keys ; j++)
         {
           if (tab->keys.is_set(j))
           {

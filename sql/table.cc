@@ -156,9 +156,9 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   VOID(my_seek(file,(ulong) uint2korr(head+6),MY_SEEK_SET,MYF(0)));
   if (read_string(file,(gptr*) &disk_buff,key_info_length))
     goto err_not_open; /* purecov: inspected */
-  if (disk_buff[1] & 0x80)
+  if (disk_buff[0] & 0x80)
   {
-    outparam->keys=      keys=      uint2korr(disk_buff) & 0x7fff;
+    outparam->keys=      keys=      (disk_buff[1] << 7) | (disk_buff[0] & 0x7f);
     outparam->key_parts= key_parts= uint2korr(disk_buff+2);
   }
   else
@@ -279,7 +279,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   if (my_pread(file,(byte*) record,(uint) outparam->reclength,
 	       (ulong) (uint2korr(head+6)+
                         ((uint2korr(head+14) == 0xffff ?
-                            uint4korr(head+10) : uint2korr(head+14)))),
+                            uint4korr(head+47) : uint2korr(head+14)))),
 	       MYF(MY_NABP)))
     goto err_not_open; /* purecov: inspected */
   /* HACK: table->record[2] is used instead of table->default_values here */
