@@ -2364,7 +2364,8 @@ Dbtc::handle_special_hash(Uint32 dstHash[4], Uint32* src, Uint32 srcLen,
          */
 	Uint32 dstLen = xmul * (srcBytes - lb);
 	ndbrequire(dstLen <= ((dstSize - dstPos) << 2));
-	uint n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
+	int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
+        ndbrequire(n != -1);
 	while ((n & 3) != 0) {
 	  dstPtr[n++] = 0;
 	}
