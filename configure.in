@@ -1070,7 +1070,7 @@ dnl Is this the right match for DEC OSF on alpha?
   *netware*)
     # No need for curses library so set it to null
     with_named_curses=""
-
+    PLATFORM_NETWARE=yes
     #
     # Edit Makefile.in files.
     #
@@ -1170,6 +1170,7 @@ EOF
     ;;
 esac
 
+AM_CONDITIONAL(PLATFORM_NETWARE, test "$PLATFORM_NETWARE" = "yes")
 
 #---START: Used in for client configure
 # Check if we threads are in libc or if we should use

@@ -22,3 +22,11 @@ explain select * from t1 ignore key (str,str,foo) where str="foo";
 drop table t1;
 
 explain select 1;
+
+create table t1 (a int not null);
+explain select count(*) from t1;
+insert into t1 values(1);
+explain select count(*) from t1;
+insert into t1 values(1);
+explain select count(*) from t1;
+drop table t1;
