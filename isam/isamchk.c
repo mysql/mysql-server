@@ -670,7 +670,7 @@ static void get_options(register int *argc, register char ***argv)
   if (isatty(fileno(stdout)))
     testflag|=T_WRITE_LOOP;
 
-  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option, NULL)))
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 
   if (*argc == 0)
