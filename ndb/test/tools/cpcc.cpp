@@ -173,6 +173,7 @@ add_hosts(Vector<SimpleCpcClient*> & hosts, BaseString list){
 
 int 
 main(int argc, const char** argv){
+  ndb_init();
   int help = 0;
   const char *cmd=0, *name=0, *group=0, *owner=0;
   int list = 0, start = 0, stop = 0, rm = 0;

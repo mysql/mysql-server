@@ -60,6 +60,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
   Uint32 tData;
   Uint32 tKeyInfoPosition;
   const char* aValue = aValuePassed;
+  Uint32 xfrmData[1024];
   Uint32 tempData[1024];
 
   if ((theStatus == OperationDefined) &&
@@ -117,6 +118,21 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
     theTupleKeyDefined[i][2] = true;
 
     Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
+    const char* aValueToWrite = aValue;
+
+    CHARSET_INFO* cs = tAttrInfo->m_cs;
+    if (cs != 0) {
+      // current limitation: strxfrm does not increase length
+      assert(cs->strxfrm_multiply == 1);
+      unsigned n =
+      (*cs->coll->strnxfrm)(cs,
+                            (uchar*)xfrmData, sizeof(xfrmData),
+                            (const uchar*)aValue, sizeInBytes);
+      while (n < sizeInBytes)
+        ((uchar*)xfrmData)[n++] = 0x20;
+      aValue = (char*)xfrmData;
+    }
+
     Uint32 bitsInLastWord = 8 * (sizeInBytes & 3) ;
     Uint32 totalSizeInWords = (sizeInBytes + 3)/4; // Inc. bits in last word
     Uint32 sizeInWords = sizeInBytes / 4;          // Exc. bits in last word
@@ -206,13 +222,20 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
     if ((tOpType == InsertRequest) ||
 	(tOpType == WriteRequest)) {
       if (!tAttrInfo->m_indexOnly){
+        // invalid data can crash kernel
+        if (cs != NULL &&
+           (*cs->cset->well_formed_len)(cs,
+                                        aValueToWrite,
+                                        aValueToWrite + sizeInBytes,
+                                        sizeInBytes) != sizeInBytes)
+          goto equal_error4;
 	Uint32 ahValue;
 	const Uint32 sz = totalSizeInWords;
 	AttributeHeader::init(&ahValue, tAttrId, sz);
 	insertATTRINFO( ahValue );
-	insertATTRINFOloop((Uint32*)aValue, sizeInWords);
+	insertATTRINFOloop((Uint32*)aValueToWrite, sizeInWords);
 	if (bitsInLastWord != 0) {
-	  tData = *(Uint32*)(aValue + (sizeInWords << 2));
+	  tData = *(Uint32*)(aValueToWrite + (sizeInWords << 2));
 	  tData = convertEndian(tData);
 	  tData = tData & ((1 << bitsInLastWord) - 1);
 	  tData = convertEndian(tData);
@@ -310,6 +333,10 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 
  equal_error3:
   setErrorCodeAbort(4209);
+  return -1;
+
+ equal_error4:
+  setErrorCodeAbort(744);
   return -1;
 }
 

@@ -23,6 +23,7 @@
 #include <mgmapi.h>
 #include <EventLogger.hpp>
 #include <signaldata/SetLogLevelOrd.hpp>
+#include <LogLevel.hpp>
 #include <BaseString.hpp>
 #include <Base64.hpp>
 
@@ -133,7 +134,7 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("public key", String, Mandatory, "Public key"),
 
   MGM_CMD("get version", &MgmApiSession::getVersion, ""),
-
+  
   MGM_CMD("get status", &MgmApiSession::getStatus, ""),
 
   MGM_CMD("get info clusterlog", &MgmApiSession::getInfoClusterLog, ""),
@@ -236,7 +237,11 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("node", String, Mandatory, "Node"),
     MGM_ARG("parameter", String, Mandatory, "Parameter"),
     MGM_ARG("value", String, Mandatory, "Value"),
-  
+
+  MGM_CMD("listen event", &MgmApiSession::listen_event, ""),
+    MGM_ARG("node", Int, Optional, "Node"),  
+    MGM_ARG("filter", String, Mandatory, "Event category"),
+
   MGM_END()
 };
 
@@ -289,7 +294,8 @@ MgmApiSession::runSession() {
       break;
     }
   }
-  NDB_CLOSE_SOCKET(m_socket);
+  if(m_socket >= 0)
+    NDB_CLOSE_SOCKET(m_socket);
 }
 
 #ifdef MGM_GET_CONFIG_BACKWARDS_COMPAT
@@ -418,7 +424,8 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 				&addr, &addrlen, error_string)){
       const char *alias;
       const char *str;
-      alias= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)nodetype, &str);
+      alias= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)
+						nodetype, &str);
       m_output->println(cmd);
       m_output->println("result: %s", error_string.c_str());
       m_output->println("");
@@ -554,7 +561,7 @@ MgmApiSession::getStatPort(Parser_t::Context &,
 			   const class Properties &) {
 
   m_output->println("get statport reply");
-  m_output->println("tcpport: %d", m_mgmsrv.getStatPort());
+  m_output->println("tcpport: %d", 0);
   m_output->println("");
 }
 
@@ -756,13 +763,12 @@ MgmApiSession::bye(Parser<MgmApiSession>::Context &,
 void
 MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
 				  Properties const &args) {
-  Uint32 node, level;
-  BaseString categoryName, errorString;
+  Uint32 node, level, category;
+  BaseString errorString;
   SetLogLevelOrd logLevel;
   int result;
-  logLevel.clear();
   args.get("node", &node);
-  args.get("category", categoryName);
+  args.get("category", &category);
   args.get("level", &level);
 
   /* XXX should use constants for this value */
@@ -771,25 +777,17 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
     goto error;
   }
 
-  categoryName.ndb_toupper();
- 
-  LogLevel::EventCategory category;
-  if(!EventLogger::matchEventCategory(categoryName.c_str(), &category)) {
-    errorString.assign("Unknown category");
-    goto error;
-  }
-
-  logLevel.setLogLevel(category, level);
-  result = m_mgmsrv.setEventReportingLevel(node, logLevel);
-
+  EventSubscribeReq req;
+  req.blockRef = 0;
+  req.noOfEntries = 1;
+  req.theData[0] = (category << 16) | level;
+  m_mgmsrv.m_log_level_requests.push_back(req);
+  
   m_output->println("set cluster loglevel reply");
-  if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
-  else
-    m_output->println("result: Ok");
+  m_output->println("result: Ok");
   m_output->println("");
   return;
- error:
+error:
   m_output->println("set cluster loglevel reply");
   m_output->println("result: %s", errorString.c_str());
   m_output->println("");
@@ -798,13 +796,13 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
 void
 MgmApiSession::setLogLevel(Parser<MgmApiSession>::Context &,
 			   Properties const &args) {
-  Uint32 node = 0, level = 0;
-  BaseString categoryName, errorString;
+  Uint32 node = 0, level = 0, category;
+  BaseString errorString;
   SetLogLevelOrd logLevel;
   int result;
   logLevel.clear();
   args.get("node", &node);
-  args.get("category", categoryName);
+  args.get("category", &category);
   args.get("level", &level);
 
   /* XXX should use constants for this value */
@@ -813,23 +811,14 @@ MgmApiSession::setLogLevel(Parser<MgmApiSession>::Context &,
     goto error;
   }
 
-  categoryName.ndb_toupper();
- 
-  LogLevel::EventCategory category;
-  if(!EventLogger::matchEventCategory(categoryName.c_str(), &category)) {
-    errorString.assign("Unknown category");
-    goto error;
-  }
-
-  logLevel.setLogLevel(category, level);
-
-  result = m_mgmsrv.setNodeLogLevel(node, logLevel);
-
+  EventSubscribeReq req;
+  req.blockRef = node;
+  req.noOfEntries = 1;
+  req.theData[0] = (category << 16) | level;
+  m_mgmsrv.m_log_level_requests.push_back(req);
+  
   m_output->println("set loglevel reply");
-  if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
-  else 
-    m_output->println("result: Ok");
+  m_output->println("result: Ok");
   m_output->println("");
   return;
  error:
@@ -1248,33 +1237,91 @@ MgmApiSession::configChange(Parser_t::Context &,
   m_output->println("");
 }
 
-void 
-MgmStatService::println_statistics(const BaseString &line){
-  MutexVector<NDB_SOCKET_TYPE> copy(m_sockets.size()); 
-  m_sockets.lock();
-  int i;
-  for(i = m_sockets.size() - 1; i >= 0; i--){
-    if(println_socket(m_sockets[i], MAX_WRITE_TIMEOUT, line.c_str()) == -1){
-      copy.push_back(m_sockets[i]);
-      m_sockets.erase(i, false);
+static NdbOut&
+operator<<(NdbOut& out, const LogLevel & ll)
+{
+  out << "[LogLevel: ";
+  for(size_t i = 0; i<LogLevel::LOGLEVEL_CATEGORIES; i++)
+    out << ll.getLogLevel((LogLevel::EventCategory)i) << " ";
+  out << "]";
+}
+
+void
+MgmStatService::log(int eventType, const Uint32* theData, NodeId nodeId){
+  
+  Uint32 threshold = 0;
+  LogLevel::EventCategory cat;
+  
+  for(unsigned i = 0; i<EventLogger::matrixSize; i++){
+    if(EventLogger::matrix[i].eventType == eventType){
+      cat = EventLogger::matrix[i].eventCategory;
+      threshold = EventLogger::matrix[i].threshold;
+      break;
     }
   }
-  m_sockets.unlock();
-  
-  for(i = copy.size() - 1; i >= 0; i--){
-    NDB_CLOSE_SOCKET(copy[i]);
-    copy.erase(i);
+
+  char m_text[256];
+  EventLogger::getText(m_text, sizeof(m_text), eventType, theData, nodeId);
+
+  Vector<NDB_SOCKET_TYPE> copy; 
+  m_clients.lock();
+  int i;
+  for(i = m_clients.size() - 1; i >= 0; i--){
+    if(threshold <= m_clients[i].m_logLevel.getLogLevel(cat)){
+      if(m_clients[i].m_socket >= 0 &&
+	 println_socket(m_clients[i].m_socket, 
+			MAX_WRITE_TIMEOUT, m_text) == -1){
+	copy.push_back(m_clients[i].m_socket);
+	m_clients.erase(i, false);
+      }
+    }
   }
-  if(m_sockets.size() == 0 || false){
-    m_mgmsrv->startStatisticEventReporting(0);
+  m_clients.unlock();
+  
+  for(i = 0; (unsigned)i<copy.size(); i++){
+    NDB_CLOSE_SOCKET(copy[i]);
+  }
+
+  if(copy.size()){
+    LogLevel tmp; tmp.clear();
+    m_clients.lock();
+    for(i = 0; i < m_clients.size(); i++){
+      tmp.set_max(m_clients[i].m_logLevel);
+    }
+    m_clients.unlock();
+
+    if(!(tmp == m_logLevel)){
+      m_logLevel = tmp;
+      EventSubscribeReq req; 
+      req = tmp;
+      req.blockRef = 0;
+      m_mgmsrv->m_log_level_requests.push_back(req);
+    }
+  }
+}
+
+void
+MgmStatService::add_listener(const StatListener& client){
+  m_clients.push_back(client);
+  LogLevel tmp = m_logLevel;
+  tmp.set_max(client.m_logLevel);
+  
+  if(!(tmp == m_logLevel)){
+    m_logLevel = tmp;
+    EventSubscribeReq req;
+    req = tmp;
+    req.blockRef = 0;
+    m_mgmsrv->m_log_level_requests.push_back(req);
   }
 }
 
 void
 MgmStatService::stopSessions(){
-  for(int i = m_sockets.size() - 1; i >= 0; i--){
-    NDB_CLOSE_SOCKET(m_sockets[i]);
-    m_sockets.erase(i);
+  for(int i = m_clients.size() - 1; i >= 0; i--){
+    if(m_clients[i].m_socket >= 0){
+      NDB_CLOSE_SOCKET(m_clients[i].m_socket);
+      m_clients.erase(i);
+    }
   }
 }
 
@@ -1295,6 +1342,75 @@ MgmApiSession::setParameter(Parser_t::Context &,
   m_output->println("set parameter reply");
   m_output->println("message: %s", result.c_str());
   m_output->println("result: %d", ret);
+  m_output->println("");
+}
+
+void
+MgmApiSession::listen_event(Parser<MgmApiSession>::Context & ctx,
+			    Properties const & args) {
+  
+  BaseString node, param, value;
+  args.get("node", node);
+  args.get("filter", param);
+
+  int result = 0;
+  BaseString msg;
+
+  MgmStatService::StatListener le;
+  le.m_socket = m_socket;
+
+  Vector<BaseString> list;
+  param.trim();
+  param.split(list, " ,");
+  for(size_t i = 0; i<list.size(); i++){
+    Vector<BaseString> spec;
+    list[i].trim();
+    list[i].split(spec, "=:");
+    if(spec.size() != 2){
+      msg.appfmt("Invalid filter specification: >%s< >%s< %d", 
+		 param.c_str(), list[i].c_str(), spec.size());
+      result = -1;
+      goto done;
+    }
+
+    spec[0].trim().ndb_toupper();
+    int category = ndb_mgm_match_event_category(spec[0].c_str());
+    if(category == NDB_MGM_ILLEGAL_EVENT_CATEGORY){
+      category = atoi(spec[0].c_str());
+      if(category < NDB_MGM_MIN_EVENT_CATEGORY ||
+	 category > NDB_MGM_MAX_EVENT_CATEGORY){
+	msg.appfmt("Unknown category: >%s<", spec[0].c_str());
+	result = -1;
+	goto done;
+      }
+    }
+    
+    int level = atoi(spec[1].c_str());
+    if(level < 0 || level > 15){
+      msg.appfmt("Invalid level: >%s<", spec[1].c_str());
+      result = -1;
+      goto done;
+    }
+    category -= CFG_MIN_LOGLEVEL;
+    le.m_logLevel.setLogLevel((LogLevel::EventCategory)category, level);
+  }
+  
+  if(list.size() == 0){
+    msg.appfmt("Empty filter specification");
+    result = -1;
+    goto done;
+  }
+  
+  m_mgmsrv.m_statisticsListner.add_listener(le);
+  
+  m_stop = true;
+  m_socket = -1;
+
+done:
+  m_output->println("listen event");
+  m_output->println("result: %d", result);
+  if(result != 0)
+    m_output->println("msg: %s", msg.c_str());
   m_output->println("");
 }
 
