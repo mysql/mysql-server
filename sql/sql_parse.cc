@@ -1716,6 +1716,7 @@ mysql_execute_command(void)
   case SQLCOM_BEGIN:
     thd->options|= OPTION_BEGIN;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
+    send_ok(&thd->net);
     break;
   case SQLCOM_COMMIT:
     thd->options&= ~OPTION_BEGIN;
