@@ -1361,7 +1361,7 @@ field_spec:
 	field_ident
 	 {
 	   LEX *lex=Lex;
-	   lex->length=lex->dec=0; lex->type=0; lex->interval=0;
+	   lex->length=lex->dec=0; lex->type=0;
 	   lex->default_value= lex->on_update_value= 0;
 	   lex->comment=0;
 	   lex->charset=NULL;
@@ -1374,7 +1374,7 @@ field_spec:
 				lex->length,lex->dec,lex->type,
 				lex->default_value, lex->on_update_value, 
                                 lex->comment,
-				lex->change,lex->interval,lex->charset,
+				lex->change,&lex->interval_list,lex->charset,
 				lex->uint_geom_type))
 	    YYABORT;
 	};
@@ -1471,17 +1471,9 @@ type:
 	| FIXED_SYM float_options field_options
 					{ $$=FIELD_TYPE_DECIMAL;}
 	| ENUM {Lex->interval_list.empty();} '(' string_list ')' opt_binary
-	  {
-	    LEX *lex=Lex;
-	    lex->interval=typelib(lex->interval_list);
-	    $$=FIELD_TYPE_ENUM;
-	  }
+	  { $$=FIELD_TYPE_ENUM; }
 	| SET { Lex->interval_list.empty();} '(' string_list ')' opt_binary
-	  {
-	    LEX *lex=Lex;
-	    lex->interval=typelib(lex->interval_list);
-	    $$=FIELD_TYPE_SET;
-	  }
+	  { $$=FIELD_TYPE_SET; }
 	| LONG_SYM opt_binary		{ $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| SERIAL_SYM
 	  {
@@ -1925,7 +1917,7 @@ alter_list_item:
         | MODIFY_SYM opt_column field_ident
           {
             LEX *lex=Lex;
-            lex->length=lex->dec=0; lex->type=0; lex->interval=0;
+            lex->length=lex->dec=0; lex->type=0;
             lex->default_value= lex->on_update_value= 0;
 	    lex->comment=0;
 	    lex->charset= NULL;
@@ -1940,7 +1932,7 @@ alter_list_item:
                                   lex->length,lex->dec,lex->type,
                                   lex->default_value, lex->on_update_value,
                                   lex->comment,
-				  $3.str, lex->interval, lex->charset,
+				  $3.str, &lex->interval_list, lex->charset,
 				  lex->uint_geom_type))
 	       YYABORT;
           }
