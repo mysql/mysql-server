@@ -120,6 +120,9 @@ public:
      Constructor used by Item_field, Item_ref & agregate (sum) functions.
      Used for duplicating lists in processing queries with temporary
      tables
+     Also it used for Item_cond_and/Item_cond_or for creating
+     top AND/OR ctructure of WHERE clause to protect it of
+     optimisation changes in prepared statements
   */
   Item(THD *thd, Item &item);
   virtual ~Item() { name=0; }		/*lint -e1509 */
@@ -184,6 +187,7 @@ public:
   virtual void save_in_result_field(bool no_conversions) {}
   virtual void no_rows_in_result() {}
   virtual Item *copy_or_same(THD *thd) { return this; }
+  virtual Item *copy_andor_structure(THD *thd) { return this; }
   virtual Item *real_item() { return this; }
   virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
@@ -541,7 +545,7 @@ class Item_result_field :public Item	/* Item with result field */
 public:
   Field *result_field;				/* Save result here */
   Item_result_field() :result_field(0) {}
-  // Constructor used for Item_sum (see Item comment)
+  // Constructor used for Item_sum/Item_cond_and/or (see Item comment)
   Item_result_field(THD *thd, Item_result_field &item):
     Item(thd, item), result_field(item.result_field)
   {}

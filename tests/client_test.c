@@ -1839,6 +1839,85 @@ session_id  char(9) NOT NULL, \
   mysql_stmt_close(stmt);
 }
 
+/*
+  test BUG#1180 (optimized away part of WHERE clause)
+*/
+static void test_bug1180()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  MYSQL_BIND bind[1];
+  ulong length[1];
+  char szData[11];
+  int nData=1;
+
+  myheader("test_select_bug");
+
+  rc = mysql_query(mysql,"DROP TABLE IF EXISTS test_select");
+  myquery(rc);
+
+  rc = mysql_query(mysql,"CREATE TABLE test_select(session_id  char(9) NOT NULL)");
+  myquery(rc);
+  rc = mysql_query(mysql,"INSERT INTO test_select VALUES (\"abc\")");
+  myquery(rc);
+
+  strmov(query,"SELECT * FROM test_select WHERE ?=\"1111\" and session_id = \"abc\"");
+  stmt = mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt);
+
+  verify_param_count(stmt,1);
+
+  strmov(szData,(char *)"abc");
+  bind[0].buffer_type=FIELD_TYPE_STRING;
+  bind[0].buffer=(char *)szData;
+  bind[0].buffer_length= 10;
+  bind[0].length= &length[0];
+  length[0]= 3;
+  bind[0].is_null=0;
+
+  rc = mysql_bind_param(stmt,bind);
+  mystmt(stmt, rc);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  myassert(my_process_stmt_result(stmt) == 0);
+
+  strmov(szData,(char *)"1111");
+  bind[0].buffer_type=FIELD_TYPE_STRING;
+  bind[0].buffer=(char *)szData;
+  bind[0].buffer_length= 10;
+  bind[0].length= &length[0];
+  length[0]= 4;
+  bind[0].is_null=0;
+
+  rc = mysql_bind_param(stmt,bind);
+  mystmt(stmt, rc);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  myassert(my_process_stmt_result(stmt) == 1);
+
+  strmov(szData,(char *)"abc");
+  bind[0].buffer_type=FIELD_TYPE_STRING;
+  bind[0].buffer=(char *)szData;
+  bind[0].buffer_length= 10;
+  bind[0].length= &length[0];
+  length[0]= 3;
+  bind[0].is_null=0;
+
+  rc = mysql_bind_param(stmt,bind);
+  mystmt(stmt, rc);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  myassert(my_process_stmt_result(stmt) == 0);
+
+  mysql_stmt_close(stmt);
+}
+
 /********************************************************
 * to test simple select show                            *
 *********************************************************/
@@ -7898,6 +7977,7 @@ int main(int argc, char **argv)
     test_sqlmode();         /* test for SQL_MODE */
     test_ts();              /* test for timestamp BR#819 */
     test_bug1115();         /* BUG#1115 */
+    test_bug1180();         /* BUG#1180 */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);

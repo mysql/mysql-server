@@ -339,6 +339,7 @@ class st_select_lex: public st_select_lex_node
 public:
   char *db, *db1, *table1, *db2, *table2;      	/* For outer join using .. */
   Item *where, *having;                         /* WHERE & HAVING clauses */
+  Item *prep_where; /* saved WHERE clause for prepared statement processing */
   enum olap_type olap;
   SQL_LIST	      table_list, group_list;   /* FROM & GROUP BY clauses */
   List<Item>          item_list; /* list of fields & expressions */
