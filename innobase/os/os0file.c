@@ -180,7 +180,7 @@ ask_again:
 		fprintf(stderr,
 	   "InnoDB: Cannot continue operation.\n"
 	   "InnoDB: Disk is full. Try to clean the disk to free space.\n"
-	   "InnoDB: Delete possible created file %s and restart.\n");
+	   "InnoDB: Delete possible created file and restart.\n");
 
 		exit(1);
 
