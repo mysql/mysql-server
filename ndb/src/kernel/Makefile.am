@@ -45,14 +45,14 @@ LDADD +=  \
               blocks/dbtux/libdbtux.a \
               vm/libkernel.a	\
               error/liberror.a \
-              $(top_srcdir)/ndb/src/common/transporter/libtransporter.la   \
-              $(top_srcdir)/ndb/src/common/debugger/libtrace.la     \
-              $(top_srcdir)/ndb/src/common/debugger/signaldata/libsignaldataprint.la \
-              $(top_srcdir)/ndb/src/common/logger/liblogger.la       \
-              $(top_srcdir)/ndb/src/common/mgmcommon/libmgmsrvcommon.la \
-              $(top_srcdir)/ndb/src/mgmapi/libmgmapi.la \
-              $(top_srcdir)/ndb/src/common/portlib/unix/libportlib.la      \
-              $(top_srcdir)/ndb/src/common/util/libgeneral.la 
+              $(top_builddir)/ndb/src/common/transporter/libtransporter.la   \
+              $(top_builddir)/ndb/src/common/debugger/libtrace.la     \
+              $(top_builddir)/ndb/src/common/debugger/signaldata/libsignaldataprint.la \
+              $(top_builddir)/ndb/src/common/logger/liblogger.la       \
+              $(top_builddir)/ndb/src/common/mgmcommon/libmgmsrvcommon.la \
+              $(top_builddir)/ndb/src/mgmapi/libmgmapi.la \
+              $(top_builddir)/ndb/src/common/portlib/unix/libportlib.la      \
+              $(top_builddir)/ndb/src/common/util/libgeneral.la 
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
