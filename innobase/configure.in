@@ -37,6 +37,7 @@ AC_PROG_INSTALL
 AC_CHECK_HEADERS(aio.h sched.h)
 AC_CHECK_SIZEOF(int, 4)
 AC_CHECK_SIZEOF(long, 4)
+AC_CHECK_SIZEOF(void*, 4)
 AC_CHECK_FUNCS(sched_yield)
 AC_CHECK_FUNCS(fdatasync)
 #AC_CHECK_FUNCS(localtime_r)	# Already checked by MySQL
