@@ -79,7 +79,7 @@ __weak_alias(vis,_vis)
 #define MAXEXTRAS       5
 
 
-char *MAKEEXTRALIST(uint flag, const char *orig)
+char *MAKEEXTRALIST(unsigned int flag, const char *orig)
 {								
   const char *o = orig;
   char *e, *extra; 
