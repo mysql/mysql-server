@@ -475,7 +475,7 @@ If thd is not in the autocommit state, this function also starts a new
 transaction for thd if there is no active trx yet, and assigns a consistent
 read view to it if there is no read view yet. */
 
-my_bool
+bool
 innobase_query_caching_of_table_permitted(
 /*======================================*/
 				/* out: TRUE if permitted, FALSE if not;
