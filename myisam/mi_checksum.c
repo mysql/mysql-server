@@ -50,7 +50,7 @@ ha_checksum mi_checksum(MI_INFO *info, const byte *buf)
       pos=buf;
       break;
     }
-    crc=my_checksum(crc, pos, length);
+    crc=my_checksum(crc, pos ? pos : "", length);
   }
   return crc;
 }

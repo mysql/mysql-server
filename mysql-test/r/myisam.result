@@ -394,6 +394,23 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 drop table t1,t2;
 CREATE TABLE t1 (`a` int(11) NOT NULL default '0', `b` int(11) NOT NULL default '0', UNIQUE KEY `a` USING RTREE (`a`,`b`)) TYPE=MyISAM;
 ERROR 42000: This version of MySQL doesn't yet support 'RTREE INDEX'
-DROP TABLE IF EXISTS t1;
-Warnings:
-Note	1051	Unknown table 't1'
+create table t1 (a int, b varchar(200), c text not null) checksum=1;
+create table t2 (a int, b varchar(200), c text not null) checksum=0;
+insert t1 values (1, "aaa", "bbb"), (NULL, "", "ccccc"), (0, NULL, "");
+insert t2 select * from t1;
+checksum table t1, t2, t3 quick;
+Table	Checksum
+test.t1	968604391
+test.t2	NULL
+test.t3	NULL
+checksum table t1, t2, t3;
+Table	Checksum
+test.t1	968604391
+test.t2	968604391
+test.t3	NULL
+checksum table t1, t2, t3 extended;
+Table	Checksum
+test.t1	968604391
+test.t2	968604391
+test.t3	NULL
+drop table t1,t2;

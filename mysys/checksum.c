@@ -30,9 +30,11 @@
 
 ha_checksum my_checksum(ha_checksum crc, const byte *pos, uint length)
 {
-  const byte *end=pos+length;
+/*  const byte *end=pos+length;
   for ( ; pos != end ; pos++)
     crc=((crc << 8) + *((uchar*) pos)) + (crc >> (8*sizeof(ha_checksum)-8));
   return crc;
+*/
+  return (ha_checksum)crc32((uint)crc, (const uchar *)pos, length);
 }
 

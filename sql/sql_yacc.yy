@@ -1080,7 +1080,7 @@ opt_select_from:
 	| select_from select_lock_type;
 
 udf_func_type:
-	/* empty */ 	{ $$ = UDFTYPE_FUNCTION; }
+	/* empty */	{ $$ = UDFTYPE_FUNCTION; }
 	| AGGREGATE_SYM { $$ = UDFTYPE_AGGREGATE; };
 
 udf_type:
@@ -1547,7 +1547,7 @@ opt_ident:
 opt_component:
 	/* empty */	 { $$.str= 0; $$.length= 0; }
 	| '.' ident	 { $$=$2; };
-	
+
 string_list:
 	text_string			{ Lex->interval_list.push_back($1); }
 	| string_list ',' text_string	{ Lex->interval_list.push_back($3); };
@@ -1760,9 +1760,15 @@ checksum:
 	   LEX *lex=Lex;
 	   lex->sql_command = SQLCOM_CHECKSUM;
 	}
-	table_list
-	{}
+	table_list opt_checksum_type
+        {}
 	;
+
+opt_checksum_type:
+        /* nothing */  { Lex->check_opt.flags= 0; }
+	| QUICK        { Lex->check_opt.flags= T_QUICK; }
+	| EXTENDED_SYM { Lex->check_opt.flags= T_EXTEND; }
+        ;
 
 repair:
 	REPAIR opt_no_write_to_binlog table_or_tables

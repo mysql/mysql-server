@@ -360,4 +360,15 @@ drop table t1,t2;
 CREATE TABLE t1 (`a` int(11) NOT NULL default '0', `b` int(11) NOT NULL default '0', UNIQUE KEY `a` USING RTREE (`a`,`b`)) TYPE=MyISAM;
 # INSERT INTO t1 VALUES (1,1),(1,1);
 # DELETE FROM rt WHERE a<1;
-DROP TABLE IF EXISTS t1;
+# DROP TABLE IF EXISTS t1;
+
+create table t1 (a int, b varchar(200), c text not null) checksum=1;
+create table t2 (a int, b varchar(200), c text not null) checksum=0;
+insert t1 values (1, "aaa", "bbb"), (NULL, "", "ccccc"), (0, NULL, "");
+insert t2 select * from t1;
+checksum table t1, t2, t3 quick;
+checksum table t1, t2, t3;
+checksum table t1, t2, t3 extended;
+#show table status;
+drop table t1,t2;
+
