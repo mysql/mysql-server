@@ -2128,7 +2128,7 @@ get_best_combination(JOIN *join)
 	  have a 'normal' value or a NULL value.
 	*/
 	j->type=JT_CONST;
-	if (join->const_tables == tablenr)
+	if (join->const_tables == tablenr && !form->fulltext_searched)
 	{
 	  join->const_tables++;
 	  join->const_table_map|=form->map;
