@@ -24,8 +24,6 @@
 #include "log_event.h"
 #include <mysql.h>
 
-extern Table_filter *rpl_filter;
-
 #define SLAVE_LIST_CHUNK 128
 #define SLAVE_ERRMSG_SIZE (FN_REFLEN+64)
 
