@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <my_sys.h>
 
 #define DBDICT_C
 #include "Dbdict.hpp"
@@ -4100,6 +4101,8 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
 
     req->noOfKeyAttr = tabPtr.p->noOfPrimkey;
     req->noOfNewAttr = 0;
+    // noOfCharsets passed to TUP in upper half
+    req->noOfNewAttr |= (tabPtr.p->noOfCharsets << 16);
     req->checksumIndicator = 1;
     req->noOfAttributeGroups = 1;
     req->GCPIndicator = 0;
@@ -4161,6 +4164,8 @@ Dbdict::sendLQHADDATTRREQ(Signal* signal,
     entry.attrId = attrPtr.p->attributeId;
     entry.attrDescriptor = attrPtr.p->attributeDescriptor;
     entry.extTypeInfo = attrPtr.p->extType;
+    // charset number passed to TUP, TUX in upper half
+    entry.extTypeInfo |= (attrPtr.p->extPrecision & ~0xFFFF);
     if (tabPtr.p->isIndex()) {
       Uint32 primaryAttrId;
       if (attrPtr.p->nextAttrInTable != RNIL) {
@@ -4697,6 +4702,8 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
   Uint32 keyLength = 0;
   Uint32 attrCount = tablePtr.p->noOfAttributes;
   Uint32 nullCount = 0;
+  Uint32 noOfCharsets = 0;
+  Uint16 charsets[128];
   Uint32 recordLength = 0;
   AttributeRecordPtr attrPtr;
   c_attributeRecordHash.removeAll();
@@ -4751,6 +4758,31 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     attrPtr.p->extPrecision = attrDesc.AttributeExtPrecision;
     attrPtr.p->extScale = attrDesc.AttributeExtScale;
     attrPtr.p->extLength = attrDesc.AttributeExtLength;
+    // charset in upper half of precision
+    unsigned csNumber = (attrPtr.p->extPrecision >> 16);
+    if (csNumber != 0) {
+      CHARSET_INFO* cs = get_charset(csNumber, MYF(0));
+      if (cs == NULL) {
+        parseP->errorCode = CreateTableRef::InvalidCharset;
+        parseP->errorLine = __LINE__;
+        return;
+      }
+      unsigned i = 0;
+      while (i < noOfCharsets) {
+        if (charsets[i] == csNumber)
+          break;
+        i++;
+      }
+      if (i == noOfCharsets) {
+        noOfCharsets++;
+        if (noOfCharsets > sizeof(charsets)/sizeof(charsets[0])) {
+          parseP->errorCode = CreateTableRef::InvalidFormat;
+          parseP->errorLine = __LINE__;
+          return;
+        }
+        charsets[i] = csNumber;
+      }
+    }
 
     /**
      * Ignore incoming old-style type and recompute it.
@@ -4814,6 +4846,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
   
   tablePtr.p->noOfPrimkey = keyCount;
   tablePtr.p->noOfNullAttr = nullCount;
+  tablePtr.p->noOfCharsets = noOfCharsets;
   tablePtr.p->tupKeyLength = keyLength;
 
   tabRequire(recordLength<= MAX_TUPLE_SIZE_IN_WORDS, 
@@ -6317,6 +6350,8 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
       w.add(DictTabInfo::AttributeStoredInd, (Uint32)DictTabInfo::Stored);
       // ext type overrides
       w.add(DictTabInfo::AttributeExtType, aRec->extType);
+      w.add(DictTabInfo::AttributeExtPrecision, aRec->extPrecision);
+      w.add(DictTabInfo::AttributeExtScale, aRec->extScale);
       w.add(DictTabInfo::AttributeExtLength, aRec->extLength);
       w.add(DictTabInfo::AttributeEnd, (Uint32)true);
     }

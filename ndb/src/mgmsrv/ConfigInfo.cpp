@@ -129,11 +129,14 @@ ConfigInfo::m_SectionRules[] = {
   
   { "TCP",  fixHostname, "HostName1" },
   { "TCP",  fixHostname, "HostName2" },
+  { "SCI",  fixHostname, "HostName1" },
+  { "SCI",  fixHostname, "HostName2" },
   { "OSE",  fixHostname, "HostName1" },
   { "OSE",  fixHostname, "HostName2" },
 
   { "TCP",  fixPortNumber, 0 }, // has to come after fixHostName
   { "SHM",  fixPortNumber, 0 }, // has to come after fixHostName
+  { "SCI",  fixPortNumber, 0 }, // has to come after fixHostName
   //{ "SHM",  fixShmKey, 0 },
 
   /**
@@ -163,6 +166,8 @@ ConfigInfo::m_SectionRules[] = {
 
   { "TCP",  checkTCPConstraints, "HostName1" },
   { "TCP",  checkTCPConstraints, "HostName2" },
+  { "SCI",  checkTCPConstraints, "HostName1" },
+  { "SCI",  checkTCPConstraints, "HostName2" },
   
   { "*",    checkMandatory, 0 },
   
@@ -1529,7 +1534,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
-    CFG_TCP_HOSTNAME_1,
+    CFG_CONNECTION_HOSTNAME_1,
     "HostName1",
     "TCP",
     "Name/IP of computer on one side of the connection",
@@ -1540,7 +1545,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
-    CFG_TCP_HOSTNAME_2,
+    CFG_CONNECTION_HOSTNAME_2,
     "HostName2",
     "TCP",
     "Name/IP of computer on one side of the connection",
@@ -1808,7 +1813,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
     ConfigInfo::USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::STRING,
     MANDATORY,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
@@ -1820,16 +1825,50 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
     ConfigInfo::USED,
     false,
-    ConfigInfo::INT,
+    ConfigInfo::STRING,
     MANDATORY,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
 
   {
-    CFG_SCI_ID_0,
-    "SciId0",
+    CFG_SCI_HOSTNAME_1,
+    "HostName1",
     "SCI",
-    "Local SCI-node id for adapter 0 (a computer can have two adapters)",
+    "Name/IP of computer on one side of the connection",
+    ConfigInfo::INTERNAL,
+    false,
+    ConfigInfo::STRING,
+    UNDEFINED,
+    0, 0 },
+
+  {
+    CFG_SCI_HOSTNAME_2,
+    "HostName2",
+    "SCI",
+    "Name/IP of computer on one side of the connection",
+    ConfigInfo::INTERNAL,
+    false,
+    ConfigInfo::STRING,
+    UNDEFINED,
+    0, 0 },
+
+  {
+    CFG_CONNECTION_SERVER_PORT,
+    "PortNumber",
+    "SCI",
+    "Port used for this transporter",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    MANDATORY,
+    "0", 
+    STR_VALUE(MAX_INT_RNIL) },
+
+  {
+    CFG_SCI_HOST1_ID_0,
+    "Host1SciId0",
+    "SCI",
+    "SCI-node id for adapter 0 on Host1 (a computer can have two adapters)",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -1838,14 +1877,38 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
-    CFG_SCI_ID_1,
-    "SciId1",
+    CFG_SCI_HOST1_ID_1,
+    "Host1SciId1",
     "SCI",
-    "Local SCI-node id for adapter 1 (a computer can have two adapters)",
+    "SCI-node id for adapter 1 on Host1 (a computer can have two adapters)",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    "0",
+    "0",
+    STR_VALUE(MAX_INT_RNIL) },
+
+  {
+    CFG_SCI_HOST2_ID_0,
+    "Host2SciId0",
+    "SCI",
+    "SCI-node id for adapter 0 on Host2 (a computer can have two adapters)",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
     MANDATORY,
+    "0",
+    STR_VALUE(MAX_INT_RNIL) },
+
+  {
+    CFG_SCI_HOST2_ID_1,
+    "Host2SciId1",
+    "SCI",
+    "SCI-node id for adapter 1 on Host2 (a computer can have two adapters)",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1881,9 +1944,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    "2K",
-    "512",
-    STR_VALUE(MAX_INT_RNIL) },
+    "8K",
+    "128",
+    "32K" },
 
   {
     CFG_SCI_BUFFER_MEM,
@@ -1894,7 +1957,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     "1M",
-    "256K",
+    "64K",
     STR_VALUE(MAX_INT_RNIL) },
 
   {
@@ -1935,7 +1998,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
-    CFG_OSE_HOSTNAME_1,
+    CFG_CONNECTION_HOSTNAME_1,
     "HostName1",
     "OSE",
     "Name of computer on one side of the connection",
@@ -1946,7 +2009,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
-    CFG_OSE_HOSTNAME_2,
+    CFG_CONNECTION_HOSTNAME_2,
     "HostName2",
     "OSE",
     "Name of computer on one side of the connection",
@@ -2902,26 +2965,38 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
   DBUG_ENTER("fixPortNumber");
 
   Uint32 id1= 0, id2= 0;
+  const char *hostName1;
+  const char *hostName2;
   require(ctx.m_currentSection->get("NodeId1", &id1));
   require(ctx.m_currentSection->get("NodeId2", &id2));
+  require(ctx.m_currentSection->get("HostName1", &hostName1));
+  require(ctx.m_currentSection->get("HostName2", &hostName2));
+  DBUG_PRINT("info",("NodeId1=%d HostName1=\"%s\"",id1,hostName1));
+  DBUG_PRINT("info",("NodeId2=%d HostName2=\"%s\"",id2,hostName2));
+
   if (id1 > id2) {
     Uint32 tmp= id1;
+    const char *tmp_name= hostName1;
+    hostName1= hostName2;
     id1= id2;
+    hostName2= tmp_name;
     id2= tmp;
   }
 
   const Properties * node;
   require(ctx.m_config->get("Node", id1, &node));
-  BaseString hostname;
-  require(node->get("HostName", hostname));
+  BaseString hostname(hostName1);
+  //  require(node->get("HostName", hostname));
   
   if (hostname.c_str()[0] == 0) {
-    ctx.reportError("Hostname required on nodeid %d since it will act as server.", id1);
+    ctx.reportError("Hostname required on nodeid %d since it will "
+		    "act as server.", id1);
     DBUG_RETURN(false);
   }
 
   Uint32 port= 0;
-  if (!node->get("ServerPort", &port) && !ctx.m_userProperties.get("ServerPort_", id1, &port)) {
+  if (!node->get("ServerPort", &port) &&
+      !ctx.m_userProperties.get("ServerPort_", id1, &port)) {
     Uint32 adder= 0;
     {
       BaseString server_port_adder(hostname);
@@ -2932,7 +3007,8 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
 
     Uint32 base= 0;
     if (!ctx.m_userProperties.get("ServerPortBase", &base)){
-      if(!(ctx.m_userDefaults && ctx.m_userDefaults->get("PortNumber", &base)) &&
+      if(!(ctx.m_userDefaults &&
+	   ctx.m_userDefaults->get("PortNumber", &base)) &&
 	 !ctx.m_systemDefaults->get("PortNumber", &base)) {
 	base= strtoll(NDB_BASE_PORT,0,0)+2;
       //      ctx.reportError("Cannot retrieve base port number");
@@ -2945,12 +3021,15 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
   }
 
   if(ctx.m_currentSection->contains("PortNumber")) {
-    ndbout << "PortNumber should no longer be specificied per connection, please remove from config. Will be changed to " << port << endl;
+    ndbout << "PortNumber should no longer be specificied "
+	   << "per connection, please remove from config. "
+	   << "Will be changed to " << port << endl;
     ctx.m_currentSection->put("PortNumber", port, true);
   } else
     ctx.m_currentSection->put("PortNumber", port);
 
-  DBUG_PRINT("info", ("connection %d-%d port %d host %s", id1, id2, port, hostname.c_str()));
+  DBUG_PRINT("info", ("connection %d-%d port %d host %s",
+		      id1, id2, port, hostname.c_str()));
 
   DBUG_RETURN(true);
 }

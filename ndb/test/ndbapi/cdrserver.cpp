@@ -113,6 +113,7 @@ using namespace std;
 
 int main(int argc, const char** argv)
 {
+  ndb_init();
         /******** NDB ***********/
 	/*
         Ndb                   MyNdb( "TEST_DB" );

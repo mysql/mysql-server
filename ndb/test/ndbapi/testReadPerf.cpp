@@ -91,6 +91,7 @@ void print_result();
 
 int
 main(int argc, const char** argv){
+  ndb_init();
   int verbose = 1;
   int optind = 0;
   

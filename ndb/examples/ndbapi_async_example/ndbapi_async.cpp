@@ -46,9 +46,9 @@
  *
  *  NdbDictionary::Column
  *       setName()
- *       setPrimaryKey()
  *       setType()
  *       setLength()
+ *       setPrimaryKey()
  *       setNullable()
  *
  *  NdbDictionary::Table
@@ -234,9 +234,9 @@ int create_table(Ndb * myNdb)
  * Column REG_NO
  */
   myColumn.setName("REG_NO");
-  myColumn.setPrimaryKey(true);
   myColumn.setType(NdbDictionary::Column::Unsigned);
   myColumn.setLength(1);
+  myColumn.setPrimaryKey(true);
   myColumn.setNullable(false);
   myTable.addColumn(myColumn);
 
@@ -244,9 +244,9 @@ int create_table(Ndb * myNdb)
  * Column BRAND
  */
   myColumn.setName("BRAND");
-  myColumn.setPrimaryKey(false);
   myColumn.setType(NdbDictionary::Column::Char);
   myColumn.setLength(20);
+  myColumn.setPrimaryKey(false);
   myColumn.setNullable(false);
   myTable.addColumn(myColumn);
 
@@ -254,9 +254,9 @@ int create_table(Ndb * myNdb)
  * Column COLOR
  */
   myColumn.setName("COLOR");
-  myColumn.setPrimaryKey(false);
   myColumn.setType(NdbDictionary::Column::Char);
   myColumn.setLength(20);
+  myColumn.setPrimaryKey(false);
   myColumn.setNullable(false);
   myTable.addColumn(myColumn);
 
@@ -454,6 +454,7 @@ int populate(Ndb * myNdb, int data, async_callback_t * cbData)
 
 int main()
 {
+  ndb_init();
   Ndb* myNdb = new Ndb( "TEST_DB" );  // Object representing the database
   
   /*******************************************
@@ -493,5 +494,3 @@ int main()
   std::cout << "Number of temporary errors: " << tempErrors << std::endl;
   delete myNdb; 
 }
-
-

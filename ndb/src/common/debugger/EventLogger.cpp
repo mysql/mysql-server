@@ -28,6 +28,10 @@
 //
 // PUBLIC
 //
+EventLoggerBase::~EventLoggerBase()
+{
+  
+}
 
 /**
  * This matrix defines which event should be printed when
@@ -35,122 +39,89 @@
  * threshold - is in range [0-15]
  * severity  - DEBUG to ALERT (Type of log message)
  */
-const EventLogger::EventRepLogLevelMatrix EventLogger::matrix[] = {
+const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   // CONNECTION
-  { EventReport::Connected,           LogLevel::llConnection, 8, LL_INFO },
-  { EventReport::Disconnected,        LogLevel::llConnection, 8, LL_ALERT },
-  { EventReport::CommunicationClosed, LogLevel::llConnection, 8, LL_INFO },
-  { EventReport::CommunicationOpened, LogLevel::llConnection, 8, LL_INFO },
-  { EventReport::ConnectedApiVersion, LogLevel::llConnection, 8, LL_INFO },
+  { EventReport::Connected,           LogLevel::llConnection, 8, Logger::LL_INFO },
+  { EventReport::Disconnected,        LogLevel::llConnection, 8, Logger::LL_ALERT },
+  { EventReport::CommunicationClosed, LogLevel::llConnection, 8, Logger::LL_INFO },
+  { EventReport::CommunicationOpened, LogLevel::llConnection, 8, Logger::LL_INFO },
+  { EventReport::ConnectedApiVersion, LogLevel::llConnection, 8, Logger::LL_INFO },
   // CHECKPOINT
-  { EventReport::GlobalCheckpointStarted, LogLevel::llCheckpoint,  9, LL_INFO },
-  { EventReport::GlobalCheckpointCompleted,LogLevel::llCheckpoint,10, LL_INFO },
-  { EventReport::LocalCheckpointStarted,  LogLevel::llCheckpoint,  7, LL_INFO },
-  { EventReport::LocalCheckpointCompleted,LogLevel::llCheckpoint,  8, LL_INFO },
-  { EventReport::LCPStoppedInCalcKeepGci, LogLevel::llCheckpoint,  0, LL_ALERT },
-  { EventReport::LCPFragmentCompleted,    LogLevel::llCheckpoint, 11, LL_INFO },
-  { EventReport::UndoLogBlocked,          LogLevel::llCheckpoint,  7, LL_INFO },
+  { EventReport::GlobalCheckpointStarted, LogLevel::llCheckpoint,  9, Logger::LL_INFO },
+  { EventReport::GlobalCheckpointCompleted,LogLevel::llCheckpoint,10, Logger::LL_INFO },
+  { EventReport::LocalCheckpointStarted,  LogLevel::llCheckpoint,  7, Logger::LL_INFO },
+  { EventReport::LocalCheckpointCompleted,LogLevel::llCheckpoint,  8, Logger::LL_INFO },
+  { EventReport::LCPStoppedInCalcKeepGci, LogLevel::llCheckpoint,  0, Logger::LL_ALERT },
+  { EventReport::LCPFragmentCompleted,    LogLevel::llCheckpoint, 11, Logger::LL_INFO },
+  { EventReport::UndoLogBlocked,          LogLevel::llCheckpoint,  7, Logger::LL_INFO },
 
   // STARTUP
-  { EventReport::NDBStartStarted,          LogLevel::llStartUp, 1, LL_INFO },
-  { EventReport::NDBStartCompleted,        LogLevel::llStartUp, 1, LL_INFO },
-  { EventReport::STTORRYRecieved,          LogLevel::llStartUp,15, LL_INFO },
-  { EventReport::StartPhaseCompleted,      LogLevel::llStartUp, 4, LL_INFO },
-  { EventReport::CM_REGCONF,               LogLevel::llStartUp, 3, LL_INFO },
-  { EventReport::CM_REGREF,                LogLevel::llStartUp, 8, LL_INFO },
-  { EventReport::FIND_NEIGHBOURS,          LogLevel::llStartUp, 8, LL_INFO },
-  { EventReport::NDBStopStarted,           LogLevel::llStartUp, 1, LL_INFO },
-  { EventReport::NDBStopAborted,           LogLevel::llStartUp, 1, LL_INFO },
-  { EventReport::StartREDOLog,             LogLevel::llStartUp, 10, LL_INFO },
-  { EventReport::StartLog,                 LogLevel::llStartUp, 10, LL_INFO },
-  { EventReport::UNDORecordsExecuted,      LogLevel::llStartUp, 15, LL_INFO },
+  { EventReport::NDBStartStarted,          LogLevel::llStartUp, 1, Logger::LL_INFO },
+  { EventReport::NDBStartCompleted,        LogLevel::llStartUp, 1, Logger::LL_INFO },
+  { EventReport::STTORRYRecieved,          LogLevel::llStartUp,15, Logger::LL_INFO },
+  { EventReport::StartPhaseCompleted,      LogLevel::llStartUp, 4, Logger::LL_INFO },
+  { EventReport::CM_REGCONF,               LogLevel::llStartUp, 3, Logger::LL_INFO },
+  { EventReport::CM_REGREF,                LogLevel::llStartUp, 8, Logger::LL_INFO },
+  { EventReport::FIND_NEIGHBOURS,          LogLevel::llStartUp, 8, Logger::LL_INFO },
+  { EventReport::NDBStopStarted,           LogLevel::llStartUp, 1, Logger::LL_INFO },
+  { EventReport::NDBStopAborted,           LogLevel::llStartUp, 1, Logger::LL_INFO },
+  { EventReport::StartREDOLog,             LogLevel::llStartUp, 10, Logger::LL_INFO },
+  { EventReport::StartLog,                 LogLevel::llStartUp, 10, Logger::LL_INFO },
+  { EventReport::UNDORecordsExecuted,      LogLevel::llStartUp, 15, Logger::LL_INFO },
   
   // NODERESTART
-  { EventReport::NR_CopyDict,            LogLevel::llNodeRestart,  8, LL_INFO },
-  { EventReport::NR_CopyDistr,           LogLevel::llNodeRestart,  8, LL_INFO },
-  { EventReport::NR_CopyFragsStarted,    LogLevel::llNodeRestart,  8, LL_INFO },
-  { EventReport::NR_CopyFragDone,        LogLevel::llNodeRestart, 10, LL_INFO },
-  { EventReport::NR_CopyFragsCompleted,  LogLevel::llNodeRestart,  8, LL_INFO },
+  { EventReport::NR_CopyDict,            LogLevel::llNodeRestart,  8, Logger::LL_INFO },
+  { EventReport::NR_CopyDistr,           LogLevel::llNodeRestart,  8, Logger::LL_INFO },
+  { EventReport::NR_CopyFragsStarted,    LogLevel::llNodeRestart,  8, Logger::LL_INFO },
+  { EventReport::NR_CopyFragDone,        LogLevel::llNodeRestart, 10, Logger::LL_INFO },
+  { EventReport::NR_CopyFragsCompleted,  LogLevel::llNodeRestart,  8, Logger::LL_INFO },
 
-  { EventReport::NodeFailCompleted,      LogLevel::llNodeRestart,  8, LL_ALERT},
-  { EventReport::NODE_FAILREP,           LogLevel::llNodeRestart,  8, LL_ALERT},
-  { EventReport::ArbitState,		 LogLevel::llNodeRestart,  6, LL_INFO },
-  { EventReport::ArbitResult,		 LogLevel::llNodeRestart,  2, LL_ALERT},
-  { EventReport::GCP_TakeoverStarted,    LogLevel::llNodeRestart,  7, LL_INFO },
-  { EventReport::GCP_TakeoverCompleted,  LogLevel::llNodeRestart,  7, LL_INFO },
-  { EventReport::LCP_TakeoverStarted,    LogLevel::llNodeRestart,  7, LL_INFO },
-  { EventReport::LCP_TakeoverCompleted,  LogLevel::llNodeRestart,  7, LL_INFO },
+  { EventReport::NodeFailCompleted,      LogLevel::llNodeRestart,  8, Logger::LL_ALERT},
+  { EventReport::NODE_FAILREP,           LogLevel::llNodeRestart,  8, Logger::LL_ALERT},
+  { EventReport::ArbitState,		 LogLevel::llNodeRestart,  6, Logger::LL_INFO },
+  { EventReport::ArbitResult,		 LogLevel::llNodeRestart,  2, Logger::LL_ALERT},
+  { EventReport::GCP_TakeoverStarted,    LogLevel::llNodeRestart,  7, Logger::LL_INFO },
+  { EventReport::GCP_TakeoverCompleted,  LogLevel::llNodeRestart,  7, Logger::LL_INFO },
+  { EventReport::LCP_TakeoverStarted,    LogLevel::llNodeRestart,  7, Logger::LL_INFO },
+  { EventReport::LCP_TakeoverCompleted,  LogLevel::llNodeRestart,  7, Logger::LL_INFO },
 
   // STATISTIC
-  { EventReport::TransReportCounters,     LogLevel::llStatistic, 8, LL_INFO },
-  { EventReport::OperationReportCounters, LogLevel::llStatistic, 8, LL_INFO }, 
-  { EventReport::TableCreated,            LogLevel::llStatistic, 7, LL_INFO },
-  { EventReport::JobStatistic,            LogLevel::llStatistic, 9, LL_INFO },
-  { EventReport::SendBytesStatistic,      LogLevel::llStatistic, 9, LL_INFO },
-  { EventReport::ReceiveBytesStatistic,   LogLevel::llStatistic, 9, LL_INFO },
-  { EventReport::MemoryUsage,             LogLevel::llStatistic, 5, LL_INFO },
+  { EventReport::TransReportCounters,     LogLevel::llStatistic, 8, Logger::LL_INFO },
+  { EventReport::OperationReportCounters, LogLevel::llStatistic, 8, Logger::LL_INFO }, 
+  { EventReport::TableCreated,            LogLevel::llStatistic, 7, Logger::LL_INFO },
+  { EventReport::JobStatistic,            LogLevel::llStatistic, 9, Logger::LL_INFO },
+  { EventReport::SendBytesStatistic,      LogLevel::llStatistic, 9, Logger::LL_INFO },
+  { EventReport::ReceiveBytesStatistic,   LogLevel::llStatistic, 9, Logger::LL_INFO },
+  { EventReport::MemoryUsage,             LogLevel::llStatistic, 5, Logger::LL_INFO },
 
   // ERROR
-  { EventReport::TransporterError,   LogLevel::llError, 2, LL_ERROR   },
-  { EventReport::TransporterWarning, LogLevel::llError, 8, LL_WARNING },
-  { EventReport::MissedHeartbeat,    LogLevel::llError, 8, LL_WARNING },
-  { EventReport::DeadDueToHeartbeat, LogLevel::llError, 8, LL_ALERT   },
-  { EventReport::WarningEvent,       LogLevel::llError, 2, LL_WARNING },
+  { EventReport::TransporterError,   LogLevel::llError, 2, Logger::LL_ERROR   },
+  { EventReport::TransporterWarning, LogLevel::llError, 8, Logger::LL_WARNING },
+  { EventReport::MissedHeartbeat,    LogLevel::llError, 8, Logger::LL_WARNING },
+  { EventReport::DeadDueToHeartbeat, LogLevel::llError, 8, Logger::LL_ALERT   },
+  { EventReport::WarningEvent,       LogLevel::llError, 2, Logger::LL_WARNING },
   // INFO
-  { EventReport::SentHeartbeat,     LogLevel::llInfo, 12, LL_INFO },
-  { EventReport::CreateLogBytes,    LogLevel::llInfo, 11, LL_INFO },
-  { EventReport::InfoEvent,         LogLevel::llInfo,  2, LL_INFO },
+  { EventReport::SentHeartbeat,     LogLevel::llInfo, 12, Logger::LL_INFO },
+  { EventReport::CreateLogBytes,    LogLevel::llInfo, 11, Logger::LL_INFO },
+  { EventReport::InfoEvent,         LogLevel::llInfo,  2, Logger::LL_INFO },
 
   //Global replication
-  { EventReport::GrepSubscriptionInfo,  LogLevel::llGrep, 7, LL_INFO},
-  { EventReport::GrepSubscriptionAlert, LogLevel::llGrep, 7, LL_ALERT}
+  { EventReport::GrepSubscriptionInfo,  LogLevel::llGrep, 7, Logger::LL_INFO},
+  { EventReport::GrepSubscriptionAlert, LogLevel::llGrep, 7, Logger::LL_ALERT},
+
+  // Backup
+  { EventReport::BackupStarted, LogLevel::llBackup, 7, Logger::LL_INFO },
+  { EventReport::BackupCompleted, LogLevel::llBackup, 7, Logger::LL_INFO },
+  { EventReport::BackupFailedToStart, LogLevel::llBackup, 7, Logger::LL_ALERT},
+  { EventReport::BackupAborted, LogLevel::llBackup, 7, Logger::LL_ALERT }
 };
 
-const Uint32 EventLogger::matrixSize = sizeof(EventLogger::matrix)/
+const Uint32 EventLoggerBase::matrixSize = sizeof(EventLoggerBase::matrix)/
                                        sizeof(EventRepLogLevelMatrix);
 
-/**
- * Default log levels for management nodes.
- *
- * threshold - is in range [0-15]
- */
-const EventLogger::EventLogMatrix EventLogger::defEventLogMatrix[] = {
-  { LogLevel::llStartUp,     7 },
-  { LogLevel::llShutdown,    7 },
-  { LogLevel::llStatistic,   7 },
-  { LogLevel::llCheckpoint,  7 },
-  { LogLevel::llNodeRestart, 7 },
-  { LogLevel::llConnection,  7 },
-  { LogLevel::llError,      15 },
-  { LogLevel::llInfo,        7 },
-  { LogLevel::llGrep,        7 }
-};
-
-const Uint32 
-EventLogger::defEventLogMatrixSize = sizeof(EventLogger::defEventLogMatrix)/
-                                     sizeof(EventLogMatrix);
-/**
- * Specifies allowed event categories/log levels that can be set from
- * the Management API/interactive shell.
- */
-const EventLogger::EventCategoryName EventLogger::eventCategoryNames[] = {
-  { LogLevel::llStartUp,     "STARTUP"     },
-  { LogLevel::llStatistic,   "STATISTICS"  },
-  { LogLevel::llCheckpoint,  "CHECKPOINT"  },
-  { LogLevel::llNodeRestart, "NODERESTART" },
-  { LogLevel::llConnection,  "CONNECTION"  },
-  { LogLevel::llInfo,        "INFO"        },
-  { LogLevel::llGrep,        "GREP"        }
-};
-
-const Uint32 
-EventLogger::noOfEventCategoryNames = sizeof(EventLogger::eventCategoryNames)/
-                                      sizeof(EventLogger::EventCategoryName);
-
-char EventLogger::m_text[MAX_TEXT_LENGTH];
-
 const char*
-EventLogger::getText(int type,
+EventLogger::getText(char * m_text, size_t m_text_len, 
+		     int type,
 		     const Uint32* theData, NodeId nodeId)
 {
   // TODO: Change the switch implementation...
@@ -164,13 +135,13 @@ EventLogger::getText(int type,
   EventReport::EventType eventType = (EventReport::EventType)type;
   switch (eventType){
   case EventReport::Connected:
-    ::snprintf(m_text, sizeof(m_text), 
+    ::snprintf(m_text, m_text_len, 
 	       "%sNode %u Connected",
 	       theNodeId,
 	       theData[1]);
   break;
   case EventReport::ConnectedApiVersion:
-    ::snprintf(m_text, sizeof(m_text), 
+    ::snprintf(m_text, m_text_len, 
 	       "%sNode %u: API version %d.%d.%d",
 	       theNodeId,
 	       theData[1],
@@ -179,7 +150,7 @@ EventLogger::getText(int type,
 	       getBuild(theData[2]));
   break;
   case EventReport::Disconnected:
-    ::snprintf(m_text, sizeof(m_text), 
+    ::snprintf(m_text, m_text_len, 
 	       "%sNode %u Disconnected", 
 	       theNodeId,
 	       theData[1]);
@@ -188,7 +159,7 @@ EventLogger::getText(int type,
     //-----------------------------------------------------------------------
     // REPORT communication to node closed.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, sizeof(m_text), 
+    ::snprintf(m_text, m_text_len, 
 	       "%sCommunication to Node %u closed", 
 	       theNodeId,
 	       theData[1]);
@@ -197,7 +168,7 @@ EventLogger::getText(int type,
     //-----------------------------------------------------------------------
     // REPORT communication to node opened.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, sizeof(m_text), 
+    ::snprintf(m_text, m_text_len, 
 	       "%sCommunication to Node %u opened", 
 	       theNodeId,
 	       theData[1]);
@@ -206,7 +177,7 @@ EventLogger::getText(int type,
     //-----------------------------------------------------------------------
     // Start of NDB has been initiated.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, sizeof(m_text), 
+    ::snprintf(m_text, m_text_len, 
 	       "%sStart initiated (version %d.%d.%d)", 
 	       theNodeId ,
 	       getMajor(theData[1]),
@@ -214,13 +185,13 @@ EventLogger::getText(int type,
 	       getBuild(theData[1]));
   break;
   case EventReport::NDBStopStarted:
-    ::snprintf(m_text, sizeof(m_text),
+    ::snprintf(m_text, m_text_len,
 	       "%s%s shutdown initiated", 
 	       theNodeId, 
 	       (theData[1] == 1 ? "Cluster" : "Node"));
   break;
   case EventReport::NDBStopAborted:
-    ::snprintf(m_text, sizeof(m_text),
+    ::snprintf(m_text, m_text_len,
 	       "%sNode shutdown aborted",
 	       theNodeId);
   break;
@@ -228,7 +199,7 @@ EventLogger::getText(int type,
     //-----------------------------------------------------------------------
     // Start of NDB has been completed.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, sizeof(m_text), 
+    ::snprintf(m_text, m_text_len, 
 	       "%sStarted (version %d.%d.%d)", 
 	       theNodeId ,
 	       getMajor(theData[1]),
@@ -240,7 +211,7 @@ EventLogger::getText(int type,
     //-----------------------------------------------------------------------
     // STTORRY recevied after restart finished.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, sizeof(m_text), 
+    ::snprintf(m_text, m_text_len, 
 	       "%sSTTORRY received after restart finished",
 	       theNodeId);
   break;
@@ -266,7 +237,7 @@ EventLogger::getText(int type,
       type = "";
       break;
     default:{
-      ::snprintf(m_text, sizeof(m_text), 
+      ::snprintf(m_text, m_text_len, 
 		 "%sStart phase %u completed (unknown = %d)", 
 		 theNodeId,
 		 theData[1],
@@ -274,7 +245,7 @@ EventLogger::getText(int type,
       return m_text;
     }
     }
-    ::snprintf(m_text, sizeof(m_text), 
+    ::snprintf(m_text, m_text_len, 
 	       "%sStart phase %u completed %s", 
 	       theNodeId,
 	       theData[1],
@@ -283,7 +254,7 @@ EventLogger::getText(int type,
     break;
   }
   case EventReport::CM_REGCONF:
-    ::snprintf(m_text, sizeof(m_text), 
+    ::snprintf(m_text, m_text_len, 
 	       "%sCM_REGCONF president = %u, own Node = %u, our dynamic id = %u"
 	       , 
 	       theNodeId,
@@ -315,7 +286,7 @@ EventLogger::getText(int type,
       break;
     }//switch
 
-    ::snprintf(m_text, sizeof(m_text), 
+    ::snprintf(m_text, m_text_len, 
 	       "%sCM_REGREF from Node %u to our Node %u. Cause = %s", 
 	       theNodeId,
 	       theData[2], 
@@ -328,7 +299,7 @@ EventLogger::getText(int type,
     // REPORT Node Restart copied a fragment.
     //-----------------------------------------------------------------------
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sWe are Node %u with dynamic ID %u, our left neighbour "
 	       "is Node %u, our right is Node %u", 
 	       theNodeId,
@@ -344,13 +315,13 @@ EventLogger::getText(int type,
     if (theData[1] == 0)
     {
       if (theData[3] != 0) {
-        ::snprintf(m_text, sizeof(m_text), 
+        ::snprintf(m_text, m_text_len, 
 		 "%sNode %u completed failure of Node %u", 
 		 theNodeId,
 		 theData[3], 
 		 theData[2]);
       } else {
-        ::snprintf(m_text, sizeof(m_text), 
+        ::snprintf(m_text, m_text_len, 
 		 "%sAll nodes completed failure of Node %u", 
 		 theNodeId,
 		 theData[2]);
@@ -367,7 +338,7 @@ EventLogger::getText(int type,
 	line = "DBLQH";
       }
       
-      ::snprintf(m_text, sizeof(m_text), 
+      ::snprintf(m_text, m_text_len, 
 		 "%sNode failure of %u %s completed", 
 		 theNodeId,
 		 theData[2], 
@@ -376,7 +347,7 @@ EventLogger::getText(int type,
     break;
   case EventReport::NODE_FAILREP:
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sNode %u has failed. The Node state at failure "
 	       "was %u", 
 	       theNodeId,
@@ -395,41 +366,41 @@ EventLogger::getText(int type,
       const unsigned state = sd->code >> 16;
       switch (code) {
       case ArbitCode::ThreadStart:
-        ::snprintf(m_text, sizeof(m_text),
+        ::snprintf(m_text, m_text_len,
           "%sPresident restarts arbitration thread [state=%u]",
           theNodeId, state);
         break;
       case ArbitCode::PrepPart2:
 	sd->ticket.getText(ticketText, sizeof(ticketText));
-	::snprintf(m_text, sizeof(m_text),
+	::snprintf(m_text, m_text_len,
 	  "%sPrepare arbitrator node %u [ticket=%s]",
 	  theNodeId, sd->node, ticketText);
 	break;
       case ArbitCode::PrepAtrun:
 	sd->ticket.getText(ticketText, sizeof(ticketText));
-	::snprintf(m_text, sizeof(m_text),
+	::snprintf(m_text, m_text_len,
 	  "%sReceive arbitrator node %u [ticket=%s]",
 	  theNodeId, sd->node, ticketText);
 	break;
       case ArbitCode::ApiStart:
 	sd->ticket.getText(ticketText, sizeof(ticketText));
-	::snprintf(m_text, sizeof(m_text),
+	::snprintf(m_text, m_text_len,
 	  "%sStarted arbitrator node %u [ticket=%s]",
 	  theNodeId, sd->node, ticketText);
 	break;
       case ArbitCode::ApiFail:
-	::snprintf(m_text, sizeof(m_text),
+	::snprintf(m_text, m_text_len,
 	  "%sLost arbitrator node %u - process failure [state=%u]",
 	  theNodeId, sd->node, state);
 	break;
       case ArbitCode::ApiExit:
-	::snprintf(m_text, sizeof(m_text),
+	::snprintf(m_text, m_text_len,
 	  "%sLost arbitrator node %u - process exit [state=%u]",
 	  theNodeId, sd->node, state);
 	break;
       default:
 	ArbitCode::getErrText(code, errText, sizeof(errText));
-	::snprintf(m_text, sizeof(m_text),
+	::snprintf(m_text, m_text_len,
 	  "%sLost arbitrator node %u - %s [state=%u]",
 	  theNodeId, sd->node, errText, state);
 	break;
@@ -446,48 +417,48 @@ EventLogger::getText(int type,
       const unsigned state = sd->code >> 16;
       switch (code) {
       case ArbitCode::LoseNodes:
-	::snprintf(m_text, sizeof(m_text),
+	::snprintf(m_text, m_text_len,
 	  "%sArbitration check lost - less than 1/2 nodes left",
 	  theNodeId);
 	break;
       case ArbitCode::WinGroups:
-	::snprintf(m_text, sizeof(m_text),
+	::snprintf(m_text, m_text_len,
 	  "%sArbitration check won - node group majority",
 	  theNodeId);
 	break;
       case ArbitCode::LoseGroups:
-	::snprintf(m_text, sizeof(m_text),
+	::snprintf(m_text, m_text_len,
 	  "%sArbitration check lost - missing node group",
 	  theNodeId);
 	break;
       case ArbitCode::Partitioning:
-	::snprintf(m_text, sizeof(m_text),
+	::snprintf(m_text, m_text_len,
 	  "%sNetwork partitioning - arbitration required",
 	  theNodeId);
 	break;
       case ArbitCode::WinChoose:
-	::snprintf(m_text, sizeof(m_text),
+	::snprintf(m_text, m_text_len,
 	  "%sArbitration won - positive reply from node %u",
 	  theNodeId, sd->node);
 	break;
       case ArbitCode::LoseChoose:
-	::snprintf(m_text, sizeof(m_text),
+	::snprintf(m_text, m_text_len,
 	  "%sArbitration lost - negative reply from node %u",
 	  theNodeId, sd->node);
 	break;
       case ArbitCode::LoseNorun:
-	::snprintf(m_text, sizeof(m_text),
+	::snprintf(m_text, m_text_len,
 	  "%sNetwork partitioning - no arbitrator available",
 	  theNodeId);
 	break;
       case ArbitCode::LoseNocfg:
-	::snprintf(m_text, sizeof(m_text),
+	::snprintf(m_text, m_text_len,
 	  "%sNetwork partitioning - no arbitrator configured",
 	  theNodeId);
 	break;
       default:
 	ArbitCode::getErrText(code, errText, sizeof(errText));
-	::snprintf(m_text, sizeof(m_text),
+	::snprintf(m_text, m_text_len,
 	  "%sArbitration failure - %s [state=%u]",
 	  theNodeId, errText, state);
 	break;
@@ -500,7 +471,7 @@ EventLogger::getText(int type,
     // node is the master of this global checkpoint.
     //-----------------------------------------------------------------------
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sGlobal checkpoint %u started", 
 	       theNodeId,
 	       theData[1]);
@@ -510,7 +481,7 @@ EventLogger::getText(int type,
     // This event reports that a global checkpoint has been completed on this
     // node and the node is the master of this global checkpoint.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, sizeof(m_text), 
+    ::snprintf(m_text, m_text_len, 
 	       "%sGlobal checkpoint %u completed", 
 	       theNodeId,
 	       theData[1]);
@@ -521,7 +492,7 @@ EventLogger::getText(int type,
     // node is the master of this local checkpoint.
     //-----------------------------------------------------------------------
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sLocal checkpoint %u started. "
 	       "Keep GCI = %u oldest restorable GCI = %u", 
 	       theNodeId,
@@ -535,7 +506,7 @@ EventLogger::getText(int type,
     // node and the node is the master of this local checkpoint.
     //-----------------------------------------------------------------------
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sLocal checkpoint %u completed", 
 	       theNodeId,
 	       theData[1]);
@@ -544,14 +515,14 @@ EventLogger::getText(int type,
     //-----------------------------------------------------------------------
     // This event reports that a table has been created.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, sizeof(m_text), 
+    ::snprintf(m_text, m_text_len, 
 	       "%sTable with ID =  %u created", 
 	       theNodeId,
 	       theData[1]);
     break;
   case EventReport::LCPStoppedInCalcKeepGci:
     if (theData[1] == 0)
-      ::snprintf(m_text, sizeof(m_text), 
+      ::snprintf(m_text, m_text_len, 
 		 "%sLocal Checkpoint stopped in CALCULATED_KEEP_GCI",
 		 theNodeId);
     break;
@@ -560,7 +531,7 @@ EventLogger::getText(int type,
     // REPORT Node Restart completed copy of dictionary information.
     //-----------------------------------------------------------------------
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sNode restart completed copy of dictionary information",
 	       theNodeId);
     break;
@@ -569,7 +540,7 @@ EventLogger::getText(int type,
     // REPORT Node Restart completed copy of distribution information.
     //-----------------------------------------------------------------------
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sNode restart completed copy of distribution information",
 	       theNodeId);
     break;
@@ -578,7 +549,7 @@ EventLogger::getText(int type,
     // REPORT Node Restart is starting to copy the fragments.
     //-----------------------------------------------------------------------
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sNode restart starting to copy the fragments "
 	       "to Node %u", 
 	       theNodeId,
@@ -589,7 +560,7 @@ EventLogger::getText(int type,
     // REPORT Node Restart copied a fragment.
     //-----------------------------------------------------------------------
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sTable ID = %u, fragment ID = %u have been copied "
 	       "to Node %u", 
 	       theNodeId,
@@ -599,7 +570,7 @@ EventLogger::getText(int type,
   break;
   case EventReport::NR_CopyFragsCompleted:
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sNode restart completed copying the fragments "
 	       "to Node %u", 
 	       theNodeId,
@@ -607,7 +578,7 @@ EventLogger::getText(int type,
     break;
   case EventReport::LCPFragmentCompleted:
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sTable ID = %u, fragment ID = %u has completed LCP "
 	       "on Node %u", 
 	       theNodeId,
@@ -620,7 +591,7 @@ EventLogger::getText(int type,
     // Report information about transaction activity once per 10 seconds.
     // ------------------------------------------------------------------- 
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sTrans. Count = %u, Commit Count = %u, "
 	       "Read Count = %u, Simple Read Count = %u,\n"
 	       "Write Count = %u, AttrInfo Count = %u, "
@@ -639,7 +610,7 @@ EventLogger::getText(int type,
 	       theData[10]);
     break;
   case EventReport::OperationReportCounters:
-    ::snprintf(m_text, sizeof(m_text),
+    ::snprintf(m_text, m_text_len,
 	       "%sOperations=%u",
 	       theNodeId, 
 	       theData[1]);
@@ -649,7 +620,7 @@ EventLogger::getText(int type,
     // REPORT Undo Logging blocked due to buffer near to overflow.
     //-----------------------------------------------------------------------
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sACC Blocked %u and TUP Blocked %u times last second",
 	       theNodeId,
 	       theData[1],
@@ -658,7 +629,7 @@ EventLogger::getText(int type,
   case EventReport::TransporterError:
   case EventReport::TransporterWarning:
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sTransporter to node %d reported error 0x%x",
 	       theNodeId,
 	       theData[1],
@@ -669,7 +640,7 @@ EventLogger::getText(int type,
     // REPORT Undo Logging blocked due to buffer near to overflow.
     //-----------------------------------------------------------------------
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sNode %d missed heartbeat %d",
 	       theNodeId,
 	       theData[1],
@@ -680,21 +651,21 @@ EventLogger::getText(int type,
     // REPORT Undo Logging blocked due to buffer near to overflow.
     //-----------------------------------------------------------------------
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sNode %d declared dead due to missed heartbeat",
 	       theNodeId,
 	       theData[1]);
   break;
   case EventReport::JobStatistic:
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sMean loop Counter in doJob last 8192 times = %u",
 	       theNodeId,
 	       theData[1]);
     break;
   case EventReport::SendBytesStatistic:
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sMean send size to Node = %d last 4096 sends = %u bytes",
 	       theNodeId,
 	       theData[1],
@@ -702,7 +673,7 @@ EventLogger::getText(int type,
     break;
   case EventReport::ReceiveBytesStatistic:
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sMean receive size to Node = %d last 4096 sends = %u bytes",
 	       theNodeId,
 	       theData[1],
@@ -710,14 +681,14 @@ EventLogger::getText(int type,
   break;
   case EventReport::SentHeartbeat:
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sNode Sent Heartbeat to node = %d",
 	       theNodeId,
 	       theData[1]);
   break;
   case EventReport::CreateLogBytes:
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sLog part %u, log file %u, MB %u",
 	       theNodeId,
 	       theData[1],
@@ -726,7 +697,7 @@ EventLogger::getText(int type,
   break;
   case EventReport::StartLog:
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sLog part %u, start MB %u, stop MB %u, last GCI, log exec %u",
 	       theNodeId,
 	       theData[1],
@@ -736,7 +707,7 @@ EventLogger::getText(int type,
   break;
   case EventReport::StartREDOLog:
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sNode: %d StartLog: [GCI Keep: %d LastCompleted: %d NewestRestorable: %d]",
 	       theNodeId,
 	       theData[1],
@@ -753,7 +724,7 @@ EventLogger::getText(int type,
     }
     
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%s UNDO %s %d [%d %d %d %d %d %d %d %d %d]",
 	       theNodeId,
 	       line,
@@ -771,36 +742,36 @@ EventLogger::getText(int type,
     break;
   case EventReport::InfoEvent:
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%s%s",
 	       theNodeId,
 	       (char *)&theData[1]);
   break;
   case EventReport::WarningEvent:
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%s%s",
 	       theNodeId,
 	       (char *)&theData[1]);
   break;
   case EventReport::GCP_TakeoverStarted:
     ::snprintf(m_text,
-	       sizeof(m_text),
+	       m_text_len,
 	       "%sGCP Take over started", theNodeId);
   break;
   case EventReport::GCP_TakeoverCompleted:
     ::snprintf(m_text,
-	       sizeof(m_text),
+	       m_text_len,
 	       "%sGCP Take over completed", theNodeId);
   break;
   case EventReport::LCP_TakeoverStarted:
     ::snprintf(m_text,
-	       sizeof(m_text),
+	       m_text_len,
 	       "%sLCP Take over started", theNodeId);
   break;
   case EventReport::LCP_TakeoverCompleted:
     ::snprintf(m_text,
-	       sizeof(m_text),
+	       m_text_len,
 	       "%sLCP Take over completed (state = %d)", 
 	       theNodeId, theData[1]);
   break;
@@ -812,7 +783,7 @@ EventLogger::getText(int type,
     const int block = theData[5];
     const int percent = (used*100)/total;
     
-    ::snprintf(m_text, sizeof(m_text),
+    ::snprintf(m_text, m_text_len,
 	       "%s%s usage %s %d%s(%d %dK pages of total %d)",
 	       theNodeId,
 	       (block==DBACC ? "Index" : (block == DBTUP ?"Data":"<unknown>")),
@@ -822,478 +793,508 @@ EventLogger::getText(int type,
 	       );
     break;
   }
-
-
   case EventReport::GrepSubscriptionInfo : 
-    {   
-      GrepEvent::Subscription event  = (GrepEvent::Subscription)theData[1];
-      switch(event) {
-      case GrepEvent::GrepSS_CreateSubIdConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, sizeof(m_text), 
-		     "Grep::SSCoord: Created subscription id"
-		     " (subId=%d,SubKey=%d)"
-		     " Return code: %d.",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}      
-      case GrepEvent::GrepPS_CreateSubIdConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, sizeof(m_text), 
-		     "Grep::PSCoord: Created subscription id" 
-		     " (subId=%d,SubKey=%d)"
-		     " Return code: %d.",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}
-      case GrepEvent::GrepSS_SubCreateConf: 
-	{
-	  const int subId   = theData[2];
-	  const int subKey  = theData[3];
-	  const int err     = theData[4];
-	  const int nodegrp = theData[5];
-	  ::snprintf(m_text, sizeof(m_text), 
-		   "Grep::SSCoord: Created subscription using"
-		     " (subId=%d,SubKey=%d)" 
-		     " in primary system. Primary system has %d nodegroup(s)."
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     nodegrp,
-		     err);
-	  break;
-	}
-      case GrepEvent::GrepPS_SubCreateConf: 
-	{
-	  const int subId   = theData[2];
-	  const int subKey  = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, sizeof(m_text), 
-		     "Grep::PSCoord: All participants have created "
-		     "subscriptions"
-		     " using (subId=%d,SubKey=%d)."
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}      
-      case GrepEvent::GrepSS_SubStartMetaConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, sizeof(m_text), 
-		     "Grep::SSCoord: Logging started on meta data changes." 
-		     " using (subId=%d,SubKey=%d)"
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}
-      case GrepEvent::GrepPS_SubStartMetaConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, sizeof(m_text), 
-		     "Grep::PSCoord: All participants have started " 
-		     "logging meta data" 
-		     " changes on the subscription subId=%d,SubKey=%d) "
-		     "(N.I yet)."
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}
-      case GrepEvent::GrepSS_SubStartDataConf: {
-	const int subId  = theData[2];
-	const int subKey = theData[3];
-	const int err    = theData[4];
-	::snprintf(m_text, sizeof(m_text), 
-		   "Grep::SSCoord: Logging started on table data changes " 
-		   " using (subId=%d,SubKey=%d)"
-		   " Return code: %d",
-		   subId,
-		   subKey,
-		   err);
-	break;
-      }
-      case GrepEvent::GrepPS_SubStartDataConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, sizeof(m_text), 
-		     "Grep::PSCoord: All participants have started logging "
-		     "table data changes on the subscription " 
-		     "subId=%d,SubKey=%d)."
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}
-      case GrepEvent::GrepPS_SubSyncMetaConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, sizeof(m_text), 
-		     "Grep::PSCoord: All participants have started "
-		     " synchronization  on meta data (META SCAN) using "
-		     "(subId=%d,SubKey=%d)."
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}
-      case GrepEvent::GrepSS_SubSyncMetaConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, sizeof(m_text), 
-		     "Grep::SSCoord: Synchronization started (META SCAN) on "
-		     " meta data using (subId=%d,SubKey=%d)"
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}
-      case GrepEvent::GrepPS_SubSyncDataConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, sizeof(m_text), 
-		     "Grep::PSCoord: All participants have started " 
-		     "synchronization "
-		     " on table data (DATA SCAN) using (subId=%d,SubKey=%d)."
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}
-      case GrepEvent::GrepSS_SubSyncDataConf: 
-	{
-	  const int subId   =  theData[2];
-	  const int subKey  =  theData[3];
-	  const int err     =  theData[4];
-	  const int gci     =  theData[5];
-	  ::snprintf(m_text, sizeof(m_text), 
-		     "Grep::SSCoord: Synchronization started (DATA SCAN) on "
-		     "table data using (subId=%d,SubKey=%d). GCI = %d"
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     gci,
-		     err);
-	  break;
-	}      
-      case GrepEvent::GrepPS_SubRemoveConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, sizeof(m_text), 
-		     "Grep::PSCoord: All participants have removed "
-		     "subscription (subId=%d,SubKey=%d). I have cleaned "
-		     "up resources I've used."
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}	
-      case GrepEvent::GrepSS_SubRemoveConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, sizeof(m_text), 
-		     "Grep::SSCoord: Removed subscription "
-		     "(subId=%d,SubKey=%d)"
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}
+  {   
+    GrepEvent::Subscription event  = (GrepEvent::Subscription)theData[1];
+    switch(event) {
+    case GrepEvent::GrepSS_CreateSubIdConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Created subscription id"
+		 " (subId=%d,SubKey=%d)"
+		 " Return code: %d.",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }      
+    case GrepEvent::GrepPS_CreateSubIdConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: Created subscription id" 
+		 " (subId=%d,SubKey=%d)"
+		 " Return code: %d.",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }
+    case GrepEvent::GrepSS_SubCreateConf: 
+    {
+      const int subId   = theData[2];
+      const int subKey  = theData[3];
+      const int err     = theData[4];
+      const int nodegrp = theData[5];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Created subscription using"
+		 " (subId=%d,SubKey=%d)" 
+		 " in primary system. Primary system has %d nodegroup(s)."
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 nodegrp,
+		 err);
+      break;
+    }
+    case GrepEvent::GrepPS_SubCreateConf: 
+    {
+      const int subId   = theData[2];
+      const int subKey  = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: All participants have created "
+		 "subscriptions"
+		 " using (subId=%d,SubKey=%d)."
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }      
+    case GrepEvent::GrepSS_SubStartMetaConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Logging started on meta data changes." 
+		 " using (subId=%d,SubKey=%d)"
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }
+    case GrepEvent::GrepPS_SubStartMetaConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: All participants have started " 
+		 "logging meta data" 
+		 " changes on the subscription subId=%d,SubKey=%d) "
+		 "(N.I yet)."
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }
+    case GrepEvent::GrepSS_SubStartDataConf: {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Logging started on table data changes " 
+		 " using (subId=%d,SubKey=%d)"
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }
+    case GrepEvent::GrepPS_SubStartDataConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: All participants have started logging "
+		 "table data changes on the subscription " 
+		 "subId=%d,SubKey=%d)."
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }
+    case GrepEvent::GrepPS_SubSyncMetaConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: All participants have started "
+		 " synchronization  on meta data (META SCAN) using "
+		 "(subId=%d,SubKey=%d)."
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }
+    case GrepEvent::GrepSS_SubSyncMetaConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Synchronization started (META SCAN) on "
+		 " meta data using (subId=%d,SubKey=%d)"
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }
+    case GrepEvent::GrepPS_SubSyncDataConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: All participants have started " 
+		 "synchronization "
+		 " on table data (DATA SCAN) using (subId=%d,SubKey=%d)."
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }
+    case GrepEvent::GrepSS_SubSyncDataConf: 
+    {
+      const int subId   =  theData[2];
+      const int subKey  =  theData[3];
+      const int err     =  theData[4];
+      const int gci     =  theData[5];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Synchronization started (DATA SCAN) on "
+		 "table data using (subId=%d,SubKey=%d). GCI = %d"
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 gci,
+		 err);
+      break;
+    }      
+    case GrepEvent::GrepPS_SubRemoveConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: All participants have removed "
+		 "subscription (subId=%d,SubKey=%d). I have cleaned "
+		 "up resources I've used."
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }	
+    case GrepEvent::GrepSS_SubRemoveConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Removed subscription "
+		 "(subId=%d,SubKey=%d)"
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }
     default:
       ::snprintf(m_text, 
-		 sizeof(m_text), 
+		 m_text_len, 
 		 "%sUnknown GrepSubscriptonInfo event: %d",
 		 theNodeId,
 		 theData[1]);
-      }
-      break;
     }
-      
-  case EventReport::GrepSubscriptionAlert : 
-    {
-      GrepEvent::Subscription event  = (GrepEvent::Subscription)theData[1];
-      switch(event) 
-	{ 
-	case GrepEvent::GrepSS_CreateSubIdRef: 
-	  {
-	    const int subId    = theData[2];
-	    const int subKey   = theData[3];
-	    const int err      = theData[4];
-	    ::snprintf(m_text, sizeof(m_text), 
-		       "Grep::SSCoord:Error code: %d Error message: %s"
-		       " (subId=%d,SubKey=%d)",
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err),
-		       subId,
-		       subKey);
-	    break;
-	  }
-	case GrepEvent::GrepSS_SubCreateRef: 
-	  {
-	    const int subId   = theData[2];
-	    const int subKey  = theData[3];
-	    const int err     = theData[4];
-	    ::snprintf(m_text, sizeof(m_text), 
-		       "Grep::SSCoord: FAILED to Created subscription using"
-		       " (subId=%d,SubKey=%d)in primary system."
-		       " Error code: %d Error Message: %s",
-		       subId,
-		       subKey,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	  }
-	case GrepEvent::GrepSS_SubStartMetaRef: 
-	  {
-	    const int subId  = theData[2];
-	    const int subKey = theData[3];
-	    const int err    = theData[4];
-	  ::snprintf(m_text, sizeof(m_text), 
-		     "Grep::SSCoord: Logging failed to start on meta "
-		     "data changes." 
-		     " using (subId=%d,SubKey=%d)"
-		     " Error code: %d Error Message: %s",
-		     subId,
-		     subKey,
-		     err,
-		     GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	  }
-	case GrepEvent::GrepSS_SubStartDataRef: 
-	  {
-	    const int subId  = theData[2];
-	    const int subKey = theData[3];
-	    const int err    = theData[4];
-	    ::snprintf(m_text, sizeof(m_text), 
-		       "Grep::SSCoord: Logging FAILED to start on table data "
-		       " changes using (subId=%d,SubKey=%d)"
-		       " Error code: %d Error Message: %s",
-		       subId,
-		       subKey,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	  }
-	case GrepEvent::GrepSS_SubSyncMetaRef: 
-	  {
-	    const int subId   = theData[2];
-	    const int subKey  = theData[3];
-	    const int err     = theData[4];
-	    ::snprintf(m_text, sizeof(m_text), 
-		       "Grep::SSCoord: Synchronization FAILED (META SCAN) on "
-		       " meta data using (subId=%d,SubKey=%d)"
-		       " Error code: %d Error Message: %s",
-		       subId,
-		       subKey,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	}
-	case GrepEvent::GrepSS_SubSyncDataRef: 
-	  {
-	    const int subId   =  theData[2];
-	    const int subKey  =  theData[3];
-	    const int err     =  theData[4];
-	    const int gci     =  theData[5];
-	    ::snprintf(m_text, sizeof(m_text), 
-		       "Grep::SSCoord: Synchronization FAILED (DATA SCAN) on "
-		       "table data using (subId=%d,SubKey=%d). GCI = %d"
-		       " Error code: %d Error Message: %s", 
-		       subId,
-		       subKey,
-		       gci,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	  }
-	case GrepEvent::GrepSS_SubRemoveRef: 
-	  {
-	    const int subId  = theData[2];
-	    const int subKey = theData[3];
-	    const int err    = theData[4];
-	    ::snprintf(m_text, sizeof(m_text), 
-		     "Grep::SSCoord: Failed to remove subscription "
-		       "(subId=%d,SubKey=%d). "
-		       " Error code: %d Error Message: %s",
-		       subId,
-		       subKey,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err)
-		       );
-	    break;
-	  }	
-	
-	case GrepEvent::GrepPS_CreateSubIdRef: 
-	  {
-	    const int subId  = theData[2];
-	    const int subKey = theData[3];
-	    const int err    = theData[4];
-	    ::snprintf(m_text, sizeof(m_text), 
-		       "Grep::PSCoord: Error code: %d Error Message: %s"
-		       " (subId=%d,SubKey=%d)",
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err),
-		       subId,
-		       subKey);
-	    break;
-	  }
-	case GrepEvent::GrepPS_SubCreateRef: 
-	  {
-	    const int subId   = theData[2];
-	    const int subKey  = theData[3];
-	    const int err     = theData[4];
-	    ::snprintf(m_text, sizeof(m_text), 
-		       "Grep::PSCoord: FAILED to Created subscription using"
-		       " (subId=%d,SubKey=%d)in primary system."
-		       " Error code: %d Error Message: %s",
-		       subId,
-		       subKey,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	  }
-      case GrepEvent::GrepPS_SubStartMetaRef: 
-	{
-	  const int subId   = theData[2];
-	  const int subKey  = theData[3];
-	  const int err     = theData[4];
-	  ::snprintf(m_text, sizeof(m_text), 
-		     "Grep::PSCoord: Logging failed to start on meta "
-		     "data changes." 
-		     " using (subId=%d,SubKey=%d)"
-		     " Error code: %d Error Message: %s",
-		     subId,
-		     subKey,		       
-		     err,
-		     GrepError::getErrorDesc((GrepError::Code)err));
-	  break;
-	}
-	case GrepEvent::GrepPS_SubStartDataRef: 
-	  {
-	    const int subId  = theData[2];
-	    const int subKey = theData[3];
-	    const int err    = theData[4];
-	    ::snprintf(m_text, sizeof(m_text), 
-		       "Grep::PSCoord: Logging FAILED to start on table data "
-		       " changes using (subId=%d,SubKey=%d)"
-		       " Error code: %d Error Message: %s",
-		       subId,
-		       subKey,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	  }
-	case GrepEvent::GrepPS_SubSyncMetaRef: 
-	{
-	  const int subId   = theData[2];
-	  const int subKey  = theData[3];
-	  const int err     = theData[4];
-	  ::snprintf(m_text, sizeof(m_text), 
-		     "Grep::PSCoord: Synchronization FAILED (META SCAN) on "
-		     " meta data using (subId=%d,SubKey=%d)"
-		     " Error code: %d Error Message: %s",
-		     subId,
-		     subKey,
-		     err,
-		     GrepError::getErrorDesc((GrepError::Code)err));
-	  break;
-	}
-	case GrepEvent::GrepPS_SubSyncDataRef: 
-	  {
-	    const int subId   =  theData[2];
-	    const int subKey  =  theData[3];
-	    const int err     =  theData[4];
-	    const int gci     =  theData[5];
-	    ::snprintf(m_text, sizeof(m_text), 
-		       "Grep::PSCoord: Synchronization FAILED (DATA SCAN) on "
-		       "table data using (subId=%d,SubKey=%d). GCI = %d. "
-		       " Error code: %d Error Message: %s",
-		       subId,
-		       subKey,
-		       gci,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	  }
-	case GrepEvent::GrepPS_SubRemoveRef: 
-	  {
-	    const int subId  = theData[2];
-	    const int subKey = theData[3];
-	    const int err    = theData[4];
-	    ::snprintf(m_text, sizeof(m_text), 
-		     "Grep::PSCoord: Failed to remove subscription "
-		       "(subId=%d,SubKey=%d)." 
-		       " Error code: %d Error Message: %s",
-		       subId,
-		       subKey,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	  }	
-	case GrepEvent::Rep_Disconnect:
-	  {
-	    const int err       = theData[4];
-	    const int nodeId    = theData[5];   
-	    ::snprintf(m_text, sizeof(m_text), 
-		       "Rep: Node %d."
-		       " Error code: %d Error Message: %s",
-		       nodeId,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	  }	
-	
-	
-	default:
-	  ::snprintf(m_text, 
-		     sizeof(m_text), 
-		     "%sUnknown GrepSubscriptionAlert event: %d",
-		     theNodeId,
-		     theData[1]);
-	break;
-	}
-      break;
-    }
+    break;
+  }
   
+  case EventReport::GrepSubscriptionAlert : 
+  {
+    GrepEvent::Subscription event  = (GrepEvent::Subscription)theData[1];
+    switch(event) 
+    { 
+    case GrepEvent::GrepSS_CreateSubIdRef: 
+    {
+      const int subId    = theData[2];
+      const int subKey   = theData[3];
+      const int err      = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord:Error code: %d Error message: %s"
+		 " (subId=%d,SubKey=%d)",
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err),
+		 subId,
+		 subKey);
+      break;
+    }
+    case GrepEvent::GrepSS_SubCreateRef: 
+    {
+      const int subId   = theData[2];
+      const int subKey  = theData[3];
+      const int err     = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: FAILED to Created subscription using"
+		 " (subId=%d,SubKey=%d)in primary system."
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepSS_SubStartMetaRef: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Logging failed to start on meta "
+		 "data changes." 
+		 " using (subId=%d,SubKey=%d)"
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepSS_SubStartDataRef: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Logging FAILED to start on table data "
+		 " changes using (subId=%d,SubKey=%d)"
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepSS_SubSyncMetaRef: 
+    {
+      const int subId   = theData[2];
+      const int subKey  = theData[3];
+      const int err     = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Synchronization FAILED (META SCAN) on "
+		 " meta data using (subId=%d,SubKey=%d)"
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepSS_SubSyncDataRef: 
+    {
+      const int subId   =  theData[2];
+      const int subKey  =  theData[3];
+      const int err     =  theData[4];
+      const int gci     =  theData[5];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Synchronization FAILED (DATA SCAN) on "
+		 "table data using (subId=%d,SubKey=%d). GCI = %d"
+		 " Error code: %d Error Message: %s", 
+		 subId,
+		 subKey,
+		 gci,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepSS_SubRemoveRef: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Failed to remove subscription "
+		 "(subId=%d,SubKey=%d). "
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err)
+		 );
+      break;
+    }	
+	
+    case GrepEvent::GrepPS_CreateSubIdRef: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: Error code: %d Error Message: %s"
+		 " (subId=%d,SubKey=%d)",
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err),
+		 subId,
+		 subKey);
+      break;
+    }
+    case GrepEvent::GrepPS_SubCreateRef: 
+    {
+      const int subId   = theData[2];
+      const int subKey  = theData[3];
+      const int err     = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: FAILED to Created subscription using"
+		 " (subId=%d,SubKey=%d)in primary system."
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepPS_SubStartMetaRef: 
+    {
+      const int subId   = theData[2];
+      const int subKey  = theData[3];
+      const int err     = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: Logging failed to start on meta "
+		 "data changes." 
+		 " using (subId=%d,SubKey=%d)"
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,		       
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepPS_SubStartDataRef: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: Logging FAILED to start on table data "
+		 " changes using (subId=%d,SubKey=%d)"
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepPS_SubSyncMetaRef: 
+    {
+      const int subId   = theData[2];
+      const int subKey  = theData[3];
+      const int err     = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: Synchronization FAILED (META SCAN) on "
+		 " meta data using (subId=%d,SubKey=%d)"
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepPS_SubSyncDataRef: 
+    {
+      const int subId   =  theData[2];
+      const int subKey  =  theData[3];
+      const int err     =  theData[4];
+      const int gci     =  theData[5];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: Synchronization FAILED (DATA SCAN) on "
+		 "table data using (subId=%d,SubKey=%d). GCI = %d. "
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 gci,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepPS_SubRemoveRef: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: Failed to remove subscription "
+		 "(subId=%d,SubKey=%d)." 
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }	
+    case GrepEvent::Rep_Disconnect:
+    {
+      const int err       = theData[4];
+      const int nodeId    = theData[5];   
+      ::snprintf(m_text, m_text_len, 
+		 "Rep: Node %d."
+		 " Error code: %d Error Message: %s",
+		 nodeId,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }	
+	
+	
+    default:
+      ::snprintf(m_text, 
+		 m_text_len, 
+		 "%sUnknown GrepSubscriptionAlert event: %d",
+		 theNodeId,
+		 theData[1]);
+    break;
+    }
+    break;
+  }
+
+  case EventReport::BackupStarted:
+    ::snprintf(m_text,
+	       m_text_len,
+	       "%sBackup %d started from node %d", 
+	       theNodeId, theData[2], refToNode(theData[1]));
+  break;
+  case EventReport::BackupFailedToStart:
+    ::snprintf(m_text,
+	       m_text_len,
+	       "%sBackup request from %d failed to start. Error: %d", 
+	       theNodeId, refToNode(theData[1]), theData[2]);
+  break;
+  case EventReport::BackupCompleted:
+    ::snprintf(m_text,
+	       m_text_len,
+	       "%sBackup %d started from node %d completed\n" 
+	       " StartGCP: %d StopGCP: %d\n"
+	       " #Records: %d #LogRecords: %d\n"
+	       " Data: %d bytes Log: %d bytes",
+	       theNodeId, theData[2], refToNode(theData[1]),
+	       theData[3], theData[4], theData[6], theData[8],
+	       theData[5], theData[7]);
+  break;
+  case EventReport::BackupAborted:
+    ::snprintf(m_text,
+	       m_text_len,
+	       "%sBackup %d started from %d has been aborted. Error: %d",
+	       theNodeId, 
+	       theData[2], 
+	       refToNode(theData[1]), 
+	       theData[3]);
+  break;
   default:
     ::snprintf(m_text, 
-	       sizeof(m_text), 
+	       m_text_len, 
 	       "%sUnknown event: %d",
 	       theNodeId,
 	       theData[0]);
@@ -1302,54 +1303,10 @@ EventLogger::getText(int type,
   return m_text;
 }
 
-bool
-EventLogger::matchEventCategory(const char * str, 
-		   LogLevel::EventCategory * cat,
-		   bool exactMatch){
-  unsigned i;
-  if(cat == 0 || str == 0)
-    return false;
-
-  char * tmp = strdup(str);
-  for(i = 0; i<strlen(tmp); i++)
-    tmp[i] = toupper(tmp[i]);
-  
-  for(i = 0; i<noOfEventCategoryNames; i++){
-    if(strcmp(tmp, eventCategoryNames[i].name) == 0){
-      * cat = eventCategoryNames[i].category;
-      free(tmp);
-      return true;
-    }
-  }
-  free(tmp);
-  return false;
-}
-
-const char *
-EventLogger::getEventCategoryName(LogLevel::EventCategory cat){
-  
-  for(unsigned i = 0; i<noOfEventCategoryNames; i++){
-    if(cat == eventCategoryNames[i].category){
-      return eventCategoryNames[i].name;
-    }
-  }
-  return 0;
-}
-
-
-EventLogger::EventLogger() : Logger(), m_logLevel(), m_filterLevel(15)
+EventLogger::EventLogger() : m_filterLevel(15)
 {
   setCategory("EventLogger");
-  m_logLevel.setLogLevel(LogLevel::llStartUp, m_filterLevel);
-  m_logLevel.setLogLevel(LogLevel::llShutdown, m_filterLevel);
-  //  m_logLevel.setLogLevel(LogLevel::llStatistic, m_filterLevel);
-  //  m_logLevel.setLogLevel(LogLevel::llCheckpoint, m_filterLevel); 
-  m_logLevel.setLogLevel(LogLevel::llNodeRestart, m_filterLevel); 
-  m_logLevel.setLogLevel(LogLevel::llConnection, m_filterLevel);
-  m_logLevel.setLogLevel(LogLevel::llError, m_filterLevel);
-  m_logLevel.setLogLevel(LogLevel::llInfo, m_filterLevel);
-  enable(Logger::LL_INFO, Logger::LL_ALERT); // Log INFO to ALERT
-
+  enable(Logger::Logger::LL_INFO, Logger::Logger::LL_ALERT); 
 }
 
 EventLogger::~EventLogger()
@@ -1370,64 +1327,72 @@ EventLogger::close()
   removeAllHandlers();
 }
 
-void 
-EventLogger::log(NodeId nodeId, int eventType, const Uint32* theData)
+static NdbOut&
+operator<<(NdbOut& out, const LogLevel & ll)
 {
-  log(eventType, theData, nodeId);
+  out << "[LogLevel: ";
+  for(size_t i = 0; i<LogLevel::LOGLEVEL_CATEGORIES; i++)
+    out << ll.getLogLevel((LogLevel::EventCategory)i) << " ";
+  out << "]";
+  return out;
 }
 
 void 
-EventLogger::log(int eventType, const Uint32* theData, NodeId nodeId)
+EventLogger::log(int eventType, const Uint32* theData, NodeId nodeId,
+		 const LogLevel* ll)
 {
   Uint32 threshold = 0;
-  Logger::LoggerLevel severity = LL_WARNING;
+  Logger::LoggerLevel severity = Logger::LL_WARNING;
+  LogLevel::EventCategory cat;
 
-  for(unsigned i = 0; i<EventLogger::matrixSize; i++){
-    if(EventLogger::matrix[i].eventType == eventType){
-      const LogLevel::EventCategory cat = EventLogger::matrix[i].eventCategory;
-      threshold = m_logLevel.getLogLevel(cat);
-      severity = EventLogger::matrix[i].severity;
+  for(unsigned i = 0; i<EventLoggerBase::matrixSize; i++){
+    if(EventLoggerBase::matrix[i].eventType == eventType){
+      cat = EventLoggerBase::matrix[i].eventCategory;
+      threshold = EventLoggerBase::matrix[i].threshold;
+      severity = EventLoggerBase::matrix[i].severity;
       break;
     }
   }
   
-  if (threshold <= m_filterLevel){
+  Uint32 set = ll?ll->getLogLevel(cat) : m_logLevel.getLogLevel(cat);
+  if (threshold <= set){
     switch (severity){
-    case LL_ALERT:
-      alert(EventLogger::getText(eventType, theData, nodeId));
+    case Logger::LL_ALERT:
+      alert(EventLogger::getText(m_text, sizeof(m_text), 
+				 eventType, theData, nodeId));
       break;
       
-    case LL_CRITICAL:
-      critical(EventLogger::getText(eventType, theData, nodeId));
+    case Logger::LL_CRITICAL:
+      critical(EventLogger::getText(m_text, sizeof(m_text), 
+				    eventType, theData, nodeId));
       break;
       
-    case LL_WARNING:
-      warning(EventLogger::getText(eventType, theData, nodeId));
+    case Logger::LL_WARNING:
+      warning(EventLogger::getText(m_text, sizeof(m_text), 
+				   eventType, theData, nodeId));
       break;
       
-    case LL_ERROR:
-      error(EventLogger::getText(eventType, theData, nodeId));
+    case Logger::LL_ERROR:
+      error(EventLogger::getText(m_text, sizeof(m_text), 
+				 eventType, theData, nodeId));
       break;
       
-    case LL_INFO:
-      info(EventLogger::getText(eventType, theData, nodeId));
+    case Logger::LL_INFO:
+      info(EventLogger::getText(m_text, sizeof(m_text), 
+				eventType, theData, nodeId));
       break;
       
-    case LL_DEBUG:
-      debug(EventLogger::getText(eventType, theData, nodeId));
+    case Logger::LL_DEBUG:
+      debug(EventLogger::getText(m_text, sizeof(m_text), 
+				 eventType, theData, nodeId));
       break;
       
     default:
-      info(EventLogger::getText(eventType, theData, nodeId));
+      info(EventLogger::getText(m_text, sizeof(m_text), 
+				eventType, theData, nodeId));
       break;
     }
   } // if (..
-}
-
-LogLevel& 
-EventLogger::getLoglevel()
-{
-  return m_logLevel;
 }
 
 int

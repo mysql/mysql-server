@@ -751,7 +751,8 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
                              &tableDescriptor[regTabPtr->readKeyArray].tabDescr,
                              regTabPtr->noOfKeyAttr,
                              keyBuffer,
-                             ZATTR_BUFFER_SIZE);
+                             ZATTR_BUFFER_SIZE,
+                             true);
   ndbrequire(noPrimKey != (Uint32)-1);
 
   Uint32 numAttrsToRead;
@@ -792,7 +793,8 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
                                  &readBuffer[0],
                                  numAttrsToRead,
                                  mainBuffer,
-                                 ZATTR_BUFFER_SIZE);
+                                 ZATTR_BUFFER_SIZE,
+                                 true);
     ndbrequire(noMainWords != (Uint32)-1);
   } else {
     ljam();
@@ -816,7 +818,8 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
                                  &readBuffer[0],
                                  numAttrsToRead,
                                  copyBuffer,
-                                 ZATTR_BUFFER_SIZE);
+                                 ZATTR_BUFFER_SIZE,
+                                 true);
 
     ndbrequire(noCopyWords != (Uint32)-1);
     if ((noMainWords == noCopyWords) &&

@@ -14,17 +14,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <LogLevel.hpp>
+#include <ndb_global.h>
+#include <my_sys.h>
 
-const LogLevel::LogLevelCategoryName LogLevel::LOGLEVEL_CATEGORY_NAME[] = {
-  { "LogLevelStartup" },
-  { "LogLevelShutdown" },
-  { "LogLevelStatistic" },
-  { "LogLevelCheckpoint" },
-  { "LogLevelNodeRestart" },
-  { "LogLevelConnection" },
-  { "LogLevelError" },
-  { "LogLevelWarning" },
-  { "LogLevelInfo" },
-  { "LogLevelGrep" }
-};
+int
+ndb_init()
+{
+  if (my_init()) {
+    const char* err = "my_init() failed - exit\n";
+    write(2, err, strlen(err));
+    exit(1);
+  }
+  return 0;
+}
