@@ -22,6 +22,7 @@ void        _OS2errno( APIRET rc);
 longlong    _lseek64( int fd, longlong offset, int seektype);
 int         _lock64( int fd, int locktype, my_off_t start,
                      my_off_t length, myf MyFlags);
+int         _sopen64( const char *name, int oflag, int shflag, int mask);
 
 //
 // this class is used to define a global c++ variable, that
@@ -191,8 +192,17 @@ inline _SetFileLocksL(HFILE hFile,
                           ULONG timeout,
                           ULONG flags)
 {
-   if (_DosSetFileLocksL)
-      return _DosSetFileLocksL( hFile, pflUnlock, pflLock, timeout, flags);
+   if (_DosSetFileLocksL) {
+      APIRET rc;
+      rc = _DosSetFileLocksL( hFile, pflUnlock, pflLock, timeout, flags);
+
+      // on FAT/HPFS/LAN a INVALID_PARAMETER is returned, seems that 
+      // only JFS can handle >2GB ranges.
+      if (rc != 87)
+         return rc;
+
+      // got INVALID_PARAMETER, fallback to standard call
+   }
 
    FILELOCK flUnlock = { pflUnlock->lOffset, pflUnlock->lRange };
    FILELOCK flLock = { pflLock->lOffset, pflLock->lRange };
@@ -254,7 +264,7 @@ int         _lock64( int fd, int locktype, my_off_t start,
    return(-1);
 }
 
-int         _sopen( const char *name, int oflag, int shflag, int mask)
+int         sopen( const char *name, int oflag, int shflag, int mask)
 {
    int      fail_errno;
    APIRET   rc = 0;

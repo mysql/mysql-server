@@ -43,11 +43,13 @@ option ProjectOptions = MySQLOptions
          // target source files
          source type('cpp') "..\\client\\mysql.cc"
          source BldLevelInfo
+         option define("HAVE_STRING_H", ), define("HAVE_CONFIG_H", )
+         {
+            source GnuReadline
+         }
       }
    }
 
-   option file(genobject, "..\\OBJ\\READLINE\\")
-   {
       target "..\\bin\\mysqladmin.exe"
       {
          // optimized precompiled headers
@@ -59,7 +61,6 @@ option ProjectOptions = MySQLOptions
          source type('cpp') "..\\client\\mysqladmin.c"
          source BldLevelInfo
       }
-   }
 
       target "..\\bin\\mysqldump.exe"
       {

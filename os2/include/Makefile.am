@@ -16,13 +16,8 @@
 
 ## Process this file with automake to create Makefile.in
 
-EXTRA_DIST = BldLevel.RES BldLevel.cmd BldLevel.rc \
-						BldLevelInf.cmd ChangeLog.os2 MySQL-Client.icc \
-						MySQL-Opt.icc MySQL-Source.icc MySQL-Sql.icc \
-						MySQL-Sql.irs MySQL-Util.icc MySQL-Util.irs \
-						ReadMe.txt build-all.cmd mysql-inf.wis \
-						mysql.wis mysqlalt.wis rint.cmd rint.obj rint.s 
-SUBDIRS = include
+EXTRA_DIST = config.h pwd.h sgtty.h termio.h
+SUBDIRS = sys
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
