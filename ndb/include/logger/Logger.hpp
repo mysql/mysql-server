@@ -101,7 +101,7 @@ public:
   /** The log levels. NOTE: Could not use the name LogLevel since 
    * it caused conflicts with another class.
    */
-  enum LoggerLevel {LL_OFF, LL_DEBUG, LL_INFO, LL_WARNING, LL_ERROR,
+  enum LoggerLevel {LL_ON, LL_DEBUG, LL_INFO, LL_WARNING, LL_ERROR,
 		    LL_CRITICAL, LL_ALERT, LL_ALL};
   
   /**
