@@ -233,9 +233,13 @@ convert_error_code_to_mysql(
 
     		return(HA_ERR_ROW_IS_REFERENCED);
 
- 	} else if (error == (int) DB_CANNOT_ADD_CONSTRAINT) {
+        } else if (error == (int) DB_CANNOT_ADD_CONSTRAINT) {
 
     		return(HA_ERR_CANNOT_ADD_FOREIGN);
+
+        } else if (error == (int) DB_COL_APPEARS_TWICE_IN_INDEX) {
+
+    		return(HA_ERR_WRONG_TABLE_DEF);
 
  	} else if (error == (int) DB_OUT_OF_FILE_SPACE) {
 
