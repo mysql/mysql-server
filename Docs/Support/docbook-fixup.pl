@@ -34,7 +34,7 @@ $data =~ s{mailto:}
           {}gs;
 
 print STDERR "Fixing spacing problem with titles...\n";
-$data =~ s{</(\w+)>(\w+)}
+$data =~ s{</(\w+)>(\w{2,})}
           {</$1> $2}gs;
 
 @apx = ("Users", "MySQL Testimonials", "News",
