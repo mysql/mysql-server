@@ -60,10 +60,15 @@ static const char default_prompt[]= "ndb_mgm> ";
 static unsigned _try_reconnect;
 static char *opt_connect_str= 0;
 static const char *prompt= default_prompt;
+static char *opt_execute_str= 0;
 
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_mgm"),
+  { "execute", 'e',
+    "execute command and exit", 
+    (gptr*) &opt_execute_str, (gptr*) &opt_execute_str, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "try-reconnect", 't',
     "Specify number of tries for connecting to ndb_mgmd (0 = infinite)", 
     (gptr*) &_try_reconnect, (gptr*) &_try_reconnect, 0,
@@ -156,19 +161,25 @@ int main(int argc, char** argv){
     opt_connect_str= buf;
   }
 
-  if (!isatty(0))
+  if (!isatty(0) || opt_execute_str)
   {
     prompt= 0;
   }
 
-  ndbout << "-- NDB Cluster -- Management Client --" << endl;
-
   signal(SIGPIPE, handler);
-
   com = new Ndb_mgmclient(opt_connect_str,1);
-  while(read_and_execute(_try_reconnect));
+  int ret= 0;
+  if (!opt_execute_str)
+  {
+    ndbout << "-- NDB Cluster -- Management Client --" << endl;
+    while(read_and_execute(_try_reconnect));
+  }
+  else
+  {
+    com->execute(opt_execute_str,_try_reconnect, &ret);
+  }
   delete com;
   
-  return 0;
+  return ret;
 }
 
