@@ -267,19 +267,19 @@ show columns from mysqltest.v2;
 # but explain/show do not
 -- error 1345
 explain select c from mysqltest.v1;
--- error 1345
+-- error 1142
 show create table mysqltest.v1;
 -- error 1345
 explain select c from mysqltest.v2;
--- error 1345
+-- error 1142
 show create table mysqltest.v2;
 -- error 1345
 explain select c from mysqltest.v3;
--- error 1345
+-- error 1142
 show create table mysqltest.v3;
 -- error 1345
 explain select c from mysqltest.v4;
--- error 1345
+-- error 1142
 show create table mysqltest.v4;
 
 # allow to see one of underlaing table
@@ -288,17 +288,19 @@ grant select on mysqltest.t1 to mysqltest_1@localhost;
 connection user1;
 # EXPLAIN of view on above table works
 explain select c from mysqltest.v1;
+-- error 1142
 show create table mysqltest.v1;
 explain select c from mysqltest.v2;
+-- error 1142
 show create table mysqltest.v2;
 # but other EXPLAINs do not
 -- error 1345
 explain select c from mysqltest.v3;
--- error 1345
+-- error 1142
 show create table mysqltest.v3;
 -- error 1345
 explain select c from mysqltest.v4;
--- error 1345
+-- error 1142
 show create table mysqltest.v4;
 
 # allow to see any view in mysqltest database
