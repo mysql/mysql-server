@@ -23,7 +23,6 @@
 
 #include "mysql_priv.h"
 
-
 Item_sum::Item_sum(List<Item> &list)
 {
   arg_count=list.elements;
@@ -38,10 +37,14 @@ Item_sum::Item_sum(List<Item> &list)
       args[i++]= item;
     }
   }
-  with_sum_func=1;
+  mark_as_sum_func();
   list.empty();					// Fields are used
 }
 
+void Item_sum::mark_as_sum_func()
+{
+  current_thd->lex.select->with_sum_func= with_sum_func= 1;
+}
 
 void Item_sum::make_field(Send_field *tmp_field)
 {

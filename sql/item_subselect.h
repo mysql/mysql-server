@@ -55,13 +55,16 @@ public:
      pointer in constructor initialization list, but we need pass pointer
      to subselect Item class to select_subselect classes constructor.
   */
-  void init (THD *thd, st_select_lex *select_lex, select_subselect *result);
+  virtual void init (THD *thd, st_select_lex *select_lex, 
+		     select_subselect *result,
+		     Item *left_expr= 0);
 
   ~Item_subselect();
   virtual void assign_null() 
   {
     null_value= 1;
   }
+  virtual void select_transformer(st_select_lex *select_lex, Item *left_expr);
   bool assigned() { return value_assigned; }
   void assigned(bool a) { value_assigned= a; }
   enum Type type() const;
@@ -73,7 +76,6 @@ public:
 
   friend class select_subselect;
 };
-
 
 /* single value subselect */
 
@@ -127,12 +129,15 @@ protected:
   longlong value; /* value of this item (boolean: exists/not-exists) */
 
 public:
-  Item_exists_subselect(THD *thd, st_select_lex *select_lex);
+  Item_exists_subselect(THD *thd, st_select_lex *select_lex,
+			Item *left_expr= 0);
   Item_exists_subselect(Item_exists_subselect *item):
     Item_subselect(item)
   {
     value= item->value;
   }
+  Item_exists_subselect(): Item_subselect() {}
+
   virtual void assign_null() 
   {
     value= 0;
@@ -145,6 +150,16 @@ public:
   String *val_str(String*);
   void fix_length_and_dec();
   friend class select_exists_subselect;
+};
+
+/* IN subselect */
+
+class Item_in_subselect :public Item_exists_subselect
+{
+public:
+  Item_in_subselect(THD *thd, Item * left_expr, st_select_lex *select_lex);
+  Item_in_subselect(Item_in_subselect *item);
+  virtual void select_transformer(st_select_lex *select_lex, Item *left_exp);
 };
 
 class subselect_engine
