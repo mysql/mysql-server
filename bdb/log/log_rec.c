@@ -430,7 +430,7 @@ __log_add_logid(dbenv, logp, dbp, ndx)
 				TAILQ_INIT(&logp->dbentry[i].dblist);
 			else
 				TAILQ_REINSERT_HEAD(
-				    &logp->dbentry[i].dblist, dbp, links);
+				    &logp->dbentry[i].dblist, dbtmp, links);
 		}
 
 		/* Initialize the new entries. */

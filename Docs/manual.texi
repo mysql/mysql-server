@@ -69,7 +69,7 @@ END-INFO-DIR-ENTRY
 @sp 10
 @center @titlefont{@strong{MySQL} Reference Manual}
 @sp 10
-@center Copyright @copyright{} 1997-2001 TcX AB, Detron HB and MySQL Finland AB
+@center Copyright @copyright{} 1997-2001 MySQL AB
 @c blank page after title page makes page 1 be a page front.
 @c also makes the back of the title page blank.
 @page
@@ -2223,7 +2223,7 @@ The Berkeley DB code is very stable, but we are still improving the interface
 between @strong{MySQL} and BDB tables, so it will take some time before this
 is as tested as the other table types.
 
-@item Innodb Tables -- Alpha
+@item InnoDB Tables -- Alpha
 This is a very recent addition to @code{MySQL} and is not very tested yet.
 
 @item Automatic recovery of MyISAM tables - Beta
@@ -10015,7 +10015,7 @@ yourself with the different BDB specific startup options.  @xref{BDB start}.
 If you are using Gemini tables, refer to the Gemini-specific startup options.
 @xref{GEMINI start}.
 
-If you are using Innodb tables, refer to the Innodb-specific startup
+If you are using InnoDB tables, refer to the InnoDB-specific startup
 options.  @xref{InnoDB start}.
 
 @node Automatic start, Command-line options, Starting server, Post-installation
@@ -10123,6 +10123,10 @@ Directory where character sets are.  @xref{Character sets}.
 Chroot mysqld daemon during startup.  Recommended security measure. It will
 somewhat limit @code{LOAD DATA INFILE} and @code{SELECT ... INTO OUTFILE} 
 though.
+
+@item --core-file
+Write a core file if @code{mysqld} dies.  For some systems you must also
+specify @code{--core-file-size} to @code{safe_mysqld}. @xref{safe_mysqld}.
 
 @item -h, --datadir=path
 Path to the database root.
@@ -10278,6 +10282,10 @@ gives everyone @emph{full access} to all databases!  (You can tell a running
 server to start using the grant tables again by executing @code{mysqladmin
 flush-privileges} or @code{mysqladmin reload}.)
 
+@item --skip-host-cache
+Never use host name cache for faster name-ip resolution, but query DNS server
+on every connect instead.  @xref{DNS}.
+
 @item --skip-locking
 Don't use system locking.  To use @code{isamchk} or @code{myisamchk} you must
 shut down the server.  @xref{Stability}.  Note that in @strong{MySQL} Version
@@ -10293,13 +10301,13 @@ Don't listen for TCP/IP connections at all.  All interaction with
 @code{mysqld} must be made via Unix sockets.  This option is highly 
 recommended for systems where only local requests are allowed.  @xref{DNS}.
 
-@item --skip-host-cache
-Never use host name cache for faster name-ip resolution, but query DNS server
-on every connect instead.  @xref{DNS}.
-
 @item --skip-new
 Don't use new, possible wrong routines.  Implies @code{--skip-delay-key-write}.
 This will also set default table type to @code{ISAM}.  @xref{ISAM}.
+
+@item --skip-stack-trace
+Don't write stack traces.  This option is useful when you are running
+@code{mysqld} under a debugger. @xref{Debugging server}.
 
 @item --skip-safemalloc
 If @strong{MySQL} is configured with @code{--with-debug=full}, all programs
@@ -18752,9 +18760,10 @@ When you insert a value of @code{NULL} (recommended) or @code{0} into an
 @xref{mysql_insert_id, , @code{mysql_insert_id()}}.
 
 If you delete the row containing the maximum value for an
-@code{AUTO_INCREMENT} column, the value will be reused with an ISAM
-table but not with a @code{MyISAM} table.  If you delete all rows in the
-table with @code{DELETE FROM table_name} (without a @code{WHERE}) in
+@code{AUTO_INCREMENT} column, the value will be reused with an
+@code{ISAM}, @code{BDB} or @code{INNODB} table but not with a
+@code{MyISAM} table.  If you delete all rows in the table with
+@code{DELETE FROM table_name} (without a @code{WHERE}) in
 @code{AUTOCOMMIT} mode, the sequence starts over for both table types.
 
 @strong{NOTE:} There can be only one @code{AUTO_INCREMENT} column per
@@ -21742,7 +21751,7 @@ if @code{--skip-bdb} is used.
 @code{YES} if @code{mysqld} supports Gemini tables. @code{DISABLED}
 if @code{--skip-gemini} is used.
 @item @code{have_innodb}
-@code{YES} if @code{mysqld} supports Innodb tables. @code{DISABLED}
+@code{YES} if @code{mysqld} supports InnoDB tables. @code{DISABLED}
 if @code{--skip-innodb} is used.
 @item @code{have_raid}
 @code{YES} if @code{mysqld} supports the @code{RAID} option.
@@ -23352,7 +23361,14 @@ the table type, the index and data will be stored in other files.
 
 The default table type in @strong{MySQL} is @code{MyISAM}. If you are
 trying to use a table type that is not compiled-in or activated,
-@strong{MySQL} will instead create a table of type @code{MyISAM}.
+@strong{MySQL} will instead create a table of type @code{MyISAM}.  This
+is a very useful feature when you want to copy tables between different
+SQL servers that supports different table types (like copying tables to
+a slave that is optimized for speed by not having transactional tables).
+This automatic table changing can however also be very confusing for new
+@strong{MySQL} users. We plan to fix this by introducing warnings in
+@strong{MySQL} 4.0 and giving a warning when a table type is automaticly
+changed.
 
 You can convert tables between different types with the @code{ALTER
 TABLE} statement. @xref{ALTER TABLE, , @code{ALTER TABLE}}.
@@ -23452,7 +23468,7 @@ Internal handling of one @code{AUTO_INCREMENT} column. @code{MyISAM}
 will automatically update this on @code{INSERT/UPDATE}. The
 @code{AUTO_INCREMENT} value can be reset with @code{myisamchk}. This
 will make @code{AUTO_INCREMENT} columns faster (at least 10 %) and old
-numbers will not be reused as with the old ISAM. Note that when an
+numbers will not be reused as with the old @code{ISAM}. Note that when an
 @code{AUTO_INCREMENT} is defined on the end of a multi-part-key the old
 behavior is still present.
 @item
@@ -24086,20 +24102,20 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 @section BDB or Berkeley_DB Tables
 
 @menu
-* BDB overview::                
-* BDB install::                 
-* BDB start::                   
-* BDB characteristic::          
-* BDB TODO::                    
-* BDB portability::             
-* BDB errors::                  
+* BDB overview::                Overview of BDB Tables
+* BDB install::                 Installing BDB
+* BDB start::                   BDB startup options
+* BDB characteristic::          Some characteristic of @code{BDB} tables:
+* BDB TODO::                    Some things we need to fix for BDB in the near future:
+* BDB portability::             Operating systems supported by @strong{BDB}
+* BDB errors::                  Errors You May Get When Using BDB Tables
 @end menu
 
 @node BDB overview, BDB install, BDB, BDB
 @subsection Overview of BDB Tables
 
 Support for BDB tables is included in the @strong{MySQL} source distribution
-starting from Version 3.23.34 and will be activated in the @strong{MySQL}-Max
+starting from Version 3.23.34 and is activated in the @strong{MySQL}-Max
 binary.
 
 BerkeleyDB, available at @uref{http://www.sleepycat.com/} has provided 
@@ -25419,15 +25435,16 @@ they roll back the corresponding SQL statement.
 @subsection Some restrictions on InnoDB tables
 
 @itemize @bullet
-@item You cannot create an index on a prefix of a column:
+@item
+If you try to create an unique index on a prefix of a column you will get an
+error:
 
 @example
-@code{CREATE TABLE T (A CHAR(20), B INT, INDEX T_IND (A(5))) TYPE = InnoDB;
-}
+CREATE TABLE T (A CHAR(20), B INT, UNIQUE (A(5))) TYPE = InnoDB;
 @end example
 
-The above will not work. For a MyISAM table the above would create an index
-where only the first 5 characters from column @code{A} are stored.
+If you create a non unique index on a prefix of a column, InnoDB will
+create an index over the whole column.
 @item
 @code{INSERT DELAYED} is not supported for InnoDB tables.
 @item
@@ -32277,9 +32294,9 @@ the @code{mysql} variables that affect your queries.
 
 @cindex @code{safe-mode} command
 A useful startup option for beginners (introduced in @strong{MySQL}
-Version 3.23.11) is @code{--safe-mode} (or @code{--i-am-a-dummy} for
+Version 3.23.11) is @code{--safe-updates} (or @code{--i-am-a-dummy} for
 users that has at some time done a @code{DELETE FROM table_name} but
-forgot the @code{WHERE} clause.  When using this option, @code{mysql}
+forgot the @code{WHERE} clause).  When using this option, @code{mysql}
 sends the following command to the @strong{MySQL} server when opening
 the connection:
 
@@ -34587,12 +34604,13 @@ functions.  Consult this file to see how UDF calling conventions work.
 
 For mysqld to be able to use UDF functions, you should configure MySQL
 with @code{--with-mysqld-ldflags=-rdynamic} The reason is that to on
-many platforms you can load a dynamic library (with @code{dlopen()})
-from a static linked program, which you would get if you are using
-@code{--with-mysqld-ldflags=-all-static} If you want to use an UDF that
-needs to access symbols from mysqld (like the @code{methaphone} example
-in @file{sql/udf_example.cc} that uses @code{default_charset_info}), you must
-link the program with @code{-rdynamic}.  (see @code{man dlopen}).
+many platforms (including Linux) you can load a dynamic library (with
+@code{dlopen()}) from a static linked program, which you would get if
+you are using @code{--with-mysqld-ldflags=-all-static} If you want to
+use an UDF that needs to access symbols from mysqld (like the
+@code{methaphone} example in @file{sql/udf_example.cc} that uses
+@code{default_charset_info}), you must link the program with
+@code{-rdynamic}.  (see @code{man dlopen}).
 
 For each function that you want to use in SQL statements, you should define
 corresponding C (or C++) functions.  In the discussion below, the name
@@ -35009,12 +35027,13 @@ one that has been loaded with @code{CREATE FUNCTION} and not removed with
 @node Adding native function,  , Adding UDF, Adding functions
 @section Adding a New Native Function
 
-The procedure for adding a new native function is described below.  Note that
-you cannot add native functions to a binary distribution because the procedure
-involves modifying @strong{MySQL} source code.  You must compile
-@strong{MySQL} yourself from a source distribution.  Also note that if you
-migrate to another version of @strong{MySQL} (for example, when a new version is
-released), you will need to repeat the procedure with the new version.
+The procedure for adding a new native function is described below.  Note
+that you cannot add native functions to a binary distribution because
+the procedure involves modifying @strong{MySQL} source code.  You must
+compile @strong{MySQL} yourself from a source distribution.  Also note
+that if you migrate to another version of @strong{MySQL} (for example,
+when a new version is released), you will need to repeat the procedure
+with the new version.
 
 To add a new native @strong{MySQL} function, follow these steps:
 
@@ -44025,7 +44044,7 @@ A new ISAM library which is tuned for SQL and supports large files.
 @item @strong{BerkeleyDB} or @strong{BDB}
 Uses the Berkeley DB library from Sleepycat Software to implement 
 transaction-safe tables.  
-@item @strong{Innodb}
+@item @strong{InnoDB}
 A transaction-safe table handler that supports row level locking, and many
 Oracle-like features.
 @c change "three" to "four" above when uncommenting this
@@ -44101,6 +44120,16 @@ not yet 100% confident in this code.
 @node News-3.23.38, News-3.23.37, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.38
 @itemize @bullet
+@item
+Fixed a bug in @code{REPLACE()} when using the ujis character set.
+@item
+Applied Sleepycat BDB patches 3.2.9.1 and 3.2.9.2.
+@item
+Added option @code{--skip-stack-trace} to @code{mysqld}.
+@item
+@code{CREATE TEMPORARY} now works with @code{InnoDB} tables.
+@item
+@code{InnoDB} now promotes sub keys to whole keys.
 @item
 Added option @code{CONCURRENT} to @code{LOAD DATA}.
 @item
@@ -49412,6 +49441,25 @@ Fail safe replication.
 Subqueries.
 @code{select id from t where grp in (select grp from g where u > 100)}
 @item
+Derieved tables.
+@example
+select a.col1, b.col2 from (select max(col1) as col1 from root_table ) a,
+other_table b where a.col1=b.col1
+@end example
+
+This could be done by automaticly create temporary tables for the
+derived tables for the duration of the query.
+@item
+Add @code{PREPARE} of statements and sending of parameters to @code{mysqld}.
+@item
+Extend the server/client protocol to support warnings.
+@item
+Add options to the server/protocol protocol to get progress notes
+for long running commands.
+@item
+Add database and real table name (in case of alias) to the MYSQL_FIELD
+structure.
+@item
 Don't allow more than a defined number of threads to run MyISAM recover
 at the same time.
 @item
@@ -49424,8 +49472,6 @@ Multiple result sets.
 @item
 Change the protocol to allow binary transfer of values. To do this
 efficiently, we need to add an API to allow binding of variables.
-@item
-Add @code{PREPARE} of statements and sending of parameters to @code{mysqld}.
 @item
 Make it possible to specify @code{long_query_time} with a granularity
 in microseconds.
@@ -49937,6 +49983,9 @@ more information if @code{mysqld} crashes.
 With some older @code{gdb} versions on Linux you must use @code{run
 --one-thread} if you want to be able to debug @code{mysqld} threads.  In
 this case you can only have one thread active at a time.
+
+When running @code{mysqld} under gdb, you should disable the stack trace
+with @code{--skip-stack-trace} to be able to catch segfaults within gdb.
 
 It's very hard to debug @strong{MySQL} under @code{gdb} if you do a lot of
 new connections the whole time as @code{gdb} doesn't free the memory for

@@ -198,6 +198,7 @@ struct __fname {
  */
 typedef enum {
 	DB_LV_INCOMPLETE,
+	DB_LV_NONEXISTENT,
 	DB_LV_NORMAL,
 	DB_LV_OLD_READABLE,
 	DB_LV_OLD_UNREADABLE
