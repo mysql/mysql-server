@@ -675,3 +675,9 @@ select * from t1 where soundex(a) = soundex('Test');
 select * from t1 where soundex(a) = soundex('TEST');
 select * from t1 where soundex(a) = soundex('test');
 drop table t1;
+
+
+SET collation_connection='utf8_general_ci';
+-- source include/ctype_filesort.inc
+SET collation_connection='utf8_bin';
+-- source include/ctype_filesort.inc

@@ -305,3 +305,23 @@ select 'a' regexp 'A' collate latin1_general_cs;
 select 'a' regexp 'A' collate latin1_bin;
 'a' regexp 'A' collate latin1_bin
 0
+SET collation_connection='latin1_swedish_ci';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+latin1_swedish_ci	6109
+latin1_swedish_ci	61
+latin1_swedish_ci	6120
+drop table t1;
+SET collation_connection='latin1_bin';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+latin1_bin	6109
+latin1_bin	61
+latin1_bin	6120
+drop table t1;
