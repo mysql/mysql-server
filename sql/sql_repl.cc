@@ -769,12 +769,15 @@ int reset_slave(THD *thd, MASTER_INFO* mi)
 			       &errmsg)))
     goto err;
   
-  //Clear master's log coordinates (only for good display of SHOW SLAVE STATUS)
-  mi->master_log_name[0]= 0;
-  mi->master_log_pos= BIN_LOG_HEADER_SIZE;
-  //Clear the errors displayed by SHOW SLAVE STATUS
-  mi->rli.last_slave_error[0]=0;
-  mi->rli.last_slave_errno=0;
+  /*
+    Clear master's log coordinates and reset host/user/etc to the values
+    specified in mysqld's options (only for good display of SHOW SLAVE STATUS;
+    next init_master_info() (in start_slave() for example) would have set them
+    the same way; but here this is for the case where the user does SHOW SLAVE
+    STATUS; before doing START SLAVE;
+  */
+  init_master_info_with_options(mi);
+  clear_last_slave_error(&mi->rli);
   //close master_info_file, relay_log_info_file, set mi->inited=rli->inited=0
   end_master_info(mi);
   //and delete these two files
@@ -965,6 +968,8 @@ int change_master(THD* thd, MASTER_INFO* mi)
 
   pthread_mutex_lock(&mi->rli.data_lock);
   mi->rli.abort_pos_wait++; /* for MASTER_POS_WAIT() to abort */
+  /* Clear the error, for a clean start. */
+  clear_last_slave_error(&mi->rli);
   /* 
      If we don't write new coordinates to disk now, then old will remain in
      relay-log.info until START SLAVE is issued; but if mysqld is shutdown
