@@ -1074,7 +1074,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       For string types dump collation name only if 
       collation is not primary for the given charset
     */
-    if (!field->binary() && !(field->charset()->state & MY_CS_PRIMARY) &&
+    if (!(field->charset()->state & MY_CS_PRIMARY) &&
 	!limited_mysql_mode && !foreign_db_mode)
     {
       packet->append(" collate ", 9);

@@ -248,7 +248,7 @@ void Field_str::make_field(Send_field *field)
 
 void Field_str::add_binary_or_charset(String &res) const
 {
-  if (binary())
+  if (charset() == &my_charset_bin)
     res.append(" binary");
   else  if (field_charset != table->table_charset &&
 	    !(current_thd->variables.sql_mode & MODE_NO_FIELD_OPTIONS) &&
@@ -3875,13 +3875,18 @@ void Field_datetime::sql_type(String &res) const
 
 	/* Copy a string and fill with space */
 
+static bool use_conversion(CHARSET_INFO *cs1, CHARSET_INFO *cs2)
+{
+  return (cs1 != &my_charset_bin) && (cs2 != &my_charset_bin) && (cs1!=cs2);
+}
+
 int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   int error= 0;
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
   /* Convert character set if nesessary */
-  if ((cs != field_charset) && (cs!=&my_charset_bin) && (!binary()))
+  if (use_conversion(cs, field_charset))
   { 
     tmpstr.copy(from, length, cs, field_charset);
     from= tmpstr.ptr();
@@ -4063,7 +4068,7 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
   /* Convert character set if nesessary */
-  if ((cs != field_charset) && (cs!=&my_charset_bin) && (!binary()))
+  if (use_conversion(cs, field_charset))
   { 
     tmpstr.copy(from, length, cs, field_charset);
     from= tmpstr.ptr();
@@ -4380,7 +4385,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
     char buff[80];
     String tmpstr(buff,sizeof(buff), &my_charset_bin);
     /* Convert character set if nesessary */
-    if ((cs != field_charset) && (cs!=&my_charset_bin) && (!binary()))
+    if (use_conversion(cs, field_charset))
     { 
       tmpstr.copy(from, length, cs, field_charset);
       from= tmpstr.ptr();
@@ -4627,7 +4632,7 @@ void Field_blob::sql_type(String &res) const
   case 4:  str="long";  length=4; break;
   }
   res.set_latin1(str,length);
-  if (binary())
+  if (charset() == &my_charset_bin)
     res.append("blob");
   else
   {
@@ -4857,7 +4862,7 @@ int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
   /* Convert character set if nesessary */
-  if ((cs != field_charset) && (cs!=&my_charset_bin) && (!binary()))
+  if (use_conversion(cs, field_charset))
   { 
     tmpstr.copy(from, length, cs, field_charset);
     from= tmpstr.ptr();
@@ -5072,7 +5077,7 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
   /* Convert character set if nesessary */
-  if ((cs != field_charset) && (cs!=&my_charset_bin) && (!binary()))
+  if (use_conversion(cs, field_charset))
   { 
     tmpstr.copy(from, length, cs, field_charset);
     from= tmpstr.ptr();
