@@ -463,6 +463,10 @@ SOURCE=..\strings\strxmov.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\strings\strxnmov.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\mysys\thr_mutex.c
 # End Source File
 # Begin Source File

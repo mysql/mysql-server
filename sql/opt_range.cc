@@ -2414,9 +2414,9 @@ get_quick_keys(PARAM *param,QUICK_SELECT *quick,KEY_PART *key,
   }
 
   /* Get range for retrieving rows in QUICK_SELECT::get_next */
-  if (!(range= new QUICK_RANGE(param->min_key,
+  if (!(range= new QUICK_RANGE((const char *) param->min_key,
 			       (uint) (tmp_min_key - param->min_key),
-			       param->max_key,
+			       (const char *) param->max_key,
 			       (uint) (tmp_max_key - param->max_key),
 			       flag)))
     return 1;			// out of memory
