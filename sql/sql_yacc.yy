@@ -256,6 +256,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	KEY_SYM
 %token	LEADING
 %token	LEAST_SYM
+%token	LEAVES
 %token	LEVEL_SYM
 %token	LEX_HOSTNAME
 %token	LIKE
@@ -579,7 +580,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	type int_type real_type order_dir opt_field_spec lock_option
 	udf_type if_exists opt_local opt_table_options table_options
 	table_option opt_if_not_exists opt_no_write_to_binlog opt_var_type opt_var_ident_type
-	delete_option opt_temporary all_or_any opt_distinct
+	delete_option opt_temporary all_or_any opt_distinct opt_ignore_leaves
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
@@ -608,7 +609,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	key_alg opt_btree_or_rtree
 
 %type <string_list>
-	key_usage_list
+	key_usage_list 
 
 %type <key_part>
 	key_part
@@ -656,10 +657,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <NONE>
 	query verb_clause create change select do drop insert replace insert2
 	insert_values update delete truncate rename
-	show describe load alter optimize flush
+	show describe load alter optimize preload flush
 	reset purge begin commit rollback slave master_def master_defs
 	repair restore backup analyze check start
 	field_list field_list_item field_spec kill column_def key_def
+	preload_list preload_keys
 	select_item_list select_item values_list no_braces
 	opt_limit_clause delete_limit_clause fields opt_values values
 	procedure_list procedure_list2 procedure_item
@@ -728,6 +730,7 @@ verb_clause:
 	| lock
 	| kill
 	| optimize
+	| preload
 	| purge
 	| rename
         | repair
@@ -1834,6 +1837,55 @@ table_to_table:
 				     TL_IGNORE))
 	    YYABORT;
 	};
+
+preload:
+	LOAD INDEX INTO CACHE_SYM
+	{
+	  LEX *lex=Lex;
+	  lex->sql_command=SQLCOM_PRELOAD_KEYS;
+	}
+	preload_list
+	{}
+	;
+
+preload_list:
+	preload_keys
+	| preload_list ',' preload_keys;
+
+preload_keys:
+	table_ident preload_keys_spec opt_ignore_leaves
+	{
+	  LEX *lex=Lex;
+	  SELECT_LEX *sel= &lex->select_lex;
+	  if (!sel->add_table_to_list(lex->thd, $1, NULL, $3, 
+                                      TL_READ, 
+                                      sel->get_use_index(),
+                                      (List<String> *)0))
+            YYABORT;
+	}
+	;
+
+preload_keys_spec:
+	keys_or_index { Select->select_lex()->interval_list.empty(); }
+	preload_key_list_or_empty 
+	{
+	  LEX *lex=Lex;
+	  SELECT_LEX *sel= &lex->select_lex;
+	  sel->use_index= sel->interval_list;
+	  sel->use_index_ptr= &sel->use_index;
+	}          
+	;
+
+preload_key_list_or_empty:
+	/* empty */
+	| '(' key_usage_list2 ')' {}
+	;
+
+opt_ignore_leaves:
+	/* empty */
+	{ $$= 0; }
+	| IGNORE_SYM LEAVES { $$= TL_OPTION_IGNORE_LEAVES; }
+	;
 
 /*
   Select : retrieve data from table
@@ -4279,6 +4331,7 @@ keyword:
 	| INSERT_METHOD		{}
 	| RELAY_THREAD		{}
 	| LAST_SYM		{}
+	| LEAVES                {}
 	| LEVEL_SYM		{}
 	| LINESTRING		{}
 	| LOCAL_SYM		{}

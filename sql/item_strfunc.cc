@@ -813,6 +813,7 @@ null:
 
 void Item_func_replace::fix_length_and_dec()
 {
+  uint i;
   max_length=args[0]->max_length;
   int diff=(int) (args[2]->max_length - args[1]->max_length);
   if (diff > 0 && args[1]->max_length)
@@ -824,6 +825,20 @@ void Item_func_replace::fix_length_and_dec()
   {
     max_length=MAX_BLOB_WIDTH;
     maybe_null=1;
+  }
+  set_charset(args[0]->charset(), args[0]->coercibility);
+  
+  for (i=1; i<3; i++)
+  {
+    if (set_charset(charset(), coercibility,
+        args[i]->charset(), args[i]->coercibility))
+    {
+      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	       charset()->name,coercion_name(coercibility),
+	       args[i]->charset()->name,coercion_name(args[i]->coercibility),
+	       func_name());
+      break;
+    }
   }
 }
 
@@ -1765,8 +1780,20 @@ void Item_func_make_set::split_sum_func(Item **ref_pointer_array,
 void Item_func_make_set::fix_length_and_dec()
 {
   max_length=arg_count-1;
-  for (uint i=1 ; i < arg_count ; i++)
+  set_charset(args[0]->charset(), args[0]->coercibility);
+  for (uint i=0 ; i < arg_count ; i++)
+  {
     max_length+=args[i]->max_length;
+    if (set_charset(charset(), coercibility,
+		    args[i]->charset(), args[i]->coercibility))
+    {
+      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	     charset()->name,coercion_name(coercibility),
+	     args[i]->charset()->name,coercion_name(args[i]->coercibility),
+	     func_name());
+      break;
+    }
+ }
   used_tables_cache|=item->used_tables();
   const_item_cache&=item->const_item();
   with_sum_func= with_sum_func || item->with_sum_func;
@@ -1949,6 +1976,15 @@ err:
 
 void Item_func_rpad::fix_length_and_dec()
 {
+  if (set_charset(args[0]->charset(), args[0]->coercibility,
+ 		  args[2]->charset(), args[2]->coercibility))
+  {
+    my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
+	     args[2]->charset()->name,coercion_name(args[2]->coercibility),
+	     func_name());
+  }
+  
   if (args[1]->const_item())
   {
     uint32 length= (uint32) args[1]->val_int();
@@ -2009,6 +2045,15 @@ String *Item_func_rpad::val_str(String *str)
 
 void Item_func_lpad::fix_length_and_dec()
 {
+  if (set_charset(args[0]->charset(), args[0]->coercibility,
+ 		  args[2]->charset(), args[2]->coercibility))
+  {
+    my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
+	     args[2]->charset()->name,coercion_name(args[2]->coercibility),
+	     func_name());
+  }
+  
   if (args[1]->const_item())
   {
     uint32 length= (uint32) args[1]->val_int();
@@ -2418,9 +2463,24 @@ String* Item_func_export_set::val_str(String* str)
 
 void Item_func_export_set::fix_length_and_dec()
 {
+  uint i;
   uint length=max(args[1]->max_length,args[2]->max_length);
   uint sep_length=(arg_count > 3 ? args[3]->max_length : 1);
   max_length=length*64+sep_length*63;
+
+  set_charset(args[1]->charset(), args[1]->coercibility);
+  for (i=2 ; i < 4 && i < arg_count ; i++)
+  {
+    if (set_charset(charset(), coercibility,
+		    args[i]->charset(), args[i]->coercibility))
+    {
+      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	       charset()->name,coercion_name(coercibility),
+	       args[i]->charset()->name,coercion_name(args[i]->coercibility),
+	       func_name());
+      break;
+    }
+  }
 }
 
 String* Item_func_inet_ntoa::val_str(String* str)
@@ -2557,7 +2617,7 @@ null:
 }
 
 #ifdef HAVE_COMPRESS
-#include "../zlib/zlib.h"
+#include "zlib.h"
 
 String *Item_func_compress::val_str(String *str)
 {

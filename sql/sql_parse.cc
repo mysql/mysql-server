@@ -1881,6 +1881,15 @@ mysql_execute_command(THD *thd)
     res = mysql_restore_table(thd, tables);
     break;
   }
+  case SQLCOM_PRELOAD_KEYS:
+  {
+    if (check_db_used(thd, tables) ||
+        check_access(thd, INDEX_ACL, tables->db, &tables->grant.privilege))
+      goto error; 
+    res = mysql_preload_keys(thd, tables);
+    break;
+  }
+      
 
 #ifndef EMBEDDED_LIBRARY
   case SQLCOM_CHANGE_MASTER:
@@ -4107,6 +4116,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->lock_type=   lock_type;
   ptr->updating=    test(table_options & TL_OPTION_UPDATING);
   ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
+  ptr->ignore_leaves= test(table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->derived=	    table->sel;
   if (use_index)
     ptr->use_index=(List<String> *) thd->memdup((gptr) use_index,

@@ -221,6 +221,7 @@ static SYMBOL symbols[] = {
   { "KILL",		SYM(KILL_SYM),0,0},
   { "LAST",		SYM(LAST_SYM),0,0},
   { "LEADING",		SYM(LEADING),0,0},
+  { "LEAVES",		SYM(LEAVES),0,0},
   { "LEFT",		SYM(LEFT),0,0},
   { "LEVEL",		SYM(LEVEL_SYM),0,0},
   { "LIKE",		SYM(LIKE),0,0},
