@@ -260,7 +260,7 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       {
         DBUG_PRINT("info",("FT2: going down"));
         keyinfo=&info->s->ft2_keyinfo;
-        kpos-=keyinfo->keylength; /* we'll modify key entry 'in vivo' */
+        kpos-=keyinfo->keylength+nod_flag; /* we'll modify key entry 'in vivo' */
         key+=off;
         ret_value=_mi_ck_real_delete(info, &info->s->ft2_keyinfo,
             key, HA_FT_WLEN, &root);
