@@ -752,25 +752,22 @@ bool Field::quote_data(String *unquoted_string)
 {
   char escaped_string[IO_SIZE];
   char *unquoted_string_buffer= (char *)(unquoted_string->ptr());
-  uint need_quotes;
   DBUG_ENTER("Field::quote_data");
 
-  // this is the same call that mysql_real_escape_string() calls
-  escape_string_for_mysql(&my_charset_bin, (char *)escaped_string,
-    unquoted_string->ptr(), unquoted_string->length());
-
-  need_quotes= needs_quotes();
-
-  if (need_quotes == 0)
+  if (!needs_quotes())
     DBUG_RETURN(0);
+
+  // this is the same call that mysql_real_escape_string() calls
+  if (escape_string_for_mysql(&my_charset_bin, (char *)escaped_string,
+                              sizeof(escaped_string), unquoted_string->ptr(),
+                              unquoted_string->length()) == (ulong)~0)
+    DBUG_RETURN(1);
 
   // reset string, then re-append with quotes and escaped values
   unquoted_string->length(0);
-  if (unquoted_string->append('\''))
-    DBUG_RETURN(1);
-  if (unquoted_string->append((char *)escaped_string))
-    DBUG_RETURN(1);
-  if (unquoted_string->append('\''))
+  if (unquoted_string->append('\'') ||
+      unquoted_string->append((char *)escaped_string) ||
+      unquoted_string->append('\''))
     DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
