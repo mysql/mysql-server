@@ -43,7 +43,7 @@ else
 }
 $ENV{'PATH'}= "$pwd/$host/bin:" . $ENV{'PATH'}; 
 $rsh=which("rcmd","rsh");
-$make=which("gmake -j 2","make");
+$make=which("gmake","make");	# Can't use -j here!
 $tar=which("gtar","tar");
 $sendmail=find("/usr/lib/sendmail","/usr/sbin/sendmail");
 $sur= $opt_sur ? "/my/local/bin/sur" : "";
@@ -60,10 +60,10 @@ if ($opt_stage == 0)
   {
     log_system("$host/bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown");
   }
-  system("touch $host/mysql-fix-for-glob");
-  rm_all(<$host/mysql-3*>);
-  rm_all("$host/test");
   system("mkdir $host") if (! -d $host);
+  system("touch $host/mysql-fix-for-glob");
+  rm_all(<$host/mysql-*>);
+  rm_all("$host/test");
   system("mkdir $host/test") if (! -d "$host/test");
   system("mkdir $host/bin") if (! -d "$host/bin");
   system("mkdir Logs") if (! -d "Logs");
@@ -119,7 +119,7 @@ if ($opt_stage <= 3)
   check_system("scripts/make_binary_distribution $opt_tmp",".tar.gz created");
   safe_system("mv mysql*.tar.gz $pwd/$host");
   safe_system("cp client/mysqladmin $pwd/$host/bin");
-  safe_system("make clean") if ($opt_with_small_disk);
+  safe_system("$make clean") if ($opt_with_small_disk);
 }
 
 #
@@ -139,7 +139,14 @@ if ($opt_stage <= 4 && !$opt_no_test)
 }
 
 $test_dir=<$pwd/$host/test/$ver-*>;
+
 if ($opt_stage <= 5 && !$opt_no_test)
+{
+  safe_cd($test_dir/mysql-test);
+  check_system("./mysql-test-run", "tests were successful");
+}
+
+if ($opt_stage <= 6 && !$opt_no_test)
 {
   safe_cd($test_dir);
   log_system("./bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown") || info("There was no mysqld running\n");
@@ -150,7 +157,7 @@ if ($opt_stage <= 5 && !$opt_no_test)
   sleep(2);
 }
 
-if ($opt_stage <= 6 && $opt_perl_files && !$opt_no_perl && !$opt_no_test)
+if ($opt_stage <= 7 && $opt_perl_files && !$opt_no_perl && !$opt_no_test)
 {
   safe_cd($test_dir);
   rm_all("perl");
@@ -183,14 +190,14 @@ if ($opt_stage <= 6 && $opt_perl_files && !$opt_no_perl && !$opt_no_test)
 }
 
 
-if ($opt_stage <= 7 && !$opt_no_test)
+if ($opt_stage <= 8 && !$opt_no_test)
 {
   safe_cd("$test_dir/sql-bench");
   log_system("rm -f limits/mysql.cfg");
   safe_system("perl ./crash-me --force --batch-mode $connect_option");
 }
 
-if ($opt_stage <= 8 && !$opt_no_test)
+if ($opt_stage <= 9 && !$opt_no_test)
 {
   safe_cd("$test_dir/sql-bench");
   log_system("rm -f output/*");
@@ -198,7 +205,7 @@ if ($opt_stage <= 8 && !$opt_no_test)
   check_system("perl ./run-all-tests --log --die-on-errors $connect_option $tmp","RUN-mysql");
 }
 
-if ($opt_stage <= 9 && $opt_result)
+if ($opt_stage <= 10 && $opt_result)
 {
   safe_system("rcp $pwd/$host/*.tar.gz $opt_result");
 }
