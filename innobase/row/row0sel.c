@@ -2912,14 +2912,19 @@ row_search_for_mysql(
 		ut_error;
 	}
 
-	if (trx->n_mysql_tables_in_use == 0) {
+	if (trx->n_mysql_tables_in_use == 0
+            && prebuilt->select_lock_type == LOCK_NONE) {
+		/* Note that if MySQL uses an InnoDB temp table that it
+		created inside LOCK TABLES, then n_mysql_tables_in_use can
+		be zero; in that case select_lock_type is set to LOCK_X in
+		::start_stmt. */
+
 		fputs(
 "InnoDB: Error: MySQL is trying to perform a SELECT\n"
 "InnoDB: but it has not locked any tables in ::external_lock()!\n",
                       stderr);
 		trx_print(stderr, trx);
                 fputc('\n', stderr);
-		ut_a(0);
 	}
 
 /*	fprintf(stderr, "Match mode %lu\n search tuple ", (ulong) match_mode);
