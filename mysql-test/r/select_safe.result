@@ -1,10 +1,39 @@
+drop table if exists t1;
+SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=4, SQL_MAX_JOIN_SIZE=9;
+create table t1 (a int primary key, b char(20));
+insert into t1 values(1,"test");
+SELECT SQL_BUFFER_RESULT * from t1;
 a	b
 1	test
+update t1 set b="a" where a=1;
+delete from t1 where a=1;
+insert into t1 values(1,"test"),(2,"test2");
+SELECT SQL_BUFFER_RESULT * from t1;
 a	b
 1	test
 2	test2
+update t1 set b="a" where a=1;
+select 1 from t1,t1 as t2,t1 as t3,t1 as t4;
 1
 1
 1
 1
 1
+update t1 set b="a";
+You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+update t1 set b="a" where b="test";
+You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+delete from t1;
+You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+delete from t1 where b="test";
+You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+delete from t1 where a+0=1;
+You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+select 1 from t1,t1 as t2,t1 as t3,t1 as t4,t1 as t5;
+The SELECT would examine too many records and probably take a very long time. Check your WHERE and use SET OPTION SQL_BIG_SELECTS=1 if the SELECT is ok
+update t1 set b="a" limit 1;
+update t1 set b="a" where b="b" limit 2;
+delete from t1 where b="test" limit 1;
+delete from t1 where a+0=1 limit 2;
+drop table t1;
+SET SQL_SAFE_UPDATES=0,SQL_SELECT_LIMIT=DEFAULT, SQL_MAX_JOIN_SIZE=DEFAULT;

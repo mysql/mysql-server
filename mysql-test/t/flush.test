@@ -1,3 +1,11 @@
+# This test doesn't work with the embedded version as this code
+# assumes that one query is running while we are doing queries on
+# a second connection.
+# This would work if mysqltest run would be threaded and handle each
+# connection in a separate thread.
+#
+-- source include/not_embedded.inc
+
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 connection con1;
@@ -7,6 +15,7 @@ drop table if exists t2;
 create table t2(n int);
 insert into t2 values(3);
 let $1=100;
+disable_query_log;
 while ($1)
 {
  connection con1;
@@ -19,7 +28,7 @@ while ($1)
  reap;
  dec $1;
 }
-
+enable_query_log;
 connection con1;
 select * from t1;
 connection con2;

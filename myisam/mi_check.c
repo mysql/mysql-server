@@ -231,7 +231,7 @@ wrong:
 static int check_k_link(MI_CHECK *param, register MI_INFO *info, uint nr)
 {
   my_off_t next_link;
-  uint block_size=(nr+1)*MI_KEY_BLOCK_LENGTH;
+  uint block_size=(nr+1)*MI_MIN_KEY_BLOCK_LENGTH;
   ha_rows records;
   char llbuff[21],*buff;
   DBUG_ENTER("check_k_link");
@@ -1205,8 +1205,6 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   param->glob_crc=0;
   if (param->testflag & T_CALC_CHECKSUM)
     param->calc_checksum=1;
-  if (!rep_quick)
-    share->state.checksum=0;
 
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   for (i=0 ; i < info->s->base.keys ; i++)
@@ -1301,9 +1299,9 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   else
   {
     info->state->data_file_length=sort_info->max_pos;
-    if (param->testflag & T_CALC_CHECKSUM)
-      share->state.checksum=param->glob_crc;
   }
+  if (param->testflag & T_CALC_CHECKSUM)
+    share->state.checksum=param->glob_crc;
 
   if (!(param->testflag & T_SILENT))
   {
@@ -1886,8 +1884,6 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   param->glob_crc=0;
   if (param->testflag & T_CALC_CHECKSUM)
     param->calc_checksum=1;
-  if (! rep_quick)
-    share->state.checksum=0;
 
   rec_per_key_part= param->rec_per_key_part;
   for (sort_info->key=0 ; sort_info->key < share->base.keys ;
@@ -2018,7 +2014,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 			       "Can't change size of datafile,  error: %d",
 			       my_errno);
   }
-  else if (param->testflag & T_CALC_CHECKSUM)
+  if (param->testflag & T_CALC_CHECKSUM)
     share->state.checksum=param->glob_crc;
 
   if (my_chsize(share->kfile,info->state->key_file_length,MYF(0)))
@@ -2114,6 +2110,7 @@ static int sort_key_read(SORT_INFO *sort_info, void *key)
 					   sort_info->filepos));
   DBUG_RETURN(sort_write_record(sort_info));
 } /* sort_key_read */
+
 
 static int sort_ft_key_read(SORT_INFO *sort_info, void *key)
 {
@@ -2540,7 +2537,7 @@ int sort_write_record(SORT_INFO *sort_info)
 	DBUG_RETURN(1);
       }
       sort_info->filepos+=share->base.pack_reclength;
-      info->s->state.checksum+=mi_static_checksum(info, sort_info->record);
+      /* sort_info->param->glob_crc+=mi_static_checksum(info, sort_info->record); */
       break;
     case DYNAMIC_RECORD:
       if (! info->blobs)
@@ -2564,7 +2561,7 @@ int sort_write_record(SORT_INFO *sort_info)
       }
       info->checksum=mi_checksum(info,sort_info->record);
       reclength=_mi_rec_pack(info,from,sort_info->record);
-      info->s->state.checksum+=info->checksum;
+      /* sort_info->param->glob_crc+=info->checksum; */
       block_length=reclength+ 3 + test(reclength >= (65520-3));
       if (block_length < share->base.min_block_length)
 	block_length=share->base.min_block_length;
@@ -2578,7 +2575,7 @@ int sort_write_record(SORT_INFO *sort_info)
 	DBUG_RETURN(1);
       }
       sort_info->filepos+=block_length;
-      info->s->state.checksum+=info->checksum;
+      /* sort_info->param->glob_crc+=info->checksum; */
       break;
     case COMPRESSED_RECORD:
       reclength=info->packed_length;
@@ -2591,7 +2588,7 @@ int sort_write_record(SORT_INFO *sort_info)
 	mi_check_print_error(param,"%d when writing to datafile",my_errno);
 	DBUG_RETURN(1);
       }
-      info->s->state.checksum+=info->checksum;
+      /* sort_info->param->glob_crc+=info->checksum; */
       sort_info->filepos+=reclength+length;
       break;
     }
@@ -2808,9 +2805,9 @@ static int sort_delete_record(MI_CHECK *param)
 	DBUG_RETURN(1);
       }
     }
-    if (info->s->calc_checksum)
-      info->s->state.checksum-=(*info->s->calc_checksum)(info,
-							 sort_info->record);
+    if (param->calc_checksum)
+      param->glob_crc-=(*info->s->calc_checksum)(info,
+						 sort_info->record);
   }
   error=flush_io_cache(&info->rec_cache) || (*info->s->delete_record)(info);
   info->dfile=old_file;				/* restore actual value */

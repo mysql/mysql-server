@@ -97,6 +97,7 @@ struct st_table {
   my_bool locked_by_name;
   my_bool crashed;
   my_bool is_view;
+  my_bool no_keyread;
   Field *next_number_field,		/* Set if next_number is activated */
 	*found_next_number_field,	/* Set on open */
         *rowid_field;
@@ -117,7 +118,7 @@ struct st_table {
   byte		*record_pointers;		/* If sorted in memory */
   ha_rows	found_records;			/* How many records in sort */
   ORDER		*group;
-  key_map	quick_keys, used_keys, ref_primary_key;
+  key_map	quick_keys, used_keys;
   ha_rows	quick_rows[MAX_KEY];
   uint		quick_key_parts[MAX_KEY];
   key_part_map  const_key_parts[MAX_KEY];

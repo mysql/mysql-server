@@ -14,18 +14,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Update last read record */
+/* Delete last read record */
 
-#include "mrgdef.h"
+#include "mrg_def.h"
 
-int mrg_update(
-register MRG_INFO *info,
-const byte *oldrec, const byte *newrec)
+int mrg_delete(MRG_INFO *info,const byte *record)
 {
   if (!info->current_table)
   {
     my_errno=HA_ERR_NO_ACTIVE_RECORD;
     return(-1);
   }
-  return nisam_update(info->current_table->table,oldrec,newrec);
+  return nisam_delete(info->current_table->table,record);
 }

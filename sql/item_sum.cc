@@ -52,6 +52,8 @@ void Item_sum::make_field(Send_field *tmp_field)
     tmp_field->flags=0;
     if (!maybe_null)
       tmp_field->flags|= NOT_NULL_FLAG;
+    if (unsigned_flag)
+      tmp_field->flags |= UNSIGNED_FLAG;
     tmp_field->length=max_length;
     tmp_field->decimals=decimals;
     tmp_field->type=(result_type() == INT_RESULT ? FIELD_TYPE_LONG :
@@ -150,7 +152,7 @@ Item_sum_hybrid::fix_fields(THD *thd,TABLE_LIST *tables)
     return 1;
   hybrid_type=item->result_type();
   if (hybrid_type == INT_RESULT)
-    max_length=21;
+    max_length=20;
   else if (hybrid_type == REAL_RESULT)
     max_length=float_length(decimals);
   else
@@ -158,6 +160,7 @@ Item_sum_hybrid::fix_fields(THD *thd,TABLE_LIST *tables)
   decimals=item->decimals;
   maybe_null=item->maybe_null;
   binary=item->binary;
+  unsigned_flag=item->unsigned_flag;
   result_field=0;
   null_value=1;
   fix_length_and_dec();
@@ -323,12 +326,27 @@ double Item_sum_hybrid::val()
 {
   if (null_value)
     return 0.0;
-  if (hybrid_type == STRING_RESULT)
-  {
+  switch (hybrid_type) {
+  case STRING_RESULT:
     String *res;  res=val_str(&str_value);
     return res ? atof(res->c_ptr()) : 0.0;
+  case INT_RESULT:
+    if (unsigned_flag)
+      return ulonglong2double(sum_int);
+    return (double) sum_int;
+  case REAL_RESULT:
+    return sum;
   }
-  return sum;
+  return 0;					// Keep compiler happy
+}
+
+longlong Item_sum_hybrid::val_int()
+{
+  if (null_value)
+    return 0;
+  if (hybrid_type == INT_RESULT)
+    return sum_int;
+  return (longlong) Item_sum_hybrid::val();
 }
 
 
@@ -337,25 +355,26 @@ Item_sum_hybrid::val_str(String *str)
 {
   if (null_value)
     return 0;
-  if (hybrid_type == STRING_RESULT)
+  switch (hybrid_type) {
+  case STRING_RESULT:
     return &value;
-  str->set(sum,decimals);
-  return str;
+  case REAL_RESULT:
+    str->set(sum,decimals);
+    break;
+  case INT_RESULT:
+    if (unsigned_flag)
+      str->set((ulonglong) sum_int);
+    else
+      str->set((longlong) sum_int);
+    break;
+  }
+  return str;					// Keep compiler happy
 }
-
 
 bool Item_sum_min::add()
 {
-  if (hybrid_type != STRING_RESULT)
-  {
-    double nr=args[0]->val();
-    if (!args[0]->null_value && (null_value || nr < sum))
-    {
-      sum=nr;
-      null_value=0;
-    }
-  }
-  else
+  switch (hybrid_type) {
+  case STRING_RESULT:
   {
     String *result=args[0]->val_str(&tmp_value);
     if (!args[0]->null_value &&
@@ -366,22 +385,39 @@ bool Item_sum_min::add()
       null_value=0;
     }
   }
+  break;
+  case INT_RESULT:
+  {
+    longlong nr=args[0]->val_int();
+    if (!args[0]->null_value && (null_value ||
+				 (unsigned_flag && 
+				  (ulonglong) nr < (ulonglong) sum_int) ||
+				 (!unsigned_flag && nr < sum_int)))
+    {
+      sum_int=nr;
+      null_value=0;
+    }
+  }
+  break;
+  case REAL_RESULT:
+  {
+    double nr=args[0]->val();
+    if (!args[0]->null_value && (null_value || nr < sum))
+    {
+      sum=nr;
+      null_value=0;
+    }
+  }
+  break;
+  }
   return 0;
 }
 
 
 bool Item_sum_max::add()
 {
-  if (hybrid_type != STRING_RESULT)
-  {
-    double nr=args[0]->val();
-    if (!args[0]->null_value && (null_value || nr > sum))
-    {
-      sum=nr;
-      null_value=0;
-    }
-  }
-  else
+  switch (hybrid_type) {
+  case STRING_RESULT:
   {
     String *result=args[0]->val_str(&tmp_value);
     if (!args[0]->null_value &&
@@ -391,6 +427,31 @@ bool Item_sum_max::add()
       value.copy(*result);
       null_value=0;
     }
+  }
+  break;
+  case INT_RESULT:
+  {
+    longlong nr=args[0]->val_int();
+    if (!args[0]->null_value && (null_value ||
+				 (unsigned_flag && 
+				  (ulonglong) nr > (ulonglong) sum_int) ||
+				 (!unsigned_flag && nr > sum_int)))
+    {
+      sum_int=nr;
+      null_value=0;
+    }
+  }
+  break;
+  case REAL_RESULT:
+  {
+    double nr=args[0]->val();
+    if (!args[0]->null_value && (null_value || nr > sum))
+    {
+      sum=nr;
+      null_value=0;
+    }
+  }
+  break;
   }
   return 0;
 }
@@ -676,9 +737,17 @@ Item_sum_hybrid::min_max_update_int_field(int offset)
   nr=args[0]->val_int();
   if (!args[0]->null_value)
   {
-    if (result_field->is_null(offset) ||
-	(cmp_sign > 0 ? old_nr > nr : old_nr < nr))
+    if (result_field->is_null(offset))
       old_nr=nr;
+    else
+    {
+      bool res=(unsigned_flag ?
+		(ulonglong) old_nr > (ulonglong) nr :
+		old_nr > nr);
+      /* (cmp_sign > 0 && res) || (!(cmp_sign > 0) && !res) */
+      if ((cmp_sign > 0) ^ (!res))
+	old_nr=nr;
+    }
     result_field->set_notnull();
   }
   else if (result_field->is_null(offset))
@@ -1079,7 +1148,7 @@ void Item_udf_sum::reset()
 
 bool Item_udf_sum::add()
 {
-  DBUG_ENTER("Item_udf_sum::reset");
+  DBUG_ENTER("Item_udf_sum::add");
   udf.add(&null_value);
   DBUG_RETURN(0);
 }

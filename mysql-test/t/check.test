@@ -5,11 +5,13 @@ drop table if exists t1;
 #add a lot of keys to slow down check
 create table t1(n int not null, key(n), key(n), key(n), key(n));
 let $1=10000;
+disable_query_log;
 while ($1)
 {
  eval insert into t1 values ($1);
  dec $1;
 }
+enable_query_log;
 send check table t1 type=extended;
 connection con2;
 insert into t1 values (200000);

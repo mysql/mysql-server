@@ -1,3 +1,12 @@
+use test;
+drop table if exists t1,t2;
+create table t1 (email varchar(50));
+insert into t1 values ('sasha@mysql.com'),('monty@mysql.com'),
+('foo@hotmail.com'),('foo@aol.com'),('bar@aol.com');
+create table t2(id int not null auto_increment primary key,
+t2 varchar(50), unique(t2));
+insert into t2 (t2) select distinct substring(email, locate('@', email)+1) from t1;
+select * from t2;
 id	t2
 1	mysql.com
 2	hotmail.com

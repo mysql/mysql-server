@@ -16,7 +16,7 @@
 
 /* close a isam-database */
 
-#include "mymrgdef.h"
+#include "myrg_def.h"
 
 int myrg_close(MYRG_INFO *info)
 {

@@ -1,3 +1,7 @@
+-- source include/have_isam.inc
+
+drop table if exists t1,t2;
+
 #
 # Test possible problem with rows that are about 65535 bytes long
 #
@@ -5,11 +9,13 @@
 create table t1 (a tinyint not null auto_increment, b blob not null, primary key (a));
 
 let $1=100;
+disable_query_log;
 while ($1)
 {
   eval insert into t1 (b) values(repeat(char(65+$1),65540-$1));
   dec $1;
 }
+enable_query_log;
 check table t1;
 repair table t1;
 delete from t1 where (a & 1);
@@ -17,3 +23,48 @@ check table t1;
 repair table t1;
 check table t1;
 drop table t1;
+
+#
+# Test of auto_increment;  The test for BDB tables is in bdb.test
+#
+
+create table t1 (a int not null auto_increment,b int, primary key (a)) type=isam;
+insert into t1 values (1,1),(NULL,2),(3,3),(NULL,4);
+delete from t1 where a=4 or a=2;
+insert into t1 values (NULL,4),(NULL,5),(6,6);
+select * from t1;
+delete from t1 where a=6;
+#show table status like "t1";
+replace t1 values (3,1);
+replace t1 values (3,3);
+ALTER TABLE t1 add c int;
+insert into t1 values (NULL,6,6);
+select * from t1;
+drop table t1;
+
+#
+# Test of some CREATE TABLE's that should fail
+#
+!$1121 create table t1 (a int,b text, index(a)) type=isam;
+!$1073 create table t1 (a int,b text, index(b)) type=isam;
+!$1075 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=isam;
+!$1121 create table t1 (ordid int(8), unique (ordid)) type=isam;
+drop table if exists t1;
+
+#
+# Test of some show commands
+#
+
+create table t1 (a int not null primary key, b int not null,c int not null, key(b,c));
+insert into t1 values (1,2,2),(2,2,3),(3,2,4),(4,2,4);
+create table t2 type=isam select * from t1;
+optimize table t1;
+check table t1,t2;
+repair table t1,t2;
+check table t2,t1;
+lock tables t1 write;
+check table t2,t1;
+show columns from t1;
+show full columns from t1;
+show index from t1;
+drop table t1,t2;

@@ -1,4 +1,11 @@
+drop table if exists t1;
+create table t1 (a int);
+select count(a) as b from t1 where a=0 having b > 0;
 b
+insert into t1 values (null);
+select count(a) as b from t1 where a=0 having b > 0;
 b
+select count(a) as b from t1 where a=0 having b >=0;
 b
 0
+drop table t1;

@@ -1,10 +1,30 @@
+create table t1 (a char(10), tmsp timestamp);
+insert into t1 set a = 1;
+insert delayed into t1 set a = 2;
+insert into t1 set a = 3, tmsp=NULL;
+insert delayed into t1 set a = 4;
+insert delayed into t1 set a = 5, tmsp = 19711006010203;
+insert delayed into t1 (a, tmsp) values (6, 19711006010203);
+insert delayed into t1 (a, tmsp) values (7, NULL);
+insert into t1 set a = 8,tmsp=19711006010203;
+select * from t1 where tmsp=0;
 a	tmsp
+select * from t1 where tmsp=19711006010203;
 a	tmsp
 5	19711006010203
 6	19711006010203
 8	19711006010203
+drop table t1;
+create table t1 (a int not null auto_increment primary key, b char(10));
+insert delayed into t1 values (1,"b");
+insert delayed into t1 values (null,"c");
+insert delayed into t1 values (3,"d"),(null,"e");
+insert delayed into t1 values (3,"this will give an","error");
+Column count doesn't match value count at row 1
+select * from t1;
 a	b
 1	b
 2	c
 3	d
 4	e
+drop table t1;

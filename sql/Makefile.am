@@ -24,12 +24,12 @@ INCLUDES =		@MT_INCLUDES@ \
 			@bdb_includes@ @innodb_includes@ @gemini_includes@ \
 			-I$(srcdir)/../include \
 			-I$(srcdir)/../regex \
-			-I$(srcdir) -I../include $(openssl_includes)
+			-I$(srcdir) -I../include -I. $(openssl_includes)
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
 noinst_PROGRAMS =	gen_lex_hash
-gen_lex_hash_LDFLAGS =        @NOINST_LDFLAGS@
+gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
 LDADD =			../isam/libnisam.a \
 			../merge/libmerge.a \
 			../myisam/libmyisam.a \
@@ -43,7 +43,7 @@ LDADD =			../isam/libnisam.a \
 
 mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 			@bdb_libs@ @innodb_libs@ @pstack_libs@ \
-                        @gemini_libs@ \
+                        @gemini_libs@ @innodb_system_libs@ \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ @openssl_libs@
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h item_uniq.h \
@@ -55,7 +55,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			ha_heap.h ha_myisam.h ha_berkeley.h ha_innobase.h \
 			ha_gemini.h opt_range.h opt_ft.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
-			lex.h lex_symbol.h sql_acl.h sql_crypt.h md5.h \
+			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
                         log_event.h mini_client.h sql_repl.h slave.h \
 			stacktrace.h sql_sort.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
@@ -82,7 +82,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
 			slave.cc sql_repl.cc sql_union.cc \
 			mini_client.cc mini_client_errors.c \
-			md5.c stacktrace.c 
+			stacktrace.c 
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 

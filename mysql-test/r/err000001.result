@@ -1,0 +1,25 @@
+drop table if exists t1;
+insert into t1 values(1);
+Table 'test.t1' doesn't exist
+delete from t1;
+Table 'test.t1' doesn't exist
+update t1 set a=1;
+Table 'test.t1' doesn't exist
+create table t1 (a int);
+select count(test.t1.b) from t1;
+Unknown column 'test.t1.b' in 'field list'
+select count(not_existing_database.t1) from t1;
+Unknown table 'not_existing_database' in field list
+select count(not_existing_database.t1.a) from t1;
+Unknown table 'not_existing_database.t1' in field list
+select count(not_existing_database.t1.a) from not_existing_database.t1;
+Got one of the listed errors
+select 1 from t1 order by 2;
+Unknown column '2' in 'order clause'
+select 1 from t1 group by 2;
+Unknown column '2' in 'group statement'
+select 1 from t1 order by t1.b;
+Unknown column 't1.b' in 'order clause'
+select count(*),b from t1;
+Unknown column 'b' in 'field list'
+drop table t1;

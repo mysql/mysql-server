@@ -23,9 +23,9 @@
 #include <m_ctype.h>
 #include "ha_myisammrg.h"
 #ifndef MASTER
-#include "../srclib/myisammrg/mymrgdef.h"
+#include "../srclib/myisammrg/myrg_def.h"
 #else
-#include "../myisammrg/mymrgdef.h"
+#include "../myisammrg/myrg_def.h"
 #endif
 
 /*****************************************************************************
@@ -66,7 +66,13 @@ int ha_myisammrg::close(void)
 
 int ha_myisammrg::write_row(byte * buf)
 {
-  return (my_errno=HA_ERR_WRONG_COMMAND);
+  statistic_increment(ha_write_count,&LOCK_status);
+  if (table->time_stamp)
+    update_timestamp(buf+table->time_stamp-1);
+  if (table->next_number_field && buf == table->record[0])
+      return (my_errno=HA_ERR_WRONG_COMMAND);
+  //  update_auto_increment(); - [phi] have to check this before allowing it
+  return myrg_write(file,buf);
 }
 
 int ha_myisammrg::update_row(const byte * old_data, byte * new_data)
@@ -181,6 +187,11 @@ void ha_myisammrg::info(uint flag)
 
 int ha_myisammrg::extra(enum ha_extra_function operation)
 {
+  /* As this is just a mapping, we don't have to force the underlying
+     tables to be closed */
+  if (operation == HA_EXTRA_FORCE_REOPEN ||
+      operation == HA_EXTRA_PREPARE_FOR_DELETE)
+    return 0;
   return myrg_extra(file,operation);
 }
 
@@ -217,6 +228,7 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
 
 void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
 {
+  // [phi] auto_increment stuff is missing (but currently not needed)
   DBUG_ENTER("ha_myisammrg::update_create_info");
   if (!(create_info->used_fields & HA_CREATE_USED_UNION))
   {
@@ -241,6 +253,10 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
     }
     *create_info->merge_list.next=0;
   }
+  if (!(create_info->used_fields & HA_CREATE_USED_INSERT_METHOD))
+  {
+    create_info->merge_insert_method = file->merge_insert_method;
+  }
   DBUG_VOID_RETURN;
 
 err:
@@ -263,12 +279,19 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
     *pos++= tables->real_name;
   *pos=0;
   DBUG_RETURN(myrg_create(fn_format(buff,name,"","",2+4+16),
-			  (const char **) table_names, (my_bool) 0));
+			  (const char **) table_names,
+                          create_info->merge_insert_method,
+                          (my_bool) 0));
 }
 
 void ha_myisammrg::append_create_info(String *packet)
 {
   char buff[FN_REFLEN];
+  if (file->merge_insert_method != MERGE_INSERT_DISABLED)
+  {
+    packet->append(" INSERT_METHOD=",15);
+    packet->append(get_type(&merge_insert_method,file->merge_insert_method-1));
+  }
   packet->append(" UNION=(",8);
   MYRG_TABLE *table,*first;
 

@@ -27,6 +27,7 @@
 #include "sql_acl.h"
 #include "lex_symbol.h"
 #include <myisam.h>
+#include <myisammrg.h>
 
 extern void yyerror(const char*);
 int yylex(void *yylval);
@@ -98,7 +99,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MIN_SYM
 %token	SUM_SYM
 %token	STD_SYM
-
+%token  ABORT_SYM
 %token	ADD
 %token	ALTER
 %token	AFTER_SYM
@@ -134,7 +135,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  BINLOG_SYM
 %token  EVENTS_SYM
 
-%token	ABORT_SYM
 %token	ACTION
 %token	AGGREGATE_SYM
 %token	ALL
@@ -285,6 +285,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SERIALIZABLE_SYM
 %token	SESSION_SYM
 %token	SHUTDOWN
+%token  SSL_SYM
 %token	STARTING
 %token	STATUS_SYM
 %token	STRAIGHT_JOIN
@@ -316,6 +317,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	WHERE
 %token	WITH
 %token	WRITE_SYM
+%token  X509_SYM
 %token  COMPRESSED_SYM
 
 %token	BIGINT
@@ -391,6 +393,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	IDENTIFIED_SYM
 %token	IF
 %token	INSERT_ID
+%token	INSERT_METHOD
 %token	INTERVAL_SYM
 %token	LAST_INSERT_ID
 %token	LEFT
@@ -450,6 +453,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  SQL_QUOTE_SHOW_CREATE
 %token  SQL_SLAVE_SKIP_COUNTER
 
+%token  ISSUER_SYM
+%token  SUBJECT_SYM
+%token  CIPHER_SYM
+
 %left   SET_VAR
 %left	OR_OR_CONCAT OR
 %left	AND
@@ -487,7 +494,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	table_option opt_if_not_exists 
 
 %type <ulong_num>
-	ULONG_NUM raid_types
+	ULONG_NUM raid_types merge_insert_types
 
 %type <ulonglong_number>
 	ulonglong_num
@@ -767,13 +774,14 @@ create_table_options:
 
 create_table_option:
 	TYPE_SYM EQ table_types		{ Lex->create_info.db_type= $3; }
-	| MAX_ROWS EQ ulonglong_num	{ Lex->create_info.max_rows= $3; }
-	| MIN_ROWS EQ ulonglong_num	{ Lex->create_info.min_rows= $3; }
-	| AVG_ROW_LENGTH EQ ULONG_NUM	{ Lex->create_info.avg_row_length=$3; }
+	| MAX_ROWS EQ ulonglong_num	{ Lex->create_info.max_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MAX_ROWS;}
+	| MIN_ROWS EQ ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
+	| AVG_ROW_LENGTH EQ ULONG_NUM	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
 	| PASSWORD EQ TEXT_STRING	{ Lex->create_info.password=$3.str; }
 	| COMMENT_SYM EQ TEXT_STRING	{ Lex->create_info.comment=$3.str; }
 	| AUTO_INC EQ ulonglong_num	{ Lex->create_info.auto_increment_value=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AUTO;}
-	| PACK_KEYS_SYM EQ ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS; }
+	| PACK_KEYS_SYM EQ ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS; Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
+	| PACK_KEYS_SYM EQ DEFAULT	{ Lex->create_info.table_options&= ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS); Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
 	| CHECKSUM_SYM EQ ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; }
 	| DELAY_KEY_WRITE_SYM EQ ULONG_NUM { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE; }
 	| ROW_FORMAT_SYM EQ row_types	{ Lex->create_info.row_type= $3; }
@@ -793,6 +801,7 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
+	| INSERT_METHOD EQ merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
 	| DATA_SYM DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.data_file_name= $4.str; }
 	| INDEX DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.index_file_name= $4.str; }
 
@@ -815,6 +824,11 @@ raid_types:
 	RAID_STRIPED_SYM { $$= RAID_TYPE_0; }
 	| RAID_0_SYM	 { $$= RAID_TYPE_0; }
 	| ULONG_NUM	 { $$=$1;}
+
+merge_insert_types:
+       NO_SYM            { $$= MERGE_INSERT_DISABLED; }
+       | FIRST_SYM       { $$= MERGE_INSERT_TO_FIRST; }
+       | LAST_SYM        { $$= MERGE_INSERT_TO_LAST; }
 
 opt_select_from:
 	/* empty */
@@ -1105,6 +1119,7 @@ alter:
 	  lex->select->db=lex->name=0;
     	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
+	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
           lex->alter_keys_onoff=LEAVE_AS_IS;
           lex->simple_alter=1;
 	}
@@ -2819,6 +2834,7 @@ keyword:
 	| CHANGED		{}
 	| CHECKSUM_SYM		{}
 	| CHECK_SYM		{}
+	| CIPHER_SYM		{}
 	| CLOSE_SYM		{}
 	| COMMENT_SYM		{}
 	| COMMIT_SYM		{}
@@ -2856,7 +2872,9 @@ keyword:
 	| INDEXES		{}
 	| ISOLATION		{}
 	| ISAM_SYM		{}
+	| ISSUER_SYM		{}
 	| INNOBASE_SYM		{}
+	| INSERT_METHOD		{}
 	| LAST_SYM		{}
 	| LEVEL_SYM		{}
 	| LOCAL_SYM		{}
@@ -2882,6 +2900,7 @@ keyword:
 	| NATIONAL_SYM		{}
 	| NCHAR_SYM		{}
 	| NEXT_SYM		{}
+	| NEW_SYM		{}
 	| NO_SYM		{}
 	| OPEN_SYM		{}
 	| PACK_KEYS_SYM		{}
@@ -2909,10 +2928,12 @@ keyword:
 	| SESSION_SYM		{}
 	| SHARE_SYM		{}
 	| SHUTDOWN		{}
+        | SLAVE		        {}
 	| START_SYM		{}
 	| STATUS_SYM		{}
 	| STOP_SYM		{}
 	| STRING_SYM		{}
+	| SUBJECT_SYM		{}
 	| TEMPORARY		{}
 	| TEXT_SYM		{}
 	| TRANSACTION_SYM	{}
@@ -3129,8 +3150,8 @@ set_isolation:
         }
 	| SESSION_SYM tx_isolation
 	{
-	 LEX *lex=Lex;
-	 lex->thd->session_tx_isolation= lex->tx_isolation= $2;
+	  LEX *lex=Lex;
+	  lex->thd->session_tx_isolation= lex->tx_isolation= $2;
 	}
 	| tx_isolation
 	{ Lex->tx_isolation= $1; }
@@ -3251,9 +3272,11 @@ grant:
 	  lex->columns.empty();
 	  lex->grant= lex->grant_tot_col=0;
 	  lex->select->db=0;
+	  lex->ssl_type=SSL_TYPE_NONE;
+	  lex->ssl_cipher=lex->x509_subject=lex->x509_issuer=0;
 	}
 	grant_privileges ON opt_table TO_SYM user_list
-	grant_option
+	require_clause grant_option 
 
 grant_privileges:
 	grant_privilege_list {}
@@ -3287,6 +3310,40 @@ grant_privilege:
 	| FILE_SYM	{ Lex->grant |= FILE_ACL;}
 	| GRANT OPTION  { Lex->grant |= GRANT_ACL;}
 
+require_list: require_list_element AND require_list
+| require_list_element 
+
+require_list_element: SUBJECT_SYM TEXT_STRING
+ {
+   LEX *lex=Lex;
+   if (lex->x509_subject)
+   {
+     net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "SUBJECT");
+     YYABORT;
+   }
+   lex->x509_subject=$2.str;
+ }
+ | ISSUER_SYM TEXT_STRING
+ {
+   LEX *lex=Lex;
+   if (lex->x509_issuer)
+   {
+     net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "ISSUER");
+     YYABORT;
+   }
+   lex->x509_issuer=$2.str;
+ }
+ | CIPHER_SYM TEXT_STRING
+ {
+   LEX *lex=Lex;
+   if (lex->ssl_cipher)
+   {
+     net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "CHIPER");
+     YYABORT;
+   }
+   lex->ssl_cipher=$2.str;
+ }
+ 
 opt_table:
 	'*'
 	  {
@@ -3393,16 +3450,18 @@ column_list_id:
 
 
 require_clause: /* empty */
-	| REQUIRE_SYM require_list { /* do magic */}
-
-require_list: require_list_element AND require_list
-	{ /* do magic */}
-	| require_list_element {/*do magic*/}
-
-require_list_element: SUBJECT_SYM TEXT_STRING
-	| ISSUER TEXT_STRING
- 	| CIPHER TEXT_STRING
-
+        | REQUIRE_SYM require_list 
+        {
+          Lex->ssl_type=SSL_TYPE_SPECIFIED;
+        }
+        | REQUIRE_SYM SSL_SYM
+        {
+          Lex->ssl_type=SSL_TYPE_ANY;
+        }
+        | REQUIRE_SYM X509_SYM
+        {
+          Lex->ssl_type=SSL_TYPE_X509;
+        }
 
 grant_option:
 	/* empty */ {}
@@ -3438,7 +3497,7 @@ union_list:
     if (lex->exchange)
     {
        /* Only the last SELECT can have  INTO...... */
-       net_printf(&current_thd->net, ER_WRONG_USAGE,"UNION","INTO");
+       net_printf(&lex->thd->net, ER_WRONG_USAGE,"UNION","INTO");
        YYABORT;
     } 
     mysql_new_select(lex);

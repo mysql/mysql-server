@@ -91,10 +91,12 @@ static sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 
-void mysql_server_init(int argc __attribute__((unused)),
-		       const char **argv __attribute__((unused)),
-		       const char **groups __attribute__((unused)))
-{}
+int mysql_server_init(int argc __attribute__((unused)),
+		      char **argv __attribute__((unused)),
+		      char **groups __attribute__((unused)))
+{
+  return 0;
+}
 
 void mysql_server_end()
 {}
@@ -140,12 +142,12 @@ static MYSQL* spawn_init(MYSQL* parent, const char* host,
 * A modified version of connect().  connect2() allows you to specify
 * a timeout value, in seconds, that we should wait until we
 * derermine we can't connect to a particular host.  If timeout is 0,
-* connect2() will behave exactly like connect().
+* my_connect() will behave exactly like connect().
 *
 * Base version coded by Steve Bernacki, Jr. <steve@navinet.net>
 *****************************************************************************/
 
-static int connect2(my_socket s, const struct sockaddr *name, uint namelen,
+int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
 		    uint timeout)
 {
 #if defined(__WIN__) || defined(OS2)
@@ -314,11 +316,11 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
 ** or packet is an error message
 *****************************************************************************/
 
-uint
+ulong
 net_safe_read(MYSQL *mysql)
 {
   NET *net= &mysql->net;
-  uint len=0;
+  ulong len=0;
   init_sigpipe_variables
 
   /* Don't give sigpipe errors if the client doesn't want them */
@@ -336,7 +338,7 @@ net_safe_read(MYSQL *mysql)
 		     CR_NET_PACKET_TOO_LARGE:
 		     CR_SERVER_LOST);
     strmov(net->last_error,ER(net->last_errno));
-    return(packet_error);
+    return (packet_error);
   }
   if (net->read_pos[0] == 255)
   {
@@ -347,7 +349,7 @@ net_safe_read(MYSQL *mysql)
       pos+=2;
       len-=2;
       (void) strmake(net->last_error,(char*) pos,
-		     min(len,sizeof(net->last_error)-1));
+		     min((uint) len,(uint) sizeof(net->last_error)-1));
     }
     else
     {
@@ -438,7 +440,7 @@ static void free_rows(MYSQL_DATA *cur)
 
 int
 simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
-	       uint length, my_bool skipp_check)
+	       ulong length, my_bool skipp_check)
 {
   NET *net= &mysql->net;
   int result= -1;
@@ -669,8 +671,8 @@ mysql_free_result(MYSQL_RES *result)
       DBUG_PRINT("warning",("Not all rows in set were read; Ignoring rows"));
       for (;;)
       {
-	uint pkt_len;
-	if ((pkt_len=(uint) net_safe_read(result->handle)) == packet_error)
+	ulong pkt_len;
+	if ((pkt_len=net_safe_read(result->handle)) == packet_error)
 	  break;
 	if (pkt_len == 1 && result->handle->net.read_pos[0] == 254)
 	  break;				/* End of data */
@@ -695,7 +697,7 @@ mysql_free_result(MYSQL_RES *result)
 static const char *default_options[]=
 {"port","socket","compress","password","pipe", "timeout", "user",
  "init-command", "host", "database", "debug", "return-found-rows",
- "ssl-key" ,"ssl-cert" ,"ssl-ca" ,"ssl-capath",
+ "ssl-key" ,"ssl-cert" ,"ssl-ca" ,"ssl-capath", "ssl-cipher"
  "character-set-dir", "default-character-set", "interactive-timeout",
  "connect_timeout", "replication-probe", "enable-reads-from-master",
  "repl-parse-query",
@@ -864,13 +866,14 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
   MYSQL_FIELD	*field,*result;
   DBUG_ENTER("unpack_fields");
 
-  field=result=(MYSQL_FIELD*) alloc_root(alloc,sizeof(MYSQL_FIELD)*fields);
+  field=result=(MYSQL_FIELD*) alloc_root(alloc,
+					 (uint) sizeof(MYSQL_FIELD)*fields);
   if (!result)
     DBUG_RETURN(0);
 
   for (row=data->data; row ; row = row->next,field++)
   {
-    field->table=  strdup_root(alloc,(char*) row->data[0]);
+    field->org_table= field->table=  strdup_root(alloc,(char*) row->data[0]);
     field->name=   strdup_root(alloc,(char*) row->data[1]);
     field->length= (uint) uint3korr(row->data[2]);
     field->type=   (enum enum_field_types) (uchar) row->data[3][0];
@@ -911,7 +914,7 @@ static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
   NET *net = &mysql->net;
   DBUG_ENTER("read_rows");
 
-  if ((pkt_len=(uint) net_safe_read(mysql)) == packet_error)
+  if ((pkt_len= net_safe_read(mysql)) == packet_error)
     DBUG_RETURN(0);
   if (!(result=(MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
 				       MYF(MY_WME | MY_ZEROFILL))))
@@ -1018,7 +1021,7 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
 
 /* perform query on master */
 int STDCALL mysql_master_query(MYSQL *mysql, const char *q,
-					unsigned int length)
+			       unsigned long length)
 {
   if (mysql_master_send_query(mysql, q, length))
     return 1;
@@ -1026,7 +1029,7 @@ int STDCALL mysql_master_query(MYSQL *mysql, const char *q,
 }
 
 int STDCALL mysql_master_send_query(MYSQL *mysql, const char *q,
-					unsigned int length)
+				    unsigned long length)
 {
   MYSQL*master = mysql->master;
   if (!length)
@@ -1040,7 +1043,7 @@ int STDCALL mysql_master_send_query(MYSQL *mysql, const char *q,
 
 /* perform query on slave */  
 int STDCALL mysql_slave_query(MYSQL *mysql, const char *q,
-					unsigned int length)
+			      unsigned long length)
 {
   if (mysql_slave_send_query(mysql, q, length))
     return 1;
@@ -1048,7 +1051,7 @@ int STDCALL mysql_slave_query(MYSQL *mysql, const char *q,
 }
 
 int STDCALL mysql_slave_send_query(MYSQL *mysql, const char *q,
-					unsigned int length)
+				   unsigned long length)
 {
   MYSQL* last_used_slave, *slave_to_use = 0;
   
@@ -1269,7 +1272,7 @@ STDCALL mysql_rpl_query_type(const char* q, int len)
        case 'c':  /* create or check */
 	 return tolower(q[1]) == 'h' ? MYSQL_RPL_ADMIN : MYSQL_RPL_MASTER ;
        case 's': /* select or show */
-	 return tolower(q[1] == 'h') ? MYSQL_RPL_ADMIN : MYSQL_RPL_SLAVE;
+	 return tolower(q[1]) == 'h' ? MYSQL_RPL_ADMIN : MYSQL_RPL_SLAVE;
        case 'f': /* flush */
        case 'r': /* repair */
        case 'g': /* grant */
@@ -1278,8 +1281,7 @@ STDCALL mysql_rpl_query_type(const char* q, int len)
 	 return MYSQL_RPL_SLAVE;
        }
   }
-
-  return 0;
+  return MYSQL_RPL_MASTER;		/* By default, send to master */
 }
 
 
@@ -1368,15 +1370,17 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
 	const char *key __attribute__((unused)), 
 	const char *cert __attribute__((unused)),
 	const char *ca __attribute__((unused)), 
-	const char *capath __attribute__((unused)))
+	const char *capath __attribute__((unused)),
+	const char *cipher __attribute__((unused)))
 {
 #ifdef HAVE_OPENSSL
   mysql->options.ssl_key = key==0 ? 0 : my_strdup(key,MYF(0));
   mysql->options.ssl_cert = cert==0 ? 0 : my_strdup(cert,MYF(0));
   mysql->options.ssl_ca = ca==0 ? 0 : my_strdup(ca,MYF(0));
   mysql->options.ssl_capath = capath==0 ? 0 : my_strdup(capath,MYF(0));
+  mysql->options.ssl_cipher = cipher==0 ? 0 : my_strdup(cipher,MYF(0));
   mysql->options.use_ssl = TRUE;
-  mysql->connector_fd = (gptr)new_VioSSLConnectorFd(key, cert, ca, capath);
+  mysql->connector_fd = (gptr)new_VioSSLConnectorFd(key, cert, ca, capath, cipher);
   DBUG_PRINT("info",("mysql_ssl_set, context: %p",((struct st_VioSSLConnectorFd *)(mysql->connector_fd))->ssl_context_));
 #endif
   return 0;
@@ -1396,10 +1400,12 @@ mysql_ssl_clear(MYSQL *mysql __attribute__((unused)))
   my_free(mysql->options.ssl_cert, MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.ssl_ca, MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.ssl_capath, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->options.ssl_cipher, MYF(MY_ALLOW_ZERO_PTR));
   mysql->options.ssl_key = 0;
   mysql->options.ssl_cert = 0;
   mysql->options.ssl_ca = 0;
   mysql->options.ssl_capath = 0;
+  mysql->options.ssl_cipher= 0;
   mysql->options.use_ssl = FALSE;
   my_free(mysql->connector_fd,MYF(MY_ALLOW_ZERO_PTR));
   mysql->connector_fd = 0;
@@ -1523,7 +1529,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     bzero((char*) &UNIXaddr,sizeof(UNIXaddr));
     UNIXaddr.sun_family = AF_UNIX;
     strmov(UNIXaddr.sun_path, unix_socket);
-    if (connect2(sock,(struct sockaddr *) &UNIXaddr, sizeof(UNIXaddr),
+    if (my_connect(sock,(struct sockaddr *) &UNIXaddr, sizeof(UNIXaddr),
 		 mysql->options.connect_timeout) <0)
     {
       DBUG_PRINT("error",("Got error %d on connect to local server",socket_errno));
@@ -1623,7 +1629,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     }
 #endif
     sock_addr.sin_port = (ushort) htons((ushort) port);
-    if (connect2(sock,(struct sockaddr *) &sock_addr, sizeof(sock_addr),
+    if (my_connect(sock,(struct sockaddr *) &sock_addr, sizeof(sock_addr),
 		 mysql->options.connect_timeout) <0)
     {
       DBUG_PRINT("error",("Got error %d on connect to '%s'",socket_errno,host));
@@ -1797,7 +1803,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     /* Do the SSL layering. */
     DBUG_PRINT("info", ("IO layer change in progress..."));
     DBUG_PRINT("info", ("IO context %p",((struct st_VioSSLConnectorFd*)mysql->connector_fd)->ssl_context_));
-    sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),mysql->net.vio);
+    sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),mysql->net.vio, (long)(mysql->options.connect_timeout));
     DBUG_PRINT("info", ("IO layer change done!"));
   }
 #endif /* HAVE_OPENSSL */
@@ -1823,7 +1829,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     mysql->db=my_strdup(db,MYF(MY_WME));
     db=0;
   }
-  if (my_net_write(net,buff,(uint) (end-buff)) || net_flush(net) ||
+  if (my_net_write(net,buff,(ulong) (end-buff)) || net_flush(net) ||
       net_safe_read(mysql) == packet_error)
     goto error;
   if (client_flag & CLIENT_COMPRESS)		/* We will use compression */
@@ -1887,7 +1893,7 @@ static my_bool mysql_reconnect(MYSQL *mysql)
   if (!mysql->reconnect ||
       (mysql->server_status & SERVER_STATUS_IN_TRANS) || !mysql->host_info)
   {
-   /* Allov reconnect next time */
+   /* Allow reconnect next time */
     mysql->server_status&= ~SERVER_STATUS_IN_TRANS;
     DBUG_RETURN(1);
   }
@@ -1929,7 +1935,7 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   pos=scramble(pos, mysql->scramble_buff, passwd,
 	       (my_bool) (mysql->protocol_version == 9));
   pos=strmov(pos+1,db ? db : "");
-  if (simple_command(mysql,COM_CHANGE_USER, buff,(uint) (pos-buff),0))
+  if (simple_command(mysql,COM_CHANGE_USER, buff,(ulong) (pos-buff),0))
     DBUG_RETURN(1);
 
   my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
@@ -1954,7 +1960,7 @@ mysql_select_db(MYSQL *mysql, const char *db)
   DBUG_ENTER("mysql_select_db");
   DBUG_PRINT("enter",("db: '%s'",db));
 
-  if ((error=simple_command(mysql,COM_INIT_DB,db,(uint) strlen(db),0)))
+  if ((error=simple_command(mysql,COM_INIT_DB,db,(ulong) strlen(db),0)))
     DBUG_RETURN(error);
   my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
   mysql->db=my_strdup(db,MYF(MY_WME));
@@ -1995,13 +2001,13 @@ mysql_close(MYSQL *mysql)
     my_free(mysql->options.my_cnf_group,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->options.charset_dir,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->options.charset_name,MYF(MY_ALLOW_ZERO_PTR));
+#ifdef HAVE_OPENSSL
+    mysql_ssl_clear(mysql);
+#endif /* HAVE_OPENSSL */
     /* Clear pointers for better safety */
     mysql->host_info=mysql->user=mysql->passwd=mysql->db=0;
     bzero((char*) &mysql->options,sizeof(mysql->options));
     mysql->net.vio = 0;
-#ifdef HAVE_OPENSSL
-    mysql_ssl_clear(mysql);
-#endif /* HAVE_OPENSSL */
     
     /* free/close slave list */
     if (mysql->rpl_pivot)
@@ -2014,6 +2020,7 @@ mysql_close(MYSQL *mysql)
 	mysql_close(tmp);
 	tmp = tmp1;
       }
+      mysql->rpl_pivot=0;
     }
     if (mysql != mysql->master)
       mysql_close(mysql->master);
@@ -2104,7 +2111,7 @@ STDCALL mysql_add_slave(MYSQL* mysql, const char* host,
 */  
 
 int STDCALL
-mysql_send_query(MYSQL* mysql, const char* query, uint length)
+mysql_send_query(MYSQL* mysql, const char* query, ulong length)
 {
   if (mysql->options.rpl_parse && mysql->rpl_pivot)
   {
@@ -2172,13 +2179,13 @@ get_info:
 						   CLIENT_LONG_FLAG))))
     DBUG_RETURN(-1);
   mysql->status=MYSQL_STATUS_GET_RESULT;
-  mysql->field_count=field_count;
+  mysql->field_count= (uint) field_count;
   DBUG_RETURN(0);
 }
 
 
 int STDCALL
-mysql_real_query(MYSQL *mysql, const char *query, uint length)
+mysql_real_query(MYSQL *mysql, const char *query, ulong length)
 {
   DBUG_ENTER("mysql_real_query");
   DBUG_PRINT("enter",("handle: %lx",mysql));
@@ -2269,8 +2276,9 @@ mysql_store_result(MYSQL *mysql)
     DBUG_RETURN(0);
   }
   mysql->status=MYSQL_STATUS_READY;		/* server is ready */
-  if (!(result=(MYSQL_RES*) my_malloc(sizeof(MYSQL_RES)+
-				      sizeof(ulong)*mysql->field_count,
+  if (!(result=(MYSQL_RES*) my_malloc((uint) (sizeof(MYSQL_RES)+
+					      sizeof(ulong) *
+					      mysql->field_count),
 				      MYF(MY_WME | MY_ZEROFILL))))
   {
     mysql->net.last_errno=CR_OUT_OF_MEMORY;
@@ -2426,7 +2434,7 @@ mysql_fetch_lengths(MYSQL_RES *res)
 	continue;
       }
       if (start)				/* Found end of prev string */
-	*prev_length= (uint) (*column-start-1);
+	*prev_length= (ulong) (*column-start-1);
       start= *column;
       prev_length=lengths;
     }
@@ -2527,7 +2535,7 @@ mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
   LINT_INIT(query);
 
   end=strmake(strmake(buff, table,128)+1,wild ? wild : "",128);
-  if (simple_command(mysql,COM_FIELD_LIST,buff,(uint) (end-buff),1) ||
+  if (simple_command(mysql,COM_FIELD_LIST,buff,(ulong) (end-buff),1) ||
       !(query = read_rows(mysql,(MYSQL_FIELD*) 0,6)))
     DBUG_RETURN(NULL);
 
@@ -2583,7 +2591,7 @@ mysql_create_db(MYSQL *mysql, const char *db)
 {
   DBUG_ENTER("mysql_createdb");
   DBUG_PRINT("enter",("db: %s",db));
-  DBUG_RETURN(simple_command(mysql,COM_CREATE_DB,db, (uint) strlen(db),0));
+  DBUG_RETURN(simple_command(mysql,COM_CREATE_DB,db, (ulong) strlen(db),0));
 }
 
 
@@ -2592,7 +2600,7 @@ mysql_drop_db(MYSQL *mysql, const char *db)
 {
   DBUG_ENTER("mysql_drop_db");
   DBUG_PRINT("enter",("db: %s",db));
-  DBUG_RETURN(simple_command(mysql,COM_DROP_DB,db,(uint) strlen(db),0));
+  DBUG_RETURN(simple_command(mysql,COM_DROP_DB,db,(ulong) strlen(db),0));
 }
 #endif
 

@@ -16,7 +16,7 @@
 
 /* Read record based on a key */
 
-#include "mymrgdef.h"
+#include "myrg_def.h"
 
 static int queue_key_cmp(void *keyseg, byte *a, byte *b)
 {

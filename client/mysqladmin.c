@@ -23,7 +23,7 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.21"
+#define ADMIN_VERSION "8.22"
 #define MAX_MYSQL_VAR 64
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -51,7 +51,7 @@ static void print_version(void);
 static void usage(void);
 static my_bool sql_connect(MYSQL *mysql,const char *host, const char *user,
 			   const char *password,uint wait);
-static my_bool execute_commands(MYSQL *mysql,int argc, char **argv);
+static int execute_commands(MYSQL *mysql,int argc, char **argv);
 static int drop_db(MYSQL *mysql,const char *db);
 static sig_handler endprog(int signal_number);
 static void nice_time(ulong sec,char *buff);
@@ -265,7 +265,7 @@ int main(int argc,char *argv[])
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath);
+		  opt_ssl_capath, opt_ssl_cipher);
 #endif /* HAVE_OPENSSL */
   if (sql_connect(&mysql,host,user,opt_password,option_wait))
     error = 1;
@@ -275,16 +275,24 @@ int main(int argc,char *argv[])
     while (!interrupted)
     {
       new_line = 0;
-      if (execute_commands(&mysql,argc,commands) && !option_force)
+      if ((error=execute_commands(&mysql,argc,commands)))
       {
-	if (option_wait && !interrupted)
+	if (error > 0)
+	  break;				/* Wrong command error */
+	if (!option_force)
 	{
-	  mysql_close(&mysql);
-	  if (!sql_connect(&mysql,host,user,opt_password,option_wait))
-	    continue;				/* Retry */
+	  if (option_wait && !interrupted)
+	  {
+	    mysql_close(&mysql);
+	    if (!sql_connect(&mysql,host,user,opt_password,option_wait))
+	    {
+	      sleep(1);				/* Don't retry too rapidly */
+	      continue;				/* Retry */
+	    }
+	  }
+	  error=1;
+	  break;
 	}
-	error=1;
-	break;
       }
       if (interval)
       {
@@ -301,7 +309,7 @@ int main(int argc,char *argv[])
   my_free(user,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(argv);
   my_end(0);
-  exit(error);
+  exit(error ? 1 : 0);
   return 0;
 }
 
@@ -383,8 +391,14 @@ static my_bool sql_connect(MYSQL *mysql,const char *host, const char *user,
   }
 }
 
+/*
+  Execute a command.
+  Return 0 on ok
+	 -1 on retryable error
+	 1 on fatal error
+*/
 
-static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
+static int execute_commands(MYSQL *mysql,int argc, char **argv)
 {
   char *status;
 
@@ -404,7 +418,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
       {
 	my_printf_error(0,"CREATE DATABASE failed; error: '%-.200s'",
 			MYF(ME_BELL), mysql_error(mysql));
-	return 1;
+	return -1;
       }
       argc--; argv++;
       break;
@@ -417,7 +431,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
 	return 1;
       }
       if (drop_db(mysql,argv[1]))
-	return 1;
+	return -1;
       argc--; argv++;
       break;
     }
@@ -433,7 +447,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
       {
 	my_printf_error(0,"shutdown failed; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
-	return 1;
+	return -1;
       }
       mysql_close(mysql);	/* Close connection to avoid error messages */
       if (got_pidfile)
@@ -450,7 +464,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
       {
 	my_printf_error(0,"reload failed; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
-	return 1;
+	return -1;
       }
       break;
     case ADMIN_REFRESH:
@@ -461,7 +475,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
       {
 	my_printf_error(0,"refresh failed; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
-	return 1;
+	return -1;
       }
       break;
     case ADMIN_FLUSH_THREADS:
@@ -469,7 +483,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
       {
 	my_printf_error(0,"refresh failed; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
-	return 1;
+	return -1;
       }
       break;
     case ADMIN_VER:
@@ -513,7 +527,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
       {
 	my_printf_error(0,"process list failed; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
-	return 1;
+	return -1;
       }
       print_header(result);
       while ((row=mysql_fetch_row(result)))
@@ -552,7 +566,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
 	}
 	argc--; argv++;
 	if (error)
-	  return error;
+	  return -1;
 	break;
       }
     case ADMIN_DEBUG:
@@ -560,7 +574,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
       {
 	my_printf_error(0,"debug failed; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
-	return 1;
+	return -1;
       }
       break;
     case ADMIN_VARIABLES:
@@ -574,7 +588,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
       {
 	my_printf_error(0,"unable to show variables; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
-	return 1;
+	return -1;
       }
       print_header(res);
       while ((row=mysql_fetch_row(res)))
@@ -596,7 +610,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
       {
 	my_printf_error(0, "unable to show status; error: '%s'", MYF(ME_BELL),
 			mysql_error(mysql));
-	return 1;
+	return -1;
       }
       if (!opt_vertical)
 	print_header(res);
@@ -646,7 +660,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
       {
 	my_printf_error(0,"refresh failed; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
-	return 1;
+	return -1;
       }
       break;
     }
@@ -656,7 +670,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
       {
 	my_printf_error(0,"refresh failed; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
-	return 1;
+	return -1;
       }
       break;
     }
@@ -666,7 +680,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
       {
 	my_printf_error(0,"refresh failed; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
-	return 1;
+	return -1;
       }
       break;
     }
@@ -676,7 +690,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
       {
 	my_printf_error(0,"refresh failed; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
-	return 1;
+	return -1;
       }
       break;
     }
@@ -684,7 +698,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
     {
       char buff[128],crypted_pw[33];
 
-      if(argc < 2)
+      if (argc < 2)
       {
 	my_printf_error(0,"Too few arguments to change password",MYF(ME_BELL));
 	return 1;
@@ -699,13 +713,13 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
       {
 	my_printf_error(0, "Can't turn off logging; error: '%s'",
 			MYF(ME_BELL),mysql_error(mysql));
-	return 1;
+	return -1;
       }
       if (mysql_query(mysql,buff))
       {
 	my_printf_error(0,"unable to change password; error: '%s'",
 			MYF(ME_BELL),mysql_error(mysql));
-	return 1;
+	return -1;
       }
       argc--; argv++;
       break;
@@ -716,7 +730,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
       {
 	my_printf_error(0, "Error starting slave: %s", MYF(ME_BELL),
 			mysql_error(mysql));
-	return 1;
+	return -1;
       }
       else
 	puts("Slave started");
@@ -726,7 +740,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
       {
 	  my_printf_error(0, "Error stopping slave: %s", MYF(ME_BELL),
 			  mysql_error(mysql));
-	  return 1;
+	  return -1;
       }
       else
 	puts("Slave stopped");
@@ -751,7 +765,7 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
 	{
 	  my_printf_error(0,"mysqld doesn't answer to ping, error: '%s'",
 			  MYF(ME_BELL),mysql_error(mysql));
-	  return 1;
+	  return -1;
 	}
       }
       mysql->reconnect=1;	/* Automatic reconnect is default */
@@ -914,7 +928,7 @@ static void print_header(MYSQL_RES *result)
   putchar('|');
   while ((field = mysql_fetch_field(result)))
   {
-    printf(" %-*s|",field->max_length+1,field->name);
+    printf(" %-*s|",(int) field->max_length+1,field->name);
   }
   putchar('\n');
   print_top(result);
@@ -969,11 +983,11 @@ static void print_relative_row(MYSQL_RES *result, MYSQL_ROW cur, uint row)
 
   mysql_field_seek(result, 0);
   field = mysql_fetch_field(result);
-  printf("| %-*s|", field->max_length + 1, cur[0]);
+  printf("| %-*s|", (int) field->max_length + 1, cur[0]);
 
   field = mysql_fetch_field(result);
   tmp = cur[1] ? strtoull(cur[1], NULL, 0) : (ulonglong) 0;
-  printf(" %-*s|\n", field->max_length + 1,
+  printf(" %-*s|\n", (int) field->max_length + 1,
 	 llstr((tmp - last_values[row]), buff));
   last_values[row] = tmp;
 }

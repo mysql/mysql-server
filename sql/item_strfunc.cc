@@ -17,7 +17,7 @@
 
 /* This file defines all string functions
 ** Warning: Some string functions doesn't always put and end-null on a String
-** (This shouldn't be neaded)
+** (This shouldn't be needed)
 */
 
 #ifdef __GNUC__
@@ -384,7 +384,7 @@ void Item_func_reverse::fix_length_and_dec()
 
 /*
 ** Replace all occurences of string2 in string1 with string3.
-** Don't reallocate val_str() if not neaded
+** Don't reallocate val_str() if not needed
 */
 
 /* TODO: Fix that this works with binary strings when using USE_MB */

@@ -35,7 +35,7 @@ int mi_rnext(MI_INFO *info, byte *buf, int inx)
   if (info->lastpos == HA_OFFSET_ERROR && info->update & HA_STATE_PREV_FOUND)
     flag=0;					/* Read first */
 
-  if (_mi_readinfo(info,F_RDLCK,1))
+  if (fast_mi_readinfo(info))
     DBUG_RETURN(my_errno);
   if (info->s->concurrent_insert)
     rw_rdlock(&info->s->key_root_lock[inx]);
@@ -51,7 +51,7 @@ int mi_rnext(MI_INFO *info, byte *buf, int inx)
 			  info->s->state.key_root[inx]);
   else
     error=_mi_search(info,info->s->keyinfo+inx,info->lastkey,
-		     info->lastkey_length,flag, info->s->state.key_root[inx]);
+		     USE_WHOLE_KEY,flag, info->s->state.key_root[inx]);
 
   if (!error)
   {

@@ -7,26 +7,15 @@ link_sources:
 	  @LN_CP_F@ $(srcdir)/../../client/$$f $(srcdir)/$$f; \
 	done;
 
-DEFS = -DEMBEDDED_SERVER
+DEFS = 		-DEMBEDDED_LIBRARY
 INCLUDES =	-I$(top_srcdir)/include $(openssl_includes) \
 		-I$(srcdir) -I$(top_srcdir) -I$(top_srcdir)/client
-LIBS =	@LIBS@
-LDADD =	$(top_builddir)/libmysqld/libmysqld.la \
-	$(top_builddir)/isam/libnisam.a \
-	$(top_builddir)/myisam/libmyisam.a \
-	$(top_builddir)/heap/libheap.a \
-	$(top_builddir)/merge/libmerge.a \
-	$(top_builddir)/myisammrg/libmyisammrg.a \
-	@innodb_libs@ @bdb_libs@ @pstack_libs@ \
-	$(top_builddir)/mysys/libmysys.a \
-	$(top_builddir)/strings/libmystrings.a \
-	$(top_builddir)/dbug/libdbug.a \
-	$(top_builddir)/regex/libregex.a @LIBDL@
+LIBS =		@LIBS@
+LDADD =		../libmysqld.a @innodb_system_libs@ @LIBDL@
 
-mysqltest_DEPENDENCIES = ../libmysqld.la
 mysqltest_SOURCES =	mysqltest.c
 
-mysql_SOURCES = mysql.cc readline.cc sql_string.cc completion_hash.cc \
+mysql_SOURCES = mysql.cc readline.cc completion_hash.cc \
                 my_readline.h sql_string.h completion_hash.h
 mysql_LDADD = @readline_link@ @TERMCAP_LIB@ $(LDADD)
 

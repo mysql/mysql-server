@@ -59,6 +59,9 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_WME		16	/* Write message on error */
 #define MY_WAIT_IF_FULL 32	/* Wait and try again if disk full error */
 #define MY_RAID         64      /* Support for RAID (not the "Johnson&Johnson"-s one ;) */
+#define MY_FULL_IO     512      /* For my_read - loop intil I/O
+				   is complete
+				*/
 #define MY_DONT_CHECK_FILESIZE 128	/* Option to init_io_cache() */
 #define MY_LINK_WARNING 32	/* my_redel() gives warning if links */
 #define MY_COPYTIME	64	/* my_redel() copys time */
@@ -90,6 +93,16 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define ME_COLOUR2	((2 << ME_HIGHBYTE))
 #define ME_COLOUR3	((3 << ME_HIGHBYTE))
 
+	/* Bits in last argument to fn_format */
+#define MY_REPLACE_DIR		1	/* replace dir in name with 'dir' */
+#define MY_REPLACE_EXT		2	/* replace extension with 'ext' */
+#define MY_UNPACK_FILENAME	4	/* Unpack name (~ -> home) */
+#define MY_PACK_FILENAME	8	/* Pack name (home -> ~) */
+#define MY_RESOLVE_SYMLINKS	16	/* Resolve all symbolic links */
+#define MY_RETURN_REAL_PATH	32	/* return full path for file */
+#define MY_SAFE_PATH		64	/* Return NULL if too long path */
+#define MY_RELATIVE_PATH	128	/* name is relative to 'dir' */
+
 	/* My seek flags */
 #define MY_SEEK_SET	0
 #define MY_SEEK_CUR	1
@@ -106,7 +119,8 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_WAIT_FOR_USER_TO_FIX_PANIC	60	/* in seconds */
 #define MY_WAIT_GIVE_USER_A_MESSAGE	10	/* Every 10 times of prev */
 #define MIN_COMPRESS_LENGTH		50	/* Don't compress small bl. */
-#define KEYCACHE_BLOCK_SIZE		1024
+#define DEFAULT_KEYCACHE_BLOCK_SIZE	1024
+#define MAX_KEYCACHE_BLOCK_SIZE		16384
 
 	/* root_alloc flags */
 #define MY_KEEP_PREALLOC	1
@@ -190,9 +204,10 @@ extern char *get_charsets_dir(char *buf);
 /* statistics */
 extern ulong	_my_cache_w_requests,_my_cache_write,_my_cache_r_requests,
 		_my_cache_read;
-extern ulong	 _my_blocks_used,_my_blocks_changed;
+extern ulong	_my_blocks_used,_my_blocks_changed;
+extern uint	key_cache_block_size;
 extern ulong	my_file_opened,my_stream_opened, my_tmp_file_created;
-extern my_bool	key_cache_inited;
+extern my_bool	key_cache_inited, my_init_done;
 
 					/* Point to current my_message() */
 extern void (*my_sigtstp_cleanup)(void),
@@ -467,12 +482,12 @@ extern uint dirname_part(my_string to,const char *name);
 extern uint dirname_length(const char *name);
 #define base_name(A) (A+dirname_length(A))
 extern int test_if_hard_path(const char *dir_name);
-extern char *convert_dirname(my_string name);
+extern char *convert_dirname(char *to, const char *from, const char *from_end);
 extern void to_unix_path(my_string name);
 extern my_string fn_ext(const char *name);
 extern my_string fn_same(my_string toname,const char *name,int flag);
-extern my_string fn_format(my_string to,const char *name,const char *dsk,
-			   const char *form,int flag);
+extern my_string fn_format(my_string to,const char *name,const char *dir,
+			   const char *form, uint flag);
 extern size_s strlength(const char *str);
 extern void pack_dirname(my_string to,const char *from);
 extern uint unpack_dirname(my_string to,const char *from);
@@ -602,6 +617,7 @@ my_bool my_compress(byte *, ulong *, ulong *);
 my_bool my_uncompress(byte *, ulong *, ulong *);
 byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen);
 ulong checksum(const byte *mem, uint count);
+uint my_bit_log2(ulong value);
 
 #if defined(_MSC_VER) && !defined(__WIN__)
 extern void sleep(int sec);

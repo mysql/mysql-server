@@ -1,3 +1,7 @@
+drop table if exists t1;
+create table t1 (t datetime);
+insert into t1 values(101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959);
+select * from t1;
 t
 2000-01-01 00:00:00
 2069-12-31 00:00:00
@@ -11,10 +15,15 @@ t
 1999-12-31 23:59:59
 1000-01-01 00:00:00
 9999-12-31 23:59:59
+delete from t1 where t > 0;
+optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
+check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+insert into t1 values("000101"),("691231"),("700101"),("991231"),("00000101"),("00010101"),("99991231"),("00101000000"),("691231000000"),("700101000000"),("991231235959"),("10000101000000"),("99991231235959");
+select * from t1;
 t
 2000-01-01 00:00:00
 2069-12-31 00:00:00
@@ -29,9 +38,22 @@ t
 1999-12-31 23:59:59
 1000-01-01 00:00:00
 9999-12-31 23:59:59
+drop table t1;
+CREATE TABLE t1 (a timestamp, b date, c time, d datetime);
+insert into t1 (b,c,d) values(now(),curtime(),now());
+select date_format(a,"%Y-%m-%d")=b,right(a,6)=c+0,a=d+0 from t1;
 date_format(a,"%Y-%m-%d")=b	right(a,6)=c+0	a=d+0
 1	1	1
+drop table t1;
+CREATE TABLE t1 (a datetime not null);
+insert into t1 values (0);
+select * from t1 where a is null;
 a
 0000-00-00 00:00:00
+drop table t1;
+create table t1 (id int, dt datetime);
+insert into t1 values (1,"2001-08-14 00:00:00"),(2,"2001-08-15 00:00:00"),(3,"2001-08-16 00:00:00");
+select * from t1 where dt='2001-08-14 00:00:00' and dt =  if(id=1,'2001-08-14 00:00:00','1999-08-15');
 id	dt
 1	2001-08-14 00:00:00
+drop table t1;

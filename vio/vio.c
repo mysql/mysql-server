@@ -25,38 +25,10 @@
 #include <my_global.h>
 #include <mysql_com.h>
 #include <violite.h>
-
 #include <errno.h>
-#include <assert.h>
 #include <my_sys.h>
 #include <my_net.h>
 #include <m_string.h>
-#ifdef HAVE_POLL
-#include <sys/poll.h>
-#endif
-#ifdef HAVE_SYS_IOCTL_H
-#include <sys/ioctl.h>
-#endif
-
-#if defined(__EMX__)
-#define ioctlsocket ioctl
-#endif	/* defined(__EMX__) */
-
-#if defined(MSDOS) || defined(__WIN__)
-#ifdef __WIN__
-#undef errno
-#undef EINTR
-#undef EAGAIN
-#define errno WSAGetLastError()
-#define EINTR  WSAEINTR
-#define EAGAIN WSAEINPROGRESS
-#endif /* __WIN__ */
-#define O_NONBLOCK 1    /* For emulation of fcntl() */
-#endif
-#ifndef EWOULDBLOCK
-#define EWOULDBLOCK EAGAIN
-#endif
-
 
 /*
  * Helper to fill most of the Vio* with defaults.

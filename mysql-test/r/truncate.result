@@ -1,5 +1,16 @@
+create table t1 (a integer, b integer,c1 CHAR(10));
+insert into t1 (a) values (1),(2);
+truncate table t1;
+select count(*) from t1;
 count(*)
 0
+insert into t1 values(1,2,"test");
+select count(*) from t1;
 count(*)
 1
+delete from t1;
+select * from t1;
 a	b	c1
+drop table t1;
+select count(*) from t1;
+Table 'test.t1' doesn't exist

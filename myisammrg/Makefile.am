@@ -16,12 +16,12 @@
 
 INCLUDES =		@MT_INCLUDES@ -I$(srcdir)/../include -I../include
 pkglib_LIBRARIES =	libmyisammrg.a
-noinst_HEADERS =	mymrgdef.h
+noinst_HEADERS =	myrg_def.h
 libmyisammrg_a_SOURCES = myrg_open.c myrg_extra.c myrg_info.c myrg_locking.c \
 			myrg_rrnd.c myrg_update.c myrg_delete.c myrg_rsame.c \
 			myrg_panic.c myrg_close.c myrg_create.c myrg_static.c \
 			myrg_rkey.c myrg_rfirst.c myrg_rlast.c myrg_rnext.c \
-			myrg_rprev.c myrg_queue.c
+			myrg_rprev.c myrg_queue.c myrg_write.c
 OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
 			__math.h time.h __time.h unistd.h __unistd.h types.h \
 			xtypes.h ac-types.h posix.h string.h __string.h \

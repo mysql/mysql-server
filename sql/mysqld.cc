@@ -193,7 +193,7 @@ SHOW_COMP_OPTION have_innodb=SHOW_OPTION_YES;
 #else
 SHOW_COMP_OPTION have_innodb=SHOW_OPTION_NO;
 #endif
-#ifndef NO_ISAM
+#ifdef HAVE_ISAM
 SHOW_COMP_OPTION have_isam=SHOW_OPTION_YES;
 #else
 SHOW_COMP_OPTION have_isam=SHOW_OPTION_NO;
@@ -214,8 +214,9 @@ SHOW_COMP_OPTION have_symlink=SHOW_OPTION_YES;
 static bool opt_skip_slave_start = 0; // if set, slave is not autostarted
 static bool opt_do_pstack = 0;
 static ulong opt_specialflag=SPECIAL_ENGLISH;
-static my_socket unix_sock= INVALID_SOCKET,ip_sock= INVALID_SOCKET;
 static ulong back_log,connect_timeout,concurrency;
+static ulong opt_myisam_block_size;
+static my_socket unix_sock= INVALID_SOCKET,ip_sock= INVALID_SOCKET;
 static my_string opt_logname=0,opt_update_logname=0,
        opt_binlog_index_name = 0,opt_slow_logname=0;
 static char mysql_home[FN_REFLEN],pidfile_name[FN_REFLEN];
@@ -242,15 +243,10 @@ static char **defaults_argv,time_zone[30];
 static const char *default_table_type_name;
 static char glob_hostname[FN_REFLEN];
 
+#include "sslopt-vars.h"
 #ifdef HAVE_OPENSSL
-static bool opt_use_ssl = FALSE;
-static char *opt_ssl_key = 0;
-static char *opt_ssl_cert = 0;
-static char *opt_ssl_ca = 0;
-static char *opt_ssl_capath = 0;
 struct st_VioSSLAcceptorFd * ssl_acceptor_fd = 0;
 #endif /* HAVE_OPENSSL */
-
 
 I_List <i_string_pair> replicate_rewrite_db;
 I_List<i_string> replicate_do_db, replicate_ignore_db;
@@ -290,7 +286,7 @@ uint master_port = MYSQL_PORT, master_connect_retry = 60;
 uint report_port = MYSQL_PORT;
 bool master_ssl = 0;
 
-ulong max_tmp_tables,max_heap_table_size;
+ulong max_tmp_tables,max_heap_table_size,master_retry_count=0;
 ulong bytes_sent = 0L, bytes_received = 0L;
 
 bool opt_endinfo,using_udf_functions,low_priority_updates, locked_in_memory;
@@ -315,10 +311,18 @@ ulong slow_launch_threads = 0;
 ulong myisam_max_sort_file_size, myisam_max_extra_sort_file_size;
   
 char mysql_real_data_home[FN_REFLEN],
-     mysql_data_home[2],language[LIBLEN],reg_ext[FN_EXTLEN],
+     language[LIBLEN],reg_ext[FN_EXTLEN],
      default_charset[LIBLEN],mysql_charsets_dir[FN_REFLEN], *charsets_list,
      blob_newline,f_fyllchar,max_sort_char,*mysqld_user,*mysqld_chroot,
      *opt_init_file;
+#ifndef EMBEDDED_LIBRARY
+char mysql_data_home_buff[2], *mysql_data_home=mysql_data_home_buff;
+bool mysql_embedded=0;
+#else
+char *mysql_data_home=mysql_real_data_home;
+bool mysql_embedded=1;
+#endif
+
 char *opt_bin_logname = 0; // this one needs to be seen in sql_parse.cc
 char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
 const char *first_keyword="first";
@@ -328,10 +332,12 @@ const char *sql_mode_str="OFF";
 const char *default_tx_isolation_name;
 enum_tx_isolation default_tx_isolation=ISO_READ_COMMITTED;
 
+uint rpl_recovery_rank=0;
+
 #ifdef HAVE_GEMINI_DB
 const char *gemini_recovery_options_str="FULL";
 #endif
-my_string mysql_unix_port=NULL,mysql_tmpdir=NULL;
+my_string mysql_unix_port=NULL, mysql_tmpdir=NULL, allocated_mysql_tmpdir=NULL;
 ulong my_bind_addr;			/* the address we bind to */
 DATE_FORMAT dayord;
 double log_10[32];			/* 10 potences */
@@ -342,7 +348,7 @@ ulong opt_sql_mode = 0L;
 const char *sql_mode_names[] =
 { "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
   "SERIALIZE","ONLY_FULL_GROUP_BY", NullS };
-TYPELIB sql_mode_typelib= {array_elements(sql_mode_names),"",
+TYPELIB sql_mode_typelib= {array_elements(sql_mode_names)-1,"",
 			   sql_mode_names};
 
 MY_BITMAP temp_pool;
@@ -682,11 +688,8 @@ static sig_handler print_signal_warning(int sig)
 void unireg_end(int signal_number __attribute__((unused)))
 {
   clean_up();
-#if defined(EMBEDDED_LIBRARY)
-  exit(0);			// XXX QQ: this is a temporary hack (I hope)
-#else
+  my_thread_end();
   pthread_exit(0);				// Exit is in main thread
-#endif
 }
 
 
@@ -695,6 +698,7 @@ void unireg_abort(int exit_code)
   if (exit_code)
     sql_print_error("Aborting\n");
   clean_up(); /* purecov: inspected */
+  my_thread_end();
   exit(exit_code); /* purecov: inspected */
 }
 
@@ -725,25 +729,25 @@ void clean_up(bool print_message)
   my_free(opt_ssl_cert,MYF(MY_ALLOW_ZERO_PTR));
   my_free(opt_ssl_ca,MYF(MY_ALLOW_ZERO_PTR));
   my_free(opt_ssl_capath,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(opt_ssl_cipher,MYF(MY_ALLOW_ZERO_PTR));
   opt_ssl_key=opt_ssl_cert=opt_ssl_ca=opt_ssl_capath=0;
 #endif /* HAVE_OPENSSL */
   free_defaults(defaults_argv);
   my_free(charsets_list, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql_tmpdir,MYF(0));
-  my_free(slave_load_tmpdir,MYF(0));
+  my_free(allocated_mysql_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(slave_load_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
   x_free(opt_bin_logname);
   bitmap_free(&temp_pool);
   free_max_user_conn();
   end_slave_list();
 
-#ifndef __WIN__
+#if !defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
 #endif
-  if (print_message)
+  if (print_message && errmesg)
     sql_print_error(ER(ER_SHUTDOWN_COMPLETE),my_progname);
   x_free((gptr) my_errmsg[ERRMAPP]);	/* Free messages */
-  my_thread_end();
 
   /* Tell main we are ready */
   (void) pthread_mutex_lock(&LOCK_thread_count);
@@ -1202,13 +1206,13 @@ static sig_handler handle_segfault(int sig)
   fprintf(stderr,"\
 mysqld got signal %d;\n\
 This could be because you hit a bug. It is also possible that this binary\n\
-or one of the libraries it was linked agaist is corrupt, improperly built,\n\
+or one of the libraries it was linked against is corrupt, improperly built,\n\
 or misconfigured. This error can also be caused by malfunctioning hardware.\n",
 	  sig);
   fprintf(stderr, "\
 We will try our best to scrape up some info that will hopefully help diagnose\n\
 the problem, but since we have already crashed, something is definitely wrong\n\
-and this may fail\n\n");
+and this may fail.\n\n");
   fprintf(stderr, "key_buffer_size=%ld\n", keybuff_size);
   fprintf(stderr, "record_buffer=%ld\n", my_default_record_cache_size);
   fprintf(stderr, "sort_buffer=%ld\n", sortbuff_size);
@@ -1219,15 +1223,15 @@ and this may fail\n\n");
 key_buffer_size + (record_buffer + sort_buffer)*max_connections = %ld K\n\
 bytes of memory\n", (keybuff_size + (my_default_record_cache_size +
 			     sortbuff_size) * max_connections)/ 1024);
-  fprintf(stderr, "Hope that's ok, if not, decrease some variables in the equation\n\n");
+  fprintf(stderr, "Hope that's ok; if not, decrease some variables in the equation.\n\n");
   
 #if defined(HAVE_LINUXTHREADS)
   if (sizeof(char*) == 4 && thread_count > UNSAFE_DEFAULT_LINUX_THREADS)
   {
     fprintf(stderr, "\
 You seem to be running 32-bit Linux and have %d concurrent connections.\n\
-If you have not changed STACK_SIZE in LinuxThreads and build the binary \n\
-yourself, LinuxThreads is quite likely to steal a part of global heap for\n\
+If you have not changed STACK_SIZE in LinuxThreads and built the binary \n\
+yourself, LinuxThreads is quite likely to steal a part of the global heap for\n\
 the thread stack. Please read http://www.mysql.com/doc/L/i/Linux.html\n\n",
 	    thread_count);
   }
@@ -1251,12 +1255,12 @@ Some pointers may be invalid and cause the dump to abort...\n");
     fprintf(stderr, "\n
 Successfully dumped variables, if you ran with --log, take a look at the\n\
 details of what thread %ld did to cause the crash.  In some cases of really\n\
-bad corruption, the values shown above may be invalid\n\n",
+bad corruption, the values shown above may be invalid.\n\n",
 	  thd->thread_id);
   }
   fprintf(stderr, "\
 The manual page at http://www.mysql.com/doc/C/r/Crashing.html contains\n\
-information that should help you find out what is causing the crash\n");
+information that should help you find out what is causing the crash.\n");
   fflush(stderr);
 #endif /* HAVE_STACKTRACE */
 
@@ -1712,7 +1716,7 @@ int main(int argc, char **argv)
   if (opt_use_ssl)
   {
     ssl_acceptor_fd = new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
-					   opt_ssl_ca, opt_ssl_capath);
+			   opt_ssl_ca, opt_ssl_capath, opt_ssl_cipher);
     DBUG_PRINT("info",("ssl_acceptor_fd: %p",ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
       opt_use_ssl=0;
@@ -1738,7 +1742,7 @@ int main(int argc, char **argv)
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
 
 #if defined( SET_RLIMIT_NOFILE) || defined( OS2)
-  /* connections and databases neads lots of files */
+  /* connections and databases needs lots of files */
   {
     uint wanted_files=10+(uint) max(max_connections*5,
 				    max_connections+table_cache_size*2);
@@ -1788,10 +1792,6 @@ int main(int argc, char **argv)
   init_thr_lock();
   init_slave_list();
   
-  /* Fix varibles that are base 1024*1024 */
-  myisam_max_temp_length= (my_off_t) min(((ulonglong) myisam_max_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
-  myisam_max_extra_temp_length= (my_off_t) min(((ulonglong) myisam_max_extra_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
-
   /* Setup log files */
   if (opt_log)
     open_log(&mysql_log, glob_hostname, opt_logname, ".log", LOG_NORMAL);
@@ -1802,17 +1802,18 @@ int main(int argc, char **argv)
     using_update_log=1;
   }
 
-  //make sure slave thread gets started
-  // if server_id is set, valid master.info is present, and master_host has
-  // not been specified
-  if(server_id && !master_host)
-    {
-      char fname[FN_REFLEN+128];
-      MY_STAT stat_area;
-      fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
-      if(my_stat(fname, &stat_area, MYF(0)) && !init_master_info(&glob_mi))
-        master_host = glob_mi.host;
-    }
+  /*
+    make sure slave thread gets started if server_id is set,
+    valid master.info is present, and master_host has not been specified
+  */
+  if (server_id && !master_host)
+  {
+    char fname[FN_REFLEN+128];
+    MY_STAT stat_area;
+    fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
+    if (my_stat(fname, &stat_area, MYF(0)) && !init_master_info(&glob_mi))
+      master_host = glob_mi.host;
+  }
 
   if (opt_bin_log && !server_id)
   {
@@ -1906,7 +1907,7 @@ The server will not act as a slave.");
     (void) pthread_kill(signal_thread,MYSQL_KILL_SIGNAL);
 #ifndef __WIN__
     if (!opt_bootstrap)
-      (void) my_delete(pidfile_name,MYF(MY_WME));	// Not neaded anymore
+      (void) my_delete(pidfile_name,MYF(MY_WME));	// Not needed anymore
 #endif
     exit(1);
   }
@@ -2046,7 +2047,7 @@ The server will not act as a slave.");
   {
     if(start_mode)
     {
-      if (WaitForSingleObject(hEventShutdown,INFINITE)==WAIT_OBJECT_0)
+      if (WaitForSingleObject(hEventShutdown,1000)==WAIT_TIMEOUT)
         Service.Stop();
     }
     else
@@ -2062,7 +2063,7 @@ The server will not act as a slave.");
   }
 #endif
 #ifdef HAVE_OPENSSL
-  my_free((gptr)ssl_acceptor_fd,MYF(0));
+  my_free((gptr)ssl_acceptor_fd,MYF(MY_ALLOW_ZERO_PTR));
 #endif /* HAVE_OPENSSL */
   /* Wait until cleanup is done */
   (void) pthread_mutex_lock(&LOCK_thread_count);
@@ -2576,10 +2577,9 @@ enum options {
 	       OPT_MASTER_HOST,             OPT_MASTER_USER,
                OPT_MASTER_PASSWORD,         OPT_MASTER_PORT,
                OPT_MASTER_INFO_FILE,        OPT_MASTER_CONNECT_RETRY,
-#ifdef HAVE_OPENSSL
+	       OPT_MASTER_RETRY_COUNT,
 	       OPT_MASTER_SSL,             OPT_MASTER_SSL_KEY,
 	       OPT_MASTER_SSL_CERT,            
-#endif /* HAVE_OPESSSL*/ 
                OPT_SQL_BIN_UPDATE_SAME,     OPT_REPLICATE_DO_DB,      
                OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
                OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
@@ -2610,7 +2610,8 @@ enum options {
                OPT_DO_PSTACK, OPT_REPORT_HOST,
 	       OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
                OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
-               OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE
+               OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
+	       OPT_RPL_RECOVERY_RANK
 };
 
 static struct option long_options[] = {
@@ -2642,9 +2643,8 @@ static struct option long_options[] = {
   {"default-table-type",    required_argument, 0, (int) OPT_TABLE_TYPE},
   {"delay-key-write-for-all-tables",
                             no_argument,       0, (int) OPT_DELAY_KEY_WRITE},
-  {"do-pstack",
-                            no_argument,       0, (int) OPT_DO_PSTACK},
   {"enable-locking",        no_argument,       0, (int) OPT_ENABLE_LOCK},
+  {"enable-pstack",         no_argument,       0, (int) OPT_DO_PSTACK},
   {"exit-info",             optional_argument, 0, 'T'},
   {"flush",                 no_argument,       0, (int) OPT_FLUSH},
 #ifdef HAVE_GEMINI_DB
@@ -2687,12 +2687,11 @@ static struct option long_options[] = {
   {"master-password",       required_argument, 0, (int) OPT_MASTER_PASSWORD},
   {"master-port",           required_argument, 0, (int) OPT_MASTER_PORT},
   {"master-connect-retry",  required_argument, 0, (int) OPT_MASTER_CONNECT_RETRY},
+  {"master-retry-count",    required_argument, 0, (int) OPT_MASTER_RETRY_COUNT},
   {"master-info-file",      required_argument, 0, (int) OPT_MASTER_INFO_FILE},
-#ifdef HAVE_OPENSSL  
   {"master-ssl",      	    optional_argument, 0, (int) OPT_MASTER_SSL},
   {"master-ssl-key",        optional_argument, 0, (int) OPT_MASTER_SSL_KEY},
   {"master-ssl-cert",       optional_argument, 0, (int) OPT_MASTER_SSL_CERT},
-#endif  
   {"myisam-recover",	    optional_argument, 0, (int) OPT_MYISAM_RECOVER},
   {"memlock",		    no_argument,       0, (int) OPT_MEMLOCK},
     // needs to be available for the test case to pass in non-debugging mode
@@ -2737,6 +2736,7 @@ static struct option long_options[] = {
   {"report-user",           required_argument, 0, (int) OPT_REPORT_USER},
   {"report-password",       required_argument, 0, (int) OPT_REPORT_PASSWORD},
   {"report-port",           required_argument, 0, (int) OPT_REPORT_PORT},
+  {"rpl-recovery-rank",     required_argument, 0, (int) OPT_RPL_RECOVERY_RANK},
   {"safe-mode",             no_argument,       0, (int) OPT_SAFE},
   {"safe-show-database",    no_argument,       0, (int) OPT_SAFE_SHOW_DB},
   {"safe-user-create",	    no_argument,       0, (int) OPT_SAFE_USER_CREATE},
@@ -2889,6 +2889,9 @@ CHANGEABLE_VAR changeable_vars[] = {
       ~0L, 1, ~0L, 0, 1 },
   { "myisam_bulk_insert_tree_size", (long*) &myisam_bulk_insert_tree_size,
       8192*1024, 4, ~0L, 0, 1 },
+  { "myisam_block_size", 	(long*) &opt_myisam_block_size,
+      MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH, MI_MAX_KEY_BLOCK_LENGTH,
+    0, MI_MIN_KEY_BLOCK_LENGTH },
   { "myisam_max_extra_sort_file_size",
     (long*) &myisam_max_extra_sort_file_size,
     (long) (MI_MAX_TEMP_LENGTH/(1024L*1024L)), 0, ~0L, 0, 1 },
@@ -3033,6 +3036,7 @@ struct show_var_st init_vars[]= {
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {"record_buffer",           (char*) &my_default_record_cache_size,SHOW_LONG},
   {"record_rnd_buffer",       (char*) &record_rnd_cache_size,	    SHOW_LONG},
+  {"rpl_recovery_rank",       (char*) &rpl_recovery_rank,           SHOW_LONG},
   {"query_buffer_size",       (char*) &query_buff_size,		    SHOW_LONG},
   {"safe_show_database",      (char*) &opt_safe_show_db,            SHOW_BOOL},
   {"server_id",               (char*) &server_id,		    SHOW_LONG},
@@ -3111,21 +3115,29 @@ struct show_var_st status_vars[]= {
   {"Sort_rows",		       (char*) &filesort_rows,	        SHOW_LONG},
   {"Sort_scan",		       (char*) &filesort_scan_count,    SHOW_LONG},
 #ifdef HAVE_OPENSSL
-  {"SSL_CTX_sess_accept",      (char*) 0,  			SHOW_SSL_CTX_SESS_ACCEPT},
-  {"SSL_CTX_sess_accept_good", (char*) 0,  			SHOW_SSL_CTX_SESS_ACCEPT_GOOD},
-  {"SSL_CTX_sess_accept_renegotiate", (char*) 0, 		SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE},
-  {"SSL_CTX_sess_cb_hits",     (char*) 0,			SHOW_SSL_CTX_SESS_CB_HITS},
-  {"SSL_CTX_sess_number",      (char*) 0,			SHOW_SSL_CTX_SESS_NUMBER},
-  {"SSL_CTX_get_session_cache_mode", (char*) 0,			SHOW_SSL_CTX_GET_SESSION_CACHE_MODE},
-  {"SSL_CTX_sess_get_cache_size", (char*) 0,			SHOW_SSL_CTX_SESS_GET_CACHE_SIZE},
-  {"SSL_CTX_get_verify_mode",  (char*) 0,			SHOW_SSL_CTX_GET_VERIFY_MODE},
-  {"SSL_CTX_get_verify_depth", (char*) 0,			SHOW_SSL_CTX_GET_VERIFY_DEPTH},
-  {"SSL_get_verify_mode",      (char*) 0,			SHOW_SSL_GET_VERIFY_MODE},
-  {"SSL_get_verify_depth",     (char*) 0,			SHOW_SSL_GET_VERIFY_DEPTH},
-  {"SSL_session_reused",       (char*) 0,			SHOW_SSL_SESSION_REUSED},
-  {"SSL_get_version",          (char*) 0,  			SHOW_SSL_GET_VERSION},
-  {"SSL_get_cipher",           (char*) 0,  			SHOW_SSL_GET_CIPHER},
-  {"SSL_get_default_timeout",  (char*) 0,  			SHOW_SSL_GET_DEFAULT_TIMEOUT},
+  {"ssl_accepts",              (char*) 0,  			SHOW_SSL_CTX_SESS_ACCEPT},
+  {"ssl_finished_accepts",     (char*) 0,  			SHOW_SSL_CTX_SESS_ACCEPT_GOOD},
+  {"ssl_finished_connects",    (char*) 0,  			SHOW_SSL_CTX_SESS_CONNECT_GOOD},
+  {"ssl_accept_renegotiates",  (char*) 0, 			SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE},
+  {"ssl_connect_renegotiates", (char*) 0, 		        SHOW_SSL_CTX_SESS_CONNECT_RENEGOTIATE},
+  {"ssl_callback_cache_hits",  (char*) 0,			SHOW_SSL_CTX_SESS_CB_HITS},
+  {"ssl_session_cache_hits",   (char*) 0,		 	SHOW_SSL_CTX_SESS_HITS},
+  {"ssl_session_cache_misses", (char*) 0,		 	SHOW_SSL_CTX_SESS_MISSES},
+  {"ssl_session_cache_timeouts", (char*) 0,		 	SHOW_SSL_CTX_SESS_TIMEOUTS},
+  {"ssl_used_session_cache_entries",(char*) 0,			SHOW_SSL_CTX_SESS_NUMBER},
+  {"ssl_client_connects",      (char*) 0,			SHOW_SSL_CTX_SESS_CONNECT},
+  {"ssl_session_cache_overflows", (char*) 0,		 	SHOW_SSL_CTX_SESS_CACHE_FULL},
+  {"ssl_session_cache_size",   (char*) 0,		 	SHOW_SSL_CTX_SESS_GET_CACHE_SIZE},
+  {"ssl_session_cache_mode",   (char*) 0,			SHOW_SSL_CTX_GET_SESSION_CACHE_MODE},
+  {"ssl_sessions_reused",      (char*) 0,			SHOW_SSL_SESSION_REUSED},
+  {"ssl_ctx_verify_mode",      (char*) 0,			SHOW_SSL_CTX_GET_VERIFY_MODE},
+  {"ssl_ctx_verify_depth",     (char*) 0,			SHOW_SSL_CTX_GET_VERIFY_DEPTH},
+  {"ssl_verify_mode",          (char*) 0,			SHOW_SSL_GET_VERIFY_MODE},
+  {"ssl_verify_depth",         (char*) 0,			SHOW_SSL_GET_VERIFY_DEPTH},
+  {"ssl_version",   	       (char*) 0,  			SHOW_SSL_GET_VERSION},
+  {"ssl_cipher",               (char*) 0,  			SHOW_SSL_GET_CIPHER},
+  {"ssl_cipher_list",          (char*) 0,  			SHOW_SSL_GET_CIPHER_LIST},
+  {"ssl_default_timeout",      (char*) 0,  			SHOW_SSL_GET_DEFAULT_TIMEOUT},
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
@@ -3188,6 +3200,7 @@ static void usage(void)
 			Don't flush key buffers between writes for any MyISAM\n\
 			table\n\
   --enable-locking	Enable system locking\n\
+  --enable-pstack	Print a symbolic stack trace on failure\n\
   -T, --exit-info	Used for debugging;  Use at your own risk!\n\
   --flush		Flush tables to disk between SQL commands\n\
   -?, --help		Display this help and exit\n\
@@ -3444,6 +3457,9 @@ static void get_options(int argc,char **argv)
       safemalloc_mem_limit = atoi(optarg);
 #endif      
       break;
+    case OPT_RPL_RECOVERY_RANK:
+      rpl_recovery_rank=atoi(optarg);
+      break;
     case OPT_SLAVE_LOAD_TMPDIR:
       slave_load_tmpdir = my_strdup(optarg, MYF(MY_FAE));
       break;
@@ -3682,7 +3698,7 @@ static void get_options(int argc,char **argv)
       opt_specialflag|= SPECIAL_NO_HOST_CACHE;
       break;
     case (int) OPT_ENABLE_LOCK:
-      my_disable_locking=0;
+      my_disable_locking=myisam_single_user=0;
       break;
     case (int) OPT_USE_LOCKING:
       my_disable_locking=0;
@@ -3764,7 +3780,10 @@ static void get_options(int argc,char **argv)
       break;
 #endif
     case (int) OPT_FLUSH:
-      nisam_flush=myisam_flush=1;
+#ifdef HAVE_ISAM
+      nisam_flush=1;
+#endif
+      myisam_flush=1;
       flush_time=0;			// No auto flush
       break;
     case OPT_LOW_PRIORITY_UPDATES:
@@ -3964,7 +3983,6 @@ static void get_options(int argc,char **argv)
     case OPT_MASTER_PORT:
       master_port= atoi(optarg);
       break;
-#ifdef HAVE_OPENSSL
     case OPT_MASTER_SSL:
       master_ssl=atoi(optarg);
       break;
@@ -3974,7 +3992,6 @@ static void get_options(int argc,char **argv)
     case OPT_MASTER_SSL_CERT:
       master_ssl_cert=optarg;
       break;
-#endif /* HAVE_OPENSSL */
     case OPT_REPORT_HOST:
       report_host=optarg;
       break;
@@ -3989,6 +4006,9 @@ static void get_options(int argc,char **argv)
       break;
     case OPT_MASTER_CONNECT_RETRY:
       master_connect_retry= atoi(optarg);
+      break;
+    case OPT_MASTER_RETRY_COUNT:
+      master_retry_count= atoi(optarg);
       break;
     case OPT_SAFE_SHOW_DB:
       opt_safe_show_db=1;
@@ -4023,6 +4043,12 @@ static void get_options(int argc,char **argv)
   /* To be deleted in MySQL 4.0 */
   if (!record_rnd_cache_size)
     record_rnd_cache_size=my_default_record_cache_size;
+
+  /* Fix variables that are base 1024*1024 */
+  myisam_max_temp_length= (my_off_t) min(((ulonglong) myisam_max_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
+  myisam_max_extra_temp_length= (my_off_t) min(((ulonglong) myisam_max_extra_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
+
+  myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);
 }
 
 
@@ -4282,7 +4308,10 @@ static int get_service_parameters()
     else if ( lstrcmp(szKeyValueName, TEXT("FlushTables")) == 0 )
     {
       CHECK_KEY_TYPE( REG_DWORD, szKeyValueName );
-      nisam_flush = myisam_flush= *lpdwValue ? 1 : 0;
+#ifdef HAVE_NISAM
+      nisam_flush = 1;
+#endif
+      myisam_flush= *lpdwValue ? 1 : 0;
     }
     else if ( lstrcmp(szKeyValueName, TEXT("BackLog")) == 0 )
     {
@@ -4516,12 +4545,34 @@ static char *get_relative_path(const char *path)
 }
 
 
+/*
+  Fix filename and replace extension where 'dir' is relative to
+  mysql_real_data_home.
+  Return 1 if len(path) > FN_REFLEN
+*/
+
+bool
+fn_format_relative_to_data_home(my_string to, const char *name,
+				const char *dir, const char *extension)
+{
+  char tmp_path[FN_REFLEN];
+  if (!test_if_hard_path(dir))
+  {
+    strxnmov(tmp_path,sizeof(tmp_path)-1, mysql_real_data_home,
+	     dir, NullS);
+    dir=tmp_path;
+  }
+  return !fn_format(to, name, dir, extension,
+		    MY_REPLACE_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH);
+}
+
+
 static void fix_paths(void)
 {
   (void) fn_format(mysql_home,mysql_home,"","",16); // Remove symlinks
-  convert_dirname(mysql_home);
-  convert_dirname(mysql_real_data_home);
-  convert_dirname(language);
+  convert_dirname(mysql_home,mysql_home,NullS);
+  convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
+  convert_dirname(language,language,NullS);
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);
   (void) my_load_path(pidfile_name,pidfile_name,mysql_real_data_home);
@@ -4531,7 +4582,7 @@ static void fix_paths(void)
     strmov(buff,sharedir);			/* purecov: tested */
   else
     strxmov(buff,mysql_home,sharedir,NullS);
-  convert_dirname(buff);
+  convert_dirname(buff,buff,NullS);
   (void) my_load_path(language,language,buff);
 
   /* If --character-sets-dir isn't given, use shared library dir */
@@ -4545,19 +4596,16 @@ static void fix_paths(void)
   char *tmp= (char*) my_malloc(FN_REFLEN,MYF(MY_FAE));
   if (tmp)
   {
-    strmov(tmp,mysql_tmpdir);
-    mysql_tmpdir=tmp;
-    convert_dirname(mysql_tmpdir);
-    mysql_tmpdir=(char*) my_realloc(mysql_tmpdir,(uint) strlen(mysql_tmpdir)+1,
+    char *end=convert_dirname(tmp, mysql_tmpdir, NullS);
+
+    mysql_tmpdir=(char*) my_realloc(tmp,(uint) (end-tmp)+1,
 				    MYF(MY_HOLD_ON_ERROR));
+    allocated_mysql_tmpdir=mysql_tmpdir;
   }
   if (!slave_load_tmpdir)
   {
-    int copy_len;
-    slave_load_tmpdir = (char*) my_malloc((copy_len=strlen(mysql_tmpdir) + 1)
-					  ,  MYF(MY_FAE));
     // no need to check return value, if we fail, my_malloc() never returns
-    memcpy(slave_load_tmpdir, mysql_tmpdir, copy_len);
+    slave_load_tmpdir = (char*) my_strdup(mysql_tmpdir, MYF(MY_FAE));
   }
 }
 

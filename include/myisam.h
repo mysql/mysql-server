@@ -46,6 +46,11 @@ extern "C" {
 /* Max extra space to use when sorting keys */
 #define MI_MAX_TEMP_LENGTH	256*1024L*1024L
 
+/* Possible values for myisam_block_size (must be power of 2) */
+#define MI_KEY_BLOCK_LENGTH	1024	/* default key block length */
+#define MI_MIN_KEY_BLOCK_LENGTH	1024	/* Min key block length */
+#define MI_MAX_KEY_BLOCK_LENGTH	16384
+
 #define mi_portable_sizeof_char_ptr 8
 
 typedef uint32 ha_checksum;
@@ -192,7 +197,7 @@ extern uint myisam_block_size;
 extern my_bool myisam_flush,myisam_delay_key_write,myisam_single_user;
 extern my_bool myisam_concurrent_insert;
 extern my_off_t myisam_max_temp_length,myisam_max_extra_temp_length;
-extern uint myisam_bulk_insert_tree_size;
+extern ulong myisam_bulk_insert_tree_size;
 
 	/* Prototypes for myisam-functions */
 
