@@ -112,7 +112,7 @@ BaseString NDBT_ResultRow::c_str() {
 
 
 /**
- * TODO This could chare the sanme printer function as in 
+ * TODO This should share the same printer function as in 
  * NdbEventOperationImpl.cpp, using new types of course :)
  */
 
