@@ -1675,6 +1675,48 @@ handler t3 close|
 drop procedure bug4318|
 drop table t3|
 
+#
+# BUG#4902: Stored procedure with SHOW WARNINGS leads to packet error
+#
+# Added tests for most other show commands we could find too.
+# (Skipping those already tested, and the ones depending on optional handlers.)
+#
+# Note: This will return a large number of results of different formats,
+#       which makes it impossible to filter with --replace_column.
+#       It's possible that some of these are not deterministic across
+#       platforms. If so, just remove the offending command.
+#
+create procedure bug4902()
+begin
+  show binlog events;
+  show charset like 'foo';
+  show collation like 'foo';
+  show column types;
+  show create table t1;
+  show create database test;
+  show databases like 'foo';
+  show errors;
+  show columns from t1;
+  show grants for 'root'@'localhost';
+  show keys from t1;
+  show master status;
+  show open tables like 'foo';
+  show privileges;
+  show processlist;
+  show slave hosts;
+  show slave status;
+  show status like 'foo';
+  show tables like 'foo';
+  show variables like 'foo';
+  show warnings;
+end|
+#show storage engines;
+
+call bug4902()|
+call bug4902()|
+
+drop procedure bug4902|
+
 
 #
 # Some "real" examples
