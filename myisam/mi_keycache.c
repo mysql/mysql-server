@@ -76,7 +76,7 @@ int mi_assign_to_key_cache(MI_INFO *info,
     in the old key cache.
   */
 
-  if (flush_key_blocks(share->key_cache, share->kfile, FLUSH_REMOVE))
+  if (flush_key_blocks(share->key_cache, share->kfile, FLUSH_RELEASE))
   {
     error= my_errno;
     mi_mark_crashed(info);		/* Mark that table must be checked */
@@ -90,7 +90,7 @@ int mi_assign_to_key_cache(MI_INFO *info,
     (This can never fail as there is never any not written data in the
     new key cache)
   */
-  (void) flush_key_blocks(key_cache, share->kfile, FLUSH_REMOVE);
+  (void) flush_key_blocks(key_cache, share->kfile, FLUSH_RELEASE);
 
   /*
     ensure that setting the key cache and changing the multi_key_cache
