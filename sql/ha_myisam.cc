@@ -328,6 +328,86 @@ int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
   return error ? HA_ADMIN_CORRUPT : HA_ADMIN_OK;
 }
 
+int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
+{
+  HA_CHECK_OPT tmp_check_opt;
+  char* backup_dir = thd->lex.backup_dir;
+  char src_path[FN_REFLEN], dst_path[FN_REFLEN];
+  int backup_dir_len = strlen(backup_dir);
+  char* table_name = table->real_name;
+  int table_name_len = strlen(table_name);
+  if(backup_dir_len + table_name_len + 4 >= FN_REFLEN)
+    return HA_ADMIN_INVALID;
+  memcpy(src_path, backup_dir, backup_dir_len);
+  char* p = src_path + backup_dir_len;
+  *p++ = '/';
+  memcpy(p, table_name, table_name_len);
+  p += table_name_len;
+  *p = 0;
+  fn_format(src_path, src_path, "", MI_NAME_DEXT, 4);
+
+  MY_STAT stat_area;
+  int error = 0;
+  char* errmsg = "";
+  
+  
+  if(my_copy(src_path, fn_format(dst_path, table->path, "",
+				 MI_NAME_DEXT, 4), MYF(MY_WME)))
+    {
+      error = HA_ADMIN_FAILED;
+      errmsg = "failed in my_copy( Error %d)";
+      goto err;
+    }
+  
+  tmp_check_opt.init();
+  tmp_check_opt.quick = 1;
+  return repair(thd, &tmp_check_opt);
+  
+ err:
+  {
+      MI_CHECK param;
+      myisamchk_init(&param);
+      param.thd = thd;
+      param.op_name = (char*)"restore";
+      param.table_name = table->table_name;
+      param.testflag = 0;
+      mi_check_print_error(&param,errmsg, errno );
+      return error; 
+  }
+}
+
+int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
+{
+  char* backup_dir = thd->lex.backup_dir;
+  char src_path[FN_REFLEN], dst_path[FN_REFLEN];
+  int backup_dir_len = strlen(backup_dir);
+  char* table_name = table->real_name;
+  int table_name_len = strlen(table_name);
+  if(backup_dir_len + table_name_len + 4 >= FN_REFLEN)
+    return HA_ADMIN_INVALID;
+  memcpy(dst_path, backup_dir, backup_dir_len);
+  char* p = dst_path + backup_dir_len;
+  *p++ = '/';
+  memcpy(p, table_name, table_name_len);
+  p += table_name_len;
+  *p = 0;
+  if(my_copy(fn_format(src_path, table->path,"", reg_ext, 4),
+	     fn_format(dst_path, dst_path, "", reg_ext, 4),
+	     MYF(MY_WME | MY_HOLD_ORIGINAL_MODES )))
+    {
+      return HA_ADMIN_FAILED;
+    }
+
+  *p = 0;
+  *(fn_ext(src_path)) = 0;
+  if(my_copy(fn_format(src_path, src_path,"", MI_NAME_DEXT, 4),
+	     fn_format(dst_path, dst_path, "", MI_NAME_DEXT, 4),
+	     MYF(MY_WME | MY_HOLD_ORIGINAL_MODES ))  )
+    return HA_ADMIN_FAILED;
+
+  return HA_ADMIN_OK;
+}
+
 
 int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
 {

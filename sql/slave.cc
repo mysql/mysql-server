@@ -926,6 +926,8 @@ static void safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
     safe_sleep(thd, mi->connect_retry);
   }
   
+  mysql_log.write(COM_CONNECT_OUT, "%s@%s:%d",  mi->user, mi->host, mi->port);
+  
 }
 
 // will try to connect until successful

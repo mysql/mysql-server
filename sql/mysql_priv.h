@@ -239,6 +239,13 @@ void close_connection(NET *net,uint errcode=0,bool lock=1);
 bool check_access(THD *thd,uint access,const char *db=0,uint *save_priv=0,
 		  bool no_grant=0);
 
+int generate_table(THD *thd, TABLE_LIST *table_list,
+		   TABLE *locked_table);
+
+
+int mysql_backup_table(THD* thd, TABLE_LIST* table_list);
+int mysql_restore_table(THD* thd, TABLE_LIST* table_list);
+
 int mysql_check_table(THD* thd, TABLE_LIST* table_list,
 		      HA_CHECK_OPT* check_opt);
 int mysql_repair_table(THD* thd, TABLE_LIST* table_list,

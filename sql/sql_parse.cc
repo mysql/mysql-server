@@ -60,7 +60,7 @@ const char *command_name[]={
   "Sleep", "Quit", "Init DB", "Query", "Field List", "Create DB",
   "Drop DB", "Refresh", "Shutdown", "Statistics", "Processlist",
   "Connect","Kill","Debug","Ping","Time","Delayed_insert","Change user",
-  "Binlog Dump","Start Slave", "Abort Slave"
+  "Binlog Dump","Table Dump",  "Connect Out"
 };
 
 bool volatile abort_slave = 0;
@@ -927,6 +927,25 @@ mysql_execute_command(void)
 #endif
     break;
   }
+  case SQLCOM_BACKUP_TABLE:
+    {
+      if (check_db_used(thd,tables) ||
+	  check_table_access(thd,SELECT_ACL, tables) ||
+	  check_access(thd, FILE_ACL, any_db))
+	goto error; /* purecov: inspected */
+      res = mysql_backup_table(thd, tables);
+
+      break;
+    }
+  case SQLCOM_RESTORE_TABLE:
+    {
+      if (check_db_used(thd,tables) ||
+	  check_table_access(thd,INSERT_ACL, tables) ||
+	  check_access(thd, FILE_ACL, any_db))
+	goto error; /* purecov: inspected */
+      res = mysql_restore_table(thd, tables);
+      break;
+    }
   case SQLCOM_CHANGE_MASTER:
     {
       if(check_access(thd, PROCESS_ACL, any_db))

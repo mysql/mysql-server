@@ -717,6 +717,78 @@ bool close_cached_table(THD *thd,TABLE *table)
   DBUG_RETURN(result);
 }
 
+static int send_check_errmsg(THD* thd, TABLE_LIST* table,
+			     const char* operator_name, const char* errmsg)
+			     
+{
+  
+  String* packet = &thd->packet;
+  packet->length(0);
+  net_store_data(packet, table->name);
+  net_store_data(packet, (char*)operator_name);
+  net_store_data(packet, "error");
+  net_store_data(packet, errmsg);
+  thd->net.last_error[0]=0;
+  if (my_net_write(&thd->net, (char*) thd->packet.ptr(),
+		   packet->length()))
+    return -1;
+  return 1;
+}
+
+static int prepare_for_restore(THD* thd, TABLE_LIST* table)
+{
+  String *packet = &thd->packet;
+  
+  if(table->table) // do not overwrite existing tables on restore
+    {
+      return send_check_errmsg(thd, table, "restore",
+			       "table exists, will not overwrite on restore"
+			       );
+    }
+  else
+    {
+      char* backup_dir = thd->lex.backup_dir;
+      char src_path[FN_REFLEN], dst_path[FN_REFLEN];
+      int backup_dir_len = strlen(backup_dir);
+      char* table_name = table->name;
+      int table_name_len = strlen(table_name);
+      char* db = thd->db ? thd->db : table->db;
+	
+      if(backup_dir_len + table_name_len + 4 >= FN_REFLEN)
+	return -1; // protect buffer overflow
+	    
+      memcpy(src_path, backup_dir, backup_dir_len);
+      char* p = src_path + backup_dir_len;
+      *p++ = '/';
+      memcpy(p, table_name, table_name_len);
+      p += table_name_len;
+      *p = 0;
+      sprintf(dst_path, "%s/%s/%s", mysql_real_data_home, db, table_name);
+
+      if(my_copy(fn_format(src_path, src_path, "", reg_ext, 4),
+		 fn_format(dst_path, dst_path, "", reg_ext, 4),
+		 MYF(MY_WME)))
+	{
+           return send_check_errmsg(thd, table, "restore",
+				    "Failed copying .frm file");
+	}
+      bool save_no_send_ok = thd->net.no_send_ok;
+      thd->net.no_send_ok = 1;
+      // generate table will try to send OK which messes up the output
+      // for the client
+      
+      if(generate_table(thd, table, 0))
+	{
+	  thd->net.no_send_ok = save_no_send_ok;
+           return send_check_errmsg(thd, table, "restore",
+				    "Failed generating table from .frm file");
+	}
+      
+      thd->net.no_send_ok = save_no_send_ok;
+    }
+	
+  return 0;	
+}
 
 static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 			     HA_CHECK_OPT* check_opt,
@@ -751,7 +823,20 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
     table->table = open_ltable(thd, table, lock_type);
     packet->length(0);
+    if(operator_func == &handler::restore)
+      {
+	switch(prepare_for_restore(thd, table))
+	  {
+	  case 1: continue; // error, message written to net
+	  case -1: goto err; // error, message could be written to net
+	  default: ;// should be 0 otherwise
+	  }
 
+	// now we should be able to open the partially restored table
+	// to finish the restore in the handler later on
+	table->table = open_ltable(thd, table, lock_type);
+      }
+    
     if (!table->table)
     {
       const char *err_msg;
@@ -811,6 +896,11 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
       net_store_data(packet, "Corrupt");
       break;
 
+    case HA_ADMIN_INVALID:
+      net_store_data(packet, "error");
+      net_store_data(packet, "Invalid argument");
+      break;
+
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
       net_store_data(packet, "error");
       net_store_data(packet, "Unknown - internal error during operation");
@@ -829,6 +919,22 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
   DBUG_RETURN(-1);
 }
 
+int mysql_backup_table(THD* thd, TABLE_LIST* table_list)
+{
+  DBUG_ENTER("mysql_backup_table");
+  DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
+				TL_READ, 1,
+				"backup",
+				&handler::backup));
+}
+int mysql_restore_table(THD* thd, TABLE_LIST* table_list)
+{
+  DBUG_ENTER("mysql_restore_table");
+  DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
+				TL_WRITE, 1,
+				"restore",
+				&handler::restore));
+}
 
 int mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
