@@ -44,6 +44,7 @@ int main(int argc, char **argv)
     perror("");
     exit(1);
   }
+  mysql.reconnect= 1;
 
   count = 0;
   num = atoi(argv[2]);

@@ -931,7 +931,7 @@ drop table t1;
 create table t1 (t int not null default 1, key (t)) engine=innodb;
 desc t1;
 Field	Type	Null	Key	Default	Extra
-t	int(11)		MUL	1	
+t	int(11)	NO	MUL	1	
 drop table t1;
 CREATE TABLE t1 (
 number bigint(20) NOT NULL default '0',

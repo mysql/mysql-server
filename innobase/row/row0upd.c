@@ -700,6 +700,7 @@ row_upd_build_sec_rec_difference_binary(
 	upd_t*		update;
 	ulint		n_diff;
 	ulint		i;
+	ulint		offsets_[10]	= { 10, };
 	const ulint*	offsets;
 
 	/* This function is used only for a secondary index */
@@ -708,7 +709,8 @@ row_upd_build_sec_rec_difference_binary(
 	update = upd_create(dtuple_get_n_fields(entry), heap);
 
 	n_diff = 0;
-	offsets = rec_get_offsets(rec, index, ULINT_UNDEFINED, heap);
+	offsets = rec_get_offsets(rec, index, offsets_,
+						ULINT_UNDEFINED, &heap);
 
 	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
 
@@ -775,6 +777,7 @@ row_upd_build_difference_binary(
 	ulint		trx_id_pos;
 	ibool		extern_bit;
 	ulint		i;
+	ulint		offsets_[100]	= { 100, };
 	const ulint*	offsets;
 
 	/* This function is used only for a clustered index */
@@ -787,7 +790,8 @@ row_upd_build_difference_binary(
 	roll_ptr_pos = dict_index_get_sys_col_pos(index, DATA_ROLL_PTR);
 	trx_id_pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
 
-	offsets = rec_get_offsets(rec, index, ULINT_UNDEFINED, heap);
+	offsets = rec_get_offsets(rec, index, offsets_,
+				ULINT_UNDEFINED, &heap);
 
 	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
 
@@ -1182,7 +1186,8 @@ row_upd_store_row(
 	dict_index_t*	clust_index;
 	upd_t*		update;
 	rec_t*		rec;
-	mem_heap_t*	heap;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
 	const ulint*	offsets;
 
 	ut_ad(node->pcur->latch_mode != BTR_NO_LATCHES);
@@ -1196,8 +1201,8 @@ row_upd_store_row(
 
 	rec = btr_pcur_get_rec(node->pcur);
 	
-	heap = mem_heap_create(100);
-	offsets = rec_get_offsets(rec, clust_index, ULINT_UNDEFINED, heap);
+	offsets = rec_get_offsets(rec, clust_index, offsets_,
+						ULINT_UNDEFINED, &heap);
 	node->row = row_build(ROW_COPY_DATA, clust_index, rec, offsets,
 								node->heap);
 	node->ext_vec = mem_heap_alloc(node->heap, sizeof(ulint)
@@ -1210,7 +1215,9 @@ row_upd_store_row(
 	
 	node->n_ext_vec = btr_push_update_extern_fields(node->ext_vec,
 						offsets, update);
-	mem_heap_free(heap);
+	if (heap) {
+		mem_heap_free(heap);
+	}
 }
 
 /***************************************************************
@@ -1263,8 +1270,7 @@ row_upd_sec_index_entry(
 		dtuple_print(stderr, entry);
 		fputs("\n"
 			"InnoDB: record ", stderr);
-		rec_print(stderr, rec,
-			rec_get_offsets(rec, index, ULINT_UNDEFINED, heap));
+		rec_print(stderr, rec, index);
 		putc('\n', stderr);
 
 		trx_print(stderr, trx);
@@ -1364,7 +1370,7 @@ row_upd_clust_rec_by_insert(
 				a foreign key constraint */
 	mtr_t*		mtr)	/* in: mtr; gets committed here */
 {
-	mem_heap_t*	heap;
+	mem_heap_t*	heap	= NULL;
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
 	trx_t*		trx;
@@ -1379,15 +1385,14 @@ row_upd_clust_rec_by_insert(
 	table = node->table;
 	pcur = node->pcur;
 	btr_cur	= btr_pcur_get_btr_cur(pcur);
-	heap = mem_heap_create(500);
 	
 	if (node->state != UPD_NODE_INSERT_CLUSTERED) {
+		ulint	offsets_[100]	= { 100, };
 
 		err = btr_cur_del_mark_set_clust_rec(BTR_NO_LOCKING_FLAG,
 						btr_cur, TRUE, thr, mtr);
 		if (err != DB_SUCCESS) {
 			mtr_commit(mtr);
-			mem_heap_free(heap);
 			return(err);
 		}
 
@@ -1398,8 +1403,8 @@ row_upd_clust_rec_by_insert(
 
 		btr_cur_mark_extern_inherited_fields(btr_cur_get_rec(btr_cur),
 				rec_get_offsets(btr_cur_get_rec(btr_cur),
-				dict_table_get_first_index(table),
-				ULINT_UNDEFINED, heap), node->update, mtr);
+				dict_table_get_first_index(table), offsets_,
+				ULINT_UNDEFINED, &heap), node->update, mtr);
 		if (check_ref) {
 			/* NOTE that the following call loses
 			the position of pcur ! */
@@ -1408,7 +1413,9 @@ row_upd_clust_rec_by_insert(
 							index, thr, mtr);
 			if (err != DB_SUCCESS) {
 				mtr_commit(mtr);
-
+				if (heap) {
+					mem_heap_free(heap);
+				}
 				return(err);
 			}
 		}
@@ -1417,6 +1424,9 @@ row_upd_clust_rec_by_insert(
 
 	mtr_commit(mtr);
 
+	if (!heap) {
+		heap = mem_heap_create(500);
+	}
 	node->state = UPD_NODE_INSERT_CLUSTERED;
 
 	entry = row_build_index_entry(node->row, index, heap);
@@ -1516,17 +1526,20 @@ row_upd_clust_rec(
 	mtr_commit(mtr);
 
 	if (err == DB_SUCCESS && big_rec) {
-		mem_heap_t*	heap;
+		mem_heap_t*	heap		= NULL;
+		ulint		offsets_[100]	= { 100, };
 		rec_t*		rec;
 		mtr_start(mtr);
 
-		heap = mem_heap_create(100);
 		rec = btr_cur_get_rec(btr_cur);
 		ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr));
 		err = btr_store_big_rec_extern_fields(index, rec,
-			rec_get_offsets(rec, index, ULINT_UNDEFINED, heap),
+			rec_get_offsets(rec, index, offsets_,
+				ULINT_UNDEFINED, &heap),
 			big_rec, mtr);
-		mem_heap_free(heap);
+		if (heap) {
+			mem_heap_free(heap);
+		}
 		mtr_commit(mtr);
 	}
 
@@ -1611,7 +1624,8 @@ row_upd_clust_step(
 	mtr_t*		mtr;
 	mtr_t		mtr_buf;
 	rec_t*		rec;
-	mem_heap_t*	heap;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
 	const ulint*	offsets;
 
 	index = dict_table_get_first_index(node->table);
@@ -1670,33 +1684,31 @@ row_upd_clust_step(
 	} 
 
 	rec = btr_pcur_get_rec(pcur);
-	heap = mem_heap_create(100);
-	offsets = rec_get_offsets(rec, index, ULINT_UNDEFINED, heap);
+	offsets = rec_get_offsets(rec, index, offsets_,
+						ULINT_UNDEFINED, &heap);
 
 	if (!node->has_clust_rec_x_lock) {
 		err = lock_clust_rec_modify_check_and_lock(0,
 						rec, index, offsets, thr);
 		if (err != DB_SUCCESS) {
 			mtr_commit(mtr);
-			mem_heap_free(heap);
-			return(err);
+			goto exit_func;
 		}
 	}
 
 	/* NOTE: the following function calls will also commit mtr */
 
 	if (node->is_delete) {
-		mem_heap_free(heap);
 		err = row_upd_del_mark_clust_rec(node, index, thr, check_ref,
 									mtr);
-		if (err != DB_SUCCESS) {
-
-			return(err);
+		if (err == DB_SUCCESS) {
+			node->state = UPD_NODE_UPDATE_ALL_SEC;
+			node->index = dict_table_get_next_index(index);
 		}
-
-		node->state = UPD_NODE_UPDATE_ALL_SEC;
-		node->index = dict_table_get_next_index(index);
-
+	exit_func:
+		if (heap) {
+			mem_heap_free(heap);
+		}
 		return(err);
 	}
 	
@@ -1710,13 +1722,14 @@ row_upd_clust_step(
 					UT_LIST_GET_FIRST(node->columns));
 		row_upd_eval_new_vals(node->update);
 	}
-		
-	mem_heap_free(heap);
 
+	if (heap) {
+		mem_heap_free(heap);
+	}
+		
 	if (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE) {
 
 		err = row_upd_clust_rec(node, index, thr, mtr);
-
 		return(err);
 	}
 	
@@ -1968,7 +1981,8 @@ row_upd_in_place_in_select(
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
 	ulint		err;
-	mem_heap_t*	heap;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[100]	= { 100, };
 
 	ut_ad(sel_node->select_will_do_update);
 	ut_ad(sel_node->latch_mode == BTR_MODIFY_LEAF);
@@ -1984,11 +1998,13 @@ row_upd_in_place_in_select(
 	/* Copy the necessary columns from clust_rec and calculate the new
 	values to set */
 
-	heap = mem_heap_create(100);
 	row_upd_copy_columns(btr_pcur_get_rec(pcur), rec_get_offsets(
-		btr_pcur_get_rec(pcur), btr_cur->index, ULINT_UNDEFINED, heap),
+			btr_pcur_get_rec(pcur), btr_cur->index, offsets_,
+			ULINT_UNDEFINED, &heap),
 		UT_LIST_GET_FIRST(node->columns));
-	mem_heap_free(heap);
+	if (heap) {
+		mem_heap_free(heap);
+	}
 	row_upd_eval_new_vals(node->update);
 
 	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
