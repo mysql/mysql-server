@@ -24779,14 +24779,12 @@ and check the query with @code{EXPLAIN} again. @xref{ALTER TABLE}.
 To see what indexes a table has, use @code{SHOW INDEX FROM tbl_name}.
 
 @item key
-@findex USE INDEX
-@findex IGNORE INDEX
-The @code{key} column indicates the key that MySQL actually
+The @code{key} column indicates the key (index) that MySQL actually
 decided to use. The key is @code{NULL} if no index was chosen.  If
 MySQL chooses the wrong index, you can probably force
 MySQL to use another index by using @code{myisamchk --analyze},
 @xref{myisamchk syntax}, or by using @code{USE INDEX/IGNORE INDEX}.
-@xref{JOIN}.
+@xref{SELECT}.
 
 @item key_len
 The @code{key_len} column indicates the length of the key that
@@ -32809,16 +32807,27 @@ because the column value may not yet be determined when the
 @xref{Problems with alias}.
 
 @item
+@findex AS
+@findex USE INDEX
+@findex IGNORE INDEX
+@findex USE KEY
+@findex IGNORE KEY
 The @code{FROM table_references} clause indicates the tables from which to
 retrieve rows.  If you name more than one table, you are performing a
 join.  For information on join syntax, see @ref{JOIN, , @code{JOIN}}.
-For each table specified, you may optionally specify an alias, as well as
-make a suggestion to the optimiser what index to use or ignore.
-@findex USE INDEX
-@findex IGNORE INDEX
+For each table specified, you may optionally specify an alias.
 @example
 table_name [[AS] alias] [USE INDEX (key_list)] [IGNORE INDEX (key_list)]
 @end example
+As of MySQL Version 3.23.12, you can give hints about which
+index MySQL should use when retrieving information from a
+table. This is useful if @code{EXPLAIN} shows that MySQL is
+using the wrong index.  By specifying @code{USE INDEX (key_list)}, you
+can tell MySQL to use only one of the specified indexes to
+find rows in the table.  The alternative syntax @code{IGNORE INDEX
+(key_list)} can be used to tell MySQL to not use some
+particular index.
+@code{USE/IGNORE KEY} are synonyms for @code{USE/IGNORE INDEX}.
 
 @item
 You can refer to a column as @code{col_name}, @code{tbl_name.col_name}, or
@@ -33108,8 +33117,7 @@ table_reference NATURAL [RIGHT [OUTER]] JOIN table_reference
 @end example
 
 Where @code{table_reference} is defined as:
-@findex USE INDEX
-@findex IGNORE INDEX
+@findex AS
 @example
 table_name [[AS] alias] [USE INDEX (key_list)] [IGNORE INDEX (key_list)]
 @end example
@@ -33215,6 +33223,9 @@ can tell MySQL to use only one of the specified indexes to
 find rows in the table.  The alternative syntax @code{IGNORE INDEX
 (key_list)} can be used to tell MySQL to not use some
 particular index.
+@findex USE KEY
+@findex IGNORE KEY
+@code{USE/IGNORE KEY} are synonyms for @code{USE/IGNORE INDEX}.
 @end itemize
 
 Some examples:
@@ -48492,7 +48503,7 @@ with one table and @code{ORDER BY} and with InnoDB tables.
 @item
 Fixed that @code{SELECT 0 LIMIT 0} doesn't hang thread.
 @item
-Fixed some problems with @code{USE KEYS} / @code{IGNORE KEYS} when using
+Fixed some problems with @code{USE/IGNORE INDEX} when using
 many keys with the same start column.
 @item
 Don't use table scan with BerkeleyDB and InnoDB tables when we can use
@@ -50861,7 +50872,7 @@ Fixed bug in @code{net_clear()} which could give the error @code{Aborted
 connection} in the MySQL clients.
 @item
 Added options @code{USE INDEX (key_list)} and @code{IGNORE INDEX (key_list)} as
-join parameters in @code{SELECT}.
+parameters in @code{SELECT}.
 @item
 @code{DELETE} and @code{RENAME} should now work on @code{RAID} tables.
 @end itemize
