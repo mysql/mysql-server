@@ -4722,11 +4722,9 @@ static void get_options(int argc,char **argv)
   my_disable_locking= myisam_single_user= test(opt_external_locking == 0);
   my_default_record_cache_size=global_system_variables.read_buff_size;
   myisam_max_temp_length=
-    (my_off_t) min(global_system_variables.myisam_max_sort_file_size,
-		   (ulonglong) MAX_FILE_SIZE);
+    (my_off_t) global_system_variables.myisam_max_sort_file_size;
   myisam_max_extra_temp_length= 
-    (my_off_t) min(global_system_variables.myisam_max_extra_sort_file_size,
-		   (ulonglong) MAX_FILE_SIZE);
+    (my_off_t) global_system_variables.myisam_max_extra_sort_file_size;
 
   /* Set global variables based on startup options */
   myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);
