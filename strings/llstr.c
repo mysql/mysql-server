@@ -31,6 +31,6 @@
 
 char *llstr(longlong value,char *buff)
 {
-  longlong2str(value,buff,10);
+  longlong2str(value,buff,-10);
   return buff;
 }
