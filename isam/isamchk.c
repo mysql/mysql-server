@@ -681,7 +681,7 @@ static void get_options(register int *argc, register char ***argv)
   }
   if (default_charset)
   {
-    if (set_default_charset_by_name(default_charset, MYF(MY_WME)))
+    if (!(default_charset_info= get_charset_by_name(default_charset, MYF(MY_WME))))
       exit(1);
   }
   return;
