@@ -453,6 +453,9 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     goto err;
 
   thd->proc_info="preparing";
+
+  select_distinct= select_distinct && (join.const_tables != join.tables);
+
   if (result->initialize_tables(&join))
     goto err;
   if (join.const_table_map != join.found_const_table_map &&
