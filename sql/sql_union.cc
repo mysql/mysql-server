@@ -418,7 +418,7 @@ bool st_select_lex_unit::exec()
       }
       /* re-enabling indexes for next subselect iteration */
       if (union_distinct && table->file->enable_indexes(HA_KEY_SWITCH_ALL))
-        DBUG_ASSERT(TRUE);
+        DBUG_ASSERT(0);
     }
     for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
     {

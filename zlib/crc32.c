@@ -11,6 +11,14 @@
 
 /* @(#) $Id$ */
 
+/*
+  Note on the use of DYNAMIC_CRC_TABLE: there is no mutex or semaphore
+  protection on the static variables used to control the first-use generation
+  of the crc tables.  Therefore, if you #define DYNAMIC_CRC_TABLE, you should
+  first call get_crc_table() to initialize the tables before allowing more than
+  one thread to use crc32().
+ */
+
 #ifdef MAKECRCH
 #  include <stdio.h>
 #  ifndef DYNAMIC_CRC_TABLE
@@ -58,7 +66,7 @@
 
 #ifdef DYNAMIC_CRC_TABLE
 
-local int crc_table_empty = 1;
+local volatile int crc_table_empty = 1;
 local unsigned long FAR crc_table[TBLS][256];
 local void make_crc_table OF((void));
 #ifdef MAKECRCH
@@ -95,38 +103,51 @@ local void make_crc_table()
 {
     unsigned long c;
     int n, k;
-    unsigned long poly;            /* polynomial exclusive-or pattern */
+    unsigned long poly;                 /* polynomial exclusive-or pattern */
     /* terms of polynomial defining this crc (except x^32): */
+    static volatile int first = 1;      /* flag to limit concurrent making */
     static const unsigned char p[] = {0,1,2,4,5,7,8,10,11,12,16,22,23,26};
 
-    /* make exclusive-or pattern from polynomial (0xedb88320UL) */
-    poly = 0UL;
-    for (n = 0; n < sizeof(p)/sizeof(unsigned char); n++)
-        poly |= 1UL << (31 - p[n]);
+    /* See if another task is already doing this (not thread-safe, but better
+       than nothing -- significantly reduces duration of vulnerability in
+       case the advice about DYNAMIC_CRC_TABLE is ignored) */
+    if (first) {
+        first = 0;
 
-    /* generate a crc for every 8-bit value */
-    for (n = 0; n < 256; n++) {
-        c = (unsigned long)n;
-        for (k = 0; k < 8; k++)
-            c = c & 1 ? poly ^ (c >> 1) : c >> 1;
-        crc_table[0][n] = c;
-    }
+        /* make exclusive-or pattern from polynomial (0xedb88320UL) */
+        poly = 0UL;
+        for (n = 0; n < sizeof(p)/sizeof(unsigned char); n++)
+            poly |= 1UL << (31 - p[n]);
+
+        /* generate a crc for every 8-bit value */
+        for (n = 0; n < 256; n++) {
+            c = (unsigned long)n;
+            for (k = 0; k < 8; k++)
+                c = c & 1 ? poly ^ (c >> 1) : c >> 1;
+            crc_table[0][n] = c;
+        }
 
 #ifdef BYFOUR
-    /* generate crc for each value followed by one, two, and three zeros, and
-       then the byte reversal of those as well as the first table */
-    for (n = 0; n < 256; n++) {
-        c = crc_table[0][n];
-        crc_table[4][n] = REV(c);
-        for (k = 1; k < 4; k++) {
-            c = crc_table[0][c & 0xff] ^ (c >> 8);
-            crc_table[k][n] = c;
-            crc_table[k + 4][n] = REV(c);
+        /* generate crc for each value followed by one, two, and three zeros,
+           and then the byte reversal of those as well as the first table */
+        for (n = 0; n < 256; n++) {
+            c = crc_table[0][n];
+            crc_table[4][n] = REV(c);
+            for (k = 1; k < 4; k++) {
+                c = crc_table[0][c & 0xff] ^ (c >> 8);
+                crc_table[k][n] = c;
+                crc_table[k + 4][n] = REV(c);
+            }
         }
-    }
 #endif /* BYFOUR */
 
-  crc_table_empty = 0;
+        crc_table_empty = 0;
+    }
+    else {      /* not first */
+        /* wait for the other guy to finish (not efficient, but rare) */
+        while (crc_table_empty)
+            ;
+    }
 
 #ifdef MAKECRCH
     /* write out CRC tables to crc32.h */
@@ -180,9 +201,10 @@ local void write_table(out, table)
 const unsigned long FAR * ZEXPORT get_crc_table()
 {
 #ifdef DYNAMIC_CRC_TABLE
-  if (crc_table_empty) make_crc_table();
+    if (crc_table_empty)
+        make_crc_table();
 #endif /* DYNAMIC_CRC_TABLE */
-  return (const unsigned long FAR *)crc_table;
+    return (const unsigned long FAR *)crc_table;
 }
 
 /* ========================================================================= */

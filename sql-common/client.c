@@ -405,6 +405,7 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
   char *suffix_pos;
   DWORD error_allow = 0;
   DWORD error_code = 0;
+  DWORD event_access_rights= SYNCHRONIZE | EVENT_MODIFY_STATE;
   char *shared_memory_base_name = mysql->options.shared_memory_base_name;
 
   /*
@@ -416,13 +417,13 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
   */
   suffix_pos = strxmov(tmp,shared_memory_base_name,"_",NullS);
   strmov(suffix_pos, "CONNECT_REQUEST");
-  if (!(event_connect_request= OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)))
+  if (!(event_connect_request= OpenEvent(event_access_rights, FALSE, tmp)))
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_REQUEST_ERROR;
     goto err;
   }
   strmov(suffix_pos, "CONNECT_ANSWER");
-  if (!(event_connect_answer= OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)))
+  if (!(event_connect_answer= OpenEvent(event_access_rights,FALSE,tmp)))
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_ANSWER_ERROR;
     goto err;
@@ -484,35 +485,35 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
   }
 
   strmov(suffix_pos, "SERVER_WROTE");
-  if ((event_server_wrote = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL)
+  if ((event_server_wrote = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
   strmov(suffix_pos, "SERVER_READ");
-  if ((event_server_read = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL)
+  if ((event_server_read = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
   strmov(suffix_pos, "CLIENT_WROTE");
-  if ((event_client_wrote = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL)
+  if ((event_client_wrote = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
   strmov(suffix_pos, "CLIENT_READ");
-  if ((event_client_read = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL)
+  if ((event_client_read = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
 
   strmov(suffix_pos, "CONNECTION_CLOSED");
-  if ((event_conn_closed = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL)
+  if ((event_conn_closed = OpenEvent(event_access_rights,FALSE,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;

@@ -18,8 +18,8 @@
 #include <string.h>
 
 Signal::Signal(){
-  memset(&header, sizeof(header), 0);
-  memset(theData, sizeof(theData), 0);
+  memset(&header, 0, sizeof(header));
+  memset(theData, 0, sizeof(theData));
 }
 
 void
