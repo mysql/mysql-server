@@ -45,13 +45,16 @@ enum enum_server_command
   COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE,
   COM_PREPARE, COM_EXECUTE, COM_LONG_DATA, COM_CLOSE_STMT,
   COM_RESET_STMT, COM_SET_OPTION,
-  COM_END				/* Must be last */
+  /* don't forget to update const char *command_name[] in sql_parse.cc */
+
+  /* Must be last */
+  COM_END
 };
 
 
 /*
   Length of random string sent by server on handshake; this is also length of
-  obfuscated password, recieved from client 
+  obfuscated password, recieved from client
 */
 #define SCRAMBLE_LENGTH 20
 #define SCRAMBLE_LENGTH_323 8
