@@ -495,7 +495,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     extra=ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+
       MI_DYN_DELETE_BLOCK_HEADER;
 
-  tmp_length=max(share->base.pack_reclength,share->base.max_key_length);
+  tmp_length=max(share->base.pack_reclength+share->base.pack_bits,
+                 share->base.max_key_length);
   info.alloced_rec_buff_length=tmp_length;
   if (!(info.rec_alloc=(byte*) my_malloc(tmp_length+extra+8,
 					 MYF(MY_WME | MY_ZEROFILL))))
