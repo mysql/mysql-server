@@ -7,6 +7,7 @@ extra_flags="$pentium_cflags $fast_cflags"
 extra_configs="$pentium_configs"
 strip=yes
 
-extra_configs="$extra_configs --with-innodb --with-berkeley-db"
+extra_configs="$extra_configs --with-innodb --with-berkeley-db \
+ --enable-thread-safe-client"
 
 . "$path/FINISH.sh"
