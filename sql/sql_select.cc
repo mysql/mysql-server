@@ -1164,6 +1164,7 @@ JOIN::exec()
       DBUG_VOID_RETURN;
     }
   }
+  (void) result->prepare2(); // Currently, this cannot fail.
 
   if (!tables_list)
   {                                           // Only test of functions
@@ -4473,16 +4474,9 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		    x = used key parts (1 <= x <= c)
 		  */
 		  double rec_per_key;
-#if 0
-		  if (!(rec_per_key=(double)
-			keyinfo->rec_per_key[keyinfo->key_parts-1]))
-		    rec_per_key=(double) s->records/rec+1;
-#else
                   rec_per_key= keyinfo->rec_per_key[keyinfo->key_parts-1] ?
 		    (double) keyinfo->rec_per_key[keyinfo->key_parts-1] :
 		    (double) s->records/rec+1;   
-#endif
-
 		  if (!s->records)
 		    tmp=0;
 		  else if (rec_per_key/(double) s->records >= 0.01)
@@ -12962,7 +12956,7 @@ static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
   {
     TABLE_LIST *curr= *tbl;
     if (curr->outer_join)
-      str->append(" left join ", 11); // MySQL converg right to left joins
+      str->append(" left join ", 11); // MySQL converts right to left joins
     else if (curr->straight)
       str->append(" straight_join ", 15);
     else
@@ -13156,7 +13150,8 @@ bool JOIN::change_result(select_result *res)
 {
   DBUG_ENTER("JOIN::change_result");
   result= res;
-  if (!procedure && result->prepare(fields_list, select_lex->master_unit()))
+  if (!procedure && (result->prepare(fields_list, select_lex->master_unit()) ||
+                     result->prepare2()))
   {
     DBUG_RETURN(TRUE);
   }

@@ -5787,11 +5787,12 @@ ha_innobase::store_lock(
 	if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
 
     		/* If we are not doing a LOCK TABLE or DISCARD/IMPORT
-		TABLESPACE, then allow multiple writers */
+		TABLESPACE or TRUNCATE TABLE, then allow multiple writers */
 
     		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
 	 	    lock_type <= TL_WRITE) && !thd->in_lock_tables
-		    && !thd->tablespace_op) {
+		    && !thd->tablespace_op
+		    && thd->lex->sql_command != SQLCOM_TRUNCATE) {
 
       			lock_type = TL_WRITE_ALLOW_WRITE;
       		}

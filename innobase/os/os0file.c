@@ -15,6 +15,13 @@ Created 10/21/1995 Heikki Tuuri
 #include "fil0fil.h"
 #include "buf0buf.h"
 
+#if defined(UNIV_HOTBACKUP) && defined(__WIN__)
+/* Add includes for the _stat() call to compile on Windows */
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
+#endif /* UNIV_HOTBACKUP */
+
 #undef HAVE_FDATASYNC
 
 #ifdef POSIX_ASYNC_IO

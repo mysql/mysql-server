@@ -26,7 +26,7 @@ LIBS = @LIBS@ @ZLIB_LIBS@ @openssl_libs@
 
 INCLUDES = @MT_INCLUDES@ \
 	   -I$(top_srcdir)/include $(openssl_includes) @ZLIB_INCLUDES@ \
-		-I$(top_srcdir)/extra
+		-I$(top_builddir)/include
 ## automake barfs if you don't use $(srcdir) or $(top_srcdir) in include
 include $(top_srcdir)/libmysql/Makefile.shared
 

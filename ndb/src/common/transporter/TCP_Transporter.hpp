@@ -49,9 +49,11 @@ private:
 		  int sendBufferSize, int maxReceiveSize,
 		  const char *lHostName,
 		  const char *rHostName, 
-		  int r_port, 
+		  int r_port,
+		  bool isMgmConnection,
 		  NodeId lHostId,
 		  NodeId rHostId,
+		  NodeId serverNodeId,
 		  bool checksum, bool signalId,
 		  Uint32 reportFreq = 4096);
   

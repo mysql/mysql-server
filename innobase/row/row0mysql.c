@@ -2561,17 +2561,6 @@ do not allow the TRUNCATE.  We also reserve the data dictionary latch. */
 		goto funct_exit;
 	}
 
-	if (table->n_mysql_handles_opened > 1) {
-		ut_print_timestamp(stderr);
-fputs("	 InnoDB: Warning: MySQL is trying to truncate table ", stderr);
-		ut_print_name(stderr, trx, table->name);
-		fputs("\n"
-"InnoDB: though there are still open handles to it.\n", stderr);
-		err = DB_ERROR;
-
-		goto funct_exit;
-	}
-
 	/* TODO: could we replace the counter n_foreign_key_checks_running
 	with lock checks on the table? Acquire here an exclusive lock on the
 	table, and rewrite lock0lock.c and the lock wait in srv0srv.c so that
@@ -2594,7 +2583,6 @@ fputs("	 InnoDB: Warning: MySQL is trying to truncate table ", stderr);
 
 	lock_reset_all_on_table(table);
 
-	trx->dict_operation = TRUE;
 	trx->table_id = table->id;
 
 	/* scan SYS_INDEXES for all indexes of the table */
