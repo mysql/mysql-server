@@ -5360,7 +5360,7 @@ static void get_options(int argc,char **argv)
     exit(ho_error);
   }
 
-  if (opt_verbose || opt_help)
+  if (opt_help)
   {
     usage();
     exit(0);
