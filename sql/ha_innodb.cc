@@ -2001,10 +2001,12 @@ build_template(
 		update field->query_id so that the formula
 		thd->query_id == field->query_id did not work. */
 
-		if (templ_type == ROW_MYSQL_REC_FIELDS
-		    && !(fetch_all_in_key
-			 && dict_index_contains_col_or_prefix(index, i))
-		    && thd->query_id != field->query_id) {
+                ibool index_contains_field = dict_index_contains_col_or_prefix(index, i);
+
+		if (templ_type == ROW_MYSQL_REC_FIELDS && 
+                    ((prebuilt->read_just_key && !index_contains_field) ||
+		    (!(fetch_all_in_key && index_contains_field)
+		     && thd->query_id != field->query_id))) {
 
 			/* This field is not needed in the query, skip it */
 

@@ -87,9 +87,15 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   DBUG_PUSH("");		/* No DBUG here */
 #endif
   FILESORT_INFO table_sort;
-  bzero(&table_sort, sizeof(FILESORT_INFO));
+  /* 
+    don't use table->sort in filesort as it is also used by 
+    QUICK_INDEX_MERGE_SELECT. work with a copy of it and put it back at the 
+    end when index_merge select has finished with it.
+  */
+  memcpy(&table_sort, &table->sort, sizeof(FILESORT_INFO));
+  table->sort.io_cache= NULL;
   
-  outfile= table->sort.io_cache;
+  outfile= table_sort.io_cache;
   my_b_clear(&tempfile);
   my_b_clear(&buffpek_pointers);
   buffpek=0;
@@ -261,7 +267,6 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   DBUG_POP();			/* Ok to DBUG */
 #endif
   memcpy(&table->sort, &table_sort, sizeof(FILESORT_INFO));
-  table->sort.io_cache= outfile;
   DBUG_PRINT("exit",("records: %ld",records));
   DBUG_RETURN(error ? HA_POS_ERROR : records);
 } /* filesort */
@@ -445,7 +450,13 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
       file->unlock_row();
   }
   if (quick_select)
+  {
+    /*
+      index_merge quick select uses table->sort when retrieving rows, so free 
+      resoures it has allocated.
+    */
     end_read_record(&read_record_info);
+  }
   else
   {
     (void) file->extra(HA_EXTRA_NO_CACHE);	/* End cacheing of records */

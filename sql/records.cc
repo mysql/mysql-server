@@ -97,8 +97,8 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
       }
     }
   }
-  else if (select && select->quick && 
-           (select->quick->get_type() != QUICK_SELECT_I::QS_TYPE_INDEX_MERGE))
+  else if (select && select->quick)
+           //&& (select->quick->get_type() != QUICK_SELECT_I::QS_TYPE_INDEX_MERGE))
   {
     DBUG_PRINT("info",("using rr_quick"));
     info->read_record=rr_quick;

@@ -187,6 +187,7 @@ class ha_innobase: public handler
 	void init_table_handle_for_HANDLER(); 
 	longlong get_auto_increment();
         uint8 table_cache_type() { return HA_CACHE_TBL_ASKTRANSACT; }
+        bool primary_key_is_clustered_covering() { return true; }
 };
 
 extern bool innodb_skip;
