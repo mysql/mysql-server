@@ -2754,7 +2754,14 @@ String *Item_func_uuid::val_str(String *str)
     tv++;
   }
   else
-    nanoseq=0;
+  {
+    if (nanoseq)
+    {
+      tv-=nanoseq;
+      nanoseq=0;
+    }
+    DBUG_ASSERT(tv > uuid_time);
+  }
   uuid_time=tv;
   pthread_mutex_unlock(&LOCK_uuid_generator);
 
