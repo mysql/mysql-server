@@ -697,15 +697,19 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
     pretty_print_char(file, sql_ex.escaped);
   }
      
+  bool line_lexem_added= false;
   if(!(sql_ex.empty_flags & LINE_TERM_EMPTY))
   {
     fprintf(file," LINES TERMINATED BY ");
     pretty_print_char(file, sql_ex.line_term);
+    line_lexem_added= true;
   }
 
   if(!(sql_ex.empty_flags & LINE_START_EMPTY))
   {
-    fprintf(file," LINES STARTING BY ");
+    if (!line_lexem_added)
+      fprintf(file," LINES");
+    fprintf(file," STARTING BY ");
     pretty_print_char(file, sql_ex.line_start);
   }
      
