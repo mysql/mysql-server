@@ -16,3 +16,11 @@ select elt(2,1),field(NULL,"a","b","c");
 select find_in_set("","a,b,c"),find_in_set("","a,b,c,"),find_in_set("",",a,b,c");
 select find_in_set("abc","abc"),find_in_set("ab","abc"),find_in_set("abcd","abc");
 select interval(null, 1, 10, 100);
+
+#
+# Bug4340: find_in_set is case insensitive even on binary operators
+#
+
+select find_in_set(binary 'a',binary 'A,B,C');
+select find_in_set('a',binary 'A,B,C');
+select find_in_set(binary 'a', 'A,B,C');

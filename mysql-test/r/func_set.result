@@ -28,3 +28,12 @@ find_in_set("abc","abc")	find_in_set("ab","abc")	find_in_set("abcd","abc")
 select interval(null, 1, 10, 100);
 interval(null, 1, 10, 100)
 -1
+select find_in_set(binary 'a',binary 'A,B,C');
+find_in_set(binary 'a',binary 'A,B,C')
+0
+select find_in_set('a',binary 'A,B,C');
+find_in_set('a',binary 'A,B,C')
+0
+select find_in_set(binary 'a', 'A,B,C');
+find_in_set(binary 'a', 'A,B,C')
+0
