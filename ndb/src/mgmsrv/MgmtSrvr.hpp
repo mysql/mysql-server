@@ -517,6 +517,8 @@ public:
    */
   int getPort() const;
 
+  int setDbParameter(int node, int parameter, const char * value, BaseString&);
+  
   //**************************************************************************
 private:
   //**************************************************************************

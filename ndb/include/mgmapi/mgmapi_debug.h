@@ -106,6 +106,31 @@ extern "C" {
 			 struct ndb_mgm_reply* reply);
     
 
+  /**
+   *
+   * @param handle the NDB management handle.
+   * @param nodeId the node id. 0 = all db nodes
+   * @param errrorCode the errorCode.
+   * @param reply the reply message.
+   * @return 0 if successful or an error code.
+   */
+  int ndb_mgm_set_int_parameter(NdbMgmHandle handle,
+				int node, 
+				int param,
+				unsigned value,
+				struct ndb_mgm_reply* reply);
+  
+  int ndb_mgm_set_int64_parameter(NdbMgmHandle handle,
+				  int node, 
+				  int param,
+				  unsigned long long value,
+				  struct ndb_mgm_reply* reply);
+
+  int ndb_mgm_set_string_parameter(NdbMgmHandle handle,
+				   int node, 
+				   int param,
+				   const char * value,
+				   struct ndb_mgm_reply* reply);
 #ifdef __cplusplus
 }
 #endif
