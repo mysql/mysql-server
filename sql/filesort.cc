@@ -1128,7 +1128,7 @@ get_addon_fields(THD *thd, Field **ptabfield, uint sortlength, uint *plength)
      The fact is the filter 'field->query_id != thd->query_id'
      doesn't work for alter table
   */
-  if (thd->lex.sql_command != SQLCOM_SELECT)
+  if (thd->lex->sql_command != SQLCOM_SELECT)
     return 0;
   for (pfield= ptabfield; (field= *pfield) ; pfield++)
   {

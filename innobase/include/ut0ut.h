@@ -19,14 +19,47 @@ typedef time_t	ib_time_t;
 
 
 /************************************************************
-Uses vsprintf to emulate sprintf so that the function always returns
-the printed length. Apparently in some old SCO Unixes sprintf did not
-return the printed length but a pointer to the end of the printed string. */
+On the 64-bit Windows we substitute the format string
+%l -> %I64
+because we define ulint as unsigned __int64 and lint as __int64 on Windows,
+and both the Microsoft and Intel C compilers require the format string
+%I64 in that case instead of %l. */
 
-ulint
+int
+ut_printf(
+/*======*/
+			     /* out: the number of characters written, or
+			     negative in case of an error */
+        const char* format,  /* in: format of prints */
+        ...);                /* in: arguments to be printed */
+/************************************************************
+On the 64-bit Windows we substitute the format string
+%l -> %I64
+because we define ulint as unsigned __int64 and lint as __int64 on Windows,
+and both the Microsoft and Intel C compilers require the format string
+%I64 in that case instead of %l. */
+
+int
 ut_sprintf(
 /*=======*/
-        char*       buf,     /* in/out: buffer where to print */
+			     /* out: the number of characters written, or
+			     negative in case of an error */
+	char*	    buf,     /* in: buffer where to print */
+        const char* format,  /* in: format of prints */
+        ...);                /* in: arguments to be printed */
+/************************************************************
+On the 64-bit Windows we substitute the format string
+%l -> %I64
+because we define ulint as unsigned __int64 and lint as __int64 on Windows,
+and both the Microsoft and Intel C compilers require the format string
+%I64 in that case instead of %l. */
+
+int
+ut_fprintf(
+/*=======*/
+			     /* out: the number of characters written, or
+			     negative in case of an error */
+	FILE*	    stream,  /* in: stream where to print */
         const char* format,  /* in: format of prints */
         ...);                /* in: arguments to be printed */
 /************************************************************

@@ -28,7 +28,7 @@
 #define MYSQL_YACC
 #define YYINITDEPTH 100
 #define YYMAXDEPTH 3200				/* Because of 64K stack */
-#define Lex (&(YYTHD->lex))
+#define Lex (YYTHD->lex)
 #define Select Lex->current_select
 #include "mysql_priv.h"
 #include "slave.h"
@@ -733,14 +733,14 @@ query:
 	{
 	   THD *thd= YYTHD;
 	   if (!thd->bootstrap &&
-	      (!(thd->lex.select_lex.options & OPTION_FOUND_COMMENT)))
+	      (!(thd->lex->select_lex.options & OPTION_FOUND_COMMENT)))
 	   {
 	     send_error(thd,ER_EMPTY_QUERY);
 	     YYABORT;
 	   }
 	   else
 	   {
-	     thd->lex.sql_command = SQLCOM_EMPTY_QUERY;
+	     thd->lex->sql_command= SQLCOM_EMPTY_QUERY;
 	   }
 	}
 	| verb_clause END_OF_INPUT {};
@@ -1658,7 +1658,7 @@ alter:
 	ALTER opt_ignore TABLE_SYM table_ident
 	{
 	  THD *thd= YYTHD;
-	  LEX *lex=&thd->lex;
+	  LEX *lex= thd->lex;
 	  lex->sql_command = SQLCOM_ALTER_TABLE;
 	  lex->name=0;
 	  if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
@@ -2255,7 +2255,7 @@ select_item_list:
 	    THD *thd= YYTHD;
 	    if (add_item_to_list(thd, new Item_field(NULL, NULL, "*")))
 	      YYABORT;
-	    (thd->lex.current_select->with_wild)++;
+	    (thd->lex->current_select->with_wild)++;
 	  };
 
 
@@ -4053,8 +4053,8 @@ show_param:
 	| opt_var_type VARIABLES wild
 	  {
 	    THD *thd= YYTHD;
-	    thd->lex.sql_command= SQLCOM_SHOW_VARIABLES;
-	    thd->lex.option_type= (enum_var_type) $1;
+	    thd->lex->sql_command= SQLCOM_SHOW_VARIABLES;
+	    thd->lex->option_type= (enum_var_type) $1;
 	  }
 	| charset wild
 	  { Lex->sql_command= SQLCOM_SHOW_CHARSETS; }
@@ -4491,7 +4491,7 @@ simple_ident:
 	| ident '.' ident
 	{
 	  THD *thd= YYTHD;
-	  LEX *lex= &thd->lex;
+	  LEX *lex= thd->lex;
 	  SELECT_LEX *sel= lex->current_select;
 	  if (sel->no_table_names_allowed)
 	  {
@@ -4507,7 +4507,7 @@ simple_ident:
 	| '.' ident '.' ident
 	{
 	  THD *thd= YYTHD;
-	  LEX *lex= &thd->lex;
+	  LEX *lex= thd->lex;
 	  SELECT_LEX *sel= lex->current_select;
 	  if (sel->no_table_names_allowed)
 	  {
@@ -4523,7 +4523,7 @@ simple_ident:
 	| ident '.' ident '.' ident
 	{
 	  THD *thd= YYTHD;
-	  LEX *lex= &thd->lex;
+	  LEX *lex= thd->lex;
 	  SELECT_LEX *sel= lex->current_select;
 	  if (sel->no_table_names_allowed)
 	  {
@@ -4930,7 +4930,7 @@ option_value:
 	      YYABORT;
 	    user->host.str=0;
 	    user->user.str=thd->priv_user;
-	    thd->lex.var_list.push_back(new set_var_password(user, $3));
+	    thd->lex->var_list.push_back(new set_var_password(user, $3));
 	  }
 	| PASSWORD FOR_SYM user equal text_or_password
 	  {
@@ -5478,7 +5478,7 @@ optional_order_or_limit:
 	|
 	  {
 	    THD *thd= YYTHD;
-	    LEX *lex= &thd->lex;
+	    LEX *lex= thd->lex;
 	    DBUG_ASSERT(lex->current_select->linkage != GLOBAL_OPTIONS_TYPE);
 	    SELECT_LEX *sel= lex->current_select;
 	    SELECT_LEX_UNIT *unit= sel->master_unit();
@@ -5494,7 +5494,7 @@ optional_order_or_limit:
 	order_or_limit
           {
 	    THD *thd= YYTHD;
-	    thd->lex.current_select->no_table_names_allowed= 0;
+	    thd->lex->current_select->no_table_names_allowed= 0;
 	    thd->where= "";
           }
 	;

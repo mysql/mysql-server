@@ -537,7 +537,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 		 List<List_item> &values, List<Item> &update_fields,
 		 List<Item> &update_values, enum_duplicates flag);
 void kill_delayed_threads(void);
-int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, ORDER *order,
+int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, SQL_LIST *order,
                  ha_rows rows, ulong options);
 int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok=0);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);
@@ -1036,22 +1036,22 @@ SQL_CRYPT *get_crypt_for_frm(void);
 
 inline bool add_item_to_list(THD *thd, Item *item)
 {
-  return thd->lex.current_select->add_item_to_list(thd, item);
+  return thd->lex->current_select->add_item_to_list(thd, item);
 }
 
 inline bool add_value_to_list(THD *thd, Item *value)
 {
-  return thd->lex.value_list.push_back(value);
+  return thd->lex->value_list.push_back(value);
 }
 
 inline bool add_order_to_list(THD *thd, Item *item, bool asc)
 {
-  return thd->lex.current_select->add_order_to_list(thd, item, asc);
+  return thd->lex->current_select->add_order_to_list(thd, item, asc);
 }
 
 inline bool add_group_to_list(THD *thd, Item *item, bool asc)
 {
-  return thd->lex.current_select->add_group_to_list(thd, item, asc);
+  return thd->lex->current_select->add_group_to_list(thd, item, asc);
 }
 
 inline void mark_as_null_row(TABLE *table)
