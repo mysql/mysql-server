@@ -65,7 +65,7 @@ nh =		global.h config-win32.h dbug.h errmsg.h global.h \
 		m_ctype.h m_string.h \
 		my_alarm.h my_config.h my_dir.h my_list.h my_net.h my_sys.h \
 		mysql.h mysql_com.h mysql_version.h mysqld_error.h mysys_err.h \
-		my_pthread.h thr_alarm.h violite.h
+		my_pthread.h thr_alarm.h violite.h hash.h
 # Get a list of the needed objects  
 lobjs = $(mysysobjects1) $(dbugobjects) $(mystringsobjects)
 

@@ -8,4 +8,4 @@ insert into emails values ('sasha@mysql.com'),('monty@mysql.com'),
 create table domain(id int not null auto_increment primary key,
  domain varchar(50), unique(domain));
 insert into domain (domain) select distinct substring(email, locate('@', email)+1) from emails;
-@r/3.23/ins000001.result select * from domain;
+@r/ins000001.result select * from domain;
