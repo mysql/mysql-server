@@ -18,11 +18,12 @@
 #pragma implementation        // gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include <mysql_priv.h>
+
+#ifdef HAVE_EXAMPLE_DB
 #include "ha_example.h"
 
 /* Variables for example share methods */
-extern pthread_mutex_t LOCK_mysql_create_db;
 pthread_mutex_t example_mutex;
 static HASH example_open_tables;
 static int example_init= 0;
@@ -62,7 +63,8 @@ static EXAMPLE_SHARE *get_share(const char *table_name, TABLE *table)
 
   if (!(share=(EXAMPLE_SHARE*) hash_search(&example_open_tables,
                                            (byte*) table_name,
-                                           length))){
+                                           length)))
+  {
     if (!(share=(EXAMPLE_SHARE *)
           my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
                           &share, sizeof(*share),
@@ -81,9 +83,6 @@ static EXAMPLE_SHARE *get_share(const char *table_name, TABLE *table)
       goto error;
     thr_lock_init(&share->lock);
     pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST);
-
-    if (get_mmap(share, 0) > 0)
-      goto error2;
   }
   share->use_count++;
   pthread_mutex_unlock(&example_mutex);
@@ -224,7 +223,7 @@ void ha_example::position(const byte *record)
 int ha_example::rnd_pos(byte * buf, byte *pos)
 {
   DBUG_ENTER("ha_example::rnd_pos");
-  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED));
+  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
 }
 
 void ha_example::info(uint flag)
@@ -271,7 +270,8 @@ THR_LOCK_DATA **ha_example::store_lock(THD *thd,
 int ha_example::delete_table(const char *name)
 {
   DBUG_ENTER("ha_example::delete_table");
-  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
+  /* This is not implemented but we want someone to be able that it works. */
+  DBUG_RETURN(0);
 }
 
 int ha_example::rename_table(const char * from, const char * to)
@@ -287,12 +287,14 @@ ha_rows ha_example::records_in_range(int inx,
                                      enum ha_rkey_function end_search_flag)
 {
   DBUG_ENTER("ha_example::records_in_range ");
-  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
+  DBUG_RETURN(records); // HA_ERR_NOT_IMPLEMENTED 
 }
 
 
 int ha_example::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("ha_example::create");
-  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
+  /* This is not implemented but we want someone to be able that it works. */
+  DBUG_RETURN(0);
 }
+#endif /* HAVE_EXAMPLE_DB */

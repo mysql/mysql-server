@@ -132,7 +132,7 @@ enum db_type { DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
 	       DB_TYPE_RMS_ISAM, DB_TYPE_HEAP, DB_TYPE_ISAM,
 	       DB_TYPE_MRG_ISAM, DB_TYPE_MYISAM, DB_TYPE_MRG_MYISAM,
 	       DB_TYPE_BERKELEY_DB, DB_TYPE_INNODB, DB_TYPE_GEMINI,
-	       DB_TYPE_DEFAULT };
+	       DB_TYPE_EXAMPLE_DB, DB_TYPE_DEFAULT };
 
 struct show_table_type_st {
   const char *type;
