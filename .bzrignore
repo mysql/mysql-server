@@ -248,3 +248,5 @@ innobase/ib_config.h
 innobase/ib_config.h.in
 mysql.proj
 client/mysqlcheck
+Logs/*
+binary/*
