@@ -2841,83 +2841,7 @@ then
   CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS)"
 fi
 
-ndbbindir_root="\$(prefix)"
-ndbbindir="\$(ndbbindir_root)/ndb/bin"
-AC_SUBST(ndbbindir_root)
-AC_SUBST(ndbbindir)
-ndbtoolsdir_root="\$(prefix)"
-ndbtoolsdir="\$(ndbtoolsdir_root)/ndb/tools"
-AC_SUBST(ndbtoolsdir_root)
-AC_SUBST(ndbtoolsdir)
-ndblibdir_root="\$(prefix)"
-ndblibdir="\$(ndblibdir_root)/ndb/lib"
-AC_SUBST(ndblibdir_root)
-AC_SUBST(ndblibdir)
-ndbtestdir_root="\$(prefix)"
-ndbtestdir="\$(ndbtestdir_root)/ndb/test"
-AC_SUBST(ndbtestdir_root)
-AC_SUBST(ndbtestdir)
-ndbincludedir_root="\$(prefix)"
-ndbincludedir="\$(ndbincludedir_root)/ndb/include"
-AC_SUBST(ndbincludedir_root)
-AC_SUBST(ndbincludedir)
-ndbapiincludedir_root="\$(prefix)"
-ndbapiincludedir="\$(ndbapiincludedir_root)/ndb/include/ndbapi"
-AC_SUBST(ndbapiincludedir_root)
-AC_SUBST(ndbapiincludedir)
-mgmapiincludedir_root="\$(prefix)"
-mgmapiincludedir="\$(mgmapiincludedir_root)/ndb/include/mgmapi"
-AC_SUBST(mgmapiincludedir_root)
-AC_SUBST(mgmapiincludedir)
-
-  NDB_UTIL_INCLUDES="-I\$(srcdir) -I\$(top_srcdir)/include -I\$(top_srcdir)/ndb/include \
-        -I\$(top_srcdir)/ndb/include/util \
-        -I\$(top_srcdir)/ndb/include/portlib \
-        -I\$(top_srcdir)/ndb/include/logger"
-  NDB_KERNEL_INCLUDES="\
-        -I\$(srcdir) -I\$(top_srcdir)/include -I\$(top_srcdir)/ndb/include \
-        -I\$(top_srcdir)/ndb/src/kernel/vm \
-        -I\$(top_srcdir)/ndb/src/kernel/error \
-	-I\$(top_srcdir)/ndb/src/kernel \
-	-I\$(top_srcdir)/ndb/include/kernel \
-	-I\$(top_srcdir)/ndb/include/transporter \
-	-I\$(top_srcdir)/ndb/include/debugger \
-	-I\$(top_srcdir)/ndb/include/mgmapi \
-	-I\$(top_srcdir)/ndb/include/mgmcommon \
-        -I\$(top_srcdir)/ndb/include/ndbapi \
-        -I\$(top_srcdir)/ndb/include/util \
-	-I\$(top_srcdir)/ndb/include/portlib \
-	-I\$(top_srcdir)/ndb/include/logger"
-  NDB_NDBAPI_INCLUDES="\
-        -I\$(srcdir) -I\$(top_srcdir)/include -I\$(top_srcdir)/ndb/include \
-	-I\$(top_srcdir)/ndb/include/kernel \
-	-I\$(top_srcdir)/ndb/include/transporter \
-	-I\$(top_srcdir)/ndb/include/debugger \
-	-I\$(top_srcdir)/ndb/include/mgmapi \
-	-I\$(top_srcdir)/ndb/include/mgmcommon \
-        -I\$(top_srcdir)/ndb/include/ndbapi \
-        -I\$(top_srcdir)/ndb/include/util \
-	-I\$(top_srcdir)/ndb/include/portlib \
-	-I\$(top_srcdir)/ndb/include/logger"
-  NDB_NDBAPITEST_INCLUDES="\
-        -I\$(srcdir) -I\$(top_srcdir)/include -I\$(top_srcdir)/ndb/include \
-        -I\$(top_srcdir)/ndb/include/ndbapi \
-        -I\$(top_srcdir)/ndb/include/util \
-	-I\$(top_srcdir)/ndb/include/portlib \
-	-I\$(top_srcdir)/ndb/test/include \
-	-I\$(top_srcdir)/ndb/include/mgmapi"
-  NDB_NDBAPICLIENT_INCLUDES="-I\$(top_srcdir)/ndb/include/ndbapi"
-  NDB_MGMAPICLIENT_INCLUDES="-I\$(top_srcdir)/ndb/include/mgmapi"
-
-  AC_SUBST(NDB_DEFS)
-  AC_SUBST(NDB_UTIL_INCLUDES)
-
-  AC_SUBST(NDB_UTIL_INCLUDES)
-  AC_SUBST(NDB_KERNEL_INCLUDES)
-  AC_SUBST(NDB_NDBAPI_INCLUDES)
-  AC_SUBST(NDB_NDBAPITEST_INCLUDES)
-  AC_SUBST(NDB_NDBAPICLIENT_INCLUDES)
-  AC_SUBST(NDB_MGMAPICLIENT_INCLUDES)
+AC_SUBST([NDB_DEFS])
 
 ndb_transporter_opt_objs=""
 if test X"$have_ndb_shm" = Xyes
@@ -2928,24 +2852,23 @@ if test X"$have_ndb_sci" = Xyes
 then
   ndb_transporter_opt_objs="$(ndb_transporter_opt_objs) SCI_Transporter.lo"
 fi
-AC_SUBST(ndb_transporter_opt_objs)
+AC_SUBST([ndb_transporter_opt_objs])
 
-  #NDB_TYPE_COMMON="include \$(top_srcdir)/ndb/config/common.mk.am"
-  #NDB_TYPE_NDBAPI="include \$(top_srcdir)/ndb/config/type_ndbapi.mk.am"
-  #NDB_TYPE_NDBAPI="include \$(top_srcdir)/ndb/config/type_ndbapitest.mk.am"
-  #NDB_TYPE_KERNEL="include \$(top_srcdir)/ndb/config/type_kernel.mk.am"
-  #NDB_TYPE_UTIL="include \$(top_srcdir)/ndb/config/type_util.mk.am"
-  #AC_SUBST(NDB_TYPE_COMMON)
-  #AC_SUBST(NDB_TYPE_NDBAPI)
-  #AC_SUBST(NDB_TYPE_NDBAPITEST)
-  #AC_SUBST(NDB_TYPE_KERNEL)
-  #AC_SUBST(NDB_TYPE_UTIL)
+ndb_bin_am_ldflags="-static"
+if test X"$have_ndb_test" = Xyes
+then
+  ndb_opt_test_subdirs="tools ndbapi run-test"
+  ndb_bin_am_ldflags=""
+fi
+AC_SUBST([ndb_bin_am_ldflags])
+AC_SUBST([ndb_opt_test_subdirs])
 
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
 AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
-   ndb/Makefile ndb/src/Makefile ndb/src/common/Makefile dnl
+   ndb/Makefile ndb/include/Makefile dnl
+   ndb/src/Makefile ndb/src/common/Makefile dnl
    ndb/tools/Makefile dnl
    ndb/src/common/debugger/Makefile ndb/src/common/debugger/signaldata/Makefile dnl
    ndb/src/common/portlib/Makefile ndb/src/common/portlib/unix/Makefile dnl
@@ -2975,7 +2898,6 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
    ndb/src/kernel/blocks/grep/Makefile dnl
    ndb/src/kernel/blocks/dbtux/Makefile dnl
    ndb/src/kernel/vm/Makefile dnl
-   ndb/src/kernel/ndb-main/Makefile dnl
    ndb/src/mgmapi/Makefile dnl
    ndb/src/ndbapi/Makefile dnl
    ndb/src/mgmsrv/Makefile dnl
