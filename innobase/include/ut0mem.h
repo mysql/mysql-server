@@ -50,6 +50,16 @@ ut_malloc(
 	                /* out, own: allocated memory */
         ulint   n);     /* in: number of bytes to allocate */
 /**************************************************************************
+Tests if malloc of n bytes would succeed. ut_malloc() asserts if memory runs
+out. It cannot be used if we want to return an error message. Prints to
+stderr a message if fails. */
+
+ibool
+ut_test_malloc(
+/*===========*/
+			/* out: TRUE if succeeded */
+	ulint	n);	/* in: try to allocate this many bytes */
+/**************************************************************************
 Frees a memory bloock allocated with ut_malloc. */
 
 void
