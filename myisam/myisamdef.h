@@ -295,6 +295,7 @@ typedef struct st_mi_sort_param
   uint maxbuffers, keys, find_length, sort_keys_length;
   my_bool fix_datafile, master;
   MI_KEYDEF *keyinfo;
+  HA_KEYSEG *seg;
   SORT_INFO *sort_info;
   uchar **sort_keys;
   byte *rec_buff;
