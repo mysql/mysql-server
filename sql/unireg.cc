@@ -29,7 +29,6 @@
 #include <m_ctype.h>
 
 #define FCOMP			17		/* Bytes for a packed field */
-#define FCOMP			17		/* Bytes for a packed field */
 
 static uchar * pack_screens(List<create_field> &create_fields,
 			    uint *info_length, uint *screens, bool small_file);
@@ -633,6 +632,7 @@ static bool make_empty_rec(File file,enum db_type table_type,
     DBUG_RETURN(1);
   }
 
+  table.in_use= current_thd;
   table.db_low_byte_first= handler->low_byte_first();
   table.blob_ptr_size=portable_sizeof_char_ptr;
 

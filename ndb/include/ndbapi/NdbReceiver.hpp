@@ -56,6 +56,10 @@ private:
   void* m_owner;
 };
 
+#ifdef NDB_NO_DROPPED_SIGNAL
+#include <stdlib.h>
+#endif
+
 inline
 bool 
 NdbReceiver::checkMagicNumber() const {

@@ -19,9 +19,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "read0types.h"
 #include "hash0hash.h"
 
-#ifdef UNIV_DEBUG
 extern ibool	lock_print_waits;
-#endif /* UNIV_DEBUG */
 /* Buffer for storing information about the most recent deadlock error */
 extern FILE*	lock_latest_err_file;
 
@@ -420,7 +418,8 @@ lock_release_off_kernel(
 /*====================*/
 	trx_t*	trx);	/* in: transaction */
 /*************************************************************************
-Releases table locks, and releases possible other transactions waiting
+Releases table locks explicitly requested with LOCK TABLES (indicated by
+lock type LOCK_TABLE_EXP), and releases possible other transactions waiting
 because of these locks. */
 
 void
@@ -475,7 +474,6 @@ lock_check_trx_id_sanity(
 	dict_index_t*	index,		/* in: clustered index */
 	ibool		has_kernel_mutex);/* in: TRUE if the caller owns the
 					kernel mutex */
-#ifdef UNIV_DEBUG
 /*************************************************************************
 Validates the lock queue on a single record. */
 
@@ -485,7 +483,6 @@ lock_rec_queue_validate(
 				/* out: TRUE if ok */
 	rec_t*		rec,	/* in: record to look at */
 	dict_index_t*	index);	/* in: index, or NULL if not known */
-#endif /* UNIV_DEBUG */
 /*************************************************************************
 Prints info of a table lock. */
 
@@ -509,7 +506,6 @@ void
 lock_print_info(
 /*============*/
 	FILE*	file);	/* in: file where to print */
-#ifdef UNIV_DEBUG
 /*************************************************************************
 Validates the lock queue on a table. */
 
@@ -534,7 +530,6 @@ ibool
 lock_validate(void);
 /*===============*/
 			/* out: TRUE if ok */
-#endif /* UNIV_DEBUG */
 
 /* The lock system */
 extern lock_sys_t*	lock_sys;
@@ -554,7 +549,7 @@ extern lock_sys_t*	lock_sys;
 /* Lock types */
 #define LOCK_TABLE	16	/* these type values should be so high that */
 #define	LOCK_REC	32	/* they can be ORed to the lock mode */
-#define LOCK_TABLE_EXP	80	/* explicit table lock */
+#define LOCK_TABLE_EXP	80	/* explicit table lock (80 = 16 + 64) */
 #define LOCK_TYPE_MASK	0xF0UL	/* mask used to extract lock type from the
 				type_mode field in a lock */
 /* Waiting lock flag */

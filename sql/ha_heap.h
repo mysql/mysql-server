@@ -40,21 +40,18 @@ class ha_heap: public handler
   const char **bas_ext() const;
   ulong table_flags() const
   {
-    return (HA_READ_RND_SAME | HA_FAST_KEY_READ | HA_KEYPOS_TO_RNDPOS |
-	    HA_NO_BLOBS | HA_NULL_KEY | HA_REC_NOT_IN_SEQ);
+    return (HA_FAST_KEY_READ | HA_NO_BLOBS | HA_NULL_IN_KEY |
+            HA_REC_NOT_IN_SEQ | HA_READ_RND_SAME |
+            HA_CAN_INSERT_DELAYED);
   }
-  ulong index_flags(uint inx) const
+  ulong index_flags(uint inx, uint part, bool all_parts) const
   {
     return ((table->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ?
-	    (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER) :
-	    (HA_ONLY_WHOLE_INDEX | HA_WRONG_ASCII_ORDER |
-	     HA_NOT_READ_PREFIX_LAST));
+	    HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE :
+	    HA_ONLY_WHOLE_INDEX);
   }
   const key_map *keys_to_use_for_scanning() { return &btree_keys; }
-  uint max_record_length() const { return HA_MAX_REC_LENGTH; }
-  uint max_keys()          const { return MAX_KEY; }
-  uint max_key_parts()     const { return MAX_REF_PARTS; }
-  uint max_key_length()    const { return HA_MAX_REC_LENGTH; }
+  uint max_supported_keys()          const { return MAX_KEY; }
   double scan_time() { return (double) (records+deleted) / 20.0+10; }
   double read_time(uint index, uint ranges, ha_rows rows)
   { return (double) rows /  20.0+1; }
@@ -75,7 +72,7 @@ class ha_heap: public handler
   int index_prev(byte * buf);
   int index_first(byte * buf);
   int index_last(byte * buf);
-  int rnd_init(bool scan=1);
+  int rnd_init(bool scan);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
   void position(const byte *record);

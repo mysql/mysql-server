@@ -113,8 +113,16 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	       MYF(0));
     DBUG_RETURN(-1);
   }
-  if (!(table = open_ltable(thd,table_list,lock_type)))
+  table_list->lock_type= lock_type;
+  if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(-1);
+  /* TODO: add key check when we will support VIEWs in LOAD */
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "LOAD");
+    DBUG_RETURN(-1);
+  }
+  table= table_list->table;
   transactional_table= table->file->has_transactions();
   log_delayed= (transactional_table || table->tmp_table);
 
@@ -127,7 +135,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   else
   {						// Part field list
     thd->dupp_field=0;
-    if (setup_tables(table_list) ||
+    /* TODO: use this conds for 'WITH CHECK OPTIONS' */
+    Item *unused_conds= 0;
+    if (setup_tables(thd, table_list, &unused_conds) ||
 	setup_fields(thd, 0, table_list, fields, 1, 0, 0))
       DBUG_RETURN(-1);
     if (thd->dupp_field)
@@ -310,6 +320,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   {
     if (transactional_table)
       ha_autocommit_or_rollback(thd,error);
+
+    if (read_file_from_client)
+      while (!read_info.next_line())
+	;
+
 #ifndef EMBEDDED_LIBRARY
     if (mysql_bin_log.is_open())
     {
@@ -527,7 +542,7 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
 	    ((Field_timestamp*) field)->set_time();
 	  else if (field != table->next_number_field)      
 	    field->set_warning((uint) MYSQL_ERROR::WARN_LEVEL_WARN, 
-			       ER_WARN_NULL_TO_NOTNULL);
+			       ER_WARN_NULL_TO_NOTNULL, 1);
 	}
 	continue;
       }

@@ -103,7 +103,7 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   isam/isamchk$BS isam/pack_isam$BS \
   myisam/myisamchk$BS myisam/myisampack$BS myisam/myisamlog$BS \
   myisam/myisam_ftdump$BS \
-  sql/mysqld$BS \
+  sql/mysqld$BS sql/mysql_tzinfo_to_sql$BS \
   client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
   client/mysqldump$BS client/mysqlimport$BS \
   client/mysqltest$BS client/mysqlcheck$BS \
@@ -197,14 +197,6 @@ fi
 $CP support-files/* $BASE/support-files
 $CP scripts/*.sql $BASE/share
 
-if [ $BASE_SYSTEM = "netware" ] ; then
-  rm -f $BASE/support-files/magic \
-        $BASE/support-files/mysql.server \
-        $BASE/support-files/mysql*.spec \
-        $BASE/support-files/mysql-log-rotate \
-        $BASE/support-files/binary-configure
-fi
-
 $CP -r sql/share/* $MYSQL_SHARE
 rm -f $MYSQL_SHARE/Makefile* $MYSQL_SHARE/*/*.OLD
 
@@ -241,10 +233,24 @@ rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh $BASE/bin/mysql_install_
 
 
 #
+# Copy system dependent files
+#
+if [ $BASE_SYSTEM = "netware" ] ; then
+  cp ./netware/static_init_db.sql ./netware/init_db.sql
+  ./scripts/fill_help_tables < ./Docs/manual.texi >> ./netware/init_db.sql
+fi
+
+#
 # Remove system dependent files
 #
 if [ $BASE_SYSTEM = "netware" ] ; then
-    rm -f $BASE/MySQLEULA.txt
+  rm -f $BASE/support-files/magic \
+        $BASE/support-files/mysql.server \
+        $BASE/support-files/mysql*.spec \
+        $BASE/support-files/mysql-log-rotate \
+        $BASE/support-files/binary-configure \
+        $BASE/INSTALL-BINARY \
+        $BASE/MySQLEULA.txt
 else
     rm -f $BASE/README.NW
 fi
@@ -263,14 +269,14 @@ fi
 
 # NDB Cluster
 if [ x$NDBCLUSTER = x1 ]; then
-  if [ ! -f ndb/BinDist.sh ]; then
-    echo "Missing ndb/BinDist.sh"; exit 1
-  fi
-  mkdir $BASE/ndb || exit 1
-  # assume we have cpio..
-  if (cd ndb && sh BinDist.sh | cpio -pdm $BASE/ndb); then :; else
-    echo "Copy failed - missing files in ndb/BinDist.sh ?"; exit 1
-  fi
+  ( cd ndb            ; make DESTDIR=$BASE/ndb-stage install )
+  ( cd mysql-test/ndb ; make DESTDIR=$BASE/ndb-stage install )
+  $CP $BASE/ndb-stage@bindir@/* $BASE/bin/.
+  $CP $BASE/ndb-stage@libexecdir@/* $BASE/bin/.
+  $CP $BASE/ndb-stage@pkglibdir@/* $BASE/lib/.
+  $CP -r $BASE/ndb-stage@pkgincludedir@/ndb $BASE/lib/.
+  $CP -r $BASE/ndb-stage@prefix@/mysql-test/ndb $BASE/mysql-test/. || exit 1
+  rm -rf $BASE/ndb-stage
 fi
 
 # Change the distribution to a long descriptive name
@@ -349,9 +355,6 @@ if [ $BASE_SYSTEM != "netware" ] ; then
   echo "Compressing archive"
   rm -f $NEW_NAME.tar.gz
   gzip -9 $NEW_NAME.tar
-  echo "Removing temporary directory"
-  rm -r -f $BASE
-  
   echo "$NEW_NAME.tar.gz created"
 else
 
@@ -362,9 +365,8 @@ else
   cd $TMP
   if test -e "$SOURCE/$NEW_NAME.zip"; then rm $SOURCE/$NEW_NAME.zip; fi
   zip -r $SOURCE/$NEW_NAME.zip $NEW_NAME
-  echo "Removing temporary directory"
-  rm -r -f $BASE
-
   echo "$NEW_NAME.zip created"
 
 fi
+echo "Removing temporary directory"
+rm -r -f $BASE

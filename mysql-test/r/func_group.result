@@ -265,7 +265,7 @@ explain extended select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using filesort
 Warnings:
-Note	1003	select sql_big_result test.t1.a AS `a`,count(test.t1.b) AS `count(b)`,sum(test.t1.b) AS `sum(b)`,avg(test.t1.b) AS `avg(b)`,std(test.t1.b) AS `std(b)`,min(test.t1.b) AS `min(b)`,max(test.t1.b) AS `max(b)`,bit_and(test.t1.b) AS `bit_and(b)`,bit_or(test.t1.b) AS `bit_or(b)`,bit_xor(test.t1.b) AS `bit_xor(b)` from test.t1 group by test.t1.a
+Note	1003	select sql_big_result `test`.`t1`.`a` AS `a`,count(`test`.`t1`.`b`) AS `count(b)`,sum(`test`.`t1`.`b`) AS `sum(b)`,avg(`test`.`t1`.`b`) AS `avg(b)`,std(`test`.`t1`.`b`) AS `std(b)`,min(`test`.`t1`.`b`) AS `min(b)`,max(`test`.`t1`.`b`) AS `max(b)`,bit_and(`test`.`t1`.`b`) AS `bit_and(b)`,bit_or(`test`.`t1`.`b`) AS `bit_or(b)`,bit_xor(`test`.`t1`.`b`) AS `bit_xor(b)` from `test`.`t1` group by `test`.`t1`.`a`
 drop table t1;
 create table t1 (col int);
 insert into t1 values (-1), (-2), (-3);
@@ -321,6 +321,7 @@ insert into t2 values('DEN','Denver','CO','BDL');
 insert into t2 values('SDC','San Diego','CA','TWU');
 insert into t2 values('NOL','New Orleans','LA','GTM');
 insert into t2 values('LAK','Los Angeles','CA','TWU');
+insert into t2 values('AAA','AAA','AA','AME');
 select * from t1;
 a1	a2	a3	a4	a5
 AME	0	SEA	0.1	1942-02-19
@@ -345,6 +346,7 @@ DEN	Denver	CO	BDL
 SDC	San Diego	CA	TWU
 NOL	New Orleans	LA	GTM
 LAK	Los Angeles	CA	TWU
+AAA	AAA	AA	AME
 explain 
 select min(a1) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -655,4 +657,32 @@ NULL
 select stddev(2) from t1;
 stddev(2)
 NULL
+drop table t1;
+create table t1 (a int);
+insert into t1 values (1),(2);
+prepare stmt1 from 'SELECT COUNT(*) FROM t1';
+execute stmt1;
+COUNT(*)
+2
+execute stmt1;
+COUNT(*)
+2
+execute stmt1;
+COUNT(*)
+2
+deallocate prepare stmt1;
+drop table t1;
+create table t1 (a int, primary key(a));
+insert into t1 values (1),(2);
+prepare stmt1 from 'SELECT max(a) FROM t1';
+execute stmt1;
+max(a)
+2
+execute stmt1;
+max(a)
+2
+execute stmt1;
+max(a)
+2
+deallocate prepare stmt1;
 drop table t1;

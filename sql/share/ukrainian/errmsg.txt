@@ -304,6 +304,12 @@ character-set=koi8u
 "Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
 "Invalid ON UPDATE clause for '%-.64s' field",
 "This command is not supported in the prepared statement protocol yet",
+"Got error %d '%-.100s' from %s",
+"Got temporary error %d '%-.100s' from %s",
+"Unknown or incorrect time zone: '%-.64s'",
+"Invalid TIMESTAMP value in column '%s' at row %ld",
+"Invalid %s character string: '%.64s'",
+"Result of %s() was larger than max_allowed_packet (%d) - truncated"
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"
@@ -346,3 +352,15 @@ character-set=koi8u
 "Неспод╕ванний к╕нець файлу у коментар╕ '%-.64s'"
 "Помилка в росп╕знаванн╕ параметру '%-.64s' (рядок: '%-.64s')"
 "Неспод╕ванний к╕нець файлу у спроб╕ проминути нев╕домий параметр '%-.64s'"
+"EXPLAIN/SHOW не може бути в╕конано; нема╓ прав на тиблиц╕ запиту"
+"Файл '%-.64s' ма╓ нев╕домий тип '%-.64s' у заголовку"
+"'%-.64s.%-.64s' не ╓ %s"
+"Стовбець '%-.64s' не може бути зминений"
+"View SELECT ма╓ п╕дзапит у конструкц╕╖ FROM"
+"View SELECT ма╓ конструкц╕ю PROCEDURE"
+"View SELECT ма╓ зминну або параметер" 
+"View SELECT використову╓ тимчасову таблицю '%-.64s'"
+"View SELECT ╕ перел╕к стовбц╕в view мають р╕зну к╕льк╕сть сковбц╕в"
+"Алгоритм зливання view не може бути використаний зараз (алгоритм буде невизначений)"
+"View, що оновлюеться, не м╕стить повного ключа таблиц╕(ь), що викор╕стана в ньюому"
+"View '%-.64s.%-.64s' посила╓тся на не╕снуюч╕ таблиц╕ або стовбц╕"

@@ -87,7 +87,7 @@ NdbIndexOperation::indxInit(NdbIndexImpl * anIndex,
   m_accessTable = anIndex->m_table;
   m_theIndexLen = 0;
   m_theNoOfIndexDefined = 0;
-  for (Uint32 i=0; i<MAXNROFTUPLEKEY; i++)
+  for (Uint32 i=0; i<NDB_MAX_ATTRIBUTES_IN_INDEX; i++)
     for (int j=0; j<3; j++)
       m_theIndexDefined[i][j] = false;  
   
@@ -221,7 +221,7 @@ int NdbIndexOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 	    goto equal_error2;
 	  }//if
 	}//if
-      } while (i < MAXNROFTUPLEKEY);
+      } while (i < NDB_MAX_ATTRIBUTES_IN_INDEX);
       goto equal_error2;
     } else {
       goto equal_error1;
@@ -372,6 +372,17 @@ int NdbIndexOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 	} else if ((tOpType == ReadRequest) || (tOpType == DeleteRequest) ||
 		   (tOpType == ReadExclusive)) {
 	  theStatus = GetValue;
+          // create blob handles automatically
+          if (tOpType == DeleteRequest && m_currentTable->m_noOfBlobs != 0) {
+            for (unsigned i = 0; i < m_currentTable->m_columns.size(); i++) {
+              NdbColumnImpl* c = m_currentTable->m_columns[i];
+              assert(c != 0);
+              if (c->getBlobType()) {
+                if (getBlobHandle(theNdbCon, c) == NULL)
+                  return -1;
+              }
+            }
+          }
 	  return 0;
 	} else if ((tOpType == InsertRequest) || (tOpType == WriteRequest)) {
 	  theStatus = SetValue;
@@ -695,7 +706,7 @@ NdbIndexOperation::receiveTCINDXREF( NdbApiSignal* aSignal)
 
   theStatus = Finished;
   
-  theNdbCon->theReturnStatus = ReturnFailure;
+  theNdbCon->theReturnStatus = NdbConnection::ReturnFailure;
   //--------------------------------------------------------------------------//
   // If the transaction this operation belongs to consists only of simple reads
   // we set the error code on the transaction object. 

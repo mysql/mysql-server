@@ -10,6 +10,7 @@
 in_rpm=0
 windows=0
 defaults=""
+user=""
 tmp_file=/tmp/mysql_install_db.$$
 
 case "$1" in
@@ -34,7 +35,11 @@ parse_arguments() {
       --force) force=1 ;;
       --basedir=*) basedir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --ldata=*|--datadir=*) ldata=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
-      --user=*) user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --user=*)
+        # Note that the user will be passed to mysqld so that it runs
+        # as 'user' (crucial e.g. if log-bin=/some_other_path/
+        # where a chown of datadir won't help)
+	 user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --skip-name-resolve) ip_only=1 ;;
       --verbose) verbose=1 ;;
       --rpm) in_rpm=1 ;;
@@ -155,7 +160,7 @@ then
     resolved=`$bindir/resolveip localhost 2>&1`
     if [ $? -ne 0 ]
     then
-      echo "Neither host '$hostname' and 'localhost' could not be looked up with"
+      echo "Neither host '$hostname' nor 'localhost' could be looked up with"
       echo "$bindir/resolveip"
       echo "Please configure the 'hostname' command to return a correct hostname."
       echo "If you want to solve this at a later stage, restart this script with"
@@ -198,13 +203,17 @@ else
   create_option="real"
 fi
 
+if test -n "$user"; then
+  args="$args --user=$user"
+fi
+
 if test "$in_rpm" -eq 0 -a "$windows" -eq 0
 then
   echo "Installing all prepared tables"
 fi
 mysqld_install_cmd_line="$mysqld $defaults $mysqld_opt --bootstrap \
 --skip-grant-tables --basedir=$basedir --datadir=$ldata --skip-innodb \
---skip-bdb $args"
+--skip-bdb $args --max_allowed_packet=8M"
 if $scriptdir/mysql_create_system_tables $create_option $mdata $hostname $windows \
    | eval "$mysqld_install_cmd_line" 
 then

@@ -340,6 +340,35 @@ const char **ha_berkeley::bas_ext() const
 { static const char *ext[]= { ha_berkeley_ext, NullS }; return ext; }
 
 
+ulong ha_berkeley::index_flags(uint idx, uint part, bool all_parts) const
+{
+  ulong flags= (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_KEYREAD_ONLY
+                | HA_READ_RANGE);
+  for (uint i= all_parts ? 0 : part ; i <= part ; i++)
+  {
+    if (table->key_info[idx].key_part[i].field->type() == FIELD_TYPE_BLOB)
+    {
+      /* We can't use BLOBS to shortcut sorts */
+      flags&= ~(HA_READ_ORDER | HA_KEYREAD_ONLY | HA_READ_RANGE);
+      break;
+    }
+    switch (table->key_info[idx].key_part[i].field->key_type()) {
+    case HA_KEYTYPE_TEXT:
+    case HA_KEYTYPE_VARTEXT:
+      /*
+        As BDB stores only one copy of equal strings, we can't use key read
+        on these
+      */
+      flags&= ~HA_KEYREAD_ONLY;
+      break;
+    default:                                    // Keep compiler happy
+      break;
+    }
+  }
+  return flags;
+}
+
+
 static int
 berkeley_cmp_hidden_key(DB* file, const DBT *new_key, const DBT *saved_key)
 {
@@ -441,7 +470,6 @@ berkeley_key_cmp(TABLE *table, KEY *key_info, const char *key, uint key_length)
   }
   return 0;					// Identical keys
 }
-
 
 int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 {
@@ -725,8 +753,8 @@ void ha_berkeley::unpack_key(char *record, DBT *key, uint index)
       }
       record[key_part->null_offset]&= ~key_part->null_bit;
     }
-    pos= (char*) key_part->field->unpack(record + key_part->field->offset(),
-					 pos);
+    pos= (char*) key_part->field->unpack_key(record + key_part->field->offset(),
+                                             pos, key_part->length);
   }
 }
 
@@ -843,8 +871,8 @@ int ha_berkeley::write_row(byte * record)
   else
   {
     DB_TXN *sub_trans = transaction;
-    /* Don't use sub transactions in temporary tables (in_use == 0) */
-    ulong thd_options = table->in_use ? table->in_use->options : 0;
+    /* Don't use sub transactions in temporary tables */
+    ulong thd_options = table->tmp_table == NO_TMP_TABLE ? table->in_use->options : 0;
     for (uint retry=0 ; retry < berkeley_trans_retry ; retry++)
     {
       key_map changed_keys(0);
@@ -1067,7 +1095,7 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
   DBT prim_key, key, old_prim_key;
   int error;
   DB_TXN *sub_trans;
-  ulong thd_options = table->in_use ? table->in_use->options : 0;
+  ulong thd_options = table->tmp_table == NO_TMP_TABLE ? table->in_use->options : 0;
   bool primary_key_changed;
   DBUG_ENTER("update_row");
   LINT_INIT(error);
@@ -1260,7 +1288,7 @@ int ha_berkeley::delete_row(const byte * record)
   int error;
   DBT row, prim_key;
   key_map keys=table->keys_in_use;
-  ulong thd_options = table->in_use ? table->in_use->options : 0;
+  ulong thd_options = table->tmp_table == NO_TMP_TABLE ? table->in_use->options : 0;
   DBUG_ENTER("delete_row");
   statistic_increment(ha_delete_count,&LOCK_status);
 
@@ -1350,6 +1378,7 @@ int ha_berkeley::index_end()
     error=cursor->c_close(cursor);
     cursor=0;
   }
+  active_index=MAX_KEY;
   DBUG_RETURN(error);
 }
 
@@ -1411,7 +1440,7 @@ int ha_berkeley::index_read_idx(byte * buf, uint keynr, const byte * key,
   statistic_increment(ha_read_key_count,&LOCK_status);
   DBUG_ENTER("index_read_idx");
   current_row.flags=DB_DBT_REALLOC;
-  active_index= (uint) -1;
+  active_index=MAX_KEY;
   DBUG_RETURN(read_row(key_file[keynr]->get(key_file[keynr], transaction,
 				 pack_key(&last_key, keynr, key_buff, key,
 					  key_len),
@@ -1482,7 +1511,7 @@ int ha_berkeley::index_read(byte * buf, const byte * key,
     bzero((char*) &row, sizeof(row));
     error= read_row(cursor->c_get(cursor, &last_key, &row, DB_PREV),
                          (char*) buf, active_index, &row, &last_key, 1);
-  }   
+  }
   DBUG_RETURN(error);
 }
 
@@ -1630,20 +1659,51 @@ int ha_berkeley::rnd_pos(byte * buf, byte *pos)
   statistic_increment(ha_read_rnd_count,&LOCK_status);
   DBUG_ENTER("ha_berkeley::rnd_pos");
 
-  active_index= (uint) -1;			// Don't delete via cursor
+  active_index= MAX_KEY;
   DBUG_RETURN(read_row(file->get(file, transaction,
 				 get_pos(&db_pos, pos),
 				 &current_row, 0),
 		       (char*) buf, primary_key, &current_row, (DBT*) 0, 0));
 }
 
+/*
+  Set a reference to the current record in (ref,ref_length).
+
+  SYNOPSIS
+    ha_berkeley::position()
+    record                      The current record buffer
+
+  DESCRIPTION
+    The BDB handler stores the primary key in (ref,ref_length).
+    There is either an explicit primary key, or an implicit (hidden)
+    primary key.
+    During open(), 'ref_length' is calculated as the maximum primary
+    key length. When an actual key is shorter than that, the rest of
+    the buffer must be cleared out. The row cannot be identified, if
+    garbage follows behind the end of the key. There is no length
+    field for the current key, so that the whole ref_length is used
+    for comparison.
+
+  RETURN
+    nothing
+*/
+
 void ha_berkeley::position(const byte *record)
 {
   DBT key;
+  DBUG_ENTER("ha_berkeley::position");
   if (hidden_primary_key)
+  {
+    DBUG_ASSERT(ref_length == BDB_HIDDEN_PRIMARY_KEY_LENGTH);
     memcpy_fixed(ref, (char*) current_ident, BDB_HIDDEN_PRIMARY_KEY_LENGTH);
+  }
   else
+  {
     create_key(&key, primary_key, (char*) ref, record);
+    if (key.size < ref_length)
+      bzero(ref + key.size, ref_length - key.size);
+  }
+  DBUG_VOID_RETURN;
 }
 
 

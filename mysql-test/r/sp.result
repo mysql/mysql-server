@@ -1075,7 +1075,7 @@ drop table if exists t3|
 create table t3 (s1 smallint)|
 insert into t3 values (123456789012)|
 Warnings:
-Warning	1264	Data truncated, out of range for column 's1' at row 1
+Warning	1264	Data truncated; out of range for column 's1' at row 1
 create procedure bug2780()
 begin
 declare exit handler for sqlwarning set @x = 1; 
@@ -1386,6 +1386,46 @@ call bug3368('yz')|
 group_concat(v)
 yz,yz
 drop procedure bug3368|
+drop table t3|
+drop table if exists t3|
+create table t3 (f1 int, f2 int);
+insert into t3 values (1,1);
+create procedure bug4579_1 ()
+begin
+declare sf1 int;
+select f1 into sf1 from t3 where f1=1 and f2=1;
+update t3 set f2 = f2 + 1 where f1=1 and f2=1;
+call bug4579_2();
+end|
+create procedure bug4579_2 ()
+begin
+end|
+call bug4579_1()|
+call bug4579_1()|
+Warnings:
+call bug4579_1()|
+Warnings:
+drop procedure bug4579_1|
+drop procedure bug4579_2|
+drop table t3|
+drop table if exists t3|
+create table t3 (f1 int, f2 int, f3 int)|
+insert into t3 values (1,1,1)|
+create procedure bug4726()
+begin
+declare tmp_o_id INT;
+declare tmp_d_id INT default 1;
+while tmp_d_id <= 2 do
+begin
+select f1 into tmp_o_id from t3 where f2=1 and f3=1;
+set tmp_d_id = tmp_d_id + 1;
+end;
+end while;
+end|
+call bug4726()|
+call bug4726()|
+call bug4726()|
+drop procedure bug4726|
 drop table t3|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|

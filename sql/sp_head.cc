@@ -58,7 +58,7 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
   if (!it->fixed && it->fix_fields(thd, 0, &it))
   {
     DBUG_PRINT("info", ("fix_fields() failed"));
-    DBUG_RETURN(it);		// Shouldn't happen?
+    DBUG_RETURN(NULL);
   }
 
   /* QQ How do we do this? Is there some better way? */
@@ -377,9 +377,11 @@ sp_head::execute(THD *thd)
   DBUG_ENTER("sp_head::execute");
   char olddb[128];
   bool dbchanged;
-  sp_rcontext *ctx= thd->spcont;
+  sp_rcontext *ctx;
   int ret= 0;
   uint ip= 0;
+  Item_arena *old_arena;
+
 
 #ifndef EMBEDDED_LIBRARY
   if (check_stack_overrun(thd, olddb))
@@ -392,10 +394,12 @@ sp_head::execute(THD *thd)
   if ((ret= sp_use_new_db(thd, m_db.str, olddb, sizeof(olddb), 0, &dbchanged)))
     goto done;
 
-  if (ctx)
+  if ((ctx= thd->spcont))
     ctx->clear_handler();
   thd->query_error= 0;
+  old_arena= thd->current_arena;
   thd->current_arena= this;
+
   do
   {
     sp_instr *i;
@@ -433,13 +437,13 @@ sp_head::execute(THD *thd)
   } while (ret == 0 && !thd->killed && !thd->query_error &&
 	   !thd->net.report_error);
 
+  if (thd->current_arena)
+    cleanup_items(thd->current_arena->free_list);
+  thd->current_arena= old_arena;
+
  done:
   DBUG_PRINT("info", ("ret=%d killed=%d query_error=%d",
 		      ret, thd->killed, thd->query_error));
-
-  if (thd->current_arena)
-    cleanup_items(thd->current_arena->free_list);
-  thd->current_arena= 0;
 
   if (thd->killed || thd->query_error || thd->net.report_error)
     ret= -1;
@@ -482,12 +486,23 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   for (i= 0 ; i < params && i < argcount ; i++)
   {
     sp_pvar_t *pvar = m_pcont->find_pvar(i);
+    Item *it= sp_eval_func_item(thd, *argp++, pvar->type);
 
-    nctx->push_item(sp_eval_func_item(thd, *argp++, pvar->type));
+    if (it)
+      nctx->push_item(it);
+    else
+    {
+      DBUG_RETURN(-1);
+    }
   }
-  // Close tables opened for subselect in argument list
+#ifdef NOT_WORKING
+  /*
+    Close tables opened for subselect in argument list
+    This can't be done as this will close all other tables used
+    by the query.
+  */
   close_thread_tables(thd);
-
+#endif
   // The rest of the frame are local variables which are all IN.
   // Default all variables to null (those with default clauses will
   // be set by an set instruction).
@@ -527,7 +542,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 {
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
-  int ret;
+  int ret= 0;
   uint csize = m_pcont->max_framesize();
   uint params = m_pcont->params();
   uint hmax = m_pcont->handlers();
@@ -572,7 +587,17 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	  nctx->push_item(nit); // OUT
 	}
 	else
-	  nctx->push_item(sp_eval_func_item(thd, it,pvar->type)); // IN or INOUT
+	{
+	  Item *it2= sp_eval_func_item(thd, it,pvar->type);
+
+	  if (it2)
+	    nctx->push_item(it2); // IN or INOUT
+	  else
+	  {
+	    ret= -1;		// Eval failed
+	    break;
+	  }
+	}
 	// Note: If it's OUT or INOUT, it must be a variable.
 	// QQ: We can check for global variables here, or should we do it
 	//     while parsing?
@@ -597,7 +622,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     thd->spcont= nctx;
   }
 
-  ret= execute(thd);
+  if (! ret)
+    ret= execute(thd);
 
   // Don't copy back OUT values if we got an error
   if (ret)
@@ -668,17 +694,18 @@ sp_head::reset_lex(THD *thd)
 
   (void)m_lex.push_front(oldlex);
   thd->lex= sublex= new st_lex;
+
   /* Reset most stuff. The length arguments doesn't matter here. */
-  lex_start(thd, oldlex->buf, oldlex->end_of_query - oldlex->ptr);
-  sublex->yylineno= oldlex->yylineno;
+  mysql_init_query(thd,oldlex->buf, oldlex->end_of_query - oldlex->ptr, TRUE);
+
   /* We must reset ptr and end_of_query again */
   sublex->ptr= oldlex->ptr;
   sublex->end_of_query= oldlex->end_of_query;
   sublex->tok_start= oldlex->tok_start;
+  sublex->yylineno= oldlex->yylineno;
   /* And keep the SP stuff too */
   sublex->sphead= oldlex->sphead;
   sublex->spcont= oldlex->spcont;
-  mysql_init_query(thd, true);	// Only init lex
   sublex->sp_lex_in_use= FALSE;
   DBUG_VOID_RETURN;
 }
@@ -690,7 +717,6 @@ sp_head::restore_lex(THD *thd)
   DBUG_ENTER("sp_head::restore_lex");
   LEX *sublex= thd->lex;
   LEX *oldlex= (LEX *)m_lex.pop();
-  SELECT_LEX *sl;
 
   if (! oldlex)
     return;			// Nothing to restore
@@ -854,14 +880,16 @@ sp_head::show_create_procedure(THD *thd)
 
   DBUG_ENTER("sp_head::show_create_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
-
+  LINT_INIT(sql_mode_str);
+  LINT_INIT(sql_mode_len);
+  
   old_sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode= m_sql_mode;
   sql_mode_var= find_sys_var("SQL_MODE", 8);
   if (sql_mode_var)
   {
     sql_mode_str= sql_mode_var->value_ptr(thd, OPT_SESSION, 0);
-    sql_mode_len= strlen(sql_mode_str);
+    sql_mode_len= strlen((char*) sql_mode_str);
   }
 
   field_list.push_back(new Item_empty_string("Procedure", NAME_LEN));
@@ -878,7 +906,7 @@ sp_head::show_create_procedure(THD *thd)
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
   if (sql_mode_var)
-    protocol->store(sql_mode_str, sql_mode_len, system_charset_info);
+    protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
   protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   res= protocol->write();
   send_eof(thd);
@@ -917,9 +945,10 @@ sp_head::show_create_function(THD *thd)
   sys_var *sql_mode_var;
   byte *sql_mode_str;
   ulong sql_mode_len;
-
   DBUG_ENTER("sp_head::show_create_function");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
+  LINT_INIT(sql_mode_str);
+  LINT_INIT(sql_mode_len);
 
   old_sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode= m_sql_mode;
@@ -927,7 +956,7 @@ sp_head::show_create_function(THD *thd)
   if (sql_mode_var)
   {
     sql_mode_str= sql_mode_var->value_ptr(thd, OPT_SESSION, 0);
-    sql_mode_len= strlen(sql_mode_str);
+    sql_mode_len= strlen((char*) sql_mode_str);
   }
 
   field_list.push_back(new Item_empty_string("Function",NAME_LEN));
@@ -943,7 +972,7 @@ sp_head::show_create_function(THD *thd)
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
   if (sql_mode_var)
-    protocol->store(sql_mode_str, sql_mode_len, system_charset_info);
+    protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
   protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   res= protocol->write();
   send_eof(thd);
@@ -986,7 +1015,6 @@ int
 sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
 {
   LEX *olex;			// The other lex
-  SELECT_LEX *sl;
   int res;
 
   olex= thd->lex;		// Save the other lex
@@ -1023,7 +1051,11 @@ sp_instr_set::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_set::execute");
   DBUG_PRINT("info", ("offset: %u", m_offset));
-  thd->spcont->set_item(m_offset, sp_eval_func_item(thd, m_value, m_type));
+  Item *it= sp_eval_func_item(thd, m_value, m_type);
+
+  if (! it)
+    DBUG_RETURN(-1);
+  thd->spcont->set_item(m_offset, it);
   *nextp = m_ip+1;
   DBUG_RETURN(0);
 }
@@ -1069,6 +1101,8 @@ sp_instr_jump_if::execute(THD *thd, uint *nextp)
   DBUG_PRINT("info", ("destination: %u", m_dest));
   Item *it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
 
+  if (!it)
+    DBUG_RETURN(-1);
   if (it->val_int())
     *nextp = m_dest;
   else
@@ -1096,6 +1130,8 @@ sp_instr_jump_if_not::execute(THD *thd, uint *nextp)
   DBUG_PRINT("info", ("destination: %u", m_dest));
   Item *it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
 
+  if (! it)
+    DBUG_RETURN(-1);
   if (! it->val_int())
     *nextp = m_dest;
   else
@@ -1120,7 +1156,11 @@ int
 sp_instr_freturn::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_freturn::execute");
-  thd->spcont->set_result(sp_eval_func_item(thd, m_value, m_type));
+  Item *it= sp_eval_func_item(thd, m_value, m_type);
+
+  if (! it)
+    DBUG_RETURN(-1);
+  thd->spcont->set_result(it);
   *nextp= UINT_MAX;
   DBUG_RETURN(0);
 }

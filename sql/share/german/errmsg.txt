@@ -177,7 +177,7 @@ character-set=latin1
 "Zeitüberschreitung beim Lesen eines Kommunikationspakets",
 "Fehler beim Schreiben eines Kommunikationspakets",
 "Zeitüberschreitung beim Schreiben eines Kommunikationspakets",
-"Ergebnis ist länger als max_allowed_packet",
+"Ergebnis ist länger als 'max_allowed_packet'",
 "Der verwendete Tabellentyp unterstützt keine BLOB- und TEXT-Spalten",
 "Der verwendete Tabellentyp unterstützt keine AUTO_INCREMENT-Spalten",
 "INSERT DELAYED kann nicht auf Tabelle '%-.64s' angewendet werden, da diese mit LOCK TABLES gesperrt ist",
@@ -258,7 +258,7 @@ character-set=latin1
 "Schlüssel- und Tabellenverweis passen nicht zusammen",
 "Operand solle %d Spalte(n) enthalten",
 "Unterabfrage lieferte mehr als einen Datensatz zurück",
-"Unbekannter Prepared-Statement-Handler (%ld) für %s angegeben",
+"Unbekannter Prepared-Statement-Handler (%.*s) für %s angegeben",
 "Die Hilfe-Datenbank ist beschädigt oder existiert nicht",
 "Zyklischer Verweis in Unterabfragen",
 "Spalte '%s' wird von %s nach %s umgewandelt",
@@ -272,10 +272,10 @@ character-set=latin1
 "Slave läuft bereits",
 "Slave wurde bereits angehalten",
 "Unkomprimierte Daten sind zu groß. Die maximale Größe beträgt %d",
-"Z_MEM_ERROR: Für zlib steht nicht genug Speicher zur Verfügung",
-"Z_BUF_ERROR: Im Ausgabepuffer ist nicht genug Platz für zlib vorhanden (wahrscheinlich wurde die Länge der unkomprimierten Daten beschädigt)",
-"Z_DATA_ERROR: Eingabedaten für zlib beschädigt",
-"%d Zeile(n) durch group_concat() abgeschnitten",
+"ZLIB: Steht nicht genug Speicher zur Verfügung",
+"ZLIB: Im Ausgabepuffer ist nicht genug Platz vorhanden (wahrscheinlich wurde die Länge der unkomprimierten Daten beschädigt)",
+"ZLIB: Eingabedaten beschädigt",
+"%d Zeile(n) durch GROUP_CONCAT() abgeschnitten",
 "Anzahl der Datensätze in Zeile %ld geringer als Anzahl der Spalten",
 "Anzahl der Datensätze in Zeile %ld größer als Anzahl der Spalten",
 "Daten abgeschnitten, NULL für NOT NULL-Spalte '%s' in Zeile %ld angegeben",
@@ -308,9 +308,15 @@ character-set=latin1
 "The MySQL server is running with the %s option so it cannot execute this statement",
 "Column '%-.100s' has duplicated value '%-.64s' in %s"
 "Truncated wrong %-.32s value: '%-.128s'"
-"Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
-"Invalid ON UPDATE clause for '%-.64s' field",
+"Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
+"Invalid ON UPDATE clause for '%-.64s' column",
 "This command is not supported in the prepared statement protocol yet",
+"Got error %d '%-.100s' from %s",
+"Got temporary error %d '%-.100s' from %s",
+"Unknown or incorrect time zone: '%-.64s'",
+"Invalid TIMESTAMP value in column '%s' at row %ld",
+"Invalid %s character string: '%.64s'",
+"Result of %s() was larger than max_allowed_packet (%d) - truncated"
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"
@@ -353,3 +359,15 @@ character-set=latin1
 "Unexpected end of file while parsing comment '%-.64s'"
 "Error while parsing parameter '%-.64s' (line: '%-.64s')"
 "Unexpected end of file while skipping unknown parameter '%-.64s'"
+"EXPLAIN/SHOW can not be issued; lacking privileges for underlying table"
+"File '%-.64s' has unknown type '%-.64s' in its header"
+"'%-.64s.%-.64s' is not %s"
+"Column '%-.64s' is not updatable"
+"View's SELECT contains a subquery in the FROM clause"
+"View's SELECT contains a PROCEDURE clause"
+"View's SELECT contains a variable or parameter" 
+"View's SELECT contains a temporary table '%-.64s'"
+"View's SELECT and view's field list have different column counts"
+"View merge algorithm can't be used here for now (assumed undefined algorithm)"
+"View being update does not have complete key of underlying table in it"
+"View '%-.64s.%-.64s' references invalid table(s) or column(s)"

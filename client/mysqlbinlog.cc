@@ -32,7 +32,6 @@
 #undef MYSQL_SERVER
 #include "client_priv.h"
 #include <time.h>
-#include <assert.h>
 #include "log_event.h"
 /* That one is necessary for defines of OPTION_NO_FOREIGN_KEY_CHECKS etc */
 #include "mysql_priv.h" 

@@ -49,7 +49,7 @@ int getopt(int, char **, char *opts);
 #endif // NDB_WIN32
 
 #ifdef NDB_ALPHA
-#ifdef NDB_GCC
+#ifdef NDB_GCC // only for NDB_ALPHA
 extern int gnuShouldNotUseRPCC();
 #define RPCC() gnuShouldNotUseRPCC();
 #else 

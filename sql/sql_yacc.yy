@@ -44,7 +44,7 @@
 
 int yylex(void *yylval, void *yythd);
 
-#define yyoverflow(A,B,C,D,E,F) if (my_yyoverflow((B),(D),(int*) (F))) { yyerror((char*) (A)); return 2; }
+#define yyoverflow(A,B,C,D,E,F) {ulong val= *(F); if(my_yyoverflow((B), (D), &val)) { yyerror((char*) (A)); return 2; } else { *(F)= (YYSIZE_T)val; }}
 
 #define WARN_DEPRECATED(A,B) \
   push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN, \
@@ -98,7 +98,7 @@ inline Item *or_or_concat(THD *thd, Item* A, Item* B)
 }
 
 %{
-bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
+bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %}
 
 %pure_parser					/* We have threads */
@@ -192,6 +192,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %token	ACTION
 %token	AGGREGATE_SYM
+%token	ALGORITHM_SYM
 %token	ALL
 %token	AND_SYM
 %token	AS
@@ -210,6 +211,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	BYTE_SYM
 %token	CACHE_SYM
 %token	CASCADE
+%token  CASCADED
 %token	CAST_SYM
 %token	CHARSET
 %token	CHECKSUM_SYM
@@ -274,7 +276,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	IDENT_QUOTED
 %token	IGNORE_SYM
 %token	IMPORT
-%token	INDEX
+%token	INDEX_SYM
 %token	INDEXES
 %token	INFILE
 %token	INNER_SYM
@@ -302,6 +304,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	LONG_NUM
 %token	LONG_SYM
 %token	LOW_PRIORITY
+%token	MERGE_SYM
 %token	MASTER_HOST_SYM
 %token	MASTER_USER_SYM
 %token	MASTER_LOG_FILE_SYM
@@ -340,6 +343,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NUM
 %token	OFFSET_SYM
 %token	ON
+%token  ONE_SHOT_SYM
 %token	OPEN_SYM
 %token	OPTION
 %token	OPTIONALLY
@@ -401,6 +405,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	TABLE_SYM
 %token	TABLESPACE
 %token	TEMPORARY
+%token	TEMPTABLE_SYM
 %token	TERMINATED
 %token	TEXT_STRING
 %token	TO_SYM
@@ -430,6 +435,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	VALUE_SYM
 %token	VALUES
 %token	VARIABLES
+%token	VIEW_SYM
 %token	WHERE
 %token	WITH
 %token	WRITE_SYM
@@ -465,6 +471,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MEDIUMTEXT
 %token	NUMERIC_SYM
 %token	PRECISION
+%token  PREPARE_SYM
+%token  DEALLOCATE_SYM
 %token	QUICK
 %token	REAL
 %token	SIGNED_SYM
@@ -643,11 +651,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_table_alias
 
 %type <table>
-	table_ident table_ident_ref references
+	table_ident table_ident_nodb references
 
 %type <simple_string>
 	remember_name remember_end opt_ident opt_db text_or_password
-	opt_escape opt_constraint constraint
+	opt_constraint constraint
 
 %type <string>
 	text_string opt_gconcat_separator
@@ -675,7 +683,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	using_list expr_or_default set_expr_or_default interval_expr
 	param_marker singlerow_subselect singlerow_subselect_init
 	exists_subselect exists_subselect_init geometry_function
-	signed_literal now_or_signed_literal
+	signed_literal now_or_signed_literal opt_escape
 	sp_opt_default
 	simple_ident_nospvar simple_ident_q
 
@@ -770,7 +778,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	precision subselect_start opt_and charset
 	subselect_end select_var_list select_var_list_init help opt_len
 	opt_extended_describe
-	statement sp_suid
+        prepare prepare_src execute deallocate 
+	statement sp_suid opt_view_list view_list or_replace algorithm
 	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic sp_a_chistic
 END_OF_INPUT
 
@@ -821,10 +830,12 @@ statement:
 	| checksum
 	| commit
 	| create
+        | deallocate
 	| delete
 	| describe
 	| do
 	| drop
+        | execute
 	| flush
 	| grant
 	| handler
@@ -836,6 +847,7 @@ statement:
 	| optimize
         | keycache
 	| preload
+        | prepare
 	| purge
 	| rename
 	| repair
@@ -854,6 +866,92 @@ statement:
 	| unlock
 	| update
 	| use
+        ;
+
+deallocate:
+        deallocate_or_drop PREPARE_SYM ident
+        {
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          if (thd->command == COM_PREPARE)
+          {
+            yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+          }
+          lex->sql_command= SQLCOM_DEALLOCATE_PREPARE;
+          lex->prepared_stmt_name= $3;
+        };
+
+deallocate_or_drop:
+	DEALLOCATE_SYM |
+	DROP
+	;
+
+
+prepare:
+        PREPARE_SYM ident FROM prepare_src
+        {
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          if (thd->command == COM_PREPARE)
+          {
+            yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+          }
+          lex->sql_command= SQLCOM_PREPARE;
+          lex->prepared_stmt_name= $2;
+        };
+
+prepare_src:
+        TEXT_STRING_sys
+        {
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          lex->prepared_stmt_code= $1;
+          lex->prepared_stmt_code_is_varref= false;
+        }
+        | '@' ident_or_text
+        {
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          lex->prepared_stmt_code= $2;
+          lex->prepared_stmt_code_is_varref= true;
+        };
+
+execute:
+        EXECUTE_SYM ident
+        {
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          if (thd->command == COM_PREPARE)
+          {
+            yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+          }
+          lex->sql_command= SQLCOM_EXECUTE;
+          lex->prepared_stmt_name= $2;
+        }
+        execute_using
+        {}
+        ;
+
+execute_using:
+        /* nothing */
+        | USING execute_var_list
+        ;
+
+execute_var_list:
+        execute_var_list ',' execute_var_ident
+        | execute_var_ident
+        ;
+
+execute_var_ident: '@' ident_or_text
+        {
+          LEX *lex=Lex;
+          LEX_STRING *lexstr= (LEX_STRING*)sql_memdup(&$2, sizeof(LEX_STRING));
+          if (!lexstr || lex->prepared_stmt_params.push_back(lexstr))
+              YYABORT;
+        }
         ;
 
 /* help */
@@ -991,12 +1089,12 @@ create:
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= (enum db_type) lex->thd->variables.table_type;
-	  lex->create_info.default_table_charset= thd->variables.collation_database;
+	  lex->create_info.default_table_charset= NULL;
 	  lex->name=0;
 	}
 	create2
 	  { Lex->current_select= &Lex->select_lex; }
-	| CREATE opt_unique_or_fulltext INDEX ident key_alg ON table_ident
+	| CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON table_ident
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_CREATE_INDEX;
@@ -1089,7 +1187,19 @@ create:
 	    if (lex->sphead->m_old_cmq)
 	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
 	    lex->sphead->restore_thd_mem_root(YYTHD);
-	  } 
+	  }
+	| CREATE or_replace algorithm VIEW_SYM table_ident
+	  {
+	    THD *thd= YYTHD;
+	    LEX *lex= thd->lex;
+	    lex->sql_command= SQLCOM_CREATE_VIEW;
+	    lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
+	    /* first table in list is target VIEW name */
+	    if (!lex->select_lex.add_table_to_list(thd, $5, NULL, 0))
+              YYABORT;
+	  }
+	  opt_view_list AS select_init check_option
+	  {}
 	;
 
 sp_name:
@@ -1877,7 +1987,8 @@ sp_elseifs:
 sp_case:
 	  expr THEN_SYM
 	  {
-	    sp_head *sp= Lex->sphead;
+            LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
 	    sp_pcontext *ctx= Lex->spcont;
 	    uint ip= sp->instructions();
 	    sp_instr_jump_if_not *i;
@@ -1895,6 +2006,7 @@ sp_case:
 	      Item *expr= new Item_func_eq(var, $1);
 
 	      i= new sp_instr_jump_if_not(ip, expr);
+              lex->variables_used= 1;
 	    }
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
             sp->add_instr(i);
@@ -2084,6 +2196,10 @@ create_select:
 	      lex->sql_command= SQLCOM_INSERT_SELECT;
 	    else if (lex->sql_command == SQLCOM_REPLACE)
 	      lex->sql_command= SQLCOM_REPLACE_SELECT;
+	    /*
+	      following work only with local list, global list is
+	      created correctly in this case
+	    */
 	    lex->current_select->table_list.save_and_clear(&lex->save_list);
 	    mysql_init_select(lex);
 	    lex->current_select->parsing_place= SELECT_LEX_NODE::SELECT_LIST;
@@ -2093,7 +2209,13 @@ create_select:
 	    Select->parsing_place= SELECT_LEX_NODE::NO_MATTER;
 	  }
 	  opt_select_from
-	  { Lex->current_select->table_list.push_front(&Lex->save_list); }
+	  {
+	    /*
+	      following work only with local list, global list is
+	      created correctly in this case
+	    */
+	    Lex->current_select->table_list.push_front(&Lex->save_list);
+	  }
         ;
 
 opt_as:
@@ -2167,10 +2289,12 @@ create_table_option:
 	    TABLE_LIST *table_list= lex->select_lex.get_table_list();
 	    lex->create_info.merge_list= lex->select_lex.table_list;
 	    lex->create_info.merge_list.elements--;
-	    lex->create_info.merge_list.first= (byte*) (table_list->next);
+	    lex->create_info.merge_list.first=
+	      (byte*) (table_list->next_local);
 	    lex->select_lex.table_list.elements=1;
-	    lex->select_lex.table_list.next= (byte**) &(table_list->next);
-	    table_list->next=0;
+	    lex->select_lex.table_list.next=
+	      (byte**) &(table_list->next_local);
+	    table_list->next_local= 0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
 	| opt_default charset opt_equal charset_name_or_default
@@ -2186,7 +2310,7 @@ create_table_option:
 	| INSERT_METHOD opt_equal merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
 	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
 	  { Lex->create_info.data_file_name= $4.str; }
-	| INDEX DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str; };
+	| INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str; };
 
 storage_engines:
 	ident_or_text
@@ -2379,7 +2503,6 @@ type:
 					  $$=FIELD_TYPE_GEOMETRY;
 #else
 	                                  net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			                             ER(ER_FEATURE_DISABLED),
 			                             sym_group_geom.name,
 	                                             sym_group_geom.needed_define);
 					  YYABORT;
@@ -2697,7 +2820,6 @@ key_type:
 	    $$= Key::SPATIAL;
 #else
 	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
-	               ER(ER_FEATURE_DISABLED),
 		       sym_group_geom.name, sym_group_geom.needed_define);
 	    YYABORT;
 #endif
@@ -2709,7 +2831,7 @@ constraint_key_type:
 
 key_or_index:
 	KEY_SYM {}
-	| INDEX {};
+	| INDEX_SYM {};
 
 opt_key_or_index:
 	/* empty */ {}
@@ -2718,7 +2840,7 @@ opt_key_or_index:
 
 keys_or_index:
 	KEYS {}
-	| INDEX {}
+	| INDEX_SYM {}
 	| INDEXES {};
 
 opt_unique_or_fulltext:
@@ -2731,7 +2853,6 @@ opt_unique_or_fulltext:
 	    $$= Key::SPATIAL;
 #else
 	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
-	               ER(ER_FEATURE_DISABLED),
 	               sym_group_geom.name, sym_group_geom.needed_define);
 	    YYABORT;
 #endif
@@ -2792,9 +2913,9 @@ alter:
 	  lex->select_lex.db=lex->name=0;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
-	  lex->create_info.default_table_charset= thd->variables.collation_database;
+	  lex->create_info.default_table_charset= NULL;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
-	  lex->alter_info.clear();          
+	  lex->alter_info.reset();          
 	  lex->alter_info.is_simple= 1;
 	  lex->alter_info.flags= 0;
 	}
@@ -2836,6 +2957,18 @@ alter:
 	    lex->sql_command= SQLCOM_ALTER_FUNCTION;
 	    lex->spname= $3;
 	  }
+	| ALTER VIEW_SYM table_ident
+	  {
+	    THD *thd= YYTHD;
+	    LEX *lex= thd->lex;
+	    lex->sql_command= SQLCOM_CREATE_VIEW;
+	    lex->create_view_mode= VIEW_ALTER;
+	    lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
+	    /* first table in list is target VIEW name */
+	    lex->select_lex.add_table_to_list(thd, $3, NULL, 0);
+	  }
+	  opt_view_list AS select_init
+	  {}
 	;
 
 alter_list:
@@ -2984,9 +3117,10 @@ opt_ignore:
 	| IGNORE_SYM	{ Lex->duplicates=DUP_IGNORE; };
 
 opt_restrict:
-	/* empty */	{}
-	| RESTRICT	{}
-	| CASCADE	{};
+	/* empty */	{ Lex->drop_mode= DROP_DEFAULT; }
+	| RESTRICT	{ Lex->drop_mode= DROP_RESTRICT; }
+	| CASCADE	{ Lex->drop_mode= DROP_CASCADE; }
+	;
 
 opt_place:
 	/* empty */	{}
@@ -3228,7 +3362,7 @@ table_to_table:
 	};
 
 keycache:
-        CACHE_SYM INDEX keycache_list IN_SYM key_cache_name
+        CACHE_SYM INDEX_SYM keycache_list IN_SYM key_cache_name
         {
           LEX *lex=Lex;
           lex->sql_command= SQLCOM_ASSIGN_TO_KEYCACHE;
@@ -3259,7 +3393,7 @@ key_cache_name:
 	;
 
 preload:
-	LOAD INDEX INTO CACHE_SYM
+	LOAD INDEX_SYM INTO CACHE_SYM
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command=SQLCOM_PRELOAD_KEYS;
@@ -3700,12 +3834,16 @@ simple_expr:
 	| '@' ident_or_text SET_VAR expr
 	  {
 	    $$= new Item_func_set_user_var($2,$4);
-	    Lex->uncacheable(UNCACHEABLE_RAND);
+	    LEX *lex= Lex;
+	    lex->uncacheable(UNCACHEABLE_RAND);
+	    lex->variables_used= 1;
 	  }
 	| '@' ident_or_text
 	  {
 	    $$= new Item_func_get_user_var($2);
-	    Lex->uncacheable(UNCACHEABLE_RAND);
+	    LEX *lex= Lex;
+	    lex->uncacheable(UNCACHEABLE_RAND);
+	    lex->variables_used= 1;
 	  }
 	| '@' '@' opt_var_ident_type ident_or_text opt_component
 	  {
@@ -3717,6 +3855,7 @@ simple_expr:
             }
 	    if (!($$= get_system_var(YYTHD, (enum_var_type) $3, $4, $5)))
 	      YYABORT;
+	    Lex->variables_used= 1;
 	  }
 	| sum_expr
 	| '+' expr %prec NEG	{ $$= $2; }
@@ -3773,7 +3912,6 @@ simple_expr:
 	    if (!$1.symbol->create_func)
 	    {
 	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			 ER(ER_FEATURE_DISABLED),
 			 $1.symbol->group->name,
 	                 $1.symbol->group->needed_define);
 	      YYABORT;
@@ -3785,7 +3923,6 @@ simple_expr:
 	    if (!$1.symbol->create_func)
 	    {
 	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			 ER(ER_FEATURE_DISABLED),
 			 $1.symbol->group->name,
 	                 $1.symbol->group->needed_define);
 	      YYABORT;
@@ -3797,7 +3934,6 @@ simple_expr:
 	    if (!$1.symbol->create_func)
 	    {
 	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			 ER(ER_FEATURE_DISABLED),
 			 $1.symbol->group->name,
 	                 $1.symbol->group->needed_define);
 	      YYABORT;
@@ -3809,7 +3945,6 @@ simple_expr:
 	    if (!$1.symbol->create_func)
 	    {
 	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			 ER(ER_FEATURE_DISABLED),
 			 $1.symbol->group->name,
 	                 $1.symbol->group->needed_define);
 	      YYABORT;
@@ -3908,7 +4043,6 @@ simple_expr:
 	    $$= $1;
 #else
 	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
-	               ER(ER_FEATURE_DISABLED),
 	               sym_group_geom.name, sym_group_geom.needed_define);
 	    YYABORT;
 #endif
@@ -4561,7 +4695,7 @@ table_factor:
 select_derived:
         {
 	  LEX *lex= Lex;
-	  lex->derived_tables= 1;
+	  lex->derived_tables|= DERIVED_SUBQUERY;
 	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN &&
 	       lex->sql_command <= (int)SQLCOM_HA_READ) ||
 	       lex->sql_command == (int)SQLCOM_KILL)
@@ -4678,9 +4812,9 @@ interval_time_st:
 	| YEAR_SYM		{ $$=INTERVAL_YEAR; };
 
 date_time_type:
-	DATE_SYM		{$$=TIMESTAMP_DATE;}
-	| TIME_SYM		{$$=TIMESTAMP_TIME;}
-	| DATETIME		{$$=TIMESTAMP_DATETIME;};
+	DATE_SYM		{$$=MYSQL_TIMESTAMP_DATE;}
+	| TIME_SYM		{$$=MYSQL_TIMESTAMP_TIME;}
+	| DATETIME		{$$=MYSQL_TIMESTAMP_DATETIME;};
 
 table_alias:
 	/* empty */
@@ -4724,12 +4858,15 @@ having_clause:
 	;
 
 opt_escape:
-	ESCAPE_SYM TEXT_STRING_literal	{ $$= $2.str; }
-	| /* empty */			
-	{
-          $$= (char*) ((YYTHD->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
-                       ? "" : "\\"); 
-        };
+	ESCAPE_SYM simple_expr { $$= $2; }
+	| /* empty */
+          {
+
+            $$= ((YYTHD->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) ?
+		 new Item_string("", 0, &my_charset_latin1) :
+                 new Item_string("\\", 1, &my_charset_latin1));
+          }
+        ;
 
 
 /*
@@ -5028,7 +5165,7 @@ drop:
 	  lex->drop_temporary= $2;
 	  lex->drop_if_exists= $4;
 	}
-	| DROP INDEX ident ON table_ident {}
+	| DROP INDEX_SYM ident ON table_ident {}
 	  {
 	     LEX *lex=Lex;
 	     lex->sql_command= SQLCOM_DROP_INDEX;
@@ -5068,6 +5205,13 @@ drop:
 	  }
 	  user_list
 	  {}
+	| DROP VIEW_SYM if_exists table_list opt_restrict
+	  {
+	    THD *thd= YYTHD;
+	    LEX *lex= thd->lex;
+	    lex->sql_command= SQLCOM_DROP_VIEW;
+	    lex->drop_if_exists= $3;
+	  }
 	  ;
 
 table_list:
@@ -5403,13 +5547,12 @@ show_param:
 	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_TABLES;
 	    lex->select_lex.db= $2;
-	    lex->select_lex.options= 0;
 	   }
 	| TABLE_SYM STATUS_SYM opt_db wild
 	  {
 	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_TABLES;
-	    lex->select_lex.options|= SELECT_DESCRIBE;
+	    lex->describe= DESCRIBE_EXTENDED;
 	    lex->select_lex.db= $3;
 	  }
 	| OPEN_SYM TABLES opt_db wild
@@ -5417,7 +5560,6 @@ show_param:
 	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_OPEN_TABLES;
 	    lex->select_lex.db= $3;
-	    lex->select_lex.options= 0;
 	  }
 	| ENGINE_SYM storage_engines 
 	  { Lex->create_info.db_type= $2; }
@@ -5548,9 +5690,19 @@ show_param:
 	  }
         | CREATE TABLE_SYM table_ident
           {
-	    Lex->sql_command = SQLCOM_SHOW_CREATE;
-	    if (!Select->add_table_to_list(YYTHD, $3, NULL,0))
+            LEX *lex= Lex;
+	    lex->sql_command = SQLCOM_SHOW_CREATE;
+	    if (!lex->select_lex.add_table_to_list(YYTHD, $3, NULL,0))
 	      YYABORT;
+            lex->only_view= 0;
+	  }
+        | CREATE VIEW_SYM table_ident
+          {
+            LEX *lex= Lex;
+	    lex->sql_command = SQLCOM_SHOW_CREATE;
+	    if (!lex->select_lex.add_table_to_list(YYTHD, $3, NULL, 0))
+	      YYABORT;
+            lex->only_view= 1;
 	  }
         | MASTER_SYM STATUS_SYM
           {
@@ -5621,7 +5773,9 @@ opt_db:
 
 wild:
 	/* empty */
-	| LIKE text_string { Lex->wild= $2; };
+	| LIKE TEXT_STRING_sys
+	  { Lex->wild=  new (&YYTHD->mem_root) String($2.str, $2.length,
+                                                      system_charset_info); };
 
 opt_full:
 	/* empty */ { Lex->verbose=0; }
@@ -6018,6 +6172,7 @@ simple_ident:
 				  $1.str);
 	    }
 	    $$ = (Item*) new Item_splocal($1, spv->offset);
+            lex->variables_used= 1;
 	  }
 	  else
 	  {
@@ -6100,7 +6255,7 @@ simple_ident_q:
 
 field_ident:
 	ident			{ $$=$1;}
-	| ident '.' ident	{ $$=$3;}	/* Skipp schema name in create*/
+	| ident '.' ident	{ $$=$3;}	/* Skip schema name in create*/
 	| '.' ident		{ $$=$2;}	/* For Delphi */;
 
 table_ident:
@@ -6109,9 +6264,8 @@ table_ident:
 	| '.' ident		{ $$=new Table_ident($2);} /* For Delphi */
         ;
 
-table_ident_ref:
+table_ident_nodb:
 	ident			{ LEX_STRING db={(char*) any_db,3}; $$=new Table_ident(YYTHD, db,$1,0); }
-	| ident '.' ident	{ $$=new Table_ident(YYTHD, $1,$3,0);}
         ;
 
 IDENT_sys:
@@ -6120,7 +6274,19 @@ IDENT_sys:
 	  {
 	    THD *thd= YYTHD;
 	    if (thd->charset_is_system_charset)
+            {
+              CHARSET_INFO *cs= system_charset_info;
+              uint wlen= cs->cset->well_formed_len(cs, $1.str,
+                                                   $1.str+$1.length,
+                                                   $1.length);
+              if (wlen < $1.length)
+              {
+                net_printf(YYTHD, ER_INVALID_CHARACTER_STRING, cs->csname,
+                           $1.str + wlen);
+                YYABORT;
+              }
 	      $$= $1;
+            }
 	    else
 	      thd->convert_string(&$$, system_charset_info,
 				  $1.str, $1.length, thd->charset());
@@ -6211,6 +6377,7 @@ keyword:
 	| AFTER_SYM		{}
 	| AGAINST		{}
 	| AGGREGATE_SYM		{}
+	| ALGORITHM_SYM		{}
 	| ANY_SYM		{}
 	| ASCII_SYM		{}
 	| AUTO_INC		{}
@@ -6226,6 +6393,7 @@ keyword:
 	| BYTE_SYM		{}
 	| BTREE_SYM		{}
 	| CACHE_SYM		{}
+	| CASCADED              {}
 	| CHANGED		{}
 	| CHARSET		{}
 	| CHECKSUM_SYM		{}
@@ -6243,6 +6411,7 @@ keyword:
 	| DATETIME		{}
 	| DATE_SYM		{}
 	| DAY_SYM		{}
+        | DEALLOCATE_SYM        {}
 	| DEFINER_SYM		{}
 	| DELAY_KEY_WRITE_SYM	{}
 	| DES_KEY_FILE		{}
@@ -6317,6 +6486,7 @@ keyword:
 	| MAX_QUERIES_PER_HOUR	{}
 	| MAX_UPDATES_PER_HOUR	{}
 	| MEDIUM_SYM		{}
+	| MERGE_SYM		{}
 	| MICROSECOND_SYM	{}
 	| MINUTE_SYM		{}
 	| MIN_ROWS		{}
@@ -6338,12 +6508,14 @@ keyword:
 	| NVARCHAR_SYM		{}
 	| OFFSET_SYM		{}
 	| OLD_PASSWORD		{}
+	| ONE_SHOT_SYM		{}
 	| OPEN_SYM		{}
 	| PACK_KEYS_SYM		{}
 	| PARTIAL		{}
 	| PASSWORD		{}
 	| POINT_SYM		{}
 	| POLYGON		{}
+        | PREPARE_SYM           {}
 	| PREV_SYM		{}
 	| PROCESS		{}
 	| PROCESSLIST_SYM	{}
@@ -6397,6 +6569,7 @@ keyword:
 	| SUPER_SYM		{}
 	| TABLESPACE		{}
 	| TEMPORARY		{}
+	| TEMPTABLE_SYM		{}
 	| TEXT_SYM		{}
 	| TRANSACTION_SYM	{}
 	| TRUNCATE_SYM		{}
@@ -6413,6 +6586,7 @@ keyword:
 	| USER			{}
 	| USE_FRM		{}
 	| VARIABLES		{}
+	| VIEW_SYM		{}
 	| VALUE_SYM		{}
 	| WARNINGS		{}
 	| WEEK_SYM		{}
@@ -6430,6 +6604,7 @@ set:
 	  lex->sql_command= SQLCOM_SET_OPTION;
 	  lex->option_type=OPT_SESSION;
 	  lex->var_list.empty();
+          lex->one_shot_set= 0;
 	}
 	option_value_list
 	{}
@@ -6448,6 +6623,7 @@ option_type:
 	| GLOBAL_SYM	{ Lex->option_type= OPT_GLOBAL; }
 	| LOCAL_SYM	{ Lex->option_type= OPT_SESSION; }
 	| SESSION_SYM	{ Lex->option_type= OPT_SESSION; }
+	| ONE_SHOT_SYM	{ Lex->option_type= OPT_SESSION; Lex->one_shot_set= 1; }
 	;
 
 opt_var_type:
@@ -6691,14 +6867,14 @@ handler:
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, $4, 0))
 	    YYABORT;
 	}
-	| HANDLER_SYM table_ident_ref CLOSE_SYM
+	| HANDLER_SYM table_ident_nodb CLOSE_SYM
 	{
 	  LEX *lex= Lex;
 	  lex->sql_command = SQLCOM_HA_CLOSE;
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
 	    YYABORT;
 	}
-	| HANDLER_SYM table_ident_ref READ_SYM
+	| HANDLER_SYM table_ident_nodb READ_SYM
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_HA_READ;
@@ -6808,7 +6984,7 @@ grant_privilege:
 	| REFERENCES	{ Lex->which_columns = REFERENCES_ACL;} opt_column_list {}
 	| DELETE_SYM	{ Lex->grant |= DELETE_ACL;}
 	| USAGE		{}
-	| INDEX		{ Lex->grant |= INDEX_ACL;}
+	| INDEX_SYM	{ Lex->grant |= INDEX_ACL;}
 	| ALTER		{ Lex->grant |= ALTER_ACL;}
 	| CREATE	{ Lex->grant |= CREATE_ACL;}
 	| DROP		{ Lex->grant |= DROP_ACL;}
@@ -6822,8 +6998,10 @@ grant_privilege:
 	| SUPER_SYM	{ Lex->grant |= SUPER_ACL;}
 	| CREATE TEMPORARY TABLES { Lex->grant |= CREATE_TMP_ACL;}
 	| LOCK_SYM TABLES   { Lex->grant |= LOCK_TABLES_ACL; }
-	| REPLICATION SLAVE  { Lex->grant |= REPL_SLAVE_ACL;}
-	| REPLICATION CLIENT_SYM { Lex->grant |= REPL_CLIENT_ACL;}
+	| REPLICATION SLAVE  { Lex->grant |= REPL_SLAVE_ACL; }
+	| REPLICATION CLIENT_SYM { Lex->grant |= REPL_CLIENT_ACL; }
+	| CREATE VIEW_SYM { Lex->grant |= CREATE_VIEW_ACL; }
+	| SHOW VIEW_SYM { Lex->grant |= SHOW_VIEW_ACL; }
 	;
 
 
@@ -7211,4 +7389,42 @@ subselect_end:
 	  LEX *lex=Lex;
 	  lex->current_select = lex->current_select->return_after_parsing();
 	};
+
+opt_view_list:
+	/* empty */ {}
+	| '(' view_list ')'
+	;
+
+view_list:
+	ident 
+	  {
+	    Lex->view_list.push_back((LEX_STRING*)
+				     sql_memdup(&$1, sizeof(LEX_STRING)));
+	  }
+	| view_list ',' ident
+	  {
+	    Lex->view_list.push_back((LEX_STRING*)
+				     sql_memdup(&$3, sizeof(LEX_STRING)));
+	  }
+	;
+
+or_replace:
+	/* empty */	 { Lex->create_view_mode= VIEW_CREATE_NEW; }
+	| OR_SYM REPLACE { Lex->create_view_mode= VIEW_CREATE_OR_REPLACE; }
+	;
+
+algorithm:
+	/* empty */
+	  { Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED; }
+	| ALGORITHM_SYM EQ MERGE_SYM
+	  { Lex->create_view_algorithm= VIEW_ALGORITHM_MERGE; }
+	| ALGORITHM_SYM EQ TEMPTABLE_SYM
+	  { Lex->create_view_algorithm= VIEW_ALGORITHM_TMEPTABLE; }
+	;
+check_option:
+        /* empty */ {}
+        | WITH CHECK_SYM OPTION {}
+        | WITH CASCADED CHECK_SYM OPTION {}
+        | WITH LOCAL_SYM CHECK_SYM OPTION {}
+        ;
 

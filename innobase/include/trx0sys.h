@@ -32,6 +32,14 @@ or there was no master log position info inside InnoDB. */
 extern char 		trx_sys_mysql_master_log_name[];
 extern ib_longlong	trx_sys_mysql_master_log_pos;
 
+/* If this MySQL server uses binary logging, after InnoDB has been inited
+and if it has done a crash recovery, we store the binlog file name and position
+here. If .._pos is -1, it means there was no binlog position info inside
+InnoDB. */
+
+extern char 		trx_sys_mysql_bin_log_name[];
+extern ib_longlong	trx_sys_mysql_bin_log_pos;
+
 /* The transaction system */
 extern trx_sys_t*	trx_sys;
 

@@ -362,13 +362,13 @@ static void usage(void)
                       this option is deprecated; you can set variables\n\
                       directly with '--variable-name=value'.\n\
   -t, --tmpdir=path   Path for temporary files. Multiple paths can be\n\
-                      specified, separated by "
-#if defined( __WIN__) || defined(OS2)
-   "semicolon (;)"
+                      specified, separated by ");
+#if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
+   puts("semicolon (;)");
 #else
-   "colon (:)"
+   puts("colon (:)");
 #endif
-                      ", they will be used\n\
+                      puts(", they will be used\n\
                       in a round-robin fashion.\n\
   -s, --silent	      Only print errors.  One can use two -s to make\n\
 		      myisamchk very silent.\n\
@@ -1389,7 +1389,7 @@ static void descript(MI_CHECK *param, register MI_INFO *info, my_string name)
       }
       if (buff[0] == ',')
 	strmov(buff,buff+2);
-      int2str((long) share->rec[field].length,length,10);
+      int10_to_str((long) share->rec[field].length,length,10);
       null_bit[0]=null_pos[0]=0;
       if (share->rec[field].null_bit)
       {
@@ -1685,9 +1685,19 @@ err:
   DBUG_RETURN(1);
 } /* sort_record_index */
 
-int *killed_ptr(void *thd)
+
+
+/*
+  Check if myisamchk was killed by a signal
+  This is overloaded by other programs that want to be able to abort
+  sorting
+*/
+
+static int not_killed= 0;
+
+volatile int *killed_ptr(MI_CHECK *param)
 {
-  return (int *)thd; /* always NULL */
+  return &not_killed;			/* always NULL */
 }
 
 	/* print warnings and errors */

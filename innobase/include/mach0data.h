@@ -89,7 +89,7 @@ mach_read_from_4(
 			/* out: ulint integer */
 	byte*   b);      /* in: pointer to four bytes */
 /*************************************************************
-Writes a ulint in a compressed form. */
+Writes a ulint in a compressed form (1..5 bytes). */
 UNIV_INLINE
 ulint
 mach_write_compressed(
@@ -168,7 +168,7 @@ mach_read_from_8(
 			/* out: dulint integer */
 	byte*   b);      /* in: pointer to 8 bytes */
 /*************************************************************
-Writes a dulint in a compressed form. */
+Writes a dulint in a compressed form (5..9 bytes). */
 UNIV_INLINE
 ulint
 mach_dulint_write_compressed(
@@ -193,7 +193,7 @@ mach_dulint_read_compressed(
 			/* out: read dulint */
 	byte*   b);     /* in: pointer to memory from where to read */
 /*************************************************************
-Writes a dulint in a compressed form. */
+Writes a dulint in a compressed form (1..11 bytes). */
 UNIV_INLINE
 ulint
 mach_dulint_write_much_compressed(

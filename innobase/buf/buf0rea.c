@@ -284,14 +284,12 @@ buf_read_ahead_random(
 	
 	os_aio_simulated_wake_handler_threads();
 
-#ifdef UNIV_DEBUG
 	if (buf_debug_prints && (count > 0)) {
 		fprintf(stderr,
 			"Random read-ahead space %lu offset %lu pages %lu\n",
 						(ulong) space, (ulong) offset,
 		       				(ulong) count);
 	}
-#endif /* UNIV_DEBUG */
 
 	return(count);
 }
@@ -571,13 +569,11 @@ buf_read_ahead_linear(
 	/* Flush pages from the end of the LRU list if necessary */
 	buf_flush_free_margin();
 
-#ifdef UNIV_DEBUG
 	if (buf_debug_prints && (count > 0)) {
 		fprintf(stderr,
 		"LINEAR read-ahead space %lu offset %lu pages %lu\n",
 		(ulong) space, (ulong) offset, (ulong) count);
 	}
-#endif /* UNIV_DEBUG */
 
 	return(count);
 }
@@ -636,13 +632,11 @@ buf_read_ibuf_merge_pages(
 	/* Flush pages from the end of the LRU list if necessary */
 	buf_flush_free_margin();
 
-#ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
 		fprintf(stderr,
 			"Ibuf merge read-ahead space %lu pages %lu\n",
-							(ulong) space, (ulong) n_stored);
+				(ulong) space_ids[0], (ulong) n_stored);
 	}
-#endif /* UNIV_DEBUG */
 }
 
 /************************************************************************
@@ -706,10 +700,8 @@ buf_read_recv_pages(
 	/* Flush pages from the end of the LRU list if necessary */
 	buf_flush_free_margin();
 
-#ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
 		fprintf(stderr,
 			"Recovery applies read-ahead pages %lu\n", (ulong) n_stored);
 	}
-#endif /* UNIV_DEBUG */
 }
