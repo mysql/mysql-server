@@ -1469,7 +1469,7 @@ mysql_execute_command(void)
 				 (TABLE_LIST *)
 				 lex->create_info.merge_list.first))
       goto error;				/* purecov: inspected */
-    if (grant_option)
+    if (grant_option && want_priv != CREATE_TMP_ACL)
     {
       /* Check that the first table has CREATE privilege */
       TABLE_LIST *tmp_table_list=tables->next;

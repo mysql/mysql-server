@@ -50070,6 +50070,10 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed bug in REVOKE that caused user resources to be randomly set
+@item
+Fixed bug with a new GRANT on TEMP TABLES
+@item
 Fixed bug in multi-table delete when tables are re-ordered in table 
 initialization method and ref_length's are of different sizes
 @item 
