@@ -3410,6 +3410,11 @@ unsent_create_error:
       delete lex->sphead;
       lex->sphead= 0;
       goto error;
+    case SP_NO_DB_ERROR:
+      net_printf(thd, ER_BAD_DB_ERROR, lex->sphead->m_db);
+      delete lex->sphead;
+      lex->sphead= 0;
+      goto error;
     default:
       net_printf(thd, ER_SP_STORE_FAILED, SP_TYPE_STRING(lex), name);
       delete lex->sphead;
@@ -3425,7 +3430,7 @@ unsent_create_error:
       if (!(sp= sp_find_procedure(thd, lex->spname)))
       {
 	net_printf(thd, ER_SP_DOES_NOT_EXIST, "PROCEDURE",
-		   lex->spname->m_name.str);
+		   lex->spname->m_qname.str);
 	goto error;
       }
       else
@@ -3519,11 +3524,11 @@ unsent_create_error:
 	break;
       case SP_KEY_NOT_FOUND:
 	net_printf(thd, ER_SP_DOES_NOT_EXIST, SP_COM_STRING(lex),
-		   lex->spname->m_name.str);
+		   lex->spname->m_qname.str);
 	goto error;
       default:
 	net_printf(thd, ER_SP_CANT_ALTER, SP_COM_STRING(lex),
-		   lex->spname->m_name.str);
+		   lex->spname->m_qname.str);
 	goto error;
       }
       break;
@@ -3570,11 +3575,11 @@ unsent_create_error:
 	  break;
 	}
 	net_printf(thd, ER_SP_DOES_NOT_EXIST, SP_COM_STRING(lex),
-		   lex->spname->m_name.str);
+		   lex->spname->m_qname.str);
 	goto error;
       default:
 	net_printf(thd, ER_SP_DROP_FAILED, SP_COM_STRING(lex),
-		   lex->spname->m_name.str);
+		   lex->spname->m_qname.str);
 	goto error;
       }
       break;
