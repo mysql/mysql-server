@@ -3948,6 +3948,13 @@ UK [PLiG/UK] @
 @uref{http://ftp.plig.org/pub/mysql/, WWW}
 @uref{ftp://ftp.plig.org/pub/mysql/, FTP}
 
+@item
+@c lance@uklinux.net (Lance)
+@c @image{Flags/great-britain}
+UK [uklinux.net] @
+@uref{http://mirror.uklinux.net/mysql/, WWW}
+@uref{ftp://mirror.uklinux.net/pub/mysql/, FTP}
+
 @c @item
 @c unknown
 @c @image{Flags/great-britain} UK [MicroMuse] @
