@@ -70,6 +70,7 @@ save_master_pos;
 connection slave;
 sync_with_master;
 --replace_result $MASTER_MYPORT MASTER_PORT 3306 MASTER_PORT 3334 MASTER_PORT
+--replace_column 22 #
 show slave status;
 # one more rotation, to be sure Relay_log_space is correctly updated
 flush logs;
@@ -79,6 +80,7 @@ save_master_pos;
 connection slave;
 sync_with_master;
 --replace_result $MASTER_MYPORT MASTER_PORT 3306 MASTER_PORT 3334 MASTER_PORT
+--replace_column 22 #
 show slave status;
 
 connection master;

@@ -49,12 +49,12 @@ flush logs;
 create table t1 (a int);
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key
-127.0.0.1	root	MASTER_PORT	1	master-bin.000001	50535	slave-relay-bin.000009	62	master-bin.000001	Yes	Yes							0		0	50535	62	None		0	No					
+127.0.0.1	root	MASTER_PORT	1	master-bin.000001	50535	slave-relay-bin.000009	62	master-bin.000001	Yes	Yes							0		0	50535	#	None		0	No					
 flush logs;
 drop table t1;
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key
-127.0.0.1	root	MASTER_PORT	1	master-bin.000001	50583	slave-relay-bin.000010	52	master-bin.000001	Yes	Yes							0		0	50583	52	None		0	No					
+127.0.0.1	root	MASTER_PORT	1	master-bin.000001	50583	slave-relay-bin.000010	52	master-bin.000001	Yes	Yes							0		0	50583	#	None		0	No					
 flush logs;
 show master status;
 File	Position	Binlog_do_db	Binlog_ignore_db

@@ -1,17 +1,5 @@
 #! /bin/sh
 
-echo "\
-********************************************************************************
-Note that by default BUILD/compile-pentium-valgrind-max calls 'configure' with
---enable-assembler. When Valgrind detects an error involving an assembly
-function (for example an uninitialized value used as an argument of an assembly
-function), Valgrind will not print the stacktrace and 'valgrind
---gdb-attach=yes' will not work either. If you need a stacktrace in those cases,
-you have to run BUILD/compile-pentium-valgrind-max with the --disable-assembler
-argument.
-********************************************************************************
-"
-
 path=`dirname $0`
 . "$path/SETUP.sh"
 
@@ -24,14 +12,16 @@ extra_configs="$extra_configs --with-berkeley-db --with-innodb --without-isam --
 
 . "$path/FINISH.sh"
 
-echo "\
-********************************************************************************
+if test -z "$just_print"
+then
+  echo "\
+******************************************************************************
 Note that by default BUILD/compile-pentium-valgrind-max calls 'configure' with
 --enable-assembler. When Valgrind detects an error involving an assembly
-function (for example an uninitialized value used as an argument of an assembly
-function), Valgrind will not print the stacktrace and 'valgrind
---gdb-attach=yes' will not work either. If you need a stacktrace in those cases,
-you have to run BUILD/compile-pentium-valgrind-max with the --disable-assembler
-argument.
-********************************************************************************
-"
+function (for example an uninitialized value used as an argument of an
+assembly function), Valgrind will not print the stacktrace and 'valgrind
+--gdb-attach=yes' will not work either. If you need a stacktrace in those
+cases, you have to run BUILD/compile-pentium-valgrind-max with the
+--disable-assembler argument.
+******************************************************************************"
+fi
