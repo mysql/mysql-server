@@ -248,7 +248,7 @@ character-set=latin1
 "Referencia de llave y referencia de tabla no coinciden",
 "Operando debe tener %d columna(s)",
 "Subconsulta retorna mas que 1 línea",
-"Desconocido preparado comando handler (%ld) dado para %s",
+"Desconocido preparado comando handler (%.*s) dado para %s",
 "Base de datos Help está corrupto o no existe",
 "Cíclica referencia en subconsultas",
 "Convirtiendo columna '%s' de %s para %s",
