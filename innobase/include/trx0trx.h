@@ -464,6 +464,10 @@ struct trx_struct{
 	ulint		n_lock_table_exp;/* number of explicit table locks
 					(LOCK TABLES) reserved by the
 					transaction, stored in trx_locks */
+	ulint		n_lock_table_transactional;
+					/* number of transactional table locks
+					(LOCK TABLES..WHERE ENGINE) reserved by
+					the transaction, stored in trx_locks */
 	UT_LIST_NODE_T(trx_t)
 			trx_list;	/* list of transactions */
 	UT_LIST_NODE_T(trx_t)

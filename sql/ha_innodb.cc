@@ -1346,7 +1346,8 @@ innobase_commit(
 	3. innobase_query_caching_of_table_permitted(),
 	4. innobase_savepoint(),
 	5. ::init_table_handle_for_HANDLER(),
-	6. innobase_start_trx_and_assign_read_view()
+	6. innobase_start_trx_and_assign_read_view(),
+	7. ::transactional_table_lock()
 
 	and it is only set to 0 in a commit or a rollback. If it is 0 we know
 	there cannot be resources to be freed and we could return immediately.
@@ -5109,8 +5110,9 @@ ha_innobase::start_stmt(
 			select_lock_type value. The value of
 			stored_select_lock_type was decided in:
 			1) ::store_lock(),
-			2) ::external_lock(), and
-			3) ::init_table_handle_for_HANDLER(). */
+			2) ::external_lock(), 
+			3) ::init_table_handle_for_HANDLER(), and 
+			4) :.transactional_table_lock(). */
 
 			prebuilt->select_lock_type =
 				prebuilt->stored_select_lock_type;
@@ -5295,6 +5297,94 @@ ha_innobase::external_lock(
 
 				read_view_close_for_mysql(trx);
 			}
+		}
+	}
+
+	DBUG_RETURN(0);
+}
+
+/**********************************************************************
+With this function MySQL request a transactional lock to a table when
+user issued query LOCK TABLES..WHERE ENGINE = InnoDB. */
+
+int
+ha_innobase::transactional_table_lock(
+/*==================================*/
+			        /* out: 0 */
+	THD*	thd,		/* in: handle to the user thread */
+	int 	lock_type)	/* in: lock type */
+{
+	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+	trx_t*		trx;
+
+  	DBUG_ENTER("ha_innobase::transactional_table_lock");
+	DBUG_PRINT("enter",("lock_type: %d", lock_type));
+
+	/* We do not know if MySQL can call this function before calling
+	external_lock(). To be safe, update the thd of the current table
+	handle. */
+
+	update_thd(thd);
+
+ 	if (prebuilt->table->ibd_file_missing && !current_thd->tablespace_op) {
+	        ut_print_timestamp(stderr);
+	        fprintf(stderr, "  InnoDB error:\n"
+"MySQL is trying to use a table handle but the .ibd file for\n"
+"table %s does not exist.\n"
+"Have you deleted the .ibd file from the database directory under\n"
+"the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
+"Look from section 15.1 of http://www.innodb.com/ibman.html\n"
+"how you can resolve the problem.\n",
+				prebuilt->table->name);
+		DBUG_RETURN(HA_ERR_CRASHED);
+	}
+
+	trx = prebuilt->trx;
+
+	prebuilt->sql_stat_start = TRUE;
+	prebuilt->hint_need_to_fetch_extra_cols = 0;
+
+	prebuilt->read_just_key = 0;
+	prebuilt->keep_other_fields_on_keyread = FALSE;
+
+	if (lock_type == F_WRLCK) {
+		prebuilt->select_lock_type = LOCK_X;
+		prebuilt->stored_select_lock_type = LOCK_X;
+	} else if (lock_type == F_RDLCK) {
+		prebuilt->select_lock_type = LOCK_X;
+		prebuilt->stored_select_lock_type = LOCK_X;
+	} else {
+	        ut_print_timestamp(stderr);
+	        fprintf(stderr, "  InnoDB error:\n"
+"MySQL is trying to set transactional table lock with corrupted lock type\n"
+"to table %s, lock type %d does not exist.\n",
+				prebuilt->table->name, lock_type);
+		DBUG_RETURN(HA_ERR_CRASHED);
+	}
+
+	/* MySQL is setting a new transactional table lock */
+
+	/* Set the MySQL flag to mark that there is an active transaction */
+	thd->transaction.all.innodb_active_trans = 1;
+
+	if (thd->in_lock_tables && thd->variables.innodb_table_locks) {
+		ulint	error = DB_SUCCESS;
+
+		error = row_lock_table_for_mysql(prebuilt,NULL, 
+						LOCK_TABLE_TRANSACTIONAL);
+
+		if (error != DB_SUCCESS) {
+			error = convert_error_code_to_mysql(error, user_thd);
+			DBUG_RETURN(error);
+		}
+
+		if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
+
+			/* Store the current undo_no of the transaction 
+			so that we know where to roll back if we have 
+			to roll back the next SQL statement */
+
+			trx_mark_sql_stat_end(trx);
 		}
 	}
 
