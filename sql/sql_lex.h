@@ -283,7 +283,7 @@ public:
   st_select_lex *return_to;
   /* LIMIT clause runtime counters */
   ha_rows select_limit_cnt, offset_limit_cnt;
-  /* not NULL if union used in subselect, point to subselect item */
+  /* not NULL if unit used in subselect, point to subselect item */
   Item_subselect *item;
   /* thread handler */
   THD *thd;
