@@ -143,7 +143,7 @@ extern ulonglong safemalloc_mem_limit;
 #define CALLER_INFO         , __FILE__, __LINE__
 #define ORIG_CALLER_INFO    , sFile, uLine
 #else
-#define my_checkmalloc() (0)
+#define my_checkmalloc()
 #undef TERMINATE
 #define TERMINATE(A) {}
 #define QUICK_SAFEMALLOC
