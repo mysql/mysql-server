@@ -6,6 +6,7 @@
 # 2001-12-07 Fixup by arjen@mysql.com, add column headings for multitable.
 # 2002-05-01 Fixup by arjen@mysql.com, use 3 columns instead of 4.
 # 2002-05-03 Fixup by arjen@mysql.com, fill last row to full # of columns.
+# 2002-06-14 Fixup by arjen@mysql.com, Issue a "bk edit manual.texi".
 
 print STDERR "Scanning lex.h for symbols..\n";
 open LEX, "<../sql/lex.h";
@@ -47,6 +48,8 @@ for($i=0; $word = shift(@words); $i++) {
 for( ; $i%3; $i++) {
   $list .= sprintf "%s\n", $pre[$i%3];
 }
+
+`bk edit manual.texi`;
 
 open OLD, "<manual.texi";
 open NEW, ">manual-tmp.texi";
