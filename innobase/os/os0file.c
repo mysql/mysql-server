@@ -178,6 +178,11 @@ os_file_get_last_error(void)
   "InnoDB: The error means the system cannot find the path specified.\n"
   "InnoDB: In installation you must create directories yourself, InnoDB\n"
   "InnoDB: does not create them.\n");
+		 } else if (err == ERROR_ACCESS_DENIED) {
+		         fprintf(stderr,
+  "InnoDB: The error means mysqld does not have the access rights to\n"
+  "InnoDB: the directory. It may also be you have created a subdirectory\n"
+  "InnoDB: of the same name as a data file.\n"); 
 		 } else {
 		         fprintf(stderr,
   "InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
@@ -208,6 +213,10 @@ os_file_get_last_error(void)
   "InnoDB: The error means the system cannot find the path specified.\n"
   "InnoDB: In installation you must create directories yourself, InnoDB\n"
   "InnoDB: does not create them.\n");
+		 } else if (err == EACCES) {
+		         fprintf(stderr,
+  "InnoDB: The error means mysqld does not have the access rights to\n"
+  "InnoDB: the directory.\n");
 		 } else {
 		         fprintf(stderr,
   "InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
