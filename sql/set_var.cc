@@ -1194,7 +1194,7 @@ bool sys_var_thd_client_charset::check(THD *thd, set_var *var)
   if (!(res=var->value->val_str(&str)))
     res= &empty_string;
 
-  if (!(tmp=get_charset_by_csname(res->c_ptr(),MYF(0))))
+  if (!(tmp=get_charset_by_csname(res->c_ptr(),MY_CS_PRIMARY,MYF(0))))
   {
     my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
     return 1;
