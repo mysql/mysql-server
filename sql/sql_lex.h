@@ -608,7 +608,13 @@ typedef struct st_lex
   bool safe_to_cache_query;
   /* Prepared statements SQL syntax:*/
   LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */
-  LEX_STRING prepared_stmt_code; /* Statement query (in PREPARE )*/
+  /* 
+    Prepared statement query text or name of variable that holds the
+    prepared statement (in PREPARE ... queries)
+  */
+  LEX_STRING prepared_stmt_code; 
+  /* If true, prepared_stmt_code is a name of variable that holds the query */
+  bool prepared_stmt_code_is_varref;
   /* Names of user variables holding parameters (in EXECUTE) */
   List<LEX_STRING> prepared_stmt_params; 
   st_lex() {}
