@@ -47,6 +47,8 @@ ulonglong my_getsystime()
     offset=li.QuadPart-OFFSET_TO_EPOC;
     QueryPerformanceFrequency(&li);
     freq=li.QuadPart;
+    QueryPerformanceCounter(&t_cnt);
+    offset-=t_cnt.QuadPart/freq*10000000+t_cnt.QuadPart%freq*10000000/freq;
   }
   QueryPerformanceCounter(&t_cnt);
   return t_cnt.QuadPart/freq*10000000+t_cnt.QuadPart%freq*10000000/freq+offset;
