@@ -88,6 +88,32 @@ void hash_free(HASH *hash)
   DBUG_VOID_RETURN;
 }
 
+
+/*
+  Delete all elements from the hash (the hash itself is to be reused).
+
+  SYNOPSIS
+    hash_reset()
+      hash   the hash to delete elements of
+*/
+
+void hash_reset(HASH *hash)
+{
+  DBUG_ENTER("hash_reset");
+  if (hash->free)
+  {
+    HASH_LINK *link= dynamic_element(&hash->array, 0, HASH_LINK*);
+    HASH_LINK *end= link + hash->records;
+    for (; link < end; ++link)
+      (*hash->free)(link->data);
+  }
+  reset_dynamic(&hash->array);
+  hash->records= 0;
+  hash->blength= 1;
+  hash->current_record= NO_RECORD;
+  DBUG_VOID_RETURN;
+}
+
 	/* some helper functions */
 
 /*
