@@ -594,6 +594,7 @@ public:
   Protocol_prep protocol_prep;		// Binary protocol
   HASH    user_vars;			// hash for user variables
   String  packet;			// dynamic buffer for network I/O
+  String  convert_buffer;               // buffer for charset conversions
   struct  sockaddr_in remote;		// client socket address
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
@@ -917,6 +918,9 @@ public:
   bool convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
 		      const char *from, uint from_length,
 		      CHARSET_INFO *from_cs);
+
+  bool convert_string(String *s, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs);
+
   void add_changed_table(TABLE *table);
   void add_changed_table(const char *key, long key_length);
   CHANGED_TABLE_LIST * changed_table_dup(const char *key, long key_length);

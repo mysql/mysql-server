@@ -1401,7 +1401,7 @@ key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
   {
     if (key1->part > key2->part)
     {
-      swap(SEL_ARG *,key1,key2);
+      swap_variables(SEL_ARG *, key1, key2);
       clone_flag=swap_clone_flag(clone_flag);
     }
     // key1->part < key2->part
@@ -1417,7 +1417,7 @@ key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
        key2->type != SEL_ARG::MAYBE_KEY) ||
       key1->type == SEL_ARG::MAYBE_KEY)
   {						// Put simple key in key2
-    swap(SEL_ARG *,key1,key2);
+    swap_variables(SEL_ARG *, key1, key2);
     clone_flag=swap_clone_flag(clone_flag);
   }
 
@@ -1559,7 +1559,7 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
   {
     if (key2->use_count == 0 || key1->elements > key2->elements)
     {
-      swap(SEL_ARG *,key1,key2);
+      swap_variables(SEL_ARG *,key1,key2);
     }
     else if (!(key1=key1->clone_tree()))
       return 0;					// OOM

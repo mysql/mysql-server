@@ -240,7 +240,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
   {
     if (sql_lock->locks[i]->type >= TL_WRITE_ALLOW_READ)
     {
-      swap(THR_LOCK_DATA *,*lock,sql_lock->locks[i]);
+      swap_variables(THR_LOCK_DATA *, *lock, sql_lock->locks[i]);
       lock++;
       found++;
     }
@@ -259,7 +259,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
   {
     if ((uint) sql_lock->table[i]->reginfo.lock_type >= TL_WRITE_ALLOW_READ)
     {
-      swap(TABLE *,*table,sql_lock->table[i]);
+      swap_variables(TABLE *, *table, sql_lock->table[i]);
       table++;
       found++;
     }
