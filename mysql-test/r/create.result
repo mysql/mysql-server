@@ -104,9 +104,9 @@ drop table t2;
 create table t2 select CAST("2001-12-29" AS DATE) as d, CAST("20:45:11" AS TIME) as t, CAST("2001-12-29  20:45:11" AS DATETIME) as dt;
 describe t2;
 Field	Type	Null	Key	Default	Extra
-d	date			0000-00-00	
-t	time			00:00:00	
-dt	datetime			0000-00-00 00:00:00	
+d	date	YES		NULL	
+t	time	YES		NULL	
+dt	datetime	YES		NULL	
 drop table t1,t2;
 create table t1 (a tinyint);
 create table t2 (a int) select * from t1;
@@ -396,12 +396,12 @@ Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
 b	bigint(11)			0	
 c	bigint(10)			0	
-d	date			0000-00-00	
+d	date	YES		NULL	
 e	char(1)				
-f	datetime			0000-00-00 00:00:00	
-g	time			00:00:00	
+f	datetime	YES		NULL	
+g	time	YES		NULL	
 h	longblob				
-dd	time			00:00:00	
+dd	time	YES		NULL	
 select * from t2;
 a	b	c	d	e	f	g	h	dd
 1	-7	7	2000-01-01	b	2000-01-01 00:00:00	05:04:03	yet another binary data	02:00:00

@@ -610,6 +610,19 @@ public:
 };
 
 
+class Item_typecast_maybe_null :public Item_typecast
+{
+public:
+  Item_typecast_maybe_null(Item *a) :Item_typecast(a) {}
+  void fix_length_and_dec()
+  {
+    collation.set(&my_charset_bin);
+    max_length=args[0]->max_length;
+    maybe_null= 1;
+  }
+};
+
+
 class Item_char_typecast :public Item_typecast
 {
   int cast_length;
@@ -626,10 +639,10 @@ public:
 };
 
 
-class Item_date_typecast :public Item_typecast
+class Item_date_typecast :public Item_typecast_maybe_null
 {
 public:
-  Item_date_typecast(Item *a) :Item_typecast(a) {}
+  Item_date_typecast(Item *a) :Item_typecast_maybe_null(a) {}
   String *val_str(String *str);
   bool get_date(TIME *ltime, uint fuzzy_date);
   const char *cast_type() const { return "date"; }
@@ -641,10 +654,10 @@ public:
 };
 
 
-class Item_time_typecast :public Item_typecast
+class Item_time_typecast :public Item_typecast_maybe_null
 {
 public:
-  Item_time_typecast(Item *a) :Item_typecast(a) {}
+  Item_time_typecast(Item *a) :Item_typecast_maybe_null(a) {}
   String *val_str(String *str);
   bool get_time(TIME *ltime);
   const char *cast_type() const { return "time"; }
@@ -656,10 +669,10 @@ public:
 };
 
 
-class Item_datetime_typecast :public Item_typecast
+class Item_datetime_typecast :public Item_typecast_maybe_null
 {
 public:
-  Item_datetime_typecast(Item *a) :Item_typecast(a) {}
+  Item_datetime_typecast(Item *a) :Item_typecast_maybe_null(a) {}
   String *val_str(String *str);
   const char *cast_type() const { return "datetime"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
