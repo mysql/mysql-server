@@ -161,11 +161,8 @@ MASTER_RUNNING=0
 MASTER_MYPORT=9306
 SLAVE_RUNNING=0
 SLAVE_MYPORT=9307
-MYSQL_MANAGER_PORT=9305 # needs to be out of the way of slaves
-MYSQL_MANAGER_PW_FILE=$MYSQL_TEST_DIR/var/tmp/manager.pwd
-MYSQL_MANAGER_LOG=$MYSQL_TEST_DIR/var/log/manager.log
-MYSQL_MANAGER_USER=root
 NO_SLAVE=0
+USER_TEST=
 
 EXTRA_MASTER_OPT=""
 EXTRA_MYSQL_TEST_OPT=""
@@ -249,6 +246,9 @@ while test $# -gt 0; do
     --sleep=*)
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1"
       SLEEP_TIME_AFTER_RESTART=`$ECHO "$1" | $SED -e "s;--sleep=;;"`
+      ;;
+    --user-test=*)
+      USER_TEST=`$ECHO "$1" | $SED -e "s;--user-test=;;"`
       ;;
     --mysqld=*)
        TMP=`$ECHO "$1" | $SED -e "s;--mysqld=;;"`
