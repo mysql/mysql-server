@@ -30038,9 +30038,14 @@ mysql> TRUNCATE TABLE insert_table;
 mysql> UNLOCK TABLES;
 @end example
 
-You can use the @code{LOW_PRIORITY} options with @code{INSERT} if you
-want to prioritize retrieval in some specific cases.  @xref{INSERT, ,
-@code{INSERT}}.
+You can use the @code{LOW_PRIORITY} options with @code{INSERT},
+@code{UPDATE} or @code{DELETE} or @code{HIGH_PRIORITY} with
+@code{SELECT} if you want to prioritize retrieval in some specific
+cases.  You can also start @code{mysqld} with @code{--low-priority-updates}
+to get the same behaveour.
+
+Using @code{SQL_BUFFER_RESULT} can also help making table locks shorter.
+@xref{SELECT}.
 
 You could also change the locking code in @file{mysys/thr_lock.c} to use a
 single queue.  In this case, write locks and read locks would have the same
@@ -30058,9 +30063,11 @@ high lock speed.  For large tables, table locking is MUCH better than
 row locking for most applications, but there are, of course, some
 pitfalls.
 
-For @code{BDB} tables, @strong{MySQL} only uses table locking if you
-explicitely lock the table with @code{LOCK TABLES} or execute a command that
-will modify every row in the table, like @code{ALTER TABLE}.
+For @code{BDB} and @code{InnoDB} tables, @strong{MySQL} only uses table
+locking if you explicitely lock the table with @code{LOCK TABLES} or
+execute a command that will modify every row in the table, like
+@code{ALTER TABLE}.  For these table types we recommend you to not use
+@code{LOCK TABLES} at all.
 
 In @strong{MySQL} Version 3.23.7 and above, you can insert rows into
 @code{MyISAM} tables at the same time other threads are reading from the
