@@ -552,6 +552,10 @@ struct row_prebuilt_struct {
 					allocated mem buf start, because
 					there is a 4 byte magic number at the
 					start and at the end */
+	ibool		keep_other_fields_on_keyread; /* when using fetch 
+					cache with HA_EXTRA_KEYREAD, don't 
+					overwrite other fields in mysql row 
+					row buffer.*/
 	ulint		fetch_cache_first;/* position of the first not yet
 					fetched row in fetch_cache */
 	ulint		n_fetch_cached;	/* number of not yet fetched rows

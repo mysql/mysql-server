@@ -132,7 +132,13 @@ enum ha_extra_function {
   HA_EXTRA_RETRIEVE_ALL_COLS,
   HA_EXTRA_PREPARE_FOR_DELETE,
   HA_EXTRA_PREPARE_FOR_UPDATE,		/* Remove read cache if problems */
-  HA_EXTRA_PRELOAD_BUFFER_SIZE          /* Set buffer size for preloading */
+  HA_EXTRA_PRELOAD_BUFFER_SIZE,          /* Set buffer size for preloading */
+  /*
+    When using HA_EXTRA_KEYREAD, overwrite only key member fields and keep 
+    other fields intact. When this is off (by default) InnoDB will use memcpy
+    to overwrite entire row.
+  */
+  HA_EXTRA_KEYREAD_PRESERVE_FIELDS
 };
 
 	/* The following is parameter to ha_panic() */

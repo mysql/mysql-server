@@ -744,6 +744,7 @@ extern byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen);
 extern ha_checksum my_checksum(ha_checksum crc, const byte *mem, uint count);
 extern uint my_bit_log2(ulong value);
 extern uint my_count_bits(ulonglong v);
+extern uint my_count_bits_ushort(ushort v);
 extern void my_sleep(ulong m_seconds);
 extern ulong crc32(ulong crc, const uchar *buf, uint len);
 
