@@ -242,8 +242,12 @@ rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh $BASE/bin/mysql_install_
 # Copy system dependent files
 #
 if [ $BASE_SYSTEM = "netware" ] ; then
-  cp ./netware/static_init_db.sql ./netware/init_db.sql
-  ./scripts/fill_help_tables < ./Docs/manual.texi >> ./netware/init_db.sql
+echo "CREATE DATABASE mysql;" > $BASE/bin/init_db.sql
+  echo "CREATE DATABASE test;" >> $BASE/bin/init_db.sql
+  sh ./scripts/mysql_create_system_tables.sh real "" "%" 0 >> $BASE/bin/init_db.sql
+  sh ./scripts/mysql_create_system_tables.sh test "" "%" 0 > $BASE/bin/test_db.sql
+#  cp ./netware/static_init_db.sql ./netware/init_db.sql
+#  ./scripts/fill_help_tables < ./Docs/manual.texi >> ./netware/init_db.sql
 fi
 
 #

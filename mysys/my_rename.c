@@ -45,7 +45,7 @@ int my_rename(const char *from, const char *to, myf MyFlags)
   }
 #endif
 #if defined(HAVE_RENAME)
-#ifdef __WIN__
+#if defined(__WIN__) || defined(__NETWARE__)
   /*
     On windows we can't rename over an existing file:
     Remove any conflicting files:
