@@ -411,7 +411,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	      (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
     else
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	      (ulong) info.deleted+info.updated, (ulong) thd->cuted_fields);
+	      (ulong) (info.deleted+info.updated), (ulong) thd->cuted_fields);
     ::send_ok(thd,info.copied+info.deleted+info.updated,(ulonglong)id,buff);
   }
   free_underlaid_joins(thd, &thd->lex->select_lex);
@@ -1582,7 +1582,7 @@ bool select_insert::send_eof()
 	    (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
   else
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	    (ulong) info.deleted+info.updated, (ulong) thd->cuted_fields);
+	    (ulong) (info.deleted+info.updated), (ulong) thd->cuted_fields);
   ::send_ok(thd,info.copied+info.deleted+info.updated,last_insert_id,buff);
   DBUG_RETURN(0);
 }
