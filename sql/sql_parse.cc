@@ -425,7 +425,7 @@ check_connections(THD *thd)
     DBUG_PRINT("info", ("Agreed to change IO layer to SSL") );
     /* Do the SSL layering. */
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    net->vio = sslaccept(ssl_acceptor_fd, net->vio);
+    sslaccept(ssl_acceptor_fd, net->vio);
     DBUG_PRINT("info", ("Reading user information over SSL layer"));
     if ((pkt_len=my_net_read(net)) == packet_error ||
 	pkt_len < NORMAL_HANDSHAKE_SIZE)
@@ -2426,7 +2426,7 @@ mysql_init_query(THD *thd)
   thd->lex.select_lex.item_list.empty();
   thd->lex.value_list.empty();
   thd->lex.select_lex.table_list.elements=0;
-  thd->free_list=0;
+  thd->free_list=0;  thd->lex.union_option=0;
   thd->lex.select = &thd->lex.select_lex;
   thd->lex.select_lex.table_list.first=0;
   thd->lex.select_lex.table_list.next= (byte**) &thd->lex.select_lex.table_list.first;
@@ -2444,7 +2444,7 @@ mysql_init_select(LEX *lex)
   select_lex->select_limit=current_thd->default_select_limit;
   select_lex->offset_limit=0;
   select_lex->options=0; select_lex->linkage=UNSPECIFIED_TYPE;
-  select_lex->select_number = 0;  lex->exchange = 0; lex->union_option=0;
+  select_lex->select_number = 0;  lex->exchange = 0;
   lex->proc_list.first=0;
   select_lex->order_list.elements=select_lex->group_list.elements=0;
   select_lex->order_list.first=0;

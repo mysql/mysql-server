@@ -160,7 +160,7 @@ while test $# -gt 0; do
       SLEEP_TIME=`$ECHO "$1" | $SED -e "s;--sleep=;;"`
       ;;
     --mysqld=*)
-       TMP=`$ECHO "$1" | $SED -e "s;--mysqld-=;"`
+       TMP=`$ECHO "$1" | $SED -e "s;--mysqld=;;"`
        EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $TMP"
        EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT $TMP"
        ;;

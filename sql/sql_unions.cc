@@ -21,104 +21,66 @@
 
 
 #include "mysql_priv.h"
-
+#include "sql_select.h"
 
 /* Union  of selects */
 
 
 int mysql_union(THD *thd,LEX *lex,uint no_of_selects) 
 {
-  SELECT_LEX *sl, *for_order=&lex->select_lex; uint no=0; int res=0;
-	select_create *create_result;
-  List<Item> fields; TABLE *table=(TABLE *)NULL; TABLE_LIST *resulting=(TABLE_LIST *)NULL;
+  SELECT_LEX *sl, *for_order=&lex->select_lex;  int res=0;
+  TABLE *table=(TABLE *)NULL; TABLE_LIST *resulting=(TABLE_LIST *)NULL;
   for (;for_order->next;for_order=for_order->next);
   ORDER *some_order = (ORDER *)for_order->order_list.first;
-  for (sl=&lex->select_lex;sl;sl=sl->next, no++)
+	List<Item> list;
+	List_iterator<Item> it(lex->select_lex.item_list);
+	Item *item;
+	TABLE_LIST *s=(TABLE_LIST*) lex->select_lex.table_list.first;
+	while ((item= it++))
+		if (list.push_back(item))
+			return -1;
+	if (setup_fields(thd,s,list,0,0))
+		return -1;
+	TMP_TABLE_PARAM *tmp_table_param= new TMP_TABLE_PARAM;
+  count_field_types(tmp_table_param,list,0);
+	tmp_table_param->end_write_records= HA_POS_ERROR; tmp_table_param->copy_field=0;
+  tmp_table_param->copy_field_count=tmp_table_param->field_count=
+    tmp_table_param->sum_func_count= tmp_table_param->func_count=0;
+  if (!(table=create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, !lex->union_option,
+			       0, 0, lex->select_lex.options | thd->options)))
+    return 1;
+	if (!(resulting = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
+		return 1;
+	resulting->db=s->db ? s->db : thd->db;
+	resulting->real_name=table->real_name;
+	resulting->name=table->table_name;
+	resulting->table=table;
+
+  for (sl=&lex->select_lex;sl;sl=sl->next)
   {
     TABLE_LIST *tables=(TABLE_LIST*) sl->table_list.first;
-    if (!no) // First we do CREATE from SELECT
-    {
-      lex->create_info.options=HA_LEX_CREATE_TMP_TABLE;
-			lex->create_info.db_type=DB_TYPE_MYISAM;
-      lex->create_info.row_type = ROW_TYPE_DEFAULT;
-			lex->create_info.avg_row_length = 0;
-			lex->create_info.max_rows=INT_MAX; lex->create_info.min_rows=0;
-			lex->create_info.comment=lex->create_info.password=NullS;
-			lex->create_info.data_file_name=lex->create_info.index_file_name=NullS;
-			lex->create_info.raid_type=lex->create_info.raid_chunks=0;
-			lex->create_info.raid_chunksize=0;
-			lex->create_info.if_not_exists=false;
-			lex->create_info.used_fields=0;
-
-      if ((create_result=new select_create(tables->db ? tables->db : thd->db,
-				    "ZVEK", &lex->create_info,
-				    lex->create_list,
-				    lex->key_list,
-				    sl->item_list,DUP_IGNORE,true)))
-      {
-				res=mysql_select(thd,tables,sl->item_list,
-												 sl->where,
-												 sl->ftfunc_list,
-												 (ORDER*) NULL,
-												 (ORDER*) sl->group_list.first,
-												 sl->having,
-												 (ORDER*) some_order,
-												 sl->options | thd->options,
-												 create_result);
-				if (res) 
-				{
-					create_result->abort();
-					delete create_result;
-					return res;
-				}
-				table=create_result->table;
-/*				List_iterator<Item> it(*(create_result->fields));
-				Item *item;
-				while ((item= it++))
-				fields.push_back(item);*/
-				if (!(resulting = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
-					return 1;
-				resulting->db=tables->db ? tables->db : thd->db;
-				resulting->real_name=table->real_name;
-				resulting->name=table->table_name;
-				resulting->table=table;
-      }
-      else
-				return -1;
-    }
-    else // Then we do INSERT from SELECT
-    {
-			select_insert *result;
-      if ((result=new select_insert(table, create_result->fields, DUP_IGNORE, true)))
-      {
-				res=mysql_select(thd,tables,sl->item_list,
-												 sl->where,
-                         sl->ftfunc_list,
-												 (ORDER*) some_order,
-												 (ORDER*) sl->group_list.first,
-												 sl->having,
-												 (ORDER*) NULL,
-												 sl->options | thd->options,
-												 result);
-				delete result;
-				if (res) 
-				{
-					delete create_result;
-					return res;
-				}
-      }
-      else
-			{
-				delete create_result;
-				return -1;
-			}
-    }
-  }
+		select_insert *result;
+		if ((result=new select_insert(table,&list, DUP_IGNORE, true)))
+		{
+			res=mysql_select(thd,tables,sl->item_list,
+											 sl->where,
+											 sl->ftfunc_list,
+											 (ORDER*) some_order,
+											 (ORDER*) sl->group_list.first,
+											 sl->having,
+											 (ORDER*) NULL,
+											 sl->options | thd->options,
+											 result);
+			delete result;
+			if (res) 
+				return res;
+		}
+		else
+			return -1;
+	}
   select_result *result;
-  List<Item> item_list;
   List<Item_func_match> ftfunc_list;
   ftfunc_list.empty();
-  void(item_list.push_back(new Item_field(NULL,NULL,"*")));
   if (lex->exchange)
   {
     if (lex->exchange->dumpfile)
@@ -129,7 +91,7 @@ int mysql_union(THD *thd,LEX *lex,uint no_of_selects)
   else result=new select_send();
   if (result)
   {
-    res=mysql_select(thd,resulting,item_list,
+    res=mysql_select(thd,resulting,list,
 										 NULL,
 										 ftfunc_list,
 										 (ORDER*) NULL,
@@ -144,6 +106,5 @@ int mysql_union(THD *thd,LEX *lex,uint no_of_selects)
   }
 	else
 		res=-1;
-  delete create_result;
   return res;
 }

@@ -177,14 +177,7 @@ int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
 	                 (uchar*) old_word->pos,old_word->len,
 			 (uchar*) new_word->pos,new_word->len,0);
     if (cmp==0)
-    {
-      double p=(old_word->weight-new_word->weight)/
-               (old_word->weight+new_word->weight);
-      if (p<1e-5)
-        cmp=0;
-      else
-        cmp=sgn(p);
-    }
+      cmp=sgn(old_word->weight-new_word->weight);
     else
       cmp=sgn(cmp);
 

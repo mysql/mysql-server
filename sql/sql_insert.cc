@@ -1239,12 +1239,12 @@ select_insert::prepare(List<Item> &values)
   table->next_number_field=table->found_next_number_field;
   thd->count_cuted_fields=1;			/* calc cuted fields */
   thd->cuted_fields=0;
-  if (info.handle_duplicates != DUP_REPLACE)
-    table->file->extra(HA_EXTRA_WRITE_CACHE);
-  if (info.handle_duplicates == DUP_IGNORE ||
-      info.handle_duplicates == DUP_REPLACE)
-    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  table->file->deactivate_non_unique_index((ha_rows) 0);
+	if (info.handle_duplicates != DUP_REPLACE)
+		table->file->extra(HA_EXTRA_WRITE_CACHE);
+	if (info.handle_duplicates == DUP_IGNORE ||
+			info.handle_duplicates == DUP_REPLACE)
+		table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+	table->file->deactivate_non_unique_index((ha_rows) 0);
   DBUG_RETURN(0);
 }
 
