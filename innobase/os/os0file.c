@@ -559,10 +559,18 @@ os_file_pwrite(
 	ulint		n,	/* in: number of bytes to write */	
 	ulint		offset)	/* in: offset where to write */
 {
-#ifdef HAVE_PWRITE
-	return(pwrite(file, buf, n, (off_t) offset));
-#else
 	ssize_t	ret;
+
+#ifdef HAVE_PWRITE
+	ret = pwrite(file, buf, n, (off_t) offset);
+
+	/* Always do fsync to reduce the probability that when the OS crashes,
+	a database page is only partially physically written to disk. */
+
+	ut_a(TRUE == os_file_flush(file));
+
+        return(ret);
+#else
 	ulint	i;
 
 	/* Protect the seek / write operation with a mutex */
@@ -579,6 +587,11 @@ os_file_pwrite(
 	}
 	
 	ret = write(file, buf, n);
+
+	/* Always do fsync to reduce the probability that when the OS crashes,
+	a database page is only partially physically written to disk. */
+
+	ut_a(TRUE == os_file_flush(file));
 
 	os_mutex_exit(os_file_seek_mutexes[i]);
 
@@ -733,9 +746,14 @@ try_again:
 	} 
 
 	ret = WriteFile(file, buf, n, &len, NULL);
+	
+	/* Always do fsync to reduce the probability that when the OS crashes,
+	a database page is only partially physically written to disk. */
+
+	ut_a(TRUE == os_file_flush(file));
 
 	os_mutex_exit(os_file_seek_mutexes[i]);
-	
+
 	if (ret && len == n) {
 		return(TRUE);
 	}
@@ -1497,6 +1515,10 @@ os_aio_windows_handle(
 
 	if (ret && len == slot->len) {
 		ret_val = TRUE;
+
+		if (slot->type == OS_FILE_WRITE) {
+		         ut_a(TRUE == os_file_flush(slot->file));
+		}
 	} else {
 		err = GetLastError();
 		ut_error;
@@ -1577,6 +1599,10 @@ os_aio_posix_handle(
 
 	*message1 = slot->message1;
 	*message2 = slot->message2;
+
+	if (slot->type == OS_FILE_WRITE) {
+		ut_a(TRUE == os_file_flush(slot->file));
+	}
 
 	os_mutex_exit(array->mutex);
 
