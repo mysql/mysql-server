@@ -182,13 +182,13 @@ insert into t1 values(1,1,NULL);
 insert into t2 values(1,10,NULL),(2,20,NULL);
 set timestamp=1038000000;
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
-select * from t1;
-n	d	t
-1	10	20021123002000
-select * from t2;
-n	d	t
-1	10	20021127154957
-2	20	20021127154957
+select n,d,unix_timestamp(t) from t1;
+n	d	unix_timestamp(t)
+1	10	1038000000
+select n,d,unix_timestamp(t) from t2;
+n	d	unix_timestamp(t)
+1	10	1038401397
+2	20	1038401397
 UPDATE t1,t2 SET 1=2 WHERE t1.n=t2.n;
 You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '1=2 WHERE t1.n=t2.n' at line 1
 drop table t1,t2;

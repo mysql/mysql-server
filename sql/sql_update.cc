@@ -517,7 +517,6 @@ int multi_update::prepare(List<Item> &not_used_values)
   for (i=0 ; i < table_count ; i++)
     set_if_bigger(max_fields, fields_for_table[i]->elements);
   copy_field= new Copy_field[max_fields];
-  init_ftfuncs(thd,1);
   DBUG_RETURN(thd->fatal_error != 0);
 }
 
