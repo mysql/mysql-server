@@ -66,6 +66,7 @@ Item *create_func_monthname(Item* a);
 Item *create_func_nullif(Item* a, Item *b);
 Item *create_func_oct(Item *);
 Item *create_func_ord(Item* a);
+Item *create_func_old_password(Item* a);
 Item *create_func_period_add(Item* a, Item *b);
 Item *create_func_period_diff(Item* a, Item *b);
 Item *create_func_pi(void);
