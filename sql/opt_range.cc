@@ -50,7 +50,12 @@
 #define test_use_count(A) {}
 #endif
 
+/*
+  Convert double value to #rows. Currently this does floor(), and we 
+  might consider using round() instead.
+*/
 #define double2rows(x) ((ha_rows)(x))
+
 static int sel_cmp(Field *f,char *a,char *b,uint8 a_flag,uint8 b_flag);
 
 static char is_null_string[2]= {1,0};
@@ -2437,7 +2442,7 @@ ROR_INTERSECT_INFO* ror_intersect_init(const PARAM *param)
                   FALSE))
     return NULL;
   info->is_covering= FALSE;
-  info->index_scan_costs= 0.0f;
+  info->index_scan_costs= 0.0;
   info->index_records= 0;
   info->out_rows= param->table->file->records;
   bitmap_clear_all(&info->covered_fields);
@@ -2707,7 +2712,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   DBUG_PRINT("info", ("New out_rows= %g", info->out_rows));
   DBUG_PRINT("info", ("New cost= %g, %scovering", info->total_cost,
                       info->is_covering?"" : "non-"));
-  DBUG_RETURN(true);
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -2894,7 +2899,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   */
   if (cpk_scan && !intersect->is_covering)
   {
-    if (ror_intersect_add(intersect, cpk_scan, true) && 
+    if (ror_intersect_add(intersect, cpk_scan, TRUE) && 
         (intersect->total_cost < min_cost))
     {
       cpk_scan_used= TRUE;
