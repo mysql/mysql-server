@@ -547,10 +547,10 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
   DBUG_PRINT("enter",("name: '%s'", cs_name));
 
   (void) init_available_charsets(MYF(0));	/* If it isn't initialized */
-  
+
   cs_number= get_charset_number(cs_name, cs_flags);
   cs= cs_number ? get_internal_charset(cs_number, flags) : NULL;
-  
+
   if (!cs && (flags & MY_WME))
   {
     char index_file[FN_REFLEN];
@@ -561,21 +561,34 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
   DBUG_RETURN(cs);
 }
 
-
-ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
+/*
+  NOTE
+    to keep old C API, to_length may be 0 to mean "big enough"
+  RETURN
+    the length of the escaped string or ~0 if it did not fit.
+*/
+ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
+                              char *to, ulong to_length,
                               const char *from, ulong length)
 {
   const char *to_start= to;
-  const char *end;
+  const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
+  my_bool overflow=0;
 #ifdef USE_MB
   my_bool use_mb_flag= use_mb(charset_info);
 #endif
-  for (end= from + length; from != end; from++)
+  for (end= from + length; from < end; from++)
   {
+    char escape=0;
 #ifdef USE_MB
     int l;
     if (use_mb_flag && (l= my_ismbchar(charset_info, from, end)))
     {
+      if (to + l >= to_end)
+      {
+        overflow=1;
+        break;
+      }
       while (l--)
 	*to++= *from++;
       from--;
@@ -593,45 +606,53 @@ ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
      a valid GBK character, but 0xbf5c is. (0x27 = ', 0x5c = \)
     */
     if (use_mb_flag && (l= my_mbcharlen(charset_info, *from)) > 1)
-    {
-      *to++= '\\';
-      *to++= *from;
-      continue;
-    }
+      escape= *from;
+    else
 #endif
     switch (*from) {
     case 0:				/* Must be escaped for 'mysql' */
-      *to++= '\\';
-      *to++= '0';
+      escape= '0';
       break;
     case '\n':				/* Must be escaped for logs */
-      *to++= '\\';
-      *to++= 'n';
+      escape= 'n';
       break;
     case '\r':
-      *to++= '\\';
-      *to++= 'r';
+      escape= 'r';
       break;
     case '\\':
-      *to++= '\\';
-      *to++= '\\';
+      escape= '\\';
       break;
     case '\'':
-      *to++= '\\';
-      *to++= '\'';
+      escape= '\'';
       break;
     case '"':				/* Better safe than sorry */
-      *to++= '\\';
-      *to++= '"';
+      escape= '"';
       break;
     case '\032':			/* This gives problems on Win32 */
-      *to++= '\\';
-      *to++= 'Z';
+      escape= 'Z';
       break;
-    default:
+    }
+    if (escape)
+    {
+      if (to + 2 >= to_end)
+      {
+        overflow=1;
+        break;
+      }
+      *to++= '\\';
+      *to++= escape;
+    }
+    else
+    {
+      if (to + 1 >= to_end)
+      {
+        overflow=1;
+        break;
+      }
       *to++= *from;
     }
   }
   *to= 0;
-  return (ulong) (to - to_start);
+  return overflow ? (ulong)~0 : (ulong) (to - to_start);
 }
+
