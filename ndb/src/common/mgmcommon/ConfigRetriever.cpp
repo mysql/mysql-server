@@ -78,7 +78,7 @@ ConfigRetriever::init() {
 }
 
 int
-ConfigRetriever::do_connect(){
+ConfigRetriever::do_connect(int exit_on_connect_failure){
 
   if(!m_handle)
     m_handle= ndb_mgm_create_handle();
@@ -102,6 +102,8 @@ ConfigRetriever::do_connect(){
 	if (ndb_mgm_connect(m_handle, tmp.c_str()) == 0) {
 	  return 0;
 	}
+	if (exit_on_connect_failure)
+	  return 1;
 	setError(CR_RETRY, ndb_mgm_get_latest_error_desc(m_handle));
       case MgmId_File:
 	break;
