@@ -472,8 +472,8 @@ int main(int argc,char **argv)
   int error;
 
   MY_INIT(argv[0]);
-  start_value=318439L; best_t1=7136932L;  best_t2=1067561L;  best_type=0; /* mode=5413  add=5  type: 0 */
- if (get_options(argc,(char **) argv))
+  start_value=6871391L; best_t1=1779313L;  best_t2=5719807L;  best_type=3; /* mode=4987  add=5  type: 0 */
+  if (get_options(argc,(char **) argv))
     exit(1);
 
   make_max_length_table();

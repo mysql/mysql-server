@@ -3635,7 +3635,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       in the first 'hidden_null_pack_length' bytes of the row.
     */
     null_pack_length-=hidden_null_pack_length;
-    keyinfo->key_parts= ((field_count-hidden_field_count)+
+    keyinfo->key_parts= ((field_count-param->hidden_field_count)+
 			 test(null_pack_length));
     if (allow_distinct_limit)
     {

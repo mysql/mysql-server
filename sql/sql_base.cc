@@ -335,10 +335,6 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
       VOID(hash_delete(&open_cache,(byte*) unused_tables));
 #endif
     }
-    if (!open_cache.records && ! locked_in_memory)
-    {
-      end_key_cache();				/* No tables in memory */
-    }
     refresh_version++;				// Force close of open tables
   }
   else
@@ -703,8 +699,6 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   table->key_length=key_length;
   table->version=0;
   table->flush_version=0;
-  if (!key_cache_inited)
-    ha_key_cache();
   table->in_use = thd;
   check_unused();
   pthread_mutex_unlock(&LOCK_open);
@@ -857,8 +851,6 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     table->key_length=key_length;
     table->version=refresh_version;
     table->flush_version=flush_version;
-    if (!key_cache_inited)
-      ha_key_cache();
     DBUG_PRINT("info", ("inserting table %p into the cache", table));
     VOID(hash_insert(&open_cache,(byte*) table));
   }

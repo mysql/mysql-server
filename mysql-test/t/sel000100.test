@@ -20,7 +20,7 @@ CREATE TABLE t2 (
   KEY NAME (NAME)
 );
 
-@r/sel000100.result SELECT DISTINCT
+SELECT DISTINCT
     t2.id AS key_link_id,
     t2.name AS link
 FROM t1

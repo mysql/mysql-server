@@ -23,7 +23,7 @@ print "Connection to database $test_db\n";
 $dbh = Mysql->Connect($host) || die "Can't connect: $Mysql::db_errstr\n";
 $dbh->SelectDB($test_db) || die "Can't use database $test_db: $Mysql::db_errstr\n";
 
-$dbh->Query("drop table export"); # Ignore this error
+$dbh->Query("drop table if exists export"); # Ignore this error
 
 print "Creating table\n";
 
