@@ -678,7 +678,7 @@ static int dump_remote_log_entries(const char* logname)
     DBUG_RETURN(1);
   }
 
-  my_off_t old_off= 0;  
+  my_off_t old_off= position;  
   ulonglong rec_count= 0;
   char fname[FN_REFLEN+1];
 
@@ -766,12 +766,10 @@ static int dump_remote_log_entries(const char* logname)
     
     /*
       Let's adjust offset for remote log as for local log to produce 
-      similar text..
+      similar text. As we don't print the fake Rotate event, all events are
+      real so we can simply add the length.
     */
-    if (old_off)
-      old_off+= len-1;
-    else
-      old_off= BIN_LOG_HEADER_SIZE;
+    old_off+= len-1;
   }
   DBUG_RETURN(0);
 }
