@@ -523,6 +523,9 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #ifndef O_SHORT_LIVED
 #define O_SHORT_LIVED	0
 #endif
+#ifndef O_NOFOLLOW
+#define O_NOFOLLOW      0
+#endif
 
 /* #define USE_RECORD_LOCK	*/
 
