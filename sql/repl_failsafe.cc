@@ -34,7 +34,6 @@ RPL_STATUS rpl_status=RPL_NULL;
 pthread_mutex_t LOCK_rpl_status;
 pthread_cond_t COND_rpl_status;
 HASH slave_list;
-extern const char* any_db;
 
 const char *rpl_role_type[] = {"MASTER","SLAVE",NullS};
 TYPELIB rpl_role_typelib = {array_elements(rpl_role_type)-1,"",

@@ -707,6 +707,9 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
 	      enum_log_type type, bool read_append,
 	      bool no_auto_events, ulong max_size);
 
+/* mysqld.cc */
+extern void yyerror(const char*);
+
 /*
   External variables
 */
@@ -787,7 +790,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_error_log, LOCK_delayed_insert,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
-       LOCK_global_system_variables;
+       LOCK_global_system_variables, LOCK_user_conn;
 extern rw_lock_t	LOCK_grant;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
 extern pthread_attr_t connection_attrib;
@@ -804,7 +807,11 @@ extern SHOW_COMP_OPTION have_berkeley_db;
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 extern struct rand_struct sql_rand;
-extern String null_string;
+extern HASH open_cache;
+extern TABLE *unused_tables;
+extern I_List<i_string> binlog_do_db, binlog_ignore_db;
+extern const char* any_db;
+extern struct my_option my_long_options[];
 
 /* optional things, have_* variables */
 
@@ -938,6 +945,14 @@ bool flush_error_log(void);
 /* sql_list.cc */
 void free_list(I_List <i_string_pair> *list);
 void free_list(I_List <i_string> *list);
+
+/* sql_yacc.cc */
+extern int yyparse(void *thd);
+
+/* frm_crypt.cc */
+#ifdef HAVE_CRYPTED_FRM
+SQL_CRYPT *get_crypt_for_frm(void);
+#endif
 
 /* Some inline functions for more speed */
 

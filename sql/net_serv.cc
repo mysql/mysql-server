@@ -88,10 +88,15 @@ void sql_print_error(const char *format,...);
 
 #ifdef MYSQL_SERVER
 #define USE_QUERY_CACHE
+/*
+  The following variables/functions should really not be declared
+  extern, but as it's hard to include mysql_priv.h here, we have to
+  live with this for a while.
+*/
 extern uint test_flags;
-extern void query_cache_insert(NET *net, const char *packet, ulong length);
 extern ulong bytes_sent, bytes_received, net_big_packet_count;
 extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
+extern void query_cache_insert(NET *net, const char *packet, ulong length);
 #else
 #undef statistic_add
 #undef statistic_increment
