@@ -1303,14 +1303,15 @@ bool
 EventLogger::matchEventCategory(const char * str, 
 		   LogLevel::EventCategory * cat,
 		   bool exactMatch){
+  unsigned i;
   if(cat == 0 || str == 0)
     return false;
 
   char * tmp = strdup(str);
-  for(size_t i = 0; i<strlen(tmp); i++)
+  for(i = 0; i<strlen(tmp); i++)
     tmp[i] = toupper(tmp[i]);
   
-  for(Uint32 i = 0; i<noOfEventCategoryNames; i++){
+  for(i = 0; i<noOfEventCategoryNames; i++){
     if(strcmp(tmp, eventCategoryNames[i].name) == 0){
       * cat = eventCategoryNames[i].category;
       free(tmp);

@@ -1100,14 +1100,15 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   }
 
   if (dumpState->args[0] == DumpStateOrd::CmvmiTestLongSigWithDelay) {
+    unsigned i;
     Uint32 loopCount = dumpState->args[1];
     const unsigned len0 = 11;
     const unsigned len1 = 123;
     Uint32 sec0[len0];
     Uint32 sec1[len1];
-    for (unsigned i = 0; i < len0; i++)
+    for (i = 0; i < len0; i++)
       sec0[i] = i;
-    for (unsigned i = 0; i < len1; i++)
+    for (i = 0; i < len1; i++)
       sec1[i] = 16 * i;
     Uint32* sig = signal->getDataPtrSend();
     sig[0] = reference();
@@ -1160,6 +1161,7 @@ static LinearSectionPtr g_test[3];
 
 void
 Cmvmi::execTESTSIG(Signal* signal){
+  Uint32 i;
   /**
    * Test of SafeCounter
    */
@@ -1184,14 +1186,14 @@ Cmvmi::execTESTSIG(Signal* signal){
 					   getOwnNodeId(),
 					   true);
     ndbout_c("-- Fixed section --");    
-    for(Uint32 i = 0; i<signal->length(); i++){
+    for(i = 0; i<signal->length(); i++){
       fprintf(stdout, "H'0x%.8x ", signal->theData[i]);
       if(((i + 1) % 6) == 0)
 	fprintf(stdout, "\n");
     }
     fprintf(stdout, "\n");
     
-    for(Uint32 i = 0; i<signal->header.m_noOfSections; i++){
+    for(i = 0; i<signal->header.m_noOfSections; i++){
       SegmentedSectionPtr ptr;
       ndbout_c("-- Section %d --", i);
       signal->getSection(ptr, i);
@@ -1204,7 +1206,7 @@ Cmvmi::execTESTSIG(Signal* signal){
   /**
    * Validate length:s
    */
-  for(Uint32 i = 0; i<signal->header.m_noOfSections; i++){
+  for(i = 0; i<signal->header.m_noOfSections; i++){
     SegmentedSectionPtr ptr;
     signal->getSection(ptr, i);
     ndbrequire(ptr.p != 0);
@@ -1249,7 +1251,7 @@ Cmvmi::execTESTSIG(Signal* signal){
   case 4:{
     LinearSectionPtr ptr[3];
     const Uint32 secs = signal->getNoOfSections();
-    for(Uint32 i = 0; i<secs; i++){
+    for(i = 0; i<secs; i++){
       SegmentedSectionPtr sptr;
       signal->getSection(sptr, i);
       ptr[i].sz = sptr.sz;
@@ -1298,7 +1300,7 @@ Cmvmi::execTESTSIG(Signal* signal){
   case 8:{
     LinearSectionPtr ptr[3];
     const Uint32 secs = signal->getNoOfSections();
-    for(Uint32 i = 0; i<secs; i++){
+    for(i = 0; i<secs; i++){
       SegmentedSectionPtr sptr;
       signal->getSection(sptr, i);
       ptr[i].sz = sptr.sz;
@@ -1332,7 +1334,7 @@ Cmvmi::execTESTSIG(Signal* signal){
       sendNextLinearFragment(signal, fragSend);
     }
     
-    for(Uint32 i = 0; i<secs; i++){
+    for(i = 0; i<secs; i++){
       delete[] ptr[i].p;
     }
     break;
@@ -1364,7 +1366,7 @@ Cmvmi::execTESTSIG(Signal* signal){
 
     const Uint32 secs = signal->getNoOfSections();
     memset(g_test, 0, sizeof(g_test));
-    for(Uint32 i = 0; i<secs; i++){
+    for(i = 0; i<secs; i++){
       SegmentedSectionPtr sptr;
       signal->getSection(sptr, i);
       g_test[i].sz = sptr.sz;
@@ -1408,7 +1410,7 @@ Cmvmi::execTESTSIG(Signal* signal){
   case 14:{
     Uint32 count = signal->theData[8];
     signal->theData[10] = count * rg.m_nodes.count();
-    for(Uint32 i = 0; i<count; i++){
+    for(i = 0; i<count; i++){
       sendSignal(rg, GSN_TESTSIG, signal, signal->length(), JBB); 
     }
     return;

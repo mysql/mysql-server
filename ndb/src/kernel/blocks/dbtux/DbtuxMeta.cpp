@@ -405,14 +405,15 @@ Dbtux::freeDescEnt(IndexPtr indexPtr)
         index2.m_descPage == pagePtr.i &&
         index2.m_descOff == off + size);
     // move the entry (overlapping copy if size < size2)
-    for (unsigned i = 0; i < size2; i++) {
+    unsigned i;
+    for (i = 0; i < size2; i++) {
       jam();
       data[off + i] = data[off + size + i];
     }
     off += size2;
     // adjust page offset in index and all fragments
     index2.m_descOff -= size;
-    for (unsigned i = 0; i < index2.m_numFrags; i++) {
+    for (i = 0; i < index2.m_numFrags; i++) {
       jam();
       Frag& frag2 = *c_fragPool.getPtr(index2.m_fragPtrI[i]);
       frag2.m_descOff -= size;

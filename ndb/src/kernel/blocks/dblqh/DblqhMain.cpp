@@ -6307,12 +6307,13 @@ void Dblqh::execNODE_FAILREP(Signal* signal)
   UintR TfoundNodes = 0;
   UintR TnoOfNodes;
   UintR Tdata[MAX_NDB_NODES];
+  Uint32 i;
 
   NodeFailRep * const nodeFail = (NodeFailRep *)&signal->theData[0];
 
   TnoOfNodes = nodeFail->noOfNodes;
   UintR index = 0;
-  for (Uint32 i = 1; i < MAX_NDB_NODES; i++) {
+  for (i = 1; i < MAX_NDB_NODES; i++) {
     jam();
     if(NodeBitmask::get(nodeFail->theNodes, i)){
       jam();
@@ -6326,7 +6327,7 @@ void Dblqh::execNODE_FAILREP(Signal* signal)
   
   ndbrequire(index == TnoOfNodes);
   ndbrequire(cnoOfNodes - 1 < MAX_NDB_NODES);
-  for (Uint32 i = 0; i < TnoOfNodes; i++) {
+  for (i = 0; i < TnoOfNodes; i++) {
     const Uint32 nodeId = Tdata[i];
     lcpPtr.p->m_EMPTY_LCP_REQ.clear(nodeId);
     
@@ -6524,7 +6525,7 @@ Dblqh::scanMarkers(Signal* signal,
   }
 
   const Uint32 RT_BREAK = 256;
-  for(Uint32 i = 0; i<RT_BREAK || iter.bucket == startBucket; i++){
+  for(i = 0; i<RT_BREAK || iter.bucket == startBucket; i++){
     jam();
     
     if(iter.curr.i == RNIL){
@@ -13085,11 +13086,12 @@ void Dblqh::execSR_FRAGIDCONF(Signal* signal)
   Uint32 noLocFrag = srFragidConf->noLocFrag;
   ndbrequire(noLocFrag == 2);
   Uint32 fragid[2];
-  for (Uint32 i = 0; i < noLocFrag; i++) {
+  Uint32 i;
+  for (i = 0; i < noLocFrag; i++) {
     fragid[i] = srFragidConf->fragId[i];
   }//for
 
-  for (Uint32 i = 0; i < noLocFrag; i++) {
+  for (i = 0; i < noLocFrag; i++) {
     jam();
     Uint32 fragId = fragid[i];
     /* ----------------------------------------------------------------------
@@ -16040,17 +16042,18 @@ void Dblqh::initialisePageRef(Signal* signal)
 void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data,
 				 Uint32 retRef, Uint32 retData) 
 {
+  Uint32 i;
   switch (data) {
   case 0:
     jam();
-    for (Uint32 i = 0; i < MAX_NDB_NODES; i++) {
+    for (i = 0; i < MAX_NDB_NODES; i++) {
       cnodeSrState[i] = ZSTART_SR;
       cnodeExecSrState[i] = ZSTART_SR;
     }//for
-    for (Uint32 i = 0; i < 1024; i++) {
+    for (i = 0; i < 1024; i++) {
       ctransidHash[i] = RNIL;
     }//for
-    for (Uint32 i = 0; i < 4; i++) {
+    for (i = 0; i < 4; i++) {
       cactiveCopy[i] = RNIL;
     }//for
     cnoActiveCopy = 0;
@@ -18004,7 +18007,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     infoEvent(" lcpQueued=%d reportEmpty=%d",
 	      TlcpPtr.p->lcpQueued,
 	      TlcpPtr.p->reportEmpty);
-    char buf[TlcpPtr.p->m_EMPTY_LCP_REQ.TextLength+1];
+    char buf[8*_NDB_NODE_BITMASK_SIZE+1];
     infoEvent(" m_EMPTY_LCP_REQ=%d", 
 	      TlcpPtr.p->m_EMPTY_LCP_REQ.getText(buf));
     
