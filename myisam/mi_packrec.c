@@ -42,6 +42,7 @@
   { bits-=(bit+1); break; } \
   pos+= *pos
 
+#define OFFSET_TABLE_SIZE 512
 
 static uint read_huff_table(MI_BIT_BUFF *bit_buff,MI_DECODE_TREE *decode_tree,
 			    uint16 **decode_table,byte **intervall_buff,
@@ -53,7 +54,7 @@ static void fill_quick_table(uint16 *table,uint bits, uint max_bits,
 			     uint value);
 static uint copy_decode_table(uint16 *to_pos,uint offset,
 			      uint16 *decode_table);
-static uint find_longest_bitstream(uint16 *table);
+static uint find_longest_bitstream(uint16 *table, uint16 *end);
 static void (*get_unpack_function(MI_COLUMNDEF *rec))(MI_COLUMNDEF *field,
 						    MI_BIT_BUFF *buff,
 						    uchar *to,
@@ -178,7 +179,7 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
 
   length=(uint) (elements*2+trees*(1 << myisam_quick_table_bits));
   if (!(share->decode_tables=(uint16*)
-	my_malloc((length+512)*sizeof(uint16)+
+	my_malloc((length+OFFSET_TABLE_SIZE)*sizeof(uint16)+
 		  (uint) (share->pack.header_length+7),
 		  MYF(MY_WME | MY_ZEROFILL))))
   {
@@ -186,7 +187,7 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
     goto err1;
   }
   tmp_buff=share->decode_tables+length;
-  disk_cache=(byte*) (tmp_buff+512);
+  disk_cache=(byte*) (tmp_buff+OFFSET_TABLE_SIZE);
 
   if (my_read(file,disk_cache,
 	      (uint) (share->pack.header_length-sizeof(header)),
@@ -302,7 +303,7 @@ static uint read_huff_table(MI_BIT_BUFF *bit_buff, MI_DECODE_TREE *decode_tree,
   decode_tree->intervalls= *intervall_buff;
   if (! intervall_length)
   {
-    table_bits=find_longest_bitstream(tmp_buff);
+    table_bits=find_longest_bitstream(tmp_buff, tmp_buff+OFFSET_TABLE_SIZE);
     if (table_bits == (uint) ~0)
       return 1;
     if (table_bits > myisam_quick_table_bits)
@@ -397,19 +398,23 @@ static uint copy_decode_table(uint16 *to_pos, uint offset,
 }
 
 
-static uint find_longest_bitstream(uint16 *table)
+static uint find_longest_bitstream(uint16 *table, uint16 *end)
 {
   uint length=1,length2;
-  if (*table > 512)
-    return ~0;
-  if (!(*table & IS_CHAR))
-    length=find_longest_bitstream(table+ *table)+1;
-  table++;
-  if (*table > 512)
-    return ~0;
   if (!(*table & IS_CHAR))
   {
-    length2=find_longest_bitstream(table+ *table)+1;
+    uint16 *next= table + *table;
+    if (next > end || next == table)
+      return ~0;
+    length=find_longest_bitstream(next, end)+1;
+  }
+  table++;
+  if (!(*table & IS_CHAR))
+  {
+    uint16 *next= table + *table;
+    if (next > end || next == table)
+      return ~0;
+    length2=find_longest_bitstream(table+ *table, end)+1;
     length=max(length,length2);
   }
   return length;
