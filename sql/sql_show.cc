@@ -1334,10 +1334,10 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 	{
 	  if ((thd_info->host= thd->alloc(LIST_PROCESS_HOST_LEN+1)))
 	    my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN,
-			"%s:%u", thd->host_or_ip, tmp->peer_port);
+			"%s:%u", tmp->host_or_ip, tmp->peer_port);
 	}
 	else
-	  thd_info->host= thd->strdup(thd->host_or_ip);
+	  thd_info->host= thd->strdup(tmp->host_or_ip);
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;

@@ -417,7 +417,7 @@ typedef unsigned short ushort;
 #define DBUG_OFF
 #endif
 
-#include <dbug.h>
+#include <my_dbug.h>
 
 #define MIN_ARRAY_SIZE	0	/* Zero or One. Gcc allows zero*/
 #define ASCII_BITS_USED 8	/* Bit char used */

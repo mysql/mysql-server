@@ -257,6 +257,7 @@ static SYMBOL symbols[] = {
   { "MEDIUMINT",	SYM(MEDIUMINT),0,0},
   { "MERGE",		SYM(MERGE_SYM),0,0},
   { "MEDIUM",		SYM(MEDIUM_SYM),0,0},
+  { "MEMORY",		SYM(MEMORY_SYM),0,0},
   { "MIDDLEINT",	SYM(MEDIUMINT),0,0},	/* For powerbuilder */
   { "MIN_ROWS",		SYM(MIN_ROWS),0,0},
   { "MINUTE",		SYM(MINUTE_SYM),0,0},

@@ -67,7 +67,6 @@
 #define HA_CAN_FULLTEXT         (HA_NO_PREFIX_CHAR_KEYS*2)
 #define HA_CAN_SQL_HANDLER      (HA_CAN_FULLTEXT*2)
 #define HA_NO_AUTO_INCREMENT	(HA_CAN_SQL_HANDLER*2)
-#define HA_NOT_MULTI_UPDATE	(HA_NO_AUTO_INCREMENT*2)
 
 /*
   Next record gives next record according last record read (even

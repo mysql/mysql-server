@@ -1258,6 +1258,35 @@ longlong ha_myisam::get_auto_increment()
 }
 
 
+/*
+  Find out how many rows there is in the given range
+
+  SYNOPSIS
+    records_in_range()
+    inx			Index to use
+    start_key		Start of range.  Null pointer if from first key
+    start_key_len	Length of start key
+    start_search_flag	Flag if start key should be included or not
+    end_key		End of range. Null pointer if to last key
+    end_key_len		Length of end key
+    end_search_flag	Flag if start key should be included or not
+
+  NOTES
+    start_search_flag can have one of the following values:
+      HA_READ_KEY_EXACT		Include the key in the range
+      HA_READ_AFTER_KEY		Don't include key in range
+
+    end_search_flag can have one of the following values:  
+      HA_READ_BEFORE_KEY	Don't include key in range
+      HA_READ_AFTER_KEY		Include all 'end_key' values in the range
+
+  RETURN
+   HA_POS_ERROR		Something is wrong with the index tree.
+   0			There is no matching keys in the given range
+   number > 0		There is approximately 'number' matching rows in
+			the range.
+*/
+
 ha_rows ha_myisam::records_in_range(int inx,
 				    const byte *start_key,uint start_key_len,
 				    enum ha_rkey_function start_search_flag,
@@ -1271,6 +1300,7 @@ ha_rows ha_myisam::records_in_range(int inx,
 				       end_key,end_key_len,
 				       end_search_flag);
 }
+
 
 int ha_myisam::ft_read(byte * buf)
 {

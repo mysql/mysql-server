@@ -121,8 +121,15 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 #endif
   case DB_TYPE_HEAP:
     return new ha_heap(table);
-  case DB_TYPE_MYISAM:
   default:					// should never happen
+  {
+    enum db_type def=(enum db_type) current_thd->variables.table_type;
+    /* Try first with 'default table type' */
+    if (db_type != def)
+      return get_new_handler(table, def);
+  }
+  /* Fall back to MyISAM */
+  case DB_TYPE_MYISAM:
     return new ha_myisam(table);
   case DB_TYPE_MRG_MYISAM:
     return new ha_myisammrg(table);

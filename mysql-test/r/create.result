@@ -253,3 +253,26 @@ Incorrect table name 'a/a'
 drop table t1, t2, t3;
 drop table t3;
 drop database test_$1;
+SET SESSION table_type="heap";
+SELECT @@table_type;
+@@table_type
+HEAP
+CREATE TABLE t1 (a int not null);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0'
+) TYPE=HEAP
+drop table t1;
+SET SESSION table_type="gemini";
+SELECT @@table_type;
+@@table_type
+GEMINI
+CREATE TABLE t1 (a int not null);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0'
+) TYPE=MyISAM
+SET SESSION table_type=default;
+drop table t1;
