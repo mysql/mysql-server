@@ -249,7 +249,7 @@ touch $BASE/innobase/ib_config.h
 cd $SOURCE
 for i in COPYING ChangeLog README \
          INSTALL-SOURCE INSTALL-WIN \
-         INSTALL-SOURCE-WIN \
+         INSTALL-WIN-SOURCE
          Docs/manual_toc.html  Docs/manual.html \
          Docs/mysqld_error.txt Docs/INSTALL-BINARY 
          

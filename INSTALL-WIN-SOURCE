@@ -1,0 +1,192 @@
+#########################################################
+#                                                       #
+#         HOWTO : INSTALL MySQL FROM SOURCE             #
+#                    WINDOWS PORT                       #
+#                                                       #  
+#           COpyright (C) MySQL AB 1995-2003            #
+#########################################################
+
+This is a simple 'HOWTO' document describing howto build 
+MySQL 4.1 and above version binaries for Windows from 
+'BitKeeper' tree as well as from normal source archive.  
+
+---------------------------------------------------------
+NOTE
+---------------------------------------------------------
+
+This is strictly for users who wants to test the MySQL from 
+the latest source from BitKeeper branch on Windows and for 
+internal MySQL developers.
+
+Other wise better always strict to MySQL binary distributions 
+which is built specifically for optmistic performance, 
+available from:
+
+http://www.mysql.com/downloads/
+
+--------------------------------------------------------
+TABLE OF CONTENTS
+--------------------------------------------------------
+1. REQUIREMENTS
+2. OBTAINING THE WINDOWS SOURCE ARCHIVE
+3. CREATING SOURCE PACKAGE FROM 'BitKeeper' TREE.
+4. BUILDING 'mysql server and clients' FROM VC++ WORKSPACE
+5. BUILDING FROM 'nmake' MAKEFILES
+6. STARTING AND CONFIGURING THE SERVER FOR FISRT TIME
+7. TESTING THE CONNECTION
+8. SPECIAL NOTES AND CONSIDERATIONS
+
+-------------------------------------------------------
+1. REQUIREMENTS
+-------------------------------------------------------
+
+To build MySQL on Windows from its bitkeeper source, you need 
+the following compilers and/or tools installed on your Windows 
+system:
+
+   - Microsoft Visual C++ 6.0 and above
+   - MySQL Source package
+     (http://www.mysql.com/downloads)
+   - ~45 MB disk space
+   - 64 MB RAM
+
+In case from BitKeeper tree:
+
+   - BitKeeper 3.0 (http://www.bitkeeper.com)
+   - Any working and fully built *UNIX* BK tree 
+
+-------------------------------------------------------
+2. OBTAINING WINDOWS SOURCE ARCHIVE
+-------------------------------------------------------
+
+There are two ways you can get the Windows source package for 
+MySQL 4.1 and above versions:
+
+ I.  MySQL distributed source package for the perticular version, 
+     which can be obtainied from:
+     http://www.mysql.com/downloads
+
+ II. Source package archive From the latest Development 
+     'BitKeeper' tree.
+
+In case if you are using the OPTION 'I', then you can skip the 
+next section and go directly to  'BUILDING FROM VC++ WORKSPACE'.
+  
+-------------------------------------------------------
+3. CREATING SOURCE PACKAGE FROM 'BitKeeper' TREE
+-------------------------------------------------------
+
+To build the latest Windows source package, Please follow the 
+following instructions from any of your '*UNIX*' operating 
+systems (preferably Linux):
+
+- Get the latest BK clone of MySQL 4.1 (or above, as desired) 
+  and build the source. For more information how to do this,
+  follow the instructions from:
+  http://www.mysql.com/doc/en/Installing_source_tree.html
+
+- Make sure the build process went through.
+
+- Now run the following script from the mysql installed 
+  root directory, which creates the windows source package:
+
+  ./scripts/make_win_src_distribution
+
+  You can even supply different options to this script based
+  on your needs. It takes:
+  
+  ./scripts/make_win_src_distribution --help
+   MySQL utility script to create a Windows src package, and it takes
+   the following arguments:
+
+    --debug   Debug, without creating the package
+    --tmp     Specify the temporary location
+    --silent  Do not list verbosely files processed
+    --tar     Create tar.gz package instead of .zip
+    --help    Show this help message
+
+   By default it creates the zipped archive with the name:
+   mysql-$version-win-src.zip
+ 
+ - Copy or upload this created windows source package to 
+   your windows directory.
+
+---------------------------------------------------------
+4. BUILDING 'mysql server & clients'  from VC++ WORKSPACE
+---------------------------------------------------------
+
+NOTE: MySQL 4.1 and above VC++ workspace files are compatible
+      with Microsoft Visual Studio 6.0 and above(7.0/.NET)
+      editions and tested by MySQL folks before each 
+      release.
+
+Unpack the Windows source zipped archive to a folder and open 
+mysql.dsw from your top level directory.
+
+If you want to build both release and debug versions, then 
+select 'build' -> 'buildall' option or in case to build only
+'release' or 'debug' versions, then select all appropriate
+workspaces from 'custom build' option.
+
+The simplest solution to build basic clients and core server 
+is to set your current active workspace as 'mysqld' release 
+or debug version, and just hit 'build' or 'F7', which creates 
+necessary client binaries in 'client_release' or 'client_debug' 
+and the libraries are placed in 'lib_release' and 'lib_debug'
+for release and debug versions respectively.
+
+Now, you are all up with the things. If you get any compiler
+errors, please cross check and send the compiler output to 
+win32@lists.mysql.com for further assistance.
+
+---------------------------------------------------------
+5. BUILDING FROM 'nmake' MAKEFILESS
+---------------------------------------------------------
+TODO from MySQL PIEFU team.
+
+---------------------------------------------------------
+6. STARTING THE MYSQL SERVER FIRST TIME
+---------------------------------------------------------
+
+First ensure to set or copy my.ini or my.cnf file to your 
+'data' directory that exists in the top-level directory or 
+point to existing 'data' directory.
+
+Now, start your server from 'client_release' or 'client_debug' 
+sub-directories by following the instructions from:
+
+http://www.mysql.com/doc/en/Windows_installation.html
+
+Thats all !!! See, its as simple as building 'mysql' on any 
+other platforms !!!
+
+---------------------------------------------------------
+7. TESTING THE CONNECTION
+---------------------------------------------------------
+
+Once the server is running in standalone or as a service 
+based on your configuration, try to connect to it from 
+'mysql' command line SQL interactive utility that exists 
+from your 'client_release' or 'client_debug' directory.
+
+---------------------------------------------------------
+8. SPECIAL NOTES AND CONSIDERATIONS
+---------------------------------------------------------
+
+- MySQL doesnot advice to use 'mysql' server built by 
+  yourself from sources, instead stick to binaries shipped 
+  by MySQL on the production environment.
+
+- If you find something is not working as expected, or 
+  some improvements to the current one can be made, then 
+  please send a mail to 'win32@lists.mysql.com'.
+
+Thanks
+MySQL Team
+
+
+
+
+
+  
+
