@@ -2073,9 +2073,9 @@ bool MYSQL_LOG::cut_spurious_tail()
                     name);
     DBUG_RETURN(1);
   }
-  sql_print_error("After InnoDB crash recovery, trying to truncate "
-                  "the binary log '%s' at position %s corresponding to the "
-                  "last committed transaction...", name, llstr(pos, llbuf1));
+  sql_print_error("After InnoDB crash recovery, checking if the binary log "
+                  "'%s' contains rolled back transactions which must be "
+                  "removed from it...", name);
   /* If we have a too long binlog, cut. If too short, print error */
   int fd= my_open(name, O_EXCL | O_APPEND | O_BINARY | O_WRONLY, MYF(MY_WME));
   if (fd < 0)
@@ -2091,10 +2091,17 @@ bool MYSQL_LOG::cut_spurious_tail()
 
   if (pos > (actual_size= my_seek(fd, 0L, MY_SEEK_END, MYF(MY_WME))))
   {
+    /*
+      Note that when we have MyISAM rollback this error message should be
+      reconsidered.
+    */
     sql_print_error("The binary log '%s' is shorter than its expected size "
                     "(actual: %s, expected: %s) so it misses at least one "
                     "committed transaction; so it should not be used for "
-                    "replication.", name, llstr(actual_size, llbuf1),
+                    "replication or point-in-time recovery. You would need "
+                    "to restart slaves from a fresh master's data "
+                    "snapshot ",
+                    name, llstr(actual_size, llbuf1),
                     llstr(pos, llbuf2));
     error= 1;
     goto err;
