@@ -465,3 +465,4 @@ vio/test-sslserver
 vio/viotest-ssl
 libmysqld/gstream.cc
 libmysqld/spatial.cc
+sql/sql_yacc.yy.orig

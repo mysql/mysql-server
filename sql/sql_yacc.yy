@@ -2017,7 +2017,7 @@ opt_else:
 	| ELSE expr    { $$= $2; }
 
 when_list:
-        { Select->when_list.push_front(new List<Item>) }
+        { Select->when_list.push_front(new List<Item>); }
 	when_list2
 	{ $$= Select->when_list.pop(); }
 
@@ -2120,7 +2120,7 @@ opt_key_definition:
 	  }
 
 key_usage_list:
-	key_or_index { Select->interval_list.empty() } '(' key_usage_list2 ')'
+	key_or_index { Select->interval_list.empty(); } '(' key_usage_list2 ')'
         { $$= &Select->interval_list; }
 
 key_usage_list2:
@@ -2726,7 +2726,7 @@ describe:
 	    YYABORT;
 	}
 	opt_describe_column
-	| describe_command select { Lex->select_lex.options|= SELECT_DESCRIBE };
+	| describe_command select { Lex->select_lex.options|= SELECT_DESCRIBE; }
 
 
 describe_command:
@@ -3166,7 +3166,7 @@ set:
 	  lex->select->select_limit=lex->thd->default_select_limit;
 	  lex->tx_isolation=lex->thd->tx_isolation;
 	  lex->option_type=0;
-	  lex->option_list.empty()
+	  lex->option_list.empty();
 	}
 	option_value_list
 
