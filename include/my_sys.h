@@ -464,7 +464,7 @@ typedef struct st_changeable_var {
 } CHANGEABLE_VAR;
 
 
-#include "my_alloc.h"
+#include <my_alloc.h>
 
 	/* Prototypes for mysys and my_func functions */
 
