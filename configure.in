@@ -2618,6 +2618,7 @@ AC_DEFINE_UNQUOTED(MYSQL_DEFAULT_COLLATION_NAME,"$default_collation")
 MYSQL_CHECK_ISAM
 MYSQL_CHECK_BDB
 MYSQL_CHECK_INNODB
+MYSQL_CHECK_NDBCLUSTER
 
 # If we have threads generate some library functions and test programs
 sql_server_dirs=
@@ -2747,6 +2748,19 @@ EOF
     sql_server_dirs="$sql_server_dirs innobase"
     AC_CONFIG_SUBDIRS(innobase)
   fi
+
+  if test X"$have_ndbcluster" = Xyes
+  then
+    sql_server_dirs="$sql_server_dirs ndb"
+    echo "CONFIGURING FOR NDB CLUSTER" 
+    case $with_debug in
+    no) flag="-R" ;;
+    *)  flag="-D" ;;
+    esac
+    (cd ndb && ./configure $flag) \
+    || AC_MSG_ERROR([could not configure NDB Cluster])
+    echo "END OF NDB CLUSTER CONFIGURATION"
+  fi
   #
   # END of configuration for optional table handlers
   #
@@ -2808,6 +2822,10 @@ case $SYSTEM_TYPE in
     MAKE_BINARY_DISTRIBUTION_OPTIONS=
     ;;
 esac
+if test X"$have_ndbcluster" = Xyes
+then
+  MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
+fi
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
