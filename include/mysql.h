@@ -638,7 +638,7 @@ int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
   (*(mysql)->methods->advanced_command)(mysql, command,         \
 					NullS, 0, arg, length, skip_check)
 unsigned long net_safe_read(MYSQL* mysql);
-void mysql_once_init(void);
+int mysql_once_init(void);
 
 extern my_bool server_inited;
 

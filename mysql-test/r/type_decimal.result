@@ -444,3 +444,9 @@ CREATE TABLE t1 (a_dec DECIMAL(-2,1));
 ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '-2,1))' at line 1
 CREATE TABLE t1 (a_dec DECIMAL(-1,1));
 ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '-1,1))' at line 1
+create table t1(a decimal(10,4));
+insert into t1 values ("+0000100000000");
+select * from t1;
+a
+9999999.9999
+drop table t1;

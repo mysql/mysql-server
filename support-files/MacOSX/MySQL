@@ -11,6 +11,13 @@
 # Written by Lenz Grimmer <lenz@mysql.com>
 #
 
+# Suppress the annoying "$1: unbound variable" error when no option
+# was given
+if [ -z $1 ] ; then
+	echo "Usage: $0 [start|stop|restart] "
+	exit 1
+fi
+
 # Source the common setup functions for startup scripts
 test -r /etc/rc.common || exit 1
 . /etc/rc.common

@@ -3,7 +3,7 @@ CREATE TABLE t1 (a int not null, b char (10) not null);
 insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
 CREATE TABLE t2 (a int not null, b char (10) not null);
 insert into t2 values (3,'c'),(4,'d'),(5,'f'),(6,'e');
-select a,b from t1 union select a,b from t2;
+select a,b from t1 union distinct select a,b from t2;
 a	b
 1	a
 2	b
@@ -434,7 +434,14 @@ a
 3
 (SELECT * FROM t1) UNION all (SELECT SQL_CALC_FOUND_ROWS * FROM t2) LIMIT 1;
 ERROR 42000: Wrong usage/placement of 'SQL_CALC_FOUND_ROWS'
+create temporary table t1 select a from t1 union select a from t2;
+create table t1 select a from t1 union select a from t2;
+INSERT TABLE 't1' isn't allowed in FROM table list
 drop table t1,t2;
+select length(version()) > 1 as `*` UNION select 2;
+*
+1
+2
 CREATE TABLE t1 (  id int(3) unsigned default '0') ENGINE=MyISAM;
 INSERT INTO t1 (id) VALUES("1");
 CREATE TABLE t2 ( id int(3) unsigned default '0',  id_master int(5) default '0',  text1 varchar(5) default NULL,  text2 varchar(5) default NULL) ENGINE=MyISAM;

@@ -5491,6 +5491,7 @@ order_or_limit:
 
 union_option:
 	/* empty */ {}
+	| DISTINCT {}
 	| ALL {Select->master_unit()->union_option|= UNION_ALL;};
 
 singlerow_subselect:

@@ -61,6 +61,7 @@ drop table t1;
 create table t1 (id int NOT NULL DEFAULT 8);
 insert into t1 values(NULL);
 ERROR 23000: Column 'id' cannot be null
+ERROR 23000: Column 'id' cannot be null
 insert into t1 values (1), (NULL), (2);
 Warnings:
 Warning	1262	Data truncated, NULL supplied to NOT NULL column 'id' at row 2
@@ -73,7 +74,7 @@ drop table t1;
 create table t1 (email varchar(50));
 insert into t1 values ('sasha@mysql.com'),('monty@mysql.com'),('foo@hotmail.com'),('foo@aol.com'),('bar@aol.com');
 create table t2(id int not null auto_increment primary key, t2 varchar(50), unique(t2));
-insert into t2 (t2) select distinct substring(email, locate('@', email)+1) from t1;
+insert delayed into t2 (t2) select distinct substring(email, locate('@', email)+1) from t1;
 select * from t2;
 id	t2
 1	mysql.com

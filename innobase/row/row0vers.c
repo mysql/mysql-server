@@ -117,9 +117,10 @@ row_vers_impl_x_locked_off_kernel(
 		return(NULL);
 	}
 
-	/* We look up if some earlier version of the clustered index record
-	would require rec to be in a different state (delete marked or
-	unmarked, or not existing). If there is such a version, then rec was
+	/* We look up if some earlier version, which was modified by the trx_id
+	transaction, of the clustered index record would require rec to be in
+	a different state (delete marked or unmarked, or have different field
+	values, or not existing). If there is such a version, then rec was
 	modified by the trx_id transaction, and it has an implicit x-lock on
 	rec. Note that if clust_rec itself would require rec to be in a
 	different state, then the trx_id transaction has not yet had time to
@@ -188,12 +189,28 @@ row_vers_impl_x_locked_off_kernel(
 
 		vers_del = rec_get_deleted_flag(prev_version);
 
+		/* We check if entry and rec are identified in the alphabetical
+		ordering */
 		if (0 == cmp_dtuple_rec(entry, rec)) {
 			/* The delete marks of rec and prev_version should be
 			equal for rec to be in the state required by
 			prev_version */
 
 			if (rec_del != vers_del) {
+				trx = trx_get_on_id(trx_id);
+
+				break;
+			}
+
+			/* It is possible that the row was updated so that the
+			secondary index record remained the same in
+			alphabetical ordering, but the field values changed
+			still. For example, 'abc' -> 'ABC'. Check also that. */
+
+			dtuple_set_types_binary(entry,
+						dtuple_get_n_fields(entry));
+			if (0 != cmp_dtuple_rec(entry, rec)) {
+
 				trx = trx_get_on_id(trx_id);
 
 				break;
@@ -256,8 +273,8 @@ row_vers_must_preserve_del_marked(
 Finds out if a version of the record, where the version >= the current
 purge view, should have ientry as its secondary index entry. We check
 if there is any not delete marked version of the record where the trx
-id >= purge view, and the secondary index entry == ientry; exactly in
-this case we return TRUE. */
+id >= purge view, and the secondary index entry and ientry are identified in
+the alphabetical ordering; exactly in this case we return TRUE. */
 
 ibool
 row_vers_old_has_index_entry(

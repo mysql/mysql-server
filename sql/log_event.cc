@@ -239,6 +239,13 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
 }
 
 
+/*
+  This minimal constructor is for when you are not even sure that there is a
+  valid THD. For example in the server when we are shutting down or flushing
+  logs after receiving a SIGHUP (then we must write a Rotate to the binlog but
+  we have no THD, so we need this minimal constructor).
+*/
+
 Log_event::Log_event()
   :temp_buf(0), exec_time(0), cached_event_len(0), flags(0), cache_stmt(0),
    thd(0)
@@ -1032,7 +1039,7 @@ Default database: '%s'",
   thd->variables.convert_set = 0;
 #endif
   close_thread_tables(thd);      
-  free_root(&thd->mem_root,0);
+  free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
   return (thd->query_error ? thd->query_error : Log_event::exec_event(rli)); 
 }
 #endif
@@ -1794,10 +1801,10 @@ Slave: load data infile on table '%s' at log position %s in log \
     slave_print_error(rli,sql_errno,"\
 Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
 		      err, (char*)table_name, print_slave_db_safe(db));
-    free_root(&thd->mem_root,0);
+    free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
     return 1;
   }
-  free_root(&thd->mem_root,0);
+  free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
 	    
   if (thd->is_fatal_error)
   {

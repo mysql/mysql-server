@@ -1839,14 +1839,11 @@ inline String* alloc_buffer(String *res,String *str,String *tmp_value,
       str->length(length);
       return str;
     }
-    else
-    {
-      if (tmp_value->alloc(length))
-	return 0;
-      (void) tmp_value->copy(*res);
-      tmp_value->length(length);
-      return tmp_value;
-    }
+    if (tmp_value->alloc(length))
+      return 0;
+    (void) tmp_value->copy(*res);
+    tmp_value->length(length);
+    return tmp_value;
   }
   res->length(length);
   return res;
@@ -1947,7 +1944,7 @@ String *Item_func_rpad::val_str(String *str)
   int32 count= (int32) args[1]->val_int();
   int32 byte_count= count * collation.collation->mbmaxlen;
   String *res =args[0]->val_str(str);
-  String *rpad = args[2]->val_str(str);
+  String *rpad = args[2]->val_str(&rpad_str);
 
   if (!res || args[1]->null_value || !rpad || count < 0)
     goto err;
@@ -2384,6 +2381,10 @@ String* Item_func_export_set::val_str(String* str)
     null_value=1;
     return 0;
   }
+  /*
+    Arg count can only be 3, 4 or 5 here. This is guaranteed from the
+    grammar for EXPORT_SET()
+  */
   switch(arg_count) {
   case 5:
     num_set_values = (uint) args[4]->val_int();
@@ -2513,7 +2514,7 @@ String *Item_func_quote::val_str(String *str)
   new_length= arg_length+2; /* for beginning and ending ' signs */
 
   for (from= (char*) arg->ptr(), end= from + arg_length; from < end; from++)
-    new_length+= get_esc_bit(escmask, *from);
+    new_length+= get_esc_bit(escmask, (uchar) *from);
 
   /*
     We have to use realloc() instead of alloc() as we want to keep the

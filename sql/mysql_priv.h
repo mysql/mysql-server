@@ -283,6 +283,11 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #define tmp_file_prefix "#sql"			/* Prefix for tmp tables */
 #define tmp_file_prefix_length 4
 
+/* Flags for calc_week() function.  */
+#define WEEK_MONDAY_FIRST    1
+#define WEEK_YEAR            2
+#define WEEK_FIRST_WEEKDAY   4
+
 struct st_table;
 class THD;
 
@@ -418,6 +423,7 @@ void mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
+bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 #ifndef EMBEDDED_LIBRARY
 bool check_stack_overrun(THD *thd,char *dummy);
 #else
@@ -977,8 +983,7 @@ void filesort_free_buffers(TABLE *table);
 void change_double_for_sort(double nr,byte *to);
 int get_quick_record(SQL_SELECT *select);
 int calc_weekday(long daynr,bool sunday_first_day_of_week);
-uint calc_week(TIME *ltime, bool with_year, bool sunday_first_day_of_week,
-	       uint *year);
+uint calc_week(TIME *l_time, uint week_behaviour, uint *year);
 void find_date(char *pos,uint *vek,uint flag);
 TYPELIB *convert_strings_to_array_type(my_string *typelibs, my_string *end);
 TYPELIB *typelib(List<String> &strings);

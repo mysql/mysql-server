@@ -94,13 +94,32 @@ my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
 static my_bool mysql_client_init= 0;
 static my_bool org_my_init_done= 0;
 
-void mysql_once_init(void)
+
+/*
+  Initialize the MySQL library
+
+  SYNOPSIS
+    mysql_once_init()
+
+  NOTES
+    Can't be static on NetWare
+    This function is called by mysql_init() and indirectly called
+    by mysql_query(), so one should never have to call this from an
+    outside program.
+
+  RETURN
+    0  ok
+    1  could not initialize environment (out of memory or thread keys)
+*/
+
+int mysql_once_init(void)
 {
   if (!mysql_client_init)
   {
     mysql_client_init=1;
     org_my_init_done=my_init_done;
-    my_init();					/* Will init threads */
+    if (my_init())				/* Will init threads */
+      return 1;
     init_client_errs();
     if (!mysql_port)
     {
@@ -133,18 +152,19 @@ void mysql_once_init(void)
 #endif
   }
 #ifdef THREAD
-  else
-    my_thread_init();         /* Init if new thread */
+  else if (my_thread_init())         /* Init if new thread */
+    return 1;
 #endif
+  return 0;
 }
+
 
 #ifndef EMBEDDED_LIBRARY
 int STDCALL mysql_server_init(int argc __attribute__((unused)),
 			      char **argv __attribute__((unused)),
 			      char **groups __attribute__((unused)))
 {
-  mysql_once_init();
-  return 0;
+  return (int) mysql_once_init();
 }
 
 void STDCALL mysql_server_end()

@@ -148,10 +148,13 @@ Item_sum_num::val_str(String *str)
 String *
 Item_sum_int::val_str(String *str)
 {
-  longlong nr=val_int();
+  longlong nr= val_int();
   if (null_value)
     return 0;
-  str->set(nr,default_charset());
+  if (unsigned_flag)
+    str->set((ulonglong) nr, &my_charset_bin);
+  else
+    str->set(nr, &my_charset_bin);
   return str;
 }
 
@@ -776,9 +779,16 @@ void Item_sum_avg::reset_field()
 
 void Item_sum_bit::reset_field()
 {
+  reset();
+  int8store(result_field->ptr, bits);
+}
+
+void Item_sum_bit::update_field()
+{
   char *res=result_field->ptr;
-  ulonglong nr=(ulonglong) args[0]->val_int();
-  int8store(res,nr);
+  bits= uint8korr(res);
+  add();
+  int8store(res, bits);
 }
 
 /*
@@ -916,37 +926,6 @@ Item_sum_hybrid::min_max_update_int_field()
 }
 
 
-void Item_sum_or::update_field()
-{
-  ulonglong nr;
-  char *res=result_field->ptr;
-
-  nr=uint8korr(res);
-  nr|= (ulonglong) args[0]->val_int();
-  int8store(res,nr);
-}
-
-void Item_sum_xor::update_field()
-{
-  ulonglong nr;
-  char *res=result_field->ptr;
-
-  nr=uint8korr(res);
-  nr^= (ulonglong) args[0]->val_int();
-  int8store(res,nr);
-}
-
-void Item_sum_and::update_field()
-{
-  ulonglong nr;
-  char *res=result_field->ptr;
-
-  nr=uint8korr(res);
-  nr&= (ulonglong) args[0]->val_int();
-  int8store(res,nr);
-}
-
-
 Item_avg_field::Item_avg_field(Item_sum_avg *item)
 {
   name=item->name;
@@ -955,6 +934,7 @@ Item_avg_field::Item_avg_field(Item_sum_avg *item)
   field=item->result_field;
   maybe_null=1;
 }
+
 
 double Item_avg_field::val()
 {
@@ -1415,8 +1395,7 @@ String *Item_sum_udf_float::val_str(String *str)
   double nr=val();
   if (null_value)
     return 0;					/* purecov: inspected */
-  else
-    str->set(nr,decimals,default_charset());
+  str->set(nr,decimals, &my_charset_bin);
   return str;
 }
 
@@ -1441,8 +1420,7 @@ String *Item_sum_udf_int::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  else
-    str->set(nr,default_charset());
+  str->set(nr, &my_charset_bin);
   return str;
 }
 
