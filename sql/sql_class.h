@@ -1077,11 +1077,11 @@ public:
   uint  hidden_field_count;
   uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
-  bool  using_indirect_summary_function;
+  bool  using_indirect_summary_function, all_nulls;
 
   TMP_TABLE_PARAM()
     :copy_funcs_it(copy_funcs), copy_field(0), group_parts(0),
-    group_length(0), group_null_parts(0)
+    group_length(0), group_null_parts(0), all_nulls(0)
   {}
   ~TMP_TABLE_PARAM()
   {
