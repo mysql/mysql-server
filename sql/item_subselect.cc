@@ -190,15 +190,16 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
 bool Item_subselect::exec()
 {
   int res;
-  MEM_ROOT *old_root= my_pthread_getspecific_ptr(MEM_ROOT*, THR_MALLOC);
-  if (&thd->mem_root != old_root)
-  {
-    my_pthread_setspecific_ptr(THR_MALLOC, &thd->mem_root);
-    res= engine->exec();
-    my_pthread_setspecific_ptr(THR_MALLOC, old_root);
-  }
-  else
-    res= engine->exec();
+  MEM_ROOT *old_root= thd->mem_root;
+
+  /*
+    As this is execution, all objects should be allocated through the main
+    mem root
+  */
+  thd->mem_root= &thd->main_mem_root;
+  res= engine->exec();
+  thd->mem_root= old_root;
+
   if (engine_changed)
   {
     engine_changed= 0;
@@ -312,7 +313,6 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
 
   /* Juggle with current arena only if we're in prepared statement prepare */
   Item_arena *arena= join->thd->current_arena;
-  Item_arena backup;
 
   if (!select_lex->master_unit()->first_select()->next_select() &&
       !select_lex->table_list.elements &&
@@ -655,11 +655,9 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   }
 
   SELECT_LEX *select_lex= join->select_lex;
-  Item_arena *arena= join->thd->current_arena, backup;
-
+  Item_arena *arena, backup;
+  arena= thd->change_arena_if_needed(&backup);
   thd->where= "scalar IN/ALL/ANY subquery";
-  if (arena->is_stmt_prepare())
-    thd->set_n_backup_item_arena(arena, &backup);
 
   /*
     Check that the right part of the subselect contains no more than one
@@ -892,7 +890,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		       ER_SELECT_REDUCED, warn_buff);
 	}
-	if (arena->is_stmt_prepare())
+	if (arena)
 	  thd->restore_backup_item_arena(arena, &backup);
 	DBUG_RETURN(RES_REDUCE);
       }
@@ -900,13 +898,13 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   }
 
 ok:
-  if (arena->is_stmt_prepare())
+  if (arena)
     thd->restore_backup_item_arena(arena, &backup);
   thd->where= save_where;
   DBUG_RETURN(RES_OK);
 
 err:
-  if (arena->is_stmt_prepare())
+  if (arena)
     thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(RES_ERROR);
 }
@@ -922,14 +920,12 @@ Item_in_subselect::row_value_transformer(JOIN *join)
   {
     DBUG_RETURN(RES_OK);
   }
-  Item_arena *arena= join->thd->current_arena, backup;
+  Item_arena *arena, backup;
   Item *item= 0;
+  SELECT_LEX *select_lex= join->select_lex;
 
   thd->where= "row IN/ALL/ANY subquery";
-  if (arena->is_stmt_prepare())
-    thd->set_n_backup_item_arena(arena, &backup);
-
-  SELECT_LEX *select_lex= join->select_lex;
+  arena= thd->change_arena_if_needed(&backup);
 
   if (select_lex->item_list.elements != left_expr->cols())
   {
@@ -1006,13 +1002,13 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     if (join->conds->fix_fields(thd, join->tables_list, 0))
       goto err;
   }
-  if (arena->is_stmt_prepare())
+  if (arena)
     thd->restore_backup_item_arena(arena, &backup);
   thd->where= save_where;
   DBUG_RETURN(RES_OK);
 
 err:
-  if (arena->is_stmt_prepare())
+  if (arena)
     thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(RES_ERROR);
 }

@@ -160,14 +160,13 @@ bool Item_func::agg_arg_charsets(DTCollation &coll,
   }
 
   THD *thd= current_thd;
-  Item_arena *arena= thd->current_arena, backup;
+  Item_arena *arena, backup;
   bool res= FALSE;
   /*
     In case we're in statement prepare, create conversion item
     in its memory: it will be reused on each execute.
   */
-  if (arena->is_stmt_prepare())
-    thd->set_n_backup_item_arena(arena, &backup);
+  arena= thd->change_arena_if_needed(&backup);
 
   for (arg= args, last= args + nargs; arg < last; arg++)
   {
@@ -193,7 +192,7 @@ bool Item_func::agg_arg_charsets(DTCollation &coll,
     conv->fix_fields(thd, 0, &conv);
     *arg= conv;
   }
-  if (arena->is_stmt_prepare())
+  if (arena)
     thd->restore_backup_item_arena(arena, &backup);
   return res;
 }
