@@ -1172,3 +1172,6 @@ a	b
 test	test
 test1	test1
 drop table if exists t1;
+(SELECT 1 as a) UNION (SELECT 1) ORDER BY (SELECT a+0);
+a
+1
