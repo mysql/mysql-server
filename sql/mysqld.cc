@@ -329,7 +329,7 @@ char log_error_file[FN_REFLEN], glob_hostname[FN_REFLEN];
 char* log_error_file_ptr= log_error_file;
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
-     max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file,
+     *mysqld_user,*mysqld_chroot, *opt_init_file,
      *opt_init_connect, *opt_init_slave,
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 
@@ -5249,7 +5249,6 @@ static void mysql_init_variables(void)
   specialflag= opened_tables= created_tmp_tables= created_tmp_disk_tables= 0;
   binlog_cache_use=  binlog_cache_disk_use= 0;
   max_used_connections= slow_launch_threads = 0;
-  max_sort_char= 0;
   mysqld_user= mysqld_chroot= opt_init_file= opt_bin_logname = 0;
   errmesg= 0;
   mysqld_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;
