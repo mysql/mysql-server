@@ -1064,6 +1064,12 @@ static int mysql_test_select(Prepared_statement *stmt,
     DBUG_RETURN(1);
 #endif
 
+  if (!lex->result && !(lex->result= new (&stmt->mem_root) select_send))
+  {
+    send_error(thd);
+    goto err;
+  }
+
   if (open_and_lock_tables(thd, tables))
   {
     send_error(thd);
@@ -1087,8 +1093,13 @@ static int mysql_test_select(Prepared_statement *stmt,
     }
     else
     {
-      if (send_prep_stmt(stmt, lex->select_lex.item_list.elements) ||
-          thd->protocol_simple.send_fields(&lex->select_lex.item_list, 0)
+      List<Item> &fields= lex->select_lex.item_list;
+      /*
+        We can use lex->result as it should've been
+        prepared in unit->prepare call above.
+      */
+      if (send_prep_stmt(stmt, lex->result->field_count(fields)) ||
+          lex->result->send_fields(fields, 0)
 #ifndef EMBEDDED_LIBRARY
           || net_flush(&thd->net)
 #endif
