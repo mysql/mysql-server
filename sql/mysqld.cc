@@ -3147,7 +3147,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   create_shutdown_thread();
   create_maintenance_thread();
 
-  sql_print_information(ER(ER_READY),my_progname,server_version,
+  sql_print_information(ER(ER_STARTUP),my_progname,server_version,
 	                ((unix_sock == INVALID_SOCKET) ? (char*) ""
                                                        : mysqld_unix_port),
 	                 mysqld_port,
