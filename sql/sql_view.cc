@@ -305,6 +305,8 @@ bool mysql_create_view(THD *thd,
   VOID(pthread_mutex_lock(&LOCK_open));
   res= mysql_register_view(thd, view, mode);
   VOID(pthread_mutex_unlock(&LOCK_open));
+  if (view->revision != 1)
+    query_cache_invalidate3(thd, view, 0);
   start_waiting_global_read_lock(thd);
   if (res)
     goto err;
@@ -917,6 +919,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     }
     if (my_delete(path, MYF(MY_WME)))
       goto err;
+    query_cache_invalidate3(thd, view, 0);
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
   send_ok(thd);
