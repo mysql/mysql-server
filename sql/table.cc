@@ -448,14 +448,13 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	       keyinfo->key_length ? UNIQUE_KEY_FLAG : MULTIPLE_KEY_FLAG);
 	  if (i == 0)
 	    field->key_start|= ((key_map) 1 << key);
-	  if (ha_option & HA_HAVE_KEY_READ_ONLY &&
-	      field->key_length() == key_part->length)
-	  {
-	    if (field->key_type() != HA_KEYTYPE_TEXT &&
-		!(ha_option & HA_KEY_READ_WRONG_STR) &&
-		!(keyinfo->flags & HA_FULLTEXT))
-	      field->part_of_key|= ((key_map) 1 << key);
-	  }
+	  if ((ha_option & HA_HAVE_KEY_READ_ONLY) &&
+	      field->key_length() == key_part->length &&
+	      field->type() != FIELD_TYPE_BLOB &&
+	      (field->key_type() != HA_KEYTYPE_TEXT ||
+	       (!(ha_option & HA_KEY_READ_WRONG_STR) &&
+		!(keyinfo->flags & HA_FULLTEXT))))
+	    field->part_of_key|= ((key_map) 1 << key);
 	  if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&
 	      usable_parts == i)
 	    usable_parts++;			// For FILESORT
