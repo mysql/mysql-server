@@ -138,6 +138,11 @@ rl_add_slash(char *path, char *p, size_t p_len)
 {
     struct stat	Sb;
 
-    if (stat(path, &Sb) >= 0)
-	(void)strlcat(p, S_ISDIR(Sb.st_mode) ? "/" : " ", p_len);
+    if (stat(path, &Sb) >= 0) {
+      size_t len= strlen(p);
+      if (len+1 < p_len) {
+	p[len]= S_ISDIR(Sb.st_mode) ? '/' : ' ';
+	p[len+1]= 0;
+      }
+    }
 }

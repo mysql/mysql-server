@@ -1740,6 +1740,12 @@ end:
 }
 
 
+/*
+  RETURN VALUES
+    0   Message sent to net (admin operation went ok)
+   -1   Message should be sent by caller 
+        (admin operation or network communication failed)
+*/
 static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 			     HA_CHECK_OPT* check_opt,
 			     const char *operator_name,
@@ -1787,9 +1793,13 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (prepare_func)
     {
       switch ((*prepare_func)(thd, table, check_opt)) {
-	case  1: continue; // error, message written to net
-	case -1: goto err; // error, message could be written to net
-	default:	 ; // should be 0 otherwise
+      case  1:           // error, message written to net
+        close_thread_tables(thd);
+        continue;
+      case -1:           // error, message could be written to net
+        goto err;
+      default:           // should be 0 otherwise
+        ;
       }
     }
 

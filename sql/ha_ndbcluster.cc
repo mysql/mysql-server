@@ -1393,8 +1393,13 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 
         // Set bound if not cancelled via type -1
         if (p.bound_type != -1)
-          if (op->setBound(field->field_name, p.bound_type, p.bound_ptr))
+	{
+	  char truncated_field_name[NDB_MAX_ATTR_NAME_SIZE];
+	  strnmov(truncated_field_name,field->field_name,sizeof(truncated_field_name));
+	  truncated_field_name[sizeof(truncated_field_name)-1]= '\0';
+          if (op->setBound(truncated_field_name, p.bound_type, p.bound_ptr))
             ERR_RETURN(op->getNdbError());
+	}
       }
     }
 
@@ -2653,7 +2658,8 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
       m_use_write= TRUE;
     } else 
     {
-      m_ignore_dup_key_not_supported= TRUE;
+      if (table->keys)
+        m_ignore_dup_key_not_supported= TRUE;
     }
     break;
   case HA_EXTRA_NO_IGNORE_DUP_KEY:
@@ -3112,7 +3118,12 @@ static int create_ndb_column(NDBCOL &col,
                              HA_CREATE_INFO *info)
 {
   // Set name
-  col.setName(field->field_name);
+  {
+    char truncated_field_name[NDB_MAX_ATTR_NAME_SIZE];
+    strnmov(truncated_field_name,field->field_name,sizeof(truncated_field_name));
+    truncated_field_name[sizeof(truncated_field_name)-1]= '\0';
+    col.setName(truncated_field_name);
+  }
   // Get char set
   CHARSET_INFO *cs= field->charset();
   // Set type and sizes
@@ -3440,7 +3451,12 @@ int ha_ndbcluster::create_index(const char *name,
   {
     Field *field= key_part->field;
     DBUG_PRINT("info", ("attr: %s", field->field_name));
-    ndb_index.addColumnName(field->field_name);
+    {
+      char truncated_field_name[NDB_MAX_ATTR_NAME_SIZE];
+      strnmov(truncated_field_name,field->field_name,sizeof(truncated_field_name));
+      truncated_field_name[sizeof(truncated_field_name)-1]= '\0';
+      ndb_index.addColumnName(truncated_field_name);
+    }
   }
   
   if (dict->createIndex(ndb_index))

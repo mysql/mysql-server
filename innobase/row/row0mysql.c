@@ -2314,7 +2314,8 @@ row_drop_table_for_mysql(
 	"WHILE found = 1 LOOP\n"
 	"	SELECT ID INTO foreign_id\n"
 	"	FROM SYS_FOREIGN\n"
-	"	WHERE FOR_NAME = table_name;\n"	
+	"	WHERE FOR_NAME = table_name\n"
+        "             AND TO_BINARY(FOR_NAME) = TO_BINARY(table_name);\n"
 	"	IF (SQL % NOTFOUND) THEN\n"
 	"		found := 0;\n"
 	"	ELSE"
@@ -2769,7 +2770,8 @@ row_rename_table_for_mysql(
 	"WHILE found = 1 LOOP\n"
 	"	SELECT ID INTO foreign_id\n"
 	"	FROM SYS_FOREIGN\n"
-	"	WHERE FOR_NAME = old_table_name;\n"	
+	"	WHERE FOR_NAME = old_table_name\n"
+	"	      AND TO_BINARY(FOR_NAME) = TO_BINARY(old_table_name);\n"
 	"	IF (SQL % NOTFOUND) THEN\n"
 	"	 found := 0;\n"
 	"	ELSE\n"
@@ -2802,7 +2804,8 @@ row_rename_table_for_mysql(
 	"	END IF;\n"
 	"END LOOP;\n"
 	"UPDATE SYS_FOREIGN SET REF_NAME = new_table_name\n"
-	"WHERE REF_NAME = old_table_name;\n";
+	"WHERE REF_NAME = old_table_name\n"
+	"      AND TO_BINARY(REF_NAME) = TO_BINARY(old_table_name);\n";
 	static const char str5[] =
 	"END;\n";
 
@@ -3012,7 +3015,11 @@ row_rename_table_for_mysql(
 	if (err != DB_SUCCESS) {
 		if (err == DB_DUPLICATE_KEY) {
 	    		ut_print_timestamp(stderr);
-                fputs("  InnoDB: Error: table ", stderr);
+			fputs(
+     "  InnoDB: Error; possible reasons:\n"
+     "InnoDB: 1) Table rename would cause two FOREIGN KEY constraints\n"
+     "InnoDB: to have the same internal name in case-insensitive comparison.\n"
+     "InnoDB: 2) table ", stderr);
                 ut_print_name(stderr, trx, new_name);
                 fputs(" exists in the InnoDB internal data\n"
      "InnoDB: dictionary though MySQL is trying rename table ", stderr);
