@@ -901,7 +901,7 @@ static bool sys_update_ftb_syntax(THD *thd, set_var * var)
 
 static void sys_default_ftb_syntax(THD *thd, enum_var_type type)
 {
-  strmake(ft_boolean_syntax, opt_ft_boolean_syntax,
+  strmake(ft_boolean_syntax, def_ft_boolean_syntax,
 	  sizeof(ft_boolean_syntax)-1);
 }
 
