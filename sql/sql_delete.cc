@@ -106,13 +106,13 @@ int generate_table(THD *thd, TABLE_LIST *table_list, TABLE *locked_table)
   }
   if (!error)
   {
-    send_ok(&thd->net);		// This should return record count
     mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query);
       mysql_bin_log.write(&qinfo);
     }
+    send_ok(&thd->net);		// This should return record count
   }
   DBUG_RETURN(error ? -1 : 0);
 }

@@ -159,6 +159,7 @@ static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
 	    opt_ansi_mode=0,opt_myisam_log=0, opt_large_files=sizeof(my_off_t) > 4;
 bool opt_sql_bin_update = 0, opt_log_slave_updates = 0;
 FILE *bootstrap_file=0;
+int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
 extern MASTER_INFO glob_mi;
 extern int init_master_info(MASTER_INFO* mi);
 
@@ -1039,16 +1040,97 @@ static void init_signals(void)
 #else
 
 #ifdef HAVE_LINUXTHREADS
+static sig_handler write_core(int sig);
+#ifdef __i386__
+#define SIGRETURN_FRAME_COUNT  1
+inline static __volatile__ void  trace_stack()
+{
+  uchar **stack_bottom;
+  uchar** ebp;
+  LINT_INIT(ebp);
+  fprintf(stderr, "Attemping backtrace, please send the info below to\
+ bugs@lists.mysql.com. If you see no messages after this, something  \
+ went terribly wrong - report this anyway\n");
+  THD* thd = current_thd;
+  uint frame_count = 0;
+  __asm __volatile__ ("movl %%ebp,%0"
+		      :"=r"(ebp)
+		      :"r"(ebp));
+  if(!ebp)
+    {
+      fprintf(stderr, "frame pointer (ebp) is NULL, did you compile with \
+ -fomit-frame-pointer? Aborting backtrace\n");
+      return;
+    }
+  if(!thd)
+    {
+      fprintf(stderr, "Cannot determine thread, ebp=%p, aborting backtrace\n",
+	      ebp);
+      return;
+    }
+  stack_bottom = (uchar**)thd->thread_stack;
+  if(ebp > stack_bottom || ebp < stack_bottom - thread_stack)
+  {
+    fprintf(stderr,
+	    "Bogus stack limit or frame pointer, aborting backtrace\n");
+    return;
+  }
+
+  fprintf(stderr, "stack range sanity check, ok, backtrace follows\n");
+  
+  while(ebp < stack_bottom)
+    {
+      uchar** new_ebp = (uchar**)*ebp;
+      fprintf(stderr, "%p\n", frame_count == SIGRETURN_FRAME_COUNT ?
+	      *(ebp+17) : *(ebp+1));
+      if(new_ebp <= ebp )
+	{
+	  fprintf(stderr, "New value of ebp failed sanity check\
+terminating backtrace\n");
+	  return;
+	}
+      ebp = new_ebp;
+      ++frame_count;
+    }
+
+  fprintf(stderr, "stack trace successful\n"); 
+}
+#endif
+#endif
+
+static sig_handler handle_segfault(int sig)
+{
+  // strictly speaking, one needs a mutex here
+  // but since we have got SIGSEGV already, things are a mess
+  // so not having the mutex is not as bad as possibly using a buggy
+  // mutex - so we keep things simple
+  if(segfaulted)
+    return;
+  segfaulted = 1;
+  fprintf(stderr,"\
+mysqld got signal %s in thread %d;  \n\
+The manual section 'Debugging a MySQL server' tells you how to use a \n\
+debugger on the core file to produce a backtrace that may help you find out\n\
+why mysqld died\n",sys_siglist[sig],getpid());
+#if defined(HAVE_LINUXTHREADS) && defined(__i386__)
+  trace_stack();
+#endif
+#ifdef HAVE_LINUXTHREADS
+ if (test_flags & TEST_CORE_ON_SIGNAL)
+   write_core(sig);
+ else
+   exit(1);
+#else  
+  exit(1); /* abort everything */
+#endif
+}
+
+#ifdef HAVE_LINUXTHREADS
 
 /* Produce a core for the thread */
 
 static sig_handler write_core(int sig)
 {
-  fprintf(stderr,"\
-mysqld got signal %s in thread %d;  Writing core file: %s\n\
-The manual section 'Debugging a MySQL server' tells you how to use a \n\
-debugger on the core file to produce a backtrace that may help you find out\n\
-why mysqld died\n",sys_siglist[sig],getpid(),mysql_home);
   signal(sig, SIG_DFL);
   if (fork() != 0) exit(1);			// Abort main program
   // Core will be written at exit
@@ -1065,16 +1147,11 @@ static void init_signals(void)
 
   sigset(THR_KILL_SIGNAL,end_thread_signal);
   sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
-#ifdef HAVE_LINUXTHREADS
-  if (test_flags & TEST_CORE_ON_SIGNAL)
-  {
-    struct sigaction sa; sa.sa_flags = 0;
-    sigemptyset(&sa.sa_mask);
-    sigprocmask(SIG_SETMASK,&sa.sa_mask,NULL);
-    sa.sa_handler=write_core;
-    sigaction(SIGSEGV, &sa, NULL);
-  }
-#endif
+  struct sigaction sa; sa.sa_flags = 0;
+  sigemptyset(&sa.sa_mask);
+  sigprocmask(SIG_SETMASK,&sa.sa_mask,NULL);
+  sa.sa_handler=handle_segfault;
+  sigaction(SIGSEGV, &sa, NULL);
   (void) sigemptyset(&set);
 #ifdef THREAD_SPECIFIC_SIGPIPE
   sigset(SIGPIPE,abort_thread);
