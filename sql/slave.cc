@@ -766,9 +766,7 @@ int show_master_info(THD* thd)
   net_store_data(packet, (longlong) glob_mi.pos);
   last_log_seq = glob_mi.last_log_seq;
   pthread_mutex_unlock(&glob_mi.lock);
-  pthread_mutex_lock(&LOCK_slave);		// QQ; This is not needed
   net_store_data(packet, slave_running ? "Yes":"No");
-  pthread_mutex_unlock(&LOCK_slave);		// QQ; This is not needed
   net_store_data(packet, &replicate_do_db);
   net_store_data(packet, &replicate_ignore_db);
   net_store_data(packet, (uint32)last_slave_errno);
@@ -1099,6 +1097,8 @@ slave_begin:
   THD *thd; // needs to be first for thread_stack
   MYSQL *mysql = NULL ;
   char llbuff[22];
+  bool retried_once = 0;
+  ulonglong last_failed_pos = 0;
 
   pthread_mutex_lock(&LOCK_slave);
   if (!server_id)
@@ -1122,10 +1122,6 @@ slave_begin:
 #endif  
   pthread_cond_broadcast(&COND_slave_start);
   pthread_mutex_unlock(&LOCK_slave);
-
-  // int error = 1;
-  bool retried_once = 0;
-  ulonglong last_failed_pos = 0;
 
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();

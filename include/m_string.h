@@ -131,10 +131,10 @@ extern	void bzero(gptr dst,uint len);
 
 #if !defined(bcmp) && !defined(HAVE_BCMP)
 extern	int bcmp(const char *s1,const char *s2,uint len);
+#endif
 #ifdef HAVE_purify
 extern	int my_bcmp(const char *s1,const char *s2,uint len);
 #define bcmp(A,B,C) my_bcmp((A),(B),(C))
-#endif
 #endif
 
 #ifndef bmove512

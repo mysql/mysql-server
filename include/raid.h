@@ -23,14 +23,7 @@
 #define RAID_DEFAULT_CHUNKSIZE 256*1024 /* 256kB */
 
 extern const char *raid_type_string[];
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-const char *my_raid_type(int raid_type);
-#ifdef __cplusplus
-}
-#endif
+#define my_raid_type(raid_type)  raid_type_string[(int)(raid_type)]
 
 #if defined(USE_RAID) && !defined(DONT_USE_RAID)
 
