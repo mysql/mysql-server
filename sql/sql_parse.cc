@@ -1266,8 +1266,11 @@ mysql_execute_command(void)
       }
       if (tables->next)
       {
+	TABLE_LIST *table;
 	if (check_table_access(thd, SELECT_ACL, tables->next))
 	  goto error;				// Error message is given
+	for (table = tables->next ; table ; table=table->next)
+	  table->lock_type= lex->lock_option;
       }
       thd->offset_limit=lex->offset_limit;
       thd->select_limit=lex->select_limit+lex->offset_limit;
@@ -1539,17 +1542,19 @@ mysql_execute_command(void)
   {
     // Check that we have modify privileges for the first table and
     // select privileges for the rest
-    uint privilege= (lex->sql_command == SQLCOM_INSERT_SELECT ?
-		     INSERT_ACL : INSERT_ACL | UPDATE_ACL | DELETE_ACL);
-    TABLE_LIST *save_next=tables->next;
-    tables->next=0;
-    if (check_access(thd, privilege,
-		     tables->db,&tables->grant.privilege) ||
-	(grant_option && check_grant(thd, privilege, tables)))
-      goto error;
-    tables->next=save_next;
-    if ((res=check_table_access(thd, SELECT_ACL, save_next)))
-      goto error;
+    {
+      uint privilege= (lex->sql_command == SQLCOM_INSERT_SELECT ?
+		       INSERT_ACL : INSERT_ACL | UPDATE_ACL | DELETE_ACL);
+      TABLE_LIST *save_next=tables->next;
+      tables->next=0;
+      if (check_access(thd, privilege,
+		       tables->db,&tables->grant.privilege) ||
+	  (grant_option && check_grant(thd, privilege, tables)))
+	goto error;
+      tables->next=save_next;
+      if ((res=check_table_access(thd, SELECT_ACL, save_next)))
+	goto error;
+    }
 
     select_result *result;
     thd->offset_limit=lex->offset_limit;
@@ -1563,6 +1568,11 @@ mysql_execute_command(void)
       DBUG_VOID_RETURN;
     }
     tables->lock_type=TL_WRITE;				// update first table
+    {
+      TABLE_LIST *table;
+      for (table = tables->next ; table ; table=table->next)
+	table->lock_type= lex->lock_option;
+    }
     if (!(res=open_and_lock_tables(thd,tables)))
     {
       if ((result=new select_insert(tables->table,&lex->field_list,

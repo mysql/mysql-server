@@ -536,6 +536,7 @@ extern bool low_priority_updates;
 extern bool opt_sql_bin_update, opt_safe_show_db;
 extern char language[LIBLEN],reg_ext[FN_EXTLEN],blob_newline;
 extern const char **errmesg;			/* Error messages */
+extern const char *default_tx_isolation_name;
 extern String empty_string;
 extern struct show_var_st init_vars[];
 extern struct show_var_st status_vars[];

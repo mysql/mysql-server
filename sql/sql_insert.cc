@@ -168,7 +168,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
       table->time_stamp=save_time_stamp;
       goto abort;
     }
-    if (setup_tables(table_list) || setup_fields(thd,table_list,*values,0,0))
+    if (setup_fields(thd,table_list,*values,0,0))
     {
       table->time_stamp=save_time_stamp;
       goto abort;

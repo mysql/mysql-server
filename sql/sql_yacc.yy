@@ -699,6 +699,7 @@ create3:
 	/* empty */ {}
 	| opt_duplicate opt_as SELECT_SYM
           {
+	    Lex->lock_option= TL_READ_NO_INSERT;
 	    mysql_init_select(Lex);
           }
           select_options select_item_list opt_select_from {}
@@ -781,7 +782,7 @@ raid_types:
 
 opt_select_from:
 	/* empty */
-	| select_from
+	| select_from select_lock_type
 
 udf_func_type:
 	/* empty */ 	{ $$ = UDFTYPE_FUNCTION; }
@@ -2071,9 +2072,10 @@ insert_values:
 	    LEX *lex=Lex;
 	    lex->sql_command = (lex->sql_command == SQLCOM_INSERT ?
 				SQLCOM_INSERT_SELECT : SQLCOM_REPLACE_SELECT);
+	    lex->lock_option= TL_READ_NO_INSERT;
 	    mysql_init_select(lex);
 	  }
-	  select_options select_item_list select_from {}
+	  select_options select_item_list select_from select_lock_type {}
 
 values_list:
 	values_list ','  no_braces
@@ -2783,6 +2785,7 @@ set_isolation:
 	  if (check_process_priv())
 	    YYABORT;
 	  default_tx_isolation= $2;
+	  default_tx_isolation_name=tx_isolation_typelib.type_names[default_tx_isolation];
         }
 	| SESSION_SYM tx_isolation
 	{ current_thd->session_tx_isolation= Lex->tx_isolation= $2; }

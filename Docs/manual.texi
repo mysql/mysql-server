@@ -13469,7 +13469,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 * COMMIT::                      @code{BEGIN/COMMIT/ROLLBACK} syntax
 * LOCK TABLES::                 @code{LOCK TABLES/UNLOCK TABLES} syntax
 * SET OPTION::                  @code{SET OPTION} syntax
-* SET TRANSACTION::             
+* SET TRANSACTION::             @code{SET TRANSACTION} syntax
 * GRANT::                       @code{GRANT} and @code{REVOKE} syntax
 * CREATE INDEX::                @code{CREATE INDEX} syntax
 * DROP INDEX::                  @code{DROP INDEX} syntax
@@ -18499,7 +18499,8 @@ row length = 1
              + (number of variable-length columns)
 @end example
 
-@item The @code{table_options} and @code{SELECT} options are only
+@item
+The @code{table_options} and @code{SELECT} options are only
 implemented in @strong{MySQL} Version 3.23 and above.
 
 The different table types are:
@@ -18577,6 +18578,10 @@ mysql> CREATE TABLE test (a int not null auto_increment,
 This will create a @code{MyISAM} table with 3 columns.  Note that the
 table will automatically be deleted if any errors occur while copying
 data into the table.
+
+To ensure that the update log/binary log can be used to re-create the
+original tables, @strong{MySQL} will not allow concurrent inserts during
+@code{CREATE TABLE .... SELECT}.
 @item
 The @code{RAID_TYPE} option will help you to break the 2G/4G limit for
 the MyISAM data file (not the index file) on
@@ -19913,6 +19918,11 @@ sub-select clauses, the situation could easily be very confusing!)
 @item
 You can use the C API function @code{mysql_info()} to get information about
 the query. @xref{INSERT}.
+
+@item
+To ensure that the update log/binary log can be used to re-create the
+original tables, @strong{MySQL} will not allow concurrent inserts during
+@code{INSERT .... SELECT}.
 @end itemize
 
 You can of course also use @code{REPLACE} instead of @code{INSERT} to
@@ -23861,8 +23871,8 @@ The @code{GEMINI} table type is developed and supported by NuSphere Corporation
 (@uref{http://www.nusphere.com}).  It features row-level locking, transaction
 support (@code{COMMIT} and @code{ROLLBACK}), and automatic crash recovery.
 
-@code{GEMINI} tables will be included in the @strong{MySQL} 3.23.35 source
-distribution.
+@code{GEMINI} tables will be included in some future @strong{MySQL} 3.23.X
+source distribution.
 
 @node GEMINI start, GEMINI features, GEMINI overview, GEMINI
 @subsection GEMINI startup options
@@ -41228,7 +41238,7 @@ are supported if the server and tables support them.  It is
 thread-safe, and contains a compatibility module for older code
 written for the no-longer-maintained MySQLmodule interface.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/mysql_mex_11.tar.gz, mysql_mex_1_11.tar.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/mysql_mex_12.tar.gz, mysql_mex_1_12.tar.gz}
 An interface program for the Matlab program by MathWorks.  The interface
 is done by Kimmo Uutela and John Fisher (not by Mathworks).
 Check @uref{http://boojum.hut.fi/~kuutela/mysqlmex.html,mysqlmex.html}
@@ -42331,7 +42341,7 @@ users uses this code as the rest of the code and because of this we are
 not yet 100 % confident in this code.
 
 @menu
-* News-3.23.36::                
+* News-3.23.36::                Changes in release 3.23.36
 * News-3.23.35::                Changes in release 3.23.35
 * News-3.23.34a::               Changes in release 3.23.34a
 * News-3.23.34::                Changes in release 3.23.34
@@ -42377,6 +42387,17 @@ not yet 100 % confident in this code.
 Added @code{SET TRANSACTION ISOLATION LEVEL ...}
 @item
 Added @code{SELECT ... FOR UPDATE}.
+@item
+Fixed bug where affected rows where not returned when @code{MySQL} was compiled
+without transaction support.
+@item
+Fixed a bug in @code{UPDATE} where keys weren't always used to find the
+rows to be updated.
+@item
+Fixed a bug in @code{CONCAT_WS()} where it returned wrong results.
+@item
+Changed @code{CREATE ... INSERT} and @code{INSERT ... SELECT} to not
+allow concurrent inserts as this could make the binary log hard to repeat.
 @end itemize
 
 @node News-3.23.35, News-3.23.34a, News-3.23.36, News-3.23.x

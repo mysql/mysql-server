@@ -223,9 +223,9 @@ String *Item_func_concat_ws::val_str(String *str)
 
   // Skip until non-null and non-empty argument is found.
   // If not, return the empty string
-  for (i=0;
-       !(res= args[i]->val_str(str)) || !res->length() && i < arg_count;
-       i++) ;
+  for (i=0; i < arg_count; i++)
+    if ((res= args[i]->val_str(str)) && res->length())
+      break;
   if (i ==  arg_count)
     return &empty_string;
 
@@ -242,38 +242,52 @@ String *Item_func_concat_ws::val_str(String *str)
     {						// Use old buffer
       res->append(*sep_str);			// res->length() > 0 always
       res->append(*res2);
-      use_as_buff= &tmp_value;
     }
     else if (str->alloced_length() >=
 	     res->length() + sep_str->length() + res2->length())
     {
-      str->copy(*res);
-      str->append(*sep_str);
-      str->append(*res2);
+      /* We have room in str;  We can't get any errors here */
+      if (str == res2)
+      {						// This is quote uncommon!
+	str->replace(0,0,*sep_str);
+	str->replace(0,0,*res);
+      }
+      else
+      {
+	str->copy(*res);
+	str->append(*sep_str);
+	str->append(*res2);
+      }
       res=str;
       use_as_buff= &tmp_value;
     }
     else if (res == &tmp_value)
     {
-      if ((res->length() && res->append(*sep_str)) || res->append(*res2))
+      if (res->append(*sep_str) || res->append(*res2))
 	goto null; // Must be a blob
     }
+    else if (res2 == &tmp_value)
+    {						// This can happend only 1 time
+      if (tmp_value.replace(0,0,*sep_str) || tmp_value.replace(0,0,*res))
+	goto null;
+      res= &tmp_value;
+      use_as_buff=str;				// Put next arg here
+    }
     else if (tmp_value.is_alloced() && res2->ptr() >= tmp_value.ptr() &&
-	     res2->ptr() <= tmp_value.ptr() + tmp_value.alloced_length())
+	     res2->ptr() < tmp_value.ptr() + tmp_value.alloced_length())
     {
       /*
 	This happens really seldom:
 	In this case res2 is sub string of tmp_value.  We will
-	now work in place in tmp_value to set it to res | res2
+	now work in place in tmp_value to set it to res | sep_str | res2
       */
       /* Chop the last characters in tmp_value that isn't in res2 */
       tmp_value.length((uint32) (res2->ptr() - tmp_value.ptr()) +
 		       res2->length());
       /* Place res2 at start of tmp_value, remove chars before res2 */
-      if (res->append(*sep_str))
-	goto null;
       if (tmp_value.replace(0,(uint32) (res2->ptr() - tmp_value.ptr()),
-			    *res))
+			    *res) ||
+	  tmp_value.replace(res->length(),0, *sep_str))
 	goto null;
       res= &tmp_value;
       use_as_buff=str;			// Put next arg here
