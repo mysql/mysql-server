@@ -5619,7 +5619,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fprintf(stderr, "Invalid ft-boolean-syntax string: %s\n", argument);
       exit(1);
     }
-    strnmov(opt_ft_boolean_syntax, argument, sizeof(ft_boolean_syntax));
+    strmake(opt_ft_boolean_syntax, argument, sizeof(ft_boolean_syntax)-1);
     break;
   case OPT_SKIP_SAFEMALLOC:
 #ifdef SAFEMALLOC
@@ -5668,7 +5668,8 @@ static void get_options(int argc,char **argv)
   int ho_error;
 
   my_getopt_register_get_addr(mysql_getopt_value);
-  strnmov(opt_ft_boolean_syntax, ft_boolean_syntax, sizeof(ft_boolean_syntax));
+  strmake(opt_ft_boolean_syntax, ft_boolean_syntax, 
+	  sizeof(ft_boolean_syntax)-1);
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
   if (argc > 0)
@@ -5724,7 +5725,8 @@ static void get_options(int argc,char **argv)
   table_alias_charset= (lower_case_table_names ?
 			files_charset_info :
 			&my_charset_bin);
-  strnmov(ft_boolean_syntax, opt_ft_boolean_syntax, sizeof(ft_boolean_syntax));
+  strmake(ft_boolean_syntax, opt_ft_boolean_syntax,
+	  sizeof(ft_boolean_syntax)-1);
 
   if (opt_short_log_format)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;
