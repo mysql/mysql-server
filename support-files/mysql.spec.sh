@@ -16,7 +16,7 @@ Copyright:	GPL / LGPL
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 Icon:		mysql.gif
 URL:		http://www.mysql.com/
-Packager:	David Axmark <david@mysql.com>
+Packager:	Lenz Grimmer <lenz@mysql.com>
 Vendor:		MySQL AB
 Provides:	msqlormysql MySQL-server mysql
 Obsoletes:	mysql
@@ -444,6 +444,10 @@ fi
 %attr(644, root, root) /usr/lib/mysql/mysqld-max.sym
 
 %changelog 
+
+* Mon Jul 15 2002 Lenz Grimmer <lenz@mysql.com>
+
+- updated Packager tag
 
 * Fri Feb 15 2002 Sasha
 
