@@ -267,6 +267,8 @@ public:
   }
   Item_string(const char *name_par,const char *str,uint length)
   {
+    if (!length)
+      length=strlen(str);
     str_value.set(str,length);
     max_length=length;
     name=(char*) name_par;
@@ -286,7 +288,7 @@ public:
   String *const_string() { return &str_value; }
   inline void append(char *str,uint length) { str_value.append(str,length); }
   void print(String *str);
-  unsigned int size_of() { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}
 };
 
 
