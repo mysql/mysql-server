@@ -977,14 +977,14 @@ ha_innobase::open(
 				      		     norm_name, NULL);
  	if (NULL == ib_table) {
 
-	        sql_print_error("InnoDB error:\n\
-Cannot find table %s from the internal data dictionary\n\
-of InnoDB though the .frm file for the table exists. Maybe you\n\
-have deleted and recreated InnoDB data files but have forgotten\n\
-to delete the corresponding .frm files of InnoDB tables, or you\n\
-have moved .frm files to another database?\n\
-Look from section 15.1 of http://www.innodb.com/ibman.html\n\
-how you can resolve the problem.\n",
+	        sql_print_error("InnoDB error:\n"
+"Cannot find table %s from the internal data dictionary\n"
+"of InnoDB though the .frm file for the table exists. Maybe you\n"
+"have deleted and recreated InnoDB data files but have forgotten\n"
+"to delete the corresponding .frm files of InnoDB tables, or you\n"
+"have moved .frm files to another database?\n"
+"Look from section 15.1 of http://www.innodb.com/ibman.html\n"
+"how you can resolve the problem.\n",
 			  norm_name);
 
 	        free_share(share);
@@ -3062,9 +3062,9 @@ ha_innobase::records_in_range(
 
    	DBUG_ENTER("records_in_range");
 
-	/* Warning: since it is not sure that MySQL calls external_lock
-	before calling this function, the trx field in prebuilt can be
-	obsolete! */
+   	update_thd(current_thd);
+
+	trx_search_latch_release_if_reserved(prebuilt->trx);
    	
 	active_index = keynr;
 
@@ -3117,12 +3117,12 @@ ha_innobase::estimate_number_of_rows(void)
 	dict_index_t*	index;
 	ulonglong	estimate;
 	ulonglong	data_file_length;
-	
-	/* Warning: since it is not sure that MySQL calls external_lock
-	before calling this function, the trx field in prebuilt can be
-	obsolete! */
 
- 	DBUG_ENTER("info");
+ 	DBUG_ENTER("estimate_number_of_rows");
+
+   	update_thd(current_thd);
+
+	trx_search_latch_release_if_reserved(prebuilt->trx);
 
 	index = dict_table_get_first_index_noninline(prebuilt->table);
  	
@@ -3178,9 +3178,9 @@ ha_innobase::info(
 
  	DBUG_ENTER("info");
 
-	/* Warning: since it is not sure that MySQL calls external_lock
-	before calling this function, the trx field in prebuilt can be
-	obsolete! */
+   	update_thd(current_thd);
+
+	trx_search_latch_release_if_reserved(prebuilt->trx);
    	   	
  	ib_table = prebuilt->table;
 
