@@ -6284,6 +6284,7 @@ static void test_field_misc()
 
   result= mysql_stmt_result_metadata(stmt);
   mytest(result);
+  assert(mysql_stmt_field_count(stmt) == mysql_num_fields(result));
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);

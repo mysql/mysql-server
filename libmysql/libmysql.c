@@ -2599,6 +2599,16 @@ my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt)
 
 
 /*
+  Returns the number of result columns for the most recent query
+  run on this statement.
+*/
+
+unsigned int STDCALL mysql_stmt_field_count(MYSQL_STMT *stmt)
+{
+  return stmt->field_count;
+}
+
+/*
   Return last inserted id for auto_increment columns
 */
 
