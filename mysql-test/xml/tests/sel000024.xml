@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000024">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>Strings.</description>
+   <description>Testing string comparisons; LIKE, '%'.</description>
+
+   <resultfile name="r/3.23/sel000024.result">
+        <sql>SELECT "a" LIKE "%%b","a" LIKE "%%ab","ab" LIKE "a\%", "ab" LIKE "_", "ab" LIKE "ab_", "abc" LIKE "%_d", "abc" LIKE "abc%d"</sql>
+   </resultfile>
+
+</test>

@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000020">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>Strings.</description>
+   <description>Testing string comparisons; STRCMP(), =, >, >=, &lt;=, !=.</description>
+
+   <resultfile name="r/3.23/sel000020.result">
+        <sql>SELECT 0=0,1>0,1>=1,1&lt;0,1&lt;=0,1!=0,STRCMP("abc","abcd"),STRCMP("b","a"),STRCMP("a","a")</sql>
+   </resultfile>
+
+</test>

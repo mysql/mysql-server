@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000025">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>Strings.</description>
+   <description>Testing string comparisons; LIKE, ESCAPE, '%'.</description>
+
+   <resultfile name="r/3.23/sel000025.result">
+        <sql>SELECT '?' LIKE '|%', '?' LIKE '|%' ESCAPE '|', '%' LIKE '|%', '%' LIKE '|%' ESCAPE '|', '%' LIKE '%'</sql>
+   </resultfile>
+
+</test>

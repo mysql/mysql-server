@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000009">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>Numeric functions.</description>
+   <description>Testing PI(), SIN(), COS(), TAN(), COT(), ASIN(), ACOS(), ATAN().</description>
+
+   <resultfile name="r/3.23/sel000009.result">
+        <sql>SELECT PI(),SIN(PI()/2),COS(PI()/2),TAN(PI()),COT(1),ASIN(1),ACOS(0),ATAN(1)</sql>
+   </resultfile>
+
+</test>

@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000016">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>Numerics.</description>
+   <description>Testing big negative numbers.</description>
+
+   <resultfile name="r/3.23/sel000016.result">
+        <sql>SELECT -922337203685477580,-92233720368547758000</sql>
+   </resultfile>
+
+</test>

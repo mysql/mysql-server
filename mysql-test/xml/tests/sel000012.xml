@@ -1,0 +1,16 @@
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000012">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>Numeric floating point.</description>
+
+   <resultfile name="r/3.23/sel000012.result">
+        <sql>SELECT 10,10.0,10.,.1e+2,100.0e-1</sql>
+   </resultfile>
+
+</test>

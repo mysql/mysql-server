@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000027">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>Strings.</description>
+   <description>Testing string comparisons; REGEXP.</description>
+
+   <resultfile name="r/3.23/sel000027.result">
+        <sql>SELECT "Det här är svenska" REGEXP "h[[:alpha:]]+r", "aba" REGEXP "^(a|b)*$"</sql>
+   </resultfile>
+
+</test>
