@@ -1038,3 +1038,10 @@ create view v2 as select a from t2 where a in (select a from v1);
 show create view v2;
 drop view v2, v1;
 drop table t1, t2;
+
+#
+# SHOW VIEW view with name with spaces
+#
+CREATE VIEW `v 1` AS select 5 AS `5`;
+show create view `v 1`;
+drop view `v 1`;
