@@ -35,6 +35,9 @@ void Qmgr::initData()
 
   Uint32 hbDBAPI = 500;
   setHbApiDelay(hbDBAPI);
+
+  c_connectedNodes.clear();
+  c_connectedNodes.set(getOwnNodeId());
 }//Qmgr::initData()
 
 void Qmgr::initRecords() 
