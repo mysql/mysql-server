@@ -1,4 +1,6 @@
 -- source include/have_innodb.inc
+# Can't test this with embedded server
+-- source include/not_embedded.inc
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);

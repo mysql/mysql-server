@@ -1,3 +1,7 @@
+# Requires use of multiple simultaneous connections, not supported with
+# embedded server testing
+-- source include/not_embedded.inc
+
 #
 # Test of some show commands
 #

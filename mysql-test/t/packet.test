@@ -1,3 +1,5 @@
+# Embedded server doesn't support external clients
+--source include/not_embedded.inc
 
 #
 # Check protocol handling
