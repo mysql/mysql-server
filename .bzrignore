@@ -203,3 +203,4 @@ BitKeeper/etc/level
 *.bb
 *.bbg
 *.da
+mysys/test_dir
