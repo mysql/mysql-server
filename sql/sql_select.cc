@@ -729,6 +729,10 @@ JOIN::optimize()
 		     (select_lex->ftfunc_list->elements ?
 		      SELECT_NO_JOIN_CACHE : 0));
 
+  /* Perform FULLTEXT search before all regular searches */
+  if (!(select_options & SELECT_DESCRIBE))
+    init_ftfuncs(thd, select_lex, test(order));
+
   /*
     is this simple IN subquery?
   */
@@ -784,7 +788,7 @@ JOIN::optimize()
 	join_tab->info= "Using index; Using where";
       else
 	join_tab->info= "Using index";
- 
+
       DBUG_RETURN(unit->item->
 		  change_engine(new subselect_indexsubquery_engine(thd,
 								   join_tab,
@@ -849,8 +853,6 @@ JOIN::optimize()
   }
   having= 0;
 
-  /* Perform FULLTEXT search before all regular searches */
-  init_ftfuncs(thd, select_lex, test(order));
   /* Create a tmp table if distinct or if the sort is too complicated */
   if (need_tmp)
   {
@@ -858,7 +860,7 @@ JOIN::optimize()
     thd->proc_info="Creating tmp table";
 
     init_items_ref_array();
-    
+
     tmp_table_param.hidden_field_count= (all_fields.elements -
 					 fields_list.elements);
     if (!(exec_tmp_table1 =
@@ -5527,6 +5529,20 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
     new_table.no_rows=1;
   }
 
+#ifdef TO_BE_DONE_LATER_IN_4_1
+  /*
+    To use start_bulk_insert() (which is new in 4.1) we need to find
+    all places where a corresponding end_bulk_insert() should be put.
+  */
+  table->file->info(HA_STATUS_VARIABLE); /* update table->file->records */
+  new_table.file->start_bulk_insert(table->file->records);
+#else
+  /*
+    HA_EXTRA_WRITE_CACHE can stay until close, no need to disable it explicitly.
+  */
+  new_table.file->extra(HA_EXTRA_WRITE_CACHE);
+#endif
+
   /* copy all old rows */
   while (!table->file->rnd_next(new_table.record[1]))
   {
@@ -7978,13 +7994,18 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
     return 0;
   }
   uint counter;
-  Item **item= find_item_in_list(itemptr, fields, &counter, IGNORE_ERRORS);
-  if (item)
+  Item **item= find_item_in_list(itemptr, fields, &counter,
+                                 REPORT_EXCEPT_NOT_FOUND);
+  if (!item)
+    return 1;
+
+  if (item != not_found_item)
   {
     order->item= ref_pointer_array + counter;
     order->in_field_list=1;
     return 0;
   }
+
   order->in_field_list=0;
   Item *it= *order->item;
   /*
@@ -8447,7 +8468,16 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
       {
 	if (!(pos= new Item_copy_string(pos)))
 	  goto err;
-	if (param->copy_funcs.push_back(pos))
+       /*
+         Item_copy_string::copy for function can call 
+         Item_copy_string::val_int for blob via Item_ref.
+         But if Item_copy_string::copy for blob isn't called before,
+         it's value will be wrong
+         so let's insert Item_copy_string for blobs in the beginning of 
+         copy_funcs
+         (to see full test case look at having.test, BUG #4358) 
+       */
+	if (param->copy_funcs.push_front(pos))
 	  goto err;
       }
       else

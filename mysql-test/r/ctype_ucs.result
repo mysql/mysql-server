@@ -464,3 +464,19 @@ HEX(a)
 AAAA
 000AAAAA
 DROP TABLE t1;
+create table t1 (s1 char character set `ucs2` collate `ucs2_czech_ci`);
+insert into t1 values ('0'),('1'),('2'),('a'),('b'),('c');
+select s1 from t1 where s1 > 'a' order by s1;
+s1
+b
+c
+drop table t1;
+create table t1(a char(1)) default charset = ucs2;
+insert into t1 values ('a'),('b'),('c');
+alter table t1 modify a char(5);
+select a, hex(a) from t1;
+a	hex(a)
+a	0061
+b	0062
+c	0063
+drop table t1;

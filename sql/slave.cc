@@ -623,7 +623,7 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t *start_lock,
       pthread_mutex_unlock(start_lock);
     DBUG_RETURN(ER_SLAVE_THREAD);
   }
-  if (start_cond && cond_lock)
+  if (start_cond && cond_lock) // caller has cond_lock
   {
     THD* thd = current_thd;
     while (start_id == *slave_run_id)
@@ -633,11 +633,9 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t *start_lock,
 					    "Waiting for slave thread to start");
       pthread_cond_wait(start_cond,cond_lock);
       thd->exit_cond(old_msg);
+      pthread_mutex_lock(cond_lock); // re-acquire it as exit_cond() released
       if (thd->killed)
-      {
-	pthread_mutex_unlock(cond_lock);
 	DBUG_RETURN(ER_SERVER_SHUTDOWN);
-      }
     }
   }
   if (start_lock)
@@ -1236,6 +1234,12 @@ not always make sense; please check the manual before using it).";
   /*
     Check that the master's global character_set_server and ours are the same.
     Not fatal if query fails (old master?).
+    Note that we don't check for equality of global character_set_client and
+    collation_connection (neither do we prevent their setting in
+    set_var.cc). That's because from what I (Guilhem) have tested, the global
+    values of these 2 are never used (new connections don't use them).
+    We don't test equality of global collation_database either as it's is
+    going to be deprecated (made read-only) in 4.1 very soon.
   */
   if (!mysql_real_query(mysql, "SELECT @@GLOBAL.COLLATION_SERVER", 32) &&
       (master_res= mysql_store_result(mysql)))
@@ -1699,7 +1703,6 @@ Waiting for the slave SQL thread to free enough relay log space");
          !rli->ignore_log_space_limit)
     pthread_cond_wait(&rli->log_space_cond, &rli->log_space_lock);
   thd->exit_cond(save_proc_info);
-  pthread_mutex_unlock(&rli->log_space_lock);
   DBUG_RETURN(slave_killed);
 }
 
@@ -2375,6 +2378,9 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
                       (long) timeout));
 
   pthread_mutex_lock(&data_lock);
+  const char *msg= thd->enter_cond(&data_cond, &data_lock,
+                                   "Waiting for the slave SQL thread to "
+                                   "advance position");
   /* 
      This function will abort when it notices that some CHANGE MASTER or
      RESET MASTER has changed the master info.
@@ -2476,9 +2482,6 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     //wait for master update, with optional timeout.
     
     DBUG_PRINT("info",("Waiting for master update"));
-    const char* msg = thd->enter_cond(&data_cond, &data_lock,
-                                      "Waiting for the slave SQL thread to \
-advance position");
     /*
       We are going to pthread_cond_(timed)wait(); if the SQL thread stops it
       will wake us up.
@@ -2500,8 +2503,7 @@ advance position");
     }
     else
       pthread_cond_wait(&data_cond, &data_lock);
-    DBUG_PRINT("info",("Got signal of master update"));
-    thd->exit_cond(msg);
+    DBUG_PRINT("info",("Got signal of master update or timed out"));
     if (error == ETIMEDOUT || error == ETIME)
     {
       error= -1;
@@ -2513,7 +2515,7 @@ advance position");
   }
 
 err:
-  pthread_mutex_unlock(&data_lock);
+  thd->exit_cond(msg);
   DBUG_PRINT("exit",("killed: %d  abort: %d  slave_running: %d \
 improper_arguments: %d  timed_out: %d",
                      (int) thd->killed,

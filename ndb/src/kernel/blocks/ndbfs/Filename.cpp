@@ -46,7 +46,7 @@ Filename::Filename() :
 }
 
 void
-Filename::init(const char * pFileSystemPath){
+Filename::init(Uint32 nodeid, const char * pFileSystemPath){
   if (pFileSystemPath == NULL) {
     ERROR_SET(fatal, AFS_ERROR_NOPATH, ""," Filename::init()");
     return;
@@ -75,8 +75,15 @@ Filename::init(const char * pFileSystemPath){
 	     DIR_SEPARATOR) != 0)
     strcat(theBaseDirectory, DIR_SEPARATOR);
   
-}
+  snprintf(buf2, sizeof(buf2), "ndb_%u_fs%s", nodeid, DIR_SEPARATOR);
+  strcat(theBaseDirectory, buf2);
 
+#ifdef NDB_WIN32
+  CreateDirectory(theBaseDirectory, 0);
+#else
+  mkdir(theBaseDirectory, S_IRUSR | S_IWUSR | S_IXUSR | S_IXGRP | S_IRGRP);
+#endif
+}
 
 Filename::~Filename(){
 }

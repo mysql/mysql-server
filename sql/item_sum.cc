@@ -1966,12 +1966,12 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     Fix fields for select list and ORDER clause
   */
 
-  for (i= 0 ; i < arg_count ; i++)
+  for (i=0 ; i < arg_count ; i++)  
   {
     if (args[i]->fix_fields(thd, tables, args + i) || args[i]->check_cols(1))
       return 1;
-    if (i < arg_count_field && args[i]->maybe_null)
-      maybe_null= 0;
+    if (i < arg_count_field)
+      maybe_null |= args[i]->maybe_null;
   }
 
   result_field= 0;
@@ -2043,10 +2043,13 @@ bool Item_func_group_concat::setup(THD *thd)
 
     Note that in the table, we first have the ORDER BY fields, then the
     field list.
+
+    We need to set set_sum_field in true for storing value of blob in buffer 
+    of a record instead of a pointer of one. 
   */
-  if (!(table=create_tmp_table(thd, tmp_table_param, all_fields, 0,
-			       0, 0, 0,select_lex->options | thd->options,
-			       (char *) "")))
+  if (!(table=create_tmp_table(thd, tmp_table_param, all_fields, 
+			       (ORDER*) 0, 0, TRUE,select_lex->options | thd->options,
+			       HA_POS_ERROR,(char *) "")))
     DBUG_RETURN(1);
   table->file->extra(HA_EXTRA_NO_ROWS);
   table->no_rows= 1;

@@ -1643,8 +1643,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       SHUTDOWN_DEFAULT is 0. If client is >= 4.1.3, the shutdown level is in
       packet[0].
     */
-    enum enum_shutdown_level level=
-      (enum enum_shutdown_level) (uchar) packet[0];
+    enum mysql_enum_shutdown_level level=
+      (enum mysql_enum_shutdown_level) (uchar) packet[0];
     DBUG_PRINT("quit",("Got shutdown command for level %u", level));
     if (level == SHUTDOWN_DEFAULT)
       level= SHUTDOWN_WAIT_ALL_BUFFERS; // soon default will be configurable
@@ -2379,7 +2379,7 @@ mysql_execute_command(THD *thd)
         res= mysql_create_table(thd,create_table->db,
 			         create_table->real_name, &lex->create_info,
 			         lex->create_list,
-			         lex->key_list,0,0,0); // do logging
+			         lex->key_list,0,0);
       }
       if (!res)
 	send_ok(thd);
@@ -4319,8 +4319,12 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   case FIELD_TYPE_TIMESTAMP:
     if (!length)
       new_field->length= 14;			// Full date YYYYMMDDHHMMSS
-    else
+    else if (new_field->length != 19)
     {
+      /*
+        We support only even TIMESTAMP lengths less or equal than 14
+        and 19 as length of 4.1 compatible representation.
+      */
       new_field->length=((new_field->length+1)/2)*2; /* purecov: inspected */
       new_field->length= min(new_field->length,14); /* purecov: inspected */
     }
@@ -4381,7 +4385,10 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       new_field->length=0;
       for (const char **pos=interval->type_names; *pos ; pos++)
       {
-	new_field->length+=(uint) strip_sp((char*) *pos)+1;
+        uint length= (uint) strip_sp((char*) *pos)+1;
+        CHARSET_INFO *cs= thd->variables.character_set_client;
+        length= cs->cset->numchars(cs, *pos, *pos+length);
+        new_field->length+= length;
       }
       new_field->length--;
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
@@ -4411,8 +4418,10 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       new_field->length=(uint) strip_sp((char*) interval->type_names[0]);
       for (const char **pos=interval->type_names+1; *pos ; pos++)
       {
-	uint length=(uint) strip_sp((char*) *pos);
-	set_if_bigger(new_field->length,length);
+        uint length=(uint) strip_sp((char*) *pos);
+        CHARSET_INFO *cs= thd->variables.character_set_client;
+        length= cs->cset->numchars(cs, *pos, *pos+length);
+        set_if_bigger(new_field->length,length);
       }
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
       if (default_value)

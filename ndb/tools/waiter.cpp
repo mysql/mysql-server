@@ -307,3 +307,5 @@ waitClusterStatus(const char* _addr,
   }
   return 0;
 }
+
+template class Vector<ndb_mgm_node_state>;

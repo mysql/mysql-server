@@ -83,7 +83,7 @@ character-set=latin2
 "Coloana de tip BLOB '%-.64s' nu poate fi folosita in specificarea cheii cu tipul de tabla folosit",
 "Lungimea coloanei '%-.64s' este prea lunga (maximum = %d). Foloseste BLOB mai bine",
 "Definitia tabelei este incorecta; Nu pot fi mai mult de o singura coloana de tip auto si aceasta trebuie definita ca cheie",
-"%s: sint gata pentru conectii\n",
+"%s: sint gata pentru conectii",
 "%s: Terminare normala\n",
 "%s: Semnal %d obtinut. Aborting!\n",
 "%s: Terminare completa\n",

@@ -2284,7 +2284,6 @@ row_drop_table_for_mysql(
 	"COMMIT WORK;\n"
 	"END;\n";
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_a(name != NULL);
 
 	if (srv_created_new_raw) {
@@ -3006,6 +3005,30 @@ row_rename_table_for_mysql(
 
 				ut_a(dict_table_rename_in_cache(table,
 							old_name, FALSE));
+				trx->error_state = DB_SUCCESS;
+				trx_general_rollback_for_mysql(trx, FALSE,
+									NULL);
+				trx->error_state = DB_SUCCESS;
+			}
+		} else {
+			err = dict_load_foreigns(new_name);
+
+			if (err != DB_SUCCESS) {
+
+	    			ut_print_timestamp(stderr);
+
+				fputs(
+				"  InnoDB: Error: in RENAME TABLE table ",
+					stderr);
+				ut_print_name(stderr, new_name);
+				fputs("\n"
+     "InnoDB: is referenced in foreign key constraints\n"
+     "InnoDB: which are not compatible with the new table definition.\n",
+					stderr);
+     
+				ut_a(dict_table_rename_in_cache(table,
+							old_name, FALSE));
+						
 				trx->error_state = DB_SUCCESS;
 				trx_general_rollback_for_mysql(trx, FALSE,
 									NULL);

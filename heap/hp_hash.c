@@ -245,7 +245,15 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-       seg->charset->coll->hash_sort(seg->charset,pos,((uchar*)key)-pos,&nr,&nr2);
+       CHARSET_INFO *cs= seg->charset;
+       uint length= ((uchar*)key) - pos;
+       uint char_length= length / cs->mbmaxlen;
+       if (length > char_length)
+       {
+         char_length= my_charpos(cs, pos, pos + length, char_length);
+         set_if_smaller(char_length, length);
+       }
+       cs->coll->hash_sort(cs, pos, char_length, &nr, &nr2);
     }
     else
     {
@@ -280,7 +288,14 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      seg->charset->coll->hash_sort(seg->charset,pos,end-pos,&nr,&nr2);
+      CHARSET_INFO *cs= seg->charset;
+      uint char_length= seg->length / cs->mbmaxlen;
+      if (seg->length > char_length)
+      {
+        char_length= my_charpos(cs, pos, pos + seg->length, char_length);
+        set_if_smaller(char_length, seg->length);
+      }
+      cs->coll->hash_sort(cs, pos, char_length, &nr, &nr2);
     }
     else
     {
@@ -401,9 +416,26 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const byte *rec1, const byte *rec2)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
+      CHARSET_INFO *cs= seg->charset;
+      uint char_length= seg->length / cs->mbmaxlen;
+      uint char_length1;
+      uint char_length2;
+      uchar *pos1= (uchar*)rec1 + seg->start;
+      uchar *pos2= (uchar*)rec2 + seg->start;
+      if (seg->length > char_length)
+      {
+        char_length1= my_charpos(cs, pos1, pos1 + seg->length, char_length);
+        set_if_smaller(char_length1, seg->length);
+        char_length2= my_charpos(cs, pos2, pos2 + seg->length, char_length);
+        set_if_smaller(char_length2, seg->length);
+      }
+      else
+      {
+        char_length1= char_length2= seg->length;
+      }
       if (seg->charset->coll->strnncollsp(seg->charset,
-      					  (uchar*) rec1+seg->start,seg->length,
-					  (uchar*) rec2+seg->start,seg->length))
+      					  pos1,char_length1,
+					  pos2,char_length2))
 	return 1;
     }
     else
@@ -435,9 +467,27 @@ int hp_key_cmp(HP_KEYDEF *keydef, const byte *rec, const byte *key)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
+      CHARSET_INFO *cs= seg->charset;
+      uint char_length= seg->length / cs->mbmaxlen;
+      uint char_length_key;
+      uint char_length_rec;
+      uchar *pos= (uchar*) rec + seg->start;
+      if (seg->length > char_length)
+      {
+        char_length_key= my_charpos(cs, key, key + seg->length, char_length);
+        set_if_smaller(char_length_key, seg->length);
+        char_length_rec= my_charpos(cs, pos, pos + seg->length, char_length);
+        set_if_smaller(char_length_rec, seg->length);
+      }
+      else
+      {
+        char_length_key= seg->length;
+        char_length_rec= seg->length;
+      }
+      
       if (seg->charset->coll->strnncollsp(seg->charset,
-					  (uchar*) rec+seg->start, seg->length,
-					  (uchar*) key, seg->length))
+					  (uchar*) pos, char_length_rec,
+					  (uchar*) key, char_length_key))
 	return 1;
     }
     else
@@ -458,10 +508,19 @@ void hp_make_key(HP_KEYDEF *keydef, byte *key, const byte *rec)
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
+    CHARSET_INFO *cs= seg->charset;
+    uint char_length= (cs && cs->mbmaxlen > 1) ? seg->length / cs->mbmaxlen :
+                                                 seg->length;
+    uchar *pos= (uchar*) rec + seg->start;
     if (seg->null_bit)
       *key++= test(rec[seg->null_pos] & seg->null_bit);
-    memcpy(key,rec+seg->start,(size_t) seg->length);
-    key+=seg->length;
+    if (seg->length > char_length)
+    {
+      char_length= my_charpos(cs, pos, pos + seg->length, char_length);
+      set_if_smaller(char_length, seg->length);
+    }
+    memcpy(key,rec+seg->start,(size_t) char_length);
+    key+= char_length;
   }
 }
 
@@ -473,6 +532,7 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, byte *key,
 
   for (seg= keydef->seg, endseg= seg + keydef->keysegs; seg < endseg; seg++)
   {
+    uint char_length;
     if (seg->null_bit)
     {
       if (!(*key++= 1 - test(rec[seg->null_pos] & seg->null_bit)))
@@ -515,7 +575,18 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, byte *key,
       }
       continue;
     }
-    memcpy(key, rec + seg->start, (size_t) seg->length);
+    char_length= seg->length / (seg->charset ? seg->charset->mbmaxlen : 1);
+    if (seg->length > char_length)
+    {
+      char_length= my_charpos(seg->charset, 
+                              rec + seg->start, rec + seg->start + seg->length,
+                              char_length);
+      set_if_smaller(char_length, seg->length);
+      if (char_length < seg->length)
+        seg->charset->cset->fill(seg->charset, key + char_length, 
+                                 seg->length - char_length, ' ');
+    }
+    memcpy(key, rec + seg->start, (size_t) char_length);
     key+= seg->length;
   }
   memcpy(key, &recpos, sizeof(byte*));
@@ -530,6 +601,7 @@ uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old, uint k_len)
   for (seg= keydef->seg, endseg= seg + keydef->keysegs;
        seg < endseg && (int) k_len > 0; old+= seg->length, seg++)
   {
+    uint char_length;
     if (seg->null_bit)
     {
       k_len--;
@@ -551,7 +623,16 @@ uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old, uint k_len)
       }
       continue;
     }
-    memcpy((byte*) key, old, seg->length);
+    char_length= seg->length / (seg->charset ? seg->charset->mbmaxlen : 1);
+    if (seg->length > char_length)
+    {
+      char_length= my_charpos(seg->charset, old, old+seg->length, char_length);
+      set_if_smaller(char_length, seg->length);
+      if (char_length < seg->length)
+        seg->charset->cset->fill(seg->charset, key + char_length, 
+                                 seg->length - char_length, ' ');
+    }
+    memcpy(key, old, (size_t) char_length);
     key+= seg->length;
     k_len-= seg->length;
   }

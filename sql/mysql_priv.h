@@ -518,7 +518,8 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 int mysql_create_table(THD *thd,const char *db, const char *table_name,
 		       HA_CREATE_INFO *create_info,
 		       List<create_field> &fields, List<Key> &keys,
-		       bool tmp_table, bool no_log, uint select_field_count);
+		       bool tmp_table, uint select_field_count);
+
 TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 			       const char *db, const char *name,
 			       List<create_field> *extra_fields,
@@ -827,7 +828,6 @@ extern Gt_creator gt_creator;
 extern Lt_creator lt_creator;
 extern Ge_creator ge_creator;
 extern Le_creator le_creator;
-extern uchar days_in_month[];
 extern char language[LIBLEN],reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
@@ -929,7 +929,7 @@ extern struct my_option my_long_options[];
 /* optional things, have_* variables */
 
 extern SHOW_COMP_OPTION have_isam, have_innodb, have_berkeley_db;
-extern SHOW_COMP_OPTION have_example_db, have_archive_db;
+extern SHOW_COMP_OPTION have_example_db, have_archive_db, have_csv_db;
 extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;
 extern SHOW_COMP_OPTION have_query_cache, have_berkeley_db, have_innodb;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;

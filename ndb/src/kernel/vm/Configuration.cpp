@@ -50,7 +50,7 @@ Configuration::init(int argc, const char** argv){
   /**
    * Default values for arguments
    */
-  int _start = 1;
+  int _no_start = 0;
   int _initial = 0;
   const char* _connect_str = NULL;
   int _deamon = 0;
@@ -60,14 +60,18 @@ Configuration::init(int argc, const char** argv){
   /**
    * Arguments to NDB process
    */ 
-  struct getargs args[] = {
-    { "version", 'v', arg_flag, &_print_version, "Print version", "" },
-    { "start", 's', arg_flag, &_start, "Start ndb immediately", "" },
-    { "nostart", 'n', arg_negative_flag, &_start, "Don't start ndb immediately", "" },
-    { "deamon", 'd', arg_flag, &_deamon, "Start ndb as deamon", "" },
-    { "initial", 'i', arg_flag, &_initial, "Start ndb immediately", "" },
 
-    { "connect-string", 'c', arg_string, &_connect_str, "\"nodeid=<id>;host=<hostname:port>\"\n", "constr" },
+  struct getargs args[] = {
+    { "version", 'v', arg_flag, &_print_version, "Print ndbd version", "" },
+    { "nostart", 'n', arg_flag, &_no_start,
+      "Don't start ndbd immediately. Ndbd will await command from ndb_mgmd", "" },
+    { "daemon", 'd', arg_flag, &_deamon, "Start ndbd as daemon", "" },
+    { "initial", 'i', arg_flag, &_initial,
+      "Perform initial start of ndbd, including cleaning the file system. Consult documentation before using this", "" },
+
+    { "connect-string", 'c', arg_string, &_connect_str,
+      "Set connect string for connecting to ndb_mgmd. <constr>=\"host=<hostname:port>[;nodeid=<id>]\". Overides specifying entries in NDB_CONNECTSTRING and config file",
+      "<constr>" },
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
@@ -81,7 +85,7 @@ Configuration::init(int argc, const char** argv){
   }
 
 #if 0  
-  ndbout << "start=" <<_start<< endl;
+  ndbout << "no_start=" <<_no_start<< endl;
   ndbout << "initial=" <<_initial<< endl;
   ndbout << "deamon=" <<_deamon<< endl;
   ndbout << "connect_str="<<_connect_str<<endl;
@@ -97,10 +101,10 @@ Configuration::init(int argc, const char** argv){
   }
 
   // Check the start flag
-  if (_start)
-    globalData.theRestartFlag = perform_start;
-  else 
+  if (_no_start)
     globalData.theRestartFlag = initial_state;
+  else 
+    globalData.theRestartFlag = perform_start;
 
   // Check the initial flag
   if (_initial)

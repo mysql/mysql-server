@@ -559,7 +559,7 @@ Ndbfs::createAsyncFile(){
   }
 
   AsyncFile* file = new AsyncFile;
-  file->doStart(theFileSystemPath);
+  file->doStart(getOwnNodeId(), theFileSystemPath);
 
   // Put the file in list of all files
   theFiles.push_back(file);
@@ -1013,3 +1013,4 @@ BLOCK_FUNCTIONS(Ndbfs);
 template class Vector<AsyncFile*>;
 template class Vector<OpenFiles::OpenFileItem>;
 template class MemoryChannel<Request>;
+template class Pool<Request>;

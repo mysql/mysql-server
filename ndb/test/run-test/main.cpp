@@ -938,9 +938,11 @@ gather_result(atrt_config& config, int * result){
   BaseString tmp = g_gather_progname;
   for(size_t i = 0; i<config.m_processes.size(); i++){
     atrt_process & proc = config.m_processes[i]; 
-    tmp.appfmt(" %s:%s", 
-	       proc.m_hostname.c_str(),
-	       proc.m_proc.m_cwd.c_str());
+    if(proc.m_proc.m_path != ""){
+      tmp.appfmt(" %s:%s", 
+		 proc.m_hostname.c_str(),
+		 proc.m_proc.m_cwd.c_str());
+    }
   }
   
   const int r1 = system(tmp.c_str());
@@ -985,4 +987,6 @@ setup_hosts(atrt_config& config){
   return true;
 }
 
-template class Vector<const ParserRow<SimpleCpcClient::ParserDummy>*>;
+template class Vector<Vector<SimpleCpcClient::Process> >;
+template class Vector<atrt_host>;
+template class Vector<atrt_process>;

@@ -492,6 +492,12 @@ NdbIndexImpl::getTable() const
   return m_tableName.c_str();
 }
 
+const NdbTableImpl *
+NdbIndexImpl::getIndexTable() const
+{
+  return m_table;
+}
+
 /**
  * NdbEventImpl
  */
@@ -1849,13 +1855,6 @@ NdbDictInterface::createIndex(Ndb & ndb,
 
     if(col->m_pk && col->m_indexOnly){
       m_error.code = 4245;
-      return -1;
-    }
-
-    if (it == DictTabInfo::UniqueHashIndex &&
-        (col->m_nullable) && (attributeList.sz > 1)) {
-      // We only support one NULL attribute
-      m_error.code = 4246;
       return -1;
     }
     attributeList.id[i] = col->m_attrId;

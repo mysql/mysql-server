@@ -8502,7 +8502,7 @@ CHARSET_INFO my_charset_ujis_bin=
     ctype_ujis,
     to_lower_ujis,
     to_upper_ujis,
-    sort_order_ujis,
+    NULL,		/* sort_order   */
     NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
