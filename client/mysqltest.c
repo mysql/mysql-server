@@ -3351,7 +3351,8 @@ static void init_var_hash(MYSQL *mysql)
   my_hash_insert(&var_hash, (byte*) v);
   v= var_init(0,"SERVER_VERSION", 0, mysql_get_server_info(mysql), 0);
   my_hash_insert(&var_hash, (byte*) v);
-  
+  v= var_init(0,"DB", 2, db, 0);
+  my_hash_insert(&var_hash, (byte*) v);
   DBUG_VOID_RETURN;
 }
 
