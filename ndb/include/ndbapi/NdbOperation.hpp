@@ -746,8 +746,6 @@ protected:
     
   int	 prepareSendInterpreted();            // Help routine to prepare*
    
-  void	 TCOPCONF(Uint32 anNdbColumnImplLen);      // Handle TC[KEY/INDX]CONF signal
-  
   int	 receiveTCKEYREF(NdbApiSignal*); 
 
 
