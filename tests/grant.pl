@@ -210,6 +210,16 @@ user_query("delete from $opt_database.test where a=1",1);
 user_query("update $opt_database.test set b=3 where b=1",1);
 user_query("update $opt_database.test set b=b+1",1);
 
+#
+# Test global SELECT privilege combined with table level privileges
+#
+
+safe_query("grant SELECT on *.* to $user");
+user_connect(0);
+user_query("update $opt_database.test set b=b+1");
+safe_query("revoke SELECT on *.* from $user");
+user_connect(0);
+
 # Add one privilege at a time until the user has all privileges
 user_query("select * from test",1);
 safe_query("grant select on $opt_database.test to $user");
