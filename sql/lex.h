@@ -534,7 +534,7 @@ static SYMBOL sql_functions[] = {
   { "NOW",		SYM(NOW_SYM),0,0},
   { "NULLIF",		SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_nullif)},
   { "NUMGEOMETRIES",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_numgeometries)},
-  { "NUMINTERIORRING",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_numinteriorring)},
+  { "NUMINTERIORRINGS",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_numinteriorring)},
   { "NUMPOINTS",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_numpoints)},
   { "OCTET_LENGTH",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_length)},
   { "OCT",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_oct)},
