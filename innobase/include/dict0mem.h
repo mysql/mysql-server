@@ -333,6 +333,13 @@ struct dict_table_struct{
 				space from the lock heap of the trx:
 				otherwise the lock heap would grow rapidly
 				if we do a large insert from a select */
+	dulint		query_cache_inv_trx_id;
+				/* transactions whose trx id < than this
+				number are not allowed to store to the MySQL
+				query cache or retrieve from it; when a trx
+				with undo logs commits, it sets this to the
+				value of the trx id counter for the tables it
+				had an IX lock on */
 	UT_LIST_BASE_NODE_T(lock_t)
 			locks; /* list of locks on the table */
 	/*----------------------*/
