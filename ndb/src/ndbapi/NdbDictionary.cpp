@@ -807,67 +807,67 @@ NdbOut& operator <<(NdbOut& ndbout, const NdbDictionary::Column::Type type)
 {
   switch(type){
   case NdbDictionary::Column::Bigunsigned:
-    ndbout << "[Bigunsigned]";
+    ndbout << "Bigunsigned";
     break;
   case NdbDictionary::Column::Unsigned:
-    ndbout << "[Unsigned]";
+    ndbout << "Unsigned";
     break;
   case NdbDictionary::Column::Smallunsigned:
-    ndbout << "[Smallunsigned]";
+    ndbout << "Smallunsigned";
     break;
   case NdbDictionary::Column::Tinyunsigned:
-    ndbout << "[Tinyunsigned]";
+    ndbout << "Tinyunsigned";
     break;
   case NdbDictionary::Column::Bigint:
-    ndbout << "[Bigint]";
+    ndbout << "Bigint";
     break;
   case NdbDictionary::Column::Int:
-    ndbout << "[Int]";
+    ndbout << "Int";
     break;
   case NdbDictionary::Column::Smallint:
-    ndbout << "[Smallint]";
+    ndbout << "Smallint";
     break;
   case NdbDictionary::Column::Tinyint:
-    ndbout << "[Tinyint]";
+    ndbout << "Tinyint";
     break;
   case NdbDictionary::Column::Char:
-    ndbout << "[Char]";
+    ndbout << "Char";
     break;
   case NdbDictionary::Column::Varchar:
-    ndbout << "[Varchar]";
+    ndbout << "Varchar";
     break;
   case NdbDictionary::Column::Float:
-    ndbout << "[Float]";
+    ndbout << "Float";
     break;
   case NdbDictionary::Column::Double:
-    ndbout << "[Double]";
+    ndbout << "Double";
     break;
   case NdbDictionary::Column::Mediumint:
-    ndbout << "[Mediumint]";
+    ndbout << "Mediumint";
     break;
   case NdbDictionary::Column::Mediumunsigned:
-    ndbout << "[Mediumunsigend]";
+    ndbout << "Mediumunsigend";
     break;
   case NdbDictionary::Column::Binary:
-    ndbout << "[Binary]";
+    ndbout << "Binary";
     break;
   case NdbDictionary::Column::Varbinary:
-    ndbout << "[Varbinary]";
+    ndbout << "Varbinary";
     break;
   case NdbDictionary::Column::Decimal:
-    ndbout << "[Decimal]";
+    ndbout << "Decimal";
     break;
   case NdbDictionary::Column::Timespec:
-    ndbout << "[Timespec]";
+    ndbout << "Timespec";
     break;
   case NdbDictionary::Column::Blob:
-    ndbout << "[Blob]";
+    ndbout << "Blob";
     break;
   case NdbDictionary::Column::Undefined:
-    ndbout << "[Undefined]";
+    ndbout << "Undefined";
     break;
   default:
-    ndbout << "[Unknown type]";
+    ndbout << "Unknown type=" << (Uint32)type;
     break;
   }
 
