@@ -46889,9 +46889,20 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.48
 @itemize @bullet
 @item
+Changed to use @code{autoconf} 2.52 (from @code{autoconf} 2.13)
+@item
 Fixed bug in complicated join with @code{const} tables.
 @item
 Added internal safety checks for InnoDB.
+@item
+Some InnoDB variables was always shown in @code{SHOW VARIABLES} as
+@code{OFF} on high-byte-first systems (like sparc).
+@item
+Fixed problem with one threads using an InnoDB table and another
+thread using an @code{ALTER TABLE} on the table.
+@item
+If inserts to several tables containing an auto-inc column are wrapped
+inside one @code{LOCK TABLES}, InnoDB asserted in @code{lock0lock.c}.
 @item
 @code{SHOW GRANTS} now shows @code{REFERENCES} instead of @code{REFERENCE}.
 @end itemize

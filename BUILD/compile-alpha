@@ -4,6 +4,6 @@ path=`dirname $0`
 . "$path/SETUP.sh"
 
 extra_flags="$alpha_cflags $fast_cflags"
-extra_configs="$alpha_configs"
+extra_configs="$alpha_configs $static_link"
 
 . "$path/FINISH.sh"
