@@ -1508,8 +1508,6 @@ run_testcase ()
    for t in \
 	"bdb-deadlock" \
 	"connect" \
-        "ctype_latin1_de" \
-        "ctype_ucs" \
 	"flush_block_commit" \
 	"grant2" \
 	"grant_cache" \
