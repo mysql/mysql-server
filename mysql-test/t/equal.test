@@ -1,0 +1,29 @@
+#
+# Testing of the <=> operator
+#
+
+#
+# First some simple tests
+#
+
+select 0<=>0,0.0<=>0.0,"A"<=>"A",NULL<=>NULL;
+select 1<=>0,0<=>NULL,NULL<=>0;
+select 1.0<=>0.0,0.0<=>NULL,NULL<=>0.0;
+select "A"<=>"B","A"<=>NULL,NULL<=>"A";
+
+#
+# Test with tables
+#
+
+drop table if exists t1,t2;
+create table t1 (id int, value int);
+create table t2 (id int, value int);
+
+insert into t1 values (1,null);
+insert into t2 values (1,null);
+
+select t1.*, t2.*, t1.value<=>t2.value from t1, t2 where t1.id=t2.id and t1.id=1;
+select * from t1 where id <=>id;
+select * from t1 where value <=> value;
+select * from t1 where id <=> value or value<=>id;
+drop table t1,t2;

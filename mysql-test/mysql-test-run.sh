@@ -1,6 +1,7 @@
 #! /bin/sh
 # mysql-test-run - originally written by Matt Wagner <matt@mysql.com>
 # modified by Sasha Pachev <sasha@mysql.com>
+# Sligtly updated by Monty
 
 #++
 # Access Definitions
@@ -23,10 +24,10 @@ else
  if [ -f ./mysql-test-run ] && [ -d ../sql ] ; then
  SOURCE_DIST=1
  else
-  echo "If you are using binary distribution, run me from install root as \
-   scripts/mysql-test-run. On source distribution run me from source root as \
-   mysql-test/mysql-test-run or from mysql-test as ./mysql-test-run"
-  exit 1  
+  echo "If you are using binary distribution, run me from install root as"
+  echo "scripts/mysql-test-run. On source distribution run me from source root"
+  echo "as mysql-test/mysql-test-run or from mysql-test as ./mysql-test-run"
+  exit 1
  fi
  
 fi
@@ -44,6 +45,7 @@ BASEDIR=`pwd`
 cd $CWD
 MYSQL_TEST_DIR=$BASEDIR/mysql-test
 STD_DATA=$MYSQL_TEST_DIR/std_data
+SED=sed
   
 TESTDIR="$MYSQL_TEST_DIR/t/"
 TESTSUFFIX=test
@@ -55,8 +57,7 @@ SYST=0
 REALT=0
 MY_TMP_DIR=$MYSQL_TEST_DIR/var/tmp
 TIMEFILE="$MYSQL_TEST_DIR/var/tmp/mysqltest-time"
-DASHBLANK="----	----	-------"
-RES_SPACE="               "
+RES_SPACE="      "
 MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
  myisammrg heap sql"
 GCOV_MSG=/tmp/mysqld-gcov.out #gcov output
@@ -69,13 +70,7 @@ SLAVE_RUNNING=0
 
 [ -z "$COLUMNS" ] && COLUMNS=80
 E=`expr $COLUMNS - 8`
-C=0
-
-while [ $C != $E ]
-do
-  DASH72="${DASH72}-"
-  C=`expr $C + 1`
-done
+DASH72=`expr substr '________________________________________________________________________' 1 $E`
 
 #++
 # mysqld Environment Parameters
@@ -191,6 +186,10 @@ error () {
 
     $ECHO  "Error:  $1"
     exit 1
+}
+
+prefix_to_8() {
+ echo "        $1" | $SED -e 's:.*\(........\)$:\1:'
 }
 
 pass_inc () {
@@ -393,8 +392,7 @@ mysql_loadstd () {
 run_testcase ()
 {
  tf=$1
- tname=`$BASENAME $tf`
- tname=`$ECHO $tname | $CUT -d . -f 1`
+ tname=`$BASENAME $tf .test`
  master_opt_file=$TESTDIR/$tname-master.opt
  slave_opt_file=$TESTDIR/$tname-slave.opt
  slave_master_info_file=$TESTDIR/$tname-slave-master-info.opt
@@ -459,23 +457,27 @@ run_testcase ()
 	mytime=`$CAT $TIMEFILE | $TR '\n' '-'`
 
 	USERT=`$ECHO $mytime | $CUT -d - -f 2 | $CUT -d ' ' -f 2`
+        USERT=`prefix_to_8 $USERT`
 	SYST=`$ECHO $mytime | $CUT -d - -f 3 | $CUT -d ' ' -f 2`
+        SYST=`prefix_to_8 $SYST`
 	REALT=`$ECHO $mytime | $CUT -d - -f 1 | $CUT -d ' ' -f 2`
+        REALT=`prefix_to_8 $REALT`
     else
-	USERT="...."
-	SYST="...."
-	REALT="...."
+	USERT="    ...."
+	SYST="    ...."
+	REALT="    ...."
     fi
 
-	timestr="$USERT	$SYST	$REALT"
-	outstr="$tname		$timestr"
+	timestr="$USERT $SYST $REALT"
+	pname=`$EXPR substr "$tname                 " 1 16`
+	$SETCOLOR_NORMAL && $ECHO -n "$pname          $timestr"
 
 
 	total_inc
 
     if [ $res != 0 ]; then
         fail_inc
-	echo "$outstr $RES_SPACE [ fail ]"
+	echo "$RES_SPACE [ fail ]"
         $ECHO "failed output"
 	$CAT $TIMEFILE
 	$ECHO
@@ -491,7 +493,7 @@ run_testcase ()
 	echo "Resuming Tests"
     else
       pass_inc
-      echo "$outstr $RES_SPACE [ pass ]"    	
+      echo "$RES_SPACE [ pass ]"
     fi
   fi  
  
@@ -519,7 +521,7 @@ mysql_loadstd
 $ECHO  "Starting Tests for MySQL daemon"
 
 $ECHO
-$ECHO " TEST			USER	SYSTEM	ELAPSED		     RESULT"
+$ECHO " TEST                         USER   SYSTEM  ELAPSED        RESULT"
 $ECHO $DASH72
 
 if [ -z "$1" ] ;

@@ -16,14 +16,27 @@ You can create your own test cases. To create a test case:
  in the file, put a set of SQL commands that will create some tables,
  load test data, run some queries to manipulate it.
 
- then do ./mysql-test-run -record test_case_name
- and look at r/test_case_name.result - edit the result if necessary. If you
- have to edit it, you have found a bug.
+ We would appreciate if the test tables were called t1, t2, t3 ... (to not
+ conflict too much with existing tables).
+ 
+ If you are using mysqltest commands (like result file names) in your
+ test case you should do create the result file as follows:
+
+ mysql-test-run --record < t/test_case_name.test
+
+ If you only have a simple test cases consistent of SQL commands and comments
+ you can create the test case one of the following ways:
+
+ mysql < t/test_case_name.test > r/test_case_name.result
+
+ mysql-test-run --record --record-file=r/test_case_name.result < t/test_case_name.test
+
+ When this is done, take a look at r/test_case_name.result
+ - If the result is wrong, you have found a bug;  In this case you should
+   edit the test result to the correct results so that we can verify
+   that the bug is corrected in future releases.
 
 To submit your test case, put your .test file and .result file(s) into
 a tar.gz archive, add a README that explains the problem, ftp the 
 archive to ftp://support.mysql.com/pub/mysql/secret/ and send  a mail
 to bugs@lists.mysql.com
-
-
-

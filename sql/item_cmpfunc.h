@@ -70,11 +70,11 @@ public:
 
 class Item_func_equal :public Item_bool_func2
 {
+  Item_result result_type;
 public:
   Item_func_equal(Item *a,Item *b) :Item_bool_func2(a,b) { };
   longlong val_int();
-  void fix_length_and_dec()
-  { Item_bool_func2::fix_length_and_dec() ; maybe_null=0; }
+  void fix_length_and_dec();
   enum Functype functype() const { return EQUAL_FUNC; }
   enum Functype rev_functype() const { return EQUAL_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }

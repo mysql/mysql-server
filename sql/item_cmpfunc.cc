@@ -170,15 +170,44 @@ longlong Item_func_eq::val_int()
 
 /* Same as Item_func_eq, but NULL = NULL */
 
+void Item_func_equal::fix_length_and_dec()
+{
+  Item_bool_func2::fix_length_and_dec();
+  result_type=item_cmp_type(args[0]->result_type(),args[1]->result_type());
+  maybe_null=null_value=0;
+}
+
 longlong Item_func_equal::val_int()
 {
-  int value=(this->*cmp_func)();
-  if (null_value)
+  switch (result_type) {
+  case STRING_RESULT:
   {
-    null_value=0;
-    return (args[0]->null_value && args[1]->null_value) ? 1 : 0;
+    String *res1,*res2;
+    res1=args[0]->val_str(&tmp_value1);
+    res2=args[1]->val_str(&tmp_value2);
+    if (!res1 || !res2)
+      return test(res1 == res2);
+    return (binary ? test(stringcmp(res1,res2) == 0) :
+	    test(sortcmp(res1,res2) == 0));
   }
-  return value == 0;
+  case REAL_RESULT:
+  {
+    double val1=args[0]->val();
+    double val2=args[1]->val();
+    if (args[0]->null_value || args[1]->null_value)
+      return test(args[0]->null_value && args[1]->null_value);
+    return test(val1 == val2);
+  }
+  case INT_RESULT:
+  {
+    longlong val1=args[0]->val_int();
+    longlong val2=args[1]->val_int();
+    if (args[0]->null_value || args[1]->null_value)
+      return test(args[0]->null_value && args[1]->null_value);
+    return test(val1 == val2);
+  }
+  }
+  return 0;					// Impossible
 }
 
 
