@@ -796,7 +796,10 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
   thd->lex->unit.thd= thd;	// QQ Not reentrant
   freelist= thd->free_list;
   thd->free_list= NULL;
+
+  VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query_id= query_id++;
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
   // Copy WHERE clause pointers to avoid damaging by optimisation
   // Also clear ref_pointer_arrays.
