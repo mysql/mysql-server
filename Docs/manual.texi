@@ -49612,7 +49612,7 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 Changed @code{--chroot=path} option to execute @code{chroot()} immediately
 after all options have been parsed.
 @item
-Don't allow database names that contains @samp{\}.
+Don't allow database names that contain @samp{\}.
 @item
 @code{lower_case_table_names} now also affects created and dropped databases.
 @item
