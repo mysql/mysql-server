@@ -597,8 +597,8 @@ mem_pool_validate(
 		}
 	}
 
-	ut_a(free + pool->reserved == pool->size
-					- (pool->size % MEM_AREA_MIN_SIZE));
+	ut_a(free + pool->reserved == pool->size);
+
 	mutex_exit(&(pool->mutex));
 
 	return(TRUE);
