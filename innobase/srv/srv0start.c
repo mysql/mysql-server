@@ -330,10 +330,28 @@ open_or_create_data_files(
 
 		sprintf(name, "%s%s", srv_data_home, srv_data_file_names[i]);
 	
-		files[i] = os_file_create(name, OS_FILE_CREATE,
+		if (srv_data_file_is_raw_partition[i] == 0) {
+
+		  files[i] = os_file_create(name, OS_FILE_CREATE,
 						OS_FILE_NORMAL, &ret);
+		} else if (srv_data_file_is_raw_partition[i] == SRV_OLD_RAW) {
+		  ret = FALSE;
+		} else if (srv_data_file_is_raw_partition[i] == SRV_NEW_RAW) {
+
+		  files[i] = os_file_create(
+				name, OS_FILE_OPEN, OS_FILE_NORMAL, &ret);
+
+		  if (!ret) {
+				fprintf(stderr,
+				"InnoDB: Error in opening %s\n", name);
+
+				return(DB_ERROR);
+		  }
+		}
+
 		if (ret == FALSE) {
-			if (os_file_get_last_error() !=
+			if (srv_data_file_is_raw_partition[i] == 0
+			    && os_file_get_last_error() !=
 						OS_FILE_ALREADY_EXISTS) {
 				fprintf(stderr,
 				"InnoDB: Error in creating or opening %s\n",
@@ -364,8 +382,10 @@ open_or_create_data_files(
 			ret = os_file_get_size(files[i], &size, &size_high);
 			ut_a(ret);
 		
-			if (size != UNIV_PAGE_SIZE * srv_data_file_sizes[i]
-		    					|| size_high != 0) {
+			if (srv_data_file_is_raw_partition[i] == 0 
+			    && (size != UNIV_PAGE_SIZE * srv_data_file_sizes[i]
+				|| size_high != 0)) {
+
 				fprintf(stderr,
 			"InnoDB: Error: data file %s is of different size\n"
 			"InnoDB: than specified in the .cnf file!\n", name);
@@ -722,6 +742,7 @@ innobase_start_or_create_for_mysql(void)
 		mutex_exit(&(log_sys->mutex));
 	}
 
+	mutex_create(&row_mysql_thread_mutex);
 	sess_sys_init_at_db_start();
 
 	if (create_new_db) {
