@@ -491,7 +491,7 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   if (info->s->keyinfo+info->lastinx == keyinfo)
     info->page_changed=1;
 
-  if ((keypos < anc_buff+anc_length && (share->rnd++ & 1)) ||
+  if ((keypos < anc_buff+anc_length && (info->state->records & 1)) ||
       keypos == anc_buff+2+key_reflength)
   {					/* Use page right of anc-page */
     DBUG_PRINT("test",("use right page"));

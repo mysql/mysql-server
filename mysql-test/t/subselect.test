@@ -125,6 +125,7 @@ create table t7( uq int primary key, name char(25));
 insert into t7 values(1,"Oblastnaia bolnitsa"),(2,"Bolnitsa Krasnogo Kresta");
 insert into t6 values (1,1),(1,2),(2,2),(1,3);
 select * from t6 where exists (select * from t7 where uq = clinic_uq);
+explain select * from t6 where exists (select * from t7 where uq = clinic_uq);
 
 # not unique fields
 -- error 1052
@@ -702,4 +703,12 @@ drop table t1,t2;
 create table t1 (a int, unique index indexa (a)); 
 insert into t1 values (-1), (-4), (-2), (NULL); 
 select -10 IN (select a from t1 FORCE INDEX (indexa)); 
+drop table t1;
+
+#
+# Test optimization for sub selects
+#
+create table t1 (id int not null auto_increment primary key, salary int, key(salary));
+insert into t1 (salary) values (100),(1000),(10000),(10),(500),(5000),(50000);
+explain SELECT id FROM t1 where salary = (SELECT MAX(salary) FROM t1);
 drop table t1;
