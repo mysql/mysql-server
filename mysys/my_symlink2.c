@@ -32,6 +32,7 @@ File my_create_with_symlink(const char *linkname, const char *filename,
   int tmp_errno;
   /* Test if we should create a link */
   int create_link;
+  char abs_linkname[FN_REFLEN];
   DBUG_ENTER("my_create_with_symlink");
 
   if (my_disable_symlinks)
@@ -42,7 +43,11 @@ File my_create_with_symlink(const char *linkname, const char *filename,
       filename= linkname;
   }
   else
-    create_link= (linkname && strcmp(linkname,filename));    
+  {
+    if (linkname)
+      my_realpath(&abs_linkname, linkname, MYF(0));
+    create_link= (linkname && strcmp(abs_linkname,filename));
+  }
 
   if (!(MyFlags & MY_DELETE_OLD))
   {
