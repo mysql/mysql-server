@@ -1927,21 +1927,26 @@ mysql_execute_command(void)
       send_error(&thd->net,ER_WRONG_VALUE_COUNT);
       DBUG_VOID_RETURN;
     }
-    if (select_lex->table_list.elements == 1)
+    if (check_one_table_access(thd, UPDATE_ACL, tables, 0))
+      goto error; /* purecov: inspected */
+
+
+    res= mysql_update(thd,tables,
+		      select_lex->item_list,
+		      lex->value_list,
+		      select_lex->where,
+		      (ORDER *) select_lex->order_list.first,
+		      select_lex->select_limit,
+		      lex->duplicates);
+    break;
+  case SQLCOM_MULTI_UPDATE:
+    if (check_db_used(thd,tables))
+      goto error;
+    if (select_lex->item_list.elements != lex->value_list.elements)
     {
-      if (check_one_table_access(thd, UPDATE_ACL, tables, 0))
-	goto error; /* purecov: inspected */
-
-
-      res= mysql_update(thd,tables,
-			select_lex->item_list,
-			lex->value_list,
-			select_lex->where,
-			(ORDER *) select_lex->order_list.first,
-			select_lex->select_limit,
-			lex->duplicates);
+      send_error(&thd->net,ER_WRONG_VALUE_COUNT);
+      DBUG_VOID_RETURN;
     }
-    else
     {
       const char *msg= 0;
       TABLE_LIST *table;
@@ -3242,7 +3247,18 @@ bool add_field_to_list(char *field_name, enum_field_types type,
     }
     break;
   case FIELD_TYPE_TIMESTAMP:
+#if MYSQL_VERSION_ID < 40100
+    /*
+      When in in --new mode, we should create TIMESTAMP(19) fields by default;
+      otherwise we will have problems with ALTER TABLE changing lengths of
+      existing TIMESTAMP fields to 19 and adding new fields with length 14.
+    */
+    if (thd->variables.new_mode)
+      new_field->length= 19;
+    else if (!length)
+#else
     if (!length)
+#endif
       new_field->length= 14;			// Full date YYYYMMDDHHMMSS
     else if (new_field->length != 19)
     {

@@ -2467,8 +2467,7 @@ void Field_double::sql_type(String &res) const
 
 enum Item_result Field_timestamp::result_type() const
 {
- return (!current_thd->variables.new_mode &&
-	 (field_length == 8 || field_length == 14) ? INT_RESULT :
+ return ((field_length == 8 || field_length == 14) ? INT_RESULT :
 	 STRING_RESULT);
 }
 
@@ -2480,6 +2479,9 @@ Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
     :Field_num(ptr_arg, len_arg, (uchar*) 0,0,
 	       unireg_check_arg, field_name_arg, table_arg,
 	       0, 1, 1)
+#if MYSQL_VERSION_ID < 40100
+    , orig_field_length(len_arg)
+#endif
 {
   if (table && !table->timestamp_field)
   {
@@ -2697,7 +2699,7 @@ String *Field_timestamp::val_str(String *val_buffer,
   time_t time_arg;
   struct tm *l_time;
   struct tm tm_tmp;
-  my_bool new_format= (current_thd->variables.new_mode) || field_length == 19,
+  my_bool new_format= field_length == 19,
           full_year=(field_length == 8 || field_length == 14 || new_format);
   int real_field_length= new_format ? 19 : field_length;
 
@@ -2857,22 +2859,6 @@ void Field_timestamp::set_time()
   else
 #endif
     longstore(ptr,tmp);
-}
-
-/*
- This is an exact copy of Field_num except that 'length' is depending
- on --new mode
-*/
-
-void Field_timestamp::make_field(Send_field *field)
-{
-  field->table_name=table_name;
-  field->col_name=field_name;
-  /* If --new, then we are using "YYYY-MM-DD HH:MM:SS" format */
-  field->length= current_thd->variables.new_mode ? 19 : field_length;
-  field->type=type();
-  field->flags=table->maybe_null ? (flags & ~NOT_NULL_FLAG) : flags;
-  field->decimals=dec;
 }
 
 
