@@ -192,7 +192,6 @@ static char szPipeName [ 257 ];
 static SECURITY_ATTRIBUTES saPipeSecurity;
 static SECURITY_DESCRIPTOR sdPipeDescriptor;
 static HANDLE hPipe = INVALID_HANDLE_VALUE;
-static bool opt_enable_named_pipe = 0;
 #endif
 #ifdef __WIN__
 static pthread_cond_t COND_handler_count;
@@ -502,9 +501,11 @@ static bool read_init_file(char *file_name);
 #ifdef __NT__
 extern "C" pthread_handler_decl(handle_connections_namedpipes,arg);
 #endif
+#if !defined(EMBEDDED_LIBRARY)
 #ifdef HAVE_SMEM
 static pthread_handler_decl(handle_connections_shared_memory,arg);
 #endif
+#endif /* EMBEDDED_LIBRARY */
 extern "C" pthread_handler_decl(handle_slave,arg);
 #ifdef SET_RLIMIT_NOFILE
 static uint set_maximum_open_files(uint max_file_limit);
@@ -2242,6 +2243,7 @@ static void create_maintenance_thread()
 
 static void create_shutdown_thread()
 {
+#if !defined(EMBEDDED_LIBRARY)
 #ifdef __WIN__
   hEventShutdown=CreateEvent(0, FALSE, FALSE, shutdown_event_name);
   pthread_t hThread;
@@ -2257,6 +2259,7 @@ static void create_shutdown_thread()
   if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
     sql_print_error("Warning: Can't create thread to handle shutdown requests");
 #endif
+#endif // EMBEDDED_LIBRARY 
 }
 
 
@@ -2300,6 +2303,7 @@ static void handle_connections_methods()
       handler_count--;
     }
   }
+#if !defined(EMBEDDED_LIBRARY)
 #ifdef HAVE_SMEM
   if (opt_enable_shared_memory)
   {
@@ -2311,7 +2315,8 @@ static void handle_connections_methods()
       handler_count--;
     }
   }
-#endif
+#endif 
+#endif // EMBEDDED_LIBRARY
 
   while (handler_count > 0)
     pthread_cond_wait(&COND_handler_count,&LOCK_thread_count);
@@ -2676,11 +2681,10 @@ int main(int argc, char **argv)
 
 static int bootstrap(FILE *file)
 {
-  THD *thd;
   int error= 0;
   DBUG_ENTER("bootstrap");
 #ifndef EMBEDDED_LIBRARY			// TODO:  Enable this
-  thd= new THD;
+  THD *thd= new THD;
   thd->bootstrap=1;
   thd->client_capabilities=0;
   my_net_init(&thd->net,(st_vio*) 0);

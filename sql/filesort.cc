@@ -70,7 +70,6 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   int error;
   ulong memavl;
   uint maxbuffer;
-  uint i;
   BUFFPEK *buffpek;
   ha_rows records;
   uchar **sort_keys;

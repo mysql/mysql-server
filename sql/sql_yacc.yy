@@ -486,7 +486,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NOW_SYM
 %token	PASSWORD
 %token	POINTFROMTEXT
-%token	POINT
+%token	POINT_SYM
 %token	POLYFROMTEXT
 %token  POLYGON
 %token	POSITION_SYM
@@ -1146,7 +1146,7 @@ type:
 					  $$=FIELD_TYPE_BLOB; }
 	| GEOMETRY_SYM			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_GEOMETRY; }
-	| POINT				{ Lex->charset=&my_charset_bin;
+	| POINT_SYM			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| MULTIPOINT			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_GEOMETRY; }
@@ -2313,7 +2313,7 @@ simple_expr:
 	  { $$= new Item_func_password($3); }
         | PASSWORD '(' expr ',' expr ')'
           { $$= new Item_func_password($3,$5); }
-	| POINT '(' expr ',' expr ')'
+	| POINT_SYM '(' expr ',' expr ')'
 	  { $$= new Item_func_point($3,$5); }
  	| POINTFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
@@ -4038,7 +4038,7 @@ keyword:
 	| PACK_KEYS_SYM		{}
 	| PARTIAL		{}
 	| PASSWORD		{}
-	| POINT			{}
+	| POINT_SYM		{}
 	| POLYGON		{}
 	| PREV_SYM		{}
 	| PROCESS		{}

@@ -66,7 +66,7 @@ TYPELIB sql_protocol_typelib = {array_elements(sql_protocol_names_lib)-1,"",
 #define closesocket(A) close(A)
 #endif
 
-static void mysql_once_init(void);
+void mysql_once_init(void);
 static void end_server(MYSQL *mysql);
 static void append_wild(char *to,char *end,const char *wild);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
