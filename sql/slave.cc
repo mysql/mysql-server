@@ -1299,8 +1299,8 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 %s, last_errno=%d, retry in %d sec",
 		      mc_mysql_error(mysql), last_errno=mc_mysql_errno(mysql),
 		      mi->connect_retry);
-      safe_sleep(thd, mi->connect_retry);
     }
+    safe_sleep(thd, mi->connect_retry);
     /* by default we try forever. The reason is that failure will trigger
        master election, so if the user did not set master_retry_count we
        do not want to have electioin triggered on the first failure to
