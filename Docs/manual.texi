@@ -51680,6 +51680,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.54
 @itemize
 @item
+Fixed a problem with BDB and @code{ALTER TABLE}.
+@item
 Fixed reference to freed memory when doing complicated @code{GROUP BY
 ... ORDER BY} queries.  Symptom was that @code{mysqld} died in function
 @code{send_fields}.
