@@ -28,6 +28,9 @@
 
 #ifndef EMBEDDED_LIBRARY
 bool Protocol::net_store_data(const char *from, uint length)
+#else
+bool Protocol_prep::net_store_data(const char *from, uint length)
+#endif
 {
   ulong packet_length=packet->length();
   /* 
@@ -43,7 +46,6 @@ bool Protocol::net_store_data(const char *from, uint length)
   packet->length((uint) (to+length-packet->ptr()));
   return 0;
 }
-#endif
 
 
 	/* Send a error string to client */

@@ -80,6 +80,12 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
      client). So we have to call free_old_query here
   */
   free_old_query(mysql);
+  if (!arg)
+  {
+    arg= header;
+    arg_length= header_length;
+  }
+
   result= dispatch_command(command, thd, (char *) arg, arg_length + 1);
 
   if (!skip_check)
@@ -136,6 +142,7 @@ static my_bool STDCALL emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 
     stmt->fields= mysql->fields;
     stmt->mem_root= mysql->field_alloc;
+    mysql->fields= NULL;
   }
 
   return 0;
@@ -550,7 +557,7 @@ bool Protocol_prep::write()
     return true;
   }
   cur->data= (MYSQL_ROW)(((char *)cur) + sizeof(MYSQL_ROWS));
-  memcpy(cur->data, packet->ptr(), packet->length());
+  memcpy(cur->data, packet->ptr()+1, packet->length()-1);
 
   *data->prev_ptr= cur;
   data->prev_ptr= &cur->next;
@@ -674,7 +681,7 @@ bool setup_params_data(st_prep_stmt *stmt)
     setup_param_functions(param, client_param->buffer_type);
     if (!param->long_data_supplied)
     {
-      if (client_param->is_null)
+      if (*client_param->is_null)
         param->maybe_null= param->null_value= 1;
       else
       {
@@ -712,7 +719,7 @@ bool setup_params_data_withlog(st_prep_stmt *stmt)
     
     else
     {
-      if (client_param->is_null)
+      if (*client_param->is_null)
       {
         param->maybe_null= param->null_value= 1;
         res= &null_string;

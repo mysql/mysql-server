@@ -47,8 +47,6 @@
 #define INADDR_NONE	-1
 #endif
 
-#define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_TRANSACTIONS | CLIENT_PROTOCOL_41)
-
 #if defined(MSDOS) || defined(__WIN__)
 #define ERRNO WSAGetLastError()
 #define perror(A)
