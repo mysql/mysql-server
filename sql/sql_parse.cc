@@ -4185,6 +4185,12 @@ unsent_create_error:
 	thd->row_count_func= 0;
 	res= sp->execute_procedure(thd, &lex->value_list);
 
+	/* If warnings have been cleared, we have to clear total_warn_count
+	 * too, otherwise the clients get confused.
+	 */
+	if (thd->warn_list.is_empty())
+	  thd->total_warn_count= 0;
+
 	thd->variables.select_limit= select_limit;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 	sp_restore_security_context(thd, sp, &save_ctx);
