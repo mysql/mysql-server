@@ -639,7 +639,7 @@ static uint getTableStructure(char *table, char* db)
   MYSQL_ROW  row;
   my_bool    init=0;
   uint       numFields;
-  char	     *strpos, *table_name;
+  char	     *strpos, *result_table;
   const char *delayed;
   char	     name_buff[NAME_LEN+3],table_buff[NAME_LEN+3];
   FILE       *sql_file = md_result_file;
@@ -651,7 +651,7 @@ static uint getTableStructure(char *table, char* db)
     fprintf(stderr, "-- Retrieving table structure for table %s...\n", table);
 
   sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d", opt_quoted);
-  table_name=quote_name(table,table_buff);
+  result_table=quote_name(table,table_buff);
   if (!mysql_query(sock,insert_pat))
   {
     /* using SHOW CREATE statement */
@@ -687,7 +687,7 @@ static uint getTableStructure(char *table, char* db)
 	fprintf(sql_file, "\n--\n-- Table structure for table '%s'\n--\n\n",
 		table);
       if (opt_drop)
-        fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n",table_name);
+        fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n",result_table);
 
       tableRes=mysql_store_result(sock);
       row=mysql_fetch_row(tableRes);
@@ -695,7 +695,7 @@ static uint getTableStructure(char *table, char* db)
 	fprintf(sql_file, "%s;\n", row[1]);
       mysql_free_result(tableRes);
     }
-    sprintf(insert_pat,"show fields from %s",table_name);
+    sprintf(insert_pat,"show fields from `%s`",table);
     if (mysql_query(sock,insert_pat) || !(tableRes=mysql_store_result(sock)))
     {
       fprintf(stderr, "%s: Can't get info about table: '%s'\nerror: %s\n",
@@ -707,10 +707,10 @@ static uint getTableStructure(char *table, char* db)
     }
 
     if (cFlag)
-      sprintf(insert_pat, "INSERT %sINTO %s (", delayed, table_name);
+      sprintf(insert_pat, "INSERT %sINTO %s (", delayed, result_table);
     else
     {
-      sprintf(insert_pat, "INSERT %sINTO %s VALUES ", delayed, table_name);
+      sprintf(insert_pat, "INSERT %sINTO %s VALUES ", delayed, result_table);
       if (!extended_insert)
         strcat(insert_pat,"(");
     }
@@ -735,7 +735,7 @@ static uint getTableStructure(char *table, char* db)
   /*  fprintf(stderr, "%s: Can't set SQL_QUOTE_SHOW_CREATE option (%s)\n",
       my_progname, mysql_error(sock)); */
 
-    sprintf(insert_pat,"show fields from %s",table_name);
+    sprintf(insert_pat,"show fields from `%s`",result_table);
     if (mysql_query(sock,insert_pat) || !(tableRes=mysql_store_result(sock)))
     {
       fprintf(stderr, "%s: Can't get info about table: '%s'\nerror: %s\n",
@@ -765,14 +765,14 @@ static uint getTableStructure(char *table, char* db)
 	fprintf(sql_file, "\n--\n-- Table structure for table '%s'\n--\n\n",
 		table);
       if (opt_drop)
-        fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n",table_name);
-      fprintf(sql_file, "CREATE TABLE %s (\n", table_name);
+        fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n",result_table);
+      fprintf(sql_file, "CREATE TABLE %s (\n", result_table);
     }
     if (cFlag)
-      sprintf(insert_pat, "INSERT %sINTO %s (", delayed, table_name);
+      sprintf(insert_pat, "INSERT %sINTO %s (", delayed, result_table);
     else
     {
-      sprintf(insert_pat, "INSERT %sINTO %s VALUES ", delayed, table_name);
+      sprintf(insert_pat, "INSERT %sINTO %s VALUES ", delayed, result_table);
       if (!extended_insert)
         strcat(insert_pat,"(");
     }
@@ -794,7 +794,7 @@ static uint getTableStructure(char *table, char* db)
       if (!tFlag)
       {
         if (opt_keywords)
-	  fprintf(sql_file, "  %s.%s %s", table_name,
+	  fprintf(sql_file, "  %s.%s %s", result_table,
 	  quote_name(row[SHOW_FIELDNAME],name_buff), row[SHOW_TYPE]);
         else
 	  fprintf(sql_file, "  %s %s", quote_name(row[SHOW_FIELDNAME],
@@ -817,7 +817,7 @@ static uint getTableStructure(char *table, char* db)
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
       uint keynr,primary_key;
-      sprintf(buff,"show keys from %s",table_name);
+      sprintf(buff,"show keys from `%s`",table);
       if (mysql_query(sock, buff))
       {
         fprintf(stderr, "%s: Can't get keys for table '%s' (%s)\n",
@@ -877,7 +877,7 @@ static uint getTableStructure(char *table, char* db)
       /* Get MySQL specific create options */
       if (create_options)
       {
-        sprintf(buff,"show table status like '%s'",table);
+        sprintf(buff,"show table status like `%s`",table);
         if (mysql_query(sock, buff))
         {
 	  if (mysql_errno(sock) != ER_PARSE_ERROR)
@@ -909,7 +909,7 @@ static uint getTableStructure(char *table, char* db)
     }
   }
   if (opt_disable_keys)
-    fprintf(sql_file,"\n/*!40000 ALTER TABLE %s DISABLE KEYS */;\n",table_name);
+    fprintf(sql_file,"\n/*!40000 ALTER TABLE %s DISABLE KEYS */;\n",result_table);
   if (cFlag)
   {
     strpos=strmov(strpos,") VALUES ");
@@ -978,7 +978,7 @@ static char *field_escape(char *to,const char *from,uint length)
 */
 static void dumpTable(uint numFields, char *table)
 {
-  char query[1024], *end, buff[256],table_buff[NAME_LEN+3];
+  char query[1024], *end, buff[256],table_buff[NAME_LEN+3], *result_table;
   MYSQL_RES	*res;
   MYSQL_FIELD  *field;
   MYSQL_ROW    row;
@@ -986,6 +986,7 @@ static void dumpTable(uint numFields, char *table)
 
   if (verbose)
     fprintf(stderr, "-- Sending SELECT query...\n");
+  result_table=quote_name(table,table_buff);
   if (path)
   {
     char filename[FN_REFLEN], tmp_path[FN_REFLEN];
@@ -1012,7 +1013,7 @@ static void dumpTable(uint numFields, char *table)
     end= add_load_option(end, lines_terminated, " LINES TERMINATED BY");
     *end= '\0';
 
-    sprintf(buff," FROM %s",quote_name(table,table_buff));
+    sprintf(buff," FROM `%s`",table);
     end= strmov(end,buff);
     if (where)
       end= strxmov(end, " WHERE ",where,NullS);
@@ -1027,7 +1028,7 @@ static void dumpTable(uint numFields, char *table)
     if (!opt_xml)
       fprintf(md_result_file,"\n--\n-- Dumping data for table '%s'\n--\n",
 	      table);
-    sprintf(query, "SELECT * FROM %s", quote_name(table,table_buff));
+    sprintf(query, "SELECT * FROM `%s`", table);
     if (where)
     {
       if (!opt_xml)
@@ -1061,8 +1062,7 @@ static void dumpTable(uint numFields, char *table)
     }
 
     if (opt_lock)
-      fprintf(md_result_file,"LOCK TABLES %s WRITE;\n",
-	      quote_name(table,table_buff));
+      fprintf(md_result_file,"LOCK TABLES %s WRITE;\n", result_table);
 
     total_length=net_buffer_length;		/* Force row break */
     row_break=0;
@@ -1227,7 +1227,7 @@ static void dumpTable(uint numFields, char *table)
     }
     if (opt_disable_keys)
       fprintf(md_result_file,"\n/*!40000 ALTER TABLE %s ENABLE KEYS */;\n",
-                                            quote_name(table,table_buff));
+                                            result_table);
     if (opt_lock)
       fputs("UNLOCK TABLES;\n", md_result_file);
     if (opt_autocommit)
@@ -1361,8 +1361,9 @@ static int dump_all_tables_in_db(char *database)
     init_dynamic_string(&query, "LOCK TABLES ", 256, 1024);
     for (numrows=0 ; (table = getTableName(1)) ; numrows++)
     {
-      dynstr_append(&query, quote_name(table, table_buff));
-      dynstr_append(&query, " READ /*!32311 LOCAL */,");
+      dynstr_append(&query, "`");
+      dynstr_append(&query, table);
+      dynstr_append(&query, "` READ /*!32311 LOCAL */,");
     }
     if (numrows && mysql_real_query(sock, query.str, query.length-1))
       DBerror(sock, "when using LOCK TABLES");
@@ -1403,8 +1404,9 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     init_dynamic_string(&query, "LOCK TABLES ", 256, 1024);
     for (i=0 ; i < tables ; i++)
     {
-      dynstr_append(&query, quote_name(table_names[i], table_buff));
-      dynstr_append(&query, " READ /*!32311 LOCAL */,");
+      dynstr_append(&query, "`");
+      dynstr_append(&query, table_names[i]);
+      dynstr_append(&query, "` READ /*!32311 LOCAL */,");
     }
     if (mysql_real_query(sock, query.str, query.length-1))
       DBerror(sock, "when doing LOCK TABLES");
