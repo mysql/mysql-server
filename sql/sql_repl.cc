@@ -282,8 +282,6 @@ int purge_master_logs(THD* thd, const char* to_log)
   case LOG_INFO_INVALID: errmsg = "Server configuration does not permit \
 binlog purge"; break;
   case LOG_INFO_SEEK:	errmsg = "Failed on fseek()"; break;
-  case LOG_INFO_PURGE_NO_ROTATE: errmsg = "Cannot purge unrotatable log";
-    break;
   case LOG_INFO_MEM:	errmsg = "Out of memory"; break;
   case LOG_INFO_FATAL:	errmsg = "Fatal error during purge"; break;
   case LOG_INFO_IN_USE: errmsg = "A purgeable log is in use, will not purge";
