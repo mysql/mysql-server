@@ -2219,7 +2219,7 @@ ha_innobase::external_lock(
 		if (trx->n_mysql_tables_in_use == 0) {
 			trx_mark_sql_stat_end(trx);
 		}
-
+		thd->transaction.all.innodb_active_trans=1;
 		trx->n_mysql_tables_in_use++;
 
 		if (prebuilt->select_lock_type != LOCK_NONE) {

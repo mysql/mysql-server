@@ -874,6 +874,14 @@ public:
                 uint max_length= ~(uint) 0);
   ulonglong get_id(const char *from);
   const char *unpack_id(char *to, const char *from, const char *bdata);
+  inline void get_ptr_from_key_image(char **str,char *key_str)
+  {
+     *str = key_str + sizeof(uint16);
+  }
+  inline uint get_length_from_key_image(char *key_str)
+  {
+    return uint2korr(key_str);
+  }
   enum_field_types blobtype() { return (packlength == 1 ? FIELD_TYPE_TINY_BLOB : FIELD_TYPE_BLOB);}
 #endif
   char *pack_key(char *to, const char *from, uint max_length);

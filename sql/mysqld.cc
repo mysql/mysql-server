@@ -995,6 +995,7 @@ sig_handler end_thread_signal(int sig __attribute__((unused)))
 void end_thread(THD *thd, bool put_in_cache)
 {
   DBUG_ENTER("end_thread");
+  thd->cleanup();
   (void) pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
   delete thd;
@@ -1189,8 +1190,13 @@ the thread stack. Please read http://www.mysql.com/doc/L/i/Linux.html\n\n",
 
 #ifdef HAVE_STACKTRACE
   if(!(test_flags & TEST_NO_STACKTRACE))
+  {
+#ifdef HAVE_GEMINI_DB
+    utrace();
+#endif
     print_stacktrace(thd ? (gptr) thd->thread_stack : (gptr) 0,
 		     thread_stack);
+  }
   if (thd)
   {
     fprintf(stderr, "Trying to get some variables.\n\
@@ -2054,6 +2060,7 @@ static int bootstrap(FILE *file)
   (void) pthread_mutex_unlock(&LOCK_thread_count);
   error= thd->fatal_error;
   net_end(&thd->net);
+  thd->cleanup();
   delete thd;
   return error;
 }

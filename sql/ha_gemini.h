@@ -205,3 +205,4 @@ int gemini_set_option_long(int optid, long optval);
 const int gemini_blocksize = BLKSIZE;
 const int gemini_recbits = DEFAULT_RECBITS;
 
+extern "C" void uttrace(void);
