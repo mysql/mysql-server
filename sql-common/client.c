@@ -38,7 +38,28 @@
 #include <my_global.h>
 
 #include "mysql.h"
+
+#ifdef EMBEDDED_LIBRARY
+
+#undef MYSQL_SERVER
+
+#ifndef MYSQL_CLIENT
+#define MYSQL_CLIENT
+#endif
+
+#define CLI_MYSQL_REAL_CONNECT cli_mysql_real_connect
+#define CLI_MYSQL_CLOSE cli_mysql_close
+
+#undef net_flush
+my_bool	net_flush(NET *net);
+
+#else  /*EMBEDDED_LIBRARY*/
+#define CLI_MYSQL_REAL_CONNECT mysql_real_connect
+#define CLI_MYSQL_CLOSE mysql_close
+#endif /*EMBEDDED_LIBRARY*/
+
 #if !defined(MYSQL_SERVER) && (defined(__WIN__) || defined(_WIN32) || defined(_WIN64))
+
 #include <winsock.h>
 #include <odbcinst.h>
 #endif /* !defined(MYSQL_SERVER) && (defined(__WIN__) ... */
@@ -572,8 +593,8 @@ void free_rows(MYSQL_DATA *cur)
   }
 }
 
-my_bool
-advanced_command(MYSQL *mysql, enum enum_server_command command,
+static my_bool
+cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		 const char *header, ulong header_length,
 		 const char *arg, ulong arg_length, my_bool skip_check)
 {
@@ -633,13 +654,6 @@ advanced_command(MYSQL *mysql, enum enum_server_command command,
 end:
   reset_sigpipe(mysql);
   return result;
-}
-
-my_bool
-simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
-	       ulong length, my_bool skip_check)
-{
-  return advanced_command(mysql, command, NullS, 0, arg, length, skip_check);
 }
 
 void free_old_query(MYSQL *mysql)
@@ -759,8 +773,8 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
   return 0;
 }
 
-static void mysql_read_default_options(struct st_mysql_options *options,
-				       const char *filename,const char *group)
+void mysql_read_default_options(struct st_mysql_options *options,
+				const char *filename,const char *group)
 {
   int argc;
   char *argv_buff[1],**argv;
@@ -953,25 +967,10 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 
 void fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
 { 
-  ulong *prev_length;
-  byte *start=0;
   MYSQL_ROW end;
-
-  prev_length=0;				/* Keep gcc happy */
-  for (end=column + field_count + 1 ; column != end ; column++, to++)
-  {
-    if (!*column)
-    {
-      *to= 0;					/* Null */
-      continue;
-    }
-    if (start)					/* Found end of prev string */
-      *prev_length= (ulong) (*column-start-1);
-    start= *column;
-    prev_length= to;
-  }
+  for (end=column + field_count; column != end ; column++, to++)
+    *to= *column ? strlen(*column) : 0;
 }
-
 
 /***************************************************************************
   Change field rows to field structs
@@ -1278,6 +1277,7 @@ mysql_init(MYSQL *mysql)
 #ifdef HAVE_SMEM
   mysql->options.shared_memory_base_name= (char*) def_shared_memory_base_name;
 #endif
+  mysql->options.methods_to_use= MYSQL_OPT_GUESS_CONNECTION;
   return mysql;
 }
 
@@ -1409,10 +1409,22 @@ error:
   before calling mysql_real_connect !
 */
 
-MYSQL * STDCALL
-mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
-		   const char *passwd, const char *db,
-		   uint port, const char *unix_socket,ulong client_flag)
+static my_bool STDCALL cli_mysql_read_query_result(MYSQL *mysql);
+static MYSQL_RES * STDCALL cli_mysql_store_result(MYSQL *mysql);
+static MYSQL_RES * STDCALL cli_mysql_use_result(MYSQL *mysql);
+
+static MYSQL_METHODS client_methods=
+{
+  cli_mysql_read_query_result,
+  cli_advanced_command,
+  cli_mysql_store_result,
+  cli_mysql_use_result
+};
+
+MYSQL * STDCALL 
+CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
+		       const char *passwd, const char *db,
+		       uint port, const char *unix_socket,ulong client_flag)
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100],charset_name_buff[16];
   char		*end,*host_info,*charset_name;
@@ -1441,6 +1453,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		      user ? user : "(Null)"));
 
   /* Don't give sigpipe errors if the client doesn't want them */
+  mysql->methods= &client_methods;
   set_sigpipe(mysql);
   net->vio = 0;				/* If something goes wrong */
   mysql->client_flag=0;			/* For handshake */
@@ -2112,8 +2125,7 @@ static void mysql_close_free(MYSQL *mysql)
 }
 
 
-void STDCALL
-mysql_close(MYSQL *mysql)
+void STDCALL CLI_MYSQL_CLOSE(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close");
   if (mysql)					/* Some simple safety */
@@ -2165,8 +2177,7 @@ mysql_close(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
-
-my_bool STDCALL mysql_read_query_result(MYSQL *mysql)
+static my_bool STDCALL cli_mysql_read_query_result(MYSQL *mysql)
 {
   uchar *pos;
   ulong field_count;
@@ -2283,8 +2294,7 @@ mysql_real_query(MYSQL *mysql, const char *query, ulong length)
   mysql_data_seek may be used.
 **************************************************************************/
 
-MYSQL_RES * STDCALL
-mysql_store_result(MYSQL *mysql)
+static MYSQL_RES * STDCALL cli_mysql_store_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
   DBUG_ENTER("mysql_store_result");
@@ -2339,8 +2349,7 @@ mysql_store_result(MYSQL *mysql)
   have to wait for the client (and will not wait more than 30 sec/packet).
 **************************************************************************/
 
-MYSQL_RES * STDCALL
-mysql_use_result(MYSQL *mysql)
+static MYSQL_RES * STDCALL cli_mysql_use_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
   DBUG_ENTER("mysql_use_result");
@@ -2477,6 +2486,10 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
       my_free(mysql->options.shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
     mysql->options.shared_memory_base_name=my_strdup(arg,MYF(MY_WME));
 #endif
+  case MYSQL_OPT_USE_REMOTE_CONNECTION:
+  case MYSQL_OPT_USE_EMBEDDED_CONNECTION:
+  case MYSQL_OPT_GUESS_CONNECTION:
+    mysql->options.methods_to_use= option;
     break;
   default:
     DBUG_RETURN(1);

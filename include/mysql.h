@@ -129,10 +129,21 @@ typedef struct st_mysql_data {
   unsigned int fields;
   MYSQL_ROWS *data;
   MEM_ROOT alloc;
-#ifdef EMBEDDED_LIBRARY
+#if !defined(CHECK_EMBEDDED_DIFFERENCES) || defined(EMBEDDED_LIBRARY)
   MYSQL_ROWS **prev_ptr;
 #endif
 } MYSQL_DATA;
+
+enum mysql_option 
+{
+  MYSQL_OPT_CONNECT_TIMEOUT, MYSQL_OPT_COMPRESS, MYSQL_OPT_NAMED_PIPE,
+  MYSQL_INIT_COMMAND, MYSQL_READ_DEFAULT_FILE, MYSQL_READ_DEFAULT_GROUP,
+  MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME, MYSQL_OPT_LOCAL_INFILE,
+  MYSQL_OPT_PROTOCOL, MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_OPT_READ_TIMEOUT,
+  MYSQL_OPT_WRITE_TIMEOUT, MYSQL_OPT_USE_RESULT,
+  MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
+  MYSQL_OPT_GUESS_CONNECTION
+};
 
 struct st_mysql_options {
   unsigned int connect_timeout, read_timeout, write_timeout;
@@ -165,18 +176,10 @@ struct st_mysql_options {
    a read that is replication-aware
  */
   my_bool no_master_reads;
-#ifdef EMBEDDED_LIBRARY
+#if !defined(CHECK_EMBEDDED_DIFFERENCES) || defined(EMBEDDED_LIBRARY)
   my_bool separate_thread;
 #endif
-};
-
-enum mysql_option 
-{
-  MYSQL_OPT_CONNECT_TIMEOUT, MYSQL_OPT_COMPRESS, MYSQL_OPT_NAMED_PIPE,
-  MYSQL_INIT_COMMAND, MYSQL_READ_DEFAULT_FILE, MYSQL_READ_DEFAULT_GROUP,
-  MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME, MYSQL_OPT_LOCAL_INFILE,
-  MYSQL_OPT_PROTOCOL, MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_OPT_READ_TIMEOUT,
-  MYSQL_OPT_WRITE_TIMEOUT, MYSQL_OPT_USE_RESULT
+  enum mysql_option methods_to_use;
 };
 
 enum mysql_status 
@@ -199,8 +202,7 @@ enum mysql_rpl_type
   MYSQL_RPL_MASTER, MYSQL_RPL_SLAVE, MYSQL_RPL_ADMIN
 };
 
-
-#ifndef EMBEDDED_LIBRARY
+struct st_mysql_methods;
 
 typedef struct st_mysql
 {
@@ -245,33 +247,13 @@ typedef struct st_mysql
   struct st_mysql* last_used_con;
 
   LIST  *stmts;                     /* list of all statements */
-} MYSQL;
-
-#else
-
-struct st_mysql_res;
-
-typedef struct st_mysql
-{
+  const struct st_mysql_methods *methods;
   struct st_mysql_res *result;
   void *thd;
-  struct charset_info_st *charset;
-  unsigned int  server_language;
-  MYSQL_FIELD	*fields;
-  MEM_ROOT	field_alloc;
-  my_ulonglong affected_rows;
-  unsigned int	field_count;
-  struct st_mysql_options options;
-  enum mysql_status status;
-  my_bool	free_me;		/* If free in mysql_close */
-  my_ulonglong insert_id;		/* id if insert on table with NEXTNR */
   unsigned int last_errno;
-  unsigned int 	server_status;
-  char *last_error;			/* Used by embedded server */
+  char *last_error;
   char sqlstate[SQLSTATE_LENGTH+1];	/* Used by embedded server */
 } MYSQL;
-
-#endif
 
 typedef struct st_mysql_res {
   my_ulonglong row_count;
@@ -371,12 +353,10 @@ MYSQL *		STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
 					   unsigned int port,
 					   const char *unix_socket,
 					   unsigned long clientflag);
-void		STDCALL mysql_close(MYSQL *sock);
 int		STDCALL mysql_select_db(MYSQL *mysql, const char *db);
 int		STDCALL mysql_query(MYSQL *mysql, const char *q);
 int		STDCALL mysql_send_query(MYSQL *mysql, const char *q,
 					 unsigned long length);
-my_bool		STDCALL mysql_read_query_result(MYSQL *mysql);
 int		STDCALL mysql_real_query(MYSQL *mysql, const char *q,
 					unsigned long length);
 /* perform query on master */
@@ -437,8 +417,6 @@ MYSQL_RES *	STDCALL mysql_list_tables(MYSQL *mysql,const char *wild);
 MYSQL_RES *	STDCALL mysql_list_fields(MYSQL *mysql, const char *table,
 					 const char *wild);
 MYSQL_RES *	STDCALL mysql_list_processes(MYSQL *mysql);
-MYSQL_RES *	STDCALL mysql_store_result(MYSQL *mysql);
-MYSQL_RES *	STDCALL mysql_use_result(MYSQL *mysql);
 int		STDCALL mysql_options(MYSQL *mysql,enum mysql_option option,
 				      const char *arg);
 void		STDCALL mysql_free_result(MYSQL_RES *result);
@@ -559,6 +537,23 @@ typedef struct st_mysql_stmt
 } MYSQL_STMT;
 
 
+#define mysql_read_query_result(mysql) (*(mysql)->methods->read_query_result)(mysql)
+#define mysql_store_result(mysql) (*(mysql)->methods->store_result)(mysql)
+#define mysql_use_result(mysql) (*(mysql)->methods->use_result)(mysql)
+
+typedef struct st_mysql_methods
+{
+  my_bool STDCALL (*read_query_result)(MYSQL *mysql);
+  my_bool STDCALL (*advanced_command)(MYSQL *mysql, 
+				      enum enum_server_command command,
+				      const char *header, 
+				      ulong header_length,
+				      const char *arg, 
+				      ulong arg_length, my_bool skip_check);
+  MYSQL_RES *	STDCALL (*store_result)(MYSQL *mysql);
+  MYSQL_RES *	STDCALL (*use_result)(MYSQL *mysql);
+} MYSQL_METHODS;
+
 MYSQL_STMT * STDCALL mysql_prepare(MYSQL * mysql, const char *query,
 				   unsigned long length);
 int STDCALL mysql_execute(MYSQL_STMT * stmt);
@@ -593,6 +588,8 @@ MYSQL_ROW_OFFSET STDCALL mysql_stmt_row_seek(MYSQL_STMT *stmt,
 MYSQL_ROW_OFFSET STDCALL mysql_stmt_row_tell(MYSQL_STMT *stmt);
 void STDCALL mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong offset);
 my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt);
+void STDCALL mysql_close(MYSQL *sock);
+
 
 /* status return codes */
 #define MYSQL_NO_DATA      100
@@ -613,9 +610,9 @@ int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
   They are not for general usage
 */
 
-my_bool
-simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
-	       unsigned long length, my_bool skip_check);
+#define simple_command(mysql, command, arg, length, skip_check) \
+  (*(mysql)->methods->advanced_command)(mysql, command,         \
+					NullS, 0, arg, length, skip_check)
 unsigned long net_safe_read(MYSQL* mysql);
 void mysql_once_init(void);
 
