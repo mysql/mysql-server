@@ -172,6 +172,9 @@ our $path_slave_load_tmpdir;     # What is this?!
 our $path_my_basedir;
 our $opt_tmpdir;                 # A path but set directly on cmd line
 
+our $opt_usage;
+our $opt_suite;
+
 our $opt_netware;
 
 our $opt_script_debug= 0;  # Script debugging, enable with --script-debug
@@ -290,6 +293,7 @@ sub initial_setup ();
 sub command_line_setup ();
 sub executable_setup ();
 sub kill_and_cleanup ();
+sub collect_test_cases ($);
 sub sleep_until_file_created ($$);
 sub ndbcluster_start ();
 sub ndbcluster_stop ();
@@ -306,6 +310,7 @@ sub stop_masters_slaves ();
 sub stop_masters ();
 sub stop_slaves ();
 sub run_mysqltest ($$);
+sub usage ($);
 
 ######################################################################
 #
@@ -423,6 +428,7 @@ sub command_line_setup () {
 
   # These are defaults for things that are set on the command line
 
+  $opt_suite=        "main";    # Special default suite
   $opt_tmpdir=       "$glob_mysql_test_dir/var/tmp";
   # FIXME maybe unneded?
   $path_manager_log= "$glob_mysql_test_dir/var/log/manager.log";
@@ -436,61 +442,85 @@ sub command_line_setup () {
   my $opt_user;
 
   # Read the command line
+  # Note: Keep list, and the order, in sync with usage at end of this file
 
   GetOptions(
-             'bench'                    => \$opt_bench,
-             'big-test'                 => \$opt_big_test,
-             'client-gdb'               => \$opt_client_gdb,
-             'compress'                 => \$opt_compress,
-             'ddd'                      => \$opt_ddd,
-             'debug'                    => \$opt_debug,
-             'do-test=s'                => \$opt_do_test,
+             # Control what engine/variation to run
              'embedded-server'          => \$opt_embedded_server,
              'ps-protocol'              => \$opt_ps_protocol,
-             'extern'                   => \$opt_extern,
-             'fast'                     => \$opt_fast,
-             'force'                    => \$opt_force,
-             'gcov'                     => \$opt_gcov,
-             'gdb'                      => \$opt_gdb,
-             'gprof'                    => \$opt_gprof,
-             'local'                    => \$opt_local,
-             'local-master'             => \$opt_local_master,
-             'manual-gdb'               => \$opt_manual_gdb,
-             'master-binary=s'          => \$exe_master_mysqld,
-             'master_port=i'            => \$opt_master_myport,
-             'mysqld=s'                 => \$opt_extra_mysqld_opt,
-             'ndbcluster_port=i'        => \$opt_ndbcluster_port,
-             'ndbconnectstring=s'       => \$opt_ndbconnectstring,
-             'netware'                  => \$opt_netware,
+             'bench'                    => \$opt_bench,
+             'small-bench'              => \$opt_small_bench,
              'no-manager'               => \$opt_no_manager,
-             'old-master'               => \$opt_old_master,
-             'ps-protocol'              => \$opt_ps_protocol,
-             'record'                   => \$opt_record,
-             'script-debug'             => \$opt_script_debug,
+
+             # Control what test suites or cases to run
+             'force'                    => \$opt_force,
+             'with-ndbcluster'          => \$opt_with_ndbcluster,
+             'do-test=s'                => \$opt_do_test,
+             'suite=s'                  => \$opt_suite,
              'skip-rpl'                 => \$opt_skip_rpl,
              'skip-test=s'              => \$opt_skip_test,
-             'slave-binary=s'           => \$exe_slave_mysqld,
+
+             # Specify ports
+             'master_port=i'            => \$opt_master_myport,
              'slave_port=i'             => \$opt_slave_myport,
+             'ndbcluster_port=i'        => \$opt_ndbcluster_port,
+
+             # Test case authoring
+             'record'                   => \$opt_record,
+
+             # ???
+             'mysqld=s'                 => \$opt_extra_mysqld_opt,
+
+             # Run test on running server
+             'extern'                   => \$opt_extern,
+             'ndbconnectstring=s'       => \$opt_ndbconnectstring,
+
+             # Debugging
+             'gdb'                      => \$opt_gdb,
+             'manual-gdb'               => \$opt_manual_gdb,
+             'client-gdb'               => \$opt_client_gdb,
+             'ddd'                      => \$opt_ddd,
+             'strace-client'            => \$opt_strace_client,
+             'master-binary=s'          => \$exe_master_mysqld,
+             'slave-binary=s'           => \$exe_slave_mysqld,
+
+             # Coverage, profiling etc
+             'gcov'                     => \$opt_gcov,
+             'gprof'                    => \$opt_gprof,
+             'valgrind'                 => \$opt_valgrind,
+             'valgrind-all'             => \$opt_valgrind_all,
+             'valgrind-options=s'       => \$opt_valgrind_options,
+
+             # Misc
+             'big-test'                 => \$opt_big_test,
+             'compress'                 => \$opt_compress,
+             'debug'                    => \$opt_debug,
+             'fast'                     => \$opt_fast,
+             'local'                    => \$opt_local,
+             'local-master'             => \$opt_local_master,
+             'netware'                  => \$opt_netware,
+             'old-master'               => \$opt_old_master,
+             'script-debug'             => \$opt_script_debug,
              'sleep=i'                  => \$opt_sleep,
-             'small-bench'              => \$opt_small_bench,
              'socket=s'                 => \$opt_socket,
              'start-and-exit'           => \$opt_start_and_exit,
              'start-from=s'             => \$opt_start_from,
-             'strace-client'            => \$opt_strace_client,
              'timer'                    => \$opt_timer,
              'tmpdir=s'                 => \$opt_tmpdir,
              'user-test=s'              => \$opt_user_test,
              'user=s'                   => \$opt_user,
-             'valgrind'                 => \$opt_valgrind,
-             'valgrind-all'             => \$opt_valgrind_all,
-             'valgrind-options=s'       => \$opt_valgrind_options,
              'verbose'                  => \$opt_verbose,
              'wait-timeout=i'           => \$opt_wait_timeout,
              'warnings|log-warnings'    => \$opt_warnings,
-             'with-ndbcluster'          => \$opt_with_ndbcluster,
              'with-openssl'             => \$opt_with_openssl,
+
+             'help|h'                   => \$opt_usage,
             ) or usage("Can't read options");
 
+  if ( $opt_usage )
+  {
+    usage("");
+  }
 
   # Put this into a hash, will be a C struct
 
@@ -593,7 +623,7 @@ sub command_line_setup () {
 
   if ( $opt_sleep )
   {
-    $opt_sleep_time_after_restart=  $opt_sleep;
+    $opt_sleep_time_after_restart= $opt_sleep;
   }
 
   if ( $opt_gcov and ! $opt_source_dist )
@@ -811,8 +841,22 @@ sub handle_int_signal () {
 #
 ##############################################################################
 
-sub collect_test_cases () {
-  my $testdir= "$glob_mysql_test_dir/t";
+sub collect_test_cases ($) {
+  my $suite= shift;             # Test suite name
+
+  my $testdir;
+  my $resdir;
+
+  if ( $suite eq "main" )
+  {
+    $testdir= "$glob_mysql_test_dir/t";
+    $resdir=  "$glob_mysql_test_dir/r";
+  }
+  else
+  {
+    $testdir= "$glob_mysql_test_dir/suite/$suite/t";
+    $resdir=  "$glob_mysql_test_dir/suite/$suite/r";
+  }
 
   my @tests;               # Array of hash, will be array of C struct
 
@@ -839,7 +883,7 @@ sub collect_test_cases () {
 
     my $tinfo= {};
     $tinfo->{'name'}= $tname;
-    $tinfo->{'result_file'}= "r/$tname.result";
+    $tinfo->{'result_file'}= "$resdir/$tname.result";
     push(@tests, $tinfo);
 
     if ( $opt_skip_test and defined mtr_match_prefix($tname,$opt_skip_test) )
@@ -1180,13 +1224,22 @@ sub run_benchmarks ($) {
 #
 ##############################################################################
 
+# FIXME how to specify several suites to run? Comma separated list?
+
 sub run_tests () {
+  run_suite($opt_suite);
+}
 
-  mtr_report("Finding Tests");
+sub run_suite () {
+  my $suite= shift;
 
-  my $tests= collect_test_cases();
+  mtr_print_thick_line();
 
-  mtr_report("Starting Tests");
+  mtr_report("Finding Tests in $suite suite");
+
+  my $tests= collect_test_cases($suite);
+
+  mtr_report("Starting Tests in $suite suite");
 
   mtr_print_header();
 
@@ -2005,4 +2058,105 @@ sub run_mysqltest ($$) {
   }
 
   return mtr_run($exe_mysqltest,$args,$tinfo->{'path'},"",$path_timefile,"");
+}
+
+##############################################################################
+#
+#  Usage
+#
+##############################################################################
+
+sub usage ($)
+{
+  print STDERR <<HERE;
+
+mysql-test-run [ OPTIONS ] [ TESTCASE ]
+
+FIXME when is TESTCASE arg used or not?!
+
+Options to control what engine/variation to run
+
+  embedded-server       Use the embedded server, i.e. no mysqld daemons
+  ps-protocol           Use the binary protocol between client and server
+  bench                 Run the benchmark suite FIXME
+  small-bench           FIXME
+  no-manager            Use the istanse manager (currently disabled)
+
+Options to control what test suites or cases to run
+
+  force                 Continue to run the suite after failure
+  with-ndbcluster       Use cluster, and enable test cases that requres it
+  do-test=PREFIX        Run test cases which name are prefixed with PREFIX
+  start-from=PREFIX     Run test cases starting from test prefixed with PREFIX
+  suite=NAME            Run the test suite named NAME. The default is "main"
+  skip-rpl              Skip the replication test cases.
+  skip-test=PREFIX      Skip test cases which name are prefixed with PREFIX
+
+Options that specify ports
+
+  master_port=PORT      Specify the port number used by the first master
+  slave_port=PORT       Specify the port number used by the first slave
+  ndbcluster_port=i     Specify the port number used by cluster FIXME
+
+Options for test case authoring
+
+  record TESTNAME       (Re)genereate the result file for TESTNAME
+
+Options that pass on options
+
+  mysqld=ARGS           Specify additional arguments to "mysqld"
+
+Options to run test on running server
+
+  extern                Use running server for tests FIXME DANGEROUS
+  ndbconnectstring=STR  Use running cluster, and connect using STR      
+  user=USER             The databse user name
+
+Options for debugging the product
+
+  gdb                   FIXME
+  manual-gdb            FIXME
+  client-gdb            FIXME
+  ddd                   FIXME
+  strace-client         FIXME
+  master-binary=PATH    Specify the master "mysqld" to use
+  slave-binary=PATH     Specify the slave "mysqld" to use
+
+Options for coverage, profiling etc
+
+  gcov                  FIXME
+  gprof                 FIXME
+  valgrind              FIXME
+  valgrind-all          FIXME
+  valgrind-options=ARGS Extra options to give valgrind
+
+Misc options
+
+  verbose               Verbose output from this script
+  script-debug          Debug this script itself
+  compress              Use the compressed protocol between client and server
+  timer                 Show test case execution time
+  start-and-exit        Only initiate and start the "mysqld" servers
+  fast                  Don't try to cleanup from earlier runs
+  help                  Get this help text
+
+Options not yet described, or that I want to look into more
+
+  big-test              
+  debug                 
+  local                 
+  local-master          
+  netware               
+  old-master            
+  sleep=SECONDS         
+  socket=PATH           
+  tmpdir=DIR            
+  user-test=s           
+  wait-timeout=SECONDS  
+  warnings              
+  log-warnings          
+  with-openssl          
+
+HERE
+  exit(1);
 }
