@@ -4,21 +4,31 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+set timestamp=100000000;
 create table t1 (t timestamp);
 create table t2 (t char(32));
 select @@time_zone;
 @@time_zone
+Japan
+select @@time_zone;
+@@time_zone
 Europe/Moscow
+insert into t1 values ('20050101000000'), ('20050611093902');
 set time_zone='UTC';
 insert into t1 values ('20040101000000'), ('20040611093902');
 select * from t1;
 t
+2004-12-31 21:00:00
+2005-06-11 05:39:02
 2004-01-01 00:00:00
 2004-06-11 09:39:02
+set time_zone='UTC';
 select * from t1;
 t
-2004-01-01 03:00:00
-2004-06-11 13:39:02
+2004-12-31 21:00:00
+2005-06-11 05:39:02
+2004-01-01 00:00:00
+2004-06-11 09:39:02
 delete from t1;
 set time_zone='Europe/Moscow';
 insert into t1 values ('20040101000000'), ('20040611093902');
@@ -26,19 +36,35 @@ select * from t1;
 t
 2004-01-01 00:00:00
 2004-06-11 09:39:02
+set time_zone='Europe/Moscow';
 select * from t1;
 t
 2004-01-01 00:00:00
 2004-06-11 09:39:02
-show binlog events;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
-master-bin.000001	#	Query	1	#	use `test`; create table t1 (t timestamp)
-master-bin.000001	#	Query	1	#	use `test`; create table t2 (t char(32))
-master-bin.000001	#	Query	1	#	use `test`; SET ONE_SHOT TIME_ZONE='UTC'
-master-bin.000001	#	Query	1	#	use `test`; insert into t1 values ('20040101000000'), ('20040611093902')
-master-bin.000001	#	Query	1	#	use `test`; delete from t1
-master-bin.000001	#	Query	1	#	use `test`; insert into t1 values ('20040101000000'), ('20040611093902')
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+ROLLBACK;
+use test;
+SET TIMESTAMP=100000000;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
+SET @@session.sql_mode=0;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
+create table t1 (t timestamp);
+SET TIMESTAMP=100000000;
+create table t2 (t char(32));
+SET TIMESTAMP=100000000;
+SET @@session.time_zone='Europe/Moscow';
+insert into t1 values ('20050101000000'), ('20050611093902');
+SET TIMESTAMP=100000000;
+SET @@session.time_zone='UTC';
+insert into t1 values ('20040101000000'), ('20040611093902');
+SET TIMESTAMP=100000000;
+delete from t1;
+SET TIMESTAMP=100000000;
+SET @@session.time_zone='Europe/Moscow';
+insert into t1 values ('20040101000000'), ('20040611093902');
+ROLLBACK;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 set time_zone='MET';
 insert into t2 (select t from t1);
 select * from t1;
@@ -52,10 +78,6 @@ t
 delete from t2;
 set timestamp=1000072000;
 insert into t2 values (current_timestamp), (current_date), (current_time);
-set timestamp=1000072000;
-select current_timestamp, current_date, current_time;
-current_timestamp	current_date	current_time
-2001-09-10 01:46:40	2001-09-10	01:46:40
 select * from t2;
 t
 2001-09-09 23:46:40
@@ -73,5 +95,16 @@ t
 2001-09-09 03:46:40
 1000000000
 set global time_zone='MET';
-ERROR HY000: Binary logging and replication forbid changing the global server time zone
+delete from t2;
+set time_zone='UTC';
+insert into t2 values(convert_tz('2004-01-01 00:00:00','MET',@@time_zone));
+insert into t2 values(convert_tz('2005-01-01 00:00:00','MET','Japan'));
+select * from t2;
+t
+2003-12-31 23:00:00
+2005-01-01 08:00:00
+select * from t2;
+t
+2003-12-31 23:00:00
+2005-01-01 08:00:00
 drop table t1, t2;
