@@ -362,7 +362,7 @@ TCP_Transporter::doReceive() {
   // Select-function must return the socket for read
   // before this method is called
   // It reads the external TCP/IP interface once
-  int size = receiveBuffer.sizeOfBuffer - receiveBuffer.sizeOfData;
+  Uint32 size = receiveBuffer.sizeOfBuffer - receiveBuffer.sizeOfData;
   if(size > 0){
     const int nBytesRead = recv(theSocket, 
 				receiveBuffer.insertPtr, 
