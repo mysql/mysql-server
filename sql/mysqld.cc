@@ -2031,7 +2031,7 @@ The server will not act as a slave.");
       init_master_info(&glob_mi);
   }
 
-  printf(ER(ER_READY),my_progname,server_version,"");
+  printf(ER(ER_READY),my_progname,server_version, mysql_unix_port, mysql_port);
   fflush(stdout);
 
 #ifdef __NT__
