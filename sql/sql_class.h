@@ -61,6 +61,11 @@ class Log_event;
 
 class MYSQL_LOG {
  private:
+  /* 
+     LOCK_log is inited by MYSQL_LOG::init(), so one should try to lock it only
+     if he is sure MYSQL_LOG::init() has been called (i.e. if 'inited' is true).
+     Same for LOCK_index.
+  */
   pthread_mutex_t LOCK_log, LOCK_index;
   pthread_cond_t update_cond;
   ulonglong bytes_written;
@@ -80,7 +85,7 @@ class MYSQL_LOG {
   */
   volatile enum_log_type log_type;
   enum cache_type io_cache_type;
-  bool write_error,inited;
+  bool write_error;
   bool no_rotate;
   bool need_start_event;
   bool no_auto_events; // for relay binlog
@@ -123,6 +128,7 @@ public:
   void init(enum_log_type log_type_arg,
 	    enum cache_type io_cache_type_arg,
 	    bool no_auto_events_arg, ulong max_size);
+  void init_pthread_objects();
   void cleanup();
   bool open(const char *log_name,enum_log_type log_type,
 	    const char *new_name, const char *index_file_name_arg,
@@ -158,8 +164,8 @@ public:
   int find_next_log(LOG_INFO* linfo, bool need_mutex);
   int get_current_log(LOG_INFO* linfo);
   uint next_file_id();
+  bool is_open(bool need_mutex=0);
 
-  inline bool is_open() { return log_type != LOG_CLOSED; }
   inline char* get_index_fname() { return index_file_name;}
   inline char* get_log_fname() { return log_file_name; }
   inline pthread_mutex_t* get_log_lock() { return &LOCK_log; }
@@ -169,6 +175,7 @@ public:
   inline void unlock_index() { pthread_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
+  inline void set_no_rotate(bool no_rotate_arg) {no_rotate= no_rotate_arg;}
 };
 
 /* character conversion tables */

@@ -1736,6 +1736,7 @@ st_relay_log_info::st_relay_log_info()
   pthread_cond_init(&start_cond, NULL);
   pthread_cond_init(&stop_cond, NULL);
   pthread_cond_init(&log_space_cond, NULL);
+  relay_log.init_pthread_objects();
 }
 
 
@@ -3443,14 +3444,18 @@ void rotate_relay_log(MASTER_INFO* mi)
 {
   DBUG_ENTER("rotate_relay_log");
   RELAY_LOG_INFO* rli= &mi->rli;
-  /* If this server is not a slave (or RESET SLAVE has just been run) */
+
+  lock_slave_threads(mi);
+  pthread_mutex_lock(&rli->data_lock);
+  /* 
+     We need to test inited because otherwise, new_file() will attempt to lock
+     LOCK_log, which may not be inited (if we're not a slave).
+  */
   if (!rli->inited)
   {
     DBUG_PRINT("info", ("rli->inited == 0"));
-    DBUG_VOID_RETURN;
+    goto end;
   }
-  lock_slave_threads(mi);
-  pthread_mutex_lock(&rli->data_lock);
 
   /* If the relay log is closed, new_file() will do nothing. */
   rli->relay_log.new_file(1);
@@ -3469,6 +3474,7 @@ void rotate_relay_log(MASTER_INFO* mi)
     0 as they probably have been harvested.
   */
   rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+end:
   pthread_mutex_unlock(&rli->data_lock);
   unlock_slave_threads(mi);
   DBUG_VOID_RETURN;
