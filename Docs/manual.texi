@@ -486,6 +486,8 @@ you should order one of our
 @uref{https://order.mysql.com/, support contracts}.
 MySQL support is provided by the MySQL developers so the
 standard is extremely high.
+If you have restricted access to the Internet, please contact our sales staff
+at @email{sales@@mysql.com}.
 
 If you are interested in placing a banner advertisement on our Web site,
 please send e-mail to @email{advertising@@mysql.com}.
