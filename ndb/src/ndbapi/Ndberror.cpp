@@ -16,9 +16,8 @@
 
 
 #include <NdbError.hpp>
-#include <NdbStdio.h> 
+#include <stdio.h>
 #include <stdarg.h>
-
 #include <assert.h>
 
 struct ErrorBundle {
@@ -49,6 +48,8 @@ static const NdbError::Classification UR = NdbError::UnknownResultError;
 static const NdbError::Classification IE = NdbError::InternalError;
 static const NdbError::Classification NI = NdbError::FunctionNotImplemented;
 static const NdbError::Classification UE = NdbError::UnknownErrorCode;
+
+static const char* empty_string = "";
 
 static
 const 
@@ -420,9 +421,15 @@ static
 const
 int NbErrorCodes = sizeof(ErrorCodes)/sizeof(ErrorBundle);
 
+struct ErrorStatusMessage {
+  NdbError::Status status;
+  const char * message;
+};
+
 struct ErrorStatusClassification {
   NdbError::Status status;
   NdbError::Classification classification;
+  const char * message;
 };
 
 /**
@@ -430,31 +437,44 @@ struct ErrorStatusClassification {
  */
 static
 const
-ErrorStatusClassification StatusClassificationMapping[] = {
-  { NdbError::Success,        NdbError::NoError },
-  { NdbError::PermanentError, NdbError::ApplicationError },
-  { NdbError::PermanentError, NdbError::NoDataFound },
-  { NdbError::PermanentError, NdbError::ConstraintViolation },
-  { NdbError::PermanentError, NdbError::SchemaError },
-  { NdbError::PermanentError, NdbError::UserDefinedError },
-  { NdbError::PermanentError, NdbError::InsufficientSpace },
-  
-  { NdbError::TemporaryError, NdbError::TemporaryResourceError },
-  { NdbError::TemporaryError, NdbError::NodeRecoveryError },
-  { NdbError::TemporaryError, NdbError::OverloadError },
-  { NdbError::TemporaryError, NdbError::TimeoutExpired },
-  { NdbError::TemporaryError, NdbError::NodeShutdown },
-  
-  { NdbError::UnknownResult , NdbError::UnknownResultError },
-  { NdbError::UnknownResult , NdbError::UnknownErrorCode },
-  
-  { NdbError::PermanentError, NdbError::InternalError },
-  { NdbError::PermanentError, NdbError::FunctionNotImplemented }
+ErrorStatusMessage StatusMessageMapping[] = {
+  { NdbError::Success,        "Success"},
+  { NdbError::PermanentError, "Permanent error"},
+  { NdbError::TemporaryError, "Temporary error"},
+  { NdbError::UnknownResult , "Unknown result"}
 };
 
 static
 const
-int Nb = sizeof(StatusClassificationMapping)/sizeof(ErrorStatusClassification);
+int NbStatus = sizeof(StatusMessageMapping)/sizeof(ErrorStatusMessage);
+
+static
+const
+ErrorStatusClassification StatusClassificationMapping[] = {
+  { NdbError::Success,        NdbError::NoError,                "No error"},
+  { NdbError::PermanentError, NdbError::ApplicationError,       "Application error"},
+  { NdbError::PermanentError, NdbError::NoDataFound,            "No data found"},
+  { NdbError::PermanentError, NdbError::ConstraintViolation,    "Constraint violation"},
+  { NdbError::PermanentError, NdbError::SchemaError,            "Schema error"},
+  { NdbError::PermanentError, NdbError::UserDefinedError,       "User defined error"},
+  { NdbError::PermanentError, NdbError::InsufficientSpace,      "Insufficient space"},
+  
+  { NdbError::TemporaryError, NdbError::TemporaryResourceError, "Temporary Resource error"},
+  { NdbError::TemporaryError, NdbError::NodeRecoveryError,      "Node Recovery error"},
+  { NdbError::TemporaryError, NdbError::OverloadError,          "Overload error"},
+  { NdbError::TemporaryError, NdbError::TimeoutExpired,         "Timeout expired"},
+  { NdbError::TemporaryError, NdbError::NodeShutdown,           "Node shutdown"},
+  
+  { NdbError::UnknownResult , NdbError::UnknownResultError,     "Unknown result error"},
+  { NdbError::UnknownResult , NdbError::UnknownErrorCode,       "Unknown error code"},
+  
+  { NdbError::PermanentError, NdbError::InternalError,          "Internal error"},
+  { NdbError::PermanentError, NdbError::FunctionNotImplemented, "Function not implemented"}
+};
+
+static
+const
+int NbClassification = sizeof(StatusClassificationMapping)/sizeof(ErrorStatusClassification);
 
 /**
  * Complete all fields of an NdbError given the error code
@@ -471,9 +491,9 @@ set(NdbError & error, int code, const char * details, ...){
   va_end(ap);
 }
 
-static
+
 void
-update(const NdbError & _err){
+ndberror_update(const NdbError & _err){
   NdbError & error = (NdbError &) _err;
 
   bool found = false;
@@ -492,7 +512,7 @@ update(const NdbError & _err){
   }
 
   found = false;
-  for(int i = 0; i<Nb; i++){
+  for(int i = 0; i<NbClassification; i++){
     if(StatusClassificationMapping[i].classification == error.classification){
       error.status = StatusClassificationMapping[i].status;
       found = true;
@@ -528,108 +548,40 @@ int main(void){
 }
 #endif
 
-#include <NdbOut.hpp>
-
-/**
- * operators
- */
-NdbOut &
-operator<<(NdbOut & out, const NdbError & error){
-  if(error.message != 0)
-    out << error.code << ": " << error.message;
-  else
-    out << error.code << ": ";
-  return out;
+const char *ndberror_status_message(const NdbError::Status & status)
+{
+  for (int i= 0; i < NbStatus; i++)
+    if (StatusMessageMapping[i].status == status)
+      return StatusMessageMapping[i].message;
+  return empty_string;
 }
 
-NdbOut &
-operator<<(NdbOut & out, const NdbError::Status & status){
-  switch(status) {
-  case NdbError::Success: out << "Success"; break;
-  case NdbError::TemporaryError: out << "Temporary error"; break;
-  case NdbError::PermanentError: out << "Permanent error"; break;
-  case NdbError::UnknownResult: out << "Unknown result"; break;
-  }
-  return out;
+const char *ndberror_classification_message(const NdbError::Classification & classification)
+{
+  for (int i= 0; i < NbClassification; i++)
+    if (StatusClassificationMapping[i].classification == classification)
+      return StatusClassificationMapping[i].message;
+  return empty_string;
 }
 
-NdbOut &
-operator<<(NdbOut & out, const NdbError::Classification & classification){
-  switch(classification) {
-  case NdbError::NoError: out << "No error"; break;
-  case NdbError::ApplicationError: out << "Application error"; break;
-  case NdbError::NoDataFound: out << "No data found"; break;
-  case NdbError::ConstraintViolation: out << "Constraint violation"; break;
-  case NdbError::SchemaError: out << "Schema error"; break;
-  case NdbError::UserDefinedError: out << "User defined error"; break;
-  case NdbError::InsufficientSpace: out << "Insufficient space"; break;
-  case NdbError::TemporaryResourceError: out << "Temporary Resource error"; 
-    break;
-  case NdbError::NodeRecoveryError: out << "Node Recovery error"; break;
-  case NdbError::OverloadError: out << "Overload error"; break;
-  case NdbError::TimeoutExpired: out << "Timeout expired"; break;
-  case NdbError::UnknownResultError: out << "Unknown result error"; break;
-  case NdbError::InternalError: out << "Internal error"; break;
-  case NdbError::FunctionNotImplemented: out << "Function not implemented"; 
-    break;
-  case NdbError::UnknownErrorCode: out << "Unknown error code"; break;
-  case NdbError::NodeShutdown: out << "Node shutdown"; break;
-  }
-  return out;
+extern "C" {
+int ndb_error_string(int err_no, char *str, size_t size)
+{
+  NdbError error;
+  int len= 0, tlen= 0;
+
+  error.code = err_no;
+  ndberror_update(error);
+
+  len+= snprintf(str+tlen, size-tlen, "%s", error.message);
+  tlen= len < size ? len : size;
+  len+= snprintf(str+tlen, size-tlen, ": ");
+  tlen= len < size ? len : size;
+  len+= snprintf(str+tlen, size-tlen, "%s", ndberror_status_message(error.status));
+  tlen= len < size ? len : size;
+  len+= snprintf(str+tlen, size-tlen, ": ");
+  tlen= len < size ? len : size;
+  len+= snprintf(str+tlen, size-tlen, "%s", ndberror_classification_message(error.classification));
+  return len;
 }
-
-/******************************************************
- *
- */
-#include "NdbImpl.hpp"
-#include "NdbDictionaryImpl.hpp"
-#include <NdbSchemaCon.hpp>
-#include <NdbOperation.hpp>
-#include <NdbConnection.hpp>
-
-
-const 
-NdbError & 
-Ndb::getNdbError(int code){
-  theError.code = code;
-  update(theError);
-  return theError;
 }
-
-const 
-NdbError & 
-Ndb::getNdbError() const {
-  update(theError);
-  return theError;
-}
-
-const 
-NdbError & 
-NdbDictionaryImpl::getNdbError() const {
-  update(m_error);
-  return m_error;
-}
-
-const 
-NdbError & 
-NdbConnection::getNdbError() const {
-  update(theError);
-  return theError;
-}
-
-const 
-NdbError & 
-NdbOperation::getNdbError() const {
-  update(theError);
-  return theError;
-}
-
-const 
-NdbError & 
-NdbSchemaCon::getNdbError() const {
-  update(theError);
-  return theError;
-}
-
-
-
