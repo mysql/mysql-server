@@ -945,10 +945,12 @@ insert into t2 values (append("xxx", "yyy"), mul(4,3), e())|
 insert into t2 values (append("a", "b"), mul(2,mul(3,4)), fun(1.7, 4, 6))|
 
 # These don't work yet.
+--disable_ps_protocol
 select * from t2 where s = append("a", "b")|
 select * from t2 where i = mul(4,3) or i = mul(mul(3,4),2)|
 select * from t2 where d = e()|
 select * from t2|
+--enable_ps_protocol
 delete from t2|
 
 drop function e|
@@ -1263,8 +1265,10 @@ end|
 
 call rc()|
 select row_count()|
+--disable_ps_protocol
 update t1 set data=42 where id = "b";
 select row_count()|
+--enable_ps_protocol
 delete from t1|
 select row_count()|
 delete from t1|
@@ -2022,8 +2026,8 @@ drop table t3|
 --disable_warnings
 drop table if exists t3|
 --enable_warnings
-create table t3 (f1 int, f2 int);
-insert into t3 values (1,1);
+create table t3 (f1 int, f2 int)|
+insert into t3 values (1,1)|
 
 --disable_warnings
 drop procedure if exists bug4579_1|
