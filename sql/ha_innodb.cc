@@ -1153,15 +1153,15 @@ ha_innobase::open(
 	ib_table = dict_table_get_and_increment_handle_count(
 				      		     norm_name, NULL);
  	if (NULL == ib_table) {
-
-	  sql_print_error("InnoDB error:\n\
-Cannot find table %s from the internal data dictionary\n\
-of InnoDB though the .frm file for the table exists. Maybe you\n\
-have deleted and recreated InnoDB data files but have forgotten\n\
-to delete the corresponding .frm files of InnoDB tables, or you\n\
-have moved .frm files to another database?\n\
-Look from section 15.1 of http://www.innodb.com/ibman.html\n\
-how you can resolve the problem.\n",
+	        ut_print_timestamp(stderr);
+	        fprintf(stderr, "  InnoDB error:\n"
+"Cannot find table %s from the internal data dictionary\n"
+"of InnoDB though the .frm file for the table exists. Maybe you\n"
+"have deleted and recreated InnoDB data files but have forgotten\n"
+"to delete the corresponding .frm files of InnoDB tables, or you\n"
+"have moved .frm files to another database?\n"
+"Look from section 15.1 of http://www.innodb.com/ibman.html\n"
+"how you can resolve the problem.\n",
 			  norm_name);
 
 	        free_share(share);
@@ -2961,16 +2961,21 @@ ha_innobase::create(
 		trx->check_unique_secondary = FALSE;
 	}
 
+	if (lower_case_table_names) {
+		srv_lower_case_table_names = TRUE;
+	} else {
+		srv_lower_case_table_names = FALSE;
+	}
 
 	fn_format(name2, name, "", "",2);	// Remove the .frm extension
 
 	normalize_table_name(norm_name, name2);
 
-	/* Latch the InnoDB data dictionary exclusive so that no deadlocks
+	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during a table create operation.
-	(Drop table etc. do this latching in row0mysql.c.) */
+	Drop table etc. do this latching in row0mysql.c. */
 
-	row_mysql_lock_data_dictionary();
+	row_mysql_lock_data_dictionary(trx);
 
 	/* Create the table definition in InnoDB */
 
@@ -2979,7 +2984,7 @@ ha_innobase::create(
   	if (error) {
 		innobase_commit_low(trx);
 
-		row_mysql_unlock_data_dictionary();
+		row_mysql_unlock_data_dictionary(trx);
 
   		trx_free_for_mysql(trx);
 
@@ -3009,7 +3014,7 @@ ha_innobase::create(
   		if (error) {
 			innobase_commit_low(trx);
 
-			row_mysql_unlock_data_dictionary();
+			row_mysql_unlock_data_dictionary(trx);
 
 			trx_free_for_mysql(trx);
 
@@ -3024,7 +3029,7 @@ ha_innobase::create(
 					  (uint) primary_key_no))) {
 			innobase_commit_low(trx);
 
-			row_mysql_unlock_data_dictionary();
+			row_mysql_unlock_data_dictionary(trx);
 
   			trx_free_for_mysql(trx);
 
@@ -3040,7 +3045,7 @@ ha_innobase::create(
 
 			  	innobase_commit_low(trx);
 
-				row_mysql_unlock_data_dictionary();
+				row_mysql_unlock_data_dictionary(trx);
 
   				trx_free_for_mysql(trx);
 
@@ -3057,7 +3062,7 @@ ha_innobase::create(
 	if (error) {
 		innobase_commit_low(trx);
 
-		row_mysql_unlock_data_dictionary();
+		row_mysql_unlock_data_dictionary(trx);
 
   		trx_free_for_mysql(trx);
 
@@ -3066,7 +3071,7 @@ ha_innobase::create(
 
   	innobase_commit_low(trx);
 
-	row_mysql_unlock_data_dictionary();
+	row_mysql_unlock_data_dictionary(trx);
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
@@ -3108,6 +3113,12 @@ ha_innobase::delete_table(
 
   	DBUG_ENTER("ha_innobase::delete_table");
 
+	if (lower_case_table_names) {
+		srv_lower_case_table_names = TRUE;
+	} else {
+		srv_lower_case_table_names = FALSE;
+	}
+
 	trx = trx_allocate_for_mysql();
 
 	name_len = strlen(name);
@@ -3121,7 +3132,7 @@ ha_innobase::delete_table(
 
   	/* Drop the table in InnoDB */
 
-  	error = row_drop_table_for_mysql(norm_name, trx, FALSE);
+  	error = row_drop_table_for_mysql(norm_name, trx);
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
@@ -3217,6 +3228,12 @@ ha_innobase::rename_table(
 	char	norm_to[1000];
 
   	DBUG_ENTER("ha_innobase::rename_table");
+
+	if (lower_case_table_names) {
+		srv_lower_case_table_names = TRUE;
+	} else {
+		srv_lower_case_table_names = FALSE;
+	}
 
 	trx = trx_allocate_for_mysql();
 
@@ -3405,6 +3422,15 @@ ha_innobase::info(
 	ulong		i;
 
  	DBUG_ENTER("info");
+
+        /* If we are forcing recovery at a high level, we will suppress
+	statistics calculation on tables, because that may crash the
+	server if an index is badly corrupted. */
+
+        if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
+
+                return;
+        }
 
 	/* Warning: since it is not sure that MySQL calls external_lock
 	before calling this function, the trx field in prebuilt can be

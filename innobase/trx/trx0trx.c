@@ -134,7 +134,7 @@ trx_create(
 	trx->lock_heap = mem_heap_create_in_buffer(256);
 	UT_LIST_INIT(trx->trx_locks);
 
-	trx->has_dict_operation_lock = FALSE;
+	trx->dict_operation_lock_mode = 0;
 	trx->has_search_latch = FALSE;
 	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 
@@ -260,6 +260,8 @@ trx_free(
 
 	ut_a(!trx->has_search_latch);
 	ut_a(!trx->auto_inc_lock);
+
+	ut_a(trx->dict_operation_lock_mode == 0);
 
 	if (trx->lock_heap) {
 		mem_heap_free(trx->lock_heap);

@@ -254,7 +254,7 @@ loop:
 	mutex_exit(&kernel_mutex);
 
 	if (trx->dict_operation) {
-		mutex_enter(&(dict_sys->mutex));
+		row_mysql_lock_data_dictionary(trx);
 	}
 
 	que_run_threads(thr);
@@ -290,14 +290,14 @@ loop:
 			fprintf(stderr,
 "InnoDB: Table found: dropping table %s in recovery\n", table->name);
 
-			err = row_drop_table_for_mysql(table->name, trx,
-								TRUE);
+			err = row_drop_table_for_mysql(table->name, trx);
+
 			ut_a(err == (int) DB_SUCCESS);
 		}
 	}
 
 	if (trx->dict_operation) {
-		mutex_exit(&(dict_sys->mutex));
+		row_mysql_unlock_data_dictionary(trx);
 	}
 
 	fprintf(stderr, "InnoDB: Rolling back of trx id %lu %lu completed\n",
