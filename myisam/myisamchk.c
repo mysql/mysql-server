@@ -200,7 +200,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.50 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.51 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -608,7 +608,8 @@ static int myisamchk(MI_CHECK *param, my_string filename)
        info->s->state.header.file_version[3] != myisam_file_magic[3] ||
        (set_charset && set_charset->number != share->state.header.language)))
   {
-    check_param.language=set_charset->number;
+    if (set_charset)
+      check_param.language=set_charset->number;
     if (recreate_table(&check_param, &info,filename))
     {
       VOID(fprintf(stderr,
