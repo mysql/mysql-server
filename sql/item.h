@@ -218,7 +218,8 @@ public:
     a constant expression
   */
   virtual bool basic_const_item() const { return 0; }
-  virtual Item *new_item() { return 0; }	/* Only for const items */
+  /* cloning of constant items (0 if it is not const) */
+  virtual Item *new_item() { return 0; }
   virtual cond_result eq_cmp_result() const { return COND_OK; }
   inline uint float_length(uint decimals_par) const
   { return decimals != NOT_FIXED_DEC ? (DBL_DIG+2+decimals_par) : DBL_DIG+8;}
@@ -242,11 +243,22 @@ public:
   virtual bool get_date_result(TIME *ltime,uint fuzzydate)
   { return get_date(ltime,fuzzydate); }
   virtual bool is_null() { return 0; }
+  /*
+    it is "top level" item of WHERE clause and we do not need correct NULL
+    handling
+  */
   virtual void top_level_item() {}
+  /*
+    set field of temporary table for Item which can be switched on temporary
+    table during query processing (groupping and so on)
+  */
   virtual void set_result_field(Field *field) {}
   virtual bool is_result_field() { return 0; }
   virtual bool is_bool_func() { return 0; }
   virtual void save_in_result_field(bool no_conversions) {}
+  /*
+    set value of aggegate function in case of no rows for groupping were found
+  */
   virtual void no_rows_in_result() {}
   virtual Item *copy_or_same(THD *thd) { return this; }
   virtual Item *copy_andor_structure(THD *thd) { return this; }
