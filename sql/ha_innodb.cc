@@ -15,7 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* This file defines the InnoDB handler: the interface between MySQL and
-InnoDB */
+InnoDB
+NOTE: You can only use noninlined InnoDB functions in this file, because we
+have disables the InnoDB inlining in this file. */
 
 #ifdef __GNUC__
 #pragma implementation				// gcc: Class implementation
@@ -64,6 +66,7 @@ extern "C" {
 #include "../innobase/include/btr0cur.h"
 #include "../innobase/include/btr0btr.h"
 #include "../innobase/include/fsp0fsp.h"
+#include "../innobase/include/sync0sync.h"
 }
 
 #define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
@@ -4629,7 +4632,7 @@ innodb_show_status(
 	long	flen;
 	char*	str;
 
-	mutex_enter(&srv_monitor_file_mutex);
+	mutex_enter_noninline(&srv_monitor_file_mutex);
 	rewind(srv_monitor_file);
 	srv_printf_innodb_monitor(srv_monitor_file);
 	flen = ftell(srv_monitor_file);
@@ -4650,7 +4653,7 @@ innodb_show_status(
 		str[flen] = 0;
 	}
 
-	mutex_exit(&srv_monitor_file_mutex);
+	mutex_exit_noninline(&srv_monitor_file_mutex);
 
 	List<Item> field_list;
 

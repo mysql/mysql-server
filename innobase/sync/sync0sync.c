@@ -168,6 +168,30 @@ struct sync_level_struct{
 };
 
 /**********************************************************************
+A noninlined function that reserves a mutex. In ha_innodb.cc we have disabled
+inlining of InnoDB functions, and no inlined functions should be called from
+there. That is why we need to duplicate the inlined function here. */
+
+void
+mutex_enter_noninline(
+/*==================*/
+	mutex_t*	mutex)	/* in: mutex */
+{
+	mutex_enter(mutex);
+}
+
+/**********************************************************************
+Releases a mutex. */
+
+void
+mutex_exit_noninline(
+/*=================*/
+	mutex_t*	mutex)	/* in: mutex */
+{
+	mutex_exit(mutex);
+}
+
+/**********************************************************************
 Creates, or rather, initializes a mutex object in a specified memory
 location (which must be appropriately aligned). The mutex is initialized
 in the reset state. Explicit freeing of the mutex with mutex_free is
