@@ -42,7 +42,7 @@ liboptions_a_SOURCES= options.h options.cc priv.h priv.cc
 # MySQL sometimes uses symlinks to reuse code 
 # All symlinked files are grouped in libnet.a
 
-nodist_libnet_a_SOURCES= net_serv.cc client.c errmsg.c
+nodist_libnet_a_SOURCES= net_serv.cc client_settings.h client.c errmsg.c
 libnet_a_LIBADD= $(top_builddir)/sql/password.$(OBJEXT) \
 	$(top_builddir)/sql/pack.$(OBJEXT) \
 	$(top_builddir)/sql/sql_state.$(OBJEXT)

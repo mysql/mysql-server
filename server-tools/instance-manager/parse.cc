@@ -31,15 +31,21 @@ enum Token
   TOK_END
 };
 
-static const char *tokens[]= {
-  "FLUSH",
-  "INSTANCE",
-  "INSTANCES",
-  "OPTIONS",
-  "START",
-  "STATUS",
-  "STOP",
-  "SHOW",
+struct tokens_st
+{
+  uint length;
+  const char *tok_name;
+};
+
+static struct tokens_st tokens[]= {
+  {5, "FLUSH"},
+  {8, "INSTANCE"},
+  {9, "INSTANCES"},
+  {7, "OPTIONS"},
+  {5, "START"},
+  {6, "STATUS"},
+  {4, "STOP"},
+  {4, "SHOW"}
 };
 
 
@@ -76,7 +82,8 @@ inline Token find_token(const char *word, uint word_len)
   int i= 0;
   do
   {
-    if (strncasecmp(tokens[i], word, word_len) == 0)
+    if (my_strnncoll(default_charset_info, (const uchar *) tokens[i].tok_name,
+                     tokens[i].length, (const uchar *) word, word_len) == 0)
       break;
   }
   while (++i < TOK_NOT_FOUND);
