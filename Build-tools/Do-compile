@@ -7,7 +7,7 @@ use Sys::Hostname;
 @config_options= ();
 @make_options= ();
 
-$opt_distribution=$opt_user=$opt_config_env=$opt_config_extra_env="";
+$opt_comment=$opt_distribution=$opt_user=$opt_config_env=$opt_config_extra_env="";
 $opt_dbd_options=$opt_perl_options=$opt_config_options=$opt_make_options=$opt_suffix="";
 $opt_tmp=$opt_version_suffix="";
 $opt_bundled_zlib=$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_one_error=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_archive=$opt_with_cluster=$opt_with_csv=$opt_with_example=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=$opt_readline=0;
@@ -17,6 +17,7 @@ GetOptions(
 	"bdb",
 	"build-thread=i",
 	"bundled-zlib",
+	"comment=s",
 	"config-env=s" => \@config_env,
 	"config-extra-env=s" => \@config_extra_env,
 	"config-options=s" => \@config_options,
@@ -111,6 +112,7 @@ $log="$pwd/Logs/$host-$major.$minor$opt_version_suffix.log";
 $opt_distribution =~ /(mysql[^\/]*)\.tar/;
 $ver=$1;
 $gcc_version=which("gcc");
+$opt_comment= "Official MySQL$opt_version_suffix binary" unless $opt_comment;
 if (defined($gcc_version) && ! $opt_config_env)
 {
   $tmp=`$gcc_version -v 2>&1`;
@@ -305,7 +307,7 @@ if ($opt_stage <= 1)
   }
 
   $prefix="/usr/local/mysql";
-  check_system("$opt_config_env ./configure --prefix=$prefix --localstatedir=$prefix/data --libexecdir=$prefix/bin --with-comment=\"Official MySQL$opt_version_suffix binary\" --with-extra-charsets=complex --with-server-suffix=\"$opt_version_suffix\" --enable-thread-safe-client --enable-local-infile $opt_config_options","Thank you for choosing MySQL");
+  check_system("$opt_config_env ./configure --prefix=$prefix --localstatedir=$prefix/data --libexecdir=$prefix/bin --with-comment=\"$opt_comment\" --with-extra-charsets=complex --with-server-suffix=\"$opt_version_suffix\" --enable-thread-safe-client --enable-local-infile $opt_config_options","Thank you for choosing MySQL");
   if (-d "$pwd/$host/include-mysql")
   {
     safe_system("cp -r $pwd/$host/include-mysql/* $pwd/$host/$ver/include");
@@ -532,6 +534,10 @@ When running several Do-compile runs in parallel, each build
 should have its own thread ID, so running the test suites
 does not cause conflicts with duplicate TCP port numbers.
 
+--comment=<comment>
+Replace the default compilation comment that is embedded into
+the mysqld binary.
+
 --config-env=<environment for configure>
 To set up the environment, like 'CC=cc CXX=gcc CXXFLAGS=-O3'
 
@@ -689,16 +695,20 @@ sub abort
 
   if ($opt_user)
   {
-    $mail_header_file="$opt_tmp/do-command.$$";
-    open(TMP,">$mail_header_file");
+    # Take the last 40 lines of the build log
+    open(LOG, "$log") or die $!;
+    my @log= <LOG>;
+    close LOG;
+    splice @log => 0, -40;
+    my $mail_file="$opt_tmp/do-command.$$";
+    open(TMP,">$mail_file") or die $!;
     print TMP "From: mysqldev\@$full_host_name\n";
     print TMP "To: $email\n";
     print TMP "Subject: $host($uname): $ver$opt_version_suffix compilation failed\n\n";
+    print TMP @log;
     close TMP;
-    system("tail -n 40 $log > $log.mail");
-    system("cat $mail_header_file $log.mail | $sendmail -t -f $email");
-    unlink($mail_header_file);
-    unlink("$log.mail");
+    system("$sendmail -t -f $email < $mail_file");
+    unlink($mail_file);
   }
   exit 1;
 }
