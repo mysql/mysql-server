@@ -78,6 +78,13 @@ a
 1
 2
 drop table t1, t2;
+create table t1(a int);
+insert into t1 values(1),(1);
+reset master;
+create table t2(unique(a)) select a from t1;
+ERROR 23000: Duplicate entry '1' for key 1
+show binlog events;
+drop table t1;
 create table t1 (a int not null);
 create table t2 (a int not null);
 insert into t1 values (1);

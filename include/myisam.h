@@ -107,12 +107,13 @@ typedef struct st_mi_create_info
 } MI_CREATE_INFO;
 
 struct st_myisam_info;			/* For referense */
+struct st_mi_isam_share;
 typedef struct st_myisam_info MI_INFO;
-
 struct st_mi_s_param;
 
 typedef struct st_mi_keydef		/* Key definition with open & info */
 {
+  struct st_mi_isam_share *share;       /* Pointer to base (set in mi_open) */
   uint16 keysegs;			/* Number of key-segment */
   uint16 flag;				/* NOSAME, PACK_USED */
 

@@ -289,7 +289,7 @@ NdbScanFilterImpl::cond_col(Interpreter::UnaryCondition op, Uint32 AttrId){
   Branch1 branch = table2[op].m_branches[m_current.m_group];
   (m_operation->* branch)(AttrId, m_current.m_ownLabel);
   return 0;
-};
+}
 
 int
 NdbScanFilter::isnull(int AttrId){

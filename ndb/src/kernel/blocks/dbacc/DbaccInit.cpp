@@ -266,4 +266,4 @@ Dbacc::~Dbacc()
 
 }//Dbacc::~Dbacc()
 
-BLOCK_FUNCTIONS(Dbacc);
+BLOCK_FUNCTIONS(Dbacc)
