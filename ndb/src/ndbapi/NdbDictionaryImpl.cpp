@@ -2530,6 +2530,7 @@ int
 NdbDictInterface::executeSubscribeEvent(class Ndb & ndb,
 				 NdbEventImpl & evnt)
 {
+  DBUG_ENTER("NdbDictInterface::executeSubscribeEvent");
   NdbApiSignal tSignal(m_reference);
   //  tSignal.theReceiversBlockNumber = SUMA;
   tSignal.theReceiversBlockNumber = DBDICT;
@@ -2544,7 +2545,7 @@ NdbDictInterface::executeSubscribeEvent(class Ndb & ndb,
   sumaStart->subscriberData   = evnt.m_bufferId & 0xFF;
   sumaStart->subscriberRef    = m_reference;
 
-  return executeSubscribeEvent(&tSignal, NULL);
+  DBUG_RETURN(executeSubscribeEvent(&tSignal, NULL));
 }
 
 int

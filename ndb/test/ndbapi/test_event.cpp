@@ -83,7 +83,7 @@ int runEventOperation(NDBT_Context* ctx, NDBT_Step* step)
 
   EventOperationStats stats;
 
-  g_info << "***** Id " << tId << endl;
+  g_info << "***** start Id " << tId << endl;
 
   //  sleep(tId);
 
@@ -102,12 +102,13 @@ int runEventOperation(NDBT_Context* ctx, NDBT_Step* step)
     ret = NDBT_FAILED;
 
   if (ret == NDBT_FAILED) {
-    ndbout << "n_inserts =           " << stats.n_inserts << endl;
-    ndbout << "n_deletes =           " << stats.n_deletes << endl;
-    ndbout << "n_updates =           " << stats.n_updates << endl;
-    ndbout << "n_consecutive =       " << stats.n_consecutive << endl;
-    ndbout << "n_duplicates =        " << stats.n_duplicates << endl;
-    ndbout << "n_inconsistent_gcis = " << stats.n_inconsistent_gcis << endl;
+    g_info << "***** end Id " << tId << endl;
+    ndbout_c("n_inserts =           %d (%d)", stats.n_inserts, records);
+    ndbout_c("n_deletes =           %d (%d)", stats.n_deletes, records);
+    ndbout_c("n_updates =           %d (%d)", stats.n_updates, records);
+    ndbout_c("n_consecutive =       %d (%d)", stats.n_consecutive, 3);
+    ndbout_c("n_duplicates =        %d (%d)", stats.n_duplicates, 0);
+    ndbout_c("n_inconsistent_gcis = %d (%d)", stats.n_inconsistent_gcis, 0);
   }
 
   return ret;
@@ -156,9 +157,6 @@ TESTCASE("BasicEventOperation",
 	 "NOTE! No errors are allowed!" ){
   INITIALIZER(runCreateEvent);
   STEP(runEventOperation);
-  STEP(runEventOperation);
-  STEP(runEventOperation);
-  STEP(runEventOperation);
   STEP(runEventLoad);
   FINALIZER(runDropEvent);
 }
@@ -169,19 +167,16 @@ TESTCASE("CreateDropEventOperation",
   STEP(runCreateDropEventOperation);
   FINALIZER(runDropEvent);
 }
-NDBT_TESTSUITE_END(test_event);
-
-#if 0
-NDBT_TESTSUITE(test_event);
 TESTCASE("ParallellEventOperation", 
-	 "Verify that we can listen to Events in Parallell"
+	 "Verify that we can listen to Events in parallell"
 	 "NOTE! No errors are allowed!" ){
-  INITIALIZER(runCreateAllEvent);
+  INITIALIZER(runCreateEvent);
   STEP(runEventOperation);
+  STEP(runEventOperation);
+  STEP(runEventLoad);
   FINALIZER(runDropEvent);
 }
 NDBT_TESTSUITE_END(test_event);
-#endif
 
 int main(int argc, const char** argv){
   ndb_init();
