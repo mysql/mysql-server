@@ -56,7 +56,7 @@ int runTestMaxNdb(NDBT_Context* ctx, NDBT_Step* step){
     int init = 0;
     do {      
       
-      Ndb* pNdb = new Ndb("TEST_DB");
+      Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
       if (pNdb == NULL){
 	ndbout << "pNdb == NULL" << endl;      
 	errors++;
@@ -108,7 +108,7 @@ int runTestMaxTransaction(NDBT_Context* ctx, NDBT_Step* step){
   int oldi = 0;
   int result = NDBT_OK;
 
-  Ndb* pNdb = new Ndb("TEST_DB");
+  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL){
     ndbout << "pNdb == NULL" << endl;      
     return NDBT_FAILED;  
@@ -201,7 +201,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
   int maxOpsLimit = 1;
   const NdbDictionary::Table* pTab = ctx->getTab();
 
-  Ndb* pNdb = new Ndb("TEST_DB");
+  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL){
     ndbout << "pNdb == NULL" << endl;      
     return NDBT_FAILED;  
@@ -273,7 +273,7 @@ int runTestGetValue(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   const NdbDictionary::Table* pTab = ctx->getTab();
 
-  Ndb* pNdb = new Ndb("TEST_DB");
+  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL){
     ndbout << "pNdb == NULL" << endl;      
     return NDBT_FAILED;  
@@ -373,7 +373,7 @@ int runTestEqual(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   const NdbDictionary::Table* pTab = ctx->getTab();
 
-  Ndb* pNdb = new Ndb("TEST_DB");
+  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL){
     ndbout << "pNdb == NULL" << endl;      
     return NDBT_FAILED;  
@@ -494,7 +494,7 @@ int runTestDeleteNdb(NDBT_Context* ctx, NDBT_Step* step){
     
     // Create 5 ndb objects
     for( int i = 0; i < 5; i++){
-      Ndb* pNdb = new Ndb("TEST_DB");
+      Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
       if (pNdb == NULL){
 	ndbout << "pNdb == NULL" << endl;      
 	result = NDBT_FAILED;	
@@ -575,7 +575,7 @@ int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
 int runTestWaitUntilReady(NDBT_Context* ctx, NDBT_Step* step){
 
-  Ndb* pNdb = new Ndb("TEST_DB");
+  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
 
   // Forget about calling pNdb->init();
 
@@ -596,7 +596,7 @@ int runTestWaitUntilReady(NDBT_Context* ctx, NDBT_Step* step){
 
 int runGetNdbOperationNoTab(NDBT_Context* ctx, NDBT_Step* step){
 
-  Ndb* pNdb = new Ndb("TEST_DB");
+  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL){
     ndbout << "pNdb == NULL" << endl;      
     return NDBT_FAILED;  
@@ -637,7 +637,7 @@ int runMissingOperation(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table* pTab = ctx->getTab();
 
 
-  Ndb* pNdb = new Ndb("TEST_DB");
+  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL){
     ndbout << "pNdb == NULL" << endl;      
     return NDBT_FAILED;  
@@ -687,7 +687,7 @@ int runMissingOperation(NDBT_Context* ctx, NDBT_Step* step){
 int runGetValueInUpdate(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table* pTab = ctx->getTab();
 
-  Ndb* pNdb = new Ndb("TEST_DB");
+  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL){
     ndbout << "pNdb == NULL" << endl;      
     return NDBT_FAILED;  
@@ -753,7 +753,7 @@ int runUpdateWithoutValues(NDBT_Context* ctx, NDBT_Step* step){
 
   HugoOperations hugoOps(*pTab);
 
-  Ndb* pNdb = new Ndb("TEST_DB");
+  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL){
     ndbout << "pNdb == NULL" << endl;      
     return NDBT_FAILED;  
@@ -819,7 +819,7 @@ int runUpdateWithoutKeys(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table* pTab = ctx->getTab();
 
 
-  Ndb* pNdb = new Ndb("TEST_DB");
+  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL){
     ndbout << "pNdb == NULL" << endl;      
     return NDBT_FAILED;  
@@ -873,7 +873,7 @@ int runCheckGetNdbErrorOperation(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   const NdbDictionary::Table* pTab = ctx->getTab();
 
-  Ndb* pNdb = new Ndb("TEST_DB");
+  Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
   if (pNdb == NULL){
     ndbout << "pNdb == NULL" << endl;      
     return NDBT_FAILED;  
