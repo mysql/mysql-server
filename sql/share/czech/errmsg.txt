@@ -361,7 +361,7 @@ character-set=latin2
 "'%-.64s.%-.64s' is not %s"
 "Column '%-.64s' is not updatable"
 "View's SELECT contains a subquery in the FROM clause"
-"View's SELECT contains a PROCEDURE clause"
+"View's SELECT contains a '%s' clause"
 "View's SELECT contains a variable or parameter" 
 "View's SELECT contains a temporary table '%-.64s'"
 "View's SELECT and view's field list have different column counts"

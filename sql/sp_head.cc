@@ -288,6 +288,7 @@ void
 sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
 {
   DBUG_ENTER("sp_head::init_strings");
+  uint n;			/* Counter for nul trimming */ 
   /* During parsing, we must use thd->mem_root */
   MEM_ROOT *root= &thd->mem_root;
 
@@ -351,9 +352,17 @@ sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
 				 (char *)m_returns_begin, m_retstr.length);
     }
   }
-  m_body.length= lex->end_of_query - m_body_begin;
+  m_body.length= lex->ptr - m_body_begin;
+  /* Trim nuls at the end */
+  n= 0;
+  while (m_body.length && m_body_begin[m_body.length-1] == '\0')
+  {
+    m_body.length-= 1;
+    n+= 1;
+  }
   m_body.str= strmake_root(root, (char *)m_body_begin, m_body.length);
-  m_defstr.length= lex->end_of_query - lex->buf;
+  m_defstr.length= lex->ptr - lex->buf;
+  m_defstr.length-= n;
   m_defstr.str= strmake_root(root, (char *)lex->buf, m_defstr.length);
   DBUG_VOID_RETURN;
 }
@@ -1193,7 +1202,7 @@ sp_instr_set::execute(THD *thd, uint *nextp)
   if (tables &&
       ((res= check_table_access(thd, SELECT_ACL, tables, 0)) ||
        (res= open_and_lock_tables(thd, tables))))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(res);
 
   it= sp_eval_func_item(thd, m_value, m_type);
   if (! it)
@@ -1294,7 +1303,7 @@ sp_instr_jump_if::execute(THD *thd, uint *nextp)
   if (tables &&
       ((res= check_table_access(thd, SELECT_ACL, tables, 0)) ||
        (res= open_and_lock_tables(thd, tables))))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(res);
 
   it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
   if (!it)
@@ -1351,7 +1360,7 @@ sp_instr_jump_if_not::execute(THD *thd, uint *nextp)
   if (tables &&
       ((res= check_table_access(thd, SELECT_ACL, tables, 0)) ||
        (res= open_and_lock_tables(thd, tables))))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(res);
 
   it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
   if (! it)
@@ -1407,7 +1416,7 @@ sp_instr_freturn::execute(THD *thd, uint *nextp)
   if (tables &&
       ((res= check_table_access(thd, SELECT_ACL, tables, 0)) ||
        (res= open_and_lock_tables(thd, tables))))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(res);
 
   it= sp_eval_func_item(thd, m_value, m_type);
   if (! it)
