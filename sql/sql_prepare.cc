@@ -101,11 +101,12 @@ public:
 public:
   Prepared_statement(THD *thd_arg);
   virtual ~Prepared_statement();
+  void setup_set_params();
   virtual Statement::Type type() const;
 };
 
 static void execute_stmt(THD *thd, Prepared_statement *stmt, 
-                         String *expanded_query);
+                         String *expanded_query, bool set_context=false);
 
 /******************************************************************************
   Implementation
@@ -769,12 +770,14 @@ static bool emb_insert_params_withlog(Prepared_statement *stmt, String *query)
                               *client_param->length : 
                               client_param->buffer_length);
       }
-      res= param->query_val_str(&str);
-      if (param->convert_str_value(thd))
-        DBUG_RETURN(1);                         /* out of memory */
     }
+    res= param->query_val_str(&str);
+    if (param->convert_str_value(thd))
+      DBUG_RETURN(1);                           /* out of memory */
+
     if (query->replace(param->pos_in_query+length, 1, *res))
       DBUG_RETURN(1);
+    
     length+= res->length()-1;
   }
   DBUG_RETURN(0);
@@ -820,18 +823,45 @@ static bool insert_params_from_vars(Prepared_statement *stmt,
           param->set_double(*(double*)entry->value);
           break;
         case INT_RESULT:
-          param->set_int(*(longlong*)entry->value);
+          param->set_int(*(longlong*)entry->value, 21);
           break;
         case STRING_RESULT:
-          param->set_value(entry->value, entry->length, 
-                           entry->collation.collation);
+          {
+            CHARSET_INFO *fromcs= entry->collation.collation;
+            CHARSET_INFO *tocs= stmt->thd->variables.collation_connection;
+            uint32 dummy_offset;
+
+            param->value.cs_info.character_set_client= fromcs;
+
+            /*
+              Setup source and destination character sets so that they
+              are different only if conversion is necessary: this will
+              make later checks easier.
+            */
+            param->value.cs_info.final_character_set_of_str_value=
+              String::needs_conversion(0, fromcs, tocs, &dummy_offset) ?
+              tocs : fromcs;
+            /*
+              Exact value of max_length is not known unless data is converted to
+              charset of connection, so we have to set it later.
+            */
+            param->item_type= Item::STRING_ITEM;
+            param->item_result_type= STRING_RESULT;
+
+            if (param->set_str((const char *)entry->value, entry->length))
+              DBUG_RETURN(1);
+          }
           break;
         default:
           DBUG_ASSERT(0);
+          param->set_null();
       }
     }
     else
-      param->maybe_null= param->null_value= param->value_is_set= 1;
+      param->set_null();
+
+    if (param->convert_str_value(stmt->thd))
+      DBUG_RETURN(1);                           /* out of memory */
   }
   DBUG_RETURN(0);
 }
@@ -869,10 +899,10 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
   {
     Item_param *param= *it;
     varname= var_it++;
-    if ((entry= (user_var_entry*)hash_search(&stmt->thd->user_vars, 
-                                             (byte*) varname->str,
-                                             varname->length))
-        && entry->value)
+    if (get_var_with_binlog(stmt->thd, *varname, &entry))
+        DBUG_RETURN(1);
+    DBUG_ASSERT(entry);
+    if (entry->value)
     {
       param->item_result_type= entry->type;
       switch (entry->type)
@@ -881,26 +911,65 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
           param->set_double(*(double*)entry->value);
           break;
         case INT_RESULT:
-          param->set_int(*(longlong*)entry->value);
+          param->set_int(*(longlong*)entry->value, 21);
           break;
         case STRING_RESULT:
-          param->set_value(entry->value, entry->length, 
-                           entry->collation.collation);
+          {
+            CHARSET_INFO *fromcs= entry->collation.collation;
+            CHARSET_INFO *tocs= stmt->thd->variables.collation_connection;
+            uint32 dummy_offset;
+
+            param->value.cs_info.character_set_client= fromcs;
+
+            /*
+              Setup source and destination character sets so that they
+              are different only if conversion is necessary: this will
+              make later checks easier.
+            */
+            param->value.cs_info.final_character_set_of_str_value=
+              String::needs_conversion(0, fromcs, tocs, &dummy_offset) ?
+              tocs : fromcs;
+            /*
+              Exact value of max_length is not known unless data is converted to
+              charset of connection, so we have to set it later.
+            */
+            param->item_type= Item::STRING_ITEM;
+            param->item_result_type= STRING_RESULT;
+
+            if (param->set_str((const char *)entry->value, entry->length))
+              DBUG_RETURN(1);
+          }
           break;
         default:
           DBUG_ASSERT(0);
+          param->set_null();
       }
-      res= param->query_val_str(&str);
     }
     else
-    {
-      param->maybe_null= param->null_value= param->value_is_set= 1;
-      res= &my_null_string;
-    }
+      param->set_null();
 
-    if (query->replace(param->pos_in_query+length, 1, *res))
+   /* Insert @'escaped-varname' instead of parameter in the query */
+    char *buf, *ptr;
+    str.length(0);
+    if (str.reserve(entry->name.length*2+3))
       DBUG_RETURN(1);
-    length+= res->length()-1;
+
+    buf= str.c_ptr_quick();
+    ptr= buf;
+    *ptr++= '@';
+    *ptr++= '\'';
+    ptr+= 
+      escape_string_for_mysql(&my_charset_utf8_general_ci, 
+                              ptr, entry->name.str, entry->name.length);
+    *ptr++= '\'';
+    str.length(ptr - buf);
+
+    if (param->convert_str_value(stmt->thd))
+      DBUG_RETURN(1);                           /* out of memory */
+    
+    if (query->replace(param->pos_in_query+length, 1, str))
+      DBUG_RETURN(1);
+    length+= str.length()-1;
   }
   DBUG_RETURN(0);
 }
@@ -1680,6 +1749,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   }
   else
   {
+    stmt->setup_set_params();
     SELECT_LEX *sl= stmt->lex->all_selects_list;
     /*
       Save WHERE clause pointers, because they may be changed during query
@@ -1689,7 +1759,9 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     {
       sl->prep_where= sl->where;
     }
+  
   }
+
   DBUG_RETURN(!stmt);
 }
 
@@ -1809,7 +1881,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     we set params, and also we don't need to parse packet. 
     So we do it in one function.
   */
-  if (stmt->param_count && stmt->set_params_data(stmt))
+  if (stmt->param_count && stmt->set_params_data(stmt, &expanded_query))
     goto set_params_data_err;
 #endif
   thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
@@ -1853,7 +1925,10 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
   /* Item_param allows setting parameters in COM_EXECUTE only */
   thd->command= COM_EXECUTE;
 
-  if (stmt->set_params_from_vars(stmt, thd->lex->prepared_stmt_params,
+  thd->free_list= NULL;
+  thd->stmt_backup.set_statement(thd);
+  thd->set_statement(stmt);
+  if (stmt->set_params_from_vars(stmt, thd->stmt_backup.lex->prepared_stmt_params,
                                  &expanded_query))
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_execute");
@@ -1879,12 +1954,15 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
 */
 
 static void execute_stmt(THD *thd, Prepared_statement *stmt, 
-                         String *expanded_query)
+                         String *expanded_query, bool set_context)
 {
   DBUG_ENTER("execute_stmt");
-  thd->free_list= NULL;
-  thd->stmt_backup.set_statement(thd);
-  thd->set_statement(stmt);
+  if (set_context)
+  {
+    thd->free_list= NULL;
+    thd->stmt_backup.set_statement(thd);
+    thd->set_statement(stmt);
+  }
   reset_stmt_for_execute(stmt);
   
   if (expanded_query->length() && 
@@ -2060,7 +2138,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
   get_longdata_error(0)
 {
   *last_error= '\0';
-  if (mysql_bin_log.is_open())
+  if (mysql_bin_log.is_open()) //psergey-todo: remove this!
   {
     set_params_from_vars= insert_params_from_vars_with_log;
 #ifndef EMBEDDED_LIBRARY
@@ -2080,6 +2158,28 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
   }
 }
 
+void Prepared_statement::setup_set_params()
+{
+  /* Setup binary logging */
+  if (mysql_bin_log.is_open() && is_update_query(lex->sql_command))
+  {
+    set_params_from_vars= insert_params_from_vars_with_log;
+#ifndef EMBEDDED_LIBRARY
+    set_params= insert_params_withlog;
+#else
+    set_params_data= emb_insert_params_withlog;
+#endif
+  }
+  else
+  {
+    set_params_from_vars= insert_params_from_vars;
+#ifndef EMBEDDED_LIBRARY
+    set_params= insert_params;
+#else
+    set_params_data= emb_insert_params;
+#endif
+  }
+}
 
 Prepared_statement::~Prepared_statement()
 {
