@@ -16,7 +16,7 @@
 
 /* By Jani Tolonen, 2001-04-20, MySQL Development Team */
 
-#define CHECK_VERSION "2.1"
+#define CHECK_VERSION "2.2"
 
 #include "client_priv.h"
 #include <my_getopt.h>
@@ -94,7 +94,7 @@ static struct my_option my_long_options[] =
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host",'h', "Connect to host.", (gptr*) &current_host,
-   (gptr*) &current_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &current_host, 0, GET_STRALC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"medium-check", 'm',
    "Faster than extended-check, but only finds 99.99 percent of all errors. Should be good enough for most cases.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -199,12 +199,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'a':
     what_to_do = DO_ANALYZE;
     break;
-  case OPT_DEFAULT_CHARSET:
-    default_charset = argument;
-    break;
-  case OPT_CHARSETS_DIR:
-    charsets_dir = argument;
-    break;
   case 'c':
     what_to_do = DO_CHECK;
     break;
@@ -216,10 +210,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '?':
     usage();
     exit(0);
-  case 'h':
-    my_free(current_host, MYF(MY_ALLOW_ZERO_PTR));
-    current_host = my_strdup(argument, MYF(MY_WME));
-    break;
   case 'm':
     what_to_do = DO_CHECK;
     opt_medium_check = 1;
@@ -227,11 +217,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'o':
     what_to_do = DO_OPTIMIZE;
     break;
-#ifndef DONT_ALLOW_USER_CHANGE
-  case 'u':
-    current_user = argument;
-    break;
-#endif
   case 'p':
     if (argument)
     {
@@ -245,14 +230,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       tty_password = 1;
     break;
-  case 'P':
-    opt_mysql_port = (unsigned int) atoi(argument);
-    break;
   case 'r':
     what_to_do = DO_REPAIR;
-    break;
-  case 'S':
-    opt_mysql_unix_port = argument;
     break;
   case 'W':
 #ifdef __WIN__
