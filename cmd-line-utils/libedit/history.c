@@ -661,12 +661,6 @@ history_load(History *h, const char *fname)
 	if ((fp = fopen(fname, "r")) == NULL)
 		return (i);
 
-	if ((line = fgetln(fp, &sz)) == NULL)
-		goto done;
-
-	if (strncmp(line, hist_cookie, sz) != 0)
-		goto done;
-
 	ptr = h_malloc(max_size = 1024);
 	if (ptr == NULL)
 		goto done;
@@ -720,8 +714,6 @@ history_save(History *h, const char *fname)
 
 	if (fchmod(fileno(fp), S_IRUSR|S_IWUSR) == -1)
 		goto done;
-	if (fputs(hist_cookie, fp) == EOF)
-		goto done;
 	ptr = h_malloc(max_size = 1024);
 	if (ptr == NULL)
 		goto done;
@@ -740,7 +732,7 @@ history_save(History *h, const char *fname)
 			ptr = nptr;
 		}
 		(void) strvis(ptr, ev.str, VIS_WHITE);
-		(void) fprintf(fp, "%s\n", ptr);
+		(void) fprintf(fp, "%s\n", ev.str);
 	}
 oomem:
 	h_free((ptr_t)ptr);
