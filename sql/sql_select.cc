@@ -4555,6 +4555,11 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 	{
 	  if ((error=(*join_tab->next_select)(join,join_tab+1,0)) < 0)
 	    return error;
+	  /*
+	    Test if this was a SELECT DISTINCT query on a table that
+	    was not in the field list;  In this case we can abort if
+	    we found a row, as no new rows can be added to the result.
+	  */
 	  if (not_used_in_distinct && found_records != join->found_records)
 	    return 0;
 	}

@@ -2252,8 +2252,6 @@ mysql_execute_command(void)
       net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
       break;
     }
-    if (lower_case_table_names)
-      casedn_str(lex->name);
     /*
       If in a slave thread :
       CREATE DATABASE DB was certainly not preceded by USE DB.
