@@ -514,13 +514,13 @@ MyISAM Table Formats
 
 BDB or Berkeley_DB Tables
 
-* BDB overview::                
-* BDB install::                 
-* BDB start::                   
-* BDB characteristic::          
-* BDB TODO::                    
-* BDB portability::             
-* BDB errors::                  
+* BDB overview::                Overview of BDB Tables
+* BDB install::                 Installing BDB
+* BDB start::                   BDB startup options
+* BDB characteristic::          Some characteristic of @code{BDB} tables:
+* BDB TODO::                    Some things we need to fix for BDB in the near future:
+* BDB portability::             Operating systems supported by @strong{BDB}
+* BDB errors::                  Errors You May Get When Using BDB Tables
 
 GEMINI Tables
 
@@ -533,7 +533,7 @@ InnoDB Tables
 
 * InnoDB overview::             InnoDB tables overview
 * InnoDB start::                InnoDB startup options
-* Creating an InnoDB database:: Creating an InnoDB database.
+* Creating an InnoDB database:: Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.
 * Using InnoDB tables::         Creating InnoDB tables
 * Adding and removing::         Adding and removing InnoDB data and log files
 * Backing up::                  Backing up and recovering an InnoDB database
@@ -544,7 +544,7 @@ InnoDB Tables
 * File space management::       File space management and disk i/o
 * Error handling::              Error handling
 * InnoDB restrictions::         Some restrictions on InnoDB tables
-* InnoDB contact information::  InnoDB contact information.
+* InnoDB contact information::  InnoDB contact information. 
 
 MySQL Tutorial
 
@@ -1088,6 +1088,7 @@ Debugging a MySQL server
 
 * Compiling for debugging::     
 * Making trace files::          
+* Using gdb on mysqld::         
 * Using stack trace::           
 * Using log files::             
 * Reproducable test case::      
@@ -7395,7 +7396,7 @@ This will avoid problems with the @code{libstdc++} library and with C++
 exceptions.
 
 If this doesn't help, you should compile a debug version and run
-it with a trace file or under @code{gdb}.  @xref{Debugging server}.
+it with a trace file or under @code{gdb}.  @xref{Using gdb on mysqld}.
 
 @node SunOS, Linux, Solaris x86, Source install system issues
 @subsection SunOS 4 Notes
@@ -8888,11 +8889,10 @@ If @code{mysqld} doesn't start, please check whether or not the
 try to start it with @code{mysqld --standalone};  In this case you may
 get some useful information on the screen that may help solve this.
 
-The last option is to start @code{mysqld} with @code{--debug}.  In this
-case @code{mysqld} will write a log file in @file{\mysqld.trace}
-that should contain the reason why @code{mysqld} doesn't start.  If you
-make a bug report about this, please only send the lines to the mailing list
-where something seems to go wrong!
+The last option is to start @code{mysqld} with @code{--standalone
+--debug}.  In this case @code{mysqld} will write a log file in
+@file{C:\mysqld.trace} that should contain the reason why @code{mysqld}
+doesn't start. @xref{Making trace files}.
 
 @node NT start, Windows running, Win95 start, Windows
 @subsection Starting MySQL on NT or Windows 2000
@@ -8974,6 +8974,7 @@ C:\mysql\bin\mysqld --standalone --debug
 @end example
 
 The last version gives you a debug trace in @file{C:\mysqld.trace}.
+@xref{Making trace files}.
 
 @node Windows running, Windows and SSH, NT start, Windows
 @subsection Running MySQL on Windows
@@ -9999,15 +10000,8 @@ this:
 This problem occurs only on systems that don't have a working thread
 library and for which @strong{MySQL} must be configured to use MIT-pthreads.
 
-On Windows, you can try to start @code{mysqld} as follows:
-
-@example
-C:\mysql\bin\mysqld --standalone --debug
-@end example
-
-This will not run in the background and it should also write a trace in
-@file{\mysqld.trace}, which may help you determine the source of your
-problems.  @xref{Windows}.
+If you can't get mysqld to start you can try to make a trace file
+to find the problem. @xref{Making trace files}.
 
 If you are using BDB (Berkeley DB) tables, you should familiarize
 yourself with the different BDB specific startup options.  @xref{BDB start}.
@@ -10140,7 +10134,7 @@ Set the default table type for tables.  @xref{Table types}.
 @item --debug[...]=
 If @strong{MySQL} is configured with @code{--with-debug}, you can use this 
 option to get a trace file of what @code{mysqld} is doing. 
-@xref{The DBUG package}.
+@xref{Making trace files}.
 
 @item --delay-key-write-for-all-tables
 Don't flush key buffers between writes for any @code{MyISAM} table.
@@ -13810,7 +13804,7 @@ it down and restarting it.
 If everything else fails, start the @code{mysqld} daemon with a debugging
 option (for example, @code{--debug=d,general,query}). This will print host and
 user information about attempted connections, as well as information about
-each command issued. @xref{Debugging server}.
+each command issued. @xref{Making trace files}.
 
 @item
 If you have any other problems with the @strong{MySQL} grant tables and
@@ -24471,7 +24465,7 @@ NuSphere is working on removing these limitations.
 @menu
 * InnoDB overview::             InnoDB tables overview
 * InnoDB start::                InnoDB startup options
-* Creating an InnoDB database:: Creating an InnoDB database.
+* Creating an InnoDB database:: Creating an InnoDB database.  Creating an InnoDB database.  Creating an InnoDB database.
 * Using InnoDB tables::         Creating InnoDB tables
 * Adding and removing::         Adding and removing InnoDB data and log files
 * Backing up::                  Backing up and recovering an InnoDB database
@@ -31700,7 +31694,7 @@ the following configure options:
 
 @multitable @columnfractions .3 .7
 @item @strong{Option} @tab @strong{Comment}
-@item --with-server-suffix=-Max @tab Add a suffix to the @code{mysqld} version string.
+@item --with-server-suffix=-max @tab Add a suffix to the @code{mysqld} version string.
 @item --with-bdb @tab Support for Berkeley DB (BDB) tables
 @item --with-innodb @tab Support for InnoDB tables.
 @item CFLAGS=-DUSE_SYMDIR @tab Symbolic links support for Windows.
@@ -36105,6 +36099,7 @@ Try the following:
 @enumerate
 @item
 Start @code{mysqld} from @code{gdb} (or in another debugger).
+@xref{Using gdb on mysqld}.
 
 @item
 Run your test scripts.
@@ -37928,6 +37923,20 @@ file name is given, it defaults to the name of the host machine followed
 by @code{-bin}. If file name is given, but it doesn't contain a path, the
 file is written in the data directory.
 
+You can use the following options to @code{mysqld} to affect what is logged
+to the binary log:
+
+@multitable @columnfractions .4 .6
+@item @code{binlog-do-db=database_name} @tab
+Tells the master it should log updates for the specified database, and
+exclude all others not explicitly mentioned.
+(Example: @code{binlog-do-db=some_database})
+
+@item @code{binlog-ignore-db=database_name} @tab
+Tells the master that updates to the given database should not be logged
+to the binary log (Example: @code{binlog-ignore-db=some_database})
+@end multitable
+
 To the binary log filename @code{mysqld} will append an extension that is a
 number that is incremented each time you execute @code{mysqladmin
 refresh}, execute @code{mysqladmin flush-logs}, execute the @code{FLUSH LOGS}
@@ -38264,7 +38273,7 @@ greater detail in the next section.
 
 @multitable @columnfractions .3 .7
 @item @strong{mysql_affected_rows()} @tab
-Returns the number of rows affected by the last @code{UPDATE},
+Returns the number of rows changed/deleted/inserted by the last @code{UPDATE},
 @code{DELETE}, or @code{INSERT} query.
 
 @item @strong{mysql_close()} @tab
@@ -38452,7 +38461,7 @@ expects a counted string.  If the string contains binary data (which may
 include null bytes), you must use @code{mysql_real_query()}.
 
 For each non-@code{SELECT} query (for example, @code{INSERT}, @code{UPDATE},
-@code{DELETE}), you can find out how many rows were affected (changed)
+@code{DELETE}), you can find out how many rows were changed (affected)
 by calling @code{mysql_affected_rows()}.
 
 For @code{SELECT} queries, you retrieve the selected rows as a result set.
@@ -38628,19 +38637,19 @@ A string representation of the error may be obtained by calling
 
 @subsubheading Description
 
-Returns the number of rows affected (changed) by the last @code{UPDATE},
-@code{DELETE} or @code{INSERT} query. May be called immediately after
-@code{mysql_query()} for @code{UPDATE}, @code{DELETE}, or @code{INSERT}
-statements.  For @code{SELECT} statements, @code{mysql_affected_rows()}
-works like @code{mysql_num_rows()}.
-
-@code{mysql_affected_rows()} is currently implemented as a macro.
+Returns the number of rows changed by the last @code{UPDATE}, deleted by
+the last @code{DELETE} or inserted by the last @code{INSERT}
+statement. May be called immediately after @code{mysql_query()} for
+@code{UPDATE}, @code{DELETE}, or @code{INSERT} statements.  For
+@code{SELECT} statements, @code{mysql_affected_rows()} works like
+@code{mysql_num_rows()}.
 
 @subsubheading Return Values
 
 An integer greater than zero indicates the number of rows affected or
-retrieved.  Zero indicates that no records matched the @code{WHERE} clause in
-the query or that no query has yet been executed.  -1 indicates that the
+retrieved.  Zero indicates that no records where updated for an
+@code{UPDATE} statement, no rows matched the @code{WHERE} clause in the
+query or that no query has yet been executed.  -1 indicates that the
 query returned an error or that, for a @code{SELECT} query,
 @code{mysql_affected_rows()} was called prior to calling
 @code{mysql_store_result()}.
@@ -38653,8 +38662,17 @@ None.
 
 @example
 mysql_query(&mysql,"UPDATE products SET cost=cost*1.25 WHERE group=10");
-printf("%d products updated",mysql_affected_rows(&mysql));
+printf("%ld products updated",(long) mysql_affected_rows(&mysql));
 @end example
+
+If one specifies the flag @code{CLIENT_FOUND_ROWS} when connecting to
+@code{mysqld}, @code{mysql_affected_rows()} will return the number of
+rows matched by the @code{WHERE} statement for @code{UPDATE} statements.
+
+Note that when one uses a @code{REPLACE} command,
+@code{mysql_affected_rows()} will return 2 if the new row replaced and
+old row.  This is because in this case one row was inserted and then the
+duplicate was deleted.
 
 @findex @code{mysql_close()}
 @node mysql_close, mysql_connect, mysql_affected_rows, C API functions
@@ -40471,6 +40489,12 @@ You must call @code{mysql_store_result()} or @code{mysql_use_result()}
 for every query that successfully retrieves data (@code{SELECT},
 @code{SHOW}, @code{DESCRIBE}, @code{EXPLAIN}).
 
+You don't have to call @code{mysql_store_result()} or
+@code{mysql_use_result()} for other queries, but it will not do any
+harm or cause any notable performance if you call @code{mysql_store_result()}
+in all cases.  You can detect if the query didn't have a result set by
+checking if @code{mysql_store_result()} returns 0 (more about this later one).
+
 If you want to know if the query should return a result set or not, you can
 use @code{mysql_field_count()} to check for this.
 @xref{mysql_field_count, @code{mysql_field_count}}.
@@ -42222,7 +42246,6 @@ with the @code{--gdb} and @code{--debug} options to @code{mysql-test-run}.
 If you have not compiled @strong{MySQL} for debugging you should probably
 do that.  Just specify the @code{--with-debug} options to @code{configure}!
 @xref{Installing source}.
-
 @end itemize
 
 @page
@@ -44238,8 +44261,8 @@ as root.
 Fixed bug when thread creation failed (could happen when doing a LOT
 of connections in a short time).
 @item
-Don't free the key cache on @code{FLUSH TABLES} as this will cause problems
-with temporary tables.
+Fixed some problems with @code{FLUSH TABLES} and @code{TEMPORARY} tables.
+(Problem with freeing the key cache and error @code{Can't reopen table...}).
 @item
 Fixed a problem in Innobase with other character sets than @code{latin1}
 and another problem when using many columns.
@@ -49906,6 +49929,7 @@ problems that may be unique to your environment.
 @menu
 * Compiling for debugging::     
 * Making trace files::          
+* Using gdb on mysqld::         
 * Using stack trace::           
 * Using log files::             
 * Reproducable test case::      
@@ -49920,7 +49944,7 @@ If you have some very specific problem, you can always try to debug
 whether or not @strong{MySQL} was compiled with debugging by doing:
 @code{mysqld --help}.  If the @code{--debug} flag is listed with the
 options then you have debugging enabled.  @code{mysqladmin ver} also
-lists the @code{mysqld} version as @code{mysql ... -debug} in this case.
+lists the @code{mysqld} version as @code{mysql ... --debug} in this case.
 
 If you are using gcc or egcs, the recommended configure line is:
 
@@ -49959,22 +49983,50 @@ send mail to @email{mysql@@lists.mysql.com} and ask for help.  Please use the
 @code{mysqlbug} script for all bug reports or questions regarding the
 @strong{MySQL} version you are using!
 
-@node Making trace files, Using stack trace, Compiling for debugging, Debugging server
-@appendixsubsec Creating trace files and using gdb on mysqld
+In the windows @strong{MySQL} distribution @code{mysqld.exe} is by
+default compiled with support for trace files.
 
-If you can cause the @code{mysqld} server to crash quickly, you can try to
-create a trace file of this:
+@node Making trace files, Using gdb on mysqld, Compiling for debugging, Debugging server
+@appendixsubsec Creating trace files
 
-Start the @code{mysqld} server with a trace log in @file{/tmp/mysqld.trace}.
-The log file will get very @emph{BIG}.
+If the @code{mysqld} server doesn't start or if you can cause the
+@code{mysqld} server to crash quickly, you can try to create a trace
+file to find the problem.
 
-@code{mysqld --debug --log}
+To do this you have to have a @code{mysqld} that is compiled for debugging.
+You can check this by executing @code{mysqld -V}.  If the version number
+ends with @code{-debug}, it's compiled with support for trace files.
 
-or you can start it with
+Start the @code{mysqld} server with a trace log in @file{/tmp/mysqld.trace}
+(or @file{C:\mysqld.trace} on windows):
 
-@code{mysqld --debug=d,info,error,query,general,where:O,/tmp/mysql.trace}
+@code{mysqld --debug}
 
-which only prints information with the most interesting tags.
+On Windows you should also use the @code{--standalone} flag to not start
+@code{mysqld} as a service.
+
+Note that the trace file will get very @emph{BIG}!
+
+If you want to have a smaller trace file, you can use something like:
+
+@code{mysqld --debug=d,info,error,query,general,where:O,/tmp/mysqld.trace}
+
+which only prints information with the most interesting tags in
+@file{/tmp/mysqld.trace}.
+
+If you make a bug report about this, please only send the lines from the
+trace file to the appropriate mailing list where something seems to go
+wrong! If you can't locate the wrong place, you can ftp the trace file,
+together with a full bug report, to
+@uref{ftp://support.mysql.com/pub/mysql/secret} so that a @strong{MySQL}
+developer can take a look a this.
+
+The trace file is made with the @strong{DBUG} package by Fred Fish.
+@xref{The DBUG package}.
+
+@cindex gdb, using
+@node Using gdb on mysqld, Using stack trace, Making trace files, Debugging server
+@appendixsubsec Debugging mysqld under gdb
 
 On most system you can also start @code{mysqld} from @code{gdb} to get
 more information if @code{mysqld} crashes.
@@ -49990,7 +50042,7 @@ It's very hard to debug @strong{MySQL} under @code{gdb} if you do a lot of
 new connections the whole time as @code{gdb} doesn't free the memory for
 old threads.  You can avoid this problem by starting @code{mysqld} with
 @code{-O thread_cache_size= 'max_connections +1'}.  In most cases just
-using @code{-O thread_cache_size= 5'} will help a lot!
+using @code{-O thread_cache_size=5'} will help a lot!
 
 If you want to get a core dump on Linux if @code{mysqld} dies with a
 SIGSEGV signal, you can start mysqld with the @code{--core-file} option.
@@ -49999,8 +50051,7 @@ find out why @code{mysqld} died:
 
 @example
 shell> gdb mysqld core
-gdb>   backtrace
-gdb>   info local
+gdb>   backtrace full
 gdb>   exit
 @end example
 
@@ -50032,15 +50083,7 @@ Here is an example how to debug mysqld:
 shell> gdb /usr/local/libexec/mysqld
 gdb> run
 ...
-back   # Do this when mysqld crashes
-info locals
-up
-info locals
-up
-...
-(until you get some information about local variables)
-
-quit
+backtrace full # Do this when mysqld crashes
 @end example
 
 Include the above output in a mail generated with @code{mysqlbug} and
@@ -50063,7 +50106,7 @@ debugging information by using the @code{trace} method or by
 setting the @code{DBI_TRACE} environment variable.
 @xref{Perl DBI Class, , Perl @code{DBI} Class}.
 
-@node Using stack trace, Using log files, Making trace files, Debugging server
+@node Using stack trace, Using log files, Using gdb on mysqld, Debugging server
 @appendixsubsec Using a stack trace
 
 On some operating systems, the error log will contain a stack trace if
@@ -50278,7 +50321,7 @@ A very common mistake is to use an old @file{mysql.h} file from an old
 The @strong{MySQL} server and most @strong{MySQL} clients are compiled
 with the DBUG package originally made by Fred Fish.  When one has configured
 @strong{MySQL} for debugging, this package makes it possible to get a trace
-file of what the program is debugging.
+file of what the program is debugging. @xref{Making trace files}.
 
 One uses the debug package by invoking the program with the
 @code{--debug="..."} or the @code{-#...} option.

@@ -152,6 +152,22 @@ static uint handler_count;
 static bool opt_console=0,start_mode=0;
 #endif
 
+/* Set prefix for windows binary */
+#ifdef __WIN__
+#undef MYSQL_SERVER_SUFFIX
+#ifdef __NT__
+#if defined(HAVE_INNOBASE_DB) || defined(HAVE_BERKELEY_DB)
+#define MYSQL_SERVER_SUFFIX "-max-nt"
+#else
+#define MYSQL_SERVER_SUFFIX "-nt"
+#endif /* ...DB */
+#elif defined(HAVE_INNOBASE_DB) || defined(HAVE_BERKELEY_DB)
+#define MYSQL_SERVER_SUFFIX "-max"
+#else
+#define MYSQL_SERVER_SUFFIX ""
+#endif /* __NT__ */
+#endif
+
 #ifdef HAVE_BERKELEY_DB
 SHOW_COMP_OPTION have_berkeley_db=SHOW_OPTION_YES;
 #else
