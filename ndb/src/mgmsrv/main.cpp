@@ -216,7 +216,7 @@ int main(int argc, char** argv)
    * Read configuration files *
    ****************************/
   LocalConfig local_config;
-  if(!local_config.init(0,glob.local_config_filename)){
+  if(!local_config.init(opt_connect_str,glob.local_config_filename)){
     local_config.printError();
     goto error_end;
   }
