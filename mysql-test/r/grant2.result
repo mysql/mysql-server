@@ -1,5 +1,6 @@
 SET NAMES binary;
 drop database if exists mysqltest;
+drop database if exists mysqltest_1;
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
 delete from mysql.tables_priv where user like 'mysqltest\_%';
@@ -8,9 +9,6 @@ flush privileges;
 grant all privileges on `my\_%`.* to mysqltest_1@localhost with grant option;
 select current_user();
 current_user()
-mysqltest_1@localhost
-select current_user;
-current_user
 mysqltest_1@localhost
 grant all privileges on `my\_1`.* to mysqltest_2@localhost with grant option;
 grant all privileges on `my_%`.* to mysqltest_3@localhost with grant option;
@@ -27,6 +25,25 @@ show grants for mysqltest_3@localhost;
 ERROR 42000: There is no such grant defined for user 'mysqltest_3' on host 'localhost'
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
+flush privileges;
+create database mysqltest_1;
+grant all privileges on `mysqltest\_1`.* to mysqltest_1@localhost with grant option;
+select current_user();
+current_user()
+mysqltest_1@localhost
+show databases;
+Database
+mysqltest_1
+test
+grant all privileges on `mysqltest_1`.* to mysqltest_1@localhost with grant option;
+ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysqltest_1'
+show grants for mysqltest_1@localhost;
+Grants for mysqltest_1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
+GRANT ALL PRIVILEGES ON `mysqltest\_1`.* TO 'mysqltest_1'@'localhost' WITH GRANT OPTION
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+drop database mysqltest_1;
 flush privileges;
 create database mysqltest;
 grant INSERT, SELECT on mysqltest.* to mysqltest_1@localhost;
