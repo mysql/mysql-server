@@ -441,11 +441,23 @@ public:
     STATEMENT, PREPARED_STATEMENT, STORED_PROCEDURE
   };
 
+  /*
+    This constructor is used only when Item_arena is created as
+    backup storage for another instance of Item_arena.
+  */
+  Item_arena() {};
+  /*
+    Create arena for already constructed THD using its variables as
+    parameters for memory root initialization.
+  */
   Item_arena(THD *thd);
-  Item_arena();
+  /*
+    Create arena and optionally init memory root with minimal values.
+    Particularly used if Item_arena is part of Statement.
+  */
   Item_arena(bool init_mem_root);
   virtual Type type() const;
-  virtual ~Item_arena();
+  virtual ~Item_arena() {};
 
   inline bool is_stmt_prepare() const { return (int)state < (int)PREPARED; }
   inline bool is_first_stmt_execute() const { return state == PREPARED; }
@@ -566,7 +578,7 @@ public:
   assignment in Statement::Statement)
   Non-empty statement names are unique too: attempt to insert a new statement
   with duplicate name causes older statement to be deleted
-  
+
   Statements are auto-deleted when they are removed from the map and when the
   map is deleted.
 */
@@ -575,7 +587,7 @@ class Statement_map
 {
 public:
   Statement_map();
-  
+
   int insert(Statement *statement);
 
   Statement *find_by_name(LEX_STRING *name)
@@ -608,11 +620,18 @@ public:
     }
     hash_delete(&st_hash, (byte *) statement);
   }
+  /* Erase all statements (calls Statement destructor) */
+  void reset()
+  {
+    hash_reset(&names_hash);
+    hash_reset(&st_hash);
+    last_found_statement= 0;
+  }
 
   ~Statement_map()
   {
-    hash_free(&st_hash);
     hash_free(&names_hash);
+    hash_free(&st_hash);
   }
 private:
   HASH st_hash;

@@ -1058,20 +1058,20 @@ set @arg00=NULL;
 set @arg01=2;
 execute stmt1 using @arg00, @arg01;
 Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
-select a,b from t1;
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'a' at row 1
+select a,b from t1 order by a;
 a	b
-3	three
 0	two
 1	one
+3	three
 4	four
 set @arg00=0;
 execute stmt1 using @arg01, @arg00;
-select a,b from t1;
+select a,b from t1 order by a;
 a	b
-3	three
-2	two
 1	one
+2	two
+3	three
 4	four
 set @arg00=23;
 set @arg01='two';
@@ -1091,11 +1091,11 @@ prepare stmt1 from 'update t1 set a=? where b=?
                     and a not in (select ? from t2
                               where b = ? or a = ?)';
 execute stmt1 using @arg04, @arg01, @arg02, @arg03, @arg00 ;
-select a,b from t1 ;
+select a,b from t1 order by a;
 a	b
-3	three
-2	two
 1	one
+2	two
+3	three
 4	four
 drop table t2 ;
 set @arg00=1;
@@ -1185,19 +1185,19 @@ set @arg01=1 ;
 prepare stmt1 from 'insert into t1 set a=?, b=''sechs''
                     on duplicate key update a=a + ?, b=concat(b,''modified'') ';
 execute stmt1 using @arg00, @arg01;
-select * from t1;
+select * from t1 order by a;
 a	b
-4	four
-3	three
-2	two
+0	NULL
 1	one
+2	two
+3	three
+4	four
 5	five
 7	sixmodified
-0	NULL
 8	eight
+9	nine
 81	8-1
 82	8-2
-9	nine
 set @arg00=81 ;
 set @arg01=1 ;
 execute stmt1 using @arg00, @arg01;
@@ -1213,7 +1213,7 @@ set @updated="updated" ;
 insert into t1 values(1000,'x1000_1') ;
 insert into t1 values(@1000,@x1000_2),(@1000,@x1000_3)
 on duplicate key update a = a + @100, b = concat(b,@updated) ;
-select a,b from t1 where a >= 1000 ;
+select a,b from t1 where a >= 1000 order by a ;
 a	b
 1000	x1000_3
 1100	x1000_1updated
@@ -1222,14 +1222,14 @@ insert into t1 values(1000,'x1000_1') ;
 prepare stmt1 from ' insert into t1 values(?,?),(?,?)
                on duplicate key update a = a + ?, b = concat(b,?) ';
 execute stmt1 using @1000, @x1000_2, @1000, @x1000_3, @100, @updated ;
-select a,b from t1 where a >= 1000 ;
+select a,b from t1 where a >= 1000 order by a ;
 a	b
 1000	x1000_3
 1100	x1000_1updated
 delete from t1 where a >= 1000 ;
 insert into t1 values(1000,'x1000_1') ;
 execute stmt1 using @1000, @x1000_2, @1100, @x1000_3, @100, @updated ;
-select a,b from t1 where a >= 1000 ;
+select a,b from t1 where a >= 1000 order by a ;
 a	b
 1200	x1000_1updatedupdated
 delete from t1 where a >= 1000 ;
@@ -2253,20 +2253,20 @@ set @arg00=NULL;
 set @arg01=2;
 execute stmt1 using @arg00, @arg01;
 Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
-select a,b from t1;
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'a' at row 1
+select a,b from t1 order by a;
 a	b
-3	three
 0	two
 1	one
+3	three
 4	four
 set @arg00=0;
 execute stmt1 using @arg01, @arg00;
-select a,b from t1;
+select a,b from t1 order by a;
 a	b
-3	three
-2	two
 1	one
+2	two
+3	three
 4	four
 set @arg00=23;
 set @arg01='two';
@@ -2286,11 +2286,11 @@ prepare stmt1 from 'update t1 set a=? where b=?
                     and a not in (select ? from t2
                               where b = ? or a = ?)';
 execute stmt1 using @arg04, @arg01, @arg02, @arg03, @arg00 ;
-select a,b from t1 ;
+select a,b from t1 order by a;
 a	b
-3	three
-2	two
 1	one
+2	two
+3	three
 4	four
 drop table t2 ;
 set @arg00=1;
@@ -2380,19 +2380,19 @@ set @arg01=1 ;
 prepare stmt1 from 'insert into t1 set a=?, b=''sechs''
                     on duplicate key update a=a + ?, b=concat(b,''modified'') ';
 execute stmt1 using @arg00, @arg01;
-select * from t1;
+select * from t1 order by a;
 a	b
-4	four
-3	three
-2	two
+0	NULL
 1	one
+2	two
+3	three
+4	four
 5	five
 7	sixmodified
-0	NULL
 8	eight
+9	nine
 81	8-1
 82	8-2
-9	nine
 set @arg00=81 ;
 set @arg01=1 ;
 execute stmt1 using @arg00, @arg01;
@@ -2408,7 +2408,7 @@ set @updated="updated" ;
 insert into t1 values(1000,'x1000_1') ;
 insert into t1 values(@1000,@x1000_2),(@1000,@x1000_3)
 on duplicate key update a = a + @100, b = concat(b,@updated) ;
-select a,b from t1 where a >= 1000 ;
+select a,b from t1 where a >= 1000 order by a ;
 a	b
 1000	x1000_3
 1100	x1000_1updated
@@ -2417,14 +2417,14 @@ insert into t1 values(1000,'x1000_1') ;
 prepare stmt1 from ' insert into t1 values(?,?),(?,?)
                on duplicate key update a = a + ?, b = concat(b,?) ';
 execute stmt1 using @1000, @x1000_2, @1000, @x1000_3, @100, @updated ;
-select a,b from t1 where a >= 1000 ;
+select a,b from t1 where a >= 1000 order by a ;
 a	b
 1000	x1000_3
 1100	x1000_1updated
 delete from t1 where a >= 1000 ;
 insert into t1 values(1000,'x1000_1') ;
 execute stmt1 using @1000, @x1000_2, @1100, @x1000_3, @100, @updated ;
-select a,b from t1 where a >= 1000 ;
+select a,b from t1 where a >= 1000 order by a ;
 a	b
 1200	x1000_1updatedupdated
 delete from t1 where a >= 1000 ;
