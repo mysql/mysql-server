@@ -5966,8 +5966,8 @@ Add support for UNICODE.
 Allow @code{select a from crash_me left join crash_me2 using (a)}; In this
 case a is assumed to come from the crash_me table.
 @item
-Fix that @code{ON} and @code{USING} works with the @code{JOIN} and
-@code{INNER JOIN} join types.
+Fix that @code{ON} and @code{USING} works with the @code{JOIN}
+join type.
 @item
 Oracle like @code{CONNECT BY PRIOR ...} to search hierarchy structures.
 @item
@@ -32327,7 +32327,7 @@ restrict which rows you have in the result set.  If you want to restrict
 which rows should be in the result, you have to do this in the @code{WHERE}
 clause.
 
-Note that in versions before Version 3.23.16, the @code{INNER JOIN} didn't
+Note that in versions before Version 3.23.17, the @code{INNER JOIN} didn't
 take a @code{join_condition}!
 
 @cindex ODBC compatibility
@@ -32344,11 +32344,6 @@ A table reference may be aliased using @code{tbl_name AS alias_name} or
 mysql> select t1.name, t2.salary from employee AS t1, info AS t2
            where t1.name = t2.name;
 @end example
-
-@item
-@code{INNER JOIN} and @code{,} (comma) are semantically equivalent.
-Both do a full join between the tables used.  Normally, you specify how
-the tables should be linked in the @code{WHERE} condition.
 
 @item
 The @code{ON} conditional is any conditional of the form that may be used in
@@ -46734,9 +46729,12 @@ Fixed coredump during @code{REPAIR} of some particularly broken tables.
 @item
 Fixed bug in @code{InnoDB} and @code{AUTO_INCREMENT} columns.
 @item
+Fixed bug in @code{InnoDB} and @code{RENAME TABLE} columns.
+@item
 Fixed critical bug in @code{InnoDB} and @code{BLOB} columns.  If one has
-used @code{BLOB} columns larger than 8K in an @code{InnoDB} table, one must
-dump the table with @code{mysqldump}, drop it and restore it from the dump.
+used @code{BLOB} columns larger than 8000 bytes in an @code{InnoDB}
+table, one must dump the table with @code{mysqldump}, drop it and
+restore it from the dump.
 @item
 Applied large patch for OS/2 from Yuri Dario.
 @item
