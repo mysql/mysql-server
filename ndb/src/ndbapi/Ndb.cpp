@@ -38,6 +38,10 @@ Name:          Ndb.cpp
 #include <NdbEnv.h>
 #include <BaseString.hpp>
 
+#ifndef MIN
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#endif
+
 /****************************************************************************
 void connect();
 
