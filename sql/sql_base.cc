@@ -1606,7 +1606,8 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       if (ha_create_table_from_engine(thd, db, name, TRUE) != 0)
        goto err;
 
-      thd->clear_error(); // Clear error message
+      mysql_reset_errors(thd, true); // Clear warnings
+      thd->clear_error();            // Clear error message
       continue;
     }
 

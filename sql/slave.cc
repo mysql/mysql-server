@@ -2558,6 +2558,7 @@ st_relay_log_info::~st_relay_log_info()
   pthread_cond_destroy(&start_cond);
   pthread_cond_destroy(&stop_cond);
   pthread_cond_destroy(&log_space_cond);
+  relay_log.cleanup();
 }
 
 /*

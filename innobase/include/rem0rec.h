@@ -36,6 +36,11 @@ in addition to the data and the offsets */
 #define REC_STATUS_INFIMUM	2
 #define REC_STATUS_SUPREMUM	3
 
+/* Number of elements that should be initially allocated for the
+offsets[] array, first passed to rec_get_offsets() */
+#define REC_OFFS_NORMAL_SIZE	100
+#define REC_OFFS_SMALL_SIZE	10
+
 /**********************************************************
 The following function is used to get the offset of the
 next chained record on the same page. */

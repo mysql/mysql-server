@@ -6,7 +6,7 @@
 msgc="/* DO NOT EDIT: automatically built by dist/s_win32. */"
 msgw="; DO NOT EDIT: automatically built by dist/s_win32."
 
-. RELEASE
+. ./RELEASE
 
 s=/tmp/__db_a$$
 t=/tmp/__db_b$$

@@ -61,6 +61,7 @@ typedef struct st_ndbcluster_share {
   pthread_mutex_t mutex;
   char *table_name;
   uint table_name_length,use_count;
+  uint commit_count_lock;
   ulonglong commit_count;
 } NDB_SHARE;
 
@@ -374,6 +375,7 @@ class Thd_ndb
   NdbTransaction *all;
   NdbTransaction *stmt;
   int error;
+  List<NDB_SHARE> changed_tables;
 };
 
 class ha_ndbcluster: public handler
@@ -554,6 +556,7 @@ private:
   void print_results();
 
   ulonglong get_auto_increment();
+  void invalidateDictionaryCache();
   int ndb_err(NdbTransaction*);
   bool uses_blob_value(bool all_fields);
 
@@ -561,7 +564,7 @@ private:
 
   int write_ndb_file();
 
-  int check_ndb_connection();
+  int check_ndb_connection(THD* thd= current_thd);
 
   void set_rec_per_key();
   void records_update();
@@ -610,6 +613,7 @@ private:
   ha_rows m_rows_to_insert;
   ha_rows m_rows_inserted;
   ha_rows m_bulk_insert_rows;
+  ha_rows m_rows_changed;
   bool m_bulk_insert_not_flushed;
   ha_rows m_ops_pending;
   bool m_skip_auto_increment;

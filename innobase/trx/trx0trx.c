@@ -93,6 +93,8 @@ trx_create(
 	trx->id = ut_dulint_zero;
 	trx->no = ut_dulint_max;
 
+	trx->support_xa = TRUE;
+
 	trx->check_foreigns = TRUE;
 	trx->check_unique_secondary = TRUE;
 
@@ -274,6 +276,8 @@ trx_free(
 			(ulong)trx->mysql_n_tables_locked);
 
 		trx_print(stderr, trx);		
+
+		ut_print_buf(stderr, (byte*)trx, sizeof(trx_t));
 	}
 
 	ut_a(trx->magic_n == TRX_MAGIC_N);
@@ -451,9 +455,15 @@ trx_lists_init_at_db_start(void)
 					ut_dulint_get_high(trx->id),
 					ut_dulint_get_low(trx->id));
 
-					trx->conc_state = TRX_ACTIVE;
+					if (srv_force_recovery == 0) {
 
-					/* trx->conc_state = TRX_PREPARED;*/
+						trx->conc_state = TRX_PREPARED;
+					} else {
+ 						fprintf(stderr,
+"InnoDB: Since innodb_force_recovery > 0, we will rollback it anyway.\n");
+
+						trx->conc_state = TRX_ACTIVE;
+					}
 				} else {
 					trx->conc_state =
 						TRX_COMMITTED_IN_MEMORY;
@@ -509,15 +519,20 @@ trx_lists_init_at_db_start(void)
 					commit or abort decision from MySQL */
 
 					if (undo->state == TRX_UNDO_PREPARED) {
- 						fprintf(stderr,
+ 					    fprintf(stderr,
 "InnoDB: Transaction %lu %lu was in the XA prepared state.\n",
-						ut_dulint_get_high(trx->id),
-						ut_dulint_get_low(trx->id));
+					    ut_dulint_get_high(trx->id),
+					    ut_dulint_get_low(trx->id));
+
+					    if (srv_force_recovery == 0) {
+
+						trx->conc_state = TRX_PREPARED;
+					    } else {
+ 						fprintf(stderr,
+"InnoDB: Since innodb_force_recovery > 0, we will rollback it anyway.\n");
 
 						trx->conc_state = TRX_ACTIVE;
-
-						/* trx->conc_state = 
-							TRX_PREPARED; */
+					    }
 					} else {
 						trx->conc_state =
 						  TRX_COMMITTED_IN_MEMORY;
@@ -821,9 +836,6 @@ trx_commit_off_kernel(
 		trx->read_view = NULL;
 	}
 
-/*	fprintf(stderr, "Trx %lu commit finished\n",
-		ut_dulint_get_low(trx->id)); */
-
 	if (must_flush_log) {
 
 		mutex_exit(&kernel_mutex);
@@ -867,14 +879,15 @@ trx_commit_off_kernel(
                         /* Do nothing */
                 } else if (srv_flush_log_at_trx_commit == 1) {
                         if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
-                               /* Write the log but do not flush it to disk */
+                             	/* Write the log but do not flush it to disk */
 
-                               log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
+                               	log_write_up_to(lsn, LOG_WAIT_ONE_GROUP,
+									FALSE);
                         } else {
-                               /* Write the log to the log files AND flush
-                               them to disk */
+                               	/* Write the log to the log files AND flush
+                               	them to disk */
 
-                               log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
+                               	log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
                         }
                 } else if (srv_flush_log_at_trx_commit == 2) {
 
@@ -1745,12 +1758,11 @@ Prepares a transaction. */
 
 void
 trx_prepare_off_kernel(
-/*==================*/
+/*===================*/
 	trx_t*	trx)	/* in: transaction */
 {
 	page_t*		update_hdr_page;
 	trx_rseg_t*	rseg;
-	trx_undo_t*	undo;
 	ibool		must_flush_log	= FALSE;
 	dulint		lsn;
 	mtr_t		mtr;
@@ -1777,19 +1789,18 @@ trx_prepare_off_kernel(
 		mutex_enter(&(rseg->mutex));
 			
 		if (trx->insert_undo != NULL) {
+
+			/* It is not necessary to obtain trx->undo_mutex here
+			because only a single OS thread is allowed to do the
+			transaction prepare for this transaction. */
+
 			trx_undo_set_state_at_prepare(trx, trx->insert_undo,
 							  		&mtr);
 		}
 
-		undo = trx->update_undo;
-
-		if (undo) {
-			/* It is not necessary to obtain trx->undo_mutex here
-			because only a single OS thread is allowed to do the
-			transaction prepare for this transaction. */
-					
+		if (trx->update_undo) {
 			update_hdr_page = trx_undo_set_state_at_prepare(trx,
-								undo, &mtr);
+						trx->update_undo, &mtr);
 		}
 
 		mutex_exit(&(rseg->mutex));
@@ -1813,17 +1824,48 @@ trx_prepare_off_kernel(
 	/*--------------------------------------*/
 
 	if (must_flush_log) {
+                /* Depending on the my.cnf options, we may now write the log
+                buffer to the log files, making the prepared state of the
+		transaction durable if the OS does not crash. We may also
+		flush the log files to disk, making the prepared state of the
+		transaction durable also at an OS crash or a power outage.
+
+                The idea in InnoDB's group prepare is that a group of
+                transactions gather behind a trx doing a physical disk write
+                to log files, and when that physical write has been completed,
+                one of those transactions does a write which prepares the whole
+                group. Note that this group prepare will only bring benefit if
+                there are > 2 users in the database. Then at least 2 users can
+                gather behind one doing the physical log write to disk.
+
+		TODO: find out if MySQL holds some mutex when calling this.
+		That would spoil our group prepare algorithm. */
 
 		mutex_exit(&kernel_mutex);
-	
-		/* Write the log to the log files AND flush them to disk */
 
-		/*-------------------------------------*/
+                if (srv_flush_log_at_trx_commit == 0) {
+                        /* Do nothing */
+                } else if (srv_flush_log_at_trx_commit == 1) {
+                   	if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
+                        	/* Write the log but do not flush it to disk */
 
-		log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
+                        	log_write_up_to(lsn, LOG_WAIT_ONE_GROUP,
+								FALSE);
+                        } else {
+                               	/* Write the log to the log files AND flush
+                               	them to disk */
 
-		/*-------------------------------------*/
-	
+                               	log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
+                        }
+                } else if (srv_flush_log_at_trx_commit == 2) {
+
+                        /* Write the log but do not flush it to disk */
+
+                        log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
+                } else {
+                        ut_error;
+                }
+
 		mutex_enter(&kernel_mutex);
 	}
 }
@@ -1916,7 +1958,7 @@ trx_recover_for_mysql(
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-"  InnoDB: %d transactions in prepare state after recovery\n",
+"  InnoDB: %d transactions in prepared state after recovery\n",
 		count);
 
 	return (count);			

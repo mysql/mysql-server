@@ -2546,6 +2546,35 @@ drop procedure bug4579_1|
 drop procedure bug4579_2|
 drop table t3|
 
+#
+# BUG#2773: Function's data type ignored in stored procedures
+#
+--disable_warnings
+drop table if exists t3|
+drop procedure if exists bug2773|
+--enable_warnings
+
+create function bug2773() returns int return null|
+create table t3 as select bug2773()|
+show create table t3|
+drop table t3|
+drop function bug2773|
+
+#
+# BUG#3788: Stored procedure packet error
+#
+--disable_warnings
+drop procedure if exists bug3788|
+--enable_warnings
+
+create function bug3788() returns date return cast("2005-03-04" as date)|
+select bug3788()|
+drop function bug3788|
+
+create function bug3788() returns binary(5) return 5|
+select bug3788()|
+drop function bug3788|
+ 
 
 #
 # BUG#4726

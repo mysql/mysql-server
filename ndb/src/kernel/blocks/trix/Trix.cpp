@@ -712,7 +712,7 @@ void Trix::setupSubscription(Signal* signal, SubscriptionRecPtr subRecPtr)
   subCreateReq->subscriptionType = SubCreateReq::SingleTableScan;
   
   sendSignal(SUMA_REF, GSN_SUB_CREATE_REQ, 
-	     signal, SubCreateReq::SignalLength, JBB, orderPtr, 1);
+	     signal, SubCreateReq::SignalLength+1, JBB, orderPtr, 1);
 }
 
 void Trix::setupTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)

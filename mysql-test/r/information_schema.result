@@ -203,7 +203,7 @@ select parameter_style, sql_data_access, dtd_identifier
 from information_schema.routines;
 parameter_style	sql_data_access	dtd_identifier
 SQL	CONTAINS SQL	NULL
-SQL	CONTAINS SQL	int
+SQL	CONTAINS SQL	int(11)
 show procedure status;
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 test	sel2	PROCEDURE	root@localhost	#	#	DEFINER	
@@ -258,7 +258,7 @@ Function	sql_mode	Create Function
 sub1		
 show create function sub2;
 Function	sql_mode	Create Function
-sub2		CREATE FUNCTION `test`.`sub2`(i int) RETURNS int
+sub2		CREATE FUNCTION `test`.`sub2`(i int) RETURNS int(11)
 return i+1
 drop function sub2;
 show create procedure sel2;
@@ -505,7 +505,7 @@ proc	body	blob
 proc	definer	char(77)
 proc	created	timestamp
 proc	modified	timestamp
-proc	sql_mode	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO')
+proc	sql_mode	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE')
 proc	comment	char(64)
 drop table t115;
 create procedure p108 () begin declare c cursor for select data_type

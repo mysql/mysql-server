@@ -232,8 +232,9 @@ page_mem_alloc(
 
 	if (rec) {
 		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[100]	= { 100, };
+		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		ulint*		offsets		= offsets_;
+		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 		offsets = rec_get_offsets(rec, index, offsets,
 						ULINT_UNDEFINED, &heap);
@@ -466,8 +467,9 @@ page_copy_rec_list_end_no_locks(
 	page_cur_t	cur2;
 	rec_t*		sup;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	page_cur_position(rec, &cur1);
 
@@ -566,8 +568,9 @@ page_copy_rec_list_start(
 	page_cur_t	cur2;
 	rec_t*		old_end;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	page_cur_set_before_first(page, &cur1);
 
@@ -747,8 +750,9 @@ page_delete_rec_list_end(
 
 	if ((size == ULINT_UNDEFINED) || (n_recs == ULINT_UNDEFINED)) {
 		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[100]	= { 100, };
+		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		ulint*		offsets		= offsets_;
+		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 		/* Calculate the sum of sizes and the number of records */
 		size = 0;
 		n_recs = 0;
@@ -831,10 +835,11 @@ page_delete_rec_list_start(
 {
 	page_cur_t	cur1;
 	ulint		log_mode;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	mem_heap_t*	heap		= NULL;
 	byte		type;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	if (index->table->comp) {
 		type = MLOG_COMP_LIST_START_DELETE;
@@ -1326,8 +1331,9 @@ page_print_list(
 	ulint		count;
 	ulint		n_recs;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_a(page_is_comp(page) == index->table->comp);
 
@@ -1776,7 +1782,8 @@ page_validate(
 
 		if (comp && page_rec_is_user_rec(rec)
 				&& rec_get_node_ptr_flag(rec)
-				== !btr_page_get_level_low(page)) {
+				!= (ibool)
+				(btr_page_get_level_low(page) != 0)) {
 			fputs("InnoDB: node_ptr flag mismatch\n", stderr);
 			goto func_exit;
 		}

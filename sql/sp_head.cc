@@ -305,11 +305,11 @@ sp_head::init(LEX *lex)
   */
   lex->trg_table_fields.empty();
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
-  m_param_begin= m_param_end= m_returns_begin= m_returns_end= m_body_begin= 0;
-  m_qname.str= m_db.str= m_name.str= m_params.str= m_retstr.str=
+  m_param_begin= m_param_end= m_body_begin= 0;
+  m_qname.str= m_db.str= m_name.str= m_params.str= 
     m_body.str= m_defstr.str= 0;
   m_qname.length= m_db.length= m_name.length= m_params.length=
-    m_retstr.length= m_body.length= m_defstr.length= 0;
+    m_body.length= m_defstr.length= 0;
   m_returns_cs= NULL;
   DBUG_VOID_RETURN;
 }
@@ -351,41 +351,6 @@ sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
                                (char *)m_param_begin, m_params.length);
   }
 
-  if (m_returns_begin && m_returns_end)
-  {
-    /* QQ KLUDGE: We can't seem to cut out just the type in the parser
-       (without the RETURNS), so we'll have to do it here. :-(
-       Furthermore, if there's a character type as well, it's not include
-       (beyond the m_returns_end pointer), in which case we need
-       m_returns_cs. */
-    char *p= (char *)m_returns_begin+strspn((char *)m_returns_begin,"\t\n\r ");
-    p+= strcspn(p, "\t\n\r ");
-    p+= strspn(p, "\t\n\r ");
-    if (p < (char *)m_returns_end)
-      m_returns_begin= (uchar *)p;
-    /* While we're at it, trim the end too. */
-    p= (char *)m_returns_end-1;
-    while (p > (char *)m_returns_begin &&
-	   (*p == '\t' || *p == '\n' || *p == '\r' || *p == ' '))
-      p-= 1;
-    m_returns_end= (uchar *)p+1;
-    if (m_returns_cs)
-    {
-      String s((char *)m_returns_begin, m_returns_end - m_returns_begin,
-	       system_charset_info);
-
-      s.append(' ');
-      s.append(m_returns_cs->csname);
-      m_retstr.length= s.length();
-      m_retstr.str= strmake_root(root, s.ptr(), m_retstr.length);
-    }
-    else
-    {
-      m_retstr.length= m_returns_end - m_returns_begin;
-      m_retstr.str= strmake_root(root,
-				 (char *)m_returns_begin, m_retstr.length);
-    }
-  }
   m_body.length= lex->ptr - m_body_begin;
   /* Trim nuls at the end */
   n= 0;
@@ -399,6 +364,27 @@ sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
   m_defstr.length-= n;
   m_defstr.str= strmake_root(root, (char *)lex->buf, m_defstr.length);
   DBUG_VOID_RETURN;
+}
+
+TYPELIB *
+sp_head::create_typelib(List<String> *src)
+{
+  TYPELIB *result= NULL;
+  DBUG_ENTER("sp_head::clone_typelib");
+  if (src->elements)
+  {
+    result= (TYPELIB*) alloc_root(mem_root, sizeof(TYPELIB));
+    result->count= src->elements;
+    result->name= "";
+    if (!(result->type_names=(const char **)
+          alloc_root(mem_root,sizeof(char *)*(result->count+1))))
+      return 0;
+    List_iterator<String> it(*src);
+    for (uint i=0; i<result->count; i++)
+      result->type_names[i]= strdup_root(mem_root, (it++)->c_ptr());
+    result->type_names[result->count]= 0;
+  }
+  return result;
 }
 
 int
@@ -479,6 +465,21 @@ sp_head::destroy()
   hash_free(&m_spfuns);
   hash_free(&m_spprocs);
   DBUG_VOID_RETURN;
+}
+
+
+Field *
+sp_head::make_field(uint max_length, const char *name, TABLE *dummy)
+{
+  Field *field;
+  DBUG_ENTER("sp_head::make_field");
+  field= ::make_field((char *)0,
+		!m_returns_len ? max_length : m_returns_len, 
+		(uchar *)"", 0, m_returns_pack, m_returns, m_returns_cs,
+		(enum Field::geometry_type)0, Field::NONE, 
+		m_returns_typelib,
+		name ? name : (const char *)m_name.str, dummy);
+  DBUG_RETURN(field);
 }
 
 int
