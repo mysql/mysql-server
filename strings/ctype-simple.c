@@ -1093,7 +1093,7 @@ skipp:
 MY_CHARSET_HANDLER my_charset_8bit_handler=
 {
     NULL,			/* ismbchar      */
-    NULL,			/* mbcharlen     */
+    my_mbcharlen_8bit,		/* mbcharlen     */
     my_numchars_8bit,
     my_charpos_8bit,
     my_lengthsp_8bit,
