@@ -2308,8 +2308,15 @@ static int start_transaction(MYSQL *mysql_con, my_bool consistent_read_now)
     We use BEGIN for old servers. --single-transaction --master-data will fail
     on old servers, but that's ok as it was already silently broken (it didn't
     do a consistent read, so better tell people frankly, with the error).
+
+    We want the first consistent read to be used for all tables to dump so we
+    need the REPEATABLE READ level (not anything lower, for example READ
+    COMMITTED would give one new consistent read per dumped table).
   */
   return (mysql_query_with_error_report(mysql_con, 0,
+                                        "SET SESSION TRANSACTION ISOLATION "
+                                        "LEVEL REPEATABLE READ") ||
+          mysql_query_with_error_report(mysql_con, 0,
                                         consistent_read_now ?
                                         "START TRANSACTION "
                                         "WITH CONSISTENT SNAPSHOT" :
