@@ -534,7 +534,6 @@ private:
   Uint32 m_nextConfigGenerationNumber;
   
   NodeBitmask m_reserved_nodes;
-  Allocated_resources m_allocated_resources;
   struct in_addr m_connect_address[MAX_NODES];
 
   //**************************************************************************

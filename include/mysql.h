@@ -653,23 +653,6 @@ typedef struct st_mysql_methods
 #endif
 } MYSQL_METHODS;
 
-#ifdef HAVE_DEPRECATED_411_API
-/* Deprecated calls (since MySQL 4.1.2) */
-
-/* Use mysql_stmt_init + mysql_stmt_prepare instead */
-MYSQL_STMT * STDCALL mysql_prepare(MYSQL * mysql, const char *query,
-				   unsigned long length);
-#define mysql_execute mysql_stmt_execute
-#define mysql_fetch mysql_stmt_fetch
-#define mysql_fetch_column mysql_stmt_fetch_column
-#define mysql_bind_param mysql_stmt_bind_param
-#define mysql_bind_result mysql_stmt_bind_result
-#define mysql_param_count mysql_stmt_param_count
-#define mysql_param_result mysql_stmt_param_metadata
-#define mysql_get_metadata mysql_stmt_result_metadata
-#define mysql_send_long_data mysql_stmt_send_long_data
-
-#endif /* HAVE_DEPRECATED_411_API */
 
 MYSQL_STMT * STDCALL mysql_stmt_init(MYSQL *mysql);
 int STDCALL mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query,

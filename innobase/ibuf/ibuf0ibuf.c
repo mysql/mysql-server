@@ -2866,6 +2866,8 @@ ibuf_delete_rec(
 
 #ifdef UNIV_IBUF_DEBUG
 	ibuf_count_set(space, page_no, ibuf_count_get(space, page_no) - 1);
+#else
+	UT_NOT_USED(space);
 #endif
 	ibuf_data_sizes_update(ibuf_data, root, mtr);
 
@@ -3267,11 +3269,11 @@ leave_loop:
 	ibuf_data->n_merged_recs += n_inserts;
 
 	mutex_exit(&ibuf_mutex);
-
+	/*
 	fprintf(stderr,
 		"InnoDB: Discarded %lu ibuf entries for space %lu\n",
 		(ulong) n_inserts, (ulong) space);
-
+	*/
 	ibuf_exit();
 
 	mem_heap_free(heap);

@@ -486,6 +486,15 @@ void Protocol::init(THD *thd_arg)
 }
 
 
+bool Protocol::flush()
+{
+#ifndef EMBEDDED_LIBRARY
+  return net_flush(&thd->net);
+#else
+  return 0;
+#endif
+}
+
 /*
   Send name and type of result to client.
 
@@ -731,7 +740,8 @@ bool Protocol::store_string_aux(const char *from, uint length,
       fromcs != &my_charset_bin &&
       tocs != &my_charset_bin)
   {
-    return convert->copy(from, length, fromcs, tocs) ||
+    uint dummy_errors;
+    return convert->copy(from, length, fromcs, tocs, &dummy_errors) ||
            net_store_data(convert->ptr(), convert->length());
   }
   return net_store_data(from, length);

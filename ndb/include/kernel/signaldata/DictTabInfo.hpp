@@ -51,7 +51,6 @@ class DictTabInfo {
   friend class Trix;
   friend class DbUtil;
   // API
-  friend class Table;
   friend class NdbSchemaOp;
   
   /**
