@@ -37322,8 +37322,8 @@ backup media.
 
 @menu
 * Key space::                   Space needed for keys
-* MyISAM table formats::        MyISAM table formats
-* MyISAM table problems::       MyISAM table problems.
+* MyISAM table formats::        @code{MyISAM} Table Formats
+* MyISAM table problems::       @code{MyISAM} Table Problems
 @end menu
 
 
@@ -37353,7 +37353,7 @@ high-byte first.
 
 
 @node MyISAM table formats, MyISAM table problems, Key space, MyISAM
-@subsection MyISAM Table Formats
+@subsection @code{MyISAM} Table Formats
 
 @code{MyISAM} supports 3 different table types. Two of them are chosen
 automatically depending on the type of columns you are using. The third,
@@ -37527,20 +37527,20 @@ Can be uncompressed with @code{myisamchk}.
 
 
 @node MyISAM table problems,  , MyISAM table formats, MyISAM
-@subsection MyISAM table problems.
+@subsection @code{MyISAM} Table Problems
 
 The file format that MySQL uses to store data has been extensively
 tested, but there are always circumstances that may cause database tables
 to become corrupted.
 
 @menu
-* Corrupted MyISAM tables::     Corrupted MyISAM tables.
+* Corrupted MyISAM tables::     Corrupted @code{MyISAM} Tables
 * MyISAM table close::          Clients is using or hasn't closed the table properly
 @end menu
 
 
 @node Corrupted MyISAM tables, MyISAM table close, MyISAM table problems, MyISAM table problems
-@subsubsection Corrupted MyISAM tables.
+@subsubsection Corrupted @code{MyISAM} Tables
 
 Even if the MyISAM table format is very reliable (all changes to a table
 is written before the SQL statements returns) , you can still get
