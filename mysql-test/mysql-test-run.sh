@@ -882,8 +882,12 @@ start_master()
   if [ x$MASTER_RUNNING = x1 ] || [ x$LOCAL_MASTER = x1 ] ; then
     return
   fi
-  # Remove stale binary logs
-  $RM -f $MYSQL_TEST_DIR/var/log/master-bin.*
+  # Remove stale binary logs except for 2 tests which need them
+  if [ "$tname" != "rpl_crash_binlog_ib_1b" ] && [ "$tname" != "rpl_crash_binlog_ib_2b" ] && [ "$tname" != "rpl_crash_binlog_ib_3b" ] 
+  then
+    $RM -f $MYSQL_TEST_DIR/var/log/master-bin.*
+  fi
+
   # Remove old master.info and relay-log.info files
   $RM -f $MYSQL_TEST_DIR/var/master-data/master.info $MYSQL_TEST_DIR/var/master-data/relay-log.info
 
@@ -1005,8 +1009,12 @@ start_slave()
    slave_sock="$SLAVE_MYSOCK"
  fi
   # Remove stale binary logs and old master.info files
-  $RM -f $MYSQL_TEST_DIR/var/log/$slave_ident-*bin.*
-  $RM -f $slave_datadir/master.info $slave_datadir/relay-log.info
+  # except for too tests which need them
+  if [ "$tname" != "rpl_crash_binlog_ib_1b" ] && [ "$tname" != "rpl_crash_binlog_ib_2b" ] && [ "$tname" != "rpl_crash_binlog_ib_3b" ]
+  then
+    $RM -f $MYSQL_TEST_DIR/var/log/$slave_ident-*bin.*
+    $RM -f $slave_datadir/master.info $slave_datadir/relay-log.info
+  fi
 
   #run slave initialization shell script if one exists
   if [ -f "$slave_init_script" ] ;

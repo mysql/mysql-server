@@ -1,0 +1,20 @@
+select * from t1;
+n
+insert into t1 values (5);
+select * from t1;
+n
+5
+select * from t1;
+n
+start slave;
+select * from t1;
+n
+5
+set @a=load_file("MYSQL_TEST_DIR/var/log/master-bin.000002");
+select length(@a);
+length(@a)
+4
+select @a like "%values (4)%";
+@a like "%values (4)%"
+0
+drop table if exists t1;
