@@ -1409,6 +1409,7 @@ fil_read_flushed_lsn_and_arch_log_no(
 	byte*	buf;
 	byte*	buf2;
 	dulint	flushed_lsn;
+
 	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
 	/* Align the memory for a possible read from a raw device */
 	buf = ut_align(buf2, UNIV_PAGE_SIZE);
@@ -1852,8 +1853,6 @@ try_again:
 		success = os_file_delete(path);
 	}
 
-	mem_free(path);
-
 	if (success) {
 #ifndef UNIV_HOTBACKUP
 		/* Write a log record about the deletion of the .ibd
@@ -1869,8 +1868,12 @@ try_again:
 		fil_op_write_log(MLOG_FILE_DELETE, id, path, NULL, &mtr);
 		mtr_commit(&mtr);
 #endif
+		mem_free(path);
+
 		return(TRUE);
 	}
+
+	mem_free(path);
 
 	return(FALSE);
 }
@@ -2148,6 +2151,7 @@ fil_create_new_single_table_tablespace(
 	os_file_t       file;
 	ibool		ret;
 	ulint		err;
+	byte*		buf2;
 	byte*		page;
 	ibool		success;
 	char*		path;
@@ -2191,12 +2195,14 @@ fil_create_new_single_table_tablespace(
 		return(DB_ERROR);
 	}
 
-	page = ut_malloc(UNIV_PAGE_SIZE);
+	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
+	/* Align the memory for file i/o if we might have O_DIRECT set */
+	page = ut_align(buf2, UNIV_PAGE_SIZE);
 
 	ret = os_file_set_size(path, file, size * UNIV_PAGE_SIZE, 0);
 	
 	if (!ret) {
-		ut_free(page);
+		ut_free(buf2);
 		os_file_close(file);
 		os_file_delete(path);
 
@@ -2211,7 +2217,7 @@ fil_create_new_single_table_tablespace(
 	/* printf("Creating tablespace %s id %lu\n", path, *space_id); */
 
 	if (*space_id == ULINT_UNDEFINED) {
-		ut_free(page);
+		ut_free(buf2);
 	error_exit:
 		os_file_close(file);
 		os_file_delete(path);
@@ -2237,7 +2243,7 @@ fil_create_new_single_table_tablespace(
 
 	ret = os_file_write(path, file, page, 0, 0, UNIV_PAGE_SIZE);
 
-	ut_free(page);
+	ut_free(buf2);
 
 	if (!ret) {
 		fprintf(stderr,
@@ -2308,6 +2314,7 @@ fil_reset_too_high_lsns(
 	os_file_t	file;
 	char*		filepath;
 	byte*		page;
+	byte*		buf2;
 	dulint		flush_lsn;
 	ulint		space_id;
 	ib_longlong	file_size;
@@ -2320,14 +2327,16 @@ fil_reset_too_high_lsns(
 	file = os_file_create_simple_no_error_handling(filepath, OS_FILE_OPEN,
 						OS_FILE_READ_WRITE, &success);
 	if (!success) {
-		ut_free(filepath);
+		mem_free(filepath);
 
 		return(FALSE);
 	}
 
 	/* Read the first page of the tablespace */
 
-	page = ut_malloc(UNIV_PAGE_SIZE);
+	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
+	/* Align the memory for file i/o if we might have O_DIRECT set */
+	page = ut_align(buf2, UNIV_PAGE_SIZE);
 
 	success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
 	if (!success) {
@@ -2414,8 +2423,8 @@ fil_reset_too_high_lsns(
 	success = os_file_flush(file);
 func_exit:
 	os_file_close(file);
-	ut_free(page);
-	ut_free(filepath);
+	ut_free(buf2);
+	mem_free(filepath);
 
 	return(success);
 }
@@ -2440,6 +2449,7 @@ fil_open_single_table_tablespace(
 	os_file_t	file;
 	char*		filepath;
 	ibool		success;
+	byte*		buf2;
 	byte*		page;
 	ulint		space_id;
 	ibool		ret		= TRUE;
@@ -2463,14 +2473,16 @@ fil_open_single_table_tablespace(
 "InnoDB: You can look from section 15.1 of http://www.innodb.com/ibman.html\n"
 "InnoDB: how to resolve the issue.\n");
 
-		ut_free(filepath);
+		mem_free(filepath);
 
 		return(FALSE);
 	}
 
 	/* Read the first page of the tablespace */
 
-	page = ut_malloc(UNIV_PAGE_SIZE);
+	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
+	/* Align the memory for file i/o if we might have O_DIRECT set */
+	page = ut_align(buf2, UNIV_PAGE_SIZE);
 
 	success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
 
@@ -2507,8 +2519,8 @@ fil_open_single_table_tablespace(
 	fil_node_create(filepath, 0, space_id, FALSE);
 func_exit:
 	os_file_close(file);
-	ut_free(page);
-	ut_free(filepath);
+	ut_free(buf2);
+	mem_free(filepath);
 
 	return(ret);
 }
@@ -2516,7 +2528,7 @@ func_exit:
 #ifdef UNIV_HOTBACKUP
 /***********************************************************************
 Allocates a file name for an old version of a single-table tablespace.
-The string must be freed by caller with mem_free(). */
+The string must be freed by caller with mem_free()! */
 static
 char*
 fil_make_ibbackup_old_name(
@@ -2526,7 +2538,7 @@ fil_make_ibbackup_old_name(
 {
 	static const char suffix[] = "_ibbackup_old_vers_";
 	ulint	len	= strlen(name);
-	char*	path	= ut_malloc(len + (15 + sizeof suffix));
+	char*	path	= mem_alloc(len + (15 + sizeof suffix));
 
 	memcpy(path, name, len);
 	memcpy(path + len, suffix, (sizeof suffix) - 1);
@@ -2549,6 +2561,7 @@ fil_load_single_table_tablespace(
 	os_file_t	file;
 	char*		filepath;
 	ibool		success;
+	byte*		buf2;
 	byte*		page;
 	ulint		space_id;
 	ulint		size_low;
@@ -2557,7 +2570,7 @@ fil_load_single_table_tablespace(
 #ifdef UNIV_HOTBACKUP
 	fil_space_t*	space;
 #endif
-	filepath = ut_malloc(strlen(dbname) + strlen(filename) 
+	filepath = mem_alloc(strlen(dbname) + strlen(filename) 
 			+ strlen(fil_path_to_mysql_datadir) + 3);
 
 	sprintf(filepath, "%s/%s/%s", fil_path_to_mysql_datadir, dbname,
@@ -2585,7 +2598,7 @@ fil_load_single_table_tablespace(
 "InnoDB: the .ibd file, you can set innodb_force_recovery > 0 in my.cnf\n"
 "InnoDB: and force InnoDB to continue crash recovery here.\n", filepath);
 
-		ut_free(filepath);
+		mem_free(filepath);
 
 		if (srv_force_recovery > 0) {
 			fprintf(stderr,
@@ -2620,7 +2633,7 @@ fil_load_single_table_tablespace(
 "InnoDB: and force InnoDB to continue crash recovery here.\n", filepath);
 
 		os_file_close(file);
-		ut_free(filepath);
+		mem_free(filepath);
 
 		if (srv_force_recovery > 0) {
 			fprintf(stderr,
@@ -2648,14 +2661,16 @@ fil_load_single_table_tablespace(
 			(ulong) size_high,
 			(ulong) size_low, (ulong) (4 * UNIV_PAGE_SIZE));
 		os_file_close(file);
-		ut_free(filepath);
+		mem_free(filepath);
 
 		return;
 	}
 #endif
 	/* Read the first page of the tablespace if the size big enough */
 
-	page = ut_malloc(UNIV_PAGE_SIZE);
+	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
+	/* Align the memory for file i/o if we might have O_DIRECT set */
+	page = ut_align(buf2, UNIV_PAGE_SIZE);
 
 	if (size >= FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
 		success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
@@ -2691,9 +2706,9 @@ fil_load_single_table_tablespace(
 		new_path = fil_make_ibbackup_old_name(filepath);
 		ut_a(os_file_rename(filepath, new_path));
 
-		ut_free(page);
-		ut_free(filepath);
-		ut_free(new_path);
+		ut_free(buf2);
+		mem_free(filepath);
+		mem_free(new_path);
 
 		return;
 	}
@@ -2727,9 +2742,9 @@ fil_load_single_table_tablespace(
 
 		ut_a(os_file_rename(filepath, new_path));
 
-		ut_free(page);
-		ut_free(filepath);
-		ut_free(new_path);
+		ut_free(buf2);
+		mem_free(filepath);
+		mem_free(new_path);
 
 		return;
 	}
@@ -2748,8 +2763,8 @@ fil_load_single_table_tablespace(
 	fil_node_create(filepath, 0, space_id, FALSE);
 func_exit:
 	os_file_close(file);
-	ut_free(page);
-	ut_free(filepath);
+	ut_free(buf2);
+	mem_free(filepath);
 }
 
 /************************************************************************
@@ -2767,7 +2782,7 @@ fil_load_single_table_tablespaces(void)
 {
 	int		ret;
 	char*		dbpath		= NULL;
-	ulint		dbpath_len	= 0;
+	ulint		dbpath_len	= 100;
 	os_file_dir_t	dir;
 	os_file_dir_t	dbdir;
 	os_file_stat_t	dbinfo;
@@ -2782,7 +2797,7 @@ fil_load_single_table_tablespaces(void)
 		return(DB_ERROR);
 	}
 
-	dbpath = ut_malloc(dbpath_len);
+	dbpath = mem_alloc(dbpath_len);
 
 	/* Scan all directories under the datadir. They are the database
 	directories of MySQL. */
@@ -2806,10 +2821,10 @@ fil_load_single_table_tablespaces(void)
 				+ strlen (dbinfo.name) + 2;
 		if (len > dbpath_len) {
 			dbpath_len = len;
+
 			if (!dbpath) {
 				dbpath = mem_alloc(dbpath_len);
-			}
-			else {
+			} else {
 				dbpath = mem_realloc(dbpath, dbpath_len,
 							__FILE__, __LINE__);
 			}
@@ -2863,9 +2878,7 @@ next_datadir_item:
 								dir, &dbinfo);
 	}
 
-	if (dbpath) {
-		ut_free(dbpath);
-	}
+	mem_free(dbpath);
 
 	/* At the end of directory we should get 1 as the return value, -1
 	if there was an error */
@@ -3280,7 +3293,7 @@ fil_extend_space_to_desired_size(
 /************************************************************************
 Extends all tablespaces to the size stored in the space header. During the
 ibbackup --apply-log phase we extended the spaces on-demand so that log records
-could be appllied, but that may have left spaces still too small compared to
+could be applied, but that may have left spaces still too small compared to
 the size stored in the space header. */
 
 void
