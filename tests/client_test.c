@@ -2963,6 +2963,8 @@ static void test_bind_result_ext()
   fprintf(stdout, "\n data (double) : %f", d_data);
 
   fprintf(stdout, "\n data (str)    : %s(%lu)", szData, szLength);
+
+  bData[bLength]= '\0';                         /* bData is binary */
   fprintf(stdout, "\n data (bin)    : %s(%lu)", bData, bLength);
 
 
@@ -3939,6 +3941,7 @@ static void test_prepare_resultset()
   result = mysql_get_metadata(stmt);
   mytest(result);
   my_print_result_metadata(result);
+  mysql_free_result(result);
   mysql_stmt_close(stmt);
 }
 
@@ -4070,18 +4073,18 @@ static void test_stmt_close()
   fprintf(stdout,"\n mysql_close_stmt(1) returned: %d", rc);
   assert(rc == 0);
   
-  mysql_close(lmysql); /* it should free all open stmts(stmt3, 2 and 1) */
+  /*
+    Originally we were going to close all statements automatically in
+    mysql_close(). This proved to not work well - users weren't able to
+    close statements by hand once mysql_close() had been called.
+    Now mysql_close() doesn't free any statements, so this test doesn't
+    serve its original destination any more. 
+    Here we free stmt2 and stmt3 by hande to avoid memory leaks.
+  */
+  mysql_stmt_close(stmt2);
+  mysql_stmt_close(stmt3);
+  mysql_close(lmysql);
  
-#if NOT_VALID
-  rc= mysql_stmt_close(stmt3);
-  fprintf(stdout,"\n mysql_close_stmt(3) returned: %d", rc);
-  assert( rc == 1);
-  
-  rc= mysql_stmt_close(stmt2);
-  fprintf(stdout,"\n mysql_close_stmt(2) returned: %d", rc);
-  assert( rc == 1);
-#endif
-
   count= 100;
   bind[0].buffer=(char *)&count;
   bind[0].buffer_type=MYSQL_TYPE_LONG;
@@ -4871,7 +4874,10 @@ DROP TABLE IF EXISTS test_multi_tab";
   {
     fprintf(stdout,"\n Query %d: ", count);
     if ((result= mysql_store_result(mysql_local)))
+    {
       my_process_result_set(result);
+      mysql_free_result(result);
+    }
     else
       fprintf(stdout,"OK, %lld row(s) affected, %d warning(s)\n",
 	      mysql_affected_rows(mysql_local),
@@ -5768,6 +5774,7 @@ static void test_open_direct()
   mytest(result);
 
   assert(0 == my_process_result_set(result));
+  mysql_free_result(result);
 
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
@@ -5781,6 +5788,7 @@ static void test_open_direct()
   mytest(result);
 
   assert(1 == my_process_result_set(result));
+  mysql_free_result(result);
 
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
@@ -5794,6 +5802,8 @@ static void test_open_direct()
   mytest(result);
 
   assert(2 == my_process_result_set(result));
+  mysql_free_result(result);
+
   mysql_stmt_close(stmt);
 
   /* run a direct query in the middle of a fetch */
@@ -6446,6 +6456,7 @@ static void test_prepare_grant()
     
     assert(4 == my_stmt_result("SELECT * FROM test_grant"));
     
+    mysql_stmt_close(stmt);
     mysql_close(lmysql);        
     mysql= org_mysql;
 
@@ -7552,6 +7563,8 @@ static void test_mem_overun()
   rc = mysql_fetch(stmt);
   assert(rc == MYSQL_NO_DATA);
 
+  mysql_free_result(field_res);
+
   mysql_stmt_close(stmt);
 }
 
@@ -7876,6 +7889,7 @@ static void test_ts()
   ts.hour= 21;
   ts.minute= 07;
   ts.second= 46;
+  ts.second_part= 0;
   length= (long)(strmov(strts,"2003-07-12 21:07:46") - strts);
 
   bind[0].buffer_type= MYSQL_TYPE_TIMESTAMP;
@@ -7984,6 +7998,8 @@ static void test_bug1500()
   bind[0].buffer= (char *)int_data;
   bind[0].buffer_type= FIELD_TYPE_LONG;
   bind[0].is_null= 0;
+  bind[0].length= NULL;
+  bind[0].buffer_length= 0;
   bind[2]= bind[1]= bind[0];
   bind[1].buffer= (char *)(int_data + 1);
   bind[2].buffer= (char *)(int_data + 2);
@@ -8422,9 +8438,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 static void get_options(int argc, char **argv)
 {
   int ho_error;
-  load_defaults("my",client_test_load_default_groups,&argc,&argv);
 
-  if ((ho_error= handle_options(&argc,&argv, client_test_long_options, 
+  if ((ho_error= handle_options(&argc, &argv, client_test_long_options, 
                                 get_one_option)))
     exit(ho_error);
 
@@ -8454,6 +8469,7 @@ static void print_test_output()
 *********************************************************/
 int main(int argc, char **argv)
 {  
+  DEBUGGER_OFF;
   MY_INIT(argv[0]);
 
   load_defaults("my",client_test_load_default_groups,&argc,&argv);
@@ -8597,6 +8613,7 @@ int main(int argc, char **argv)
   client_disconnect();    /* disconnect from server */
   free_defaults(defaults_argv);
   print_test_output();
-  
+  my_end(0);
+
   return(0);
 }

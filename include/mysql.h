@@ -77,6 +77,8 @@ extern char *mysql_unix_port;
 #define IS_NUM_FIELD(f)	 ((f)->flags & NUM_FLAG)
 #define INTERNAL_NUM_FIELD(f) (((f)->type <= FIELD_TYPE_INT24 && ((f)->type != FIELD_TYPE_TIMESTAMP || (f)->length == 14 || (f)->length == 8)) || (f)->type == FIELD_TYPE_YEAR)
 
+#define HAVE_DEPRECATED_411_API 1
+
 typedef struct st_mysql_field {
   char *name;                 /* Name of column */
   char *org_name;             /* Original column name, if an alias */ 
@@ -579,40 +581,60 @@ typedef struct st_mysql_methods
 #endif
 } MYSQL_METHODS;
 
+#ifdef HAVE_DEPRECATED_411_API
+/* Deprecated calls (since MySQL 4.1.2) */
+
+/* Use mysql_stmt_init + mysql_stmt_prepare instead */
 MYSQL_STMT * STDCALL mysql_prepare(MYSQL * mysql, const char *query,
 				   unsigned long length);
-int STDCALL mysql_execute(MYSQL_STMT * stmt);
-unsigned long STDCALL mysql_param_count(MYSQL_STMT * stmt);
-my_bool STDCALL mysql_bind_param(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
-my_bool STDCALL mysql_bind_result(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
+#define mysql_execute mysql_stmt_execute
+#define mysql_fetch mysql_stmt_fetch
+#define mysql_fetch_column mysql_stmt_fetch_column
+#define mysql_bind_param mysql_stmt_bind_param
+#define mysql_bind_result mysql_stmt_bind_result
+#define mysql_param_count mysql_stmt_param_count
+#define mysql_param_result mysql_stmt_param_metadata
+#define mysql_get_metadata mysql_stmt_result_metadata
+#define mysql_send_long_data mysql_stmt_send_long_data
+
+#endif /* HAVE_DEPRECATED_411_API */
+
+MYSQL_STMT * STDCALL mysql_stmt_init(MYSQL *mysql);
+int STDCALL mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query,
+                               unsigned long length);
+int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt);
+int STDCALL mysql_stmt_fetch(MYSQL_STMT *stmt);
+int STDCALL mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind, 
+                                    unsigned int column,
+                                    unsigned long offset);
+int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt);
+unsigned long STDCALL mysql_stmt_param_count(MYSQL_STMT * stmt);
+my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
+my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
 my_bool STDCALL mysql_stmt_close(MYSQL_STMT * stmt);
 my_bool STDCALL mysql_stmt_reset(MYSQL_STMT * stmt);
 my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt);
+my_bool STDCALL mysql_stmt_send_long_data(MYSQL_STMT *stmt, 
+                                          unsigned int param_number,
+                                          const char *data, 
+                                          unsigned long length);
+MYSQL_RES *STDCALL mysql_stmt_result_metadata(MYSQL_STMT *stmt);
+MYSQL_RES *STDCALL mysql_stmt_param_metadata(MYSQL_STMT *stmt);
 unsigned int STDCALL mysql_stmt_errno(MYSQL_STMT * stmt);
 const char *STDCALL mysql_stmt_error(MYSQL_STMT * stmt);
 const char *STDCALL mysql_stmt_sqlstate(MYSQL_STMT * stmt);
-my_bool STDCALL mysql_commit(MYSQL * mysql);
-my_bool STDCALL mysql_rollback(MYSQL * mysql);
-my_bool STDCALL mysql_autocommit(MYSQL * mysql, my_bool auto_mode);
-int	STDCALL mysql_fetch(MYSQL_STMT *stmt);
-int STDCALL mysql_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind, 
-                               unsigned int column,
-                               unsigned long offset);
-my_bool STDCALL mysql_send_long_data(MYSQL_STMT *stmt, 
-				     unsigned int param_number,
-				     const char *data, 
-				     unsigned long length);
-MYSQL_RES *STDCALL mysql_get_metadata(MYSQL_STMT *stmt);
-MYSQL_RES *STDCALL mysql_param_result(MYSQL_STMT *stmt);
-my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt);
-int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt);
-my_bool STDCALL mysql_more_results(MYSQL *mysql);
-int STDCALL mysql_next_result(MYSQL *mysql);
 MYSQL_ROW_OFFSET STDCALL mysql_stmt_row_seek(MYSQL_STMT *stmt, 
                                              MYSQL_ROW_OFFSET offset);
 MYSQL_ROW_OFFSET STDCALL mysql_stmt_row_tell(MYSQL_STMT *stmt);
 void STDCALL mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong offset);
 my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt);
+my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt);
+
+my_bool STDCALL mysql_commit(MYSQL * mysql);
+my_bool STDCALL mysql_rollback(MYSQL * mysql);
+my_bool STDCALL mysql_autocommit(MYSQL * mysql, my_bool auto_mode);
+my_bool STDCALL mysql_more_results(MYSQL *mysql);
+int STDCALL mysql_next_result(MYSQL *mysql);
 void STDCALL mysql_close(MYSQL *sock);
 
 
