@@ -121,7 +121,6 @@ distribution for that version.
 * Porting::                     Comments on porting to other systems
 * Environment variables::       MySQL environment variables
 * Regexp::                      Description of MySQL regular expression syntax
-* Unireg::                      What is Unireg?
 * GPL license::                 GNU General Public License
 * LGPL license::                GNU Library General Public License
 * Placeholder::                 Pieces of the manual in transit
@@ -363,16 +362,16 @@ MySQL.  @xref{What-is}.
 * Contact information::         Contact information
 @end menu
 
-MySQL AB has been profitable providing MySQL from the start.
-We don't get any outside funding, but have earned all our money ourselves.
+MySQL AB has been profitable from the start with providing MySQL. Though
+initially working without any outside funding, in October MySQL AB has
+received seed round financing from ABN Amro / Alfred Berg Industrifinans,
+Holtron, Scope Capital, Servisen Holding and a number of business angels.
 
-We are searching for partners that would like to support our development 
-of MySQL so that we can accelerate the pace of development.  If you
-are interested in doing this, please e-mail @email{partner@@mysql.com}!
+MySQL AB currently has 30+ employees worldwide (situation in October 2001).
 
-MySQL AB currently has over twenty people
-(@uref{http://www.mysql.com/development/team.html})
-on its payroll and is growing rapidly.
+We are always on the look-out for new partners who would like to support us,
+so that we can further accelerate the pace of MySQL development.  If you are
+interested in doing this, please e-mail @email{partner@@mysql.com}!
 
 
 Our main sources of income are:
@@ -850,12 +849,14 @@ some issues and to answer some of the more important questions that seem to
 concern many people.  This section has been put together from information 
 gathered from the mailing list (which is very active in reporting bugs).
 
-At TcX, MySQL has worked without any problems in our projects since
-mid-1996.  When MySQL was released to a wider public, we noticed that
-there were some pieces of ``untested code'' that were quickly found by the
-new users who made queries in a manner different than our own.  Each new
-release has had fewer portability problems than the previous one (even though
-each has had many new features).
+At TcX, the predecessor of MySQL AB, MySQL has worked without any problems in
+projects since mid-1996. Original code stems back from the early 80s,
+providing a table code base, and the ISAM table format remains backwards
+compatible.  When MySQL was released to a wider public, we noticed that there
+were some pieces of ``untested code'' that were quickly found by the new users
+who made queries in a manner different than our own.  Each new release has had
+fewer portability problems than the previous one (even though each has had
+many new features).
 
 Each release of MySQL has been usable, and there have been problems
 only when users start to use code from the ``gray zones.''  Naturally, outside
@@ -4889,7 +4890,7 @@ Table locking, as used by the non-transactional @code{MyISAM} tables, is
 in many cases faster than page locks, row locks or versioning.  The
 drawback however is that if one doesn't take into account how table
 locks work, a single long-running query can block a table for updates
-for a long time. This can usable be avoided when designing the
+for a long time. This can usually be avoided when designing the
 application.  If not, one can always switch the trouble table to use one
 of the transactional table types. @xref{Table locking}.
 
@@ -4923,7 +4924,7 @@ don't know the PostgreSQL roadmap.
 @item Unions                               @tab 4.0
 @item Full join                            @tab 4.0 or 4.1
 @item Triggers                             @tab 4.1
-@item Constrainst                          @tab 4.1
+@item Constraints                          @tab 4.1
 @item Cursors                              @tab 4.1 or 4.2
 @item Extensible index types like R-trees  @tab R-trees are planned for 4.2
 @item Inherited tables                     @tab Not planned
@@ -24218,7 +24219,7 @@ The most common bottlenecks are:
 @item Disk seeks.
 It takes time for the disk to find a piece of data. With modern disks in
 1999, the mean time for this is usually lower than 10ms, so we can in
-theory do about 1000 seeks a second. This time improves slowly with new
+theory do about 100 seeks a second. This time improves slowly with new
 disks and is very hard to optimize for a single table. The way to
 optimize this is to spread the data on more than one disk.
 
@@ -27223,7 +27224,6 @@ Things that are not yet supported:
 * Data Definition::             Data Definition: @code{CREATE}, @code{DROP}, @code{ALTER}
 * Basic User Commands::         Basic MySQL User Utility Commands
 * Transactional Commands::      MySQL Transactional and Locking Commands
-* HANDLER::                     
 * Fulltext Search::             MySQL Full-text Search
 @end menu
 
@@ -32042,7 +32042,7 @@ facilitate replication testing.
 
 @menu
 * SELECT::                      @code{SELECT} Syntax
-* UNION::                       
+* HANDLER::                     
 * INSERT::                      @code{INSERT} Syntax
 * INSERT DELAYED::              @code{INSERT DELAYED} syntax
 * UPDATE::                      @code{UPDATE} Syntax
@@ -32052,7 +32052,7 @@ facilitate replication testing.
 * LOAD DATA::                   @code{LOAD DATA INFILE} Syntax
 @end menu
 
-@node SELECT, UNION, Data Manipulation, Data Manipulation
+@node SELECT, HANDLER, Data Manipulation, Data Manipulation
 @subsection @code{SELECT} Syntax
 
 @findex SELECT
@@ -32345,9 +32345,10 @@ the examined rows will be write locked.
 
 @menu
 * JOIN::                        @code{JOIN} Syntax
+* UNION::                       
 @end menu
 
-@node JOIN,  , SELECT, SELECT
+@node JOIN, UNION, SELECT, SELECT
 @subsubsection @code{JOIN} Syntax
 
 @findex JOIN
@@ -32497,8 +32498,8 @@ mysql> select * from table1 IGNORE INDEX (key3) WHERE key1=1 and key2=2 AND
 @xref{LEFT JOIN optimization, , @code{LEFT JOIN} optimization}.
 
 
-@node UNION, INSERT, SELECT, Data Manipulation
-@subsection @code{UNION} Syntax
+@node UNION,  , JOIN, SELECT
+@subsubsection @code{UNION} Syntax
 
 @findex UNION
 
@@ -32530,7 +32531,52 @@ returned rows will be unique, like if you had done a @code{DISTINCT} for
 the total result set.  If you specify @code{ALL}, then you will get all
 matching rows from all the used @code{SELECT} statements.
 
-@node INSERT, INSERT DELAYED, UNION, Data Manipulation
+
+@findex HANDLER
+@node HANDLER, INSERT, SELECT, Data Manipulation
+@subsection @code{HANDLER} Syntax
+
+@example
+HANDLER table OPEN [ AS alias ]
+HANDLER table READ index @{ = | >= | <= | < @} (value1, value2, ... )  [ WHERE ... ] [LIMIT ... ]
+HANDLER table READ index @{ FIRST | NEXT | PREV | LAST @} [ WHERE ... ] [LIMIT ... ]
+HANDLER table READ @{ FIRST | NEXT @}  [ WHERE ... ] [LIMIT ... ]
+HANDLER table CLOSE
+@end example
+
+The @code{HANDLER} statement provides direct access to MySQL table
+interface, bypassing SQL optimizer. Thus, it is faster then SELECT.
+
+The first form of @code{HANDLER} statement opens a table, making
+in accessible via the following @code{HANDLER ... READ} routines.
+This table object is not shared by other threads an will not be closed
+until the thread calls @code{HANDLER table_name CLOSE} or the thread dies.
+
+The second form fetches one (or, specified by @code{LIMIT} clause) row
+where the index specified complies to the condition and @code{WHERE}
+condition is met. If the index consists of several parts (spans over
+several columns) the values are specified in comma-separated list,
+providing values only for few first columns is possible.
+
+The third form fetches one (or, specified by @code{LIMIT} clause) row
+from the table in index order, matching @code{WHERE} condition.
+
+The fourth form (without index specification) fetches one (or, specified
+by @code{LIMIT} clause) row from the table in natural row order (as stored
+in data file) matching @code{WHERE} condition. It is faster than
+@code{HANDLER table READ index} when full table scan is desired.
+
+The last form closes the table, opened with @code{HANDLER ... OPEN}.
+
+@code{HANDLER} is somewhat low-level statement, for example it does not
+provide consistency. That is @code{HANDLER ... OPEN} does @strong{NOT}
+takes a snapshot of the table, and does @strong{NOT} locks the table. The
+above means,  that after @code{HANDLER ... OPEN} table data can be
+modified (by this or other thread) and these modifications may appear only
+partially in @code{HANDLER ... NEXT} or @code{HANDLER ... PREV} scans.
+
+
+@node INSERT, INSERT DELAYED, HANDLER, Data Manipulation
 @subsection @code{INSERT} Syntax
 
 @findex INSERT
@@ -34672,7 +34718,7 @@ The @code{SHOW} statement provides similar information.
 @xref{SHOW, , @code{SHOW}}.
 
 
-@node Transactional Commands, HANDLER, Basic User Commands, Reference
+@node Transactional Commands, Fulltext Search, Basic User Commands, Reference
 @section MySQL Transactional and Locking Commands
 
 @menu
@@ -34905,50 +34951,7 @@ future transactions.
 You can set the default isolation level for @code{mysqld} with
 @code{--transaction-isolation=...}. @xref{Command-line options}.
 
-@findex HANDLER
-@node HANDLER, Fulltext Search, Transactional Commands, Reference
-@section @code{HANDLER} Syntax
-
-@example
-HANDLER table OPEN [ AS alias ]
-HANDLER table READ index @{ = | >= | <= | < @} (value1, value2, ... )  [ WHERE ... ] [LIMIT ... ]
-HANDLER table READ index @{ FIRST | NEXT | PREV | LAST @} [ WHERE ... ] [LIMIT ... ]
-HANDLER table READ @{ FIRST | NEXT @}  [ WHERE ... ] [LIMIT ... ]
-HANDLER table CLOSE
-@end example
-
-The @code{HANDLER} statement provides direct access to MySQL table
-interface, bypassing SQL optimizer. Thus, it is faster then SELECT.
-
-The first form of @code{HANDLER} statement opens a table, making
-in accessible via the following @code{HANDLER ... READ} routines.
-This table object is not shared by other threads an will not be closed
-until the thread calls @code{HANDLER table_name CLOSE} or the thread dies.
-
-The second form fetches one (or, specified by @code{LIMIT} clause) row
-where the index specified complies to the condition and @code{WHERE}
-condition is met. If the index consists of several parts (spans over
-several columns) the values are specified in comma-separated list,
-providing values only for few first columns is possible.
-
-The third form fetches one (or, specified by @code{LIMIT} clause) row
-from the table in index order, matching @code{WHERE} condition.
-
-The fourth form (without index specification) fetches one (or, specified
-by @code{LIMIT} clause) row from the table in natural row order (as stored
-in data file) matching @code{WHERE} condition. It is faster than
-@code{HANDLER table READ index} when full table scan is desired.
-
-The last form closes the table, opened with @code{HANDLER ... OPEN}.
-
-@code{HANDLER} is somewhat low-level statement, for example it does not
-provide consistency. That is @code{HANDLER ... OPEN} does @strong{NOT}
-takes a snapshot of the table, and does @strong{NOT} locks the table. The
-above means,  that after @code{HANDLER ... OPEN} table data can be
-modified (by this or other thread) and these modifications may appear only
-partially in @code{HANDLER ... NEXT} or @code{HANDLER ... PREV} scans.
-
-@node Fulltext Search,  , HANDLER, Reference
+@node Fulltext Search,  , Transactional Commands, Reference
 @section MySQL Full-text Search
 
 @cindex searching, full-text
@@ -53949,7 +53952,7 @@ variables to modify the behavior of MySQL. @xref{Option files}.
 
 
 
-@node Regexp, Unireg, Environment variables, Top
+@node Regexp, GPL license, Environment variables, Top
 @appendix Description of MySQL regular expression syntax
 
 @cindex regex
@@ -54136,77 +54139,7 @@ mysql> select "weeknights" REGEXP "^(wee|week)(knights|nights)$"; -> 1
 
 
 
-@node Unireg, GPL license, Regexp, Top
-@appendix What is Unireg?
-
-@cindex Unireg, described
-@cindex interface builder
-
-Unireg is our tty interface builder, but it uses a low-level connection
-to our ISAM (which is used by MySQL) and because of this it is
-very quick. It has existed since 1979 (on Unix in C since ~1986).
-
-Unireg has the following components:
-
-@itemize @bullet
-@item
-One table viewer with updates/browsing.
-@item
-Multi table viewer (with one scrolling region).
-@item
-Table creator. (With lots of column tags you can't create with MySQL)
-This is WYSIWYG (for a tty). You design a screen and Unireg prompts for
-the column specification.
-@item
-Report generator.
-@item
-A lot of utilities (quick import/export of tables to/from text files,
-analysis of table contents...).
-@item
-Powerful multi-table updates (which we use a lot) with a BASIC-like
-language with LOTS of functions.
-@item
-Dynamic languages (at present in Swedish and Finnish). If somebody wants
-an English version there are a few files that would have to be translated.
-@item
-The ability to run updates interactively or in a batch.
-@item
-Emacs-like key definitions with keyboard macros.
-@item
-All this in a binary of 800K.
-@item
-The @code{convform} utility. Converts @file{.frm} and text files between
-different character sets.
-@item
-The @code{myisampack} utility. Packs an ISAM table (makes it 50-80%
-smaller). The table can be read by MySQL like an ordinary
-table. Only one record has to be decompressed per access. Cannot handle
-@code{BLOB} or @code{TEXT} columns or updates (yet).
-@end itemize
-
-We update most of our production databases with the Unireg interface and
-serve web pages through MySQL (and in some extreme cases the Unireg
-report generator).
-
-Unireg takes about 3M of disk space and works on at least the following
-platforms: SunOS 4.x, Solaris, Linux, HP-UX, ICL Unix, DNIX, SCO and
-MS-DOS.
-
-Unireg is currently only available in Swedish and Finnish.
-
-The price tag for Unireg is 10,000 Swedish kr (about $1500 US), but this
-includes support. Unireg is distributed as a binary. (But all the ISAM
-sources can be found in MySQL.) Usually we compile the binary for the
-customer at their site.
-
-All new development is concentrated to MySQL.
-
-@page
-@c This node name is special
-
-
-
-@node GPL license, LGPL license, Unireg, Top
+@node GPL license, LGPL license, Regexp, Top
 @appendix GNU GENERAL PUBLIC LICENSE
 
 @cindex GPL, General Public License
