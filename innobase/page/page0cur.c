@@ -59,8 +59,10 @@ page_cur_try_search_shortcut(
 #endif
 	ibool		success		= FALSE;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[100];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+
 	ut_ad(dtuple_check_typed(tuple));
 
 	rec = page_header_get_ptr(page, PAGE_LAST_INSERT);
@@ -229,8 +231,9 @@ page_cur_search_with_match(
 	ulint	dbg_matched_bytes;
 #endif
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[100];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_ad(page && tuple && iup_matched_fields && iup_matched_bytes
 	      && ilow_matched_fields && ilow_matched_bytes && cursor);
@@ -517,11 +520,14 @@ page_cur_insert_rec_write_log(
 
 	{
 		mem_heap_t*	heap		= NULL;
-		ulint		cur_offs_[100]	= { 100, };
-		ulint		ins_offs_[100]	= { 100, };
+		ulint		cur_offs_[100];
+		ulint		ins_offs_[100];
 
 		ulint*		cur_offs;
 		ulint*		ins_offs;
+
+		*cur_offs_ = (sizeof cur_offs_) / sizeof *cur_offs_;
+		*ins_offs_ = (sizeof ins_offs_) / sizeof *ins_offs_;
 
 		cur_offs = rec_get_offsets(cursor_rec, index, cur_offs_,
 						ULINT_UNDEFINED, &heap);
@@ -671,8 +677,9 @@ page_cur_parse_insert_rec(
 	ulint	info_and_status_bits = 0; /* remove warning */
 	page_cur_t cursor;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[100];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	if (!is_short) {
 		/* Read the cursor rec offset as a 2-byte ulint */
@@ -1079,8 +1086,9 @@ page_copy_rec_list_end_to_created_page(
 	ulint	log_data_len;
 	ibool		comp		= page_is_comp(page);
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[100];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 	
 	ut_ad(page_dir_get_n_heap(new_page) == 2);
 	ut_ad(page != new_page);
@@ -1268,8 +1276,9 @@ page_cur_parse_delete_rec(
 
 	if (page) {
 		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[100]	= { 100, };
+		ulint		offsets_[100];
 		rec_t*		rec		= page + offset;
+		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 		page_cur_position(rec, &cursor);
 

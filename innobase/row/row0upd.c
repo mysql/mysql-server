@@ -706,8 +706,9 @@ row_upd_build_sec_rec_difference_binary(
 	upd_t*		update;
 	ulint		n_diff;
 	ulint		i;
-	ulint		offsets_[10]	= { 10, };
+	ulint		offsets_[10];
 	const ulint*	offsets;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	/* This function is used only for a secondary index */
 	ut_a(0 == (index->type & DICT_CLUSTERED));
@@ -783,8 +784,9 @@ row_upd_build_difference_binary(
 	ulint		trx_id_pos;
 	ibool		extern_bit;
 	ulint		i;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[100];
 	const ulint*	offsets;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	/* This function is used only for a clustered index */
 	ut_a(index->type & DICT_CLUSTERED);
@@ -1193,8 +1195,9 @@ row_upd_store_row(
 	upd_t*		update;
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[100];
 	const ulint*	offsets;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_ad(node->pcur->latch_mode != BTR_NO_LATCHES);
 
@@ -1393,7 +1396,8 @@ row_upd_clust_rec_by_insert(
 	btr_cur	= btr_pcur_get_btr_cur(pcur);
 	
 	if (node->state != UPD_NODE_INSERT_CLUSTERED) {
-		ulint	offsets_[100]	= { 100, };
+		ulint	offsets_[100];
+		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 		err = btr_cur_del_mark_set_clust_rec(BTR_NO_LOCKING_FLAG,
 						btr_cur, TRUE, thr, mtr);
@@ -1533,8 +1537,10 @@ row_upd_clust_rec(
 
 	if (err == DB_SUCCESS && big_rec) {
 		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[100]	= { 100, };
+		ulint		offsets_[100];
 		rec_t*		rec;
+		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+
 		mtr_start(mtr);
 
 		ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr));
@@ -1631,8 +1637,9 @@ row_upd_clust_step(
 	mtr_t		mtr_buf;
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[100];
 	const ulint*	offsets;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	index = dict_table_get_first_index(node->table);
 
@@ -1988,7 +1995,8 @@ row_upd_in_place_in_select(
 	btr_cur_t*	btr_cur;
 	ulint		err;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[100];
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_ad(sel_node->select_will_do_update);
 	ut_ad(sel_node->latch_mode == BTR_MODIFY_LEAF);
