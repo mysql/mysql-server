@@ -2417,7 +2417,13 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 #endif
     return true;
   }
-  global_flag_send_heartbeat_now= 1;
+
+  if (found_matching_type && !found_free_node) {
+    // we have a temporary error which might be due to that we have got the latest
+    // connect status from db-nodes.  Force update.
+    global_flag_send_heartbeat_now= 1;
+  }
+
   BaseString type_string, type_c_string;
   {
     const char *alias, *str;
@@ -2856,6 +2862,10 @@ MgmtSrvr::Allocated_resources::Allocated_resources(MgmtSrvr &m)
 MgmtSrvr::Allocated_resources::~Allocated_resources()
 {
   Guard g(&f_node_id_mutex);
+  if (!m_reserved_nodes.isclear()) {
+    // node has been reserved, force update signal to ndb nodes
+    global_flag_send_heartbeat_now= 1;
+  }
   m_mgmsrv.m_reserved_nodes.bitANDC(m_reserved_nodes); 
 }
 
