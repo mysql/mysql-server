@@ -96,7 +96,7 @@ void init_tree(TREE *tree, uint default_alloc_size, int size,
   }
   if (!(tree->with_delete=with_delete))
   {
-    init_alloc_root(&tree->mem_root, default_alloc_size);
+    init_alloc_root(&tree->mem_root, default_alloc_size,0);
     tree->mem_root.min_malloc=(sizeof(TREE_ELEMENT)+tree->size_of_element);
   }
   DBUG_VOID_RETURN;
@@ -115,7 +115,7 @@ void delete_tree(TREE *tree)
     {
       if (tree->free)
 	delete_tree_element(tree,tree->root);
-      free_root(&tree->mem_root);
+      free_root(&tree->mem_root,MYF(0));
     }
   }
   tree->root= &tree->null_element;

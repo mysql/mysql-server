@@ -78,7 +78,7 @@ void load_defaults(const char *conf_file, const char **groups,
   char *ptr,**res;
   DBUG_ENTER("load_defaults");
 
-  init_alloc_root(&alloc,128);
+  init_alloc_root(&alloc,128,0);
   if (*argc >= 2 && !strcmp(argv[0][1],"--no-defaults"))
   {
     /* remove the --no-defaults argument and return only the other arguments */
@@ -188,7 +188,7 @@ void free_defaults(char **argv)
 {
   MEM_ROOT ptr;
   memcpy_fixed((char*) &ptr,(char *) argv - sizeof(ptr), sizeof(ptr));
-  free_root(&ptr);
+  free_root(&ptr,MYF(0));
 }
 
 

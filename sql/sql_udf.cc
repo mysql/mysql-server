@@ -107,14 +107,14 @@ void udf_init()
 
   pthread_mutex_init(&THR_LOCK_udf,NULL);
 
-  init_sql_alloc(&mem, 1024);
+  init_sql_alloc(&mem, 1024,0);
   THD *new_thd = new THD;
   if (!new_thd ||
       hash_init(&udf_hash,32,0,0,get_hash_key, NULL, HASH_CASE_INSENSITIVE))
   {
     sql_print_error("Can't allocate memory for udf structures");
     hash_free(&udf_hash);
-    free_root(&mem);
+    free_root(&mem,MYF(0));
     DBUG_VOID_RETURN;
   }
   initialized = 1;
@@ -208,7 +208,7 @@ void udf_free()
     dlclose(udf->dlhandle);
   }
   hash_free(&udf_hash);
-  free_root(&mem);
+  free_root(&mem,MYF(0));
   DBUG_VOID_RETURN;
 }
 

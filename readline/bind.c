@@ -1371,7 +1371,7 @@ rl_variable_bind (name, value)
       v[end] = '\0';
       /* The value starts at v + beg.  Translate it into a character string. */
       _rl_isearch_terminators = (unsigned char *)xmalloc (2 * strlen (v) + 1);
-      rl_translate_keyseq (v + beg, _rl_isearch_terminators, &end);
+      rl_translate_keyseq (v + beg, (char*) _rl_isearch_terminators, &end);
       _rl_isearch_terminators[end] = '\0';
       free (v);
     }

@@ -1012,7 +1012,7 @@ longlong Item_func_bit_count::val_int()
 /****************************************************************************
 ** Functions to handle dynamic loadable functions
 ** Original source by: Alexis Mikhailov <root@medinf.chuvashia.su>
-** Rewritten by: Monty.
+** Rewritten by monty.
 ****************************************************************************/
 
 #ifdef HAVE_DLOPEN

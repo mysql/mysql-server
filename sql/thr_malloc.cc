@@ -27,9 +27,9 @@ extern "C" {
   }
 }
 
-void init_sql_alloc(MEM_ROOT *mem_root,uint block_size)
+void init_sql_alloc(MEM_ROOT *mem_root, uint block_size, uint pre_alloc)
 {
-  init_alloc_root(mem_root,block_size);
+  init_alloc_root(mem_root, block_size, pre_alloc);
   mem_root->error_handler=sql_alloc_error_handler;
 }
 

@@ -559,7 +559,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	  {
 	    Query_log_event* qev = (Query_log_event*)ev;
 	    int q_len = qev->q_len;
-	    init_sql_alloc(&thd->mem_root, 8192);
+	    init_sql_alloc(&thd->mem_root, 8192,0);
 	    thd->db = (char*)qev->db;
 	    if(db_ok(thd->db, replicate_do_db, replicate_ignore_db))
 	      {
@@ -604,7 +604,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	    thd->db = 0;// prevent db from being freed
 	    thd->query = 0; // just to be sure
 	    close_thread_tables(thd);
-	    free_root(&thd->mem_root);
+	    free_root(&thd->mem_root,0);
 	    if (thd->query_error)
 	    {
 	      sql_print_error("Slave:  error running query '%s' ",
@@ -628,7 +628,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
   	case LOAD_EVENT:
 	  {
 	    Load_log_event* lev = (Load_log_event*)ev;
-	    init_sql_alloc(&thd->mem_root, 8192);
+	    init_sql_alloc(&thd->mem_root, 8192,0);
 	    thd->db = (char*)lev->db;
 	    thd->query = 0;
 	    thd->query_error = 0;

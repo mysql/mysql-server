@@ -28,6 +28,7 @@ uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
 	      myf MyFlags)
 {
   uint readbytes;
+  int error;
   DBUG_ENTER("my_pread");
   DBUG_PRINT("my",("Fd: %d  Seek: %lu  Buffer: %lx  Count: %u  MyFlags: %d",
 		   Filedes, (ulong) offset, Buffer, Count, MyFlags));
@@ -38,32 +39,35 @@ uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
     errno=0;					/* Linux doesn't reset this */
 #endif
 #ifndef HAVE_PREAD
+    pthread_mutex_lock(&my_file_info[Filedes].mutex);
     readbytes= (uint) -1;
-    if (lseek(Filedes, offset, MY_SEEK_SET) == -1L ||
-	(readbytes = (uint) read(Filedes, Buffer, Count)) != Count)
+    error= (lseek(Filedes, offset, MY_SEEK_SET) == -1L ||
+	    (readbytes = (uint) read(Filedes, Buffer, Count)) != Count);
+    pthread_mutex_unlock(&my_file_info[Filedes].mutex);
 #else
-      if ((readbytes = (uint) pread(Filedes, Buffer, Count, offset)) != Count)
+    error=((readbytes = (uint) pread(Filedes, Buffer, Count, offset)) != Count);
 #endif
-      {
-	my_errno=errno;
-	DBUG_PRINT("warning",("Read only %ld bytes off %ld from %d, errno: %d",
-			      readbytes,Count,Filedes,my_errno));
+    if (error)
+    {
+      my_errno=errno;
+      DBUG_PRINT("warning",("Read only %ld bytes off %ld from %d, errno: %d",
+			    readbytes,Count,Filedes,my_errno));
 #ifdef THREAD
-	if (readbytes == 0 && errno == EINTR)
-	  continue;				/* Interrupted */
+      if (readbytes == 0 && errno == EINTR)
+	continue;				/* Interrupted */
 #endif
-	if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
-	{
-	  if ((int) readbytes == -1)
-	    my_error(EE_READ, MYF(ME_BELL+ME_WAITTANG),
-		     my_filename(Filedes),my_errno);
-	  else if (MyFlags & (MY_NABP | MY_FNABP))
-	    my_error(EE_EOFERR, MYF(ME_BELL+ME_WAITTANG),
-		     my_filename(Filedes),my_errno);
-	}
-	if ((int) readbytes == -1 || (MyFlags & (MY_FNABP | MY_NABP)))
-	  DBUG_RETURN(MY_FILE_ERROR);	/* Return with error */
+      if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
+      {
+	if ((int) readbytes == -1)
+	  my_error(EE_READ, MYF(ME_BELL+ME_WAITTANG),
+		   my_filename(Filedes),my_errno);
+	else if (MyFlags & (MY_NABP | MY_FNABP))
+	  my_error(EE_EOFERR, MYF(ME_BELL+ME_WAITTANG),
+		   my_filename(Filedes),my_errno);
       }
+      if ((int) readbytes == -1 || (MyFlags & (MY_FNABP | MY_NABP)))
+	DBUG_RETURN(MY_FILE_ERROR);	/* Return with error */
+    }
     if (MyFlags & (MY_NABP | MY_FNABP))
       DBUG_RETURN(0);			/* Ok vid l{sning */
     DBUG_RETURN(readbytes); /* purecov: inspected */
@@ -76,6 +80,7 @@ uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
 uint my_pwrite(int Filedes, const byte *Buffer, uint Count, my_off_t offset,
 	       myf MyFlags)
 {
+  int error;
   uint writenbytes,errors;
   ulong written;
   DBUG_ENTER("my_pwrite");
@@ -87,12 +92,16 @@ uint my_pwrite(int Filedes, const byte *Buffer, uint Count, my_off_t offset,
   {
 #ifndef HAVE_PREAD
     writenbytes= (uint) -1;
-    if (lseek(Filedes, offset, MY_SEEK_SET) != -1L &&
-	(writenbytes = (uint) write(Filedes, Buffer, Count)) == Count)
+    pthread_mutex_lock(&my_file_info[Filedes].mutex);
+    error=(lseek(Filedes, offset, MY_SEEK_SET) != -1L &&
+	   (writenbytes = (uint) write(Filedes, Buffer, Count)) == Count);
+    pthread_mutex_unlock(&my_file_info[Filedes].mutex);
+    if (error)
+      break;
 #else
     if ((writenbytes = (uint) pwrite(Filedes, Buffer, Count,offset)) == Count)
-#endif
       break;
+#endif
     if ((int) writenbytes != -1)
     {					/* Safegueard */
       written+=writenbytes;
