@@ -51,6 +51,7 @@ static void read_texts(const char *file_name,const char ***point,
   uchar head[32],*pos;
   DBUG_ENTER("read_texts");
 
+  *point=0;					// If something goes wrong
   LINT_INIT(buff);
   funktpos=0;
   if ((file=my_open(fn_format(name,file_name,language,"",4),

@@ -741,7 +741,7 @@ void clean_up(bool print_message)
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
 #endif
-  if (print_message)
+  if (print_message && errmesg)
     sql_print_error(ER(ER_SHUTDOWN_COMPLETE),my_progname);
   x_free((gptr) my_errmsg[ERRMAPP]);	/* Free messages */
 
@@ -3688,7 +3688,7 @@ static void get_options(int argc,char **argv)
       opt_specialflag|= SPECIAL_NO_HOST_CACHE;
       break;
     case (int) OPT_ENABLE_LOCK:
-      my_disable_locking=0;
+      my_disable_locking=myisam_single_user=0;
       break;
     case (int) OPT_USE_LOCKING:
       my_disable_locking=0;
