@@ -109,10 +109,18 @@ static const negated_function_mapping neg_map[]=
 };
   
 /*
-  This class is used for serialization of the Item tree for
-  condition pushdown. It is stored in a linked list implemented
-  by Ndb_cond class.
- */
+  This class is the construction element for serialization of Item tree 
+  in condition pushdown.
+  An instance of Ndb_Item represents a constant, table field reference,
+  unary or binary comparison predicate, and start/end of AND/OR.
+  Instances of Ndb_Item are stored in a linked list implemented by Ndb_cond
+  class.
+  The order of elements produced by Ndb_cond::next corresponds to
+  depth-first traversal of the Item (i.e. expression) tree in prefix order.
+  AND and OR have arbitrary arity, so the end of AND/OR group is marked with  
+  Ndb_item with type == NDB_END_COND.
+  NOT items represent negated conditions and generate NAND/NOR groups.
+*/
 class Ndb_item {
  public:
   Ndb_item(NDB_ITEM_TYPE item_type) : type(item_type) {};
@@ -134,6 +142,8 @@ class Ndb_item {
       break;
     }
     case(NDB_FUNCTION):
+      value.item= item_value;
+      break;
     case(NDB_END_COND):
       break;
     }
@@ -146,9 +156,11 @@ class Ndb_item {
     field_value->column_no= column_no;
     value.field_value= field_value;
   };
-  Ndb_item(Item_func::Functype func_type) : type(NDB_FUNCTION)
+  Ndb_item(Item_func::Functype func_type, const Item *item_value) 
+    : type(NDB_FUNCTION)
   {
     qualification.function_type= func_type;
+    value.item= item_value;
   };
   ~Ndb_item()
   { 
@@ -178,6 +190,11 @@ class Ndb_item {
   Field * get_field() { return value.field_value->field; };
 
   int get_field_no() { return value.field_value->column_no; };
+
+  int argument_count() 
+  { 
+    return ((Item_func *) value.item)->argument_count(); 
+  };
 
   const char* get_val() 
   {  
@@ -274,7 +291,7 @@ class Ndb_cond_traverse_context
   Ndb_cond_traverse_context(TABLE *tab, void* ndb_tab, Ndb_cond_stack* stack)
     : table(tab), ndb_table(ndb_tab), 
     supported(TRUE), stack_ptr(stack), cond_ptr(NULL),
-    expect_mask(0), expect_field_result_mask(0), skip(0)
+    expect_mask(0), expect_field_result_mask(0), skip(0), collation(NULL)
   {
     if (stack)
       cond_ptr= stack->ndb_cond;
@@ -318,6 +335,17 @@ class Ndb_cond_traverse_context
     expect_field_result_mask= 0;
     expect_field_result(result);
   };
+  void expect_collation(CHARSET_INFO* col)
+  {
+    collation= col;
+  };
+  bool expecting_collation(CHARSET_INFO* col)
+  {
+    bool matching= (!collation) ? true : (collation == col);
+    collation= NULL;
+
+    return matching;
+  };
 
   TABLE* table;
   void* ndb_table;
@@ -327,6 +355,8 @@ class Ndb_cond_traverse_context
   uint expect_mask;
   uint expect_field_result_mask;
   uint skip;
+  CHARSET_INFO* collation;
+
 };
 
 /*
@@ -428,27 +458,40 @@ class ha_ndbcluster: public handler
   /*
     Condition pushdown
   */
-/*
-  Push a condition to ndbcluster storage engine for evaluation 
-  during table   and index scans. The conditions will be stored on a stack
-  for possibly storing several conditions. The stack can be popped
-  by calling cond_pop, handler::extra(HA_EXTRA_RESET) (handler::reset())
-  will clear the stack.
-  The current implementation supports arbitrary AND/OR nested conditions
-  with comparisons between columns and constants (including constant
-  expressions and function calls) and the following comparison operators:
-  =, !=, >, >=, <, <=, "is null", and "is not null".
-  
-  RETURN
-    NULL The condition was supported and will be evaluated for each 
-    row found during the scan
-    cond The condition was not supported and all rows will be returned from
-         the scan for evaluation (and thus not saved on stack)
-*/
+
+ /*
+   Push condition down to the table handler.
+   SYNOPSIS
+     cond_push()
+     cond   Condition to be pushed. The condition tree must not be
+     modified by the by the caller.
+   RETURN
+     The 'remainder' condition that caller must use to filter out records.
+     NULL means the handler will not return rows that do not match the
+     passed condition.
+   NOTES
+   The pushed conditions form a stack (from which one can remove the
+   last pushed condition using cond_pop).
+   The table handler filters out rows using (pushed_cond1 AND pushed_cond2 
+   AND ... AND pushed_condN)
+   or less restrictive condition, depending on handler's capabilities.
+   
+   handler->extra(HA_EXTRA_RESET) call empties the condition stack.
+   Calls to rnd_init/rnd_end, index_init/index_end etc do not affect the  
+   condition stack.
+   The current implementation supports arbitrary AND/OR nested conditions
+   with comparisons between columns and constants (including constant
+   expressions and function calls) and the following comparison operators:
+   =, !=, >, >=, <, <=, like, "not like", "is null", and "is not null". 
+   Negated conditions are supported by NOT which generate NAND/NOR groups.
+ */ 
   const COND *cond_push(const COND *cond);
-/*
-  Pop the top condition from the condition stack of the handler instance.
-*/
+ /*
+   Pop the top condition from the condition stack of the handler instance.
+   SYNOPSIS
+     cond_pop()
+     Pops the top if condition stack, if stack is not empty
+ */
   void cond_pop();
 
   uint8 table_cache_type();
@@ -536,8 +579,7 @@ private:
                                   NdbScanFilter* filter,
                                   bool negated= false);
   int build_scan_filter_group(Ndb_cond* &cond, 
-                              NdbScanFilter* filter,
-                              bool negated= false);
+                              NdbScanFilter* filter);
   int build_scan_filter(Ndb_cond* &cond, NdbScanFilter* filter);
   int generate_scan_filter(Ndb_cond_stack* cond_stack, 
                            NdbScanOperation* op);

@@ -451,7 +451,7 @@ public:
   enum {NONE=0, INDEX, RND} inited;
   bool  auto_increment_column_changed;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
-
+  const COND *pushed_cond;
 
   handler(TABLE *table_arg) :table(table_arg),
     ref(0), data_file_length(0), max_data_file_length(0), index_file_length(0),
@@ -460,7 +460,8 @@ public:
     create_time(0), check_time(0), update_time(0),
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)), block_size(0),
-    raid_type(0), ft_handler(0), inited(NONE), implicit_emptied(0)
+    raid_type(0), ft_handler(0), inited(NONE), implicit_emptied(0),
+    pushed_cond(NULL)
     {}
   virtual ~handler(void) { /* TODO: DBUG_ASSERT(inited == NONE); */ }
   int ha_open(const char *name, int mode, int test_if_locked);
@@ -724,23 +725,34 @@ public:
    Condition pushdown to storage engines
  */
 
-/*
-  Push a condition to storage engine for evaluation during table
-  and index scans. The conditions should be stored on a stack
-  for possibly storing several conditions. The stack can be popped
-  by calling cond_pop, handler::extra(HA_EXTRA_RESET) (handler::reset())
-  should clear the stack.
-  The condition can be traversed using Item::traverse_cond
-  RETURN
-    NULL The condition was supported by the handler and will be evaluated
-         for each row found during the scan
-    cond The condition was not supported and all rows will be returned from
-         the scan for evaluation (and thus not saved on stack)
-*/
+ /*
+   Push condition down to the table handler.
+   SYNOPSIS
+     cond_push()
+     cond   Condition to be pushed. The condition tree must not be            
+     modified by the by the caller.
+   RETURN
+     The 'remainder' condition that caller must use to filter out records.
+     NULL means the handler will not return rows that do not match the
+     passed condition.
+   NOTES
+   The pushed conditions form a stack (from which one can remove the
+   last pushed condition using cond_pop).
+   The table handler filters out rows using (pushed_cond1 AND pushed_cond2 
+   AND ... AND pushed_condN)
+   or less restrictive condition, depending on handler's capabilities.
+   
+   handler->extra(HA_EXTRA_RESET) call empties the condition stack.
+   Calls to rnd_init/rnd_end, index_init/index_end etc do not affect the
+   condition stack.
+ */ 
  virtual const COND *cond_push(const COND *cond) { return cond; };
-/*
-  Pop the top condition from the condition stack of the handler instance.
-*/
+ /*
+   Pop the top condition from the condition stack of the handler instance.
+   SYNOPSIS
+     cond_pop()
+     Pops the top if condition stack, if stack is not empty
+ */
  virtual void cond_pop() { return; };
 };
 
