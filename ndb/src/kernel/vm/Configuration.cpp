@@ -14,6 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+#include <my_sys.h>
+
 #include "Configuration.hpp"
 #include <ErrorHandlingMacros.hpp>
 #include "GlobalData.hpp"
@@ -56,6 +59,9 @@ Configuration::init(int argc, const char** argv){
   int _deamon = 0;
   int _help = 0;
   int _print_version = 0;
+#ifndef DBUG_OFF
+  const char *debug_option= 0;
+#endif
   
   /**
    * Arguments to NDB process
@@ -66,6 +72,10 @@ Configuration::init(int argc, const char** argv){
     { "nostart", 'n', arg_flag, &_no_start,
       "Don't start ndbd immediately. Ndbd will await command from ndb_mgmd", "" },
     { "daemon", 'd', arg_flag, &_deamon, "Start ndbd as daemon", "" },
+#ifndef DBUG_OFF
+    { "debug", 0, arg_string, &debug_option,
+      "Specify debug options e.g. d:t:i:o,out.trace", "options" },
+#endif
     { "initial", 'i', arg_flag, &_initial,
       "Perform initial start of ndbd, including cleaning the file system. Consult documentation before using this", "" },
 
@@ -84,14 +94,16 @@ Configuration::init(int argc, const char** argv){
     return false;
   }
 
-#if 0  
-  ndbout << "no_start=" <<_no_start<< endl;
-  ndbout << "initial=" <<_initial<< endl;
-  ndbout << "deamon=" <<_deamon<< endl;
-  ndbout << "connect_str="<<_connect_str<<endl;
-  arg_printusage(args, num_args, argv[0], desc);
-  return false;
+#ifndef DBUG_OFF
+  my_init();
+  if (debug_option)
+    DBUG_PUSH(debug_option);
 #endif
+
+  DBUG_PRINT("info", ("no_start=%d", _no_start));
+  DBUG_PRINT("info", ("initial=%d", _initial));
+  DBUG_PRINT("info", ("deamon=%d", _deamon));
+  DBUG_PRINT("info", ("connect_str=%s", _connect_str));
 
   ndbSetOwnVersion();
 
