@@ -771,7 +771,7 @@ bool close_cached_table(THD *thd,TABLE *table)
     /* Mark all tables that are in use as 'old' */
     mysql_lock_abort(thd,table);		 // end threads waiting on lock
 
-#ifdef REMOVE_LOCKS
+#if defined(USING_TRANSACTIONS) || defined( __WIN__) || defined( __EMX__) || !defined(OS2)
     /* Wait until all there are no other threads that has this table open */
     while (remove_table_from_cache(thd,table->table_cache_key,
 				   table->table_name))
@@ -1569,19 +1569,28 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
   }
 
-#if defined( __WIN__) || defined( __EMX__) || defined( OS2)
-  // Win32 can't rename an open table, so we must close the org table!
-  table_name=thd->strdup(table_name);		// must be saved
-  if (close_cached_table(thd,table))
-  {						// Aborted
-    VOID(quick_rm_table(new_db_type,new_db,tmp_name));
-    VOID(pthread_mutex_unlock(&LOCK_open));
-    goto err;
-  }
-  table=0;					// Marker for win32 version
-#else
-  table->file->extra(HA_EXTRA_FORCE_REOPEN);	// Don't use this file anymore
+#if (!defined( __WIN__) && !defined( __EMX__) && !defined( OS2))
+  if (table->file->has_transactions())
 #endif
+  {
+    /*
+      Win32 and InnoDB can't rename an open table, so we must close
+      the original table at before doing the rename
+    */
+    table_name=thd->strdup(table_name);		// must be saved
+    if (close_cached_table(thd,table))
+    {						// Aborted
+      VOID(quick_rm_table(new_db_type,new_db,tmp_name));
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      goto err;
+    }
+    table=0;					// Marker that table is closed
+  }
+#if (!defined( __WIN__) && !defined( __EMX__) && !defined( OS2))
+  else
+    table->file->extra(HA_EXTRA_FORCE_REOPEN);	// Don't use this file anymore
+#endif
+
 
   error=0;
   if (mysql_rename_table(old_db_type,db,table_name,db,old_name))
