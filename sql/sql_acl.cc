@@ -2687,6 +2687,13 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 #endif /* HAVE_OPENSSL */
     if (want_access & GRANT_ACL)
       global.append(" WITH GRANT OPTION",18); 
+    else if (acl_user->questions)
+    {
+      char buff[65], *p; // just as in int2str
+      global.append(" WITH MAX_QUERIES_PER_HOUR = ",29);
+      p=int2str(acl_user->questions,buff,10);
+      global.append(buff,p-buff);
+    }
     thd->packet.length(0);
     net_store_data(&thd->packet,global.ptr(),global.length());
     if (my_net_write(&thd->net,(char*) thd->packet.ptr(),
