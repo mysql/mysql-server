@@ -6736,6 +6736,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://sunsite.cnlab-switch.ch/ftp/mirror/mysql/, WWW}
 @uref{ftp://sunsite.cnlab-switch.ch/mirror/mysql/, FTP}
 
+@item
+@c EMAIL: eodabas@progen.com.tr (Emre Odabas)
+@image{Flags/turkey} Turkey [proGEN] @
+@uref{http://mysql.progen.com.tr/, WWW}
+
 @c @item
 @c Not ok 20000919; Non-existent (Matt)
 @c simon@oyster.co.uk (Simon Gornall)
