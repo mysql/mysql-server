@@ -101,10 +101,17 @@ char*	innobase_unix_file_flush_method		= NULL;
 /* Below we have boolean-valued start-up parameters, and their default
 values */
 
-uint	innobase_flush_log_at_trx_commit	= 0;
 my_bool innobase_log_archive			= FALSE;
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;
+
+/* innodb_flush_log_at_trx_commit can now have 3 values:
+0 : write to the log file once per second and flush it to disk;
+1 : write to the log file at each commit and flush it to disk;
+2 : write to the log file at each commit, but flush to disk only once per
+second */
+
+uint    innobase_flush_log_at_trx_commit	= 0;
 
 /*
   Set default InnoDB data file size to 10 MB and let it be

@@ -51289,6 +51289,9 @@ Linux-x86 binaries.
 
 @itemize @bullet
 @item
+Fixed buffer overflow problem if someone specified a too long datadir
+parameter to mysqld
+@item
 Add missing @code{<row>} tags for @code{mysqldump} XML output.
 @item
 Fixed problem with @code{crash-me} and @code{gcc} 3.0.4.
