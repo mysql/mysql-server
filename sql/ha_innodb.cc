@@ -121,6 +121,10 @@ char    innodb_dummy_stmt_trx_handle = 'D';
 
 static HASH 	innobase_open_tables;
 
+#ifdef __NETWARE__  	/* some special cleanup for NetWare */
+bool nw_panic = FALSE;
+#endif
+
 static mysql_byte* innobase_get_key(INNOBASE_SHARE *share,uint *length,
 			      my_bool not_used __attribute__((unused)));
 static INNOBASE_SHARE *get_share(const char *table_name);
@@ -950,6 +954,11 @@ innobase_end(void)
 
 	DBUG_ENTER("innobase_end");
 
+#ifdef __NETWARE__ 	/* some special cleanup for NetWare */
+	if (nw_panic) {
+		set_panic_flag_for_netware();
+	}
+#endif
 	err = innobase_shutdown_for_mysql();
 	hash_free(&innobase_open_tables);
 	my_free(internal_innobase_data_file_path,MYF(MY_ALLOW_ZERO_PTR));
