@@ -1,31 +1,17 @@
 1. should be run from myisam/ftbench/
 2. myisam/ftdefs.h should NOT be locked (bk get, not bk edit!)
 3. there should be ./data/ subdir with test collections, files:
-     test1.test
-     test1.relj
-     test2.test
-     test2.relj
+     test1.d
+     test1.q
+     test1.r
+     test2.d
+     test2.q
+     test2.r
    where test1, test2, etc - are arbitrary test names
-   
-   *.test are SQL files of the structure:
-=====
-DROP TABLE IF EXISTS ft;
-CREATE TABLE ft (
-  id int(10) unsigned NOT NULL,
-  text text NOT NULL,
-  FULLTEXT KEY text (text)
-);
 
-INSERT INTO ft VALUES (1, 'doc1...'),(2, 'doc2...'),...
-...
+  *.[dq] files contain documents/queries one item per line.
 
-SELECT COUNT(*) FROM ft;
-SELECT 1, id, MATCH text AGAINST ('query1') FROM ft WHERE MATCH text AGAINST ('query1');
-SELECT 2, id, MATCH text AGAINST ('query2') FROM ft WHERE MATCH text AGAINST ('query2');
-...
-=====
-
-   *.relj files have the structure:
+   *.r files have the structure:
    1 16 .....blablabla
    1 09 .....blablabla
    2 116 .....blablabla
@@ -47,7 +33,8 @@ SELECT 2, id, MATCH text AGAINST ('query2') FROM ft WHERE MATCH text AGAINST ('q
 
   all test results are compared with BEST results.
   
-  test directories *must* contain ftdefs.h, and *may* contain my.cnf
+  test directories may contain ftdefs.h, my.cnf, ft_mode
+  (the last one is used as in ... MATCH ... AGAINST ("..." $ft_mode) ...)
   NOTE: all *.out files in test directories will NOT be overwritten!
   delete them to re-test
 
