@@ -210,7 +210,7 @@ static SYMBOL symbols[] = {
   { "IGNORE",		SYM(IGNORE_SYM)},
   { "IMPORT",		SYM(IMPORT)},
   { "IN",		SYM(IN_SYM)},
-  { "INDEX",		SYM(INDEX)},
+  { "INDEX",		SYM(INDEX_SYM)},
   { "INDEXES",		SYM(INDEXES)},
   { "INFILE",		SYM(INFILE)},
   { "INNER",		SYM(INNER_SYM)},

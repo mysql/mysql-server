@@ -78,6 +78,7 @@ SUFFIXES = .sh
 	  -e 's!@''VERSION''@!@VERSION@!' \
 	  -e 's!@''MYSQL_BASE_VERSION''@!@MYSQL_BASE_VERSION@!' \
 	  -e 's!@''MYSQL_UNIX_ADDR''@!@MYSQL_UNIX_ADDR@!' \
+	  -e 's!@''MYSQL_TCP_PORT''@!@MYSQL_TCP_PORT@!' \
 	  -e 's!@''MYSQL_NO_DASH_VERSION''@!@MYSQL_NO_DASH_VERSION@!' \
 	  -e 's!@''MYSQL_SERVER_SUFFIX''@!@MYSQL_SERVER_SUFFIX@!' \
 	  $< > $@-t
