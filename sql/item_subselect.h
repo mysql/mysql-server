@@ -20,7 +20,7 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-struct st_select_lex;
+class st_select_lex;
 class JOIN;
 class select_subselect;
 
