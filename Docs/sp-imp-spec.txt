@@ -1,0 +1,602 @@
+
+	      Implementation specification for Stored Procedures
+	      ==================================================
+
+
+- How parsing and execution of queries work
+
+  In order to execute a query, the function sql_parse.cc:mysql_parse() is
+  called, which in turn calls the parser (yyparse()) with an updated Lex
+  structure as the result. mysql_parse() then calls mysql_execute_command()
+  which dispatches on the command code (in Lex) to the corresponding code for
+  executing that particular query.
+
+  There are thre structures involved in the execution of a query which are of
+  interest to the stored procedure implementation:
+
+  - Lex (mentioned above) is the "compiled" query, that is the output from
+    the parser and what is then interpreted to do the actual work.
+    It constains an enum value (sql_command) which is the query type, and
+    all the data collected by the parser needed for the execution  (table
+    names, fields, values, etc).
+  - THD is the "run-time" state of a connection, containing all that is
+    needed for a particular client connection, and, among other things, the
+    Lex structure currently being executed.
+  - Item_*:  During parsing, all data is translated into "items", objects of
+    the subclasses of "Item", such as Item_int, Item_real, Item_string, etc,
+    for basic datatypes, and also various more specialized Item types for
+    expressions to be evaluated (Item_func objects).
+
+
+- How to fit Stored Procedure into this scheme
+
+  - An overview of the classes and files for stored procedures
+    (More detailed APIs at the end of this file)
+
+    - class sp_head (sp_head.{cc,h})
+      This contains, among other things, an array of "instructions" and the
+      method for executing the procedure.
+
+    - class sp_pcontext (sp_pcontext.{cc,h}
+      This is the parse context for the procedure. It's primarily used during
+      parsing to keep track of local parameters, variables and labels, but
+      it's also used at CALL time do find parameters mode (IN, OUT or INOUT)
+      and type when setting up the runtime context.
+
+    - class sp_instr (sp_head.{cc,h})
+      This is the base class for "instructions", that is, what is generated
+      by the parser. It turns out that we only need 4 different sub classes:
+      - sp_instr_stmt
+        Execute a statement. This is the "call-out" any normal SQL statement,
+        like a SELECT, INSERT etc. It contains the Lex structure for the
+        statement in question.
+      - sp_instr_set
+        Set the value of a local variable (or parameter)
+      - sp_instr_jump
+        An unconditional jump.
+      - sp_instr_jump_if_not
+        Jump if condition is not true. It turns out that the negative test is
+        most convenient when generating the code for the flow control
+        constructs.
+
+    - class sp_rcontext (sp_rcontext.h)
+      This is the runtime context in the THD structure.
+      It contains an array of items, the parameters and local variables for
+      the currently executing stored procedure.
+      This means that variable value lookup is in runtime is constant time,
+      a simple index operation.
+
+    - class Item_splocal (Item.{cc,h})
+      This is a subclass of Item. Its sole purpose is to hide the fact that
+      the real Item is actually in the current frame (runtime context).
+      It contains the frame offset and defers all methods to the real Item
+      in the frame. This is what the parser generates for local variables.
+
+    - Utility functions (sp.{cc,h})
+      This contains functions for creating, dropping and finding a stored
+      procedure in the mysql.proc table (or internal cache, when it is
+      implemented).
+
+
+  - Parsing CREATE PROCEDURE ...
+
+    When parsing a CREATE PROCEDURE the parser first initializes the
+    sphead and spcont (runtime context) fields in the Lex.
+    The sql_command code for the result of parsing a is
+    SQLCOM_CREATE_PROCEDURE.
+
+    The parsing of the parameter list and body is relatively
+    straight-forward:
+
+    - Parameters:
+        name, type and mode (IN/OUT/INOUT) is pushed to spcont
+    - Declared local variables:
+        Same as parameters (mode is then IN)
+    - Local Variable references:
+        If an identifier is found in in spcont, an Item_splocal is created
+        with the variable's frame index, otherwise an Item_field or Item_ref
+        is created (as before).
+    - Statements:
+        The Lex in THD is replaced by a new Lex structure and the statement,
+        is parsed as usual. A sp_instr_stmt is created, containing the new
+        Lex, and added to added to the instructions in  sphead.
+        Afterwards, the procedure's Lex is restored in THD.
+    - SET var:
+        Setting a local variable generates a sp_instr_set instruction,
+        containing the variable's frame offset, the expression (an Item),
+        and the type.
+    - Flow control:
+        Flow control constructs like, IF, WHILE, etc, generate a conditional
+        and unconditional jumps in the "obvious" way, but a few notes may
+        be required:
+        - Forward jumps: When jumping forward, the exact destination is not
+          known at the time of the creation of the jump instruction. The
+          sphead therefore contains list of instruction-label pairs for
+          each forward reference. When the position later is known, the
+          instructions in the list are updated with the correct location.
+        - Loop constructs have optional labels. If a loop doesn't have a
+          label, an anonymous label is generated to simplify the parsing.
+        - There are two types of CASE. The "simple" case is implemented
+          with an anonymous variable bound to the value to be tested.
+
+
+    - An example
+
+      Parsing the procedure:
+
+      create procedure a(s char(16))
+      begin
+        declare x int;
+        set x = 3;
+        while x > 0 do
+          set x = x-1;
+          insert into db.tab values (x, s);
+        end while
+      end
+
+      would generate the following structures:
+            ______
+      thd: |      |     _________
+           | lex -+--->|         |                     ___________________
+           |______|    | spcont -+------------------->| "s",in,char(16):0 |
+                       | sphead -+------              |("x",in,int     :1)|
+                       |_________|      |             |___________________|
+                                    ____V__________________
+                                   | m_name: "a"           |
+                                   | m_defstr: "create ..."|
+                                   | m_instr: ...          |
+                                   |_______________________|
+
+      Note that the contents of the spcont is changing during the parsing,
+      at all times reflecting the state of the would-be runtime frame.
+      The m_instr is an array of instructions:
+
+      Pos.  Instruction
+       0    sp_instr_set(1, '3')
+       1    sp_instr_jump_if_not(5, 'x>0')
+       2    sp_instr_set(1, 'x-1')
+       3    sp_instr_stmt('insert into ...')
+       4    sp_instr_jump(1)
+       5    <end>
+
+     Here, '3', 'x>0', etc, represent the Items or Lex for the respective
+     expressions or statements.
+
+
+  - Parsing CREATE FUNCTION ...
+
+    Creating a functions is essensially the same thing as for a PROCEDURE,
+    with the addition that a FUNCTION has a return type and a RETURN
+    statement, but no OUT or INOUT parameters.
+
+    The main difference during parsing is that we store the result type
+    in the sp_head. However, there are big differences when it comes to
+    invoking a FUNCTION. (See below.)
+
+
+  - Storing, caching, dropping...
+
+    As seen above, the entired definition string, including the "CREATE
+    PROCEDURE" (or "FUNCTION") is kept. The procedure definition string is
+    stored in the table mysql.proc with the name and type as the key, the
+    type being one of the enum ("procedure","function").
+
+    A PROCEDURE is just stored int the mysql.proc table. A FUNCTION has an
+    additional requirement. They will be called in expressions with the same
+    syntax as UDFs, so UDFs and stored FUNCTIONs share the namespace. Thus,
+    we must make sure that we do not have UDFs and FUNCTIONs with the same
+    name (even if they are storded in different places).
+
+    This means that we can reparse the procedure as many time as we want.
+    The first time, the resulting Lex is used to store the procedure in
+    the database (using the function sp.c:sp_create_procedure()).
+
+    The simplest way would be to just leave it at that, and re-read the
+    procedure from the database each time it is called. (And in fact, that's
+    the way the earliest implementation will work.)
+    However, this is not very efficient, and we can do better. The full
+    implementation should work like this:
+
+    1) Upon creation time, parse and store the procedure. Note that we still
+       need to parse it to catch syntax errors, but we can't check if called
+       procedures exists for instance.
+    2) Upon first CALL, read from the database, parse it, and cache the
+       resulting Lex in memory. This time we can do more error checking.
+    3) Upon subsequent CALLs, use the cached Lex.
+
+    Note that this implies that the Lex structure with its sphead must be
+    reentrant, that is, reusable and shareable between different threads
+    and calls. The runtime state for a procedure is kept in the sp_rcontext
+    in THD.
+
+    The mechanisms of storing, finding, and dropping procedures are
+    encapsulated in the files sp.{cc,h}.
+
+
+  - CALLing a procedure
+
+    A CALL is parsed just like any statement. The resulting Lex has the
+    sql_command SQLCOM_CALL, the procedure's name and the parameters are
+    pushed to the Lex' value_list.
+
+    sql_parse.cc:mysql_execute_command() then uses sp.cc:sp_find() to
+    get the sp_head for the procedure (which may have been read from the
+    database or feetched from the in-memory cache) and calls the sp_head's
+    method execute().
+    Note: It's important that substatements called by the procedure do not
+          do send_ok(). Fortunately, there is a flag in THD->net to disable
+          this during CALLs. If a substatement fails, it will however send
+          an error back to the client, so the CALL mechanism must return
+          immediately and without sending an error.
+
+    The sp_head::execute() method works as follows:
+
+    1) Keep a pointer to the old runtime context in THD (if any)
+    2) Create a new runtime context. The information about the required size
+       is in sp_head's parse time context.
+    3) Push each parameter (from the CALL's Lex->value_list) to the new
+       context. If it's an OUT or INOUT parameter, the parameter's offset
+       in the caller's frame is set in the new context as well.
+    4) For each instruction, call its execute() method.
+       The result is a pointer to the next instruction to execute (or NULL)
+       if an error occured.
+    5) On success, set the new values of the OUT and INOUT parameters in
+       the caller's frame.
+
+
+    - Evaluating Items
+
+      There are three occasions where we need to evaluate an expression:
+
+      - When SETing a variable
+      - When CALLing a procedure
+      - When testing an expression for a branch (in IF, WHILE, etc)
+
+      The semantics in stored procedures is "call-by-value", so we have to
+      evaluate any "func" Items at the point of the CALL or SET, otherwise
+      we would get a kind of "lazy" evaluation with unexpected results with
+      respect to OUT parameters for instance.
+      For this the support function, sp_head.cc:eval_func_item() is needed.
+
+
+  - Calling a FUNCTION
+
+    Functions don't have an explicit call keyword like procedures. Instead,
+    they appear in expressions with the conventional syntax "fun(arg, ...)".
+    The problem is that we already have User Defined Functions (UDFs) which
+    are called the same way. A UDF is detected by the lexical analyzer (not
+    the parser!), in the find_keyword() function, and returns a UDF_*_FUNC
+    or UDA_*_SUM token with the udf_func object as the yylval.
+
+    So, stored functions must be handled in a simpilar way, and as a
+    consequence, UDFs and functions must not have the same name.
+
+    - Detecting and parsing a FUNCTION invokation
+
+      The existance of UDFs are checked during the lexical analysis (in
+      sql_lex.cc:find_keyword()). This has the drawback that they must
+      exist before they are refered to, which was ok before SPs existed,
+      but then it becomes a problem. The first implementation of SP FUNCTIONs
+      will work the same way, but this should be fixed a.s.a.p. (This will
+      required some reworking of the way UDFs are handled, which is why it's
+      not done from the start.)
+      For the time being, a FUNCTION is detected the same way, and returns
+      the token SP_FUNC. During the parsing we only check for the *existance*
+      of the function, we don't parse it, since wa can't call the parser
+      recursively.
+
+      When encountering a SP_FUNC with parameters in the expression parser,
+      an instance of the new Item_func_sp class is created. Unlike UDFs, we
+      don't have different classes for different return types, since we at
+      this point don't know the type.
+
+    - Collecting FUNCTIONs to invoke
+
+      A FUNCTION differs from a PROCEDURE in one important aspect: Whereas a
+      PROCEDURE is CALLed as statement by itself, a FUNCTION is invoked
+      "on-the-fly" during the execution of *another* statement.
+      This makes things a lot more complicated compared to CALL:
+      - We can't read and parse the FUNCTION from the mysql.proc table at the
+        point of invokation; the server requires that all tables used are
+	opened and locked at the beginning of the query execution.
+      One "obvious" solution would be to simply push "mysql.proc" to the list
+      of tables used by the query, but this implies a "join" with this table
+      if the query is a select, so it doesn't work (and we can't exclude this
+      table easily; since a priviledged used might in fact want to search
+      the proc table).
+      Another solution would of course be to allow the opening and closing
+      of the mysql.proc table during a query execution, but this it not
+      possible at the present.
+
+      So, the solution is to collect the names of the refered FUNCTIONs during
+      parsing in the lex.
+      Then, before doing anything else in mysql_execute_command(), read all
+      functions from the database an keep them in the THD, where the function
+      sp_find_function() can find them during the execution.
+      Note: Even when a global in-memory cache is implemented, we must still
+        make sure that the functions are indeed read and cached at this point.
+      The code that read and cache functions from the database must also be
+      invoked recursively for each read FUNCTION to make sure we have *all* the
+      functions we need.
+
+      In the absence of the real in-memory cache for SPs, a temporary solution
+      has been implemented with a per-THD cache for just FUNCTIONs. This is
+      handled by the functions
+
+        void sp_add_fun_to_lex(LEX *lex, LEX_STRING fun);
+	void sp_merge_funs(LEX *dst, LEX *src);
+	int sp_cache_functions(THD *thd, LEX *lex);
+	void sp_clear_function_cache(THD *thd);
+
+      in sp.cc.
+
+
+  - Parsing DROP PROCEDURE/FUNCTION
+
+    The procedure name is pushed to Lex->value_list.
+    The sql_command code for the result of parsing a is
+    SQLCOM_DROP_PROCEDURE/SQLCOM_DROP_FUNCTION.
+
+    Dropping is done by simply getting the procedure with the sp_find()
+    function and calling sp_drop() (both in sp.{cc,h}).
+
+
+  - Class and function APIs
+
+    - The parser context: sp_pcontext.h
+
+      typedef enum
+      {
+        sp_param_in,
+	sp_param_out,
+	sp_param_inout
+      } sp_param_mode_t;
+
+      typedef struct
+      {
+        Item_string *name;
+	enum enum_field_types type;
+	sp_param_mode_t mode;
+	uint offset;			// Offset in current frame
+	my_bool isset;
+      } sp_pvar_t;
+
+      class sp_pcontext
+      {
+        sp_pcontext();
+
+	// Return the maximum frame size
+	uint max_framesize();
+
+	// Return the current frame size
+	uint current_framesize();
+
+	// Return the number of parameters
+	uint params();
+
+	// Set the number of parameters to the current frame size
+	void set_params();
+
+	// Set type of the variable at offset 'i' in the frame
+	void set_type(uint i, enum enum_field_types type);
+
+	// Mark the i:th variable to "set" (i.e. having a value) with
+	// 'val' true.
+	void set_isset(uint i, my_bool val);
+
+	// Push the variable 'name' to the frame.
+        void push(LEX_STRING *name,
+	          enum enum_field_types type, sp_param_mode_t mode);
+
+        // Pop 'num' variables from the frame.
+        void pop(uint num = 1);
+
+	// Find variable by name
+	sp_pvar_t *find_pvar(LEX_STRING *name);
+
+	// Find variable by index
+	sp_pvar_t *find_pvar(uint i);
+
+	// Push label 'name' of instruction index 'ip' to the label context
+	sp_label_t *push_label(char *name, uint ip);
+
+	// Find label 'name' in the context
+	sp_label_t *find_label(char *name);
+
+	// Return the last pushed label
+	sp_label_t *last_label();
+
+	// Return and remove the last pushed label.
+	sp_label_t *pop_label();
+      }
+
+
+    - The run-time context (call frame): sp_rcontext.h
+
+    class sp_rcontext
+    {
+      // 'size' is the max size of the context
+      sp_rcontext(uint size);
+
+      // Push value (parameter) 'i' to the frame
+      void push_item(Item *i);
+
+      // Set slot 'idx' to value 'i'
+      void set_item(uint idx, Item *i);
+
+      // Return the item in slot 'idx'
+      Item *get_item(uint idx);
+
+      // Set the "out" index 'oidx' for slot 'idx. If it's an IN slot,
+      // use 'oidx' -1.
+      void set_oindex(uint idx, int oidx);
+
+      // Return the "out" index for slot 'idx'
+      int get_oindex(uint idx);
+
+      // Set the FUNCTION result
+      void set_result(Item *i);
+
+      // Get the FUNCTION result
+      Item *get_result();
+    }
+
+
+    - The procedure: sp_head.h
+
+      #define TYPE_ENUM_FUNCTION  1
+      #define TYPE_ENUM_PROCEDURE 2
+
+      class sp_head
+      {
+        int m_type;		// TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE
+
+        sp_head(LEX_STRING *name, LEX*);
+
+        // Store this procedure in the database. This is a wrapper around
+        // the function sp_create_procedure().
+        int create(THD *);
+
+	// Invoke a FUNCTION
+	int
+	execute_function(THD *thd, Item **args, uint argcount, Item **resp);
+
+	// CALL a PROCEDURE
+	int
+	execute_procedure(THD *thd, List<Item> *args);
+
+        // Add the instruction to this procedure.
+        void add_instr(sp_instr *);
+
+        // Return the number of instructions.
+        uint instructions();
+
+        // Resets lex in 'thd' and keeps a copy of the old one.
+        void reset_lex(THD *);
+
+        // Restores lex in 'thd' from our copy, but keeps some status from the
+        // one in 'thd', like ptr, tables, fields, etc.
+        void restore_lex(THD *);
+
+        // Put the instruction on the backpatch list, associated with
+        // the label.
+        void push_backpatch(sp_instr *, struct sp_label *);
+
+        // Update all instruction with this label in the backpatch list to
+        // the current position.
+        void backpatch(struct sp_label *);
+      }
+
+    - Instructions
+
+      - The base class:
+        class sp_instr
+        {
+          // 'ip' is the index of this instruction
+          sp_instr(uint ip);
+
+          // Execute this instrution.
+          // '*nextp' will be set to the index of the next instruction
+          // to execute. (For most instruction this will be the
+          // instruction following this one.)
+          // Returns 0 on success, non-zero if some error occured.
+          virtual int execute(THD *, uint *nextp)
+        }
+
+      - Statement instruction:
+        class sp_instr_stmt : public sp_instr
+        {
+          sp_instr_stmt(uint ip);
+
+          int execute(THD *, uint *nextp);
+
+	  // Set the statement's Lex
+          void set_lex(LEX *);
+
+	  // Return the statement's Lex
+	  LEX *get_lex();
+        }
+
+     -  SET instruction:
+        class sp_instr_set : public sp_instr
+	{
+	  // 'offset' is the variable's frame offset, 'val' the value,
+	  // and 'type' the variable type.
+	  sp_instr_set(uint ip,
+	               uint offset, Item *val, enum enum_field_types type);
+
+	  int execute(THD *, uint *nextp);
+	}
+
+      - Unconditional jump
+        class sp_instr_jump : public sp_instr
+	{
+	  // No destination, must be set.
+	  sp_instr_jump(uint ip);
+
+	  // 'dest' is the destination instruction index.
+	  sp_instr_jump(uint ip, uint dest);
+
+	  int execute(THD *, uint *nextp);
+
+	  // Set the destination instruction 'dest'.
+	  void set_destination(uint dest);
+        }
+
+      - Conditional jump
+        class sp_instr_jump_if_not : public sp_instr_jump
+	{
+	  // Jump if 'i' evaluates to false. Destination not set yet.
+	  sp_instr_jump_if_not(uint ip, Item *i);
+
+	  // Jump to 'dest' if 'i' evaluates to false.
+	  sp_instr_jump_if_not(uint ip, Item *i, uint dest)
+
+	  int execute(THD *, uint *nextp);
+        }
+
+      - Return a function value
+        class sp_instr_return : public sp_instr
+	{
+	  // Return the value 'val'
+	  sp_instr_return(uint ip, Item *val, enum enum_field_types type);
+	  
+	  int execute(THD *thd, uint *nextp);
+	}
+
+
+    - Utility functions: sp.h
+
+      #define SP_OK                 0
+      #define SP_KEY_NOT_FOUND     -1
+      #define SP_OPEN_TABLE_FAILED -2
+      #define SP_WRITE_ROW_FAILED  -3
+      #define SP_DELETE_ROW_FAILED -4
+      #define SP_GET_FIELD_FAILED  -5
+      #define SP_PARSE_ERROR       -6
+
+      // Finds a stored procedure given its name. Returns NULL if not found.
+      sp_head *sp_find_procedure(THD *, LEX_STRING *name);
+
+      // Store the procedure 'name' in the database. 'def' is the complete
+      // definition string ("create procedure ...").
+      int sp_create_procedure(THD *,
+                              char *name, uint namelen,
+			      char *def, uint deflen);
+
+      // Drop the procedure 'name' from the database.
+      int sp_drop_procedure(THD *, char *name, uint namelen);
+
+      // Finds a stored function given its name. Returns NULL if not found.
+      sp_head *sp_find_function(THD *, LEX_STRING *name);
+
+      // Store the function 'name' in the database. 'def' is the complete
+      // definition string ("create function ...").
+      int sp_create_function(THD *,
+                             char *name, uint namelen,
+			     char *def, uint deflen);
+
+      // Drop the function 'name' from the database.
+      int sp_drop_function(THD *, char *name, uint namelen);
+
+--

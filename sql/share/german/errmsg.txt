@@ -259,9 +259,22 @@
 "Referenz '%-.64s' wird nicht unterstützt (%s)",
 "Für jede abgeleitete Tabelle muss ein eigener Alias angegeben werden.",
 "Select %u wurde während der Optimierung reduziert.",
-"Tabelle '%-.64s', die in einem der SELECT-Befehle verwendet wurde kann nicht in %-.32s verwendet werden",
+"Tabelle '%-.64s', die in einem der SELECT-Befehle verwendet wurde kann nicht in %-.32s verwendet werden."
 "Client does not support authentication protocol requested by server. Consider upgrading MySQL client",
 "All parts of a SPATIAL KEY must be NOT NULL"
 "COLLATION '%s' is not valid for CHARACTER SET '%s'"
 "The slave was already running"
 "The slave was already stopped"
+"Client does not support authentication protocol requested by server. Consider upgrading MySQL client"
+"Can't create a %s from within another stored routine"
+"%s %s already exists"
+"%s %s does not exist"
+"Failed to DROP %s %s"
+"Failed to CREATE %s %s"
+"%s with no matching label: %s"
+"Redefining label %s"
+"End-label %s without match"
+"Referring to uninitialized variable %s"
+"SELECT in a stored procedure must have INTO"
+"RETURN is only allowed in a FUNCTION"
+"Queries, like SELECT, INSERT, UPDATE (and others), are not allowed in a FUNCTION"

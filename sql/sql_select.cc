@@ -191,7 +191,8 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
     send_error(thd, 0, NullS);
     res= 1;
   }
-  delete result;
+  if (result != lex->result)
+    delete result;
   return res;
 }
 
