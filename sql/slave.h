@@ -398,6 +398,8 @@ int mysql_table_dump(THD* thd, const char* db,
 int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
 		       MASTER_INFO* mi, MYSQL* mysql);
 
+void table_rule_ent_hash_to_str(String* s, HASH* h);
+void table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a);
 int show_master_info(THD* thd, MASTER_INFO* mi);
 int show_binlog_info(THD* thd);
 

@@ -148,7 +148,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
     if (wild)
     {
       strxmov(name,entry->table_cache_key,".",entry->real_name,NullS);
-      if (wild_compare(name,wild))
+      if (wild_compare(name,wild,0))
 	continue;
     }
 
@@ -2236,7 +2236,11 @@ fill_record(List<Item> &fields,List<Item> &values, bool ignore_errors)
   while ((field=(Item_field*) f++))
   {
     value=v++;
-    if (value->save_in_field(field->field, 0) > 0 && !ignore_errors)
+    Field *rfield= field->field;
+    TABLE *table= rfield->table;
+    if (rfield == table->next_number_field)
+      table->auto_increment_field_not_null= true;
+    if (value->save_in_field(rfield, 0) > 0 && !ignore_errors)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2254,6 +2258,9 @@ fill_record(Field **ptr,List<Item> &values, bool ignore_errors)
   while ((field = *ptr++))
   {
     value=v++;
+    TABLE *table= field->table;
+    if (field == table->next_number_field)
+      table->auto_increment_field_not_null= true;
     if (value->save_in_field(field, 0) == 1 && !ignore_errors)
       DBUG_RETURN(1);
   }

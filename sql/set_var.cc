@@ -1240,7 +1240,7 @@ bool sys_var_collation::check(THD *thd, set_var *var)
 
   if (!(tmp=get_charset_by_name(res->c_ptr(),MYF(0))))
   {
-    my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
+    my_error(ER_UNKNOWN_COLLATION, MYF(0), res->c_ptr());
     return 1;
   }
   var->save_result.charset= tmp;	// Save for update
