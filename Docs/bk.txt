@@ -57,8 +57,3 @@ work for MySQL, of course. And, of course, do not bug them with little things
 that you can figure out on your own or with my help - they were nice to offer us
 support, but we should not abuse it.
 
-If you are working on 3.23 MySQL source, please make sure to convert to bk ASAP
-before you do any further developement - otherwise, things will get
-exponentially worse as the code mass increases. I will work on mysql-4.0 next
-and try to set it up so that when we update 3.23 source tree, the update makes
-it to mysql-4.0.
