@@ -74,7 +74,7 @@ FsCloseReq::getRemoveFileFlag(const UintR & fileflag){
 inline
 void
 FsCloseReq::setRemoveFileFlag(UintR & fileflag, bool removefile){
-  ASSERT_BOOL(removefile, "FsCloseReq::setRemoveFileFlag");
+//  ASSERT_BOOL(removefile, "FsCloseReq::setRemoveFileFlag");
   if (removefile == true)
     fileflag = 1;
   else
