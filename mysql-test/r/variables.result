@@ -354,7 +354,6 @@ set read_buffer_size=100;
 set read_rnd_buffer_size=100;
 set global rpl_recovery_rank=100;
 set global server_id=100;
-set global slave_net_timeout=100;
 set global slow_launch_time=100;
 set sort_buffer_size=100;
 set sql_auto_is_null=1;
@@ -381,7 +380,6 @@ select @@sql_max_join_size,@@max_join_size;
 set sql_quote_show_create=1;
 set sql_safe_updates=1;
 set sql_select_limit=1;
-set global sql_slave_skip_counter=100;
 set sql_warnings=1;
 set global table_cache=100;
 set storage_engine=myisam;
@@ -520,3 +518,11 @@ SHOW VARIABLES LIKE 'table_cache';
 Variable_name	Value
 table_cache	1
 SET GLOBAL table_cache=DEFAULT;
+create table t1 (a int);
+select a into @x from t1;
+Warnings:
+Warning	1329	No data to FETCH
+show warnings;
+Level	Code	Message
+Warning	1329	No data to FETCH
+drop table t1;

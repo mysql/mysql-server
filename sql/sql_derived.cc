@@ -43,8 +43,10 @@
 int
 mysql_handle_derived(LEX *lex, int (*processor)(THD*, LEX*, TABLE_LIST*))
 {
+  int res= 0;
   if (lex->derived_tables)
   {
+    lex->thd->derived_tables_processing= TRUE;
     for (SELECT_LEX *sl= lex->all_selects_list;
 	 sl;
 	 sl= sl->next_select_in_list())
@@ -53,9 +55,8 @@ mysql_handle_derived(LEX *lex, int (*processor)(THD*, LEX*, TABLE_LIST*))
 	   cursor;
 	   cursor= cursor->next_local)
       {
-	int res;
 	if ((res= (*processor)(lex->thd, lex, cursor)))
-	  return res;
+	  goto out;
       }
       if (lex->describe)
       {
@@ -68,7 +69,9 @@ mysql_handle_derived(LEX *lex, int (*processor)(THD*, LEX*, TABLE_LIST*))
       }
     }
   }
-  return 0;
+out:
+  lex->thd->derived_tables_processing= FALSE;
+  return res;
 }
 
 
@@ -115,7 +118,7 @@ int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
       DBUG_RETURN(1); // out of memory
 
     // st_select_lex_unit::prepare correctly work for single select
-    if ((res= unit->prepare(thd, derived_result, 0)))
+    if ((res= unit->prepare(thd, derived_result, 0, orig_table_list->alias)))
       goto exit;
 
 

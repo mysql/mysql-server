@@ -681,6 +681,23 @@ end|
 
 
 #
+# BUG#6600: Stored procedure crash after repeated calls with check table
+#
+--error ER_SP_BADSTATEMENT
+create procedure bug6600()
+  check table t1|
+
+# Check these two as well, while we're at it. (Although it isn't really
+# related to the bug report, but to the fix.)
+--error ER_SP_BADSTATEMENT
+create procedure bug6600()
+  lock table t1 read|
+--error ER_SP_BADSTATEMENT
+create procedure bug6600()
+  unlock table t1|
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

@@ -39,12 +39,17 @@
 #define SHOW_VIEW_ACL	(1L << 22)
 #define CREATE_PROC_ACL	(1L << 23)
 #define ALTER_PROC_ACL  (1L << 24)
+#define CREATE_USER_ACL (1L << 25)
 /*
   don't forget to update
-    static struct show_privileges_st sys_privileges[]
-  in sql_show.cc when adding new privileges!
+  1. static struct show_privileges_st sys_privileges[]
+  2. static const char *command_array[] and static uint command_lengths[]
+  3. mysql_create_system_tables.sh, mysql_fix_privilege_tables.sql
+  4. acl_init() or whatever - to define behaviour for old privilege tables
+  5. sql_yacc.yy - for GRANT/REVOKE to work
 */
-
+#define EXTRA_ACL	(1L << 29)
+#define NO_ACCESS	(1L << 30)
 
 #define DB_ACLS \
 (UPDATE_ACL | SELECT_ACL | INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
@@ -72,10 +77,7 @@
  REFERENCES_ACL | INDEX_ACL | ALTER_ACL | SHOW_DB_ACL | SUPER_ACL | \
  CREATE_TMP_ACL | LOCK_TABLES_ACL | REPL_SLAVE_ACL | REPL_CLIENT_ACL | \
  EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | CREATE_PROC_ACL | \
- ALTER_PROC_ACL )
-
-#define EXTRA_ACL	(1L << 29)
-#define NO_ACCESS	(1L << 30)
+ ALTER_PROC_ACL | CREATE_USER_ACL)
 
 #define DEFAULT_CREATE_PROC_ACLS \
 (ALTER_PROC_ACL | EXECUTE_ACL)
@@ -85,25 +87,21 @@
   This is needed as the 'host' and 'db' table is missing a few privileges
 */
 
-/* Continius bit-segments that needs to be shifted */
-#define DB_REL1 ((1L << 6) | (1L << 7) | (1L << 8) | (1L << 9))
-#define DB_REL2 ((1L << 10) | (1L << 11))
-#define DB_REL3 ((1L << 12) | (1L << 13) | (1L << 14) | (1L << 15))
-#define DB_REL4 ((1L << 16))
-
 /* Privileges that needs to be reallocated (in continous chunks) */
+#define DB_CHUNK0 (SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL | \
+                   CREATE_ACL | DROP_ACL)
 #define DB_CHUNK1 (GRANT_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL)
 #define DB_CHUNK2 (CREATE_TMP_ACL | LOCK_TABLES_ACL)
 #define DB_CHUNK3 (CREATE_VIEW_ACL | SHOW_VIEW_ACL | \
 		   CREATE_PROC_ACL | ALTER_PROC_ACL )
 #define DB_CHUNK4 (EXECUTE_ACL)
 
-#define fix_rights_for_db(A) (((A) & 63) | \
-			      (((A) & DB_REL1) << 4) | \
-			      (((A) & DB_REL2) << 6) | \
-			      (((A) & DB_REL3) << 9) | \
-			      (((A) & DB_REL4) << 2))
-#define get_rights_for_db(A) (((A) & 63) | \
+#define fix_rights_for_db(A)  (((A)       & DB_CHUNK0) | \
+			      (((A) << 4) & DB_CHUNK1) | \
+			      (((A) << 6) & DB_CHUNK2) | \
+			      (((A) << 9) & DB_CHUNK3) | \
+			      (((A) << 2) & DB_CHUNK4))
+#define get_rights_for_db(A)  (((A) & DB_CHUNK0)       | \
 			      (((A) & DB_CHUNK1) >> 4) | \
 			      (((A) & DB_CHUNK2) >> 6) | \
 			      (((A) & DB_CHUNK3) >> 9) | \
@@ -190,8 +188,7 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table, List <LEX_USER> &user_list,
 bool mysql_procedure_grant(THD *thd, TABLE_LIST *table, 
 			   List <LEX_USER> &user_list, ulong rights,
 			   bool revoke, bool no_error);
-ACL_USER *check_acl_user(LEX_USER *user_name,
-			 uint *acl_acl_userdx);
+ACL_USER *check_acl_user(LEX_USER *user_name, uint *acl_acl_userdx);
 my_bool grant_init(THD *thd);
 void grant_free(void);
 void grant_reload(THD *thd);

@@ -1,3 +1,4 @@
+set @org_mode=@@sql_mode;
 set @@sql_mode='ansi,traditional';
 select @@sql_mode;
 @@sql_mode
@@ -209,8 +210,12 @@ INSERT INTO t1 (col1) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect date value: '2004-10-00 15:30:00' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('31.9.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect date value: '2004-09-31 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '32.10.2004 15.30' for function str_to_time
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('29.02.2003 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect date value: '2003-02-29 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES(STR_TO_DATE('15.13.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '15.13.2004 15.30' for function str_to_time
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
@@ -220,8 +225,14 @@ INSERT INTO t1 (col2) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '2004-10-00 15:30:00' for column 'col2' at row 1
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('31.9.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '2004-09-31 15:30:00' for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '32.10.2004 15.30' for function str_to_time
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('29.02.2003 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '2003-02-29 15:30:00' for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES(STR_TO_DATE('15.13.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '15.13.2004 15.30' for function str_to_time
+INSERT INTO t1 (col2) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
+ERROR 22007: Incorrect datetime value: '0000-00-00' for column 'col2' at row 1
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '0000-10-31 15:30:00' for column 'col3' at row 1
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('31.0.2004 15.30','%d.%m.%Y %H.%i'));
@@ -230,8 +241,12 @@ INSERT INTO t1 (col3) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '2004-10-00 15:30:00' for column 'col3' at row 1
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('31.9.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '2004-09-31 15:30:00' for column 'col3' at row 1
+INSERT INTO t1 (col3) VALUES(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '32.10.2004 15.30' for function str_to_time
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('29.02.2003 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '2003-02-29 15:30:00' for column 'col3' at row 1
+INSERT INTO t1 (col3) VALUES(STR_TO_DATE('15.13.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '15.13.2004 15.30' for function str_to_time
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
 ERROR 22007: Incorrect datetime value: '0000-00-00' for column 'col3' at row 1
 drop table t1;
@@ -244,17 +259,23 @@ INSERT INTO t1 (col1) VALUES(CAST('2004-10-0' AS DATE));
 ERROR 22007: Incorrect date value: '2004-10-00' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES(CAST('2004-0-10' AS DATE));
 ERROR 22007: Incorrect date value: '2004-00-10' for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES(CAST('0000-00-00' AS DATE));
+ERROR 22007: Truncated incorrect datetime value: '0000-00-00'
 INSERT INTO t1 (col2) VALUES(CAST('0000-10-31 15:30' AS DATETIME));
 INSERT INTO t1 (col2) VALUES(CAST('2004-10-0 15:30' AS DATETIME));
 ERROR 22007: Incorrect datetime value: '2004-10-00 15:30:00' for column 'col2' at row 1
 INSERT INTO t1 (col2) VALUES(CAST('2004-0-10 15:30' AS DATETIME));
 ERROR 22007: Incorrect datetime value: '2004-00-10 15:30:00' for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES(CAST('0000-00-00' AS DATETIME));
+ERROR 22007: Truncated incorrect datetime value: '0000-00-00'
 INSERT INTO t1 (col3) VALUES(CAST('0000-10-31 15:30' AS DATETIME));
 ERROR 22007: Incorrect datetime value: '0000-10-31 15:30:00' for column 'col3' at row 1
 INSERT INTO t1 (col3) VALUES(CAST('2004-10-0 15:30' AS DATETIME));
 ERROR 22007: Incorrect datetime value: '2004-10-00 15:30:00' for column 'col3' at row 1
 INSERT INTO t1 (col3) VALUES(CAST('2004-0-10 15:30' AS DATETIME));
 ERROR 22007: Incorrect datetime value: '2004-00-10 15:30:00' for column 'col3' at row 1
+INSERT INTO t1 (col3) VALUES(CAST('0000-00-00' AS DATETIME));
+ERROR 22007: Truncated incorrect datetime value: '0000-00-00'
 drop table t1;
 CREATE TABLE t1 (col1 date, col2 datetime, col3 timestamp);
 INSERT INTO t1 (col1) VALUES (CONVERT('2004-10-15',DATE));
@@ -265,17 +286,23 @@ INSERT INTO t1 (col1) VALUES(CONVERT('2004-10-0' , DATE));
 ERROR 22007: Incorrect date value: '2004-10-00' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES(CONVERT('2004-0-10' , DATE));
 ERROR 22007: Incorrect date value: '2004-00-10' for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES(CONVERT('0000-00-00',DATE));
+ERROR 22007: Truncated incorrect datetime value: '0000-00-00'
 INSERT INTO t1 (col2) VALUES(CONVERT('0000-10-31 15:30',DATETIME));
 INSERT INTO t1 (col2) VALUES(CONVERT('2004-10-0 15:30',DATETIME));
 ERROR 22007: Incorrect datetime value: '2004-10-00 15:30:00' for column 'col2' at row 1
 INSERT INTO t1 (col2) VALUES(CONVERT('2004-0-10 15:30',DATETIME));
 ERROR 22007: Incorrect datetime value: '2004-00-10 15:30:00' for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES(CONVERT('0000-00-00',DATETIME));
+ERROR 22007: Truncated incorrect datetime value: '0000-00-00'
 INSERT INTO t1 (col3) VALUES(CONVERT('0000-10-31 15:30',DATETIME));
 ERROR 22007: Incorrect datetime value: '0000-10-31 15:30:00' for column 'col3' at row 1
 INSERT INTO t1 (col3) VALUES(CONVERT('2004-10-0 15:30',DATETIME));
 ERROR 22007: Incorrect datetime value: '2004-10-00 15:30:00' for column 'col3' at row 1
 INSERT INTO t1 (col3) VALUES(CONVERT('2004-0-10 15:30',DATETIME));
 ERROR 22007: Incorrect datetime value: '2004-00-10 15:30:00' for column 'col3' at row 1
+INSERT INTO t1 (col3) VALUES(CONVERT('0000-00-00',DATETIME));
+ERROR 22007: Truncated incorrect datetime value: '0000-00-00'
 drop table t1;
 CREATE TABLE t1(col1 TINYINT, col2 TINYINT UNSIGNED);
 INSERT INTO t1 VALUES(-128,0),(0,0),(127,255),('-128','0'),('0','0'),('127','255'),(-128.0,0.0),(0.0,0.0),(127.0,255.0);
@@ -1030,3 +1057,132 @@ ERROR 22001: Data too long for column 'tinyblobcol' at row 1
 select * from t1;
 charcol	varcharcol	binarycol	varbinarycol	tinytextcol	tinyblobcol
 drop table t1;
+set sql_mode='traditional';
+create table t1 (col1 datetime);
+insert into t1 values(STR_TO_DATE('31.10.2004 15.30 abc','%d.%m.%Y %H.%i'));
+ERROR 22007: Truncated incorrect datetime value: '31.10.2004 15.30 abc'
+insert into t1 values(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '32.10.2004 15.30' for function str_to_time
+insert into t1 values(STR_TO_DATE('2004.12.12 22:22:33 AM','%Y.%m.%d %r'));
+ERROR HY000: Incorrect time value: '22:22:33 AM' for function str_to_time
+insert into t1 values(STR_TO_DATE('2004.12.12 abc','%Y.%m.%d %T'));
+ERROR HY000: Incorrect time value: 'abc' for function str_to_time
+set sql_mode='';
+insert into t1 values(STR_TO_DATE('31.10.2004 15.30 abc','%d.%m.%Y %H.%i'));
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '31.10.2004 15.30 abc'
+insert into t1 values(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
+Warnings:
+Error	1411	Incorrect datetime value: '32.10.2004 15.30' for function str_to_time
+insert into t1 values(STR_TO_DATE('2004.12.12 22:22:33 AM','%Y.%m.%d %r'));
+Warnings:
+Error	1411	Incorrect time value: '22:22:33 AM' for function str_to_time
+insert into t1 values(STR_TO_DATE('2004.12.12 abc','%Y.%m.%d %T'));
+Warnings:
+Error	1411	Incorrect time value: 'abc' for function str_to_time
+insert into t1 values(STR_TO_DATE('31.10.2004 15.30','%d.%m.%Y %H.%i'));
+insert into t1 values(STR_TO_DATE('2004.12.12 11:22:33 AM','%Y.%m.%d %r'));
+insert into t1 values(STR_TO_DATE('2004.12.12 10:22:59','%Y.%m.%d %T'));
+select * from t1;
+col1
+2004-10-31 15:30:00
+NULL
+NULL
+NULL
+2004-10-31 15:30:00
+2004-12-12 11:22:33
+2004-12-12 10:22:59
+set sql_mode='traditional';
+select count(*) from t1 where STR_TO_DATE('2004.12.12 10:22:61','%Y.%m.%d %T') IS NULL;
+count(*)
+7
+Warnings:
+Error	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_time
+Error	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_time
+Error	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_time
+drop table t1;
+create table t1 (col1 char(3), col2 integer);
+insert into t1 (col1) values (cast(1000 as char(3)));
+ERROR 22007: Truncated incorrect CHAR(3) value: '1000'
+insert into t1 (col1) values (cast(1000E+0 as char(3)));
+ERROR 22007: Truncated incorrect CHAR(3) value: '1000'
+insert into t1 (col1) values (cast(1000.0 as char(3)));
+ERROR 22007: Truncated incorrect CHAR(3) value: '1000.0'
+insert into t1 (col2) values (cast('abc' as signed integer));
+ERROR 22007: Truncated incorrect INTEGER value: 'abc'
+insert into t1 (col2) values (10E+0 + 'a');
+ERROR 22007: Truncated incorrect DOUBLE value: 'a'
+insert into t1 (col2) values (cast('10a' as unsigned integer));
+ERROR 22007: Truncated incorrect INTEGER value: '10a'
+insert into t1 (col2) values (cast('10' as unsigned integer));
+insert into t1 (col2) values (cast('10' as signed integer));
+insert into t1 (col2) values (10E+0 + '0 ');
+select * from t1;
+col1	col2
+NULL	10
+NULL	10
+NULL	10
+drop table t1;
+create table t1 (col1 date, col2 datetime, col3 timestamp);
+insert into t1 values (0,0,0);
+ERROR 22007: Incorrect date value: '0' for column 'col1' at row 1
+insert into t1 values (0.0,0.0,0.0);
+ERROR 22007: Incorrect date value: '0' for column 'col1' at row 1
+insert into t1 (col1) values (convert('0000-00-00',date));
+ERROR 22007: Truncated incorrect datetime value: '0000-00-00'
+insert into t1 (col1) values (cast('0000-00-00' as date));
+ERROR 22007: Truncated incorrect datetime value: '0000-00-00'
+set sql_mode='no_zero_date';
+insert into t1 values (0,0,0);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+Warning	1265	Data truncated for column 'col3' at row 1
+insert into t1 values (0.0,0.0,0.0);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+Warning	1265	Data truncated for column 'col3' at row 1
+drop table t1;
+set sql_mode='traditional';
+create table t1 (col1 date);
+insert ignore into t1 values ('0000-00-00');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+insert into t1 select * from t1;
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
+insert ignore into t1 values ('0000-00-00');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+insert ignore into t1 (col1) values (cast('0000-00-00' as date));
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '0000-00-00'
+insert into t1 select * from t1;
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
+alter table t1 modify col1 datetime;
+ERROR 22007: Incorrect datetime value: '0000-00-00' for column 'col1' at row 1
+alter ignore table t1 modify col1 datetime;
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col1' at row 2
+insert into t1 select * from t1;
+ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'col1' at row 1
+select * from t1;
+col1
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+NULL
+drop table t1;
+create table t1 (col1 tinyint);
+drop procedure if exists t1;
+Warnings:
+Note	1305	PROCEDURE t1 does not exist
+create procedure t1 () begin declare exit handler for sqlexception
+select'a'; insert into t1 values (200); end;|
+call t1();
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+select * from t1;
+col1
+drop procedure t1;
+drop table t1;
+set sql_mode=@org_mode;

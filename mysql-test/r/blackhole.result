@@ -1,0 +1,86 @@
+drop table if exists t1,t2;
+CREATE TABLE t1 (
+Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
+Varor_period smallint(4) unsigned DEFAULT '0' NOT NULL
+) ENGINE=blackhole;
+INSERT INTO t1 VALUES (9410,9412);
+select period from t1;
+period
+select * from t1;
+Period	Varor_period
+select t1.* from t1;
+Period	Varor_period
+CREATE TABLE t2 (
+auto int NOT NULL auto_increment,
+fld1 int(6) unsigned zerofill DEFAULT '000000' NOT NULL,
+companynr tinyint(2) unsigned zerofill DEFAULT '00' NOT NULL,
+fld3 char(30) DEFAULT '' NOT NULL,
+fld4 char(35) DEFAULT '' NOT NULL,
+fld5 char(35) DEFAULT '' NOT NULL,
+fld6 char(4) DEFAULT '' NOT NULL,
+primary key (auto)
+) ENGINE=blackhole;
+INSERT INTO t2 VALUES (1192,068305,00,'Colombo','hardware','colicky','');
+INSERT INTO t2 VALUES (1193,000000,00,'nondecreasing','implant','thrillingly','');
+select t2.fld3 from t2 where companynr = 58 and fld3 like "%imaginable%";
+fld3
+select fld3 from t2 where fld3 like "%cultivation" ;
+fld3
+select t2.fld3,companynr from t2 where companynr = 57+1 order by fld3;
+fld3	companynr
+select fld3,companynr from t2 where companynr = 58 order by fld3;
+fld3	companynr
+select fld3 from t2 order by fld3 desc limit 10;
+fld3
+select fld3 from t2 order by fld3 desc limit 5;
+fld3
+select fld3 from t2 order by fld3 desc limit 5,5;
+fld3
+select t2.fld3 from t2 where fld3 = 'honeysuckle';
+fld3
+select t2.fld3 from t2 where fld3 LIKE 'honeysuckl_';
+fld3
+select t2.fld3 from t2 where fld3 LIKE 'hon_ysuckl_';
+fld3
+select t2.fld3 from t2 where fld3 LIKE 'honeysuckle%';
+fld3
+select t2.fld3 from t2 where fld3 LIKE 'h%le';
+fld3
+select t2.fld3 from t2 where fld3 LIKE 'honeysuckle_';
+fld3
+select t2.fld3 from t2 where fld3 LIKE 'don_t_find_me_please%';
+fld3
+select t2.fld3 from t2 where fld3 >= 'honeysuckle' and fld3 <= 'honoring' order by fld3;
+fld3
+select fld1,fld3 from t2 where fld3="Colombo" or fld3 = "nondecreasing" order by fld3;
+fld1	fld3
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
+INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
+('Full-text indexes', 'are called collections'),
+('Only MyISAM tables','support collections'),
+('Function MATCH ... AGAINST()','is used to do a search'),
+('Full-text search in MySQL', 'implements vector space model');
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	NULL	NULL	NULL	NULL	YES	FULLTEXT	
+t1	1	a	2	b	NULL	NULL	NULL	NULL	YES	FULLTEXT	
+select * from t1 where MATCH(a,b) AGAINST ("collections");
+a	b
+Only MyISAM tables	support collections
+Full-text indexes	are called collections
+explain extended select * from t1 where MATCH(a,b) AGAINST ("collections");
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	fulltext	a	a	0		1	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against (_latin1'collections'))
+select * from t1 where MATCH(a,b) AGAINST ("indexes");
+a	b
+Full-text indexes	are called collections
+select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
+a	b
+Full-text indexes	are called collections
+Only MyISAM tables	support collections
+select * from t1 where MATCH(a,b) AGAINST ("only");
+a	b
+drop table if exists t1,t2;

@@ -1041,25 +1041,28 @@ bool Query_log_event::write(IO_CACHE* file)
   }
   if (catalog_len) // i.e. "catalog inited" (false for 4.0 events)
   {
-    *start++= Q_CATALOG_CODE;
+    *start++= Q_CATALOG_NZ_CODE;
     *start++= (uchar) catalog_len;
     bmove(start, catalog, catalog_len);
     start+= catalog_len;
     /*
-      We write a \0 at the end. As we also have written the length, it's
-      apparently useless; but in fact it enables us to just do
-      catalog= a_pointer_to_the_buffer_of_the_read_event
-      later in the slave SQL thread.
-      If we didn't have the \0, we would need to memdup to build the catalog in
-      the slave SQL thread. 
-      And still the interest of having the length too is that in the slave SQL
-      thread we immediately know at which position the catalog ends (no need to
-      search for '\0'. In other words: length saves search, \0 saves mem alloc,
-      at the cost of 1 redundant byte on the disk.
-      Note that this is only a fix until we change 'catalog' to LEX_STRING
-      (then we won't need the \0).
+      In 5.0.x where x<4 masters we used to store the end zero here. This was
+      a waste of one byte so we don't do it in x>=4 masters. We change code to
+      Q_CATALOG_NZ_CODE, because re-using the old code would make x<4 slaves
+      of this x>=4 master segfault (expecting a zero when there is
+      none). Remaining compatibility problems are: the older slave will not
+      find the catalog; but it is will not crash, and it's not an issue
+      that it does not find the catalog as catalogs were not used in these
+      older MySQL versions (we store it in binlog and read it from relay log
+      but do nothing useful with it). What is an issue is that the older slave
+      will stop processing the Q_* blocks (and jumps to the db/query) as soon
+      as it sees unknown Q_CATALOG_NZ_CODE; so it will not be able to read
+      Q_AUTO_INCREMENT*, Q_CHARSET and so replication will fail silently in
+      various ways. Documented that you should not mix alpha/beta versions if
+      they are not exactly the same version, with example of 5.0.3->5.0.2 and
+      5.0.4->5.0.3. If replication is from older to new, the new will
+      recognize Q_CATALOG_CODE and have no problem.
     */
-    *(start++)= '\0';
   }
   if (auto_increment_increment != 1)
   {
@@ -1192,6 +1195,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   uint8 common_header_len, post_header_len;
   char *start;
   const char *end;
+  bool catalog_nz= 1;
   DBUG_ENTER("Query_log_event::Query_log_event(char*,...)");
 
   common_header_len= description_event->common_header_len;
@@ -1259,10 +1263,10 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       pos+= 8;
       break;
     }
-    case Q_CATALOG_CODE:
+    case Q_CATALOG_NZ_CODE:
       if ((catalog_len= *pos))
-        catalog= (char*) pos+1;                           // Will be copied later
-      pos+= catalog_len+2;
+        catalog= (char*) pos+1;                 // Will be copied later
+      pos+= catalog_len+1;
       break;
     case Q_AUTO_INCREMENT:
       auto_increment_increment= uint2korr(pos);
@@ -1283,11 +1287,17 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       pos+= time_zone_len+1;
       break;
     }
+    case Q_CATALOG_CODE: /* for 5.0.x where 0<=x<=3 masters */
+      if ((catalog_len= *pos))
+        catalog= (char*) pos+1;                           // Will be copied later
+      pos+= catalog_len+2; // leap over end 0
+      catalog_nz= 0; // catalog has end 0 in event
+      break;
     default:
       /* That's why you must write status vars in growing order of code */
       DBUG_PRINT("info",("Query_log_event has unknown status vars (first has\
  code: %u), skipping the rest of them", (uint) *(pos-1)));
-      pos= (const uchar*) end;                         // Break look
+      pos= (const uchar*) end;                         // Break loop
     }
   }
   
@@ -1297,9 +1307,19 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     DBUG_VOID_RETURN;
   if (catalog_len)                                  // If catalog is given
   {
-    memcpy(start, catalog, catalog_len+1);      // Copy name and end \0
-    catalog= start;
-    start+= catalog_len+1;
+    if (likely(catalog_nz)) // true except if event comes from 5.0.0|1|2|3.
+    {
+      memcpy(start, catalog, catalog_len);
+      catalog= start;
+      start+= catalog_len;
+      *start++= 0;
+    }
+    else
+    {
+      memcpy(start, catalog, catalog_len+1); // copy end 0
+      catalog= start;
+      start+= catalog_len+1;
+    }
   }
   if (time_zone_len)
   {
@@ -2064,6 +2084,7 @@ int Format_description_log_event::exec_event(struct st_relay_log_info* rli)
   delete rli->relay_log.description_event_for_exec;
   rli->relay_log.description_event_for_exec= this;
 
+#ifdef USING_TRANSACTIONS
   /*
     As a transaction NEVER spans on 2 or more binlogs:
     if we have an active transaction at this point, the master died
@@ -2085,6 +2106,7 @@ int Format_description_log_event::exec_event(struct st_relay_log_info* rli)
                       "to its binary log.");
     end_trans(thd, ROLLBACK);
   }
+#endif
   /*
     If this event comes from ourselves, there is no cleaning task to perform,
     we don't call Start_log_event_v3::exec_event() (this was just to update the
@@ -4004,8 +4026,10 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
   strmov(p, ".info");			// strmov takes less code than memcpy
   strnmov(proc_info, "Making temp file ", 17); // no end 0
   thd->proc_info= proc_info;
-  if ((fd = my_open(fname_buf, O_WRONLY|O_CREAT|O_BINARY|O_TRUNC,
-		    MYF(MY_WME))) < 0 ||
+  my_delete(fname_buf, MYF(0)); // old copy may exist already
+  if ((fd= my_create(fname_buf, CREATE_MODE,
+		     O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+		     MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, WRITE_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
@@ -4029,8 +4053,10 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
   my_close(fd, MYF(0));
   
   // fname_buf now already has .data, not .info, because we did our trick
-  if ((fd = my_open(fname_buf, O_WRONLY|O_CREAT|O_BINARY|O_TRUNC,
-		    MYF(MY_WME))) < 0)
+  my_delete(fname_buf, MYF(0)); // old copy may exist already
+  if ((fd= my_create(fname_buf, CREATE_MODE,
+		     O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+		     MYF(MY_WME))) < 0)
   {
     slave_print_error(rli,my_errno, "Error in Create_file event: could not open file '%s'", fname_buf);
     goto err;
@@ -4146,12 +4172,12 @@ void Append_block_log_event::pack_info(Protocol *protocol)
 
 
 /*
-  Append_block_log_event::get_open_mode()
+  Append_block_log_event::get_create_or_append()
 */
 
-int Append_block_log_event::get_open_mode() const
+int Append_block_log_event::get_create_or_append() const
 {
-  return O_WRONLY | O_APPEND | O_BINARY;
+  return 0; /* append to the file, fail if not exists */
 }
 
 /*
@@ -4169,7 +4195,21 @@ int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
   memcpy(p, ".data", 6);
   strnmov(proc_info, "Making temp file ", 17); // no end 0
   thd->proc_info= proc_info;
-  if ((fd = my_open(fname, get_open_mode(), MYF(MY_WME))) < 0)
+  if (get_create_or_append())
+  {
+    my_delete(fname, MYF(0)); // old copy may exist already
+    if ((fd= my_create(fname, CREATE_MODE,
+		       O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
+		       MYF(MY_WME))) < 0)
+    {
+      slave_print_error(rli, my_errno,
+			"Error in %s event: could not create file '%s'",
+			get_type_str(), fname);
+      goto err;
+    }
+  }
+  else if ((fd = my_open(fname, O_WRONLY | O_APPEND | O_BINARY | O_NOFOLLOW,
+                         MYF(MY_WME))) < 0)
   {
     slave_print_error(rli, my_errno,
                       "Error in %s event: could not open file '%s'",
@@ -4382,7 +4422,8 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
   Load_log_event* lev = 0;
 
   memcpy(p, ".info", 6);
-  if ((fd = my_open(fname, O_RDONLY|O_BINARY, MYF(MY_WME))) < 0 ||
+  if ((fd = my_open(fname, O_RDONLY | O_BINARY | O_NOFOLLOW,
+                    MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, READ_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
@@ -4481,9 +4522,9 @@ Begin_load_query_log_event(const char* buf, uint len,
 
 
 #if defined( HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-int Begin_load_query_log_event::get_open_mode() const
+int Begin_load_query_log_event::get_create_or_append() const
 {
-  return O_CREAT | O_WRONLY | O_BINARY | O_TRUNC;
+  return 1; /* create the file */
 }
 #endif /* defined( HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
 
@@ -4660,7 +4701,12 @@ Execute_load_query_log_event::exec_event(struct st_relay_log_info* rli)
   /* Forging file name for deletion in same buffer */
   *fname_end= 0;
 
-  (void) my_delete(fname, MYF(MY_WME));
+  /*
+    If there was an error the slave is going to stop, leave the
+    file so that we can re-execute this event at START SLAVE.
+  */
+  if (!error)
+    (void) my_delete(fname, MYF(MY_WME));
 
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
   return error;

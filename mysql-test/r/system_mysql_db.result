@@ -96,6 +96,7 @@ user	CREATE TABLE `user` (
   `Show_view_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `Create_routine_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `Alter_routine_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
+  `Create_user_priv` enum('N','Y') character set utf8 NOT NULL default 'N',
   `ssl_type` enum('','ANY','X509','SPECIFIED') character set utf8 NOT NULL default '',
   `ssl_cipher` blob NOT NULL,
   `x509_issuer` blob NOT NULL,

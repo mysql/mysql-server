@@ -442,7 +442,6 @@ extern ulong server_id, concurrency;
 typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
                                       uint key_length,
                                       ulonglong *engine_data);
-
 #include "sql_string.h"
 #include "sql_list.h"
 #include "sql_map.h"
@@ -450,6 +449,7 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
 #include "handler.h"
 #include "parse_file.h"
 #include "table.h"
+#include "sql_error.h"
 #include "field.h"				/* Field definitions */
 #include "protocol.h"
 #include "sql_udf.h"
@@ -651,11 +651,6 @@ int prepare_create_field(create_field *sql_field,
 			 uint *blob_columns, 
 			 int *timestamps, int *timestamps_with_niladic,
 			 uint table_flags);
-int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
-		       List<create_field> &fields,
-		       List<Key> &keys, uint &db_options, 
-		       handler *file, KEY *&key_info_buffer,
-		       uint &key_count, int select_field_count);
 bool mysql_create_table(THD *thd,const char *db, const char *table_name,
                         HA_CREATE_INFO *create_info,
                         List<create_field> &fields, List<Key> &keys,
@@ -829,14 +824,6 @@ void mysql_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
 void reset_stmt_for_execute(THD *thd, LEX *lex);
 void init_stmt_after_parse(THD*, LEX*);
-
-/* sql_error.cc */
-MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, uint code,
-                          const char *msg);
-void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
-			 uint code, const char *format, ...);
-void mysql_reset_errors(THD *thd, bool force);
-bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 
 /* sql_handler.cc */
 bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen);
@@ -1044,6 +1031,7 @@ extern const char *first_keyword, *my_localhost, *delayed_user, *binary_keyword;
 extern const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
 extern const char *in_left_expr_name, *in_additional_cond;
+extern const char * const triggers_file_ext;
 extern Eq_creator eq_creator;
 extern Ne_creator ne_creator;
 extern Gt_creator gt_creator;
@@ -1155,6 +1143,7 @@ extern SHOW_COMP_OPTION have_query_cache, have_berkeley_db, have_innodb;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
+extern SHOW_COMP_OPTION have_blackhole_db;
 
 #ifndef __WIN__
 extern pthread_t signal_thread;

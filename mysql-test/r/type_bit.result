@@ -36,7 +36,7 @@ select 0 + b'1000000000000001';
 32769
 drop table if exists t1;
 create table t1 (a bit(65));
-ERROR 42000: Column length too big for column 'a' (max = 64); use BLOB instead
+ERROR 42000: Column length too big for column 'a' (max = 64); use BLOB or TEXT instead
 create table t1 (a bit(0));
 show create table t1;
 Table	Create Table

@@ -322,6 +322,7 @@ typedef struct st_schema_table
 
 struct st_lex;
 class select_union;
+class TMP_TABLE_PARAM;
 
 struct Field_translator
 {
@@ -370,11 +371,12 @@ typedef struct st_table_list
   ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
   st_select_lex	*schema_select_lex;
   bool schema_table_reformed;
+  TMP_TABLE_PARAM *schema_table_param;
   /* link to select_lex where this table was used */
   st_select_lex	*select_lex;
   st_lex	*view;			/* link on VIEW lex for merging */
   Field_translator *field_translation;	/* array of VIEW fields */
-  /* ancestor of this table (VIEW merge algorithm) */
+  /* list of ancestor(s) of this table (underlying table(s)/view(s) */
   st_table_list	*ancestor;
   /* most upper view this table belongs to */
   st_table_list	*belong_to_view;
@@ -446,6 +448,7 @@ typedef struct st_table_list
   void restore_want_privilege();
   bool check_single_table(st_table_list **table, table_map map);
   bool set_insert_values(MEM_ROOT *mem_root);
+  st_table_list *find_underlying_table(TABLE *table);
 } TABLE_LIST;
 
 class Item;
