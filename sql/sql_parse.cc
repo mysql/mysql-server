@@ -1957,6 +1957,8 @@ mysql_execute_command(void)
   case SQLCOM_TRUNCATE:
     if (check_access(thd,DELETE_ACL,tables->db,&tables->grant.privilege))
       goto error; /* purecov: inspected */
+    if (grant_option && check_grant(thd,DELETE_ACL,tables))
+      goto error;
     /*
       Don't allow this within a transaction because we want to use
       re-generate table
