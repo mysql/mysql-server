@@ -19,15 +19,25 @@
   reads info from a isam-table. Must be first request before doing any furter
   calls to any isamfunktion.  Is used to allow many process use the same
   isamdatabase.
-  */
+*/
+
+/*
+  state.open_count in the .MYI file is used the following way:
+  - For the first change of the file in this process it's incremented with
+    mi_mark_file_change(). (We have a write lock on the file in this case)
+  - In mi_close() it's decremented by _mi_decrement_open_count() if it
+    was incremented in the same process.
+
+  This mean that if we are the only process using the file, the open_count
+  tells us if the MYISAM file wasn't properly closed. (This is true if
+  my_disable_locking is set).
+*/
+
 
 #include "myisamdef.h"
 #ifdef	__WIN__
 #include <errno.h>
 #endif
-
-static int mi_unlock_open_count(MI_INFO *info, my_bool write_info);
-
 
 	/* lock table by F_UNLCK, F_RDLCK or F_WRLCK */
 
@@ -38,17 +48,17 @@ int mi_lock_database(MI_INFO *info, int lock_type)
   MYISAM_SHARE *share=info->s;
   uint flag;
   DBUG_ENTER("mi_lock_database");
-  DBUG_PRINT("enter",("mi_lock_database: lock_type %d, old lock %d"
-                      ", r_locks %u, w_locks %u", lock_type,
-                      info->lock_type, share->r_locks, share->w_locks));
-  DBUG_PRINT("enter",("mi_lock_database: gl._changed %d, open_count %u '%s'",
+  DBUG_PRINT("enter",("lock_type: %d  old lock %d  r_locks: %u  w_locks: %u "
+                      "global_changed:  %d  open_count: %u  name: '%s'",
+                      lock_type, info->lock_type, share->r_locks,
+                      share->w_locks,
                       share->global_changed, share->state.open_count,
                       share->index_file_name));
 
   if (share->options & HA_OPTION_READ_ONLY_DATA ||
       info->lock_type == lock_type)
     DBUG_RETURN(0);
-  if (lock_type == F_EXTRA_LCK)
+  if (lock_type == F_EXTRA_LCK)                 /* Used by TMP tables */
   {
     ++share->w_locks;
     ++share->tot_locks;
@@ -90,8 +100,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	  share->state.process= share->last_process=share->this_process;
 	  share->state.unique=   info->last_unique=  info->this_unique;
 	  share->state.update_count= info->last_loop= ++info->this_loop;
-          if (mi_unlock_open_count(info, FALSE) ||
-              mi_state_info_write(share->kfile, &share->state, 1))
+          if (mi_state_info_write(share->kfile, &share->state, 1))
 	    error=my_errno;
 	  share->changed=0;
 	  if (myisam_flush)
@@ -106,19 +115,6 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	  if (error)
 	    mi_mark_crashed(info);
 	}
-        else
-        {
-          /*
-            There are chances that _mi_mark_file_changed() has been called,
-            while share->changed remained FALSE. Consequently, we need to
-            clear the open_count even when share->changed is FALSE. Note,
-            that mi_unlock_open_count() will only clear the open_count when
-            it is set and only write the status to file, if it changes it
-            and we are running --with-external-locking.
-          */
-          if (mi_unlock_open_count(info, ! my_disable_locking))
-            error= my_errno;
-        }
 	if (info->lock_type != F_EXTRA_LCK)
 	{
 	  if (share->r_locks)
@@ -142,16 +138,17 @@ int mi_lock_database(MI_INFO *info, int lock_type)
       break;
     case F_RDLCK:
       if (info->lock_type == F_WRLCK)
-      {						/* Change RW to READONLY */
+      {
         /*
+          Change RW to READONLY
+
           mysqld does not turn write locks to read locks,
           so we're never here in mysqld.
         */
 	if (share->w_locks == 1)
 	{
 	  flag=1;
-          if (mi_unlock_open_count(info, ! my_disable_locking) ||
-              my_lock(share->kfile,lock_type,0L,F_TO_EOF,
+          if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
 		      MYF(MY_SEEK_NOT_DONE)))
 	  {
 	    error=my_errno;
@@ -179,14 +176,6 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	  my_errno=error;
 	  break;
 	}
-        if (share->state.open_count)
-        {
-          DBUG_PRINT("error",("RD: Table has not been correctly unlocked"
-                              ": open_count %d '%s'",
-                              share->state.open_count,
-                              share->index_file_name));
-          mi_mark_crashed(info);
-        }
       }
       VOID(_mi_test_if_changed(info));
       share->r_locks++;
@@ -232,14 +221,6 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	      my_errno=error;
 	      break;
 	    }
-            if (share->state.open_count)
-            {
-              DBUG_PRINT("error",("WR: Table has not been correctly unlocked"
-                                  ": open_count %d '%s'",
-                                  share->state.open_count,
-                                  share->index_file_name));
-              mi_mark_crashed(info);
-            }
 	  }
 	}
       }
@@ -375,9 +356,10 @@ int _mi_readinfo(register MI_INFO *info, int lock_type, int check_keybuffer)
 } /* _mi_readinfo */
 
 
-	/* Every isam-function that uppdates the isam-database must! end */
-	/* with this request */
-	/* ARGSUSED */
+/*
+  Every isam-function that uppdates the isam-database MUST end with this
+  request
+*/
 
 int _mi_writeinfo(register MI_INFO *info, uint operation)
 {
@@ -450,6 +432,8 @@ int _mi_mark_file_changed(MI_INFO *info)
 {
   char buff[3];
   register MYISAM_SHARE *share=info->s;
+  DBUG_ENTER("_mi_mark_file_changed");
+
   if (!(share->state.changed & STATE_CHANGED) || ! share->global_changed)
   {
     share->state.changed|=(STATE_CHANGED | STATE_NOT_ANALYZED |
@@ -463,12 +447,12 @@ int _mi_mark_file_changed(MI_INFO *info)
     {
       mi_int2store(buff,share->state.open_count);
       buff[2]=1;				/* Mark that it's changed */
-      return (my_pwrite(share->kfile,buff,sizeof(buff),
-			sizeof(share->state.header),
-			MYF(MY_NABP)));
+      DBUG_RETURN(my_pwrite(share->kfile,buff,sizeof(buff),
+                            sizeof(share->state.header),
+                            MYF(MY_NABP)));
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -501,36 +485,3 @@ int _mi_decrement_open_count(MI_INFO *info)
   }
   return test(lock_error || write_error);
 }
-
-/*
-  Decrement open_count in preparation for unlock.
-
-  SYNOPSIS
-    mi_unlock_open_count()
-    info                        Pointer to the MI_INFO structure.
-    write_info                  If info must be written when changed.
-
-  RETURN
-    0     OK
-*/
-
-static int mi_unlock_open_count(MI_INFO *info, my_bool write_info)
-{
-  int rc= 0;
-  MYISAM_SHARE *share=info->s;
-
-  DBUG_ENTER("mi_unlock_open_count");
-  DBUG_PRINT("enter",("mi_unlock_open_count: gl._changed %d open_count %d '%s'",
-                      share->global_changed, share->state.open_count,
-                      share->index_file_name));
-  if (share->global_changed)
-  {
-    share->global_changed= 0;
-    if (share->state.open_count)
-      share->state.open_count--;
-    if (write_info)
-      rc= _mi_writeinfo(info, WRITEINFO_UPDATE_KEYFILE);
-  }
-  DBUG_RETURN(rc);
-}
-
