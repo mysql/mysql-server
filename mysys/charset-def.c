@@ -33,6 +33,11 @@ extern CHARSET_INFO my_charset_ucs2_estonian_uca_ci;
 extern CHARSET_INFO my_charset_ucs2_spanish_uca_ci;
 extern CHARSET_INFO my_charset_ucs2_swedish_uca_ci;
 extern CHARSET_INFO my_charset_ucs2_turkish_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_czech_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_danish_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_lithuanian_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_slovak_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_spanish2_uca_ci;
 #endif
 
 my_bool init_compiled_charsets(myf flags __attribute__((unused)))
@@ -97,6 +102,11 @@ my_bool init_compiled_charsets(myf flags __attribute__((unused)))
   add_compiled_collation(&my_charset_ucs2_spanish_uca_ci);
   add_compiled_collation(&my_charset_ucs2_swedish_uca_ci);
   add_compiled_collation(&my_charset_ucs2_turkish_uca_ci);
+  add_compiled_collation(&my_charset_ucs2_czech_uca_ci);
+  add_compiled_collation(&my_charset_ucs2_danish_uca_ci);
+  add_compiled_collation(&my_charset_ucs2_lithuanian_uca_ci);
+  add_compiled_collation(&my_charset_ucs2_slovak_uca_ci);
+  add_compiled_collation(&my_charset_ucs2_spanish2_uca_ci);
 #endif
 
 #ifdef HAVE_CHARSET_ujis
