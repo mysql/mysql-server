@@ -434,14 +434,14 @@ drop table t6;
 
 show tables;
 
-create table t1 (a int) engine=ndb;
+create table t1 (a int,b longblob) engine=ndb;
 show tables;
 create database test2;
 use test2;
 show tables;
 --error 1146
 select * from t1;
-create table t2 (b int) engine=ndb;
+create table t2 (b int,c longblob) engine=ndb;
 use test;
 select * from t1;
 show tables;
