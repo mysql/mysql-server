@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.15";
+const char *VER= "12.16";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -627,12 +627,17 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       end_tee();
     break;
   case OPT_PAGER:
-    opt_nopager= 0;
-    if (argument)
-      strmov(pager, argument);
+    if (argument == disabled_my_option)
+      opt_nopager= 1;
     else
-      strmov(pager, default_pager);
-    strmov(default_pager, pager);
+    {
+      opt_nopager= 0;
+      if (argument)
+	strmov(pager, argument);
+      else
+	strmov(pager, default_pager);
+      strmov(default_pager, pager);
+    }
     break;
   case OPT_NOPAGER:
     printf("WARNING: option deprecated; use --disable-pager instead.\n");
