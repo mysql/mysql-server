@@ -35972,7 +35972,7 @@ tables.
 
 @example
 SET [GLOBAL | SESSION] TRANSACTION ISOLATION LEVEL
-[READ UNCOMMITTED | READ COMMITTED | REPEATABLE READ | SERIALIZABLE]
+@{ READ UNCOMMITTED | READ COMMITTED | REPEATABLE READ | SERIALIZABLE @}
 @end example
 
 Sets the transaction isolation level for the global, whole session or
