@@ -76,6 +76,8 @@ int mi_lock_database(MI_INFO *info, int lock_type)
       }
       if (!count)
       {
+	DBUG_PRINT("info",("changed: %u  w_locks: %u",
+			   (uint) share->changed, share->w_locks));
 	if (share->changed && !share->w_locks)
 	{
 	  share->state.process= share->last_process=share->this_process;
@@ -352,6 +354,8 @@ int _mi_writeinfo(register MI_INFO *info, uint operation)
   int error,olderror;
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("_mi_writeinfo");
+  DBUG_PRINT("info",("operation: %u  tot_locks: %u", operation,
+		     share->tot_locks));
 
   error=0;
   if (share->tot_locks == 0)
@@ -379,9 +383,7 @@ int _mi_writeinfo(register MI_INFO *info, uint operation)
     my_errno=olderror;
   }
   else if (operation)
-  {
     share->changed= 1;			/* Mark keyfile changed */
-  }
   DBUG_RETURN(error);
 } /* _mi_writeinfo */
 

@@ -352,3 +352,37 @@ explain select * from t1,t2 force index(c) where t1.a=t2.a;
 explain select * from t1 where a=0 or a=2;
 explain select * from t1 force index (a) where a=0 or a=2;
 drop table t1,t2;
+
+#
+# Test bug when updating a split dynamic row where keys are not changed
+#
+
+create table t1 (a int not null auto_increment primary key, b varchar(255));
+insert into t1 (b) values (repeat('a',100)),(repeat('b',100)),(repeat('c',100));
+update t1 set b=repeat(left(b,1),200) where a=1;
+delete from t1 where (a & 1)= 0;
+update t1 set b=repeat('e',200) where a=1;
+flush tables;
+check table t1;
+
+#
+# check updating with keys
+#
+
+disable_query_log;
+let $1 = 100;
+while ($1)
+{
+  eval insert into t1 (b) values (repeat(char(($1 & 32)+65), $1));
+  dec $1;
+}
+enable_query_log;
+update t1 set b=repeat(left(b,1),255) where a between 1 and 5;
+update t1 set b=repeat(left(b,1),10) where a between 32 and 43;
+update t1 set b=repeat(left(b,1),2) where a between 64 and 66;
+update t1 set b=repeat(left(b,1),65) where a between 67 and 70;
+check table t1;
+insert into t1 (b) values (repeat('z',100));
+update t1 set b="test" where left(b,1) > 'n';
+check table t1;
+drop table t1;
