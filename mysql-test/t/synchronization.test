@@ -1,45 +1,33 @@
--- source include/have_debug.inc
-
 #
 # Test for Bug #2385 CREATE TABLE LIKE lacks locking on source and destination table
 #
 
-connect (con_to_sleep,localhost,lock_controller,,);
-connect (con_to_harm_sleeper,localhost,root,,);
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
 
 # locking of source:
-connection con_to_sleep;
-CREATE TABLE t1 (a int);
-send CREATE TABLE t2 LIKE t1;
 
-connection con_to_harm_sleeper;
-sleep 1;
-ALTER TABLE t1 add key(a);
-
-connection con_to_sleep;
-sleep 4;
-SHOW CREATE TABLE t2;
-drop table t1, t2;
-
-# locking of destination:
-connection con_to_sleep;
-CREATE TABLE t1 (a int);
-send CREATE TABLE t2 LIKE t1;
-
-connection con_to_harm_sleeper;
-sleep 1;
-CREATE TABLE t2 (b int);
-disable_query_log;
-select "-----------" as "let's take a look at result of create .. like : ";
-enable_query_log;
-
-connection con_to_sleep;
-sleep 1;
---error 1
-reap;
-disable_query_log;
-select "" as "-----------";
-enable_query_log;
-SHOW CREATE TABLE t2;
-
-drop table t1, t2;
+CREATE TABLE t1 (x1 int);
+let $1= 10;
+while ($1)
+{
+  connection con1;
+    send ALTER TABLE t1 CHANGE x1 x2 int;
+  connection con2;
+    CREATE TABLE t2 LIKE t1;
+    replace_result x1 xx x2 xx;
+    SHOW CREATE TABLE t2;
+    DROP TABLE t2;
+  connection con1;
+    reap;
+    send ALTER TABLE t1 CHANGE x2 x1 int;
+  connection con2;
+    CREATE TABLE t2 LIKE t1;
+    replace_result x1 xx x2 xx;
+    SHOW CREATE TABLE t2;
+    DROP TABLE t2;
+  connection con1;
+    reap;
+  dec $1;
+}
+DROP TABLE t1;

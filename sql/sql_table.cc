@@ -1963,11 +1963,6 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
   /* 
     Create a new table by copying from source table
   */  
-#ifndef DBUG_OFF
-  // The code stated below is for test synchronization.test Bug #2385
-  if (test_flags & TEST_SYNCHRONIZATION)
-    sleep(3);
-#endif
   if (my_copy(src_path, dst_path, MYF(MY_WME|MY_DONT_OVERWRITE_FILE)))
     goto err;
 
