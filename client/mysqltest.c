@@ -59,7 +59,7 @@
 #include <sys/stat.h>
 #include <violite.h>
 
-#define MAX_QUERY	65536
+#define MAX_QUERY     131072
 #define MAX_COLUMNS	256
 #define PAD_SIZE	128
 #define MAX_CONS	128
