@@ -116,4 +116,11 @@ prepare stmt1 from @str2;
 execute stmt1 using @ivar;
 
 drop table t1,t2;
-
+#
+# Bug #4105: Server crash on attempt to prepare a statement with character
+# set introducer
+#
+PREPARE stmt1 FROM "select _utf8 'A' collate utf8_bin = ?";
+set @var='A';
+EXECUTE stmt1 USING @var;
+DEALLOCATE PREPARE stmt1;

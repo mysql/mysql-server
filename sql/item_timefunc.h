@@ -348,6 +348,7 @@ public:
   Item_date_func() :Item_str_func() {}
   Item_date_func(Item *a) :Item_str_func(a) {}
   Item_date_func(Item *a,Item *b) :Item_str_func(a,b) {}
+  Item_date_func(Item *a,Item *b, Item *c) :Item_str_func(a,b,c) {}
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
   Field *tmp_table_field(TABLE *t_arg)
   {
@@ -356,7 +357,7 @@ public:
 };
 
 
-/* Abstract CURTIME function. Children should define what timezone is used */
+/* Abstract CURTIME function. Children should define what time zone is used */
 
 class Item_func_curtime :public Item_func
 {
@@ -378,10 +379,10 @@ public:
   }
   /* 
     Abstract method that defines which time zone is used for conversion.
-    Converts time from time_t representation to broken down representation
-    in struct tm using gmtime_r or localtime_r functions.
+    Converts time current time in my_time_t representation to broken-down
+    TIME representation using UTC-SYSTEM or per-thread time zone.
   */
-  virtual void store_now_in_tm(time_t now, struct tm *now_tm)=0;
+  virtual void store_now_in_TIME(TIME *now_time)=0;
 };
 
 
@@ -391,7 +392,7 @@ public:
   Item_func_curtime_local() :Item_func_curtime() {}
   Item_func_curtime_local(Item *a) :Item_func_curtime(a) {}
   const char *func_name() const { return "curtime"; }
-  void store_now_in_tm(time_t now, struct tm *now_tm);
+  virtual void store_now_in_TIME(TIME *now_time);
 };
 
 
@@ -401,7 +402,7 @@ public:
   Item_func_curtime_utc() :Item_func_curtime() {}
   Item_func_curtime_utc(Item *a) :Item_func_curtime(a) {}
   const char *func_name() const { return "utc_time"; }
-  void store_now_in_tm(time_t now, struct tm *now_tm);
+  virtual void store_now_in_TIME(TIME *now_time);
 };
 
 
@@ -413,12 +414,11 @@ class Item_func_curdate :public Item_date
   TIME ltime;
 public:
   Item_func_curdate() :Item_date() {}
-  void set_result_from_tm(struct tm *now);
   longlong val_int() { DBUG_ASSERT(fixed == 1); return (value) ; }
   String *val_str(String *str);
   void fix_length_and_dec();
   bool get_date(TIME *res, uint fuzzy_date);
-  virtual void store_now_in_tm(time_t now, struct tm *now_tm)=0;
+  virtual void store_now_in_TIME(TIME *now_time)=0;
 };
 
 
@@ -427,7 +427,7 @@ class Item_func_curdate_local :public Item_func_curdate
 public:
   Item_func_curdate_local() :Item_func_curdate() {}
   const char *func_name() const { return "curdate"; }
-  void store_now_in_tm(time_t now, struct tm *now_tm);
+  void store_now_in_TIME(TIME *now_time);
 };
 
 
@@ -436,7 +436,7 @@ class Item_func_curdate_utc :public Item_func_curdate
 public:
   Item_func_curdate_utc() :Item_func_curdate() {}
   const char *func_name() const { return "utc_date"; }
-  void store_now_in_tm(time_t now, struct tm *now_tm);
+  void store_now_in_TIME(TIME *now_time);
 };
 
 
@@ -458,7 +458,7 @@ public:
   String *val_str(String *str);
   void fix_length_and_dec();
   bool get_date(TIME *res, uint fuzzy_date);
-  virtual void store_now_in_tm(time_t now, struct tm *now_tm)=0;
+  virtual void store_now_in_TIME(TIME *now_time)=0;
 };
 
 
@@ -468,7 +468,7 @@ public:
   Item_func_now_local() :Item_func_now() {}
   Item_func_now_local(Item *a) :Item_func_now(a) {}
   const char *func_name() const { return "now"; }
-  void store_now_in_tm(time_t now, struct tm *now_tm);
+  virtual void store_now_in_TIME(TIME *now_time);
   virtual enum Functype functype() const { return NOW_FUNC; }
 };
 
@@ -479,7 +479,7 @@ public:
   Item_func_now_utc() :Item_func_now() {}
   Item_func_now_utc(Item *a) :Item_func_now(a) {}
   const char *func_name() const { return "utc_timestamp"; }
-  void store_now_in_tm(time_t now, struct tm *now_tm);
+  virtual void store_now_in_TIME(TIME *now_time);
 };
 
 
@@ -509,6 +509,7 @@ public:
 
 class Item_func_from_unixtime :public Item_date_func
 {
+  THD *thd;
  public:
   Item_func_from_unixtime(Item *a) :Item_date_func(a) {}
   double val()
@@ -519,12 +520,29 @@ class Item_func_from_unixtime :public Item_date_func
   longlong val_int();
   String *val_str(String *str);
   const char *func_name() const { return "from_unixtime"; }
-  void fix_length_and_dec()
-  { 
-    collation.set(&my_charset_bin);
-    decimals=0;
-    max_length=MAX_DATETIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
-  }
+  void fix_length_and_dec();
+  bool get_date(TIME *res, uint fuzzy_date);
+};
+
+
+/* 
+  We need Time_zone class declaration for storing pointers in
+  Item_func_convert_tz.
+*/
+class Time_zone;
+
+class Item_func_convert_tz :public Item_date_func
+{
+  THD *thd;
+  Time_zone *from_tz, *to_tz;
+ public:
+  Item_func_convert_tz(Item *a, Item *b, Item *c):
+    Item_date_func(a, b, c) {}
+  longlong val_int();
+  double val() { return (double) val_int(); }
+  String *val_str(String *str);
+  const char *func_name() const { return "convert_tz"; }
+  void fix_length_and_dec();
   bool get_date(TIME *res, uint fuzzy_date);
 };
 
