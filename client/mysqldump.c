@@ -1002,7 +1002,7 @@ static void dumpTable(uint numFields, char *table)
     }
 
     if (opt_disable_keys)
-      fprintf(sql_file, "\n/*!40000 ALTER TABLE %s DISABLE KEYS */;\n",
+      fprintf(md_result_file, "\n/*!40000 ALTER TABLE %s DISABLE KEYS */;\n",
 	      opt_quoted_table);
     if (opt_lock)
       fprintf(md_result_file,"LOCK TABLES %s WRITE;\n", opt_quoted_table);
