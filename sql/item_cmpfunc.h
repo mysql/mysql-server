@@ -218,6 +218,8 @@ public:
     tmp_arg[1]= orig_b;
     DBUG_VOID_RETURN;
   }
+  Item *neg_transformer(THD *thd);
+  virtual Item *negated_item();
 };
 
 class Item_func_not :public Item_bool_func
@@ -227,7 +229,7 @@ public:
   longlong val_int();
   enum Functype functype() const { return NOT_FUNC; }
   const char *func_name() const { return "not"; }
-  Item *neg_transformer();
+  Item *neg_transformer(THD *thd);
 };
 
 class Item_func_not_all :public Item_func_not
@@ -254,7 +256,7 @@ public:
   enum Functype rev_functype() const { return EQ_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "="; }
-  Item *neg_transformer();
+  Item *negated_item();
 };
 
 class Item_func_equal :public Item_bool_rowready_func2
@@ -267,6 +269,7 @@ public:
   enum Functype rev_functype() const { return EQUAL_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "<=>"; }
+  Item* neg_transformer(THD *thd) { return 0; }
 };
 
 
@@ -279,7 +282,7 @@ public:
   enum Functype rev_functype() const { return LE_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return ">="; }
-  Item *neg_transformer();
+  Item *negated_item();
 };
 
 
@@ -292,7 +295,7 @@ public:
   enum Functype rev_functype() const { return LT_FUNC; }
   cond_result eq_cmp_result() const { return COND_FALSE; }
   const char *func_name() const { return ">"; }
-  Item *neg_transformer();
+  Item *negated_item();
 };
 
 
@@ -305,7 +308,7 @@ public:
   enum Functype rev_functype() const { return GE_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "<="; }
-  Item *neg_transformer();
+  Item *negated_item();
 };
 
 
@@ -318,7 +321,7 @@ public:
   enum Functype rev_functype() const { return GT_FUNC; }
   cond_result eq_cmp_result() const { return COND_FALSE; }
   const char *func_name() const { return "<"; }
-  Item *neg_transformer();
+  Item *negated_item();
 };
 
 
@@ -331,7 +334,7 @@ public:
   cond_result eq_cmp_result() const { return COND_FALSE; }
   optimize_type select_optimize() const { return OPTIMIZE_KEY; } 
   const char *func_name() const { return "<>"; }
-  Item *neg_transformer();
+  Item *negated_item();
 };
 
 
@@ -409,6 +412,7 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   bool fix_fields(THD *thd,struct st_table_list *tlist, Item **ref)
   {
+    DBUG_ASSERT(fixed == 0);
     args[0]->top_level_item();
     return Item_func::fix_fields(thd, tlist, ref);
   }
@@ -726,6 +730,7 @@ class Item_func_in :public Item_int_func
   void cleanup()
   {
     DBUG_ENTER("Item_func_in::cleanup");
+    Item_int_func::cleanup();
     delete array;
     delete in_item;
     array= 0;
@@ -778,7 +783,7 @@ public:
   }
   table_map not_null_tables() const { return 0; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
-  Item *neg_transformer();
+  Item *neg_transformer(THD *thd);
   CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
 };
 
@@ -812,7 +817,7 @@ public:
   const char *func_name() const { return "isnotnull"; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
   table_map not_null_tables() const { return 0; }
-  Item *neg_transformer();
+  Item *neg_transformer(THD *thd);
   void print(String *str);
   CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
 };
@@ -920,7 +925,7 @@ public:
   void top_level_item() { abort_on_null=1; }
   void copy_andor_arguments(THD *thd, Item_cond *item);
   bool walk(Item_processor processor, byte *arg);
-  void neg_arguments();
+  void neg_arguments(THD *thd);
 };
 
 
@@ -941,7 +946,7 @@ public:
        item->copy_andor_arguments(thd, this);
     return item;
   }
-  Item *neg_transformer();
+  Item *neg_transformer(THD *thd);
 };
 
 class Item_cond_or :public Item_cond
@@ -962,7 +967,7 @@ public:
       item->copy_andor_arguments(thd, this);
     return item;
   }
-  Item *neg_transformer();
+  Item *neg_transformer(THD *thd);
 };
 
 
@@ -990,9 +995,9 @@ inline Item *and_conds(Item *a,Item *b)
 {
   if (!b) return a;
   if (!a) return b;
-  Item *cond=new Item_cond_and(a,b);
+  Item *cond= new Item_cond_and(a,b);
   if (cond)
-    cond->update_used_tables();
+    cond->fix_fields(current_thd, 0, &cond);
   return cond;
 }
 

@@ -100,6 +100,7 @@ public:
   void update_used_tables();
   bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
+    DBUG_ASSERT(fixed == 0);
     return (separator->fix_fields(thd, tlist, &separator) ||
 	    separator->check_cols(1) ||
 	    Item_func::fix_fields(thd, tlist, ref));
@@ -411,6 +412,7 @@ public:
   String *val_str(String *str);
   bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
+    DBUG_ASSERT(fixed == 0);
     return (item->fix_fields(thd, tlist, &item) ||
 	    item->check_cols(1) ||
 	    Item_func::fix_fields(thd, tlist, ref));
@@ -545,6 +547,7 @@ public:
   Item_func_binary(Item *a) :Item_str_func(a) {}
   String *val_str(String *a)
   {
+    DBUG_ASSERT(fixed == 1);
     String *tmp=args[0]->val_str(a);
     null_value=args[0]->null_value;
     if (tmp)

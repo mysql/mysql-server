@@ -5733,7 +5733,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
     {
       pos= (char*) sql_memdup(tmp.ptr(),tmp.length()+1);
       pos[tmp.length()]=0;
-      def=new Item_string(pos,tmp.length(), charset);
+      def= new Item_string(pos, tmp.length(), charset);
     }
   }
 #ifdef HAVE_SPATIAL

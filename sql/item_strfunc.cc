@@ -60,6 +60,7 @@ uint nr_of_decimals(const char *str)
 
 double Item_str_func::val()
 {
+  DBUG_ASSERT(fixed == 1);
   int err;
   String *res;
   res=val_str(&str_value);
@@ -69,15 +70,19 @@ double Item_str_func::val()
 
 longlong Item_str_func::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   int err;
   String *res;
   res=val_str(&str_value);
-  return res ? my_strntoll(res->charset(),res->ptr(),res->length(),10,NULL,&err) : (longlong) 0;
+  return res ?
+    my_strntoll(res->charset(), res->ptr(), res->length(), 10, NULL, &err) :
+    (longlong) 0;
 }
 
 
 String *Item_func_md5::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String * sptr= args[0]->val_str(str);
   if (sptr)
   {
@@ -115,6 +120,7 @@ void Item_func_md5::fix_length_and_dec()
 
 String *Item_func_sha::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String * sptr= args[0]->val_str(str);
   if (sptr)  /* If we got value different from NULL */
   {
@@ -155,6 +161,7 @@ void Item_func_sha::fix_length_and_dec()
 
 String *Item_func_aes_encrypt::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   char key_buff[80];
   String tmp_key_value(key_buff, sizeof(key_buff), system_charset_info);
   String *sptr= args[0]->val_str(str);			// String to encrypt
@@ -190,6 +197,7 @@ void Item_func_aes_encrypt::fix_length_and_dec()
 
 String *Item_func_aes_decrypt::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   char key_buff[80];
   String tmp_key_value(key_buff, sizeof(key_buff), system_charset_info);
   String *sptr, *key;
@@ -234,6 +242,7 @@ void Item_func_aes_decrypt::fix_length_and_dec()
 
 String *Item_func_concat::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res,*res2,*use_as_buff;
   uint i;
 
@@ -350,6 +359,7 @@ void Item_func_concat::fix_length_and_dec()
 
 String *Item_func_des_encrypt::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
 #ifdef HAVE_OPENSSL
   DES_cblock ivec;
   struct st_des_keyblock keyblock;
@@ -432,6 +442,7 @@ error:
 
 String *Item_func_des_decrypt::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
 #ifdef HAVE_OPENSSL
   DES_key_schedule ks1, ks2, ks3;
   DES_cblock ivec;
@@ -503,6 +514,7 @@ error:
 
 String *Item_func_concat_ws::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   char tmp_str_buff[10];
   String tmp_sep_str(tmp_str_buff, sizeof(tmp_str_buff),default_charset_info),
          *sep_str, *res, *res2,*use_as_buff;
@@ -668,6 +680,7 @@ void Item_func_concat_ws::print(String *str)
 
 String *Item_func_reverse::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res = args[0]->val_str(str);
   char *ptr,*end;
 
@@ -725,6 +738,7 @@ void Item_func_reverse::fix_length_and_dec()
 
 String *Item_func_replace::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res,*res2,*res3;
   int offset;
   uint from_length,to_length;
@@ -845,6 +859,7 @@ void Item_func_replace::fix_length_and_dec()
 
 String *Item_func_insert::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res,*res2;
   uint start,length;
 
@@ -892,6 +907,7 @@ void Item_func_insert::fix_length_and_dec()
 
 String *Item_func_lcase::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res;
   if (!(res=args[0]->val_str(str)))
   {
@@ -907,6 +923,7 @@ String *Item_func_lcase::val_str(String *str)
 
 String *Item_func_ucase::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res;
   if (!(res=args[0]->val_str(str)))
   {
@@ -922,6 +939,7 @@ String *Item_func_ucase::val_str(String *str)
 
 String *Item_func_left::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res  =args[0]->val_str(str);
   long length  =(long) args[1]->val_int();
 
@@ -966,6 +984,7 @@ void Item_func_left::fix_length_and_dec()
 
 String *Item_func_right::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res  =args[0]->val_str(str);
   long length  =(long) args[1]->val_int();
 
@@ -994,6 +1013,7 @@ void Item_func_right::fix_length_and_dec()
 
 String *Item_func_substr::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res  = args[0]->val_str(str);
   int32 start	= (int32) args[1]->val_int();
   int32 length	= arg_count == 3 ? (int32) args[2]->val_int() : INT_MAX32;
@@ -1053,6 +1073,7 @@ void Item_func_substr_index::fix_length_and_dec()
 
 String *Item_func_substr_index::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res =args[0]->val_str(str);
   String *delimeter =args[1]->val_str(&tmp_value);
   int32 count = (int32) args[2]->val_int();
@@ -1164,6 +1185,7 @@ String *Item_func_substr_index::val_str(String *str)
 
 String *Item_func_ltrim::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res  =args[0]->val_str(str);
   if ((null_value=args[0]->null_value))
     return 0;					/* purecov: inspected */
@@ -1202,6 +1224,7 @@ String *Item_func_ltrim::val_str(String *str)
 
 String *Item_func_rtrim::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res  =args[0]->val_str(str);
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
@@ -1274,6 +1297,7 @@ String *Item_func_rtrim::val_str(String *str)
 
 String *Item_func_trim::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res  =args[0]->val_str(str);
   if ((null_value=args[0]->null_value))
     return 0;					/* purecov: inspected */
@@ -1346,6 +1370,7 @@ void Item_func_trim::fix_length_and_dec()
 
 String *Item_func_password::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res= args[0]->val_str(str); 
   if ((null_value=args[0]->null_value))
     return 0;
@@ -1368,6 +1393,7 @@ char *Item_func_password::alloc(THD *thd, const char *password)
 
 String *Item_func_old_password::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res= args[0]->val_str(str);
   if ((null_value=args[0]->null_value))
     return 0;
@@ -1391,6 +1417,7 @@ char *Item_func_old_password::alloc(THD *thd, const char *password)
 
 String *Item_func_encrypt::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res  =args[0]->val_str(str);
 
 #ifdef HAVE_CRYPT
@@ -1435,6 +1462,7 @@ void Item_func_encode::fix_length_and_dec()
 
 String *Item_func_encode::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res;
   if (!(res=args[0]->val_str(str)))
   {
@@ -1450,6 +1478,7 @@ String *Item_func_encode::val_str(String *str)
 
 String *Item_func_decode::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res;
   if (!(res=args[0]->val_str(str)))
   {
@@ -1466,6 +1495,7 @@ String *Item_func_decode::val_str(String *str)
 
 String *Item_func_database::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   THD *thd= current_thd;
   if (!thd->db)
   {
@@ -1481,6 +1511,7 @@ String *Item_func_database::val_str(String *str)
 
 String *Item_func_user::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   THD          *thd=current_thd;
   CHARSET_INFO *cs= system_charset_info;
   const char   *host= thd->host_or_ip;
@@ -1531,6 +1562,7 @@ static char get_scode(CHARSET_INFO *cs,char *ptr)
 
 String *Item_func_soundex::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res  =args[0]->val_str(str);
   char last_ch,ch;
   CHARSET_INFO *cs= collation.collation;
@@ -1591,6 +1623,7 @@ Item_func_format::Item_func_format(Item *org,int dec) :Item_str_func(org)
 
 String *Item_func_format::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   double nr	=args[0]->val();
   uint32 diff,length,str_length;
   uint dec;
@@ -1661,6 +1694,7 @@ void Item_func_elt::fix_length_and_dec()
 
 double Item_func_elt::val()
 {
+  DBUG_ASSERT(fixed == 1);
   uint tmp;
   null_value=1;
   if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
@@ -1673,6 +1707,7 @@ double Item_func_elt::val()
 
 longlong Item_func_elt::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   uint tmp;
   null_value=1;
   if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
@@ -1686,6 +1721,7 @@ longlong Item_func_elt::val_int()
 
 String *Item_func_elt::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   uint tmp;
   null_value=1;
   if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
@@ -1743,6 +1779,7 @@ void Item_func_make_set::update_used_tables()
 
 String *Item_func_make_set::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   ulonglong bits;
   bool first_found=0;
   Item **ptr=args;
@@ -1808,6 +1845,7 @@ void Item_func_make_set::print(String *str)
 
 String *Item_func_char::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   str->length(0);
   for (uint i=0 ; i < arg_count ; i++)
   {
@@ -1882,6 +1920,7 @@ void Item_func_repeat::fix_length_and_dec()
 
 String *Item_func_repeat::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   uint length,tot_length;
   char *to;
   long count= (long) args[1]->val_int();
@@ -1944,6 +1983,7 @@ void Item_func_rpad::fix_length_and_dec()
 
 String *Item_func_rpad::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   uint32 res_byte_length,res_char_length,pad_char_length,pad_byte_length;
   char *to;
   const char *ptr_pad;
@@ -2020,6 +2060,7 @@ void Item_func_lpad::fix_length_and_dec()
 
 String *Item_func_lpad::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   uint32 res_char_length,pad_char_length;
   ulong count= (long) args[1]->val_int(), byte_count;
   String *res= args[0]->val_str(&tmp_value);
@@ -2069,6 +2110,7 @@ err:
 
 String *Item_func_conv::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res= args[0]->val_str(str);
   char *endptr,ans[65],*ptr;
   longlong dec;
@@ -2097,6 +2139,7 @@ String *Item_func_conv::val_str(String *str)
 
 String *Item_func_conv_charset::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *arg= args[0]->val_str(str);
   if (!arg)
   {
@@ -2124,6 +2167,7 @@ void Item_func_conv_charset::print(String *str)
 
 String *Item_func_set_collation::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   str=args[0]->val_str(str);
   if ((null_value=args[0]->null_value))
     return 0;
@@ -2183,6 +2227,7 @@ bool Item_func_set_collation::eq(const Item *item, bool binary_cmp) const
 
 String *Item_func_charset::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res = args[0]->val_str(str);
 
   if ((null_value=(args[0]->null_value || !res->charset())))
@@ -2194,6 +2239,7 @@ String *Item_func_charset::val_str(String *str)
 
 String *Item_func_collation::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res = args[0]->val_str(str);
 
   if ((null_value=(args[0]->null_value || !res->charset())))
@@ -2206,6 +2252,7 @@ String *Item_func_collation::val_str(String *str)
 
 String *Item_func_hex::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   if (args[0]->result_type() != STRING_RESULT)
   {
     /* Return hex of unsigned longlong value */
@@ -2253,6 +2300,7 @@ inline int hexchar_to_int(char c)
 
 String *Item_func_unhex::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   /* Convert given hex string to a binary string */
   String *res= args[0]->val_str(str);
   const char *from=res->ptr(), *end;
@@ -2296,6 +2344,7 @@ void Item_func_binary::print(String *str)
 
 String *Item_load_file::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *file_name;
   File file;
   MY_STAT stat_info;
@@ -2339,6 +2388,7 @@ err:
 
 String* Item_func_export_set::val_str(String* str)
 {
+  DBUG_ASSERT(fixed == 1);
   ulonglong the_set = (ulonglong) args[0]->val_int();
   String yes_buf, *yes;
   yes = args[1]->val_str(&yes_buf);
@@ -2408,6 +2458,7 @@ void Item_func_export_set::fix_length_and_dec()
 
 String* Item_func_inet_ntoa::val_str(String* str)
 {
+  DBUG_ASSERT(fixed == 1);
   uchar buf[8], *p;
   ulonglong n = (ulonglong) args[0]->val_int();
   char num[4];
@@ -2467,6 +2518,7 @@ String* Item_func_inet_ntoa::val_str(String* str)
 
 String *Item_func_quote::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   /*
     Bit mask that has 1 for set for the position of the following characters:
     0, \, ' and ^Z
@@ -2541,6 +2593,7 @@ null:
 
 longlong Item_func_uncompressed_length::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   String *res= args[0]->val_str(&value);
   if (!res)
   {
@@ -2562,6 +2615,7 @@ longlong Item_func_uncompressed_length::val_int()
 
 longlong Item_func_crc32::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   String *res=args[0]->val_str(&value);
   if (!res)
   {
@@ -2577,6 +2631,7 @@ longlong Item_func_crc32::val_int()
 
 String *Item_func_compress::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res= args[0]->val_str(str);
   if (!res)
   {
@@ -2634,6 +2689,7 @@ String *Item_func_compress::val_str(String *str)
 
 String *Item_func_uncompress::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res= args[0]->val_str(str);
   ulong new_size;
   int err;
@@ -2715,6 +2771,7 @@ static void set_clock_seq_str()
 
 String *Item_func_uuid::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   char *s;
   pthread_mutex_lock(&LOCK_uuid_generator);
   if (! uuid_time) /* first UUID() call. initializing data */

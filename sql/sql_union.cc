@@ -203,6 +203,8 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     }
   }
 
+  item_list.empty();
+  // it is not single select
   if (first_select->next_select())
   {
     union_result->tmp_table_param.field_count= types.elements;
@@ -222,14 +224,17 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     result_table_list.table= table;
     union_result->set_table(table);
 
-    item_list.empty();
     thd_arg->lex->current_select= lex_select_save;
     {
       Field **field;
       for (field= table->field; *field; field++)
       {
-	if (item_list.push_back(new Item_field(*field)))
+	Item_field *item= new Item_field(*field, 1);
+	if (item_list.push_back(item))
 	  DBUG_RETURN(-1);
+#ifndef DBUG_OFF
+	item->double_fix= 0;
+#endif
       }
     }
   }

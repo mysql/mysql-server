@@ -122,7 +122,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   {
     Field **field;
     for (field=table->field; *field ; field++)
-      fields.push_back(new Item_field(*field));
+      fields.push_back(new Item_field(*field, 1));
   }
   else
   {						// Part field list
