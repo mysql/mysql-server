@@ -1130,7 +1130,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   }
 
   if (!param->using_global_keycache)
-    VOID(init_key_cache(param->use_buffers,NEAD_MEM));
+    VOID(init_key_cache(param->use_buffers,NEED_MEM));
 
   if (init_io_cache(&param->read_cache,info->dfile,
 		    (uint) param->read_buffer_length,

@@ -42382,11 +42382,6 @@ interface that is based on msqltcl 1.50.
 The MySQL @uref{http://www.mysql.com/Downloads/Contrib/,Contrib directory}
 contains an Eiffel wrapper written by Michael Ravits.
 
-You can also find this at:
-@url{http://www.netpedia.net/hosting/newplayer/}
-
-
-
 
 @node Extending MySQL, Problems, Clients, Top
 @chapter Extending MySQL

@@ -62,7 +62,7 @@ SET_STACK_SIZE(9000)			/* Minimum stack size for program */
 #define MIN_SORT_BUFFER		(4096-MALLOC_OVERHEAD)
 #endif
 
-#define NEAD_MEM	((uint) 10*4*(IO_SIZE+32)+32) /* Nead for recursion */
+#define NEED_MEM	((uint) 10*4*(IO_SIZE+32)+32) /* Nead for recursion */
 #define MAXERR			20
 #define BUFFERS_WHEN_SORTING	16		/* Alloc for sort-key-tree */
 #define WRITE_COUNT		MY_HOW_OFTEN_TO_WRITE
@@ -512,7 +512,7 @@ static int nisamchk(my_string filename)
       if (!rep_quick)
       {
 	if (testflag & T_EXTEND)
-	  VOID(init_key_cache(use_buffers,(uint) NEAD_MEM));
+	  VOID(init_key_cache(use_buffers,(uint) NEED_MEM));
 	VOID(init_io_cache(&read_cache,datafile,(uint) read_buffer_length,
 			  READ_CACHE,share->pack.header_length,1,
 			  MYF(MY_WME)));
@@ -1473,7 +1473,7 @@ my_string name;
     printf("Data records: %lu\n",(ulong) share->state.records);
   }
 
-  VOID(init_key_cache(use_buffers,NEAD_MEM));
+  VOID(init_key_cache(use_buffers,NEED_MEM));
   if (init_io_cache(&read_cache,info->dfile,(uint) read_buffer_length,
 		   READ_CACHE,share->pack.header_length,1,MYF(MY_WME)))
     goto err;
@@ -1950,7 +1950,7 @@ int write_info;
   if (share->state.key_root[sort_key] == NI_POS_ERROR)
     DBUG_RETURN(0);				/* Nothing to do */
 
-  init_key_cache(use_buffers,NEAD_MEM);
+  init_key_cache(use_buffers,NEED_MEM);
   if (init_io_cache(&info->rec_cache,-1,(uint) write_buffer_length,
 		   WRITE_CACHE,share->pack.header_length,1,
 		   MYF(MY_WME | MY_WAIT_IF_FULL)))

@@ -563,7 +563,7 @@ typedef struct st_mi_block_info {	/* Parameter to _mi_get_block_info */
 #define BLOCK_SYNC_ERROR 16	/* Right data at wrong place */
 #define BLOCK_FATAL_ERROR 32	/* hardware-error */
 
-#define NEAD_MEM	((uint) 10*4*(IO_SIZE+32)+32) /* Nead for recursion */
+#define NEED_MEM	((uint) 10*4*(IO_SIZE+32)+32) /* Nead for recursion */
 #define MAXERR			20
 #define BUFFERS_WHEN_SORTING	16		/* Alloc for sort-key-tree */
 #define WRITE_COUNT		MY_HOW_OFTEN_TO_WRITE

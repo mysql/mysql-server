@@ -400,3 +400,4 @@ vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
 tools/mysqlmanager
+vio/test-ssl
