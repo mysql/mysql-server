@@ -1899,6 +1899,20 @@ select * from t2,t3 where t2.s = t3.s;
 drop table t1, t2, t3;
 
 #
+# Bug #3759
+# Both queries should produce identical plans and results.
+#
+create table t1 (a integer,  b integer, index(a), index(b));
+create table t2 (c integer,  d integer, index(c), index(d));
+insert into t1 values (1,2), (2,2), (3,2), (4,2);
+insert into t2 values (1,3), (2,3), (3,4), (4,4);
+explain select * from t1 left join t2 on a=c where d in (4);
+select * from t1 left join t2 on a=c where d in (4);
+explain select * from t1 left join t2 on a=c where d = 4;
+select * from t1 left join t2 on a=c where d = 4;
+drop table t1, t2;
+
+#
 # Covering index is mentioned in EXPLAIN output for const tables (bug #5333)
 #
 
