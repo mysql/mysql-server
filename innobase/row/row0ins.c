@@ -1120,7 +1120,6 @@ row_ins_check_foreign_constraint(
 	dict_table_t*	check_table;
 	dict_index_t*	check_index;
 	ulint		n_fields_cmp;
-	ibool		unique_search;
 	rec_t*		rec;
 	btr_pcur_t	pcur;
 	ibool		moved;
@@ -1240,14 +1239,6 @@ run_again:
 
 	dtuple_set_n_fields_cmp(entry, foreign->n_fields);
 
-	if (dict_index_get_n_unique(check_index) <= foreign->n_fields) {
-		/* We can just set a LOCK_REC_NOT_GAP type lock */
-	
-		unique_search = TRUE;
-	} else {
-		unique_search = FALSE;
-	}
-
 	btr_pcur_open(check_index, entry, PAGE_CUR_GE,
 					BTR_SEARCH_LEAF, &pcur, &mtr);
 
@@ -1289,17 +1280,13 @@ run_again:
 					break;
 				}
 			} else {
-				/* Found a matching record */
-				ulint	lock_type;
+				/* Found a matching record. Lock only
+				a record because we can allow inserts
+				into gaps */
 				
-				if (unique_search) {
-					lock_type = LOCK_REC_NOT_GAP;
-				} else {
-					lock_type = LOCK_ORDINARY;
-				}
-
-				err = row_ins_set_shared_rec_lock(lock_type,
-					rec, check_index, offsets, thr);
+				err = row_ins_set_shared_rec_lock(
+						LOCK_REC_NOT_GAP,
+						rec, check_index, thr);
 				
 				if (err != DB_SUCCESS) {
 
