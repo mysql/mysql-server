@@ -484,7 +484,7 @@ int check_embedded_connection(MYSQL *mysql)
   THD *thd= (THD*)mysql->thd;
   thd->host= (char*)my_localhost;
   thd->host_or_ip= thd->host;
-  thd->user= mysql->user;
+  thd->user= my_strdup(mysql->user, MYF(0));
   return 0;
 }
 
@@ -498,8 +498,8 @@ int check_embedded_connection(MYSQL *mysql)
 
   if (mysql->options.client_ip)
   {
-    thd->host= mysql->options.client_ip;
-    thd->ip= thd->host;
+    thd->host= my_strdup(mysql->options.client_ip, MYF(0));
+    thd->ip= my_strdup(thd->host, MYF(0));
   }
   else
     thd->host= (char*)my_localhost;
@@ -511,7 +511,7 @@ int check_embedded_connection(MYSQL *mysql)
     goto err;
   }
 
-  thd->user= mysql->user;
+  thd->user= my_strdup(mysql->user, MYF(0));
   if (mysql->passwd && mysql->passwd[0])
   {
     memset(thd->scramble, 55, SCRAMBLE_LENGTH); // dummy scramble
