@@ -2209,10 +2209,12 @@ Item_result item_cmp_type(Item_result a,Item_result b)
 }
 
 
-Item *resolve_const_item(Item *item,Item *comp_item)
+void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 {
+  Item *item= *ref;
+  Item *new_item;
   if (item->basic_const_item())
-    return item;				// Can't be better
+    return;                                     // Can't be better
   Item_result res_type=item_cmp_type(comp_item->result_type(),
 				     item->result_type());
   char *name=item->name;			// Alloced by sql_alloc
@@ -2223,26 +2225,34 @@ Item *resolve_const_item(Item *item,Item *comp_item)
     String tmp(buff,sizeof(buff),&my_charset_bin),*result;
     result=item->val_str(&tmp);
     if (item->null_value)
-      return new Item_null(name);
-    uint length=result->length();
-    char *tmp_str=sql_strmake(result->ptr(),length);
-    return new Item_string(name,tmp_str,length,result->charset());
+      new_item= new Item_null(name);
+    else
+    {
+      uint length= result->length();
+      char *tmp_str= sql_strmake(result->ptr(), length);
+      new_item= new Item_string(name, tmp_str, length, result->charset());
+    }
   }
-  if (res_type == INT_RESULT)
+  else if (res_type == INT_RESULT)
   {
     longlong result=item->val_int();
     uint length=item->max_length;
     bool null_value=item->null_value;
-    return (null_value ? (Item*) new Item_null(name) :
-	    (Item*) new Item_int(name,result,length));
+    new_item= (null_value ? (Item*) new Item_null(name) :
+               (Item*) new Item_int(name, result, length));
   }
   else
   {						// It must REAL_RESULT
     double result=item->val();
     uint length=item->max_length,decimals=item->decimals;
     bool null_value=item->null_value;
-    return (null_value ? (Item*) new Item_null(name) :
-	    (Item*) new Item_real(name,result,decimals,length));
+    new_item= (null_value ? (Item*) new Item_null(name) : (Item*)
+               new Item_real(name, result, decimals, length));
+  }
+  if (new_item)
+  {
+    thd->register_item_tree_change(ref, item, &thd->mem_root);
+    *ref= new_item;
   }
 }
 
