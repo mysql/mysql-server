@@ -17919,6 +17919,7 @@ Returns the bitwise @code{AND} of all bits in @code{expr}. The calculation is
 performed with 64-bit (@code{BIGINT}) precision.
 @end table
 
+@cindex @code{GROUP BY}, extensions to ANSI SQL
 @strong{MySQL} has extended the use of @code{GROUP BY}. You can use columns or
 calculations in the @code{SELECT} expressions that don't appear in
 the @code{GROUP BY} part. This stands for @emph{any possible value for this
@@ -17937,8 +17938,9 @@ In ANSI SQL, you would have to add @code{customer.name} to the @code{GROUP
 BY} clause.  In @strong{MySQL}, the name is redundant if you don't run in
 ANSI mode.
 
-Don't use this feature if the columns you omit from the @code{GROUP BY} part
-aren't unique in the group!
+@strong{Don't use this feature} if the columns you omit from the
+@code{GROUP BY} part aren't unique in the group!  You will get
+unpredictable results.
 
 In some cases, you can use @code{MIN()} and @code{MAX()} to obtain a specific
 column value even if it isn't unique. The following gives the value of
@@ -19292,6 +19294,7 @@ to tell the optimizer that the result set will have many rows.  In this case,
 temporary table with a key on the @code{GROUP BY} elements.
 
 @item
+@cindex @code{GROUP BY}, extensions to ANSI SQL
 If you use @code{GROUP BY}, the output rows will be sorted according to the
 @code{GROUP BY} as if you would have had an @code{ORDER BY} over all the fields
 in the @code{GROUP BY}. @strong{MySQL} has extended the @code{GROUP BY} so that
@@ -19300,6 +19303,13 @@ you can also specify @code{ASC} and @code{DESC} to @code{GROUP BY}:
 @example
 SELECT a,COUNT(b) FROM test_table GROUP BY a DESC
 @end example
+
+@item
+@strong{MySQL} has extended the use of @code{GROUP BY} to allow you to
+select fields which are not mentioned in the @code{GROUP BY} clause.
+If you are not getting the results you expect from your query, please
+read the @code{GROUP BY} description.
+@xref{Group by functions}.
 
 @item
 @code{SQL_BUFFER_RESULT} will force the result to be put into a temporary

@@ -49,20 +49,12 @@ rm -f NEW-RPMS/*
 # Stop on error
 set -e
 
-# Make everything readable for user and group
-# chmod -R u+rw,g+rw .
-
 /bin/rm -f */.deps/*.P
 /bin/rm -f config.cache
 
-aclocal; autoheader; aclocal; automake; autoconf
-cd innobase
-aclocal; autoheader; aclocal; automake; autoconf
-cd ..
-
-# Since we have moved the configure.in stuff from readline to the
-# toplevel why do this? David 990630
-# (cd readline; aclocal; autoheader; aclocal; automake; autoconf)
+aclocal && autoheader && aclocal && automake && autoconf
+(cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
+(cd bdb/dist && sh s_all)
 
 # A normal user starts here. We must use mit-threads. Otherwise it
 # does not end up in the distribution.
@@ -71,7 +63,7 @@ cd ..
  --with-low-memory \
  --with-mit-threads=yes $EXTRA_CONFIG \
  --enable-thread-safe-client \
- --without-berkeley-db \
+ --with-berkeley-db \
  --with-innobase-db
 
 gmake -j 2 
@@ -89,6 +81,7 @@ set -e
 log=$WD/Logs/Log-distcheck-`date +%y%m%d-%H%M`
 
 echo "Logging script $TMP_SCRIPT into $log"
+
 if test $to_host = "mysql-work"
 then
   # Try to get the right user for MySQL builds on work so that all
