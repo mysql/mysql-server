@@ -385,7 +385,7 @@ int ha_report_binlog_offset_and_commit(THD *thd,
 #ifdef HAVE_INNOBASE_DB
   THD_TRANS *trans;
   trans = &thd->transaction.all;
-  if (trans->innobase_tid && trans->innodb_active_trans)
+  if (trans->innodb_active_trans)
   {
     /*
       If we updated some InnoDB tables (innodb_active_trans is true), the
