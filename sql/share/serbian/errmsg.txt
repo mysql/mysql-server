@@ -234,3 +234,5 @@
 "Mešanje tabela koje podržavaju transakcije i onih koje ne podržavaju transakcije je iskljuèeno",
 "Opcija '%s' je upotrebljena dva puta u istom iskazu",
 "User '%-64s' has exceeded the '%s' resource (current value: %ld)",
+"Subselect return more than 1 field",
+"Subselect return more than 1 record",
