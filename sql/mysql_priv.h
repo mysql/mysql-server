@@ -732,7 +732,7 @@ extern ulong specialflag, current_pid;
 extern ulong expire_logs_days;
 extern my_bool relay_log_purge;
 extern uint test_flags,select_errors,ha_open_options;
-extern uint protocol_version,dropping_tables;
+extern uint protocol_version, mysqld_port, dropping_tables;
 extern uint delay_key_write_options;
 extern bool opt_endinfo, using_udf_functions, locked_in_memory;
 extern bool opt_using_transactions, mysql_embedded;
@@ -747,7 +747,7 @@ extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern my_bool opt_readonly;
 extern my_bool opt_enable_named_pipe;
 extern my_bool opt_old_passwords, use_old_passwords;
-extern char *shared_memory_base_name;
+extern char *shared_memory_base_name, *mysqld_unix_port;
 extern bool opt_enable_shared_memory;
 
 extern MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
