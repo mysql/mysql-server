@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* OLAP implementation by Sinisa Milivojevic <sinisa@mysql.com*/
+/* OLAP implementation by Sinisa Milivojevic <sinisa@mysql.com> */
 
 #ifdef __GNUC__
 #pragma implementation				// gcc: Class implementation

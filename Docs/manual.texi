@@ -49698,7 +49698,7 @@ Fixed a bug that made the pager option in the mysql client non-functional.
 @item
 Added OLAP functionality.
 
-Arjen , please add the following text somewhere appropriate in the 
+@c Arjen , please add the following text somewhere appropriate in the 
 text above:
 
 -------------------------------------------------------------------------
@@ -49792,20 +49792,20 @@ sales group by product, country, year with cube;
 | Computer   | ALL           | 2000 |        4200 |
 | TV         | ALL           | 1999 |         250 |
 | TV         | ALL           | 2000 |         350 |
-| Calculator | India         | ALL  |          75 |
-| Calculator | United States | ALL  |         200 |
-| Computer   | India         | ALL  |        2400 |
-| Computer   | United States | ALL  |        4500 |
-| TV         | India         | ALL  |         300 |
-| TV         | United States | ALL  |         300 |
+| Calculator | India         | 0    |          75 |
+| Calculator | United States | 0    |         200 |
+| Computer   | India         | 0    |        2400 |
+| Computer   | United States | 0    |        4500 |
+| TV         | India         | 0    |         300 |
+| TV         | United States | 0    |         300 |
 | ALL        | ALL           | 1999 |        3000 |
 | ALL        | ALL           | 2000 |        4775 |
-| ALL        | India         | ALL  |        2775 |
-| ALL        | United States | ALL  |        5000 |
-| Calculator | ALL           | ALL  |         275 |
-| Computer   | ALL           | ALL  |        6900 |
-| TV         | ALL           | ALL  |         600 |
-| ALL        | ALL           | ALL  |        7775 |
+| ALL        | India         | 0    |        2775 |
+| ALL        | United States | 0    |        5000 |
+| Calculator | ALL           | 0    |         275 |
+| Computer   | ALL           | 0    |        6900 |
+| TV         | ALL           | 0    |         600 |
+| ALL        | ALL           | 0    |        7775 |
 +------------+---------------+------+-------------+
 35 rows in set (0.00 sec)
 
