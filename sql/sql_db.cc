@@ -121,6 +121,7 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 				      MY_CS_PRIMARY,
 				      MYF(0))))
 	  {
+	    sql_print_error("Error while loading database options: '%s':",path);
 	    sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
 	  }
 	}
@@ -129,6 +130,7 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 	  if (!(create->default_table_charset= get_charset_by_name(pos+1,
 								   MYF(0))))
 	  {
+	    sql_print_error("Error while loading database options: '%s':",path);
 	    sql_print_error(ER(ER_UNKNOWN_COLLATION),pos+1);
 	  }
 	}
