@@ -414,23 +414,4 @@ select count(*) from t2 where x > -16;
 select count(*) from t2 where x = 18446744073709551601;
 
 drop table t1;
---disable_warnings
-create table t1 (x bigint unsigned not null primary key) engine=innodb;
---enable_warnings
-insert into t1(x) values (0xfffffffffffffff0),(0xfffffffffffffff1);
-select * from t1;
-select count(*) from t1 where x>0;
-select count(*) from t1 where x=0;
-select count(*) from t1 where x<0;
-select count(*) from t1 where x < -16;
-select count(*) from t1 where x = -16;
-explain select count(*) from t1 where x > -16;
-
-# The following result should be (2). To be fixed when we add 'unsigned flag' to
-# Field::store(longlong)
-select count(*) from t1 where x > -16;
-select * from t1 where x > -16;
-select count(*) from t1 where x = 18446744073709551601;
-
-drop table t1;
 
