@@ -1,4 +1,4 @@
-SET NAMES koi8r;
+SET CHARACTER SET koi8r;
 
 --disable_warnings
 DROP TABLE IF EXISTS таблица;

@@ -724,7 +724,7 @@ bool Protocol_simple::store(const char *from, uint length,
 bool Protocol_simple::store(const char *from, uint length,
 			    CHARSET_INFO *fromcs)
 {
-  CHARSET_INFO *tocs= this->thd->result_charset(fromcs);
+  CHARSET_INFO *tocs= this->thd->variables.result_collation;
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
@@ -834,8 +834,7 @@ bool Protocol_simple::store(Field *field)
   field->val_str(&str,&str);
   if (!my_charset_same(field->charset(), this->thd->charset()) &&
       (field->charset() != &my_charset_bin) &&
-      (this->thd->charset() != &my_charset_bin) &&
-      (this->thd->variables.convert_result_charset))
+      (this->thd->charset() != &my_charset_bin))
   {
     convert.copy(str.ptr(), str.length(), str.charset(), this->thd->charset());
     return net_store_data(convert.ptr(), convert.length());
