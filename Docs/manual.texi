@@ -33784,6 +33784,13 @@ The offset of the initial row is 0 (not 1):
 mysql> SELECT * FROM table LIMIT 5,10;  # Retrieve rows 6-15
 @end example
 
+To retrieve all rows from a certain offset upto the end of the result set,
+you can use -1 for the second parameter:
+
+@example
+mysql> SELECT * FROM table LIMIT 95,-1; # Retrieve rows 96-last.
+@end example
+
 If one argument is given, it indicates the maximum number of rows to return:
 
 @example
