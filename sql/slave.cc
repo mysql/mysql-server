@@ -504,7 +504,7 @@ int init_master_info(MASTER_INFO* mi)
     if (master_user)
       strmake(mi->user, master_user, sizeof(mi->user) - 1);
     if (master_password)
-      strmake(mi->password, master_password, sizeof(mi->password) - 1);
+      strmake(mi->password, master_password, HASH_PASSWORD_LENGTH);
     mi->port = master_port;
     mi->connect_retry = master_connect_retry;
   }
@@ -543,7 +543,7 @@ int init_master_info(MASTER_INFO* mi)
 			     master_host) ||
        init_strvar_from_file(mi->user, sizeof(mi->user), &mi->file,
 			     master_user) || 
-       init_strvar_from_file(mi->password, sizeof(mi->password), &mi->file,
+       init_strvar_from_file(mi->password, HASH_PASSWORD_LENGTH+1, &mi->file,
 			     master_password) ||
        init_intvar_from_file((int*)&mi->port, &mi->file, master_port) ||
        init_intvar_from_file((int*)&mi->connect_retry, &mi->file,
@@ -927,7 +927,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	      (actual_error = thd->net.last_errno) && expected_error)
 	  {
 	    const char* errmsg = "Slave: did not get the expected error\
- running query from master - expected: '%s'(%d), got '%s'(%d)"; 
+ running query from master - expected: '%s' (%d), got '%s' (%d)"; 
 	    sql_print_error(errmsg, ER_SAFE(expected_error),
 			    expected_error,
 			    actual_error ? thd->net.last_error:"no error",
@@ -1435,7 +1435,7 @@ static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 	!mc_mysql_connect(mysql, mi->host, mi->user, mi->password, 0,
 			  mi->port, 0, 0))
   {
-    sql_print_error("Slave thread: error connecting to master:%s(%d),\
+    sql_print_error("Slave thread: error connecting to master: %s (%d),\
  retry in %d sec", mc_mysql_error(mysql), errno, mi->connect_retry);
     safe_sleep(thd, mi->connect_retry);
   }
@@ -1452,38 +1452,55 @@ static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
   return slave_was_killed;
 }
 
-/* try to connect until successful or slave killed */
+/*
+  Try to connect until successful or slave killed or we have retried
+  master_retry_count times
+*/
 
 static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 {
   int slave_was_killed;
+  int last_errno= -2;				// impossible error
+  ulong err_count=0;
   char llbuff[22];
 
- // if we lost connection after reading a state set event
-  // we will be re-reading it, so pending needs to be cleared
+  /*
+    If we lost connection after reading a state set event
+    we will be re-reading it, so pending needs to be cleared
+  */
   mi->pending = 0;
 #ifndef DBUG_OFF
   events_till_disconnect = disconnect_slave_event_count;
 #endif
-  while(!(slave_was_killed = slave_killed(thd)) && mc_mysql_reconnect(mysql))
+  while (!(slave_was_killed = slave_killed(thd)) && mc_mysql_reconnect(mysql))
   {
-    sql_print_error("Slave thread: error re-connecting to master:\
+    /* Don't repeat last error */
+    if (mc_mysql_errno(mysql) != last_errno)
+    {
+      sql_print_error("Slave thread: error re-connecting to master: \
 %s, last_errno=%d, retry in %d sec",
-		    mc_mysql_error(mysql), errno, mi->connect_retry);
-     safe_sleep(thd, mi->connect_retry);
+		      mc_mysql_error(mysql), last_errno=mc_mysql_errno(mysql),
+		      mi->connect_retry);
+      safe_sleep(thd, mi->connect_retry);
+    }
+    if (err_count++ == master_retry_count)
+    {
+      slave_was_killed=1;
+      break;
+    }
   }
 
-  if(!slave_was_killed)
-    {
-     sql_print_error("Slave: reconnected to master '%s@%s:%d',\
+  if (!slave_was_killed)
+  {
+    sql_print_error("Slave: reconnected to master '%s@%s:%d',\
 replication resumed in log '%s' at position %s", glob_mi.user,
 		    glob_mi.host, glob_mi.port,
 		    RPL_LOG_NAME,
 		    llstr(glob_mi.pos,llbuff));
 #ifdef SIGNAL_WITH_VIO_CLOSE
-      thd->set_active_vio(mysql->net.vio);
+    thd->set_active_vio(mysql->net.vio);
 #endif      
-    }
+  }
 
   return slave_was_killed;
 }

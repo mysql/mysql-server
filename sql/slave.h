@@ -3,7 +3,7 @@
 
 #define SLAVE_NET_TIMEOUT  3600
 
-extern ulong slave_net_timeout;
+extern ulong slave_net_timeout, master_retry_count;
 
 typedef struct st_master_info
 {
