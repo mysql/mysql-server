@@ -1271,7 +1271,7 @@ int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
 bool mysql_show_binlog_events(THD* thd)
 {
   Protocol *protocol= thd->protocol;
-  DBUG_ENTER("show_binlog_events");
+  DBUG_ENTER("mysql_show_binlog_events");
   List<Item> field_list;
   const char *errmsg = 0;
   IO_CACHE log;

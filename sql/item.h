@@ -113,7 +113,7 @@ public:
 typedef bool (Item::*Item_processor)(byte *arg);
 typedef Item* (Item::*Item_transformer) (byte *arg);
 
-typedef void (*Item_cond_traverser) (const Item *item, void *arg);
+typedef void (*Cond_traverser) (const Item *item, void *arg);
 
 class Item {
   Item(const Item &);			/* Prevent use of these */
@@ -393,18 +393,17 @@ public:
     return (this->*processor)(arg);
   }
 
-   virtual Item* transform(Item_transformer transformer, byte *arg)
+  virtual Item* transform(Item_transformer transformer, byte *arg)
   {
     return (this->*transformer)(arg);
   }
 
-   virtual void traverse_cond(Item_cond_traverser traverser, 
-			      void *arg,
-			      traverse_order order = POSTFIX)
+   virtual void traverse_cond(Cond_traverser traverser,
+                              void *arg, traverse_order order)
    {
      (*traverser)(this, arg);
    }
- 
+
   virtual bool remove_dependence_processor(byte * arg) { return 0; }
   virtual bool remove_fixed(byte * arg) { fixed= 0; return 0; }
   virtual bool cleanup_processor(byte *arg);

@@ -4256,8 +4256,6 @@ ha_innobase::delete_all_rows(void)
 		goto fallback;
 	}
 
-	innobase_commit(thd, 1);
-
 	error = convert_error_code_to_mysql(error, NULL);
 
 	DBUG_RETURN(error);
