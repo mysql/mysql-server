@@ -46,7 +46,7 @@ void item_init(void)
 
 Item::Item():
   name(0), orig_name(0), name_length(0), fixed(0),
-  collation(default_charset(), DERIVATION_COERCIBLE)
+  collation(&my_charset_bin, DERIVATION_COERCIBLE)
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
