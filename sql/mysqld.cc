@@ -1911,45 +1911,6 @@ int main(int argc, char **argv)
     using_update_log=1;
   }
  
-  init_slave();
-  
-  if (opt_bin_log && !server_id)
-  {
-    server_id= !master_host ? 1 : 2;
-    switch (server_id) {
-#ifdef EXTRA_DEBUG
-    case 1:
-      sql_print_error("\
-Warning: You have enabled the binary log, but you haven't set server-id:\n\
-Updates will be logged to the binary log, but connections to slaves will\n\
-not be accepted.");
-      break;
-#endif
-    case 2:
-      sql_print_error("\
-Warning: You should set server-id to a non-0 value if master_host is set.\n\
-The server will not act as a slave.");
-      break;
-    }
-  }
-  if (opt_bin_log)
-  {
-    if (!opt_bin_logname)
-    {
-      char tmp[FN_REFLEN];
-      /* TODO: The following should be using fn_format();  We just need to
-	 first change fn_format() to cut the file name if it's too long.
-      */
-      strmake(tmp,glob_hostname,FN_REFLEN-5);
-      strmov(strcend(tmp,'.'),"-bin");
-      opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
-    }
-    mysql_bin_log.set_index_file_name(opt_binlog_index_name);
-    open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
-	     LOG_BIN);
-    using_update_log=1;
-  }
-
   if (opt_slow_log)
     open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
 	     LOG_NORMAL);
@@ -2020,6 +1981,46 @@ The server will not act as a slave.");
   if (!opt_noacl)
     udf_init();
 #endif
+  /* init_slave() must be called after the thread keys are created */
+  init_slave();
+  
+  if (opt_bin_log && !server_id)
+  {
+    server_id= !master_host ? 1 : 2;
+    switch (server_id) {
+#ifdef EXTRA_DEBUG
+    case 1:
+      sql_print_error("\
+Warning: You have enabled the binary log, but you haven't set server-id:\n\
+Updates will be logged to the binary log, but connections to slaves will\n\
+not be accepted.");
+      break;
+#endif
+    case 2:
+      sql_print_error("\
+Warning: You should set server-id to a non-0 value if master_host is set.\n\
+The server will not act as a slave.");
+      break;
+    }
+  }
+  if (opt_bin_log)
+  {
+    if (!opt_bin_logname)
+    {
+      char tmp[FN_REFLEN];
+      /* TODO: The following should be using fn_format();  We just need to
+	 first change fn_format() to cut the file name if it's too long.
+      */
+      strmake(tmp,glob_hostname,FN_REFLEN-5);
+      strmov(strcend(tmp,'.'),"-bin");
+      opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
+    }
+    mysql_bin_log.set_index_file_name(opt_binlog_index_name);
+    open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
+	     LOG_BIN);
+    using_update_log=1;
+  }
+
 
   if (opt_bootstrap)
   {

@@ -104,6 +104,9 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   cond_count=0;
   convert_set=0;
   mysys_var=0;
+#ifndef DBUG_OFF
+  dbug_sentry=THD_SENTRY_MAGIC;
+#endif  
   net.vio=0;
   ull=0;
   system_thread=cleanup_done=0;
@@ -191,6 +194,7 @@ void THD::cleanup(void)
 
 THD::~THD()
 {
+  THD_CHECK_SENTRY(this);
   DBUG_ENTER("~THD()");
   /* Close connection */
   if (net.vio)
@@ -223,12 +227,16 @@ THD::~THD()
   mysys_var=0;					// Safety (shouldn't be needed)
 #ifdef SIGNAL_WITH_VIO_CLOSE
   pthread_mutex_destroy(&active_vio_lock);
+#endif
+#ifndef DBUG_OFF
+  dbug_sentry = THD_SENTRY_GONE;
 #endif  
   DBUG_VOID_RETURN;
 }
 
 void THD::awake(bool prepare_to_die)
 {
+  THD_CHECK_SENTRY(this);
   if (prepare_to_die)
     killed = 1;
   thr_alarm_kill(real_id);

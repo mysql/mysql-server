@@ -166,6 +166,7 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
 		       ulonglong pos, bool need_data_lock,
 		       const char** errmsg)
 {
+  *errmsg=0;
   if (rli->log_pos_current)
     return 0;
   pthread_mutex_t *log_lock=rli->relay_log.get_log_lock();
@@ -348,6 +349,7 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
   /* is is criticate to test if the slave is running. Otherwise, we might
      be referening freed memory trying to kick it
   */
+  THD_CHECK_SENTRY(thd);
   if (*slave_running)
   {
     KICK_SLAVE(thd);
@@ -966,6 +968,8 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
   rli->cur_log_fd = -1;
   rli->slave_skip_counter=0;
   rli->log_pos_current=0;
+  rli->abort_pos_wait=0;
+  rli->skip_log_purge=0;
   // TODO: make this work with multi-master
   if (!opt_relay_logname)
   {
@@ -1296,9 +1300,16 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
   bool pos_reached = 0;
   int event_count = 0;
   pthread_mutex_lock(&data_lock);
-  while (!thd->killed)
+  abort_pos_wait=0; // abort only if master info  changes during wait
+  while (!thd->killed || !abort_pos_wait)
   {
     int cmp_result;
+    if (abort_pos_wait)
+    {
+      abort_pos_wait=0;
+      pthread_mutex_unlock(&data_lock);
+      return -1;
+    }
     DBUG_ASSERT(*master_log_name || master_log_pos == 0);
     if (*master_log_name)
     {
@@ -1350,10 +1361,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->thread_id = thread_id++;
   pthread_mutex_unlock(&LOCK_thread_count);
 
-  if (init_thr_lock() ||
-      my_pthread_setspecific_ptr(THR_THD,  thd) ||
-      my_pthread_setspecific_ptr(THR_MALLOC, &thd->mem_root) ||
-      my_pthread_setspecific_ptr(THR_NET,  &thd->net))
+  if (init_thr_lock() || thd->store_globals())
   {
     end_thread(thd,0);
     DBUG_RETURN(-1);
@@ -1367,7 +1375,6 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
 
-  thd->mem_root.free=thd->mem_root.used=0;	// Probably not needed
   if (thd->max_join_size == (ulong) ~0L)
     thd->options |= OPTION_BIG_SELECTS;
 
@@ -1381,7 +1388,6 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   }
   thd->version=refresh_version;
   thd->set_time();
-
   DBUG_RETURN(0);
 }
 
@@ -1611,6 +1617,7 @@ slave_begin:
   my_thread_init();
   thd = new THD; // note that contructor of THD uses DBUG_ !
   DBUG_ENTER("handle_slave_io");
+  THD_CHECK_SENTRY(thd);
 
   pthread_detach_this_thread();
   if (init_slave_thread(thd, SLAVE_THD_IO))
@@ -1808,11 +1815,12 @@ err:
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
   pthread_mutex_lock(&LOCK_thread_count);
+  THD_CHECK_SENTRY(thd);
   delete thd;
   pthread_mutex_unlock(&LOCK_thread_count);
+  my_thread_end(); // clean-up before broadcast
   pthread_cond_broadcast(&mi->stop_cond); // tell the world we are done
   pthread_mutex_unlock(&mi->run_lock);
-  my_thread_end();
 #ifndef DBUG_OFF
   if(abort_slave_event_count && !events_till_abort)
     goto slave_begin;
@@ -1848,7 +1856,8 @@ slave_begin:
   my_thread_init();
   thd = new THD; // note that contructor of THD uses DBUG_ !
   DBUG_ENTER("handle_slave_sql");
-
+  THD_CHECK_SENTRY(thd);
+  
   pthread_detach_this_thread();
   if (init_slave_thread(thd, SLAVE_THD_SQL))
   {
@@ -1861,6 +1870,7 @@ slave_begin:
     sql_print_error("Failed during slave thread initialization");
     goto err;
   }
+  THD_CHECK_SENTRY(thd);
   thd->thread_stack = (char*)&thd; // remember where our stack is
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   threads.append(thd);
@@ -1891,6 +1901,7 @@ log '%s' at position %s,relay log: name='%s',pos='%s'", RPL_LOG_NAME,
   {
     thd->proc_info = "Processing master log event"; 
     DBUG_ASSERT(rli->sql_thd == thd);
+    THD_CHECK_SENTRY(thd);
     if (exec_relay_log_event(thd,rli))
     {
       // do not scare the user if SQL thread was simply killed or stopped
@@ -1926,14 +1937,16 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because we are weird
   DBUG_ASSERT(rli->sql_thd == thd);
+  THD_CHECK_SENTRY(thd);
   rli->sql_thd = 0;
   pthread_mutex_lock(&LOCK_thread_count);
+  THD_CHECK_SENTRY(thd);
   delete thd;
   pthread_mutex_unlock(&LOCK_thread_count);
+  my_thread_end(); // clean-up before broadcasting termination
   pthread_cond_broadcast(&rli->stop_cond);
   // tell the world we are done
   pthread_mutex_unlock(&rli->run_lock);
-  my_thread_end();
 #ifndef DBUG_OFF // TODO: reconsider the code below
   if (abort_slave_event_count && !rli->events_till_abort)
     goto slave_begin;
@@ -2429,13 +2442,35 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
 	end_io_cache(cur_log);
 	DBUG_ASSERT(rli->cur_log_fd >= 0);
 	my_close(rli->cur_log_fd, MYF(MY_WME));
-	rli->cur_log_fd = -1; 
+	rli->cur_log_fd = -1;
 	
-	// purge_first_log will properly set up relay log coordinates in rli 
-	if (rli->relay_log.purge_first_log(rli))
+	// TODO: make skip_log_purge a start-up option. At this point this
+	// is not critical priority
+	if (!rli->skip_log_purge)
 	{
-	  errmsg = "Error purging processed log";
-	  goto err;
+	// purge_first_log will properly set up relay log coordinates in rli
+	  if (rli->relay_log.purge_first_log(rli))
+	  {
+	    errmsg = "Error purging processed log";
+	    goto err;
+	  }
+	}
+	else
+	{
+	  // TODO: verify that no lock is ok here. At this point, if we
+	  // get this wrong, this is actually no big deal - the only time
+	  // this code will ever be executed is if we are recovering from
+	  // a bug when a full reload of the slave is not feasible or
+	  // desirable. 
+	  if (rli->relay_log.find_next_log(&rli->linfo,0/*no lock*/))
+	  {
+	    errmsg = "error switching to the next log";
+	    goto err;
+	  }
+	  rli->relay_log_pos = 4;
+	  strnmov(rli->relay_log_name,rli->linfo.log_file_name,
+		  sizeof(rli->relay_log_name));
+	  flush_relay_log_info(rli);
 	}
 	
 	// next log is hot 
