@@ -406,11 +406,11 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   _blockNumber(1), // Hard coded block number since it makes it easy to send
                    // signals to other management servers.
   _ownReference(0),
+  m_local_config(local_config),
   m_allocated_resources(*this),
   theSignalIdleList(NULL),
   theWaitState(WAIT_SUBSCRIBE_CONF),
-  m_statisticsListner(this),
-  m_local_config(local_config)
+  m_statisticsListner(this)
 {
     
   DBUG_ENTER("MgmtSrvr::MgmtSrvr");
@@ -967,6 +967,9 @@ MgmtSrvr::versionNode(int processId, bool abort,
   {
     return sendVersionReq(processId);
   }
+  else
+    version= 0;
+
   if(m_versionRec.callback != 0)
     m_versionRec.callback(processId, version, this,0);
   m_versionRec.inUse = false ;

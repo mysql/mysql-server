@@ -1252,7 +1252,7 @@ void
 MgmStatService::log(int eventType, const Uint32* theData, NodeId nodeId){
   
   Uint32 threshold = 0;
-  LogLevel::EventCategory cat;
+  LogLevel::EventCategory cat= LogLevel::llInvalid;
   int i;
 
   for(i = 0; (unsigned)i<EventLogger::matrixSize; i++){
@@ -1262,6 +1262,8 @@ MgmStatService::log(int eventType, const Uint32* theData, NodeId nodeId){
       break;
     }
   }
+  if (cat == LogLevel::llInvalid)
+    return;
 
   char m_text[256];
   EventLogger::getText(m_text, sizeof(m_text), eventType, theData, nodeId);
