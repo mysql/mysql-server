@@ -508,7 +508,6 @@ int _my_b_read_r(register IO_CACHE *info, byte *Buffer, uint Count)
     pos_in_file= info->pos_in_file + (uint)(info->read_end - info->buffer);
     diff_length= (uint) (pos_in_file & (IO_SIZE-1));
     length=IO_ROUND_UP(Count+diff_length)-diff_length;
-    length=IO_ROUND_UP(Count+diff_length)-diff_length;
     length=(length <= info->read_length) ?
                    length + IO_ROUND_DN(info->read_length - length) :
                    length - IO_ROUND_UP(length - info->read_length) ;
