@@ -101,42 +101,13 @@ RestoreMetaData::getStopGCP() const {
 }
 
 int
-RestoreMetaData::loadContent(const char * catalog, 
-			     const char * schema) 
+RestoreMetaData::loadContent() 
 {
-			
-#if NDB_VERSION_MAJOR >= VERSION_3X
-  if(getMajor(m_fileHeader.NdbVersion) < VERSION_3X) {
-    if(catalog == NULL) 
-      return -1;
-    if(schema == NULL) 
-      return -1;
-  }
-  
-
-  /**
-   * if backup is of version 3 or higher, then
-   * return -2 to indicate for the user that he
-   * cannot restore tables to a certain catalog/schema
-   */
-  if(getMajor(m_fileHeader.NdbVersion) >= VERSION_3X && 
-     (catalog != NULL || 
-      schema != NULL)) {
-    return -2;
-  }
-#endif 
-#if NDB_VERSION_MAJOR < VERSION_3X
-  if(getMajor(m_fileHeader.NdbVersion) >= VERSION_3X)
-  {
-    return -2;
-  }
-#endif
-
   Uint32 noOfTables = readMetaTableList();
   if(noOfTables == 0)
     return -3;
   for(Uint32 i = 0; i<noOfTables; i++){
-    if(!readMetaTableDesc(catalog, schema)){
+    if(!readMetaTableDesc()){
       return 0;
     }
   }
@@ -170,8 +141,7 @@ RestoreMetaData::readMetaTableList() {
 }
 
 bool
-RestoreMetaData::readMetaTableDesc(const char * catalog, 
-				   const char * schema) {
+RestoreMetaData::readMetaTableDesc() {
   
   Uint32 sectionInfo[2];
   
@@ -198,10 +168,7 @@ RestoreMetaData::readMetaTableDesc(const char * catalog,
     return false;
   } // if
   
-  return parseTableDescriptor(m_buffer, 
-			      len,
-			      catalog,
-			      schema);	     
+  return parseTableDescriptor(m_buffer, len);	     
 }
 
 bool
@@ -287,72 +254,11 @@ static const Uint32
 AttrMapSize = sizeof(RestoreAttrMap) 
   / sizeof(SimpleProperties::SP2StructMapping);
 
-struct v2xKernel_to_v3xAPIMapping {
-  Int32 kernelConstant;
-  Int32 apiConstant;
-};
-
-enum v2xKernelTypes {
-  ExtUndefined=0,// Undefined 
-  ExtInt,        // 32 bit
-  ExtUnsigned,   // 32 bit
-  ExtBigint,     // 64 bit
-  ExtBigunsigned,// 64 Bit
-  ExtFloat,      // 32-bit float
-  ExtDouble,     // 64-bit float
-  ExtDecimal,    // Precision, Scale
-  ExtChar,       // Len
-  ExtVarchar,    // Max len
-  ExtBinary,     // Len
-  ExtVarbinary,  // Max len
-  ExtDatetime,   // Precision down to 1 sec  (sizeof(Datetime) == 8 bytes )
-  ExtTimespec    // Precision down to 1 nsec (sizeof(Datetime) == 12 bytes )
-};
-
-const
-v2xKernel_to_v3xAPIMapping 
-columnTypeMapping[] = {
-  { ExtInt,             NdbDictionary::Column::Int },
-  { ExtUnsigned,        NdbDictionary::Column::Unsigned },
-  { ExtBigint,          NdbDictionary::Column::Bigint },
-  { ExtBigunsigned,     NdbDictionary::Column::Bigunsigned },
-  { ExtFloat,           NdbDictionary::Column::Float },
-  { ExtDouble,          NdbDictionary::Column::Double },
-  { ExtDecimal,         NdbDictionary::Column::Decimal },
-  { ExtChar,            NdbDictionary::Column::Char },
-  { ExtVarchar,         NdbDictionary::Column::Varchar },
-  { ExtBinary,          NdbDictionary::Column::Binary },
-  { ExtVarbinary,       NdbDictionary::Column::Varbinary },
-  { ExtDatetime,        NdbDictionary::Column::Datetime },
-  { ExtTimespec,        NdbDictionary::Column::Timespec },
-  { -1, -1 }
-};
-
-static
-NdbDictionary::Column::Type
-convertToV3x(Int32 kernelConstant, const v2xKernel_to_v3xAPIMapping   map[], 
-	       Int32 def)
-{
-  int i = 0;
-  while(map[i].kernelConstant != kernelConstant){
-    if(map[i].kernelConstant == -1 &&
-       map[i].apiConstant == -1){
-      return (NdbDictionary::Column::Type)def;
-    }
-    i++;
-  }
-  return (NdbDictionary::Column::Type)map[i].apiConstant;
-}
-
-
-
 // Parse dictTabInfo buffer and pushback to to vector storage 
 // Using SimpleProperties (here we don't need ntohl, ref:ejonore)
 bool
-RestoreMetaData::parseTableDescriptor(const Uint32 * data, 
-				      Uint32 len,
-				      const char * catalog,
-				      const char * schema)   {
+RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
+{
   SimplePropertiesLinearReader it(data, len);
   SimpleProperties::UnpackStatus spStatus;
   
@@ -362,49 +268,9 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data,
     return false;
   } // if
 
-  /**
-   * if backup was taken in v21x then there is no info about catalog,
-   * and schema. This infomration is concatenated to the tableName.
-   *
-   */
   char tableName[MAX_TAB_NAME_SIZE*2]; // * 2 for db and schema.-.  
-  
+  it.getString(tableName);
 
-  char tmpTableName[MAX_TAB_NAME_SIZE]; 
-  it.getString(tmpTableName);
-#if NDB_VERSION_MAJOR >= VERSION_3X
-  /**
-   * only mess with name in version 3.
-   */
-  /*  switch(getMajor(m_fileHeader.NdbVersion)) {
-   */
-  if(getMajor(m_fileHeader.NdbVersion) < VERSION_3X) 
-    {
-
-      if(strcmp(tmpTableName, "SYSTAB_0") == 0 ||
-	 strcmp(tmpTableName, "NDB$EVENTS_0") == 0)
-	{
-	  sprintf(tableName,"sys/def/%s",tmpTableName);   
-	} 
-      else { 
-	if(catalog == NULL && schema == NULL)
-	{
-	  sprintf(tableName,"%s",tmpTableName);      
-	} 
-	else 
-	{
-	  sprintf(tableName,"%s/%s/%s",catalog,schema,tmpTableName);      
-	}
-      }
-    }
-  else
-    sprintf(tableName,"%s",tmpTableName);
-#elif NDB_VERSION_MAJOR < VERSION_3X
-  /**
-   * this is version two!
-   */
-    sprintf(tableName,"%s",tmpTableName);
-#endif
   if (strlen(tableName) == 0) {
     err << "readMetaTableDesc getString table name error" << endl;
     return false;
@@ -505,35 +371,9 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data,
   debug << "   with " << table->getNoOfAttributes() << " attributes" << endl;
   allTables.push_back(table);
 
-#ifndef restore_old_types
   NdbTableImpl* tableImpl = 0;
-  int ret = NdbDictInterface::parseTableInfo(&tableImpl, data, len);
-#if NDB_VERSION_MAJOR >= VERSION_3X
-  NdbDictionary::Column::Type type;
-  if(getMajor(m_fileHeader.NdbVersion) < VERSION_3X) {
-    tableImpl->setName(tableName);   
-    Uint32 noOfColumns = tableImpl->getNoOfColumns();
-    for(Uint32 i = 0 ; i < noOfColumns; i++) {
-      type = convertToV3x(tableImpl->getColumn(i)->m_extType, 
-			  columnTypeMapping,
-			  -1);
-      if(type == -1) 
-      {
-	ndbout_c("Restore: Was not able to map external type %d (in v2x) "
-		 " to a proper type in v3x", tableImpl->getColumn(i)->m_extType);
-	return false;
-      }
-      else 
-      {
-        tableImpl->getColumn(i)->m_type =  type;
-      }
+  int ret = NdbDictInterface::parseTableInfo(&tableImpl, data, len, false);
 
-      
-
-     
-    }
-  }
-#endif
   if (ret != 0) {
     err << "parseTableInfo " << tableName << " failed" << endl;
     return false;
@@ -542,7 +382,7 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data,
     return false;
   debug << "parseTableInfo " << tableName << " done" << endl;
   table->m_dictTable = tableImpl;
-#endif
+
   return true;
 }
 
