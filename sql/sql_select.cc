@@ -664,7 +664,7 @@ JOIN::optimize()
       !(select_options & SELECT_DESCRIBE))
   {						/* purecov: inspected */
     my_message(ER_TOO_BIG_SELECT, ER(ER_TOO_BIG_SELECT), MYF(0));
-    error= 1;					/* purecov: inspected */
+    error= -1;
     DBUG_RETURN(1);
   }
   if (const_tables && !thd->locked_tables &&
@@ -1194,7 +1194,9 @@ JOIN::exec()
       else
 	error=(int) result->send_eof();
     }
-    thd->limit_found_rows= thd->examined_row_count= 0;
+    /* Single select (without union and limit) always returns 1 row */
+    thd->limit_found_rows= 1;
+    thd->examined_row_count= 0;
     DBUG_VOID_RETURN;
   }
   thd->limit_found_rows= thd->examined_row_count= 0;
