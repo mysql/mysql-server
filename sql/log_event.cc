@@ -1862,12 +1862,12 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
       else
       {
         slave_print_error(rli,expected_error, 
-                          "query '%s' partially completed on the master \
+                          "query partially completed on the master \
 (error on master: %d) \
 and was aborted. There is a chance that your master is inconsistent at this \
 point. If you are sure that your master is ok, run this query manually on the\
  slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;\
- START SLAVE; .", thd->query, expected_error);
+ START SLAVE; . Query: '%s'", expected_error, thd->query);
         thd->query_error= 1;
       }
       goto end;
@@ -1896,15 +1896,13 @@ point. If you are sure that your master is ok, run this query manually on the\
     {
       slave_print_error(rli, 0,
                         "\
-Query '%s' caused different errors on master and slave. \
+Query caused different errors on master and slave. \
 Error on master: '%s' (%d), Error on slave: '%s' (%d). \
-Default database: '%s'",
-                        query,
+Default database: '%s'. Query: '%s'",
                         ER_SAFE(expected_error),
                         expected_error,
                         actual_error ? thd->net.last_error: "no error",
-                        actual_error,
-                        print_slave_db_safe(db));
+                        actual_error, print_slave_db_safe(db), query);
       thd->query_error= 1;
     }
     /*
@@ -1919,11 +1917,10 @@ Default database: '%s'",
     else if (thd->query_error || thd->fatal_error)
     {
       slave_print_error(rli,actual_error,
-                        "Error '%s' on query '%s'. Default database: '%s'",
+                        "Error '%s' on query. Default database: '%s'. Query: '%s'",
                         (actual_error ? thd->net.last_error :
                          "unexpected success or fatal error"),
-                        query,
-                        print_slave_db_safe(db));
+                        print_slave_db_safe(db), query);
       thd->query_error= 1;
     }
   } /* End of if (db_ok(... */
