@@ -44,7 +44,7 @@ extern "C" {
 #define MI_NAME_IEXT	".MYI"
 #define MI_NAME_DEXT	".MYD"
 /* Max extra space to use when sorting keys */
-#define MI_MAX_TEMP_LENGTH	1024L*1024L*1024L
+#define MI_MAX_TEMP_LENGTH	256*1024L*1024L
 
 #define mi_portable_sizeof_char_ptr 8
 
@@ -187,8 +187,9 @@ typedef struct st_columndef		/* column information */
 
 extern my_string myisam_log_filename;		/* Name of logfile */
 extern uint myisam_block_size;
-extern my_bool myisam_flush,myisam_delay_key_write,
-       	       myisam_concurrent_insert;
+extern my_bool myisam_flush,myisam_delay_key_write;
+extern my_bool myisam_concurrent_insert;
+extern my_off_t myisam_max_temp_length,myisam_max_extra_temp_length;
 
 	/* Prototypes for myisam-functions */
 
@@ -376,7 +377,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 			  ulong);
 int test_if_almost_full(MI_INFO *info);
 int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename);
-void mi_dectivate_non_unique_index(MI_INFO *info, ha_rows rows);
+void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows);
 my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows);
 
 #ifdef	__cplusplus
