@@ -832,7 +832,7 @@ bool multi_update::send_eof()
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    log_delayed);
       if (mysql_bin_log.write(&qinfo) && trans_safe)
-	local_error=1;				// Rollback update
+	local_error= 1;				// Rollback update
     }
     if (!log_delayed)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
@@ -840,7 +840,7 @@ bool multi_update::send_eof()
 
   if (transactional_tables)
   {
-    if (ha_autocommit_or_rollback(thd, local_error >= 0))
+    if (ha_autocommit_or_rollback(thd, local_error != 0))
       local_error=1;
   }
 

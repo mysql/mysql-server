@@ -1,11 +1,31 @@
-drop table if exists t1;
-CREATE TABLE t1 ( t timestamp);
+drop table if exists t1,t2;
+CREATE TABLE t1 (a int, t timestamp);
+CREATE TABLE t2 (a int, t datetime);
 SET TIMESTAMP=1234;
-insert into t1 values(NULL);
+insert into t1 values(1,NULL);
+insert into t1 values(2,"2002-03-03");
+SET TIMESTAMP=1235;
+insert into t1 values(3,NULL);
+SET TIMESTAMP=1236;
+insert into t1 (a) values(4);
+insert into t2 values(5,"2002-03-04"),(6,NULL),(7,"2002-03-05"),(8,"00-00-00");
+SET TIMESTAMP=1237;
+insert into t1 select * from t2;
+SET TIMESTAMP=1238;
+insert into t1 (a) select a+1 from t2 where a=8;
 select * from t1;
-t
-19700101032034
-drop table t1;
+a	t
+1	19700101032034
+2	20020303000000
+3	19700101032035
+4	19700101032036
+5	20020304000000
+6	19700101032037
+7	20020305000000
+8	00000000000000
+9	19700101032038
+drop table t1,t2;
+SET TIMESTAMP=1234;
 CREATE TABLE t1 (value TEXT NOT NULL, id VARCHAR(32) NOT NULL, stamp timestamp, PRIMARY KEY (id));
 INSERT INTO t1 VALUES ("my value", "myKey","1999-04-02 00:00:00");
 SELECT stamp FROM t1 WHERE id="myKey";

@@ -1021,3 +1021,18 @@ id	code	name
 7	4	Matt
 COMMIT;
 DROP TABLE t1;
+drop table if exists t1,t2;
+create table t1 (n int(10), d int(10)) type=innodb;
+create table t2 (n int(10), d int(10)) type=innodb;
+insert into t1 values(1,1),(1,2);
+insert into t2 values(1,10),(2,20);
+UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
+select * from t1;
+n	d
+1	10
+1	10
+select * from t2;
+n	d
+1	30
+2	20
+drop table t1,t2;
