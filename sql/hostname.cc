@@ -171,17 +171,22 @@ my_string ip_to_hostname(struct in_addr *in, uint *errors)
   {
     DBUG_PRINT("error",("gethostbyname_r returned %d",tmp_errno));
     add_wrong_ip(in);
+    my_gethostbyname_r_free();
     DBUG_RETURN(0);
   }
   if (!hp->h_name[0])
   {
     DBUG_PRINT("error",("Got an empty hostname"));
     add_wrong_ip(in);
+    my_gethostbyname_r_free();
     DBUG_RETURN(0);				// Don't allow empty hostnames
   }
   if (!(name=my_strdup(hp->h_name,MYF(0))))
+  {
+    my_gethostbyname_r_free();
     DBUG_RETURN(0);				// out of memory
-
+  }
+  my_gethostbyname_r_free();
 #else
   VOID(pthread_mutex_lock(&LOCK_hostname));
   if (!(hp=gethostbyaddr((char*) in,sizeof(*in), AF_INET)))

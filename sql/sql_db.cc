@@ -310,6 +310,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 #endif
     /* Remove last FN_LIBCHAR to not cause a problem on OS/2 */
     pos=strend(path);
+
     if (pos > path && pos[-1] == FN_LIBCHAR)
       *--pos=0;
     /* Don't give errors if we can't delete 'RAID' directory */
