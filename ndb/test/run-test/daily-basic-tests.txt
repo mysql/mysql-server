@@ -23,7 +23,7 @@ max-time: 500
 cmd: testBasic
 args: -n PkInsert 
 
-max-time: 600
+max-time: 660
 cmd: testBasic
 args: -n UpdateAndRead 
 
