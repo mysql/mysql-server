@@ -3185,7 +3185,8 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
       /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
       else if (((field->type() == FIELD_TYPE_DATE) ||
 		(field->type() == FIELD_TYPE_DATETIME)) &&
-		(field->flags & NOT_NULL_FLAG))
+		(field->flags & NOT_NULL_FLAG) &&
+	       !field->table->maybe_null)
       {
 	COND *new_cond;
 	if ((new_cond= new Item_func_eq(args[0],new Item_int("0", 0, 2))))
@@ -4083,14 +4084,17 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   {
     if (table->group && join->tmp_table_param.sum_func_count)
     {
-      DBUG_PRINT("info",("Using end_update"));
       if (table->keys)
       {
+	DBUG_PRINT("info",("Using end_update"));
 	end_select=end_update;
 	table->file->index_init(0);
       }
       else
+      {
+	DBUG_PRINT("info",("Using end_unique_update"));
 	end_select=end_unique_update;
+      }
     }
     else if (join->sort_and_group)
     {
@@ -4206,8 +4210,6 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   int error;
   bool found=0;
   COND *on_expr=join_tab->on_expr, *select_cond=join_tab->select_cond;
-  int  (*next_select)(JOIN *,struct st_join_table *,bool)=
-    join_tab->next_select;
 
   if (!(error=(*join_tab->read_first_record)(join_tab)))
   {
@@ -4215,7 +4217,6 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     bool not_used_in_distinct=join_tab->not_used_in_distinct;
     ha_rows found_records=join->found_records;
     READ_RECORD *info= &join_tab->read_record;
-    join->examined_rows++;
 
     do
     {
@@ -4224,6 +4225,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 	my_error(ER_SERVER_SHUTDOWN,MYF(0));	/* purecov: inspected */
 	return -2;				/* purecov: inspected */
       }
+      join->examined_rows++;
       if (!on_expr || on_expr->val_int())
       {
 	found=1;
@@ -4231,7 +4233,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 	  break;			// Searching after not null columns
 	if (!select_cond || select_cond->val_int())
 	{
-	  if ((error=(*next_select)(join,join_tab+1,0)) < 0)
+	  if ((error=(*join_tab->next_select)(join,join_tab+1,0)) < 0)
 	    return error;
 	  if (not_used_in_distinct && found_records != join->found_records)
 	    return 0;
@@ -4252,7 +4254,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     mark_as_null_row(join_tab->table);		// For group by without error
     if (!select_cond || select_cond->val_int())
     {
-      if ((error=(*next_select)(join,join_tab+1,0)) < 0)
+      if ((error=(*join_tab->next_select)(join,join_tab+1,0)) < 0)
 	return error;				/* purecov: inspected */
     }
   }
@@ -5448,6 +5450,41 @@ create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
 err:
   DBUG_RETURN(-1);
 }
+
+/*
+** Add the HAVING criteria to table->select
+*/
+
+#ifdef NOT_YET
+static bool fix_having(JOIN *join, Item **having)
+{
+  (*having)->update_used_tables();	// Some tables may have been const
+  JOIN_TAB *table=&join->join_tab[join->const_tables];
+  table_map used_tables= join->const_table_map | table->table->map;
+
+  DBUG_EXECUTE("where",print_where(*having,"having"););
+  Item* sort_table_cond=make_cond_for_table(*having,used_tables,used_tables);
+  if (sort_table_cond)
+  {
+    if (!table->select)
+      if (!(table->select=new SQL_SELECT))
+	return 1;
+    if (!table->select->cond)
+      table->select->cond=sort_table_cond;
+    else					// This should never happen
+      if (!(table->select->cond=new Item_cond_and(table->select->cond,
+						  sort_table_cond)))
+	return 1;
+    table->select_cond=table->select->cond;
+    DBUG_EXECUTE("where",print_where(table->select_cond,
+				     "select and having"););
+    *having=make_cond_for_table(*having,~ (table_map) 0,~used_tables);
+    DBUG_EXECUTE("where",print_where(*having,"having after make_cond"););
+  }
+  return 0;
+}
+#endif
+
 
 /*****************************************************************************
 ** Remove duplicates from tmp table

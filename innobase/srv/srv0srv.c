@@ -24,7 +24,7 @@ thread library. This might confuse NT though.
 
 Created 10/8/1995 Heikki Tuuri
 *******************************************************/
-
+/* Dummy comment */
 #include "srv0srv.h"
 
 #include "ut0mem.h"
@@ -48,10 +48,14 @@ Created 10/8/1995 Heikki Tuuri
 #include "buf0flu.h"
 #include "btr0sea.h"
 #include "dict0load.h"
+#include "srv0start.h"
 
 /* The following counter is incremented whenever there is some user activity
 in the server */
 ulint	srv_activity_count	= 0;
+
+ibool	srv_lock_timeout_and_monitor_active = FALSE;
+ibool	srv_error_monitor_active = FALSE;
 
 char*	srv_main_thread_op_info = "";
 
@@ -106,9 +110,48 @@ char*   srv_unix_file_flush_method_str = NULL;
 ulint   srv_unix_file_flush_method = 0;
 
 /* If the following is != 0 we do not allow inserts etc. This protects
-the user from forgetting  innodb_force_recovery keyword to my.cnf */
+the user from forgetting the innodb_force_recovery keyword to my.cnf */
 
 ulint	srv_force_recovery	= 0;
+/*-----------------------*/
+/* The following controls how many threads we let inside InnoDB concurrently:
+threads waiting for locks are not counted into the number because otherwise
+we could get a deadlock. MySQL creates a thread for each user session, and
+semaphore contention and convoy problems can occur withput this restriction.
+Value 10 should be good if there are less than 4 processors + 4 disks in the
+computer. Bigger computers need bigger values. */
+
+ulint	srv_thread_concurrency	= 4;
+
+os_fast_mutex_t	srv_conc_mutex;		/* this mutex protects srv_conc data
+					structures */
+ulint	srv_conc_n_threads	= 0;	/* number of OS threads currently
+					inside InnoDB */
+
+typedef struct srv_conc_slot_struct	srv_conc_slot_t;
+struct srv_conc_slot_struct{
+	os_event_t			event;		/* event to wait */
+	ibool				reserved;	/* TRUE if slot
+							reserved */
+	ibool				wait_ended;	/* TRUE when another
+							thread has already set
+							the event and the
+							thread in this slot is
+							free to proceed; but
+							reserved may still be
+							TRUE at that point */
+	UT_LIST_NODE_T(srv_conc_slot_t)	srv_conc_queue;	/* queue node */
+};
+
+UT_LIST_BASE_NODE_T(srv_conc_slot_t)	srv_conc_queue;	/* queue of threads
+							waiting to get in */
+srv_conc_slot_t	srv_conc_slots[OS_THREAD_MAX_N];	/* array of wait
+							slots */
+/*-----------------------*/
+/* If the following is set TRUE then we do not run purge and insert buffer
+merge to completion before shutdown */
+
+ibool	srv_fast_shutdown	= FALSE;
 
 ibool	srv_use_doublewrite_buf	= TRUE;
 
@@ -1512,8 +1555,9 @@ void
 srv_init(void)
 /*==========*/
 {
-	srv_slot_t*	slot;
-	ulint		i;
+	srv_conc_slot_t* 	conc_slot;
+	srv_slot_t*		slot;
+	ulint			i;
 
 	srv_sys = mem_alloc(sizeof(srv_sys_t));
 
@@ -1556,6 +1600,19 @@ srv_init(void)
 	ut_a(srv_sys->operational);
 
 	UT_LIST_INIT(srv_sys->tasks);
+
+	/* Init the server concurrency restriction data structures */
+
+	os_fast_mutex_init(&srv_conc_mutex);
+	
+	UT_LIST_INIT(srv_conc_queue);
+	
+	for (i = 0; i < OS_THREAD_MAX_N; i++) {
+		conc_slot = srv_conc_slots + i;
+		conc_slot->reserved = FALSE;
+		conc_slot->event = os_event_create(NULL);
+		ut_a(conc_slot->event);
+	}
 }	
 	
 /*************************************************************************
@@ -1569,6 +1626,140 @@ srv_general_init(void)
 	sync_init();
 	mem_init(srv_mem_pool_size);
 	thr_local_init();
+}
+
+/*************************************************************************
+Puts an OS thread to wait if there are too many concurrent threads
+(>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
+
+void
+srv_conc_enter_innodb(
+/*==================*/
+	trx_t*	trx)	/* in: transaction object associated with the
+			thread */
+{
+	srv_conc_slot_t*	slot;
+	ulint			i;
+
+	os_fast_mutex_lock(&srv_conc_mutex);
+
+	if (srv_conc_n_threads < srv_thread_concurrency) {
+		srv_conc_n_threads++;
+
+		os_fast_mutex_unlock(&srv_conc_mutex);
+
+		return;
+	}
+	
+	/* Too many threads inside: put to the current thread to a queue */
+
+	for (i = 0; i < OS_THREAD_MAX_N; i++) {
+		slot = srv_conc_slots + i;
+
+		if (!slot->reserved) {
+			break;
+		}
+	}
+
+	if (i == OS_THREAD_MAX_N) {
+		/* Could not find a free wait slot, we must let the
+		thread enter */
+
+		srv_conc_n_threads++;
+
+		os_fast_mutex_unlock(&srv_conc_mutex);
+
+		return;
+	}
+
+	/* Release possible search system latch this thread has */
+	if (trx->has_search_latch) {
+		trx_search_latch_release_if_reserved(trx);
+	}
+
+	/* Add to the queue */
+	slot->reserved = TRUE;
+	slot->wait_ended = FALSE;
+	
+	UT_LIST_ADD_LAST(srv_conc_queue, srv_conc_queue, slot);
+
+	os_event_reset(slot->event);
+
+	os_fast_mutex_unlock(&srv_conc_mutex);
+
+	/* Go to wait for the event; when a thread leaves InnoDB it will
+	release this thread */
+
+	os_event_wait(slot->event);
+
+	os_fast_mutex_lock(&srv_conc_mutex);
+
+	/* NOTE that the thread which released this thread already
+	incremented the thread counter on behalf of this thread */
+
+	slot->reserved = FALSE;
+
+	UT_LIST_REMOVE(srv_conc_queue, srv_conc_queue, slot);
+
+	os_fast_mutex_unlock(&srv_conc_mutex);
+}
+
+/*************************************************************************
+This lets a thread enter InnoDB regardless of the number of threads inside
+InnoDB. This must be called when a thread ends a lock wait. */
+
+void
+srv_conc_force_enter_innodb(void)
+/*=============================*/
+{
+	os_fast_mutex_lock(&srv_conc_mutex);
+
+	srv_conc_n_threads++;
+
+	os_fast_mutex_unlock(&srv_conc_mutex);
+}
+
+/*************************************************************************
+This must be called when a thread exits InnoDB. This must also be called
+when a thread goes to wait for a lock. */
+
+void
+srv_conc_exit_innodb(void)
+/*======================*/
+{
+	srv_conc_slot_t*	slot	= NULL;
+
+	os_fast_mutex_lock(&srv_conc_mutex);
+
+	ut_a(srv_conc_n_threads > 0);
+	
+	srv_conc_n_threads--;
+
+	if (srv_conc_n_threads < srv_thread_concurrency) {
+		/* Look for a slot where a thread is waiting and no other
+		thread has yet released the thread */
+	
+		slot = UT_LIST_GET_FIRST(srv_conc_queue);
+
+		while (slot && slot->wait_ended == TRUE) {
+			slot = UT_LIST_GET_NEXT(srv_conc_queue, slot);
+		}
+
+		if (slot != NULL) {
+			slot->wait_ended = TRUE;
+
+			/* We increment the count on behalf of the released
+			thread */
+
+			srv_conc_n_threads++;
+		}
+	}
+
+	os_fast_mutex_unlock(&srv_conc_mutex);
+
+	if (slot != NULL) {
+		os_event_set(slot->event);
+	}
 }
 
 /*************************************************************************
@@ -1713,9 +1904,19 @@ srv_suspend_mysql_thread(
 	
 	mutex_exit(&kernel_mutex);
 
+	/* We must declare this OS thread to exit InnoDB, since a possible
+	other thread holding a lock which this thread waits for must be
+	allowed to enter, sooner or later */
+	
+	srv_conc_exit_innodb();
+
 	/* Wait for the release */
 	
 	os_event_wait(event);
+
+	/* Return back inside InnoDB */
+	
+	srv_conc_force_enter_innodb();
 
 	mutex_enter(&kernel_mutex);
 
@@ -1792,6 +1993,8 @@ srv_lock_timeout_and_monitor_thread(
 	UT_NOT_USED(arg);
 	last_monitor_time = time(NULL);
 loop:
+	srv_lock_timeout_and_monitor_active = TRUE;
+
 	/* When someone is waiting for a lock, we wake up every second
 	and check if a timeout has passed for a lock wait */
 
@@ -1809,9 +2012,9 @@ loop:
 	
 	if (time_elapsed > 15) {
 
-	    last_monitor_time = time(NULL);
-
 	    if (srv_print_innodb_monitor) {
+
+	    	last_monitor_time = time(NULL);
 	
 	        printf("=====================================\n");
 		ut_print_timestamp(stdout);
@@ -1849,8 +2052,9 @@ loop:
 		printf("--------------\n"
 		       "ROW OPERATIONS\n"
 		       "--------------\n");
-		printf("InnoDB main thread state: %s\n",
-						srv_main_thread_op_info);
+		printf(
+	"%lu queries inside InnoDB; main thread: %s\n",
+				srv_conc_n_threads, srv_main_thread_op_info);
 		printf(
 	"Number of rows inserted %lu, updated %lu, deleted %lu, read %lu\n",
 			srv_n_rows_inserted, 
@@ -1934,7 +2138,7 @@ loop:
 	    			(wait_time > (double) srv_lock_wait_timeout
 						|| wait_time < 0)) {
 
-				/* Timeout exceeded or a wrap over in system
+				/* Timeout exceeded or a wrap-around in system
 				time counter: cancel the lock request queued
 				by the transaction and release possible
 				other transactions waiting behind */
@@ -1949,6 +2153,10 @@ loop:
 
 	mutex_exit(&kernel_mutex);
 
+	if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
+		goto exit_func;
+	}
+
 	if (some_waits || srv_print_innodb_monitor
 			|| srv_print_innodb_lock_monitor
 			|| srv_print_innodb_tablespace_monitor
@@ -1958,10 +2166,15 @@ loop:
 
 	/* No one was waiting for a lock and no monitor was active:
 	suspend this thread */
-	
+
+	srv_lock_timeout_and_monitor_active = FALSE;
+
 	os_event_wait(srv_lock_timeout_thread_event);
 
 	goto loop;
+
+exit_func:
+	srv_lock_timeout_and_monitor_active = FALSE;
 
 #ifndef __WIN__
         return(NULL);
@@ -1987,11 +2200,18 @@ srv_error_monitor_thread(
 {
 	UT_NOT_USED(arg);
 loop:
+	srv_error_monitor_active = TRUE;
+
 	os_thread_sleep(10000000);
 
 	sync_array_print_long_waits();
 			
-	goto loop;
+	if (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
+
+		goto loop;
+	}
+
+	srv_error_monitor_active = FALSE;
 
 #ifndef __WIN__
         return(NULL);
@@ -2079,13 +2299,12 @@ loop:
 	for (i = 0; i < 10; i++) {
 		n_ios_old = log_sys->n_log_ios + buf_pool->n_pages_read
 						+ buf_pool->n_pages_written;
-
 		srv_main_thread_op_info = "sleeping";
 		os_thread_sleep(1000000);
 
 		if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND) {
 
-			goto loop;
+			goto suspend_thread;
 		}
 
 		/* We flush the log once in a second even if no commit
@@ -2112,6 +2331,11 @@ loop:
 			log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
 		}
 		
+		if (srv_fast_shutdown && srv_shutdown_state > 0) {
+
+			goto background_loop;
+		}
+
 		if (srv_activity_count == old_activity_count) {
 
 			if (srv_print_thread_releases) {
@@ -2159,6 +2383,11 @@ loop:
 	last_flush_time = time(NULL);
 
 	while (n_pages_purged) {
+
+		if (srv_fast_shutdown && srv_shutdown_state > 0) {
+
+			goto background_loop;
+		}
 
 		srv_main_thread_op_info = "purging";
 		n_pages_purged = trx_purge();
@@ -2247,7 +2476,12 @@ background_loop:
 	
 	log_archive_do(FALSE, &n_bytes_archived);
 
-	if (n_pages_purged + n_bytes_merged + n_pages_flushed
+	if (srv_fast_shutdown && srv_shutdown_state > 0) {
+		if (n_pages_flushed + n_bytes_archived != 0) {
+
+			goto background_loop;
+		}
+	} else if (n_pages_purged + n_bytes_merged + n_pages_flushed
 						+ n_bytes_archived != 0) {
 		goto background_loop;
 	}
@@ -2261,6 +2495,7 @@ background_loop:
 	/* There is no work for background operations either: suspend
 	master thread to wait for more server activity */
 	
+suspend_thread:
 	srv_main_thread_op_info = "suspending";
 
 	mutex_enter(&kernel_mutex);

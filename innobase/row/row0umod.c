@@ -299,13 +299,13 @@ row_undo_mod_del_mark_or_remove_sec_low(
 				BTR_MODIFY_TREE */	
 {
 	ibool		found;
-	mtr_t		mtr;
-	mtr_t		mtr_vers;
 	btr_pcur_t	pcur;
 	btr_cur_t*	btr_cur;
 	ibool		success;
 	ibool		old_has;
 	ulint		err;
+	mtr_t		mtr;
+	mtr_t		mtr_vers;
 	
 	log_free_check();
 	mtr_start(&mtr);
@@ -338,7 +338,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 		
 	success = btr_pcur_restore_position(BTR_SEARCH_LEAF, &(node->pcur),
 								&mtr_vers);
-	ut_ad(success);
+	ut_a(success);
 		
 	old_has = row_vers_old_has_index_entry(FALSE,
 					btr_pcur_get_rec(&(node->pcur)),
@@ -361,7 +361,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 			ut_ad(mode == BTR_MODIFY_TREE);
 
 			btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
-							TRUE, &mtr);
+								TRUE, &mtr);
 
 			/* The delete operation may fail if we have little
 			file space left: TODO: easiest to crash the database
@@ -413,12 +413,12 @@ row_undo_mod_del_unmark_sec(
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry)	/* in: index entry */
 {
-	mtr_t		mtr;
 	btr_pcur_t	pcur;
 	btr_cur_t*	btr_cur;
 	ulint		err;
 	ibool		found;
-	char*           err_buf;
+	mtr_t		mtr;
+	char           	err_buf[1000];
 
 	UT_NOT_USED(node);
 	
@@ -428,12 +428,10 @@ row_undo_mod_del_unmark_sec(
 	found = row_search_index_entry(index, entry, BTR_MODIFY_LEAF, &pcur,
 									&mtr);
 	if (!found) {
-	  	err_buf = mem_alloc(1000);
-	  	dtuple_sprintf(err_buf, 900, entry);
-
 	  	fprintf(stderr, "InnoDB: error in sec index entry del undo in\n"
 		  	"InnoDB: index %s table %s\n", index->name,
 		  	index->table->name);
+	  	dtuple_sprintf(err_buf, 900, entry);
 	  	fprintf(stderr, "InnoDB: tuple %s\n", err_buf);
 
 	  	rec_sprintf(err_buf, 900, btr_pcur_get_rec(&pcur));
@@ -444,8 +442,6 @@ row_undo_mod_del_unmark_sec(
 	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
 
 		trx_print(thr_get_trx(thr));
-
-	  	mem_free(err_buf);
 	} else {
          	btr_cur = btr_pcur_get_btr_cur(&pcur);
 

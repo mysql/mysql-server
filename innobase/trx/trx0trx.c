@@ -499,7 +499,7 @@ trx_commit_off_kernel(
 
 	rseg = trx->rseg;
 	
-	if ((trx->insert_undo != NULL) || (trx->update_undo != NULL)) {
+	if (trx->insert_undo != NULL || trx->update_undo != NULL) {
 
 		mutex_exit(&kernel_mutex);
 
@@ -524,7 +524,13 @@ trx_commit_off_kernel(
 
 		if (undo) {
 			mutex_enter(&kernel_mutex);
-#ifdef TRX_UPDATE_UNDO_OPT
+#ifdef notdefined
+			/* ########## There is a bug here: purge and rollback
+			need the whole stack of old record versions even if no
+			consistent read would need them!! This is because they
+			decide on the basis of the old versions when we can
+			remove delete marked secondary index records! */
+			
 			if (!undo->del_marks && (undo->size == 1)
 			    && (UT_LIST_GET_LEN(trx_sys->view_list) == 1)) {
 
@@ -584,9 +590,7 @@ trx_commit_off_kernel(
 
 		mutex_enter(&kernel_mutex);
 	}
-#ifdef TRX_UPDATE_UNDO_OPT
-shortcut:
-#endif
+
 	ut_ad(trx->conc_state == TRX_ACTIVE);
 	ut_ad(mutex_own(&kernel_mutex));
 	
@@ -1286,6 +1290,8 @@ trx_commit_for_mysql(
 	sig to the transaction, we must here make sure that trx has been
 	started. */
 
+	ut_a(trx);
+
 	trx->op_info = "committing";
 	
 	trx_start_if_not_started(trx);
@@ -1309,29 +1315,13 @@ trx_mark_sql_stat_end(
 /*==================*/
 	trx_t*	trx)	/* in: trx handle */
 {
-	trx_start_if_not_started(trx);
+	ut_a(trx);
 
-	mutex_enter(&kernel_mutex);
-
-	trx->last_sql_stat_start.least_undo_no = trx->undo_no;
-
-	mutex_exit(&kernel_mutex);
-}
-
-/**************************************************************************
-Marks the latest SQL statement ended but does not start a new transaction
-if the trx is not started. */
-
-void
-trx_mark_sql_stat_end_do_not_start_new(
-/*===================================*/
-	trx_t*	trx)	/* in: trx handle */
-{
-	mutex_enter(&kernel_mutex);
+	if (trx->conc_state == TRX_NOT_STARTED) {
+		trx->undo_no = ut_dulint_zero;
+	}
 
 	trx->last_sql_stat_start.least_undo_no = trx->undo_no;
-
-	mutex_exit(&kernel_mutex);
 }
 
 /**************************************************************************

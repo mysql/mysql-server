@@ -642,6 +642,15 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_READ_ONLY_TRANSACTION:
     textno=ER_READ_ONLY_TRANSACTION;
     break;
+  case HA_ERR_CANNOT_ADD_FOREIGN:
+    textno=ER_CANNOT_ADD_FOREIGN;
+    break;
+  case HA_ERR_ROW_IS_REFERENCED:
+    textno=ER_ROW_IS_REFERENCED;
+    break;
+  case HA_ERR_NO_REFERENCED_ROW:
+    textno=ER_NO_REFERENCED_ROW;
+    break;
   default:
     {
       my_error(ER_GET_ERRNO,errflag,error);

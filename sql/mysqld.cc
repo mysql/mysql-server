@@ -1237,7 +1237,7 @@ the thread stack. Please read http://www.mysql.com/doc/L/i/Linux.html\n\n",
 Some pointers may be invalid and cause the dump to abort...\n");
     safe_print_str("thd->query", thd->query, 1024);
     fprintf(stderr, "thd->thread_id=%ld\n", thd->thread_id);
-    fprintf(stderr, "\n
+    fprintf(stderr, "\n\
 Successfully dumped variables, if you ran with --log, take a look at the\n\
 details of what thread %ld did to cause the crash.  In some cases of really\n\
 bad corruption, the values shown above may be invalid.\n\n",
@@ -2083,14 +2083,18 @@ int main(int argc, char **argv)
   {
     if (argc == 2)
     {
+      char path[FN_REFLEN];
+      my_path(path, argv[0], "");		   // Find name in path
+      fn_format(path,argv[0],path,"",1+4+16);    // Force use of full path
+
       if (!strcmp(argv[1],"-install") || !strcmp(argv[1],"--install"))
       {
-	char path[FN_REFLEN];
-	my_path(path, argv[0], "");		   // Find name in path
-	fn_format(path,argv[0],path,"",1+4+16);    // Force use of full path
-	if (!Service.Install(MYSQL_SERVICENAME,MYSQL_SERVICENAME,path))
-	  MessageBox(NULL,"Failed to install Service",MYSQL_SERVICENAME,
-		     MB_OK|MB_ICONSTOP);
+	Service.Install(1,MYSQL_SERVICENAME,MYSQL_SERVICENAME,path);
+	return 0;
+      }
+      else if (!strcmp(argv[1],"-install-manual") || !strcmp(argv[1],"--install-manual"))
+      {
+        Service.Install(0,MYSQL_SERVICENAME,MYSQL_SERVICENAME,path);
 	return 0;
       }
       else if (!strcmp(argv[1],"-remove") || !strcmp(argv[1],"--remove"))
@@ -2586,6 +2590,7 @@ enum options {
                OPT_INNODB_LOG_ARCHIVE, 
                OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT, 
                OPT_INNODB_FLUSH_METHOD, 
+               OPT_INNODB_FAST_SHUTDOWN, 
                OPT_SAFE_SHOW_DB,
 	       OPT_INNODB_SKIP, OPT_SKIP_SAFEMALLOC,
                OPT_TEMP_POOL, OPT_TX_ISOLATION,
@@ -2648,6 +2653,8 @@ static struct option long_options[] = {
      OPT_INNODB_LOG_ARCHIVE},
   {"innodb_flush_log_at_trx_commit", optional_argument, 0,
      OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT},
+  {"innodb_fast_shutdown", optional_argument, 0,
+     OPT_INNODB_FAST_SHUTDOWN},
   {"innodb_flush_method", required_argument, 0,
     OPT_INNODB_FLUSH_METHOD},
 #endif
@@ -2762,6 +2769,8 @@ static struct option long_options[] = {
   {0, 0, 0, 0}
 };
 
+#define LONG_TIMEOUT ((ulong) 3600L*24L*365L)
+
 CHANGEABLE_VAR changeable_vars[] = {
   { "back_log",                (long*) &back_log, 
       50, 1, 65535, 0, 1 },
@@ -2779,15 +2788,15 @@ CHANGEABLE_VAR changeable_vars[] = {
   { "binlog_cache_size",       (long*) &binlog_cache_size,
       32*1024L, IO_SIZE, ~0L, 0, IO_SIZE },
   { "connect_timeout",         (long*) &connect_timeout,
-      CONNECT_TIMEOUT, 2, 65535, 0, 1 },
+      CONNECT_TIMEOUT, 2, LONG_TIMEOUT, 0, 1 },
   { "delayed_insert_timeout",  (long*) &delayed_insert_timeout, 
-      DELAYED_WAIT_TIMEOUT, 1, ~0L, 0, 1 },
+      DELAYED_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1 },
   { "delayed_insert_limit",    (long*) &delayed_insert_limit, 
       DELAYED_LIMIT, 1, ~0L, 0, 1 },
   { "delayed_queue_size",      (long*) &delayed_queue_size,
       DELAYED_QUEUE_SIZE, 1, ~0L, 0, 1 },
   { "flush_time",              (long*) &flush_time,
-      FLUSH_TIME, 0, ~0L, 0, 1 },
+      FLUSH_TIME, 0, LONG_TIMEOUT, 0, 1 },
   { "ft_min_word_len",         (long*) &ft_min_word_len,
       4, 1, HA_FT_MAXLEN, 0, 1 },
   { "ft_max_word_len",         (long*) &ft_max_word_len,
@@ -2816,15 +2825,19 @@ CHANGEABLE_VAR changeable_vars[] = {
   {"innodb_lock_wait_timeout",
      (long*) &innobase_lock_wait_timeout, 1024 * 1024 * 1024, 1,
 						1024 * 1024 * 1024, 0, 1},
+  {"innodb_thread_concurrency",
+     (long*) &innobase_thread_concurrency, 8, 1, 1000, 0, 1},
+  {"innodb_force_recovery",
+     (long*) &innobase_force_recovery, 0, 0, 6, 0, 1},
 #endif
   { "interactive_timeout",     (long*) &net_interactive_timeout,
-      NET_WAIT_TIMEOUT, 1, 31*24*60*60, 0, 1 },
+      NET_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1 },
   { "join_buffer_size",        (long*) &join_buff_size,
       128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE },
   { "key_buffer_size",         (long*) &keybuff_size,
       KEY_CACHE_SIZE, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD, IO_SIZE },
   { "long_query_time",         (long*) &long_query_time,
-      10, 1, ~0L, 0, 1 },
+      10, 1, LONG_TIMEOUT, 0, 1 },
   { "lower_case_table_names",  (long*) &lower_case_table_names,
       IF_WIN(1,0), 0, 1, 0, 1 },
   { "max_allowed_packet",      (long*) &max_allowed_packet,
@@ -2868,9 +2881,9 @@ CHANGEABLE_VAR changeable_vars[] = {
   { "net_retry_count",         (long*) &mysqld_net_retry_count,
       MYSQLD_NET_RETRY_COUNT, 1, ~0L, 0, 1 },
   { "net_read_timeout",        (long*) &net_read_timeout, 
-      NET_READ_TIMEOUT, 1, 65535, 0, 1 },
+      NET_READ_TIMEOUT, 1, LONG_TIMEOUT, 0, 1 },
   { "net_write_timeout",       (long*) &net_write_timeout,
-      NET_WRITE_TIMEOUT, 1, 65535, 0, 1 },
+      NET_WRITE_TIMEOUT, 1, LONG_TIMEOUT, 0, 1 },
   { "open_files_limit",        (long*) &open_files_limit,
       0, 0, 65535, 0, 1},
   { "query_buffer_size",       (long*) &query_buff_size,
@@ -2880,9 +2893,9 @@ CHANGEABLE_VAR changeable_vars[] = {
   { "record_rnd_buffer",           (long*) &record_rnd_cache_size,
       0, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE },
   { "slave_net_timeout",        (long*) &slave_net_timeout, 
-      SLAVE_NET_TIMEOUT, 1, 65535, 0, 1 },
+      SLAVE_NET_TIMEOUT, 1, LONG_TIMEOUT, 0, 1 },
   { "slow_launch_time",        (long*) &slow_launch_time, 
-      2L, 0L, ~0L, 0, 1 },
+      2L, 0L, LONG_TIMEOUT, 0, 1 },
   { "sort_buffer",             (long*) &sortbuff_size,
       MAX_SORT_MEMORY, MIN_SORT_MEMORY+MALLOC_OVERHEAD*2, ~0L, MALLOC_OVERHEAD, 1 },
   { "table_cache",             (long*) &table_cache_size,
@@ -2896,7 +2909,7 @@ CHANGEABLE_VAR changeable_vars[] = {
   { "thread_stack",            (long*) &thread_stack,
       DEFAULT_THREAD_STACK, 1024*32, ~0L, 0, 1024 },
   { "wait_timeout",            (long*) &net_wait_timeout,
-      NET_WAIT_TIMEOUT, 1, ~0L, 0, 1 },
+      NET_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1 },
   { NullS, (long*) 0, 0, 0, 0, 0, 0}
 };
 
@@ -2942,7 +2955,10 @@ struct show_var_st init_vars[]= {
   {"innodb_data_file_path", (char*) &innobase_data_file_path,	    SHOW_CHAR_PTR},
   {"innodb_data_home_dir",  (char*) &innobase_data_home_dir,	    SHOW_CHAR_PTR},
   {"innodb_file_io_threads", (char*) &innobase_file_io_threads, SHOW_LONG },
+  {"innodb_force_recovery", (char*) &innobase_force_recovery, SHOW_LONG },
+  {"innodb_thread_concurrency", (char*) &innobase_thread_concurrency, SHOW_LONG },
   {"innodb_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_MY_BOOL},
+  {"innodb_fast_shutdown", (char*) &innobase_fast_shutdown, SHOW_MY_BOOL},
   {"innodb_flush_method",    (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
   {"innodb_lock_wait_timeout", (char*) &innobase_lock_wait_timeout, SHOW_LONG },
   {"innodb_log_arch_dir",   (char*) &innobase_log_arch_dir, 	    SHOW_CHAR_PTR},
@@ -3869,6 +3885,8 @@ static void get_options(int argc,char **argv)
       break;
     case OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT:
       innobase_flush_log_at_trx_commit= optarg ? test(atoi(optarg)) : 1;
+    case OPT_INNODB_FAST_SHUTDOWN:
+      innobase_fast_shutdown= optarg ? test(atoi(optarg)) : 1;
       break;
     case OPT_INNODB_FLUSH_METHOD:
       innobase_unix_file_flush_method=optarg;

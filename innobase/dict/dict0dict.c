@@ -246,7 +246,7 @@ dict_table_get_index_noninline(
 }
 	
 /************************************************************************
-Initializes the autoinc counter. It is not an error to initialize already
+Initializes the autoinc counter. It is not an error to initialize an already
 initialized counter. */
 
 void
@@ -2810,4 +2810,64 @@ dict_field_print_low(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	printf(" %s", field->name);
+}
+
+/**************************************************************************
+Sprintfs to a string info on foreign keys of a table. */
+
+void
+dict_print_info_on_foreign_keys(
+/*============================*/
+	char*		str,	/* in/out: pointer to a string */
+	ulint		len,	/* in: space in str available for info */
+	dict_table_t*	table)	/* in: table */
+{
+	dict_foreign_t*	foreign;
+	ulint		i;
+	char*		buf2;
+	char		buf[10000];
+
+	buf2 = buf;
+
+	mutex_enter(&(dict_sys->mutex));
+
+	foreign = UT_LIST_GET_FIRST(table->foreign_list);
+
+	if (foreign == NULL) {
+		mutex_exit(&(dict_sys->mutex));
+
+		return;
+	}
+
+	while (foreign != NULL) {
+		buf2 += sprintf(buf2, "; (");			
+		
+		for (i = 0; i < foreign->n_fields; i++) {
+			buf2 += sprintf(buf2, "%s",
+					foreign->foreign_col_names[i]);
+			if (i + 1 < foreign->n_fields) {
+				buf2 += sprintf(buf2, " ");
+			}
+		}
+
+		buf2 += sprintf(buf2, ") REFER %s(",
+					foreign->referenced_table_name);
+	
+		for (i = 0; i < foreign->n_fields; i++) {
+			buf2 += sprintf(buf2, "%s",
+					foreign->referenced_col_names[i]);
+			if (i + 1 < foreign->n_fields) {
+				buf2 += sprintf(buf2, " ");
+			}
+		}
+
+		buf2 += sprintf(buf2, ")");
+
+		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
+	}
+
+	mutex_exit(&(dict_sys->mutex));
+
+	buf[len - 1] = '\0';
+	ut_memcpy(str, buf, len);
 }

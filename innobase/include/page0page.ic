@@ -396,45 +396,6 @@ page_rec_check(
 	return(TRUE);
 }
 
-/******************************************************************
-Used to check the consistency of a directory slot. */
-UNIV_INLINE
-ibool
-page_dir_slot_check(
-/*================*/
-					/* out: TRUE if succeed */
-	page_dir_slot_t*	slot)	/* in: slot */
-{
-	page_t*	page;
-	ulint	n_slots;
-	ulint	n_owned;
-
-	ut_a(slot);
-
-	page = buf_frame_align(slot);
-
-	n_slots = page_header_get_field(page, PAGE_N_DIR_SLOTS);
-
-	ut_a(slot <= page_dir_get_nth_slot(page, 0));
-	ut_a(slot >= page_dir_get_nth_slot(page, n_slots - 1));
-
-	ut_a(page_rec_check(page + mach_read_from_2(slot)));
-
-	n_owned = rec_get_n_owned(page + mach_read_from_2(slot));
-
-	if (slot == page_dir_get_nth_slot(page, 0)) {
-		ut_a(n_owned == 1);
-	} else if (slot == page_dir_get_nth_slot(page, n_slots - 1)) {
-		ut_a(n_owned >= 1);
-		ut_a(n_owned <= PAGE_DIR_SLOT_MAX_N_OWNED);
-	} else {
-		ut_a(n_owned >= PAGE_DIR_SLOT_MIN_N_OWNED);
-		ut_a(n_owned <= PAGE_DIR_SLOT_MAX_N_OWNED);
-	}
-
-	return(TRUE);
-}
-
 /*******************************************************************
 Gets the record pointed to by a directory slot. */
 UNIV_INLINE

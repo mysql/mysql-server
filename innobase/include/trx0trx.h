@@ -17,11 +17,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "mem0mem.h"
 #include "read0types.h"
 
-/* If this flag is defined, then unneeded update undo logs are discarded,
-saving CPU time. The kernel mutex contention is increased, however. */
-
-#define TRX_UPDATE_UNDO_OPT
-
 extern ulint	trx_n_mysql_transactions;
 
 /************************************************************************
@@ -129,14 +124,6 @@ Marks the latest SQL statement ended. */
 void
 trx_mark_sql_stat_end(
 /*==================*/
-	trx_t*	trx);	/* in: trx handle */
-/**************************************************************************
-Marks the latest SQL statement ended but does not start a new transaction
-if the trx is not started. */
-
-void
-trx_mark_sql_stat_end_do_not_start_new(
-/*===================================*/
 	trx_t*	trx);	/* in: trx handle */
 /************************************************************************
 Assigns a read view for a consistent read query. All the consistent reads

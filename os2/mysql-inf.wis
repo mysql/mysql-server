@@ -1,0 +1,15 @@
+#include "mysql.ih"
+
+<WARPIN VERSION <$WARPIN_VERSION>>
+<HEAD>
+<MSG>
+This is not an installable archive.
+
+Please download and install the main archive:
+
+ mysql-<$MySQL-Ver>-bld1.wpi
+
+</MSG>
+</HEAD>
+</WARPIN>
+

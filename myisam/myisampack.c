@@ -230,7 +230,7 @@ int main(int argc, char **argv)
 #endif
 }
 
-enum options {OPT_CHARSETS_DIR_MP=256};
+enum options_mp {OPT_CHARSETS_DIR_MP=256};
 
 static struct option long_options[] =
 {
@@ -894,7 +894,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
   DBUG_RETURN(error != HA_ERR_END_OF_FILE);
 }
 
-static int compare_huff_elements(void* cmp_arg __attribute__((unused)),
+static int compare_huff_elements(void *not_used __attribute__((unused)),
 				 byte *a, byte *b)
 {
   return *((my_off_t*) a) < *((my_off_t*) b) ? -1 :

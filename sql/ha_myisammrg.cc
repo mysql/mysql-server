@@ -181,7 +181,11 @@ void ha_myisammrg::info(uint flag)
   mean_rec_length=info.reclength;
   block_size=0;
   update_time=0;
+#if SIZEOF_OFF_T > 4
   ref_length=6;					// Should be big enough
+#else
+  ref_length=4;					// Can't be > than my_off_t
+#endif
 }
 
 

@@ -16,58 +16,6 @@ dict_hdr_flush_row_id(void);
 
 
 /**************************************************************************
-Gets a pointer to the dictionary header and x-latches its page. */
-UNIV_INLINE
-dict_hdr_t*
-dict_hdr_get(
-/*=========*/
-			/* out: pointer to the dictionary header, 
-			page x-latched */
-	mtr_t*	mtr)	/* in: mtr */
-{
-	dict_hdr_t*	header;
-
-	ut_ad(mtr);
-	
-	header = DICT_HDR + buf_page_get(DICT_HDR_SPACE, DICT_HDR_PAGE_NO,
-							RW_X_LATCH, mtr);
-	buf_page_dbg_add_level(header, SYNC_DICT_HEADER);
-
-	return(header);
-}
-
-/**************************************************************************
-Returns a new table, index, or tree id. */
-UNIV_INLINE
-dulint
-dict_hdr_get_new_id(
-/*================*/
-			/* out: the new id */
-	ulint	type)	/* in: DICT_HDR_ROW_ID, ... */
-{
-	dict_hdr_t*	dict_hdr;
-	dulint		id;
-	mtr_t		mtr;
-
-	ut_ad((type == DICT_HDR_TABLE_ID) || (type == DICT_HDR_INDEX_ID)
-	      || (type == DICT_HDR_MIX_ID));
-
-	mtr_start(&mtr);
-
-	dict_hdr = dict_hdr_get(&mtr);
-
-	id = mtr_read_dulint(dict_hdr + type, MLOG_8BYTES, &mtr); 
-
-	id = ut_dulint_add(id, 1);
-	
-	mlog_write_dulint(dict_hdr + type, id, MLOG_8BYTES, &mtr); 
-
-	mtr_commit(&mtr);
-
-	return(id);
-}				
-
-/**************************************************************************
 Returns a new row id. */
 UNIV_INLINE
 dulint

@@ -1,10 +1,50 @@
 # test of problems with having (Reported by Mark Rogers)
 #
 
-drop table if exists t1; 
+drop table if exists t1,t2;
 create table t1 (a int);
 select count(a) as b from t1 where a=0 having b > 0;
 insert into t1 values (null);
 select count(a) as b from t1 where a=0 having b > 0;
 select count(a) as b from t1 where a=0 having b >=0;
 drop table t1; 
+
+#
+# Test of problem with HAVING and AVG()
+#
+
+CREATE TABLE t1 (
+  raw_id int(10) NOT NULL default '0',
+  chr_start int(10) NOT NULL default '0',
+  chr_end int(10) NOT NULL default '0',
+  raw_start int(10) NOT NULL default '0',
+  raw_end int(10) NOT NULL default '0',
+  raw_ori int(2) NOT NULL default '0'
+);
+
+INSERT INTO t1 VALUES (469713,1,164123,1,164123,1),(317330,164124,317193,101,153170,1),(469434,317194,375620,101,58527,1),(591816,375621,484273,1,108653,1),(591807,484274,534671,91,50488,1),(318885,534672,649362,101,114791,1),(318728,649363,775520,102,126259,1),(336829,775521,813997,101,38577,1),(317740,813998,953227,101,139330,1),(1,813998,953227,101,139330,1);
+
+CREATE TABLE t2 (
+  id int(10) unsigned NOT NULL default '0',
+  contig_id int(10) unsigned NOT NULL default '0',
+  seq_start int(10) NOT NULL default '0',
+  seq_end int(10) NOT NULL default '0',
+  strand tinyint(2) NOT NULL default '0',
+  KEY id (id)
+);
+INSERT INTO t2 VALUES (133195,469713,61327,61384,1),(133196,469713,64113,64387,1),(133197,1,1,1,0),(133197,1,1,1,-2);
+SELECT e.id,
+   MIN( IF(sgp.raw_ori=1,
+          (e.seq_start+sgp.chr_start-sgp.raw_start),  
+          (sgp.chr_start+sgp.raw_end-e.seq_end))) as start, 
+   MAX( IF(sgp.raw_ori=1,
+           (e.seq_end+sgp.chr_start-sgp.raw_start),  
+           (sgp.chr_start+sgp.raw_end-e.seq_start))) as end, 
+   AVG(IF (sgp.raw_ori=1,e.strand,(-e.strand))) as chr_strand 
+FROM  t1 sgp,
+      t2 e  
+WHERE sgp.raw_id=e.contig_id 
+GROUP BY e.id 
+HAVING chr_strand= -1 and end >= 0 
+  AND start <= 999660;
+drop table t1,t2;

@@ -2671,6 +2671,8 @@ no_shortcut:
 		trx->has_search_latch = FALSE;
 	}			
 
+	trx_start_if_not_started(trx);
+	
 	/* Note that if the search mode was GE or G, then the cursor
 	naturally moves upward (in fetch next) in alphabetical order,
 	otherwise downward */
@@ -2715,16 +2717,12 @@ no_shortcut:
 		/* No need to set an intention lock or assign a read view */
 
 	} else if (prebuilt->select_lock_type == LOCK_NONE) {
-		/* This is a consistent read */
-		trx_start_if_not_started(trx);
-	
+		/* This is a consistent read */	
 		/* Assign a read view for the query */
 
 		trx_assign_read_view(trx);
 		prebuilt->sql_stat_start = FALSE;
-	} else {			
-		trx_start_if_not_started(trx);
-
+	} else {
 		if (prebuilt->select_lock_type == LOCK_S) {		
 			err = lock_table(0, index->table, LOCK_IS, thr);
 		} else {
