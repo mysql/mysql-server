@@ -1271,3 +1271,17 @@ select * from t1 left join (t2 as t, v1) on v1.a=t1.a;
 select * from t1 left join (t2 as t, t2) on t2.a=t1.a;
 drop view v1;
 drop table t1;
+
+#
+# Collation with view update
+#
+create table t1 (s1 char);
+create view v1 as select s1 collate latin1_german1_ci as s1 from t1;
+insert into v1 values ('a');
+select * from v1;
+update v1 set s1='b';
+select * from v1;
+update v1,t1 set v1.s1='c' where t1.s1=v1.s1;
+select * from v1;
+drop view v1;
+drop table t1;
