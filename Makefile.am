@@ -64,5 +64,4 @@ bin-dist:		all
 # Test installation
 
 test:
-	cd mysql-test
-	./mysql-test-run
+	cd mysql-test ; ./mysql-test-run
