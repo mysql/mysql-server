@@ -1,0 +1,2 @@
+--log-slow-queries=slow.log
+--log-queries-not-using-indexes
