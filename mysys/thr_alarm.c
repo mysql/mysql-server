@@ -27,6 +27,7 @@
 #include <m_string.h>
 #include <queues.h>
 #include "thr_alarm.h"
+#include <assert.h>
 
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>				/* AIX needs this for fd_set */
@@ -36,7 +37,7 @@
 #define ETIME ETIMEDOUT
 #endif
 
-static my_bool alarm_aborted=1;
+static int alarm_aborted=1;			/* No alarm thread */
 my_bool thr_alarm_inited=0;
 
 static sig_handler process_alarm_part2(int sig);
@@ -136,19 +137,24 @@ bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
   now=(ulong) time((time_t*) 0);
   pthread_sigmask(SIG_BLOCK,&full_signal_set,&old_mask);
   pthread_mutex_lock(&LOCK_alarm);	/* Lock from threads & alarms */
-  if (alarm_aborted)
+  if (alarm_aborted > 0)
   {					/* No signal thread */
     DBUG_PRINT("info", ("alarm aborted"));
+    *alrm= 0;					/* No alarm */
     pthread_mutex_unlock(&LOCK_alarm);
     pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
     DBUG_RETURN(1);
   }
+  if (alarm_aborted < 0)
+    sec= 1;					/* Abort mode */
+
   if (alarm_queue.elements >= max_used_alarms)
   {
     if (alarm_queue.elements == alarm_queue.max_elements)
     {
       DBUG_PRINT("info", ("alarm queue full"));
       fprintf(stderr,"Warning: thr_alarm queue is full\n");
+      *alrm= 0;					/* No alarm */
       pthread_mutex_unlock(&LOCK_alarm);
       pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
       DBUG_RETURN(1);
@@ -219,6 +225,7 @@ void thr_end_alarm(thr_alarm_t *alarmed)
       break;
     }
   }
+  DBUG_ASSERT(!*alarmed || found);
   if (!found)
   {
 #ifdef MAIN
@@ -228,14 +235,7 @@ void thr_end_alarm(thr_alarm_t *alarmed)
     DBUG_PRINT("warning",("Didn't find alarm %lx in queue\n",
 			  (long) *alarmed));
   }
-  if (alarm_aborted && !alarm_queue.elements)
-  {
-    delete_queue(&alarm_queue);
-    pthread_mutex_unlock(&LOCK_alarm);
-    pthread_mutex_destroy(&LOCK_alarm);
-  }
-  else
-    pthread_mutex_unlock(&LOCK_alarm);
+  pthread_mutex_unlock(&LOCK_alarm);
   pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
   DBUG_VOID_RETURN;
 }
@@ -365,31 +365,49 @@ static sig_handler process_alarm_part2(int sig __attribute__((unused)))
 
 
 /*
-  Shedule all alarms now.
-  When all alarms are given, Free alarm memory and don't allow more alarms.
+  Schedule all alarms now and optionally free all structures
+
+  SYNPOSIS
+    end_thr_alarm()
+      free_structures		Set to 1 if we should free memory used for
+				the alarm queue.
+				When we call this we should KNOW that there
+				is no active alarms
+  IMPLEMENTATION
+    Set alarm_abort to -1 which will change the behavior of alarms as follows:
+    - All old alarms will be rescheduled at once
+    - All new alarms will be rescheduled to one second
 */
 
-void end_thr_alarm(void)
+void end_thr_alarm(my_bool free_structures)
 {
   DBUG_ENTER("end_thr_alarm");
-  if (!alarm_aborted)
+  if (alarm_aborted != 1)
   {    
-    my_bool deleted=0;
     pthread_mutex_lock(&LOCK_alarm);
     DBUG_PRINT("info",("Resheduling %d waiting alarms",alarm_queue.elements));
-    alarm_aborted=1;				/* mark aborted */
-    if (!alarm_queue.elements)
-    {
-      deleted= 1;
-      delete_queue(&alarm_queue);
-    }
+    alarm_aborted= -1;				/* mark aborted */
     if (pthread_equal(pthread_self(),alarm_thread))
       alarm(1);					/* Shut down everything soon */
     else
       reschedule_alarms();
-    pthread_mutex_unlock(&LOCK_alarm);
-    if (deleted)
-      pthread_mutex_destroy(&LOCK_alarm);
+    if (free_structures)
+    {
+      /*
+	The following test is just for safety, the caller should not
+	depend on this
+      */
+      DBUG_ASSERT(!alarm_queue.elements);
+      if (!alarm_queue.elements)
+      {
+	delete_queue(&alarm_queue);
+	alarm_aborted= 1;
+	pthread_mutex_unlock(&LOCK_alarm);
+	pthread_mutex_destroy(&LOCK_alarm);
+      }
+    }
+    else
+      pthread_mutex_unlock(&LOCK_alarm);
   }
   DBUG_VOID_RETURN;
 }
@@ -629,7 +647,7 @@ void thr_end_alarm(thr_alarm_t *alrm_ptr)
   }
 }
 
-void end_thr_alarm(void)
+void end_thr_alarm(my_bool free_structures)
 {
   DBUG_ENTER("end_thr_alarm");
   alarm_aborted=1;				/* No more alarms */
@@ -708,7 +726,7 @@ void thr_end_alarm(thr_alarm_t *alrm_ptr)
   }
 }
 
-void end_thr_alarm(void)
+void end_thr_alarm(my_bool free_structures)
 {
   DBUG_ENTER("end_thr_alarm");
   alarm_aborted=1;				/* No more alarms */
@@ -907,7 +925,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
     case SIGHUP:
 #endif
       printf("Aborting nicely\n");
-      end_thr_alarm();
+      end_thr_alarm(0);
       break;
 #ifdef SIGTSTP
     case SIGTSTP:
@@ -1004,10 +1022,11 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
     if (thread_count == 1)
     {
       printf("Calling end_thr_alarm. This should cancel the last thread\n");
-      end_thr_alarm();
+      end_thr_alarm(0);
     }
   }
   pthread_mutex_unlock(&LOCK_thread_count);
+  end_thr_alarm(1);
   thr_alarm_info(&alarm_info);
   printf("Main_thread:  Alarms: %u  max_alarms: %u  next_alarm_time: %lu\n",
 	 alarm_info.active_alarms, alarm_info.max_used_alarms,
