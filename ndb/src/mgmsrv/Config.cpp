@@ -85,6 +85,9 @@ Config::printAllNameValuePairs(NdbOut &out,
       MGM_REQUIRE(prop->get(n, &str_value)); 
       out << str_value;
       break;
+    case ConfigInfo::SECTION:
+      out << "SECTION";
+      break;
     }      
     out << endl;
   }
