@@ -1,10 +1,10 @@
-/* Copyright Abandoned 1996,1999 TCX DataKonsult AB & Monty Program KB & Detron HB
+/* Copyright Abandoned 1996, 1999, 2001 MySQL AB
    This file is public domain and comes with NO WARRANTY of any kind */
 
 /* Version numbers for protocol & mysqld */
 
 #ifdef _CUSTOMCONFIG_
-	#include <custom_conf.h>
+#include <custom_conf.h>
 #else
 #define PROTOCOL_VERSION		@PROTOCOL_VERSION@
 #define MYSQL_SERVER_VERSION		"@VERSION@"

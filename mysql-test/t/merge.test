@@ -75,5 +75,6 @@ drop table t3,t2,t1;
 #
 # Test table without unions
 #
-select * from m;
-
+create table t1 (a int not null) type=merge;
+select * from t1;
+drop table t1;

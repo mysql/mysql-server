@@ -26,6 +26,7 @@
 #define NAME_LEN	64		/* Field/table name length */
 #define HOSTNAME_LENGTH 60
 #define USERNAME_LENGTH 16
+#define SERVER_VERSION_LENGTH 60
 
 #define LOCAL_HOST	"localhost"
 #define LOCAL_HOST_NAMEDPIPE "."

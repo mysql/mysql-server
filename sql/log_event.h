@@ -311,7 +311,7 @@ public:
   void print(FILE* file, bool short_form = 0);
 };
 
-extern char server_version[50];
+extern char server_version[SERVER_VERSION_LENGTH];
 
 class Start_log_event: public Log_event
 {
@@ -333,6 +333,7 @@ public:
       return;				
     binlog_version = uint2korr(buf+4);
     memcpy(server_version, buf + 6, sizeof(server_version));
+    server_version[sizeof(server_version)-1]=0;
     created = uint4korr(buf + 6 + sizeof(server_version));
   }
   Start_log_event(const char* buf);

@@ -269,7 +269,7 @@ int MYSQL_LOG::find_first_log(LOG_INFO* linfo, const char* log_name)
   for(;;)
   {
     uint length;
-    if (!(length=my_b_gets(&io_cache, fname, FN_REFLEN)))
+    if (!(length=my_b_gets(&io_cache, fname, FN_REFLEN-1)))
     {
       error = !io_cache.error ? LOG_INFO_EOF : LOG_INFO_IO;
       goto err;
@@ -608,7 +608,9 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 bool MYSQL_LOG::write(Query_log_event* event_info)
 {
   /* In most cases this is only called if 'is_open()' is true */
-  bool error=1;
+  bool error=0;
+  if (!inited)					// Can't use mutex if not init
+    return 0;
   VOID(pthread_mutex_lock(&LOCK_log));
   if (is_open())
   {
@@ -622,7 +624,8 @@ bool MYSQL_LOG::write(Query_log_event* event_info)
       VOID(pthread_mutex_unlock(&LOCK_log));
       return 0;
     }
-	  
+    error=1;
+
     if (thd->last_insert_id_used)
     {
       Intvar_log_event e((uchar)LAST_INSERT_ID_EVENT, thd->last_insert_id);
@@ -665,8 +668,6 @@ err:
     if (file == &log_file)
       VOID(pthread_cond_broadcast(&COND_binlog_update));
   }
-  else
-    error=0;
   VOID(pthread_mutex_unlock(&LOCK_log));
   return error;
 }
@@ -729,23 +730,26 @@ err:
 bool MYSQL_LOG::write(Load_log_event* event_info)
 {
   bool error=0;
-  VOID(pthread_mutex_lock(&LOCK_log));
-  if (is_open())
+  if (inited)
   {
-    THD *thd=event_info->thd;
-    if ((thd->options & OPTION_BIN_LOG) ||
-	!(thd->master_access & PROCESS_ACL))
+    VOID(pthread_mutex_lock(&LOCK_log));
+    if (is_open())
     {
-      if (event_info->write(&log_file) || flush_io_cache(&log_file))
+      THD *thd=event_info->thd;
+      if ((thd->options & OPTION_BIN_LOG) ||
+	  !(thd->master_access & PROCESS_ACL))
       {
-	if (!write_error)
-	  sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
-	error=write_error=1;
+	if (event_info->write(&log_file) || flush_io_cache(&log_file))
+	{
+	  if (!write_error)
+	    sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+	  error=write_error=1;
+	}
+	VOID(pthread_cond_broadcast(&COND_binlog_update));
       }
-      VOID(pthread_cond_broadcast(&COND_binlog_update));
     }
+    VOID(pthread_mutex_unlock(&LOCK_log));
   }
-  VOID(pthread_mutex_unlock(&LOCK_log));
   return error;
 }
 

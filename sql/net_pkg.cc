@@ -339,3 +339,24 @@ bool net_store_data(String* packet, I_List<i_string>* str_list)
 
   return net_store_data(packet, (char*)tmp.ptr(), tmp.length());
 }
+
+/*
+** translate and store data; These are mainly used by the SHOW functions
+*/
+
+bool
+net_store_data(String *packet,CONVERT *convert, const char *from,uint length)
+{
+  if (convert)
+    return convert->store(packet, from, length);
+  return net_store_date(packet,from,length);
+}
+
+bool
+net_store_data(String *packet, CONVERT *convert, const char *from)
+{
+  uint length=(uint) strlen(from);
+  if (convert)
+    return convert->store(packet, from, length);
+  return net_store_date(packet,from,length);
+}

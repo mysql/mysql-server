@@ -15,7 +15,7 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
-BUILT_SOURCES =		mysql_version.h m_ctype.h
+BUILT_SOURCES =		mysql_version.h m_ctype.h my_config.h
 pkginclude_HEADERS =	dbug.h m_string.h my_sys.h mysql.h mysql_com.h \
 			mysqld_error.h my_list.h \
 		        my_pthread.h my_no_pthread.h raid.h errmsg.h \
@@ -41,6 +41,11 @@ all-local:		my_global.h my_config.h
 
 # Since we include my_config.h it better exist from the beginning
 link_sources:
+	$(CP) ../config.h my_config.h
+
+# Keep automake happy 
+
+my_config.h: ../config.h
 	$(CP) ../config.h my_config.h
 
 # This should be changed in the source and removed.

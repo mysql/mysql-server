@@ -275,6 +275,7 @@ char *net_store_length(char *packet,uint length);
 char *net_store_data(char *to,const char *from);
 char *net_store_data(char *to,int32 from);
 char *net_store_data(char *to,longlong from);
+
 bool net_store_null(String *packet);
 bool net_store_data(String *packet,uint32 from);
 bool net_store_data(String *packet,longlong from);
@@ -282,6 +283,9 @@ bool net_store_data(String *packet,const char *from);
 bool net_store_data(String *packet,const char *from,uint length);
 bool net_store_data(String *packet,struct tm *tmp);
 bool net_store_data(String* packet, I_List<i_string>* str_list);
+bool net_store_data(String *packet,CONVERT *convert, const char *from,
+		    uint length);
+bool net_store_data(String *packet, CONVERT *convert, const char *from);
 
 SORT_FIELD * make_unireg_sortorder(ORDER *order, uint *length);
 int setup_order(THD *thd,TABLE_LIST *tables, List<Item> &fields,
@@ -464,8 +468,8 @@ void sql_print_error(const char *format,...)
 	        __attribute__ ((format (printf, 1, 2)));
 
 extern uint32 server_id;
-extern char mysql_data_home[2],server_version[50],max_sort_char,
-            mysql_real_data_home[];
+extern char mysql_data_home[2],server_version[SERVER_VERSION_LENGTH],
+	    max_sort_char, mysql_real_data_home[];
 extern my_string mysql_unix_port,mysql_tmpdir;
 extern const char *first_keyword, *localhost;
 extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables,

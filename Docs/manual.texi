@@ -566,6 +566,7 @@ Replication in MySQL
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication
 
 Getting Maximum Performance from MySQL
 
@@ -592,6 +593,7 @@ System/Compile Time and Startup Parameter Tuning
 * Memory use::                  How MySQL uses memory
 * Internal locking::            How MySQL locks tables
 * Table locking::               Table locking issues
+* DNS::                         
 
 Disk Issues
 
@@ -855,7 +857,7 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Stable)
 
-* News-3.23.32::                
+* News-3.23.32::                Changes in release 3.23.32
 * News-3.23.31::                Changes in release 3.23.31
 * News-3.23.30::                Changes in release 3.23.30
 * News-3.23.29::                Changes in release 3.23.29
@@ -9520,15 +9522,13 @@ tables.
 
 @item --skip-name-resolve
 Hostnames are not resolved.  All @code{Host} column values in the grant
-tables must be IP numbers or @code{localhost}.
+tables must be IP numbers or @code{localhost}. @xref{DNS}.
 
 @item --skip-networking
 Don't listen for TCP/IP connections at all.
 All interaction with @code{mysqld} must be made via Unix sockets.
 This option is highly recommended for systems where only local requests
-are allowed. However, this option is unsuitable for systems that use
-MIT-pthreads, because the MIT-pthreads package doesn't support Unix
-sockets.
+are allowed. @xref{DNS}.
 
 @item --skip-new
 Don't use new, possible wrong routines.
@@ -9537,7 +9537,7 @@ This will also set default table type to @code{ISAM}. @xref{ISAM}.
 
 @item --skip-host-cache
 Never use host name cache for faster name-ip resolution, but query
-DNS server on every connect instead.
+DNS server on every connect instead. @xref{DNS}.
 
 @item --skip-show-database
 Don't allow 'SHOW DATABASE' commands, unless the user has
@@ -12830,8 +12830,9 @@ Access denied for user: 'root@' (Using password: YES)
 
 This means that @strong{MySQL} got some error when trying to resolve the
 IP to a hostname.  In this case you can execute @code{mysqladmin
-flush-hosts} to reset the internal DNS cache.  Some permanent solutions
-are:
+flush-hosts} to reset the internal DNS cache. @xref{DNS}.
+
+Some permanent solutions are:
 
 @itemize @minus
 @item
@@ -25691,7 +25692,7 @@ tables}.
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication
 @end menu
 
 @node Replication Intro, Replication Implementation, Replication, Replication
@@ -26252,7 +26253,7 @@ last log on the list), backup all the logs you are about to delete
 
 @end multitable
 
-@node Replication FAQ,Troubleshooting Replication, Replication SQL, Replication
+@node Replication FAQ, Troubleshooting Replication, Replication SQL, Replication
 @section Replication FAQ
 
 @cindex @code{Binlog_Dump}
@@ -26506,7 +26507,7 @@ We are currently working on intergrating an automatic master election
 system into @strong{MySQL}, but until it is ready, you will have to
 create your own monitoring tools.
 
-@node Troubleshooting Replication, ,Replication FAQ, Replication
+@node Troubleshooting Replication,  , Replication FAQ, Replication
 @section Troubleshooting Replication
 
 If you have followed the instructions, and your replication setup is not
@@ -26728,6 +26729,7 @@ are using @code{--skip-locking}
 * Memory use::                  How MySQL uses memory
 * Internal locking::            How MySQL locks tables
 * Table locking::               Table locking issues
+* DNS::                         
 @end menu
 
 @node Compile and link options, Disk issues, System, System
@@ -27338,7 +27340,7 @@ single queue.  In this case, write locks and read locks would have the same
 priority, which might help some applications.
 
 @cindex problems, table locking
-@node Table locking,  , Internal locking, System
+@node Table locking, DNS, Internal locking, System
 @subsection Table Locking Issues
 
 The table locking code in @strong{MySQL} is deadlock free.
@@ -27389,6 +27391,10 @@ Another client issues another @code{SELECT} statement on the same table. As
 @code{UPDATE} has higher priority than @code{SELECT}, this @code{SELECT}
 will wait for the @code{UPDATE} to finish.  It will also wait for the first
 @code{SELECT} to finish!
+@item
+A thread is waiting for something like @code{full disk}, in which case all
+threads that wants to access the problem table will also be put in a waiting
+state until more disk space is made available.
 @end itemize
 
 Some possible solutions to this problem are:
@@ -27435,6 +27441,39 @@ If you mainly mix @code{INSERT} and @code{SELECT} statements, the
 If you have problems with @code{SELECT} and @code{DELETE}, the @code{LIMIT}
 option to @code{DELETE} may help. @xref{DELETE, , @code{DELETE}}.
 @end itemize
+
+@cindex DNS
+@cindex hostname caching
+@node DNS,  , Table locking, System
+@subsection How MySQL uses DNS
+
+When a new threads connects to @code{mysqld}, @code{mysqld} will span a
+new thread to handle the request.  This thread will first check if the
+hostname is in the hostname cache. If not the thread will call
+@code{gethostbyaddr_r()} and @code{gethostbyname_r()} to resolve the
+hostname.
+
+If the operating system doesn't support the above thread-safe calls, the
+thread will lock a mutex and call @code{gethostbyaddr()} and
+@code{gethostbyname()} instead. Note that in this case no other thread
+can resolve other hostnames that is not in the hostname cache until the
+first thread is ready.
+
+You can disable DNS host lookup by starting @code{mysqld} with
+@code{--skip-name-resolve}.  In this case you can however only use IP
+names in the @strong{MySQL} privilege tables.
+
+If you have a very slow DNS and many hosts, you can get more performance by
+either disabling DNS lookop with @code{--skip-name-resolve} or by
+increasing the @code{HOST_CACHE_SIZE} define (default: 128) and recompile
+@code{mysqld}.
+
+You can disable the hostname cache with @code{--skip-host-cache}. You
+can clear the hostname cache with @code{FLUSH HOSTS} or @code{mysqladmin
+flush-hosts}.
+
+If you don't want to allow connections over @code{TCP/IP}, you can do this
+by starting mysqld with @code{--skip-networking}.
 
 @cindex data, size
 @cindex reducing, data size
@@ -40667,6 +40706,10 @@ not yet 100 % confident in this code.
 @appendixsubsec Changes in release 3.23.32
 @itemize @bullet
 @item
+@code{MERGE} tables didn't work on windows.
+@item
+Fixed problem with @code{SET PASSWORD=...} on windows.
+@item
 Added missing @file{my_config.h} to RPM distribution.
 @item
 @code{TRIM("foo" from "foo")} didn't return an empty string.
@@ -45267,6 +45310,7 @@ fields, the @code{BLOB} was garbage on output.
 Fixed @code{DISTINCT} with calculated columns.
 @end itemize
 
+@cindex bugs, known
 @cindex errors, known
 @cindex design, issues
 @cindex known errors
@@ -45312,6 +45356,9 @@ The following problems are known and will be fixed in due time:
 mapped tables.
 @item
 For the moment @code{MATCH} only works with @code{SELECT} statements.
+@item
+When using @code{SET CHARACTER SET}, one can't use translated
+characters in database, table and column names.
 @item
 You cannot build in another directory when using
 MIT-pthreads. Because this requires changes to MIT-pthreads, we are not
@@ -45560,6 +45607,10 @@ expansions of column names) should not open the table, but only the
 definition file. This will require less memory and be much faster.
 @item
 New key cache
+@item
+When using @code{SET CHARACTER SET} we should translate the whole query
+at once and not only strings. This will enable users to use the translated
+characters in database, table and column names.
 @end itemize
 
 @node TODO future, TODO sometime, TODO MySQL 4.0, TODO
