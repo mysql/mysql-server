@@ -278,6 +278,25 @@ row('A','b','c') = row('a' COLLATE latin1_bin,'b','c')
 0
 select row('A' COLLATE latin1_general_ci,'b','c') = row('a' COLLATE latin1_bin,'b','c');
 ERROR HY000: Illegal mix of collations (latin1_general_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation '='
+select FIELD('b','A','B');
+FIELD('b','A','B')
+2
+select FIELD('B','A','B');
+FIELD('B','A','B')
+2
+select FIELD('b' COLLATE latin1_bin,'A','B');
+FIELD('b' COLLATE latin1_bin,'A','B')
+0
+select FIELD('b','A' COLLATE latin1_bin,'B');
+FIELD('b','A' COLLATE latin1_bin,'B')
+0
+select FIELD(_latin2'b','A','B');
+ERROR HY000: Illegal mix of collations for operation 'field'
+select FIELD('b',_latin2'A','B');
+ERROR HY000: Illegal mix of collations for operation 'field'
+select FIELD('b',_latin2'A','B',1);
+FIELD('b',_latin2'A','B',1)
+1
 select POSITION(_latin1'B' IN _latin1'abcd');
 POSITION(_latin1'B' IN _latin1'abcd')
 2
