@@ -162,10 +162,6 @@ SOURCE=.\mf_cache.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\mf_casecnv.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\mf_dirname.c
 # End Source File
 # Begin Source File
@@ -231,6 +227,10 @@ SOURCE=.\mf_soundex.c
 # Begin Source File
 
 SOURCE=.\mf_strip.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\mf_tempdir.c
 # End Source File
 # Begin Source File
 
