@@ -1404,7 +1404,10 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   {
     charset_name=charset_name_buff;
     sprintf(charset_name,"%d",mysql->server_language);	/* In case of errors */
-    mysql->charset=get_charset((uint8) mysql->server_language, MYF(MY_WME));
+    if (!(mysql->charset =
+	  get_charset((uint8) mysql->server_language, MYF(MY_WME))))
+      mysql->charset = default_charset_info; /* shouldn't be fatal */
+
   }
   else
     mysql->charset=default_charset_info;
