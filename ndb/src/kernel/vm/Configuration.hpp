@@ -31,7 +31,7 @@ public:
   /**
    * Returns false if arguments are invalid
    */
-  bool init(int argc, const char** argv);
+  bool init(int argc, char** argv);
 
   void fetch_configuration(LocalConfig &local_config);
   void setupConfiguration();

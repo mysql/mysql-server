@@ -804,8 +804,9 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
           String def(tmp1,sizeof(tmp1), system_charset_info);
           type.set(tmp, sizeof(tmp), field->charset());
           field->val_str(&type);
+          uint dummy_errors;
           def.copy(type.ptr(), type.length(), type.charset(), 
-                   system_charset_info);
+                   system_charset_info, &dummy_errors);
           protocol->store(def.ptr(), def.length(), def.charset());
         }
         else if (field->unireg_check == Field::NEXT_NUMBER ||
@@ -1177,7 +1178,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   if (thd->protocol->send_fields(&field_list, Protocol::SEND_DEFAULTS |
                                               Protocol::SEND_EOF))
     DBUG_VOID_RETURN;
-  net_flush(&thd->net);
+  thd->protocol->flush();
   DBUG_VOID_RETURN;
 }
 
@@ -1194,13 +1195,11 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   if (store_create_info(thd, table, packet))
     DBUG_RETURN(-1);
 
-  //if (protocol->convert)
-  //  protocol->convert->convert((char*) packet->ptr(), packet->length());
   if (fd < 0)
   {
     if (protocol->write())
       DBUG_RETURN(-1);
-    net_flush(&thd->net);
+    protocol->flush();
   }
   else
   {
@@ -1436,9 +1435,10 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 	if (type.length())
 	{
 	  String def_val;
+          uint dummy_errors;
 	  /* convert to system_charset_info == utf8 */
 	  def_val.copy(type.ptr(), type.length(), field->charset(),
-		       system_charset_info);
+		       system_charset_info, &dummy_errors);
           append_unescaped(packet, def_val.ptr(), def_val.length());
 	}
         else

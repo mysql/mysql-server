@@ -208,7 +208,7 @@ INCLUDES="$INCLUDES $ZLIB_INCLUDES"
 LIBS="$LIBS $ZLIB_LIBS"
 AC_CACHE_VAL([mysql_cv_compress],
   [AC_TRY_LINK([#include <zlib.h>],
-    [int link_test() { return compress(0, (unsigned long*) 0, "", 0); }],
+    [return compress(0, (unsigned long*) 0, "", 0);],
     [mysql_cv_compress="yes"
     AC_MSG_RESULT([ok])],
     [mysql_cv_compress="no"])

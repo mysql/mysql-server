@@ -121,3 +121,9 @@ show binlog events from 95;
 drop table t1, t2;
 
 
+#
+# Bug #6321 strange error:
+#   string function FIELD(<uservariable content NULL>, ...)
+#
+set @var= NULL ;
+select FIELD( @var,'1it','Hit') as my_column;

@@ -83,13 +83,14 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   uchar *null_pos;
   uint null_bit, new_frm_ver, field_pack_length;
   SQL_CRYPT *crypted=0;
-  MEM_ROOT *old_root;
+  MEM_ROOT **root_ptr, *old_root;
   DBUG_ENTER("openfrm");
   DBUG_PRINT("enter",("name: '%s'  form: 0x%lx",name,outparam));
 
   error=1;
   disk_buff=NULL;
-  old_root= my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
+  root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
+  old_root= *root_ptr;
 
   if ((file=my_open(fn_format(index_file, name, "", reg_ext,
 			      MY_UNPACK_FILENAME),
@@ -123,7 +124,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   outparam->blob_ptr_size=sizeof(char*);
   outparam->db_stat = db_stat;
   init_sql_alloc(&outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-  my_pthread_setspecific_ptr(THR_MALLOC,&outparam->mem_root);
+  *root_ptr= &outparam->mem_root;
 
   outparam->real_name=strdup_root(&outparam->mem_root,
 				  name+dirname_length(name));
@@ -274,9 +275,9 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 #ifdef HAVE_CRYPTED_FRM
   else if (*(head+26) == 2)
   {
-    my_pthread_setspecific_ptr(THR_MALLOC,old_root);
+    *root_ptr= old_root
     crypted=get_crypt_for_frm();
-    my_pthread_setspecific_ptr(THR_MALLOC,&outparam->mem_root);
+    *root_ptr= &outparam->mem_root;
     outparam->crypted=1;
   }
 #endif
@@ -762,7 +763,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   }
   outparam->db_low_byte_first=outparam->file->low_byte_first();
 
-  my_pthread_setspecific_ptr(THR_MALLOC,old_root);
+  *root_ptr= old_root;
   thd->status_var.opened_tables++;
 #ifndef DBUG_OFF
   if (use_hash)
@@ -782,7 +783,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 
  err_end:					/* Here when no file */
   delete crypted;
-  my_pthread_setspecific_ptr(THR_MALLOC,old_root);
+  *root_ptr= old_root;
   frm_error(error,outparam,name,ME_ERROR+ME_WAITTANG);
   delete outparam->file;
   outparam->file=0;				// For easier errorchecking

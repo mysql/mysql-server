@@ -547,7 +547,8 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
   /* Convert character set if the old one is multi byte */
   if (cs->mbmaxlen > 1)
   { 
-    tmp.copy(from, len, cs, &my_charset_bin);
+    uint dummy_errors;
+    tmp.copy(from, len, cs, &my_charset_bin, &dummy_errors);
     from= tmp.ptr();
     len=  tmp.length();
   }
@@ -4444,6 +4445,7 @@ void Field_string::sort_string(char *to,uint length)
 
 void Field_string::sql_type(String &res) const
 {
+  THD *thd= table->in_use;
   CHARSET_INFO *cs=res.charset();
   ulong length= cs->cset->snprintf(cs,(char*) res.ptr(),
 			    res.alloced_length(), "%s(%d)",
@@ -4454,6 +4456,9 @@ void Field_string::sql_type(String &res) const
 			      (has_charset() ? "char" : "binary")),
 			    (int) field_length / charset()->mbmaxlen);
   res.length(length);
+  if ((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)) &&
+      has_charset() && (charset()->state & MY_CS_BINSORT))
+    res.append(" binary");
 }
 
 char *Field_string::pack(char *to, const char *from, uint max_length)
@@ -5530,7 +5535,8 @@ int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
   /* Convert character set if nesessary */
   if (String::needs_conversion(length, cs, field_charset, &not_used))
   { 
-    tmpstr.copy(from, length, cs, field_charset);
+    uint dummy_errors;
+    tmpstr.copy(from, length, cs, field_charset, &dummy_errors);
     from= tmpstr.ptr();
     length=  tmpstr.length();
   }
@@ -5678,10 +5684,11 @@ void Field_enum::sql_type(String &res) const
   bool flag=0;
   for (const char **pos= typelib->type_names; *pos; pos++)
   {
+    uint dummy_errors;
     if (flag)
       res.append(',');
     /* convert to res.charset() == utf8, then quote */
-    enum_item.copy(*pos, strlen(*pos), charset(), res.charset());
+    enum_item.copy(*pos, strlen(*pos), charset(), res.charset(), &dummy_errors);
     append_unescaped(&res, enum_item.ptr(), enum_item.length());
     flag= 1;
   }
@@ -5712,7 +5719,8 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
   /* Convert character set if nesessary */
   if (String::needs_conversion(length, cs, field_charset, &not_used_offset))
   { 
-    tmpstr.copy(from, length, cs, field_charset);
+    uint dummy_errors;
+    tmpstr.copy(from, length, cs, field_charset, &dummy_errors);
     from= tmpstr.ptr();
     length=  tmpstr.length();
   }
@@ -5788,10 +5796,11 @@ void Field_set::sql_type(String &res) const
   bool flag=0;
   for (const char **pos= typelib->type_names; *pos; pos++)
   {
+    uint dummy_errors;
     if (flag)
       res.append(',');
     /* convert to res.charset() == utf8, then quote */
-    set_item.copy(*pos, strlen(*pos), charset(), res.charset());
+    set_item.copy(*pos, strlen(*pos), charset(), res.charset(), &dummy_errors);
     append_unescaped(&res, set_item.ptr(), set_item.length());
     flag= 1;
   }
