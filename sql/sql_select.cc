@@ -7088,7 +7088,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
     Item *item=0;
 
     uint count= (uint) ((Item_int*)itemptr)->value;
-    if (count > fields.elements)
+    if (!count || count > fields.elements)
     {
       my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),
 		      MYF(0),itemptr->full_name(),
