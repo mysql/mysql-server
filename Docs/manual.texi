@@ -3377,11 +3377,15 @@ If you are interested in any of the jobs listed in our
 @uref{http://www.mysql.com/development/jobs/, jobs} section, please send e-mail
 to @email{jobs@@mysql.com}.
 
-For technical questions about @strong{MySQL}, please direct your question to 
-the appropriate @uref{http://www.mysql.com/documentation/lists.html, mailing 
-list}. If this does not answer your question, perhaps it would better suit 
-you to @uref{https://order.mysql.com/, order} one of our
+For timely, precise answers to technical questions about @strong{MySQL}
+you should @uref{https://order.mysql.com/, order} one of our
 @uref{http://www.mysql.com/support/arrangements/types.html, support contracts}.
+@strong{MySQL} support is provided by the @strong{MySQL} developers so the
+standard is extremely high.
+
+For general discussion amongst our many users, please direct your attention to 
+the appropriate @uref{http://www.mysql.com/documentation/lists.html, mailing 
+list}.
 
 For questions or comments about the workings or content of this Web site,
 please send e-mail to @email{webmaster@@mysql.com}.
