@@ -837,7 +837,7 @@ Changes in release 3.23.x  (Recommended; beta)
 * News-3.23.4::                 Changes in release 3.23.4
 * News-3.23.3::                 Changes in release 3.23.3
 * News-3.23.2::                 Changes in release 3.23.2
-* News-3.23.1::                 
+* News-3.23.1::
 * News-3.23.0::                 Changes in release 3.23.0
 
 Changes in release 3.22.x
@@ -24699,7 +24699,7 @@ master-slave relationship with @code{log-slave-updates} enabled.
 Note, however, that many queries will not work right in this kind of
 setup unless your client code is written to take care of the potential
 problems that can happen from updates that occur in different sequence
-on different servers. Note that the log format has changed in 3.23.26 
+on different servers. Note that the log format has changed in 3.23.26
 so that pre-3.23.26 slaves will not be able to read it.
 @item
 If the query on the slave gets an error, the slave thread will
@@ -24739,7 +24739,7 @@ Starting in 3.23.19 you can clean up stale replication leftovers when
 something goes wrong and you want a clean start with @code{FLUSH MASTER}
 and @code{FLUSH SLAVE} commands. In 3.23.26 we have renamed them to
 @code{RESET MASTER} and @code{RESET SLAVE} respectively to clarify
-what they do. The old @code{FLUSH} variants still work, though for 
+what they do. The old @code{FLUSH} variants still work, though for
 compatibility.
 
 @item
@@ -24920,7 +24920,7 @@ index file to be empty. In pre-3.23.26 versions, @code{FLUSH MASTER} (Master)
 
 @item @code{RESET SLAVE}
  @tab Makes the slave forget its replication position in the master
-logs. In pre 3.23.26 versions the command was called 
+logs. In pre 3.23.26 versions the command was called
 @code{FLUSH SLAVE}(Slave)
 
 @item @code{LOAD TABLE tblname FROM MASTER}
@@ -36506,6 +36506,18 @@ Such a technique works best with big collections (in fact, it was
 carefully tuned up this way). For very small tables, word distribution
 does not reflect adequately their semantical value, and this model
 may sometimes produce bizarre results.
+
+For example search for the word "search" will produce no results in the
+above example. Word "search" is present in more than half of rows, and
+as, such, is effectively treated as stopword (i.e. with semantical value
+zero). It is, really, the desired behaviour - natural language query
+should not return every second row in 1GB table.
+
+The word that select 50% of rows has low ability to locate relevant
+documents (and will find plenty of unrelevant documents also - we all
+know this happen too often when we are trying to find something in Internet
+with search engine), and, as such, has low semantical value in @strong{this
+particular dataset}.
 
 @page
 @cindex environment variables, list of
