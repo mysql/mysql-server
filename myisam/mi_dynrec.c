@@ -1094,16 +1094,23 @@ err:
 byte *mi_fix_rec_buff_for_blob(MI_INFO *info, ulong length)
 {
   uint extra;
+
+  /* to simplify initial init of info->rec_buf in mi_open and mi_extra */
+  if (!length)
+      length=max(info->s->base.pack_reclength,info->s->base.max_key_length);
+
   if (! info->rec_buff || length > info->alloced_rec_buff_length)
   {
     byte *newptr;
-    extra=ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+
-      MI_DYN_DELETE_BLOCK_HEADER;
-    if (!(newptr=(byte*) my_realloc((gptr) info->rec_alloc,length+extra,
+    extra= ((info->s->options & HA_OPTION_PACK_RECORD) ?
+        ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+
+        MI_DYN_DELETE_BLOCK_HEADER : 0);
+    if (!(newptr=(byte*) my_realloc((gptr) info->rec_alloc,length+extra+8,
 				    MYF(MY_ALLOW_ZERO_PTR))))
-      return newptr;
+      return (byte *)0;
     info->rec_alloc=newptr;
-    info->rec_buff=newptr+ALIGN_SIZE(MI_DYN_DELETE_BLOCK_HEADER);
+    info->rec_buff=newptr+(extra ?
+                   ALIGN_SIZE(MI_DYN_DELETE_BLOCK_HEADER) : 0);
     info->alloced_rec_buff_length=length;
   }
   return info->rec_buff;
