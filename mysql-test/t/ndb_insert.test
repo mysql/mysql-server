@@ -441,6 +441,16 @@ select count(*) from t1;
 
 
 #
+# Test that select count(*) can see inserts made in the same transaction
+#
+begin;
+SELECT COUNT(*) FROM t1;
+INSERT INTO t1 VALUES 
+(2001,2001,2001),(2002,2002,2002),(2003,2003,2003),(2004,2004,2004),(2005,2005,2005);
+SELECT COUNT(*) FROM t1;
+rollback;
+
+#
 # Insert duplicate rows, inside transaction
 # try to commit 
 #
@@ -519,7 +529,6 @@ SELECT * FROM t1 WHERE pk1=10;
 
 --error 1296
 commit;
-SELECT COUNT(*) FROM t1;
 
 select * from t1 where pk1=1;
 select * from t1 where pk1=10;
