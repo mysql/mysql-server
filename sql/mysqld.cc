@@ -3394,7 +3394,9 @@ Starts the MySQL server\n");
   --innodb_data_file_path=dir  Path to individual files and their sizes\n\
   --innodb_flush_method=#  With which method to flush data\n\
   --innodb_flush_log_at_trx_commit[=#]\n\
-			       Set to 0 if you don't want to flush logs\n\
+			  Value 0: write and flush once per second\n\
+                          Value 1: write and flush at each commit\n\
+                          Value 2: write at commit, flush once per second\n\
   --innodb_log_arch_dir=dir    Where full logs should be archived\n\
   --innodb_log_archive[=#]     Set to 1 if you want to have logs archived\n\
   --innodb_log_group_home_dir=dir  Path to innodb log files.\n\

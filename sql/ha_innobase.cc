@@ -113,7 +113,7 @@ my_bool	innobase_fast_shutdown			= TRUE;
 2 : write to the log file at each commit, but flush to disk only once per
 second */
 
-int     innobase_flush_log_at_trx_commit	= 0;
+long     innobase_flush_log_at_trx_commit	= 0;
 
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
@@ -557,6 +557,8 @@ innobase_init(void)
 	srv_log_archive_on = (ulint) innobase_log_archive;
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
 	srv_flush_log_at_trx_commit = (ulint) innobase_flush_log_at_trx_commit;
+
+        printf("Flush value %lu\n", srv_flush_log_at_trx_commit);
 
 	srv_use_native_aio = 0;
 
