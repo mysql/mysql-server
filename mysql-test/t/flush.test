@@ -32,3 +32,13 @@ connection con2;
 unlock tables;
 connection con1;
 reap;
+
+# test if dirty close releases global read lock
+connection con1;
+create table t1 (n int);
+flush tables with read lock;
+dirty_close con1;
+connection con2;
+insert into t1 values (345);
+select * from t1;
+drop table t1;
