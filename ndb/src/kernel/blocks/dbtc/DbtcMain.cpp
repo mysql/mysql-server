@@ -4927,7 +4927,9 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	
 	// The operation executed an index trigger
 	const Uint32 opType = regTcPtr->operation;
-	if (!(opType == ZDELETE && errCode == ZNOT_FOUND)) {
+	if (errCode == ZALREADYEXIST)
+	  errCode = terrorCode = ZNOTUNIQUE;
+	else if (!(opType == ZDELETE && errCode == ZNOT_FOUND)) {
 	  jam();
 	  /**
 	   * "Normal path"
@@ -12176,34 +12178,33 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
   // Calculate key length and renumber attribute id:s
   AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
   LocalDataBuffer<11> afterValues(pool, firedTriggerData->afterValues);
+  bool skipNull = false;
   for(bool moreKeyAttrs = afterValues.first(iter); moreKeyAttrs; attrId++) {
     jam();
     AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
 
+    // Filter out NULL valued attributes
+    if (attrHeader->isNULL()) {
+      skipNull = true;
+      break;
+    }
     attrHeader->setAttributeId(attrId);      
     keyLength += attrHeader->getDataSize();
     hops = attrHeader->getHeaderSize() + attrHeader->getDataSize();
     moreKeyAttrs = afterValues.next(iter, hops);
   }
-
-  // Filter out single NULL attributes
-  if (attrId == 1) {
+  if (skipNull) {
     jam();
-    afterValues.first(iter);
-    AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
-    if (attrHeader->isNULL() && !afterValues.next(iter)) {
+    opRecord->triggerExecutionCount--;
+    if (opRecord->triggerExecutionCount == 0) {
+      /*
+	We have completed current trigger execution
+	Continue triggering operation
+      */
       jam();
-      opRecord->triggerExecutionCount--;
-      if (opRecord->triggerExecutionCount == 0) {
-        /*
-	  We have completed current trigger execution
-	  Continue triggering operation
-        */
-	jam();
-	continueTriggeringOp(signal, opRecord);	
-      }//if
-      return;
+      continueTriggeringOp(signal, opRecord);	
     }//if
+    return;
   }//if
 
   // Calculate total length of primary key to be stored in index table
@@ -12531,36 +12532,36 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
   // Calculate key length and renumber attribute id:s
   AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
   LocalDataBuffer<11> beforeValues(pool, firedTriggerData->beforeValues);
+  bool skipNull = false;
   for(bool moreKeyAttrs = beforeValues.first(iter);
       (moreKeyAttrs);
       attrId++) {
     jam();
     AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
     
+    // Filter out NULL valued attributes
+    if (attrHeader->isNULL()) {
+      skipNull = true;
+      break;
+    }
     attrHeader->setAttributeId(attrId);      
     keyLength += attrHeader->getDataSize();
     hops = attrHeader->getHeaderSize() + attrHeader->getDataSize();
     moreKeyAttrs = beforeValues.next(iter, hops);
   }
 
-  // Filter out single NULL attributes
-  if (attrId == 1) {
+  if (skipNull) {
     jam();
-    beforeValues.first(iter);
-    AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
-    if (attrHeader->isNULL() && !beforeValues.next(iter)) {
-      jam();
-      opRecord->triggerExecutionCount--;
-      if (opRecord->triggerExecutionCount == 0) {
-        /*
+    opRecord->triggerExecutionCount--;
+    if (opRecord->triggerExecutionCount == 0) {
+      /*
         We have completed current trigger execution
 	Continue triggering operation
-        */
-	jam();
-	continueTriggeringOp(signal, opRecord);	
-      }//if
-      return;
+      */
+      jam();
+      continueTriggeringOp(signal, opRecord);	
     }//if
+    return;
   }//if
 
   TcKeyReq::setKeyLength(tcKeyRequestInfo, keyLength);
