@@ -29,6 +29,26 @@ extern "C" {
 
 #define CHARSET_DIR	"charsets/"
 
+#define my_wc_t ulong
+
+typedef struct unicase_info_st {
+  uint16 toupper;
+  uint16 tolower;
+  uint16 sort;
+} MY_UNICASE_INFO;
+
+#define MY_CS_ILSEQ	0
+#define MY_CS_ILUNI	0
+#define MY_CS_TOOSMALL	-1
+#define MY_CS_TOOFEW(n)	(-1-(n))
+
+typedef struct my_uni_idx_st {
+  uint16 from;
+  uint16 to;
+  uchar  *tab;
+} MY_UNI_IDX;
+
+
 typedef struct charset_info_st
 {
     uint      number;
@@ -37,7 +57,10 @@ typedef struct charset_info_st
     uchar    *to_lower;
     uchar    *to_upper;
     uchar    *sort_order;
-
+    uint16      *tab_to_uni;
+    MY_UNI_IDX  *tab_from_uni;
+    
+    /* Collation routines */
     uint      strxfrm_multiply;
     int     (*strnncoll)(struct charset_info_st *,
                          const uchar *, uint, const uchar *, uint);
@@ -46,12 +69,19 @@ typedef struct charset_info_st
     my_bool (*like_range)(struct charset_info_st *,
                           const char *, uint, pchar, uint,
                           char *, char *, uint *, uint *);
-
+    
+    /* Multibyte routines */
     uint      mbmaxlen;
-    int     (*ismbchar)(const char *, const char *);
-    my_bool (*ismbhead)(uint);
-    int     (*mbcharlen)(uint);
-
+    int     (*ismbchar)(struct charset_info_st *, const char *, const char *);
+    my_bool (*ismbhead)(struct charset_info_st *, uint);
+    int     (*mbcharlen)(struct charset_info_st *, uint);
+    
+    /* Unicode convertion */
+    int (*mb_wc)(struct charset_info_st *cs,my_wc_t *wc,
+    		 const unsigned char *s,const unsigned char *e);
+    int (*wc_mb)(struct charset_info_st *cs,my_wc_t wc,
+    		 unsigned char *s,unsigned char *e);
+    
     /* Functions for case convertion */
     void    (*caseup_str)(struct charset_info_st *, char *);
     void    (*casedn_str)(struct charset_info_st *, char *);
@@ -90,6 +120,12 @@ extern void my_casedn_8bit(CHARSET_INFO *, char *, uint);
 extern int my_strcasecmp_8bit(CHARSET_INFO * cs, const char *, const char *);
 extern int my_strncasecmp_8bit(CHARSET_INFO * cs, const char *, const char *, uint);
 
+int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc,
+		  const unsigned char *s,const unsigned char *e);
+int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc,
+		  unsigned char *s, unsigned char *e);
+
+
 #ifdef USE_MB
 /* Functions for multibyte charsets */
 extern void my_caseup_str_mb(CHARSET_INFO *, char *);
@@ -107,9 +143,9 @@ extern int     my_strnncoll_big5(CHARSET_INFO *,const uchar *, uint, const uchar
 extern int     my_strnxfrm_big5(CHARSET_INFO *,uchar *, uint, const uchar *, uint);
 extern my_bool my_like_range_big5(CHARSET_INFO *,const char *, uint, pchar, uint,
                           char *, char *, uint *, uint *);
-extern int     ismbchar_big5(const char *, const char *);
-extern my_bool ismbhead_big5(uint);
-extern int     mbcharlen_big5(uint);
+extern int     ismbchar_big5(CHARSET_INFO *, const char *, const char *);
+extern my_bool ismbhead_big5(CHARSET_INFO *, uint);
+extern int     mbcharlen_big5(CHARSET_INFO *, uint);
 #endif
 
 #ifdef HAVE_CHARSET_czech
@@ -125,17 +161,17 @@ extern my_bool my_like_range_czech(CHARSET_INFO *,
 #ifdef HAVE_CHARSET_euc_kr
 /* declarations for the euc_kr character set */
 extern uchar ctype_euc_kr[], to_lower_euc_kr[], to_upper_euc_kr[], sort_order_euc_kr[];
-extern int     ismbchar_euc_kr(const char *, const char *);
-extern my_bool ismbhead_euc_kr(uint);
-extern int     mbcharlen_euc_kr(uint);
+extern int     ismbchar_euc_kr(CHARSET_INFO *, const char *, const char *);
+extern my_bool ismbhead_euc_kr(CHARSET_INFO *, uint);
+extern int     mbcharlen_euc_kr(CHARSET_INFO *, uint);
 #endif
 
 #ifdef HAVE_CHARSET_gb2312
 /* declarations for the gb2312 character set */
 extern uchar ctype_gb2312[], to_lower_gb2312[], to_upper_gb2312[], sort_order_gb2312[];
-extern int     ismbchar_gb2312(const char *, const char *);
-extern my_bool ismbhead_gb2312(uint);
-extern int     mbcharlen_gb2312(uint);
+extern int     ismbchar_gb2312(CHARSET_INFO *, const char *, const char *);
+extern my_bool ismbhead_gb2312(CHARSET_INFO *, uint);
+extern int     mbcharlen_gb2312(CHARSET_INFO *, uint);
 #endif
 
 #ifdef HAVE_CHARSET_gbk
@@ -145,9 +181,9 @@ extern int     my_strnncoll_gbk(CHARSET_INFO *, const uchar *, uint, const uchar
 extern int     my_strnxfrm_gbk(CHARSET_INFO *, uchar *, uint, const uchar *, uint);
 extern my_bool my_like_range_gbk(CHARSET_INFO *, const char *, uint, pchar, uint,
                           char *, char *, uint *, uint *);
-extern int     ismbchar_gbk(const char *, const char *);
-extern my_bool ismbhead_gbk(uint);
-extern int     mbcharlen_gbk(uint);
+extern int     ismbchar_gbk(CHARSET_INFO *, const char *, const char *);
+extern my_bool ismbhead_gbk(CHARSET_INFO *, uint);
+extern int     mbcharlen_gbk(CHARSET_INFO *, uint);
 #endif
 
 #ifdef HAVE_CHARSET_latin1_de
@@ -166,9 +202,9 @@ extern int     my_strnncoll_sjis(CHARSET_INFO *, const uchar *, uint, const ucha
 extern int     my_strnxfrm_sjis(CHARSET_INFO *, uchar *, uint, const uchar *, uint);
 extern my_bool my_like_range_sjis(CHARSET_INFO *, const char *, uint, pchar, uint,
                           char *, char *, uint *, uint *);
-extern int     ismbchar_sjis(const char *, const char *);
-extern my_bool ismbhead_sjis(uint);
-extern int     mbcharlen_sjis(uint);
+extern int     ismbchar_sjis(CHARSET_INFO *, const char *, const char *);
+extern my_bool ismbhead_sjis(CHARSET_INFO *, uint);
+extern int     mbcharlen_sjis(CHARSET_INFO *, uint);
 #endif
 
 #ifdef HAVE_CHARSET_tis620
@@ -183,11 +219,38 @@ extern my_bool my_like_range_tis620(CHARSET_INFO *, const char *, uint, pchar, u
 #ifdef HAVE_CHARSET_ujis
 /* declarations for the ujis character set */
 extern uchar ctype_ujis[], to_lower_ujis[], to_upper_ujis[], sort_order_ujis[];
-extern int     ismbchar_ujis(const char *, const char *);
-extern my_bool ismbhead_ujis(uint);
-extern int     mbcharlen_ujis(uint);
+extern int     ismbchar_ujis(CHARSET_INFO *, const char *, const char *);
+extern my_bool ismbhead_ujis(CHARSET_INFO *, uint);
+extern int     mbcharlen_ujis(CHARSET_INFO *, uint);
 #endif
 
+#ifdef HAVE_CHARSET_utf8
+
+extern uchar ctype_utf8[];
+extern uchar to_lower_utf8[];
+extern uchar to_upper_utf8[];
+
+int my_strnncoll_utf8(CHARSET_INFO *cs,
+                      const uchar *s, uint s_len, const uchar *t, uint t_len);
+
+int my_strnxfrm_utf8(CHARSET_INFO *cs,
+        uchar *dest, uint destlen, const uchar *src, uint srclen);
+
+int my_ismbchar_utf8(CHARSET_INFO *cs, const char *b, const char *e);
+my_bool my_ismbhead_utf8(CHARSET_INFO * cs, uint ch);
+int my_mbcharlen_utf8(CHARSET_INFO *cs, uint c);
+
+void my_caseup_str_utf8(CHARSET_INFO * cs, char * s);
+void my_casedn_str_utf8(CHARSET_INFO *cs, char * s);
+void my_caseup_utf8(CHARSET_INFO *cs, char *s, uint len);
+void my_casedn_utf8(CHARSET_INFO *cs, char *s, uint len);
+
+int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t);
+int my_strncasecmp_utf8(CHARSET_INFO *cs, const char *s,const char *t,uint l);
+
+int my_utf8_uni (CHARSET_INFO *cs, my_wc_t *p, const uchar *s, const uchar *e);
+int my_uni_utf8 (CHARSET_INFO *cs, my_wc_t wc, uchar *b, uchar *e);
+#endif
 
 #define	_U	01	/* Upper case */
 #define	_L	02	/* Lower case */
@@ -229,9 +292,9 @@ extern int     mbcharlen_ujis(uint);
                 ((s)->like_range((s), (a), (b), (c), (d), (e), (f), (g), (h)))
 
 #define use_mb(s)                     ((s)->ismbchar != NULL)
-#define my_ismbchar(s, a, b)          ((s)->ismbchar((a), (b)))
-#define my_ismbhead(s, a)             ((s)->ismbhead((a)))
-#define my_mbcharlen(s, a)            ((s)->mbcharlen((a)))
+#define my_ismbchar(s, a, b)          ((s)->ismbchar((s), (a), (b)))
+#define my_ismbhead(s, a)             ((s)->ismbhead((s), (a)))
+#define my_mbcharlen(s, a)            ((s)->mbcharlen((s),(a)))
 
 #define my_caseup(s, a, l)            ((s)->caseup((s), (a), (l)))
 #define my_casedn(s, a, l)            ((s)->casedn((s), (a), (l)))

@@ -114,7 +114,8 @@ static uint hash_rec_mask(HASH *hash,HASH_LINK *pos,uint buffmax,
 
 	/* Calc hashvalue for a key */
 
-static uint calc_hashnr(CHARSET_INFO *cs, const byte *key,uint length)
+static uint calc_hashnr(CHARSET_INFO *cs __attribute__((unused)), 
+			const byte *key,uint length)
 {
   register uint nr=1, nr2=4;
   while (length--)

@@ -2582,7 +2582,7 @@ static uint16 gbksortorder(uint16 i)
 }
 
 
-int my_strnncoll_gbk(CHARSET_INFO *cs,
+int my_strnncoll_gbk(CHARSET_INFO *cs __attribute__((unused)),
                      const uchar * s1, uint len1, 
                      const uchar * s2, uint len2)
 {
@@ -2609,7 +2609,7 @@ int my_strnncoll_gbk(CHARSET_INFO *cs,
 }
 
 
-int my_strnxfrm_gbk(CHARSET_INFO *cs, 
+int my_strnxfrm_gbk(CHARSET_INFO *cs __attribute__((unused)),
                     uchar * dest, uint len,
                     const uchar * src, uint srclen)
 {
@@ -2653,7 +2653,7 @@ int my_strnxfrm_gbk(CHARSET_INFO *cs,
 #define wild_one '_'
 #define wild_many '%'
 
-extern my_bool my_like_range_gbk(CHARSET_INFO *cs,
+extern my_bool my_like_range_gbk(CHARSET_INFO *cs __attribute__((unused)),
                                  const char *ptr,uint ptr_length,pchar escape,
                                  uint res_length, char *min_str,char *max_str,
                                  uint *min_length,uint *max_length)
@@ -2704,17 +2704,18 @@ extern my_bool my_like_range_gbk(CHARSET_INFO *cs,
 }
 
 
-int ismbchar_gbk(const char* p, const char *e)
+int ismbchar_gbk(CHARSET_INFO *cs __attribute__((unused)),
+		 const char* p, const char *e)
 {
   return (isgbkhead(*(p)) && (e)-(p)>1 && isgbktail(*((p)+1))? 2: 0);
 }
 
-my_bool ismbhead_gbk(uint c)
+my_bool ismbhead_gbk(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return isgbkhead(c);
 }
 
-int mbcharlen_gbk(uint c)
+int mbcharlen_gbk(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (isgbkhead(c)? 2:0);
 }

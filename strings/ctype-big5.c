@@ -215,7 +215,7 @@ static uint16 big5strokexfrm(uint16 i)
   return 0xA140;
 }
 
-int my_strnncoll_big5(CHARSET_INFO *cs, 
+int my_strnncoll_big5(CHARSET_INFO *cs __attribute__((unused)), 
                       const uchar * s1, uint len1, 
                       const uchar * s2, uint len2)
 {
@@ -239,7 +239,7 @@ int my_strnncoll_big5(CHARSET_INFO *cs,
   return (int) (len1-len2);
 }
 
-int my_strnxfrm_big5(CHARSET_INFO *cs,
+int my_strnxfrm_big5(CHARSET_INFO *cs __attribute__((unused)),
                      uchar * dest, uint len, 
                      const uchar * src, uint srclen)
 {
@@ -328,7 +328,7 @@ int my_strxfrm_big5(uchar * dest, const uchar * src, int len)
 #define wild_one '_'
 #define wild_many '%'
 
-my_bool my_like_range_big5(CHARSET_INFO *cs,
+my_bool my_like_range_big5(CHARSET_INFO *cs __attribute__((unused)),
 		           const char *ptr,uint ptr_length,pchar escape,
 		           uint res_length, char *min_str,char *max_str,
 		           uint *min_length,uint *max_length)
@@ -378,17 +378,18 @@ my_bool my_like_range_big5(CHARSET_INFO *cs,
   return 0;
 }
 
-int ismbchar_big5(const char* p, const char *e)
+int ismbchar_big5(CHARSET_INFO *cs __attribute__((unused)),
+                  const char* p, const char *e)
 {
   return (isbig5head(*(p)) && (e)-(p)>1 && isbig5tail(*((p)+1))? 2: 0);
 }
 
-my_bool ismbhead_big5(uint c)
+my_bool ismbhead_big5(CHARSET_INFO *cs __attribute__((unused)), uint c)
 {
   return isbig5head(c);
 }
 
-int mbcharlen_big5(uint c)
+int mbcharlen_big5(CHARSET_INFO *cs __attribute__((unused)), uint c)
 {
   return (isbig5head(c)? 2: 0);
 }
