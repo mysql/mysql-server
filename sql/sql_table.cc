@@ -23,7 +23,6 @@
 #endif
 #include <hash.h>
 #include <myisam.h>
-#include <assert.h>
 
 #ifdef __WIN__
 #include <io.h>

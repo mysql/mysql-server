@@ -37,7 +37,6 @@
 #include <errno.h>
 static void my_aiowait(my_aio_result *result);
 #endif
-#include <assert.h>
 
 extern "C" {
 

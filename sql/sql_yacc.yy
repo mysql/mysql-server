@@ -208,7 +208,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	DES_KEY_FILE
 %token	DISABLE_SYM
 %token	DISTINCT
-%token  DUPLICATE
+%token  DUPLICATE_SYM
 %token	DYNAMIC_SYM
 %token	ENABLE_SYM
 %token	ENCLOSED
@@ -3177,7 +3177,7 @@ expr_or_default:
 
 opt_insert_update:
         /* empty */
-        | ON DUPLICATE
+        | ON DUPLICATE_SYM
           { /* for simplisity, let's forget about
                INSERT ... SELECT ... UPDATE
                for a moment */
@@ -3866,8 +3866,9 @@ keyword:
 	| DES_KEY_FILE		{}
 	| DIRECTORY_SYM		{}
 	| DO_SYM		{}
-	| DUMPFILE		{}
 	| DUAL_SYM		{}
+	| DUMPFILE		{}
+	| DUPLICATE_SYM		{}
 	| DYNAMIC_SYM		{}
 	| END			{}
 	| ENUM			{}
@@ -4565,11 +4566,7 @@ optional_order_or_limit:
 	  {
 	    THD *thd= YYTHD;
 	    LEX *lex= &thd->lex;
-	    if (!lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
-	    {
-	      send_error(lex->thd, ER_SYNTAX_ERROR);
-	      YYABORT;
-	    }
+	    DBUG_ASSERT(lex->current_select->linkage != GLOBAL_OPTIONS_TYPE);
 	    SELECT_LEX *sel= lex->current_select->select_lex();
 	    sel->master_unit()->global_parameters=
 	      sel->master_unit();

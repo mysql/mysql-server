@@ -19,7 +19,6 @@
 
 #include "mysql_priv.h"
 #include "sql_select.h"
-#include <assert.h>
 
 /* TODO:
   HANDLER blabla OPEN [ AS foobar ] [ (column-list) ]

@@ -24,7 +24,6 @@
 #include "repl_failsafe.h"
 #include <thr_alarm.h>
 #include <my_dir.h>
-#include <assert.h>
 
 bool use_slave_mask = 0;
 MY_BITMAP slave_error_mask;

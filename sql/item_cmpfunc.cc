@@ -23,7 +23,6 @@
 
 #include "mysql_priv.h"
 #include <m_ctype.h>
-#include "assert.h"
 Item_bool_func2* Item_bool_func2::eq_creator(Item *a, Item *b)
 {
   return new Item_func_eq(a, b);

@@ -22,7 +22,6 @@
 #include "log_event.h"
 #include "mini_client.h"
 #include <my_dir.h>
-#include <assert.h>
 
 extern const char* any_db;
 

@@ -455,7 +455,7 @@ void *tree_search_next(TREE *tree, TREE_ELEMENT ***last_pos, int l_offs,
   (each path from root to leaf has the same length)
 */
 ha_rows tree_record_pos(TREE *tree, const void *key, 
-                     enum ha_rkey_function flag, void *custom_arg)
+			enum ha_rkey_function flag, void *custom_arg)
 {
   int cmp;
   TREE_ELEMENT *element= tree->root;
@@ -470,7 +470,7 @@ ha_rows tree_record_pos(TREE *tree, const void *key,
     {
       switch (flag) {
       case HA_READ_KEY_EXACT:
-        last_equal_pos= (left + right) / 2;
+        last_equal_pos= (ha_rows) ((left + right) / 2);
         cmp= 1;
         break;
       case HA_READ_BEFORE_KEY:
@@ -498,9 +498,9 @@ ha_rows tree_record_pos(TREE *tree, const void *key,
   case HA_READ_KEY_EXACT:
     return last_equal_pos;
   case HA_READ_BEFORE_KEY:
-    return (uint) right;
+    return (ha_rows) right;
   case HA_READ_AFTER_KEY:
-    return (uint) left;
+    return (ha_rows) left;
   default:
     return HA_POS_ERROR;
   }

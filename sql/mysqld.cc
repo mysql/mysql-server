@@ -32,7 +32,6 @@
 #include <nisam.h>
 #include <thr_alarm.h>
 #include <ft_global.h>
-#include <assert.h>
 
 #define mysqld_charset my_charset_latin1
 

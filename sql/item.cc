@@ -22,7 +22,6 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 #include "my_dir.h"
-#include <assert.h>
 
 /*****************************************************************************
 ** Item functions
@@ -1056,7 +1055,8 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	  break;
 	if ((tmp= find_field_in_tables(thd, this,
 				       sl->get_table_list(), &where,
-				       0)) != not_found_field);
+				       0)) != not_found_field)
+	  break;
 	if (sl->master_unit()->first_select()->linkage ==
 	    DERIVED_TABLE_TYPE)
 	  break; // do not look over derived table

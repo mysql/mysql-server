@@ -28,7 +28,6 @@
 #include <time.h>
 #include <ft_global.h>
 #include <zlib.h>
-#include <assert.h>
 
 /* return TRUE if item is a constant */
 

@@ -215,7 +215,6 @@ check_connections2(THD * thd)
 static bool check_user(THD *thd,enum_server_command command, const char *user,
 		       const char *passwd, const char *db, bool check_count)
 {
-  USER_RESOURCES ur;
   thd->db=0;
 
   if (!(thd->user = my_strdup(user, MYF(0))))

@@ -105,9 +105,9 @@ static int my_wc_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
 		  unsigned char *s,
 		  unsigned char *e __attribute__((unused)))
 {
-  if ( wc<256 )
+  if (wc < 256)
   {
-    s[0]=wc;
+    s[0]= (char) wc;
     return 1;
   }
   return MY_CS_ILUNI;
@@ -296,7 +296,7 @@ static CHARSET_INFO my_charset_bin_st =
     my_strncasecmp_bin,		/* strncasecmp   */
     my_hash_caseup_bin,		/* hash_caseup   */
     my_hash_sort_bin,		/* hash_sort     */
-    255,			/* max_sort_char */
+    (char) 255,			/* max_sort_char */
     my_snprintf_8bit,		/* snprintf      */
     my_long10_to_str_8bit,
     my_longlong10_to_str_8bit,

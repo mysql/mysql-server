@@ -930,7 +930,7 @@ err:
 
 bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
 {
-  char buff[80], *value, *error= 0;
+  char buff[80], *error= 0;
   uint error_len= 0;
   String str(buff, sizeof(buff), system_charset_info), *res;
 
@@ -938,7 +938,7 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
   {
     if (!(res= var->value->val_str(&str)))
       goto err;
-    (long) var->save_result.ulong_value= (ulong)
+    var->save_result.ulong_value= (ulong)
       find_set(enum_names, res->c_ptr(), res->length(), &error, &error_len);
     if (error_len)
     {

@@ -307,7 +307,6 @@ TODO list:
 #else
 #include "../myisammrg/myrg_def.h"
 #endif
-#include <assert.h>
 
 #if defined(EXTRA_DEBUG) && !defined(DBUG_OFF)
 #define MUTEX_LOCK(M) { DBUG_PRINT("lock", ("mutex lock 0x%lx", (ulong)(M))); \
