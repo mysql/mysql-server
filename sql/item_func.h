@@ -829,7 +829,7 @@ public:
 };
 
 
-/* SerG: for fulltext search */
+/* for fulltext search */
 #include <ft_global.h>
 
 class Item_func_match :public Item_real_func
@@ -855,4 +855,3 @@ public:
   double val();
   longlong val_int() { return val()!=0.0; }
 };
-
