@@ -4210,8 +4210,8 @@ static void usage(void)
   puts("\
 Copyright (C) 2000 MySQL AB, by Monty and others\n\
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
-and you are welcome to modify and redistribute it under the GPL license\n\
-Starts the MySQL server\n");
+and you are welcome to modify and redistribute it under the GPL license\n\n\
+Starts the MySQL database server\n");
 
   printf("Usage: %s [OPTIONS]\n", my_progname);
 #ifdef __WIN__

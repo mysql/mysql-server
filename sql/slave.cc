@@ -1314,7 +1314,7 @@ file '%s')", fname);
         if (info_fd >= 0)
           my_close(info_fd, MYF(0));
         rli->info_fd= -1;
-        rli->relay_log.close(1);
+        rli->relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
         pthread_mutex_unlock(&rli->data_lock);
         DBUG_RETURN(1);
       }
@@ -1374,7 +1374,7 @@ err:
   if (info_fd >= 0)
     my_close(info_fd, MYF(0));
   rli->info_fd= -1;
-  rli->relay_log.close(1);
+  rli->relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
   pthread_mutex_unlock(&rli->data_lock);
   DBUG_RETURN(1);
 }
@@ -2989,7 +2989,7 @@ void end_relay_log_info(RELAY_LOG_INFO* rli)
     rli->cur_log_fd = -1;
   }
   rli->inited = 0;
-  rli->relay_log.close(1);
+  rli->relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
   DBUG_VOID_RETURN;
 }
 

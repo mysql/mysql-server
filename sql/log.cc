@@ -109,7 +109,7 @@ void MYSQL_LOG::cleanup()
   if (inited)
   {
     inited= 0;
-    close(1);
+    close(LOG_CLOSE_INDEX);
     (void) pthread_mutex_destroy(&LOCK_log);
     (void) pthread_mutex_destroy(&LOCK_index);
     (void) pthread_cond_destroy(&update_cond);
@@ -315,6 +315,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     break;
   }
   case LOG_CLOSED:				// Impossible
+  case LOG_TO_BE_OPENED:
     DBUG_ASSERT(1);
     break;
   }
@@ -332,7 +333,7 @@ shutdown the MySQL server and restart it.", log_name, errno);
   end_io_cache(&log_file);
   end_io_cache(&index_file);
   safeFree(name);
-  log_type=LOG_CLOSED;
+  log_type= LOG_CLOSED;
   DBUG_RETURN(1);
 }
 
@@ -565,7 +566,7 @@ bool MYSQL_LOG::reset_logs(THD* thd)
   save_name=name;
   name=0;					// Protect against free
   save_log_type=log_type;
-  close(0);					// Don't close the index file
+  close(LOG_CLOSE_TO_BE_OPENED);
 
   /* First delete all old log files */
 
@@ -583,7 +584,7 @@ bool MYSQL_LOG::reset_logs(THD* thd)
   }
 
   /* Start logging with a new file */
-  close(1);					// Close index file
+  close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
   my_delete(index_file_name, MYF(MY_WME));	// Reset (open will update)
   if (!thd->slave_thread)
     need_start_event=1;
@@ -865,7 +866,7 @@ void MYSQL_LOG::new_file(bool need_lock)
   old_name=name;
   save_log_type=log_type;
   name=0;				// Don't free name
-  close();
+  close(LOG_CLOSE_TO_BE_OPENED);
 
   /* 
      Note that at this point, log_type == LOG_CLOSED (important for is_open()).
@@ -1528,24 +1529,25 @@ void MYSQL_LOG:: wait_for_update(THD* thd)
 
   SYNOPSIS
     close()
-    exiting	Set to 1 if we should also close the index file
-    		This can be set to 0 if we are going to do call open
-		at once after close, in which case we don't want to
-		close the index file.
-		We only write a 'stop' event to the log if exiting is set
+    exiting	Bitmask for one or more of the following bits:
+    		LOG_CLOSE_INDEX if we should close the index file
+		LOG_CLOSE_TO_BE_OPENED if we intend to call open
+		at once after close.
+		LOG_CLOSE_STOP_EVENT write a 'stop' event to the log
 
   NOTES
     One can do an open on the object at once after doing a close.
     The internal structures are not freed until cleanup() is called
 */
 
-void MYSQL_LOG::close(bool exiting)
+void MYSQL_LOG::close(uint exiting)
 {					// One can't set log_type here!
   DBUG_ENTER("MYSQL_LOG::close");
   DBUG_PRINT("enter",("exiting: %d", (int) exiting));
   if (is_open())
   {
-    if (log_type == LOG_BIN && !no_auto_events && exiting)
+    if (log_type == LOG_BIN && !no_auto_events &&
+	(exiting & LOG_CLOSE_STOP_EVENT))
     {
       Stop_log_event s;
       s.set_log_pos(this);
@@ -1565,7 +1567,7 @@ void MYSQL_LOG::close(bool exiting)
     called a not complete close earlier and the index file is still open.
   */
 
-  if (exiting && my_b_inited(&index_file))
+  if ((exiting & LOG_CLOSE_INDEX) && my_b_inited(&index_file))
   {
     end_io_cache(&index_file);
     if (my_close(index_file.file, MYF(0)) < 0 && ! write_error)
@@ -1574,7 +1576,7 @@ void MYSQL_LOG::close(bool exiting)
       sql_print_error(ER(ER_ERROR_ON_WRITE), index_file_name, errno);
     }
   }
-  log_type= LOG_CLOSED;
+  log_type= (exiting & LOG_CLOSE_TO_BE_OPENED) ? LOG_TO_BE_OPENED : LOG_CLOSED;
   safeFree(name);
   DBUG_VOID_RETURN;
 }
