@@ -17,6 +17,9 @@ insert into t1 values (""),(null);
 select * from t1;
 drop table t1;
 
+create table t1 (a int not null auto_increment,primary key (a)) type=heap;
+drop table t1;
+
 #
 # Test of some CREATE TABLE'S that should fail
 #
@@ -28,8 +31,6 @@ create table t2 select auto+1 from t1;
 drop table if exists t1,t2;
 --error 1167
 create table t1 (b char(0) not null, index(b));
---error 1164
-create table t1 (a int not null auto_increment,primary key (a)) type=heap;
 --error 1163
 create table t1 (a int not null,b text) type=heap;
 drop table if exists t1;
