@@ -1020,8 +1020,9 @@ loop:
 
 			if (recv_addr->state == RECV_NOT_PROCESSED) {
 				if (!has_printed) {
+	    				ut_print_timestamp(stderr);
 					fprintf(stderr, 
-"InnoDB: Starting an apply batch of log records to the database...\n"
+"  InnoDB: Starting an apply batch of log records to the database...\n"
 "InnoDB: Progress in percents: ");
 					has_printed = TRUE;
 				}

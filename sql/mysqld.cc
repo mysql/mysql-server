@@ -3309,10 +3309,11 @@ static void use_help(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright (C) 2000 MySQL AB & MySQL Finland AB, by Monty and others");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
-  puts("and you are welcome to modify and redistribute it under the GPL license\n");
-  puts("Starts the MySQL server\n");
+  puts("\
+Copyright (C) 2000 MySQL AB, by Monty and others\n\
+This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
+and you are welcome to modify and redistribute it under the GPL license\n\
+Starts the MySQL server\n");
 
   printf("Usage: %s [OPTIONS]\n", my_progname);
   puts("\n\

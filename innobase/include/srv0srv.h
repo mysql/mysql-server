@@ -250,6 +250,12 @@ mutex, for performace reasons). */
 void
 srv_active_wake_master_thread(void);
 /*===============================*/
+/***********************************************************************
+Wakes up the master thread if it is suspended or being suspended. */
+
+void
+srv_wake_master_thread(void);
+/*========================*/
 /*************************************************************************
 Puts an OS thread to wait if there are too many concurrent threads
 (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
