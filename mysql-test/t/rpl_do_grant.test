@@ -1,0 +1,46 @@
+# Test that GRANT and SET PASSWORD are replicated to the slave
+
+source include/master-slave.inc;
+
+# do not be influenced by other tests.
+connection master;
+delete from mysql.user where user='rpl_do_grant';
+delete from mysql.db where user='rpl_do_grant';
+flush privileges;
+save_master_pos;
+connection slave;
+sync_with_master;
+# if these DELETE did nothing on the master, we need to do them manually on the
+# slave.
+delete from mysql.user where user='rpl_ignore_grant';
+delete from mysql.db where user='rpl_ignore_grant';
+flush privileges;
+
+# test replication of GRANT
+connection master;
+grant select on *.* to rpl_do_grant@localhost;
+grant drop on test.* to rpl_do_grant@localhost;
+save_master_pos;
+connection slave;
+sync_with_master;
+show grants for rpl_do_grant@localhost;
+
+# test replication of SET PASSWORD
+connection master;
+set password for rpl_do_grant@localhost=password("does it work?");
+save_master_pos;
+connection slave;
+sync_with_master;
+select password<>'' from mysql.user where user='rpl_do_grant';
+
+# clear what we have done, to not influence other tests.
+connection master;
+delete from mysql.user where user='rpl_do_grant';
+delete from mysql.db where user='rpl_do_grant';
+flush privileges;
+save_master_pos;
+connection slave;
+sync_with_master;
+# no need to delete manually, as the DELETEs must have done some real job on
+# master (updated binlog)
+flush privileges;
