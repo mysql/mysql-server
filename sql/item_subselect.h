@@ -50,6 +50,8 @@ protected:
   table_map used_tables_cache;
   /* allowed number of columns (1 for single value subqueries) */
   uint max_columns;
+  /* where subquery is placed */
+  enum_parsing_place parsing_place;
   /* work with 'substitution' */
   bool have_to_be_excluded;
   /* cache of constant state */
