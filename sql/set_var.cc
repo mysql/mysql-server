@@ -88,6 +88,8 @@ static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
 static void fix_max_binlog_size(THD *thd, enum_var_type type);
 static void fix_max_relay_log_size(THD *thd, enum_var_type type);
 static void fix_max_connections(THD *thd, enum_var_type type);
+static void fix_thd_mem_root(THD *thd, enum_var_type type);
+static void fix_trans_mem_root(THD *thd, enum_var_type type);
 
 /*
   Variable definition list
@@ -209,13 +211,17 @@ sys_var_long_ptr	sys_query_cache_size("query_cache_size",
 sys_var_thd_ulong	sys_range_alloc_block_size("range_alloc_block_size",
 						   &SV::range_alloc_block_size);
 sys_var_thd_ulong	sys_query_alloc_block_size("query_alloc_block_size",
-						   &SV::query_alloc_block_size);
+						   &SV::query_alloc_block_size,
+						   fix_thd_mem_root);
 sys_var_thd_ulong	sys_query_prealloc_size("query_prealloc_size",
-						&SV::query_prealloc_size);
+						&SV::query_prealloc_size,
+						fix_thd_mem_root);
 sys_var_thd_ulong	sys_trans_alloc_block_size("transaction_alloc_block_size",
-						   &SV::trans_alloc_block_size);
+						   &SV::trans_alloc_block_size,
+						   fix_trans_mem_root);
 sys_var_thd_ulong	sys_trans_prealloc_size("transaction_prealloc_size",
-						&SV::trans_prealloc_size);
+						&SV::trans_prealloc_size,
+						fix_trans_mem_root);
 
 #ifdef HAVE_QUERY_CACHE
 sys_var_long_ptr	sys_query_cache_limit("query_cache_limit",
@@ -760,6 +766,24 @@ static void fix_max_relay_log_size(THD *thd, enum_var_type type)
 static void fix_max_connections(THD *thd, enum_var_type type)
 {
   resize_thr_alarm(max_connections + max_insert_delayed_threads + 10);
+}
+
+
+static void fix_thd_mem_root(THD *thd, enum_var_type type)
+{
+  if (type != OPT_GLOBAL)
+    reset_root_defaults(&thd->mem_root,
+                        thd->variables.query_alloc_block_size,
+                        thd->variables.query_prealloc_size);
+}
+
+
+static void fix_trans_mem_root(THD *thd, enum_var_type type)
+{
+  if (type != OPT_GLOBAL)
+    reset_root_defaults(&thd->transaction.mem_root,
+                        thd->variables.trans_alloc_block_size,
+                        thd->variables.trans_prealloc_size);
 }
 
 
