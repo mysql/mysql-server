@@ -4532,7 +4532,7 @@ MySQL Server also supports
 the following additional type attributes:
 @itemize @bullet
 @item
-@code{UNSIGNED} option for integer columns.
+@code{UNSIGNED} option for integer and floating point columns.
 @item
 @code{ZEROFILL} option for integer columns.
 @item
@@ -8148,6 +8148,10 @@ version 4.0;
 
 @itemize @bullet
 @item
+@code{DOUBLE} and @code{FLOAT} columns are now honoring the
+@code{UNSIGNED} flag on storage (before @code{UNSIGNED} was ignored for
+these columns).
+@item
 Use @code{ORDER BY column DESC} now always sorts @code{NULL} values
 first; In 3.23 this was not always consistent.
 @item
@@ -8176,6 +8180,9 @@ you need to rebuild them with @code{ALTER TABLE table_name TYPE=MyISAM},
 @item
 @code{LOCATE()} and @code{INSTR()} are case sensitive if one of the
 arguments is a binary string.
+@item
+@code{STRCMP()} now uses the current character set when doing comparison,
+which means that the default comparison is case insensitive.
 @item
 @code{HEX(string)} now returns the characters in string converted to
 hexadecimal.  If you want to convert a number to hexadecimal, you should
@@ -33467,8 +33474,6 @@ restrictions:
 @itemize @bullet
 @item
 Only the last @code{SELECT} command can have @code{INTO OUTFILE}.
-@item
-Only the last @code{SELECT} command can have @code{ORDER BY}.
 @end itemize
 
 If you don't use the keyword @code{ALL} for the @code{UNION}, all
@@ -33476,6 +33481,13 @@ returned rows will be unique, like if you had done a @code{DISTINCT} for
 the total result set.  If you specify @code{ALL}, then you will get all
 matching rows from all the used @code{SELECT} statements.
 
+If you want to use an @code{ORDER BY} for the total @code{UNION} result,
+you should use parentheses:
+
+@example
+(SELECT a FROM table_name WHERE a=10 AND B=1 ORDER BY a LIMIT 10) UNION
+(SELECT a FROM table_name WHERE a=11 AND B=2 ORDER BY a LIMIT 10) ORDER BY a;
+@end example
 
 @findex HANDLER
 @node HANDLER, INSERT, SELECT, Data Manipulation
@@ -41741,9 +41753,11 @@ set has been read.
 
 If you acquire a result set from a successful call to
 @code{mysql_store_result()}, the client receives the entire set in one
-operation.  In this case, a @code{NULL} return from @code{mysql_fetch_row()}
-always means the end of the result set has been reached and it is
-unnecessary to call @code{mysql_eof()}.
+operation.  In this case, a @code{NULL} return from
+@code{mysql_fetch_row()} always means the end of the result set has been
+reached and it is unnecessary to call @code{mysql_eof()}.  When used
+with @code{mysql_store_result()}, @code{mysql_eof()} will always return
+true.
 
 On the other hand, if you use @code{mysql_use_result()} to initiate a result
 set retrieval, the rows of the set are obtained from the server one by one as
@@ -48730,6 +48744,11 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+A lot of fixes to @code{UNION}.
+@item
+@code{DOUBLE} and @code{FLOAT} columns are now honoring the
+@code{UNSIGNED} flag on storage.
+@item
 Fixed bug with indexless boolean fulltext search.
 @item
 Fixed bug that sometimes appeared when fulltext search was used
@@ -48934,6 +48953,9 @@ now handle signed and unsigned @code{BIGINT} numbers correctly.
 @item
 New character set @code{latin_de} which provides correct German sorting.
 @item
+@code{STRCMP()} now uses the current character set when doing comparison,
+which means that the default comparison is case insensitive.
+@item
 @code{TRUNCATE TABLE} and @code{DELETE FROM table_name} are now separate
 functions. One bonus is that @code{DELETE FROM table_name} now returns
 the number of deleted rows.
@@ -49117,6 +49139,9 @@ not yet 100% confident in this code.
 @node News-3.23.50, News-3.23.49, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.50
 @itemize @bullet
+@item
+Our Linux RPMS and binaries are now compiled with gcc 3.0.4, which should
+make them a bit faster.
 @item
 Fixed problem with @code{SHOW CREATE TABLE} and @code{PRIMARY KEY} when using
 32 indexes.

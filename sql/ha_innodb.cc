@@ -2408,7 +2408,7 @@ ha_innobase::rnd_pos(
 	int		error;
 	uint		keynr	= active_index;
 	DBUG_ENTER("rnd_pos");
-	DBUG_DUMP("key", pos, ref_stored_len);
+	DBUG_DUMP("key", (char*) pos, ref_stored_len);
 
 	statistic_increment(ha_read_rnd_count, &LOCK_status);
 
@@ -2633,7 +2633,6 @@ ha_innobase::create(
 	dict_table_t*	innobase_table;
 	trx_t*		trx;
 	int		primary_key_no;
-	KEY*		key;
 	uint		i;
 	char		name2[FN_REFLEN];
 	char		norm_name[FN_REFLEN];
