@@ -99,7 +99,7 @@ public:
 
 template <> class Bitmap<64>
 {
-  longlong map;
+  ulonglong map;
 public:
   Bitmap(uint prefix_to_set=0) { set_prefix(prefix_to_set); }
   Bitmap<64>& init() { return *this; }
