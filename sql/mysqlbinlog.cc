@@ -55,7 +55,7 @@ static struct option long_options[] =
   {"password", required_argument,0, 'p'},
   {"position", required_argument,0, 'j'},
 #ifndef DBUG_OFF
-  {"debug", required_argument, 0, '#'}
+  {"debug", optional_argument, 0, '#'}
 #endif
 };
 
@@ -151,7 +151,7 @@ static int parse_args(int *argc, char*** argv)
 {
   int c, opt_index = 0;
 
-  while((c = getopt_long(*argc, *argv, "so:#:h:j:u:p:P:t:?", long_options,
+  while((c = getopt_long(*argc, *argv, "so:#::h:j:u:p:P:t:?", long_options,
 			 &opt_index)) != EOF)
   {
     switch(c)
@@ -310,48 +310,68 @@ Unfortunately, no sweepstakes today, adjusted position to 4\n");
 
 static void dump_local_log_entries(const char* logname)
 {
- FILE* file;
- int rec_count = 0;
+  File fd;
+  IO_CACHE cache,*file= &cache;
+  int rec_count = 0;
 
- if(logname && logname[0] != '-')
-   file = my_fopen(logname, O_RDONLY|O_BINARY, MYF(MY_WME));
- else
-   file = stdin;
+  if (logname && logname[0] != '-')
+  {
+    if ((fd = my_open(logname, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0)
+      exit(1);
+    if (init_io_cache(file, fd, 0, READ_CACHE, (my_off_t) position, 0,
+		      MYF(MY_WME | MY_NABP)))
+      exit(1);
+  }
+  else
+  {
+    if (init_io_cache(file, fileno(stdout), 0, READ_CACHE, (my_off_t) 0,
+		      0, MYF(MY_WME | MY_NABP | MY_DONT_CHECK_FILESIZE)))
+      exit(1);
+    if (position)
+    {
+      /* skip 'position' characters from stdout */
+      char buff[IO_SIZE];
+      my_off_t length,tmp;
+      for (length=position ; length > 0 ; length-=tmp)
+      {
+	tmp=min(length,sizeof(buff));
+	if (my_b_read(file,buff,tmp))
+	  exit(1);
+      }
+    }
+    file->pos_in_file=position;
+    file->seek_not_done=0;
+  }
 
- if(!file)
-   die("Could not open log file %s", logname);
-
- if(my_fseek(file, position, MY_SEEK_SET, MYF(MY_WME)))
-   die("failed on my_fseek()");
-
- if(!position)
-   {
-     char magic[4];
-     if (my_fread(file, (byte*) magic, sizeof(magic), MYF(MY_NABP|MY_WME)))
-       die("I/O error reading binlog magic number");
-     if(memcmp(magic, BINLOG_MAGIC, 4))
-       die("Bad magic number");
+  if (!position)
+  {
+    char magic[4];
+    if (my_b_read(file, (byte*) magic, sizeof(magic)))
+      die("I/O error reading binlog magic number");
+    if(memcmp(magic, BINLOG_MAGIC, 4))
+      die("Bad magic number");
   }
  
- while(1)
-   {
-     Log_event* ev = Log_event::read_log_event(file, 0);
-     if(!ev)
-       if(!feof(file))
+  while(1)
+  {
+    Log_event* ev = Log_event::read_log_event(file, 0);
+    if (!ev)
+    {
+      if (file->error)
 	die("Could not read entry at offset %ld : Error in log format or \
 read error",
-	   my_ftell(file, MYF(MY_WME)));
-       else
-	 break;
-
-     if(rec_count >= offset)
-       ev->print(stdout, short_form);
-     rec_count++;
-     delete ev;
-   }
-
- my_fclose(file, MYF(MY_WME));
+	    my_b_tell(file));
+      break;
+    }
+    if (rec_count >= offset)
+      ev->print(stdout, short_form);
+    rec_count++;
+    delete ev;
+  }
+  my_close(fd, MYF(MY_WME));
+  end_io_cache(file);
 }
+
 
 int main(int argc, char** argv)
 {
@@ -359,37 +379,37 @@ int main(int argc, char** argv)
   parse_args(&argc, (char***)&argv);
 
   if(!argc && !table)
-    {
-      usage();
-      return -1;
-    }
+  {
+    usage();
+    return -1;
+  }
 
   if(use_remote)
-    {
-      init_thr_alarm(10); // need to do this manually 
-      mysql = safe_connect();
-    }
+  {
+    init_thr_alarm(10); // need to do this manually 
+    mysql = safe_connect();
+  }
 
-  if(table)
-    {
-      if(!use_remote)
-	die("You must specify connection parameter to get table dump");
-      char* db = (char*)table;
-      char* tbl = (char*) strchr(table, '.');
-      if(!tbl)
-	die("You must use database.table syntax to specify the table");
-      *tbl++ = 0;
-      dump_remote_table(&mysql->net, db, tbl);
-    }
+  if (table)
+  {
+    if(!use_remote)
+      die("You must specify connection parameter to get table dump");
+    char* db = (char*)table;
+    char* tbl = (char*) strchr(table, '.');
+    if(!tbl)
+      die("You must use database.table syntax to specify the table");
+    *tbl++ = 0;
+    dump_remote_table(&mysql->net, db, tbl);
+  }
   else
-   while(--argc >= 0)
+  {
+    while(--argc >= 0)
     {
       dump_log_entries(*(argv++));
     }
-
-  if(use_remote)
+  }
+  if (use_remote)
     mc_mysql_close(mysql);
-
   return 0;
 }
 

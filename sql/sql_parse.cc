@@ -2439,7 +2439,7 @@ bool reload_acl_and_cache(THD *thd, uint options, TABLE_LIST *tables)
   bool result=0;
 
   select_errors=0;				/* Write if more errors */
-  mysql_log.flush();				// Flush log
+  // mysql_log.flush();				// Flush log
   if (options & REFRESH_GRANT)
   {
     acl_reload();

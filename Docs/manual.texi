@@ -3610,10 +3610,13 @@ similar system. In the worst case, we may require access to your system
 to be able to create a binary distribution.
 
 @item
-If you can provide accommodations and pay for traveler fares, you can even
-get a @strong{MySQL} developer to visit you and offer you help with your
-troubles. Extended login support entitles you to one personal
-encounter per year, but we are always very flexible towards our customers!
+If you can provide accommodations and pay for traveler fares, you can
+even get a @strong{MySQL} developer to visit you and offer you help with
+your troubles. Extended login support entitles you to one personal
+encounter per year, but we are always very flexible towards our
+customers!  If the visit takes 16 hours or more, the first 8 hours is
+without charge.  For the hours above 8 hours, you will be charged with a
+rate that is at least 20 % less than our standard rates.
 @end itemize
 
 @node Installing, Compatibility, Licensing and Support, Top
@@ -38366,6 +38369,9 @@ though, so 3.23 is not released as a stable version yet.
 @node News-3.23.28, News-3.23.27, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.28
 @itemize @bullet
+@item
+Changed all log files to use our own IO_CACHE mechanism instead of
+FILE:s to avoid OS problems when there is many files open.
 @item
 Added options @code{--open-files} and @code{--timezone} to @code{safe_mysqld}.
 @item
