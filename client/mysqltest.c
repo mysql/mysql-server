@@ -220,7 +220,8 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname);
 void reject_dump(const char* record_file, char* buf, int size);
 
 int close_connection(struct st_query* q);
-VAR* var_get(const char* var_name, const char** var_name_end, int raw);
+VAR* var_get(const char* var_name, const char** var_name_end, int raw,
+             my_bool ignore_not_existing);
 int eval_expr(VAR* v, const char* p, const char** p_end);
 
 /* Definitions for replace */
@@ -277,7 +278,7 @@ static void do_eval(DYNAMIC_STRING* query_eval, const char* query)
 	    }
 	  else
 	    {
-	      if(!(v = var_get(p, &p, 0)))
+	      if(!(v = var_get(p, &p, 0, 0)))
 		die("Bad variable in eval");
 	      dynstr_append_mem(query_eval, v->str_val, v->str_val_len);
 	    }
@@ -486,7 +487,8 @@ static int check_result(DYNAMIC_STRING* ds, const char* fname,
   return error;
 }
 
-VAR* var_get(const char* var_name, const char** var_name_end, int raw)
+VAR* var_get(const char* var_name, const char** var_name_end, int raw,
+             my_bool ignore_not_existing)
 {
   int digit;
   VAR* v;
@@ -507,7 +509,11 @@ VAR* var_get(const char* var_name, const char** var_name_end, int raw)
       ++var_name;
     }
     if(var_name == save_var_name)
+    {
+      if (ignore_not_existing)
+	return 0;
       die("Empty variable");
+    }
     
     if(!(v = (VAR*)hash_search(&var_hash, save_var_name,
 			       var_name - save_var_name)))
@@ -629,7 +635,7 @@ int eval_expr(VAR* v, const char* p, const char** p_end)
   VAR* vp;
   if (*p == '$')
     {
-      if ((vp = var_get(p,p_end,0)))
+      if ((vp = var_get(p,p_end,0, 0)))
 	{
 	  memcpy(v, vp, sizeof(*v));
 	  return 0;
@@ -671,7 +677,7 @@ int do_inc(struct st_query* q)
 {
   char* p=q->first_argument;
   VAR* v;
-  v = var_get(p, 0, 1);
+  v = var_get(p, 0, 1, 0);
   v->int_val++;
   v->int_dirty = 1;
   return 0;
@@ -681,7 +687,7 @@ int do_dec(struct st_query* q)
 {
   char* p=q->first_argument;
   VAR* v;
-  v = var_get(p, 0, 1);
+  v = var_get(p, 0, 1, 0);
   v->int_val--;
   v->int_dirty = 1;
   return 0;
@@ -909,14 +915,16 @@ static void get_ints(uint *to,struct st_query* q)
 /*
   Get a string;  Return ptr to end of string
   Strings may be surrounded by " or '
+
+  If string is a '$variable', return the value of the variable.
 */
 
 
-static void get_string(char **to_ptr, char **from_ptr,
-		       struct st_query* q)
+static char *get_string(char **to_ptr, char **from_ptr,
+                        struct st_query* q)
 {
   reg1 char c,sep;
-  char *to= *to_ptr, *from= *from_ptr;
+  char *to= *to_ptr, *from= *from_ptr, *start=to;
   DBUG_ENTER("get_string");
 
   /* Find separator */
@@ -969,6 +977,19 @@ static void get_string(char **to_ptr, char **from_ptr,
   *to++ =0;				/* End of string marker */
   *to_ptr= to;
   *from_ptr= from;
+
+  /* Check if this was a variable */
+  if (*start == '$')
+  {
+    const char *end= --to;
+    VAR *var=var_get(start, &end, 0, 1);
+    if (var && to == (char*) end+1)
+    {
+      DBUG_PRINT("info",("get_string: '%s' -> '%s'", start, var->str_val));
+      DBUG_RETURN(var->str_val);	/* return found variable value */
+    }
+  }
+  DBUG_RETURN(start);
 }
 
 
@@ -994,13 +1015,12 @@ static void get_replace(struct st_query *q)
   start=buff=my_malloc(strlen(from)+1,MYF(MY_WME | MY_FAE));
   while (*from)
   {
-    char *to=buff;
-    get_string(&buff, &from, q);
+    char *to;
+    to= get_string(&buff, &from, q);
     if (!*from)
       die("Wrong number of arguments to replace in %s\n", q->query);
     insert_pointer_name(&from_array,to);
-    to=buff;
-    get_string(&buff, &from, q);
+    to= get_string(&buff, &from, q);
     insert_pointer_name(&to_array,to);
   }
   for (i=1,pos=word_end_chars ; i < 256 ; i++)
