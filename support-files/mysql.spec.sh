@@ -74,6 +74,7 @@ Group: Applications/Databases
 Summary(pt_BR): MySQL - Cliente
 Group(pt_BR): Aplicações/Banco_de_Dados
 Obsoletes: mysql-client
+Provides: mysql-client
 
 %description client
 This package contains the standard MySQL clients. 
@@ -90,6 +91,7 @@ Summary: MySQL - Benchmarks and test system
 Group: Applications/Databases
 Summary(pt_BR): MySQL - Medições de desempenho
 Group(pt_BR): Aplicações/Banco_de_Dados
+Provides: mysql-bench
 Obsoletes: mysql-bench
 
 %description bench
@@ -107,6 +109,7 @@ Summary: MySQL - Development header files and libraries
 Group: Applications/Databases
 Summary(pt_BR): MySQL - Medições de desempenho
 Group(pt_BR): Aplicações/Banco_de_Dados
+Provides: mysql-devel
 Obsoletes: mysql-devel
 
 %description devel
@@ -132,6 +135,7 @@ languages and applications need to dynamically load and use MySQL.
 Release: %{release}
 Summary: MySQL - server with Berkeley DB and Innodb support
 Group: Applications/Databases
+Provides: mysql-Max
 Obsoletes: mysql-Max
 
 %description Max 
@@ -202,6 +206,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
 
 # Use the build root for temporary storage of the shared libraries.
 
+OTHER_LIBC_DIR=/usr/local/mysql-glibc
 RBR=$RPM_BUILD_ROOT
 MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}
 if test -z "$RBR" -o "$RBR" = "/"
@@ -212,16 +217,25 @@ fi
 rm -rf $RBR
 mkdir -p $RBR
 
-# Build the shared libraries and mysqld-max
+# We need to build shared libraries separate from mysqld-max because we
+# are using --with-other-libc
 
-BuildMySQL "--enable-shared --with-berkeley-db --with-innodb --with-mysqld-ldflags='-all-static' --with-server-suffix='-Max'"
+BuildMySQL "--disable-shared --with-other-libc=$OTHER_LIBC_DIR --with-berkeley-db --with-innodb --with-mysqld-ldflags='-all-static' --with-server-suffix='-Max'"
 
 # Save everything for debug
 # tar cf $RBR/all.tar .
 
-# Save shared libraries and mysqld-max
+# Save mysqld-max
 mv sql/mysqld sql/mysqld-max
 nm --numeric-sort sql/mysqld-max > sql/mysqld-max.sym
+
+# Save manual to avoid rebuilding
+mv Docs/manual.ps Docs/manual.ps.save
+make distclean
+mv Docs/manual.ps.save Docs/manual.ps
+
+#now build and save shared libraries
+BuildMySQL "--enable-shared --enable-thread-safe-client --without-server "
 (cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
 (cd libmysql_r/.libs; tar rf $RBR/shared-libs.tar *.so*)
 
@@ -236,7 +250,8 @@ automake
 BuildMySQL "--disable-shared" \
 	   "--with-mysqld-ldflags='-all-static'" \
 	   "--with-client-ldflags='-all-static'" \
-	   "--without-berkeley-db --with-innodb"
+  	   "--with-other-libc=$OTHER_LIBC_DIR" \
+	   "--without-berkeley-db --without-innodb"
 nm --numeric-sort sql/mysqld > sql/mysqld.sym
 
 %install -n mysql-%{mysql_version}
@@ -319,7 +334,7 @@ chmod -R og-rw $mysql_datadir/mysql
 # Restart in the same way that mysqld will be started normally.
 /etc/rc.d/init.d/mysql start
 
-# Allow mysqld_safe to start mysqld and print a message before we exit
+# Allow safe_mysqld to start mysqld and print a message before we exit
 sleep 2
 
 %post Max
@@ -416,7 +431,7 @@ fi
 %files devel
 %attr(755, root, root) /usr/bin/comp_err
 %attr(755, root, root) /usr/include/mysql/
-%attr(755, root, root) /usr/lib/mysql/
+%attr(755, root, root) /usr/lib/mysql/*.a
 %attr(755, root, root) /usr/bin/mysql_config
 
 %files shared

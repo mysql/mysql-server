@@ -48637,6 +48637,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed bug in truncation operator for boolean fulltext search.
+@item
 Allow numeric user id to @code{mysqld --user=#}.
 @item
 Fixed a bug where @code{SQL_CALC_ROWS} returned a wrong value when used
@@ -48948,6 +48950,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.50::                Changes in release 3.23.50
 * News-3.23.49::                Changes in release 3.23.49
 * News-3.23.48::                Changes in release 3.23.48
 * News-3.23.47::                Changes in release 3.23.47
@@ -49001,7 +49004,14 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.49, News-3.23.48, News-3.23.x, News-3.23.x
+@node News-3.23.50, News-3.23.49, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.50
+@itemize @bullet
+@item
+Memory leak (16 bytes per every @strong{corrupted} table) closed.
+@end itemize
+
+@node News-3.23.49, News-3.23.48, News-3.23.50, News-3.23.x
 @appendixsubsec Changes in release 3.23.49
 @itemize @bullet
 @item

@@ -129,3 +129,13 @@ check table t1;
 update t1 set title='this test once revealed a bug' where id=1;
 select * from t1;
 update t1 set title=NULL where id=1;
+
+drop table t1;
+
+# one more bug - const_table related
+
+CREATE TABLE t1 (a int(11), b text, FULLTEXT KEY (b)) TYPE=MyISAM;
+insert into t1 values (1,"I wonder why the fulltext index doesnt work?");
+SELECT * from t1 where MATCH (b) AGAINST ('apples');
+
+drop table t1;

@@ -150,3 +150,9 @@ select * from t1;
 id	title
 1	this test once revealed a bug
 update t1 set title=NULL where id=1;
+drop table t1;
+CREATE TABLE t1 (a int(11), b text, FULLTEXT KEY (b)) TYPE=MyISAM;
+insert into t1 values (1,"I wonder why the fulltext index doesnt work?");
+SELECT * from t1 where MATCH (b) AGAINST ('apples');
+a	b
+drop table t1;

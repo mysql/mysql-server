@@ -982,7 +982,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       s->dependent=(table_map) 0;
     s->key_dependent=(table_map) 0;
     if ((table->system || table->file->records <= 1) && ! s->dependent &&
-	!(table->file->option_flag() & HA_NOT_EXACT_COUNT))
+	!(table->file->option_flag() & HA_NOT_EXACT_COUNT) &&
+        !table->fulltext_searched)
     {
       set_position(join,const_count++,s,(KEYUSE*) 0);
     }
