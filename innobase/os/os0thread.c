@@ -122,7 +122,7 @@ os_thread_yield(void)
 #ifdef __WIN__	
 	Sleep(0);
 #else
-	os_thread_sleep(0);
+	pthread_yield();
 #endif
 }
 
