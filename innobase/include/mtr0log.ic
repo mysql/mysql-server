@@ -167,7 +167,7 @@ mlog_write_initial_log_record_fast(
 	        fprintf(stderr,
 	"InnoDB: error: buffer page pointer %lx has nonsensical space id %lu\n"
 	"InnoDB: or page no %lu\n", (ulint)ptr, space, offset);
-	        ut_a(0);
+	        ut_error;
 	}
 
 	mach_write_to_1(log_ptr, type);

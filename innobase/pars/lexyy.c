@@ -627,7 +627,7 @@ Linux.
 #define malloc(A)	mem_alloc(A)
 #define free(A)		mem_free(A)
 #define realloc(P, A)	mem_realloc(P, A, __FILE__, __LINE__)
-#define exit(A) 	ut_a(0)
+#define exit(A) 	ut_error
 
 #define YY_INPUT(buf, result, max_size) pars_get_lex_chars(buf, &result, max_size)
 #define comment 1

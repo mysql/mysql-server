@@ -216,7 +216,7 @@ dtype_get_fixed_size(
 	case DATA_VARMYSQL:
 	case DATA_BLOB:
 			return(0); 
-	default:	ut_a(0);
+	default:	ut_error;
 	}
 
 	return(0);

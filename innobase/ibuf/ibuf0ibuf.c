@@ -2651,7 +2651,7 @@ loop:
 			fprintf(stderr,
 "InnoDB: Fatal error: you are downgrading from >= 4.1.1 to 4.0, but\n"
 "InnoDB: the insert buffer was not empty.\n");
-			ut_a(0);
+			ut_error;
 		}
 
 		if (corruption_noticed) {

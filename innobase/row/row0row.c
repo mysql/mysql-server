@@ -406,7 +406,7 @@ row_build_row_ref_in_tuple(
 	if (!table) {
 		fprintf(stderr, "InnoDB: table %s for index %s not found\n",
 				index->table_name, index->name);
-		ut_a(0);
+		ut_error;
 	}
 	
 	clust_index = dict_table_get_first_index(table);
@@ -415,7 +415,7 @@ row_build_row_ref_in_tuple(
 		fprintf(stderr,
                 "InnoDB: clust index for table %s for index %s not found\n",
 				index->table_name, index->name);
-		ut_a(0);
+		ut_error;
 	}
 	
 	ref_len = dict_index_get_n_unique(clust_index);
