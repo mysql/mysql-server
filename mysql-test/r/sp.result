@@ -734,8 +734,8 @@ chistics	1
 delete from t1|
 alter procedure chistics sql security invoker name chistics2|
 show create procedure chistics2|
-Procedure	Create Procedure
-chistics2	CREATE PROCEDURE `test`.`chistics2`()
+Procedure	sql_mode	Create Procedure
+chistics2		CREATE PROCEDURE `test`.`chistics2`()
     SQL SECURITY INVOKER
     COMMENT 'Characteristics procedure test'
 insert into t1 values ("chistics", 1)
@@ -751,8 +751,8 @@ chistics()
 42
 alter function chistics name chistics2 comment 'Characteristics function test'|
 show create function chistics2|
-Function	Create Function
-chistics2	CREATE FUNCTION `test`.`chistics2`() RETURNS int
+Function	sql_mode	Create Function
+chistics2		CREATE FUNCTION `test`.`chistics2`() RETURNS int
     DETERMINISTIC
     SQL SECURITY INVOKER
     COMMENT 'Characteristics function test'
@@ -980,14 +980,14 @@ call bug2267_2()|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 test	fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
 call bug2267_3()|
-Procedure	Create Procedure
-bug2267_1	CREATE PROCEDURE `test`.`bug2267_1`()
+Procedure	sql_mode	Create Procedure
+bug2267_1		CREATE PROCEDURE `test`.`bug2267_1`()
 begin
 show procedure status;
 end
 call bug2267_4()|
-Function	Create Function
-fac	CREATE FUNCTION `test`.`fac`(n int unsigned) RETURNS bigint unsigned
+Function	sql_mode	Create Function
+fac		CREATE FUNCTION `test`.`fac`(n int unsigned) RETURNS bigint unsigned
 begin
 declare f bigint unsigned default 1;
 while n > 1 do
@@ -1318,6 +1318,41 @@ s1
 drop procedure bug2460_1|
 drop procedure bug2460_2|
 drop table t3|
+set @@sql_mode = ''|
+create procedure bug2564_1()
+comment 'Joe''s procedure'
+  insert into `t1` values ("foo", 1)|
+set @@sql_mode = 'ANSI_QUOTES'|
+create procedure bug2564_2()
+insert into "t1" values ('foo', 1)|
+set @@sql_mode = ''$
+create function bug2564_3(x int, y int) returns int
+return x || y$
+set @@sql_mode = 'ANSI'$
+create function bug2564_4(x int, y int) returns int
+return x || y$
+set @@sql_mode = ''|
+show create procedure bug2564_1|
+Procedure	sql_mode	Create Procedure
+bug2564_1		CREATE PROCEDURE `test`.`bug2564_1`()
+    COMMENT 'Joe''s procedure'
+insert into `t1` values ("foo", 1)
+show create procedure bug2564_2|
+Procedure	sql_mode	Create Procedure
+bug2564_2	ANSI_QUOTES	CREATE PROCEDURE "test"."bug2564_2"()
+insert into "t1" values ('foo', 1)
+show create function bug2564_3|
+Function	sql_mode	Create Function
+bug2564_3		CREATE FUNCTION `test`.`bug2564_3`(x int, y int) RETURNS int
+return x || y
+show create function bug2564_4|
+Function	sql_mode	Create Function
+bug2564_4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	CREATE FUNCTION "test"."bug2564_4"(x int, y int) RETURNS int
+return x || y
+drop procedure bug2564_1|
+drop procedure bug2564_2|
+drop function bug2564_3|
+drop function bug2564_4|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)
@@ -1423,8 +1458,8 @@ end;
 end while;
 end|
 show create procedure opp|
-Procedure	Create Procedure
-opp	CREATE PROCEDURE `test`.`opp`(n bigint unsigned, out pp bool)
+Procedure	sql_mode	Create Procedure
+opp		CREATE PROCEDURE `test`.`opp`(n bigint unsigned, out pp bool)
 begin
 declare r double;
 declare b, s bigint unsigned default 0;
@@ -1520,8 +1555,8 @@ alter procedure bar name bar2 comment "2222222222" sql security definer|
 alter procedure bar2 name bar comment "3333333333"|
 alter procedure bar|
 show create procedure bar|
-Procedure	Create Procedure
-bar	CREATE PROCEDURE `test`.`bar`(x char(16), y int)
+Procedure	sql_mode	Create Procedure
+bar		CREATE PROCEDURE `test`.`bar`(x char(16), y int)
     COMMENT '3333333333'
 insert into test.t1 values (x, y)
 show procedure status like 'bar'|
