@@ -261,6 +261,8 @@ int mysql_update(THD *thd,
 	  }
 	}
       }
+      if (thd->killed && !error)
+	error= 1;				// Aborted
       limit= tmp_limit;
       end_read_record(&info);
       /* Change select to use tempfile */
@@ -333,6 +335,8 @@ int mysql_update(THD *thd,
       table->file->unlock_row();
     thd->row_count++;
   }
+  if (thd->killed && !error)
+    error= 1;					// Aborted
   end_read_record(&info);
   free_io_cache(table);				// If ORDER BY
   thd->proc_info="end";
@@ -937,14 +941,16 @@ int multi_update::do_updates(bool from_send_error)
     DBUG_RETURN(0);
   for (cur_table= update_tables; cur_table ; cur_table= cur_table->next)
   {
+    byte *ref_pos;
+    TABLE *tmp_table;
+ 
     table = cur_table->table;
     if (table == table_to_update)
       continue;					// Already updated
-
     org_updated= updated;
-    byte *ref_pos;
-    TABLE *tmp_table= tmp_tables[cur_table->shared];
+    tmp_table= tmp_tables[cur_table->shared];
     tmp_table->file->extra(HA_EXTRA_CACHE);	// Change to read cache
+    (void) table->file->rnd_init(0);
     table->file->extra(HA_EXTRA_NO_CACHE);
 
     /*
@@ -1011,6 +1017,7 @@ int multi_update::do_updates(bool from_send_error)
       else
 	trans_safe= 0;				// Can't do safe rollback
     }
+    (void) table->file->rnd_end();
   }
   DBUG_RETURN(0);
 

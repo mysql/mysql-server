@@ -20,6 +20,7 @@ rw_lock_s_lock_spin(
 				be passed to another thread to unlock */
 	char*		file_name,/* in: file name where lock requested */
 	ulint		line);	/* in: line where requested */
+#ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 Inserts the debug information for an rw-lock. */
 
@@ -40,7 +41,7 @@ rw_lock_remove_debug_info(
 	rw_lock_t*	lock,		/* in: rw-lock */
 	ulint		pass,		/* in: pass value */
 	ulint		lock_type);	/* in: lock type */
-
+#endif /* UNIV_SYNC_DEBUG */
 
 /************************************************************************
 Accessor functions for rw lock. */
@@ -132,8 +133,9 @@ rw_lock_s_lock_low(
 	char*		file_name, /* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(rw_lock_get_mutex(lock)));
-
+#endif /* UNIV_SYNC_DEBUG */
 	/* Check if the writer field is free */
 
 	if (lock->writer == RW_LOCK_NOT_LOCKED) {
@@ -144,7 +146,6 @@ rw_lock_s_lock_low(
 		rw_lock_add_debug_info(lock, pass, RW_LOCK_SHARED, file_name,
 									line);
 #endif
-		
 		lock->last_s_file_name = file_name;
 		lock->last_s_line = line;
 
@@ -236,7 +237,9 @@ rw_lock_s_lock_func(
 	the threads which have s-locked a latch. This would use some CPU
 	time. */
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED)); /* see NOTE above */
+#endif /* UNIV_SYNC_DEBUG */
 
 	mutex_enter(rw_lock_get_mutex(lock));
 

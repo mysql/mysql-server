@@ -255,7 +255,9 @@ log_block_init(
 {
 	ulint	no;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	no = log_block_convert_lsn_to_no(lsn);
 	
@@ -277,7 +279,9 @@ log_block_init_in_old_format(
 {
 	ulint	no;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	no = log_block_convert_lsn_to_no(lsn);
 	
@@ -407,7 +411,9 @@ log_get_online_backup_lsn_low(void)
 				/* out: online_backup_lsn, the caller must
 				own the log_sys mutex */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(log_sys->online_backup_state);
 
 	return(log_sys->online_backup_lsn);
@@ -422,7 +428,9 @@ log_get_online_backup_state_low(void)
 				/* out: online backup state, the caller must
 				own the log_sys mutex */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	return(log_sys->online_backup_state);
 }

@@ -262,6 +262,12 @@ a	b
 0	2
 3	4
 drop table t1;
+create table `t1 `(a int);
+Incorrect table name 't1 '
+create database `db1 `;
+Incorrect database name 'db1 '
+create table t1(`a ` int);
+Incorrect column name 'a '
 create table t1 (a int, key(a));
 create table t2 (b int, foreign key(b) references t1(a), key(b));
 drop table if exists t1,t2;

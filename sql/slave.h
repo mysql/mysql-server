@@ -35,12 +35,19 @@
 /*
   MUTEXES in replication:
 
-  LOCK_active_mi: this is meant for multimaster, when we can switch from a
-  master to another. It protects active_mi. We don't care of it for the moment,
-  as active_mi never moves (it's created at startup and deleted at shutdown,
-  and not changed: it always points to the same MASTER_INFO struct), because we
-  don't have multimaster. So for the moment, mi does not move, and mi->rli does
-  not either.
+  LOCK_active_mi: [note: this was originally meant for multimaster, to switch
+  from a master to another, to protect active_mi] It is used to SERIALIZE ALL
+  administrative commands of replication: START SLAVE, STOP SLAVE, CHANGE
+  MASTER, RESET SLAVE, end_slave() (when mysqld stops) [init_slave() does not
+  need it it's called early]. Any of these commands holds the mutex from the
+  start till the end. This thus protects us against a handful of deadlocks
+  (consider start_slave_thread() which, when starting the I/O thread, releases
+  mi->run_lock, keeps rli->run_lock, and tries to re-acquire mi->run_lock).
+
+  Currently active_mi never moves (it's created at startup and deleted at
+  shutdown, and not changed: it always points to the same MASTER_INFO struct),
+  because we don't have multimaster. So for the moment, mi does not move, and
+  mi->rli does not either.
 
   In MASTER_INFO: run_lock, data_lock
   run_lock protects all information about the run state: slave_running, and the
@@ -51,6 +58,9 @@
   In RELAY_LOG_INFO: run_lock, data_lock
   see MASTER_INFO
   
+  Order of acquisition: if you want to have LOCK_active_mi and a run_lock, you
+  must acquire LOCK_active_mi first.
+
   In MYSQL_LOG: LOCK_log, LOCK_index of the binlog and the relay log
   LOCK_log: when you write to it. LOCK_index: when you create/delete a binlog
   (so that you have to update the .index file).
@@ -73,18 +83,6 @@ enum enum_binlog_formats {
   BINLOG_FORMAT_323_GEQ_57 };
 
 /*
-  TODO: this needs to be redone, but for now it does not matter since
-  we do not have multi-master yet.
-*/
-
-#define LOCK_ACTIVE_MI { pthread_mutex_lock(&LOCK_active_mi); \
- ++active_mi_in_use; \
- pthread_mutex_unlock(&LOCK_active_mi);}
-
-#define UNLOCK_ACTIVE_MI { pthread_mutex_lock(&LOCK_active_mi); \
- --active_mi_in_use; \
- pthread_mutex_unlock(&LOCK_active_mi); }
-
 /*****************************************************************************
 
   Replication SQL Thread
@@ -206,12 +204,16 @@ typedef struct st_relay_log_info
   bool ignore_log_space_limit;
 
   /*
-    InnoDB internally stores the master log position it has processed
-    so far; the position to store is really the sum of 
-    pos + pending + event_len here since we must store the pos of the
-    END of the current log event
+    When it commits, InnoDB internally stores the master log position it has
+    processed so far; the position to store is the one of the end of the
+    committing event (the COMMIT query event, or the event if in autocommit
+    mode).
   */
-  int event_len;
+#if MYSQL_VERSION_ID < 40100
+  ulonglong future_master_log_pos;
+#else
+  ulonglong future_group_master_log_pos;
+#endif
 
   time_t last_master_timestamp; 
 
@@ -550,7 +552,6 @@ extern "C" pthread_handler_decl(handle_slave_io,arg);
 extern "C" pthread_handler_decl(handle_slave_sql,arg);
 extern bool volatile abort_loop;
 extern MASTER_INFO main_mi, *active_mi; /* active_mi for multi-master */
-extern volatile int active_mi_in_use;
 extern LIST master_list;
 extern HASH replicate_do_table, replicate_ignore_table;
 extern DYNAMIC_ARRAY  replicate_wild_do_table, replicate_wild_ignore_table;

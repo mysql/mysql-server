@@ -876,36 +876,46 @@ int do_exec(struct st_query* q)
   if (!*cmd)
     die("Missing argument in exec\n");
 
-  if (q->record_file[0])
+  if (disable_result_log)
   {
-    init_dynamic_string(&ds_tmp, "", 16384, 65536);
-    ds= &ds_tmp;
+    if (!(res_file= popen(cmd, "r")) && q->abort_on_error)
+      die("popen() failed\n");
+    while (fgets(buf, sizeof(buf), res_file));
+    pclose(res_file);
   }
   else
-    ds= &ds_res;
+  {
+    if (q->record_file[0])
+    {
+      init_dynamic_string(&ds_tmp, "", 16384, 65536);
+      ds= &ds_tmp;
+    }
+    else
+      ds= &ds_res;
 
-  if (!(res_file= popen(cmd, "r")) && q->abort_on_error)
-    die("popen() failed\n");
-  while (fgets(buf, sizeof(buf), res_file))
-    replace_dynstr_append_mem(ds, buf, strlen(buf));
-  pclose(res_file);
+    if (!(res_file= popen(cmd, "r")) && q->abort_on_error)
+      die("popen() failed\n");
+    while (fgets(buf, sizeof(buf), res_file))
+      replace_dynstr_append_mem(ds, buf, strlen(buf));
+    pclose(res_file);
   
-  if (glob_replace)
-    free_replace();
+    if (glob_replace)
+      free_replace();
 
-  if (record)
-  {
-    if (!q->record_file[0] && !result_file)
-      die("At line %u: Missing result file", start_lineno);
-    if (!result_file)
-      str_to_file(q->record_file, ds->str, ds->length);
+    if (record)
+    {
+      if (!q->record_file[0] && !result_file)
+        die("At line %u: Missing result file", start_lineno);
+      if (!result_file)
+        str_to_file(q->record_file, ds->str, ds->length);
+    }
+    else if (q->record_file[0])
+    {
+      error= check_result(ds, q->record_file, q->require_file);
+    }
+    if (ds == &ds_tmp)
+      dynstr_free(&ds_tmp);
   }
-  else if (q->record_file[0])
-  {
-    error= check_result(ds, q->record_file, q->require_file);
-  }
-  if (ds == &ds_tmp)
-    dynstr_free(&ds_tmp);
   
   return error;
 }
@@ -1902,7 +1912,7 @@ static struct my_option my_long_options[] =
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection.", (gptr*) &port,
-   (gptr*) &port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &port, 0, GET_INT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0, 0},
   {"quiet", 's', "Suppress all normal output.", (gptr*) &silent,
    (gptr*) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"record", 'r', "Record output of test_file into result file.",
@@ -2305,7 +2315,8 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	  {
 	    if (i)
 	      dynstr_append_mem(ds, "\t", 1);
-	    dynstr_append(ds, fields[i].name);
+	    replace_dynstr_append_mem(ds, fields[i].name,
+				      strlen(fields[i].name));
 	  }
 	  dynstr_append_mem(ds, "\n", 1);
 	}

@@ -119,6 +119,15 @@ ASIN(0.8+0.2)
 SELECT ASIN(1.2-0.2);
 ASIN(1.2-0.2)
 1.570796
+select floor(log(4)/log(2));
+floor(log(4)/log(2))
+2
+select floor(log(8)/log(2));
+floor(log(8)/log(2))
+3
+select floor(log(16)/log(2));
+floor(log(16)/log(2))
+4
 explain extended select degrees(pi()),radians(360);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used

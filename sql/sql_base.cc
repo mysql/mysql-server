@@ -46,12 +46,12 @@ extern "C" byte *table_cache_key(const byte *record,uint *length,
   return (byte*) entry->table_cache_key;
 }
 
-void table_cache_init(void)
+bool table_cache_init(void)
 {
-  VOID(hash_init(&open_cache,&my_charset_bin,
-		 table_cache_size+16,0,0,table_cache_key,
-		 (hash_free_key) free_cache_entry,0));
   mysql_rm_tmp_tables();
+  return hash_init(&open_cache, &my_charset_bin, table_cache_size+16,
+		   0, 0,t able_cache_key,
+		   (hash_free_key) free_cache_entry, 0) != 0;
 }
 
 void table_cache_free(void)
@@ -520,6 +520,16 @@ void close_temporary_tables(THD *thd)
     /* The -1 is to remove last ',' */
     thd->clear_error();
     Query_log_event qinfo(thd, query, (ulong)(end-query)-1, 0);
+    /*
+      Imagine the thread had created a temp table, then was doing a SELECT, and
+      the SELECT was killed. Then it's not clever to mark the statement above as
+      "killed", because it's not really a statement updating data, and there
+      are 99.99% chances it will succeed on slave.
+      If a real update (one updating a persistent table) was killed on the
+      master, then this real update will be logged with error_code=killed,
+      rightfully causing the slave to stop.
+    */
+    qinfo.error_code= 0;
     mysql_bin_log.write(&qinfo);
   }
   thd->temporary_tables=0;
@@ -1762,7 +1772,11 @@ bool rm_temporary_table(enum db_type base, char *path)
   *fn_ext(path)='\0';				// remove extension
   handler *file=get_new_handler((TABLE*) 0, base);
   if (file && file->delete_table(path))
+  {
     error=1;
+    sql_print_error("Warning: Could not remove tmp table: '%s', error: %d",
+		    path, my_errno);
+  }
   delete file;
   DBUG_RETURN(error);
 }
@@ -2596,7 +2610,8 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
       if (table->db_stat)
 	result=1;
       /* Kill delayed insert threads */
-      if (in_use->system_thread && ! in_use->killed)
+      if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
+          ! in_use->killed)
       {
 	in_use->killed=1;
 	pthread_mutex_lock(&in_use->mysys_var->mutex);

@@ -238,9 +238,9 @@ btr_pcur_restore_position(
 					    cursor->block_when_stored, page,
 					    cursor->modify_clock, mtr)) {
 			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
-
+#ifdef UNIV_SYNC_DEBUG
 			buf_page_dbg_add_level(page, SYNC_TREE_NODE);
-			
+#endif /* UNIV_SYNC_DEBUG */
 			if (cursor->rel_pos == BTR_PCUR_ON) {
 
 				cursor->latch_mode = latch_mode;

@@ -18,21 +18,20 @@
 noinst_HEADERS = btr0btr.h btr0btr.ic btr0cur.h btr0cur.ic \
         btr0pcur.h btr0pcur.ic btr0sea.h btr0sea.ic btr0types.h \
         buf0buf.h buf0buf.ic buf0flu.h buf0flu.ic buf0lru.h \
-        buf0lru.ic buf0rea.h buf0types.h com0com.h com0com.ic \
-        com0shm.h com0shm.ic data0data.h data0data.ic data0type.h \
+        buf0lru.ic buf0rea.h buf0types.h data0data.h data0data.ic data0type.h \
         data0type.ic data0types.h db0err.h dict0boot.h \
         dict0boot.ic dict0crea.h dict0crea.ic dict0dict.h \
         dict0dict.ic dict0load.h dict0load.ic dict0mem.h \
         dict0mem.ic dict0types.h dyn0dyn.h dyn0dyn.ic eval0eval.h \
         eval0eval.ic eval0proc.h eval0proc.ic fil0fil.h fsp0fsp.h \
         fsp0fsp.ic fut0fut.h fut0fut.ic fut0lst.h fut0lst.ic \
-        ha0ha.h ha0ha.ic hash0hash.h hash0hash.ic ib_odbc.h \
+        ha0ha.h ha0ha.ic hash0hash.h hash0hash.ic \
         ibuf0ibuf.h ibuf0ibuf.ic ibuf0types.h lock0lock.h \
         lock0lock.ic lock0types.h log0log.h log0log.ic log0recv.h \
         log0recv.ic mach0data.h mach0data.ic makefilewin.i \
         mem0dbg.h mem0dbg.ic mem0mem.h mem0mem.ic mem0pool.h \
         mem0pool.ic mtr0log.h mtr0log.ic mtr0mtr.h mtr0mtr.ic \
-        mtr0types.h odbc0odbc.h os0file.h os0proc.h os0proc.ic \
+        mtr0types.h os0file.h os0proc.h os0proc.ic \
         os0shm.h os0shm.ic os0sync.h os0sync.ic os0thread.h \
         os0thread.ic page0cur.h page0cur.ic page0page.h \
         page0page.ic page0types.h pars0grm.h pars0opt.h \

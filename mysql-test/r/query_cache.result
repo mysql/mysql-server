@@ -830,3 +830,21 @@ a
 USE test;
 DROP TABLE t1;
 SET GLOBAL query_cache_size=0;
+set query_cache_wlock_invalidate=1;
+create table t1 (a int not null);
+create table t2 (a int not null);
+select * from t1;
+a
+select * from t2;
+a
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+lock table t1 write, t2 read;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+unlock table;
+drop table t1,t2;
+set query_cache_wlock_invalidate=default;
+set GLOBAL query_cache_size=0;
