@@ -438,6 +438,12 @@ int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 
 
 #ifdef HPUX
+/*
+  In HP-UX-10.20 and other old Posix 1003.4a Draft 4 implementations
+  pthread_mutex_trylock returns 1 on success, not 0 like
+  pthread_mutex_lock
+*/
+
 int my_pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
   int error=pthread_mutex_trylock(mutex);
@@ -447,8 +453,8 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex)
     error=errno;
    return error;
 }
-
 #endif
+
 
 /* Some help functions */
 

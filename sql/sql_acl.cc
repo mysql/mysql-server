@@ -253,7 +253,7 @@ int acl_init(bool dont_read_acl_tables)
       continue;					/* purecov: tested */
     }
     get_salt_from_password(user.salt,user.password);
-    user.access=get_access(table,3);
+    user.access=get_access(table,3) & GLOBAL_ACLS;
     user.sort=get_sort(2,user.host.hostname,user.user);
     user.hostname_length= (user.host.hostname ?
 			   (uint) strlen(user.host.hostname) : 0);
@@ -321,6 +321,11 @@ int acl_init(bool dont_read_acl_tables)
     ACL_DB db;
     update_hostname(&db.host,get_field(&mem, table,0));
     db.db=get_field(&mem, table,1);
+    if (!db.db)
+    {
+      sql_print_error("Found an entry in the 'db' table with empty database name; Skipped");
+      continue;
+    }
     db.user=get_field(&mem, table,2);
     db.access=get_access(table,3);
     db.access=fix_rights_for_db(db.access);

@@ -312,7 +312,8 @@ rw_lock_x_lock_func_nowait(
 	     && ((rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED)
 	     	 || ((rw_lock_get_writer(lock) == RW_LOCK_EX)
 	     	     && (lock->pass == 0)
-	     	     && (lock->writer_thread == os_thread_get_curr_id())))) {
+	     	     && os_thread_eq(lock->writer_thread,
+					os_thread_get_curr_id())))) {
 
 		rw_lock_set_writer(lock, RW_LOCK_EX);
 		lock->writer_thread = os_thread_get_curr_id();

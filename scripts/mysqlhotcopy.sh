@@ -50,7 +50,8 @@ Usage: $0 db_name[./table_regex/] [new_db_name | directory]
   -?, --help           display this helpscreen and exit
   -u, --user=#         user for database login if not current user
   -p, --password=#     password to use when connecting to server
-  -P, --port=#         port to use when connecting to local server
+  -h, --host=#	       Hostname for local server when connecting over TCP/IP
+  -P, --port=#         port to use when connecting to local server with TCP/IP
   -S, --socket=#       socket to use when connecting to local server
 
   --allowold           don\'t abort if target already exists (rename it _old)
@@ -155,8 +156,8 @@ $opt{quiet} = 0 if $opt{debug};
 $opt{allowold} = 1 if $opt{keepold};
 
 # --- connect to the database ---
-my $dsn = ";host=localhost";
-$dsn = ";host=127.0.0.1" if $opt{port};    # use TCP/IP if port was given 
+my $dsn;
+$dsn  = ";host=" . (defined($opt{host}) ? $opt{host} : "localhost");
 $dsn .= ";port=$opt{port}" if $opt{port};
 $dsn .= ";mysql_socket=$opt{socket}" if $opt{socket};
 
@@ -891,9 +892,15 @@ user for database login if not current user
 
 password to use when connecting to server
 
+=item -h, -h, --host=#
+
+Hostname for local server when connecting over TCP/IP.  By specifying this
+different from 'localhost' will trigger mysqlhotcopy to use TCP/IP connection.
+
 =item -P, --port=#         
 
-port to use when connecting to local server
+port to use when connecting to MySQL server with TCP/IP.  This is only used
+when using the --host option.
 
 =item -S, --socket=#         
 

@@ -309,6 +309,9 @@ struct trx_struct{
 					of view of concurrency control:
 					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
 					... */
+        time_t          start_time;     /* time the trx object was created
+                                        or the state last time became
+                                        TRX_ACTIVE */
 	ibool		check_foreigns;	/* normally TRUE, but if the user
 					wants to suppress foreign key checks,
 					(in table imports, for example) we
@@ -468,6 +471,7 @@ struct trx_struct{
 					TRX_QUE_LOCK_WAIT, this points to
 					the lock request, otherwise this is
 					NULL */
+	time_t          wait_started;   /* lock wait started at this time */
 	UT_LIST_BASE_NODE_T(que_thr_t)
 			wait_thrs;	/* query threads belonging to this
 					trx that are in the QUE_THR_LOCK_WAIT

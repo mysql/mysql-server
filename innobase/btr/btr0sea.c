@@ -17,6 +17,7 @@ Created 2/17/1996 Heikki Tuuri
 #include "btr0cur.h"
 #include "btr0pcur.h"
 #include "btr0btr.h"
+#include "ha0ha.h"
 
 ulint	btr_search_n_succ	= 0;
 ulint	btr_search_n_hash_fail	= 0;

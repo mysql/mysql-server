@@ -72,6 +72,7 @@ trx_create(
 	
 	trx->type = TRX_USER;
 	trx->conc_state = TRX_NOT_STARTED;
+	trx->start_time = time(NULL);
 
 	trx->check_foreigns = TRUE;
 	trx->check_unique_secondary = TRUE;
@@ -516,6 +517,7 @@ trx_start_low(
 	if (trx->type == TRX_PURGE) {
 		trx->id = ut_dulint_zero;
 		trx->conc_state = TRX_ACTIVE;
+		trx->start_time = time(NULL);
 
 		return(TRUE);
 	}
@@ -539,6 +541,7 @@ trx_start_low(
 	trx->rseg = rseg;
 
 	trx->conc_state = TRX_ACTIVE;
+	trx->start_time = time(NULL);
 
 	UT_LIST_ADD_FIRST(trx_list, trx_sys->trx_list, trx);
 
@@ -1465,10 +1468,26 @@ trx_print(
 			500 bytes */
 	trx_t*	trx)	/* in: transaction */
 {
-  	buf += sprintf(buf, "TRANSACTION %lu %lu, OS thread id %lu",
+        char*   start_of_line;
+
+        buf += sprintf(buf, "TRANSACTION %lu %lu",
 		ut_dulint_get_high(trx->id),
-	 	ut_dulint_get_low(trx->id),
-	 	(ulint)trx->mysql_thread_id);
+		 ut_dulint_get_low(trx->id));
+
+  	switch (trx->conc_state) {
+  		case TRX_NOT_STARTED:         buf += sprintf(buf,
+						", not started"); break;
+  		case TRX_ACTIVE:              buf += sprintf(buf,
+						", ACTIVE %lu sec",
+			 (ulint)difftime(time(NULL), trx->start_time)); break;
+  		case TRX_COMMITTED_IN_MEMORY: buf += sprintf(buf,
+						", COMMITTED IN MEMORY");
+									break;
+  		default: buf += sprintf(buf, " state %lu", trx->conc_state);
+  	}
+
+        buf += sprintf(buf, ", OS thread id %lu",
+		       os_thread_pf(trx->mysql_thread_id));
 
 	if (ut_strlen(trx->op_info) > 0) {
 		buf += sprintf(buf, " %s", trx->op_info);
@@ -1477,33 +1496,29 @@ trx_print(
   	if (trx->type != TRX_USER) {
     		buf += sprintf(buf, " purge trx");
   	}
+
+	buf += sprintf(buf, "\n");
   	
-  	switch (trx->conc_state) {
-  		case TRX_NOT_STARTED:         buf += sprintf(buf,
-						", not started"); break;
-  		case TRX_ACTIVE:              buf += sprintf(buf,
-						", active"); break;
-  		case TRX_COMMITTED_IN_MEMORY: buf += sprintf(buf,
-						", committed in memory");
-									break;
-  		default: buf += sprintf(buf, " state %lu", trx->conc_state);
-  	}
+	start_of_line = buf;
 
   	switch (trx->que_state) {
-  		case TRX_QUE_RUNNING:         buf += sprintf(buf,
-						", runs or sleeps"); break;
+  		case TRX_QUE_RUNNING:         break;
   		case TRX_QUE_LOCK_WAIT:       buf += sprintf(buf,
-						", lock wait"); break;
+						"LOCK WAIT "); break;
   		case TRX_QUE_ROLLING_BACK:    buf += sprintf(buf,
-						", rolling back"); break;
+						"ROLLING BACK "); break;
   		case TRX_QUE_COMMITTING:      buf += sprintf(buf,
-						", committing"); break;
-  		default: buf += sprintf(buf, " que state %lu", trx->que_state);
+						"COMMITTING "); break;
+  		default: buf += sprintf(buf, "que state %lu", trx->que_state);
   	}
 
-  	if (0 < UT_LIST_GET_LEN(trx->trx_locks)) {
-  		buf += sprintf(buf, ", has %lu lock struct(s)",
-				UT_LIST_GET_LEN(trx->trx_locks));
+  	if (0 < UT_LIST_GET_LEN(trx->trx_locks) ||
+	    mem_heap_get_size(trx->lock_heap) > 400) {
+
+  		buf += sprintf(buf,
+"%lu lock struct(s), heap size %lu",
+			       UT_LIST_GET_LEN(trx->trx_locks),
+			       mem_heap_get_size(trx->lock_heap));
 	}
 
   	if (trx->has_search_latch) {
@@ -1515,7 +1530,10 @@ trx_print(
 			ut_dulint_get_low(trx->undo_no));
 	}
 	
-  	buf += sprintf(buf, "\n");
+	if (buf != start_of_line) {
+
+	        buf += sprintf(buf, "\n");
+	}
 
   	if (trx->mysql_thd != NULL) {
     		innobase_mysql_print_thd(buf, trx->mysql_thd);

@@ -13,6 +13,7 @@ Created 10/4/1994 Heikki Tuuri
 
 #include "rem0cmp.h"
 #include "mtr0log.h"
+#include "log0recv.h"
 
 ulint	page_cur_short_succ	= 0;
 
@@ -481,6 +482,9 @@ page_cur_insert_rec_write_log(
 
 		/* Write the mismatch index */
 		log_ptr += mach_write_compressed(log_ptr, i);
+
+		ut_a(i < UNIV_PAGE_SIZE);
+		ut_a(extra_size < UNIV_PAGE_SIZE);
 	}
 	
 	/* Write to the log the inserted index record end segment which
@@ -533,6 +537,13 @@ page_cur_parse_insert_rec(
 		}
 
 		offset = mach_read_from_2(ptr);
+
+		if (offset >= UNIV_PAGE_SIZE) {
+
+			recv_sys->found_corrupt_log = TRUE;
+
+			return(NULL);
+		}
 		
 		ptr += 2;
 	}
@@ -546,6 +557,12 @@ page_cur_parse_insert_rec(
 
 	extra_info_yes = end_seg_len & 0x1;
 	end_seg_len = end_seg_len / 2;
+
+	if (end_seg_len >= UNIV_PAGE_SIZE) {
+		recv_sys->found_corrupt_log = TRUE;
+
+		return(NULL);
+	}
 	
 	if (extra_info_yes) {
 		/* Read the info bits */
@@ -565,12 +582,16 @@ page_cur_parse_insert_rec(
 			return(NULL);
 		}
 
+		ut_a(origin_offset < UNIV_PAGE_SIZE);
+
 		ptr = mach_parse_compressed(ptr, end_ptr, &mismatch_index);
 
 		if (ptr == NULL) {
 
 			return(NULL);
 		}
+
+		ut_a(mismatch_index < UNIV_PAGE_SIZE);
 	}
 
 	if (end_ptr < ptr + end_seg_len) {
@@ -607,7 +628,6 @@ page_cur_parse_insert_rec(
 	/* Build the inserted record to buf */
 	
 	ut_a(mismatch_index < UNIV_PAGE_SIZE);
-	ut_a(end_seg_len < UNIV_PAGE_SIZE);
 
 	ut_memcpy(buf, rec_get_start(cursor_rec), mismatch_index);
 	ut_memcpy(buf + mismatch_index, ptr, end_seg_len);
@@ -1009,6 +1029,8 @@ page_cur_parse_delete_rec(
 	/* Read the cursor rec offset as a 2-byte ulint */
 	offset = mach_read_from_2(ptr);
 	ptr += 2;
+
+	ut_a(offset <= UNIV_PAGE_SIZE);
 
 	if (page) {
 		page_cur_position(page + offset, &cursor);

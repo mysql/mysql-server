@@ -28,12 +28,30 @@ typedef void*			os_thread_t;
 #else
 typedef pthread_t               os_thread_t;
 #endif
-typedef	unsigned long int	os_thread_id_t;
+
+#define os_thread_id_t          os_thread_t
 
 /* Define a function pointer type to use in a typecast */
 typedef void* (*os_posix_f_t) (void*);
 
+/*******************************************************************
+Compares two threads or thread ids for equality */
 
+ibool
+os_thread_eq(
+/*=========*/
+				/* out: TRUE if equal */
+	os_thread_t	a,	/* in: OS thread or thread id */
+	os_thread_t	b);	/* in: OS thread or thread id */
+/********************************************************************
+Converts an OS thread or thread id to a ulint. It is NOT guaranteed that
+the ulint is unique for the thread though! */
+
+ulint
+os_thread_pf(
+/*=========*/
+				/* out: unsigned long int */
+	os_thread_t	a);	/* in: thread or thread id */
 /********************************************************************
 Creates a new thread of execution. The execution starts from
 the function given. The start function takes a void* parameter
@@ -72,14 +90,6 @@ Returns handle to the current thread. */
 os_thread_t
 os_thread_get_curr(void);
 /*====================*/
-/*********************************************************************
-Converts a thread id to a ulint. */
-
-ulint
-os_thread_conv_id_to_ulint(
-/*=======================*/
-				/* out: converted to ulint */
-	os_thread_id_t	id);	/* in: thread id */
 /*********************************************************************
 Waits for a thread to terminate. */
 

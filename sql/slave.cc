@@ -23,6 +23,7 @@
 #include "sql_repl.h"
 #include "repl_failsafe.h"
 #include <thr_alarm.h>
+#include <my_dir.h>
 #include <assert.h>
 
 bool use_slave_mask = 0;
@@ -1029,7 +1030,6 @@ void end_master_info(MASTER_INFO* mi)
 
 int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
 {
-  MY_STAT stat_area;
   char fname[FN_REFLEN+128];
   int info_fd;
   const char* msg = 0;
@@ -1069,7 +1069,7 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
     DBUG_RETURN(1);
 
   /* if file does not exist */
-  if (!my_stat(fname, &stat_area, MYF(0)))
+  if (access(fname,F_OK))
   {
     /*
       If someone removed the file from underneath our feet, just close
