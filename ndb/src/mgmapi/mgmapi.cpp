@@ -1158,7 +1158,7 @@ ndb_mgm_set_loglevel_node(NdbMgmHandle handle, int nodeId,
 
 int
 ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
-			      int structured)
+			      int parsable)
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_listen_event");
   const ParserRow<ParserDummy> stat_reply[] = {
@@ -1181,7 +1181,8 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
 
   Properties args;
 
-  args.put("structured", structured);
+  if (parsable)
+    args.put("parsable", parsable);
   {
     BaseString tmp;
     for(int i = 0; filter[i] != 0; i += 2){

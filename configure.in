@@ -962,6 +962,7 @@ esac
 MAX_C_OPTIMIZE="-O3"
 MAX_CXX_OPTIMIZE="-O3"
 
+ndb_cxxflags_fix=
 case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc in
 # workaround for Sun Forte/x86 see BUG#4681
   *solaris*-i?86-no)
@@ -2570,6 +2571,15 @@ EOF
     sql_server_dirs="$sql_server_dirs innobase"
     AC_CONFIG_SUBDIRS(innobase)
   fi
+
+case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc-$have_ndbcluster in
+  *solaris*-i?86-no-yes)
+  # ndb fail for whatever strange reason to link Sun Forte/x86
+  # unless using incremental linker
+  CXXFLAGS="$CXXFLAGS -xildon"
+  ;;
+  *) ;;
+esac
 
   if test X"$have_ndbcluster" = Xyes
   then
