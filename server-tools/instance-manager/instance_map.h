@@ -38,7 +38,6 @@ extern void free_groups(char **groups);
 
 class Instance_map
 {
-  friend class Iterator;
 public:
   /* Instance_map iterator */
   class Iterator
@@ -54,6 +53,7 @@ public:
     void go_to_first();
     Instance *next();
   };
+  friend class Iterator;
 public:
   /* returns a pointer to the instance or NULL, if there is no such instance */
   Instance *find(const char *name, uint name_len);
