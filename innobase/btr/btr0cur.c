@@ -85,6 +85,15 @@ btr_rec_free_updated_extern_fields(
 				inherited fields */
 	mtr_t*		mtr);	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the tree */
+/***************************************************************
+Gets the externally stored size of a record, in units of a database page. */
+static
+ulint
+btr_rec_get_externally_stored_len(
+/*==============================*/
+			/* out: externally stored part, in units of a
+			database page */
+	rec_t*	rec);	/* in: record */
 
 /*==================== B-TREE SEARCH =========================*/
 	
@@ -2540,6 +2549,7 @@ btr_estimate_number_of_different_key_vals(
 	ulint		matched_bytes;
 	ulint*		n_diff;
 	ulint		not_empty_flag	= 0;
+	ulint		total_external_size = 0;
 	ulint		i;
 	ulint		j;
 	mtr_t		mtr;
@@ -2586,10 +2596,15 @@ btr_estimate_number_of_different_key_vals(
 			for (j = matched_fields + 1; j <= n_cols; j++) {
 				n_diff[j]++;
 			}
-					
+
+			total_external_size +=
+				btr_rec_get_externally_stored_len(rec);
+			
 			rec = page_rec_get_next(rec);
 		}
 		
+		total_external_size +=
+				btr_rec_get_externally_stored_len(rec);
 		mtr_commit(&mtr);
 	}
 
@@ -2597,18 +2612,66 @@ btr_estimate_number_of_different_key_vals(
 	BTR_KEY_VAL_ESTIMATE_N_PAGES leaf pages, we can estimate how many
 	there will be in index->stat_n_leaf_pages */
 	
+	/* We must take into account that our sample actually represents
+	also the pages used for external storage of fields (those pages are
+	included in index->stat_n_leaf_pages) */ 
+
 	for (j = 0; j <= n_cols; j++) {
 		index->stat_n_diff_key_vals[j] =
 				(n_diff[j] * index->stat_n_leaf_pages
 				 + BTR_KEY_VAL_ESTIMATE_N_PAGES - 1
+				 + total_external_size
 				 + not_empty_flag)
-		                	/ BTR_KEY_VAL_ESTIMATE_N_PAGES;
+		                	/ (BTR_KEY_VAL_ESTIMATE_N_PAGES
+		                	   + total_external_size);
 	}
 	
 	mem_free(n_diff);
 }
 
 /*================== EXTERNAL STORAGE OF BIG FIELDS ===================*/
+
+/***************************************************************
+Gets the externally stored size of a record, in units of a database page. */
+static
+ulint
+btr_rec_get_externally_stored_len(
+/*==============================*/
+			/* out: externally stored part, in units of a
+			database page */
+	rec_t*	rec)	/* in: record */
+{
+	ulint	n_fields;
+	byte*	data;
+	ulint	local_len;
+	ulint	extern_len;
+	ulint	total_extern_len = 0;
+	ulint	i;
+
+	if (rec_get_data_size(rec) <= REC_1BYTE_OFFS_LIMIT) {
+
+		return(0);
+	}
+	
+	n_fields = rec_get_n_fields(rec);
+
+	for (i = 0; i < n_fields; i++) {
+		if (rec_get_nth_field_extern_bit(rec, i)) {
+
+			data = rec_get_nth_field(rec, i, &local_len);
+
+			local_len -= BTR_EXTERN_FIELD_REF_SIZE;
+	
+			extern_len = mach_read_from_4(data + local_len
+						+ BTR_EXTERN_LEN + 4);
+
+			total_extern_len += ut_calc_align(extern_len,
+							UNIV_PAGE_SIZE);
+		}
+	}
+
+	return(total_extern_len / UNIV_PAGE_SIZE);
+}
 
 /***********************************************************************
 Sets the ownership bit of an externally stored field in a record. */
