@@ -516,12 +516,9 @@ typedef struct st_mysql_stmt
   MYSQL_FIELD	*fields;		/* prepare meta info */
   LIST          list;                   /* list to keep track of all stmts */
   char		*query;			/* query buffer */
-  char		*buffer;		/* buffer to hold results */
   MEM_ROOT	mem_root;		/* root allocations */
-  MYSQL_RES	tmp_result;		/* Used by mysql_prepare_result */
   unsigned long param_count;		/* parameters count */
   unsigned long field_count;		/* fields count */
-  unsigned long buffer_length;		/* long buffer alloced length */
   unsigned long	stmt_id;		/* Id for prepared statement */
   unsigned int	last_errno;		/* error code */
   enum PREP_STMT_STATE state;		/* statement state */
@@ -552,6 +549,7 @@ my_bool STDCALL mysql_send_long_data(MYSQL_STMT *stmt,
 				     const char *data, 
 				     unsigned long length);
 MYSQL_RES *STDCALL mysql_prepare_result(MYSQL_STMT *stmt);
+MYSQL_RES *STDCALL mysql_param_result(MYSQL_STMT *stmt);
 my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt);
 int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt);
 my_bool STDCALL mysql_more_results(MYSQL *mysql);
