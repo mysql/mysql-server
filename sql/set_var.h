@@ -523,6 +523,23 @@ public:
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
 };
 
+class sys_var_collation_server :public sys_var_collation
+{
+public:
+  sys_var_collation_server(const char *name_arg) :sys_var_collation(name_arg) {}
+  bool update(THD *thd, set_var *var);
+  void set_default(THD *thd, enum_var_type type);
+  byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+};
+
+class sys_var_collation_database :public sys_var_collation
+{
+public:
+  sys_var_collation_database(const char *name_arg) :sys_var_collation(name_arg) {}
+  bool update(THD *thd, set_var *var);
+  void set_default(THD *thd, enum_var_type type);
+  byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+};
 
 class sys_var_key_buffer_size :public sys_var
 {
