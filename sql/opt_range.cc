@@ -321,7 +321,7 @@ static bool get_quick_keys(PARAM *param,QUICK_SELECT *quick,KEY_PART *key,
 static bool eq_tree(SEL_ARG* a,SEL_ARG *b);
 
 static SEL_ARG null_element(SEL_ARG::IMPOSSIBLE);
-
+static bool null_part_in_key(KEY_PART *key_part, const char *key, uint length);
 
 /***************************************************************************
 ** Basic functions for SQL_SELECT and QUICK_SELECT
@@ -2306,7 +2306,15 @@ get_quick_keys(PARAM *param,QUICK_SELECT *quick,KEY_PART *key,
       KEY *table_key=quick->head->key_info+quick->index;
       flag=EQ_RANGE;
       if (table_key->flags & HA_NOSAME && key->part == table_key->key_parts-1)
-	flag|= UNIQUE_RANGE;
+      {
+	if (!(table_key->flags & HA_NULL_PART_KEY) ||
+	    !null_part_in_key(key,
+			      param->min_key,
+			      (uint) (tmp_min_key - param->min_key)))
+	  flag|= UNIQUE_RANGE;
+	else
+	  flag|= NULL_RANGE;
+      }
     }
   }
 
@@ -2339,11 +2347,29 @@ bool QUICK_SELECT::unique_key_range()
   if (ranges.elements == 1)
   {
     QUICK_RANGE *tmp;
-    if ((tmp=ranges.head())->flag & EQ_RANGE)
+    if (((tmp=ranges.head())->flag & (EQ_RANGE | NULL_RANGE)) == EQ_RANGE)
     {
       KEY *key=head->key_info+index;
       return ((key->flags & HA_NOSAME) &&
 	      key->key_length == tmp->min_length);
+    }
+  }
+  return 0;
+}
+
+
+/* Returns true if any part of the key is NULL */
+
+static bool null_part_in_key(KEY_PART *key_part, const char *key, uint length)
+{
+  for (const char *end=key+length ; 
+       key < end;
+       key+= key_part++->part_length)
+  {
+    if (key_part->null_bit)
+    {
+      if (*key++)
+	return 1;
     }
   }
   return 0;

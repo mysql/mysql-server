@@ -27391,8 +27391,22 @@ master-slave relationship with @code{log-slave-updates} enabled.
 Note, however, that many queries will not work right in this kind of
 setup unless your client code is written to take care of the potential
 problems that can happen from updates that occur in different sequence
-on different servers. Note that the log format has changed in Version 3.23.26
-so that pre-3.23.26 slaves will not be able to read it.
+on different servers.
+
+This means that you can do a setup like the following:
+
+@example
+A -> B -> C -> A
+@end example
+
+This setup will only works if you only do non conflicting updates
+between the tables.  In other words, if you insert data in A and C, you
+should never insert a row in A that may have a conflicting key with a
+row insert in C.  You should also not update the sam rows on two servers
+if the order in which the updates are applied matters.
+
+Note that the log format has changed in Version 3.23.26 so that
+pre-3.23.26 slaves will not be able to read it.
 @item
 If the query on the slave gets an error, the slave thread will
 terminate, and a message will appear in the @code{.err} file. You should
@@ -28847,9 +28861,11 @@ explicitely lock the table with @code{LOCK TABLES} or execute a command that
 will modify every row in the table, like @code{ALTER TABLE}.
 
 In @strong{MySQL} Version 3.23.7 and above, you can insert rows into
-@code{MyISAM} tables at the same time other threads are reading from
-the table.  Note that currently this only works if there are no holes after
-deleted rows in the table at the time the insert is made.
+@code{MyISAM} tables at the same time other threads are reading from the
+table.  Note that currently this only works if there are no holes after
+deleted rows in the table at the time the insert is made. When all holes
+has been filled with new data, concurrent inserts will automaticly be
+enabled again.
 
 Table locking enables many threads to read from a table at the same
 time, but if a thread wants to write to a table, it must first get
@@ -42742,6 +42758,9 @@ not yet 100% confident in this code.
 @node News-3.23.37, News-3.23.36, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.37
 @itemize @bullet
+@item
+@code{UPDATE} and @code{DELETE} with @code{WHERE unique_key_part IS NULL}
+didn't update/delete all rows.
 @item
 Disabled @code{INSERT DELAYED} for tables that supports transactions.
 @item
