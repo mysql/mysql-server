@@ -36,8 +36,8 @@
 #endif
 #include <mysys_err.h>
 
-#include <sp_rcontext.h>
-#include <sp_cache.h>
+#include "sp_rcontext.h"
+#include "sp_cache.h"
 
 /*
   The following is used to initialise Table_ident with a internal

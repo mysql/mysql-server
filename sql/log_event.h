@@ -386,7 +386,7 @@ typedef struct st_last_event_info
   bool flags2_inited;
   uint32 flags2;
   bool sql_mode_inited;
-  ulonglong sql_mode;
+  ulong sql_mode;		/* must be same as THD.variables.sql_mode */
   st_last_event_info()
     : flags2_inited(0), flags2(0), sql_mode_inited(0), sql_mode(0) 
     {
@@ -604,7 +604,7 @@ public:
      concerned) from here. 
   */
   
-  uint32 catalog_len;
+  uint catalog_len;				/* <= 255 char */
   
   /*
     We want to be able to store a variable number of N-bit status vars:
@@ -642,7 +642,7 @@ public:
   
   uint32 flags2; 
   /* In connections sql_mode is 32 bits now but will be 64 bits soon */
-  ulonglong sql_mode;
+  ulong sql_mode;
   
 #ifndef MYSQL_CLIENT
 

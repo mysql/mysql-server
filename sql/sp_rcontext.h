@@ -23,7 +23,7 @@
 #endif
 
 struct sp_cond_type;
-struct sp_cursor;
+class sp_cursor;
 struct sp_pvar;
 
 #define SP_HANDLER_NONE      0
