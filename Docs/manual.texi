@@ -47012,6 +47012,11 @@ Changed initialisation of @code{RND()} to make it less predicatable.
 Fixed problem with @code{GROUP BY} on result with expression that created a
 @code{BLOB} field.
 @item
+Fixed problem with @code{GROUP BY} on columns that have NULL values.  To
+solve this we now create an MyISAM temporary table when doing a group by
+on a possible NULL item.  In MySQL 4.0.5 we can again use in memory HEAP
+tables for this case.
+@item
 Fixed problem with privilege tables when downgrading from 4.0.2 to 3.23.
 @item
 Fixed thread bug in @code{SLAVE START}, @code{SLAVE STOP} and automatic repair
