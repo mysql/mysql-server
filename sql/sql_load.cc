@@ -551,7 +551,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, String &field_term,
       need_end_io_cache = 1;
       if (!opt_old_rpl_compat && mysql_bin_log.is_open())
 	cache.pre_read = cache.pre_close =
-	  (IO_CACHE_CALLBACK)log_loaded_block;
+	  (IO_CACHE_CALLBACK) log_loaded_block;
     }
   }
 }

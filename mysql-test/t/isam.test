@@ -6,7 +6,7 @@ drop table if exists t1,t2;
 # Test possible problem with rows that are about 65535 bytes long
 #
 
-create table t1 (a tinyint not null auto_increment, b blob not null, primary key (a));
+create table t1 (a tinyint not null auto_increment, b blob not null, primary key (a)) type=isam;
 
 let $1=100;
 disable_query_log;
@@ -16,12 +16,8 @@ while ($1)
   dec $1;
 }
 enable_query_log;
-check table t1;
-repair table t1;
 delete from t1 where (a & 1);
-check table t1;
-repair table t1;
-check table t1;
+select sum(length(b)) from t1;
 drop table t1;
 
 #

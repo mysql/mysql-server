@@ -882,7 +882,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   table->outer_join=table->null_row=table->maybe_null=0;
   table->status=STATUS_NO_RECORD;
   table->keys_in_use_for_query=table->used_keys= table->keys_in_use;
-  dbug_assert(table->key_read == 0);
+  DBUG_ASSERT(table->key_read == 0);
   DBUG_RETURN(table);
 }
 

@@ -1,21 +1,9 @@
 drop table if exists t1,t2;
-create table t1 (a tinyint not null auto_increment, b blob not null, primary key (a));
-check table t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
-repair table t1;
-Table	Op	Msg_type	Msg_text
-test.t1	repair	status	OK
+create table t1 (a tinyint not null auto_increment, b blob not null, primary key (a)) type=isam;
 delete from t1 where (a & 1);
-check table t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
-repair table t1;
-Table	Op	Msg_type	Msg_text
-test.t1	repair	status	OK
-check table t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
+select sum(length(b)) from t1;
+sum(length(b))
+3274494
 drop table t1;
 create table t1 (a int not null auto_increment,b int, primary key (a)) type=isam;
 insert into t1 values (1,1),(NULL,2),(3,3),(NULL,4);

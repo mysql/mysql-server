@@ -172,7 +172,7 @@ void start_test(int id)
   }
   if (key_cacheing && rnd(2) == 0)
     init_key_cache(65536L,(uint) IO_SIZE*4*10);
-  printf("Process %d, pid: %d\n",id,getpid()); fflush(stdout);
+  printf("Process %d, pid: %d\n",id,(int) getpid()); fflush(stdout);
 
   for (error=i=0 ; i < tests && !error; i++)
   {
@@ -356,7 +356,7 @@ int test_write(N_INFO *file,int id,int lock_type)
       nisam_extra(file,HA_EXTRA_WRITE_CACHE);
   }
 
-  sprintf(record.id,"%7d",getpid());
+  sprintf(record.id,"%7d",(int) getpid());
   strmov(record.text,"Testing...");
 
   tries=(uint) rnd(100)+10;

@@ -293,33 +293,21 @@ typedef struct st_dynamic_string {
 struct st_io_cache;
 typedef int (*IO_CACHE_CALLBACK)(struct st_io_cache*);
 
-#ifdef THREAD
-#define lock_append_buffer(info) \
- pthread_mutex_lock(&(info)->append_buffer_lock)
-#define unlock_append_buffer(info) \
- pthread_mutex_unlock(&(info)->append_buffer_lock)
-#else
-#define lock_append_buffer(info)
-#define unlock_append_buffer(info)
-#endif
 
 typedef struct st_io_cache		/* Used when cacheing files */
 {
   my_off_t pos_in_file,end_of_file;
-  byte	*rc_pos,*rc_end,*buffer,*rc_request_pos;
-  my_bool alloced_buffer; /* currented READ_NET is the only one
-			     that will use a buffer allocated somewhere
-			     else
-			   */
-  byte *append_buffer, *append_read_pos, *write_pos, *append_end,
-    *write_end;
-/* for append buffer used in READ_APPEND cache */
+  byte	*read_pos,*read_end,*buffer,*request_pos;
+  byte  *write_buffer, *append_read_pos, *write_pos, *write_end;
+  byte  **current_pos, **current_end;
+/* The lock is for append buffer used in READ_APPEND cache */
 #ifdef THREAD
   pthread_mutex_t append_buffer_lock;
   /* need mutex copying from append buffer to read buffer */
 #endif  
   int (*read_function)(struct st_io_cache *,byte *,uint);
   int (*write_function)(struct st_io_cache *,const byte *,uint);
+  enum cache_type type;
   /* callbacks when the actual read I/O happens */
   IO_CACHE_CALLBACK pre_read;
   IO_CACHE_CALLBACK post_read;
@@ -331,7 +319,11 @@ typedef struct st_io_cache		/* Used when cacheing files */
   int	seek_not_done,error;
   uint	buffer_length,read_length;
   myf	myflags;			/* Flags used to my_read/my_write */
-  enum cache_type type;
+ /*
+   Currently READ_NET is the only one that will use a buffer allocated
+   somewhere else
+ */
+  my_bool alloced_buffer;
 #ifdef HAVE_AIOWAIT
   uint inited;
   my_off_t aio_read_pos;
@@ -349,9 +341,9 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
 #define my_b_EOF INT_MIN
 
 #define my_b_read(info,Buffer,Count) \
-  ((info)->rc_pos + (Count) <= (info)->rc_end ?\
-   (memcpy(Buffer,(info)->rc_pos,(size_t) (Count)), \
-    ((info)->rc_pos+=(Count)),0) :\
+  ((info)->read_pos + (Count) <= (info)->read_end ?\
+   (memcpy(Buffer,(info)->read_pos,(size_t) (Count)), \
+    ((info)->read_pos+=(Count)),0) :\
    (*(info)->read_function)((info),Buffer,Count))
 
 #define my_b_write(info,Buffer,Count) \
@@ -362,10 +354,9 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
  
 
 #define my_b_get(info) \
-  ((info)->rc_pos != (info)->rc_end ?\
-   ((info)->rc_pos++, (int) (uchar) (info)->rc_pos[-1]) :\
+  ((info)->read_pos != (info)->read_end ?\
+   ((info)->read_pos++, (int) (uchar) (info)->read_pos[-1]) :\
    _my_b_get(info))
-
 
 	/* my_b_write_byte dosn't have any err-check */
 #define my_b_write_byte(info,chr) \
@@ -374,18 +365,14 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
    (_my_b_write(info,0,0) , ((*(info)->write_pos++)=(chr))))
 
 #define my_b_fill_cache(info) \
-  (((info)->rc_end=(info)->rc_pos),(*(info)->read_function)(info,0,0))
-
-#define my_write_cache(info) (((info)->type == WRITE_CACHE))
-#define my_cache_pointer(info)  (my_write_cache(info) ? \
-               ((info)->write_pos) : ((info)->rc_pos))
+  (((info)->read_end=(info)->read_pos),(*(info)->read_function)(info,0,0))
 
 #define my_b_tell(info) ((info)->pos_in_file + \
-			 my_cache_pointer(info) - (info)->rc_request_pos)
+			 (uint) (*(info)->current_pos - (info)->request_pos))
 
-#define my_b_bytes_in_cache(info) (my_write_cache(info) ? \
- ((uint) ((info)->write_end - (info)->write_pos)): \
- ((uint) ((info)->rc_end - (info)->rc_pos)))
+#define my_b_bytes_in_cache(info) (uint) (*(info)->current_end - \
+					  *(info)->current_pos)
+
 
 typedef struct st_changeable_var {
   const char *name;			/* Name of variable */
@@ -584,7 +571,7 @@ extern int _my_b_net_read(IO_CACHE *info,byte *Buffer,uint Count);
 extern int _my_b_get(IO_CACHE *info);
 extern int _my_b_async_read(IO_CACHE *info,byte *Buffer,uint Count);
 extern int _my_b_write(IO_CACHE *info,const byte *Buffer,uint Count);
-extern int _my_b_append(IO_CACHE *info,const byte *Buffer,uint Count);
+extern int my_b_append(IO_CACHE *info,const byte *Buffer,uint Count);
 extern int my_block_write(IO_CACHE *info, const byte *Buffer,
 			  uint Count, my_off_t pos);
 extern int flush_io_cache(IO_CACHE *info);

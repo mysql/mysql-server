@@ -126,7 +126,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
          mode=RNEXT;
          break;
       case RLAST:
-         dbug_assert(keyname != 0);
+         DBUG_ASSERT(keyname != 0);
          err=table->file->index_last(table->record[0]);
          mode=RPREV;
          break;
@@ -136,12 +136,12 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
              table->file->rnd_next(table->record[0]);
          break;
       case RPREV:
-         dbug_assert(keyname != 0);
+         DBUG_ASSERT(keyname != 0);
          err=table->file->index_prev(table->record[0]);
          break;
       case RKEY:
         {
-          dbug_assert(keyname != 0);
+          DBUG_ASSERT(keyname != 0);
           KEY *keyinfo=table->key_info+keyno;
 	  KEY_PART_INFO *key_part=keyinfo->key_part;
           uint key_len;

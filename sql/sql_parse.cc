@@ -288,7 +288,7 @@ static void decrease_user_connections(const char *user, const char *host)
 
   uc = (struct  user_conn *) hash_search(&hash_user_connections,
 					 (byte*) temp_user, temp_len);
-  dbug_assert(uc != 0);			// We should always find the user
+  DBUG_ASSERT(uc != 0);			// We should always find the user
   if (!uc)
     goto end;				// Safety; Something went wrong
   if (! --uc->connections)
