@@ -1032,7 +1032,6 @@ class Disable_binlog {
 private:
   THD *thd;
   ulong save_options;
-  ulong save_master_access;
 public:
   Disable_binlog(THD *thd_arg);
   ~Disable_binlog();
