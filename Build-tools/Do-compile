@@ -169,6 +169,17 @@ info("PATH is $ENV{PATH}");
 
 log_timestamp();
 
+$md5_result= safe_system("perl $ENV{HOME}/my_md5sum -c ${opt_distribution}.md5");
+
+if ($md5_result != 0)
+{
+  abort("MD5 check failed for $opt_distribution!");
+}
+else
+{
+  info("SUCCESS: MD5 checks for $opt_distribution");
+}
+
 if (-x "$host/bin/mysqladmin")
 {
   log_system("$host/bin/mysqladmin $mysqladmin_args -S $mysql_unix_port -s shutdown");
@@ -202,17 +213,6 @@ if ($opt_stage == 0)
 safe_cd($host);
 if ($opt_stage == 0 && ! $opt_use_old_distribution)
 {
-  $md5_result= safe_system("./my_md5sum -c ${opt_distribution}.md5");
-
-  if ($md5_result != 0)
-  {
-	abort("MD5 failed for $opt_distribution!");
-  }
-  else
-  {
-	info("SUCCESS: MD5 checks for $opt_distribution");
-  }
-
   safe_system("gunzip < $opt_distribution | $tar xf -");
 
   # Fix file times; This is needed because the time for files may be
@@ -332,7 +332,9 @@ $tar_file=<$pwd/$host/mysql*.t*gz>;
 abort ("Could not find tarball!") unless ($tar_file);
 
 # Generate the MD5 for the binary distribution
-safe_system("./my_md5sum $tar_file > ${tar_file}.md5}");
+$tar_file=~ /(mysql[^\/]*)\.(tar\.gz|tgz)/;
+$tar_file_lite= "$1.$2";
+system("cd $pwd/$host; perl $ENV{HOME}/my_md5sum $tar_file_lite > ${tar_file_lite}.md5");
 
 #
 # Unpack the binary distribution
