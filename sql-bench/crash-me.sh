@@ -329,7 +329,7 @@ $dbh->do("drop table crash_q $drop_attr");
 
 report("truncate","truncate_table",
        "create table crash_q (a integer, b integer,c1 CHAR(10))",
-       "truncate crash_q",
+       "truncate table crash_q",
        "drop table crash_q $drop_attr");
 
 if ($dbh->do("create table crash_q (a integer, b integer,c1 CHAR(10))") &&

@@ -34,9 +34,7 @@
 #define ONE_THREAD
 #endif
 
-#ifdef	__cplusplus
 extern "C" {					// Because of SCO 3.2V4.2
-#endif
 #include <errno.h>
 #include <sys/stat.h>
 #ifndef __GNU_LIBRARY__
@@ -104,9 +102,8 @@ inline void reset_floating_point_exceptions()
 #define reset_floating_point_exceptions()
 #endif /* __FreeBSD__ && HAVE_IEEEFP_H */
 
-#ifdef	__cplusplus
-}
-#endif
+} /* cplusplus */
+
 
 #if defined(HAVE_LINUXTHREADS)
 #define THR_KILL_SIGNAL SIGINT

@@ -88,7 +88,7 @@
 "%s: Terminare fortata a thread-ului %ld  utilizatorului: '%-.32s'\n",
 "Nu pot crea IP socket",
 "Tabela '%-.64s' nu are un index ca acela folosit in CREATE INDEX. Re-creeaza tabela",
-"Argumentul pentru separatorul de cimpuri este diferit de ce ma asteptam. Verifica manualul","
+"Argumentul pentru separatorul de cimpuri este diferit de ce ma asteptam. Verifica manualul",
 "Nu poti folosi lungime de cimp fix pentru BLOB-uri. Foloseste 'fields terminated by'.",
 "Fisierul '%-.64s' trebuie sa fie in directorul bazei de data sau trebuie sa poata sa fie citit de catre toata lumea (verifica permisiile)",
 "Fisierul '%-.80s' exista deja",

@@ -18849,7 +18849,7 @@ the @code{LIMIT} value.
 @section @code{TRUNCATE} Syntax
 
 @example
-TRUNCATE table_name
+TRUNCATE TABLE table_name
 @end example
 
 Is in 3.23 and the same thing as @code{DELETE FROM table_name}. @xref{DELETE}.
@@ -18860,7 +18860,7 @@ The differences are:
 Implemented as a drop and re-create of the table, which makes this
 much faster when deleting many rows.
 @item
-Not transaction-safe; @code{TRUNCATE} will automaticly end the current
+Not transaction-safe; @code{TRUNCATE TABLE} will automaticly end the current
 transaction as if @code{COMMIT} would have been called.
 @item
 Doesn't return the number of deleted rows.
@@ -27519,7 +27519,7 @@ This can be done with the following code:
 @example
 mysql> LOCK TABLES real_table WRITE, insert_table WRITE;
 mysql> insert into real_table select * from insert_table;
-mysql> TRUNCATE insert_table;
+mysql> TRUNCATE TABLE insert_table;
 mysql> UNLOCK TABLES;
 @end example
 
@@ -28411,7 +28411,7 @@ it is very important to @code{OPTIMIZE TABLE} sometimes.
 @subsection Speed of @code{DELETE} Queries
 
 If you want to delete all rows in the table, you should use
-@code{TRUNCATE table_name}. @xref{TRUNCATE}.
+@code{TRUNCATE TABLE table_name}. @xref{TRUNCATE}.
 
 The time to delete a record is exactly proportional to the number of
 indexes. To delete records more quickly, you can increase the size of
@@ -31651,11 +31651,11 @@ Use the table description file to create new (empty) data and index files:
 @example
 shell> mysql db_name
 mysql> SET AUTOCOMMIT=1;
-mysql> TRUNCATE table_name;
+mysql> TRUNCATE TABLE table_name;
 mysql> quit
 @end example
 
-If your SQL version doesn't have @code{TRUNCATE}, use @code{DELETE FROM
+If your SQL version doesn't have @code{TRUNCATE TABLE}, use @code{DELETE FROM
 table_name} instead.
 
 @item
@@ -40986,6 +40986,10 @@ not yet 100 % confident in this code.
 @node News-3.23.33, News-3.23.32, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.33
 @itemize bullet
+@item
+Changed @code{TRUNCATE table_name} to @code{TRUNCATE TABLE table_name}
+to use the same syntax as Oracle.  Until 4.0 we will also allow
+@code{TRUNCATE table_name} to not crash old code.
 @item
 Fixed 'no found rows' bug in @code{MyISAM} tables when a @code{BLOB} was
 first part of a multi-part key.

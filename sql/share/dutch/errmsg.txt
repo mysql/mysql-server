@@ -84,7 +84,7 @@
 "%s: Afsluiten afgedwongen van thread %ld  gebruiker: '%-.64s'\n",
 "Kan IP-socket niet openen",
 "Tabel '%-.64s' heeft geen INDEX zoals deze gemaakt worden met CREATE INDEX. Maak de tabel opnieuw",
-"De argumenten om velden te scheiden zijn anders dan verwacht. Controleer de handleiding","
+"De argumenten om velden te scheiden zijn anders dan verwacht. Controleer de handleiding",
 "Bij het gebruik van BLOBs is het niet mogelijk om vaste rijlengte te gebruiken. Maak s.v.p. gebruik van 'fields terminated by'.",
 "Het bestand '%-.64s' dient in de database directory voor the komen of leesbaar voor iedereen te zijn.",
 "Het bestand '%-.64s' bestaat reeds",
