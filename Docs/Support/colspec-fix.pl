@@ -4,6 +4,8 @@
 # Script to rewrite colspecs from relative values to absolute values
 #
 
+# arjen 2002-03-14 append "cm" specifier to colwidth field.
+
 use strict;
 
 my $table_width  = 12.75;   # cm
@@ -43,7 +45,7 @@ sub rel2abs {
     my $unit = ($table_width - ($#widths * $gutter_width)) / ($total);
 
     foreach (@widths) {
-        $output .= $ws . '<colspec colwidth="'. sprintf ("%0.2f", $_ * $unit) .'" />' . "\n";
+        $output .= $ws . '<colspec colwidth="'. sprintf ("%0.2f", $_ * $unit) .'cm" />' . "\n";
     }
     
     return $output . "\n$ws";
