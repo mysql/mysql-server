@@ -118,6 +118,8 @@ sys_var_long_ptr	sys_delayed_insert_timeout("delayed_insert_timeout",
 						   &delayed_insert_timeout);
 sys_var_long_ptr	sys_delayed_queue_size("delayed_queue_size",
 					       &delayed_queue_size);
+sys_var_long_ptr	sys_expire_logs_days("expire_logs_days",
+					     &expire_logs_days);
 sys_var_bool_ptr	sys_flush("flush", &myisam_flush);
 sys_var_long_ptr	sys_flush_time("flush_time", &flush_time);
 sys_var_thd_ulong	sys_interactive_timeout("interactive_timeout",
@@ -332,6 +334,7 @@ sys_var *sys_variables[]=
   &sys_delayed_insert_timeout,
   &sys_delayed_queue_size,
   &sys_error_count,
+  &sys_expire_logs_days,
   &sys_flush,
   &sys_flush_time,
   &sys_foreign_key_checks,
@@ -435,6 +438,7 @@ struct show_var_st init_vars[]= {
   {sys_delayed_insert_limit.name, (char*) &sys_delayed_insert_limit,SHOW_SYS},
   {sys_delayed_insert_timeout.name, (char*) &sys_delayed_insert_timeout, SHOW_SYS},
   {sys_delayed_queue_size.name,(char*) &sys_delayed_queue_size,     SHOW_SYS},
+  {sys_expire_logs_days.name, (char*) &sys_expire_logs_days,        SHOW_SYS},
   {sys_flush.name,             (char*) &sys_flush,                  SHOW_SYS},
   {sys_flush_time.name,        (char*) &sys_flush_time,             SHOW_SYS},
   {"ft_min_word_len",         (char*) &ft_min_word_len,             SHOW_LONG},

@@ -392,7 +392,7 @@ ulong max_connections,max_insert_delayed_threads,max_used_connections,
       max_connect_errors, max_user_connections = 0;
 ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0;
-ulong expire_logs_days = ~0L;
+ulong expire_logs_days = 0;
 
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN],
@@ -2159,7 +2159,7 @@ The server will not act as a slave.");
     open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
 	     opt_binlog_index_name,LOG_BIN);
     using_update_log=1;
-    if (~expire_logs_days)
+    if (expire_logs_days)
     {
       long purge_time= time(0) - expire_logs_days*24*60*60;
       if (purge_time >= 0)
@@ -4031,7 +4031,7 @@ struct my_option my_long_options[] =
    "Logs will be rotated after expire-log-days days. ",
    (gptr*) &expire_logs_days,
    (gptr*) &expire_logs_days, 0, GET_ULONG,
-   REQUIRED_ARG, ~0L, 0, 99, 0, 1, 0},
+   REQUIRED_ARG, 0, 0, 99, 0, 1, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
