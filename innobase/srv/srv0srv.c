@@ -1814,7 +1814,11 @@ retry:
 	/* Go to wait for the event; when a thread leaves InnoDB it will
 	release this thread */
 
+	trx->op_info = "waiting in InnoDB queue";
+
 	os_event_wait(slot->event);
+
+	trx->op_info = "";
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 
