@@ -90,7 +90,18 @@ wait_for_pid () {
   i=0
   while test $i -lt 35 ; do
     sleep 1
-    test -s $pid_file && i='' && break
+    case "$1" in
+      'created')
+        test -s $pid_file && i='' && break
+        ;;
+      'removed')
+        test ! -s $pid_file && i='' && break
+        ;;
+      *)
+        echo "wait_for_pid () usage: wait_for_pid created|removed"
+        exit 1
+        ;;
+    esac
     echo $echo_n ".$echo_c"
     i=`expr $i + 1`
   done
@@ -180,7 +191,7 @@ case "$mode" in
       # be overwritten at next upgrade.
       echo $echo_n "Starting MySQL"
       $bindir/mysqld_safe --datadir=$datadir --pid-file=$pid_file >/dev/null 2>&1 &
-      wait_for_pid
+      wait_for_pid created
       
       # Make lock for RedHat / SuSE
       if test -w /var/lock/subsys
@@ -201,7 +212,7 @@ case "$mode" in
       echo $echo_n "Shutting down MySQL"
       kill $mysqld_pid
       # mysqld should remove the pid_file when it exits, so wait for it.
-      wait_for_pid
+      wait_for_pid removed
 
       # delete lock for RedHat / SuSE
       if test -f /var/lock/subsys/mysql
