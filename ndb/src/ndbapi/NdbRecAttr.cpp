@@ -134,6 +134,7 @@ bool
 NdbRecAttr::receive_data(const Uint32 * data, Uint32 sz){
   const Uint32 n = (theAttrSize * theArraySize + 3) >> 2;  
   if(n == sz){
+    theNULLind = 0;
     if(!copyoutRequired())
       memcpy(theRef, data, 4 * sz);
     else
