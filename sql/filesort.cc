@@ -75,7 +75,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   uchar **sort_keys;
   IO_CACHE tempfile, buffpek_pointers, *selected_records_file, *outfile; 
   SORTPARAM param;
-  CHARSET_INFO *charset=my_charset_bin;
+  CHARSET_INFO *charset= &my_charset_bin;
   DBUG_ENTER("filesort");
   DBUG_EXECUTE("info",TEST_filesort(sortorder,s_length););
 #ifdef SKIP_DBUG_IN_FILESORT

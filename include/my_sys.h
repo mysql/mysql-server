@@ -201,6 +201,11 @@ extern int (*fatal_error_handler_hook)(uint my_err, const char *str,
 				       myf MyFlags);
 
 /* charsets */
+extern CHARSET_INFO *default_charset_info;
+extern CHARSET_INFO *system_charset_info;
+extern CHARSET_INFO *all_charsets[256];
+extern CHARSET_INFO compiled_charsets[];
+
 extern uint get_charset_number(const char *cs_name);
 extern const char *get_charset_name(uint cs_number);
 extern CHARSET_INFO *get_charset(uint cs_number, myf flags);

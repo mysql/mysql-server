@@ -22,7 +22,7 @@
 ** Get help on string
 ***************************************************************************/
 
-#define help_charset my_charset_latin1
+#define help_charset &my_charset_latin1
 
 MI_INFO *open_help_file(THD *thd, const char *name)
 {

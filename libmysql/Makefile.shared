@@ -35,12 +35,12 @@ mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
 			strmake.lo strend.lo \
 			strnlen.lo strfill.lo is_prefix.lo \
 			int2str.lo str2int.lo strinstr.lo strcont.lo \
-			strcend.lo bcmp.lo \
+			strcend.lo bcmp.lo ctype-latin1.lo \
 			bchange.lo bmove.lo bmove_upp.lo longlong2str.lo \
 			strtoull.lo strtoll.lo llstr.lo my_vsnprintf.lo \
 			ctype.lo ctype-simple.lo ctype-bin.lo ctype-mb.lo \
 			ctype-big5.lo ctype-czech.lo ctype-euc_kr.lo \
-			ctype-win1250ch.lo ctype-utf8.lo \
+			ctype-win1250ch.lo ctype-utf8.lo ctype-extra.lo \
 			ctype-gb2312.lo ctype-gbk.lo ctype-latin1_de.lo \
 			ctype-sjis.lo ctype-tis620.lo ctype-ujis.lo xml.lo
 

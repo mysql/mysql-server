@@ -433,7 +433,7 @@ CONVERT *get_convert_set(const char *name)
 {
   for (CONVERT **ptr=convert_tables ; *ptr ; ptr++)
   {
-    if (!my_strcasecmp(my_charset_latin1,(*ptr)->name,name))
+    if (!my_strcasecmp(&my_charset_latin1,(*ptr)->name,name))
       return (*ptr);
   }
   return 0;

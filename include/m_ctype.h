@@ -164,12 +164,22 @@ typedef struct charset_info_st
 } CHARSET_INFO;
 
 
-extern CHARSET_INFO *my_charset_bin;
-extern CHARSET_INFO *my_charset_latin1;
-extern CHARSET_INFO *default_charset_info;
-extern CHARSET_INFO *system_charset_info;
-extern CHARSET_INFO *all_charsets[256];
-extern my_bool init_compiled_charsets(myf flags);
+extern CHARSET_INFO my_charset_bin;
+extern CHARSET_INFO my_charset_latin1;
+extern CHARSET_INFO my_charset_big5;
+extern CHARSET_INFO my_charset_czech;
+extern CHARSET_INFO my_charset_euc_kr;
+extern CHARSET_INFO my_charset_gb2312;
+extern CHARSET_INFO my_charset_gbk;
+extern CHARSET_INFO my_charset_latin1_de;
+extern CHARSET_INFO my_charset_sjis;
+extern CHARSET_INFO my_charset_tis620;
+extern CHARSET_INFO my_charset_ucs2;
+extern CHARSET_INFO my_charset_ujis;
+extern CHARSET_INFO my_charset_utf8;
+extern CHARSET_INFO my_charset_win1250ch;
+
+
 extern my_bool my_parse_charset_xml(const char *bug, uint len,
 				    int (*add)(CHARSET_INFO *cs));
 

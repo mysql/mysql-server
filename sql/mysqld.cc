@@ -33,7 +33,7 @@
 #include <thr_alarm.h>
 #include <ft_global.h>
 
-#define mysqld_charset my_charset_latin1
+#define mysqld_charset &my_charset_latin1
 
 #ifndef DBUG_OFF
 #define ONE_THREAD
@@ -1937,7 +1937,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   set_var_init();
   mysys_uses_curses=0;
 #ifdef USE_REGEX
-  regex_init();
+  regex_init(&my_charset_latin1);
 #endif
   if (set_default_charset_by_name(sys_charset.value, MYF(MY_WME)))
     return 1;
@@ -4736,8 +4736,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       int err;
       char *end;
       uint length= strlen(argument);
-      long value= my_strntol(my_charset_latin1, argument, length, 10, &end, &err);
-      if (test_if_int(argument,(uint) length, end, my_charset_latin1))
+      long value= my_strntol(&my_charset_latin1, argument, length, 10, &end, &err);
+      if (test_if_int(argument,(uint) length, end, &my_charset_latin1))
 	berkeley_lock_scan_time= value;
       else
       {

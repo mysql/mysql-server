@@ -452,7 +452,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   DBUG_PRINT("enter",("str: %.*s",length,str));
 
   // Skip garbage
-  for (; str != end && !my_isdigit(my_charset_latin1, *str) ; str++) ; 
+  for (; str != end && !my_isdigit(&my_charset_latin1, *str) ; str++) ; 
   if (str == end)
     DBUG_RETURN(TIMESTAMP_NONE);
   /*
@@ -460,15 +460,15 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
     If length= 8 or >= 14 then year is of format YYYY.
     (YYYY-MM-DD,  YYYYMMDD, YYYYYMMDDHHMMSS)
   */
-  for (pos=str; pos != end && my_isdigit(my_charset_latin1,*pos) ; pos++) ;
+  for (pos=str; pos != end && my_isdigit(&my_charset_latin1,*pos) ; pos++) ;
   digits= (uint) (pos-str);
   year_length= (digits == 4 || digits == 8 || digits >= 14) ? 4 : 2;
   field_length=year_length-1;
   not_zero_date= 0;
-  for (i=0 ; i < 6 && str != end && my_isdigit(my_charset_latin1,*str) ; i++)
+  for (i=0 ; i < 6 && str != end && my_isdigit(&my_charset_latin1,*str) ; i++)
   {
     uint tmp_value=(uint) (uchar) (*str++ - '0');
-    while (str != end && my_isdigit(my_charset_latin1,str[0]) &&
+    while (str != end && my_isdigit(&my_charset_latin1,str[0]) &&
 	   field_length--)
     {
       tmp_value=tmp_value*10 + (uint) (uchar) (*str - '0');
@@ -481,11 +481,11 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
     else if ( i != 5 ) 				// Skip inter-field delimiters 
     {
       while (str != end && 
-             (my_ispunct(my_charset_latin1,*str) || 
-              my_isspace(my_charset_latin1,*str)))
+             (my_ispunct(&my_charset_latin1,*str) || 
+              my_isspace(&my_charset_latin1,*str)))
       {
 	// Only allow space between days and hours
-	if (my_isspace(my_charset_latin1,*str) && i != 2)
+	if (my_isspace(&my_charset_latin1,*str) && i != 2)
 	  DBUG_RETURN(TIMESTAMP_NONE);
 	str++;
       }
@@ -494,12 +494,12 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   }
   /* Handle second fractions */
   if (i == 6 && (uint) (end-str) >= 2 && *str == '.' && 
-      my_isdigit(my_charset_latin1,str[1]))
+      my_isdigit(&my_charset_latin1,str[1]))
   {
     str++;
     uint tmp_value=(uint) (uchar) (*str - '0');
     field_length=3;
-    while (str++ != end && my_isdigit(my_charset_latin1,str[0]) &&
+    while (str++ != end && my_isdigit(&my_charset_latin1,str[0]) &&
 	   field_length--)
       tmp_value=tmp_value*10 + (uint) (uchar) (*str - '0');
     date[6]=tmp_value;
@@ -522,7 +522,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
     {
       for (; str != end ; str++)
       {
-	if (!my_isspace(my_charset_latin1, *str))
+	if (!my_isspace(&my_charset_latin1, *str))
 	{
 	  not_zero_date= 1;			// Give warning
 	  break;
@@ -537,7 +537,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   {
     for (; str != end ; str++)
     {
-      if (!my_isspace(my_charset_latin1,*str))
+      if (!my_isspace(&my_charset_latin1,*str))
       {
 	current_thd->cuted_fields++;
 	break;
@@ -599,7 +599,7 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
 
   l_time->neg=0;
   for (; str != end && 
-         !my_isdigit(my_charset_latin1,*str) && *str != '-' ; str++)
+         !my_isdigit(&my_charset_latin1,*str) && *str != '-' ; str++)
     length--;
   if (str != end && *str == '-')
   {
@@ -618,7 +618,7 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
   }
 
   /* Not a timestamp. Try to get this as a DAYS_TO_SECOND string */
-  for (value=0; str != end && my_isdigit(my_charset_latin1,*str) ; str++)
+  for (value=0; str != end && my_isdigit(&my_charset_latin1,*str) ; str++)
     value=value*10L + (long) (*str - '0');
 
   if (*str == ' ')
@@ -630,7 +630,7 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
   LINT_INIT(state);
   found_days=found_hours=0;
   if ((uint) (end-str) > 1 && (*str == ' ' && 
-      my_isdigit(my_charset_latin1,str[1])))
+      my_isdigit(&my_charset_latin1,str[1])))
   {						// days !
     date[0]=value;
     state=1;					// Assume next is hours
@@ -638,7 +638,7 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
     str++;					// Skip space;
   }
   else if ((end-str) > 1 && *str == ':' && 
-           my_isdigit(my_charset_latin1,str[1]))
+           my_isdigit(&my_charset_latin1,str[1]))
   {
     date[0]=0;					// Assume we found hours
     date[1]=value;
@@ -660,11 +660,11 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
   /* Read hours, minutes and seconds */
   for (;;)
   {
-    for (value=0; str != end && my_isdigit(my_charset_latin1,*str) ; str++)
+    for (value=0; str != end && my_isdigit(&my_charset_latin1,*str) ; str++)
       value=value*10L + (long) (*str - '0');
     date[state++]=value;
     if (state == 4 || (end-str) < 2 || *str != ':' || 
-        !my_isdigit(my_charset_latin1,str[1]))
+        !my_isdigit(&my_charset_latin1,str[1]))
       break;
     str++;					// Skip ':'
   }
@@ -684,12 +684,12 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
 
  fractional:
   /* Get fractional second part */
-  if ((end-str) >= 2 && *str == '.' && my_isdigit(my_charset_latin1,str[1]))
+  if ((end-str) >= 2 && *str == '.' && my_isdigit(&my_charset_latin1,str[1]))
   {
     uint field_length=3;
     str++; value=(uint) (uchar) (*str - '0');
     while (++str != end && 
-           my_isdigit(my_charset_latin1,str[0]) && 
+           my_isdigit(&my_charset_latin1,str[0]) && 
            field_length--)
       value=value*10 + (uint) (uchar) (*str - '0');
     date[4]=value;
@@ -715,7 +715,7 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
   {
     do
     {
-      if (!my_isspace(my_charset_latin1,*str))
+      if (!my_isspace(&my_charset_latin1,*str))
       {
 	current_thd->cuted_fields++;
 	break;

@@ -7,12 +7,11 @@
 
 static bool regex_inited=0;
 
-void regex_init()
+void regex_init(CHARSET_INFO *cs)
 {
   char buff[CCLASS_LAST][256];
   int  count[CCLASS_LAST];
   uint i;
-  CHARSET_INFO *cs=default_charset_info;
 
   if (!regex_inited)
   {

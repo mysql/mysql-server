@@ -314,6 +314,78 @@ char *get_charsets_dir(char *buf)
   DBUG_RETURN(strend(buf));
 }
 
+CHARSET_INFO *all_charsets[256];
+CHARSET_INFO *default_charset_info = &my_charset_latin1;
+CHARSET_INFO *system_charset_info  = &my_charset_latin1;
+
+#define MY_ADD_CHARSET(x)	all_charsets[(x)->number]=(x)
+
+
+static my_bool init_compiled_charsets(myf flags  __attribute__((unused)))
+{
+  CHARSET_INFO *cs;
+
+  MY_ADD_CHARSET(&my_charset_latin1);
+  
+  MY_ADD_CHARSET(&my_charset_bin);
+
+#ifdef HAVE_CHARSET_big5
+  MY_ADD_CHARSET(&my_charset_big5);
+#endif
+
+#ifdef HAVE_CHARSET_czech
+  MY_ADD_CHARSET(&my_charset_czech);
+#endif
+
+#ifdef HAVE_CHARSET_euc_kr
+  MY_ADD_CHARSET(&my_charset_euc_kr);
+#endif
+
+#ifdef HAVE_CHARSET_gb2312
+  MY_ADD_CHARSET(&my_charset_gb2312);
+#endif
+
+#ifdef HAVE_CHARSET_gbk
+  MY_ADD_CHARSET(&my_charset_gbk);
+#endif
+
+#ifdef HAVE_CHARSET_latin1_de
+  MY_ADD_CHARSET(&my_charset_latin1_de);
+#endif
+
+#ifdef HAVE_CHARSET_sjis
+  MY_ADD_CHARSET(&my_charset_sjis);
+#endif
+
+#ifdef HAVE_CHARSET_tis620
+  MY_ADD_CHARSET(&my_charset_tis620);
+#endif
+
+#ifdef HAVE_CHARSET_ucs2
+  MY_ADD_CHARSET(&my_charset_ucs2);
+#endif
+
+#ifdef HAVE_CHARSET_ujis
+  MY_ADD_CHARSET(&my_charset_ujis);
+#endif
+
+#ifdef HAVE_CHARSET_utf8
+  MY_ADD_CHARSET(&my_charset_utf8);
+#endif
+
+#ifdef HAVE_CHARSET_win1250ch
+  MY_ADD_CHARSET(&my_charset_win1250ch);
+#endif
+
+  /* Copy compiled charsets */
+  for (cs=compiled_charsets; cs->name; cs++)
+  {
+    all_charsets[cs->number]=cs;
+  }
+  
+  return FALSE;
+}
+
 static my_bool init_available_charsets(myf myflags)
 {
   char fname[FN_REFLEN];
@@ -607,3 +679,5 @@ char *list_charsets(myf want_flags)
   
   return p;
 }
+
+

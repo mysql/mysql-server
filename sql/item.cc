@@ -139,7 +139,7 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
 bool Item::get_date(TIME *ltime,bool fuzzydate)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff), my_charset_bin),*res;
+  String tmp(buff,sizeof(buff), &my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
       str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate) == TIMESTAMP_NONE)
   {
@@ -157,7 +157,7 @@ bool Item::get_date(TIME *ltime,bool fuzzydate)
 bool Item::get_time(TIME *ltime)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff),my_charset_bin),*res;
+  String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
       str_to_time(res->ptr(),res->length(),ltime))
   {
@@ -923,7 +923,7 @@ Item_varbinary::Item_varbinary(const char *str, uint str_length)
   char *ptr=(char*) sql_alloc(max_length+1);
   if (!ptr)
     return;
-  str_value.set(ptr,max_length,my_charset_bin);
+  str_value.set(ptr,max_length,&my_charset_bin);
   char *end=ptr+max_length;
   if (max_length*2 != str_length)
     *ptr++=char_val(*str++);			// Not even, assume 0 prefix
@@ -1293,7 +1293,7 @@ Item *resolve_const_item(Item *item,Item *comp_item)
   if (res_type == STRING_RESULT)
   {
     char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff),my_charset_bin),*result;
+    String tmp(buff,sizeof(buff),&my_charset_bin),*result;
     result=item->val_str(&tmp);
     if (item->null_value)
     {
@@ -1348,8 +1348,8 @@ bool field_is_equal_to_item(Field *field,Item *item)
   {
     char item_buff[MAX_FIELD_WIDTH];
     char field_buff[MAX_FIELD_WIDTH];
-    String item_tmp(item_buff,sizeof(item_buff),my_charset_bin),*item_result;
-    String field_tmp(field_buff,sizeof(field_buff),my_charset_bin);
+    String item_tmp(item_buff,sizeof(item_buff),&my_charset_bin),*item_result;
+    String field_tmp(field_buff,sizeof(field_buff),&my_charset_bin);
     item_result=item->val_str(&item_tmp);
     if (item->null_value)
       return 1;					// This must be true

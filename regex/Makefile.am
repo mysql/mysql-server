@@ -17,7 +17,7 @@
 
 INCLUDES =		@MT_INCLUDES@ -I$(top_srcdir)/include
 noinst_LIBRARIES =	libregex.a
-LDADD =			libregex.a ../strings/libmystrings.a ../mysys/libmysys.a
+LDADD =			libregex.a ../strings/libmystrings.a
 noinst_HEADERS =	cclass.h cname.h regex2.h utils.h engine.c regex.h
 libregex_a_SOURCES =	regerror.c regcomp.c regexec.c regfree.c reginit.c
 noinst_PROGRAMS =	re

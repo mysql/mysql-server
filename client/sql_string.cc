@@ -135,14 +135,14 @@ bool String::set(double num,uint decimals, CHARSET_INFO *cs)
   if (decimals >= NOT_FIXED_DEC)
   {
     sprintf(buff,"%.14g",num);			// Enough for a DATETIME
-    return copy(buff, (uint32) strlen(buff), my_charset_latin1, cs);
+    return copy(buff, (uint32) strlen(buff), &my_charset_latin1, cs);
   }
 #ifdef HAVE_FCONVERT
   int decpt,sign;
   char *pos,*to;
 
   VOID(fconvert(num,(int) decimals,&decpt,&sign,buff+1));
-  if (!my_isdigit(my_charset_latin1, buff[1]))
+  if (!my_isdigit(&my_charset_latin1, buff[1]))
   {						// Nan or Inf
     pos=buff+1;
     if (sign)
@@ -150,7 +150,7 @@ bool String::set(double num,uint decimals, CHARSET_INFO *cs)
       buff[0]='-';
       pos=buff;
     }
-    return copy(pos,(uint32) strlen(pos), my_charset_latin1, cs);
+    return copy(pos,(uint32) strlen(pos), &my_charset_latin1, cs);
   }
   if (alloc((uint32) ((uint32) decpt+3+decimals)))
     return TRUE;
@@ -200,7 +200,7 @@ end:
 #else
   sprintf(buff,"%.*f",(int) decimals,num);
 #endif
-  return copy(buff,(uint32) strlen(buff), my_charset_latin1, cs);
+  return copy(buff,(uint32) strlen(buff), &my_charset_latin1, cs);
 #endif
 }
 

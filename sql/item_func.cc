@@ -115,7 +115,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       if ((*arg)->maybe_null)
 	maybe_null=1;
       if ((*arg)->binary())
-	set_charset(my_charset_bin);
+	set_charset(&my_charset_bin);
       with_sum_func= with_sum_func || (*arg)->with_sum_func;
       used_tables_cache|=(*arg)->used_tables();
       const_item_cache&= (*arg)->const_item();
@@ -865,7 +865,7 @@ void Item_func_min_max::fix_length_and_dec()
       maybe_null=0;
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
     if (args[i]->binary())
-      set_charset(my_charset_bin);
+      set_charset(&my_charset_bin);
   }
 }
 
@@ -1334,7 +1334,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
       if ((*arg)->fix_fields(thd, tables, arg) || (*arg)->check_cols(1))
 	return 1;
       if ((*arg)->binary())
-	func->set_charset(my_charset_bin);
+	func->set_charset(&my_charset_bin);
       if ((*arg)->maybe_null)
 	func->maybe_null=1;
       func->with_sum_func= func->with_sum_func || (*arg)->with_sum_func;
@@ -1903,7 +1903,7 @@ longlong Item_func_set_last_insert_id::val_int()
 longlong Item_func_benchmark::val_int()
 {
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff), my_charset_bin);
+  String tmp(buff,sizeof(buff), &my_charset_bin);
   THD *thd=current_thd;
 
   for (ulong loop=0 ; loop < loop_count && !thd->killed; loop++)
@@ -2049,7 +2049,7 @@ Item_func_set_user_var::update()
   case STRING_RESULT:
   {
     char buffer[MAX_FIELD_WIDTH];
-    String tmp(buffer,sizeof(buffer),my_charset_bin);
+    String tmp(buffer,sizeof(buffer),&my_charset_bin);
     (void) val_str(&tmp);
     break;
   }
@@ -2244,7 +2244,7 @@ longlong Item_func_inet_aton::val_int()
   char c = '.'; // we mark c to indicate invalid IP in case length is 0
   char buff[36];
 
-  String *s,tmp(buff,sizeof(buff),my_charset_bin);
+  String *s,tmp(buff,sizeof(buff),&my_charset_bin);
   if (!(s = args[0]->val_str(&tmp)))		// If null value
     goto err;
   null_value=0;
