@@ -26725,7 +26725,7 @@ constant.
 
 MySQL 4.0 does another optimization on @code{LIKE}.  If you are using
 @code{... LIKE "%string%"} and @code{string} is longer than 3 characters
-then MySQL will use the turbo-boyer-more algorithm to once initialize
+then MySQL will use the turbo-boyer-moore algorithm to once initialize
 the pattern for the string and then use this pattern to quickly search
 after the given string.
 
@@ -49311,7 +49311,7 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Use turbo-boyer-more to speed up @code{LIKE "%keyword%"} searches.
+Use turbo-boyer-moore to speed up @code{LIKE "%keyword%"} searches.
 @item
 Fixed bug in @code{DROP DATABASE} with symlink.
 @item
