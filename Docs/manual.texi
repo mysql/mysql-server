@@ -1707,7 +1707,7 @@ development of the @code{MySQL} database.
 @code{MySQL} partnership logos may only be used by companies and persons
 having a written partnership agreement with @code{MySQL AB}. Partnerships
 include certification as a @code{MySQL} trainer or consultant.
-Please see @xref{Business Services Partnering,,Partnering}.
+Please see @ref{Business Services Partnering,,Partnering}.
 
 
 @node Using MySQL word in presentations, Using MySQL word in company and product names, MySQL AB Partnership Logos, MySQL AB Logos and Trademarks
@@ -2496,7 +2496,7 @@ perhaps solved) the problem.
 
 For information on reporting bugs in @strong{MyODBC}, see @ref{ODBC Problems}.
 
-For solutions to some common problems, see @xref{Problems}.
+For solutions to some common problems, see @ref{Problems}.
 
 When answers are sent to you individually and not to the mailing list,
 it is considered good etiquette to summarise the answers and send the
@@ -5276,7 +5276,7 @@ isn't good at many things (it is!) or that it isn't faster than MySQL Server
 under certain conditions.  We would just like to see a fair test where
 they are very good so that we could get some friendly competition going!
 
-For more information about our benchmarks suite @xref{MySQL Benchmarks}.
+For more information about our benchmarks suite, see @ref{MySQL Benchmarks}.
 
 We are working on an even better benchmark suite, including multi user
 tests, and a better documentation of what the individual tests really
@@ -15347,7 +15347,7 @@ starts up.  Changes to the grant tables take effect as indicated in
 When you modify the contents of the grant tables, it is a good idea to make
 sure that your changes set up privileges the way you want.  For help in
 diagnosing problems, see @ref{Access denied}.  For advice on security issues,
-@pxref{Security}.
+see @ref{Security}.
 
 A useful
 diagnostic tool is the @code{mysqlaccess} script, which Yves Carlier has
@@ -16594,7 +16594,7 @@ dropped only with explicit @code{REVOKE} commands or by manipulating the
 MySQL grant tables.
 @end itemize
 
-For a description of using @code{REQUIRE}, see @xref{Secure connections}.
+For a description of using @code{REQUIRE}, see @ref{Secure connections}.
 
 @node User names, Privilege changes, GRANT, User Account Management
 @subsection MySQL User Names and Passwords
@@ -17476,7 +17476,7 @@ minimum needed to restore it. Currenlty only works for @code{MyISAM}
 tables. For @code{MyISAM} table, copies @code{.frm} (definition)  and
 @code{.MYD} (data) files. The index file can be rebuilt from those two.
 
-Before using this command, please see @xref{Backup}.
+Before using this command, please see @ref{Backup}.
 
 During the backup, read lock will be held for each table, one at time,
 as they are being backed up. If you want to backup several tables as
@@ -23257,11 +23257,11 @@ it is not the only one. For example, if you already have a snapshot
 of the master, and
 the master already has server id set and binary logging enabled, one can
 set up a slave without shutting the master down or even blocking the updates.
-Please refer to @xref{Replication FAQ}. for more details.
+For more details, please see @ref{Replication FAQ}.
 
 If you want to become a real MySQL replication guru, we suggest that you
 begin with studing, pondering, and trying all commands
-mentioned in @xref{Replication SQL}. You should also familiarize yourself
+mentioned in @ref{Replication SQL}. You should also familiarize yourself
 with replication startup options in @code{my.cnf} in
 @xref{Replication Options}.
 
@@ -31054,7 +31054,7 @@ relevance - similarity measure between the text in columns
 positive floating-point number. Zero relevance means no similarity.
 @code{MATCH ... AGAINST()} is available in MySQL version
 3.23.23 or later. @code{IN BOOLEAN MODE} extension was added in version
-4.0.1. For details and usage examples @pxref{Fulltext Search}.
+4.0.1. For details and usage examples, see @ref{Fulltext Search}.
 @end table
 
 @node Case Sensitivity Operators,  , String comparison functions, String functions
@@ -44272,7 +44272,7 @@ This chapter describes a lot of things that you need to know when
 working on the MySQL code. If you plan to contribute to MySQL
 development, want to have access to the bleeding-edge in-between
 versions code, or just want to keep track of development, follow the
-instructions in @xref{Installing source tree}.
+instructions in @ref{Installing source tree}.
 If you are interested in MySQL internals, you should also subscribe
 to our @code{internals} mailing list. This list is relatively low
 traffic. For details on how to subscribe, please see

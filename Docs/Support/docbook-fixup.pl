@@ -82,6 +82,16 @@ print STDERR "Adding closing / to XREF...\n";
 $data =~ s{<xref (.+?)>}
           {<xref $1 />}gs;
 
+# 2002-02-22 arjen@mysql.com
+print STDERR "Adding \"See \" to XREFs that used to be \@xref...\n";
+$data =~ s{([\.\'\!\)])[\n ]*<xref }
+          {$1 See <xref }gs;
+
+# 2002-02-22 arjen@mysql.com
+print STDERR "Adding \"see \" to (XREFs) that used to be (\@pxref)...\n";
+$data =~ s{(\(|[[,;])([\n]*[ ]*)<xref }
+          {$1$2see <xref }gs;
+
 # 2002-01-30 arjen@mysql.com
 print STDERR "Removing COLSPEC...\n";
 $data =~ s{\n *<colspec colwidth=\"[0-9]+\*\">}
@@ -133,6 +143,7 @@ foreach $apx (@apx) {
   };
 };
 
+# 2002-02-22 arjen@mysql.com (added fix " /" to end of regex, to make it match)
 print STDERR "Fixing references to removed nodes...\n";
 foreach $node (@nodes) {
   $web = $node;
@@ -140,7 +151,7 @@ foreach $node (@nodes) {
   $web = "http://www.mysql.com/doc/" .
          (join "/", (split //, $web)[0..1])."/$web.html";
   print STDERR "$node -> $web\n";
-  $data =~ s{<(\w+) linkend=\"$node\">}
+  $data =~ s{<(\w+) linkend=\"$node\" />}
             {$web}gs;
 };
 
