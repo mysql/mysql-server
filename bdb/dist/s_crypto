@@ -3,6 +3,8 @@
 
 # Remove crypto from the DB source tree.
 
+. ./RELEASE
+
 d=..
 
 t=/tmp/__db_a

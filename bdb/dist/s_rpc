@@ -25,9 +25,6 @@ server_file=../rpc_server/c/gen_db_server.c
 stmpl_file=./template/db_server_proc
 xdr_file=../rpc_server/db_server.x
 
-#
-# NOTE: We do NOT want to remove proc_file.  It is what we apply $sed_file
-# to, but we do not want to remove it, it does not get built in place.
 rm -f   $client_file \
 	$ctmpl_file \
 	$header_file \
@@ -92,8 +89,7 @@ ENDOFSEDTEXT
 sed -f $t $rpcsvc_file > ${rpcsvc_file}.new
 mv ${rpcsvc_file}.new $rpcsvc_file
 
-sed -f $sed_file $proc_file > ${proc_file}.new
-mv ${proc_file}.new $proc_file
+sed -f $sed_file ${proc_file}.in > ${proc_file}
 
 # Run rpcgen files through sed to add HAVE_RPC ifdef and appropriate
 # includes.
