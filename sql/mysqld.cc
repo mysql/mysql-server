@@ -258,7 +258,7 @@ ulong refresh_version=1L,flush_version=1L;	/* Increments on each reload */
 ulong query_id=1L,long_query_count,long_query_time,aborted_threads,
       aborted_connects,delayed_insert_timeout,delayed_insert_limit,
       delayed_queue_size,delayed_insert_threads,delayed_insert_writes,
-      delayed_rows_in_use,delayed_insert_errors,flush_time;
+      delayed_rows_in_use,delayed_insert_errors,flush_time, thread_created;
 ulong filesort_rows, filesort_range_count, filesort_scan_count;
 ulong filesort_merge_passes;
 ulong select_range_check_count, select_range_count, select_scan_count;
@@ -801,7 +801,9 @@ static void server_init(void)
       sql_print_error("Do you already have another mysqld server running on port: %d ?",mysql_port);
       unireg_abort(1);
     }
-    (void) listen(ip_sock,(int) back_log);
+    if (listen(ip_sock,(int) back_log) < 0)
+      sql_print_error("Warning:  listen() on TCP/IP failed with error %d",
+		      errno);
   }
 
   if (mysqld_chroot)
@@ -886,7 +888,9 @@ static void server_init(void)
 #if defined(S_IFSOCK) && defined(SECURE_SOCKETS)
     (void) chmod(mysql_unix_port,S_IFSOCK);	/* Fix solaris 2.6 bug */
 #endif
-    (void) listen(unix_sock,(int) back_log);
+    if (listen(unix_sock,(int) back_log) < 0)
+      sql_print_error("Warning:  listen() on Unix socket failed with error %d",
+		      errno);
   }
 #endif
   DBUG_PRINT("info",("server started"));
@@ -1082,6 +1086,8 @@ inline static __volatile__ void  trace_stack()
   uchar **stack_bottom;
   uchar** ebp;
   LINT_INIT(ebp);
+  LINT_INIT(stack_bottom);
+
   fprintf(stderr,
 "Attemping backtrace. You can use the following information to find out\n\
 where mysqld died.  If you see no messages after this, something went\n\
@@ -1099,12 +1105,15 @@ terribly wrong\n");
   }
   if (!thd)
   {
-    fprintf(stderr, "Cannot determine thread, ebp=%p, aborting backtrace\n",
-	    ebp);
-    return;
+    fprintf(stderr, "Cannot determine thread, ebp=%p, backtrace may not be correct\n", ebp);
+    /* Assume that the stack starts at the previous even 65K */
+    ulong tmp= min(0x10000,thread_stack);
+    stack_bottom= (uchar**) (((ulong) &stack_bottom + tmp) &
+			     ~(ulong) 0xFFFF);
   }
-  stack_bottom = (uchar**)thd->thread_stack;
-  if(ebp > stack_bottom || ebp < stack_bottom - thread_stack)
+  else
+    stack_bottom = (uchar**) thd->thread_stack;
+  if (ebp > stack_bottom || ebp < stack_bottom - thread_stack)
   {
     fprintf(stderr,
 	    "Bogus stack limit or frame pointer, aborting backtrace\n");
@@ -2010,6 +2019,7 @@ static void create_new_thread(THD *thd)
     {
       int error;
       thread_count++;
+      thread_created++;
       threads.append(thd);
       DBUG_PRINT("info",(("creating thread %d"), thd->thread_id));
       thd->connect_time = time(NULL);
@@ -2595,7 +2605,7 @@ CHANGEABLE_VAR changeable_vars[] = {
   { "thread_concurrency",      (long*) &concurrency,
       DEFAULT_CONCURRENCY, 1, 512, 0, 1 },
   { "thread_cache_size",       (long*) &thread_cache_size,
-      0, 1, 16384, 0, 1 },
+      0, 0, 16384, 0, 1 },
   { "tmp_table_size",          (long*) &tmp_table_size,
       1024*1024L, 1024, ~0L, MALLOC_OVERHEAD, 1 },
   { "thread_stack",            (long*) &thread_stack,
@@ -2748,6 +2758,7 @@ struct show_var_st status_vars[]= {
   {"Sort_rows",		       (char*) &filesort_rows,	        SHOW_LONG},
   {"Sort_scan",		       (char*) &filesort_scan_count,    SHOW_LONG},
   {"Threads_cached",           (char*) &cached_thread_count,    SHOW_LONG_CONST},
+  {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_CONST},
   {"Threads_connected",        (char*) &thread_count,           SHOW_INT_CONST},
   {"Threads_running",          (char*) &thread_running,         SHOW_INT_CONST},
   {"Uptime",                   (char*) 0,                       SHOW_STARTTIME},

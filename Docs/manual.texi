@@ -713,7 +713,7 @@ Some Common Errors When Using MySQL
 
 Solving Some Common Problems with MySQL
 
-* Log Replication::             Database replication with  update log
+* Log Replication::             Database replication with update log
 * Backup::                      Database backups
 * Update log::                  The update log
 * Binary log::                  The binary log
@@ -846,6 +846,7 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Recommended; Gamma)
 
+* News-3.23.31::                
 * News-3.23.30::                Changes in release 3.23.30
 * News-3.23.29::                Changes in release 3.23.29
 * News-3.23.28::                Changes in release 3.23.28
@@ -9283,6 +9284,15 @@ basedir=/usr/local/mysql
 The @code{mysql.server} script uses the following variables:
 @code{user}, @code{datadir}, @code{basedir}, @code{bindir}, and
 @code{pid-file}.
+
+The following table shows which option sections each of the startup script
+uses:
+
+@multitable @columnfractions .20 .80
+@item @code{mysqld} @tab @code{mysqld} and @code{server}
+@item @code{mysql.server} @tab @code{mysql.server}, @code{mysqld} and @code{server}
+@item @code{safe_mysqld} @tab @code{mysql.server}, @code{mysqld} and @code{server}
+@end multitable
 
 @xref{Option files}.
 
@@ -20146,6 +20156,7 @@ below, though the format and numbers probably differ:
 | Sort_scan                | 5298       |
 | Threads_cached           | 0          |
 | Threads_connected        | 1          |
+| Threads_created          | 30022      |
 | Threads_running          | 1          |
 | Uptime                   | 39613      |
 +--------------------------+------------+
@@ -20213,6 +20224,7 @@ open by the slave thread
 @item @code{Sort_scan}  @tab Number of sorts that where done by scanning the table.
 @item @code{Threads_cached} @tab Number of threads in the thread cache.
 @item @code{Threads_connected} @tab Number of currently open connections.
+@item @code{Threads_created} @tab Number of threads created to handle connections.
 @item @code{Threads_running} @tab Number of threads that are not sleeping.
 @item @code{Uptime} @tab How many seconds the server has been up.
 @end multitable
@@ -20237,6 +20249,9 @@ your @code{mysqld} @code{sort_buffer} variables is probably too small.
 @item
 @code{Created_tmp_files} doesn't count the files needed to handle temporary
 tables.
+@item
+If @code{Threads_created} is big, you may want to increase the
+@code{thread_cache_size} variable.
 @end itemize
 
 @node SHOW VARIABLES, SHOW LOGS, SHOW STATUS, SHOW
@@ -20706,7 +20721,9 @@ threads are first taken from the cache, and only when the cache is empty
 is a new thread created.  This variable can be increased to improve
 performance if you have a lot of new connections. (Normally this doesn't
 give a notable performance improvement if you have a good
-thread implementation.)
+thread implementation.)  By examing the difference between
+the @code{Connections} and @code{Threads_created} you can see how efficient
+the current thread cache is for you.
 
 @item @code{thread_concurrency}
 On Solaris, @code{mysqld} will call @code{thr_setconcurrency()} with
@@ -28438,8 +28455,8 @@ information to a log file.
 Normally one should never edit the @code{safe_mysqld} script, but
 instead put the options to @code{safe_mysqld} in the
 @code{[safe_mysqld]} section in the @code{my.cnf}
-file. @code{safe_mysqld} will read all options from the @code{[mysqld]}
-and @code{[safe_mysqld]} sections from the option files.
+file. @code{safe_mysqld} will read all options from the @code{[mysqld]},
+@code{[server]} and @code{[safe_mysqld]} sections from the option files.
 @xref{Option files}.
 
 Note that all options on the command line to @code{safe_mysqld} are passed
@@ -30801,10 +30818,13 @@ print some informational statistics, too.
 @node Repair, Optimization, Check, Crash recovery
 @subsection How to Repair Tables
 
-In the following section we only talk about using @code{myisamchk} on @code{MyISAM}
-tables (extensions @code{.MYI} and @code{.MYD}).  If you are using
-@code{ISAM} tables (extensions @code{.ISM} and @code{.ISD}), you should use
-@code{isamchk} instead.
+In the following section we only talk about using @code{myisamchk} on
+@code{MyISAM} tables (extensions @code{.MYI} and @code{.MYD}).  If you
+are using @code{ISAM} tables (extensions @code{.ISM} and @code{.ISD}),
+you should use @code{isamchk} instead.
+
+Starting with @strong{MySQL} Version 3.23.14, you can repair MyISAM
+tables with the @code{REPAIR TABLE} command. @xref{REPAIR TABLE}.
 
 The symptoms of a corrupted table include queries that abort unexpectedly
 and observable errors such as these:
@@ -30815,11 +30835,45 @@ and observable errors such as these:
 @item
 Can't find file @file{tbl_name.MYI} (Errcode: ###)
 @item
-Got error ### from table handler (Error 135 is an exception in this case)
-@item
 Unexpected end of file
 @item
 Record file is crashed
+@item
+Got error ### from table handler
+
+To get more information about the error you can do @code{perror
+###}. Here is the most common errors that indicates a problem with the
+table:
+
+@example
+shell> perror 126 127 132 134 135 136 141 144 145
+126 = Index file is crashed / Wrong file format
+127 = Record-file is crashed
+132 = Old database file
+134 = Record was already deleted (or record file crashed)
+135 = No more room in record file
+136 = No more room in index file
+141 = Duplicate unique key or constraint on write or update
+144 = Table is crashed and last repair failed
+145 = Table was marked as crashed and should be repaired
+@end example
+
+Note that error 135, no more room in record file, is not a error that
+can be fixed by a simple repair. In this case you have to do:
+
+@itemize @bullet
+@item
+@code{CREATE TABLE ...} for the table with proper @code{MAX_ROWS} and
+@code{AVG_ROW_LENGTH} values. @xref{CREATE TABLE}.
+@item
+Copy the data over from the old table with @code{INSERT INTO new_table
+SELECT * from old_table}.
+@item
+Rename the old table to the new table:
+@code{RENAME old_table to tmp_table, new_table to old_table}
+@item
+Delete the old table: @code{DROP TABLE tmp_table}.
+@end itemize
 @end itemize
 
 In these cases, you must repair your tables. @code{myisamchk}
@@ -40045,6 +40099,7 @@ version.  The replication and BerkeleyDB code is still under development,
 though, so Version 3.23 is not released as a stable version yet.
 
 @menu
+* News-3.23.31::                Changes in release 3.23.31
 * News-3.23.30::                Changes in release 3.23.30
 * News-3.23.29::                Changes in release 3.23.29
 * News-3.23.28::                Changes in release 3.23.28
@@ -40078,7 +40133,23 @@ though, so Version 3.23 is not released as a stable version yet.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.30, News-3.23.29, News-3.23.x, News-3.23.x
+@node News-3.23.31, News-3.23.30, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.31
+@itemize @bullet
+@item
+Fixed bug in @@code{MyISAM} when deleting keys with possible @code{NULL}
+values, but the first key-column was not a prefix-compressed text column.
+@item
+Fixed that @code{mysql.server} reads the @code{mysql.server} option section
+instead of @code{mysql_server}.
+@item
+Fixed that @code{safe_mysqld} and @code{mysql.server} also reads the
+@code{server} option section.
+@item
+Added @code{Threads_created} status variable to @code{mysqld}.
+@end itemize
+
+@node News-3.23.30, News-3.23.29, News-3.23.31, News-3.23.x
 @appendixsubsec Changes in release 3.23.30
 @itemize @bullet
 @item

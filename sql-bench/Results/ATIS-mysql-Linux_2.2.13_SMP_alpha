@@ -1,4 +1,4 @@
-Testing server 'MySQL 3.23.30 gamma' at 2000-12-28 15:29:27
+Testing server 'MySQL 3.23.30 gamma' at 2001-01-03 18:34:25
 
 ATIS table test
 
@@ -6,15 +6,15 @@ Creating tables
 Time for create_table (28):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Inserting data
-Time to insert (9768):  3 wallclock secs ( 0.64 usr  0.61 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time to insert (9768):  3 wallclock secs ( 0.63 usr  0.59 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Retrieving data
-Time for select_simple_join (500):  2 wallclock secs ( 0.62 usr  0.39 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for select_join (100):  2 wallclock secs ( 0.47 usr  0.35 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for select_key_prefix_join (100): 10 wallclock secs ( 3.80 usr  2.75 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for select_distinct (800): 11 wallclock secs ( 1.63 usr  1.04 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for select_group (2800): 10 wallclock secs ( 1.48 usr  0.66 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_simple_join (500):  2 wallclock secs ( 0.61 usr  0.39 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_join (100):  1 wallclock secs ( 0.48 usr  0.34 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_key_prefix_join (100): 11 wallclock secs ( 3.75 usr  2.76 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_distinct (800): 11 wallclock secs ( 1.72 usr  0.97 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_group (2800): 10 wallclock secs ( 1.55 usr  0.68 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Removing tables
 Time to drop_table (28):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Total time: 38 wallclock secs ( 8.65 usr  5.80 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Total time: 38 wallclock secs ( 8.76 usr  5.73 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

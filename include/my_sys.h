@@ -551,6 +551,8 @@ extern const char *get_type(TYPELIB *typelib,uint nr);
 extern my_bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
 				   uint init_alloc,uint alloc_increment);
 extern my_bool dynstr_append(DYNAMIC_STRING *str, const char *append);
+my_bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append,
+			  uint length);
 extern my_bool dynstr_set(DYNAMIC_STRING *str, const char *init_str);
 extern my_bool dynstr_realloc(DYNAMIC_STRING *str, ulong additional_size);
 extern void dynstr_free(DYNAMIC_STRING *str);

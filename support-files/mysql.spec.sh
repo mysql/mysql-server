@@ -302,7 +302,6 @@ fi
 %attr(755, root, root) /usr/bin/mysql_fix_privilege_tables
 %attr(755, root, root) /usr/bin/mysql_convert_table_format
 %attr(755, root, root) /usr/bin/mysql_install_db
-%attr(755, root, root) /usr/bin/mysql_config
 %attr(755, root, root) /usr/bin/mysql_setpermission
 %attr(755, root, root) /usr/bin/mysql_zap
 %attr(755, root, root) /usr/bin/mysqlbug

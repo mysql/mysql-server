@@ -18,6 +18,14 @@ then
   shift 1
 fi
 
+# Get optional suffix for distribution
+SUFFIX=""
+if test $# -gt 0 -a x$1 != x"-debug" 
+then
+  SUFFIX=$1
+  shift 1
+fi
+
 if test x$1 = x"-debug"
 then
   DEBUG=1
@@ -33,7 +41,7 @@ fi
 BASE=$TMP/my_dist
 
 if [ -d $BASE ] ; then
- rm -rf $BASE
+ rm -r -f $BASE
 fi
 
 mkdir $BASE $BASE/bin $BASE/data $BASE/data/mysql $BASE/data/test \
@@ -56,7 +64,10 @@ for i in extra/comp_err extra/replace extra/perror extra/resolveip \
  client/mysqladmin client/mysqldump client/mysqlimport client/mysqltest \
  client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin client/.libs/mysqldump client/.libs/mysqlimport client/.libs/mysqltest
 do
-  cp -p $i $BASE/bin
+  if [ -f $i ]
+  then
+    cp -p $i $BASE/bin
+   fi
 done
 
 cp -p config.h include/* $BASE/include
@@ -67,10 +78,8 @@ cp -p support-files/* $BASE/support-files
 cp -p libmysql/.libs/libmysqlclient.a libmysql/.libs/libmysqlclient.so* libmysql/libmysqlclient.* libmysql_r/.libs/libmysqlclient_r.a libmysql_r/.libs/libmysqlclient_r.so* libmysql_r/libmysqlclient_r.* mysys/libmysys.a strings/libmystrings.a dbug/libdbug.a $BASE/lib
 cp -r -p sql/share/* $BASE/share/mysql
 rm -f $BASE/share/mysql/Makefile* $BASE/share/mysql/*/*.OLD
-rm -rf $BASE/share/SCCS  $BASE/share/*/SCCS 
 
 cp -p mysql-test/mysql-test-run mysql-test/install_test_db $BASE/mysql-test/
-cp -p mysql-test/create-test-result $BASE/mysql-test
 cp -p mysql-test/README $BASE/mysql-test/README
 cp -p mysql-test/include/*.inc $BASE/mysql-test/include
 cp -p mysql-test/std_data/*.dat  mysql-test/std_data/*.frm \
@@ -89,13 +98,17 @@ mv $BASE/support-files/binary-configure $BASE/configure
 chmod a+x $BASE/bin/* $BASE/scripts/* $BASE/support-files/mysql-* $BASE/configure
 cp -r -p sql-bench/* $BASE/sql-bench
 rm -f $BASE/sql-bench/*.sh $BASE/sql-bench/Makefile* $BASE/lib/*.la
-rm -rf `find $BASE/sql-bench -name SCCS`
-rm -rf `find $BASE/share -name SCCS`
 
-# Change the distribution to a long descreptive name
-NEW_NAME=mysql-$version-$system-$machine
+# Clean up if we did this from a bk tree
+if [ -d $BASE/sql-bench/SCCS ] ; then 
+  find $BASE/share -name SCCS -print | xargs rm -r -f
+  find $BASE/sql-bench -name SCCS -print | xargs rm -r -f
+fi
+
+# Change the distribution to a long descriptive name
+NEW_NAME=mysql-$version-$system-$machine$SUFFIX
 BASE2=$TMP/$NEW_NAME
-rm -rf $BASE2
+rm -r -f $BASE2
 mv $BASE $BASE2
 BASE=$BASE2
 #
@@ -160,6 +173,6 @@ cd $SOURCE
 echo "Compressing archive"
 gzip -9 $NEW_NAME.tar
 echo "Removing temporary directory"
-rm -rf $BASE
+rm -r -f $BASE
 
 echo "$NEW_NAME.tar.gz created"
