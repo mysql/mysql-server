@@ -88,14 +88,14 @@ bool mysql_create_view(THD *thd,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
     Privilege check for view creation:
-    - user have CREATE VIEW privilege on view table
-    - user have DELETE privilege in case of ALTER VIEW or CREATE OR REPLACE
+    - user has CREATE VIEW privilege on view table
+    - user has DROP privilege in case of ALTER VIEW or CREATE OR REPLACE
     VIEW
-    - have some (SELECT/UPDATE/INSERT/DELETE) privileges on columns of
+    - user has some (SELECT/UPDATE/INSERT/DELETE) privileges on columns of
     underlying tables used on top of SELECT list (because it can be
     (theoretically) updated, so it is enough to have UPDATE privilege on
     them, for example)
-    - have SELECT privilege on columns used in expressions of VIEW select
+    - user has SELECT privilege on columns used in expressions of VIEW select
     - for columns of underly tables used on top of SELECT list also will be
     checked that we have not more privileges on correspondent column of view
     table (i.e. user will not get some privileges by view creation)
@@ -104,9 +104,9 @@ bool mysql_create_view(THD *thd,
                     0, 0) ||
        grant_option && check_grant(thd, CREATE_VIEW_ACL, view, 0, 1, 0)) ||
       (mode != VIEW_CREATE_NEW &&
-       (check_access(thd, DELETE_ACL, view->db, &view->grant.privilege,
+       (check_access(thd, DROP_ACL, view->db, &view->grant.privilege,
                      0, 0) ||
-        grant_option && check_grant(thd, DELETE_ACL, view, 0, 1, 0))))
+        grant_option && check_grant(thd, DROP_ACL, view, 0, 1, 0))))
     DBUG_RETURN(TRUE);
   for (sl= select_lex; sl; sl= sl->next_select())
   {
