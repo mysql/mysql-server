@@ -45,6 +45,7 @@ use strict;
 use Getopt::Long;
 
 my $insert_portion_size= 15;
+my $maximum_line_length= 2040;
 my $error_prefix= "---- help parsing errors :";
 
 my $path_to_lex_file= "../sql/lex.h";
@@ -166,6 +167,7 @@ sub add_description
     print_error "double description for $topic_name\n";
   }
   $topics{$topic_name}->{description}= $description;
+  $topics{$topic_name}->{line_of_description}= $cur_line;
   add_topic_to_category($topic_name);
 }
 
@@ -515,21 +517,52 @@ if (scalar(@topic_names))
 {
   my $header= "insert into help_topic ".
       "(help_topic_id,help_category_id,name,description,example) values ";
+  my $line_accumulator= $header;
+  my $lines_in_accumulator= 0;
+  my $actual_max_line_length= $maximum_line_length-2; # for ";\n"
   my $topic_name;
   my $count= 0;
   foreach $topic_name (@topic_names)
   {
-    print_insert_header($count,$header);
     my $topic= $topics{$topic_name};
-    print "($count,";
-    print "$topic->{category}->{__id__},";
-    print "\"$topic_name\",";
-    print "\"$topic->{description}\",";
-    print "\"$topic->{example}\")";
+    my $line= "($count,";
+    $line.= "$topic->{category}->{__id__},";
+    $line.= "\"$topic_name\",";
+    $line.= "\"$topic->{description}\",";
+    $line.= "\"$topic->{example}\")";
+    if ($lines_in_accumulator <= $insert_portion_size && 
+        length($line) + length($line_accumulator) < $actual_max_line_length)
+    {
+      if ($lines_in_accumulator ne 0)
+      {
+        $line_accumulator.= ",";
+      }
+      $line_accumulator.= $line;
+      $lines_in_accumulator++;
+    }
+    else
+    {
+      if (length($line) + length($header) >= $actual_max_line_length)
+      {
+        $cur_line= $topics{$topic_name}->{line_of_description};
+        print_error "too long record for topic \"$topic_name\" \n".
+               "                please decrease its description or example!\n";
+      }
+      else
+      {
+        print "$line_accumulator;\n";
+        $line_accumulator= $header.$line;
+        $lines_in_accumulator= 1;
+      }
+    }
     $topics{$topic_name}->{__id__}= $count;
     $count++;
   }
-  printf ";\n\n";
+  if ($lines_in_accumulator ne 0)
+  {
+    print "$line_accumulator;\n";
+  }
+  printf "\n";
 }
 
 my @keywords_names= keys(%keywords);
