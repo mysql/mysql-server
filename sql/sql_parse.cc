@@ -186,7 +186,7 @@ end:
 /*
   Check if user is ok
   Updates:
-  thd->user, thd->master_access, thd->priv_user, thd->db, thd->db_access
+  thd->{user,master_access,priv_user,priv_host,db,db_access}
 */
 
 static bool check_user(THD *thd,enum_server_command command, const char *user,
@@ -205,7 +205,8 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
     return 1;
   }
   thd->master_access=acl_getroot(thd, thd->host, thd->ip, thd->user,
-				 passwd, thd->scramble, &thd->priv_user,
+				 passwd, thd->scramble,
+                                 &thd->priv_user, &thd->priv_host,
 				 protocol_version == 9 ||
 				 !(thd->client_capabilities &
 				   CLIENT_LONG_PASSWORD),&ur);
@@ -2566,7 +2567,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     if (!no_errors)
       net_printf(&thd->net,ER_ACCESS_DENIED_ERROR,
 		 thd->priv_user,
-		 thd->host_or_ip,
+		 thd->priv_host,
 		 thd->password ? ER(ER_YES) : ER(ER_NO));/* purecov: tested */
     DBUG_RETURN(TRUE);				/* purecov: tested */
   }
@@ -2591,7 +2592,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   if (!no_errors)
     net_printf(&thd->net,ER_DBACCESS_DENIED_ERROR,
 	       thd->priv_user,
-	       thd->host_or_ip,
+	       thd->priv_host,
 	       db ? db : thd->db ? thd->db : "unknown"); /* purecov: tested */
   DBUG_RETURN(TRUE);				/* purecov: tested */
 }
