@@ -23,6 +23,29 @@ case "$1" in
       ;;
 esac
 
+usage () {
+        cat <<EOF
+Usage: $0 [OPTIONS]
+  --no-defaults              Don't read the system defaults file
+  --defaults-file=FILE       Use the specified defaults file
+  --defaults-extra-file=FILE Also use defaults from the specified file
+  --ledir=DIRECTORY          Look for mysqld in the specified directory
+  --log-error=FILE           Log errors to the specified log file
+  --open-files-limit=LIMIT   Limit the number of open files
+  --core-file-size=LIMIT     Limit core files to the specified size
+  --timezone=TZ              Set the system timezone
+  --mysqld=FILE              Use the specified file as mysqld
+  --mysqld-version=VERSION   Use "mysqld-VERSION" as mysqld
+  --nice=NICE                Set the scheduling priority of mysqld
+  --skip-kill-mysqld         Don't try to kill stray mysqld processes
+
+All other options are passed to the mysqld program.
+
+EOF
+        exit 1
+}
+
+
 parse_arguments() {
   # We only need to pass arguments through to the server if we don't
   # handle them here.  So, we collect unrecognized options (passed on
@@ -67,6 +90,9 @@ parse_arguments() {
 	fi
 	;;
       --nice=*) niceness=`echo "$arg" | sed -e "s;--nice=;;"` ;;
+      --help)
+        usage
+        ;;
       *)
         if test -n "$pick_args"
         then
