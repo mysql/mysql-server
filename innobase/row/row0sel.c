@@ -2492,6 +2492,17 @@ row_search_for_mysql(
 	
 	ut_ad(sync_thread_levels_empty_gen(FALSE));
 	
+	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
+		fprintf(stderr,
+		"InnoDB: Error: trying to free a corrupt\n"
+		"InnoDB: table handle. Magic n %lu, table name %s\n",
+		prebuilt->magic_n, prebuilt->table->name);
+
+		mem_analyze_corruption((byte*)prebuilt);
+
+		ut_a(0);
+	}
+
 /*	printf("Match mode %lu\n search tuple ", match_mode);
 	dtuple_print(search_tuple);
 	

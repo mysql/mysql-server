@@ -105,6 +105,17 @@ rec_get_nth_field(
 	ut_ad(rec && len);
 	ut_ad(n < rec_get_n_fields(rec));
 
+	if (n > 1024) {
+		fprintf(stderr, "Error: trying to access field %lu in rec\n",
+									n);
+		ut_a(0);
+	}
+
+	if (rec == NULL) {
+		fprintf(stderr, "Error: rec is NULL pointer\n");
+		ut_a(0);
+	}
+	
 	if (rec_get_1byte_offs_flag(rec)) {
 		os = rec_1_get_field_start_offs(rec, n);
 
