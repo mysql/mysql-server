@@ -251,7 +251,7 @@ int emb_next_result(MYSQL *mysql)
   DBUG_ENTER("emb_next_result");
 
   if (emb_advanced_command(mysql, COM_QUERY,0,0,
-			   thd->query_rest,thd->query_rest_length,1)
+			   thd->query_rest.ptr(),thd->query_rest.length(),1)
       || emb_mysql_read_query_result(mysql))
     DBUG_RETURN(1);
 
@@ -689,7 +689,10 @@ send_ok(THD *thd,ha_rows affected_rows,ulonglong id,const char *message)
   mysql->affected_rows= affected_rows;
   mysql->insert_id= id;
   if (message)
+  {
     strmake(thd->net.last_error, message, sizeof(thd->net.last_error)-1);
+    mysql->info= thd->net.last_error;
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -760,11 +763,6 @@ bool Protocol::net_store_data(const char *from, uint length)
   ++next_field;
   ++next_mysql_field;
   return false;
-}
-
-char *memdup_mysql(struct st_mysql *mysql, const char*data, int length)
-{
-  return memdup_root(&mysql->field_alloc, data, length);
 }
 
 #if 0

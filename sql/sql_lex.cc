@@ -181,6 +181,23 @@ static int find_keyword(LEX *lex, uint len, bool function)
   return 0;
 }
 
+/*
+  Check if name is a keyword
+
+  SYNOPSIS
+    is_keyword()
+    name      checked name
+    len       length of checked name
+
+  RETURN VALUES
+    0         name is a keyword
+    1         name isn't a keyword
+*/
+
+bool is_keyword(const char *name, uint len)
+{
+  return get_hash_symbol(name,len,0)!=0;
+}
 
 /* make a copy of token before ptr and set yytoklen */
 
@@ -426,7 +443,6 @@ inline static uint int_token(const char *str,uint length)
   while (*cmp && *cmp++ == *str++) ;
   return ((uchar) str[-1] <= (uchar) cmp[-1]) ? smaller : bigger;
 }
-
 
 /*
   yylex remember the following states from the following yylex()
@@ -678,10 +694,9 @@ int yylex(void *arg, void *yythd)
       char quote_char= c;                       // Used char
       lex->tok_start=lex->ptr;			// Skip first `
       while ((c=yyGet()))
-      {  
-#ifdef USE_MB
-	if (my_mbcharlen(cs, c) == 1)
-#endif
+      {
+	int l;
+	if ((l= my_mbcharlen(cs, c)) == 1)
 	{
 	  if (c == (uchar) NAMES_SEP_CHAR)
 	    break; /* Old .frm format can't handle this char */
@@ -695,15 +710,12 @@ int yylex(void *arg, void *yythd)
 	  }
 	}
 #ifdef USE_MB
-	else
+	else if (l > 1)
 	{
-	  int l;
-	  if ((l = my_ismbchar(cs,
-			       (const char *)lex->ptr-1,
-			       (const char *)lex->end_of_query)) == 0)
-	    break;
 	  lex->ptr += l-1;
 	}
+	else
+	  break;
 #endif
       }
       if (double_quotes)
@@ -886,8 +898,13 @@ int yylex(void *arg, void *yythd)
       }
       /* fall true */
     case MY_LEX_EOL:
-      lex->next_state=MY_LEX_END;	// Mark for next loop
-      return(END_OF_INPUT);
+      if (lex->ptr >= lex->end_of_query)
+      {
+	lex->next_state=MY_LEX_END;	// Mark for next loop
+	return(END_OF_INPUT);
+      }
+      state=MY_LEX_CHAR;
+      break;
     case MY_LEX_END:
       lex->next_state=MY_LEX_END;
       return(0);			// We found end of input last time

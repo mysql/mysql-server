@@ -98,3 +98,10 @@ create table t1 (s1 text character set utf8);
 insert into t1 values (0x41FF);
 select hex(s1) from t1;
 drop table t1;
+
+#
+# Bug 2699
+# UTF8 breaks primary keys for cols > 85 characters
+#
+--error 1089
+create table t1 (a char(160) character set utf8, primary key(a));

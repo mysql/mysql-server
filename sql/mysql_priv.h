@@ -764,6 +764,8 @@ uint find_type(TYPELIB *lib, const char *find, uint length, bool part_match);
 uint check_word(TYPELIB *lib, const char *val, const char *end,
 		const char **end_of_word);
 
+bool is_keyword(const char *name, uint len);
+
 
 #define MY_DB_OPT_FILE "db.opt"
 bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);

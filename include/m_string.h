@@ -201,7 +201,7 @@ extern int strcmp(const char *, const char *);
 extern size_t strlen(const char *);
 #endif
 #endif
-#ifndef HAVE_STRNLEN 
+#ifndef HAVE_STRNLEN
 extern uint strnlen(const char *s, uint n);
 #endif
 
@@ -215,7 +215,9 @@ extern char *strstr(const char *, const char *);
 #endif
 extern int is_prefix(const char *, const char *);
 
-/* Conversion rutins */
+/* Conversion routines */
+double my_strtod(const char *str, char **end);
+double my_atof(const char *nptr);
 
 #ifdef USE_MY_ITOA
 extern char *my_itoa(int val,char *dst,int radix);
