@@ -1831,6 +1831,15 @@ Warnings:
 Note	1276	Field or reference 'up.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	select test.up.a AS `a`,test.up.b AS `b` from test.t1 up where exists(select 1 AS `Not_used` from test.t1 where (test.t1.a = test.up.a))
 drop table t1;
+CREATE TABLE t1 (t1_a int);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (t2_a int, t2_b int, PRIMARY KEY (t2_a, t2_b));
+INSERT INTO t2 VALUES (1, 1), (1, 2);
+SELECT * FROM t1, t2 table2 WHERE t1_a = 1 AND table2.t2_a = 1
+HAVING table2.t2_b = (SELECT MAX(t2_b) FROM t2 WHERE t2_a = table2.t2_a);
+t1_a	t2_a	t2_b
+1	1	2
+DROP TABLE t1, t2;
 CREATE TABLE t1 (id int(11) default NULL,name varchar(10) default NULL);
 INSERT INTO t1 VALUES (1,'Tim'),(2,'Rebecca'),(3,NULL);
 CREATE TABLE t2 (id int(11) default NULL, pet varchar(10) default NULL);
