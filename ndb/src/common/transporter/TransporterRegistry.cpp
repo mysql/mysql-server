@@ -50,8 +50,6 @@
 #include <EventLogger.hpp>
 extern EventLogger g_eventLogger;
 
-int g_shm_pid = 0;
-
 SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
 {
   DBUG_ENTER("SocketServer::Session * TransporterService::newSession");
@@ -1322,7 +1320,22 @@ TransporterRegistry::startReceiving()
 
 #ifdef NDB_SHM_TRANSPORTER
   m_shm_own_pid = getpid();
-  signal(SIGUSR1, shm_sig_handler);
+  struct sigaction sa;
+  sa.sa_handler = shm_sig_handler;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = 0;
+  int ret;
+  while((ret = sigaction(SIGUSR1, &sa, 0)) == -1 && errno == EINTR);
+  if(ret != 0)
+  {
+    g_eventLogger.error("Failed to install signal handler for SHM transporter"
+			" errno: %d (%s)", errno, 
+#ifdef HAVE_STRERROR
+			strerror(errno));
+#else
+                        "");
+#endif
+  }
 #endif
 }
 
