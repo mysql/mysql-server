@@ -3442,7 +3442,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
     longlong data= my_strntoll(&my_charset_latin1, value, length, 10,
                                  &endptr, &err);
     *param->error= (IS_TRUNCATED(data, param->is_unsigned,
-                                 INT8_MIN, INT8_MAX, UINT8_MAX) |
+                                 INT_MIN8, INT_MAX8, UINT_MAX8) |
                     test(err));
     *buffer= (uchar) data;
     break;
@@ -3452,7 +3452,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
     longlong data= my_strntoll(&my_charset_latin1, value, length, 10,
                                &endptr, &err);
     *param->error= (IS_TRUNCATED(data, param->is_unsigned,
-                                 INT16_MIN, INT16_MAX, UINT16_MAX) |
+                                 INT_MIN16, INT_MAX16, UINT_MAX16) |
                     test(err));
     shortstore(buffer, (short) data);
     break;
@@ -3462,7 +3462,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
     longlong data= my_strntoll(&my_charset_latin1, value, length, 10,
                                &endptr, &err);
     *param->error= (IS_TRUNCATED(data, param->is_unsigned,
-                                 INT32_MIN, INT32_MAX, UINT32_MAX) |
+                                 INT_MIN32, INT_MAX32, UINT_MAX32) |
                     test(err));
     longstore(buffer, (int32) data);
     break;
@@ -3564,17 +3564,17 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     break;
   case MYSQL_TYPE_TINY:
     *param->error= IS_TRUNCATED(value, param->is_unsigned,
-                                INT8_MIN, INT8_MAX, UINT8_MAX);
+                                INT_MIN8, INT_MAX8, UINT_MAX8);
     *(uchar *)param->buffer= (uchar) value;
     break;
   case MYSQL_TYPE_SHORT:
     *param->error= IS_TRUNCATED(value, param->is_unsigned,
-                                INT16_MIN, INT16_MAX, UINT16_MAX);
+                                INT_MIN16, INT_MAX16, UINT_MAX16);
     shortstore(buffer, (short) value);
     break;
   case MYSQL_TYPE_LONG:
     *param->error= IS_TRUNCATED(value, param->is_unsigned,
-                                INT32_MIN, INT32_MAX, UINT32_MAX);
+                                INT_MIN32, INT_MAX32, UINT_MAX32);
     longstore(buffer, (int32) value);
     break;
   case MYSQL_TYPE_LONGLONG:
@@ -3978,7 +3978,7 @@ static void fetch_result_tinyint(MYSQL_BIND *param, MYSQL_FIELD *field,
   my_bool field_is_unsigned= test(field->flags & UNSIGNED_FLAG);
   uchar data= **row;
   *(uchar *)param->buffer= data;
-  *param->error= param->is_unsigned != field_is_unsigned && data > INT8_MAX;
+  *param->error= param->is_unsigned != field_is_unsigned && data > INT_MAX8;
   (*row)++;
 }
 
@@ -3988,7 +3988,7 @@ static void fetch_result_short(MYSQL_BIND *param, MYSQL_FIELD *field,
   my_bool field_is_unsigned= test(field->flags & UNSIGNED_FLAG);
   ushort data= (ushort) sint2korr(*row);
   shortstore(param->buffer, data);
-  *param->error= param->is_unsigned != field_is_unsigned && data > INT16_MAX;
+  *param->error= param->is_unsigned != field_is_unsigned && data > INT_MAX16;
   *row+= 2;
 }
 
@@ -3999,7 +3999,7 @@ static void fetch_result_int32(MYSQL_BIND *param,
   my_bool field_is_unsigned= test(field->flags & UNSIGNED_FLAG);
   uint32 data= (uint32) sint4korr(*row);
   longstore(param->buffer, data);
-  *param->error= param->is_unsigned != field_is_unsigned && data > INT32_MAX;
+  *param->error= param->is_unsigned != field_is_unsigned && data > INT_MAX32;
   *row+= 4;
 }
 
@@ -4009,7 +4009,7 @@ static void fetch_result_int64(MYSQL_BIND *param,
 {
   my_bool field_is_unsigned= test(field->flags & UNSIGNED_FLAG);
   ulonglong data= (ulonglong) sint8korr(*row);
-  *param->error= param->is_unsigned != field_is_unsigned && data > INT64_MAX;
+  *param->error= param->is_unsigned != field_is_unsigned && data > LONGLONG_MAX;
   longlongstore(param->buffer, data);
   *row+= 8;
 }
@@ -4149,7 +4149,7 @@ static my_bool is_binary_compatible(enum enum_field_types type1,
                 MYSQL_TYPE_DECIMAL, 0 },
    *range_list[]= { range1, range2, range3, range4 },
    **range_list_end= range_list + sizeof(range_list)/sizeof(*range_list);
-   enum enum_field_types **range, *type;
+   const enum enum_field_types **range, *type;
 
   if (type1 == type2)
     return TRUE;
