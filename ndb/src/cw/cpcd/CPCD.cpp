@@ -351,8 +351,9 @@ CPCD::loadProcessList(){
   sess.loadFile();
   loadingProcessList = false;
 
+  size_t i;
   Vector<int> temporary;
-  for(size_t i = 0; i<m_processes.size(); i++){
+  for(i = 0; i<m_processes.size(); i++){
     Process * proc = m_processes[i];
     proc->readPid();
     if(proc->m_processType == TEMPORARY){
@@ -360,7 +361,7 @@ CPCD::loadProcessList(){
     }
   }
   
-  for(size_t i = 0; i<temporary.size(); i++){
+  for(i = 0; i<temporary.size(); i++){
     RequestStatus rs;
     undefineProcess(&rs, temporary[i]);
   }
@@ -430,3 +431,5 @@ CPCD::report(int id, CPCEvent::EventType t){
   }
   m_subscribers.unlock();
 }
+
+template class MutexVector<EventSubscriber*>;

@@ -311,6 +311,7 @@ do
   fi
   if test ! -f $pid_file		# This is removed if normal shutdown
   then
+    echo "STOPPING server from pid file $pid_file"
     break
   fi
 
@@ -321,12 +322,24 @@ do
     # but should work for the rest of the servers.
     # The only thing is ps x => redhat 5 gives warnings when using ps -x.
     # kill -9 is used or the process won't react on the kill.
-    numofproces=`ps xa | grep -v "grep" | grep -c $ledir/$MYSQLD`
+    if test -n "$mysql_tcp_port"
+    then
+      numofproces=`ps xa | grep -v "grep" | grep $ledir/$MYSQLD| grep -c "port=$mysql_tcp_port"`
+    else
+      numofproces=`ps xa | grep -v "grep" | grep -c $ledir/$MYSQLD`
+    fi
+
     echo -e "\nNumber of processes running now: $numofproces" | tee -a $err_log
     I=1
     while test "$I" -le "$numofproces"
     do 
-      PROC=`ps xa | grep $ledir/$MYSQLD | grep -v "grep" | sed -n '$p'` 
+      if test -n "$mysql_tcp_port"
+      then
+        PROC=`ps xa | grep "$ledir/$MYSQLD\>" | grep -v "grep" | grep "port=$mysql_tcp_port" | sed -n '$p'` 
+      else
+        PROC=`ps xa | grep "$ledir/$MYSQLD\>" | grep -v "grep" | sed -n '$p'` 
+      fi
+
 	for T in $PROC
 	do
 	  break

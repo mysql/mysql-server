@@ -1630,6 +1630,13 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_RETURN(0);
 }
 
+
+void select_insert::cleanup()
+{
+  /* select_insert/select_create are never re-used in prepared statement */
+  DBUG_ASSERT(0);
+}
+
 select_insert::~select_insert()
 {
   if (table)

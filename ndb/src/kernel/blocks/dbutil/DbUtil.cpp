@@ -2581,3 +2581,5 @@ DbUtil::execUTIL_DESTORY_LOCK_REQ(Signal* signal){
   sendSignal(req.senderRef, GSN_UTIL_DESTROY_LOCK_REF, signal,
 	     UtilDestroyLockRef::SignalLength, JBB);
 }
+
+template class ArrayPool<DbUtil::Page32>;

@@ -335,15 +335,15 @@ int Bank::getBalanceForAccountType(const Uint32 accountType,
     return NDBT_FAILED;
   }
       
-  NdbOperation* pOp = pScanTrans->getNdbOperation("ACCOUNT");	
+  NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("ACCOUNT");	
   if (pOp == NULL) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
-  check = pOp->openScanRead(64);
-  if( check == -1 ) {
+  NdbResultSet* rs = pOp->readTuples();
+  if( rs == 0 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
@@ -370,7 +370,7 @@ int Bank::getBalanceForAccountType(const Uint32 accountType,
     return NDBT_FAILED;
   }
 
-  check = pScanTrans->executeScan();   
+  check = pScanTrans->execute(NoCommit);
   if( check == -1 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
@@ -379,7 +379,7 @@ int Bank::getBalanceForAccountType(const Uint32 accountType,
     
   int eof;
   int rows = 0;
-  eof = pScanTrans->nextScanResult();
+  eof = rs->nextResult();
     
   while(eof == 0){
     rows++;
@@ -391,7 +391,7 @@ int Bank::getBalanceForAccountType(const Uint32 accountType,
       balance += b;
     }
 		
-    eof = pScanTrans->nextScanResult();
+    eof = rs->nextResult();
   }
   if (eof == -1) {
     ERR(pScanTrans->getNdbError());

@@ -139,6 +139,7 @@
 #define ZNOT_FOUND 626
 #define ZALREADYEXIST 630
 #define ZINCONSISTENTHASHINDEX 892
+#define ZNOTUNIQUE 893
 #endif
 
 class Dbtc: public SimulatedBlock {
@@ -235,7 +236,6 @@ public:
   enum ReturnSignal {
     RS_NO_RETURN = 0,
     RS_TCKEYCONF = 1,
-    RS_TCKEYREF = 2,
     RS_TC_COMMITCONF = 3,
     RS_TCROLLBACKCONF = 4,
     RS_TCROLLBACKREP = 5
@@ -699,7 +699,7 @@ public:
     UintR lqhkeyreqrec;
     AbortState abortState;
     Uint32 buddyPtr;
-    Uint8 unused;
+    Uint8 m_exec_flag;
     Uint8 unused2;
     Uint8 takeOverRec;
     Uint8 currentReplicaNo;
@@ -993,11 +993,94 @@ public:
   typedef Ptr<TableRecord> TableRecordPtr;
 
   /**
+   * There is max 16 ScanFragRec's for 
+   * each scan started in TC. Each ScanFragRec is used by
+   * a scan fragment "process" that scans one fragment at a time. 
+   * It will receive max 16 tuples in each request
+   */
+  struct ScanFragRec {
+    ScanFragRec(){ 
+      stopFragTimer();
+      lqhBlockref = 0;
+      scanFragState = IDLE;
+      scanRec = RNIL;
+    }
+    /**
+     * ScanFragState      
+     *  WAIT_GET_PRIMCONF : Waiting for DIGETPRIMCONF when starting a new 
+     *   fragment scan
+     *  LQH_ACTIVE : The scan process has sent a command to LQH and is
+     *   waiting for the response
+     *  LQH_ACTIVE_CLOSE : The scan process has sent close to LQH and is
+     *   waiting for the response
+     *  DELIVERED : The result have been delivered, this scan frag process 
+     *   are waiting for a SCAN_NEXTREQ to tell us to continue scanning
+     *  RETURNING_FROM_DELIVERY : SCAN_NEXTREQ received and continuing scan
+     *   soon 
+     *  QUEUED_FOR_DELIVERY : Result queued in TC and waiting for delivery
+     *   to API
+     *  COMPLETED : The fragment scan processes has completed and finally
+     *    sent a SCAN_PROCCONF
+     */
+    enum ScanFragState {
+      IDLE = 0,
+      WAIT_GET_PRIMCONF = 1,
+      LQH_ACTIVE = 2,
+      DELIVERED = 4,
+      QUEUED_FOR_DELIVERY = 6,
+      COMPLETED = 7
+    };
+    // Timer for checking timeout of this fragment scan
+    Uint32  scanFragTimer;
+
+    // Id of the current scanned fragment
+    Uint32 scanFragId;
+
+    // Blockreference of LQH 
+    BlockReference lqhBlockref;
+
+    // getNodeInfo.m_connectCount, set at seize used so that
+    // I don't accidently kill a starting node
+    Uint32 m_connectCount;
+
+    // State of this fragment scan
+    ScanFragState scanFragState;
+
+    // Id of the ScanRecord this fragment scan belongs to
+    Uint32 scanRec;
+
+    // The maximum number of operations that can be scanned before 
+    // returning to TC
+    Uint16 scanFragConcurrency;
+
+    inline void startFragTimer(Uint32 timeVal){
+      scanFragTimer = timeVal;
+    }
+    inline void stopFragTimer(void){
+      scanFragTimer = 0;
+    }
+
+    Uint32 m_ops;
+    Uint32 m_chksum;
+    Uint32 m_apiPtr;
+    Uint32 m_totalLen;
+    union {
+      Uint32 nextPool;
+      Uint32 nextList;
+    };
+    Uint32 prevList;
+  };
+  
+  typedef Ptr<ScanFragRec> ScanFragRecPtr;
+  typedef LocalDLList<ScanFragRec> ScanFragList;
+
+  /**
    * Each scan allocates one ScanRecord to store information 
    * about the current scan
    *
    */
   struct ScanRecord {
+    ScanRecord() {}
     /** NOTE! This is the old comment for ScanState. - MASV
      *       STATE TRANSITIONS OF SCAN_STATE. SCAN_STATE IS THE STATE 
      *       VARIABLE OF THE RECEIVE AND DELIVERY PROCESS.
@@ -1057,161 +1140,71 @@ public:
       WAIT_SCAN_TAB_INFO = 1,
       WAIT_AI = 2,
       WAIT_FRAGMENT_COUNT = 3,
-      SCAN_NEXT_ORDERED = 4,
-      QUEUED_DELIVERED = 5,
-      DELIVERED = 6,
-      CLOSING_SCAN = 7
+      RUNNING = 4,
+      CLOSING_SCAN = 5
     };
+
     // State of this scan
     ScanState scanState;
-    // References to ScanFragRecs
-    Uint32 scanFragrec[16];
-    // Refrences to ScanOperationRecords
-    Uint32 scanOprec[16];
-    // Number of ScanOperationRecords allocated 
-    Uint32 noScanOprec;
+    
+    DLList<ScanFragRec>::Head m_running_scan_frags;  // Currently in LQH
+    union { Uint32 m_queued_count; Uint32 scanReceivedOperations; };
+    DLList<ScanFragRec>::Head m_queued_scan_frags;   // In TC !sent to API
+    DLList<ScanFragRec>::Head m_delivered_scan_frags;// Delivered to API
+    DLList<ScanFragRec>::Head m_completed_scan_frags;// Completed
+    
     // Id of the next fragment to be scanned. Used by scan fragment 
     // processes when they are ready for the next fragment
     Uint32 scanNextFragId;
+    
     // Total number of fragments in the table we are scanning
     Uint32 scanNoFrag;
+
     // Index of next ScanRecords when in free list
     Uint32 nextScan;
+
     // Length of expected attribute information
     Uint32 scanAiLength;
+
     // Reference to ApiConnectRecord
     Uint32 scanApiRec;
+
     // Reference to TcConnectRecord
     Uint32 scanTcrec;
+
     // Number of scan frag processes that belong to this scan 
     Uint32 scanParallel;
-    // The number of recieved operations so far
-    Uint32 scanReceivedOperations;
+
     // Schema version used by this scan
     Uint32 scanSchemaVersion;
+
     // Index of stored procedure belonging to this scan
     Uint32 scanStoredProcId;
+
     // The index of table that is scanned
     Uint32 scanTableref;
+
     // Number of operation records per scanned fragment
     Uint16 noOprecPerFrag;
-    // The number of SCAN_TABINFO to receive
-    Uint16 noScanTabInfo;
-    // The number of SCAN_TABINFO received so far
-    Uint16 scanTabInfoReceived;
-    // apiIsClosed indicates if it's ok to release all resources
-    // and send a response to the API
-    // If it's false resources should not be released wait for API
-    // to close the scan
-    bool apiIsClosed;
-    // The number of scan frag processes that have completed their task
-    Uint8 scanProcessesCompleted;
-    // This variable is ZFALSE as long as any scan process is still alive
-    // It is ZTRUE as soon as all scan processes have been stopped
-    Uint8 scanCompletedStatus;
+
     // Shall the locks be held until the application have read the 
     // records
     Uint8 scanLockHold;
+
     // Shall the locks be read or write locks
     Uint8 scanLockMode;
+
     // Skip locks by other transactions and read latest committed
     Uint8 readCommitted;
+
     // Scan is on ordered index
     Uint8 rangeScan;
+
+    // Close is ordered
+    bool m_close_scan_req;
   };   
   typedef Ptr<ScanRecord> ScanRecordPtr;
   
-  /**
-   * Each scan has max 16 ScanOperationRecords
-   * they are used for storing data to be sent to the api
-   */
-  struct ScanOperationRecord {
-    // Reference to the scan operation in api
-    Uint32 apiOpptr[16];
-    // Index and length of all recieved operations
-    // They will be cached here until SCAN_TABCONF is sent to api
-    Uint32 scanOpLength[16];
-    // Next ScanOperationRecord when in free list
-    Uint32 nextScanOp;
-  }; /* p2c: size = 132 bytes */
-
-  typedef Ptr<ScanOperationRecord> ScanOperationRecordPtr;
-
-  /**
-   * There is max 16 ScanFragRec's for 
-   * each scan started in TC. Each ScanFragRec is used by
-   * a scan fragment "process" that scans one fragment at a time. 
-   * It will receive max 16 tuples in each request
-   */
-  struct ScanFragRec {
-    /**
-     * ScanFragState      
-     *  WAIT_GET_PRIMCONF : Waiting for DIGETPRIMCONF when starting a new 
-     *   fragment scan
-     *  LQH_ACTIVE : The scan process has sent a command to LQH and is
-     *   waiting for the response
-     *  LQH_ACTIVE_CLOSE : The scan process has sent close to LQH and is
-     *   waiting for the response
-     *  DELIVERED : The result have been delivered, this scan frag process 
-     *   are waiting for a SCAN_NEXTREQ to tell us to continue scanning
-     *  RETURNING_FROM_DELIVERY : SCAN_NEXTREQ received and continuing scan
-     *   soon 
-     *  QUEUED_FOR_DELIVERY : Result queued in TC and waiting for delivery
-     *   to API
-     *  COMPLETED : The fragment scan processes has completed and finally
-     *    sent a SCAN_PROCCONF
-     */
-    enum ScanFragState {
-      IDLE = 0,
-      WAIT_GET_PRIMCONF = 1,
-      LQH_ACTIVE = 2,
-      LQH_ACTIVE_CLOSE = 3,
-      DELIVERED = 4,
-      RETURNING_FROM_DELIVERY = 5,
-      QUEUED_FOR_DELIVERY = 6,
-      COMPLETED = 7
-    };
-    // Timer for checking timeout of this fragment scan
-    Uint32  scanFragTimer;
-    // Id of the current scanned fragment
-    Uint32 scanFragId;
-    // Blockreference of LQH 
-    BlockReference lqhBlockref;
-    // getNodeInfo.m_connectCount, set at seize used so that
-    // I don't accidently kill a starting node
-    Uint32 m_connectCount;
-    // State of this fragment scan
-    ScanFragState scanFragState;
-    // Id of the ScanRecord this fragment scan belongs to
-    Uint32 scanRec;
-    // Index of next ScanFragRec, when in list of 
-    // free ScanFragRec's
-    Uint32 nextScanFrag;
-    // Process id of this scan process within the total scan
-    Uint32 scanFragProcId;
-    // Node where current fragment resides
-    NodeId scanFragNodeId;
-    // Index of where to store the result in ScanRecord
-    Uint16 scanIndividual;
-    // The maximum number of operations that can be scanned before 
-    // returning to TC
-    Uint16 scanFragConcurrency;
-    // Current status of the fragment scan
-    //   * 0 = NOT COMPLETED
-    //   * 1 = COMPLETED
-    //   * 2 = CLOSED
-    Uint8 scanFragCompletedStatus;
-
-    inline void startFragTimer(Uint32 timeVal){
-      scanFragTimer = timeVal;
-    }
-    inline void stopFragTimer(void){
-      scanFragTimer = 0;
-    }
-  }; 
-  
-  typedef Ptr<ScanFragRec> ScanFragRecPtr;
-
   /* **********************************************************************$ */
   /* ******$                        DATA BUFFER                      ******$ */
   /*                                                                         */
@@ -1369,6 +1362,7 @@ private:
   void execCREATE_TAB_REQ(Signal* signal);
   void execPREP_DROP_TAB_REQ(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
+  void execWAIT_DROP_TAB_REF(Signal* signal);
   void execWAIT_DROP_TAB_CONF(Signal* signal);
   void checkWaitDropTabFailedLqh(Signal*, Uint32 nodeId, Uint32 tableId);
   void execALTER_TAB_REQ(Signal* signal);
@@ -1403,7 +1397,7 @@ private:
   void sendCompleteLqh(Signal* signal,
                        TcConnectRecord * const regTcPtr);
   void sendTCKEY_FAILREF(Signal* signal, const ApiConnectRecord *);
-  void sendTCKEY_FAILCONF(Signal* signal, const ApiConnectRecord *);
+  void sendTCKEY_FAILCONF(Signal* signal, ApiConnectRecord *);
   void checkStartTimeout(Signal* signal);
   void checkStartFragTimeout(Signal* signal);
   void timeOutFoundFragLab(Signal* signal, Uint32 TscanConPtr);
@@ -1428,23 +1422,17 @@ private:
 		      Uint32 buddyPtr,
 		      UintR transid1, 
 		      UintR transid2);
-  void initScanOprec(Signal* signal);
-  void initScanrec(Signal* signal, 
+  void initScanrec(ScanRecordPtr, const class ScanTabReq*,
 		   const UintR scanParallel, 
 		   const UintR noOprecPerFrag);
   void initScanfragrec(Signal* signal);
-  void releaseScanrec(Signal* signal);
-  void releaseScanResources(Signal* signal);
-  void releaseScanFragrec(Signal* signal);
-  void releaseScanOprec(Signal* signal);
-  void seizeScanrec(Signal* signal);
-  void seizeScanFragrec(Signal* signal);
-  void seizeScanOprec(Signal* signal);
-  void sendScanFragReq(Signal* signal);
-  void sendScanTabConf(Signal* signal);
-  void sendScanProcConf(Signal* signal);
-  void setScanReceived(Signal* signal, Uint32 noCompletedOps);
-
+  void releaseScanResources(ScanRecordPtr);
+  ScanRecordPtr seizeScanrec(Signal* signal);
+  void sendScanFragReq(Signal* signal, ScanRecord*, ScanFragRec*);
+  void sendScanTabConf(Signal* signal, ScanRecord*);
+  void close_scan_req(Signal*, ScanRecordPtr, bool received_req);
+  void close_scan_req_send_conf(Signal*, ScanRecordPtr);
+  
   void checkGcp(Signal* signal);
   void commitGciHandling(Signal* signal, UintR Tgci);
   void copyApi(Signal* signal);
@@ -1473,12 +1461,12 @@ private:
   void releaseApiCon(Signal* signal, UintR aApiConnectPtr);
   void releaseApiConCopy(Signal* signal);
   void releaseApiConnectFail(Signal* signal);
-  void releaseAttrinfo(Signal* signal);
+  void releaseAttrinfo();
   void releaseGcp(Signal* signal);
-  void releaseKeys(Signal* signal);
+  void releaseKeys();
   void releaseSimpleRead(Signal* signal);
   void releaseDirtyWrite(Signal* signal);
-  void releaseTcCon(Signal* signal);
+  void releaseTcCon();
   void releaseTcConnectFail(Signal* signal);
   void releaseTransResources(Signal* signal);
   void saveAttrbuf(Signal* signal);
@@ -1577,11 +1565,11 @@ private:
   void systemErrorLab(Signal* signal);
   void sendSignalErrorRefuseLab(Signal* signal);
   void scanTabRefLab(Signal* signal, Uint32 errCode);
-  void diFcountReqLab(Signal* signal);
+  void diFcountReqLab(Signal* signal, ScanRecordPtr);
   void signalErrorRefuseLab(Signal* signal);
   void abort080Lab(Signal* signal);
   void packKeyData000Lab(Signal* signal, BlockReference TBRef);
-  void abortScanLab(Signal* signal, Uint32 errCode);
+  void abortScanLab(Signal* signal, ScanRecordPtr, Uint32 errCode);
   void sendAbortedAfterTimeout(Signal* signal, int Tcheck);
   void abort010Lab(Signal* signal);
   void abort015Lab(Signal* signal);
@@ -1609,7 +1597,7 @@ private:
   void attrinfo020Lab(Signal* signal);
   void scanReleaseResourcesLab(Signal* signal);
   void scanCompletedLab(Signal* signal);
-  void scanFragError(Signal* signal, Uint32 errorCode);
+  void scanError(Signal* signal, ScanRecordPtr, Uint32 errorCode);
   void diverify010Lab(Signal* signal);
   void intstartphase2x010Lab(Signal* signal);
   void intstartphase3x010Lab(Signal* signal);
@@ -1638,6 +1626,8 @@ private:
   void checkScanActiveInFailedLqh(Signal* signal,
 				  Uint32 scanPtrI,
 				  Uint32 failedNodeId);
+  void checkScanFragList(Signal*, Uint32 failedNodeId, ScanRecord * scanP, 
+			 LocalDLList<ScanFragRec>::Head&);
 
   // Initialisation
   void initData();
@@ -1717,20 +1707,12 @@ private:
   ApiConnectRecordPtr timeOutptr;
 
   ScanRecord *scanRecord;
-  ScanRecordPtr scanptr;
   UintR cscanrecFileSize;
 
-  ScanOperationRecord *scanOperationRecord;
-  ScanOperationRecordPtr scanOpptr;
-  UintR cscanOprecFileSize;
-
-  ScanFragRec *scanFragmentRecord;
+  UnsafeArrayPool<ScanFragRec> c_scan_frag_pool;
   ScanFragRecPtr scanFragptr;
-  UintR cscanFragrecFileSize;
 
-  UintR cfirstfreeScanOprec;
-  UintR cnoFreeScanOprec;
-  UintR cfirstfreeScanFragrec;
+  UintR cscanFragrecFileSize;
   UintR cdatabufFilesize;
 
   BlockReference cdictblockref;

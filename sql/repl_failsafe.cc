@@ -590,6 +590,8 @@ pthread_handler_decl(handle_failsafe_rpl,arg)
   THD *thd = new THD;
   thd->thread_stack = (char*)&thd;
   MYSQL* recovery_captain = 0;
+  const char* msg;
+
   pthread_detach_this_thread();
   if (init_failsafe_rpl_thread(thd) || !(recovery_captain=mysql_init(0)))
   {
@@ -597,11 +599,11 @@ pthread_handler_decl(handle_failsafe_rpl,arg)
     goto err;
   }
   pthread_mutex_lock(&LOCK_rpl_status);
+  msg= thd->enter_cond(&COND_rpl_status,
+                       &LOCK_rpl_status, "Waiting for request");
   while (!thd->killed && !abort_loop)
   {
     bool break_req_chain = 0;
-    const char* msg = thd->enter_cond(&COND_rpl_status,
-				      &LOCK_rpl_status, "Waiting for request");
     pthread_cond_wait(&COND_rpl_status, &LOCK_rpl_status);
     thd->proc_info="Processing request";
     while (!break_req_chain)
@@ -619,9 +621,8 @@ pthread_handler_decl(handle_failsafe_rpl,arg)
 	break;
       }
     }
-    thd->exit_cond(msg);
   }
-  pthread_mutex_unlock(&LOCK_rpl_status);
+  thd->exit_cond(msg);
 err:
   if (recovery_captain)
     mysql_close(recovery_captain);

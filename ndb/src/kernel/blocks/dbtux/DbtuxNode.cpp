@@ -85,10 +85,9 @@ Dbtux::insertNode(Signal* signal, NodeHandle& node, AccSize acc)
   new (node.m_node) TreeNode();
 #ifdef VM_TRACE
   TreeHead& tree = frag.m_tree;
-  memset(node.getPref(0), 0xa2, tree.m_prefSize << 2);
-  memset(node.getPref(1), 0xa2, tree.m_prefSize << 2);
+  memset(node.getPref(), DataFillByte, tree.m_prefSize << 2);
   TreeEnt* entList = tree.getEntList(node.m_node);
-  memset(entList, 0xa4, (tree.m_maxOccup + 1) * (TreeEntSize << 2));
+  memset(entList, NodeFillByte, (tree.m_maxOccup + 1) * (TreeEntSize << 2));
 #endif
 }
 
@@ -116,12 +115,12 @@ Dbtux::deleteNode(Signal* signal, NodeHandle& node)
  * attribute headers for now.  XXX use null mask instead
  */
 void
-Dbtux::setNodePref(Signal* signal, NodeHandle& node, unsigned i)
+Dbtux::setNodePref(Signal* signal, NodeHandle& node)
 {
   const Frag& frag = node.m_frag;
   const TreeHead& tree = frag.m_tree;
-  readKeyAttrs(frag, node.getMinMax(i), 0, c_entryKey);
-  copyAttrs(frag, c_entryKey, node.getPref(i), tree.m_prefSize);
+  readKeyAttrs(frag, node.getMinMax(0), 0, c_entryKey);
+  copyAttrs(frag, c_entryKey, node.getPref(), tree.m_prefSize);
 }
 
 // node operations
@@ -173,11 +172,9 @@ Dbtux::nodePushUp(Signal* signal, NodeHandle& node, unsigned pos, const TreeEnt&
   tmpList[pos] = ent;
   entList[0] = entList[occup + 1];
   node.setOccup(occup + 1);
-  // fix prefixes
+  // fix prefix
   if (occup == 0 || pos == 0)
-    setNodePref(signal, node, 0);
-  if (occup == 0 || pos == occup)
-    setNodePref(signal, node, 1);
+    setNodePref(signal, node);
 }
 
 /*
@@ -248,11 +245,9 @@ Dbtux::nodePopDown(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent)
   }
   entList[0] = entList[occup - 1];
   node.setOccup(occup - 1);
-  // fix prefixes
+  // fix prefix
   if (occup != 1 && pos == 0)
-    setNodePref(signal, node, 0);
-  if (occup != 1 && pos == occup - 1)
-    setNodePref(signal, node, 1);
+    setNodePref(signal, node);
 }
 
 /*
@@ -325,11 +320,9 @@ Dbtux::nodePushDown(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent
   tmpList[pos] = ent;
   ent = oldMin;
   entList[0] = entList[occup];
-  // fix prefixes
+  // fix prefix
   if (true)
-    setNodePref(signal, node, 0);
-  if (occup == 1 || pos == occup - 1)
-    setNodePref(signal, node, 1);
+    setNodePref(signal, node);
 }
 
 /*
@@ -403,11 +396,9 @@ Dbtux::nodePopUp(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent)
   }
   tmpList[0] = newMin;
   entList[0] = entList[occup];
-  // fix prefixes
+  // fix prefix
   if (true)
-    setNodePref(signal, node, 0);
-  if (occup == 1 || pos == occup - 1)
-    setNodePref(signal, node, 1);
+    setNodePref(signal, node);
 }
 
 /*

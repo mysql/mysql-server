@@ -33,14 +33,18 @@
 
 struct Opt {
   // common options
+  unsigned m_batch;
   const char* m_case;
   bool m_core;
   bool m_dups;
   NdbDictionary::Object::FragmentType m_fragtype;
+  unsigned m_idxloop;
   const char* m_index;
   unsigned m_loop;
   bool m_nologging;
+  bool m_msglock;
   unsigned m_rows;
+  unsigned m_samples;
   unsigned m_scanrd;
   unsigned m_scanex;
   unsigned m_seed;
@@ -49,17 +53,21 @@ struct Opt {
   unsigned m_threads;
   unsigned m_v;
   Opt() :
+    m_batch(32),
     m_case(0),
     m_core(false),
     m_dups(false),
     m_fragtype(NdbDictionary::Object::FragUndefined),
+    m_idxloop(4),
     m_index(0),
     m_loop(1),
     m_nologging(false),
+    m_msglock(true),
     m_rows(1000),
+    m_samples(0),
     m_scanrd(240),
     m_scanex(240),
-    m_seed(1),
+    m_seed(0),
     m_subloop(4),
     m_table(0),
     m_threads(4),
@@ -78,17 +86,19 @@ printhelp()
   Opt d;
   ndbout
     << "usage: testOIbasic [options]" << endl
+    << "  -batch N      pk operations in batch [" << d.m_batch << "]" << endl
     << "  -case abc     only given test cases (letters a-z)" << endl
     << "  -core         core dump on error [" << d.m_core << "]" << endl
     << "  -dups         allow duplicate tuples from index scan [" << d.m_dups << "]" << endl
     << "  -fragtype T   fragment type single/small/medium/large" << endl
     << "  -index xyz    only given index numbers (digits 1-9)" << endl
-    << "  -loop N       loop count full suite forever=0 [" << d.m_loop << "]" << endl
+    << "  -loop N       loop count full suite 0=forever [" << d.m_loop << "]" << endl
     << "  -nologging    create tables in no-logging mode" << endl
     << "  -rows N       rows per thread [" << d.m_rows << "]" << endl
+    << "  -samples N    samples for some timings (0=all) [" << d.m_samples << "]" << endl
     << "  -scanrd N     scan read parallelism [" << d.m_scanrd << "]" << endl
     << "  -scanex N     scan exclusive parallelism [" << d.m_scanex << "]" << endl
-    << "  -seed N       srandom seed [" << d.m_seed << "]" << endl
+    << "  -seed N       srandom seed 0=loop number[" << d.m_seed << "]" << endl
     << "  -subloop N    subtest loop count [" << d.m_subloop << "]" << endl
     << "  -table xyz    only given table numbers (digits 1-9)" << endl
     << "  -threads N    number of threads [" << d.m_threads << "]" << endl
@@ -98,6 +108,12 @@ printhelp()
   printcases();
   printtables();
 }
+
+// not yet configurable
+static const bool g_store_null_key = true;
+
+// compare NULL like normal value (NULL < not NULL, NULL == NULL)
+static const bool g_compare_null = true;
 
 // log and error macros
 
@@ -124,9 +140,9 @@ getthrstr()
 #define LLN(n, s) \
   do { \
     if ((n) > g_opt.m_v) break; \
-    NdbMutex_Lock(&ndbout_mutex); \
+    if (g_opt.m_msglock) NdbMutex_Lock(&ndbout_mutex); \
     ndbout << getthrstr() << s << endl; \
-    NdbMutex_Unlock(&ndbout_mutex); \
+    if (g_opt.m_msglock) NdbMutex_Unlock(&ndbout_mutex); \
   } while(0)
 
 #define LL0(s) LLN(0, s)
@@ -139,11 +155,10 @@ getthrstr()
 // following check a condition and return -1 on failure
 
 #undef CHK      // simple check
-#undef CHKTRY   // execute action (try-catch) on failure
-#undef CHKMSG   // print extra message on failure
+#undef CHKTRY   // check with action on fail
 #undef CHKCON   // print NDB API errors on failure
 
-#define CHK(x) CHKTRY(x, ;)
+#define CHK(x)  CHKTRY(x, ;)
 
 #define CHKTRY(x, act) \
   do { \
@@ -151,14 +166,6 @@ getthrstr()
     LL0("line " << __LINE__ << ": " << #x << " failed"); \
     if (g_opt.m_core) abort(); \
     act; \
-    return -1; \
-  } while (0)
-
-#define CHKMSG(x, msg) \
-  do { \
-    if (x) break; \
-    LL0("line " << __LINE__ << ": " << #x << " failed: " << msg); \
-    if (g_opt.m_core) abort(); \
     return -1; \
   } while (0)
 
@@ -177,6 +184,7 @@ class Thr;
 class Con;
 class Tab;
 class Set;
+class Tmr;
 
 struct Par : public Opt {
   unsigned m_no;
@@ -186,14 +194,17 @@ struct Par : public Opt {
   const Tab& tab() const { assert(m_tab != 0); return *m_tab; }
   Set* m_set;
   Set& set() const { assert(m_set != 0); return *m_set; }
+  Tmr* m_tmr;
+  Tmr& tmr() const { assert(m_tmr != 0); return *m_tmr; }
   unsigned m_totrows;
-  unsigned m_batch;
   // value calculation
   unsigned m_pctnull;
   unsigned m_range;
   unsigned m_pctrange;
   // do verify after read
   bool m_verify;
+  // deadlock possible
+  bool m_deadlock;
   // timer location
   Par(const Opt& opt) :
     Opt(opt),
@@ -201,12 +212,13 @@ struct Par : public Opt {
     m_con(0),
     m_tab(0),
     m_set(0),
+    m_tmr(0),
     m_totrows(m_threads * m_rows),
-    m_batch(32),
     m_pctnull(10),
     m_range(m_rows),
     m_pctrange(0),
-    m_verify(false) {
+    m_verify(false),
+    m_deadlock(false) {
   }
 };
 
@@ -241,19 +253,20 @@ struct Tmr {
   void on();
   void off(unsigned cnt = 0);
   const char* time();
+  const char* pct(const Tmr& t1);
   const char* over(const Tmr& t1);
   NDB_TICKS m_on;
   unsigned m_ms;
   unsigned m_cnt;
   char m_time[100];
-  char m_over[100];
+  char m_text[100];
   Tmr() { clr(); }
 };
 
 void
 Tmr::clr()
 {
-  m_on = m_ms = m_cnt = m_time[0] = m_over[0] = 0;
+  m_on = m_ms = m_cnt = m_time[0] = m_text[0] = 0;
 }
 
 void
@@ -285,14 +298,63 @@ Tmr::time()
 }
 
 const char*
+Tmr::pct(const Tmr& t1)
+{
+  if (0 < t1.m_ms) {
+    sprintf(m_text, "%u pct", (100 * m_ms) / t1.m_ms);
+  } else {
+    sprintf(m_text, "[cannot measure]");
+  }
+  return m_text;
+}
+
+const char*
 Tmr::over(const Tmr& t1)
 {
-  if (0 < t1.m_ms && t1.m_ms < m_ms) {
-    sprintf(m_over, "%u pct", (100 * (m_ms - t1.m_ms)) / t1.m_ms);
+  if (0 < t1.m_ms) {
+    if (t1.m_ms <= m_ms)
+      sprintf(m_text, "%u pct", (100 * (m_ms - t1.m_ms)) / t1.m_ms);
+    else
+      sprintf(m_text, "-%u pct", (100 * (t1.m_ms - m_ms)) / t1.m_ms);
   } else {
-    sprintf(m_over, "[cannot measure]");
+    sprintf(m_text, "[cannot measure]");
   }
-  return m_over;
+  return m_text;
+}
+
+// list of ints
+
+struct Lst {
+  Lst();
+  unsigned m_arr[1000];
+  unsigned m_cnt;
+  void push(unsigned i);
+  unsigned cnt() const;
+  void reset();
+};
+
+Lst::Lst() :
+  m_cnt(0)
+{
+}
+
+void
+Lst::push(unsigned i)
+{
+  assert(m_cnt < sizeof(m_arr)/sizeof(m_arr[0]));
+  m_arr[m_cnt++] = i;
+}
+
+unsigned
+Lst::cnt() const
+{
+  return m_cnt;
+}
+
+void
+Lst::reset()
+{
+  m_cnt = 0;
 }
 
 // tables and indexes
@@ -409,7 +471,7 @@ operator<<(NdbOut& out, const Tab& tab)
   return out;
 }
 
-// tt1 + tt1x1 tt1x2 tt1x3 tt1x4
+// tt1 + tt1x1 tt1x2 tt1x3 tt1x4 tt1x5
 
 static const Col
 tt1col[] = {
@@ -422,24 +484,29 @@ tt1col[] = {
 
 static const ICol
 tt1x1col[] = {
-  { 0, tt1col[1] }
+  { 0, tt1col[0] }
 };
 
 static const ICol
 tt1x2col[] = {
+  { 0, tt1col[1] }
+};
+
+static const ICol
+tt1x3col[] = {
   { 0, tt1col[1] },
   { 1, tt1col[2] }
 };
 
 static const ICol
-tt1x3col[] = {
+tt1x4col[] = {
   { 0, tt1col[3] },
   { 1, tt1col[2] },
   { 2, tt1col[1] }
 };
 
 static const ICol
-tt1x4col[] = {
+tt1x5col[] = {
   { 0, tt1col[1] },
   { 1, tt1col[4] },
   { 2, tt1col[2] },
@@ -453,17 +520,22 @@ tt1x1 = {
 
 static const ITab
 tt1x2 = {
-  "TT1X2", 2, tt1x2col
+  "TT1X2", 1, tt1x2col
 };
 
 static const ITab
 tt1x3 = {
-  "TT1X3", 3, tt1x3col
+  "TT1X3", 2, tt1x3col
 };
 
 static const ITab
 tt1x4 = {
-  "TT1X4", 4, tt1x4col
+  "TT1X4", 3, tt1x4col
+};
+
+static const ITab
+tt1x5 = {
+  "TT1X5", 4, tt1x5col
 };
 
 static const ITab
@@ -471,15 +543,16 @@ tt1itab[] = {
   tt1x1,
   tt1x2,
   tt1x3,
-  tt1x4
+  tt1x4,
+  tt1x5
 };
 
 static const Tab
 tt1 = {
-  "TT1", 5, tt1col, 4, tt1itab
+  "TT1", 5, tt1col, 5, tt1itab
 };
 
-// tt2 + tt2x1 tt2x2 tt2x3 tt2x4
+// tt2 + tt2x1 tt2x2 tt2x3 tt2x4 tt2x5
 
 static const Col
 tt2col[] = {
@@ -492,24 +565,29 @@ tt2col[] = {
 
 static const ICol
 tt2x1col[] = {
+  { 0, tt2col[0] }
+};
+
+static const ICol
+tt2x2col[] = {
   { 0, tt2col[1] },
   { 1, tt2col[2] }
 };
 
 static const ICol
-tt2x2col[] = {
+tt2x3col[] = {
   { 0, tt2col[2] },
   { 1, tt2col[1] }
 };
 
 static const ICol
-tt2x3col[] = {
+tt2x4col[] = {
   { 0, tt2col[3] },
   { 1, tt2col[4] }
 };
 
 static const ICol
-tt2x4col[] = {
+tt2x5col[] = {
   { 0, tt2col[4] },
   { 1, tt2col[3] },
   { 2, tt2col[2] },
@@ -518,7 +596,7 @@ tt2x4col[] = {
 
 static const ITab
 tt2x1 = {
-  "TT2X1", 2, tt2x1col
+  "TT2X1", 1, tt2x1col
 };
 
 static const ITab
@@ -533,7 +611,12 @@ tt2x3 = {
 
 static const ITab
 tt2x4 = {
-  "TT2X4", 4, tt2x4col
+  "TT2X4", 2, tt2x4col
+};
+
+static const ITab
+tt2x5 = {
+  "TT2X5", 4, tt2x5col
 };
 
 static const ITab
@@ -541,12 +624,13 @@ tt2itab[] = {
   tt2x1,
   tt2x2,
   tt2x3,
-  tt2x4
+  tt2x4,
+  tt2x5
 };
 
 static const Tab
 tt2 = {
-  "TT2", 5, tt2col, 4, tt2itab
+  "TT2", 5, tt2col, 5, tt2itab
 };
 
 // all tables
@@ -567,40 +651,42 @@ struct Con {
   NdbDictionary::Dictionary* m_dic;
   NdbConnection* m_tx;
   NdbOperation* m_op;
-  NdbConnection* m_scantx;
-  NdbOperation* m_scanop;
+  NdbScanOperation* m_scanop;
+  NdbIndexScanOperation* m_indexscanop;
+  NdbResultSet* m_resultset;
   enum ScanMode { ScanNo = 0, Committed, Latest, Exclusive };
   ScanMode m_scanmode;
   enum ErrType { ErrNone = 0, ErrDeadlock, ErrOther };
   ErrType m_errtype;
   Con() :
     m_ndb(0), m_dic(0), m_tx(0), m_op(0),
-    m_scantx(0), m_scanop(0), m_scanmode(ScanNo), m_errtype(ErrNone) {}
+    m_scanop(0), m_indexscanop(0), m_resultset(0), m_scanmode(ScanNo), m_errtype(ErrNone) {}
+  ~Con() {
+    if (m_tx != 0)
+      closeTransaction();
+  }
   int connect();
+  void connect(const Con& con);
   void disconnect();
   int startTransaction();
-  int startBuddyTransaction(const Con& con);
   int getNdbOperation(const Tab& tab);
-  int getNdbOperation(const ITab& itab, const Tab& tab);
+  int getNdbScanOperation(const Tab& tab);
+  int getNdbScanOperation(const ITab& itab, const Tab& tab);
   int equal(int num, const char* addr);
   int getValue(int num, NdbRecAttr*& rec);
   int setValue(int num, const char* addr);
   int setBound(int num, int type, const void* value);
   int execute(ExecType t);
+  int execute(ExecType t, bool& deadlock);
   int openScanRead(unsigned parallelism);
   int openScanExclusive(unsigned parallelism);
   int executeScan();
-  int nextScanResult();
-  int takeOverForUpdate(Con& scan);
-  int takeOverForDelete(Con& scan);
+  int nextScanResult(bool fetchAllowed);
+  int nextScanResult(bool fetchAllowed, bool& deadlock);
+  int updateScanTuple(Con& con2);
+  int deleteScanTuple(Con& con2);
   void closeTransaction();
   void printerror(NdbOut& out);
-  // flush dict cache
-  int bugger() {
-    //disconnect();
-    //CHK(connect() == 0);
-    return 0;
-  }
 };
 
 int
@@ -610,9 +696,15 @@ Con::connect()
   m_ndb = new Ndb("TEST_DB");
   CHKCON(m_ndb->init() == 0, *this);
   CHKCON(m_ndb->waitUntilReady(30) == 0, *this);
-  m_dic = m_ndb->getDictionary();
   m_tx = 0, m_op = 0;
   return 0;
+}
+
+void
+Con::connect(const Con& con)
+{
+  assert(m_ndb == 0);
+  m_ndb = con.m_ndb;
 }
 
 void
@@ -625,16 +717,10 @@ Con::disconnect()
 int
 Con::startTransaction()
 {
-  assert(m_ndb != 0 && m_tx == 0);
+  assert(m_ndb != 0);
+  if (m_tx != 0)
+    closeTransaction();
   CHKCON((m_tx = m_ndb->startTransaction()) != 0, *this);
-  return 0;
-}
-
-int
-Con::startBuddyTransaction(const Con& con)
-{
-  assert(m_ndb != 0 && m_tx == 0 && con.m_ndb == m_ndb && con.m_tx != 0);
-  CHKCON((m_tx = m_ndb->hupp(con.m_tx)) != 0, *this);
   return 0;
 }
 
@@ -647,9 +733,18 @@ Con::getNdbOperation(const Tab& tab)
 }
 
 int
-Con::getNdbOperation(const ITab& itab, const Tab& tab)
+Con::getNdbScanOperation(const Tab& tab)
 {
-  CHKCON((m_op = m_tx->getNdbOperation(itab.m_name, tab.m_name)) != 0, *this);
+  assert(m_tx != 0);
+  CHKCON((m_op = m_scanop = m_tx->getNdbScanOperation(tab.m_name)) != 0, *this);
+  return 0;
+}
+
+int
+Con::getNdbScanOperation(const ITab& itab, const Tab& tab)
+{
+  assert(m_tx != 0);
+  CHKCON((m_op = m_scanop = m_indexscanop = m_tx->getNdbIndexScanOperation(itab.m_name, tab.m_name)) != 0, *this);
   return 0;
 }
 
@@ -681,7 +776,7 @@ int
 Con::setBound(int num, int type, const void* value)
 {
   assert(m_tx != 0 && m_op != 0);
-  CHKCON(m_op->setBound(num, type, value) == 0, *this);
+  CHKCON(m_indexscanop->setBound(num, type, value) == 0, *this);
   return 0;
 }
 
@@ -694,10 +789,26 @@ Con::execute(ExecType t)
 }
 
 int
+Con::execute(ExecType t, bool& deadlock)
+{
+  int ret = execute(t);
+  if (ret != 0) {
+    if (deadlock && m_errtype == ErrDeadlock) {
+      LL3("caught deadlock");
+      ret = 0;
+    }
+  } else {
+    deadlock = false;
+  }
+  CHK(ret == 0);
+  return 0;
+}
+
+int
 Con::openScanRead(unsigned parallelism)
 {
   assert(m_tx != 0 && m_op != 0);
-  CHKCON(m_op->openScanRead(parallelism) == 0, *this);
+  CHKCON((m_resultset = m_scanop->readTuples(parallelism)) != 0, *this);
   return 0;
 }
 
@@ -705,39 +816,56 @@ int
 Con::openScanExclusive(unsigned parallelism)
 {
   assert(m_tx != 0 && m_op != 0);
-  CHKCON(m_op->openScanExclusive(parallelism) == 0, *this);
+  CHKCON((m_resultset = m_scanop->readTuplesExclusive(parallelism)) != 0, *this);
   return 0;
 }
 
 int
 Con::executeScan()
 {
-  CHKCON(m_tx->executeScan() == 0, *this);
+  CHKCON(m_tx->execute(NoCommit) == 0, *this);
   return 0;
 }
 
 int
-Con::nextScanResult()
+Con::nextScanResult(bool fetchAllowed)
 {
   int ret;
-  CHKCON((ret = m_tx->nextScanResult()) != -1, *this);
-  assert(ret == 0 || ret == 1);
+  assert(m_resultset != 0);
+  CHKCON((ret = m_resultset->nextResult(fetchAllowed)) != -1, *this);
+  assert(ret == 0 || ret == 1 || (! fetchAllowed && ret == 2));
   return ret;
 }
 
 int
-Con::takeOverForUpdate(Con& scan)
+Con::nextScanResult(bool fetchAllowed, bool& deadlock)
 {
-  assert(m_tx != 0 && scan.m_op != 0);
-  CHKCON((m_op = scan.m_op->takeOverForUpdate(m_tx)) != 0, scan);
+  int ret = nextScanResult(fetchAllowed);
+  if (ret == -1) {
+    if (deadlock && m_errtype == ErrDeadlock) {
+      LL3("caught deadlock");
+      ret = 0;
+    }
+  } else {
+    deadlock = false;
+  }
+  CHK(ret == 0 || ret == 1 || (! fetchAllowed && ret == 2));
+  return ret;
+}
+
+int
+Con::updateScanTuple(Con& con2)
+{
+  assert(con2.m_tx != 0);
+  CHKCON((con2.m_op = m_resultset->updateTuple(con2.m_tx)) != 0, *this);
   return 0;
 }
 
 int
-Con::takeOverForDelete(Con& scan)
+Con::deleteScanTuple(Con& con2)
 {
-  assert(m_tx != 0 && scan.m_op != 0);
-  CHKCON((m_op = scan.m_op->takeOverForUpdate(m_tx)) != 0, scan);
+  assert(con2.m_tx != 0);
+  CHKCON(m_resultset->deleteTuple(con2.m_tx) == 0, *this);
   return 0;
 }
 
@@ -765,7 +893,7 @@ Con::printerror(NdbOut& out)
     if (m_tx) {
       if ((code = m_tx->getNdbError().code) != 0) {
         LL0(++any << " con: error " << m_tx->getNdbError());
-        if (code == 266 || code == 274 || code == 296 || code == 297)
+        if (code == 266 || code == 274 || code == 296 || code == 297 || code == 499)
           m_errtype = ErrDeadlock;
       }
       if (m_op && m_op->getNdbError().code != 0) {
@@ -785,7 +913,7 @@ invalidateindex(Par par, const ITab& itab)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
-  con.m_dic->invalidateIndex(itab.m_name, tab.m_name);
+  con.m_ndb->getDictionary()->invalidateIndex(itab.m_name, tab.m_name);
   return 0;
 }
 
@@ -809,7 +937,7 @@ invalidatetable(Par par)
   Con& con = par.con();
   const Tab& tab = par.tab();
   invalidateindex(par);
-  con.m_dic->invalidateTable(tab.m_name);
+  con.m_ndb->getDictionary()->invalidateTable(tab.m_name);
   return 0;
 }
 
@@ -818,6 +946,7 @@ droptable(Par par)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
+  con.m_dic = con.m_ndb->getDictionary();
   if (con.m_dic->getTable(tab.m_name) == 0) {
     // how to check for error
     LL4("no table " << tab.m_name);
@@ -825,6 +954,7 @@ droptable(Par par)
     LL3("drop table " << tab.m_name);
     CHKCON(con.m_dic->dropTable(tab.m_name) == 0, con);
   }
+  con.m_dic = 0;
   return 0;
 }
 
@@ -832,7 +962,6 @@ static int
 createtable(Par par)
 {
   Con& con = par.con();
-  CHK(con.bugger() == 0);
   const Tab& tab = par.tab();
   LL3("create table " << tab.m_name);
   LL4(tab);
@@ -852,7 +981,9 @@ createtable(Par par)
     c.setNullable(col.m_nullable);
     t.addColumn(c);
   }
+  con.m_dic = con.m_ndb->getDictionary();
   CHKCON(con.m_dic->createTable(t) == 0, con);
+  con.m_dic = 0;
   return 0;
 }
 
@@ -861,6 +992,7 @@ dropindex(Par par, const ITab& itab)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
+  con.m_dic = con.m_ndb->getDictionary();
   if (con.m_dic->getIndex(itab.m_name, tab.m_name) == 0) {
     // how to check for error
     LL4("no index " << itab.m_name);
@@ -868,6 +1000,7 @@ dropindex(Par par, const ITab& itab)
     LL3("drop index " << itab.m_name);
     CHKCON(con.m_dic->dropIndex(itab.m_name, tab.m_name) == 0, con);
   }
+  con.m_dic = 0;
   return 0;
 }
 
@@ -888,7 +1021,6 @@ static int
 createindex(Par par, const ITab& itab)
 {
   Con& con = par.con();
-  CHK(con.bugger() == 0);
   const Tab& tab = par.tab();
   LL3("create index " << itab.m_name);
   LL4(itab);
@@ -900,7 +1032,9 @@ createindex(Par par, const ITab& itab)
     const Col& col = itab.m_icol[k].m_col;
     x.addColumnName(col.m_name);
   }
+  con.m_dic = con.m_ndb->getDictionary();
   CHKCON(con.m_dic->createIndex(x) == 0, con);
+  con.m_dic = 0;
   return 0;
 }
 
@@ -1115,9 +1249,9 @@ Val::cmp(const Val& val2) const
   assert(col.m_type == col2.m_type && col.m_length == col2.m_length);
   if (m_null || val2.m_null) {
     if (! m_null)
-      return -1;
-    if (! val2.m_null)
       return +1;
+    if (! val2.m_null)
+      return -1;
     return 0;
   }
   // verify data formats
@@ -1175,6 +1309,8 @@ struct Row {
   const Tab& m_tab;
   Val** m_val;
   bool m_exist;
+  enum Op { NoOp = 0, ReadOp, InsOp, UpdOp, DelOp };
+  Op m_pending;
   Row(const Tab& tab);
   ~Row();
   void copy(const Row& row2);
@@ -1199,6 +1335,7 @@ Row::Row(const Tab& tab) :
     m_val[k] = new Val(col);
   }
   m_exist = false;
+  m_pending = NoOp;
 }
 
 Row::~Row()
@@ -1236,7 +1373,7 @@ int
 Row::verify(const Row& row2) const
 {
   const Tab& tab = m_tab;
-  assert(&tab == &row2.m_tab);
+  assert(&tab == &row2.m_tab && m_exist && row2.m_exist);
   for (unsigned k = 0; k < tab.m_cols; k++) {
     const Val& val = *m_val[k];
     const Val& val2 = *row2.m_val[k];
@@ -1257,7 +1394,7 @@ Row::insrow(Par par)
     const Val& val = *m_val[k];
     CHK(val.setval(par) == 0);
   }
-  m_exist = true;
+  m_pending = InsOp;
   return 0;
 }
 
@@ -1273,6 +1410,7 @@ Row::updrow(Par par)
     const Val& val = *m_val[k];
     CHK(val.setval(par) == 0);
   }
+  m_pending = UpdOp;
   return 0;
 }
 
@@ -1290,7 +1428,7 @@ Row::delrow(Par par)
     if (col.m_pk)
       CHK(val.setval(par) == 0);
   }
-  m_exist = false;
+  m_pending = DelOp;
   return 0;
 }
 
@@ -1307,7 +1445,6 @@ Row::selrow(Par par)
     if (col.m_pk)
       CHK(val.setval(par) == 0);
   }
-  m_exist = false;
   return 0;
 }
 
@@ -1322,6 +1459,7 @@ Row::setrow(Par par)
     if (! col.m_pk)
       CHK(val.setval(par) == 0);
   }
+  m_pending = UpdOp;
   return 0;
 }
 
@@ -1349,6 +1487,10 @@ operator<<(NdbOut& out, const Row& row)
       out << " ";
     out << *row.m_val[i];
   }
+  out << " [exist=" << row.m_exist;
+  if (row.m_pending)
+    out << " pending=" << row.m_pending;
+  out << "]";
   return out;
 }
 
@@ -1357,15 +1499,19 @@ operator<<(NdbOut& out, const Row& row)
 struct Set {
   const Tab& m_tab;
   unsigned m_rows;
-  unsigned m_count;
   Row** m_row;
   Row** m_saverow;
   Row* m_keyrow;
   NdbRecAttr** m_rec;
   Set(const Tab& tab, unsigned rows);
   ~Set();
+  void reset();
+  unsigned count() const;
   // row methods
   bool exist(unsigned i) const;
+  Row::Op pending(unsigned i) const;
+  void notpending(unsigned i);
+  void notpending(const Lst& lst);
   void calc(Par par, unsigned i);
   int insrow(Par par, unsigned i);
   int updrow(Par par, unsigned i);
@@ -1380,7 +1526,7 @@ struct Set {
   void savepoint();
   void commit();
   void rollback();
-  // locking (not perfect since ops may complete in different order)
+  // protect structure
   NdbMutex* m_mutex;
   void lock() {
     NdbMutex_Lock(m_mutex);
@@ -1396,9 +1542,9 @@ Set::Set(const Tab& tab, unsigned rows) :
   m_tab(tab)
 {
   m_rows = rows;
-  m_count = 0;
   m_row = new Row* [m_rows];
   for (unsigned i = 0; i < m_rows; i++) {
+    // allocate on need to save space
     m_row[i] = 0;
   }
   m_saverow = 0;
@@ -1425,11 +1571,47 @@ Set::~Set()
   NdbMutex_Destroy(m_mutex);
 }
 
+void
+Set::reset()
+{
+  for (unsigned i = 0; i < m_rows; i++) {
+    if (m_row[i] != 0) {
+      Row& row = *m_row[i];
+      row.m_exist = false;
+    }
+  }
+}
+
+unsigned
+Set::count() const
+{
+  unsigned count = 0;
+  for (unsigned i = 0; i < m_rows; i++) {
+    if (m_row[i] != 0) {
+      Row& row = *m_row[i];
+      if (row.m_exist)
+        count++;
+    }
+  }
+  return count;
+}
+
 bool
 Set::exist(unsigned i) const
 {
   assert(i < m_rows);
-  return m_row[i] != 0 && m_row[i]->m_exist;
+  if (m_row[i] == 0)    // not allocated => not exist
+    return false;
+  return m_row[i]->m_exist;
+}
+
+Row::Op
+Set::pending(unsigned i) const
+{
+  assert(i < m_rows);
+  if (m_row[i] == 0)    // not allocated => not pending
+    return Row::NoOp;
+  return m_row[i]->m_pending;
 }
 
 void
@@ -1448,9 +1630,9 @@ Set::calc(Par par, unsigned i)
 int
 Set::insrow(Par par, unsigned i)
 {
-  assert(m_row[i] != 0 && m_count < m_rows);
-  CHK(m_row[i]->insrow(par) == 0);
-  m_count++;
+  assert(m_row[i] != 0);
+  Row& row = *m_row[i];
+  CHK(row.insrow(par) == 0);
   return 0;
 }
 
@@ -1458,16 +1640,17 @@ int
 Set::updrow(Par par, unsigned i)
 {
   assert(m_row[i] != 0);
-  CHK(m_row[i]->updrow(par) == 0);
+  Row& row = *m_row[i];
+  CHK(row.updrow(par) == 0);
   return 0;
 }
 
 int
 Set::delrow(Par par, unsigned i)
 {
-  assert(m_row[i] != 0 && m_count != 0);
-  CHK(m_row[i]->delrow(par) == 0);
-  m_count--;
+  assert(m_row[i] != 0);
+  Row& row = *m_row[i];
+  CHK(row.delrow(par) == 0);
   return 0;
 }
 
@@ -1507,7 +1690,7 @@ Set::getkey(Par par, unsigned* i)
   assert(m_rec[0] != 0);
   const char* aRef0 = m_rec[0]->aRef();
   Uint32 key = *(const Uint32*)aRef0;
-  CHKMSG(key < m_rows, "key=" << key << " rows=" << m_rows);
+  CHK(key < m_rows);
   *i = key;
   return 0;
 }
@@ -1532,11 +1715,30 @@ Set::putval(unsigned i, bool force)
     val.copy(aRef);
     val.m_null = false;
   }
-  if (! row.m_exist) {
+  if (! row.m_exist)
     row.m_exist = true;
-    m_count++;
-  }
   return 0;
+}
+
+void
+Set::notpending(unsigned i)
+{
+  assert(m_row[i] != 0);
+  Row& row = *m_row[i];
+  if (row.m_pending == Row::InsOp)
+    row.m_exist = true;
+  if (row.m_pending == Row::DelOp)
+    row.m_exist = false;
+  row.m_pending = Row::NoOp;
+}
+
+void
+Set::notpending(const Lst& lst)
+{
+  for (unsigned j = 0; j < lst.m_cnt; j++) {
+    unsigned i = lst.m_arr[j];
+    notpending(i);
+  }
 }
 
 int
@@ -1544,7 +1746,6 @@ Set::verify(const Set& set2) const
 {
   const Tab& tab = m_tab;
   assert(&tab == &set2.m_tab && m_rows == set2.m_rows);
-  CHKMSG(m_count == set2.m_count, "set=" << m_count << " set2=" << set2.m_count);
   for (unsigned i = 0; i < m_rows; i++) {
     CHK(exist(i) == set2.exist(i));
     if (! exist(i))
@@ -1618,8 +1819,8 @@ int
 BVal::setbnd(Par par) const
 {
   Con& con = par.con();
-  const char* addr = (const char*)dataaddr();
-  assert(! m_null);
+  assert(g_compare_null || ! m_null);
+  const char* addr = ! m_null ? (const char*)dataaddr() : 0;
   const ICol& icol = m_icol;
   CHK(con.setBound(icol.m_num, m_type, addr) == 0);
   return 0;
@@ -1647,7 +1848,10 @@ struct BSet {
   unsigned m_bvals;
   BVal** m_bval;
   BSet(const Tab& tab, const ITab& itab, unsigned rows);
+  ~BSet();
+  void reset();
   void calc(Par par);
+  void calcpk(Par par, unsigned i);
   int setbnd(Par par) const;
   void filter(const Set& set, Set& set2) const;
 };
@@ -1659,12 +1863,31 @@ BSet::BSet(const Tab& tab, const ITab& itab, unsigned rows) :
   m_bvals(0)
 {
   m_bval = new BVal* [m_alloc];
+  for (unsigned i = 0; i < m_alloc; i++) {
+    m_bval[i] = 0;
+  }
+}
+
+BSet::~BSet()
+{
+  delete [] m_bval;
+}
+
+void
+BSet::reset()
+{
+  while (m_bvals > 0) {
+    unsigned i = --m_bvals;
+    delete m_bval[i];
+    m_bval[i] = 0;
+  }
 }
 
 void
 BSet::calc(Par par)
 {
   const ITab& itab = m_itab;
+  reset();
   for (unsigned k = 0; k < itab.m_icols; k++) {
     const ICol& icol = itab.m_icol[k];
     const Col& col = icol.m_col;
@@ -1686,7 +1909,8 @@ BSet::calc(Par par)
       if (k + 1 < itab.m_icols)
         bval.m_type = 4;
       // value generation parammeters
-      par.m_pctnull = 0;
+      if (! g_compare_null)
+        par.m_pctnull = 0;
       par.m_pctrange = 50;      // bit higher
       do {
         bval.calc(par, 0);
@@ -1702,6 +1926,23 @@ BSet::calc(Par par)
       if (bval.m_type == 4)
         break;
     }
+  }
+}
+
+void
+BSet::calcpk(Par par, unsigned i)
+{
+  const ITab& itab = m_itab;
+  reset();
+  for (unsigned k = 0; k < itab.m_icols; k++) {
+    const ICol& icol = itab.m_icol[k];
+    const Col& col = icol.m_col;
+    assert(col.m_pk);
+    assert(m_bvals < m_alloc);
+    BVal& bval = *new BVal(icol);
+    m_bval[m_bvals++] = &bval;
+    bval.m_type = 4;
+    bval.calc(par, i);
   }
 }
 
@@ -1721,23 +1962,25 @@ BSet::filter(const Set& set, Set& set2) const
   const Tab& tab = m_tab;
   const ITab& itab = m_itab;
   assert(&tab == &set2.m_tab && set.m_rows == set2.m_rows);
-  assert(set2.m_count == 0);
+  assert(set2.count() == 0);
   for (unsigned i = 0; i < set.m_rows; i++) {
     if (! set.exist(i))
       continue;
     const Row& row = *set.m_row[i];
-    bool ok1 = false;
-    for (unsigned k = 0; k < itab.m_icols; k++) {
-      const ICol& icol = itab.m_icol[k];
-      const Col& col = icol.m_col;
-      const Val& val = *row.m_val[col.m_num];
-      if (! val.m_null) {
-        ok1 = true;
-        break;
+    if (! g_store_null_key) {
+      bool ok1 = false;
+      for (unsigned k = 0; k < itab.m_icols; k++) {
+        const ICol& icol = itab.m_icol[k];
+        const Col& col = icol.m_col;
+        const Val& val = *row.m_val[col.m_num];
+        if (! val.m_null) {
+          ok1 = true;
+          break;
+        }
       }
+      if (! ok1)
+        continue;
     }
-    if (! ok1)
-      continue;
     bool ok2 = true;
     for (unsigned j = 0; j < m_bvals; j++) {
       const BVal& bval = *m_bval[j];
@@ -1769,7 +2012,6 @@ BSet::filter(const Set& set, Set& set2) const
     assert(! row2.m_exist);
     row2.copy(row);
     row2.m_exist = true;
-    set2.m_count++;
   }
 }
 
@@ -1794,28 +2036,46 @@ pkinsert(Par par)
   Set& set = par.set();
   LL3("pkinsert");
   CHK(con.startTransaction() == 0);
-  unsigned n = 0;
+  Lst lst;
   for (unsigned j = 0; j < par.m_rows; j++) {
     unsigned i = thrrow(par, j);
     set.lock();
-    if (set.exist(i)) {
+    if (set.exist(i) || set.pending(i)) {
       set.unlock();
       continue;
     }
     set.calc(par, i);
-    LL4("pkinsert " << i << ": " << *set.m_row[i]);
-    CHKTRY(set.insrow(par, i) == 0, set.unlock());
+    CHK(set.insrow(par, i) == 0);
     set.unlock();
-    if (++n == par.m_batch) {
-      CHK(con.execute(Commit) == 0);
+    LL4("pkinsert " << i << ": " << *set.m_row[i]);
+    lst.push(i);
+    if (lst.cnt() == par.m_batch) {
+      bool deadlock = par.m_deadlock;
+      CHK(con.execute(Commit, deadlock) == 0);
       con.closeTransaction();
+      if (deadlock) {
+        LL1("pkinsert: stop on deadlock");
+        return 0;
+      }
+      set.lock();
+      set.notpending(lst);
+      set.unlock();
+      lst.reset();
       CHK(con.startTransaction() == 0);
-      n = 0;
     }
   }
-  if (n != 0) {
-    CHK(con.execute(Commit) == 0);
-    n = 0;
+  if (lst.cnt() != 0) {
+    bool deadlock = par.m_deadlock;
+    CHK(con.execute(Commit, deadlock) == 0);
+    con.closeTransaction();
+    if (deadlock) {
+      LL1("pkinsert: stop on deadlock");
+      return 0;
+    }
+    set.lock();
+    set.notpending(lst);
+    set.unlock();
+    return 0;
   }
   con.closeTransaction();
   return 0;
@@ -1828,28 +2088,45 @@ pkupdate(Par par)
   Set& set = par.set();
   LL3("pkupdate");
   CHK(con.startTransaction() == 0);
-  unsigned n = 0;
+  Lst lst;
+  bool deadlock = false;
   for (unsigned j = 0; j < par.m_rows; j++) {
     unsigned i = thrrow(par, j);
     set.lock();
-    if (! set.exist(i)) {
+    if (! set.exist(i) || set.pending(i)) {
       set.unlock();
       continue;
     }
     set.calc(par, i);
-    LL4("pkupdate " << i << ": " << *set.m_row[i]);
-    CHKTRY(set.updrow(par, i) == 0, set.unlock());
+    CHK(set.updrow(par, i) == 0);
     set.unlock();
-    if (++n == par.m_batch) {
-      CHK(con.execute(Commit) == 0);
+    LL4("pkupdate " << i << ": " << *set.m_row[i]);
+    lst.push(i);
+    if (lst.cnt() == par.m_batch) {
+      deadlock = par.m_deadlock;
+      CHK(con.execute(Commit, deadlock) == 0);
+      if (deadlock) {
+        LL1("pkupdate: stop on deadlock");
+        break;
+      }
       con.closeTransaction();
+      set.lock();
+      set.notpending(lst);
+      set.unlock();
+      lst.reset();
       CHK(con.startTransaction() == 0);
-      n = 0;
     }
   }
-  if (n != 0) {
-    CHK(con.execute(Commit) == 0);
-    n = 0;
+  if (! deadlock && lst.cnt() != 0) {
+    deadlock = par.m_deadlock;
+    CHK(con.execute(Commit, deadlock) == 0);
+    if (deadlock) {
+      LL1("pkupdate: stop on deadlock");
+    } else {
+      set.lock();
+      set.notpending(lst);
+      set.unlock();
+    }
   }
   con.closeTransaction();
   return 0;
@@ -1862,27 +2139,44 @@ pkdelete(Par par)
   Set& set = par.set();
   LL3("pkdelete");
   CHK(con.startTransaction() == 0);
-  unsigned n = 0;
+  Lst lst;
+  bool deadlock = false;
   for (unsigned j = 0; j < par.m_rows; j++) {
     unsigned i = thrrow(par, j);
     set.lock();
-    if (! set.exist(i)) {
+    if (! set.exist(i) || set.pending(i)) {
       set.unlock();
       continue;
     }
-    LL4("pkdelete " << i << ": " << *set.m_row[i]);
-    CHKTRY(set.delrow(par, i) == 0, set.unlock());
+    CHK(set.delrow(par, i) == 0);
     set.unlock();
-    if (++n == par.m_batch) {
-      CHK(con.execute(Commit) == 0);
+    LL4("pkdelete " << i << ": " << *set.m_row[i]);
+    lst.push(i);
+    if (lst.cnt() == par.m_batch) {
+      deadlock = par.m_deadlock;
+      CHK(con.execute(Commit, deadlock) == 0);
+      if (deadlock) {
+        LL1("pkdelete: stop on deadlock");
+        break;
+      }
       con.closeTransaction();
+      set.lock();
+      set.notpending(lst);
+      set.unlock();
+      lst.reset();
       CHK(con.startTransaction() == 0);
-      n = 0;
     }
   }
-  if (n != 0) {
-    CHK(con.execute(Commit) == 0);
-    n = 0;
+  if (! deadlock && lst.cnt() != 0) {
+    deadlock = par.m_deadlock;
+    CHK(con.execute(Commit, deadlock) == 0);
+    if (deadlock) {
+      LL1("pkdelete: stop on deadlock");
+    } else {
+      set.lock();
+      set.notpending(lst);
+      set.unlock();
+    }
   }
   con.closeTransaction();
   return 0;
@@ -1893,25 +2187,55 @@ pkread(Par par)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
-  const Set& set = par.set();
+  Set& set = par.set();
   LL3((par.m_verify ? "pkverify " : "pkread ") << tab.m_name);
   // expected
   const Set& set1 = set;
   Set set2(tab, set.m_rows);
   for (unsigned i = 0; i < set.m_rows; i++) {
-    if (! set.exist(i))
+    set.lock();
+    if (! set.exist(i) || set.pending(i)) {
+      set.unlock();
       continue;
+    }
+    set.unlock();
     CHK(con.startTransaction() == 0);
     CHK(set2.selrow(par, i) == 0);
     CHK(con.execute(Commit) == 0);
     unsigned i2 = (unsigned)-1;
     CHK(set2.getkey(par, &i2) == 0 && i == i2);
     CHK(set2.putval(i, false) == 0);
-    LL4("row " << set2.m_count << ": " << *set2.m_row[i]);
+    LL4("row " << set2.count() << ": " << *set2.m_row[i]);
     con.closeTransaction();
   }
   if (par.m_verify)
     CHK(set1.verify(set2) == 0);
+  return 0;
+}
+
+static int
+pkreadfast(Par par, unsigned count)
+{
+  Con& con = par.con();
+  const Tab& tab = par.tab();
+  const Set& set = par.set();
+  LL3("pkfast " << tab.m_name);
+  Row keyrow(tab);
+  // not batched on purpose
+  for (unsigned j = 0; j < count; j++) {
+    unsigned i = urandom(set.m_rows);
+    assert(set.exist(i));
+    CHK(con.startTransaction() == 0);
+    // define key
+    keyrow.calc(par, i);
+    CHK(keyrow.selrow(par) == 0);
+    NdbRecAttr* rec;
+    CHK(con.getValue((Uint32)0, rec) == 0);
+    CHK(con.executeScan() == 0);
+    // get 1st column
+    CHK(con.execute(Commit) == 0);
+    con.closeTransaction();
+  }
   return 0;
 }
 
@@ -1928,23 +2252,50 @@ scanreadtable(Par par)
   LL3((par.m_verify ? "scanverify " : "scanread ") << tab.m_name);
   Set set2(tab, set.m_rows);
   CHK(con.startTransaction() == 0);
-  CHK(con.getNdbOperation(tab) == 0);
+  CHK(con.getNdbScanOperation(tab) == 0);
   CHK(con.openScanRead(par.m_scanrd) == 0);
   set2.getval(par);
   CHK(con.executeScan() == 0);
   while (1) {
     int ret;
-    CHK((ret = con.nextScanResult()) == 0 || ret == 1);
+    CHK((ret = con.nextScanResult(true)) == 0 || ret == 1);
     if (ret == 1)
       break;
     unsigned i = (unsigned)-1;
     CHK(set2.getkey(par, &i) == 0);
     CHK(set2.putval(i, false) == 0);
-    LL4("row " << set2.m_count << ": " << *set2.m_row[i]);
+    LL4("row " << set2.count() << ": " << *set2.m_row[i]);
   }
   con.closeTransaction();
   if (par.m_verify)
     CHK(set1.verify(set2) == 0);
+  return 0;
+}
+
+static int
+scanreadtablefast(Par par, unsigned countcheck)
+{
+  Con& con = par.con();
+  const Tab& tab = par.tab();
+  const Set& set = par.set();
+  LL3("scanfast " << tab.m_name);
+  CHK(con.startTransaction() == 0);
+  CHK(con.getNdbScanOperation(tab) == 0);
+  CHK(con.openScanRead(par.m_scanrd) == 0);
+  // get 1st column
+  NdbRecAttr* rec;
+  CHK(con.getValue((Uint32)0, rec) == 0);
+  CHK(con.executeScan() == 0);
+  unsigned count = 0;
+  while (1) {
+    int ret;
+    CHK((ret = con.nextScanResult(true)) == 0 || ret == 1);
+    if (ret == 1)
+      break;
+    count++;
+  }
+  con.closeTransaction();
+  CHK(count == countcheck);
   return 0;
 }
 
@@ -1961,21 +2312,21 @@ scanreadindex(Par par, const ITab& itab, const BSet& bset)
   LL4(bset);
   Set set2(tab, set.m_rows);
   CHK(con.startTransaction() == 0);
-  CHK(con.getNdbOperation(itab, tab) == 0);
+  CHK(con.getNdbScanOperation(itab, tab) == 0);
   CHK(con.openScanRead(par.m_scanrd) == 0);
   CHK(bset.setbnd(par) == 0);
   set2.getval(par);
   CHK(con.executeScan() == 0);
   while (1) {
     int ret;
-    CHK((ret = con.nextScanResult()) == 0 || ret == 1);
+    CHK((ret = con.nextScanResult(true)) == 0 || ret == 1);
     if (ret == 1)
       break;
     unsigned i = (unsigned)-1;
     CHK(set2.getkey(par, &i) == 0);
     LL4("key " << i);
     CHK(set2.putval(i, par.m_dups) == 0);
-    LL4("row " << set2.m_count << ": " << *set2.m_row[i]);
+    LL4("row " << set2.count() << ": " << *set2.m_row[i]);
   }
   con.closeTransaction();
   if (par.m_verify)
@@ -1984,10 +2335,39 @@ scanreadindex(Par par, const ITab& itab, const BSet& bset)
 }
 
 static int
+scanreadindexfast(Par par, const ITab& itab, const BSet& bset, unsigned countcheck)
+{
+  Con& con = par.con();
+  const Tab& tab = par.tab();
+  const Set& set = par.set();
+  LL3("scanfast " << itab.m_name << " bounds=" << bset.m_bvals);
+  LL4(bset);
+  CHK(con.startTransaction() == 0);
+  CHK(con.getNdbScanOperation(itab, tab) == 0);
+  CHK(con.openScanRead(par.m_scanrd) == 0);
+  CHK(bset.setbnd(par) == 0);
+  // get 1st column
+  NdbRecAttr* rec;
+  CHK(con.getValue((Uint32)0, rec) == 0);
+  CHK(con.executeScan() == 0);
+  unsigned count = 0;
+  while (1) {
+    int ret;
+    CHK((ret = con.nextScanResult(true)) == 0 || ret == 1);
+    if (ret == 1)
+      break;
+    count++;
+  }
+  con.closeTransaction();
+  CHK(count == countcheck);
+  return 0;
+}
+
+static int
 scanreadindex(Par par, const ITab& itab)
 {
   const Tab& tab = par.tab();
-  for (unsigned i = 0; i < par.m_subloop; i++) {
+  for (unsigned i = 0; i < par.m_idxloop; i++) {
     BSet bset(tab, itab, par.m_rows);
     bset.calc(par);
     CHK(scanreadindex(par, itab, bset) == 0);
@@ -2017,6 +2397,60 @@ scanreadall(Par par)
   return 0;
 }
 
+// timing scans
+
+static int
+timescantable(Par par)
+{
+  par.tmr().on();
+  CHK(scanreadtablefast(par, par.m_totrows) == 0);
+  par.tmr().off(par.set().m_rows);
+  return 0;
+}
+
+static int
+timescanpkindex(Par par)
+{
+  const Tab& tab = par.tab();
+  const ITab& itab = tab.m_itab[0];     // 1st index is on PK
+  BSet bset(tab, itab, par.m_rows);
+  par.tmr().on();
+  CHK(scanreadindexfast(par, itab, bset, par.m_totrows) == 0);
+  par.tmr().off(par.set().m_rows);
+  return 0;
+}
+
+static int
+timepkreadtable(Par par)
+{
+  par.tmr().on();
+  unsigned count = par.m_samples;
+  if (count == 0)
+    count = par.m_totrows;
+  CHK(pkreadfast(par, count) == 0);
+  par.tmr().off(count);
+  return 0;
+}
+
+static int
+timepkreadindex(Par par)
+{
+  const Tab& tab = par.tab();
+  const ITab& itab = tab.m_itab[0];     // 1st index is on PK
+  BSet bset(tab, itab, par.m_rows);
+  unsigned count = par.m_samples;
+  if (count == 0)
+    count = par.m_totrows;
+  par.tmr().on();
+  for (unsigned j = 0; j < count; j++) {
+    unsigned i = urandom(par.m_totrows);
+    bset.calcpk(par, i);
+    CHK(scanreadindexfast(par, itab, bset, 1) == 0);
+  }
+  par.tmr().off(count);
+  return 0;
+}
+
 // scan update
 
 static int
@@ -2028,36 +2462,70 @@ scanupdatetable(Par par)
   LL3("scan update " << tab.m_name);
   Set set2(tab, set.m_rows);
   CHK(con.startTransaction() == 0);
-  CHK(con.getNdbOperation(tab) == 0);
+  CHK(con.getNdbScanOperation(tab) == 0);
   CHK(con.openScanExclusive(par.m_scanex) == 0);
   set2.getval(par);
   CHK(con.executeScan() == 0);
   unsigned count = 0;
   // updating trans
   Con con2;
-  con2.m_ndb = con.m_ndb;
-  CHK(con2.startBuddyTransaction(con) == 0);
+  con2.connect(con);
+  CHK(con2.startTransaction() == 0);
+  Lst lst;
+  bool deadlock = false;
   while (1) {
     int ret;
-    CHK((ret = con.nextScanResult()) == 0 || ret == 1);
+    deadlock = par.m_deadlock;
+    CHK((ret = con.nextScanResult(true, deadlock)) == 0 || ret == 1);
     if (ret == 1)
       break;
-    unsigned i = (unsigned)-1;
-    CHK(set2.getkey(par, &i) == 0);
-    LL4("key " << i);
-    CHK(set2.putval(i, false) == 0);
-    CHK(con2.takeOverForUpdate(con) == 0);
-    Par par2 = par;
-    par2.m_con = &con2;
-    set.lock();
-    set.calc(par, i);
-    LL4("scan update " << tab.m_name << ": " << *set.m_row[i]);
-    CHKTRY(set.setrow(par2, i) == 0, set.unlock());
-    set.unlock();
-    CHK(con2.execute(NoCommit) == 0);
-    count++;
+    if (deadlock) {
+      LL1("scanupdatetable: stop on deadlock");
+      break;
+    }
+    do {
+      unsigned i = (unsigned)-1;
+      CHK(set2.getkey(par, &i) == 0);
+      const Row& row = *set.m_row[i];
+      set.lock();
+      if (! set.exist(i) || set.pending(i)) {
+        LL4("scan update " << tab.m_name << ": skip: " << row);
+      } else {
+        CHKTRY(set2.putval(i, false) == 0, set.unlock());
+        CHKTRY(con.updateScanTuple(con2) == 0, set.unlock());
+        Par par2 = par;
+        par2.m_con = &con2;
+        set.calc(par, i);
+        CHKTRY(set.setrow(par2, i) == 0, set.unlock());
+        LL4("scan update " << tab.m_name << ": " << row);
+        lst.push(i);
+      }
+      set.unlock();
+      if (lst.cnt() == par.m_batch) {
+        CHK(con2.execute(Commit) == 0);
+        con2.closeTransaction();
+        set.lock();
+        set.notpending(lst);
+        set.unlock();
+        count += lst.cnt();
+        lst.reset();
+        CHK(con2.startTransaction() == 0);
+      }
+      CHK((ret = con.nextScanResult(false)) == 0 || ret == 1 || ret == 2);
+      if (ret == 2 && lst.cnt() != 0) {
+        CHK(con2.execute(Commit) == 0);
+        con2.closeTransaction();
+        set.lock();
+        set.notpending(lst);
+        set.unlock();
+        count += lst.cnt();
+        lst.reset();
+        CHK(con2.startTransaction() == 0);
+      }
+    } while (ret == 0);
+    if (ret == 1)
+      break;
   }
-  CHK(con2.execute(Commit) == 0);
   con2.closeTransaction();
   LL3("scan update " << tab.m_name << " rows updated=" << count);
   con.closeTransaction();
@@ -2073,7 +2541,7 @@ scanupdateindex(Par par, const ITab& itab, const BSet& bset)
   LL3("scan update " << itab.m_name);
   Set set2(tab, set.m_rows);
   CHK(con.startTransaction() == 0);
-  CHK(con.getNdbOperation(itab, tab) == 0);
+  CHK(con.getNdbScanOperation(itab, tab) == 0);
   CHK(con.openScanExclusive(par.m_scanex) == 0);
   CHK(bset.setbnd(par) == 0);
   set2.getval(par);
@@ -2081,32 +2549,61 @@ scanupdateindex(Par par, const ITab& itab, const BSet& bset)
   unsigned count = 0;
   // updating trans
   Con con2;
-  con2.m_ndb = con.m_ndb;
-  CHK(con2.startBuddyTransaction(con) == 0);
+  con2.connect(con);
+  CHK(con2.startTransaction() == 0);
+  Lst lst;
+  bool deadlock = false;
   while (1) {
     int ret;
-    CHK((ret = con.nextScanResult()) == 0 || ret == 1);
+    deadlock = par.m_deadlock;
+    CHK((ret = con.nextScanResult(true, deadlock)) == 0 || ret == 1);
     if (ret == 1)
       break;
-    unsigned i = (unsigned)-1;
-    CHK(set2.getkey(par, &i) == 0);
-    LL4("key " << i);
-    CHK(set2.putval(i, par.m_dups) == 0);
-    // avoid deadlock for now
-    //if (! isthrrow(par, i))
-      //continue;
-    CHK(con2.takeOverForUpdate(con) == 0);
-    Par par2 = par;
-    par2.m_con = &con2;
-    set.lock();
-    set.calc(par, i);
-    LL4("scan update " << itab.m_name << ": " << *set.m_row[i]);
-    CHKTRY(set.setrow(par2, i) == 0, set.unlock());
-    set.unlock();
-    CHK(con2.execute(NoCommit) == 0);
-    count++;
+    if (deadlock) {
+      LL1("scanupdateindex: stop on deadlock");
+      break;
+    }
+    do {
+      unsigned i = (unsigned)-1;
+      CHK(set2.getkey(par, &i) == 0);
+      const Row& row = *set.m_row[i];
+      set.lock();
+      if (! set.exist(i) || set.pending(i)) {
+        LL4("scan update " << itab.m_name << ": skip: " << row);
+      } else {
+        CHKTRY(set2.putval(i, par.m_dups) == 0, set.unlock());
+        CHKTRY(con.updateScanTuple(con2) == 0, set.unlock());
+        Par par2 = par;
+        par2.m_con = &con2;
+        set.calc(par, i);
+        CHKTRY(set.setrow(par2, i) == 0, set.unlock());
+        LL4("scan update " << itab.m_name << ": " << row);
+        lst.push(i);
+      }
+      set.unlock();
+      if (lst.cnt() == par.m_batch) {
+        CHK(con2.execute(Commit) == 0);
+        con2.closeTransaction();
+        set.lock();
+        set.notpending(lst);
+        set.unlock();
+        count += lst.cnt();
+        lst.reset();
+        CHK(con2.startTransaction() == 0);
+      }
+      CHK((ret = con.nextScanResult(false)) == 0 || ret == 1 || ret == 2);
+      if (ret == 2 && lst.cnt() != 0) {
+        CHK(con2.execute(Commit) == 0);
+        con2.closeTransaction();
+        set.lock();
+        set.notpending(lst);
+        set.unlock();
+        count += lst.cnt();
+        lst.reset();
+        CHK(con2.startTransaction() == 0);
+      }
+    } while (ret == 0);
   }
-  CHK(con2.execute(Commit) == 0);
   con2.closeTransaction();
   LL3("scan update " << itab.m_name << " rows updated=" << count);
   con.closeTransaction();
@@ -2117,7 +2614,7 @@ static int
 scanupdateindex(Par par, const ITab& itab)
 {
   const Tab& tab = par.tab();
-  for (unsigned i = 0; i < par.m_subloop; i++) {
+  for (unsigned i = 0; i < par.m_idxloop; i++) {
     BSet bset(tab, itab, par.m_rows);
     bset.calc(par);
     CHK(scanupdateindex(par, itab, bset) == 0);
@@ -2148,39 +2645,13 @@ scanupdateall(Par par)
 
 // medium level routines
 
-static bool
-ignoreverifyerror(Par par)
-{
-  Con& con = par.con();
-  bool b = par.m_threads > 1;
-  if (b) {
-    LL1("ignore verify error");
-    if (con.m_tx != 0)
-      con.closeTransaction();
-    return true;
-  }
-  return b;
-}
-
 static int
 readverify(Par par)
 {
   par.m_verify = true;
-  CHK(pkread(par) == 0 || ignoreverifyerror(par));
-  CHK(scanreadall(par) == 0 || ignoreverifyerror(par));
+  CHK(pkread(par) == 0);
+  CHK(scanreadall(par) == 0);
   return 0;
-}
-
-static bool
-ignoredeadlock(Par par)
-{
-  Con& con = par.con();
-  if (con.m_errtype == Con::ErrDeadlock) {
-    LL1("ignore deadlock");
-    con.closeTransaction();
-    return true;
-  }
-  return false;
 }
 
 static int
@@ -2204,15 +2675,16 @@ static int
 mixedoperations(Par par)
 {
   par.m_dups = true;
+  par.m_deadlock = true;
   unsigned sel = urandom(10);
   if (sel < 2) {
-    CHK(pkdelete(par) == 0 || ignoredeadlock(par));
+    CHK(pkdelete(par) == 0);
   } else if (sel < 4) {
-    CHK(pkupdate(par) == 0 || ignoredeadlock(par));
+    CHK(pkupdate(par) == 0);
   } else if (sel < 6) {
-    CHK(scanupdatetable(par) == 0 || ignoredeadlock(par));
+    CHK(scanupdatetable(par) == 0);
   } else {
-    CHK(scanupdateindex(par) == 0 || ignoredeadlock(par));
+    CHK(scanupdateindex(par) == 0);
   }
   return 0;
 }
@@ -2346,7 +2818,6 @@ Thr::run()
       break;
     }
     LL4("start");
-    CHK(con.bugger() == 0);
     assert(m_state == Start);
     m_ret = (*m_func)(m_par);
     m_state = Stopped;
@@ -2426,6 +2897,7 @@ runstep(Par par, const char* fname, TFunc func, unsigned mode)
     Thr& thr = *g_thrlist[n];
     thr.m_par.m_tab = par.m_tab;
     thr.m_par.m_set = par.m_set;
+    thr.m_par.m_tmr = par.m_tmr;
     thr.m_func = func;
     thr.start();
   }
@@ -2476,13 +2948,13 @@ tpkops(Par par)
   RUNSTEP(par, pkinsert, MT);
   RUNSTEP(par, createindex, ST);
   RUNSTEP(par, invalidateindex, MT);
-  RUNSTEP(par, readverify, MT);
+  RUNSTEP(par, readverify, ST);
   for (unsigned i = 0; i < par.m_subloop; i++) {
     RUNSTEP(par, pkupdatescanread, MT);
-    RUNSTEP(par, readverify, MT);
+    RUNSTEP(par, readverify, ST);
   }
   RUNSTEP(par, pkdelete, MT);
-  RUNSTEP(par, readverify, MT);
+  RUNSTEP(par, readverify, ST);
   return 0;
 }
 
@@ -2495,10 +2967,10 @@ tmixedops(Par par)
   RUNSTEP(par, pkinsert, MT);
   RUNSTEP(par, createindex, ST);
   RUNSTEP(par, invalidateindex, MT);
-  RUNSTEP(par, readverify, MT);
+  RUNSTEP(par, readverify, ST);
   for (unsigned i = 0; i < par.m_subloop; i++) {
     RUNSTEP(par, mixedoperations, MT);
-    RUNSTEP(par, readverify, MT);
+    RUNSTEP(par, readverify, ST);
   }
   return 0;
 }
@@ -2513,7 +2985,7 @@ tbusybuild(Par par)
   for (unsigned i = 0; i < par.m_subloop; i++) {
     RUNSTEP(par, pkupdateindexbuild, MT);
     RUNSTEP(par, invalidateindex, MT);
-    RUNSTEP(par, readverify, MT);
+    RUNSTEP(par, readverify, ST);
     RUNSTEP(par, dropindex, ST);
   }
   return 0;
@@ -2564,6 +3036,50 @@ ttimemaint(Par par)
 }
 
 static int
+ttimescan(Par par)
+{
+  Tmr t1, t2;
+  RUNSTEP(par, droptable, ST);
+  RUNSTEP(par, createtable, ST);
+  RUNSTEP(par, invalidatetable, MT);
+  for (unsigned i = 0; i < par.m_subloop; i++) {
+    RUNSTEP(par, pkinsert, MT);
+    RUNSTEP(par, createindex, ST);
+    par.m_tmr = &t1;
+    RUNSTEP(par, timescantable, ST);
+    par.m_tmr = &t2;
+    RUNSTEP(par, timescanpkindex, ST);
+    RUNSTEP(par, dropindex, ST);
+  }
+  LL1("full scan table - " << t1.time());
+  LL1("full scan PK index - " << t2.time());
+  LL1("overhead - " << t2.over(t1));
+  return 0;
+}
+
+static int
+ttimepkread(Par par)
+{
+  Tmr t1, t2;
+  RUNSTEP(par, droptable, ST);
+  RUNSTEP(par, createtable, ST);
+  RUNSTEP(par, invalidatetable, MT);
+  for (unsigned i = 0; i < par.m_subloop; i++) {
+    RUNSTEP(par, pkinsert, MT);
+    RUNSTEP(par, createindex, ST);
+    par.m_tmr = &t1;
+    RUNSTEP(par, timepkreadtable, ST);
+    par.m_tmr = &t2;
+    RUNSTEP(par, timepkreadindex, ST);
+    RUNSTEP(par, dropindex, ST);
+  }
+  LL1("pk read table - " << t1.time());
+  LL1("pk read PK index - " << t2.time());
+  LL1("overhead - " << t2.over(t1));
+  return 0;
+}
+
+static int
 tdrop(Par par)
 {
   RUNSTEP(par, droptable, ST);
@@ -2589,6 +3105,8 @@ tcaselist[] = {
   TCase("d", tbusybuild, "pk operations and index build"),
   TCase("t", ttimebuild, "time index build"),
   TCase("u", ttimemaint, "time index maintenance"),
+  TCase("v", ttimescan, "time full scan table vs index on pk"),
+  TCase("w", ttimepkread, "time pk read table vs index on pk"),
   TCase("z", tdrop, "drop test tables")
 };
 
@@ -2608,7 +3126,7 @@ printcases()
 static void
 printtables()
 {
-  ndbout << "tables and indexes:" << endl;
+  ndbout << "tables and indexes (X1 is on table PK):" << endl;
   for (unsigned j = 0; j < tabcount; j++) {
     const Tab& tab = tablist[j];
     ndbout << "  " << tab.m_name;
@@ -2624,7 +3142,8 @@ static int
 runtest(Par par)
 {
   LL1("start");
-  srandom(par.m_seed);
+  if (par.m_seed != 0)
+    srandom(par.m_seed);
   Con con;
   CHK(con.connect() == 0);
   par.m_con = &con;
@@ -2639,6 +3158,8 @@ runtest(Par par)
   }
   for (unsigned l = 0; par.m_loop == 0 || l < par.m_loop; l++) {
     LL1("loop " << l);
+    if (par.m_seed == 0)
+      srandom(l);
     for (unsigned i = 0; i < tcasecount; i++) {
       const TCase& tcase = tcaselist[i];
       if (par.m_case != 0 && strchr(par.m_case, tcase.m_name[0]) == 0)
@@ -2649,8 +3170,8 @@ runtest(Par par)
           continue;
         const Tab& tab = tablist[j];
         par.m_tab = &tab;
-        Set set(tab, par.m_totrows);
-        par.m_set = &set;
+        delete par.m_set;
+        par.m_set = new Set(tab, par.m_totrows);
         LL1("table " << tab.m_name);
         CHK(tcase.m_func(par) == 0);
       }
@@ -2679,6 +3200,12 @@ NDB_COMMAND(testOIBasic, "testOIBasic", "testOIBasic", "testOIBasic", 65535)
     if (*arg != '-') {
       ndbout << "testOIBasic: unknown argument " << arg;
       goto usage;
+    }
+    if (strcmp(arg, "-batch") == 0) {
+      if (++argv, --argc > 0) {
+        g_opt.m_batch = atoi(argv[0]);
+        continue;
+      }
     }
     if (strcmp(arg, "-case") == 0) {
       if (++argv, --argc > 0) {
@@ -2733,6 +3260,12 @@ NDB_COMMAND(testOIBasic, "testOIBasic", "testOIBasic", "testOIBasic", 65535)
     if (strcmp(arg, "-rows") == 0) {
       if (++argv, --argc > 0) {
         g_opt.m_rows = atoi(argv[0]);
+        continue;
+      }
+    }
+    if (strcmp(arg, "-samples") == 0) {
+      if (++argv, --argc > 0) {
+        g_opt.m_samples = atoi(argv[0]);
         continue;
       }
     }

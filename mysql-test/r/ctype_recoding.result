@@ -136,6 +136,30 @@ SET character_set_connection=binary;
 SELECT '—Ç–µ—Å—Ç' as s;
 s
 —Ç–µ—Å—Ç
+SET NAMES latin1;
+CREATE TABLE t1 (`‰` CHAR(128) DEFAULT '‰', `‰1` ENUM('‰1','‰2') DEFAULT '‰2');
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `‰` char(128) default '‰',
+  `‰1` enum('‰1','‰2') default '‰2'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+‰	char(128)	YES		‰	
+‰1	enum('‰1','‰2')	YES		‰2	
+SET NAMES binary;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `√§` char(128) default '√§',
+  `√§1` enum('√§1','√§2') default '√§2'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+√§	char(128)	YES		√§	
+√§1	enum('√§1','√§2')	YES		√§2	
+DROP TABLE t1;
 SET NAMES binary;
 CREATE TABLE `good–Ãœ»œ` (a int);
 ERROR HY000: Invalid utf8 character string: '–Ãœ»œ'

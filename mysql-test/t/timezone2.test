@@ -187,3 +187,15 @@ select convert_tz('2003-12-31 04:00:00', 'SomeNotExistingTimeZone', 'UTC');
 select convert_tz('2003-12-31 04:00:00', 'MET', 'SomeNotExistingTimeZone');
 select convert_tz('2003-12-31 04:00:00', 'MET', NULL);
 select convert_tz( NULL, 'MET', 'UTC');
+
+#
+# Test for bug #4508 "CONVERT_TZ() function with new time zone as param
+# crashes server." (Was caused by improperly worked mechanism of time zone
+# dynamical loading).
+#
+create table t1 (ts timestamp);
+set timestamp=1000000000;
+insert into t1 (ts) values (now());
+select convert_tz(ts, @@time_zone, 'Japan') from t1;
+drop table t1;
+

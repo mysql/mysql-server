@@ -24,9 +24,7 @@
 
 #include "CommandInterpreter.hpp"
 
-#include <signal.h>
-
-const char *progname = "mgmtclient";
+const char *progname = "ndb_mgm";
 
 
 static CommandInterpreter* com;
@@ -47,14 +45,13 @@ handler(int sig){
 
 int main(int argc, const char** argv){
   int optind = 0;
-  const char *_default_connectstring = "host=localhost:2200;nodeid=0";
   const char *_host = 0;
   int _port = 0;
   int _help = 0;
   int _try_reconnect = 0;
   
   struct getargs args[] = {
-    { "try-reconnect", 0, arg_integer, &_try_reconnect, "", "" },
+    { "try-reconnect", 't', arg_integer, &_try_reconnect, "Specify number of retries for connecting to ndb_mgmd, default infinite", "#" },
     { "usage", '?', arg_flag, &_help, "Print help", "" },
   };
   int num_args = sizeof(args) / sizeof(args[0]); /* Number of arguments */
@@ -76,9 +73,9 @@ int main(int argc, const char** argv){
       _port = atoi(argv[1]);
     }
   } else {
-    if(cfg.init(false, 0, 0, _default_connectstring) && cfg.items > 0 && cfg.ids[0]->type == MgmId_TCP){
-      _host = cfg.ids[0]->data.tcp.remoteHost;
-      _port = cfg.ids[0]->data.tcp.port;
+    if(cfg.init(0, 0) && cfg.ids.size() > 0 && cfg.ids[0].type == MgmId_TCP){
+      _host = cfg.ids[0].name.c_str();
+      _port = cfg.ids[0].port;
     } else {
       cfg.printError();
       cfg.printUsage();

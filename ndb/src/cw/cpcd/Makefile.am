@@ -1,5 +1,5 @@
 
-ndbtools_PROGRAMS = ndb_cpcd
+ndbbin_PROGRAMS = ndb_cpcd
 
 ndb_cpcd_SOURCES = main.cpp CPCD.cpp Process.cpp APIService.cpp Monitor.cpp common.cpp
 

@@ -86,11 +86,6 @@ Item *create_func_conv(Item* a, Item *b, Item *c)
   return new Item_func_conv(a,b,c);
 }
 
-Item *create_func_convert_tz(Item* a, Item *b, Item *c)
-{
-  return new Item_func_convert_tz(a,b,c);
-}
-
 Item *create_func_cos(Item* a)
 {
   return new Item_func_cos(a);

@@ -64,7 +64,7 @@ typedef int socklen_t;
 #define NDB_NONBLOCK O_NONBLOCK
 #define NDB_SOCKET_TYPE int
 #define NDB_INVALID_SOCKET -1
-#define NDB_CLOSE_SOCKET(x) close(x)
+#define NDB_CLOSE_SOCKET(x) ::close(x)
 
 #define InetErrno errno
 
