@@ -48,6 +48,10 @@
 #endif /* HAVE_OPENSSL */
 #define SCRAMBLE_LENGTH 8
 
+#define MEM_ROOT_BLOCK_SIZE       8192
+#define MEM_ROOT_PREALLOC         8192
+#define TRANS_MEM_ROOT_BLOCK_SIZE 4096
+#define TRANS_MEM_ROOT_PREALLOC   4096
 
 extern int yyparse(void);
 extern "C" pthread_mutex_t THR_LOCK_keycache;
@@ -615,7 +619,9 @@ pthread_handler_decl(handle_one_connection,arg)
     thd->command=COM_SLEEP;
     thd->version=refresh_version;
     thd->set_time();
-    init_sql_alloc(&thd->mem_root,8192,8192);
+    init_sql_alloc(&thd->mem_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
+    init_sql_alloc(&thd->transaction.mem_root,
+		   TRANS_MEM_ROOT_BLOCK_SIZE, TRANS_MEM_ROOT_PREALLOC);
     while (!net->error && net->vio != 0 && !thd->killed)
     {
       if (do_command(thd))
@@ -688,7 +694,9 @@ pthread_handler_decl(handle_bootstrap,arg)
   thd->priv_user=thd->user=(char*)"boot";
 
   buff= (char*) thd->net.buff;
-  init_sql_alloc(&thd->mem_root,8192,8192);
+  init_sql_alloc(&thd->mem_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
+  init_sql_alloc(&thd->transaction.mem_root,
+		 TRANS_MEM_ROOT_BLOCK_SIZE, TRANS_MEM_ROOT_PREALLOC);
   while (fgets(buff, thd->net.max_packet, file))
   {
     uint length=(uint) strlen(buff);
@@ -712,6 +720,7 @@ pthread_handler_decl(handle_bootstrap,arg)
     if (thd->fatal_error)
       break;
     free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
+    free_root(&thd->transaction.mem_root,MYF(MY_KEEP_PREALLOC));
   }
   thd->priv_user=thd->user=0;
 
@@ -1084,6 +1093,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     close_connection(net);
     close_thread_tables(thd);			// Free before kill
     free_root(&thd->mem_root,MYF(0));
+    free_root(&thd->transaction.mem_root,MYF(0));
     kill_mysql();
     error=TRUE;
     break;
@@ -1620,7 +1630,7 @@ mysql_execute_command(void)
 	  goto error;
       }
     }
-    query_cache.invalidate(tables);
+    query_cache.invalidate(thd, tables, 0);
     if (end_active_trans(thd))
       res= -1;
     else if (mysql_rename_tables(thd,tables))
@@ -1659,7 +1669,7 @@ mysql_execute_command(void)
 	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables))
       goto error; /* purecov: inspected */
     res = mysql_repair_table(thd, tables, &lex->check_opt);
-    query_cache.invalidate(tables);
+    query_cache.invalidate(thd, tables, 0);
     break;
   }
   case SQLCOM_CHECK:
@@ -1668,7 +1678,7 @@ mysql_execute_command(void)
 	check_table_access(thd, SELECT_ACL | EXTRA_ACL , tables))
       goto error; /* purecov: inspected */
     res = mysql_check_table(thd, tables, &lex->check_opt);
-    query_cache.invalidate(tables);
+    query_cache.invalidate(thd, tables, 0);
     break;
   }
   case SQLCOM_ANALYZE:
@@ -2392,6 +2402,7 @@ mysql_execute_command(void)
     }
     else
       res= -1;
+    thd->transaction.cleanup();
     break;
   }
   case SQLCOM_ROLLBACK:
@@ -2406,6 +2417,7 @@ mysql_execute_command(void)
     else
       res= -1;
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    thd->transaction.cleanup();
     break;
   default:					/* Impossible */
     send_ok(&thd->net);
@@ -3108,7 +3120,22 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
     
   if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(0);				/* purecov: inspected */
-  ptr->db= table->db.str ? table->db.str : (thd->db ? thd->db : (char*) "");
+  if (table->db.str) 
+  {
+    ptr->db= table->db.str;
+    ptr->db_length= table->db.length;
+  }
+  else if (thd->db)
+  {
+    ptr->db= thd->db;
+    ptr->db_length= thd->db_length;
+  }
+  else
+  {
+    ptr->db= (char*) "";
+    ptr->db_length= 0;
+  }
+    
   ptr->name=alias_str;
   if (lower_case_table_names)
   {
@@ -3116,6 +3143,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
     casedn_str(table->table.str);
   }
   ptr->real_name=table->table.str;
+  ptr->real_name_length=table->table.length;
   ptr->lock_type=flags;
   ptr->updating=updating;
   if (use_index)

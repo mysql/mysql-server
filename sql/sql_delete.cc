@@ -182,7 +182,7 @@ cleanup:
     thd->lock=0;
   }
   if (deleted)
-    query_cache.invalidate(table_list);
+    query_cache.invalidate(thd, table_list, 1);
   delete select;
   if (error >= 0)				// Fatal error
     send_error(&thd->net,thd->killed ? ER_SERVER_SHUTDOWN: 0);
@@ -470,7 +470,7 @@ bool multi_delete::send_eof()
     VOID(ha_autocommit_or_rollback(thd,error > 0));
   }
   if (deleted)
-    query_cache.invalidate(delete_tables);
+    query_cache.invalidate(thd, delete_tables, 1);
   ::send_ok(&thd->net,deleted);
   return 0;
 }
@@ -548,7 +548,7 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   bzero((char*) &create_info,sizeof(create_info));
   *fn_ext(path)=0;				// Remove the .frm extension
   error= ha_create_table(path,&create_info,1) ? -1 : 0;
-  query_cache.invalidate(table_list); 
+  query_cache.invalidate(thd, table_list, 0); 
 
   if (!dont_send_ok)
   {
