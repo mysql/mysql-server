@@ -149,13 +149,12 @@ NdbBackup::execRestore(bool _restore_data,
   
   ndbout << "res: " << res << endl;
   
-  snprintf(buf, 255, "%sndb_restore -c \"nodeid=%d;host=%s\" -n %d -b %d %s %s .", 
+  snprintf(buf, 255, "%sndb_restore -c \"host=%s\" -n %d -b %d %s %s .", 
 #if 1
 	   "",
 #else
 	   "valgrind --leak-check=yes -v "
 #endif
-	   ownNodeId,
 	   addr.c_str(),
 	   _node_id, 
 	   _backup_id,
