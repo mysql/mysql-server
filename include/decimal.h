@@ -26,7 +26,9 @@ typedef struct st_decimal {
   decimal_digit *buf;
 } decimal;
 
-int decimal2string(decimal *from, char *to, int *to_len);
+int decimal2string(decimal *from, char *to, int *to_len,
+                   int fixed_precision, int fixed_decimals,
+                   char filler);
 int string2decimal(char *from, decimal *to, char **end);
 int string2decimal_fixed(char *from, decimal *to, char **end);
 int decimal2ulonglong(decimal *from, ulonglong *to);
@@ -35,6 +37,7 @@ int decimal2longlong(decimal *from, longlong *to);
 int longlong2decimal(longlong from, decimal *to);
 int decimal2double(decimal *from, double *to);
 int double2decimal(double from, decimal *to);
+void decimal_optimize_fraction(decimal *from);
 int decimal2bin(decimal *from, char *to, int precision, int scale);
 int bin2decimal(char *from, decimal *to, int precision, int scale);
 
@@ -50,6 +53,7 @@ int decimal_div(decimal *from1, decimal *from2, decimal *to, int scale_incr);
 int decimal_mod(decimal *from1, decimal *from2, decimal *to);
 int decimal_round(decimal *from, decimal *to, int new_scale, decimal_round_mode mode);
 int decimal_is_zero(decimal *from);
+void max_decimal(int precision, int frac, decimal *to);
 
 /* set a decimal to zero */
 
@@ -65,7 +69,8 @@ int decimal_is_zero(decimal *from);
   of the decimal (including decimal dot, possible sign and \0)
 */
 
-#define decimal_string_size(dec) ((dec)->intg + (dec)->frac + ((dec)->frac > 0) + 2)
+#define decimal_string_size(dec) (((dec)->intg ? (dec)->intg : 1) + \
+				  (dec)->frac + ((dec)->frac > 0) + 2)
 
 /* negate a decimal */
 #define decimal_neg(dec) do { (dec)->sign^=1; } while(0)

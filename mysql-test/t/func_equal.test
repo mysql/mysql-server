@@ -11,10 +11,12 @@ drop table if exists t1,t2;
 # First some simple tests
 #
 
-select 0<=>0,0.0<=>0.0,"A"<=>"A",NULL<=>NULL;
+select 0<=>0,0.0<=>0.0,0E0=0E0,"A"<=>"A",NULL<=>NULL;
 select 1<=>0,0<=>NULL,NULL<=>0;
 select 1.0<=>0.0,0.0<=>NULL,NULL<=>0.0;
 select "A"<=>"B","A"<=>NULL,NULL<=>"A";
+select 0<=>0.0, 0.0<=>0E0, 0E0<=>"0", 10.0<=>1E1, 10<=>10.0, 10<=>1E1;
+select 1.0<=>0E1,10<=>NULL,NULL<=>0.0, NULL<=>0E0;
 
 #
 # Test with tables
