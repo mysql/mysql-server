@@ -83,6 +83,7 @@ Ndb::Ndb( const char* aDataBase , const char* aDataBaseSchema) :
   theSubroutineList(NULL),
   theCallList(NULL),
   theScanList(NULL),
+  theNdbBlobIdleList(NULL),
   theNoOfDBnodes(0),
   theDBnodes(NULL),
   the_release_ind(NULL),
@@ -231,6 +232,8 @@ Ndb::~Ndb()
     freeNdbCall();
   while (theScanList != NULL)
     freeNdbScanRec();
+  while (theNdbBlobIdleList != NULL)
+    freeNdbBlob();
   
   releaseTransactionArrays();
   startTransactionNodeSelectionData.release();

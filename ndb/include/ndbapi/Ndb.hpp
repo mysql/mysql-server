@@ -882,6 +882,7 @@ class NdbScanReceiver;
 class Table;
 class BaseString;
 class NdbEventOperation;
+class NdbBlob;
 
 typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
 
@@ -969,6 +970,7 @@ class Ndb
   friend class NdbIndexOperation;
   friend class NdbDictionaryImpl;
   friend class NdbDictInterface;
+  friend class NdbBlob;
 
 public:
   /** 
@@ -1468,6 +1470,7 @@ private:
   NdbIndexOperation* 	getIndexOperation();// Get an index operation from idle
 
   class NdbGlobalEventBufferHandle* getGlobalEventBufferHandle();
+  NdbBlob*              getNdbBlob();// Get a blob handle etc
 
   void			releaseSignal(NdbApiSignal* anApiSignal);
   void                  releaseSignalsInList(NdbApiSignal** pList);
@@ -1479,6 +1482,7 @@ private:
   void			releaseRecAttr (NdbRecAttr* aRecAttr);	
   void		 	releaseOperation(NdbOperation* anOperation);	
   void		 	releaseScanOperation(NdbScanOperation* aScanOperation);
+  void                  releaseNdbBlob(NdbBlob* aBlob);
 
   void                  check_send_timeout();
   void                  remove_sent_list(Uint32);
@@ -1521,6 +1525,7 @@ private:
   void	freeNdbSubroutine();// Free the first idle NdbSubroutine obj
   void	freeNdbCall();	    // Free the first idle NdbCall obj
   void	freeNdbScanRec();   // Free the first idle NdbScanRec obj
+  void  freeNdbBlob();      // Free the first etc
 
   NdbConnection* getNdbCon();	// Get a connection from idle list
   
@@ -1628,6 +1633,7 @@ private:
   NdbSubroutine*	theSubroutineList;   // First subroutine descriptor in
   NdbCall*		theCallList;	     // First call descriptor in list
   NdbScanReceiver*      theScanList;
+  NdbBlob*              theNdbBlobIdleList;
 
   Uint32   theMyRef;        // My block reference  
   Uint32   theNode;         // The node number of our node

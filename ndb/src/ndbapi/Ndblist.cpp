@@ -27,6 +27,7 @@
 #include "NdbScanReceiver.hpp"
 #include "NdbUtil.hpp"
 #include "API.hpp"
+#include "NdbBlob.hpp"
 
 void
 Ndb::checkFailedNode()
@@ -435,6 +436,19 @@ Ndb::getSignal()
   return tSignal;
 }
 
+NdbBlob*
+Ndb::getNdbBlob()
+{
+  NdbBlob* tBlob = theNdbBlobIdleList;
+  if (tBlob != NULL) {
+    theNdbBlobIdleList = tBlob->theNext;
+    tBlob->init();
+  } else {
+    tBlob = new NdbBlob;
+  }
+  return tBlob;
+}
+
 /***************************************************************************
 void releaseNdbBranch(NdbBranch* aNdbBranch);
 
@@ -601,6 +615,14 @@ Ndb::releaseSignalsInList(NdbApiSignal** pList){
   }
 }
 
+void
+Ndb::releaseNdbBlob(NdbBlob* aBlob)
+{
+  aBlob->release();
+  aBlob->theNext = theNdbBlobIdleList;
+  theNdbBlobIdleList = aBlob;
+}
+
 /***************************************************************************
 void freeOperation();
 
@@ -743,6 +765,14 @@ Ndb::freeSignal()
   theSignalIdleList = tSignal->next();
   delete tSignal;
   cfreeSignals++;
+}
+
+void
+Ndb::freeNdbBlob()
+{
+  NdbBlob* tBlob = theNdbBlobIdleList;
+  theNdbBlobIdleList = tBlob->theNext;
+  delete tBlob;
 }
 
 /****************************************************************************

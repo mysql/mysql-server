@@ -21,6 +21,7 @@
 #include <NdbSchemaCon.hpp>
 #include <NdbOperation.hpp>
 #include <NdbConnection.hpp>
+#include <NdbBlob.hpp>
 
 
 static void
@@ -70,6 +71,13 @@ NdbOperation::getNdbError() const {
 const 
 NdbError & 
 NdbSchemaCon::getNdbError() const {
+  update(theError);
+  return theError;
+}
+
+const
+NdbError &
+NdbBlob::getNdbError() const {
   update(theError);
   return theError;
 }

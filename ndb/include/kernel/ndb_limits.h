@@ -91,4 +91,9 @@
 #define MAX_TTREE_PREF_SIZE 4		// words in min/max prefix each
 #define MAX_TTREE_NODE_SLACK 3		// diff between max and min occupancy
 
+/*
+ * Blobs.
+ */
+#define NDB_BLOB_HEAD_SIZE 2            // sizeof(NdbBlob::Head) >> 2
+
 #endif

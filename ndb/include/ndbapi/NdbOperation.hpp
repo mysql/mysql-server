@@ -29,6 +29,7 @@ class NdbRecAttr;
 class NdbOperation;
 class NdbConnection;
 class NdbColumnImpl;
+class NdbBlob;
 
 /**
  * @class NdbOperation
@@ -42,7 +43,8 @@ class NdbOperation
   friend class NdbScanReceiver;
   friend class NdbScanFilter;
   friend class NdbScanFilterImpl;
-  
+  friend class NdbBlob;
+ 
 public:
   /** 
    * @name Define Standard Operation Type
@@ -526,6 +528,17 @@ public:
   virtual int  setValue(Uint32 anAttrId, Int64 aValue);
   virtual int  setValue(Uint32 anAttrId, float aValue);
   virtual int  setValue(Uint32 anAttrId, double aValue);
+
+  /**
+   * This method replaces getValue/setValue for blobs.  It creates
+   * a blob handle NdbBlob.  A second call with same argument returns
+   * the previously created handle.  The handle is linked to the
+   * operation and is maintained automatically.
+   *
+   * See NdbBlob for details.
+   */
+  virtual NdbBlob* getBlobHandle(const char* anAttrName);
+  virtual NdbBlob* getBlobHandle(Uint32 anAttrId);
  
   /** @} *********************************************************************/
   /** 
@@ -833,6 +846,11 @@ public:
    */
   int getNdbErrorLine();
 
+  /**
+   * Get table name of this operation.
+   */
+  const char* getTableName() const;
+
   /** @} *********************************************************************/
 
 protected:
@@ -924,6 +942,7 @@ protected:
                          Uint32 len);
   NdbRecAttr* getValue(const NdbColumnImpl* anAttrObject, char* aValue = 0);
   int setValue(const NdbColumnImpl* anAttrObject, const char* aValue, Uint32 len);
+  NdbBlob* getBlobHandle(NdbConnection* aCon, const NdbColumnImpl* anAttrObject);
   int incValue(const NdbColumnImpl* anAttrObject, Uint32 aValue);
   int incValue(const NdbColumnImpl* anAttrObject, Uint64 aValue);
   int subValue(const NdbColumnImpl* anAttrObject, Uint32 aValue);
@@ -967,6 +986,10 @@ protected:
 
   NdbOperation*	 
   takeOverScanOp(OperationType opType, NdbConnection* updateTrans);
+
+  // get table or index key from prepared signals
+  int getKeyFromTCREQ(Uint32* data, unsigned size);
+  int getKeyFromKEYINFO20(Uint32* data, unsigned size);
 
 /******************************************************************************
  * These are the private variables that are defined in the operation objects.
@@ -1071,6 +1094,8 @@ protected:
   // saveBoundATTRINFO() moves ATTRINFO here when setBound() is ready
   NdbApiSignal*     theBoundATTRINFO;
   Uint32            theTotalBoundAI_Len;
+  // Blobs in this operation
+  NdbBlob* theBlobList;
 
 };
 
