@@ -166,3 +166,11 @@ ERROR HY000: Invalid utf8 character string: 'плохо'
 SET NAMES utf8;
 CREATE TABLE `goodплохо` (a int);
 ERROR HY000: Invalid utf8 character string: 'плохо` (a int)'
+set names latin1;
+create table t1 (a char(10) character set koi8r, b text character set koi8r);
+insert into t1 values ('test','test');
+insert into t1 values ('йцук','йцук');
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'b' at row 1
+drop table t1;
