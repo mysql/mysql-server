@@ -70,12 +70,14 @@ void Field_num::prepend_zeros(String *value)
   This is only used to give warnings in ALTER TABLE or LOAD DATA...
 */
 
-bool test_if_int(const char *str,int length)
+bool test_if_int(const char *str,int length, CHARSET_INFO *cs)
 {
   const char *end=str+length;
 
+  cs=system_charset_info; // QQ move test_if_int into CHARSET_INFO struct
+
   // Allow start space
-  while (str != end && my_isspace(system_charset_info,*str))
+  while (str != end && my_isspace(cs,*str))
     str++; /* purecov: inspected */
   if (str != end && (*str == '-' || *str == '+'))
     str++;
@@ -83,7 +85,7 @@ bool test_if_int(const char *str,int length)
     return 0;					// Error: Empty string
   for (; str != end ; str++)
   {
-    if (!my_isdigit(system_charset_info,*str))
+    if (!my_isdigit(cs,*str))
     {
       if (*str == '.')
       {						// Allow '.0000'
@@ -91,10 +93,10 @@ bool test_if_int(const char *str,int length)
 	if (str == end)
 	  return 1;
       }
-      if (!my_isspace(system_charset_info,*str))
+      if (!my_isspace(cs,*str))
 	return 0;
       for (str++ ; str != end ; str++)
-	if (!my_isspace(system_charset_info,*str))
+	if (!my_isspace(cs,*str))
 	  return 0;
       return 1;
     }
@@ -103,9 +105,11 @@ bool test_if_int(const char *str,int length)
 }
 
 
-static bool test_if_real(const char *str,int length)
+static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
 {
-  while (length && my_isspace(system_charset_info,*str))
+  cs=system_charset_info; // QQ move test_if_int into CHARSET_INFO struct
+
+  while (length && my_isspace(cs,*str))
   {						// Allow start space
     length--; str++;
   }
@@ -114,10 +118,10 @@ static bool test_if_real(const char *str,int length)
   if (*str == '+' || *str == '-')
   {
     length--; str++;
-    if (!length || !(my_isdigit(system_charset_info,*str) || *str == '.'))
+    if (!length || !(my_isdigit(cs,*str) || *str == '.'))
       return 0;
   }
-  while (length && my_isdigit(system_charset_info,*str))
+  while (length && my_isdigit(cs,*str))
   {
     length--; str++;
   }
@@ -126,7 +130,7 @@ static bool test_if_real(const char *str,int length)
   if (*str == '.')
   {
     length--; str++;
-    while (length && my_isdigit(system_charset_info,*str))
+    while (length && my_isdigit(cs,*str))
     {
       length--; str++;
     }
@@ -136,18 +140,18 @@ static bool test_if_real(const char *str,int length)
   if (*str == 'E' || *str == 'e')
   {
     if (length < 3 || (str[1] != '+' && str[1] != '-') || 
-        !my_isdigit(system_charset_info,str[2]))
+        !my_isdigit(cs,str[2]))
       return 0;
     length-=3;
     str+=3;
-    while (length && my_isdigit(system_charset_info,*str))
+    while (length && my_isdigit(cs,*str))
     {
       length--; str++;
     }
   }
   for (; length ; length--, str++)
   {						// Allow end space
-    if (!my_isspace(system_charset_info,*str))
+    if (!my_isspace(cs,*str))
       return 0;
   }
   return 1;
@@ -923,7 +927,7 @@ int Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
       current_thd->cuted_fields++;
       error= 1;
     }
-    else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+    else if (current_thd->count_cuted_fields && !test_if_int(from,len,cs))
     {
       current_thd->cuted_fields++;
       error= 1;
@@ -943,7 +947,7 @@ int Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
       current_thd->cuted_fields++;
       error= 1;
     }
-    else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+    else if (current_thd->count_cuted_fields && !test_if_int(from,len,cs))
     {
       current_thd->cuted_fields++;
       error= 1;
@@ -1119,7 +1123,7 @@ int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
       current_thd->cuted_fields++;
       error= 1;
     }
-    else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+    else if (current_thd->count_cuted_fields && !test_if_int(from,len,cs))
     {
       current_thd->cuted_fields++;
       error= 1;
@@ -1139,7 +1143,7 @@ int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
       current_thd->cuted_fields++;
       error= 1;
     }
-    else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+    else if (current_thd->count_cuted_fields && !test_if_int(from,len,cs))
     {
       current_thd->cuted_fields++;
       error= 1;
@@ -1384,7 +1388,7 @@ int Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
       current_thd->cuted_fields++;
       error= 1;
     }
-    else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+    else if (current_thd->count_cuted_fields && !test_if_int(from,len,cs))
     {
       current_thd->cuted_fields++;
       error= 1;
@@ -1404,7 +1408,7 @@ int Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
       current_thd->cuted_fields++;
       error= 1;
     }
-    else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+    else if (current_thd->count_cuted_fields && !test_if_int(from,len,cs))
     {
       current_thd->cuted_fields++;
       error= 1;
@@ -1601,7 +1605,7 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
     tmp=my_strntol(cs,from,len,&end,10);
   if (errno ||
       (from+len != end && current_thd->count_cuted_fields &&
-       !test_if_int(from,len)))
+       !test_if_int(from,len,cs)))
   {
     current_thd->cuted_fields++;
     error= 1;
@@ -1854,7 +1858,7 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
     tmp=my_strntoll(cs,from,len,&end,10);
   if (errno ||
       (from+len != end && current_thd->count_cuted_fields &&
-       !test_if_int(from,len)))
+       !test_if_int(from,len,cs)))
       current_thd->cuted_fields++;
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -2054,7 +2058,7 @@ int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   errno=0;
   Field_float::store(my_strntod(cs,from,len,(char**)NULL));
-  if (errno || current_thd->count_cuted_fields && !test_if_real(from,len))
+  if (errno || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
   {
     current_thd->cuted_fields++;
     return 1;
@@ -2316,7 +2320,7 @@ int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
   errno=0;
   int error= 0;
   double j= my_strntod(cs,from,len,(char**)0);
-  if (errno || current_thd->count_cuted_fields && !test_if_real(from,len))
+  if (errno || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
   {
     current_thd->cuted_fields++;
     error= 1;
@@ -3100,7 +3104,7 @@ int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
     current_thd->cuted_fields++;
     return 1;
   }
-  else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+  else if (current_thd->count_cuted_fields && !test_if_int(from,len,cs))
     current_thd->cuted_fields++;
   if (nr != 0 || len != 4)
   {
