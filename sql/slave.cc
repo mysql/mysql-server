@@ -2130,13 +2130,17 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->master_access= ~0;
   thd->priv_user = 0;
   thd->slave_thread = 1;
-  thd->options = ((opt_log_slave_updates) ? OPTION_BIN_LOG:0) |
-    OPTION_AUTO_IS_NULL;
   /* 
      It's nonsense to constraint the slave threads with max_join_size; if a
-     query succeeded on master, we HAVE to execute it.
+     query succeeded on master, we HAVE to execute it. So set
+     OPTION_BIG_SELECTS. Setting max_join_size to HA_POS_ERROR is not enough
+     (and it's not needed if we have OPTION_BIG_SELECTS) because an INSERT
+     SELECT examining more than 4 billion rows would still fail (yes, because
+     when max_join_size is 4G, OPTION_BIG_SELECTS is automatically set, but
+     only for client threads.
   */
-  thd->variables.max_join_size= HA_POS_ERROR;    
+  thd->options = ((opt_log_slave_updates) ? OPTION_BIN_LOG:0) |
+    OPTION_AUTO_IS_NULL | OPTION_BIG_SELECTS;
   thd->client_capabilities = CLIENT_LOCAL_FILES;
   thd->real_id=pthread_self();
   pthread_mutex_lock(&LOCK_thread_count);
