@@ -711,3 +711,9 @@ select * from ((select * from t1 limit 1) union (select * from t1 limit 1) union
 select * from ((((select * from t1))) union (select * from t1) union (select * from t1)) a;
 select * from ((select * from t1) union (((select * from t1))) union (select * from t1)) a;
 drop table t1;
+
+#
+# Bugs#6519 UNION with collation binary and latin1_swedish_ci fails
+#
+set @val:=6;
+select concat('value is: ', @val) union select 'some text';
