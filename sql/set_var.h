@@ -132,6 +132,7 @@ class sys_var_str :public sys_var
 {
 public:
   char *value;					// Pointer to allocated string
+  uint value_length;
   sys_check_func check_func;
   sys_update_func update_func;
   sys_set_default_func set_default_func;
@@ -803,6 +804,8 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list);
 void fix_delay_key_write(THD *thd, enum_var_type type);
 ulong fix_sql_mode(ulong sql_mode);
 extern sys_var_str sys_charset_system;
+extern sys_var_str sys_init_connect;
+extern sys_var_str sys_init_slave;
 CHARSET_INFO *get_old_charset_by_name(const char *old_name);
 gptr find_named(I_List<NAMED_LIST> *list, const char *name, uint length,
 		NAMED_LIST **found);

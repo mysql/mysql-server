@@ -258,10 +258,10 @@ character-set=cp1250
 "Z_BUF_ERROR: Not enough room in the output buffer for zlib (probably, length of uncompressed data was corrupted)",
 "Z_DATA_ERROR: Input data was corrupted for zlib",
 "%d line(s) was(were) cut by group_concat()",
-"Record count is fewer than the column count at row %ld";
-"Record count is more than the column count at row %ld";
-"Data truncated, NULL supplied to NOT NULL column '%s' at row %ld";
-"Data truncated, out of range for column '%s' at row %ld";
+"Record count is fewer than the column count at row %ld",
+"Record count is more than the column count at row %ld",
+"Data truncated, NULL supplied to NOT NULL column '%s' at row %ld",
+"Data truncated, out of range for column '%s' at row %ld",
 "Data truncated for column '%s' at row %ld",
 "Using storage engine %s for table '%s'",
 "Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",

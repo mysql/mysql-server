@@ -7955,7 +7955,12 @@ static void test_ts()
 
 /*
   Test for bug #1500.
+  XXX: despite that this bug is fixed, it spots mysqld code which is not
+  working correctly yet: to fix all things  properly we need to implement
+  Item::cleanup() method for all items (as described in bugs #1663 and
+  #1749). So don't be surprised in case valgrind barks on it.
 */
+
 static void test_bug1500()
 {
   MYSQL_STMT *stmt;
