@@ -888,15 +888,15 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 
 bool MYSQL_LOG::write(Log_event* event_info)
 {
-  /* In most cases this is only called if 'is_open()' is true */
   bool error=0;
-  bool should_rotate = 0;
   
   if (!inited)					// Can't use mutex if not init
     return 0;
   VOID(pthread_mutex_lock(&LOCK_log));
+  /* In most cases this is only called if 'is_open()' is true */
   if (is_open())
   {
+    bool should_rotate = 0;
     THD *thd=event_info->thd;
     const char* db = event_info->get_db();
 #ifdef USING_TRANSACTIONS    
@@ -985,9 +985,9 @@ err:
     }
     if (file == &log_file)
       signal_update();
+    if (should_rotate)
+      new_file(1); // inside mutex
   }
-  if (should_rotate)
-    new_file(1); // inside mutex
   VOID(pthread_mutex_unlock(&LOCK_log));
   return error;
 }

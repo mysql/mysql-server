@@ -1022,16 +1022,19 @@ char* sql_ex_info::init(char* buf,char* buf_end,bool use_new_format)
 #ifndef MYSQL_CLIENT
 Load_log_event::Load_log_event(THD* thd, sql_exchange* ex,
 			       const char* db_arg, const char* table_name_arg,
-		 List<Item>& fields_arg, enum enum_duplicates handle_dup)
+			       List<Item>& fields_arg,
+			       enum enum_duplicates handle_dup)
   :Log_event(thd),thread_id(thd->thread_id), num_fields(0),fields(0),
-  field_lens(0),field_block_len(0), table_name(table_name_arg),
+  field_lens(0),field_block_len(0),
+  table_name(table_name_arg ? table_name_arg : ""),
   db(db_arg), fname(ex->file_name)
 {
   time_t end_time;
   time(&end_time);
   exec_time = (ulong) (end_time  - thd->start_time);
-  db_len = (db) ? (uint32) strlen(db) : 0;
-  table_name_len = (table_name) ? (uint32) strlen(table_name) : 0;
+  /* db can never be a zero pointer in 4.0 */
+  db_len = (uint32) strlen(db);
+  table_name_len = (uint32) strlen(table_name);
   fname_len = (fname) ? (uint) strlen(fname) : 0;
   sql_ex.field_term = (char*) ex->field_term->ptr();
   sql_ex.field_term_len = (uint8) ex->field_term->length();

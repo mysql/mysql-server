@@ -485,6 +485,8 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
 #define my_rwlock_init(A,B) pthread_mutex_init((A),(B))
 #define rw_rdlock(A) pthread_mutex_lock((A))
 #define rw_wrlock(A) pthread_mutex_lock((A))
+#define rw_tryrdlock(A) pthread_mutex_trylock((A))
+#define rw_trywrlock(A) pthread_mutex_trylock((A))
 #define rw_unlock(A) pthread_mutex_unlock((A))
 #define rwlock_destroy(A) pthread_mutex_destroy((A))
 #elif defined(HAVE_PTHREAD_RWLOCK_RDLOCK)
@@ -492,6 +494,8 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
 #define my_rwlock_init(A,B) pthread_rwlock_init((A),(B))
 #define rw_rdlock(A) pthread_rwlock_rdlock(A)
 #define rw_wrlock(A) pthread_rwlock_wrlock(A)
+#define rw_tryrdlock(A) pthread_mutex_tryrdlock((A))
+#define rw_trywrlock(A) pthread_mutex_trywrlock((A))
 #define rw_unlock(A) pthread_rwlock_unlock(A)
 #define rwlock_destroy(A) pthread_rwlock_destroy(A)
 #elif defined(HAVE_RWLOCK_INIT)
@@ -512,6 +516,8 @@ typedef struct _my_rw_lock_t {
 #define rw_lock_t my_rw_lock_t
 #define rw_rdlock(A) my_rw_rdlock((A))
 #define rw_wrlock(A) my_rw_wrlock((A))
+#define rw_tryrdlock(A) my_rw_tryrdlock((A))
+#define rw_trywrlock(A) my_rw_trywrlock((A))
 #define rw_unlock(A) my_rw_unlock((A))
 #define rwlock_destroy(A) my_rwlock_destroy((A))
 
