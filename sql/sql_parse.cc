@@ -1085,7 +1085,19 @@ mysql_execute_command(void)
     // rules have been given and the table list says the query should not be
     // replicated
     if(table_rules_on && tables && !tables_ok(thd,tables))
+    {
+      /* 
+         We consider the query as empty and warn the slave thread which will
+         consider ER_EMPTY_QUERY as an ignorable error. Note that this has a
+         drawback: if the event is corrupted it could contain an empty query;
+         then the slave thread will silently ignore it instead of warning. But
+         such corruption is unlikely enough.
+         In MySQL 4.0 we do it more properly using a new error code
+         (ER_SLAVE_IGNORED_TABLE). 
+      */
+      my_error(ER_EMPTY_QUERY, MYF(0));
       DBUG_VOID_RETURN;
+    }
     // this is a workaround to deal with the shortcoming
     // in 3.23.44-3.23.46 masters
     // in RELEASE_LOCK() logging. We re-write SELECT RELEASE_LOCK() as
