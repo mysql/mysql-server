@@ -373,7 +373,7 @@ static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument __attribute__((unused)))
 {
-  switch(optid) {
+  switch (optid) {
   case 'v':
     opt_verbose++;
     break;
@@ -398,8 +398,9 @@ static int get_options(int argc, char **argv)
 
   if (argc >= 1)
   {
+    fprintf(stderr,"%s: Too many arguments\n", my_progname);
     usage(0);
-     exit(1);
+    exit(1);
   }
   return(0);
 }
