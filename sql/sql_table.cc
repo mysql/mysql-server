@@ -1804,6 +1804,9 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     protocol->store(table_name, system_charset_info);
     protocol->store(operator_name, system_charset_info);
 
+send_result_message:
+
+    DBUG_PRINT("info", ("result_code: %d", result_code));
     switch (result_code) {
     case HA_ADMIN_NOT_IMPLEMENTED:
       {
@@ -1846,6 +1849,28 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
       protocol->store("error", 5, system_charset_info);
       protocol->store("Invalid argument",16, system_charset_info);
       break;
+
+    case HA_ADMIN_TRY_ALTER:
+    {
+      /*
+        This is currently used only by InnoDB. ha_innobase::optimize() answers
+        "try with alter", so here we close the table, do an ALTER TABLE,
+        reopen the table and do ha_innobase::analyze() on it.
+      */
+      close_thread_tables(thd);
+      TABLE_LIST *save_next= table->next;
+      table->next= 0;
+      result_code= mysql_recreate_table(thd, table, 0);
+      if (!result_code) // recreation went ok
+      {
+        if ((table->table= open_ltable(thd, table, lock_type)) &&
+            ((result_code= table->table->file->analyze(thd, check_opt)) > 0))
+          result_code= 0; // analyze went ok
+      }
+      result_code= result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
+      table->next= save_next;
+      goto send_result_message;
+    }
 
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
       protocol->store("error", 5, system_charset_info);
@@ -2476,7 +2501,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 		      List<create_field> &fields, List<Key> &keys,
 		      uint order_num, ORDER *order,
 		      enum enum_duplicates handle_duplicates,
-		      ALTER_INFO *alter_info)
+		      ALTER_INFO *alter_info, bool do_send_ok)
 {
   TABLE *table,*new_table;
   int error;
@@ -2633,7 +2658,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
 	mysql_bin_log.write(&qinfo);
       }
-      send_ok(thd);
+      if (do_send_ok)
+        send_ok(thd);
     }
     else
     {
@@ -3196,7 +3222,8 @@ end_temporary:
   my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
 	      (ulong) (copied + deleted), (ulong) deleted,
 	      (ulong) thd->cuted_fields);
-  send_ok(thd,copied+deleted,0L,tmp_name);
+  if (do_send_ok)
+    send_ok(thd,copied+deleted,0L,tmp_name);
   thd->some_tables_deleted=0;
   DBUG_RETURN(0);
 
@@ -3343,6 +3370,39 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   *copied= found_count;
   *deleted=delete_count;
   DBUG_RETURN(error > 0 ? -1 : 0);
+}
+
+
+/*
+  Recreates tables by calling mysql_alter_table().
+
+  SYNOPSIS
+    mysql_recreate_table()
+    thd			Thread handler
+    tables		Tables to recreate
+    do_send_ok          If we should send_ok() or leave it to caller
+
+ RETURN
+    Like mysql_alter_table().
+*/
+int mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
+                         bool do_send_ok)
+{
+  DBUG_ENTER("mysql_recreate_table");
+  LEX *lex= thd->lex;
+  HA_CREATE_INFO create_info;
+  lex->create_list.empty();
+  lex->key_list.empty();
+  lex->col_list.empty();
+  lex->alter_info.reset();
+  bzero((char*) &create_info,sizeof(create_info));
+  create_info.db_type=DB_TYPE_DEFAULT;
+  create_info.row_type=ROW_TYPE_DEFAULT;
+  create_info.default_table_charset=default_charset_info;
+  DBUG_RETURN(mysql_alter_table(thd, NullS, NullS, &create_info,
+                                table_list, lex->create_list,
+                                lex->key_list, 0, (ORDER *) 0,
+                                DUP_ERROR, &lex->alter_info, do_send_ok));
 }
 
 

@@ -4336,9 +4336,8 @@ ha_innobase::analyze(
 }
 
 /**************************************************************************
-This is currently mapped to ::analyze. A better option would be to map this
-to "ALTER TABLE tablename TYPE=InnoDB", which seems to rebuild the table in
-MySQL. */
+This is mapped to "ALTER TABLE tablename TYPE=InnoDB", which rebuilds
+the table in MySQL. */
 
 int
 ha_innobase::optimize(
@@ -4346,7 +4345,7 @@ ha_innobase::optimize(
 	THD*		thd,		/* in: connection thread handle */
 	HA_CHECK_OPT*	check_opt)	/* in: currently ignored */
 {
-	return(ha_innobase::analyze(thd, check_opt));
+        return(HA_ADMIN_TRY_ALTER);
 }
 
 /***********************************************************************
