@@ -59,6 +59,8 @@
 #define INADDR_NONE	-1
 #endif
 
+#undef net_buffer_length
+#undef max_allowed_packet
 static my_bool	mysql_client_init=0;
 uint		mysql_port=0;
 my_string	mysql_unix_port=0;

@@ -1545,7 +1545,10 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
   }
   else
-    new_alias= new_name= table_name;
+  {
+    new_alias= (lower_case_table_names == 2) ? alias : table_name;
+    new_name= table_name;
+  }
 
   old_db_type=table->db_type;
   if (create_info->db_type == DB_TYPE_DEFAULT)
