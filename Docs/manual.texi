@@ -50797,6 +50797,9 @@ each individual 4.0.x release.
 @appendixsubsec Changes in release 4.0.5
 @itemize
 @item
+Fixed a newly introduced bug that caused @code{ORDER BY ... LIMIT #}
+to not return all rows.
+@item
 Fixed a bug in multi-table deletes when outer join is used on an empty
 table, which get's first to be deleted
 @item

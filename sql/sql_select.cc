@@ -111,7 +111,8 @@ static Item* part_of_refkey(TABLE *form,Field *field);
 static uint find_shortest_key(TABLE *table, key_map usable_keys);
 static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
 				    ha_rows select_limit, bool no_changes);
-static int create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit);
+static int create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows filesort_limit,
+			     ha_rows select_limit);
 static int remove_duplicates(JOIN *join,TABLE *entry,List<Item> &fields,
 			     Item *having);
 static int remove_dup_with_compare(THD *thd, TABLE *entry, Field **field,
@@ -207,6 +208,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   int		error, tmp_error;
   bool		need_tmp,hidden_group_fields;
   bool		simple_order,simple_group,no_order, skip_sort_order;
+  ha_rows	select_limit;
   Item::cond_result cond_value;
   SQL_SELECT	*select;
   DYNAMIC_ARRAY keyuse;
@@ -662,7 +664,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       DBUG_PRINT("info",("Sorting for group"));
       thd->proc_info="Sorting for group";
       if (create_sort_index(&join.join_tab[join.const_tables],group,
-			    HA_POS_ERROR) ||
+			    HA_POS_ERROR, HA_POS_ERROR) ||
 	  make_sum_func_list(&join,all_fields) ||
 	  alloc_group_fields(&join,group))
 	goto err;
@@ -677,7 +679,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	DBUG_PRINT("info",("Sorting for order"));
 	thd->proc_info="Sorting for order";
 	if (create_sort_index(&join.join_tab[join.const_tables],order,
-			      HA_POS_ERROR))
+			      HA_POS_ERROR, HA_POS_ERROR))
 	  goto err;				/* purecov: inspected */
 	order=0;
       }
@@ -778,7 +780,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       if (group)
       {
 	thd->proc_info="Creating sort index";
-	if (create_sort_index(join.join_tab,group,HA_POS_ERROR) ||
+	if (create_sort_index(join.join_tab,group,HA_POS_ERROR, HA_POS_ERROR) ||
 	    alloc_group_fields(&join,group))
 	{
 	  free_tmp_table(thd,tmp_table2);	/* purecov: inspected */
@@ -872,11 +874,31 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	DBUG_EXECUTE("where",print_where(conds,"having after sort"););
       }
     }
+    select_limit= thd->select_limit;
+    if (having || group || (join.select_options & OPTION_FOUND_ROWS))
+      select_limit= HA_POS_ERROR;
+    else
+    {
+      /*
+	We can abort sorting after thd->select_limit rows if we there is no
+	WHERE clause for any tables after the sorted one.
+      */
+      JOIN_TAB *table= &join.join_tab[join.const_tables+1];
+      JOIN_TAB *end_table= &join.join_tab[join.tables];
+      for (; table < end_table ; table++)
+      {
+	if (table->select_cond)
+	{
+	  /* We have to sort all rows */
+	  select_limit= HA_POS_ERROR;
+	  break;
+	}
+      }
+    }
     if (create_sort_index(&join.join_tab[join.const_tables],
 			  group ? group : order,
-			  (having || group ||
-			   (join.select_options & OPTION_FOUND_ROWS)) ?
-			  HA_POS_ERROR : thd->select_limit))
+			  select_limit, 
+			  thd->select_limit))
       goto err; /* purecov: inspected */
   }
   join.having=having;				// Actually a parameter
@@ -5639,7 +5661,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 *****************************************************************************/
 
 static int
-create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
+create_sort_index(JOIN_TAB *tab, ORDER *order, ha_rows filesort_limit,
+		  ha_rows select_limit)
 {
   SORT_FIELD *sortorder;
   uint length;
@@ -5684,7 +5707,7 @@ create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
   if (table->tmp_table)
     table->file->info(HA_STATUS_VARIABLE);	// Get record count
   table->found_records=filesort(table,sortorder,length,
-				select, 0L, select_limit, &examined_rows);
+				select, 0L, filesort_limit, &examined_rows);
   tab->records=table->found_records;		// For SQL_CALC_ROWS
   delete select;				// filesort did select
   tab->select=0;
