@@ -1280,7 +1280,7 @@ under a normal commercial copyright.  If you are interested in this you can
 buy @strong{MySQL} licenses at @uref{https://order.mysql.com/} or contact
 us at @email{licensing@@mysql.com}.
 @item
-Advertising; @uref{http://www.mysql.com} is a very popular web site with
+Advertising; @uref{http://www.mysql.com/} is a very popular web site with
 more than 10,000,000 page views per months (January 2001).  By putting a
 banner on this you are guaranteed to reach a lot of potential customers
 in the Open source, Linux and database community. If you are interested
@@ -1289,7 +1289,7 @@ in this email @email{advertising@@mysql.com}.
 We are building a partner program to be able to provide @strong{MySQL}
 services in every country.  If you are interested in becomming a partner
 of @strong{MySQL AB} please visit
-@uref{http://ww.mysql.com/information/partners.html} or email
+@uref{http://www.mysql.com/information/partners.html} or email
 @email{partner@@mysql.com}.
 @item
 We provide @strong{MySQL} training through our partner programs. For more
