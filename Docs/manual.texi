@@ -43,7 +43,10 @@ END-INFO-DIR-ENTRY
 @sp 10
 @center @titlefont{@strong{MySQL} Reference Manual}
 @sp 10
-@center Copyright @copyright{} 1997, 1998, 1999, 2000 TcX AB, Detron HB and MySQL Finland AB
+@center Copyright @copyright{} 1997-2000 TcX AB, Detron HB and MySQL Finland AB
+@c blank page after title page makes page 1 be a page front.
+@c also makes the back of the title page blank.
+@page
 @end titlepage
 
 @c This should be added. The HTML conversion also needs a MySQL version
