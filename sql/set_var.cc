@@ -119,7 +119,7 @@ sys_var_thd_ulong	sys_interactive_timeout("interactive_timeout",
 						&SV::net_interactive_timeout);
 sys_var_thd_ulong	sys_join_buffer_size("join_buffer_size",
 					     &SV::join_buff_size);
-sys_var_long_ptr	sys_key_buffer_size("key_buffer_size",
+sys_var_ulonglong_ptr	sys_key_buffer_size("key_buffer_size",
 					    &keybuff_size,
 					    fix_key_buffer_size);
 sys_var_bool_ptr	sys_local_infile("local_infile",
@@ -666,6 +666,23 @@ bool sys_var_long_ptr::update(THD *thd, set_var *var)
 void sys_var_long_ptr::set_default(THD *thd, enum_var_type type)
 {
   *value= (ulong) option_limits->def_value;
+}
+
+
+bool sys_var_ulonglong_ptr::update(THD *thd, set_var *var)
+{
+  ulonglong tmp= var->value->val_int();
+  if (option_limits)
+    *value= (ulonglong) getopt_ull_limit_value(tmp, option_limits);
+  else
+    *value= (ulonglong) tmp;
+  return 0;
+}
+
+
+void sys_var_ulonglong_ptr::set_default(THD *thd, enum_var_type type)
+{
+  *value= (ulonglong) option_limits->def_value;
 }
 
 

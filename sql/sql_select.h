@@ -115,7 +115,8 @@ typedef struct st_position {			/* Used in find_best */
 
 /* Param to create temporary tables when doing SELECT:s */
 
-class TMP_TABLE_PARAM {
+class TMP_TABLE_PARAM :public Sql_alloc
+{
  public:
   List<Item> copy_funcs;
   List_iterator_fast<Item> copy_funcs_it;

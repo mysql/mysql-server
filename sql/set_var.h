@@ -85,6 +85,22 @@ public:
 };
 
 
+class sys_var_ulonglong_ptr :public sys_var
+{
+public:
+  ulonglong *value;
+  sys_var_ulonglong_ptr(const char *name_arg, ulonglong *value_ptr)
+    :sys_var(name_arg),value(value_ptr) {}
+  sys_var_ulonglong_ptr(const char *name_arg, ulonglong *value_ptr,
+		       sys_after_update_func func)
+    :sys_var(name_arg,func), value(value_ptr) {}
+  bool update(THD *thd, set_var *var);
+  void set_default(THD *thd, enum_var_type type);
+  SHOW_TYPE type() { return SHOW_LONGLONG; }
+  byte *value_ptr(THD *thd, enum_var_type type) { return (byte*) value; }
+};
+
+
 class sys_var_bool_ptr :public sys_var
 {
 public:

@@ -318,7 +318,8 @@ ulong thd_startup_options=(OPTION_UPDATE_LOG | OPTION_AUTO_IS_NULL |
 uint protocol_version=PROTOCOL_VERSION;
 struct system_variables global_system_variables;
 struct system_variables max_system_variables;
-ulong keybuff_size,table_cache_size,
+ulonglong keybuff_size;
+ulong table_cache_size,
       thread_stack,
       thread_stack_min,what_to_log= ~ (1L << (uint) COM_TIME),
       query_buff_size,
@@ -1372,7 +1373,7 @@ or misconfigured. This error can also be caused by malfunctioning hardware.\n",
 We will try our best to scrape up some info that will hopefully help diagnose\n\
 the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
-  fprintf(stderr, "key_buffer_size=%ld\n", keybuff_size);
+  fprintf(stderr, "key_buffer_size=%lu\n", (ulong) keybuff_size);
   fprintf(stderr, "read_buffer_size=%ld\n", global_system_variables.read_buff_size);
   fprintf(stderr, "sort_buffer_size=%ld\n", thd->variables.sortbuff_size);
   fprintf(stderr, "max_used_connections=%ld\n", max_used_connections);
@@ -1380,8 +1381,9 @@ and this may fail.\n\n");
   fprintf(stderr, "threads_connected=%d\n", thread_count);
   fprintf(stderr, "It is possible that mysqld could use up to \n\
 key_buffer_size + (read_buffer_size + sort_buffer_size)*max_connections = %ld K\n\
-bytes of memory\n", (keybuff_size + (global_system_variables.read_buff_size +
-				     thd->variables.sortbuff_size) *
+bytes of memory\n", ((ulong) keybuff_size +
+		     (global_system_variables.read_buff_size +
+		      thd->variables.sortbuff_size) *
 		     max_connections)/ 1024);
   fprintf(stderr, "Hope that's ok; if not, decrease some variables in the equation.\n\n");
   
@@ -3509,8 +3511,9 @@ struct my_option my_long_options[] =
    IO_SIZE, 0},
   {"key_buffer_size", OPT_KEY_BUFFER_SIZE,
    "The size of the buffer used for index blocks. Increase this to get better index handling (for all reads and multiple writes) to as much as you can afford; 64M on a 256M machine that mainly runs MySQL is quite common.",
-   (gptr*) &keybuff_size, (gptr*) &keybuff_size, 0, GET_ULONG, REQUIRED_ARG,
-   KEY_CACHE_SIZE, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD, IO_SIZE, 0},
+   (gptr*) &keybuff_size, (gptr*) &keybuff_size, 0, GET_ULL,
+   REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD,
+   IO_SIZE, 0},
   {"long_query_time", OPT_LONG_QUERY_TIME,
    "Log all queries that have taken more than long_query_time seconds to execute to file.",
    (gptr*) &global_system_variables.long_query_time,

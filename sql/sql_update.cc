@@ -412,9 +412,10 @@ end:
 multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
 			   List<Item> *field_list, List<Item> *value_list,
 			   enum enum_duplicates handle_duplicates_arg)
-  :all_tables(table_list), thd(thd_arg), tmp_tables(0), updated(0),
-   found(0), fields(field_list), values(value_list), table_count(0),
-   handle_duplicates(handle_duplicates_arg), do_update(1)
+  :all_tables(table_list), update_tables(0), thd(thd_arg), tmp_tables(0),
+   updated(0), found(0), fields(field_list), values(value_list),
+   table_count(0), copy_field(0), handle_duplicates(handle_duplicates_arg),
+   do_update(1), trans_safe(0)
 {}
 
 
@@ -594,9 +595,14 @@ multi_update::~multi_update()
 
   if (tmp_tables)
   {
-    for (uint counter = 0; counter < table_count; counter++)
-      if (tmp_tables[counter])
-	free_tmp_table(thd,tmp_tables[counter]);
+    for (uint cnt = 0; cnt < table_count; cnt++)
+    {
+      if (tmp_tables[cnt])
+      {
+	free_tmp_table(thd, tmp_tables[cnt]);
+	tmp_table_param[cnt].cleanup();
+      }
+    }
   }
   if (copy_field)
     delete [] copy_field;
