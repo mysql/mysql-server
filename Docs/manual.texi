@@ -42339,7 +42339,6 @@ more than one way to compute}
 
 @item @uref{http://www.yaboo.dk/, Yaboo - Yet Another BOOkmarker}
 
-@item @uref{http://www.yahoosuck.com, Yahoosuck}
 
 @item @uref{http://www.ozsearch.com.au, OzSearch Internet Guide}
 
