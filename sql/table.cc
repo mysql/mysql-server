@@ -212,17 +212,24 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   error=2;
   if (db_stat)
   {
-    if ((outparam->file->
-	 ha_open(index_file,
-		 (db_stat & HA_READ_ONLY ? O_RDONLY : O_RDWR),
-		 (db_stat & HA_OPEN_TEMPORARY ? HA_OPEN_TMP_TABLE :
-		  (db_stat & HA_WAIT_IF_LOCKED ||
-		   specialflag & SPECIAL_WAIT_IF_LOCKED) ?
-		  HA_OPEN_WAIT_IF_LOCKED :
-		  (db_stat & (HA_ABORT_IF_LOCKED | HA_GET_INFO)) ?
-		  HA_OPEN_ABORT_IF_LOCKED :
-		  HA_OPEN_IGNORE_IF_LOCKED) | ha_open_flags)))
+    int err;
+    if ((err=(outparam->file->
+	      ha_open(index_file,
+		      (db_stat & HA_READ_ONLY ? O_RDONLY : O_RDWR),
+		      (db_stat & HA_OPEN_TEMPORARY ? HA_OPEN_TMP_TABLE :
+		       ((db_stat & HA_WAIT_IF_LOCKED) ||
+			(specialflag & SPECIAL_WAIT_IF_LOCKED)) ?
+		       HA_OPEN_WAIT_IF_LOCKED :
+		       (db_stat & (HA_ABORT_IF_LOCKED | HA_GET_INFO)) ?
+		       HA_OPEN_ABORT_IF_LOCKED :
+		       HA_OPEN_IGNORE_IF_LOCKED) | ha_open_flags))))
+    {
+      /* Set a flag if the table is crashed and it can be auto. repaired */
+      outparam->crashed=(err == HA_ERR_CRASHED &&
+			 outparam->file->auto_repair() &&
+			 !(ha_open_flags & HA_OPEN_FOR_REPAIR));
       goto err_not_open; /* purecov: inspected */
+    }
   }
   outparam->db_low_byte_first=outparam->file->low_byte_first();
 
@@ -549,6 +556,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   delete crypted;
   my_pthread_setspecific_ptr(THR_MALLOC,old_root);
   frm_error(error,outparam,name,ME_ERROR+ME_WAITTANG);
+  delete outparam->file;
   outparam->file=0;				// For easyer errorchecking
   free_root(&outparam->mem_root,MYF(0));
   my_free(outparam->table_name,MYF(MY_ALLOW_ZERO_PTR));

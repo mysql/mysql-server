@@ -315,7 +315,7 @@ Is There Anything Special to Do when Upgrading/Downgrading MySQL?
 How Standards-compatible Is MySQL?
 
 * Extensions to ANSI::          @strong{MySQL} extensions to ANSI SQL92
-* Ansi mode::                   Running @strong{MySQL} in ANSI mode
+* ANSI mode::                   Running @strong{MySQL} in ANSI mode
 * Differences from ANSI::       @strong{MySQL} differences compared to ANSI SQL92
 * Missing functions::           Functionality missing from @strong{MySQL}
 * Standards::                   What standards does @strong{MySQL} follow?
@@ -1550,7 +1550,8 @@ clauses. Support for group functions (@code{COUNT()},
 @code{MAX()} and @code{MIN()}).
 
 @item
-Support for @code{LEFT OUTER JOIN} with ANSI SQL and ODBC syntax.
+Support for @code{LEFT OUTER JOIN} and @code{RIGHT OUTER JOIN} with ANSI
+SQL and ODBC syntax.
 
 @item
 You can mix tables from different databases in the same query (as of
@@ -6024,28 +6025,6 @@ you are probably using @code{gcc} (or using an old binary compiled with
 /usr/bin/perl: can't resolve symbol '__divdi3'
 @end example
 
-If you get the following error from @code{Msql-Mysql-modules}
-when you run the tests:
-
-@example
-t/00base............install_driver(mysql) failed: Can't load '../blib/arch/auto/DBD/mysql/mysql.so' for module DBD::mysql: ../blib/arch/auto/DBD/mysql/mysql.so: undefined symbol: uncompress at /usr/lib/perl5/5.00503/i586-linux/DynaLoader.pm line 169.
-@end example
-
-it means that you need to include the compression library, -lz, to the
-link line. This can be done by changing the line:
-
-@example
-$sysliblist .= " -lm";
-
-to
-
-$sysliblist .= " -lm -lz";
-@end example
-
-in file lib/DBD/mysql/Install.pm in the Msql-Mysql-modules directory.
-After this, you MUST run 'make realclean' and then proceed with the
-installation from the beginning.
-
 Add @code{-L/usr/lib/gcc-lib/... -lgcc} to the link command when the
 @file{mysql.so} library gets built (check the output from @code{make} for
 @file{mysql.so} when you compile the Perl client).  The @code{-L} option
@@ -6055,6 +6034,28 @@ on your system.
 Another cause of this problem may be that Perl and @strong{MySQL} aren't both
 compiled with @code{gcc}.  In this case, you can solve the mismatch by
 compiling both with @code{gcc}.
+
+If you get the following error from @code{Msql-Mysql-modules}
+when you run the tests:
+
+@example
+t/00base............install_driver(mysql) failed: Can't load '../blib/arch/auto/DBD/mysql/mysql.so' for module DBD::mysql: ../blib/arch/auto/DBD/mysql/mysql.so: undefined symbol: uncompress at /usr/lib/perl5/5.00503/i586-linux/DynaLoader.pm line 169.
+@end example
+
+it means that you need to include the compression library, -lz, to the
+link line. This can be doing the following change in the file
+@file{lib/DBD/mysql/Install.pm}:
+
+@example
+$sysliblist .= " -lm";
+
+to
+
+$sysliblist .= " -lm -lz";
+@end example
+
+After this, you MUST run 'make realclean' and then proceed with the
+installation from the beginning.
 
 If you want to use the Perl module on a system that doesn't support dynamic
 linking (like SCO) you can generate a static version of Perl that includes
@@ -8931,7 +8932,7 @@ The @code{mysql.server} script uses the following variables:
 @table @code
 
 @item --ansi
-Use ANSI SQL syntax instead of MySQL syntax. @xref{Ansi mode}.
+Use ANSI SQL syntax instead of MySQL syntax. @xref{ANSI mode}.
 
 @item -b, --basedir=path
 Path to installation directory. All paths are
@@ -9631,14 +9632,14 @@ information.
 
 @menu
 * Extensions to ANSI::          @strong{MySQL} extensions to ANSI SQL92
-* Ansi mode::                   Running @strong{MySQL} in ANSI mode
+* ANSI mode::                   Running @strong{MySQL} in ANSI mode
 * Differences from ANSI::       @strong{MySQL} differences compared to ANSI SQL92
 * Missing functions::           Functionality missing from @strong{MySQL}
 * Standards::                   What standards does @strong{MySQL} follow?
 * Commit-rollback::             How to cope without @code{COMMIT}-@code{ROLLBACK}
 @end menu
 
-@node Extensions to ANSI, Ansi mode, Compatibility, Compatibility
+@node Extensions to ANSI, ANSI mode, Compatibility, Compatibility
 @section MySQL Extensions to ANSI SQL92
 
 @strong{MySQL} includes some extensions that you probably will not find in
@@ -9882,7 +9883,7 @@ SELECT @@t1:=(@@t2:=1)+@@t3:=4,@@t1,@@t2,@@t3;
 
 @end itemize
 
-@node Ansi mode, Differences from ANSI, Extensions to ANSI, Compatibility
+@node ANSI mode, Differences from ANSI, Extensions to ANSI, Compatibility
 @section Running MySQL in ANSI Mode
 @cindex running, ANSI mode
 @cindex ANSI mode, running
@@ -9895,7 +9896,7 @@ of @strong{MySQL} changes:
 @code{||} is string concatenation instead of @code{OR}.
 @item
 You can have any number of spaces between a function name and the @samp{(}. 
-This makes also all function names reserved words.
+This forces all function names to be treated as reserved words.
 @item
 @samp{"} will be an identifier quote character (like the @strong{MySQL}
 @samp{`} quote character) and not a string quote character.
@@ -9904,7 +9905,7 @@ This makes also all function names reserved words.
 @code{DOUBLE}.
 @end itemize
 
-@node Differences from ANSI, Missing functions, Ansi mode, Compatibility
+@node Differences from ANSI, Missing functions, ANSI mode, Compatibility
 @section MySQL Differences Compared to ANSI SQL92
 
 We try to make @strong{MySQL} follow the ANSI SQL standard and the
@@ -9913,7 +9914,8 @@ differently:
 
 @itemize @bullet
 @item
-@code{--} is only a comment if followed by a white space. @xref{Missing comments}.
+@code{--} is only a comment if followed by a white space. @xref{Missing
+comments}.
 @item
 For @code{VARCHAR} columns, trailing spaces are removed when the value is
 stored. @xref{Bugs}.
@@ -9936,11 +9938,11 @@ extra conditions in this case.
 @cindex functionality, missing
 
 The following functionality is missing in the current version of
-@strong{MySQL}.  For a prioritized list indicating when new extensions may be
-added to @strong{MySQL}, you should consult
-@uref{http://www.mysql.com/documentation/manual.php?section=TODO, the online
-@strong{MySQL} TODO list}. That is the latest version of the TODO list in
-this manual. @xref{TODO}.
+@strong{MySQL}.  For a prioritized list indicating when new extensions
+may be added to @strong{MySQL}, you should consult
+@uref{http://www.mysql.com/documentation/manual.php?section=TODO, the
+online @strong{MySQL} TODO list}. That is the latest version of the TODO
+list in this manual. @xref{TODO}.
 
 @menu
 * Missing Sub-selects::         Sub-selects
@@ -12726,8 +12728,8 @@ Database, table, index, column, and alias names all follow the same rules in
 @tindex "
 Note that the rules changed starting with @strong{MySQL} Version 3.23.6 when we
 introduced quoting of identifiers (database, table, and column names)
-with @samp{`} (@samp{"} will also work to quote identifiers if you run
-in ANSI mode).
+with @samp{`}. @samp{"} will also work to quote identifiers if you run
+in ANSI mode. @xref{ANSI mode}.
 
 @multitable @columnfractions .15 .15 .70
 @item @strong{Identifier} @tab @strong{Max length} @tab @strong{Allowed characters}
@@ -13405,7 +13407,7 @@ standard, @strong{MySQL} recognizes @code{DOUBLE} as a synonym for the
 @code{DOUBLE PRECISION} type.  In contrast with the standard's
 requirement that the precision for @code{REAL} be smaller than that used
 for @code{DOUBLE PRECISION}, @strong{MySQL} implements both as 8-byte
-double-precision floating-point values (when not running in ``Ansi mode'').
+double-precision floating-point values (when not running in ``ANSI mode'').
 For maximum portability, code requiring storage of approximate numeric
 data values should use @code{FLOAT} or @code{DOUBLE PRECISION} with no
 specification of precision or number of decimal points.
@@ -17838,7 +17840,9 @@ running!
 @section @code{CHECK TABLE} Syntax
 
 @example
-CHECK TABLE tbl_name[,tbl_name...] [TYPE = [QUICK | FAST | EXTEND | CHANGED]]
+CHECK TABLE tbl_name[,tbl_name...] [option [option...]]
+
+option = QUICK | FAST | EXTEND | CHANGED
 @end example
 
 @code{CHECK TABLE} only works on @code{MyISAM} tables and is the same thing
@@ -17872,6 +17876,14 @@ The different check types stand for the following:
 @item @code{EXTENDED} @tab Do a full key lookup for all keys for each row.  This ensures that the table is 100 % consistent, but will take a long time!
 @end multitable
 
+You can combine check options as in:
+
+@example
+CHECK TABLE test_table FAST QUICK;
+@end example
+
+Which only would do a quick check on the table if it wasn't closed properly.
+
 If a table is corrupted, then it's most likely that the problem is in
 the indexes and not in the data part.  All of the above check types
 checks the indexes throughly and should thus find most errors.
@@ -17881,7 +17893,8 @@ no check options or the @code{QUICK} option. The later should be used
 when you are in a hurry and can take the very small risk that
 @code{QUICK} didn't find an error in the data file (In most cases
 @strong{MySQL} should find, under normal usage, any error in the data
-file. If this happens then the table will be marked as 'corrupted'.
+file. If this happens then the table will be marked as 'corrupted',
+in which case the table can't be used until it's repaired).
 
 @code{FAST} and @code{CHANGED} are mostly intended to be used from a
 script (for example to be executed from cron) if you want to check your
@@ -17988,7 +18001,7 @@ the table will not be analyzed again.
 @section @code{REPAIR TABLE} syntax
 
 @example
-REPAIR TABLE tbl_name[,tbl_name...] [TYPE = QUICK]
+REPAIR TABLE tbl_name[,tbl_name...] [QUICK]
 @end example
 
 @code{REPAIR TABLE} only works on @code{MyISAM} tables and is the same things
@@ -18012,7 +18025,7 @@ repairing the table with @code{myisamchk -o}, as @code{REPAIR TABLE}
 does not yet implement all the options of @code{myisamchk}. In the near
 future, we will make it more flexible.
 
-If @code{TYPE=QUICK} is given then @strong{MySQL} will try to do a
+If @code{QUICK} is given then @strong{MySQL} will try to do a
 @code{REPAIR} of only the index tree.
 
 @findex DELETE
@@ -19692,7 +19705,7 @@ indicates 16 megabytes.  The case of suffix letters does not matter;
 @table @code
 @item @code{ansi_mode}.
 Is @code{ON} if @code{mysqld} was started with @code{--ansi}.
-@xref{Ansi mode}.
+@xref{ANSI mode}.
 
 @item @code{back_log}
 The number of outstanding connection requests @strong{MySQL} can have. This
@@ -37857,6 +37870,13 @@ though, so 3.23 is not released as a stable version yet.
 @node News-3.23.26, News-3.23.25, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.26
 @itemize @bullet
+@item
+Automatic repair of @code{MyISAM} tables if you start @code{mysqld} with
+@code{--myisam-recover}.
+@item
+Removed the @code{TYPE=} keyword from @code{CHECK} and
+@code{REPAIR}. Allow one to combine @code{CHECK} options. (One can still
+use @code{TYPE=} but this usage is deprecated).
 @item
 Added optimization of queries where @code{DISTINCT} is only used on columns
 from some of the tables.

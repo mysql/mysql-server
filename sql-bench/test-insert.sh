@@ -97,6 +97,8 @@ goto select_test if ($opt_skip_create);
 
 print "Creating tables\n";
 $dbh->do("drop table bench1");
+$dbh->do("drop table bench2");
+$dbh->do("drop table bench3");
 do_many($dbh,$server->create("bench1",
 			     ["id int NOT NULL",
 			      "id2 int NOT NULL",
@@ -240,7 +242,7 @@ if ($limits->{'unique_index'})
 }
 
 $end_time=new Benchmark;
-print "Time for insert_duplicates (" . ($total_rows) . "): " .
+print "Time for insert_duplicates (" . ($opt_loop_count) . "): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
 #if ($opt_fast && defined($server->{vacuum}))
@@ -611,7 +613,7 @@ if ($limits->{'functions'})
   }
 
   $end_time=new Benchmark;
-  print "Time for update_of_key ($range_loop_count):  " .
+  print "Time for update_of_key ($update_loop_count):  " .
     timestr(timediff($end_time, $loop_time),"all") . "\n";
 
   if ($opt_lock_tables)
@@ -775,7 +777,7 @@ for ($i=0 ; $i < $opt_loop_count*3 ; $i++)
 }
 
 $end_time=new Benchmark;
-print "Time for update_with_key ($opt_loop_count):  " .
+print "Time for update_with_key (" . ($opt_loop_count*3) . "):  " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
 
 print "\nTesting update of all rows\n";
@@ -785,7 +787,7 @@ for ($i=0 ; $i < $small_loop_count ; $i++)
   $sth = $dbh->do("update bench1 set dummy1='updated $i'") or die $DBI::errstr;
 }
 $end_time=new Benchmark;
-print "Time for update_big ($range_loop_count):  " .
+print "Time for update_big ($small_loop_count):  " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
 
 
@@ -858,6 +860,49 @@ if ($server->small_rollback_segment())
   $dbh->disconnect;				# close connection
   $dbh = $server->connect();
 }
+
+####
+#### Test INSERT INTO ... SELECT
+####
+
+if ($limits->{'insert_select'})
+{
+  print "\nTesting INSERT INTO ... SELECT\n";
+  do_many($dbh,$server->create("bench2",
+			       ["id int NOT NULL",
+				"id2 int NOT NULL",
+				"id3 int NOT NULL",
+				"dummy1 char(30)"],
+			       ["primary key (id,id2)"]));
+  do_many($dbh,$server->create("bench3",
+			       ["id int NOT NULL",
+				"id2 int NOT NULL",
+				"id3 int NOT NULL",
+				"dummy1 char(30)"],
+			       ["primary key (id,id2)",
+				"index index_id3 (id3)"]));
+  $loop_time=new Benchmark;
+  $sth = $dbh->do("INSERT INTO bench2 SELECT * from bench1") ||
+    die $DBI::errstr;
+  $end_time=new Benchmark;
+  print "Time for insert_select_1_key (1):  " .
+    timestr(timediff($end_time, $loop_time),"all") . "\n";
+  $loop_time=new Benchmark;
+  $sth = $dbh->do("INSERT INTO bench3 SELECT * from bench1") ||
+    die $DBI::errstr;
+  $end_time=new Benchmark;
+  print "Time for insert_select_2_keys (1):  " .
+    timestr(timediff($end_time, $loop_time),"all") . "\n";
+  $loop_time=new Benchmark;
+  $sth = $dbh->do("DROP TABLE bench2") ||
+    die $DBI::errstr;
+  $sth = $dbh->do("DROP TABLE bench3") ||
+    die $DBI::errstr;
+  $end_time=new Benchmark;
+  print "Time for drop table(2): " .
+    timestr(timediff($end_time, $loop_time),"all") . "\n";
+}
+
 
 ####
 #### Do some deletes on the table

@@ -192,6 +192,7 @@ int chk_del(MI_CHECK *param, register MI_INFO *info, uint test_flag)
   }
   DBUG_RETURN(0);
 wrong:
+  param->retry_without_quick=1;		// Don't use quick repair
   if (test_flag & T_VERBOSE) puts("");
   mi_check_print_error(param,"record delete-link-chain corrupted");
   DBUG_RETURN(1);
@@ -291,6 +292,7 @@ int chk_size(MI_CHECK *param, register MI_INFO *info)
       error=1;
       mi_check_print_error(param,"Size of datafile is: %-8s         Should be: %s",
 		    llstr(size,buff), llstr(skr,buff2));
+      param->retry_without_quick=1;		// Don't use quick repair
     }
     else
     {
@@ -750,8 +752,9 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	  {
 	    if (block_info.block_len < info->s->base.min_block_length)
 	    {
-	      mi_check_print_error(param,"Deleted block with impossible length %lu at %s",
-			  block_info.block_len,llstr(pos,llbuff));
+	      mi_check_print_error(param,
+				   "Deleted block with impossible length %lu at %s",
+				   block_info.block_len,llstr(pos,llbuff));
 	      goto err2;
 	    }
 	    if ((block_info.next_filepos != HA_OFFSET_ERROR &&
@@ -1071,7 +1074,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   new_file= -1;
   if (!(param->testflag & T_SILENT))
   {
-    printf("- recovering MyISAM-table '%s'\n",name);
+    printf("- recovering (with keycache) MyISAM-table '%s'\n",name);
     printf("Data records: %s\n", llstr(info->state->records,llbuff));
   }
 
@@ -1211,6 +1214,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     mi_check_print_error(param,"Couldn't fix table with quick recovery: Found wrong number of deleted records");
     mi_check_print_error(param,"Run recovery again without -q");
     got_error=1;
+    param->retry_repair=param->retry_without_quick=1;
     goto err;
   }
 
@@ -1651,7 +1655,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     share->pack.header_length;
   if (!(param->testflag & T_SILENT))
   {
-    printf("- recovering MyISAM-table '%s'\n",name);
+    printf("- recovering (with sort) MyISAM-table '%s'\n",name);
     printf("Data records: %s\n", llstr(start_records,llbuff));
   }
   bzero((char*) sort_info,sizeof(*sort_info));
@@ -1805,7 +1809,10 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     if (_create_index_by_sort(&sort_param,
 			      (my_bool) (!(param->testflag & T_VERBOSE)),
 			      (uint) param->sort_buffer_length))
+    {
+      param->retry_repair=1;
       goto err;
+    }
 
     /* Set for next loop */
     sort_param.max_records=sort_info->max_records=
@@ -1862,6 +1869,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     mi_check_print_error(param,"Couldn't fix table with quick recovery: Found wrong number of deleted records");
     mi_check_print_error(param,"Run recovery again without -q");
     got_error=1;
+    param->retry_repair=param->retry_without_quick=1;
     goto err;
   }
 
@@ -3037,7 +3045,8 @@ void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows)
   even if the temporary file would be quite big!
 */
 
-my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows, my_bool force)
+my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows, 
+			    my_bool force __attribute__((unused)))
 {
   MYISAM_SHARE *share=info->s;
   uint i;

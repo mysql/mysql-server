@@ -745,61 +745,61 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
 {
   String *packet = &thd->packet;
   
-  if(table->table) // do not overwrite existing tables on restore
+  if (table->table) // do not overwrite existing tables on restore
+  {
+    return send_check_errmsg(thd, table, "restore",
+			     "table exists, will not overwrite on restore"
+			     );
+  }
+  else
+  {
+    char* backup_dir = thd->lex.backup_dir;
+    char src_path[FN_REFLEN], dst_path[FN_REFLEN];
+    char* table_name = table->name;
+    char* db = thd->db ? thd->db : table->db;
+	
+    if (!fn_format(src_path, table_name, backup_dir, reg_ext, 4 + 64))
+      return -1; // protect buffer overflow
+	    
+    sprintf(dst_path, "%s/%s/%s", mysql_real_data_home, db, table_name);
+
+    int lock_retcode;
+    pthread_mutex_lock(&LOCK_open);
+    if ((lock_retcode = lock_table_name(thd, table)) < 0)
+    {
+      pthread_mutex_unlock(&LOCK_open);
+      return -1;
+    }
+      
+    if (lock_retcode && wait_for_locked_table_names(thd, table))
+    {
+      pthread_mutex_unlock(&LOCK_open);
+      return -1;
+    }
+    pthread_mutex_unlock(&LOCK_open);
+      
+    if (my_copy(src_path,
+		fn_format(dst_path, dst_path,"",
+			  reg_ext, 4),
+		MYF(MY_WME)))
     {
       return send_check_errmsg(thd, table, "restore",
-			       "table exists, will not overwrite on restore"
-			       );
+			       "Failed copying .frm file");
     }
-  else
+    bool save_no_send_ok = thd->net.no_send_ok;
+    thd->net.no_send_ok = 1;
+    // generate table will try to send OK which messes up the output
+    // for the client
+      
+    if (generate_table(thd, table, 0))
     {
-      char* backup_dir = thd->lex.backup_dir;
-      char src_path[FN_REFLEN], dst_path[FN_REFLEN];
-      char* table_name = table->name;
-      char* db = thd->db ? thd->db : table->db;
-	
-      if(!fn_format(src_path, table_name, backup_dir, reg_ext, 4 + 64))
-	return -1; // protect buffer overflow
-	    
-      sprintf(dst_path, "%s/%s/%s", mysql_real_data_home, db, table_name);
-
-      int lock_retcode;
-      pthread_mutex_lock(&LOCK_open);
-      if((lock_retcode = lock_table_name(thd, table)) < 0)
-	{
-	  pthread_mutex_unlock(&LOCK_open);
-	  return -1;
-	}
-      
-      if(lock_retcode && wait_for_locked_table_names(thd, table))
-	{
-          pthread_mutex_unlock(&LOCK_open);
-	  return -1;
-	}
-      pthread_mutex_unlock(&LOCK_open);
-      
-      if(my_copy(src_path,
-		 fn_format(dst_path, dst_path,"",
-			   reg_ext, 4),
-		 MYF(MY_WME)))
-	{
-           return send_check_errmsg(thd, table, "restore",
-				    "Failed copying .frm file");
-	}
-      bool save_no_send_ok = thd->net.no_send_ok;
-      thd->net.no_send_ok = 1;
-      // generate table will try to send OK which messes up the output
-      // for the client
-      
-      if(generate_table(thd, table, 0))
-	{
-	  thd->net.no_send_ok = save_no_send_ok;
-           return send_check_errmsg(thd, table, "restore",
-				    "Failed generating table from .frm file");
-	}
-      
       thd->net.no_send_ok = save_no_send_ok;
+      return send_check_errmsg(thd, table, "restore",
+			       "Failed generating table from .frm file");
     }
+      
+    thd->net.no_send_ok = save_no_send_ok;
+  }
 	
   return 0;	
 }
