@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!@PERL@
 
 use Getopt::Long;
 use POSIX qw(strftime);
@@ -82,11 +82,11 @@ sub main
     print "in your PATH.\n";
     exit(1);
   }
-  usage() if (!defined($ARGV[0]) || 
+  usage() if (!defined($ARGV[0]) ||
 	      ($ARGV[0] ne 'start' && $ARGV[0] ne 'START' &&
 	       $ARGV[0] ne 'stop' && $ARGV[0] ne 'STOP' &&
 	       $ARGV[0] ne 'report' && $ARGV[0] ne 'REPORT'));
-	      
+
   if (!$opt_no_log)
   {
     w2log("$my_progname log file version $VER; run: ",
@@ -213,7 +213,7 @@ sub start_mysqlds()
   }
   if (!$i && !$opt_no_log)
   {
-    w2log("No MySQL servers to be started (check your GNRs)", 
+    w2log("No MySQL servers to be started (check your GNRs)",
 	  "$opt_log", 0, 0);
   }
 }
@@ -261,7 +261,7 @@ sub stop_mysqlds()
   }
   if (!$i && !$opt_no_log)
   {
-    w2log("No MySQL servers to be stopped (check your GNRs)", 
+    w2log("No MySQL servers to be stopped (check your GNRs)",
 	  "$opt_log", 0, 0);
   }
 }
@@ -373,7 +373,7 @@ sub find_groups
 }
 
 ####
-#### w2log: Write to a logfile. 
+#### w2log: Write to a logfile.
 #### 1.arg: append to the log file (given string, or from a file. if a file,
 ####        file will be read from $opt_logdir)
 #### 2.arg: logfile -name (w2log assumes that the logfile is in $opt_logdir).
@@ -392,8 +392,8 @@ sub w2log
 
   if ($is_file)
   {
-    open (FROMFILE, "<$msg") && (@data=<FROMFILE>) && 
-      close(FROMFILE) 
+    open (FROMFILE, "<$msg") && (@data=<FROMFILE>) &&
+      close(FROMFILE)
 	or die "FATAL: w2log: Couldn't open file: $msg\n";
     foreach my $line (@data)
     {
@@ -401,7 +401,7 @@ sub w2log
     }
   }
   else
-  {  
+  {
     print LOGFILE "$msg";
     print LOGFILE strftime "%a %b %e %H:%M:%S %Y", localtime if ($date_flag);
     print LOGFILE "\n";
@@ -443,13 +443,13 @@ sub example
 # This is an example of a my.cnf file on behalf of $my_progname.
 # This file should probably be in your home dir (~/.my.cnf) or /etc/my.cnf
 # Version $VER by Jani Tolonen
-# NOTES: 
+# NOTES:
 # 1.Make sure that the MySQL user, who is stopping the mysqld services (e.g
 #   using the mysqladmin) have the same password and username for all the
 #   data directories accessed (to the 'mysql' database) And make sure that
 #   the user has the 'Shutdown_priv' privilege! If you have many data-
 #   directories and many different 'mysql' databases with different passwords
-#   for the MySQL 'root' user, you may want to create a common 'multi_admin' 
+#   for the MySQL 'root' user, you may want to create a common 'multi_admin'
 #   user for each using the same password (see below). Example how to do it:
 #   shell> mysql -u root -S /tmp/mysql.sock -proot_password -e
 #   "GRANT SHUTDOWN ON *.* TO multi_admin\@localhost IDENTIFIED BY 'multipass'"
@@ -493,7 +493,7 @@ sub example
 #   account for this, unless you *KNOW* what you are doing!
 # 8.MOST IMPORTANT: Make sure that you understand the meanings of the options
 #   that are passed to the mysqlds and why *WOULD YOU WANT* to have separate
-#   mysqld processes. Starting multiple mysqlds in one data directory *WON'T* 
+#   mysqld processes. Starting multiple mysqlds in one data directory *WON'T*
 #   give you extra performance in a threaded system!
 #
 [mysqld_multi]
