@@ -4554,6 +4554,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
   ptr->ignore_leaves= test(table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->derived=	    table->sel;
+  ptr->cacheable_table= 1;
   if (use_index_arg)
     ptr->use_index=(List<String> *) thd->memdup((gptr) use_index_arg,
 						sizeof(*use_index_arg));

@@ -82,7 +82,6 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
     table_list.real_name= table_list.alias= table->table_name;
     table_list.table=table;
     table_list.grant=table->grant;
-    table_list.non_cachable_table= 1;
 
     thd->dupp_field=0;
     if (setup_tables(&table_list) ||

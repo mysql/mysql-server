@@ -987,7 +987,7 @@ void mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
   int error;
   DBUG_ENTER("mysql_stmt_prepare");
 
-  DBUG_PRINT("pquery", ("%s", packet));
+  DBUG_PRINT("prep_query", ("%s", packet));
 
   if (stmt == 0)
   {
@@ -1133,7 +1133,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   if (!(stmt= find_prepared_statement(thd, stmt_id, "execute", SEND_ERROR)))
     DBUG_VOID_RETURN;
 
-  DBUG_PRINT("equery:", ("%s", stmt->query));
+  DBUG_PRINT("exec_query:", ("%s", stmt->query));
 
   /* Check if we got an error when sending long data */
   if (stmt->get_longdata_error)
