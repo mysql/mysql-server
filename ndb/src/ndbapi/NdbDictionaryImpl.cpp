@@ -2816,3 +2816,7 @@ NdbDictInterface::execLIST_TABLES_CONF(NdbApiSignal* signal,
 
 template class Vector<Uint32>;
 template class Vector<Vector<Uint32> >;
+template class Vector<NdbTableImpl*>;
+template class Vector<NdbColumnImpl*>;
+template class Bitmask<4>;
+
