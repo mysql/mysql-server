@@ -418,6 +418,8 @@ public:
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
   bool having_fix_field;
+  /* explicit LIMIT clause was used */
+  bool explicit_limit;
 
   /* 
      SELECT for SELECT command st_select_lex. Used to privent scaning

@@ -3566,9 +3566,7 @@ opt_limit_clause_init:
 	  LEX *lex= Lex;
 	  SELECT_LEX *sel= lex->current_select;
           sel->offset_limit= 0L;
-          sel->select_limit= (&lex->select_lex == sel) ?
-	    Lex->thd->variables.select_limit :	/* primary SELECT */
-	    HA_POS_ERROR;			/* subquery */
+          sel->select_limit= HA_POS_ERROR;
 	}
 	| limit_clause {}
 	;
@@ -3588,18 +3586,21 @@ limit_options:
             SELECT_LEX *sel= Select;
             sel->select_limit= $1;
             sel->offset_limit= 0L;
+	    sel->explicit_limit= 1;
 	  }
 	| ULONG_NUM ',' ULONG_NUM
 	  {
 	    SELECT_LEX *sel= Select;
 	    sel->select_limit= $3;
 	    sel->offset_limit= $1;
+	    sel->explicit_limit= 1;
 	  }
 	| ULONG_NUM OFFSET_SYM ULONG_NUM
 	  {
 	    SELECT_LEX *sel= Select;
 	    sel->select_limit= $1;
 	    sel->offset_limit= $3;
+	    sel->explicit_limit= 1;
 	  }
 	;
 
@@ -3611,7 +3612,11 @@ delete_limit_clause:
 	  lex->current_select->select_limit= HA_POS_ERROR;
 	}
 	| LIMIT ulonglong_num
-	{ Select->select_limit= (ha_rows) $2; };
+	{
+	  SELECT_LEX *sel= Select;
+	  sel->select_limit= (ha_rows) $2;
+	  sel->explicit_limit= 1;
+	};
 
 ULONG_NUM:
 	NUM	    { $$= strtoul($1.str,NULL,10); }
