@@ -28,13 +28,13 @@ drop database foo;
 # test drop/create database and FLUSH TABLES WITH READ LOCK
 drop database if exists foo;
 flush tables with read lock;
---error 1209,1218;
+--error 1209,1219;
 create database foo;
 unlock tables;
 create database foo;
 show databases;
 flush tables with read lock;
---error 1208,1218;
+--error 1208,1219;
 drop database foo;
 unlock tables;
 drop database foo;

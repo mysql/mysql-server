@@ -19,25 +19,25 @@ select 't1',b,count(*) from t1 group by b UNION select 't2',b,count(*) from t2 g
 # Test some error conditions with UNION
 explain select a,b from t1 union all select a,b from t2;
 
---error 1216
+--error 1217
 select a,b from t1 into outfile 'skr' union select a,b from t2;
 
---error 1216
+--error 1217
 select a,b from t1 order by a union select a,b from t2;
 
---error 1216
+--error 1217
 insert into t3 select a from t1 order by a union select a from t2;
 
---error 1217
+--error 1218
 create table t3 select a,b from t1 union select a from t2;
 
---error 1217
+--error 1218
 select a,b from t1 union select a from t2;
 
---error 1217
+--error 1218
 select * from t1 union select a from t2;
 
---error 1217
+--error 1218
 select a from t1 union select * from t2;
 
 # Test CREATE, INSERT and REPLACE
