@@ -456,18 +456,6 @@ struct proc_node_struct{
 	sym_node_t*	param_list;	/* input and output parameters */
 	que_node_t*	stat_list;	/* statement list */
 	sym_tab_t*	sym_tab;	/* symbol table of this procedure */
-	dict_proc_t*	dict_proc;	/* stored procedure node in the
-					dictionary cache, if defined */
-};
-
-/* Stored procedure call node */
-struct call_node_struct{
-	que_common_t	common;		/* type: QUE_NODE_CALL */
-	sym_node_t*	proc_name;	/* stored procedure name */
-	dict_proc_t*	procedure_def;	/* pointer to a stored procedure graph
-					in the dictionary stored procedure
-					cache */
-	sym_tab_t*	sym_tab;	/* symbol table of this query */
 };
 
 /* elsif-element node */

@@ -25,10 +25,6 @@ byte	data_error;	/* data pointers of tuple fields are initialized
 ulint	data_dummy;	/* this is used to fool the compiler in
 			dtuple_validate */
 
-byte	data_buf[8192];	/* used in generating test tuples */
-ulint	data_rnd = 756511;
-
-
 /* Some non-inlined functions used in the MySQL interface: */
 void 
 dfield_set_data_noninline(

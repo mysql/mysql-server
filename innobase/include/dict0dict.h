@@ -59,41 +59,6 @@ Inits the data dictionary module. */
 void
 dict_init(void);
 /*===========*/
-/**************************************************************************
-Returns a stored procedure object and memoryfixes it. */
-UNIV_INLINE
-dict_proc_t*
-dict_procedure_get(
-/*===============*/
-				/* out: procedure, NULL if does not exist */
-	char*	proc_name,	/* in: table name */
-	trx_t*	trx);		/* in: transaction handle or NULL */
-/**************************************************************************
-Adds a stored procedure object to the dictionary cache. */
-
-void
-dict_procedure_add_to_cache(
-/*========================*/
-	dict_proc_t*	proc);	/* in: procedure */
-/**************************************************************************
-Reserves a parsed copy of a stored procedure to execute. If there are no
-free parsed copies left at the moment, parses a new copy. Takes the copy off
-the list of copies: the copy must be returned there with
-dict_procedure_release_parsed_copy. */
-
-que_t*
-dict_procedure_reserve_parsed_copy(
-/*===============================*/
-				/* out: the query graph */
-	dict_proc_t*	proc);	/* in: dictionary procedure node */
-/**************************************************************************
-Releases a parsed copy of an executed stored procedure. Puts the copy to the
-list of copies. */
-
-void
-dict_procedure_release_parsed_copy(
-/*===============================*/
-	que_t*	graph);	/* in: query graph of a stored procedure */
 /*************************************************************************
 Gets the column data type. */
 UNIV_INLINE
@@ -901,8 +866,6 @@ struct dict_sys_struct{
 	hash_table_t* 	table_id_hash;	/* hash table of the tables, based
 					on id */
 	hash_table_t* 	col_hash;	/* hash table of the columns */
-	hash_table_t*	procedure_hash;	/* hash table of the stored
-					procedures */
 	UT_LIST_BASE_NODE_T(dict_table_t)
 			table_LRU; 	/* LRU list of tables */
 	ulint		size;		/* varying space in bytes occupied
