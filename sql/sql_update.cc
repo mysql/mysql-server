@@ -246,7 +246,11 @@ int mysql_update(THD *thd,
 			   DISK_BUFFER_SIZE, MYF(MY_WME)))
 	goto err;
 
+      /* If quick select is used, initialize it before retrieving rows. */
+      if (select && select->quick && select->quick->reset())
+        goto err;
       init_read_record(&info,thd,table,select,0,1);
+     
       thd->proc_info="Searching rows for update";
       uint tmp_limit= limit;
 
