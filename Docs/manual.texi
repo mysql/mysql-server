@@ -23547,10 +23547,10 @@ using indexes are printed. @xref{Command-line options}.
 @cindex maintaining, log files
 @cindex log files, maintaining
 
-MySQL has a lot of log files which make it easy to see what is
-going. @xref{Log Files}. One must however from time to time clean up
-after @code{MysQL} to ensure that the logs don't take up too much disk
-space.
+The MySQL Server can create a number of different log files, which make
+it easy to see what is going on. @xref{Log Files}. One must however
+regularly clean up these files, to ensure that the logs don't take up
+too much disk space.
 
 When using MySQL with log files, you will, from time to time,
 want to remove/backup old log files and tell MySQL to start
@@ -28815,6 +28815,7 @@ and if you can use @code{GLOBAL} or @code{SESSION} with them.
 @item delayed_insert_limit @tab num @tab GLOBAL
 @item delayed_insert_timeout @tab num @tab GLOBAL
 @item delayed_queue_size @tab num @tab GLOBAL
+@item error_count @tab num @tab LOCAL
 @item flush @tab bool @tab GLOBAL
 @item flush_time @tab num @tab GLOBAL
 @item foreign_key_checks @tab bool @tab SESSION
@@ -28833,6 +28834,7 @@ and if you can use @code{GLOBAL} or @code{SESSION} with them.
 @item max_binlog_size @tab num @tab GLOBAL
 @item max_connect_errors @tab num @tab GLOBAL
 @item max_connections @tab num @tab GLOBAL
+@item max_error_count @tab num @tab GLOBAL | SESSION
 @item max_delayed_threads @tab num @tab GLOBAL
 @item max_heap_table_size @tab num @tab GLOBAL | SESSION
 @item max_join_size @tab num @tab GLOBAL | SESSION
@@ -28881,6 +28883,7 @@ and if you can use @code{GLOBAL} or @code{SESSION} with them.
 @item tx_isolation @tab enum @tab GLOBAL | SESSION
 @item version @tab string @tab GLOBAL
 @item wait_timeout @tab num @tab GLOBAL | SESSION
+@item warning_count @tab num @tab LOCAL
 @item unique_checks @tab bool @tab SESSION
 @end multitable
 
