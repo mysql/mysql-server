@@ -306,8 +306,6 @@ drop table t1, t2;
 #
 # types conversions
 #
-
-
 create table t1 SELECT "a" as a UNION select "aa" as a;
 select * from t1;
 show create table t1;
@@ -417,3 +415,24 @@ create table t1 select _latin1"test" union select _latin2"testt" ;
 create table t1 select _latin2"test" union select _latin2"testt" ;
 show create table t1;
 drop table t1;
+
+#
+# conversion memory->disk table
+#
+#
+# conversion memory->disk table
+#
+create table t1 (s char(200));
+insert into t1 values (repeat("1",200));
+create table t2 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+set local tmp_table_size=1024;
+select count(*) from (select * from t1 union all select * from t2 order by 1) b;
+select count(*) from t1;
+select count(*) from t2;
+drop table t1,t2;
+set local tmp_table_size=default;
