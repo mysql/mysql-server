@@ -312,6 +312,10 @@ SOURCE=.\pars\pars0sym.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\que\que0que.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\read\read0read.c
 # End Source File
 # Begin Source File
