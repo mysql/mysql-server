@@ -466,3 +466,22 @@ insert IGNORE into t1 values ('Garbage');
 ERROR HY000: Unknown error
 alter table t1 add spatial index(a);
 drop table t1;
+create table t1(a geometry not null, spatial index(a));
+insert into t1 values
+(GeomFromText('POINT(1 1)')), (GeomFromText('POINT(3 3)')), 
+(GeomFromText('POINT(4 4)')), (GeomFromText('POINT(6 6)'));
+select AsText(a) from t1 where
+MBRContains(GeomFromText('Polygon((0 0, 0 2, 2 2, 2 0, 0 0))'), a)
+or
+MBRContains(GeomFromText('Polygon((2 2, 2 5, 5 5, 5 2, 2 2))'), a);
+AsText(a)
+POINT(1 1)
+POINT(3 3)
+POINT(4 4)
+select AsText(a) from t1 where
+MBRContains(GeomFromText('Polygon((0 0, 0 2, 2 2, 2 0, 0 0))'), a)
+and
+MBRContains(GeomFromText('Polygon((0 0, 0 7, 7 7, 7 0, 0 0))'), a);
+AsText(a)
+POINT(1 1)
+drop table t1;
