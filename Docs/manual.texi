@@ -33990,8 +33990,8 @@ DELETE FROM t1,t2 USING t1,t2,t3 WHERE t1.id=t2.id AND t2.id=t3.id
 In the above case we delete matching rows just from tables @code{t1} and
 @code{t2}.
 
-@code{ORDER BY} and using multiple tables in the @code{DELETE} is supported
-in MySQL 4.0.
+@code{ORDER BY} and using multiple tables in the @code{DELETE} statement
+is supported in MySQL 4.0.
 
 If an @code{ORDER BY} clause is used, the rows will be deleted in that order.
 This is really only useful in conjunction with @code{LIMIT}.  For example:
@@ -35947,16 +35947,17 @@ You can set the default isolation level for @code{mysqld} with
 @cindex full-text search
 @cindex FULLTEXT
 
-Since Version 3.23.23, MySQL has support for full-text indexing
+As of Version 3.23.23, MySQL has support for full-text indexing
 and searching.  Full-text indexes in MySQL are an index of type
 @code{FULLTEXT}.  @code{FULLTEXT} indexes can be created from @code{VARCHAR}
 and @code{TEXT} columns at @code{CREATE TABLE} time or added later with
-@code{ALTER TABLE} or @code{CREATE INDEX}.  For large datasets, adding
-@code{FULLTEXT} index with @code{ALTER TABLE} (or @code{CREATE INDEX})
-would be much faster than inserting rows into the empty table that has
-a @code{FULLTEXT}  index.
+@code{ALTER TABLE} or @code{CREATE INDEX}.  For large datasets, it will be
+much faster to load your data into a table that has no @code{FULLTEXT}
+index, then create the index with @code{ALTER TABLE} (or @code{CREATE
+INDEX}).  Loading data into a table that already has a @code{FULLTEXT}
+index will be slower.
 
-Full-text search is performed with the @code{MATCH} function.
+Full-text searching is performed with the @code{MATCH()} function.
 
 @example
 mysql> CREATE TABLE articles (
@@ -35988,24 +35989,35 @@ mysql> SELECT * FROM articles
 2 rows in set (0.00 sec)
 @end example
 
-The function @code{MATCH} matches a natural language (or boolean,
-see below) query in case-insensitive fashion @code{AGAINST}
-a text collection (which is simply the set of columns covered by a
-@code{FULLTEXT} index).  For every row in a table it returns relevance -
-a similarity measure between the text in that row (in the columns that are
-part of the collection) and the query.  When it is used in a @code{WHERE}
-clause (see example above) the rows returned are automatically sorted with
-relevance decreasing.  Relevance is a non-negative floating-point number.
-Zero relevance means no similarity.  Relevance is computed based on the
-number of words in the row, the number of unique words in that row, the
-total number of words in the collection, and the number of documents (rows)
-that contain a particular word.
+The @code{MATCH()} function performs a natural language search for a string
+against a text collection (a set of of one or more columns included in
+a @code{FULLTEXT} index).  The search string is given as the argument to
+@code{AGAINST()}.  The search is performed in case-insensitive fashion.
+For every row in the table, @code{MATCH()} returns a relevance value,
+that is, a similarity measure between the search string and the text in
+that row in the columns named in the @code{MATCH()} list.
 
-The above is a basic example of using @code{MATCH} function. Rows are
-returned with relevance decreasing.
+When @code{MATCH()} is used in a @code{WHERE} clause (see example above)
+the rows returned are automatically sorted with highest relevance first.
+Relevance values are non-negative floating-point numbers.  Zero relevance
+means no similarity.  Relevance is computed based on the number of words
+in the row, the number of unique words in that row, the total number of
+words in the collection, and the number of documents (rows) that contain
+a particular word.
+
+It is also possible to perform a boolean mode search.  This is explained
+later in the section.
+
+The preceding example is a basic illustration showing how to use the
+@code{MATCH()} function. Rows are returned in order of decreasing
+relevance.
+
+The next example shows how to retrieve the relevance values explicitly.
+As neither @code{WHERE} nor @code{ORDER BY} clauses are present, returned
+rows are not ordered.
 
 @example
-mysql> SELECT id,MATCH title,body AGAINST ('Tutorial') FROM articles;
+mysql> SELECT id,MATCH (title,body) AGAINST ('Tutorial') FROM articles;
 +----+-----------------------------------------+
 | id | MATCH (title,body) AGAINST ('Tutorial') |
 +----+-----------------------------------------+
@@ -36019,12 +36031,16 @@ mysql> SELECT id,MATCH title,body AGAINST ('Tutorial') FROM articles;
 6 rows in set (0.00 sec)
 @end example
 
-This example shows how to retrieve the relevances. As neither @code{WHERE}
-nor @code{ORDER BY} clauses are present, returned rows are not ordered.
+The following example is more complex.  The query returns the relevance
+and still sorts the rows in order of decreasing relevance. To achieve
+this result, you should specify @code{MATCH()} twice. This will cause no
+additional overhead, because the MySQL optimiser will notice that the
+two @code{MATCH()} calls are identical and invoke the full-text search
+code only once.
 
 @example
-mysql> SELECT id, body, MATCH title,body AGAINST (
-    -> 'Security implications of running MySQL as root') AS score
+mysql> SELECT id, body, MATCH (title,body) AGAINST
+    -> ('Security implications of running MySQL as root') AS score
     -> FROM articles WHERE MATCH (title,body) AGAINST
     -> ('Security implications of running MySQL as root');
 +----+-------------------------------------+-----------------+
@@ -36036,18 +36052,12 @@ mysql> SELECT id, body, MATCH title,body AGAINST (
 2 rows in set (0.00 sec)
 @end example
 
-This is more complex example - the query returns the relevance and still
-sorts the rows with relevance decreasing. To achieve it one should specify
-@code{MATCH} twice. Note, that this will cause no additional overhead, as
-MySQL optimiser will notice that these two @code{MATCH} calls are
-identical and will call full-text search code only once.
+MySQL uses a very simple parser to split text into words.  A ``word''
+is any sequence of characters consisting of letters, numbers, @samp{'},
+and @samp{_}.  Any ``word'' that is present in the stopword list or is just
+too short (3 characters or less) is ignored.
 
-MySQL uses a very simple parser to split text into words.  A
-``word'' is any sequence of letters, numbers, @samp{'}, and @samp{_}.  Any
-``word'' that is present in the stopword list or just too short (3
-characters or less) is ignored.
-
-Every correct word in the collection and in the query is weighted,
+Every correct word in the collection and in the query is weighted
 according to its significance in the query or collection.  This way, a
 word that is present in many documents will have lower weight (and may
 even have a zero weight), because it has lower semantic value in this
@@ -36057,28 +36067,28 @@ relevance of the row.
 
 Such a technique works best with large collections (in fact, it was
 carefully tuned this way).  For very small tables, word distribution
-does not reflect adequately their semantical value, and this model
-may sometimes produce bisarre results.
+does not reflect adequately their semantic value, and this model
+may sometimes produce bizarre results.
 
 @example
 mysql> SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('MySQL');
 Empty set (0.00 sec)
 @end example
 
-Search for the word @code{MySQL} produces no results in the above example.
-Word @code{MySQL} is present in more than half of rows, and as such, is
-effectively treated as a stopword (that is, with semantical value zero).
-It is, really, the desired behavior - a natural language query should not
-return every second row in 1GB table.
+The search for the word @code{MySQL} produces no results in the above
+example, because that word is present in more than half of rows.  As such,
+it is effectively treated as a stopword (that is, a word with zero semantic
+value).  This is the most desirable behavior -- a natural language query
+should not return every second row from a 1GB table.
 
 A word that matches half of rows in a table is less likely to locate relevant
 documents.  In fact, it will most likely find plenty of irrelevant documents.
 We all know this happens far too often when we are trying to find something on
 the Internet with a search engine.  It is with this reasoning that such rows
-have been assigned a low semantical value in @strong{this particular dataset}.
+have been assigned a low semantic value in @strong{this particular dataset}.
 
-Since version 4.0.1 MySQL can also perform boolean fulltext searches using
-@code{IN BOOLEAN MODE} modifier.
+As of Version 4.0.1, MySQL can also perform boolean full-text searches using
+the @code{IN BOOLEAN MODE} modifier.
 
 @example
 mysql> SELECT * FROM articles WHERE MATCH (title,body)
@@ -36095,38 +36105,44 @@ mysql> SELECT * FROM articles WHERE MATCH (title,body)
 @end example
 
 This query retrieved all the rows that contain the word @code{MySQL}
-(note: 50% threshold is gone), but does @strong{not} contain the word
-@code{YourSQL}.  Note, that it does not auto-magically sort rows in
-decreasing relevance order (the last row has the highest relevance,
-as it contains @code{MySQL} twice). Boolean fulltext search can also
-work even without @code{FULLTEXT} index, but it would be @strong{slow}.
+(note: the 50% threshold is not used), but that do @strong{not} contain
+the word @code{YourSQL}.  Note that a boolean mode search does not
+auto-magically sort rows in order of decreasing relevance.  You can
+see this from result of the preceding query, where the row with the
+highest relevance (the one that contains @code{MySQL} twice) is listed
+last, not first.  A boolean full-text search can also work even without
+a @code{FULLTEXT} index, although it would be @strong{slow}.
 
-Boolean fulltext search supports the following operators:
+The boolean full-text search capability supports the following operators:
 
 @table @code
 @item +
-A plus sign prepended to a word indicates that this word @strong{must be}
+A leading plus sign indicates that this word @strong{must be}
 present in every row returned.
 @item -
-A minus sign prepended to a word indicates that this word @strong{must not}
-be present in the rows returned.
+A leading minus sign indicates that this word @strong{must not be}
+present in any row returned.
 @item
-By default - without plus or minus - the word is optional, but the rows that
-contain it will be rated higher. This mimicks the behaviour of
-@code{MATCH ... AGAINST()} without @code{IN BOOLEAN MODE} modifier.
+By default (when neither plus nor minus is specified) the word is optional,
+but the rows that contain it will be rated higher. This mimicks the
+behaviour of @code{MATCH() ... AGAINST()} without the @code{IN BOOLEAN
+MODE} modifier.
 @item < >
-These two operators are used to increase and decrease word's contribution
-to the relevance value, assigned to a row. See an example below.
+These two operators are used to change a word's contribution to the
+relevance value that is assigned to a row.  The @code{<} operator
+decreases the contribution and the @code{>} operator increases it.
+See the example below.
 @item ( )
-Parentheses are used - as usual - to group words into subexpressions.
+Parentheses are used to group words into subexpressions.
 @item ~
-This is negation operator. It makes word's contribution to the row
-relevance negative. It's useful for marking noise words. A row that has
-such a word will be rated lower than others, but will not be excluded
-altogether, as with @code{-} operator.
+A leading tilde acts as a negation operator, causing the word's
+contribution to the row relevance to be negative. It's useful for marking
+noise words. A row that contains such a word will be rated lower than
+others, but will not be excluded altogether, as it would be with the
+@code{-} operator.
 @item *
-This is truncation operator. Unlike others it should be @strong{appended}
-to the word, not prepended.
+An asterisk is the truncation operator. Unlike the other operators, it
+should be @strong{appended} to the word, not prepended.
 @end table
 
 And here are some examples:
@@ -36148,25 +36164,25 @@ order), but rank ``apple pie'' higher than ``apple strudel''.
 @end table
 
 @menu
-* Fulltext Restrictions::       Fulltext Restrictions
+* Fulltext Restrictions::       Full-text Restrictions
 * Fulltext Fine-tuning::        Fine-tuning MySQL Full-text Search
 * Fulltext TODO::               Full-text Search TODO
 @end menu
 
 @node Fulltext Restrictions, Fulltext Fine-tuning, Fulltext Search, Fulltext Search
-@subsection Fulltext Restrictions
+@subsection Full-text Restrictions
 
 @itemize @bullet
 @item
-All parameters to the @code{MATCH} function must be columns from the
-same table that is part of the same fulltext index, unless this
-@code{MATCH} is @code{IN BOOLEAN MODE}.
+All parameters to the @code{MATCH()} function must be columns from the
+same table that is part of the same @code{FULLTEXT} index, unless the
+@code{MATCH()} is @code{IN BOOLEAN MODE}.
 @item
-Column list between @code{MATCH} and @code{AGAINST} must match exactly
-a column list in the @code{FULLTEXT} index definition, unless this
-@code{MATCH} is @code{IN BOOLEAN MODE}.
+The @code{MATCH()} column list must exactly match the column list in some
+@code{FULLTEXT} index definition for the table, unless this @code{MATCH()}
+is @code{IN BOOLEAN MODE}.
 @item
-The argument to @code{AGAINST} must be a constant string.
+The argument to @code{AGAINST()} must be a constant string.
 @end itemize
 
 
@@ -36176,7 +36192,7 @@ The argument to @code{AGAINST} must be a constant string.
 Unfortunately, full-text search has few user-tunable parameters yet,
 although adding some is very high on the TODO. If you have a
 MySQL source distribution (@pxref{Installing source}), you can
-more control on the full-text search behavior.
+exert more control over full-text searching behavior.
 
 Note that full-text search was carefully tuned for the best searching
 effectiveness.  Modifying the default behavior will, in most cases,
@@ -36186,37 +36202,37 @@ unless you know what you are doing!
 @itemize @bullet
 
 @item
-Minimal length of word to be indexed is defined by MySQL
+The minimum length of words to be indexed is defined by the MySQL
 variable @code{ft_min_word_length}. @xref{SHOW VARIABLES}.
 Change it to the value you prefer, and rebuild
 your @code{FULLTEXT} indexes.
 
 @item
 The stopword list is defined in @file{myisam/ft_static.c}
-Modify it to your taste, recompile MySQL and rebuild
+Modify it to your taste, recompile MySQL, and rebuild
 your @code{FULLTEXT} indexes.
 
 @item
-The 50% threshold is caused by the particular weighting scheme chosen. To
-disable it, change the following line in @file{myisam/ftdefs.h}:
+The 50% threshold is determined by the particular weighting scheme chosen.
+To disable it, change the following line in @file{myisam/ftdefs.h}:
 @example
 #define GWS_IN_USE GWS_PROB
 @end example
-to
+To:
 @example
 #define GWS_IN_USE GWS_FREQ
 @end example
-and recompile MySQL.
+Then recompile MySQL.
 There is no need to rebuild the indexes in this case.
-@strong{Note:} by doing this you @strong{severely} decrease MySQL ability
-to provide adequate relevance values by @code{MATCH} function.
-It means, that if you really need to search for such a common words,
-then you should rather search @code{IN BOOLEAN MODE}, which does not
-has 50% threshold.
+@strong{Note:} by doing this you @strong{severely} decrease MySQL's ability
+to provide adequate relevance values for the @code{MATCH()} function.
+If you really need to search for such common words, it would be better to
+search using @code{IN BOOLEAN MODE} instead, which does not observe the 50%
+threshold.
 
 @item
-Sometimes search engine maintaner would like to change operators used
-for boolean fulltext search. They are defined by a
+Sometimes the search engine maintainer would like to change the operators used
+for boolean fulltext searches. These are defined by the
 @code{ft_boolean_syntax} variable. @xref{SHOW VARIABLES}.
 Still, this variable is read-only, its value is set in
 @file{myisam/ft_static.c}.
@@ -36237,7 +36253,7 @@ the user wants to treat as words, examples are "C++", "AS/400", "TCP/IP", etc.
 @item Support for multi-byte charsets.
 @item Make stopword list to depend of the language of the data.
 @item Stemming (dependent of the language of the data, of course).
-@item Generic user-supplyable UDF (?) preparser.
+@item Generic user-suppliable UDF (?) preparser.
 @item Make the model more flexible (by adding some adjustable
 parameters to @code{FULLTEXT} in @code{CREATE/ALTER TABLE}).
 @end itemize
@@ -49697,7 +49713,7 @@ Fixed bug with @code{LOCK TABLE} and BDB tables.
 
 @itemize @bullet
 @item
-Fixed a bug when using @code{MATCH} in @code{HAVING} clause.
+Fixed a bug when using @code{MATCH()} in @code{HAVING} clause.
 @item
 Fixed a bug when using @code{HEAP} tables with @code{LIKE}.
 @item
@@ -50266,7 +50282,7 @@ that caused @code{mysql_install_db} to core dump on some Linux machines.
 @item
 Changed @code{mi_create()} to use less stack space.
 @item
-Fixed bug with optimiser trying to over-optimise @code{MATCH} when used
+Fixed bug with optimiser trying to over-optimise @code{MATCH()} when used
 with @code{UNIQUE} key.
 @item
 Changed @code{crash-me} and the MySQL benchmarks to also work
@@ -50722,7 +50738,7 @@ More variables in @code{SHOW SLAVE STATUS} and @code{SHOW MASTER STATUS}.
 @item
 @code{SLAVE STOP} now will not return until the slave thread actually exits.
 @item
-Full text search via the @code{MATCH} function and @code{FULLTEXT} index type
+Full text search via the @code{MATCH()} function and @code{FULLTEXT} index type
 (for MyISAM files).  This makes @code{FULLTEXT} a reserved word.
 @end itemize
 
