@@ -1429,14 +1429,14 @@ String *Item_func_database::val_str(String *str)
     str->length(0);
   else
     str->copy((const char*) thd->db,(uint) strlen(thd->db),
-	      system_charset_info, thd->variables.thd_charset);
+	      system_charset_info, default_charset());
   return str;
 }
 
 String *Item_func_user::val_str(String *str)
 {
   THD          *thd=current_thd;
-  CHARSET_INFO *cs=thd->variables.thd_charset;
+  CHARSET_INFO *cs= default_charset();
   const char   *host=thd->host ? thd->host : thd->ip ? thd->ip : "";
   uint32       res_length=(strlen(thd->user)+strlen(host)+10) * cs->mbmaxlen;
 
@@ -1543,7 +1543,7 @@ String *Item_func_format::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
   dec= decimals ? decimals+1 : 0;
-  str->set(nr,decimals,thd_charset());
+  str->set(nr,decimals,default_charset());
   str_length=str->length();
   if (nr < 0)
     str_length--;				// Don't count sign
@@ -2007,7 +2007,7 @@ String *Item_func_conv::val_str(String *str)
   else
     dec= (longlong) my_strntoull(res->charset(),res->ptr(),res->length(),from_base,&endptr,&err);
   ptr= longlong2str(dec,ans,to_base);
-  if (str->copy(ans,(uint32) (ptr-ans), thd_charset()))
+  if (str->copy(ans,(uint32) (ptr-ans), default_charset()))
     return &empty_string;
   return str;
 }
@@ -2242,7 +2242,7 @@ String *Item_func_charset::val_str(String *str)
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
   str->copy(res->charset()->csname,strlen(res->charset()->csname),
-	    &my_charset_latin1, thd_charset());
+	    &my_charset_latin1, default_charset());
   return str;
 }
 
@@ -2253,7 +2253,7 @@ String *Item_func_collation::val_str(String *str)
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
   str->copy(res->charset()->name,strlen(res->charset()->name),
-	    &my_charset_latin1, thd_charset());
+	    &my_charset_latin1, default_charset());
   return str;
 }
 

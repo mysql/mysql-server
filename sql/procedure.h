@@ -38,7 +38,7 @@ public:
   virtual void set(const char *str,uint length,CHARSET_INFO *cs)=0;
   virtual void set(longlong nr)=0;
   virtual enum_field_types field_type() const=0;
-  void set(const char *str) { set(str,(uint) strlen(str), thd_charset()); }
+  void set(const char *str) { set(str,(uint) strlen(str), default_charset()); }
   void make_field(Send_field *tmp_field)
   {
     init_make_field(tmp_field,field_type());
@@ -62,7 +62,7 @@ public:
   { int err; value=my_strntod(cs,(char*) str,length,(char**)0,&err); }
   double val() { return value; }
   longlong val_int() { return (longlong) value; }
-  String *val_str(String *s) { s->set(value,decimals,thd_charset()); return s; }
+  String *val_str(String *s) { s->set(value,decimals,default_charset()); return s; }
   unsigned int size_of() { return sizeof(*this);}  
 };
 
@@ -80,7 +80,7 @@ public:
   { int err; value=my_strntoll(cs,str,length,10,NULL,&err); }
   double val() { return (double) value; }
   longlong val_int() { return value; }
-  String *val_str(String *s) { s->set(value, thd_charset()); return s; }
+  String *val_str(String *s) { s->set(value, default_charset()); return s; }
   unsigned int size_of() { return sizeof(*this);}  
 };
 
@@ -92,8 +92,8 @@ public:
     { this->max_length=length; }
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
-  void set(double nr) { str_value.set(nr, 2, thd_charset()); }
-  void set(longlong nr) { str_value.set(nr, thd_charset()); }
+  void set(double nr) { str_value.set(nr, 2, default_charset()); }
+  void set(longlong nr) { str_value.set(nr, default_charset()); }
   void set(const char *str, uint length, CHARSET_INFO *cs)
   { str_value.copy(str,length,cs); }
   double val() 

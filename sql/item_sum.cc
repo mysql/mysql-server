@@ -124,7 +124,7 @@ Item_sum_num::val_str(String *str)
   double nr=val();
   if (null_value)
     return 0;
-  str->set(nr,decimals,thd_charset());
+  str->set(nr,decimals,default_charset());
   return str;
 }
 
@@ -135,7 +135,7 @@ Item_sum_int::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  str->set(nr,thd_charset());
+  str->set(nr,default_charset());
   return str;
 }
 
@@ -416,13 +416,13 @@ Item_sum_hybrid::val_str(String *str)
   case STRING_RESULT:
     return &value;
   case REAL_RESULT:
-    str->set(sum,decimals,thd_charset());
+    str->set(sum,decimals,default_charset());
     break;
   case INT_RESULT:
     if (unsigned_flag)
-      str->set((ulonglong) sum_int,thd_charset());
+      str->set((ulonglong) sum_int,default_charset());
     else
-      str->set((longlong) sum_int,thd_charset());
+      str->set((longlong) sum_int,default_charset());
     break;
   case ROW_RESULT:
   default:
@@ -879,7 +879,7 @@ String *Item_avg_field::val_str(String *str)
   double nr=Item_avg_field::val();
   if (null_value)
     return 0;
-  str->set(nr,decimals,thd_charset());
+  str->set(nr,decimals,default_charset());
   return str;
 }
 
@@ -927,7 +927,7 @@ String *Item_variance_field::val_str(String *str)
   double nr=val();
   if (null_value)
     return 0;
-  str->set(nr,decimals,thd_charset());
+  str->set(nr,decimals,default_charset());
   return str;
 }
 
@@ -1281,7 +1281,7 @@ String *Item_sum_udf_float::val_str(String *str)
   if (null_value)
     return 0;					/* purecov: inspected */
   else
-    str->set(nr,decimals,thd_charset());
+    str->set(nr,decimals,default_charset());
   return str;
 }
 
@@ -1300,7 +1300,7 @@ String *Item_sum_udf_int::val_str(String *str)
   if (null_value)
     return 0;
   else
-    str->set(nr,thd_charset());
+    str->set(nr,default_charset());
   return str;
 }
 
