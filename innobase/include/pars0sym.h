@@ -152,7 +152,7 @@ struct sym_tab_struct{
 					parser */
 	const char*		sql_string;
 					/* SQL string to parse */
-	int			string_len;
+	size_t			string_len;
 					/* SQL string length */
 	int			next_char_pos;
 					/* position of the next character in
