@@ -604,7 +604,7 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
   DBUG_DUMP("key", (char*)key, key_len);
 
   if (!(op= trans->getNdbOperation(m_tabname)) || op->readTuple() != 0)
-    goto err;
+    ERR_RETURN(trans->getNdbError());
 
   if (table->primary_key == MAX_KEY) 
   {
@@ -612,10 +612,11 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
     DBUG_PRINT("info", ("Using hidden key"));
     DBUG_DUMP("key", (char*)key, 8);    
     if (set_hidden_key(op, no_fields, key))
-      goto err;
+      ERR_RETURN(trans->getNdbError());
+
     // Read key at the same time, for future reference
     if (get_ndb_value(op, no_fields, NULL))
-      goto err;
+      ERR_RETURN(trans->getNdbError());
   } 
   else 
   {
@@ -632,7 +633,7 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
 	retrieve_all_fields)
     {
       if (get_ndb_value(op, i, field->ptr))
-        goto err;
+	ERR_RETURN(trans->getNdbError());
     }
     else
     {
@@ -651,9 +652,6 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
   unpack_record(buf);
   table->status= 0;     
   DBUG_RETURN(0);
-
- err:
-  ERR_RETURN(trans->getNdbError());
 }
 
 
@@ -674,11 +672,11 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
     DBUG_RETURN(0);
 
   if (!(op= trans->getNdbOperation(m_tabname)) || op->readTuple() != 0)
-    goto err;
+    ERR_RETURN(trans->getNdbError());
 
     int res;
     if (res= set_primary_key_from_old_data(op, old_data))
-      return res;
+      ERR_RETURN(trans->getNdbError());
     
   // Read all unreferenced non-key field(s)
   for (i= 0; i < no_fields; i++) 
@@ -688,16 +686,11 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
 	(thd->query_id != field->query_id))
     {
       if (get_ndb_value(op, i, field->ptr))
-        goto err;
-    }
-    else
-    {
-      // Attribute was not to be read
-      m_value[i]= NULL;
+	ERR_RETURN(trans->getNdbError());
     }
   }
   
-  if (trans->execute(NoCommit, IgnoreError) != 0) 
+  if (trans->execute(NoCommit) != 0) 
   {
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(ndb_err(trans));
@@ -707,9 +700,6 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
   unpack_record(new_data);
   table->status= 0;     
   DBUG_RETURN(0);
-
- err:
-  ERR_RETURN(trans->getNdbError());
 }
 
 
@@ -1243,6 +1233,8 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       DBUG_RETURN(read_res);
     }
     // Insert new row
+    rows_inserted= 0;
+    rows_to_insert= 1;
     int insert_res= write_row(new_data);
     if (!insert_res)
     {
@@ -1344,9 +1336,9 @@ int ha_ndbcluster::delete_row(const byte *record)
   if (cursor)
   {
     /*
-      We are scanning records and want to update the record
+      We are scanning records and want to delete the record
       that was just found, call deleteTuple on the cursor 
-      to take over the lock to a new update operation
+      to take over the lock to a new updatedelete operation
       And thus setting the primary key of the record from 
       the active record in cursor
     */
