@@ -579,20 +579,15 @@ lock_clust_rec_cons_read_sees(
 	ut_ad(index->type & DICT_CLUSTERED);
 	ut_ad(page_rec_is_user_rec(rec));
 
+	/* NOTE that we call this function while holding the search
+	system latch. To obey the latching order we must NOT reserve the
+	kernel mutex here! */
+
 	trx_id = row_get_rec_trx_id(rec, index);
 	
 	if (read_view_sees_trx_id(view, trx_id)) {
 
 		return(TRUE);
-	}
-
-	if (!lock_check_trx_id_sanity(trx_id, rec, index, FALSE)) {
-		/* Trying to get the 'history' of a corrupt record is bound
-		to fail: let us try to use the record itself in the query */
-		fprintf(stderr,
-"InnoDB: We try to access the corrupt record in the query anyway.\n");
-
-	        return(TRUE);
 	}
 
 	return(FALSE);
@@ -624,6 +619,10 @@ lock_sec_rec_cons_read_sees(
 	ut_ad(!(index->type & DICT_CLUSTERED));
 	ut_ad(page_rec_is_user_rec(rec));
 
+	/* NOTE that we might call this function while holding the search
+	system latch. To obey the latching order we must NOT reserve the
+	kernel mutex here! */
+
 	if (recv_recovery_is_on()) {
 
 		return(FALSE);
@@ -632,16 +631,6 @@ lock_sec_rec_cons_read_sees(
 	max_trx_id = page_get_max_trx_id(buf_frame_align(rec));
 
 	if (ut_dulint_cmp(max_trx_id, view->up_limit_id) >= 0) {
-
-		if (!lock_check_trx_id_sanity(max_trx_id, rec, index, FALSE)) {
-		        /* Trying to get the 'history' of a corrupt record is
-			bound to fail: let us try to use the record itself in
-			the query */
-			fprintf(stderr,
-"InnoDB: We try to access the corrupt record in the query anyway.\n");
-
-			return(TRUE);
-		}
 
 		return(FALSE);
 	}
