@@ -90,7 +90,7 @@ character-set=latin1
 "Specified key was too long; max key length is %d bytes",
 "Key column '%-.64s' doesn't exist in table",
 "BLOB column '%-.64s' can't be used in key specification with the used table type",
-"Column length too big for column '%-.64s' (max = %d); use BLOB instead",
+"Column length too big for column '%-.64s' (max = %d); use BLOB or TEXT instead",
 "Incorrect table definition; there can be only one auto column and it must be defined as a key",
 "%s: ready for connections.\nVersion: '%s'  socket: '%s'  port: %d",
 "%s: Normal shutdown\n",

@@ -3990,8 +3990,6 @@ errorconn:
 	      NullS);
       sql_perror(buff);
     }
-    my_security_attr_free(sa_event);
-    my_security_attr_free(sa_mapping);
     if (handle_client_file_map) 
       CloseHandle(handle_client_file_map);
     if (handle_client_map)

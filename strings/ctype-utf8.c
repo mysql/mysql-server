@@ -2129,12 +2129,7 @@ int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t)
   {
     my_wc_t s_wc,t_wc;
     
-    /*
-      Cast to int8 for extra safety.
-      char can be unsigned by default
-      on some platforms.
-    */
-    if (((int8)s[0]) >= 0)
+    if ((uchar) s[0] < 128)
     {
       /* 
         s[0] is between 0 and 127.
@@ -2181,7 +2176,7 @@ int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t)
     
     /* Do the same for the second string */
     
-    if (((int8)t[0]) >= 0)
+    if ((uchar) t[0] < 128)
     {
       /* Convert single byte character into weight */
       t_wc= plane00[(uchar) t[0]].tolower;
