@@ -69,12 +69,6 @@ static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag, u
   if(info->rtree_recursion_depth >= level)
   {
     k = page_buf + *saved_key;
-    if (!nod_flag)
-    {
-      /* Only leaf pages contain data references. */
-      /* Need to check next key with data reference. */
-      k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag);
-    }
   }
   else
   {
@@ -116,13 +110,13 @@ static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag, u
         info->lastkey_length = k_len + info->s->base.rec_reflength;
         memcpy(info->lastkey, k, info->lastkey_length);
         info->rtree_recursion_depth = level;
-        *saved_key = k - page_buf;
+        *saved_key = last - page_buf;
 
         if (after_key < last)
         {
-          info->int_keypos = (uchar*)saved_key;
-          memcpy(info->buff, page_buf, keyinfo->block_length);
-          info->int_maxpos = rt_PAGE_END(info->buff);
+          info->int_keypos = info->buff;
+          info->int_maxpos = info->buff + (last - after_key);
+          memcpy(info->buff, after_key, last - after_key);
           info->buff_used = 0;
         }
         else
@@ -193,34 +187,32 @@ int rtree_find_next(MI_INFO *info, uint keynr, uint search_flag)
 
   if (!info->buff_used)
   {
-    uint k_len = keyinfo->keylength - info->s->base.rec_reflength;
-    /* rt_PAGE_NEXT_KEY(info->int_keypos) */
-    uchar *key = info->buff + *(int*)info->int_keypos + k_len + 
-                 info->s->base.rec_reflength; 
+    uchar *key = info->int_keypos;
 
     while (key < info->int_maxpos)
     {
       if (!rtree_key_cmp(keyinfo->seg, info->lastkey2, key, 
                          info->last_rkey_length, search_flag))
       {
-        /* rt_PAGE_NEXT_KEY(key) */
-        uchar *after_key = key + k_len + info->s->base.rec_reflength; 
+        uchar *after_key = key + keyinfo->keylength;
 
         info->lastpos = _mi_dpos(info, 0, after_key);
-        info->lastkey_length = k_len + info->s->base.rec_reflength;
         memcpy(info->lastkey, key, info->lastkey_length);
 
-        *(int*)info->int_keypos = key - info->buff;
-        if (after_key >= info->int_maxpos)
+        if (after_key < info->int_maxpos)
         {
-          info->buff_used = 1;
+	  info->int_keypos = after_key;
+        }
+        else
+        {
+	  info->buff_used = 1;
         }
 
         return 0;
       }
       else
       {
-        key += k_len + info->s->base.rec_reflength;
+        key += keyinfo->keylength;
       }
     }
   }
