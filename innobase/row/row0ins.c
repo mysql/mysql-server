@@ -643,7 +643,7 @@ row_ins_check_foreign_constraint(
 
 run_again:
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
-
+	
 	err = DB_SUCCESS;
 
 	if (thr_get_trx(thr)->check_foreigns == FALSE) {
@@ -880,21 +880,16 @@ row_ins_check_foreign_constraints(
 									trx);
 			}
 
-			if (!trx->has_dict_operation_lock) {
+			if (0 == trx->dict_operation_lock_mode) {
 				got_s_lock = TRUE;
 
-				rw_lock_s_lock(&dict_operation_lock);
-
-				trx->has_dict_operation_lock = TRUE;
+				row_mysql_freeze_data_dictionary(trx);
 			}
 
 			err = row_ins_check_foreign_constraint(TRUE, foreign,
 						table, index, entry, thr);
 			if (got_s_lock) {
-
-				rw_lock_s_unlock(&dict_operation_lock);	
-
-				trx->has_dict_operation_lock = FALSE;
+				row_mysql_unfreeze_data_dictionary(trx);
 			}
 				
 			if (err != DB_SUCCESS) {

@@ -1134,32 +1134,73 @@ row_mysql_recover_tmp_table(
 }
 
 /*************************************************************************
-Locks the data dictionary exclusively for performing a table create
-operation. */
+Locks the data dictionary in shared mode from modifications, for performing
+foreign key check, rollback, or other operation invisible to MySQL. */
 
 void
-row_mysql_lock_data_dictionary(void)
-/*================================*/
+row_mysql_freeze_data_dictionary(
+/*=============================*/
+	trx_t*	trx)	/* in: transaction */
 {
+	ut_a(trx->dict_operation_lock_mode == 0);
+	
+	rw_lock_s_lock(&dict_operation_lock);
+
+	trx->dict_operation_lock_mode = RW_S_LATCH;
+}
+
+/*************************************************************************
+Unlocks the data dictionary shared lock. */
+
+void
+row_mysql_unfreeze_data_dictionary(
+/*===============================*/
+	trx_t*	trx)	/* in: transaction */
+{
+	ut_a(trx->dict_operation_lock_mode == RW_S_LATCH);
+
+	rw_lock_s_unlock(&dict_operation_lock);
+
+	trx->dict_operation_lock_mode = 0;
+}
+
+/*************************************************************************
+Locks the data dictionary exclusively for performing a table create or other
+data dictionary modification operation. */
+
+void
+row_mysql_lock_data_dictionary(
+/*===========================*/
+	trx_t*	trx)	/* in: transaction */
+{
+	ut_a(trx->dict_operation_lock_mode == 0);
+	
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks or lock waits can occur then in these operations */
 
 	rw_lock_x_lock(&dict_operation_lock);
+	trx->dict_operation_lock_mode = RW_X_LATCH;
+
 	mutex_enter(&(dict_sys->mutex));
 }
 
 /*************************************************************************
-Unlocks the data dictionary exclusively lock. */
+Unlocks the data dictionary exclusive lock. */
 
 void
-row_mysql_unlock_data_dictionary(void)
-/*==================================*/
+row_mysql_unlock_data_dictionary(
+/*=============================*/
+	trx_t*	trx)	/* in: transaction */
 {
+	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
+
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
 	mutex_exit(&(dict_sys->mutex));
 	rw_lock_x_unlock(&dict_operation_lock);
+
+	trx->dict_operation_lock_mode = 0;
 }
 
 /*************************************************************************
@@ -1183,6 +1224,7 @@ row_create_table_for_mysql(
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	
 	if (srv_created_new_raw) {
@@ -1331,7 +1373,7 @@ row_create_table_for_mysql(
 			fprintf(stderr, 
      "InnoDB: Warning: cannot create table %s because tablespace full\n",
 				 table->name);
-		     	row_drop_table_for_mysql(table->name, trx, TRUE);
+		     	row_drop_table_for_mysql(table->name, trx);
 		} else {
 		       	ut_a(err == DB_DUPLICATE_KEY);
 
@@ -1425,7 +1467,7 @@ row_create_index_for_mysql(
 
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 
-		row_drop_table_for_mysql(index->table_name, trx, TRUE);
+		row_drop_table_for_mysql(index->table_name, trx);
 
 		trx->error_state = DB_SUCCESS;
 	}
@@ -1499,7 +1541,7 @@ row_table_add_foreign_constraints(
 
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 
-		row_drop_table_for_mysql(name, trx, TRUE);
+		row_drop_table_for_mysql(name, trx);
 
 		trx->error_state = DB_SUCCESS;
 	}
@@ -1530,7 +1572,7 @@ row_drop_table_for_mysql_in_background(
 							name); */
   	/* Drop the table in InnoDB */
 
-  	error = row_drop_table_for_mysql(name, trx, FALSE);
+  	error = row_drop_table_for_mysql(name, trx);
 
 	if (error != DB_SUCCESS) {
 		fprintf(stderr,
@@ -1689,9 +1731,7 @@ row_drop_table_for_mysql(
 /*=====================*/
 				/* out: error code or DB_SUCCESS */
 	char*	name,		/* in: table name */
-	trx_t*	trx,		/* in: transaction handle */
-	ibool	has_dict_mutex)	/* in: TRUE if the caller already owns the
-				dictionary system mutex */
+	trx_t*	trx)		/* in: transaction handle */
 {
 	dict_table_t*	table;
 	que_thr_t*	thr;
@@ -1703,6 +1743,7 @@ row_drop_table_for_mysql(
 	ulint		namelen;
 	ulint		keywordlen;
 	ulint		rounds	= 0;
+	ibool		locked_dictionary	= FALSE;
 	char		buf[10000];
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
@@ -1846,12 +1887,13 @@ row_drop_table_for_mysql(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
-	if (!has_dict_mutex) {
+	if (trx->dict_operation_lock_mode != RW_X_LATCH) {
 		/* Prevent foreign key checks etc. while we are dropping the
 		table */
-		rw_lock_x_lock(&dict_operation_lock);
 
-		mutex_enter(&(dict_sys->mutex));
+		row_mysql_lock_data_dictionary(trx);
+
+		locked_dictionary = TRUE;
 	}
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -1948,9 +1990,8 @@ row_drop_table_for_mysql(
 	}
 funct_exit:
 
-	if (!has_dict_mutex) {
-		mutex_exit(&(dict_sys->mutex));
-		rw_lock_x_unlock(&dict_operation_lock);
+	if (locked_dictionary) {
+		row_mysql_unlock_data_dictionary(trx);	
 	}
 
 	que_graph_free(graph);
@@ -1986,8 +2027,7 @@ row_drop_database_for_mysql(
 	
 	trx_start_if_not_started(trx);
 loop:
-	rw_lock_x_lock(&dict_operation_lock);
-	mutex_enter(&(dict_sys->mutex));
+	row_mysql_lock_data_dictionary(trx);
 
 	while ((table_name = dict_get_first_table_name_in_db(name))) {
 		ut_a(memcmp(table_name, name, strlen(name)) == 0);
@@ -2000,8 +2040,7 @@ loop:
 		the table */
 
 		if (table->n_mysql_handles_opened > 0) {
-		        mutex_exit(&(dict_sys->mutex));
-			rw_lock_x_unlock(&dict_operation_lock);
+			row_mysql_unlock_data_dictionary(trx);
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
@@ -2016,7 +2055,7 @@ loop:
 		        goto loop;
 		}
 
-		err = row_drop_table_for_mysql(table_name, trx, TRUE);
+		err = row_drop_table_for_mysql(table_name, trx);
 
 		mem_free(table_name);
 
@@ -2028,8 +2067,7 @@ loop:
 		}
 	}
 
-	mutex_exit(&(dict_sys->mutex));
-	rw_lock_x_unlock(&dict_operation_lock);
+	row_mysql_unlock_data_dictionary(trx);
 	
 	trx_commit_for_mysql(trx);
 
@@ -2166,8 +2204,7 @@ row_rename_table_for_mysql(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
-	rw_lock_x_lock(&dict_operation_lock);
-	mutex_enter(&(dict_sys->mutex));
+	row_mysql_lock_data_dictionary(trx);
 
 	table = dict_table_get_low(old_name);
 
@@ -2249,8 +2286,7 @@ row_rename_table_for_mysql(
 		}
 	}
 funct_exit:	
-	mutex_exit(&(dict_sys->mutex));
-	rw_lock_x_unlock(&dict_operation_lock);
+	row_mysql_unlock_data_dictionary(trx);
 
 	que_graph_free(graph);
 	

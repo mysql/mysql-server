@@ -28,6 +28,9 @@ extern os_event_t	srv_lock_timeout_thread_event;
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT   (8 * ((1024 * 1024) / UNIV_PAGE_SIZE))
 
+/* This is set to TRUE if the MySQL user has set it in MySQL */
+extern ibool	srv_lower_case_table_names;
+
 /* Server parameters which are read from the initfile */
 
 extern char*	srv_data_home;

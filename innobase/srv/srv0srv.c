@@ -51,6 +51,10 @@ Created 10/8/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "row0mysql.h"
 
+/* This is set to TRUE if the MySQL user has set it in MySQL; currently
+affects only FOREIGN KEY definition parsing */
+ibool	srv_lower_case_table_names	= FALSE;
+
 /* Buffer which can be used in printing fatal error messages */
 char	srv_fatal_errbuf[5000];
 
@@ -2064,6 +2068,7 @@ srv_suspend_mysql_thread(
 	os_event_t	event;
 	double		wait_time;
 	trx_t*		trx;
+	ibool		had_dict_lock	= FALSE;
 	
 	ut_ad(!mutex_own(&kernel_mutex));
 
@@ -2107,18 +2112,22 @@ srv_suspend_mysql_thread(
 	srv_conc_force_exit_innodb(thr_get_trx(thr));
 
 	/* Release possible foreign key check latch */
-	if (trx->has_dict_operation_lock) {
+	if (trx->dict_operation_lock_mode == RW_S_LATCH) {
 
-		rw_lock_s_unlock(&dict_operation_lock);
+		had_dict_lock = TRUE;
+
+		row_mysql_unfreeze_data_dictionary(trx);
 	}
+
+	ut_a(trx->dict_operation_lock_mode == 0);
 
 	/* Wait for the release */
 	
 	os_event_wait(event);
 
-	if (trx->has_dict_operation_lock) {
+	if (had_dict_lock) {
 
-		rw_lock_s_lock(&dict_operation_lock);
+		row_mysql_freeze_data_dictionary(trx);
 	}
 
 	/* Return back inside InnoDB */
