@@ -90,9 +90,6 @@ length(repeat("a",65500))	length(concat(repeat("a",32000),repeat("a",32000)))	le
 65500	64000	50000	60000
 length(repeat("a",1000000))	length(concat(repeat("a",32000),repeat("a",32000),repeat("a",32000)))	length(replace("aaaaa","a",concat(repeat("a",32000))))	length(insert(repeat("a",48000),1,1000,repeat("a",48000)))
 1000000	96000	160000	95000
-Date	Unix
-1998-9-16 09:26:00	905927160
-1998-9-16 09:26:00	905927160
 domain
 hello.de
 domain
