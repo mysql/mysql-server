@@ -38,7 +38,7 @@ for i in $AVAILABLE_LANGUAGES
 do
   AVAILABLE_LANGUAGES_ERRORS="$AVAILABLE_LANGUAGES_ERRORS $i/errmsg.sys"
   echo "$i/errmsg.sys: $i/errmsg.txt
-	\$(top_builddir)/extra/comp_err $i/errmsg.txt $i/errmsg.sys" \
+	\$(top_builddir)/extra/comp_err \$^ $i/errmsg.sys" \
     >> $AVAILABLE_LANGUAGES_ERRORS_RULES
 done
 
@@ -125,6 +125,20 @@ AC_PROG_AWK
 AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_CPP
+
+# Print version of CC and CXX compiler (if they support --version)
+CC_VERSION=`$CC --version`
+if test $? -eq "0"
+then
+  AC_MSG_CHECKING("C Compiler version");
+  AC_MSG_RESULT("$CC $CC_VERSION")
+fi
+CXX_VERSION=`$CXX --version`
+if test $? -eq "0"
+then
+  AC_MSG_CHECKING("C++ compiler version");
+  AC_MSG_RESULT("$CXX $CXX_VERSION")
+fi
 
 # Fix for sgi gcc / sgiCC which tries to emulate gcc
 if test "$CC" = "sgicc"
@@ -307,6 +321,19 @@ then
   # Disable exceptions as they seams to create problems with gcc and threads.
   # mysqld doesn't use run-time-type-checking, so we disable it.
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
+
+  # If you are using 'gcc' 3.0 (not g++) to compile C++ programs,
+  # we will gets some problems when linking static programs.
+  # The following code is used to fix this problem.
+
+  if test "$CXX" = "gcc"
+  then
+    if $CXX -v 2>&1 | grep 'version 3' > /dev/null 2>&1
+    then
+      CXXFLAGS="$CXXFLAGS -DUSE_MYSYS_NEW"
+      CXXLDFLAGS="$CXXLDFLAGS -Wl,--defsym -Wl,__cxa_pure_virtual=0"
+    fi
+  fi
 fi
 
 # Avoid bug in fcntl on some versions of linux
@@ -435,16 +462,17 @@ AC_ARG_WITH(other-libc,
    enable_shared="no"
    all_is_static="yes"
    CFLAGS="$CFLAGS -I$other_libc_include"
+   # There seems to be a feature in gcc that treats system and libc headers
+   # silently when they violatate ANSI C++ standard, but it is strict otherwise
+   # since gcc cannot now recognize that our headers are libc, we work around
+   # by telling it to be permissive. Note that this option only works with
+   # new versions of gcc (2.95.x and above)
    CXXFLAGS="$CXXFLAGS -fpermissive -I$other_libc_include"
-#There seems to be a feature in gcc that treats system and libc headers
-#leniently when they violatate ANSI C++ standard, but it is strict otherwise
-#since gcc cannot now recognize that our headers are libc, we work around
-#by telling it to be permissive
    static_nss=
    if test -f "$other_libc_lib/libnss_files.a"
    then
-   # libc has been compiled with --enable-static-nss
-   # we need special flags, but we will have to add those later
+     # libc has been compiled with --enable-static-nss
+     # we need special flags, but we will have to add those later
      STATIC_NSS_FLAGS="-Wl,--start-group -lc -lnss_files -lnss_dns -lresolv \
   -Wl,--end-group"
      static_nss=1
@@ -460,12 +488,12 @@ AC_ARG_WITH(other-libc,
      LDFLAGS="$LDFLAGS -static -L$other_libc_lib "
    fi
    
+   # When linking against custom libc installed separately, we want to force
+   # all binary builds to be static, including the build done by configure
+   # itself to test for system features.
    with_mysqld_ldflags="-all-static"
    with_client_ldflags="-all-static"
    NOINST_LDFLAGS="-all-static"
-#when linking against custom libc installed separately, we want to force all
-#binary builds to be static, including the build done by configure itself
-#to test for system features   
  ],
  [
   other_libc_include=
@@ -974,7 +1002,8 @@ Reference Manual.])
         if test -f /usr/shlib/libpthread.so -a -f /usr/lib/libmach.a -a -f /usr/ccs/lib/cmplrs/cc/libexc.a
 	then
 	  with_named_thread="-lpthread -lmach -lexc"
-	  #with_named_thread="-lpthread -lmach -lexc -lc"
+	  CFLAGS="$CFLAGS -D_REENTRANT"
+	  CXXFLAGS="$CXXFLAGS -D_REENTRANT"
 	  AC_DEFINE(HAVE_DEC_THREADS)
 	  AC_MSG_RESULT("yes")
 	else
@@ -1557,9 +1586,9 @@ ac_save_CXXFLAGS="$CXXFLAGS"
 AC_CACHE_CHECK([style of gethost* routines], mysql_cv_gethost_style,
 AC_LANG_SAVE
 AC_LANG_CPLUSPLUS
-#do not treat warnings as errors if we are linking agaist other libc
-#this is to work around gcc not being permissive on non-system includes
-#with respect to ANSI C++
+# Do not treat warnings as errors if we are linking agaist other libc
+# this is to work around gcc not being permissive on non-system includes
+# with respect to ANSI C++
 if test "$ac_cv_prog_gxx" = "yes" -a "$with_other_libc" = "no" 
 then
   CXXFLAGS="$CXXFLAGS -Werror"
@@ -2300,7 +2329,7 @@ EOF
   fi
 fi
 
-#IMPORTANT - do not modify LIBS past this line - this hack is the only way
+# IMPORTANT - do not modify LIBS past this line - this hack is the only way
 # I know to add the static NSS magic if we have static NSS libraries with
 # glibc - Sasha
 

@@ -57,7 +57,7 @@ public:
   virtual void save_org_in_field(Field *field)
     { (void) save_in_field(field); }
   virtual bool send(THD *thd, String *str);
-  virtual bool eq(const Item *) const;
+  virtual bool eq(const Item *, bool binary_cmp) const;
   virtual Item_result result_type () const { return REAL_RESULT; }
   virtual enum Type type() const =0;
   virtual double val()=0;
@@ -111,7 +111,7 @@ public:
   {}
   Item_field(Field *field);
   enum Type type() const { return FIELD_ITEM; }
-  bool eq(const Item *item) const;
+  bool eq(const Item *item, bool binary_cmp) const;
   double val();
   longlong val_int();
   String *val_str(String*);
@@ -141,7 +141,7 @@ public:
   Item_null(char *name_par=0)
     { maybe_null=null_value=TRUE; name= name_par ? name_par : (char*) "NULL";}
   enum Type type() const { return NULL_ITEM; }
-  bool eq(const Item *item) const;
+  bool eq(const Item *item, bool binary_cmp) const;
   double val();
   longlong val_int();
   String *val_str(String *str);
@@ -264,6 +264,7 @@ public:
   void make_field(Send_field *field);
   enum Item_result result_type () const { return STRING_RESULT; }
   bool basic_const_item() const { return 1; }
+  bool eq(const Item *item, bool binary_cmp) const;
   Item *new_item() { return new Item_string(name,str_value.ptr(),max_length); }
   String *const_string() { return &str_value; }
   inline void append(char *str,uint length) { str_value.append(str,length); }
@@ -323,7 +324,8 @@ public:
   Item_ref(Item **item, char *table_name_par,char *field_name_par)
     :Item_ident(NullS,table_name_par,field_name_par),ref(item) {}
   enum Type type() const		{ return REF_ITEM; }
-  bool eq(const Item *item) const	{ return (*ref)->eq(item); }
+  bool eq(const Item *item, bool binary_cmp) const
+  { return (*ref)->eq(item, binary_cmp); }
   ~Item_ref() { if (ref) delete *ref; }
   double val()
   {

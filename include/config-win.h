@@ -31,7 +31,7 @@
 #define	SYSTEM_TYPE	"Win95/Win98"
 #endif
 
-#ifdef _WIN64
+#if defined(_WIN64) || defined(WIN64)
 #define MACHINE_TYPE	"ia64"		/* Define to machine type name */
 #else
 #define MACHINE_TYPE	"i32"		/* Define to machine type name */

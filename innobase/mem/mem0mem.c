@@ -234,7 +234,8 @@ mem_heap_add_block(
 	new_size = 2 * mem_block_get_len(block);
 
 	if (heap->type != MEM_HEAP_DYNAMIC) {
-		ut_ad(n <= MEM_MAX_ALLOC_IN_BUF);
+		/* From the buffer pool we allocate buffer frames */
+		ut_a(n <= MEM_MAX_ALLOC_IN_BUF);
 
 		if (new_size > MEM_MAX_ALLOC_IN_BUF) {
 			new_size = MEM_MAX_ALLOC_IN_BUF;
@@ -249,7 +250,7 @@ mem_heap_add_block(
 	}
 	
 	new_block = mem_heap_create_block(heap, new_size, NULL, heap->type,
-					heap->file_name, heap->line);
+						heap->file_name, heap->line);
 	if (new_block == NULL) {
 
 		return(NULL);

@@ -126,7 +126,7 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
     new_table=ren_table->next;
 
     sprintf(name,"%s/%s/%s%s",mysql_data_home,
-	    new_table->db,new_table->name,
+	    new_table->db,new_table->real_name,
 	    reg_ext);
     if (!access(name,F_OK))
     {
@@ -134,7 +134,7 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
       DBUG_RETURN(ren_table);			// This can't be skipped
     }
     sprintf(name,"%s/%s/%s%s",mysql_data_home,
-	    ren_table->db,ren_table->name,
+	    ren_table->db,ren_table->real_name,
 	    reg_ext);
     if ((table_type=get_table_type(name)) == DB_TYPE_UNKNOWN)
     {
@@ -143,11 +143,11 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
 	DBUG_RETURN(ren_table);
     }
     else if (mysql_rename_table(table_type,
-				ren_table->db, ren_table->name,
-				new_table->db, new_table->name))
+				ren_table->db, ren_table->real_name,
+				new_table->db, new_table->real_name))
     {
       if (!skip_error)
-	return ren_table;
+	DBUG_RETURN(ren_table);
     }
   }
   DBUG_RETURN(0);

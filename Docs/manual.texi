@@ -4533,7 +4533,7 @@ MySQL Server also supports
 the following additional type attributes:
 @itemize @bullet
 @item
-@code{UNSIGNED} option for integer columns.
+@code{UNSIGNED} option for integer and floating point columns.
 @item
 @code{ZEROFILL} option for integer columns.
 @item
@@ -5535,9 +5535,11 @@ named pipes are created and you must have TCP/IP installed.
 Optimised binary with support for symbolic links,
 InnoDB and BDB tables.
 @item @code{mysqld-max-nt} @tab
-Like @code{mysqld-max}, but compiled with support for named
-pipes.
+Like @code{mysqld-max}, but compiled with support for named pipes.
 @end multitable
+
+Starting from 3.23.50, named pipes are only enabled if one starts mysqld with
+@code{--enable-named-pipe}.
 
 All of the above binaries are optimised for the Pentium Pro
 processor but should work on any Intel processor >= i386.
@@ -5761,9 +5763,10 @@ Solaris 2.5 and above with native threads on SPARC and x86.  @xref{Solaris}.
 @item
 SunOS 4.x with the included MIT-pthreads package.  @xref{Solaris}.
 @item
-SCO OpenServer with a recent port of the FSU Pthreads package.  @xref{SCO}.
+Caldera (SCO) OpenServer with a recent port of the FSU Pthreads package. 
+@xref{Caldera}.
 @item
-SCO UnixWare 7.0.1.  @xref{SCO Unixware}.
+Caldera (SCO) UnixWare 7.0.1.  @xref{Caldera Unixware}.
 @item
 Tru64 Unix
 @item
@@ -8157,6 +8160,10 @@ version 4.0;
 
 @itemize @bullet
 @item
+@code{DOUBLE} and @code{FLOAT} columns are now honoring the
+@code{UNSIGNED} flag on storage (before @code{UNSIGNED} was ignored for
+these columns).
+@item
 Use @code{ORDER BY column DESC} now always sorts @code{NULL} values
 first; In 3.23 this was not always consistent.
 @item
@@ -8185,6 +8192,9 @@ you need to rebuild them with @code{ALTER TABLE table_name TYPE=MyISAM},
 @item
 @code{LOCATE()} and @code{INSTR()} are case sensitive if one of the
 arguments is a binary string.
+@item
+@code{STRCMP()} now uses the current character set when doing comparison,
+which means that the default comparison is case insensitive.
 @item
 @code{HEX(string)} now returns the characters in string converted to
 hexadecimal.  If you want to convert a number to hexadecimal, you should
@@ -9323,6 +9333,11 @@ You can force a MySQL client to use named pipes by specifying the
 @code{--pipe} option or by specifying @code{.} as the host name.  Use the
 @code{--socket} option to specify the name of the pipe.
 
+Note that starting from 3.23.50, named pipes are only enabled if start
+mysqld with @code{--enable-named-pipe}.  This is because some users have
+experienced problems shutting down the MySQL server when one uses named
+pipes.
+
 You can test whether or not MySQL is working by executing the
 following commands:
 
@@ -9599,6 +9614,9 @@ option to the new MySQL clients or create an option file
 [client]
 host = localhost
 @end example
+
+Starting from 3.23.50, named pipes are only enabled if start mysqld with
+@code{--enable-named-pipe}.
 
 @item @code{Access denied for user} error
 If you get the error @code{Access denied for user: 'some-user@@unknown'
@@ -10287,8 +10305,8 @@ alias mysqladmin '/usr/local/mysql/bin/mysqladmin'
 * Alpha-DEC-UNIX::              Alpha-DEC-UNIX Notes (Tru64)
 * Alpha-DEC-OSF1::              Alpha-DEC-OSF1 Notes
 * SGI-Irix::                    SGI Irix Notes
-* SCO::                         SCO Notes
-* SCO Unixware::                SCO Unixware Version 7.0 Notes
+* Caldera::                     Caldera Notes
+* Caldera Unixware::            Caldera Unixware Version 7.0 Notes
 @end menu
 
 
@@ -10826,7 +10844,7 @@ can just change back to the top-level directly and run @code{make}
 again.
 
 
-@node SGI-Irix, SCO, Alpha-DEC-OSF1, Other Unix Notes
+@node SGI-Irix, Caldera, Alpha-DEC-OSF1, Other Unix Notes
 @subsubsection SGI Irix Notes
 
 If you are using Irix Version 6.5.3 or newer @code{mysqld} will only be able to
@@ -10902,8 +10920,8 @@ CC=cc CXX=CC CFLAGS='-O3 -n32 -TARG:platform=IP22 -I/usr/local/include \
 @end example
 
 
-@node SCO, SCO Unixware, SGI-Irix, Other Unix Notes
-@subsubsection SCO Notes
+@node Caldera, Caldera Unixware, SGI-Irix, Other Unix Notes
+@subsubsection Caldera (SCO) Notes
 
 The current port is tested only on a ``sco3.2v5.0.4'' and
 ``sco3.2v5.0.5'' system.  There has also been a lot of progress on a
@@ -10931,7 +10949,7 @@ shell> cp -p /usr/include/pthread/stdtypes.h \
 
 @item
 You need the port of GCC 2.5.x for this product and the Development
-system.  They are required on this version of SCO Unix.  You cannot
+system.  They are required on this version of Caldera (SCO) Unix.  You cannot
 just use the GCC Dev system.
 
 @item
@@ -10942,8 +10960,8 @@ You can also get a precompiled package from
 @uref{http://www.mysql.com/Downloads/SCO/FSU-threads-3.5c.tar.gz}.
 
 @item
-FSU Pthreads can be compiled with SCO Unix 4.2 with tcpip.  Or
-OpenServer 3.0 or Open Desktop 3.0 (OS 3.0 ODT 3.0), with the SCO
+FSU Pthreads can be compiled with Caldera (SCO) Unix 4.2 with tcpip.  Or
+OpenServer 3.0 or Open Desktop 3.0 (OS 3.0 ODT 3.0), with the Caldera (SCO)
 Development System installed using a good port of GCC 2.5.x ODT or OS
 3.0 you will need a good port of GCC 2.5.x There are a lot of problems
 without a good port.  The port for this product requires the SCO Unix
@@ -11005,7 +11023,7 @@ You should unpack this file in the @file{include} directory of your
 MySQL source tree.
 @end enumerate
 
-SCO development notes:
+Caldera (SCO) development notes:
 
 @itemize @bullet
 @item
@@ -11013,10 +11031,11 @@ MySQL should automatically detect FSU Pthreads and link @code{mysqld}
 with @code{-lgthreads -lsocket -lgthreads}.
 
 @item
-The SCO development libraries are re-entrant in FSU Pthreads.  SCO claims
-that its libraries' functions are re-entrant, so they must be reentrant with
-FSU Pthreads.  FSU Pthreads on OpenServer tries to use the SCO scheme to
-make re-entrant libraries.
+
+The Caldera (SCO) development libraries are re-entrant in FSU Pthreads.
+Caldera claim sthat its libraries' functions are re-entrant, so they must
+be reentrant with FSU Pthreads.  FSU Pthreads on OpenServer tries to use
+the SCO scheme to make re-entrant libraries.
 
 @item
 FSU Pthreads (at least the version at @uref{http://www.mysql.com/}) comes
@@ -11036,8 +11055,8 @@ makes mysqld instable.  You have to remove this one if you want to run
 mysqld on an OpenServer 5.0.6 machine.
 @end itemize
 
-If you want to install DBI on SCO, you have to edit the @file{Makefile} in
-DBI-xxx and each subdirectory.
+If you want to install DBI on Caldera (SCO), you have to edit the
+@file{Makefile} in DBI-xxx and each subdirectory.
 
 Note that the following assumes gcc 2.95.2 or newer:
 
@@ -11067,8 +11086,8 @@ if they were compiled with @code{icc} or @code{cc}.
 Perl works best when compiled with @code{cc}.
 
 
-@node SCO Unixware,  , SCO, Other Unix Notes
-@subsubsection SCO Unixware Version 7.0 Notes
+@node Caldera Unixware,  , Caldera, Other Unix Notes
+@subsubsection Caldera (SCO) Unixware Version 7.0 Notes
 
 You must use a version of MySQL at least as recent as Version 3.22.13
 because that version fixes some portability problems under Unixware.
@@ -11417,14 +11436,15 @@ $sysliblist .= " -lm -lz";
 After this, you @strong{must} run 'make realclean' and then proceed with the
 installation from the beginning.
 
-If you want to use the Perl module on a system that doesn't support dynamic
-linking (like SCO) you can generate a static version of Perl that includes
-@code{DBI} and @code{DBD-mysql}.  The way this works is that you generate a
-version of Perl with the @code{DBI} code linked in and install it on top of
-your current Perl.  Then you use that to build a version of Perl that
-additionally has the @code{DBD} code linked in, and install that.
+If you want to use the Perl module on a system that doesn't support
+dynamic linking (like Caldera/SCO) you can generate a static version of
+Perl that includes @code{DBI} and @code{DBD-mysql}.  The way this works
+is that you generate a version of Perl with the @code{DBI} code linked
+in and install it on top of your current Perl.  Then you use that to
+build a version of Perl that additionally has the @code{DBD} code linked
+in, and install that.
 
-On SCO, you must have the following environment variables set:
+On Caldera (SCO), you must have the following environment variables set:
 
 @example
 shell> LD_LIBRARY_PATH=/lib:/usr/lib:/usr/local/lib:/usr/progressive/lib
@@ -11450,8 +11470,8 @@ shell> make perl
 
 Then you must install the new Perl. The output of @code{make perl} will
 indicate the exact @code{make} command you will need to execute to perform
-the installation.  On SCO, this is @code{make -f Makefile.aperl inst_perl
-MAP_TARGET=perl}.
+the installation.  On Caldera (SCO), this is
+@code{make -f Makefile.aperl inst_perl MAP_TARGET=perl}.
 
 Next, use the just-created Perl to create another Perl that also includes a
 statically-linked @code{DBD::mysql} by running these commands in the
@@ -14157,6 +14177,10 @@ from this file.
 Enable system locking.  Note that if you use this option on a system
 which a not fully working lockd() (as on Linux) you will easily get
 mysqld to deadlock.
+
+@item --enable-named-pipe
+Enable support for named pipes; This only works on NT and newer windows
+versions.
 
 @item -T, --exit-info
 This is a bit mask of different flags one can use for debugging the
@@ -21535,7 +21559,7 @@ binaries includes:
 @item Linux-Ia64 @tab N @tab Y
 @item Solaris-intel @tab N @tab Y
 @item Solaris-sparc @tab Y @tab Y
-@item SCO OSR5 @tab Y @tab Y
+@item Caldera (SCO) OSR5 @tab Y @tab Y
 @item UnixWare @tab Y @tab Y
 @item Windows/NT @tab Y @tab Y
 @end multitable
@@ -33495,8 +33519,6 @@ restrictions:
 @itemize @bullet
 @item
 Only the last @code{SELECT} command can have @code{INTO OUTFILE}.
-@item
-Only the last @code{SELECT} command can have @code{ORDER BY}.
 @end itemize
 
 If you don't use the keyword @code{ALL} for the @code{UNION}, all
@@ -33504,6 +33526,13 @@ returned rows will be unique, like if you had done a @code{DISTINCT} for
 the total result set.  If you specify @code{ALL}, then you will get all
 matching rows from all the used @code{SELECT} statements.
 
+If you want to use an @code{ORDER BY} for the total @code{UNION} result,
+you should use parentheses:
+
+@example
+(SELECT a FROM table_name WHERE a=10 AND B=1 ORDER BY a LIMIT 10) UNION
+(SELECT a FROM table_name WHERE a=11 AND B=2 ORDER BY a LIMIT 10) ORDER BY a;
+@end example
 
 @findex HANDLER
 @node HANDLER, INSERT, SELECT, Data Manipulation
@@ -39588,9 +39617,9 @@ Linux 2.x intel
 @item
 Solaris sparc
 @item
-SCO OpenServer
+Caldera (SCO) OpenServer
 @item
-SCO UnixWare 7.0.1
+Caldera (SCO) UnixWare 7.0.1
 @end itemize
 
 It doesn't work with the following operating systems:
@@ -41897,9 +41926,11 @@ set has been read.
 
 If you acquire a result set from a successful call to
 @code{mysql_store_result()}, the client receives the entire set in one
-operation.  In this case, a @code{NULL} return from @code{mysql_fetch_row()}
-always means the end of the result set has been reached and it is
-unnecessary to call @code{mysql_eof()}.
+operation.  In this case, a @code{NULL} return from
+@code{mysql_fetch_row()} always means the end of the result set has been
+reached and it is unnecessary to call @code{mysql_eof()}.  When used
+with @code{mysql_store_result()}, @code{mysql_eof()} will always return
+true.
 
 On the other hand, if you use @code{mysql_use_result()} to initiate a result
 set retrieval, the rows of the set are obtained from the server one by one as
@@ -45812,7 +45843,8 @@ are used if you don't specify a hostname or if you specify the special
 hostname @code{localhost}.
 
 On Windows, if the @code{mysqld} server is running on 9x/Me, you can
-connect only via TCP/IP. If the server is running on NT/2000/XP, you
+connect only via TCP/IP. If the server is running on NT/2000/XP and
+mysqld is started with @code{--enable-named-pipe}, you
 can also connect with named pipes. The name of the named pipe is MySQL.
 If you don't give a hostname when connecting to @code{mysqld}, a MySQL
 client will first try to connect to the named pipe, and if this doesn't
@@ -48886,6 +48918,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+@code{DOUBLE} and @code{FLOAT} columns are now honoring the
+@code{UNSIGNED} flag on storage.
+@item
 @code{InnoDB} now retains foreign key constraints through @code{ALTER TABLE}
 and @code{CREATE/DROP INDEX}.
 @item
@@ -48914,8 +48949,6 @@ the braces.
 Fixed that full-text works fine with @code{UNION} operations.
 @item
 Fixed bug with indexless boolean full-text search.
-@item
-Fixed bug that sometimes appeared when full-text search was used
 with ``const'' tables.
 @item
 Fixed incorrect error value when doing a @code{SELECT} with an empty
@@ -49120,6 +49153,9 @@ now handle signed and unsigned @code{BIGINT} numbers correctly.
 @item
 New character set @code{latin_de} which provides correct German sorting.
 @item
+@code{STRCMP()} now uses the current character set when doing comparison,
+which means that the default comparison is case insensitive.
+@item
 @code{TRUNCATE TABLE} and @code{DELETE FROM table_name} are now separate
 functions. One bonus is that @code{DELETE FROM table_name} now returns
 the number of deleted rows, rather than zero.
@@ -49304,6 +49340,26 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.50
 @itemize @bullet
 @item
+Our Linux RPMS and binaries are now compiled with gcc 3.0.4, which should
+make them a bit faster.
+@item
+Fixed some buffer overflow problems when reading startup parameters.
+@item
+Because of problems on shutdown we have now disabled named pipes on
+windows by default.  One can enable this with by starting mysqld with
+@code{--enable-named-pipe}.
+@item
+Fixed bug when using @code{WHERE key_column = 'J' or key_column='j'}.
+@item
+Fixed core-dump bug when using @code{--log-bin} with @code{LOAD DATA
+INFILE} without an active database.
+@item
+Fixed bug in @code{RENAME TABLE} when used with
+@code{lower_case_table_names=1} (default on Windows).
+@item
+Fixed unlikely core-dump bug when using @code{DROP TABLE} on a table
+that was in use by a thread that also used queries on only temporary tables.
+@item
 Fixed problem with @code{SHOW CREATE TABLE} and @code{PRIMARY KEY} when using
 32 indexes.
 @item
@@ -49332,7 +49388,7 @@ Don't give warning for statement that is only a comment;  This is needed for
 @code{mysqldump --disable-keys} to work.
 @item
 Fixed unlikely caching bug when doing a join without keys. In this case
-the last used field for a table always returned @code{NULL}.
+the last used column for a table always returned @code{NULL}.
 @item
 Added options to make @code{LOAD DATA LOCAL INFILE} more secure.
 @item
@@ -54018,7 +54074,7 @@ Fixed bug in range calculation that could return empty
 set when searching on multiple key with only one entry (very rare).
 @item
 Most things ported to FSU Pthreads, which should allow MySQL to
-run on SCO. @xref{SCO}.
+run on Caldera (SCO). @xref{Caldera}.
 @end itemize
 
 
