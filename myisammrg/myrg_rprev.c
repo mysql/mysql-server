@@ -25,6 +25,9 @@ int myrg_rprev(MYRG_INFO *info, byte *buf, int inx)
   int err;
   MI_INFO *mi;
 
+  if (!info || !info->current_table)
+    return HA_ERR_UNSUPPORTED;
+
   /* at first, do rprev for the table found before */
   if ((err=mi_rprev(info->current_table->table,NULL,inx)))
   {
