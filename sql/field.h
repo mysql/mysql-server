@@ -92,6 +92,7 @@ public:
 	utype unireg_check_arg, const char *field_name_arg,
 	struct st_table *table_arg);
   virtual ~Field() {}
+  /* Store functions returns 1 on overflow and -1 on fatal error */
   virtual int  store(const char *to,uint length,CHARSET_INFO *cs)=0;
   virtual int  store(double nr)=0;
   virtual int  store(longlong nr)=0;
