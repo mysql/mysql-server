@@ -32,9 +32,9 @@ typedef enum {
   
 struct File_option
 {
-  const LEX_STRING name;		/* Name of the option */
-  int offset;				/* offset to base address of value */
-  enum file_opt_type type;		/* Option type */
+  LEX_STRING name;		/* Name of the option */
+  int offset;			/* offset to base address of value */
+  enum file_opt_type type;	/* Option type */
 };
 
 class File_parser;

@@ -917,7 +917,6 @@ sp_head::show_create_function(THD *thd)
   sys_var *sql_mode_var;
   byte *sql_mode_str;
   ulong sql_mode_len;
-
   DBUG_ENTER("sp_head::show_create_function");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 

@@ -87,9 +87,10 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 
 extern "C" {
 
-int *killed_ptr(void *thd)
+volatile int *killed_ptr(MI_CHECK *param)
 {
-  return (int*)&((THD *)thd)->killed;
+  /* In theory Unsafe conversion, but should be ok for now */
+  return (int*) &(((THD *)(param->thd))->killed);
 }
 
 void mi_check_print_error(MI_CHECK *param, const char *fmt,...)

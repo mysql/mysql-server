@@ -400,7 +400,6 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       query =thd->query;
       query_length= thd->query_length;
     }
-    mysql_update_log.write(thd, query, query_length);
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, query, query_length, 0);
