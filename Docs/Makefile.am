@@ -139,7 +139,7 @@ INSTALL-BINARY:	mysql.info $(GT)
 	perl -w $(GT) mysql.info "Installing binary" "Installing source" > $@
 
 ../COPYING:		mysql.info $(GT)
-	perl -w $(GT) mysql.info "GPL license" "LGPL license" > $@
+	perl -w $(GT) mysql.info "GPL license" "MySQL FOSS License Exception" > $@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
