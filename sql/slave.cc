@@ -862,7 +862,7 @@ point. If you are sure that your master is ok, run this query manually on the\
  slave and then restart the slave with SET SQL_SLAVE_SKIP_COUNTER=1;\
  SLAVE START;", thd->query);
       last_slave_errno = expected_error;
-      sql_print_error(last_slave_error);
+      sql_print_error("%s",last_slave_error);
       return 1;
     default:
       return 0;
