@@ -1,0 +1,9 @@
+#! /bin/sh
+
+cmd () {
+	echo $*
+	$*
+}
+
+client/mysql --port=4407 --socket=/tmp/test.mysql.sock --ssl-ca=SSL/cacert.pem --ssl-cert=SSL/client-cert.pem --ssl-key=SSL/client-key.pem --debug='d:t:O,/tmp/client.trace' -h 127.0.0.1 --execute="select version()"
+

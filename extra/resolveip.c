@@ -29,6 +29,7 @@
 #include <netdb.h>
 #include <m_ctype.h>
 #include <my_sys.h>
+#include <m_string.h>
 #include <getopt.h>
 
 #if !defined(_AIX) && !defined(HAVE_UNIXWARE7_THREADS) && !defined(HAVE_UNIXWARE7_POSIX) && !defined(h_errno)

@@ -1,0 +1,9 @@
+#! /bin/sh
+
+cmd () {
+	echo $*
+	$*
+}
+
+cmd sql/mysqld --port=4407 --socket=/tmp/test.mysql.sock --ssl-ca=SSL/cacert.pem --ssl-cert=SSL/server-cert.pem --ssl-key=SSL/server-key.pem --skip-grant --debug='d:t:O,/tmp/mysqld.trace' >& /tmp/mysqld.output
+
