@@ -177,7 +177,7 @@ prepare stmt1 from 'update t1 set a=? where b=?
 --enable_info
 execute stmt1 using @arg04, @arg01, @arg02, @arg03, @arg00 ;
 --disable_info
-select a,b from t1 order by a;
+select a,b from t1 order by a ;
 drop table t2 ;
 
 ## update with parameters in limit

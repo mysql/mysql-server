@@ -115,15 +115,15 @@ execute stmt1 using @arg00;
 
 # variations on 'group_concat'
 set @arg00='MySQL' ;
-select group_concat(@arg00,b) from t1 
+select group_concat(@arg00,b order by a) from t1 
 group by 'a' ;
-prepare stmt1 from ' select group_concat(?,b) from t1
+prepare stmt1 from ' select group_concat(?,b order by a) from t1
 group by ''a'' ' ;
 execute stmt1 using @arg00;
 #
-select group_concat(b,@arg00) from t1 
+select group_concat(b,@arg00 order by a) from t1 
 group by 'a' ;
-prepare stmt1 from ' select group_concat(b,?) from t1
+prepare stmt1 from ' select group_concat(b,? order by a) from t1
 group by ''a'' ' ;
 execute stmt1 using @arg00;
 
@@ -223,7 +223,7 @@ execute stmt1 using @arg00, @arg01;
 set @arg00= 'one' ;
 set @arg01= 'two' ;
 set @arg02= 'five' ;
-prepare stmt1 from ' select b FROM t1 where b in (?,?,?) ' ;
+prepare stmt1 from ' select b FROM t1 where b in (?,?,?) order by b ' ;
 execute stmt1 using @arg00, @arg01, @arg02 ;
 # parameter in LIKE
 prepare stmt1 from ' select b FROM t1 where b like ? ';
