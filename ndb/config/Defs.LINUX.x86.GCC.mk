@@ -6,9 +6,11 @@ SHELL       := /bin/sh
 C++         := gcc$(GCC_VERSION)
 CC          := gcc$(GCC_VERSION)
 AR_RCS      := $(PURE) ar rcs 
-SO          := gcc$(GCC_VERSION) -shared -lpthread -o
+SO          := gcc$(GCC_VERSION) -shared -lpthread -o 
+#SO          := gcc$(GCC_VERSION) -shared -o 
 
 MAKEDEPEND  := gcc$(GCC_VERSION) -M
+#MAKEDEPEND  := gcc$(GCC_VERSION) -M  -nostdinc -nostdinc++
 PIC         := -fPIC
 
 RPCGENFLAGS := -M -C -N
@@ -27,7 +29,8 @@ else
 CCFLAGS_WARNINGS = -Wno-long-long -Wall
 endif
 # Add these for more warnings -Weffc++ -W
-CCFLAGS_TOP = -D_REENTRANT -D_POSIX_PTHREAD_SEMANTICS
+CCFLAGS_TOP = 
+#CCFLAGS_TOP = -DSAFE_MUTEX
 CCFLAGS_TOP += -fno-rtti -fno-exceptions
 
 ifeq (RELEASE, $(NDB_VERSION))
@@ -53,4 +56,5 @@ LINK.cc = $(PURE) $(CC) $(CCFLAGS) $(LDFLAGS)
 
 LINK.c = $(PURE) $(CC) $(CFLAGS) $(LDFLAGS)
 
-LDFLAGS_LAST = -lpthread -lrt $(NDB_TOP)/src/common/portlib/gcc.cpp
+LDFLAGS_LAST = -lrt -lpthread $(NDB_TOP)/src/common/portlib/gcc.cpp 
+#LDFLAGS_LAST = -lrt $(NDB_TOP)/src/common/portlib/gcc.cpp $(NDB_TOP)/../mysys/libmysys.a $(NDB_TOP)/../dbug/libdbug.a $(NDB_TOP)/../regex/libregex.a $(NDB_TOP)/../strings/libmystrings.a -lpthread

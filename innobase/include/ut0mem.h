@@ -18,15 +18,15 @@ extern ulint	ut_total_allocated_memory;
 
 UNIV_INLINE
 void*
-ut_memcpy(void* dest, void* sour, ulint n);
+ut_memcpy(void* dest, const void* sour, ulint n);
 
 UNIV_INLINE
 void*
-ut_memmove(void* dest, void* sour, ulint n);
+ut_memmove(void* dest, const void* sour, ulint n);
 
 UNIV_INLINE
 int
-ut_memcmp(void* str1, void* str2, ulint n);
+ut_memcmp(const void* str1, const void* str2, ulint n);
 
 
 /**************************************************************************
@@ -75,7 +75,7 @@ ut_free_all_mem(void);
 
 UNIV_INLINE
 char*
-ut_strcpy(char* dest, char* sour);
+ut_strcpy(char* dest, const char* sour);
 
 UNIV_INLINE
 ulint
@@ -83,7 +83,7 @@ ut_strlen(const char* str);
 
 UNIV_INLINE
 int
-ut_strcmp(void* str1, void* str2);
+ut_strcmp(const void* str1, const void* str2);
 
 /**************************************************************************
 Determine the length of a string when it is quoted with ut_strcpyq(). */
@@ -117,17 +117,6 @@ ut_memcpyq(
 	char		q,	/* in: the quote character */
 	const char*	src,	/* in: string to be quoted */
 	ulint		len);	/* in: length of src */
-
-/**************************************************************************
-Catenates two strings into newly allocated memory. The memory must be freed
-using mem_free. */
-
-char*
-ut_str_catenate(
-/*============*/
-			/* out, own: catenated null-terminated string */
-	char*	str1,	/* in: null-terminated string */
-	char*	str2);	/* in: null-terminated string */
 
 #ifndef UNIV_NONINL
 #include "ut0mem.ic"

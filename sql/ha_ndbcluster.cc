@@ -3048,22 +3048,19 @@ void ha_ndbcluster::set_dbname(const char *path_name)
 
 
 ha_rows 
-ha_ndbcluster::records_in_range(int inx,
-				const byte *start_key,uint start_key_len,
-				enum ha_rkey_function start_search_flag,
-				const byte *end_key,uint end_key_len,
-				enum ha_rkey_function end_search_flag)
+ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
+                                key_range *max_key)
 {
-  ha_rows records= 10;
-  KEY* key_info= table->key_info + inx;
+  ha_rows records= 10;		/* Good guess when you don't know anything */
+  KEY *key_info= table->key_info + inx;
   uint key_length= key_info->key_length;
 
   DBUG_ENTER("records_in_range");
-  DBUG_PRINT("enter", ("inx: %d", inx));
-  DBUG_PRINT("enter", ("start_key: %x, start_key_len: %d", start_key, start_key_len));
-  DBUG_PRINT("enter", ("start_search_flag: %d", start_search_flag));
-  DBUG_PRINT("enter", ("end_key: %x, end_key_len: %d", end_key, end_key_len));
-  DBUG_PRINT("enter", ("end_search_flag: %d", end_search_flag));
+  DBUG_PRINT("enter", ("inx: %u", inx));
+  DBUG_DUMP("start_key", min_key->key, min_key->length);
+  DBUG_DUMP("end_key", max_key->key, max_key->length);
+  DBUG_PRINT("enter", ("start_search_flag: %u  end_search_flag: %u",
+                       min_key->flag, max_key->flag));
 
 #ifndef USE_EXTRA_ORDERED_INDEX
   /*
@@ -3073,7 +3070,7 @@ ha_ndbcluster::records_in_range(int inx,
   */
   NDB_INDEX_TYPE idx_type= get_index_type(inx);  
   if ((idx_type == UNIQUE_INDEX || idx_type == PRIMARY_KEY_INDEX) && 
-      start_key_len < key_length)
+      min_key->length < key_length)
   {
     DBUG_PRINT("warning", ("Tried to use index which required"
 			   "full key length: %d, HA_POS_ERROR", 

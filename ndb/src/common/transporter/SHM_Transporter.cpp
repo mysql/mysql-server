@@ -23,9 +23,7 @@
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
 
-#ifdef NDB_WIN32
-#include <windows.h>
-#else
+#ifndef NDB_WIN32
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #endif

@@ -18,11 +18,10 @@
 #include "NdbDaemon.h"
 
 #define NdbDaemon_ErrorSize 500
-#if defined(NDB_LINUX) || defined(NDB_SOLARIS)
-  /* XXX fix other unixes */
 long NdbDaemon_DaemonPid;
 int NdbDaemon_ErrorCode;
 char NdbDaemon_ErrorText[NdbDaemon_ErrorSize];
+
 int
 NdbDaemon_Make(const char* lockfile, const char* logfile, unsigned flags)
 {
@@ -130,7 +129,8 @@ NdbDaemon_Make(const char* lockfile, const char* logfile, unsigned flags)
   /* Success */
   return 0;
 }
-#else
+
+#if 0
 int
 NdbDaemon_Make(const char* lockfile, const char* logfile, unsigned flags)
 {
