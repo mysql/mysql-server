@@ -112,20 +112,13 @@ int chk_status(MI_CHECK *param, register MI_INFO *info)
 int chk_del(MI_CHECK *param, register MI_INFO *info, uint test_flag)
 {
   reg2 ha_rows i;
-  uint j,delete_link_length;
+  uint delete_link_length;
   my_off_t empty,next_link,old_link;
   char buff[22],buff2[22];
   DBUG_ENTER("chk_del");
 
-  if (!(test_flag & T_SILENT))
-    puts("- check key delete-chain");
-
   LINT_INIT(old_link);
   param->record_checksum=0;
-  param->key_file_blocks=info->s->base.keystart;
-  for (j=0 ; j < info->s->state.header.max_block_size ; j++)
-    if (check_k_link(param,info,j))
-      goto wrong;
   delete_link_length=((info->s->options & HA_OPTION_PACK_RECORD) ? 20 :
 		      info->s->rec_reflength+1);
 
@@ -352,6 +345,18 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
   char buff[22],buff2[22];
   DBUG_ENTER("chk_key");
 
+  if (!(param->testflag & T_SILENT))
+    puts("- check key delete-chain");
+
+  param->key_file_blocks=info->s->base.keystart;
+  for (key=0 ; key < info->s->state.header.max_block_size ; key++)
+    if (check_k_link(param,info,key))
+    {
+      if (param->testflag & T_VERBOSE) puts("");
+      mi_check_print_error(param,"key delete-link-chain corrupted");
+      DBUG_RETURN(-1);
+    }
+
   if (!(param->testflag & T_SILENT)) puts("- check index reference");
 
   all_keydata=all_totaldata=key_totlength=0;
@@ -507,6 +512,7 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
   DBUG_RETURN(result);
 } /* chk_key */
 
+
 static int chk_index_down(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
                      my_off_t page, uchar *buff, ha_rows *keys,
                      ha_checksum *key_checksum, uint level)
@@ -548,7 +554,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
   uint used_length,comp_flag,nod_flag,key_length,not_used;
   uchar key[MI_MAX_POSSIBLE_KEY_BUFF],*temp_buff,*keypos,*old_keypos,*endpos;
   my_off_t next_page,record;
-  char llbuff[22],llbuff2[22];
+  char llbuff[22];
   DBUG_ENTER("chk_index");
   DBUG_DUMP("buff",(byte*) buff,mi_getint(buff));
 
@@ -646,7 +652,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     if (record >= info->state->data_file_length)
     {
 #ifndef DBUG_OFF
-      char llbuff3[22];
+      char llbuff2[22], llbuff3[22];
 #endif
       mi_check_print_error(param,"Found key at page %s that points to record outside datafile",llstr(page,llbuff));
       DBUG_PRINT("test",("page: %s  record: %s  filelength: %s",
@@ -1208,9 +1214,8 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   if (!rep_quick)
   {
     /* Get real path for data file */
-    fn_format(param->temp_filename,name,"", MI_NAME_DEXT,2+4+32);
     if ((new_file=my_raid_create(fn_format(param->temp_filename,
-					   param->temp_filename,"",
+					   share->data_file_name, "",
 					   DATA_TMP_EXT, 2+4),
 				 0,param->tmpfile_createflag,
 				 share->base.raid_type,
@@ -1882,11 +1887,9 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   if (!rep_quick)
   {
     /* Get real path for data file */
-    fn_format(param->temp_filename,name,"", MI_NAME_DEXT,2+4+32);
     if ((new_file=my_raid_create(fn_format(param->temp_filename,
-					   param->temp_filename, "",
-					   DATA_TMP_EXT,
-					   2+4),
+					   share->data_file_name, "",
+					   DATA_TMP_EXT, 2+4),
 				 0,param->tmpfile_createflag,
 				 share->base.raid_type,
 				 share->base.raid_chunks,
@@ -2248,9 +2251,8 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   if (!rep_quick)
   {
     /* Get real path for data file */
-    fn_format(param->temp_filename,name,"", MI_NAME_DEXT,2+4+32);
     if ((new_file=my_raid_create(fn_format(param->temp_filename,
-					   param->temp_filename, "",
+					   share->data_file_name, "",
 					   DATA_TMP_EXT,
 					   2+4),
 				 0,param->tmpfile_createflag,

@@ -377,8 +377,14 @@ row_undo_mod_del_mark_or_remove_sec_low(
 }
 
 /***************************************************************
-Delete marks or removes a secondary index entry if found. */
-UNIV_INLINE
+Delete marks or removes a secondary index entry if found.
+NOTE that if we updated the fields of a delete-marked secondary index record
+so that alphabetically they stayed the same, e.g., 'abc' -> 'aBc', we cannot
+return to the original values because we do not know them. But this should
+not cause problems because in row0sel.c, in queries we always retrieve the
+clustered index record or an earlier version of it, if the secondary index
+record through which we do the search is delete-marked. */
+static
 ulint
 row_undo_mod_del_mark_or_remove_sec(
 /*================================*/
@@ -403,20 +409,31 @@ row_undo_mod_del_mark_or_remove_sec(
 }
 
 /***************************************************************
-Delete unmarks a secondary index entry which must be found. */
+Delete unmarks a secondary index entry which must be found. It might not be
+delete-marked at the moment, but it does not harm to unmark it anyway. We also
+need to update the fields of the secondary index record if we updated its
+fields but alphabetically they stayed the same, e.g., 'abc' -> 'aBc'. */
 static
-void
-row_undo_mod_del_unmark_sec(
-/*========================*/
+ulint
+row_undo_mod_del_unmark_sec_and_undo_update(
+/*========================================*/
+				/* out: DB_FAIL or DB_SUCCESS or
+				DB_OUT_OF_FILE_SPACE */
+	ulint		mode,	/* in: search mode: BTR_MODIFY_LEAF or
+				BTR_MODIFY_TREE */
 	undo_node_t*	node,	/* in: row undo node */
 	que_thr_t*	thr,	/* in: query thread */
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry)	/* in: index entry */
 {
+	mem_heap_t*	heap;
 	btr_pcur_t	pcur;
 	btr_cur_t*	btr_cur;
-	ulint		err;
+	upd_t*		update;
+	rec_t*		rec;
+	ulint		err		= DB_SUCCESS;
 	ibool		found;
+	big_rec_t*	dummy_big_rec;
 	mtr_t		mtr;
 	char           	err_buf[1000];
 
@@ -425,8 +442,8 @@ row_undo_mod_del_unmark_sec(
 	log_free_check();
 	mtr_start(&mtr);
 	
-	found = row_search_index_entry(index, entry, BTR_MODIFY_LEAF, &pcur,
-									&mtr);
+	found = row_search_index_entry(index, entry, mode, &pcur, &mtr);
+
 	if (!found) {
 	  	fprintf(stderr,
 			"InnoDB: error in sec index entry del undo in\n"
@@ -443,17 +460,47 @@ row_undo_mod_del_unmark_sec(
 			"%s\nInnoDB: Make a detailed bug report and send it\n",
 			err_buf);
 	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
-
 	} else {
          	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
+		rec = btr_cur_get_rec(btr_cur);
+
 	        err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG,
 						btr_cur, FALSE, thr, &mtr);
-	        ut_ad(err == DB_SUCCESS);
+	        ut_a(err == DB_SUCCESS);
+		heap = mem_heap_create(100);
+
+		update = row_upd_build_sec_rec_difference_binary(index, entry,
+								rec, heap);
+	        if (upd_get_n_fields(update) == 0) {
+
+			/* Do nothing */
+		
+		} else if (mode == BTR_MODIFY_LEAF) {
+                	/* Try an optimistic updating of the record, keeping
+			changes within the page */
+
+                	err = btr_cur_optimistic_update(BTR_KEEP_SYS_FLAG
+							| BTR_NO_LOCKING_FLAG,
+ 						btr_cur, update, 0, thr, &mtr);
+                	if (err == DB_OVERFLOW || err == DB_UNDERFLOW) {
+                        	err = DB_FAIL;
+                	}
+       		} else  {
+                	ut_a(mode == BTR_MODIFY_TREE);
+                	err = btr_cur_pessimistic_update(BTR_KEEP_SYS_FLAG
+							| BTR_NO_LOCKING_FLAG,
+						btr_cur, &dummy_big_rec,
+						update, 0, thr, &mtr);
+        	}			
+
+		mem_heap_free(heap);
 	}
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
+
+	return(err);
 }
 
 /***************************************************************
@@ -501,13 +548,14 @@ static
 ulint
 row_undo_mod_del_mark_sec(
 /*======================*/
-				/* out: DB_SUCCESS */
+				/* out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 	undo_node_t*	node,	/* in: row undo node */
 	que_thr_t*	thr)	/* in: query thread */
 {
 	mem_heap_t*	heap;
 	dtuple_t*	entry;
 	dict_index_t*	index;
+	ulint		err;
 
 	heap = mem_heap_create(1024);
 
@@ -516,7 +564,21 @@ row_undo_mod_del_mark_sec(
 
 		entry = row_build_index_entry(node->row, index, heap);
 		
-		row_undo_mod_del_unmark_sec(node, thr, index, entry);
+		err = row_undo_mod_del_unmark_sec_and_undo_update(
+						BTR_MODIFY_LEAF,
+						node, thr, index, entry);
+		if (err == DB_FAIL) {
+			err = row_undo_mod_del_unmark_sec_and_undo_update(
+						BTR_MODIFY_TREE,
+						node, thr, index, entry);
+		}
+
+		if (err != DB_SUCCESS) {
+
+			mem_heap_free(heap);
+
+			return(err);
+		}
 
 		node->index = dict_table_get_next_index(node->index);
 	}
@@ -532,7 +594,7 @@ static
 ulint
 row_undo_mod_upd_exist_sec(
 /*=======================*/
-				/* out: DB_SUCCESS or error code */
+				/* out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 	undo_node_t*	node,	/* in: row undo node */
 	que_thr_t*	thr)	/* in: query thread */
 {
@@ -558,22 +620,48 @@ row_undo_mod_upd_exist_sec(
 			/* Build the newest version of the index entry */
 			entry = row_build_index_entry(node->row, index, heap);
 
+			/* NOTE that if we updated the fields of a
+			delete-marked secondary index record so that
+			alphabetically they stayed the same, e.g.,
+			'abc' -> 'aBc', we cannot return to the original
+			values because we do not know them. But this should
+			not cause problems because in row0sel.c, in queries
+			we always retrieve the clustered index record or an
+			earlier version of it, if the secondary index record
+			through which we do the search is delete-marked. */
+
 			err = row_undo_mod_del_mark_or_remove_sec(node, thr,
-							index, entry);
+								index, entry);
 			if (err != DB_SUCCESS) {
 				mem_heap_free(heap);
 
 				return(err);
 			}
-							
+
 			/* We may have to update the delete mark in the
 			secondary index record of the previous version of
-			the row */
+			the row. We also need to update the fields of
+			the secondary index record if we updated its fields
+			but alphabetically they stayed the same, e.g.,
+			'abc' -> 'aBc'. */
 
 			row_upd_index_replace_new_col_vals(entry, index,
 							node->update, NULL);
+			err = row_undo_mod_del_unmark_sec_and_undo_update(
+						BTR_MODIFY_LEAF,
+						node, thr, index, entry);
+			if (err == DB_FAIL) {
+				err =
+				   row_undo_mod_del_unmark_sec_and_undo_update(
+						BTR_MODIFY_TREE,
+						node, thr, index, entry);
+			}
 
-			row_undo_mod_del_unmark_sec(node, thr, index, entry);
+			if (err != DB_SUCCESS) {
+				mem_heap_free(heap);
+
+				return(err);
+			}
 		}
 
 		node->index = dict_table_get_next_index(node->index);

@@ -163,7 +163,7 @@ extern char *my_strdup_with_length(const byte *from, uint length,
 #if defined(_AIX) && !defined(__GNUC__) && !defined(_AIX43)
 #pragma alloca
 #endif /* _AIX */
-#if defined(__GNUC__) && !defined(HAVE_ALLOCA_H)
+#if defined(__GNUC__) && !defined(HAVE_ALLOCA_H) && ! defined(alloca)
 #define alloca __builtin_alloca
 #endif /* GNUC */
 #define my_alloca(SZ) alloca((size_t) (SZ))
@@ -583,7 +583,7 @@ extern int my_printf_error _VARARGS((uint my_err, const char *format,
 extern int my_message(uint my_err, const char *str,myf MyFlags);
 extern int my_message_no_curses(uint my_err, const char *str,myf MyFlags);
 extern int my_message_curses(uint my_err, const char *str,myf MyFlags);
-extern void my_init(void);
+extern my_bool my_init(void);
 extern void my_end(int infoflag);
 extern int my_redel(const char *from, const char *to, int MyFlags);
 extern int my_copystat(const char *from, const char *to, int MyFlags);
