@@ -1161,7 +1161,7 @@ New value of ebp failed sanity check, terminating backtrace!\n");
     ++frame_count;
   }
 
-  fprintf(stderr, "Stack trace successful, tryint to get some variables.\n\
+  fprintf(stderr, "Stack trace successful, trying to get some variables.\n\
 Some pointers may be invalid and cause the dump to abort...\n");
   heap_start = __bss_start; 
   heap_end = (char*)sbrk(0);
