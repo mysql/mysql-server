@@ -247,3 +247,26 @@ EXPLAIN SELECT t1.gid, t2.sid, t3.uid from t2, t1, t3 where t2.gid = t1.gid and 
 EXPLAIN SELECT t1.gid, t3.uid from t1, t3 where t1.gid = t3.uid order by t3.skr,t1.gid;
 EXPLAIN SELECT t1.gid, t3.uid from t1, t3 where t1.skr = t3.uid order by t1.gid,t3.skr;
 drop table t1,t2,t3;
+
+#
+# Problem with lookup on NULL (Bug 479)
+#
+
+CREATE TABLE t1 (
+  t1_id int(10) unsigned NOT NULL default '0',
+  ref_id int(10) unsigned default NULL,
+  PRIMARY KEY  (t1_id)
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES (2401,14590),(2425,NULL);
+CREATE TABLE t2 (
+  t2_id int(10) unsigned NOT NULL default '0',
+  ref_id int(10) unsigned NOT NULL default '0',
+  str varchar(20) default NULL,
+  PRIMARY KEY  (t2_id),
+  KEY ref_id (ref_id)
+) TYPE=MyISAM;
+INSERT INTO t2 VALUES (112633,14590,'t2 112633'),(112634,14590,'t2 112634'),(113166,14641,'t2 113166'),(113167,14641,'t2 113167'),(113168,14641,'t2 113168'),(113169,14641,'t2 113169'),(113170,14641,'t2 113170'),(113171,14641,'t2 113171'),(113172,14641,'t2 113172'),(113173,14641,'t2 113173'),(113174,14641,'t2 113174'),(113175,14641,'t2 113175'),(113436,14674,'t2 113436'),(113437,14674,'t2 113437'),(113486,14689,'t2 113486'),(113487,14689,'t2 113487'),(113488,14689,'t2 113488'),(113489,14689,'t2 113489'),(113504,14795,'t2 113504'),(115396,15024,'t2 115396'),(115397,15024,'t2 115397');
+SELECT t2_id, str FROM t1, t2 WHERE t1_id = 2401 AND t1.ref_id = t2.ref_id ORDER BY str, t2_id;
+# This one gave an error
+SELECT t2_id, str FROM t1, t2 WHERE t1_id = 2425 AND t1.ref_id = t2.ref_id ORDER BY str, t2_id;
+DROP TABLE t1,t2;
