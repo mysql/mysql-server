@@ -59,7 +59,7 @@ explain select * from t1 as x1, (select * from t1) as x2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	x1	ALL	NULL	NULL	NULL	NULL	4	
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	
-2	DERIVED	x1	ALL	NULL	NULL	NULL	NULL	4	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	
 drop table if exists  t2,t3;
 select * from (select 1) as a;
 1
@@ -141,7 +141,7 @@ a	t
 explain select count(*) from t1 as tt1, (select * from t1) as tt2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
-2	DERIVED	tt1	ALL	NULL	NULL	NULL	NULL	10000	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	10000	
 drop table t1;
 SELECT * FROM (SELECT (SELECT * FROM (SELECT 1 as a) as a )) as b;
 (SELECT * FROM (SELECT 1 as a) as a )
@@ -189,13 +189,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	Using where
 2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
-2	DERIVED	m2	index	NULL	PRIMARY	3	NULL	9	Using index
+2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	
 explain SELECT STRAIGHT_JOIN d.pla_id, m2.test FROM t1 m2  INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	Using where
 2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
-2	DERIVED	m2	index	NULL	PRIMARY	3	NULL	9	Using index
+2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	
 drop table t1,t2;
 SELECT a.x FROM (SELECT 1 AS x) AS a HAVING a.x = 1;
 x
@@ -229,7 +229,7 @@ explain select count(*) from t1 INNER JOIN (SELECT A.E1, A.E2, A.E3 FROM t1 AS A
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
 1	PRIMARY	t1	eq_ref	PRIMARY	PRIMARY	4	THEMAX.E2	1	Using where
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DERIVED	A	ALL	NULL	NULL	NULL	NULL	2	Using where
 3	DEPENDENT SUBQUERY	B	ALL	NULL	NULL	NULL	NULL	2	Using where
 drop table t1;
 create table t1 (a int);
@@ -298,3 +298,25 @@ INSERT INTO t3 VALUES (1000,0.00),(1001,0.25),(1002,0.50),(1003,0.75),(1008,1.00
 select 497, TMP.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from t1 join t2 on (t1.ObjectID = t2.ID) join t3 on (t1.ObjectID = t3.ID) group by t2.ParID order by DATA DESC) as TMP;
 497	ID	NULL
 drop table t1, t2, t3;
+CREATE TABLE t1 (name char(1) default NULL, val int(5) default NULL);
+INSERT INTO t1 VALUES ('a',1),  ('a',2),  ('a',2),  ('a',2),  ('a',3),  ('a',6), ('a',7), ('a',11), ('a',11), ('a',12), ('a',13), ('a',13), ('a',20), ('b',2), ('b',3), ('b',4), ('b',5);
+SELECT s.name, AVG(s.val) AS median FROM (SELECT x.name, x.val FROM t1 x, t1 y WHERE x.name=y.name GROUP BY x.name, x.val HAVING SUM(y.val <= x.val) >= COUNT(*)/2 AND SUM(y.val >= x.val) >= COUNT(*)/2) AS s GROUP BY s.name;
+name	median
+a	7.0000
+b	3.5000
+explain SELECT s.name, AVG(s.val) AS median FROM (SELECT x.name, x.val FROM t1 x, t1 y WHERE x.name=y.name GROUP BY x.name, x.val HAVING SUM(y.val <= x.val) >= COUNT(*)/2 AND SUM(y.val >= x.val) >= COUNT(*)/2) AS s GROUP BY s.name;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
+2	DERIVED	x	ALL	NULL	NULL	NULL	NULL	17	Using temporary; Using filesort
+2	DERIVED	y	ALL	NULL	NULL	NULL	NULL	17	Using where
+drop table t1;
+create table t2 (a int, b int, primary key (a));
+insert into t2 values (1,7),(2,7);
+explain select a from t2 where a>1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
+explain select a from (select a from t2 where a>1) tt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+2	DERIVED	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
+drop table t2;

@@ -1305,6 +1305,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       goto err;					// Can't repair the table
 
     TABLE_LIST table_list;
+    bzero((char*) &table_list, sizeof(table_list)); // just for safe
     table_list.db=(char*) db;
     table_list.real_name=(char*) name;
     table_list.next=0;
@@ -1372,11 +1373,13 @@ int open_tables(THD *thd,TABLE_LIST *start)
   thd->proc_info="Opening tables";
   for (tables=start ; tables ; tables=tables->next)
   {
+    if (tables->derived)
+      continue;
     if (!tables->table &&
-	!(tables->table=open_table(thd,
-				   tables->db,
-				   tables->real_name,
-				   tables->alias, &refresh)))
+	!(tables->table= open_table(thd,
+				    tables->db,
+				    tables->real_name,
+				    tables->alias, &refresh)))
     {
       if (refresh)				// Refresh in progress
       {
@@ -1522,15 +1525,47 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
 
 
 /*
-  Open all tables in list and locks them for read.
-  The lock will automaticly be freed by close_thread_tables()
+  Open all tables in list and locks them for read without derived
+  tables processing.
+
+  SYNOPSIS
+    simple_open_n_lock_tables()
+    thd		- thread handler
+    tables	- list of tables for open&locking
+
+  NOTE
+    The lock will automaticly be freed by close_thread_tables()
 */
 
-int open_and_lock_tables(THD *thd,TABLE_LIST *tables)
+int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
 {
-  if (open_tables(thd,tables) || lock_tables(thd,tables))
-    return -1;					/* purecov: inspected */
-  return 0;
+  DBUG_ENTER("open_n_lock_tables");
+  if (open_tables(thd, tables) || lock_tables(thd, tables))
+    DBUG_RETURN(-1);				/* purecov: inspected */
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Open all tables in list, locks them and process derived tables
+  tables processing.
+
+  SYNOPSIS
+    simple_open_n_lock_tables()
+    thd		- thread handler
+    tables	- list of tables for open&locking
+
+  NOTE
+    The lock will automaticly be freed by close_thread_tables()
+*/
+
+int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+{
+  DBUG_ENTER("open_and_lock_tables");
+  if (open_tables(thd, tables) || lock_tables(thd, tables))
+    DBUG_RETURN(-1);				/* purecov: inspected */
+  fix_tables_pointers(thd->lex->all_selects_list);
+  DBUG_RETURN(mysql_handle_derived(thd->lex));
 }
 
 
@@ -1563,12 +1598,18 @@ int lock_tables(THD *thd,TABLE_LIST *tables)
     DBUG_ASSERT(thd->lock == 0);	// You must lock everything at once
     uint count=0;
     for (table = tables ; table ; table=table->next)
-      count++;
+    {
+      if (!table->derived)
+	count++;
+    }
     TABLE **start,**ptr;
     if (!(ptr=start=(TABLE**) sql_alloc(sizeof(TABLE*)*count)))
       return -1;
     for (table = tables ; table ; table=table->next)
-      *(ptr++)= table->table;
+    {
+      if (!table->derived)
+	*(ptr++)= table->table;
+    }
     if (!(thd->lock=mysql_lock_tables(thd,start,count)))
       return -1;				/* purecov: inspected */
   }
@@ -1576,7 +1617,8 @@ int lock_tables(THD *thd,TABLE_LIST *tables)
   {
     for (table = tables ; table ; table=table->next)
     {
-      if (check_lock_and_start_stmt(thd, table->table, table->lock_type))
+      if (!table->derived && 
+	  check_lock_and_start_stmt(thd, table->table, table->lock_type))
       {
 	ha_rollback_stmt(thd);
 	return -1;
@@ -2165,6 +2207,7 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       /* Ensure that we have access right to all columns */
       if (!(table->grant.privilege & SELECT_ACL) &&
+	  !tables->derived &&
 	  check_grant_all_columns(thd,SELECT_ACL,table))
 	DBUG_RETURN(-1);
 #endif
