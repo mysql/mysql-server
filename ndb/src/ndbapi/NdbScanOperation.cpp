@@ -188,12 +188,15 @@ NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   m_keyInfo = lockExcl;
 
   bool range = false;
-  if (m_currentTable->m_indexType == NdbDictionary::Index::OrderedIndex ||
-      m_currentTable->m_indexType == NdbDictionary::Index::UniqueOrderedIndex){
-    assert(m_currentTable == m_accessTable);
-    m_currentTable = theNdb->theDictionary->
-      getTable(m_currentTable->m_primaryTable.c_str());
-    assert(m_currentTable != NULL);
+  if (m_accessTable->m_indexType == NdbDictionary::Index::OrderedIndex ||
+      m_accessTable->m_indexType == NdbDictionary::Index::UniqueOrderedIndex){
+    if (m_currentTable == m_accessTable){
+      // Old way of scanning indexes, should not be allowed
+      m_currentTable = theNdb->theDictionary->
+	getTable(m_currentTable->m_primaryTable.c_str());
+      assert(m_currentTable != NULL);
+    }
+    assert (m_currentTable != m_accessTable);
     // Modify operation state
     theStatus = SetBound;
     theOperationType  = OpenRangeScanRequest;
