@@ -425,7 +425,7 @@ check_connections(THD *thd)
     DBUG_PRINT("info", ("Agreed to change IO layer to SSL") );
     /* Do the SSL layering. */
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    net->vio = sslaccept(ssl_acceptor_fd, net->vio);
+    sslaccept(ssl_acceptor_fd, net->vio);
     DBUG_PRINT("info", ("Reading user information over SSL layer"));
     if ((pkt_len=my_net_read(net)) == packet_error ||
 	pkt_len < NORMAL_HANDSHAKE_SIZE)
