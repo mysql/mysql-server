@@ -28,6 +28,7 @@
 #include <odbcinst.h>
 #endif
 #include <global.h>
+#include <mysql_com.h>
 #include <violite.h>
 #include <my_sys.h>
 #include <mysys_err.h>

@@ -31,6 +31,7 @@
 #include <winsock.h>
 #endif
 #include <global.h>
+#include <mysql_com.h>
 #include <violite.h>
 #include <my_sys.h>
 #include <m_string.h>
