@@ -1461,7 +1461,8 @@ String *Item_func_user::val_str(String *str)
   // For system threads (e.g. replication SQL thread) user may be empty
   if (!thd->user)
     return &empty_string;
-  uint32       res_length=(strlen(thd->user)+strlen(host)+2) * cs->mbmaxlen;
+  uint32       res_length=(strlen(thd->user)+strlen(host)+3) * cs->mbmaxlen;
+// it is +3 , because 1 for each string and 1 for '@' sign
 
   if (str->alloc(res_length))
   {
