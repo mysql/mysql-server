@@ -275,7 +275,7 @@ bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields)
     key is not updated
   */
   if (idx != table->primary_key && table->primary_key < MAX_KEY &&
-      (table->file->option_flag() & HA_PRIMARY_KEY_IN_READ_INDEX))
+      (table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX))
     return check_if_key_used(table, table->primary_key, fields);
   return 0;
 }
