@@ -33,7 +33,7 @@
  * .configure. strxfrm_multiply_latin1_de=2
  */
 
-#include <global.h>
+#include <my_global.h>
 #include "m_string.h"
 #include "m_ctype.h"
 
@@ -320,11 +320,11 @@ my_bool my_like_range_latin1_de(const char *ptr, uint ptr_length,
   char *min_org = min_str;
   char *min_end = min_str + res_length;
 
-  for (; ptr != end && min_str != min_end; ++ptr)
+  for (; ptr != end && min_str != min_end; ptr++)
   {
     if (*ptr == escape && ptr + 1 != end)
     {
-      ++ptr;				/* Skip escape */
+      ptr++;				/* Skip escape */
       *min_str++ = *max_str++ = *ptr;
       continue;
     }
@@ -339,7 +339,7 @@ my_bool my_like_range_latin1_de(const char *ptr, uint ptr_length,
       *min_length = (uint)(min_str - min_org);
       *max_length = res_length;
       do {
-	*min_str++ = min_sort_char;
+	*min_str++ = ' ';			// Because if key compression
 	*max_str++ = max_sort_char;
       } while (min_str != min_end);
       return 0;
@@ -347,10 +347,15 @@ my_bool my_like_range_latin1_de(const char *ptr, uint ptr_length,
     *min_str++ = *max_str++ = *ptr;
   }
   *min_length = *max_length = (uint) (min_str - min_org);
-  while (min_str != min_end)
+
+  /* Temporary fix for handling wild_one at end of string (key compression) */
   {
-    *min_str++ = ' ';			/* For proper key compression */
-    *max_str++ = ' ';
+    char *tmp;
+    for (tmp= min_str ; tmp > min_org && tmp[-1] == '\0';)
+      *--tmp=' ';
   }
+
+  while (min_str != min_end)
+    *min_str++ = *max_str++ = ' ';		// Because if key compression
   return 0;
 }

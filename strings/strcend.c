@@ -24,7 +24,7 @@
     occurs,  or a pointer to the end-null of s if c does not occur in s.
 */
 
-#include <global.h>
+#include <my_global.h>
 #include "m_string.h"
 
 #if defined(MC68000) && defined(DS90)

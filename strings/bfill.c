@@ -12,7 +12,7 @@
     code is presented for your interest and amusement.
 */
 
-#include <global.h>
+#include <my_global.h>
 #include "m_string.h"
 
 #if !defined(bfill) && !defined(HAVE_BFILL)

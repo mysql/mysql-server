@@ -30,7 +30,7 @@
 #ifdef __WIN__
 #include <winsock.h>
 #endif
-#include <global.h>
+#include <my_global.h>
 #include <mysql_com.h>
 #include <violite.h>
 #include <my_sys.h>

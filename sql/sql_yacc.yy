@@ -43,7 +43,7 @@ inline Item *or_or_concat(Item* A, Item* B)
 %union {
   int  num;
   ulong ulong_num;
-  ulonglong ulonglong_num;
+  ulonglong ulonglong_number;
   LEX_STRING lex_str;
   LEX_STRING *lex_str_ptr;
   LEX_SYMBOL symbol;
@@ -349,6 +349,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	TINYBLOB
 %token	TINYINT
 %token	TINYTEXT
+%token	ULONGLONG_NUM
 %token	UNSIGNED
 %token	VARBINARY
 %token	VARCHAR
@@ -465,7 +466,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <lex_str>
 	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
-	field_ident select_alias ident ident_or_text
+	ULONGLONG_NUM field_ident select_alias ident ident_or_text
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -488,8 +489,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <ulong_num>
 	ULONG_NUM raid_types
 
-%type <ulonglong_num>
-	ULONGLONG_NUM
+%type <ulonglong_number>
+	ulonglong_num
 
 %type <item>
 	literal text_literal insert_ident group_ident order_ident
@@ -652,7 +653,7 @@ master_def:
 	 Lex->mi.port = $3;
        }
        |
-       MASTER_LOG_POS_SYM EQ ULONGLONG_NUM
+       MASTER_LOG_POS_SYM EQ ulonglong_num
        {
 	 Lex->mi.pos = $3;
        }
@@ -766,12 +767,12 @@ create_table_options:
 
 create_table_option:
 	TYPE_SYM EQ table_types		{ Lex->create_info.db_type= $3; }
-	| MAX_ROWS EQ ULONGLONG_NUM	{ Lex->create_info.max_rows= $3; }
-	| MIN_ROWS EQ ULONGLONG_NUM	{ Lex->create_info.min_rows= $3; }
+	| MAX_ROWS EQ ulonglong_num	{ Lex->create_info.max_rows= $3; }
+	| MIN_ROWS EQ ulonglong_num	{ Lex->create_info.min_rows= $3; }
 	| AVG_ROW_LENGTH EQ ULONG_NUM	{ Lex->create_info.avg_row_length=$3; }
 	| PASSWORD EQ TEXT_STRING	{ Lex->create_info.password=$3.str; }
 	| COMMENT_SYM EQ TEXT_STRING	{ Lex->create_info.comment=$3.str; }
-	| AUTO_INC EQ ULONGLONG_NUM	{ Lex->create_info.auto_increment_value=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AUTO;}
+	| AUTO_INC EQ ulonglong_num	{ Lex->create_info.auto_increment_value=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AUTO;}
 	| PACK_KEYS_SYM EQ ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS; }
 	| CHECKSUM_SYM EQ ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; }
 	| DELAY_KEY_WRITE_SYM EQ ULONG_NUM { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE; }
@@ -2047,16 +2048,18 @@ delete_limit_clause:
 	{
 	  Select->select_limit= HA_POS_ERROR;
 	}
-	| LIMIT ULONGLONG_NUM
+	| LIMIT ulonglong_num
 	{ Select->select_limit= (ha_rows) $2; }
 
 ULONG_NUM:
 	NUM	    { $$= strtoul($1.str,NULL,10); }
+	| ULONGLONG_NUM { $$= (ulonglong) strtoul($1.str,NULL,10); }
 	| REAL_NUM  { $$= strtoul($1.str,NULL,10); }
 	| FLOAT_NUM { $$= strtoul($1.str,NULL,10); }
 
-ULONGLONG_NUM:
+ulonglong_num:
 	NUM	    { $$= (ulonglong) strtoul($1.str,NULL,10); }
+	| ULONGLONG_NUM { $$= (ulonglong) strtoul($1.str,NULL,10); }
 	| LONG_NUM  { $$= strtoull($1.str,NULL,10); }
 	| REAL_NUM  { $$= strtoull($1.str,NULL,10); }
 	| FLOAT_NUM { $$= strtoull($1.str,NULL,10); }
@@ -2417,7 +2420,7 @@ show_param:
 	      YYABORT;
 	  }
         | NEW_SYM MASTER_SYM FOR_SYM SLAVE WITH MASTER_LOG_FILE_SYM EQ 
-	  TEXT_STRING AND MASTER_LOG_POS_SYM EQ ULONGLONG_NUM AND
+	  TEXT_STRING AND MASTER_LOG_POS_SYM EQ ulonglong_num AND
 	MASTER_LOG_SEQ_SYM EQ ULONG_NUM AND MASTER_SERVER_ID_SYM EQ
 	ULONG_NUM
           {
@@ -2499,7 +2502,7 @@ binlog_in:
 
 binlog_from:
 	/* empty */ { Lex->mi.pos = 4; /* skip magic number */ }
-        | FROM ULONGLONG_NUM { Lex->mi.pos = $2; }
+        | FROM ulonglong_num { Lex->mi.pos = $2; }
 
 
 /* A Oracle compatible synonym for show */
@@ -2705,6 +2708,7 @@ literal:
 	text_literal	{ $$ =	$1; }
 	| NUM		{ $$ =	new Item_int($1.str, (longlong) atol($1.str),$1.length); }
 	| LONG_NUM	{ $$ =	new Item_int($1.str); }
+	| ULONGLONG_NUM	{ $$ =	new Item_uint($1.str, $1.length); }
 	| REAL_NUM	{ $$ =	new Item_real($1.str, $1.length); }
 	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }
 	| NULL_SYM	{ $$ =	new Item_null();
@@ -2993,11 +2997,11 @@ option_value:
 	{
 	  current_thd->user_time=0;
 	}
-	| LAST_INSERT_ID equal ULONGLONG_NUM
+	| LAST_INSERT_ID equal ulonglong_num
 	{
 	  current_thd->insert_id($3);
 	}
-	| INSERT_ID equal ULONGLONG_NUM
+	| INSERT_ID equal ulonglong_num
 	{
 	  current_thd->next_insert_id=$3;
 	}

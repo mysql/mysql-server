@@ -2,7 +2,7 @@
 #undef DBUG_OFF
 #endif
 
-#include <global.h>	/* This includes dbug.h */
+#include <my_global.h>	/* This includes dbug.h */
 
 int main (argc, argv)
 int argc;

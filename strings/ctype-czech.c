@@ -67,7 +67,7 @@
 
 #ifdef REAL_MYSQL
 
-#include <global.h>
+#include <my_global.h>
 #include "m_string.h"
 
 #else
@@ -427,7 +427,7 @@ my_bool my_like_range_czech(const char *ptr,uint ptr_length,pchar escape,
  *
  * definition table reworked by Jaromir Dolecek <dolecek@ics.muni.cz>
  */
-#include <global.h>
+#include <my_global.h>
 #include "m_string.h"
 
 uchar NEAR ctype_czech[257] = {

@@ -17,7 +17,7 @@
 
 /* Calculate a long checksum for a memoryblock. Used to verify pack_isam */
 
-#include <global.h>
+#include <my_global.h>
 #include "my_sys.h"
 
 ulong checksum(const byte *mem, uint count)

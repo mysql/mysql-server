@@ -27,7 +27,7 @@
  * .configure. mbmaxlen_euc_kr=2
  */
 
-#include <global.h>
+#include <my_global.h>
 #include "m_string.h"
 
 uchar NEAR ctype_euc_kr[257] =

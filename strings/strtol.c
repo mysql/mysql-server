@@ -17,7 +17,7 @@
 
 /* This defines strtol() if neaded */
 
-#include <global.h>
+#include <my_global.h>
 #if !defined(MSDOS) && !defined(HAVE_STRTOL) && !defined(__WIN__)
 #include "strto.c"
 #endif

@@ -17,7 +17,7 @@
 
 /* Routines to handle mallocing of results which will be freed the same time */
 
-#include <global.h>
+#include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
 

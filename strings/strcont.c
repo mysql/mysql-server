@@ -26,7 +26,7 @@
 
 */
 
-#include <global.h>
+#include <my_global.h>
 #include "m_string.h"
 
 my_string strcont(reg1 const char *str,reg2 const char *set)

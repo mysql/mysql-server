@@ -24,7 +24,7 @@
   the pattern counted from the begining of the string.
 */
 
-#include <global.h>
+#include <my_global.h>
 #include "m_string.h"
 
 uint r_strinstr(reg1 my_string str,int from, reg4 my_string search)

@@ -128,7 +128,7 @@ DO_GDB=""
 DO_DDD=""
 DO_CLIENT_GDB=""
 SLEEP_TIME=2
-CHARACTER_SET=latin1_de
+CHARACTER_SET=latin1
 DBUSER=""
 
 while test $# -gt 0; do

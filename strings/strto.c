@@ -36,7 +36,7 @@
   it can be compiled with the UNSIGNED and/or LONGLONG flag set
 */
 
-#include <global.h>
+#include <my_global.h>
 #include "m_string.h"
 #include "m_ctype.h"
 #include "my_sys.h"			/* defines errno */

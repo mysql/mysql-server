@@ -18,7 +18,7 @@
 /* Error messages for MySQL clients */
 /* error messages for the daemon is in share/language/errmsg.sys */
 
-#include <global.h>
+#include <my_global.h>
 #include <my_sys.h>
 #include "errmsg.h"
 

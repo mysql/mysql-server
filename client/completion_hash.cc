@@ -22,7 +22,7 @@
  * Small portability changes by Monty. Changed also to use my_malloc/my_free
  */
 
-#include <global.h>
+#include <my_global.h>
 #include <m_string.h>
 #undef SAFEMALLOC				// Speed things up
 #include <my_sys.h>

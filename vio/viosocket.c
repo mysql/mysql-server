@@ -23,7 +23,7 @@
 */
 
 #define DONT_MAP_VIO
-#include <global.h>
+#include <my_global.h>
 #include <mysql_com.h>
 
 #include <errno.h>

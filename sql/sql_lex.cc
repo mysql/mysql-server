@@ -337,7 +337,8 @@ static const char *longlong_str="9223372036854775807";
 static const uint longlong_len=19;
 static const char *signed_longlong_str="-9223372036854775808";
 static const uint signed_longlong_len=19;
-
+static const char *unsigned_longlong_str="18446744073709551615";
+static const uint unsigned_longlong_len=20;
 
 inline static uint int_token(const char *str,uint length)
 {
@@ -393,7 +394,13 @@ inline static uint int_token(const char *str,uint length)
     else if (length < longlong_len)
       return LONG_NUM;
     else if (length > longlong_len)
-      return REAL_NUM;
+    {
+      if (length > unsigned_longlong_len)
+	return REAL_NUM;
+      cmp=unsigned_longlong_str;
+      smaller=ULONGLONG_NUM;
+      bigger=REAL_NUM;
+    }
     else
     {
       cmp=longlong_str;

@@ -13,7 +13,7 @@
 
 #ifndef NullS
 
-#include <global.h>				/* Define standar vars */
+#include <my_global.h>				/* Define standar vars */
 #include "m_string.h"
 
 #define NUL	'\0'

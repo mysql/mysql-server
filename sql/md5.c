@@ -28,7 +28,7 @@ documentation and/or software.
    Replace of MD5_memset and MD5_memcpy with memset & memcpy
 */
 
-#include <global.h>
+#include <my_global.h>
 #include <m_string.h>
 #include "md5.h"
 

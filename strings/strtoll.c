@@ -17,7 +17,7 @@
 
 /* This is defines strtoll() if neaded */
 
-#include <global.h>
+#include <my_global.h>
 #include <m_string.h>
 #if !defined(HAVE_STRTOLL) && defined(HAVE_LONG_LONG)
 #define USE_LONGLONG

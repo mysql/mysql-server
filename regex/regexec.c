@@ -5,7 +5,7 @@
  * macros that code uses.  This lets the same code operate on two different
  * representations for state sets.
  */
-#include <global.h>
+#include <my_global.h>
 #include <m_string.h>
 #include <m_ctype.h>
 #include <regex.h>

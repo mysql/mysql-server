@@ -17,7 +17,7 @@
 
 /* Test av hash libarary: stor test */
 
-#include <global.h>
+#include <my_global.h>
 #include <my_sys.h>
 #include <hash.h>
 #include <m_string.h>

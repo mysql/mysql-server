@@ -8,7 +8,7 @@
  * .configure. mbmaxlen_ujis=3
  */
 
-#include <global.h>
+#include <my_global.h>
 #include "m_string.h"
 
 uchar NEAR ctype_ujis[257] =

@@ -19,7 +19,7 @@
 
 #define PERROR_VERSION "2.6"
 
-#include <global.h>
+#include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
 #include <errno.h>

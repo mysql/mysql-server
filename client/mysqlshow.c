@@ -18,7 +18,7 @@
 
 #define SHOW_VERSION "8.3"
 
-#include <global.h>
+#include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
 #include "mysql.h"

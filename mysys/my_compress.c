@@ -17,7 +17,7 @@
 
 /* Written by Sinisa Milivojevic <sinisa@mysql.com> */
 
-#include <global.h>
+#include <my_global.h>
 #ifdef HAVE_COMPRESS
 #include <my_sys.h>
 #include <zlib.h>

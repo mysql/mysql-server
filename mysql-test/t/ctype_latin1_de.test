@@ -14,7 +14,7 @@ select a,b from t1 order by upper(a),b;
 select a from t1 order by a desc;
 check table t1;
 select * from t1 where a like "ö%";
-select * from t1 where a like "%É%";
+select * from t1 where a like binary "%É%";
 select * from t1 where a like "%Á%";
 select * from t1 where a like "%U%";
 select * from t1 where a like "%ss%";
@@ -34,3 +34,13 @@ select strcmp('af','ä'),strcmp('ä','a'),strcmp('aeq','ää'),strcmp('aeaeq','ää');
 select strcmp('ßa','ss'),strcmp('ssa','ß'),strcmp('sssb','sßa'),strcmp('ß','s');
 select strcmp('u','öa'),strcmp('u','ö');
 
+#
+# Some other simple tests with the current character set
+#
+
+create table t1 (a varchar(10), key(a));
+insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
+select * from t1 where a like "abc%"; 
+select * from t1 where a like "test%"; 
+select * from t1 where a like "te_t"; 
+drop table t1;

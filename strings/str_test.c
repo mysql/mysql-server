@@ -17,7 +17,7 @@
 
 /* Test of all stringfunktions that is coded in assembler */
 
-#include <global.h>
+#include <my_global.h>
 #include <stdarg.h>
 #include "m_string.h"
 

@@ -34,7 +34,7 @@
 #define CH_INCLUDE STRINGIZE(CH_SRC)
 
 /* aaaah, that's better */
-#include <my_global.h>
+#include <my_my_global.h>
 #include CH_INCLUDE
 
 #include <stdio.h>

@@ -27,7 +27,7 @@
     fastest way to move a mutiple of 512 byte.
 */
 
-#include <global.h>
+#include <my_global.h>
 #include "m_string.h"
 
 #ifndef bmove512

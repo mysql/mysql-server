@@ -22,7 +22,7 @@
   Now only used with purify.
 */
 
-#include <global.h>
+#include <my_global.h>
 #include "m_string.h"
 
 #if !defined(bcmp) && !defined(HAVE_BCMP)

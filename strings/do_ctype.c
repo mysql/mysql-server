@@ -22,7 +22,7 @@
 #undef DBUG_OFF
 #endif
 
-#include <global.h>
+#include <my_global.h>
 #include <ctype.h>
 #include <my_sys.h>
 #include "m_string.h"

@@ -16,7 +16,7 @@
 
 /* Fix that we got POSTFIX_ERROR when doing unreasonable math (not core) */
 
-#include <global.h>
+#include <my_global.h>
 #include <errno.h>
 
 	/* Fix that we gets POSTFIX_ERROR when error in math */

@@ -365,11 +365,9 @@ berkeley_cmp_packed_key(DB *file, const DBT *new_key, const DBT *saved_key)
     {
       if (*new_key_ptr != *saved_key_ptr++)
 	return ((int) *new_key_ptr - (int) saved_key_ptr[-1]);
+      key_length--;
       if (!*new_key_ptr++)
-      {
-	key_length--;
 	continue;
-      }
     }
     if ((cmp=key_part->field->pack_cmp(new_key_ptr,saved_key_ptr,
 				       key_part->length)))
@@ -1399,7 +1397,7 @@ int ha_berkeley::index_read_idx(byte * buf, uint keynr, const byte * key,
   statistic_increment(ha_read_key_count,&LOCK_status);
   DBUG_ENTER("index_read_idx");
   current_row.flags=DB_DBT_REALLOC;
-  active_index= -1;
+  active_index= (uint) -1;
   DBUG_RETURN(read_row(key_file[keynr]->get(key_file[keynr], transaction,
 				 pack_key(&last_key, keynr, key_buff, key,
 					  key_len),

@@ -69,7 +69,7 @@
 #ifdef DBUG_OFF
 #undef DBUG_OFF
 #endif
-#include <global.h>
+#include <my_global.h>
 #include <m_string.h>
 #include <errno.h>
 #if defined(MSDOS) || defined(__WIN__)

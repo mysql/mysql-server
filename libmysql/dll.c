@@ -19,7 +19,7 @@
 ** Handling initialization of the dll library
 */
 
-#include <global.h>
+#include <my_global.h>
 #include <my_sys.h>
 #include <my_pthread.h>
 

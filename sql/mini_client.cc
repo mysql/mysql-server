@@ -40,7 +40,7 @@ inline int local_thr_alarm(my_bool *A,int B __attribute__((unused)),ALARM *C __a
 #define thr_got_alarm(A) 0
 #endif
 
-#include <global.h>
+#include <my_global.h>
 #include <mysql_com.h>
 #include <violite.h>
 #include <my_sys.h>

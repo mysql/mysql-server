@@ -16,7 +16,7 @@
    MA 02111-1307, USA */
 
 #define USES_TYPES
-#include "global.h"
+#include "my_global.h"
 
 #if !defined(_MSC_VER) && !defined(__BORLANDC__) && !defined(OS2)
 #include "mysys_priv.h"

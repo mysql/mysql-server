@@ -19,7 +19,7 @@
 ** Ask for a password from tty
 ** This is an own file to avoid conflicts with curses
 */
-#include <global.h>
+#include <my_global.h>
 #include <my_sys.h>
 #include "mysql.h"
 #include <m_string.h>
