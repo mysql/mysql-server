@@ -16,6 +16,7 @@
 
 #include "consumer_restore.hpp"
 #include <NdbSleep.h>
+#include <NdbDictionaryImpl.hpp>
 
 extern FilteredNdbOut err;
 extern FilteredNdbOut info;
@@ -36,9 +37,6 @@ BackupRestore::init()
   if (m_ndb == NULL)
     return false;
   
-  // Turn off table name completion
-  m_ndb->useFullyQualifiedNames(false);
-
   m_ndb->init(1024);
   if (m_ndb->waitUntilReady(30) != 0)
   {
@@ -102,19 +100,165 @@ BackupRestore::~BackupRestore()
   release();
 }
 
+static
+int 
+match_blob(const char * name){
+  int cnt, id1, id2;
+  char buf[256];
+  if((cnt = sscanf(name, "%[^/]/%[^/]/NDB$BLOB_%d_%d", buf, buf, &id1, &id2)) == 4){
+    return id1;
+  }
+  
+  return -1;
+}
+
+const NdbDictionary::Table*
+BackupRestore::get_table(const NdbDictionary::Table* tab){
+  if(m_cache.m_old_table == tab)
+    return m_cache.m_new_table;
+  m_cache.m_old_table = tab;
+
+  int cnt, id1, id2;
+  char buf[256];
+  if((cnt = sscanf(tab->getName(), "%[^/]/%[^/]/NDB$BLOB_%d_%d", buf, buf, &id1, &id2)) == 4){
+    BaseString::snprintf(buf, sizeof(buf), "NDB$BLOB_%d_%d", m_new_tables[id1]->getTableId(), id2);
+    m_cache.m_new_table = m_ndb->getDictionary()->getTable(buf);
+  } else {
+    m_cache.m_new_table = m_new_tables[tab->getTableId()];
+  }
+  
+  return m_cache.m_new_table;
+}
+
+bool
+BackupRestore::finalize_table(const TableS & table){
+  bool ret= true;
+  if (!m_restore && !m_restore_meta)
+    return ret;
+  if (table.have_auto_inc())
+  {
+    Uint64 max_val= table.get_max_auto_val();
+    Uint64 auto_val= m_ndb->readAutoIncrementValue(get_table(table.m_dictTable));
+    if (max_val+1 > auto_val || auto_val == ~(Uint64)0)
+      ret= m_ndb->setAutoIncrementValue(get_table(table.m_dictTable), max_val+1, false);
+  }
+  return ret;
+}
+
 bool
 BackupRestore::table(const TableS & table){
-  if (!m_restore_meta) 
+  if (!m_restore && !m_restore_meta)
+    return true;
+
+  const char * name = table.getTableName();
+  
+  /**
+   * Ignore blob tables
+   */
+  if(match_blob(name) >= 0)
+    return true;
+  
+  const NdbTableImpl & tmptab = NdbTableImpl::getImpl(* table.m_dictTable);
+  if(tmptab.m_indexType != NdbDictionary::Index::Undefined){
+    m_indexes.push_back(table.m_dictTable);
+    return true;
+  }
+  
+  BaseString tmp(name);
+  Vector<BaseString> split;
+  if(tmp.split(split, "/") != 3){
+    err << "Invalid table name format " << name << endl;
+    return false;
+  }
+
+  m_ndb->setDatabaseName(split[0].c_str());
+  m_ndb->setSchemaName(split[1].c_str());
+  
+  NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
+  if(m_restore_meta){
+    NdbDictionary::Table copy(*table.m_dictTable);
+
+    copy.setName(split[2].c_str());
+
+    if (dict->createTable(copy) == -1) 
+    {
+      err << "Create table " << table.getTableName() << " failed: "
+	  << dict->getNdbError() << endl;
+      return false;
+    }
+    info << "Successfully restored table " << table.getTableName()<< endl ;
+  }  
+  
+  const NdbDictionary::Table* tab = dict->getTable(split[2].c_str());
+  if(tab == 0){
+    err << "Unable to find table: " << split[2].c_str() << endl;
+    return false;
+  }
+  if(m_restore_meta){
+    m_ndb->setAutoIncrementValue(tab, ~(Uint64)0, false);
+  }
+  const NdbDictionary::Table* null = 0;
+  m_new_tables.fill(table.m_dictTable->getTableId(), null);
+  m_new_tables[table.m_dictTable->getTableId()] = tab;
+  return true;
+}
+
+bool
+BackupRestore::endOfTables(){
+  if(!m_restore_meta)
     return true;
 
   NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
-  if (dict->createTable(*table.m_dictTable) == -1) 
-  {
-    err << "Create table " << table.getTableName() << " failed: "
-	<< dict->getNdbError() << endl;
-    return false;
+  for(size_t i = 0; i<m_indexes.size(); i++){
+    const NdbTableImpl & indtab = NdbTableImpl::getImpl(* m_indexes[i]);
+
+    BaseString tmp(indtab.m_primaryTable.c_str());
+    Vector<BaseString> split;
+    if(tmp.split(split, "/") != 3){
+      err << "Invalid table name format " << indtab.m_primaryTable.c_str()
+	  << endl;
+      return false;
+    }
+    
+    m_ndb->setDatabaseName(split[0].c_str());
+    m_ndb->setSchemaName(split[1].c_str());
+    
+    const NdbDictionary::Table * prim = dict->getTable(split[2].c_str());
+    if(prim == 0){
+      err << "Unable to find base table \"" << split[2].c_str() 
+	  << "\" for index "
+	  << indtab.getName() << endl;
+      return false;
+    }
+    NdbTableImpl& base = NdbTableImpl::getImpl(*prim);
+    NdbIndexImpl* idx;
+    int id;
+    char idxName[255], buf[255];
+    if(sscanf(indtab.getName(), "%[^/]/%[^/]/%d/%s",
+	      buf, buf, &id, idxName) != 4){
+      err << "Invalid index name format " << indtab.getName() << endl;
+      return false;
+    }
+    if(NdbDictInterface::create_index_obj_from_table(&idx, &indtab, &base))
+    {
+      err << "Failed to create index " << idxName
+	  << " on " << split[2].c_str() << endl;
+	return false;
+    }
+    idx->setName(idxName);
+    if(dict->createIndex(* idx) != 0)
+    {
+      delete idx;
+      err << "Failed to create index " << idxName
+	  << " on " << split[2].c_str() << endl
+	  << dict->getNdbError() << endl;
+
+      return false;
+    }
+    delete idx;
+    info << "Successfully created index " << idxName
+	 << " on " << split[2].c_str() << endl;
   }
-  info << "Successfully restored table " << table.getTableName()<< endl ;
   return true;
 }
 
@@ -161,8 +305,9 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
     } // if
     
     const TupleS &tup = *(cb->tup);
-    const TableS * table = tup.getTable();
-    NdbOperation * op = cb->connection->getNdbOperation(table->getTableName());
+    const NdbDictionary::Table * table = get_table(tup.getTable()->m_dictTable);
+
+    NdbOperation * op = cb->connection->getNdbOperation(table);
     
     if (op == NULL) 
     {
@@ -189,6 +334,10 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 	int arraySize = attr_desc->arraySize;
 	char * dataPtr = attr_data->string_value;
 	Uint32 length = (size * arraySize) / 8;
+
+	if (j == 0 && tup.getTable()->have_auto_inc(i))
+	  tup.getTable()->update_max_auto_val(dataPtr,size);
+
 	if (attr_desc->m_column->getPrimaryKey())
 	{
 	  if (j == 1) continue;
@@ -203,8 +352,9 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 	    ret = op->setValue(i, dataPtr, length);
 	}
 	if (ret < 0) {
-	  ndbout_c("Column: %d type %d",i,
-		   attr_desc->m_column->getType());
+	  ndbout_c("Column: %d type %d %d %d %d",i,
+		   attr_desc->m_column->getType(),
+		   size, arraySize, attr_data->size);
 	  break;
 	}
       }
@@ -349,8 +499,8 @@ BackupRestore::logEntry(const LogEntry & tup)
     exit(-1);
   } // if
   
-  const TableS * table = tup.m_table;
-  NdbOperation * op = trans->getNdbOperation(table->getTableName());
+  const NdbDictionary::Table * table = get_table(tup.m_table->m_dictTable);
+  NdbOperation * op = trans->getNdbOperation(table);
   if (op == NULL) 
   {
     err << "Cannot get operation: " << trans->getNdbError() << endl;
@@ -382,8 +532,11 @@ BackupRestore::logEntry(const LogEntry & tup)
     int arraySize = attr->Desc->arraySize;
     const char * dataPtr = attr->Data.string_value;
     
+    if (tup.m_table->have_auto_inc(attr->Desc->attrId))
+      tup.m_table->update_max_auto_val(dataPtr,size);
+
     const Uint32 length = (size / 8) * arraySize;
-    if (attr->Desc->m_column->getPrimaryKey()) 
+    if (attr->Desc->m_column->getPrimaryKey())
       op->equal(attr->Desc->attrId, dataPtr, length);
     else
       op->setValue(attr->Desc->attrId, dataPtr, length);
@@ -514,3 +667,6 @@ BackupRestore::tuple(const TupleS & tup)
   m_dataCount++;
 }
 #endif
+
+template class Vector<NdbDictionary::Table*>;
+template class Vector<const NdbDictionary::Table*>;

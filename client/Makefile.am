@@ -17,7 +17,8 @@
 # This file is public domain and comes with NO WARRANTY of any kind
 
 #AUTOMAKE_OPTIONS =              nostdinc
-INCLUDES =			-I$(top_srcdir)/include $(openssl_includes)
+INCLUDES =			-I$(top_srcdir)/include -I$(top_srcdir)/regex \
+				$(openssl_includes)
 LIBS =				@CLIENT_LIBS@
 DEPLIB=				../libmysql/libmysqlclient.la
 LDADD =				@CLIENT_EXTRA_LDFLAGS@ $(DEPLIB)
@@ -34,8 +35,9 @@ mysqlcheck_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
 mysqlshow_DEPENDENCIES=		$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
 mysqldump_DEPENDENCIES=		$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
 mysqlimport_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
-mysqltest_SOURCES=			mysqltest.c
+mysqltest_SOURCES=		mysqltest.c ../mysys/my_getsystime.c
 mysqltest_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
+mysqltest_LDADD =		$(LDADD) $(top_builddir)/regex/libregex.a
 mysqlbinlog_SOURCES =   mysqlbinlog.cc ../mysys/mf_tempdir.c
 mysqlbinlog_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
 mysqlmanagerc_SOURCES =   mysqlmanagerc.c 

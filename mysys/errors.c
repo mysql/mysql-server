@@ -41,7 +41,7 @@ const char * NEAR globerrs[GLOBERRS]=
   "Can't change dir to '%s' (Errcode: %d)",
   "Warning: '%s' had %d links",
   "%d files and %d streams is left open\n",
-  "Disk is full writing '%s'. Waiting for someone to free space...",
+  "Disk is full writing '%s' (Errcode: %d). Waiting for someone to free space... Retry in %d secs",
   "Can't create directory '%s' (Errcode: %d)",
   "Character set '%s' is not a compiled character set and is not specified in the '%s' file",
   "Out of resources when opening file '%s' (Errcode: %d)",

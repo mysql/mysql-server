@@ -194,7 +194,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZTABLESIZE 16
 #define ZTABMAXINDEX 3
 #define ZUNDEFINED_OP 6
-#define ZUNDOPAGESIZE 64
 #define ZUNDOHEADSIZE 7
 #define ZUNLOCKED 1
 #define ZUNDOPAGE_BASE_ADD 2
@@ -830,6 +829,7 @@ struct Rootfragmentrec {
   Uint32 nextroot;
   Uint32 roothashcheck;
   Uint32 noOfElements;
+  Uint32 m_commit_count;
   State rootState;
 }; /* p2c: size = 72 bytes */
 
@@ -894,8 +894,8 @@ struct SrVersionRec {
 /* TABREC                                                                            */
 /* --------------------------------------------------------------------------------- */
 struct Tabrec {
-  Uint32 fragholder[NO_OF_FRAG_PER_NODE];
-  Uint32 fragptrholder[NO_OF_FRAG_PER_NODE];
+  Uint32 fragholder[MAX_FRAG_PER_NODE];
+  Uint32 fragptrholder[MAX_FRAG_PER_NODE];
   Uint32 tabUserPtr;
   BlockReference tabUserRef;
 };
@@ -926,6 +926,7 @@ private:
   void execACC_OVER_REC(Signal* signal);
   void execACC_SAVE_PAGES(Signal* signal);
   void execNEXTOPERATION(Signal* signal);
+  void execREAD_PSUEDO_REQ(Signal* signal);
 
   // Received signals
   void execSTTOR(Signal* signal);
@@ -1086,10 +1087,10 @@ private:
   void deleteLongKey(Signal* signal);
   void removeFromPageArrayList(Signal* signal);
   void insertPageArrayList(Signal* signal);
-  void checkPageArrayList(Signal* signal, char *);
-  void checkPageB4Insert(Uint32, char *); 
-  void checkPageB4Remove(Uint32, char *); 
-  void checkIndexInLongKeyPage(Uint32, char *);
+  void checkPageArrayList(Signal* signal, const char *);
+  void checkPageB4Insert(Uint32, const char *); 
+  void checkPageB4Remove(Uint32, const char *); 
+  void checkIndexInLongKeyPage(Uint32, const char *);
   void printoutInfoAndShutdown(LongKeyPage *);
   void releaseLongPage(Signal* signal);
   void abortOperation(Signal* signal);

@@ -87,19 +87,30 @@ private:
 
 
   int verifyUniqueIndex(Ndb*,
-			const char* indexName,
+			const NdbDictionary::Index *,
 			int parallelism = 0,
 			bool transactional = false);
-  
+
   int scanAndCompareUniqueIndex(Ndb* pNdb,
-				const char * indexName,
+				const NdbDictionary::Index *,
 				int parallelism,
 				bool transactional);
   
   int readRowFromTableAndIndex(Ndb* pNdb,
 			       NdbConnection* pTrans,
-			       const char * indexName,
+			       const NdbDictionary::Index *,
 			       NDBT_ResultRow& row );
+
+  int verifyOrderedIndex(Ndb*,
+			 const NdbDictionary::Index *,
+			 int parallelism = 0,
+			 bool transactional = false);
+  
+
+  int get_values(NdbOperation* op, NDBT_ResultRow& dst);
+  int equal(const NdbDictionary::Table*, NdbOperation*, const NDBT_ResultRow&);
+  int equal(const NdbDictionary::Index*, NdbOperation*, const NDBT_ResultRow&);
+
 protected:
   int m_defaultClearMethod;
   const NdbDictionary::Table& tab;

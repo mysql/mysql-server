@@ -60,7 +60,7 @@ ErrorReporter::formatTimeStampString(){
 
   DateTime.setTimeStamp();
   
-  snprintf(theDateTimeString, 39, "%s %d %s %d - %s:%s:%s", 
+  BaseString::snprintf(theDateTimeString, 39, "%s %d %s %d - %s:%s:%s", 
 	   DateTime.getDayName(), DateTime.getDayOfMonth(),
 	   DateTime.getMonthName(), DateTime.getYear(), DateTime.getHour(),
 	   DateTime.getMinute(), DateTime.getSecond());
@@ -126,7 +126,7 @@ ErrorReporter::formatMessage(ErrorCategory type,
   
   processId = NdbHost_GetProcessId();
   
-  snprintf(messptr, MESSAGE_LENGTH,
+  BaseString::snprintf(messptr, MESSAGE_LENGTH,
 	   "Date/Time: %s\nType of error: %s\n"
 	   "Message: %s\nFault ID: %d\nProblem data: %s"
 	   "\nObject of reference: %s\nProgramName: %s\n"
@@ -139,7 +139,7 @@ ErrorReporter::formatMessage(ErrorCategory type,
 	   objRef, 
 	   programName, 
 	   processId, 
-	   theNameOfTheTraceFile);
+	   theNameOfTheTraceFile ? theNameOfTheTraceFile : "<no tracefile>");
 
   // Add trailing blanks to get a fixed lenght of the message
   while (strlen(messptr) <= MESSAGE_LENGTH-3){
@@ -157,13 +157,13 @@ ErrorReporter::handleAssert(const char* message, const char* file, int line)
   char refMessage[100];
 
 #ifdef NO_EMULATED_JAM
-  snprintf(refMessage, 100, "file: %s lineNo: %d",
+  BaseString::snprintf(refMessage, 100, "file: %s lineNo: %d",
 	   file, line);
 #else
   const Uint32 blockNumber = theEmulatedJamBlockNumber;
   const char *blockName = getBlockName(blockNumber);
 
-  snprintf(refMessage, 100, "%s line: %d (block: %s)",
+  BaseString::snprintf(refMessage, 100, "%s line: %d (block: %s)",
 	   file, line, blockName);
 #endif
   WriteMessage(assert, ERR_ERROR_PRGERR, message, refMessage,
@@ -178,7 +178,7 @@ ErrorReporter::handleThreadAssert(const char* message,
                                   int line)
 {
   char refMessage[100];
-  snprintf(refMessage, 100, "file: %s lineNo: %d - %s",
+  BaseString::snprintf(refMessage, 100, "file: %s lineNo: %d - %s",
 	   file, line, message);
   
   NdbShutdown(NST_ErrorHandler);
@@ -217,8 +217,10 @@ WriteMessage(ErrorCategory thrdType, int thrdMessageID,
   /**
    * Format trace file name
    */
-  int file_no= ErrorReporter::get_trace_no();
-  char *theTraceFileName= NdbConfig_TraceFileName(globalData.ownId, file_no);
+  char *theTraceFileName= 0;
+  if (globalData.ownId > 0)
+    theTraceFileName= NdbConfig_TraceFileName(globalData.ownId,
+					      ErrorReporter::get_trace_no());
   NdbAutoPtr<char> tmp_aptr1(theTraceFileName);
   
   // The first 69 bytes is info about the current offset
@@ -291,26 +293,28 @@ WriteMessage(ErrorCategory thrdType, int thrdMessageID,
   fflush(stream);
   fclose(stream);
   
-  // Open the tracefile...
-  FILE *jamStream = fopen(theTraceFileName, "w");
+  if (theTraceFileName) {
+    // Open the tracefile...
+    FILE *jamStream = fopen(theTraceFileName, "w");
   
-  //  ...and "dump the jam" there.
-  //  ErrorReporter::dumpJam(jamStream);
-  if(thrdTheEmulatedJam != 0){
-    dumpJam(jamStream, thrdTheEmulatedJamIndex, thrdTheEmulatedJam);
+    //  ...and "dump the jam" there.
+    //  ErrorReporter::dumpJam(jamStream);
+    if(thrdTheEmulatedJam != 0){
+      dumpJam(jamStream, thrdTheEmulatedJamIndex, thrdTheEmulatedJam);
+    }
+  
+    /* Dont print the jobBuffers until a way to copy them, 
+       like the other variables,
+       is implemented. Otherwise when NDB keeps running, 
+       with this function running
+       in the background, the jobBuffers will change during runtime. And when
+       they're printed here, they will not be correct anymore.
+    */
+    globalScheduler.dumpSignalMemory(jamStream);
+  
+    fclose(jamStream);
   }
-  
-  /* Dont print the jobBuffers until a way to copy them, 
-     like the other variables,
-     is implemented. Otherwise when NDB keeps running, 
-     with this function running
-     in the background, the jobBuffers will change during runtime. And when
-     they're printed here, they will not be correct anymore.
-  */
-  globalScheduler.dumpSignalMemory(jamStream);
-  
-  fclose(jamStream);
-  
+
   return 0;
 }
 

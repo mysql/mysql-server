@@ -83,7 +83,7 @@ File_class::File_class(const char* aFileName, const char* mode) :
   m_file(NULL), 
   m_fileMode(mode)
 {
-  ::snprintf(m_fileName, MAX_FILE_NAME_SIZE, aFileName);
+  BaseString::snprintf(m_fileName, MAX_FILE_NAME_SIZE, aFileName);
 }
 
 bool
@@ -99,7 +99,7 @@ File_class::open(const char* aFileName, const char* mode)
     /**
      * Only copy if it's not the same string
      */
-    ::snprintf(m_fileName, MAX_FILE_NAME_SIZE, aFileName);
+    BaseString::snprintf(m_fileName, MAX_FILE_NAME_SIZE, aFileName);
   }
   m_fileMode = mode;
   bool rc = true;

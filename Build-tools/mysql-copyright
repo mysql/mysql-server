@@ -1,9 +1,9 @@
-#!/usr/bin/perl -i
+#!/usr/bin/perl -wi
 
 # Untar a MySQL distribution, change the copyright texts,
 # pack it up again to a given directory
 
-$VER="1.3";
+$VER="1.5";
 
 use Cwd;
 use File::Basename;
@@ -104,7 +104,7 @@ sub main
     unlink("$destdir/COPYING", "$destdir/EXCEPTIONS-CLIENT");
     copy("$WD/Docs/MySQLEULA.txt", "$destdir");
 
-    # remove readline, bdb subdirs and update 'configure'
+    # remove subdirectories 'bdb', 'cmd-line-utils/readline'
     my @extra_fat= ('bdb', 'cmd-line-utils/readline');
 
     foreach my $fat (@extra_fat)
@@ -118,7 +118,10 @@ sub main
    
     # fix LICENSE tag in include/mysql_version.h
     &fix_mysql_version();
-    
+
+    # apply "autotools" - must be last to ensure proper timestamps
+    &run_autotools();
+
     # rename the directory with new distribution name
     chdir("$WD/$dir");
     print "renaming $destdir $newdistname\n" if $opt_verbose; 
@@ -131,7 +134,6 @@ sub main
   
     # remove temporary directory
     chdir($WD) or print "$! Unable to move up one dir\n";
-    `cd $WD`;
     my $cwd = getcwd();
     print "current dir is $cwd\n" if $opt_verbose ;
     if (-e $dir) {
@@ -142,7 +144,7 @@ sub main
     }
   }
   exit(0);
-}  
+}
 
 ####
 #### This function will s/GPL/Commercial/ in include/mysql_version.h for the
@@ -150,6 +152,7 @@ sub main
 ####
 sub fix_mysql_version
 {
+  my $cwd= getcwd();
   chdir("$destdir");
   my $header_file= (-f 'include/mysql_version.h.in')? 'include/mysql_version.h.in' : 'include/mysql_version.h';
 
@@ -170,44 +173,80 @@ sub fix_mysql_version
 #### This function will remove unwanted parts of a src tree for the mysqlcom
 #### distributions.
 ####
+
 sub trim_the_fat
 {
-        my $the_fat= shift;
-        my $cwd= getcwd();
+  my $the_fat= shift;
+  my $cwd= getcwd();
 
-        system("rm -rf $destdir/${the_fat}");
-        if (!$win_flag)
-        {
-                chdir("$destdir");
-                unlink ("configure") or die "Can't delete $destdir/configure: $!\n";
-                open(CONFIGURE,"<configure.in") or die "Unable to open configure.in for read: $!\n";
-                undef $/;
-                my $configure= <CONFIGURE>;
-                close(CONFIGURE);
+  chdir("$destdir");
+  if ( -d "${the_fat}" )
+  {
+    system("rm -rf ${the_fat}");
+    if (!$win_flag)
+    {
+      open(CONFIG_IN,"<configure.in") or die "Unable to open configure.in for read: $!\n";
+      undef $/;
+      my $config_in= <CONFIG_IN>;
+      close(CONFIG_IN);
 
-                #
-                # If $the_fat Makefile line closes the parenthesis, then
-                # replace that line with just the closing parenthesis.
-                #
-                if ($configure=~ m|${the_fat}/Makefile\)\n?|)
-                {
-                        $configure=~ s|${the_fat}/Makefile(\)\n?)|$1|;
-                }
-                #
-                # Else just delete the line
-                #
-                else
-                {
-                        $configure=~ s|${the_fat}/Makefile dnl\n?||;
-                }
+      #
+      # If $the_fat Makefile line closes the parenthesis, then
+      # replace that line with just the closing parenthesis.
+      #
+      if ($config_in=~ m|${the_fat}/Makefile\)\n?|)
+      {
+        $config_in=~ s|${the_fat}/Makefile(\)\n?)|$1|;
+      }
+      #
+      # Else just delete the line
+      #
+      else
+      {
+        $config_in=~ s|${the_fat}/Makefile dnl\n?||;
+      }
 
-                open(CONFIGURE,">configure.in") or die "Unable to open configure.in for write: $!\n";
-                print CONFIGURE $configure;
-                close(CONFIGURE);
-                `aclocal && autoheader && aclocal && automake && autoconf`;
-                die "'./configure' was not produced!" unless (-f "configure");
-                chdir("$cwd");
-        }
+      open(CONFIG_IN,">configure.in") or die "Unable to open configure.in for write: $!\n";
+      print CONFIG_IN $config_in;
+      close(CONFIG_IN);
+    }
+  }
+  chdir("$cwd");
+}
+
+
+####
+#### This function will run the autotools on the reduced source tree.
+####
+
+sub run_autotools
+{
+  my $cwd= getcwd();
+
+  if (!$win_flag)
+  {
+    chdir("$destdir");
+    unlink ("configure") or die "Can't delete $destdir/configure: $!\n";
+
+    # File "configure.in" has already been modified by "trim_the_fat()"
+
+    # It must be ensured that the timestamps of the relevant files are really 
+    # ascending, for otherwise the Makefile may cause a re-run of these
+    # autotools. Experience shows that deletion is the only safe way.
+    unlink ("config.h.in") or die "Can't delete $destdir/config.h.in: $!\n";
+    unlink ("aclocal.m4") or die "Can't delete $destdir/aclocal.m4: $!\n";
+
+    # These sleep commands also ensure the ascending order.
+    `aclocal && sleep 2 && autoheader && sleep 2 && automake && sleep 2 && autoconf`;
+    die "'./configure' was not produced!" unless (-f "configure");
+
+    if (-d "autom4te.cache") {
+      print "Trying to delete autom4te.cache dir\n" if $opt_verbose;
+      system("rm -rf autom4te.cache") or print "Unable to delete autom4te.cache dir: $!\n";
+    }
+
+    chdir("$cwd");
+  }
 }
 
 

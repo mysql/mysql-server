@@ -27,8 +27,7 @@ int my_strnxfrm_simple(CHARSET_INFO * cs,
                        const uchar *src, uint srclen)
 {
   uchar *map= cs->sort_order;
-  DBUG_ASSERT(len >= srclen);
-  len= min(len,srclen);
+  set_if_smaller(len, srclen);
   if (dest != src)
   {
     const uchar *end;
@@ -1284,6 +1283,12 @@ static my_bool my_coll_init_simple(CHARSET_INFO *cs,
 }
 
 
+longlong my_strtoll10_8bit(CHARSET_INFO *cs __attribute__((unused)),
+                           const char *nptr, char **endptr, int *error)
+{
+  return my_strtoll10(nptr, endptr, error);
+}
+
 
 MY_CHARSET_HANDLER my_charset_8bit_handler=
 {
@@ -1310,6 +1315,7 @@ MY_CHARSET_HANDLER my_charset_8bit_handler=
     my_strntoll_8bit,
     my_strntoull_8bit,
     my_strntod_8bit,
+    my_strtoll10_8bit,
     my_scan_8bit
 };
 

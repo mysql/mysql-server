@@ -785,3 +785,76 @@ void set_zero_time(MYSQL_TIME *tm)
   tm->time_type= MYSQL_TIMESTAMP_NONE;
 }
 
+
+/*
+  Functions to convert time/date/datetime value to a string,
+  using default format.
+  This functions don't check that given TIME structure members are
+  in valid range. If they are not, return value won't reflect any
+  valid date either. Additionally, make_time doesn't take into
+  account time->day member: it's assumed that days have been converted
+  to hours already.
+
+  RETURN
+    number of characters written to 'to'
+*/
+
+int my_time_to_str(const MYSQL_TIME *l_time, char *to)
+{
+  uint extra_hours= 0;
+  return my_sprintf(to, (to, "%s%02d:%02d:%02d",
+                         (l_time->neg ? "-" : ""),
+                         extra_hours+ l_time->hour,
+                         l_time->minute,
+                         l_time->second));
+}
+
+int my_date_to_str(const MYSQL_TIME *l_time, char *to)
+{
+  return my_sprintf(to, (to, "%04d-%02d-%02d",
+                         l_time->year,
+                         l_time->month,
+                         l_time->day));
+}
+
+int my_datetime_to_str(const MYSQL_TIME *l_time, char *to)
+{
+  return my_sprintf(to, (to, "%04d-%02d-%02d %02d:%02d:%02d",
+                         l_time->year,
+                         l_time->month,
+                         l_time->day,
+                         l_time->hour,
+                         l_time->minute,
+                         l_time->second));
+}
+
+
+/*
+  Convert struct DATE/TIME/DATETIME value to string using built-in
+  MySQL time conversion formats.
+
+  SYNOPSIS
+    my_TIME_to_string()
+
+  NOTE
+    The string must have at least MAX_DATE_STRING_REP_LENGTH bytes reserved.
+*/
+
+int my_TIME_to_str(const MYSQL_TIME *l_time, char *to)
+{
+  switch (l_time->time_type) {
+  case MYSQL_TIMESTAMP_DATETIME:
+    return my_datetime_to_str(l_time, to);
+  case MYSQL_TIMESTAMP_DATE:
+    return my_date_to_str(l_time, to);
+  case MYSQL_TIMESTAMP_TIME:
+    return my_time_to_str(l_time, to);
+  case MYSQL_TIMESTAMP_NONE:
+  case MYSQL_TIMESTAMP_ERROR:
+    to[0]='\0';
+    return 0;
+  default:
+    DBUG_ASSERT(0);
+    return 0;
+  }
+}

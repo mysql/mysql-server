@@ -1362,7 +1362,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     Thank you.
   */
   thd->catalog= (char*) catalog;
-  thd->db= (char*) rewrite_db(db);
+  thd->db= (char*) rewrite_db(db); // thd->db_length is set later if needed
   thd->variables.auto_increment_increment= auto_increment_increment;
   thd->variables.auto_increment_offset=    auto_increment_offset;
 
@@ -1384,6 +1384,11 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->set_time((time_t)when);
+    /*
+      We cannot use db_len from event to fill thd->db_length, because
+      rewrite_db() may have changed db.
+    */ 
+    thd->db_length= thd->db ? strlen(thd->db) : 0;
     thd->query_length= q_len;
     thd->query = (char*)query;
     VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -1527,11 +1532,19 @@ end:
   */
   thd->db= thd->catalog= 0;	        // prevent db from being freed
   thd->query= 0;			// just to be sure
-  thd->query_length= 0;
+  thd->query_length= thd->db_length =0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);      
   free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
-  return (thd->query_error ? thd->query_error : Log_event::exec_event(rli)); 
+  /*
+    If there was an error we stop. Otherwise we increment positions. Note that
+    we will not increment group* positions if we are just after a SET
+    ONE_SHOT, because SET ONE_SHOT should not be separated from its following
+    updating query.
+  */
+  return (thd->query_error ? thd->query_error : 
+          (thd->one_shot_set ? (rli->inc_event_relay_log_pos(),0) :
+           Log_event::exec_event(rli))); 
 }
 #endif
 
@@ -2422,7 +2435,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 			       bool use_rli_only_for_errors)
 {
   char *load_data_query= 0;
-  thd->db= (char*) rewrite_db(db);
+  thd->db= (char*) rewrite_db(db); // thd->db_length is set later if needed
   DBUG_ASSERT(thd->query == 0);
   thd->query_length= 0;                         // Should not be needed
   thd->query_error= 0;
@@ -2454,6 +2467,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->set_time((time_t)when);
+    thd->db_length= thd->db ? strlen(thd->db) : 0;
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = query_id++;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -2580,7 +2594,7 @@ Slave: load data infile on table '%s' at log position %s in log \
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->db= thd->catalog= 0;
   thd->query= 0;
-  thd->query_length= 0;
+  thd->query_length= thd->db_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);
   if (load_data_query)

@@ -17,6 +17,7 @@
 #define DBACC_C
 #include "Dbacc.hpp"
 
+#include <AttributeHeader.hpp>
 #include <signaldata/AccFrag.hpp>
 #include <signaldata/AccScan.hpp>
 #include <signaldata/AccLock.hpp>
@@ -1021,7 +1022,7 @@ void Dbacc::initialiseTableRec(Signal* signal)
   for (tabptr.i = 0; tabptr.i < ctablesize; tabptr.i++) {
     refresh_watch_dog();
     ptrAss(tabptr, tabrec);
-    for (Uint32 i = 0; i < NO_OF_FRAG_PER_NODE; i++) {
+    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
       tabptr.p->fragholder[i] = RNIL;
       tabptr.p->fragptrholder[i] = RNIL;
     }//for
@@ -1051,6 +1052,7 @@ void Dbacc::initRootfragrec(Signal* signal)
   rootfragrecptr.p->mytabptr = req->tableId;
   rootfragrecptr.p->roothashcheck = req->kValue + req->lhFragBits;
   rootfragrecptr.p->noOfElements = 0;
+  rootfragrecptr.p->m_commit_count = 0;
   for (Uint32 i = 0; i < MAX_PARALLEL_SCANS_PER_FRAG; i++) {
     rootfragrecptr.p->scan[i] = RNIL;
   }//for
@@ -1187,7 +1189,7 @@ void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
   TabrecPtr tabPtr;
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, ctablesize, tabrec);
-  for (Uint32 i = 0; i < NO_OF_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
     jam();
     if (tabPtr.p->fragholder[i] != RNIL) {
       jam();
@@ -1419,7 +1421,7 @@ void Dbacc::execFSREMOVEREF(Signal* signal)
 /* -------------------------------------------------------------------------- */
 bool Dbacc::addfragtotab(Signal* signal, Uint32 rootIndex, Uint32 fid) 
 {
-  for (Uint32 i = 0; i < NO_OF_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
     jam();
     if (tabptr.p->fragholder[i] == RNIL) {
       jam();
@@ -2335,46 +2337,51 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
   Toperation = operationRecPtr.p->operation;
   operationRecPtr.p->transactionstate = IDLE;
   operationRecPtr.p->operation = ZUNDEFINED_OP;
-  if (Toperation != ZINSERT) {
-    if (Toperation != ZDELETE) {
-      return;
+  if(Toperation != ZREAD){
+    rootfragrecptr.p->m_commit_count++;
+    if (Toperation != ZINSERT) {
+      if (Toperation != ZDELETE) {
+	return;
+      } else {
+	jam();
+	rootfragrecptr.i = fragrecptr.p->myroot;
+	ptrCheckGuard(rootfragrecptr, crootfragmentsize, rootfragmentrec);
+	rootfragrecptr.p->noOfElements--;
+	fragrecptr.p->slack += operationRecPtr.p->insertDeleteLen;
+	if (fragrecptr.p->slack > fragrecptr.p->slackCheck) { 
+          /* TIME FOR JOIN BUCKETS PROCESS */
+	  if (fragrecptr.p->expandCounter > 0) {
+	    if (fragrecptr.p->expandFlag < 2) {
+	      jam();
+	      signal->theData[0] = fragrecptr.i;
+	      signal->theData[1] = fragrecptr.p->p;
+	      signal->theData[2] = fragrecptr.p->maxp;
+	      signal->theData[3] = fragrecptr.p->expandFlag;
+	      fragrecptr.p->expandFlag = 2;
+	      sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 4, JBB);
+	    }//if
+	  }//if
+	}//if
+      }//if
     } else {
-      jam();
+      jam();  /* EXPAND PROCESS HANDLING */
       rootfragrecptr.i = fragrecptr.p->myroot;
       ptrCheckGuard(rootfragrecptr, crootfragmentsize, rootfragmentrec);
-      rootfragrecptr.p->noOfElements--;
-      fragrecptr.p->slack += operationRecPtr.p->insertDeleteLen;
-      if (fragrecptr.p->slack > fragrecptr.p->slackCheck) {           /* TIME FOR JOIN BUCKETS PROCESS */
-        if (fragrecptr.p->expandCounter > 0) {
-	  if (fragrecptr.p->expandFlag < 2) {
-            jam();
-            signal->theData[0] = fragrecptr.i;
-            signal->theData[1] = fragrecptr.p->p;
-            signal->theData[2] = fragrecptr.p->maxp;
-	    signal->theData[3] = fragrecptr.p->expandFlag;
-            fragrecptr.p->expandFlag = 2;
-            sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 4, JBB);
-          }//if
-        }//if
+      rootfragrecptr.p->noOfElements++;
+      fragrecptr.p->slack -= operationRecPtr.p->insertDeleteLen;
+      if (fragrecptr.p->slack >= (1u << 31)) { 
+	/* IT MEANS THAT IF SLACK < ZERO */
+	if (fragrecptr.p->expandFlag == 0) {
+	  jam();
+	  fragrecptr.p->expandFlag = 2;
+	  signal->theData[0] = fragrecptr.i;
+	  signal->theData[1] = fragrecptr.p->p;
+	  signal->theData[2] = fragrecptr.p->maxp;
+	  sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 3, JBB);
+	}//if
       }//if
     }//if
-  } else {
-    jam();                                                /* EXPAND PROCESS HANDLING */
-    rootfragrecptr.i = fragrecptr.p->myroot;
-    ptrCheckGuard(rootfragrecptr, crootfragmentsize, rootfragmentrec);
-    rootfragrecptr.p->noOfElements++;
-    fragrecptr.p->slack -= operationRecPtr.p->insertDeleteLen;
-    if (fragrecptr.p->slack >= (Uint32)(1 << 31)) { /* IT MEANS THAT IF SLACK < ZERO */
-      if (fragrecptr.p->expandFlag == 0) {
-        jam();
-        fragrecptr.p->expandFlag = 2;
-        signal->theData[0] = fragrecptr.i;
-        signal->theData[1] = fragrecptr.p->p;
-        signal->theData[2] = fragrecptr.p->maxp;
-        sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 3, JBB);
-      }//if
-    }//if
-  }//if
+  }
   return;
 }//Dbacc::execACC_COMMITREQ()
 
@@ -2435,7 +2442,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
     ptrCheckGuard(tabptr, ctablesize, tabrec);
     // find fragment (TUX will know it)
     if (req->fragPtrI == RNIL) {
-      for (Uint32 i = 0; i < NO_OF_FRAG_PER_NODE; i++) {
+      for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
         jam();
         if (tabptr.p->fragptrholder[i] != RNIL) {
           rootfragrecptr.i = tabptr.p->fragptrholder[i];
@@ -2472,7 +2479,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
       Uint32 opCode = ZSCAN_OP;
       signal->theData[0] = operationRecPtr.i;
       signal->theData[1] = fragrecptr.i;
-      signal->theData[2] = opCode | (lockMode << 4) | (1 << 31);
+      signal->theData[2] = opCode | (lockMode << 4) | (1u << 31);
       signal->theData[3] = req->hashValue;
       signal->theData[4] = 1;   // fake primKeyLen
       signal->theData[5] = req->transId1;
@@ -4044,7 +4051,7 @@ void Dbacc::deleteLongKey(Signal* signal)
 }//Dbacc::deleteLongKey()
 
 
-void Dbacc::checkIndexInLongKeyPage(Uint32 pageId, char *calledFrom) {
+void Dbacc::checkIndexInLongKeyPage(Uint32 pageId, const char *calledFrom) {
   Page8Ptr pagePtr;
   LongKeyPage *page;
   Uint32 indexNo;
@@ -4199,7 +4206,7 @@ void Dbacc::insertPageArrayList(Signal* signal)
 // --------------------------------------------------------------------------------- */
 //       Check the page array list.
 // --------------------------------------------------------------------------------- */
-void Dbacc::checkPageArrayList(Signal* signal, char *calledFrom) 
+void Dbacc::checkPageArrayList(Signal* signal, const char *calledFrom) 
 {
   Page8Ptr pagePtr;
   Uint32 pageArrayIndex;
@@ -4244,7 +4251,7 @@ void Dbacc::checkPageArrayList(Signal* signal, char *calledFrom)
 // --------------------------------------------------------------------------------- */
 //       Check the page to put into the pageArrayList.
 // --------------------------------------------------------------------------------- */
-void Dbacc::checkPageB4Insert(Uint32 pageId, char *calledFrom) {
+void Dbacc::checkPageB4Insert(Uint32 pageId, const char *calledFrom) {
   Page8Ptr pagePtr;
   Uint32 pageArrayIndex;
   LongKeyPage *page;
@@ -4311,7 +4318,7 @@ void Dbacc::checkPageB4Insert(Uint32 pageId, char *calledFrom) {
 // --------------------------------------------------------------------------------- */
 //       Check the page to remove from the pageArrayList.
 // --------------------------------------------------------------------------------- */
-void Dbacc::checkPageB4Remove(Uint32 pageId, char *calledFrom) {
+void Dbacc::checkPageB4Remove(Uint32 pageId, const char *calledFrom) {
   Page8Ptr pagePtr;
   Uint32 pageArrayIndex;
   Uint32 noOfOccurrence = 0;
@@ -6503,7 +6510,7 @@ void Dbacc::endofexpLab(Signal* signal)
   Uint32 noOfBuckets = (fragrecptr.p->maxp + 1) + fragrecptr.p->p;
   Uint32 Thysteres = fragrecptr.p->maxloadfactor - fragrecptr.p->minloadfactor;
   fragrecptr.p->slackCheck = noOfBuckets * Thysteres;
-  if (fragrecptr.p->slack > (Uint32)(1 << 31)) {
+  if (fragrecptr.p->slack > (1u << 31)) {
     jam();
     /* IT MEANS THAT IF SLACK < ZERO */
     /* --------------------------------------------------------------------------------- */
@@ -6967,7 +6974,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     /*--------------------------------------------------------------*/
     return;
   }//if
-  if (fragrecptr.p->slack > (Uint32)(1 << 31)) {
+  if (fragrecptr.p->slack > (1u << 31)) {
     jam();
     /*--------------------------------------------------------------*/
     /* THE SLACK IS NEGATIVE, IN THIS CASE WE WILL NOT NEED ANY     */
@@ -7206,7 +7213,7 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
       expDirRangePtr.p->dirArray[fragrecptr.p->expSenderDirIndex >> 8] = RNIL;
     }//if
   }//if
-  if (fragrecptr.p->slack < (Uint32)(1 << 31)) {
+  if (fragrecptr.p->slack < (1u << 31)) {
     jam();
     /*--------------------------------------------------------------*/
     /* THE SLACK IS POSITIVE, IN THIS CASE WE WILL CHECK WHETHER    */
@@ -12184,7 +12191,7 @@ void Dbacc::takeOutReadyScanQueue(Signal* signal)
 
 bool Dbacc::getrootfragmentrec(Signal* signal, RootfragmentrecPtr& rootPtr, Uint32 fid) 
 {
-  for (Uint32 i = 0; i < NO_OF_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
     jam();
     if (tabptr.p->fragholder[i] == fid) {
       jam();
@@ -12562,7 +12569,7 @@ void Dbacc::releaseLcpConnectRec(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::releaseOpRec(Signal* signal) 
 {
-#ifdef VM_TRACE
+#if 0
   // DEBUG CODE
   // Check that the operation to be released isn't 
   // already in the list of free operations
@@ -13384,3 +13391,32 @@ void Dbacc::execSET_VAR_REQ(Signal* signal)
 #endif
 
 }//execSET_VAR_REQ()
+
+void
+Dbacc::execREAD_PSUEDO_REQ(Signal* signal){
+  jamEntry();
+  fragrecptr.i = signal->theData[0];
+  Uint32 attrId = signal->theData[1];
+  ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+  rootfragrecptr.i = fragrecptr.p->myroot;
+  ptrCheckGuard(rootfragrecptr, crootfragmentsize, rootfragmentrec);
+  Uint64 tmp;
+  switch(attrId){
+  case AttributeHeader::ROW_COUNT:
+    tmp = rootfragrecptr.p->noOfElements;
+    break;
+  case AttributeHeader::COMMIT_COUNT:
+    tmp = rootfragrecptr.p->m_commit_count;
+    break;
+  default:
+    tmp = 0;
+  }
+  memcpy(signal->theData, &tmp, 8); /* must be memcpy, gives strange results on
+				     * ithanium gcc (GCC) 3.4.1 smp linux 2.4
+				     * otherwise
+				     */
+  //  Uint32 * src = (Uint32*)&tmp;
+  //  signal->theData[0] = src[0];
+  //  signal->theData[1] = src[1];
+}
+

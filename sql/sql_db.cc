@@ -29,12 +29,12 @@
 
 const char *del_exts[]= {".frm", ".BAK", ".TMD",".opt", NullS};
 static TYPELIB deletable_extentions=
-{array_elements(del_exts)-1,"del_exts", del_exts};
+{array_elements(del_exts)-1,"del_exts", del_exts, NULL};
 
 const char *known_exts[]=
 {".ISM",".ISD",".ISM",".MRG",".MYI",".MYD",".db", ".ibd", NullS};
 static TYPELIB known_extentions=
-{array_elements(known_exts)-1,"known_exts", known_exts};
+{array_elements(known_exts)-1,"known_exts", known_exts, NULL};
 
 static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
 				 const char *db, const char *path,
@@ -965,6 +965,11 @@ err:
     Becasue the database name may have been given directly from the
     communication packet (in case of 'connect' or 'COM_INIT_DB')
     we have to do end space removal in this function.
+
+  NOTES
+    Do as little as possible in this function, as it is not called for the
+    replication slave SQL thread (for that thread, setting of thd->db is done
+    in ::exec_event() methods of log_event.cc).
 
   RETURN VALUES
     0	ok

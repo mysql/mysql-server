@@ -38,7 +38,7 @@
                      offsetof(x, l) }
 
 #define DTIBREAK(x) \
-  { DictTabInfo::x, 0, SimpleProperties::InvalidValue, 0, 0 }
+  { DictTabInfo::x, 0, SimpleProperties::InvalidValue, 0, 0, 0 }
 
 class DictTabInfo {
   /**
@@ -221,33 +221,33 @@ public:
   };
   
   // ScanOptimised constants
-  static const unsigned updateOptimised = 0;
-  static const unsigned scanOptimised = 1;
+  STATIC_CONST( updateOptimised = 0 );
+  STATIC_CONST( scanOptimised = 1 );
   
   // AttributeType constants
-  static const unsigned SignedType = 0;
-  static const unsigned UnSignedType = 1;
-  static const unsigned FloatingPointType = 2;
-  static const unsigned StringType = 3;
+  STATIC_CONST( SignedType = 0 );
+  STATIC_CONST( UnSignedType = 1 );
+  STATIC_CONST( FloatingPointType = 2 );
+  STATIC_CONST( StringType = 3 );
   
   // AttributeSize constants
-  static const unsigned an8Bit = 3;
-  static const unsigned a16Bit = 4;
-  static const unsigned a32Bit = 5;
-  static const unsigned a64Bit = 6;
-  static const unsigned a128Bit = 7;
+  STATIC_CONST( an8Bit = 3 );
+  STATIC_CONST( a16Bit = 4 );
+  STATIC_CONST( a32Bit = 5 );
+  STATIC_CONST( a64Bit = 6 );
+  STATIC_CONST( a128Bit = 7 );
   
   // AttributeDGroup constants
-  static const unsigned NotDGroup = 0;
-  static const unsigned DGroup = 1;
+  STATIC_CONST( NotDGroup = 0 );
+  STATIC_CONST( DGroup = 1 );
   
   // AttributeDKey constants
-  static const unsigned NotDKey = 0;
-  static const unsigned DKey = 1;
+  STATIC_CONST( NotDKey = 0 );
+  STATIC_CONST( DKey = 1 );
   
   // AttributeStoredInd constants
-  static const unsigned NotStored = 0;
-  static const unsigned Stored = 1;
+  STATIC_CONST( NotStored = 0 );
+  STATIC_CONST( Stored = 1 );
  
   // Table data interpretation
   struct Table {
@@ -438,8 +438,8 @@ public:
       case DictTabInfo::ExtText:
         AttributeType = DictTabInfo::StringType;
         AttributeSize = DictTabInfo::an8Bit;
-        // head + inline part [ attr precision ]
-        AttributeArraySize = (NDB_BLOB_HEAD_SIZE << 2) + AttributeExtPrecision;
+        // head + inline part [ attr precision lower half ]
+        AttributeArraySize = (NDB_BLOB_HEAD_SIZE << 2) + (AttributeExtPrecision & 0xFFFF);
         return true;
       };
       return false;

@@ -1,0 +1,6 @@
+#!/bin/sh
+
+PATH=$PATH:$MYSQL_BASE_DIR/bin
+export PATH
+
+testBackup $*

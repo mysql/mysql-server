@@ -427,7 +427,7 @@ buf_page_print(
 					btr_page_get_index_id(read_buf));
 		        if (index) {
 				fputs("InnoDB: (", stderr);
-				dict_index_name_print(stderr, index);
+				dict_index_name_print(stderr, NULL, index);
 				fputs(")\n", stderr);
 			}
 		}
@@ -465,6 +465,7 @@ buf_block_init(
 	block->in_LRU_list = FALSE;
 
 	block->n_pointers = 0;
+	block->hash_nodes = NULL;
 
 	rw_lock_create(&(block->lock));
 	ut_ad(rw_lock_validate(&(block->lock)));
@@ -1835,9 +1836,9 @@ buf_page_io_complete(
 		"InnoDB: by dumping, dropping, and reimporting\n"
 		"InnoDB: the corrupt table. You can use CHECK\n"
 		"InnoDB: TABLE to scan your table for corruption.\n"
-		"InnoDB: Look also at section 6.1 of\n"
-		"InnoDB: http://www.innodb.com/ibman.php about\n"
-		"InnoDB: forcing recovery.\n", stderr);
+		"InnoDB: See also "
+		"http://dev.mysql.com/doc/mysql/en/Forcing_recovery.html\n"
+		"InnoDB: about forcing recovery.\n", stderr);
 			  
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
 				fputs(
@@ -2123,7 +2124,7 @@ buf_print(void)
 
 		if (index) {
 			putc(' ', stderr);
-			dict_index_name_print(stderr, index);
+			dict_index_name_print(stderr, NULL, index);
 		}
 
 		putc('\n', stderr);

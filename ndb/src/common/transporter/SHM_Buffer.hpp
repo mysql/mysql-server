@@ -52,7 +52,7 @@ public:
   }
   
   void clear() {
-    m_readIndex = * m_sharedReadIndex;
+    m_readIndex = 0;
   }
   
   /**
@@ -71,7 +71,7 @@ public:
   /**
    * Update read ptr
    */
-  inline void updateReadPtr(Uint32 * readPtr);
+  inline void updateReadPtr(Uint32 *ptr);
   
 private:
   char * const m_startOfBuffer;
@@ -98,8 +98,8 @@ SHM_Reader::empty() const{
  */
 inline 
 void
-SHM_Reader::getReadPtr(Uint32 * & ptr, Uint32 * & eod){
-  
+SHM_Reader::getReadPtr(Uint32 * & ptr, Uint32 * & eod)
+{
   Uint32 tReadIndex  = m_readIndex;
   Uint32 tWriteIndex = * m_sharedWriteIndex;
   
@@ -117,14 +117,14 @@ SHM_Reader::getReadPtr(Uint32 * & ptr, Uint32 * & eod){
  */
 inline
 void 
-SHM_Reader::updateReadPtr(Uint32 * ptr){
-
-  Uint32 tReadIndex = ((char *)ptr) - m_startOfBuffer;
+SHM_Reader::updateReadPtr(Uint32 *ptr)
+{
+  Uint32 tReadIndex = ((char*)ptr) - m_startOfBuffer;
 
   assert(tReadIndex < m_totalBufferSize);
 
   if(tReadIndex >= m_bufferSize){
-    tReadIndex = 0; //-= m_bufferSize;
+    tReadIndex = 0;
   }
 
   m_readIndex = tReadIndex;
@@ -149,7 +149,7 @@ public:
   }
   
   void clear() {
-    m_writeIndex = * m_sharedWriteIndex;
+    m_writeIndex = 0;
   }
     
   inline char * getWritePtr(Uint32 sz);
@@ -206,7 +206,7 @@ SHM_Writer::updateWritePtr(Uint32 sz){
   assert(tWriteIndex < m_totalBufferSize);
 
   if(tWriteIndex >= m_bufferSize){
-    tWriteIndex = 0; //-= m_bufferSize;
+    tWriteIndex = 0;
   }
 
   m_writeIndex = tWriteIndex;

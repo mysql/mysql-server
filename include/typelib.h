@@ -22,6 +22,7 @@ typedef struct st_typelib {	/* Different types saved here */
   unsigned int count;		/* How many types */
   const char *name;		/* Name of typelib */
   const char **type_names;
+  unsigned int *type_lengths;
 } TYPELIB;
 
 extern int find_type(char *x,TYPELIB *typelib,unsigned int full_name);

@@ -39,7 +39,10 @@ create table t1 (c1 double, c2 varchar(20));
 insert t1 values (121,"16");
 select c1 + c1 * (c2 / 100) as col from t1;
 create table t2 select c1 + c1 * (c2 / 100) as col1, round(c1, 5) as col2, round(c1, 35) as col3, sqrt(c1*1e-15) col4 from t1;
+# Floats are a bit different in PS
+--disable_ps_protocol
 select * from t2;
+--enable_ps_protocol
 show create table t2;
 drop table t1,t2;
 
