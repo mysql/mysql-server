@@ -2167,7 +2167,7 @@ int Rand_log_event::exec_event(struct st_relay_log_info* rli)
 
 int Slave_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  if (mysql_bin_log.is_open(1))
+  if (mysql_bin_log.is_open())
     mysql_bin_log.write(this);
   return Log_event::exec_event(rli);
 }
@@ -2217,7 +2217,7 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
     slave_print_error(rli,my_errno, "Write to '%s' failed", fname_buf);
     goto err;
   }
-  if (mysql_bin_log.is_open(1))
+  if (mysql_bin_log.is_open())
     mysql_bin_log.write(this);
   error=0;					// Everything is ok
 
@@ -2237,7 +2237,7 @@ int Delete_file_log_event::exec_event(struct st_relay_log_info* rli)
   (void) my_delete(fname, MYF(MY_WME));
   memcpy(p, ".info", 6);
   (void) my_delete(fname, MYF(MY_WME));
-  if (mysql_bin_log.is_open(1))
+  if (mysql_bin_log.is_open())
     mysql_bin_log.write(this);
   return Log_event::exec_event(rli);
 }
@@ -2260,7 +2260,7 @@ int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
     slave_print_error(rli,my_errno, "Write to '%s' failed", fname);
     goto err;
   }
-  if (mysql_bin_log.is_open(1))
+  if (mysql_bin_log.is_open())
     mysql_bin_log.write(this);
   error=0;
 
@@ -2319,7 +2319,7 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
   (void) my_delete(fname, MYF(MY_WME));
   memcpy(p, ".data", 6);
   (void) my_delete(fname, MYF(MY_WME));
-  if (mysql_bin_log.is_open(1))
+  if (mysql_bin_log.is_open())
     mysql_bin_log.write(this);
   error = 0;
 

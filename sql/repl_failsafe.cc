@@ -265,7 +265,7 @@ int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
   LINT_INIT(cmp_res);
   DBUG_ENTER("translate_master");
 
-  if (!mysql_bin_log.is_open(1))
+  if (!mysql_bin_log.is_open())
   {
     strmov(errmsg,"Binary log is not open");
     DBUG_RETURN(1);
