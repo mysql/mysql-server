@@ -223,9 +223,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  MASTER_USER_SYM
 %token  MASTER_LOG_FILE_SYM
 %token  MASTER_LOG_POS_SYM
+%token  MASTER_LOG_SEQ_SYM
 %token  MASTER_PASSWORD_SYM
 %token  MASTER_PORT_SYM
 %token  MASTER_CONNECT_RETRY_SYM
+%token  MASTER_SERVER_ID_SYM
 %token	MATCH
 %token	MAX_ROWS
 %token	MEDIUM_SYM
@@ -234,6 +236,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MYISAM_SYM
 %token	NATIONAL_SYM
 %token	NATURAL
+%token  NEW_SYM
 %token	NCHAR_SYM
 %token	NOT
 %token	NO_SYM
@@ -2402,6 +2405,17 @@ show_param:
 	    if (!add_table_to_list($4,NULL,0))
 	      YYABORT;
 	  }
+        | NEW_SYM MASTER_SYM FOR_SYM SLAVE WITH MASTER_LOG_FILE_SYM EQ 
+	  TEXT_STRING AND MASTER_LOG_POS_SYM EQ ULONGLONG_NUM AND
+	MASTER_LOG_SEQ_SYM EQ ULONG_NUM AND MASTER_SERVER_ID_SYM EQ
+	ULONG_NUM
+          {
+	    Lex->sql_command = SQLCOM_SHOW_NEW_MASTER;
+	    Lex->mi.log_file_name = $8.str;
+	    Lex->mi.pos = $12;
+	    Lex->mi.last_log_seq = $16;
+	    Lex->mi.server_id = $20;
+          }
         | MASTER_SYM LOGS_SYM
           {
 	    Lex->sql_command = SQLCOM_SHOW_BINLOGS;

@@ -1,0 +1,22 @@
+#! /bin/sh
+
+# Sasha's hack to fix results generated with mysql-test-run --record
+# to be version and test port independent. In some cases, further minor
+# manual edititing may be required, but most of the time it should not
+# happen
+
+#It is assumed we are running the script in mysql-test directory
+
+VERSION=4.0.0-debug-log
+TEST_CASE=$1
+
+if [ -z "$TEST_CASE" ] ;
+then
+ echo "usage: $0 test_case_name"
+ exit 1
+fi
+
+../extra/replace $VERSION '$VERSION' 9306 '$MASTER_MYPORT' 9307 \
+'$SLAVE_MYPORT' \\ \\\\ --  r/$TEST_CASE.result
+
+

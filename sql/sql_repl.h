@@ -33,8 +33,12 @@ int stop_slave(THD* thd = 0, bool net_report = 1);
 int load_master_data(THD* thd);
 int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi);
 int change_master(THD* thd);
+int show_new_master(THD* thd);
 int show_slave_hosts(THD* thd);
 int show_binlog_events(THD* thd);
+int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg);
+int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
+		   const char* log_file_name2, ulonglong log_pos2);
 void reset_slave();
 void reset_master();
 void init_slave_list();
