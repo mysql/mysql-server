@@ -5754,8 +5754,6 @@ shell> CC=gcc CFLAGS="-O6" \
 If you have the Sun Workshop 4.2 compiler, you can run @code{configure} like
 this:
 
-CC=cc CFLAGS="-xstrconst -Xa -xO4 -native -mt" CXX=CC CXXFLAGS="-xO4 -native -noex -mt" ./configure --prefix=/usr/local/mysql
-
 @example
 shell> CC=cc CFLAGS="-Xa -fast -xO4 -native -xstrconst -mt" \
        CXX=CC CXXFLAGS="-noex -XO4 -mt" \
