@@ -760,7 +760,7 @@ void Item_func_interval::fix_length_and_dec()
   maybe_null= 0;
   max_length= 2;
   used_tables_cache|= row->used_tables();
-  not_null_tables_cache&= row->not_null_tables();
+  not_null_tables_cache= row->not_null_tables();
   with_sum_func= with_sum_func || row->with_sum_func;
   const_item_cache&= row->const_item();
 }

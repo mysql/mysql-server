@@ -105,7 +105,7 @@ then
   done
 fi
 
-cmd="$bindir/mysql -f --user=$user --host=$host"
+cmd="$bindir/mysql --no-defaults --force --user=$user --host=$host"
 if test ! -z "$password" ; then
   cmd="$cmd --password=$password"
 fi
