@@ -719,10 +719,10 @@ int bin2decimal(char *from, decimal *to, int precision, int scale)
     dec1 x;
     switch (i)
     {
-      case 1: x=mi_sint1korr(from); break;
-      case 2: x=mi_sint2korr(from); break;
-      case 3: x=mi_sint3korr(from); break;
-      case 4: x=mi_sint4korr(from); break;
+      case 1: x=mi_uint1korr(from); break;
+      case 2: x=mi_uint2korr(from); break;
+      case 3: x=mi_uint3korr(from); break;
+      case 4: x=mi_uint4korr(from); break;
       default: DBUG_ASSERT(0);
     }
     from+=i;
@@ -735,7 +735,7 @@ int bin2decimal(char *from, decimal *to, int precision, int scale)
   for (stop=from+intg0*sizeof(dec1); from < stop; from+=sizeof(dec1))
   {
     DBUG_ASSERT(sizeof(dec1) == 4);
-    *buf=mi_sint4korr(from) ^ mask;
+    *buf=mi_uint4korr(from) ^ mask;
     if (buf > to->buf || *buf != 0)
       buf++;
     else
@@ -745,7 +745,7 @@ int bin2decimal(char *from, decimal *to, int precision, int scale)
   for (stop=from+frac0*sizeof(dec1); from < stop; from+=sizeof(dec1))
   {
     DBUG_ASSERT(sizeof(dec1) == 4);
-    *buf=mi_sint4korr(from) ^ mask;
+    *buf=mi_uint4korr(from) ^ mask;
     buf++;
   }
   if (frac0x)
@@ -754,10 +754,10 @@ int bin2decimal(char *from, decimal *to, int precision, int scale)
     dec1 x;
     switch (i)
     {
-      case 1: x=mi_sint1korr(from); break;
-      case 2: x=mi_sint2korr(from); break;
-      case 3: x=mi_sint3korr(from); break;
-      case 4: x=mi_sint4korr(from); break;
+      case 1: x=mi_uint1korr(from); break;
+      case 2: x=mi_uint2korr(from); break;
+      case 3: x=mi_uint3korr(from); break;
+      case 4: x=mi_uint4korr(from); break;
       default: DBUG_ASSERT(0);
     }
     *buf=(x ^ mask) * powers10[DIG_PER_DEC1 - frac0x];
