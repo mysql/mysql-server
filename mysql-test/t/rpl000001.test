@@ -4,6 +4,8 @@ use test;
 drop table if exists t1,t3;
 create table t1 (word char(20) not null);
 load data infile '../../std_data/words.dat' into table t1;
+eval load data local infile '$MYSQL_TEST_DIR/std_data/words.dat' into table t1;
+select * from t1;
 set password = password('foo');
 set password = password('');
 create table t3(n int);

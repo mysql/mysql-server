@@ -15,8 +15,8 @@ n
 2001
 2002
 show slave hosts;
-Server_id	Host	Port
-2	127.0.0.1	$SLAVE_MYPORT
+Server_id	Host	Port	Rpl_recovery_rank	Master_id
+2	127.0.0.1	9307	2	1
 drop table t1;
 slave stop;
 drop table if exists t2;

@@ -140,6 +140,11 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
   get_object(p,si->user);
   get_object(p,si->password);
   si->port = uint2korr(p);
+  p += 2;
+  si->rpl_recovery_rank = uint4korr(p);
+  p += 4;
+  if (!(si->master_id = uint4korr(p)))
+    si->master_id = server_id;
   si->thd = thd;
   pthread_mutex_lock(&LOCK_slave_list);
 
@@ -534,6 +539,7 @@ impossible position";
 	  DBUG_PRINT("wait",("waiting for data on binary log"));
 	  if (!thd->killed)
 	    pthread_cond_wait(&COND_binlog_update, log_lock);
+	  DBUG_PRINT("wait",("binary log received update"));
 	  break;
 
 	default:
@@ -1253,6 +1259,8 @@ int show_slave_hosts(THD* thd)
     field_list.push_back(new Item_empty_string("Password",20));
   }
   field_list.push_back(new Item_empty_string("Port",20));
+  field_list.push_back(new Item_empty_string("Rpl_recovery_rank", 20));
+  field_list.push_back(new Item_empty_string("Master_id", 20));
 
   if (send_fields(thd, field_list, 1))
     DBUG_RETURN(-1);
@@ -1271,6 +1279,8 @@ int show_slave_hosts(THD* thd)
       net_store_data(packet, si->password);
     }
     net_store_data(packet, (uint32) si->port);
+    net_store_data(packet, si->rpl_recovery_rank);
+    net_store_data(packet, si->master_id);
     if (my_net_write(net, (char*)packet->ptr(), packet->length()))
     {
       pthread_mutex_unlock(&LOCK_slave_list);
@@ -1616,7 +1626,8 @@ int log_loaded_block(IO_CACHE* file)
 {
   LOAD_FILE_INFO* lf_info;
   uint block_len ;
-  if (!(block_len = file->rc_end - file->buffer))
+  char* buffer = (char*)file->buffer;
+  if (!(block_len = file->rc_end - buffer))
     return 0;
   lf_info = (LOAD_FILE_INFO*)file->arg;
   if (lf_info->last_pos_in_file != HA_POS_ERROR &&
@@ -1625,14 +1636,14 @@ int log_loaded_block(IO_CACHE* file)
   lf_info->last_pos_in_file = file->pos_in_file;
   if (lf_info->wrote_create_file)
   {
-    Append_block_log_event a(lf_info->thd, (char*) file->buffer, block_len);
+    Append_block_log_event a(lf_info->thd, buffer, block_len);
     mysql_bin_log.write(&a);
   }
   else
   {
     Create_file_log_event c(lf_info->thd,lf_info->ex,lf_info->db,
 			    lf_info->table_name, *lf_info->fields,
-			    lf_info->handle_dup, (char*) file->buffer,
+			    lf_info->handle_dup, buffer,
 			    block_len);
     mysql_bin_log.write(&c);
     lf_info->wrote_create_file = 1;
