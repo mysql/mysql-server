@@ -1946,7 +1946,7 @@ checklist of very demanding buyers.
 The @code{MySQL Portals} (@uref{http://www.mysql.com/portal/})
 represent the ultimate resource to find @code{MySQL AB Partners},
 as well as books, or other @code{MySQL} related solutions that you
-may be looking for. Items are categorized and rated in order to
+may be looking for. Items are categorised and rated in order to
 make it easy for you to locate information.
 
 By registering as a user, you will have the ability to comment and
@@ -8193,8 +8193,8 @@ you need to rebuild them with @code{ALTER TABLE table_name TYPE=MyISAM},
 @code{LOCATE()} and @code{INSTR()} are case sensitive if one of the
 arguments is a binary string.
 @item
-@code{STRCMP()} now uses the current character set when doing comparison,
-which means that the default comparison is case insensitive.
+@code{STRCMP()} now uses the current character set when doing comparisons,
+which means that the default comparison behavior now is case insensitive.
 @item
 @code{HEX(string)} now returns the characters in string converted to
 hexadecimal.  If you want to convert a number to hexadecimal, you should
@@ -19980,7 +19980,7 @@ Is ON if we only allow local (socket) connections.
 
 @item @code{skip_show_databases}
 This prevents people from doing @code{SHOW DATABASES} if they don't have
-the @code{PROCESS_PRIV} privilege. This can improve security if you're
+the @code{Process_priv} privilege. This can improve security if you're
 concerned about people being able to see what databases other users
 have. See also @code{safe_show_databases}.
 
@@ -20576,8 +20576,8 @@ with the simple @code{sort_order[]} table, you need to use the string
 collating functions.
 
 Right now the best documentation on this is the character sets that are
-already implemented.  Look at the big5, czech, gbk, sjis, and tis160
-character sets for examples.
+already implemented.  Look at the @code{big5}, @code{czech}, @code{gbk},
+@code{sjis}, and @code{tis160} character sets for examples.
 
 You must specify the @code{strxfrm_multiply_MYSET=N} value in the
 special comment at the top of the file.  @code{N} should be set to
@@ -23053,7 +23053,7 @@ To the binary log filename @code{mysqld} will append an extension that
 is a number that is incremented each time you execute @code{mysqladmin
 refresh}, execute @code{mysqladmin flush-logs}, execute the @code{FLUSH
 LOGS} statement or restart the server. A new binary log will also
-automaticly be created when it reaches @code{max_bin_log_size}. You can
+automatically be created when it reaches @code{max_bin_log_size}. You can
 delete all not active binary log files with the @code{RESET MASTER}
 command. @xref{RESET}.
 
@@ -29947,7 +29947,7 @@ mysql> SELECT MOD(29,9);
 @subsection Non-Type-Specific Operators and Functions
 
 @menu
-* Parenthesis::                 Parenthesis
+* Parenthesis::                 Parentheses
 * Comparison Operators::        Comparison Operators
 * Logical Operators::           Logical Operators
 * Control flow functions::      Control Flow Functions
@@ -29955,7 +29955,7 @@ mysql> SELECT MOD(29,9);
 
 
 @node Parenthesis, Comparison Operators, Non-typed Operators, Non-typed Operators
-@subsubsection Parenthesis
+@subsubsection Parentheses
 
 @findex () (parentheses)
 @findex parentheses ( and )
@@ -29967,7 +29967,7 @@ mysql> SELECT MOD(29,9);
 ( ... )
 @end example
 
-Use parenthesis to force the order of evaluation in an expression.  For
+Use parentheses to force the order of evaluation in an expression.  For
 example:
 
 @example
@@ -30424,11 +30424,12 @@ value, then the result after @code{ELSE} is returned. If there is no
 @code{ELSE} part then @code{NULL} is returned:
 
 @example
-mysql> SELECT CASE 1 WHEN 1 THEN "one" WHEN 2 THEN "two" ELSE "more" END;
+mysql> SELECT CASE 1 WHEN 1 THEN "one"
+           WHEN 2 THEN "two" ELSE "more" END;
        -> "one"
 mysql> SELECT CASE WHEN 1>0 THEN "true" ELSE "false" END;
        -> "true"
-mysql> SELECT CASE BINARY "B" when "a" then 1 when "b" then 2 END;
+mysql> SELECT CASE BINARY "B" WHEN "a" THEN 1 WHEN "b" THEN 2 END;
        -> NULL
 @end example
 @end table
@@ -30471,12 +30472,12 @@ See also the @code{ORD()} function.
 
 @findex ORD()
 @item ORD(str)
-If the leftmost character of the string str is a multi-byte character,
-returns the code of multi-byte character by returning the ASCII code value
-of the character in the format of:
+If the leftmost character of the string @code{str} is a multi-byte character,
+returns the code for that character, calculated from the ASCII code values
+of its constituent characters using this formula:
 @code{((first byte ASCII code)*256+(second byte ASCII code))[*256+third byte ASCII code...]}.
 If the leftmost character is not a multi-byte character, returns the same
-value as the like @code{ASCII()} function does:
+value that the @code{ASCII()} function does:
 
 @example
 mysql> select ORD('2');
@@ -30610,8 +30611,8 @@ mysql> select OCTET_LENGTH('text');
         -> 4
 @end example
 
-Note that for @code{CHAR_LENGTH()}, multi-byte characters are only counted
-once.
+Note that for @code{CHAR_LENGTH()} and @code{CHARACTER_LENGTH()}, multi-byte
+characters are only counted once.
 
 @findex BIT_LENGTH()
 @item BIT_LENGTH(str)
@@ -32553,12 +32554,12 @@ The given @code{key_string} will be used to crypt @code{string_to_encrypt}.
 @end multitable
 
 The return string will be a binary string where the first character
-will be @code{CHAR(128 | key-number)}.
+will be @code{CHAR(128 | key_number)}.
 
 The 128 is added to make it easier to recognize an encrypted key.
-If one uses a string key, @code{key-number} will be 127.
+If you use a string key, @code{key_number} will be 127.
 
-On error, this function returns NULL.
+On error, this function returns @code{NULL}.
 
 The string length for the result will be
 @code{new_length= org_length + (8-(org_length % 8))+1}.
@@ -32566,26 +32567,27 @@ The string length for the result will be
 The @code{des-key-file} has the following format:
 
 @example
-key-number key-string
-key-number key-string
+key_number des_key_string
+key_number des_key_string
 @end example
 
-The @code{key-number} must be a number between 0-9. The numbers may be
-in any order.  @code{des-key-string} is string that will be used to
-encrypt the message. Between the number and the key there should be at
-least one space.  The first key is the default key that will be used
-if you don't specify a key to @code{DES_ENCRYPT()}
+Each @code{key_number} must be a number in the range from 0 to 9.  Lines in
+the file may be in any order.  @code{des_key_string} is the string that
+will be used to encrypt the message.  Between the number and the key there
+should be at least one space.  The first key is the default key that will
+be used if you don't specify any key argument to @code{DES_ENCRYPT()}
 
 You can tell MySQL to read new key values from the key file with the
-@code{FLUSH DES_KEY_FILE} command.
+@code{FLUSH DES_KEY_FILE} command.  This requires the @code{Reload_priv}
+privilege.
 
-One benefit with having a set of default keys on can use is that it
-gives applications a way to check for existence of encrypted column,
-without giving the end user the right to decrypt the data.
+One benefit of having a set of default keys is that it gives applications
+a way to check for existence of encrypted column values, without giving
+the end user the right to decrypt those values.
 
 @example
-SELECT customer_address FROM customer_table WHERE
-crypted_credit_card = DES_ENCRYPT("credit_card_number");
+mysql> SELECT customer_address FROM customer_table WHERE
+       crypted_credit_card = DES_ENCRYPT("credit_card_number");
 @end example
 
 @findex DES_DECRYPT()
@@ -32596,17 +32598,19 @@ Decrypts a string encrypted with @code{DES_ENCRYPT()}.
 Note that this function only works if you have configured MySQL with
 SSL support. @xref{Secure connections}.
 
-If one only gives this a string argument, then it will use the right key
+If no @code{key_string} argument is given, @code{DES_DECRYPT()} examines
+the first byte of the encrypted string to determine the DES key number
+that was used to encrypt the original string, then reads the key
 from the @code{des-key-file} to decrypt the message.  For this to work
-the user must have the @code{PROCESS_PRIV} privilege.
+the user must have the @code{Process_priv} privilege.
 
-If one calls this function with 2 arguments, the second argument is
-used to decrypt the message.
+If you pass this function a @code{key_string} argument, that string
+is used as the key for decrypting the message.
 
 If the @code{string_to_decrypt} doesn't look like an encrypted string, MySQL
 will return the given @code{string_to_decrypt}.
 
-On error, this function returns NULL.
+On error, this function returns @code{NULL}.
 
 @findex LAST_INSERT_ID([expr])
 @item LAST_INSERT_ID([expr])
@@ -32764,7 +32768,8 @@ server machine is.
 
 @findex INET_NTOA()
 @item INET_NTOA(expr)
-Returns the network address (4 or 8 byte) for the numeric expression:
+Given a numeric network address (4 or 8 byte), returns the dotted-quad
+representation of the address as a string:
 
 @example
 mysql> select INET_NTOA(3520061480);
@@ -32773,7 +32778,8 @@ mysql> select INET_NTOA(3520061480);
 
 @findex INET_ATON()
 @item INET_ATON(expr)
-Returns an integer that represents the numeric value for a network address.
+Given the dotted-quad representation of a network address as a string,
+returns an integer that represents the numeric value of the address.
 Addresses may be 4 or 8 byte addresses:
 
 @example
@@ -32786,15 +32792,15 @@ above number is calculated as @code{209*256^3 + 207*256^2 + 224*256 +40}.
 
 @findex MASTER_POS_WAIT()
 @item MASTER_POS_WAIT(log_name, log_pos)
-Blocks until the slave reaches the specified position in the master log during
-replication. If master information is not initialised, returns NULL. If the
-slave is not running, will block and wait until it is started and goes to or
-past
-the specified position. If the slave is already past the specified position,
-returns immediately. The return value is the number of log events it had to
-wait to get to the specified position, or NULL in case of error. Useful for
-control of master-slave synchronisation, but was originally written to
-facilitate replication testing.
+Blocks until the slave reaches the specified position in the master
+log during replication. If master information is not initialised,
+returns @code{NULL}. If the slave is not running, will block and wait
+until it is started and goes to or past the specified position. If the
+slave is already past the specified position, returns immediately. The
+return value is the number of log events it had to wait to get to the
+specified position, or @code{NULL} in case of error. Useful for control
+of master-slave synchronisation, but was originally written to facilitate
+replication testing.
 
 @findex FOUND_ROWS()
 @findex LIMIT
@@ -32803,16 +32809,18 @@ Returns the number of rows that the last @code{SELECT SQL_CALC_FOUND_ROWS ...}
 command would have returned, if wasn't restricted with @code{LIMIT}.
 
 @example
-SELECT SQL_CALC_FOUND_ROWS * FROM table_name WHERE id > 100 LIMIT 10;
-SELECT FOUND_ROWS();
+mysql> SELECT SQL_CALC_FOUND_ROWS * FROM table_name
+       WHERE id > 100 LIMIT 10;
+mysql> SELECT FOUND_ROWS();
 @end example
 
-The second select will return how many rows the SELECT should have
-returned if we would remove the @code{LIMIT} clause.
+The second @code{SELECT} will return a number indicating how many rows the
+first @code{SELECT} would have returned had it been written without the
+@code{LIMIT} clause.
 
 Note that if you are using @code{SELECT SQL_CALC_FOUND_ROWS ...} MySQL has
-to calculate all rows in the result set.  This is however faster than
-if you would not use @code{LIMIT} as the result set doesn't have to be sent
+to calculate all rows in the result set.  However, this is faster than
+if you would not use @code{LIMIT}, as the result set need not be sent
 to the client.
 @end table
 
@@ -39083,7 +39091,7 @@ an explicit value for the column, then InnoDB executes @code{SELECT
 MAX(auto-inc-column) FROM T}, and assigns that value incremented
 by one to the the column and the auto-increment counter of the table.
 We say that
-the auto-increment counter for table @code{T} has been initialized.
+the auto-increment counter for table @code{T} has been initialised.
 
 InnoDB follows the same procedure in initializing the auto-increment counter
 for a freshly created table.
@@ -39092,7 +39100,7 @@ Note that if the user specifies in an insert the value 0 to the auto-increment
 column, then InnoDB treats the row like the value would not have been
 specified.
 
-After the auto-increment counter has been initialized, if a user inserts
+After the auto-increment counter has been initialised, if a user inserts
 a row where he explicitly specifies the column value, and the value is bigger
 than the current counter value, then the counter is set to the specified
 column value. If the user does not explicitly specify a value, then InnoDB
@@ -48922,11 +48930,11 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 Fixed @code{SIGINT} and @code{SIGQUIT} problems in mysql.cc on Linux with 
 some glibc versions
 @item
-Fixed bug in convert.cc, which is caused by having a wrong net_store_length 
-linked in CONVERT::store method
+Fixed bug in @file{convert.cc}, which is caused by having an incorrect
+@code{net_store_length()} linked in the @code{CONVERT::store()} method.
 @item
-@code{DOUBLE} and @code{FLOAT} columns are now honoring the
-@code{UNSIGNED} flag on storage.
+@code{DOUBLE} and @code{FLOAT} columns now honor the @code{UNSIGNED} flag
+on storage.
 @item
 @code{InnoDB} now retains foreign key constraints through @code{ALTER TABLE}
 and @code{CREATE/DROP INDEX}.
@@ -49025,7 +49033,7 @@ First pre-version of multi-table @code{UPDATE} statement.
 @item
 Fixed bug in multi-table @code{DELETE}.
 @item
-Fixed bug in @code{SELECT CONCAT(argument-list) ... GROUP BY 1}.
+Fixed bug in @code{SELECT CONCAT(argument_list) ... GROUP BY 1}.
 @item
 @code{INSERT ... SELECT} did a full rollback in case of an error. Fixed
 so that we only roll back the last statement in the current transaction.
@@ -49163,8 +49171,8 @@ now handle signed and unsigned @code{BIGINT} numbers correctly.
 @item
 New character set @code{latin_de} which provides correct German sorting.
 @item
-@code{STRCMP()} now uses the current character set when doing comparison,
-which means that the default comparison is case insensitive.
+@code{STRCMP()} now uses the current character set when doing comparisons,
+which means that the default comparison behavior now is case insensitive.
 @item
 @code{TRUNCATE TABLE} and @code{DELETE FROM tbl_name} are now separate
 functions. One bonus is that @code{DELETE FROM tbl_name} now returns
@@ -49349,13 +49357,13 @@ not yet 100% confident in this code.
 
 @itemize @bullet
 @item
-Our Linux RPMS and binaries are now compiled with gcc 3.0.4, which should
-make them a bit faster.
+Our Linux RPMS and binaries are now compiled with @code{gcc} 3.0.4, which
+should make them a bit faster.
 @item
 Fixed some buffer overflow problems when reading startup parameters.
 @item
 Because of problems on shutdown we have now disabled named pipes on
-windows by default.  One can enable this with by starting mysqld with
+Windows by default.  To override this, start @code{mysqld} with
 @code{--enable-named-pipe}.
 @item
 Fixed bug when using @code{WHERE key_column = 'J' or key_column='j'}.
@@ -49576,7 +49584,7 @@ Fixed @code{Rows_examined} count in slow query log.
 Fixed bug when using a reference to an @code{AVG()} column in @code{HAVING}.
 @item
 Fixed that date functions that require correct dates, like
-@code{DAYOFYEAR(column)} will return @code{NULL} for @code{0000-00-00} dates.
+@code{DAYOFYEAR(column)}, will return @code{NULL} for @code{0000-00-00} dates.
 @item
 Fixed bug in const-propagation when comparing columns of different
 types. (@code{SELECT * FROM date_col="2001-01-01" and date_col=time_col})
@@ -49617,7 +49625,7 @@ Foreign keys checking is now done for @code{InnoDB} tables.
 @code{DROP DATABASE} now works also for @code{InnoDB} tables.
 @item
 @code{InnoDB} now supports data files and raw disk partitions bigger
-than 4 GB on those operating systems which have big files.
+than 4 GB on those operating systems that have big files.
 @item
 @code{InnoDB} calculates better table cardinality estimates for the
 MySQL optimiser.
@@ -49900,7 +49908,7 @@ sometimes results in incorrectly ordered rows.
 @item
 Fixed a bug in @code{REPLACE()} when using the @code{ujis} character set.
 @item
-Applied Sleepycat BDB patches 3.2.9.1 and 3.2.9.2.
+Applied Sleepycat @code{BDB} patches 3.2.9.1 and 3.2.9.2.
 @item
 Added @code{--skip-stack-trace} option to @code{mysqld}.
 @item
@@ -50191,8 +50199,8 @@ Added @code{--sort-recover} option to @code{myisamchk}.
 Fixed bug when using @code{DISTINCT} on results from functions that referred
 to a group function, like:
 @example
-SELECT a, DISTINCT SEC_TO_TIME(sum(a))
-from tbl_name GROUP BY a, b;
+SELECT a, DISTINCT SEC_TO_TIME(SUM(a))
+FROM tbl_name GROUP BY a, b;
 @end example
 @item
 Fixed buffer overrun in @code{libmysqlclient} library.
@@ -50475,7 +50483,7 @@ Added @code{binlog_cache_size} and @code{max_binlog_cache_size} variables to
 If you do a @code{DROP DATABASE} on a symbolically linked database, both
 the link and the original database is deleted.
 @item
-Fixed that @code{DROP DATABASE} works on OS/2.
+Fixed @code{DROP DATABASE} to work on OS/2.
 @item
 Fixed bug when doing a @code{SELECT DISTINCT ... table1 LEFT JOIN
 table2 ...} when @code{table2} was empty.
@@ -50510,7 +50518,7 @@ Added a warning if number of rows changes on @code{REPAIR}/@code{OPTIMIZE}.
 @item
 Applied patches for OS/2 by @code{Yuri Dario}.
 @item
-@code{FLUSH TABLES table_name} didn't always flush the index tree
+@code{FLUSH TABLES tbl_name} didn't always flush the index tree
 to disk properly.
 @item
 @code{--bootstrap} is now run in a separate thread. This fixes a problem
@@ -50592,7 +50600,7 @@ of more than 65K was shortened by a single byte.
 Fixed a bug in @code{MyISAM} when running multiple updating processes on
 the same table.
 @item
-Allow one to use @code{FLUSH TABLE tablename}.
+Allow one to use @code{FLUSH TABLE tbl_name}.
 @item
 Added @code{--replicate-ignore-table}, @code{--replicate-do-table},
 @code{--replicate-wild-ignore-table}, and @code{--replicate-wild-do-table}
@@ -50619,7 +50627,7 @@ Fixed a bug where we didn't allow an index name after the
 Added @code{TRUNCATE table_name} as a synonym for
 @code{DELETE FROM table_name}.
 @item
-Fixed a bug in a BDB key compare function when comparing part keys.
+Fixed a bug in a @code{BDB} key compare function when comparing part keys.
 @item
 Added @code{bdb_lock_max} variable to @code{mysqld}.
 @item
@@ -50857,7 +50865,7 @@ To make it possible to reliably dump and restore tables with
 @code{TIMESTAMP(X)} columns, MySQL now reports columns with @code{X}
 other than 14 or 8 to be strings.
 @item
-Changed sort order for latin1 as it was before MySQL Version 3.23.23.
+Changed sort order for @code{latin1} as it was before MySQL Version 3.23.23.
 Any table that was created or modified with 3.23.22 must be repaired if it has
 @code{CHAR} columns that may contain characters with ASCII values greater than
 128!
@@ -51356,7 +51364,7 @@ When using @code{=} on @code{BLOB} or @code{VARCHAR BINARY} keys, where
 only a part of the column was indexed, the whole column of the result
 row wasn't compared.
 @item
-Fix for sjis character set and @code{ORDER BY}.
+Fix for @code{sjis} character set and @code{ORDER BY}.
 @item
 When running in ANSI mode, don't allow columns to be used that aren't in
 the @code{GROUP BY} part.
@@ -51400,8 +51408,8 @@ Added @code{print_defaults} program to the @file{.rpm} files. Removed
 Fixed bug in @code{MyISAM} involving @code{REPLACE ... SELECT ...} which could
 give a corrupted table.
 @item
-Fixed bug in @code{myisamchk} where it wrongly reset the @code{AUTO_INCREMENT}
-value.
+Fixed bug in @code{myisamchk} where it incorrectly reset the
+@code{AUTO_INCREMENT} value.
 @item
 LOTS of patches for Linux Alpha. MySQL now appears to be relatively
 stable on Alpha.
@@ -51428,7 +51436,7 @@ now waits until the PID file is gone before terminating.
 @item
 Fixed core dump with some @code{COUNT(DISTINCT ...)} queries.
 @item
-Fixed that @code{myisamchk} works properly with RAID:ed tables.
+Fixed that @code{myisamchk} works properly with RAID tables.
 @item
 Fixed problem with @code{LEFT JOIN} and @code{key_field IS NULL}.
 @item
@@ -51510,7 +51518,7 @@ Fixed problem that affected queries that did arithmetic on group functions.
 @item
 Fixed problem with timestamps and @code{INSERT DELAYED}.
 @item
-Fixed that @code{date_column BETWEEN const_date AND const_date} works.
+Fixed that @code{date_col BETWEEN const_date AND const_date} works.
 @item
 Fixed problem when only changing a 0 to @code{NULL} in a table with
 @code{BLOB/TEXT} columns.
@@ -51542,7 +51550,7 @@ Fixed bug that a change of all @code{VARCHAR} columns to @code{CHAR} columns
 didn't change row type from dynamic to fixed.
 @item
 Disabled floating-point exceptions for FreeBSD to fix core dump when
-doing @code{SELECT floor(pow(2,63))}.
+doing @code{SELECT FLOOR(POW(2,63))}.
 @item
 Renamed @code{mysqld} startup option from @code{--delay-key-write} to
 @code{--delay-key-write-for-all-tables}.
@@ -51556,10 +51564,10 @@ Added @code{--log-slow-queries} option to @code{mysqld} to log all queries
 that take a long time to a separate log file with a time indicating how
 long the query took.
 @item
-Fixed core dump when doing @code{WHERE key_column=RAND(...)}.
+Fixed core dump when doing @code{WHERE key_col=RAND(...)}.
 @item
-Fixed optimisation bug in @code{SELECT ... LEFT JOIN ... key_column IS NULL},
-when @code{key_column} could contain @code{NULL} values.
+Fixed optimisation bug in @code{SELECT ... LEFT JOIN ... key_col IS NULL},
+when @code{key_col} could contain @code{NULL} values.
 @item
 Fixed problem with 8-bit characters as separators in @code{LOAD DATA INFILE}.
 @end itemize
@@ -51584,14 +51592,14 @@ Fixed bug when doing a join on a text key which didn't cover the whole key.
 @item
 Option @code{--delay-key-write} didn't enable delayed key writing.
 @item
-Fixed update of @code{TEXT} column which only involved case changes.
+Fixed update of @code{TEXT} column which involved only case changes.
 @item
 Fixed that @code{INSERT DELAYED} doesn't update timestamps that are given.
 @item
 Added function @code{YEARWEEK()} and options @code{x}, @code{X}, @code{v} and
 @code{V} to @code{DATE_FORMAT()}.
 @item
-Fixed problem with @code{MAX(indexed_column)} and HEAP tables.
+Fixed problem with @code{MAX(indexed_column)} and @code{HEAP} tables.
 @item
 Fixed problem with @code{BLOB NULL} keys and @code{LIKE "prefix%"}.
 @item
@@ -51673,7 +51681,7 @@ users to force table names to lowercase.
 Added @code{SELECT ... INTO DUMPFILE}.
 @item
 Added @code{--ansi} option to @code{mysqld} to make some functions
-@code{ANSI SQL} compatible.
+ANSI SQL compatible.
 @item
 Temporary table names now start with @code{#sql}.
 @item
@@ -51682,7 +51690,7 @@ Added quoting of identifiers with @code{`} (@code{"} in @code{--ansi} mode).
 Changed to use @code{snprintf()} when printing floats to avoid some buffer
 overflows on FreeBSD.
 @item
-Made @code{floor()} overflow safe on FreeBSD.
+Made @code{FLOOR()} overflow safe on FreeBSD.
 @item
 Added @code{--quote-names} option to @code{mysqldump}.
 @item
@@ -51879,7 +51887,7 @@ You can now update index columns that are used in the @code{WHERE} clause.
 Date handling should now be a bit faster.
 @item
 Added handling of fuzzy dates (dates where day or month is 0), such as
-1999-01-00.
+@code{'1999-01-00'}.
 @item
 Fixed optimisation of @code{SELECT ... WHERE key_part1=const1 AND
 key_part_2=const2 AND key_part1=const4 AND key_part2=const4}; Indextype
@@ -51941,7 +51949,7 @@ Fixed some compilation problems.
 @itemize @bullet
 @item
 A new table handler library (@code{MyISAM}) with a lot of new features.
-@xref{MyISAM}.
+@xref{MyISAM, , @code{MyISAM}}.
 @item
 You can create in-memory @code{HEAP} tables which are extremely fast for
 lookups.
@@ -51992,7 +52000,8 @@ Allow creation of @code{CHAR(0)} columns.
 An example procedure is added: @code{analyse}, file: @file{sql_analyse.c}.
 This will describe the data in your query.  Try the following:
 @example
-SELECT ... FROM ... WHERE ... PROCEDURE ANALYSE([max elements,[max memory]])
+SELECT ... FROM ...
+WHERE ... PROCEDURE ANALYSE([max elements,[max memory]])
 @end example
 
 This procedure is extremely useful when you want to check the data in your
@@ -52182,7 +52191,7 @@ Fixed problem when storing numbers in timestamps.
 @item
 Fix problem with timezones that have half hour offsets.
 @item
-@code{mysqlhotcopy} - fast on-line hot-backup utility for local MySQL
+Added @code{mysqlhotcopy}, a fast on-line hot-backup utility for local MySQL
 databases. By Tim Bunce.
 @item
 New more secure @code{mysqlaccess}. Thanks to Steve Harvey for this.
@@ -52213,7 +52222,7 @@ A few small fixes for the Windows version.
 Fixed optimiser problem on @code{SELECT} when using many overlapping indexes.
 @item
 Disabled floating-point exceptions for FreeBSD to fix core dump when
-doing @code{SELECT floor(pow(2,63))}.
+doing @code{SELECT FLOOR(POW(2,63))}.
 @item
 Added print of default arguments options to all clients.
 @item
@@ -52286,7 +52295,8 @@ Fixed problem when sorting on big blob columns.
 
 @itemize @bullet
 @item
-Fixed core dump with empty @code{BLOB/TEXT} column to @code{REVERSE()}.
+Fixed core dump with empty @code{BLOB/TEXT} column argument to
+@code{REVERSE()}.
 @item
 Extended @code{/*! */} with version numbers.
 @item
@@ -52830,7 +52840,7 @@ Changed optimiser to make it better at deciding when to do a full join
 and when using keys.
 @item
 You can now use @code{mysqladmin proc} to display information about your own
-threads. Only users with the @strong{Process_priv} privilege can get
+threads. Only users with the @code{Process_priv} privilege can get
 information about all threads.
 @item
 Added handling of formats @code{YYMMDD}, @code{YYYYMMDD},
@@ -54778,9 +54788,9 @@ New commands: @code{ALTER TABLE}, @code{SELECT ... INTO OUTFILE} and
 @item
 New function: @code{NOW()}.
 @item
-Added new field @strong{file_priv} to @code{mysql/user} table.
+Added new field @code{File_priv} to @code{mysql/user} table.
 @item
-New script @code{add_file_priv} which adds the new field @strong{file_priv}
+New script @code{add_file_priv} which adds the new field @code{File_priv}
 to the @code{user} table. This script must be executed if you want to
 use the new @code{SELECT ... INTO} and @code{LOAD DATA INFILE ...} commands
 with a version of MySQL earlier than 3.20.7.
@@ -54792,7 +54802,7 @@ New files @file{NEW} and @file{BUGS}.
 Changed @file{select_test.c} and @file{insert_test.c} to include
 @file{config.h}.
 @item
-Added command @code{status} to @code{mysqladmin} for short logging.
+Added @code{status} command to @code{mysqladmin} for short logging.
 @item
 Increased maximum number of keys to 16 and maximum number of key parts to 15.
 @item
