@@ -1103,6 +1103,16 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_NO_REFERENCED_ROW:
     textno=ER_NO_REFERENCED_ROW;
     break;
+  case HA_ERR_NO_SUCH_TABLE:
+  {
+    char *db;
+    char buff[FN_REFLEN];
+    uint length=dirname_part(buff,table->path);
+    buff[length-1]=0;
+    db=buff+dirname_length(buff);
+    my_error(ER_NO_SUCH_TABLE,MYF(0),db,table->table_name);
+    break;
+  }
   default:
     {
       /* The error was "unknown" to this function.
@@ -1249,6 +1259,71 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   DBUG_RETURN(error != 0);
 }
 
+/*
+  Try to discover table from engine and 
+  if found, write the frm file to disk.
+  
+  RETURN VALUES:
+   0 : Table existed in engine and created 
+       on disk if so requested
+   1 : Table does not exist
+  >1 : error
+
+*/
+
+int ha_create_table_from_engine(THD* thd, 
+				const char *db, 
+				const char *name,
+				bool create_if_found)
+{
+  int error= 0;  
+  const void* frmblob = NULL;
+  uint frmlen = 0;
+  char path[FN_REFLEN];
+  HA_CREATE_INFO create_info;
+  TABLE table;
+  DBUG_ENTER("ha_create_table_from_engine");
+  DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
+  DBUG_PRINT("enter", ("create_if_found: %d", create_if_found));
+
+  bzero((char*) &create_info,sizeof(create_info));
+
+  if ((error= ha_discover(thd, db, name, &frmblob, &frmlen)))
+    DBUG_RETURN(error); 
+
+  // Table exists in handler  
+  if  (create_if_found)
+  {
+    (void)strxnmov(path,FN_REFLEN,mysql_data_home,"/",db,"/",name,NullS);
+    // Save the frm file    
+    if ((error = writefrm(path, frmblob, frmlen)))
+      goto err_end;
+
+    if (openfrm(path,"",0,(uint) READ_ALL, 0, &table))
+      DBUG_RETURN(1);
+
+    update_create_info_from_table(&create_info, &table);
+    create_info.table_options|= HA_CREATE_FROM_ENGINE;
+
+    if (lower_case_table_names == 2 &&
+	!(table.file->table_flags() & HA_FILE_BASED))
+    {
+      /* Ensure that handler gets name in lower case */
+      strmov(path, name);
+      my_casedn_str(files_charset_info, path);
+      name= path;
+    }
+    
+    error=table.file->create(path,&table,&create_info);
+    VOID(closefrm(&table));
+  }
+
+err_end:
+  if (frmblob)
+    my_free((char*) frmblob,MYF(0));
+  DBUG_RETURN(error);  
+}
+
 static int NEAR_F delete_file(const char *name,const char *ext,int extflag)
 {
   char buff[FN_REFLEN];
@@ -1356,20 +1431,66 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
   Try to discover one table from handler(s)
 */
 
-int ha_discover(const char* dbname, const char* name,
-               const void** frmblob, uint* frmlen)
+int ha_discover(THD* thd, const char* db, const char* name,
+		const void** frmblob, uint* frmlen)
 {
   int error= 1; // Table does not exist in any handler
   DBUG_ENTER("ha_discover");
-  DBUG_PRINT("enter", ("db: %s, name: %s", dbname, name));
+  DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
 #ifdef HAVE_NDBCLUSTER_DB
   if (have_ndbcluster == SHOW_OPTION_YES)
-    error= ndbcluster_discover(dbname, name, frmblob, frmlen);
+    error= ndbcluster_discover(thd, db, name, frmblob, frmlen);
 #endif
   if (!error)
     statistic_increment(ha_discover_count,&LOCK_status);
   DBUG_RETURN(error);
 }
+
+
+/*
+  Call this function in order to give the handler the possiblity 
+  to ask engine if there are any new tables that should be written to disk 
+  or any dropped tables that need to be removed from disk
+*/
+
+int
+ha_find_files(THD *thd,const char *db,const char *path,
+	      const char *wild, bool dir, List<char> *files)
+{
+  int error= 0;
+  DBUG_ENTER("ha_find_files");
+  DBUG_PRINT("enter", ("db: %s, path: %s, wild: %s, dir: %d", 
+		       db, path, wild, dir));
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+    error= ndbcluster_find_files(thd, db, path, wild, dir, files);
+#endif
+  DBUG_RETURN(error);
+  
+  
+}
+
+/*
+  Ask handler if the table exists in engine
+
+  RETURN
+    0                   Table does not exist
+    1                   Table exists
+    #                   Error code
+
+ */
+int ha_table_exists(THD* thd, const char* db, const char* name)
+{
+  int error= 2;
+  DBUG_ENTER("ha_table_exists");
+  DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+    error= ndbcluster_table_exists(thd, db, name);
+#endif
+  DBUG_RETURN(error);
+}
+
 
 
 /*

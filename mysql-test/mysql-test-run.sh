@@ -198,9 +198,11 @@ DYLD_LIBRARY_PATH="$BASEDIR/lib:$BASEDIR/libmysql/.libs:$DYLD_LIBRARY_PATH"
 export LD_LIBRARY_PATH DYLD_LIBRARY_PATH
 
 MASTER_RUNNING=0
+MASTER1_RUNNING=0
 MASTER_MYPORT=9306
+MASTER_MYPORT1=9307
 SLAVE_RUNNING=0
-SLAVE_MYPORT=9307
+SLAVE_MYPORT=9308 # leave room for 2 masters for cluster tests
 MYSQL_MANAGER_PORT=9305 # needs to be out of the way of slaves
 NDBCLUSTER_PORT=9350
 MYSQL_MANAGER_PW_FILE=$MYSQL_TEST_DIR/var/tmp/manager.pwd
@@ -254,9 +256,9 @@ while test $# -gt 0; do
     --extern)  USE_RUNNING_SERVER="1" ;;
     --with-ndbcluster)
       USE_NDBCLUSTER="--ndbcluster" ;;
-    --ndbconnectstring=*)
+    --ndb-connectstring=*)
       USE_NDBCLUSTER="--ndbcluster" ;
-      USE_RUNNING_NDBCLUSTER=`$ECHO "$1" | $SED -e "s;--ndbconnectstring=;;"` ;;
+      USE_RUNNING_NDBCLUSTER=`$ECHO "$1" | $SED -e "s;--ndb-connectstring=;;"` ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --local-master)
       MASTER_MYPORT=3306;
@@ -437,6 +439,7 @@ MANAGER_PID_FILE="$MYRUN_DIR/manager.pid"
 
 MASTER_MYDDIR="$MYSQL_TEST_DIR/var/master-data"
 MASTER_MYSOCK="$MYSQL_TMP_DIR/master.sock"
+MASTER_MYSOCK1=$MYSQL_MYSOCK"1"
 MASTER_MYPID="$MYRUN_DIR/master.pid"
 MASTER_MYLOG="$MYSQL_TEST_DIR/var/log/master.log"
 MASTER_MYERR="$MYSQL_TEST_DIR/var/log/master.err"
@@ -450,7 +453,7 @@ SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/slave.err"
 CURRENT_TEST="$MYSQL_TEST_DIR/var/log/current_test"
 SMALL_SERVER="--key_buffer_size=1M --sort_buffer=256K --max_heap_table_size=1M"
 
-export MASTER_MYPORT SLAVE_MYPORT MYSQL_TCP_PORT MASTER_MYSOCK
+export MASTER_MYPORT MASTER_MYPORT1 SLAVE_MYPORT MYSQL_TCP_PORT MASTER_MYSOCK MASTER_MYSOCK1
 
 if [ x$SOURCE_DIST = x1 ] ; then
  MY_BASEDIR=$MYSQL_TEST_DIR
@@ -518,6 +521,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
  CHARSETSDIR="$BASEDIR/sql/share/charsets"
  INSTALL_DB="./install_test_db"
  MYSQL_FIX_SYSTEM_TABLES="$BASEDIR/scripts/mysql_fix_privilege_tables"
+ NDB_TOOLS_DIR="$BASEDIR/ndb/tools"
 else
  if test -x "$BASEDIR/libexec/mysqld"
  then
@@ -538,6 +542,7 @@ else
  MYSQL="$CLIENT_BINDIR/mysql"
  INSTALL_DB="./install_test_db --bin"
  MYSQL_FIX_SYSTEM_TABLES="$CLIENT_BINDIR/mysql_fix_privilege_tables"
+ NDB_TOOLS_DIR="$CLIENT_BINDIR"
  if test -d "$BASEDIR/share/mysql/english"
  then
    LANGUAGE="$BASEDIR/share/mysql/english/"
@@ -585,6 +590,7 @@ MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR $EXTRA_MYS
 MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
 MYSQL="$MYSQL --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
 export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES CLIENT_BINDIR TESTS_BINDIR
+export NDB_TOOLS_DIR
 
 MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB \
  --user=$DBUSER --password=$DBPASSWD --silent -v --skip-safemalloc \
@@ -751,12 +757,21 @@ report_stats () {
 
 mysql_install_db () {
     $ECHO "Removing Stale Files"
-    $RM -rf $MASTER_MYDDIR $SLAVE_MYDDIR $MY_LOG_DIR/* 
+    $RM -rf $MASTER_MYDDIR $MASTER_MYDDIR"1" $SLAVE_MYDDIR $MY_LOG_DIR/* 
     $ECHO "Installing Master Databases"
     $INSTALL_DB
     if [ $? != 0 ]; then
 	error "Could not install master test DBs"
 	exit 1
+    fi
+    if [ ! -z "$USE_NDBCLUSTER" ]
+    then
+      $ECHO "Installing Master Databases 1"
+      $INSTALL_DB -1
+      if [ $? != 0 ]; then
+	error "Could not install master test DBs 1"
+	exit 1
+      fi
     fi
     $ECHO "Installing Slave Databases"
     $INSTALL_DB -slave
@@ -896,10 +911,10 @@ manager_term()
   ident=$2
   if [ $USE_MANAGER = 0 ] ; then
     # Shutdown time must be high as slave may be in reconnect
-    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock --connect_timeout=5 --shutdown_timeout=70 shutdown >> $MYSQL_MANAGER_LOG 2>&1
+    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock$3 --connect_timeout=5 --shutdown_timeout=70 shutdown >> $MYSQL_MANAGER_LOG 2>&1
     res=$?
     # Some systems require an extra connect
-    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock --connect_timeout=1 ping >> $MYSQL_MANAGER_LOG 2>&1
+    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock$3 --connect_timeout=1 ping >> $MYSQL_MANAGER_LOG 2>&1
     if test $res = 0
     then
       wait_for_pid $pid
@@ -918,17 +933,18 @@ EOF
 
 start_master()
 {
-  if [ x$MASTER_RUNNING = x1 ] || [ x$LOCAL_MASTER = x1 ] ; then
+  eval "this_master_running=\$MASTER$1_RUNNING"
+  if [ x$this_master_running = x1 ] || [ x$LOCAL_MASTER = x1 ] ; then
     return
   fi
   # Remove stale binary logs except for 2 tests which need them
   if [ "$tname" != "rpl_crash_binlog_ib_1b" ] && [ "$tname" != "rpl_crash_binlog_ib_2b" ] && [ "$tname" != "rpl_crash_binlog_ib_3b" ] 
   then
-    $RM -f $MYSQL_TEST_DIR/var/log/master-bin.*
+    $RM -f $MYSQL_TEST_DIR/var/log/master-bin$1.*
   fi
 
   # Remove old master.info and relay-log.info files
-  $RM -f $MYSQL_TEST_DIR/var/master-data/master.info $MYSQL_TEST_DIR/var/master-data/relay-log.info
+  $RM -f $MYSQL_TEST_DIR/var/master-data$1/master.info $MYSQL_TEST_DIR/var/master-data$1/relay-log.info
 
   #run master initialization shell script if one exists
 
@@ -937,20 +953,27 @@ start_master()
       /bin/sh $master_init_script
   fi
   cd $BASEDIR # for gcov
+  if [ -n "$1" ] ; then
+   id=`$EXPR $1 + 101`;
+   this_master_myport=`$EXPR $MASTER_MYPORT + $1`
+  else
+   id=1;
+   this_master_myport=$MASTER_MYPORT
+  fi
   if [ -z "$DO_BENCH" ]
   then
-    master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
-  	    --server-id=1  \
+    master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1 \
+  	    --server-id=$id  \
           --basedir=$MY_BASEDIR \
-          --port=$MASTER_MYPORT \
+          --port=$this_master_myport \
           --local-infile \
           --exit-info=256 \
           --core \
           $USE_NDBCLUSTER \
-          --datadir=$MASTER_MYDDIR \
-          --pid-file=$MASTER_MYPID \
-          --socket=$MASTER_MYSOCK \
-          --log=$MASTER_MYLOG \
+          --datadir=$MASTER_MYDDIR$1 \
+          --pid-file=$MASTER_MYPID$1 \
+          --socket=$MASTER_MYSOCK$1 \
+          --log=$MASTER_MYLOG$1 \
           --character-sets-dir=$CHARSETSDIR \
           --default-character-set=$CHARACTER_SET \
           --tmpdir=$MYSQL_TMP_DIR \
@@ -961,14 +984,14 @@ start_master()
            $SMALL_SERVER \
            $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
   else
-    master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
-          --server-id=1 --rpl-recovery-rank=1 \
+    master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1 \
+          --server-id=$id --rpl-recovery-rank=1 \
           --basedir=$MY_BASEDIR --init-rpl-role=master \
-          --port=$MASTER_MYPORT \
+          --port=$this_master_myport \
           --local-infile \
-          --datadir=$MASTER_MYDDIR \
-          --pid-file=$MASTER_MYPID \
-          --socket=$MASTER_MYSOCK \
+          --datadir=$MASTER_MYDDIR$1 \
+          --pid-file=$MASTER_MYPID$1 \
+          --socket=$MASTER_MYSOCK$1 \
           --character-sets-dir=$CHARSETSDIR \
           --default-character-set=$CHARACTER_SET \
           --core \
@@ -1026,9 +1049,9 @@ EOF
   else
     manager_launch master $MASTER_MYSQLD $master_args
   fi
-  sleep_until_file_created $MASTER_MYPID $wait_for_master
+  sleep_until_file_created $MASTER_MYPID$1 $wait_for_master
   wait_for_master=$SLEEP_TIME_FOR_SECOND_MASTER
-  MASTER_RUNNING=1
+  eval "MASTER$1_RUNNING=1"
 }
 
 start_slave()
@@ -1204,22 +1227,23 @@ stop_slave_threads ()
 
 stop_master ()
 {
-  if [ x$MASTER_RUNNING = x1 ]
+  eval "this_master_running=\$MASTER$1_RUNNING"
+  if [ x$this_master_running = x1 ]
   then
     # For embedded server we don't stop anyting but mark that
     # MASTER_RUNNING=0 to get cleanup when calling start_master().
     if [ x$USE_EMBEDDED_SERVER != x1 ] ; then
-      pid=`$CAT $MASTER_MYPID`
-      manager_term $pid master
-      if [ $? != 0 ] && [ -f $MASTER_MYPID ]
+      pid=`$CAT $MASTER_MYPID$1`
+      manager_term $pid master $1
+      if [ $? != 0 ] && [ -f $MASTER_MYPID$1 ]
       then # try harder!
 	$ECHO "master not cooperating with mysqladmin, will try manual kill"
 	kill $pid
-	sleep_until_file_deleted $pid $MASTER_MYPID
-	if [ -f $MASTER_MYPID ] ; then
+	sleep_until_file_deleted $pid $MASTER_MYPID$1
+	if [ -f $MASTER_MYPID$1 ] ; then
 	  $ECHO "master refused to die. Sending SIGKILL"
-	  kill -9 `$CAT $MASTER_MYPID`
-	  $RM -f $MASTER_MYPID
+	  kill -9 `$CAT $MASTER_MYPID$1`
+	  $RM -f $MASTER_MYPID$1
 	else
 	  $ECHO "master responded to SIGTERM "
 	fi
@@ -1227,7 +1251,7 @@ stop_master ()
 	sleep $SLEEP_TIME_AFTER_RESTART
       fi
     fi
-    MASTER_RUNNING=0
+    eval "MASTER$1_RUNNING=0"
   fi
 }
 
@@ -1237,6 +1261,7 @@ mysql_stop ()
  $ECHO  "Shutting-down MySQL daemon"
  $ECHO  ""
  stop_master
+ stop_master 1
  $ECHO "Master shutdown finished"
  stop_slave
  stop_slave 1
@@ -1367,8 +1392,12 @@ run_testcase ()
          ;;
      esac
      stop_master
+     stop_master 1
      echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
      start_master
+     if [ -n "$USE_NDBCLUSTER" -a -z "$DO_BENCH" ] ; then
+       start_master 1
+     fi
      TZ=$MY_TZ; export TZ
    else
      # If we had extra master opts to the previous run
@@ -1379,8 +1408,12 @@ run_testcase ()
      then
        EXTRA_MASTER_OPT=""
        stop_master
+       stop_master 1
        echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
        start_master
+       if [ -n "$USE_NDBCLUSTER"  -a -z "$DO_BENCH" ] ; then
+         start_master 1
+       fi
      else
        echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
      fi
@@ -1534,11 +1567,11 @@ then
 
   if [ ! -z "$USE_NDBCLUSTER" ]
   then
-  if [ -z "$USE_RUNNING_NDBCLUSTER" ]
-  then
-    # Kill any running ndbcluster stuff
-    ./ndb/ndbcluster --data-dir=$MYSQL_TEST_DIR/var --port-base=$NDBCLUSTER_PORT --stop
-  fi
+    if [ -z "$USE_RUNNING_NDBCLUSTER" ]
+    then
+      # Kill any running ndbcluster stuff
+      ./ndb/ndbcluster --data-dir=$MYSQL_TEST_DIR/var --port-base=$NDBCLUSTER_PORT --stop
+    fi
   fi
 
   # Remove files that can cause problems
@@ -1547,6 +1580,7 @@ then
 
   # Remove old berkeley db log files that can confuse the server
   $RM -f $MASTER_MYDDIR/log.*
+  $RM -f $MASTER_MYDDIR"1"/log.*
 
   wait_for_master=$SLEEP_TIME_FOR_FIRST_MASTER
   wait_for_slave=$SLEEP_TIME_FOR_FIRST_SLAVE
@@ -1558,7 +1592,7 @@ then
   if [ -z "$USE_RUNNING_NDBCLUSTER" ]
   then
     echo "Starting ndbcluster"
-    if [ "$DO_BENCH" = 1 ]
+    if [ "$DO_BENCH" = 1  -a ! "$DO_SMALL_BENCH" = 1 ]
     then
       NDBCLUSTER_OPTS=""
     else
@@ -1566,10 +1600,13 @@ then
     fi
     ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT $NDBCLUSTER_OPTS --diskless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
     USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"host=localhost:$NDBCLUSTER_PORT\""
+     NDB_CONNECTSTRING="localhost:$NDBCLUSTER_PORT"
   else
     USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"$USE_RUNNING_NDBCLUSTER\""
+    NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
     echo "Using ndbcluster at $USE_NDBCLUSTER"
   fi
+  export NDB_CONNECTSTRING
   fi
 
   start_manager
