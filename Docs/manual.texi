@@ -8133,7 +8133,7 @@ The startup parameters @code{myisam_max_extra_sort_file_size} and
 @code{myisam_max_extra_sort_file_size} are now given in bytes
 (was megabytes before 4.0.3).
 External system locking of MyISAM/ISAM files is now turned of by default.
-One can turn this one by doing @code{--external-locking}. (For most users
+One can turn this on by doing @code{--external-locking}. (For most users
 this is never needed).
 @item
 The following startup variables/options have been renamed:
