@@ -54,7 +54,8 @@ dict_mem_table_create(
 					of the table is placed; this parameter
 					is ignored if the table is made
 					a member of a cluster */
-	ulint		n_cols);	/* in: number of columns */
+	ulint		n_cols,		/* in: number of columns */
+	ibool		comp);		/* in: TRUE=compact page format */
 /**************************************************************************
 Creates a cluster memory object. */
 
@@ -171,6 +172,13 @@ struct dict_field_struct{
 					DICT_MAX_COL_PREFIX_LEN; NOTE that
 					in the UTF-8 charset, MySQL sets this
 					to 3 * the prefix len in UTF-8 chars */
+	ulint		fixed_len;	/* 0 or the fixed length of the
+					column if smaller than
+					DICT_MAX_COL_PREFIX_LEN */
+	ulint		fixed_offs;	/* offset to the field, or
+					ULINT_UNDEFINED if it is not fixed
+					within the record (due to preceding
+					variable-length fields) */
 };
 
 /* Data structure for an index tree */
@@ -225,6 +233,7 @@ struct dict_index_struct{
 	ulint		n_def;	/* number of fields defined so far */
 	ulint		n_fields;/* number of fields in the index */
 	dict_field_t*	fields;	/* array of field descriptions */
+	ulint		n_nullable;/* number of nullable fields */
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/* list of indexes of the table */
 	dict_tree_t*	tree;	/* index tree struct */
@@ -320,6 +329,7 @@ struct dict_table_struct{
 	ibool		tablespace_discarded;/* this flag is set TRUE when the
 				user calls DISCARD TABLESPACE on this table,
 				and reset to FALSE in IMPORT TABLESPACE */
+	ibool		comp;	/* flag: TRUE=compact page format */
 	hash_node_t	name_hash; /* hash chain node */
 	hash_node_t	id_hash; /* hash chain node */
 	ulint		n_def;	/* number of columns defined so far */

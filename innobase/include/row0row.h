@@ -27,7 +27,8 @@ row_get_rec_trx_id(
 /*===============*/
 				/* out: value of the field */
 	rec_t*		rec,	/* in: record */
-	dict_index_t*	index);	/* in: clustered index */
+	dict_index_t*	index,	/* in: clustered index */
+	const ulint*	offsets);/* in: rec_get_offsets(rec, index) */
 /*************************************************************************
 Reads the roll pointer field from a clustered index record. */
 UNIV_INLINE
@@ -36,7 +37,8 @@ row_get_rec_roll_ptr(
 /*=================*/
 				/* out: value of the field */
 	rec_t*		rec,	/* in: record */
-	dict_index_t*	index);	/* in: clustered index */
+	dict_index_t*	index,	/* in: clustered index */
+	const ulint*	offsets);/* in: rec_get_offsets(rec, index) */
 /*************************************************************************
 Writes the trx id field to a clustered index record. */
 UNIV_INLINE
@@ -45,7 +47,8 @@ row_set_rec_trx_id(
 /*===============*/
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: clustered index */
-	dulint		trx_id);	/* in: value of the field */
+	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
+	dulint		trx_id);/* in: value of the field */
 /*************************************************************************
 Sets the roll pointer field in a clustered index record. */
 UNIV_INLINE
@@ -54,6 +57,7 @@ row_set_rec_roll_ptr(
 /*=================*/
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: clustered index */
+	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	dulint		roll_ptr);/* in: value of the field */
 /*********************************************************************
 When an insert to a table is performed, this function builds the entry which
@@ -90,6 +94,9 @@ row_build(
 				the buffer page of this record must be
 				at least s-latched and the latch held
 				as long as the row dtuple is used! */
+	const ulint*	offsets,/* in: rec_get_offsets(rec, index)
+				or NULL, in which case this function
+				will invoke rec_get_offsets() */
 	mem_heap_t*	heap);	/* in: memory heap from which the memory
 				needed is allocated */
 /***********************************************************************
@@ -175,14 +182,15 @@ UNIV_INLINE
 void
 row_build_row_ref_fast(
 /*===================*/
-	dtuple_t*	ref,	/* in: typed data tuple where the reference
-				is built */
-	ulint*		map,	/* in: array of field numbers in rec telling
-				how ref should be built from the fields of
-				rec */
-	rec_t*		rec);	/* in: record in the index; must be preserved
-				while ref is used, as we do not copy field
-				values to heap */
+	dtuple_t*	ref,	/* in: typed data tuple where the
+				reference is built */
+	const ulint*	map,	/* in: array of field numbers in rec
+				telling how ref should be built from
+				the fields of rec */
+	rec_t*		rec,	/* in: record in the index; must be
+				preserved while ref is used, as we do
+				not copy field values to heap */
+	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /*******************************************************************
 Searches the clustered index record for a row, if we have the row
 reference. */

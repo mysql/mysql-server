@@ -880,7 +880,6 @@ trx_undo_free_page(
 				list */
 	ulint	space,		/* in: space */
 	ulint	hdr_page_no,	/* in: header page number */
-	ulint	hdr_offset,	/* in: header offset */
 	ulint	page_no,	/* in: page number to free: must not be the
 				header page */
 	mtr_t*	mtr)		/* in: mtr which does not have a latch to any
@@ -893,7 +892,6 @@ trx_undo_free_page(
 	trx_rsegf_t*	rseg_header;
 	ulint		hist_size;
 
-	UT_NOT_USED(hdr_offset);
 	ut_a(hdr_page_no != page_no);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex));
@@ -950,8 +948,7 @@ trx_undo_free_page_in_rollback(
 #endif /* UNIV_SYNC_DEBUG */
 
 	last_page_no = trx_undo_free_page(undo->rseg, FALSE, undo->space,
-					undo->hdr_page_no, undo->hdr_offset,
-					page_no, mtr);
+					undo->hdr_page_no, page_no, mtr);
 	
 	undo->last_page_no = last_page_no;
 	undo->size--;
@@ -1119,7 +1116,7 @@ loop:
 		trx_undo_empty_header_page(space, hdr_page_no, hdr_offset,
 									&mtr);
 	} else {
-		trx_undo_free_page(rseg, TRUE, space, hdr_page_no, hdr_offset,
+		trx_undo_free_page(rseg, TRUE, space, hdr_page_no,
 								page_no, &mtr);
 	}
 

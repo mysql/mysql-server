@@ -90,6 +90,7 @@ cmp_dtuple_rec_with_match(
 				dtuple in some of the common fields, or which
 				has an equal number or more fields than
 				dtuple */
+	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint*	 	matched_fields, /* in/out: number of already completely 
 				matched fields; when function returns,
 				contains the value for current comparison */
@@ -107,7 +108,8 @@ cmp_dtuple_rec(
 				less than rec, respectively; see the comments
 				for cmp_dtuple_rec_with_match */
 	dtuple_t* 	dtuple,	/* in: data tuple */
-	rec_t*	  	rec);	/* in: physical record */
+	rec_t*		rec,	/* in: physical record */
+	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /******************************************************************
 Checks if a dtuple is a prefix of a record. The last field in dtuple
 is allowed to be a prefix of the corresponding field in the record. */
@@ -116,23 +118,9 @@ ibool
 cmp_dtuple_is_prefix_of_rec(
 /*========================*/
 				/* out: TRUE if prefix */
-	dtuple_t* 	dtuple,	/* in: data tuple */
-	rec_t*	  	rec);	/* in: physical record */
-/******************************************************************
-Compares a prefix of a data tuple to a prefix of a physical record for
-equality. If there are less fields in rec than parameter n_fields, FALSE
-is returned. NOTE that n_fields_cmp of dtuple does not affect this
-comparison. */
-
-ibool
-cmp_dtuple_rec_prefix_equal(
-/*========================*/
-				/* out: TRUE if equal */
 	dtuple_t*	dtuple,	/* in: data tuple */
 	rec_t*		rec,	/* in: physical record */
-	ulint		n_fields); /* in: number of fields which should be 
-				compared; must not exceed the number of 
-				fields in dtuple */
+	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /*****************************************************************
 This function is used to compare two physical records. Only the common
 first fields are compared, and if an externally stored field is
@@ -146,7 +134,13 @@ cmp_rec_rec_with_match(
 				first fields are compared */
 	rec_t*		rec1,	/* in: physical record */
 	rec_t*		rec2,	/* in: physical record */
+	const ulint*	offsets1,/* in: rec_get_offsets(rec1, index) */
+	const ulint*	offsets2,/* in: rec_get_offsets(rec2, index) */
 	dict_index_t*	index,	/* in: data dictionary index */
+	ulint		n,	/* in: number of fields to compare,
+				or ULINT_UNDEFINED if both records
+				contain all fields, and all fields
+				should be compared */
 	ulint*	 	matched_fields, /* in/out: number of already completely 
 				matched fields; when the function returns,
 				contains the value the for current
@@ -167,6 +161,12 @@ cmp_rec_rec(
 				first fields are compared */
 	rec_t*		rec1,	/* in: physical record */
 	rec_t*		rec2,	/* in: physical record */
+	const ulint*	offsets1,/* in: rec_get_offsets(rec1, index) */
+	const ulint*	offsets2,/* in: rec_get_offsets(rec2, index) */
+	ulint		n,	/* in: number of fields to compare,
+				or ULINT_UNDEFINED if both records
+				contain all fields, and all fields
+				should be compared */
 	dict_index_t*	index);	/* in: data dictionary index */
 
 

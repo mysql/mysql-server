@@ -639,6 +639,16 @@ dict_index_get_sys_col_pos(
 	dict_index_t*	index,	/* in: index */
 	ulint		type);	/* in: DATA_ROW_ID, ... */
 /***********************************************************************
+Adds a column to index. */
+
+void
+dict_index_add_col(
+/*===============*/
+	dict_index_t*	index,		/* in: index */
+	dict_col_t*	col,		/* in: column */
+	ulint		order,		/* in: order criterion */
+	ulint		prefix_len);	/* in: column prefix length */
+/***********************************************************************
 Copies types of fields contained in index to tuple. */
 
 void
@@ -657,6 +667,7 @@ dict_index_rec_get_sys_col(
 /*=======================*/
 				/* out: system column value */
 	dict_index_t*	index,	/* in: clustered index describing the record */
+	const ulint*	offsets,/* in: offsets returned by rec_get_offsets() */
 	ulint		type,	/* in: column type: DATA_ROLL_PTR, ... */
 	rec_t*		rec);	/* in: record */
 /*************************************************************************
@@ -770,6 +781,7 @@ dict_tree_copy_rec_order_prefix(
 				/* out: pointer to the prefix record */
 	dict_tree_t*	tree,	/* in: index tree */
 	rec_t*		rec,	/* in: record for which to copy prefix */
+	ulint*		n_fields,/* out: number of fields copied */
 	byte**		buf,	/* in/out: memory buffer for the copied prefix,
 				or NULL */
 	ulint*		buf_size);/* in/out: buffer size */
@@ -782,6 +794,7 @@ dict_tree_build_data_tuple(
 				/* out, own: data tuple */
 	dict_tree_t*	tree,	/* in: index tree */
 	rec_t*		rec,	/* in: record for which to build data tuple */
+	ulint		n_fields,/* in: number of data fields */
 	mem_heap_t*	heap);	/* in: memory heap where tuple created */
 /*************************************************************************
 Gets the space id of the root of the index tree. */
