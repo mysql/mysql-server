@@ -458,17 +458,19 @@ int handle_options(int *argc, char ***argv,
 
 static char *check_struct_option(char *cur_arg, char *key_name)
 {
-  char *ptr, *ptr2;
+  char *ptr, *end;
 
-  ptr= strcend(cur_arg, '.');
-  ptr2= strcend(cur_arg, '=');
+  ptr= strcend(cur_arg + 1, '.'); // Skip the first character
+  end= strcend(cur_arg, '=');
 
   /* 
-     Minimum length for a struct option is 3 (--a.b)
-     If the (first) dot is after an equal sign, then it is part
+     If the first dot is after an equal sign, then it is part
      of a variable value and the option is not a struct option.
+     Also, if the last character in the string before the ending
+     NULL, or the character right before equal sign is the first
+     dot found, the option is not a struct option.
   */
-  if (strlen(ptr) >= 3 && ptr2 - ptr > 0)
+  if (end - ptr > 1)
   {
     uint len= ptr - cur_arg;
     strnmov(key_name, cur_arg, len);
