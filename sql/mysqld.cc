@@ -5095,9 +5095,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 }
 	/* Initiates DEBUG - but no debugging here ! */
 
-void option_error_reporter( const char *format, va_list args )
+void option_error_reporter( enum LOGLEVEL level, const char *format, ... )
 {
-  vprint_msg_to_log( MY_ERROR_TYPE, false, format, args );
+  va_list args;
+  va_start( args, format );
+  vprint_msg_to_log( level, format, args );
+  va_end( args );
 }
 
 static void get_options(int argc,char **argv)

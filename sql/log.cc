@@ -1716,41 +1716,32 @@ static bool test_if_number(register const char *str,
 } /* test_if_number */
 
 
-void print_buffer_to_log( my_bool timestamp, const char *buffer )
+void print_buffer_to_file( enum LOGLEVEL level, const char *buffer )
 {
   time_t skr;
   struct tm tm_tmp;
   struct tm *start;
 
-  DBUG_ENTER("sql_print_buffer_to_log");
+  DBUG_ENTER("startup_print_buffer_to_log");
 
-#if !defined(__WIN__) && !defined(__NT__)
   VOID(pthread_mutex_lock(&LOCK_error_log));
-#endif
 
-  if (timestamp)
-  {
-    skr=time(NULL);
-    localtime_r(&skr, &tm_tmp);
-    start=&tm_tmp;
-    fprintf( stderr, "%02d%02d%02d %2d:%02d:%02d  %s",
+  skr=time(NULL);
+  localtime_r(&skr, &tm_tmp);
+  start=&tm_tmp;
+  fprintf( stderr, "%02d%02d%02d %2d:%02d:%02d  [%s] %s\n",
     	  start->tm_year % 100,
   	  start->tm_mon+1,
 	  start->tm_mday,
 	  start->tm_hour,
 	  start->tm_min,
 	  start->tm_sec,
+          level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ? "WARNING" : "INFORMATION",
 	  buffer );
-  }
-  else
-    fprintf( stderr, "%s", buffer );
 
-  fputc('\n', stderr);
   fflush(stderr);
 
-#if !defined(__WIN__) && !defined(__NT__)
   VOID(pthread_mutex_unlock(&LOCK_error_log));
-#endif
 
   DBUG_VOID_RETURN;
 }
@@ -1819,28 +1810,82 @@ bool flush_error_log()
   * @param ... values for the message
   * @return void
 */
-void print_msg_to_log( long event_type, my_bool timestamp, const char *format, ... )
+void print_msg_to_log( LOGLEVEL level, const char *format, ... )
 {
   va_list args;
 
-  DBUG_ENTER("startup_print_msg_to_logo");
+  DBUG_ENTER("startup_print_msg_to_log");
 
   va_start( args, format );
-  vprint_msg_to_log( event_type, timestamp, format, args );
+  vprint_msg_to_log( level, format, args );
   va_end( args );
 
   DBUG_VOID_RETURN;
 }
 
-/**
-  * prints a printf style message to the error log and, under NT, to the Windows event log.
-  * @param event_type type of even to log.
-  * @param timestamp true to add a timestamp to the entry, false otherwise.
-  * @param format The printf style format of the message
-  * @param args va_list prepped arument list
-  * @return void
+
+#ifdef __NT__
+void print_buffer_to_nt_eventlog( enum LOGLEVEL level, char *buff, int buffLen )
+{
+  HANDLE event;
+  char   *buffptr;
+  LPCSTR *buffmsgptr;
+
+  buffptr = buff;
+  if (strlen(buff) > (uint)(buffLen-4))
+  {
+    char *newBuff = new char[ strlen(buff) + 4 ];
+    strcpy( newBuff, buff );
+    buffptr = newBuff;
+  }
+  strcat( buffptr, "\r\n\r\n" );
+  buffmsgptr = (LPCSTR*)&buffptr;
+
+  setupWindowsEventSource();
+  if (event = RegisterEventSource(NULL,"MySQL"))
+  {
+    switch (level){
+      case ERROR_LEVEL:
+        ReportEvent(event, EVENTLOG_ERROR_TYPE, 0, MSG_DEFAULT, NULL, 1, 0, buffmsgptr, NULL);
+        break;
+      case WARNING_LEVEL:
+        ReportEvent(event, EVENTLOG_WARNING_TYPE, 0, MSG_DEFAULT, NULL, 1, 0, buffmsgptr, NULL);
+        break;
+      case INFORMATION_LEVEL:
+        ReportEvent(event, EVENTLOG_INFORMATION_TYPE, 0, MSG_DEFAULT, NULL, 1, 0, buffmsgptr, NULL);
+        break;
+    }
+    DeregisterEventSource(event);
+  }
+
+  // if we created a string buffer, then delete it
+  if ( buffptr != buff )
+    delete[] buffptr;
+
+
+  DBUG_VOID_RETURN;
+}
+#endif
+
+/*
+  Prints a printf style message to the error log and, under NT, to the Windows event log.
+
+  SYNOPSIS
+    vprint_msg_to_log()
+    event_type                  Type of event to write (Error, Warning, or Info)
+    format                      Printf style format of message
+    args                        va_list list of arguments for the message    
+
+  NOTE
+
+  IMPLEMENTATION
+    This function prints the message into a buffer and then sends that buffer to other
+    functions to write that message to other logging sources.
+
+  RETURN VALUES
+    void
 */
-void vprint_msg_to_log(long event_type, my_bool timestamp, const char *format, va_list args)
+void vprint_msg_to_log(enum LOGLEVEL level, const char *format, va_list args)
 {
   char   buff[1024];
 
@@ -1848,37 +1893,19 @@ void vprint_msg_to_log(long event_type, my_bool timestamp, const char *format, v
 
   my_vsnprintf( buff, sizeof(buff)-5, format, args );
 
-  print_buffer_to_log( timestamp, buff );
+  print_buffer_to_file( level, buff );
 
 #ifndef DBUG_OFF
     DBUG_PRINT("error",("%s",buff));
 #endif
 
 #ifdef __NT__
-  HANDLE event;
-  LPSTR  buffptr;
-
-  strcat( buff, "\r\n\r\n" );
-  buffptr = (LPSTR)&buff;
-  setupWindowsEventSource();
-  if (event = RegisterEventSource(NULL,"MySQL"))
-  {
-    switch (event_type){
-      case MY_ERROR_TYPE:
-        ReportEvent(event, (WORD)event_type, 0, MSG_DEFAULT, NULL, 1, 0, (LPCSTR*)&buffptr, NULL);
-        break;
-      case MY_WARNING_TYPE:
-        ReportEvent(event, (WORD)event_type, 0, MSG_DEFAULT, NULL, 1, 0, (LPCSTR*)&buffptr, NULL);
-        break;
-      case MY_INFORMATION_TYPE:
-        ReportEvent(event, (WORD)event_type, 0, MSG_DEFAULT, NULL, 1, 0, (LPCSTR*)&buffptr, NULL);
-        break; 
-    }
-    DeregisterEventSource(event); 
-  }
+  print_buffer_to_nt_eventlog( level, buff, sizeof(buff) );
 #endif
+
   DBUG_VOID_RETURN;
 }
+
 
 void sql_print_error( const char *format, ... ) 
 {
@@ -1886,7 +1913,7 @@ void sql_print_error( const char *format, ... )
 
   va_list args;
   va_start( args, format );
-  print_msg_to_log( MY_ERROR_TYPE, true, format, args );
+  print_msg_to_log( ERROR_LEVEL, format, args );
   va_end( args );
 
   DBUG_VOID_RETURN;
@@ -1898,7 +1925,7 @@ void sql_print_warning( const char *format, ... )
 
   va_list args;
   va_start( args, format );
-  print_msg_to_log( MY_WARNING_TYPE, true, format, args );
+  print_msg_to_log( WARNING_LEVEL, format, args );
   va_end( args );
 
   DBUG_VOID_RETURN;
@@ -1910,25 +1937,8 @@ void sql_print_information( const char *format, ... )
 
   va_list args;
   va_start( args, format );
-  print_msg_to_log( MY_INFORMATION_TYPE, true, format, args );
+  print_msg_to_log( INFORMATION_LEVEL, format, args );
   va_end( args );
 
   DBUG_VOID_RETURN;
 }
-
-/*void sql_init_fprintf(const char *format,...)
-{
-  va_list args;
-  char buff[255];
-  buff[0]= 0;
-  va_start(args,format);
-  my_vsnprintf(buff,sizeof(buff)-1,format,args);
-#ifdef __NT__
-  sql_nt_print_error(MY_ERROR_TYPE,buff);
-#else
-  sql_win_print_error(buff);
-#endif
-  va_end(args);
-}
-*/
-
