@@ -251,8 +251,7 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
   {
     if (!(blob_ptr=
 	  mi_alloc_rec_buff(info, info->s->keyinfo[keynr].keylength,
-			    &info->rec_buff,
-			    &info->alloced_rec_buff_length)))
+			    &info->rec_buff)))
       goto err;
   }
   key=(byte*) info->lastkey;

@@ -379,7 +379,6 @@ typedef struct st_mi_sort_param
   my_off_t pos,max_pos,filepos,start_recpos;
   uint key, key_length,real_key_length,sortbuff_size;
   uint maxbuffers, keys, find_length, sort_keys_length;
-  uint alloced_rec_buff_length;
   my_bool fix_datafile, master;
   MI_KEYDEF *keyinfo;
   SORT_INFO *sort_info;

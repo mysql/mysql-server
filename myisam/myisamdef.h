@@ -247,7 +247,6 @@ struct st_myisam_info {
   int  dfile;				/* The datafile */
   uint opt_flag;			/* Optim. for space/speed */
   uint update;				/* If file changed since open */
-  uint	alloced_rec_buff_length;	/* Max recordlength malloced */
   uint  int_nod_flag;			/*  -""-  */
   int	lastinx;			/* Last used index */
   uint	lastkey_length;			/* Length of key in lastkey */
@@ -359,7 +358,7 @@ struct st_myisam_info {
 #define MI_DYN_ALIGN_SIZE	4	/* Align blocks on this */
 #define MI_MAX_DYN_HEADER_BYTE	13	/* max header byte for dynamic rows */
 #define MI_MAX_BLOCK_LENGTH	((((ulong) 1 << 24)-1) & (~ (ulong) (MI_DYN_ALIGN_SIZE-1)))
-#define MI_REC_BUFF_OFFSET      ALIGN_SIZE(MI_DYN_DELETE_BLOCK_HEADER)
+#define MI_REC_BUFF_OFFSET      ALIGN_SIZE(MI_DYN_DELETE_BLOCK_HEADER+sizeof(uint))
 
 #define MEMMAP_EXTRA_MARGIN	7	/* Write this as a suffix for file */
 
@@ -523,8 +522,14 @@ extern int _mi_read_key_record(MI_INFO *info,my_off_t filepos,byte *buf);
 extern int _mi_read_cache(IO_CACHE *info,byte *buff,my_off_t pos,
 			  uint length,int re_read_if_possibly);
 extern void update_auto_increment(MI_INFO *info,const byte *record);
-extern byte *mi_alloc_rec_buff(MI_INFO *,ulong, byte**, uint*);
-extern gptr mi_get_rec_buff_ptr(MI_INFO *, byte *);
+
+extern byte *mi_alloc_rec_buff(MI_INFO *,ulong, byte**);
+#define mi_get_rec_buff_ptr(info,buf)                              \
+        ((((info)->s->options & HA_OPTION_PACK_RECORD) && (buf)) ? \
+        (buf) - MI_REC_BUFF_OFFSET : (buf))
+#define mi_get_rec_buff_len(info,buf)                              \
+        (*((uint *)(mi_get_rec_buff_ptr(info,buf))))
+
 extern ulong _mi_rec_unpack(MI_INFO *info,byte *to,byte *from,
 			    ulong reclength);
 extern my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *packpos);
