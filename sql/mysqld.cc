@@ -1720,6 +1720,12 @@ int main(int argc, char **argv)
   my_umask=0660;		// Default umask for new files
   my_umask_dir=0700;		// Default umask for new directories
   MAIN_THD;
+  /* initialize signal_th and shutdown_th to main_th for default value
+     as we need to initialize them to something safe. They are used
+     when compiled with safemalloc
+  */
+  SIGNAL_THD;
+  SHUTDOWN_THD;
   MY_INIT(argv[0]);		// init my_sys library & pthreads
   tzset();			// Set tzname
 
