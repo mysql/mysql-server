@@ -41,13 +41,13 @@
 int sortcmp2(void* cmp_arg __attribute__((unused)),
 	     const String *a,const String *b)
 {
-  return sortcmp(a,b);
+  return sortcmp(a,b,a->charset());
 }
 
 int stringcmp2(void* cmp_arg __attribute__((unused)),
 	     const String *a,const String *b)
 {
-  return stringcmp(a,b);
+  return sortcmp(a,b,&my_charset_bin);
 }
 
 int compare_double2(void* cmp_arg __attribute__((unused)),
@@ -329,20 +329,10 @@ void field_str::add()
     if (length > max_length)
       max_length = length;
 
-    if (item->binary())
-    {
-      if (stringcmp(res, &min_arg) < 0)
-	min_arg.copy(*res);
-      if (stringcmp(res, &max_arg) > 0)
-	max_arg.copy(*res);
-    }
-    else
-    {
-      if (sortcmp(res, &min_arg) < 0)
-	min_arg.copy(*res);
-      if (sortcmp(res, &max_arg) > 0)
-	max_arg.copy(*res);
-    }
+    if (sortcmp(res, &min_arg,item->charset()) < 0)
+      min_arg.copy(*res);
+    if (sortcmp(res, &max_arg,item->charset()) > 0)
+      max_arg.copy(*res);
   }
 
   if (room_in_tree)

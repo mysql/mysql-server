@@ -120,8 +120,8 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
   if (type() == item->type())
   {
     if (binary_cmp)
-      return !stringcmp(&str_value, &item->str_value);
-    return !sortcmp(&str_value, &item->str_value);
+      return !sortcmp(&str_value, &item->str_value, &my_charset_bin);
+    return !sortcmp(&str_value, &item->str_value, charset());
   }
   return 0;
 }
@@ -1355,7 +1355,7 @@ bool field_is_equal_to_item(Field *field,Item *item)
     if (item->null_value)
       return 1;					// This must be true
     field->val_str(&field_tmp,&field_tmp);
-    return !stringcmp(&field_tmp,item_result);
+    return !sortcmp(&field_tmp,item_result,&my_charset_bin);
   }
   if (res_type == INT_RESULT)
     return 1;					// Both where of type int
