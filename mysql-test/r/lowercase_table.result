@@ -42,3 +42,10 @@ select count(bags.a) from t1 as Bags;
 count(bags.a)
 0
 drop table t1;
+create table t1 (a int);
+create table t2 (a int);
+delete p1.*,P2.* from t1 as p1, t2 as p2 where p1.a=P2.a;
+delete P1.*,p2.* from t1 as P1, t2 as P2 where P1.a=p2.a;
+update t1 as p1, t2 as p2 SET p1.a=1,P2.a=1 where p1.a=P2.a;
+update t1 as P1, t2 as P2 SET P1.a=1,p2.a=1 where P1.a=p2.a;
+drop table t1,t2;
