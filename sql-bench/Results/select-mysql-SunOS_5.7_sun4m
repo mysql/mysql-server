@@ -1,25 +1,41 @@
-Testing server 'MySQL 3.22.20' at 1999-03-19 18:27:41
+Testing server 'MySQL 3.23.29 gamma' at 2000-12-17  7:33:18
 
 Testing the speed of selecting on keys that consist of many parts
 The test-table has 10000 rows and the test is done with 500 ranges.
 
 Creating table
 Inserting 10000 rows
-Time to insert (10000): 74 secs ( 9.81 usr  7.90 sys +  0.00 cusr  0.00 csys = 17.71 cpu)
+Time to insert (10000): 41 wallclock secs ( 7.98 usr  5.98 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Testing big selects on the table
-Time for select_big (70:17207): 17 secs ( 2.44 usr  2.18 sys +  0.00 cusr  0.00 csys =  4.62 cpu)
+Time for select_big (70:17207):  7 wallclock secs ( 1.74 usr  1.19 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 Note: Query took longer then time-limit: 600
 Estimating end time based on:
-82 queries in 2 loops of 10 loops took 654 seconds
-Estimated time for select_range (410:233157): 3270 secs (179.90 usr 141.30 sys +  0.00 cusr  0.00 csys = 321.20 cpu)
+205 queries in 5 loops of 10 loops took 659 seconds
+Estimated time for select_range (410:537457): 1318 wallclock secs (116.36 usr 78.78 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 Note: Query took longer then time-limit: 600
 Estimating end time based on:
-18487 queries in 2641 loops of 10000 loops took 601 seconds
-Estimated time for min_max_on_key (70000): 2275 secs (273.91 usr 103.86 sys +  0.00 cusr  0.00 csys = 377.77 cpu)
+32291 queries in 4613 loops of 10000 loops took 601 seconds
+Estimated time for min_max_on_key (70000): 1302 wallclock secs (180.73 usr 74.07 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 Note: Query took longer then time-limit: 600
 Estimating end time based on:
-2580 queries in 516 loops of 10000 loops took 601 seconds
-Estimated time for count_on_key (50000): 11647 secs (214.92 usr 80.23 sys +  0.00 cusr  0.00 csys = 295.16 cpu)
+11240 queries in 2248 loops of 10000 loops took 601 seconds
+Estimated time for count_on_key (50000): 2673 wallclock secs (132.65 usr 51.65 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
-Estimated total time: 17283 secs (681.00 usr 335.49 sys +  0.00 cusr  0.00 csys = 1016.50 cpu)
+Time for count_group_on_key_parts (1000:100000): 303 wallclock secs (12.11 usr  7.43 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Testing count(distinct) on the table
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+1486 queries in 743 loops of 1000 loops took 601 seconds
+Estimated time for count_distinct (2000:1486): 808 wallclock secs ( 6.35 usr  2.11 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_distinct_group_on_key (1000:6000): 373 wallclock secs ( 3.78 usr  1.54 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+431 queries in 431 loops of 1000 loops took 601 seconds
+Estimated time for count_distinct_group_on_key_parts (1000:43100): 1394 wallclock secs (12.62 usr  7.80 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+432 queries in 432 loops of 1000 loops took 601 seconds
+Estimated time for count_distinct_group (1000:43200): 1391 wallclock secs (12.41 usr  7.94 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_distinct_big (100:1000000): 333 wallclock secs (93.16 usr 74.12 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Estimated total time: 9945 wallclock secs (579.92 usr 312.63 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

@@ -173,13 +173,13 @@ longlong Item_func_eq::val_int()
 void Item_func_equal::fix_length_and_dec()
 {
   Item_bool_func2::fix_length_and_dec();
-  result_type=item_cmp_type(args[0]->result_type(),args[1]->result_type());
+  cmp_result_type=item_cmp_type(args[0]->result_type(),args[1]->result_type());
   maybe_null=null_value=0;
 }
 
 longlong Item_func_equal::val_int()
 {
-  switch (result_type) {
+  switch (cmp_result_type) {
   case STRING_RESULT:
   {
     String *res1,*res2;

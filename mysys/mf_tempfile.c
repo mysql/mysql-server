@@ -88,6 +88,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
   {
     char prefix_buff[30];
     uint pfx_len;
+    File org_file;
 
     pfx_len=(strmov(strnmov(prefix_buff,
 			    prefix ? prefix : "tmp.",
@@ -101,7 +102,16 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     }
     strmov(to,dir);
     strmov(convert_dirname(to),prefix_buff);
-    file=mkstemp(to);
+    org_file=mkstemp(to);
+    file=my_register_filename(org_file, to, FILE_BY_MKSTEMP,
+			      EE_CANTCREATEFILE, MyFlags);
+    /* If we didn't manage to register the name, remove the temp file */
+    if (org_file >= 0 && file < 0)
+    {
+      int tmp=my_errno;
+      (void) my_delete(to, MYF(MY_WME | ME_NOINPUT));
+      my_errno=tmp;
+    }
   }
 #elif defined(HAVE_TEMPNAM)
   {

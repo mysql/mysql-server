@@ -204,7 +204,7 @@ public:
   char* key;
   char* val;
   i_string_pair():key(0),val(0) { }
-  i_string_pair(char* key, char* val) : key(key),val(val) {}
+  i_string_pair(char* key_arg, char* val_arg) : key(key_arg),val(val_arg) {}
 };
 
 
