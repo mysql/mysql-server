@@ -327,12 +327,12 @@ public:
 	      const char *msg_arg)
     :code(code_arg), level(level_arg)
   {
-    set_msg(msg_arg);
+    if (msg_arg)
+      msg=sql_strdup(msg_arg);  
   }
   inline void set_msg(const char *msg_arg)
   {
-    if (msg_arg)
-      msg=sql_strdup(msg_arg);  
+    msg=sql_strdup(msg_arg);  
   }
 };
 

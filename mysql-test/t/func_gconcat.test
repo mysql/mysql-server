@@ -48,7 +48,7 @@ select grp, ROUND(group_concat(a separator "")) from t1 group by grp;
 
 # Test NULL values
 
-drop table if exists t1;
+drop table t1;
 create table t1 (grp int, c char(10));
 insert into t1 values (1,NULL);
 insert into t1 values (2,"b");
@@ -59,6 +59,8 @@ insert into t1 values (3,"D");
 insert into t1 values (3,NULL);
 insert into t1 values (3,NULL);
 insert into t1 values (3,"D");
+insert into t1 values (4,"");
+insert into t1 values (5,NULL);
 select grp,group_concat(c order by c) from t1 group by grp;
 
 # Test warnings
