@@ -1826,7 +1826,7 @@ Apart from the following links, you can find and download a lot of
 @strong{MySQL} programs, tools and APIs from the
 @uref{http://www.mysql.com/Contrib/, Contrib directory}.
 
-@subheading Tutorials
+@subheading Tutorials and manuals
 @itemize @bullet
 
 @c just forwards to the devshed link below.. (jcole)
@@ -1838,6 +1838,8 @@ Beginners @strong{MySQL} Tutorial on how to install and set up
 @strong{MySQL} on a Windows machine.
 
 @item @uref{http://www.devshed.com/Server_Side/MySQL/, A lot of @strong{MySQL} tutorials}
+
+@item @uref{http://mysql.hitstar.com/, MySQL manual in Chinise}.
 
 @item @uref{http://www.linuxplanet.com/linuxplanet/tutorials/1046/1/,
 Setting Up a @strong{MySQL}-Based Website}
@@ -1924,6 +1926,9 @@ A Win32 GUI client by David Ecker.
 @item
 @uref{http://www.icaap.org/software/kiosk/, Kiosk; a @strong{MySQL} client for
 database management}. Written in Perl. Will be a part of Bazaar.
+@item
+@uref{http://home.skif.net/~voland/zeos/eng/index.html, Zeos client}
+A client that supports @strong{MySQL}, Interbase and PostgreSQL.
 @item
 @uref{http://www.geocities.com/SiliconValley/Ridge/4280/GenericReportWriter/grwhome.html, A free report writer in Java}
 @item
@@ -2461,7 +2466,7 @@ carefully and make sure that all the information described here is included
 in your report.
 
 If you can make a test case which clearly shows the bug, you should post
-it to the @email{bugs@@list.mysql.com} list. Note that on this list you
+it to the @email{bugs@@lists.mysql.com} list. Note that on this list you
 should only post a full, repeatable bug report, using the @code{mysqlbug}
 script (if you are running on Windows, you should include a
 description of the operating system and the @strong{MySQL} version).
@@ -5476,6 +5481,22 @@ you are probably using @code{gcc} (or using an old binary compiled with
 /usr/bin/perl: can't resolve symbol '__moddi3'
 /usr/bin/perl: can't resolve symbol '__divdi3'
 @end example
+
+If you get the following error from @code{Msql-Mysql-modules},
+when you run the tests:
+
+@example
+t/00base............install_driver(mysql) failed: Can't load '../blib/arch/auto/DBD/mysql/mysql.so' for module DBD::mysql: ../blib/arch/auto/DBD/mysql/mysql.so: undefined symbol: uncompress at /usr/lib/perl5/5.00503/i586-linux/DynaLoader.pm line 169.
+@end example
+
+it means that you need to include the compression library, -lz, to the
+link line. This can be done by changing the line:
+$sysliblist .= " -lm";
+to
+$sysliblist .= " -lm -lz";
+in file lib/DBD/mysql/Install.pm in the Msql-Mysql-modules directory.
+After this, you MUST run 'make realclean' and then proceed with the
+installation from the beginning.
 
 Add @code{-L/usr/lib/gcc-lib/... -lgcc} to the link command when the
 @file{mysql.so} library gets built (check the output from @code{make} for
@@ -11618,7 +11639,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to be able to run
 * DROP TABLE::                  @code{DROP TABLE} syntax
 * OPTIMIZE TABLE::              @code{OPTIMIZE TABLE} syntax
 * CHECK TABLE::                 @code{CHECK TABLE} syntax
-* ANALYZE TABLE::               
+* ANALYZE TABLE::               @code{ANALYZE TABLE} syntax
 * REPAIR TABLE::                @code{REPAIR TABLE} syntax
 * DELETE::                      @code{DELETE} syntax
 * SELECT::                      @code{SELECT} syntax
@@ -16855,6 +16876,9 @@ The command returns a table with the following columns:
 
 You can check the stored key distribution with the @code{SHOW INDEX} command.
 @xref{SHOW DATABASE INFO}.
+
+If the table hasn't changed since the last @code{ANALYZE TABLE} command,
+the table will not be analyzed again.
 
 @findex REPAIR TABLE
 @node REPAIR TABLE, DELETE, ANALYZE TABLE, Reference
@@ -34517,7 +34541,7 @@ Python module with caching. By @email{gandalf@@rosmail.com}.
 @item @uref{http://www.mysql.com/Downloads/Contrib/MySQLmodule-1.4.tar.gz, MySQLmodule-1.4.tar.gz}
 Python interface for @strong{MySQL}. By Joseph Skinner @email{joe@@earthlight.co.nz};  Modified by Joerg Senekowitsch @email{senekow@@ibm.net}
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/mysql_mex_1_1.tar.gz, mysql_mex_1_1.tar.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/mysql_mex_1_1b.tar.gz, mysql_mex_1_1b.tar.gz}
 An interface program for the Matlab program by MathWorks.  The interface
 is done by Kimmo Uutela and John Fisher (not by Mathworks).
 Check @uref{http://boojum.hut.fi/~kuutela/mysqlmex.html,mysqlmex.html}
@@ -34594,7 +34618,7 @@ have still some bugs. you can test the program with all features. Please
 send bugs and hints to Marco Suess @email{ms@@it-netservice.de}. Original
 URL @url{http://www.it-netservice.de/pages/software/index.html}.
 
-@item @uref{http://www.mysql.com/Downloads/Win32/admin13.exe,Atronic's @strong{MySQL} client for Win32 1.3.0.0} and @uref{http://www.mysql.com/Downloads/Win32/admin13.readme,Atronic's @strong{MySQL} client readme}.
+@item @uref{http://www.mysql.com/Downloads/Win32/ARTADMIN201.EXE,Atronic's @strong{MySQL} client for Win32 2.0.1.0}.
 Home page for this can be found at: @uref{http://www.artronic.hr}.
 @item @uref{http://www.mysql.com/Downloads/Win32/W9xstop.zip,Utility from Artronic to stop MySQL on win9x}
 
@@ -34620,7 +34644,7 @@ A query tool for @strong{MySQL} and PostgreSQL.
 A query tool written in Perl. Uses DBI and Tk.
 @item @uref{http://www.mysql.com/Downloads/Contrib/mascon1.exe, mascon1.exe}
 You can get the newest one from
-@uref{http://www.SciBit.com,http://www.SciBit.com}.
+@uref{http://www.scibit.com/Products/Software/Utils/Mascon.asp,Mascon.asp}.
 @item @uref{http://www.virtualbeer.net/dbui/,DBUI}
 DBUI is a Gtk graphical database editor.
 @end itemize
@@ -35351,6 +35375,12 @@ always deleted.
 Fixed that BDB tables work on part keys.
 @item
 Check table now updates key statistics for the table.
+@item
+@code{ANALYZE TABLE} will now only update tables that has been changed
+since last @code{ANALYZE}. Note that this is a new feature and tables
+will not be marked to be analyzed until they are updated in any way with
+3.23.23 or newer.  For older tables, you have to do @code{CHECK TABLE}
+to update the key distribution.
 @item
 Added @code{CHANGE MASTER TO} command
 @item
