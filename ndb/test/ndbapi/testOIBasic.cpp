@@ -979,9 +979,9 @@ createtable(Par par)
   for (unsigned k = 0; k < tab.m_cols; k++) {
     const Col& col = tab.m_col[k];
     NdbDictionary::Column c(col.m_name);
-    c.setPrimaryKey(col.m_pk);
     c.setType(col.m_type);
     c.setLength(col.m_length);
+    c.setPrimaryKey(col.m_pk);
     c.setNullable(col.m_nullable);
     t.addColumn(c);
   }
@@ -2236,9 +2236,8 @@ pkreadfast(Par par, unsigned count)
     keyrow.calc(par, i);
     CHK(keyrow.selrow(par) == 0);
     NdbRecAttr* rec;
-    CHK(con.getValue((Uint32)0, rec) == 0);
-    CHK(con.executeScan() == 0);
     // get 1st column
+    CHK(con.getValue((Uint32)0, rec) == 0);
     CHK(con.execute(Commit) == 0);
     con.closeTransaction();
   }

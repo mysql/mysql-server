@@ -52,7 +52,7 @@ public:
   NdbColumnImpl(NdbDictionary::Column &); // This is not a copy constructor
   ~NdbColumnImpl();
   NdbColumnImpl& operator=(const NdbColumnImpl&);
-  void init();
+  void init(Type t = Unsigned);
   
   int m_attrId;
   BaseString m_name;

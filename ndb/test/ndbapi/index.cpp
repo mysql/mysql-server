@@ -81,63 +81,63 @@ static void createTable(Ndb &myNdb, bool storeInACC, bool twoKey, bool longKey)
   int res;
 
   column.setName("NAME");
-  column.setPrimaryKey(true);
   column.setType(NdbDictionary::Column::Char);
   column.setLength((longKey)?
 		   1024       // 1KB => long key
 		   :12);
+  column.setPrimaryKey(true);
   column.setNullable(false);
   table.addColumn(column);
 
   if (twoKey) {
     column.setName("KEY2");
-    column.setPrimaryKey(true);
     column.setType(NdbDictionary::Column::Unsigned);
     column.setLength(1);
+    column.setPrimaryKey(true);
     column.setNullable(false);
     table.addColumn(column);
   }
 
   column.setName("PNUM1");
-  column.setPrimaryKey(false);
   column.setType(NdbDictionary::Column::Unsigned);
   column.setLength(1);
+  column.setPrimaryKey(false);
   column.setNullable(false);
   table.addColumn(column);
 
   column.setName("PNUM2");
-  column.setPrimaryKey(false);
   column.setType(NdbDictionary::Column::Unsigned);
   column.setLength(1);
+  column.setPrimaryKey(false);
   column.setNullable(false);
   table.addColumn(column);
 
   column.setName("PNUM3");
-  column.setPrimaryKey(false);
   column.setType(NdbDictionary::Column::Unsigned);
   column.setLength(1);
+  column.setPrimaryKey(false);
   column.setNullable(false);
   table.addColumn(column);
 
   column.setName("PNUM4");
-  column.setPrimaryKey(false);
   column.setType(NdbDictionary::Column::Unsigned);
   column.setLength(1);
+  column.setPrimaryKey(false);
   column.setNullable(false);
   table.addColumn(column);
 
   column.setName("AGE");
-  column.setPrimaryKey(false);
   column.setType(NdbDictionary::Column::Unsigned);
   column.setLength(1);
+  column.setPrimaryKey(false);
   column.setNullable(false);
   table.addColumn(column);
 
   column.setName("STRING_AGE");
-  column.setPrimaryKey(false);
   column.setType(NdbDictionary::Column::Char);
   column.setLength(1);
   column.setLength(256);
+  column.setPrimaryKey(false);
   column.setNullable(false);
   table.addColumn(column);
 
