@@ -73,6 +73,7 @@ void Dbtc::initData()
 
 void Dbtc::initRecords() 
 {
+  void *p;
   // Records with dynamic sizes
   cacheRecord = (CacheRecord*)allocRecord("CacheRecord",
 					  sizeof(CacheRecord), 
@@ -83,7 +84,7 @@ void Dbtc::initRecords()
 						    capiConnectFilesize);
 
   for(unsigned i = 0; i<capiConnectFilesize; i++) {
-    void * p = &apiConnectRecord[i];
+    p = &apiConnectRecord[i];
     new (p) ApiConnectRecord(c_theFiredTriggerPool, 
 			     c_theSeizedIndexOperationPool);
   }
@@ -91,7 +92,8 @@ void Dbtc::initRecords()
   DLFifoList<TcFiredTriggerData> triggers(c_theFiredTriggerPool);
   FiredTriggerPtr tptr;
   while(triggers.seize(tptr) == true) {
-    new (tptr.p) TcFiredTriggerData();
+    p= tptr.p;
+    new (p) TcFiredTriggerData();
   }
   triggers.release();
 
@@ -109,7 +111,8 @@ void Dbtc::initRecords()
   ArrayList<TcIndexOperation> indexOps(c_theIndexOperationPool);
   TcIndexOperationPtr ioptr;
   while(indexOps.seize(ioptr) == true) {
-    new (ioptr.p) TcIndexOperation(c_theAttributeBufferPool);
+    p= ioptr.p;
+    new (p) TcIndexOperation(c_theAttributeBufferPool);
   }
   indexOps.release();
 
@@ -179,7 +182,6 @@ Dbtc::Dbtc(const class Configuration & conf):
   c_maxNumberOfIndexOperations(0),
   m_commitAckMarkerHash(m_commitAckMarkerPool)
 {
-
   BLOCK_CONSTRUCTOR(Dbtc);
   
   const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
@@ -191,7 +193,7 @@ Dbtc::Dbtc(const class Configuration & conf):
 
   ndb_mgm_get_int_parameter(p, CFG_DB_TRANS_BUFFER_MEM,  
 			    &transactionBufferMemory);
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_INDEXES, 
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_UNIQUE_HASH_INDEXES, 
 			    &maxNoOfIndexes);
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_INDEX_OPS, 
 			    &maxNoOfConcurrentIndexOperations);
