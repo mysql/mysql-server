@@ -344,6 +344,10 @@ SOURCE=..\mysys\my_alloc.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\mysys\my_decimal.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\mysys\my_getopt.c
 # End Source File
 # Begin Source File
