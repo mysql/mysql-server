@@ -1,6 +1,6 @@
 #
 # Simple test for archive example
-# Taken fromm the select test
+# Taken from the select test
 #
 -- source include/have_archive.inc
 
