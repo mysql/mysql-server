@@ -62,12 +62,12 @@ static struct option long_options[] =
 void sql_print_error(const char *format,...);
 
 static bool short_form = 0;
-static int offset = 0;
+static longlong offset = 0;
 static const char* host = "localhost";
 static int port = MYSQL_PORT;
 static const char* user = "test";
 static const char* pass = "";
-static long position = 0;
+static longlong position = 0;
 static bool use_remote = 0;
 static short binlog_flags = 0; 
 static MYSQL* mysql = NULL;
@@ -166,11 +166,11 @@ static int parse_args(int *argc, char*** argv)
       break;
 
     case 'o':
-      offset = atoi(optarg);
+      offset = atoll(optarg);
       break;
 
     case 'j':
-      position = atoi(optarg);
+      position = atoll(optarg);
       break;
 
     case 'h':

@@ -36083,8 +36083,9 @@ The parameters are specified as follows:
 @item
 The first parameter should be the address of an existing @code{MYSQL}
 structure.  Before calling @code{mysql_real_connect()} you must call
-@code{mysql_init()} to initialize the @code{MYSQL} structure.  See the
-example below.
+@code{mysql_init()} to initialize the @code{MYSQL} structure. You can
+change a lot of connect options with the @code{mysql_options()}
+call. @xref{mysql_options}.
 
 @item
 The value of @code{host} may be either a hostname or an IP address.  If
@@ -40032,6 +40033,9 @@ though, so Version 3.23 is not released as a stable version yet.
 @node News-3.23.30, News-3.23.29, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.30
 @itemize @bullet
+@item
+Fixed a problem with replication when the binary log file went over 2G
+on 32 bit systems.
 @item
 @code{LOCK TABLES} will now automaticly start a new transaction.
 @item

@@ -63,7 +63,7 @@ Insert into table with 16 keys and with a primary key with 16 parts
 Time for insert_key (100000): 1447 wallclock secs (13.78 usr 13.42 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Testing update of keys
-Time for update_of_key (256): 436 wallclock secs ( 0.01 usr  0.08 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for update_of_primary_key_many_keys (256): 436 wallclock secs ( 0.01 usr  0.08 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Deleting rows from the table
 Time for delete_big_many_keys (128): 1422 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
