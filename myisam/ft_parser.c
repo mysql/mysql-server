@@ -167,8 +167,8 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
     if ((param->trunc=(doc<end && *doc == FTB_TRUNC)))
       doc++;
 
-    if (word->len >= ft_min_word_len && word->len < ft_max_word_len &&
-        !is_stopword(word->pos, word->len))
+    if (((word->len >= ft_min_word_len && !is_stopword(word->pos, word->len))
+         || param->trunc) && word->len < ft_max_word_len)
     {
       *start=doc;
       return 1;
