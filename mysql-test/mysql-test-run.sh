@@ -144,6 +144,10 @@ while test $# -gt 0; do
     --record)
       RECORD=1;
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
+    --bench)
+      DO_BENCH=1
+      NO_SLAVE=1
+      ;;  
     --sleep=*)
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1"
       SLEEP_TIME=`$ECHO "$1" | $SED -e "s;--sleep=;;"`
@@ -423,7 +427,9 @@ start_master()
     # Remove old berkeley db log files that can confuse the server
     $RM -f $MASTER_MYDDIR/log.*	
     #start master
-    master_args="--no-defaults --log-bin=master-bin \
+    if [ -z "$DO_BENCH" ]
+    then
+      master_args="--no-defaults --log-bin=master-bin \
     	    --server-id=1 \
             --basedir=$MY_BASEDIR \
 	    --port=$MASTER_MYPORT \
@@ -438,6 +444,21 @@ start_master()
             --innobase_data_file_path=ibdata1:50M \
 	     $SMALL_SERVER \
 	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
+    else
+      master_args="--no-defaults --log-bin=master-bin --server-id=1 \
+            --basedir=$MY_BASEDIR \
+	    --port=$MASTER_MYPORT \
+            --datadir=$MASTER_MYDDIR \
+	    --pid-file=$MASTER_MYPID \
+	    --socket=$MASTER_MYSOCK \
+            --default-character-set=latin1 \
+	    --core \
+	    --tmpdir=$MYSQL_TMP_DIR \
+	    --language=english \
+            --innobase_data_file_path=ibdata1:50M \
+	     $SMALL_SERVER \
+	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
+    fi	     
     if [ x$DO_DDD = x1 ]
     then
       $ECHO "set args $master_args" > $GDB_MASTER_INIT
@@ -752,6 +773,28 @@ fi
 
 
 $ECHO  "Starting Tests"
+
+if [ "$DO_BENCH" = 1 ]
+then
+ BENCHDIR=$BASEDIR/sql-bench/
+ savedir=`pwd`
+ cd $BENCHDIR
+ if [ -z "$1" ]
+ then
+  ./run-all-tests --socket=$MASTER_MYSOCK --user=root
+ else
+ if [ -x "./$1" ]
+  then
+   ./$1 --socket=$MASTER_MYSOCK --user=root
+  else
+   echo "benchmark $1 not found" 
+  fi
+ fi  
+ cd $savedir
+ mysql_stop
+ exit
+fi
+
 
 $ECHO
 $ECHO " TEST                         USER   SYSTEM  ELAPSED        RESULT"

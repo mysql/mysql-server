@@ -51,11 +51,12 @@ $log_prog_args=join(" ", skip_arguments(\@ARGV,"comments","cmp","server",
 					"user", "host", "database", "password",
 					"use-old-results","skip-test",
 					"machine", "dir", "suffix", "log"));
-GetOptions("skip-test=s","comments=s","cmp=s","server=s","user=s","host=s","database=s","password=s","loop-count=i","row-count=i","skip-create","skip-delete","verbose","fast-insert","lock-tables","debug","fast","force","field-count=i","regions=i","groups=i","time-limit=i","log","use-old-results","machine=s","dir=s","suffix=s","help","odbc","small-test","small-tables","small-key-tables","stage=i","old-headers","die-on-errors","create-options=s","hires","tcpip","silent") || usage();
+GetOptions("skip-test=s","comments=s","cmp=s","server=s","user=s","host=s","database=s","password=s","loop-count=i","row-count=i","skip-create","skip-delete","verbose","fast-insert","lock-tables","debug","fast","force","field-count=i","regions=i","groups=i","time-limit=i","log","use-old-results","machine=s","dir=s","suffix=s","help","odbc","small-test","small-tables","small-key-tables","stage=i","old-headers","die-on-errors","create-options=s","hires","tcpip","silent",
+"socket=s") || usage();
 
 usage() if ($opt_help);
 $server=get_server($opt_server,$opt_host,$opt_database,$opt_odbc,
-                   machine_part());
+                   machine_part(), $opt_socket);
 $limits=merge_limits($server,$opt_cmp);
 $date=date();
 @estimated=(0.0,0.0,0.0);		# For estimated time support
@@ -485,6 +486,10 @@ All benchmarks takes the following options:
 
 --password='password'
   Password for the current user.
+
+--socket='socket'
+  If the database supports connecting through a Unix socket,
+  use this socket to connect
 
 --regions
   This is a test specific option that is only used when debugging a test.
