@@ -20,13 +20,11 @@
 #include <signaldata/AccFrag.hpp>
 #include <signaldata/AccScan.hpp>
 #include <signaldata/AccLock.hpp>
-#include <signaldata/AccSizeAltReq.hpp>
 #include <signaldata/EventReport.hpp>
 #include <signaldata/FsConf.hpp>
 #include <signaldata/FsRef.hpp>
 #include <signaldata/FsRemoveReq.hpp>
 #include <signaldata/DropTab.hpp>
-#include <signaldata/SetVarReq.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 
 // TO_DO_RONM is a label for comments on what needs to be improved in future versions
@@ -127,7 +125,7 @@ void Dbacc::execCONTINUEB(Signal* signal)
     break;
   case ZINITIALISE_RECORDS:
     jam();
-    initialiseRecordsLab(signal);
+    initialiseRecordsLab(signal, signal->theData[3], signal->theData[4]);
     return;
     break;
   case ZSR_READ_PAGES_ALLOC:
@@ -496,9 +494,6 @@ void Dbacc::execFSWRITEREF(Signal* signal)
 void Dbacc::execNDB_STTOR(Signal* signal) 
 {
   Uint32 tstartphase;
-  Uint32 tconfig1;
-  Uint32 tconfig2;
-  Uint32 tlqhConfig1;
   Uint32 tStartType;
 
   jamEntry();
@@ -506,9 +501,6 @@ void Dbacc::execNDB_STTOR(Signal* signal)
   cmynodeid = signal->theData[1];
   tstartphase = signal->theData[2];
   tStartType = signal->theData[3];
-  tlqhConfig1 = signal->theData[10];    /* DBLQH    */
-  tconfig1 = signal->theData[16];       /* DBACC    */
-  tconfig2 = signal->theData[17];       /* DBACC    */
   switch (tstartphase) {
   case ZSPH1:
     jam();
@@ -534,21 +526,7 @@ void Dbacc::execNDB_STTOR(Signal* signal)
       //---------------------------------------------
       csystemRestart = ZFALSE;
     }//if
-    if (tconfig1 > 0) {
-      jam();
-      clblPagesPerTick = tconfig1;
-    } else {
-      jam();
-      clblPagesPerTick = 1;
-    }//if
-    clblPageCounter = clblPagesPerTick;
-    if (tconfig2 > 0) {
-      jam();
-      clblPagesPerTickAfterSr = tconfig2;
-    } else {
-      jam();
-      clblPagesPerTickAfterSr = 1;
-    }//if
+    
     signal->theData[0] = ZLOAD_BAL_LCP_TIMER;
     sendSignalWithDelay(cownBlockref, GSN_CONTINUEB, signal, 100, 1);
     break;
@@ -606,98 +584,86 @@ void Dbacc::ndbrestart1Lab(Signal* signal)
   for (Uint32 tmp = 0; tmp < ZMAX_UNDO_VERSION; tmp++) {
     csrVersList[tmp] = RNIL;
   }//for
-  tdata0 = 0;
-  initialiseRecordsLab(signal);
   return;
 }//Dbacc::ndbrestart1Lab()
 
-void Dbacc::initialiseRecordsLab(Signal* signal) 
+void Dbacc::initialiseRecordsLab(Signal* signal, Uint32 ref, Uint32 data) 
 {
   switch (tdata0) {
   case 0:
     jam();
     initialiseTableRec(signal);
-    sendInitialiseRecords(signal);
     break;
   case 1:
     jam();
     initialiseFsConnectionRec(signal);
-    sendInitialiseRecords(signal);
     break;
   case 2:
     jam();
     initialiseFsOpRec(signal);
-    sendInitialiseRecords(signal);
     break;
   case 3:
     jam();
     initialiseLcpConnectionRec(signal);
-    sendInitialiseRecords(signal);
     break;
   case 4:
     jam();
     initialiseDirRec(signal);
-    sendInitialiseRecords(signal);
     break;
   case 5:
     jam();
     initialiseDirRangeRec(signal);
-    sendInitialiseRecords(signal);
     break;
   case 6:
     jam();
     initialiseFragRec(signal);
-    sendInitialiseRecords(signal);
     break;
   case 7:
     jam();
     initialiseOverflowRec(signal);
-    sendInitialiseRecords(signal);
     break;
   case 8:
     jam();
     initialiseOperationRec(signal);
-    sendInitialiseRecords(signal);
     break;
   case 9:
     jam();
     initialisePageRec(signal);
-    sendInitialiseRecords(signal);
     break;
   case 10:
     jam();
     initialiseRootfragRec(signal);
-    sendInitialiseRecords(signal);
     break;
   case 11:
     jam();
     initialiseScanRec(signal);
-    sendInitialiseRecords(signal);
     break;
   case 12:
     jam();
     initialiseSrVerRec(signal);
-    signal->theData[0] = cownBlockref;
-    sendSignal(CMVMI_REF, GSN_SIZEALT_ACK, signal, 1, JBB);
+
+    {
+      ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+      conf->senderRef = reference();
+      conf->senderData = data;
+      sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
+		 ReadConfigConf::SignalLength, JBB);
+    }
     return;
     break;
   default:
     ndbrequire(false);
     break;
   }//switch
-  return;
-}//Dbacc::initialiseRecordsLab()
 
-/* --------------------------------------------------------------------------------- */
-/*       SEND REAL-TIME BREAK DURING INITIALISATION OF VARIABLES DURING SYSTEM RESTART.*/
-/* --------------------------------------------------------------------------------- */
-void Dbacc::sendInitialiseRecords(Signal* signal) 
-{
   signal->theData[0] = ZINITIALISE_RECORDS;
   signal->theData[1] = tdata0 + 1;
   signal->theData[2] = 0;
-  sendSignal(cownBlockref, GSN_CONTINUEB, signal, 3, JBB);
-}//Dbacc::sendInitialiseRecords()
+  signal->theData[3] = ref;
+  signal->theData[4] = data;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 5, JBB);
+  return;
+}//Dbacc::initialiseRecordsLab()
 
 /* *********************************<< */
 /* NDB_STTORRY                         */
@@ -712,23 +678,41 @@ void Dbacc::ndbsttorryLab(Signal* signal)
 /* *********************************<< */
 /* SIZEALT_REP         SIZE ALTERATION */
 /* *********************************<< */
-void Dbacc::execSIZEALT_REP(Signal* signal) 
+void Dbacc::execREAD_CONFIG_REQ(Signal* signal) 
 {
-  Uint32 tsizealtBlockRef;
-
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+  ndbrequire(req->noOfParameters == 0);
+  
   jamEntry();
-  tsizealtBlockRef  = signal->theData[AccSizeAltReq::IND_BLOCK_REF];
-  cdirrangesize     = signal->theData[AccSizeAltReq::IND_DIR_RANGE];
-  cdirarraysize     = signal->theData[AccSizeAltReq::IND_DIR_ARRAY];
-  cfragmentsize     = signal->theData[AccSizeAltReq::IND_FRAGMENT];
-  coprecsize        = signal->theData[AccSizeAltReq::IND_OP_RECS];
-  coverflowrecsize  = signal->theData[AccSizeAltReq::IND_OVERFLOW_RECS];
-  cpagesize         = signal->theData[AccSizeAltReq::IND_PAGE8];
-  crootfragmentsize = signal->theData[AccSizeAltReq::IND_ROOT_FRAG];
-  ctablesize        = signal->theData[AccSizeAltReq::IND_TABLE];
-  cscanRecSize      = signal->theData[AccSizeAltReq::IND_SCAN];
+
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+  
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_DIR_RANGE, &cdirrangesize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_DIR_ARRAY, &cdirarraysize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_FRAGMENT, &cfragmentsize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_OP_RECS, &coprecsize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_OVERFLOW_RECS, 
+					&coverflowrecsize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_PAGE8, &cpagesize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_ROOT_FRAG, 
+					&crootfragmentsize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_TABLE, &ctablesize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_SCAN, &cscanRecSize));
   initRecords();
   ndbrestart1Lab(signal);
+
+  clblPagesPerTick = 50;
+  //ndb_mgm_get_int_parameter(p, CFG_DB_, &clblPagesPerTick);
+
+  clblPagesPerTickAfterSr = 50;
+  //ndb_mgm_get_int_parameter(p, CFG_DB_, &clblPagesPerTickAfterSr);
+
+  tdata0 = 0;
+  initialiseRecordsLab(signal, ref, senderData);
   return;
 }//Dbacc::execSIZEALT_REP()
 
@@ -13260,6 +13244,7 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
 
 void Dbacc::execSET_VAR_REQ(Signal* signal) 
 {
+#if 0
   SetVarReq* const setVarReq = (SetVarReq*)&signal->theData[0];
   ConfigParamId var = setVarReq->variable();
   int val = setVarReq->value();
@@ -13280,6 +13265,6 @@ void Dbacc::execSET_VAR_REQ(Signal* signal)
   default:
     sendSignal(CMVMI_REF, GSN_SET_VAR_REF, signal, 1, JBB);
   } // switch
-
+#endif
 
 }//execSET_VAR_REQ()

@@ -48,11 +48,13 @@ class ReadNodesConf {
   friend class Suma;
   friend class Grep;
 
+  friend bool printREAD_NODES_CONF(FILE*, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 2 + 6*NodeBitmask::Size );
+  STATIC_CONST( SignalLength = 3 + 5*NdbNodeBitmask::Size );
 private:
   
   Uint32 noOfNodes;
+  Uint32 ndynamicId;
 
   /**
    * 
@@ -63,47 +65,21 @@ private:
   /**
    * This array defines all the ndb nodes in the system
    */
-  Uint32 allNodes[NodeBitmask::Size];
-  
+  union {
+    Uint32 allNodes[NdbNodeBitmask::Size];
+    Uint32 definedNodes[NdbNodeBitmask::Size];
+  };  
+
   /**
    * This array describes wheather the nodes are currently active
    *
    * NOTE Not valid when send from Qmgr
    */
-  Uint32 inactiveNodes[NodeBitmask::Size];
+  Uint32 inactiveNodes[NdbNodeBitmask::Size];
 
-  /**
-   * This array describes the version id of the nodes
-   *  The version id is a 4 bit number
-   *
-   * NOTE Not valid when send from Qmgr
-   */
-  Uint32 theVersionIds[4*NodeBitmask::Size];
-
-  static void  setVersionId(NodeId, Uint8 versionId, Uint32 theVersionIds[]);
-  static Uint8 getVersionId(NodeId, const Uint32 theVersionIds[]);
+  Uint32 clusterNodes[NdbNodeBitmask::Size];  // From Qmgr
+  Uint32 startingNodes[NdbNodeBitmask::Size]; // From Cntr
+  Uint32 startedNodes[NdbNodeBitmask::Size];  // From Cntr
 };
-
-inline
-void
-ReadNodesConf::setVersionId(NodeId nodeId, Uint8 versionId,
-			    Uint32 theVersionIds[]){
-  const int word  = nodeId >> 3;
-  const int shift = (nodeId & 7) << 2;
-
-  const Uint32 mask = ~(((Uint32)15) << shift);
-  const Uint32 tmp = theVersionIds[word];
-  
-  theVersionIds[word] = (tmp & mask) | ((((Uint32)versionId) & 15) << shift);
-}
-
-inline
-Uint8
-ReadNodesConf::getVersionId(NodeId nodeId, const Uint32 theVersionIds[]){
-  const int word  = nodeId >> 3;
-  const int shift = (nodeId & 7) << 2;
-  
-  return (theVersionIds[word] >> shift) & 15;
-}
 
 #endif

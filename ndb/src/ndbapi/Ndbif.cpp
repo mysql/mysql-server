@@ -88,7 +88,7 @@ Ndb::init(int aMaxNoOfTransactions)
   theMyRef = numberToRef(theNdbBlockNumber, theNode);
   
   for (i = 1; i < MAX_NDB_NODES; i++){
-    if (theFacade->getIsNodeDefined(i)){
+    if (theFacade->getIsDbNode(i)){
       theDBnodes[theNoOfDBnodes] = i;
       theNoOfDBnodes++;
     }

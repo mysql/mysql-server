@@ -72,22 +72,26 @@ ExtNDB::init(const char * connectString)
 					"ExtNDB_Service",
 					NDB_THREAD_PRIO_LOW);
 
-  ConfigRetriever configRetriever;
-  configRetriever.setConnectString(connectString);
+#if 0
+  /**
+   * I don't see that this does anything
+   *
+   * Jonas 13/2-04
+   */
+  ConfigRetriever cr; cr.setConnectString(connectString);
 
-  Properties* config = configRetriever.getConfig("REP", REP_VERSION_ID);
+  ndb_mgm_configuration * config = cr.getConfig(NDB_VERSION, NODE_TYPE_REP);
   if (config == 0) {
     ndbout << "ExtNDB: Configuration error: ";
-    const char* erString = configRetriever.getErrorString();
+    const char* erString = cr.getErrorString();
     if (erString == 0) {
       erString = "No error specified!";
     }
     ndbout << erString << endl;
     return false;
   }
-  m_ownNodeId = configRetriever.getOwnNodeId();
-  config->put("LocalNodeId", m_ownNodeId);
-  config->put("LocalNodeType", "REP");
+  NdbAutoPtr autoPtr(config);
+  m_ownNodeId = r.getOwnNodeId();
   
   /**
    * Check which GREPs to connect to (in configuration)
@@ -117,6 +121,7 @@ ExtNDB::init(const char * connectString)
       }
     }
   }
+#endif
 
   m_transporterFacade = TransporterFacade::instance();
   
@@ -142,7 +147,7 @@ ExtNDB::init(const char * connectString)
 	   m_ownBlockNo);
   
   for (Uint32 i=1; i<MAX_NDB_NODES; i++) {
-    if (m_transporterFacade->getIsNodeDefined(i) && 
+    if (m_transporterFacade->getIsDbNode(i) && 
 	m_transporterFacade->getIsNodeSendable(i)) 
       {
 	Uint32 nodeGrp = m_transporterFacade->getNodeGrp(i);

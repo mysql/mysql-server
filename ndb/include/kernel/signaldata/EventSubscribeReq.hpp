@@ -39,7 +39,7 @@ class EventSubscribeReq {
   friend class MgmtSrvr;
 
 public:
-  STATIC_CONST( SignalLength = 14 );
+  STATIC_CONST( SignalLength = 22 );
 private:
   /**
    * Note: If you use the same blockRef as you have used earlier, 
@@ -53,8 +53,8 @@ private:
    */
   Uint32 noOfEntries;
   
-  Uint32 theCategories[6];
-  Uint32 theLevels[6];
+  Uint32 theCategories[10];
+  Uint32 theLevels[10];
 };
 
 #endif

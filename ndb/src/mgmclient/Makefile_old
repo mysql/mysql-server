@@ -4,7 +4,7 @@ TYPE := ndbapi
 
 BIN_TARGET := mgmtclient
 BIN_TARGET_LIBS := 
-BIN_TARGET_ARCHIVES := trace logger general mgmapi mgmsrvcommon portlib repapi
+BIN_TARGET_ARCHIVES := trace logger mgmapi general mgmsrvcommon portlib repapi
 
 BIN_TARGET_ARCHIVES += editline
 

@@ -22,6 +22,7 @@
 #include <rep/repapi/repapi.h>
 #include <rep/ExtSender.hpp>
 #include <rep/adapters/AppNDB.hpp>
+#include <Properties.hpp>
 
 #include "Channel.hpp"
 #include "Interval.hpp"

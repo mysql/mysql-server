@@ -63,6 +63,15 @@ public:
     return 0;
   };
 
+  void * append(size_t l){
+    if(grow(len+l) != 0)
+      return 0;
+
+    void * ret = (char*)data+len;
+    len += l;
+    return ret;
+  }
+  
   int assign(const void * d, size_t l) {
     if (data) free(data);
     data = NULL;

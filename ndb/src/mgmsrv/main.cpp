@@ -34,6 +34,7 @@
 #include <NdbHost.h>
 #include <ndb_version.h>
 #include <ConfigRetriever.hpp>
+#include <mgmapi_config_parameters.h>
 #include <getarg.h>
 
 #if defined NDB_OSE || defined NDB_SOFTOSE
@@ -191,7 +192,10 @@ NDB_MAIN(mgmsrv){
 
   glob.mgmObject = new MgmtSrvr(glob.localNodeId,
 				BaseString(glob.config_filename),
-				BaseString(glob.local_config_filename == 0 ? "" : glob.local_config_filename));
+				BaseString(glob.local_config_filename == 0 ? "" : glob.local_config_filename),
+				glob.cluster_config);
+  
+  glob.cluster_config = 0;
 
   if(!glob.mgmObject->check_start()){
     ndbout_c("Unable to start management server.");
@@ -321,18 +325,21 @@ readGlobalConfig() {
     return false;
 
   /* Use config file */
-  InitConfigFileParser parser(glob.config_filename);
-  
-  if(parser.readConfigFile()) {
-    glob.cluster_config = new Config(*parser.getConfig());
-  } else {
-    /* Try to get configuration from other MGM server */
+  InitConfigFileParser parser;
+  glob.cluster_config = parser.parseConfig(glob.config_filename);
+  if(glob.cluster_config == 0){
+    /**
+     * Try to get configuration from other MGM server 
+     * Note: Only new format
+     */
+    glob.cluster_config = new Config();
+    
     ConfigRetriever cr;
     cr.setLocalConfigFileName(glob.local_config_filename);
-    Properties* mgmconf = cr.getConfig("MGM", NDB_VERSION);
-    if (mgmconf == NULL)
+    glob.cluster_config->m_configValues = cr.getConfig(NDB_VERSION,
+						       NODE_TYPE_MGM);
+    if (glob.cluster_config->m_configValues == NULL)
       return false;
-    glob.cluster_config = new Config(*mgmconf);
   }
   return true;
 }
@@ -350,15 +357,23 @@ static bool
 setPortNo(){
   const Properties *mgmProps;
   
-  if(!glob.cluster_config->get("Node", glob.localNodeId, &mgmProps)){
+  ndb_mgm_configuration_iterator * iter = 
+    ndb_mgm_create_configuration_iterator(glob.cluster_config->m_configValues, 
+					  CFG_SECTION_NODE);
+  if(iter == 0)
+    return false;
+
+  if(ndb_mgm_find(iter, CFG_NODE_ID, glob.localNodeId) != 0){
     ndbout << "Could not retrieve configuration for Node " 
 	   << glob.localNodeId << " in config file." << endl 
 	   << "Have you set correct NodeId for this node?" << endl;
+    ndb_mgm_destroy_iterator(iter);
     return false;
   }
 
-  BaseString type;
-  if(!mgmProps->get("Type", type) || strcasecmp(type.c_str(), "MGM") != 0){
+  unsigned type;
+  if(ndb_mgm_get_int_parameter(iter, CFG_TYPE_OF_SECTION, &type) != 0 ||
+     type != NODE_TYPE_MGM){
     ndbout << "Local node id " << glob.localNodeId 
 	   << " is not defined as management server" << endl
 	   << "Have you set correct NodeId for this node?" << endl;
@@ -369,7 +384,7 @@ setPortNo(){
    * Set Port *
    ************/
   Uint32 tmp = 0;
-  if (!mgmProps->get("PortNumber", &tmp)){
+  if(ndb_mgm_get_int_parameter(iter, CFG_MGM_PORT, &tmp) != 0){
     ndbout << "Could not find PortNumber in the configuration file." << endl;
     return false;
   }
@@ -378,15 +393,18 @@ setPortNo(){
   /*****************
    * Set Stat Port *
    *****************/
+#if 0
   if (!mgmProps->get("PortNumberStats", &tmp)){
     ndbout << "Could not find PortNumberStats in the configuration file." 
 	   << endl;
     return false;
   }
   glob.port_stats = tmp;
+#endif
 
-  BaseString host;
-  if(!mgmProps->get("ExecuteOnComputer", host)){
+#if 0
+  const char * host;
+  if(ndb_mgm_get_string_parameter(iter, mgmProps->get("ExecuteOnComputer", host)){
     ndbout << "Failed to find \"ExecuteOnComputer\" for my node" << endl;
     ndbout << "Unable to verify own hostname" << endl;
     return false;
@@ -422,8 +440,11 @@ setPortNo(){
     return true;
   }
   
-  glob.use_specific_ip = false;
   glob.interface_name = strdup(hostname);
-  
+#endif
+
+  glob.interface_name = 0;  
+  glob.use_specific_ip = false;
+
   return true;
 }

@@ -116,12 +116,6 @@
 #define arrGuard(ind, size)
 #endif
 
-// ------- EVENT STATES OF A NODE -----------------------------
-#define ZADD 0			/* New application added                 */
-#define ZREMOVE 1		/* An application has been removed       */
-#define ZSTART 2 		/* An application is ready to start      */
-#define ZRUN 3 			/* An application has started to run     */
-
 // -------- ERROR INSERT MACROS -------
 #ifdef ERROR_INSERT
 #define ERROR_INSERT_VARIABLE UintR cerrorInsert

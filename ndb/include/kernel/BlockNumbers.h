@@ -37,6 +37,7 @@
 #define DBTUP       0xF9
 #define DBDICT      0xFA
 #define NDBCNTR     0xFB
+#define CNTR        0xFB
 #define QMGR        0xFC
 #define NDBFS       0xFD
 #define CMVMI       0xFE

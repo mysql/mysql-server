@@ -27,8 +27,6 @@ void Ndbcntr::initData()
 {
 
   // Records with constant sizes
-  cfgBlockRec = new CfgBlockRec[ZSIZE_CFG_BLOCK_REC];
-  nodeRec = new NodeRec[MAX_NDB_NODES];
   ndbBlocksRec = new NdbBlocksRec[ZSIZE_NDB_BLOCKS_REC];
 }//Ndbcntr::initData()
 
@@ -51,17 +49,15 @@ Ndbcntr::Ndbcntr(const class Configuration & conf):
   addRecSignal(GSN_CONTINUEB, &Ndbcntr::execCONTINUEB);
   addRecSignal(GSN_READ_NODESCONF, &Ndbcntr::execREAD_NODESCONF);
   addRecSignal(GSN_READ_NODESREF, &Ndbcntr::execREAD_NODESREF);
-  addRecSignal(GSN_CNTR_MASTERREQ, &Ndbcntr::execCNTR_MASTERREQ);
-  addRecSignal(GSN_CNTR_MASTERCONF, &Ndbcntr::execCNTR_MASTERCONF);
-  addRecSignal(GSN_CNTR_MASTERREF, &Ndbcntr::execCNTR_MASTERREF);
+  addRecSignal(GSN_CM_ADD_REP, &Ndbcntr::execCM_ADD_REP);
+  addRecSignal(GSN_CNTR_START_REQ, &Ndbcntr::execCNTR_START_REQ);
+  addRecSignal(GSN_CNTR_START_REF, &Ndbcntr::execCNTR_START_REF);
+  addRecSignal(GSN_CNTR_START_CONF, &Ndbcntr::execCNTR_START_CONF);
   addRecSignal(GSN_CNTR_WAITREP, &Ndbcntr::execCNTR_WAITREP);
-  addRecSignal(GSN_NODE_STATESREQ, &Ndbcntr::execNODE_STATESREQ);
-  addRecSignal(GSN_NODE_STATESCONF, &Ndbcntr::execNODE_STATESCONF);
-  addRecSignal(GSN_NODE_STATESREF, &Ndbcntr::execNODE_STATESREF);
+  addRecSignal(GSN_CNTR_START_REP, &Ndbcntr::execCNTR_START_REP);
   addRecSignal(GSN_NODE_FAILREP, &Ndbcntr::execNODE_FAILREP);
   addRecSignal(GSN_SYSTEM_ERROR , &Ndbcntr::execSYSTEM_ERROR);
-  addRecSignal(GSN_VOTE_MASTERORD, &Ndbcntr::execVOTE_MASTERORD);
-
+  
   // Received signals
   addRecSignal(GSN_DUMP_STATE_ORD, &Ndbcntr::execDUMP_STATE_ORD);
   addRecSignal(GSN_STTOR, &Ndbcntr::execSTTOR);
@@ -80,12 +76,7 @@ Ndbcntr::Ndbcntr(const class Configuration & conf):
   addRecSignal(GSN_NDB_STTORRY, &Ndbcntr::execNDB_STTORRY);
   addRecSignal(GSN_NDB_STARTCONF, &Ndbcntr::execNDB_STARTCONF);
   addRecSignal(GSN_READ_NODESREQ, &Ndbcntr::execREAD_NODESREQ);
-  addRecSignal(GSN_APPL_REGCONF, &Ndbcntr::execAPPL_REGCONF);
-  addRecSignal(GSN_APPL_REGREF, &Ndbcntr::execAPPL_REGREF);
-  addRecSignal(GSN_APPL_CHANGEREP, &Ndbcntr::execAPPL_CHANGEREP);
-  addRecSignal(GSN_APPL_STARTCONF, &Ndbcntr::execAPPL_STARTCONF);
   addRecSignal(GSN_NDB_STARTREF, &Ndbcntr::execNDB_STARTREF);
-  addRecSignal(GSN_CMVMI_CFGCONF, &Ndbcntr::execCMVMI_CFGCONF);
   addRecSignal(GSN_SET_VAR_REQ, &Ndbcntr::execSET_VAR_REQ);
 
   addRecSignal(GSN_STOP_PERM_REF, &Ndbcntr::execSTOP_PERM_REF);
@@ -107,18 +98,18 @@ Ndbcntr::Ndbcntr(const class Configuration & conf):
 
   addRecSignal(GSN_START_ORD, &Ndbcntr::execSTART_ORD);
   addRecSignal(GSN_STTORRY, &Ndbcntr::execSTTORRY);
+  addRecSignal(GSN_READ_CONFIG_CONF, &Ndbcntr::execREAD_CONFIG_CONF);
 
   addRecSignal(GSN_FSREMOVEREF, &Ndbcntr::execFSREMOVEREF);
   addRecSignal(GSN_FSREMOVECONF, &Ndbcntr::execFSREMOVECONF);
   
   initData();
   ctypeOfStart = NodeState::ST_ILLEGAL_TYPE;
+  c_start.m_startTime = NdbTick_CurrentMillisecond();
 }//Ndbcntr::Ndbcntr()
 
 Ndbcntr::~Ndbcntr() 
 {
-  delete []cfgBlockRec;
-  delete []nodeRec;
   delete []ndbBlocksRec;
 
 }//Ndbcntr::~Ndbcntr()
