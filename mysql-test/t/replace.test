@@ -27,12 +27,13 @@ drop table t1;
 # Test when using replace on a key that has used up it's whole range
 #
 
-create table t1 (a tinyint not null auto_increment primary key, b char(20));
-insert into t1 values (126,"first"),(0,"last");
+create table t1 (a tinyint not null auto_increment primary key, b char(20) default "default_value");
+insert into t1 values (126,"first"),(63, "middle"),(0,"last");
 --error 1062
 insert into t1 values (0,"error");
 --error 1062
 replace into t1 values (0,"error");
 replace into t1 values (126,"first updated");
+replace into t1 values (63,default);
 select * from t1;
 drop table t1;

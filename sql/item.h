@@ -33,7 +33,7 @@ public:
 
   enum Type {FIELD_ITEM, FUNC_ITEM, SUM_FUNC_ITEM, STRING_ITEM,
 	     INT_ITEM, REAL_ITEM, NULL_ITEM, VARBIN_ITEM,
-	     COPY_STR_ITEM, FIELD_AVG_ITEM, DEFAULT_ITEM,
+	     COPY_STR_ITEM, FIELD_AVG_ITEM, DEFAULT_VALUE_ITEM,
 	     PROC_ITEM,COND_ITEM, REF_ITEM, FIELD_STD_ITEM, 
 	     FIELD_VARIANCE_ITEM, CONST_ITEM,
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM};
@@ -663,7 +663,7 @@ public:
     Item_field((const char *)NULL, (const char *)NULL, (const char *)NULL), arg(NULL) {}
   Item_default_value(Item *a) : 
     Item_field((const char *)NULL, (const char *)NULL, (const char *)NULL), arg(a) {}
-  enum Type type() const { return DEFAULT_ITEM; }
+  enum Type type() const { return DEFAULT_VALUE_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, struct st_table_list *, Item **);
   bool check_loop(uint id)
@@ -682,12 +682,7 @@ public:
     }
     return Item_field::save_in_field(field, no_conversions);
   }
-  table_map used_tables() const
-  { 
-    if (!arg)
-      return (table_map) 0L; 
-    return Item_field::used_tables();
-  }
+  table_map used_tables() const { return (table_map)0L; }
 };
 
 class Item_cache: public Item

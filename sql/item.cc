@@ -1128,7 +1128,7 @@ bool Item_ref::check_loop(uint id)
 
 bool Item_default_value::eq(const Item *item, bool binary_cmp) const
 {
-  return item->type() == DEFAULT_ITEM && 
+  return item->type() == DEFAULT_VALUE_ITEM && 
     ((Item_default_value *)item)->arg->eq(arg, binary_cmp);
 }
 
@@ -1167,6 +1167,7 @@ void Item_default_value::print(String *str)
   if (!arg)
   {
     str->append("DEFAULT");
+    return;
   }
   str->append("DEFAULT(");
   arg->print(str);
