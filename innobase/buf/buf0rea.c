@@ -73,11 +73,13 @@ buf_read_page_low(
 		sync = TRUE;
 	}
 #endif
-	if (trx_sys_hdr_page(space, offset)) {
+	if (ibuf_bitmap_page(offset) || trx_sys_hdr_page(space, offset)) {
 
 		/* Trx sys header is so low in the latching order that we play
 		safe and do not leave the i/o-completion to an asynchronous
-		i/o-thread: */
+		i/o-thread. Ibuf bitmap pages must always be read with
+                syncronous i/o, to make sure they do not get involved in
+                thread deadlocks. */
 		
 		sync = TRUE;
 	}
