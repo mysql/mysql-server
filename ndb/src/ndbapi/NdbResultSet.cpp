@@ -69,7 +69,7 @@ int NdbResultSet::nextResult(bool fetchAllowed, bool forceSend)
 
 void NdbResultSet::close(bool forceSend)
 {
-  m_operation->closeScan(forceSend);
+  m_operation->closeScan(forceSend, true);
 }
 
 NdbOperation* 

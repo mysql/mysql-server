@@ -674,7 +674,7 @@ NdbScanOperation::doSend(int ProcessorId)
   return 0;
 }
 
-void NdbScanOperation::closeScan(bool forceSend)
+void NdbScanOperation::closeScan(bool forceSend, bool releaseOp)
 {
   if(m_transConnection){
     if(DEBUG_NEXT_RESULT)
@@ -691,13 +691,20 @@ void NdbScanOperation::closeScan(bool forceSend)
     Guard guard(tp->theMutexPtr);
     close_impl(tp, forceSend);
     
-  } while(0);
-  
-  theNdbCon->theScanningOp = 0;
-  theNdb->closeTransaction(theNdbCon);
-  
-  theNdbCon = 0;
+  }
+
+  NdbConnection* tCon = theNdbCon;
+  NdbConnection* tTransCon = m_transConnection;
+  theNdbCon = NULL;
   m_transConnection = NULL;
+
+  if (releaseOp && tTransCon) {
+    NdbIndexScanOperation* tOp = (NdbIndexScanOperation*)this;
+    tTransCon->releaseExecutedScanOperation(tOp);
+  }
+  
+  tCon->theScanningOp = 0;
+  theNdb->closeTransaction(tCon);
 }
 
 void

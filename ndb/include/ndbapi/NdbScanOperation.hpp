@@ -93,7 +93,7 @@ protected:
   int nextResult(bool fetchAllowed = true, bool forceSend = false);
   virtual void release();
   
-  void closeScan(bool forceSend = false);
+  void closeScan(bool forceSend = false, bool releaseOp = false);
   int close_impl(class TransporterFacade*, bool forceSend = false);
 
   // Overloaded methods from NdbCursorOperation

@@ -89,7 +89,7 @@ int main(int argc, char** argv){
       unsigned j;
       for (j= 0; (int)j < pTab->getNoOfPrimaryKeys(); j++)
       {
-	const NdbDictionary::Column * col = pTab->getColumn(j);
+	const NdbDictionary::Column * col = pTab->getColumn(pTab->getPrimaryKey(j));
 	ndbout << col->getName();
 	if ((int)j < pTab->getNoOfPrimaryKeys()-1)
 	  ndbout << ", ";       
