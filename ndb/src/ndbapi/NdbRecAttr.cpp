@@ -15,17 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/************************************************************************************************
-Name:          NdbRecAttr.C
-Include:
-Link:
-Author:        UABRONM Mikael Ronström UAB/B/SD                         
-Date:          971206
-Version:       0.1
-Description:   Interface between TIS and NDB
-Documentation:
-Adjust:  971206  UABRONM First version
-************************************************************************************************/
 #include <ndb_global.h>
 #include <NdbOut.hpp>
 #include <NdbRecAttr.hpp>
@@ -148,6 +137,48 @@ NdbRecAttr::receive_data(const Uint32 * data, Uint32 sz){
   return false;
 }
 
+static void
+ndbrecattr_print_string(NdbOut& out, const char *type,
+			const char *ref, unsigned sz)
+{
+  int i;
+  // trailing zeroes are not printed
+  for (i=sz-1; i >= 0; i--)
+    if (ref[i] == 0) sz--;
+    else break;
+  if (sz == 0) return; // empty
+
+  char *str= (char*)malloc(sz+1);
+  memcpy(str, ref, sz);
+  str[sz]= 0; // null terminate
+  int len= strlen(str);
+  int printable= 1;
+  for (i=0; i < len; i++)
+  {
+    if (str[i] < 32) {
+      printable= 0;
+      break;
+    }
+  }
+  if (printable)
+    out.print("%.*s", len, str);
+  else
+  {
+    for (i=0; i < len; i++)
+      out.print("%02X", (int)str[i]);
+  }
+
+  free(str);
+  if (len != (int)sz)
+  {
+    out.print("[");
+    for (i= len+1; ref[i] != 0; i++)
+    out.print("%u]",len-i);
+    assert(sz > i);
+    ndbrecattr_print_string(out,type,ref+i,sz-i);
+  }
+}
+
 NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
 {
   if (r.isNULL())
@@ -193,17 +224,19 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
       case NdbDictionary::Column::Tinyint:
 	out << (int) r.char_value();
 	break;
+      case NdbDictionary::Column::Binary:
+	ndbrecattr_print_string(out,"Binary",r.aRef(),r.arraySize());
+	j = r.arraySize();
+	break;
       case NdbDictionary::Column::Char:
-	out.print("%.*s", r.arraySize(), r.aRef());
+	ndbrecattr_print_string(out,"Char",r.aRef(),r.arraySize());
 	j = r.arraySize();
 	break;
       case NdbDictionary::Column::Varchar:
-	{
-	  short len = ntohs(r.u_short_value());
-	  out.print("%.*s", len, r.aRef()+2);
-	}
+	ndbrecattr_print_string(out,"Varchar", r.aRef()+ 2,
+				ntohs(r.u_short_value()));
 	j = r.arraySize();
-      break;
+	break;
       case NdbDictionary::Column::Float:
 	out << r.float_value();
 	break;
