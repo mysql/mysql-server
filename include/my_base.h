@@ -146,7 +146,7 @@ enum ha_extra_function {
     On-the-fly switching between unique and non-unique key inserting.
   */
   HA_EXTRA_CHANGE_KEY_TO_UNIQUE,
-  HA_EXTRA_CHANGE_KEY_TO_DUP
+  HA_EXTRA_CHANGE_KEY_TO_DUP,
   /*
     When using HA_EXTRA_KEYREAD, overwrite only key member fields and keep 
     other fields intact. When this is off (by default) InnoDB will use memcpy
