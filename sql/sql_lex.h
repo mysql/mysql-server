@@ -220,12 +220,6 @@ protected:
     *master, *slave,                  /* vertical links */
     *link_next, **link_prev;          /* list of whole SELECT_LEX */
 public:
-  enum enum_parsing_place
-  {
-    NO_MATTER,
-    IN_HAVING,
-    SELECT_LIST
-  };
 
   ulong options;
   /*

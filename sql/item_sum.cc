@@ -159,10 +159,7 @@ Item *Item_sum::get_tmp_table_item(THD *thd)
       if (!arg->const_item())
       {
 	if (arg->type() == Item::FIELD_ITEM)
-        {
-           arg->maybe_null= result_field_tmp->maybe_null();
 	  ((Item_field*) arg)->field= result_field_tmp++;
-        }
 	else
 	  sum_item->args[i]= new Item_field(result_field_tmp++);
       }

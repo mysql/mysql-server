@@ -3281,7 +3281,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 			 ha_rows *deleted)
 {
   int error;
-  Copy_field *copy,*copy_end, *next_field;
+  Copy_field *copy,*copy_end, *next_field= 0;
   ulong found_count,delete_count;
   THD *thd= current_thd;
   uint length;

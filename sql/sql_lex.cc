@@ -1017,7 +1017,7 @@ void st_select_lex::init_query()
   select_n_having_items= 0;
   prep_where= 0;
   subquery_in_having= explicit_limit= 0;
-  parsing_place= SELECT_LEX_NODE::NO_MATTER;
+  parsing_place= NO_MATTER;
 }
 
 void st_select_lex::init_select()
