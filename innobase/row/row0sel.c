@@ -3090,7 +3090,13 @@ rec_loop:
 			ut_print_timestamp(stderr);
 			buf_page_print(buf_frame_align(rec));
 			fprintf(stderr,
-"  InnoDB: Index corruption: rec offs %lu next offs %lu, page no %lu,\n"
+"\nInnoDB: rec address %lx, first buffer frame %lx\n"
+"InnoDB: buffer pool high end %lx, buf block fix count %lu\n",
+				(ulong)rec, (ulong)buf_pool->frame_zero,
+				(ulong)buf_pool->high_end,
+				(ulong)buf_block_align(rec)->buf_fix_count);
+			fprintf(stderr,
+"InnoDB: Index corruption: rec offs %lu next offs %lu, page no %lu,\n"
 "InnoDB: ",
 				(ulint)(rec - buf_frame_align(rec)), next_offs,
 				buf_frame_get_page_no(rec));
