@@ -964,6 +964,7 @@ void clean_up(bool print_message)
   item_user_lock_free();
   lex_free();				/* Free some memory */
   set_var_free();
+  free_charsets();
 #ifdef HAVE_DLOPEN
   if (!opt_noacl)
     udf_free();
