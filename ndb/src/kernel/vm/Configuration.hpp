@@ -21,7 +21,6 @@
 #include <ndb_types.h>
 
 class ConfigRetriever;
-class LocalConfig;
 
 class Configuration {
 public:
@@ -33,7 +32,7 @@ public:
    */
   bool init(int argc, char** argv);
 
-  void fetch_configuration(LocalConfig &local_config);
+  void fetch_configuration();
   void setupConfiguration();
   void closeConfiguration();
   

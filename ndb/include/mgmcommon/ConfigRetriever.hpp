@@ -20,7 +20,6 @@
 #include <ndb_types.h>
 #include <mgmapi.h>
 #include <BaseString.hpp>
-#include <LocalConfig.hpp>
 
 /**
  * @class ConfigRetriever
@@ -28,10 +27,11 @@
  */
 class ConfigRetriever {
 public:
-  ConfigRetriever(LocalConfig &local_config, Uint32 version, Uint32 nodeType);
+  ConfigRetriever(const char * _connect_string,
+		  Uint32 version, Uint32 nodeType);
   ~ConfigRetriever();
 
-  int do_connect(int exit_on_connect_failure= false);
+  int do_connect(int no_retries, int retry_delay_in_seconds, int verbose);
   
   /**
    * Get configuration for current node.
@@ -46,12 +46,14 @@ public:
    */
   struct ndb_mgm_configuration * getConfig();
   
+  void resetError();
+  int hasError();
   const char * getErrorString();
 
   /**
    * @return Node id of this node (as stated in local config or connectString)
    */
-  Uint32 allocNodeId();
+  Uint32 allocNodeId(int no_retries, int retry_delay_in_seconds);
 
   /**
    * Get config using socket
@@ -68,22 +70,26 @@ public:
    */
   bool verifyConfig(const struct ndb_mgm_configuration *, Uint32 nodeid);
 
-  Uint32 get_mgmd_port() const {return m_mgmd_port;};
-  const char *get_mgmd_host() const {return m_mgmd_host;};
+  Uint32 get_mgmd_port() const;
+  const char *get_mgmd_host() const;
+
+  Uint32 get_configuration_nodeid() const;
 private:
   BaseString errorString;
   enum ErrorType {
-    CR_ERROR = 0,
-    CR_RETRY = 1
+    CR_NO_ERROR = 0,
+    CR_ERROR = 1,
+    CR_RETRY = 2
   };
   ErrorType latestErrorType;
   
   void setError(ErrorType, const char * errorMsg);
   
-  struct LocalConfig&   _localConfig;
-  Uint32                _ownNodeId;
+  Uint32      _ownNodeId;
+  /*
   Uint32      m_mgmd_port;
   const char *m_mgmd_host;
+  */
 
   Uint32 m_version;
   Uint32 m_node_type;
