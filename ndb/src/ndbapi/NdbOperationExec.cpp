@@ -541,6 +541,9 @@ NdbOperation::receiveTCKEYREF( NdbApiSignal* aSignal)
     return -1;
   }//if
 
+  AbortOption ao = (AbortOption)theNdbCon->m_abortOption;
+  theReceiver.m_received_result_length = ~0;
+
   theStatus = Finished;
   theNdbCon->theReturnStatus = NdbConnection::ReturnFailure;
 
@@ -548,11 +551,19 @@ NdbOperation::receiveTCKEYREF( NdbApiSignal* aSignal)
   theNdbCon->setOperationErrorCodeAbort(aSignal->readData(4));
 
   if(theOperationType != ReadRequest || !theSimpleIndicator) // not simple read
-    return theNdbCon->OpCompleteFailure(theNdbCon->m_abortOption);
-
-  // Simple read is always ignore error
-  return theNdbCon->OpCompleteFailure(IgnoreError);
-}//NdbOperation::receiveTCKEYREF()
+    return theNdbCon->OpCompleteFailure(ao);
+  
+  /**
+   * If TCKEYCONF has arrived
+   *   op has completed (maybe trans has completed)
+   */
+  if(theReceiver.m_expected_result_length)
+  {
+    return theNdbCon->OpCompleteFailure(AbortOnError);
+  }
+  
+  return -1;
+}
 
 
 void
