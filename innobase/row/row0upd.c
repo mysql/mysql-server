@@ -789,8 +789,8 @@ row_upd_store_row(
 	
 	node->row = row_build(ROW_COPY_DATA, clust_index, rec, node->heap);
 
-	node->ext_vec = mem_heap_alloc(node->heap, rec_get_n_fields(rec));
-
+	node->ext_vec = mem_heap_alloc(node->heap, sizeof(ulint)
+				                    * rec_get_n_fields(rec));
 	if (node->is_delete) {
 		update = NULL;
 	} else {
