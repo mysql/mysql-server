@@ -49,4 +49,5 @@ enum options_client
 #ifdef HAVE_NDBCLUSTER_DB
   ,OPT_NDBCLUSTER,OPT_NDB_CONNECTSTRING
 #endif
+  ,OPT_IGNORE_TABLE
 };
