@@ -83,7 +83,7 @@ select "--- Remote --" as "";
 select "--- Broken LOAD DATA --" as "";
 --enable_query_log
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.002
+--exec $MYSQL_BINLOG --short-form --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
 
 # And this too ! (altough it is documented)
 --disable_query_log
@@ -97,7 +97,7 @@ select "--- --database --" as "";
 select "--- --position --" as "";
 --enable_query_log
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --read-from-remote-server --position=27 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.002
+--exec $MYSQL_BINLOG --short-form --read-from-remote-server --position=27 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
 
 # clean up
 drop table t1;

@@ -733,7 +733,7 @@ extern void yyerror(const char*);
 
 extern time_t start_time;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
-	    mysql_real_data_home[], *opt_mysql_tmpdir;
+	    mysql_real_data_home[], *opt_mysql_tmpdir, mysql_charsets_dir[];
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 extern MY_TMPDIR mysql_tmpdir_list;
 extern const char *command_name[];

@@ -576,10 +576,14 @@ select_result::select_result()
   thd=current_thd;
 }
 
-static String
-	default_line_term("\n",default_charset_info),
-	default_escaped("\\",default_charset_info),
-	default_field_term("\t",default_charset_info);
+void select_result::send_error(uint errcode,const char *err)
+{
+  ::send_error(thd, errcode, err);
+}
+
+static String default_line_term("\n",default_charset_info);
+static String default_escaped("\\",default_charset_info);
+static String default_field_term("\t",default_charset_info);
 
 sql_exchange::sql_exchange(char *name,bool flag)
   :file_name(name), opt_enclosed(0), dumpfile(flag), skip_lines(0)
@@ -884,7 +888,7 @@ err:
 
 void select_export::send_error(uint errcode, const char *err)
 {
-  my_message(errcode, err, MYF(0));;
+  ::send_error(thd,errcode,err);
   (void) end_io_cache(&cache);
   (void) my_close(file,MYF(0));
   file= -1;
@@ -994,7 +998,7 @@ err:
 
 void select_dump::send_error(uint errcode,const char *err)
 {
-  my_message(errcode, err, MYF(0));
+  ::send_error(thd,errcode,err);
   (void) end_io_cache(&cache);
   (void) my_close(file,MYF(0));
   (void) my_delete(path,MYF(0));		// Delete file on error

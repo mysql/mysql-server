@@ -171,6 +171,8 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 {
   int res;
   register SELECT_LEX *select_lex = &lex->select_lex;
+  DBUG_ENTER("handle_select");
+
   fix_tables_pointers(lex->all_selects_list);
   if (select_lex->next_select())
     res=mysql_union(thd, lex, result, &lex->unit, 0);
@@ -187,16 +189,25 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 		      (ORDER*) lex->proc_list.first,
 		      select_lex->options | thd->options,
 		      result, &(lex->unit), &(lex->select_lex), 0);
-  if (res && result)
-    result->abort();
 
-  if (res || thd->net.report_error)
-  {
-    send_error(thd, 0, NullS);
+  /* Don't set res if it's -1 as we may want this later */
+  DBUG_PRINT("info",("res: %d  report_error: %d", res,
+		     thd->net.report_error));
+  if (thd->net.report_error)
     res= 1;
+  if (res)
+  {
+    if (result)
+    {
+      result->send_error(0, NullS);
+      result->abort();
+    }
+    else
+      send_error(thd, 0, NullS);
+    res= 1;					// Error sent to client
   }
   delete result;
-  return res;
+  DBUG_RETURN(res);
 }
 
 

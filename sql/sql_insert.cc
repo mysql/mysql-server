@@ -1440,8 +1440,17 @@ void select_insert::send_error(uint errcode,const char *err)
 {
   DBUG_ENTER("select_insert::send_error");
 
-  //TODO error should be sent at the query processing end
+  /* TODO error should be sent at the query processing end */
   ::send_error(thd,errcode,err);
+
+  if (!table)
+  {
+    /*
+      This can only happen when using CREATE ... SELECT and the table was not
+      created becasue of an syntax error
+    */
+    DBUG_VOID_RETURN;
+  }
   table->file->extra(HA_EXTRA_NO_CACHE);
   table->file->activate_all_index(thd);
   /*
