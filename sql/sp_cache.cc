@@ -92,10 +92,11 @@ sp_cache_lookup(sp_cache **cp, char *name, uint namelen)
   return c->lookup(name, namelen);
 }
 
-void
-sp_cache_remove(sp_cache **cp, sp_head *sp)
+sp_head *
+sp_cache_remove(sp_cache **cp, char *name, uint namelen)
 {
   sp_cache *c= *cp;
+  sp_head *sp= NULL;
 
   if (c)
   {
@@ -108,9 +109,10 @@ sp_cache_remove(sp_cache **cp, sp_head *sp)
     if (c->version < v)
       c->remove_all();
     else
-      c->remove(sp);
+      sp= c->remove(name, namelen);
     c->version= v+1;
   }
+  return sp;
 }
 
 
