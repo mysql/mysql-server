@@ -2621,12 +2621,12 @@ fil_open_single_table_tablespace(
 		fputs("!\n"
 "InnoDB: Have you moved InnoDB .ibd files around without using the\n"
 "InnoDB: commands DISCARD TABLESPACE and IMPORT TABLESPACE?\n"
-"InnoDB: It is also possible that this is a table created with\n"
-"InnoDB: CREATE TEMPORARY TABLE, and MySQL removed the .ibd file for this.\n"
+"InnoDB: It is also possible that this is a temporary table #sql...,\n"
+"InnoDB: and MySQL removed the .ibd file for this.\n"
 "InnoDB: Please refer to\n"
 "InnoDB:"
 " http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
-"InnoDB: how to resolve the issue.\n", stderr);
+"InnoDB: for how to resolve the issue.\n", stderr);
 
 		mem_free(filepath);
 
@@ -2666,7 +2666,7 @@ fil_open_single_table_tablespace(
 "InnoDB: Please refer to\n"
 "InnoDB:"
 " http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
-"InnoDB: how to resolve the issue.\n", (ulong) space_id, (ulong) id);
+"InnoDB: for how to resolve the issue.\n", (ulong) space_id, (ulong) id);
 
 		ret = FALSE;
 
@@ -3261,7 +3261,7 @@ fil_space_for_table_exists_in_mem(
 			ut_print_filename(stderr, name);
 			fprintf(stderr, "\n"
 "InnoDB: in InnoDB data dictionary has tablespace id %lu,\n"
-"InnoDB: but tablespace with that id does not exist. There is\n"
+"InnoDB: but a tablespace with that id does not exist. There is\n"
 "InnoDB: a tablespace of name %s and id %lu, though. Have\n"
 "InnoDB: you deleted or moved .ibd files?\n",
 				(ulong) id, namespace->name,
@@ -3272,7 +3272,7 @@ fil_space_for_table_exists_in_mem(
 "InnoDB: Please refer to\n"
 "InnoDB:"
 " http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
-"InnoDB: how to resolve the issue.\n", stderr);
+"InnoDB: for how to resolve the issue.\n", stderr);
 
 		mem_free(path);
 		mutex_exit(&(system->mutex));
@@ -3286,7 +3286,7 @@ fil_space_for_table_exists_in_mem(
 		ut_print_filename(stderr, name);
 		fprintf(stderr, "\n"
 "InnoDB: in InnoDB data dictionary has tablespace id %lu,\n"
-"InnoDB: but tablespace with that id has name %s.\n"
+"InnoDB: but the tablespace with that id has name %s.\n"
 "InnoDB: Have you deleted or moved .ibd files?\n", (ulong) id, space->name);
 
 		if (namespace != NULL) {

@@ -30,8 +30,8 @@ class Item_sum :public Item_result_field
 public:
   enum Sumfunctype
   { COUNT_FUNC, COUNT_DISTINCT_FUNC, SUM_FUNC, SUM_DISTINCT_FUNC, AVG_FUNC,
-    MIN_FUNC, MAX_FUNC, UNIQUE_USERS_FUNC, STD_FUNC, VARIANCE_FUNC,
-    SUM_BIT_FUNC, UDF_SUM_FUNC, GROUP_CONCAT_FUNC
+    AVG_DISTINCT_FUNC, MIN_FUNC, MAX_FUNC, UNIQUE_USERS_FUNC, STD_FUNC,
+    VARIANCE_FUNC, SUM_BIT_FUNC, UDF_SUM_FUNC, GROUP_CONCAT_FUNC
   };
 
   Item **args, *tmp_args[2];
@@ -68,6 +68,9 @@ public:
     a temporary table. Similar to reset(), but must also store value in
     result_field. Like reset() it is supposed to reset start value to
     default.
+    This set of methods (reult_field(), reset_field, update_field()) of
+    Item_sum is used only if quick_group is not null. Otherwise
+    copy_or_same() is used to obtain a copy of this item.
   */
   virtual void reset_field()=0;
   /*
@@ -161,26 +164,28 @@ public:
 };
 
 
-/*
-  Item_sum_sum_distinct - SELECT SUM(DISTINCT expr) FROM ... 
-  support. See also: MySQL manual, chapter 'Adding New Functions To MySQL'
-  and comments in item_sum.cc.
-*/
+
+/* Common class for SUM(DISTINCT), AVG(DISTINCT) */
 
 class Unique;
 
-class Item_sum_sum_distinct :public Item_sum_sum
+class Item_sum_distinct :public Item_sum_num
 {
+protected:
+  /* storage for the summation result */
+  ulonglong count;
+  Hybrid_type val;
+  /* storage for unique elements */
   Unique *tree;
-  byte *dec_bin_buff;
-  my_decimal tmp_dec;
-  uint key_length;
-private:
-  Item_sum_sum_distinct(THD *thd, Item_sum_sum_distinct *item);
+  TABLE *table;
+  enum enum_field_types table_field_type;
+  uint tree_key_length;
+protected:
+  Item_sum_distinct(THD *thd, Item_sum_distinct *item);
 public:
-  Item_sum_sum_distinct(Item *item_par);
-  ~Item_sum_sum_distinct() {}
-  
+  Item_sum_distinct(Item *item_par);
+  ~Item_sum_distinct();
+
   bool setup(THD *thd);
   void clear();
   void cleanup();
@@ -190,15 +195,54 @@ public:
   longlong val_int();
   String *val_str(String *str);
 
-  void add_real(double val);
-  void add_decimal(byte *val);
+  /* XXX: does it need make_unique? */
+
   enum Sumfunctype sum_func () const { return SUM_DISTINCT_FUNC; }
   void reset_field() {} // not used
   void update_field() {} // not used
   const char *func_name() const { return "sum_distinct"; }
-  Item *copy_or_same(THD* thd);
   virtual void no_rows_in_result() {}
   void fix_length_and_dec();
+  enum Item_result result_type () const { return val.traits->type(); }
+  virtual void calculate_val_and_count();
+  virtual bool unique_walk_function(void *elem);
+};
+
+
+/*
+  Item_sum_sum_distinct - implementation of SUM(DISTINCT expr).
+  See also: MySQL manual, chapter 'Adding New Functions To MySQL'
+  and comments in item_sum.cc.
+*/
+
+class Item_sum_sum_distinct :public Item_sum_distinct
+{
+private:
+  Item_sum_sum_distinct(THD *thd, Item_sum_sum_distinct *item)
+    :Item_sum_distinct(thd, item) {}
+public:
+  Item_sum_sum_distinct(Item *item_arg) :Item_sum_distinct(item_arg) {}
+
+  enum Sumfunctype sum_func () const { return SUM_DISTINCT_FUNC; }
+  const char *func_name() const { return "sum_distinct"; }
+  Item *copy_or_same(THD* thd) { return new Item_sum_sum_distinct(thd, this); }
+};
+
+
+/* Item_sum_avg_distinct - SELECT AVG(DISTINCT expr) FROM ... */
+
+class Item_sum_avg_distinct: public Item_sum_distinct
+{
+private:
+  Item_sum_avg_distinct(THD *thd, Item_sum_avg_distinct *original)
+    :Item_sum_distinct(thd, original) {}
+public:
+  Item_sum_avg_distinct(Item *item_arg) : Item_sum_distinct(item_arg) {}
+
+  virtual void calculate_val_and_count();
+  enum Sumfunctype sum_func () const { return AVG_DISTINCT_FUNC; }
+  const char *func_name() const { return "avg_distinct"; }
+  Item *copy_or_same(THD* thd) { return new Item_sum_avg_distinct(thd, this); }
 };
 
 
