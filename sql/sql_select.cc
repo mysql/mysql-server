@@ -2145,8 +2145,6 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  !(s->table->force_index && best_key))
       {						// Check full join
         ha_rows rnd_records= s->found_records;
-        /* Estimate cost of reading table. */
-        tmp= s->table->file->scan_time();
         /*
           If there is a restriction on the table, assume that 25% of the
           rows can be skipped on next part.
@@ -2156,36 +2154,57 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
         if (found_constraint)
           rnd_records-= rnd_records/4;
 
-        if (s->on_expr)                         // Can't use join cache
+        /*
+          Range optimizer never proposes a RANGE if it isn't better
+          than FULL: so if RANGE is present, it's always preferred to FULL.
+          Here we estimate its cost.
+        */
+        if (s->quick)
         {
+          /*
+            For each record we:
+             - read record range through 'quick'
+             - skip rows which does not satisfy WHERE constraints
+           */
           tmp= record_count *
-               /* We have to read the whole table for each record */
-               (tmp +     
-               /*
-                 And we have to skip rows which does not satisfy join
-                 condition for each record.
-               */
-               (s->records - rnd_records)/(double) TIME_FOR_COMPARE);
+               (s->quick->read_time +
+               (s->found_records - rnd_records)/(double) TIME_FOR_COMPARE);
         }
         else
         {
-          /* We read the table as many times as join buffer becomes full. */
-          tmp*= (1.0 + floor((double) cache_record_length(join,idx) *
-                             record_count /
-                             (double) thd->variables.join_buff_size));
-          /* 
-            We don't make full cartesian product between rows in the scanned
-            table and existing records because we skip all rows from the
-            scanned table, which does not satisfy join condition when 
-            we read the table (see flush_cached_records for details). Here we
-            take into account cost to read and skip these records.
-          */
-          tmp+= (s->records - rnd_records)/(double) TIME_FOR_COMPARE;
+          /* Estimate cost of reading table. */
+          tmp= s->table->file->scan_time();
+          if (s->on_expr)                         // Can't use join cache
+          {
+            /*
+              For each record we have to:
+              - read the whole table record 
+              - skip rows which does not satisfy join condition
+            */
+            tmp= record_count *
+                 (tmp +     
+                 (s->records - rnd_records)/(double) TIME_FOR_COMPARE);
+          }
+          else
+          {
+            /* We read the table as many times as join buffer becomes full. */
+            tmp*= (1.0 + floor((double) cache_record_length(join,idx) *
+                               record_count /
+                               (double) thd->variables.join_buff_size));
+            /* 
+              We don't make full cartesian product between rows in the scanned
+              table and existing records because we skip all rows from the
+              scanned table, which does not satisfy join condition when 
+              we read the table (see flush_cached_records for details). Here we
+              take into account cost to read and skip these records.
+            */
+            tmp+= (s->records - rnd_records)/(double) TIME_FOR_COMPARE;
+          }
         }
 
         /*
           We estimate the cost of evaluating WHERE clause for found records
-          as record_count * rnd_records + TIME_FOR_COMPARE. This cost plus
+          as record_count * rnd_records / TIME_FOR_COMPARE. This cost plus
           tmp give us total cost of using TABLE SCAN
         */
 	if (best == DBL_MAX ||
