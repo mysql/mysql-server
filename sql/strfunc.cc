@@ -39,16 +39,13 @@
 
 static const char field_separator=',';
 
-ulonglong find_set(TYPELIB *lib, const char *str, uint length, char **err_pos,
-                   uint *err_len, bool *set_warning)
+ulonglong find_set(TYPELIB *lib, const char *str, uint length, CHARSET_INFO *cs,
+                   char **err_pos, uint *err_len, bool *set_warning)
 {
-  const char *end= str + length;
-  *err_pos= 0;                  // No error yet
-  while (end > str && my_isspace(system_charset_info, end[-1]))
-    end--;
-
-  *err_len= 0;
+  CHARSET_INFO *strip= cs ? cs : &my_charset_latin1;
+  const char *end= str + strip->cset->lengthsp(strip, str, length);
   ulonglong found= 0;
+  *err_pos= 0;                  // No error yet
   if (str != end)
   {
     const char *start= str;    
@@ -59,7 +56,8 @@ ulonglong find_set(TYPELIB *lib, const char *str, uint length, char **err_pos,
 
       for (; pos != end && *pos != field_separator; pos++) ;
       var_len= (uint) (pos - start);
-      uint find= find_type(lib, start, var_len, 0);
+      uint find= cs ? find_type2(lib, start, var_len, cs) :
+                      find_type(lib, start, var_len, (bool) 0);
       if (!find)
       {
         *err_pos= (char*) start;

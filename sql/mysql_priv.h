@@ -809,7 +809,7 @@ extern void yyerror(const char*);
 extern bool check_reserved_words(LEX_STRING *name);
 
 /* strfunc.cc */
-ulonglong find_set(TYPELIB *typelib,const char *x, uint length,
+ulonglong find_set(TYPELIB *lib, const char *x, uint length, CHARSET_INFO *cs,
 		   char **err_pos, uint *err_len, bool *set_warning);
 uint find_type(TYPELIB *lib, const char *find, uint length, bool part_match);
 uint find_type2(TYPELIB *lib, const char *find, uint length, CHARSET_INFO *cs);
