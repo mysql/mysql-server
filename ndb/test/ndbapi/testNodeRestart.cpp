@@ -434,6 +434,7 @@ TESTCASE("StopOnError",
 NDBT_TESTSUITE_END(testNodeRestart);
 
 int main(int argc, const char** argv){
+  ndb_init();
 #if 0
   // It might be interesting to have longer defaults for num
   // loops in this test

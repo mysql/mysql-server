@@ -44,6 +44,7 @@ handler(int sig){
 }
 
 int main(int argc, const char** argv){
+  ndb_init();
   int optind = 0;
   const char *_host = 0;
   int _port = 0;

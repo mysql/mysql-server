@@ -27,7 +27,7 @@
  * RECIVER: SimBlockCMCtrBlck
  */
 
-class EventSubscribeReq {
+struct EventSubscribeReq {
   /**
    * Receiver(s)
    */
@@ -38,9 +38,8 @@ class EventSubscribeReq {
    */
   friend class MgmtSrvr;
 
-public:
   STATIC_CONST( SignalLength = 22 );
-private:
+
   /**
    * Note: If you use the same blockRef as you have used earlier, 
    *       you update your ongoing subscription
@@ -55,6 +54,15 @@ private:
   
   Uint32 theCategories[10];
   Uint32 theLevels[10];
+
+  EventSubscribeReq& operator= (const LogLevel& ll){
+    noOfEntries = _LOGLEVEL_CATEGORIES;
+    for(size_t i = 0; i<noOfEntries; i++){
+      theCategories[i] = i;
+      theLevels[i] = ll.getLogLevel((LogLevel::EventCategory)i);
+    }
+    return * this;
+  }
 };
 
 #endif

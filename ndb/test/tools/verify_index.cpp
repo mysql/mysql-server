@@ -27,6 +27,7 @@
  
 
 int main(int argc, const char** argv){
+  ndb_init();
   int _parallelism = 240;
   const char* _tabname = NULL;
   const char* _indexname = NULL;

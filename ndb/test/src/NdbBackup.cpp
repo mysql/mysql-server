@@ -140,14 +140,16 @@ NdbBackup::execRestore(bool _restore_data,
    */ 
 
   snprintf(buf, buf_len,
-	   "scp %s:%s/BACKUP/BACKUP-%d/* .",
+	   "scp %s:%s/BACKUP/BACKUP-%d/BACKUP-%d*.%d.* .",
 	   host, path,
-	   _backup_id);
+	   _backup_id,
+	   _backup_id,
+	   _node_id);
 
   ndbout << "buf: "<< buf <<endl;
   int res = system(buf);  
   
-  ndbout << "res: " << res << endl;
+  ndbout << "scp res: " << res << endl;
   
   snprintf(buf, 255, "%sndb_restore -c \"host=%s\" -n %d -b %d %s %s .", 
 #if 1
@@ -162,9 +164,9 @@ NdbBackup::execRestore(bool _restore_data,
 	   _restore_meta?"-m":"");
 
   ndbout << "buf: "<< buf <<endl;
-  res = system(buf);  
+  res = system(buf);
 
-  ndbout << "res: " << res << endl;
+  ndbout << "ndb_restore res: " << res << endl;
 
   return res;
   
@@ -180,20 +182,13 @@ NdbBackup::restore(unsigned _backup_id){
     return -1;
 
   int res; 
-  if ( ndbNodes.size() == 1) {
-    // restore metadata and data in one call
-      res = execRestore(true, true, ndbNodes[0].node_id, _backup_id);
-  } else {
-    assert(ndbNodes.size() > 1);
 
-    // restore metadata first
-    res = execRestore(false, true, ndbNodes[0].node_id, _backup_id);
-    
+  // restore metadata first and data for first node
+  res = execRestore(true, true, ndbNodes[0].node_id, _backup_id);
 
-    // Restore data once for each node
-    for(size_t i = 0; i < ndbNodes.size(); i++){     
-      res = execRestore(true, false, ndbNodes[i].node_id, _backup_id);
-    }
+  // Restore data once for each node
+  for(size_t i = 1; i < ndbNodes.size(); i++){
+    res = execRestore(true, false, ndbNodes[i].node_id, _backup_id);
   }
   
   return 0;
