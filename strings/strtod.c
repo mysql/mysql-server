@@ -36,16 +36,6 @@ static double scaler1[] = {
   1.0, 10.0, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
 };
 
-/* let's use a static array for not to accumulate the error */
-static double pastpoint[] = {
-  1e-1,  1e-2,  1e-3,  1e-4,  1e-5,  1e-6,  1e-7,  1e-8,  1e-9,
-  1e-10, 1e-11, 1e-12, 1e-13, 1e-14, 1e-15, 1e-16, 1e-17, 1e-18,  1e-19,
-  1e-20, 1e-21, 1e-22, 1e-23, 1e-24, 1e-25, 1e-26, 1e-27, 1e-28,  1e-29,
-  1e-30, 1e-31, 1e-32, 1e-33, 1e-34, 1e-35, 1e-36, 1e-37, 1e-38,  1e-39,
-  1e-40, 1e-41, 1e-42, 1e-43, 1e-44, 1e-45, 1e-46, 1e-47, 1e-48,  1e-49,
-  1e-50, 1e-51, 1e-52, 1e-53, 1e-54, 1e-55, 1e-56, 1e-57, 1e-58,  1e-59,
-};
-
 double my_strtod(const char *str, char **end)
 {
   double result= 0.0;
@@ -68,17 +58,13 @@ double my_strtod(const char *str, char **end)
 
   if (*str == '.')
   {
-    int n= 0;
+    double p10=10;
     str++;
     old_str= str;
     while (my_isdigit (&my_charset_latin1, *str))
     {
-      if (n < sizeof(pastpoint)/sizeof(pastpoint[0]))
-      {
-        result+= pastpoint[n] * (*str - '0');
-        n++;
-      }
-      str++;
+      result+= (*str++ - '0')/p10;
+      p10*=10;
     }
     ndigits+= str-old_str;
     if (!ndigits) str--;

@@ -5618,7 +5618,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   }
   case OPT_FT_BOOLEAN_SYNTAX:
-    if (ft_boolean_check_syntax_string(argument))
+    if (ft_boolean_check_syntax_string((byte*) argument))
     {
       fprintf(stderr, "Invalid ft-boolean-syntax string: %s\n", argument);
       exit(1);

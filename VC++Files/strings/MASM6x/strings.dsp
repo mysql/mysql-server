@@ -84,10 +84,6 @@ LIB32=link.exe -lib
 # Name "strings - Win32 Debug"
 # Begin Source File
 
-SOURCE=.\atof.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\bchange.c
 # End Source File
 # Begin Source File
@@ -188,6 +184,10 @@ InputName=Strings
 
 !ENDIF
 
+# End Source File
+# Begin Source File
+
+SOURCE=.\strtod.c
 # End Source File
 # Begin Source File
 
