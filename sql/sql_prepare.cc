@@ -1105,7 +1105,6 @@ void mysql_stmt_free(THD *thd, char *packet)
   if (!(stmt= find_prepared_statement(thd, stmt_id, "close")))
     DBUG_VOID_RETURN;
 
-  free_items(stmt->free_list);
   /* Statement map deletes statement on erase */
   thd->stmt_map.erase(stmt);
   DBUG_VOID_RETURN;
