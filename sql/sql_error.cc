@@ -45,6 +45,19 @@ This file contains the implementation of error and warnings related
 #include "mysql_priv.h"
 
 /*
+  Store a new message in an error object
+
+  This is used to in group_concat() to register how many warnings we actually
+  got after the query has been executed.
+*/
+
+void MYSQL_ERROR::set_msg(THD *thd, const char *msg_arg)
+{
+  msg= strdup_root(&thd->warn_root, msg_arg);
+}
+
+
+/*
   Reset all warnings for the thread
 
   SYNOPSIS
@@ -91,7 +104,7 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
   if (thd->query_id != thd->warn_id)
     mysql_reset_errors(thd);
 
-  MYSQL_ERROR *err = NULL;
+  MYSQL_ERROR *err= NULL;
 
   if (thd->warn_list.elements < thd->variables.max_error_count)
   {
@@ -101,7 +114,7 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
     */
     MEM_ROOT *old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
     my_pthread_setspecific_ptr(THR_MALLOC, &thd->warn_root);
-    err = new MYSQL_ERROR(code, level, msg);
+    err= new MYSQL_ERROR(thd, code, level, msg);
     if (err)
       thd->warn_list.push_back(err);
     my_pthread_setspecific_ptr(THR_MALLOC, old_root);

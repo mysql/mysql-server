@@ -301,17 +301,14 @@ public:
   enum_warning_level level;
   char *msg;
   
-  MYSQL_ERROR(uint code_arg, enum_warning_level level_arg,
+  MYSQL_ERROR(THD *thd, uint code_arg, enum_warning_level level_arg,
 	      const char *msg_arg)
     :code(code_arg), level(level_arg)
   {
     if (msg_arg)
-      msg=sql_strdup(msg_arg);  
+      set_msg(thd, msg_arg);
   }
-  inline void set_msg(const char *msg_arg)
-  {
-    msg=sql_strdup(msg_arg);  
-  }
+  void set_msg(THD *thd, const char *msg_arg);
 };
 
 

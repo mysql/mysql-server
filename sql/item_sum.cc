@@ -1344,7 +1344,8 @@ String *Item_sum_udf_str::val_str(String *str)
   GROUP_CONCAT(DISTINCT expr,...)
 */
 
-static int group_concat_key_cmp_with_distinct(void* arg, byte* key1, byte* key2)
+static int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
+					      byte* key2)
 {
   Item_func_group_concat* item= (Item_func_group_concat*)arg;
   for (int i= 0; i<item->arg_count_field; i++)
@@ -1357,8 +1358,8 @@ static int group_concat_key_cmp_with_distinct(void* arg, byte* key1, byte* key2)
 
       int res= field->key_cmp(key1 + offset, key2 + offset);
       /*
-        if key1 and key2 is not equal than field->key_cmp return offset. This function
-        must return value 1 for this case.
+        if key1 and key2 is not equal than field->key_cmp return offset. This
+	function must return value 1 for this case.
       */
       if (res)
         return 1;
@@ -1366,6 +1367,7 @@ static int group_concat_key_cmp_with_distinct(void* arg, byte* key1, byte* key2)
   }
   return 0;
 }
+
 
 /*
   function of sort for syntax:
@@ -1391,10 +1393,11 @@ static int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
     }
   }
   /*
-    We can't return 0 becouse tree class remove this item as dubl value. 
+    We can't return 0 because tree class remove this item as double value. 
   */   
   return 1;
 }
+
 
 /*
   function of sort for syntax:
@@ -1408,6 +1411,7 @@ static int group_concat_key_cmp_with_distinct_and_order(void* arg, byte* key1, b
     return 0;
   return(group_concat_key_cmp_with_order(arg,key1,key2));
 }
+
 
 /*
   create result
@@ -1468,6 +1472,7 @@ static int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
   return 0;
 }
 
+
 /*
   Constructor of Item_func_group_concat
   is_distinct - distinct
@@ -1476,17 +1481,13 @@ static int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
   is_separator - string value of separator
 */
 
-Item_func_group_concat::Item_func_group_concat(int is_distinct,List<Item> *is_select,
-                        SQL_LIST *is_order,String *is_separator):
-			Item_sum(),
-			tmp_table_param(0),
-			warning_available(false),
-			separator(is_separator),
-			tree(&tree_base),
-			table(0),
-                        distinct(is_distinct),
-			tree_mode(0),
-                        count_cut_values(0)
+Item_func_group_concat::Item_func_group_concat(int is_distinct,
+					       List<Item> *is_select,
+					       SQL_LIST *is_order,
+					       String *is_separator)
+  :Item_sum(), tmp_table_param(0), warning_available(false),
+   separator(is_separator), tree(&tree_base), table(0), distinct(is_distinct),
+   tree_mode(0), count_cut_values(0)
 {
   original= 0;
   quick_group= 0;
@@ -1551,14 +1552,15 @@ Item_func_group_concat::~Item_func_group_concat()
   */
   if (!original)
   {
+    THD *thd= current_thd;
     if (warning_available)
     {
       char warn_buff[MYSQL_ERRMSG_SIZE];
       sprintf(warn_buff, ER(ER_CUT_VALUE_GROUP_CONCAT), count_cut_values);
-      ((MYSQL_ERROR *)warning)->set_msg((char *)&warn_buff);
+      warning->set_msg(thd, warn_buff);
     }
     if (table)
-      free_tmp_table(current_thd, table);
+      free_tmp_table(thd, table);
     if (tmp_table_param)
       delete tmp_table_param;
     if (tree_mode)
