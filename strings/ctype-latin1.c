@@ -180,7 +180,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_mbcharlen_8bit,
     my_numchars_8bit,
     my_charpos_8bit,
-    my_wellformedlen_8bit,
+    my_well_formed_len_8bit,
     my_lengthsp_8bit,
     my_mb_wc_latin1,
     my_wc_mb_latin1,
@@ -360,8 +360,8 @@ static int my_strnncollsp_latin1_de(CHARSET_INFO *cs,
 				    const uchar *s, uint slen,
 				    const uchar *t, uint tlen)
 {
-  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
-  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  for ( ; slen && s[slen-1] == ' ' ; slen--);
+  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
   return my_strnncoll_latin1_de(cs,s,slen,t,tlen);
 }
 

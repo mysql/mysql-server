@@ -209,7 +209,7 @@ character-set=koi8u
 "Операц╕я не може бути виконана з запущеним п╕длеглим, спочатку виконайте STOP SLAVE",
 "Операц╕я вимага╓ запущеного п╕длеглого, зконф╕гуруйте п╕длеглого та виконайте START SLAVE",
 "Сервер не зконф╕гуровано як п╕длеглий, виправте це у файл╕ конф╕гурац╕╖ або з CHANGE MASTER TO",
-"Не можу ╕н╕ц╕ал╕зувати структуру информац╕╖ головного, перев╕рте права доступу на master.info",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 "Не можу створити п╕длеглу г╕лку, перев╕рте системн╕ ресурси",
 "Користувач %-.64s вже ма╓ б╕льше н╕ж 'max_user_connections' активних з'╓днань",
 "Можна використовувати лише вирази з╕ сталими у SET",
@@ -246,6 +246,7 @@ character-set=koi8u
 "This version of MySQL doesn't yet support '%s'",
 "Got fatal error %d: '%-.128s' from master when reading data from binary log",
 "Slave SQL thread ignored the query because of replicate-*-table rules",
+"Variable '%-.64s' is a %s variable",
 "Wrong foreign key definition for '%-.64s': %s",
 "Key reference and table reference doesn't match",
 "Операнд ма╓ складатися з %d стовбц╕в",
@@ -296,5 +297,5 @@ character-set=koi8u
 "Unknown table engine '%s'",
 "'%s' is deprecated, use '%s' instead",
 "Таблиця %-.100s у %s не може оновлюватись",
-"The '%s' feature was disabled; you need MySQL built with '%s' define to have it working"
-"MySQL is started in --skip-grant-tables mode. You can't use this command"
+"The '%s' feature was disabled; you need MySQL built with '%s' define to have it working",
+"MySQL is started in --skip-grant-tables mode. You can't use this command",

@@ -7,7 +7,7 @@
   (at your option) any later version. 
 
   This program is distributed in the hope that it will be useful, 
-  but WITHOUT ANY WARRANTY; without even the implied warranty of 
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
   GNU General Public License for more details. 
 
@@ -27,6 +27,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/mode.h>
 
 #include "my_config.h"
 #include "my_manage.h"
@@ -94,6 +95,13 @@ char slave_master_info[PATH_MAX]  = "";
 char master_init_script[PATH_MAX]  = "";
 char slave_init_script[PATH_MAX]  = "";
 
+// OpenSSL
+char ca_cert[PATH_MAX];
+char server_cert[PATH_MAX];
+char server_key[PATH_MAX];
+char client_cert[PATH_MAX];
+char client_key[PATH_MAX];
+
 int total_skip    = 0;
 int total_pass    = 0;
 int total_fail    = 0;
@@ -101,6 +109,7 @@ int total_test    = 0;
 
 double total_time = 0;
 
+int use_openssl     = FALSE;
 int master_running  = FALSE;
 int slave_running   = FALSE;
 int skip_slave      = TRUE;
@@ -184,7 +193,7 @@ void install_db(char *datadir)
   char input[PATH_MAX];
   char output[PATH_MAX];
   char error[PATH_MAX];
-  
+
   // input file
   snprintf(input, PATH_MAX, "%s/bin/init_db.sql", base_dir);
   snprintf(output, PATH_MAX, "%s/install.out", datadir);
@@ -193,13 +202,14 @@ void install_db(char *datadir)
   // args
   init_args(&al);
   add_arg(&al, mysqld_file);
+  add_arg(&al, "--no-defaults");
   add_arg(&al, "--bootstrap");
   add_arg(&al, "--skip-grant-tables");
   add_arg(&al, "--basedir=%s", base_dir);
   add_arg(&al, "--datadir=%s", datadir);
   add_arg(&al, "--skip-innodb");
   add_arg(&al, "--skip-bdb");
-  
+
   // spawn
   if ((err = spawn(mysqld_file, &al, TRUE, input, output, error)) != 0)
   {
@@ -266,15 +276,16 @@ void start_master()
   int err, i;
   char master_out[PATH_MAX];
   char master_err[PATH_MAX];
-  
+  char temp[PATH_MAX], temp2[PATH_MAX];
+
   // remove old berkeley db log files that can confuse the server
   removef("%s/log.*", master_dir);
-  
-  // remove stale binary logs
-  removef("%s/*-bin.*", master_dir);
 
   // remove stale binary logs
-  removef("%s/*.index", master_dir);
+  removef("%s/var/log/*-bin.*", mysql_test_dir);
+
+  // remove stale binary logs
+  removef("%s/var/log/*.index", mysql_test_dir);
 
   // remove master.info file
   removef("%s/master.info", master_dir);
@@ -284,11 +295,26 @@ void start_master()
 
   // remove relay-log.info file
   removef("%s/relay-log.info", master_dir);
-  
+
   // init script
   if (master_init_script[0] != NULL)
   {
     // run_init_script(master_init_script);
+
+    // TODO: use the scripts
+    if (strindex(master_init_script, "repair_part2-master.sh") != NULL)
+    {
+      FILE *fp;
+
+      // create an empty index file
+      snprintf(temp, PATH_MAX, "%s/test/t1.MYI", master_dir);
+      fp = fopen(temp, "wb+");
+
+      fputs("1", fp);
+
+      fclose(fp);
+    }
+
   }
 
   // redirection files
@@ -296,12 +322,17 @@ void start_master()
            mysql_test_dir, restarts);
   snprintf(master_err, PATH_MAX, "%s/var/run/master%u.err",
            mysql_test_dir, restarts);
-  
+
+  snprintf(temp2,PATH_MAX,"%s/var",mysql_test_dir);
+  mkdir(temp2,0);
+  snprintf(temp2,PATH_MAX,"%s/var/log",mysql_test_dir);
+  mkdir(temp2,0);
+
   // args
   init_args(&al);
   add_arg(&al, "%s", mysqld_file);
   add_arg(&al, "--no-defaults");
-  add_arg(&al, "--log-bin=master-bin");
+  add_arg(&al, "--log-bin=%s/var/log/master-bin",mysql_test_dir);
   add_arg(&al, "--server-id=1");
   add_arg(&al, "--basedir=%s", base_dir);
   add_arg(&al, "--port=%u", master_port);
@@ -312,11 +343,18 @@ void start_master()
   add_arg(&al, "--character-sets-dir=%s", char_dir);
   add_arg(&al, "--tmpdir=%s", mysql_tmp_dir);
   add_arg(&al, "--language=%s", lang_dir);
-  
+
+  if (use_openssl)
+  {
+    add_arg(&al, "--ssl-ca=%s", ca_cert);
+    add_arg(&al, "--ssl-cert=%s", server_cert);
+    add_arg(&al, "--ssl-key=%s", server_key);
+  }
+
   // $MASTER_40_ARGS
   add_arg(&al, "--rpl-recovery-rank=1");
   add_arg(&al, "--init-rpl-role=master");
-  
+
   // $SMALL_SERVER
   add_arg(&al, "-O");
   add_arg(&al, "key_buffer_size=1M");
@@ -329,17 +367,24 @@ void start_master()
   if (master_opt[0] != NULL)
   {
     char *p;
+    char *temp;
 
     p = (char *)strtok(master_opt, " \t");
 
-    while(p)
+    if ((temp = strstr(p, "timezone")) == NULL)
     {
-      add_arg(&al, "%s", p);
-      
-      p = (char *)strtok(NULL, " \t");
+      while(p)
+      {
+        add_arg(&al, "%s", p);
+        p = (char *)strtok(NULL, " \t");
+      }
+    }
+    else
+    {
+      //do nothing
     }
   }
-  
+
   // remove the pid file if it exists
   remove(master_pid);
 
@@ -347,7 +392,7 @@ void start_master()
   if ((err = spawn(mysqld_file, &al, FALSE, NULL, master_out, master_err)) == 0)
   {
     sleep_until_file_exists(master_pid);
-    
+
 	if ((err = wait_for_server_start(bin_dir, user, password, master_port)) == 0)
     {
       master_running = TRUE;
@@ -361,7 +406,7 @@ void start_master()
   {
     log_error("Unable to start master server.");
   }
-  
+
   // free_args
   free_args(&al);
 }
@@ -409,7 +454,7 @@ void start_slave()
     {
       // create empty master.info file
       snprintf(temp, PATH_MAX, "%s/master.info", slave_dir);
-      close(open(temp, O_WRONLY | O_CREAT));
+      close(open(temp, O_WRONLY | O_CREAT,S_IRWXU|S_IRWXG|S_IRWXO));
     }
     else if (strindex(slave_init_script, "rpl000017-slave.sh") != NULL)
     {
@@ -434,7 +479,7 @@ void start_slave()
     {
       // create empty master.info file
       snprintf(temp, PATH_MAX, "%s/master.info", slave_dir);
-      close(open(temp, O_WRONLY | O_CREAT));
+      close(open(temp, O_WRONLY | O_CREAT,S_IRWXU|S_IRWXG|S_IRWXO));
     }
   }
 
@@ -458,7 +503,7 @@ void start_slave()
   add_arg(&al, "--core");
   add_arg(&al, "--tmpdir=%s", mysql_tmp_dir);
   add_arg(&al, "--language=%s", lang_dir);
-  
+
   add_arg(&al, "--exit-info=256");
   add_arg(&al, "--log-slave-updates");
   add_arg(&al, "--init-rpl-role=slave");
@@ -473,6 +518,13 @@ void start_slave()
   add_arg(&al, "--master-retry-count=10");
   add_arg(&al, "-O");
   add_arg(&al, "slave_net_timeout=10");
+
+  if (use_openssl)
+  {
+    add_arg(&al, "--ssl-ca=%s", ca_cert);
+    add_arg(&al, "--ssl-cert=%s", server_cert);
+    add_arg(&al, "--ssl-key=%s", server_key);
+  }
 
   // slave master info
   if (slave_master_info[0] != NULL)
@@ -557,10 +609,11 @@ void start_slave()
 ******************************************************************************/
 void mysql_start()
 {
+  log_info("Starting the MySQL server(s): %u", ++restarts);
   start_master();
 
   start_slave();
-  
+
   // activate the test screen
   ActivateScreen(getscreenhandle());
 }
@@ -568,17 +621,17 @@ void mysql_start()
 /******************************************************************************
 
   stop_slave()
-  
+
   Stop the slave server.
 
 ******************************************************************************/
 void stop_slave()
 {
   int err;
-  
+
   // running?
   if (!slave_running) return;
-  
+
   // stop
   if ((err = stop_server(bin_dir, user, password, slave_port, slave_pid)) == 0)
   {
@@ -593,17 +646,17 @@ void stop_slave()
 /******************************************************************************
 
   stop_master()
-  
+
   Stop the master server.
 
 ******************************************************************************/
 void stop_master()
 {
   int err;
-  
+
   // running?
   if (!master_running) return;
-  
+
   if ((err = stop_server(bin_dir, user, password, master_port, master_pid)) == 0)
   {
     master_running = FALSE;
@@ -617,16 +670,17 @@ void stop_master()
 /******************************************************************************
 
   mysql_stop()
-  
+
   Stop the mysql servers.
 
 ******************************************************************************/
 void mysql_stop()
 {
+  log_info("Stopping the MySQL server(s)...");
   stop_master();
 
   stop_slave();
-  
+
   // activate the test screen
   ActivateScreen(getscreenhandle());
 }
@@ -634,13 +688,12 @@ void mysql_stop()
 /******************************************************************************
 
   mysql_restart()
-  
+
   Restart the mysql servers.
 
 ******************************************************************************/
 void mysql_restart()
 {
-  log_info("Restarting the MySQL server(s): %u", ++restarts);
 
   mysql_stop();
 
@@ -650,7 +703,7 @@ void mysql_restart()
 /******************************************************************************
 
   read_option()
-  
+
   Read the option file.
 
 ******************************************************************************/
@@ -660,10 +713,10 @@ int read_option(char *opt_file, char *opt)
   int result;
   char *p;
   char buf[PATH_MAX];
-  
+
   // copy current option
   strncpy(buf, opt, PATH_MAX);
-  
+
   // open options file
   fd = open(opt_file, O_RDONLY);
   
@@ -771,14 +824,19 @@ void run_test(char *test)
     if (stat(test_file, &info))
     {
       snprintf(test_file, PATH_MAX, "%s/%s%s", test_dir, test, TEST_SUFFIX);
+      if(access(test_file,0))
+      {
+        printf("Invalid test name %s, %s file not found\n",test,test_file);
+        return;
+      }
     }
-    
+
     snprintf(result_file, PATH_MAX, "%s/%s%s", result_dir, test, NW_RESULT_SUFFIX);
     if (stat(result_file, &info))
     {
       snprintf(result_file, PATH_MAX, "%s/%s%s", result_dir, test, RESULT_SUFFIX);
     }
-    
+
     // init scripts
     snprintf(master_init_script, PATH_MAX, "%s/%s-master.sh", test_dir, test);
     if (stat(master_init_script, &info))
@@ -826,7 +884,14 @@ void run_test(char *test)
     add_arg(&al, "-v");
     add_arg(&al, "-R");
     add_arg(&al, "%s", result_file);
-    
+
+    if (use_openssl)
+    {
+      add_arg(&al, "--ssl-ca=%s", ca_cert);
+      add_arg(&al, "--ssl-cert=%s", client_cert);
+      add_arg(&al, "--ssl-key=%s", client_key);
+    }
+
     // start timer
     NXGetTime(NX_SINCE_BOOT, NX_USECONDS, &start);
     
@@ -915,7 +980,7 @@ void vlog(char *format, va_list ap)
 void log(char *format, ...)
 {
   va_list ap;
-  
+
   va_start(ap, format);
 
   vlog(format, ap);
@@ -1009,8 +1074,10 @@ void die(char *msg)
 void setup(char *file)
 {
   char temp[PATH_MAX];
+  char mysqldump_load[PATH_MAX*2],mysqlbinlog_load[PATH_MAX*2];
+
   char *p;
-  
+
   // set the timezone for the timestamp test
   setenv("TZ", "GMT-3", TRUE);
 
@@ -1023,7 +1090,7 @@ void setup(char *file)
     *p = NULL;
     strcpy(base_dir, temp);
   }
-  
+
   // setup paths
   snprintf(bin_dir, PATH_MAX, "%s/bin", base_dir);
   snprintf(mysql_test_dir, PATH_MAX, "%s/mysql-test", base_dir);
@@ -1034,7 +1101,18 @@ void setup(char *file)
   snprintf(slave_dir, PATH_MAX, "%s/var/slave-data", mysql_test_dir);
   snprintf(lang_dir, PATH_MAX, "%s/share/english", base_dir);
   snprintf(char_dir, PATH_MAX, "%s/share/charsets", base_dir);
-  
+
+#ifdef HAVE_OPENSSL
+  use_openssl = TRUE;
+#endif // HAVE_OPENSSL
+
+  // OpenSSL paths
+  snprintf(ca_cert, PATH_MAX, "%s/SSL/cacert.pem", base_dir);
+  snprintf(server_cert, PATH_MAX, "%s/SSL/server-cert.pem", base_dir);
+  snprintf(server_key, PATH_MAX, "%s/SSL/server-key.pem", base_dir);
+  snprintf(client_cert, PATH_MAX, "%s/SSL/client-cert.pem", base_dir);
+  snprintf(client_key, PATH_MAX, "%s/SSL/client-key.pem", base_dir);
+
   // setup files
   snprintf(mysqld_file, PATH_MAX, "%s/mysqld", bin_dir);
   snprintf(mysqltest_file, PATH_MAX, "%s/mysqltest", bin_dir);
@@ -1048,14 +1126,19 @@ void setup(char *file)
   {
     log_errno("Unable to create log file.");
   }
-  
+
   // prepare skip test list
   while((p = strchr(skip_test, ',')) != NULL) *p = ' ';
   strcpy(temp, strlwr(skip_test));
   snprintf(skip_test, PATH_MAX, " %s ", temp);
-  
-  // enviornment
+
+  snprintf(mysqlbinlog_load,PATH_MAX*2,"%s/mysqlbinlog --no-defaults --local-load=%s",bin_dir,mysql_tmp_dir);
+  snprintf(mysqldump_load,PATH_MAX*2,"%s/mysqldump --no-defaults -uroot --port=%d",bin_dir,master_port);
+  // environment
   setenv("MYSQL_TEST_DIR", mysql_test_dir, 1);
+  setenv("MYSQL_DUMP", mysqldump_load, 1);
+  setenv("MYSQL_BINLOG", mysqlbinlog_load, 1);
+  setenv("MASTER_MYPORT", "9306", 1);
 }
 
 /******************************************************************************
@@ -1087,7 +1170,7 @@ int main(int argc, char **argv)
     int i;
 
     // single test
-    single_test = TRUE;    
+    single_test = TRUE;
 
     for (i = 1; i < argc; i++)
     {
@@ -1131,21 +1214,21 @@ int main(int argc, char **argv)
     
     closedir(dir);
   }
-  
-  log(DASH);
-  log("\n");
-  
-  log("Ending Tests...\n");
 
   // stop server
   mysql_stop();
 
+  log(DASH);
+  log("\n");
+
+  log("Ending Tests...\n");
+
   // report stats
   report_stats();
-    
+
   // close log
   if (log_fd) fclose(log_fd);
-  
+
   // keep results up
   pressanykey();
 

@@ -488,6 +488,11 @@ void close_temporary_tables(THD *thd)
   query_buf_size= 50;   // Enough for DROP ... TABLE
 
   for (table=thd->temporary_tables ; table ; table=table->next)
+    /*
+      We are going to add 4 ` around the db/table names, so 1 does not look
+      enough; indeed it is enough, because table->key_length is greater (by 8,
+      because of server_id and thread_id) than db||table.
+    */
     query_buf_size+= table->key_length+1;
 
   if ((query = alloc_root(&thd->mem_root, query_buf_size)))
@@ -504,8 +509,8 @@ void close_temporary_tables(THD *thd)
         Here we assume table_cache_key always starts
         with \0 terminated db name
       */
-      end = strxmov(end,"`",table->table_cache_key,"`",
-                    ".`",table->real_name,"`,", NullS);
+      end = strxmov(end,"`",table->table_cache_key,"`.`",
+                    table->real_name,"`,", NullS);
     }
     next=table->next;
     close_temporary(table);
@@ -808,8 +813,12 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     {
       if (table->key_length == key_length &&
 	  !memcmp(table->table_cache_key,key,key_length) &&
-	  !my_strcasecmp(system_charset_info,table->table_name,alias))
+	  !my_strcasecmp(system_charset_info, table->table_name, alias) &&
+	  table->query_id != thd->query_id)
+      {
+	table->query_id=thd->query_id;
 	goto reset;
+      }
     }
     my_printf_error(ER_TABLE_NOT_LOCKED,ER(ER_TABLE_NOT_LOCKED),MYF(0),alias);
     DBUG_RETURN(0);
@@ -1342,14 +1351,46 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       error=1;
     }
     else
-    {
       thd->clear_error();			// Clear error message
-    }
     pthread_mutex_lock(&LOCK_open);
     unlock_table_name(thd,&table_list);
 
     if (error)
       goto err;
+  }
+  /*
+    If we are here, there was no fatal error (but error may be still
+    unitialized).
+  */
+  if (unlikely(entry->file->implicit_emptied))
+  {
+    entry->file->implicit_emptied= 0;
+    if (mysql_bin_log.is_open())
+    {
+      char *query, *end;
+      uint query_buf_size= 20 + 2*NAME_LEN + 1;
+      if ((query= (char*)my_malloc(query_buf_size,MYF(MY_WME))))
+      {
+        end = strxmov(strmov(query, "DELETE FROM `"),
+                      db,"`.`",name,"`", NullS);
+        Query_log_event qinfo(thd, query, (ulong)(end-query), 0);
+        mysql_bin_log.write(&qinfo);
+        my_free(query, MYF(0));
+      }
+      else
+      {
+        /*
+          As replication is maybe going to be corrupted, we need to warn the
+          DBA on top of warning the client (which will automatically be done
+          because of MYF(MY_WME) in my_malloc() above).
+        */
+        sql_print_error("Error: when opening HEAP table, could not allocate \
+memory to write 'DELETE FROM `%s`.`%s`' to the binary log",db,name);
+        if (entry->file)
+          closefrm(entry);
+        goto err;
+      }
+    }
   }
   DBUG_RETURN(0);
 err:
@@ -2106,8 +2147,6 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   SYNOPSIS
     setup_tables()
     tables - tables list
-    reinit - true if called for table reinitialization before
-             subquery reexecuting
 
    RETURN
      0	ok;  In this case *map will includes the choosed index
@@ -2122,7 +2161,7 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
      table->map is not set and all Item_field will be regarded as const items.
 */
 
-bool setup_tables(TABLE_LIST *tables, my_bool reinit)
+bool setup_tables(TABLE_LIST *tables)
 {
   DBUG_ENTER("setup_tables");
   uint tablenr=0;
@@ -2149,13 +2188,6 @@ bool setup_tables(TABLE_LIST *tables, my_bool reinit)
       table->keys_in_use_for_query.subtract(map);
     }
     table->used_keys.intersect(table->keys_in_use_for_query);
-    if ((table_list->shared  || table->clear_query_id) && !reinit)
-    {
-      table->clear_query_id= 0;
-      /* Clear query_id that may have been set by previous select */
-      for (Field **ptr=table->field ; *ptr ; ptr++)
-	(*ptr)->query_id=0;
-    }
   }
   if (tablenr > MAX_TABLES)
   {

@@ -692,11 +692,6 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
     if (!wild || !wild[0] || 
         !wild_case_compare(system_charset_info, field->field_name,wild))
     {
-#ifdef NOT_USED
-      if (thd->col_access & TABLE_ACLS ||
-          ! check_grant_column(thd,table,field->field_name,
-                               (uint) strlen(field->field_name),1))
-#endif
       {
         byte *pos;
         uint flags=field->flags;
@@ -711,6 +706,12 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	if (verbose)
 	  protocol->store(field->has_charset() ? field->charset()->name : "NULL",
 			system_charset_info);
+        /*
+          Altough TIMESTAMP fields can't contain NULL as its value they
+          will accept NULL if you will try to insert such value and will
+          convert it to current TIMESTAMP. So YES here means that NULL 
+          is allowed for assignment but can't be returned.
+        */
         pos=(byte*) ((flags & NOT_NULL_FLAG) &&
                      field->type() != FIELD_TYPE_TIMESTAMP ?
                      "" : "YES");
@@ -720,7 +721,11 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
                      (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
         protocol->store((char*) pos, system_charset_info);
 
-        if (field->type() == FIELD_TYPE_TIMESTAMP ||
+        /*
+          We handle first TIMESTAMP column in special way because its
+          default value is ignored and current timestamp used instead.
+        */
+        if (table->timestamp_field == field ||
             field->unireg_check == Field::NEXT_NUMBER)
           null_default_value=1;
         if (!null_default_value && !field->is_null())
@@ -995,9 +1000,8 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
         protocol->store_null();
 
       /* Check if we have a key part that only uses part of the field */
-      if (!key_part->field ||
-          key_part->length !=
-          table->field[key_part->fieldnr-1]->key_length())
+      if (!(key_info->flags & HA_FULLTEXT) && (!key_part->field ||
+          key_part->length != table->field[key_part->fieldnr-1]->key_length()))
         protocol->store_tiny((longlong) key_part->length);
       else
         protocol->store_null();
@@ -1085,100 +1089,86 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   DBUG_RETURN(0);
 }
 
-static inline const char *require_quotes(const char *name, uint length)
-{
-  uint i, d, c;
-  for (i=0; i<length; i+=d)
-  {
-    c=((uchar *)name)[i];
-    d=my_mbcharlen(system_charset_info, c);
-    if (d==1 && !system_charset_info->ident_map[c])
-      return name+i;
-  }
-  return 0;
-}
-
 /*
-  Looking for char in multibyte string
+  Go through all character combinations and ensure that sql_lex.cc can
+  parse it as an identifer.
 
   SYNOPSIS
-    look_for_char()
-    name      string for looking at
-    length    length of name
-    q         '\'' or '\"' for looking for
+  require_quotes()
+  name			attribute name
+  name_length		length of name
 
-  RETURN VALUES
-    # pointer to found char in string
-    0 string doesn't contain required char
+  RETURN
+    #	Pointer to conflicting character
+    0	No conflicting character
 */
 
-static inline const char *look_for_char(const char *name, 
-					uint length, char q)
+static const char *require_quotes(const char *name, uint name_length)
 {
-  const char *cur= name;
-  const char *end= cur+length;
-  uint symbol_length;
-  for (; cur<end; cur+= symbol_length)
+  uint length;
+  const char *end= name + name_length;
+
+  for ( ; name < end ; name++)
   {
-    char c= *cur;
-    symbol_length= my_mbcharlen(system_charset_info, c);
-    if (symbol_length==1 && c==q)
-      return cur;
+    uchar chr= (uchar) *name;
+    length= my_mbcharlen(system_charset_info, chr);
+    if (length == 1 && !system_charset_info->ident_map[chr])
+      return name;
   }
   return 0;
 }
+
+
+static void append_quoted_simple_identifier(String *packet, char quote_char,
+					    const char *name, uint length)
+{
+  packet->append(&quote_char, 1, system_charset_info);
+  packet->append(name, length, system_charset_info);
+  packet->append(&quote_char, 1, system_charset_info);
+}  
+
 
 void
 append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
-  char qtype;
+  const char *name_end;
+  char quote_char;
   uint part_len;
-  const char *qplace;
+
   if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
-    qtype= '\"';
+    quote_char= '\"';
   else
-    qtype= '`';
+    quote_char= '`';
 
   if (is_keyword(name,length))
   {
-    packet->append(&qtype, 1, system_charset_info);
-    packet->append(name, length, system_charset_info);
-    packet->append(&qtype, 1, system_charset_info);
+    append_quoted_simple_identifier(packet, quote_char, name, length);
+    return;
   }
-  else
+
+  if (!require_quotes(name, length))
   {
-    if (!(qplace= require_quotes(name, length)))
-    {
-      if (!(thd->options & OPTION_QUOTE_SHOW_CREATE))
-	packet->append(name, length, system_charset_info);
-      else
-      {
-	packet->append(&qtype, 1, system_charset_info);
-	packet->append(name, length, system_charset_info);
-	packet->append(&qtype, 1, system_charset_info);
-      }
-    }
-    else
-    {
-      packet->shrink(packet->length()+length+2);
-      packet->append(&qtype, 1, system_charset_info);
-      if (*qplace != qtype)
-	qplace= look_for_char(qplace+1,length-(qplace-name)-1,qtype);
-      while (qplace)
-      {
-	if ((part_len= qplace-name))
-	{
-	  packet->append(name, part_len, system_charset_info);
-	  length-= part_len;
-	}
-	packet->append(qplace, 1, system_charset_info);
-	name= qplace;
-	qplace= look_for_char(name+1,length-1,qtype);
-      }
+    if (!(thd->options & OPTION_QUOTE_SHOW_CREATE))
       packet->append(name, length, system_charset_info);
-      packet->append(&qtype, 1, system_charset_info);
-    }
+    else
+      append_quoted_simple_identifier(packet, quote_char, name, length);
+    return;
   }
+
+  /* The identifier must be quoted as it includes a quote character */
+
+  packet->reserve(length*2 + 2);
+  packet->append(&quote_char, 1, system_charset_info);
+
+  for (name_end= name+length ; name < name_end ; name+= length)
+  {
+    char chr= *name;
+    length= my_mbcharlen(system_charset_info, chr);
+    if (length == 1 && chr == quote_char)
+      packet->append(&quote_char, 1, system_charset_info);
+    packet->append(name, length, packet->charset());
+  }
+  packet->append(&quote_char, 1, system_charset_info);
 }
 
 
@@ -1206,7 +1196,7 @@ static int
 store_create_info(THD *thd, TABLE *table, String *packet)
 {
   List<Item> field_list;
-  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end;
+  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end, *alias;
   String type(tmp, sizeof(tmp),&my_charset_bin);
   Field **ptr,*field;
   uint primary_key;
@@ -1232,7 +1222,9 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append("CREATE TEMPORARY TABLE ", 23);
   else
     packet->append("CREATE TABLE ", 13);
-  append_identifier(thd,packet, table->real_name, strlen(table->real_name));
+  alias= (lower_case_table_names == 2 ? table->table_name :
+	  table->real_name);
+  append_identifier(thd, packet, alias, strlen(alias));
   packet->append(" (\n", 3);
 
   for (ptr=table->field ; (field= *ptr); ptr++)
@@ -1280,7 +1272,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       packet->append(" NOT NULL", 9);
 
     has_default= (field->type() != FIELD_TYPE_BLOB &&
-		  field->type() != FIELD_TYPE_TIMESTAMP &&
+		  table->timestamp_field != field &&
 		  field->unireg_check != Field::NEXT_NUMBER);
 
     if (has_default)

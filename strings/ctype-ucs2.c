@@ -985,12 +985,14 @@ cnv:
   return (int) (dst-db);
 }
 
+
 static
 uint my_numchars_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 		      const char *b, const char *e)
 {
   return (e-b)/2;
 }
+
 
 static
 uint my_charpos_ucs2(CHARSET_INFO *cs __attribute__((unused)),
@@ -1001,16 +1003,18 @@ uint my_charpos_ucs2(CHARSET_INFO *cs __attribute__((unused)),
   return pos*2;
 }
 
+
 static
-uint my_wellformedlen_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-		     const char *b,
-		     const char *e,
-		     uint nchars)
+uint my_well_formed_len_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			     const char *b,
+			     const char *e,
+			     uint nchars)
 {
   uint nbytes= (e-b) & ~ (uint)1;
   nchars*= 2;
-  return nbytes < nchars ? nbytes : nchars;
+  return min(nbytes, nchars);
 }
+
 
 static
 void my_fill_ucs2(CHARSET_INFO *cs __attribute__((unused)),
@@ -1018,6 +1022,7 @@ void my_fill_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 {
   for ( ; l >= 2; s[0]= 0, s[1]= fill, s+=2, l-=2);
 }
+
 
 static
 uint my_lengthsp_ucs2(CHARSET_INFO *cs __attribute__((unused)),
@@ -1028,6 +1033,7 @@ uint my_lengthsp_ucs2(CHARSET_INFO *cs __attribute__((unused)),
     end-=2;
   return (uint) (end-ptr);
 }
+
 
 /*
 ** Compare string against string with wildcard
@@ -1043,7 +1049,7 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
 		    int escape, int w_one, int w_many,
 		    MY_UNICASE_INFO **weights)
 {
-  int result= -1;				/* Not found, using wildcards */
+  int result= -1;			/* Not found, using wildcards */
   my_wc_t s_wc, w_wc;
   int scan, plane;
   
@@ -1052,21 +1058,23 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
     
     while (1)
     {
-      scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
+      scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr,
+			(const uchar*)wildend);
       if (scan <= 0)
         return 1;
       
       if (w_wc ==  (my_wc_t)escape)
       {
         wildstr+= scan;
-        scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
+        scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr,
+			  (const uchar*)wildend);
         if (scan <= 0)
           return 1;
       }
       
       if (w_wc == (my_wc_t)w_many)
       {
-        result= 1;				/* Found an anchor char     */
+        result= 1;				/* Found an anchor char */
         break;
       }
       
@@ -1078,7 +1086,7 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
       
       if (w_wc == (my_wc_t)w_one)
       {
-        result= 1;				/* Found an anchor char     */
+        result= 1;				/* Found an anchor char */
       }
       else
       {
@@ -1103,7 +1111,8 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
       /* Remove any '%' and '_' from the wild search string */
       for ( ; wildstr != wildend ; )
       {
-        scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
+        scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr,
+			  (const uchar*)wildend);
         if (scan <= 0)
           return 1;
         
@@ -1116,7 +1125,8 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
 	if (w_wc == (my_wc_t)w_one)
 	{
 	  wildstr+= scan;
-	  scan= my_ucs2_uni(cs, &s_wc, (const uchar*)str, (const uchar*)str_end);
+	  scan= my_ucs2_uni(cs, &s_wc, (const uchar*)str,
+			    (const uchar*)str_end);
           if (scan <=0)
             return 1;
           str+= scan;
@@ -1131,14 +1141,16 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
       if (str == str_end)
 	return -1;
       
-      scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
+      scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr,
+			(const uchar*)wildend);
       if (scan <= 0)
         return 1;
       
       if (w_wc ==  (my_wc_t)escape)
       {
         wildstr+= scan;
-        scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
+        scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr,
+			  (const uchar*)wildend);
         if (scan <= 0)
           return 1;
       }
@@ -1148,7 +1160,8 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
         /* Skip until the first character from wildstr is found */
         while (str != str_end)
         {
-          scan= my_ucs2_uni(cs,&s_wc, (const uchar*)str, (const uchar*)str_end);
+          scan= my_ucs2_uni(cs,&s_wc, (const uchar*)str,
+			    (const uchar*)str_end);
           if (scan <= 0)
             return 1;
           if (weights)
@@ -1189,6 +1202,7 @@ int my_wildcmp_ucs2_ci(CHARSET_INFO *cs,
   return my_wildcmp_ucs2(cs,str,str_end,wildstr,wildend,
                          escape,w_one,w_many,uni_plane); 
 }
+
 
 static
 int my_wildcmp_ucs2_bin(CHARSET_INFO *cs,
@@ -1232,6 +1246,7 @@ int my_strnncoll_ucs2_bin(CHARSET_INFO *cs,
   return ( (se-s) - (te-t) );
 }
 
+
 static
 int my_strcasecmp_ucs2_bin(CHARSET_INFO *cs, const char *s, const char *t)
 {
@@ -1240,6 +1255,7 @@ int my_strcasecmp_ucs2_bin(CHARSET_INFO *cs, const char *s, const char *t)
   uint len = (s_len > t_len) ? s_len : t_len;
   return  my_strncasecmp_ucs2(cs, s, t, len);
 }
+
 
 static
 int my_strnxfrm_ucs2_bin(CHARSET_INFO *cs __attribute__((unused)),
@@ -1250,6 +1266,7 @@ int my_strnxfrm_ucs2_bin(CHARSET_INFO *cs __attribute__((unused)),
     memcpy(dst,src,srclen= min(dstlen,srclen));
   return srclen;
 }
+
 
 static
 void my_hash_sort_ucs2_bin(CHARSET_INFO *cs __attribute__((unused)),
@@ -1280,6 +1297,7 @@ static MY_COLLATION_HANDLER my_collation_ucs2_general_ci_handler =
     my_hash_sort_ucs2
 };
 
+
 static MY_COLLATION_HANDLER my_collation_ucs2_bin_handler =
 {
     my_strnncoll_ucs2_bin,
@@ -1292,13 +1310,14 @@ static MY_COLLATION_HANDLER my_collation_ucs2_bin_handler =
     my_hash_sort_ucs2_bin
 };
 
+
 static MY_CHARSET_HANDLER my_charset_ucs2_handler=
 {
     my_ismbchar_ucs2,	/* ismbchar     */
     my_mbcharlen_ucs2,	/* mbcharlen    */
     my_numchars_ucs2,
     my_charpos_ucs2,
-    my_wellformedlen_ucs2,
+    my_well_formed_len_ucs2,
     my_lengthsp_ucs2,
     my_ucs2_uni,	/* mb_wc        */
     my_uni_ucs2,	/* wc_mb        */
@@ -1317,7 +1336,6 @@ static MY_CHARSET_HANDLER my_charset_ucs2_handler=
     my_strntod_ucs2,
     my_scan_8bit
 };
-
 
 
 CHARSET_INFO my_charset_ucs2_general_ci=

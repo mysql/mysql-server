@@ -69,4 +69,4 @@ ERROR HY000: Wrong parameter or combination of parameters for START SLAVE UNTIL
 start slave sql_thread;
 start slave until master_log_file='master-bin.000001', master_log_pos=561;
 Warnings:
-Note	1253	Slave is already running
+Note	1254	Slave is already running

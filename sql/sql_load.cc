@@ -94,7 +94,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #endif
   char *db = table_list->db;			// This is never null
   /* If no current database, use database where table is located */
-  char *tdb= thd->db ? thd->db : db;
+  char *tdb= thd->db ? thd->db : db;		// Result is never null
   bool transactional_table, log_delayed;
   ulong skip_lines= ex->skip_lines;
   DBUG_ENTER("mysql_load");
@@ -123,7 +123,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   else
   {						// Part field list
     thd->dupp_field=0;
-    if (setup_tables(table_list, 0) ||
+    if (setup_tables(table_list) ||
 	setup_fields(thd, 0, table_list, fields, 1, 0, 0))
       DBUG_RETURN(-1);
     if (thd->dupp_field)
@@ -237,7 +237,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
 
 #ifndef EMBEDDED_LIBRARY
-  if (!opt_old_rpl_compat && mysql_bin_log.is_open())
+  if (mysql_bin_log.is_open())
   {
     lf_info.thd = thd;
     lf_info.ex = ex;
@@ -313,7 +313,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (transactional_table)
       ha_autocommit_or_rollback(thd,error);
 #ifndef EMBEDDED_LIBRARY
-    if (!opt_old_rpl_compat && mysql_bin_log.is_open())
+    if (mysql_bin_log.is_open())
     {
       /*
         Make sure last block (the one which caused the error) gets logged.
@@ -360,28 +360,16 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
   if (mysql_bin_log.is_open())
   {
-    if (opt_old_rpl_compat)
+    /*
+      As already explained above, we need to call end_io_cache() or the last
+      block will be logged only after Execute_load_log_event (which is wrong),
+      when read_info is destroyed.
+    */
+    read_info.end_io_cache(); 
+    if (lf_info.wrote_create_file)
     {
-      if (!read_file_from_client)
-      {
-	Load_log_event qinfo(thd, ex, db, table->table_name, fields, 
-			     handle_duplicates, log_delayed);
-	mysql_bin_log.write(&qinfo);
-      }
-    }
-    else
-    {
-      /*
-        As already explained above, we need to call end_io_cache() or the last
-        block will be logged only after Execute_load_log_event (which is wrong),
-        when read_info is destroyed.
-      */
-      read_info.end_io_cache(); 
-      if (lf_info.wrote_create_file)
-      {
-        Execute_load_log_event e(thd, db, log_delayed);
-        mysql_bin_log.write(&e);
-      }
+      Execute_load_log_event e(thd, db, log_delayed);
+      mysql_bin_log.write(&e);
     }
   }
 #endif /*!EMBEDDED_LIBRARY*/
@@ -698,7 +686,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
       if (get_it_from_net)
 	cache.read_function = _my_b_net_read;
 
-      if (!opt_old_rpl_compat && mysql_bin_log.is_open())
+      if (mysql_bin_log.is_open())
 	cache.pre_read = cache.pre_close =
 	  (IO_CACHE_CALLBACK) log_loaded_block;
 #endif

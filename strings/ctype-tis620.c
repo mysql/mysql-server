@@ -15,6 +15,11 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
+   Copyright (C) 2003  by Sathit Jittanupat
+          <jsat66@hotmail.com,jsat66@yahoo.com>
+	* solving bug crash with long text field string
+	* sorting with different number of space or sign char. within string
+
    Copyright (C) 2001  by Korakot Chaovavanich <korakot@iname.com> and
 			  Apisilp Trunganont <apisilp@pantip.inet.co.th>
    Copyright (C) 1998, 1999 by Pruet Boonma <pruet@eng.cmu.ac.th>
@@ -448,6 +453,7 @@ uchar NEAR sort_order_tis620[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
+
 /*
   Convert thai string to "Standard C String Function" sortable string
 
@@ -455,94 +461,61 @@ uchar NEAR sort_order_tis620[]=
     thai2sortable()
     tstr		String to convert. Does not have to end with \0
     len			Length of tstr
-    out_length		Will contain length of sortable string
-
-  NOTE
-   We use only 3 levels (neglect capitalization).
-
-  OPTIMIZE SUGGESTION
-   Should be faster to alloc buffer in calling function.
-
-   RETURN
-     Pointer to sortable string.  Should be freed with 'free'
 */
 
-static uchar *thai2sortable(const uchar *tstr, uint len, uint *out_length)
+static uint thai2sortable(uchar *tstr, uint len)
 {
-  const uchar	*p= tstr;
-  uchar		*outBuf;
-  uchar		*pRight1, *pRight2, *pRight3;
-  uchar		*pLeft2, *pLeft3;
-  uint		bufSize;
-  uint  	RightSize;
+  uchar	*p;
+  int	tlen;
+  uchar	l2bias;
 
-  bufSize= (uint) (len + 1) * BUFFER_MULTIPLY;
-  RightSize= sizeof(uchar) * (len + 1);
-  if (!(outBuf= pRight1= 
-       (uchar *)malloc(sizeof(uchar) * bufSize + RightSize*2)))
+  tlen= len;
+  l2bias= 	256 - 8;
+  for (p= tstr; tlen > 0; p++, tlen--)
   {
-    /*
-      Can't allocate buffer; Use original string for sorting
-      This is not perfect, but better than nothing...
-    */
-    *out_length= len;
-    return (uchar*) tstr;
-  }
-  pLeft2= pRight2= pRight1 + sizeof(uchar) * bufSize;
-  pLeft3= pRight3= pRight2 + RightSize;
+    uchar c= *p;
 
-  while ((int) --len > 0)
-  {
-    int *t_ctype0= t_ctype[p[0]];
-    if (isldvowel(*p) && isconsnt(p[1]))
+    if (isthai(c))
     {
-      int *t_ctype1= t_ctype[p[1]];
-      *pRight1++= t_ctype1[0];
-      *pRight2++= t_ctype1[1];
-      *pRight3++= t_ctype1[2];
-      *pRight1++= t_ctype0[0];
-      *pRight2++= t_ctype0[1];
-      *pRight3++= t_ctype0[2];
-      p+= 2;
-      len--;
+      int *t_ctype0= t_ctype[c];
+		    
+      if (isconsnt(c))
+	l2bias	-= 8;
+      if (isldvowel(c) && tlen != 1 && isconsnt(p[1]))
+      {
+	/* simply swap between leading-vowel and consonant */
+	*p= p[1];
+	p[1]= c;
+	tlen--;
+	p++; 
+	continue;
+      }
+
+      /* if found level 2 char (L2_GARAN,L2_TONE*,L2_TYKHU) move to last */
+      if (t_ctype0[1] >= L2_GARAN)
+      {
+	/*
+	  l2bias use to control position weight of l2char
+	  example (*=l2char) XX*X must come before X*XX
+	*/
+	memcpy_overlap(p, p+1, tlen-1);
+	tstr[len-1]= l2bias + t_ctype0[1]- L2_GARAN +1;
+	p--;
+	continue;
+      }
     }
     else
     {
-      *pRight1= t_ctype0[0];
-      if(*pRight1 != IGNORE)
-	pRight1++;
-      *pRight2= t_ctype0[1];
-      if (*pRight2 != IGNORE)
-	pRight2++;
-      *pRight3= t_ctype0[2];
-      if(*pRight3 != IGNORE)
-	pRight3++;
-      p++;
+      l2bias-= 8;
+      *p= to_lower_tis620[c]; 
     }
   }
-  if (!len)				/* If last was not double byte */
-  {
-    int *t_ctype0= t_ctype[p[0]];
-    if ((*pRight1= t_ctype0[0] != IGNORE))
-      pRight1++;
-    if ((*pRight2= t_ctype0[1]) != IGNORE)
-      pRight2++;
-    if ((*pRight3= t_ctype0[2]) != IGNORE)
-      pRight3++;
-  }
-  *pRight1++= L2_BLANK;
-  *pRight2++= L3_BLANK;
-  *pRight3++= '\0';
-  memcpy(pRight1, pLeft2, pRight2 - pLeft2);
-  pRight1+= pRight2 - pLeft2;
-  memcpy(pRight1, pLeft3, pRight3 - pLeft3);
-  *out_length= (uint) ((pRight1+ (uint) (pRight3 - pLeft3)) - outBuf);
-  return outBuf;
+  return len;
 }
 
 
 /*
-  strncoll() replacement, compare 2 string, both are conveted to sortable
+  strncoll() replacement, compare 2 string, both are converted to sortable
   string
 
   Arg: 2 Strings and it compare length
@@ -553,21 +526,27 @@ int my_strnncoll_tis620(CHARSET_INFO *cs __attribute__((unused)),
                         const uchar * s1, uint len1, 
                         const uchar * s2, uint len2)
 {
+  uchar	buf[80] ;
   uchar *tc1, *tc2;
-  uint tc1_length, tc2_length, length;
-  int res;
+  int i;
 
-  tc1= thai2sortable(s1, len1, &tc1_length);
-  tc2= thai2sortable(s2, len2, &tc2_length);
-  length= min(tc1_length, tc2_length);
-
-  res= memcmp((char*)tc1, (char*) tc2, length);
-  if (tc1 != s1)
+  /* Cut strings at end \0 */
+  len1= (int) strnlen((char*) s1,len1);
+  len2= (int) strnlen((char*) s2,len2);
+  tc1= buf;
+  if ((len1 + len2 +2) > (int) sizeof(buf))
+    tc1= (uchar*) malloc(len1+len2);
+  tc2= tc1 + len1+1;
+  memcpy((char*) tc1, (char*) s1, len1);
+  tc1[len1]= 0;		/* if length(s1)> len1, need to put 'end of string' */
+  memcpy((char *)tc2, (char *)s2, len2);
+  tc2[len2]= 0;		/* put end of string */
+  thai2sortable(tc1, len1);
+  thai2sortable(tc2, len2);
+  i= strcmp((char*)tc1, (char*)tc2);
+  if (tc1 != buf)
     free(tc1);
-  if (tc2 != s2)
-    free(tc2);
-  return (res || tc1_length == tc2_length ? res :
-	  (tc1_length < tc2_length ? -1 : 1));
+  return i;
 }
 
 
@@ -576,34 +555,33 @@ int my_strnncollsp_tis620(CHARSET_INFO * cs,
 			  const uchar *s, uint slen, 
 			  const uchar *t, uint tlen)
 {
-  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
-  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  for ( ; slen && s[slen-1] == ' ' ; slen--);
+  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
   return my_strnncoll_tis620(cs,s,slen,t,tlen);
 }
 
 
-/* strnxfrm replacment, convert Thai string to sortable string
-   Arg: Destination buffer, source string, dest length and source length
-   Ret: Conveted string size
+/*
+  strnxfrm replacment, convert Thai string to sortable string
+
+  Arg: Destination buffer, source string, dest length and source length
+  Ret: Conveted string size
 */
+
 int my_strnxfrm_tis620(CHARSET_INFO *cs __attribute__((unused)),
                        uchar * dest, uint len,
                        const uchar * src, uint srclen)
 {
-  uint out_length;
-  uchar *tmp= thai2sortable(src, srclen, &out_length);
-
-  set_if_smaller(out_length, len);
-  memcpy(dest, tmp, out_length);
-  if (tmp != src)
-    free(tmp);
-  return (int) out_length;
+  len= (uint) (strmake((char*) dest, (char*) src, min(len, srclen)) -
+	       (char*) dest);
+  return (int) thai2sortable(dest, len);
 }
 
 
-/* strcoll replacment, compare 2 strings
-   Arg: 2 strings
-   Ret: memcmp result
+/*
+  strcoll replacment, compare 2 strings
+  Arg: 2 strings
+  Ret: strcmp result
 */
 
 int my_strcoll_tis620(const uchar * s1, const uchar * s2)
@@ -615,6 +593,10 @@ int my_strcoll_tis620(const uchar * s1, const uchar * s2)
 
 /*
   Convert SQL LIKE string to C string
+
+  Arg: String, its length, escape character, resource length,
+       minimal string and maximum string
+  Ret: Always 0
 
   IMPLEMENTATION
     We just copy this function from opt_range.cc. No need to convert to
@@ -629,7 +611,7 @@ int my_strcoll_tis620(const uchar * s1, const uchar * s2)
 
 my_bool my_like_range_tis620(CHARSET_INFO *cs __attribute__((unused)),
 			     const char *ptr, uint ptr_length,
-			     int escape, int w_one, int w_many,
+			     pbool escape, pbool w_one, pbool w_many,
 			     uint res_length, char *min_str, char *max_str,
 			     uint *min_length, uint *max_length)
 {
@@ -656,7 +638,7 @@ my_bool my_like_range_tis620(CHARSET_INFO *cs __attribute__((unused)),
       *min_length= (uint) (min_str - min_org);
       *max_length=res_length;
       do {
-	*min_str++ = ' ';			/* For key compression */
+	*min_str++ = ' ';		/* Because of key compression */
 	*max_str++ = max_sort_chr;
       } while (min_str != min_end);
       return 0;
@@ -666,40 +648,10 @@ my_bool my_like_range_tis620(CHARSET_INFO *cs __attribute__((unused)),
   *min_length= *max_length = (uint) (min_str - min_org);
 
   while (min_str != min_end)
-    *min_str++ = *max_str++ = ' ';		/* For key compression */
+    *min_str++ = *max_str++ = ' ';	/* Because of key compression */
   return 0;
 }
 
-#ifdef NOT_NEEDED
-
-/*
-  Thai normalization for input sub system
-  Arg: Buffer, 's length, String, 'length
-  Ret: Void
-*/
-
-void ThNormalize(uchar* ptr, uint field_length, const uchar* from, uint length)
-{
-  const uchar* fr= from;
-  uchar* p= ptr;
-
-  if (length > field_length)
-    length= field_length;
-
-  while (length--)
-    if ((istone(*fr) || isdiacrt1(*fr)) &&
-       (islwrvowel(fr[1]) || isuprvowel(fr[1])))
-    {
-      *p= fr[1];
-      p[1]= *fr;
-      fr+= 2;
-      p+= 2;
-      length--;
-    }
-    else
-      *p++ = *fr++;
-}
-#endif /* NOT_NEEDED */
 
 static unsigned short cs_to_uni[256]={
 0x0000,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,
@@ -911,7 +863,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
     my_like_range_tis620,
     my_wildcmp_8bit,	/* wildcmp   */
     my_strcasecmp_8bit,
-    NULL,
+    my_instr_simple,				/* QQ: To be fixed */
     my_hash_sort_simple,
 };
 
@@ -921,7 +873,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_mbcharlen_8bit,	/* mbcharlen */
     my_numchars_8bit,
     my_charpos_8bit,
-    my_wellformedlen_8bit,
+    my_well_formed_len_8bit,
     my_lengthsp_8bit,
     my_mb_wc_tis620,	/* mb_wc     */
     my_wc_mb_tis620,	/* wc_mb     */

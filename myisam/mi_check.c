@@ -947,7 +947,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	  info->checksum=mi_checksum(info,record);
 	  if (param->testflag & (T_EXTEND | T_MEDIUM | T_VERBOSE))
 	  {
-	    if (_mi_rec_check(info,record, info->rec_buff))
+	    if (_mi_rec_check(info,record, info->rec_buff,block_info.rec_len))
 	    {
 	      mi_check_print_error(param,"Found wrong packed record at %s",
 			  llstr(start_recpos,llbuff));
@@ -2389,6 +2389,11 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 
     sort_param[i].record= (((char *)(sort_param+share->base.keys))+
 			   (share->base.pack_reclength * i));
+    if (!mi_alloc_rec_buff(info, -1, &sort_param[i].rec_buff))
+    {
+      mi_check_print_error(param,"Not enough memory!");
+      goto err;
+    }
 
     sort_param[i].key_length=share->rec_reflength;
     for (keyseg=sort_param[i].seg; keyseg->type != HA_KEYTYPE_END;
@@ -2966,7 +2971,8 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	  info->checksum=mi_checksum(info,sort_param->record);
 	if ((param->testflag & (T_EXTEND | T_REP)) || searching)
 	{
-	  if (_mi_rec_check(info, sort_param->record, sort_param->rec_buff))
+	  if (_mi_rec_check(info, sort_param->record, sort_param->rec_buff,
+                            sort_param->find_length))
 	  {
 	    mi_check_print_info(param,"Found wrong packed record at %s",
 				llstr(sort_param->start_recpos,llbuff));

@@ -110,14 +110,14 @@ show grants for drop_user@localhost;
 revoke all privileges, grant option from drop_user@localhost;
 show grants for drop_user@localhost;
 drop user drop_user@localhost;
---error 1268
+--error 1269
 revoke all privileges, grant option from drop_user@localhost;
 
 grant select(a) on test.t1 to drop_user1@localhost;
 grant select on test.t1 to drop_user2@localhost;
 grant select on test.* to drop_user3@localhost;
 grant select on *.* to drop_user4@localhost;
---error 1267
+--error 1268
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
 revoke all privileges, grant option from drop_user1@localhost, drop_user2@localhost,

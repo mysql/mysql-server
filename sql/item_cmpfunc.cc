@@ -293,6 +293,17 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
       my_coll_agg_error((*a)->collation, (*b)->collation, owner->func_name());
       return 1;
     }
+    if (my_binary_compare(cmp_collation.collation))
+    {
+      /*
+	We are using binary collation, change to compare byte by byte,
+	without removing end space
+      */
+      if (func == &Arg_comparator::compare_string)
+	func= &Arg_comparator::compare_binary_string;
+      else if (func == &Arg_comparator::compare_e_string)
+	func= &Arg_comparator::compare_e_binary_string;
+    }
   }
   return 0;
 }
@@ -313,6 +324,39 @@ int Arg_comparator::compare_string()
   return -1;
 }
 
+
+/*
+  Compare strings byte by byte. End spaces are also compared.
+
+  RETURN
+   < 0	*a < *b
+   0	*b == *b
+   > 0	*a > *b
+*/
+
+int Arg_comparator::compare_binary_string()
+{
+  String *res1,*res2;
+  if ((res1= (*a)->val_str(&owner->tmp_value1)))
+  {
+    if ((res2= (*b)->val_str(&owner->tmp_value2)))
+    {
+      owner->null_value= 0;
+      uint res1_length= res1->length();
+      uint res2_length= res2->length();
+      int cmp= memcmp(res1->ptr(), res2->ptr(), min(res1_length,res2_length));
+      return cmp ? cmp : (int) (res1_length - res2_length);
+    }
+  }
+  owner->null_value= 1;
+  return -1;
+}
+
+
+/*
+  Compare strings, but take into account that NULL == NULL
+*/
+
 int Arg_comparator::compare_e_string()
 {
   String *res1,*res2;
@@ -321,6 +365,17 @@ int Arg_comparator::compare_e_string()
   if (!res1 || !res2)
     return test(res1 == res2);
   return test(sortcmp(res1, res2, cmp_collation.collation) == 0);
+}
+
+
+int Arg_comparator::compare_e_binary_string()
+{
+  String *res1,*res2;
+  res1= (*a)->val_str(&owner->tmp_value1);
+  res2= (*b)->val_str(&owner->tmp_value2);
+  if (!res1 || !res2)
+    return test(res1 == res2);
+  return test(stringcmp(res1, res2) == 0);
 }
 
 
@@ -2132,7 +2187,7 @@ longlong Item_func_regex::val_int()
       null_value=1;
       return 0;
     }
-    if (!regex_compiled || sortcmp(res2,&prev_regexp,&my_charset_bin))
+    if (!regex_compiled || stringcmp(res2,&prev_regexp))
     {
       prev_regexp.copy(*res2);
       if (regex_compiled)

@@ -1840,8 +1840,8 @@ int my_strnncollsp_utf8(CHARSET_INFO * cs,
 			const uchar *s, uint slen, 
 			const uchar *t, uint tlen)
 {
-  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
-  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  for ( ; slen && s[slen-1] == ' ' ; slen--);
+  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
   return my_strnncoll_utf8(cs,s,slen,t,tlen);
 }
 
@@ -1969,7 +1969,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_mbcharlen_utf8,
     my_numchars_mb,
     my_charpos_mb,
-    my_wellformedlen_mb,
+    my_well_formed_len_mb,
     my_lengthsp_8bit,
     my_utf8_uni,
     my_uni_utf8,

@@ -111,7 +111,7 @@ typedef struct my_collation_handler_st
 		      uchar *, uint, const uchar *, uint);
   my_bool (*like_range)(struct charset_info_st *,
 			const char *s, uint s_length,
-			int w_prefix, int w_one, int w_many, 
+			pchar w_prefix, pchar w_one, pchar w_many, 
 			uint res_length,
 			char *min_str, char *max_str,
 			uint *min_len, uint *max_len);
@@ -144,7 +144,7 @@ typedef struct my_charset_handler_st
   int     (*mbcharlen)(struct charset_info_st *, uint);
   uint    (*numchars)(struct charset_info_st *, const char *b, const char *e);
   uint    (*charpos)(struct charset_info_st *, const char *b, const char *e, uint pos);
-  uint    (*wellformedlen)(struct charset_info_st *,
+  uint    (*well_formed_len)(struct charset_info_st *,
   			   const char *b,const char *e, uint nchars);
   uint    (*lengthsp)(struct charset_info_st *, const char *ptr, uint length);
   
@@ -300,7 +300,7 @@ void my_fill_8bit(CHARSET_INFO *cs, char* to, uint l, int fill);
 
 my_bool  my_like_range_simple(CHARSET_INFO *cs,
 			      const char *ptr, uint ptr_length,
-			      int escape, int w_one, int w_many,
+			      pbool escape, pbool w_one, pbool w_many,
 			      uint res_length,
 			      char *min_str, char *max_str,
 			      uint *min_length, uint *max_length);
@@ -313,7 +313,7 @@ int my_wildcmp_8bit(CHARSET_INFO *,
 
 uint my_numchars_8bit(CHARSET_INFO *, const char *b, const char *e);
 uint my_charpos_8bit(CHARSET_INFO *, const char *b, const char *e, uint pos);
-uint my_wellformedlen_8bit(CHARSET_INFO *, const char *b, const char *e, uint pos);
+uint my_well_formed_len_8bit(CHARSET_INFO *, const char *b, const char *e, uint pos);
 int my_mbcharlen_8bit(CHARSET_INFO *, uint c);
 
 
@@ -330,7 +330,7 @@ int my_wildcmp_mb(CHARSET_INFO *,
 		  int escape, int w_one, int w_many);
 uint my_numchars_mb(CHARSET_INFO *, const char *b, const char *e);
 uint my_charpos_mb(CHARSET_INFO *, const char *b, const char *e, uint pos);
-uint my_wellformedlen_mb(CHARSET_INFO *, const char *b, const char *e, uint pos);
+uint my_well_formed_len_mb(CHARSET_INFO *, const char *b, const char *e, uint pos);
 uint my_instr_mb(struct charset_info_st *,
                  const char *b, uint b_length,
                  const char *s, uint s_length,
@@ -381,6 +381,7 @@ extern my_bool my_parse_charset_xml(const char *bug, uint len,
 #define my_isvar(s,c)                 (my_isalnum(s,c) || (c) == '_')
 #define my_isvar_start(s,c)           (my_isalpha(s,c) || (c) == '_')
 
+#define my_binary_compare(s)	      ((s)->state  & MY_CS_BINSORT)
 #define use_strnxfrm(s)               ((s)->state  & MY_CS_STRNXFRM)
 #define my_strnxfrm(s, a, b, c, d)    ((s)->coll->strnxfrm((s), (a), (b), (c), (d)))
 #define my_strnncoll(s, a, b, c, d)   ((s)->coll->strnncoll((s), (a), (b), (c), (d)))

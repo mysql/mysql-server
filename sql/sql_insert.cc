@@ -84,7 +84,7 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
     table_list.grant=table->grant;
 
     thd->dupp_field=0;
-    if (setup_tables(&table_list, 0) ||
+    if (setup_tables(&table_list) ||
 	setup_fields(thd, 0, &table_list,fields,1,0,0))
       return -1;
     if (thd->dupp_field)
@@ -204,7 +204,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   }
 
   if (check_insert_fields(thd,table,fields,*values,1) ||
-      setup_tables(insert_table_list, 0) ||
+      setup_tables(insert_table_list) ||
       setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0) ||
       (duplic == DUP_UPDATE &&
        (setup_fields(thd, 0, insert_table_list, update_fields, 0, 0, 0) ||
@@ -534,7 +534,14 @@ int write_record(TABLE *table,COPY_INFO *info)
       }
       else /* DUP_REPLACE */
       {
-        if (last_uniq_key(table,key_nr))
+	/*
+	  The manual defines the REPLACE semantics that it is either
+	  an INSERT or DELETE(s) + INSERT; FOREIGN KEY checks in
+	  InnoDB do not function in the defined way if we allow MySQL
+	  to convert the latter operation internally to an UPDATE.
+	*/
+	if (last_uniq_key(table,key_nr) &&
+	    !table->file->referenced_by_foreign_key())
         {
           if ((error=table->file->update_row(table->record[1],
 					     table->record[0])))
@@ -1552,8 +1559,8 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_ENTER("select_create::prepare");
 
   unit= u;
-  table=create_table_from_items(thd, create_info, db, name,
-				extra_fields, keys, &values, &lock);
+  table= create_table_from_items(thd, create_info, db, name,
+				 extra_fields, keys, &values, &lock);
   if (!table)
     DBUG_RETURN(-1);				// abort() deletes table
 

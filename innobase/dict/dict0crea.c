@@ -1210,23 +1210,36 @@ dict_create_or_check_foreign_constraint_tables(void)
 }
 
 /************************************************************************
-Adds foreign key definitions to data dictionary tables in the database. */
+Adds foreign key definitions to data dictionary tables in the database. We
+look at table->foreign_list, and also generate names to constraints that were
+not named by the user. A generated constraint has a name of the format
+databasename/tablename_ibfk_<number>, where the numbers start from 1, and are
+given locally for this table, that is, the number is not global, as in the
+old format constraints < 4.0.18 it used to be. */
 
 ulint
 dict_create_add_foreigns_to_dictionary(
 /*===================================*/
 				/* out: error code or DB_SUCCESS */
+	ulint		start_id,/* in: if we are actually doing ALTER TABLE
+				ADD CONSTRAINT, we want to generate constraint
+				numbers which are bigger than in the table so
+				far; we number the constraints from
+				start_id + 1 up; start_id should be set to 0 if
+				we are creating a new table, or if the table
+				so far has no constraints for which the name
+				was generated here */
 	dict_table_t*	table,	/* in: table */
 	trx_t*		trx)	/* in: transaction */
 {
 	dict_foreign_t*	foreign;
 	que_thr_t*	thr;
 	que_t*		graph;
-	dulint		id;	
+	ulint		number	= start_id + 1;
 	ulint		len;
 	ulint		error;
+	char*		ebuf	= dict_foreign_err_buf;
 	ulint		i;
-	char		buf2[50];
 	char		buf[10000];
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));	
@@ -1254,18 +1267,18 @@ loop:
 	"PROCEDURE ADD_FOREIGN_DEFS_PROC () IS\n"
 	"BEGIN\n");
 
-	/* We allocate the new id from the sequence of table id's */
-	id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
+	if (foreign->id == NULL) {
+		/* Generate a new constraint id */
+		foreign->id = mem_heap_alloc(foreign->heap,
+						ut_strlen(table->name)
+						+ 20);
+		sprintf(foreign->id, "%s_ibfk_%lu", table->name, (ulong) number);
+		number++;
+	}
 
-	sprintf(buf2, "%lu_%lu", (ulong) ut_dulint_get_high(id),
-		                 (ulong) ut_dulint_get_low(id));
-	foreign->id = mem_heap_alloc(foreign->heap, ut_strlen(buf2) + 1);
-	ut_memcpy(foreign->id, buf2, ut_strlen(buf2) + 1);
-	
 	len += sprintf(buf + len,
-	"INSERT INTO SYS_FOREIGN VALUES('%lu_%lu', '%s', '%s', %lu);\n",
-					(ulong) ut_dulint_get_high(id),
-					(ulong) ut_dulint_get_low(id),
+	"INSERT INTO SYS_FOREIGN VALUES('%s', '%s', '%s', %lu);\n",
+					foreign->id,
 					table->name,
 					foreign->referenced_table_name,
 					(ulong) (foreign->n_fields
@@ -1274,9 +1287,8 @@ loop:
 	for (i = 0; i < foreign->n_fields; i++) {
 
 		len += sprintf(buf + len,
-	"INSERT INTO SYS_FOREIGN_COLS VALUES('%lu_%lu', %lu, '%s', '%s');\n",
-					(ulong) ut_dulint_get_high(id),
-					(ulong) ut_dulint_get_low(id),
+	"INSERT INTO SYS_FOREIGN_COLS VALUES('%s', %lu, '%s', '%s');\n",
+					foreign->id,
 					(ulong) i,
 					foreign->foreign_col_names[i],
 					foreign->referenced_col_names[i]);
@@ -1301,29 +1313,30 @@ loop:
 
 	que_graph_free(graph);
 
+	if (error == DB_DUPLICATE_KEY) {
+		mutex_enter(&dict_foreign_err_mutex);
+		ut_sprintf_timestamp(dict_foreign_err_buf);
+		sprintf(ebuf + strlen(ebuf),
+" Error in foreign key constraint creation for table %.500s.\n"
+"A foreign key constraint of name %.500s\n"
+"already exists (note that internally InnoDB adds 'databasename/'\n"
+"in front of the user-defined constraint name).\n", table->name, foreign->id);
+
+		ut_a(strlen(ebuf) < DICT_FOREIGN_ERR_BUF_LEN);
+
+		mutex_exit(&dict_foreign_err_mutex);
+
+		return(error);
+	}
+
 	if (error != DB_SUCCESS) {
 	        fprintf(stderr,
 			"InnoDB: Foreign key constraint creation failed:\n"
 			"InnoDB: internal error number %lu\n", (ulong) error);
 
-		if (error == DB_DUPLICATE_KEY) {
-			fprintf(stderr,
-	"InnoDB: Duplicate key error in system table %s index %s\n",
-			((dict_index_t*)trx->error_info)->table_name,
-			((dict_index_t*)trx->error_info)->name);
-
-			fprintf(stderr, "%s\n", buf);
-			
-			fprintf(stderr,
-	"InnoDB: Maybe the internal data dictionary of InnoDB is\n"
-	"InnoDB: out-of-sync from the .frm files of your tables.\n"
-	"InnoDB: See section 15.1 Troubleshooting data dictionary operations\n"
-	"InnoDB: at http://www.innodb.com/ibman.html\n");
-		}
-
 		mutex_enter(&dict_foreign_err_mutex);
-		ut_sprintf_timestamp(buf);
-		sprintf(buf + strlen(buf),
+		ut_sprintf_timestamp(ebuf);
+		sprintf(ebuf + strlen(ebuf),
 " Internal error in foreign key constraint creation for table %.500s.\n"
 "See the MySQL .err log in the datadir for more information.\n", table->name);
 		mutex_exit(&dict_foreign_err_mutex);

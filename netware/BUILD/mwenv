@@ -6,9 +6,9 @@
 # the default is "F:/mydev"
 export MYDEV="WINE_BUILD_DIR"
 
-export MWCNWx86Includes="$MYDEV/libc/include;$MYDEV/zlib-1.1.4"
-export MWNWx86Libraries="$MYDEV/libc/imports;$MYDEV/mw/lib;$MYDEV/zlib-1.1.4"
-export MWNWx86LibraryFiles="libcpre.o;libc.imp;netware.imp;mwcrtl.lib;mwcpp.lib;libz.a"
+export MWCNWx86Includes="$MYDEV/libc/include;$MYDEV;$MYDEV/zlib-1.1.4""
+export MWNWx86Libraries="$MYDEV/libc/imports;$MYDEV/mw/lib;$MYDEV/zlib-1.1.4;$MYDEV/mysql-VERSION/netware/BUILD"
+export MWNWx86LibraryFiles="libcpre.o;libc.imp;netware.imp;mwcrtl.lib;mwcpp.lib;libz.a;knetware.imp"
 
 export WINEPATH="$MYDEV/mw/bin"
 
@@ -19,11 +19,11 @@ export AR='mwldnlm'
 export AR_FLAGS='-type library -o'
 export AS='mwasmnlm'
 export CC='mwccnlm -gccincludes'
-export CFLAGS='-dialect c -proc 686 -relax_pointers'
+export CFLAGS='-align 8 -proc 686 -relax_pointers -dialect c'
 export CXX='mwccnlm -gccincludes'
-export CXXFLAGS='-dialect c++ -proc 686 -bool on -wchar_t on -relax_pointers -D_WCHAR_T'
+export CXXFLAGS='-align 8 -proc 686 -relax_pointers -dialect c++ -bool on -wchar_t on -D_WCHAR_T'
 export LD='mwldnlm'
-export LDFLAGS='-entry _LibCPrelude -exit _LibCPostlude -flags pseudopreemption'
+export LDFLAGS='-entry _LibCPrelude -exit _LibCPostlude -map -flags pseudopreemption'
 export RANLIB=:
 export STRIP=:
 

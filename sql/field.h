@@ -643,7 +643,10 @@ public:
   void set_time();
   virtual void set_default()
   {
-    set_time();
+    if (table->timestamp_field == this)
+      set_time();
+    else
+      Field::set_default();
   }
   inline long get_timestamp()
   {
@@ -679,6 +682,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   void sql_type(String &str) const;
+  bool store_for_compare() { return 1; }
   field_cast_enum field_cast_type() { return FIELD_CAST_YEAR; }
 };
 
@@ -949,14 +953,9 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const
   { return (uint32) (packlength+table->blob_ptr_size); }
-  uint32 max_data_length() const
+  inline uint32 max_data_length() const
   {
-    switch (packlength) {
-    case 1: return 255;
-    case 2: return (uint32) 0xFFFFL;
-    case 3: return (uint32) 0xFFFFFF;
-    default: return (uint32) 0xFFFFFFFF;
-    }
+    return (uint32) (((ulonglong) 1 << (packlength*8)) -1);
   }
   void reset(void) { bzero(ptr, packlength+sizeof(char*)); }
   void reset_fields() { bzero((char*) &value,sizeof(value)); }

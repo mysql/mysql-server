@@ -126,7 +126,7 @@ extern	void bmove_align(gptr dst,const gptr src,uint len);
 #include <assert.h>
 #define memcpy_overlap(A,B,C) \
 DBUG_ASSERT((A) == (B) || ((A)+(C)) <= (B) || ((B)+(C)) <= (A)); \
-bmove((byte*) key,(byte*) from,(size_t) length);
+bmove((byte*) (A),(byte*) (B),(size_t) (C));
 #else
 #define memcpy_overlap(A,B,C) memcpy((A), (B), (C))
 #endif /* HAVE_purify */

@@ -93,7 +93,7 @@ typedef struct st_mi_isaminfo		/* Struct from h_info */
 
 typedef struct st_mi_create_info
 {
-  char *index_file_name, *data_file_name;	/* If using symlinks */
+  const char *index_file_name, *data_file_name;	/* If using symlinks */
   ha_rows max_rows;
   ha_rows reloc_rows;
   ulonglong auto_increment;

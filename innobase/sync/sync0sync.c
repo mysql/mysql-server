@@ -159,7 +159,7 @@ struct sync_thread_struct{
 };
 
 /* Number of slots reserved for each OS thread in the sync level array */
-#define SYNC_THREAD_N_LEVELS	7000
+#define SYNC_THREAD_N_LEVELS	10000
 
 struct sync_level_struct{
 	void*	latch;	/* pointer to a mutex or an rw-lock; NULL means that
