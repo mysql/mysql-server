@@ -157,3 +157,13 @@ select * from t1 where a = 'AaA' order by p;
 # 6
 select * from t1 where a = 'AAA' order by p;
 drop table t1;
+
+# bug 
+create table t1 (
+  a varchar(10) primary key
+) engine=ndb;
+insert into t1 values ('jonas % ');
+replace into t1 values ('jonas % ');
+replace into t1 values ('jonas % ');
+select * from t1;
+drop table t1;
