@@ -143,10 +143,6 @@ extern "C" {
 
 void vio_ssl_delete(Vio* vio);
 
-#ifdef EMBEDDED_LIBRARY
-void vio_reset(Vio *vio);
-#endif
-
 int		vio_ssl_read(Vio* vio,gptr buf,	int size);
 int		vio_ssl_write(Vio* vio,const gptr buf,int size);
 int		vio_ssl_blocking(Vio* vio,my_bool onoff);
@@ -220,6 +216,7 @@ Vio* new_VioSSL(struct st_VioSSLAcceptorFd* fd, Vio* sd,int state);
 #define HANDLE void *
 #endif
 
+#ifndef EMBEDDED_LIBRARY
 /* This structure is for every connection on both sides */
 struct st_vio
 {
@@ -254,5 +251,5 @@ struct st_vio
 #endif /* HAVE_OPENSSL */
 #endif /* HAVE_VIO */
 };
-
+#endif /* EMBEDDED_LIBRARY */
 
