@@ -1910,10 +1910,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
     ulong uptime = (ulong) (thd->start_time - start_time);
     sprintf((char*) buff,
-	    "Uptime: %ld  Threads: %d  Questions: %lu  Slow queries: %ld  Opens: %ld  Flush tables: %ld  Open tables: %u  Queries per second avg: %.3f",
+	    "Uptime: %ld  Threads: %d  Questions: %lu  Slow queries: %lu  Opens: %ld  Flush tables: %ld  Open tables: %u  Queries per second avg: %.3f",
 	    uptime,
-	    (int) thread_count,thd->query_id,thd->status_var.long_query_count,
-	    thd->status_var.opened_tables,refresh_version, cached_tables(),
+	    (int) thread_count, (ulong) thd->query_id,
+            (ulong) thd->status_var.long_query_count,
+	    thd->status_var.opened_tables, refresh_version, cached_tables(),
 	    uptime ? (float)thd->query_id/(float)uptime : 0);
 #ifdef SAFEMALLOC
     if (sf_malloc_cur_memory)				// Using SAFEMALLOC

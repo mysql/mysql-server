@@ -1089,4 +1089,68 @@ Error	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_t
 Error	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_time
 Error	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_time
 drop table t1;
+create table t1 (col1 char(3), col2 integer);
+insert into t1 (col1) values (cast(1000 as char(3)));
+ERROR 22007: Truncated incorrect CHAR(3) value: '1000'
+insert into t1 (col1) values (cast(1000E+0 as char(3)));
+ERROR 22007: Truncated incorrect CHAR(3) value: '1000'
+insert into t1 (col1) values (cast(1000.0 as char(3)));
+ERROR 22007: Truncated incorrect CHAR(3) value: '1000.0'
+insert into t1 (col2) values (cast('abc' as signed integer));
+ERROR 22007: Truncated incorrect INTEGER value: 'abc'
+insert into t1 (col2) values (10E+0 + 'a');
+ERROR 22007: Truncated incorrect DOUBLE value: 'a'
+insert into t1 (col2) values (cast('10a' as unsigned integer));
+ERROR 22007: Truncated incorrect INTEGER value: '10a'
+insert into t1 (col2) values (cast('10' as unsigned integer));
+insert into t1 (col2) values (cast('10' as signed integer));
+insert into t1 (col2) values (10E+0 + '0 ');
+select * from t1;
+col1	col2
+NULL	10
+NULL	10
+NULL	10
+drop table t1;
+create table t1 (col1 date, col2 datetime, col3 timestamp);
+insert into t1 values (0,0,0);
+ERROR 22007: Incorrect date value: '0' for column 'col1' at row 1
+insert into t1 values (0.0,0.0,0.0);
+ERROR 22007: Incorrect date value: '0' for column 'col1' at row 1
+set sql_mode='no_zero_date';
+insert into t1 values (0,0,0);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+Warning	1265	Data truncated for column 'col3' at row 1
+insert into t1 values (0.0,0.0,0.0);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+Warning	1265	Data truncated for column 'col3' at row 1
+drop table t1;
+set sql_mode='traditional';
+create table t1 (col1 date);
+insert ignore into t1 values ('0000-00-00');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+insert into t1 select * from t1;
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
+insert ignore into t1 values ('0000-00-00');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+insert into t1 select * from t1;
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
+alter table t1 modify col1 datetime;
+ERROR 22007: Incorrect datetime value: '0000-00-00' for column 'col1' at row 1
+alter ignore table t1 modify col1 datetime;
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col1' at row 2
+insert into t1 select * from t1;
+ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'col1' at row 1
+select * from t1;
+col1
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+drop table t1;
 set sql_mode=@org_mode;

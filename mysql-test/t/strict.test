@@ -978,6 +978,58 @@ select count(*) from t1 where STR_TO_DATE('2004.12.12 10:22:61','%Y.%m.%d %T') I
 drop table t1;
 
 #
+# Check insert with wrong CAST() (Bug #5912)
+#
+
+create table t1 (col1 char(3), col2 integer);
+--error 1292
+insert into t1 (col1) values (cast(1000 as char(3)));
+--error 1292
+insert into t1 (col1) values (cast(1000E+0 as char(3)));
+--error 1292
+insert into t1 (col1) values (cast(1000.0 as char(3)));
+--error 1292
+insert into t1 (col2) values (cast('abc' as signed integer));
+--error 1292
+insert into t1 (col2) values (10E+0 + 'a');
+--error 1292
+insert into t1 (col2) values (cast('10a' as unsigned integer));
+insert into t1 (col2) values (cast('10' as unsigned integer));
+insert into t1 (col2) values (cast('10' as signed integer));
+insert into t1 (col2) values (10E+0 + '0 ');
+select * from t1;
+drop table t1;
+
+#
+# Zero dates using numbers was not checked properly (Bug #5933)
+#
+
+create table t1 (col1 date, col2 datetime, col3 timestamp);
+--error 1292
+insert into t1 values (0,0,0);
+--error 1292
+insert into t1 values (0.0,0.0,0.0);
+set sql_mode='no_zero_date';
+insert into t1 values (0,0,0);
+insert into t1 values (0.0,0.0,0.0);
+drop table t1;
+set sql_mode='traditional';
+create table t1 (col1 date);
+insert ignore into t1 values ('0000-00-00');
+--error 1292
+insert into t1 select * from t1;
+insert ignore into t1 values ('0000-00-00');
+--error 1292
+insert into t1 select * from t1;
+--error 1292
+alter table t1 modify col1 datetime;
+alter ignore table t1 modify col1 datetime;
+--error 1292
+insert into t1 select * from t1;
+select * from t1;
+drop table t1;
+
+#
 # Restore mode
 #
 set sql_mode=@org_mode;
