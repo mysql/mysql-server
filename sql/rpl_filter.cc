@@ -15,12 +15,12 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "mysql_priv.h"
-#include "table_filter.h"
+#include "rpl_filter.h"
 
 #define TABLE_RULE_HASH_SIZE   16
 #define TABLE_RULE_ARR_SIZE   16
 
-Table_filter::Table_filter() : 
+Rpl_filter::Rpl_filter() : 
   table_rules_on(0), do_table_inited(0), ignore_table_inited(0),
   wild_do_table_inited(0), wild_ignore_table_inited(0)
 {
@@ -30,7 +30,7 @@ Table_filter::Table_filter() :
 }
 
 
-Table_filter::~Table_filter() 
+Rpl_filter::~Rpl_filter() 
 {
   if (do_table_inited) 
     hash_free(&do_table);
@@ -85,10 +85,10 @@ Table_filter::~Table_filter()
 */
 
 bool 
-Table_filter::tables_ok(const char* db, TABLE_LIST* tables)
+Rpl_filter::tables_ok(const char* db, TABLE_LIST* tables)
 {
   bool some_tables_updating= 0;
-  DBUG_ENTER("Table_filter::tables_ok");
+  DBUG_ENTER("Rpl_filter::tables_ok");
   
   for (; tables; tables= tables->next_global)
   {
@@ -144,9 +144,9 @@ Table_filter::tables_ok(const char* db, TABLE_LIST* tables)
 */
 
 bool
-Table_filter::db_ok(const char* db)
+Rpl_filter::db_ok(const char* db)
 {
-  DBUG_ENTER("Table_filter::db_ok");
+  DBUG_ENTER("Rpl_filter::db_ok");
 
   if (do_db.is_empty() && ignore_db.is_empty())
     DBUG_RETURN(1); // Ok to replicate if the user puts no constraints
@@ -216,9 +216,9 @@ Table_filter::db_ok(const char* db)
 */
 
 bool
-Table_filter::db_ok_with_wild_table(const char *db)
+Rpl_filter::db_ok_with_wild_table(const char *db)
 {
-  DBUG_ENTER("Table_filter::db_ok_with_wild_table");
+  DBUG_ENTER("Rpl_filter::db_ok_with_wild_table");
 
   char hash_key[NAME_LEN+2];
   char *end;
@@ -247,16 +247,16 @@ Table_filter::db_ok_with_wild_table(const char *db)
 
 
 bool
-Table_filter::is_on()
+Rpl_filter::is_on()
 {
   return table_rules_on;
 }
 
 
 int 
-Table_filter::add_do_table(const char* table_spec) 
+Rpl_filter::add_do_table(const char* table_spec) 
 {
-  DBUG_ENTER("Table_filter::add_do_table");
+  DBUG_ENTER("Rpl_filter::add_do_table");
   if (!do_table_inited)
     init_table_rule_hash(&do_table, &do_table_inited);
   table_rules_on= 1;
@@ -265,9 +265,9 @@ Table_filter::add_do_table(const char* table_spec)
   
 
 int 
-Table_filter::add_ignore_table(const char* table_spec) 
+Rpl_filter::add_ignore_table(const char* table_spec) 
 {
-  DBUG_ENTER("Table_filter::add_ignore_table");
+  DBUG_ENTER("Rpl_filter::add_ignore_table");
   if (!ignore_table_inited)
     init_table_rule_hash(&ignore_table, &ignore_table_inited);
   table_rules_on= 1;
@@ -276,9 +276,9 @@ Table_filter::add_ignore_table(const char* table_spec)
 
 
 int 
-Table_filter::add_wild_do_table(const char* table_spec)
+Rpl_filter::add_wild_do_table(const char* table_spec)
 {
-  DBUG_ENTER("Table_filter::add_wild_do_table");
+  DBUG_ENTER("Rpl_filter::add_wild_do_table");
   if (!wild_do_table_inited)
     init_table_rule_array(&wild_do_table, &wild_do_table_inited);
   table_rules_on= 1;
@@ -287,9 +287,9 @@ Table_filter::add_wild_do_table(const char* table_spec)
   
 
 int 
-Table_filter::add_wild_ignore_table(const char* table_spec) 
+Rpl_filter::add_wild_ignore_table(const char* table_spec) 
 {
-  DBUG_ENTER("Table_filter::add_wild_ignore_table");
+  DBUG_ENTER("Rpl_filter::add_wild_ignore_table");
   if (!wild_ignore_table_inited)
     init_table_rule_array(&wild_ignore_table, &wild_ignore_table_inited);
   table_rules_on= 1;
@@ -298,7 +298,7 @@ Table_filter::add_wild_ignore_table(const char* table_spec)
 
 
 void
-Table_filter::add_db_rewrite(const char* from_db, const char* to_db)
+Rpl_filter::add_db_rewrite(const char* from_db, const char* to_db)
 {
   i_string_pair *db_pair = new i_string_pair(from_db, to_db);
   rewrite_db.push_back(db_pair);
@@ -306,7 +306,7 @@ Table_filter::add_db_rewrite(const char* from_db, const char* to_db)
 
 
 int 
-Table_filter::add_table_rule(HASH* h, const char* table_spec)
+Rpl_filter::add_table_rule(HASH* h, const char* table_spec)
 {
   const char* dot = strchr(table_spec, '.');
   if (!dot) return 1;
@@ -329,7 +329,7 @@ Table_filter::add_table_rule(HASH* h, const char* table_spec)
 */
 
 int 
-Table_filter::add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec)
+Rpl_filter::add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec)
 {
   const char* dot = strchr(table_spec, '.');
   if (!dot) return 1;
@@ -347,16 +347,18 @@ Table_filter::add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec)
 
 
 void
-Table_filter::add_do_db(const char* table_spec)
+Rpl_filter::add_do_db(const char* table_spec)
 {
+  DBUG_ENTER("Rpl_filter::add_do_db");
   i_string *db = new i_string(table_spec);
   do_db.push_back(db);
 }
 
 
 void
-Table_filter::add_ignore_db(const char* table_spec)
+Rpl_filter::add_ignore_db(const char* table_spec)
 {
+  DBUG_ENTER("Rpl_filter::add_ignore_db");
   i_string *db = new i_string(table_spec);
   ignore_db.push_back(db);
 }
@@ -381,7 +383,7 @@ static void free_table_ent(void* a)
 
 
 void 
-Table_filter::init_table_rule_hash(HASH* h, bool* h_inited)
+Rpl_filter::init_table_rule_hash(HASH* h, bool* h_inited)
 {
   hash_init(h, system_charset_info,TABLE_RULE_HASH_SIZE,0,0,
 	    get_table_key, free_table_ent, 0);
@@ -390,7 +392,7 @@ Table_filter::init_table_rule_hash(HASH* h, bool* h_inited)
 
 
 void 
-Table_filter::init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited)
+Rpl_filter::init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited)
 {
   my_init_dynamic_array(a, sizeof(TABLE_RULE_ENT*), TABLE_RULE_ARR_SIZE,
 			TABLE_RULE_ARR_SIZE);
@@ -399,7 +401,7 @@ Table_filter::init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited)
 
 
 TABLE_RULE_ENT* 
-Table_filter::find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
+Rpl_filter::find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
 {
   uint i;
   const char* key_end= key + len;
@@ -420,7 +422,7 @@ Table_filter::find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
 
 
 void 
-Table_filter::free_string_array(DYNAMIC_ARRAY *a)
+Rpl_filter::free_string_array(DYNAMIC_ARRAY *a)
 {
   uint i;
   for (i= 0; i < a->elements; i++)
@@ -447,7 +449,7 @@ Table_filter::free_string_array(DYNAMIC_ARRAY *a)
 */
 
 void 
-Table_filter::table_rule_ent_hash_to_str(String* s, HASH* h)
+Rpl_filter::table_rule_ent_hash_to_str(String* s, HASH* h)
 {
   s->length(0);
   for (uint i= 0; i < h->records; i++)
@@ -461,7 +463,7 @@ Table_filter::table_rule_ent_hash_to_str(String* s, HASH* h)
 
 
 void 
-Table_filter::table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a)
+Rpl_filter::table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a)
 {
   s->length(0);
   for (uint i= 0; i < a->elements; i++)
@@ -476,35 +478,35 @@ Table_filter::table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a)
 
 
 void
-Table_filter::get_do_table(String* str)
+Rpl_filter::get_do_table(String* str)
 {
   table_rule_ent_hash_to_str(str, &do_table);
 }
 
 
 void
-Table_filter::get_ignore_table(String* str)
+Rpl_filter::get_ignore_table(String* str)
 {
   table_rule_ent_hash_to_str(str, &ignore_table);
 }
 
 
 void
-Table_filter::get_wild_do_table(String* str)
+Rpl_filter::get_wild_do_table(String* str)
 {
   table_rule_ent_dynamic_array_to_str(str, &wild_do_table);
 }
 
 
 void
-Table_filter::get_wild_ignore_table(String* str)
+Rpl_filter::get_wild_ignore_table(String* str)
 {
   table_rule_ent_dynamic_array_to_str(str, &wild_ignore_table);
 }
 
 
 const char*
-Table_filter::get_rewrite_db(const char* db, uint32 *new_len)
+Rpl_filter::get_rewrite_db(const char* db, uint32 *new_len)
 {
   if (rewrite_db.is_empty() || !db)
     return db;
@@ -524,14 +526,14 @@ Table_filter::get_rewrite_db(const char* db, uint32 *new_len)
 
 
 I_List<i_string>*
-Table_filter::get_do_db()
+Rpl_filter::get_do_db()
 {
   return &do_db;
 }
   
 
 I_List<i_string>*
-Table_filter::get_ignore_db()
+Rpl_filter::get_ignore_db()
 {
   return &ignore_db;
 }

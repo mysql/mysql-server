@@ -19,7 +19,7 @@
 
 #include "sql_repl.h"
 #include "log_event.h"
-#include "table_filter.h"
+#include "rpl_filter.h"
 #include <my_dir.h>
 
 int max_binlog_dump_events = 0; // unlimited

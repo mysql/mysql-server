@@ -16,7 +16,7 @@
 
 #include "mysql_priv.h"
 #include "sql_repl.h"
-#include "table_filter.h"
+#include "rpl_filter.h"
 #include "repl_failsafe.h"
 #include <m_ctype.h>
 #include <myisam.h>

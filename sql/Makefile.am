@@ -55,10 +55,10 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			ha_ndbcluster.h opt_range.h protocol.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
-			log_event.h sql_repl.h slave.h \
+			log_event.h sql_repl.h slave.h rpl_filter.h \
 			stacktrace.h sql_sort.h sql_cache.h set_var.h \
-			spatial.h gstream.h client_settings.h tzfile.h \
-                        table_filter.h tztime.h \
+			spatial.h gstream.h client_settings.h tzfile.h 
+		        tztime.h \
 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
 			parse_file.h sql_view.h	sql_trigger.h \
 			examples/ha_example.h examples/ha_archive.h \
@@ -90,12 +90,13 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
-			slave.cc sql_repl.cc sql_union.cc sql_derived.cc \
+			slave.cc sql_repl.cc rpl_filter.cc \
+                        sql_union.cc sql_derived.cc \
 			client.c sql_client.cc mini_client_errors.c pack.c\
 			stacktrace.c repl_failsafe.h repl_failsafe.cc \
 			sql_olap.cc sql_view.cc \
 			gstream.cc spatial.cc sql_help.cc protocol_cursor.cc \
-			table_filter.cc tztime.cc my_time.c \
+			tztime.cc my_time.c \
 			sp_head.cc sp_pcontext.cc  sp_rcontext.cc sp.cc \
 			sp_cache.cc parse_file.cc sql_trigger.cc \
 			examples/ha_example.cc examples/ha_archive.cc \
