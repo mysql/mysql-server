@@ -5,31 +5,31 @@
 
 /***************************** GClassInfo *******************************/
 
-#define IMPLEMENT_GEOM(class_name, type_id, name)       \
-{                                                       \
-  (GF_InitFromText) &class_name::init_from_text,          \
-  (GF_GetDataAsText) &class_name::get_data_as_text,        \
-  (GF_GetDataSize) &class_name::get_data_size,            \
-  (GF_GetMBR) &class_name::get_mbr,                      \
-  (GF_GetD) &class_name::get_x,                          \
-  (GF_GetD) &class_name::get_y,                          \
-  (GF_GetD) &class_name::length,                        \
-  (GF_GetD) &class_name::area,                          \
-  (GF_GetI) &class_name::is_closed,                      \
-  (GF_GetUI) &class_name::num_interior_ring,              \
-  (GF_GetUI) &class_name::num_points,                    \
-  (GF_GetUI) &class_name::num_geometries,                \
-  (GF_GetUI) &class_name::dimension,                    \
-  (GF_GetWS) &class_name::start_point,                   \
-  (GF_GetWS) &class_name::end_point,                     \
-  (GF_GetWS) &class_name::exterior_ring,                 \
-  (GF_GetWS) &class_name::centroid,                     \
-  (GF_GetUIWS) &class_name::point_n,                     \
-  (GF_GetUIWS) &class_name::interior_ring_n,              \
-  (GF_GetUIWS) &class_name::geometry_n,                  \
-  class_name::type_id,                                  \
-  name,                                                 \
-  NULL                                                  \
+#define IMPLEMENT_GEOM(class_name, type_id, name)	\
+{							\
+  (GF_InitFromText) &class_name::init_from_wkt,		\
+  (GF_GetDataAsText) &class_name::get_data_as_wkt,	\
+  (GF_GetDataSize) &class_name::get_data_size,		\
+  (GF_GetMBR) &class_name::get_mbr,			\
+  (GF_GetD) &class_name::get_x,				\
+  (GF_GetD) &class_name::get_y,				\
+  (GF_GetD) &class_name::length,			\
+  (GF_GetD) &class_name::area,				\
+  (GF_GetI) &class_name::is_closed,			\
+  (GF_GetUI) &class_name::num_interior_ring,		\
+  (GF_GetUI) &class_name::num_points,			\
+  (GF_GetUI) &class_name::num_geometries,		\
+  (GF_GetUI) &class_name::dimension,			\
+  (GF_GetWS) &class_name::start_point,			\
+  (GF_GetWS) &class_name::end_point,			\
+  (GF_GetWS) &class_name::exterior_ring,		\
+  (GF_GetWS) &class_name::centroid,			\
+  (GF_GetUIWS) &class_name::point_n,			\
+  (GF_GetUIWS) &class_name::interior_ring_n,		\
+  (GF_GetUIWS) &class_name::geometry_n,			\
+  class_name::type_id,					\
+  name,							\
+  NULL							\
 },
 
 
@@ -113,7 +113,7 @@ int Geometry::create_from_wkt(GTextReadStream *trs, String *wkt, int init_stream
     trs->set_error_msg("'(' expected");
     return -1;
   }
-  if (init_from_text(trs, wkt)) return 1;
+  if (init_from_wkt(trs, wkt)) return 1;
   if (trs->get_next_symbol() != ')')
   {        
     trs->set_error_msg("')' expected");                             
@@ -161,7 +161,7 @@ size_t GPoint::get_data_size() const
   return POINT_DATA_SIZE;
 }
 
-int GPoint::init_from_text(GTextReadStream *trs, String *wkb)
+int GPoint::init_from_wkt(GTextReadStream *trs, String *wkb)
 {
   double x, y;
   if (wkb->reserve(sizeof(double)*2))
@@ -176,7 +176,7 @@ int GPoint::init_from_text(GTextReadStream *trs, String *wkb)
   return 0;
 }
 
-int GPoint::get_data_as_text(String *txt) const
+int GPoint::get_data_as_wkt(String *txt) const
 {
   double x, y;
   if (get_xy(&x, &y))
@@ -207,7 +207,7 @@ size_t GLineString::get_data_size() const
   return 4 + n_points*POINT_DATA_SIZE;
 }
 
-int GLineString::init_from_text(GTextReadStream *trs, String *wkb)
+int GLineString::init_from_wkt(GTextReadStream *trs, String *wkb)
 {
   uint32 n_points = 0;
   int np_pos = wkb->length();
@@ -220,7 +220,7 @@ int GLineString::init_from_text(GTextReadStream *trs, String *wkb)
 
   for (;;)
   {
-    if (p.init_from_text(trs, wkb))
+    if (p.init_from_wkt(trs, wkb))
       return 1;
     ++n_points;
     if (trs->get_next_toc_type() == GTextReadStream::comma)
@@ -239,7 +239,7 @@ int GLineString::init_from_text(GTextReadStream *trs, String *wkb)
   return 0;
 }
 
-int GLineString::get_data_as_text(String *txt) const
+int GLineString::get_data_as_wkt(String *txt) const
 {
   uint32 n_points;
   const char *data = m_data;
@@ -459,7 +459,7 @@ size_t GPolygon::get_data_size() const
   return data - m_data;
 }
 
-int GPolygon::init_from_text(GTextReadStream *trs, String *wkb)
+int GPolygon::init_from_wkt(GTextReadStream *trs, String *wkb)
 {
   uint32 n_linear_rings = 0;
   int lr_pos = wkb->length();
@@ -478,7 +478,7 @@ int GPolygon::init_from_text(GTextReadStream *trs, String *wkb)
       trs->set_error_msg("'(' expected");
       return 1;
     }
-    if (ls.init_from_text(trs, wkb))
+    if (ls.init_from_wkt(trs, wkb))
       return 1;
     if (trs->get_next_symbol() != ')')
     {
@@ -503,7 +503,7 @@ int GPolygon::init_from_text(GTextReadStream *trs, String *wkb)
   return 0;
 }
 
-int GPolygon::get_data_as_text(String *txt) const
+int GPolygon::get_data_as_wkt(String *txt) const
 {
   uint32 n_linear_rings;
   const char *data= m_data;
@@ -783,7 +783,7 @@ size_t GMultiPoint::get_data_size() const
   return 4 + uint4korr(m_data)*(POINT_DATA_SIZE + WKB_HEADER_SIZE);
 }
 
-int GMultiPoint::init_from_text(GTextReadStream *trs, String *wkb)
+int GMultiPoint::init_from_wkt(GTextReadStream *trs, String *wkb)
 {
   uint32 n_points = 0;
   int np_pos = wkb->length();
@@ -799,7 +799,7 @@ int GMultiPoint::init_from_text(GTextReadStream *trs, String *wkb)
       return 1;
     wkb->q_append((char)wkbNDR);
     wkb->q_append((uint32)wkbPoint);
-    if (p.init_from_text(trs, wkb))
+    if (p.init_from_wkt(trs, wkb))
       return 1;
     ++n_points;
     if (trs->get_next_toc_type() == GTextReadStream::comma)
@@ -812,7 +812,7 @@ int GMultiPoint::init_from_text(GTextReadStream *trs, String *wkb)
   return 0;
 }
 
-int GMultiPoint::get_data_as_text(String *txt) const
+int GMultiPoint::get_data_as_wkt(String *txt) const
 {
   uint32 n_points;
   const char *data= m_data;
@@ -904,7 +904,7 @@ size_t GMultiLineString::get_data_size() const
   return data - m_data;
 }
 
-int GMultiLineString::init_from_text(GTextReadStream *trs, String *wkb)
+int GMultiLineString::init_from_wkt(GTextReadStream *trs, String *wkb)
 {
   uint32 n_line_strings = 0;
   int ls_pos = wkb->length();
@@ -928,7 +928,7 @@ int GMultiLineString::init_from_text(GTextReadStream *trs, String *wkb)
       trs->set_error_msg("'(' expected");
       return 1;
     }
-    if (ls.init_from_text(trs, wkb))
+    if (ls.init_from_wkt(trs, wkb))
       return 1;
 
     if (trs->get_next_symbol() != ')')
@@ -947,7 +947,7 @@ int GMultiLineString::init_from_text(GTextReadStream *trs, String *wkb)
   return 0;
 }
 
-int GMultiLineString::get_data_as_text(String *txt) const
+int GMultiLineString::get_data_as_wkt(String *txt) const
 {
   uint32 n_line_strings;
   const char *data= m_data;
@@ -1120,7 +1120,7 @@ size_t GMultiPolygon::get_data_size() const
   return data - m_data;
 }
 
-int GMultiPolygon::init_from_text(GTextReadStream *trs, String *wkb)
+int GMultiPolygon::init_from_wkt(GTextReadStream *trs, String *wkb)
 {
   uint32 n_polygons = 0;
   int np_pos = wkb->length();
@@ -1143,7 +1143,7 @@ int GMultiPolygon::init_from_text(GTextReadStream *trs, String *wkb)
       trs->set_error_msg("'(' expected");
       return 1;
     }
-    if (p.init_from_text(trs, wkb))
+    if (p.init_from_wkt(trs, wkb))
       return 1;
     if (trs->get_next_symbol() != ')')
     {
@@ -1160,7 +1160,7 @@ int GMultiPolygon::init_from_text(GTextReadStream *trs, String *wkb)
   return 0;
 }
 
-int GMultiPolygon::get_data_as_text(String *txt) const
+int GMultiPolygon::get_data_as_wkt(String *txt) const
 {
   uint32 n_polygons;
   const char *data= m_data;
@@ -1403,7 +1403,7 @@ size_t GGeometryCollection::get_data_size() const
   return data - m_data;
 }
 
-int GGeometryCollection::init_from_text(GTextReadStream *trs, String *wkb)
+int GGeometryCollection::init_from_wkt(GTextReadStream *trs, String *wkb)
 {
   uint32 n_objects = 0;
   int no_pos = wkb->length();
@@ -1433,7 +1433,7 @@ int GGeometryCollection::init_from_text(GTextReadStream *trs, String *wkb)
   return 0;
 }
 
-int GGeometryCollection::get_data_as_text(String *txt) const
+int GGeometryCollection::get_data_as_wkt(String *txt) const
 {
   uint32 n_objects;
   const char *data = m_data;

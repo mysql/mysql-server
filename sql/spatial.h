@@ -228,8 +228,8 @@ public:
   class GClassInfo
   {
   public:
-    GF_InitFromText init_from_text;
-    GF_GetDataAsText get_data_as_text;
+    GF_InitFromText init_from_wkt;
+    GF_GetDataAsText get_data_as_wkt;
     GF_GetDataSize get_data_size;
     GF_GetMBR get_mbr;
     GF_GetD get_x;
@@ -262,11 +262,11 @@ public:
   const GClassInfo *get_class_info() const { return m_vmt; }
   size_t get_data_size() const { return (this->*m_vmt->get_data_size)(); }
   
-  int init_from_text(GTextReadStream *trs, String *wkb) 
-  { return (this->*m_vmt->init_from_text)(trs, wkb); }
+  int init_from_wkt(GTextReadStream *trs, String *wkb) 
+  { return (this->*m_vmt->init_from_wkt)(trs, wkb); }
 
-  int get_data_as_text(String *txt) const
-  { return (this->*m_vmt->get_data_as_text)(txt); }
+  int get_data_as_wkt(String *txt) const
+  { return (this->*m_vmt->get_data_as_wkt)(txt); }
 
   int get_mbr(MBR *mbr) const { return (this->*m_vmt->get_mbr)(mbr); }
   int dimension(uint32 *dim) const
@@ -324,7 +324,7 @@ public:
       return 1;
     wkt->qs_append(get_class_info()->m_name);
     wkt->qs_append('(');
-    if (get_data_as_text(wkt))
+    if (get_data_as_wkt(wkt))
       return 1;
     wkt->qs_append(')');
     return 0;
@@ -364,8 +364,8 @@ class GPoint: public Geometry
 {
 public:
   size_t get_data_size() const;
-  int init_from_text(GTextReadStream *trs, String *wkb);
-  int get_data_as_text(String *txt) const;
+  int init_from_wkt(GTextReadStream *trs, String *wkb);
+  int get_data_as_wkt(String *txt) const;
   int get_mbr(MBR *mbr) const;
   
   int get_xy(double *x, double *y) const
@@ -401,8 +401,8 @@ class GLineString: public Geometry
 {
 public:
    size_t get_data_size() const;
-   int init_from_text(GTextReadStream *trs, String *wkb);
-   int get_data_as_text(String *txt) const;
+   int init_from_wkt(GTextReadStream *trs, String *wkb);
+   int get_data_as_wkt(String *txt) const;
    int get_mbr(MBR *mbr) const;
   
   int length(double *len) const;
@@ -420,8 +420,8 @@ class GPolygon: public Geometry
 {
 public:
   size_t get_data_size() const;
-  int init_from_text(GTextReadStream *trs, String *wkb);
-  int get_data_as_text(String *txt) const;
+  int init_from_wkt(GTextReadStream *trs, String *wkb);
+  int get_data_as_wkt(String *txt) const;
   int get_mbr(MBR *mbr) const;
 
   int area(double *ar) const;
@@ -439,8 +439,8 @@ class GMultiPoint: public Geometry
 {
 public:
   size_t get_data_size() const;
-  int init_from_text(GTextReadStream *trs, String *wkb);
-  int get_data_as_text(String *txt) const;
+  int init_from_wkt(GTextReadStream *trs, String *wkb);
+  int get_data_as_wkt(String *txt) const;
   int get_mbr(MBR *mbr) const;
 
   int num_geometries(uint32 *num) const;
@@ -454,8 +454,8 @@ class GMultiLineString: public Geometry
 {
 public:
   size_t get_data_size() const;
-  int init_from_text(GTextReadStream *trs, String *wkb);
-  int get_data_as_text(String *txt) const;
+  int init_from_wkt(GTextReadStream *trs, String *wkb);
+  int get_data_as_wkt(String *txt) const;
   int get_mbr(MBR *mbr) const;
 
   int num_geometries(uint32 *num) const;
@@ -471,8 +471,8 @@ class GMultiPolygon: public Geometry
 {
 public:
   size_t get_data_size() const;
-  int init_from_text(GTextReadStream *trs, String *wkb);
-  int get_data_as_text(String *txt) const;
+  int init_from_wkt(GTextReadStream *trs, String *wkb);
+  int get_data_as_wkt(String *txt) const;
   int get_mbr(MBR *mbr) const;
 
   int num_geometries(uint32 *num) const;
@@ -488,8 +488,8 @@ class GGeometryCollection: public Geometry
 {
 public:
   size_t get_data_size() const;
-  int init_from_text(GTextReadStream *trs, String *wkb);
-  int get_data_as_text(String *txt) const;
+  int init_from_wkt(GTextReadStream *trs, String *wkb);
+  int get_data_as_wkt(String *txt) const;
   int get_mbr(MBR *mbr) const;
 
   int num_geometries(uint32 *num) const;

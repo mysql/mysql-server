@@ -43,10 +43,10 @@ public:
   void fix_length_and_dec();
 };
 
-class Item_func_as_text: public Item_str_func
+class Item_func_as_wkt: public Item_str_func
 {
 public:
-  Item_func_as_text(Item *a): Item_str_func(a) {}
+  Item_func_as_wkt(Item *a): Item_str_func(a) {}
   const char *func_name() const { return "astext"; }
   String *val_str(String *);
   void fix_length_and_dec();
