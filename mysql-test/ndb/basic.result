@@ -6,9 +6,10 @@ HELP                                   Print help text
 HELP SHOW                              Help for SHOW command
 HELP DEBUG                             Help for debug compiled version
 SHOW                                   Print information about cluster
-START BACKUP                           Start backup
+START BACKUP [NOWAIT | WAIT STARTED | WAIT COMPLETED]
+                                       Start backup (default WAIT COMPLETED)
 ABORT BACKUP <backup id>               Abort backup
-SHUTDOWN                               Shutdown all processes in cluster and quit
+SHUTDOWN                               Shutdown all processes in cluster
 CLUSTERLOG ON [<severity>] ...         Enable Cluster logging
 CLUSTERLOG OFF [<severity>] ...        Disable Cluster logging
 CLUSTERLOG TOGGLE [<severity>] ...     Toggle severity filter on/off

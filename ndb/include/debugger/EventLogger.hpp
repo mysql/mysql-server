@@ -48,11 +48,10 @@ public:
 
   static const EventRepLogLevelMatrix matrix[];
   static const Uint32 matrixSize;
-  static int
-  EventLoggerBase::event_lookup(int eventType,
-				LogLevel::EventCategory &cat,
-				Uint32 &threshold, 
-				Logger::LoggerLevel &severity);
+  static int event_lookup(int eventType,
+			  LogLevel::EventCategory &cat,
+			  Uint32 &threshold, 
+			  Logger::LoggerLevel &severity);
 };
 
 /**

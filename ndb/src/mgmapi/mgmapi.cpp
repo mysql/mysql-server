@@ -1545,7 +1545,8 @@ ndb_mgm_start(NdbMgmHandle handle, int no_of_nodes, const int * node_list)
  *****************************************************************************/
 extern "C"
 int 
-ndb_mgm_start_backup(NdbMgmHandle handle, unsigned int* _backup_id,
+ndb_mgm_start_backup(NdbMgmHandle handle, int wait_completed,
+		     unsigned int* _backup_id,
 		     struct ndb_mgm_reply* /*reply*/) 
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_start_backup");
@@ -1559,8 +1560,17 @@ ndb_mgm_start_backup(NdbMgmHandle handle, unsigned int* _backup_id,
   CHECK_CONNECTED(handle, -1);
 
   Properties args;
+  args.put("completed", wait_completed);
   const Properties *reply;
-  reply = ndb_mgm_call(handle, start_backup_reply, "start backup", &args);
+  { // start backup can take some time, set timeout high
+    Uint64 old_timeout= handle->read_timeout;
+    if (wait_completed == 2)
+      handle->read_timeout= 30*60*1000; // 30 minutes
+    else if (wait_completed == 1)
+      handle->read_timeout= 5*60*1000; // 5 minutes
+    reply = ndb_mgm_call(handle, start_backup_reply, "start backup", &args);
+    handle->read_timeout= old_timeout;
+  }
   CHECK_REPLY(reply, -1);
 
   BaseString result;
