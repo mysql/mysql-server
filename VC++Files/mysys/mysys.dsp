@@ -43,7 +43,7 @@ RSC=rc.exe
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /FD /c
 # ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../zlib" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /FD /c
-# SUBTRACT CPP /YX
+# SUBTRACT CPP /WX /Fr /YX
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
@@ -117,7 +117,7 @@ SOURCE=.\array.c
 
 !ELSEIF  "$(CFG)" == "mysys - Win32 Debug"
 
-# ADD CPP /FR
+# SUBTRACT CPP /Fr
 
 !ELSEIF  "$(CFG)" == "mysys - Win32 Max"
 
