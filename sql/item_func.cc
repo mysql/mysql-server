@@ -1606,6 +1606,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->name.length=name.length;
     entry->value=0;
     entry->length=0;
+    entry->update_query_id=0;
     entry->type=STRING_RESULT;
     memcpy(entry->name.str, name.str, name.length+1);
     if (hash_insert(hash,(byte*) entry))
@@ -1625,6 +1626,7 @@ bool Item_func_set_user_var::fix_fields(THD *thd,TABLE_LIST *tables)
   if (Item_func::fix_fields(thd,tables) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
     return 1;
+  entry->update_query_id=thd->query_id;
   return 0;
 }
 
@@ -1809,10 +1811,12 @@ longlong Item_func_get_user_var::val_int()
 
 void Item_func_get_user_var::fix_length_and_dec()
 {
+  THD *thd=current_thd;
   maybe_null=1;
   decimals=NOT_FIXED_DEC;
   max_length=MAX_BLOB_WIDTH;
-  entry= get_variable(&current_thd->user_vars, name, 0);
+  if ((entry= get_variable(&thd->user_vars, name, 0)))
+    const_var_flag= thd->query_id != entry->update_query_id;
 }
 
 

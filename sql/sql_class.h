@@ -550,7 +550,7 @@ class user_var_entry
  public:
   LEX_STRING name;
   char *value;
-  ulong length;
+  ulong length, update_query_id;
   Item_result type;
 };
 
