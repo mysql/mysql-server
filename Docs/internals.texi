@@ -1994,7 +1994,7 @@ When you say:
 @*
 
 MySQL creates files named Table1.MYD ("MySQL Data"), Table1.MYI
-("MySQL Index"), and Table1.FRM ("Format"). These files will be in the
+("MySQL Index"), and Table1.frm ("Format"). These files will be in the
 directory: @*
 /<datadir>/<database>/
 @*
@@ -2029,6 +2029,12 @@ The minimal record header is a set of flags:
 @end itemize
 @end table
 @*
+
+The length of the record header is thus:@*
+(1 + number of NULL columns + 7) / 8 bytes@*
+After the header, all columns are stored in 
+the order that they were created, which is the 
+same order that you would get from SHOW COLUMNS.
 
 Here's an example. Suppose you say:
 @*
@@ -2072,8 +2078,8 @@ right is @code{on}, and (b) remember that the first flag bit is the X bit.)
 
 There are complications -- the record header is more complex if there
 are variable-length fields -- but the simple display shown in the
-example is exactly what you'd see if you took a debugger and looked
-at the MySQL Data file.
+example is exactly what you'd see if you looked at the MySQL Data file 
+with a debugger or a hexadecimal file dumper.
 @*
 
 @section Physical Attributes of Columns
@@ -2106,8 +2112,8 @@ Example: a VARCHAR(7) column containing 'A' looks like:@*
 
 @item The numeric data types
 
-Important: MySQL stores all multi-byte binary numbers with the
-high byte first. This is called "little-endian" numeric storage;
+Important: MySQL almost always stores multi-byte binary numbers with 
+the low byte first. This is called "little-endian" numeric storage;
 it's normal on Intel x86 machines; MySQL uses it even for non-Intel
 machines so that databases will be portable.
 @*
@@ -2282,7 +2288,7 @@ Example: a SET('A','B','C') column containing 'A' looks like:@*
 Storage: one byte if less than 256 alternatives, else two bytes.
 @item
 This is an index. The value 1 corresponds to the first listed
-alternative. (Note: ENUM always reserves 0 for a blank '' value. This
+alternative. (Note: ENUM always reserves 0 for an erroneous value. This
 explains why 'A' is 1 instead of 0.)
 @item
 Example: an ENUM('A','B','C') column containing 'A' looks like:@*
@@ -2367,7 +2373,10 @@ Storage: same as LONGBLOB.
 
 @strong{References:} @*
 Most of the formatting work for MyISAM columns is visible
-in the program /sql/field.cc in the source code directory.
+in the program /sql/field.cc in the source code directory. 
+And in the MyISAM directory, the files that do formatting 
+work for different record formats are: /myisam/mi_statrec.c, 
+/myisam/mi_dynrec.c, and /myisam/mi_packrec.c.
 @*
 
 @node InnoDB Record Structure,InnoDB Page Structure,MyISAM Record Structure,Top
@@ -3112,7 +3121,7 @@ page0page.ic, and page0page.h in \page directory.
 
 This is a description of the files that you get when you download the
 source code of MySQL. This description begins with a list
-of the 43 directories and a short comment about each one. Then, for
+of the main directories and a short comment about each one. Then, for
 each directory, in alphabetical order, a longer description is
 supplied. When a directory contains significant program files, a list of each C
 program is given along with an explanation of its intended function.
@@ -3124,43 +3133,37 @@ program is given along with an explanation of its intended function.
 @item
 bdb  --  The Berkeley Database table handler 
 @item
-BitKeeper  --  BitKeeper administration 
+BitKeeper  --  BitKeeper administration (not part of the source distribution)
 @item
-BUILD  --  Build switches 
+BUILD  --  Some very often used build scripts
 @item
-Build-tools  --  Build tools 
+Build-tools  --  Build tools
 @item
 client  --  Client library 
 @item
-cmd-line-utils  --  Command-line utilities 
+cmd-line-utils  --  Command-line utilities (libedit and readline)
 @item
-dbug  --  Fred Fish's dbug library 
-@item
-div  --  Deadlock test 
+dbug  --  Fred Fish's dbug library
 @item
 Docs  --  Preliminary documents about internals and new modules 
 @item
-extra  --  Eight minor standalone utility programs 
+extra  --  Some minor standalone utility programs
 @item
-fs  --  File System 
+heap  --  The HEAP table handler
 @item
-heap  --  The HEAP table handler 
+include  --  Include (*.h) files
 @item
-Images  --  Empty directory 
+innobase  --  The Innobase (InnoDB) table handler
 @item
-include  --  Include (*.h) files 
+isam  --  The ISAM (MySQL) table handler
 @item
-innobase  --  The Innobase (InnoDB) table handler 
+libmysql  --  For producing a thread-safe libmysql library
 @item
-isam  --  The ISAM (MySQL) table handler 
+libmysql_r  --  Only one file, a makefile
 @item
-libmysql  --  For producing MySQL as a library (e.g. a Windows DLL)
+libmysqld  --  The MySQL Server as an embeddable library
 @item
-libmysql_r  --  Only one file, a makefile 
-@item
-libmysqld  --  The MySQL Library 
-@item
-man  --  Manual pages 
+man  --  Some user-contributed manual pages
 @item
 merge  --  The MERGE table handler (see Reference Manual section 7.2)
 @item
@@ -3170,24 +3173,21 @@ myisammrg  --  The MyISAM Merge table handler
 @item
 mysql-test  --  A test suite for mysqld 
 @item
-mysys  --  MySQL system library (Low level routines for file access
-etc.)
+mysys  --  MySQL system library (Low level routines for file access etc.)
 @item
 netware  --  Files related to the Novell NetWare version of MySQL 
 @item
-NEW-RPMS  --  New "RPM Package Manager" files 
+NEW-RPMS  --  Directory to place RPMS while making a distribution
 @item
 os2  --  Routines for working with the OS/2 operating system 
 @item
-pstack  --  Process stack display 
+pstack  --  Process stack display (not currently used)
 @item
-regex  --  Regular Expression library for support of REGEXP function
+regex  --  Henry Spencer's Regular Expression library for support of REGEXP function
 @item
-repl-tests  --  Test cases for replication 
+SCCS  --  Source Code Control System (not part of source distribution)
 @item
-SCCS  --  Source Code Control System 
-@item
-scripts  --  SQL batches, e.g. for converting msql to MySQL 
+scripts  --  SQL batches, e.g. mysqlbug and mysql_install_db
 @item
 sql  --  Programs for handling SQL commands. The "core" of MySQL 
 @item
@@ -3197,18 +3197,17 @@ SSL  --  Secure Sockets Layer
 @item
 strings  --  Library for C string routines, e.g. atof, strchr 
 @item
-support-files  --  15 files used for building, containing switches? 
+support-files  --  Files used to build MySQL on different systems
 @item
 tests  --  Tests in Perl 
 @item
-tools  --  mysqlmanager.c 
+tools  --  mysqlmanager.c (under development, not yet useful)
 @item
-VC++Files  --  Includes this entire directory, repeated for VC++
-(Windows) use 
+VC++Files  --  Includes this entire directory, repeated for VC++ (Windows) use
 @item
 vio  --  Virtual I/O Library 
 @item
-zlib  --  data compression library 
+zlib  --  data compression library, used on Windows
 @end itemize
 
 @subsection bdb
@@ -3216,7 +3215,9 @@ zlib  --  data compression library
 The Berkeley Database table handler.
 @*@*
 
-The Berkeley Database (BDB) is maintained by Sleepycat Software.
+The Berkeley Database (BDB) is maintained by Sleepycat Software. 
+MySQL AB maintains only a few small patches to make BDB work
+better with MySQL.
 @*@*
 
 The documentation for BDB is available at
@@ -3234,6 +3235,10 @@ This directory may be present if you downloaded the MySQL source using
 BitKeeper rather than via the mysql.com site. The files in the
 BitKeeper directory are for maintenance purposes only -- they are not
 part of the MySQL package.
+@*@*
+
+The MySQL Reference Manual explains how to use Bitkeeper to get the 
+MySQL source.
 @*@*
 
 @subsection BUILD
@@ -3262,9 +3267,10 @@ Build tools.
 @*@*
 
 This directory contains batch files for extracting, making
-directories, and making programs from source files. There are several
-subdirectories -- for building Linux executables, for compiling, for
-performing all build steps, etc.
+directories, and making programs from source files. There are 
+several subdirectories with different scripts -- for building 
+Linux executables, for compiling, for performing all build steps, 
+and so on.
 @*@*
 
 @subsection client
@@ -3282,32 +3288,31 @@ server.
 The C program files in the directory are:
 @itemize @bullet
 @item
-connect_test.c  --  test that a connect is possible 
+connect_test.c  --  test that a connect is possible
 @item
-get_password.c  --  ask for a password from the console 
+get_password.c  --  ask for a password from the console
 @item
-insert_test.c  --  test that an insert is possible 
+insert_test.c  --  test that an insert is possible
 @item
-list_test.c  --  test that a select is possible  
+list_test.c  --  test that a select is possible
 @item
-mysql.cc  --  "The MySQL command tool" 
+mysql.cc  --  "The MySQL command tool"
 @item
-mysqladmin.c  --  maintenance of MYSQL databases 
+mysqladmin.c  --  maintenance of MYSQL databases
 @item
-mysqlcheck.c  --  check all databases, check connect, etc. 
+mysqlcheck.c  --  check all databases, check connect, etc.
 @item
-mysqldump.c  --  dump table's contents in ascii 
+mysqldump.c  --  dump table's contents as SQL statements
 @item
-mysqlimport.c  --  import file into a table 
+mysqlimport.c  --  import text files in different formats into tables
 @item
-mysqlmanager-pwgen.c  --  pwgen seems to stand for "password
-generation" 
+mysqlmanager-pwgen.c  --  pwgen stands for "password generation" (not currently maintained)
 @item
-mysqlmanagerc.c  --  entry point for mysql manager 
+mysqlmanagerc.c  --  entry point for mysql manager (not currently maintained)
 @item
 mysqlshow.c  --  show databases, tables or columns 
 @item
-mysqltest.c  --  test program 
+mysqltest.c  --  test program used by the mysql-test suite, mysql-test-run
 @item
 password.c  --  password checking routines 
 @item
@@ -3341,7 +3346,10 @@ Software Foundation.
 @*@*
 
 The \libedit (library of edit functions) subdirectory has files
-written by Christos Zoulas. They are for editing the line contents.
+written by Christos Zoulas. They are distributed and modifed under 
+the BSD License. These files are for editing the line contents.
+@*@*
+
 These are the program files in the \libedit subdirectory:
 @itemize @bullet
 @item
@@ -3395,7 +3403,9 @@ Fred Fish's dbug library.
 @*@*
 
 This is not really part of the MySQL package. Rather, it's a set of
-public-domain routines which are useful for debugging MySQL programs.
+public-domain routines which are useful for debugging MySQL programs. 
+The MySQL Server and all .c and .cc programs support the use of this 
+package.
 @*@*
 
 How it works: One inserts a function call that begins with DBUG_* in
@@ -3405,7 +3415,8 @@ DBUG_ENTER("get_tty_password"); @*
 at the start of a routine, and this line: @*
 DBUG_RETURN(my_strdup(to,MYF(MY_FAE))); @*
 at the end of the routine. These lines don't affect production code.
-Features of the dbug library include profiling and state pushing.
+Features of the dbug library include extensive reporting and profiling 
+(the latter has not been used by the MySQL team).
 @*@*
 
 The C programs in this directory are:
@@ -3429,14 +3440,6 @@ sanity.c  --   Declaration of a variable
 @end itemize
 @*@*
 
-@subsection div
-
-Deadlock test.
-@*@*
-
-This file contains only one program, deadlock_test.c.
-@*@*
-
 @subsection Docs
 
 Preliminary documents about internals and new modules.
@@ -3445,7 +3448,8 @@ Preliminary documents about internals and new modules.
 This directory doesn't have much at present that's very useful to the
 student, but the plan is that some documentation related to the source
 files and the internal workings of MySQL, including perhaps some
-documentation from developers themselves, will be placed here.
+documentation from developers themselves, will be placed here. Some of 
+these files will eventually be moved to the MySQL documentation repository.
 @*@*
 
 These sub-directories are part of this directory:
@@ -3461,8 +3465,7 @@ mysql-logos  --  more MySQL-related logos, some of them moving
 @item
 raw-flags  --   more country flags, all .gif files 
 @item
-support  --  various files for generating texinfo/docbook
-documentation 
+support  --  various files for generating texinfo/docbook documentation 
 @item
 to-be-included...  --  an empty subdirectory 
 @item
@@ -3489,7 +3492,7 @@ make their own JDBC drivers, or just sniff).
 Eight minor standalone utility programs.
 @*@*
 
-These eight programs are all standalone utilities, that is, they have
+These programs are all standalone utilities, that is, they have
 a main() function and their main role is to show information that the
 MySQL server needs or produces. Most are unimportant. They are as
 follows:
@@ -3503,7 +3506,7 @@ mysql_waitpid.c  --  wait for a program to terminate
 @item
 perror.c  --  "print error" -- given error number, display message 
 @item
-replace.c  --  replace strings in text files 
+replace.c  --  replace strings in text files or pipe
 @item
 resolve_stack_dump.c  --  show symbolic info from a stack dump 
 @item
@@ -3562,7 +3565,7 @@ an "*" in the following list. For example, you will find that
 @item
 hp_block.c  --  Read/write a block (i.e. a page)
 @item
-hp_clear.c  --  Remove all records in the database 
+hp_clear.c  --  Remove all records in the table
 @item
 hp_close.c  --  * close database 
 @item
@@ -3578,7 +3581,7 @@ hp_info.c  --  * Information about database status
 @item
 hp_open.c  --  * open database 
 @item
-hp_panic.c  --  * the hp_panic routine, probably for sudden shutdowns 
+hp_panic.c  --  * the hp_panic routine, for shutdowns and flushes
 @item
 hp_rename.c  --  * rename a table 
 @item
@@ -3590,8 +3593,7 @@ hp_rlast.c  --  * read last row with same key as previously-read row
 @item
 hp_rnext.c  --  * read next row with same key as previously-read row
 @item
-hp_rprev.c  --  * read previous row with same key as previously-read
-row 
+hp_rprev.c  --  * read previous row with same key as previously-read row 
 @item
 hp_rrnd.c  --  * read a row based on position 
 @item
@@ -3616,14 +3618,6 @@ There are fewer files in the heap directory than in the myisam
 directory, because fewer are necessary. For example, there is no need
 for a \myisam\mi_cache.c equivalent (to cache reads) or a
 \myisam\log.c equivalent (to log statements).
-@*@*
-
-@subsection Images
-
-Empty directory.
-@*@*
-
-There are no files in this directory.
 @*@*
 
 @subsection include
@@ -3940,25 +3934,23 @@ mi_dynrec.c  --  functions to handle space-packed records and blobs
 @item
 mi_extra.c  --  setting options and buffer sizes when optimizing 
 @item
-mi_info.c  --  "Ger tillbaka en struct med information om isam-filen" 
+mi_info.c  --  return useful base information for an open table
 @item
-mi_key.c  --  for handling keys 
+mi_key.c  --  for handling keys
 @item
 mi_locking.c  --  lock database 
 @item
-mi_log.c  --  save commands in log file which myisamlog program can
-read 
+mi_log.c  --  save commands in log file which myisamlog program can read
 @item
 mi_open.c  --  open database 
 @item
-mi_packrec.c  --  compress records 
+mi_packrec.c  --  read from a data file compresed with myisampack
 @item
 mi_page.c  --  read and write pages containing keys 
 @item
 mi_panic.c  --  the mi_panic routine, probably for sudden shutdowns 
 @item
-mi_range.c  --  approximate count of how many records lie between two
-keys 
+mi_range.c  --  approximate count of how many records lie between two keys
 @item
 mi_rename.c  --  rename a table 
 @item
@@ -4106,8 +4098,6 @@ There are other tests in these directories:
 @itemize @bullet
 @item
 sql-bench
-@item
-repl-tests
 @item
 tests
 @end itemize
@@ -4275,8 +4265,7 @@ free"
 @item
 my_open.c  --  Open a file 
 @item
-my_os2cond.c  --  OS2-specific: "A simple implementation of posix
-conditions" 
+my_os2cond.c  --  OS2-specific: "A simple implementation of posix conditions"
 @item
 my_os2dirsrch.c  --  OS2-specific: Emulate a Win32 directory search 
 @item
@@ -4290,12 +4279,11 @@ my_os2thread.c  --  OS2-specific: For thread handling
 @item
 my_os2tls.c  --  OS2-specific: For thread-local storage 
 @item
-my_port.c  --  AIX-specific: my_ulonglong2double() 
+my_port.c  --  OS/machine-dependent porting functions, e.g. AIX-specific my_ulonglong2double()
 @item
 my_pread.c  --  Read a specified number of bytes from a file 
 @item
-my_pthread.c  --  A wrapper for thread-handling functions in different
-OSs 
+my_pthread.c  --  A wrapper for thread-handling functions in different OSs
 @item
 my_quick.c  --  Read/write (labelled a "quicker" interface, perhaps
 obsolete)
@@ -4317,15 +4305,13 @@ support them
 @item
 my_sleep.c  --  Wait n microseconds 
 @item
-my_static.c  --  Static-variable definitions 
+my_static.c  --  Static variables used by the mysys library
 @item
-my_symlink.c  --  Read a symbolic link (symlinks are a UNIX thing, I
-guess)
+my_symlink.c  --  Read a symbolic link (symlinks are a UNIX thing, I guess)
 @item
 my_symlink2.c  --  Part 2 of my_symlink.c 
 @item
-my_tempnam.c  --  Obsolete temporary-filename routine used by ISAM
-table handler 
+my_tempnam.c  --  Obsolete temporary-filename routine used by ISAM table handler 
 @item
 my_thr_init.c  --  initialize/allocate "all mysys & debug thread
 variables" 
@@ -4442,9 +4428,8 @@ NetWare AMP" at:
 New "RPM Package Manager" files.
 @*@*
 
-This directory is not part of the Windows distribution. Perhaps in
-MYSQL's Linux distribution it has files for use with Red Hat
-installations -- a point that needs checking someday.
+This directory is not part of the Windows distribution. It is 
+a temporary directory used during RPM builds with Linux distributions.
 @*@*
 
 @subsection os2
@@ -4517,28 +4502,6 @@ This program calls the 'regcomp' function, which is the entry point in
 \regex\regexp.c.
 @*@*
 
-@subsection repl-tests
-
-Test cases for replication.
-@*@*
-
-There are six short and trivial-looking tests in these subdirectories:
-@itemize @bullet
-@item
-\test-auto-inc  --  Do auto-Increment columns work? 
-@item
-\test-bad-query  --  Does insert in PK column work? 
-@item
-\test-dump  --  Do LOAD statements work? 
-@item
-\test-repl  --  Does replication work? 
-@item
-\test-repl-alter  --  Does ALTER TABLE work? 
-@item
-\test-repl-ts  --  Does TIMESTAMP column work? 
-@end itemize
-@*@*
-
 @subsection SCCS
 
 Source Code Control System.
@@ -4554,8 +4517,8 @@ administration and are not of interest to application programmers.
 SQL batches, e.g. for converting msql to MySQL.
 @*@*
 
-The *.sh filename extension apparently stands for "shell script".
-Linux programmers use it where Windows programmers would use a *.bat
+The *.sh filename extension stands for "shell script". Linux 
+programmers use it where Windows programmers would use a *.bat
 (batch filename extension).
 @*@*
 
@@ -4564,10 +4527,9 @@ The *.sh files on this directory are:
 @item
 fill_help_tables.sh  --  Create help-information tables and insert 
 @item
-make_binary_distribution.sh  --  Get configure information, make,
-produce tar 
+make_binary_distribution.sh  --  Get configure information, make, produce tar
 @item
-msql2mysql.sh  --  Convert mSQL to MySQL 
+msql2mysql.sh  --  Convert mSQL programs and scripts to MySQL, partly
 @item
 mysqlbug.sh  --  Create a bug report and mail it 
 @item
@@ -4581,33 +4543,29 @@ mysqldumpslow.sh  --  Parse and summarize the slow query log
 @item
 mysqlhotcopy.sh  --  Hot backup 
 @item
-mysql_config.sh  --  Get configure information that client might need 
+mysql_config.sh  --  Get configuration information that might be needed to compile a client
 @item
-mysql_convert_table_format.sh  --  Conversion, e.g. from ISAM to
-MyISAM 
+mysql_convert_table_format.sh  --  Conversion, e.g. from ISAM to MyISAM
 @item
-mysql_explain_log.sh  --  Put a log (made with --log) into a MySQL
-table 
+mysql_explain_log.sh  --  Put a log (made with --log) into a MySQL table
 @item
-mysql_find_rows.sh  --  Search for queries containing <regexp> 
+mysql_find_rows.sh  --  Search for queries containing <regexp>
 @item
-mysql_fix_extensions.sh  --  Renames some file extensions, not
-recommended 
+mysql_fix_extensions.sh  --  Renames some file extensions, not recommended
 @item
-mysql_fix_privilege_tables.sh  --  Fix mysql.user etc. if upgrading to
-MySQL 3.23.14+ 
+mysql_fix_privilege_tables.sh  --  Fix mysql.user etc. if upgrading to MySQL 3.23.14+
 @item
-mysql_install_db.sh  --  Create privilege tables and func table 
+mysql_install_db.sh  --  Create privilege tables and func table
 @item
 mysql_secure_installation.sh  --  Disallow remote root login,
-eliminate test, etc. 
+eliminate test, etc.
 @item
 mysql_setpermission.sh  --  Aid to add users or databases, sets
-privileges 
+privileges
 @item
 mysql_tableinfo.sh  --  Puts info re MySQL tables into a MySQL table
 @item
-mysql_zap.sh  --  Kill processes which match pattern 
+mysql_zap.sh  --  Kill processes which match pattern
 @end itemize
 @*@*
 
@@ -4629,16 +4587,15 @@ des_key_file.cc  --  load DES keys from plaintext file
 @item
 field.cc  --  "implement classes defined in field.h" (long)
 @item
-field_conv.cc  --  functions to copy data to or from fields 
+field_conv.cc  --  functions to copy data between fields
 @item
-filesort.cc  --  sort file 
+filesort.cc  --  sort a result set, using memory or temporary files
 @item
 frm_crypt.cc  --  contains only one short function: get_crypt_for_frm 
 @item
-gen_lex_hash.cc  --  Knuth's algorithm from Vol 3 Sorting and
-Searching, Chapter 6.3 
+gen_lex_hash.cc  --  Knuth's algorithm from Vol 3 Sorting and Searching, Chapter 6.3
 @item
-gstream.cc  --  GTextReadStream 
+gstream.cc  --  GTextReadStream, used to read GIS objects
 @item
 handler.cc  --  handler-calling functions 
 @item
@@ -4674,7 +4631,7 @@ item_func.cc  --  Numerical functions
 @item
 item_row.cc  --  Row items for comparing rows and for IN on rows 
 @item
-item_sum.cc  --  Set functions (sum, avg, etc.)
+item_sum.cc  --  Set functions (SUM, AVG, etc.)
 @item
 item_strfunc.cc  --  String functions 
 @item
@@ -4682,7 +4639,7 @@ item_subselect.cc  --  Item subselect
 @item
 item_timefunc.cc  --  Date/time functions, e.g. week of year 
 @item
-item_uniq.cc  --  Empty file, here for compatibility reasons 
+item_uniq.cc  --  Empty file, here for compatibility reasons
 @item
 key.cc  --  Functions to handle keys and fields in forms 
 @item
@@ -4694,10 +4651,9 @@ log_event.cc  --  Log event
 @item
 matherr.c  --  Handling overflow, underflow, etc. 
 @item
-mf_iocache.cc  --  Caching of (sequential) reads 
+mf_iocache.cc  --  Caching of (sequential) reads and writes
 @item
-mini_client.cc  --  Client included in server for server-server
-messaging 
+mini_client.cc  --  Client included in server for server-server messaging
 @item
 mysqld.cc  --  Source of mysqld.exe 
 @item
@@ -4708,58 +4664,56 @@ net_serv.cc  --  Read/write of packets on a network socket
 nt_servc.cc  --  Initialize/register/remove an NT service 
 @item
 opt_ft.cc  --  Create a FT or QUICK RANGE based on a key (very short)
-* opt_range.cc  --  Range of keys 
+@item
+opt_range.cc  --  Range of keys
 @item
 opt_sum.cc  --  Optimize functions in presence of (implied) GROUP BY
 @item
-password.c  --  Password checking 
+password.c  --  Password checking
 @item
-procedure.cc  --  Procedure 
+procedure.cc  --  Procedure
 @item
-protocol.cc  --  Low level functions for storing data to be sent to
-client 
+protocol.cc  --  Low level functions for storing data to be sent to client
 @item
-records.cc  --  Functions to read, write, and lock records 
+records.cc  --  Functions for easy reading of records, possible through a cache
 @item
-repl_failsafe.cc  --  Replication fail-save 
+repl_failsafe.cc  --  Replication fail-save (not yet implemented)
 @item
-set_var.cc  --  MySQL variables 
+set_var.cc  --  Set and retrieve MySQL user variables
 @item
-slave.cc  --  Procedures for a slave in a master/slave (replication?)
-relation 
+slave.cc  --  Procedures for a slave in a master/slave (replication) relation
 @item
 spatial.cc  --  Geometry stuff (lines, points, etc.)
 @item
-sql_acl.cc  --  Functions related to ACL security 
+sql_acl.cc  --  Functions related to ACL security
 @item
 sql_analyse.cc  --  Analyse an input string (?)
 @item
-sql_base.cc  --  Basic functions needed by many modules 
+sql_base.cc  --  Basic functions needed by many modules
 @item
-sql_cache.cc  --  SQL cache, with long comments about how caching
-works 
+sql_cache.cc  --  SQL query cache, with long comments about how caching works
 @item
-sql_class.cc  --  SQL class 
+sql_class.cc  --  SQL class
 @item
-sql_crypt.cc  --  Encode / decode, very short 
+sql_crypt.cc  --  Encode / decode, very short
 @item
-sql_db.cc  --  Create / drop database 
+sql_db.cc  --  Create / drop database
 @item
-sql_delete.cc  --  The DELETE statement 
+sql_delete.cc  --  The DELETE statement
 @item
-sql_derived.cc  --  Derived tables, with long comments 
+sql_derived.cc  --  Derived tables, with long comments
 @item
-sql_do.cc  --  The DO statement 
+sql_do.cc  --  The DO statement
 @item
-sql_error.cc  --  Errors and warnings 
+sql_error.cc  --  Errors and warnings
 @item
-sql_handler.cc  --  Direct access to ISAM 
+sql_handler.cc  --  Direct access to ISAM
 @item
 sql_help.cc  --  The HELP statement (if there is one?)
 @item
-sql_insert.cc  --  The INSERT statement 
+sql_insert.cc  --  The INSERT statement
 @item
-sql_lex.cc  --  Related to lex or yacc 
+sql_lex.cc  --  Related to lex or yacc
 @item
 sql_list.cc  --  Only list_node_end_of_list, short 
 @item
