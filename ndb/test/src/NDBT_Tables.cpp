@@ -849,7 +849,7 @@ NDBT_Tables::createTable(Ndb* pNdb, const char* _name, bool _temp,
     }
     
     Uint32 i = 0;
-    for(Uint32 i = 0; indexes[i].m_table != 0; i++){
+    for(i = 0; indexes[i].m_table != 0; i++){
       if(strcmp(indexes[i].m_table, _name) != 0)
 	continue;
       Uint32 j = 0;
