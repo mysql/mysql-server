@@ -515,18 +515,18 @@ String *Item_func_concat_ws::val_str(String *str)
   str->length(0);				// QQ; Should be removed
   res=str;
 
-  // Skip until non-null and non-empty argument is found.
+  // Skip until non-null argument is found.
   // If not, return the empty string
   for (i=0; i < arg_count; i++)
-    if ((res= args[i]->val_str(str)) && res->length())
+    if ((res= args[i]->val_str(str)))
       break;
   if (i ==  arg_count)
     return &empty_string;
 
   for (i++; i < arg_count ; i++)
   {
-    if (!(res2= args[i]->val_str(use_as_buff)) || !res2->length())
-      continue;					// Skip NULL and empty string
+    if (!(res2= args[i]->val_str(use_as_buff)))
+      continue;					// Skip NULL
 
     if (res->length() + sep_str->length() + res2->length() >
 	current_thd->variables.max_allowed_packet)

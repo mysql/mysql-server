@@ -267,7 +267,7 @@ ulong slave_net_timeout;
 ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
 ulong query_cache_size=0;
 ulong com_stat[(uint) SQLCOM_END], com_other;
-ulong bytes_sent, bytes_received;
+ulong bytes_sent, bytes_received, net_big_packet_count;
 ulong refresh_version=1L,flush_version=1L;	/* Increments on each reload */
 ulong query_id, long_query_count, aborted_threads, aborted_connects;
 ulong delayed_insert_timeout, delayed_insert_limit, delayed_queue_size;
@@ -987,14 +987,21 @@ static void set_ports()
 static void set_user(const char *user)
 {
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
-    struct passwd *ent;
+  struct passwd *ent;
+  uid_t user_id= geteuid();
 
   // don't bother if we aren't superuser
-  if (geteuid())
+  if (user_id)
   {
     if (user)
-      fprintf(stderr,
-	      "Warning: One can only use the --user switch if running as root\n");
+    {
+      /* Don't give a warning, if real user is same as given with --user */
+      struct passwd *user_info= getpwnam(user);
+
+      if (!user_info || user_id != user_info->pw_uid)
+	fprintf(stderr,
+		"Warning: One can only use the --user switch if running as root\n");
+    }
     return;
   }
   else if (!user)

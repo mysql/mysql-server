@@ -73,11 +73,13 @@ void sql_print_error(const char *format,...);
 #define USE_QUERY_CACHE
 extern uint test_flags;
 extern void query_cache_insert(NET *net, const char *packet, ulong length);
-extern ulong bytes_sent, bytes_received;
+extern ulong bytes_sent, bytes_received, net_big_packet_count;
 extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
 #else
 #undef statistic_add
+#undef statistic_increment
 #define statistic_add(A,B,C)
+#define statistic_increment(A,B)
 #endif
 
 #define TEST_BLOCKING		8
@@ -562,7 +564,7 @@ static my_bool net_safe_read(NET *net, char *buff, uint32 length,
     if ((tmp=vio_read(net->vio,(char*) net->buff, length)) <= 0)
     {
       my_bool interrupted = vio_should_retry(net->vio);
-      if (!thr_got_alarm(&alarmed) && interrupted)
+      if (!thr_got_alarm(alarmed) && interrupted)
       {					/* Probably in MIT threads */
 	if (retry_count++ < net->retry_count)
 	  continue;
@@ -596,10 +598,13 @@ static my_bool my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed,
   DBUG_ENTER("my_net_skip_rest");
   DBUG_PRINT("enter",("bytes_to_skip: %u", (uint) remain));
 
-  if (!thr_alarm_in_use(&alarmed))
+  /* The following is good for debugging */
+  statistic_increment(net_big_packet_count,&LOCK_bytes_received);
+
+  if (!thr_alarm_in_use(alarmed))
   {
     my_bool old_mode;
-    if (!thr_alarm(alarmed,net->read_timeout, alarm_buff) ||
+    if (thr_alarm(alarmed,net->read_timeout, alarm_buff) ||
 	vio_blocking(net->vio, TRUE, &old_mode) < 0)
       DBUG_RETURN(1);				/* Can't setup, abort */
   }
