@@ -51,7 +51,8 @@ to que_run_threads: this is to allow canceling runaway queries */
 
 /************************************************************************
 Returns TRUE if the user-defined column values in a secondary index record
-are the same as the corresponding columns in the clustered index record.
+are alphabetically the same as the corresponding columns in the clustered
+index record.
 NOTE: the comparison is NOT done as a binary comparison, but character
 fields are compared with collation! */
 static
@@ -95,11 +96,6 @@ row_sel_sec_rec_is_for_clust_rec(
 
 		       clust_len = ifield->prefix_len;
 		}
-
-                if (sec_len != clust_len) {
-
-                        return(FALSE);
-                }
 
                 if (0 != cmp_data_data(dict_col_get_type(col),
                                         clust_field, clust_len,

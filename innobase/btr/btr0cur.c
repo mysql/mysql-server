@@ -1146,7 +1146,6 @@ btr_cur_pessimistic_insert(
 }
 
 /*==================== B-TREE UPDATE =========================*/
-/* Only clustered index records are modified using these functions */
 
 /*****************************************************************
 For an update, checks the locks and does the undo logging. */
@@ -1170,12 +1169,15 @@ btr_cur_upd_lock_and_undo(
 	
 	ut_ad(cursor && update && thr && roll_ptr);
 
-	/* Only clustered index records are updated using this function */
-	ut_ad((cursor->index)->type & DICT_CLUSTERED);
-
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 	
+	if (!(index->type & DICT_CLUSTERED)) {
+		/* We do undo logging only when we update a clustered index
+		record */
+		return(lock_sec_rec_modify_check_and_lock(0, rec, index, thr));
+	}
+
 	/* Check if we have to wait for a lock: enqueue an explicit lock
 	request if yes */
 
@@ -1221,6 +1223,13 @@ btr_cur_update_in_place_log(
 
 	mach_write_to_1(log_ptr, flags);
 	log_ptr++;
+
+	/* The code below assumes index is a clustered index: change index to
+	the clustered index if we are updating a secondary index record (or we
+	could as well skip writing the sys col values to the log in this case
+	because they are not needed for a secondary index record update) */
+
+	index = dict_table_get_first_index(index->table);
 
 	log_ptr = row_upd_write_sys_vals_to_log(index, trx, roll_ptr, log_ptr,
 									mtr);
@@ -1308,68 +1317,7 @@ btr_cur_parse_update_in_place(
 }
 
 /*****************************************************************
-Updates a secondary index record when the update causes no size
-changes in its fields. The only case when this function is currently
-called is that in a char field characters change to others which
-are identified in the collation order. */
-
-ulint
-btr_cur_update_sec_rec_in_place(
-/*============================*/
-				/* out: DB_SUCCESS or error number */
-	btr_cur_t*	cursor,	/* in: cursor on the record to update;
-				cursor stays valid and positioned on the
-				same record */
-	upd_t*		update,	/* in: update vector */
-	que_thr_t*	thr,	/* in: query thread */
-	mtr_t*		mtr)	/* in: mtr */
-{
-	dict_index_t*	index 		= cursor->index;
-	dict_index_t*	clust_index;
-	ulint		err;
-	rec_t*		rec;
-	dulint		roll_ptr	= ut_dulint_zero;
-	trx_t*		trx		= thr_get_trx(thr);
-
-	/* Only secondary index records are updated using this function */
-	ut_ad(0 == (index->type & DICT_CLUSTERED));
-
-	rec = btr_cur_get_rec(cursor);
-	
-	if (btr_cur_print_record_ops && thr) {
-		printf(
-	"Trx with id %lu %lu going to update table %s index %s\n",
-		ut_dulint_get_high(thr_get_trx(thr)->id),
-		ut_dulint_get_low(thr_get_trx(thr)->id),
-		index->table_name, index->name);
-		rec_print(rec);
-	}
-
-	err = lock_sec_rec_modify_check_and_lock(0, rec, index, thr);
-
-	if (err != DB_SUCCESS) {
-
-		return(err);
-	}
-
-	/* Remove possible hash index pointer to this record */
-	btr_search_update_hash_on_delete(cursor);
-
-	row_upd_rec_in_place(rec, update);
-
-	clust_index = dict_table_get_first_index(index->table);
-
-	/* Note that roll_ptr is really just a dummy value since
-	a secondary index record does not contain any sys columns */
-
-	btr_cur_update_in_place_log(BTR_KEEP_SYS_FLAG, rec, clust_index,
-						update, trx, roll_ptr, mtr);
-	return(DB_SUCCESS);
-}
-
-/*****************************************************************
-Updates a record when the update causes no size changes in its fields.
-We assume here that the ordering fields of the record do not change. */
+Updates a record when the update causes no size changes in its fields. */
 
 ulint
 btr_cur_update_in_place(
@@ -1389,12 +1337,9 @@ btr_cur_update_in_place(
 	buf_block_t*	block;
 	ulint		err;
 	rec_t*		rec;
-	dulint		roll_ptr;
+	dulint		roll_ptr	= ut_dulint_zero;
 	trx_t*		trx;
 	ibool		was_delete_marked;
-
-	/* Only clustered index records are updated using this function */
-	ut_ad(cursor->index->type & DICT_CLUSTERED);
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
@@ -1420,7 +1365,12 @@ btr_cur_update_in_place(
 	block = buf_block_align(rec);
 
 	if (block->is_hashed) {
-	        if (row_upd_changes_ord_field_binary(NULL, index, update)) {
+		/* The function row_upd_changes_ord_field_binary works only
+		if the update vector was built for a clustered index, we must
+		NOT call it if index is secondary */
+
+	        if (!(index->type & DICT_CLUSTERED)
+		    || row_upd_changes_ord_field_binary(NULL, index, update)) {
 
 		        /* Remove possible hash index pointer to this record */
 	                btr_search_update_hash_on_delete(cursor);
@@ -1494,9 +1444,6 @@ btr_cur_optimistic_update(
 	mem_heap_t*	heap;
 	ibool		reorganized	= FALSE;
 	ulint		i;
-
-	/* Only clustered index records are updated using this function */
-	ut_ad((cursor->index)->type & DICT_CLUSTERED);
 	
 	page = btr_cur_get_page(cursor);
 	rec = btr_cur_get_rec(cursor);
@@ -1546,8 +1493,8 @@ btr_cur_optimistic_update(
 	
 	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
 
-	row_upd_index_replace_new_col_vals(new_entry, index, update, NULL);
-
+	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
+									NULL);
 	old_rec_size = rec_get_size(rec);
 	new_rec_size = rec_get_converted_size(new_entry);
 	
@@ -1729,7 +1676,6 @@ btr_cur_pessimistic_update(
 	index = cursor->index;
 	tree = index->tree;
 
-	ut_ad(index->type & DICT_CLUSTERED);
 	ut_ad(mtr_memo_contains(mtr, dict_tree_get_lock(tree),
 							MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
@@ -1779,8 +1725,8 @@ btr_cur_pessimistic_update(
 	
 	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
 
-	row_upd_index_replace_new_col_vals(new_entry, index, update, heap);
-
+	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
+									heap);
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 								roll_ptr);
