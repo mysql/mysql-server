@@ -3055,8 +3055,8 @@ CHARSET_INFO my_charset_ucs2 =
     my_hash_sort_ucs2,	/* hash_sort    */
     0,
     my_snprintf_ucs2,
-    my_l10tostr_8bit,
-    my_ll10tostr_8bit,
+    my_l10tostr_ucs2,
+    my_ll10tostr_ucs2,
     my_strntol_ucs2,
     my_strntoul_ucs2,
     my_strntoll_ucs2,
