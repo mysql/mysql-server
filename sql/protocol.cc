@@ -616,7 +616,7 @@ bool Protocol_simple::store_null()
   field_pos++;
 #endif
   char buff[1];
-  buff[0]= 251;
+  buff[0]= (char)251;
   return packet->append(buff, sizeof(buff), PACKET_BUFFET_EXTRA_ALLOC);
 }
 
@@ -774,13 +774,27 @@ bool Protocol_simple::store_time(TIME *tm)
 
 /****************************************************************************
   Functions to handle the binary protocol used with prepared statements
+
+  Data format:
+
+   [ok:1]                            <-- reserved ok packet
+   [null_field:(field_count+7+2)/8]  <-- reserved to send null data. The size is
+                                         calculated using:
+                                         bit_fields= (field_count+7+2)/8; 
+                                         2 bits are reserved
+   [[length]data]                    <-- data field (the length applies only for 
+                                         string/binary/time/timestamp fields and 
+                                         rest of them are not sent as they have 
+                                         the default length that client understands
+                                         based on the field type
+   [..]..[[length]data]              <-- data
 ****************************************************************************/
 
 bool Protocol_prep::prepare_for_send(List<Item> *item_list)
 {
-  field_count=item_list->elements;
-  bit_fields= (field_count+3)/8;
-  if (packet->alloc(bit_fields))
+  field_count= item_list->elements;
+  bit_fields= (field_count+9)/8;
+  if (packet->alloc(bit_fields+1))
     return 1;
   /* prepare_for_resend will be called after this one */
   return 0;
@@ -789,9 +803,8 @@ bool Protocol_prep::prepare_for_send(List<Item> *item_list)
 
 void Protocol_prep::prepare_for_resend()
 {
-  packet->length(bit_fields);
-  bzero((char*) packet->ptr()+1, bit_fields-1);
-  packet[0]=1;					// Marker for ok packet
+  packet->length(bit_fields+1);
+  bzero((char*) packet->ptr(), 1+bit_fields);
   field_pos=0;
 }
 
@@ -813,7 +826,7 @@ bool Protocol_prep::store(const char *from,uint length)
 
 bool Protocol_prep::store_null()
 {
-  uint offset=(field_pos+2)/8, bit= (1 << ((field_pos+2) & 7));
+  uint offset= (field_pos+2)/8+1, bit= (1 << ((field_pos+2) & 7));
   /* Room for this as it's allocated in prepare_for_send */
   char *to= (char*) packet->ptr()+offset;
   *to= (char) ((uchar) *to | (uchar) bit);
@@ -926,6 +939,7 @@ bool Protocol_prep::store(TIME *tm)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
+        field_types[field_pos] == MYSQL_TYPE_YEAR ||
 	      field_types[field_pos] == MYSQL_TYPE_DATETIME ||
 	      field_types[field_pos] == MYSQL_TYPE_DATE ||
 	      field_types[field_pos] == MYSQL_TYPE_TIMESTAMP);
@@ -987,3 +1001,10 @@ bool Protocol_prep::store_time(TIME *tm)
   buff[0]=(char) length;			// Length is stored first
   return packet->append(buff, length+1, PACKET_BUFFET_EXTRA_ALLOC);
 }
+
+#if 0
+bool Protocol_prep::send_fields(List<Item> *list, uint flag) 
+{
+  return prepare_for_send(list);
+};
+#endif

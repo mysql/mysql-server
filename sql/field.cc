@@ -2599,7 +2599,7 @@ String *Field_double::val_str(String *val_buffer,
 
 bool Field_double::send_binary(Protocol *protocol)
 {
-  return protocol->store((float) Field_double::val_real(), dec, (String*) 0);
+  return protocol->store((double) Field_double::val_real(), dec, (String*) 0);
 }
 
 
@@ -3169,7 +3169,7 @@ bool Field_time::send_binary(Protocol *protocol)
   Field_time::get_time(&tm);
   tm.day= tm.hour/3600;				// Move hours to days
   tm.hour-= tm.day*3600;
-  return protocol->store(&tm);
+  return protocol->store_time(&tm);
 }
 
 
@@ -3254,6 +3254,13 @@ int Field_year::store(longlong nr)
   return 0;
 }
 
+bool Field_year::send_binary(Protocol *protocol)
+{
+  ulonglong tmp= Field_year::val_int();
+  TIME tm;
+  tm.year= (uint32) tmp;
+  return protocol->store_date(&tm);
+}
 
 double Field_year::val_real(void)
 {
@@ -3369,6 +3376,16 @@ int Field_date::store(longlong nr)
 #endif
     longstore(ptr,tmp);
   return error;
+}
+
+bool Field_date::send_binary(Protocol *protocol)
+{
+  longlong tmp= Field_date::val_int();
+  TIME tm;
+  tm.year= (uint32) tmp/10000L % 10000;
+  tm.month= (uint32) tmp/100 % 100;
+  tm.day= (uint32) tmp % 100;
+  return protocol->store_date(&tm);
 }
 
 
@@ -3544,7 +3561,12 @@ void Field_newdate::store_time(TIME *ltime,timestamp_type type)
   int3store(ptr,tmp);
 }
 
-
+bool Field_newdate::send_binary(Protocol *protocol)
+{
+  TIME tm;
+  Field_newdate::get_date(&tm,0);
+  return protocol->store_date(&tm);
+}
 
 double Field_newdate::val_real(void)
 {
@@ -3703,6 +3725,13 @@ void Field_datetime::store_time(TIME *ltime,timestamp_type type)
   else
 #endif
     longlongstore(ptr,tmp);
+}
+
+bool Field_datetime::send_binary(Protocol *protocol)
+{
+  TIME tm;
+  Field_datetime::get_date(&tm, 1);
+  return protocol->store(&tm);
 }
 
 
