@@ -83,7 +83,12 @@ void hash_free(HASH *hash)
 
 	/* some helper functions */
 
-inline byte*
+/*
+  This function is char* instead of byte* as HPUX11 compiler can't
+  handle inline functions that are not defined as native types
+*/
+
+inline char*
 hash_key(HASH *hash,const byte *record,uint *length,my_bool first)
 {
   if (hash->get_key)
@@ -104,7 +109,7 @@ static uint hash_rec_mask(HASH *hash,HASH_LINK *pos,uint buffmax,
 			  uint maxlength)
 {
   uint length;
-  byte *key=hash_key(hash,pos->data,&length,0);
+  byte *key= (byte*) hash_key(hash,pos->data,&length,0);
   return hash_mask((*hash->calc_hashnr)(key,length),buffmax,maxlength);
 }
 
@@ -183,10 +188,10 @@ uint calc_hashnr_caseup(const byte *key, uint len)
 #ifndef __SUNPRO_C				/* SUNPRO can't handle this */
 inline
 #endif
-uint rec_hashnr(HASH *hash,const byte *record)
+unsigned int rec_hashnr(HASH *hash,const byte *record)
 {
   uint length;
-  byte *key=hash_key(hash,record,&length,0);
+  byte *key= (byte*) hash_key(hash,record,&length,0);
   return (*hash->calc_hashnr)(key,length);
 }
 
@@ -273,7 +278,7 @@ static void movelink(HASH_LINK *array,uint find,uint next_link,uint newlink)
 static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length)
 {
   uint rec_keylength;
-  byte *rec_key=hash_key(hash,pos->data,&rec_keylength,1);
+  byte *rec_key= (byte*) hash_key(hash,pos->data,&rec_keylength,1);
   return (length && length != rec_keylength) ||
     (hash->flags & HASH_CASE_INSENSITIVE ?
      my_casecmp(rec_key,key,rec_keylength) :
