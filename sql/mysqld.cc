@@ -112,8 +112,13 @@ typedef fp_except fp_except_t;
 inline void reset_floating_point_exceptions()
 {
   /* Don't fall for overflow, underflow,divide-by-zero or loss of precision */
-  fpsetmask(~(FP_X_INV | FP_X_DNML | FP_X_OFL | FP_X_UFL |
-	      FP_X_DZ | FP_X_IMP));
+#if defined(__i386__)
+  fpsetmask(~(FP_X_INV | FP_X_DNML | FP_X_OFL | FP_X_UFL | FP_X_DZ |
+	      FP_X_IMP));
+#else
+ fpsetmask(~(FP_X_INV |             FP_X_OFL | FP_X_UFL | FP_X_DZ |
+	     FP_X_IMP));
+#endif
 }
 #else
 #define reset_floating_point_exceptions()
