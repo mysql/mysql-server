@@ -56,6 +56,31 @@ uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
     pos = ((byte*)mbr) + keyseg->start;
     if (keyseg->flag & HA_SWAP_KEY)
     {
+#ifdef HAVE_ISNAN
+      if (keyseg->type == HA_KEYTYPE_FLOAT)
+      {
+	float nr;
+	float4get(nr, pos);
+	if (isnan(nr))
+	{
+	  /* Replace NAN with zero */
+ 	  bzero(key, length);
+	  key+= length;
+	  continue;
+	}
+      }
+      else if (keyseg->type == HA_KEYTYPE_DOUBLE)
+      {
+	double nr;
+	float8get(nr, pos);
+	if (isnan(nr))
+	{
+ 	  bzero(key, length);
+	  key+= length;
+	  continue;
+	}
+      }
+#endif
       pos += length;
       while (length--)
       {
@@ -99,19 +124,19 @@ static int sp_add_point_to_mbr(uchar *(*wkb), uchar *end, uint n_dims,
 			       double *mbr)
 {
   double ord;
-  double *mbr_end = mbr + n_dims * 2;
+  double *mbr_end= mbr + n_dims * 2;
 
   while (mbr < mbr_end)
   {
     if ((*wkb) > end - 8)
       return -1;
     float8get(ord, (*wkb));
-    (*wkb) += 8;
+    (*wkb)+= 8;
     if (ord < *mbr)
-      *mbr = ord;
+      float8store((char*) mbr, ord);
     mbr++;
     if (ord > *mbr)
-      *mbr = ord;
+      float8store((char*) mbr, ord);
     mbr++;
   }
   return 0;
