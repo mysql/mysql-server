@@ -1,0 +1,71 @@
+/******************************************************
+Executes SQL stored procedures and their control structures
+
+(c) 1998 Innobase Oy
+
+Created 1/20/1998 Heikki Tuuri
+*******************************************************/
+
+#include "pars0pars.h"
+#include "que0que.h"
+#include "eval0eval.h"
+
+/**************************************************************************
+Performs an execution step of a procedure node. */
+UNIV_INLINE
+que_thr_t*
+proc_step(
+/*======*/
+				/* out: query thread to run next or NULL */
+	que_thr_t*	thr)	/* in: query thread */
+{
+	proc_node_t*	node;
+
+	ut_ad(thr);
+	
+	node = thr->run_node;
+	ut_ad(que_node_get_type(node) == QUE_NODE_PROC);
+
+	if (thr->prev_node == que_node_get_parent(node)) {
+		/* Start execution from the first statement in the statement
+		list */
+		
+		thr->run_node = node->stat_list;
+	} else {
+		/* Move to the next statement */
+		ut_ad(que_node_get_next(thr->prev_node) == NULL);
+		
+		thr->run_node = NULL;
+	}
+
+	if (thr->run_node == NULL) {
+		thr->run_node = que_node_get_parent(node);
+	}
+
+	return(thr);
+} 
+
+/**************************************************************************
+Performs an execution step of a procedure call node. */
+UNIV_INLINE
+que_thr_t*
+proc_eval_step(
+/*===========*/
+				/* out: query thread to run next or NULL */
+	que_thr_t*	thr)	/* in: query thread */
+{
+	func_node_t*	node;
+
+	ut_ad(thr);
+	
+	node = thr->run_node;
+	ut_ad(que_node_get_type(node) == QUE_NODE_FUNC);
+
+	/* Evaluate the procedure */
+
+	eval_exp(node);
+	
+	thr->run_node = que_node_get_parent(node);
+
+	return(thr);
+} 

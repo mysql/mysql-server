@@ -20,23 +20,21 @@
 #include "mysql_priv.h"
 #include "sql_acl.h"
 
-#define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1));
+#define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
 
 /* Return 0 if row hasn't changed */
 
-static bool compare_record(TABLE *table)
+static bool compare_record(TABLE *table, ulong query_id)
 {
   if (!table->blob_fields)
     return cmp_record(table,1);
-  ulong current_query_id=current_thd->query_id;
-
   if (memcmp(table->null_flags,
 	     table->null_flags+table->rec_buff_length,
 	     table->null_bytes))
     return 1;					// Diff in NULL value
   for (Field **ptr=table->field ; *ptr ; ptr++)
   {
-    if ((*ptr)->query_id == current_query_id &&
+    if ((*ptr)->query_id == query_id &&
 	(*ptr)->cmp_binary_offset(table->rec_buff_length))
       return 1;
   }
@@ -53,7 +51,8 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
   bool 		using_limit=limit != HA_POS_ERROR;
   bool		used_key_is_modified, using_transactions;
   int		error=0;
-  uint		save_time_stamp, used_index;
+  uint		save_time_stamp, used_index, want_privilege;
+  ulong		query_id=thd->query_id, timestamp_query_id;
   key_map	old_used_keys;
   TABLE		*table;
   SQL_SELECT	*select;
@@ -67,35 +66,45 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
 
-  /*
-  ** Find the offsets of the given fields and condition
-  */
-
-  if (setup_fields(thd,table_list,fields,1,0))
-    DBUG_RETURN(-1);
-  table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
-  if (table->timestamp_field &&			// Don't set timestamp if used
-      table->timestamp_field->query_id == thd->query_id)
-    table->time_stamp=0;
-
-  /* Change query_id so that ->used_keys is based on the WHERE */
+  /* Calculate "table->used_keys" based on the WHERE */
   table->used_keys=table->keys_in_use;
   table->quick_keys=0;
-  ulong query_id=thd->query_id;
-  thd->query_id^= MAX_ULONG_BIT;
-  if (setup_fields(thd,table_list,values,0,0) ||
-      setup_conds(thd,table_list,&conds))
+  want_privilege=table->grant.want_privilege;
+  table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
+  if (setup_conds(thd,table_list,&conds))
+    DBUG_RETURN(-1);				/* purecov: inspected */
+  old_used_keys=table->used_keys;		// Keys used in WHERE
+
+  /*
+    Change the query_id for the timestamp column so that we can
+    check if this is modified directly
+  */
+  if (table->timestamp_field)
+  {
+    timestamp_query_id=table->timestamp_field->query_id;
+    table->timestamp_field->query_id=thd->query_id-1;
+  }
+
+  /* Check the fields we are going to modify */
+  table->grant.want_privilege=want_privilege;
+  if (setup_fields(thd,table_list,fields,1,0))
+    DBUG_RETURN(-1);				/* purecov: inspected */
+  if (table->timestamp_field)
+  {
+    // Don't set timestamp column if this is modified
+    if (table->timestamp_field->query_id == thd->query_id)
+      table->time_stamp=0;
+    else
+      table->timestamp_field->query_id=timestamp_query_id;
+  }
+
+  /* Check values */
+  table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
+  if (setup_fields(thd,table_list,values,0,0))
   {
     table->time_stamp=save_time_stamp;		// Restore timestamp pointer
     DBUG_RETURN(-1);				/* purecov: inspected */
   }
-  old_used_keys=table->used_keys;
-  /* Restore query_id for compare_record */
-  thd->query_id=query_id;
-  List_iterator<Item> it(fields);  
-  Item *item;
-  while ((item=it++))
-    ((Item_field*) item)->field->query_id=query_id;
 
   // Don't count on usage of 'only index' when calculating which key to use
   table->used_keys=0;
@@ -141,6 +150,7 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
     ** We can't update table directly;  We must first search after all
     ** matching rows before updating the table!
     */
+    table->file->extra(HA_EXTRA_DONT_USE_CURSOR_TO_UPDATE);
     IO_CACHE tempfile;
     if (open_cached_file(&tempfile, mysql_tmpdir,TEMP_PREFIX,
 			  DISK_BUFFER_SIZE, MYF(MY_WME)))
@@ -218,6 +228,7 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
   thd->count_cuted_fields=1;			/* calc cuted fields */
   thd->cuted_fields=0L;
   thd->proc_info="updating";
+  query_id=thd->query_id;
 
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
@@ -227,7 +238,7 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
       if (fill_record(fields,values))
 	break;
       found++;
-      if (compare_record(table))
+      if (compare_record(table, query_id))
       {
 	if (!(error=table->file->update_row((byte*) table->record[1],
 					    (byte*) table->record[0])))

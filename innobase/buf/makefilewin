@@ -1,0 +1,20 @@
+include ..\include\makefile.i
+
+buf.lib: buf0buf.obj buf0lru.obj buf0flu.obj buf0rea.obj
+	lib -out:..\libs\buf.lib buf0buf.obj buf0lru.obj buf0flu.obj buf0rea.obj
+
+buf0buf.obj: buf0buf.c
+	$(CCOM) $(CFL) -c buf0buf.c
+
+buf0lru.obj: buf0lru.c
+	$(CCOM) $(CFL) -c buf0lru.c
+
+buf0flu.obj: buf0flu.c
+	$(CCOM) $(CFL) -c buf0flu.c
+
+buf0rea.obj: buf0rea.c
+	$(CCOM) $(CFL) -c buf0rea.c
+
+
+
+

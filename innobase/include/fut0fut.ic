@@ -1,0 +1,36 @@
+/**********************************************************************
+File-based utilities
+
+(c) 1995 Innobase Oy
+
+Created 12/13/1995 Heikki Tuuri
+***********************************************************************/
+
+#include "sync0rw.h"
+#include "buf0buf.h"
+
+/************************************************************************
+Gets a pointer to a file address and latches the page. */
+UNIV_INLINE
+byte*
+fut_get_ptr(
+/*========*/
+				/* out: pointer to a byte in a frame; the file
+				page in the frame is bufferfixed and latched */
+	ulint		space,	/* in: space id */
+	fil_addr_t	addr,	/* in: file address */
+	ulint		rw_latch, /* in: RW_S_LATCH, RW_X_LATCH */
+	mtr_t*		mtr)	/* in: mtr handle */
+{
+	byte*	ptr;
+
+	ut_ad(mtr);
+	ut_ad(addr.boffset < UNIV_PAGE_SIZE);
+	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
+
+	ptr = buf_page_get(space, addr.page, rw_latch, mtr) + addr.boffset;
+
+	buf_page_dbg_add_level(ptr, SYNC_NO_ORDER_CHECK);
+
+	return(ptr);
+}

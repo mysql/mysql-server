@@ -1,0 +1,21 @@
+include ..\include\makefile.i
+
+dict.lib: dict0dict.obj dict0boot.obj dict0load.obj dict0mem.obj dict0crea.obj 
+	lib -out:..\libs\dict.lib dict0dict.obj dict0boot.obj dict0load.obj dict0mem.obj dict0crea.obj 
+
+dict0dict.obj: dict0dict.c
+	$(CCOM) $(CFL) -c dict0dict.c
+
+dict0boot.obj: dict0boot.c
+	$(CCOM) $(CFL) -c dict0boot.c
+
+dict0mem.obj: dict0mem.c
+	$(CCOM) $(CFL) -c dict0mem.c
+
+dict0crea.obj: dict0crea.c
+	$(CCOM) $(CFL) -c dict0crea.c
+
+dict0load.obj: dict0load.c
+	$(CCOM) $(CFL) -c dict0load.c
+
+

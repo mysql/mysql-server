@@ -1,0 +1,352 @@
+/******************************************************
+Transaction system
+
+(c) 1996 Innobase Oy
+
+Created 3/26/1996 Heikki Tuuri
+*******************************************************/
+
+#include "srv0srv.h"
+#include "trx0trx.h"
+#include "data0type.h"
+
+/* The typedef for rseg slot in the file copy */
+typedef byte 	trx_sysf_rseg_t;
+
+/* Rollback segment specification slot offsets */
+/*-------------------------------------------------------------*/
+#define	TRX_SYS_RSEG_SPACE	0	/* space where the the segment
+					header is placed */
+#define	TRX_SYS_RSEG_PAGE_NO	4	/*  page number where the the segment
+					header is placed; this is FIL_NULL
+					if the slot is unused */
+/*-------------------------------------------------------------*/
+/* Size of a rollback segment specification slot */
+#define TRX_SYS_RSEG_SLOT_SIZE	8
+
+/*********************************************************************
+Writes the value of max_trx_id to the file based trx system header. */
+
+void
+trx_sys_flush_max_trx_id(void);
+/*==========================*/
+
+/*******************************************************************
+Checks if a page address is the trx sys header page. */
+UNIV_INLINE
+ibool
+trx_sys_hdr_page(
+/*=============*/
+			/* out: TRUE if trx sys header page */
+	ulint	space,	/* in: space */
+	ulint	page_no)/* in: page number */
+{
+	if ((space == TRX_SYS_SPACE) && (page_no == TRX_SYS_PAGE_NO)) {
+
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/*******************************************************************
+Gets the pointer in the nth slot of the rseg array. */
+UNIV_INLINE
+trx_rseg_t*
+trx_sys_get_nth_rseg(
+/*=================*/
+				/* out: pointer to rseg object, NULL if slot
+				not in use */
+	trx_sys_t*	sys,	/* in: trx system */
+	ulint		n)	/* in: index of slot */
+{
+	ut_ad(mutex_own(&(kernel_mutex)));
+	ut_ad(n < TRX_SYS_N_RSEGS);
+
+	return(sys->rseg_array[n]);
+}
+
+/*******************************************************************
+Sets the pointer in the nth slot of the rseg array. */
+UNIV_INLINE
+void
+trx_sys_set_nth_rseg(
+/*=================*/
+	trx_sys_t*	sys,	/* in: trx system */
+	ulint		n,	/* in: index of slot */
+	trx_rseg_t*	rseg)	/* in: pointer to rseg object, NULL if slot
+				not in use */
+{
+	ut_ad(n < TRX_SYS_N_RSEGS);
+
+	sys->rseg_array[n] = rseg;
+}
+
+/**************************************************************************
+Gets a pointer to the transaction system header and x-latches its page. */
+UNIV_INLINE
+trx_sysf_t*
+trx_sysf_get(
+/*=========*/
+			/* out: pointer to system header, page x-latched. */
+	mtr_t*	mtr)	/* in: mtr */
+{
+	trx_sysf_t*	header;
+
+	ut_ad(mutex_own(&(kernel_mutex)));
+	ut_ad(mtr);
+	
+	header = TRX_SYS + buf_page_get(TRX_SYS_SPACE, TRX_SYS_PAGE_NO,
+							RW_X_LATCH, mtr);
+
+	buf_page_dbg_add_level(header, SYNC_TRX_SYS_HEADER);
+
+	return(header);
+}
+
+/*********************************************************************
+Gets the space of the nth rollback segment slot in the trx system
+file copy. */
+UNIV_INLINE
+ulint
+trx_sysf_rseg_get_space(
+/*====================*/
+					/* out: space id */
+	trx_sysf_t*	sys_header,	/* in: trx sys header */
+	ulint		i,		/* in: slot index == rseg id */
+	mtr_t*		mtr)		/* in: mtr */
+{
+	ut_ad(mutex_own(&(kernel_mutex)));
+	ut_ad(sys_header);
+	ut_ad(i < TRX_SYS_N_RSEGS);
+
+	return(mtr_read_ulint(sys_header + TRX_SYS_RSEGS
+			+ i * TRX_SYS_RSEG_SLOT_SIZE
+			+ TRX_SYS_RSEG_SPACE, MLOG_4BYTES, mtr));
+}
+
+/*********************************************************************
+Gets the page number of the nth rollback segment slot in the trx system
+header. */
+UNIV_INLINE
+ulint
+trx_sysf_rseg_get_page_no(
+/*======================*/
+					/* out: page number, FIL_NULL
+					if slot unused */
+	trx_sysf_t*	sys_header,	/* in: trx system header */
+	ulint		i,		/* in: slot index == rseg id */
+	mtr_t*		mtr)		/* in: mtr */
+{
+	ut_ad(sys_header);
+	ut_ad(mutex_own(&(kernel_mutex)));
+	ut_ad(i < TRX_SYS_N_RSEGS);
+
+	return(mtr_read_ulint(sys_header + TRX_SYS_RSEGS
+			+ i * TRX_SYS_RSEG_SLOT_SIZE
+			+ TRX_SYS_RSEG_PAGE_NO, MLOG_4BYTES, mtr));
+}
+
+/*********************************************************************
+Sets the space id of the nth rollback segment slot in the trx system
+file copy. */
+UNIV_INLINE
+void
+trx_sysf_rseg_set_space(
+/*====================*/
+	trx_sysf_t*	sys_header,	/* in: trx sys file copy */
+	ulint		i,		/* in: slot index == rseg id */
+	ulint		space,		/* in: space id */
+	mtr_t*		mtr)		/* in: mtr */
+{
+	ut_ad(mutex_own(&(kernel_mutex)));
+	ut_ad(sys_header);
+	ut_ad(i < TRX_SYS_N_RSEGS);
+
+	mlog_write_ulint(sys_header + TRX_SYS_RSEGS
+			+ i * TRX_SYS_RSEG_SLOT_SIZE
+			+ TRX_SYS_RSEG_SPACE,
+			space,
+			MLOG_4BYTES, mtr);
+}
+
+/*********************************************************************
+Sets the page number of the nth rollback segment slot in the trx system
+header. */
+UNIV_INLINE
+void
+trx_sysf_rseg_set_page_no(
+/*======================*/
+	trx_sysf_t*	sys_header,	/* in: trx sys header */
+	ulint		i,		/* in: slot index == rseg id */
+	ulint		page_no,	/* in: page number, FIL_NULL if the
+					slot is reset to unused */
+	mtr_t*		mtr)		/* in: mtr */
+{
+	ut_ad(mutex_own(&(kernel_mutex)));
+	ut_ad(sys_header);
+	ut_ad(i < TRX_SYS_N_RSEGS);
+
+	mlog_write_ulint(sys_header + TRX_SYS_RSEGS
+			+ i * TRX_SYS_RSEG_SLOT_SIZE
+			+ TRX_SYS_RSEG_PAGE_NO,
+			page_no,
+			MLOG_4BYTES, mtr);
+}
+
+/*********************************************************************
+Writes a trx id to an index page. In case that the id size changes in
+some future version, this function should be used instead of
+mach_write_... */
+UNIV_INLINE
+void
+trx_write_trx_id(
+/*=============*/
+	byte*	ptr,	/* in: pointer to memory where written */
+	dulint	id)	/* in: id */
+{
+	ut_ad(DATA_TRX_ID_LEN == 6);
+	
+	mach_write_to_6(ptr, id);
+}
+
+/*********************************************************************
+Reads a trx id from an index page. In case that the id size changes in
+some future version, this function should be used instead of
+mach_read_... */
+UNIV_INLINE
+dulint
+trx_read_trx_id(
+/*============*/
+			/* out: id */
+	byte*	ptr)	/* in: pointer to memory from where to read */
+{
+	ut_ad(DATA_TRX_ID_LEN == 6);
+	
+	return(mach_read_from_6(ptr));
+}
+
+/********************************************************************
+Looks for the trx handle with the given id in trx_list. */
+UNIV_INLINE
+trx_t*
+trx_get_on_id(
+/*==========*/
+			/* out: the trx handle or NULL if not found */
+	dulint	trx_id)	/* in: trx id to search for */
+{
+	trx_t*	trx;
+
+	ut_ad(mutex_own(&(kernel_mutex)));
+
+	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+
+	while (trx != NULL) {
+		if (0 == ut_dulint_cmp(trx_id, trx->id)) {
+
+			return(trx);
+		}
+
+		trx = UT_LIST_GET_NEXT(trx_list, trx);
+	}
+
+	return(NULL);
+}
+
+/********************************************************************
+Returns the minumum trx id in trx list. This is the smallest id for which
+the trx can possibly be active. (But, you must look at the trx->conc_state to
+find out if the minimum trx id transaction itself is active, or already
+committed.) */
+UNIV_INLINE
+dulint
+trx_list_get_min_trx_id(void)
+/*=========================*/
+			/* out: the minimum trx id, or trx_sys->max_trx_id
+			if the trx list is empty */
+{
+	trx_t*	trx;
+
+	ut_ad(mutex_own(&(kernel_mutex)));
+
+	trx = UT_LIST_GET_LAST(trx_sys->trx_list);
+
+	if (trx == NULL) {
+
+		return(trx_sys->max_trx_id);
+	}
+
+	return(trx->id);
+}
+
+/********************************************************************
+Checks if a transaction with the given id is active. */
+UNIV_INLINE
+ibool
+trx_is_active(
+/*==========*/
+			/* out: TRUE if active */
+	dulint	trx_id)	/* in: trx id of the transaction */
+{
+	trx_t*	trx;
+
+	ut_ad(mutex_own(&(kernel_mutex)));
+
+	if (ut_dulint_cmp(trx_id, trx_list_get_min_trx_id()) < 0) {
+
+		return(FALSE);
+	}
+
+	trx = trx_get_on_id(trx_id);
+	if (trx && (trx->conc_state == TRX_ACTIVE)) {
+		
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/*********************************************************************
+Allocates a new transaction id. */
+UNIV_INLINE
+dulint
+trx_sys_get_new_trx_id(void)
+/*========================*/
+			/* out: new, allocated trx id */
+{
+	dulint	id;
+
+	ut_ad(mutex_own(&kernel_mutex));
+
+	/* VERY important: after the database is started, max_trx_id value is
+	divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the following if
+	will evaluate to TRUE when this function is first time called,
+	and the value for trx id will be written to disk-based header!
+	Thus trx id values will not overlap when the database is
+	repeatedly started! */
+	
+	if (ut_dulint_get_low(trx_sys->max_trx_id)
+				% TRX_SYS_TRX_ID_WRITE_MARGIN == 0) {
+
+		trx_sys_flush_max_trx_id();
+	}
+	
+	id = trx_sys->max_trx_id;
+
+	UT_DULINT_INC(trx_sys->max_trx_id);
+
+	return(id);
+}
+
+/*********************************************************************
+Allocates a new transaction number. */
+UNIV_INLINE
+dulint
+trx_sys_get_new_trx_no(void)
+/*========================*/
+			/* out: new, allocated trx number */
+{
+	ut_ad(mutex_own(&kernel_mutex));
+
+	return(trx_sys_get_new_trx_id());
+}

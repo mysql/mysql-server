@@ -1,0 +1,16 @@
+include ..\include\makefile.i
+
+btr.lib: btr0cur.obj btr0btr.obj btr0pcur.obj btr0sea.obj
+	lib -out:..\libs\btr.lib btr0cur.obj btr0btr.obj btr0pcur.obj btr0sea.obj
+	
+btr0cur.obj: btr0cur.c
+	$(CCOM) $(CFL) -c btr0cur.c
+
+btr0btr.obj: btr0btr.c
+	$(CCOM) $(CFL) -c btr0btr.c
+
+btr0sea.obj: btr0sea.c
+	$(CCOM) $(CFL) -c btr0sea.c
+
+btr0pcur.obj: btr0pcur.c
+	$(CCOM) $(CFL) -c btr0pcur.c

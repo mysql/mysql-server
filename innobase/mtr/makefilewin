@@ -1,0 +1,14 @@
+include ..\include\makefile.i
+
+mtr.lib: mtr0mtr.obj mtr0log.obj
+	lib -out:..\libs\mtr.lib mtr0mtr.obj mtr0log.obj
+
+mtr0mtr.obj: mtr0mtr.c
+	$(CCOM) $(CFL) -c mtr0mtr.c
+
+mtr0log.obj: mtr0log.c
+	$(CCOM) $(CFL) -c mtr0log.c
+
+
+
+
