@@ -265,8 +265,7 @@ enum cache_type
 
 enum flush_type
 {
-  FLUSH_KEEP, FLUSH_RELEASE, FLUSH_IGNORE_CHANGED, FLUSH_FORCE_WRITE, 
-  FLUSH_REMOVE
+  FLUSH_KEEP, FLUSH_RELEASE, FLUSH_IGNORE_CHANGED, FLUSH_FORCE_WRITE
 };
 
 typedef struct st_record_cache	/* Used when cacheing records */
