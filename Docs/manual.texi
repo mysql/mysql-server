@@ -36019,7 +36019,7 @@ set-variable = innodb_lock_wait_timeout=50
 @end example
 
 Note that data files must be < 4G, and < 2G on
-some file systems! The total size of data files have
+some file systems! The total size of data files has
 to be >= 10 MB.
 InnoDB does not create directories:
 you have to create them yourself.
