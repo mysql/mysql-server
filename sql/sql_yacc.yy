@@ -2453,15 +2453,14 @@ show_param:
 	      YYABORT;
 	  }
         | NEW_SYM MASTER_SYM FOR_SYM SLAVE WITH MASTER_LOG_FILE_SYM EQ 
-	  TEXT_STRING AND MASTER_LOG_POS_SYM EQ ulonglong_num AND
-	MASTER_LOG_SEQ_SYM EQ ULONG_NUM AND MASTER_SERVER_ID_SYM EQ
+	  TEXT_STRING AND MASTER_LOG_POS_SYM EQ ulonglong_num
+	  AND MASTER_SERVER_ID_SYM EQ
 	ULONG_NUM
           {
 	    Lex->sql_command = SQLCOM_SHOW_NEW_MASTER;
 	    Lex->mi.log_file_name = $8.str;
 	    Lex->mi.pos = $12;
-	    Lex->mi.last_log_seq = $16;
-	    Lex->mi.server_id = $20;
+	    Lex->mi.server_id = $16;
           }
         | MASTER_SYM LOGS_SYM
           {
@@ -3083,12 +3082,18 @@ option_value:
 	   }
          | SQL_SLAVE_SKIP_COUNTER equal ULONG_NUM
           {
-	    pthread_mutex_lock(&LOCK_slave);
-	    if (slave_running)
+	    LOCK_ACTIVE_MI;
+	    pthread_mutex_lock(&active_mi->rli.run_lock);
+	    if (active_mi->rli.slave_running)
 	      send_error(&current_thd->net, ER_SLAVE_MUST_STOP);
 	    else
-	      slave_skip_counter = $3;
-	    pthread_mutex_unlock(&LOCK_slave);
+	    {
+	      pthread_mutex_lock(&active_mi->rli.data_lock);
+	      active_mi->rli.slave_skip_counter = $3;
+	      pthread_mutex_unlock(&active_mi->rli.data_lock);
+	    }
+	    pthread_mutex_unlock(&active_mi->rli.run_lock);
+	    UNLOCK_ACTIVE_MI;
           }
 	| ident equal DEFAULT
 	  {

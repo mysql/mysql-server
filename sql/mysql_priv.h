@@ -519,6 +519,10 @@ void sql_print_error(const char *format,...)
 	        __attribute__ ((format (printf, 1, 2)));
 bool fn_format_relative_to_data_home(my_string to, const char *name,
 				     const char *dir, const char *extension);
+void open_log(MYSQL_LOG *log, const char *hostname,
+	     const char *opt_name, const char *extension,
+	      enum_log_type type, bool read_append = 0,
+	      bool no_auto_events = 0);
 
 extern uint32 server_id;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
@@ -550,9 +554,8 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_thread_count,LOCK_mapped_file,LOCK_user_locks, LOCK_status,
        LOCK_grant, LOCK_error_log, LOCK_delayed_insert,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
-       LOCK_binlog_update, LOCK_slave, LOCK_server_id, LOCK_slave_list;
-extern pthread_cond_t COND_refresh,COND_thread_count, COND_binlog_update,
-                      COND_slave_stopped, COND_slave_start;
+       LOCK_server_id, LOCK_slave_list, LOCK_active_mi;
+extern pthread_cond_t COND_refresh,COND_thread_count;
 extern pthread_attr_t connection_attrib;
 extern bool opt_endinfo, using_udf_functions, locked_in_memory,
             opt_using_transactions, use_temp_pool, mysql_embedded;
@@ -588,6 +591,7 @@ extern struct show_var_st init_vars[];
 extern struct show_var_st status_vars[];
 extern enum db_type default_table_type;
 extern enum enum_tx_isolation default_tx_isolation;
+extern char glob_hostname[FN_REFLEN];
 
 #ifndef __WIN__
 extern pthread_t signal_thread;

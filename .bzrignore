@@ -446,3 +446,9 @@ vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
 sql-bench/test-transactions
+mysql-test/r/rpl000002.eval
+mysql-test/r/rpl000014.eval
+mysql-test/r/rpl000015.eval
+mysql-test/r/rpl000016.eval
+mysql-test/r/slave-running.eval
+mysql-test/r/slave-stopped.eval

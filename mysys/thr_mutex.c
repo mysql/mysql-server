@@ -70,7 +70,8 @@ int safe_mutex_lock(safe_mutex_t *mp,const char *file, uint line)
   }
   if (mp->count++)
   {
-    fprintf(stderr,"safe_mutex: Error in thread libray: Got mutex at %s, line %d more than 1 time\n", file,line);
+    fprintf(stderr,"safe_mutex: Error in thread libray: Got mutex at %s, \
+line %d more than 1 time\n", file,line);
     fflush(stderr);
     abort();
   }

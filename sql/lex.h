@@ -218,7 +218,6 @@ static SYMBOL symbols[] = {
   { "MASTER_HOST",           SYM(MASTER_HOST_SYM),0,0},
   { "MASTER_LOG_FILE",           SYM(MASTER_LOG_FILE_SYM),0,0},
   { "MASTER_LOG_POS",           SYM(MASTER_LOG_POS_SYM),0,0},
-  { "MASTER_LOG_SEQ",           SYM(MASTER_LOG_SEQ_SYM),0,0},
   { "MASTER_PASSWORD",           SYM(MASTER_PASSWORD_SYM),0,0},
   { "MASTER_PORT",           SYM(MASTER_PORT_SYM),0,0},
   { "MASTER_SERVER_ID",           SYM(MASTER_SERVER_ID_SYM),0,0},
