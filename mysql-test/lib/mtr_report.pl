@@ -89,12 +89,11 @@ sub mtr_report_test_passed ($) {
   my $tinfo= shift;
 
   my $timer=  "";
-# FIXME
-#  if ( $::opt_timer and -f "$::glob_mysql_test_dir/var/log/timer" )
-#  {
-#    $timer=  `cat var/log/timer`;
-#    $timer=  sprintf "%13s", $timer;
-#  }
+  if ( $::opt_timer and -f "$::glob_mysql_test_dir/var/log/timer" )
+  {
+    $timer= mtr_fromfile("$::glob_mysql_test_dir/var/log/timer");
+    $timer= sprintf "%12s", $timer;
+  }
   $tinfo->{'result'}= 'MTR_RES_PASSED';
   print "[ pass ]   $timer\n";
 }
