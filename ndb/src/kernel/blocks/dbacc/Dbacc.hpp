@@ -22,6 +22,9 @@
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
 
+// primary key is stored in TUP
+#include <Dbtup.hpp>
+
 #ifdef DBACC_C
 // Debug Macros
 #define dbgWord32(ptr, ind, val) 
@@ -661,9 +664,10 @@ struct Fragmentrec {
 //-----------------------------------------------------------------------------
 // elementLength: Length of element in bucket and overflow pages
 // keyLength: Length of key (== 0 if long key or variable key length)
+// wl-2066 always Length of key
 //-----------------------------------------------------------------------------
   Uint8 elementLength;
-  Uint8 keyLength;
+  Uint16 keyLength;
 
 //-----------------------------------------------------------------------------
 // This flag is used to avoid sending a big number of expand or shrink signals
@@ -783,6 +787,7 @@ struct Operationrec {
   Uint8 dirtyRead;
   Uint8 commitDeleteCheckFlag;
   Uint8 isAccLockReq;
+  Uint8 isUndoLogReq;
   Uint32 nextOpList;
 }; /* p2c: size = 168 bytes */
 
@@ -913,6 +918,9 @@ struct Undopage {
 public:
   Dbacc(const class Configuration &);
   virtual ~Dbacc();
+
+  // pointer to TUP instance in this thread
+  Dbtup* c_tup;
 
 private:
   BLOCK_DEFINES(Dbacc);
@@ -1075,6 +1083,7 @@ private:
   void storeLongKeys(Signal* signal);
   void storeLongKeysAtPos(Signal* signal);
   void reorgLongPage(Signal* signal);
+  void readTablePk(Uint32 localkey1);
   void getElement(Signal* signal);
   void searchLongKey(Signal* signal);
   void getdirindex(Signal* signal);
@@ -1562,7 +1571,10 @@ private:
   Uint32 cexcPrevpageindex;
   Uint32 cexcPrevforward;
   Uint32 clocalkey[32];
+  union {
   Uint32 ckeys[2048];
+  Uint64 ckeys_align;
+  };
   
   Uint32 c_errorInsert3000_TableId;
   Uint32 cSrUndoRecords[5];
