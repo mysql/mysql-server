@@ -2126,8 +2126,13 @@ int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t)
   while (s[0] && t[0])
   {
     my_wc_t s_wc,t_wc;
-
-    if (s[0] >= 0)
+    
+    /*
+      Cast to int8 for extra safety.
+      char can be unsigned by default
+      on some platforms.
+    */
+    if (((int8)s[0]) >= 0)
     {
       /* 
         s[0] is between 0 and 127.
