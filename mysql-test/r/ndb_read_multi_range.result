@@ -33,18 +33,20 @@ a	b	c
 5	2	12
 9	2	8
 drop table r1;
+create table r1 as select * from t1 where a in (2,8) or (a > 11) or (a <= 1);
+select * from r1 order by a;
+a	b	c
+1	2	1
+2	3	2
+8	5	9
+12	5	5
+drop table r1;
 create table r1 as select * from t1 where a in (33,8,12);
 select * from r1 order by a;
 a	b	c
 8	5	9
 12	5	5
 drop table r1;
-select * from t1 where a in (33,34,35) order by a;
-a	b	c
-select * from t1 where a in (33,8,12) order by a;
-a	b	c
-8	5	9
-12	5	5
 create table r1 as select * from t1 where a in (2,33,8,12,34);
 select * from r1 order by a;
 a	b	c
@@ -73,6 +75,50 @@ a	b	c
 drop table r1;
 select * from t1 where b in (45,22) order by a;
 a	b	c
+create table r1 as select * from t1 where c in (2,8,33);
+select * from r1 order by a;
+a	b	c
+2	3	2
+9	2	8
+drop table r1;
+create table r1 as select * from t1 where c in (13,2,8,33,12);
+select * from r1 order by a;
+a	b	c
+2	3	2
+5	2	12
+9	2	8
+drop table r1;
+select * from t1 where a in (33,8,12) order by a;
+a	b	c
+8	5	9
+12	5	5
+select * from t1 where a in (33,34,35) order by a;
+a	b	c
+select * from t1 where a in (2,8) or (a > 11) or (a <= 1) order by a;
+a	b	c
+1	2	1
+2	3	2
+8	5	9
+12	5	5
+select * from t1 where b in (6,7) or (b <= 5) or (b >= 10) order by b,a;
+a	b	c
+1	2	1
+5	2	12
+9	2	8
+2	3	2
+6	3	11
+10	3	7
+3	4	3
+7	4	10
+11	4	6
+4	5	4
+8	5	9
+12	5	5
+select * from t1 where c in (13,2,8,33,12) order by c,a;
+a	b	c
+2	3	2
+9	2	8
+5	2	12
 drop table t1;
 create table t1 (
 a int not null,
