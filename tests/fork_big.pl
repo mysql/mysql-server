@@ -4,7 +4,7 @@
 #
 # Tested a lot with:  --threads=30
 
-$opt_loop_count=200000; # Change this to make test harder/easier
+$opt_loop_count=500000; # Change this to make test harder/easier
 
 ##################### Standard benchmark inits ##############################
 
@@ -308,7 +308,7 @@ sub test_check
   $type= "check";
   for ($i=$j=0 ; !test_if_abort($dbh) ; $i++)
   {
-    sleep(60);
+    sleep(1000);
     $table=$testtables[$j]->[0];
     $sth=$dbh->prepare("$type table $table") || die "Got error on prepare: $DBI::errstr\n";
     $sth->execute || die $DBI::errstr;
@@ -346,7 +346,7 @@ sub test_repair
   $type= "repair";
   for ($i=0 ; !test_if_abort($dbh) ; $i++)
   {
-    sleep(95);
+    sleep(2000);
     $table=$testtables[0]->[0];
     $sth=$dbh->prepare("$type table $table") || die "Got error on prepare: $DBI::errstr\n";
     $sth->execute || die $DBI::errstr;
@@ -382,7 +382,7 @@ sub test_flush
   $count=0;
   while (!test_if_abort($dbh))
   {
-    sleep(60);
+    sleep(3000);
     $dbh->do("flush tables $tables") ||
       die "Got error on flush $DBI::errstr\n";
     $count++;

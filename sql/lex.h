@@ -165,6 +165,7 @@ static SYMBOL symbols[] = {
   { "INFILE",		SYM(INFILE),0,0},
   { "INNER",		SYM(INNER_SYM),0,0},
   { "INNOBASE",		SYM(INNOBASE_SYM),0,0},
+  { "INNODB",		SYM(INNOBASE_SYM),0,0},
   { "INSERT",		SYM(INSERT),0,0},
   { "INSERT_ID",	SYM(INSERT_ID),0,0},
   { "INT",		SYM(INT_SYM),0,0},

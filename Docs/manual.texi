@@ -24063,15 +24063,15 @@ the configuration file. Below is an example of possible configuration
 parameters in my.cnf for Innobase:
 
 @example
-innobase_data_home_dir = c:\ibdata\
+innobase_data_home_dir = /usr/local/mysql/var
+innobase_log_group_home_dir = /usr/local/mysql/var
+innobase_log_arch_dir = /usr/local/mysql/var
 innobase_data_file_path = ibdata1:25M;ibdata2:37M;ibdata3:100M;ibdata4:300M
 set-variable = innobase_mirrored_log_groups=1
-innobase_log_group_home_dir = c:\iblogs\
 set-variable = innobase_log_files_in_group=3
 set-variable = innobase_log_file_size=5M
 set-variable = innobase_log_buffer_size=8M
 innobase_flush_log_at_trx_commit=1
-innobase_log_arch_dir = c:\iblogs\
 innobase_log_archive=0
 set-variable = innobase_buffer_pool_size=16M
 set-variable = innobase_additional_mem_pool_size=2M
@@ -28120,6 +28120,9 @@ If you compile with @code{--with-debug=full}, then you will loose 20 %
 for most queries, but some queries may take substantially longer (The
 @strong{MySQL} benchmarks ran 35 % slower)
 If you use @code{--with-debug}, then you will only loose 15 %.
+By starting a @code{mysqld} version compiled with @code{--with-debug=full}
+with @code{--skip-safemalloc} the end result should be close to when
+configuring with @code{--with-debug}.
 
 @item
 On a Sun SPARCstation 20, SunPro C++ 4.2 is 5 % faster than @code{gcc} 2.95.2.
@@ -30899,9 +30902,9 @@ The @code{mysqladmin status} command result has the following columns:
 @cindex open tables
 @item Open tables @tab Number of tables that are open now.
 @cindex memory use
-@item Memory in use @tab Memory allocated directly by the mysqld code (only available when @strong{MySQL} is compiled with --with-debug).
+@item Memory in use @tab Memory allocated directly by the mysqld code (only available when @strong{MySQL} is compiled with --with-debug=full).
 @cindex max memory used
-@item Max memory used @tab Maximum memory allocated directly by the mysqld code (only available when @strong{MySQL} is compiled with --with-debug).
+@item Max memory used @tab Maximum memory allocated directly by the mysqld code (only available when @strong{MySQL} is compiled with --with-debug=full).
 @end multitable
 
 If you do @code{myslqadmin shutdown} on a socket (in other words, on a
@@ -34363,8 +34366,9 @@ Try @code{fork_test.pl} and @code{fork2_test.pl}.
 @item
 If you configure @strong{MySQL} for debugging, it will be much easier to
 gather information about possible errors if something goes wrong.
-Reconfigure @strong{MySQL} with the @code{--with-debug} option to
-@code{configure} and then recompile.  @xref{Debugging server}.
+Reconfigure @strong{MySQL} with the @code{--with-debug} option or
+@code{--with-debug=full} to @code{configure} and then recompile.
+@xref{Debugging server}.
 
 @item
 Configuring @strong{MySQL} for debugging causes a safe memory allocator to be
@@ -42479,6 +42483,10 @@ not yet 100 % confident in this code.
 Fixed bug in @code{ALTER TABLE} and @code{LOAD DATA INFILE} that disabled
 key-sorting. These command should now be faster in most cases.
 @item
+Fixed performance bug where reopened tables (tables that had been
+waiting for @code{FLUSH} or @code{REPAIR}) would not use indexes for the
+next query.
+@item
 Fixed problem with @code{ALTER TABLE} to Innobase tables on Freebsd.
 @item
 Added @code{mysqld} variables @code{myisam_max_sort_file_size} and
@@ -48049,7 +48057,7 @@ autoheader
 aclocal
 automake
 autoconf
-./configure --with-debug --prefix='your installation directory'
+./configure --with-debug=full --prefix='your installation directory'
 
 # The makefiles generated above need GNU make 3.75 or newer.
 # (called gmake below)
@@ -48123,11 +48131,11 @@ problems that may be unique to your environment.
 
 If you have some very specific problem, you can always try to debug
 @strong{MySQL}.  To do this you must configure @strong{MySQL} with the
-option @code{--with-debug}.  You can check whether or not
-@strong{MySQL} was compiled with debugging by doing: @code{mysqld
---help}.  If the @code{--debug} flag is listed with the options then you
-have debugging enabled.  @code{mysqladmin ver} also lists the
-@code{mysqld} version as @code{mysql ... -debug} in this case.
+@code{--with-debug} or the @code{--with-debug=full} option.  You can check
+whether or not @strong{MySQL} was compiled with debugging by doing:
+@code{mysqld --help}.  If the @code{--debug} flag is listed with the
+options then you have debugging enabled.  @code{mysqladmin ver} also
+lists the @code{mysqld} version as @code{mysql ... -debug} in this case.
 
 If you are using gcc or egcs, the recommended configure line is:
 
@@ -48139,10 +48147,13 @@ This will avoid problems with the @code{libstdc++} library and with C++
 exceptions (many compilers have problems with C++ exceptions in threaded
 code) and compile a @strong{MySQL} version with support for all character sets.
 
-If you suspect a memory overrun error, you can use @code{--with-debug=full},
-which will install a memory allocation checker. This is however quite slow
-so this is not something one should do on a server in a heavy production
-environment.
+If you suspect a memory overrun error, you can configure @strong{MySQL}
+with @code{--with-debug=full}, which will install a memory allocation
+(@code{SAFEMALLOC}) checker. Running with @code{SAFEMALLOC} is however
+quite slow, so if you get performance problems you should start
+@code{mysqld} with the @code{--skip-safemalloc} option. This will
+disable the memory overrun checks for each call to @code{malloc} and
+@code{free}.
 
 If @code{mysqld} stops crashing when you compile it with
 @code{--with-debug}, you have probably found a compiler bug or a timing
