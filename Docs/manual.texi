@@ -1,6 +1,18 @@
 \input texinfo  @c -*-texinfo-*-
 @c Copyright 1997-2001 TcX AB, Detron HB and MySQL Finland AB
 @c
+@c This manual is NOT distributed under a GPL style license.
+@c Use of the manual is subject to the following terms:
+@c - Conversion to other formats is allowed, but the actual
+@c   content may not be altered or edited in any way.
+@c - You may create a printed copy for your own personal use.
+@c - For all other uses, such as selling printed copies or
+@c   using (parts of) the manual in another publication,
+@c   prior written agreement from MySQL AB is required.
+@c
+@c Please e-mail docs@mysql.com for more information or if
+@c you are interested in doing a translation.
+@c
 @c *********************************************************
 @c Note that @node names are used on our website.
 @c So do not change node names without checking
@@ -261,7 +273,7 @@ Widenius, Jeremy Cole, Arjen Lentz, and Paul DuBois. For other
 contributors, see @ref{Credits}.
 
 The copyright (2001) to this manual is owned by the Swedish company
-@code{MySQL AB}. @xref{What is MySQL AB}.
+@code{MySQL AB}. @xref{Copyright}.
 
 @menu
 * Manual conventions::          Conventions Used in This Manual
@@ -1360,7 +1372,7 @@ strict license
 See the documentation of the specific version for information.
 
 @item
-The manual is not distributed under a GPL/LGPL license.
+The manual is @emph{not} distributed under a GPL style license.
 Use of the manual is subject to the following terms:
 @itemize @bullet
 @item
