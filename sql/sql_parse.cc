@@ -47,7 +47,7 @@ static void mysql_init_query(THD *thd);
 static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(char **filename_ptr, char *table_name);
-static inline int link_in_large_list_and_check_acl(THD *thd,LEX *lex,SQL_LIST *tables);
+static  int link_in_large_list_and_check_acl(THD *thd,LEX *lex,SQL_LIST *tables);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -2878,7 +2878,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   DBUG_RETURN(ptr);
 }
 
-static inline int link_in_large_list_and_check_acl(THD *thd,LEX *lex,SQL_LIST *tables)
+static int link_in_large_list_and_check_acl(THD *thd,LEX *lex,SQL_LIST *tables)
 {
   SELECT_LEX *sl; const char *current_db=thd->db ? thd->db : "";
   for (sl=&lex->select_lex;sl;sl=sl->next)
@@ -2904,6 +2904,8 @@ static inline int link_in_large_list_and_check_acl(THD *thd,LEX *lex,SQL_LIST *t
 	if (!cursor ||  !tables->first)
 	{
 	  aux->lock_type= lex->lock_option;
+	  if (!tables->next)
+	    tables->next= (byte**) &tables->first;
 	  link_in_list(tables,(byte*)aux,(byte**) &aux->next);
 	}
       }
