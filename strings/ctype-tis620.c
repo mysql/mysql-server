@@ -492,7 +492,7 @@ static uchar* thai2sortable(const uchar * tstr,uint len)
   }
   pLeft4 = pRight4;*/
   while(len--) {
-    if(isldvowel(*p) && isconsnt(p[1])) {
+    if(isldvowel(*p) && len > 0 && isconsnt(p[1])) {
       *pRight1++ = t_ctype[p[1]][0];
       *pRight2++ = t_ctype[p[1]][1];
       *pRight3++ = t_ctype[p[1]][2];
