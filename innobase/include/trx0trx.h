@@ -50,6 +50,13 @@ trx_allocate_for_mysql(void);
 /*========================*/
 				/* out, own: transaction object */
 /************************************************************************
+Creates a transaction object for background operations by the master thread. */
+
+trx_t*
+trx_allocate_for_background(void);
+/*=============================*/
+				/* out, own: transaction object */
+/************************************************************************
 Frees a transaction object. */
 
 void
@@ -62,6 +69,13 @@ Frees a transaction object for MySQL. */
 void
 trx_free_for_mysql(
 /*===============*/
+	trx_t*	trx);	/* in, own: trx object */
+/************************************************************************
+Frees a transaction object of a background operation of the master thread. */
+
+void
+trx_free_for_background(
+/*====================*/
 	trx_t*	trx);	/* in, own: trx object */
 /********************************************************************
 Creates trx objects for transactions and initializes the trx list of
@@ -266,11 +280,14 @@ struct trx_sig_struct{
 					transaction is waiting a reply */
 };
 
+#define TRX_MAGIC_N	91118598
+
 /* The transaction handle; every session has a trx object which is freed only
 when the session is freed; in addition there may be session-less transactions
 rolling back after a database recovery */
 
 struct trx_struct{
+	ulint		magic_n;
 	/* All the next fields are protected by the kernel mutex, except the
 	undo logs which are protected by undo_mutex */
 	char*		op_info;	/* English text describing the
