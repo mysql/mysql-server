@@ -423,6 +423,13 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 			column->field_name);
 	DBUG_RETURN(-1);
       }
+      if (key->type == Key::FULLTEXT &&
+          (file->option_flag() & HA_NO_FULLTEXT_KEY))
+      {
+        my_printf_error(ER_WRONG_KEY_COLUMN, ER(ER_WRONG_KEY_COLUMN), MYF(0),
+                        column->field_name);
+        DBUG_RETURN(-1);
+      }
       if (f_is_blob(sql_field->pack_flag))
       {
 	if (!(file->option_flag() & HA_BLOB_KEY))
@@ -1678,6 +1685,16 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       goto err;
   };
 
+  /* Turn off recovery logging since rollback of an
+     alter table is to delete the new table so there
+     is no need to log the changes to it.              */
+  error = ha_recovery_logging(thd,false);
+  if(error)
+  {
+    error = 1;
+    goto err;
+  }
+
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1,1);
   if (handle_duplicates == DUP_IGNORE ||
       handle_duplicates == DUP_REPLACE)
@@ -1723,6 +1740,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (to->file->activate_all_index(thd))
     error=1;
 
+  tmp_error = ha_recovery_logging(thd,true);
   /*
     Ensure that the new table is saved properly to disk so that we
     can do a rename
@@ -1734,6 +1752,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (to->file->external_lock(thd,F_UNLCK))
     error=1;
  err:
+  tmp_error = ha_recovery_logging(thd,true);
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;
