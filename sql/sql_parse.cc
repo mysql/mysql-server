@@ -29,6 +29,9 @@
 #include "ha_innodb.h"
 #endif
 
+#include "sp_head.h"
+#include "sp.h"
+
 #ifdef HAVE_OPENSSL
 /*
   Without SSL the handshake consists of one packet. This packet
@@ -2807,6 +2810,84 @@ mysql_execute_command(THD *thd)
     else
       res= -1;
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    break;
+  case SQLCOM_CREATE_PROCEDURE:
+    if (!lex->sphead)
+      res= -1;
+    else
+    {
+      res= lex->sphead->create(thd);
+      if (res < 0)
+      {
+	// QQ Error!
+      }
+      send_ok(thd);
+    }
+    break;
+  case SQLCOM_CALL:
+    {
+      Item_string *s;
+      sp_head *sp;
+
+      s= (Item_string*)lex->value_list.head();
+      sp= sp_find(thd, s);
+      if (! sp)
+      {
+	// QQ Error!
+	res= -1;
+      }
+      else
+      {
+	res= sp->execute(thd);
+	if (res == 0)
+	  send_ok(thd);
+      }
+    }
+    break;
+  case SQLCOM_ALTER_PROCEDURE:
+    {
+      Item_string *s;
+      sp_head *sp;
+
+      s= (Item_string*)lex->value_list.head();
+      sp= sp_find(thd, s);
+      if (! sp)
+      {
+	// QQ Error!
+	res= -1;
+      }
+      else
+      {
+	/* QQ This is an no-op right now, since we haven't
+	      put the characteristics in yet. */
+	send_ok(thd);
+      }
+    }
+    break;
+  case SQLCOM_DROP_PROCEDURE:
+    {
+      Item_string *s;
+      sp_head *sp;
+
+      s = (Item_string*)lex->value_list.head();
+      sp = sp_find(thd, s);
+      if (! sp)
+      {
+	// QQ Error!
+	res= -1;
+      }
+      else
+      {
+	String *name = s->const_string();
+
+	res= sp_drop(thd, name->c_ptr(), name->length());
+	if (res < 0)
+	{
+	  // QQ Error!
+	}
+	send_ok(thd);
+      }
+    }
     break;
   default:					/* Impossible */
     send_ok(thd);
