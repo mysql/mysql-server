@@ -1374,8 +1374,9 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
           && !(thd->options & OPTION_BEGIN))
       {
 	/* 
-	   F_UNLOCK is done without a transaction commit / rollback. This
-	   means that something went wrong.
+	   F_UNLOCK is done without a transaction commit / rollback.
+	   This happens if the thread didn't update any rows or if
+	   something went wrong during an update.
 	   We can in this case silenty abort the transaction.
 	*/
 	DBUG_PRINT("trans",("aborting transaction"));
