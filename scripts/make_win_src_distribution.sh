@@ -12,6 +12,7 @@ CP="cp -p"
 DEBUG=0
 SILENT=0
 SUFFIX=""
+DIRNAME=""
 OUTTAR=0
 
 #
@@ -58,6 +59,8 @@ show_usage()
   echo ""
   echo "  --debug   Debug, without creating the package"
   echo "  --tmp     Specify the temporary location"
+  echo "  --suffix  Suffix name for the package"
+  echo "  --dirname Directory name to copy files (intermediate)"
   echo "  --silent  Do not list verbosely files processed"
   echo "  --tar     Create tar.gz package instead of .zip"
   echo "  --help    Show this help message"
@@ -75,6 +78,7 @@ parse_arguments() {
       --debug)    DEBUG=1;;
       --tmp=*)    TMP=`echo "$arg" | sed -e "s;--tmp=;;"` ;;
       --suffix=*) SUFFIX=`echo "$arg" | sed -e "s;--suffix=;;"` ;;
+      --dirname=*) DIRNAME=`echo "$arg" | sed -e "s;--dirname=;;"` ;;
       --silent)   SILENT=1 ;;
       --tar)      OUTTAR=1 ;;
       --help)     show_usage ;;
@@ -155,11 +159,15 @@ mkdir $BASE/Docs $BASE/extra $BASE/include
 # Copy directory files
 #
 
-copy_dir_files() {
-  
+copy_dir_files()
+{
   for arg do
     print_debug "Copying files from directory '$arg'"
-    cd $SOURCE/$arg/
+    cd $SOURCE/$arg
+    if [ ! -d $BASE/$arg ]; then
+       print_debug "Creating directory '$arg'"
+       mkdir $BASE/$arg
+     fi
     for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def \
              README INSTALL* LICENSE 
     do 
@@ -199,9 +207,6 @@ copy_dir_dirs() {
     for i in *
     do
       if [ -d $SOURCE/$basedir/$i ] && [ "$i" != "SCCS" ]; then
-        if [ ! -d $BASE/$basedir/$i ]; then
-          mkdir $BASE/$basedir/$i
-        fi
         copy_dir_files $basedir/$i
       fi
     done
@@ -214,7 +219,7 @@ copy_dir_dirs() {
 
 for i in client dbug extra heap include isam \
          libmysql libmysqld merge myisam \
-         myisammrg mysys regex sql strings \
+         myisammrg mysys regex sql strings sql-common \
          vio zlib
 do
   copy_dir_files $i
@@ -246,7 +251,7 @@ touch $BASE/innobase/ib_config.h
 cd $SOURCE
 for i in COPYING ChangeLog README \
          INSTALL-SOURCE INSTALL-WIN \
-         INSTALL-SOURCE-WIN \
+         INSTALL-WIN-SOURCE
          Docs/manual_toc.html  Docs/manual.html \
          Docs/mysqld_error.txt Docs/INSTALL-BINARY 
          
@@ -270,15 +275,19 @@ done
 
 if [ -f scripts/mysql_install_db ]; then 
   print_debug "Initializing the 'data' directory"
-  scripts/mysql_install_db --windows --datadir=$BASE/data
+  scripts/mysql_install_db --no-defaults --windows --datadir=$BASE/data
 fi
-
 
 #
 # Specify the distribution package name and copy it
 #
 
-NEW_DIR_NAME=mysql@MYSQL_SERVER_SUFFIX@-$version$SUFFIX
+if test -z $DIRNAME
+then
+  NEW_DIR_NAME=mysql@MYSQL_SERVER_SUFFIX@-$version$SUFFIX
+else
+  NEW_DIR_NAME=$DIRNAME
+fi
 NEW_NAME=$NEW_DIR_NAME-win-src
 
 BASE2=$TMP/$NEW_DIR_NAME
@@ -345,7 +354,7 @@ set_tarzip_options()
       EXT=".zip"
       NEED_COMPRESS=0
       if [ "$SILENT" = "1" ] ; then
-        OPT="-r"
+        OPT="$OPT -q"
       fi
     fi
   done
@@ -386,9 +395,7 @@ fi
 print_debug "Removing temporary directory"
 rm -r -f $BASE
 
-echo "$NEW_NAME$EXT created successfully !!"
-
+if [ "$SILENT" = "0" ] ; then
+  echo "$NEW_NAME$EXT created successfully !!"
+fi
 # End of script
-
-
-

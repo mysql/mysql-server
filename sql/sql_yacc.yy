@@ -1502,7 +1502,9 @@ keys_or_index:
 opt_unique_or_fulltext:
 	/* empty */	{ $$= Key::MULTIPLE; }
 	| UNIQUE_SYM	{ $$= Key::UNIQUE; }
-	| SPATIAL_SYM	{ $$= Key::SPATIAL; };
+	| FULLTEXT_SYM	{ $$= Key::FULLTEXT;}
+	| SPATIAL_SYM	{ $$= Key::SPATIAL; }
+        ;
 
 key_alg:
 	/* empty */		   { $$= HA_KEY_ALG_UNDEF; }
@@ -3903,7 +3905,7 @@ purge_option:
 	  }
 	  Item *tmp= new Item_func_unix_timestamp($2);
 	  Lex->sql_command = SQLCOM_PURGE_BEFORE;
-	  Lex->purge_time= tmp->val_int();
+	  Lex->purge_time= (ulong) tmp->val_int();
 	}
 	;
 

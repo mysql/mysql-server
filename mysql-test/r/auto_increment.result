@@ -143,5 +143,5 @@ insert into t1 values (NULL, 10);
 ERROR 23000: Duplicate entry '10' for key 2
 select last_insert_id();
 last_insert_id()
-3
+0
 drop table t1;

@@ -34,21 +34,23 @@ static uint lengths[256];
 
 static struct my_option my_long_options[] =
 {
-  {"dump", 'd', "Dump index (incl. data offsets and word weights)",
+  {"dump", 'd', "Dump index (incl. data offsets and word weights).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"stats", 's', "Report global stats",
+  {"stats", 's', "Report global stats.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"verbose", 'v', "Be verbose",
+  {"verbose", 'v', "Be verbose.",
    (gptr*) &verbose, (gptr*) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"count", 'c', "Calculate per-word stats (counts and global weights)",
+  {"count", 'c', "Calculate per-word stats (counts and global weights).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"length", 'l', "Report length distribution",
+  {"length", 'l', "Report length distribution.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"execute", 'e', "Execute given query", (gptr*) &query, (gptr*) &query, 0,
+#ifdef DISABLED
+  {"execute", 'e', "Execute given query.", (gptr*) &query, (gptr*) &query, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"help", 'h', "Display help and exit",
+#endif
+  {"help", 'h', "Display help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"help", '?', "Synonym for -h",
+  {"help", '?', "Synonym for -h.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };

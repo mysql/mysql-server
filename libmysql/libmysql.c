@@ -59,23 +59,10 @@
 
 #include <sql_common.h>
 
-uint		mysql_port=0;
-my_string	mysql_unix_port=0;
 ulong 		net_buffer_length=8192;
 ulong		max_allowed_packet= 1024L*1024L*1024L;
 ulong		net_read_timeout=  NET_READ_TIMEOUT;
 ulong		net_write_timeout= NET_WRITE_TIMEOUT;
-
-#define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG	  \
-                             | CLIENT_LOCAL_FILES   | CLIENT_TRANSACTIONS \
-			     | CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION)
-
-
-#ifdef __WIN__
-#define CONNECT_TIMEOUT 20
-#else
-#define CONNECT_TIMEOUT 0
-#endif
 
 #if defined(MSDOS) || defined(__WIN__)
 /* socket_errno is defined in my_global.h for all platforms */
@@ -85,10 +72,6 @@ ulong		net_write_timeout= NET_WRITE_TIMEOUT;
 #define SOCKET_ERROR -1
 #endif /* __WIN__ */
 
-const char *sql_protocol_names_lib[] =
-{ "TCP", "SOCKET", "PIPE", "MEMORY", NullS };
-TYPELIB sql_protocol_typelib = {array_elements(sql_protocol_names_lib)-1,"",
-				sql_protocol_names_lib};
 /*
   If allowed through some configuration, then this needs to
   be changed
@@ -101,7 +84,67 @@ sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
-static my_bool org_my_init_done=0;
+
+/*
+  Initialize the MySQL library
+
+  SYNOPSIS
+    mysql_once_init()
+
+  NOTES
+    Can't be static on NetWare
+    This function is called by mysql_init() and indirectly called
+    by mysql_real_query(), so one should never have to call this from an
+    outside program.
+*/
+
+static my_bool mysql_client_init= 0;
+static my_bool org_my_init_done= 0;
+
+void mysql_once_init(void)
+{
+  if (!mysql_client_init)
+  {
+    mysql_client_init=1;
+    org_my_init_done=my_init_done;
+    my_init();					/* Will init threads */
+    init_client_errs();
+    if (!mysql_port)
+    {
+      mysql_port = MYSQL_PORT;
+#ifndef MSDOS
+      {
+	struct servent *serv_ptr;
+	char	*env;
+	if ((serv_ptr = getservbyname("mysql", "tcp")))
+	  mysql_port = (uint) ntohs((ushort) serv_ptr->s_port);
+	if ((env = getenv("MYSQL_TCP_PORT")))
+	  mysql_port =(uint) atoi(env);
+      }
+#endif
+    }
+    if (!mysql_unix_port)
+    {
+      char *env;
+#ifdef __WIN__
+      mysql_unix_port = (char*) MYSQL_NAMEDPIPE;
+#else
+      mysql_unix_port = (char*) MYSQL_UNIX_ADDR;
+#endif
+      if ((env = getenv("MYSQL_UNIX_PORT")))
+	mysql_unix_port = env;
+    }
+    mysql_debug(NullS);
+#if defined(SIGPIPE) && !defined(THREAD) && !defined(__WIN__)
+    (void) signal(SIGPIPE,SIG_IGN);
+#endif
+  }
+#ifdef THREAD
+  else
+    my_thread_init();         /* Init if new thread */
+#endif
+}
+
 
 int STDCALL mysql_server_init(int argc __attribute__((unused)),
 			      char **argv __attribute__((unused)),
@@ -529,30 +572,6 @@ STDCALL mysql_rpl_query_type(const char* q, int len)
   return MYSQL_RPL_MASTER;		/* By default, send to master */
 }
 
-/*
-  Fill in SSL part of MYSQL structure and set 'use_ssl' flag.
-  NB! Errors are not reported until you do mysql_real_connect.
-*/
-
-#define strdup_if_not_null(A) (A) == 0 ? 0 : my_strdup((A),MYF(MY_WME))
-
-my_bool STDCALL
-mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
-	      const char *key __attribute__((unused)),
-	      const char *cert __attribute__((unused)),
-	      const char *ca __attribute__((unused)),
-	      const char *capath __attribute__((unused)),
-	      const char *cipher __attribute__((unused)))
-{
-#ifdef HAVE_OPENSSL
-  mysql->options.ssl_key=    strdup_if_not_null(key);
-  mysql->options.ssl_cert=   strdup_if_not_null(cert);
-  mysql->options.ssl_ca=     strdup_if_not_null(ca);
-  mysql->options.ssl_capath= strdup_if_not_null(capath);
-  mysql->options.ssl_cipher= strdup_if_not_null(cipher);
-#endif /* HAVE_OPENSSL */
-  return 0;
-}
 
 /**************************************************************************
   Connect to sql server
@@ -577,6 +596,7 @@ mysql_connect(MYSQL *mysql,const char *host,
   }
 }
 #endif
+
 
 /**************************************************************************
   Change user and database
@@ -836,56 +856,6 @@ STDCALL mysql_add_slave(MYSQL* mysql, const char* host,
   return 0;
 }
 
-/**************************************************************************
-  Alloc struct for use with unbuffered reads. Data is fetched by domand
-  when calling to mysql_fetch_row.
-  mysql_data_seek is a noop.
-
-  No other queries may be specified with the same MYSQL handle.
-  There shouldn't be much processing per row because mysql server shouldn't
-  have to wait for the client (and will not wait more than 30 sec/packet).
-**************************************************************************/
-
-MYSQL_RES * STDCALL
-mysql_use_result(MYSQL *mysql)
-{
-  MYSQL_RES *result;
-  DBUG_ENTER("mysql_use_result");
-
-  mysql = mysql->last_used_con;
-
-  if (!mysql->fields)
-    DBUG_RETURN(0);
-  if (mysql->status != MYSQL_STATUS_GET_RESULT)
-  {
-    strmov(mysql->net.sqlstate, unknown_sqlstate);
-    strmov(mysql->net.last_error,
-	   ER(mysql->net.last_errno=CR_COMMANDS_OUT_OF_SYNC));
-    DBUG_RETURN(0);
-  }
-  if (!(result=(MYSQL_RES*) my_malloc(sizeof(*result)+
-				      sizeof(ulong)*mysql->field_count,
-				      MYF(MY_WME | MY_ZEROFILL))))
-    DBUG_RETURN(0);
-  result->lengths=(ulong*) (result+1);
-  if (!(result->row=(MYSQL_ROW)
-	my_malloc(sizeof(result->row[0])*(mysql->field_count+1), MYF(MY_WME))))
-  {					/* Ptrs: to one row */
-    my_free((gptr) result,MYF(0));
-    DBUG_RETURN(0);
-  }
-  result->fields=	mysql->fields;
-  result->field_alloc=	mysql->field_alloc;
-  result->field_count=	mysql->field_count;
-  result->current_field=0;
-  result->handle=	mysql;
-  result->current_row=	0;
-  mysql->fields=0;			/* fields is now in result */
-  mysql->status=MYSQL_STATUS_USE_RESULT;
-  DBUG_RETURN(result);			/* Data is read to be fetched */
-}
-
-
 
 /**************************************************************************
   Return next field of the query results
@@ -899,6 +869,13 @@ mysql_fetch_field(MYSQL_RES *result)
   return &result->fields[result->current_field++];
 }
 
+
+/**************************************************************************
+  Get column lengths of the current row
+  If one uses mysql_use_result, res->lengths contains the length information,
+  else the lengths are calculated from the offset between pointers.
+**************************************************************************/
+
 ulong * STDCALL
 mysql_fetch_lengths(MYSQL_RES *res)
 {
@@ -910,6 +887,23 @@ mysql_fetch_lengths(MYSQL_RES *res)
     fetch_lengths(res->lengths, column, res->field_count);
   return res->lengths;
 }
+
+
+/**************************************************************************
+  Move to a specific row and column
+**************************************************************************/
+
+void STDCALL
+mysql_data_seek(MYSQL_RES *result, my_ulonglong row)
+{
+  MYSQL_ROWS	*tmp=0;
+  DBUG_PRINT("info",("mysql_data_seek(%ld)",(long) row));
+  if (result->data)
+    for (tmp=result->data->data; row-- && tmp ; tmp = tmp->next) ;
+  result->current_row=0;
+  result->data_cursor = tmp;
+}
+
 
 /*************************************************************************
   put the row or field cursor one a position one got from mysql_row_tell()
@@ -934,6 +928,7 @@ mysql_field_seek(MYSQL_RES *result, MYSQL_FIELD_OFFSET field_offset)
   result->current_field=field_offset;
   return return_value;
 }
+
 
 /*****************************************************************************
   List all databases
@@ -2444,7 +2439,7 @@ static void send_data_long(MYSQL_BIND *param, longlong value)
   }
   default:
   {
-    char tmp[12];
+    char tmp[22];				/* Enough for longlong */
     uint length= (uint)(longlong10_to_str(value,(char *)tmp,10)-tmp);
     ulong copy_length= min((ulong)length-param->offset, param->buffer_length);
     memcpy(buffer, (char *)tmp+param->offset, copy_length);
@@ -2492,7 +2487,7 @@ static void send_data_double(MYSQL_BIND *param, double value)
   }
   default:
   {
-    char tmp[12];
+    char tmp[128];
     uint length= my_sprintf(tmp,(tmp,"%g",value));
     ulong copy_length= min((ulong)length-param->offset, param->buffer_length);
     memcpy(buffer, (char *)tmp+param->offset, copy_length);
