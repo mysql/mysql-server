@@ -259,6 +259,8 @@ sys_var_thd_ulong	sys_max_tmp_tables("max_tmp_tables",
 					   &SV::max_tmp_tables);
 sys_var_long_ptr	sys_max_write_lock_count("max_write_lock_count",
 						 &max_write_lock_count);
+sys_var_thd_ulong       sys_multi_range_count("multi_range_count",
+                                              &SV::multi_range_count);
 sys_var_long_ptr	sys_myisam_data_pointer_size("myisam_data_pointer_size",
                                                     &myisam_data_pointer_size);
 sys_var_thd_ulonglong	sys_myisam_max_extra_sort_file_size("myisam_max_extra_sort_file_size", &SV::myisam_max_extra_sort_file_size, fix_myisam_max_extra_sort_file_size, 1);

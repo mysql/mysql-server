@@ -100,11 +100,19 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   }
   else if (select && select->quick)
   {
+    int error;
     DBUG_PRINT("info",("using rr_quick"));
 
     if (!table->file->inited)
       table->file->ha_index_init(select->quick->index);
     info->read_record=rr_quick;
+
+    if ((error= select->quick->get_next_init()))
+    {
+      /* Cannot return error code here. Instead print to error log. */
+      table->file->print_error(error,MYF(ME_NOREFRESH));
+      thd->fatal_error();
+    }
   }
   else if (table->sort.record_pointers)
   {
