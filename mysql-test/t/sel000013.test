@@ -10,4 +10,4 @@
 # Numeric floating point.
 #
 
-@r/3.23/sel000013.result SELECT 6e-05, -6e-05, --6e-05, -6e-05+1.000000;
+@r/sel000013.result SELECT 6e-05, -6e-05, --6e-05, -6e-05+1.000000;

@@ -11,4 +11,4 @@
 # Testing string comparisons; STRCMP(), =, >, >=, <=, !=.
 #
 
-@r/3.23/sel000020.result SELECT 0=0,1>0,1>=1,1<0,1<=0,1!=0,STRCMP("abc","abcd"),STRCMP("b","a"),STRCMP("a","a");
+@r/sel000020.result SELECT 0=0,1>0,1>=1,1<0,1<=0,1!=0,STRCMP("abc","abcd"),STRCMP("b","a"),STRCMP("a","a");

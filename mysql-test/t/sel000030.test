@@ -11,4 +11,4 @@
 # Testing control flow; IF()
 #
 
-@r/3.23/sel000030.result SELECT IF(0,"ERROR","this"),IF(1,"is","ERROR"),IF(NULL,"ERROR","a"),IF(1,2,3)|0,IF(1,2.0,3.0)+0;
+@r/sel000030.result SELECT IF(0,"ERROR","this"),IF(1,"is","ERROR"),IF(NULL,"ERROR","a"),IF(1,2,3)|0,IF(1,2.0,3.0)+0;

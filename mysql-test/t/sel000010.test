@@ -11,4 +11,4 @@
 # Testing |, &, BIT_COUNT().
 #
 
-@r/3.23/sel000010.result SELECT 1 | (1+1),5 & 3,BIT_COUNT(7);
+@r/sel000010.result SELECT 1 | (1+1),5 & 3,BIT_COUNT(7);

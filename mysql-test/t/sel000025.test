@@ -11,4 +11,4 @@
 # Testing string comparisons; LIKE, ESCAPE, '%'.
 #
 
-@r/3.23/sel000025.result SELECT '?' LIKE '|%', '?' LIKE '|%' ESCAPE '|', '%' LIKE '|%', '%' LIKE '|%' ESCAPE '|', '%' LIKE '%';
+@r/sel000025.result SELECT '?' LIKE '|%', '?' LIKE '|%' ESCAPE '|', '%' LIKE '|%', '%' LIKE '|%' ESCAPE '|', '%' LIKE '%';

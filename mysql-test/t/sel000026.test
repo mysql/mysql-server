@@ -11,4 +11,4 @@
 # Testing string comparisons; LIKE, '%'.
 #
 
-@r/3.23/sel000026.result SELECT 'abc' LIKE '%c','abcabc' LIKE '%c',  "ab" LIKE "", "ab" LIKE "a", "ab" LIKE "ab";
+@r/sel000026.result SELECT 'abc' LIKE '%c','abcabc' LIKE '%c',  "ab" LIKE "", "ab" LIKE "a", "ab" LIKE "ab";

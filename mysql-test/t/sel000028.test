@@ -11,4 +11,4 @@
 # Testing string comparisons; REGEXP, CONCAT().
 #
 
-@r/3.23/sel000028.result SELECT "aba" REGEXP CONCAT("^","a");
+@r/sel000028.result SELECT "aba" REGEXP CONCAT("^","a");
