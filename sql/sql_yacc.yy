@@ -535,7 +535,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	equal optional_braces opt_key_definition key_usage_list2
 	opt_mi_check_type opt_to mi_check_types normal_join
 	table_to_table_list table_to_table opt_table_list opt_as
-	handler_read_function handler_rkey_mode END_OF_INPUT
+	handler_rkey_function handler_rkey_mode handler_read_or_scan
+        END_OF_INPUT
 
 %type <NONE>
 	'-' '+' '*' '/' '%' '(' ')'
@@ -1904,7 +1905,8 @@ order_dir:
 limit_clause:
 	/* empty */
 	{
-	  Lex->select_limit= current_thd->default_select_limit;
+	  Lex->select_limit= (Lex->sql_command == SQLCOM_HA_READ) ?
+             1 : current_thd->default_select_limit;
 	  Lex->offset_limit= 0L;
 	}
 	| LIMIT ULONG_NUM
@@ -2844,7 +2846,7 @@ unlock:
 
 
 /*
-** Table: direct access to ISAM functions
+** Handler: direct access to ISAM functions
 */
 
 handler:
@@ -2860,45 +2862,40 @@ handler:
 	  if (!add_table_to_list($2,0,0))
 	    YYABORT;
 	}
-	| HANDLER_SYM table_ident READ_SYM ident handler_read_function limit_clause
+	| HANDLER_SYM table_ident READ_SYM handler_read_or_scan
 	{
 	  Lex->sql_command = SQLCOM_HA_READ;
-	  Lex->backup_dir= $4.str;
 	  if (!add_table_to_list($2,0,0))
 	    YYABORT;
-	}
+        }
+        where_clause limit_clause { }
 
-handler_read_function:
-	FIRST_SYM
-	{
-	  Lex->ha_read_mode = RFIRST;
-	}
-	| NEXT_SYM
-	{
-	  Lex->ha_read_mode = RNEXT;
-	}
-	| PREV_SYM
-	{
-	  Lex->ha_read_mode = RPREV;
-	}
-	| LAST_SYM
-	{
-	  Lex->ha_read_mode = RLAST;
-	}
+handler_read_or_scan:
+	handler_scan_function         { Lex->backup_dir= 0; }
+        | ident handler_rkey_function { Lex->backup_dir= $1.str; }
+
+handler_scan_function:
+	FIRST_SYM  { Lex->ha_read_mode = RFIRST; }
+	| NEXT_SYM { Lex->ha_read_mode = RNEXT;  }
+
+handler_rkey_function:
+	FIRST_SYM  { Lex->ha_read_mode = RFIRST; }
+	| NEXT_SYM { Lex->ha_read_mode = RNEXT;  }
+	| PREV_SYM { Lex->ha_read_mode = RPREV;  }
+	| LAST_SYM { Lex->ha_read_mode = RLAST;  }
 	| handler_rkey_mode
 	{
 	  Lex->ha_read_mode = RKEY;
 	  if (!(Lex->insert_list = new List_item))
 	    YYABORT;
-	}
-	'(' values ')' { }
+	} '(' values ')' { }
 
 handler_rkey_mode:
-	  EQ { Lex->ha_rkey_mode=HA_READ_KEY_EXACT; }
-	| GE { Lex->ha_rkey_mode=HA_READ_KEY_OR_NEXT; }
-	| LE { Lex->ha_rkey_mode=HA_READ_KEY_OR_PREV; }
-	| GT_SYM {Lex->ha_rkey_mode=HA_READ_AFTER_KEY; }
-	| LT { Lex->ha_rkey_mode=HA_READ_BEFORE_KEY; }
+	  EQ     { Lex->ha_rkey_mode=HA_READ_KEY_EXACT;   }
+	| GE     { Lex->ha_rkey_mode=HA_READ_KEY_OR_NEXT; }
+	| LE     { Lex->ha_rkey_mode=HA_READ_KEY_OR_PREV; }
+	| GT_SYM { Lex->ha_rkey_mode=HA_READ_AFTER_KEY;   }
+	| LT     { Lex->ha_rkey_mode=HA_READ_BEFORE_KEY;  }
 
 /* GRANT / REVOKE */
 

@@ -407,7 +407,7 @@ void close_thread_tables(THD *thd, bool locked)
 {
   DBUG_ENTER("close_thread_tables");
 
-  if (thd->locked_tables || thd->manual_open)
+  if (thd->locked_tables)
     DBUG_VOID_RETURN;				// LOCK TABLES in use
 
   TABLE *table,*next;

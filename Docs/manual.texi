@@ -409,6 +409,7 @@ MySQL Language Reference
 * LOCK TABLES::                 @code{LOCK TABLES/UNLOCK TABLES} syntax
 * SET OPTION::                  @code{SET OPTION} syntax
 * GRANT::                       @code{GRANT} and @code{REVOKE} syntax
+* HANDLER::                     @code{HANDLER} syntax
 * CREATE INDEX::                @code{CREATE INDEX} syntax
 * DROP INDEX::                  @code{DROP INDEX} syntax
 * Comments::                    Comment syntax
@@ -13483,6 +13484,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 * SET OPTION::                  @code{SET OPTION} syntax
 * SET TRANSACTION::             @code{SET TRANSACTION} syntax
 * GRANT::                       @code{GRANT} and @code{REVOKE} syntax
+* HANDLER::                     @code{HANDLER} syntax
 * CREATE INDEX::                @code{CREATE INDEX} syntax
 * DROP INDEX::                  @code{DROP INDEX} syntax
 * Comments::                    Comment syntax
@@ -22396,7 +22398,7 @@ You can set the default isolation level for @code{mysqld} with
 
 @findex GRANT
 @findex REVOKE
-@node GRANT, CREATE INDEX, SET TRANSACTION, Reference
+@node GRANT, HANDLER, SET TRANSACTION, Reference
 @section @code{GRANT} and @code{REVOKE} Syntax
 
 @example
@@ -22624,11 +22626,52 @@ dropped only with explicit @code{REVOKE} commands or by manipulating the
 @strong{MySQL} grant tables.
 @end itemize
 
+@findex HANDLER
+@node HANDLER, CREATE INDEX, GRANT, Reference
+@section @code{HANDLER} Syntax
+
+@example
+HANDLER table OPEN [ AS alias ]
+HANDLER table READ index @{ = | >= | <= | < @} (value1, value2, ... )  [ WHERE ... ] [LIMIT ... ]
+HANDLER table READ index @{ FIRST | NEXT | PREV | LAST @} [ WHERE ... ] [LIMIT ... ]
+HANDLER table READ @{ FIRST | NEXT @}  [ WHERE ... ] [LIMIT ... ]
+HANDLER table CLOSE
+@end example
+
+The @code{HANDLER} statement provides direct access to @strong{MySQL} table
+interface, bypassing SQL optimizer. Thus, it is faster then SELECT.
+
+The first form of @code{HANDLER} statement opens a table, making
+in accessible via the following @code{HANDLER ... READ} routines.
+
+The second form fetches one (or, specified by @code{LIMIT} clause) row
+where the index specified complies to the condition and @code{WHERE}
+condition is met. If the index consists of several parts (spans over
+several columns) the values are specified in comma-separated list,
+providing values only for few first columns is possible.
+
+The third form fetches one (or, specified by @code{LIMIT} clause) row
+from the table in index order, matching @code{WHERE} condition.
+
+The fourth form (without index specification) fetches one (or, specified
+by @code{LIMIT} clause) row from the table in natural row order (as stored
+in data file) matching @code{WHERE} condition. It is faster than
+@code{HANDLER table READ index} when full table scan is desired.
+
+The last form closes the table, opened with @code{HANDLER ... OPEN}.
+
+@code{HANDLER} is somewhat low-level statement, for example it does not
+provide consistency. That is @code{HANDLER ... OPEN} does @strong{not}
+takes a snapshot of the table, and does @strong{not} locks the table. The
+above means,  that after @code{HANDLER ... OPEN} table data can be
+modified (by this or other thread) and these modifications may appear only
+partially in @code{HANDLER ... NEXT} or @code{HANDLER ... PREV} scans.
+
 @cindex indexes
 @cindex indexes, multi-part
 @cindex multi-part index
 @findex CREATE INDEX
-@node CREATE INDEX, DROP INDEX, GRANT, Reference
+@node CREATE INDEX, DROP INDEX, HANDLER, Reference
 @section @code{CREATE INDEX} Syntax
 
 @example
