@@ -228,12 +228,20 @@ bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line)
 
   Vector<BaseString> tmp_string_split;
   if (BaseString(line).split(tmp_string_split,
-			     BaseString("=:"),
-			     2) != 2)
+			     "=:", 2) != 2)
   {
     ctx.reportError("Parse error");
     return false;
   }
+
+  // *************************************
+  //  Remove all after #
+  // *************************************
+
+  Vector<BaseString> tmp_string_split2;
+  tmp_string_split[1].split(tmp_string_split2,
+			    "#", 2);
+  tmp_string_split[1]=tmp_string_split2[0];
 
   // *************************************
   // Remove leading and trailing chars
