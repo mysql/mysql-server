@@ -23,6 +23,10 @@
 #include "m_ctype.h"
 #include <errno.h>
 
+#ifndef EILSEQ
+#define EILSEQ ENOENT
+#endif
+
 #ifdef HAVE_CHARSET_utf8
 #define HAVE_UNIDATA
 #endif
@@ -2482,9 +2486,11 @@ long        my_strntol_ucs2(CHARSET_INFO *cs,
   } while (1);
   
 bs:
-  
+
+#if 0  
   if (base <= 0 || base == 1 || base > 36)
     base = 10;
+#endif
   
   overflow = 0;
   res = 0;
@@ -2593,10 +2599,12 @@ ulong      my_strntoul_ucs2(CHARSET_INFO *cs,
   } while (1);
   
 bs:
-  
+
+#if 0
   if (base <= 0 || base == 1 || base > 36)
     base = 10;
-  
+#endif
+
   overflow = 0;
   res = 0;
   save = s;
@@ -2698,10 +2706,12 @@ longlong  my_strntoll_ucs2(CHARSET_INFO *cs,
   } while (1);
   
 bs:
-  
+
+#if 0  
   if (base <= 0 || base == 1 || base > 36)
     base = 10;
-  
+#endif
+
   overflow = 0;
   res = 0;
   save = s;
@@ -2812,9 +2822,11 @@ ulonglong  my_strntoull_ucs2(CHARSET_INFO *cs,
   
 bs:
   
+#if 0
   if (base <= 0 || base == 1 || base > 36)
     base = 10;
-  
+#endif
+
   overflow = 0;
   res = 0;
   save = s;
