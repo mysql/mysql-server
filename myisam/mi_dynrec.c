@@ -728,7 +728,7 @@ uint _mi_rec_pack(MI_INFO *info, register byte *to, register const byte *from)
   Returns 0 if record is ok.
 */
 
-my_bool _mi_rec_check(MI_INFO *info,const char *record)
+my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *rec_buff)
 {
   uint		length,new_length,flag,bit,i;
   char		*pos,*end,*packpos,*to;
@@ -736,7 +736,7 @@ my_bool _mi_rec_check(MI_INFO *info,const char *record)
   reg3 MI_COLUMNDEF *rec;
   DBUG_ENTER("_mi_rec_check");
 
-  packpos=info->rec_buff; to= info->rec_buff+info->s->base.pack_bits;
+  packpos=rec_buff; to= rec_buff+info->s->base.pack_bits;
   rec=info->s->rec;
   flag= *packpos; bit=1;
 
@@ -820,7 +820,7 @@ my_bool _mi_rec_check(MI_INFO *info,const char *record)
       to+=length;
     }
   }
-  if (info->packed_length != (uint) (to - info->rec_buff)
+  if (info->packed_length != (uint) (to - rec_buff)
       + test(info->s->calc_checksum) ||
       (bit != 1 && (flag & ~(bit - 1))))
     goto err;
