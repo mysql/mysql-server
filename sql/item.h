@@ -98,7 +98,7 @@ public:
 	     COPY_STR_ITEM, FIELD_AVG_ITEM, DEFAULT_VALUE_ITEM,
 	     PROC_ITEM,COND_ITEM, REF_ITEM, FIELD_STD_ITEM,
 	     FIELD_VARIANCE_ITEM, INSERT_VALUE_ITEM,
-             SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM};
+             SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
   
@@ -371,17 +371,17 @@ class Item_int :public Item
 public:
   const longlong value;
   Item_int(int32 i,uint length=11) :value((longlong) i)
-    { max_length=length;}
+    { max_length=length; fixed= 1; }
 #ifdef HAVE_LONG_LONG
   Item_int(longlong i,uint length=21) :value(i)
-    { max_length=length;}
+    { max_length=length; fixed= 1;}
 #endif
   Item_int(const char *str_arg,longlong i,uint length) :value(i)
-    { max_length=length; name=(char*) str_arg;}
+    { max_length=length; name=(char*) str_arg; fixed= 1; }
   Item_int(const char *str_arg) :
     value(str_arg[0] == '-' ? strtoll(str_arg,(char**) 0,10) :
 	  (longlong) strtoull(str_arg,(char**) 0,10))
-    { max_length= (uint) strlen(str_arg); name=(char*) str_arg;}
+    { max_length= (uint) strlen(str_arg); name=(char*) str_arg; fixed= 1; }
   enum Type type() const { return INT_ITEM; }
   enum Item_result result_type () const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_LONGLONG; }
@@ -968,6 +968,28 @@ public:
   bool null_inside();
   void bring_value();
 };
+
+
+/*
+  Used to store type. name, length of Item for UNIONS & derived table
+*/
+class Item_type_holder: public Item
+{
+protected:
+  Item_result item_type;
+  Field *field_example;
+public:
+  Item_type_holder(THD*, Item*);
+
+  Item_result result_type () const { return item_type; }
+  enum Type type() const { return TYPE_HOLDER; }
+  double val();
+  longlong val_int();
+  String *val_str(String*);
+  void join_types(THD *thd, Item *);
+  Field *example() { return field_example; }
+};
+
 
 extern Item_buff *new_Item_buff(Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);

@@ -946,6 +946,7 @@ class select_union :public select_result {
   bool send_data(List<Item> &items);
   bool send_eof();
   bool flush();
+  void set_table(TABLE *tbl) { table= tbl; }
 };
 
 /* Base subselect interface class */
