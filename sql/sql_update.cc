@@ -401,25 +401,101 @@ int mysql_multi_update(THD *thd,
   int res;
   multi_update *result;
   TABLE_LIST *tl;
+  const bool locked= !(thd->locked_tables);
   DBUG_ENTER("mysql_multi_update");
 
-  if ((res=open_and_lock_tables(thd,table_list)))
-    DBUG_RETURN(res);
-
-  thd->select_limit=HA_POS_ERROR;
-
-  /*
-    Ensure that we have update privilege for all tables and columns in the
-    SET part
-  */
-  for (tl= table_list ; tl ; tl=tl->next)
+  for (;;)
   {
-    TABLE *table= tl->table;
-    table->grant.want_privilege= (UPDATE_ACL & ~table->grant.privilege);
-  }
+    table_map update_map= 0;
+    int tnr= 0;
+    
+    if ((res= open_tables(thd, table_list)))
+      DBUG_RETURN(res);
 
-  if (setup_fields(thd, table_list, *fields, 1, 0, 0))
-    DBUG_RETURN(-1);
+    /*
+      Only need to call lock_tables if (thd->locked_tables == NULL)
+    */
+    if (locked && ((res= lock_tables(thd, table_list))))
+      DBUG_RETURN(res);
+
+    thd->select_limit=HA_POS_ERROR;
+
+    /*
+      Ensure that we have update privilege for all tables and columns in the
+      SET part
+      While we are here, initialize the table->map field.
+    */
+    for (tl= table_list ; tl ; tl=tl->next)
+    {
+      TABLE *table= tl->table;
+      table->grant.want_privilege= (UPDATE_ACL & ~table->grant.privilege);
+      table->map= (table_map) 1 << (tnr++);
+    }
+
+    if (!setup_fields(thd, table_list, *fields, 1, 0, 0))
+    {
+      List_iterator_fast<Item> field_it(*fields);
+      Item_field *item;
+
+      while ((item= (Item_field *) field_it++)) 
+	update_map|= item->used_tables();
+
+      DBUG_PRINT("info",("update_map=0x%08x", update_map));
+    }
+    else
+      DBUG_RETURN(-1);
+
+    /*
+      Unlock the tables in preparation for relocking
+    */
+    if (locked) 
+    {      
+      pthread_mutex_lock(&LOCK_open);
+      mysql_unlock_tables(thd, thd->lock); 
+      thd->lock= 0;
+      pthread_mutex_unlock(&LOCK_open);
+    }
+
+    /*
+      Set the table locking strategy according to the update map
+    */
+    for (tl= table_list ; tl ; tl=tl->next)
+    {
+      TABLE *table= tl->table;
+      if (update_map & table->map) 
+      {
+	DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
+	tl->lock_type= thd->lex.lock_option;
+	tl->updating= 1;
+      }
+      else
+      {
+	DBUG_PRINT("info",("setting table `%s` for read-only", tl->alias));
+	tl->lock_type= TL_READ;
+	tl->updating= 0;
+      }
+      if (locked)
+	tl->table->reginfo.lock_type= tl->lock_type;
+    }
+
+    /*
+      Relock the tables
+    */
+    if (!(res=lock_tables(thd,table_list)))
+      break;
+      
+    if (!locked)
+      DBUG_RETURN(res);
+
+    List_iterator_fast<Item> field_it(*fields);
+    Item_field *item;
+
+    while ((item= (Item_field *) field_it++)) 
+    /*  item->cleanup();		XXX Use this instead in MySQL 4.1+ */
+      item->field= item->result_field= 0;
+
+    close_thread_tables(thd);
+  }
 
   /*
     Count tables and setup timestamp handling
