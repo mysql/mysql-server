@@ -51,10 +51,10 @@ select_union::select_union(TABLE *table_par)
 {
   bzero((char*) &info,sizeof(info));
   /*
-    We can always use DUP_IGNORE because the temporary table will only
+    We can always use IGNORE because the temporary table will only
     contain a unique key if we are using not using UNION ALL
   */
-  info.handle_duplicates= DUP_IGNORE;
+  info.ignore= 1;
 }
 
 select_union::~select_union()
