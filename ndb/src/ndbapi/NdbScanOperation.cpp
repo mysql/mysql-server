@@ -777,8 +777,9 @@ NdbScanOperation::doSendScan(int aProcessorId)
   Uint32 tmp = req->requestInfo;
   ScanTabReq::setDistributionKeyFlag(tmp, theDistrKeyIndicator_);
   req->distributionKey = theDistributionKey;
+  req->requestInfo = tmp;
   tSignal->setLength(ScanTabReq::StaticLength + theDistrKeyIndicator_);
-  
+
   TransporterFacade *tp = TransporterFacade::instance();
   LinearSectionPtr ptr[3];
   ptr[0].p = m_prepared_receivers;
