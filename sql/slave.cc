@@ -1644,6 +1644,7 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
 
   if (mi->host[0])
   {
+    DBUG_PRINT("info",("host is set: '%s'", mi->host));
     String *packet= &thd->packet;
     packet->length(0);
   
