@@ -84,4 +84,4 @@ testBackup_LDADD = $(LDADD) bank/libbank.a
 # Don't update the files from bitkeeper
 %::SCCS/s.%
 
-
+windoze-dsp:

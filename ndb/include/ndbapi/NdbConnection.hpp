@@ -50,7 +50,7 @@ enum AbortOption {
   TryCommit = 0,                ///< <i>Missing explanation</i>
 #endif
   AbortOnError = 0,             ///< Abort transaction on failed operation
-  IgnoreError = 2               ///< Transaction continues on failed operation
+  AO_IgnoreError = 2               ///< Transaction continues on failed operation
 };
   
 typedef AbortOption CommitType;

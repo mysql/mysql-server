@@ -603,7 +603,7 @@ Grep::PSCoord::execCREATE_SUBID_CONF(Signal* signal)
 			 GrepEvent::GrepPS_CreateSubIdConf,
 			 subId,
 			 subKey,
-			 (Uint32)GrepError::NO_ERROR);   
+			 (Uint32)GrepError::GE_NO_ERROR);   
 }
 
 void 
@@ -612,7 +612,7 @@ Grep::PSCoord::execCREATE_SUBID_REF(Signal* signal) {
   CreateSubscriptionIdRef const * ref = 
     (CreateSubscriptionIdRef *)signal->getDataPtr();
   Uint32 subData = ref->subscriberData;
-  GrepError::Code err;
+  GrepError::GE_Code err;
   
   Uint32 sendersBlockRef = signal->getSendersBlockRef();
   if(sendersBlockRef == SUMA_REF) 
@@ -624,7 +624,7 @@ Grep::PSCoord::execCREATE_SUBID_REF(Signal* signal) {
     ndbrequire(false); /* Added since errorcode err unhandled
 			* TODO: fix correct errorcode
 			*/
-    err= GrepError::NO_ERROR; // remove compiler warning
+    err= GrepError::GE_NO_ERROR; // remove compiler warning
   }
 
   SubCoordinatorPtr subPtr;
@@ -824,7 +824,7 @@ Grep::PSPart::execSUB_CREATE_REF(Signal* signal)
   jamEntry();
   SubCreateRef * const ref = (SubCreateRef *)signal->getDataPtr();
   Uint32 subData           = ref->subscriberData;
-  GrepError::Code err      = (GrepError::Code)ref->err;
+  GrepError::GE_Code err      = (GrepError::GE_Code)ref->err;
   SubscriptionPtr subPtr;
   c_subscriptions.getPtr(subPtr, subData);
   sendRefToPSCoord(signal, *subPtr.p, err /*error*/);
@@ -867,7 +867,7 @@ Grep::PSCoord::execGREP_CREATE_CONF(Signal* signal)
 		       GrepEvent::GrepPS_SubCreateConf,
 		       subId,
 		       subKey,
-		       (Uint32)GrepError::NO_ERROR);
+		       (Uint32)GrepError::GE_NO_ERROR);
 
   c_subCoordinatorPool.release(subPtr);
 
@@ -889,7 +889,7 @@ Grep::PSCoord::execGREP_CREATE_REF(Signal* signal)
   SubCoordinatorPtr subPtr;
   c_runningSubscriptions.getPtr(subPtr, subData);  
  
-  sendRefToSS(signal, *subPtr.p, (GrepError::Code)err /*error*/);
+  sendRefToSS(signal, *subPtr.p, (GrepError::GE_Code)err /*error*/);
 }
 
 
@@ -1046,7 +1046,7 @@ Grep::PSPart::execSUB_START_REF(Signal* signal)
 {
   SubStartRef * const ref = (SubStartRef *)signal->getDataPtr();
   Uint32 subData          = ref->subscriberData;
-  GrepError::Code err     = (GrepError::Code)ref->err;
+  GrepError::GE_Code err     = (GrepError::GE_Code)ref->err;
   SubscriptionData::Part part = (SubscriptionData::Part)ref->part;
   SubscriptionPtr subPtr;
   c_subscriptions.getPtr(subPtr, subData);
@@ -1102,7 +1102,7 @@ Grep::PSCoord::execGREP_START_CONF(Signal* signal)
 			 EventReport::GrepSubscriptionInfo,
 			 GrepEvent::GrepPS_SubStartMetaConf,
 			 subId, subKey,
-			 (Uint32)GrepError::NO_ERROR);
+			 (Uint32)GrepError::GE_NO_ERROR);
     
     c_subCoordinatorPool.release(subPtr);
     break;
@@ -1118,7 +1118,7 @@ Grep::PSCoord::execGREP_START_CONF(Signal* signal)
 			 EventReport::GrepSubscriptionInfo,
 			 GrepEvent::GrepPS_SubStartDataConf,
 			 subId, subKey,
-			 (Uint32)GrepError::NO_ERROR);
+			 (Uint32)GrepError::GE_NO_ERROR);
     
 
     c_subCoordinatorPool.release(subPtr);
@@ -1145,7 +1145,7 @@ Grep::PSCoord::execGREP_START_REF(Signal* signal)
   jamEntry();
   GrepStartRef * const ref = (GrepStartRef *)signal->getDataPtr();
   Uint32 subData           = ref->senderData;
-  GrepError::Code err      = (GrepError::Code)ref->err;
+  GrepError::GE_Code err      = (GrepError::GE_Code)ref->err;
   SubscriptionData::Part part  = (SubscriptionData::Part)ref->part;
 
   SubCoordinatorPtr subPtr;
@@ -1301,7 +1301,7 @@ Grep::PSPart::execSUB_REMOVE_REF(Signal* signal)
   jamEntry();
   SubRemoveRef * const ref = (SubRemoveRef *)signal->getDataPtr();
   Uint32 subData           = ref->subscriberData;
-  /*  GrepError::Code err      = (GrepError::Code)ref->err;*/
+  /*  GrepError::GE_Code err      = (GrepError::GE_Code)ref->err;*/
   SubscriptionPtr subPtr;
   c_subscriptions.getPtr(subPtr, subData);
   
@@ -1342,7 +1342,7 @@ Grep::PSCoord::execGREP_REMOVE_CONF(Signal* signal)
 		       EventReport::GrepSubscriptionInfo,
 		       GrepEvent::GrepPS_SubRemoveConf,
 		       subId, subKey,
-		       GrepError::NO_ERROR);
+		       GrepError::GE_NO_ERROR);
 
   GrepSubRemoveConf * grepConf = (GrepSubRemoveConf *) conf;
   grepConf->subscriptionId = subId;
@@ -1375,7 +1375,7 @@ Grep::PSCoord::execGREP_REMOVE_REF(Signal* signal)
     subPtr.p = c_runningSubscriptions.getPtr(subPtr.i);
     if(subData == subPtr.i) 
       {
-      sendRefToSS(signal, *subPtr.p, (GrepError::Code)err /*error*/);
+      sendRefToSS(signal, *subPtr.p, (GrepError::GE_Code)err /*error*/);
       c_runningSubscriptions.release(subPtr);
     return;
     }
@@ -1633,7 +1633,7 @@ Grep::PSPart::execSUB_SYNC_REF(Signal* signal) {
   jamEntry();
   SubSyncRef * const ref = (SubSyncRef *)signal->getDataPtr();
   Uint32 subData              = ref->subscriberData;
-  GrepError::Code err     = (GrepError::Code)ref->err;
+  GrepError::GE_Code err     = (GrepError::GE_Code)ref->err;
   SubscriptionData::Part part = (SubscriptionData::Part)ref->part;
   
   SubscriptionPtr subPtr;
@@ -1677,7 +1677,7 @@ Grep::PSCoord::execGREP_SYNC_CONF(Signal* signal)
   /* @todo Johan: Add firstGCI here. /Lars */
   m_grep->sendEventRep(signal, EventReport::GrepSubscriptionInfo,
 		       event, subId, subKey,
-		       (Uint32)GrepError::NO_ERROR,
+		       (Uint32)GrepError::GE_NO_ERROR,
 		       lastGCI);
 
   /*************************
@@ -1707,7 +1707,7 @@ Grep::PSCoord::execGREP_SYNC_REF(Signal* signal) {
   GrepSyncRef * const ref = (GrepSyncRef *)signal->getDataPtr();
   Uint32 subData              = ref->senderData;
   SubscriptionData::Part part = (SubscriptionData::Part)ref->part;
-  GrepError::Code err         = (GrepError::Code)ref->err;
+  GrepError::GE_Code err         = (GrepError::GE_Code)ref->err;
   SubCoordinatorPtr subPtr;
   c_runningSubscriptions.getPtr(subPtr, subData);  
   sendRefToSS(signal, *subPtr.p, err /*error*/, part);
@@ -1718,7 +1718,7 @@ Grep::PSCoord::execGREP_SYNC_REF(Signal* signal) {
 void
 Grep::PSCoord::sendRefToSS(Signal * signal, 
 			   SubCoordinator sub,
-			   GrepError::Code err,
+			   GrepError::GE_Code err,
 			   SubscriptionData::Part part) {
   /**
   
@@ -1843,7 +1843,7 @@ Grep::PSCoord::sendRefToSS(Signal * signal,
 void
 Grep::PSPart::sendRefToPSCoord(Signal * signal, 
 			       Subscription sub,
-			       GrepError::Code err,
+			       GrepError::GE_Code err,
 			       SubscriptionData::Part part) {
 
   jam();

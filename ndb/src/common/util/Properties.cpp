@@ -881,7 +881,7 @@ PropertiesImpl::unpack(const Uint32 * buf, Uint32 &bufLen, Properties * top,
     case PropertiesType_Properties:
       assert(0);
     }
-    if(res3 != true){
+    if(!res3){
       return false;
     }
     _items--;

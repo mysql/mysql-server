@@ -1167,31 +1167,31 @@ TransporterRegistry::stop_clients()
 }
 
 void
-TransporterRegistry::add_transporter_interface(const char *interface, unsigned short port)
+TransporterRegistry::add_transporter_interface(const char *interf, unsigned short port)
 {
   DBUG_ENTER("TransporterRegistry::add_transporter_interface");
-  DBUG_PRINT("enter",("interface=%s, port= %d", interface, port));
-  if (interface && strlen(interface) == 0)
-    interface= 0;
+  DBUG_PRINT("enter",("interface=%s, port= %d", interf, port));
+  if (interf && strlen(interf) == 0)
+    interf= 0;
 
   for (unsigned i= 0; i < m_transporter_interface.size(); i++)
   {
     Transporter_interface &tmp= m_transporter_interface[i];
     if (port != tmp.m_service_port)
       continue;
-    if (interface != 0 && tmp.m_interface != 0 &&
-	strcmp(interface, tmp.m_interface) == 0)
+    if (interf != 0 && tmp.m_interface != 0 &&
+	strcmp(interf, tmp.m_interface) == 0)
     {
       DBUG_VOID_RETURN; // found match, no need to insert
     }
-    if (interface == 0 && tmp.m_interface == 0)
+    if (interf == 0 && tmp.m_interface == 0)
     {
       DBUG_VOID_RETURN; // found match, no need to insert
     }
   }
   Transporter_interface t;
   t.m_service_port= port;
-  t.m_interface= interface;
+  t.m_interface= interf;
   m_transporter_interface.push_back(t);
   DBUG_PRINT("exit",("interface and port added"));
   DBUG_VOID_RETURN;
@@ -1200,7 +1200,7 @@ TransporterRegistry::add_transporter_interface(const char *interface, unsigned s
 bool
 TransporterRegistry::start_service(SocketServer& socket_server)
 {
-  if (m_transporter_interface.size() > 0 && nodeIdSpecified != true)
+  if (m_transporter_interface.size() > 0 && !nodeIdSpecified)
   {
     ndbout_c("TransporterRegistry::startReceiving: localNodeId not specified");
     return false;

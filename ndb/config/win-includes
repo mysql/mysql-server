@@ -1,0 +1,8 @@
+#!/bin/sh
+
+dst=$1
+shift
+
+out=`echo $* | sed 's/-I\([^ ]*\)/\/I "\1"/g'` 
+sed -e "s!@includes@!$out!g" $dst > /tmp/$dst.$$
+mv /tmp/$dst.$$ $dst
