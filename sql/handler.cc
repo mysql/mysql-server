@@ -32,6 +32,9 @@
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif
+#ifdef HAVE_BLACKHOLE_DB
+#include "ha_blackhole.h"
+#endif
 #ifdef HAVE_EXAMPLE_DB
 #include "examples/ha_example.h"
 #endif
@@ -96,6 +99,8 @@ struct show_table_type_st sys_table_types[]=
    "Archive storage engine", DB_TYPE_ARCHIVE_DB},
   {"CSV",&have_csv_db,
    "CSV storage engine", DB_TYPE_CSV_DB},
+  {"BLACKHOLE",&have_blackhole_db,
+   "Storage engine designed to act as null storage", DB_TYPE_BLACKHOLE_DB},
   {NullS, NULL, NullS, DB_TYPE_UNKNOWN}
 };
 
@@ -203,6 +208,10 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 #ifdef HAVE_ARCHIVE_DB
   case DB_TYPE_ARCHIVE_DB:
     return new ha_archive(table);
+#endif
+#ifdef HAVE_BLACKHOLE_DB
+  case DB_TYPE_BLACKHOLE_DB:
+    return new ha_blackhole(table);
 #endif
 #ifdef HAVE_CSV_DB
   case DB_TYPE_CSV_DB:

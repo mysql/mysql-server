@@ -60,7 +60,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			stacktrace.h sql_sort.h sql_cache.h set_var.h \
 			spatial.h gstream.h client_settings.h tzfile.h \
                         tztime.h examples/ha_example.h examples/ha_archive.h \
-			examples/ha_tina.h
+			examples/ha_tina.h ha_blackhole.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
@@ -92,7 +92,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			gstream.cc spatial.cc sql_help.cc protocol_cursor.cc \
 			tztime.cc my_time.c \
 			examples/ha_example.cc examples/ha_archive.cc \
-			examples/ha_tina.cc
+			examples/ha_tina.cc ha_blackhole.cc
 
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
