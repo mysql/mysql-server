@@ -3475,12 +3475,19 @@ int Dbdict::handleAlterTab(AlterTabReq * req,
     jam();
     // Table rename
     // Remove from hashtable
+#ifdef VM_TRACE
+    TableRecordPtr tmp;
+    ndbrequire(c_tableRecordHash.find(tmp, *origTablePtr.p));
+#endif
     c_tableRecordHash.remove(origTablePtr);
     strcpy(regAlterTabPtr->previousTableName, origTablePtr.p->tableName);
     strcpy(origTablePtr.p->tableName, newTablePtr.p->tableName);
     // Set new schema version
     origTablePtr.p->tableVersion = newTablePtr.p->tableVersion;
     // Put it back
+#ifdef VM_TRACE
+    ndbrequire(!c_tableRecordHash.find(tmp, *origTablePtr.p));
+#endif
     c_tableRecordHash.add(origTablePtr);	 
     
     return 0;
@@ -3501,12 +3508,19 @@ void Dbdict::revertAlterTable(Signal * signal,
     TableRecordPtr tablePtr;
     c_tableRecordPool.getPtr(tablePtr, tableId);
     // Remove from hashtable
+#ifdef VM_TRACE
+    TableRecordPtr tmp;
+    ndbrequire(c_tableRecordHash.find(tmp, * tablePtr.p));
+#endif
     c_tableRecordHash.remove(tablePtr);
     // Restore name
     strcpy(tablePtr.p->tableName, regAlterTabPtr->previousTableName);
     // Revert schema version
     tablePtr.p->tableVersion = tablePtr.p->tableVersion - 1;
     // Put it back
+#ifdef VM_TRACE
+    ndbrequire(!c_tableRecordHash.find(tmp, * tablePtr.p));
+#endif
     c_tableRecordHash.add(tablePtr);	 
 
     return;
@@ -4644,6 +4658,8 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     jam();
 #ifdef VM_TRACE
     ndbout_c("Dbdict: name=%s,id=%u", tablePtr.p->tableName, tablePtr.i);
+    TableRecordPtr tmp;
+    ndbrequire(!c_tableRecordHash.find(tmp, * tablePtr.p));
 #endif
     c_tableRecordHash.add(tablePtr);
   }
@@ -4690,7 +4706,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     /**
      * Release table
      */
-    releaseTableObject(tablePtr.i, !checkExist);
+    releaseTableObject(tablePtr.i, checkExist);
   }
 }//handleTabInfoInit()
 
@@ -5501,8 +5517,13 @@ void Dbdict::releaseTableObject(Uint32 tableId, bool removeFromHash)
   AttributeRecordPtr attrPtr;
   c_tableRecordPool.getPtr(tablePtr, tableId);
   if (removeFromHash)
+  {
+#ifdef VM_TRACE
+    TableRecordPtr tmp;
+    ndbrequire(c_tableRecordHash.find(tmp, * tablePtr.p));
+#endif
     c_tableRecordHash.remove(tablePtr);
-  
+  }
   tablePtr.p->tabState = TableRecord::NOT_DEFINED;
 
   Uint32 nextAttrRecord = tablePtr.p->firstAttribute;
