@@ -3644,15 +3644,13 @@ not call external_lock for the temporary table when it uses it. Instead,
 it will call this function. */
 
 int
-start_stmt(
-/*=======*/
+ha_innobase::start_stmt(
+/*====================*/
 	              /* out: 0 or error code */
 	THD*    thd)  /* in: handle to the user thread */
 {
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	trx_t*		trx;
-
-  	DBUG_ENTER("ha_innobase::external_lock");
 
 	update_thd(thd);
 
