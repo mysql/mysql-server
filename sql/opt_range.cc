@@ -1302,14 +1302,14 @@ tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
       if (*key2 && !(*key2)->simple_key())
 	flag|=CLONE_KEY2_MAYBE;
       *key1=key_and(*key1,*key2,flag);
-      if ((*key1)->type == SEL_ARG::IMPOSSIBLE)
+      if (*key1 && (*key1)->type == SEL_ARG::IMPOSSIBLE)
       {
 	tree1->type= SEL_TREE::IMPOSSIBLE;
+#ifdef EXTRA_DEBUG
+        (*key1)->test_use_count(*key1);
+#endif
 	break;
       }
-#ifdef EXTRA_DEBUG
-      (*key1)->test_use_count(*key1);
-#endif
     }
   }
   DBUG_RETURN(tree1);
@@ -1456,6 +1456,13 @@ key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
     return key1;
   }
 
+  if ((key1->min_flag | key2->min_flag) & GEOM_FLAG)
+  {
+    key1->free_tree();
+    key2->free_tree();
+    return 0;					// Can't optimize this
+  }
+
   key1->use_count--;
   key2->use_count--;
   SEL_ARG *e1=key1->first(), *e2=key2->first(), *new_tree=0;
@@ -1538,7 +1545,8 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
   key1->use_count--;
   key2->use_count--;
 
-  if (key1->part != key2->part)
+  if (key1->part != key2->part || 
+      (key1->min_flag | key2->min_flag) & GEOM_FLAG)
   {
     key1->free_tree();
     key2->free_tree();
