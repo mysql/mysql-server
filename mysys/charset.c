@@ -22,6 +22,17 @@
 #include <my_xml.h>
 
 
+/*
+
+  The code below implements this functionality:
+  
+    - Initializing charset related structures
+    - Loading dynamic charsets
+    - Searching for a proper CHARSET_INFO 
+      using charset name, collation name or collatio ID
+    - Setting server default character set
+*/
+
 
 static void set_max_sort_char(CHARSET_INFO *cs)
 {
@@ -45,10 +56,13 @@ static void set_max_sort_char(CHARSET_INFO *cs)
 
 static void simple_cs_init_functions(CHARSET_INFO *cs)
 {
-  cs->like_range  = my_like_range_simple;
-  cs->wildcmp     = my_wildcmp_8bit;
+  
   cs->strnxfrm    = my_strnxfrm_simple;
   cs->strnncoll   = my_strnncoll_simple;
+  cs->like_range  = my_like_range_simple;
+  cs->wildcmp     = my_wildcmp_8bit;
+  cs->mb_wc       = my_mb_wc_8bit;
+  cs->wc_mb       = my_wc_mb_8bit;
   cs->caseup_str  = my_caseup_str_8bit;
   cs->casedn_str  = my_casedn_str_8bit;
   cs->caseup      = my_caseup_8bit;
@@ -56,11 +70,11 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
   cs->tosort      = my_tosort_8bit;
   cs->strcasecmp  = my_strcasecmp_8bit;
   cs->strncasecmp = my_strncasecmp_8bit;
-  cs->mb_wc       = my_mb_wc_8bit;
-  cs->wc_mb       = my_wc_mb_8bit;
   cs->hash_caseup = my_hash_caseup_simple;
   cs->hash_sort   = my_hash_sort_simple;
   cs->snprintf	  = my_snprintf_8bit;
+  cs->long10_to_str= my_long10_to_str_8bit;
+  cs->longlong10_to_str= my_longlong10_to_str_8bit;
   cs->strntol     = my_strntol_8bit;
   cs->strntoul    = my_strntoul_8bit;
   cs->strntoll    = my_strntoll_8bit;
