@@ -1287,9 +1287,6 @@ static my_bool wait_pidfile(char *pidfile, time_t last_modified,
   }
   DBUG_RETURN(error);
 }
-#ifdef HAVE_NDBCLUSTER_DB
-/* lib linked in contains c++ code */
 #ifdef __GNUC__
 FIX_GCC_LINKING_PROBLEM
-#endif
 #endif

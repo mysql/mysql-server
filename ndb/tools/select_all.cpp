@@ -50,7 +50,7 @@ static struct my_option my_long_options[] =
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "parallelism", 'p', "parallelism",
     (gptr*) &_parallelism, (gptr*) &_parallelism, 0,
-    GET_INT, REQUIRED_ARG, 240, 0, 0, 0, 0, 0 }, 
+    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "lock", 'l', "Read(0), Read-hold(1), Exclusive(2)",
     (gptr*) &_lock, (gptr*) &_lock, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
@@ -133,12 +133,17 @@ int main(int argc, char** argv){
   const NdbDictionary::Table* pTab = NDBT_Table::discoverTableFromDb(&MyNdb, _tabname);
   const NdbDictionary::Index * pIdx = 0;
   if(argc > 1){
-    pIdx = MyNdb.getDictionary()->getIndex(argv[0], _tabname);
+    pIdx = MyNdb.getDictionary()->getIndex(argv[1], _tabname);
   }
 
   if(pTab == NULL){
     ndbout << " Table " << _tabname << " does not exist!" << endl;
     return NDBT_ProgramExit(NDBT_WRONGARGS);
+  }
+
+  if(argc > 1 && pIdx == 0)
+  {
+    ndbout << " Index " << argv[1] << " does not exists" << endl;
   }
   
   if(_order && pIdx == NULL){

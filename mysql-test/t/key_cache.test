@@ -156,3 +156,14 @@ set global keycache2.key_buffer_size=0;
 # Test to set up a too small size for a key cache (bug #2064)
 set global keycache3.key_buffer_size=100;
 set global keycache3.key_buffer_size=0;
+
+# Test case for buf 6447
+
+create table t1 (mytext text, FULLTEXT (mytext));
+insert t1 values ('aaabbb');
+
+check table t1;
+set GLOBAL key_cache_block_size=2048;
+check table t1;
+
+drop table t1;

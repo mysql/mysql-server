@@ -564,23 +564,37 @@ select count(*) from t1;
 --error 1062
 insert into t1 select * from t1 where b < 10 order by pk1;
 
+DELETE FROM t1 WHERE pk1=2;
 
 begin;
---error 1031
-INSERT IGNORE INTO t1 VALUES(1,2,3);
-commit;
+INSERT IGNORE INTO t1 VALUES(1,2,3),(2,3,4);
+select * from t1 where pk1 < 3 order by pk1;
+rollback;
+
+INSERT IGNORE INTO t1 VALUES(1,2,3),(2,3,4);
+select * from t1 where pk1 < 3 order by pk1;
+
+REPLACE INTO t1 values(1, 78, 3);
 select * from t1 where pk1=1;
 
---error 1031
-INSERT IGNORE INTO t1 VALUES(1,2,3);
-select * from t1 where pk1=1;
+INSERT INTO t1 VALUES(1,1,1),(3,4,5) ON DUPLICATE KEY UPDATE b=79;
+select * from t1 where pk1 < 4 order by pk1;
 
-REPLACE INTO t1 values(1, 2, 3);
-select * from t1 where pk1=1;
+INSERT INTO t1 VALUES(1,1,1),(3,4,5) ON DUPLICATE KEY UPDATE b=pk1+c;
+select * from t1 where pk1 < 4 order by pk1;
 
---error 1031
-INSERT INTO t1 VALUES(1,1,1) ON DUPLICATE KEY UPDATE b=79;
-select * from t1 where pk1=1;
+DELETE FROM t1 WHERE pk1 = 2 OR pk1 = 4 OR pk1 = 6;
+INSERT INTO t1 VALUES(1,1,1),(2,2,17),(3,4,5) ON DUPLICATE KEY UPDATE pk1=b;
+select * from t1 where pk1 = b and b != c order by pk1;
+
+# The following test case currently does not work
+#DELETE FROM t1;
+#CREATE UNIQUE INDEX bi ON t1(b);
+#INSERT INTO t1 VALUES 
+#(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+#(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
+#INSERT INTO t1 VALUES(0,1,0),(21,21,21) ON DUPLICATE KEY UPDATE pk1=b+10,c=b+10;
+#select * from t1 order by pk1;
 
 DROP TABLE t1;
 

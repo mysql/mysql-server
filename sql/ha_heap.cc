@@ -30,6 +30,18 @@
 const char **ha_heap::bas_ext() const
 { static const char *ext[1]= { NullS }; return ext; }
 
+/*
+  Hash index statistics is updated (copied from HP_KEYDEF::hash_buckets to 
+  rec_per_key) after 1/HEAP_STATS_UPDATE_THRESHOLD fraction of table records 
+  have been inserted/updated/deleted. delete_all_rows() and table flush cause 
+  immediate update.
+
+  NOTE
+   hash index statistics must be updated when number of table records changes
+   from 0 to non-zero value and vice versa. Otherwise records_in_range may 
+   erroneously return 0 and 'range' may miss records.
+*/
+#define HEAP_STATS_UPDATE_THRESHOLD 10
 
 int ha_heap::open(const char *name, int mode, uint test_if_locked)
 {
@@ -48,6 +60,8 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
   {
     /* Initialize variables for the opened table */
     set_keys_for_scanning();
+    if (table->tmp_table == NO_TMP_TABLE)
+      update_key_stats();
   }
   return (file ? 0 : 1);
 }
@@ -84,28 +98,58 @@ void ha_heap::set_keys_for_scanning(void)
   }
 }
 
+void ha_heap::update_key_stats()
+{
+  for (uint i= 0; i < table->keys; i++)
+  {
+    KEY *key=table->key_info+i;
+    if (key->algorithm != HA_KEY_ALG_BTREE)
+    {
+      ha_rows hash_buckets= file->s->keydef[i].hash_buckets;
+      key->rec_per_key[key->key_parts-1]= 
+        hash_buckets ? file->s->records/hash_buckets : 0;
+    }
+  }
+  records_changed= 0;
+}
+
 int ha_heap::write_row(byte * buf)
 {
+  int res;
   statistic_increment(ha_write_count,&LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
   if (table->next_number_field && buf == table->record[0])
     update_auto_increment();
-  return heap_write(file,buf);
+  res= heap_write(file,buf);
+  if (!res && table->tmp_table == NO_TMP_TABLE && 
+      ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > file->s->records)
+    update_key_stats();
+  return res;
 }
 
 int ha_heap::update_row(const byte * old_data, byte * new_data)
 {
+  int res;
   statistic_increment(ha_update_count,&LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
-  return heap_update(file,old_data,new_data);
+  res= heap_update(file,old_data,new_data);
+  if (!res && table->tmp_table == NO_TMP_TABLE && 
+      ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > file->s->records)
+    update_key_stats();
+  return res;
 }
 
 int ha_heap::delete_row(const byte * buf)
 {
+  int res;
   statistic_increment(ha_delete_count,&LOCK_status);
-  return heap_delete(file,buf);
+  res= heap_delete(file,buf);
+  if (!res && table->tmp_table == NO_TMP_TABLE && 
+      ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > file->s->records)
+    update_key_stats();
+  return res;
 }
 
 int ha_heap::index_read(byte * buf, const byte * key, uint key_len,
@@ -227,6 +271,8 @@ int ha_heap::extra(enum ha_extra_function operation)
 int ha_heap::delete_all_rows()
 {
   heap_clear(file);
+  if (table->tmp_table == NO_TMP_TABLE)
+    update_key_stats();
   return 0;
 }
 
@@ -384,7 +430,8 @@ ha_rows ha_heap::records_in_range(uint inx, key_range *min_key,
       min_key->flag != HA_READ_KEY_EXACT ||
       max_key->flag != HA_READ_AFTER_KEY)
     return HA_POS_ERROR;			// Can only use exact keys
-  return 10;					// Good guess
+  else
+    return key->rec_per_key[key->key_parts-1];
 }
 
 
