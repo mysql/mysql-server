@@ -100,7 +100,17 @@ log. */
 				requests in a batch, and only after that
  				wake the i/o-handler thread; this has
 				effect only in simulated aio */ 
-				
+#define OS_WIN31     1
+#define OS_WIN95     2	
+#define OS_WINNT     3
+
+/***************************************************************************
+Gets the operating system version. Currently works only on Windows. */
+
+ulint
+os_get_os_version(void);
+/*===================*/
+                  /* out: OS_WIN95, OS_WIN31, OS_WINNT (2000 == NT) */
 /********************************************************************
 Opens an existing file or creates a new. */
 
