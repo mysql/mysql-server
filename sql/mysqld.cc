@@ -764,7 +764,7 @@ static void __cdecl kill_server(int sig_ptr)
   if (sig != MYSQL_KILL_SIGNAL && sig != 0)
     unireg_abort(1);				/* purecov: inspected */
   else
-    unireg_end(0);
+    unireg_end();
   pthread_exit(0);				/* purecov: deadcode */
   RETURN_FROM_KILL_SERVER;
 }
@@ -803,12 +803,29 @@ extern "C" sig_handler print_signal_warning(int sig)
 #endif
 }
 
+/*
+  cleanup all memory and end program nicely
 
-void unireg_end(int signal_number __attribute__((unused)))
+  SYNOPSIS
+    unireg_end()
+
+  NOTES
+    This function never returns.
+
+    If SIGNALS_DONT_BREAK_READ is defined, this function is called
+    by the main thread. To get MySQL to shut down nicely in this case
+    (Mac OS X) we have to call exit() instead if pthread_exit().
+*/
+
+void unireg_end(void)
 {
   clean_up();
   my_thread_end();
+#ifdef SIGNALS_DONT_BREAK_READ
+  exit(0);
+#else
   pthread_exit(0);				// Exit is in main thread
+#endif
 }
 
 

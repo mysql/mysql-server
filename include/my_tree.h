@@ -76,6 +76,8 @@ int tree_walk(TREE *tree,tree_walk_action action,
 	      void *argument, TREE_WALK visit);
 int tree_delete(TREE *tree,void *key);
 
+#define TREE_ELEMENT_EXTRA_SIZE (sizeof(TREE_ELEMENT) + sizeof(void*))
+
 #ifdef	__cplusplus
 }
 #endif

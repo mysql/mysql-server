@@ -3107,12 +3107,13 @@ ident:
 	IDENT	    { $$=$1; }
 	| keyword
 	{
-	  LEX *lex;
-	  $$.str=sql_strmake($1.str,$1.length);
+	  LEX *lex= Lex;
+	  $$.str= lex->thd->strmake($1.str,$1.length);
 	  $$.length=$1.length;
-	  if ((lex=Lex)->next_state != STATE_END)
+	  if (lex->next_state != STATE_END)
 	    lex->next_state=STATE_OPERATOR_OR_IDENT;
-	};
+	}
+	;
 
 ident_or_text:
 	ident 		{ $$=$1;}
