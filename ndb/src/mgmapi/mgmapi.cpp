@@ -314,8 +314,8 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
      */
     ndbout << "Error in mgm protocol parser. "
 	   << "cmd: '" << cmd
-	   << "' status=" << ctx.m_status
-	   << ", curr=" << ctx.m_currentToken
+	   << "' status=" << (Uint32)ctx.m_status
+	   << ", curr=" << (Uint32)ctx.m_currentToken
 	   << endl;
     DBUG_PRINT("info",("parser.parse returned NULL"));
   } 
