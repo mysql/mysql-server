@@ -2620,8 +2620,10 @@ mysql_execute_command(THD *thd)
     break;
 #endif
   case SQLCOM_SHOW_PROCESSLIST:
+#ifndef EMBEDDED_LIBRARY
     if (!thd->priv_user[0] && check_global_access(thd,PROCESS_ACL))
       break;
+#endif
     mysqld_list_processes(thd,thd->master_access & PROCESS_ACL ? NullS :
 			  thd->priv_user,lex->verbose);
     break;
