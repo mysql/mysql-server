@@ -413,7 +413,8 @@ QUICK_SELECT::~QUICK_SELECT()
 {
   if (!dont_free)
   {
-    file->ha_index_end();
+    if (file->inited)
+      file->ha_index_end();
     free_root(&alloc,MYF(0));
   }
 }
@@ -715,6 +716,9 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 	     key++,idx++)
 	{
 	  ha_rows found_records;
+#if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ == 95) && defined(__OPTIMIZE__)
+          volatile // gcc 2.95.3 bug in -O3 mode
+#endif
 	  double found_read_time;
 	  if (*key)
 	  {

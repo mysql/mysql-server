@@ -2532,6 +2532,7 @@ server.");
     if (have_innodb != SHOW_OPTION_YES)
       sql_print_error("Warning: --innodb-safe-binlog is meaningful only if "
                       "the InnoDB storage engine is enabled in the server.");
+#ifdef HAVE_INNOBASE_DB
     if (innobase_flush_log_at_trx_commit != 1)
     {
       sql_print_error("Warning: --innodb-safe-binlog is meaningful only if "
@@ -2558,6 +2559,7 @@ server.");
                       "to 1.");
       sync_binlog_period= 1;
     }
+#endif
   }
 
   if (ha_init())

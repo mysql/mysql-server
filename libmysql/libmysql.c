@@ -2200,7 +2200,7 @@ static void store_param_type(char **pos, MYSQL_BIND *param)
 
 static void store_param_tinyint(NET *net, MYSQL_BIND *param)
 {
-  *(net->write_pos++)= (uchar) *param->buffer;
+  *(net->write_pos++)= *(uchar *) param->buffer;
 }
 
 static void store_param_short(NET *net, MYSQL_BIND *param)
@@ -3126,7 +3126,7 @@ static void send_data_long(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_NULL: /* do nothing */
     break;
   case MYSQL_TYPE_TINY:
-    *param->buffer= (uchar) value;
+    *(uchar *)param->buffer= (uchar) value;
     break;
   case MYSQL_TYPE_SHORT:
     shortstore(buffer, value);
@@ -3486,7 +3486,7 @@ static void fetch_results(MYSQL_BIND *param, MYSQL_FIELD *field, uchar **row)
 
 static void fetch_result_tinyint(MYSQL_BIND *param, uchar **row)
 {
-  *param->buffer= **row;
+  *(uchar *)param->buffer= **row;
   (*row)++;
 }
 
@@ -3561,7 +3561,7 @@ static void fetch_result_str(MYSQL_BIND *param, uchar **row)
   memcpy(param->buffer, (char *)*row, copy_length);
   /* Add an end null if there is room in the buffer */
   if (copy_length != param->buffer_length)
-    *(param->buffer+copy_length)= '\0';
+    ((uchar *)param->buffer)[copy_length]= '\0';
   *param->length= length;			/* return total length */
   *row+= length;
 }
