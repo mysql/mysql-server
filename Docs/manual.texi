@@ -22819,6 +22819,7 @@ snapshot.
 listing of slaves currently registered with the master (Master)
 
 @item @code{SHOW SLAVE STATUS} @tab Provides status information on essential parameters of the slave thread. (Slave)
+
 @item @code{SHOW MASTER LOGS} @tab Only available starting in Version
 3.23.28. Lists the binary logs on the master. You should use this
 command prior to @code{PURGE MASTER LOGS TO} to find out how far you

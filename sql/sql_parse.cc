@@ -1691,7 +1691,7 @@ mysql_execute_command(void)
 			 select_lex->options);
     break;
   }
-  case SQLCOM_MULTI_DELETE:
+  case SQLCOM_DELETE_MULTI:
   {
     TABLE_LIST *aux_tables=(TABLE_LIST *)thd->lex.auxilliary_table_list.first;
     TABLE_LIST *auxi;
