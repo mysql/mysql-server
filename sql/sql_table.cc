@@ -1938,8 +1938,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   {
     /* We don't log the statement, it will be logged later. */
     tmp_disable_binlog(thd);
-    int error= mysql_create_table(thd, new_db, tmp_name,
-                                  create_info,create_list,key_list,1);
+    error= mysql_create_table(thd, new_db, tmp_name,
+                              create_info,create_list,key_list,1);
     reenable_binlog(thd);
     if (error)
       DBUG_RETURN(error);
