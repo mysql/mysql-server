@@ -188,17 +188,27 @@ void Item_bool_func2::fix_length_and_dec()
   {
     uint strong= 0;
     uint weak= 0;
+    uint32 dummy_offset;
     DTCollation coll;
 
     if (args[0]->result_type() == STRING_RESULT &&
         args[1]->result_type() == STRING_RESULT &&
-        !my_charset_same(args[0]->collation.collation,
-                         args[1]->collation.collation) &&
+        String::needs_conversion(0, args[0]->collation.collation,
+                                    args[1]->collation.collation,
+                                    &dummy_offset) &&
         !coll.set(args[0]->collation, args[1]->collation, TRUE))
     {
       Item* conv= 0;
+      THD *thd= current_thd;
+      Item_arena *arena= thd->current_arena, backup;
       strong= coll.strong;
       weak= strong ? 0 : 1;
+      /*
+        In case we're in statement prepare, create conversion item
+        in its memory: it will be reused on each execute.
+      */
+      if (arena->is_stmt_prepare())
+          thd->set_n_backup_item_arena(arena, &backup);
       if (args[weak]->type() == STRING_ITEM)
       {
         String tmp, cstr;
@@ -211,21 +221,13 @@ void Item_bool_func2::fix_length_and_dec()
       }
       else
       {
-        THD *thd= current_thd;
-        /*
-          In case we're in statement prepare, create conversion item
-          in its memory: it will be reused on each execute.
-        */
-        Item_arena *arena= thd->current_arena, backup;
-        if (arena->is_stmt_prepare())
-          thd->set_n_backup_item_arena(arena, &backup);
 	conv= new Item_func_conv_charset(args[weak],
                                          args[strong]->collation.collation);
-        if (arena->is_stmt_prepare())
-          thd->restore_backup_item_arena(arena, &backup);
         conv->collation.set(args[weak]->collation.derivation);
         conv->fix_fields(thd, 0, &conv);
       }
+      if (arena->is_stmt_prepare())
+        thd->restore_backup_item_arena(arena, &backup);
       args[weak]= conv ? conv : args[weak];
     }
   }
