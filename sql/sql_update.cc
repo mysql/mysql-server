@@ -111,6 +111,7 @@ int mysql_update(THD *thd,
   TABLE		*table;
   SQL_SELECT	*select;
   READ_RECORD	info;
+  SELECT_LEX    *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_update");
 
   LINT_INIT(used_index);
@@ -151,9 +152,9 @@ int mysql_update(THD *thd,
   table_list->grant.want_privilege= table->grant.want_privilege= want_privilege;
 #endif
   {
-    thd->lex->select_lex.no_wrap_view_item= 1;
+    select_lex->no_wrap_view_item= 1;
     res= setup_fields(thd, 0, table_list, fields, 1, 0, 0);
-    thd->lex->select_lex.no_wrap_view_item= 0;
+    select_lex->no_wrap_view_item= 0;
     if (res)
       DBUG_RETURN(-1);				/* purecov: inspected */
   }
@@ -182,7 +183,7 @@ int mysql_update(THD *thd,
 #endif
   if (setup_fields(thd, 0, table_list, values, 0, 0, 0))
   {
-    free_underlaid_joins(thd, &thd->lex->select_lex);
+    free_underlaid_joins(thd, select_lex);
     DBUG_RETURN(-1);				/* purecov: inspected */
   }
 
@@ -193,7 +194,7 @@ int mysql_update(THD *thd,
       (select && select->check_quick(thd, safe_update, limit)) || !limit)
   {
     delete select;
-    free_underlaid_joins(thd, &thd->lex->select_lex);
+    free_underlaid_joins(thd, select_lex);
     if (error)
     {
       DBUG_RETURN(-1);				// Error in where
@@ -212,7 +213,7 @@ int mysql_update(THD *thd,
       goto err;
     }
   }
-  init_ftfuncs(thd, &thd->lex->select_lex, 1);
+  init_ftfuncs(thd, select_lex, 1);
   /* Check if we are modifying a key that we are used to search with */
   
   if (select && select->quick)
@@ -455,7 +456,7 @@ int mysql_update(THD *thd,
     thd->lock=0;
   }
 
-  free_underlaid_joins(thd, &thd->lex->select_lex);
+  free_underlaid_joins(thd, select_lex);
   if (error >= 0)
     send_error(thd,thd->killed_errno()); /* purecov: inspected */
   else
@@ -476,7 +477,7 @@ int mysql_update(THD *thd,
 
 err:
   delete select;
-  free_underlaid_joins(thd, &thd->lex->select_lex);
+  free_underlaid_joins(thd, select_lex);
   if (table->key_read)
   {
     table->key_read=0;
