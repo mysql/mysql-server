@@ -147,7 +147,6 @@ SocketServer::doAccept(){
       ServiceInstance & si = m_services[i];
       
       if(FD_ISSET(si.m_socket, &readSet)){
-	
 	NDB_SOCKET_TYPE childSock = accept(si.m_socket, 0, 0);
 	if(childSock == NDB_INVALID_SOCKET){
 	  continue;
