@@ -1861,56 +1861,57 @@ int Dbtup::interpreterNextLab(Signal* signal,
 
 	bool r1_null = ah.isNULL();
 	bool r2_null = argLen == 0;
-	int res;
+	int res1;
         if (cond != Interpreter::LIKE &&
             cond != Interpreter::NOT_LIKE) {
           if (r1_null || r2_null) {
             // NULL==NULL and NULL<not-NULL
-            res = r1_null && r2_null ? 0 : r1_null ? -1 : 1;
+            res1 = r1_null && r2_null ? 0 : r1_null ? -1 : 1;
           } else {
-            res = (*sqlType.m_cmp)(cs, s1, attrLen, s2, argLen, true);
+            res1 = (*sqlType.m_cmp)(cs, s1, attrLen, s2, argLen, true);
           }
 	} else {
           if (r1_null || r2_null) {
             // NULL like NULL is true (has no practical use)
-            res =  r1_null && r2_null ? 0 : -1;
+            res1 =  r1_null && r2_null ? 0 : -1;
           } else {
-            res = (*sqlType.m_like)(cs, s1, attrLen, s2, argLen);
+            res1 = (*sqlType.m_like)(cs, s1, attrLen, s2, argLen);
           }
         }
 
+        int res = 0;
         switch ((Interpreter::BinaryCondition)cond) {
         case Interpreter::EQ:
-          res = (res == 0);
+          res = (res1 == 0);
           break;
         case Interpreter::NE:
-          res = (res != 0);
+          res = (res1 != 0);
           break;
         // note the condition is backwards
         case Interpreter::LT:
-          res = (res > 0);
+          res = (res1 > 0);
           break;
         case Interpreter::LE:
-          res = (res >= 0);
+          res = (res1 >= 0);
           break;
         case Interpreter::GT:
-          res = (res < 0);
+          res = (res1 < 0);
           break;
         case Interpreter::GE:
-          res = (res <= 0);
+          res = (res1 <= 0);
           break;
         case Interpreter::LIKE:
-          res = (res > 0);
+          res = (res1 == 0);
           break;
         case Interpreter::NOT_LIKE:
-          res = (res == 0);
+          res = (res1 == 1);
           break;
 	  // XXX handle invalid value
         }
 #ifdef TRACE_INTERPRETER
-	ndbout_c("cond=%u diff=%d vc=%d nopad=%d attr(%d) = >%.*s<(%d) str=>%.*s<(%d) -> res = %d",
-		 cond, diff, vchr, nopad,
-		 attrId >> 16, attrLen, s1, attrLen, argLen, s2, argLen, res);
+	ndbout_c("cond=%u attr(%d)='%.*s'(%d) str='%.*s'(%d) res1=%d res=%d",
+		 cond, attrId >> 16,
+                 attrLen, s1, attrLen, argLen, s2, argLen, res1, res);
 #endif
         if (res)
           TprogramCounter = brancher(theInstruction, TprogramCounter);
