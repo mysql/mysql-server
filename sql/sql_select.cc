@@ -4978,7 +4978,7 @@ sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   }
   if (join->thd->killed)		// If aborted by user
   {
-    my_error(ER_SERVER_SHUTDOWN,MYF(0)); /* purecov: inspected */
+    my_error(join->thd->killed,MYF(0));  /* purecov: inspected */
     return -2;				 /* purecov: inspected */
   }
   if (join_tab->use_quick != 2 || test_if_quick_select(join_tab) <= 0)
@@ -5017,7 +5017,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     {
       if (join->thd->killed)			// Aborted by user
       {
-	my_error(ER_SERVER_SHUTDOWN,MYF(0));	/* purecov: inspected */
+	my_error(join->thd->killed,MYF(0));	/* purecov: inspected */
 	return -2;				/* purecov: inspected */
       }
       join->examined_rows++;
@@ -5097,7 +5097,7 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skipp_last)
   {
     if (join->thd->killed)
     {
-      my_error(ER_SERVER_SHUTDOWN,MYF(0)); /* purecov: inspected */
+      my_error(join->thd->killed,MYF(0)); /* purecov: inspected */
       return -2;				// Aborted by user /* purecov: inspected */
     }
     SQL_SELECT *select=join_tab->select;
@@ -5745,7 +5745,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
   if (join->thd->killed)			// Aborted by user
   {
-    my_error(ER_SERVER_SHUTDOWN,MYF(0));	/* purecov: inspected */
+    my_error(join->thd->killed,MYF(0));	/* purecov: inspected */
     DBUG_RETURN(-2);				/* purecov: inspected */
   }
   if (!end_of_records)
@@ -5813,7 +5813,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     DBUG_RETURN(0);
   if (join->thd->killed)			// Aborted by user
   {
-    my_error(ER_SERVER_SHUTDOWN,MYF(0));	/* purecov: inspected */
+    my_error(join->thd->killed,MYF(0));	/* purecov: inspected */
     DBUG_RETURN(-2);				/* purecov: inspected */
   }
 
@@ -5883,7 +5883,7 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     DBUG_RETURN(0);
   if (join->thd->killed)			// Aborted by user
   {
-    my_error(ER_SERVER_SHUTDOWN,MYF(0));	/* purecov: inspected */
+    my_error(join->thd->killed,MYF(0));	/* purecov: inspected */
     DBUG_RETURN(-2);				/* purecov: inspected */
   }
 
@@ -5930,7 +5930,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
   if (join->thd->killed)
   {						// Aborted by user
-    my_error(ER_SERVER_SHUTDOWN,MYF(0));	/* purecov: inspected */
+    my_error(join->thd->killed,MYF(0));	/* purecov: inspected */
     DBUG_RETURN(-2);				/* purecov: inspected */
   }
   if (!join->first_record || end_of_records ||
@@ -6652,7 +6652,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
   {
     if (thd->killed)
     {
-      my_error(ER_SERVER_SHUTDOWN,MYF(0));
+      my_error(thd->killed,MYF(0));
       error=0;
       goto err;
     }
@@ -6764,7 +6764,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
   {
     if (thd->killed)
     {
-      my_error(ER_SERVER_SHUTDOWN,MYF(0));
+      my_error(thd->killed,MYF(0));
       error=0;
       goto err;
     }
