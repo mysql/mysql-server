@@ -528,9 +528,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     if (order &&
 	(join.const_tables == join.tables ||
 	 test_if_skip_sort_order(&join.join_tab[join.const_tables], order,
-				 (having || group ||
-				  join.const_tables != join.tables - 1) ?
-				 HA_POS_ERROR : thd->select_limit)))
+				 (group ? HA_POS_ERROR : thd->select_limit))))
       order=0;
     select_describe(&join,need_tmp,
 		    (order != 0 &&

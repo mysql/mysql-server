@@ -533,7 +533,8 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   VOID(fn_format(fixed_name,file->filename,"",MI_NAME_IEXT,
 		     4+ (param.opt_follow_links ? 16 : 0)));
 
-  if (mi_lock_database(file,F_WRLCK))
+  // Don't lock tables if we have used LOCK TABLE
+  if (!thd->locked_tables && mi_lock_database(file,F_WRLCK))
   {
     mi_check_print_error(&param,ER(ER_CANT_LOCK),my_errno);
     DBUG_RETURN(HA_ADMIN_FAILED);
@@ -615,7 +616,8 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
     update_state_info(&param, file, 0);
   }
   thd->proc_info=old_proc_info;
-  mi_lock_database(file,F_UNLCK);
+  if (!thd->locked_tables)
+    mi_lock_database(file,F_UNLCK);
   DBUG_RETURN(error ? HA_ADMIN_FAILED :
 	      !optimize_done ? HA_ADMIN_ALREADY_DONE : HA_ADMIN_OK);
 }

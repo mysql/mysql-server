@@ -1,6 +1,5 @@
 connect (master,localhost,root,,test,0,mysql-master.sock);
 connect (slave,localhost,root,,test,0, mysql-slave.sock);
-source include/have_default_master.inc;
 connection master;
 reset master;
 show master status;
