@@ -178,4 +178,9 @@ titre	numeropost	maxnumrep
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 0;
+titre	numeropost	maxnumrep
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+3
 drop table t1;
