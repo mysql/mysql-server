@@ -1284,7 +1284,7 @@ attribute:
 	| COMMENT_SYM text_literal { Lex->comment= $2; }
 	| COLLATE_SYM collation_name 
 	  { 
-	    if (Lex->charset && strcmp(Lex->charset->csname,$2->csname))
+	    if (Lex->charset && !my_charset_same(Lex->charset,$2))
 	    {
 	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH,
 			 $2->name,Lex->charset->csname);
@@ -4250,7 +4250,7 @@ option_value:
 	  CHARSET_INFO *cs= $2 ? $2 : thd->db_charset;
 	  CHARSET_INFO *cl= $3 ? $3 : cs;
 
-	  if ((cl != cs) && strcmp(cs->csname,cl->csname))
+	  if (!my_charset_same(cs,cl))
 	  {
 	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH, 
 		         cl->name,cs->csname);
@@ -4279,7 +4279,7 @@ option_value:
 	      YYABORT;
 	    }
 	  }
-	  else if ((cl != cs) && strcmp(cs->csname,cl->csname))
+	  else if (!my_charset_same(cs,cl))
 	  {
 	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH, 
 		         cl->name,cs->csname);

@@ -136,7 +136,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	}
 	else if ((*arg)->coercibility < coercibility)
 	{
-	  if (strcmp(charset()->csname,(*arg)->charset()->csname))
+	  if (!my_charset_same(charset(),(*arg)->charset()))
 	  {
 	    set_charset(&my_charset_bin);
 	    coercibility= COER_NOCOLL;

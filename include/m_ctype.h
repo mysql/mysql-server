@@ -199,6 +199,7 @@ extern CHARSET_INFO my_charset_latin1_de;
 extern CHARSET_INFO my_charset_sjis;
 extern CHARSET_INFO my_charset_tis620;
 extern CHARSET_INFO my_charset_ucs2;
+extern CHARSET_INFO my_charset_ucse;
 extern CHARSET_INFO my_charset_ujis;
 extern CHARSET_INFO my_charset_utf8;
 extern CHARSET_INFO my_charset_win1250ch;
