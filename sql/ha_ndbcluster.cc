@@ -50,6 +50,7 @@ static int ndbcluster_commit(THD *thd, bool all);
 static int ndbcluster_rollback(THD *thd, bool all);
 
 static handlerton ndbcluster_hton = {
+  "ndbcluster",
   0, /* slot */
   0, /* savepoint size */
   ndbcluster_close_connection,
@@ -428,7 +429,7 @@ void ha_ndbcluster::invalidateDictionaryCache()
     case(PRIMARY_KEY_ORDERED_INDEX):
     case(ORDERED_INDEX):
       dict->invalidateIndex(index->getName(), m_tabname);
-      break;      
+      break;
     case(UNIQUE_ORDERED_INDEX):
       dict->invalidateIndex(index->getName(), m_tabname);
     case(UNIQUE_INDEX):
