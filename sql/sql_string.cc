@@ -706,7 +706,7 @@ copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
   char *to_start= to;
   uchar *to_end= (uchar*) to+to_length;
 
-  while ((uchar*) from < from_end)
+  while (1)
   {
     if ((cnvres=from_cs->mb_wc(from_cs, &wc, (uchar*) from, from_end)) > 0)
       from+= cnvres;
