@@ -32,6 +32,7 @@ select * from t1;
 connection master;
 # We should not see SET ONE_SHOT time_zone before second insert
 --replace_result $VERSION VERSION
+--replace_column 2 # 5 #
 show binlog events;
 
 #

@@ -19,25 +19,25 @@ count(*)
 drop table t1;
 show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	96	Server ver: VERSION, Binlog ver: 4
-master-bin.000001	96	Query	1	218	use `test`; create table t1(n int not null auto_increment primary key)
-master-bin.000001	218	Intvar	1	246	INSERT_ID=1
-master-bin.000001	246	Query	1	338	use `test`; insert into t1 values (NULL)
-master-bin.000001	338	Query	1	415	use `test`; drop table t1
-master-bin.000001	415	Query	1	519	use `test`; create table t1 (word char(20) not null)
-master-bin.000001	519	Create_file	1	1189	db=test;table=t1;file_id=1;block_len=581
-master-bin.000001	1189	Exec_load	1	1212	;file_id=1
-master-bin.000001	1212	Query	1	1289	use `test`; drop table t1
-show binlog events from 96 limit 1;
+master-bin.000001	4	Format_desc	1	98	Server ver: VERSION, Binlog ver: 4
+master-bin.000001	98	Query	1	220	use `test`; create table t1(n int not null auto_increment primary key)
+master-bin.000001	220	Intvar	1	248	INSERT_ID=1
+master-bin.000001	248	Query	1	340	use `test`; insert into t1 values (NULL)
+master-bin.000001	340	Query	1	417	use `test`; drop table t1
+master-bin.000001	417	Query	1	521	use `test`; create table t1 (word char(20) not null)
+master-bin.000001	521	Begin_load_query	1	1125	;file_id=1;block_len=581
+master-bin.000001	1125	Execute_load_query	1	1274	use `test`; load data infile '../../std_data/words.dat' into table t1 ignore 1 lines ;file_id=1
+master-bin.000001	1274	Query	1	1351	use `test`; drop table t1
+show binlog events from 98 limit 1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	96	Query	1	218	use `test`; create table t1(n int not null auto_increment primary key)
-show binlog events from 96 limit 2;
+master-bin.000001	98	Query	1	220	use `test`; create table t1(n int not null auto_increment primary key)
+show binlog events from 98 limit 2;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	96	Query	1	218	use `test`; create table t1(n int not null auto_increment primary key)
-master-bin.000001	218	Intvar	1	246	INSERT_ID=1
-show binlog events from 96 limit 2,1;
+master-bin.000001	98	Query	1	220	use `test`; create table t1(n int not null auto_increment primary key)
+master-bin.000001	220	Intvar	1	248	INSERT_ID=1
+show binlog events from 98 limit 2,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	246	Query	1	338	use `test`; insert into t1 values (NULL)
+master-bin.000001	248	Query	1	340	use `test`; insert into t1 values (NULL)
 flush logs;
 create table t5 (a int);
 drop table t5;
@@ -49,24 +49,24 @@ insert into t1 values (1);
 drop table t1;
 show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	96	Server ver: VERSION, Binlog ver: 4
-master-bin.000001	96	Query	1	218	use `test`; create table t1(n int not null auto_increment primary key)
-master-bin.000001	218	Intvar	1	246	INSERT_ID=1
-master-bin.000001	246	Query	1	338	use `test`; insert into t1 values (NULL)
-master-bin.000001	338	Query	1	415	use `test`; drop table t1
-master-bin.000001	415	Query	1	519	use `test`; create table t1 (word char(20) not null)
-master-bin.000001	519	Create_file	1	1189	db=test;table=t1;file_id=1;block_len=581
-master-bin.000001	1189	Exec_load	1	1212	;file_id=1
-master-bin.000001	1212	Query	1	1289	use `test`; drop table t1
-master-bin.000001	1289	Rotate	1	1333	master-bin.000002;pos=4
+master-bin.000001	4	Format_desc	1	98	Server ver: VERSION, Binlog ver: 4
+master-bin.000001	98	Query	1	220	use `test`; create table t1(n int not null auto_increment primary key)
+master-bin.000001	220	Intvar	1	248	INSERT_ID=1
+master-bin.000001	248	Query	1	340	use `test`; insert into t1 values (NULL)
+master-bin.000001	340	Query	1	417	use `test`; drop table t1
+master-bin.000001	417	Query	1	521	use `test`; create table t1 (word char(20) not null)
+master-bin.000001	521	Begin_load_query	1	1125	;file_id=1;block_len=581
+master-bin.000001	1125	Execute_load_query	1	1274	use `test`; load data infile '../../std_data/words.dat' into table t1 ignore 1 lines ;file_id=1
+master-bin.000001	1274	Query	1	1351	use `test`; drop table t1
+master-bin.000001	1351	Rotate	1	1395	master-bin.000002;pos=4
 show binlog events in 'master-bin.000002';
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000002	4	Format_desc	1	96	Server ver: VERSION, Binlog ver: 4
-master-bin.000002	96	Query	1	183	use `test`; create table t5 (a int)
-master-bin.000002	183	Query	1	260	use `test`; drop table t5
-master-bin.000002	260	Query	1	347	use `test`; create table t1 (n int)
-master-bin.000002	347	Query	1	436	use `test`; insert into t1 values (1)
-master-bin.000002	436	Query	1	513	use `test`; drop table t1
+master-bin.000002	4	Format_desc	1	98	Server ver: VERSION, Binlog ver: 4
+master-bin.000002	98	Query	1	185	use `test`; create table t5 (a int)
+master-bin.000002	185	Query	1	262	use `test`; drop table t5
+master-bin.000002	262	Query	1	349	use `test`; create table t1 (n int)
+master-bin.000002	349	Query	1	438	use `test`; insert into t1 values (1)
+master-bin.000002	438	Query	1	515	use `test`; drop table t1
 show binary logs;
 Log_name
 master-bin.000001
@@ -78,26 +78,26 @@ slave-bin.000001
 slave-bin.000002
 show binlog events in 'slave-bin.000001' from 4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	4	Format_desc	2	96	Server ver: VERSION, Binlog ver: 4
-slave-bin.000001	96	Query	1	218	use `test`; create table t1(n int not null auto_increment primary key)
-slave-bin.000001	218	Intvar	1	246	INSERT_ID=1
-slave-bin.000001	246	Query	1	338	use `test`; insert into t1 values (NULL)
-slave-bin.000001	338	Query	1	415	use `test`; drop table t1
-slave-bin.000001	415	Query	1	519	use `test`; create table t1 (word char(20) not null)
-slave-bin.000001	519	Create_file	1	1198	db=test;table=t1;file_id=1;block_len=581
-slave-bin.000001	1198	Exec_load	1	1221	;file_id=1
-slave-bin.000001	1221	Query	1	1298	use `test`; drop table t1
-slave-bin.000001	1298	Query	1	1385	use `test`; create table t5 (a int)
-slave-bin.000001	1385	Query	1	1462	use `test`; drop table t5
-slave-bin.000001	1462	Rotate	2	1505	slave-bin.000002;pos=4
+slave-bin.000001	4	Format_desc	2	98	Server ver: VERSION, Binlog ver: 4
+slave-bin.000001	98	Query	1	220	use `test`; create table t1(n int not null auto_increment primary key)
+slave-bin.000001	220	Intvar	1	248	INSERT_ID=1
+slave-bin.000001	248	Query	1	340	use `test`; insert into t1 values (NULL)
+slave-bin.000001	340	Query	1	417	use `test`; drop table t1
+slave-bin.000001	417	Query	1	521	use `test`; create table t1 (word char(20) not null)
+slave-bin.000001	521	Begin_load_query	1	1125	;file_id=1;block_len=581
+slave-bin.000001	1125	Execute_load_query	1	1283	use `test`; load data INFILE '../../var/tmp/SQL_LOAD-2-1-1.data' INTO table t1 ignore 1 lines ;file_id=1
+slave-bin.000001	1283	Query	1	1360	use `test`; drop table t1
+slave-bin.000001	1360	Query	1	1447	use `test`; create table t5 (a int)
+slave-bin.000001	1447	Query	1	1524	use `test`; drop table t5
+slave-bin.000001	1524	Rotate	2	1567	slave-bin.000002;pos=4
 show binlog events in 'slave-bin.000002' from 4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000002	4	Format_desc	2	96	Server ver: VERSION, Binlog ver: 4
-slave-bin.000002	96	Query	1	183	use `test`; create table t1 (n int)
-slave-bin.000002	183	Query	1	272	use `test`; insert into t1 values (1)
-slave-bin.000002	272	Query	1	349	use `test`; drop table t1
+slave-bin.000002	4	Format_desc	2	98	Server ver: VERSION, Binlog ver: 4
+slave-bin.000002	98	Query	1	185	use `test`; create table t1 (n int)
+slave-bin.000002	185	Query	1	274	use `test`; insert into t1 values (1)
+slave-bin.000002	274	Query	1	351	use `test`; drop table t1
 show slave status;
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-#	127.0.0.1	root	MASTER_PORT	1	master-bin.000002	513	#	#	master-bin.000002	Yes	Yes							0		0	513	#	None		0	No						#
+#	127.0.0.1	root	MASTER_PORT	1	master-bin.000002	515	#	#	master-bin.000002	Yes	Yes							0		0	515	#	None		0	No						#
 show binlog events in 'slave-bin.000005' from 4;
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Could not find target log
