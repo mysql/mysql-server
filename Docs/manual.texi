@@ -25293,7 +25293,7 @@ Each secondary index record contains also all the fields defined
 for the clustered index key.
 @item
 A record contains also a pointer to each field of the record.
-If the total length of the fields in a record is < 256 bytes, then
+If the total length of the fields in a record is < 128 bytes, then
 the pointer is 1 byte, else 2 bytes.
 @end itemize
 
