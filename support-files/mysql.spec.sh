@@ -209,6 +209,12 @@ fi
 rm -rf $RBR
 mkdir -p $RBR
 
+#
+# Use MYSQL_BUILD_PATH so that we can use a dedicated version of gcc
+#
+PATH=${MYSQL_BUILD_PATH:-/bin:/usr/bin}
+export PATH
+
 # We need to build shared libraries separate from mysqld-max because we
 # are using --with-other-libc
 
