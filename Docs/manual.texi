@@ -8050,6 +8050,10 @@ version 4.0;
 
 @itemize @bullet
 @item
+To use @code{MATCH ... AGAINST (... IN BOOLEAN MODE)} with your tables,
+you need to rebuild them with @code{ALTER TABLE table_name TYPE=MyISAM},
+@strong{even} if they are of @code{MyISAM} type.
+@item
 @code{LOCATE()} and @code{INSTR()} are case sensitive if neither
 argument is a binary string.
 @item
@@ -22089,8 +22093,12 @@ is @code{localhost}.
 Lock all tables before starting the dump.  The tables are locked with
 @code{READ LOCAL} to allow concurrent inserts in the case of @code{MyISAM}
 tables.
+@item -K, --no-disable-keys.
+@code{/*!40000 ALTER TABLE tb_name DISABLE KEYS */;} and
+@code{/*!40000 ALTER TABLE tb_name ENABLE KEYS */;}
+will not be put in the output.
 @item -n, --no-create-db
-'CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;' will not be put in the
+@code{CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;} will not be put in the
 output. The above line will be added otherwise, if --databases or
 --all-databases option was given.
 @item -t, --no-create-info
@@ -22139,6 +22147,10 @@ Verbose mode.  Print out more information on what the program does.
 Print version information and exit.
 @item -w, --where='where-condition'
 Dump only selected records. Note that quotes are mandatory:
+@item -X, --xml
+Dumps a database as well formed XML
+@item -x, --first-slave
+Locks all tables across all databases.
 
 @example
 "--where=user='jimf'" "-wuserid>1" "-wuserid<1"
@@ -47794,6 +47806,11 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.1
 
 @itemize @bullet
+@item
+@code{mysqldump} now puts @code{ALTER TABLE table_name DISABLE KEYS} and
+@code{ALTER TABLE table_name DISABLE KEYS} in the sql dump.
+@item
+Added @code{mysql_fix_extensions} script
 @item
 Added functions @code{des_encrypt()} and @code{des_decrypt()}.
 @item
