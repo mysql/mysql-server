@@ -830,14 +830,14 @@ public:
   bool fix_fields(THD *, struct st_table_list *, Item **);
   void print(String *str);
   virtual bool basic_const_item() const { return true; }
-  int save_in_field(Field *field, bool no_conversions)
+  int save_in_field(Field *field_arg, bool no_conversions)
   {
     if (!arg)
     {
-      field->set_default();
+      field_arg->set_default();
       return 0;
     }
-    return Item_field::save_in_field(field, no_conversions);
+    return Item_field::save_in_field(field_arg, no_conversions);
   }
   table_map used_tables() const { return (table_map)0L; }
   
@@ -858,9 +858,9 @@ public:
   bool fix_fields(THD *, struct st_table_list *, Item **);
   void print(String *str);
   virtual bool basic_const_item() const { return true; }
-  int save_in_field(Field *field, bool no_conversions)
+  int save_in_field(Field *field_arg, bool no_conversions)
   {
-    return Item_field::save_in_field(field, no_conversions);
+    return Item_field::save_in_field(field_arg, no_conversions);
   }
   table_map used_tables() const { return (table_map)0L; }
 

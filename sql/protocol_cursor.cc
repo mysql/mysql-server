@@ -96,23 +96,23 @@ bool Protocol_cursor::write()
   MYSQL_FIELD *cur_field= fields;
   MYSQL_FIELD *fields_end= fields + field_count;
   MYSQL_ROWS *new_record;
-  byte **data;
+  byte **data_tmp;
   byte *to;
 
   new_record= (MYSQL_ROWS *)alloc_root(alloc, 
        sizeof(MYSQL_ROWS) + (field_count + 1)*sizeof(char *) + packet->length());
   if (!new_record)
     goto err;
-  data= (byte **)(new_record + 1);
-  new_record->data= (char **)data;
+  data_tmp= (byte **)(new_record + 1);
+  new_record->data= (char **)data_tmp;
 
   to= (byte *)(fields + field_count + 1);
 
-  for (; cur_field < fields_end; ++cur_field, ++data)
+  for (; cur_field < fields_end; ++cur_field, ++data_tmp)
   {
     if ((len=net_field_length((uchar **)&cp)))
     {
-      *data= 0;
+      *data_tmp= 0;
     }
     else
     {

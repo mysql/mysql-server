@@ -1,4 +1,4 @@
-#! /bin/sh
+#!/bin/sh
 # mysql-test-run - originally written by Matt Wagner <matt@mysql.com>
 # modified by Sasha Pachev <sasha@mysql.com>
 # Slightly updated by Monty
@@ -229,7 +229,6 @@ while test $# -gt 0; do
     --local)   USE_RUNNING_SERVER="" ;;
     --extern)  USE_RUNNING_SERVER="1" ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
-    --start-from=*) START_FROM=`$ECHO "$1" | $SED -e "s;--start-from=;;"` ;;
     --local-master)
       MASTER_MYPORT=3306;
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT --host=127.0.0.1 \
@@ -1173,7 +1172,7 @@ run_testcase ()
  slave_master_info_file=$TESTDIR/$tname.slave-mi
  echo $tname > $CURRENT_TEST
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
- if [ $USE_MANAGER = 1 ] ; then
+ if [ "$USE_MANAGER" = 1 ] ; then
   many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
  fi
 
@@ -1185,11 +1184,6 @@ run_testcase ()
      return;
    fi
   fi
-
- if [ "$tname" '<' "$START_FROM" ] ; then
-#   skip_test $tname;
-   return;
- fi
 
  if [ -n "$DO_TEST" ] ; then
    DO_THIS_TEST=`$EXPR \( $tname : "$DO_TEST" \) != 0`

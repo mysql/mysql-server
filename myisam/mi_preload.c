@@ -108,11 +108,11 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
   }
   while (pos != key_file_length);
 
-  my_free(buff, MYF(0));
+  my_free((char*) buff, MYF(0));
   DBUG_RETURN(0);
 
 err:
-  my_free(buff, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((char*) buff, MYF(MY_ALLOW_ZERO_PTR));
   DBUG_RETURN(my_errno= errno);
 }
 
