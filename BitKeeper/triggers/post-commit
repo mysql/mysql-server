@@ -3,6 +3,7 @@
 #shift
 TO=dev@mysql.com
 FROM=$USER@mysql.com
+LIMIT=10000
 
 BK_STATUS=$BK_STATUS$BK_COMMIT
 
@@ -19,7 +20,7 @@ Subject: bk commit
 EOF
   bk changes -v -r+
   bk cset -r+ -d
- ) | /usr/sbin/sendmail -t
+ ) | head -n $LIMIT | /usr/sbin/sendmail -t
 else
  echo "commit failed because '$BK_STATUS', sorry life is hard..." 
 fi
