@@ -345,15 +345,6 @@ max-time: 500
 cmd: testScan
 args: -n ScanRestart T1
 
-# OLD FLEX
-max-time: 500
-cmd: flexBench
-args: -c 25 -t 10 
-
-max-time: 500
-cmd: flexHammer
-args: -r 5 -t 32 
-
 #
 # DICT TESTS
 max-time: 1500
@@ -600,3 +591,13 @@ args: -n SR_UNDO T7
 max-time: 1500
 cmd: testSystemRestart
 args: -n SR_UNDO T8 
+
+# OLD FLEX
+max-time: 500
+cmd: flexBench
+args: -c 25 -t 10 
+
+max-time: 500
+cmd: flexHammer
+args: -r 5 -t 32 
+

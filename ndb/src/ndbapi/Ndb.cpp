@@ -27,7 +27,7 @@ Name:          Ndb.cpp
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
 #include <NdbOperation.hpp>
-#include <NdbConnection.hpp>
+#include <NdbTransaction.hpp>
 #include <NdbEventOperation.hpp>
 #include <NdbRecAttr.hpp>
 #include <md5_hash.hpp>
@@ -43,7 +43,7 @@ void connect();
 
 Connect to any node which has no connection at the moment.
 ****************************************************************************/
-NdbConnection* Ndb::doConnect(Uint32 tConNode) 
+NdbTransaction* Ndb::doConnect(Uint32 tConNode) 
 {
   Uint32        tNode;
   Uint32        i = 0;;
@@ -56,7 +56,7 @@ NdbConnection* Ndb::doConnect(Uint32 tConNode)
 //****************************************************************************
 // We have connections now to the desired node. Return
 //****************************************************************************
-      return getConnectedNdbConnection(tConNode);
+      return getConnectedNdbTransaction(tConNode);
     } else if (TretCode != 0) {
       tAnyAlive = 1;
     }//if
@@ -91,7 +91,7 @@ NdbConnection* Ndb::doConnect(Uint32 tConNode)
         theCurrentConnectCounter = 2;
         theCurrentConnectIndex = i;
       }//if
-      return getConnectedNdbConnection(tNode);
+      return getConnectedNdbTransaction(tNode);
     } else if (TretCode != 0) {
       tAnyAlive = 1;
     }//if
@@ -127,12 +127,12 @@ Ndb::NDB_connect(Uint32 tNode)
     return 0;
   }
   
-  NdbConnection * tConArray = theConnectionArray[tNode];
+  NdbTransaction * tConArray = theConnectionArray[tNode];
   if (tConArray != NULL) {
     return 2;
   }
   
-  NdbConnection * tNdbCon = getNdbCon();	// Get free connection object.
+  NdbTransaction * tNdbCon = getNdbCon();	// Get free connection object.
   if (tNdbCon == NULL) {
     return 4;
   }//if
@@ -148,10 +148,10 @@ Ndb::NDB_connect(Uint32 tNode)
   }//if
   tSignal->setData(tNdbCon->ptr2int(), 1);
 //************************************************
-// Set connection pointer as NdbConnection object
+// Set connection pointer as NdbTransaction object
 //************************************************
   tSignal->setData(theMyRef, 2);	// Set my block reference
-  tNdbCon->Status(NdbConnection::Connecting); // Set status to connecting
+  tNdbCon->Status(NdbTransaction::Connecting); // Set status to connecting
   Uint32 nodeSequence;
   { // send and receive signal
     Guard guard(tp->theMutexPtr);
@@ -170,11 +170,11 @@ Ndb::NDB_connect(Uint32 tNode)
       tReturnCode = -1;
     }//if
   }
-  if ((tReturnCode == 0) && (tNdbCon->Status() == NdbConnection::Connected)) {
+  if ((tReturnCode == 0) && (tNdbCon->Status() == NdbTransaction::Connected)) {
     //************************************************
     // Send and receive was successful
     //************************************************
-    NdbConnection* tPrevFirst = theConnectionArray[tNode];
+    NdbTransaction* tPrevFirst = theConnectionArray[tNode];
     tNdbCon->setConnectedNodeId(tNode, nodeSequence);
     
     tNdbCon->setMyBlockReference(theMyRef);
@@ -190,14 +190,14 @@ Ndb::NDB_connect(Uint32 tNode)
   }//if
 }//Ndb::NDB_connect()
 
-NdbConnection *
-Ndb::getConnectedNdbConnection(Uint32 nodeId){
-  NdbConnection* next = theConnectionArray[nodeId];
+NdbTransaction *
+Ndb::getConnectedNdbTransaction(Uint32 nodeId){
+  NdbTransaction* next = theConnectionArray[nodeId];
   theConnectionArray[nodeId] = next->theNext;
   next->theNext = NULL;
 
   return next;
-}//Ndb::getConnectedNdbConnection()
+}//Ndb::getConnectedNdbTransaction()
 
 /*****************************************************************************
 disconnect();
@@ -208,7 +208,7 @@ void
 Ndb::doDisconnect()
 {
   DBUG_ENTER("Ndb::doDisconnect");
-  NdbConnection* tNdbCon;
+  NdbTransaction* tNdbCon;
   CHECK_STATUS_MACRO_VOID;
 
   DBUG_PRINT("info", ("theNoOfDBnodes=%d", theNoOfDBnodes));
@@ -218,14 +218,14 @@ Ndb::doDisconnect()
     Uint32 tNode = theDBnodes[i];
     tNdbCon = theConnectionArray[tNode];
     while (tNdbCon != NULL) {
-      NdbConnection* tmpNdbCon = tNdbCon;
+      NdbTransaction* tmpNdbCon = tNdbCon;
       tNdbCon = tNdbCon->theNext;
       releaseConnectToNdb(tmpNdbCon);
     }//while
   }//for
   tNdbCon = theTransactionList;
   while (tNdbCon != NULL) {
-    NdbConnection* tmpNdbCon = tNdbCon;
+    NdbTransaction* tmpNdbCon = tNdbCon;
     tNdbCon = tNdbCon->theNext;
     releaseConnectToNdb(tmpNdbCon);
   }//while
@@ -301,13 +301,13 @@ Ndb::waitUntilReady(int timeout)
 }
 
 /*****************************************************************************
-NdbConnection* startTransaction();
+NdbTransaction* startTransaction();
 
 Return Value:   Returns a pointer to a connection object.
                 Return NULL otherwise.
 Remark:         Start transaction. Synchronous.
 *****************************************************************************/ 
-NdbConnection* 
+NdbTransaction* 
 Ndb::startTransaction(Uint32 aPriority, const char * keyData, Uint32 keyLen)
 {
   DBUG_ENTER("Ndb::startTransaction");
@@ -328,7 +328,7 @@ Ndb::startTransaction(Uint32 aPriority, const char * keyData, Uint32 keyLen)
       nodeId = 0;
     }//if
     {
-      NdbConnection *trans= startTransactionLocal(aPriority, nodeId);
+      NdbTransaction *trans= startTransactionLocal(aPriority, nodeId);
       DBUG_PRINT("exit",("start trans: 0x%x transid: 0x%llx",
 			 trans, trans ? trans->getTransactionId() : 0));
       DBUG_RETURN(trans);
@@ -339,15 +339,15 @@ Ndb::startTransaction(Uint32 aPriority, const char * keyData, Uint32 keyLen)
 }//Ndb::startTransaction()
 
 /*****************************************************************************
-NdbConnection* hupp(NdbConnection* pBuddyTrans);
+NdbTransaction* hupp(NdbTransaction* pBuddyTrans);
 
 Return Value:   Returns a pointer to a connection object.
                 Connected to the same node as pBuddyTrans
                 and also using the same transction id
 Remark:         Start transaction. Synchronous.
 *****************************************************************************/ 
-NdbConnection* 
-Ndb::hupp(NdbConnection* pBuddyTrans)
+NdbTransaction* 
+Ndb::hupp(NdbTransaction* pBuddyTrans)
 {
   DBUG_ENTER("Ndb::hupp");
 
@@ -363,7 +363,7 @@ Ndb::hupp(NdbConnection* pBuddyTrans)
     checkFailedNode();
 
     Uint32 nodeId = pBuddyTrans->getConnectedNodeId();
-    NdbConnection* pCon = startTransactionLocal(aPriority, nodeId);
+    NdbTransaction* pCon = startTransactionLocal(aPriority, nodeId);
     if(pCon == NULL)
       DBUG_RETURN(NULL);
 
@@ -384,7 +384,7 @@ Ndb::hupp(NdbConnection* pBuddyTrans)
   }//if
 }//Ndb::hupp()
 
-NdbConnection* 
+NdbTransaction* 
 Ndb::startTransactionDGroup(Uint32 aPriority, const char * keyData, int type)
 {
 
@@ -414,7 +414,7 @@ Ndb::startTransactionDGroup(Uint32 aPriority, const char * keyData, int type)
       fragmentId = getFragmentId(hashValue);    
     }//if
     Uint32 nodeId     = guessPrimaryNode(fragmentId);
-    NdbConnection* trans= startTransactionLocal(aPriority, nodeId);
+    NdbTransaction* trans= startTransactionLocal(aPriority, nodeId);
     DBUG_PRINT("exit", ("start DGroup trans: 0x%x transid: 0x%llx",
 			trans, trans ? trans->getTransactionId() : 0));
     return trans;
@@ -423,7 +423,7 @@ Ndb::startTransactionDGroup(Uint32 aPriority, const char * keyData, int type)
   }//if
 }//Ndb::startTransaction()
 
-NdbConnection* 
+NdbTransaction* 
 Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
 {
 #ifdef VM_TRACE
@@ -437,13 +437,13 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
   DBUG_ENTER("Ndb::startTransactionLocal");
   DBUG_PRINT("enter", ("nodeid: %d", nodeId));
 
-  NdbConnection* tConnection;
+  NdbTransaction* tConnection;
   Uint64 tFirstTransId = theFirstTransId;
   tConnection = doConnect(nodeId);
   if (tConnection == NULL) {
     DBUG_RETURN(NULL);
   }//if
-  NdbConnection* tConNext = theTransactionList;
+  NdbTransaction* tConNext = theTransactionList;
   tConnection->init();
   theTransactionList = tConnection;        // into a transaction list.
   tConnection->next(tConNext);   // Add the active connection object
@@ -459,7 +459,7 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
     theFirstTransId = tFirstTransId + 1;
   }//if
 #ifdef VM_TRACE
-  if (tConnection->theListState != NdbConnection::NotInList) {
+  if (tConnection->theListState != NdbTransaction::NotInList) {
     printState("startTransactionLocal %x", tConnection);
     abort();
   }
@@ -468,17 +468,17 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
 }//Ndb::startTransactionLocal()
 
 /*****************************************************************************
-void closeTransaction(NdbConnection* aConnection);
+void closeTransaction(NdbTransaction* aConnection);
 
 Parameters:     aConnection: the connection used in the transaction.
 Remark:         Close transaction by releasing the connection and all operations.
 *****************************************************************************/
 void
-Ndb::closeTransaction(NdbConnection* aConnection)
+Ndb::closeTransaction(NdbTransaction* aConnection)
 {
   DBUG_ENTER("Ndb::closeTransaction");
-  NdbConnection* tCon;
-  NdbConnection* tPreviousCon;
+  NdbTransaction* tCon;
+  NdbTransaction* tPreviousCon;
 
   if (aConnection == NULL) {
 //-----------------------------------------------------
@@ -511,12 +511,12 @@ Ndb::closeTransaction(NdbConnection* aConnection)
 
 	if(aConnection->theError.code == 4008){
 	  /**
-	   * When a SCAN timed-out, returning the NdbConnection leads
+	   * When a SCAN timed-out, returning the NdbTransaction leads
 	   * to reuse. And TC crashes when the API tries to reuse it to
 	   * something else...
 	   */
 #ifdef VM_TRACE
-	  printf("Scan timeout:ed NdbConnection-> "
+	  printf("Scan timeout:ed NdbTransaction-> "
 		 "not returning it-> memory leak\n");
 #endif
 	  DBUG_VOID_RETURN;
@@ -538,12 +538,12 @@ Ndb::closeTransaction(NdbConnection* aConnection)
   
   if(aConnection->theError.code == 4008){
     /**
-     * Something timed-out, returning the NdbConnection leads
+     * Something timed-out, returning the NdbTransaction leads
      * to reuse. And TC crashes when the API tries to reuse it to
      * something else...
      */
 #ifdef VM_TRACE
-    printf("Con timeout:ed NdbConnection-> not returning it-> memory leak\n");
+    printf("Con timeout:ed NdbTransaction-> not returning it-> memory leak\n");
 #endif
     DBUG_VOID_RETURN;
   }
@@ -582,7 +582,7 @@ Remark:         Sends a signal to DIH.
 int 
 Ndb::NdbTamper(TamperType aAction, int aNode)
 {
-  NdbConnection*	tNdbConn;
+  NdbTransaction*	tNdbConn;
   NdbApiSignal		tSignal(theMyRef);
   int			tNode;
   int                   tAction;
@@ -624,7 +624,7 @@ Ndb::NdbTamper(TamperType aAction, int aNode)
   tSignal.setData (tAction, 1);
   tSignal.setData(tNdbConn->ptr2int(),2);
   tSignal.setData(theMyRef,3);		// Set return block reference
-  tNdbConn->Status(NdbConnection::Connecting); // Set status to connecting
+  tNdbConn->Status(NdbTransaction::Connecting); // Set status to connecting
   TransporterFacade *tp = TransporterFacade::instance();
   if (tAction == 3) {
     tp->lock_mutex();
@@ -657,7 +657,7 @@ Ndb::NdbTamper(TamperType aAction, int aNode)
       }//if
       ret_code = sendRecSignal(tNode, WAIT_NDB_TAMPER, &tSignal, 0);
       if (ret_code == 0) {  
-        if (tNdbConn->Status() != NdbConnection::Connected) {
+        if (tNdbConn->Status() != NdbTransaction::Connected) {
           theRestartGCI = 0;
         }//if
         releaseNdbCon(tNdbConn);
@@ -914,7 +914,7 @@ Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
 {
   DEBUG_TRACE("opTupleIdOnNdb");
 
-  NdbConnection*     tConnection;
+  NdbTransaction*     tConnection;
   NdbOperation*      tOperation;
   Uint64             tValue;
   NdbRecAttr*        tRecAttrResult;
@@ -1368,7 +1368,7 @@ Ndb::pollEvents(int aMillisecondNumber)
 extern NdbMutex *ndb_print_state_mutex;
 
 static bool
-checkdups(NdbConnection** list, unsigned no)
+checkdups(NdbTransaction** list, unsigned no)
 {
   for (unsigned i = 0; i < no; i++)
     for (unsigned j = i + 1; j < no; j++)
@@ -1393,7 +1393,7 @@ Ndb::printState(const char* fmt, ...)
 #endif
   ndbout << endl;
   for (unsigned n = 0; n < MAX_NDB_NODES; n++) {
-    NdbConnection* con = theConnectionArray[n];
+    NdbTransaction* con = theConnectionArray[n];
     if (con != 0) {
       ndbout << "conn " << n << ":" << endl;
       while (con != 0) {
