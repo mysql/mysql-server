@@ -3031,11 +3031,11 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	    }
 	  }
 	}
-	global.append(" ON ",4);
+	global.append(" ON `",5);
 	global.append(grant_table->db);
-	global.append(".",1);
+	global.append("`.`",3);
 	global.append(grant_table->tname);
-	global.append(" TO '",5);
+	global.append("` TO '",6);
 	global.append(lex_user->user.str,lex_user->user.length); 
 	global.append("'@'",3);
 	global.append(lex_user->host.str,lex_user->host.length); 
