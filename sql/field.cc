@@ -4285,7 +4285,7 @@ Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
   :Field_str(ptr_arg, (1L << min(blob_pack_length,3)*8)-1L,
 	     null_ptr_arg, null_bit_arg, unireg_check_arg, field_name_arg,
 	     table_arg, cs),
-   packlength(blob_pack_length), geom_flag(true)
+   geom_flag(true), packlength(blob_pack_length)
 {
   flags|= BLOB_FLAG;
   if (table)
