@@ -324,7 +324,7 @@ public:
     /**
      * Get size of element
      */
-    int Column::getSize() const;
+    int getSize() const;
 
     /** 
      * Set distribution key

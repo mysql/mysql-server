@@ -93,11 +93,12 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &N,
 
 NdbEventOperationImpl::~NdbEventOperationImpl()
 {
+  int i;
   if (sdata) NdbMem_Free(sdata);
-  for (int i=0 ; i<3; i++) {
+  for (i=0 ; i<3; i++) {
     if (ptr[i].p) NdbMem_Free(ptr[i].p);
   }
-  for (int i=0 ; i<2; i++) {
+  for (i=0 ; i<2; i++) {
     NdbRecAttr *p = theFirstRecAttrs[i];
     while (p) {
       NdbRecAttr *p_next = p->next();
@@ -1233,8 +1234,9 @@ NdbGlobalEventBuffer::real_wait(NdbGlobalEventBufferHandle *h,
 				int aMillisecondNumber)
 {
   // check if there are anything in any of the buffers
+  int i;
   int n = 0;
-  for (int i = 0; i < h->m_nids; i++)
+  for (i = 0; i < h->m_nids; i++)
     n += hasData(h->m_bufferIds[i]);
   if (n) return n;
 
@@ -1243,7 +1245,9 @@ NdbGlobalEventBuffer::real_wait(NdbGlobalEventBufferHandle *h,
     return -1;
 
   n = 0;
-  for (int i = 0; i < h->m_nids; i++)
+  for (i = 0; i < h->m_nids; i++)
     n += hasData(h->m_bufferIds[i]);
   return n;
 }
+
+template class Vector<NdbGlobalEventBufferHandle*>;

@@ -3972,3 +3972,6 @@ Suma::execSUMA_HANDOVER_CONF(Signal* signal) {
     }
   }
 }
+
+template void append(DataBuffer<11>&,SegmentedSectionPtr,SectionSegmentPool&);
+
