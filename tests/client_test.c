@@ -7327,6 +7327,136 @@ static void test_free_store_result()
   mysql_stmt_close(stmt);
 }
 
+/********************************************************
+ To test SQLmode
+*********************************************************/
+
+static void test_sqlmode()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[2];
+  char       c1[5], c2[5];
+  int        rc;
+
+  myheader("test_sqlmode");
+
+  rc = mysql_query(mysql,"DROP TABLE IF EXISTS test_piping");
+  myquery(rc);
+
+  rc = mysql_commit(mysql);
+  myquery(rc);
+
+  rc = mysql_query(mysql,"CREATE TABLE test_piping(name varchar(10))");
+  myquery(rc);
+  
+  /* PIPES_AS_CONCAT */
+  strcpy(query,"SET SQL_MODE=\"PIPES_AS_CONCAT\"");
+  fprintf(stdout,"\n With %s", query);
+  rc = mysql_query(mysql,query);
+  myquery(rc);
+
+  strcpy(query, "INSERT INTO test_piping VALUES(?||?)");
+  fprintf(stdout,"\n  query: %s", query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt);
+
+  fprintf(stdout,"\n  total parameters: %ld", mysql_param_count(stmt));      
+
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  bind[0].buffer= (char *)c1;
+  bind[0].buffer_length= 2;
+  bind[0].is_null= 0;
+  bind[0].length= 0;
+
+  bind[1].buffer_type= MYSQL_TYPE_STRING;
+  bind[1].buffer= (char *)c2;
+  bind[1].buffer_length= 3;
+  bind[1].is_null= 0;
+  bind[1].length= 0;
+
+  rc = mysql_bind_param(stmt, bind);
+  mystmt(stmt,rc);
+
+  strcpy(c1,"My"); strcpy(c2, "SQL");
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  mysql_stmt_close(stmt);
+  verify_col_data("test_piping","name","MySQL");  
+
+  rc = mysql_query(mysql,"DELETE FROM test_piping");
+  myquery(rc);
+  
+  strcpy(query, "SELECT connection_id    ()");
+  fprintf(stdout,"\n  query: %s", query);
+  stmt = mysql_prepare(mysql, query, 70);
+  mystmt_init_r(stmt);
+
+  /* ANSI */
+  strcpy(query,"SET SQL_MODE=\"ANSI\"");
+  fprintf(stdout,"\n With %s", query);
+  rc = mysql_query(mysql,query);
+  myquery(rc);
+
+  strcpy(query, "INSERT INTO test_piping VALUES(?||?)");
+  fprintf(stdout,"\n  query: %s", query);
+  stmt = mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt);
+  fprintf(stdout,"\n  total parameters: %ld", mysql_param_count(stmt));      
+
+  rc = mysql_bind_param(stmt, bind);
+  mystmt(stmt,rc);
+
+  strcpy(c1,"My"); strcpy(c2, "SQL");
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  mysql_stmt_close(stmt);
+  verify_col_data("test_piping","name","MySQL");  
+
+  /* ANSI mode spaces ... */
+  strcpy(query, "SELECT connection_id    ()");
+  fprintf(stdout,"\n  query: %s", query);
+  stmt = mysql_prepare(mysql, query, 70);
+  mystmt_init(stmt);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  rc = mysql_fetch(stmt);
+  mystmt(stmt,rc);
+
+  rc = mysql_fetch(stmt);
+  myassert(rc == MYSQL_NO_DATA);
+  fprintf(stdout,"\n  returned 1 row\n");
+
+  mysql_stmt_close(stmt);
+  
+  /* IGNORE SPACE MODE */
+  strcpy(query,"SET SQL_MODE=\"IGNORE_SPACE\"");
+  fprintf(stdout,"\n With %s", query);
+  rc = mysql_query(mysql,query);
+  myquery(rc);
+
+  strcpy(query, "SELECT connection_id    ()");
+  fprintf(stdout,"\n  query: %s", query);
+  stmt = mysql_prepare(mysql, query, 70);
+  mystmt_init(stmt);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  rc = mysql_fetch(stmt);
+  mystmt(stmt,rc);
+
+  rc = mysql_fetch(stmt);
+  myassert(rc == MYSQL_NO_DATA);
+  fprintf(stdout,"\n  returned 1 row");
+
+  mysql_stmt_close(stmt);
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -7467,10 +7597,6 @@ int main(int argc, char **argv)
     start_time= time((time_t *)0);
 
     client_query();         /* simple client query test */
-    test_mem_overun();
-    test_list_fields();
-    test_fetch_offset();    /* to test mysql_fetch_column with offset */
-    test_fetch_column();    /* to test mysql_fetch_column */
 #if NOT_YET_WORKING
     /* Used for internal new development debugging */
     test_drop_temp();       /* to test DROP TEMPORARY TABLE Access checks */
@@ -7572,6 +7698,11 @@ int main(int argc, char **argv)
     test_free_result();     /* test mysql_stmt_free_result() */
     test_free_store_result(); /* test to make sure stmt results are cleared 
                                  during stmt_free_result() */
+    test_mem_overun();      /* memory ovverun bug */
+    test_list_fields();     /* list_fields test */
+    test_fetch_offset();    /* to test mysql_fetch_column with offset */
+    test_fetch_column();    /* to test mysql_fetch_column */
+    test_sqlmode();         /* test for SQL_MODE */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);

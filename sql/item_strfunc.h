@@ -153,7 +153,7 @@ public:
   Item_str_conv(Item *item) :Item_str_func(item) {}
   void fix_length_and_dec()
   { 
-    set_charset(args[0]->charset(), args[0]->coercibility);
+    set_charset(*args[0]);
     max_length = args[0]->max_length;
   }
 };
@@ -215,7 +215,7 @@ class Item_func_substr_index :public Item_str_func
 public:
   Item_func_substr_index(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
   String *val_str(String *);
-  void fix_length_and_dec() { max_length= args[0]->max_length; }
+  void fix_length_and_dec();
   const char *func_name() const { return "substr_index"; }
 };
 
@@ -335,7 +335,7 @@ public:
 class Item_func_database :public Item_str_func
 {
 public:
-  Item_func_database() { coercibility= COER_IMPLICIT; }
+  Item_func_database() { set_charset(DERIVATION_IMPLICIT); }
   String *val_str(String *);
   void fix_length_and_dec() 
   { 
@@ -348,7 +348,7 @@ public:
 class Item_func_user :public Item_str_func
 {
 public:
-  Item_func_user() { coercibility= COER_IMPLICIT; }
+  Item_func_user() { set_charset(DERIVATION_IMPLICIT); }
   String *val_str(String *);
   void fix_length_and_dec() 
   { 
@@ -549,7 +549,7 @@ public:
   const char *func_name() const { return "load_file"; }
   void fix_length_and_dec()
   { 
-    set_charset(&my_charset_bin, COER_COERCIBLE);
+    set_charset(&my_charset_bin, DERIVATION_COERCIBLE);
     maybe_null=1;
     max_length=MAX_BLOB_WIDTH;
   }
@@ -586,7 +586,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() 
   { 
-    set_charset(args[0]->charset(), args[0]->coercibility);
+    set_charset(*args[0]);
     max_length= args[0]->max_length * 2 + 2; 
   }
 };

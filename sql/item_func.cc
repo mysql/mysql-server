@@ -31,6 +31,14 @@
 #include <zlib.h>
 #endif
 
+static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
+{
+  my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
+  	   c1.collation->name,c1.derivation_name(),
+	   c2.collation->name,c2.derivation_name(),
+	   fname);
+}
+
 /* return TRUE if item is a constant */
 
 bool
@@ -859,14 +867,10 @@ void Item_func_min_max::fix_length_and_dec()
       maybe_null=0;
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
     if (i==0)
-      set_charset(args[i]->charset(), args[i]->coercibility);
-    else if (set_charset(charset(), coercibility, 
-			args[i]->charset(), args[i]->coercibility))
+      collation.set(args[0]->collation);
+    if (collation.aggregate(args[i]->collation))
     {
-      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
-	     charset()->name,coercion_name(coercibility),
-	     args[i]->charset()->name,coercion_name(args[i]->coercibility),
-	     func_name());
+      my_coll_agg_error(collation, args[i]->collation, func_name());
       break;
     }
   }
@@ -1038,13 +1042,21 @@ longlong Item_func_coercibility::val_int()
     return 0;
   }
   null_value= 0;
-  return (longlong) args[0]->coercibility;
+  return (longlong) args[0]->derivation();
+}
+
+void Item_func_locate::fix_length_and_dec()
+{
+  maybe_null=0; max_length=11;
+  if (cmp_collation.set(args[0]->collation, args[1]->collation))
+    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
 }
 
 longlong Item_func_locate::val_int()
 {
   String *a=args[0]->val_str(&value1);
   String *b=args[1]->val_str(&value2);
+  bool binary_cmp= (cmp_collation.collation->state & MY_CS_BINSORT) ? 1 : 0;
   if (!a || !b)
   {
     null_value=1;
@@ -1059,7 +1071,7 @@ longlong Item_func_locate::val_int()
   {
     start=(uint) args[2]->val_int()-1;
 #ifdef USE_MB
-    if (use_mb(a->charset()))
+    if (use_mb(cmp_collation.collation))
     {
       start0=start;
       if (!binary_cmp)
@@ -1072,7 +1084,7 @@ longlong Item_func_locate::val_int()
   if (!b->length())				// Found empty string at start
     return (longlong) (start+1);
 #ifdef USE_MB
-  if (use_mb(a->charset()) && !binary_cmp)
+  if (use_mb(cmp_collation.collation) && !binary_cmp)
   {
     const char *ptr=a->ptr()+start;
     const char *search=b->ptr();
@@ -1091,7 +1103,7 @@ longlong Item_func_locate::val_int()
         return (longlong) start0+1;
       }
   skipp:
-      if ((l=my_ismbchar(a->charset(),ptr,strend)))
+      if ((l=my_ismbchar(cmp_collation.collation,ptr,strend)))
 	ptr+=l;
       else ++ptr;
       ++start0;
@@ -1197,6 +1209,8 @@ void Item_func_find_in_set::fix_length_and_dec()
       }
     }
   }
+  if (cmp_collation.set(args[0]->collation, args[1]->collation))
+    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
 }
 
 static const char separator=',';
@@ -1224,7 +1238,6 @@ longlong Item_func_find_in_set::val_int()
   null_value=0;
 
   int diff;
-  CHARSET_INFO *charset= find->charset();
   if ((diff=buffer->length() - find->length()) >= 0)
   {
     const char *f_pos=find->ptr();
@@ -1238,7 +1251,8 @@ longlong Item_func_find_in_set::val_int()
       const char *pos= f_pos;
       while (pos != f_end)
       {
-	if (my_toupper(charset,*str) != my_toupper(charset,*pos))
+	if (my_toupper(cmp_collation.collation,*str) != 
+	    my_toupper(cmp_collation.collation,*pos))
 	  goto not_found;
 	str++;
 	pos++;
@@ -2000,7 +2014,7 @@ Item_func_set_user_var::fix_length_and_dec()
 void Item_func_set_user_var::update_hash(void *ptr, uint length,
 					 Item_result type,
 					 CHARSET_INFO *cs,
-					 enum coercion coercibility)
+					 Derivation dv)
 {
   if ((null_value=args[0]->null_value))
   {
@@ -2009,8 +2023,7 @@ void Item_func_set_user_var::update_hash(void *ptr, uint length,
       my_free(entry->value,MYF(0));
     entry->value=0;
     entry->length=0;
-    entry->var_charset=cs;
-    entry->var_coercibility= coercibility;
+    entry->collation.set(cs, dv);
   }
   else
   {
@@ -2041,8 +2054,7 @@ void Item_func_set_user_var::update_hash(void *ptr, uint length,
     memcpy(entry->value,ptr,length);
     entry->length= length;
     entry->type=type;
-    entry->var_charset=cs;
-    entry->var_coercibility= coercibility;
+    entry->collation.set(cs, dv);
   }
   return;
 
@@ -2085,7 +2097,7 @@ Item_func_set_user_var::val()
 {
   double value=args[0]->val();
   update_hash((void*) &value,sizeof(value), REAL_RESULT, 
-    &my_charset_bin, COER_NOCOLL);
+    &my_charset_bin, DERIVATION_NONE);
   return value;
 }
 
@@ -2094,7 +2106,7 @@ Item_func_set_user_var::val_int()
 {
   longlong value=args[0]->val_int();
   update_hash((void*) &value, sizeof(longlong), INT_RESULT,
-	      &my_charset_bin, COER_NOCOLL);
+	      &my_charset_bin, DERIVATION_NONE);
   return value;
 }
 
@@ -2103,10 +2115,10 @@ Item_func_set_user_var::val_str(String *str)
 {
   String *res=args[0]->val_str(str);
   if (!res)					// Null value
-    update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin, COER_NOCOLL);
+    update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin, DERIVATION_NONE);
   else
     update_hash((void*) res->ptr(), res->length(), STRING_RESULT,
-		res->charset(), args[0]->coercibility);
+		res->charset(), args[0]->derivation());
   return res;
 }
 
@@ -2147,7 +2159,7 @@ Item_func_get_user_var::val_str(String *str)
     str->set(*(longlong*) entry->value, &my_charset_bin);
     break;
   case STRING_RESULT:
-    if (str->copy(entry->value, entry->length, entry->var_charset))
+    if (str->copy(entry->value, entry->length, entry->collation.collation))
     {
       null_value=1;
       return NULL;
@@ -2236,7 +2248,7 @@ void Item_func_get_user_var::fix_length_and_dec()
 	                     ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT));
       user_var_event->user_var_event= var_entry;
       user_var_event->type= var_entry->type;
-      user_var_event->charset_number= var_entry->var_charset->number;
+      user_var_event->charset_number= var_entry->collation.collation->number;
       if (!var_entry->value)
       {
 	/* NULL value*/

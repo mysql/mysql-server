@@ -39,7 +39,7 @@ Item::Item():
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  coercibility=COER_COERCIBLE;
+  set_charset(default_charset(), DERIVATION_COERCIBLE);
   name= 0;
   decimals= 0; max_length= 0;
   THD *thd= current_thd;
@@ -67,7 +67,7 @@ Item::Item(THD *thd, Item &item):
   unsigned_flag(item.unsigned_flag),
   with_sum_func(item.with_sum_func),
   fixed(item.fixed),
-  coercibility(item.coercibility)
+  collation(item.collation)
 {
   next=thd->free_list;			// Put in free list
   thd->free_list= this;
@@ -183,44 +183,61 @@ CHARSET_INFO * Item::default_charset() const
   return current_thd->variables.collation_connection;
 }
 
-bool Item::set_charset(CHARSET_INFO *cs1, enum coercion co1,
-		       CHARSET_INFO *cs2, enum coercion co2)
+bool DTCollation::aggregate(DTCollation &dt)
 {
-  if (cs1 == &my_charset_bin || cs2 == &my_charset_bin)
+  if (!my_charset_same(collation, dt.collation))
   {
-    set_charset(&my_charset_bin, COER_NOCOLL);
-    return 0;
-  }
-
-  if (!my_charset_same(cs1,cs2))
-    return 1;
-
-  if (co1 < co2)
-  {
-    set_charset(cs1, co1);
-  }
-  else if (co2 < co1)
-  {
-    set_charset(cs2, co2);
-  }
-  else  // co2 == co1
-  {
-    if (cs1 != cs2)
+    /* 
+       We do allow to use binary strings (like BLOBS)
+       together with character strings.
+       Binaries have more precedance than a character
+       string of the same derivation.
+    */
+    if (collation == &my_charset_bin)
     {
-      if (co1 == COER_EXPLICIT)
-      {
-        return 1;
-      }
+      if (derivation <= dt.derivation)
+	; // Do nothing
       else
-      {
-        CHARSET_INFO *bin= get_charset_by_csname(cs1->csname, MY_CS_BINSORT,MYF(0));
-        if (!bin)
-	  return 1;
-        set_charset(bin, COER_NOCOLL);
-      }
+	set(dt);
+    }
+    else if (dt.collation == &my_charset_bin)
+    {
+      if (dt.derivation <= derivation)
+        set(dt);
+      else
+       ; // Do nothing
     }
     else
-      set_charset(cs2, co2);
+    {
+      set(0, DERIVATION_NONE);
+      return 1; 
+    }
+  }
+  else if (derivation < dt.derivation)
+  {
+    // Do nothing
+  }
+  else if (dt.derivation < derivation)
+  {
+    set(dt);
+  }
+  else
+  { 
+    if (collation == dt.collation)
+    {
+      // Do nothing
+    }
+    else 
+    {
+      if (derivation == DERIVATION_EXPLICIT)
+      {
+	set(0, DERIVATION_NONE);
+	return 1;
+      }
+      CHARSET_INFO *bin= get_charset_by_csname(collation->csname, 
+					       MY_CS_BINSORT,MYF(0));
+      set(bin, DERIVATION_NONE);
+    }
   }
   return 0;
 }
@@ -228,7 +245,7 @@ bool Item::set_charset(CHARSET_INFO *cs1, enum coercion co1,
 Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
 {
   set_field(f);
-  coercibility= COER_IMPLICIT;
+  set_charset(DERIVATION_IMPLICIT);
   fixed= 1; // This item is not needed in fix_fields
 }
 
@@ -237,7 +254,7 @@ Item_field::Item_field(THD *thd, Item_field &item):
   Item_ident(thd, item),
   field(item.field),
   result_field(item.result_field)
-{ coercibility= COER_IMPLICIT; }
+{ set_charset(DERIVATION_IMPLICIT); }
 
 void Item_field::set_field(Field *field_par)
 {
@@ -249,7 +266,7 @@ void Item_field::set_field(Field *field_par)
   field_name=field_par->field_name;
   db_name=field_par->table->table_cache_key;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
-  set_charset(field_par->charset(), COER_IMPLICIT);
+  set_charset(field_par->charset(), DERIVATION_IMPLICIT);
 }
 
 const char *Item_ident::full_name() const
@@ -1100,7 +1117,7 @@ Item_varbinary::Item_varbinary(const char *str, uint str_length)
     str+=2;
   }
   *ptr=0;					// Keep purify happy
-  coercibility= COER_COERCIBLE;
+  set_charset(&my_charset_bin, DERIVATION_COERCIBLE);
 }
 
 longlong Item_varbinary::val_int()

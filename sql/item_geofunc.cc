@@ -85,7 +85,7 @@ void Item_func_geometry_from_wkb::fix_length_and_dec()
 }
 
 
-String *Item_func_as_text::val_str(String *str)
+String *Item_func_as_wkt::val_str(String *str)
 {
   String arg_val;
   String *swkb= args[0]->val_str(&arg_val);
@@ -104,7 +104,7 @@ String *Item_func_as_text::val_str(String *str)
   return str;
 }
 
-void Item_func_as_text::fix_length_and_dec()
+void Item_func_as_wkt::fix_length_and_dec()
 {
   max_length=MAX_BLOB_WIDTH;
 }

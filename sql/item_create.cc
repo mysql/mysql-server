@@ -450,7 +450,7 @@ Item *create_func_version(void)
 {
   return new Item_string(NullS,server_version, 
 			 (uint) strlen(server_version),
-			 system_charset_info, Item::COER_IMPLICIT);
+			 system_charset_info, DERIVATION_IMPLICIT);
 }
 
 Item *create_func_weekday(Item* a)
@@ -506,9 +506,9 @@ Item *create_func_quote(Item* a)
   return new Item_func_quote(a);
 }
 
-Item *create_func_as_text(Item *a)
+Item *create_func_as_wkt(Item *a)
 {
-  return new Item_func_as_text(a);
+  return new Item_func_as_wkt(a);
 }
 
 Item *create_func_as_wkb(Item *a)
