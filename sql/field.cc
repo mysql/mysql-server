@@ -5692,8 +5692,8 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
     from= tmpstr.ptr();
     length=  tmpstr.length();
   }
-  ulonglong tmp= find_set(typelib, from, length, &not_used, &not_used2,
-			  &got_warning);
+  ulonglong tmp= find_set(typelib, from, length, field_charset,
+                          &not_used, &not_used2, &got_warning);
   if (!tmp && length && length < 22)
   {
     /* This is for reading numbers with LOAD DATA INFILE */

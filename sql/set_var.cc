@@ -1460,7 +1460,9 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
       goto err;
     var->save_result.ulong_value= ((ulong)
 				   find_set(enum_names, res->c_ptr(),
-					    res->length(), &error, &error_len,
+					    res->length(),
+                                            NULL,
+                                            &error, &error_len,
 					    &not_used));
     if (error_len)
     {
