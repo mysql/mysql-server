@@ -38,7 +38,6 @@
 
 #include "mysys_priv.h"
 #include <my_bitmap.h>
-#include <assert.h>
 #include <m_string.h>
 
 

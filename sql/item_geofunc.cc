@@ -313,12 +313,12 @@ err:
 
 
 /*
-  Functions to concatinate various spatial objects
+  Functions to concatenate various spatial objects
 */
 
 
 /*
-*  Concatinate doubles into Point
+*  Concatenate doubles into Point
 */
 
 
@@ -343,7 +343,7 @@ String *Item_func_point::val_str(String *str)
 
 
 /*
-  Concatinates various items into various collections
+  Concatenates various items into various collections
   with checkings for valid wkb type of items.
   For example, MultiPoint can be a collection of Points only.
   coll_type contains wkb type of target collection.
@@ -388,7 +388,7 @@ String *Item_func_spatial_collection::val_str(String *str)
       const char *data= res->ptr() + 1;
 
       /*
-	In the case of named collection we must to check that items
+	In the case of named collection we must check that items
 	are of specific type, let's do this checking now
       */
 
@@ -446,7 +446,13 @@ String *Item_func_spatial_collection::val_str(String *str)
     }
   }
   if (str->length() > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			func_name(), current_thd->variables.max_allowed_packet);
     goto err;
+  }
 
   null_value = 0;
   return str;

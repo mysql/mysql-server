@@ -2593,27 +2593,39 @@ longlong Item_func_get_user_var::val_int()
 
 
 /*
+  Get variable by name and, if necessary, put the record of variable 
+  use into the binary log.
+  
+  SYNOPSIS
+    get_var_with_binlog()
+      thd        Current thread
+      name       Variable name 
+      out_entry  [out] variable structure or NULL. The pointer is set 
+                 regardless of whether function succeeded or not.
+
   When a user variable is invoked from an update query (INSERT, UPDATE etc),
   stores this variable and its value in thd->user_var_events, so that it can be
   written to the binlog (will be written just before the query is written, see
   log.cc).
+  
+  RETURN
+    0  OK 
+    1  Failed to put appropiate record into binary log
+    
 */
 
-void Item_func_get_user_var::fix_length_and_dec()
+int get_var_with_binlog(THD *thd, LEX_STRING &name, 
+                        user_var_entry **out_entry)
 {
-  THD *thd=current_thd;
   BINLOG_USER_VAR_EVENT *user_var_event;
-  maybe_null=1;
-  decimals=NOT_FIXED_DEC;
-  max_length=MAX_BLOB_WIDTH;
-
-  if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
-    null_value= 1;
-  else
-    collation.set(var_entry->collation);
+  user_var_entry *var_entry;
+  var_entry= get_variable(&thd->user_vars, name, 0);
   
   if (!(opt_bin_log && is_update_query(thd->lex->sql_command)))
-    return;
+  {
+    *out_entry= var_entry;
+    return 0;
+  }
 
   if (!var_entry)
   {
@@ -2640,13 +2652,16 @@ void Item_func_get_user_var::fix_length_and_dec()
     if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
       goto err;
   }
-  /* 
-     If this variable was already stored in user_var_events by this query
-     (because it's used in more than one place in the query), don't store
-     it.
-  */
   else if (var_entry->used_query_id == thd->query_id)
-    return;
+  {
+    /* 
+       If this variable was already stored in user_var_events by this query
+       (because it's used in more than one place in the query), don't store
+       it.
+    */
+    *out_entry= var_entry;
+    return 0;
+  }
 
   uint size;
   /*
@@ -2681,11 +2696,34 @@ void Item_func_get_user_var::fix_length_and_dec()
   var_entry->used_query_id= thd->query_id;
   if (insert_dynamic(&thd->user_var_events, (gptr) &user_var_event))
     goto err;
-
-  return;
+  
+  *out_entry= var_entry;
+  return 0;
 
 err:
-  thd->fatal_error();
+  *out_entry= var_entry;
+  return 1;
+}
+
+
+void Item_func_get_user_var::fix_length_and_dec()
+{
+  THD *thd=current_thd;
+  int error;
+  maybe_null=1;
+  decimals=NOT_FIXED_DEC;
+  max_length=MAX_BLOB_WIDTH;
+
+  error= get_var_with_binlog(thd, name, &var_entry);
+
+  if (var_entry)
+    collation.set(var_entry->collation);
+  else
+    null_value= 1;
+
+  if (error)
+    thd->fatal_error();
+
   return;
 }
 
@@ -3168,7 +3206,6 @@ longlong Item_func_is_free_lock::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   String *res=args[0]->val_str(&value);
-  THD *thd=current_thd;
   User_level_lock *ull;
 
   null_value=0;
@@ -3191,7 +3228,6 @@ longlong Item_func_is_used_lock::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   String *res=args[0]->val_str(&value);
-  THD *thd=current_thd;
   User_level_lock *ull;
 
   null_value=1;
@@ -3338,4 +3374,13 @@ Item_func_sp::fix_length_and_dec()
     }
   }
   DBUG_VOID_RETURN;
+}
+
+
+longlong Item_func_found_rows::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  THD *thd= current_thd;
+
+  return thd->found_rows();
 }

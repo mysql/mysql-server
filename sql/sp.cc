@@ -265,8 +265,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
        */
       List<Item> vals= thd->lex->value_list;
 
-      mysql_init_query(thd, TRUE);
-      lex_start(thd, (uchar*)defstr.c_ptr(), defstr.length());
+      mysql_init_query(thd, (uchar*)defstr.c_ptr(), defstr.length(), TRUE);
       thd->lex->value_list= vals;
     }
 
@@ -570,24 +569,27 @@ db_show_routine_status(THD *thd, int type, const char *wild)
       goto err_case;
     }
 
-    /* Init fields */
-    setup_tables(&tables);
+    /*
+      Init fields
+
+      tables is not VIEW for sure => we can pass 0 as condition
+    */
+    setup_tables(thd, &tables, 0);
     for (used_field= &used_fields[0];
 	 used_field->field_name;
 	 used_field++)
     {
-      TABLE_LIST *not_used;
       Item_field *field= new Item_field("mysql", "proc",
 					used_field->field_name);
       if (!(used_field->field= find_field_in_tables(thd, field, &tables, 
-						    &not_used, TRUE)))
+						    0, TRUE, 1)))
       {
 	res= SP_INTERNAL_ERROR;
 	goto err_case1;
       }
     }
 
-    table->file->index_init(0);
+    table->file->ha_index_init(0);
     if ((res= table->file->index_first(table->record[0])))
     {
       res= (res == HA_ERR_END_OF_FILE) ? 0 : SP_INTERNAL_ERROR;
@@ -606,6 +608,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
 err_case1:
   send_eof(thd);
 err_case:
+  table->file->ha_index_end();
   close_thread_tables(thd);
 done:
   DBUG_RETURN(res);
@@ -647,7 +650,7 @@ sp_drop_db_routines(THD *thd, char *db)
   }
 
   ret= SP_OK;
-  table->file->index_init(0);
+  table->file->ha_index_init(0);
   if (! table->file->index_read(table->record[0],
 				key, keylen, HA_READ_KEY_EXACT))
   {
@@ -670,6 +673,7 @@ sp_drop_db_routines(THD *thd, char *db)
     if (deleted)
       sp_cache_invalidate();
   }
+  table->file->ha_index_end();
 
   close_thread_tables(thd);
 

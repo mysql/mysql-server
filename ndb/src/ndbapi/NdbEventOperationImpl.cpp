@@ -21,7 +21,6 @@
 #include "NdbDictionaryImpl.hpp"
 #include "API.hpp"
 #include <NdbOut.hpp>
-#include <AttrType.hpp>
 #include "NdbApiSignal.hpp"
 #include "TransporterFacade.hpp"
 #include <signaldata/CreateEvnt.hpp>
@@ -489,52 +488,7 @@ NdbEventOperationImpl::getEventType()
   }
 }
 
-void
-NdbEventOperationImpl::printRecAttr(NdbRecAttr *p)
-{
-  int size  = p->attrSize();
-  int aSize = p->arraySize();
 
-  switch(p->attrType()){
-  case UnSigned:
-    switch(size) {
-    case 8: ndbout << p->u_64_value(); break;
-    case 4: ndbout << p->u_32_value(); break;
-    case 2: ndbout << p->u_short_value(); break;
-    case 1: ndbout << (unsigned) p->u_char_value(); break;
-    default: ndbout << "Unknown size" << endl;
-    }
-    break;
-	  
-  case Signed:
-    switch(size) {
-    case 8: ndbout << p->int64_value(); break;
-    case 4: ndbout << p->int32_value(); break;
-    case 2: ndbout << p->short_value(); break;
-    case 1: ndbout << (int) p->char_value(); break;
-    default: ndbout << "Unknown size" << endl;
-    }
-    break;
-    
-  case String:
-    {
-      char* buf = new char[aSize+1];
-      memcpy(buf, p->aRef(), aSize);
-      buf[aSize] = 0;
-      ndbout << buf;
-      delete [] buf;
-    }
-    break;
-    
-  case Float:
-    ndbout << p->float_value();
-    break;
-    
-  default:
-    ndbout << "Unknown";
-    break;
-  }
-}
 
 void
 NdbEventOperationImpl::print()
@@ -545,8 +499,7 @@ NdbEventOperationImpl::print()
     NdbRecAttr *p = theFirstRecAttrs[i];
     ndbout << " %u " << i;
     while (p) {
-      ndbout << " : " << p->attrId() << " = ";
-      printRecAttr(p);
+      ndbout << " : " << p->attrId() << " = " << *p;
       p = p->next();
     }
     ndbout << "\n";

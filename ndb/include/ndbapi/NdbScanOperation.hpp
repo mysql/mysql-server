@@ -33,6 +33,8 @@
 #include <NdbOperation.hpp>
 #include <NdbCursorOperation.hpp>
 
+class NdbBlob;
+
 /**
  * @class NdbScanOperation
  * @brief Class of scan operations for use in transactions.  
@@ -82,6 +84,10 @@ public:
   int setValue(Uint32 anAttrId, float aValue);
   int setValue(Uint32 anAttrId, double aValue);
 #endif
+
+  NdbBlob* getBlobHandle(const char* anAttrName);
+  NdbBlob* getBlobHandle(Uint32 anAttrId);
+
 private:
   NdbScanOperation(Ndb* aNdb);
 

@@ -44,10 +44,10 @@ class ha_myisam: public handler
 
  public:
   ha_myisam(TABLE *table): handler(table), file(0),
-    int_table_flags(HA_READ_RND_SAME | HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
-		    HA_NULL_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
-		    HA_DUPP_POS | HA_BLOB_KEY | HA_AUTO_PART_KEY |
-		    HA_FILE_BASED | HA_HAS_GEOMETRY),
+    int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
+		    HA_DUPP_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
+		    HA_FILE_BASED | HA_CAN_GEOMETRY | HA_READ_RND_SAME |
+                    HA_CAN_INSERT_DELAYED),
     can_enable_indexes(1)
   {}
   ~ha_myisam() {}
@@ -55,17 +55,15 @@ class ha_myisam: public handler
   const char *index_type(uint key_number);
   const char **bas_ext() const;
   ulong table_flags() const { return int_table_flags; }
-  ulong index_flags(uint inx) const
+  ulong index_flags(uint inx, uint part, bool all_parts) const
   {
-    ulong flags=(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER);
-    return (flags | ((table->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
-		     0 : HA_KEY_READ_ONLY));
+    return ((table->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
+            0 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |
+            HA_READ_ORDER | HA_KEYREAD_ONLY);
   }
-  uint max_record_length() const { return HA_MAX_REC_LENGTH; }
-  uint max_keys()          const { return MI_MAX_KEY; }
-  uint max_key_parts()     const { return MAX_REF_PARTS; }
-  uint max_key_length()    const { return MI_MAX_KEY_LENGTH; }
-  uint max_key_part_length() { return MI_MAX_KEY_LENGTH; }
+  uint max_supported_keys()          const { return MI_MAX_KEY; }
+  uint max_supported_key_length()    const { return MI_MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length() const { return MI_MAX_KEY_LENGTH; }
   uint checksum() const;
 
   int open(const char *name, int mode, uint test_if_locked);
@@ -83,7 +81,6 @@ class ha_myisam: public handler
   int index_first(byte * buf);
   int index_last(byte * buf);
   int index_next_same(byte *buf, const byte *key, uint keylen);
-  int index_end() { ft_handler=NULL; return 0; }
   int ft_init()
   {
     if (!ft_handler)
@@ -94,12 +91,11 @@ class ha_myisam: public handler
   FT_INFO *ft_init_ext(uint flags, uint inx,const byte *key, uint keylen)
   { return ft_init_search(flags,file,inx,(byte*) key,keylen, table->record[0]); }
   int ft_read(byte *buf);
-  int rnd_init(bool scan=1);
+  int rnd_init(bool scan);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
   int restart_rnd_next(byte *buf, byte *pos);
   void position(const byte *record);
-  my_off_t row_position() { return mi_position(file); }
   void info(uint);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);

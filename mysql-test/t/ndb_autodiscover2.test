@@ -1,0 +1,13 @@
+-- source include/have_ndb.inc
+
+#
+# Simple test to show use of discover on startup
+# The previous step has simply removed the frm file
+# from disk, but left the table in NDB
+#
+select * from t9 order by a;
+
+# handler_discover should be zero
+show status like 'handler_discover%';
+
+drop table t9;

@@ -5,6 +5,8 @@
 drop table if exists t1;
 --enable_warnings
 
+SET NAMES binary;
+
 #
 # Test that SSL options works properly
 #
@@ -171,3 +173,8 @@ REVOKE SELECT (кол) ON бд.таб FROM юзер@localhost;
 
 DROP DATABASE бд;
 SET NAMES latin1;
+
+#
+# just SHOW PRIVILEGES test
+#
+SHOW PRIVILEGES;

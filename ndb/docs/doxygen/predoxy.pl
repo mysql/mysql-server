@@ -1,4 +1,3 @@
-#!/usr/local/bin/perl
 #
 #  Written by Lars Thalmann, lars@mysql.com, 2003.
 #

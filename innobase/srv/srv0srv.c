@@ -34,6 +34,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "sync0sync.h"
 #include "thr0loc.h"
 #include "que0que.h"
+#include "srv0que.h"
 #include "log0recv.h"
 #include "pars0pars.h"
 #include "usr0sess.h"
@@ -54,10 +55,13 @@ ibool	srv_lower_case_table_names	= FALSE;
 in the server */
 ulint	srv_activity_count	= 0;
 
+/* The following is the maximum allowed duration of a lock wait. */
+ulint	srv_fatal_semaphore_wait_threshold = 600;
+
 ibool	srv_lock_timeout_and_monitor_active = FALSE;
 ibool	srv_error_monitor_active = FALSE;
 
-char*	srv_main_thread_op_info = (char*) "";
+const char*	srv_main_thread_op_info = "";
 
 /* Server parameters which are read from the initfile */
 
@@ -65,7 +69,9 @@ char*	srv_main_thread_op_info = (char*) "";
 names, where the file name itself may also contain a path */
 
 char*	srv_data_home 	= NULL;
+#ifdef UNIV_LOG_ARCHIVE
 char*	srv_arch_dir 	= NULL;
+#endif /* UNIV_LOG_ARCHIVE */
 
 ibool	srv_file_per_table = FALSE;	/* store to its own file each table
 					created by an user; data dictionary
@@ -94,7 +100,6 @@ char**	srv_log_group_home_dirs = NULL;
 ulint	srv_n_log_groups	= ULINT_MAX;
 ulint	srv_n_log_files		= ULINT_MAX;
 ulint	srv_log_file_size	= ULINT_MAX;	/* size in database pages */ 
-ibool	srv_log_archive_on	= FALSE;
 ulint	srv_log_buffer_size	= ULINT_MAX;	/* size in database pages */ 
 ulint	srv_flush_log_at_trx_commit = 1;
 
@@ -149,8 +154,11 @@ ulint	srv_lock_table_size	= ULINT_MAX;
 
 ulint	srv_n_file_io_threads	= ULINT_MAX;
 
+#ifdef UNIV_LOG_ARCHIVE
+ibool	srv_log_archive_on	= FALSE;
 ibool	srv_archive_recovery	= 0;
 dulint	srv_archive_recovery_limit_lsn;
+#endif /* UNIV_LOG_ARCHIVE */
 
 ulint	srv_lock_wait_timeout	= 1024 * 1024 * 1024;
 
@@ -921,11 +929,11 @@ retry:
 
 		os_fast_mutex_unlock(&srv_conc_mutex);
 
-		trx->op_info = (char*)"sleeping before joining InnoDB queue";
+		trx->op_info = "sleeping before joining InnoDB queue";
 
 		os_thread_sleep(50000);
 
-		trx->op_info = (char*)"";
+		trx->op_info = "";
 
 		os_fast_mutex_lock(&srv_conc_mutex);
 
@@ -978,11 +986,11 @@ retry:
 	/* Go to wait for the event; when a thread leaves InnoDB it will
 	release this thread */
 
-	trx->op_info = (char*)"waiting in InnoDB queue";
+	trx->op_info = "waiting in InnoDB queue";
 
 	os_event_wait(slot->event);
 
-	trx->op_info = (char*)"";
+	trx->op_info = "";
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 
@@ -1946,7 +1954,7 @@ loop:
 	/* ---- When there is database activity by users, we cycle in this
 	loop */
 
-	srv_main_thread_op_info = (char*) "reserving kernel mutex";
+	srv_main_thread_op_info = "reserving kernel mutex";
 
 	n_ios_very_old = log_sys->n_log_ios + buf_pool->n_pages_read
 						+ buf_pool->n_pages_written;
@@ -1970,7 +1978,7 @@ loop:
 	for (i = 0; i < 10; i++) {
 		n_ios_old = log_sys->n_log_ios + buf_pool->n_pages_read
 						+ buf_pool->n_pages_written;
-		srv_main_thread_op_info = (char*)"sleeping";
+		srv_main_thread_op_info = "sleeping";
 		
 		if (!skip_sleep) {
 
@@ -1983,12 +1991,11 @@ loop:
 		can drop tables lazily after there no longer are SELECT
 		queries to them. */
 
-		srv_main_thread_op_info =
-					(char*)"doing background drop tables";
+		srv_main_thread_op_info = "doing background drop tables";
 
 		row_drop_tables_for_mysql_in_background();
 
-		srv_main_thread_op_info = (char*)"";
+		srv_main_thread_op_info = "";
 
 		if (srv_fast_shutdown && srv_shutdown_state > 0) {
 
@@ -1999,10 +2006,10 @@ loop:
 		is issued or the we have specified in my.cnf no flush
 		at transaction commit */
 
-		srv_main_thread_op_info = (char*)"flushing log";
+		srv_main_thread_op_info = "flushing log";
 		log_buffer_flush_to_disk();
 
-		srv_main_thread_op_info = (char*)"making checkpoint";
+		srv_main_thread_op_info = "making checkpoint";
 		log_free_check();
 
 		/* If there were less than 5 i/os during the
@@ -2015,11 +2022,10 @@ loop:
 		n_ios = log_sys->n_log_ios + buf_pool->n_pages_read
 						+ buf_pool->n_pages_written;
 		if (n_pend_ios < 3 && (n_ios - n_ios_old < 5)) {
-			srv_main_thread_op_info =
-					(char*)"doing insert buffer merge";
+			srv_main_thread_op_info = "doing insert buffer merge";
 			ibuf_contract_for_n_pages(TRUE, 5);
 
-			srv_main_thread_op_info = (char*)"flushing log";
+			srv_main_thread_op_info = "flushing log";
 
 			log_buffer_flush_to_disk();
 		}
@@ -2067,20 +2073,20 @@ loop:
 						+ buf_pool->n_pages_written;
 	if (n_pend_ios < 3 && (n_ios - n_ios_very_old < 200)) {
 
-		srv_main_thread_op_info = (char*) "flushing buffer pool pages";
+		srv_main_thread_op_info = "flushing buffer pool pages";
 		buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
 
-		srv_main_thread_op_info = (char*) "flushing log";
+		srv_main_thread_op_info = "flushing log";
 		log_buffer_flush_to_disk();
 	}
 
 	/* We run a batch of insert buffer merge every 10 seconds,
 	even if the server were active */
 
-	srv_main_thread_op_info = (char*)"doing insert buffer merge";
+	srv_main_thread_op_info = "doing insert buffer merge";
 	ibuf_contract_for_n_pages(TRUE, 5);
 
-	srv_main_thread_op_info = (char*)"flushing log";
+	srv_main_thread_op_info = "flushing log";
 	log_buffer_flush_to_disk();
 
 	/* We run a full purge every 10 seconds, even if the server
@@ -2097,20 +2103,20 @@ loop:
 			goto background_loop;
 		}
 
-		srv_main_thread_op_info = (char*)"purging";
+		srv_main_thread_op_info = "purging";
 		n_pages_purged = trx_purge();
 
 		current_time = time(NULL);
 
 		if (difftime(current_time, last_flush_time) > 1) {
-			srv_main_thread_op_info = (char*) "flushing log";
+			srv_main_thread_op_info = "flushing log";
 
 		        log_buffer_flush_to_disk();
 			last_flush_time = current_time;
 		}
 	}
 	
-	srv_main_thread_op_info = (char*)"flushing buffer pool pages";
+	srv_main_thread_op_info = "flushing buffer pool pages";
 
 	/* Flush a few oldest pages to make a new checkpoint younger */
 
@@ -2131,13 +2137,13 @@ loop:
 							ut_dulint_max);
 	}
 
-	srv_main_thread_op_info = (char*)"making checkpoint";
+	srv_main_thread_op_info = "making checkpoint";
 
 	/* Make a new checkpoint about once in 10 seconds */
 
 	log_checkpoint(TRUE, FALSE);
 
-	srv_main_thread_op_info = (char*)"reserving kernel mutex";
+	srv_main_thread_op_info = "reserving kernel mutex";
 
 	mutex_enter(&kernel_mutex);
 	
@@ -2161,7 +2167,7 @@ background_loop:
 	/* The server has been quiet for a while: start running background
 	operations */
 		
-	srv_main_thread_op_info = (char*)"doing background drop tables";
+	srv_main_thread_op_info = "doing background drop tables";
 
 	n_tables_to_drop = row_drop_tables_for_mysql_in_background();
 
@@ -2174,7 +2180,7 @@ background_loop:
 		os_thread_sleep(100000);
 	}
  
-	srv_main_thread_op_info = (char*)"purging";
+	srv_main_thread_op_info = "purging";
 
 	/* Run a full purge */
 	
@@ -2188,20 +2194,20 @@ background_loop:
 			break;
 		}
 
-		srv_main_thread_op_info = (char*)"purging";
+		srv_main_thread_op_info = "purging";
 		n_pages_purged = trx_purge();
 
 		current_time = time(NULL);
 
 		if (difftime(current_time, last_flush_time) > 1) {
-			srv_main_thread_op_info = (char*) "flushing log";
+			srv_main_thread_op_info = "flushing log";
 
 		        log_buffer_flush_to_disk();
 			last_flush_time = current_time;
 		}
 	}
 
-	srv_main_thread_op_info = (char*)"reserving kernel mutex";
+	srv_main_thread_op_info = "reserving kernel mutex";
 
 	mutex_enter(&kernel_mutex);
 	if (srv_activity_count != old_activity_count) {
@@ -2210,7 +2216,7 @@ background_loop:
 	}
 	mutex_exit(&kernel_mutex);
 
-	srv_main_thread_op_info = (char*)"doing insert buffer merge";
+	srv_main_thread_op_info = "doing insert buffer merge";
 
 	if (srv_fast_shutdown && srv_shutdown_state > 0) {
 	        n_bytes_merged = 0;
@@ -2218,7 +2224,7 @@ background_loop:
 	        n_bytes_merged = ibuf_contract_for_n_pages(TRUE, 20);
 	}
 
-	srv_main_thread_op_info = (char*)"reserving kernel mutex";
+	srv_main_thread_op_info = "reserving kernel mutex";
 
 	mutex_enter(&kernel_mutex);
 	if (srv_activity_count != old_activity_count) {
@@ -2228,10 +2234,10 @@ background_loop:
 	mutex_exit(&kernel_mutex);
 	
 flush_loop:
-	srv_main_thread_op_info = (char*)"flushing buffer pool pages";
+	srv_main_thread_op_info = "flushing buffer pool pages";
 	n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
 
-	srv_main_thread_op_info = (char*)"reserving kernel mutex";
+	srv_main_thread_op_info = "reserving kernel mutex";
 
 	mutex_enter(&kernel_mutex);
 	if (srv_activity_count != old_activity_count) {
@@ -2240,15 +2246,14 @@ flush_loop:
 	}
 	mutex_exit(&kernel_mutex);
 	
-	srv_main_thread_op_info =
-			(char*) "waiting for buffer pool flush to end";
+	srv_main_thread_op_info = "waiting for buffer pool flush to end";
 	buf_flush_wait_batch_end(BUF_FLUSH_LIST);
 
-	srv_main_thread_op_info = (char*) "flushing log";
+	srv_main_thread_op_info = "flushing log";
 
 	log_buffer_flush_to_disk();
 
-	srv_main_thread_op_info = (char*)"making checkpoint";
+	srv_main_thread_op_info = "making checkpoint";
 
 	log_checkpoint(TRUE, FALSE);
 
@@ -2260,7 +2265,7 @@ flush_loop:
 		goto flush_loop;
 	}
 
-	srv_main_thread_op_info = (char*)"reserving kernel mutex";
+	srv_main_thread_op_info = "reserving kernel mutex";
 
 	mutex_enter(&kernel_mutex);
 	if (srv_activity_count != old_activity_count) {
@@ -2269,8 +2274,7 @@ flush_loop:
 	}
 	mutex_exit(&kernel_mutex);
 /*
-	srv_main_thread_op_info =
-				(char*)"archiving log (if log archive is on)";
+	srv_main_thread_op_info = "archiving log (if log archive is on)";
 	
 	log_archive_do(FALSE, &n_bytes_archived);
 */
@@ -2301,7 +2305,7 @@ flush_loop:
 	master thread to wait for more server activity */
 	
 suspend_thread:
-	srv_main_thread_op_info = (char*)"suspending";
+	srv_main_thread_op_info = "suspending";
 
 	mutex_enter(&kernel_mutex);
 
@@ -2315,7 +2319,7 @@ suspend_thread:
 
 	mutex_exit(&kernel_mutex);
 
-	srv_main_thread_op_info = (char*)"waiting for server activity";
+	srv_main_thread_op_info = "waiting for server activity";
 
 	os_event_wait(event);
 

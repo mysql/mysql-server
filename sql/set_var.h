@@ -49,10 +49,14 @@ public:
   const char *name;
   
   sys_after_update_func after_update;
-  sys_var(const char *name_arg) :name(name_arg),after_update(0)
-  {}
+  bool no_support_one_shot;
+  sys_var(const char *name_arg)
+    :name(name_arg), after_update(0)
+    , no_support_one_shot(1)
+    {}
   sys_var(const char *name_arg,sys_after_update_func func)
-    :name(name_arg),after_update(func)
+    :name(name_arg), after_update(func)
+    , no_support_one_shot(1)
   {}
   virtual ~sys_var() {}
   virtual bool check(THD *thd, set_var *var);
@@ -452,7 +456,7 @@ public:
 };
 
 
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
 class sys_var_slave_skip_counter :public sys_var
 {
 public:
@@ -464,6 +468,14 @@ public:
     We can't retrieve the value of this, so we don't have to define
     type() or value_ptr()
   */
+};
+
+class sys_var_sync_binlog_period :public sys_var_long_ptr
+{
+public:
+  sys_var_sync_binlog_period(const char *name_arg, ulong *value_ptr)
+    :sys_var_long_ptr(name_arg,value_ptr) {}
+  bool update(THD *thd, set_var *var);
 };
 #endif
 
@@ -487,12 +499,15 @@ public:
 class sys_var_collation :public sys_var_thd
 {
 public:
-  sys_var_collation(const char *name_arg) :sys_var_thd(name_arg) {}
+  sys_var_collation(const char *name_arg) :sys_var_thd(name_arg)
+    {
+    no_support_one_shot= 0;
+    }
   bool check(THD *thd, set_var *var);
 SHOW_TYPE type() { return SHOW_CHAR; }
   bool check_update_type(Item_result type)
   {
-    return type != STRING_RESULT;		/* Only accept strings */
+    return ((type != STRING_RESULT) && (type != INT_RESULT));
   }
   bool check_default(enum_var_type type) { return 0; }
   virtual void set_default(THD *thd, enum_var_type type)= 0;
@@ -502,13 +517,21 @@ class sys_var_character_set :public sys_var_thd
 {
 public:
   bool nullable;
-  sys_var_character_set(const char *name_arg) :sys_var_thd(name_arg) 
-  { nullable= 0; }
+  sys_var_character_set(const char *name_arg) :
+    sys_var_thd(name_arg)
+  {
+    nullable= 0;
+    /*
+      In fact only almost all variables derived from sys_var_character_set
+      support ONE_SHOT; character_set_results doesn't. But that's good enough.
+    */
+    no_support_one_shot= 0;
+  }
   bool check(THD *thd, set_var *var);
   SHOW_TYPE type() { return SHOW_CHAR; }
   bool check_update_type(Item_result type)
   {
-    return type != STRING_RESULT;		/* Only accept strings */
+    return ((type != STRING_RESULT) && (type != INT_RESULT));
   }
   bool check_default(enum_var_type type) { return 0; }
   bool update(THD *thd, set_var *var);
@@ -541,6 +564,9 @@ class sys_var_character_set_server :public sys_var_character_set
 public:
   sys_var_character_set_server(const char *name_arg) :
     sys_var_character_set(name_arg) {}
+#if defined(HAVE_REPLICATION)
+  bool check(THD *thd, set_var *var);
+#endif
   void set_default(THD *thd, enum_var_type type);
   CHARSET_INFO **ci_ptr(THD *thd, enum_var_type type);
 };
@@ -576,6 +602,9 @@ class sys_var_collation_server :public sys_var_collation
 {
 public:
   sys_var_collation_server(const char *name_arg) :sys_var_collation(name_arg) {}
+#if defined(HAVE_REPLICATION)
+  bool check(THD *thd, set_var *var);
+#endif
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
@@ -630,7 +659,7 @@ public:
 class sys_var_thd_date_time_format :public sys_var_thd
 {
   DATE_TIME_FORMAT *SV::*offset;
-  enum timestamp_type date_time_type;
+  timestamp_type date_time_type;
 public:
   sys_var_thd_date_time_format(const char *name_arg,
 			       DATE_TIME_FORMAT *SV::*offset_arg,
@@ -677,6 +706,27 @@ public:
   SHOW_TYPE type() { return show_type; }
 };
 
+class sys_var_thd_time_zone :public sys_var_thd
+{
+public:
+  sys_var_thd_time_zone(const char *name_arg):
+    sys_var_thd(name_arg) 
+  {
+    no_support_one_shot= 0;
+  }
+  bool check(THD *thd, set_var *var);
+  SHOW_TYPE type() { return SHOW_CHAR; }
+  bool check_update_type(Item_result type)
+  {
+    return type != STRING_RESULT;		/* Only accept strings */
+  }
+  bool check_default(enum_var_type type) { return 0; }
+  bool update(THD *thd, set_var *var);
+  byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+  virtual void set_default(THD *thd, enum_var_type type);
+  Time_zone **get_tz_ptr(THD *thd, enum_var_type type);
+};
+
 /****************************************************************************
   Classes for parsing of the SET command
 ****************************************************************************/
@@ -689,7 +739,8 @@ public:
   virtual int check(THD *thd)=0;	/* To check privileges etc. */
   virtual int update(THD *thd)=0;	/* To set the value */
   /* light check for PS */
-  virtual   int light_check(THD *thd) { return check(thd); }
+  virtual int light_check(THD *thd) { return check(thd); }
+  virtual bool no_support_one_shot() { return 1; }
 };
 
 
@@ -707,6 +758,7 @@ public:
     ulong ulong_value;
     ulonglong ulonglong_value;
     DATE_TIME_FORMAT *date_time_format;
+    Time_zone *time_zone;
   } save_result;
   LEX_STRING base;			/* for structs */
 
@@ -731,6 +783,7 @@ public:
   int check(THD *thd);
   int update(THD *thd);
   int light_check(THD *thd);
+  bool no_support_one_shot() { return var->no_support_one_shot; }
 };
 
 
@@ -833,6 +886,7 @@ void set_var_init();
 void set_var_free();
 sys_var *find_sys_var(const char *str, uint length=0);
 int sql_set_variables(THD *thd, List<set_var_base> *var_list);
+bool not_all_support_one_shot(List<set_var_base> *var_list);
 void fix_delay_key_write(THD *thd, enum_var_type type);
 ulong fix_sql_mode(ulong sql_mode);
 extern sys_var_str sys_charset_system;

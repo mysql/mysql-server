@@ -1,0 +1,112 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Simple test to show use of ordered indexes 
+#
+
+CREATE TABLE t1 (
+  a int unsigned NOT NULL PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned,
+  KEY(b)	
+) engine=ndbcluster;
+
+insert t1 values(1, 2, 3), (2,3, 5), (3, 4, 6), (4, 5, 8), (5,6, 2), (6,7, 2);
+select * from t1 order by b;
+select * from t1 where b >= 4 order by b;
+select * from t1 where b = 4 order by b;
+select * from t1 where b > 4 order by b;
+select * from t1 where b < 4 order by b;
+select * from t1 where b <= 4 order by b;
+
+#
+# Here we should add some "explain select" to verify that the ordered index is 
+# used for these queries.
+#
+
+#
+# Update using ordered index scan
+#
+
+update t1 set c = 3 where b = 3;
+select * from t1 order by a;
+update t1 set c = 10 where b >= 6;
+select * from t1 order by a;
+update t1 set c = 11 where b < 5;
+select * from t1 order by a;
+update t1 set c = 12 where b > 0;
+select * from t1 order by a;
+update t1 set c = 13 where b <= 3;
+select * from t1 order by a;
+
+
+#
+# Delete using ordered index scan
+#
+
+drop table t1;
+
+CREATE TABLE t1 (
+  a int unsigned NOT NULL PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned,
+  KEY(b)	
+) engine=ndbcluster;
+
+insert t1 values(1, 2, 13), (2,3, 13), (3, 4, 12), (4, 5, 12), (5,6, 12), (6,7, 12);
+
+delete from t1 where b = 3;
+select * from t1 order by a;
+delete from t1 where b >= 6;
+select * from t1 order by a;
+delete from t1 where b < 4;
+select * from t1 order by a;
+delete from t1 where b > 5;
+select * from t1 order by a;
+delete from t1 where b <= 4;
+select * from t1 order by a;
+
+drop table t1;
+
+
+#
+#multi part key
+#
+CREATE TABLE t1 (
+  a int unsigned NOT NULL PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned not null
+) engine = ndb;
+
+create index a1 on t1 (b, c);
+
+insert into t1 values (1, 2, 13);
+insert into t1 values (2,3, 13);
+insert into t1 values (3, 4, 12);
+insert into t1 values (4, 5, 12);
+insert into t1 values (5,6, 12);
+insert into t1 values (6,7, 12);
+insert into t1 values (7, 2, 1);
+insert into t1 values (8,3, 6);
+insert into t1 values (9, 4, 12);
+insert into t1 values (14, 5, 4);
+insert into t1 values (15,5,5);
+insert into t1 values (16,5, 6);
+insert into t1 values (17,4,4);
+insert into t1 values (18,1, 7);
+
+
+
+select * from t1 order by a;
+select * from t1 where b<=5 order by a;
+select * from t1 where b<=5 and c=0;
+insert into t1 values (19,4, 0);
+select * from t1 where b<=5 and c=0;
+select * from t1 where b=4 and c<=5 order by a;
+select * from t1 where b<=4 and c<=5 order by a;
+select * from t1 where b<=5 and c=0 or b<=5 and c=2;
+drop table t1;

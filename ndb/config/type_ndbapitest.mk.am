@@ -1,0 +1,11 @@
+
+LDADD += $(top_builddir)/ndb/test/src/libNDBT.a \
+         $(top_builddir)/ndb/src/libndbclient.la
+
+INCLUDES += -I$(srcdir) -I$(top_srcdir)/include \
+	-I$(top_srcdir)/ndb/include \
+        -I$(top_srcdir)/ndb/include/ndbapi \
+        -I$(top_srcdir)/ndb/include/util \
+        -I$(top_srcdir)/ndb/include/portlib \
+        -I$(top_srcdir)/ndb/test/include \
+        -I$(top_srcdir)/ndb/include/mgmapi

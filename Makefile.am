@@ -24,7 +24,7 @@ SUBDIRS =		. include @docs_dirs@ \
 			@readline_topdir@ sql-common \
 			@thread_dirs@ pstack @sql_client_dirs@ \
 			@sql_server_dirs@ scripts man tests SSL\
-			BUILD @netware_dir@ os2 @libmysqld_dirs@ \
+			BUILD netware os2 @libmysqld_dirs@ \
 			@bench_dirs@ support-files @fs_dirs@ @tools_dirs@
 
 # Relink after clean
@@ -36,7 +36,7 @@ linked_sources = linked_client_sources linked_server_sources \
 CLEANFILES = $(linked_sources)
 
 # This is just so that the linking is done early.
-config.h: $(linked_sources)
+all-local: $(linked_sources)
 
 linked_include_sources:
 	cd include; $(MAKE) link_sources
@@ -71,7 +71,8 @@ linked_server_sources:
 	cd sql; rm -f mini_client_errors.c;\
 		@LN_CP_F@ ../libmysql/errmsg.c mini_client_errors.c;\
 		rm -f pack.c;@LN_CP_F@ ../sql-common/pack.c pack.c;\
-		rm -f client.c;@LN_CP_F@ ../sql-common/client.c client.c
+		rm -f client.c;@LN_CP_F@ ../sql-common/client.c client.c;\
+		rm -f my_time.c;@LN_CP_F@ ../sql-common/my_time.c my_time.c
 	echo timestamp > linked_server_sources
 
 # Create permission databases

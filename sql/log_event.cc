@@ -203,6 +203,29 @@ static inline int read_str(char * &buf, char *buf_end, char * &str,
 }
 
 /*
+  Transforms a string into "" or its expression in 0x... form.
+*/
+static char *str_to_hex(char *to, char *from, uint len)
+{
+  char *p= to;
+  if (len)
+  {
+    p= strmov(p, "0x");
+    for (uint i= 0; i < len; i++, p+= 2)
+    {
+      /* val[i] is char. Casting to uchar helps greatly if val[i] < 0 */
+      uint tmp= (uint) (uchar) from[i];
+      p[0]= _dig_vec_upper[tmp >> 4];
+      p[1]= _dig_vec_upper[tmp & 15];
+    }
+    *p= 0;
+  }
+  else
+    p= strmov(p, "\"\"");
+  return p; // pointer to end 0 of 'to'
+}
+
+/*
   Prints a "session_var=value" string. Used by mysqlbinlog to print some SET
   commands just before it prints a query.
 */
@@ -607,6 +630,7 @@ end:
 #else
 #define UNLOCK_MUTEX
 #define LOCK_MUTEX
+#define max_allowed_packet (*mysql_get_parameters()->p_max_allowed_packet)
 #endif
 
 /*
@@ -2398,12 +2422,17 @@ void Load_log_event::set_fields(List<Item> &field_list)
 int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli, 
 			       bool use_rli_only_for_errors)
 {
+  char *load_data_query= 0;
   thd->db= (char*) rewrite_db(db);
   DBUG_ASSERT(thd->query == 0);
-  thd->query= 0;				// Should not be needed
   thd->query_length= 0;                         // Should not be needed
   thd->query_error= 0;
   clear_all_errors(thd, rli);
+  /*
+    Usually mysql_init_query() is called by mysql_parse(), but we need it here
+    as the present method does not call mysql_parse().
+  */
+  mysql_init_query(thd, 0, 0);
   if (!use_rli_only_for_errors)
   {
     /* Saved for InnoDB, see comment in Query_log_event::exec_event() */
@@ -2433,6 +2462,13 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = query_id++;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
+    /*
+      Initing thd->row_count is not necessary in theory as this variable has no
+      influence in the case of the slave SQL thread (it is used to generate a
+      "data truncated" warning but which is absorbed and never gets to the
+      error log); still we init it to avoid a Valgrind message.
+    */
+    mysql_reset_errors(thd);
 
     TABLE_LIST tables;
     bzero((char*) &tables,sizeof(tables));
@@ -2452,6 +2488,19 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     {
       char llbuff[22];
       enum enum_duplicates handle_dup;
+      /*
+        Make a simplified LOAD DATA INFILE query, for the information of the
+        user in SHOW PROCESSLIST. Note that db is known in the 'db' column.
+      */
+      if ((load_data_query= (char *) my_alloca(18 + strlen(fname) + 14 +
+                                               strlen(tables.real_name) + 8)))
+      {
+        thd->query_length= (uint)(strxmov(load_data_query,
+                                          "LOAD DATA INFILE '", fname,
+                                          "' INTO TABLE `", tables.real_name,
+                                          "` <...>", NullS) - load_data_query);
+        thd->query= load_data_query;
+      }
       if (sql_ex.opt_flags & REPLACE_FLAG)
 	handle_dup= DUP_REPLACE;
       else if (sql_ex.opt_flags & IGNORE_FLAG)
@@ -2533,9 +2582,14 @@ Slave: load data infile on table '%s' at log position %s in log \
   }
 	    
   thd->net.vio = 0; 
-  /* Same reason as in Query_log_event::exec_event() */
-  thd->db= thd->catalog= 0; 
+  VOID(pthread_mutex_lock(&LOCK_thread_count));
+  thd->db= thd->catalog= 0;
+  thd->query= 0;
+  thd->query_length= 0;
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);
+  if (load_data_query)
+    my_afree(load_data_query);
   if (thd->query_error)
   {
     /* this err/sql_errno code is copy-paste from send_error() */
@@ -2910,7 +2964,7 @@ int Rand_log_event::exec_event(struct st_relay_log_info* rli)
 void User_var_log_event::pack_info(Protocol* protocol)
 {
   char *buf= 0;
-  uint val_offset= 2 + name_len;
+  uint val_offset= 4 + name_len;
   uint event_len= val_offset;
 
   if (is_null)
@@ -2934,16 +2988,21 @@ void User_var_log_event::pack_info(Protocol* protocol)
       event_len= longlong10_to_str(uint8korr(val), buf + val_offset,-10)-buf;
       break;
     case STRING_RESULT:
-      /*
-	This is correct as pack_info is used for SHOW BINLOG command
-	only. But be carefull this is may be incorrect in other cases as
-	string may contain \ and '.
-      */
-      event_len= val_offset + 2 + val_len;
-      buf= my_malloc(event_len, MYF(MY_WME));
-      buf[val_offset]= '\'';
-      memcpy(buf + val_offset + 1, val, val_len);
-      buf[val_offset + val_len + 1]= '\'';
+      /* 15 is for 'COLLATE' and other chars */
+      buf= my_malloc(event_len+val_len*2+1+2*MY_CS_NAME_SIZE+15, MYF(MY_WME));
+      CHARSET_INFO *cs;
+      if (!(cs= get_charset(charset_number, MYF(0))))
+      {
+        strmov(buf+val_offset, "???");
+        event_len+= 3;
+      }
+      else
+      {
+        char *p= strxmov(buf + val_offset, "_", cs->csname, " ", NullS);
+        p= str_to_hex(p, val, val_len);
+        p= strxmov(p, " COLLATE ", cs->name, NullS);
+        event_len= p-buf;
+      }
       break;
     case ROW_RESULT:
     default:
@@ -2952,8 +3011,10 @@ void User_var_log_event::pack_info(Protocol* protocol)
     }
   }
   buf[0]= '@';
-  buf[1+name_len]= '=';
-  memcpy(buf+1, name, name_len);
+  buf[1]= '`';
+  buf[2+name_len]= '`';
+  buf[3+name_len]= '=';
+  memcpy(buf+2, name, name_len);
   protocol->store(buf, event_len, &my_charset_bin);
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
 }
@@ -3046,8 +3107,9 @@ void User_var_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* las
     fprintf(file, "\tUser_var\n");
   }
 
-  fprintf(file, "SET @");
+  fprintf(file, "SET @`");
   my_fwrite(file, (byte*) name, (uint) (name_len), MYF(MY_NABP | MY_WME));
+  fprintf(file, "`");
 
   if (is_null)
   {
@@ -3067,7 +3129,43 @@ void User_var_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* las
       fprintf(file, ":=%s;\n", int_buf);
       break;
     case STRING_RESULT:
-      fprintf(file, ":='%s';\n", val);
+    {
+      /*
+        Let's express the string in hex. That's the most robust way. If we
+        print it in character form instead, we need to escape it with
+        character_set_client which we don't know (we will know it in 5.0, but
+        in 4.1 we don't know it easily when we are printing
+        User_var_log_event). Explanation why we would need to bother with
+        character_set_client (quoting Bar):
+        > Note, the parser doesn't switch to another unescaping mode after
+        > it has met a character set introducer.
+        > For example, if an SJIS client says something like:
+        > SET @a= _ucs2 \0a\0b'
+        > the string constant is still unescaped according to SJIS, not
+        > according to UCS2.
+      */
+      char *hex_str;
+      CHARSET_INFO *cs;
+
+      if (!(hex_str= (char *)my_alloca(2*val_len+1+2))) // 2 hex digits / byte
+        break; // no error, as we are 'void'
+      str_to_hex(hex_str, val, val_len);
+      /*
+        For proper behaviour when mysqlbinlog|mysql, we need to explicitely
+        specify the variable's collation. It will however cause problems when
+        people want to mysqlbinlog|mysql into another server not supporting the
+        character set. But there's not much to do about this and it's unlikely.
+      */
+      if (!(cs= get_charset(charset_number, MYF(0))))
+        /*
+          Generate an unusable command (=> syntax error) is probably the best
+          thing we can do here.
+        */
+        fprintf(file, ":=???;\n");
+      else
+        fprintf(file, ":=_%s %s COLLATE %s;\n", cs->csname, hex_str, cs->name);
+      my_afree(hex_str);
+    }
       break;
     case ROW_RESULT:
     default:
@@ -3088,7 +3186,9 @@ void User_var_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* las
 int User_var_log_event::exec_event(struct st_relay_log_info* rli)
 {
   Item *it= 0;
-  CHARSET_INFO *charset= get_charset(charset_number, MYF(0));
+  CHARSET_INFO *charset;
+  if (!(charset= get_charset(charset_number, MYF(MY_WME))))
+    return 1;
   LEX_STRING user_var_name;
   user_var_name.str= name;
   user_var_name.length= name_len;
@@ -3532,7 +3632,7 @@ void Create_file_log_event::pack_info(Protocol *protocol)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  char fname_buf[FN_REFLEN+10];
+  char proc_info[17+FN_REFLEN+10], *fname_buf= proc_info+17;
   char *p;
   int fd = -1;
   IO_CACHE file;
@@ -3541,6 +3641,8 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
   bzero((char*)&file, sizeof(file));
   p = slave_load_file_stem(fname_buf, file_id, server_id);
   strmov(p, ".info");			// strmov takes less code than memcpy
+  strnmov(proc_info, "Making temp file ", 17); // no end 0
+  thd->proc_info= proc_info;
   if ((fd = my_open(fname_buf, O_WRONLY|O_CREAT|O_BINARY|O_TRUNC,
 		    MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, WRITE_CACHE, (my_off_t)0, 0,
@@ -3584,6 +3686,7 @@ err:
     end_io_cache(&file);
   if (fd >= 0)
     my_close(fd, MYF(0));
+  thd->proc_info= 0;
   return error ? 1 : Log_event::exec_event(rli);
 }
 #endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
@@ -3686,13 +3789,15 @@ void Append_block_log_event::pack_info(Protocol *protocol)
 #if defined( HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  char fname[FN_REFLEN+10];
+  char proc_info[17+FN_REFLEN+10], *fname= proc_info+17;
   char *p= slave_load_file_stem(fname, file_id, server_id);
   int fd;
   int error = 1;
   DBUG_ENTER("Append_block_log_event::exec_event");
 
   memcpy(p, ".data", 6);
+  strnmov(proc_info, "Making temp file ", 17); // no end 0
+  thd->proc_info= proc_info;
   if ((fd = my_open(fname, O_WRONLY|O_APPEND|O_BINARY, MYF(MY_WME))) < 0)
   {
     slave_print_error(rli,my_errno, "Error in Append_block event: could not open file '%s'", fname);
@@ -3708,6 +3813,7 @@ int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
 err:
   if (fd >= 0)
     my_close(fd, MYF(0));
+  thd->proc_info= 0;
   DBUG_RETURN(error ? error : Log_event::exec_event(rli));
 }
 #endif

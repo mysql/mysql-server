@@ -218,3 +218,28 @@ b
 select * from t1 where a = 'b' and a != 'b';
 a
 drop table t1;
+set names utf8;
+select  'вася'  rlike '[[:<:]]вася[[:>:]]';
+'вася'  rlike '[[:<:]]вася[[:>:]]'
+1
+select  'вася ' rlike '[[:<:]]вася[[:>:]]';
+'вася ' rlike '[[:<:]]вася[[:>:]]'
+1
+select ' вася'  rlike '[[:<:]]вася[[:>:]]';
+' вася'  rlike '[[:<:]]вася[[:>:]]'
+1
+select ' вася ' rlike '[[:<:]]вася[[:>:]]';
+' вася ' rlike '[[:<:]]вася[[:>:]]'
+1
+select  'васяz' rlike '[[:<:]]вася[[:>:]]';
+'васяz' rlike '[[:<:]]вася[[:>:]]'
+0
+select 'zвася'  rlike '[[:<:]]вася[[:>:]]';
+'zвася'  rlike '[[:<:]]вася[[:>:]]'
+0
+select 'zвасяz' rlike '[[:<:]]вася[[:>:]]';
+'zвасяz' rlike '[[:<:]]вася[[:>:]]'
+0
+CREATE TABLE t1 (a enum ('Y', 'N') DEFAULT 'N' COLLATE utf8_unicode_ci);
+ALTER TABLE t1 ADD COLUMN b CHAR(20);
+DROP TABLE t1;

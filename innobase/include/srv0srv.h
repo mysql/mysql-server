@@ -16,10 +16,7 @@ Created 10/10/1995 Heikki Tuuri
 #include "que0types.h"
 #include "trx0types.h"
 
-extern char*	srv_main_thread_op_info;
-
-/* Buffer which can be used in printing fatal error messages */
-extern char	srv_fatal_errbuf[];
+extern const char*	srv_main_thread_op_info;
 
 /* When this event is set the lock timeout and InnoDB monitor
 thread starts running */
@@ -40,7 +37,9 @@ extern FILE*	srv_monitor_file;
 /* Server parameters which are read from the initfile */
 
 extern char*	srv_data_home;
+#ifdef UNIV_LOG_ARCHIVE
 extern char*	srv_arch_dir;
+#endif /* UNIV_LOG_ARCHIVE */
 
 extern ibool	srv_file_per_table;
 
@@ -62,7 +61,6 @@ extern char**	srv_log_group_home_dirs;
 extern ulint	srv_n_log_groups;
 extern ulint	srv_n_log_files;
 extern ulint	srv_log_file_size;
-extern ibool	srv_log_archive_on;
 extern ulint	srv_log_buffer_size;
 extern ulint	srv_flush_log_at_trx_commit;
 
@@ -75,8 +73,11 @@ extern ulint	srv_lock_table_size;
 
 extern ulint	srv_n_file_io_threads;
 
+#ifdef UNIV_LOG_ARCHIVE
+extern ibool	srv_log_archive_on;
 extern ibool	srv_archive_recovery;
 extern dulint	srv_archive_recovery_limit_lsn;
+#endif /* UNIV_LOG_ARCHIVE */
 
 extern ulint	srv_lock_wait_timeout;
 
@@ -156,6 +157,7 @@ extern	ulint	srv_test_n_mutexes;
 extern	ulint	srv_test_array_size;
 
 extern ulint	srv_activity_count;
+extern ulint	srv_fatal_semaphore_wait_threshold;
 
 extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 				query threads, and lock table: we allocate

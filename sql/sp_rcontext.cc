@@ -40,12 +40,19 @@ sp_rcontext::sp_rcontext(uint fsize, uint hmax, uint cmax)
   m_saved.empty();
 }
 
-void
+int
 sp_rcontext::set_item_eval(uint idx, Item *i, enum_field_types type)
 {
   extern Item *sp_eval_func_item(THD *thd, Item *it, enum_field_types type);
+  Item *it= sp_eval_func_item(current_thd, i, type);
 
-  set_item(idx, sp_eval_func_item(current_thd, i, type));
+  if (! it)
+    return -1;
+  else
+  {
+    set_item(idx, it);
+    return 0;
+  }
 }
 
 int

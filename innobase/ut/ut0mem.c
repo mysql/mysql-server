@@ -203,6 +203,81 @@ ut_free(
 }
 
 /**************************************************************************
+Implements realloc. This is needed by /pars/lexyy.c. Otherwise, you should not
+use this function because the allocation functions in mem0mem.h are the
+recommended ones in InnoDB.
+
+man realloc in Linux, 2004:
+
+       realloc()  changes the size of the memory block pointed to
+       by ptr to size bytes.  The contents will be  unchanged  to
+       the minimum of the old and new sizes; newly allocated mem­
+       ory will be uninitialized.  If ptr is NULL,  the  call  is
+       equivalent  to malloc(size); if size is equal to zero, the
+       call is equivalent to free(ptr).  Unless ptr is  NULL,  it
+       must  have  been  returned by an earlier call to malloc(),
+       calloc() or realloc().
+
+RETURN VALUE
+       realloc() returns a pointer to the newly allocated memory,
+       which is suitably aligned for any kind of variable and may
+       be different from ptr, or NULL if the  request  fails.  If
+       size  was equal to 0, either NULL or a pointer suitable to
+       be passed to free() is returned.  If realloc()  fails  the
+       original  block  is  left  untouched  - it is not freed or
+       moved. */
+
+void*
+ut_realloc(
+/*=======*/
+			/* out, own: pointer to new mem block or NULL */
+	void*	ptr,	/* in: pointer to old block or NULL */
+	ulint	size)	/* in: desired size */
+{
+        ut_mem_block_t* block;
+	ulint		old_size;
+	ulint		min_size;
+	void*		new_ptr;
+
+	if (ptr == NULL) {
+
+		return(ut_malloc(size));
+	}
+
+	if (size == 0) {
+		ut_free(ptr);
+
+		return(NULL);
+	}
+
+	block = (ut_mem_block_t*)((byte*)ptr - sizeof(ut_mem_block_t));
+
+	ut_a(block->magic_n == UT_MEM_MAGIC_N);
+
+	old_size = block->size - sizeof(ut_mem_block_t);
+
+	if (size < old_size) {
+		min_size = size;
+	} else {
+		min_size = old_size;
+	}
+		
+	new_ptr = ut_malloc(size);
+
+	if (new_ptr == NULL) {
+
+		return(NULL);
+	}				
+
+	/* Copy the old data from ptr */
+	ut_memcpy(new_ptr, ptr, min_size);
+
+	ut_free(ptr);
+
+	return(new_ptr);		
+}
+
+/**************************************************************************
 Frees in shutdown all allocated memory not freed yet. */
 
 void

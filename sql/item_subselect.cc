@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* 
+/*
    subselect Item
 
 SUBSELECT TODO:
@@ -41,7 +41,7 @@ Item_subselect::Item_subselect():
 {
   reset();
   /*
-    item value is NULL if select_subselect not changed this value 
+    item value is NULL if select_subselect not changed this value
     (i.e. some rows will be found returned)
   */
   null_value= 1;
@@ -73,6 +73,11 @@ void Item_subselect::init(st_select_lex *select_lex,
       engine= new subselect_union_engine(unit, result, this);
     else
       engine= new subselect_single_select_engine(select_lex, result, this);
+  }
+  {
+    SELECT_LEX *upper= unit->outer_select();
+    if (upper->parsing_place == SELECT_LEX_NODE::IN_HAVING)
+      upper->subquery_in_having= 1;
   }
   DBUG_VOID_RETURN;
 }
@@ -109,7 +114,7 @@ Item_subselect::~Item_subselect()
 }
 
 Item_subselect::trans_res
-Item_subselect::select_transformer(JOIN *join) 
+Item_subselect::select_transformer(JOIN *join)
 {
   DBUG_ENTER("Item_subselect::select_transformer");
   DBUG_RETURN(RES_OK);
@@ -123,7 +128,12 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
   arena= thd->current_arena;
 
   char const *save_where= thd->where;
-  int res= engine->prepare();
+  int res;
+
+  if (check_stack_overrun(thd, (gptr)&res))
+    return 1;
+
+  res= engine->prepare();
 
   // all transformetion is done (used by prepared statements)
   changed= 1;
@@ -143,11 +153,11 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
       if (have_to_be_excluded)
 	engine->exclude();
       substitution= 0;
-      thd->where= "checking transformed subquery";      
+      thd->where= "checking transformed subquery";
       if (!(*ref)->fixed)
 	ret= (*ref)->fix_fields(thd, tables, ref);
-      // We can't substitute aggregate functions (like (SELECT (max(i)))
-      if ((*ref)->with_sum_func)
+      // We can't substitute aggregate functions like "SELECT (max(i))"
+      if (substype() == SINGLEROW_SUBS && (*ref)->with_sum_func)
       {
 	my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
 	return 1;
@@ -156,7 +166,7 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
     }
     // Is it one field subselect?
     if (engine->cols() > max_columns)
-    {  
+    {
       my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
       return 1;
     }
@@ -194,7 +204,7 @@ bool Item_subselect::exec()
   return (res);
 }
 
-Item::Type Item_subselect::type() const 
+Item::Type Item_subselect::type() const
 {
   return SUBSELECT_ITEM;
 }
@@ -272,7 +282,7 @@ Item_maxmin_subselect::Item_maxmin_subselect(Item_subselect *parent,
   */
   used_tables_cache= parent->get_used_tables_cache();
   const_item_cache= parent->get_const_item_cache();
-  
+
   DBUG_VOID_RETURN;
 }
 
@@ -294,7 +304,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
 {
   if (changed)
     return RES_OK;
-    
+
   SELECT_LEX *select_lex= join->select_lex;
   Statement backup;
 
@@ -309,10 +319,10 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
 	TODO: solve above problem
       */
       !(select_lex->item_list.head()->type() == FIELD_ITEM ||
-	select_lex->item_list.head()->type() == REF_ITEM) 
+	select_lex->item_list.head()->type() == REF_ITEM)
       )
   {
-    
+
     have_to_be_excluded= 1;
     if (join->thd->lex->describe)
     {
@@ -350,7 +360,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     return RES_REDUCE;
   }
   return RES_OK;
-  
+
 err:
   if (arena)
     thd->restore_backup_item_arena(arena, &backup);
@@ -413,7 +423,7 @@ void Item_singlerow_subselect::bring_value()
   exec();
 }
 
-double Item_singlerow_subselect::val() 
+double Item_singlerow_subselect::val()
 {
   DBUG_ASSERT(fixed == 1);
   if (!exec() && !value->null_value)
@@ -428,7 +438,7 @@ double Item_singlerow_subselect::val()
   }
 }
 
-longlong Item_singlerow_subselect::val_int() 
+longlong Item_singlerow_subselect::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   if (!exec() && !value->null_value)
@@ -443,7 +453,7 @@ longlong Item_singlerow_subselect::val_int()
   }
 }
 
-String *Item_singlerow_subselect::val_str (String *str) 
+String *Item_singlerow_subselect::val_str (String *str)
 {
   if (!exec() && !value->null_value)
   {
@@ -548,7 +558,7 @@ double Item_exists_subselect::val()
   return (double) value;
 }
 
-longlong Item_exists_subselect::val_int() 
+longlong Item_exists_subselect::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   if (exec())
@@ -585,7 +595,7 @@ double Item_in_subselect::val()
   return (double) value;
 }
 
-longlong Item_in_subselect::val_int() 
+longlong Item_in_subselect::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   if (exec())
@@ -657,7 +667,6 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	!(select_lex->next_select()))
     {
       Item *item;
-      subs_type type= substype();
       if (func->l_op())
       {
 	/*
@@ -821,7 +830,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	*/
 	select_lex->having=
 	  join->having=
-	  func->create(expr, 
+	  func->create(expr,
 		       new Item_null_helper(this, item,
 					    (char *)"<no matter>",
 					    (char *)"<result>"));
@@ -838,7 +847,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       {
 	// it is single select without tables => possible optimization
 	item= func->create(left_expr, item);
-	// fix_field of item will be done in time of substituting 
+	// fix_field of item will be done in time of substituting
 	substitution= item;
 	have_to_be_excluded= 1;
 	if (thd->lex->describe)
@@ -881,7 +890,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
 
   thd->where= "row IN/ALL/ANY subquery";
   if (arena)
-    thd->set_n_backup_item_arena(arena, &backup);  
+    thd->set_n_backup_item_arena(arena, &backup);
 
   SELECT_LEX *select_lex= join->select_lex;
 
@@ -922,7 +931,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     List_iterator_fast<Item> li(select_lex->item_list);
     for (uint i= 0; i < n; i++)
     {
-      Item *func= new Item_ref_null_helper(this, 
+      Item *func= new Item_ref_null_helper(this,
 					   select_lex->ref_pointer_array+i,
 					   (char *) "<no matter>",
 					   (char *) "<list ref>");
@@ -983,6 +992,23 @@ Item_in_subselect::select_transformer(JOIN *join)
   if (left_expr->cols() == 1)
     return single_value_transformer(join, &eq_creator);
   return row_value_transformer(join);
+}
+
+
+Item_subselect::trans_res
+Item_in_subselect::no_select_transform()
+{
+  DBUG_ENTER("Item_in_subselect::no_select_transform");
+  // We have execute fix_fields() for left expression
+  SELECT_LEX *current= thd->lex->current_select, *up;
+  thd->lex->current_select= up= current->return_after_parsing();
+  if (left_expr->fix_fields(thd, up->get_table_list(), &left_expr))
+  {
+    thd->lex->current_select= current;
+    DBUG_RETURN(RES_ERROR);
+  }
+  thd->lex->current_select= current;
+  DBUG_RETURN(RES_OK);
 }
 
 
@@ -1098,7 +1124,7 @@ int subselect_single_select_engine::prepare()
 		    (ORDER*) select_lex->order_list.first,
 		    (ORDER*) select_lex->group_list.first,
 		    select_lex->having,
-		    (ORDER*) 0, select_lex, 
+		    (ORDER*) 0, select_lex,
 		    select_lex->master_unit()))
     return 1;
   thd->lex->current_select= save_select;
@@ -1183,7 +1209,7 @@ int subselect_single_select_engine::exec()
       join->thd->where= save_where;
       executed= 1;
       join->thd->lex->current_select= save_select;
-      DBUG_RETURN(join->error?join->error:1);
+      DBUG_RETURN(join->error ? join->error : 1);
     }
     if (item->engine_changed)
     {
@@ -1235,6 +1261,8 @@ int subselect_uniquesubquery_engine::exec()
   }
   else
   {
+    if (!table->file->inited)
+      table->file->ha_index_init(tab->ref.key);
     error= table->file->index_read(table->record[0],
 				   tab->ref.key_buff,
 				   tab->ref.key_length,HA_READ_KEY_EXACT);
@@ -1256,7 +1284,7 @@ int subselect_uniquesubquery_engine::exec()
 subselect_uniquesubquery_engine::~subselect_uniquesubquery_engine()
 {
   /* Tell handler we don't need the index anymore */
-  tab->table->file->index_end();
+  tab->table->file->ha_index_end();
 }
 
 
@@ -1283,6 +1311,8 @@ int subselect_indexsubquery_engine::exec()
   }
   else
   {
+    if (!table->file->inited)
+      table->file->ha_index_init(tab->ref.key);
     error= table->file->index_read(table->record[0],
 				   tab->ref.key_buff,
 				   tab->ref.key_length,HA_READ_KEY_EXACT);
@@ -1375,7 +1405,7 @@ void subselect_uniquesubquery_engine::exclude()
 table_map subselect_engine::calc_const_tables(TABLE_LIST *table)
 {
   table_map map= 0;
-  for (; table; table= table->next)
+  for(; table; table= table->next_local)
   {
     TABLE *tbl= table->table;
     if (tbl && tbl->const_table)

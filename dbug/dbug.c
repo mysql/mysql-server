@@ -985,8 +985,8 @@ uint length)
 	fputc('\n',_db_fp_);
 	pos=3;
       }
-      fputc(_dig_vec[((tmp >> 4) & 15)], _db_fp_);
-      fputc(_dig_vec[tmp & 15], _db_fp_);
+      fputc(_dig_vec_upper[((tmp >> 4) & 15)], _db_fp_);
+      fputc(_dig_vec_upper[tmp & 15], _db_fp_);
       fputc(' ',_db_fp_);
     }
     (void) fputc('\n',_db_fp_);

@@ -26,7 +26,6 @@
 */
 
 #include <my_global.h>
-#include <assert.h>
 #include "rijndael.h"
 
 /*

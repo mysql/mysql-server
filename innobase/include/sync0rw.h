@@ -85,7 +85,6 @@ void
 rw_lock_free(
 /*=========*/
 	rw_lock_t*	lock);	/* in: rw-lock */
-#ifdef UNIV_DEBUG
 /**********************************************************************
 Checks that the rw-lock has been initialized and that there are no
 simultaneous shared and exclusive locks. */
@@ -94,7 +93,6 @@ ibool
 rw_lock_validate(
 /*=============*/
 	rw_lock_t*	lock);
-#endif /* UNIV_DEBUG */
 /******************************************************************
 NOTE! The following macros should be used in rw s-locking, not the
 corresponding function. */

@@ -120,26 +120,6 @@
 #define __STDC_EXT__ 1          /* To get large file support on hpux */
 #endif
 
-#ifdef HPUX11
-/*
-  Fix warnings on HPUX11
-  There is something really strange with HPUX11 include files as you get
-  error about wrongly declared symbols or missing defines if you don't
-  do the following:
- */
-#if !defined(_XOPEN_SOURCE_EXTENDED) && ! defined(__cplusplus)
-#define _XOPEN_SOURCE_EXTENDED 1
-#endif
-
-/* Fix type of socklen as this is depending on the above define */
-#undef SOCKET_SIZE_TYPE
-#ifdef _XOPEN_SOURCE_EXTENDED
-#define SOCKET_SIZE_TYPE socklen_t
-#else
-#define SOCKET_SIZE_TYPE int
-#endif /* _XOPEN_SOURCE_EXTENDED */
-#endif /* HPUX11 */
-
 #if defined(THREAD) && !defined(__WIN__) && !defined(OS2)
 #ifndef _POSIX_PTHREAD_SEMANTICS
 #define _POSIX_PTHREAD_SEMANTICS /* We want posix threads */
@@ -178,7 +158,11 @@ C_MODE_END
 #ifdef HAVE_BROKEN_SNPRINTF	/* HPUX 10.20 don't have this defined */
 #undef HAVE_SNPRINTF
 #endif
-#ifdef HAVE_BROKEN_PREAD	/* These doesn't work on HPUX 11.x */
+#ifdef HAVE_BROKEN_PREAD
+/*
+  pread()/pwrite() are not 64 bit safe on HP-UX 11.0 without
+  installing the kernel patch PHKL_20349 or greater
+*/
 #undef HAVE_PREAD
 #undef HAVE_PWRITE
 #endif
@@ -209,7 +193,11 @@ C_MODE_END
 
 /* Fix problem when linking c++ programs with gcc 3.x */
 #ifdef DEFINE_CXA_PURE_VIRTUAL
-#define FIX_GCC_LINKING_PROBLEM extern "C" { int __cxa_pure_virtual() {return 0;} }
+#define FIX_GCC_LINKING_PROBLEM \
+extern "C" { int __cxa_pure_virtual() {\
+  DBUG_ASSERT("Pure virtual method called." == "Aborted");\
+  return 0;\
+} }
 #else
 #define FIX_GCC_LINKING_PROBLEM
 #endif
@@ -308,6 +296,13 @@ C_MODE_END
 #if defined(HAVE_CRYPT_H)
 #include <crypt.h>
 #endif
+
+/*
+  A lot of our programs uses asserts, so better to always include it
+  This also fixes a problem when people uses DBUG_ASSERT without including
+  assert.h
+*/
+#include <assert.h>
 
 /* Go around some bugs in different OS and compilers */
 #if defined(_HPUX_SOURCE) && defined(HAVE_SYS_STREAM_H)
@@ -585,12 +580,6 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #ifdef __WIN__
 #define NO_DIR_LIBRARY		/* Not standar dir-library */
 #define USE_MY_STAT_STRUCT	/* For my_lib */
-#endif
-
-/* Some things that this system does have */
-
-#ifndef HAVE_ITOA
-#define USE_MY_ITOA		/* There is no itoa */
 #endif
 
 /* Some defines of functions for portability */
@@ -1033,22 +1022,22 @@ do { doubleget_union _tmp; \
 				    32))
 #define int2store(T,A)       do { uint def_temp= (uint) (A) ;\
                                   *((uchar*) (T))=  (uchar)(def_temp); \
-                                   *((uchar*) (T+1))=(uchar)((def_temp >> 8)); \
+                                   *((uchar*) (T)+1)=(uchar)((def_temp >> 8)); \
                              } while(0)
 #define int3store(T,A)       do { /*lint -save -e734 */\
                                   *((uchar*)(T))=(uchar) ((A));\
                                   *((uchar*) (T)+1)=(uchar) (((A) >> 8));\
                                   *((uchar*)(T)+2)=(uchar) (((A) >> 16)); \
                                   /*lint -restore */} while(0)
-#define int4store(T,A)       do { *(T)=(char) ((A));\
-                                  *((T)+1)=(char) (((A) >> 8));\
-                                  *((T)+2)=(char) (((A) >> 16));\
-                                  *((T)+3)=(char) (((A) >> 24)); } while(0)
-#define int5store(T,A)       do { *(T)=((A));\
-                                  *((T)+1)=(((A) >> 8));\
-                                  *((T)+2)=(((A) >> 16));\
-                                  *((T)+3)=(((A) >> 24)); \
-                                  *((T)+4)=(((A) >> 32)); } while(0)
+#define int4store(T,A)       do { *((char *)(T))=(char) ((A));\
+                                  *(((char *)(T))+1)=(char) (((A) >> 8));\
+                                  *(((char *)(T))+2)=(char) (((A) >> 16));\
+                                  *(((char *)(T))+3)=(char) (((A) >> 24)); } while(0)
+#define int5store(T,A)       do { *((char *)(T))=((A));\
+                                  *(((char *)(T))+1)=(((A) >> 8));\
+                                  *(((char *)(T))+2)=(((A) >> 16));\
+                                  *(((char *)(T))+3)=(((A) >> 24)); \
+                                  *(((char *)(T))+4)=(((A) >> 32)); } while(0)
 #define int8store(T,A)       do { uint def_temp= (uint) (A), def_temp2= (uint) ((A) >> 32); \
                                   int4store((T),def_temp); \
                                   int4store((T+4),def_temp2); } while(0)
@@ -1089,13 +1078,14 @@ do { doubleget_union _tmp; \
 
 #if defined(__FLOAT_WORD_ORDER) && (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
 #define doublestore(T,V) do { *(T)= ((byte *) &V)[4];\
-                              *((T)+1)=(char) ((byte *) &V)[5];\
-                              *((T)+2)=(char) ((byte *) &V)[6];\
-                              *((T)+3)=(char) ((byte *) &V)[7];\
-                              *((T)+4)=(char) ((byte *) &V)[0];\
-                              *((T)+5)=(char) ((byte *) &V)[1];\
-                              *((T)+6)=(char) ((byte *) &V)[2];\
-                              *((T)+7)=(char) ((byte *) &V)[3]; } while(0)
+                              *(((char*)T)+1)=(char) ((byte *) &V)[5];\
+                              *(((char*)T)+2)=(char) ((byte *) &V)[6];\
+                              *(((char*)T)+3)=(char) ((byte *) &V)[7];\
+                              *(((char*)T)+4)=(char) ((byte *) &V)[0];\
+                              *(((char*)T)+5)=(char) ((byte *) &V)[1];\
+                              *(((char*)T)+6)=(char) ((byte *) &V)[2];\
+                              *(((char*)T)+7)=(char) ((byte *) &V)[3]; }\
+                         while(0)
 #define doubleget(V,M)   do { double def_temp;\
                               ((byte*) &def_temp)[0]=(M)[4];\
                               ((byte*) &def_temp)[1]=(M)[5];\
@@ -1114,6 +1104,14 @@ do { doubleget_union _tmp; \
 
 #endif /* sint2korr */
 
+/*
+  Macro for reading 32-bit integer from network byte order (big-endian)
+  from unaligned memory location.
+*/
+#define int4net(A)        (int32) (((uint32) ((uchar) (A)[3]))        |\
+				  (((uint32) ((uchar) (A)[2])) << 8)  |\
+				  (((uint32) ((uchar) (A)[1])) << 16) |\
+				  (((uint32) ((uchar) (A)[0])) << 24))
 /*
   Define-funktions for reading and storing in machine format from/to
   short/long to/from some place in memory V should be a (not
@@ -1139,12 +1137,12 @@ do { doubleget_union _tmp; \
                             ((byte*) &def_temp)[3]=(M)[3];\
                             (V)=def_temp; } while(0)
 #define shortstore(T,A) do { uint def_temp=(uint) (A) ;\
-                             *(T+1)=(char)(def_temp); \
-                             *(T+0)=(char)(def_temp >> 8); } while(0)
-#define longstore(T,A)  do { *((T)+3)=((A));\
-                             *((T)+2)=(((A) >> 8));\
-                             *((T)+1)=(((A) >> 16));\
-                             *((T)+0)=(((A) >> 24)); } while(0)
+                             *(((char*)T)+1)=(char)(def_temp); \
+                             *(((char*)T)+0)=(char)(def_temp >> 8); } while(0)
+#define longstore(T,A)  do { *(((char*)T)+3)=((A));\
+                             *(((char*)T)+2)=(((A) >> 8));\
+                             *(((char*)T)+1)=(((A) >> 16));\
+                             *(((char*)T)+0)=(((A) >> 24)); } while(0)
 
 #define floatstore(T,V) memcpy_fixed((byte*)(T), (byte*)(&V), sizeof(float))
 #define doubleget(V,M)	 memcpy_fixed((byte*) &V,(byte*) (M),sizeof(double))
@@ -1191,22 +1189,14 @@ do { doubleget_union _tmp; \
 #define statistic_add(V,C,L)       (V)+=(C)
 #endif
 
-#ifdef HAVE_OPENSSL
-#include <openssl/opensslv.h>
-#if OPENSSL_VERSION_NUMBER < 0x0090700f
-#define DES_cblock des_cblock
-#define DES_key_schedule des_key_schedule
-#define DES_set_key_unchecked(k,ks) des_set_key_unchecked((k),*(ks))
-#define DES_ede3_cbc_encrypt(i,o,l,k1,k2,k3,iv,e) des_ede3_cbc_encrypt((i),(o),(l),*(k1),*(k2),*(k3),(iv),(e))
-#endif
-#endif
-
 #ifdef HAVE_CHARSET_utf8
 #define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8"
 #else
 #define MYSQL_UNIVERSAL_CLIENT_CHARSET MYSQL_DEFAULT_CHARSET_NAME
 #endif
 
-#define HAVE_SPATIAL
-#define HAVE_RTREE_KEYS
+#if defined(EMBEDDED_LIBRARY) && !defined(HAVE_EMBEDDED_PRIVILEGE_CONTROL)
+#define NO_EMBEDDED_ACCESS_CHECKS
+#endif
+
 #endif /* my_global_h */

@@ -214,7 +214,7 @@ mutex_create_func(
 	mutex->magic_n = MUTEX_MAGIC_N;
 #ifdef UNIV_SYNC_DEBUG
 	mutex->line = 0;
-	mutex->file_name = (char *) "not yet reserved";
+	mutex->file_name = "not yet reserved";
 #endif /* UNIV_SYNC_DEBUG */
 	mutex->level = SYNC_LEVEL_NONE;
 	mutex->cfile_name = cfile_name;
@@ -314,7 +314,6 @@ mutex_enter_nowait(
 	return(1);
 }
 
-#ifdef UNIV_DEBUG
 /**********************************************************************
 Checks that the mutex has been initialized. */
 
@@ -328,7 +327,6 @@ mutex_validate(
 
 	return(TRUE);
 }
-#endif /* UNIV_DEBUG */
 
 /**********************************************************************
 Sets the waiters field in a mutex. */
@@ -512,7 +510,7 @@ void
 mutex_set_debug_info(
 /*=================*/
 	mutex_t*	mutex,		/* in: mutex */
-	char*		file_name,	/* in: file where requested */
+	const char*	file_name,	/* in: file where requested */
 	ulint		line)		/* in: line where requested */
 {
 	ut_ad(mutex);
@@ -1077,12 +1075,8 @@ sync_thread_add_level(
 	} else if (level == SYNC_DICT_HEADER) {
 		ut_a(sync_thread_levels_g(array, SYNC_DICT_HEADER));
 	} else if (level == SYNC_DICT) {
-#ifdef UNIV_DEBUG
-		ut_a(buf_debug_prints ||
-			sync_thread_levels_g(array, SYNC_DICT));
-#else /* UNIV_DEBUG */
-		ut_a(sync_thread_levels_g(array, SYNC_DICT));
-#endif /* UNIV_DEBUG */
+		ut_a(buf_debug_prints
+		     || sync_thread_levels_g(array, SYNC_DICT));
 	} else {
 		ut_error;
 	}

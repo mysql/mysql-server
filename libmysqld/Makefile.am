@@ -22,7 +22,6 @@ MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
 
 DEFS =			-DEMBEDDED_LIBRARY -DMYSQL_SERVER \
-			-DNO_EMBEDDED_ACCESS_CHECKS \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\""
@@ -34,7 +33,8 @@ noinst_LIBRARIES =	libmysqld_int.a
 pkglib_LIBRARIES =	libmysqld.a
 SUBDIRS =		. examples
 libmysqld_sources=	libmysqld.c lib_sql.cc emb_qcache.cc
-libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c
+libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c \
+                        my_time.c
 
 noinst_HEADERS =	embedded_priv.h emb_qcache.h
 
@@ -57,9 +57,9 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	sql_string.cc sql_table.cc sql_test.cc sql_udf.cc \
 	sql_update.cc sql_yacc.cc table.cc thr_malloc.cc time.cc \
 	unireg.cc uniques.cc stacktrace.c sql_union.cc hash_filo.cc \
-	spatial.cc gstream.cc sql_help.cc protocol_cursor.cc \
+	spatial.cc gstream.cc sql_help.cc tztime.cc protocol_cursor.cc \
 	sp_head.cc sp_pcontext.cc sp.cc sp_cache.cc sp_rcontext.cc \
-	parse_file.cc
+	parse_file.cc sql_view.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources)
 libmysqld_a_SOURCES=
