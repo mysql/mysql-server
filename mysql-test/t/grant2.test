@@ -246,3 +246,18 @@ connection default;
 drop user mysqltest_B@'%';
 drop user mysqltest_3@localhost;
 #
+# Bug #3309: Test IP addresses with netmask
+set @@sql_mode='';
+create database mysqltest_1;
+create table mysqltest_1.t1 (i int);
+insert into mysqltest_1.t1 values (1),(2),(3);
+GRANT ALL ON mysqltest_1.t1 TO mysqltest_1@'127.0.0.0/255.0.0.0';
+connect (n1,127.0.0.1,mysqltest_1,,mysqltest_1,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection n1;
+show grants for current_user();
+select * from t1;
+disconnect n1;
+connection default;
+REVOKE ALL ON mysqltest_1.t1 FROM mysqltest_1@'127.0.0.0/255.0.0.0';
+drop table mysqltest_1.t1;
+drop database mysqltest_1;

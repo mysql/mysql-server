@@ -6194,9 +6194,9 @@ finish:
     For b=c it will be called with *cond_equal=(0,[Item_equal(a,b)])
     and will transform *cond_equal into CE=(0,[Item_equal(a,b,c)]).
     For b=2 it will be called with *cond_equal=(ptr(CE),[])
-    and will transform *cond_equal into (ptr(CE,[Item_equal(2,a,b,c)]).
+    and will transform *cond_equal into (ptr(CE),[Item_equal(2,a,b,c)]).
     For f=e it will be called with *cond_equal=(ptr(CE), [])
-    and will transform *cond_equal into (ptr(CE,[Item_equal(f,e)]).
+    and will transform *cond_equal into (ptr(CE),[Item_equal(f,e)]).
 
   NOTES
     Now only fields that have the same type defintions (verified by
@@ -6465,6 +6465,11 @@ static COND *build_equal_items_for_cond(COND *cond,
      */      
       while ((item= li++))
       {
+        /*
+          PS/SP note: we can safely remove a node from AND-OR
+          structure here because it's restored before each
+          re-execution of any prepared statement/stored procedure.
+        */
         if (check_equality(item, &cond_equal))
           li.remove();
       }
@@ -6503,6 +6508,11 @@ static COND *build_equal_items_for_cond(COND *cond,
       if ((new_item = build_equal_items_for_cond(item, inherited))!= item)
       {
         /* This replacement happens only for standalone equalities */
+        /*
+          This is ok with PS/SP as the replacement is done for
+          arguments of an AND/OR item, which are restored for each
+          execution of PS/SP.
+        */
         li.replace(new_item);
       }
     }
@@ -6638,10 +6648,12 @@ static COND *build_equal_items(THD *thd, COND *cond,
         Item *expr;
         List<TABLE_LIST> *join_list= table->nested_join ?
 	                             &table->nested_join->join_list : NULL;
-        expr= build_equal_items(thd, table->on_expr, inherited, join_list,
-                                &table->cond_equal);
-        if (expr != table->on_expr)
-          thd->change_item_tree(&table->on_expr, expr);
+        /*
+          We can modify table->on_expr because its old value will
+          be restored before re-execution of PS/SP.
+        */
+        table->on_expr= build_equal_items(thd, table->on_expr, inherited,
+                                          join_list, &table->cond_equal);
       }
     }
   }
@@ -6868,10 +6880,14 @@ static COND* substitute_for_best_equal_field(COND *cond,
     while ((item= li++))
     {
       Item *new_item =substitute_for_best_equal_field(item, cond_equal,
-                                                        table_join_idx);
+                                                      table_join_idx);
+      /*
+        This works OK with PS/SP re-execution as changes are made to
+        the arguments of AND/OR items only
+      */
       if (new_item != item)
         li.replace(new_item);
-   }
+    }
 
     if (and_level)
     {
@@ -7200,7 +7216,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
 	*/ 
         expr= simplify_joins(join, &nested_join->join_list,
                              table->on_expr, FALSE);
-        table->on_expr= expr;
+        table->prep_on_expr= table->on_expr= expr;
       }
       nested_join->used_tables= (table_map) 0;
       nested_join->not_null_tables=(table_map) 0;
@@ -7240,7 +7256,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
         }
         else
           conds= table->on_expr; 
-        table->on_expr= 0;
+        table->prep_on_expr= table->on_expr= 0;
       }
     }
     
@@ -7321,10 +7337,7 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
   DBUG_ENTER("optimize_cond");
 
   if (!conds)
-  {
     *cond_value= Item::COND_TRUE;
-    select->prep_where= 0;
-  }
   else
   {
     /* 

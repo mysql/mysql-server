@@ -1837,8 +1837,6 @@ void st_select_lex_unit::set_limit(SELECT_LEX *values,
   select_limit_cnt= values->select_limit+values->offset_limit;
   if (select_limit_cnt < values->select_limit)
     select_limit_cnt= HA_POS_ERROR;		// no limit
-  if (select_limit_cnt == HA_POS_ERROR)
-    sl->options&= ~OPTION_FOUND_ROWS;
 }
 
 
