@@ -110,7 +110,7 @@ CPCD::Process::isRunning() {
   }
   /* Check if there actually exists a process with such a pid */
   errno = 0;
-  int s = kill((pid_t) m_pid, 0); /* Sending "signal" 0 to a process only
+  int s = kill((pid_t)-m_pid, 0); /* Sending "signal" 0 to a process only
 				   * checkes if the process actually exists */
   if(s != 0) {
     switch(errno) {
@@ -127,7 +127,6 @@ CPCD::Process::isRunning() {
     }
     return false;
   } 
-  
   return true;
 }
 
@@ -149,7 +148,6 @@ CPCD::Process::readPid() {
   f = fopen(filename, "r");
   
   if(f == NULL){
-    logger.debug("readPid - %s not found", filename);
     return -1; /* File didn't exist */
   }
   
@@ -358,7 +356,7 @@ CPCD::Process::start() {
     switch(pid = fork()) {
     case 0: /* Child */
       setsid();
-      writePid(getpid());
+      writePid(getpgrp());
       if(runas(m_runas.c_str()) == 0){
 	do_exec();
       }
@@ -383,11 +381,10 @@ CPCD::Process::start() {
     switch(fork()) {
     case 0: /* Child */
       signal(SIGCHLD, SIG_IGN);
-      pid_t pid;
       switch(pid = fork()) {
       case 0: /* Child */
 	setsid();
-	writePid(getpid());
+	writePid(getpgrp());
 	if(runas(m_runas.c_str()) != 0){
 	  _exit(1);
 	}
@@ -421,13 +418,16 @@ CPCD::Process::start() {
     logger.critical("Unknown process type");
     return -1;
   }
-  
+
   while(readPid() < 0){
     sched_yield();
   }
   
-  if(pid != -1 && pid != m_pid){
-    logger.error("pid and m_pid don't match: %d %d", pid, m_pid);
+  errno = 0;
+  pid_t pgid = getpgid(pid);
+  
+  if(pgid != -1 && pgid != m_pid){
+    logger.error("pgid and m_pid don't match: %d %d (%d)", pgid, m_pid, pid);
   }
   
   if(isRunning()){
@@ -446,33 +446,32 @@ CPCD::Process::stop() {
   unlink(filename);
   
   if(m_pid <= 1){
-    logger.critical("Stopping process with bogus pid: %d", m_pid);
+    logger.critical("Stopping process with bogus pid: %d id: %d", 
+		    m_pid, m_id);
     return;
   }
   m_status = STOPPING;
-
-  const pid_t pgid = - getpgid(m_pid);
-  int ret = kill(pgid, SIGTERM);
+  
+  errno = 0;
+  int ret = kill(-m_pid, SIGTERM);
   switch(ret) {
   case 0:
-    logger.debug("Sent SIGTERM to pid %d", (int)pgid);
+    logger.debug("Sent SIGTERM to pid %d", (int)-m_pid);
     break;
   default:
-    logger.debug("kill pid: %d : %s", (int)pgid, strerror(errno));
+    logger.debug("kill pid: %d : %s", (int)-m_pid, strerror(errno));
     break;
   }
   
-  errno = 0;
-  ret = kill(pgid, 0);
-  if(ret == 0) {
+  if(isRunning()){
     errno = 0;
-    ret = kill(pgid, SIGKILL);
+    ret = kill(-m_pid, SIGKILL);
     switch(ret) {
     case 0:
-      logger.debug("Sent SIGKILL to pid %d", (int)pgid);
+      logger.debug("Sent SIGKILL to pid %d", (int)-m_pid);
       break;
     default:
-      logger.debug("kill pid: %d : %s\n", (int)pgid, strerror(errno));
+      logger.debug("kill pid: %d : %s\n", (int)-m_pid, strerror(errno));
       break;
     }
   } 

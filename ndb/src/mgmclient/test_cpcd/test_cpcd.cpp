@@ -88,10 +88,16 @@ void define(){
   //proc.m_proc.m_stdout = "log.out";
   //proc.m_proc.m_stderr = "2>&1";
   //proc.m_proc.m_runas = proc.m_host->m_user;
-  //proc.m_proc.m_ulimit = "c:unlimited";
-  m_proc.m_name.assfmt("%d-%d-%s", getpid(), name++, "test");
-  m_proc.m_path.assign("/bin/sleep");
-  m_proc.m_args = "600";
+  m_proc.m_ulimit = "c:unlimited";
+  if((rand() & 15) >= 0){
+    m_proc.m_name.assfmt("%d-%d-%s", getpid(), name++, "sleep");
+    m_proc.m_path.assign("/bin/sleep");
+    m_proc.m_args = "600";
+  } else {
+    m_proc.m_name.assfmt("%d-%d-%s", getpid(), name++, "test.sh");
+    m_proc.m_path.assign("/home/jonas/run/cpcd/test.sh");
+    m_proc.m_args = "600";
+  }
   g_procs.push_back(m_proc);
   
   Properties reply;
