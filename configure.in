@@ -1052,7 +1052,8 @@ case $SYSTEM_TYPE in
     if test "$ac_cv_prog_gcc" = "no"
     then
       CFLAGS="$CFLAGS -DHAVE_BROKEN_INLINE"
-      CXXFLAGS="$CXXFLAGS +O2"
+# set working flags first in line, letting override it (i. e. for debug):
+      CXXFLAGS="+O2 $CXXFLAGS"
       MAX_C_OPTIMIZE=""
       MAX_CXX_OPTIMIZE=""
       ndb_cxxflags_fix="$ndb_cxxflags_fix -Aa"
