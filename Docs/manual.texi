@@ -29,7 +29,7 @@
 @c Set background for HTML
 @set _body_tags BGCOLOR=silver TEXT=#000000 LINK=#101090 VLINK=#7030B0
 @c Set some style elements for the manual in HTML form. 'suggested'
-@c natural language colours: aqua, black, blue, fuchsia, gray, green,
+@c natural language colors: aqua, black, blue, fuchsia, gray, green,
 @c lime, maroon, navy, olive, purple, red, silver, teal, white, and
 @c yellow. From Steeve Buehler <ahr@YogElements.com>
 @set _extra_head <style> code {color:purple} tt {color:green} samp {color:navy} pre {color:maroon} </style>
@@ -1195,8 +1195,8 @@ application/language already supports @strong{MySQL}.
 
 @end table
 
-@cindex pronounciation, MySQL
-@cindex MySQL, pronouniation
+@cindex pronunciation, MySQL
+@cindex MySQL, pronunciation
 @cindex goals of MySQL
 The official way to pronounce @strong{MySQL} is ``My Ess Que Ell'' (not
 MY-SEQUEL). But we try to avoid correcting people who say MY-SEQUEL.
@@ -11384,7 +11384,7 @@ UPDATE tbl_name SET row_flag=1 WHERE id=ID and row_flag <> 1;
 @chapter The MySQL Access Privilege System
 @cindex system, security
 @cindex access privileges
-@cindex privleges, access
+@cindex privileges, access
 @cindex security system
 @cindex ACLs
 
@@ -13734,7 +13734,7 @@ in ANSI mode. @xref{ANSI mode}.
 Note that in addition to the above, you can't have ASCII(0) or ASCII(255) or
 the quoting character in an identifier.
 
-Note that if the identifer is a restricted word or contains special characters
+Note that if the identifier is a restricted word or contains special characters
 you must always quote it with @code{`} when you use it:
 
 @example
@@ -14844,7 +14844,7 @@ rules:
 Year values in the range @code{00-69} are converted to @code{2000-2069}.
 
 @item
-Year year values in the range @code{70-99} are converted to @code{1970-1999}.
+Year values in the range @code{70-99} are converted to @code{1970-1999}.
 @end itemize
 @end itemize
 
@@ -17392,7 +17392,7 @@ a date or datetime column. (See example)
 
 @code{date} is a @code{DATETIME} or @code{DATE} value specifying the starting
 date.  @code{expr} is an expression specifying the interval value to be added
-or substracted from the starting date.  @code{expr} is a string; it may start
+or subtracted from the starting date.  @code{expr} is a string; it may start
 with a @samp{-} for negative intervals.  @code{type} is a keyword indicating
 how the expression should be interpreted.
 
@@ -17979,11 +17979,11 @@ Blocks until the slave reaches the specified position in the master log during
 replication. If master information is not initialized, returns NULL. If the
 slave is not running, will block and wait until it is started and goes to or
 past
-the specified postion. If the slave is already past the specified postion,
+the specified position. If the slave is already past the specified postion,
 returns immediately. The return value is the number of log events it had to
 wait to get to the specified position, or NULL in case of error. Useful for
 control of master-slave synchronization, but was originally written to
-facilate replication testing.
+facilitate replication testing.
 @end table
 
 @findex GROUP BY functions
@@ -18072,7 +18072,7 @@ it returns NULL!
 @itemx STDDEV(expr)
 Returns the standard deviation of @code{expr}. This is an extension to
 ANSI SQL. The @code{STDDEV()} form of this function is provided for Oracle
-compatability.
+compatibility.
 
 @findex BIT_OR()
 @item BIT_OR(expr)
@@ -18342,7 +18342,7 @@ work properly if the auto_increment column only has positive
 values. Inserting a negative number is regarded as inserting a very large
 positive number.  This is done to avoid precision problems when
 numbers 'wrap' over from positive to negative and also to ensure that one
-doesn't accidently get an auto_increment column that contains 0.
+doesn't accidentally get an auto_increment column that contains 0.
 
 @cindex ODBC compatibility
 @cindex compatibility, with ODBC
@@ -20698,7 +20698,7 @@ the @code{mysql} database.
 
 @item @code{[TABLE | TABLES] table_name [,table_name...]} @tab Flushes only the given tables.
 
-@item @code{TABLES WITH READ LOCK} @tab Closes all open tables and locks all tables for all databases with a read until one executes @code{UNLOCK TABLES}. This is very convinient way to get backups if you have a file system, like Veritas,that can take snapshots in time.
+@item @code{TABLES WITH READ LOCK} @tab Closes all open tables and locks all tables for all databases with a read until one executes @code{UNLOCK TABLES}. This is very convenient way to get backups if you have a file system, like Veritas,that can take snapshots in time.
 
 @item @code{STATUS} @tab Resets most status variables to zero.
 @end multitable
@@ -21016,7 +21016,7 @@ If this is high, it suggests that the server is doing a lot of full index scans,
 @item @code{Handler_read_key} @tab Number of requests to read a row based on a key. If this
 is high, it is a good indication that your queries and tables are properly indexed.
 @item @code{Handler_read_next} @tab Number of requests to read next row in key order. This
-will be incremented if you are querying an index column with a range contraint. This also
+will be incremented if you are querying an index column with a range constraint. This also
 will be incremented if you are doing an index scan.
 @item @code{Handler_read_rnd} @tab Number of requests to read a row based on a fixed position.
 This will be high if you are doing a lot of queries that require sorting of the result.
@@ -22906,7 +22906,7 @@ type it should use for the table.  @strong{MySQL} will always create a
 the table type, the index and data will be stored in other files.
 
 The default table type in @strong{MySQL} is @code{MyISAM}. If you are
-trying to use a table type that is not incompiled or activated,
+trying to use a table type that is not compiled-in or activated,
 @strong{MySQL} will instead create a table of type @code{MyISAM}.
 
 You can convert tables between different types with the @code{ALTER
@@ -22939,7 +22939,7 @@ Advantages of not transaction-safe tables (NTST):
 
 @itemize @bullet
 @item
-Much faster as there is no transcation overhead.
+Much faster as there is no transaction overhead.
 @item
 Will use less disk space as there is no overhead of transactions.
 @item
@@ -23209,7 +23209,7 @@ This format is used if the table contains any @code{VARCHAR}, @code{BLOB},
 or @code{TEXT} columns or if the table was created with
 @code{ROW_FORMAT=dynamic}.
 
-This format is a litte more complex because each row has to have a header
+This format is a little more complex because each row has to have a header
 that says how long it is. One record can also end up at more than one
 location when it is made longer at an update.
 
@@ -23577,7 +23577,7 @@ Here are some things you should consider when you use @code{HEAP} tables:
 @itemize @bullet
 @item
 You should always use specify @code{MAX_ROWS} in the @code{CREATE} statement
-to ensure that you accidently do not use all memory.
+to ensure that you accidentally do not use all memory.
 @item
 Indexes will only be used with @code{=} and @code{<=>} (but are VERY fast).
 @item
@@ -24843,7 +24843,7 @@ The reason is that we haven't yet had time to come up with an efficient
 way to handle this in the general case. (The @code{AND} handling is,
 in comparison, now completely general and works very well).
 
-For the moment you can solve this very efficently by using a
+For the moment you can solve this very efficiently by using a
 @code{TEMPORARY} table. This type of optimization is also very good if
 you are using very complicated queries where the SQL server does the
 optimizations in the wrong order.
@@ -25701,7 +25701,7 @@ mysql> SELECT 1 IS NULL, 1 IS NOT NULL;
 @end example
 
 In @strong{MySQL}, 0 or @code{NULL} means false and anything else means true.
-The default trueth value from a boolean operation is 1.
+The default truth value from a boolean operation is 1.
 
 This special treatment of @code{NULL} is why, in the previous section, it
 was necessary to determine which animals are no longer alive using
@@ -27000,7 +27000,7 @@ The next section explains the master/slave setup process in more detail.
 Below is a quick description of how to set up complete replication on
 your current @strong{MySQL} server. It assumes you want to replicate all
 your databases and have not configured replication before. You will need
-to shutdown your master server briefly to complete the steops outlined
+to shutdown your master server briefly to complete the steps outlined
 below.
 
 @enumerate
@@ -27036,7 +27036,7 @@ mysqladmin -u root -p<password> shutdown
 Snapshot all the data on your master server.
 
 The easiest way to do this (on Unix) is to simply use @strong{tar} to
-produce an archvie of your entrie data directory. The exact data
+produce an archive of your entire data directory. The exact data
 directory location depends on your installation.
 
 @example
@@ -27052,7 +27052,7 @@ In @code{my.cnf} on the master add @code{log-bin} and
 restart it. It is very important that the id of the slave is different from
 the id of the master. Think of @code{server-id} as something similar
 to the IP address - it uniquely identifies the server instance in the
-comminity of replication partners.
+community of replication partners.
 
 @example
 [mysqld]
@@ -27133,7 +27133,7 @@ Replication will be done correctly with @code{AUTO_INCREMENT},
 @code{LAST_INSERT_ID}, and @code{TIMESTAMP} values.
 @item
 @code{RAND()} in updates does not replicate properly. Use
-@code{RAND(some_non_rand_expr)} if you are replcating updates with
+@code{RAND(some_non_rand_expr)} if you are replicating updates with
 @code{RAND()}. You can, for example, use @code{UNIX_TIMESTAMP()} for the
 argument to @code{RAND()}.
 @item
@@ -27541,7 +27541,7 @@ backing them up first. In earlier versions the process is much more
 painful, and cannot be safely done without stopping all the slaves in
 the case that you plan to re-use log names. You will need to stop the
 slave threads, edit the binary log index file, delete all the old logs,
-restart the master, start slave threads,and then remove the old log files.
+restart the master, start slave threads, and then remove the old log files.
 
 
 @strong{Q}: How do I upgrade on a hot replication setup?
@@ -27607,7 +27607,7 @@ If the part of your code that is responsible for database access has
 been properly abstracted/modularized, converting it to run with the
 replicated setup should be very smooth and easy - just change the
 implementation of your database access to read from some slave or the
-master, and to awlays write to the master. If your code does not have
+master, and to always write to the master. If your code does not have
 this level of abstraction,
 setting up a replicated system will give you an opportunity/motivation
 to it clean up.
@@ -27746,7 +27746,7 @@ directly).
 
 @end itemize
 
-We are currently working on intergrating an automatic master election
+We are currently working on integrating an automatic master election
 system into @strong{MySQL}, but until it is ready, you will have to
 create your own monitoring tools.
 
@@ -27754,7 +27754,7 @@ create your own monitoring tools.
 @section Troubleshooting Replication
 
 If you have followed the instructions, and your replication setup is not
-working, first elliminate the user error factor by checking the following:
+working, first eliminate the user error factor by checking the following:
 
 @itemize @bullet
 @item
@@ -27775,7 +27775,7 @@ DNS setup, whether the master is actually running, whether it is reachable
 from the slave, and if all that seems ok, read the error logs.
 @item
 If the slave was running, but then stopped, look at SHOW SLAVE STATUS
-output andcheck the error logs. It usually
+output and check the error logs. It usually
 happens when some query that succeeded on the master fails on the slave. This
 should never happen if you have taken a proper snapshot of the master, and
 never modify the data on the slave outside of the slave thread. If it does,
@@ -27843,7 +27843,7 @@ stop and wait for you to clean up the tables manually to bring them in sync.
 Run slave with @code{log-slave-updates} and @code{log-bin} - this will keep
 a log of all updates on the slave.
 @item
-Save all evidence before reseting the replication. If we have no or only
+Save all evidence before resetting the replication. If we have no or only
 sketchy information, it would take us a while to track down the problem. The
 evidence you should collect is:
 @itemize @bullet
@@ -28037,7 +28037,7 @@ character sets that you are going to use. (Option @code{--with-charset=xxx}).
 The standard @strong{MySQL} binary distributions are compiled with support
 for all character sets.
 
-Here is a list of some mesurements that we have done:
+Here is a list of some measurements that we have done:
 @itemize @bullet
 @item
 If you use @code{pgcc} and compile everything with @code{-O6}, the
@@ -28158,7 +28158,7 @@ hdparm -m 16 -d 1
 
 Note that the performance/reliability when using the above depends on
 your hardware, so we strongly suggest that you test your system
-throughly after using @code{hdparm}!  Please consult the @code{hdparm}
+thoroughly after using @code{hdparm}!  Please consult the @code{hdparm}
 man page for more information!  If @code{hdparm} is not used wisely,
 filesystem corruption may result.  Backup everything before experimenting!
 @item
@@ -28168,7 +28168,7 @@ this should give you more performance without sacrificing too much reliability.
 (This flag is on by default on Linux.)
 @item
 If you don't need to know when a file was last accessed (which is not
-really useful on a databasa server), you can mount your file systems
+really useful on a database server), you can mount your file systems
 with the noatime flag.
 @end itemize
 
@@ -28719,7 +28719,7 @@ option to @code{DELETE} may help. @xref{DELETE, , @code{DELETE}}.
 @node DNS,  , Table locking, System
 @subsection How MySQL uses DNS
 
-When a new threads connects to @code{mysqld}, @code{mysqld} will span a
+When a new thread connects to @code{mysqld}, @code{mysqld} will span a
 new thread to handle the request.  This thread will first check if the
 hostname is in the hostname cache. If not the thread will call
 @code{gethostbyaddr_r()} and @code{gethostbyname_r()} to resolve the
@@ -28820,7 +28820,7 @@ Indexes are used to find rows with a specific value of one column
 fast. Without an index @strong{MySQL} has to start with the first record
 and then read through the whole table until it finds the relevant
 rows. The bigger the table, the more this costs. If the table has an index
-for the colums in question, @strong{MySQL} can quickly get a position to
+for the columns in question, @strong{MySQL} can quickly get a position to
 seek to in the middle of the data file without having to look at all the
 data. If a table has 1000 rows, this is at least 100 times faster than
 reading sequentially. Note that if you need to access almost all 1000
@@ -29576,7 +29576,7 @@ default. This reduces the parsing that @strong{MySQL} need to do and
 improves the insert speed.
 @item
 In some cases it's convenient to pack and store data into a blob. In this
-case you have to add some extra code in your appliction to pack/unpack
+case you have to add some extra code in your application to pack/unpack
 things in the blob, but this may save a lot of accesses at some stage.
 This is practical when you have data that doesn't conform to a static
 table structure.
@@ -29704,7 +29704,7 @@ recent hack for this -
 @uref{http://www.mysql.com/Downloads/super-smack/super-smack-1.0.tar.gz,
 super-smack}.
 As the name suggests, it can bring your system down to its knees if you ask it,
-so make sure to use it only on your developement systems.
+so make sure to use it only on your development systems.
 
 @cindex design, choices
 @cindex database design
@@ -30253,7 +30253,7 @@ list can be comma separated, or a dash combined, of which the latter
 means that all the GNRs between GNR1-GNR2 will be affected. Without
 GNR argument all the found groups will be either started, stopped, or
 reported. Note that you must not have any white spaces in the GNR
-list. Anything after a white space are ignored.
+list. Anything after a white space is ignored.
 
 @code{mysqld_multi} supports the following options:
 
@@ -30916,7 +30916,7 @@ Compress all information between the client and the server if both support
 compression.
 @item -B, --databases
 To dump several databases. Note the difference in usage. In this case
-no tables are given. All name arguments are regarded as databasenames.
+no tables are given. All name arguments are regarded as database names.
 @code{USE db_name;} will be included in the output before each new database.
 @item --delayed
 Insert rows with the @code{INSERT DELAYED} command.
@@ -31068,7 +31068,7 @@ mysqlhotcopy db_name./regex/
 
 @table @code
 @item -?, --help
-Display a helpscreen and exit
+Display a help screen and exit
 @item -u, --user=# 
 User for database login
 @item -p, --password=#
@@ -31866,7 +31866,7 @@ for myisamchk can be examined with @code{myisamchk --help}:
 @item decode_bits @tab 9
 @end multitable
 
-@code{sort_buffer_size} is used when the keys are reparied by sorting
+@code{sort_buffer_size} is used when the keys are repaired by sorting
 keys, which is the normal case when you use @code{--recover}.
 
 @code{key_buffer_size} is used when you are checking the table with
@@ -32072,7 +32072,7 @@ Be aware that @code{myisamchk} uses temporary files in @code{TMPDIR}. If
 memory errors. If this happens, set @code{TMPDIR} to point at some directory
 with more space and restart @code{myisamchk}.
 
-When repairing, @code{myisamchk} will also nead a lot of disk space:
+When repairing, @code{myisamchk} will also need a lot of disk space:
 
 @itemize @bullet
 @item
@@ -32850,7 +32850,7 @@ For a full description of the option. @xref{myisamchk syntax}.
 
 @strong{MySQL} has a lot of log files which make it easy to see what is
 going. @xref{Log files}. One must however from time to time clean up
-after @code{MysQL} to ensure that the logs doesn't take up too much disk
+after @code{MysQL} to ensure that the logs don't take up too much disk
 space.
 
 When using @strong{MySQL} with log files, you will, from time to time,
@@ -32972,7 +32972,7 @@ corresponding C (or C++) functions.  In the discussion below, the name
 C/C++ usage, @code{XXX()} (uppercase) indicates a SQL function call, and
 @code{xxx()} (lowercase) indicates a C/C++ function call.
 
-The C/C++ functions that you write to implement the inferface for
+The C/C++ functions that you write to implement the interface for
 @code{XXX()} are:
 
 @table @asis
@@ -33563,7 +33563,7 @@ because of how Windows is designed, you may not in this case be able to
 install a new ODBC drivers with Microsoft's ODBC setup program. In most
 cases you can continue by just pressing @code{Ignore} to copy the rest
 of the MyODBC files and the final installation should still work.  If
-this doesn't work, the the solution is to reboot your computer in ``safe
+this doesn't work, the solution is to reboot your computer in ``safe
 mode`` (Choose this by pressing F8 just before your machine starts
 Windows during rebooting), install @strong{MyODBC}, and reboot to normal
 mode.
@@ -34015,7 +34015,7 @@ Start your application and try to get it to fail.
 @end enumerate
 
 Check the @code{MyODBC trace file}, to find out what could be wrong.
-You should be able to find out the the issued queries by searching after
+You should be able to find out the issued queries by searching after
 the string @code{>mysql_real_query} in the @file{myodbc.log} file.
 
 You should also try duplicating the queries in the @code{mysql} monitor
@@ -34847,7 +34847,7 @@ your database!
 
 @xref{SHOW VARIABLES}.
 
-Other reason for problems with Aborted clients / Aborted connections.
+Other reasons for problems with Aborted clients / Aborted connections.
 @itemize @bullet
 @item
 Usage of duplex Ethernet protocol, both half and full with
@@ -34951,7 +34951,7 @@ the password field is shorter than 16 characters. If so, you can correct this
 condition by running the @code{scripts/add_long_password} script.
 
 @item
-The user has an old password (8 chararacters long) and you didn't start
+The user has an old password (8 characters long) and you didn't start
 @code{mysqld} with the @code{--old-protocol} option.
 Update the user in the @code{user} table with a new password or
 restart @code{mysqld} with @code{--old-protocol}.
@@ -35330,7 +35330,7 @@ default value is 90).
 To change the number of file descriptors available to @code{mysqld}, you
 can use the option @code{--open-files-limit=#} to @code{safe_mysqld} or
 @code{-O open-files-limit=#} to @code{mysqld}. @xref{SHOW VARIABLES}.
-The easyest way to do that is to add the option to your option file.
+The easiest way to do that is to add the option to your option file.
 @xref{Option files}.  If you have an old @code{mysqld} version that
 doesn't support this, you can edit the @code{safe_mysqld} script.  There
 is a commented-out line @code{ulimit -n 256} in the script.  You can
@@ -36068,7 +36068,7 @@ remove the @code{-l} option from @code{mysql.server} or change it to
 @code{--log-binary}.
 
 The entries in this log are written as @code{mysqld} receives the questions.
-This may be different than the order in which the statements is executed.
+This may be different than the order in which the statements are executed.
 This is in contrast to the update log and the binary log which is written
 after the query is executed, but before any locks are released.
 
@@ -36191,7 +36191,7 @@ will be logged in the execution order.
 
 All updates (@code{UPDATE}, @code{DELETE} or @code{INSERT}) that changes
 a transactional table (like BDB tables) is cached until a @code{COMMIT}.
-Any updates to a not transactional table is stored in the binary log at
+Any updates to a non-transactional table are stored in the binary log at
 once.  Every thread will on start allocate a buffer of
 @code{binlog_cache_size} to buffer queries.  If a query is bigger than
 this, the thread will open a temporary file to handle the bigger cache.
@@ -36203,7 +36203,7 @@ to cache a multi-transaction query.
 If you are using the update or binary log then concurrent inserts will
 not work together with @code{CREATE ... INSERT} and @code{INSERT ... SELECT}.
 This is to ensure that you can recreate an exact copy of your tables by
-applying a the log on a backup.
+applying the log on a backup.
 @cindex slow query log
 @cindex files, slow query log
 @node Slow query log,  , Binary log, Log files
@@ -36216,13 +36216,13 @@ table locks are not counted as execution time.
 
 The slow query log is logged after the query is executed and after all
 locks has been released. This may be different than the order in which
-the statements is executed.
+the statements are executed.
 
 If no file name is given, it defaults to the name of the host machine
 suffixed with @code{-slow.log}. If a filename is given, but doesn't
 contain a path, the file is written in the data directory.
 
-The slow query log can be used to find queries that takes a long time to
+The slow query log can be used to find queries that take a long time to
 execute and are thus candidates for optimization.
 
 You are using @code{--log-long-format} then also queries that are not
@@ -39628,7 +39628,7 @@ The distribution and documentation are available at the
 @subsection Common Problems with MySQL and PHP
 
 @itemize @bullet
-@item Error: "Maximum Execution Time Exeeded"
+@item Error: "Maximum Execution Time Exceeded"
 This is a PHP limit;  Go into the @file{php3.ini} file and set the maximum
 execution time up from 30 seconds to something higher, as needed.
 It is also not a bad idea to double the ram allowed per script to 16MB instead of
@@ -39722,7 +39722,7 @@ you have a higher startup overhead. After the connection is established,
 @strong{MySQL} should perform much better.
 
 On the other hand, @strong{MySQL} is much faster than @code{mSQL} (and
-most other SQL implementions) on the following:
+most other SQL implementations) on the following:
 
 @itemize @bullet
 @item
@@ -39731,7 +39731,7 @@ Complex @code{SELECT} operations.
 Retrieving large results (@strong{MySQL} has a better, faster, and safer
 protocol).
 @item
-Tables with variable-length strings, because @strong{MySQL} has more efficent
+Tables with variable-length strings, because @strong{MySQL} has more efficient
 handling and can have indexes on @code{VARCHAR} columns.
 @item
 Handling tables with many columns.
@@ -40165,7 +40165,7 @@ of the extra features that @code{PostgreSQL} can offer, you should use
 
 @code{PostgreSQL} has some more advanced features like user-defined
 types, triggers, rules, and some transaction support (currently it
-has about the same symantics as @strong{MySQL}'s transactions in that the
+has about the same semantics as @strong{MySQL}'s transactions in that the
 transaction is not 100% atomic).  However, PostgreSQL lacks many of the 
 standard types and functions from ANSI SQL and ODBC. See the @code{crash-me} 
 Web page (@uref{http://www.mysql.com/information/crash-me.php}) for a complete
@@ -40458,7 +40458,7 @@ the user wants to treat as words, examples are "C++", "AS/400", "TCP/IP", etc.
 @item Support for multi-byte charsets.
 @item Make stopword list to depend of the language of the data.
 @item Stemming (dependent of the language of the data, of course).
-@item Generic user-supplyable UDF (?) preparser.
+@item Generic user-suppied UDF (?) preparser.
 @item Make the model more flexible (by adding some adjustable
 parameters to @code{FULLTEXT} in @code{CREATE/ALTER TABLE}).
 @end itemize
@@ -40589,7 +40589,7 @@ the master, put them in @code{mysql-test/t/test_name-master.opt}.
 @item
 If you have a question about the test suite, or have a test case to contribute,
 e-mail to @email{internals@@lists.mysql.com}. As the list does not accept 
-attachemnts, you should ftp all the relevant files to:
+attachments, you should ftp all the relevant files to:
 @url{ftp://support.mysql.com/pub/mysql/Incoming}
 
 @end itemize
@@ -40813,7 +40813,7 @@ more than one way to compute}
 Publications at Monash University in Australia}
 
 @item @uref{http://www.ipielle.emr.it/bts/index.html,
-Occupational Health & Safety Web site databse (a project for the ECC)}
+Occupational Health & Safety Web site database (a project for the ECC)}
 @c c.presutti@ipielle.emr.it
 
 @item @uref{http://data.mch.mcgill.ca/, Bioinformatics databases at the
@@ -41197,7 +41197,7 @@ Perl @code{DBI} module.
 @item @uref{http://www.mysql.com/Downloads/Contrib/KAMXbase1.0.tar.gz,KAMXbase1.0.tar.gz}
 Convert between @file{.dbf} files and @strong{MySQL} tables.  Perl
 module written by Pratap Pereira @email{pereira@@ee.eng.ohio-state.edu},
-extened by Kevin A. McGrail @email{kmcgrail@@digital1.peregrinehw.com}.
+extended by Kevin A. McGrail @email{kmcgrail@@digital1.peregrinehw.com}.
 This converter can handle MEMO fields.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/Msql-Mysql-modules-1.2215.tar.gz, Msql-Mysql-modules-1.2215.tar.gz}
@@ -41501,7 +41501,7 @@ A query tool written in Perl. Uses DBI and Tk.
 Mascon is a powerful Win32 GUI for the administering @strong{MySQL} server
 databases. Mascon's features include visual table design, connections to
 multiple servers, data and blob editing of tables, security setting, SQL
-colour coding, dump functionality and much more.
+color coding, dump functionality and much more.
 @uref{http://www.scibit.com/Products/Software/Utils/Mascon.asp,Mascon home page}.
 @item @uref{http://www.virtualbeer.net/dbui/,DBUI}
 DBUI is a Gtk graphical database editor.
@@ -42015,7 +42015,7 @@ Maintainer of mysql++.
 @item
 Our security expert.
 @item
-Vio interface (The foundation for the the encrypted client/server protocol).
+Vio interface (The foundation for the encrypted client/server protocol).
 @item
 @strong{MySQL} Filesystem (A way to use @strong{MySQL} databases as files
 and directories).
@@ -43669,7 +43669,7 @@ Added a thread cache to make it possible to debug @strong{MySQL} with
 @code{gdb} when one does a lot of reconnects. This will also improve
 systems where you can't use persistent connections.
 @item
-Lots of fixes in the Berekely DB interface.
+Lots of fixes in the Berkeley DB interface.
 @item
 @code{UPDATE IGNORE} will not abort if an update results in a
 @code{DUPLICATE_KEY} error.
@@ -44113,7 +44113,7 @@ Fixed bug that one could make a part of a @code{PRIMARY KEY NOT NULL}.
 Fixed @code{encrypt()} to be thread safe and not reuse buffer.
 @item
 Added @code{mysql_odbc_escape_string()} function to support big5 characters in
-MyOBC.
+MyODBC.
 @item
 Rewrote the table handler to use classes.  This introduces a lot of new code,
 but will make table handling faster and better.
@@ -44481,7 +44481,7 @@ Show @code{NULL} as the default value for AUTO_INCREMENT columns.
 @item
 Added @code{SQL_BIG_RESULT};  @code{SQL_SMALL_RESULT} is now default.
 @item
-Added a shared library RPM. This enchancement was contributed by David
+Added a shared library RPM. This enhancement was contributed by David
 Fox (dsfox@@cogsci.ucsd.edu).
 @item
 Added a @code{--enable-large-files/--disable-large-files} switch to
@@ -45089,7 +45089,7 @@ following parameters from the @strong{MySQL} option files: @code{port},
 @item
 Added @code{maybe_null} to the UDF structure.
 @item
-Added option @code{IGNORE} to @code{INSERT} statemants with many rows.
+Added option @code{IGNORE} to @code{INSERT} statements with many rows.
 @item
 Fixed some problems with sorting of the koi8 character sets; Users of koi8
 @strong{MUST} run @code{isamchk -rq} on each table that has an index on
@@ -47006,7 +47006,7 @@ side effects when sorting on dates.
 @item
 Extended @code{ALTER TABLE} according to SQL92.
 @item
-Some minor compability changes.
+Some minor compatibility changes.
 @item
 Added @code{--port} and @code{--socket} options to all utility programs and
 @code{mysqld}.
@@ -47510,7 +47510,7 @@ Because @strong{MySQL} allows you to work with table types that doesn't
 support transactions (and thus can't @code{rollback} data) some things
 behaves a little different in @strong{MySQL} than in other SQL servers:
 (This is just to ensure that @strong{MySQL} never need to do a rollback
-for a SQL command).  This may be a little akward at times as column
+for a SQL command).  This may be a little awkward at times as column
 Because @strong{MySQL} allows you to work with table types that don't
 support transactions, and thus can't @code{rollback} data, some things
 behave a little differently in @strong{MySQL} than in other SQL servers.
@@ -48529,7 +48529,7 @@ flag[,modifier,modifier,...,modifier]
 The currently recognized flag characters are:
 
 @multitable @columnfractions .1 .9
-@item d	@tab Enable output from DBUG_<N> macros for for the current state. May be followed by a list of keywords which selects output only for the DBUG macros with that keyword. An empty list of keywords implies output for all macros.
+@item d	@tab Enable output from DBUG_<N> macros for the current state. May be followed by a list of keywords which selects output only for the DBUG macros with that keyword. An empty list of keywords implies output for all macros.
 @item D	@tab Delay after each debugger output line. The argument is the number of tenths of seconds to delay, subject to machine capabilities. That is, @code{-#D,20} is delay two seconds.
 @item f	@tab Limit debugging and/or tracing, and profiling to the list of named functions.  Note that a null list will disable all functions.	The appropriate "d" or "t" flags must still be given, this flag only limits their actions if they are enabled.
 @item F	@tab Identify the source file name for each line of debug or trace output.
@@ -48591,7 +48591,7 @@ Fewer lock conflicts when accessing different rows in many threads.
 @item
 Less changes for rollbacks.
 @item
-Makes it possbile to lock a single row a long time.
+Makes it possible to lock a single row a long time.
 @end itemize
 
 Cons:
