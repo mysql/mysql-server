@@ -1984,10 +1984,10 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 			(!db_name || !strcmp(tables->db,db_name))))
     {
       /* Ensure that we have access right to all columns */
-      if (grant_option && !(table->grant.privilege &
-			    table->grant.want_privilege) &&
+      if (!(table->grant.privilege & SELECT_ACL) &&
 	  check_grant_all_columns(thd,SELECT_ACL,table))
 	DBUG_RETURN(-1);
+
       Field **ptr=table->field,*field;
       thd->used_tables|=table->map;
       while ((field = *ptr++))
