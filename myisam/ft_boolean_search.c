@@ -435,32 +435,24 @@ static int _ftb_strstr(const byte *s0, const byte *e0,
                 const byte *s1, const byte *e1,
                 CHARSET_INFO *cs)
 {
-  const byte *p0, *p1;
-  my_bool s_after, e_before;
-
-  s_after=true_word_char(cs, s1[0]);
-  e_before=true_word_char(cs, e1[-1]);
-  p0=s0;
+  const byte *p0= s0;
+  my_bool s_after= true_word_char(cs, s1[0]);
+  my_bool e_before= true_word_char(cs, e1[-1]);
+  uint p0_len;
+  my_match_t m[2];
 
   while (p0 < e0)
   {
-    while (p0 < e0 && cs->to_upper[(uint) (uchar) *p0++] !=
-           cs->to_upper[(uint) (uchar) *s1])
-      /* no-op */;
-    if (p0 >= e0)
-      return 0;
-
-    if (s_after && p0-1 > s0 && true_word_char(cs, p0[-2]))
-      continue;
-
-    p1=s1+1;
-    while (p0 < e0 && p1 < e1 && cs->to_upper[(uint) (uchar) *p0] ==
-           cs->to_upper[(uint) (uchar) *p1])
-      p0++, p1++;
-    if (p1 == e1 && (!e_before || p0 == e0 || !true_word_char(cs, p0[0])))
-      return 1;
+    if (cs->coll->instr(cs, p0, e0 - p0, s1, e1 - s1, m, 2) != 2)
+      return(0);
+    if ((!s_after || p0 + m[1].beg == s0 || !true_word_char(cs, p0[m[1].beg-1])) &&
+        (!e_before || p0 + m[1].end == e0 || !true_word_char(cs, p0[m[1].end])))
+      return(1);
+    p0+= m[1].beg;
+    p0+= (p0_len= my_mbcharlen(cs, *(uchar *)p0)) ? p0_len : 1;
   }
-  return 0;
+
+  return(0);
 }
 
 

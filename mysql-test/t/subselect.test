@@ -1437,3 +1437,104 @@ select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
 -- error 1247
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx from DUAL;
 drop table t1;
+
+# Test for BUG#8218
+
+CREATE TABLE t1 (
+  categoryId int(11) NOT NULL,
+  courseId int(11) NOT NULL,
+  startDate datetime NOT NULL,
+  endDate datetime NOT NULL,
+  createDate datetime NOT NULL,
+  modifyDate timestamp NOT NULL,
+  attributes text NOT NULL
+);
+INSERT INTO t1 VALUES (1,41,'2004-02-09','2010-01-01','2004-02-09','2004-02-09',''),
+(1,86,'2004-08-16','2004-08-16','2004-08-16','2004-08-16',''),
+(1,87,'2004-08-16','2004-08-16','2004-08-16','2004-08-16',''),
+(2,52,'2004-03-15','2004-10-01','2004-03-15','2004-09-17',''),
+(2,53,'2004-03-16','2004-10-01','2004-03-16','2004-09-17',''),
+(2,88,'2004-08-16','2004-08-16','2004-08-16','2004-08-16',''),
+(2,89,'2004-08-16','2004-08-16','2004-08-16','2004-08-16',''),
+(3,51,'2004-02-09','2010-01-01','2004-02-09','2004-02-09',''),
+(5,12,'2004-02-18','2010-01-01','2004-02-18','2004-02-18','');
+
+CREATE TABLE t2 (
+  userId int(11) NOT NULL,
+  courseId int(11) NOT NULL,
+  date datetime NOT NULL
+);
+INSERT INTO t2 VALUES (5141,71,'2003-11-18'),
+(5141,72,'2003-11-25'),(5141,41,'2004-08-06'),
+(5141,52,'2004-08-06'),(5141,53,'2004-08-06'),
+(5141,12,'2004-08-06'),(5141,86,'2004-10-21'),
+(5141,87,'2004-10-21'),(5141,88,'2004-10-21'),
+(5141,89,'2004-10-22'),(5141,51,'2004-10-26');
+
+
+CREATE TABLE t3 (
+  groupId int(11) NOT NULL,
+  parentId int(11) NOT NULL,
+  startDate datetime NOT NULL,
+  endDate datetime NOT NULL,
+  createDate datetime NOT NULL,
+  modifyDate timestamp NOT NULL,
+  ordering int(11)
+);
+INSERT INTO t3 VALUES (12,9,'1000-01-01','3999-12-31','2004-01-29','2004-01-29',NULL);
+
+CREATE TABLE t4 (
+  id int(11) NOT NULL,
+  groupTypeId int(11) NOT NULL,
+  groupKey varchar(50) NOT NULL,
+  name text,
+  ordering int(11),
+  description text,
+  createDate datetime NOT NULL,
+  modifyDate timestamp NOT NULL
+);
+INSERT INTO t4 VALUES (9,5,'stationer','stationer',0,'Stationer','2004-01-29','2004-01-29'),
+(12,5,'group2','group2',0,'group2','2004-01-29','2004-01-29');
+
+CREATE TABLE t5 (
+  userId int(11) NOT NULL,
+  groupId int(11) NOT NULL,
+  createDate datetime NOT NULL,
+  modifyDate timestamp NOT NULL
+);
+INSERT INTO t5 VALUES (5141,12,'2004-08-06','2004-08-06');
+
+select
+  count(distinct t2.userid) pass,
+  groupstuff.*,
+  count(t2.courseid) crse,
+  t1.categoryid, 
+  t2.courseid,
+  date_format(date, '%b%y') as colhead
+from t2   
+join t1 on t2.courseid=t1.courseid  
+join
+(
+  select 
+    t5.userid,  
+    parentid,  
+    parentgroup,  
+    childid,  
+    groupname,  
+    grouptypeid  
+  from t5 
+  join 
+  (
+     select t4.id as parentid,  
+       t4.name as parentgroup,  
+       t4.id as childid,  
+       t4.name as groupname,  
+       t4.grouptypeid  
+     from   t4  
+  ) as gin on t5.groupid=gin.childid 
+) as groupstuff on t2.userid = groupstuff.userid 
+group by 
+  groupstuff.groupname, colhead , t2.courseid;
+
+drop table if exists t1, t2, t3, t4, t5;
+

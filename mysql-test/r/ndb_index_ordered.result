@@ -445,6 +445,89 @@ select count(*)-9 from t1 use index (ts) where ts <= '2001-01-01 23:59:59';
 count(*)-9
 0
 drop table t1;
+create table t1 (
+a int primary key,
+s decimal(12),
+t decimal(12, 5),
+u decimal(12) unsigned,
+v decimal(12, 5) unsigned,
+key (s),
+key (t),
+key (u),
+key (v)
+) engine=ndb;
+insert into t1 values
+( 0, -000000000007, -0000061.00003,  000000000061,  0000965.00042),
+( 1, -000000000007, -0000061.00042,  000000000061,  0000965.00003),
+( 2, -071006035767,  4210253.00024,  000000000001,  0000001.84488),
+( 3,  000000007115,  0000000.77607,  000077350625,  0000018.00013),
+( 4, -000000068391, -0346486.00000,  000000005071,  0005334.00002),
+( 5, -521579890459, -1936874.00001,  000000000154,  0000003.00018),
+( 6, -521579890459, -1936874.00018,  000000000154,  0000003.00001),
+( 7,  000000000333,  0000051.39140,  000000907958,  0788643.08374),
+( 8,  000042731229,  0000009.00000,  000000000009,  6428667.00000),
+( 9, -000008159769,  0000918.00004,  000096951421,  7607730.00008);
+select count(*)- 5 from t1 use index (s) where s  < -000000000007;
+count(*)- 5
+0
+select count(*)- 7 from t1 use index (s) where s <= -000000000007;
+count(*)- 7
+0
+select count(*)- 2 from t1 use index (s) where s  = -000000000007;
+count(*)- 2
+0
+select count(*)- 5 from t1 use index (s) where s >= -000000000007;
+count(*)- 5
+0
+select count(*)- 3 from t1 use index (s) where s  > -000000000007;
+count(*)- 3
+0
+select count(*)- 4 from t1 use index (t) where t  < -0000061.00003;
+count(*)- 4
+0
+select count(*)- 5 from t1 use index (t) where t <= -0000061.00003;
+count(*)- 5
+0
+select count(*)- 1 from t1 use index (t) where t  = -0000061.00003;
+count(*)- 1
+0
+select count(*)- 6 from t1 use index (t) where t >= -0000061.00003;
+count(*)- 6
+0
+select count(*)- 5 from t1 use index (t) where t  > -0000061.00003;
+count(*)- 5
+0
+select count(*)- 2 from t1 use index (u) where u  <  000000000061;
+count(*)- 2
+0
+select count(*)- 4 from t1 use index (u) where u <=  000000000061;
+count(*)- 4
+0
+select count(*)- 2 from t1 use index (u) where u  =  000000000061;
+count(*)- 2
+0
+select count(*)- 8 from t1 use index (u) where u >=  000000000061;
+count(*)- 8
+0
+select count(*)- 6 from t1 use index (u) where u  >  000000000061;
+count(*)- 6
+0
+select count(*)- 5 from t1 use index (v) where v  <  0000965.00042;
+count(*)- 5
+0
+select count(*)- 6 from t1 use index (v) where v <=  0000965.00042;
+count(*)- 6
+0
+select count(*)- 1 from t1 use index (v) where v  =  0000965.00042;
+count(*)- 1
+0
+select count(*)- 5 from t1 use index (v) where v >=  0000965.00042;
+count(*)- 5
+0
+select count(*)- 4 from t1 use index (v) where v  >  0000965.00042;
+count(*)- 4
+0
+drop table t1;
 create table t1(a int primary key, b int not null, index(b));
 insert into t1 values (1,1), (2,2);
 set autocommit=0;
