@@ -3024,11 +3024,11 @@ AC_SUBST([ndb_port_base])
 ndb_transporter_opt_objs=""
 if test X"$have_ndb_shm" = Xyes
 then
-  ndb_transporter_opt_objs="$(ndb_transporter_opt_objs) SHM_Transporter.lo SHM_Transporter.unix.lo"
+  ndb_transporter_opt_objs="$ndb_transporter_opt_objs SHM_Transporter.lo SHM_Transporter.unix.lo"
 fi
 if test X"$have_ndb_sci" = Xyes
 then
-  ndb_transporter_opt_objs="$(ndb_transporter_opt_objs) SCI_Transporter.lo"
+  ndb_transporter_opt_objs="$ndb_transporter_opt_objs SCI_Transporter.lo"
 fi
 AC_SUBST([ndb_transporter_opt_objs])
 
