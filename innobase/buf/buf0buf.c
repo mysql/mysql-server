@@ -1844,8 +1844,8 @@ buf_print_io(
 		buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]);
 
 	current_time = time(NULL);
-	time_elapsed = difftime(current_time, buf_pool->last_printout_time);
-
+	time_elapsed = 0.001 + difftime(current_time,
+						buf_pool->last_printout_time);
 	buf_pool->last_printout_time = current_time;
 
 	buf += sprintf(buf, "Pages read %lu, created %lu, written %lu\n",
@@ -1876,6 +1876,20 @@ buf_print_io(
 	buf_pool->n_pages_written_old = buf_pool->n_pages_written;
 
 	mutex_exit(&(buf_pool->mutex));
+}
+
+/**************************************************************************
+Refreshes the statistics used to print per-second averages. */
+
+void
+buf_refresh_io_stats(void)
+/*======================*/
+{
+        buf_pool->last_printout_time = time(NULL);
+	buf_pool->n_page_gets_old = buf_pool->n_page_gets;
+	buf_pool->n_pages_read_old = buf_pool->n_pages_read;
+	buf_pool->n_pages_created_old = buf_pool->n_pages_created;
+	buf_pool->n_pages_written_old = buf_pool->n_pages_written;
 }
 
 /*************************************************************************

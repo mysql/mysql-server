@@ -18,37 +18,63 @@ Created 9/8/1995 Heikki Tuuri
 
 #include "srv0srv.h"
 
+/*******************************************************************
+Compares two threads or thread ids for equality */
+
+ibool
+os_thread_eq(
+/*=========*/
+				/* out: TRUE if equal */
+	os_thread_t	a,	/* in: OS thread or thread id */
+	os_thread_t	b)	/* in: OS thread or thread id */
+{
+#ifdef __WIN__
+	if (a == b) {
+		return(TRUE);
+	}
+
+	return(FALSE);
+#else
+	if (pthread_equal(a, b)) {
+		return(TRUE);
+	}
+
+	return(FALSE);
+#endif
+}
+
+/********************************************************************
+Converts an OS thread or thread id to a ulint. It is NOT guaranteed that
+the ulint is unique for the thread though! */
+
+ulint
+os_thread_pf(
+/*=========*/
+	os_thread_t	a)
+{
+#ifdef UNIV_HPUX
+        /* In HP-UX a pthread_t is a struct of 3 fields: field1, field2,
+        field3. We do not know if field1 determines the thread uniquely. */
+
+	return((ulint)(a.field1));
+#else
+	return((ulint)a);
+#endif
+}
+
 /*********************************************************************
-Returns the thread identifier of current thread. */
+Returns the thread identifier of current thread. Currently the thread
+identifier is the thread handle itself. Note that in HP-UX pthread_t is
+a struct of 3 fields. */
 
 os_thread_id_t
 os_thread_get_curr_id(void)
 /*=======================*/
 {
 #ifdef __WIN__
-	return(GetCurrentThreadId());
+	return(GetCurrentThread());
 #else
-	pthread_t    pthr;
-
-	pthr = pthread_self();
-
-#ifdef HPUX	
-	/* TODO: in the future we have to change os_thread_id
-	to pthread_t! */
-
-	/* In HP-UX a pthread_t seems to be a struct of three fields:
-	field1, field2, field3, and the first probably determines (?)
-	the thread identity. */
-
-	return((os_thread_id_t)(pthr.field1));
-#else
-	/* TODO: define os_thread_id_t in Unix as the same as pthread_t
-	and compare them with appropriate Posix pthread functions!
-	The following typecast will not work if pthread_t is not
-	an integer or a pointer to a unique object for the thread! */
-
-	return((os_thread_id_t)pthr);
-#endif
+	return(pthread_self());
 #endif
 }
 
@@ -81,7 +107,6 @@ os_thread_create(
 				arg,
 				0,	/* thread runs immediately */
 				thread_id);
-	ut_a(thread);
 
 	if (srv_set_thread_priorities) {
 
@@ -118,25 +143,13 @@ Returns handle to the current thread. */
 
 os_thread_t
 os_thread_get_curr(void)
-/*=======================*/
+/*====================*/
 {
 #ifdef __WIN__
 	return(GetCurrentThread());
 #else
 	return(pthread_self());
 #endif
-}
-
-/*********************************************************************
-Converts a thread id to a ulint. */
-
-ulint
-os_thread_conv_id_to_ulint(
-/*=======================*/
-				/* out: converted to ulint */
-	os_thread_id_t	id)	/* in: thread id */
-{
-	return((ulint)id);
 }
 	
 /*********************************************************************

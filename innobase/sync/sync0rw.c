@@ -223,7 +223,7 @@ lock_loop:
 	if (srv_print_latch_waits) {
 		printf(
 	"Thread %lu spin wait rw-s-lock at %lx cfile %s cline %lu rnds %lu\n",
-			os_thread_get_curr_id(), (ulint)lock,
+		os_thread_pf(os_thread_get_curr_id()), (ulint)lock,
 				lock->cfile_name, lock->cline, i);
 	}
 
@@ -253,7 +253,7 @@ lock_loop:
 		if (srv_print_latch_waits) {
 			printf(
 		"Thread %lu OS wait rw-s-lock at %lx cfile %s cline %lu\n",
-				os_thread_get_curr_id(), (ulint)lock,
+			os_thread_pf(os_thread_get_curr_id()), (ulint)lock,
 				lock->cfile_name, lock->cline);
 		}
 
@@ -343,7 +343,8 @@ rw_lock_x_lock_low(
 		}
 
 	} else if ((rw_lock_get_writer(lock) == RW_LOCK_WAIT_EX)
-		   && (lock->writer_thread == os_thread_get_curr_id())) {
+		   && os_thread_eq(lock->writer_thread,
+						os_thread_get_curr_id())) {
 
 		if (rw_lock_get_reader_count(lock) == 0) {
 
@@ -368,7 +369,8 @@ rw_lock_x_lock_low(
 		return(RW_LOCK_WAIT_EX);
 
 	} else if ((rw_lock_get_writer(lock) == RW_LOCK_EX)
-		   && (lock->writer_thread == os_thread_get_curr_id())
+		   && os_thread_eq(lock->writer_thread,
+						os_thread_get_curr_id())
 		   && (lock->pass == 0)
 		   && (pass == 0)) {
 
@@ -469,7 +471,7 @@ lock_loop:
 	if (srv_print_latch_waits) {
 		printf(
 	"Thread %lu spin wait rw-x-lock at %lx cfile %s cline %lu rnds %lu\n",
-			os_thread_get_curr_id(), (ulint)lock,
+		os_thread_pf(os_thread_get_curr_id()), (ulint)lock,
 					lock->cfile_name, lock->cline, i);
 	}
 
@@ -502,8 +504,8 @@ lock_loop:
 	if (srv_print_latch_waits) {
 		printf(
 		"Thread %lu OS wait for rw-x-lock at %lx cfile %s cline %lu\n",
-		os_thread_get_curr_id(), (ulint)lock, lock->cfile_name,
-							lock->cline);
+		os_thread_pf(os_thread_get_curr_id()), (ulint)lock,
+				lock->cfile_name, lock->cline);
 	}
 
 	rw_x_system_call_count++;
@@ -621,7 +623,8 @@ rw_lock_remove_debug_info(
 	while (info != NULL) {
 		if ((pass == info->pass)
 		    && ((pass != 0)
-			|| (info->thread_id == os_thread_get_curr_id()))
+			|| os_thread_eq(info->thread_id,
+						os_thread_get_curr_id()))
 		    && (info->lock_type == lock_type)) {
 
 		    	/* Found! */
@@ -676,7 +679,7 @@ rw_lock_own(
 
 	while (info != NULL) {
 
-		if ((info->thread_id == os_thread_get_curr_id())
+		if (os_thread_eq(info->thread_id, os_thread_get_curr_id())
 		    && (info->pass == 0)
 		    && (info->lock_type == lock_type)) {
 
@@ -834,7 +837,7 @@ rw_lock_debug_print(
 	rwt 	  = info->lock_type;	
 			
 	printf("Locked: thread %ld file %s line %ld  ",
-		    	info->thread_id, info->file_name, info->line);
+		os_thread_pf(info->thread_id), info->file_name, info->line);
 	if (rwt == RW_LOCK_SHARED) {
 		printf("S-LOCK");
 	} else if (rwt == RW_LOCK_EX) {

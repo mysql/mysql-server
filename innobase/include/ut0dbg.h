@@ -26,9 +26,11 @@ extern ulint*	ut_dbg_null_ptr;
 	ulint	dbg_i;\
 \
 	if (!((ulint)(EXPR) + ut_dbg_zero)) {\
+                ut_print_timestamp(stderr);\
 	   	fprintf(stderr,\
-       "InnoDB: Assertion failure in thread %lu in file %s line %lu\n",\
-			os_thread_get_curr_id(), IB__FILE__, (ulint)__LINE__);\
+       "  InnoDB: Assertion failure in thread %lu in file %s line %lu\n",\
+		os_thread_pf(os_thread_get_curr_id()), IB__FILE__,\
+                (ulint)__LINE__);\
 	   	fprintf(stderr,\
        "InnoDB: We intentionally generate a memory trap.\n");\
                 fprintf(stderr,\
@@ -42,16 +44,17 @@ extern ulint*	ut_dbg_null_ptr;
 	if (ut_dbg_stop_threads) {\
 	        fprintf(stderr,\
                      "InnoDB: Thread %lu stopped in file %s line %lu\n",\
-			os_thread_get_curr_id(), IB__FILE__, (ulint)__LINE__);\
+     os_thread_pf(os_thread_get_curr_id()), IB__FILE__, (ulint)__LINE__);\
 		os_thread_sleep(1000000000);\
 	}\
 }
 
 #define ut_error {\
 	ulint	dbg_i;\
+           ut_print_timestamp(stderr);\
 	   fprintf(stderr,\
-	  "InnoDB: Assertion failure in thread %lu in file %s line %lu\n",\
-			os_thread_get_curr_id(), IB__FILE__, (ulint)__LINE__);\
+	  "  InnoDB: Assertion failure in thread %lu in file %s line %lu\n",\
+ os_thread_pf(os_thread_get_curr_id()), IB__FILE__, (ulint)__LINE__);\
 	   fprintf(stderr,\
 		   "InnoDB: We intentionally generate a memory trap.\n");\
            fprintf(stderr,\

@@ -230,7 +230,6 @@ mutex_create_func(
 	mutex->magic_n = MUTEX_MAGIC_N;
 	mutex->line = 0;
 	mutex->file_name = "not yet reserved";
-	mutex->thread_id = ULINT_UNDEFINED;
 	mutex->level = SYNC_LEVEL_NONE;
 	mutex->cfile_name = cfile_name;
 	mutex->cline = cline;
@@ -392,8 +391,8 @@ spin_loop:
 	if (srv_print_latch_waits) {
 		printf(
 	"Thread %lu spin wait mutex at %lx cfile %s cline %lu rnds %lu\n",
-		os_thread_get_curr_id(), (ulint)mutex, mutex->cfile_name,
-							mutex->cline, i);
+		os_thread_pf(os_thread_get_curr_id()), (ulint)mutex,
+				mutex->cfile_name, mutex->cline, i);
 	}
 
 	mutex_spin_round_count += i;
@@ -458,7 +457,7 @@ spin_loop:
 		if (srv_print_latch_waits) {
 			printf(
 			"Thread %lu spin wait succeeds at 2: mutex at %lx\n",
-				os_thread_get_curr_id(), (ulint)mutex);
+			os_thread_pf(os_thread_get_curr_id()), (ulint)mutex);
 		}
 		
                 return;
@@ -476,8 +475,8 @@ spin_loop:
 	if (srv_print_latch_waits) {
 		printf(
 	"Thread %lu OS wait mutex at %lx cfile %s cline %lu rnds %lu\n",
-		os_thread_get_curr_id(), (ulint)mutex, mutex->cfile_name,
-							mutex->cline, i);
+		os_thread_pf(os_thread_get_curr_id()), (ulint)mutex,
+			mutex->cfile_name, mutex->cline, i);
 	}
 	
 	mutex_system_call_count++;
@@ -572,7 +571,7 @@ mutex_own(
 		return(FALSE);
 	}
 	
-	if (mutex->thread_id != os_thread_get_curr_id()) {
+	if (!os_thread_eq(mutex->thread_id, os_thread_get_curr_id())) {
 
 		return(FALSE);
 	}
@@ -611,7 +610,8 @@ mutex_list_print_info(void)
 								&thread_id);
 		 	printf(
 			"Locked mutex: addr %lx thread %ld file %s line %ld\n",
-		    		(ulint)mutex, thread_id, file_name, line);
+		    		(ulint)mutex, os_thread_pf(thread_id),
+				file_name, line);
 		}
 
 		mutex = UT_LIST_GET_NEXT(list, mutex);
@@ -716,7 +716,7 @@ sync_thread_level_arrays_find_slot(void)
 
 		slot = sync_thread_level_arrays_get_nth(i);
 
-		if (slot->levels && (slot->id == id)) {
+		if (slot->levels && os_thread_eq(slot->id, id)) {
 
 			return(slot);
 		}
@@ -780,7 +780,7 @@ sync_thread_levels_g(
 {
 	char*		file_name;
 	ulint		line;
-	ulint		thread_id;
+	os_thread_id_t	thread_id;
 	sync_level_t*	slot;
 	rw_lock_t*	lock;
 	mutex_t*	mutex;
@@ -810,7 +810,7 @@ sync_thread_levels_g(
 						&file_name, &line, &thread_id);
 
 	printf("InnoDB: Locked mutex: addr %lx thread %ld file %s line %ld\n",
-		    				(ulint)mutex, thread_id,
+		    	(ulint)mutex, os_thread_pf(thread_id),
 						file_name, line);
 					} else {
 						printf("Not locked\n");

@@ -9,16 +9,6 @@ Created 8/18/1994 Heikki Tuuri
 #include "ut0rnd.h"
 #include "mem0mem.h"
 
-/* The hash table external chain node */
-
-typedef struct ha_node_struct ha_node_t;
-
-struct ha_node_struct {
-	ha_node_t* next; /* next chain node or NULL if none */
-	void*	data;	/* pointer to the data */
-	ulint	fold;	/* fold value for the data */
-};
-
 /***************************************************************
 Deletes a hash node. */
 

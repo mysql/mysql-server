@@ -454,7 +454,7 @@ sync_array_cell_print(
 
 	buf += sprintf(buf,
 "--Thread %lu has waited at %s line %lu for %.2f seconds the semaphore:\n",
-			(ulint)cell->thread, cell->file, cell->line,
+			os_thread_pf(cell->thread), cell->file, cell->line,
 			difftime(time(NULL), cell->reservation_time));
 
 	if (type == SYNC_MUTEX) {
@@ -486,7 +486,7 @@ sync_array_cell_print(
 		if (rwlock->writer != RW_LOCK_NOT_LOCKED) {
 			buf += sprintf(buf,
 			"a writer (thread id %lu) has reserved it in mode",
-					(ulint)rwlock->writer_thread);
+				os_thread_pf(rwlock->writer_thread));
 			if (rwlock->writer == RW_LOCK_EX) {
 				buf += sprintf(buf, " exclusive\n");
 			} else {
@@ -535,8 +535,8 @@ sync_array_find_thread(
 
 		cell = sync_array_get_nth_cell(arr, i);        	
 
-                if ((cell->wait_object != NULL)
-		    && (cell->thread == thread)) {
+                if (cell->wait_object != NULL
+		    && os_thread_eq(cell->thread, thread)) {
 
 		    	return(cell);	/* Found */
                 }
@@ -651,9 +651,9 @@ sync_array_detect_deadlock(
 				sync_array_cell_print(buf, cell);
 				printf(
 	"Mutex %lx owned by thread %lu file %s line %lu\n%s",
-					(ulint)mutex, mutex->thread_id,
-					mutex->file_name, mutex->line,
-					buf);
+			(ulint)mutex, os_thread_pf(mutex->thread_id),
+				mutex->file_name, mutex->line, buf);
+
 				return(TRUE);
 			}
 		}
@@ -671,9 +671,9 @@ sync_array_detect_deadlock(
 		thread = debug->thread_id;
 
 		if (((debug->lock_type == RW_LOCK_EX)
-	             && (thread != cell->thread))
+	             && !os_thread_eq(thread, cell->thread))
 	            || ((debug->lock_type == RW_LOCK_WAIT_EX)
-			&& (thread != cell->thread))
+			&& !os_thread_eq(thread, cell->thread))
 	            || (debug->lock_type == RW_LOCK_SHARED)) {
 
 			/* The (wait) x-lock request can block infinitely
@@ -771,7 +771,7 @@ sync_arr_cell_can_wake_up(
 
 	    	if (rw_lock_get_reader_count(lock) == 0
 		    && rw_lock_get_writer(lock) == RW_LOCK_WAIT_EX
-		    && lock->writer_thread == cell->thread) {
+		    && os_thread_eq(lock->writer_thread, cell->thread)) {
 
 			return(TRUE);
 		}
@@ -927,7 +927,7 @@ sync_array_print_long_waits(void)
 		    && difftime(time(NULL), cell->reservation_time) > 420) {
 
 		    	fprintf(stderr,
-"InnoDB: Error: semaphore wait has lasted > 420 seconds\n"
+"InnoDB: Error: semaphore wait has lasted > 600 seconds\n"
 "InnoDB: We intentionally crash the server, because it appears to be hung.\n"
 		    	);
 
@@ -1011,3 +1011,4 @@ sync_array_print_info(
         
         sync_array_exit(arr);
 }
+

@@ -74,6 +74,12 @@ ulint		ios;
 ulint		n[SRV_MAX_N_IO_THREADS + 5];
 os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 5];
 
+/* We use this mutex to test the return value of pthread_mutex_trylock
+   on successful locking. HP-UX does NOT return 0, though Linux et al do. */
+os_fast_mutex_t srv_os_test_mutex;
+
+ibool srv_os_test_mutex_is_locked = FALSE;
+
 #define SRV_N_PENDING_IOS_PER_THREAD 	OS_AIO_N_PENDING_IOS_PER_THREAD
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
 
@@ -1352,6 +1358,22 @@ innobase_start_or_create_for_mysql(void)
 "InnoDB: the sum of data file sizes is only %lu pages\n",
  			tablespace_size_in_header, sum_of_data_file_sizes);
 	}
+
+	/* Check that os_fast_mutexes work as exptected */
+	os_fast_mutex_init(&srv_os_test_mutex);
+
+	if (0 != os_fast_mutex_trylock(&srv_os_test_mutex)) {
+	        fprintf(stderr,
+"InnoDB: Error: pthread_mutex_trylock returns an unexpected value on\n"
+		  "InnoDB: success! Cannot continue.\n");
+	        exit(1);
+	}
+
+	os_fast_mutex_unlock(&srv_os_test_mutex);
+
+        os_fast_mutex_lock(&srv_os_test_mutex);
+
+	os_fast_mutex_unlock(&srv_os_test_mutex);
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr, "  InnoDB: Started\n");
