@@ -63,6 +63,7 @@ int run_test(const char *filename)
   int row_count=0;
   char record[MAX_REC_LENGTH];
   char read_record[MAX_REC_LENGTH];
+  int upd= 10;
   ha_rows hrows;
   
   

@@ -50,7 +50,7 @@ static my_bool	mysql_client_init=0;
 uint		mysql_port=0;
 my_string	mysql_unix_port=0;
 
-#define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_TRANSACTIONS)
+#define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_TRANSACTIONS | CLIENT_PROTOCOL_41)
 
 #if defined(MSDOS) || defined(__WIN__)
 #define ERRNO WSAGetLastError()
@@ -412,7 +412,7 @@ mysql_free_result(MYSQL_RES *result)
 	uint pkt_len;
 	if ((pkt_len=(uint) net_safe_read(result->handle)) == packet_error)
 	  break;
-	if (pkt_len == 1 && result->handle->net.read_pos[0] == 254)
+	if (pkt_len <= 8 && result->handle->net.read_pos[0] == 254)
 	  break;				/* End of data */
       }
       result->handle->status=MYSQL_STATUS_READY;
@@ -632,7 +632,7 @@ static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
   result->rows=0;
   result->fields=fields;
 
-  while (*(cp=net->read_pos) != 254 || pkt_len != 1)
+  while (*(cp=net->read_pos) != 254 || pkt_len >= 8)
   {
     result->rows++;
     if (!(cur= (MYSQL_ROWS*) alloc_root(&result->alloc,
@@ -676,6 +676,8 @@ static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
     }
   }
   *prev_ptr=0;					/* last pointer is null */
+  mysql->warning_count= uint2korr(cp+1);
+  DBUG_PRINT("info",("warning_count:  %ld", mysql->warning_count));
   DBUG_PRINT("exit",("Got %d rows",result->rows));
   DBUG_RETURN(result);
 }
@@ -696,8 +698,11 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
 
   if ((pkt_len=net_safe_read(mysql)) == packet_error)
     return -1;
-  if (pkt_len == 1 && mysql->net.read_pos[0] == 254)
+  if (pkt_len <= 8 && mysql->net.read_pos[0] == 254)
+  {
+    mysql->warning_count= uint2korr(mysql->net.read_pos+1);
     return 1;				/* End of data */
+  }
   prev_pos= 0;				/* allowed to write at packet[-1] */
   pos=mysql->net.read_pos;
   for (field=0 ; field < fields ; field++)
@@ -1142,10 +1147,8 @@ get_info:
   {
     mysql->affected_rows= net_field_length_ll(&pos);
     mysql->insert_id=	  net_field_length_ll(&pos);
-    if (mysql->server_capabilities & CLIENT_TRANSACTIONS)
-    {
-      mysql->server_status=uint2korr(pos); pos+=2;
-    }
+    mysql->server_status=uint2korr(pos); pos+=2;
+    mysql->warning_count=uint2korr(pos); pos+=2;
     if (pos < mysql->net.read_pos+length && net_field_length(&pos))
       mysql->info=(char*) pos;
     DBUG_RETURN(0);
@@ -1170,6 +1173,7 @@ get_info:
     DBUG_RETURN(1);
   mysql->status=MYSQL_STATUS_GET_RESULT;
   mysql->field_count=field_count;
+  mysql->warning_count= 0;
   DBUG_RETURN(0);
 }
 
@@ -1881,6 +1885,11 @@ const char * STDCALL mysql_error(MYSQL *mysql)
   return (mysql)->net.last_error;
 }
 
+uint STDCALL mysql_warning_count(MYSQL *mysql)
+{
+  return mysql->warning_count;
+}
+
 const char *STDCALL mysql_info(MYSQL *mysql)
 {
   return (mysql)->info;
@@ -1904,6 +1913,18 @@ uint STDCALL mysql_thread_safe(void)
 #else
   return 0;
 #endif
+}
+
+MYSQL_RES *STDCALL mysql_warnings(MYSQL *mysql)
+{
+  uint warning_count;
+  DBUG_ENTER("mysql_warnings");
+  /* Save warning count as mysql_real_query may change this */
+  warning_count= mysql->warning_count;
+  if (mysql_real_query(mysql, "SHOW WARNINGS", 13))
+    DBUG_RETURN(0);
+  mysql->warning_count= warning_count;
+  DBUG_RETURN(mysql_store_result(mysql));
 }
 
 /****************************************************************************
