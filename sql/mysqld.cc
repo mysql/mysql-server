@@ -4182,7 +4182,7 @@ replicating a LOAD DATA INFILE command.",
    0, 0, 0, 0, 0},
   {"tmpdir", 't',
    "Path for temporary files. Several paths may be specified, separated by a "
-#if defined( __WIN__) || defined(OS2)
+#if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
    "semicolon (;)"
 #else
    "colon (:)"
