@@ -653,7 +653,11 @@ start_master()
     $RM -f $MASTER_MYDDIR/log.*
     # Remove stale binary logs
     $RM -f $MYSQL_TEST_DIR/var/log/master-bin.*
+    # Remove files that can cause problems
+    $RM -f $MYSQL_TEST_DIR/var/run/* $MYSQL_TEST_DIR/var/tmp/*
+
     #run master initialization shell script if one exists
+
     if [ -f "$master_init_script" ] ;
     then
         /bin/sh $master_init_script
