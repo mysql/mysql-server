@@ -2257,6 +2257,24 @@ double Item_func_match::val()
     return ft_handler->please->find_relevance(ft_handler, record, 0);
 }
 
+longlong Item_func_bit_xor::val_int()
+{
+  ulonglong arg1= (ulonglong) args[0]->val_int();
+  if (args[0]->null_value)
+  {
+    null_value=1;
+    return 0;
+  }
+  ulonglong arg2= (ulonglong) args[1]->val_int();
+  if (args[1]->null_value)
+  {
+    null_value=1;
+    return 0;
+  }
+  null_value=0;
+  return (longlong) (arg1 ^ arg2);
+}
+
 
 /***************************************************************************
   System variables
@@ -2272,5 +2290,42 @@ Item *get_system_var(LEX_STRING name)
     return new Item_string("@@VERSION",server_version,
 			   (uint) strlen(server_version));
   net_printf(&current_thd->net, ER_UNKNOWN_SYSTEM_VARIABLE, name.str);
+  return 0;
+}
+
+/*
+  Check a user level lock.
+  Returns 1: available
+  Returns 0: already taken
+  Returns NULL: Error
+*/
+
+longlong Item_func_check_lock::val_int()
+{
+  String *res=args[0]->val_str(&value);
+  struct timespec abstime;
+  THD *thd=current_thd;
+  ULL *ull;
+  int error=0;
+
+  null_value=0;
+
+  if (/* check_global_access(thd,SUPER_ACL) ||*/ !res || !res->length())
+  {
+    null_value=1;
+    return 0;
+  }
+  
+  pthread_mutex_lock(&LOCK_user_locks);
+
+  
+  ull= (ULL*) hash_search(&hash_user_locks,(byte*) res->ptr(),
+			  res->length());
+
+  pthread_mutex_unlock(&LOCK_user_locks);
+  
+  if (!ull || !ull->locked)
+    return 1;
+  
   return 0;
 }

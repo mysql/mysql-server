@@ -91,3 +91,4 @@ Item *create_func_version(void);
 Item *create_func_weekday(Item* a);
 Item *create_load_file(Item* a);
 Item *create_wait_for_master_pos(Item* a, Item* b);
+Item *create_func_check_lock(Item* a);

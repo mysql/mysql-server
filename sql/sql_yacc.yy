@@ -339,6 +339,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	WITH
 %token	WRITE_SYM
 %token	X509_SYM
+%token  XOR
 %token	COMPRESSED_SYM
 
 %token	BIGINT
@@ -496,6 +497,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %left	'-' '+'
 %left	'*' '/' '%'
 %left	NEG '~'
+%left   XOR
+%left   '^'
 %right	NOT
 %right	BINARY
 
@@ -1524,6 +1527,7 @@ expr_expr:
 	  { $$= new Item_func_not(new Item_func_between($1,$4,$6)); }
 	| expr OR_OR_CONCAT expr { $$= or_or_concat($1,$3); }
 	| expr OR expr		{ $$= new Item_cond_or($1,$3); }
+        | expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
 	| expr AND expr		{ $$= new Item_cond_and($1,$3); }
 	| expr LIKE simple_expr opt_escape { $$= new Item_func_like($1,$3,$4); }
 	| expr NOT LIKE simple_expr opt_escape	{ $$= new Item_func_not(new Item_func_like($1,$4,$5));}
@@ -1545,6 +1549,7 @@ expr_expr:
 	| expr '*' expr		{ $$= new Item_func_mul($1,$3); }
 	| expr '/' expr		{ $$= new Item_func_div($1,$3); }
 	| expr '|' expr		{ $$= new Item_func_bit_or($1,$3); }
+        | expr '^' expr		{ $$= new Item_func_bit_xor($1,$3); }	
 	| expr '&' expr		{ $$= new Item_func_bit_and($1,$3); }
 	| expr '%' expr		{ $$= new Item_func_mod($1,$3); }
 	| expr '+' INTERVAL_SYM expr interval
@@ -1560,6 +1565,7 @@ no_in_expr:
 	  { $$= new Item_func_not(new Item_func_between($1,$4,$6)); }
 	| no_in_expr OR_OR_CONCAT expr	{ $$= or_or_concat($1,$3); }
 	| no_in_expr OR expr		{ $$= new Item_cond_or($1,$3); }
+        | no_in_expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
 	| no_in_expr AND expr		{ $$= new Item_cond_and($1,$3); }
 	| no_in_expr LIKE simple_expr opt_escape { $$= new Item_func_like($1,$3,$4); }
 	| no_in_expr NOT LIKE simple_expr opt_escape { $$= new Item_func_not(new Item_func_like($1,$4,$5)); }
@@ -1581,6 +1587,7 @@ no_in_expr:
 	| no_in_expr '*' expr		{ $$= new Item_func_mul($1,$3); }
 	| no_in_expr '/' expr		{ $$= new Item_func_div($1,$3); }
 	| no_in_expr '|' expr		{ $$= new Item_func_bit_or($1,$3); }
+        | no_in_expr '^' expr		{ $$= new Item_func_bit_xor($1,$3); }
 	| no_in_expr '&' expr		{ $$= new Item_func_bit_and($1,$3); }
 	| no_in_expr '%' expr		{ $$= new Item_func_mod($1,$3); }
 	| no_in_expr '+' INTERVAL_SYM expr interval
@@ -1601,6 +1608,7 @@ no_and_expr:
 	  { $$= new Item_func_not(new Item_func_between($1,$4,$6)); }
 	| no_and_expr OR_OR_CONCAT expr	{ $$= or_or_concat($1,$3); }
 	| no_and_expr OR expr		{ $$= new Item_cond_or($1,$3); }
+        | no_and_expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
 	| no_and_expr LIKE simple_expr opt_escape { $$= new Item_func_like($1,$3,$4); }
 	| no_and_expr NOT LIKE simple_expr opt_escape	{ $$= new Item_func_not(new Item_func_like($1,$4,$5)); }
 	| no_and_expr REGEXP expr { $$= new Item_func_regex($1,$3); }
@@ -1621,6 +1629,7 @@ no_and_expr:
 	| no_and_expr '*' expr		{ $$= new Item_func_mul($1,$3); }
 	| no_and_expr '/' expr		{ $$= new Item_func_div($1,$3); }
 	| no_and_expr '|' expr		{ $$= new Item_func_bit_or($1,$3); }
+        | no_and_expr '^' expr		{ $$= new Item_func_bit_xor($1,$3); }
 	| no_and_expr '&' expr		{ $$= new Item_func_bit_and($1,$3); }
 	| no_and_expr '%' expr		{ $$= new Item_func_mod($1,$3); }
 	| no_and_expr '+' INTERVAL_SYM expr interval

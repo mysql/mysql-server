@@ -22,6 +22,7 @@ sync_with_master;
 select get_lock("lock",3);
 select * from t1;
 connection master1;
+select check_lock("lock");
 drop table t1;
 save_master_pos;
 connection slave;
