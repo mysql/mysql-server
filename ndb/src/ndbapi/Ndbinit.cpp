@@ -20,8 +20,6 @@
 
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
-//#include "NdbSchemaOp.hpp"
-//#include "NdbSchemaCon.hpp" 
 #include "NdbOperation.hpp"
 #include "NdbConnection.hpp"
 #include "NdbRecAttr.hpp"
@@ -59,13 +57,16 @@ Parameters:    aDataBase : Name of the database.
 Remark:        Connect to the database.
 ***************************************************************************/
 Ndb::Ndb( const char* aDataBase , const char* aSchema) {
+  NdbMutex_Lock(&createNdbMutex);
+  if (theNoOfNdbObjects < 0)
+    abort(); // old and new Ndb constructor used mixed
+  theNoOfNdbObjects++;
   if (global_ndb_cluster_connection == 0) {
-    if (theNoOfNdbObjects > 0)
-      abort(); // old and new Ndb constructor used mixed
     my_init();
     global_ndb_cluster_connection= new Ndb_cluster_connection(ndbConnectString);
     global_ndb_cluster_connection->connect();
   }
+  NdbMutex_Unlock(&createNdbMutex);
   setup(global_ndb_cluster_connection, aDataBase, aSchema);
 }
 
@@ -75,6 +76,7 @@ Ndb::Ndb( Ndb_cluster_connection *ndb_cluster_connection,
   if (global_ndb_cluster_connection != 0 &&
       global_ndb_cluster_connection != ndb_cluster_connection)
     abort(); // old and new Ndb constructor used mixed
+  theNoOfNdbObjects= -1;
   setup(ndb_cluster_connection, aDataBase, aSchema);
 }
 
@@ -168,9 +170,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   
   theWaiter.m_mutex =  TransporterFacade::instance()->theMutexPtr;
 
-  // For keeping track of how many Ndb objects that exists.
-  theNoOfNdbObjects += 1;
-  
   // Signal that the constructor has finished OK
   if (theInitState == NotConstructed)
     theInitState = NotInitialised;
@@ -229,10 +228,9 @@ Ndb::~Ndb()
   
   NdbMutex_Lock(&createNdbMutex);
 
-  theNoOfNdbObjects -= 1;
-  if(theNoOfNdbObjects == 0){
-    TransporterFacade::stop_instance();
-    if (global_ndb_cluster_connection != 0) {
+  if (global_ndb_cluster_connection != 0) {
+    theNoOfNdbObjects--;
+    if(theNoOfNdbObjects == 0){
       delete global_ndb_cluster_connection;
       global_ndb_cluster_connection= 0;
     }
