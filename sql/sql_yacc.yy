@@ -7020,9 +7020,10 @@ IDENT_sys:
 	    if (thd->charset_is_system_charset)
             {
               CHARSET_INFO *cs= system_charset_info;
+              int dummy_error;
               uint wlen= cs->cset->well_formed_len(cs, $1.str,
                                                    $1.str+$1.length,
-                                                   $1.length);
+                                                   $1.length, &dummy_error);
               if (wlen < $1.length)
               {
                 my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
