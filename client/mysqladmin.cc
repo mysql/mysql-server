@@ -832,7 +832,8 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       if (argv[1][0])
       {
         char *pw= argv[1];
-        bool old= find_type(argv[0], &command_typelib, 2) == ADMIN_OLD_PASSWORD;
+        bool old= (find_type(argv[0], &command_typelib, 2) ==
+                   ADMIN_OLD_PASSWORD);
 #ifdef __WIN__
         uint pw_len= strlen(pw);
         if (pw_len > 1 && pw[0] == '\'' && pw[pw_len-1] == '\'')
@@ -843,21 +844,29 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
            If we don't already know to use an old-style password, see what
            the server is using
         */
-        if (!old) {
-          if (mysql_query(mysql, "SHOW VARIABLES LIKE 'old_passwords'")) {
+        if (!old)
+        {
+          if (mysql_query(mysql, "SHOW VARIABLES LIKE 'old_passwords'"))
+          {
             my_printf_error(0, "Could not determine old_passwords setting from server; error: '%s'",
                 	    MYF(ME_BELL),mysql_error(mysql));
             return -1;
-          } else {
+          }
+          else
+          {
             MYSQL_RES *res= mysql_store_result(mysql);
-            if (!res) {
-              my_printf_error(0, "Could not get old_passwords setting from server; error: '%s'",
+            if (!res)
+            {
+              my_printf_error(0,
+                              "Could not get old_passwords setting from "
+                              "server; error: '%s'",
         		      MYF(ME_BELL),mysql_error(mysql));
               return -1;
             }
-            if (!mysql_num_rows(res)) {
+            if (!mysql_num_rows(res))
               old= 1;
-            } else {
+            else
+            {
               MYSQL_ROW row= mysql_fetch_row(res);
               old= !strncmp(row[1], "ON", 2);
             }

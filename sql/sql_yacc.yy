@@ -1415,7 +1415,7 @@ type:
 	| YEAR_SYM opt_len field_options { $$=FIELD_TYPE_YEAR; }
 	| DATE_SYM			{ $$=FIELD_TYPE_DATE; }
 	| TIME_SYM			{ $$=FIELD_TYPE_TIME; }
-	| TIMESTAMP
+	| TIMESTAMP opt_len
 	  {
 	    if (YYTHD->variables.sql_mode & MODE_MAXDB)
 	      $$=FIELD_TYPE_DATETIME;
@@ -1428,13 +1428,6 @@ type:
 	      $$=FIELD_TYPE_TIMESTAMP;
             }
 	   }
-	| TIMESTAMP '(' NUM ')'
-          { 
-            LEX *lex= Lex;
-            lex->length= $3.str;
-            lex->type|= NOT_NULL_FLAG;
-            $$= FIELD_TYPE_TIMESTAMP;
-          }
 	| DATETIME			{ $$=FIELD_TYPE_DATETIME; }
 	| TINYBLOB			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_TINY_BLOB; }
@@ -1849,8 +1842,9 @@ alter:
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-	  lex->sql_command = SQLCOM_ALTER_TABLE;
-	  lex->name=0;
+	  lex->sql_command= SQLCOM_ALTER_TABLE;
+	  lex->name= 0;
+	  lex->duplicates= DUP_ERROR; 
 	  if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
 						 TL_OPTION_UPDATING))
 	    YYABORT;
@@ -2035,8 +2029,9 @@ opt_column:
 	| COLUMN_SYM	{};
 
 opt_ignore:
-	/* empty */	{ Lex->duplicates=DUP_ERROR; }
-	| IGNORE_SYM	{ Lex->duplicates=DUP_IGNORE; };
+	/* empty */	{ Lex->ignore= 0;}
+	| IGNORE_SYM	{ Lex->ignore= 1;}
+	;
 
 opt_restrict:
 	/* empty */	{}
@@ -4012,7 +4007,8 @@ insert:
 	INSERT
 	{
 	  LEX *lex= Lex;
-	  lex->sql_command = SQLCOM_INSERT;
+	  lex->sql_command= SQLCOM_INSERT;
+	  lex->duplicates= DUP_ERROR; 
 	  /* for subselects */
           lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	  lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
@@ -4174,6 +4170,7 @@ update:
 	  mysql_init_select(lex);
           lex->sql_command= SQLCOM_UPDATE;
 	  lex->lock_option= TL_UNLOCK; 	/* Will be set later */
+	  lex->duplicates= DUP_ERROR; 
         }
         opt_low_priority opt_ignore join_table_list
 	SET update_list
@@ -4233,6 +4230,7 @@ delete:
 	  LEX *lex= Lex;
 	  lex->sql_command= SQLCOM_DELETE;
 	  lex->lock_option= lex->thd->update_lock_default;
+	  lex->ignore= 0;
 	  lex->select_lex.init_order();
 	}
 	opt_delete_options single_multi {}
@@ -4289,7 +4287,7 @@ opt_delete_options:
 opt_delete_option:
 	QUICK		{ Select->options|= OPTION_QUICK; }
 	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
-	| IGNORE_SYM	{ Lex->duplicates= DUP_IGNORE; };
+	| IGNORE_SYM	{ Lex->ignore= 1; };
 
 truncate:
 	TRUNCATE_SYM opt_table_sym table_name
@@ -4698,6 +4696,8 @@ load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING_sys
 	  lex->sql_command= SQLCOM_LOAD;
 	  lex->lock_option= $3;
 	  lex->local_file=  $4;
+	  lex->duplicates= DUP_ERROR;
+	  lex->ignore= 0;
 	  if (!(lex->exchange= new sql_exchange($6.str,0)))
 	    YYABORT;
 	  lex->field_list.empty();
@@ -4735,7 +4735,7 @@ load_data_lock:
 opt_duplicate:
 	/* empty */	{ Lex->duplicates=DUP_ERROR; }
 	| REPLACE	{ Lex->duplicates=DUP_REPLACE; }
-	| IGNORE_SYM	{ Lex->duplicates=DUP_IGNORE; };
+	| IGNORE_SYM	{ Lex->ignore= 1; };
 
 opt_field_term:
 	/* empty */

@@ -1703,6 +1703,34 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 
 
 /*
+  Open all tables in list and process derived tables
+
+  SYNOPSIS
+    open_normal_and_derived_tables
+    thd		- thread handler
+    tables	- list of tables for open&locking
+
+  RETURN
+    FALSE - ok
+    TRUE  - error
+
+  NOTE 
+    This is to be used on prepare stage when you don't read any
+    data from the tables.
+*/
+
+int open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables)
+{
+  uint counter;
+  DBUG_ENTER("open_normal_and_derived_tables");
+  if (open_tables(thd, tables, &counter))
+    DBUG_RETURN(-1);				/* purecov: inspected */
+  relink_tables_for_derived(thd);
+  DBUG_RETURN(mysql_handle_derived(thd->lex));
+}
+
+
+/*
   Let us propagate pointers to open tables from global table list
   to table lists in particular selects if needed.
 */
