@@ -223,6 +223,7 @@ Installing MySQL
 * OS/2::                        OS/2 notes
 * MySQL binaries::              MySQL binaries
 * Post-installation::           Post-installation setup and testing
+* Installing many servers::     Installing many servers on the same machine
 * Upgrade::                     Upgrading/Downgrading MySQL
 
 Installing a MySQL Binary Distribution
@@ -852,8 +853,9 @@ Changes in release 4.0.x (Development; Alpha)
 
 * News-4.0.0::                  Changes in release 4.0.0
 
-Changes in release 3.23.x  (Recommended; Gamma)
+Changes in release 3.23.x  (Recommended)
 
+* News-3.23.32::                
 * News-3.23.31::                Changes in release 3.23.31
 * News-3.23.30::                Changes in release 3.23.30
 * News-3.23.29::                Changes in release 3.23.29
@@ -2343,6 +2345,8 @@ Mascon is a powerful Win32 GUI for the administering MySQL server databases.
 SuSE Linux (6.1 and above)
 @item @uref{http://www.redhat.com/}@*
 RedHat Linux (7.0 and above)
+@item @uref{http://distro.conectiva.com.br}
+Conectiva Linux (4.0 and above)
 @end itemize
 
 @subheading Web Development Tools that Support @strong{MySQL}
@@ -3836,7 +3840,10 @@ We will provide hints on optimizing your system and your queries.
 You are allowed to call a @strong{MySQL} developer (in moderation) and
 discuss your @strong{MySQL}-related problems.  This option is however
 only to be used as a last result during an emergency after we have
-failed to grasp the total problem with email.
+failed to grasp the total problem with email.  To make efficient
+use of our time we need to first get all facts about the problem,
+before talking on phone, to be able to work as efficiently as possible on
+solving the problem.
 @end itemize
 
 @node Extended login support,  , Login support, Support
@@ -3897,6 +3904,7 @@ rate that is at least 20 % less than our standard rates.
 * OS/2::                        OS/2 notes
 * MySQL binaries::              MySQL binaries
 * Post-installation::           Post-installation setup and testing
+* Installing many servers::     Installing many servers on the same machine
 * Upgrade::                     Upgrading/Downgrading MySQL
 @end menu
 
@@ -8714,7 +8722,7 @@ and remove any @code{-fomit-frame-pointer} options.
 @cindex post-installation, setup and testing
 @cindex testing, post-installation
 @cindex setup, post-installation
-@node Post-installation, Upgrade, MySQL binaries, Installing
+@node Post-installation, Installing many servers, MySQL binaries, Installing
 @section Post-installation Setup and Testing
 
 @menu
@@ -9037,28 +9045,7 @@ the same time).  Generally the problem that occurs when you try to run the
 second server is that it tries to use the same socket and port as the old one.
 In this case you will get the error message: @code{Can't start server: Bind on
 TCP/IP port: Address already in use} or @code{Can't start server : Bind on
-unix socket...}  You can start the new server with a different socket and
-port as follows:
-
-@tindex MYSQL_UNIX_PORT environment variable
-@tindex MYSQL_TCP_PORT environment variable
-@tindex Environment variable, MYSQL_UNIX_PORT
-@tindex Environment variable, MYSQL_TCP_PORT
-@example
-shell> MYSQL_UNIX_PORT=/tmp/mysqld-new.sock
-shell> MYSQL_TCP_PORT=3307
-shell> export MYSQL_UNIX_PORT MYSQL_TCP_PORT
-shell> scripts/mysql_install_db
-shell> bin/safe_mysqld &
-@end example
-
-The environment variables appendix includes a list of other environment
-variables you can use to affect @code{mysqld}. @xref{Environment variables}.
-
-After this, you should edit your server boot script to start both daemons
-with different sockets and ports.  For example, it could invoke
-@code{safe_mysqld} twice, but with different @code{--socket}, @code{--port},
-and @code{--basedir} options for each invocation.
+unix socket...}. @xref{Installing many servers}.
 
 @item You don't have write access to @file{/tmp}
 @cindex write access, tmp
@@ -9578,8 +9565,8 @@ Output version information and exit.
 @node Option files,  , Command-line options, Post-installation
 @subsection Option Files
 
-@strong{MySQL} Version 3.22 can read default startup options for the server and
-for clients from option files.
+@strong{MySQL} Version 3.22 can read default startup options for the
+server and for clients from option files.
 
 @strong{MySQL} reads default options from the following files on Unix:
 
@@ -9741,7 +9728,80 @@ shell> my_print_defaults client mysql
 
 The above output contains all options for the groups 'client' and 'mysql'.
 
-@node Upgrade,  , Post-installation, Installing
+@node Installing many servers, Upgrade, Post-installation, Installing
+@section Installing many servers on the same machine
+@cindex post-install, many servers
+@cindex Installing many servers
+@cindex Starting many servers
+
+In some cases you may want to have many different @code{mysqld} deamons
+(servers) running on the same machine.  You may for example want to run
+a new version of @code{MySQL} for testing together with an old version
+that is in production.  Another case is when you want to give different
+users access to different mysqld servers that they manage themself.
+
+One way to get a new server running is by starting it with a different
+socket and port as follows:
+
+@tindex MYSQL_UNIX_PORT environment variable
+@tindex MYSQL_TCP_PORT environment variable
+@tindex Environment variable, MYSQL_UNIX_PORT
+@tindex Environment variable, MYSQL_TCP_PORT
+@example
+shell> MYSQL_UNIX_PORT=/tmp/mysqld-new.sock
+shell> MYSQL_TCP_PORT=3307
+shell> export MYSQL_UNIX_PORT MYSQL_TCP_PORT
+shell> scripts/mysql_install_db
+shell> bin/safe_mysqld &
+@end example
+
+The environment variables appendix includes a list of other environment
+variables you can use to affect @code{mysqld}. @xref{Environment variables}.
+
+The above is the quick and dirty way that one commonly use for testing.
+The nice thing with this is that all connections you do in the above shell
+will automaticly be directed to the new running server!
+
+If you need to do this more permanently, you should create an own option
+file for each server. @xref{Option files}.  In your startup script that
+is executed at boot time (mysql.server?) you should specify for both
+servers:
+
+@code{safe_mysqld --default-file=path-to-option-file}
+
+At least the following options should be different per server:
+
+@table @code
+@item port=#
+@item socket=path
+@item pid-file=path
+@end table
+
+The following options should be different, if they are used:
+
+@table @code
+@item log=path
+@item log-bin=path
+@item log-update=path
+@item log-isam=path
+@item bdb-logdir=path
+@end table
+
+If you want more performance, you can also specify the following differently:
+
+@table @code
+@item tmpdir=path
+@item bdb-tmpdir=path
+@end table
+
+@xref{Command-line options}.
+
+If you are installing binary @strong{MySQL} versions (.tar files) and
+start them with @code{./bin/safe_mysqld} then in most cases the only
+option you need to add/change is the @code{socket} and @code{port}
+argument to @code{safe_mysqld}.
+
+@node Upgrade,  , Installing many servers, Installing
 @section Upgrading/Downgrading MySQL
 @cindex upgrading
 @cindex downgrading
@@ -9826,7 +9886,11 @@ all your tables with @code{isamchk -r}, as we have made some changes in
 the sort order!
 @item The default return type of @code{IF} will now depend on both arguments
 and not only the first argument.
-@item @code{AUTO_INCREMENT} will not work with negative numbers.
+@item @code{AUTO_INCREMENT} will not work with negative numbers. The reason
+for this is that negative numbers caused problems when wrapping from -1 to 0.
+@code{AUTO_INCREMENT} is now for MyISAM tables handled at a lower level and
+is much faster than before. For MyISAM tables old numbers are also not reused
+anymore, even if you delete some rows from the table.
 @item @code{INNER}, @code{DELAYED}, @code{RIGHT}, @code{CASE}, @code{THEN}, @code{WHEN}, @code{ELSE}, @code{END} and @code{WHEN} are now reserved words.
 @item @code{FLOAT(X)} is now a true floating-point type and not a value with
 a fixed number of decimals.
@@ -40354,7 +40418,7 @@ get more locking options.
 @end itemize
 
 @node News-3.23.x, News-3.22.x, News-4.0.x, News
-@appendixsec Changes in release 3.23.x  (Recommended; Gamma)
+@appendixsec Changes in release 3.23.x  (Recommended)
 
 The 3.23 release has several major new features that are not
 present in the 3.22 or 3.21 releases.  We have added two new
@@ -40364,12 +40428,23 @@ DB library from Sleepycat Software to implement transaction-safe
 tables.  The 3.23 release also includes support for database
 replication between a master and many slaves.
 
-We are not adding any more new features that are likely to break any
-old code in @strong{MySQL} Version 3.23, so we recommend that you use this
-version.  The replication and BerkeleyDB code is still under development,
-though, so Version 3.23 is not released as a stable version yet.
+We are in the future aiming to only provide bug fixes for 3.23 and
+instead concentrate on the 4.0 version.
+
+The replication code and BerkeleyDB code is still not as tested and as
+the rest of the code, so we will probably need to do a couple of future
+releases of 3.23 with small fixes for this part of the code. As long as
+you don't use these features, you should be quite safe with
+@strong{MySQL} 3.23!
+
+Note that the above doesn't mean that replication or Berkeley DB doesn't
+work; We have done a lot of testing of all code, including replication
+and BDB without finding any problems.  It only means that not as many
+users uses this code as the rest of the code and because of this we are
+not yet 100 % confident in this code.
 
 @menu
+* News-3.23.32::                
 * News-3.23.31::                Changes in release 3.23.31
 * News-3.23.30::                Changes in release 3.23.30
 * News-3.23.29::                Changes in release 3.23.29
@@ -40404,7 +40479,18 @@ though, so Version 3.23 is not released as a stable version yet.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.31, News-3.23.30, News-3.23.x, News-3.23.x
+@node News-3.23.32, News-3.23.31, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.32
+@itemize @bullet
+@item
+Added missing @file{my_config.h} to RPM distribution.
+@item
+@code{TRIM("foo" from "foo")} didn't return an empty string.
+@item
+Added @code{--with-version-suffix} to configure.
+@end itemize
+
+@node News-3.23.31, News-3.23.30, News-3.23.32, News-3.23.x
 @appendixsubsec Changes in release 3.23.31
 @itemize @bullet
 @item

@@ -823,7 +823,7 @@ AC_DEFUN([MYSQL_CHECK_BDB_VERSION], [
     bdb_version_ok=yes
   # This is ugly, but about as good as it can get
   elif test $db_major -eq 3 && test $db_minor -eq 2 && test $db_patch -eq 3 &&\
-       grep 'DB_VERSION_STRING.*g: ' [$1] > /dev/null
+       grep 'DB_VERSION_STRING.*h: ' [$1] > /dev/null
   then
     bdb_version_ok=yes
   else

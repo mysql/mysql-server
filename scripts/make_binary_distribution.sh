@@ -38,7 +38,7 @@ fi
 # This should really be integrated with automake and not duplicate the
 # installation list.
 
-BASE=$TMP/my_dist
+BASE=$TMP/my_dist$SUFFIX
 
 if [ -d $BASE ] ; then
  rm -r -f $BASE
@@ -59,10 +59,28 @@ do
 done
 
 for i in extra/comp_err extra/replace extra/perror extra/resolveip \
- extra/my_print_defaults isam/isamchk isam/pack_isam myisam/myisamchk myisam/myisampack sql/mysqld sql/mysqlbinlog \
- client/mysql sql/mysqld sql/mysqld.sym.gz client/mysqlshow \
- client/mysqladmin client/mysqldump client/mysqlimport client/mysqltest \
- client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin client/.libs/mysqldump client/.libs/mysqlimport client/.libs/mysqltest
+  extra/my_print_defaults isam/isamchk isam/pack_isam myisam/myisamchk \
+  myisam/myisampack sql/mysqld sql/mysqlbinlog \
+  client/mysql sql/mysqld client/mysqlshow \
+  client/mysqladmin client/mysqldump client/mysqlimport client/mysqltest \
+  client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \
+  client/.libs/mysqldump client/.libs/mysqlimport client/.libs/mysqltest
+do
+  if [ -f $i ]
+  then
+    cp -p $i $BASE/bin
+    strip $BASE/bin
+  fi
+done
+
+for i in sql/mysqld.sym.gz
+  if [ -f $i ]
+  then
+    cp -p $i $BASE/bin
+  fi
+done
+
+for i in libmysql/.libs/libmysqlclient.a libmysql/.libs/libmysqlclient.so* libmysql/libmysqlclient.* libmysql_r/.libs/libmysqlclient_r.a libmysql_r/.libs/libmysqlclient_r.so* libmysql_r/libmysqlclient_r.* mysys/libmysys.a strings/libmystrings.a dbug/libdbug.a $BASE/lib
 do
   if [ -f $i ]
   then
@@ -75,7 +93,7 @@ rm $BASE/include/Makefile*; rm $BASE/include/*.in
 
 cp -p tests/*.res tests/*.tst tests/*.pl $BASE/tests
 cp -p support-files/* $BASE/support-files
-cp -p libmysql/.libs/libmysqlclient.a libmysql/.libs/libmysqlclient.so* libmysql/libmysqlclient.* libmysql_r/.libs/libmysqlclient_r.a libmysql_r/.libs/libmysqlclient_r.so* libmysql_r/libmysqlclient_r.* mysys/libmysys.a strings/libmystrings.a dbug/libdbug.a $BASE/lib
+
 cp -r -p sql/share/* $BASE/share/mysql
 rm -f $BASE/share/mysql/Makefile* $BASE/share/mysql/*/*.OLD
 
@@ -106,7 +124,7 @@ if [ -d $BASE/sql-bench/SCCS ] ; then
 fi
 
 # Change the distribution to a long descriptive name
-NEW_NAME=mysql-$version-$system-$machine$SUFFIX
+NEW_NAME=mysql@MYSQL_SERVER_SUFFIX@-$version-$system-$machine$SUFFIX
 BASE2=$TMP/$NEW_NAME
 rm -r -f $BASE2
 mv $BASE $BASE2
