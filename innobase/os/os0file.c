@@ -905,7 +905,7 @@ os_aio_init(
 		os_aio_segment_wait_events[i] = os_event_create(NULL);
 	}
 
-#ifdef POSIX_ASYNC_IO
+#if defined(POSIX_ASYNC_IO) && defined(NOT_USED_WITH_MYSQL)
 	/* Block aio signals from the current thread and its children:
 	for this to work, the current thread must be the first created
 	in the database, so that all its children will inherit its

@@ -13529,27 +13529,6 @@ character}.  @strong{MySQL} recognizes the following escape sequences:
 @item \0
 An ASCII 0 (@code{NUL}) character.
 
-@findex \n (newline)
-@findex newline (\n)
-@item \n
-A newline character.
-
-@findex \t (tab)
-@findex tab (\t)
-@item \t
-A tab character.
-
-@findex \r (carriage return)
-@findex return (\r)
-@findex carriage return (\r)
-@item \r
-A carriage return character.
-
-@findex \b (backspace)
-@findex backspace (\b)
-@item \b
-A backspace character.
-
 @findex \' (single quote)
 @findex single quote (\')
 @item \'
@@ -13559,6 +13538,35 @@ A single quote (@samp{'}) character.
 @findex double quote (\")
 @item \"
 A double quote (@samp{"}) character.
+
+@findex \b (backspace)
+@findex backspace (\b)
+@item \b
+A backspace character.
+
+@findex \n (newline)
+@findex newline (\n)
+@item \n
+A newline character.
+
+@findex \r (carriage return)
+@findex return (\r)
+@findex carriage return (\r)
+@item \r
+A carriage return character.
+
+@findex \t (tab)
+@findex tab (\t)
+@item \t
+A tab character.
+
+@findex \z (Control-Z) ASCII(26)
+@findex (Control-Z) \z
+@item \z
+ASCII(26) (Control-Z).  This character can be encoded to allow you to
+go around the problem that ASCII(26) stands for END-OF-FILE on windows.
+(ASCII(26) will cause problems if you try to use
+@code{mysql database < filename}).
 
 @findex \\ (escape)
 @findex escape (\\)
@@ -37258,10 +37266,12 @@ None.
 
 You should use @code{mysql_real_escape_string()} instead!
 
-This is identical to @code{mysql_real_escape_string()} except that it takes
-the connection as the first argument. @code{mysql_real_escape_string()}
-will escape the string according to the current character set while @code{mysql_escape_string()}
-does not respect the current charset setting.
+This is identical to @code{mysql_real_escape_string()} except that it
+takes the connection as the first
+argument. @code{mysql_real_escape_string()} will escape the string
+according to the current character set while
+@code{mysql_escape_string()} does not respect the current charset
+setting.
 
 @findex @code{mysql_fetch_field()}
 @node mysql_fetch_field, mysql_fetch_fields, mysql_escape_string, C API functions
@@ -38365,12 +38375,14 @@ try reconnecting to the server before giving up.
 
 @subsubheading Description
 
-Encodes the string in @code{from} to an escaped SQL string, taking into
-account the current charset of the connection, that can be sent to the
-server in a SQL statement, places the result in @code{to}, and adds a
-terminating null byte.  Characters encoded are @code{NUL} (ASCII 0),
-@samp{\n}, @samp{\r}, @samp{\}, @samp{'}, @samp{"}, and Control-Z
-(@pxref{Literals}).
+This function is used to create a legal SQL string that you can use in a
+SQL statement. @xref{String syntax}.
+
+The string in @code{from} is encoded to an escaped SQL string, taking
+into account the current character set of the connection. The result is placed
+in @code{to} and a terminating null byte is appended.  Characters
+encoded are @code{NUL} (ASCII 0), @samp{\n}, @samp{\r}, @samp{\},
+@samp{'}, @samp{"}, and Control-Z (@pxref{Literals}).
 
 The string pointed to by @code{from} must be @code{length} bytes long.  You
 must allocate the @code{to} buffer to be at least @code{length*2+1} bytes
@@ -42412,6 +42424,9 @@ of connections in a short time).
 @item
 Don't free the key cache on @code{FLUSH TABLES} as this will cause problems
 with temporary tables.
+@item
+Fixed problem in Innobase with with other character sets than latin1 and
+alarms on Solaris.
 @item
 Fixed a core-dump bug when using very complex query involving
 @code{DISTINCT} and summary functions.

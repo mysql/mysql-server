@@ -930,13 +930,7 @@ innobase_mysql_cmp(
 	case FIELD_TYPE_VAR_STRING:
                 ret = my_sortncmp((const char*) a, a_length,
                                   (const char*) b, b_length);
-                if (ret < 0) {
-                  return(-1);
-                } else if (ret > 0) {
-                  return(1);
-                } else {
-                  return(0);
-                }
+                return ret;
 	default:
 		assert(0);
 	}
