@@ -1,4 +1,4 @@
-# Example mysql config file for small systems.
+# Example MySQL config file for small systems.
 #
 # This is for a system with little memory (<= 64M) where MySQL is only used
 # from time to time and it's important that the mysqld daemon
@@ -10,9 +10,9 @@
 # installation this directory is @localstatedir@) or
 # ~/.my.cnf to set user-specific options.
 #
-# One can in this file use all long options that the program supports.
-# If you want to know which options a program support, run the program
-# with --help option.
+# In this file, you can use all long options that a program supports.
+# If you want to know which options a program supports, run the program
+# with the "--help" option.
 
 # The following options will be passed to all MySQL clients
 [client]
