@@ -1338,6 +1338,7 @@ static struct {
 
 NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
 {
+  ndb_init();
   while (++argv, --argc > 0) {
     const char* arg = argv[0];
     if (strcmp(arg, "-batch") == 0) {

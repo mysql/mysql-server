@@ -963,6 +963,7 @@ void Dbtup::initializeFragrecord()
     regFragPtr.p->nextfreefrag = regFragPtr.i + 1;
     regFragPtr.p->checkpointVersion = RNIL;
     regFragPtr.p->firstusedOprec = RNIL;
+    regFragPtr.p->lastusedOprec = RNIL;
     regFragPtr.p->fragStatus = IDLE;
   }//for
   regFragPtr.i = cnoOfFragrec - 1;
@@ -1067,6 +1068,7 @@ Dbtup::initTab(Tablerec* const regTabPtr)
   }//for
   regTabPtr->readFunctionArray = NULL;
   regTabPtr->updateFunctionArray = NULL;
+  regTabPtr->charsetArray = NULL;
 
   regTabPtr->tabDescriptor = RNIL;
   regTabPtr->attributeGroupDescriptor = RNIL;
@@ -1163,7 +1165,7 @@ void Dbtup::execTUPSEIZEREQ(Signal* signal)
     return;
   }//if
   regOperPtr.p->optype = ZREAD;
-  initOpConnection(regOperPtr.p);
+  initOpConnection(regOperPtr.p, 0);
   regOperPtr.p->userpointer = userPtr;
   regOperPtr.p->userblockref = userRef;
   signal->theData[0] = regOperPtr.p->userpointer;
