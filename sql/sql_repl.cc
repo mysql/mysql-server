@@ -1000,18 +1000,9 @@ int show_binlog_info(THD* thd)
     net_store_data(packet, (longlong)li.pos);
     net_store_data(packet, &binlog_do_db);
     net_store_data(packet, &binlog_ignore_db);
+    if (my_net_write(&thd->net, (char*)thd->packet.ptr(), packet->length()))
+      DBUG_RETURN(-1);
   }
-  else
-  {
-    net_store_null(packet);
-    net_store_null(packet);
-    net_store_null(packet);
-    net_store_null(packet);
-  }
-
-  if (my_net_write(&thd->net, (char*)thd->packet.ptr(), packet->length()))
-    DBUG_RETURN(-1);
-
   send_eof(&thd->net);
   DBUG_RETURN(0);
 }
