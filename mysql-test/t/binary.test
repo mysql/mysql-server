@@ -80,3 +80,10 @@ select * from t1 where firstname='john' and firstname = binary 'john';
 select * from t1 where firstname='John' and firstname like binary 'john';
 select * from t1 where firstname='john' and firstname like binary 'John';
 drop table t1;
+
+#
+# Bug #6552 CHAR column w/o length is legal, BINARY w/o length is not
+#
+create table t1 (a binary);
+show create table t1;
+drop table t1;
