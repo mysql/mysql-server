@@ -118,6 +118,7 @@ class ha_innobase: public handler
   	void initialize(void);
   	int close(void);
   	double scan_time();
+	double read_time(uint index, uint ranges, ha_rows rows);
 
   	int write_row(byte * buf);
   	int update_row(const byte * old_data, byte * new_data);

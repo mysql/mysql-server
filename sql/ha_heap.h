@@ -54,8 +54,9 @@ class ha_heap: public handler
   uint max_keys()          const { return MAX_KEY; }
   uint max_key_parts()     const { return MAX_REF_PARTS; }
   uint max_key_length()    const { return HA_MAX_REC_LENGTH; }
-  virtual double scan_time() { return (double) (records+deleted) / 20.0+10; }
-  virtual double read_time(ha_rows rows) { return (double) rows /  20.0+1; }
+  double scan_time() { return (double) (records+deleted) / 20.0+10; }
+  double read_time(uint index, uint ranges, ha_rows rows)
+  { return (double) rows /  20.0+1; }
   virtual bool fast_key_read() { return 1;}
 
   int open(const char *name, int mode, uint test_if_locked);

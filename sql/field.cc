@@ -3322,11 +3322,11 @@ bool Field_newdate::get_date(TIME *ltime,bool fuzzydate)
   if (is_null())
     return 1;
   uint32 tmp=(uint32) uint3korr(ptr);
-  bzero((char*) ltime,sizeof(*ltime));
   ltime->day=   tmp & 31;
   ltime->month= (tmp >> 5) & 15;
   ltime->year=  (tmp >> 9);
   ltime->time_type=TIMESTAMP_DATE;
+  ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
   return (!fuzzydate && (!ltime->month || !ltime->day)) ? 1 : 0;
 }
 

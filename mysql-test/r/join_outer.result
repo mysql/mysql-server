@@ -373,10 +373,10 @@ Thimble Smith	Happy	3	3	3
 drop table t1,t2;
 create table t1 (id int not null, str char(10), index(str));
 insert into t1 values (1, null), (2, null), (3, "foo"), (4, "bar");
-select * from t1 where str is not null;
+select * from t1 where str is not null order by id;
 id	str
-4	bar
 3	foo
+4	bar
 select * from t1 where str is null;
 id	str
 1	NULL
