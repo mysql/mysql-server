@@ -682,9 +682,9 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     select_lex->ref_pointer_array[0]= select_lex->item_list.head();
     if (select_lex->table_list.elements)
     {
-      Item *having= item, *isnull= item;
+      Item *having= item, *orig_item= item;
       item= func->create(expr, item);
-      if (!abort_on_null)
+      if (!abort_on_null && orig_item->maybe_null)
       {
 	having= new Item_is_not_null_test(this, having);
 	join->having= (join->having ?
@@ -699,7 +699,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	}
 	select_lex->having_fix_field= 0;
 	item= new Item_cond_or(item,
-			       new Item_func_isnull(isnull));
+			       new Item_func_isnull(orig_item));
       }
       item->name= (char *)in_additional_cond;
       join->conds= and_items(join->conds, item);
