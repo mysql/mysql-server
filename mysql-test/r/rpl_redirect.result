@@ -9,7 +9,6 @@ Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Lo
 SHOW SLAVE HOSTS;
 Server_id	Host	Port	Rpl_recovery_rank	Master_id
 2	127.0.0.1	SLAVE_PORT	2	1
-drop table if exists t1;
 create table t1 ( n int);
 insert into t1 values (1),(2),(3),(4);
 insert into t1 values(5);

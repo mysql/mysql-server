@@ -1,7 +1,10 @@
 # test of problems with having (Reported by Mark Rogers)
 #
 
+--disable_warnings
 drop table if exists t1,t2;
+--enable_warnings
+
 create table t1 (a int);
 select count(a) as b from t1 where a=0 having b > 0;
 insert into t1 values (null);

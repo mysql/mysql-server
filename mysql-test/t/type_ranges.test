@@ -2,7 +2,9 @@
 # Test ranges for all types and some other basic tests
 #
 
+--disable_warnings
 drop table if exists t1,t2,t3;
+--enable_warnings
 
 CREATE TABLE t1 (
   auto int(5) unsigned DEFAULT 0 NOT NULL auto_increment,

@@ -1,6 +1,9 @@
-drop table if exists sales;
-create table sales ( product varchar(32), country varchar(32), year int, profit int);
-insert into sales  values ( 'Computer', 'India',2000, 1200),
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 ( product varchar(32), country varchar(32), year int, profit int);
+insert into t1  values ( 'Computer', 'India',2000, 1200),
 ( 'TV', 'United States', 1999, 150),
 ( 'Calculator', 'United States', 1999,50),
 ( 'Computer', 'United States', 1999,1500),
@@ -15,13 +18,14 @@ insert into sales  values ( 'Computer', 'India',2000, 1200),
 ( 'Computer', 'United States', 2000,1500),
 ( 'Calculator', 'United States', 2000,75);
 --error 1235
-select product, country , year, sum(profit) from sales group by product, country, year with cube;
+select product, country , year, sum(profit) from t1 group by product, country, year with cube;
 --error 1235
-explain select product, country , year, sum(profit) from sales group by product, country, year with cube;
+explain select product, country , year, sum(profit) from t1 group by product, country, year with cube;
 --error 1235
-select product, country , year, sum(profit) from sales group by product, country, year with rollup;
+select product, country , year, sum(profit) from t1 group by product, country, year with rollup;
 --error 1235
-explain select product, country , year, sum(profit) from sales group by product, country, year with rollup;
+explain select product, country , year, sum(profit) from t1 group by product, country, year with rollup;
 --error 1235
-select product, country , year, sum(profit) from sales group by product, country, year with cube union all select product, country , year, sum(profit) from sales group by product, country, year with rollup;
-drop table sales;
+select product, country , year, sum(profit) from t1 group by product, country, year with cube union all select product, country , year, sum(profit) from t1 group by product, country, year with rollup;
+drop table t1;
+

@@ -1,7 +1,10 @@
 #
 # Test some warnings
 #
+--disable-warnings
 drop table if exists t1;
+--enable-warnings
+
 create table t1 (a int);
 insert into t1 values (1);
 insert into t1 values ("hej");
@@ -11,3 +14,8 @@ insert into t1 values ("hej");
 insert into t1 values ("hej"),("då");
 drop table t1;
 set SQL_WARNINGS=0;
+
+#
+# Test other warnings
+
+drop temporary table if exists not_exists;

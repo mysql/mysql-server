@@ -2,7 +2,10 @@
 # Test of DATE_ADD
 #
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
+
 CREATE TABLE t1 (
   visitor_id int(10) unsigned DEFAULT '0' NOT NULL,
   group_id int(10) unsigned DEFAULT '0' NOT NULL,

@@ -22,7 +22,6 @@ s
 Could not break slave
 Tried hard
 flush logs;
-drop table if exists t2;
 create table t2(m int not null auto_increment primary key);
 insert into t2 values (34),(67),(123);
 flush logs;
@@ -58,7 +57,6 @@ m
 1234
 create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables part 2");
-drop table if exists t3;
 create table t3 (n int);
 create table t4 select * from temp_table;
 show binary logs;

@@ -3,7 +3,7 @@ save_master_pos;
 connection slave;
 sync_with_master;
 connection master;
-drop table if exists t2;
+
 create table t2(n int);
 create temporary table t1 (n int);
 insert into t1 values(1),(2),(3);
@@ -31,6 +31,10 @@ show status like 'Slave_open_temp_tables';
 #
 connect (master2,localhost,root,,);
 connection master2;
+
+# We will get a warning for t1 as this is a temporary table that doesn't
+# exist in this connection.
+
 drop table if exists t1,t2;
 save_master_pos;
 connection slave;

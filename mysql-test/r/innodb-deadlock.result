@@ -1,4 +1,4 @@
-drop table if exists t1;
+drop table if exists t1,t2;
 create table t1 (id integer, x integer) type=INNODB;
 insert into t1 values(0, 0);
 set autocommit=0;
@@ -18,7 +18,6 @@ id	x
 0	2
 commit;
 drop table t1;
-drop table if exists t1, t2;
 create table t1 (id integer, x integer) type=INNODB;
 create table t2 (b integer, a integer) type=INNODB;
 insert into t1 values(0, 0), (300, 300);

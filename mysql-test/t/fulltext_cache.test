@@ -2,7 +2,10 @@
 # Bugreport due to Roy Nasser <roy@vem.ca>
 #
 
+--disable_warnings
 drop table if exists t1, t2;
+--enable_warnings
+
 CREATE TABLE t1 (
   id int(10) unsigned NOT NULL auto_increment,
   q varchar(255) default NULL,

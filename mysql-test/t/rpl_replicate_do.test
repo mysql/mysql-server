@@ -2,9 +2,12 @@
 # updates on t1
 
 source include/master-slave.inc;
+--disable_warnings
 drop table if exists t11;
 connection slave;
 drop table if exists t11;
+--enable_warnings
+
 create table t2 (n int);
 insert into t2 values(4);
 connection master;
@@ -24,7 +27,7 @@ select * from t2;
 --error 1146
 select * from t11;
 connection master;
-drop table if exists t1,t2,t3,t11;
+drop table if exists t1,t2,t11;
 save_master_pos;
 connection slave;
 sync_with_master;

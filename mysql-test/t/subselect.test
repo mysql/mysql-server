@@ -1,3 +1,8 @@
+# Initialise
+--disable_warnings
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
+--enable_warnings
+
 select (select 2);
 explain select (select 2);
 SELECT (SELECT 1) UNION SELECT (SELECT 2);
@@ -46,7 +51,6 @@ SELECT (SELECT 'b',2,'a') = ROW(1.5,2,'a');
 SELECT (SELECT 1.5,2,'a') = ROW(1.5,'c','a');
 SELECT (SELECT 1.5,'c','a') = ROW(1.5,2,'a');
 
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 create table t1 (a int);
 create table t2 (a int, b int);
 create table t3 (a int);
@@ -133,8 +137,6 @@ INSERT INTO t1 VALUES ('W','1732-02-22'),('A','1735-10-30'),('J','1743-04-13');
 SELECT * FROM t1 WHERE b = (SELECT MIN(b) FROM t1);
 SELECT * FROM t2 WHERE b = (SELECT MIN(b) FROM t2);
 SELECT * FROM t3 WHERE b = (SELECT MIN(b) FROM t3);
-
-drop table if exists t8;
 
 CREATE TABLE `t8` (
   `pseudo` varchar(35) character set latin1 NOT NULL default '',
@@ -294,7 +296,7 @@ select * from t1;
 drop table t1, t2;
 
 #multi-delete with subselects
-drop table if exists t11, t12, t2;
+
 create table t11 (a int NOT NULL, b int, primary key (a));
 create table t12 (a int NOT NULL, b int, primary key (a));
 create table t2 (a int NOT NULL, b int, primary key (a));
@@ -364,7 +366,7 @@ drop table t1, t2, t3;
 
 -- error 1096
 SELECT * FROM (SELECT 1) b WHERE 1 IN (SELECT *);
-drop table if exists t;
+
 CREATE TABLE t (id int(11) default NULL, KEY id (id)) TYPE=MyISAM CHARSET=latin1;
 INSERT INTO t VALUES (1),(2);
 SELECT * FROM t WHERE id IN (SELECT 1);
@@ -448,26 +450,25 @@ select a, (select a,b,c from t1 where t1.a=t2.a) = ROW(a,3,'b'),(select c from t
 select a, (select a,b,c from t1 where t1.a=t2.a) = ROW(a,4,'c'),(select c from t1 where a=t2.a) from t2;
 drop table t1,t2;
 
-drop table if exists t;
-create table t (a int, b real, c varchar(10));
-insert into t values (1, 1, 'a'), (2,2,'b'), (NULL, 2, 'b');
-select ROW(1, 1, 'a') IN (select a,b,c from t);
-select ROW(1, 2, 'a') IN (select a,b,c from t);
-select ROW(1, 1, 'a') IN (select b,a,c from t);
-select ROW(1, 1, 'a') IN (select a,b,c from t where a is not null);
-select ROW(1, 2, 'a') IN (select a,b,c from t where a is not null);
-select ROW(1, 1, 'a') IN (select b,a,c from t where a is not null);
-select ROW(1, 1, 'a') IN (select a,b,c from t where c='b' or c='a');
-select ROW(1, 2, 'a') IN (select a,b,c from t where c='b' or c='a');
-select ROW(1, 1, 'a') IN (select b,a,c from t where c='b' or c='a');
+create table t1 (a int, b real, c varchar(10));
+insert into t1 values (1, 1, 'a'), (2,2,'b'), (NULL, 2, 'b');
+select ROW(1, 1, 'a') IN (select a,b,c from t1);
+select ROW(1, 2, 'a') IN (select a,b,c from t1);
+select ROW(1, 1, 'a') IN (select b,a,c from t1);
+select ROW(1, 1, 'a') IN (select a,b,c from t1 where a is not null);
+select ROW(1, 2, 'a') IN (select a,b,c from t1 where a is not null);
+select ROW(1, 1, 'a') IN (select b,a,c from t1 where a is not null);
+select ROW(1, 1, 'a') IN (select a,b,c from t1 where c='b' or c='a');
+select ROW(1, 2, 'a') IN (select a,b,c from t1 where c='b' or c='a');
+select ROW(1, 1, 'a') IN (select b,a,c from t1 where c='b' or c='a');
 -- error 1235
-select ROW(1, 1, 'a') IN (select b,a,c from t limit 2);
-drop table t;
+select ROW(1, 1, 'a') IN (select b,a,c from t1 limit 2);
+drop table t1;
 
-create table t (a int);
-insert into t values (1);
-do @a:=(SELECT a from t);
+create table t1 (a int);
+insert into t1 values (1);
+do @a:=(SELECT a from t1);
 select @a;
-drop table t;
+drop table t1;
 -- error 1146
-do (SELECT a from t);
+do (SELECT a from t1);

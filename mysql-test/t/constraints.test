@@ -2,7 +2,9 @@
 # Testing of constraints
 # Currently MySQL only ignores the syntax.
 #
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
 
 create table t1 (a int check (a>0));
 insert into t1 values (1);

@@ -1,8 +1,10 @@
 #
 # Test of alter table
 #
-
+--disable_warnings
 drop table if exists t1,t2;
+--enable_warnings
+
 create table t1 (
 col1 int not null auto_increment primary key,
 col2 varchar(30) not null,

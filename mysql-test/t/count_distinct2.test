@@ -1,4 +1,6 @@
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
 
 create table t1(n1 int, n2 int, s char(20), vs varchar(20), t text);
 insert into t1 values (1,11, 'one','eleven', 'eleven'),

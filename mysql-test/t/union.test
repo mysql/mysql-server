@@ -2,7 +2,10 @@
 # Test of unions
 #
 
+--disable_warnings
 drop table if exists t1,t2,t3;
+--enable_warnings
+
 CREATE TABLE t1 (a int not null, b char (10) not null);
 insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
 CREATE TABLE t2 (a int not null, b char (10) not null);
@@ -88,7 +91,7 @@ SELECT pseudo1 FROM t1 WHERE pseudo='joce' UNION SELECT pseudo FROM t1 WHERE pse
 SELECT pseudo1 FROM t1 WHERE pseudo='joce' UNION ALL SELECT pseudo FROM t1 WHERE pseudo1='joce';
 SELECT pseudo1 FROM t1 WHERE pseudo='joce' UNION SELECT 1;
 drop table t1;
-drop table if exists t1,t2;
+
 create table t1 (a int);
 create table t2 (a int);
 insert into t1 values (1),(2),(3),(4),(5);

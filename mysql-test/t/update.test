@@ -2,7 +2,10 @@
 # test of updating of keys
 #
 
-drop table if exists t1;
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
 create table t1 (a int auto_increment , primary key (a));
 insert into t1 values (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL); 
 update t1 set a=a+10 where a > 34;

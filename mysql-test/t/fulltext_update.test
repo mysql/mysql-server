@@ -2,7 +2,9 @@
 # Test for bug by voi@ims.at
 #
 
+--disable_warnings
 drop table if exists test;
+--enable_warnings
 CREATE TABLE test (
   gnr INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   url VARCHAR(80) DEFAULT '' NOT NULL,

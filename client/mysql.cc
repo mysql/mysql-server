@@ -389,9 +389,11 @@ int main(int argc,char *argv[])
     }
   }
 #endif
-  sprintf(buff, "%s%s",
-	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the buffer.\n",
+  sprintf(buff, "%s",
+	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the buffer.\n");
+#ifdef NOT_YET
 	  "Type 'help [[%]function name[%]]' to get help on usage of function.\n");
+#endif
   put_info(buff,INFO_INFO);
   status.exit_status=read_lines(1);		// read lines and execute them
   if (opt_outfile)
@@ -663,7 +665,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_nopager= 1;
   case OPT_MYSQL_PROTOCOL:
   {
-    if ((opt_protocol = find_type(argument, &sql_protocol_typelib,0)) == ~(ulong) 0)
+    if ((opt_protocol = find_type(argument, &sql_protocol_typelib,0)) ==
+	~(ulong) 0)
     {
       fprintf(stderr, "Unknown option to protocol: %s\n", argument);
       exit(1);
@@ -1299,7 +1302,7 @@ You can turn off this feature to get a quicker startup with -A\n\n");
 						  sizeof(char *) *
 						  (num_fields*2+1))))
 	break;
-      field_names[i][num_fields*2]='\0';
+      field_names[i][num_fields*2]= '\0';
       j=0;
       while ((sql_field=mysql_fetch_field(fields)))
       {
@@ -1319,7 +1322,7 @@ You can turn off this feature to get a quicker startup with -A\n\n");
     {
       tee_fprintf(stdout,
 		  "Didn't find any fields in table '%s'\n",table_row[0]);
-      field_names[i]=0;
+      field_names[i]= 0;
     }
     i++;
   }
@@ -1407,16 +1410,14 @@ static int com_server_help(String *buffer __attribute__((unused)),
   MYSQL_ROW cur;
   const char *server_cmd= buffer->ptr();
   char cmd_buf[100];
+  MYSQL_RES *result;
+  int error;
 
-  if (help_arg[0]!='\'')
+  if (help_arg[0] != '\'')
   {
-    (void*)sprintf(cmd_buf,"help \'%s\';",help_arg);
+    (void) strxnmov(cmd_buf, sizeof(cmd_buf), "help '", help_arg, "'", NullS);
     server_cmd= cmd_buf;
   }
-
-  MYSQL_RES *result;
-  ulong timer;
-  uint error= 0;
 
   if (!status.batch)
   {
@@ -1427,26 +1428,24 @@ static int com_server_help(String *buffer __attribute__((unused)),
   if (!connected && reconnect())
     return 1;
 
-  timer= start_timer();
-
-  error= mysql_real_query_for_lazy(server_cmd,strlen(server_cmd));
-  if (error)
+  if ((error= mysql_real_query_for_lazy(server_cmd,strlen(server_cmd))))
     return error;
-
-  error= mysql_store_result_for_lazy(&result);
-  if (error)
+  if ((error= mysql_store_result_for_lazy(&result)))
     return error;
 
   if (result)
   {
     int num_rows= mysql_num_rows(result);
-    if (num_rows==1)
+    if (num_rows == 1)
     {
       if (!(cur= mysql_fetch_row(result)))
-	return -1;
+      {
+	error= -1;
+	goto err;
+      }
 
       init_pager();
-      if (cur[1][0]=='Y')
+      if (cur[1][0] == 'Y')
       {
 	tee_fprintf(PAGER, "\nHelp topic \'%s\'\n", cur[0]);
 	tee_fprintf(PAGER, "%s\n", cur[2]);
@@ -1460,17 +1459,19 @@ static int com_server_help(String *buffer __attribute__((unused)),
       }
       end_pager();
     }
-    else if (num_rows>1)
+    else if (num_rows > 1)
     {
       put_info("\nMany help items for your request exist", INFO_INFO);
       put_info("For more specific request please type 'help <item>' where item is one of next :", INFO_INFO);
 
       init_pager();
       char last_char= '_';
-      while ((cur= mysql_fetch_row(result))){
-	if (cur[1][0]!=last_char){
+      while ((cur= mysql_fetch_row(result)))
+      {
+	if (cur[1][0]!=last_char)
+	{
 	  put_info("-------------------------------------------", INFO_INFO);
-	  put_info(cur[1][0]=='Y' ? 
+	  put_info(cur[1][0] == 'Y' ? 
 		   "categories:" : "functions:", INFO_INFO);
 	  put_info("-------------------------------------------", INFO_INFO);
 	}
@@ -1486,6 +1487,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
     }
   }
 
+err:
   mysql_free_result(result);
   return error;
 }

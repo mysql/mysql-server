@@ -2,7 +2,9 @@
 
 # test for bug reported by Mark Steele
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
 CREATE TABLE t1 (
   ChargeID int(10) unsigned DEFAULT '0' NOT NULL auto_increment,
   ServiceID int(10) unsigned DEFAULT '0' NOT NULL,

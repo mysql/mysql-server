@@ -25,4 +25,4 @@ n
 4
 select * from t11;
 Table 'test.t11' doesn't exist
-drop table if exists t1,t2,t3,t11;
+drop table if exists t1,t2,t11;

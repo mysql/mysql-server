@@ -96,7 +96,7 @@ id	mydate
 5	2002-05-12 00:00:00
 6	2002-06-22 00:00:00
 7	2002-07-22 00:00:00
-DROP TABLE IF EXISTS t1,t2,t3;
+DROP TABLE t1,t2,t3;
 CREATE TABLE IF NOT EXISTS `t1` (
 `id` int(11) NOT NULL auto_increment,
 `tst` text,
@@ -125,7 +125,7 @@ ID	ParId	tst	tst1
 1	1	MySQL	MySQL AB
 2	2	MSSQL	Microsoft
 3	3	ORACLE	ORACLE
-drop table if exists t1, t2 ;
+drop table t1, t2 ;
 create table t1 (n numeric(10));
 create table t2 (n numeric(10));
 insert into t2 values (1),(2),(4),(8),(16),(32);
@@ -251,7 +251,6 @@ n	d
 select * from t2;
 n	d
 drop table t1,t2;
-drop table if exists t1,t2,t3;
 CREATE TABLE t1 ( broj int(4) unsigned NOT NULL default '0',  naziv char(25) NOT NULL default 'NEPOZNAT',  PRIMARY KEY  (broj)) TYPE=MyISAM;
 INSERT INTO t1 VALUES (1,'jedan'),(2,'dva'),(3,'tri'),(4,'xxxxxxxxxx'),(5,'a'),(10,''),(11,''),(12,''),(13,'');
 CREATE TABLE t2 ( broj int(4) unsigned NOT NULL default '0',  naziv char(25) NOT NULL default 'NEPOZNAT',  PRIMARY KEY  (broj)) TYPE=MyISAM;
@@ -260,4 +259,4 @@ CREATE TABLE t3 ( broj int(4) unsigned NOT NULL default '0',  naziv char(25) NOT
 INSERT INTO t3 VALUES (1,'jedan'),(2,'dva');
 update t1,t2 set t1.naziv="aaaa" where t1.broj=t2.broj;
 update t1,t2,t3 set t1.naziv="bbbb", t2.naziv="aaaa" where t1.broj=t2.broj and t2.broj=t3.broj;
-drop table if exists t1,t2,t3;
+drop table t1,t2,t3;

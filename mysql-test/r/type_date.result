@@ -1,3 +1,4 @@
+drop table if exists t1,t2;
 create table t1 (a char(16), b date, c datetime);
 insert into t1 SET a='test 2000-01-01', b='2000-01-01', c='2000-01-01';
 select * from t1 where c = '2000-01-01';
@@ -7,7 +8,6 @@ select * from t1 where b = '2000-01-01';
 a	b	c
 test 2000-01-01	2000-01-01	2000-01-01 00:00:00
 drop table t1;
-drop table if exists t1,t2;
 CREATE TABLE t1 (name char(6),cdate date);
 INSERT INTO t1 VALUES ('name1','1998-01-01');
 INSERT INTO t1 VALUES ('name2','1998-01-01');

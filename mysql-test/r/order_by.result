@@ -222,7 +222,6 @@ DateOfAction	TransactionID
 1999-07-27	834
 1999-07-27	840
 drop table t1,t2,t3;
-drop table if exists t1;
 CREATE TABLE t1 (
 member_id int(11) NOT NULL auto_increment,
 inschrijf_datum varchar(20) NOT NULL default '',

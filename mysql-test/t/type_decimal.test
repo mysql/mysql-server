@@ -1,6 +1,9 @@
 # bug in decimal() with negative numbers by kaido@tradenet.ee
 
+--disable_warnings
 DROP TABLE IF EXISTS t1;
+--enable_warnings
+
 CREATE TABLE t1 (
    id int(11) DEFAULT '0' NOT NULL auto_increment,
    datatype_id int(11) DEFAULT '0' NOT NULL,

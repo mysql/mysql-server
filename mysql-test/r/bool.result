@@ -46,10 +46,9 @@ SELECT @a, @b;
 @a	@b
 0	6
 DROP TABLE t1;
-drop table if exists t;
-create table t(a int, b int);
-insert into t values(null, null), (0, null), (1, null), (null, 0), (null, 1), (0, 0), (0, 1), (1, 0), (1, 1);
-select ifnull(A, 'N') as A, ifnull(B, 'N') as B, ifnull(not A, 'N') as nA, ifnull(not B, 'N') as nB, ifnull(A and B, 'N') as AB, ifnull(not (A and B), 'N') as `n(AB)`, ifnull((not A or not B), 'N') as nAonB, ifnull(A or B, 'N') as AoB, ifnull(not(A or B), 'N') as `n(AoB)`, ifnull(not A and not B, 'N') as nAnB from t;
+create table t1 (a int, b int);
+insert into t1 values(null, null), (0, null), (1, null), (null, 0), (null, 1), (0, 0), (0, 1), (1, 0), (1, 1);
+select ifnull(A, 'N') as A, ifnull(B, 'N') as B, ifnull(not A, 'N') as nA, ifnull(not B, 'N') as nB, ifnull(A and B, 'N') as AB, ifnull(not (A and B), 'N') as `n(AB)`, ifnull((not A or not B), 'N') as nAonB, ifnull(A or B, 'N') as AoB, ifnull(not(A or B), 'N') as `n(AoB)`, ifnull(not A and not B, 'N') as nAnB from t1;
 A	B	nA	nB	AB	n(AB)	nAonB	AoB	n(AoB)	nAnB
 N	N	N	N	N	N	N	N	N	N
 0	N	1	N	0	1	1	N	N	N
@@ -60,7 +59,7 @@ N	1	N	0	N	N	N	1	0	0
 0	1	1	0	0	1	1	1	0	0
 1	0	0	1	0	1	1	1	0	0
 1	1	0	0	1	0	0	1	0	0
-select ifnull(A=1, 'N') as A, ifnull(B=1, 'N') as B, ifnull(not (A=1), 'N') as nA, ifnull(not (B=1), 'N') as nB, ifnull((A=1) and (B=1), 'N') as AB, ifnull(not ((A=1) and (B=1)), 'N') as `n(AB)`, ifnull((not (A=1) or not (B=1)), 'N') as nAonB, ifnull((A=1) or (B=1), 'N') as AoB, ifnull(not((A=1) or (B=1)), 'N') as `n(AoB)`, ifnull(not (A=1) and not (B=1), 'N') as nAnB from t;
+select ifnull(A=1, 'N') as A, ifnull(B=1, 'N') as B, ifnull(not (A=1), 'N') as nA, ifnull(not (B=1), 'N') as nB, ifnull((A=1) and (B=1), 'N') as AB, ifnull(not ((A=1) and (B=1)), 'N') as `n(AB)`, ifnull((not (A=1) or not (B=1)), 'N') as nAonB, ifnull((A=1) or (B=1), 'N') as AoB, ifnull(not((A=1) or (B=1)), 'N') as `n(AoB)`, ifnull(not (A=1) and not (B=1), 'N') as nAnB from t1;
 A	B	nA	nB	AB	n(AB)	nAonB	AoB	n(AoB)	nAnB
 N	N	N	N	N	N	N	N	N	N
 0	N	1	N	0	1	1	N	N	N
@@ -71,4 +70,4 @@ N	1	N	0	N	N	N	1	0	0
 0	1	1	0	0	1	1	1	0	0
 1	0	0	1	0	1	1	1	0	0
 1	1	0	0	1	0	0	1	0	0
-drop table t;
+drop table t1;

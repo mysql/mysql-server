@@ -6,8 +6,11 @@
 #
 -- source include/not_embedded.inc
 
+--disable_warnings
 drop table if exists t1;
-#test to see if select will get the lock ahead of low priority update
+--enable_warnings
+
+# Test to see if select will get the lock ahead of low priority update
 
 connect (locker,localhost,root,,);
 connect (reader,localhost,root,,);
