@@ -116,4 +116,17 @@ void
 mem_analyze_corruption(
 /*===================*/
 	byte*	ptr);	/* in: pointer to place of possible corruption */
+/*********************************************************************
+Prints information of dynamic memory usage and currently allocated memory
+heaps or buffers. Can only be used in the debug version. */
 
+void
+mem_print_info(void);
+/*================*/
+/*********************************************************************
+Prints information of dynamic memory usage and currently allocated memory
+heaps or buffers since the last ..._print_info or..._print_new_info. */
+
+void
+mem_print_new_info(void);
+/*====================*/
