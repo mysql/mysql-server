@@ -78,7 +78,7 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick=0, extended_insert = 0,
 	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0,
                 opt_autocommit=0,opt_master_data,opt_disable_keys=0,opt_xml=0,
 	        opt_delete_master_logs=0, tty_password=0,
-		opt_single_transaction=0;
+		opt_single_transaction=0, opt_comments= 0;
 static MYSQL  mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
@@ -242,6 +242,9 @@ static struct my_option my_long_options[] =
     (gptr*) &net_buffer_length, (gptr*) &net_buffer_length, 0,
     GET_ULONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 16*1024L*1024L,
     MALLOC_OVERHEAD-1024, 1024, 0},
+  {"comments", 'i', "Write additional information.",
+   (gptr*) &opt_comments, (gptr*) &opt_comments, 0, GET_BOOL, NO_ARG,
+   1, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -302,7 +305,7 @@ static void write_header(FILE *sql_file, char *db_name)
     fprintf(sql_file,"<?xml version=\"1.0\"?>\n");
     fprintf(sql_file,"<mysqldump>\n");
   }
-  else
+  else if (opt_comments)
   {
     fprintf(sql_file, "-- MySQL dump %s\n--\n", DUMP_VERSION);
     fprintf(sql_file, "-- Host: %s    Database: %s\n",
@@ -620,7 +623,7 @@ static uint getTableStructure(char *table, char* db)
         }
         write_header(sql_file, db);
       }
-      if (!opt_xml)
+      if (!opt_xml && opt_comments)
 	fprintf(sql_file, "\n--\n-- Table structure for table %s\n--\n\n",
 		result_table);
       if (opt_drop)
@@ -698,7 +701,7 @@ static uint getTableStructure(char *table, char* db)
         }
         write_header(sql_file, db);
       }
-      if (!opt_xml)
+      if (!opt_xml && opt_comments)
 	fprintf(sql_file, "\n--\n-- Table structure for table %s\n--\n\n",
 		result_table);
       if (opt_drop)
@@ -964,14 +967,14 @@ static void dumpTable(uint numFields, char *table)
   }
   else
   {
-    if (!opt_xml)
+    if (!opt_xml && opt_comments)
       fprintf(md_result_file,"\n--\n-- Dumping data for table %s\n--\n",
 	      result_table);
     sprintf(query, "SELECT /*!40001 SQL_NO_CACHE */ * FROM %s",
 	    result_table);
     if (where)
     {
-      if (!opt_xml)
+      if (!opt_xml && opt_comments)
 	fprintf(md_result_file,"-- WHERE:  %s\n",where);
       strxmov(strend(query), " WHERE ",where,NullS);
     }
@@ -1298,7 +1301,8 @@ static int init_dumping(char *database)
       /* length of table name * 2 (if name contain quotas), 2 quotas and 0 */
       char quoted_database_buf[64*2+3];
       char *qdatabase= quote_name(database,quoted_database_buf,opt_quoted);
-      fprintf(md_result_file,"\n--\n-- Current Database: %s\n--\n", database);
+      if (opt_comments)
+	fprintf(md_result_file,"\n--\n-- Current Database: %s\n--\n", database);
       if (!opt_create_db)
 	fprintf(md_result_file,"\nCREATE DATABASE /*!32312 IF NOT EXISTS*/ %s;\n",
 		qdatabase);
@@ -1499,8 +1503,9 @@ int main(int argc, char **argv)
 	row = mysql_fetch_row(master);
 	if (row && row[0] && row[1])
 	{
-	  fprintf(md_result_file,
-		  "\n--\n-- Position to start replication from\n--\n\n");
+	  if (opt_comments)
+	    fprintf(md_result_file,
+		    "\n--\n-- Position to start replication from\n--\n\n");
 	  fprintf(md_result_file,
 		  "CHANGE MASTER TO MASTER_LOG_FILE='%s', \
 MASTER_LOG_POS=%s ;\n",row[0],row[1]); 
