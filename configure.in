@@ -974,7 +974,8 @@ Reference Manual.])
         if test -f /usr/shlib/libpthread.so -a -f /usr/lib/libmach.a -a -f /usr/ccs/lib/cmplrs/cc/libexc.a
 	then
 	  with_named_thread="-lpthread -lmach -lexc"
-	  #with_named_thread="-lpthread -lmach -lexc -lc"
+	  CFLAGS="$CFLAGS -D_REENTRANT"
+	  CXXFLAGS="$CXXFLAGS -D_REENTRANT"
 	  AC_DEFINE(HAVE_DEC_THREADS)
 	  AC_MSG_RESULT("yes")
 	else
