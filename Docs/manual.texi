@@ -6109,7 +6109,7 @@ For a list of sites from which you can obtain MySQL, see
 @item
 To see which platforms are supported, see @ref{Which OS}. Please note that
 not all supported system are equally good for running MySQL on them.
-On some it is much more robust and efficient than others - see  @ref{Which OS}
+On some it is much more robust and efficient than others - see @ref{Which OS}
 for details.
 
 @item
@@ -6222,73 +6222,216 @@ installation chapter. @xref{Installing binary}.
 @node Windows installation,  , Linux-RPM, Quick Standard Installation
 @subsection Installing MySQL on Windows
 
-The following instructions apply to precompiled binary distributions.
-If you download a source distribution, you will have to compile and install
-it yourself.
+The MySQL server for Windows is available in two distribution types:
+@enumerate
+@item
+The binary distribution contains a setup program which installs
+everything you need so you can start the server immediately.
+@item
+The source distribution contains all the code and support files
+for building the executables using the VC++ 6.0 compiler.
+@xref{Windows source build}.
+@end enumerate
 
-If you don't have a copy of the MySQL distribution, you should 
-first download one from @uref{http://www.mysql.com/downloads/mysql-3.23.html}.
+Generally speaking, you should use the binary distribution.
 
-If you plan to connect to MySQL from some other program, you will
-probably also need the @strong{MyODBC} driver. You can find this at the
-@strong{MyODBC} download page
-(@uref{http://www.mysql.com/downloads/api-myodbc.html}).
+You will need the following:
+@itemize @bullet
+@item
+A Windows 32 bits Operational System of the family Win9x, ME,
+NT and Win 2000. The NT family permits running the MySQL server
+as a service. @xref{NT start}.
+@item
+TCP/IP protocol support.
+@item
+A copy of the MySQL binary or distribution for Windows, which
+can be downloaded from @uref{http://www.mysql.com/downloads/}.
 
-To install either distribution, unzip it in some empty directory and run the
-@code{Setup.exe} program.
+Note: The distribution files are supplied with a zipped format
+and we recommended the use of an adequate FTP client with resume
+feature to avoid corruption of files during the download process.
+@item
+A @code{ZIP} program to unpacked the distribution file.
+@item
+Enough space on the hard drive to unpack, install and to create the
+databases in accorandance with your requirements.
+@item
+If you plan to connect to the MySQL server via @code{ODBC}, you
+will also need the @code{MyODBC} driver. @xref{ODBC}.
+@end itemize
 
-By default, MySQL-Windows is configured to be installed in
-@file{C:\mysql}.  If you want to install MySQL elsewhere,
-install it in @file{C:\mysql} first, then move the installation to
-where you want it.  If you do move MySQL, you must indicate
-where everything is located by supplying a @code{--basedir} option when
-you start the server.  For example, if you have moved the MySQL
-distribution to @file{D:\programs\mysql}, you must start @code{mysqld}
-like this:
+
+@menu
+* Windows binary installation::  Installing the binaries
+* Windows prepare environment::  Preparing the MySQL environment
+* Windows server first start::  Starting the server for the first time
+@end menu
+
+@node Windows binary installation, Windows prepare environment, Windows installation, Windows installation
+@subsubsection Installing the binaries
+
+@enumerate
+@item
+If you are working on an NT or Win2000 server, logon as a user with
+with administrator privileges.
+@item
+If you are doing an upgrade of an earlier MySQL installation,
+it is necessary to stop the server. If you are running the server
+as a service, use:
 
 @example
-C:\> D:\programs\mysql\bin\mysqld --basedir D:\programs\mysql
+C:\> NET STOP mysql
 @end example
 
-Use @code{mysqld --help} to display all the options that @code{mysqld}
-understands!
+Otherwise, use:
 
-With all newer MySQL versions, you can also create a
-@file{C:\my.cnf} file that holds any default options for the
-MySQL server.  Copy the file @file{\mysql\my-xxxxx.cnf} to
-@file{C:\my.cnf} and edit it to suit your setup.  Note that you should
-specify all paths with @samp{/} instead of @samp{\}. If you use
-@samp{\}, you need to specify it twice, because @samp{\} is the escape
-character in MySQL.  @xref{Option files}.
+@example
+C:\mysql\bin> mysqladmin -u root shutdown
+@end example
+
+@item
+On NT/Win2000 machines, if you want to change the server executable
+(e.g. -max or -nt), it is also necessary to remove the service:
+
+@example
+C:\mysql\bin> mysqld-max-nt --remove
+@end example
+
+@item
+Unzip the distribution file to a temporary directory.
+@item
+Run the @file{setup.exe} file to begin the installation process.
+If you want to install into another directory than the default
+@file{c:\mysql}, use the @code{Browse} button to specify your
+preferred directory.
+@item
+Finish the install process.
+@end enumerate
+
+
+@node Windows prepare environment, Windows server first start, Windows binary installation, Windows installation
+@subsubsection Preparing the MySQL environment
 
 Starting with MySQL 3.23.38, the Windows distribution includes
-both the normal and the @strong{MySQL-Max} binaries.  The main benefit
-of using the normal @code{mysqld.exe} binary is that it's a little
-faster and uses less resources.
-
+both the normal and the @strong{MySQL-Max} server binaries.
 Here is a list of the different MySQL servers you can use:
 
 @multitable @columnfractions .25 .75
 @item @code{mysqld} @tab
-Compiled with full debugging and automatic memory allocation checking,
-symbolic links, InnoDB and BDB tables.
+Compiled with full debugging and automatic memory allocation
+checking, symbolic links, InnoDB and BDB tables.
 @item @code{mysqld-opt} @tab
 Optimized binary with no support for transactional tables.
 @item @code{mysqld-nt} @tab
-Optimized binary for NT with support for named pipes. You can run this
-version on Win98, but in this case no named pipes are created and you must
-have TCP/IP installed.
+Optimized binary for NT with support for named pipes. You can
+run this version on Win98, but in this case no named pipes are
+created and you must have TCP/IP installed.
 @item @code{mysqld-max} @tab
-Optimized binary with support for symbolic links, InnoDB and BDB tables.
+Optimized binary with support for symbolic links,
+InnoDB and BDB tables.
 @item @code{mysqld-max-nt} @tab
-Like @code{mysqld-max}, but compiled with support for named pipes.
+Like @code{mysqld-max}, but compiled with support for named
+pipes.
 @end multitable
 
-All of the above binaries are optimized for the Pentium Pro processor but
-should work on any Intel processor >= i386.
+All of the above binaries are optimized for the Pentium Pro
+processor but should work on any Intel processor >= i386.
 
-NOTE: If you want to use InnoDB tables, there are certain startup
-options that must be specified in your @file{my.ini} file! @xref{InnoDB start}.
+
+In the following circumstances you will need to use the MySQL
+configuration file:
+@itemize @bullet
+@item
+The install directory is different than the default @file{c:\mysql}.
+@item
+If you want to use one of the these servers:
+@itemize @bullet
+@item mysqld.exe
+@item mysqld-max.exe
+@item mysqld-max-nt.exe
+@end itemize
+@item
+If you need to tune the server settings.
+@end itemize
+
+There are two configuration files with the same function:
+@file{my.cnf} and @file{my.ini} file, however please note that
+only of one these should can used. Both files are plain text.
+The @file{my.cnf} file should be created in the root directory
+of drive C and the @file{my.ini} file on the WinDir directory
+e.g: @file{C:\WINDOWS} or @file{C:\WINNT}.
+If your PC uses a boot loader where the C drive isn't the boot
+drive, then your only option is to use the @file{my.ini} file.
+Also note that if you use the @code{WinMySQLAdmin} tool, only
+the @file{my.ini} file is used. The @file{\mysql\bin} directory
+contains a help file with instructions for using this tool.
+
+Using @code{notepad.exe}, create the configuration file and
+edit the base section and keys:
+
+@example
+[mysqld]
+basedir=the_install_path  #e.g. c:/mysql
+datadir=the_data_path  #e.g. c:/mysql/data or d:/mydata/data
+@end example
+
+If the data directory is other than the default
+@file{c:\mysql\data}, you must cut the whole @file{\data\mysql}
+directory and paste it on the your option new directory,
+e.g.: @file{d:\mydata\mysql}.
+
+Note that you should specify all paths with @samp{/} or @samp{\\}
+instead of @samp{\}, because @samp{\} is the escape character in
+MySQL. @xref{Option files}.
+
+If you want to use the @code{InnoDB} transactional tables, you
+need to manually create two new directories to hold the InnoDB
+data and log files, e.g. @file{c:\ibdata} and @file{c:\iblogs}.
+You will also need to add some extra lines to the configuration
+file. @xref{InnoDB start}.
+
+If you don't want to use @code{InnoDB} tables, add the
+@code{skip-innodb} option to the configuration file.
+
+Now you are ready to test starting the server.
+
+
+@node Windows server first start,  , Windows prepare environment, Windows installation
+@subsubsection Starting the server for the first time
+
+Testing from a DOS command prompt is the best thing to do because
+the server prints messages, so if something is wrong with your
+configuration you will see a more accurate error message which
+will make it easier for you to identify and fix any problems.
+
+Make sure you are in the right directory, then enter:
+
+@example
+C:\mysql\bin> mysqld-max --standalone
+@end example
+
+You should see the below print messages:
+
+@example
+InnoDB: The first specified data file c:\ibdata\ibdata1 did not exist:
+InnoDB: a new database to be created!
+InnoDB: Setting file c:\ibdata\ibdata1 size to 209715200
+InnoDB: Database physically writes the file full: wait...
+InnoDB: Log file c:\iblogs\ib_logfile0 did not exist: new to be created
+InnoDB: Setting log file c:\iblogs\ib_logfile0 size to 31457280
+InnoDB: Log file c:\iblogs\ib_logfile1 did not exist: new to be created
+InnoDB: Setting log file c:\iblogs\ib_logfile1 size to 31457280
+InnoDB: Log file c:\iblogs\ib_logfile2 did not exist: new to be created
+InnoDB: Setting log file c:\iblogs\ib_logfile2 size to 31457280
+InnoDB: Doublewrite buffer not found: creating new
+InnoDB: Doublewrite buffer created
+InnoDB: creating foreign key constraint system tables
+InnoDB: foreign key constraint system tables created
+011024 10:58:25  InnoDB: Started
+@end  example
+
+For further information about running MySQL on Windows,
+see @ref{Windows}.
 
 
 @node General Installation Issues, Installing source, Quick Standard Installation, Installing
@@ -7679,12 +7822,16 @@ If you want to compile a debug version of MySQL, you should add
 @code{--with-debug} or @code{--with-debug=full} to the above configure lines
 and remove any @code{-fomit-frame-pointer} options.
 
+For the Windows distribution, please see @ref{Windows installation}.
+
 
 @node Installing binary,  , MySQL binaries, General Installation Issues
 @subsection Installing a MySQL Binary Distribution
 
 @cindex installing, binary distribution
 @cindex binary distributions, installing
+
+For the Windows distribution, please see @ref{Windows binary installation}.
 
 @menu
 * Linux-RPM::                   Linux RPM files
@@ -8843,6 +8990,79 @@ implicit declaration of function `int strtoul(...)'
 We haven't gotten @code{readline} to work with MIT-pthreads.  (This isn't
 needed, but may be interesting for someone.)
 @end itemize
+
+
+@menu
+* Windows source build::        
+@end menu
+
+@node Windows source build,  , MIT-pthreads, MIT-pthreads
+@subsubsection Windows Source Distribution
+
+You will need the following:
+
+@itemize @bullet
+@item
+VC++ 6.0 compiler (updated with 4 or 5 SP and Pre-processor package)
+The Pre-processor package is necessary for the macro assembler.
+More details at:
+@uref{http://msdn.microsoft.com/vstudio/sp/vs6sp5/faq.asp}.
+@item
+The MySQL source distribution for Windows, which can be downloaded
+from @uref{http://www.mysql.com/downloads/}.
+@end itemize
+
+Building MySQL
+
+@enumerate
+@item
+Create a work directory (e.g.: workdir).
+@item
+Unpack the source distribution in the above directory.
+@item
+Start the VC++ 6.0 compiler.
+@item
+In the @code{File} menu, select @code{Open Workspace}.
+@item
+Open the @file{mysql.dsw} workspace you find on the work directory.
+@item
+From the @code{Build} menu,
+select the @code{Set Active Configuration} menu.
+@item
+Click over the screen selecting @code{mysqld - Win32 Debug}
+and click Ok.
+@item
+Press @code{F7} to begin the build of the debug server, libs and
+some client applications.
+@item
+When the compilation finishes, copy the libs and the executables
+to a separate directory.
+@item
+Compile the release versions that you want, in the same way.
+@item
+Create the directory for the MySQL stuff: e.g. @file{c:\mysql}
+@item
+From the workdir directory copy for the c:\mysql directory the
+following directories:
+
+@itemize @bullet
+@item Data
+@item Docs
+@item Share
+@end itemize
+
+@item
+Create the directory @file{c:\mysql\bin} and copy all the servers
+and clients that you compiled previously.
+@item
+If you want, also create the @file{lib} directory and copy the
+libs that you compiled previously.
+@item
+Do a clean using Visual Studio.
+@end enumerate
+
+Set up and start the server in the same as for the binary Windows
+distribution. @xref{Windows prepare environment}.
 
 
 @node Post-installation, Upgrade, Installing source, Installing
@@ -10417,9 +10637,9 @@ to the @code{LD_LIBRARY_PATH} environment variable.
 @node Windows, Solaris, Linux, Operating System Specific Notes
 @subsection Windows Notes
 
-This section describes installation and use of MySQL on Windows.
-This information is also provided in the @file{README} file that comes
-with the MySQL Windows distribution.
+This section describes using MySQL on Windows. This information
+is also provided in the @file{README} file that comes with the
+MySQL Windows distribution. @xref{Windows installation}.
 
 @menu
 * Win95 start::                 Starting MySQL on Win95 / Win98
@@ -10427,7 +10647,7 @@ with the MySQL Windows distribution.
 * Windows running::             Running MySQL on Windows
 * Windows and SSH::             Connecting to a remote MySQL from Windows with SSH
 * Windows symbolic links::      Splitting data across different disks under Win32
-* Windows compiling::           Compiling MySQL clients on Windows.
+* Windows client compiling::    Compiling MySQL clients on Windows.
 * Windows vs Unix::             MySQL-Windows compared to Unix MySQL
 @end menu
 
@@ -10437,16 +10657,18 @@ with the MySQL Windows distribution.
 
 MySQL uses TCP/IP to connect a client to a server. (This will
 allow any machine on your network to connect to your MySQL
-server.)  Because of this, you must install TCP/IP on your machine before
-starting MySQL.  You can find TCP/IP on your Windows CD-ROM.
+server.)  Because of this, you must install TCP/IP on your
+machine before starting MySQL.  You can find TCP/IP on your
+Windows CD-ROM.
 
-Note that if you are using an old Win95 release (for example OSR2), it's
-likely that you have an old Winsock package!  MySQL requires
-Winsock 2!  You can get the newest Winsock from 
-@uref{http://www.microsoft.com/}.  Win98 has the new Winsock 2 library, so 
-the above doesn't apply for Win98.
+Note that if you are using an old Win95 release (for example
+OSR2), it's likely that you have an old Winsock package;
+MySQL requires Winsock 2! You can get the newest Winsock from
+@uref{http://www.microsoft.com/}.  Win98 has the new Winsock 2
+library, so the above doesn't apply for Win98.
 
-To start the @code{mysqld} server, you should start an MS-DOS window and type:
+To start the @code{mysqld} server, you should start an MS-DOS
+window and type:
 
 @example
 C:\> C:\mysql\bin\mysqld
@@ -10462,102 +10684,112 @@ C:\> C:\mysql\bin\mysqladmin -u root shutdown
 
 Note that Win95 and Win98 don't support creation of named pipes.
 On Win95 and Win98, you can only use named pipes to connect to a
-remote MySQL server running on a Windows NT server host.
-(The MySQL server must also support named pipes, of
-course. For example, using @code{mysqld-opt} under NT will not allow
-named pipe connections.  You should use either @code{mysqld-nt} or
-@code{mysqld-max-nt}.)
+remote MySQL server running on a Windows NT/2000 server host.
+(The MySQL server must also support named pipes, of course.
+For example, using @code{mysqld-opt} under NT/2000 will not
+allow named pipe connections.  You should use either
+@code{mysqld-nt} or @code{mysqld-max-nt}.)
 
 If @code{mysqld} doesn't start, please check the
-@file{\mysql\data\mysql.err} file to see if the server wrote any message
-there to indicate the cause of the problem.  You can also try to start
-the server with @code{mysqld --standalone};  In this case, you may get
-some useful information on the screen that may help solve the problem.
+@file{\mysql\data\mysql.err} file to see if the server wrote any
+message there to indicate the cause of the problem.  You can also
+try to start the server with @code{mysqld --standalone};  In this
+case, you may get some useful information on the screen that may
+help solve the problem.
 
-The last option is to start @code{mysqld} with @code{--standalone
---debug}.  In this case @code{mysqld} will write a log file
-@file{C:\mysqld.trace} that should contain the reason why @code{mysqld}
-doesn't start. @xref{Making trace files}.
+The last option is to start @code{mysqld} with
+@code{--standalone --debug}.
+In this case @code{mysqld} will write a log file
+@file{C:\mysqld.trace} that should contain the reason why
+@code{mysqld} doesn't start. @xref{Making trace files}.
+
+Use @code{mysqld --help} to display all the options that
+@code{mysqld} understands!
 
 
 @node NT start, Windows running, Win95 start, Windows
 @subsubsection Starting MySQL on Windows NT or Windows 2000
 
-The Win95/Win98 section also applies to MySQL on NT/Win2000, with
-the following differences:
-
-To get MySQL to work with TCP/IP on NT, you must install
+To get MySQL to work with TCP/IP on Windows NT 4, you must install
 service pack 3 (or newer)!
 
-Note that everything in the following that applies for NT also applies
-for Win2000!
-
-For NT/Win2000, the server name is @code{mysqld-nt}.  Normally you
-should install MySQL as a service on NT/Win2000:
+Normally you should install MySQL as a service on NT/Win2000.
+In case the server was already running, first stop it using
+the following command:
 
 @example
-C:\> C:\mysql\bin\mysqld-nt --install
+C:\mysql\bin> mysqladmin -u root shutdown
 @end example
 
-or
+Now install the server service:
+
+@example
+C:\mysql\bin> mysqld-max-nt --install
+@end example
+
+For information about which server binary to run, see
+@ref{Windows prepare environment}.
+
+Please note that from MySQL version 3.23.44, you have the choice
+to set up the service as Manual (if you don't wish the Windows
+Service Control Manager SCM to automatically start the server
+during the boot process):
+
+@example
+C:\mysql\bin> mysqld-max-nt --install-manual
+@end example
+
+To start or stop the MySQL server service:
+
+@example
+C:\> NET START MySQL
+C:\> NET STOP MySQL
+@end example
+
+The service is installed with the name @code{MySQL}. Once
+installed, it must be started using the Services Control
+Manager (SCM) Utility found in the Control Panel, or by
+using the @code{NET START MySQL} command.
+
+If any options are required, they must be specified as
+``Startup parameters'' in the SCM utility before you
+start the MySQL service.
+
+Once running, @code{mysqld-max-nt} can be stopped using
+@code{mysqladmin}, from the SCM utility or by using the
+command @code{NET STOP MySQL}.
+If you use SCM to stop @code{mysqld-max-nt}, there is a strange
+message from SCM about @code{mysqld shutdown normally}.
+
+When run as a service, @code{mysqld-max-nt} has no access to a
+console and so no messages can be seen.
+On NT/2000 you can get the following service error messages:
+
+@multitable @columnfractions .3 .7
+@item Permission Denied @tab
+Means that it cannot find @code{mysqld-max-nt.exe}.
+@item Cannot Register @tab
+Means that the path is incorrect.
+@item Failed to install service. @tab
+Means that the service is already installed or that the Service
+Control Manager is in bad state.
+@end multitable
+
+If you have problems installing @code{mysqld-max-nt} as a
+service, try starting it with the full path:
 
 @example
 C:\> C:\mysql\bin\mysqld-max-nt --install
 @end example
 
-(Under Windows NT, you can actually install any of the server binaries
-as a service, but only those having names that end with @code{-nt.exe}
-provide support for named pipes.)
+If this doesn't work, you can get @code{mysqld-max-nt} to start
+properly by fixing the path in the registry!
 
-You can start and stop the MySQL service with these commands:
-
-@example
-C:\> NET START mysql
-C:\> NET STOP mysql
-@end example
-
-Note that in this case you can't use any other options for @code{mysqld-nt}!
-
-You can also run @code{mysqld-nt} as a stand-alone program on NT if you need
-to start @code{mysqld-nt} with any options!  If you start @code{mysqld-nt}
-without options on NT, @code{mysqld-nt} tries to start itself as a service
-with the default service options.  If you have stopped @code{mysqld-nt}, you
-have to start it with @code{NET START mysql}.
-
-The service is installed with the name @code{MySQL}. Once installed, it must
-be started using the Services Control Manager (SCM) Utility found in the
-Control Panel, or by using the @code{NET START MySQL} command.  If any options
-are desired, they must be specified as ``Startup parameters'' in the SCM utility
-before you start the MySQL service.  Once running, @code{mysqld-nt}
-can be stopped using @code{mysqladmin}, or from the SCM utility or by using
-the command @code{NET STOP MySQL}. If you use SCM to stop @code{mysqld-nt},
-there is a strange message from SCM about @code{mysqld shutdown normally}.
-When run as a service, @code{mysqld-nt} has no access to a console and so no
-messages can be seen.
-
-On NT you can get the following service error messages:
-
-@multitable @columnfractions .3 .7
-@item Permission Denied @tab Means that it cannot find @code{mysqld-nt.exe}.
-@item Cannot Register   @tab Means that the path is incorrect.
-@item Failed to install service. @tab Means that the service is already installed or that the Service Control Manager is in bad state.
-@end multitable
-
-If you have problems installing @code{mysqld-nt} as a service, try starting
-it with the full path:
+If you don't want to start @code{mysqld-max-nt} as a service,
+you can start it as follows:
 
 @example
-C:\> C:\mysql\bin\mysqld-nt --install
-@end example
-
-If this doesn't work, you can get @code{mysqld-nt} to start properly by fixing
-the path in the registry!
-
-If you don't want to start @code{mysqld-nt} as a service, you can start it as
-follows:
-
-@example
-C:\> C:\mysql\bin\mysqld-nt --standalone
+C:\> C:\mysql\bin\mysqld-max-nt --standalone
 @end example
 
 or
@@ -10566,8 +10798,8 @@ or
 C:\> C:\mysql\bin\mysqld --standalone --debug
 @end example
 
-The last version gives you a debug trace in @file{C:\mysqld.trace}.
-@xref{Making trace files}.
+The last version gives you a debug trace in
+@file{C:\mysqld.trace}. @xref{Making trace files}.
 
 
 @node Windows running, Windows and SSH, NT start, Windows
@@ -10576,17 +10808,21 @@ The last version gives you a debug trace in @file{C:\mysqld.trace}.
 @cindex TCP/IP
 @cindex named pipes
 
-MySQL supports TCP/IP on all Windows platforms and named pipes on NT.
-The default is to use named pipes for local connections on NT and TCP/IP for
-all other cases if the client has TCP/IP installed.  The host name specifies
-which protocol is used:
+MySQL supports TCP/IP on all Windows platforms and named pipes on
+NT/2000. The default is to use named pipes for local connections
+on NT/2000 and TCP/IP for all other cases if the client has TCP/IP
+installed. The host name specifies which protocol is used:
 
 @multitable @columnfractions .3 .7
 @item @strong{Host name} @tab @strong{Protocol}
-@item NULL (none) @tab  On NT, try named pipes first; if that doesn't work, use TCP/IP. On Win95/Win98, TCP/IP is used.
+@item NULL (none) @tab
+On NT/2000, try named pipes first; if that doesn't work, use TCP/IP.
+On Win95/Win98, TCP/IP is used.
 @item . @tab Named pipes
-@item localhost @tab TCP/IP to current host
-@item hostname  @tab TCP/IP
+@item localhost @tab
+TCP/IP to current host
+@item hostname  @tab
+TCP/IP
 @end multitable
 
 You can force a MySQL client to use named pipes by specifying the
@@ -10703,7 +10939,7 @@ for the MySQL host server --- not @code{yourmysqlservername}.
 You should now have an ODBC connection to MySQL, encrypted using SSH. 
 
 
-@node Windows symbolic links, Windows compiling, Windows and SSH, Windows
+@node Windows symbolic links, Windows client compiling, Windows and SSH, Windows
 @subsubsection Splitting Data Across Different Disks on Windows
 
 @cindex symbolic links
@@ -10743,7 +10979,7 @@ should instead use the @code{skip-symlink} option if you want to
 disable this.
 
 
-@node Windows compiling, Windows vs Unix, Windows symbolic links, Windows
+@node Windows client compiling, Windows vs Unix, Windows symbolic links, Windows
 @subsubsection Compiling MySQL Clients on Windows
 
 @cindex compiling, on Windows
@@ -10767,7 +11003,7 @@ Note that as the mysqlclient libraries are compiled as threaded libraries,
 you should also compile your code to be multi-threaded!
 
 
-@node Windows vs Unix,  , Windows compiling, Windows
+@node Windows vs Unix,  , Windows client compiling, Windows
 @subsubsection MySQL-Windows Compared to Unix MySQL
 
 @cindex Windows, versus Unix
@@ -39739,13 +39975,13 @@ are known to work with @strong{MyODBC}.
 @node Installing MyODBC, ODBC administrator, ODBC, ODBC
 @subsection How To Install MyODBC
 
-@strong{MyODBC} is a 32-bit ODBC (2.50) level 0 (with level 1 and level
-2 features) driver for connecting an ODBC-aware application to
-MySQL.  @strong{MyODBC} works on Windows95, Windows98, NT, and
-on most Unix platforms.
+@strong{MyODBC} is a 32-bit ODBC (2.50) level 0 (with level 1 and
+level 2 features) driver for connecting an ODBC-aware application
+to MySQL.  @strong{MyODBC} works on Windows95, Windows98, NT, 2000
+and on most Unix platforms.
 
-@strong{MyODBC} is in public domain, and you can find the newest version
-at @uref{http://www.mysql.com/downloads/api-myodbc.html}.
+@strong{MyODBC} is in public domain, and you can find the newest
+version at @uref{http://www.mysql.com/downloads/api-myodbc.html}.
 
 If you have problem with @strong{MyODBC} and your program also works
 with OLEDB, you should try the OLEDB driver that you can find in the
