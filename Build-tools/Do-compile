@@ -4,10 +4,10 @@ use Getopt::Long;
 $opt_distribution=$opt_user=$opt_result=$opt_config_options=$opt_config_env="";
 $opt_dbd_options=$opt_perl_options=$opt_suffix="";
 $opt_tmp=$version_suffix="";
-$opt_help=$opt_Information=$opt_no_delete=$opt_debug=$opt_stage=$opt_rsh_mail=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_no_mysqltest=$opt_use_old_distribution=0;
+$opt_help=$opt_Information=$opt_no_delete=$opt_debug=$opt_stage=$opt_rsh_mail=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_no_mysqltest=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=0;
 $opt_innodb=$opt_bdb=0;
 
-GetOptions("Information","help","distribution=s","user=s","result=s","no-delete","no-test","no-mysqltest","perl-files=s","debug","config-options=s","config-env=s","stage=i","rsh-mail","with-low-memory","fast-benchmark","tmp=s","static-client","static-server","static-perl","no-perl","local-perl","perl-options=s","sur","with-small-disk","dbd-options=s","tcpip","suffix=s","build-thread=i","innodb","bdb","use-old-distribution") || usage();
+GetOptions("Information","help","distribution=s","user=s","result=s","no-delete","no-test","no-mysqltest","perl-files=s","debug","config-options=s","config-env=s","stage=i","rsh-mail","with-low-memory","fast-benchmark","tmp=s","static-client","static-server","static-perl","no-perl","local-perl","perl-options=s","sur","with-small-disk","dbd-options=s","tcpip","suffix=s","build-thread=i","innodb","bdb","use-old-distribution","enable-shared","no-crash-me") || usage();
 
 usage() if ($opt_help || $opt_Information);
 usage() if (!$opt_distribution);
@@ -119,7 +119,10 @@ if ($opt_stage <= 1)
   {
     $opt_config_options.=" --with-client-ldflags=-all-static";
   }
-  $opt_config_options.= " --disable-shared"; # Default for binary versions
+  if (!$opt_enable_shared)
+  {
+    $opt_config_options.= " --disable-shared"; # Default for binary versions
+  }
   if ($opt_bdb)
   {
     $opt_config_options.= " --with-berkeley-db"
@@ -237,7 +240,7 @@ if ($opt_stage <= 7 && $opt_perl_files && !$opt_no_perl && !$opt_no_test)
 }
 
 
-if ($opt_stage <= 8 && !$opt_no_test)
+if ($opt_stage <= 8 && !$opt_no_test && !$opt_no_crash_me)
 {
   safe_cd("$test_dir/sql-bench");
   log_system("rm -f limits/mysql.cfg");
