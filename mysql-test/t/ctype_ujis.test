@@ -1,7 +1,9 @@
 #
 # Tests with the ujis character set
 #
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
 
 #
 # Test problem with LEFT()

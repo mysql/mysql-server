@@ -4,7 +4,7 @@
 # This would work if mysqltest run would be threaded and handle each
 # connection in a separate thread.
 #
--- source include/not_embedded.inc
+--source include/not_embedded.inc
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);

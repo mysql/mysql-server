@@ -40,8 +40,8 @@ eval_const_cond(COND *cond)
 }
 
 
-Item_func::Item_func(List<Item> &list):
-  allowed_arg_cols(1)
+Item_func::Item_func(List<Item> &list)
+  :allowed_arg_cols(1)
 {
   arg_count=list.elements;
   if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
@@ -109,10 +109,12 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   {						// Print purify happy
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
-      Item *item= *arg;
-      if (item->fix_fields(thd, tables, arg) ||
-	  item->check_cols(allowed_arg_cols))
+      Item *item;
+      /* We can't yet set item to *arg as fix_fields may change *arg */
+      if ((*arg)->fix_fields(thd, tables, arg) ||
+	  (*arg)->check_cols(allowed_arg_cols))
 	return 1;				/* purecov: inspected */
+      item= *arg;
       if (item->maybe_null)
 	maybe_null=1;
       

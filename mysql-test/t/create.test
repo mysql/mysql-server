@@ -145,9 +145,13 @@ drop table t1;
 #
 create table t1 ( k1 varchar(2), k2 int, primary key(k1,k2));
 insert into t1 values ("a", 1), ("b", 2);
-!$1048 insert into t1 values ("c", NULL);
-!$1048 insert into t1 values (NULL, 3);
-!$1048 insert into t1 values (NULL, NULL);
+--error 1048
+insert into t1 values ("c", NULL);
+--error 1048
+insert into t1 values (NULL, 3);
+--error 1048
+insert into t1 values (NULL, NULL);
+drop table t1;
 
 #
 # Test create with foreign keys

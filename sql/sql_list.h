@@ -368,6 +368,7 @@ template <class T>
 class I_List :private base_ilist {
 public:
   I_List() :base_ilist()	{}
+  inline void empty()		{ base_ilist::empty(); }
   inline bool is_empty()        { return base_ilist::is_empty(); } 
   inline void append(T* a)	{ base_ilist::append(a); }
   inline void push_back(T* a)	{ base_ilist::push_back(a); }

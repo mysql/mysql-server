@@ -646,7 +646,6 @@ fooID	barID	fooID
 20	2	NULL
 30	3	30
 drop table t1,t2;
-drop table if exists t3;
 create table t1 (i int);
 create table t2 (i int);
 create table t3 (i int);

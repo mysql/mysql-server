@@ -27,6 +27,9 @@
 class String;
 int sortcmp(const String *a,const String *b, CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
+uint32 copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
+			const char *from, uint32 from_length,
+			CHARSET_INFO *from_cs);
 
 class String
 {

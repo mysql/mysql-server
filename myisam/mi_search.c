@@ -1042,9 +1042,9 @@ uint _mi_keylength(MI_KEYDEF *keyinfo, register uchar *key)
 */
 
 uint _mi_keylength_part(MI_KEYDEF *keyinfo, register uchar *key,
-			MI_KEYSEG *end)
+			HA_KEYSEG *end)
 {
-  reg1 MI_KEYSEG *keyseg;
+  reg1 HA_KEYSEG *keyseg;
   uchar *start= key;
 
   for (keyseg=keyinfo->seg ; keyseg != end ; keyseg++)

@@ -417,7 +417,7 @@ explain select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
 select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
 select * from t2 left join t1 ignore index(primary) on t1.fooID = t2.fooID and t1.fooID = 30;
 drop table t1,t2;
-drop table if exists t3;
+
 create table t1 (i int);
 create table t2 (i int);
 create table t3 (i int);

@@ -626,7 +626,7 @@ JOIN::optimize()
 	      Force MySQL to read the table in sorted order to get result in
 	      ORDER BY order.
 	    */	    
-	    join.tmp_table_param.quick_group=0;
+	    tmp_table_param.quick_group=0;
 	  }
 	  order=0;
         }
@@ -4264,7 +4264,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->blob_ptr_size=mi_portable_sizeof_char_ptr;
   table->map=1;
   table->tmp_table= TMP_TABLE;
-  table->derived_select_number= 0;
   table->db_low_byte_first=1;			// True for HEAP and MyISAM
   table->temp_pool_slot = temp_pool_slot;
   table->copy_blobs= 1;
@@ -7983,6 +7982,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       TABLE *table=tab->table;
       char buff[512],*buff_ptr=buff;
       char buff1[512], buff2[512];
+      char derived_name[64];
       String tmp1(buff1,sizeof(buff1),cs);
       String tmp2(buff2,sizeof(buff2),cs);
       tmp1.length(0);
@@ -7996,13 +7996,13 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 					  cs));
       if (tab->type == JT_ALL && tab->select && tab->select->quick)
 	tab->type= JT_RANGE;
-      if (table->tmp_table == TMP_TABLE && table->derived_select_number != 0)
+      if (table->derived_select_number)
       {
-	// Derived table name generation
-	char buff[512];
-	int len= my_snprintf(buff, 512, "<derived%u>",
+	/* Derived table name generation */
+	int len= my_snprintf(derived_name, sizeof(derived_name)-1,
+			     "<derived%u>",
 			     table->derived_select_number);
-	item_list.push_back(new Item_string(buff, len, cs));
+	item_list.push_back(new Item_string(derived_name, len, cs));
       }
       else
 	item_list.push_back(new Item_string(table->table_name,
@@ -8196,5 +8196,3 @@ void free_underlaid_joins(THD *thd, SELECT_LEX *select)
        unit= unit->next_unit())
     unit->cleanup();
 }
-
-

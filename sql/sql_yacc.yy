@@ -2180,8 +2180,10 @@ simple_expr:
 	simple_ident
  	| simple_expr COLLATE_SYM ident_or_text %prec NEG
 	  { 
-	    $$= new Item_func_set_collation($1,new Item_string($3.str,$3.length,
-					    YYTHD->charset()));
+	    $$= new Item_func_set_collation($1,
+					    new Item_string($3.str,
+							    $3.length,
+					    		    YYTHD->charset()));
 	  }
 	| literal
 	| param_marker
@@ -2228,8 +2230,8 @@ simple_expr:
 	| ASCII_SYM '(' expr ')' { $$= new Item_func_ascii($3); }
 	| BINARY expr %prec NEG 
 	  {
-	    $$= new Item_func_set_collation($2,new Item_string("BINARY",6,
-					    &my_charset_latin1));
+	    $$= new Item_func_set_collation($2,new Item_string(binary_keyword,
+					    6, &my_charset_latin1));
 	  }
 	| CAST_SYM '(' expr AS cast_type ')'  { $$= create_func_cast($3, $5); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
@@ -2580,9 +2582,9 @@ sum_expr:
 	| COUNT_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_count($3); }
 	| COUNT_SYM '(' DISTINCT
-	  { Select->in_sum_expr++; }
+	  { Select->select_lex()->in_sum_expr++; }
 	   expr_list
-	  { Select->in_sum_expr--; }
+	  { Select->select_lex()->in_sum_expr--; }
 	  ')'
 	  { $$=new Item_sum_count_distinct(* $5); }
 	| GROUP_UNIQUE_USERS '(' text_literal ',' NUM ',' NUM ',' in_sum_expr ')'

@@ -158,8 +158,8 @@ alter table t2 rename t1, add c char(10) comment "no comment";
 show columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra
 i	int(10) unsigned	binary		PRI	NULL	auto_increment
-c	char(10)	latin1_swedish_ci	YES		NULL
-drop table t1;	
+c	char(10)	latin1_swedish_ci	YES		NULL	
+drop table t1;
 create table t1 (a int, b int);
 insert into t1 values(1,100), (2,100), (3, 100);
 insert into t1 values(1,99), (2,99), (3, 99);

@@ -2672,9 +2672,12 @@ bool check_grant_all_columns(THD *thd, ulong want_access, TABLE *table)
 
   want_access &= ~table->grant.privilege;
   if (!want_access)
-    return 0;					// Already checked
+    return 0;				// Already checked
   if (!grant_option)
+  {
+    field= table->field[0];		// To give a meaningful error message
     goto err2;
+  }
 
   rw_rdlock(&LOCK_grant);
 
@@ -3134,7 +3137,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	}
 	global.append(" ON `",5);
 	global.append(grant_table->db);
-	global.append("`.`,3);
+	global.append("`.`",3);
 	global.append(grant_table->tname);
 	global.append("` TO '",6);
 	global.append(lex_user->user.str,lex_user->user.length);

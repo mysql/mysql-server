@@ -17,12 +17,14 @@ rename table t1 to t5, t2 to t1;
 # first don't write it to the binlog, to test the NO_WRITE_TO_BINLOG keyword.
 flush no_write_to_binlog tables;
 # Check that it's not in the binlog.
+--replace_result $SERVER_VERSION SERVER_VERSION
 show binlog events;
 # Check that the master is not confused.
 select * from t3;
 # This FLUSH should go into the binlog to not confuse the slave.
 flush tables;
 # Check that it's in the binlog.
+--replace_result $SERVER_VERSION SERVER_VERSION
 show binlog events;
 save_master_pos;
 connection slave;

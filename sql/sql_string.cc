@@ -34,9 +34,6 @@ CHARSET_INFO *national_charset_info= &my_charset_utf8;
 
 extern gptr sql_alloc(unsigned size);
 extern void sql_element_free(void *ptr);
-static uint32
-copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
-		 const char *from, uint32 from_length, CHARSET_INFO *from_cs);
 
 #include "sql_string.h"
 
@@ -630,7 +627,7 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
 */
 
 
-static uint32
+uint32
 copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
 		 const char *from, uint32 from_length, CHARSET_INFO *from_cs)
 {

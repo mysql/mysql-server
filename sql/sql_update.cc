@@ -97,7 +97,7 @@ int mysql_update(THD *thd,
       setup_ref_array(thd, &thd->lex.select_lex.ref_pointer_array,
 		      order_num) ||
       setup_order(thd, thd->lex.select_lex.ref_pointer_array,
-		  &tables, fields, all_fields, order) ||
+		  &tables, all_fields, all_fields, order) ||
       setup_ftfuncs(&thd->lex.select_lex))
     DBUG_RETURN(-1);				/* purecov: inspected */
 
@@ -207,7 +207,7 @@ int mysql_update(THD *thd,
 						    MYF(MY_FAE | MY_ZEROFILL));
       if (!(sortorder=make_unireg_sortorder(order, &length)) ||
           (table->sort.found_records = filesort(thd, table, sortorder, length,
-						select, 0L, limit,
+						select, limit,
 						&examined_rows))
           == HA_POS_ERROR)
       {
@@ -755,7 +755,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
     {
       table->status|= STATUS_UPDATED;
       store_record(table,record[1]);
-      if (fill_record(*fields_for_table[offset], *values_for_table[offset]), 0)
+      if (fill_record(*fields_for_table[offset], *values_for_table[offset], 0))
 	DBUG_RETURN(1);
       found++;
       if (compare_record(table, thd->query_id))
@@ -793,7 +793,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	  (error != HA_ERR_FOUND_DUPP_KEY &&
 	   error != HA_ERR_FOUND_DUPP_UNIQUE))
       {
-	if (create_myisam_from_heap(thd, table, tmp_table_param + offset,
+	if (create_myisam_from_heap(thd, tmp_table, tmp_table_param + offset,
 				    error, 1))
 	{
 	  do_update=0;

@@ -2174,7 +2174,7 @@ void Item_func_set_collation::fix_length_and_dec()
   const char *colname;
   String tmp, *str= args[1]->val_str(&tmp);
   colname= str->c_ptr();
-  if (!strncmp(colname,"BINARY",6))
+  if (colname == binary_keyword)
     set_collation= get_charset_by_csname(args[0]->charset()->csname,
 					 MY_CS_BINSORT,MYF(0));
   else

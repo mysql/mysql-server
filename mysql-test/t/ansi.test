@@ -2,7 +2,9 @@
 # Test of ansi mode
 #
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
 
 # Test some functions that works different in ansi mode
 

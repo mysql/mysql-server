@@ -45,6 +45,10 @@ char *sql_strdup(const char *str);
 char *sql_strmake(const char *str,uint len);
 gptr sql_memdup(const void * ptr,unsigned size);
 void sql_element_free(void *ptr);
+char *sql_strmake_with_convert(const char *str, uint32 arg_length,
+			       CHARSET_INFO *from_cs,
+			       uint32 max_res_length,
+			       CHARSET_INFO *to_cs, uint32 *result_length);
 void kill_one_thread(THD *thd, ulong id);
 bool net_request_file(NET* net, const char* fname);
 char* query_table_status(THD *thd,const char *db,const char *table_name);
@@ -687,7 +691,7 @@ extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 extern MY_TMPDIR mysql_tmpdir_list;
 extern const char *command_name[];
-extern const char *first_keyword, *localhost, *delayed_user;
+extern const char *first_keyword, *localhost, *delayed_user, *binary_keyword;
 extern const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
 extern uchar *days_in_month;
