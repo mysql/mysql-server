@@ -98,9 +98,8 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
 
 TransporterRegistry::TransporterRegistry(void * callback,
 					 unsigned _maxTransporters,
-					 unsigned sizeOfLongSignalMemory) {
-
-  m_transporter_service= 0;
+					 unsigned sizeOfLongSignalMemory)
+{
   nodeIdSpecified = false;
   maxTransporters = _maxTransporters;
   sendCounter = 1;
@@ -150,7 +149,6 @@ TransporterRegistry::~TransporterRegistry() {
   delete[] theTransporters;
   delete[] performStates;
   delete[] ioStates;
-
 #ifdef NDB_OSE_TRANSPORTER
   if(theOSEReceiver != NULL){
     theOSEReceiver->destroyPhantom();
@@ -1159,55 +1157,67 @@ TransporterRegistry::stop_clients()
   return true;
 }
 
+void
+TransporterRegistry::add_transporter_interface(const char *interface, unsigned short port)
+{
+  DBUG_ENTER("TransporterRegistry::add_transporter_interface");
+  DBUG_PRINT("enter",("interface=%s, port= %d", interface, port));
+  if (interface && strlen(interface) == 0)
+    interface= 0;
+
+  for (unsigned i= 0; i < m_transporter_interface.size(); i++)
+  {
+    Transporter_interface &tmp= m_transporter_interface[i];
+    if (port != tmp.m_service_port)
+      continue;
+    if (interface != 0 && tmp.m_interface != 0 &&
+	strcmp(interface, tmp.m_interface) == 0)
+    {
+      DBUG_VOID_RETURN; // found match, no need to insert
+    }
+    if (interface == 0 && tmp.m_interface == 0)
+    {
+      DBUG_VOID_RETURN; // found match, no need to insert
+    }
+  }
+  Transporter_interface t;
+  t.m_service_port= port;
+  t.m_interface= interface;
+  m_transporter_interface.push_back(t);
+  DBUG_PRINT("exit",("interface and port added"));
+  DBUG_VOID_RETURN;
+}
+
 bool
 TransporterRegistry::start_service(SocketServer& socket_server)
 {
-#if 0
-  for (int i= 0, n= 0; n < nTransporters; i++){
-    Transporter * t = theTransporters[i];
-    if (!t)
-      continue;
-    n++;
-    if (t->isServer) {
-      t->m_service = new TransporterService(new SocketAuthSimple("ndbd passwd"));
-      if(!socket_server.setup(t->m_service, t->m_r_port, 0))
-      {
-	ndbout_c("Unable to setup transporter service port: %d!\n"
-		 "Please check if the port is already used,\n"
-		 "(perhaps a mgmt server is already running)",
-		 m_service_port);
-	delete t->m_service;
-	return false;
-      }
-    }
+  if (m_transporter_interface.size() > 0 && nodeIdSpecified != true)
+  {
+    ndbout_c("TransporterRegistry::startReceiving: localNodeId not specified");
+    return false;
   }
-#endif
 
-  if (m_service_port != 0) {
-
-    m_transporter_service = new TransporterService(new SocketAuthSimple("ndbd", "ndbd passwd"));
-
-    if (nodeIdSpecified != true) {
-      ndbout_c("TransporterRegistry::startReceiving: localNodeId not specified");
+  for (unsigned i= 0; i < m_transporter_interface.size(); i++)
+  {
+    Transporter_interface &t= m_transporter_interface[i];
+    if (t.m_service_port == 0)
+    {
+      continue;
+    }
+    TransporterService *transporter_service =
+      new TransporterService(new SocketAuthSimple("ndbd", "ndbd passwd"));
+    if(!socket_server.setup(transporter_service,
+			    t.m_service_port, t.m_interface))
+    {
+      ndbout_c("Unable to setup transporter service port: %s:%d!\n"
+	       "Please check if the port is already used,\n"
+	       "(perhaps the node is already running)",
+	       t.m_interface ? t.m_interface : "*", t.m_service_port);
+      delete transporter_service;
       return false;
     }
-
-    //m_interface_name = "ndbd";
-    m_interface_name = 0;
-
-    if(!socket_server.setup(m_transporter_service, m_service_port, m_interface_name))
-      {
-	ndbout_c("Unable to setup transporter service port: %d!\n"
-		 "Please check if the port is already used,\n"
-		 "(perhaps a mgmt server is already running)",
-		 m_service_port);
-	delete m_transporter_service;
-	return false;
-      }
-    m_transporter_service->setTransporterRegistry(this);
-  } else
-    m_transporter_service= 0;
-
+    transporter_service->setTransporterRegistry(this);
+  }
   return true;
 }
 
@@ -1281,3 +1291,5 @@ NdbOut & operator <<(NdbOut & out, SignalHeader & sh){
   out << "trace:        " << (int)sh.theTrace << endl;
   return out;
 } 
+
+template class Vector<TransporterRegistry::Transporter_interface>;

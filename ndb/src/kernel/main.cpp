@@ -56,6 +56,7 @@ const char programName[] = "NDB Kernel";
 
 NDB_MAIN(ndb_kernel){
 
+  ndb_init();
   // Print to stdout/console
   g_eventLogger.createConsoleHandler();
   g_eventLogger.setCategory("NDB");

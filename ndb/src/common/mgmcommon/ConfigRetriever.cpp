@@ -18,6 +18,7 @@
 #include <ndb_version.h>
 
 #include <ConfigRetriever.hpp>
+#include <SocketServer.hpp>
 
 #include "LocalConfig.hpp"
 #include <NdbSleep.h>
@@ -272,42 +273,14 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 
     NdbConfig_SetPath(datadir);
   }
 
-  char localhost[MAXHOSTNAMELEN];
-  if(NdbHost_GetHostName(localhost) != 0){
-    snprintf(buf, 255, "Unable to get own hostname");
+  if (hostname && hostname[0] != 0 &&
+      !SocketServer::tryBind(0,hostname)) {
+    snprintf(buf, 255, "Config hostname(%s) don't match a local interface,"
+	     " tried to bind, error = %d - %s",
+	     hostname, errno, strerror(errno));
     setError(CR_ERROR, buf);
     return false;
   }
-
-  do {
-    if(strlen(hostname) == 0)
-      break;
-
-    if(strcasecmp(hostname, localhost) == 0)
-      break;
-
-    if(strcasecmp(hostname, "localhost") == 0)
-      break;
-
-    struct in_addr local, config;
-    bool b1 = false, b2 = false, b3 = false;
-    b1 = Ndb_getInAddr(&local, localhost) == 0;
-    b2 = Ndb_getInAddr(&config, hostname) == 0;
-    b3 = memcmp(&local, &config, sizeof(local)) == 0;
-
-    if(b1 && b2 && b3)
-      break;
-    
-    b1 = Ndb_getInAddr(&local, "localhost") == 0;
-    b3 = memcmp(&local, &config, sizeof(local)) == 0;
-    if(b1 && b2 && b3)
-      break;
-    
-    snprintf(buf, 255, "Local hostname(%s) and config hostname(%s) dont match",
-	     localhost, hostname);
-    setError(CR_ERROR, buf);
-    return false;
-  } while(false);
 
   unsigned int _type;
   if(ndb_mgm_get_int_parameter(it, CFG_TYPE_OF_SECTION, &_type)){
@@ -344,7 +317,7 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 
     const char * name;
     struct in_addr addr;
     BaseString tmp;
-    if(!iter.get(CFG_TCP_HOSTNAME_1, &name) && strlen(name)){
+    if(!iter.get(CFG_CONNECTION_HOSTNAME_1, &name) && strlen(name)){
       if(Ndb_getInAddr(&addr, name) != 0){
 	tmp.assfmt("Unable to lookup/illegal hostname %s, "
 		   "connection from node %d to node %d",
@@ -354,7 +327,7 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, Uint32 
       }
     }
 
-    if(!iter.get(CFG_TCP_HOSTNAME_2, &name) && strlen(name)){
+    if(!iter.get(CFG_CONNECTION_HOSTNAME_2, &name) && strlen(name)){
       if(Ndb_getInAddr(&addr, name) != 0){
 	tmp.assfmt("Unable to lookup/illegal hostname %s, "
 		   "connection from node %d to node %d",

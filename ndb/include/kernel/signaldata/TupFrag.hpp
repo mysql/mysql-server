@@ -119,12 +119,13 @@ class TupAddAttrReq {
   friend class Dblqh;
   friend class Dbtux;
 public:
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 5 );
 private:
   Uint32 tupConnectPtr;
   Uint32 notused1;
   Uint32 attrId;
   Uint32 attrDescriptor;
+  Uint32 extTypeInfo;
 };
 
 class TupAddAttrConf {
@@ -141,6 +142,10 @@ class TupAddAttrRef {
   friend class Dbtup;
 public:
   STATIC_CONST( SignalLength = 2 );
+  enum ErrorCode {
+    NoError = 0,
+    InvalidCharset = 743
+  };
 private:
   Uint32 userPtr;
   Uint32 errorCode;
@@ -178,7 +183,8 @@ public:
   STATIC_CONST( SignalLength = 2 );
   enum ErrorCode {
     NoError = 0,
-    InvalidAttributeType = 831,
+    InvalidAttributeType = 742,
+    InvalidCharset = 743,
     InvalidNodeSize = 832
   };
 private:

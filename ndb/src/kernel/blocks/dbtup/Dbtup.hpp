@@ -502,6 +502,7 @@ struct Fragoperrec {
   Uint32 attributeCount;
   Uint32 freeNullBit;
   Uint32 noOfNewAttrCount;
+  Uint32 charsetIndex;
   BlockReference lqhBlockrefFrag;
 };
 typedef Ptr<Fragoperrec> FragoperrecPtr;
@@ -785,6 +786,7 @@ struct Tablerec {
 
   ReadFunction* readFunctionArray;
   UpdateFunction* updateFunctionArray;
+  CHARSET_INFO** charsetArray;
 
   Uint32 readKeyArray;
   Uint32 tabDescriptor;
@@ -796,6 +798,7 @@ struct Tablerec {
   Uint16 tupheadsize;
   Uint16 noOfAttr;
   Uint16 noOfKeyAttr;
+  Uint16 noOfCharsets;
   Uint16 noOfNewAttr;
   Uint16 noOfNullAttr;
   Uint16 noOfAttributeGroups;
@@ -1001,17 +1004,20 @@ public:
   void tuxGetNode(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32*& node);
 
   /*
-   * TUX reads primary table attributes for index keys.  Input is
-   * attribute ids in AttributeHeader format.  Output is pointers to
-   * attribute data within tuple or 0 for NULL value.
+   * TUX reads primary table attributes for index keys.  Tuple is
+   * specified by location of original tuple and version number.  Input
+   * is attribute ids in AttributeHeader format.  Output is attribute
+   * data with headers.  Uses readAttributes with xfrm option set.
+   * Returns number of words or negative (-terrorCode) on error.
    */
-  void tuxReadAttrs(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion, Uint32 numAttrs, const Uint32* attrIds, const Uint32** attrData);
+  int tuxReadAttrs(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion, const Uint32* attrIds, Uint32 numAttrs, Uint32* dataOut);
 
   /*
    * TUX reads primary key without headers into an array of words.  Used
-   * for md5 summing and when returning keyinfo.
+   * for md5 summing and when returning keyinfo.  Returns number of
+   * words or negative (-terrorCode) on error.
    */
-  void tuxReadKeys(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* pkSize, Uint32* pkData);
+  int tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* dataOut);
 
   /*
    * TUX checks if tuple is visible to scan.
@@ -1365,10 +1371,11 @@ private:
 //------------------------------------------------------------------
   int readAttributes(Page* const pagePtr,
                      Uint32   TupHeadOffset,
-                     Uint32*  inBuffer,
+                     const Uint32*  inBuffer,
                      Uint32   inBufLen,
                      Uint32*  outBuffer,
-                     Uint32   TmaxRead);
+                     Uint32   TmaxRead,
+                     bool     xfrmFlag);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -1613,6 +1620,20 @@ private:
   bool updateDynSmallVarSize(Uint32* inBuffer,
                              Uint32  attrDescriptor,
                              Uint32  attrDes2);
+
+// *****************************************************************
+// Read char routines optionally (tXfrmFlag) apply strxfrm
+// *****************************************************************
+
+  bool readCharNotNULL(Uint32* outBuffer,
+                       AttributeHeader* ahOut,
+                       Uint32  attrDescriptor,
+                       Uint32  attrDes2);
+
+  bool readCharNULLable(Uint32* outBuffer,
+                        AttributeHeader* ahOut,
+                        Uint32  attrDescriptor,
+                        Uint32  attrDes2);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -1909,7 +1930,8 @@ private:
   void updatePackedList(Signal* signal, Uint16 ahostIndex);
 
   void setUpDescriptorReferences(Uint32 descriptorReference,
-                                 Tablerec* const regTabPtr);
+                                 Tablerec* const regTabPtr,
+                                 const Uint32* offset);
   void setUpKeyArray(Tablerec* const regTabPtr);
   bool addfragtotab(Tablerec* const regTabPtr, Uint32 fragId, Uint32 fragIndex);
   void deleteFragTab(Tablerec* const regTabPtr, Uint32 fragId);
@@ -2098,7 +2120,8 @@ private:
 //-----------------------------------------------------------------------------
 
 // Public methods
-  Uint32 allocTabDescr(Uint32 noOfAttributes, Uint32 noOfKeyAttr, Uint32 noOfAttributeGroups);
+  Uint32 getTabDescrOffsets(const Tablerec* regTabPtr, Uint32* offset);
+  Uint32 allocTabDescr(const Tablerec* regTabPtr, Uint32* offset);
   void freeTabDescr(Uint32 retRef, Uint32 retNo);
   Uint32 getTabDescrWord(Uint32 index);
   void setTabDescrWord(Uint32 index, Uint32 word);
@@ -2217,6 +2240,7 @@ private:
   Uint32          tMaxRead;
   Uint32          tOutBufIndex;
   Uint32*         tTupleHeader;
+  bool            tXfrmFlag;
 
 // updateAttributes module
   Uint32          tInBufIndex;

@@ -24,6 +24,32 @@
 #include <kernel/LogLevel.hpp>
 #include <signaldata/EventReport.hpp>
 
+class EventLoggerBase {
+public:
+  virtual ~EventLoggerBase();
+
+  /**
+   * LogLevel settings
+   */
+  LogLevel m_logLevel;
+  
+  /**
+   * This matrix defines which event should be printed when
+   *
+   * threshold - is in range [0-15]
+   * severity  - DEBUG to ALERT (Type of log message)
+   */  
+  struct EventRepLogLevelMatrix {
+    EventReport::EventType        eventType;
+    LogLevel::EventCategory   eventCategory;
+    Uint32                        threshold;
+    Logger::LoggerLevel            severity;
+  };
+
+  static const EventRepLogLevelMatrix matrix[];
+  static const Uint32 matrixSize;
+};
+
 /**
  * The EventLogger is primarily used for logging NDB events 
  * in the Management Server. It inherits all logging functionality of Logger.
@@ -58,7 +84,7 @@
  * @see Logger
  * @version #@ $Id: EventLogger.hpp,v 1.3 2003/09/01 10:15:52 innpeno Exp $
  */
-class EventLogger : public Logger
+class EventLogger : public EventLoggerBase, public Logger
 {
 public:
   /**
@@ -70,7 +96,7 @@ public:
   /**
    * Destructor.
    */
-  ~EventLogger();
+  virtual ~EventLogger();
 
   /**
    * Opens/creates the eventlog with the specified filename.
@@ -95,46 +121,12 @@ public:
   /**
    * Logs the NDB event.
    *
-   * @param nodeId the node id of event origin.
-   * @param eventType the type of event.
-   * @param theData the event data.
-   * @deprecated use log(int eventType, const Uint32* theData, NodeId nodeId)
-   */
-  void log(NodeId nodeId, int eventType, const Uint32* theData);
-
-  /**
-   * Logs the NDB event.
-   *
    * @param eventType the type of event.
    * @param theData the event data.
    * @param nodeId the node id of event origin.
    */
-  void log(int eventType, const Uint32* theData, NodeId nodeId = 0);
-
-  /**
-   * Returns the current log levels. 
-   * Enable, disable log levels to filter the events that are sent to the
-   * eventlog.
-   *
-   * @return the log level.
-   */
-  LogLevel& getLoglevel();
+  virtual void log(int, const Uint32*, NodeId = 0,const class LogLevel * = 0);
   
-  /**
-   * Returns the log level that is used to filter an event. The event will not
-   * be logged unless its event category's log level is <= levelFilter.
-   *
-   * @return the log level filter that is used for all event categories.
-   */
-  int getFilterLevel() const;
-  /**
-   * Sets log level filter. The event will be logged if 
-   * the event category's log level is <= 'filterLevel'.
-   *
-   * @param level the log level to filter.
-   */
-  void setFilterLevel(int filterLevel);
-
   /**
    * Returns the event text for the specified event report type.
    *
@@ -143,72 +135,25 @@ public:
    * @param nodeId a node id.
    * @return the event report text.
    */
-  static const char* getText(int type,
+  static const char* getText(char * dst, size_t dst_len,
+			     int type,
 			     const Uint32* theData, NodeId nodeId = 0);
-
-  /**
-   * Find a category matching the string
-   *
-   * @param str string to match.
-   * @param cat the event category.
-   * @param exactMatch only do exact matching.
-   *
-   *  @return TRUE if match is found, then cat is modified
-   *          FALSE if match is not found
-   */
-  static bool matchEventCategory(const char * str, 
-				 LogLevel::EventCategory * cat,
-				 bool exactMatch = false);
   
   /**
-   * Returns category name or NULL if not found.
+   * Returns the log level that is used to filter an event. The event will not
+   * be logged unless its event category's log level is <= levelFilter.
    *
-   * @param cat the event category.
-   * @return category name.
+   * @return the log level filter that is used for all event categories.
    */
-  static const char * getEventCategoryName(LogLevel::EventCategory cat);
+  int getFilterLevel() const;
 
   /**
-   * Specifies allowed event categories/log levels.
-   */
-  struct EventCategoryName {
-    LogLevel::EventCategory category;
-    const char * name;
-  };
-
-  static const EventCategoryName eventCategoryNames[];
-  static const Uint32 noOfEventCategoryNames;
-
-  /**
-   * This matrix defines which event should be printed when
+   * Sets log level filter. The event will be logged if 
+   * the event category's log level is <= 'filterLevel'.
    *
-   * threshold - is in range [0-15]
-   * severity  - DEBUG to ALERT (Type of log message)
-   */  
-  struct EventRepLogLevelMatrix {
-    EventReport::EventType        eventType;
-    LogLevel::EventCategory   eventCategory;
-    Uint32                        threshold;
-    Logger::LoggerLevel            severity;
-  };
-
-  static const EventRepLogLevelMatrix matrix[];
-
-  /**
-   * Default log levels for management nodes.
-   *
-   * threshold - is in range [0-15]
+   * @param level the log level to filter.
    */
-  struct EventLogMatrix {
-    LogLevel::EventCategory eventCategory;
-    Uint32                  threshold;
-  };
-
-  static const EventLogMatrix defEventLogMatrix[];
-
-  
-  static const Uint32 matrixSize;
-  static const Uint32 defEventLogMatrixSize;
+  void setFilterLevel(int filterLevel);
 
 private:
   /** Prohibit */
@@ -216,11 +161,10 @@ private:
   EventLogger operator = (const EventLogger&);
   bool operator == (const EventLogger&);
 
-  LogLevel m_logLevel;
   Uint32 m_filterLevel;
 
   STATIC_CONST(MAX_TEXT_LENGTH = 256);
-  static char m_text[MAX_TEXT_LENGTH];
+  char m_text[MAX_TEXT_LENGTH];
 };
 
 

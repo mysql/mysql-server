@@ -1278,6 +1278,7 @@ TESTCASE("MassiveTransaction",
 NDBT_TESTSUITE_END(testBasic);
 
 int main(int argc, const char** argv){
+  ndb_init();
   return testBasic.execute(argc, argv);
 }
 
