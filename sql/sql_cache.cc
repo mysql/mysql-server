@@ -698,7 +698,7 @@ ulong Query_cache::resize(ulong query_cache_size)
      TODO:
      When will be realized pack() optimize case when
      query_cache_size < this->query_cache_size
-     
+
      Try to copy old cache in new memory
   */
   DBUG_ENTER("Query_cache::resize");

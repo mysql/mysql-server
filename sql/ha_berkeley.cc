@@ -1043,7 +1043,7 @@ int ha_berkeley::restore_keys(DB_TXN *trans, key_map changed_keys,
 	break; /* purecov: inspected */
     }
   }
-  
+
 err:
   DBUG_ASSERT(error != DB_KEYEXIST);
   DBUG_RETURN(error);
@@ -2176,7 +2176,7 @@ static BDB_SHARE *get_share(const char *table_name, TABLE *table)
     char *tmp_name;
     DB **key_file;
     u_int32_t *key_type;
-    
+
     if ((share=(BDB_SHARE *)
 	 my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
 			 &share, sizeof(*share),

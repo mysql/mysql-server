@@ -38,7 +38,7 @@ typedef union ieee_w_variable {
 
 
 typedef enum ieee_record
-{ 
+{
   ieee_number_start_enum = 0x00,
   ieee_number_end_enum=0x7f,
   ieee_number_repeat_start_enum = 0x80,
@@ -123,7 +123,7 @@ typedef enum ieee_record
   ieee_bb_record_enum = 0xf8,
   ieee_be_record_enum = 0xf9
 } ieee_record_enum_type;
-		 
+
 
 typedef struct ieee_section {
   unsigned int section_index;
@@ -136,4 +136,3 @@ typedef struct ieee_section {
 #define IEEE_REFERENCE_BASE 11
 #define IEEE_PUBLIC_BASE 32
 #define IEEE_SECTION_NUMBER_BASE 1
-

@@ -56,7 +56,7 @@ static my_bool  verbose=0,opt_compress=0,extended_insert=0, lock_tables=0,
     opt_quoted=0, opt_lock=0, opt_delayed=0, ignore_errors=0;
 
 gptr fptr;
-    
+
 static const char *load_default_groups[]= { "mysqlcorbafs","client",0 };
 static char *default_charset, *current_host, *current_user, *opt_password,
     *path,*fields_terminated=0, *lines_terminated=0, *enclosed=0, 
@@ -314,7 +314,7 @@ char *field_escape(char *to,const char *from,uint length)
   const char *end;
   uint end_backslashes=0;
   DBUG_ENTER("field_escape");
- 
+
   {
     *to++= *from;
     if (*from == '\\')
@@ -442,7 +442,7 @@ static int get_options(int *argc,char ***argv)
     case OPT_CHARSETS_DIR:
       charsets_dir= optarg;
       break;
-      
+
       ignore_errors=1;
       break;
     case 'h':
@@ -652,7 +652,7 @@ impl_Inode_getStatus(impl_POA_CorbaFS_Inode * servant,
       key[BUFLEN],
       field[BUFLEN],
       value[BUFLEN];
-            
+
    struct func_st *func;
 
    DBUG_ENTER("impl_Inode_getStatus");
@@ -675,7 +675,7 @@ impl_Inode_getStatus(impl_POA_CorbaFS_Inode * servant,
       DBUG_PRINT("info",("Argument is directory, returning S_IFDIR"));
       *mode = S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH ; // Dir
    }
-     
+
    *mode |= S_IRUSR | S_IRGRP | S_IROTH; 
    *uid = 0;
    *gid = 0;
@@ -685,7 +685,7 @@ impl_Inode_getStatus(impl_POA_CorbaFS_Inode * servant,
    *atime = 3;
    *mtime = 2;
    *ctime = 1;
-       
+
 //   lstat(servant->path, &buf);
 //   *mode = buf.st_mode;
 /*   *uid = buf.st_uid;
@@ -922,7 +922,7 @@ impl_FileSystem_readlink(impl_POA_CorbaFS_FileSystem * servant,
    CORBA_char *retval = CORBA_OBJECT_NIL;
    char tmp[MAXPATHLEN + 1];
    int len;
-   
+
    DBUG_ENTER("impl_FileSystem_readlink");
    DBUG_PRINT("enter",("path: '%s'", filename));
 
@@ -989,4 +989,3 @@ int main(int argc, char *argv[]) {
 
   return 0;
 }
-

@@ -1,19 +1,18 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public
-   License as published by the Free Software Foundation; either
-   version 2 of the License, or (at your option) any later version.
-   
-   This library is distributed in the hope that it will be useful,
+/* Copyright (C) 2000 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
-   
-   You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #ifndef _mysql_h
 #define _mysql_h
@@ -29,7 +28,7 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
-  
+
 #ifndef _global_h				/* If not standard header */
 #include <sys/types.h>
 #ifdef __LCC__
@@ -170,7 +169,7 @@ enum mysql_status { MYSQL_STATUS_READY,MYSQL_STATUS_GET_RESULT,
 */
 enum mysql_rpl_type { MYSQL_RPL_MASTER, MYSQL_RPL_SLAVE,
 		      MYSQL_RPL_ADMIN };
-  
+
 
 typedef struct st_mysql {
   NET		net;			/* Communication parameters */
@@ -204,7 +203,7 @@ typedef struct st_mysql {
   /* pointers to the master, and the next slave
     connections, points to itself if lone connection  */
   struct st_mysql* master, *next_slave;
-  
+
   struct st_mysql* last_used_slave; /* needed for round-robin slave pick */
  /* needed for send/read/store/use result to work correctly with replication */
   struct st_mysql* last_used_con;
@@ -235,7 +234,7 @@ typedef struct st_mysql_res {
 #define MANAGER_INTERNAL_ERR 500
 
 
-  
+
 typedef struct st_mysql_manager
 {
   NET net;
@@ -249,7 +248,7 @@ typedef struct st_mysql_manager
   int net_buf_size;
   char last_error[MAX_MYSQL_MANAGER_ERR];
 } MYSQL_MANAGER;
-  
+
 /* Set up and bring down the server; to ensure that applications will
  * work when linked against either the standard client library or the
  * embedded server library, these functions should be called. */
@@ -336,7 +335,7 @@ enum mysql_rpl_type     STDCALL mysql_rpl_query_type(const char* q, int len);
 
 /* discover the master and its slaves */  
 int             STDCALL mysql_rpl_probe(MYSQL* mysql);
-  
+
 /* set the master, close/free the old one, if it is not a pivot */
 int             STDCALL mysql_set_master(MYSQL* mysql, const char* host,
 					 unsigned int port,
@@ -346,7 +345,7 @@ int             STDCALL mysql_add_slave(MYSQL* mysql, const char* host,
 					unsigned int port,
 					const char* user,
 					const char* passwd);
-  
+
 int		STDCALL mysql_shutdown(MYSQL *mysql);
 int		STDCALL mysql_dump_debug_info(MYSQL *mysql);
 int		STDCALL mysql_refresh(MYSQL *mysql,

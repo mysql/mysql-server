@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -295,7 +295,7 @@ static void do_eval(DYNAMIC_STRING* query_eval, const char* query)
   register char c;
   register int escaped = 0;
   VAR* v;
-  
+
   for(p = query; (c = *p); ++p)
     {
       switch(c)
@@ -364,7 +364,7 @@ static void free_used_memory()
   close_cons();
   close_files();
   hash_free(&var_hash);
-  
+
   for (i=0 ; i < q_lines.elements ; i++)
   {
     struct st_query **q= dynamic_element(&q_lines, i, struct st_query**);
@@ -496,18 +496,18 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname)
     res_ptr = tmp;
     res_len = stat_info.st_size;
   }
-  
+
   res = (memcmp(res_ptr, ds->str, res_len)) ?  1 : 0;
-  
+
 err:  
   if(res && eval_result)
      str_to_file(fn_format(eval_file, fname, "", ".eval",2), res_ptr,
 		  res_len);
-    
+
   my_free((gptr) tmp, MYF(0));
   my_close(fd, MYF(MY_WME));
   dynstr_free(&res_ds);
-  
+
   DBUG_RETURN(res);
 }
 
@@ -561,7 +561,7 @@ VAR* var_get(const char* var_name, const char** var_name_end, int raw)
     }
     if(var_name == save_var_name)
       die("Empty variable");
-    
+
     if(!(v = (VAR*)hash_search(&var_hash, save_var_name,
 			       var_name - save_var_name)))
       {
@@ -573,7 +573,7 @@ VAR* var_get(const char* var_name, const char** var_name_end, int raw)
   }
   else 
    v = var_reg + digit;
-  
+
   if (!raw && v->int_dirty)
   {
     sprintf(v->str_val, "%d", v->int_val);
@@ -618,7 +618,7 @@ int var_set(char* var_name, char* var_name_end, char* var_val,
     }
   else 
    v = var_reg + digit;
-  
+
   return eval_expr(v, var_val, (const char**)&var_val_end);
 }
 
@@ -713,7 +713,7 @@ int var_query_set(VAR* v, const char* p, const char** p_end)
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
   LINT_INIT(res);
-  
+
   while (end > p && *end != '`')
     --end;
   if (p == end)
@@ -860,10 +860,10 @@ int do_sync_with_master(struct st_query* q)
 
   rpl_parse = mysql_rpl_parse_enabled(mysql);
   mysql_disable_rpl_parse(mysql);
-  
+
   if(*p)
     offset = atoi(p);
-  
+
   sprintf(query_buf, "select master_pos_wait('%s', %ld)", master_pos.file,
 	  master_pos.pos + offset);
   if(mysql_query(mysql, query_buf))
@@ -879,7 +879,7 @@ int do_sync_with_master(struct st_query* q)
   mysql_free_result(res);   last_result=0;
   if(rpl_parse)
     mysql_enable_rpl_parse(mysql);
-  
+
   return 0;
 }
 
@@ -892,7 +892,7 @@ int do_save_master_pos()
 
   rpl_parse = mysql_rpl_parse_enabled(mysql);
   mysql_disable_rpl_parse(mysql);
-  
+
   if(mysql_query(mysql, "show master status"))
     die("At line %u: failed in show master status: %d: %s", start_lineno,
 	mysql_errno(mysql), mysql_error(mysql));
@@ -904,10 +904,10 @@ int do_save_master_pos()
   strncpy(master_pos.file, row[0], sizeof(master_pos.file));
   master_pos.pos = strtoul(row[1], (char**) 0, 10); 
   mysql_free_result(res); last_result=0;
-  
+
   if(rpl_parse)
     mysql_enable_rpl_parse(mysql);
-      
+
   return 0;
 }
 
@@ -1207,7 +1207,7 @@ int close_connection(struct st_query* q)
 	  con->mysql.net.vio = 0;
 	}
       }
-		
+
       mysql_close(&con->mysql);
       DBUG_RETURN(0);
     }
@@ -1281,7 +1281,7 @@ int do_connect(struct st_query* q)
   int con_port;
   int con_error;
   int free_con_sock = 0;
-  
+
   DBUG_ENTER("do_connect");
   DBUG_PRINT("enter",("connect: %s",p));
 
@@ -1322,7 +1322,7 @@ int do_connect(struct st_query* q)
       con_sock[var_sock->str_val_len] = 0;
     }
   }
-  
+
   if (next_con == cons_end)
     die("Connection limit exhausted - increase MAX_CONS in mysqltest.c");
 
@@ -1379,7 +1379,7 @@ int do_while(struct st_query* q)
       *cur_block++ = parser.current_line++;
       return 0;
     }
-    
+
   expr_start = strchr(p, '(');
   if (!expr_start)
     die("missing '(' in while");
@@ -1907,7 +1907,7 @@ void str_to_file(const char* fname, char* str, int size)
     fname=buff;
   }
   fn_format(buff,fname,"","",4);
-  
+
   if ((fd = my_open(buff, O_WRONLY | O_CREAT | O_TRUNC,
 		    MYF(MY_WME | MY_FFNF))) < 0)
     die("Could not open %s: errno = %d", buff, errno);
@@ -1972,7 +1972,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
       query = eval_query.str;
       query_len = eval_query.length;
     }
-  
+
   if ( q->record_file[0])
   {
     init_dynamic_string(&ds_tmp, "", 16384, 65536);
@@ -1980,7 +1980,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   }
   else
     ds= &ds_res;
-  
+
   if ((flags & QUERY_SEND) && mysql_send_query(mysql, query, query_len))
     die("At line %u: unable to send query '%s'(mysql_errno=%d,errno=%d)",
 	start_lineno, query,
@@ -1992,7 +1992,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   }
   if (!(flags & QUERY_REAP))
     DBUG_RETURN(0);
-  
+
   if (mysql_read_query_result(mysql) ||
       (!(last_result = res = mysql_store_result(mysql)) &&
        mysql_field_count(mysql)))
@@ -2163,13 +2163,13 @@ static VAR* var_init(VAR* v, const char* name, int name_len, const char* val,
   if(!(tmp_var=v) && !(tmp_var = (VAR*)my_malloc(sizeof(*tmp_var) 
 				 + name_len, MYF(MY_WME))))
     die("Out of memory");
-  
+
   tmp_var->name = (name) ? (char*)tmp_var + sizeof(*tmp_var) : 0;
   tmp_var->alloced = (v == 0); 
 
   if(!(tmp_var->str_val = my_malloc(val_alloc_len, MYF(MY_WME))))
     die("Out of memory");
-  
+
   memcpy(tmp_var->name, name, name_len);
   if(val)
     memcpy(tmp_var->str_val, val, val_len + 1);
@@ -2195,7 +2195,7 @@ static void var_from_env(const char* name, const char* def_val)
   VAR* v;
   if(!(tmp = getenv(name)))
     tmp = def_val;
-    
+
   v = var_init(0, name, 0, tmp, 0); 
   hash_insert(&var_hash, (byte*)v);
 }
@@ -2232,7 +2232,7 @@ int main(int argc, char** argv)
   cons_end = cons + MAX_CONS;
   next_con = cons + 1;
   cur_con = cons;
-  
+
   memset(file_stack, 0, sizeof(file_stack));
   memset(&master_pos, 0, sizeof(master_pos));
   file_stack_end = file_stack + MAX_INCLUDE_DEPTH;
@@ -2268,7 +2268,7 @@ int main(int argc, char** argv)
   cur_con->name = my_strdup("default", MYF(MY_WME));
   if (!cur_con->name)
     die("Out of memory");
-  
+
   if (safe_connect(&cur_con->mysql, host,
 			 user, pass, db, port, unix_sock))
     die("Failed in mysql_real_connect(): %s", mysql_error(&cur_con->mysql));

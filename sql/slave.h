@@ -24,7 +24,7 @@ typedef struct st_master_info
   pthread_cond_t cond;
   bool inited;
   bool old_format; /* master binlog is in 3.23 format */
-  
+
   st_master_info():pending(0),fd(-1),last_log_seq(0),inited(0),
 		   old_format(0)
   {
@@ -148,5 +148,3 @@ extern I_List<i_string_pair> replicate_rewrite_db;
 extern I_List<THD> threads;
 
 #endif
-
-

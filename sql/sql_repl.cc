@@ -612,7 +612,7 @@ int stop_slave(THD* thd, bool net_report )
       /* there is a small chance that slave thread might miss the first
 	 alarm. To protect againts it, resend the signal until it reacts
       */
-	 
+
       struct timespec abstime;
 #ifdef HAVE_TIMESPEC_TS_SEC
       abstime.ts_sec=time(NULL)+2;		
@@ -1051,5 +1051,3 @@ int log_loaded_block(IO_CACHE* file)
   }
   return 0;
 }
-
-

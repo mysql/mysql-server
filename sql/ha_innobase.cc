@@ -21,7 +21,7 @@ InnoDB */
   - Ask Monty if strings of different languages can exist in the same
     database. Answer: in near future yes, but not yet.
 */
- 
+
 #ifdef __GNUC__
 #pragma implementation				// gcc: Class implementation
 #endif
@@ -439,7 +439,7 @@ innobase_parse_data_file_paths_and_sizes(void)
 			   && *(str + 1) == 'a' 
 		           && *(str + 2) == 'w') {
 		  str += 3;
-		  
+
 		  if (srv_data_file_is_raw_partition[i] == 0) {
 		    srv_data_file_is_raw_partition[i] = SRV_OLD_RAW;
 		  }		  
@@ -623,7 +623,7 @@ innobase_init(void)
 		For non-latin1 charsets we use the MySQL comparison
 		functions, and consequently we do not need to know
 		the ordering internally in InnoDB. */
-		
+
 		memcpy(srv_latin1_ordering,
 				default_charset_info->sort_order, 256);
 	}
@@ -765,7 +765,7 @@ innobase_rollback(
 	}
 
 	srv_conc_exit_innodb();
-	
+
 	trx_mark_sql_stat_end(trx);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error));
@@ -974,7 +974,7 @@ ha_innobase::open(
 				->clust_index_was_generated = TRUE;
 
   		ref_length = DATA_ROW_ID_LEN + 10;
-				
+
 		DBUG_ASSERT(key_used_on_scan == MAX_KEY);
 	}
 
@@ -1288,7 +1288,7 @@ build_template(
 		} else {
 			/* We are building a temporary table: fetch all
 			columns */
-		
+
 			templ_type = ROW_MYSQL_WHOLE_ROW;
 		}
 	}
@@ -1425,7 +1425,7 @@ ha_innobase::write_row(
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
   	int 		error;
 	longlong	auto_inc;
-	
+
   	DBUG_ENTER("ha_innobase::write_row");
 
   	statistic_increment(ha_write_count, &LOCK_status);
@@ -1443,7 +1443,7 @@ ha_innobase::write_row(
 
 	        /* Fetch the value the user possibly has set in the
 	        autoincrement field */
-	        
+
 	        auto_inc = table->next_number_field->val_int();
 
 		/* In replication and also otherwise the auto-inc column 
@@ -1471,7 +1471,7 @@ ha_innobase::write_row(
 			auto-inc column */
 			user_thd->next_insert_id = auto_inc;
 		}
-		
+
 		if (auto_inc != 0) {
 			/* This call will calculate the max of the
 			current value and the value supplied by the user, if
@@ -1490,11 +1490,11 @@ ha_innobase::write_row(
 			srv_conc_exit_innodb();
 
 			if (error != DB_SUCCESS) {
-			
+
 				error = convert_error_code_to_mysql(error);
 				goto func_exit;
 			}	
-			
+
 			dict_table_autoinc_update(prebuilt->table, auto_inc);
 		} else {
 			srv_conc_enter_innodb(prebuilt->trx);
@@ -1505,7 +1505,7 @@ ha_innobase::write_row(
 								prebuilt);
 				if (error != DB_SUCCESS) {
 					srv_conc_exit_innodb();
-			
+
 					error = convert_error_code_to_mysql(
 								error);
 					goto func_exit;
@@ -1523,13 +1523,13 @@ ha_innobase::write_row(
 				user_thd->next_insert_id = auto_inc;
 			}
 		}
-	        
+
 	        /* Set the 'in_update_remember_pos' flag to FALSE to
 	        make sure all columns are fetched in the select done by
 	        update_auto_increment */
 
 	        prebuilt->in_update_remember_pos = FALSE;
-	        
+
     		update_auto_increment();
 
 		if (auto_inc == 0) {
@@ -1543,15 +1543,15 @@ ha_innobase::write_row(
 			srv_conc_exit_innodb();
 
 			if (error != DB_SUCCESS) {
-			
+
 				error = convert_error_code_to_mysql(error);
 				goto func_exit;
 			}	
-			
+
 			dict_table_autoinc_initialize(prebuilt->table,
 								auto_inc);
 		}
-    		
+
 		/* We have to set sql_stat_start to TRUE because
 		update_auto_increment has called a select, and
 		has reset that flag; row_insert_for_mysql has to
@@ -2108,7 +2108,7 @@ ha_innobase::general_fetch(
 	DBUG_ENTER("general_fetch");
 
 	srv_conc_enter_innodb(prebuilt->trx);
-	
+
 	ret = row_search_for_mysql((byte*)buf, 0, prebuilt, match_mode,
 								direction);
 	srv_conc_exit_innodb();
@@ -2244,7 +2244,7 @@ ha_innobase::rnd_init(
 	bool	scan)	/* in: ???????? */
 {
 	int	err;
-	
+
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 
 	if (prebuilt->clust_index_was_generated) {
@@ -2331,7 +2331,7 @@ ha_innobase::rnd_pos(
 	if (error) {
 		DBUG_RETURN(error);
 	}
-	
+
 	error = index_read(buf, pos, ref_stored_len, HA_READ_KEY_EXACT);
 
 	change_active_index(keynr);
@@ -2473,11 +2473,11 @@ ha_innobase::external_lock(
 		  	}
 
 		  	if (trx->auto_inc_lock) {
-		  	
+
 		  		/* If we had reserved the auto-inc lock for
 				some table in this SQL statement, we release
 				it now */
-		  	
+
 				srv_conc_enter_innodb(trx);
 				row_unlock_table_autoinc_for_mysql(trx);
 				srv_conc_exit_innodb();
@@ -2757,7 +2757,7 @@ ha_innobase::create(
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
-	
+
 	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
 
 	innobase_table = dict_table_get(norm_name, NULL);
@@ -2812,7 +2812,7 @@ ha_innobase::delete_table(
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
-	
+
 	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
 
 	/* Tell the InnoDB server that there might be work for
@@ -2846,9 +2846,9 @@ innobase_drop_database(
 	char*	ptr;
 	int	error;
 	char	namebuf[10000];
-	
+
 	ptr = strend(path) - 2;
-	
+
 	while (ptr >= path && *ptr != '\\' && *ptr != '/') {
 		ptr--;
 		len++;
@@ -2859,7 +2859,7 @@ innobase_drop_database(
 	memcpy(namebuf, ptr, len);
 	namebuf[len] = '/';
 	namebuf[len + 1] = '\0';
-	
+
 	trx = trx_allocate_for_mysql();
 
   	error = row_drop_database_for_mysql(namebuf, trx);
@@ -2867,7 +2867,7 @@ innobase_drop_database(
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
-	
+
 	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
 
 	/* Tell the InnoDB server that there might be work for
@@ -2920,7 +2920,7 @@ ha_innobase::rename_table(
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
-	
+
 	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
 
 	/* Tell the InnoDB server that there might be work for
@@ -2976,7 +2976,7 @@ ha_innobase::records_in_range(
 	if (prebuilt->trx) {
 		prebuilt->trx->op_info = (char*) "estimating range size";
 	}
-   	
+
 	active_index = keynr;
 
 	key = table->key_info + active_index;
@@ -3012,7 +3012,7 @@ ha_innobase::records_in_range(
 	if (prebuilt->trx) {
 		prebuilt->trx->op_info = (char*) "";
 	}
-   	
+
 	DBUG_RETURN((ha_rows) n_rows);
 }
 
@@ -3032,7 +3032,7 @@ ha_innobase::estimate_number_of_rows(void)
 	dict_index_t*	index;
 	ulonglong	estimate;
 	ulonglong	data_file_length;
-	
+
 	if (prebuilt->trx) {
 		prebuilt->trx->op_info =
 				(char*) "estimating upper bound of table size";
@@ -3043,13 +3043,13 @@ ha_innobase::estimate_number_of_rows(void)
  	dict_update_statistics(prebuilt->table);
 
 	index = dict_table_get_first_index_noninline(prebuilt->table);
- 	
+
 	data_file_length = ((ulonglong) index->stat_n_leaf_pages)
     							* UNIV_PAGE_SIZE;
 	/* Calculate a minimum length for a clustered index record */
 
 	estimate = data_file_length / dict_index_calc_min_rec_len(index);
-	
+
 	if (prebuilt->trx) {
 		prebuilt->trx->op_info = (char*) "";
 	}
@@ -3096,7 +3096,7 @@ ha_innobase::info(
 	if (prebuilt->trx) {
 		prebuilt->trx->op_info = (char*) "calculating table stats";
 	}
-   	
+
  	ib_table = prebuilt->table;
 
  	if (flag & HA_STATUS_TIME) {
@@ -3146,11 +3146,11 @@ ha_innobase::info(
 				if (rec_per_key == 0) {
 					rec_per_key = 1;
 				}
-			
+
 				table->key_info[i].rec_per_key[j]
 								= rec_per_key;
 			}
-			
+
 			index = dict_table_get_next_index_noninline(index);
 		}
 	}
@@ -3170,7 +3170,7 @@ ha_innobase::info(
 	if (prebuilt->trx) {
 		prebuilt->trx->op_info = (char*) "";
 	}
-   	
+
   	DBUG_VOID_RETURN;
 }
 
@@ -3190,7 +3190,7 @@ ha_innobase::check(
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	ulint		ret;
-	
+
 	if (prebuilt->mysql_template == NULL) {
 		/* Build the template; we will use a dummy template
 		in index scans done in checking */
@@ -3203,7 +3203,7 @@ ha_innobase::check(
 	if (ret == DB_SUCCESS) {
 		return(HA_ADMIN_OK);
 	}
-	
+
   	return(HA_ADMIN_CORRUPT); 
 }
 
@@ -3241,7 +3241,7 @@ ha_innobase::update_table_comment(
 	/* We assume 150 bytes of space to print info */
 
   	dict_print_info_on_foreign_keys(pos, 150, prebuilt->table);
-  
+
   	return(str);
 }
 
@@ -3380,7 +3380,7 @@ ha_innobase::get_auto_increment()
 
   prebuilt->select_lock_type = LOCK_X;
   prebuilt->trx->mysql_n_tables_locked += 1;
-  
+
   error=index_last(table->record[1]);
 
   if (error) {

@@ -215,7 +215,7 @@ rl_vi_undo (count, key)
 {
   return (rl_undo_command (count, key));
 }
-    
+
 /* Yank the nth arg from the previous line into this line at point. */
 int
 rl_vi_yank_arg (count, key) 
@@ -633,7 +633,7 @@ _rl_vi_save_insert (up)
   strncpy (vi_insert_buffer, rl_line_buffer + start, len - 1);
   vi_insert_buffer[len-1] = '\0';
 }
-    
+
 void
 _rl_vi_done_inserting ()
 {
@@ -1006,7 +1006,7 @@ rl_vi_delete (count, key)
     end = rl_end;
 
   rl_kill_text (rl_point, end);
-  
+
   if (rl_point > 0 && rl_point == rl_end)
     rl_backward (1, key);
   return (0);

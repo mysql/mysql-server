@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -104,7 +104,7 @@ net_printf(NET *net, uint errcode, ...)
 
   if(thd) thd->query_error = 1;
   // if we are here, something is wrong :-)
-  
+
   va_start(args,errcode);
   format=ER(errcode);
   offset= net->return_errno ? 2 : 0;
@@ -142,7 +142,7 @@ send_ok(NET *net,ha_rows affected_rows,ulonglong id,const char *message)
 {
   if (net->no_send_ok)				// hack for re-parsing queries
     return;
-  
+
   char buff[MYSQL_ERRMSG_SIZE+10],*pos;
   DBUG_ENTER("send_ok");
   buff[0]=0;					// No fields
