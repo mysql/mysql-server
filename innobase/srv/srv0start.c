@@ -1528,6 +1528,21 @@ NetWare. */
 "InnoDB: the sum of data file sizes is %lu pages\n",
  			(ulong) tablespace_size_in_header,
 			(ulong) sum_of_data_file_sizes);
+
+		if (srv_force_recovery == 0
+		    && sum_of_data_file_sizes < tablespace_size_in_header) {
+			/* This is a fatal error, the tail of a tablespace is
+			missing */
+
+			fprintf(stderr,
+"InnoDB: Cannot start InnoDB. The tail of the system tablespace is\n"
+"InnoDB: missing. Have you edited innodb_data_file_path in my.cnf in an\n"
+"InnoDB: inappropriate way, removing ibdata files from there?\n"
+"InnoDB: You can set innodb_force_recovery=1 in my.cnf to force\n"
+"InnoDB: a startup if you are trying to recover a badly corrupt database.\n");
+
+			return(DB_ERROR);
+		}
 	}
 
 	if (srv_auto_extend_last_data_file
@@ -1538,6 +1553,18 @@ NetWare. */
 "InnoDB: the sum of data file sizes is only %lu pages\n",
  			(ulong) tablespace_size_in_header,
 			(ulong) sum_of_data_file_sizes);
+
+		if (srv_force_recovery == 0) {
+
+			fprintf(stderr,
+"InnoDB: Cannot start InnoDB. The tail of the system tablespace is\n"
+"InnoDB: missing. Have you edited innodb_data_file_path in my.cnf in an\n"
+"InnoDB: inappropriate way, removing ibdata files from there?\n"
+"InnoDB: You can set innodb_force_recovery=1 in my.cnf to force\n"
+"InnoDB: a startup if you are trying to recover a badly corrupt database.\n");
+
+			return(DB_ERROR);
+		}
 	}
 
 	/* Check that os_fast_mutexes work as expected */
