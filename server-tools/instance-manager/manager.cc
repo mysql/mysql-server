@@ -67,7 +67,7 @@ void manager(const Options &options)
   */
 
   User_map user_map;
-  Instance_map instance_map(options.default_mysqld_path);
+  Instance_map instance_map(options.default_mysqld_path, options.first_option);
   Guardian_thread guardian_thread(thread_registry,
                                   &instance_map,
                                   options.monitoring_interval);

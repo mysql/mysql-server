@@ -43,7 +43,7 @@ public:
   {}
   ~Instance_options();
   /* fills in argv */
-  int complete_initialization(const char *default_path);
+  int complete_initialization(const char *default_path, int only_instance);
 
   int add_option(const char* option);
   int init(const char *instance_name_arg);

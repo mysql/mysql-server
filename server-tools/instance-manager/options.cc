@@ -37,6 +37,7 @@ const char *Options::pid_file_name= QUOTE(DEFAULT_PID_FILE_NAME);
 const char *Options::socket_file_name= QUOTE(DEFAULT_SOCKET_FILE_NAME);
 const char *Options::password_file_name= QUOTE(DEFAULT_PASSWORD_FILE_NAME);
 const char *Options::default_mysqld_path= QUOTE(DEFAULT_MYSQLD_PATH);
+const char *Options::first_option= 0;           /* No default value */
 const char *Options::bind_address= 0;           /* No default value */
 const char *Options::user= 0;                   /* No default value */
 uint Options::monitoring_interval= DEFAULT_MONITORING_INTERVAL;
@@ -210,10 +211,18 @@ C_MODE_END
 int Options::load(int argc, char **argv)
 {
   int rc;
+
+  if (argc >= 2)
+  {
+    if (is_prefix(argv[1],"--defaults-file=") ||
+        is_prefix(argv[1],"--defaults-extra-file="))
+      Options::first_option= argv[1];
+  }
+
   /* config-file options are prepended to command-line ones */
   load_defaults("my", default_groups, &argc, &argv);
 
-  if (rc= handle_options(&argc, &argv, my_long_options, get_one_option))
+  if ((rc= handle_options(&argc, &argv, my_long_options, get_one_option)) != 0)
     return rc;
   Options::saved_argv= argv;
   return 0;

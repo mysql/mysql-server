@@ -123,7 +123,8 @@ pid_t Instance_options::get_pid()
 }
 
 
-int Instance_options::complete_initialization(const char *default_path)
+int Instance_options::complete_initialization(const char *default_path,
+                                              int only_instance)
 {
   const char *tmp;
 
@@ -140,11 +141,23 @@ int Instance_options::complete_initialization(const char *default_path)
   {
     char pidfilename[MAX_PATH_LEN];
     char hostname[MAX_PATH_LEN];
+
+    /*
+      If we created only one istance [mysqld], because no config. files were
+      found, we would like to model mysqld pid file values.
+    */
     if (!gethostname(hostname, sizeof(hostname) - 1))
-      strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", hostname, "-",
-               instance_name, ".pid", NullS);
+      (only_instance == 0) ?
+      strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", instance_name, "-",
+               hostname, ".pid", NullS):
+      strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", hostname,
+               ".pid", NullS);
+
     else
+      (only_instance == 0) ?
       strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", instance_name,
+               ".pid", NullS):
+      strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", "mysql",
                ".pid", NullS);
 
     add_option(pidfilename);

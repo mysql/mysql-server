@@ -297,8 +297,9 @@ int Instance::init(const char *name_arg)
 
 
 int Instance::complete_initialization(Instance_map *instance_map_arg,
-                                      const char *mysqld_path)
+                                      const char *mysqld_path,
+                                      int only_instance)
 {
   instance_map= instance_map_arg;
-  return options.complete_initialization(mysqld_path);
+  return options.complete_initialization(mysqld_path, only_instance);
 }
