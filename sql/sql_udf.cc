@@ -368,7 +368,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
 
   if (!initialized)
   {
-    send_error(thd, ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES));
+    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -379,19 +379,20 @@ int mysql_create_function(THD *thd,udf_func *udf)
   */
   if (strchr(udf->dl, '/'))
   {
-    send_error(thd, ER_UDF_NO_PATHS,ER(ER_UDF_NO_PATHS));
+    my_message(ER_UDF_NO_PATHS, ER(ER_UDF_NO_PATHS), MYF(0));
     DBUG_RETURN(1);
   }
   if (udf->name.length > NAME_LEN)
   {
-    net_printf(thd, ER_TOO_LONG_IDENT,udf->name);
+    my_printf_error(ER_TOO_LONG_IDENT, ER(ER_TOO_LONG_IDENT), MYF(0),
+                    udf->name);
     DBUG_RETURN(1);
   }
 
   rw_wrlock(&THR_LOCK_udf);
   if ((hash_search(&udf_hash,(byte*) udf->name.str, udf->name.length)))
   {
-    net_printf(thd, ER_UDF_EXISTS, udf->name);
+    my_printf_error(ER_UDF_EXISTS, ER(ER_UDF_EXISTS), MYF(0), udf->name);
     goto err;
   }
   if (!(dl = find_udf_dl(udf->dl)))
@@ -400,7 +401,8 @@ int mysql_create_function(THD *thd,udf_func *udf)
     {
       DBUG_PRINT("error",("dlopen of %s failed, error: %d (%s)",
 			  udf->dl,errno,dlerror()));
-      net_printf(thd, ER_CANT_OPEN_LIBRARY, udf->dl, errno, dlerror());
+      my_printf_error(ER_CANT_OPEN_LIBRARY, ER(ER_CANT_OPEN_LIBRARY), MYF(0),
+                      udf->dl, errno, dlerror());
       goto err;
     }
     new_dl=1;
@@ -410,16 +412,14 @@ int mysql_create_function(THD *thd,udf_func *udf)
 
   if (udf->func == NULL)
   {
-    net_printf(thd, ER_CANT_FIND_DL_ENTRY, udf->name);
+    my_printf_error(ER_CANT_FIND_DL_ENTRY, ER(ER_CANT_FIND_DL_ENTRY), MYF(0),
+                    udf->name);
     goto err;
   }
   udf->name.str=strdup_root(&mem,udf->name.str);
   udf->dl=strdup_root(&mem,udf->dl);
   if (!(u_d=add_udf(&udf->name,udf->returns,udf->dl,udf->type)))
-  {
-    send_error(thd,0);		// End of memory
     goto err;
-  }
   u_d->dlhandle = dl;
   u_d->func=udf->func;
   u_d->func_init=udf->func_init;
@@ -447,7 +447,8 @@ int mysql_create_function(THD *thd,udf_func *udf)
   close_thread_tables(thd);
   if (error)
   {
-    net_printf(thd, ER_ERROR_ON_WRITE, "func@mysql",error);
+    my_printf_error(ER_ERROR_ON_WRITE, ER(ER_ERROR_ON_WRITE), MYF(0),
+                    "func@mysql", error);
     del_udf(u_d);
     goto err;
   }
@@ -470,14 +471,15 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   DBUG_ENTER("mysql_drop_function");
   if (!initialized)
   {
-    send_error(thd, ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES));
+    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
     DBUG_RETURN(1);
   }
   rw_wrlock(&THR_LOCK_udf);  
   if (!(udf=(udf_func*) hash_search(&udf_hash,(byte*) udf_name->str,
 				    (uint) udf_name->length)))
   {
-    net_printf(thd, ER_FUNCTION_NOT_DEFINED, udf_name->str);
+    my_printf_error(ER_FUNCTION_NOT_DEFINED, ER(ER_FUNCTION_NOT_DEFINED),
+                    MYF(0), udf_name->str);
     goto err;
   }
   del_udf(udf);

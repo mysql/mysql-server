@@ -1466,7 +1466,7 @@ bool Item::fix_fields(THD *thd,
   // We do not check fields which are fixed during construction
   DBUG_ASSERT(fixed == 0 || basic_const_item());
   fixed= 1;
-  return 0;
+  return FALSE;
 }
 
 double Item_ref_null_helper::val_real()
@@ -2907,10 +2907,11 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
           current_sel->having_fix_field))) ||
       !(*ref)->fixed)
   {
-    my_error(ER_ILLEGAL_REFERENCE, MYF(0), name, 
-	     ((*ref)->with_sum_func?
-	      "reference to group function":
-	      "forward reference in item list"));
+    my_printf_error(ER_ILLEGAL_REFERENCE, ER(ER_ILLEGAL_REFERENCE), MYF(0),
+                    name,
+                    ((*ref)->with_sum_func?
+                     "reference to group function":
+                     "forward reference in item list"));
     return TRUE;
   }
   max_length= (*ref)->max_length;
@@ -2931,6 +2932,8 @@ void Item_ref::cleanup()
   DBUG_ENTER("Item_ref::cleanup");
   Item_ident::cleanup();
   result_field= 0;
+  if (hook_ptr)
+    *hook_ptr= orig_item;
   DBUG_VOID_RETURN;
 }
 
@@ -3026,17 +3029,17 @@ bool Item_default_value::fix_fields(THD *thd,
   if (!arg)
   {
     fixed= 1;
-    return 0;
+    return FALSE;
   }
   if (arg->fix_fields(thd, table_list, &arg))
-    return 1;
+    return TRUE;
   
   if (arg->type() == REF_ITEM)
   {
     Item_ref *ref= (Item_ref *)arg;
     if (ref->ref[0]->type() != FIELD_ITEM)
     {
-      return 1;
+      return TRUE;
     }
     arg= ref->ref[0];
   }
@@ -3045,15 +3048,15 @@ bool Item_default_value::fix_fields(THD *thd,
   {
     my_printf_error(ER_NO_DEFAULT_FOR_FIELD, ER(ER_NO_DEFAULT_FOR_FIELD),
                     MYF(0), field_arg->field->field_name);
-    return 1;
+    return TRUE;
   }
   if (!(def_field= (Field*) sql_alloc(field_arg->field->size_of())))
-    return 1;
+    return TRUE;
   memcpy(def_field, field_arg->field, field_arg->field->size_of());
   def_field->move_field(def_field->table->default_values -
                         def_field->table->record[0]);
   set_field(def_field);
-  return 0;
+  return FALSE;
 }
 
 void Item_default_value::print(String *str)
@@ -3081,14 +3084,14 @@ bool Item_insert_value::fix_fields(THD *thd,
 {
   DBUG_ASSERT(fixed == 0);
   if (arg->fix_fields(thd, table_list, &arg))
-    return 1;
+    return TRUE;
 
   if (arg->type() == REF_ITEM)
   {
     Item_ref *ref= (Item_ref *)arg;
     if (ref->ref[0]->type() != FIELD_ITEM)
     {
-      return 1;
+      return TRUE;
     }
     arg= ref->ref[0];
   }
@@ -3097,7 +3100,7 @@ bool Item_insert_value::fix_fields(THD *thd,
   {
     Field *def_field= (Field*) sql_alloc(field_arg->field->size_of());
     if (!def_field)
-      return 1;
+      return TRUE;
     memcpy(def_field, field_arg->field, field_arg->field->size_of());
     def_field->move_field(def_field->table->insert_values -
                           def_field->table->record[0]);
@@ -3110,7 +3113,7 @@ bool Item_insert_value::fix_fields(THD *thd,
     set_field(new Field_null(0, 0, Field::NONE, tmp_field->field_name,
 			     tmp_field->table, &my_charset_bin));
   }
-  return 0;
+  return FALSE;
 }
 
 void Item_insert_value::print(String *str)
@@ -3600,11 +3603,12 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     old_derivation= collation.derivation_name();
     if (item_type == STRING_RESULT && collation.aggregate(item->collation))
     {
-      my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0),
-	       old_cs, old_derivation,
-	       item->collation.collation->name,
-	       item->collation.derivation_name(),
-	       "UNION");
+      my_printf_error(ER_CANT_AGGREGATE_2COLLATIONS,
+                      ER(ER_CANT_AGGREGATE_2COLLATIONS), MYF(0),
+                      old_cs, old_derivation,
+                      item->collation.collation->name,
+                      item->collation.derivation_name(),
+                      "UNION");
       return 1;
     }
 

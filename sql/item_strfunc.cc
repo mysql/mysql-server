@@ -42,10 +42,11 @@ String my_empty_string("",default_charset_info);
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
                               const char *fname)
 {
-  my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
-  	   c1.collation->name,c1.derivation_name(),
-	   c2.collation->name,c2.derivation_name(),
-	   fname);
+  my_printf_error(ER_CANT_AGGREGATE_2COLLATIONS,
+                  ER(ER_CANT_AGGREGATE_2COLLATIONS), MYF(0),
+                  c1.collation->name, c1.derivation_name(),
+                  c2.collation->name, c2.derivation_name(),
+                  fname);
 }
 
 uint nr_of_decimals(const char *str)
@@ -2218,7 +2219,8 @@ void Item_func_set_collation::fix_length_and_dec()
   {
     if (!(set_collation= get_charset_by_name(colname,MYF(0))))
     {
-      my_error(ER_UNKNOWN_COLLATION, MYF(0), colname);
+      my_printf_error(ER_UNKNOWN_COLLATION, ER(ER_UNKNOWN_COLLATION), MYF(0),
+                      colname);
       return;
     }
   }
@@ -2226,8 +2228,9 @@ void Item_func_set_collation::fix_length_and_dec()
   if (!set_collation || 
       !my_charset_same(args[0]->collation.collation,set_collation))
   {
-    my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), 
-      colname,args[0]->collation.collation->csname);
+    my_printf_error(ER_COLLATION_CHARSET_MISMATCH,
+                    ER(ER_COLLATION_CHARSET_MISMATCH), MYF(0),
+                    colname, args[0]->collation.collation->csname);
     return;
   }
   collation.set(set_collation, DERIVATION_EXPLICIT);
