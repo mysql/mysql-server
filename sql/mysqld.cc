@@ -470,9 +470,9 @@ static void close_connections(void)
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count);
 
-  mysql_log.close();
-  mysql_update_log.close();
-  mysql_bin_log.close();
+  mysql_log.close(1);
+  mysql_update_log.close(1);
+  mysql_bin_log.close(1);
   my_free(charsets_list, MYF(0));
   DBUG_PRINT("quit",("close_connections thread"));
   DBUG_VOID_RETURN;
