@@ -177,3 +177,5 @@ uint innobase_get_free_space(void);
 int innobase_commit(THD *thd, void* trx_handle);
 int innobase_rollback(THD *thd, void* trx_handle);
 int innobase_close_connection(THD *thd);
+int innobase_drop_database(char *path);
+

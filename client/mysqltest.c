@@ -92,7 +92,7 @@ static char *db = 0, *pass=0;
 const char* user = 0, *host = 0, *unix_sock = 0, *opt_basedir="./";
 static int port = 0, opt_big_test=0, opt_compress=0;
 static uint start_lineno, *lineno;
-const char* manager_user="root",*manager_host="localhost";
+const char* manager_user="root",*manager_host=0;
 char *manager_pass=0;
 int manager_port=MYSQL_MANAGER_PORT;
 int manager_wait_timeout=3;
@@ -181,7 +181,7 @@ Q_PING,             Q_EVAL,
 Q_RPL_PROBE,        Q_ENABLE_RPL_PARSE,
 Q_DISABLE_RPL_PARSE, Q_EVAL_RESULT,
 Q_ENABLE_QUERY_LOG, Q_DISABLE_QUERY_LOG,
-Q_SERVER_START, Q_SERVER_STOP,
+Q_SERVER_START, Q_SERVER_STOP,Q_REQUIRE_MANAGER,
 Q_UNKNOWN,                             /* Unknown command.   */
 Q_COMMENT,                             /* Comments, ignored. */
 Q_COMMENT_WITH_COMMAND
@@ -215,6 +215,7 @@ const char *command_names[] = {
   "disable_rpl_parse", "eval_result",
   "enable_query_log", "disable_query_log",
   "server_start", "server_stop",
+  "require_manager",
   0
 };
 
@@ -640,6 +641,13 @@ int open_file(const char* name)
   return 0;
 }
 
+int do_require_manager(struct st_query* __attribute__((unused)) q)
+{
+  if (!manager)
+    abort_not_supported_test();
+  return 0;
+}
+
 #ifndef EMBEDDED_LIBRARY
 int do_server_start(struct st_query* q)
 {
@@ -655,6 +663,10 @@ int do_server_op(struct st_query* q,const char* op)
 {
   char* p=q->first_argument;
   char com_buf[256],*com_p;
+  if (!manager)
+  {
+    die("Manager is not initialized, manager commands are not possible");
+  }
   com_p=strmov(com_buf,op);
   com_p=strmov(com_p,"_exec ");
   if (!*p)
@@ -1926,7 +1938,9 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     ds= &ds_res;
   
   if ((flags & QUERY_SEND) && mysql_send_query(mysql, query, query_len))
-    die("At line %u: unable to send query '%s'", start_lineno, query);
+    die("At line %u: unable to send query '%s'(mysql_errno=%d,errno=%d)",
+	start_lineno, query,
+	mysql_errno(mysql), errno);
   if ((flags & QUERY_SEND) && !disable_query_log)
   {
     dynstr_append_mem(ds,query,query_len);
@@ -2195,8 +2209,9 @@ int main(int argc, char** argv)
   if (cur_file == file_stack)
     *++cur_file = stdin;
   *lineno=1;
-#ifndef EMBEDDED_LIBRARY  
-  init_manager();
+#ifndef EMBEDDED_LIBRARY
+  if (manager_host)
+    init_manager();
 #endif
   if (!( mysql_init(&cur_con->mysql)))
     die("Failed in mysql_init()");
@@ -2231,6 +2246,7 @@ int main(int argc, char** argv)
       case Q_DISABLE_QUERY_LOG: disable_query_log=1; break;
       case Q_SOURCE: do_source(q); break;
       case Q_SLEEP: do_sleep(q); break;
+      case Q_REQUIRE_MANAGER: do_require_manager(q); break;
 #ifndef EMBEDDED_LIBRARY	
       case Q_SERVER_START: do_server_start(q); break;
       case Q_SERVER_STOP: do_server_stop(q); break;

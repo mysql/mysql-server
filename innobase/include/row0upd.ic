@@ -70,8 +70,7 @@ upd_get_nth_field(
 }
 
 /*************************************************************************
-Sets the clustered index field number to be updated by an update vector
-field. */
+Sets an index field number to be updated by an update vector field. */
 UNIV_INLINE
 void
 upd_field_set_field_no(
@@ -79,11 +78,17 @@ upd_field_set_field_no(
 	upd_field_t*	upd_field,	/* in: update vector field */
 	ulint		field_no,	/* in: field number in a clustered
 					index */
-	dict_index_t*	index)		/* in: clustered index */
-{
-	ut_ad(index->type & DICT_CLUSTERED);
-	
+	dict_index_t*	index)		/* in: index */
+{	
 	upd_field->field_no = field_no;
+
+	if (field_no >= dict_index_get_n_fields(index)) {
+		fprintf(stderr,
+		"InnoDB: Error: trying to access field %lu in table %s\n"
+		"InnoDB: index %s, but index has only %lu fields\n",
+		field_no, index->table_name, index->name,
+		dict_index_get_n_fields(index));
+	}
 
 	dtype_copy(dfield_get_type(&(upd_field->new_val)),
 				dict_index_get_nth_type(index, field_no));

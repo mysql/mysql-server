@@ -560,6 +560,7 @@ recv_parse_or_apply_log_rec_body(
 	} else if (type <= MLOG_WRITE_STRING) {
 		new_ptr = mlog_parse_string(ptr, end_ptr, page);
 	} else {
+		new_ptr = NULL; /* Eliminate compiler warning */
 		ut_error;
 	}
 
@@ -801,9 +802,7 @@ recv_recover_page(
 	mtr_set_log_mode(&mtr, MTR_LOG_NONE);
 
 	success = buf_page_get_known_nowait(RW_X_LATCH, page, BUF_KEEP_OLD,
-#ifdef UNIV_SYNC_DEBUG
 					IB__FILE__, __LINE__,
-#endif
 					&mtr);
 	ut_a(success);
 
@@ -1212,9 +1211,7 @@ recv_compare_spaces(
 
 		frame = buf_page_get_gen(space1, page_no, RW_S_LATCH, NULL,
 						BUF_GET_IF_IN_POOL,
-#ifdef UNIV_SYNC_DEBUG
 						IB__FILE__, __LINE__,
-#endif
 						&mtr);
 		if (frame) {
 			buf_page_dbg_add_level(frame, SYNC_NO_ORDER_CHECK);
@@ -1227,9 +1224,7 @@ recv_compare_spaces(
 
 		frame = buf_page_get_gen(space2, page_no, RW_S_LATCH, NULL,
 						BUF_GET_IF_IN_POOL,
-#ifdef UNIV_SYNC_DEBUG
 						IB__FILE__, __LINE__,
-#endif
 						&mtr);
 		if (frame) {
 			buf_page_dbg_add_level(frame, SYNC_NO_ORDER_CHECK);
@@ -2033,8 +2028,11 @@ recv_recovery_from_checkpoint_start(
 	while (group) {		
 		old_scanned_lsn = recv_sys->scanned_lsn;
 
-		recv_group_scan_log_recs(group, &contiguous_lsn,
+		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
+			recv_group_scan_log_recs(group, &contiguous_lsn,
 							&group_scanned_lsn);
+		}
+
 		group->scanned_lsn = group_scanned_lsn;
 		
 		if (ut_dulint_cmp(old_scanned_lsn, group_scanned_lsn) < 0) {
@@ -2120,10 +2118,12 @@ recv_recovery_from_checkpoint_finish(void)
 {
 	/* Rollback the uncommitted transactions which have no user session */
 
-	trx_rollback_all_without_sess();
+	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
+		trx_rollback_all_without_sess();
+	}
 
 	/* Apply the hashed log records to the respective file pages */
-
+	
 	recv_apply_hashed_log_recs(TRUE);
 
 	if (log_debug_writes) {

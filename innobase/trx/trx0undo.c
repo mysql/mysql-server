@@ -361,6 +361,8 @@ trx_undo_page_init(
 	mach_write_to_2(page_hdr + TRX_UNDO_PAGE_FREE,
 				TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_HDR_SIZE);
 
+	fil_page_set_type(undo_page, FIL_PAGE_UNDO_LOG);
+				
 	trx_undo_page_init_log(undo_page, type, mtr);
 }
 
@@ -1106,6 +1108,12 @@ trx_undo_mem_create_at_db_start(
 	page_t*		last_page;
 	trx_undo_rec_t*	rec;
 	
+	if (id >= TRX_RSEG_N_SLOTS) {
+		fprintf(stderr,
+		"InnoDB: Error: undo->id is %lu\n", id);
+		ut_a(0);
+	}
+
 	undo_page = trx_undo_page_get(rseg->space, page_no, mtr);
 
 	page_header = undo_page + TRX_UNDO_PAGE_HDR;
@@ -1251,7 +1259,13 @@ trx_undo_mem_create(
 	trx_undo_t*	undo;
 
 	ut_ad(mutex_own(&(rseg->mutex)));
-	
+
+	if (id >= TRX_RSEG_N_SLOTS) {
+		fprintf(stderr,
+		"InnoDB: Error: undo->id is %lu\n", id);
+		ut_a(0);
+	}
+
 	undo = mem_alloc(sizeof(trx_undo_t));
 
 	undo->id = id;
@@ -1290,6 +1304,12 @@ trx_undo_mem_init_for_reuse(
 {
 	ut_ad(mutex_own(&((undo->rseg)->mutex)));
 	
+	if (undo->id >= TRX_RSEG_N_SLOTS) {
+		fprintf(stderr,
+		"InnoDB: Error: undo->id is %lu\n", undo->id);
+		ut_a(0);
+	}
+
 	undo->state = TRX_UNDO_ACTIVE;
 	undo->del_marks = FALSE;
 	undo->trx_id = trx_id;
@@ -1308,6 +1328,12 @@ trx_undo_mem_free(
 /*==============*/
 	trx_undo_t*	undo)	/* in: the undo object to be freed */
 {
+	if (undo->id >= TRX_RSEG_N_SLOTS) {
+		fprintf(stderr,
+		"InnoDB: Error: undo->id is %lu\n", undo->id);
+		ut_a(0);
+	}
+
 	mem_free(undo);
 }
 
@@ -1493,6 +1519,9 @@ trx_undo_assign_undo(
 			mutex_exit(&(rseg->mutex));
 			mtr_commit(&mtr);
 
+			fprintf(stderr,	"InnoDB: no undo log slots free\n");
+			ut_a(0);
+
 			return(NULL);
 		}
 	}
@@ -1535,6 +1564,12 @@ trx_undo_set_state_at_finish(
 	ulint		state;
 	
 	ut_ad(trx && undo && mtr);
+
+	if (undo->id >= TRX_RSEG_N_SLOTS) {
+		fprintf(stderr,
+		"InnoDB: Error: undo->id is %lu\n", undo->id);
+		ut_a(0);
+	}
 
 	undo_page = trx_undo_page_get(undo->space, undo->hdr_page_no, mtr);
 

@@ -226,6 +226,21 @@ ibuf_contract(
 			issued read with the highest tablespace address
 			to complete */
 /*************************************************************************
+Contracts insert buffer trees by reading pages to the buffer pool. */
+
+ulint
+ibuf_contract_for_n_pages(
+/*======================*/
+			/* out: a lower limit for the combined size in bytes
+			of entries which will be merged from ibuf trees to the
+			pages read, 0 if ibuf is empty */
+	ibool	sync,	/* in: TRUE if the caller wants to wait for the
+			issued read with the highest tablespace address
+			to complete */
+	ulint	n_pages);/* in: try to read at least this many pages to
+			the buffer pool and merge the ibuf contents to
+			them */
+/*************************************************************************
 Parses a redo log record of an ibuf bitmap page init. */
 
 byte*

@@ -317,6 +317,19 @@ struct trx_struct{
         ibool           has_search_latch;
 			                /* TRUE if this trx has latched the
 			                search system latch in S-mode */
+	ulint		search_latch_timeout;
+					/* If we notice that someone is
+					waiting for our S-lock on the search
+					latch to be released, we wait in
+					row0sel.c for BTR_SEA_TIMEOUT new
+					searches until we try to keep
+					the search latch again over
+					calls from MySQL; this is intended
+					to reduce contention on the search
+					latch */
+	lock_t*		auto_inc_lock;	/* possible auto-inc lock reserved by
+					the transaction; note that it is also
+					in the lock list trx_locks */
         ibool           ignore_duplicates_in_insert;
                                         /* in an insert roll back only insert
                                         of the latest row in case
@@ -401,11 +414,9 @@ struct trx_struct{
 					checking algorithm */
 	/*------------------------------*/
 	mem_heap_t*	lock_heap;	/* memory heap for the locks of the
-					transaction; protected by
-					lock_heap_mutex */
+					transaction */
 	UT_LIST_BASE_NODE_T(lock_t) 
-			trx_locks;	/* locks reserved by the transaction;
-					protected by lock_heap_mutex */
+			trx_locks;	/* locks reserved by the transaction */
 	/*------------------------------*/
 	mem_heap_t*	read_view_heap;	/* memory heap for the read view */
 	read_view_t*	read_view;	/* consistent read view or NULL */

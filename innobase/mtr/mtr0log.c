@@ -54,6 +54,13 @@ mlog_write_initial_log_record(
 
 	ut_ad(type <= MLOG_BIGGEST_TYPE);
 
+	if (ptr < buf_pool->frame_zero || ptr >= buf_pool->high_end) {
+		fprintf(stderr,
+	"InnoDB: Error: trying to write to a stray memory location %lx\n",
+			(ulint)ptr);
+		ut_a(0);
+	}
+
 	log_ptr = mlog_open(mtr, 20);
 
 	/* If no logging is requested, we may return now */
@@ -184,6 +191,13 @@ mlog_write_ulint(
 {
 	byte*	log_ptr;
 	
+	if (ptr < buf_pool->frame_zero || ptr >= buf_pool->high_end) {
+		fprintf(stderr,
+	"InnoDB: Error: trying to write to a stray memory location %lx\n",
+			(ulint)ptr);
+		ut_a(0);
+	}
+
 	if (type == MLOG_1BYTE) {
 		mach_write_to_1(ptr, val);
 	} else if (type == MLOG_2BYTES) {
@@ -225,6 +239,13 @@ mlog_write_dulint(
 {
 	byte*	log_ptr;
 
+	if (ptr < buf_pool->frame_zero || ptr >= buf_pool->high_end) {
+		fprintf(stderr,
+	"InnoDB: Error: trying to write to a stray memory location %lx\n",
+			(ulint)ptr);
+		ut_a(0);
+	}
+
 	ut_ad(ptr && mtr);
 	ut_ad(type == MLOG_8BYTES);
 
@@ -262,6 +283,12 @@ mlog_write_string(
 {
 	byte*	log_ptr;
 
+	if (ptr < buf_pool->frame_zero || ptr >= buf_pool->high_end) {
+		fprintf(stderr,
+	"InnoDB: Error: trying to write to a stray memory location %lx\n",
+			(ulint)ptr);
+		ut_a(0);
+	}
 	ut_ad(ptr && mtr);
 	ut_ad(len < UNIV_PAGE_SIZE);
 

@@ -16,31 +16,30 @@
    MA 02111-1307, USA */
 
 #include <my_global.h>
-#if defined(__WIN__) || defined(_WIN32) || defined(_WIN64)
-#include <winsock.h>
-#include <odbcinst.h>
+#if defined(THREAD)
+#include <my_pthread.h>				/* because of signal()	*/
 #endif
+#include "mysql.h"
+#include "mysql_version.h"
+#include "mysqld_error.h"
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <m_string.h>
 #include <m_ctype.h>
-#include "mysql.h"
-#include "mysql_version.h"
-#include "mysqld_error.h"
-#include "errmsg.h"
+#include <my_net.h>
+#include <errmsg.h>
 #include <violite.h>
 #include <sys/stat.h>
 #include <signal.h>
-#include <time.h>
 #include <errno.h>
 
-#ifdef	 HAVE_PWD_H
-#include <pwd.h>
+#if defined(OS2)
+#  include <sys/un.h>
+#elif !defined( __WIN__)
+#include <sys/resource.h>
+#ifdef HAVE_SYS_UN_H
+#  include <sys/un.h>
 #endif
-#if !defined(MSDOS) && !defined(__WIN__)
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <netdb.h>
 #ifdef HAVE_SELECT_H
 #  include <select.h>
@@ -48,17 +47,12 @@
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
-#endif
-#ifdef HAVE_SYS_UN_H
-#  include <sys/un.h>
-#endif
-#if defined(THREAD) && !defined(__WIN__)
-#include <my_pthread.h>				/* because of signal()	*/
-#endif
+#include <sys/utsname.h>
+#endif /* __WIN__ */
+
 #ifndef INADDR_NONE
 #define INADDR_NONE	-1
 #endif
-
 
 #define RES_BUF_SHIFT 5
 #define SOCKET_ERROR -1

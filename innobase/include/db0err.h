@@ -27,12 +27,21 @@ Created 5/24/1996 Heikki Tuuri
 #define DB_CLUSTER_NOT_FOUND	30
 #define DB_TABLE_NOT_FOUND	31
 #define DB_MUST_GET_MORE_FILE_SPACE 32	/* the database has to be stopped
-					and restrated with more file space */
+					and restarted with more file space */
 #define DB_TABLE_IS_BEING_USED	33
 #define DB_TOO_BIG_RECORD	34	/* a record in an index would become
 					bigger than 1/2 free space in a page
 					frame */
-					
+#define DB_LOCK_WAIT_TIMEOUT	35	/* lock wait lasted too long */
+#define DB_NO_REFERENCED_ROW	36	/* referenced key value not found
+					for a foreign key in an insert or
+					update of a row */
+#define DB_ROW_IS_REFERENCED	37	/* cannot delete or update a row
+					because it contains a key value
+					which is referenced */
+#define DB_CANNOT_ADD_CONSTRAINT 38	/* adding a foreign key constraint
+					to a table failed */
+
 /* The following are partial failure codes */
 #define DB_FAIL 		1000
 #define DB_OVERFLOW 		1001

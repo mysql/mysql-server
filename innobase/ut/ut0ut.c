@@ -187,6 +187,8 @@ ut_sprintf_buf(
 	for (i = 0; i < len; i++) {
 		if (isprint((char)(*data))) {
 			n += sprintf(str + n, "%c", (char)*data);
+		} else {
+			n += sprintf(str + n, ".");
 		}
 		
 		data++;

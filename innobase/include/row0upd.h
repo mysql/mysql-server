@@ -47,8 +47,7 @@ upd_get_nth_field(
 	upd_t*	update,	/* in: update vector */
 	ulint	n);	/* in: field position in update vector */
 /*************************************************************************
-Sets the clustered index field number to be updated by an update vector
-field. */
+Sets an index field number to be updated by an update vector field. */
 UNIV_INLINE
 void
 upd_field_set_field_no(
@@ -56,7 +55,7 @@ upd_field_set_field_no(
 	upd_field_t*	upd_field,	/* in: update vector field */
 	ulint		field_no,	/* in: field number in a clustered
 					index */
-	dict_index_t*	index);		/* in: clustered index */
+	dict_index_t*	index);		/* in: index */
 /*************************************************************************
 Writes into the redo log the values of trx id and roll ptr and enough info
 to determine their positions within a clustered index record. */
@@ -136,13 +135,27 @@ row_upd_rec_in_place(
 	rec_t*	rec,	/* in/out: record where replaced */
 	upd_t*	update);/* in: update vector */
 /*******************************************************************
-Builds an update vector from those fields, excluding the roll ptr and
-trx id fields, which in an index entry differ from a record that has
-the equal ordering fields. */
+Builds an update vector from those fields which in a secondary index entry
+differ from a record that has the equal ordering fields. NOTE: we compare
+the fields as binary strings! */
 
 upd_t*
-row_upd_build_difference(
-/*=====================*/
+row_upd_build_sec_rec_difference_binary(
+/*====================================*/
+				/* out, own: update vector of differing
+				fields */
+	dict_index_t*	index,	/* in: index */
+	dtuple_t*	entry,	/* in: entry to insert */
+	rec_t*		rec,	/* in: secondary index record */
+	mem_heap_t*	heap);	/* in: memory heap from which allocated */
+/*******************************************************************
+Builds an update vector from those fields, excluding the roll ptr and
+trx id fields, which in an index entry differ from a record that has
+the equal ordering fields. NOTE: we compare the fields as binary strings! */
+
+upd_t*
+row_upd_build_difference_binary(
+/*============================*/
 				/* out, own: update vector of differing
 				fields, excluding roll ptr and trx id */
 	dict_index_t*	index,	/* in: clustered index */
@@ -175,13 +188,16 @@ row_upd_clust_index_replace_new_col_vals(
 /***************************************************************
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
-fields in the index is small. Otherwise, this can be quadratic. */
-
+fields in the index is small. Otherwise, this can be quadratic.
+NOTE: we compare the fields as binary strings! */
+ 
 ibool
-row_upd_changes_ord_field(
-/*======================*/
+row_upd_changes_ord_field_binary(
+/*=============================*/
 				/* out: TRUE if update vector changes
-				an ordering field in the index record */
+				an ordering field in the index record;
+				NOTE: the fields are compared as binary
+				strings */
 	dtuple_t*	row,	/* in: old value of row, or NULL if the
 				row and the data values in update are not
 				known when this function is called, e.g., at
@@ -191,11 +207,12 @@ row_upd_changes_ord_field(
 /***************************************************************
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
-fields in the index is small. Otherwise, this can be quadratic. */
+fields in the index is small. Otherwise, this can be quadratic.
+NOTE: we compare the fields as binary strings! */
 
 ibool
-row_upd_changes_some_index_ord_field(
-/*=================================*/
+row_upd_changes_some_index_ord_field_binary(
+/*========================================*/
 				/* out: TRUE if update vector may change
 				an ordering field in an index record */
 	dict_table_t*	table,	/* in: table */

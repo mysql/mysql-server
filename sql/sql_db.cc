@@ -158,6 +158,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   error = -1;
   if ((deleted=mysql_rm_known_files(thd, dirp, db, path,0)) >= 0 && thd)
   {
+    ha_drop_database(path);
     if (!silent)
     {
       if (!thd->query)
@@ -333,7 +334,7 @@ bool mysql_change_db(THD *thd,const char *name)
     x_free(dbname);
     DBUG_RETURN(1);
   }
-  DBUG_PRINT("general",("Use database: %s", dbname));
+  DBUG_PRINT("info",("Use database: %s", dbname));
   if (test_all_bits(thd->master_access,DB_ACLS))
     db_access=DB_ACLS;
   else

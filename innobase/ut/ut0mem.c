@@ -13,15 +13,22 @@ Created 5/11/1994 Heikki Tuuri
 #endif
 
 #include "mem0mem.h"
-
+#include "os0sync.h"
 
 /* This struct is placed first in every allocated memory block */
 typedef struct ut_mem_block_struct ut_mem_block_t;
 
+/* The total amount of memory currently allocated from the OS with malloc */
+ulint	ut_total_allocated_memory	= 0;
+
 struct ut_mem_block_struct{
-        UT_LIST_NODE_T(ut_mem_block_t) mem_block_list;/* mem block list node */
+        UT_LIST_NODE_T(ut_mem_block_t) mem_block_list;
+			/* mem block list node */
+	ulint	size;	/* size of allocated memory */
+	ulint	magic_n;
 };
 
+#define UT_MEM_MAGIC_N	1601650166
 
 /* List of all memory blocks allocated from the operating system
 with malloc */
@@ -70,16 +77,17 @@ ut_malloc_low(
 	if (ret == NULL) {
 		fprintf(stderr,
 		"InnoDB: Fatal error: cannot allocate %lu bytes of\n"
-		"InnoDB: memory with malloc!\n"
-		"InnoDB: Operating system errno: %lu\n"
+		"InnoDB: memory with malloc! Total allocated memory\n"
+		"InnoDB: by InnoDB %lu bytes. Operating system errno: %lu\n"
 		"InnoDB: Cannot continue operation!\n"
 		"InnoDB: Check if you should increase the swap file or\n"
-		"InnoDB: ulimits of your operating system.\n", n, errno);
+		"InnoDB: ulimits of your operating system.\n",
+		n, ut_total_allocated_memory, errno);
 
 	        os_fast_mutex_unlock(&ut_list_mutex);
 
 		exit(1);
-	}				
+	}		
 
 	if (set_to_zero) {
 #ifdef UNIV_SET_MEM_TO_ZERO
@@ -87,6 +95,11 @@ ut_malloc_low(
 #endif
 	}
 
+	((ut_mem_block_t*)ret)->size = n + sizeof(ut_mem_block_t);
+	((ut_mem_block_t*)ret)->magic_n = UT_MEM_MAGIC_N;
+
+	ut_total_allocated_memory += n + sizeof(ut_mem_block_t);
+	
 	UT_LIST_ADD_FIRST(mem_block_list, ut_mem_block_list,
 			                         ((ut_mem_block_t*)ret));
 	os_fast_mutex_unlock(&ut_list_mutex);
@@ -107,7 +120,7 @@ ut_malloc(
         return(ut_malloc_low(n, TRUE));
 }
 /**************************************************************************
-Frees a memory bloock allocated with ut_malloc. */
+Frees a memory block allocated with ut_malloc. */
 
 void
 ut_free(
@@ -120,6 +133,11 @@ ut_free(
 
 	os_fast_mutex_lock(&ut_list_mutex);
 
+	ut_a(block->magic_n == UT_MEM_MAGIC_N);
+	ut_a(ut_total_allocated_memory >= block->size);
+
+	ut_total_allocated_memory -= block->size;
+	
 	UT_LIST_REMOVE(mem_block_list, ut_mem_block_list, block);
 	free(block);
 	
@@ -139,11 +157,18 @@ ut_free_all_mem(void)
 
 	while (block = UT_LIST_GET_FIRST(ut_mem_block_list)) {
 
+		ut_a(block->magic_n == UT_MEM_MAGIC_N);
+		ut_a(ut_total_allocated_memory >= block->size);
+
+		ut_total_allocated_memory -= block->size;
+	
 	        UT_LIST_REMOVE(mem_block_list, ut_mem_block_list, block);
 	        free(block);
 	}
 		                      
 	os_fast_mutex_unlock(&ut_list_mutex);
+
+	ut_a(ut_total_allocated_memory == 0);
 }
 
 /**************************************************************************

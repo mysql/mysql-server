@@ -16,6 +16,32 @@ Created 7/1/1994 Heikki Tuuri
 #include "rem0rec.h"
 
 /*****************************************************************
+Returns TRUE if two types are equal for comparison purposes. */
+
+ibool
+cmp_types_are_equal(
+/*================*/
+				/* out: TRUE if the types are considered
+				equal in comparisons */
+	dtype_t*	type1,	/* in: type 1 */
+	dtype_t*	type2);	/* in: type 2 */
+/*****************************************************************
+This function is used to compare two data fields for which we know the
+data type. */
+UNIV_INLINE
+int
+cmp_data_data(
+/*==========*/	
+				/* out: 1, 0, -1, if data1 is greater, equal, 
+				less than data2, respectively */
+	dtype_t*	cur_type,/* in: data type of the fields */
+	byte*		data1,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		len1,	/* in: data field length or UNIV_SQL_NULL */
+	byte*		data2,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		len2);	/* in: data field length or UNIV_SQL_NULL */
+/*****************************************************************
 This function is used to compare two dfields where at least the first
 has its data type field set. */
 UNIV_INLINE

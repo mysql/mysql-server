@@ -62,8 +62,10 @@ btr_pcur_free_for_mysql(
 /******************************************************************
 The position of the cursor is stored by taking an initial segment of the
 record the cursor is positioned on, before, or after, and copying it to the
-cursor data structure. NOTE that the page where the cursor is positioned
-must not be empty! */
+cursor data structure, or just setting a flag if the cursor id before the
+first in an EMPTY tree, or after the last in an EMPTY tree. NOTE that the
+page where the cursor is positioned must not be empty if the index tree is
+not totally empty! */
 
 void
 btr_pcur_store_position(
@@ -93,9 +95,21 @@ btr_pcur_store_position(
 	ut_a(cursor->latch_mode != BTR_NO_LATCHES);
 
 	if (page_get_n_recs(page) == 0) {
+		/* It must be an empty index tree */
 
-		/* Cannot store position! */
-		btr_pcur_close(cursor);
+		ut_a(btr_page_get_next(page, mtr) == FIL_NULL
+		     && btr_page_get_prev(page, mtr) == FIL_NULL);
+
+		if (rec == page_get_supremum_rec(page)) {
+
+			cursor->rel_pos = BTR_PCUR_AFTER_LAST_IN_TREE;
+			cursor->old_stored = BTR_PCUR_OLD_STORED;
+
+			return;
+		}
+
+		cursor->rel_pos = BTR_PCUR_BEFORE_FIRST_IN_TREE;
+		cursor->old_stored = BTR_PCUR_OLD_STORED;
 
 		return;
 	} 
@@ -140,13 +154,15 @@ btr_pcur_copy_stored_position(
 
 	ut_memcpy((byte*)pcur_receive, (byte*)pcur_donate, sizeof(btr_pcur_t));
 
-	pcur_receive->old_rec_buf = mem_alloc(pcur_donate->buf_size);
+	if (pcur_donate->old_rec_buf) {
+
+		pcur_receive->old_rec_buf = mem_alloc(pcur_donate->buf_size);
 	
-	ut_memcpy(pcur_receive->old_rec_buf, pcur_donate->old_rec_buf,
+		ut_memcpy(pcur_receive->old_rec_buf, pcur_donate->old_rec_buf,
 						pcur_donate->buf_size);
-	pcur_receive->old_rec = pcur_receive->old_rec_buf
+		pcur_receive->old_rec = pcur_receive->old_rec_buf
 			+ (pcur_donate->old_rec - pcur_donate->old_rec_buf);
-	
+	}	
 }
 
 /******************************************************************
@@ -158,7 +174,9 @@ to the last record LESS OR EQUAL to the stored record;
 the last record LESS than the user record which was the successor of the page
 infimum;
 (3) cursor was positioned on the page supremum: restores to the first record
-GREATER than the user record which was the predecessor of the supremum. */
+GREATER than the user record which was the predecessor of the supremum.
+(4) cursor was positioned before the first or after the last in an empty tree:
+restores to before first or after the last in the tree. */
 
 ibool
 btr_pcur_restore_position(
@@ -177,17 +195,33 @@ btr_pcur_restore_position(
 	dtuple_t*	tuple;
 	ulint		mode;
 	ulint		old_mode;
+	ibool		from_left;
 	mem_heap_t*	heap;
 
-	ut_a((cursor->pos_state == BTR_PCUR_WAS_POSITIONED)
-			|| (cursor->pos_state == BTR_PCUR_IS_POSITIONED));
+	ut_a(cursor->pos_state == BTR_PCUR_WAS_POSITIONED
+			|| cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_a(cursor->old_stored == BTR_PCUR_OLD_STORED);
+
+	if (cursor->rel_pos == BTR_PCUR_AFTER_LAST_IN_TREE
+	    || cursor->rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE) {
+
+	    	if (cursor->rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE) {
+	    		from_left = TRUE;
+	    	} else {
+	    		from_left = FALSE;
+	    	}
+
+		btr_cur_open_at_index_side(from_left,
+			btr_pcur_get_btr_cur(cursor)->index, latch_mode,
+					btr_pcur_get_btr_cur(cursor), mtr);
+		return(FALSE);
+	}
+	
 	ut_a(cursor->old_rec);
 
 	page = btr_cur_get_page(btr_pcur_get_btr_cur(cursor));
 
-	if ((latch_mode == BTR_SEARCH_LEAF)
-					|| (latch_mode == BTR_MODIFY_LEAF)) {
+	if (latch_mode == BTR_SEARCH_LEAF || latch_mode == BTR_MODIFY_LEAF) {
 		/* Try optimistic restoration */
 	    
 		if (buf_page_optimistic_get(latch_mode, page,
@@ -242,16 +276,15 @@ btr_pcur_restore_position(
 	/* Restore the old search mode */
 	cursor->search_mode = old_mode;
 
-	if ((cursor->rel_pos == BTR_PCUR_ON)
-		&& btr_pcur_is_on_user_rec(cursor, mtr)
-		&& (0 == cmp_dtuple_rec(tuple, btr_pcur_get_rec(cursor)))) {
+	if (cursor->rel_pos == BTR_PCUR_ON
+	    && btr_pcur_is_on_user_rec(cursor, mtr)
+	    && 0 == cmp_dtuple_rec(tuple, btr_pcur_get_rec(cursor))) {
 
 	        /* We have to store the NEW value for the modify clock, since
 	        the cursor can now be on a different page! */
 
 	        cursor->modify_clock = buf_frame_get_modify_clock(
-				    buf_frame_align(
-						    btr_pcur_get_rec(cursor)));
+				    buf_frame_align(btr_pcur_get_rec(cursor)));
 		mem_heap_free(heap);
 
 		return(TRUE);
@@ -366,6 +399,7 @@ btr_pcur_move_backward_from_page(
 
 		latch_mode2 = BTR_MODIFY_PREV;
 	} else {
+		latch_mode2 = 0; /* To eliminate compiler warning */
 		ut_error;
 	}
 

@@ -92,7 +92,7 @@ loop:
 	loop_count++;
 	ut_ad(loop_count < 15);
 
-	if (mutex_enter_nowait(mutex) == 0) {
+	if (mutex_enter_nowait(mutex, IB__FILE__, __LINE__) == 0) {
 		/* Succeeded! */
 
 		return(0);
@@ -105,7 +105,7 @@ loop:
 	/* Order is important here: FIRST reset event, then set waiters */
 	ip_mutex_set_waiters(ip_mutex, 1);
 
-	if (mutex_enter_nowait(mutex) == 0) {
+	if (mutex_enter_nowait(mutex, IB__FILE__, __LINE__) == 0) {
 		/* Succeeded! */
 
 		return(0);
