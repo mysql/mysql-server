@@ -1209,11 +1209,17 @@ TransporterRegistry::start_clients_thread()
 	    else
 	      ndbout_c("Failed to get dynamic port to connect to: %d", res);
 	  }
-	  if(theTransporterTypes[nodeId] != tt_TCP_TRANSPORTER
-             || t->get_r_port() > 0)
-	    t->connect_client();
-	  else
-	    NdbSleep_MilliSleep(400);
+	  if (theTransporterTypes[nodeId] != tt_TCP_TRANSPORTER
+             || t->get_r_port() > 0) {
+	    int result = t->connect_client();
+	    if (result<0)
+	      ndbout_c("Error while trying to make connection (Node %u to"
+		       " %u via port %u) error: %d. Retrying...",
+		       t->getRemoteNodeId(),
+		       t->getLocalNodeId(),
+		       t->get_r_port());
+	  } else
+	    NdbSleep_MilliSleep(400); // wait before retrying
 	}
 	break;
       case DISCONNECTING:
