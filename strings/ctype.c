@@ -2816,7 +2816,7 @@ CHARSET_INFO compiled_charsets[] = {
     tab_8859_1_uni,	/* tab_to_uni   */
     idx_uni_8859_1,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen   */
@@ -2829,6 +2829,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -2863,6 +2864,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_mb,
     my_caseup_mb,
     my_casedn_mb,
+    NULL,		/* tosort      */
     my_strcasecmp_mb,
     my_strncasecmp_mb,
     NULL,		/* hash_caseup */
@@ -2884,7 +2886,7 @@ CHARSET_INFO compiled_charsets[] = {
     tab_cp1251_uni,	/* tab_to_uni   */
     idx_uni_cp1251,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen   */
@@ -2897,6 +2899,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -2918,7 +2921,7 @@ CHARSET_INFO compiled_charsets[] = {
     tab_cp1257_uni,	/* tab_to_uni   */
     idx_uni_cp1257,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -2931,6 +2934,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -2952,7 +2956,7 @@ CHARSET_INFO compiled_charsets[] = {
     tab_8859_2_uni,	/* tab_to_uni   */
     idx_uni_8859_2,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -2965,6 +2969,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -2999,6 +3004,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    NULL,		/* tosort      */
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3020,7 +3026,7 @@ CHARSET_INFO compiled_charsets[] = {
     tab_8859_1_uni,	/* tab_to_uni   */
     idx_uni_8859_1,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3033,6 +3039,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3054,7 +3061,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3067,6 +3074,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3088,7 +3096,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3101,6 +3109,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3122,7 +3131,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3135,6 +3144,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3156,7 +3166,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     2,			/* mbmaxlen */
@@ -3169,6 +3179,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_mb,
     my_caseup_mb,
     my_casedn_mb,
+    my_tosort_8bit,
     my_strcasecmp_mb,
     my_strncasecmp_mb,
     NULL,		/* hash_caseup */
@@ -3190,7 +3201,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     2,			/* mbmaxlen */
@@ -3203,6 +3214,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_mb,
     my_caseup_mb,
     my_casedn_mb,
+    my_tosort_8bit,
     my_strcasecmp_mb,
     my_strncasecmp_mb,
     NULL,		/* hash_caseup */
@@ -3231,12 +3243,13 @@ CHARSET_INFO compiled_charsets[] = {
     ismbchar_gbk,
     ismbhead_gbk,
     mbcharlen_gbk,
-    my_mb_wc_gbk,		/* mb_wc      */
-    my_wc_mb_gbk,		/* wc_mb      */
+    my_mb_wc_gbk,	/* mb_wc      */
+    my_wc_mb_gbk,	/* wc_mb      */
     my_caseup_str_mb,
     my_casedn_str_mb,
     my_caseup_mb,
     my_casedn_mb,
+    NULL,		/* tosort      */
     my_strcasecmp_mb,
     my_strncasecmp_mb,
     NULL,		/* hash_caseup */
@@ -3258,7 +3271,7 @@ CHARSET_INFO compiled_charsets[] = {
     tab_8859_1_uni,	/* tab_to_uni   */
     idx_uni_8859_1,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3271,6 +3284,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3292,7 +3306,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3305,6 +3319,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3326,7 +3341,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3339,6 +3354,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3360,7 +3376,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3373,6 +3389,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3394,7 +3411,7 @@ CHARSET_INFO compiled_charsets[] = {
     tab_8859_2_uni,	/* tab_to_uni   */
     idx_uni_8859_2,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3407,6 +3424,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3428,7 +3446,7 @@ CHARSET_INFO compiled_charsets[] = {
     tab_koi8_r_uni,	/* tab_to_uni   */
     idx_uni_koi8_r,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3441,6 +3459,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3462,7 +3481,7 @@ CHARSET_INFO compiled_charsets[] = {
     tab_koi8_u_uni,	/* tab_to_uni   */
     idx_uni_koi8_u,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3475,6 +3494,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3509,6 +3529,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    NULL,		/* tosort      */
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3530,7 +3551,7 @@ CHARSET_INFO compiled_charsets[] = {
     tab_8859_2_uni,	/* tab_to_uni   */
     idx_uni_8859_2,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3543,6 +3564,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3564,7 +3586,7 @@ CHARSET_INFO compiled_charsets[] = {
     tab_8859_9_uni,	/* tab_to_uni   */
     idx_uni_8859_9,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3577,6 +3599,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3611,6 +3634,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    NULL,		/* tosort      */
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3632,7 +3656,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3645,6 +3669,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3679,6 +3704,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    NULL,		/* tosort      */
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3713,6 +3739,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_ucs2,
     my_caseup_ucs2,
     my_casedn_ucs2,
+    NULL,		/* tosort      */
     my_strcasecmp_ucs2,
     my_strncasecmp_ucs2,
     my_hash_caseup_ucs2,/* hash_caseup */
@@ -3748,6 +3775,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_mb,
     my_caseup_mb,
     my_casedn_mb,
+    my_tosort_8bit,
     my_strcasecmp_mb,
     my_strncasecmp_mb,
     NULL,		/* hash_caseup */
@@ -3782,6 +3810,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_utf8,
     my_caseup_utf8,
     my_casedn_utf8,
+    NULL,		/* tosort      */
     my_strcasecmp_utf8,
     my_strncasecmp_utf8,
     my_hash_caseup_utf8,/* hash_caseup */
@@ -3803,7 +3832,7 @@ CHARSET_INFO compiled_charsets[] = {
     tab_us_ascii_uni,	/* tab_to_uni   */
     idx_uni_us_ascii,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3816,6 +3845,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3837,7 +3867,7 @@ CHARSET_INFO compiled_charsets[] = {
     tab_cp1250_uni,	/* tab_to_uni   */
     idx_uni_cp1250,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3850,6 +3880,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3871,7 +3902,7 @@ CHARSET_INFO compiled_charsets[] = {
     tab_cp1251_uni,	/* tab_to_uni   */
     idx_uni_cp1251,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3885,6 +3916,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_caseup_8bit,
     my_casedn_8bit,
     my_strcasecmp_8bit,
+    my_tosort_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
     NULL,		/* hash_sort   */
@@ -3905,7 +3937,7 @@ CHARSET_INFO compiled_charsets[] = {
     tab_armscii_8_uni,	/* tab_to_uni   */
     idx_uni_armscii_8,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3918,6 +3950,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3939,7 +3972,7 @@ CHARSET_INFO compiled_charsets[] = {
     tab_cp1251_uni,	/* tab_to_uni   */
     idx_uni_cp1251,	/* tab_from_uni */
     0,			/* strxfrm_multiply */
-    NULL,		/* strnncoll  */
+    my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
     0,			/* mbmaxlen  */
@@ -3952,6 +3985,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    my_tosort_8bit,
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     NULL,		/* hash_caseup */
@@ -3962,10 +3996,10 @@ CHARSET_INFO compiled_charsets[] = {
 
 #ifdef HAVE_CHARSET_win1250ch
   {
-    34,				/* number */
-    MY_CS_COMPILED,	/* state      */
-    "win1250ch",		/* name */
-    "",			/* comment    */
+    34,				/* number    */
+    MY_CS_COMPILED,		/* state     */
+    "win1250ch",		/* name      */
+    "",				/* comment   */
     ctype_win1250ch,
     to_lower_win1250ch,
     to_upper_win1250ch,
@@ -3980,16 +4014,17 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,			/* ismbchar  */
     NULL,			/* ismbhead  */
     NULL,			/* mbcharlen */
-    my_mb_wc_8bit,		/* mb_wc   */
-    my_wc_mb_8bit,		/* wc_mb   */
+    my_mb_wc_8bit,		/* mb_wc     */
+    my_wc_mb_8bit,		/* wc_mb     */
     my_caseup_str_8bit,
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
+    NULL,			/* tosort      */
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
-    NULL,		/* hash_caseup */
-    NULL,		/* hash_sort   */
+    NULL,			/* hash_caseup */
+    NULL,			/* hash_sort   */
     0
   },
 #endif
@@ -4017,6 +4052,7 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		 /* mb_wc      */
     NULL,		 /* wc_mb      */
     
+    NULL,
     NULL,
     NULL,
     NULL,

@@ -92,12 +92,13 @@ typedef struct charset_info_st
   int (*wc_mb)(struct charset_info_st *cs,my_wc_t wc,
 	       unsigned char *s,unsigned char *e);
     
-  /* Functions for case convertion */
+  /* Functions for case and sort convertion */
   void    (*caseup_str)(struct charset_info_st *, char *);
   void    (*casedn_str)(struct charset_info_st *, char *);
   void    (*caseup)(struct charset_info_st *, char *, uint);
   void    (*casedn)(struct charset_info_st *, char *, uint);
-    
+  void    (*tosort)(struct charset_info_st *, char *, uint);
+  
   /* Functions for case comparison */
   int  (*strcasecmp)(struct charset_info_st *, const char *, const char *);
   int  (*strncasecmp)(struct charset_info_st *, const char *, const char *,
@@ -125,14 +126,15 @@ extern const char *compiled_charset_name(uint charset_number);
 #define MY_CHARSET_CURRENT (default_charset_info->number)
 
 /* declarations for simple charsets */
-extern int  my_strnxfrm_simple(CHARSET_INFO *, char *, uint, const char *, uint); 
-extern int  my_strnncoll_simple(CHARSET_INFO *, const char *, uint, const char *, uint);
+extern int  my_strnxfrm_simple(CHARSET_INFO *, uchar *, uint, const uchar *, uint); 
+extern int  my_strnncoll_simple(CHARSET_INFO *, const uchar *, uint, const uchar *, uint);
 
 /* Functions for 8bit */
 extern void my_caseup_str_8bit(CHARSET_INFO *, char *);
 extern void my_casedn_str_8bit(CHARSET_INFO *, char *);
 extern void my_caseup_8bit(CHARSET_INFO *, char *, uint);
 extern void my_casedn_8bit(CHARSET_INFO *, char *, uint);
+extern void my_tosort_8bit(CHARSET_INFO *, char *, uint);
 
 extern int my_strcasecmp_8bit(CHARSET_INFO * cs, const char *, const char *);
 extern int my_strncasecmp_8bit(CHARSET_INFO * cs, const char *, const char *, uint);
@@ -364,7 +366,7 @@ void my_hash_sort_ucs2(struct charset_info_st *cs, const uchar *key, uint len, u
 #define my_isvar(s,c)                 (my_isalnum(s,c) || (c) == '_')
 #define my_isvar_start(s,c)           (my_isalpha(s,c) || (c) == '_')
 
-#define use_strcoll(s)                ((s)->strnncoll != NULL)
+#define use_strnxfrm(s)               ((s)->strnxfrm  != NULL)
 #define my_strnxfrm(s, a, b, c, d)    ((s)->strnxfrm((s), (a), (b), (c), (d)))
 #define my_strnncoll(s, a, b, c, d)   ((s)->strnncoll((s), (a), (b), (c), (d)))
 #define my_like_range(s, a, b, c, d, e, f, g, h) \
@@ -377,6 +379,7 @@ void my_hash_sort_ucs2(struct charset_info_st *cs, const uchar *key, uint len, u
 
 #define my_caseup(s, a, l)            ((s)->caseup((s), (a), (l)))
 #define my_casedn(s, a, l)            ((s)->casedn((s), (a), (l)))
+#define my_tosort(s, a, l)            ((s)->tosort((s), (a), (l)))
 #define my_caseup_str(s, a)           ((s)->caseup_str((s), (a)))
 #define my_casedn_str(s, a)           ((s)->casedn_str((s), (a)))
 #define my_strcasecmp(s, a, b)        ((s)->strcasecmp((s), (a), (b)))

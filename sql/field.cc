@@ -3841,7 +3841,7 @@ void Field_string::sort_string(char *to,uint length)
   else
   {
 #ifdef USE_STRCOLL
-    if (use_strcoll(field_charset)) {
+    if (use_strnxfrm(field_charset)) {
       uint tmp=my_strnxfrm(field_charset,
                           (unsigned char *)to, length,
                           (unsigned char *) ptr, field_length);
@@ -4045,7 +4045,7 @@ void Field_varstring::sort_string(char *to,uint length)
   else
   {
 #ifdef USE_STRCOLL
-    if (use_strcoll(field_charset))
+    if (use_strnxfrm(field_charset))
       tot_length=my_strnxfrm(field_charset,
                              (unsigned char *) to, length,
                              (unsigned char *)ptr+2, tot_length);
@@ -4536,7 +4536,7 @@ void Field_blob::sort_string(char *to,uint length)
     else
     {
 #ifdef USE_STRCOLL
-      if (use_strcoll(field_charset))
+      if (use_strnxfrm(field_charset))
       {
         blob_length=my_strnxfrm(field_charset,
                                 (unsigned char *)to, length, 
