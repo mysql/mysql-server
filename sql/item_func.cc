@@ -1183,8 +1183,7 @@ longlong Item_func_field::val_int()
     for (uint i=1 ; i < arg_count ; i++)
     {
       String *tmp_value=args[i]->val_str(&tmp);
-      if (tmp_value && field->length() == tmp_value->length() &&
-	  !sortcmp(field,tmp_value,cmp_collation.collation))
+      if (tmp_value && !sortcmp(field,tmp_value,cmp_collation.collation))
         return (longlong) (i);
     }
   }

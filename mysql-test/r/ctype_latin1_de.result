@@ -278,4 +278,8 @@ s1	COUNT(*)
 SELECT COUNT(DISTINCT s1) FROM t1;
 COUNT(DISTINCT s1)
 1
+SELECT FIELD('ue',s1), FIELD('Ü',s1), s1='ue', s1='Ü' FROM t1;
+FIELD('ue',s1)	FIELD('Ü',s1)	s1='ue'	s1='Ü'
+1	1	1	1
+1	1	1	1
 DROP TABLE t1;
