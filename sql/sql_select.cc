@@ -449,6 +449,7 @@ JOIN::optimize()
     // quick abort
     delete procedure;
     error= thd->is_fatal_error ? -1 : 1; 
+    DBUG_PRINT("error",("Error from optimize_cond"));
     DBUG_RETURN(error);
   }
 
@@ -456,6 +457,7 @@ JOIN::optimize()
       (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
   {						/* Impossible cond */
     zero_result_cause= "Impossible WHERE";
+    error= 0;
     DBUG_RETURN(0);
   }
 
@@ -468,16 +470,18 @@ JOIN::optimize()
       if (res < 0)
       {
 	zero_result_cause= "No matching min/max row";
+	error=0; 
 	DBUG_RETURN(0);
       }
       zero_result_cause= "Select tables optimized away";
       tables_list= 0;				// All tables resolved
     }
   }
-
   if (!tables_list)
+  {
+    error= 0;
     DBUG_RETURN(0);
-
+  }
   error= -1;					// Error is sent to client
   sort_by_table= get_sort_by_table(order, group_list, tables_list);
 
@@ -485,18 +489,24 @@ JOIN::optimize()
   thd->proc_info= "statistics";
   if (make_join_statistics(this, tables_list, conds, &keyuse) ||
       thd->is_fatal_error)
+  {
+    DBUG_PRINT("error",("Error: make_join_statistics() failed"));
     DBUG_RETURN(1);
+  }
 
   thd->proc_info= "preparing";
   if (result->initialize_tables(this))
   {
-    DBUG_RETURN(1);				// error = -1
+    DBUG_PRINT("error",("Error: initialize_tables() failed"));
+    DBUG_RETURN(1);				// error == -1
   }
   if (const_table_map != found_const_table_map &&
       !(select_options & SELECT_DESCRIBE))
   {
     zero_result_cause= "no matching row in const table";
+    DBUG_PRINT("error",("Error: %s", zero_result_cause));
     select_options= 0; //TODO why option in return_zero_rows was droped
+    error= 0;
     DBUG_RETURN(0);
   }
   if (!(thd->options & OPTION_BIG_SELECTS) &&
@@ -535,13 +545,14 @@ JOIN::optimize()
   if (error)
   {						/* purecov: inspected */
     error= -1;					/* purecov: inspected */
+    DBUG_PRINT("error",("Error: make_select() failed"));
     DBUG_RETURN(1);
   }
   if (make_join_select(this, select, conds))
   {
     zero_result_cause=
       "Impossible WHERE noticed after reading const tables";
-    DBUG_RETURN(0);
+    DBUG_RETURN(0);				// error == 0
   }
 
   error= -1;					/* if goto err */
@@ -705,8 +716,10 @@ JOIN::optimize()
   }
 
   if (select_options & SELECT_DESCRIBE)
+  {
+    error= 0;
     DBUG_RETURN(0);
-
+  }
   tmp_having= having;
   having= 0;
 
@@ -806,10 +819,12 @@ JOIN::optimize()
     {
       if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
 	DBUG_RETURN(-1);
+      error= 0;				// Ensure that tmp_join.error= 0
       restore_tmp();
     }
   }
 
+  error= 0;
   DBUG_RETURN(0);
 }
 
@@ -875,9 +890,9 @@ void
 JOIN::exec()
 {
   int      tmp_error;
-
   DBUG_ENTER("JOIN::exec");
   
+  error= 0;
   if (procedure)
   {
     if (procedure->change_columns(fields_list) ||
@@ -887,7 +902,6 @@ JOIN::exec()
 
   if (!tables_list)
   {                                           // Only test of functions
-    error=0;
     if (select_options & SELECT_DESCRIBE)
       select_describe(this, false, false, false,
 		      (zero_result_cause?zero_result_cause:"No tables used"));
@@ -914,8 +928,6 @@ JOIN::exec()
 
   if (zero_result_cause)
   {
-    error=0;
-
     (void) return_zero_rows(this, result, tables_list, fields_list,
 			    tmp_table_param.sum_func_count != 0 &&
 			    !group_list,
@@ -940,7 +952,6 @@ JOIN::exec()
     select_describe(this, need_tmp,
 		    order != 0 && !skip_sort_order,
 		    select_distinct);
-    error=0;
     DBUG_VOID_RETURN;
   }
 
@@ -1252,6 +1263,7 @@ JOIN::exec()
   DBUG_VOID_RETURN;
 }
 
+
 /*
   Clean up join. Return error that hold JOIN.
 */
@@ -1278,7 +1290,6 @@ JOIN::cleanup(THD *thd)
     DBUG_RETURN(tmp_join->cleanup(thd));
   }
 
-
   lock=0;                                     // It's faster to unlock later
   join_free(this, 1);
    if (exec_tmp_table1)
@@ -1296,6 +1307,7 @@ JOIN::cleanup(THD *thd)
   }
   DBUG_RETURN(error);
 }
+
 
 int
 mysql_select(THD *thd, Item ***rref_pointer_array,
@@ -4929,17 +4941,25 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     int tmp;
     if ((tmp=table->file->extra(HA_EXTRA_NO_CACHE)))
     {
-      my_errno=tmp;
+      DBUG_PRINT("error",("extra(HA_EXTRA_NO_CACHE) failed"));
+      my_errno= tmp;
       error= -1;
     }
     if ((tmp=table->file->index_end()))
     {
-      my_errno=tmp;
+      DBUG_PRINT("error",("index_end() failed"));
+      my_errno= tmp;
       error= -1;
     }
     if (error == -1)
       table->file->print_error(my_errno,MYF(0));
   }
+#ifndef DBUG_OFF
+  if (error)
+  {
+    DBUG_PRINT("error",("Error: do_select() failed"));
+  }
+#endif
   DBUG_RETURN(error || join->thd->net.report_error);
 }
 

@@ -241,11 +241,13 @@ err:
   DBUG_RETURN(-1);
 }
 
+
 int st_select_lex_unit::exec()
 {
   DBUG_ENTER("st_select_lex_unit::exec");
   SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
   SELECT_LEX *select_cursor=first_select_in_union(), *last_select;
+  LINT_INIT(last_select);
 
   if (executed && !(dependent || uncacheable))
     DBUG_RETURN(0);
@@ -321,14 +323,9 @@ int st_select_lex_unit::exec()
   thd->lex.current_select = select_cursor;
   res =-1;
   {
-#if 0
-    List<Item_func_match> ftfunc_list;
-    ftfunc_list.empty();
-#else
     List<Item_func_match> empty_list;
     empty_list.empty();
     thd->lex.select_lex.ftfunc_list= &empty_list;
-#endif
 
     if (!thd->is_fatal_error)			// Check if EOM
     {
@@ -360,9 +357,8 @@ int st_select_lex_unit::exec()
 
 int st_select_lex_unit::cleanup()
 {
-  DBUG_ENTER("st_select_lex_unit::cleanup");
-
   int error= 0;
+  DBUG_ENTER("st_select_lex_unit::cleanup");
 
   if (union_result)
   {

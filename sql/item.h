@@ -527,7 +527,7 @@ public:
   enum Item_result result_type () const { return (*ref)->result_type(); }
   enum_field_types field_type() const   { return (*ref)->field_type(); }
   table_map used_tables() const		{ return (*ref)->used_tables(); }
-  void set_result_field(Field *field) { result_field= field; }
+  void set_result_field(Field *field)	{ result_field= field; }
   bool is_result_field() { return 1; }
   void save_in_result_field(bool no_conversions)
   {
