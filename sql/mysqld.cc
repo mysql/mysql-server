@@ -4005,6 +4005,7 @@ enum options_mysqld
   OPT_INNODB_STATUS_FILE,
   OPT_INNODB_MAX_DIRTY_PAGES_PCT,
   OPT_INNODB_OPEN_FILES,
+  OPT_INNODB_AUTOEXTEND_INCREMENT,
   OPT_BDB_CACHE_SIZE,
   OPT_BDB_LOG_BUFFER_SIZE,
   OPT_BDB_MAX_LOCK,
@@ -4752,6 +4753,11 @@ replicating a LOAD DATA INFILE command.",
    "How many files at the maximum InnoDB keeps open at the same time.",
    (gptr*) &innobase_open_files, (gptr*) &innobase_open_files, 0,
    GET_LONG, REQUIRED_ARG, 300L, 10L, ~0L, 0, 1L, 0},
+  {"innodb_autoextend_increment", OPT_INNODB_AUTOEXTEND_INCREMENT,
+   "Data file autoextend increment in megabytes",
+   (gptr*) &innobase_auto_extend_increment,
+   (gptr*) &innobase_auto_extend_increment,
+   0, GET_LONG, REQUIRED_ARG, 8L, 1L, ~0L, 0, 1L, 0},
 #ifdef HAVE_REPLICATION
   /*
     Disabled for the 4.1.3 release. Disabling just this paragraph of code is

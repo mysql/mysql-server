@@ -200,9 +200,9 @@ drop table t1;
 #
 create table t1 ( a int primary key, b varchar(30)) engine = MYISAM ;
 prepare stmt1 from ' show table status from test like ''t1%'' ';
---replace_column 12 # 13 # 14 #
+--replace_column 8 4294967295 12 # 13 # 14 #
 execute stmt1;
---replace_column 12 # 13 # 14 #
+--replace_column 8 4294967295 12 # 13 # 14 #
 show table status from test like 't1%' ;
 deallocate prepare stmt1 ;
 drop table t1;

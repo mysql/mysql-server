@@ -934,9 +934,6 @@ Item_in_subselect::row_value_transformer(JOIN *join)
   }
 
   select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
-  select_lex->setup_ref_array(thd,
-			      select_lex->order_list.elements +
-			      select_lex->group_list.elements);
   {
     uint n= left_expr->cols();
     List_iterator_fast<Item> li(select_lex->item_list);
