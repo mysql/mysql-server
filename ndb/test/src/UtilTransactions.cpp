@@ -352,6 +352,7 @@ UtilTransactions::clearTable3(Ndb* pNdb,
   NdbScanOperation *pOp;
   NdbError err;
 
+  int par = parallelism;
   while (true){
   restart:
     if (retryAttempt++ >= retryMax){
@@ -376,7 +377,7 @@ UtilTransactions::clearTable3(Ndb* pNdb,
       goto failed;
     }
     
-    NdbResultSet * rs = pOp->readTuplesExclusive(parallelism);
+    NdbResultSet * rs = pOp->readTuplesExclusive(par);
     if( rs == 0 ) {
       goto failed;
     }
@@ -411,16 +412,28 @@ UtilTransactions::clearTable3(Ndb* pNdb,
 	  ERR(err);
 	  pNdb->closeTransaction(pTrans);
 	  NdbSleep_MilliSleep(50);
+	  par = 1;
 	  goto restart;
 	}
 	goto failed;
       }
     }
+    if(check == -1){
+      err = pTrans->getNdbError();    
+      if(err.status == NdbError::TemporaryError){
+	ERR(err);
+	pNdb->closeTransaction(pTrans);
+	NdbSleep_MilliSleep(50);
+	par = 1;
+	goto restart;
+      }
+      goto failed;
+    }
     pNdb->closeTransaction(pTrans);
     return NDBT_OK;
   }
   return NDBT_FAILED;
-
+  
  failed:
   if(pTrans != 0) pNdb->closeTransaction(pTrans);
   ERR(err);

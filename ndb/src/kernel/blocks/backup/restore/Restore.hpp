@@ -89,9 +89,10 @@ struct AttributeDesc {
 public:
   
   AttributeDesc() {
-    name[0] = 0; 
+    name[0] = 0;
   } 
 
+  const TableS * m_table;
   Uint32 getSizeInWords() const { return (size * arraySize + 31)/ 32;}
 }; // AttributeDesc
 

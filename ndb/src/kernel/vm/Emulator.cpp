@@ -34,11 +34,14 @@
 #include <stdlib.h>
 #include <new>
 
-#ifdef NDB_WIN32
-#include <new.h>
-#include <process.h>
-#define execvp _execvp
-#define set_new_handler _set_new_handler
+extern "C" {
+  extern void (* ndb_new_handler)();
+}
+
+
+#if defined (NDB_LINUX) || defined (NDB_SOLARIS)
+#include <sys/types.h>
+#include <sys/wait.h>
 #endif
 
 /**
@@ -73,7 +76,7 @@ EmulatorData::EmulatorData(){
 }
 
 void
-ndb_new_handler(){
+ndb_new_handler_impl(){
   ERROR_SET(fatal, ERR_MEMALLOC, "New handler", "");
 }
 
@@ -88,11 +91,7 @@ EmulatorData::create(){
 
   theShutdownMutex = NdbMutex_Create();
 
-#ifdef NDB_WIN32
-  set_new_handler((_PNH)ndb_new_handler);
-#else
-  std::set_new_handler(ndb_new_handler);
-#endif
+  ndb_new_handler = ndb_new_handler_impl;
 }
 
 void
@@ -107,60 +106,6 @@ EmulatorData::destroy(){
     delete theSimBlockList; theSimBlockList = 0;
   
   NdbMem_Destroy();
-}
-
-void
-NdbRestart(char * programName,
-	   NdbRestartType type, char * connString){
-#if ! ( defined NDB_OSE || defined NDB_SOFTOSE) 
-  int argc = 2;
-  switch(type){
-  case NRT_NoStart_Restart:
-  case NRT_DoStart_InitialStart:
-    argc = 3;
-    break;
-  case NRT_NoStart_InitialStart:
-    argc = 4;
-    break;
-  case NRT_DoStart_Restart:
-  case NRT_Default:
-  default:
-    argc = 2;
-    break;
-  }
-
-  if(connString != 0){
-    argc += 2;
-  }
-  
-  char ** argv = new char * [argc];
-  argv[0] = programName;
-  argv[argc - 1] = 0;
-
-  switch(type){
-  case NRT_NoStart_Restart:
-    argv[1] = "-n";
-    break;
-  case NRT_DoStart_InitialStart:
-    argv[1] = "-i";
-    break;
-  case NRT_NoStart_InitialStart:
-    argv[1] = "-n";
-    argv[2] = "-i";
-    break;
-  case NRT_DoStart_Restart:
-  case NRT_Default:
-  default:
-    break;
-  }
-
-  if(connString != 0){
-    argv[argc-3] = "-c";
-    argv[argc-2] = connString;
-  }
-  
-  execvp(programName, argv);
-#endif
 }
 
 void
@@ -181,27 +126,12 @@ NdbShutdown(NdbShutdownType type,
     globalData.theRestartFlag = perform_stop;
 
     bool restart = false;
-    char * progName = 0;
-    char * connString = 0;
 #if ! ( defined NDB_OSE || defined NDB_SOFTOSE) 
     if((type != NST_Normal && 
 	globalEmulatorData.theConfiguration->stopOnError() == false) ||
        type == NST_Restart) {
       
       restart  = true;
-      progName = strdup(globalEmulatorData.theConfiguration->programName());
-      connString = globalEmulatorData.theConfiguration->getConnectStringCopy();
-      if(type != NST_Restart){
-	/**
-	 * If we crash before we started
-	 *
-	 * Do restart -n
-	 */
-	if(globalData.theStartLevel == NodeState::SL_STARTED)
-	  restartType = NRT_Default;
-	else
-	  restartType = NRT_NoStart_Restart;
-      }
     }
 #endif
     
@@ -238,21 +168,18 @@ NdbShutdown(NdbShutdownType type,
 #endif
     
     if(type == NST_Watchdog){
-      if(restart){
-	NdbRestart(progName, restartType, connString);
-      }
-      
       /**
-       * Very serious
+       * Very serious, don't attempt to free, just die!!
        */
       ndbout << "Watchdog shutdown completed - " << exitAbort << endl;
 #if defined VM_TRACE && ( ! ( defined NDB_OSE || defined NDB_SOFTOSE) )
+      signal(6, SIG_DFL);
       abort();
 #else
-      exit(1);
+      exit(-1);
 #endif
     }
-
+    
     globalEmulatorData.theWatchDog->doStop();
     
 #ifdef VM_TRACE
@@ -265,7 +192,7 @@ NdbShutdown(NdbShutdownType type,
     globalTransporterRegistry.stopReceiving();
     
     globalTransporterRegistry.removeAll();
-
+    
 #ifdef VM_TRACE
 #define UNLOAD (type != NST_ErrorHandler && type != NST_Watchdog)
 #else
@@ -274,61 +201,44 @@ NdbShutdown(NdbShutdownType type,
     if(UNLOAD){
       globalEmulatorData.theSimBlockList->unload();    
       globalEmulatorData.destroy();
-
     }
-
-    if(type != NST_Normal &&
-       type != NST_Restart){
-      if(restart){
-	NdbRestart(progName, restartType, connString);
-      }
-      
+    
+    if(type != NST_Normal && type != NST_Restart){
       ndbout << "Error handler shutdown completed - " << exitAbort << endl;
 #if defined VM_TRACE && ( ! ( defined NDB_OSE || defined NDB_SOFTOSE) )
+      signal(6, SIG_DFL);
       abort();
 #else
-      exit(1);
+      exit(-1);
 #endif
     }
     
     /**
-     * This is a normal restart
+     * This is a normal restart, depend on angel
      */
     if(type == NST_Restart){
-      if(restart){
-	NdbRestart(progName, restartType, connString);
-      }
-      /**
-       * What to do if in restart mode, but being unable to do it...
-       */
-#if defined VM_TRACE && ( ! ( defined NDB_OSE || defined NDB_SOFTOSE) )
-      abort();
-#else
-      exit(1);
-#endif
+      exit(restartType);
     }
-
-    /**
-     * This is normal shutdown
-     */
+    
     ndbout << "Shutdown completed - exiting" << endl;
   } else {
     /**
      * Shutdown is already in progress
      */
-
+    
     /** 
      * If this is the watchdog, kill system the hard way
      */
     if (type== NST_Watchdog){
       ndbout << "Watchdog is killing system the hard way" << endl;
 #if defined VM_TRACE && ( ! ( defined NDB_OSE || defined NDB_SOFTOSE) )
+      signal(6, SIG_DFL);
       abort();
 #else
-      exit(1);
+      exit(-1);
 #endif
     }
-      
+    
     while(true)
       NdbSleep_MilliSleep(10);
   }

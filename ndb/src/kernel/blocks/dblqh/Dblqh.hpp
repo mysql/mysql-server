@@ -20,6 +20,8 @@
 #include <pc.hpp>
 #include <ndb_limits.h>
 #include <SimulatedBlock.hpp>
+#include <DLList.hpp>
+#include <DLFifoList.hpp>
 #include <DLHashTable.hpp>
 
 #include <NodeBitmask.hpp>
@@ -505,6 +507,79 @@ public:
   }; // size 20 bytes
   typedef Ptr<Databuf> DatabufPtr;
 
+  struct ScanRecord {
+    enum ScanState {
+      SCAN_FREE = 0,
+      WAIT_STORED_PROC_COPY = 1,
+      WAIT_STORED_PROC_SCAN = 2,
+      WAIT_NEXT_SCAN_COPY = 3,
+      WAIT_NEXT_SCAN = 4,
+      WAIT_DELETE_STORED_PROC_ID_SCAN = 5,
+      WAIT_DELETE_STORED_PROC_ID_COPY = 6,
+      WAIT_ACC_COPY = 7,
+      WAIT_ACC_SCAN = 8,
+      WAIT_SCAN_KEYINFO = 9,
+      WAIT_SCAN_NEXTREQ = 10,
+      WAIT_COPY_KEYINFO = 11,
+      WAIT_CLOSE_SCAN = 12,
+      WAIT_CLOSE_COPY = 13,
+      WAIT_RELEASE_LOCK = 14,
+      WAIT_TUPKEY_COPY = 15,
+      WAIT_LQHKEY_COPY = 16,
+      IN_QUEUE = 17
+    };
+    enum ScanType {
+      ST_IDLE = 0,
+      SCAN = 1,
+      COPY = 2
+    };
+    UintR scanAccOpPtr[MAX_PARALLEL_OP_PER_SCAN];
+    UintR scanApiOpPtr[MAX_PARALLEL_OP_PER_SCAN];
+    UintR scanOpLength[MAX_PARALLEL_OP_PER_SCAN];
+    UintR scanLocalref[2];
+    UintR copyPtr;
+    union {
+      Uint32 nextPool;
+      Uint32 nextList;
+    };
+    Uint32 prevList;
+    Uint32 nextHash;
+    Uint32 prevHash;
+    bool equal(const ScanRecord & key) const {
+      return scanNumber == key.scanNumber && fragPtrI == key.fragPtrI;
+    }
+    Uint32 hashValue() const {
+      return fragPtrI ^ scanNumber;
+    }
+    
+    UintR scanAccPtr;
+    UintR scanAiLength;
+    UintR scanCompletedOperations;
+    UintR scanConcurrentOperations;
+    UintR scanErrorCounter;
+    UintR scanLocalFragid;
+    UintR scanSchemaVersion;
+    Uint32 fragPtrI;
+    UintR scanSearchCondFalseCount;
+    UintR scanStoredProcId;
+    ScanState scanState;
+    UintR scanTcrec;
+    ScanType scanType;
+    BlockReference scanApiBlockref;
+    NodeId scanNodeId;
+    Uint8 scanCompletedStatus;
+    Uint8 scanFlag;
+    Uint8 scanLockHold;
+    Uint8 scanLockMode;
+    Uint8 readCommitted;
+    Uint8 rangeScan;
+    Uint8 scanNumber;
+    Uint8 scanReleaseCounter;
+    Uint8 scanTcWaiting;
+    Uint8 scanKeyinfoFlag;
+  }; // Size 272 bytes
+  typedef Ptr<ScanRecord> ScanRecordPtr;
+
   struct Fragrecord {
     enum ExecSrStatus {
       IDLE = 0,
@@ -627,7 +702,11 @@ public:
      *       fragment operations on the fragment. 
      *       A maximum of four concurrently active is allowed.
      */
-    Uint16 fragScanRec[MAX_PARALLEL_SCANS_PER_FRAG + MAX_PARALLEL_INDEX_SCANS_PER_FRAG];
+    typedef Bitmask<4> ScanNumberMask;
+    ScanNumberMask m_scanNumberMask;
+    DLList<ScanRecord>::Head m_activeScans;
+    DLFifoList<ScanRecord>::Head m_queuedScans;
+
     Uint16 srLqhLognode[4];
     /**
      *       The fragment pointers in TUP and TUX
@@ -799,12 +878,7 @@ public:
      *       should perform.
      */
     Uint8 nextLcp;
-    /**
-     *       The number of active scans currently in the fragment
-     *       replica.
-     */
-    Uint8 noActiveScan;
-    /**
+   /**
      *       How many local checkpoints does the fragment contain
      */
     Uint8 srChkpnr;
@@ -1774,64 +1848,6 @@ public:
   }; // size 44 bytes
   typedef Ptr<PageRefRecord> PageRefRecordPtr;
 
-  struct ScanRecord {
-    enum ScanState {
-      SCAN_FREE = 0,
-      WAIT_STORED_PROC_COPY = 1,
-      WAIT_STORED_PROC_SCAN = 2,
-      WAIT_NEXT_SCAN_COPY = 3,
-      WAIT_NEXT_SCAN = 4,
-      WAIT_DELETE_STORED_PROC_ID_SCAN = 5,
-      WAIT_DELETE_STORED_PROC_ID_COPY = 6,
-      WAIT_ACC_COPY = 7,
-      WAIT_ACC_SCAN = 8,
-      WAIT_SCAN_KEYINFO = 9,
-      WAIT_SCAN_NEXTREQ = 10,
-      WAIT_COPY_KEYINFO = 11,
-      WAIT_CLOSE_SCAN = 12,
-      WAIT_CLOSE_COPY = 13,
-      WAIT_RELEASE_LOCK = 14,
-      WAIT_TUPKEY_COPY = 15,
-      WAIT_LQHKEY_COPY = 16
-    };
-    enum ScanType {
-      ST_IDLE = 0,
-      SCAN = 1,
-      COPY = 2
-    };
-    UintR scanAccOpPtr[MAX_PARALLEL_OP_PER_SCAN];
-    UintR scanApiOpPtr[MAX_PARALLEL_OP_PER_SCAN];
-    UintR scanOpLength[MAX_PARALLEL_OP_PER_SCAN];
-    UintR scanLocalref[2];
-    UintR copyPtr;
-    UintR nextScanrec;
-    UintR scanAccPtr;
-    UintR scanAiLength;
-    UintR scanCompletedOperations;
-    UintR scanConcurrentOperations;
-    UintR scanErrorCounter;
-    UintR scanLocalFragid;
-    UintR scanSchemaVersion;
-    UintR scanSearchCondFalseCount;
-    UintR scanStoredProcId;
-    ScanState scanState;
-    UintR scanTcrec;
-    ScanType scanType;
-    BlockReference scanApiBlockref;
-    NodeId scanNodeId;
-    Uint8 scanCompletedStatus;
-    Uint8 scanFlag;
-    Uint8 scanLockHold;
-    Uint8 scanLockMode;
-    Uint8 readCommitted;
-    Uint8 rangeScan;
-    Uint8 scanNumber;
-    Uint8 scanReleaseCounter;
-    Uint8 scanTcWaiting;
-    Uint8 scanKeyinfoFlag;
-  }; // Size 272 bytes
-  typedef Ptr<ScanRecord> ScanRecordPtr;
-
   struct Tablerec {
     enum TableStatus {
       TABLE_DEFINED = 0,
@@ -2644,11 +2660,10 @@ private:
   UintR cpageRefFileSize;
 
 #define ZSCANREC_FILE_SIZE 100
-  ScanRecord *scanRecord;
+  ArrayPool<ScanRecord> c_scanRecordPool;
   ScanRecordPtr scanptr;
-  UintR cfirstfreeScanrec;
-  UintR cscanrecFileSize;
   UintR cscanNoFreeRec;
+  Uint32 cscanrecFileSize;
 
 // Configurable
   Tablerec *tablerec;
@@ -2893,7 +2908,7 @@ public:
     return getNodeState().startLevel < NodeState::SL_STOPPING_3;
   }
 
-
+  DLHashTable<ScanRecord> c_scanTakeOverHash;
 };
 
 #endif

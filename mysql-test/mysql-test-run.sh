@@ -281,6 +281,7 @@ while test $# -gt 0; do
     --skip-rpl) NO_SLAVE=1 ;;
     --skip-test=*) SKIP_TEST=`$ECHO "$1" | $SED -e "s;--skip-test=;;"`;;
     --do-test=*) DO_TEST=`$ECHO "$1" | $SED -e "s;--do-test=;;"`;;
+    --start-from=* ) START_FROM=`$ECHO "$1" | $SED -e "s;--start-from=;;"` ;;
     --warnings | --log-warnings)
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --log-warnings"
      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --log-warnings"
@@ -1207,31 +1208,31 @@ run_testcase ()
  echo $tname > $CURRENT_TEST
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
  if [ "$USE_MANAGER" = 1 ] ; then
-  many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
+   many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
+ fi
+ if $EXPR "$tname" '<' "$START_FROM" > /dev/null ; then
+   #skip_test $tname
+   return
  fi
 
- if [ -n "$SKIP_TEST" ] ; then
-   SKIP_THIS_TEST=`$EXPR \( $tname : "$SKIP_TEST" \) != 0`
-   if [ x$SKIP_THIS_TEST = x1 ] ;
-   then
-     skip_test $tname;
-     return;
+ if [ "$SKIP_TEST" ] ; then
+   if $EXPR \( "$tname" : "$SKIP_TEST" \) > /dev/null ; then
+     skip_test $tname
+     return
    fi
-  fi
+ fi
 
- if [ -n "$DO_TEST" ] ; then
-   DO_THIS_TEST=`$EXPR \( $tname : "$DO_TEST" \) != 0`
-   if [ x$DO_THIS_TEST = x0 ] ;
-   then
-     skip_test $tname;
-     return;
+ if [ "$DO_TEST" ] ; then
+   if $EXPR \( "$tname" : "$DO_TEST" \) > /dev/null ; then
+     : #empty command to keep some shells happy
+   else
+     #skip_test $tname
+     return
    fi
-  fi
+ fi
 
-
- if [ x${NO_SLAVE}x$SKIP_SLAVE = x1x0 ] ;
- then
-   skip_test $tname;
+ if [ x${NO_SLAVE}x$SKIP_SLAVE = x1x0 ] ; then
+   skip_test $tname
    return
  fi
 

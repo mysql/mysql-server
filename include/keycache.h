@@ -57,7 +57,8 @@ typedef struct st_key_cache
   int hash_links;                /* max number of hash links                 */
   int hash_links_used;           /* number of hash links currently used      */
   int disk_blocks;               /* max number of blocks in the cache        */
-  ulong blocks_used;             /* number of currently used blocks          */
+  ulong blocks_used; /* maximum number of concurrently used blocks */
+  ulong blocks_unused; /* number of currently unused blocks */
   ulong blocks_changed;          /* number of currently dirty blocks         */
   ulong warm_blocks;             /* number of blocks in warm sub-chain       */
   ulong cnt_for_resize_op;       /* counter to block resize operation        */
@@ -65,6 +66,7 @@ typedef struct st_key_cache
   HASH_LINK **hash_root;         /* arr. of entries into hash table buckets  */
   HASH_LINK *hash_link_root;     /* memory for hash table links              */
   HASH_LINK *free_hash_list;     /* list of free hash links                  */
+  BLOCK_LINK *free_block_list; /* list of free blocks */
   BLOCK_LINK *block_root;        /* memory for block links                   */
   byte HUGE_PTR *block_mem;      /* memory for block buffers                 */
   BLOCK_LINK *used_last;         /* ptr to the last block of the LRU chain   */
@@ -87,7 +89,6 @@ typedef struct st_key_cache
   ulong param_age_threshold;    /* determines when hot block is downgraded  */
 
   /* Statistics variables */
-  ulong global_blocks_used;	/* number of currently used blocks          */
   ulong global_blocks_changed;	/* number of currently dirty blocks         */
   ulong global_cache_w_requests;/* number of write requests (write hits)    */
   ulong global_cache_write;     /* number of writes from the cache to files */
