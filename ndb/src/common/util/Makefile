@@ -8,7 +8,7 @@ ARCHIVE_TARGET := general
 SOURCES   = File.cpp md5_hash.cpp Properties.cpp socket_io.cpp \
             SimpleProperties.cpp Parser.cpp InputStream.cpp SocketServer.cpp \
 	    OutputStream.cpp NdbOut.cpp BaseString.cpp Base64.cpp \
-	    NdbSqlUtil.cpp
+	    NdbSqlUtil.cpp new.cpp
 
 SOURCES.c = uucode.c random.c getarg.c version.c
 

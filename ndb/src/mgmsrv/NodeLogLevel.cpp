@@ -40,6 +40,7 @@ NodeLogLevel::getCategory() const
   {
     return m_logLevel.theCategories[i];
   }
+  return 0;
 }
 
 int 
@@ -49,6 +50,7 @@ NodeLogLevel::getLevel() const
   {
     return m_logLevel.theLevels[i];
   }
+  return 0;
 }
 
 void

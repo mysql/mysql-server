@@ -266,7 +266,6 @@ ErrorBundle ErrorCodes[] = {
   { 707,  SE, "No more table metadata records" },  
   { 708,  SE, "No more attribute metadata records" },
   { 709,  SE, "No such table existed" },
-  { 720,  SE, "Attribute name reused in table definition" },
   { 721,  SE, "Table or index with given name already exists" },
   { 723,  SE, "No such table existed" },
   { 736,  SE, "Wrong attribute size" },
@@ -293,6 +292,7 @@ ErrorBundle ErrorCodes[] = {
   /**
    * Still uncategorized
    */
+  { 720,  AE, "Attribute name reused in table definition" },
   { 4004, AE, "Attribute name not found in the Table" },
   
   { 4100, AE, "Status Error in NDB" },

@@ -2021,6 +2021,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 
 #endif /* HAVE_OPENSSL */
       case SHOW_KEY_CACHE_LONG:
+      case SHOW_KEY_CACHE_CONST_LONG:
 	value= (value-(char*) &dflt_key_cache_var)+ (char*) sql_key_cache;
 	end= int10_to_str(*(long*) value, buff, 10);
         break;

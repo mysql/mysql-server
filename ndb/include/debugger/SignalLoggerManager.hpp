@@ -111,6 +111,9 @@ public:
   void setTrace(unsigned long trace);   
   unsigned long getTrace() const;
 
+  void setOwnNodeId(int nodeId);
+  void setLogDistributed(bool val);
+
   /**
    * Print header
    */
@@ -149,6 +152,9 @@ public:
   static void printDataWord(FILE * output, Uint32 & pos, const Uint32 data);
 
 private:
+  bool m_logDistributed;
+  int m_ownNodeId;
+
   FILE * outputStream;
   int log(int cmd, BlockNumber bno, LogMode logMode);
   

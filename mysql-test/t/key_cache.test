@@ -66,6 +66,10 @@ set global keycache1.key_buffer_size=1024*1024;
 create table t1 (p int primary key, a char(10)) delay_key_write=1;
 create table t2 (p int primary key, i int, a char(10), key k1(i), key k2(a));
 
+show status like 'key_blocks_used';
+show status like 'The below may fail on 64-bit systems (ingo)';
+show status like 'key_blocks_unused'; # This may fail on 64-bit systems (ingo)
+
 insert into t1 values (1, 'qqqq'), (11, 'yyyy');
 insert into t2 values (1, 1, 'qqqq'), (2, 1, 'pppp'),
                       (3, 1, 'yyyy'), (4, 3, 'zzzz');
@@ -74,6 +78,10 @@ select * from t2;
 
 update t1 set p=2 where p=1;
 update t2 set i=2 where i=1;
+
+show status like 'key_blocks_used';
+show status like 'The below may fail on 64-bit systems (ingo)';
+show status like 'key_blocks_unused'; # This may fail on 64-bit systems (ingo)
 
 cache index t1 key (`primary`) in keycache1;
 
@@ -132,6 +140,10 @@ insert into t3 select * from t1;
 cache index t3 in keycache2;
 cache index t1,t2 in default;
 drop table t1,t2,t3;
+
+show status like 'key_blocks_used';
+show status like 'The below may fail on 64-bit systems (ingo)';
+show status like 'key_blocks_unused'; # This may fail on 64-bit systems (ingo)
 
 # Cleanup
 # We don't reset keycache2 as we want to ensure that mysqld will reset it

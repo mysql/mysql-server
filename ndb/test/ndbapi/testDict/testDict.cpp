@@ -564,7 +564,7 @@ int runTestFragmentTypes(NDBT_Context* ctx, NDBT_Step* step){
     goto drop_the_tab;
   }
   
-  if (pTab->equal(*pTab3) == false){
+  if (newTab.equal(*pTab3) == false){
     ndbout << "It was not equal" << endl;
     result = NDBT_FAILED;
     goto drop_the_tab;

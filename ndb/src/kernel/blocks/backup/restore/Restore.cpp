@@ -938,6 +938,7 @@ void TableS::createAttr(const char* name,
     ndbout_c("Restore: Failed to allocate memory");
     abort();
   }
+  d->m_table = this;
   allAttributesDesc.push_back(d);
 
   if(desc.key != NoKey /* && not variable */){
