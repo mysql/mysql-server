@@ -8,6 +8,7 @@ Created 10/21/1995 Heikki Tuuri
 
 #include "os0file.h"
 #include "os0sync.h"
+#include "os0thread.h"
 #include "ut0mem.h"
 #include "srv0srv.h"
 #include "fil0fil.h"
@@ -1136,12 +1137,14 @@ retry:
 		return(TRUE);
 	}
 
-	/* If InnoDB Hot Backup is running, then, at least in Windows 2000,
-	we may get here a specific error. Let us retry the operation 10
-	times. */
+	/* If some background file system backup tool is running, then, at
+	least in Windows 2000, we may get here a specific error. Let us
+	retry the operation 100 times, with 1 second waits. */
 	
-	if (GetLastError() == ERROR_LOCK_VIOLATION && n_retries < 10) {
+	if (GetLastError() == ERROR_LOCK_VIOLATION && n_retries < 100) {
 
+		os_thread_sleep(1000000);
+	
 		n_retries++;
 
 		goto retry;
