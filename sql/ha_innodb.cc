@@ -5717,7 +5717,12 @@ ha_innobase::store_lock(
 		MySQL is doing LOCK TABLES ... READ.
 		5) we let InnoDB do locking reads for all SQL statements that
 		are not simple SELECTs; note that select_lock_type in this
-		case may get strengthened in ::external_lock() to LOCK_X. */
+		case may get strengthened in ::external_lock() to LOCK_X.
+		Note that we MUST use a locking read in all data modifying
+		SQL statements, because otherwise the execution would not be
+		serializable, and also the results from the update could be
+		unexpected if an obsolete consistent read view would be
+		used. */
 
 		prebuilt->select_lock_type = LOCK_S;
 		prebuilt->stored_select_lock_type = LOCK_S;
