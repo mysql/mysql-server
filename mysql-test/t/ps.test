@@ -458,3 +458,17 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
+# 
+# Bug#6297 "prepared statement, wrong handling of <parameter> IS NULL"
+# Test that placeholders work with IS NULL/IS NOT NULL clauses. 
+#
+prepare stmt from "select ? is null, ? is not null, ?";
+select @no_such_var is null, @no_such_var is not null, @no_such_var;
+execute stmt using @no_such_var, @no_such_var, @no_such_var;
+set @var='abc';
+select @var is null, @var is not null, @var;
+execute stmt using @var, @var, @var;
+set @var=null;
+select @var is null, @var is not null, @var;
+execute stmt using @var, @var, @var;
+

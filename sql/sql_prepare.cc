@@ -349,12 +349,6 @@ static void set_param_time(Item_param *param, uchar **pos, ulong len)
 
     tm.neg= (bool) to[0];
     day= (uint) sint4korr(to+1);
-    /*
-      Note, that though ranges of hour, minute and second are not checked
-      here we rely on them being < 256: otherwise
-      we'll get buffer overflow in make_{date,time} functions,
-      which are called when time value is converted to string.
-    */
     tm.hour=   (uint) to[5] + day * 24;
     tm.minute= (uint) to[6];
     tm.second= (uint) to[7];
@@ -369,7 +363,7 @@ static void set_param_time(Item_param *param, uchar **pos, ulong len)
     tm.day= tm.year= tm.month= 0;
   }
   else
-    set_zero_time(&tm);
+    set_zero_time(&tm, MYSQL_TIMESTAMP_TIME);
   param->set_time(&tm, MYSQL_TIMESTAMP_TIME,
                   MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   *pos+= length;
@@ -388,11 +382,6 @@ static void set_param_datetime(Item_param *param, uchar **pos, ulong len)
     tm.year=   (uint) sint2korr(to);
     tm.month=  (uint) to[2];
     tm.day=    (uint) to[3];
-    /*
-      Note, that though ranges of hour, minute and second are not checked
-      here we rely on them being < 256: otherwise
-      we'll get buffer overflow in make_{date,time} functions.
-    */
     if (length > 4)
     {
       tm.hour=   (uint) to[4];
@@ -405,7 +394,7 @@ static void set_param_datetime(Item_param *param, uchar **pos, ulong len)
     tm.second_part= (length > 7) ? (ulong) sint4korr(to+7) : 0;
   }
   else
-    set_zero_time(&tm);
+    set_zero_time(&tm, MYSQL_TIMESTAMP_DATETIME);
   param->set_time(&tm, MYSQL_TIMESTAMP_DATETIME,
                   MAX_DATETIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   *pos+= length;
@@ -419,11 +408,7 @@ static void set_param_date(Item_param *param, uchar **pos, ulong len)
   if (length >= 4)
   {
     uchar *to= *pos;
-    /*
-      Note, that though ranges of hour, minute and second are not checked
-      here we rely on them being < 256: otherwise
-      we'll get buffer overflow in make_{date,time} functions.
-    */
+
     tm.year=  (uint) sint2korr(to);
     tm.month=  (uint) to[2];
     tm.day= (uint) to[3];
@@ -433,7 +418,7 @@ static void set_param_date(Item_param *param, uchar **pos, ulong len)
     tm.neg= 0;
   }
   else
-    set_zero_time(&tm);
+    set_zero_time(&tm, MYSQL_TIMESTAMP_DATE);
   param->set_time(&tm, MYSQL_TIMESTAMP_DATE,
                   MAX_DATE_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   *pos+= length;
