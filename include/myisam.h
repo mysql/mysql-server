@@ -354,15 +354,15 @@ typedef struct st_mi_check_param
 
 typedef struct st_sort_info
 {
-  MI_INFO *info;
-  MI_CHECK *param;
-  enum data_file_type new_data_file_type;
-  SORT_KEY_BLOCKS *key_block,*key_block_end;
-  uint current_key, total_keys;
   my_off_t filelength,dupp,buff_length;
   ha_rows max_records;
-  char *buff;
+  uint current_key, total_keys;
   myf myf_rw;
+  enum data_file_type new_data_file_type;
+  MI_INFO *info;
+  MI_CHECK *param;
+  char *buff;
+  SORT_KEY_BLOCKS *key_block,*key_block_end;
   /* sync things*/
   uint got_error, threads_running;
   pthread_mutex_t mutex;
@@ -373,20 +373,19 @@ typedef struct st_sort_info
 typedef struct st_mi_sort_param
 {
   pthread_t  thr;
-  IO_CACHE read_cache;
+  IO_CACHE read_cache, tempfile, tempfile_for_exceptions;
+  DYNAMIC_ARRAY buffpek;
   ulonglong unique[MI_MAX_KEY_SEG+1];
+  my_off_t pos,max_pos,filepos,start_recpos;
   uint key, key_length,real_key_length,sortbuff_size;
   uint maxbuffers, keys, find_length, sort_keys_length;
-  uchar **sort_keys;
-  byte *rec_buff;
   uint alloced_rec_buff_length;
-  void *wordlist, *wordptr;
+  my_bool fix_datafile, master;
   MI_KEYDEF *keyinfo;
   SORT_INFO *sort_info;
-  IO_CACHE tempfile, tempfile_for_exceptions;
-  DYNAMIC_ARRAY buffpek;
-  my_off_t pos,max_pos,filepos,start_recpos;
-  my_bool fix_datafile, master;
+  uchar **sort_keys;
+  byte *rec_buff;
+  void *wordlist, *wordptr;
   char *record;
   char *tmpdir;
   int (*key_cmp)(struct st_mi_sort_param *, const void *, const void *);
