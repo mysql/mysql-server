@@ -867,6 +867,10 @@ if ($server->small_rollback_segment())
 
 if ($limits->{'insert_select'})
 {
+  if ($opt_lock_tables)
+  {
+    $sth = $dbh->do("UNLOCK TABLES") || die $DBI::errstr;
+  }
   print "\nTesting INSERT INTO ... SELECT\n";
   do_many($dbh,$server->create("bench2",
 			       ["id int NOT NULL",
@@ -910,6 +914,10 @@ if ($limits->{'insert_select'})
   {
     $dbh->disconnect;				# close connection
     $dbh = $server->connect();
+  }
+  if ($opt_lock_tables)
+  {
+    $sth = $dbh->do("LOCK TABLES bench1 WRITE") || die $DBI::errstr;
   }
 }
 
