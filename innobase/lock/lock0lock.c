@@ -365,6 +365,21 @@ lock_deadlock_recursive(
 	ulint*	cost);		/* in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
 				we return TRUE */
+
+/*************************************************************************
+Gets the type of a lock. */
+UNIV_INLINE
+ulint
+lock_get_type(
+/*==========*/
+			/* out: LOCK_TABLE or LOCK_REC */
+	lock_t*	lock)	/* in: lock */
+{
+	ut_ad(lock);
+
+	return(lock->type_mode & LOCK_TYPE_MASK);
+}
+
 /*************************************************************************
 Gets the nth bit of a record lock. */
 UNIV_INLINE
@@ -566,20 +581,6 @@ lock_get_mode(
 	ut_ad(lock);
 
 	return(lock->type_mode & LOCK_MODE_MASK);
-}
-
-/*************************************************************************
-Gets the type of a lock. */
-UNIV_INLINE
-ulint
-lock_get_type(
-/*==========*/
-			/* out: LOCK_TABLE or LOCK_REC */
-	lock_t*	lock)	/* in: lock */
-{
-	ut_ad(lock);
-
-	return(lock->type_mode & LOCK_TYPE_MASK);
 }
 
 /*************************************************************************
