@@ -203,7 +203,8 @@ ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
       thread_stack_min,net_wait_timeout,what_to_log= ~ (1L << (uint) COM_TIME),
       query_buff_size, lower_case_table_names, mysqld_net_retry_count,
       net_interactive_timeout, slow_launch_time = 2L,
-      net_read_timeout,net_write_timeout,slave_open_temp_tables=0;
+      net_read_timeout,net_write_timeout,slave_open_temp_tables=0,
+      open_files_limit=0;
 ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
 volatile ulong cached_thread_count=0;
 
@@ -1461,8 +1462,10 @@ int main(int argc, char **argv)
   {
     uint wanted_files=10+(uint) max(max_connections*5,
 				    max_connections+table_cache_size*2);
+    set_if_bigger(wanted_files, open_files_limit);
+    // Note that some system returns 0 if we succeed here:
     uint files=set_maximum_open_files(wanted_files);
-    if (files && files < wanted_files)		// Some systems return 0
+    if (files && files < wanted_files && ! open_files_limit)
     {
       max_connections=	(ulong) min((files-10),max_connections);
       table_cache_size= (ulong) max((files-10-max_connections)/2,64);
@@ -2225,7 +2228,7 @@ enum options {
                OPT_BDB_HOME,             OPT_BDB_LOG,  
                OPT_BDB_TMP,              OPT_BDB_NOSYNC,
                OPT_BDB_LOCK,             OPT_BDB_SKIP, 
-               OPT_BDB_RECOVER,		 OPT_BDB_SHARED,
+               OPT_BDB_NO_RECOVER,	 OPT_BDB_SHARED,
 	       OPT_MASTER_HOST,  
                OPT_MASTER_USER,          OPT_MASTER_PASSWORD,
                OPT_MASTER_PORT,          OPT_MASTER_INFO_FILE,
@@ -2252,7 +2255,7 @@ static struct option long_options[] = {
   {"bdb-home",              required_argument, 0, (int) OPT_BDB_HOME},
   {"bdb-lock-detect",       required_argument, 0, (int) OPT_BDB_LOCK},
   {"bdb-logdir",            required_argument, 0, (int) OPT_BDB_LOG},
-  {"bdb-recover",           no_argument,       0, (int) OPT_BDB_RECOVER},
+  {"bdb-no-recover",        no_argument,       0, (int) OPT_BDB_NO_RECOVER},
   {"bdb-no-sync",           no_argument,       0, (int) OPT_BDB_NOSYNC},
   {"bdb-shared-data",       no_argument,       0, (int) OPT_BDB_SHARED},
   {"bdb-tmpdir",            required_argument, 0, (int) OPT_BDB_TMP},
@@ -2463,6 +2466,8 @@ CHANGEABLE_VAR changeable_vars[] = {
       NET_READ_TIMEOUT, 1, 65535, 0, 1 },
   { "net_write_timeout",       (long*) &net_write_timeout,
       NET_WRITE_TIMEOUT, 1, 65535, 0, 1 },
+  { "open_files_limit",        (long*) &open_files_limit,
+      0, 0, 65535, 0, 1},
   { "query_buffer_size",       (long*) &query_buff_size,
       0, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD, IO_SIZE },
   { "record_buffer",           (long*) &my_default_record_cache_size,
@@ -2543,6 +2548,7 @@ struct show_var_st init_vars[]= {
   {"net_read_timeout",        (char*) &net_read_timeout,	    SHOW_LONG},
   {"net_retry_count",         (char*) &mysqld_net_retry_count,      SHOW_LONG},
   {"net_write_timeout",       (char*) &net_write_timeout,	    SHOW_LONG},
+  {"open_files_limit",	      (char*) &open_files_limit,	    SHOW_LONG},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"port",                    (char*) &mysql_port,                  SHOW_INT},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
@@ -2744,7 +2750,7 @@ static void usage(void)
                           (DEFAULT, OLDEST, RANDOM or YOUNGEST, # sec)\n\
   --bdb-logdir=directory  Berkeley DB log file directory\n\
   --bdb-no-sync		  Don't synchronously flush logs\n\
-  --bdb-recover		  Start Berkeley DB in recover mode\n\
+  --bdb-no-recover	  Don't try to recover Berkeley DB tables on start\n\
   --bdb-shared-data	  Start Berkeley DB in multi-process mode\n\
   --bdb-tmpdir=directory  Berkeley DB tempfile name\n\
   --skip-bdb		  Don't use berkeley db (will save memory)\n\
@@ -3233,10 +3239,10 @@ static void get_options(int argc,char **argv)
       berkeley_home=optarg;
       break;
     case OPT_BDB_NOSYNC:
-      berkeley_init_flags|=DB_TXN_NOSYNC;
+      berkeley_env_flags|=DB_TXN_NOSYNC;
       break;
-    case OPT_BDB_RECOVER:
-      berkeley_init_flags|=DB_RECOVER;
+    case OPT_BDB_NO_RECOVER:
+      berkeley_init_flags&= ~(DB_RECOVER);
       break;
     case OPT_BDB_TMP:
       berkeley_tmpdir=optarg;

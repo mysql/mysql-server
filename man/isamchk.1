@@ -1,0 +1,140 @@
+.TH ISAMCHK 1 "19 December 2000"
+.SH NAME
+.BR isamchk
+ \- Description, check and repair of ISAM tables.
+Used without options all tables on the command will be checked for errors
+.SH USAGE
+isamchk [OPTIONS] tables[.ISM]
+.SH SYNOPSIS
+.B isamchk
+.RB [  \-a | \-\-analyze ]
+.RB [  \-# | \-\-debug=...  ]
+.RB [  \-\-character\-sets\-dir=...]
+.RB [  \-C | \-\-default\-character\-set=...]
+.RB [  \-d | \-\-description  ]
+.RB [  \-e | \-\-extend\-check  ]
+.RB [  \-f | \-\-force  ]      
+.RB [  \-? | \-\-help       ]   
+.RB [  \-i | \-\-information  ]
+.RB [  \-k | \-\-keys\-used=#   ]
+.RB [  \-l | \-\-no\-symlinks]   
+.RB [  \-q | \-\-quick      ]  
+.RB [  \-r | \-\-recover       ]
+.RB [  \-o | \-\-safe\-recover  ]
+.RB [  \-O | "\-\-set\-variable var=option"]
+.RB [  \-s | \-\-silent ]      
+.RB [  \-S | \-\-sort\-index    ]
+.RB [  \-R | \-\-sort\-records=#]
+.RB [  \-u | \-\-unpack       ]
+.RB [  \-v | \-\-verbose  ]    
+.RB [  \-V | \-\-version ]    
+.RB [  \-w | \-\-wait ]         
+.SH DESCRIPTION
+.TP
+.BR  \-a | \-\-analyze
+Analyze distribution of keys. Will make some joins in
+MySQL faster.
+.TP 
+.BR  \-# | \-\-debug=...
+Output debug log. Often this is 'd:t:o ,filename`
+.TP 
+.BR \-\-character\-sets\-dir=...
+Directory where character sets are
+.TP 
+.BR  \-C | \-\-default\-character\-set=...
+Set the default character set
+.TP 
+.BR    \-d | \-\-description
+Prints some information about table.
+.TP 
+.BR    \-e | \-\-extend\-check
+Check the table VERY thoroughly.  One need use this
+only in extreme cases as isamchk should normally find
+all errors even without this switch
+.TP 
+.BR    \-f | \-\-force
+Overwrite old temporary files.
+If one uses \-f when checking tables (running isamchk
+without \-r), isamchk will automatically restart with
+\-r on any wrong table.
+.TP 
+.BR    \-? | \-\-help
+Display help and exit.
+.TP 
+.BR    \-i | \-\-information
+Print statistics information about the table
+.TP 
+.BR    \-k | \-\-keys\-used=#   
+Used with '\-r'. Tell ISAM to update only the first
+# keys.  This can be used to get faster inserts!
+.TP 
+.BR    \-l | \-\-no\-symlinks   
+Do not follow symbolic links when repairing. Normally
+isamchk repairs the table a symlink points at.
+.TP 
+.BR    \-q | \-\-quick
+Used with \-r to get a faster repair. (The data file
+isn't touched.) One can give a second '\-q' to force
+isamchk to modify the original datafile.
+.TP 
+.BR    \-r | \-\-recover
+Can fix almost anything except unique keys that aren't
+unique.
+.TP 
+.BR    \-o | \-\-safe\-recover  
+Uses old recovery method; slower than '\-r' but can
+handle a couple of cases that '\-r' cannot handle.
+.TP 
+.BR    \-O | " \-\-set\-variable var=option "
+Change the value of a variable.
+.TP 
+.BR    \-s | \-\-silent
+Only print errors.  One can use two \-s to make isamchk
+very silent
+.TP 
+.BR    \-S | \-\-sort\-index
+Sort index blocks.  This speeds up 'read\-next' in
+applications
+.TP 
+.BR    \-R | \-\-sort\-records=#
+Sort records according to an index.  This makes your
+data much more localized and may speed up things
+(It may be VERY slow to do a sort the first time!)
+.TP 
+.BR    \-u | \-\-unpack
+Unpack file packed with pack_isam.
+.TP 
+.BR    \-v | \-\-verbose
+Print more information. This can be used with
+\-d and \-e. Use many \-v for more verbosity!
+.TP 
+.BR    \-V | \-\-version
+Print version and exit.
+.TP 
+.BR    \-w | \-\-wait
+Wait if table is locked.
+.SH "SEE ALSO"
+isamchk (1),
+isamlog (1),
+mysqlaccess (1),
+mysqladmin (1),
+mysqlbug (1),
+mysqld (1),
+mysqldump (1),
+mysqlshow (1),
+msql2mysql (1),
+perror (1),
+replace (1),
+safe_mysqld (1),
+which1 (1),
+zap (1),
+.SH AUTHOR
+Ver 1.0, distribution 3.23.29a
+Michael (Monty) Widenius (monty@tcx.se),
+TCX Datakonsult AB (http://www.tcx.se).
+This software comes with no warranty.
+Manual page by L. (Kill-9) Pedersen 
+(kill-9@kill\-9.dk), Mercurmedia Data Model Architect /
+system developer (http://www.mercurmedia.com)
+
+.\" end of man page

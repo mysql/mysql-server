@@ -190,6 +190,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   error=0;
   id=0;
   thd->proc_info="update";
+  if (duplic == DUP_IGNORE || duplic == DUP_REPLACE)
+    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   while ((values = its++))
   {
     if (fields.elements || !value_count)
@@ -281,6 +283,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   table->next_number_field=0;
   thd->count_cuted_fields=0;
   thd->next_insert_id=0;			// Reset this if wrongly used
+  if (duplic == DUP_IGNORE || duplic == DUP_REPLACE)
+    table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
   if (error)
     goto abort;
@@ -1056,6 +1060,7 @@ bool delayed_insert::handle_inserts(void)
 {
   int error;
   uint max_rows;
+  bool using_ignore=0;
   DBUG_ENTER("handle_inserts");
 
   /* Allow client to insert new rows */
@@ -1096,6 +1101,12 @@ bool delayed_insert::handle_inserts(void)
     table->time_stamp=row->time_stamp;
 
     info.handle_duplicates= row->dup;
+    if (info.handle_duplicates == DUP_IGNORE ||
+	info.handle_duplicates == DUP_REPLACE)
+    {
+      table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+      using_ignore=1;
+    }
     thd.net.last_errno = 0; // reset error for binlog
     if (write_record(table,&info))
     {
@@ -1104,6 +1115,11 @@ bool delayed_insert::handle_inserts(void)
       delayed_insert_errors++;
       pthread_mutex_unlock(&LOCK_delayed_status);
       row->log_query = 0;
+    }
+    if (using_ignore)
+    {
+      using_ignore=0;
+      table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     }
     if (row->query && row->log_query)
     {
@@ -1192,6 +1208,9 @@ select_insert::prepare(List<Item> &values)
   thd->cuted_fields=0;
   if (info.handle_duplicates != DUP_REPLACE)
     table->file->extra(HA_EXTRA_WRITE_CACHE);
+  if (info.handle_duplicates == DUP_IGNORE ||
+      info.handle_duplicates == DUP_REPLACE)
+    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   table->file->deactivate_non_unique_index((ha_rows) 0);
   DBUG_RETURN(0);
 }
@@ -1203,6 +1222,7 @@ select_insert::~select_insert()
     if (save_time_stamp)
       table->time_stamp=save_time_stamp;
     table->next_number_field=0;
+    table->file->extra(HA_EXTRA_RESET);
   }
   thd->count_cuted_fields=0;
 }
@@ -1245,6 +1265,7 @@ bool select_insert::send_eof()
   int error,error2;
   if (!(error=table->file->extra(HA_EXTRA_NO_CACHE)))
     error=table->file->activate_all_index(thd);
+  table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   if ((error2=ha_autocommit_or_rollback(thd,error)) && ! error)
     error=error2;
 
@@ -1306,6 +1327,9 @@ select_create::prepare(List<Item> &values)
   restore_record(table,2);			// Get empty record
   thd->count_cuted_fields=1;			// count warnings
   thd->cuted_fields=0;
+  if (info.handle_duplicates == DUP_IGNORE ||
+      info.handle_duplicates == DUP_REPLACE)
+    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   DBUG_RETURN(0);
 }
 
@@ -1338,6 +1362,7 @@ bool select_create::send_eof()
     abort();
   else
   {
+    table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     VOID(pthread_mutex_lock(&LOCK_open));
     mysql_unlock_tables(thd, lock);
     if (!table->tmp_table)
@@ -1358,6 +1383,7 @@ void select_create::abort()
   }
   if (table)
   {
+    table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     enum db_type table_type=table->db_type;
     if (!table->tmp_table)
       hash_delete(&open_cache,(byte*) table);

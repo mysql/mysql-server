@@ -1,0 +1,93 @@
+.TH MYSQLSHOW 1 "19 December 2000"
+.SH NAME
+.BR mysqlshow
+ \- Shows the structure of a mysql database (databases,tables and columns)
+.SH USAGE
+shell> mysqlshow [\fP\fIOPTIONS\fP] [\fP\fIdatabase [table [column]]\fP]
+.SH SYNOPSIS
+.B mysqlshow
+.RB [ \-# | \-\-debug=...]
+.RB [  \-? | \-\-help ]
+.RB [  \-c |  \-\-character\-sets\-dir=...]
+.RB [  \-C | \-\-compress  ]
+.RB [  \-h | \-\-host=... ]
+.RB [  \-i | \-\-status ]
+.RB [  \-k | \-\-keys ]
+.RB [  \-p |  \-\-password\fP\fI[=...]\fP ]
+.RB [  \-P |  \-\-port=...  ]
+.RB [  \-S |  \-\-socket=... ]
+.RB [  \-u |  \-\-user=# ]
+.RB [  \-V |  \-\-version ]
+.SH DESCRIPTION
+.TP
+.BR \-# | \-\-debug=...
+output debug log. Often this is 'd:t:o,filename`
+.TP
+.BR  \-? | \-\-help
+display help and exit
+.TP
+.BR  \-c | \-\-character\-sets\-dir=...
+Directory where character sets are
+.TP
+.BR  \-C | \-\-compress
+Use compression in server/client protocol
+.TP
+.BR \-h | \-\-host=...
+connect to host
+.TP
+.BR  \-i | \-\-status 
+Shows a lot of extra information about each table
+.TP
+.BR  \-k | \-\-keys 
+show keys for table
+.TP
+.BR \-p | \-\-password \fP\fI[=...] \fP 
+password to use when connecting to server
+If password is not given it's asked from the tty.
+.TP 
+.BR  \-P | \-\-port=...
+Port number to use for connection
+.TP
+.BR \-S | \-\-socket=...
+Socket file to use for connection
+.TP
+.BR  \-u | \-\-user=#
+user for login if not current user
+.TP 
+.BR  \-V | \-\-version
+output version information and exit  
+
+
+.SH NOTE
+If last argument contains a shell or SQL wildcard (*,?,% or _) then only
+what's matched by the wildcard is shown.
+If no database is given then all matching databases are shown.
+If no table is given then all matching tables in database are shown
+If no column is given then all matching columns and columntypes in table
+are shown
+
+.SH "SEE ALSO"
+isamchk (1),
+isamlog (1),
+mysqlaccess (1),
+mysqladmin (1),
+mysqlbug (1),
+mysqld (1),
+mysqldump (1),
+mysqlshow (1),
+msql2mysql (1),
+perror (1),
+replace (1),
+safe_mysqld (1),
+which1 (1),
+zap (1),
+.SH AUTHOR
+Ver 1.0, distribution 3.23.29a
+Michael (Monty) Widenius (monty@tcx.se),
+TCX Datakonsult AB (http://www.tcx.se).
+This software comes with no warranty.
+Manual page by L. (Kill-9) Pedersen 
+(kill-9@kill\-9.dk), Mercurmedia Data Model Architect /
+system developer (http://www.mercurmedia.com)
+
+.\" end of man page

@@ -222,7 +222,7 @@ Installing MySQL
 * OS/2::                        OS/2 notes
 * MySQL binaries::              MySQL binaries
 * Post-installation::           Post-installation setup and testing
-* Upgrade::                     Is there anything special to do when upgrading/downgrading @strong{MySQL}?
+* Upgrade::                     Upgrading/downgrading @strong{MySQL}
 
 Installing a MySQL Binary Distribution
 
@@ -307,7 +307,7 @@ Post-installation Setup and Testing
 * Command-line options::        Command-line options
 * Option files::                Option files
 
-Is There Anything Special to Do when Upgrading/Downgrading MySQL?
+Upgrading/Downgrading MySQL
 
 * Upgrading-from-3.22::         Upgrading from a 3.22 version to 3.23
 * Upgrading-from-3.21::         Upgrading from a 3.21 version to 3.22
@@ -3885,7 +3885,7 @@ rate that is at least 20 % less than our standard rates.
 * OS/2::                        OS/2 notes
 * MySQL binaries::              MySQL binaries
 * Post-installation::           Post-installation setup and testing
-* Upgrade::                     Is there anything special to do when upgrading/downgrading @strong{MySQL}?
+* Upgrade::                     Upgrading/Downgrading MySQL
 @end menu
 
 This chapter describes how to obtain and install @strong{MySQL}:
@@ -5939,13 +5939,20 @@ Once @strong{BitKeeper} is installed,
 @code{bk clone bk://work.mysql.com:7000 mysql} - the initial download
 may take a while, depending on the speed of your connection.
 @item
-@code{cd mysql; bk -r edit; aclocal; autoheader; autoconf;
- automake; ./configure} with your favorite options, and then
-@code{ make}.
-You will need GNU autoconf/automake, libtool, and m4 to do this.
-We have a
-collection of our standard configure scripts in the @code{BUILD/}
-subdirectory - if you are lazy, you can do
+You will need GNU autoconf/automake, libtool, and m4 to do the next stage.
+If you get some strange error during the first stage, check that you really
+have libtool installed!
+
+@example
+cd mysql
+bk -r edit
+aclocal; autoheader; autoconf;  automake;
+./configure  # Add your favorite options here
+make
+@end example
+
+We have a collection of our standard configure scripts in the
+@code{BUILD/} subdirectory - if you are lazy, you can do
 @code{BUILD/compile-pentium-debug} . It will actually work on a lot of
 non-x86 machines despite its name.
 @item
@@ -8742,6 +8749,8 @@ shell> ./bin/mysql_install_db
 shell> ./bin/safe_mysqld --user=mysql &
 @end example
 
+This installs and starts @code{MySQL} without any passwords.
+
 Testing is most easily done from the top-level directory of the @strong{MySQL}
 distribution.  For a binary distribution, this is your installation directory
 (typically something like @file{/usr/local/mysql}).  For a source
@@ -9182,12 +9191,19 @@ If you find something like the following in the log file:
 000729 14:50:10  Can't init databases
 @end example
 
-this means that you started mysqld with @code{--bdb-recover} and that
-Berkeley DB found something wrong with it's log files when it tried to
-recover your databases.  To be able to continue, you should move away
-the old Berkeley DB log file from the database directory to some other
-place, where you can later examine these.  The log files are named
-@file{log.0000000001}, where the number will increase over time.
+this means that you didn't started mysqld with @code{--bdb-no-recover}
+and Berkeley DB found something wrong with it's log files when it
+tried to recover your databases.  To be able to continue, you should
+move away the old Berkeley DB log file from the database directory to
+some other place, where you can later examine these.  The log files are
+named @file{log.0000000001}, where the number will increase over time.
+
+If you are running @code{mysqld} with BDB table support and mysqld core
+dumps at start this could be because of some problems with the BDB
+recover log.  In this case you can try starting @code{mysqld} with
+@code{--bdb-no-recover}.  If this helps, then you should remove all
+@file{log.*} files from the data directory and try starting @code{mysqld}
+again.
 
 If you get the following error, it means that some other program (or another
 @code{mysqld} server) is already using the TCP/IP port or socket
@@ -9702,7 +9718,7 @@ shell> my_print_defaults client mysql
 The above output contains all options for the groups 'client' and 'mysql'.
 
 @node Upgrade,  , Post-installation, Installing
-@section Is There Anything Special to Do when Upgrading/Downgrading MySQL?
+@section Upgrading/Downgrading MySQL
 @cindex upgrading
 @cindex downgrading
 
@@ -19083,6 +19099,11 @@ specify values for all columns that require a non-@code{NULL} value.
 @xref{configure options,  , @code{configure} options}.
 
 @item
+You can find the value used for an @code{AUTO_INCREMENT} column
+with the @code{mysql_insert_id} function.
+@xref{mysql_insert_id, , @code{mysql_insert_id()}}.
+
+@item
 The following conditions hold for an @code{INSERT INTO ... SELECT} statement:
 
 @itemize @minus
@@ -20265,6 +20286,7 @@ differ somewhat:
 | myisam_sort_buffer_size | 8388608                         |
 | net_buffer_length       | 16384                           |
 | net_retry_count         | 10                              |
+| open_files_limit        | 0                               |
 | pid_file                | /usr/local/mysql/data/tik.pid   |
 | port                    | 3306                            |
 | protocol_version        | 10                              |
@@ -20555,6 +20577,14 @@ internal interrupts are sent to all threads.
 @item @code{net_write_timeout}
 Number of seconds to wait for a block to be written to a connection before
 aborting the write.
+
+@item @code{open_files_limit}
+If this is not 0, then @code{mysqld} will use this value to reserve file
+descriptors to use with @code{getrlimit()}.  If this value is 0 then
+@code{mysqld} will reserve @code{max_connections*5} or
+@code{max_connections + table_cache*2} (whichever is larger) number of
+files.  You should try increasing this if @code{mysqld} gives you the
+error 'Too many open files'.
 
 @item @code{pid_file}
 The value of the @code{--pid-file} option.
@@ -22648,7 +22678,7 @@ BDB tables:
 @item @code{--bdb-lock-detect=#} @tab  Berkeley lock detect. One of (DEFAULT, OLDEST, RANDOM, or YOUNGEST).
 @item @code{--bdb-logdir=directory} @tab Berkeley DB log file directory.
 @item @code{--bdb-no-sync} @tab Don't synchronously flush logs.
-@item @code{--bdb-recover} @tab Start Berkeley DB in recover mode.
+@item @code{--bdb-no-recover} @tab Don't start Berkeley DB in recover mode.
 @item @code{--bdb-shared-data} @tab Start Berkeley DB in multi-process mode (Don't use @code{DB_PRIVATE} when initializing Berkeley DB)
 @item @code{--bdb-tmpdir=directory} @tab Berkeley DB tempfile name.
 @item @code{--skip-bdb} @tab Don't use berkeley db.
@@ -22659,12 +22689,13 @@ If you use @code{--skip-bdb}, @strong{MySQL} will not initialize the
 Berkeley DB library and this will save a lot of memory. Of course,
 you cannot use @code{BDB} tables if you are using this option.
 
-Normally you should start mysqld with @code{--bdb-recover} if you intend
-to use BDB tables.  This may, however, give you problems when you try to
-start mysqld if the BDB log files are corrupted. @xref{Starting server}.
+Normally you should start mysqld without @code{--bdb-no-recover} if you
+intend to use BDB tables.  This may, however, give you problems when you
+try to start mysqld if the BDB log files are corrupted. @xref{Starting
+server}.
 
 With @code{bdb_max_lock} you can specify the maximum number of locks
-(1000 by default) you can have active on a BDB table. You should
+(10000 by default) you can have active on a BDB table. You should
 increase this if you get errors of type @code{bdb: Lock table is out of
 available locks} or @code{Got error 12 from ...}  when you have do long
 transactions or when @code{mysqld} has to examine a lot of rows to
@@ -22678,6 +22709,22 @@ You may also want to change @code{binlog_cache_size} and
 @subsection Some characteristic of @code{BDB} tables:
 
 @itemize @bullet
+@item
+To be able to rollback transactions BDB maintain log files.  For maximum
+performance you should place these on another disk than your databases
+by using the @code{--bdb_log_dir} options.
+@item
+@strong{MySQL} performs a checkpoint each time a new BDB log
+file is started, and removes any log files that are not needed for
+current transactions.  One can also run @code{FLUSH LOGS} at any time
+to checkpoint the Berkeley DB tables.
+
+For disaster recovery, one should use table backups plus
+@strong{MySQL}'s binary log. @xref{Backup}.
+
+@strong{Warning}: If you delete old log files that are in use, BDB will
+not be able to do recovery at all and you may loose data if something
+goes wrong.
 @item
 @strong{MySQL} requires a @code{PRIMARY KEY} in each BDB table to be
 able to refer to previously read rows. If you don't create one,
@@ -22720,14 +22767,6 @@ space in @code{BDB} tables compared to MyISAM tables which don't use
 There is often holes in the BDB table to allow you to insert new rows in
 the middle of the key tree.  This makes BDB tables somewhat larger than
 MyISAM tables.
-@item
-@strong{MySQL} performs a checkpoint each time a new Berkeley DB log
-file is started, and removes any log files that are not needed for
-current transactions.  One can also run @code{FLUSH LOGS} at any time
-to checkpoint the Berkeley DB tables.
-
-For disaster recovery, one should use table backups plus MySQL's binary
-log. @xref{Backup}.
 @item
 The optimizer needs to know an approximation of the number of rows in
 the table.  @strong{MySQL} solves this by counting inserts and
@@ -26325,7 +26364,7 @@ for most queries, but some queries may take substantially longer (The
 If you use @code{--with-debug}, then you will only loose 15 %.
 
 @item
-On a Sun SPARCstation 10, @code{gcc} 2.7.3 is 13% faster than Sun Pro C++ 4.2.
+On a Sun SPARCstation 20, SunPro C++ 4.2 is 5 % faster than @code{gcc} 2.95.2.
 
 @item
 Compiling with @code{gcc} 2.95.2 for ultrasparc with the option
@@ -26338,6 +26377,10 @@ get bigger.
 
 @item
 Running with @code{--log-bin} makes @strong{[MySQL} 1 % slower.
+
+@item
+Compiling without frame pointers @code{-fomit-frame-pointer} with gcc makes
+MySQL 1 % faster.
 @end itemize
 
 The @strong{MySQL}-Linux distribution provided by MySQL AB used to be
@@ -31948,6 +31991,11 @@ Visual Basic with ADO can't handle big integers. This means that some queries
 like @code{SHOW PROCESSLIST} will not work properly.  The fix is to set
 add the option @code{OPTION=16834} in the ODBC connect string or set
 the @code{Change BIGINT columns to INT} option in the MyODBC connect screen.
+@item VisualInterDev
+If you get the error @code{[Microsoft][ODBC Driver Manager] Driver does
+not support this parameter} the reason may be that you have a
+@code{BIGINT} in your result.  Try setting the @code{Change BIGINT
+columns to INT} option in the MyODBC connect screen.
 @end table
 
 @cindex AUTO-INCREMENT, ODBC
@@ -33171,23 +33219,29 @@ files simultaneously.  You can either tell @code{mysqld} not to open so
 many files at once or increase the number of file descriptors
 available to @code{mysqld}.
 
-To tell @code{mysqld} to keep open fewer files at a time, you can make the
-table cache smaller by using the @code{-O table_cache=32} option
-to @code{safe_mysqld} (the default value is 64). Reducing the value of
-@code{max_connections} will also reduce the number of open files (the default
-value is 90).
+To tell @code{mysqld} to keep open fewer files at a time, you can make
+the table cache smaller by using the @code{-O table_cache=32} option to
+@code{safe_mysqld} (the default value is 64). Reducing the value of
+@code{max_connections} will also reduce the number of open files (the
+default value is 90).
 
 @tindex ulimit
-To change the number of file descriptors available to @code{mysqld}, modify
-the @code{safe_mysqld} script.  There is a commented-out line
-@code{ulimit -n 256} in the script.  You can remove the @code{'#'} character
-to uncomment this line, and change the number 256 to change the number of
-file descriptors available to @code{mysqld}.
+To change the number of file descriptors available to @code{mysqld}, you
+can use the option @code{--open-files-limit=#} to @code{safe_mysqld} or
+@code{-O open-files-limit=#} to @code{mysqld}. @xref{SHOW VARIABLES}.
+The easyest way to do that is to add the option to your option file.
+@xref{Option files}.  If you have an old @code{mysqld} version that
+doesn't support this, you can edit the @code{safe_mysqld} script.  There
+is a commented-out line @code{ulimit -n 256} in the script.  You can
+remove the @code{'#'} character to uncomment this line, and change the
+number 256 to affect the number of file descriptors available to
+@code{mysqld}.
 
-@code{ulimit} can increase the number of file descriptors, but only up to the
-limit imposed by the operating system.  If you need to increase the OS limit
-on the number of file descriptors available to each process, consult the
-documentation for your operating system.
+@code{ulimit} (and @code{open-files-limit}) can increase the number of
+file descriptors, but only up to the limit imposed by the operating
+system.  If you need to increase the OS limit on the number of file
+descriptors available to each process, consult the documentation for
+your operating system.
 
 Note that if you run the @code{tcsh} shell, @code{ulimit} will not work!
 @code{tcsh} will also report incorrect values when you ask for the current
@@ -39888,6 +39942,21 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.30
 @itemize @bullet
 @item
+Added option @code{open-files-limit} to @code{mysqld}.
+@item
+Changed option @code{open-files} to @code{open-files-limit} in
+@code{safe_mysqld}.
+@item
+Item fixed a bug where some rows where not found with @code{HEAP} tables 
+that had many keys.
+@item
+Fixed that @code{--bdb-no-sync} works.
+@item
+Changed @code{--bdb-recover} to @code{--bdb-no-recover} as recover should
+be on by default.
+@item
+Changed the default number of BDB locks to 10000.
+@item
 Fixed a bug from 3.23.29 when allocation the shared structure needed
 for BDB tables.
 @item
@@ -40551,6 +40620,8 @@ a feature.
 @itemize @bullet
 @item
 Fixed bug in 3.23.19; @code{DELETE FROM tbl_name} removed the .frm file.
+@item
+Added @code{SHOW CREATE TABLE}.
 @end itemize
 
 @node News-3.23.19, News-3.23.18, News-3.23.20, News-3.23.x
