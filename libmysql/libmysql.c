@@ -1860,14 +1860,14 @@ MYSQL_STMT * STDCALL mysql_prepare(MYSQL *mysql, const char *query,
     a server-side prepared statement. Memory for this structure (~700
     bytes) is allocated using 'malloc'. Once created, the handle can be
     reused many times. Created statement handle is bound to connection
-    handle provided to this call: it's lifetime is limited by lifetime
+    handle provided to this call: its lifetime is limited by lifetime
     of connection.
     'mysql_stmt_init()' is a pure local call, server side structure is
     created only in mysql_stmt_prepare.
     Next steps you may want to make:
     - set a statement attribute (mysql_stmt_attr_set()),
     - prepare statement handle with a query (mysql_stmt_prepare()),
-    - close statement handle and free it's memory (mysql_stmt_close()),
+    - close statement handle and free its memory (mysql_stmt_close()),
     - reset statement with mysql_stmt_reset() (a no-op which will
       just return).
     Behaviour of the rest of API calls on this statement is not defined yet
@@ -2592,7 +2592,7 @@ stmt_read_row_no_data(MYSQL_STMT *stmt  __attribute__((unused)),
     mysql_stmt_attr_get()
     mysql_stmt_attr_set()
 
-    attr_type  statemenet attribute
+    attr_type  statement attribute
     value      casted to const void * pointer to value.
 
   RETURN VALUE
@@ -2688,7 +2688,7 @@ int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt)
   mysql_stmt_free_result(stmt);
   /*
     No need to check for stmt->state: if the statement wasn't
-    prepared we'll get 'unknown statemenet handler' error from server.
+    prepared we'll get 'unknown statement handler' error from server.
   */
   if (mysql->methods->stmt_execute(stmt))
     DBUG_RETURN(1);
@@ -2813,7 +2813,7 @@ static my_bool int_is_null_false= 0;
     By properly initializing bind array you can bind virtually any
     C language type to statement's placeholders:
     First, it's strongly recommended to always zero-initialize entire
-    bind structure before setting it's members. This will both shorten
+    bind structure before setting its members. This will both shorten
     your application code and make it robust to future extensions of
     MYSQL_BIND structure.
     Then you need to assign typecode of your application buffer to
