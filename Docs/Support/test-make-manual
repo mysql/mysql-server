@@ -1,0 +1,13 @@
+#!/bin/sh
+
+echo
+echo "|---- Running makeinfo ----|"
+makeinfo --no-split -I . manual.texi
+
+echo
+echo "|---- Running texi2html ----|"
+/usr/bin/perl ./Support/texi2html -iso -number manual.texi
+
+echo
+echo "Please examine your modifications in \`manual.html'."
+echo
