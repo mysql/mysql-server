@@ -4339,18 +4339,18 @@ option_value:
 						find_sys_var("tx_isolation"),
 						new Item_int((int32) $4)));
 	  }
-	| charset opt_equal set_expr_or_default
+	| charset set_expr_or_default
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= &thd->lex;
-	  if (!$3)
+	  if (!$2)
 	  {
 	    CHARSET_INFO *cl= thd->db_charset;
-	    $3= new Item_string(cl->name, strlen(cl->name), &my_charset_latin1);
+	    $2= new Item_string(cl->name, strlen(cl->name), &my_charset_latin1);
 	  }
 	  lex->var_list.push_back(new set_var(lex->option_type,
 					      find_sys_var("client_collation"),
-					      $3));
+					      $2));
 	}
 	| NAMES_SYM charset_name_or_default opt_collate
 	{
