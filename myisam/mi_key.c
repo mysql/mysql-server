@@ -62,7 +62,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       end=pos+length;
       if (type != HA_KEYTYPE_NUM)
       {
-	while (end > pos && end[-1] == ' ')
+	while (end > pos && (end[-1] == ' ' || end[-1] == '\t'))
 	  end--;
       }
       else
@@ -186,7 +186,7 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
       end=pos+length;
       if (type != HA_KEYTYPE_NUM)
       {
-	while (end > pos && end[-1] == ' ')
+	while (end > pos && (end[-1] == ' ' || end[-1] == '\t'))
 	  end--;
       }
       else
