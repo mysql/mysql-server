@@ -14320,7 +14320,7 @@ The following options affects how the repair works.
                     @file{table_name-datetime.BAK}.
 @item FORCE    @tab Run recover even if we will lose more than one row
                     from the .MYD file.
-@item QUICK    @tab Don't check the rows in the table if there isn't any
+@item QUICK    @tab Don't check the rows in the table if there aren't any
                     delete blocks.
 @end multitable
 
@@ -17752,14 +17752,15 @@ BACKUP TABLE tbl_name[,tbl_name...] TO '/path/to/backup/directory'
 @end example
 
 Copies to the backup directory the minimum number of table files needed
-to restore the table. Currently only works for @code{MyISAM} tables.
+to restore the table, after flushing any buffered changes to disk. Currently
+only works for @code{MyISAM} tables.
 For @code{MyISAM} tables, copies @file{.frm} (definition)  and
 @file{.MYD} (data) files. The index file can be rebuilt from those two.
 
 Before using this command, please see @ref{Backup}.
 
-During the backup, read lock will be held for each table, one at time,
-as they are being backed up. If you want to backup several tables as
+During the backup, a read lock will be held for each table, one at time,
+as they are being backed up. If you want to back up several tables as
 a snapshot, you must first issue @code{LOCK TABLES} obtaining a read
 lock for each table in the group.
 
@@ -17787,11 +17788,11 @@ RESTORE TABLE tbl_name[,tbl_name...] FROM '/path/to/backup/directory'
 @end example
 
 Restores the table(s) from the backup that was made with
-@code{BACKUP TABLE}. Existing tables will not be overwritten - if you
-try to restore over an existing table, you will get an error. Restore
-will take  longer than BACKUP due to the need to rebuilt the index. The
-more keys you have, the longer it is going to take. Just as
-@code{BACKUP TABLE}, currently only works of @code{MyISAM} tables.
+@code{BACKUP TABLE}. Existing tables will not be overwritten; if you
+try to restore over an existing table, you will get an error. Restoring
+will take longer than backing up due to the need to rebuild the index. The
+more keys you have, the longer it will take. Just as @code{BACKUP TABLE},
+@code{RESTORE TABLE} currently works only for @code{MyISAM} tables.
 
 
 The command returns a table with the following columns:
@@ -17823,7 +17824,7 @@ table_name} on the table.
 If you don't specify any option @code{MEDIUM} is used.
 
 Checks the table(s) for errors. For @code{MyISAM} tables the key statistics
-is updated. The command returns a table with the following columns:
+are updated. The command returns a table with the following columns:
 
 @multitable @columnfractions .15 .40
 @item @strong{Column} @tab @strong{Value}
@@ -17852,7 +17853,7 @@ The different check types stand for the following:
 @end multitable
 
 For dynamically sized @code{MyISAM} tables a started check will always
-do a @code{MEDIUM} check. For static size rows we skip the row scan
+do a @code{MEDIUM} check. For statically sized rows we skip the row scan
 for @code{QUICK} and @code{FAST} as the rows are very seldom corrupted.
 
 You can combine check options as in:
@@ -17882,7 +17883,7 @@ file. If this happens then the table will be marked as 'corrupted',
 in which case the table can't be used until it's repaired.)
 
 @code{FAST} and @code{CHANGED} are mostly intended to be used from a
-script (for example to be executed from cron) if you want to check your
+script (for example to be executed from @code{cron}) if you want to check your
 table from time to time. In most cases you @code{FAST} is to be prefered
 over @code{CHANGED}.  (The only case when it isn't is when you suspect a
 bug you have found a bug in the @code{MyISAM} code.)
@@ -37825,7 +37826,7 @@ Warning: Found 344 of 354 rows when repairing ./test/g00pages
 @end example
 
 Note that if you run automatic recover with the @code{BACKUP} option,
-you should have a cron script that automatically moves file with names
+you should have a @code{cron} script that automatically moves file with names
 like @file{tablename-datetime.BAK} from the database directories to a
 backup media.
 
