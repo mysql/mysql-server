@@ -33,7 +33,7 @@
 #endif
 
 #ifdef _WIN64
-#define MACHINE_TYPE	"i64"		/* Define to machine type name */
+#define MACHINE_TYPE	"ia64"		/* Define to machine type name */
 #else
 #define MACHINE_TYPE	"i32"		/* Define to machine type name */
 #ifndef _WIN32
