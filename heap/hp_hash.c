@@ -236,7 +236,7 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
     key+=seg->length;
     if (seg->null_bit)
     {
-      key++;					/* Skipp null byte */
+      key++;					/* Skip null byte */
       if (*pos)					/* Found null */
       {
 	nr^= (nr << 1) | 1;
