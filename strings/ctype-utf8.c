@@ -1855,6 +1855,17 @@ static int my_strnncoll_utf8(CHARSET_INFO *cs,
   return ( (se-s) - (te-t) );
 }
 
+static
+int my_strnncollsp_utf8(CHARSET_INFO * cs, 
+			const uchar *s, uint slen, 
+			const uchar *t, uint tlen)
+{
+  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
+  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  return my_strnncoll_utf8(cs,s,slen,t,tlen);
+}
+
+
 static int my_strncasecmp_utf8(CHARSET_INFO *cs,
 		const char *s, const char *t,  uint len)
 {
@@ -1979,6 +1990,7 @@ CHARSET_INFO my_charset_utf8 =
     NULL,		/* tab_from_uni */
     1,			/* strxfrm_multiply */
     my_strnncoll_utf8,	/* strnncoll    */
+    my_strnncollsp_utf8,
     my_strnxfrm_utf8,	/* strnxfrm     */
     my_like_range_simple,/* like_range   */
     my_wildcmp_mb,	/* wildcmp      */
@@ -3068,6 +3080,7 @@ CHARSET_INFO my_charset_ucs2 =
     NULL,		/* tab_from_uni */
     1,			/* strxfrm_multiply */
     my_strnncoll_ucs2,	/* strnncoll    */
+    my_strnncoll_ucs2,
     my_strnxfrm_ucs2,	/* strnxfrm     */
     my_like_range_simple,/* like_range   */
     my_wildcmp_mb,	/* wildcmp      */
