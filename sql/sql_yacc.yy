@@ -2893,7 +2893,7 @@ simple_expr:
 	| BENCHMARK_SYM '(' ULONG_NUM ',' expr ')'
 	  {
 	    $$=new Item_func_benchmark($3,$5);
-	    Lex->uncacheable(UNCACHEABLE_UNCACHEABLE);
+	    Lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
 	  }
 	| EXTRACT_SYM '(' interval FROM expr ')'
 	{ $$=new Item_extract( $3, $5); };
@@ -3473,7 +3473,7 @@ procedure_clause:
 	    lex->proc_list.next= (byte**) &lex->proc_list.first;
 	    if (add_proc_to_list(lex->thd, new Item_field(NULL,NULL,$2.str)))
 	      YYABORT;
-	    Lex->uncacheable(UNCACHEABLE_UNCACHEABLE);
+	    Lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
 	  }
 	  '(' procedure_list ')';
 
@@ -3527,7 +3527,7 @@ into:
 	  LEX *lex=Lex;
 	  if (!lex->describe)
 	  {
-	    lex->uncacheable(UNCACHEABLE_UNCACHEABLE);
+	    lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
 	    if (!(lex->exchange= new sql_exchange($3.str,0)))
 	      YYABORT;
 	    if (!(lex->result= new select_export(lex->exchange)))
@@ -3540,7 +3540,7 @@ into:
 	  LEX *lex=Lex;
 	  if (!lex->describe)
 	  {
-	    lex->uncacheable(UNCACHEABLE_UNCACHEABLE);
+	    lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
 	    if (!(lex->exchange= new sql_exchange($3.str,1)))
 	      YYABORT;
 	    if (!(lex->result= new select_dump(lex->exchange)))
@@ -3549,7 +3549,7 @@ into:
 	}
         | INTO select_var_list_init
 	{
-	  Lex->uncacheable(UNCACHEABLE_UNCACHEABLE);
+	  Lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
 	}
         ;
 

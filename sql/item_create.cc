@@ -159,7 +159,7 @@ Item *create_func_from_days(Item* a)
 
 Item *create_func_get_lock(Item* a, Item *b)
 {
-  current_thd->lex.uncacheable(UNCACHEABLE_UNCACHEABLE);
+  current_thd->lex.uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new Item_func_get_lock(a, b);
 }
 
@@ -324,7 +324,7 @@ Item *create_func_radians(Item *a)
 
 Item *create_func_release_lock(Item* a)
 {
-  current_thd->lex.uncacheable(UNCACHEABLE_UNCACHEABLE);
+  current_thd->lex.uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new Item_func_release_lock(a);
 }
 
@@ -445,7 +445,7 @@ Item *create_func_year(Item* a)
 
 Item *create_load_file(Item* a)
 {
-  current_thd->lex.uncacheable(UNCACHEABLE_UNCACHEABLE);
+  current_thd->lex.uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new Item_load_file(a);
 }
 
@@ -472,13 +472,13 @@ Item *create_func_cast(Item *a, Cast_target cast_type, int len,
 
 Item *create_func_is_free_lock(Item* a)
 {
-  current_thd->lex.uncacheable(UNCACHEABLE_UNCACHEABLE);
+  current_thd->lex.uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new Item_func_is_free_lock(a);
 }
 
 Item *create_func_is_used_lock(Item* a)
 {
-  current_thd->lex.uncacheable(UNCACHEABLE_UNCACHEABLE);
+  current_thd->lex.uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new Item_func_is_used_lock(a);
 }
 
