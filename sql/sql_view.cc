@@ -755,17 +755,17 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
 
       table->ancestor= view_tables;
 
-      /* next table should include SELECT_LEX under this table SELECT_LEX */
-      table->ancestor->select_lex= table->select_lex;
-
       /*
         Process upper level tables of view. As far as we do noy suport union
         here we can go through local tables of view most upper SELECT
       */
-      for(tbl= (TABLE_LIST*)view_select->table_list.first;
+      for(tbl= view_tables;
           tbl;
           tbl= tbl->next_local)
       {
+        /* next table should include SELECT_LEX under this table SELECT_LEX */
+        tbl->select_lex= table->select_lex;
+
         /*
           move lock type (TODO: should we issue error in case of TMPTABLE
           algorithm and non-read locking)?
