@@ -371,6 +371,7 @@ Ndb::hupp(NdbConnection* pBuddyTrans)
       // We could not get a connection to the desired node
       // release the connection and return NULL
       closeTransaction(pCon);
+      theError.code = 4006;
       DBUG_RETURN(NULL);
     }
     pCon->setTransactionId(pBuddyTrans->getTransactionId());
