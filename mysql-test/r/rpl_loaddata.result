@@ -61,8 +61,8 @@ unique(day));
 load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
-Duplicate entry '2003-03-22' for key 1
+ERROR 23000: Duplicate entry '2003-03-22' for key 1
 show master status;
 File	Position	Binlog_do_db	Binlog_ignore_db
-master-bin.001	491		
+master-bin.000001	491		
 drop table t2;

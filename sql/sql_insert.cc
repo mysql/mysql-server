@@ -1438,15 +1438,17 @@ bool select_insert::send_data(List<Item> &values)
 
 void select_insert::send_error(uint errcode,const char *err)
 {
+  DBUG_ENTER("select_insert::send_error");
+
   //TODO error should be sent at the query processing end
   ::send_error(thd,errcode,err);
   table->file->extra(HA_EXTRA_NO_CACHE);
   table->file->activate_all_index(thd);
-  /* 
-     If at least one row has been inserted/modified and will stay in the table
-     (the table doesn't have transactions) (example: we got a duplicate key
-     error while inserting into a MyISAM table) we must write to the binlog (and
-     the error code will make the slave stop).
+  /*
+    If at least one row has been inserted/modified and will stay in the table
+    (the table doesn't have transactions) (example: we got a duplicate key
+    error while inserting into a MyISAM table) we must write to the binlog (and
+    the error code will make the slave stop).
   */
   if ((info.copied || info.deleted) && !table->file->has_transactions())
   {
@@ -1465,6 +1467,7 @@ void select_insert::send_error(uint errcode,const char *err)
   if (info.copied || info.deleted)
     query_cache_invalidate3(thd, table, 1);
   ha_rollback_stmt(thd);
+  DBUG_VOID_RETURN;
 }
 
 

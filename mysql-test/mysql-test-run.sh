@@ -437,6 +437,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
    MYSQL_BINLOG="$BASEDIR/client/.libs/mysqlbinlog"
  else
    MYSQL_BINLOG="$BASEDIR/client/mysqlbinlog"
+ fi
  if [ -n "$STRACE_CLIENT" ]; then
   MYSQL_TEST="strace -o $MYSQL_TEST_DIR/var/log/mysqltest.strace $MYSQL_TEST"
  fi

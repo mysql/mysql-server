@@ -755,6 +755,8 @@ int load_master_data(THD* thd)
   int error = 0;
   const char* errmsg=0;
   int restart_thread_mask;
+  HA_CREATE_INFO create_info;
+
   mysql_init(&mysql);
 
   /*
@@ -858,7 +860,10 @@ int load_master_data(THD* thd)
 	continue;
       }
 
-      if (mysql_create_db(thd, db, HA_LEX_CREATE_IF_NOT_EXISTS, 1))
+      bzero((char*) &create_info, sizeof(create_info));
+      create_info.options= HA_LEX_CREATE_IF_NOT_EXISTS;
+
+      if (mysql_create_db(thd, db, &create_info, 1))
       {
 	send_error(thd, 0, 0);
 	cleanup_mysql_results(db_res, cur_table_res - 1, table_res);

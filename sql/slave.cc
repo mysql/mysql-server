@@ -1125,12 +1125,13 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   handler *file;
   ulong save_options;
   NET *net= &mysql->net;
-  
+  DBUG_ENTER("create_table_from_dump");  
+
   packet_len= my_net_read(net); // read create table statement
   if (packet_len == packet_error)
   {
     send_error(thd, ER_MASTER_NET_READ);
-    return 1;
+    DBUG_RETURN(1);
   }
   if (net->read_pos[0] == 255) // error from master
   {
@@ -1139,7 +1140,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
 				       CLIENT_PROTOCOL_41) ?
 				      3+SQLSTATE_LENGTH+1 : 3);
     net_printf(thd, ER_MASTER, err_msg);
-    return 1;
+    DBUG_RETURN(1);
   }
   thd->command = COM_TABLE_DUMP;
   thd->query_length= packet_len;
@@ -1148,11 +1149,22 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   {
     sql_print_error("create_table_from_dump: out of memory");
     net_printf(thd, ER_GET_ERRNO, "Out of memory");
-    return 1;
+    DBUG_RETURN(1);
   }
   thd->query= query;
   thd->query_error = 0;
   thd->net.no_send_ok = 1;
+
+  bzero((char*) &tables,sizeof(tables));
+  tables.db = (char*)db;
+  tables.alias= tables.real_name= (char*)table_name;
+  /* Drop the table if 'overwrite' is true */
+  if (overwrite && mysql_rm_table(thd,&tables,1,0)) /* drop if exists */
+  {
+    send_error(thd);
+    sql_print_error("create_table_from_dump: failed to drop the table");
+    goto err;
+  }
 
   /* Create the table. We do not want to log the "create table" statement */
   save_options = thd->options;
@@ -1207,7 +1219,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
 err:
   close_thread_tables(thd);
   thd->net.no_send_ok = 0;
-  return error; 
+  DBUG_RETURN(error); 
 }
 
 
@@ -3431,15 +3443,15 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
   case STOP_EVENT:
     /*
       We needn't write this event to the relay log. Indeed, it just indicates a
-      master server shutdown. The only thing this does is cleaning. But cleaning
-      is already done on a per-master-thread basis (as the master server is
-      shutting down cleanly, it has written all DROP TEMPORARY TABLE and DO
-      RELEASE_LOCK; prepared statements' deletion are TODO).
+      master server shutdown. The only thing this does is cleaning. But
+      cleaning is already done on a per-master-thread basis (as the master
+      server is shutting down cleanly, it has written all DROP TEMPORARY TABLE
+      and DO RELEASE_LOCK; prepared statements' deletion are TODO).
       
-      We don't even increment mi->master_log_pos, because we may be just after a
-      Rotate event. Btw, in a few milliseconds we are going to have a Start
-      event from the next binlog (unless the master is presently running without
-      --log-bin).
+      We don't even increment mi->master_log_pos, because we may be just after
+      a Rotate event. Btw, in a few milliseconds we are going to have a Start
+      event from the next binlog (unless the master is presently running
+      without --log-bin).
     */
     goto err;
   case ROTATE_EVENT:
@@ -3465,8 +3477,8 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
   /* 
      If this event is originating from this server, don't queue it. 
      We don't check this for 3.23 events because it's simpler like this; 3.23
-     will be filtered anyway by the SQL slave thread which also tests the server
-     id (we must also keep this test in the SQL thread, in case somebody
+     will be filtered anyway by the SQL slave thread which also tests the
+     server id (we must also keep this test in the SQL thread, in case somebody
      upgrades a 4.0 slave which has a not-filtered relay log).
 
      ANY event coming from ourselves can be ignored: it is obvious for queries;
