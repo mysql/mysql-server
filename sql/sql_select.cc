@@ -2525,7 +2525,6 @@ join_free(JOIN *join)
       delete tab->select;
       delete tab->quick;
       x_free(tab->cache.buff);
-      end_read_record(&tab->read_record);
       if (tab->table)
       {
 	if (tab->table->key_read)
@@ -2533,8 +2532,11 @@ join_free(JOIN *join)
 	  tab->table->key_read=0;
 	  tab->table->file->extra(HA_EXTRA_NO_KEYREAD);
 	}
-	tab->table->file->index_end();
+	/* Don't free index if we are using read_record */
+	if (!tab->read_record.table)
+	  tab->table->file->index_end();
       }
+      end_read_record(&tab->read_record);
     }
     join->table=0;
   }
