@@ -46785,6 +46785,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.46::                
 * News-3.23.45::                Changes in release 3.23.45
 * News-3.23.44::                Changes in release 3.23.44
 * News-3.23.43::                Changes in release 3.23.43
@@ -46834,7 +46835,20 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.45, News-3.23.44, News-3.23.x, News-3.23.x
+@node News-3.23.46, News-3.23.45, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.46
+@itemize @bullet
+@item
+Fixed bug where one got an empty set instead of a DEADLOCK error when using
+BDB tables.
+@item
+One can now kill @code{ANALYZE},@code{REPAIR} and @code{OPTIMIZE TABLE} when
+the thread is waiting to get a lock on the table.
+@item
+Fixed race condition in @code{ANALYZE TABLE}.
+@end itemize
+
+@node News-3.23.45, News-3.23.44, News-3.23.46, News-3.23.x
 @appendixsubsec Changes in release 3.23.45
 @itemize @bullet
 @item

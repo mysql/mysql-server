@@ -1,7 +1,7 @@
 # test for bug reported by Mark Steele
 
-drop table if exists tblChange;
-CREATE TABLE tblCharge (
+drop table if exists t1;
+CREATE TABLE t1 (
   ChargeID int(10) unsigned DEFAULT '0' NOT NULL auto_increment,
   ServiceID int(10) unsigned DEFAULT '0' NOT NULL,
   ChargeDate date DEFAULT '0000-00-00' NOT NULL,
@@ -19,16 +19,16 @@ DEFAULT 'New' NOT NULL,
 ) type=BDB;
 
 BEGIN;
-INSERT INTO tblCharge
+INSERT INTO t1
 VALUES(NULL,1,'2001-03-01',1,1,1,'New',NULL,NULL,'now');
 COMMIT;
 
 BEGIN;
-UPDATE tblCharge SET ChargeAuthorizationMessage = 'blablabla' WHERE
+UPDATE t1 SET ChargeAuthorizationMessage = 'blablabla' WHERE
 ChargeID = 1;
 COMMIT;
 
-INSERT INTO tblCharge
+INSERT INTO t1
 VALUES(NULL,1,'2001-03-01',1,1,1,'New',NULL,NULL,'now');
-select * from tblCharge;
-drop table tblCharge;
+select * from t1;
+drop table t1;

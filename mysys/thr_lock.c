@@ -913,7 +913,8 @@ void thr_multi_unlock(THR_LOCK_DATA **data,uint count)
   DBUG_VOID_RETURN;
 }
 
-/* Abort all threads waiting for a lock. The lock will be upgraded to a
+/*
+  Abort all threads waiting for a lock. The lock will be upgraded to
   TL_WRITE_ONLY to abort any new accesses to the lock
 */
 
