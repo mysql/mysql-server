@@ -421,6 +421,30 @@ call bug2272()|
 delete from t1|
 drop procedure bug2272|
 
+#
+# BUG#2329
+#
+create procedure bug2329_1()
+begin
+  declare v int;
+
+  insert into t1 (v) values (5);
+end|
+
+create procedure bug2329_2()
+begin
+  declare v int;
+
+  replace t1 set v = 5;
+end|
+
+--error 1054
+call bug2329_1()|
+--error 1054
+call bug2329_2()|
+drop procedure bug2329_1|
+drop procedure bug2329_2|
+
 drop table t1|
 
 delimiter ;|
