@@ -368,7 +368,8 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t* start_lock,
 		       pthread_cond_t* start_cond,
 		       volatile bool *slave_running,
 		       volatile ulong *slave_run_id,
-		       MASTER_INFO* mi);
+		       MASTER_INFO* mi,
+                       bool high_priority);
 
 /* If fd is -1, dump to NET */
 int mysql_table_dump(THD* thd, const char* db,
