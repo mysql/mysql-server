@@ -1451,19 +1451,25 @@ String *Item_func_database::val_str(String *str)
   return str;
 }
 
+// TODO: make USER() replicate properly (currently it is replicated to "")
+
 String *Item_func_user::val_str(String *str)
 {
   THD          *thd=current_thd;
   CHARSET_INFO *cs= default_charset();
   const char   *host=thd->host ? thd->host : thd->ip ? thd->ip : "";
-  uint32       res_length=(strlen(thd->user)+strlen(host)+10) * cs->mbmaxlen;
+  // For system threads (e.g. replication SQL thread) user may be empty
+  if (!thd->user)
+    return &empty_string;
+  uint32       res_length=(strlen(thd->user)+strlen(host)+2) * cs->mbmaxlen;
 
   if (str->alloc(res_length))
   {
-      null_value=1;
-      return 0;
+    null_value=1;
+    return 0;
   }
-  res_length=cs->snprintf(cs, (char*)str->ptr(), res_length, "%s@%s",thd->user,host);
+  res_length=cs->snprintf(cs, (char*)str->ptr(), res_length, "%s@%s",
+			  thd->user, host);
   str->length(res_length);
   str->set_charset(cs);
   return str;

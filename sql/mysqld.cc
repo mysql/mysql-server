@@ -2043,12 +2043,14 @@ static int init_common_variables(const char *conf_file_name, int argc,
 #ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
   {
     /* Retrieve used stack size;  Needed for checking stack overflows */
-    size_t stack_size;
+    size_t stack_size= 0;
     pthread_attr_getstacksize(&connection_attrib, &stack_size);
-    if (global_system_variables.log_warnings && stack_size != thread_stack)
+    /* We must check if stack_size = 0 as Solaris 2.9 can return 0 here */
+    if (stack_size && stack_size != thread_stack)
     {
-      sql_print_error("Warning: Asked for %ld thread stack, but got %ld",
-		      thread_stack, stack_size);
+      if (global_system_variables.log_warnings)
+	sql_print_error("Warning: Asked for %ld thread stack, but got %ld",
+			thread_stack, stack_size);
       thread_stack= stack_size;
     }
   }

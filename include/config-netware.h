@@ -22,17 +22,13 @@
 #include <errno.h>
 #include <screen.h>
 #include <limits.h>
-#include <nks/synch.h>
-#include <nks/thread.h>
 #include <signal.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <nks/errno.h>
 #include <sys/types.h>
 #include <time.h>
 #include <sys/time.h>
-#include <nks/time.h>
 #include <pthread.h>
 #include <termios.h>
 
@@ -47,6 +43,9 @@
 #define HAVE_PTHREAD_SIGMASK 1
 #define HAVE_PTHREAD_YIELD_ZERO_ARG 1
 #define HAVE_BROKEN_REALPATH 1
+
+/* include the old function apis */
+#define USE_OLD_FUNCTIONS 1
 
 /* no case sensitivity */
 #define FN_NO_CASE_SENCE 1
