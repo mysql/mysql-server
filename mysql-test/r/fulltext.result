@@ -17,6 +17,6 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `ticket` int(11) default NULL,
   `inhalt` text,
-  KEY `tig`(`ticket`),
-  FULLTEXT KEY `tix`(`inhalt`)
+  KEY `tig` (`ticket`),
+  FULLTEXT KEY `tix` (`inhalt`)
 ) TYPE=MyISAM
