@@ -7,14 +7,14 @@ AC_DIVERT_PUSH(0)
 
 define(CHARSETS_AVAILABLE0,binary)
 define(CHARSETS_AVAILABLE1,armscii8 ascii big5 cp1250 cp1251 cp1256 cp1257)
-define(CHARSETS_AVAILABLE2,cp850 cp852 cp866 cp932 dec8 eucjp_ms euckr gb2312 gbk geostd8)
+define(CHARSETS_AVAILABLE2,cp850 cp852 cp866 cp932 dec8 eucjpms euckr gb2312 gbk geostd8)
 define(CHARSETS_AVAILABLE3,greek hebrew hp8 keybcs2 koi8r koi8u)
 define(CHARSETS_AVAILABLE4,latin1 latin2 latin5 latin7 macce macroman)
 define(CHARSETS_AVAILABLE5,sjis swe7 tis620 ucs2 ujis utf8)
 
 DEFAULT_CHARSET=latin1
 CHARSETS_AVAILABLE="CHARSETS_AVAILABLE0 CHARSETS_AVAILABLE1 CHARSETS_AVAILABLE2 CHARSETS_AVAILABLE3 CHARSETS_AVAILABLE4 CHARSETS_AVAILABLE5"
-CHARSETS_COMPLEX="big5 cp1250 cp932 eucjp_ms euckr gb2312 gbk latin1 latin2 sjis tis620 ucs2 ujis utf8"
+CHARSETS_COMPLEX="big5 cp1250 cp932 eucjpms euckr gb2312 gbk latin1 latin2 sjis tis620 ucs2 ujis utf8"
 
 AC_DIVERT_POP
 
@@ -111,8 +111,8 @@ do
     dec8)
       AC_DEFINE(HAVE_CHARSET_dec8, 1, [Define to enable charset dec8])
       ;;
-    eucjp_ms)
-      AC_DEFINE(HAVE_CHARSET_eucjp_ms, 1, [Define to enable charset eucjp_ms])
+    eucjpms)
+      AC_DEFINE(HAVE_CHARSET_eucjpms, 1, [Define to enable charset eucjpms])
       AC_DEFINE([USE_MB], [1], [Use multi-byte character routines])
       AC_DEFINE(USE_MB_IDENT, 1)
       ;;
@@ -259,9 +259,9 @@ case $default_charset in
       default_charset_default_collation="dec8_swedish_ci"
       default_charset_collations="dec8_swedish_ci dec8_bin"
       ;;
-    eucjp_ms)
-      default_charset_default_collation="eucjp_ms_japanese_ci"
-      default_charset_collations="eucjp_ms_japanese_ci ujis_bin"
+    eucjpms)
+      default_charset_default_collation="eucjpms_japanese_ci"
+      default_charset_collations="eucjpms_japanese_ci ujis_bin"
       ;;
     euckr)
       default_charset_default_collation="euckr_korean_ci"
