@@ -9083,14 +9083,15 @@ it with a trace file or under @code{gdb}.  @xref{Using gdb on mysqld}.
 @node BSD Notes, Mac OS X, Solaris, Operating System Specific Notes
 @subsection BSD Notes
 
+This section provides information for the various BSD flavours,
+as well as specific versions within those.
+
 @menu
 * FreeBSD::                     FreeBSD Notes
 * NetBSD::                      NetBSD notes
-* OpenBSD::                     OpenBSD Notes
-* OpenBSD 2.5::                 OpenBSD 2.5 Notes
+* OpenBSD::                     OpenBSD 2.5 Notes
 * OpenBSD 2.8::                 OpenBSD 2.8 Notes
-* BSDI::                        BSD/OS Notes
-* BSDI2::                       BSD/OS Version 2.x Notes
+* BSDI::                        BSD/OS Version 2.x Notes
 * BSDI3::                       BSD/OS Version 3.x Notes
 * BSDI4::                       BSD/OS Version 4.x Notes
 @end menu
@@ -9190,17 +9191,7 @@ To compile on NetBSD you need GNU @code{make}.  Otherwise the compile will
 crash when @code{make} tries to run @code{lint} on C++ files.
 
 
-@node OpenBSD, OpenBSD 2.5, NetBSD, BSD Notes
-@subsubsection OpenBSD Notes
-
-@menu
-* OpenBSD 2.5::                 OpenBSD 2.5 Notes
-* OpenBSD 2.8::                 OpenBSD 2.8 Notes
-@end menu
-
-This section contains notes on OpenBSD.
-
-@node OpenBSD 2.5, OpenBSD 2.8, OpenBSD, BSD Notes
+@node OpenBSD, OpenBSD 2.8, NetBSD, BSD Notes
 @subsubsection OpenBSD 2.5 Notes
 
 On OpenBSD Version 2.5, you can compile MySQL with native threads
@@ -9211,7 +9202,7 @@ CFLAGS=-pthread CXXFLAGS=-pthread ./configure --with-mit-threads=no
 @end example
 
 
-@node OpenBSD 2.8, BSDI, OpenBSD 2.5, BSD Notes
+@node OpenBSD 2.8, BSDI, OpenBSD, BSD Notes
 @subsubsection OpenBSD 2.8 Notes
 
 Our users have reported that OpenBSD 2.8 has a threading bug which causes
@@ -9221,18 +9212,7 @@ The symptoms of this threading bug are: slow response, high load, high CPU
 usage, and crashes.
 
 
-@node BSDI, BSDI2, OpenBSD 2.8, BSD Notes
-@subsubsection BSD/OS Notes
-
-@menu
-* BSDI2::                       BSD/OS 2.x notes
-* BSDI3::                       BSD/OS 3.x notes
-* BSDI4::                       BSD/OS 4.x notes
-@end menu
-
-This section contains notes on BSD/OS.
-
-@node BSDI2, BSDI3, BSDI, BSD Notes
+@node BSDI, BSDI3, OpenBSD 2.8, BSD Notes
 @subsubsection BSD/OS Version 2.x Notes
 
 If you get the following error when compiling MySQL, your
@@ -9257,7 +9237,7 @@ If you get problems with the current date in MySQL, setting the
 @code{TZ} variable will probably help.  @xref{Environment variables}.
 
 
-@node BSDI3, BSDI4, BSDI2, BSD Notes
+@node BSDI3, BSDI4, BSDI, BSD Notes
 @subsubsection BSD/OS Version 3.x Notes
 
 Upgrade to BSD/OS Version 3.1.  If that is not possible, install
