@@ -46340,6 +46340,10 @@ Fixed bug when joining with caching (unlikely to happen).
 Fixed race condition when using the binary log and @code{INSERT DELAYED}
 which could cause the binary log to have rows that was not yet written
 to MyISAM tables.
+@item
+Changed caching of binary log to make replication slightly faster.
+@item
+Fixed bug in replication on Mac OS X.
 @end itemize
 
 @node News-3.23.45, News-3.23.44, News-3.23.46, News-3.23.x

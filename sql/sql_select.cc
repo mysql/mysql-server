@@ -2322,7 +2322,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       used_tables|=current_map;
 
       if (tab->type == JT_REF && tab->quick &&
-	  tab->ref.key == tab->quick->index &&
+	  (uint) tab->ref.key == tab->quick->index &&
 	  tab->ref.key_length < tab->quick->max_used_key_length)
       {
 	/* Range uses longer key;  Use this instead of ref on key */
