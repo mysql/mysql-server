@@ -21,6 +21,8 @@
 #ifndef _my_alloc_h
 #define _my_alloc_h
 
+#define MAX_BLOCK_USAGE_BEFORE_DROP 10
+
 typedef struct st_used_mem
 {				   /* struct for once_alloc (block) */
   struct st_used_mem *next;	   /* Next block in use */
@@ -35,9 +37,14 @@ typedef struct st_mem_root
   USED_MEM *used;                  /* blocks almost without free memory */
   USED_MEM *pre_alloc;             /* preallocated block */
   /* if block have less memory it will be put in 'used' list */
-  unsigned int	min_malloc;
-  unsigned int	block_size;        /* initial block size */
-  unsigned int	block_num;         /* allocated blocks counter */
+  unsigned int min_malloc;
+  unsigned int block_size;         /* initial block size */
+  unsigned int block_num;          /* allocated blocks counter */
+  /* 
+     first free block in queue test counter (if it exceed 
+     MAX_BLOCK_USAGE_BEFORE_DROP block will be droped in 'used' list)
+  */
+  unsigned int first_block_usage;
 
   void (*error_handler)(void);
 } MEM_ROOT;
