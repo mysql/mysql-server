@@ -2529,7 +2529,7 @@ static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key)
 
   if (!sort_param->wordlist)
   {
-    do
+    for (;;)
     {
       my_free((char*) wptr, MYF(MY_ALLOW_ZERO_PTR));
       if ((error=sort_get_next_record(sort_param)))
@@ -2537,9 +2537,10 @@ static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key)
       if (!(wptr=_mi_ft_parserecord(info,sort_param->key,
                                      key,sort_param->record)))
         DBUG_RETURN(1);
+      if (wptr->pos)
+        break;
       error=sort_write_record(sort_param);
     }
-    while (!wptr->pos);
     sort_param->wordptr=sort_param->wordlist=wptr;
   }
   else
@@ -2560,6 +2561,7 @@ static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key)
   {
     my_free((char*) sort_param->wordlist, MYF(0));
     sort_param->wordlist=0;
+    error=sort_write_record(sort_param);
   }
   else
     sort_param->wordptr=(void*)wptr;
