@@ -4,6 +4,9 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+SHOW VARIABLES LIKE 'relay_log_space_limit';
+Variable_name	Value
+relay_log_space_limit	0
 CREATE TABLE t1 (name varchar(64), age smallint(3));
 INSERT INTO  t1 SET name='Andy', age=31;
 INSERT t1 SET name='Jacob', age=2;
