@@ -161,8 +161,8 @@ extern int heap_panic(enum ha_panic_function flag);
 extern int heap_rsame(HP_INFO *info,byte *record,int inx);
 extern int heap_rnext(HP_INFO *info,byte *record);
 extern int heap_rprev(HP_INFO *info,byte *record);
-extern int heap_rfirst(HP_INFO *info,byte *record);
-extern int heap_rlast(HP_INFO *info,byte *record);
+extern int heap_rfirst(HP_INFO *info,byte *record,int inx);
+extern int heap_rlast(HP_INFO *info,byte *record,int inx);
 extern void heap_clear(HP_INFO *info);
 
 ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,

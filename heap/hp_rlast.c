@@ -19,15 +19,12 @@
 	/* Read first record with the current key */
 
 
-int heap_rlast(HP_INFO *info, byte *record)
+int heap_rlast(HP_INFO *info, byte *record, int inx)
 {
-  HP_SHARE *share = info->s;
-  HP_KEYDEF *keyinfo;
+  HP_SHARE *share=    info->s;
+  HP_KEYDEF *keyinfo= share->keydef + inx;
 
   DBUG_ENTER("heap_rlast");
-  if (info->lastinx < 0)
-    DBUG_RETURN(my_errno = HA_ERR_WRONG_INDEX);
-  keyinfo = share->keydef + info->lastinx;
   if (keyinfo->algorithm == HA_KEY_ALG_BTREE)
   {
     byte *pos;
