@@ -966,6 +966,23 @@ row_ins_foreign_check_on_constraint(
 	
 	err = row_update_cascade_for_mysql(thr, cascade,
 						foreign->foreign_table);
+
+	if (foreign->foreign_table->n_foreign_key_checks_running == 0) {
+		fprintf(stderr,
+"InnoDB: error: table %s has the counter 0 though there is\n"
+"InnoDB: a FOREIGN KEY check running on it.\n",
+			foreign->foreign_table->name);
+	}
+
+	/* Release the data dictionary latch for a while, so that we do not
+	starve other threads from doing CREATE TABLE etc. if we have a huge
+	cascaded operation running. The counter n_foreign_key_checks_running
+	will prevent other users from dropping or ALTERing the table when we
+	release the latch. */
+
+	row_mysql_unfreeze_data_dictionary(thr_get_trx(thr));
+	row_mysql_freeze_data_dictionary(thr_get_trx(thr));
+
 	mtr_start(mtr);
 
 	/* Restore pcur position */
