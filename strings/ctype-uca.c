@@ -7214,7 +7214,7 @@ static int my_strnxfrm_uca(CHARSET_INFO *cs,
                            uchar *dst, uint dstlen,
                            const uchar *src, uint srclen)
 {
-  uchar *de = dst + (dstlen & (uint) ~1); // add even length for easier code
+  uchar *de = dst + (dstlen & (uint) ~1); /* add even length for easier code */
   int   s_res;
   my_uca_scanner scanner;
   scanner_handler->init(&scanner, cs, src, srclen);
@@ -7232,7 +7232,7 @@ static int my_strnxfrm_uca(CHARSET_INFO *cs,
     dst[1]= s_res & 0xFF;
     dst+= 2;
   }
-  if (dstlen & 1) // if odd number then fill the last char
+  if (dstlen & 1) /* if odd number then fill the last char */
     *dst= '\0';
   
   return dstlen;
