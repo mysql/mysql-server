@@ -119,7 +119,7 @@ static int search_files(const char *conf_file, int *argc, char ***argv,
   if (defaults_extra_file)
     defaults_extra_file= strchr(defaults_extra_file,'=')+1;
 
-  args_used+= (forced_default_file ? 1 : 0) + (defaults_extra_file ? 1 : 0);
+  (*args_used)+= (forced_default_file ? 1 : 0) + (defaults_extra_file ? 1 : 0);
 
   if (forced_default_file)
   {
