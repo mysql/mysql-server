@@ -53,7 +53,7 @@ int mysql_update(THD *thd,
 		 enum enum_duplicates handle_duplicates,
 		 thr_lock_type lock_type)
 {
-  bool 		using_limit=limit != HA_POS_ERROR;
+  bool 		using_limit=limit != HA_POS_ERROR, safe_update= thd->options & OPTION_SAFE_UPDATES;
   bool		used_key_is_modified, transactional_table, log_delayed;
   int		error=0;
   uint		save_time_stamp, used_index, want_privilege;
@@ -117,9 +117,7 @@ int mysql_update(THD *thd,
   table->used_keys=0;
   select=make_select(table,0,0,conds,&error);
   if (error ||
-      (select && select->check_quick(test(thd->options & OPTION_SAFE_UPDATES),
-				     limit)) ||
-      !limit)
+      (select && select->check_quick(safe_update, limit)) || !limit)
   {
     delete select;
     table->time_stamp=save_time_stamp;		// Restore timestamp pointer
@@ -134,7 +132,7 @@ int mysql_update(THD *thd,
   if (!table->quick_keys)
   {
     thd->lex.select_lex.options|=QUERY_NO_INDEX_USED;
-    if ((thd->options & OPTION_SAFE_UPDATES) && limit == HA_POS_ERROR)
+    if (safe_update && !using_limit)
     {
       delete select;
       table->time_stamp=save_time_stamp;
