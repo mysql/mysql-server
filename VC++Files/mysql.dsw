@@ -1,0 +1,656 @@
+Microsoft Developer Studio Workspace File, Format Version 6.00
+# WARNING: DO NOT EDIT OR DELETE THIS WORKSPACE FILE!
+
+###############################################################################
+
+Project: "MySqlManager"=".\mysqlmanager\MySqlManager.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name mysqlclient
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "bdb"=".\bdb\bdb.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "dbug"=".\dbug\dbug.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "heap"=".\heap\heap.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "innobase"=".\innobase\innobase.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "isam"=".\isam\isam.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "isamchk"=".\isamchk\isamchk.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name isam
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name strings
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name dbug
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "libmySQL"=".\libmysql\libmySQL.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name zlib
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "merge"=".\merge\merge.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "myTest"=".\libmysqltest\myTest.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name libmySQL
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "myisam"=".\myisam\myisam.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "myisamchk"=".\myisamchk\myisamchk.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name dbug
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name myisam
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name strings
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "myisamlog"=".\myisamlog\myisamlog.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name dbug
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name myisam
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name strings
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "myisammrg"=".\myisammrg\myisammrg.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "myisampack"=".\myisampack\myisampack.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name dbug
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name myisam
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name strings
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mysql"=".\client\mysql.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name mysqlclient
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mysqladmin"=".\client\mysqladmin.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name mysqlclient
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name zlib
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mysqlbinlog"=".\mysqlbinlog\mysqlbinlog.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name mysqlclient
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mysqlcheck"=".\mysqlcheck\mysqlcheck.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name mysqlclient
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mysqlclient"=".\client\mysqlclient.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name zlib
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mysqld"=".\sql\mysqld.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name heap
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name isam
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name merge
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name regex
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name strings
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name dbug
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysql
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysqladmin
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysqldump
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysqlimport
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name MySqlManager
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysqlshow
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name myTest
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name thr_test
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name replace
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name zlib
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name myisam
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name myisammrg
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name innobase
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name bdb
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name vio
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mysqldump"=".\client\mysqldump.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name mysqlclient
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mysqlimport"=".\client\mysqlimport.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name mysqlclient
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mysqlshow"=".\client\mysqlshow.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name mysqlclient
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mysqlshutdown"=".\mysqlshutdown\mysqlshutdown.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "mysqlwatch"=".\mysqlwatch\mysqlwatch.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "mysys"=".\mysys\mysys.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "pack_isam"=".\pack_isam\pack_isam.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name dbug
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name isam
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name strings
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "perror"=".\perror\perror.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name dbug
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name strings
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "regex"=".\regex\regex.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "replace"=".\replace\replace.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name dbug
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name strings
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "strings"=".\strings\strings.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "test1"=".\test1\test1.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name libmySQL
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "thr_insert_test"=".\thr_insert_test\thr_insert_test.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name mysqlclient
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "thr_test"=".\thr_test\thr_test.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name dbug
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mysys
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name strings
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "vio"=".\vio\vio.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "zlib"=".\zlib\zlib.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Global:
+
+Package=<5>
+{{{
+}}}
+
+Package=<3>
+{{{
+}}}
+
+###############################################################################
+
