@@ -1,6 +1,5 @@
 
-AM_LDFLAGS = -rpath @ndblibdir@
 LDADD += $(top_srcdir)/ndb/test/src/libNDBT.a \
-         $(top_srcdir)/ndb/src/libndbclient.la
+         $(top_srcdir)/ndb/src/.libs/libndbclient.a
 
 INCLUDES += @NDB_NDBAPITEST_INCLUDES@
