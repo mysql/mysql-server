@@ -29167,8 +29167,6 @@ mysql> select STRCMP('text', 'text');
 relevance - similarity measure between the text in columns
 @code{(col1,col2,...)} and the query @code{expr}. Relevance is a
 positive floating-point number. Zero relevance means no similarity.
-For @code{MATCH ... AGAINST()} to work, a @strong{FULLTEXT} index
-must be created first. @xref{CREATE TABLE, , @code{CREATE TABLE}}.
 @code{MATCH ... AGAINST()} is available in MySQL version
 3.23.23 or later. @code{IN BOOLEAN MODE} extension was added in version
 4.0.1. For details and usage examples @pxref{Fulltext Search}.
@@ -33828,9 +33826,10 @@ mysql> SELECT * FROM articles WHERE MATCH (title,body) AGAINST (
 
 This query retrieved all the rows that contain the word @code{MySQL}
 (note: 50% threshold is gone), but does @strong{not} contain the word
-@code{YourSQL}.  Note that it does not auto-magically sort rows in
+@code{YourSQL}.  Note, that it does not auto-magically sort rows in
 derceasing relevance order (the last row has the highest relevance,
-as it contains @code{MySQL} twice).
+as it contains @code{MySQL} twice). Boolean fulltext search can also
+work even without @code{FULLTEXT} index, but it would be @strong{slow}.
 
 Boolean fulltext search supports the following operators:
 
@@ -33890,10 +33889,12 @@ order), but rank ``gates to hell'' higher than ``bill gates''.
 @itemize @bullet
 @item
 All parameters to the @code{MATCH} function must be columns from the
-same table that is part of the same fulltext index.
+same table that is part of the same fulltext index, unless this
+@code{MATCH} is @code{IN BOOLEAN MODE}.
 @item
 Column list between @code{MATCH} and @code{AGAINST} must match exactly
-a column list in the @code{FULLTEXT} index definition.
+a column list in the @code{FULLTEXT} index definition, unless this
+@code{MATCH} is @code{IN BOOLEAN MODE}.
 @item
 The argument to @code{AGAINST} must be a constant string.
 @end itemize
@@ -45852,6 +45853,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.1
 
 @itemize @bullet
+@item
+@code{MATCH ... AGAINST(... IN BOOLEAN MODE)} can now work
+without @code{FULLTEXT} index.
 @item
 Added @file{myisam/ft_dump} utility for low-level inspection
 of @code{FULLTEXT} indexes.

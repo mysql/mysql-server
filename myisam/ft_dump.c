@@ -159,7 +159,7 @@ err:
   return 0;
 }
 
-const char *options="dscve:h";
+const char *options="dscvh";
 
 static void get_options(int argc, char *argv[])
 {
@@ -184,7 +184,15 @@ static void get_options(int argc, char *argv[])
 
 static void usage(char *argv[])
 {
-  printf("Use: %s [-%s] <table_name> <key_no>\n", *argv, options);
+  printf("
+Use: %s [-%s] <table_name> <index_no>
+
+-d      dump index (incl. data offsets and word weights)
+-s      report global stats
+-c      calculate per-word stats (counts and global weights)
+-v      be verbose
+-h      this text\n
+", *argv, options);
   exit(1);
 }
 
