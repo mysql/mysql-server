@@ -1042,7 +1042,11 @@ static void init_signals(void)
 
 static sig_handler write_core(int sig)
 {
-  fprintf(stderr,"Got signal %s in thread %d\n",sys_siglist[sig],getpid());
+  fprintf(stderr,"\
+mysqld got signal %s in thread %d;  Writing core file: %s\n\
+The manual section 'Debugging a MySQL server' tells you how to use a \n\
+debugger on the core file to produce a backtrace that may help you find out\n\
+why mysqld died\n",sys_siglist[sig],getpid(),mysql_home);
   signal(sig, SIG_DFL);
   if (fork() != 0) exit(1);			// Abort main program
   // Core will be written at exit
