@@ -14,36 +14,50 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-// 
-//  ndbapi_example1.cpp: Using synchronous transactions in NDB API
-//
-//  Correct output from this program is:
-//
-//  ATTR1 ATTR2
-//    0    10
-//    1     1
-//    2    12
-//  Detected that deleted tuple doesn't exist!
-//    4    14
-//    5     5
-//    6    16
-//    7     7
-//    8    18
-//    9     9
+/* 
+ *  ndbapi_example1.cpp: Using synchronous transactions in NDB API
+ *
+ *  Correct output from this program is:
+ *
+ *  ATTR1 ATTR2
+ *    0    10
+ *    1     1
+ *    2    12
+ *  Detected that deleted tuple doesn't exist!
+ *    4    14
+ *    5     5
+ *    6    16
+ *    7     7
+ *    8    18
+ *    9     9
+ *
+ */
 
+#include <mysql.h>
 #include <NdbApi.hpp>
 // Used for cout
 #include <stdio.h>
 #include <iostream>
 
-static void run_application(Ndb_cluster_connection &);
+static void run_application(MYSQL &, Ndb_cluster_connection &);
+
+#define PRINT_ERROR(code,msg) \
+  std::cout << "Error in " << __FILE__ << ", line: " << __LINE__ \
+            << ", code: " << code \
+            << ", msg: " << msg << "." << std::endl
+#define MYSQLERROR(mysql) { \
+  PRINT_ERROR(mysql_errno(&mysql),mysql_error(&mysql)); \
+  exit(-1); }
+#define APIERROR(error) { \
+  PRINT_ERROR(error.code,error.message); \
+  exit(-1); }
 
 int main()
 {
   // ndb_init must be called first
   ndb_init();
 
-  // connect to cluster and run application
+  // connect to mysql server and cluster and run application
   {
     // Object representing the cluster
     Ndb_cluster_connection cluster_connection;
@@ -64,31 +78,47 @@ int main()
       exit(-1);
     }
 
+    // connect to mysql server
+    MYSQL mysql;
+    if ( !mysql_init(&mysql) ) {
+      std::cout << "mysql_init failed\n";
+      exit(-1);
+    }
+    if ( !mysql_real_connect(&mysql, "localhost", "root", "", "",
+			     3306, "/tmp/mysql.sock", 0) )
+      MYSQLERROR(mysql);
+    
     // run the application code
-    run_application(cluster_connection);
+    run_application(mysql, cluster_connection);
   }
 
   // ndb_end should not be called until all "Ndb" objects are deleted
   ndb_end(0);
 
+  std::cout << "\nTo drop created table use:\n"
+	    << "echo \"drop table MYTABLENAME\" | mysql TEST_DB_1 -u root\n";
+
   return 0;
 }
 
-#define APIERROR(error) \
-  { std::cout << "Error in " << __FILE__ << ", line:" << __LINE__ << ", code:" \
-              << error.code << ", msg: " << error.message << "." << std::endl; \
-    exit(-1); }
+static void create_table(MYSQL &);
+static void do_insert(Ndb &);
+static void do_update(Ndb &);
+static void do_delete(Ndb &);
+static void do_read(Ndb &);
 
-static void create_table(Ndb &myNdb);
-static void do_insert(Ndb &myNdb);
-static void do_update(Ndb &myNdb);
-static void do_delete(Ndb &myNdb);
-static void do_read(Ndb &myNdb);
-
-static void run_application(Ndb_cluster_connection &cluster_connection)
+static void run_application(MYSQL &mysql,
+			    Ndb_cluster_connection &cluster_connection)
 {
   /********************************************
-   * Connect to database                      *
+   * Connect to database via mysql-c          *
+   ********************************************/
+  mysql_query(&mysql, "CREATE DATABASE TEST_DB_1");
+  if (mysql_query(&mysql, "USE TEST_DB_1") != 0) MYSQLERROR(mysql);
+  create_table(mysql);
+
+  /********************************************
+   * Connect to database via NdbApi           *
    ********************************************/
   // Object representing the database
   Ndb myNdb( &cluster_connection, "TEST_DB_1" );
@@ -97,7 +127,6 @@ static void run_application(Ndb_cluster_connection &cluster_connection)
   /*
    * Do different operations on database
    */
-  create_table(myNdb);
   do_insert(myNdb);
   do_update(myNdb);
   do_delete(myNdb);
@@ -107,37 +136,15 @@ static void run_application(Ndb_cluster_connection &cluster_connection)
 /*********************************************************
  * Create a table named MYTABLENAME if it does not exist *
  *********************************************************/
-static void create_table(Ndb &myNdb)
+static void create_table(MYSQL &mysql)
 {
-  NdbDictionary::Dictionary* myDict = myNdb.getDictionary();
-
-  if (myDict->getTable("MYTABLENAME") != NULL) {
-    std::cout 
-      << "NDB already has example table: MYTABLENAME.\n"
-      << "Use ndb_drop_table -d TEST_DB_1 MYTABLENAME\n";
-    exit(-1);
-  }
-
-  NdbDictionary::Table myTable;
-  NdbDictionary::Column myColumn;
-  
-  myTable.setName("MYTABLENAME");
-  
-  myColumn.setName("ATTR1");
-  myColumn.setType(NdbDictionary::Column::Unsigned);
-  myColumn.setLength(1);
-  myColumn.setPrimaryKey(true);
-  myColumn.setNullable(false);
-  myTable.addColumn(myColumn);
-
-  myColumn.setName("ATTR2");
-  myColumn.setType(NdbDictionary::Column::Unsigned);
-  myColumn.setLength(1);
-  myColumn.setPrimaryKey(false);
-  myColumn.setNullable(false);
-  myTable.addColumn(myColumn);
-
-  if (myDict->createTable(myTable) == -1) APIERROR(myDict->getNdbError());
+  if (mysql_query(&mysql, 
+		  "CREATE TABLE"
+		  "  MYTABLENAME"
+		  "    (ATTR1 INT UNSIGNED PRIMARY KEY,"
+		  "     ATTR2 INT UNSIGNED)"
+		  "  ENGINE=NDB"))
+    MYSQLERROR(mysql);
 }
 
 /**************************************************************************
