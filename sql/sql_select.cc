@@ -5305,7 +5305,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           if (!(tmp= add_found_match_trig_cond(first_inner_tab, tmp, 0)))
             DBUG_RETURN(1);
           tab->select_cond=sel->cond=tmp;
-	  if (current_thd->variables.engine_condition_pushdown)
+	  if (join->thd->variables.engine_condition_pushdown)
           {
             tab->table->file->pushed_cond= NULL;
 	    /* Push condition to handler */
@@ -5433,7 +5433,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 		join->thd->memdup((gptr) sel, sizeof(SQL_SELECT));
 	      tab->cache.select->cond=tmp;
 	      tab->cache.select->read_tables=join->const_table_map;
-	      if (current_thd->variables.engine_condition_pushdown &&
+	      if (join->thd->variables.engine_condition_pushdown &&
 		  (!tab->table->file->pushed_cond))
               {
 		/* Push condition to handler */
@@ -8356,6 +8356,117 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   free_tmp_table(thd,table);                    /* purecov: inspected */
   bitmap_clear_bit(&temp_pool, temp_pool_slot);
   DBUG_RETURN(NULL);				/* purecov: inspected */
+}
+
+
+/****************************************************************************/
+
+/*
+  Create a reduced TABLE object with properly set up Field list from a
+  list of field definitions.
+
+  SYNOPSIS
+    create_virtual_tmp_table()
+      thd         connection handle
+      field_list  list of column definitions
+
+  DESCRIPTION
+    The created table doesn't have a table handler assotiated with
+    it, has no keys, no group/distinct, no copy_funcs array.
+    The sole purpose of this TABLE object is to use the power of Field
+    class to read/write data to/from table->record[0]. Then one can store
+    the record in any container (RB tree, hash, etc).
+    The table is created in THD mem_root, so are the table's fields.
+    Consequently, if you don't BLOB fields, you don't need to free it.
+
+  RETURN
+    0 if out of memory, TABLE object in case of success
+*/
+
+TABLE *create_virtual_tmp_table(THD *thd, List<create_field> &field_list)
+{
+  uint field_count= field_list.elements;
+  Field **field;
+  create_field *cdef;                           /* column definition */
+  uint record_length= 0;
+  uint null_count= 0;                 /* number of columns which may be null */
+  uint null_pack_length;              /* NULL representation array length */
+  TABLE_SHARE *s;
+  /* Create the table and list of all fields */
+  TABLE *table= (TABLE*) thd->calloc(sizeof(*table));
+  field= (Field**) thd->alloc((field_count + 1) * sizeof(Field*));
+  if (!table || !field)
+    return 0;
+
+  table->field= field;
+  table->s= s= &table->share_not_to_be_used;
+  s->fields= field_count;
+
+  /* Create all fields and calculate the total length of record */
+  List_iterator_fast<create_field> it(field_list);
+  while ((cdef= it++))
+  {
+    *field= make_field(0, cdef->length,
+                       (uchar*) (f_maybe_null(cdef->pack_flag) ? "" : 0),
+                       f_maybe_null(cdef->pack_flag) ? 1 : 0,
+                       cdef->pack_flag, cdef->sql_type, cdef->charset,
+                       cdef->geom_type, cdef->unireg_check,
+                       cdef->interval, cdef->field_name, table);
+    if (!*field)
+      goto error;
+    record_length+= (**field).pack_length();
+    if (! ((**field).flags & NOT_NULL_FLAG))
+      ++null_count;
+    ++field;
+  }
+  *field= NULL;                                 /* mark the end of the list */
+
+  null_pack_length= (null_count + 7)/8;
+  s->reclength= record_length + null_pack_length;
+  s->rec_buff_length= ALIGN_SIZE(s->reclength + 1);
+  table->record[0]= (byte*) thd->alloc(s->rec_buff_length);
+  if (!table->record[0])
+    goto error;
+
+  if (null_pack_length)
+  {
+    table->null_flags= (uchar*) table->record[0];
+    s->null_fields= null_count;
+    s->null_bytes= null_pack_length;
+  }
+
+  table->in_use= thd;           /* field->reset() may access table->in_use */
+  {
+    /* Set up field pointers */
+    byte *null_pos= table->record[0];
+    byte *field_pos= null_pos + s->null_bytes;
+    uint null_bit= 1;
+
+    for (field= table->field; *field; ++field)
+    {
+      Field *cur_field= *field;
+      if ((cur_field->flags & NOT_NULL_FLAG))
+        cur_field->move_field((char*) field_pos);
+      else
+      {
+        cur_field->move_field((char*) field_pos, (uchar*) null_pos, null_bit);
+        null_bit<<= 1;
+        if (null_bit == (1 << 8))
+        {
+          ++null_pos;
+          null_bit= 1;
+        }
+      }
+      cur_field->reset();
+
+      field_pos+= cur_field->pack_length();
+    }
+  }
+  return table;
+error:
+  for (field= table->field; *field; ++field)
+    delete *field;                         /* just invokes field destructor */
+  return 0;
 }
 
 
@@ -12897,7 +13008,21 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
             extra.append(')');
 	  }
 	  else if (tab->select->cond)
-            extra.append("; Using where");
+          {
+            const COND *pushed_cond= tab->table->file->pushed_cond;
+
+            if (thd->variables.engine_condition_pushdown && pushed_cond)
+            {
+              extra.append("; Using where with pushed condition");
+              if (thd->lex->describe & DESCRIBE_EXTENDED)
+              {
+                extra.append(": ");
+                ((COND *)pushed_cond)->print(&extra);
+              }
+            }
+            else
+              extra.append("; Using where");
+          }
 	}
 	if (key_read)
         {

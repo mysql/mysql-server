@@ -881,3 +881,10 @@ SELECT MAX(id) FROM t1 WHERE id < 3 AND a=2 AND b=6;
 MAX(id)
 NULL
 DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(400));
+INSERT INTO t1 (a) VALUES ("A"), ("a"), ("a "), ("a   "),
+("B"), ("b"), ("b "), ("b   ");
+SELECT COUNT(DISTINCT a) FROM t1;
+COUNT(DISTINCT a)
+2
+DROP TABLE t1;

@@ -124,7 +124,7 @@ Transporter::connect_client() {
   else
     sockfd= m_socket_client->connect();
 
-  connect_client(sockfd);
+  return connect_client(sockfd);
 }  
 
 bool

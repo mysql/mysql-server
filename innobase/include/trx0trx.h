@@ -369,6 +369,11 @@ struct trx_struct{
 	XID		xid;		/* X/Open XA transaction 
 					identification to identify a 
 					transaction branch */
+	ibool		support_xa;	/* normally we do the XA two-phase
+					commit steps, but by setting this to
+					FALSE, one can save CPU time and about
+					150 bytes in the undo log size as then
+					we skip XA steps */
 	dulint		no;		/* transaction serialization number ==
 					max trx id when the transaction is 
 					moved to COMMITTED_IN_MEMORY state */

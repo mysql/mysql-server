@@ -2004,3 +2004,14 @@ SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
 
 DROP TABLE t1;
 
+#
+# Bug#7425 inconsistent sort order on unsigned columns result of substraction
+#
+
+create table t1 (a int(11) unsigned, b int(11) unsigned);
+insert into t1 values (1,0), (1,1), (1,2);
+select a-b  from t1 order by 1;
+select a-b , (a-b < 0)  from t1 order by 1;
+select a-b as d, (a-b >= 0), b from t1 group by b having d >= 0;
+select cast((a - b) as unsigned) from t1 order by 1;
+drop table t1;

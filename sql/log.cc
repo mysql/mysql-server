@@ -46,6 +46,7 @@ static int binlog_rollback(THD *thd, bool all);
 static int binlog_prepare(THD *thd, bool all);
 
 static handlerton binlog_hton = {
+  "binlog",
   0,
   sizeof(my_off_t),             /* savepoint size = binlog offset */
   binlog_close_connection,
@@ -612,7 +613,12 @@ bool MYSQL_LOG::open(const char *log_name,
         even if this is not the very first binlog.
       */
       Format_description_log_event s(BINLOG_VERSION);
-      s.flags|= LOG_EVENT_BINLOG_IN_USE_F;
+      /*
+        don't set LOG_EVENT_BINLOG_IN_USE_F for SEQ_READ_APPEND io_cache
+        as we won't be able to reset it later
+      */
+      if (io_cache_type == WRITE_CACHE)
+        s.flags|= LOG_EVENT_BINLOG_IN_USE_F;
       if (!s.is_valid())
         goto err;
       if (null_created_arg)
@@ -2487,7 +2493,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
   {
     inited= 1;
     crashed= TRUE;
-    sql_print_information("Recovering after a crash");
+    sql_print_information("Recovering after a crash using %s", opt_name);
     if (tc_heuristic_recover)
     {
       sql_print_error("Cannot perform automatic crash recovery when "
@@ -2947,7 +2953,10 @@ int TC_LOG_BINLOG::open(const char *opt_name)
     if ((ev= Log_event::read_log_event(&log, 0, &fdle)) &&
         ev->get_type_code() == FORMAT_DESCRIPTION_EVENT &&
         ev->flags & LOG_EVENT_BINLOG_IN_USE_F)
+    {
+      sql_print_information("Recovering after a crash using %s", opt_name);
       error= recover(&log, (Format_description_log_event *)ev);
+    }
     else
       error=0;
 

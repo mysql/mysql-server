@@ -812,7 +812,7 @@ my_bool my_gethwaddr(uchar *to);
 /* qnx ? */
 #define my_getpagesize()        8192
 #endif
-#define my_munmap(a,b)          munmap((char*)(a),(b))
+#define my_munmap(a,b)          munmap((a),(b))
 
 #else
 /* not a complete set of mmap() flags, but only those that nesessary */
