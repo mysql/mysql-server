@@ -57,5 +57,5 @@ Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File
 #	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	50583	slave-relay-bin.000010	52	master-bin.000001	Yes	Yes							0		0	50583	52	None		0	No						#
 flush logs;
 show master status;
-File	Position	Binlog_do_db	Binlog_ignore_db
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000002	4		
