@@ -21,6 +21,7 @@
 #include <mgmapi_config_parameters.h>
 #include <ndb_limits.h>
 #include "InitConfigFileParser.hpp"
+#include <m_string.h>
 
 #define MAX_LINE_LENGTH 255
 #define KEY_INTERNAL 0
