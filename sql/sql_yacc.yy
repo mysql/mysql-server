@@ -1706,15 +1706,8 @@ sp_proc_stmt:
 	  {
 	    LEX *lex= Lex;
 
-	    /* QQ What else? This doesn't seem to be a practical way,
-	          but at the moment we can't think of anything better... */
 	    if ((lex->sql_command == SQLCOM_SELECT && !lex->result) ||
-	        lex->sql_command == SQLCOM_SHOW_CREATE_PROC ||
-	        lex->sql_command == SQLCOM_SHOW_CREATE_FUNC ||
-	        lex->sql_command == SQLCOM_SHOW_STATUS_PROC ||
-	        lex->sql_command == SQLCOM_SHOW_STATUS_FUNC ||
-		lex->sql_command == SQLCOM_ANALYZE ||
-		lex->sql_command == SQLCOM_HA_READ)
+	        sp_multi_results_command(lex->sql_command))
 	    {
 	      /* We maybe have one or more SELECT without INTO */
 	      lex->sphead->m_multi_results= TRUE;

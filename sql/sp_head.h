@@ -32,6 +32,9 @@
 Item_result
 sp_map_result_type(enum enum_field_types type);
 
+bool
+sp_multi_results_command(enum enum_sql_command cmd);
+
 struct sp_label;
 class sp_instr;
 struct sp_cond_type;
