@@ -260,10 +260,7 @@ public:
 
   // Abstract methods inherited from Item. Just defer the call to
   // the item in the frame
-  inline enum Type type() const
-  {
-    return this_const_item()->type();
-  }
+  enum Type type() const;
 
   inline double val()
   {
