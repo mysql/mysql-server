@@ -2182,3 +2182,17 @@ ERROR 21000: Operand should contain 2 column(s)
 select (select * from t1) = row(1,(2,2));
 ERROR 21000: Operand should contain 1 column(s)
 drop table t1;
+create  table t1 (a integer);
+insert into t1 values (1);
+select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx ;
+ERROR 42S22: Reference 'xx' not supported (forward reference in item list)
+select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
+ERROR 42S22: Reference 'xx' not supported (forward reference in item list)
+select 1 as xx, 1 = ALL (  select 1 from t1 where 1 = xx );
+xx	1 = ALL (  select 1 from t1 where 1 = xx )
+1	1
+select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
+ERROR 42S22: Reference 'xx' not supported (forward reference in item list)
+select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx from DUAL;
+ERROR 42S22: Reference 'xx' not supported (forward reference in item list)
+drop table t1;

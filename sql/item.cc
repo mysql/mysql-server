@@ -1482,12 +1482,13 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       }
       else if (refer != (Item **)not_found_item)
       {
-	if (!(*refer)->fixed)
+	if (!last->ref_pointer_array[counter])
 	{
 	  my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
 		   "forward reference in item list");
 	  return -1;
 	}
+        DBUG_ASSERT((*refer)->fixed);
         /*
           Here, a subset of actions performed by Item_ref::set_properties
           is not enough. So we pass ptr to NULL into Item_[direct]_ref
@@ -2173,12 +2174,13 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	mark_as_dependent(thd, last, thd->lex->current_select, fld);
 	return 0;
       }
-      if (!(*ref)->fixed)
+      if (!last->ref_pointer_array[counter])
       {
         my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
                  "forward reference in item list");
         return -1;
       }
+      DBUG_ASSERT((*ref)->fixed);
       mark_as_dependent(thd, last, thd->lex->current_select,
                         this);
       if (place == IN_HAVING)
