@@ -2539,6 +2539,11 @@ longlong Item_func_crc32::val_int()
 String *Item_func_compress::val_str(String *str)
 {
   String *res= args[0]->val_str(str);
+  if (!res)
+  {
+    null_value= 1;
+    return 0;
+  }
   if (res->is_empty()) return res;
 
   int err= Z_OK;
@@ -2589,6 +2594,11 @@ String *Item_func_compress::val_str(String *str)
 String *Item_func_uncompress::val_str(String *str)
 {
   String *res= args[0]->val_str(str);
+  if (!res)
+  {
+    null_value= 1;
+    return 0;
+  }
   if (res->is_empty()) return res;
 
   ulong new_size= uint4korr(res->c_ptr()) & 0x3FFFFFFF;
