@@ -4938,6 +4938,29 @@ same time. @xref{DELETE}.
 
 PostgreSQL currently offers the following advantages over MySQL Server:
 
+Note that because we know the MySQL road map, we have included in the
+following table the version when MySQL Server should support this feature.
+Unfortunately we couldn't do this for previous comparison, because we
+don't know the PostgreSQL roadmap.
+
+@multitable @columnfractions .30 .30
+@item @strong{Feature}                     @tab @strong{MySQL version}
+@item Subselects                           @tab 4.1
+@item Foreign keys                         @tab 4.1
+@item Views                                @tab 5.0
+@item Stored procedures                    @tab 5.0
+@item Triggers                             @tab 5.0
+@item Unions                               @tab 4.0
+@item Full join                            @tab 4.1
+@item Constraints                          @tab 4.1 or 5.0
+@item Cursors                              @tab 4.1 or 5.0
+@item R-trees                              @tab 4.1 (for MyISAM tables)
+@item Inherited tables                     @tab Not planned
+@item Extensible type system               @tab Not planned
+@end multitable
+
+Other reasons someone may consider for using PostgreSQL:
+
 @itemize @bullet
 @item
 Standard usage in PostgreSQL is closer to ANSI SQL in some cases.
