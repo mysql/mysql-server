@@ -17,6 +17,7 @@
 #include <ndb_global.h>
 #include <ndb_version.h>
 #include <version.h>
+#include <basestring_vsnprintf.h>
 
 Uint32 getMajor(Uint32 version) {
   return (version >> 16) & 0xFF;
@@ -38,14 +39,14 @@ Uint32 makeVersion(Uint32 major, Uint32 minor, Uint32 build) {
 const char * getVersionString(Uint32 version, const char * status) {
   char buff[100];
   if (status && status[0] != 0)
-    snprintf(buff, sizeof(buff),
+	  basestring_snprintf(buff, sizeof(buff),
 	     "Version %d.%d.%d (%s)",
 	     getMajor(version),
 	     getMinor(version),
 	     getBuild(version),
 	     status);
   else
-    snprintf(buff, sizeof(buff),
+    basestring_snprintf(buff, sizeof(buff),
 	     "Version %d.%d.%d",
 	     getMajor(version),
 	     getMinor(version),

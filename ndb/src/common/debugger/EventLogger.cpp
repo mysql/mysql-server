@@ -1033,7 +1033,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 		 "Grep::SSCoord:Error code: %d Error message: %s"
 		 " (subId=%d,SubKey=%d)",
 		 err,
-		 GrepError::getErrorDesc((GrepError::Code)err),
+		 GrepError::getErrorDesc((GrepError::GE_Code)err),
 		 subId,
 		 subKey);
       break;
@@ -1050,7 +1050,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 		 subId,
 		 subKey,
 		 err,
-		 GrepError::getErrorDesc((GrepError::Code)err));
+		 GrepError::getErrorDesc((GrepError::GE_Code)err));
       break;
     }
     case GrepEvent::GrepSS_SubStartMetaRef: 
@@ -1066,7 +1066,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 		 subId,
 		 subKey,
 		 err,
-		 GrepError::getErrorDesc((GrepError::Code)err));
+		 GrepError::getErrorDesc((GrepError::GE_Code)err));
       break;
     }
     case GrepEvent::GrepSS_SubStartDataRef: 
@@ -1081,7 +1081,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 		 subId,
 		 subKey,
 		 err,
-		 GrepError::getErrorDesc((GrepError::Code)err));
+		 GrepError::getErrorDesc((GrepError::GE_Code)err));
       break;
     }
     case GrepEvent::GrepSS_SubSyncMetaRef: 
@@ -1096,7 +1096,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 		 subId,
 		 subKey,
 		 err,
-		 GrepError::getErrorDesc((GrepError::Code)err));
+		 GrepError::getErrorDesc((GrepError::GE_Code)err));
       break;
     }
     case GrepEvent::GrepSS_SubSyncDataRef: 
@@ -1113,7 +1113,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 		 subKey,
 		 gci,
 		 err,
-		 GrepError::getErrorDesc((GrepError::Code)err));
+		 GrepError::getErrorDesc((GrepError::GE_Code)err));
       break;
     }
     case GrepEvent::GrepSS_SubRemoveRef: 
@@ -1128,7 +1128,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 		 subId,
 		 subKey,
 		 err,
-		 GrepError::getErrorDesc((GrepError::Code)err)
+		 GrepError::getErrorDesc((GrepError::GE_Code)err)
 		 );
       break;
     }	
@@ -1142,7 +1142,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 		 "Grep::PSCoord: Error code: %d Error Message: %s"
 		 " (subId=%d,SubKey=%d)",
 		 err,
-		 GrepError::getErrorDesc((GrepError::Code)err),
+		 GrepError::getErrorDesc((GrepError::GE_Code)err),
 		 subId,
 		 subKey);
       break;
@@ -1159,7 +1159,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 		 subId,
 		 subKey,
 		 err,
-		 GrepError::getErrorDesc((GrepError::Code)err));
+		 GrepError::getErrorDesc((GrepError::GE_Code)err));
       break;
     }
     case GrepEvent::GrepPS_SubStartMetaRef: 
@@ -1175,7 +1175,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 		 subId,
 		 subKey,		       
 		 err,
-		 GrepError::getErrorDesc((GrepError::Code)err));
+		 GrepError::getErrorDesc((GrepError::GE_Code)err));
       break;
     }
     case GrepEvent::GrepPS_SubStartDataRef: 
@@ -1190,7 +1190,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 		 subId,
 		 subKey,
 		 err,
-		 GrepError::getErrorDesc((GrepError::Code)err));
+		 GrepError::getErrorDesc((GrepError::GE_Code)err));
       break;
     }
     case GrepEvent::GrepPS_SubSyncMetaRef: 
@@ -1205,7 +1205,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 		 subId,
 		 subKey,
 		 err,
-		 GrepError::getErrorDesc((GrepError::Code)err));
+		 GrepError::getErrorDesc((GrepError::GE_Code)err));
       break;
     }
     case GrepEvent::GrepPS_SubSyncDataRef: 
@@ -1222,7 +1222,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 		 subKey,
 		 gci,
 		 err,
-		 GrepError::getErrorDesc((GrepError::Code)err));
+		 GrepError::getErrorDesc((GrepError::GE_Code)err));
       break;
     }
     case GrepEvent::GrepPS_SubRemoveRef: 
@@ -1237,7 +1237,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 		 subId,
 		 subKey,
 		 err,
-		 GrepError::getErrorDesc((GrepError::Code)err));
+		 GrepError::getErrorDesc((GrepError::GE_Code)err));
       break;
     }	
     case GrepEvent::Rep_Disconnect:
@@ -1249,7 +1249,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 		 " Error code: %d Error Message: %s",
 		 nodeId,
 		 err,
-		 GrepError::getErrorDesc((GrepError::Code)err));
+		 GrepError::getErrorDesc((GrepError::GE_Code)err));
       break;
     }	
 	

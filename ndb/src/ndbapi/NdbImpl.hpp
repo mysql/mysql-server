@@ -107,7 +107,7 @@ Uint32 convertEndian(Uint32 Data);
 enum WaitSignalType { 
   NO_WAIT           = 0,
   WAIT_NODE_FAILURE = 1,  // Node failure during wait
-  WAIT_TIMEOUT      = 2,  // Timeout during wait
+  WST_WAIT_TIMEOUT      = 2,  // Timeout during wait
 
   WAIT_TC_SEIZE     = 3,
   WAIT_TC_RELEASE   = 4,
@@ -146,7 +146,7 @@ NdbWaiter::wait(int waitTime)
       NdbCondition_Wait(m_condition, (NdbMutex*)m_mutex);
     } else {
       if (waitTime <= 0) {
-        m_state = WAIT_TIMEOUT;
+        m_state = WST_WAIT_TIMEOUT;
         break;
       }
       NdbCondition_WaitTimeout(m_condition, (NdbMutex*)m_mutex, waitTime);
