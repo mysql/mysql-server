@@ -159,6 +159,7 @@ static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
 	    opt_ansi_mode=0,opt_myisam_log=0, opt_large_files=sizeof(my_off_t) > 4;
 bool opt_sql_bin_update = 0, opt_log_slave_updates = 0;
 FILE *bootstrap_file=0;
+int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
 extern MASTER_INFO glob_mi;
 extern int init_master_info(MASTER_INFO* mi);
 
@@ -1039,6 +1040,7 @@ static void init_signals(void)
 
 #ifdef HAVE_LINUXTHREADS
 static sig_handler write_core(int sig);
+#ifdef __i386__
 #define SIGRETURN_FRAME_COUNT  1
 inline static void  trace_stack()
 {
@@ -1046,23 +1048,30 @@ inline static void  trace_stack()
   uchar** ebp;
   LINT_INIT(ebp);
   fprintf(stderr, "Attemping backtrace, please send the info below to\
-bugs@lists.mysql.com. If you see no messages after this, something is \
-went terribly wrong - report this anyway\n");
+ bugs@lists.mysql.com. If you see no messages after this, something  \
+ went terribly wrong - report this anyway\n");
   THD* thd = current_thd;
   uint frame_count = 0;
   __asm __volatile__ ("movl %%ebp,%0"
 		      :"=r"(ebp)
 		      :"r"(ebp));
+  if(!ebp)
+    {
+      fprintf(stderr, "Stack is a mess, frame pointer (ebp) is NULL,\
+ aborting backtrace\n");
+      return;
+    }
   if(!thd)
     {
-      fprintf(stderr, "Cannot determing thread while backtraing, ebp=%p",
+      fprintf(stderr, "Cannot determine thread, ebp=%p, aborting backtrace\n",
 	      ebp);
       return;
     }
   stack_bottom = (uchar**)thd->thread_stack;
-  if(ebp > stack_bottom)
+  if(ebp > stack_bottom || ebp < stack_bottom - thread_stack)
   {
-    fprintf(stderr, "Bogus stack limit, will not backtrace");
+    fprintf(stderr,
+	    "Bogus stack limit or frame pointer, aborting backtrace\n");
     return;
   }
 
@@ -1073,10 +1082,10 @@ went terribly wrong - report this anyway\n");
       uchar** new_ebp = (uchar**)*ebp;
       fprintf(stderr, "%p\n", frame_count == SIGRETURN_FRAME_COUNT ?
 	      *(ebp+17) : *(ebp+1));
-      if(new_ebp <= ebp)
+      if(new_ebp <= ebp )
 	{
 	  fprintf(stderr, "New value of ebp failed sanity check\
-terminating backtrace");
+terminating backtrace\n");
 	  return;
 	}
       ebp = new_ebp;
@@ -1086,9 +1095,17 @@ terminating backtrace");
   fprintf(stderr, "stack trace successful\n"); 
 }
 #endif
+#endif
 
 static sig_handler handle_segfault(int sig)
 {
+  // strictly speaking, one needs a mutex here
+  // but since we have got SIGSEGV already, things are a mess
+  // so not having the mutex is not as bad as possibly using a buggy
+  // mutex - so we keep things simple
+  if(segfaulted)
+    return;
+  segfaulted = 1;
   fprintf(stderr,"\
 mysqld got signal %s in thread %d;  \n\
 The manual section 'Debugging a MySQL server' tells you how to use a \n\
