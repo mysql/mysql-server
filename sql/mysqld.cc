@@ -6078,12 +6078,13 @@ static void get_options(int argc,char **argv)
   my_getopt_register_get_addr(mysql_getopt_value);
   strmake(def_ft_boolean_syntax, ft_boolean_syntax,
 	  sizeof(ft_boolean_syntax)-1);
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)) != 0)
     exit(ho_error);
   if (argc > 0)
   {
     fprintf(stderr, "%s: Too many arguments (first extra is '%s').\nUse --help to get a list of available options\n", my_progname, *argv);
-    exit(ho_error);
+    /* FIXME add EXIT_TOO_MANY_ARGUMENTS to "mysys_err.h" and return that code? */
+    exit(1);
   }
 
   if (opt_help)
