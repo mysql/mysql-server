@@ -1429,7 +1429,7 @@ run_testcase ()
  if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ] ; then
    result_file="$result_file$RESULT_EXT"
  fi
- if [ -e "$TESTDIR/$tname.disabled" ]
+ if [ -f "$TESTDIR/$tname.disabled" ]
  then
    comment=`$CAT $TESTDIR/$tname.disabled`;
    disable_test $tname "$comment"
