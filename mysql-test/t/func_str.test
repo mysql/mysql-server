@@ -402,3 +402,9 @@ insert into t1 values ('-21474836461','-21474836461');
 show warnings;
 select * from t1;
 drop table t1;
+
+#
+# Bug #4878: LEFT() in integer/float context
+#
+
+select left(1234, 3) + 0;

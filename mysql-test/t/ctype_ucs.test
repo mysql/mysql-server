@@ -293,3 +293,14 @@ SELECT HEX(a) FROM t1;
 DROP TABLE t1;
 
 -- the same should be also done with enum and set
+
+
+#
+# Bug #5024 Server crashes with queries on fields
+#  with certain charset/collation settings
+#
+
+create table t1 (s1 char character set `ucs2` collate `ucs2_czech_ci`);
+insert into t1 values ('0'),('1'),('2'),('a'),('b'),('c');
+select s1 from t1 where s1 > 'a' order by s1;
+

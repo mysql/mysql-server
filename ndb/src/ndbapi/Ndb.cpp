@@ -714,9 +714,10 @@ Ndb::getNodeId()
 }
 
 /****************************************************************************
-Uint64 getTupleIdFromNdb( Uint32 aTableId );
+Uint64 getTupleIdFromNdb( Uint32 aTableId, Uint32 cacheSize );
 
 Parameters:     aTableId : The TableId.
+                cacheSize: Prefetch this many values
 Remark:		Returns a new TupleId to the application.
                 The TupleId comes from SYSTAB_0 where SYSKEY_0 = TableId.
                 It is initialized to (TableId << 48) + 1 in NdbcntrMain.cpp.
@@ -736,7 +737,7 @@ Ndb::getAutoIncrementValue(const char* aTableName, Uint32 cacheSize)
 }
 
 Uint64 
-Ndb::getTupleIdFromNdb(const char* aTableName, Uint32 cacheSize )
+Ndb::getTupleIdFromNdb(const char* aTableName, Uint32 cacheSize)
 {
   const NdbTableImpl* table = theDictionary->getTable(aTableName);
   if (table == 0)
@@ -745,7 +746,7 @@ Ndb::getTupleIdFromNdb(const char* aTableName, Uint32 cacheSize )
 }
 
 Uint64
-Ndb::getTupleIdFromNdb(Uint32 aTableId, Uint32 cacheSize )
+Ndb::getTupleIdFromNdb(Uint32 aTableId, Uint32 cacheSize)
 {
   if ( theFirstTupleId[aTableId] != theLastTupleId[aTableId] )
   {
@@ -756,6 +757,27 @@ Ndb::getTupleIdFromNdb(Uint32 aTableId, Uint32 cacheSize )
   {
     return opTupleIdOnNdb(aTableId, cacheSize, 0);
   }
+}
+
+Uint64
+Ndb::readAutoIncrementValue(const char* aTableName)
+{
+  DEBUG_TRACE("readtAutoIncrementValue");
+  const NdbTableImpl* table = theDictionary->getTable(aTableName);
+  if (table == 0)
+    return ~0;
+  Uint64 tupleId = readTupleIdFromNdb(table->m_tableId);
+  return tupleId;
+}
+
+Uint64
+Ndb::readTupleIdFromNdb(Uint32 aTableId)
+{
+  if ( theFirstTupleId[aTableId] == theLastTupleId[aTableId] )
+    // Cache is empty, check next in database
+    return opTupleIdOnNdb(aTableId, 0, 3);
+
+  return theFirstTupleId[aTableId] + 1;
 }
 
 bool
@@ -837,15 +859,7 @@ Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
     case 0:
       tOperation->interpretedUpdateTuple();
       tOperation->equal("SYSKEY_0", aTableId );
-      {
-#ifdef WORDS_BIGENDIAN
-        Uint64 cacheSize64 = opValue;           // XXX interpreter bug on Uint32
-        tOperation->incValue("NEXTID", cacheSize64);
-#else
-        Uint32 cacheSize32 = opValue;           // XXX for little-endian
-        tOperation->incValue("NEXTID", cacheSize32);
-#endif
-      }
+      tOperation->incValue("NEXTID", opValue);
       tRecAttrResult = tOperation->getValue("NEXTID");
 
       if (tConnection->execute( Commit ) == -1 )
@@ -890,6 +904,14 @@ Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
         theFirstTupleId[aTableId] = theLastTupleId[aTableId] = opValue - 1;
 	ret = opValue;
       }
+      break;
+    case 3:
+      tOperation->readTuple();
+      tOperation->equal("SYSKEY_0", aTableId );
+      tRecAttrResult = tOperation->getValue("NEXTID");
+      if (tConnection->execute( Commit ) == -1 )
+        goto error_handler;
+      ret = tRecAttrResult->u_64_value();
       break;
     default:
       goto error_handler;

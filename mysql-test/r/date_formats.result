@@ -379,6 +379,9 @@ a
 select get_format(DATETIME, 'eur') as a;
 a
 %Y-%m-%d %H.%i.%s
+select get_format(TIMESTAMP, 'eur') as a;
+a
+%Y-%m-%d %H.%i.%s
 select get_format(DATE, 'TEST') as a;
 a
 NULL

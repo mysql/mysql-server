@@ -154,11 +154,15 @@ bool add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 		      struct InitConfigFileParser::Context &ctx, 
 		      const char * rule_data);
+bool check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+			    struct InitConfigFileParser::Context &ctx, 
+			    const char * rule_data);
 
 const ConfigInfo::ConfigRule 
 ConfigInfo::m_ConfigRules[] = {
   { add_node_connections, 0 },
   { add_server_ports, 0 },
+  { check_node_vs_replicas, 0 },
   { 0, 0 }
 };
 	  
@@ -2233,6 +2237,13 @@ transformNode(InitConfigFileParser::Context & ctx, const char * data){
   ctx.m_userProperties.get("NoOfNodes", &nodes);
   ctx.m_userProperties.put("NoOfNodes", ++nodes, true);
 
+  /**
+   * Update count (per type)
+   */
+  nodes = 0;
+  ctx.m_userProperties.get(ctx.fname, &nodes);
+  ctx.m_userProperties.put(ctx.fname, ++nodes, true);
+
   return true;
 }
 
@@ -3027,6 +3038,7 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
   return true;
 }
 
+
 bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 		      struct InitConfigFileParser::Context &ctx, 
 		      const char * rule_data)
@@ -3063,6 +3075,24 @@ bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections,
     }
   }
 #endif
+  return true;
+}
+
+bool
+check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+		       struct InitConfigFileParser::Context &ctx, 
+		       const char * rule_data)
+{
+  Uint32 db_nodes = 0;
+  Uint32 replicas = 0;
+  ctx.m_userProperties.get("DB", &db_nodes);
+  ctx.m_userProperties.get("NoOfReplicas", &replicas);
+  if((db_nodes % replicas) != 0){
+    ctx.reportError("Invalid no of db nodes wrt no of replicas.\n"
+		    "No of nodes must be dividable with no or replicas");
+    return false;
+  }
+  
   return true;
 }
 

@@ -114,3 +114,23 @@ select * from t1 where b=4 and c<=5 order by a;
 select * from t1 where b<=4 and c<=5 order by a;
 select * from t1 where b<=5 and c=0 or b<=5 and c=2;
 drop table t1;
+
+#
+# Indexing NULL values
+#
+
+#CREATE TABLE t1 (
+#  a int unsigned NOT NULL PRIMARY KEY,
+#  b int unsigned,
+#  c int unsigned,
+#  KEY bc(b,c)
+#) engine = ndb;
+
+#insert into t1 values(1,1,1),(2,NULL,2),(3,NULL,NULL),(4,4,NULL);
+#select * from t1 use index (bc);
+#select count(*) from t1 use index (bc);
+#select count(*) from t1 use index (PRIMARY) where b IS NULL;
+#select count(*) from t1 use index (bc) where b IS NULL;
+#select count(*) from t1 use index (bc) where b IS NULL and c = 2;
+#select count(*) from t1 use index (bc) where b IS NOT NULL;
+#drop table t1;
