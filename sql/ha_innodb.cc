@@ -1263,7 +1263,13 @@ ha_innobase::open(
 		  The column is the row id in the automatical generation case,
 		  and it will never be updated anyway.
 		*/
-		DBUG_ASSERT(key_used_on_scan == MAX_KEY);
+	       
+		if (key_used_on_scan != MAX_KEY) {
+	                fprintf(stderr,
+"InnoDB: Warning: table %s key_used_on_scan is %lu even though there is no\n"
+"InnoDB: primary key inside InnoDB.\n",
+				name, (ulint)key_used_on_scan);
+		}
 	}
 
 	auto_inc_counter_for_this_stat = 0;
