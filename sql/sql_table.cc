@@ -23,9 +23,6 @@
 #include <ha_berkeley.h>
 #endif
 #include <myisam.h>
-#ifdef HAVE_BERKELEY_DB
-#include <ha_berkeley.h>
-#endif
 #include <assert.h>
 
 #ifdef __WIN__
