@@ -3756,6 +3756,10 @@ Dbdict::createTab_reply(Signal* signal,
     ref->senderRef = reference();
     ref->senderData = createTabPtr.p->m_senderData;
     ref->errorCode = createTabPtr.p->m_errorCode;
+    ref->masterNodeId = c_masterNodeId;
+    ref->status = 0;
+    ref->errorKey = 0;
+    ref->errorLine = 0;
     
     //@todo check api failed
     sendSignal(createTabPtr.p->m_senderRef, GSN_CREATE_TABLE_REF, signal, 
