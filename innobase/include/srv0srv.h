@@ -66,6 +66,9 @@ extern char*    srv_unix_file_flush_method_str;
 extern ulint    srv_unix_file_flush_method;
 extern ulint	srv_force_recovery;
 extern ulint	srv_thread_concurrency;
+
+extern lint	srv_conc_n_threads;
+
 extern ibool	srv_fast_shutdown;
 
 extern ibool	srv_use_doublewrite_buf;

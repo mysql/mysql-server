@@ -946,10 +946,26 @@ row_create_table_for_mysql(
 		"InnoDB: mysqld and edit my.cnf so that newraw is replaced\n"
 		"InnoDB: with raw, and innodb_force_... is removed.\n");
 
+		trx_commit_for_mysql(trx);
+
 		return(DB_ERROR);
 	}
 
 	trx->op_info = "creating table";
+
+	if (0 == ut_strcmp(table->name, "mysql/host")
+	    || 0 == ut_strcmp(table->name, "mysql/user")
+	    || 0 == ut_strcmp(table->name, "mysql/db")) {
+	    	
+		fprintf(stderr,
+    "InnoDB: Error: trying to create a MySQL system table %s of type InnoDB.\n"
+    "InnoDB: MySQL system tables must be of the MyISAM type!\n",
+		table->name);
+
+		trx_commit_for_mysql(trx);
+
+		return(DB_ERROR);
+	}
 
 	trx_start_if_not_started(trx);
 
@@ -1423,6 +1439,8 @@ funct_exit:
 
 	que_graph_free(graph);
 	
+  	trx_commit_for_mysql(trx);
+
 	trx->op_info = "";
 
 	return((int) err);
@@ -1508,6 +1526,20 @@ row_rename_table_for_mysql(
 		"InnoDB: mysqld and edit my.cnf so that newraw is replaced\n"
 		"InnoDB: with raw, and innodb_force_... is removed.\n");
 
+  		trx_commit_for_mysql(trx);
+		return(DB_ERROR);
+	}
+
+	if (0 == ut_strcmp(new_name, "mysql/host")
+	    || 0 == ut_strcmp(new_name, "mysql/user")
+	    || 0 == ut_strcmp(new_name, "mysql/db")) {
+	    	
+		fprintf(stderr,
+    "InnoDB: Error: trying to create a MySQL system table %s of type InnoDB.\n"
+    "InnoDB: MySQL system tables must be of the MyISAM type!\n",
+		new_name);
+
+  		trx_commit_for_mysql(trx);
 		return(DB_ERROR);
 	}
 
@@ -1591,6 +1623,8 @@ funct_exit:
 
 	que_graph_free(graph);
 	
+  	trx_commit_for_mysql(trx);
+
 	trx->op_info = "";
 
 	return((int) err);
