@@ -500,6 +500,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     {
       if (find_type(fn_ext(file->name),&known_extentions,1+2) <= 0)
 	found_other_files++;
+      else
+        deleted++;
       continue;
     }
     strxmov(filePath,org_path,"/",file->name,NullS);
@@ -521,6 +523,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       /* Link into list */
       (*tot_list_next)= table_list;
       tot_list_next= &table_list->next;
+      deleted++;
     }
     else
     {
