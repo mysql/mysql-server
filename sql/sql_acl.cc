@@ -1359,10 +1359,10 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     case SSL_TYPE_NOT_SPECIFIED:
       break;
     case SSL_TYPE_NONE:
-      table->field[24]->store("",0);
-      table->field[25]->store("",0);
-      table->field[26]->store("",0);
-      table->field[27]->store("",0);
+      table->field[24]->store("", 0, system_charset_info);
+      table->field[25]->store("", 0, system_charset_info);
+      table->field[26]->store("", 0, system_charset_info);
+      table->field[27]->store("", 0, system_charset_info);
       break;
     }
 

@@ -1331,10 +1331,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	fld3	fld3	30	const	1	Using where; Using index
 explain select fld3 from t2 ignore index (fld3) where fld3 = 'honeysuckle';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	fld3	30	NULL	1199	Using where; Using index
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
 explain select fld3 from t2 use index (fld1) where fld3 = 'honeysuckle';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	fld3	30	NULL	1199	Using where; Using index
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
 explain select fld3 from t2 use index (fld3) where fld3 = 'honeysuckle';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	fld3	fld3	30	const	1	Using where; Using index

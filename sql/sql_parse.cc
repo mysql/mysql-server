@@ -3409,7 +3409,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(Table_ident *table,
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
   if (table->table.length > NAME_LEN ||
-      (table->table.length && check_table_name(table->table.str,table->table.length)) ||
+      (table->table.length &&
+       check_table_name(table->table.str,table->table.length)) ||
       table->db.str && check_db_name(table->db.str))
   {
     net_printf(thd,ER_WRONG_TABLE_NAME,table->table.str);
@@ -3489,15 +3490,14 @@ TABLE_LIST *st_select_lex::add_table_to_list(Table_ident *table,
     query
 */
 
-void set_lock_for_tables(thr_lock_type lock_type)
+void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
 {
-  THD	*thd=current_thd;
   bool for_update= lock_type >= TL_READ_NO_INSERT;
   DBUG_ENTER("set_lock_for_tables");
   DBUG_PRINT("enter", ("lock_type: %d  for_update: %d", lock_type,
 		       for_update));
 
-  for (TABLE_LIST *tables= (TABLE_LIST*) thd->lex.select->table_list.first ;
+  for (TABLE_LIST *tables= (TABLE_LIST*) table_list.first ;
        tables ;
        tables=tables->next)
   {

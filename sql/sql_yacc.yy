@@ -646,7 +646,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild
-	union opt_union union_list union_option
+	union union_list union_option
 	precision opt_on_delete_item subselect_start opt_and
 	subselect_end select_var_list select_var_list_init help opt_len
 END_OF_INPUT
@@ -2817,7 +2817,7 @@ insert:
 	INSERT { Lex->sql_command = SQLCOM_INSERT; } insert_lock_option
 	opt_ignore insert2 
 	{
-	  set_lock_for_tables($3);
+	  Select->set_lock_for_tables($3);
 	}
 	insert_field_spec
 	;
@@ -2831,7 +2831,7 @@ replace:
 	}
 	replace_lock_option insert2
 	{
-	  set_lock_for_tables($3);
+	  Select->set_lock_for_tables($3);
 	}
 	insert_field_spec
 	;
@@ -2891,7 +2891,8 @@ insert_values:
 	    mysql_init_select(lex);
 	  }
 	  select_options select_item_list select_from select_lock_type
-          opt_union {};
+          union {}
+	;
 
 values_list:
 	values_list ','  no_braces
@@ -2958,7 +2959,7 @@ expr_or_default:
 /* Update rows in a table */
 
 update:
-        UPDATE_SYM 
+	UPDATE_SYM 
 	{ 
 	  LEX *lex= Lex;
           lex->sql_command= SQLCOM_UPDATE;
@@ -2967,7 +2968,7 @@ update:
         opt_low_priority opt_ignore join_table_list
 	SET update_list where_clause opt_order_clause delete_limit_clause
 	{
-	  set_lock_for_tables($3);
+	  Select->set_lock_for_tables($3);
 	}
 	;
 
@@ -3004,7 +3005,7 @@ delete:
 single_multi:
  	FROM table_ident
 	{
-	  if (!add_table_to_list($2, NULL, 1, Lex->lock_option))
+	  if (!Select->add_table_to_list($2, NULL, 1, Lex->lock_option))
 	    YYABORT;
 	}
 	where_clause opt_order_clause
@@ -4239,9 +4240,10 @@ rollback:
 */
 
 
-opt_union:	
+union:
 	/* empty */ {}
-	| union_list;
+	| union_list
+	;
 
 union_list:
 	UNION_SYM    union_option
@@ -4267,7 +4269,8 @@ union_list:
 
 union_opt:
 	union_list {}
-	| optional_order_or_limit {};
+	| optional_order_or_limit {}
+	;
 
 optional_order_or_limit:
       	/* empty 

@@ -52,7 +52,8 @@ int mysql_update(THD *thd,
 		 ha_rows limit,
 		 enum enum_duplicates handle_duplicates)
 {
-  bool 		using_limit=limit != HA_POS_ERROR, safe_update= thd->options & OPTION_SAFE_UPDATES;
+  bool 		using_limit=limit != HA_POS_ERROR;
+  bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
   bool		used_key_is_modified, transactional_table, log_delayed;
   int		error=0;
   uint		save_time_stamp, used_index, want_privilege;
