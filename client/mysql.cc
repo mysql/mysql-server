@@ -32,7 +32,7 @@
 #include "errmsg.h"
 #include <my_dir.h>
 #ifndef __GNU_LIBRARY__
-#define __GNU_LIBRARY__				// Skipp warnings in getopt.h
+#define __GNU_LIBRARY__				// Skip warnings in getopt.h
 #endif
 #include <getopt.h>
 #include "my_readline.h"
@@ -427,8 +427,6 @@ static void usage(int version)
   -D, --database=..	Database to use.\n\
   --default-character-set=...\n\
                         Set the default character set.\n\
-  -G, --enable-named-commands\n\
-                        Named commands are enabled. Opposite to -g.\n\
   -e, --execute=...     Execute command and quit. (Output like with --batch)\n\
   -E, --vertical        Print the output of a query (rows) vertically.\n\
   -f, --force           Continue even if we get an sql error.\n\
@@ -439,6 +437,8 @@ static void usage(int version)
                         client now starts with this option ENABLED by\n\
                         default! Disable with '-G'. Long format commands\n\
                         still work from the first line.\n\
+  -G, --enable-named-commands\n\
+                        Named commands are enabled. Opposite to -g.\n\
   -i, --ignore-space	Ignore space after function names.\n\
   -h, --host=...	Connect to host.\n\
   -H, --html		Produce HTML output.\n\
