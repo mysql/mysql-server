@@ -1,0 +1,52 @@
+# Let's see if FLUSH TABLES WITH READ LOCK blocks COMMIT of existing
+# transactions.
+# We verify that we did not introduce a deadlock.
+
+-- source include/have_innodb.inc
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connect (con3,localhost,root,,);
+connection con1;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int) engine=innodb;
+
+# blocks COMMIT ?
+
+begin;
+insert into t1 values(1);
+connection con2;
+flush tables with read lock;
+select * from t1;
+connection con1;
+send commit; # blocked by con2
+sleep 1;
+connection con2;
+select * from t1; # verify con1 was blocked and data did not move
+unlock tables;
+connection con1;
+reap;
+
+# No deadlock ?
+
+connection con1;
+begin;
+select * from t1 for update;
+connection con2;
+begin;
+send select * from t1 for update; # blocked by con1
+sleep 1;
+connection con3;
+send flush tables with read lock; # blocked by con2
+connection con1;
+commit; # should not be blocked by con3
+connection con2;
+reap;
+connection con3;
+reap;
+unlock tables;
+connection con1;
+drop table t1;

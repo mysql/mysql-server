@@ -312,3 +312,14 @@ insert into t1 values (1,1), (2,2);
 alter table t1 drop key no_such_key;
 alter table t1 drop key a;
 drop table t1;
+
+#
+# BUG#4717 - check for valid table names
+#
+create table t1 (a int);
+--error 1103
+alter table t1 rename to `t1\\`;
+--error 1103
+rename table t1 to `t1\\`;
+drop table t1;
+

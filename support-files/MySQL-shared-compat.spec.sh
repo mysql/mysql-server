@@ -26,8 +26,8 @@
 #
 # Change this to match the version of the shared libs you want to include
 #
-%define version4 @VERSION@
-%define version3 3.23.56
+%define version4 @MYSQL_NO_DASH_VERSION@
+%define version3 3.23.58
 
 Name:         MySQL-shared-compat
 Packager:     Lenz Grimmer <build@mysql.com>

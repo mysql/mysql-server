@@ -9,7 +9,6 @@ create_tab \
 flexAsynch \
 flexBench \
 flexHammer \
-flexScan \
 flexTT \
 testBackup \
 testBasic \
@@ -26,9 +25,11 @@ testOperations \
 testRestartGci \
 testScan \
 testScanInterpreter \
+testScanPerf \
 testSystemRestart \
 testTimeout \
 testTransactions \
+testDeadlock \
 test_event
 
 #flexTimedAsynch
@@ -41,7 +42,6 @@ drop_all_tabs_SOURCES = drop_all_tabs.cpp
 flexAsynch_SOURCES = flexAsynch.cpp
 flexBench_SOURCES = flexBench.cpp
 flexHammer_SOURCES = flexHammer.cpp
-flexScan_SOURCES = flexScan.cpp
 flexTT_SOURCES = flexTT.cpp
 #flexTimedAsynch_SOURCES = flexTimedAsynch.cpp
 #flex_bench_mysql_SOURCES = flex_bench_mysql.cpp
@@ -60,9 +60,11 @@ testOperations_SOURCES = testOperations.cpp
 testRestartGci_SOURCES = testRestartGci.cpp
 testScan_SOURCES = testScan.cpp ScanFunctions.hpp
 testScanInterpreter_SOURCES = testScanInterpreter.cpp ScanFilter.hpp ScanInterpretTest.hpp 
+testScanPerf_SOURCES = testScanPerf.cpp
 testSystemRestart_SOURCES = testSystemRestart.cpp
 testTimeout_SOURCES = testTimeout.cpp
 testTransactions_SOURCES = testTransactions.cpp
+testDeadlock_SOURCES = testDeadlock.cpp
 test_event_SOURCES = test_event.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/include/kernel
@@ -78,4 +80,5 @@ testBackup_LDADD = $(LDADD) bank/libbank.a
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
+
 

@@ -205,6 +205,11 @@ int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runDropTable(NDBT_Context* ctx, NDBT_Step* step){
+  GETNDB(step)->getDictionary()->dropTable(ctx->getTab()->getName());
+  return NDBT_OK;
+}
+
 #include "bank/Bank.hpp"
 
 int runCreateBank(NDBT_Context* ctx, NDBT_Step* step){
@@ -408,7 +413,7 @@ TESTCASE("BackupOne",
   INITIALIZER(runRestoreOne);
   VERIFIER(runVerifyOne);
   FINALIZER(runClearTable);
-
+  FINALIZER(runDropTable);
 }
 TESTCASE("BackupBank", 
 	 "Test that backup and restore works during transaction load\n"
@@ -428,7 +433,6 @@ TESTCASE("BackupBank",
   STEP(runBackupBank);
   VERIFIER(runRestoreBankAndVerify);
   //  FINALIZER(runDropBank);
-
 }
 TESTCASE("NFMaster", 
 	 "Test that backup behaves during node failiure\n"){

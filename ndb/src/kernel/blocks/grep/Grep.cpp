@@ -73,7 +73,7 @@ Grep::getNodeGroupMembers(Signal* signal) {
       c_noNodesInGroup++;
     }
   }
-  ndbrequire(c_noNodesInGroup >= 0); // at least 1 node in the nodegroup
+  ndbrequire(c_noNodesInGroup > 0); // at least 1 node in the nodegroup
 
 #ifdef NODEFAIL_DEBUG
   for (Uint32 i = 0; i < c_noNodesInGroup; i++) {
@@ -253,7 +253,8 @@ Grep::execREAD_NODESCONF(Signal* signal)
   /******************************
    * Check which REP nodes exist
    ******************************/
-  for (Uint32 i = 1; i < MAX_NODES; i++) 
+  Uint32 i;
+  for (i = 1; i < MAX_NODES; i++) 
   {
     jam();
 #if 0
@@ -279,7 +280,7 @@ Grep::execREAD_NODESCONF(Signal* signal)
   m_aliveNodes.clear();
 
   Uint32 count = 0;
-  for(Uint32 i = 0; i<MAX_NDB_NODES; i++) 
+  for(i = 0; i<MAX_NDB_NODES; i++) 
   {
     if (NodeBitmask::get(conf->allNodes, i)) 
     {

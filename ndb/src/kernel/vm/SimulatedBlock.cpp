@@ -104,6 +104,11 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   UpgradeStartup::installEXEC(this);
 
   CLEAR_ERROR_INSERT_VALUE;
+
+#ifdef VM_TRACE
+  m_global_variables = new Ptr<void> * [1];
+  m_global_variables[0] = 0;
+#endif
 }
 
 SimulatedBlock::~SimulatedBlock()
@@ -111,6 +116,10 @@ SimulatedBlock::~SimulatedBlock()
   freeBat();
 #ifdef VM_TRACE_TIME
   printTimes(stdout);
+#endif
+
+#ifdef VM_TRACE
+  delete [] m_global_variables;
 #endif
 }
 
@@ -136,12 +145,12 @@ SimulatedBlock::installSimulatedBlockFunctions(){
 void
 SimulatedBlock::addRecSignalImpl(GlobalSignalNumber gsn, 
 				 ExecFunction f, bool force){
-  REQUIRE(gsn <= MAX_GSN, "Illegal signal added in block (GSN too high)");
-  char probData[255];
-  snprintf(probData, 255, 
-	   "Signal (%d) already added in block", 
-	   gsn);
-  REQUIRE(force || theExecArray[gsn] == 0, probData);
+  if(gsn > MAX_GSN || (!force &&  theExecArray[gsn] != 0)){
+    char errorMsg[255];
+    snprintf(errorMsg, 255, 
+ 	     "Illeagal signal (%d %d)", gsn, MAX_GSN); 
+    ERROR_SET(fatal, ERR_ERROR_PRGERR, errorMsg, errorMsg);
+  }
   theExecArray[gsn] = f;
 }
 
@@ -636,12 +645,12 @@ SimulatedBlock::getBatSize(Uint16 blockNo){
 }
 
 void* 
-SimulatedBlock::allocRecord(const char * type, size_t s, size_t n) const 
+SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear) 
 {
 
-  void* p = NULL;
+  void * p = NULL;
   size_t size = n*s;
-  
+  refresh_watch_dog(); 
   if (size > 0){
 #ifdef VM_TRACE_MEM
     ndbout_c("%s::allocRecord(%s, %u, %u) = %u bytes", 
@@ -656,43 +665,31 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n) const
       char buf1[255];
       char buf2[255];
       snprintf(buf1, sizeof(buf1), "%s could not allocate memory for %s", 
-	      getBlockName(number()), type);
-      snprintf(buf2, sizeof(buf2), "Requested: %ux%u = %u bytes", (Uint32)s, (Uint32)n, (Uint32)size);
+	       getBlockName(number()), type);
+      snprintf(buf2, sizeof(buf2), "Requested: %ux%u = %u bytes", 
+	       (Uint32)s, (Uint32)n, (Uint32)size);
       ERROR_SET(fatal, ERR_MEMALLOC, buf1, buf2);
     }
-    
-    
-    // Set the allocated memory to zero 
-#ifndef NDB_PURIFY
-#if defined NDB_OSE
-    int pages = (size / 4096);    
-    if ((size % 4096)!=0)
-      pages++;
-    
-    char* p2 =(char*) p;
-    for (int i = 0; i < pages; i++){
-      memset(p2, 0, 4096);
-      p2 = p2 + 4096;
+
+    if(clear){
+      char * ptr = (char*)p;
+      const Uint32 chunk = 128 * 1024;
+      while(size > chunk){
+	refresh_watch_dog(); 
+	memset(ptr, 0, chunk);
+	ptr += chunk;
+	size -= chunk;
+      }
+      refresh_watch_dog(); 
+      memset(ptr, 0, size);
     }
-#elif 1
-    /**
-     * This code should be enabled in order to find logical errors and not 
-     * initalised errors in the kernel.
-     *
-     * NOTE! It's not just "uninitialised errors"  that are found by doing this
-     * it will also find logical errors that have been hidden by all the zeros.
-     */
-    
-    memset(p, 0xF1, size);
-#endif
-#endif
   }
   return p;
 }
 
 void 
 SimulatedBlock::deallocRecord(void ** ptr, 
-			      const char * type, size_t s, size_t n) const {
+			      const char * type, size_t s, size_t n){
   (void)type;
   (void)s;
   (void)n;
@@ -701,6 +698,12 @@ SimulatedBlock::deallocRecord(void ** ptr,
     NdbMem_Free(* ptr);
     * ptr = 0;
   }
+}
+
+void
+SimulatedBlock::refresh_watch_dog()
+{
+  globalData.incrementWatchDogCounter(1);
 }
 
 void
@@ -1005,7 +1008,8 @@ SimulatedBlock::assembleFragments(Signal * signal){
     /**
      * FragInfo == 2 or 3
      */
-    for(Uint32 i = 0; i<secs; i++){
+    Uint32 i;
+    for(i = 0; i<secs; i++){
       Uint32 sectionNo = secNos[i];
       ndbassert(sectionNo < 3);
       Uint32 sectionPtrI = signal->m_sectionPtr[i].i;
@@ -1027,7 +1031,6 @@ SimulatedBlock::assembleFragments(Signal * signal){
     /**
      * fragInfo = 3
      */
-    Uint32 i;
     for(i = 0; i<3; i++){
       Uint32 ptrI = fragPtr.p->m_sectionPtrI[i];
       if(ptrI != RNIL){
@@ -1777,3 +1780,25 @@ SimulatedBlock::execUPGRADE(Signal* signal){
     break;
   }
 }
+
+#ifdef VM_TRACE
+void
+SimulatedBlock::clear_global_variables(){
+  Ptr<void> ** tmp = m_global_variables;
+  while(* tmp != 0){
+    (* tmp)->i = RNIL;
+    (* tmp)->p = 0;
+    tmp++;
+  }
+}
+
+void
+SimulatedBlock::init_globals_list(void ** tmp, size_t cnt){
+  m_global_variables = new Ptr<void> * [cnt+1];
+  for(size_t i = 0; i<cnt; i++){
+    m_global_variables[i] = (Ptr<void>*)tmp[i];
+  }
+  m_global_variables[cnt] = 0;
+}
+
+#endif

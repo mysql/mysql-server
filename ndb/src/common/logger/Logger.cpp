@@ -350,3 +350,4 @@ Logger::log(LoggerLevel logLevel, const char* pMsg, va_list ap) const
 // PRIVATE
 //
 
+template class Vector<LogHandler*>;

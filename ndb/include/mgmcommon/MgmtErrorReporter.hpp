@@ -63,12 +63,6 @@
 // Returns: -
 //****************************************************************************
 
-#ifndef NDB_ASSERT
-#define NDB_ASSERT(trueToContinue, message) \
-    if ( !(trueToContinue) ) { \
-ndbout << "ASSERT FAILED. FILE: " << __FILE__ << ", LINE: " << __LINE__ << ", MSG: " << message << endl;exit(-1);}
-#endif
-
 #define MGM_REQUIRE(x) \
   if (!(x)) { ndbout << __FILE__ << " " << __LINE__ \
     << ": Warning! Requirement failed" << endl; }

@@ -137,7 +137,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
   const Uint32* const data = (Uint32*)sig + TuxBoundInfo::SignalLength;
   unsigned offset = 5;
   // walk through entries
-  while (offset + 2 < req->boundAiLength) {
+  while (offset + 2 <= req->boundAiLength) {
     jam();
     const unsigned type = data[offset];
     if (type > 4) {
@@ -379,8 +379,8 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     scanNext(signal, scanPtr);
   }
   // for reading tuple key in Current or Locked state
-  ReadPar keyPar;
-  keyPar.m_data = 0;   // indicates not yet done
+  Data pkData = c_dataBuffer;
+  unsigned pkSize = 0; // indicates not yet done
   if (scan.m_state == ScanOp::Current) {
     // found an entry to return
     jam();
@@ -389,9 +389,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       jam();
       const TreeEnt ent = scan.m_scanPos.m_ent;
       // read tuple key
-      keyPar.m_ent = ent;
-      keyPar.m_data = c_dataBuffer;
-      tupReadKeys(signal, frag, keyPar);
+      readTablePk(frag, ent, pkSize, pkData);
       // get read lock or exclusive lock
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;
@@ -403,9 +401,9 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       lockReq->tableId = scan.m_tableId;
       lockReq->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
       lockReq->fragPtrI = frag.m_accTableFragPtrI[ent.m_fragBit];
-      const Uint32* const buf32 = static_cast<Uint32*>(keyPar.m_data);
+      const Uint32* const buf32 = static_cast<Uint32*>(pkData);
       const Uint64* const buf64 = reinterpret_cast<const Uint64*>(buf32);
-      lockReq->hashValue = md5_hash(buf64, keyPar.m_size);
+      lockReq->hashValue = md5_hash(buf64, pkSize);
       lockReq->tupAddr = getTupAddr(frag, ent);
       lockReq->transId1 = scan.m_transId1;
       lockReq->transId2 = scan.m_transId2;
@@ -480,11 +478,9 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     const TreeEnt ent = scan.m_scanPos.m_ent;
     if (scan.m_keyInfo) {
       jam();
-      if (keyPar.m_data == 0) {
+      if (pkSize == 0) {
         jam();
-        keyPar.m_ent = ent;
-        keyPar.m_data = c_dataBuffer;
-        tupReadKeys(signal, frag, keyPar);
+        readTablePk(frag, ent, pkSize, pkData);
       }
     }
     // conf signal
@@ -510,10 +506,10 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     // add key info
     if (scan.m_keyInfo) {
       jam();
-      conf->keyLength = keyPar.m_size;
+      conf->keyLength = pkSize;
       // piggy-back first 4 words of key data
       for (unsigned i = 0; i < 4; i++) {
-        conf->key[i] = i < keyPar.m_size ? keyPar.m_data[i] : 0;
+        conf->key[i] = i < pkSize ? pkData[i] : 0;
       }
       signalLength = 11;
     }
@@ -525,18 +521,18 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
     }
     // send rest of key data
-    if (scan.m_keyInfo && keyPar.m_size > 4) {
+    if (scan.m_keyInfo && pkSize > 4) {
       unsigned total = 4;
-      while (total < keyPar.m_size) {
+      while (total < pkSize) {
         jam();
-        unsigned length = keyPar.m_size - total;
+        unsigned length = pkSize - total;
         if (length > 20)
           length = 20;
         signal->theData[0] = scan.m_userPtr;
         signal->theData[1] = 0;
         signal->theData[2] = 0;
         signal->theData[3] = length;
-        memcpy(&signal->theData[4], &keyPar.m_data[total], length << 2);
+        memcpy(&signal->theData[4], &pkData[total], length << 2);
         sendSignal(scan.m_userRef, GSN_ACC_SCAN_INFO24,
             signal, 4 + length, JBB);
         total += length;
@@ -606,6 +602,8 @@ Dbtux::execACCKEYCONF(Signal* signal)
     // LQH has the ball
     return;
   }
+  // lose the lock
+  scan.m_accLockOp = RNIL;
   // continue at ACC_ABORTCONF
 }
 
@@ -648,6 +646,8 @@ Dbtux::execACCKEYREF(Signal* signal)
     // LQH has the ball
     return;
   }
+  // lose the lock
+  scan.m_accLockOp = RNIL;
   // continue at ACC_ABORTCONF
 }
 
@@ -689,16 +689,9 @@ Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
   ScanOp& scan = *scanPtr.p;
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
   TreeHead& tree = frag.m_tree;
-  if (tree.m_root == NullTupLoc) {
-    // tree may have become empty
-    jam();
-    scan.m_state = ScanOp::Last;
-    return;
-  }
-  TreePos pos;
-  pos.m_loc = tree.m_root;
-  NodeHandle node(frag);
-  // unpack lower bound
+  // set up index keys for this operation
+  setKeyAttrs(frag);
+  // unpack lower bound into c_dataBuffer
   const ScanBound& bound = *scan.m_bound[0];
   ScanBoundIterator iter;
   bound.first(iter);
@@ -707,103 +700,22 @@ Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
     c_dataBuffer[j] = *iter.data;
     bound.next(iter);
   }
-  // comparison parameters
-  BoundPar boundPar;
-  boundPar.m_data1 = c_dataBuffer;
-  boundPar.m_count1 = scan.m_boundCnt[0];
-  boundPar.m_dir = 0;
-loop: {
+  // search for scan start position
+  TreePos treePos;
+  searchToScan(signal, frag, c_dataBuffer, scan.m_boundCnt[0], treePos);
+  if (treePos.m_loc == NullTupLoc) {
+    // empty tree
     jam();
-    selectNode(signal, node, pos.m_loc, AccPref);
-    const unsigned occup = node.getOccup();
-    ndbrequire(occup != 0);
-    for (unsigned i = 0; i <= 1; i++) {
-      jam();
-      // compare prefix
-      boundPar.m_data2 = node.getPref(i);
-      boundPar.m_len2 = tree.m_prefSize;
-      int ret = cmpScanBound(frag, boundPar);
-      if (ret == NdbSqlUtil::CmpUnknown) {
-        jam();
-        // read full value
-        ReadPar readPar;
-        readPar.m_ent = node.getMinMax(i);
-        readPar.m_first = 0;
-        readPar.m_count = frag.m_numAttrs;
-        readPar.m_data = 0;     // leave in signal data
-        tupReadAttrs(signal, frag, readPar);
-        // compare full value
-        boundPar.m_data2 = readPar.m_data;
-        boundPar.m_len2 = ZNIL; // big
-        ret = cmpScanBound(frag, boundPar);
-        ndbrequire(ret != NdbSqlUtil::CmpUnknown);
-      }
-      if (i == 0 && ret < 0) {
-        jam();
-        const TupLoc loc = node.getLink(i);
-        if (loc != NullTupLoc) {
-          jam();
-          // continue to left subtree
-          pos.m_loc = loc;
-          goto loop;
-        }
-        // start scanning this node
-        pos.m_pos = 0;
-        pos.m_match = false;
-        pos.m_dir = 3;
-        scan.m_scanPos = pos;
-        scan.m_state = ScanOp::Next;
-        linkScan(node, scanPtr);
-        return;
-      }
-      if (i == 1 && ret > 0) {
-        jam();
-        const TupLoc loc = node.getLink(i);
-        if (loc != NullTupLoc) {
-          jam();
-          // continue to right subtree
-          pos.m_loc = loc;
-          goto loop;
-        }
-        // start scanning upwards
-        pos.m_dir = 1;
-        scan.m_scanPos = pos;
-        scan.m_state = ScanOp::Next;
-        linkScan(node, scanPtr);
-        return;
-      }
-    }
-    // read rest of current node
-    accessNode(signal, node, AccFull);
-    // look for first entry
-    ndbrequire(occup >= 2);
-    for (unsigned j = 1; j < occup; j++) {
-      jam();
-      ReadPar readPar;
-      readPar.m_ent = node.getEnt(j);
-      readPar.m_first = 0;
-      readPar.m_count = frag.m_numAttrs;
-      readPar.m_data = 0;       // leave in signal data
-      tupReadAttrs(signal, frag, readPar);
-      // compare
-      boundPar.m_data2 = readPar.m_data;
-      boundPar.m_len2 = ZNIL;   // big
-      int ret = cmpScanBound(frag, boundPar);
-      ndbrequire(ret != NdbSqlUtil::CmpUnknown);
-      if (ret < 0) {
-        jam();
-        // start scanning this node
-        pos.m_pos = j;
-        pos.m_match = false;
-        pos.m_dir = 3;
-        scan.m_scanPos = pos;
-        scan.m_state = ScanOp::Next;
-        linkScan(node, scanPtr);
-        return;
-      }
-    }
-    ndbrequire(false);
+    scan.m_state = ScanOp::Last;
+    return;
   }
+  // set position and state
+  scan.m_scanPos = treePos;
+  scan.m_state = ScanOp::Next;
+  // link the scan to node found
+  NodeHandle node(frag);
+  selectNode(signal, node, treePos.m_loc, AccFull);
+  linkScan(node, scanPtr);
 }
 
 /*
@@ -830,7 +742,9 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
   if (scan.m_state == ScanOp::Locked) {
     jam();
     // version of a tuple locked by us cannot disappear (assert only)
+#ifdef dbtux_wl_1942_is_done
     ndbassert(false);
+#endif
     AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
     lockReq->returnCode = RNIL;
     lockReq->requestInfo = AccLockReq::Unlock;
@@ -841,7 +755,9 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
     scan.m_accLockOp = RNIL;
     scan.m_state = ScanOp::Current;
   }
-  // unpack upper bound
+  // set up index keys for this operation
+  setKeyAttrs(frag);
+  // unpack upper bound into c_dataBuffer
   const ScanBound& bound = *scan.m_bound[1];
   ScanBoundIterator iter;
   bound.first(iter);
@@ -850,11 +766,6 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
     c_dataBuffer[j] = *iter.data;
     bound.next(iter);
   }
-  // comparison parameters
-  BoundPar boundPar;
-  boundPar.m_data1 = c_dataBuffer;
-  boundPar.m_count1 = scan.m_boundCnt[1];
-  boundPar.m_dir = 1;
   // use copy of position
   TreePos pos = scan.m_scanPos;
   // get and remember original node
@@ -912,17 +823,9 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
         jam();
         pos.m_ent = node.getEnt(pos.m_pos);
         pos.m_dir = 3;  // unchanged
-        // XXX implement prefix optimization
-        ReadPar readPar;
-        readPar.m_ent = pos.m_ent;
-        readPar.m_first = 0;
-        readPar.m_count = frag.m_numAttrs;
-        readPar.m_data = 0;     // leave in signal data
-        tupReadAttrs(signal, frag, readPar);
-        // compare
-        boundPar.m_data2 = readPar.m_data;
-        boundPar.m_len2 = ZNIL; // big
-        int ret = cmpScanBound(frag, boundPar);
+        // read and compare all attributes
+        readKeyAttrs(frag, pos.m_ent, 0, c_entryKey);
+        int ret = cmpScanBound(frag, 1, c_dataBuffer, scan.m_boundCnt[1], c_entryKey);
         ndbrequire(ret != NdbSqlUtil::CmpUnknown);
         if (ret < 0) {
           jam();
@@ -994,35 +897,25 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
 bool
 Dbtux::scanVisible(Signal* signal, ScanOpPtr scanPtr, TreeEnt ent)
 {
-  TupQueryTh* const req = (TupQueryTh*)signal->getDataPtrSend();
   const ScanOp& scan = *scanPtr.p;
   const Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
-  /* Assign table, fragment, tuple address + version */
-  Uint32 tableId = frag.m_tableId;
   Uint32 fragBit = ent.m_fragBit;
+  Uint32 tableFragPtrI = frag.m_tupTableFragPtrI[fragBit];
   Uint32 fragId = frag.m_fragId | (fragBit << frag.m_fragOff);
   Uint32 tupAddr = getTupAddr(frag, ent);
   Uint32 tupVersion = ent.m_tupVersion;
-  /* Check for same tuple twice in row */
+  // check for same tuple twice in row
   if (scan.m_lastEnt.m_tupLoc == ent.m_tupLoc &&
       scan.m_lastEnt.m_fragBit == fragBit) {
     jam();
     return false;
   }
-  req->tableId = tableId;
-  req->fragId = fragId;
-  req->tupAddr = tupAddr;
-  req->tupVersion = tupVersion;
-  /* Assign transaction info, trans id + savepoint id */
   Uint32 transId1 = scan.m_transId1;
   Uint32 transId2 = scan.m_transId2;
   Uint32 savePointId = scan.m_savePointId;
-  req->transId1 = transId1;
-  req->transId2 = transId2;
-  req->savePointId = savePointId;
-  EXECUTE_DIRECT(DBTUP, GSN_TUP_QUERY_TH, signal, TupQueryTh::SignalLength);
+  bool ret = c_tup->tuxQueryTh(tableFragPtrI, tupAddr, tupVersion, transId1, transId2, savePointId);
   jamEntry();
-  return (bool)req->returnCode;
+  return ret;
 }
 
 /*

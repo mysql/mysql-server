@@ -217,7 +217,9 @@ buf_flush_buffered_writes(void)
 /*===========================*/
 {
 	buf_block_t*	block;
+	byte*		write_buf;
 	ulint		len;
+	ulint		len2;
 	ulint		i;
 
 	if (trx_doublewrite == NULL) {
@@ -243,6 +245,16 @@ buf_flush_buffered_writes(void)
 
 		block = trx_doublewrite->buf_block_arr[i];
 	        ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+
+		if (mach_read_from_4(block->frame + FIL_PAGE_LSN + 4)
+                            != mach_read_from_4(block->frame + UNIV_PAGE_SIZE
+                                        - FIL_PAGE_END_LSN_OLD_CHKSUM + 4)) {
+                            ut_print_timestamp(stderr);
+                            fprintf(stderr,
+"  InnoDB: ERROR: The page to be written seems corrupt!\n"
+"InnoDB: The lsn fields do not match! Noticed in the buffer pool\n"
+"InnoDB: before posting to the doublewrite buffer.\n");
+                }
 
 		if (block->check_index_page_at_flush
 				&& !page_simple_validate(block->frame)) {
@@ -272,6 +284,19 @@ buf_flush_buffered_writes(void)
 		trx_doublewrite->block1, 0, len,
 		 	(void*)trx_doublewrite->write_buf, NULL);
 	
+	write_buf = trx_doublewrite->write_buf;
+
+        for (len2 = 0; len2 + UNIV_PAGE_SIZE <= len; len2 += UNIV_PAGE_SIZE) {
+        	if (mach_read_from_4(write_buf + len2 + FIL_PAGE_LSN + 4)
+                    != mach_read_from_4(write_buf + len2 + UNIV_PAGE_SIZE
+                                        - FIL_PAGE_END_LSN_OLD_CHKSUM + 4)) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+"  InnoDB: ERROR: The page to be written seems corrupt!\n"
+"InnoDB: The lsn fields do not match! Noticed in the doublewrite block1.\n");
+		}
+	}
+
 	if (trx_doublewrite->first_free > TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
 		len = (trx_doublewrite->first_free
 			- TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) * UNIV_PAGE_SIZE;
@@ -282,6 +307,22 @@ buf_flush_buffered_writes(void)
 		 	(void*)(trx_doublewrite->write_buf
 		 	+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE),
 			NULL);
+
+		write_buf = trx_doublewrite->write_buf
+			   + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE;
+		for (len2 = 0; len2 + UNIV_PAGE_SIZE <= len;
+						len2 += UNIV_PAGE_SIZE) {
+        		if (mach_read_from_4(write_buf + len2
+							+ FIL_PAGE_LSN + 4)
+                    	    != mach_read_from_4(write_buf + len2
+					+ UNIV_PAGE_SIZE
+                                        - FIL_PAGE_END_LSN_OLD_CHKSUM + 4)) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+"  InnoDB: ERROR: The page to be written seems corrupt!\n"
+"InnoDB: The lsn fields do not match! Noticed in the doublewrite block2.\n");
+			}
+		}
 	}
 
 	/* Now flush the doublewrite buffer data to disk */
@@ -295,6 +336,18 @@ buf_flush_buffered_writes(void)
 	for (i = 0; i < trx_doublewrite->first_free; i++) {
 		block = trx_doublewrite->buf_block_arr[i];
 
+		if (mach_read_from_4(block->frame + FIL_PAGE_LSN + 4)
+                            != mach_read_from_4(block->frame + UNIV_PAGE_SIZE
+                                        - FIL_PAGE_END_LSN_OLD_CHKSUM + 4)) {
+                            ut_print_timestamp(stderr);
+                            fprintf(stderr,
+"  InnoDB: ERROR: The page to be written seems corrupt!\n"
+"InnoDB: The lsn fields do not match! Noticed in the buffer pool\n"
+"InnoDB: after posting and flushing the doublewrite buffer.\n"
+"InnoDB: Page buf fix count %lu, io fix %lu, state %lu\n",
+			(ulong)block->buf_fix_count, (ulong)block->io_fix,
+			(ulong)block->state);
+                }
 		ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
@@ -412,6 +465,9 @@ buf_flush_write_block_low(
 /*======================*/
 	buf_block_t*	block)	/* in: buffer block to write */
 {
+#ifdef UNIV_LOG_DEBUG
+	static ibool univ_log_debug_warned;
+#endif /* UNIV_LOG_DEBUG */
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 #ifdef UNIV_IBUF_DEBUG
@@ -420,8 +476,13 @@ buf_flush_write_block_low(
 	ut_ad(!ut_dulint_is_zero(block->newest_modification));
 
 #ifdef UNIV_LOG_DEBUG
-	fputs("Warning: cannot force log to disk in the log debug version!\n",
-		stderr);
+	if (!univ_log_debug_warned) {
+		univ_log_debug_warned = TRUE;
+		fputs(
+	"Warning: cannot force log to disk if UNIV_LOG_DEBUG is defined!\n"
+	"Crash recovery will not work!\n",
+			stderr);
+	}
 #else
 	/* Force the log to the disk before writing the modified block */
 	log_write_up_to(block->newest_modification, LOG_WAIT_ALL_GROUPS, TRUE);

@@ -26,7 +26,8 @@
 class NDBT_Tables {
 public:
   
-  static int createTable(Ndb* pNdb, const char* _name, bool _temp = false);
+  static int createTable(Ndb* pNdb, const char* _name, bool _temp = false, 
+			 bool existsOK = false);
   static int createAllTables(Ndb* pNdb, bool _temp, bool existsOK = false);
   static int createAllTables(Ndb* pNdb);
 

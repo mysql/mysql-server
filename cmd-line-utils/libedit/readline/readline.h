@@ -39,18 +39,6 @@
 #define	_READLINE_H_
 
 #include <sys/types.h>
-#if HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef __BEGIN_DECLS
-#if defined(__cplusplus)
-#define __BEGIN_DECLS   extern "C" {
-#define __END_DECLS     }
-#else
-#define __BEGIN_DECLS
-#define __END_DECLS
-#endif
-#endif
 
 /* list of readline stuff supported by editline library's readline wrapper */
 
@@ -66,16 +54,18 @@ typedef struct _hist_entry {
 } HIST_ENTRY;
 
 /* global variables used by readline enabled applications */
-__BEGIN_DECLS
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern const char	*rl_library_version;
-extern const char       *rl_readline_name;
+extern char		*rl_readline_name;
 extern FILE		*rl_instream;
 extern FILE		*rl_outstream;
 extern char		*rl_line_buffer;
 extern int		 rl_point, rl_end;
 extern int		 history_base, history_length;
 extern int		 max_input_history;
-extern const char	*rl_basic_word_break_characters;
+extern char		*rl_basic_word_break_characters;
 extern char		*rl_completer_word_break_characters;
 extern char		*rl_completer_quote_characters;
 extern CPFunction	*rl_completion_entry_function;
@@ -121,6 +111,8 @@ void		 rl_display_match_list(char **, int, int);
 int		 rl_insert(int, int);
 void		 rl_reset_terminal(const char *);
 int		 rl_bind_key(int, int (*)(int, int));
-__END_DECLS
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _READLINE_H_ */

@@ -73,7 +73,6 @@
 #include <signaldata/CntrStart.hpp>
 #include <signaldata/ReadNodesConf.hpp>
 #include <signaldata/TuxMaint.hpp>
-#include <signaldata/TupAccess.hpp>
 #include <signaldata/AccLock.hpp>
 
 bool printCONTINUEB(FILE *, const Uint32 *, Uint32, Uint16);
@@ -249,14 +248,15 @@ SignalDataPrintFunctions[] = {
   ,{ GSN_READ_NODESCONF,         printREAD_NODES_CONF }
 
   ,{ GSN_TUX_MAINT_REQ, printTUX_MAINT_REQ }
-  ,{ GSN_TUP_READ_ATTRS, printTUP_READ_ATTRS }
-  ,{ GSN_TUP_QUERY_TH, printTUP_QUERY_TH }
-  ,{ GSN_TUP_STORE_TH, printTUP_STORE_TH }
   ,{ GSN_ACC_LOCKREQ, printACC_LOCKREQ }
   ,{ GSN_LQH_TRANSCONF, printLQH_TRANSCONF }
 };
 
 const unsigned short NO_OF_PRINT_FUNCTIONS = sizeof(SignalDataPrintFunctions)/sizeof(NameFunctionPair);
 
-
-
+template class Bitmask<1>;
+template class Bitmask<2>;
+template class Bitmask<4>;
+template struct BitmaskPOD<1>;
+template struct BitmaskPOD<2>;
+template struct BitmaskPOD<4>;

@@ -52,13 +52,13 @@ select * from t1 ignore key (key1) where text1='teststring' or text1 like 'tests
 text1
 teststring
 teststring	
-select * from t1 where text1='teststring' or text1 like 'teststring_%';
-text1
-teststring	
-teststring
-select * from t1 where text1='teststring' or text1 > 'teststring\t';
-text1
-teststring
+select concat('|', text1, '|') from t1 where text1='teststring' or text1 like 'teststring_%';
+concat('|', text1, '|')
+|teststring	|
+|teststring|
+select concat('|', text1, '|') from t1 where text1='teststring' or text1 > 'teststring\t';
+concat('|', text1, '|')
+|teststring|
 select text1, length(text1) from t1 order by text1;
 text1	length(text1)
 nothing	7
@@ -77,7 +77,28 @@ concat('|', text1, '|')
 |teststring|
 |teststring	|
 |teststring |
+select concat('|', text1, '|') from t1 where text1='teststring' or text1 > 'teststring\t';
+concat('|', text1, '|')
+|teststring|
+|teststring |
+select concat('|', text1, '|') from t1 where text1='teststring';
+concat('|', text1, '|')
+|teststring|
+select concat('|', text1, '|') from t1 where text1='teststring ';
+concat('|', text1, '|')
+|teststring |
 alter table t1 modify text1 text not null, pack_keys=1;
+select concat('|', text1, '|') from t1 where text1='teststring';
+concat('|', text1, '|')
+|teststring|
+|teststring |
+select concat('|', text1, '|') from t1 where text1='teststring ';
+concat('|', text1, '|')
+|teststring|
+|teststring |
+explain select concat('|', text1, '|') from t1 where text1='teststring ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	key1	key1	22	NULL	2	Using where
 select * from t1 where text1 like 'teststring_%';
 text1
 teststring	
@@ -87,10 +108,10 @@ text1
 teststring
 teststring	
 teststring 
-select * from t1 where text1='teststring' or text1 > 'teststring\t';
-text1
-teststring
-teststring 
+select concat('|', text1, '|') from t1 where text1='teststring' or text1 > 'teststring\t';
+concat('|', text1, '|')
+|teststring|
+|teststring |
 select concat('|', text1, '|') from t1 order by text1;
 concat('|', text1, '|')
 |nothing|

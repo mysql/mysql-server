@@ -7,28 +7,30 @@ AHDR=vi.h emacs.h common.h
 
 INCLUDES =		-I$(top_srcdir)/include -I$(srcdir)/../.. -I..
 
-noinst_LIBRARIES =	liblibedit.a
+noinst_LIBRARIES =	libedit.a
 
-liblibedit_a_SOURCES =	chared.c el.c fgetln.c history.c map.c \
-			prompt.c readline.c search.c \
-			strlcpy.c tokenizer.c vi.c common.c \
-			emacs.c hist.c key.c parse.c read.c \
-			refresh.c sig.c term.c tty.c help.c \
-			fcns.c
+libedit_a_SOURCES =	chared.c el.c history.c map.c prompt.c readline.c \
+			search.c tokenizer.c vi.c common.c emacs.c \
+			hist.c key.c parse.c read.c refresh.c sig.c term.c \
+			tty.c help.c fcns.c
+
+EXTRA_libedit_a_SOURCES =	np/unvis.c np/strlcpy.c np/vis.c np/strlcat.c \
+				np/fgetln.c
+
+libedit_a_LIBADD = 		@LIBEDIT_LOBJECTS@
+libedit_a_DEPENDENCIES 	= 	@LIBEDIT_LOBJECTS@
 
 pkginclude_HEADERS =	readline/readline.h
 
-noinst_HEADERS =	chared.h el.h histedit.h key.h \
-			parse.h refresh.h sig.h sys.h \
-			tokenizer.h compat.h compat_conf.h fgetln.h \
-			hist.h map.h prompt.h search.h \
-			strlcpy.h libedit_term.h tty.h
+noinst_HEADERS =	chared.h el.h histedit.h key.h parse.h refresh.h sig.h \
+			sys.h tokenizer.h config.h hist.h map.h prompt.h read.h \
+			search.h tty.h libedit_term.h
 
-EXTRA_DIST = makelist.sh
+EXTRA_DIST = makelist.sh np/unvis.c np/strlcpy.c np/vis.c np/vis.h np/strlcat.c np/fgetln.c
 
-CLEANFILES = makelist
+CLEANFILES = makelist common.h emacs.h vi.h fcns.h help.h fcns.c help.c
 
-DEFS =			-DUNDEF_THREADS_HACK -DHAVE_CONFIG_H -DNO_KILL_INTR
+DEFS = -DUNDEF_THREADS_HACK -DHAVE_CONFIG_H -DNO_KILL_INTR 
 
 SUFFIXES = .sh
 
@@ -73,13 +75,11 @@ fcns.c: ${AHDR} fcns.h makelist
 
 chared.o: vi.h emacs.h common.h help.h fcns.h
 el.o: vi.h emacs.h common.h help.h fcns.h
-fgetln.o: vi.h emacs.h common.h help.h fcns.h
 history.o: vi.h emacs.h common.h help.h fcns.h 
 map.o: vi.h emacs.h common.h help.h fcns.h
 prompt.o: vi.h emacs.h common.h help.h fcns.h
 readline.o: vi.h emacs.h common.h help.h fcns.h
 search.o: vi.h emacs.h common.h help.h fcns.h
-strlcpy.o: vi.h emacs.h common.h help.h fcns.h
 tokenizer.o: vi.h emacs.h common.h help.h fcns.h
 vi.o: vi.h emacs.h common.h help.h fcns.h
 common.o: vi.h emacs.h common.h help.h fcns.h
