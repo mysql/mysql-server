@@ -5,11 +5,17 @@
 drop table if exists t1;
 --enable_warnings
 
+
 # Turn on and reset query cache
 set GLOBAL query_cache_type=on;
 set GLOBAL query_cache_size=1355776;
+# Turn on thread that will fetch commit count for open tables
+set GLOBAL ndb_cache_check_time=5;
 reset query cache;
 flush status;
+
+# Wait for thread to wake up and start "working"
+sleep 20; 
 
 # Create test table in NDB
 CREATE TABLE t1 ( pk int not null primary key,
@@ -85,9 +91,6 @@ show status like "Qcache_hits";
 # transaction is commited
 begin;
 update t1 set a=5 where pk=1;
-# Note!! the below test shows that table is invalidated 
-# before transaction is committed
-# TODO Fix so that cache is not invalidated HERE!
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
@@ -98,7 +101,8 @@ show status like "Qcache_inserts";
 show status like "Qcache_hits";
 connection con1;
 commit;
-# TODO Here query is invalidated once again, commit count in NDB has changed
+# Sleep to let the query cache thread update commit count
+sleep 10;
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
@@ -117,5 +121,6 @@ drop table t1;
 show status like "Qcache_queries_in_cache";
 
 SET GLOBAL query_cache_size=0;
+SET GLOBAL ndb_cache_check_time=0;
 
 
