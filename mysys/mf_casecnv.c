@@ -28,7 +28,21 @@
 #include <m_string.h>
 #endif
 
-	/* string to uppercase */
+/*
+  Upcase string 
+  
+  SYNOPSIS
+    str IN/OUT  String to upcase    
+	  
+  RETURN VALUE
+    none
+  DESCRIPTION
+    Function changes input parameter so all chars it consist from
+    are replaced with matching one in upper case.
+    String should be writable with exception read-only empty string
+    constant is handled correctly.    
+*/
+				
 
 void caseup_str(my_string str)
 {
@@ -52,7 +66,22 @@ void caseup_str(my_string str)
     }  
 } /* caseup_str */
 
-	/* string to lowercase */
+
+/*
+  Downcase string 
+  
+  SYNOPSIS
+    str IN/OUT  String to downcase    
+	  
+  RETURN VALUE
+    none
+  DESCRIPTION
+    Function changes input parameter so all chars it consist from
+    are replaced with matching one in lower case.
+    String should be writable with exception read-only empty string
+    constant is handled correctly.    
+*/
+
 
 void casedn_str(my_string str)
 {
