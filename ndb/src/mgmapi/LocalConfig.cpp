@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "LocalConfig.hpp"
+#include <LocalConfig.hpp>
 #include <NdbEnv.h>
 #include <NdbConfig.h>
 #include <NdbAutoPtr.hpp>
@@ -164,17 +164,25 @@ LocalConfig::parseNodeId(const char * buf){
 bool
 LocalConfig::parseHostName(const char * buf){
   char tempString[1024];
+  char tempString2[1024];
   int port;
-  for(int i = 0; hostNameTokens[i] != 0; i++) {
-    if (sscanf(buf, hostNameTokens[i], tempString, &port) == 2) {
-      MgmtSrvrId mgmtSrvrId;
-      mgmtSrvrId.type = MgmId_TCP;
-      mgmtSrvrId.name.assign(tempString);
-      mgmtSrvrId.port = port;
-      ids.push_back(mgmtSrvrId);
-      return true;
+  do {
+    for(int i = 0; hostNameTokens[i] != 0; i++) {
+      if (sscanf(buf, hostNameTokens[i], tempString, &port) == 2) {
+	MgmtSrvrId mgmtSrvrId;
+	mgmtSrvrId.type = MgmId_TCP;
+	mgmtSrvrId.name.assign(tempString);
+	mgmtSrvrId.port = port;
+	ids.push_back(mgmtSrvrId);
+	return true;
+      }
     }
-  }
+    if (buf == tempString2)
+      break;
+    // try to add default port to see if it works
+    snprintf(tempString2, sizeof(tempString2),"%s:%s", buf, NDB_PORT);
+    buf= tempString2;
+  } while(1);
   return false;
 }
 
