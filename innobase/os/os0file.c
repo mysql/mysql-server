@@ -2390,7 +2390,7 @@ os_file_get_status(
 	} else if (_S_IFREG & statinfo.st_mode) {
 	        stat_info->type = OS_FILE_TYPE_FILE;
 	} else {
-	        stat_info_>type = OS_FILE_TYPE_UNKNOWN;
+	        stat_info->type = OS_FILE_TYPE_UNKNOWN;
 	}
 
 	stat_info->ctime = statinfo.st_ctime;
