@@ -118,7 +118,7 @@ static void usage()
 static void dump_remote_file(NET* net, const char* fname)
 {
   char buf[FN_REFLEN+1];
-  uint len = strlen(fname);
+  uint len = (uint) strlen(fname);
   buf[0] = 0;
   memcpy(buf + 1, fname, len + 1);
   if(my_net_write(net, buf, len +2) || net_flush(net))
@@ -234,8 +234,8 @@ static void dump_remote_table(NET* net, const char* db, const char* table)
 {
   char buf[1024];
   char * p = buf;
-  uint table_len = strlen(table);
-  uint db_len = strlen(db);
+  uint table_len = (uint) strlen(table);
+  uint db_len = (uint) strlen(db);
   if(table_len + db_len > sizeof(buf) - 2)
     die("Buffer overrun");
   
@@ -267,7 +267,7 @@ static void dump_remote_log_entries(const char* logname)
   NET* net = &mysql->net;
   int4store(buf, position);
   int2store(buf + 4, binlog_flags);
-  len = strlen(logname);
+  len = (uint) strlen(logname);
   memcpy(buf + 6, logname,len);
   if(mc_simple_command(mysql, COM_BINLOG_DUMP, buf, len + 6, 1))
     die("Error sending the log dump command");

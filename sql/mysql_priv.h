@@ -229,7 +229,7 @@ void flush_thread_cache();
 void mysql_execute_command(void);
 bool do_command(THD *thd);
 bool check_stack_overrun(THD *thd,char *dummy);
-bool reload_acl_and_cache(uint options);
+bool reload_acl_and_cache(THD *thd, uint options, TABLE_LIST *tables);
 void mysql_rm_db(THD *thd,char *db,bool if_exists);
 void table_cache_init(void);
 void table_cache_free(void);
@@ -388,7 +388,7 @@ bool rename_temporary_table(TABLE *table, const char *new_db,
 void remove_db_from_cache(const my_string db);
 void flush_tables();
 bool remove_table_from_cache(THD *thd, const char *db, const char *table);
-bool close_cached_tables(bool wait_for_refresh);
+bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables);
 void copy_field_from_tmp_record(Field *field,int offset);
 int fill_record(List<Item> &fields,List<Item> &values);
 int fill_record(Field **field,List<Item> &values);

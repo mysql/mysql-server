@@ -454,7 +454,7 @@ static char *add_load_option(char *ptr,const char *object,const char *statement)
   if (object)
   {
     ptr= strxmov(ptr," ",statement," '",NullS);
-    ptr= field_escape(ptr,object,strlen(object));
+    ptr= field_escape(ptr,object,(uint) strlen(object));
     *ptr++= '\'';
   }
   return ptr;

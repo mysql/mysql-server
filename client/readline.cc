@@ -105,7 +105,7 @@ static bool init_line_buffer_from_string(LINE_BUFFER *buffer,my_string str)
 {
   uint length;
   bzero((char*) buffer,sizeof(buffer[0]));
-  length=strlen(str);
+  length=(uint) strlen(str);
   if (!(buffer->buffer=buffer->start_of_line=buffer->end_of_line=
 	(char*)my_malloc(length+2,MYF(MY_FAE))))
     return 1;

@@ -997,7 +997,7 @@ String *Item_func_encrypt::val_str(String *str)
   }
   pthread_mutex_lock(&LOCK_crypt);
   char *tmp=crypt(res->c_ptr(),salt_ptr);
-  str->set(tmp,strlen(tmp));
+  str->set(tmp,(uint) strlen(tmp));
   str->copy();
   pthread_mutex_unlock(&LOCK_crypt);
   return str;
@@ -1049,14 +1049,14 @@ String *Item_func_database::val_str(String *str)
   if (!current_thd->db)
     str->length(0);
   else
-    str->set((const char*) current_thd->db,strlen(current_thd->db));
+    str->set((const char*) current_thd->db,(uint) strlen(current_thd->db));
   return str;
 }
 
 String *Item_func_user::val_str(String *str)
 {
   THD *thd=current_thd;
-  if (str->copy((const char*) thd->user,strlen(thd->user)) ||
+  if (str->copy((const char*) thd->user,(uint) strlen(thd->user)) ||
       str->append('@') ||
       str->append(thd->host ? thd->host : thd->ip ? thd->ip : ""))
     return &empty_string;
