@@ -54,6 +54,13 @@ select a from t1 order by a;
 select min(a) from t1;
 drop table t1;
 
+#
+# float in a char(1) field
+#
+create table t1 (c20 char);
+insert into t1 (c20) values (5000.0);
+drop table t1;
+
 # Errors
 
 --error 1063

@@ -3733,15 +3733,17 @@ static void store_double_in_string_field(Field_str *field, uint32 field_length,
     use_scientific_notation= (field->ceiling < nr);
   }
   length= (uint)sprintf(buff, "%-.*g",
-                        use_scientific_notation ? max(0,field_length-5) : field_length,
+                        use_scientific_notation ? max(0,(int)field_length-5) : field_length,
                         nr);
   /*
     +1 below is because "precision" in %g above means the
     max. number of significant digits, not the output width.
     Thus the width can be larger than number of significant digits by 1
     (for decimal point)
+    the test for field_length < 5 is for extreme cases,
+    like inserting 500.0 in char(1)
   */
-  DBUG_ASSERT(length <= field_length+1);
+  DBUG_ASSERT(field_length < 5 || length <= field_length+1);
   field->store(buff, min(length, field_length));
 }
 
