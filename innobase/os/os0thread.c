@@ -52,8 +52,8 @@ os_thread_pf(
 /*=========*/
 	os_thread_id_t	a)
 {
-#ifdef UNIV_HPUX
-        /* In HP-UX a pthread_t is a struct of 3 fields: field1, field2,
+#ifdef UNIV_HPUX10
+        /* In HP-UX-10.20 a pthread_t is a struct of 3 fields: field1, field2,
         field3. We do not know if field1 determines the thread uniquely. */
 
 	return((ulint)(a.field1));
