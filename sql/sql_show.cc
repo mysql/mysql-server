@@ -55,7 +55,7 @@ mysqld_show_dbs(THD *thd,const char *wild)
   char *file_name;
   DBUG_ENTER("mysqld_show_dbs");
 
-  field->name=(char*) thd->alloc(20+ (wild ? strlen(wild)+4: 0));
+  field->name=(char*) thd->alloc(20+ (wild ? (uint) strlen(wild)+4: 0));
   field->max_length=NAME_LEN;
   end=strmov(field->name,"Database");
   if (wild && wild[0])
@@ -92,7 +92,7 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
   char *file_name;
   DBUG_ENTER("mysqld_show_tables");
 
-  field->name=(char*) thd->alloc(20+strlen(db)+(wild ? strlen(wild)+4:0));
+  field->name=(char*) thd->alloc(20+(uint) strlen(db)+(wild ? (uint) strlen(wild)+4:0));
   end=strxmov(field->name,"Tables_in_",db,NullS);
   if (wild && wild[0])
     strxmov(end," (",wild,")",NullS);
@@ -405,7 +405,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild)
 #ifdef NOT_USED
       if (thd->col_access & TABLE_ACLS ||
 	  ! check_grant_column(thd,table,field->field_name,
-			       strlen(field->field_name),1))
+			       (uint) strlen(field->field_name),1))
 #endif
       {
 	byte *pos;
@@ -899,7 +899,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 	thd_info->query=0;
 	if (tmp->query)
 	{
-	  uint length=strlen(tmp->query);
+	  uint length=(uint) strlen(tmp->query);
 	  if (length > max_query_length)
 	    length=max_query_length;
 	  thd_info->query=(char*) thd->memdup(tmp->query,length+1);

@@ -186,7 +186,7 @@ static uchar * pack_screens(List<create_field> &create_fields,
 
   create_field *field;
   while ((field=it++))
-    length+=strlen(field->field_name)+1+TE_INFO_LENGTH+cols/2;
+    length+=(uint) strlen(field->field_name)+1+TE_INFO_LENGTH+cols/2;
 
   if (!(info=(uchar*) my_malloc(length,MYF(MY_WME))))
     DBUG_RETURN(0);
@@ -216,7 +216,7 @@ static uchar * pack_screens(List<create_field> &create_fields,
       strfill((my_string) pos+3,(uint) (cols >> 1),' ');
       pos+=(cols >> 1)+4;
     }
-    length=strlen(cfield->field_name);
+    length=(uint) strlen(cfield->field_name);
     if (length > cols-3)
       length=cols-3;
 
@@ -352,7 +352,7 @@ static bool pack_header(uchar *forminfo, enum db_type table_type,
       if (old_int_count != int_count)
       {
 	for (const char **pos=field->interval->type_names ; *pos ; pos++)
-	  int_length+=strlen(*pos)+1;		// field + suffix prefix
+	  int_length+=(uint) strlen(*pos)+1;	// field + suffix prefix
 	int_parts+=field->interval->count+1;
       }
     }
@@ -567,9 +567,9 @@ static bool make_empty_rec(File file,enum db_type table_type,
       regfield->store((longlong) 1);
     }
     else if (type == Field::YES)		// Old unireg type
-      regfield->store(ER(ER_YES),strlen(ER(ER_YES)));
+      regfield->store(ER(ER_YES),(uint) strlen(ER(ER_YES)));
     else if (type == Field::NO)			// Old unireg type
-      regfield->store(ER(ER_NO),strlen(ER(ER_NO)));
+      regfield->store(ER(ER_NO), (uint) strlen(ER(ER_NO)));
     else
       regfield->reset();
     delete regfield;

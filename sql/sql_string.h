@@ -35,7 +35,7 @@ public:
   String(uint32 length_arg)
   { alloced=0; Alloced_length=0; (void) real_alloc(length_arg); }
   String(const char *str)
-  { Ptr=(char*) str; str_length=strlen(str); Alloced_length=0; alloced=0;}
+  { Ptr=(char*) str; str_length=(uint) strlen(str); Alloced_length=0; alloced=0;}
   String(const char *str,uint32 len)
   { Ptr=(char*) str; str_length=len; Alloced_length=0; alloced=0;}
   String(char *str,uint32 len)

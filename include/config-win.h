@@ -246,6 +246,11 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_ALLOCA
 #define HAVE_COMPRESS
 
+#ifdef NOT_USED
+#define HAVE_SNPRINTF		/* Gave link error */
+#define _snprintf snprintf
+#endif
+
 #ifdef _MSC_VER
 #define HAVE_LDIV		/* The optimizer breaks in zortech for ldiv */
 #define HAVE_ANSI_INCLUDE

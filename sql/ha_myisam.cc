@@ -349,7 +349,6 @@ int ha_myisam::analyze(THD *thd)
 int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
 {
   if (!file) return HA_CHECK_INTERNAL_ERROR;
-  int error ;
   MI_CHECK param;
 
   myisamchk_init(&param);
@@ -438,7 +437,6 @@ void ha_myisam::deactivate_non_unique_index(ha_rows rows)
 bool ha_myisam::activate_all_index(THD *thd)
 {
   int error=0;
-  char fixed_name[FN_REFLEN];
   MI_CHECK param;
   MYISAM_SHARE* share = file->s;
   DBUG_ENTER("activate_all_index");
