@@ -31,3 +31,7 @@ drop table if exists t1,t2,t11;
 save_master_pos;
 connection slave;
 sync_with_master;
+# show slave status, just to see of it prints replicate-do-table
+--replace_result $MASTER_MYPORT MASTER_PORT
+show slave status;
+
