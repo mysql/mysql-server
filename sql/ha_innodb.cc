@@ -2690,6 +2690,32 @@ ha_innobase::delete_row(
 	DBUG_RETURN(error);
 }
 
+/**************************************************************************
+Deletes a lock set to a row */
+
+void
+ha_innobase::unlock_row(void)
+/*=========================*/
+{
+	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+
+	DBUG_ENTER("ha_innobase::unlock_row");
+
+	ut_ad(prebuilt->trx ==
+		(trx_t*) current_thd->transaction.all.innobase_tid);
+
+	if (last_query_id != user_thd->query_id) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+"  InnoDB: Error: last_query_id is %lu != user_thd_query_id is %lu\n",
+			(ulong)last_query_id, (ulong)user_thd->query_id);
+		mem_analyze_corruption((byte *) prebuilt->trx);
+		ut_error;
+	}
+
+	row_unlock_for_mysql(prebuilt);
+}
+
 /**********************************************************************
 Initializes a handle to use an index. */
 

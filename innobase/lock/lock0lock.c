@@ -1617,6 +1617,9 @@ lock_rec_create(
 
 	HASH_INSERT(lock_t, hash, lock_sys->rec_hash,
 					lock_rec_fold(space, page_no), lock); 
+	/* Note that we have create a new lock */
+	trx->trx_create_lock = TRUE;
+
 	if (type_mode & LOCK_WAIT) {
 
 		lock_set_lock_and_trx_wait(lock, trx);
@@ -1791,6 +1794,15 @@ lock_rec_add_to_queue(
 
 	if (similar_lock && !somebody_waits && !(type_mode & LOCK_WAIT)) {
 
+		/* If the nth bit of a record lock is already set then we
+		do not set a new lock bit, otherwice we set */
+
+		if (lock_rec_get_nth_bit(similar_lock, heap_no)) {
+			trx->trx_create_lock = FALSE;
+		} else {
+			trx->trx_create_lock = TRUE;
+		}
+
 		lock_rec_set_nth_bit(similar_lock, heap_no);
 
 		return(similar_lock);
@@ -1822,6 +1834,7 @@ lock_rec_lock_fast(
 {
 	lock_t*	lock;
 	ulint	heap_no;
+	trx_t*  trx;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
@@ -1840,9 +1853,12 @@ lock_rec_lock_fast(
 	
 	lock = lock_rec_get_first_on_page(rec);
 
+	trx = thr_get_trx(thr);
+	trx->trx_create_lock = FALSE;
+
 	if (lock == NULL) {
 		if (!impl) {
-			lock_rec_create(mode, rec, index, thr_get_trx(thr));
+			lock_rec_create(mode, rec, index, trx);
 		}
 		
 		return(TRUE);
@@ -1853,13 +1869,23 @@ lock_rec_lock_fast(
 		return(FALSE);
 	}
 
-	if (lock->trx != thr_get_trx(thr)
+	if (lock->trx != trx
 				|| lock->type_mode != (mode | LOCK_REC)
 				|| lock_rec_get_n_bits(lock) <= heap_no) {
 	    	return(FALSE);
 	}
 
 	if (!impl) {
+
+		/* If the nth bit of a record lock is already set then we
+		do not set a new lock bit, otherwice we set */
+
+		if (lock_rec_get_nth_bit(lock, heap_no)) {
+			trx->trx_create_lock = FALSE;
+		} else {
+			trx->trx_create_lock = TRUE;
+		}
+
 		lock_rec_set_nth_bit(lock, heap_no);
 	}
 
