@@ -28,7 +28,7 @@
 /**************************************************************/
 
 
-/* parses a document i.e. calls _mi_ft_parse for every keyseg */
+/* parses a document i.e. calls ft_parse for every keyseg */
 uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record)
 {
   byte *pos;
@@ -57,11 +57,11 @@ uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record)
     }
     else
       len=keyseg->length;
-    if (!(ft_parse(parsed, pos, len)))
+    if (ft_parse(parsed, pos, len))
       return 1;
   }
   /* Handle the case where all columns are NULL */
-  if (!is_tree_inited(parsed) && !(ft_parse(parsed, (byte*) "", 0)))
+  if (!is_tree_inited(parsed) && ft_parse(parsed, (byte*) "", 0))
     return 1;
   else
     return 0;

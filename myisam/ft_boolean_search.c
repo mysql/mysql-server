@@ -152,12 +152,15 @@ void  _ftb_init_index_search(FT_INFO *ftb)
   int i, r;
   FTB_WORD *ftbw;
   MI_INFO    *info=ftb->info;
-  MI_KEYDEF  *keyinfo=info->s->keyinfo+ftb->keynr;
-  my_off_t    keyroot=info->s->state.key_root[ftb->keynr];
+  MI_KEYDEF  *keyinfo;
+  my_off_t    keyroot;
 
-  if (ftb->state != READY)
+  if (ftb->state != READY || ftb->keynr == NO_SUCH_KEY)
     return;
   ftb->state=INDEX_SEARCH;
+
+  keyinfo=info->s->keyinfo+ftb->keynr;
+  keyroot=info->s->state.key_root[ftb->keynr];
 
   for (i=ftb->queue.elements; i; i--)
   {
@@ -352,14 +355,17 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
   return my_errno=HA_ERR_END_OF_FILE;
 }
 
-float ft_boolean_find_relevance(FT_INFO *ftb, my_off_t docid, byte *record)
+float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
 {
   TREE      ptree;
   FT_WORD   word;
   FTB_WORD *ftbw;
   FTB_EXPR *ftbe;
   uint      i;
+  my_off_t  docid=ftb->info->lastpos;
 
+  if (docid == HA_POS_ERROR)
+    return -2.0;
   if (ftb->state == READY || ftb->state == INDEX_DONE)
   {
     for (i=1; i<=ftb->queue.elements; i++)
@@ -382,11 +388,13 @@ float ft_boolean_find_relevance(FT_INFO *ftb, my_off_t docid, byte *record)
     ftb->state=SCAN;
   }
   else if (ftb->state != SCAN)
-    return -2.0;
+    return -3.0;
 
   bzero(&ptree, sizeof(ptree));
-  if (_mi_ft_parse(& ptree, ftb->info, ftb->keynr, record))
-    return -3.0;
+  if ((ftb->keynr==NO_SUCH_KEY)
+       ? ft_parse(& ptree, record, length)
+       : _mi_ft_parse(& ptree, ftb->info, ftb->keynr, record))
+    return -4.0;
 
   for (i=1; i<=ftb->queue.elements; i++)
   {

@@ -10,9 +10,15 @@ INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
                           ('Only MyISAM tables','support collections'),
              ('Function MATCH ... AGAINST()','is used to do a search'),
         ('Full-text search in MySQL', 'implements vector space model');
+
+# nl search
+ 
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 select * from t1 where MATCH(a,b) AGAINST ("indexes");
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
+
+# boolean search
+
 select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("support  collections" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("support +collections" IN BOOLEAN MODE);
@@ -22,6 +28,13 @@ select * from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
 select *, MATCH(a,b) AGAINST("support  collections" IN BOOLEAN MODE) as x from t1;
+
+# boolean w/o index:
+
+select * from t1 where MATCH a AGAINST ("search" IN BOOLEAN MODE);
+
+#update/delete with fulltext index
+
 delete from t1 where a like "MySQL%";
 update t1 set a='some test foobar' where MATCH a,b AGAINST ('model');
 delete from t1 where MATCH(a,b) AGAINST ("indexes");

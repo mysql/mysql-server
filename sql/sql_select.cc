@@ -1457,7 +1457,7 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
     {
       Item *item;
       /*
-         I, (Sergei) too lazy to implement proper recursive descent here,
+         I'm (Sergei) too lazy to implement proper recursive descent here,
          and anyway, nobody will use such a stupid queries
          that will require it :-)
          May be later...
@@ -1474,7 +1474,7 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
     }
   }
 
-  if (!cond_func)
+  if (!cond_func || cond_func->key == NO_SUCH_KEY)
     return;
 
   KEYUSE keyuse;
