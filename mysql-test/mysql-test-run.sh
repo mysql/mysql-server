@@ -277,7 +277,7 @@ start_slave()
 {
     [ x$SKIP_SLAVE = x1 ] && return
     [ x$SLAVE_RUNNING = 1 ] && return
-    if [ -z "$SLAVE_MASTER_INF" ] ; then
+    if [ -z "$SLAVE_MASTER_INFO" ] ; then
       master_info="--master-user=root \
 	    --master-connect-retry=1 \
 	    --master-host=127.0.0.1 \
