@@ -31,10 +31,13 @@ void NdbMem_Destroy()
   return;
 }
 
+
 void* NdbMem_Allocate(size_t size)
 {
+  void* mem_allocated;
   assert(size > 0);
-  return (void*)malloc(size);
+  mem_allocated= (void*)malloc(size);
+  return mem_allocated;
 }
 
 void* NdbMem_AllocateAlign(size_t size, size_t alignment)

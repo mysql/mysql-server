@@ -18,6 +18,7 @@
 #include <NdbEnv.h>
 #include <NdbConfig.h>
 #include <NdbAutoPtr.hpp>
+#include <NdbMem.h>
 
 LocalConfig::LocalConfig(){
   error_line = 0; error_msg[0] = 0;
@@ -242,7 +243,7 @@ bool LocalConfig::readFile(const char * filename, bool &fopenError)
   }
 
   int sz = 1024;
-  char* theString = (char*)malloc(sz);
+  char* theString = (char*)NdbMem_Allocate(sz);
   theString[0] = 0;
 
   fgets(theString, sz, file);
@@ -250,7 +251,7 @@ bool LocalConfig::readFile(const char * filename, bool &fopenError)
     line[0] = ';';
     while (strlen(theString) + strlen(line) >= sz) {
       sz = sz*2;
-      char *newString = (char*)malloc(sz);
+      char *newString = (char*)NdbMem_Allocate(sz);
       strcpy(newString, theString);
       free(theString);
       theString = newString;

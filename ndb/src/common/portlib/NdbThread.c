@@ -18,6 +18,7 @@
 #include <ndb_global.h>
 #include <NdbThread.h>
 #include <pthread.h>
+#include <NdbMem.h>
 
 #define MAX_THREAD_NAME 16
 
@@ -44,7 +45,7 @@ struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   if (p_thread_func == NULL)
     return 0;
 
-  tmpThread = (struct NdbThread*)malloc(sizeof(struct NdbThread));
+  tmpThread = (struct NdbThread*)NdbMem_Allocate(sizeof(struct NdbThread));
   if (tmpThread == NULL)
     return NULL;
 
