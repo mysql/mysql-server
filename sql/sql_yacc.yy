@@ -2745,8 +2745,7 @@ simple_expr:
 	| ASCII_SYM '(' expr ')' { $$= new Item_func_ascii($3); }
 	| BINARY expr %prec NEG
 	  {
-	    $$= new Item_func_set_collation($2,new Item_string(binary_keyword,
-					    6, &my_charset_latin1));
+	    $$= create_func_cast($2, ITEM_CAST_CHAR, -1, &my_charset_bin);
 	  }
 	| CAST_SYM '(' expr AS cast_type ')'
 	  {

@@ -95,7 +95,7 @@ int parse_args(int argc, char** argv)
 {
   int ho_error;
 
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option, NULL)))
     exit(ho_error);
 
   return 0;

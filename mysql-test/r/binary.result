@@ -111,10 +111,10 @@ a	b
 aaa	bbb
 select charset(a), charset(b), charset(binary 'ccc') from t1 limit 1;
 charset(a)	charset(b)	charset(binary 'ccc')
-latin1	binary	latin1
+latin1	binary	binary
 select collation(a), collation(b), collation(binary 'ccc') from t1 limit 1;
 collation(a)	collation(b)	collation(binary 'ccc')
-latin1_bin	binary	latin1_bin
+latin1_bin	binary	binary
 drop table t1;
 create table t1( firstname char(20), lastname char(20));
 insert into t1 values ("john","doe"),("John","Doe");

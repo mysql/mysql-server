@@ -2441,8 +2441,19 @@ bool
 insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 	      const char *table_name, List_iterator<Item> *it)
 {
+  char name_buff[NAME_LEN+1];
   uint found;
   DBUG_ENTER("insert_fields");
+
+
+  if (db_name && lower_case_table_names)
+  {
+    /* convert database to lower case for comparison */
+    strmake(name_buff, db_name, sizeof(name_buff)-1);
+    my_casedn_str(system_charset_info,name_buff);
+    db_name = name_buff;
+  }
+
 
   found=0;
   for (; tables ; tables=tables->next)
