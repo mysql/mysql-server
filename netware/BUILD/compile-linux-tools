@@ -36,8 +36,6 @@ make clean all-local
 (cd heap; make libheap.a)
 (cd vio; make libvio.a)
 (cd regex; make libregex.a)
-(cd isam; make libnisam.a)
-(cd merge; make libmerge.a)
 (cd myisam; make libmyisam.a)
 (cd myisammrg; make libmyisammrg.a)
 (cd extra; make comp_err)

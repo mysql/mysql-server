@@ -100,7 +100,6 @@ done
 BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   extra/resolveip$BS extra/my_print_defaults$BS \
   extra/resolve_stack_dump$BS extra/mysql_waitpid$BS \
-  isam/isamchk$BS isam/pack_isam$BS \
   myisam/myisamchk$BS myisam/myisampack$BS myisam/myisamlog$BS \
   myisam/myisam_ftdump$BS \
   sql/mysqld$BS sql/mysql_tzinfo_to_sql$BS \

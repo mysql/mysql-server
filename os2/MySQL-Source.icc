@@ -84,8 +84,6 @@ group sql =
                "..\\sql\\field_conv.cc",
                "..\\sql\\filesort.cc",
                "..\\sql\\ha_heap.cc",
-               "..\\sql\\ha_isam.cc",
-               "..\\sql\\ha_isammrg.cc",
                "..\\sql\\ha_myisam.cc",
                "..\\sql\\ha_myisammrg.cc",
                "..\\sql\\handler.cc",
@@ -151,21 +149,6 @@ group sql =
                "..\\sql\\unireg.cc",
                "..\\sql\\violite.c"
 
-group isam =
-                      "..\\isam\\changed.c", "..\\isam\\close.c",
-                      "..\\isam\\create.c", "..\\isam\\delete.c", "..\\isam\\extra.c",
-                      "..\\isam\\info.c", "..\\isam\\log.c", "..\\isam\\open.c",
-                      "..\\isam\\panic.c", "..\\isam\\range.c",
-                      "..\\isam\\rfirst.c", "..\\isam\\rkey.c", "..\\isam\\rlast.c",
-                      "..\\isam\\rnext.c", "..\\isam\\rprev.c", "..\\isam\\rrnd.c",
-                      "..\\isam\\rsame.c", "..\\isam\\rsamepos.c",
-                      "..\\isam\\static.c", "..\\isam\\update.c",
-                      "..\\isam\\write.c", "..\\isam\\_cache.c",
-                      "..\\isam\\_dbug.c", "..\\isam\\_dynrec.c",
-                      "..\\isam\\_key.c", "..\\isam\\_locking.c",
-                      "..\\isam\\_packrec.c", "..\\isam\\_page.c",
-                      "..\\isam\\_search.c", "..\\isam\\_statrec.c"
-
 group strings =
                "..\\strings\\bchange.c",
                "..\\strings\\bmove.c",
@@ -212,13 +195,6 @@ group strings =
                 "..\\heap\\hp_rsame.c", "..\\heap\\hp_scan.c",
                 "..\\heap\\hp_static.c", "..\\heap\\hp_update.c",
                 "..\\heap\\hp_write.c", "..\\heap\\_check.c", "..\\heap\\_rectest.c"
-
-
-   group merge = "..\\merge\\close.c", "..\\merge\\create.c", "..\\merge\\delete.c",
-                 "..\\merge\\extra.c", "..\\merge\\info.c", "..\\merge\\open.c",
-                 "..\\merge\\panic.c", "..\\merge\\rrnd.c", "..\\merge\\rsame.c",
-                 "..\\merge\\static.c", "..\\merge\\update.c",
-                 "..\\merge\\_locking.c"
 
 
    group myisammrg = "..\\myisammrg\\myrg_close.c",
