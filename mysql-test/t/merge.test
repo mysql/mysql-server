@@ -4,6 +4,7 @@
 
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6;
+drop database if exists mysqltest;
 --enable_warnings
 
 create table t1 (a int not null primary key auto_increment, message char(20));
@@ -48,13 +49,23 @@ show create table t3;
 create table t4 (a int not null, b char(10), key(a)) type=MERGE UNION=(t1,t2);
 --error 1016
 select * from t4;
---error 1212
-create table t5 (a int not null, b char(10), key(a)) type=MERGE UNION=(test.t1,test_2.t2);
+--error 1016
+alter table t4 add column c int;
+
+#
+# Test tables in different databases
+#
+create database mysqltest;
+create table mysqltest.t6 (a int not null primary key auto_increment, message char(20));
+create table t5 (a int not null, b char(20), key(a)) type=MERGE UNION=(test.t1,mysqltest.t6);
+show create table t5;
+alter table t5 type=myisam;
+drop table t5, mysqltest.t6;
+drop database mysqltest;
 
 # Because of windows, it's important that we drop the merge tables first!
-# This should give a warning on table t5
-drop table if exists t5,t4,t3,t1,t2;
-
+drop table if exists t4,t3,t1,t2;
+  
 create table t1 (c char(10)) type=myisam;
 create table t2 (c char(10)) type=myisam;
 create table t3 (c char(10)) union=(t1,t2) type=merge;
