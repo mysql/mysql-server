@@ -4955,7 +4955,8 @@ static void fix_paths(void)
   if (!lower_case_table_names &&
       test_if_case_insensitive(mysql_real_data_home) == 1)
   {
-    sql_print_error("Warning: Setting lower_case_table_names=1 becasue file system %s is case insensitve", mysql_real_data_home);
+    sql_print_error("Warning: Setting lower_case_table_names=1 because file system %s is case insensitive", mysql_real_data_home);
+    lower_case_table_names=1;
   }
 }
 
@@ -4964,7 +4965,7 @@ static void fix_paths(void)
   set how many open files we want to be able to handle
 
   SYNOPSIS
-    set_maximum_open_files()  
+    set_maximum_open_files()
     max_file_limit		Files to open
 
   NOTES
