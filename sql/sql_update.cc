@@ -399,6 +399,7 @@ int mysql_multi_update(THD *thd,
   table_list->grant.want_privilege=(SELECT_ACL & ~table_list->grant.privilege);
   if ((res=open_and_lock_tables(thd,table_list)))
     DBUG_RETURN(res);
+  fix_tables_pointers(thd->lex.all_selects_list);
 
   thd->select_limit=HA_POS_ERROR;
   if (setup_fields(thd, 0, table_list, *fields, 1, 0, 0))
@@ -407,7 +408,7 @@ int mysql_multi_update(THD *thd,
   /*
     Count tables and setup timestamp handling
   */
-  for (tl= (TABLE_LIST*) table_list ; tl ; tl=tl->next)
+  for (tl= select_lex->get_table_list() ; tl ; tl=tl->next)
   {
     TABLE *table= tl->table;
     if (table->timestamp_field)
@@ -425,7 +426,8 @@ int mysql_multi_update(THD *thd,
 
   List<Item> total_list;
   res= mysql_select(thd, &select_lex->ref_pointer_array,
-		    table_list, select_lex->with_wild, total_list,
+		    select_lex->get_table_list(), select_lex->with_wild,
+		    total_list,
 		    conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
 		    (ORDER *)NULL,
 		    options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK,

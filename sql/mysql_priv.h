@@ -772,6 +772,7 @@ extern SHOW_COMP_OPTION have_isam, have_innodb, have_berkeley_db;
 extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;
 extern SHOW_COMP_OPTION have_query_cache, have_berkeley_db, have_innodb;
 extern SHOW_COMP_OPTION have_crypt;
+extern SHOW_COMP_OPTION have_compress;
 
 #ifndef __WIN__
 extern pthread_t signal_thread;

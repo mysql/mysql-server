@@ -155,18 +155,10 @@ set net_buffer_length=2000000000;
 show variables like 'net_buffer_length';
 Variable_name	Value
 net_buffer_length	1048576
-set GLOBAL character set cp1251_koi8;
-show global variables like "client_collation";
-Variable_name	Value
-client_collation	cp1251_bulgarian_ci
 set character set cp1251_koi8;
 show variables like "client_collation";
 Variable_name	Value
 client_collation	cp1251_bulgarian_ci
-set global character set default, session character set default;
-show variables like "client_collation";
-Variable_name	Value
-client_collation	latin1_swedish_ci
 select @@timestamp>0;
 @@timestamp>0
 1
@@ -195,10 +187,6 @@ set GLOBAL table_type=DEFAULT;
 Variable 'table_type' doesn't have a default value
 set client_collation=UNKNOWN_CHARACTER_SET;
 Unknown character set: 'UNKNOWN_CHARACTER_SET'
-set character set unknown;
-Unknown character set: 'unknown'
-set character set 0;
-Wrong argument type to variable 'client_collation'
 set global autocommit=1;
 Variable 'autocommit' is a LOCAL variable and can't be used with SET GLOBAL
 select @@global.timestamp;

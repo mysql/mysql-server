@@ -72,3 +72,33 @@ select * from t1;
 check table t1;
 drop table t1;
 
+#
+# last_insert_id() madness
+#
+create table t1 (i tinyint unsigned not null auto_increment primary key);
+insert into t1 set i = 254;
+insert into t1 set i = null;
+select last_insert_id();
+--error 1062
+insert into t1 set i = null;
+select last_insert_id();
+drop table t1;
+
+create table t1 (i tinyint unsigned not null auto_increment, key (i));
+insert into t1 set i = 254;
+insert into t1 set i = null;
+select last_insert_id();
+insert into t1 set i = null;
+select last_insert_id();
+drop table t1;
+
+create table t1 (i tinyint unsigned not null auto_increment primary key, b int, unique (b));
+insert into t1 values (NULL, 10);
+select last_insert_id();
+insert into t1 values (NULL, 15);
+select last_insert_id();
+--error 1062
+insert into t1 values (NULL, 10);
+select last_insert_id();
+drop table t1;
+

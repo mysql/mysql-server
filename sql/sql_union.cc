@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,6 +68,7 @@ int select_union::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   return 0;
 }
 
+
 bool select_union::send_data(List<Item> &values)
 {
   if (unit->offset_limit_cnt)
@@ -91,10 +92,12 @@ bool select_union::send_data(List<Item> &values)
   return 0;
 }
 
+
 bool select_union::send_eof()
 {
   return 0;
 }
+
 
 bool select_union::flush()
 {
@@ -108,9 +111,13 @@ bool select_union::flush()
   return 0;
 }
 
-int st_select_lex_unit::prepare(THD *thd, select_result *result,
+
+int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 				bool tables_and_fields_initied)
 {
+  SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
+  SELECT_LEX *select_cursor;
+  TMP_TABLE_PARAM tmp_table_param;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
   if (prepared)
@@ -118,11 +125,8 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
   prepared= 1;
   res= 0;
   found_rows_for_union= 0;
-  TMP_TABLE_PARAM tmp_table_param;
-  this->result= result;
+  result= sel_result;
   t_and_f= tables_and_fields_initied;
-  SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
-  SELECT_LEX *select_cursor;
 
   thd->lex.current_select= select_cursor= first_select_in_union();
   /* Global option */
@@ -144,7 +148,8 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
     TABLE_LIST *first_table= (TABLE_LIST*) select_cursor->table_list.first;
 
     if (setup_tables(first_table) ||
-	setup_wild(thd, first_table, select_cursor->item_list, 0, select_cursor->with_wild))
+	setup_wild(thd, first_table, select_cursor->item_list, 0,
+		   select_cursor->with_wild))
       goto err;
     List_iterator<Item> it(select_cursor->item_list);	
     Item *item;
@@ -156,8 +161,8 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
 			(item_list.elements + select_cursor->with_sum_func +
 			 select_cursor->order_list.elements + 
 			 select_cursor->group_list.elements)) ||
-	setup_fields(thd, select_cursor->ref_pointer_array, first_table, item_list,
-		     0, 0, 1))
+	setup_fields(thd, select_cursor->ref_pointer_array, first_table,
+		     item_list, 0, 0, 1))
       goto err;
     t_and_f= 1;
   }
@@ -183,11 +188,11 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
   union_result->not_describe=1;
   union_result->tmp_table_param=&tmp_table_param;
 
-/* 
-   the following piece of code is placed here solely for the purpose of 
-   getting correct results with EXPLAIN when UNION is withing a sub-select
-   or derived table ...
-*/  
+  /*
+    The following piece of code is placed here solely for the purpose of 
+    getting correct results with EXPLAIN when UNION is withing a sub-select
+    or derived table ...
+  */
 
   if (thd->lex.describe)
   {
@@ -216,7 +221,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
 			 (ORDER*) NULL,
 			 sl, this, t_and_f);
       t_and_f= 0;
-      if (res | thd->is_fatal_error)
+      if (res || thd->is_fatal_error)
 	goto err;
     }
   }
@@ -235,7 +240,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result,
     }
   }
 
-  DBUG_RETURN(res | thd->is_fatal_error);
+  DBUG_RETURN(res || thd->is_fatal_error ? 1 : 0);
 err:
   thd->lex.current_select= lex_select_save;
   DBUG_RETURN(-1);
@@ -244,17 +249,18 @@ err:
 
 int st_select_lex_unit::exec()
 {
-  DBUG_ENTER("st_select_lex_unit::exec");
+  int do_print_slow= 0;
   SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
   SELECT_LEX *select_cursor=first_select_in_union(), *last_select;
+  DBUG_ENTER("st_select_lex_unit::exec");
+
   LINT_INIT(last_select);
-  bool do_print_slow=0;
 
   if (executed && !(dependent || uncacheable))
     DBUG_RETURN(0);
   executed= 1;
   
-  if ((dependent||uncacheable) || !item || !item->assigned())
+  if ((dependent || uncacheable) || !item || !item->assigned())
   {
     if (optimized && item && item->assigned())
     {
@@ -314,7 +320,7 @@ int st_select_lex_unit::exec()
 	thd->lex.current_select= lex_select_save;
 	DBUG_RETURN(res);
       }
-      do_print_slow = do_print_slow || (select_cursor->options & (QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED));
+      do_print_slow|= select_cursor->options;
     }
   }
   optimized= 1;
@@ -322,8 +328,8 @@ int st_select_lex_unit::exec()
   /* Send result to 'result' */
 
   // to correct ORDER BY reference resolving
-  thd->lex.current_select = select_cursor;
-  res =-1;
+  thd->lex.current_select= select_cursor;
+  res= -1;
   {
     List<Item_func_match> empty_list;
     empty_list.empty();
@@ -332,9 +338,11 @@ int st_select_lex_unit::exec()
     {
       SELECT_LEX *fake_select  = new SELECT_LEX();
       fake_select->make_empty_select(last_select);
-      offset_limit_cnt= (select_cursor->braces) ? global_parameters->offset_limit : 0;
-      select_limit_cnt= (select_cursor->braces) ? global_parameters->select_limit+
-	global_parameters->offset_limit : HA_POS_ERROR;
+      offset_limit_cnt= (select_cursor->braces ?
+			 global_parameters->offset_limit : 0);
+      select_limit_cnt= (select_cursor->braces ?
+			 global_parameters->select_limit+
+			 global_parameters->offset_limit : HA_POS_ERROR);
       if (select_limit_cnt < global_parameters->select_limit)
 	select_limit_cnt= HA_POS_ERROR;		// no limit
       if (select_limit_cnt == HA_POS_ERROR)
@@ -351,13 +359,22 @@ int st_select_lex_unit::exec()
 	thd->limit_found_rows = (ulonglong)table->file->records;
       fake_select->exclude();
       delete fake_select;
-      if (select_cursor == &thd->lex.select_lex && !do_print_slow)
-	select_cursor->options &= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
+      /*
+	Mark for slow query log if any of the union parts didn't use
+	indexes efficiently
+      */
+      select_cursor->options= ((select_cursor->options &
+				~(QUERY_NO_INDEX_USED |
+				  QUERY_NO_GOOD_INDEX_USED)) |
+			       do_print_slow &
+			       (QUERY_NO_INDEX_USED |
+				QUERY_NO_GOOD_INDEX_USED));
     }
   }
   thd->lex.current_select= lex_select_save;
   DBUG_RETURN(res);
 }
+
 
 int st_select_lex_unit::cleanup()
 {
