@@ -848,7 +848,7 @@ pthread_handler_decl(handle_one_connection,arg)
     init_sql_alloc(&thd->mem_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
     init_sql_alloc(&thd->transaction.mem_root,
 		   TRANS_MEM_ROOT_BLOCK_SIZE, TRANS_MEM_ROOT_PREALLOC);
-    while (!net->error && net->vio != 0 && !thd->killed)
+    while (!net->error && net->vio != 0 && !(thd->killed && !thd->only_kill_query))
     {
       if (do_command(thd))
 	break;
@@ -1054,6 +1054,12 @@ bool do_command(THD *thd)
   }
   else
   {
+    if (thd->only_kill_query)
+    {
+      thd->killed= FALSE;
+      thd->only_kill_query= FALSE;
+    }
+
     packet=(char*) net->read_pos;
     command = (enum enum_server_command) (uchar) packet[0];
     if (command >= COM_END)
@@ -1473,7 +1479,7 @@ restore_user:
   {
     statistic_increment(com_stat[SQLCOM_KILL],&LOCK_status);
     ulong id=(ulong) uint4korr(packet);
-    kill_one_thread(thd,id);
+    kill_one_thread(thd,id,false);
     break;
   }
   case COM_DEBUG:
@@ -2890,7 +2896,7 @@ mysql_execute_command(THD *thd)
     reload_acl_and_cache(thd, lex->type, tables) ;
     break;
   case SQLCOM_KILL:
-    kill_one_thread(thd,lex->thread_id);
+    kill_one_thread(thd,lex->thread_id, lex->type & ONLY_KILL_QUERY);
     break;
   case SQLCOM_SHOW_GRANTS:
     res=0;
@@ -4179,7 +4185,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
     This is written such that we have a short lock on LOCK_thread_count
 */
 
-void kill_one_thread(THD *thd, ulong id)
+void kill_one_thread(THD *thd, ulong id, bool only_kill_query)
 {
   THD *tmp;
   uint error=ER_NO_SUCH_THREAD;
@@ -4199,7 +4205,13 @@ void kill_one_thread(THD *thd, ulong id)
     if ((thd->master_access & SUPER_ACL) ||
 	!strcmp(thd->user,tmp->user))
     {
-      tmp->awake(1 /*prepare to die*/);
+      if (only_kill_query)
+      {
+	tmp->killed= 1;
+	tmp->only_kill_query= 1;
+      }
+      else
+	tmp->awake(1 /*prepare to die*/);
       error=0;
     }
     else
