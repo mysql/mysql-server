@@ -1,4 +1,4 @@
-TARGET = ndbapi_example1
+TARGET = ndbapi_simple
 SRCS = $(TARGET).cpp
 OBJS = $(TARGET).o
 CXX = g++

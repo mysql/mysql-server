@@ -80,19 +80,21 @@ int main(int argc, char** argv){
   Ndb_cluster_connection con(opt_connect_str);
   if(con.connect(12, 5, 1) != 0)
   {
+    ndbout << "Unable to connect to management server." << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  Ndb MyNdb(&con, _dbname );
+  if (con.wait_until_ready(30,0) < 0)
+  {
+    ndbout << "Cluster nodes not ready in 30 seconds." << endl;
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
 
+  Ndb MyNdb(&con, _dbname );
   if(MyNdb.init() != 0){
     ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
   }
   
-  // Connect to Ndb and wait for it to become ready
-  while(MyNdb.waitUntilReady() != 0)
-    ndbout << "Waiting for ndb to become ready..." << endl;
-   
   // Check if table exists in db
   int res = NDBT_OK;
   for(int i = 0; i<argc; i++){
@@ -119,7 +121,7 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab, int parallelism)
   const int            retryMax = 10;
   int deletedRows = 0;
   int check;
-  NdbConnection *pTrans;
+  NdbTransaction *pTrans;
   NdbScanOperation *pOp;
   NdbError err;
 
@@ -148,11 +150,11 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab, int parallelism)
       goto failed;
     }
     
-    if( pOp->readTuplesExclusive(par) ) {
+    if( pOp->readTuples(NdbOperation::LM_Exclusive,par) ) {
       goto failed;
     }
     
-    if(pTrans->execute(NoCommit) != 0){
+    if(pTrans->execute(NdbTransaction::NoCommit) != 0){
       err = pTrans->getNdbError();    
       if(err.status == NdbError::TemporaryError){
 	ERR(err);
@@ -172,7 +174,7 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab, int parallelism)
       } while((check = pOp->nextResult(false)) == 0);
       
       if(check != -1){
-	check = pTrans->execute(Commit);   
+	check = pTrans->execute(NdbTransaction::Commit);   
 	pTrans->restart();
       }
       

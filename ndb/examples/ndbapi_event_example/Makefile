@@ -1,6 +1,6 @@
-TARGET = ndbapi_example5
-SRCS = ndbapi_example5.cpp
-OBJS = ndbapi_example5.o
+TARGET = ndbapi_event
+SRCS = ndbapi_event.cpp
+OBJS = ndbapi_event.o
 CXX = g++
 CFLAGS = -c -Wall -fno-rtti -fno-exceptions
 CXXFLAGS = 
