@@ -330,6 +330,7 @@ typedef struct st_prep_stmt
 
 
 class delayed_insert;
+class select_result;
 
 #define THD_SENTRY_MAGIC 0xfeedd1ff
 #define THD_SENTRY_GONE  0xdeadbeef
@@ -491,6 +492,7 @@ public:
   uint	     server_status,open_options;
   uint32     query_length;
   uint32     db_length;
+  uint       select_number;             //number of select (used for EXPLAIN)
   /* variables.transaction_isolation is reset to this after each commit */
   enum_tx_isolation session_tx_isolation;
   char	     scramble[9];
@@ -504,7 +506,7 @@ public:
   bool       query_error, bootstrap, cleanup_done;
   bool	     safe_to_cache_query;
   bool	     volatile killed;
-  bool       prepare_command;  
+  bool       prepare_command;
   Item_param *params;			// Pointer to array of params
 
   /*
@@ -621,6 +623,7 @@ public:
   void add_changed_table(TABLE *table);
   void add_changed_table(const char *key, long key_length);
   CHANGED_TABLE_LIST * changed_table_dup(const char *key, long key_length);
+  int send_explain_fields(select_result *result);
 };
 
 /*
@@ -666,7 +669,7 @@ public:
   virtual void initialize_tables (JOIN *join=0) {}
   virtual void send_error(uint errcode,const char *err)
   {
-    ::send_error(thd,errcode,err);
+    my_message(errcode, err, MYF(0));
   }
   virtual bool send_eof()=0;
   virtual void abort() {}

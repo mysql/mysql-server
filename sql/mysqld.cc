@@ -1648,6 +1648,7 @@ static int my_message_sql(uint error, const char *str,
   if ((thd=current_thd))
   {
     NET *net= &thd->net;
+    net->report_error= 1;
     if (!net->last_error[0])			// Return only first message
     {
       strmake(net->last_error,str,sizeof(net->last_error)-1);

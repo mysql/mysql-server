@@ -1852,8 +1852,9 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables,
       {
 	if (!report_error)			// Returns first found
 	  break;
-	my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
-			name,thd->where);
+	if (report_error)
+	  my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
+			  name,thd->where);
 	return (Field*) 0;
       }
       found=field;
@@ -1917,8 +1918,8 @@ find_item_in_list(Item *find, List<Item> &items, bool report_error)
     }
   }
   if (!found && report_error)
-    my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
-		    find->full_name(),current_thd->where);
+    my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
+		    find->full_name(), current_thd->where);
   return found;
 }
 
@@ -2390,8 +2391,8 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
 
 int setup_ftfuncs(THD *thd)
 {
-  List_iterator<Item_func_match> li(thd->lex.select->ftfunc_list),
-                                 lj(thd->lex.select->ftfunc_list);
+  List_iterator<Item_func_match> li(*(thd->lex.select->ftfunc_list)),
+                                 lj(*(thd->lex.select->ftfunc_list));
   Item_func_match *ftf, *ftf2;
 
   while ((ftf=li++))
@@ -2412,9 +2413,9 @@ int setup_ftfuncs(THD *thd)
 
 int init_ftfuncs(THD *thd, bool no_order)
 {
-  if (thd->lex.select->ftfunc_list.elements)
+  if (thd->lex.select->ftfunc_list->elements)
   {
-    List_iterator<Item_func_match> li(thd->lex.select->ftfunc_list);
+    List_iterator<Item_func_match> li(*(thd->lex.select->ftfunc_list));
     Item_func_match *ifm;
     DBUG_PRINT("info",("Performing FULLTEXT search"));
     thd->proc_info="FULLTEXT initialization";

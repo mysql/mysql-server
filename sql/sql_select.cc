@@ -144,7 +144,7 @@ static void init_sum_functions(Item_sum **func);
 static bool update_sum_func(Item_sum **func);
 static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 			    bool distinct, const char *message=NullS);
-static void describe_info(JOIN *join, const char *info);
+
 
 /*
   This handles SELECT with and without UNION
@@ -154,40 +154,8 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 {
   int res;
   register SELECT_LEX *select_lex = &lex->select_lex;
-  if (select_lex->next_select_in_list())
-  {
-    /* Fix tables 'to-be-unioned-from' list to point at opened tables */
-    for (SELECT_LEX *sl= select_lex;
-	 sl;
-	 sl= sl->next_select_in_list())
-    {
-      for (TABLE_LIST *cursor= (TABLE_LIST *)sl->table_list.first;
-	   cursor;
-	   cursor=cursor->next)
-	cursor->table= ((TABLE_LIST*) cursor->table)->table;
-    }
-  }
 
-#ifdef DISABLED_UNTIL_REWRITTEN_IN_4_1
-  if (lex->olap)
-  {
-    SELECT_LEX *sl, *sl_next;
-    int error;
-    for (sl= &select_lex; sl; sl=sl_next)
-    {
-      sl_next=sl->next;				// Save if sl->next changes
-      if (sl->olap != UNSPECIFIED_OLAP_TYPE)
-      {
-	if ((error=handle_olaps(lex,sl)))
-	  return error;
-	lex->last_selects->next=sl_next;
-      }
-    }
-    lex->select = select_lex;
-  }
-#endif /* DISABLED_UNTIL_REWRITTEN_IN_4_1 */
-
-  if (select_lex->next_select())
+ if (select_lex->next_select())
     res=mysql_union(thd,lex,result);
   else
     res=mysql_select(thd,(TABLE_LIST*) select_lex->table_list.first,
@@ -198,13 +166,34 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 		     select_lex->having,
 		     (ORDER*) lex->proc_list.first,
 		     select_lex->options | thd->options,
-		     result, &(lex->unit));
+		     result, &(lex->unit), &(lex->select_lex), 0);
   if (res && result)
     result->abort();
+  if (res || thd->net.report_error)
+  {
+    send_error(&thd->net, 0, MYF(0));
+    res= 1;
+  }
   delete result;
   return res;
 }
 
+void fix_tables_pointers(SELECT_LEX *select_lex)
+{
+  if (select_lex->next_select_in_list())
+  {
+    /* Fix tables 'to-be-unioned-from' list to point at opened tables */
+    for (SELECT_LEX *sl= select_lex;
+	 sl;
+	 sl= sl->next_select_in_list())
+    {
+      for (TABLE_LIST *cursor= (TABLE_LIST *)sl->table_list.first;
+          cursor;
+	   cursor=cursor->next)
+	cursor->table= cursor->table_list->table;
+    }
+  }
+}
 
 /*****************************************************************************
   Check fields, find best join, do the select and output fields.
@@ -221,10 +210,10 @@ JOIN::prepare(TABLE_LIST *tables_init,
 	      COND *conds_init, ORDER *order_init, ORDER *group_init,
 	      Item *having_init,
 	      ORDER *proc_param_init, SELECT_LEX *select,
-	      SELECT_LEX_UNIT *unit)
+	      SELECT_LEX_UNIT *unit, bool fake_select_lex)
 {
   DBUG_ENTER("JOIN::prepare");
-
+  
   conds= conds_init;
   order= order_init;
   group_list= group_init;
@@ -232,7 +221,8 @@ JOIN::prepare(TABLE_LIST *tables_init,
   proc_param= proc_param_init;
   tables_list= tables_init;
   select_lex= select;
-  select_lex->join= this;
+  if (!fake_select_lex)
+    select_lex->join= this;
   union_part= (unit->first_select()->next_select() != 0);
   
   /* Check that all tables, fields, conds and order are ok */
@@ -252,7 +242,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
     select_lex->having_fix_field= 1;
     bool having_fix_rc= having->fix_fields(thd, tables_list, &having);
     select_lex->having_fix_field= 0;
-    if (having_fix_rc || thd->fatal_error)
+    if (having_fix_rc || thd->net.report_error)
       DBUG_RETURN(-1);				/* purecov: inspected */
     if (having->with_sum_func)
       having->split_sum_func(all_fields);
@@ -358,7 +348,7 @@ int
 JOIN::optimize()
 {
   DBUG_ENTER("JOIN::optimize");
-
+  
 #ifdef HAVE_REF_TO_FIELDS			// Not done yet
   /* Add HAVING to WHERE if possible */
   if (having && !group_list && ! sum_func_count)
@@ -403,7 +393,8 @@ JOIN::optimize()
       }
       if (select_options & SELECT_DESCRIBE)
       {
-	describe_info(this, "Select tables optimized away");
+	select_describe(this, false, false, false,
+			"Select tables optimized away");
 	delete procedure;
 	DBUG_RETURN(1);
       }
@@ -565,7 +556,7 @@ JOIN::optimize()
   make_join_readinfo(this,
 		     (select_options & (SELECT_DESCRIBE |
 					SELECT_NO_JOIN_CACHE)) |
-		     (thd->lex.select->ftfunc_list.elements ? 
+		     (thd->lex.select->ftfunc_list->elements ? 
 		      SELECT_NO_JOIN_CACHE : 0));
 
   /*
@@ -668,7 +659,7 @@ JOIN::exec()
   {                                           // Only test of functions
     error=0;
     if (select_options & SELECT_DESCRIBE)
-      describe_info(this, "No tables used");
+      select_describe(this, false, false, false, "No tables used");
     else
     {
       result->send_fields(fields_list,1);
@@ -677,10 +668,10 @@ JOIN::exec()
 	if (do_send_rows && result->send_data(fields_list))
 	{
 	  result->send_error(0,NullS);          /* purecov: inspected */
-	  error=1;
+	  error= 1;
 	}
 	else
-	  error=(int) result->send_eof();
+	  error= (int) result->send_eof();
       }
       else
 	error=(int) result->send_eof();
@@ -692,6 +683,7 @@ JOIN::exec()
   if (zero_result_cause)
   {
     error=0;
+
     (void) return_zero_rows(this, result, tables_list, fields_list,
 			    tmp_table_param.sum_func_count != 0 &&
 			    !group_list,
@@ -1021,8 +1013,10 @@ JOIN::cleanup(THD *thd)
 
 int
 mysql_select(THD *thd, TABLE_LIST *tables, List<Item> &fields, COND *conds,
-           ORDER *order, ORDER *group,Item *having, ORDER *proc_param,
-           ulong select_options, select_result *result, SELECT_LEX_UNIT *unit)
+	     ORDER *order, ORDER *group,Item *having, ORDER *proc_param,
+	     ulong select_options, select_result *result, 
+	     SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex,
+	     bool fake_select_lex)
 {
   JOIN *join = new JOIN(thd, fields, select_options, result);
 
@@ -1031,7 +1025,7 @@ mysql_select(THD *thd, TABLE_LIST *tables, List<Item> &fields, COND *conds,
   thd->used_tables=0;                         // Updated by setup_fields
 
   if (join->prepare(tables, conds, order, group, having, proc_param,
-                  &(thd->lex.select_lex), unit))
+                  select_lex, unit, fake_select_lex))
   {
     DBUG_RETURN(-1);
   }
@@ -1051,7 +1045,7 @@ err:
   thd->limit_found_rows = join->send_records;
   thd->examined_row_count = join->examined_rows;
   thd->proc_info="end";
-  int error= join->cleanup(thd);
+  int error= (fake_select_lex?0:join->cleanup(thd)) || thd->net.report_error;
   delete join;
   DBUG_RETURN(error);
 }
@@ -1785,7 +1779,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       add_key_part(keyuse,field);
   }
 
-  if (thd->lex.select->ftfunc_list.elements)
+  if (thd->lex.select->ftfunc_list->elements)
   {
     add_ft_keys(keyuse,join_tab,cond,normal_tables);
   }
@@ -3114,9 +3108,10 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
 
   if (select_options & SELECT_DESCRIBE)
   {	
-    describe_info(join, info);
+    select_describe(join, false, false, false, info);
     DBUG_RETURN(0);
   }
+
   if (procedure)
   {
     if (result->prepare(fields, unit))		// This hasn't been done yet
@@ -3750,6 +3745,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->blob_ptr_size=mi_portable_sizeof_char_ptr;
   table->map=1;
   table->tmp_table= TMP_TABLE;
+  table->derived_select_number= 0;
   table->db_low_byte_first=1;			// True for HEAP and MyISAM
   table->temp_pool_slot = temp_pool_slot;
 
@@ -4366,7 +4362,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     VOID(table->file->extra(HA_EXTRA_WRITE_CACHE));
     empty_record(table);
   }
-  join->tmp_table=table;			/* Save for easy recursion */
+  join->tmp_table= table;			/* Save for easy recursion */
   join->fields= fields;
 
   /* Set up select_end */
@@ -4416,20 +4412,14 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   }
   else
   {
-    error=sub_select(join,join_tab,0);
+    error= sub_select(join,join_tab,0);
     if (error >= 0)
-      error=sub_select(join,join_tab,1);
+      error= sub_select(join,join_tab,1);
     if (error == -3)
-      error=0;					/* select_limit used */
+      error= 0;					/* select_limit used */
   }
 
-  /* Return 1 if error is sent;  -1 if error should be sent */
-  if (error < 0)
-  {
-    join->result->send_error(0,NullS);		/* purecov: inspected */
-    error=1;					// Error sent
-  }
-  else
+  if (error >= 0)
   {
     error=0;
     if (!table)					// If sending data to client
@@ -6497,7 +6487,6 @@ find_order_in_list(THD *thd,TABLE_LIST *tables,ORDER *order,List<Item> &fields,
     order->in_field_list=1;
     return 0;
   }
-  const char *save_where=thd->where;
   Item **item=find_item_in_list(*order->item, fields, 0);
   if (item)
   {
@@ -6596,7 +6585,7 @@ setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
   DBUG_ENTER("setup_new_fields");
 
   thd->set_query_id=1;				// Not really needed, but...
-  for (; new_field ; new_field=new_field->next)
+  for (; new_field ; new_field= new_field->next)
   {
     if ((item= find_item_in_list(*new_field->item, fields, 0)))
       new_field->item=item;			/* Change to shared Item */
@@ -7190,7 +7179,6 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   Item *item;
   List<Item> item_list;
   THD *thd=join->thd;
-  MYSQL_LOCK *save_lock;
   SELECT_LEX *select_lex = &(join->thd->lex.select_lex);
   select_result *result=join->result;
   Item *item_null= new Item_null();
@@ -7199,28 +7187,13 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   /* Don't log this into the slow query log */
   select_lex->options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
   join->unit->offset_limit_cnt= 0;
-  if (thd->lex.select == select_lex)
-  {
-    field_list.push_back(new Item_empty_string("table",NAME_LEN));
-    field_list.push_back(new Item_empty_string("type",10));
-    field_list.push_back(item=new Item_empty_string("possible_keys",
-						  NAME_LEN*MAX_KEY));
-    item->maybe_null=1;
-    field_list.push_back(item=new Item_empty_string("key",NAME_LEN));
-    item->maybe_null=1;
-    field_list.push_back(item=new Item_int("key_len",0,3));
-    item->maybe_null=1;
-    field_list.push_back(item=new Item_empty_string("ref",
-						    NAME_LEN*MAX_REF_PARTS));
-    item->maybe_null=1;
-    field_list.push_back(new Item_real("rows",0.0,0,10));
-    field_list.push_back(new Item_empty_string("Extra",255));
-    if (result->send_fields(field_list,1))
-      return;
-  }
 
   if (message)
   {
+    item_list.push_back(new Item_int((int)thd->lex.select->select_number));
+    item_list.push_back(new Item_string(thd->lex.select->type,
+					strlen(thd->lex.select->type),
+					default_charset_info));
     Item *empty= new Item_empty_string("",0);
     for (uint i=0 ; i < 7; i++)
       item_list.push_back(empty);
@@ -7242,16 +7215,25 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       String tmp2(buff2,sizeof(buff2),default_charset_info);
       tmp1.length(0);
       tmp2.length(0);
-      item_list.empty();
-
+      item_list.push_back(new Item_int((int)thd->lex.select->select_number));
+      item_list.push_back(new Item_string(thd->lex.select->type,
+					  strlen(thd->lex.select->type),
+					  default_charset_info));
       if (tab->type == JT_ALL && tab->select && tab->select->quick)
 	tab->type= JT_RANGE;
-      item_list.push_back(new Item_string(table->table_name,
-					  strlen(table->table_name),
-					  default_charset_info));
-      item_list.push_back(new Item_string(join_type_str[tab->type],
-					  strlen(join_type_str[tab->type]),
-					  default_charset_info));
+      if (table->tmp_table == TMP_TABLE && table->derived_select_number != 0)
+      {
+	// Derived table name generation
+	buff[512];
+	int len= my_snprintf(buff, 512, "<derived%u>",
+			     table->derived_select_number);
+	item_list.push_back(new Item_string(buff, len, default_charset_info));
+      }
+      else
+	item_list.push_back(new Item_string(table->table_name,
+					    strlen(table->table_name),
+					    default_charset_info));
+      item_list.push_back(new Item_string(join_type_str[tab->type],strlen(join_type_str[tab->type]),default_charset_info));
       key_map bits;
       uint j;
       for (j=0,bits=tab->keys ; bits ; j++,bits>>=1)
@@ -7381,38 +7363,24 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	result->send_error(0,NullS);
     }
   }
-  if (!thd->lex.select->next_select())
-  {
-    save_lock=thd->lock;
-    thd->lock=(MYSQL_LOCK *)0;
-    result->send_eof();
-    thd->lock=save_lock;
-  }
   DBUG_VOID_RETURN;
 }
 
-
-static void describe_info(JOIN *join, const char *info)
+int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type, 
+			 select_result *result)
 {
-  THD *thd= join->thd;
-
-  /* If lex.select belong to UNION */
-  if (thd->lex.select->master_unit()->first_select()->next_select())
-  {
-    select_describe(join,FALSE,FALSE,FALSE,info);
-    return;
-  }
-  List<Item> field_list;
-  String *packet= &thd->packet;
-
-  /* Don't log this into the slow query log */
-  thd->lex.select_lex.options&= ~(QUERY_NO_INDEX_USED |
-				  QUERY_NO_GOOD_INDEX_USED);
-  field_list.push_back(new Item_empty_string("Comment",80));
-  if (send_fields(thd,field_list,1))
-    return; /* purecov: inspected */
-  packet->length(0);
-  net_store_data(packet,info);
-  if (!my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
-    send_eof(thd);
+  select_lex->type= type;
+  thd->lex.select= select_lex;
+  SELECT_LEX_UNIT *unit=  select_lex->master_unit();
+  int res= mysql_select(thd,(TABLE_LIST*) select_lex->table_list.first,
+			select_lex->item_list,
+			select_lex->where,
+			(ORDER*) select_lex->order_list.first,
+			(ORDER*) select_lex->group_list.first,
+			select_lex->having,
+			(ORDER*) thd->lex.proc_list.first,
+			select_lex->options | thd->options | SELECT_DESCRIBE,
+			result, unit, select_lex, 0);
+  return res;
 }
+  

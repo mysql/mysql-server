@@ -62,8 +62,8 @@ create table t1 (a int auto_increment not null primary key, B CHAR(20));
 insert into t1 (b) values ("hello"),("my"),("world");
 create table t2 (key (b)) select * from t1;
 explain select * from t2 where b="world";
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	ref	B	B	21	const	1	where used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	B	B	21	const	1	where used
 select * from t2 where b="world";
 a	B
 3	world

@@ -15,8 +15,8 @@ event_date	type	event_id
 1999-07-13	100600	26
 1999-07-14	100600	10
 explain select event_date,type,event_id from t1 WHERE type = 100601 and event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
-Comment
-Impossible WHERE
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE								Impossible WHERE
 select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date <= "1999-07-15" AND (type=100600 OR type=100100) or event_date >= "1999-07-01" AND event_date <= "1999-07-15" AND type=100099;
 event_date	type	event_id
 1999-07-10	100100	24

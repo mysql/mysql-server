@@ -468,7 +468,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	     s= s->outer_select())
 	  if( !s->depended )
 	  {
-	    s->depended= 1;
+	    // Select is depended of outer select
+	    s->depended= s->master_unit()->depended= 1;
 	    //Tables will be reopened many times
 	    for (TABLE_LIST *tbl= 
 		   (TABLE_LIST*)s->table_list.first;
@@ -819,7 +820,8 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	     s= s->outer_select())
 	  if( !s->depended )
 	  {
-	    s->depended= 1; //Select is depended of outer select
+	    // Select is depended of outer select
+	    s->depended= s->master_unit()->depended= 1; 
 	    //Tables will be reopened many times
 	    for (TABLE_LIST *tbl= 
 		   (TABLE_LIST*)s->table_list.first;
