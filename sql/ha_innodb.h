@@ -58,7 +58,15 @@ class ha_innobase: public handler
 	ulong		start_of_scan;	/* this is set to 1 when we are
 					starting a table scan but have not
 					yet fetched any row, else 0 */
-
+	uint		active_index_before_scan;
+					/* since a table scan in InnoDB is
+					always done through an index, a table
+					scan may change active_index; but
+					MySQL may assume that active_index
+					after a table scan is the same as
+					before; we store the value here so
+					that we can restore the value after
+					a scan */
 	uint		last_match_mode;/* match mode of the latest search:
 					ROW_SEL_EXACT, ROW_SEL_EXACT_PREFIX,
 					or undefined */
