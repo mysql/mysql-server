@@ -36,6 +36,8 @@ class sp_head : public Sql_alloc
 public:
 
   my_bool m_simple_case;	// TRUE if parsing simple case, FALSE otherwise
+  List<Item_string> m_calls;	// Called procedures.
+  List<char *> m_tables;	// Used tables.
 
   static void *operator new(size_t size)
   {
@@ -89,7 +91,7 @@ private:
 
   Item_string *m_name;
   Item_string *m_defstr;
-  LEX *m_mylex;			// My own lex
+  LEX *m_call_lex;		// The CALL's own lex
   LEX m_lex;			// Temp. store for the other lex
   DYNAMIC_ARRAY m_instr;	// The "instructions"
   typedef struct
