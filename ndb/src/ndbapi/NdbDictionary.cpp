@@ -980,6 +980,12 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
   case NdbDictionary::Column::Time:
     out << "Time";
     break;
+  case NdbDictionary::Column::Year:
+    out << "Year";
+    break;
+  case NdbDictionary::Column::Timestamp:
+    out << "Timestamp";
+    break;
   case NdbDictionary::Column::Undefined:
     out << "Undefined";
     break;
