@@ -26,6 +26,14 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "trx0types.h"
 
+/************************************************************************
+Get the database name length in a table name. */
+
+ulint
+dict_get_db_name_len(
+/*=================*/
+			/* out: database name length */
+	char*	name);	/* in: table name in the form dbname '/' tablename */
 /*************************************************************************
 Accepts a specified string. Comparisons are case-insensitive. */
 
