@@ -1,0 +1,9 @@
+#------------------------------------------------------------------------------
+# PERROR
+#------------------------------------------------------------------------------
+MODULE	libc.nlm
+COPYRIGHT "(c) 2002 Novell, Inc. Portions (c) 2002 MySQL AB. All Rights Reserved."
+DESCRIPTION "MySQL Error Code Description Tool"
+VERSION 4, 0
+#DEBUG
+
