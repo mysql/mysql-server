@@ -641,6 +641,7 @@ typedef struct st_lex
   TABLE_LIST *query_tables;	/* global list of all tables in this query */
   /* last element next_global of previous list */
   TABLE_LIST **query_tables_last;
+  TABLE_LIST *proc_table; /* refer to mysql.proc if it was opened by VIEW */
 
   List<key_part_spec> col_list;
   List<key_part_spec> ref_list;
