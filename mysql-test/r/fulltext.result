@@ -45,6 +45,9 @@ select * from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN
 a	b
 MySQL has now support	for full-text search
 Full-text search in MySQL	implements vector space model
+select * from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+a	b
+Function MATCH ... AGAINST()	is used to do a search
 delete from t1 where a like "MySQL%";
 drop table t1;
 CREATE TABLE t1 (

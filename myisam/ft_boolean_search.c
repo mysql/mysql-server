@@ -123,7 +123,7 @@ void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         ftbe->up=up;
         ftbe->ythresh=0;
         ftbe->docid=HA_POS_ERROR;
-        if (ftbw->yesno > 0) up->ythresh++;
+        if (ftbe->yesno > 0) up->ythresh++;
         _ftb_parse_query(ftb, start, end, ftbe, depth+1,
                          (param.yesno<0 ? depth+1 : ndepth));
         break;
