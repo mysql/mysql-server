@@ -375,3 +375,4 @@ linked_libmysql_r_sources
 libmysql_r/ctype_extra_sources.c
 libmysql_r/conf_to_src
 libmysql_r/.libs/libmysqlclient_r.lai
+PENDING/*
