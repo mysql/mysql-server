@@ -118,7 +118,8 @@ static bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	    no_rehash=0,skip_updates=0,safe_updates=0,one_database=0,
 	    opt_compress=0, using_opt_local_infile=0,
 	    vertical=0,skip_line_numbers=0,skip_column_names=0,opt_html=0,
-            opt_xml=0,opt_nopager=1, opt_outfile=0, no_named_cmds=1;
+            opt_xml=0,opt_nopager=1, opt_outfile=0, no_named_cmds=1,
+            opt_nobeep=0;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
@@ -438,6 +439,7 @@ static struct option long_options[] =
   {"ignore-spaces", no_argument,	   0, 'i'},
   {"local-infile",  optional_argument,	   0, OPT_LOCAL_INFILE},
   {"no-auto-rehash",no_argument,	   0, 'A'},
+  {"no-beep",       no_argument,           0, 'b'},
   {"no-named-commands", no_argument,       0, 'g'},
   {"no-tee",        no_argument,           0, OPT_NOTEE},
 #ifndef __WIN__
@@ -501,6 +503,7 @@ static void usage(int version)
   -A, --no-auto-rehash  No automatic rehashing. One has to use 'rehash' to\n\
 			get table and field completion. This gives a quicker\n\
 			start of mysql and disables rehashing on reconnect.\n\
+  -b, --no-beep         Turn off beep on error.\n\
   -B, --batch		Print results with a tab as separator, each row on\n\
 			a new line. Doesn't use history file.\n\
   --character-sets-dir=...\n\
@@ -605,7 +608,7 @@ static int get_options(int argc, char **argv)
 
   set_all_changeable_vars(changeable_vars);
   while ((c=getopt_long(argc,argv,
-			(char*) "?ABCD:LfgGHXinNoqrstTU::vVw::WEe:h:O:P:S:u:#::p::",
+			(char*) "?AbBCD:LfgGHXinNoqrstTU::vVw::WEe:h:O:P:S:u:#::p::",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
@@ -615,6 +618,9 @@ static int get_options(int argc, char **argv)
     case OPT_CHARSETS_DIR:
       strmov(mysql_charsets_dir, optarg);
       charsets_dir = mysql_charsets_dir;
+      break;
+    case 'b':
+      opt_nobeep = 1;
       break;
     case OPT_TEE:
       if (!opt_outfile && strlen(optarg))
@@ -2442,7 +2448,8 @@ put_info(const char *str,INFO_TYPE info_type,uint error)
     }
     if (info_type == INFO_ERROR)
     {
-      putchar('\007');				/* This should make a bell */
+      if(!opt_nobeep)
+	putchar('\007');		      	/* This should make a bell */
       vidattr(A_STANDOUT);
       if (error)
         (void) tee_fprintf(stderr, "ERROR %d: ", error);
