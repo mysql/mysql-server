@@ -2084,7 +2084,7 @@ ndb_mgm_set_connection_int_parameter(NdbMgmHandle handle,
   } while(0);
   
   delete prop;
-  return res;
+  DBUG_RETURN(res);
 }
 
 extern "C"
@@ -2097,7 +2097,7 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
 				     struct ndb_mgm_reply* mgmreply){
   DBUG_ENTER("ndb_mgm_get_connection_int_parameter");
   CHECK_HANDLE(handle, -1);
-  CHECK_CONNECTED(handle, -1);
+  CHECK_CONNECTED(handle, -2);
   
   Properties args;
   args.put("node1", node1);
@@ -2113,7 +2113,7 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
   
   const Properties *prop;
   prop = ndb_mgm_call(handle, reply, "get connection parameter", &args);
-  CHECK_REPLY(prop, -2);
+  CHECK_REPLY(prop, -3);
 
   int res= -1;
   do {
@@ -2127,7 +2127,7 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
 
   if(!prop->get("value",value)){
     ndbout_c("Unable to get value");
-    res = -3;
+    res = -4;
   }
 
   delete prop;
