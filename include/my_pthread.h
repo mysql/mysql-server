@@ -247,6 +247,11 @@ extern int my_sigwait(const sigset_t *set,int *sig);
 #error Requires at least rev 2 of EMX pthreads library.
 #endif
 
+#ifdef __NETWARE__
+void my_pthread_exit(void *status);
+#define pthread_exit(A) my_pthread_exit(A)
+#endif
+
 extern int my_pthread_getprio(pthread_t thread_id);
 
 #define pthread_key(T,V) pthread_key_t V
