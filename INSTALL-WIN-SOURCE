@@ -92,7 +92,7 @@ To build the latest Windows source package from the current
 BitKeeper source tree, use the following instructions. Please
 note that this procedure must be performed on a system
 running a Unix or Unix-like operating system.  (The procedure
-is know to work well on Linux, for example.
+is know to work well on Linux), for example.
 
 - Clone the BitKeeper source tree for MySQL (version 4.1
   or above, as desired).  For more information how to clone
