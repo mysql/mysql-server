@@ -227,7 +227,7 @@ copy_dir_dirs() {
 for i in client dbug extra heap include isam \
          libmysql libmysqld merge myisam \
          myisammrg mysys regex sql strings \
-         vio zlib
+         tools vio zlib
 do
   copy_dir_files $i
 done
@@ -276,7 +276,7 @@ done
 #
 
 for i in Docs/Flags scripts sql-bench SSL \
-         tests tools
+         tests
 do
   print_debug "Copying directory '$i'"
   if [ -d $i ]
