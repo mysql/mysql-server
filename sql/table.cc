@@ -118,7 +118,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     outparam->raid_chunks= head[42];
     outparam->raid_chunksize= uint4korr(head+43);
     if (!(outparam->table_charset=get_charset((uint) head[38],MYF(0))))
-      outparam->table_charset=default_charset_info;
+      outparam->table_charset=NULL; // QQ display error message?
     null_field_first=1;
   }
   outparam->db_record_offset=1;
@@ -358,7 +358,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       uint comment_length=uint2korr(strpos+13);
       field_type=(enum_field_types) (uint) strpos[11];
       if (!(charset=get_charset((uint) strpos[12], MYF(0))))
-	charset=outparam->table_charset;
+	charset=outparam->table_charset?outparam->table_charset:default_charset_info;
       if (!comment_length)
       {
 	comment.str= (char*) "";
@@ -375,7 +375,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     {
       /* old frm file */
       field_type= (enum_field_types) f_packtype(pack_flag);
-      charset=outparam->table_charset;
+      charset=outparam->table_charset?outparam->table_charset:default_charset_info;
       bzero((char*) &comment, sizeof(comment));
     }
     *field_ptr=reg_field=
@@ -1041,7 +1041,7 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
     int2store(fileinfo+30,create_info->table_options);
     fileinfo[32]=0;				// No filename anymore
     int4store(fileinfo+34,create_info->avg_row_length);
-    fileinfo[38]= create_info->table_charset->number;
+    fileinfo[38]= create_info->table_charset?create_info->table_charset->number:0;
     fileinfo[40]= (uchar) create_info->row_type;
     fileinfo[41]= (uchar) create_info->raid_type;
     fileinfo[42]= (uchar) create_info->raid_chunks;
@@ -1072,6 +1072,7 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->raid_type=table->raid_type;
   create_info->raid_chunks=table->raid_chunks;
   create_info->raid_chunksize=table->raid_chunksize;
+  create_info->table_charset=table->table_charset;
   DBUG_VOID_RETURN;
 }
 
@@ -1094,7 +1095,7 @@ char *get_field(MEM_ROOT *mem, TABLE *table, uint fieldnr)
 {
   Field *field=table->field[fieldnr];
   char buff[MAX_FIELD_WIDTH];
-  String str(buff,sizeof(buff),table->table_charset);
+  String str(buff,sizeof(buff),default_charset_info);
   field->val_str(&str,&str);
   uint length=str.length();
   if (!length)

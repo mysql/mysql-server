@@ -162,6 +162,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	CACHE_SYM
 %token	CASCADE
 %token	CAST_SYM
+%token	CHARSET
 %token	CHECKSUM_SYM
 %token	CHECK_SYM
 %token	CIPHER
@@ -767,7 +768,7 @@ create:
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= default_table_type;
-	  lex->create_info.table_charset=default_charset_info;
+	  lex->create_info.table_charset=NULL;
 	}
 	create2
 
@@ -881,6 +882,17 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
+	| CHARSET EQ ident
+	  { 
+	    CHARSET_INFO *cs=get_charset_by_name($3.str,MYF(MY_WME));
+	    if (!cs)
+	    {
+	      net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$3);
+	      YYABORT;
+	    }
+	    Lex->create_info.table_charset=cs;
+	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
+	  }
 	| INSERT_METHOD EQ merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
 	| DATA_SYM DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.data_file_name= $4.str; }
 	| INDEX DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.index_file_name= $4.str; };
@@ -965,7 +977,7 @@ field_spec:
 	   LEX *lex=Lex;
 	   lex->length=lex->dec=0; lex->type=0; lex->interval=0;
 	   lex->default_value=lex->comment=0;
-	   lex->charset=default_charset_info;
+	   lex->charset=NULL;
 	 }
 	type opt_attribute
 	{
@@ -1116,8 +1128,8 @@ attribute:
 	| COMMENT_SYM text_literal { Lex->comment= $2; };
 
 opt_binary:
-	/* empty */		{ Lex->charset=default_charset_info; }
-	| BINARY		{ Lex->type|=BINARY_FLAG; Lex->charset=default_charset_info; }
+	/* empty */		{ Lex->charset=NULL; }
+	| BINARY		{ Lex->type|=BINARY_FLAG; Lex->charset=NULL; }
 	| CHAR_SYM SET ident
 	  {
 	    CHARSET_INFO *cs=get_charset_by_name($3.str,MYF(MY_WME));
@@ -1130,7 +1142,7 @@ opt_binary:
 	  };
 
 default_charset:
-	/* empty */			{ Lex->charset-default_charset_info; }
+	/* empty */			{ Lex->charset=NULL; }
 	| DEFAULT CHAR_SYM SET ident
 	  {
 	    CHARSET_INFO *cs=get_charset_by_name($4.str,MYF(MY_WME));
@@ -1259,7 +1271,7 @@ alter:
     	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
-	  lex->create_info.table_charset=default_charset_info;
+	  lex->create_info.table_charset=NULL;
           lex->alter_keys_onoff=LEAVE_AS_IS;
           lex->simple_alter=1;
 	}
