@@ -29,4 +29,3 @@ extern pthread_mutex_t THR_LOCK_open;
 #endif
 
 int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag);
-int _myrg_finish_scan(MYRG_INFO *info, int inx, enum ha_rkey_function type);
