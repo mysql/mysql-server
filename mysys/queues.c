@@ -174,10 +174,8 @@ static int queue_fix_cmp(QUEUE *queue, void **a, void **b)
 }
 
 /*
-  Fix heap when every element was changed
-  actually, it can be done in linear time,
-  not in n*log(n), but some code (myisam/ft_boolean_search.c)
-  requires a strict order here, not just a queue property
+  Fix heap when every element was changed,
+  actually, it can be done better, in linear time, not in n*log(n)
 */
 
 void queue_fix(QUEUE *queue)
