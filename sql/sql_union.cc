@@ -126,7 +126,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   }
   union_result->save_time_stamp=!describe;
 
-  for (sl=&lex->select_lex;sl;sl=sl->next)
+  for (sl=lex->select=&lex->select_lex;sl;sl=lex->select=sl->next)
   {
     thd->offset_limit=sl->offset_limit;
     thd->select_limit=sl->select_limit+sl->offset_limit;
@@ -155,6 +155,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   delete union_result;
 
   /* Send result to 'result' */
+  lex->select = &lex->select_lex;
   res =-1;
   {
     /* Create a list of fields in the temporary table */
