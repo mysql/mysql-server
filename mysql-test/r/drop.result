@@ -13,7 +13,7 @@ n
 1
 drop database if exists mysqltest;
 Warnings:
-Note	1008	Can't drop database 'mysqltest'. Database doesn't exist
+Note	1008	Can't drop database 'mysqltest'; database doesn't exist
 create database mysqltest;
 drop database if exists mysqltest;
 create database mysqltest;
@@ -27,7 +27,7 @@ create database mysqltest;
 drop database mysqltest;
 drop database if exists mysqltest;
 Warnings:
-Note	1008	Can't drop database 'mysqltest'. Database doesn't exist
+Note	1008	Can't drop database 'mysqltest'; database doesn't exist
 flush tables with read lock;
 create database mysqltest;
 Got one of the listed errors
@@ -48,4 +48,4 @@ Database
 mysql
 test
 drop database mysqltest;
-ERROR HY000: Can't drop database 'mysqltest'. Database doesn't exist
+ERROR HY000: Can't drop database 'mysqltest'; database doesn't exist

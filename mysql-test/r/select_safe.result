@@ -37,7 +37,7 @@ delete from t1 where b="test" limit 1;
 delete from t1 where a+0=1 limit 2;
 SET MAX_JOIN_SIZE=2;
 SELECT @@MAX_JOIN_SIZE, @@SQL_BIG_SELECTS;
-@@max_join_size	@@sql_big_selects
+@@MAX_JOIN_SIZE	@@SQL_BIG_SELECTS
 2	0
 insert into t1 values (null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a");
 SELECT * from t1;
