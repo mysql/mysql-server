@@ -45,7 +45,6 @@ sinclude(config/ac-macros/ha_ndbcluster.m4)
 sinclude(config/ac-macros/ha_tina.m4)
 sinclude(config/ac-macros/large_file.m4)
 sinclude(config/ac-macros/misc.m4)
-sinclude(config/ac-macros/mysqlfs.m4)
 sinclude(config/ac-macros/openssl.m4)
 sinclude(config/ac-macros/readline.m4)
 sinclude(config/ac-macros/zlib.m4)
@@ -580,18 +579,6 @@ AC_ARG_WITH(server-suffix,
     )
 AC_SUBST(MYSQL_SERVER_SUFFIX)
 
-# Set flags if we wants to have MIT threads.
-AC_ARG_WITH(mit-threads,
-    [  --with-mit-threads      Always use included thread lib.],
-    [ with_mit_threads=$withval ],
-    [ with_mit_threads=no ]
-    )
-
-if test "$with_mit_threads" = "yes"
-then
-  enable_largefile="no"		# Will not work on Linux.
-fi
-
 # Set flags if we want to force to use pthreads
 AC_ARG_WITH(pthread,
     [  --with-pthread          Force use of pthread library.],
@@ -647,20 +634,6 @@ else
   AC_MSG_RESULT([no])
 fi
 
-
-AC_MSG_CHECKING(if we should use RAID)
-AC_ARG_WITH(raid,
-    [  --with-raid             Enable RAID Support],
-    [   USE_RAID=$withval ],
-    [   USE_RAID=no ]
-    )
-if test "$USE_RAID" = "yes"
-then
-  AC_MSG_RESULT([yes])
-  AC_DEFINE([USE_RAID], [1], [Use MySQL RAID])
-else
-  AC_MSG_RESULT([no])
-fi
 
 # Use this to set the place used for unix socket used to local communication.
 AC_ARG_WITH(unix-socket-path,
@@ -856,7 +829,7 @@ int main()
     [ USE_PSTACK=no ])
   pstack_libs=
   pstack_dirs=
-  if test "$USE_PSTACK" = yes -a "$IS_LINUX" = "true" -a "$BASE_MACHINE_TYPE" = "i386" -a "$with_mit_threads" = "no"
+  if test "$USE_PSTACK" = yes -a "$IS_LINUX" = "true" -a "$BASE_MACHINE_TYPE" = "i386"
   then
     have_libiberty= have_libbfd=
     my_save_LIBS="$LIBS"
@@ -1239,7 +1212,7 @@ esac
 
 with_posix_threads="no"
 # Hack for DEC-UNIX (OSF1)
-if test "$with_named_thread" = "no" -a "$with_mit_threads" = "no"
+if test "$with_named_thread" = "no"
 then
   # Look for LinuxThreads.
   AC_MSG_CHECKING("LinuxThreads")
@@ -1470,7 +1443,7 @@ then
 fi
 
 # Hack for Siemens UNIX
-if test "$with_named_thread" = "no" -a "$with_mit_threads" = "no"
+if test "$with_named_thread" = "no"
 then
   AC_MSG_CHECKING("Siemens threads")
   if test -f /usr/lib/libxnet.so -a "$SYSTEM_TYPE" = "sni-sysv4"
@@ -1498,7 +1471,7 @@ fi
 # Hack for Solaris >= 2.5
 # We want both the new and the old interface
  
-if test "$with_named_thread" = "no" -a "$with_mit_threads" = "no"
+if test "$with_named_thread" = "no"
 then
   AC_MSG_CHECKING("Solaris threads")
   if test -f /usr/lib/libpthread.so -a -f /usr/lib/libthread.so
@@ -1516,14 +1489,21 @@ if test "$with_named_thread" != "no"
 then
   LIBS="$with_named_thread $LIBS $with_named_thread"
   with_posix_threads="yes"
-  with_mit_threads="no"
   AC_MSG_RESULT("$with_named_thread")
 else
   AC_MSG_RESULT("no")
-  if test "$with_mit_threads" = "no"
+  # pthread_create is in standard libraries (As in BSDI 3.0)
+  AC_MSG_CHECKING("for pthread_create in -libc");
+  AC_TRY_LINK(
+  [#include <pthread.h>],
+  [ (void) pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
+  with_posix_threads=yes, with_posix_threads=no)
+  AC_MSG_RESULT("$with_posix_threads")
+  if test "$with_posix_threads" = "no"
   then
-    # pthread_create is in standard libraries (As in BSDI 3.0)
-    AC_MSG_CHECKING("for pthread_create in -libc");
+    AC_MSG_CHECKING("for pthread_create in -lpthread");
+    ac_save_LIBS="$LIBS"
+    LIBS="$LIBS -lpthread"
     AC_TRY_LINK(
     [#include <pthread.h>],
     [ (void) pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
@@ -1531,39 +1511,23 @@ else
     AC_MSG_RESULT("$with_posix_threads")
     if test "$with_posix_threads" = "no"
     then
-      AC_MSG_CHECKING("for pthread_create in -lpthread");
-      ac_save_LIBS="$LIBS"
-      LIBS="$LIBS -lpthread"
+      LIBS=" $ac_save_LIBS -lpthreads"
+      AC_MSG_CHECKING("for pthread_create in -lpthreads");
       AC_TRY_LINK(
       [#include <pthread.h>],
-      [ (void) pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
+      [ pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
       with_posix_threads=yes, with_posix_threads=no)
       AC_MSG_RESULT("$with_posix_threads")
       if test "$with_posix_threads" = "no"
       then
-        LIBS=" $ac_save_LIBS -lpthreads"
-        AC_MSG_CHECKING("for pthread_create in -lpthreads");
+        # This is for FreeBSD
+        LIBS="$ac_save_LIBS -pthread"
+        AC_MSG_CHECKING("for pthread_create in -pthread");
         AC_TRY_LINK(
         [#include <pthread.h>],
         [ pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
         with_posix_threads=yes, with_posix_threads=no)
         AC_MSG_RESULT("$with_posix_threads")
-        if test "$with_posix_threads" = "no"
-        then
-	  # This is for FreeBSD
-	  LIBS="$ac_save_LIBS -pthread"
-	  AC_MSG_CHECKING("for pthread_create in -pthread");
-	  AC_TRY_LINK(
-	  [#include <pthread.h>],
-	  [ pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
-	  with_posix_threads=yes, with_posix_threads=no)
-          AC_MSG_RESULT("$with_posix_threads")
-          if test "$with_posix_threads" = "no"
-	  then
-	    with_mit_threads="yes"
-	    LIBS="$ac_save_LIBS"
-	  fi
-	fi
       fi
     fi
   fi
@@ -2048,11 +2012,9 @@ then
 fi
 
 
-if test "$with_mit_threads" = "no"
-then
-  # Check definition of pthread_getspecific
-  AC_CACHE_CHECK("args to pthread_getspecific", mysql_cv_getspecific_args,
-  AC_TRY_COMPILE(
+# Check definition of pthread_getspecific
+AC_CACHE_CHECK("args to pthread_getspecific", mysql_cv_getspecific_args,
+AC_TRY_COMPILE(
 [#if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)
 #define _REENTRANT
 #endif
@@ -2085,7 +2047,6 @@ mysql_cv_mutex_init_args=POSIX, mysql_cv_mutex_init_args=other))
     AC_DEFINE([HAVE_NONPOSIX_PTHREAD_MUTEX_INIT], [1],
               [For some non posix threads])
   fi
-fi
 #---END:
 
 #---START: Used in for client configure
@@ -2262,7 +2223,6 @@ AC_ARG_WITH([mysqlmanager],
 AC_SUBST(tools_dirs)
 
 #MYSQL_CHECK_CPU
-MYSQL_CHECK_MYSQLFS
 MYSQL_CHECK_VIO
 MYSQL_CHECK_OPENSSL
 
@@ -2577,28 +2537,6 @@ esac
   #
   sql_server_dirs="$sql_server_dirs myisam myisammrg heap vio sql"
 
-  if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"
-  then
-    # MIT user level threads
-    thread_dirs="mit-pthreads"
-    AC_DEFINE([HAVE_mit_thread], [1], [Do we use user level threads])
-    MT_INCLUDES="-I\$(top_srcdir)/mit-pthreads/include"
-    AC_SUBST(MT_INCLUDES)
-    if test -n "$OVERRIDE_MT_LD_ADD"
-    then 
-      MT_LD_ADD="$OVERRIDE_MT_LD_ADD"
-    else
-      MT_LD_ADD="-L \$(top_srcdir)/mit-pthreads/obj/ -lpthread"
-    fi
-    AC_SUBST(MT_LD_ADD)
-    echo ""
-    echo "Configuring MIT Pthreads"
-    # We will never install so installation paths are not needed.
-    (cd mit-pthreads && sh ./configure) || exit 1
-    echo "End of MIT Pthreads configuration"
-    echo ""
-    LIBS="$MT_LD_ADD $LIBS"
-  fi
 fi
 
 # IMPORTANT - do not modify LIBS past this line - this hack is the only way
@@ -2625,12 +2563,6 @@ do
   fi
 done
 AC_SUBST(sql_union_dirs)
-
-#if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"
-#then
-  # MIT pthreads does now support connecting with unix sockets
-  # AC_DEFINE([HAVE_THREADS_WITHOUT_SOCKETS], [], [MIT pthreads does not support connecting with unix sockets])
-#fi
 
 # Some usefull subst
 AC_SUBST(CC)
