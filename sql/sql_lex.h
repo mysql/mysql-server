@@ -215,8 +215,7 @@ public:
 
   static void *operator new(size_t size)
   {
-    // TODO: Change to alloc() and explicitely clear elements in constructors
-    return (void*) sql_calloc((uint) size);
+    return (void*) sql_alloc((uint) size);
   }
   static void operator delete(void *ptr,size_t size) {}
   st_select_lex_node(): linkage(UNSPECIFIED_TYPE) {}
