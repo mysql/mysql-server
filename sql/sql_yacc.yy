@@ -137,7 +137,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  CHANGED_FILES
 %token	CHECKSUM_SYM
 %token	CHECK_SYM
-%token  COLLECTION
 %token	COLUMNS
 %token	COLUMN_SYM
 %token	CONSTRAINT
@@ -162,6 +161,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	FOREIGN
 %token	FROM
 %token	FULL
+%token  FULLTEXT_SYM
 %token	GRANT
 %token	GRANTS
 %token	GREATEST_SYM
@@ -457,7 +457,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	expr_list udf_expr_list when_list ident_list
 
 %type <key_type>
-	key_type opt_unique
+	key_type opt_unique_or_fulltext
 
 %type <string_list>
 	key_usage_list
@@ -628,7 +628,7 @@ create:
 	}
 	create2
 
-	| CREATE opt_unique INDEX ident ON table_ident
+	| CREATE opt_unique_or_fulltext INDEX ident ON table_ident
 	  {
 	    Lex->sql_command= SQLCOM_CREATE_INDEX;
 	    if (!add_table_to_list($6,NULL))
@@ -643,21 +643,6 @@ create:
 	    Lex->key_list.push_back(new Key($2,$4.str,Lex->col_list));
 	    Lex->col_list.empty();
 	  }
-        | CREATE COLLECTION ident ON table_ident
-          {
-            Lex->sql_command= SQLCOM_CREATE_INDEX;
-            if (!add_table_to_list($5,NULL))
-              YYABORT;
-            Lex->create_list.empty();
-            Lex->key_list.empty();
-            Lex->col_list.empty();
-            Lex->change=NullS;
-          }
-          '(' key_list ')'
-          {
-            Lex->key_list.push_back(new Key(Key::FULLTEXT,$3.str,Lex->col_list));
-            Lex->col_list.empty();
-          }
 	| CREATE DATABASE opt_if_not_exists ident
 	  {
 	    Lex->sql_command=SQLCOM_CREATE_DB;
@@ -964,7 +949,8 @@ delete_option:
 key_type:
 	opt_constraint PRIMARY_SYM KEY_SYM  { $$= Key::PRIMARY; }
 	| key_or_index			    { $$= Key::MULTIPLE; }
-	| COLLECTION			    { $$= Key::FULLTEXT; }
+	| FULLTEXT_SYM			    { $$= Key::FULLTEXT; }
+	| FULLTEXT_SYM key_or_index	    { $$= Key::FULLTEXT; }
 	| opt_constraint UNIQUE_SYM	    { $$= Key::UNIQUE; }
 	| opt_constraint UNIQUE_SYM key_or_index { $$= Key::UNIQUE; }
 
@@ -976,9 +962,10 @@ keys_or_index:
 	KEYS {}
 	| INDEX {}
 
-opt_unique:
+opt_unique_or_fulltext:
 	/* empty */	{ $$= Key::MULTIPLE; }
 	| UNIQUE_SYM	{ $$= Key::UNIQUE; }
+	| FULLTEXT_SYM	{ $$= Key::FULLTEXT; }
 
 key_list:
 	key_list ',' key_part order_dir { Lex->col_list.push_back($3); }
@@ -2443,7 +2430,6 @@ keyword:
 	| WORK_SYM		{}
 	| YEAR_SYM		{}
         | SLAVE                 {}
-        | COLLECTION            {}
 
 /* Option functions */
 

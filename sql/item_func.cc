@@ -1837,26 +1837,8 @@ err:
 
 double Item_func_match::val()
 {
-  my_off_t docid=table->file->row_position();  // HAVE to do it here...
-
   if (first_call)
-  {
-    if (join_key=(table->file->get_index() == key &&
-                 (ft_handler=(FT_DOCLIST *)table->file->ft_handler)))
-      ;
-    else
-    {
-      /* join won't use this ft-key, but we must to init it anyway */
-      String *ft_tmp=0;
-      char tmp1[FT_QUERY_MAXLEN];
-      String tmp2(tmp1,sizeof(tmp1));
-
-      ft_tmp=key_item()->val_str(&tmp2);
-      ft_handler=(FT_DOCLIST *)
-         table->file->ft_init_ext(key, (byte*) ft_tmp->ptr(), ft_tmp->length());
-    }
-    first_call=0;
-  }
+    init_search();
 
   // Don't know how to return an error from val(), so NULL will be returned
   if ((null_value=(ft_handler==NULL)))
@@ -1873,6 +1855,7 @@ double Item_func_match::val()
 
     int a,b,c;
     FT_DOC  *docs=ft_handler->doc;
+    my_off_t docid=table->file->row_position();
 
     if ((null_value=(docid==HA_OFFSET_ERROR)))
       return 0.0;
@@ -1891,6 +1874,36 @@ double Item_func_match::val()
     else
       return 0.0;
   }
+}
+
+void Item_func_match::init_search()
+{
+  if (!first_call)
+    return;
+  first_call=false;
+
+  if (master)
+  {
+    master->init_search();
+    ft_handler=master->ft_handler;
+    join_key=master->join_key;
+    return;
+  }
+
+  if (join_key)
+  {
+    ft_handler=((FT_DOCLIST *)table->file->ft_handler);
+    return;
+  }
+
+  /* join won't use this ft-key, but we must to init it anyway */
+  String *ft_tmp=0;
+  char tmp1[FT_QUERY_MAXLEN];
+  String tmp2(tmp1,sizeof(tmp1));
+
+  ft_tmp=key_item()->val_str(&tmp2);
+  ft_handler=(FT_DOCLIST *)
+     table->file->ft_init_ext(key, (byte*) ft_tmp->ptr(), ft_tmp->length());
 }
 
 bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
@@ -1982,6 +1995,24 @@ bool Item_func_match::fix_index()
   this->key=max_key;
   first_call=1;
   maybe_null=1;
+  join_key=0;
+
+  return 0;
+}
+
+bool Item_func_match::eq(const Item *item) const
+{
+  if (item->type() != FUNC_ITEM)
+    return 0;
+
+  if (func_name() != ((Item_func*)item)->func_name())
+    return 0;
+
+  Item_func_match *ifm=(Item_func_match*) item;
+
+  if (key == ifm->key && table == ifm->table &&
+      key_item()->eq(ifm->key_item()))
+    return 1;
 
   return 0;
 }

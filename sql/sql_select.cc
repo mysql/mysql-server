@@ -1284,11 +1284,11 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
   KEYUSE keyuse;
 
   keyuse.table= cond_func->table;
-  keyuse.val =  cond_func->key_item();
+  keyuse.val =  cond_func;
   keyuse.key =  cond_func->key;
 #define FT_KEYPART   (MAX_REF_PARTS+10)
   keyuse.keypart=FT_KEYPART;
-  keyuse.used_tables=keyuse.val->used_tables();
+  keyuse.used_tables=cond_func->key_item()->used_tables();
   VOID(insert_dynamic(keyuse_array,(gptr) &keyuse));
 }
 
@@ -1670,7 +1670,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    else
 	      tmp=best_time;			// Do nothing
 	  }
-          } /* not ftkey */
+          } /* not ft_key */
 	  if (tmp < best_time - records/(double) TIME_FOR_COMPARE)
 	  {
 	    best_time=tmp + records/(double) TIME_FOR_COMPARE;
@@ -1882,26 +1882,29 @@ get_best_combination(JOIN *join)
       keyinfo=table->key_info+key;
       if (ftkey)
       {
-        ft_tmp=keyuse->val->val_str(&tmp2);
+        Item_func_match *ifm=(Item_func_match *)keyuse->val;
+
+        ft_tmp=ifm->key_item()->val_str(&tmp2);
         length=ft_tmp->length();
         keyparts=1;
+        ifm->join_key=1;
       }
       else
       {
-      keyparts=length=0;
-      do
-      {
-	if (!((~used_tables) & keyuse->used_tables))
-	{
-	  if (keyparts == keyuse->keypart)
-	  {
-	    keyparts++;
-	    length+=keyinfo->key_part[keyuse->keypart].length +
-	      test(keyinfo->key_part[keyuse->keypart].null_bit);
-	  }
-	}
-	keyuse++;
-      } while (keyuse->table == table && keyuse->key == key);
+        keyparts=length=0;
+        do
+        {
+          if (!((~used_tables) & keyuse->used_tables))
+          {
+            if (keyparts == keyuse->keypart)
+            {
+              keyparts++;
+              length+=keyinfo->key_part[keyuse->keypart].length +
+                test(keyinfo->key_part[keyuse->keypart].null_bit);
+            }
+          }
+          keyuse++;
+        } while (keyuse->table == table && keyuse->key == key);
       } /* not ftkey */
 
       /* set up fieldref */
@@ -1924,7 +1927,7 @@ get_best_combination(JOIN *join)
       byte *key_buff=j->ref.key_buff;
       if (ftkey)
       {
-        j->ref.items[0]=keyuse->val;
+        j->ref.items[0]=((Item_func*)(keyuse->val))->key_item();
         if (!keyuse->used_tables &&
             !(join->select_options & SELECT_DESCRIBE))
         {

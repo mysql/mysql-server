@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -875,7 +875,7 @@ void end_thread(THD *thd, bool put_in_cache)
   (void) pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
   delete thd;
-  
+
   if (put_in_cache && cached_thread_count < thread_cache_size &&
       ! abort_loop && !kill_cached_threads)
   {
@@ -1455,7 +1455,7 @@ int main(int argc, char **argv)
     sql_print_error("Can't init databases");
     exit(1);
   }
-  ft_init_stopwords(NULL);                                          /* SerG */
+  ft_init_stopwords(ft_precompiled_stopwords);       /* SerG */
 
 #ifdef __WIN__
 #define MYSQL_ERR_FILE "mysql.err"
@@ -1531,12 +1531,12 @@ int main(int argc, char **argv)
   // slave thread
   if(master_host)
   {
-    pthread_t hThread; 
+    pthread_t hThread;
     if(pthread_create(&hThread, &connection_attrib, handle_slave, 0))
       sql_print_error("Warning: Can't create thread to handle slave");
 
   }
-  
+
   printf(ER(ER_READY),my_progname,server_version,"");
   fflush(stdout);
 
@@ -2179,7 +2179,7 @@ static struct option long_options[] =
   {"log-update",	optional_argument, 0, (int) OPT_UPDATE_LOG},
   {"log-slow-queries",	optional_argument, 0, (int) OPT_SLOW_QUERY_LOG},
   {"log-long-format",	no_argument, 0, (int) OPT_LONG_FORMAT},
-  {"log-slave-updates", no_argument,0, (int) OPT_LOG_SLAVE_UPDATES},  
+  {"log-slave-updates", no_argument,0, (int) OPT_LOG_SLAVE_UPDATES},
   {"low-priority-updates", no_argument, 0, (int) OPT_LOW_PRIORITY_UPDATES},
   {"master-host",      	required_argument, 0, (int) OPT_MASTER_HOST},
   {"master-user",      	required_argument, 0, (int) OPT_MASTER_USER},
@@ -2209,7 +2209,7 @@ static struct option long_options[] =
   {"skip-show-database",no_argument,0, (int) OPT_SKIP_SHOW_DB},
   {"skip-networking",	no_argument,0, (int) OPT_SKIP_NETWORKING},
   {"skip-thread-priority", no_argument,0,(int) OPT_SKIP_PRIOR},
-  {"sql-bin-update-same", no_argument, 0, (int)OPT_SQL_BIN_UPDATE_SAME},  
+  {"sql-bin-update-same", no_argument, 0, (int)OPT_SQL_BIN_UPDATE_SAME},
 #include "sslopt-longopts.h"
 #ifdef __WIN__
   {"standalone",	no_argument,0, (int) OPT_STANDALONE},
@@ -2393,7 +2393,7 @@ struct show_var_st status_vars[]= {
   {"Questions",		(char*) 0, SHOW_QUESTION},
   {"Slow_launch_threads", (char*) &slow_launch_threads, SHOW_LONG},
   {"Slow_queries",	(char*) &long_query_count, SHOW_LONG},
-  {"Slave_running",	(char*) &slave_running, SHOW_BOOL},  
+  {"Slave_running",	(char*) &slave_running, SHOW_BOOL},
   {"Threads_cached",	(char*) &cached_thread_count, SHOW_LONG_CONST},
   {"Threads_connected", (char*) &thread_count, SHOW_INT_CONST},
   {"Threads_running",	(char*) &thread_running, SHOW_INT_CONST},
@@ -2502,7 +2502,7 @@ static void usage(void)
   --bdb-tmpdir=directory  Berkeley DB tempfile name\n\
   --skip-bdb		  Don't use berkeley db (will save memory)\n\
 ");
-#endif  
+#endif
   print_defaults("my",load_default_groups);
   puts("");
 
@@ -2687,39 +2687,39 @@ static void get_options(int argc,char **argv)
       break;
     case (int) OPT_BIN_LOG:
       opt_bin_log=1;
-      opt_bin_logname=optarg;		
+      opt_bin_logname=optarg;
       break;
     case (int) OPT_LOG_SLAVE_UPDATES:
       opt_log_slave_updates = 1;
       break;
-      
+
     case (int)OPT_REPLICATE_IGNORE_DB:
       {
-	i_string *db = new i_string(optarg); 
+	i_string *db = new i_string(optarg);
 	replicate_ignore_db.push_back(db);
         break;
       }
     case (int)OPT_REPLICATE_DO_DB:
       {
-	i_string *db = new i_string(optarg); 
+	i_string *db = new i_string(optarg);
 	replicate_do_db.push_back(db);
         break;
       }
-      
+
     case (int)OPT_BINLOG_IGNORE_DB:
       {
-	i_string *db = new i_string(optarg); 
+	i_string *db = new i_string(optarg);
 	binlog_ignore_db.push_back(db);
         break;
       }
     case (int)OPT_BINLOG_DO_DB:
       {
-	i_string *db = new i_string(optarg); 
+	i_string *db = new i_string(optarg);
 	binlog_do_db.push_back(db);
         break;
       }
-      
-      
+
+
     case (int) OPT_SQL_BIN_UPDATE_SAME:
       opt_sql_bin_update  = 1;
       break;
@@ -2878,7 +2878,7 @@ static void get_options(int argc,char **argv)
 	if (test_if_int(optarg,(uint) strlen(optarg)))
 	  berkeley_lock_scan_time=atoi(optarg);
 	else
-	{	  
+	{
 	  fprintf(stderr,"Unknown lock type: %s\n",optarg);
 	  exit(1);
 	}
@@ -3314,7 +3314,7 @@ static int get_service_parameters()
 	      0 )
     {
       SET_CHANGEABLE_VARVAL( "thread_concurrency" );
-    } 
+    }
     else
     {
       TCHAR szErrorMsg [ 512 ];
@@ -3341,7 +3341,7 @@ static int get_service_parameters()
 static char *get_relative_path(const char *path)
 {
   if (test_if_hard_path(path) &&
-      is_prefix(path,DEFAULT_MYSQL_HOME) && 
+      is_prefix(path,DEFAULT_MYSQL_HOME) &&
       strcmp(DEFAULT_MYSQL_HOME,FN_ROOTDIR))
   {
     path+=(uint) strlen(DEFAULT_MYSQL_HOME);

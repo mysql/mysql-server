@@ -158,6 +158,7 @@ FT_DOCLIST * ft_init_search(void *info, uint keynr, byte *key,
   ALL_IN_ONE aio;
   FT_DOCLIST *dlist;
   FT_DOC     *dptr;
+  my_off_t    saved_lastpos;
 
 /* black magic ON */
   if ((int) (keynr = _mi_check_index((MI_INFO *)info,keynr)) < 0)
@@ -172,6 +173,8 @@ FT_DOCLIST * ft_init_search(void *info, uint keynr, byte *key,
   aio.keybuff=aio.info->lastkey+aio.info->s->base.max_key_length;
   aio.keyinfo=aio.info->s->keyinfo+keynr;
   aio.key_root=aio.info->s->state.key_root[keynr];
+
+  saved_lastpos=aio.info->lastpos;
 
   if(!(wtree=ft_parse(NULL,key,key_len))) return NULL;
 
@@ -199,6 +202,7 @@ FT_DOCLIST * ft_init_search(void *info, uint keynr, byte *key,
   }
 
 err:
+  aio.info->lastpos=saved_lastpos;
   delete_tree(&aio.dtree);
   delete_tree(wtree);
   free(wtree);
@@ -217,7 +221,8 @@ int ft_read_next(FT_DOCLIST *handler, char *record)
 
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
-  if (!(*info->read_record)(info,handler->doc[handler->curdoc].dpos,record))
+  info->lastpos=handler->doc[handler->curdoc].dpos;
+  if (!(*info->read_record)(info,info->lastpos,record))
   {
     info->update|= HA_STATE_AKTIV;		/* Record is read */
     return 0;
