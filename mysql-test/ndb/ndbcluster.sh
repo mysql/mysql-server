@@ -58,6 +58,9 @@ ndb_con_op=105000
 ndb_dmem=80M
 ndb_imem=24M
 
+NDB_MGMD_EXTRA_OPTS=
+NDBD_EXTRA_OPTS=
+
 while test $# -gt 0; do
   case "$1" in
     --test)
@@ -94,6 +97,12 @@ while test $# -gt 0; do
     --port-base=*)
      port_base=`echo "$1" | sed -e "s;--port-base=;;"`
      ;;
+    --ndb_mgmd-extra-opts=*)
+     NDB_MGMD_EXTRA_OPTS=`echo "$1" | sed -e "s;--ndb_mgmd-extra-opts=;;"`
+     ;;
+    --ndbd-extra-opts=*)
+     NDBD_EXTRA_OPTS=`echo "$1" | sed -e "s;--ndbd-extra-opts=;;"`
+     ;;
     -- )  shift; break ;;
     --* ) $ECHO "Unrecognized option: $1"; exit 1 ;;
     * ) break ;;
@@ -122,8 +131,8 @@ if [ ! -x "$exec_waiter" ]; then
 fi
 
 exec_mgmtclient="$exec_mgmtclient --no-defaults"
-exec_mgmtsrvr="$exec_mgmtsrvr --no-defaults"
-exec_ndb="$exec_ndb --no-defaults"
+exec_mgmtsrvr="$exec_mgmtsrvr --no-defaults $NDB_MGMD_EXTRA_OPTS"
+exec_ndb="$exec_ndb --no-defaults $NDBD_EXTRA_OPTS"
 exec_waiter="$exec_waiter --no-defaults"
 
 ndb_host="localhost"
