@@ -5914,8 +5914,9 @@ innobase_query_is_replace(void)
 /***********************************************************************
 This function is used to prepare X/Open XA distributed transaction   */
 
-int innobase_xa_prepare(
-/*====================*/
+int 
+innobase_xa_prepare(
+/*================*/
 			/* out: 0 or error number */
 	THD*	thd,	/* in: handle to the MySQL thread of the user
 			whose XA transaction should be prepared */
@@ -5976,12 +5977,13 @@ int innobase_xa_prepare(
 /***********************************************************************
 This function is used to recover X/Open XA distributed transactions   */
 
-int innobase_xa_recover(
+int 
+innobase_xa_recover(
+/*================*/
 				/* out: number of prepared transactions 
 				stored in xid_list */
 	XID*    xid_list, 	/* in/out: prepared transactions */
 	uint	len)		/* in: number of slots in xid_list */
-/*====================*/
 {
 	if (len == 0 || xid_list == NULL) {
 		return 0;
@@ -5994,8 +5996,9 @@ int innobase_xa_recover(
 This function is used to commit one X/Open XA distributed transaction
 which is in the prepared state */
 
-int innobase_commit_by_xid(
-/*=======================*/
+int 
+innobase_commit_by_xid(
+/*===================*/
 			/* out: 0 or error number */
 	XID*	xid)	/*  in: X/Open XA Transaction Identification */
 {
@@ -6016,7 +6019,9 @@ int innobase_commit_by_xid(
 This function is used to rollback one X/Open XA distributed transaction
 which is in the prepared state */
 
-int innobase_rollback_by_xid(
+int 
+innobase_rollback_by_xid(
+/*=====================*/
 			/* out: 0 or error number */
 	XID	*xid)	/* in : X/Open XA Transaction Idenfification */
 {
