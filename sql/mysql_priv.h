@@ -982,7 +982,7 @@ extern Gt_creator gt_creator;
 extern Lt_creator lt_creator;
 extern Ge_creator ge_creator;
 extern Le_creator le_creator;
-extern char language[LIBLEN],reg_ext[FN_EXTLEN];
+extern char language[FN_REFLEN], reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char log_error_file[FN_REFLEN];

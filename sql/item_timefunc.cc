@@ -2134,7 +2134,6 @@ String *Item_char_typecast::val_str(String *str)
   String *res;
   uint32 length;
 
-#if 0
   if (!charset_conversion)
   {
     if (!(res= args[0]->val_str(str)))
@@ -2144,7 +2143,6 @@ String *Item_char_typecast::val_str(String *str)
     }
   }
   else
-#endif
   {
     // Convert character set if differ
     uint dummy_errors;
@@ -2182,9 +2180,18 @@ String *Item_char_typecast::val_str(String *str)
 void Item_char_typecast::fix_length_and_dec()
 {
   uint32 char_length;
-  charset_conversion= !my_charset_same(args[0]->collation.collation, cast_cs) &&
-		      args[0]->collation.collation != &my_charset_bin &&
-		      cast_cs != &my_charset_bin;
+  /* 
+     We always force character set conversion if cast_cs
+     is a multi-byte character set. It garantees that the
+     result of CAST is a well-formed string.
+     For single-byte character sets we allow just to copy
+     from the argument. A single-byte character sets string
+     is always well-formed. 
+  */
+  charset_conversion= (cast_cs->mbmaxlen > 1) ||
+                      !my_charset_same(args[0]->collation.collation, cast_cs) &&
+                      args[0]->collation.collation != &my_charset_bin &&
+                      cast_cs != &my_charset_bin;
   collation.set(cast_cs, DERIVATION_IMPLICIT);
   char_length= (cast_length >= 0) ? cast_length : 
 	       args[0]->max_length/args[0]->collation.collation->mbmaxlen;
