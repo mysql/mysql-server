@@ -41001,7 +41001,7 @@ not yet 100 % confident in this code.
 
 @node News-3.23.33, News-3.23.32, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.33
-@itemize bullet
+@itemize @bullet
 @item
 Changed @code{TRUNCATE table_name} to @code{TRUNCATE TABLE table_name}
 to use the same syntax as Oracle.  Until 4.0 we will also allow
