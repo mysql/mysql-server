@@ -358,7 +358,7 @@ struct st_myisam_info {
 #define MI_DYN_ALIGN_SIZE	4	/* Align blocks on this */
 #define MI_MAX_DYN_HEADER_BYTE	13	/* max header byte for dynamic rows */
 #define MI_MAX_BLOCK_LENGTH	((((ulong) 1 << 24)-1) & (~ (ulong) (MI_DYN_ALIGN_SIZE-1)))
-#define MI_REC_BUFF_OFFSET      ALIGN_SIZE(MI_DYN_DELETE_BLOCK_HEADER+sizeof(uint))
+#define MI_REC_BUFF_OFFSET      ALIGN_SIZE(MI_DYN_DELETE_BLOCK_HEADER+sizeof(uint32))
 
 #define MEMMAP_EXTRA_MARGIN	7	/* Write this as a suffix for file */
 
@@ -529,7 +529,7 @@ extern byte *mi_alloc_rec_buff(MI_INFO *,ulong, byte**);
         ((((info)->s->options & HA_OPTION_PACK_RECORD) && (buf)) ? \
         (buf) - MI_REC_BUFF_OFFSET : (buf))
 #define mi_get_rec_buff_len(info,buf)                              \
-        (*((uint *)(mi_get_rec_buff_ptr(info,buf))))
+        (*((uint32 *)(mi_get_rec_buff_ptr(info,buf))))
 
 extern ulong _mi_rec_unpack(MI_INFO *info,byte *to,byte *from,
 			    ulong reclength);

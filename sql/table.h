@@ -91,6 +91,7 @@ struct st_table {
   my_bool copy_blobs;			/* copy_blobs when storing */
   my_bool null_row;			/* All columns are null */
   my_bool maybe_null,outer_join;	/* Used with OUTER JOIN */
+  my_bool force_index;
   my_bool distinct,const_table,no_rows;
   my_bool key_read, bulk_insert;
   my_bool crypted;
@@ -157,6 +158,7 @@ typedef struct st_table_list
   bool		straight;		/* optimize with prev table */
   bool          updating;               /* for replicate-do/ignore table */
   bool		do_redirect;		/* To get the struct in UNION's */
+  bool		force_index;		/* Prefer index over table scan */
 } TABLE_LIST;
 
 
