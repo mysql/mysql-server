@@ -157,6 +157,7 @@ public:
   virtual Item_result result_type () const { return REAL_RESULT; }
   virtual enum_field_types field_type() const;
   virtual enum Type type() const =0;
+  /* valXXX methods must return NULL or 0 or 0.0 if null_value is set. */
   virtual double val()=0;
   virtual longlong val_int()=0;
   virtual String *val_str(String*)=0;

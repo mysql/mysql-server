@@ -745,6 +745,8 @@ double Item_param::val()
 {
   DBUG_ASSERT(value_is_set == 1);
   int err;
+  if (null_value)
+    return 0.0;
   switch (item_result_type) {
   case STRING_RESULT:
     return (double) my_strntod(str_value.charset(), (char*) str_value.ptr(),
@@ -761,6 +763,8 @@ longlong Item_param::val_int()
 { 
   DBUG_ASSERT(value_is_set == 1);
   int err;
+  if (null_value)
+    return 0;
   switch (item_result_type) {
   case STRING_RESULT:
     return my_strntoll(str_value.charset(),
