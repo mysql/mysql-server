@@ -499,29 +499,24 @@ UNIV_INLINE
 void
 row_update_statistics_if_needed(
 /*============================*/
-	row_prebuilt_t*	prebuilt)	/* in: prebuilt struct */
+	dict_table_t*	table)	/* in: table */
 {
 	ulint	counter;
 	
-	counter = prebuilt->table->stat_modified_counter;
+	counter = table->stat_modified_counter;
 
-	/* Since the physical size of an InnoDB row is bigger than the
-	MySQL row len, we put a safety factor 2 below */
-
-	counter += 2 * prebuilt->mysql_row_len;
-
-	prebuilt->table->stat_modified_counter = counter;
+	table->stat_modified_counter = counter + 1;
 
 	/* Calculate new statistics if 1 / 16 of table has been modified
 	since the last time a statistics batch was run, or if
-	stat_modified_counter > 2 000 000 000 (to avoid wrap-around) */
+	stat_modified_counter > 2 000 000 000 (to avoid wrap-around).
+	We calculate statistics at most every 16th round, since we may have
+	a counter table which is very small and updated very often. */
 
 	if (counter > 2000000000
-	    || ((ib_longlong)counter >
-		(UNIV_PAGE_SIZE * prebuilt->table->stat_clustered_index_size)
-		/ 16)) {
+	    || ((ib_longlong)counter > 16 + table->stat_n_rows / 16)) {
 
-		dict_update_statistics(prebuilt->table);
+		dict_update_statistics(table);
 	}	
 }
 		  	
@@ -712,7 +707,7 @@ run_again:
 		prebuilt->table->stat_n_rows--;
 	}	
 
-	row_update_statistics_if_needed(prebuilt);
+	row_update_statistics_if_needed(prebuilt->table);
 	trx->op_info = "";
 
 	return((int) err);
@@ -746,6 +741,43 @@ row_prebuild_sel_graph(
 }
 
 /*************************************************************************
+Creates an query graph node of 'update' type to be used in the MySQL
+interface. */
+
+upd_node_t*
+row_create_update_node_for_mysql(
+/*=============================*/
+				/* out, own: update node */
+	dict_table_t*	table,	/* in: table to update */
+	mem_heap_t*	heap)	/* in: mem heap from which allocated */
+{
+	upd_node_t*	node;
+
+	node = upd_node_create(heap);
+		
+	node->in_mysql_interface = TRUE;
+	node->is_delete = FALSE;
+	node->searched_update = FALSE;
+	node->select_will_do_update = FALSE;
+	node->select = NULL;
+	node->pcur = btr_pcur_create_for_mysql();
+	node->table = table;
+
+	node->update = upd_create(dict_table_get_n_cols(table), heap);
+
+	node->update_n_fields = dict_table_get_n_cols(table);
+	
+	UT_LIST_INIT(node->columns);
+	node->has_clust_rec_x_lock = TRUE;
+	node->cmpl_info = 0;
+
+	node->table_sym = NULL;
+	node->col_assign_list = NULL;
+
+	return(node);
+}
+
+/*************************************************************************
 Gets pointer to a prebuilt update vector used in updates. If the update
 graph has not yet been built in the prebuilt struct, then this function
 first builds it. */
@@ -767,26 +799,9 @@ row_get_prebuilt_update_vector(
 		/* Not called before for this handle: create an update node
 		and query graph to the prebuilt struct */
 
-		node = upd_node_create(prebuilt->heap);
-		
+		node = row_create_update_node_for_mysql(table, prebuilt->heap);
+
 		prebuilt->upd_node = node;
-
-		node->in_mysql_interface = TRUE;
-		node->is_delete = FALSE;
-		node->searched_update = FALSE;
-		node->select_will_do_update = FALSE;
-		node->select = NULL;
-		node->pcur = btr_pcur_create_for_mysql();
-		node->table = table;
-
-		node->update = upd_create(dict_table_get_n_cols(table),
-							prebuilt->heap);
-		UT_LIST_INIT(node->columns);
-		node->has_clust_rec_x_lock = TRUE;
-		node->cmpl_info = 0;
-
-		node->table_sym = NULL;
-		node->col_assign_list = NULL;
 		
 		prebuilt->upd_graph =
 			que_node_get_parent(
@@ -914,7 +929,7 @@ run_again:
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
-	if (prebuilt->upd_node->is_delete) {
+	if (node->is_delete) {
 		if (prebuilt->table->stat_n_rows > 0) {
 			prebuilt->table->stat_n_rows--;
 		}
@@ -924,11 +939,64 @@ run_again:
 		srv_n_rows_updated++;
 	}
 
-	row_update_statistics_if_needed(prebuilt);
+	row_update_statistics_if_needed(prebuilt->table);
 
 	trx->op_info = "";
 
 	return((int) err);
+}
+
+/**************************************************************************
+Does a cascaded delete or set null in a foreign key operation. */
+
+ulint
+row_update_cascade_for_mysql(
+/*=========================*/
+				/* out: error code or DB_SUCCESS */
+	que_thr_t*	thr,	/* in: query thread */
+	upd_node_t*	node,	/* in: update node used in the cascade
+				or set null operation */
+	dict_table_t*	table)	/* in: table where we do the operation */
+{
+	ulint		err;
+	trx_t*		trx;
+
+	trx = thr_get_trx(thr);
+
+run_again:
+	thr->run_node = node;
+	thr->prev_node = node;
+
+	row_upd_step(thr);
+
+	err = trx->error_state;
+
+	if (err == DB_LOCK_WAIT) {
+		que_thr_stop_for_mysql(thr);
+	
+		row_mysql_handle_errors(&err, trx, thr, NULL);
+
+		goto run_again;
+	}
+
+	if (err != DB_SUCCESS) {
+
+		return(err);
+	}
+
+	if (node->is_delete) {
+		if (table->stat_n_rows > 0) {
+			table->stat_n_rows--;
+		}
+
+		srv_n_rows_deleted++;
+	} else {
+		srv_n_rows_updated++;
+	}
+
+	row_update_statistics_if_needed(table);
+
+	return(err);
 }
 
 /*************************************************************************
@@ -1169,6 +1237,7 @@ row_create_table_for_mysql(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
+	rw_lock_x_lock(&(dict_foreign_key_check_lock));
 	mutex_enter(&(dict_sys->mutex));
 
 	heap = mem_heap_create(512);
@@ -1221,6 +1290,8 @@ row_create_table_for_mysql(
 	}
 
 	mutex_exit(&(dict_sys->mutex));
+	rw_lock_x_unlock(&(dict_foreign_key_check_lock));
+
 	que_graph_free((que_t*) que_node_get_parent(thr));
 
 	trx->op_info = "";
@@ -1268,6 +1339,7 @@ row_create_index_for_mysql(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
+	rw_lock_x_lock(&(dict_foreign_key_check_lock));
 	mutex_enter(&(dict_sys->mutex));
 
 	heap = mem_heap_create(512);
@@ -1298,6 +1370,7 @@ row_create_index_for_mysql(
 	}
 
 	mutex_exit(&(dict_sys->mutex));
+	rw_lock_x_unlock(&(dict_foreign_key_check_lock));
 
 	que_graph_free((que_t*) que_node_get_parent(thr));
 	
@@ -1353,6 +1426,7 @@ row_table_add_foreign_constraints(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
+	rw_lock_x_lock(&(dict_foreign_key_check_lock));
 	mutex_enter(&(dict_sys->mutex));
 
 	trx->dict_operation = TRUE;
@@ -1377,6 +1451,7 @@ row_table_add_foreign_constraints(
 	}
 
 	mutex_exit(&(dict_sys->mutex));
+	rw_lock_x_unlock(&(dict_foreign_key_check_lock));
 
 	return((int) err);
 }
@@ -1471,7 +1546,8 @@ loop:
 	        goto already_dropped;
 	}
 
-	if (table->n_mysql_handles_opened > 0) {
+	if (table->n_mysql_handles_opened > 0
+				|| table->n_foreign_key_checks_running > 0) {
 
 		return(n_tables + n_tables_dropped);
 	}
@@ -1717,6 +1793,9 @@ row_drop_table_for_mysql(
 	no deadlocks can occur then in these operations */
 
 	if (!has_dict_mutex) {
+		/* Prevent foreign key checks while we are dropping the table */
+		rw_lock_x_lock(&(dict_foreign_key_check_lock));
+
 		mutex_enter(&(dict_sys->mutex));
 	}
 
@@ -1728,9 +1807,6 @@ row_drop_table_for_mysql(
 	trx->graph = NULL;
 
 	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
-
-	/* Prevent foreign key checks while we are dropping the table */
-	rw_lock_x_lock(&(dict_foreign_key_check_lock));
 
 	/* Prevent purge from running while we are dropping the table */
 	rw_lock_s_lock(&(purge_sys->purge_is_running));
@@ -1766,6 +1842,22 @@ row_drop_table_for_mysql(
 		goto funct_exit;
 	}
 
+	if (table->n_foreign_key_checks_running > 0) {
+		
+	        ut_print_timestamp(stderr);
+	        fprintf(stderr,
+		  "  InnoDB: You are trying to drop table %s\n"
+		  "InnoDB: though there are foreign key check running on it.\n"
+		  "InnoDB: Adding the table to the background drop queue.\n",
+		  table->name);
+
+		row_add_table_to_background_drop_list(table);
+
+		err = DB_SUCCESS;
+
+		goto funct_exit;
+	}
+	
 	/* Remove any locks there are on the table or its records */
 	
 	lock_reset_all_on_table(table);
@@ -1793,10 +1885,9 @@ row_drop_table_for_mysql(
 funct_exit:	
 	rw_lock_s_unlock(&(purge_sys->purge_is_running));
 
-	rw_lock_x_unlock(&(dict_foreign_key_check_lock));
-
 	if (!has_dict_mutex) {
 		mutex_exit(&(dict_sys->mutex));
+		rw_lock_x_unlock(&(dict_foreign_key_check_lock));
 	}
 
 	que_graph_free(graph);
@@ -1832,6 +1923,7 @@ row_drop_database_for_mysql(
 	
 	trx_start_if_not_started(trx);
 loop:
+	rw_lock_x_lock(&(dict_foreign_key_check_lock));
 	mutex_enter(&(dict_sys->mutex));
 
 	while (table_name = dict_get_first_table_name_in_db(name)) {
@@ -1873,6 +1965,7 @@ loop:
 	}
 
 	mutex_exit(&(dict_sys->mutex));
+	rw_lock_x_unlock(&(dict_foreign_key_check_lock));
 	
 	trx_commit_for_mysql(trx);
 
@@ -2009,6 +2102,7 @@ row_rename_table_for_mysql(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
+	rw_lock_x_lock(&(dict_foreign_key_check_lock));
 	mutex_enter(&(dict_sys->mutex));
 
 	table = dict_table_get_low(old_name);
@@ -2090,6 +2184,7 @@ row_rename_table_for_mysql(
 	}
 funct_exit:	
 	mutex_exit(&(dict_sys->mutex));
+	rw_lock_x_unlock(&(dict_foreign_key_check_lock));
 
 	que_graph_free(graph);
 	
