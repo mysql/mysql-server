@@ -739,7 +739,7 @@ dnl echo ["MYSQL_CHECK_BDB_DIR ($1)"]
 
   MYSQL_CHECK_INSTALLED_BDB([$dir/include], [$dir/lib])
 
-  if test X"bdb_dir_ok" != Xinstalled; then
+  if test X"$bdb_dir_ok" != Xinstalled; then
     # test to see if it's a source dir
     rel="$dir/dist/RELEASE"
     if test -f "$rel"; then
@@ -754,8 +754,7 @@ dnl echo ["MYSQL_CHECK_BDB_DIR ($1)"]
         bdb_dir_ok="$bdb_version_ok"
       fi
     else
-      # bdb_dir_ok="'$dir' doesn't look like a BDB directory"
-      bdb_dir_ok="installed" 
+      bdb_dir_ok="'$dir' doesn't look like a BDB directory ($bdb_dir_ok)"
     fi
   fi
 ])
