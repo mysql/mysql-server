@@ -244,6 +244,9 @@ int innobase_savepoint(
 	THD*	thd,
 	char*	savepoint_name,
 	my_off_t binlog_cache_pos);
+int innobase_release_savepoint_name(
+	THD*	thd,
+	char*	savepoint_name);
 int innobase_close_connection(THD *thd);
 int innobase_drop_database(char *path);
 bool innodb_show_status(THD* thd);

@@ -225,6 +225,21 @@ trx_savepoint_for_mysql(
 						position corresponding to this
 						connection at the time of the
 						savepoint */
+						
+/***********************************************************************
+Releases a named savepoint. Savepoints which
+were set after this savepoint are deleted. */
+
+ulint
+trx_release_savepoint_for_mysql(
+/*================================*/
+						/* out: if no savepoint
+						of the name found then
+						DB_NO_SAVEPOINT,
+						otherwise DB_SUCCESS */
+	trx_t*		trx,			/* in: transaction handle */
+	const char*	savepoint_name);	/* in: savepoint name */
+
 /***********************************************************************
 Frees savepoint structs. */
 
