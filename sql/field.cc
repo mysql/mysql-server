@@ -771,7 +771,7 @@ int Field_decimal::store(double nr)
   char buff[320];
 
   fyllchar = zerofill ? (char) '0' : (char) ' ';
-#ifdef HAVE_SNPRINTF_
+#ifdef HAVE_SNPRINTF
   buff[sizeof(buff)-1]=0;			// Safety
   snprintf(buff,sizeof(buff)-1, "%.*f",(int) dec,nr);
   length=(uint) strlen(buff);
@@ -2016,8 +2016,15 @@ double Field_longlong::val_real(void)
   else
 #endif
     longlongget(j,ptr);
-  return unsigned_flag ? ulonglong2double((ulonglong) j) : (double) j;
+  /* The following is open coded to avoid a bug in gcc 3.3 */
+  if (unsigned_flag)
+  {
+    ulonglong tmp= (ulonglong) j;
+    return ulonglong2double(tmp);
+  }
+  return (double) j;
 }
+
 
 longlong Field_longlong::val_int(void)
 {
@@ -4413,8 +4420,11 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
     Field_blob::store_length(length);
     if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
     {						// Must make a copy
-      value.copy(from,length,charset());
-      from=value.ptr();
+      if (from != value.ptr())			// For valgrind
+      {
+	value.copy(from,length,charset());
+	from=value.ptr();
+      }
     }
     bmove(ptr+packlength,(char*) &from,sizeof(char*));
   }

@@ -213,6 +213,9 @@
 /* Define if the system files define ulong */
 #undef HAVE_ULONG
 
+/* Define if the system files define in_addr_t */
+#undef HAVE_IN_ADDR_T
+
 /* UNIXWARE7 threads are not posix */
 #undef HAVE_UNIXWARE7_THREADS
 

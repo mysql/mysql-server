@@ -61,7 +61,7 @@ case $system in
 esac
 
 
-mkdir $BASE $BASE/bin \
+mkdir $BASE $BASE/bin $BASE/docs \
  $BASE/include $BASE/lib $BASE/support-files $BASE/share $BASE/scripts \
  $BASE/mysql-test $BASE/mysql-test/t  $BASE/mysql-test/r \
  $BASE/mysql-test/include $BASE/mysql-test/std_data
@@ -73,9 +73,20 @@ if [ $BASE_SYSTEM != "netware" ] ; then
  chmod o-rwx $BASE/data $BASE/data/*
 fi
 
-for i in ChangeLog COPYING COPYING.LIB README Docs/INSTALL-BINARY \
-         MySQLEULA.txt Docs/manual.html Docs/manual.txt Docs/manual_toc.html \
-         LICENSE.doc README.NW Docs/mysqlbug.txt
+for i in ChangeLog \
+         Docs/manual.html \
+         Docs/manual.txt \
+         Docs/manual_toc.html \
+				 Docs/mysql.info
+do
+  if [ -f $i ]
+  then
+    $CP $i $BASE/docs
+  fi
+done
+
+for i in COPYING COPYING.LIB README Docs/INSTALL-BINARY \
+         MySQLEULA.txt LICENSE.doc README.NW 
 do
   if [ -f $i ]
   then

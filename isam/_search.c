@@ -119,7 +119,7 @@ int _nisam_search(register N_INFO *info, register N_KEYDEF *keyinfo, uchar *key,
   {
     keypos=_nisam_get_last_key(info,keyinfo,buff,lastkey,keypos);
     if (!(nextflag & SEARCH_SMALLER) &&
-	_nisam_key_cmp(keyinfo->seg, info->lastkey, key, key_len, SEARCH_FIND))
+	_nisam_key_cmp(keyinfo->seg, lastkey, key, key_len, SEARCH_FIND))
     {
       my_errno=HA_ERR_KEY_NOT_FOUND;			/* Didn't find key */
       goto err;

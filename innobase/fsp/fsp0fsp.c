@@ -2656,7 +2656,13 @@ fseg_free_page_low(
 	ulint	not_full_n_used;
 	ulint	state;
 	ulint	i;
-	char	errbuf[200];
+    char	errbuf[200];
+
+#ifdef __WIN__
+    dulint desm;
+    dulint segm;
+#endif
+
 	
 	ut_ad(seg_inode && mtr);
 	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N) ==
@@ -2736,7 +2742,10 @@ fseg_free_page_low(
 		fprintf(stderr,
 "InnoDB: Dump of the segment inode: %s\n", errbuf);
 
-	        fprintf(stderr,
+
+#ifndef __WIN__
+
+			fprintf(stderr,
 "InnoDB: Serious error: InnoDB is trying to free space %lu page %lu,\n"
 "InnoDB: which does not belong to segment %lu %lu but belongs\n"
 "InnoDB: to segment %lu %lu.\n",
@@ -2749,6 +2758,26 @@ fseg_free_page_low(
 		     mtr_read_dulint(seg_inode + FSEG_ID, MLOG_8BYTES, mtr)),
 		   ut_dulint_get_low(
 		     mtr_read_dulint(seg_inode + FSEG_ID, MLOG_8BYTES, mtr)));
+
+#else
+
+/* More pedantic usage to avoid VC++ 6.0 compiler errors due to inline
+     function expansion issues */
+
+			desm = mtr_read_dulint(descr + XDES_ID, MLOG_8BYTES, mtr);
+			segm = mtr_read_dulint(seg_inode + FSEG_ID, MLOG_8BYTES, mtr);
+
+            fprintf(stderr,
+"InnoDB: Serious error: InnoDB is trying to free space %lu page %lu,\n"
+"InnoDB: which does not belong to segment %lu %lu but belongs\n"
+"InnoDB: to segment %lu %lu.\n",
+		   space, page,
+		   ut_dulint_get_high(desm),
+		   ut_dulint_get_low(desm),
+		   ut_dulint_get_high(segm),
+		   ut_dulint_get_low(segm));
+
+#endif
 
 		fprintf(stderr,
 "InnoDB: If the InnoDB recovery crashes here, see section 6.1\n"

@@ -541,6 +541,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   enum Item_result result_type () const { return cmp_type; }
+  table_map not_null_tables() const { return 0; }
 };
 
 class Item_func_min :public Item_func_min_max
