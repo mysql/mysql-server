@@ -233,6 +233,11 @@ public:
   {
     init_make_field(tmp_field,FIELD_TYPE_DATE);
   }
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+    if (!t_arg) return result_field;
+    return new Field_date(maybe_null, name, t_arg);
+  }  
 };
 
 
@@ -246,6 +251,11 @@ public:
   {
     init_make_field(tmp_field,FIELD_TYPE_DATETIME);
   }
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+    if (!t_arg) return result_field;
+    return   new Field_datetime(maybe_null, name, t_arg);
+  }  
 };
 
 
@@ -268,6 +278,11 @@ public:
   {
     init_make_field(tmp_field,FIELD_TYPE_TIME);
   }
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+    if (!t_arg) return result_field;
+    return   new Field_time(maybe_null, name, t_arg);
+  }  
 };
 
 
@@ -355,6 +370,12 @@ public:
   {
     init_make_field(tmp_field,FIELD_TYPE_TIME);
   }
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+    if (!t_arg) return result_field;
+    return   new Field_time(maybe_null, name, t_arg);
+  }  
+
 };
 
 enum interval_type { INTERVAL_YEAR, INTERVAL_MONTH, INTERVAL_DAY,

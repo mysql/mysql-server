@@ -135,6 +135,11 @@ public:
   longlong val_int() { return (longlong) val(); }
   enum Item_result result_type () const { return REAL_RESULT; }
   void fix_length_and_dec() { decimals=NOT_FIXED_DEC; max_length=float_length(decimals); }
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+    if (!t_arg) return result_field;
+    return new Field_double(max_length, maybe_null, name,t_arg,decimals);
+  }  
 };
 
 class Item_num_func :public Item_func
@@ -164,6 +169,11 @@ class Item_num_op :public Item_func
   void fix_length_and_dec() { fix_num_length_and_dec(); find_num_type(); }
   void find_num_type(void);
   bool is_null() { (void) val(); return null_value; }
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+    if (!t_arg) return result_field;
+    return args[0]->result_type() == INT_RESULT ? ((max_length > 11) ?  (Field *)new Field_longlong(max_length,maybe_null,name, t_arg,unsigned_flag) :  (Field *)new Field_long(max_length,maybe_null,name, t_arg,unsigned_flag))  : (Field *) new Field_double(max_length, maybe_null, name,t_arg,decimals);
+  }  
 };
 
 
@@ -179,6 +189,11 @@ public:
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec() { decimals=0; max_length=21; }
+  Field *tmp_table_field(TABLE *t_arg)
+  {
+    if (!t_arg) return result_field;
+    return (max_length > 11) ?  (Field *)new Field_longlong(max_length,maybe_null,name, t_arg,unsigned_flag) :  (Field *)new Field_long(max_length,maybe_null,name, t_arg,unsigned_flag);
+  }  
 };
 
 class Item_func_plus :public Item_num_op
