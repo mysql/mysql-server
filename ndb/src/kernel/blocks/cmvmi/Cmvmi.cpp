@@ -54,6 +54,16 @@ Cmvmi::Cmvmi(const Configuration & conf) :
 {
   BLOCK_CONSTRUCTOR(Cmvmi);
 
+  Uint32 long_sig_buffer_size;
+  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  ndb_mgm_get_int_parameter(p, CFG_DB_LONG_SIGNAL_BUFFER,  
+			    &long_sig_buffer_size);
+
+  long_sig_buffer_size= long_sig_buffer_size / 256;
+  g_sectionSegmentPool.setSize(long_sig_buffer_size);
+
   // Add received signals
   addRecSignal(GSN_CONNECT_REP, &Cmvmi::execCONNECT_REP);
   addRecSignal(GSN_DISCONNECT_REP, &Cmvmi::execDISCONNECT_REP);

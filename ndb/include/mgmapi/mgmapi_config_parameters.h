@@ -77,6 +77,18 @@
 
 #define CFG_DB_DISCLESS               148
 
+#define CFG_DB_NO_ORDERED_INDEXES     149
+#define CFG_DB_NO_UNIQUE_HASH_INDEXES 150
+#define CFG_DB_NO_LOCAL_OPS           151
+#define CFG_DB_NO_LOCAL_SCANS         152
+#define CFG_DB_BATCH_SIZE             153
+
+#define CFG_DB_UNDO_INDEX_BUFFER      154
+#define CFG_DB_UNDO_DATA_BUFFER       155
+#define CFG_DB_REDO_BUFFER            156
+
+#define CFG_DB_LONG_SIGNAL_BUFFER     157
+
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
 

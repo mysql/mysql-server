@@ -53,11 +53,7 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     }
     // get new operation record
     c_fragOpPool.seize(fragOpPtr);
-    if (fragOpPtr.i == RNIL) {
-      jam();
-      errorCode = TuxFragRef::NoFreeFragmentOper;
-      break;
-    }
+    ndbrequire(fragOpPtr.i != RNIL);
     new (fragOpPtr.p) FragOp();
     fragOpPtr.p->m_userPtr = req->userPtr;
     fragOpPtr.p->m_userRef = req->userRef;
@@ -66,11 +62,7 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     fragOpPtr.p->m_fragNo = indexPtr.p->m_numFrags;
     fragOpPtr.p->m_numAttrsRecvd = 0;
     // check if index has place for more fragments
-    if (indexPtr.p->m_numFrags == MaxIndexFragments) {
-      jam();
-      errorCode = TuxFragRef::NoFreeIndexFragment;
-      break;
-    }
+    ndbrequire(indexPtr.p->m_numFrags < MaxIndexFragments);
     // seize new fragment record
     FragPtr fragPtr;
     c_fragPool.seize(fragPtr);

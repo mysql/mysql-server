@@ -85,21 +85,12 @@ typedef bool (Dbtup::* UpdateFunction)(Uint32*,
 #define ZNO_OF_CONCURRENT_OPEN_OP 40        /* NUMBER OF CONCURRENT OPENS      */
 #define ZNO_OF_CONCURRENT_WRITE_OP 80       /* NUMBER OF CONCURRENT DISK WRITES*/
 #define ZNO_OF_FRAGOPREC 20                 /* NUMBER OF CONCURRENT ADD FRAG.  */
-#define ZNO_OF_FRAGREC 64                   /* SIZE   OF FRAGMENT FILE.        */
 #define ZNO_OF_LCP_REC 10                   /* NUMBER OF CONCURRENT CHECKPOINTS*/
-#define ZNO_OF_OPREC 116                    /* SIZE OF OPERATION RECORD FILE   */
 #define TOT_PAGE_RECORD_SPACE 262144        /* SIZE OF PAGE RECORD FILE.       */
 #define ZNO_OF_PAGE TOT_PAGE_RECORD_SPACE/ZWORDS_ON_PAGE   
 #define ZNO_OF_PAGE_RANGE_REC 128           /* SIZE OF PAGE RANGE FILE         */
 #define ZNO_OF_PARALLELL_UNDO_FILES 16      /* NUMBER OF PARALLEL UNDO FILES   */
 #define ZNO_OF_RESTART_INFO_REC 10          /* MAXIMUM PARALLELL RESTART INFOS */
-#define ZNO_OF_TAB_DESCR_REC 484            /* SIZE OF TABLE DESCRIPTOR FILE   */
-#define ZNO_OF_TABLEREC 16                  /* SIZE OF TABLE RECORD FILE.      */
-#ifdef NDB_OSE
-#define ZNO_OF_UNDO_PAGE 80  // Must be multiple of 8
-#else
-#define ZNO_OF_UNDO_PAGE 500 // Must be multiple of 8
-#endif
 		    /* 24 SEGMENTS WITH 8 PAGES IN EACH*/
                     /* PLUS ONE UNDO BUFFER CACHE      */
 // Undo record identifiers are 32-bits with page index 13-bits
@@ -826,8 +817,8 @@ struct Tablerec {
   // List of ordered indexes
   ArrayList<TupTriggerData> tuxCustomTriggers;
 
-  Uint32 fragid[2 * NO_OF_FRAG_PER_NODE];
-  Uint32 fragrec[2 * NO_OF_FRAG_PER_NODE];
+  Uint32 fragid[2 * MAX_FRAG_PER_NODE];
+  Uint32 fragrec[2 * MAX_FRAG_PER_NODE];
 
   struct {
     Uint32 tabUserPtr;
