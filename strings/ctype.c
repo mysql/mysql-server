@@ -2823,7 +2823,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen   */
+    1,			/* mbmaxlen   */
     NULL,		/* ismbchar   */
     NULL,		/* ismbhead   */
     NULL,		/* mbcharlen  */
@@ -2860,7 +2860,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen   */
+    1,			/* mbmaxlen   */
     NULL,		/* ismbchar   */
     NULL,		/* ismbhead   */
     NULL,		/* mbcharlen  */
@@ -2896,7 +2896,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -2932,7 +2932,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -2969,7 +2969,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3005,7 +3005,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3041,7 +3041,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3077,7 +3077,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3114,7 +3114,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3150,7 +3150,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3186,7 +3186,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3222,7 +3222,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3258,7 +3258,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3294,7 +3294,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3330,7 +3330,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3367,7 +3367,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3403,7 +3403,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3440,7 +3440,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3477,7 +3477,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3513,7 +3513,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3549,7 +3549,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3585,7 +3585,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3621,7 +3621,7 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */

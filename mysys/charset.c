@@ -389,6 +389,7 @@ static CHARSET_INFO *add_charset(CHARSET_INFO *cs, myf flags)
   cs->hash_caseup = my_hash_caseup_simple;
   cs->hash_sort   = my_hash_sort_simple;
   cs->snprintf	  = my_snprintf_8bit;
+  cs->mbmaxlen    = 1;
   
   set_max_sort_char(cs);
   create_fromuni(cs);

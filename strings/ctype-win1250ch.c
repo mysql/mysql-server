@@ -636,7 +636,7 @@ CHARSET_INFO my_charset_win1250ch =
     my_strnncoll_win1250ch,
     my_strnxfrm_win1250ch,
     my_like_range_win1250ch,
-    0,				/* mbmaxlen  */
+    1,				/* mbmaxlen  */
     NULL,			/* ismbchar  */
     NULL,			/* ismbhead  */
     NULL,			/* mbcharlen */
