@@ -2215,8 +2215,7 @@ MySQL programs, tools and APIs from the
 @cindex @code{Contrib} directory
 
 @cindex URLs to MySQL information
-@cindex related information URLs
-MySQL
+@cindex MySQL related information URLs
 @subheading Tutorials and Manuals
 
 @table @asis
@@ -6263,7 +6262,7 @@ will also need the @code{MyODBC} driver. @xref{ODBC}.
 
 @menu
 * Windows binary installation::  Installing the binaries
-* Windows prepare environment::  Preparing the MySQL environment
+* Windows prepare environment::  Preparing the Windows MySQL environment
 * Windows server first start::  Starting the server for the first time
 @end menu
 
@@ -6280,7 +6279,7 @@ it is necessary to stop the server. If you are running the server
 as a service, use:
 
 @example
-C:\> NET STOP mysql
+C:\> NET STOP MySQL
 @end example
 
 Otherwise, use:
@@ -6310,7 +6309,7 @@ Finish the install process.
 
 
 @node Windows prepare environment, Windows server first start, Windows binary installation, Windows installation
-@subsubsection Preparing the MySQL environment
+@subsubsection Preparing the Windows MySQL environment
 
 Starting with MySQL 3.23.38, the Windows distribution includes
 both the normal and the @strong{MySQL-Max} server binaries.
@@ -8116,6 +8115,7 @@ of getting a solution to your problem!  You will find @code{mysqlbug} in the
 * Installing source tree::      Installing from the Development Source Tree
 * Compilation problems::        Problems Compiling?
 * MIT-pthreads::                MIT-pthreads Notes
+* Windows source build::        Windows Source Distribution
 @end menu
 
 
@@ -8900,7 +8900,7 @@ link your clients with the new client library.  @xref{Debugging client}.
 @end itemize
 
 
-@node MIT-pthreads,  , Compilation problems, Installing source
+@node MIT-pthreads, Windows source build, Compilation problems, Installing source
 @subsection MIT-pthreads Notes
 
 @cindex MIT-pthreads
@@ -8992,12 +8992,8 @@ needed, but may be interesting for someone.)
 @end itemize
 
 
-@menu
-* Windows source build::        
-@end menu
-
-@node Windows source build,  , MIT-pthreads, MIT-pthreads
-@subsubsection Windows Source Distribution
+@node Windows source build,  , MIT-pthreads, Installing source
+@subsection Windows Source Distribution
 
 You will need the following:
 
@@ -9464,7 +9460,7 @@ If you are going to use tables that support transactions (InnoDB, BDB),
 you should first create a my.cnf file and set startup options
 for the table types you plan to use. @xref{Table types}.
 
-Generally, you start the @code{mysqld} server in one of three ways:
+Generally, you start the @code{mysqld} server in one of these ways:
 
 @itemize @bullet
 @item
@@ -9478,23 +9474,7 @@ for @code{mysqld} and then runs it with those options. @xref{safe_mysqld, ,
 @code{safe_mysqld}}.
 
 @item
-On NT you should install @code{mysqld} as a service as follows:
-@example
-bin\mysqld-nt --install               # Install MySQL as a service
-@end example
-
-You can now start/stop @code{mysqld} as follows:
-@example
-NET START mysql
-NET STOP mysql
-@end example
-
-Note that in this case you can't use any other options for @code{mysqld}!
-
-You can remove the service as follows:
-@example
-bin\mysqld-nt --remove                # remove MySQL as a service
-@end example
+For Windows NT/2000, please see @ref{NT start}.
 
 @item
 By invoking @code{mysqld} directly.
