@@ -1416,15 +1416,12 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
 static bool write_collation(Protocol *protocol, CHARSET_INFO *cs)
 {
-  char flags[4];
   protocol->prepare_for_resend();
   protocol->store(cs->csname, system_charset_info);
   protocol->store(cs->name, system_charset_info);
   protocol->store_short((longlong) cs->number);
-  flags[0]='\0';
-  if (cs->state & MY_CS_PRIMARY)
-    strcat(flags,"def");
-  protocol->store(flags, system_charset_info);
+  protocol->store((cs->state & MY_CS_PRIMARY) ? "Y" : "",system_charset_info);
+  protocol->store((cs->state & MY_CS_COMPILED)? "Y" : "",system_charset_info);
   protocol->store_short((longlong) cs->strxfrm_multiply);
   return protocol->write();
 }
@@ -1443,8 +1440,9 @@ int mysqld_show_collations(THD *thd, const char *wild)
   field_list.push_back(new Item_empty_string("Charset",30));
   field_list.push_back(new Item_empty_string("Collation",30));
   field_list.push_back(new Item_return_int("Id",11, FIELD_TYPE_SHORT));
-  field_list.push_back(new Item_empty_string("Flags",30));
-  field_list.push_back(new Item_return_int("strx_maxlen",3, FIELD_TYPE_SHORT));
+  field_list.push_back(new Item_empty_string("D",30));
+  field_list.push_back(new Item_empty_string("C",30));
+  field_list.push_back(new Item_return_int("Sortlen",3, FIELD_TYPE_SHORT));
 
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(1);
