@@ -15,15 +15,7 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA 02111-1307, USA */
 
-#include <my_global.h>
-#if defined(__WIN__) || defined(_WIN32) || defined(_WIN64)
-#include <winsock.h>
-#include <odbcinst.h>
-#endif
-#include "mysql_embed.h"
-#include "mysql.h"
-#include "mysql_version.h"
-#include "mysqld_error.h"
+#include "embedded_priv.h"
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <m_string.h>
@@ -51,9 +43,6 @@
 #ifdef HAVE_SYS_UN_H
 #  include <sys/un.h>
 #endif
-#if defined(THREAD) && !defined(__WIN__)
-#include <my_pthread.h>				/* because of signal()	*/
-#endif
 #ifndef INADDR_NONE
 #define INADDR_NONE	-1
 #endif
@@ -74,12 +63,6 @@ my_string	mysql_unix_port=0;
 #define closesocket(A) close(A)
 #endif
 
-/* XXX: this is real ugly... */
-extern void start_embedded_connection(NET * net);
-extern void lib_connection_phase(NET *net, int phase);
-extern bool lib_dispatch_command(enum enum_server_command command, NET *net,
-				 const char *arg, ulong length);
-
 static void mysql_once_init(void);
 static MYSQL_DATA *read_rows (MYSQL *mysql,MYSQL_FIELD *fields,
 			      uint field_count);
@@ -89,7 +72,6 @@ static void end_server(MYSQL *mysql);
 static void read_user_name(char *name);
 static void append_wild(char *to,char *end,const char *wild);
 static int send_file_to_server(MYSQL *mysql,const char *filename);
-static sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 
@@ -107,7 +89,7 @@ static MYSQL* spawn_init(MYSQL* parent, const char* host,
 ** or packet is an error message
 *****************************************************************************/
 
-static uint
+ulong
 net_safe_read(MYSQL *mysql)
 {
   NET *net= &mysql->net;
@@ -236,9 +218,9 @@ static void free_rows(MYSQL_DATA *cur)
 }
 
 
-static int
+int
 simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
-	       uint length, my_bool skipp_check)
+	       ulong length, my_bool skipp_check)
 {
   NET *net= &mysql->net;
   int result= -1;
@@ -402,22 +384,6 @@ mysql_debug(const char *debug)
 #endif
 }
 
-
-/**************************************************************************
-** Close the server connection if we get a SIGPIPE
-   ARGSUSED
-**************************************************************************/
-
-static sig_handler
-pipe_sig_handler(int sig __attribute__((unused)))
-{
-  DBUG_PRINT("info",("Hit by signal %d",sig));
-#ifdef DONT_REMEMBER_SIGNAL
-  (void) signal(SIGPIPE,pipe_sig_handler);
-#endif
-}
-
-
 /**************************************************************************
 ** Shut down connection
 **************************************************************************/
@@ -428,11 +394,7 @@ end_server(MYSQL *mysql)
   DBUG_ENTER("end_server");
   if (mysql->net.vio != 0)
   {
-    init_sigpipe_variables
-    DBUG_PRINT("info",("Net: %s", vio_description(mysql->net.vio)));
-    set_sigpipe(mysql);
-    vio_delete(mysql->net.vio);
-    reset_sigpipe(mysql);
+    end_embedded_connection(&mysql->net);
     mysql->net.vio= 0;          /* Marker */
   }
   net_end(&mysql->net);
@@ -738,7 +700,7 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
   ulong pkt_len,len;
   uchar *pos,*prev_pos;
 
-  if ((pkt_len=(uint) net_safe_read(mysql)) == packet_error)
+  if ((pkt_len=net_safe_read(mysql)) == packet_error)
     return -1;
   if (pkt_len == 1 && mysql->net.read_pos[0] == 254)
     return 1;				/* End of data */
@@ -764,301 +726,6 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
   row[field]=(char*) prev_pos+1;		/* End of last field */
   *prev_pos=0;					/* Terminate last field */
   return 0;
-}
-
-/* perform query on master */
-int STDCALL mysql_master_query(MYSQL *mysql, const char *q,
-					unsigned int length)
-{
-  if(mysql_master_send_query(mysql, q, length))
-    return 1;
-  return mysql_read_query_result(mysql);
-}
-
-int STDCALL mysql_master_send_query(MYSQL *mysql, const char *q,
-					unsigned int length)
-{
-  MYSQL*master = mysql->master;
-  if (!length)
-    length = strlen(q);
-  if (!master->net.vio && !mysql_real_connect(master,0,0,0,0,0,0,0))
-    return 1;
-  mysql->last_used_con = master;
-  return simple_command(master, COM_QUERY, q, length, 1);
-}
-
-
-/* perform query on slave */  
-int STDCALL mysql_slave_query(MYSQL *mysql, const char *q,
-					unsigned int length)
-{
-  if(mysql_slave_send_query(mysql, q, length))
-    return 1;
-  return mysql_read_query_result(mysql);
-}
-
-int STDCALL mysql_slave_send_query(MYSQL *mysql, const char *q,
-					unsigned int length)
-{
-  MYSQL* last_used_slave, *slave_to_use = 0;
-  
-  if((last_used_slave = mysql->last_used_slave))
-    slave_to_use = last_used_slave->next_slave;
-  else
-    slave_to_use = mysql->next_slave;
-  /* next_slave is always safe to use - we have a circular list of slaves
-     if there are no slaves, mysql->next_slave == mysql
-  */
-  mysql->last_used_con = mysql->last_used_slave = slave_to_use;
-  if(!length)
-    length = strlen(q);
-  if(!slave_to_use->net.vio && !mysql_real_connect(slave_to_use, 0,0,0,
-						   0,0,0,0))
-    return 1;
-  return simple_command(slave_to_use, COM_QUERY, q, length, 1);
-}
-
-
-/* enable/disable parsing of all queries to decide
-   if they go on master or slave */
-void STDCALL mysql_enable_rpl_parse(MYSQL* mysql)
-{
-  mysql->options.rpl_parse = 1;
-}
-
-void STDCALL mysql_disable_rpl_parse(MYSQL* mysql)
-{
-  mysql->options.rpl_parse = 0;
-}
-
-/* get the value of the parse flag */  
-int STDCALL mysql_rpl_parse_enabled(MYSQL* mysql)
-{
-  return mysql->options.rpl_parse;
-}
-
-/*  enable/disable reads from master */
-void STDCALL mysql_enable_reads_from_master(MYSQL* mysql)
-{
-  mysql->options.no_master_reads = 0;
-}
-
-void STDCALL mysql_disable_reads_from_master(MYSQL* mysql)
-{
-  mysql->options.no_master_reads = 1;
-}
-
-/* get the value of the master read flag */  
-int STDCALL mysql_reads_from_master_enabled(MYSQL* mysql)
-{
-  return !(mysql->options.no_master_reads);
-}
-
-/* We may get an error while doing replication internals.
-   In this case, we add a special explanation to the original
-   error
-*/
-static inline void expand_error(MYSQL* mysql, int error)
-{
-  char tmp[MYSQL_ERRMSG_SIZE];
-  char* p, *tmp_end;
-  tmp_end = strnmov(tmp, mysql->net.last_error, MYSQL_ERRMSG_SIZE);
-  p = strnmov(mysql->net.last_error, ER(error), MYSQL_ERRMSG_SIZE);
-  memcpy(p, tmp, tmp_end - tmp);
-  mysql->net.last_errno = error;
-}
-
-/* This function assumes we have just called SHOW SLAVE STATUS and have
-   read the given result and row
-*/
-static inline int get_master(MYSQL* mysql, MYSQL_RES* res, MYSQL_ROW row)
-{
-  MYSQL* master;
-  if(mysql_num_fields(res) < 3)
-    return 1; /* safety */
-  
-  /* use the same username and password as the original connection */
-  if(!(master = spawn_init(mysql, row[0], atoi(row[2]), 0, 0)))
-    return 1;
-  mysql->master = master;
-  return 0;
-}
-
-/* assuming we already know that mysql points to a master connection,
-   retrieve all the slaves
-*/
-static inline int get_slaves_from_master(MYSQL* mysql)
-{
-  MYSQL_RES* res = 0;
-  MYSQL_ROW row;
-  int error = 1;
-  int has_auth_info;
-  if (!mysql->net.vio && !mysql_real_connect(mysql,0,0,0,0,0,0,0))
-  {
-    expand_error(mysql, CR_PROBE_MASTER_CONNECT);
-    return 1;
-  }
-
-  if (mysql_query(mysql, "SHOW SLAVE HOSTS") ||
-     !(res = mysql_store_result(mysql)))
-  {
-    expand_error(mysql, CR_PROBE_SLAVE_HOSTS);
-    return 1;
-  }
-
-  switch (mysql_num_fields(res))
-  {
-  case 3: has_auth_info = 0; break;
-  case 5: has_auth_info = 1; break;
-  default:
-    goto err;
-  }
-
-  while ((row = mysql_fetch_row(res)))
-  {
-    MYSQL* slave;
-    const char* tmp_user, *tmp_pass;
-
-    if (has_auth_info)
-    {
-      tmp_user = row[3];
-      tmp_pass = row[4];
-    }
-    else
-    {
-      tmp_user = mysql->user;
-      tmp_pass = mysql->passwd;
-    }
-
-    if(!(slave = spawn_init(mysql, row[1], atoi(row[2]),
-			    tmp_user, tmp_pass)))
-      goto err;
-      
-    /* Now add slave into the circular linked list */
-    slave->next_slave = mysql->next_slave;
-    mysql->next_slave = slave;
-  }
-  error = 0;
-err:
-  if(res)
-   mysql_free_result(res);
-  return error;
-}
-
-int STDCALL mysql_rpl_probe(MYSQL* mysql)
-{
-  MYSQL_RES* res = 0;
-  MYSQL_ROW row;
-  int error = 1;
-  /* first determine the replication role of the server we connected to
-     the most reliable way to do this is to run SHOW SLAVE STATUS and see
-     if we have a non-empty master host. This is still not fool-proof -
-     it is not a sin to have a master that has a dormant slave thread with
-     a non-empty master host. However, it is more reliable to check 
-     for empty master than whether the slave thread is actually running
-  */
-  if (mysql_query(mysql, "SHOW SLAVE STATUS") ||
-     !(res = mysql_store_result(mysql)))
-  {
-    expand_error(mysql, CR_PROBE_SLAVE_STATUS);
-    return 1;
-  }
-  
-  if (!(row = mysql_fetch_row(res)))
-    goto err;
-
-  /* check master host for emptiness/NULL */
-  if (row[0] && *(row[0]))
-  {
-    /* this is a slave, ask it for the master */
-    if (get_master(mysql, res, row) || get_slaves_from_master(mysql))
-      goto err;
-  }
-  else
-  {
-    mysql->master = mysql;
-    if (get_slaves_from_master(mysql))
-      goto err;
-  }
-
-  error = 0;
-err:
-  if(res)
-    mysql_free_result(res);
-  return error;
-}
-
-
-/* make a not so fool-proof decision on where the query should go, to
-   the master or the slave. Ideally the user should always make this
-   decision himself with mysql_master_query() or mysql_slave_query().
-   However, to be able to more easily port the old code, we support the
-   option of an educated guess - this should work for most applications,
-   however, it may make the wrong decision in some particular cases. If
-   that happens, the user would have to change the code to call
-   mysql_master_query() or mysql_slave_query() explicitly in the place
-   where we have made the wrong decision
-*/
-enum mysql_rpl_type
-STDCALL mysql_rpl_query_type(const char* q, int len)
-{
-  const char* q_end;
-  q_end = (len) ? q + len : strend(q);
-  for(; q < q_end; ++q)
-  {
-    char c;
-    if(isalpha(c=*q))
-      switch(tolower(c))
-       {
-       case 'i':  /* insert */
-       case 'u':  /* update or unlock tables */
-       case 'l':  /* lock tables or load data infile */
-       case 'd':  /* drop or delete */
-       case 'a':  /* alter */
-	 return MYSQL_RPL_MASTER;
-       case 'c':  /* create or check */
-	 return tolower(q[1]) == 'h' ? MYSQL_RPL_ADMIN : MYSQL_RPL_MASTER ;
-       case 's': /* select or show */
-	 return tolower(q[1] == 'h') ? MYSQL_RPL_ADMIN : MYSQL_RPL_SLAVE;
-       case 'f': /* flush */
-       case 'r': /* repair */
-       case 'g': /* grant */
-	 return MYSQL_RPL_ADMIN;
-       default:
-	 return MYSQL_RPL_SLAVE;
-       }
-  }
-
-  return 0;
-}
-
-static MYSQL* spawn_init(MYSQL* parent, const char* host,
-					   unsigned int port,
-					   const char* user,
-					   const char* passwd)
-{
-  MYSQL* child;
-  if (!(child = mysql_init(0)))
-    return 0;
-  
-  child->options.user = my_strdup((user) ? user :
-				  (parent->user ? parent->user :
-				       parent->options.user), MYF(0));
-  child->options.password = my_strdup((passwd) ? passwd : (parent->passwd ?
-						    parent->passwd :
-				       parent->options.password), MYF(0));
-  child->options.port = port;
-  child->options.host = my_strdup((host) ? host : (parent->host ?
-						    parent->host :
-				       parent->options.host), MYF(0));
-  if(parent->db)
-    child->options.db = my_strdup(parent->db, MYF(0));
-  else if(parent->options.db)
-    child->options.db = my_strdup(parent->options.db, MYF(0));
-
-  child->options.rpl_parse = child->options.rpl_probe = child->rpl_pivot = 0;
-    
-  return child;
 }
 
 /****************************************************************************
@@ -1307,7 +974,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     mysql->db=my_strdup(db,MYF(MY_WME));
     db=0;
   }
-  if (my_net_write(net,buff,(uint) (end-buff)) || net_flush(net))
+  if (my_net_write(net,buff,(ulong) (end-buff)) || net_flush(net))
     goto error;
 	
   lib_connection_phase(net,2);
@@ -1364,7 +1031,7 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   pos=scramble(pos, mysql->scramble_buff, passwd,
 	       (my_bool) (mysql->protocol_version == 9));
   pos=strmov(pos+1,db ? db : "");
-  if (simple_command(mysql,COM_CHANGE_USER, buff,(uint) (pos-buff),0))
+  if (simple_command(mysql,COM_CHANGE_USER, buff,(ulong) (pos-buff),0))
     DBUG_RETURN(1);
 
   my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
@@ -1389,7 +1056,7 @@ mysql_select_db(MYSQL *mysql, const char *db)
   DBUG_ENTER("mysql_select_db");
   DBUG_PRINT("enter",("db: '%s'",db));
 
-  if ((error=simple_command(mysql,COM_INIT_DB,db,(uint) strlen(db),0)))
+  if ((error=simple_command(mysql,COM_INIT_DB,db,(ulong) strlen(db),0)))
     DBUG_RETURN(error);
   my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
   mysql->db=my_strdup(db,MYF(MY_WME));
@@ -1452,11 +1119,11 @@ mysql_close(MYSQL *mysql)
 int STDCALL
 mysql_query(MYSQL *mysql, const char *query)
 {
-  return mysql_real_query(mysql,query, (uint) strlen(query));
+  return mysql_real_query(mysql,query, (ulong) strlen(query));
 }
 
 int STDCALL
-mysql_send_query(MYSQL* mysql, const char* query, uint length)
+mysql_send_query(MYSQL* mysql, const char* query, ulong length)
 {
   return simple_command(mysql, COM_QUERY, query, length, 1);
 }
@@ -1512,7 +1179,7 @@ get_info:
 }
 
 int STDCALL
-mysql_real_query(MYSQL *mysql, const char *query, uint length)
+mysql_real_query(MYSQL *mysql, const char *query, ulong length)
 {
   DBUG_ENTER("mysql_real_query");
   DBUG_PRINT("enter",("handle: %lx",mysql));
@@ -1910,7 +1577,7 @@ mysql_create_db(MYSQL *mysql, const char *db)
 {
   DBUG_ENTER("mysql_createdb");
   DBUG_PRINT("enter",("db: %s",db));
-  DBUG_RETURN(simple_command(mysql,COM_CREATE_DB,db, (uint) strlen(db),0));
+  DBUG_RETURN(simple_command(mysql,COM_CREATE_DB,db, (ulong) strlen(db),0));
 }
 
 
@@ -1919,7 +1586,7 @@ mysql_drop_db(MYSQL *mysql, const char *db)
 {
   DBUG_ENTER("mysql_drop_db");
   DBUG_PRINT("enter",("db: %s",db));
-  DBUG_RETURN(simple_command(mysql,COM_DROP_DB,db,(uint) strlen(db),0));
+  DBUG_RETURN(simple_command(mysql,COM_DROP_DB,db,(ulong) strlen(db),0));
 }
 
 

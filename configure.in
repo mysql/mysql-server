@@ -10,7 +10,7 @@ AM_CONFIG_HEADER(config.h)
 PROTOCOL_VERSION=10
 DOT_FRM_VERSION=6
 # See the libtool docs for information on how to do shared lib versions.
-SHARED_LIB_VERSION=10:0:0
+SHARED_LIB_VERSION=11:0:0
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
@@ -699,7 +699,7 @@ int main()
   AC_MSG_RESULT($atom_ops)
 
   AC_ARG_WITH(pstack,
-    [  --with-pstack         Use the pstack backtrace library],
+    [  --with-pstack           Use the pstack backtrace library],
     [ USE_PSTACK=$withval ],
     [ USE_PSTACK=no ])
   pstack_libs=
@@ -1752,8 +1752,7 @@ AC_ARG_WITH(embedded-server,
 )
 
 AC_ARG_WITH(extra-tools,
-    [  --without-extra-tools        Skip building utilites in the tools \
-     directory.],
+    [  --without-extra-tools   Skip building utilites in the tools directory.],
     [with_tools=$withval],
     [with_tools=yes]
 )
@@ -2182,7 +2181,17 @@ EOF
   then
     sql_server_dirs="innobase $sql_server_dirs"
     echo "CONFIGURING FOR INNODB" 
-    (cd innobase && sh ./configure) \
+    if test ! -d "innobase"; then
+        # This should only happen when doing a VPATH build
+        echo "NOTICE: I have to make the Innobase directory: `pwd`/innobase"
+	mkdir "innobase" || exit 1
+    fi
+    rel_srcdir=
+    case "$srcdir" in
+	/* ) rel_srcdir="$srcdir" ;;
+	* )  rel_srcdir="../$srcdir" ;;
+    esac
+    (cd innobase && sh $rel_srcdir/innobase/configure) \
     || AC_MSG_ERROR([could not configure INNODB])
 
     echo "END OF INNODB CONFIGURATION"

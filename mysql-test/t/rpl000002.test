@@ -11,6 +11,7 @@ use test;
 sync_with_master;
 select * from t1;
 connection master;
+--replace_result 9307 9999 3350 9999 3351 9999
 show slave hosts;
 drop table t1;
 save_master_pos;

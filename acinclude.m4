@@ -663,7 +663,7 @@ if test "$cpu_vendor" = "AuthenticAMD"; then
     fi
 elif test "$cpu_vendor" = "GenuineIntel"; then
     if test $cpu_family>=6; then
-      cpu_set=" pentiumpro pentium i486 i386";
+      cpu_set="pentiumpro pentium i486 i386";
     elif test $cpu_family=5; then
       cpu_set="pentium i486 i386";
     elif test $cpu_family=4; then
@@ -682,15 +682,15 @@ done
 if test "$mysql_cv_cpu" = "unknown"
 then
   CFLAGS="$ac_save_CFLAGS"
-      AC_MSG_RESULT(none)
+  AC_MSG_RESULT(none)
 else
-      AC_MSG_RESULT($mysql_cv_cpu)
+  AC_MSG_RESULT($mysql_cv_cpu)
 fi
 ]))
 
 AC_DEFUN(MYSQL_CHECK_VIO, [
   AC_ARG_WITH([vio],
-              [  --with-vio          Include the Virtual IO support],
+              [  --with-vio              Include the Virtual IO support],
               [vio="$withval"],
               [vio=no])
 
@@ -726,7 +726,7 @@ AC_MSG_CHECKING(for OpenSSL)
       openssl_includes="-I/usr/local/ssl/include"
       AC_DEFINE(HAVE_OPENSSL)
     else
-      AC_MSG_RESULT(disabled because --with-vio wasn not used)
+      AC_MSG_RESULT(disabled because --with-vio was not used)
     fi
   else
     AC_MSG_RESULT(no)
@@ -767,7 +767,8 @@ dnl get substituted.
 
 AC_DEFUN(MYSQL_CHECK_ORBIT, [
 AC_MSG_CHECKING(for ORBit)
-if test `which orbit-config`
+orbit_config_path=`which orbit-config`
+if test -n "$orbit_config_path"
 then
   orbit_exec_prefix=`orbit-config --exec-prefix`
   orbit_includes=`orbit-config --cflags server`
@@ -1054,9 +1055,9 @@ dnl ---------------------------------------------------------------------------
 AC_DEFUN([MYSQL_CHECK_INNODB], [
   AC_ARG_WITH([innodb],
               [\
-  --with-innodb         Use Innodb],
+  --without-innodb        Do not include the InnoDB table handler],
               [innodb="$withval"],
-              [innodb=no])
+              [innodb=yes])
 
   AC_MSG_CHECKING([for Innodb])
 
@@ -1132,7 +1133,7 @@ dnl ---------------------------------------------------------------------------
 AC_DEFUN([MYSQL_CHECK_GEMINI], [
   AC_ARG_WITH([gemini],
               [\
-  --with-gemini[=DIR] Use Gemini DB located in DIR],
+  --with-gemini[=DIR]     Use Gemini DB located in DIR],
               [gemini="$withval"],
               [gemini=no])
 
@@ -1251,7 +1252,7 @@ changequote([, ])dnl
 AC_DEFUN(AC_SYS_LARGEFILE,
   [AC_REQUIRE([AC_CANONICAL_HOST])
    AC_ARG_ENABLE(largefile,
-     [  --disable-largefile    Omit support for large files])
+     [  --disable-largefile     Omit support for large files])
    if test "$enable_largefile" != no; then
      AC_CHECK_TOOL(GETCONF, getconf)
      AC_SYS_LARGEFILE_FLAGS(CFLAGS)

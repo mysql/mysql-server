@@ -64,9 +64,9 @@ int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 #ifndef FAST					/* Safety check */
   if (page < info->s->base.keystart ||
       page+keyinfo->block_length > info->state->key_file_length ||
-      page & (myisam_block_size-1))
+      (page & (MI_MIN_KEY_BLOCK_LENGTH-1)))
   {
-    DBUG_PRINT("error",("Trying to write outside key region: %lu",
+    DBUG_PRINT("error",("Trying to write inside key status region: %lu",
 			(long) page));
     my_errno=EINVAL;
     return(-1);

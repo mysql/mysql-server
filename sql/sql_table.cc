@@ -1110,7 +1110,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   bool use_timestamp=0;
   ha_rows copied,deleted;
   ulonglong next_insert_id;
-  uint save_time_stamp,db_create_options;
+  uint save_time_stamp,db_create_options, used_fields;
   enum db_type old_db_type,new_db_type;
   DBUG_ENTER("mysql_alter_table");
 
@@ -1119,6 +1119,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   db=table_list->db;
   if (!new_db)
     new_db=db;
+  used_fields=create_info->used_fields;
 
   if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(-1);
@@ -1164,7 +1165,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (create_info->db_type == DB_TYPE_DEFAULT)
     create_info->db_type=old_db_type;
   new_db_type=create_info->db_type= ha_checktype(create_info->db_type);
-  if (create_info->row_type == ROW_TYPE_DEFAULT)
+  if (create_info->row_type == ROW_TYPE_NOT_USED)
     create_info->row_type=table->row_type;
 
   /* In some simple cases we need not to recreate the table */
@@ -1252,7 +1253,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       {
 	/* Reset auto_increment value if it was dropped */
 	if (MTYP_TYPENR(field->unireg_check) == Field::NEXT_NUMBER &&
-	    !(create_info->used_fields & HA_CREATE_USED_AUTO))
+	    !(used_fields & HA_CREATE_USED_AUTO))
 	{
 	  create_info->auto_increment_value=0;
 	  create_info->used_fields|=HA_CREATE_USED_AUTO;
@@ -1438,20 +1439,25 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     goto err;
   }
 
+  db_create_options=table->db_create_options & ~(HA_OPTION_PACK_RECORD);
   (void) sprintf(tmp_name,"%s-%lx_%lx", tmp_file_prefix, current_pid,
 		 thd->thread_id);
   create_info->db_type=new_db_type;
-  if (!create_info->max_rows)
-    create_info->max_rows=table->max_rows;
-  if (!create_info->avg_row_length)
-    create_info->avg_row_length=table->avg_row_length;
-  table->file->update_create_info(create_info);
   if (!create_info->comment)
     create_info->comment=table->comment;
+
   /* let new create options override the old ones */
-  db_create_options=table->db_create_options & ~(HA_OPTION_PACK_RECORD);
-  if (create_info->table_options &
-      (HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS))
+  if (!(used_fields & HA_CREATE_USED_MIN_ROWS))
+    create_info->min_rows=table->min_rows;
+  if (!(used_fields & HA_CREATE_USED_MAX_ROWS))
+    create_info->max_rows=table->max_rows;
+  if (!(used_fields & HA_CREATE_USED_AVG_ROW_LENGTH))
+    create_info->avg_row_length=table->avg_row_length;
+
+  table->file->update_create_info(create_info);
+  if ((create_info->table_options &
+       (HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS)) ||
+      (used_fields & HA_CREATE_USED_PACK_KEYS))
     db_create_options&= ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS);
   if (create_info->table_options &
       (HA_OPTION_CHECKSUM | HA_OPTION_NO_CHECKSUM))

@@ -66,6 +66,14 @@ myisamchk$suffix -rs test1
 myisamchk$suffix -se test1
 myisamchk$suffix -rqs test1
 myisamchk$suffix -se test1
+myisamchk$suffix -rs --correct-checksum test1
+myisamchk$suffix -se test1
+myisamchk$suffix -rqs --correct-checksum test1
+myisamchk$suffix -se test1
+myisamchk$suffix -ros --correct-checksum test1
+myisamchk$suffix -se test1
+myisamchk$suffix -rqos --correct-checksum test1
+myisamchk$suffix -se test1
 
 # check of myisampack / myisamchk
 myisampack$suffix --force -s test1
@@ -105,13 +113,25 @@ mi_test1$suffix $silent --key_multiple -P -S
 myisamchk$suffix -sm test1
 
 mi_test2$suffix $silent -L -K -W -P
+myisamchk$suffix -sm test2
 mi_test2$suffix $silent -L -K -W -P -A
+myisamchk$suffix -sm test2
 mi_test2$suffix $silent -L -K -W -P -S -R1 -m500
 echo "mi_test2$suffix $silent -L -K -R1 -m2000 ;  Should give error 135"
+myisamchk$suffix -sm test2
 mi_test2$suffix $silent -L -K -R1 -m2000
+myisamchk$suffix -sm test2
 mi_test2$suffix $silent -L -K -P -S -R3 -m50 -b1000000
+myisamchk$suffix -sm test2
 mi_test2$suffix $silent -L -B
+myisamchk$suffix -sm test2
 mi_test2$suffix $silent -D -B -c
+myisamchk$suffix -sm test2
+mi_test2$suffix $silent -m10000 -e8192 -K
+myisamchk$suffix -sm test2
+mi_test2$suffix $silent -m10000 -e16384 -E16384 -K -L
+myisamchk$suffix -sm test2
+
 mi_test2$suffix $silent -L -K -W -P -m50 -l
 myisamlog$suffix
 mi_test2$suffix $silent -L -K -W -P -m50 -l -b100

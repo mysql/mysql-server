@@ -43,7 +43,7 @@ noinst_PROGRAMS = conf_to_src
 # Default charset definitions
 EXTRA_DIST =		ctype-big5.c ctype-czech.c ctype-euc_kr.c \
                         ctype-gb2312.c ctype-gbk.c ctype-sjis.c \
-                        ctype-tis620.c ctype-ujis.c \
+                        ctype-tis620.c ctype-ujis.c ctype-latin1_de.c \
                         ctype_autoconf.c \
                         strto.c strings-x86.s longlong2str-x86.s \
 			strxmov.c bmove_upp.c strappend.c strcont.c strend.c \

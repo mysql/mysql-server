@@ -45,7 +45,7 @@ int mi_status(MI_INFO *info, register MI_ISAMINFO *x, uint flag)
   {
     pthread_mutex_lock(&share->intern_lock);
     VOID(_mi_readinfo(info,F_RDLCK,0));
-    VOID(_mi_writeinfo(info,0));
+    fast_mi_writeinfo(info);
     pthread_mutex_unlock(&share->intern_lock);
   }
   if (flag & HA_STATUS_VARIABLE)
