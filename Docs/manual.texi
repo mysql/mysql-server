@@ -1386,7 +1386,7 @@ English):
 @item Pages	@tab		800
 @item Price	@tab		$49.99 US
 @item Downloadable examples  @tab
- @uref{http://www.mysql.com/Contrib/Examples/samp_db.tar.gz, @code{samp_db.tar.gz}}
+ @uref{http://www.mysql.com/Downloads/Contrib/Examples/samp_db.tar.gz, @code{samp_db.tar.gz}}
 @item Errata  @tab
  @uref{http://www.mysql.com/documentation/pauls-mysql-book-errata.html, are available here}
 @end multitable
@@ -1973,7 +1973,7 @@ http://www.geocities.com/SiliconValley/Vista/2207/sql1.html.
 
 Apart from the following links, you can find and download a lot of
 @strong{MySQL} programs, tools and APIs from the
-@uref{http://www.mysql.com/Contrib/, Contrib directory}.
+@uref{http://www.mysql.com/Downloads/Contrib/, Contrib directory}.
 @cindex @code{Contrib} directory
 
 
@@ -2242,7 +2242,7 @@ complicated, low-level, and time-consuming CGI programs.
 
 @subheading Database Design Tools with MySQL Support
 @itemize @bullet
-@item @uref{http://www.mysql.com/dezign/index.html}@*
+@item @uref{http://www.mysql.com/documentation/dezign/}@*
 "DeZign for databases" is a database development tool that uses an
 entity relationship diagram (ERD).
 @end itemize
@@ -3847,7 +3847,7 @@ Finland [tonnikala.net] @
 @c EMAIL: noel@uni-bonn.de (Noel Koethe)
 @c @image{Flags/germany}
 Germany [Bonn University, Bonn] @
-@uref{http://www.wipol.uni-bonn.de/MySQL//, WWW}
+@uref{http://www.wipol.uni-bonn.de/MySQL/, WWW}
 @uref{ftp://ftp.wipol.uni-bonn.de/pub/mirror/MySQL/, FTP}
 
 @item
@@ -3932,6 +3932,13 @@ Italy [tzone.it] @
 Ireland [Esat Net] @
 @uref{http://ftp.esat.net/mirrors/download.sourceforge.net/pub/mirrors/mysql/, WWW}
 @uref{ftp://ftp.esat.net/mirrors/download.sourceforge.net/pub/mirrors/mysql/, FTP}
+
+@item
+@c Added 20001125
+@c EMAIL: mleicher@silverpoint.nl (Marcel Leicher)
+@c @image{Flags/netherlands}
+Netherlands [Silverpoint] @
+@uref{http://mysql.silverpoint.nl/, WWW}
 
 @item
 @c EMAIL: W.Sylwestrzak@icm.edu.pl (Wojtek Sylwestrzak)
