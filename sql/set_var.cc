@@ -28,7 +28,7 @@
   - If the variable is thread specific, add it to 'system_variables' struct.
     If not, add it to mysqld.cc and an declaration in 'mysql_priv.h'
   - If the variable should be changed from the command line, add a definition
-    of it in the my_option structure list in mysqld.dcc
+    of it in the my_option structure list in mysqld.cc
   - Don't forget to initialize new fields in global_system_variables and
     max_system_variables!
   - If the variable should show up in 'show variables' add it to the
@@ -584,6 +584,7 @@ sys_var *sys_variables[]=
   &sys_max_tmp_tables,
   &sys_max_user_connections,
   &sys_max_write_lock_count,
+  &sys_multi_range_count,
   &sys_myisam_data_pointer_size,
   &sys_myisam_max_extra_sort_file_size,
   &sys_myisam_max_sort_file_size,
@@ -828,6 +829,7 @@ struct show_var_st init_vars[]= {
   {sys_max_tmp_tables.name,	(char*) &sys_max_tmp_tables,	    SHOW_SYS},
   {sys_max_user_connections.name,(char*) &sys_max_user_connections, SHOW_SYS},
   {sys_max_write_lock_count.name, (char*) &sys_max_write_lock_count,SHOW_SYS},
+  {sys_multi_range_count.name,  (char*) &sys_multi_range_count,     SHOW_SYS},
   {sys_myisam_data_pointer_size.name, (char*) &sys_myisam_data_pointer_size, SHOW_SYS},
   {sys_myisam_max_extra_sort_file_size.name,
    (char*) &sys_myisam_max_extra_sort_file_size,
