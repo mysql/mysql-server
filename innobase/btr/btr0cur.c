@@ -302,6 +302,9 @@ btr_cur_search_to_nth_level(
 		rw_lock_s_unlock(&btr_search_latch);
 	}
 
+	/* Store the position of the tree latch we push to mtr so that we
+	know how to release it when we have latched leaf node(s) */
+
 	savepoint = mtr_set_savepoint(mtr);
 
 	tree = index->tree;
@@ -506,12 +509,18 @@ btr_cur_open_at_index_side(
 	ulint		root_height;
 	rec_t*		node_ptr;
 	ulint		estimate;
+	ulint           savepoint;
 
 	estimate = latch_mode & BTR_ESTIMATE;
 	latch_mode = latch_mode & ~BTR_ESTIMATE;
 	
 	tree = index->tree;
 	
+	/* Store the position of the tree latch we push to mtr so that we
+	know how to release it when we have latched the leaf node */
+
+	savepoint = mtr_set_savepoint(mtr);
+
 	if (latch_mode == BTR_MODIFY_TREE) {
 		mtr_x_lock(dict_tree_get_lock(tree), mtr);
 	} else {
@@ -544,6 +553,22 @@ btr_cur_open_at_index_side(
 		if (height == 0) {
 			btr_cur_latch_leaves(tree, page, space, page_no,
 						latch_mode, cursor, mtr);
+
+			/* In versions <= 3.23.52 we had forgotten to
+			release the tree latch here. If in an index scan
+			we had to scan far to find a record visible to the
+			current transaction, that could starve others
+			waiting for the tree latch. */
+ 
+			if ((latch_mode != BTR_MODIFY_TREE)
+			    && (latch_mode != BTR_CONT_MODIFY_TREE)) {
+
+				/* Release the tree s-latch */
+
+				mtr_release_s_latch_at_savepoint(
+						mtr, savepoint,
+						dict_tree_get_lock(tree));
+			}
 		}
 		
 		if (from_left) {
