@@ -132,12 +132,12 @@ file1=C:\mysql\share\greek\errmsg.txt
 fulldirectory=
 
 [TopDir]
-file0=C:\mysql\Readme
-file1=C:\mysql\mysqlbug.txt
-file2=C:\mysql\my-huge.cnf
-file3=C:\mysql\my-large.cnf
-file4=C:\mysql\my-medium.cnf
-file5=C:\mysql\my-small.cnf
+file0=C:\mysql\mysqlbug.txt
+file1=C:\mysql\my-huge.cnf
+file2=C:\mysql\my-large.cnf
+file3=C:\mysql\my-medium.cnf
+file4=C:\mysql\my-small.cnf
+file5=C:\mysql\README.txt
 SubDir0=bin
 SubDir1=share
 SubDir2=Embedded
