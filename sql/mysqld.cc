@@ -1121,7 +1121,8 @@ void end_thread(THD *thd, bool put_in_cache)
 inline void kill_broken_server()
 {
   /* hack to get around signals ignored in syscalls for problem OS's */
-  if (unix_sock == INVALID_SOCKET || (!opt_disable_networking && ip_sock ==INVALID_SOCKET))
+  if (unix_sock == INVALID_SOCKET ||
+      (!opt_disable_networking && ip_sock == INVALID_SOCKET))
   {
     select_thread_in_use = 0;
     kill_server((void*)MYSQL_KILL_SIGNAL); /* never returns */
@@ -1592,8 +1593,8 @@ pthread_handler_decl(handle_shutdown,arg)
   abort_loop = 1;
 
   // unblock select()
-  so_cancel( ip_sock);
-  so_cancel( unix_sock);
+  so_cancel(ip_sock);
+  so_cancel(unix_sock);
 
   return 0;
 }

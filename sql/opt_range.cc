@@ -1285,7 +1285,8 @@ and_all_keys(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
   }
   if (key1->type == SEL_ARG::MAYBE_KEY)
   {
-    key1->left= &null_element; key1->next=0;
+    key1->right= key1->left= &null_element;
+    key1->next= key1->prev= 0;
   }
   for (next=key1->first(); next ; next=next->next)
   {

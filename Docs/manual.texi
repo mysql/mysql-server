@@ -31150,7 +31150,7 @@ mysql> select TRUNCATE(1.999,1);
         -> 1.9
 mysql> select TRUNCATE(1.999,0);
         -> 1
-mysql> select TRUNCATE(-1,999,1);
+mysql> select TRUNCATE(-1.999,1);
         -> -1.9
 @end example
 
