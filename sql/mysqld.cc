@@ -246,18 +246,18 @@ bool opt_large_files= sizeof(my_off_t) > 4;
   Variables to store startup options
 */
 
-bool opt_skip_slave_start = 0; // If set, slave is not autostarted
+my_bool opt_skip_slave_start = 0; // If set, slave is not autostarted
 /*
   If set, some standard measures to enforce slave data integrity will not
   be performed
 */
-bool opt_reckless_slave = 0; 
+my_bool opt_reckless_slave = 0; 
 
 ulong back_log, connect_timeout, concurrency;
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], time_zone[30];
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_disable_networking=0, opt_skip_show_db=0;
-bool opt_enable_named_pipe= 0;
+my_bool opt_enable_named_pipe= 0;
 my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
 uint delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
 
@@ -272,11 +272,12 @@ static my_string opt_logname=0,opt_update_logname=0,
 static char* mysql_home_ptr= mysql_home;
 static char* pidfile_name_ptr= pidfile_name;
 static pthread_t select_thread;
-static bool opt_noacl, opt_bootstrap=0, opt_myisam_log=0;
-bool opt_sql_bin_update = 0, opt_log_slave_updates = 0;
-bool opt_safe_user_create = 0, opt_no_mix_types = 0;
+static my_bool opt_noacl=0, opt_bootstrap=0, opt_myisam_log=0;
+my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_safe_show_db=0, lower_case_table_names, opt_old_rpl_compat;
-my_bool opt_show_slave_auth_info;
+my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
+my_bool opt_log_slave_updates= 0;
+
 volatile bool  mqh_used = 0;
 FILE *bootstrap_file=0;
 int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
@@ -408,7 +409,7 @@ TYPELIB sql_mode_typelib= {array_elements(sql_mode_names)-1,"",
 			   sql_mode_names};
 
 MY_BITMAP temp_pool;
-bool use_temp_pool=0;
+my_bool use_temp_pool=0;
 
 pthread_key(MEM_ROOT*,THR_MALLOC);
 pthread_key(THD*, THR_THD);
@@ -418,7 +419,7 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_error_log,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
-	        LOCK_server_id, LOCK_global_system_variables,
+	        LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
 
 pthread_cond_t COND_refresh,COND_thread_count, COND_slave_stopped,
@@ -1553,10 +1554,16 @@ static void *signal_hand(void *arg __attribute__((unused)))
   }
 #endif /* HAVE_STACK_TRACE_ON_SEGV */
 
-  // signal to start_signal_handler that we are ready
+  /*
+    signal to start_signal_handler that we are ready
+    This works by waiting for start_signal_handler to free mutex,
+    after which we signal it that we are ready.
+    At this pointer there is no other threads running, so there
+    should not be any other pthread_cond_signal() calls.
+  */
   (void) pthread_mutex_lock(&LOCK_thread_count);
-  (void) pthread_cond_signal(&COND_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
+  (void) pthread_cond_broadcast(&COND_thread_count);
 
   (void) pthread_sigmask(SIG_BLOCK,&set,NULL);
   for (;;)
@@ -1860,7 +1867,6 @@ int main(int argc, char **argv)
   (void) pthread_mutex_init(&LOCK_bytes_sent,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_bytes_received,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_timezone,MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_server_id, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
@@ -2170,9 +2176,7 @@ The server will not act as a slave.");
 	}
       }
       while (handler_count > 0)
-      {
 	pthread_cond_wait(&COND_handler_count,&LOCK_thread_count);
-      }
     }
     pthread_mutex_unlock(&LOCK_thread_count);
   }
@@ -2194,8 +2198,8 @@ The server will not act as a slave.");
   (void) pthread_mutex_lock(&LOCK_thread_count);
   DBUG_PRINT("quit", ("Got thread_count mutex"));
   select_thread_in_use=0;			// For close_connections
-  (void) pthread_cond_broadcast(&COND_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
+  (void) pthread_cond_broadcast(&COND_thread_count);
 #ifdef EXTRA_DEBUG2
   sql_print_error("After lock_thread_count");
 #endif
@@ -2204,9 +2208,7 @@ The server will not act as a slave.");
   /* Wait until cleanup is done */
   (void) pthread_mutex_lock(&LOCK_thread_count);
   while (!ready_to_exit)
-  {
     pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
-  }
   (void) pthread_mutex_unlock(&LOCK_thread_count);
 
 #if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
@@ -2794,8 +2796,8 @@ pthread_handler_decl(handle_connections_namedpipes,arg)
 
   pthread_mutex_lock(&LOCK_thread_count);
   handler_count--;
-  pthread_cond_signal(&COND_handler_count);
   pthread_mutex_unlock(&LOCK_thread_count);
+  pthread_cond_signal(&COND_handler_count);
   DBUG_RETURN(0);
 }
 #endif /* __NT__ */
@@ -3144,25 +3146,23 @@ struct my_option my_long_options[] =
    "Syntax: myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP or FORCE.",
    (gptr*) &myisam_recover_options_str, (gptr*) &myisam_recover_options_str, 0,
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  /*
-    Option needs to be available for the test case to pass in non-debugging
-    mode. is a no-op.
-  */
   {"memlock", OPT_MEMLOCK, "Lock mysqld in memory", (gptr*) &locked_in_memory,
    (gptr*) &locked_in_memory, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"disconnect-slave-event-count", OPT_DISCONNECT_SLAVE_EVENT_COUNT,
-   "Undocumented: Meant for debugging and testing of replication",
+   "Option used by mysql-test for debugging and testing of replication",
    (gptr*) &disconnect_slave_event_count,
    (gptr*) &disconnect_slave_event_count, 0, GET_INT, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
   {"abort-slave-event-count", OPT_ABORT_SLAVE_EVENT_COUNT,
-   "Undocumented: Meant for debugging and testing of replication",
+   "Option used by mysql-test for debugging and testing of replication",
    (gptr*) &abort_slave_event_count,  (gptr*) &abort_slave_event_count,
    0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"max-binlog-dump-events", OPT_MAX_BINLOG_DUMP_EVENTS, "Undocumented",
+  {"max-binlog-dump-events", OPT_MAX_BINLOG_DUMP_EVENTS,
+   "Option used by mysql-test for debugging and testing of replication",
    (gptr*) &max_binlog_dump_events, (gptr*) &max_binlog_dump_events, 0,
    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"sporadic-binlog-dump-fail", OPT_SPORADIC_BINLOG_DUMP_FAIL, "Undocumented",
+  {"sporadic-binlog-dump-fail", OPT_SPORADIC_BINLOG_DUMP_FAIL,
+   "Option used by mysql-test for debugging and testing of replication",
    (gptr*) &opt_sporadic_binlog_dump_fail,
    (gptr*) &opt_sporadic_binlog_dump_fail, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
@@ -3176,7 +3176,7 @@ struct my_option my_long_options[] =
    (gptr*) &opt_no_mix_types, (gptr*) &opt_no_mix_types, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
 #endif
-  {"old-protocol", 'o', "Use the old (3.20) protocol",
+  {"old-protocol", 'o', "Use the old (3.20) protocol client/server protocol",
    (gptr*) &protocol_version, (gptr*) &protocol_version, 0, GET_UINT, NO_ARG,
    PROTOCOL_VERSION, 0, 0, 0, 0, 0},
   {"old-rpl-compat", OPT_OLD_RPL_COMPAT,

@@ -27,7 +27,7 @@
 extern const char* any_db;
 
 int max_binlog_dump_events = 0; // unlimited
-bool opt_sporadic_binlog_dump_fail = 0;
+my_bool opt_sporadic_binlog_dump_fail = 0;
 static int binlog_dump_count = 0;
 
 int check_binlog_magic(IO_CACHE* log, const char** errmsg)
@@ -247,7 +247,8 @@ bool log_in_use(const char* log_name)
       pthread_mutex_lock(&linfo->lock);
       result = !memcmp(log_name, linfo->log_file_name, log_name_len);
       pthread_mutex_unlock(&linfo->lock);
-      if (result) break;
+      if (result)
+	break;
     }
   }
 
@@ -346,7 +347,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   linfo.index_file_offset = 0;
   thd->current_linfo = &linfo;
 
-  if (mysql_bin_log.find_log_pos(&linfo, name))
+  if (mysql_bin_log.find_log_pos(&linfo, name, 1))
   {
     errmsg = "Could not find first log file name in binary log index file";
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
@@ -496,22 +497,28 @@ Increase max_allowed_packet on master";
 	switch (Log_event::read_log_event(&log, packet, (pthread_mutex_t*)0)) {
 	case 0:
 	  /* we read successfully, so we'll need to send it to the slave */
+	  pthread_mutex_unlock(log_lock);
 	  read_packet = 1;
 	  break;
 
 	case LOG_READ_EOF:
 	  DBUG_PRINT("wait",("waiting for data in binary log"));
 	  if (!thd->killed)
+	  {
+	    /* Note that the following call unlocks lock_log */
 	    mysql_bin_log.wait_for_update(thd);
+	  }
+	  else
+	    pthread_mutex_unlock(log_lock);
 	  DBUG_PRINT("wait",("binary log received update"));
 	  break;
 
 	default:
+	  pthread_mutex_unlock(log_lock);
 	  fatal_error = 1;
 	  break;
 	}
-	pthread_mutex_unlock(log_lock);
-	
+
 	if (read_packet)
 	{
 	  thd->proc_info = "sending update to slave";
@@ -552,7 +559,7 @@ Increase max_allowed_packet on master";
       bool loop_breaker = 0;
       // need this to break out of the for loop from switch
       thd->proc_info = "switching to next log";
-      switch (mysql_bin_log.find_next_log(&linfo)) {
+      switch (mysql_bin_log.find_next_log(&linfo, 1)) {
       case LOG_INFO_EOF:
 	loop_breaker = (flags & BINLOG_DUMP_NON_BLOCK);
 	break;
@@ -739,17 +746,21 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
     if (tmp->command == COM_BINLOG_DUMP &&
        tmp->server_id == slave_server_id)
     {
-      /*
-	Here we do not call kill_one_thread() as
-	it will be slow because it will iterate through the list
-	again. Plus it double-locks LOCK_tread_count, which
-	make safe_mutex complain and abort.
-	We just to do kill the thread ourselves.
-      */
-      tmp->awake(1/*prepare to die*/);
+      pthread_mutex_lock(&tmp->LOCK_delete);	// Lock from delete
+      break;
     }
   }
   pthread_mutex_unlock(&LOCK_thread_count);
+  if (tmp)
+  {
+    /*
+      Here we do not call kill_one_thread() as
+      it will be slow because it will iterate through the list
+      again. We just to do kill the thread ourselves.
+    */
+    tmp->awake(1/*prepare to die*/);
+    pthread_mutex_unlock(&tmp->LOCK_delete);
+  }
 }
 
 
@@ -927,9 +938,10 @@ int show_binlog_events(THD* thd)
     my_off_t pos = lex_mi->pos;
     char search_file_name[FN_REFLEN], *name;
     const char *log_file_name = lex_mi->log_file_name;
+    pthread_mutex_t *log_lock = mysql_bin_log.get_log_lock();
     LOG_INFO linfo;
     Log_event* ev;
-
+  
     limit_start = thd->lex.select->offset_limit;
     limit_end = thd->lex.select->select_limit + limit_start;
 
@@ -942,7 +954,7 @@ int show_binlog_events(THD* thd)
     linfo.index_file_offset = 0;
     thd->current_linfo = &linfo;
 
-    if (mysql_bin_log.find_log_pos(&linfo, name))
+    if (mysql_bin_log.find_log_pos(&linfo, name, 1))
     {
       errmsg = "Could not find target log";
       goto err;
@@ -957,7 +969,7 @@ int show_binlog_events(THD* thd)
       goto err;
     }
 
-    pthread_mutex_lock(mysql_bin_log.get_log_lock());
+    pthread_mutex_lock(log_lock);
     my_b_seek(&log, pos);
 
     for (event_count = 0;
@@ -968,7 +980,7 @@ int show_binlog_events(THD* thd)
       {
 	errmsg = "Net error";
 	delete ev;
-	pthread_mutex_unlock(mysql_bin_log.get_log_lock());
+	pthread_mutex_unlock(log_lock);
 	goto err;
       }
 
@@ -982,11 +994,11 @@ int show_binlog_events(THD* thd)
     if (event_count < limit_end && log.error)
     {
       errmsg = "Wrong offset or I/O error";
-      pthread_mutex_unlock(mysql_bin_log.get_log_lock());
+      pthread_mutex_unlock(log_lock);
       goto err;
     }
 
-    pthread_mutex_unlock(mysql_bin_log.get_log_lock());
+    pthread_mutex_unlock(log_lock);
   }
 
 err:

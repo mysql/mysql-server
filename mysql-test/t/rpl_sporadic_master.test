@@ -2,7 +2,6 @@
 # COM_BINLOG_DUMP and additionally limits the number of events per dump
 
 source include/master-slave.inc;
-drop table if exists t1,t2;
 
 create table t2(n int);
 create table t1(n int not null auto_increment primary key);
