@@ -38,7 +38,7 @@ $opt_dry_run= undef;
 $opt_export_only= undef;
 $opt_help= $opt_verbose= 0;
 $opt_log= undef;
-$opt_mail= "";
+$opt_mail= "build\@mysql.com";
 $opt_pull= undef;
 $opt_revision= undef;
 $opt_suffix= "";
@@ -431,6 +431,7 @@ Options:
                            include a log file snippet, if logging is enabled)
                            Note that the \@-Sign needs to be quoted!
                            Example: --mail=user\\\@domain.com
+                           Default: build\@mysql.com
 -q, --quiet                Be quiet
 -p, --pull                 Update the source BK trees before building
 -r, --revision=<rev>       Export the tree as of revision <rev>
