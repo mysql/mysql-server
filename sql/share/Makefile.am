@@ -9,10 +9,13 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/charsets/README $(distdir)/charsets
 	$(INSTALL_DATA) $(srcdir)/charsets/Index.xml $(distdir)/charsets
 
-all: @AVAILABLE_LANGUAGES_ERRORS@
+all:	english/errmsg.sys
 
-# this is ugly, but portable
-@AVAILABLE_LANGUAGES_ERRORS_RULES@
+# Use the english errmsg.sys as a flag that all errmsg.sys needs to be
+# created. Normally these are created by extra/Makefile.am
+
+english/errmsg.sys: errmsg.txt
+	$(top_builddir)/extra/comp_err --charset=$(srcdir)/charsets --out-dir=$(top_builddir)/sql/share/ --header_file=$(top_builddir)/extra/mysqld_error.h --state_file=$(top_builddir)/extra/sql_state.h --in_file=errmsg.txt
 
 install-data-local:
 	for lang in @AVAILABLE_LANGUAGES@; \
@@ -20,18 +23,12 @@ install-data-local:
 		$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)/$$lang; \
 		$(INSTALL_DATA) $(srcdir)/$$lang/errmsg.sys \
 			        $(DESTDIR)$(pkgdatadir)/$$lang/errmsg.sys; \
-		$(INSTALL_DATA) $(srcdir)/$$lang/errmsg.txt \
-			        $(DESTDIR)$(pkgdatadir)/$$lang/errmsg.txt; \
 	done
 	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)/charsets
+		$(INSTALL_DATA) $(srcdir)/errmsg.txt \
+	        $(DESTDIR)$(pkgdatadir)/errmsg.txt; \
 	$(INSTALL_DATA) $(srcdir)/charsets/README $(DESTDIR)$(pkgdatadir)/charsets/README
 	$(INSTALL_DATA) $(srcdir)/charsets/*.xml $(DESTDIR)$(pkgdatadir)/charsets
-
-fix_errors:
-	for lang in @AVAILABLE_LANGUAGES@; \
-	do \
-	../../extra/comp_err -C$(srcdir)/charsets/ $(srcdir)/$$lang/errmsg.txt $(srcdir)/$$lang/errmsg.sys; \
-        done
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

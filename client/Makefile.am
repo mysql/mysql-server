@@ -18,7 +18,7 @@
 
 #AUTOMAKE_OPTIONS =              nostdinc
 INCLUDES =			-I$(top_srcdir)/include -I$(top_srcdir)/regex \
-				$(openssl_includes)
+				$(openssl_includes) -I$(top_srcdir)/extra
 LIBS =				@CLIENT_LIBS@
 DEPLIB=				../libmysql/libmysqlclient.la
 LDADD =				@CLIENT_EXTRA_LDFLAGS@ $(DEPLIB)
