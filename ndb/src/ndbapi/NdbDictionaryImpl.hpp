@@ -195,6 +195,7 @@ public:
 
   void setName(const char * name);
   const char * getName() const;
+  void setTable(const NdbDictionary::Table& table);
   void setTable(const char * table);
   const char * getTableName() const;
   void addTableEvent(const NdbDictionary::Event::TableEvent t);
