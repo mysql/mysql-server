@@ -1196,7 +1196,10 @@ bool select_dumpvar::send_data(List<Item> &items)
     DBUG_RETURN(1);
   }
   while ((xx=li++))
+  {
+    xx->check();
     xx->update();
+  }
   DBUG_RETURN(0);
 }
 
