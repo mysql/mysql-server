@@ -1171,7 +1171,10 @@ how you can resolve the problem.\n",
 
 	((row_prebuilt_t*)innobase_prebuilt)->mysql_row_len = table->reclength;
 
-  	primary_key = MAX_KEY;
+	/* Looks like MySQL-3.23 sometimes has primary key number != 0 */
+
+ 	primary_key = table->primary_key;
+	key_used_on_scan = primary_key;
 
 	/* Allocate a buffer for a 'row reference'. A row reference is
 	a string of bytes of length ref_length which uniquely specifies
@@ -1180,13 +1183,14 @@ how you can resolve the problem.\n",
         of length ref_length! */
 
   	if (!row_table_got_default_clust_index(ib_table)) {
+	        if (primary_key >= MAX_KEY) {
+	                fprintf(stderr,
+		    "InnoDB: Error: table %s has a primary key in InnoDB\n"
+		    "InnoDB: data dictionary, but not in MySQL!\n", name);
+		}
 
 		((row_prebuilt_t*)innobase_prebuilt)
 				->clust_index_was_generated = FALSE;
-
-		primary_key = 0;
-		key_used_on_scan = 0;
-
  		/*
 		  MySQL allocates the buffer for ref. key_info->key_length
 		  includes space for all key columns + one byte for each column
@@ -1195,8 +1199,14 @@ how you can resolve the problem.\n",
 		  based on ref_length.
 		*/
  
-  		ref_length = table->key_info->key_length;
+  		ref_length = table->key_info[primary_key].key_length;
 	} else {
+	        if (primary_key != MAX_KEY) {
+	                fprintf(stderr,
+		    "InnoDB: Error: table %s has no primary key in InnoDB\n"
+		    "InnoDB: data dictionary, but has one in MySQL!\n", name);
+		}
+
 		((row_prebuilt_t*)innobase_prebuilt)
 				->clust_index_was_generated = TRUE;
 
@@ -1501,7 +1511,8 @@ ha_innobase::store_key_val_for_row(
 	  are equal
 	*/
 	bzero(buff, (ref_length- (uint) (buff - buff_start)));
-	DBUG_RETURN(ref_length);
+
+	DBUG_RETURN((uint)(buff - buff_start));
 }
 
 /******************************************************************
@@ -2759,7 +2770,11 @@ ha_innobase::position(
 	that len is always fixed for this table. The following assertion
 	checks this. */
   
-	ut_a(len == ref_length);
+	if (len != ref_length) {
+	        fprintf(stderr,
+	 "InnoDB: Error: stored ref len is %lu, but table ref len is %lu\n",
+		  (ulint)len, (ulint)ref_length);
+	}
 }
 
 

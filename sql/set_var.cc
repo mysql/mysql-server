@@ -195,8 +195,6 @@ sys_var_thd_enum	sys_query_cache_type("query_cache_type",
 					     &SV::query_cache_type,
 					     &query_cache_type_typelib);
 #endif /* HAVE_QUERY_CACHE */
-sys_var_bool_ptr	sys_safe_show_db("safe_show_database",
-					 &opt_safe_show_db);
 sys_var_long_ptr	sys_server_id("server_id",&server_id);
 sys_var_bool_ptr	sys_slave_compressed_protocol("slave_compressed_protocol",
 						      &opt_slave_compressed_protocol);
@@ -356,7 +354,6 @@ sys_var *sys_variables[]=
   &sys_read_buff_size,
   &sys_read_rnd_buff_size,
   &sys_rpl_recovery_rank,
-  &sys_safe_show_db,
   &sys_safe_updates,
   &sys_select_limit,
   &sys_server_id,
@@ -499,7 +496,6 @@ struct show_var_st init_vars[]= {
   {sys_query_cache_size.name, (char*) &sys_query_cache_size,	    SHOW_SYS},
   {sys_query_cache_type.name, (char*) &sys_query_cache_type,        SHOW_SYS},
 #endif /* HAVE_QUERY_CACHE */
-  {sys_safe_show_db.name,     (char*) &sys_safe_show_db,            SHOW_SYS},
   {sys_server_id.name,	      (char*) &sys_server_id,		    SHOW_SYS},
   {sys_slave_net_timeout.name,(char*) &sys_slave_net_timeout,	    SHOW_SYS},
   {"skip_external_locking",   (char*) &my_disable_locking,          SHOW_MY_BOOL},

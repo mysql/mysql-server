@@ -108,7 +108,6 @@ show global variables like 'table_type';
 Variable_name	Value
 table_type	INNODB
 set GLOBAL query_cache_size=100000;
-set GLOBAL safe_show_database=0;
 set myisam_max_sort_file_size=10000, GLOBAL myisam_max_sort_file_size=20000;
 show variables like 'myisam_max_sort_file_size';
 Variable_name	Value
@@ -276,7 +275,6 @@ set global query_cache_type=demand;
 set read_buffer_size=100;
 set read_rnd_buffer_size=100;
 set global rpl_recovery_rank=100;
-set global safe_show_database=1;
 set global server_id=100;
 set global slave_net_timeout=100;
 set global slow_launch_time=100;

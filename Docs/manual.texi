@@ -8202,6 +8202,10 @@ The following startup variables/options have been renamed:
 The startup options @code{record_buffer}, @code{sort_buffer} and
 @code{warnings} will still work in MySQL 4.0 but are deprecated.
 @item
+The mysqld option @code{--safe_show_database} doesn't work anymore.  One
+should instead give the @code{SHOW DATABASES} privileges to everyone that
+need to see all databases.
+@item
 The following SQL variables have changed name.
 @c arjen note: New table, not yet measured for O'Reilly/DocBook.
 @multitable @columnfractions .50 .50
@@ -19879,7 +19883,6 @@ differ somewhat:
 | query_cache_limit               | 1048576                      |
 | query_cache_size                | 0                            |
 | query_cache_type                | ON                           |
-| safe_show_database              | OFF                          |
 | server_id                       | 0                            |
 | slave_net_timeout               | 3600                         |
 | skip_external_locking           | ON                           |
@@ -20314,7 +20317,8 @@ This may be set (only numeric) to
 Don't show databases for which the user doesn't have any database or
 table privileges. This can improve security if you're concerned about
 people being able to see what databases other users have. See also
-@code{skip_show_database}.
+@code{skip_show_database}.  This option is deprecated as one should instead
+use the @code{SHOW DATABASES} privilege instead.
 
 @item @code{server_id}
 The value of the @code{--server-id} option.
@@ -20327,7 +20331,7 @@ Is ON if we only allow local (socket) connections.
 
 @item @code{skip_show_database}
 This prevents people from doing @code{SHOW DATABASES} if they don't have
-the @code{PROCESS} privilege. This can improve security if you're
+the @code{SHOW DATABASE} privilege. This can improve security if you're
 concerned about people being able to see what databases other users
 have. See also @code{safe_show_database}.
 
@@ -23683,7 +23687,7 @@ started}, your slaves may fail.
 
 Please see the following table for an indication of master-slave
 compatibility between different versions. With regard to version 4.0,
-we recommend using same version on both sides.
+we recommend using at least 4.0.4 on both sides.
 
 @c FIX arjen 2002-07-17 new table, not yet measured for XML/DocBook.
 @multitable @columnfractions .10 .15 .15 .10 .10 .10
@@ -24350,7 +24354,7 @@ may be used with @code{IO_THREAD} and @code{SQL_THREAD} options. (Slave)
  @tab Re-enables update logging if the user has the @code{SUPER} privilege.
  Ignored otherwise. (Master)
 
-@item @code{GLOBAL SET SQL_SLAVE_SKIP_COUNTER=n}
+@item @code{SET GLOBAL SQL_SLAVE_SKIP_COUNTER=n}
  @tab Skip the next @code{n} events from the master. Only valid when
 the slave thread is not running, otherwise, gives an error. Useful for
 recovering from replication glitches.
@@ -25510,7 +25514,7 @@ temporary table to hold the result.  This typically happens if you do an
 @code{ORDER BY} on a different column set than you did a @code{GROUP
 BY} on.
 
-@item Where used
+@item Using where (was @code{where used})
 A @code{WHERE} clause will be used to restrict which rows will be
 matched against the next table or sent to the client.  If you don't have
 this information and the table is of type @code{ALL} or @code{index},
@@ -25670,7 +25674,7 @@ Executing the @code{EXPLAIN} statement again produces this result:
 
 @example
 table type   possible_keys   key     key_len ref         rows    Extra
-tt    ALL    AssignedPC,ClientID,ActualPC NULL NULL NULL 3872    where used
+tt    ALL    AssignedPC,ClientID,ActualPC NULL NULL NULL 3872    Using where
 do    ALL    PRIMARY         NULL    NULL    NULL        2135
       range checked for each record (key map: 1)
 et_1  ALL    PRIMARY         NULL    NULL    NULL        74
@@ -25696,7 +25700,7 @@ Now @code{EXPLAIN} produces the output shown here:
 @example
 table type   possible_keys   key      key_len ref           rows Extra
 et    ALL    PRIMARY         NULL     NULL    NULL          74
-tt    ref    AssignedPC,     ActualPC 15      et.EMPLOYID   52   where used
+tt    ref    AssignedPC,     ActualPC 15      et.EMPLOYID   52   Using where
              ClientID,
              ActualPC
 et_1  eq_ref PRIMARY         PRIMARY  15      tt.AssignedPC 1
@@ -25719,7 +25723,7 @@ Now the join is perfect, and @code{EXPLAIN} produces this result:
 
 @example
 table type   possible_keys key     key_len ref           rows Extra
-tt    ALL    AssignedPC    NULL    NULL    NULL          3872 where used
+tt    ALL    AssignedPC    NULL    NULL    NULL          3872 Using where
              ClientID,
              ActualPC
 et    eq_ref PRIMARY       PRIMARY 15      tt.ActualPC   1
@@ -28868,7 +28872,6 @@ and if you can use @code{GLOBAL} or @code{SESSION} with them.
 @item read_buffer_size @tab num @tab GLOBAL | SESSION
 @item read_rnd_buffer_size @tab num @tab GLOBAL | SESSION
 @item rpl_recovery_rank @tab num @tab GLOBAL
-@item safe_show_database @tab bool @tab GLOBAL
 @item server_id @tab num @tab GLOBAL
 @item slave_compressed_protocol @tab bool @tab GLOBAL
 @item slave_net_timeout @tab num @tab GLOBAL
@@ -38698,8 +38701,8 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 * Table and index::             Table and Index Structures
 * File space management::       File Space Management and Disk I/O
 * Error handling::              Error Handling
-* InnoDB change history::       InnoDB Change History
 * InnoDB restrictions::         Restrictions on InnoDB Tables
+* InnoDB change history::       InnoDB Change History
 * InnoDB contact information::  InnoDB Contact Information.
 @end menu
 
@@ -50735,6 +50738,7 @@ this means that the version has not yet been released!
 @c Please don't add a new version here without also updating ../configure.in!
 
 @menu
+* News-4.1.x::                  
 * News-4.0.x::                  Changes in release 4.0.x (Beta)
 * News-3.23.x::                 Changes in release 3.23.x (Stable)
 * News-3.22.x::                 Changes in release 3.22.x (Older; Still supported)
@@ -50744,7 +50748,77 @@ this means that the version has not yet been released!
 @end menu
 
 
-@node News-4.0.x, News-3.23.x, News, News
+@node News-4.1.x, News-4.0.x, News, News
+@appendixsec Changes in release 4.1.x (Alpha)
+
+@cindex changes, version 4.1
+
+Version 4.1 of the MySQL server includes many enhancements and new features:
+
+@itemize @bullet
+@item
+Sub selects: @code{SELECT * from t1 where t1.a=(SELECT t2.b FROM t2)}.
+@item
+Character sets to be defined per column, table and database.
+@item
+Unicode (UTF8) support.
+@item
+Derived tables: @code{SELECT a from t1, (select * from t2) WHERE t1.a=t2.a}
+@item
+@code{BTREE} index on @code{HEAP} tables.
+@item
+Support for GIS (Geometrical data).
+@item
+@code{SHOW WARNINGS}; Shows warnings for the last command.
+@end itemize
+
+For a full list of changes, please refer to the changelog sections for
+each individual 4.1.x release.
+
+@menu
+* News-4.1.0::                  
+@end menu
+
+@node News-4.1.0,  , News-4.1.x, News-4.1.x
+@appendixsubsec Changes in release 4.1.0
+@itemize
+@item
+One can specify many temporary directories to be used in a round-robin
+fasion with:  @code{--tmpdir=dirname1:dirname2:dirname3}.
+@item
+Sub selects: @code{SELECT * from t1 where t1.a=(SELECT t2.b FROM t2)}.
+@item
+Character sets to be defined per column, table and database.
+@item
+Unicode (UTF8) support.
+@item
+Derived tables: @code{SELECT a from t1, (select * from t2) WHERE t1.a=t2.a}
+@item
+@code{BTREE} index on @code{HEAP} tables.
+@item
+Faster embedded server.
+@item
+One can add a comment per column in @code{CREATE TABLE}.
+@item
+@code{SHOW FULL COLUMNS FROM table_name} shows column comments.
+@item
+@code{ALTER DATABASE}.
+@item
+Support for GIS (Geometrical data).
+@item
+@code{SHOW WARNINGS}; Shows warnings from the last command.
+@item
+One can specify a column type for a colum in @code{CREATE TABLE
+... SELECT} by defining the column in the @code{CREATE} part
+
+@example
+CREATE TABLE foo (a tinyint not null) SELECT b+1 AS 'a' FROM bar;
+@end example
+
+@end itemize
+
+
+@node News-4.0.x, News-3.23.x, News-4.1.x, News
 @appendixsec Changes in release 4.0.x (Beta)
 
 @cindex changes, version 4.0
@@ -50815,9 +50889,16 @@ each individual 4.0.x release.
 @appendixsubsec Changes in release 4.0.5
 @itemize
 @item
-Removed a condition that temp table with index on column that can be NULL has
-to be MyISAM. This was OK for 3.23, but not needed in 4.*. This resulted in 
-slowdown in many queries since 4.0.2
+When one uses the @code{--open-files-limit=#} option to @code{mysqld_safe}
+it's now passed on to @code{mysqld}
+@item
+Fixed that @code{GROUP BY} on columns that may have a @code{NULL} value
+doesn't always use disk based temporary tables.
+@item
+Changed output from @code{EXPLAIN} from @code{'where used'} to
+@code{'Using where'} to make it more in line with other output.
+@item
+Removed variable @code{safe_show_database} as it was not used anymore.
 @item
 Small code improvement in multi-table updates
 @item
@@ -51684,6 +51765,9 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.54
 @itemize
 @item
+Allow one to start multiple MySQL servers on windows (code backported
+from 4.0.2).
+@item
 Fixed a problem with BDB and @code{ALTER TABLE}.
 @item
 Fixed reference to freed memory when doing complicated @code{GROUP BY
@@ -52510,8 +52594,9 @@ long as @code{server-id} is set and valid @file{master.info} is present.
 Partial updates (terminated with kill) are now logged with a special error
 code to the binary log. Slave will refuse to execute them if the error code
 indicates the update was terminated abnormally, and will have to be recovered
-with @code{SET SQL_SLAVE_SKIP_COUNTER=1; SLAVE START} after a manual sanity
-check/correction of data integrity.
+with @code{SET SQL_SLAVE_SKIP_COUNTER=1; SLAVE START} after a manual
+sanity check/correction of data integrity.  Update: In 4.0.3 and above
+you have to use @code{SET GLOBAL}.
 @item
 Fixed bug that erroneously logged a drop of internal temporary table
 on thread termination to the binary log -- this bug affected replication.
