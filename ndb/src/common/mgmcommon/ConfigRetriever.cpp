@@ -45,8 +45,10 @@
 //****************************************************************************
 //****************************************************************************
 
-ConfigRetriever::ConfigRetriever(Uint32 version, Uint32 node_type) {
-  
+ConfigRetriever::ConfigRetriever(LocalConfig &local_config,
+				 Uint32 version, Uint32 node_type)
+  : _localConfig(local_config)
+{
   m_handle= 0;
   m_version = version;
   m_node_type = node_type;
@@ -66,15 +68,6 @@ ConfigRetriever::~ConfigRetriever(){
  
 int 
 ConfigRetriever::init() {
-  if (!_localConfig.init(m_connectString.c_str(), 
-			 _localConfigFileName.c_str())){
-    
-    setError(CR_ERROR, "error in retrieving contact info for mgmtsrvr");
-    _localConfig.printError();
-    _localConfig.printUsage();
-    return -1;
-  }
-  
   return _ownNodeId = _localConfig._ownNodeId;
 }
 
@@ -228,16 +221,6 @@ ConfigRetriever::setError(ErrorType et, const char * s){
 const char * 
 ConfigRetriever::getErrorString(){
   return errorString.c_str();
-}
-
-void 
-ConfigRetriever::setLocalConfigFileName(const char * localConfigFileName) {
-  _localConfigFileName.assign(localConfigFileName ? localConfigFileName : "");
-}
-
-void 
-ConfigRetriever::setConnectString(const char * connectString) {
-  m_connectString.assign(connectString ? connectString : "");
 }
 
 bool

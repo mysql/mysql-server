@@ -21,6 +21,7 @@
 #include <ndb_types.h>
 
 class ConfigRetriever;
+class LocalConfig;
 
 class Configuration {
 public:
@@ -32,7 +33,7 @@ public:
    */
   bool init(int argc, const char** argv);
 
-  void fetch_configuration();
+  void fetch_configuration(LocalConfig &local_config);
   void setupConfiguration();
   void closeConfiguration();
   
@@ -54,6 +55,7 @@ public:
   const char * programName() const;
   const char * fileSystemPath() const;
   const char * backupFilePath() const;
+  const char * getConnectString() const;
   char * getConnectStringCopy() const;
 
   /**
