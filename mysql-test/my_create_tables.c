@@ -96,6 +96,8 @@ bool create_system_files(const char *mdata,const char *output_file, bool test)
       "Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
       "PRIMARY KEY Host (Host,Db,User),"
       "KEY User (User))"
+      "engine=MyISAM "
+      "CHARACTER SET utf8 COLLATE utf8_bin "
       "comment='Database privileges';\n");
 
     if (test)
@@ -126,9 +128,11 @@ bool create_system_files(const char *mdata,const char *output_file, bool test)
       "Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
       "Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
       "PRIMARY KEY Host (Host,Db))"
-      "comment='Host privileges;"
-      " Merged with database privileges';\n");
+      "engine=MyISAM "
+      "CHARACTER SET utf8 COLLATE utf8_bin "
+      "comment='Host privileges;  Merged with database privileges';\n");
   }
+
 
   if (test_sys_file(mdata,"mysql/user.frm"))
   {
@@ -184,7 +188,10 @@ bool create_system_files(const char *mdata,const char *output_file, bool test)
       "max_updates int(11) unsigned DEFAULT 0  NOT NULL,"
       "max_connections int(11) unsigned DEFAULT 0  NOT NULL,"
       "PRIMARY KEY Host (Host,User)"
-      ") comment='Users and global privileges';\n");
+      ") engine=MyISAM "
+      "CHARACTER SET utf8 COLLATE utf8_bin "
+      "comment='Users and global privileges';\n");
+
 
     if (test)
     {
@@ -238,7 +245,9 @@ bool create_system_files(const char *mdata,const char *output_file, bool test)
       "dl char(128) DEFAULT '' NOT NULL,"
       "type enum ('function','aggregate') NOT NULL,"
       "PRIMARY KEY (name)"
-      ") comment='User defined functions';\n");
+      ") engine=MyISAM "
+      "CHARACTER SET utf8 COLLATE utf8_bin "
+      "comment='User defined functions';\n");
   }
 
   if (test_sys_file(mdata,"mysql/tables_priv.frm"))
@@ -258,7 +267,9 @@ bool create_system_files(const char *mdata,const char *output_file, bool test)
       "  DEFAULT '' NOT NULL,"
       "PRIMARY KEY (Host,Db,User,Table_name),"
       "KEY Grantor (Grantor)"
-      ") comment='Table privileges';\n");
+      ") engine=MyISAM "
+      "CHARACTER SET utf8 COLLATE utf8_bin "
+      "comment='Table privileges';\n");
   }
 
   if (test_sys_file(mdata,"mysql/columns_priv.frm"))
@@ -274,7 +285,9 @@ bool create_system_files(const char *mdata,const char *output_file, bool test)
       "Column_priv set('Select','Insert','Update','References')"
       " DEFAULT '' NOT NULL,"
       "PRIMARY KEY (Host,Db,User,Table_name,Column_name)"
-      ") comment='Column privileges';\n");
+      ") engine=MyISAM "
+      "CHARACTER SET utf8 COLLATE utf8_bin "
+      "comment='Column privileges';\n");
   }
 
   if (test_sys_file(mdata,"mysql/help_topic.frm"))
@@ -289,7 +302,9 @@ bool create_system_files(const char *mdata,const char *output_file, bool test)
       "url              varchar(128) not null,"
       "primary key      (help_topic_id),"
       "unique index     (name)"
-      ") comment='help topics';\n");
+      ") engine=MyISAM "
+      "CHARACTER SET utf8 "
+      "comment='help topics';\n");
   }
 
   if (test_sys_file(mdata,"mysql/help_category.frm"))
@@ -302,7 +317,9 @@ bool create_system_files(const char *mdata,const char *output_file, bool test)
       "url                varchar(128) not null,"
       "primary key        (help_category_id),"
       "unique index       (name)"
-      ") comment='help categories';\n");
+      ") engine=MyISAM "
+      "CHARACTER SET utf8 "
+      "comment='help categories';\n");
   }
 
   if (test_sys_file(mdata,"mysql/help_keyword.frm"))
@@ -313,7 +330,9 @@ bool create_system_files(const char *mdata,const char *output_file, bool test)
       "name             varchar(64) not null,"
       "primary key      (help_keyword_id),"
       "unique index     (name)"
-      ") comment='help keywords';\n");
+      ") engine=MyISAM "
+      "CHARACTER SET utf8 "
+      "comment='help keywords';\n");
   }
 				    
   if (test_sys_file(mdata,"mysql/help_relation.frm"))
@@ -323,7 +342,9 @@ bool create_system_files(const char *mdata,const char *output_file, bool test)
       "help_topic_id int unsigned not null references help_topic,"
       "help_keyword_id int unsigned not null references help_keyword,"
       "primary key      (help_keyword_id, help_topic_id)"
-      ") comment='keyword-topic relation';\n");
+      ") engine=MyISAM "
+      "CHARACTER SET utf8 "
+      "comment='keyword-topic relation';\n");
   }
 
   if (test_sys_file(mdata,"mysql/time_zone_name.frm"))
@@ -333,7 +354,7 @@ bool create_system_files(const char *mdata,const char *output_file, bool test)
       "Name char(64) NOT NULL,"
       "Time_zone_id int unsigned NOT NULL,"
       "PRIMARY KEY Name (Name)"
-      ") DEFAULT CHARACTER SET latin1 "
+      ") engine=MyISAM CHARACTER SET utf8 "
       "comment='Time zone names';\n");
   
     if (test)
@@ -341,7 +362,9 @@ bool create_system_files(const char *mdata,const char *output_file, bool test)
       fprintf(out,
         "INSERT INTO time_zone_name (Name, Time_Zone_id) VALUES"
         "('MET', 1), ('UTC', 2), ('Universal', 2), "
-        "('Europe/Moscow',3), ('leap/Europe/Moscow',4);\n");
+        "('Europe/Moscow',3), ('leap/Europe/Moscow',4),"
+        "('Japan', 5);\n");
+
     }
   }
 
@@ -353,13 +376,13 @@ bool create_system_files(const char *mdata,const char *output_file, bool test)
       "Time_zone_id int unsigned NOT NULL auto_increment,"
       "Use_leap_seconds enum('Y','N') DEFAULT 'N' NOT NULL,"
       "PRIMARY KEY TzId (Time_zone_id)"
-      ") DEFAULT CHARACTER SET latin1 "
+      ") engine=MyISAM CHARACTER SET utf8 "
       "comment='Time zones';\n");
   
     if (test)
     {
       fprintf(out,"INSERT INTO time_zone (Time_zone_id, Use_leap_seconds)"
-                  "VALUES (1,'N'), (2,'N'), (3,'N'), (4,'Y');\n");
+                  "VALUES (1,'N'), (2,'N'), (3,'N'), (4,'Y'), (5,'N');\n");
     }
   }
 
@@ -371,7 +394,7 @@ bool create_system_files(const char *mdata,const char *output_file, bool test)
       "Transition_time bigint signed NOT NULL,"
       "Transition_type_id int unsigned NOT NULL,"
       "PRIMARY KEY TzIdTranTime (Time_zone_id, Transition_time)"
-      ") DEFAULT CHARACTER SET latin1 "
+      ") engine=MyISAM CHARACTER SET utf8 "
       "comment='Time zone transitions';\n");
   
     if (test)
@@ -576,7 +599,9 @@ bool create_system_files(const char *mdata,const char *output_file, bool test)
        ",(4, 2045689222, 8) ,(4, 2058390022, 9)"
        ",(4, 2077138822, 8) ,(4, 2090444422, 9)"
        ",(4, 2108588422, 8) ,(4, 2121894022, 9)"
-       ",(4, 2140038022, 8);\n");
+       ",(4, 2140038022, 8), (5, -1009875600, 1);\n");
+       
+       
     }
   }
 
@@ -590,7 +615,7 @@ bool create_system_files(const char *mdata,const char *output_file, bool test)
       "Is_DST tinyint unsigned DEFAULT 0 NOT NULL,"
       "Abbreviation char(8) DEFAULT '' NOT NULL,"
       "PRIMARY KEY TzIdTrTId (Time_zone_id, Transition_type_id)"
-      ") DEFAULT CHARACTER SET latin1 "
+      ") engine=MyISAM CHARACTER SET utf8 "
       "comment='Time zone transition types';\n");
   
     if (test)
@@ -612,7 +637,9 @@ bool create_system_files(const char *mdata,const char *output_file, bool test)
         ",(4, 4, 10800, 0, 'MSK') ,(4, 5, 14400, 1, 'MSD')"
         ",(4, 6, 18000, 1, 'MSD') ,(4, 7, 7200, 0, 'EET')"
         ",(4, 8, 10800, 0, 'MSK') ,(4, 9, 14400, 1, 'MSD')"
-        ",(4, 10, 10800, 1, 'EEST') ,(4, 11, 7200, 0, 'EET');\n");
+        ",(4, 10, 10800, 1, 'EEST') ,(4, 11, 7200, 0, 'EET')"
+        ",(5, 0, 32400, 0, 'CJT') ,(5, 1, 32400, 0, 'JST');\n");
+	
     }
   }
 
@@ -623,7 +650,7 @@ bool create_system_files(const char *mdata,const char *output_file, bool test)
       "Transition_time bigint signed NOT NULL,"
       "Correction int signed NOT NULL,"
       "PRIMARY KEY TranTime (Transition_time)"
-      ") DEFAULT CHARACTER SET latin1 "
+      ") engine=MyISAM CHARACTER SET utf8 "
       "comment='Leap seconds information for time zones';\n");
   
     if (test)
