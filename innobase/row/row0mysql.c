@@ -741,14 +741,15 @@ run_again:
 }
 
 /*************************************************************************
-Unlocks a table lock possibly reserved by trx. */
+Unlocks all table locks explicitly requested by trx (with LOCK TABLES,
+lock type LOCK_TABLE_EXP). */
 
 void		  	
-row_unlock_table_for_mysql(
-/*=======================*/
+row_unlock_tables_for_mysql(
+/*========================*/
 	trx_t*	trx)	/* in: transaction */
 {
-	if (!trx->n_tables_locked) {
+	if (!trx->n_lock_table_exp) {
 
 		return;
 	}
@@ -3175,7 +3176,12 @@ row_check_table_for_mysql(
 	REPEATABLE READ here */
 
 	prebuilt->trx->isolation_level = TRX_ISO_REPEATABLE_READ;
-	
+
+	/* Enlarge the fatal lock wait timeout during CHECK TABLE. */
+	mutex_enter(&kernel_mutex);
+	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
+	mutex_exit(&kernel_mutex);
+
 	index = dict_table_get_first_index(table);
 
 	while (index != NULL) {
@@ -3222,6 +3228,11 @@ row_check_table_for_mysql(
 
 		ret = DB_ERROR;
 	}
+
+	/* Restore the fatal lock wait timeout after CHECK TABLE. */
+	mutex_enter(&kernel_mutex);
+	srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
+	mutex_exit(&kernel_mutex);
 
 	prebuilt->trx->op_info = "";
 

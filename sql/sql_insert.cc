@@ -1833,9 +1833,13 @@ void select_create::abort()
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     enum db_type table_type=table->db_type;
     if (!table->tmp_table)
+    {
       hash_delete(&open_cache,(byte*) table);
-    if (!create_info->table_existed)
-      quick_rm_table(table_type, create_table->db, create_table->real_name);
+      if (!create_info->table_existed)
+        quick_rm_table(table_type, create_table->db, create_table->real_name);
+    }
+    else if (!create_info->table_existed)
+      close_temporary_table(thd, create_table->db, create_table->real_name);
     table=0;
   }
   VOID(pthread_mutex_unlock(&LOCK_open));

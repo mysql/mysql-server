@@ -133,3 +133,5 @@ columns_priv	CREATE TABLE `columns_priv` (
   `Column_priv` set('Select','Insert','Update','References') NOT NULL default '',
   PRIMARY KEY  (`Host`,`Db`,`User`,`Table_name`,`Column_name`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Column privileges'
+show tables;
+Tables_in_test

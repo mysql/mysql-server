@@ -129,6 +129,18 @@ EXPORTS
 	mysql_stmt_prepare
 	mysql_stmt_init
 	mysql_stmt_insert_id
-        mysql_stmt_attr_get
-        mysql_stmt_attr_set
+	mysql_stmt_attr_get
+	mysql_stmt_attr_set
 	mysql_stmt_field_count
+	client_errors
+	mysql_set_local_infile_default
+	mysql_set_local_infile_handler
+	mysql_disable_reads_from_master
+	mysql_disable_rpl_parse
+	mysql_enable_reads_from_master
+	mysql_enable_rpl_parse
+	mysql_master_query
+	mysql_rpl_parse_enabled
+	mysql_rpl_probe
+	mysql_rpl_query_type
+	mysql_slave_query
