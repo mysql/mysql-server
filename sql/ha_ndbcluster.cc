@@ -2318,7 +2318,7 @@ int ha_ndbcluster::index_last(byte *buf)
       DBUG_RETURN(0);
     }
   }
-  DBUG_RETURN(1);
+  DBUG_RETURN(res);
 }
 
 
