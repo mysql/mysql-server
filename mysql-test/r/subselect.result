@@ -1549,7 +1549,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 3	UNION	t1	system	NULL	NULL	NULL	NULL	1	
 -2	UNION RESULT	<union2>	ALL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1003	select high_priority test.t1.s1 AS `s1` from test.t1
+Note	1003	select test.t1.s1 AS `s1` from test.t1
 drop table t1;
 CREATE TABLE t1 (number char(11) NOT NULL default '') ENGINE=MyISAM CHARSET=latin1;
 INSERT INTO t1 VALUES ('69294728265'),('18621828126'),('89356874041'),('95895001874');
