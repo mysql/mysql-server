@@ -13,11 +13,11 @@ commands="\
 $make -k clean || true 
 /bin/rm -f */.deps/*.P config.cache innobase/config.cache bdb/build_unix/config.cache
 
-if [ ! aclocal ] ; then echo \"Can't execute aclocal\" ; exit 1; fi
-if [ ! autoheader ] ; then echo \"Can't execute autoheader\" ; exit 1; fi
-if [ ! aclocal ] ; then echo \"Can't execute aclocal\" ; exit 1; fi
-if [ ! automake ] ; then echo \"Can't execute automake\" ; exit 1; fi
-if [ ! autoconf ] ; then echo \"Can't execute autoconf\" ; exit 1; fi
+aclocal    || (echo \"Can't execute aclocal\"     && exit 1)
+autoheader || (echo \"Can't execute autoheader\"  && exit 1)
+aclocal    || (echo \"Can't execute aclocal\"     && exit 1)
+automake   || (echo \"Can't execute automake\"    && exit 1)
+autoconf   || (echo \"Can't execute autoconf\"    && exit 1)
 (cd bdb/dist && sh s_all)
 (cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
 if [ -d gemini ]
