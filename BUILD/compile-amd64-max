@@ -2,8 +2,9 @@
 
 path=`dirname $0`
 . "$path/SETUP.sh"
-
-extra_flags="$ppc_cflags $fast_cflags -g"
+base_cxxflags="$amd64_cxxflags $base_cxxflags"
+extra_flags="$amd64_cflags $fast_cflags -g"
+extra_configs="$amd64_configs"
 #strip=yes
 
 extra_configs="$extra_configs $max_configs"
