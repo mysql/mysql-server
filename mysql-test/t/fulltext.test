@@ -17,6 +17,10 @@ select * from t1 where MATCH(a,b) AGAINST ("collections");
 select * from t1 where MATCH(a,b) AGAINST ("indexes");
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
 
+# UNION of fulltext's
+select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
+
+
 # boolean search
 
 select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
