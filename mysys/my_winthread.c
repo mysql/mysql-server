@@ -39,7 +39,7 @@ struct pthread_map
 
 void win_pthread_init(void)
 {
-  pthread_mutex_init(&THR_LOCK_thread,NULL);
+  pthread_mutex_init(&THR_LOCK_thread,MY_MUTEX_INIT_FAST);
 }
 
 /*
