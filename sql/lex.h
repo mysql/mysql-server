@@ -89,6 +89,7 @@ static SYMBOL symbols[] = {
   { "CHECKSUM",		SYM(CHECKSUM_SYM),0,0},
   { "CIPHER",		SYM(CIPHER_SYM),0,0},
   { "CLOSE",		SYM(CLOSE_SYM),0,0},
+  { "COLLATE",		SYM(COLLATE_SYM),0,0},
   { "COLUMN",		SYM(COLUMN_SYM),0,0},
   { "COLUMNS",		SYM(COLUMNS),0,0},
   { "COMMENT",		SYM(COMMENT_SYM),0,0},

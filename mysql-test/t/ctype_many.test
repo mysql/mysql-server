@@ -133,6 +133,8 @@ INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ü','CYR CAPIT E');
 INSERT INTO t1 (koi8_ru_f,comment) VALUES ('à','CYR CAPIT YU');
 INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ñ','CYR CAPIT YA');
 
+SELECT CONVERT(koi8_ru_f USING utf8),MIN(comment),COUNT(*) FROM t1 GROUP BY 1;
+
 ALTER TABLE t1 ADD utf8_f CHAR(32) CHARACTER SET utf8 NOT NULL;
 UPDATE t1 SET utf8_f=CONVERT(koi8_ru_f USING utf8);
 
