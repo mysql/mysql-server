@@ -1587,9 +1587,12 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
         break;
       }
       case SHOW_CHAR:
-	pos= value;
-	end= strend(pos);
+      {
+        if (!(pos= value))
+          pos= "";
+        end= strend(pos);
         break;
+       }
       case SHOW_STARTTIME:
 	nr= (long) (thd->query_start() - start_time);
 	end= int10_to_str(nr, buff, 10);

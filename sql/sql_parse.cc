@@ -794,6 +794,24 @@ check_connections(THD *thd)
 }
 
 
+void init_connect_execute(THD *thd, sys_var_str *init_connect_var)
+{
+  Vio* save_vio;
+  ulong save_client_capabilities;
+
+  thd->proc_info= "Execution of init_connect";
+  thd->query= init_connect_var->value;
+  thd->query_length= init_connect_var->value_length;
+  save_client_capabilities= thd->client_capabilities;
+  thd->client_capabilities|= CLIENT_MULTI_QUERIES;
+  save_vio= thd->net.vio;
+  thd->net.vio= 0;
+  dispatch_command(COM_QUERY, thd, thd->query, thd->query_length+1);
+  thd->client_capabilities= save_client_capabilities;
+  thd->net.vio= save_vio;
+}
+
+
 pthread_handler_decl(handle_one_connection,arg)
 {
   THD *thd=(THD*) arg;
@@ -866,9 +884,35 @@ pthread_handler_decl(handle_one_connection,arg)
     if (thd->client_capabilities & CLIENT_COMPRESS)
       net->compress=1;				// Use compression
 
-    thd->proc_info=0;				// Remove 'login'
-    thd->command=COM_SLEEP;
-    thd->version=refresh_version;
+    thd->version= refresh_version;
+    if (sys_init_connect.value && !(thd->master_access & SUPER_ACL))
+    {
+      rw_wrlock(&LOCK_sys_init_connect);
+      init_connect_execute(thd, &sys_init_connect);
+      rw_unlock(&LOCK_sys_init_connect);
+      if (thd->init_connect_error)
+      {
+        if (thd->user_connect)
+          decrease_user_connections(thd->user_connect);
+        free_root(&thd->mem_root,MYF(0));
+        if (!thd->killed && thd->variables.log_warnings)
+        {
+          sql_print_error(ER(ER_NEW_ABORTING_CONNECTION),
+	          thd->thread_id,(thd->db ? thd->db : "unconnected"),
+	          thd->user ? thd->user : "unauthenticated",
+	          thd->host_or_ip,
+	          "Can't execute init_connect query");
+          statistic_increment(aborted_threads,&LOCK_status);
+        }
+        else if (thd->killed)
+        {
+          statistic_increment(aborted_threads,&LOCK_status);
+        }
+        goto end_thread;
+      }
+    }
+
+    thd->proc_info=0;
     thd->set_time();
     thd->init_for_queries();
     while (!net->error && net->vio != 0 && !thd->killed)
