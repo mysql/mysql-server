@@ -221,7 +221,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 	goto error;
       if (mysql->fields)
       {
-	if (!(res= mysql_use_result(mysql)))
+	if (!(res= (*mysql->methods->use_result)(mysql)))
 	  goto error;
 	mysql_free_result(res);
       }

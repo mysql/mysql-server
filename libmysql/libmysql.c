@@ -279,7 +279,7 @@ my_bool STDCALL mysql_master_query(MYSQL *mysql, const char *q,
   DBUG_ENTER("mysql_master_query");
   if (mysql_master_send_query(mysql, q, length))
     DBUG_RETURN(1);
-  DBUG_RETURN(mysql_read_query_result(mysql));
+  DBUG_RETURN((*mysql->methods->read_query_result)(mysql));
 }
 
 my_bool STDCALL mysql_master_send_query(MYSQL *mysql, const char *q,
@@ -301,7 +301,7 @@ my_bool STDCALL mysql_slave_query(MYSQL *mysql, const char *q,
   DBUG_ENTER("mysql_slave_query");
   if (mysql_slave_send_query(mysql, q, length))
     DBUG_RETURN(1);
-  DBUG_RETURN(mysql_read_query_result(mysql));
+  DBUG_RETURN((*mysql->methods->read_query_result)(mysql));
 }
 
 
@@ -1982,7 +1982,7 @@ static my_bool execute(MYSQL_STMT * stmt, char *packet, ulong length)
   if (cli_advanced_command(mysql, COM_EXECUTE, buff, 
 			    MYSQL_STMT_HEADER, packet, 
 			    length, 1) ||
-      mysql_read_query_result(mysql))
+      (*mysql->methods->read_query_result)(mysql))
   {
     set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
     DBUG_RETURN(1);
@@ -3480,7 +3480,18 @@ my_bool STDCALL mysql_next_result(MYSQL *mysql)
   mysql->affected_rows= ~(my_ulonglong) 0;
 
   if (mysql->last_used_con->server_status & SERVER_MORE_RESULTS_EXISTS)
-    DBUG_RETURN(mysql_read_query_result(mysql));
+    DBUG_RETURN((*mysql->methods->read_query_result)(mysql));
   
   DBUG_RETURN(0);
 }
+
+MYSQL_RES * STDCALL mysql_use_result(MYSQL *mysql)
+{
+  return (*mysql->methods->use_result)(mysql);
+}
+
+my_bool STDCALL mysql_read_query_result(MYSQL *mysql)
+{
+  return (*mysql->methods->read_query_result)(mysql);
+}
+

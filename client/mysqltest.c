@@ -2178,7 +2178,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   if (!(flags & QUERY_REAP))
     DBUG_RETURN(0);
 
-  if (mysql_read_query_result(mysql) ||
+  if ((*mysql->methods->read_query_result)(mysql) ||
       (!(last_result = res = mysql_store_result(mysql)) &&
        mysql_field_count(mysql)))
   {
