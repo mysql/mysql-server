@@ -765,7 +765,13 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 				  &tables_type)))
   {
     NET *net= &thd->net;
-    byte flags= (thd->client_capabilities & CLIENT_LONG_FLAG ? 0x80 : 0);
+    Query_cache_query_flags flags;
+    // fill all gaps between fields with 0 to get repeatable key
+    bzero(&flags, QUERY_CACHE_FLAGS_SIZE);
+    flags.client_long_flag= (thd->client_capabilities & CLIENT_LONG_FLAG ?
+			     1 : 0);
+    flags.charset_num= thd->charset()->number;
+    flags.limit= thd->variables.select_limit;
     STRUCT_LOCK(&structure_guard_mutex);
 
     if (query_cache_size == 0)
@@ -792,23 +798,19 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     {
       DBUG_PRINT("qcache", ("No active database"));
     }
+    tot_length= thd->query_length + thd->db_length + 1 +
+      QUERY_CACHE_FLAGS_SIZE;
     /*
-       Prepare flags:
-       most significant bit - CLIENT_LONG_FLAG,
-       other - charset number (0 no charset convertion)
+      We should only copy structure (don't use it location directly)
+      because of alignment issue
     */
-    flags|= (byte) thd->charset()->number;
-    DBUG_ASSERT(thd->charset()->number < 128);
-    tot_length= thd->query_length+thd->db_length+2+sizeof(ha_rows);
-    thd->query[tot_length-1]= (char) flags;
-    memcpy((void *)(thd->query + (tot_length-sizeof(ha_rows)-1)),
-	   (const void *)&thd->variables.select_limit, sizeof(ha_rows));
+    memcpy((void *)(thd->query + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
+	   &flags, QUERY_CACHE_FLAGS_SIZE);
 
     /* Check if another thread is processing the same query? */
     Query_cache_block *competitor = (Query_cache_block *)
       hash_search(&queries, (byte*) thd->query, tot_length);
-    DBUG_PRINT("qcache", ("competitor 0x%lx, flags %x", (ulong) competitor,
-			flags));
+    DBUG_PRINT("qcache", ("competitor 0x%lx", (ulong) competitor));
     if (competitor == 0)
     {
       /* Query is not in cache and no one is working with it; Store it */
@@ -895,7 +897,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   Query_cache_block *first_result_block, *result_block;
   Query_cache_block_table *block_table, *block_table_end;
   ulong tot_length;
-  byte flags;
+  Query_cache_query_flags flags;
   bool check_tables;
   DBUG_ENTER("Query_cache::send_result_to_client");
 
@@ -932,7 +934,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   }
   Query_cache_block *query_block;
 
-  tot_length= query_length+thd->db_length+2+sizeof(ha_rows);
+  tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
   if (thd->db_length)
   {
     memcpy(sql+query_length+1, thd->db, thd->db_length);
@@ -943,17 +945,15 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   {
     DBUG_PRINT("qcache", ("No active database"));
   }
-  /*
-     prepare flags:
-     Most significant bit - CLIENT_LONG_FLAG,
-     Other - charset number (0 no charset convertion)
-  */
-  flags= (thd->client_capabilities & CLIENT_LONG_FLAG ? 0x80 : 0);
-  flags|= (byte) thd->charset()->number;
-  DBUG_ASSERT(thd->charset()->number < 128);
-  sql[tot_length-1]= (char) flags;
-  memcpy((void *)(sql + (tot_length-sizeof(ha_rows)-1)),
- 	 (const void *)&thd->variables.select_limit, sizeof(ha_rows));
+
+  // fill all gaps between fields with 0 to get repeatable key
+  bzero(&flags, QUERY_CACHE_FLAGS_SIZE);
+  flags.client_long_flag= (thd->client_capabilities & CLIENT_LONG_FLAG ?
+			   1 : 0);
+  flags.charset_num= thd->charset()->number;
+  flags.limit= thd->variables.select_limit;
+  memcpy((void *)(sql + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
+ 	 &flags, QUERY_CACHE_FLAGS_SIZE);
   query_block = (Query_cache_block *)  hash_search(&queries, (byte*) sql,
 						   tot_length);
   /* Quick abort on unlocked data */
@@ -3097,20 +3097,21 @@ void Query_cache::queries_dump()
     {
       uint len;
       char *str = (char*) query_cache_query_get_key((byte*) block, &len, 0);
-      len--;					// Point at flags
-      uint flags = (uint) (uchar) str[len];
-      str[len]=0;
-      DBUG_PRINT("qcache", ("%u (%u,%u) '%s' '%s'",
-			  ((flags & QUERY_CACHE_CLIENT_LONG_FLAG_MASK)? 1:0),
-			  (flags & QUERY_CACHE_CHARSET_CONVERT_MASK), len,
-			    str,strend(str)+1));
+      len-= QUERY_CACHE_FLAGS_SIZE;		  // Point at flags
+      Query_cache_query_flags flags;
+      memcpy(&flags, str+len, QUERY_CACHE_FLAGS_SIZE);
+      str[len]= 0; // make zero ending DB name
+      DBUG_PRINT("qcache", ("F:%u C:%u L:%lu (%u) '%s' '%s'",
+			    flags.client_long_flag,
+			    flags.charset_num, (ulong)flags.limit,
+			    len, str, strend(str)+1));
       DBUG_PRINT("qcache", ("-b- 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", (ulong) block,
 			    (ulong) block->next, (ulong) block->prev,
 			    (ulong)block->pnext, (ulong)block->pprev));
-      str[len]=(char) flags;
-      for (TABLE_COUNTER_TYPE t = 0; t < block->n_tables; t++)
+      memcpy(str + len, &flags, QUERY_CACHE_FLAGS_SIZE); // restore flags
+      for (TABLE_COUNTER_TYPE t= 0; t < block->n_tables; t++)
       {
-	Query_cache_table *table = block->table(t)->parent;
+	Query_cache_table *table= block->table(t)->parent;
 	DBUG_PRINT("qcache", ("-t- '%s' '%s'", table->db(), table->table()));
       }
       Query_cache_query *header = block->query();
