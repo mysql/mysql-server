@@ -20,6 +20,8 @@ dayofmonth("1997-01-02")	dayofmonth(19970323)
 2	23
 month("1997-01-02")	year("98-02-03")	dayofyear("1997-12-31")
 1	1998	365
+month("2001-02-00")	year("2001-00-00")
+2	2001
 DAYOFYEAR("1997-03-03")	WEEK("1998-03-03")	QUARTER(980303)
 62	9	1
 HOUR("1997-03-03 23:03:22")	MINUTE("23:03:22")	SECOND(230322)
@@ -184,6 +186,8 @@ extract(MINUTE_SECOND FROM "10:11:12")
 1112
 extract(SECOND FROM "1999-01-02 10:11:12")
 12
+extract(MONTH FROM "2001-02-00")
+2
 ctime	hour(ctime)
 2001-01-12 12:23:40	12
 monthname(date)
