@@ -508,6 +508,14 @@ public:
 };
 typedef class st_select_lex SELECT_LEX;
 
+#define ALTER_ADD_COLUMN	1
+#define ALTER_DROP_COLUMN	2
+#define ALTER_CHANGE_COLUMN	4
+#define ALTER_ADD_INDEX		8
+#define ALTER_DROP_INDEX	16
+#define ALTER_RENAME		32
+#define ALTER_ORDER		64
+#define ALTER_OPTIONS		128
 
 /* The state of the lex parsing. This is saved in the THD struct */
 
@@ -578,6 +586,7 @@ typedef struct st_lex
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
   uint slave_thd_opt;
+  uint alter_flags;
   uint8 describe;
   bool drop_if_exists, drop_temporary, local_file;
   bool in_comment, ignore_space, verbose, simple_alter, no_write_to_binlog;

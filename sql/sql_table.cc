@@ -385,84 +385,42 @@ void check_duplicates_in_interval(const char *set_or_name,
 }
 
 /*
-  Create a table
+  Preparation for table creation
 
   SYNOPSIS
-    mysql_create_table()
+    mysql_prepare_table()
     thd			Thread object
-    db			Database
-    table_name		Table name
     create_info		Create information (like MAX_ROWS)
     fields		List of fields to create
     keys		List of keys to create
-    tmp_table		Set to 1 if this is an internal temporary table
-			(From ALTER TABLE)
-    no_log		Don't log the query to binary log.
 
   DESCRIPTION
-    If one creates a temporary table, this is automaticly opened
-
-    no_log is needed for the case of CREATE ... SELECT,
-    as the logging will be done later in sql_insert.cc
-    select_field_count is also used for CREATE ... SELECT,
-    and must be zero for standard create of table.
+    Prepares the table and key structures for table creation.
 
   RETURN VALUES
     0	ok
     -1	error
 */
 
-int mysql_create_table(THD *thd,const char *db, const char *table_name,
-		       HA_CREATE_INFO *create_info,
+int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 		       List<create_field> &fields,
-		       List<Key> &keys,bool tmp_table,bool no_log,
-                       uint select_field_count)
+		       List<Key> &keys, bool tmp_table, uint &db_options, 
+		       handler *file, KEY *&key_info_buffer,
+		       uint &key_count, int select_field_count)
 {
-  char		path[FN_REFLEN];
-  const char	*key_name, *alias;
+  const char	*key_name;
   create_field	*sql_field,*dup_field;
-  int		error= -1;
-  uint		db_options,field,null_fields,blob_columns;
+  uint		field,null_fields,blob_columns;
   ulong		pos;
-  KEY	        *key_info,*key_info_buffer;
+  KEY		*key_info;
   KEY_PART_INFO *key_part_info;
-  int		auto_increment=0;
-  handler	*file;
   int           field_no,dup_no;
-  enum db_type	new_db_type;
-  DBUG_ENTER("mysql_create_table");
+  int		select_field_pos,auto_increment=0;
+  DBUG_ENTER("mysql_prepare_table");
 
-  /* Check for duplicate fields and check type of table to create */
-  if (!fields.elements)
-  {
-    my_error(ER_TABLE_MUST_HAVE_COLUMNS,MYF(0));
-    DBUG_RETURN(-1);
-  }
   List_iterator<create_field> it(fields),it2(fields);
-  int select_field_pos=fields.elements - select_field_count;
+  select_field_pos=fields.elements - select_field_count;
   null_fields=blob_columns=0;
-  if ((new_db_type= ha_checktype(create_info->db_type)) !=
-      create_info->db_type)
-  {
-    create_info->db_type= new_db_type;
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-			ER_WARN_USING_OTHER_HANDLER,
-			ER(ER_WARN_USING_OTHER_HANDLER),
-			ha_get_storage_engine(new_db_type),
-			table_name);
-  }
-  db_options=create_info->table_options;
-  if (create_info->row_type == ROW_TYPE_DYNAMIC)
-    db_options|=HA_OPTION_PACK_RECORD;
-  alias= table_case_name(create_info, table_name);
-  file=get_new_handler((TABLE*) 0, create_info->db_type);
-
-  if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      (file->table_flags() & HA_NO_TEMP_TABLES))
-  {
-    my_error(ER_ILLEGAL_HA,MYF(0),table_name);
-    DBUG_RETURN(-1);
-  }
 
   for (field_no=0; (sql_field=it++) ; field_no++)
   {
@@ -649,13 +607,14 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   /* Create keys */
 
   List_iterator<Key> key_iterator(keys);
-  uint key_parts=0, key_count=0, fk_key_count=0;
+  uint key_parts=0, fk_key_count=0;
   List<Key> keys_in_order;			// Add new keys here
   bool primary_key=0,unique_key=0;
   Key *key;
   uint tmp, key_number;
 
   /* Calculate number of key segements */
+  key_count=0;
 
   while ((key=key_iterator++))
   {
@@ -1028,6 +987,87 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   }
   /* Sort keys in optimized order */
   qsort((gptr) key_info_buffer, key_count, sizeof(KEY), (qsort_cmp) sort_keys);
+
+  DBUG_RETURN(0);
+}
+
+/*
+  Create a table
+
+  SYNOPSIS
+    mysql_create_table()
+    thd			Thread object
+    db			Database
+    table_name		Table name
+    create_info		Create information (like MAX_ROWS)
+    fields		List of fields to create
+    keys		List of keys to create
+    tmp_table		Set to 1 if this is an internal temporary table
+			(From ALTER TABLE)
+    no_log		Don't log the query to binary log.
+
+  DESCRIPTION
+    If one creates a temporary table, this is automaticly opened
+
+    no_log is needed for the case of CREATE ... SELECT,
+    as the logging will be done later in sql_insert.cc
+    select_field_count is also used for CREATE ... SELECT,
+    and must be zero for standard create of table.
+
+  RETURN VALUES
+    0	ok
+    -1	error
+*/
+
+int mysql_create_table(THD *thd,const char *db, const char *table_name,
+		       HA_CREATE_INFO *create_info,
+		       List<create_field> &fields,
+		       List<Key> &keys,bool tmp_table,bool no_log,
+                       uint select_field_count)
+{
+  char		path[FN_REFLEN];
+  const char	*alias;
+  int		error= -1;
+  uint		db_options, key_count;
+  KEY	        *key_info_buffer;
+  handler	*file;
+  enum db_type	new_db_type;
+  DBUG_ENTER("mysql_create_table");
+
+  /* Check for duplicate fields and check type of table to create */
+  if (!fields.elements)
+  {
+    my_error(ER_TABLE_MUST_HAVE_COLUMNS,MYF(0));
+    DBUG_RETURN(-1);
+  }
+  if ((new_db_type= ha_checktype(create_info->db_type)) !=
+      create_info->db_type)
+  {
+    create_info->db_type= new_db_type;
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_WARN_USING_OTHER_HANDLER,
+			ER(ER_WARN_USING_OTHER_HANDLER),
+			ha_get_storage_engine(new_db_type),
+			table_name);
+  }
+  db_options=create_info->table_options;
+  if (create_info->row_type == ROW_TYPE_DYNAMIC)
+    db_options|=HA_OPTION_PACK_RECORD;
+  alias= table_case_name(create_info, table_name);
+  file=get_new_handler((TABLE*) 0, create_info->db_type);
+
+  if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      (file->table_flags() & HA_NO_TEMP_TABLES))
+  {
+    my_error(ER_ILLEGAL_HA,MYF(0),table_name);
+    DBUG_RETURN(-1);
+  }
+
+  if (mysql_prepare_table(thd, create_info, fields,
+  			  keys, tmp_table, db_options, file, 
+			  key_info_buffer, key_count,
+			  select_field_count))
+    DBUG_RETURN(-1);
 
       /* Check if table exists */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
@@ -2064,19 +2104,311 @@ err:
   DBUG_RETURN(error);
 }
 
+/*
+  CREATE INDEX and DROP INDEX are implemented by calling ALTER TABLE with
+  the proper arguments.  This isn't very fast but it should work for most
+  cases.
+  One should normally create all indexes with CREATE TABLE or ALTER TABLE.
+*/
+
+int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
+{
+  List<create_field> fields;
+  List<Alter_drop>   drop;
+  List<Alter_column> alter;
+  HA_CREATE_INFO     create_info;
+  int                rc;
+  uint               idx;
+  uint	             db_options;
+  uint               key_count;
+  TABLE              *table;
+  Field              **f_ptr;
+  KEY                *key_info_buffer;
+  char		     path[FN_REFLEN];
+  DBUG_ENTER("mysql_create_index");
+
+  /*
+      Try to use online generation of index.
+      This requires that all indexes can be created online.
+      Otherwise, the old alter table procedure is executed.
+
+      Open the table to have access to the correct table handler.
+   */
+  if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
+    DBUG_RETURN(-1);
+
+  /*
+      The add_index method takes an array of KEY structs for the new indexes.
+      Preparing a new table structure generates this array.
+      It needs a list with all fields of the table, which does not need to
+      be correct in every respect. The field names are important.
+   */
+  for (f_ptr= table->field; *f_ptr; f_ptr++)
+  {
+    create_field *c_fld= new create_field(*f_ptr, *f_ptr);
+    c_fld->unireg_check= Field::NONE; /*avoid multiple auto_increments*/
+    fields.push_back(c_fld);
+  }
+  bzero((char*) &create_info,sizeof(create_info));
+  create_info.db_type=DB_TYPE_DEFAULT;
+  create_info.default_table_charset= thd->variables.collation_database;
+  db_options= 0;
+  if (mysql_prepare_table(thd, &create_info, fields,
+  			  keys, /*tmp_table*/ 0, db_options, table->file, 
+			  key_info_buffer, key_count,
+			  /*select_field_count*/ 0))
+    DBUG_RETURN(-1);
+
+  /*
+      Check if all keys can be generated with the add_index method.
+      If anyone cannot, then take the old way.
+   */
+  for (idx=0; idx< key_count; idx++)
+  {
+    DBUG_PRINT("info", ("creating index %s", key_info_buffer[idx].name));
+    if (!(table->file->index_ddl_flags(key_info_buffer+idx)&
+          (HA_DDL_ONLINE| HA_DDL_WITH_LOCK)))
+      break ;
+  }
+  if ((idx < key_count)|| (key_count<= 0))
+  {
+    /* Re-initialize the create_info, which was changed by prepare table. */
+    bzero((char*) &create_info,sizeof(create_info));
+    create_info.db_type=DB_TYPE_DEFAULT;
+    create_info.default_table_charset= thd->variables.collation_database;
+    /* Cleanup the fields list. We do not want to create existing fields. */
+    fields.delete_elements();
+    if (real_alter_table(thd, table_list->db, table_list->real_name,
+                         &create_info, table_list, table,
+                         fields, keys, drop, alter, 0, (ORDER*)0,
+                         ALTER_ADD_INDEX, DUP_ERROR))
+      /*don't need to free((gptr) key_info_buffer);*/
+      DBUG_RETURN(-1);
+  }
+  else
+  {
+    if (table->file->add_index(table, key_info_buffer, key_count)||
+        ((void) sprintf(path, "%s/%s/%s%s", mysql_data_home, table_list->db,
+                        (lower_case_table_names == 2)? table_list->alias:
+                        table_list->real_name, reg_ext), 0)||
+        ! unpack_filename(path, path)||
+        mysql_create_frm(thd, path, &create_info,
+                         fields, key_count, key_info_buffer, table->file))
+      /*don't need to free((gptr) key_info_buffer);*/
+      DBUG_RETURN(-1);
+  }
+
+  /*don't need to free((gptr) key_info_buffer);*/
+  DBUG_RETURN(0);
+}
+
+
+int mysql_drop_index(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
+{
+  List<create_field> fields;
+  List<Key>          keys;
+  List<Alter_column> alter;
+  HA_CREATE_INFO     create_info;
+  uint               idx;
+  uint	             db_options;
+  uint               key_count;
+  uint               *key_numbers;
+  TABLE              *table;
+  Field              **f_ptr;
+  KEY                *key_info;
+  KEY                *key_info_buffer;
+  char		     path[FN_REFLEN];
+  DBUG_ENTER("mysql_drop_index");
+
+  /*
+      Try to use online generation of index.
+      This requires that all indexes can be created online.
+      Otherwise, the old alter table procedure is executed.
+
+      Open the table to have access to the correct table handler.
+   */
+  if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
+    DBUG_RETURN(-1);
+
+  /*
+      The drop_index method takes an array of key numbers.
+      It cannot get more entries than keys in the table.
+   */
+  key_numbers= (uint*) thd->alloc(sizeof(uint*)*table->keys);
+  key_count= 0;
+
+  /*
+      Get the number of each key and check if it can be created online.
+   */
+  List_iterator<Alter_drop> drop_it(drop);
+  Alter_drop *drop_key;
+  while ((drop_key= drop_it++))
+  {
+    /* Find the key in the table. */
+    key_info=table->key_info;
+    for (idx=0; idx< table->keys; idx++, key_info++)
+    {
+      if (!my_strcasecmp(system_charset_info, key_info->name, drop_key->name))
+	break;
+    }
+    if (idx>= table->keys)
+    {
+      my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop_key->name);
+      /*don't need to free((gptr) key_numbers);*/
+      DBUG_RETURN(-1);
+    }
+    /*
+        Check if the key can be generated with the add_index method.
+        If anyone cannot, then take the old way.
+     */
+    DBUG_PRINT("info", ("dropping index %s", table->key_info[idx].name));
+    if (!(table->file->index_ddl_flags(table->key_info+idx)&
+          (HA_DDL_ONLINE| HA_DDL_WITH_LOCK)))
+      break ;
+    key_numbers[key_count++]= idx;
+  }
+
+  bzero((char*) &create_info,sizeof(create_info));
+  create_info.db_type=DB_TYPE_DEFAULT;
+  create_info.default_table_charset= thd->variables.collation_database;
+
+  if ((drop_key)|| (drop.elements<= 0))
+  {
+    if (real_alter_table(thd, table_list->db, table_list->real_name,
+                         &create_info, table_list, table,
+                         fields, keys, drop, alter, 0, (ORDER*)0,
+                         ALTER_DROP_INDEX, DUP_ERROR))
+      /*don't need to free((gptr) key_numbers);*/
+      DBUG_RETURN(-1);
+  }
+  else
+  {
+    db_options= 0;
+    if (table->file->drop_index(table, key_numbers, key_count)||
+        mysql_prepare_table(thd, &create_info, fields,
+                            keys, /*tmp_table*/ 0, db_options, table->file, 
+                            key_info_buffer, key_count,
+                            /*select_field_count*/ 0)||
+        ((void) sprintf(path, "%s/%s/%s%s", mysql_data_home, table_list->db,
+                     (lower_case_table_names == 2)? table_list->alias:
+                        table_list->real_name, reg_ext), 0)||
+        ! unpack_filename(path, path)||
+        mysql_create_frm(thd, path, &create_info,
+                         fields, key_count, key_info_buffer, table->file))
+      /*don't need to free((gptr) key_numbers);*/
+      DBUG_RETURN(-1);
+  }
+
+  /*don't need to free((gptr) key_numbers);*/
+  DBUG_RETURN(0);
+}
+
+int mysql_add_column(THD *thd, TABLE_LIST *table_list, 
+		     List<create_field> &fields)
+{
+  List<Alter_drop> drop;
+  List<Key> keys;
+  List<Alter_column> alter;
+  HA_CREATE_INFO create_info;
+  DBUG_ENTER("mysql_add_column");
+  bzero((char*) &create_info,sizeof(create_info));
+  create_info.db_type=DB_TYPE_DEFAULT;
+  create_info.default_table_charset= thd->variables.collation_database;
+  TABLE *table;
+  if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
+    DBUG_RETURN(-1);
+
+  DBUG_RETURN(real_alter_table(thd,table_list->db,table_list->real_name,
+			       &create_info, table_list, table,
+			       fields, keys, drop, alter, 0, (ORDER*)0,
+			       ALTER_ADD_COLUMN, DUP_ERROR));
+}
+
+int mysql_drop_column(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
+{
+  List<create_field> fields;
+  List<Key> keys;
+  List<Alter_column> alter;
+  HA_CREATE_INFO create_info;
+  DBUG_ENTER("mysql_drop_column");
+  bzero((char*) &create_info,sizeof(create_info));
+  create_info.db_type=DB_TYPE_DEFAULT;
+  create_info.default_table_charset= thd->variables.collation_database;
+  TABLE *table;
+  if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
+    DBUG_RETURN(-1);
+
+  DBUG_RETURN(real_alter_table(thd,table_list->db,table_list->real_name,
+			       &create_info, table_list, table,
+			       fields, keys, drop, alter, 0, (ORDER*)0,
+			       ALTER_DROP_COLUMN, DUP_ERROR));
+}
+
 int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 		      HA_CREATE_INFO *create_info,
 		      TABLE_LIST *table_list,
 		      List<create_field> &fields,
 		      List<Key> &keys,List<Alter_drop> &drop_list,
 		      List<Alter_column> &alter_list,
-                      uint order_num, ORDER *order,
+                      uint order_num, ORDER *order, int alter_flags,
 		      enum enum_duplicates handle_duplicates,
 	              enum enum_enable_or_disable keys_onoff,
 		      enum tablespace_op_type tablespace_op,
                       bool simple_alter)
 {
-  TABLE *table,*new_table;
+  DBUG_ENTER("mysql_alter_table");
+
+  /* !!!!!!!! WARNING: This comment must be removed after a decision !!!!!!!!!
+     I'm not sure if the next two commands are at the right place here.
+     I guess that closing all is necessary before table dropping which is
+     part of alter table, but may be harmful before online DDLs.
+     So I would put both behind the DDL branches right before open_ltable.
+     !!!!!!!! WARNING: This comment must be removed after a decision !!!!!! */
+  mysql_ha_closeall(thd, table_list);
+
+  /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
+  if (tablespace_op != NO_TABLESPACE_OP)
+    DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
+						   tablespace_op));
+
+  if (alter_flags == ALTER_ADD_INDEX)
+    DBUG_RETURN(mysql_create_index(thd, table_list, keys));
+    
+  if (alter_flags == ALTER_DROP_INDEX)
+    DBUG_RETURN(mysql_drop_index(thd, table_list, drop_list));
+
+  if (alter_flags == ALTER_ADD_COLUMN)
+    DBUG_RETURN(mysql_add_column(thd, table_list, fields));
+  
+  if (alter_flags == ALTER_DROP_COLUMN)
+    DBUG_RETURN(mysql_drop_column(thd, table_list, drop_list));
+
+  TABLE *table;
+  if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
+    DBUG_RETURN(-1);
+
+  DBUG_RETURN(real_alter_table(thd, new_db, new_name,
+  				create_info, table_list, table, fields,
+				keys, drop_list, alter_list,
+				order_num, order, alter_flags,
+				handle_duplicates, keys_onoff,
+				tablespace_op, simple_alter));
+}
+
+int real_alter_table(THD *thd,char *new_db, char *new_name,
+		     HA_CREATE_INFO *create_info,
+		     TABLE_LIST *table_list,
+                     TABLE *table,
+		     List<create_field> &fields,
+		     List<Key> &keys,List<Alter_drop> &drop_list,
+		     List<Alter_column> &alter_list,
+                     uint order_num, ORDER *order, int alter_flags,
+		     enum enum_duplicates handle_duplicates,
+	             enum enum_enable_or_disable keys_onoff,
+		     enum tablespace_op_type tablespace_op,
+                     bool simple_alter)
+{
+  TABLE *new_table;
   int error;
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN];
   char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
@@ -2086,7 +2418,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   ulonglong next_insert_id;
   uint save_time_stamp,db_create_options, used_fields;
   enum db_type old_db_type,new_db_type;
-  DBUG_ENTER("mysql_alter_table");
+  DBUG_ENTER("real_alter_table");
 
   thd->proc_info="init";
   table_name=table_list->real_name;
@@ -2098,15 +2430,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     new_db= db;
   }
   used_fields=create_info->used_fields;
-
-  mysql_ha_closeall(thd, table_list);
-
-  /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
-  if (tablespace_op != NO_TABLESPACE_OP)
-    DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
-						   tablespace_op));
-  if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
-    DBUG_RETURN(-1);
 
   /* Check that we are not trying to rename to an existing table */
   if (new_name)
