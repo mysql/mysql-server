@@ -366,7 +366,7 @@ mach_read_from_6(
 }
 
 /*************************************************************
-Writes a dulint in a compressed form. */
+Writes a dulint in a compressed form (5..9 bytes). */
 UNIV_INLINE
 ulint
 mach_dulint_write_compressed(
@@ -422,7 +422,7 @@ mach_dulint_read_compressed(
 }
 
 /*************************************************************
-Writes a dulint in a compressed form. */
+Writes a dulint in a compressed form (1..11 bytes). */
 UNIV_INLINE
 ulint
 mach_dulint_write_much_compressed(
