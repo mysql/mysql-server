@@ -3526,6 +3526,7 @@ enum options_mysqld {
   OPT_INNODB_FORCE_RECOVERY,
   OPT_INNODB_STATUS_FILE,
   OPT_INNODB_MAX_DIRTY_PAGES_PCT,
+  OPT_INNODB_TABLE_LOCKS_OLD_BEHAVIOR,
   OPT_BDB_CACHE_SIZE,
   OPT_BDB_LOG_BUFFER_SIZE,
   OPT_BDB_MAX_LOCK,
@@ -3699,7 +3700,11 @@ struct my_option my_long_options[] =
   {"innodb_max_dirty_pages_pct", OPT_INNODB_MAX_DIRTY_PAGES_PCT,
    "Percentage of dirty pages allowed in bufferpool", (gptr*) &srv_max_buf_pool_modified_pct,
    (gptr*) &srv_max_buf_pool_modified_pct, 0, GET_ULONG, REQUIRED_ARG, 90, 0, 100, 0, 0, 0},
-   
+  {"innodb_table_locks_old_behavior", OPT_INNODB_TABLE_LOCKS_OLD_BEHAVIOR,
+   "Disable InnoDB locking in LOCK TABLES",
+   (gptr*) &global_system_variables.innodb_table_locks_old_behavior,
+   (gptr*) &global_system_variables.innodb_table_locks_old_behavior,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif /* End HAVE_INNOBASE_DB */
   {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},

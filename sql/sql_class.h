@@ -338,6 +338,9 @@ struct system_variables
   my_bool low_priority_updates;
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;
+#ifdef HAVE_INNOBASE_DB
+  my_bool innodb_table_locks_old_behavior;
+#endif /* HAVE_INNOBASE_DB */
 
   CONVERT *convert_set;
 };
