@@ -974,9 +974,10 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
 			    &min_length,&max_length);
     else
     {
+      CHARSET_INFO *charset=((Field_str*)(field))->charset();
 #ifdef USE_STRCOLL
-      if (use_strcoll(default_charset_info))
-        like_error= my_like_range(default_charset_info,
+      if (use_strcoll(charset))
+        like_error= my_like_range(charset,
                                   res->ptr(),res->length(),wild_prefix,
                                   field_length, min_str+maybe_null,
                                   max_str+maybe_null,&min_length,&max_length);
@@ -985,7 +986,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
         like_error=like_range(res->ptr(),res->length(),wild_prefix,
 			      field_length,
                               min_str+offset,max_str+offset,
-                              default_charset_info->max_sort_char,
+                              charset->max_sort_char,
                               &min_length,&max_length);
     }
     if (like_error)				// Can't optimize with LIKE

@@ -205,7 +205,7 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
 
  err:
 #ifdef USE_STRCOLL
-  if (use_strcoll(default_charset_info))
+  if (param.tmp_buffer)
     x_free(param.tmp_buffer);
 #endif
   x_free((gptr) sort_keys);
@@ -470,6 +470,9 @@ static void make_sortkey(register SORTPARAM *param,
       switch (sort_field->result_type) {
       case STRING_RESULT:
 	{
+          // BAR TODO: need checking that it is really Field_str based class
+          CHARSET_INFO *cs=((Field_str*)(sort_field->field))->charset();
+          
 	  if (item->maybe_null)
 	    *to++=1;
 	  /* All item->str() to use some extra byte for end null.. */
@@ -495,7 +498,7 @@ static void make_sortkey(register SORTPARAM *param,
 	    length=sort_field->length;
 	  }
 #ifdef USE_STRCOLL
-          if (use_strcoll(default_charset_info))
+          if(use_strcoll(cs))
           {
             if (item->binary)
             {
@@ -512,8 +515,7 @@ static void make_sortkey(register SORTPARAM *param,
                 memcpy(param->tmp_buffer,from,length);
                 from=param->tmp_buffer;
               }
-              uint tmp_length=my_strnxfrm(default_charset_info,
-                                          to,sort_field->length,
+              uint tmp_length=my_strnxfrm(cs,to,sort_field->length,
                                           (unsigned char *) from, length);
               if (tmp_length < sort_field->length)
                 bzero((char*) to+tmp_length,sort_field->length-tmp_length);
@@ -526,7 +528,7 @@ static void make_sortkey(register SORTPARAM *param,
               memcpy(to,res->ptr(),length);
             bzero((char *)to+length,diff);
             if (!item->binary)
-              case_sort(default_charset_info, (char*) to,length);
+              case_sort(cs, (char*) to,length);
 #ifdef USE_STRCOLL
           }
 #endif
@@ -923,8 +925,10 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
       {
 	sortorder->length=sortorder->field->pack_length();
 #ifdef USE_STRCOLL
-	if (use_strcoll(default_charset_info) && !sortorder->field->binary())
-	  sortorder->length= sortorder->length*default_charset_info->strxfrm_multiply;
+	// BAR TODO: need checking that it is really Field_str based class
+	CHARSET_INFO *cs=((Field_str*)(sortorder->field))->charset();
+	if (use_strcoll(cs) && !sortorder->field->binary())
+	  sortorder->length= sortorder->length*cs->strxfrm_multiply;
 #endif
       }
       if (sortorder->field->maybe_null())
@@ -932,12 +936,16 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
     }
     else
     {
+#ifdef USE_STRCOLL
+      // BAR TODO: need checking that it is really Field_str based class
+      CHARSET_INFO *cs=((Field_str*)(sortorder->field))->charset();
+#endif
       switch ((sortorder->result_type=sortorder->item->result_type())) {
       case STRING_RESULT:
 	sortorder->length=sortorder->item->max_length;
 #ifdef USE_STRCOLL
-	if (use_strcoll(default_charset_info) && !sortorder->item->binary)
-	  sortorder->length= sortorder->length*default_charset_info->strxfrm_multiply;
+	if (use_strcoll(cs) && !sortorder->item->binary)
+	  sortorder->length= sortorder->length*cs->strxfrm_multiply;
 #endif
 	break;
       case INT_RESULT:

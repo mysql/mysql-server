@@ -251,6 +251,7 @@ public:
   friend class create_field;
   void make_field(Send_field *);
   uint size_of() const { return sizeof(*this); }
+  inline CHARSET_INFO *charset() const { return field_charset; }
   inline int cmp_image(char *buff,uint length)
     {
       if (binary())
