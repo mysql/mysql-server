@@ -108,8 +108,8 @@ AsyncFile::AsyncFile() :
 }
 
 void
-AsyncFile::doStart(const char * filesystemPath) {
-  theFileName.init(filesystemPath);
+AsyncFile::doStart(Uint32 nodeId, const char * filesystemPath) {
+  theFileName.init(nodeId, filesystemPath);
 
   // Stacksize for filesystem threads
   // An 8k stack should be enough

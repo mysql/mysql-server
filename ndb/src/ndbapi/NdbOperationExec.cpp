@@ -14,18 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
-/***************************************************************************
-Name:          NdbOperationExec.C 
-Include:
-Link:
-Author:        UABRONM Mikael Ronström UAB/M/MT        Jonas Kamf UAB/M/MT 
-Date:          2001-10-16
-Version:       1.2
-Description:   
-Documentation:
-***************************************************************************/
-
+#include <ndb_global.h>
 #include <NdbOperation.hpp>
 #include <NdbConnection.hpp>
 #include "NdbApiSignal.hpp"
