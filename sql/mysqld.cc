@@ -2976,7 +2976,12 @@ CHANGEABLE_VAR changeable_vars[] = {
   { "long_query_time",         (long*) &long_query_time,
       10, 1, LONG_TIMEOUT, 0, 1 },
   { "lower_case_table_names",  (long*) &lower_case_table_names,
-      IF_WIN(1,0), 0, 1, 0, 1 },
+#ifdef FN_NO_CASE_SENCE
+    1
+#else
+    0
+#endif
+    ,0, 1, 0, 1 },
   { "max_allowed_packet",      (long*) &max_allowed_packet,
       1024*1024L, 80, 64*1024*1024L, MALLOC_OVERHEAD, 1024 },
   { "max_binlog_cache_size",   (long*) &max_binlog_cache_size,
