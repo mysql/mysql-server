@@ -1628,8 +1628,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   thd->restore_backup_statement(stmt, &thd->stmt_backup);
   cleanup_items(stmt->free_list);
   close_thread_tables(thd);
-  free_items(thd->free_list);
-  thd->free_list= 0;
+  thd->cleanup_after_query();
   thd->current_arena= thd;
 
   if (error)
@@ -1856,12 +1855,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     cleanup_items(stmt->free_list);
     reset_stmt_params(stmt);
     close_thread_tables(thd);                   /* to close derived tables */
-    /*
-      Free items that were created during this execution of the PS by
-      query optimizer.
-    */
-    free_items(thd->free_list);
-    thd->free_list= 0;
+    thd->cleanup_after_query();
   }
 
   thd->set_statement(&thd->stmt_backup);
@@ -1969,13 +1963,8 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
   reset_stmt_params(stmt);
   close_thread_tables(thd);                    // to close derived tables
   thd->set_statement(&thd->stmt_backup);
-  /* Free Items that were created during this execution of the PS. */
-  free_items(thd->free_list);
-  /*
-    In the rest of prepared statements code we assume that free_list
-    never points to garbage: keep this predicate true.
-  */
-  thd->free_list= 0;
+  thd->cleanup_after_query();
+
   if (stmt->state == Item_arena::PREPARED)
   {
     thd->current_arena= thd;

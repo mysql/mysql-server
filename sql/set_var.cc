@@ -127,6 +127,11 @@ static byte *get_warning_count(THD *thd);
   alphabetic order
 */
 
+sys_var_thd_ulong	sys_auto_increment_increment("auto_increment_increment",
+                                                     &SV::auto_increment_increment);
+sys_var_thd_ulong	sys_auto_increment_offset("auto_increment_offset",
+                                                  &SV::auto_increment_offset);
+
 sys_var_long_ptr	sys_binlog_cache_size("binlog_cache_size",
 					      &binlog_cache_size);
 sys_var_thd_ulong	sys_bulk_insert_buff_size("bulk_insert_buffer_size",
@@ -476,6 +481,8 @@ sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 sys_var *sys_variables[]=
 {
   &sys_auto_is_null,
+  &sys_auto_increment_increment,
+  &sys_auto_increment_offset,
   &sys_autocommit,
   &sys_big_tables,
   &sys_big_selects,
@@ -624,6 +631,8 @@ sys_var *sys_variables[]=
 */
 
 struct show_var_st init_vars[]= {
+  {"auto_incrememt_increment", (char*) &sys_auto_increment_increment, SHOW_SYS},
+  {"auto_increment_offset",   (char*) &sys_auto_increment_offset, SHOW_SYS},
   {"back_log",                (char*) &back_log,                    SHOW_LONG},
   {"basedir",                 mysql_home,                           SHOW_CHAR},
 #ifdef HAVE_BERKELEY_DB

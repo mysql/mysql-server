@@ -404,7 +404,8 @@ public:
   */
   virtual int delete_all_rows()
   { return (my_errno=HA_ERR_WRONG_COMMAND); }
-  virtual longlong get_auto_increment();
+  virtual ulonglong get_auto_increment();
+  virtual void restore_auto_increment();
   virtual void update_create_info(HA_CREATE_INFO *create_info) {}
 
   /* admin commands - called from mysql_admin_table */

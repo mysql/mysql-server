@@ -484,7 +484,7 @@ void ha_heap::update_create_info(HA_CREATE_INFO *create_info)
     create_info->auto_increment_value= auto_increment_value;
 }
 
-longlong ha_heap::get_auto_increment()
+ulonglong ha_heap::get_auto_increment()
 {
   ha_heap::info(HA_STATUS_AUTO);
   return auto_increment_value;

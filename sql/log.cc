@@ -366,12 +366,11 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
       Format_description_log_event s(BINLOG_VERSION);
       if (!s.is_valid())
         goto err;
-      s.set_log_pos(this);
       if (null_created_arg)
         s.created= 0;
       if (s.write(&log_file))
         goto err;
-      bytes_written+= s.get_event_len();
+      bytes_written+= s.data_written;
     }
     if (description_event_for_queue &&
         description_event_for_queue->binlog_version>=4)
@@ -386,24 +385,24 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
         has been produced by
         Format_description_log_event::Format_description_log_event(char*
         buf,).
-        Why don't we want to write the description_event_for_queue if this event
-        is for format<4 (3.23 or 4.x): this is because in that case, the
-        description_event_for_queue describes the data received from the master,
-        but not the data written to the relay log (*conversion*), which is in
-        format 4 (slave's).
+        Why don't we want to write the description_event_for_queue if this
+        event is for format<4 (3.23 or 4.x): this is because in that case, the
+        description_event_for_queue describes the data received from the
+        master, but not the data written to the relay log (*conversion*),
+        which is in format 4 (slave's).
       */
       /*
-        Set 'created' to 0, so that in next relay logs this event does not trigger
-        cleaning actions on the slave in
+        Set 'created' to 0, so that in next relay logs this event does not
+        trigger cleaning actions on the slave in
         Format_description_log_event::exec_event().
-        Set 'log_pos' to 0 to show that it's an artificial event.
       */
       description_event_for_queue->created= 0;
-      description_event_for_queue->log_pos= 0;
+      /* Don't set log_pos in event header */
+      description_event_for_queue->artificial_event=1;
       
       if (description_event_for_queue->write(&log_file))
         goto err;
-      bytes_written+= description_event_for_queue->get_event_len();
+      bytes_written+= description_event_for_queue->data_written;
     }
     if (flush_io_cache(&log_file) ||
         my_sync(log_file.file, MYF(MY_WME)))
@@ -881,22 +880,18 @@ int MYSQL_LOG::purge_logs(const char *to_log,
   while ((strcmp(to_log,log_info.log_file_name) || (exit_loop=included)) &&
          !log_in_use(log_info.log_file_name))
   {
-    ulong file_size;
-    LINT_INIT(file_size);
+    ulong file_size= 0;
     if (decrease_log_space) //stat the file we want to delete
     {
       MY_STAT s;
+
+      /* 
+         If we could not stat, we can't know the amount
+         of space that deletion will free. In most cases,
+         deletion won't work either, so it's not a problem.
+      */
       if (my_stat(log_info.log_file_name,&s,MYF(0)))
         file_size= s.st_size;
-      else
-      {
-        /* 
-           If we could not stat, we can't know the amount
-           of space that deletion will free. In most cases,
-           deletion won't work either, so it's not a problem.
-        */
-        file_size= 0; 
-      }
     }
     /*
       It's not fatal if we can't delete a log file ;
@@ -1069,9 +1064,8 @@ void MYSQL_LOG::new_file(bool need_lock)
       */
       THD *thd = current_thd; /* may be 0 if we are reacting to SIGHUP */
       Rotate_log_event r(thd,new_name+dirname_length(new_name));
-      r.set_log_pos(this);
       r.write(&log_file);
-      bytes_written += r.get_event_len();
+      bytes_written += r.data_written;
     }
     /*
       Update needs to be signalled even if there is no rotate event
@@ -1130,7 +1124,7 @@ bool MYSQL_LOG::append(Log_event* ev)
     error=1;
     goto err;
   }
-  bytes_written += ev->get_event_len();
+  bytes_written+= ev->data_written;
   DBUG_PRINT("info",("max_size: %lu",max_size));
   if ((uint) my_b_append_tell(&log_file) > max_size)
   {
@@ -1376,7 +1370,6 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
                              (uint) thd->variables.collation_database->number,
                              (uint) thd->variables.collation_server->number);
 	Query_log_event e(thd, buf, written, 0);
-	e.set_log_pos(this);
 	if (e.write(file))
 	  goto err;
       }
@@ -1392,7 +1385,6 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
                                thd->variables.time_zone->get_name()->ptr(),
                                "'", NullS);
         Query_log_event e(thd, buf, buf_end - buf, 0);
-        e.set_log_pos(this);
         if (e.write(file))
           goto err;
       }
@@ -1401,21 +1393,18 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
       {
 	Intvar_log_event e(thd,(uchar) LAST_INSERT_ID_EVENT,
 			   thd->current_insert_id);
-	e.set_log_pos(this);
 	if (e.write(file))
 	  goto err;
       }
       if (thd->insert_id_used)
       {
 	Intvar_log_event e(thd,(uchar) INSERT_ID_EVENT,thd->last_insert_id);
-	e.set_log_pos(this);
 	if (e.write(file))
 	  goto err;
       }
       if (thd->rand_used)
       {
 	Rand_log_event e(thd,thd->rand_saved_seed1,thd->rand_saved_seed2);
-	e.set_log_pos(this);
 	if (e.write(file))
 	  goto err;
       }
@@ -1431,7 +1420,6 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
                                user_var_event->length,
                                user_var_event->type,
 			       user_var_event->charset_number);
-          e.set_log_pos(this);
 	  if (e.write(file))
 	    goto err;
 	}
@@ -1443,7 +1431,6 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
 	p= strmov(strmov(buf, "SET CHARACTER SET "),
 		  thd->variables.convert_set->name);
 	Query_log_event e(thd, buf, (ulong) (p - buf), 0);
-	e.set_log_pos(this);
 	if (e.write(file))
 	  goto err;
       }
@@ -1452,7 +1439,6 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
 
     /* Write the SQL command */
 
-    event_info->set_log_pos(this);
     if (event_info->write(file))
       goto err;
 
@@ -1632,7 +1618,6 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
 	master's binlog, which would result in wrong positions being shown to
 	the user, MASTER_POS_WAIT undue waiting etc.
       */
-      qinfo.set_log_pos(this);
       if (qinfo.write(&log_file))
 	goto err;
     }
@@ -1658,7 +1643,6 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
                             commit_or_rollback ? "COMMIT" : "ROLLBACK",
                             commit_or_rollback ? 6        : 8, 
                             TRUE);
-      qinfo.set_log_pos(this);
       if (qinfo.write(&log_file) || flush_io_cache(&log_file) ||
           sync_binlog(&log_file))
 	goto err;
@@ -1894,9 +1878,8 @@ void MYSQL_LOG::close(uint exiting)
 	(exiting & LOG_CLOSE_STOP_EVENT))
     {
       Stop_log_event s;
-      s.set_log_pos(this);
       s.write(&log_file);
-      bytes_written+= s.get_event_len();
+      bytes_written+= s.data_written;
       signal_update();
     }
 #endif /* HAVE_REPLICATION */

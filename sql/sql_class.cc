@@ -160,8 +160,8 @@ bool foreign_key_prefix(Key *a, Key *b)
 
 THD::THD()
   :user_time(0), global_read_lock(0), is_fatal_error(0),
-   last_insert_id_used(0),
-   insert_id_used(0), rand_used(0), time_zone_used(0),
+   rand_used(0), time_zone_used(0),
+   last_insert_id_used(0), insert_id_used(0), clear_next_insert_id(0),
    in_lock_tables(0), bootstrap(0), spcont(NULL)
 {
   current_arena= this;
@@ -495,6 +495,24 @@ bool THD::store_globals()
   return 0;
 }
 
+
+/* Cleanup after a query */
+
+void THD::cleanup_after_query()
+{
+  if (clear_next_insert_id)
+  {
+    clear_next_insert_id= 0;
+    next_insert_id= 0;
+  }
+  /* Free Items that were created during this execution */
+  free_items(free_list);
+  /*
+    In the rest of code we assume that free_list never points to garbage:
+    Keep this predicate true.
+  */
+  free_list= 0;
+}
 
 /*
   Convert a string to another character set
@@ -1461,8 +1479,8 @@ void Statement::end_statement()
   lex_end(lex);
   delete lex->result;
   lex->result= 0;
-  free_items(free_list);
-  free_list= 0;
+  /* Note that free_list is freed in cleanup_after_query() */
+
   /*
     Don't free mem_root, as mem_root is freed in the end of dispatch_command
     (once for any command).
