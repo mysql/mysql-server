@@ -2131,7 +2131,7 @@ because of bugs in @strong{MySQL}.
 @cindex retrieving, data
 @cindex data, ISAM table handler
 
-@item The MyISAM table handler --- Gamma
+@item The MyISAM table handler --- Stable
 This is new in @strong{MySQL} Version 3.23.  It's largely based on the ISAM
 table code but has a lot of new and very useful features.
 
