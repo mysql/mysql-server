@@ -1,5 +1,6 @@
 reset master;
 grant file on *.* to replicate@localhost identified by 'aaaaaaaaaaaaaaab';
+grant file on *.* to replicate@127.0.0.1 identified by 'aaaaaaaaaaaaaaab';
 slave start;
 drop table if exists t1;
 create table t1(n int);

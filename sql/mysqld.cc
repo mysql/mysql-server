@@ -2059,7 +2059,7 @@ The server will not act as a slave.");
   }
 #endif
 #ifdef HAVE_OPENSSL
-  my_free((gptr)ssl_acceptor_fd,MYF(0));
+  my_free((gptr)ssl_acceptor_fd,MYF(MY_ALLOW_ZERO_PTR));
 #endif /* HAVE_OPENSSL */
   /* Wait until cleanup is done */
   (void) pthread_mutex_lock(&LOCK_thread_count);
