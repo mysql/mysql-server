@@ -530,7 +530,7 @@ int ha_archive::write_row(byte * buf)
   z_off_t written;
   DBUG_ENTER("ha_archive::write_row");
 
-  statistic_increment(ha_write_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
   pthread_mutex_lock(&share->mutex);
@@ -671,7 +671,8 @@ int ha_archive::rnd_next(byte *buf)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   scan_rows--;
 
-  statistic_increment(ha_read_rnd_next_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
+		      &LOCK_status);
   current_position= gztell(archive);
   rc= get_row(archive, buf);
 
@@ -707,7 +708,8 @@ void ha_archive::position(const byte *record)
 int ha_archive::rnd_pos(byte * buf, byte *pos)
 {
   DBUG_ENTER("ha_archive::rnd_pos");
-  statistic_increment(ha_read_rnd_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
+		      &LOCK_status);
   current_position= ha_get_ptr(pos, ref_length);
   z_off_t seek= gzseek(archive, current_position, SEEK_SET);
 
@@ -870,71 +872,6 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
   return to;
 }
 
-
-/******************************************************************************
-
-  Everything below here is default, please look at ha_example.cc for 
-  descriptions.
-
- ******************************************************************************/
-
-int ha_archive::update_row(const byte * old_data, byte * new_data)
-{
-
-  DBUG_ENTER("ha_archive::update_row");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-}
-
-int ha_archive::delete_row(const byte * buf)
-{
-  DBUG_ENTER("ha_archive::delete_row");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-}
-
-int ha_archive::index_read(byte * buf, const byte * key,
-                           uint key_len __attribute__((unused)),
-                           enum ha_rkey_function find_flag
-                           __attribute__((unused)))
-{
-  DBUG_ENTER("ha_archive::index_read");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-}
-
-int ha_archive::index_read_idx(byte * buf, uint index, const byte * key,
-                               uint key_len __attribute__((unused)),
-                               enum ha_rkey_function find_flag
-                               __attribute__((unused)))
-{
-  DBUG_ENTER("ha_archive::index_read_idx");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-}
-
-
-int ha_archive::index_next(byte * buf)
-{
-  DBUG_ENTER("ha_archive::index_next");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-}
-
-int ha_archive::index_prev(byte * buf)
-{
-  DBUG_ENTER("ha_archive::index_prev");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-}
-
-int ha_archive::index_first(byte * buf)
-{
-  DBUG_ENTER("ha_archive::index_first");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-}
-
-int ha_archive::index_last(byte * buf)
-{
-  DBUG_ENTER("ha_archive::index_last");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-}
-
-
 void ha_archive::info(uint flag)
 {
   DBUG_ENTER("ha_archive::info");
@@ -944,24 +881,5 @@ void ha_archive::info(uint flag)
   deleted= 0;
 
   DBUG_VOID_RETURN;
-}
-
-int ha_archive::extra(enum ha_extra_function operation)
-{
-  DBUG_ENTER("ha_archive::extra");
-  DBUG_RETURN(0);
-}
-
-int ha_archive::reset(void)
-{
-  DBUG_ENTER("ha_archive::reset");
-  DBUG_RETURN(0);
-}
-
-ha_rows ha_archive::records_in_range(uint inx, key_range *min_key,
-                                     key_range *max_key)
-{
-  DBUG_ENTER("ha_archive::records_in_range ");
-  DBUG_RETURN(records); // HA_ERR_WRONG_COMMAND 
 }
 #endif /* HAVE_ARCHIVE_DB */
