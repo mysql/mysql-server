@@ -224,7 +224,7 @@
 "CREATE DATABASE niet toegestaan terwijl thread een globale 'read lock' bezit",
 "Foutieve parameters voor %s",
 "%-.32s@%-.64s mag geen nieuwe gebruikers creeren",
-"Incorrecte tabel definitie; Alle MERGE tabellen moeten tot dezelfde database behoren",
+"Incorrecte tabel definitie; alle MERGE tabellen moeten tot dezelfde database behoren",
 "Deadlock gevonden tijdens lock-aanvraag poging; Probeer herstart van de transactie",
 "Het gebruikte tabel type ondersteund geen FULLTEXT indexen",
 "Kan foreign key beperking niet toevoegen",

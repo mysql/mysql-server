@@ -7,7 +7,7 @@
 "SI",
 "Impossibile creare il file '%-.64s' (errno: %d)",
 "Impossibile creare la tabella '%-.64s' (errno: %d)",
-"Impossibile creare il database '%-.64s'. (errno: %d)",
+"Impossibile creare il database '%-.64s' (errno: %d)",
 "Impossibile creare il database '%-.64s'; il database esiste",
 "Impossibile cancellare '%-.64s'; il database non esiste",
 "Errore durante la cancellazione del database (impossibile cancellare '%-.64s', errno: %d)",
