@@ -96,6 +96,7 @@ public:
   CHARSET_INFO *thd_charset() const;
   CHARSET_INFO *charset() const { return str_value.charset(); };
   void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
+  virtual void set_outer_resolving() {}
 
   // Row emulation
   virtual uint cols() { return 1; }
@@ -117,12 +118,14 @@ public:
   const char *table_name;
   const char *field_name;
   st_select_lex *depended_from;
+  bool outer_resolving; /* used for items from reduced subselect */
   Item_ident(const char *db_name_par,const char *table_name_par,
 	     const char *field_name_par)
-    :db_name(db_name_par),table_name(table_name_par),
-    field_name(field_name_par), depended_from(0)
+    :db_name(db_name_par), table_name(table_name_par),
+     field_name(field_name_par), depended_from(0), outer_resolving(0)
     { name = (char*) field_name_par; }
   const char *full_name() const;
+  void set_outer_resolving() { outer_resolving= 1; }
 };
 
 

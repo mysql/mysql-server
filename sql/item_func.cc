@@ -146,6 +146,16 @@ bool Item_func::check_loop(uint id)
   DBUG_RETURN(0);
 }
 
+void Item_func::set_outer_resolving()
+{
+  if (arg_count)
+  {
+    Item **arg,**arg_end;
+    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
+      (*arg)->set_outer_resolving();
+  }
+}
+
 void Item_func::split_sum_func(List<Item> &fields)
 {
   Item **arg,**arg_end;
@@ -2354,6 +2364,15 @@ bool Item_func_match::check_loop(uint id)
     if (item->check_loop(id))
       DBUG_RETURN(1);
   DBUG_RETURN(0);
+}
+
+void Item_func_match::set_outer_resolving()
+{
+  Item_real_func::set_outer_resolving();
+  List_iterator<Item> li(fields);
+  Item *item;
+  while ((item= li++))
+    item->set_outer_resolving();
 }
 
 bool Item_func_match::fix_index()

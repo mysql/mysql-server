@@ -946,6 +946,13 @@ Item_func_case::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   return 0;
 }
 
+void Item_func_case::set_outer_resolving()
+{
+  first_expr->set_outer_resolving();
+  else_expr->set_outer_resolving();
+  Item_func::set_outer_resolving();
+}
+
 bool Item_func_case::check_loop(uint id)
 {
   DBUG_ENTER("Item_func_case::check_loop");
@@ -1521,6 +1528,15 @@ bool Item_cond::check_loop(uint id)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
+}
+
+void Item_cond::set_outer_resolving()
+{
+  Item_func::set_outer_resolving();
+  List_iterator<Item> li(list);
+  Item *item;
+  while ((item= li++))
+    item->set_outer_resolving();
 }
 
 void Item_cond::split_sum_func(List<Item> &fields)

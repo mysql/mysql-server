@@ -1654,6 +1654,7 @@ const Field *not_found_field= (Field*) 0x1;
     thd - pointer to current thread structure
     item - field item that should be found
     tables - tables for scaning
+    where - table where field found will be returned via this parameter
     report_error - if FALSE then do not report error if item not found and 
       return not_found_field;
 
@@ -1667,7 +1668,7 @@ const Field *not_found_field= (Field*) 0x1;
 
 Field *
 find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
-		     bool report_error)
+		     TABLE_LIST **where, bool report_error)
 {
   Field *found=0;
   const char *db=item->db_name;
@@ -1688,6 +1689,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 					grant_option && !thd->master_access,1);
 	if (find)
 	{
+	  (*where)= tables;
 	  if (find == WRONG_GRANT)
 	    return (Field*) 0;
 	  if (db || !thd->where)
@@ -1742,6 +1744,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     {
       if (field == WRONG_GRANT)
 	return (Field*) 0;
+      (*where)= tables;
       if (found)
       {
 	if (!thd->where)			// Returns first found

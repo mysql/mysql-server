@@ -146,6 +146,54 @@ void Item_singlerow_subselect::reset()
     value->null_value= 1;
 }
 
+void Item_singlerow_subselect::select_transformer(st_select_lex_unit *unit)
+{
+  SELECT_LEX *select_lex= unit->first_select();
+  
+  if (!select_lex->next_select() && !select_lex->table_list.elements &&
+      select_lex->item_list.elements == 1)
+  {
+    
+    have_to_be_excluded= 1;
+    THD *thd= current_thd;
+    if (thd->lex.describe)
+    {
+      char warn_buff[MYSQL_ERRMSG_SIZE];
+      sprintf(warn_buff, ER(ER_SELECT_REDUCED), select_lex->select_number);
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+		   ER_SELECT_REDUCED, warn_buff);
+    }
+    substitution= select_lex->item_list.head();
+    substitution->set_outer_resolving();
+    if (substitution->type() == FIELD_ITEM ||
+	substitution->type() == REF_ITEM)
+      name= substitution->name; // Save name for correct resolving
+     
+    if (select_lex->where || select_lex->having)
+    {
+      Item *cond;
+      if (!select_lex->having)
+	cond= select_lex->where;
+      else if (!select_lex->where)
+	cond= select_lex->having;
+      else
+	if (!(cond= new Item_cond_and(select_lex->having, select_lex->where)))
+	{
+	  my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+	  thd->fatal_error= 1;
+	  return;
+	}
+      if (!(substitution= new Item_func_if(cond, substitution,
+					   new Item_null())))
+      {
+	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+	thd->fatal_error= 1;
+	return;
+      }
+    }
+  }
+}
+
 void Item_singlerow_subselect::store(uint i, Item *item)
 {
   row[i]->store(item);
