@@ -228,7 +228,7 @@ Ndb_item::Ndb_item(NDB_ITEM_TYPE item_type,
       break;
     case(Item::VARBIN_ITEM): {
       Ndb_item_string_value *string_value = new Ndb_item_string_value();
-      Item_varbinary *varbin_item= (Item_varbinary *)item_value;
+      Item_bin_string *varbin_item= (Item_bin_string *)item_value;
       string_value->s= varbin_item->str_value;
       string_value->c= varbin_item->collation.collation;
       value.string_value= string_value;
