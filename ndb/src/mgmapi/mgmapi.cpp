@@ -1102,15 +1102,18 @@ ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle handle, int nodeId,
 		       "set cluster loglevel", &args);
   CHECK_REPLY(reply, -1);
   
+  DBUG_ENTER("ndb_mgm_set_loglevel_clusterlog");
+  DBUG_PRINT("enter",("node=%d, category=%d, level=%d", nodeId, cat, level));
+
   BaseString result;
   reply->get("result", result);
   if(strcmp(result.c_str(), "Ok") != 0) {
     SET_ERROR(handle, EINVAL, result.c_str());
     delete reply;
-    return -1;
+    DBUG_RETURN(-1);
   }
   delete reply;
-  return 0;
+  DBUG_RETURN(0);
 }
 
 extern "C"
