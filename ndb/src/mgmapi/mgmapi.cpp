@@ -574,7 +574,9 @@ cmp_state(const void *_a, const void *_b)
   a = (struct ndb_mgm_node_state *)_a;
   b = (struct ndb_mgm_node_state *)_b;
 
-  return a->node_id > b->node_id;
+  if (a->node_id > b->node_id)
+    return 1;
+  return -1;
 }
 
 extern "C"

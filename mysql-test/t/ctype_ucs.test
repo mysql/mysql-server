@@ -4,6 +4,10 @@
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
+SET NAMES latin1;
+SET character_set_connection=ucs2;
+-- source include/endspace.inc
+
 SET CHARACTER SET koi8r;
 
 #

@@ -171,7 +171,7 @@ bool Item_func::agg_arg_charsets(DTCollation &coll,
   for (arg= args, last= args + nargs; arg < last; arg++)
   {
     Item* conv;
-    uint dummy_offset;
+    uint32 dummy_offset;
     if (!String::needs_conversion(0, coll.collation,
                                   (*arg)->collation.collation,
                                   &dummy_offset))
@@ -2010,7 +2010,7 @@ void item_user_lock_release(User_level_lock *ull)
     tmp.copy(command, strlen(command), tmp.charset());
     tmp.append(ull->key,ull->key_length);
     tmp.append("\")", 2);
-    Query_log_event qev(current_thd, tmp.ptr(), tmp.length(),1);
+    Query_log_event qev(current_thd, tmp.ptr(), tmp.length(),1, FALSE);
     qev.error_code=0; // this query is always safe to run on slave
     mysql_bin_log.write(&qev);
   }

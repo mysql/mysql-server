@@ -467,7 +467,29 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     mysql_update_log.write(thd, query, query_length);
     if (mysql_bin_log.is_open())
     {
-      Query_log_event qinfo(thd, query, query_length, 0);
+      Query_log_event qinfo(thd, query, query_length, 0, 
+			    /* suppress_use */ TRUE);
+
+      /*
+	Write should use the database being created as the "current
+        database" and not the threads current database, which is the
+        default. If we do not change the "current database" to the
+        database being created, the CREATE statement will not be
+        replicated when using --binlog-do-db to select databases to be
+        replicated. 
+
+	An example (--binlog-do-db=sisyfos):
+       
+          CREATE DATABASE bob;        # Not replicated
+          USE bob;                    # 'bob' is the current database
+          CREATE DATABASE sisyfos;    # Not replicated since 'bob' is
+                                      # current database.
+          USE sisyfos;                # Will give error on slave since
+                                      # database does not exist.
+      */
+      qinfo.db     = db;
+      qinfo.db_len = strlen(db);
+
       mysql_bin_log.write(&qinfo);
     }
     send_ok(thd, result);
@@ -517,7 +539,15 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   mysql_update_log.write(thd,thd->query, thd->query_length);
   if (mysql_bin_log.is_open())
   {
-    Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, 
+			  /* suppress_use */ TRUE);
+
+    // Write should use the database being created as the "current
+    // database" and not the threads current database, which is the
+    // default.
+    qinfo.db     = db;
+    qinfo.db_len = strlen(db);
+
     thd->clear_error();
     mysql_bin_log.write(&qinfo);
   }
@@ -625,7 +655,15 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     mysql_update_log.write(thd, query, query_length);
     if (mysql_bin_log.is_open())
     {
-      Query_log_event qinfo(thd, query, query_length, 0);
+      Query_log_event qinfo(thd, query, query_length, 0, 
+			    /* suppress_use */ TRUE);
+
+      // Write should use the database being created as the "current
+      // database" and not the threads current database, which is the
+      // default.
+      qinfo.db     = db;
+      qinfo.db_len = strlen(db);
+
       thd->clear_error();
       mysql_bin_log.write(&qinfo);
     }

@@ -688,7 +688,8 @@ bool add_field_to_list(THD *thd, char *field_name, enum enum_field_types type,
 		       uint type_modifier,
 		       Item *default_value, Item *on_update_value,
 		       LEX_STRING *comment,
-		       char *change, TYPELIB *interval,CHARSET_INFO *cs,
+		       char *change, List<String> *interval_list,
+		       CHARSET_INFO *cs,
 		       uint uint_geom_type);
 void store_position_for_column(const char *name);
 bool add_to_list(THD *thd, SQL_LIST &list,Item *group,bool asc=0);
