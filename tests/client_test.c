@@ -510,7 +510,8 @@ static void verify_col_data(const char *table, const char *col,
 static void verify_prepare_field(MYSQL_RES *result, 
       unsigned int no,const char *name, const char *org_name, 
       enum enum_field_types type, const char *table, 
-      const char *org_table, const char *db)
+      const char *org_table, const char *db, 
+      unsigned long length)
 {
   MYSQL_FIELD *field;
 
@@ -526,6 +527,9 @@ static void verify_prepare_field(MYSQL_RES *result,
   fprintf(stdout,"\n    table    :`%s`\t(expected: `%s`)", field->table, table);
   fprintf(stdout,"\n    org_table:`%s`\t(expected: `%s`)", field->org_table, org_table);
   fprintf(stdout,"\n    database :`%s`\t(expected: `%s`)", field->db, db);
+  fprintf(stdout,"\n    length   :`%ld`\t(expected: `%ld`)", field->length, length);
+  fprintf(stdout,"\n    maxlength:`%ld`", field->max_length);
+  fprintf(stdout,"\n    charsetnr:`%d`", field->charsetnr);
   fprintf(stdout,"\n");
   myassert(strcmp(field->name,name) == 0);
   myassert(strcmp(field->org_name,org_name) == 0);
@@ -533,6 +537,7 @@ static void verify_prepare_field(MYSQL_RES *result,
   myassert(strcmp(field->table,table) == 0);
   myassert(strcmp(field->org_table,org_table) == 0);
   myassert(strcmp(field->db,db) == 0);
+  myassert(field->length == length);
 }
 
 /*
@@ -969,15 +974,15 @@ static void test_prepare_field_result()
 
   fprintf(stdout,"\n\n field attributes:\n");
   verify_prepare_field(result,0,"int_c","int_c",MYSQL_TYPE_LONG,
-                       "t1","test_prepare_field_result",current_db);
+                       "t1","test_prepare_field_result",current_db,11);
   verify_prepare_field(result,1,"var_c","var_c",MYSQL_TYPE_VAR_STRING,
-                       "t1","test_prepare_field_result",current_db);
+                       "t1","test_prepare_field_result",current_db,50);
   verify_prepare_field(result,2,"date","date_c",MYSQL_TYPE_DATE,
-                       "t1","test_prepare_field_result",current_db);
+                       "t1","test_prepare_field_result",current_db,10);
   verify_prepare_field(result,3,"ts_c","ts_c",MYSQL_TYPE_TIMESTAMP,
-                       "t1","test_prepare_field_result",current_db);
+                       "t1","test_prepare_field_result",current_db,19);
   verify_prepare_field(result,4,"char_c","char_c",MYSQL_TYPE_STRING,
-                       "t1","test_prepare_field_result",current_db);
+                       "t1","test_prepare_field_result",current_db,3);
 
   verify_field_count(result, 5);
   mysql_free_result(result);
@@ -4813,8 +4818,6 @@ static void test_subselect()
 #if TO_BE_FIXED_IN_SERVER
   MYSQL_STMT *stmt;
   int        rc;
-  int        id;
-  ulong      length;
   MYSQL_BIND bind[1];
 
   myheader("test_subselect");
@@ -4849,9 +4852,33 @@ static void test_subselect()
   /* fetch */
   bind[0].buffer_type= FIELD_TYPE_LONG;
   bind[0].buffer= (char *) &id;	
-  bind[0].length= &length;
+  bind[0].length= 0;
   bind[0].is_null= 0;
-  length= 0;
+
+  stmt = mysql_prepare(mysql, "INSERT INTO test_sub2(id) SELECT * FROM test_sub1 WHERE id=?", 100);
+  mystmt_init(stmt);
+
+  rc = mysql_bind_param(stmt,bind);
+  mystmt(stmt, rc);
+
+  rc = mysql_bind_result(stmt,bind);
+  mystmt(stmt, rc);
+
+  id = 2; 
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  verify_st_affected_rows(stmt, 1);
+
+  id = 9; 
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  verify_st_affected_rows(stmt, 0);
+
+  mysql_stmt_close(stmt);
+
+  myassert(3 == my_stmt_result("SELECT * FROM test_sub2",50));
 
   strmov((char *)query , "SELECT ROW(1,7) IN (select id, id1 from test_sub2 WHERE id1=?)");
   myassert(1 == my_stmt_result("SELECT ROW(1,7) IN (select id, id1 from test_sub2 WHERE id1=8)",100));
@@ -4873,7 +4900,7 @@ static void test_subselect()
   rc = mysql_fetch(stmt);
   mystmt(stmt,rc);
 
-  fprintf(stdout,"\n row 1: %d (%lu)",id, length);
+  fprintf(stdout,"\n row 1: %d",id);
   myassert(id == 1);
 
   rc = mysql_fetch(stmt);
@@ -4886,7 +4913,7 @@ static void test_subselect()
   rc = mysql_fetch(stmt);
   mystmt(stmt,rc);
 
-  fprintf(stdout,"\n row 1: %d (%lu)",id, length);
+  fprintf(stdout,"\n row 1: %d",id);
   myassert(id == 0);
 
   rc = mysql_fetch(stmt);
@@ -5720,6 +5747,141 @@ static void test_stiny_bug()
   mysql_stmt_close(stmt);
 }
 
+/********************************************************
+* to test misc field information, bug: #74              *
+*********************************************************/
+static void test_field_misc()
+{
+  MYSQL_STMT  *stmt;
+  MYSQL_RES   *result;
+  MYSQL_BIND  bind[1];
+  char        table_type[NAME_LEN];
+  ulong       type_length;
+  int         rc;
+
+  myheader("test_field_misc");
+
+  rc = mysql_query(mysql,"SELECT @@autocommit");
+  myquery(rc);
+
+  result = mysql_store_result(mysql);
+  mytest(result);
+
+  myassert(1 == my_process_result_set(result));
+  
+  verify_prepare_field(result,0,
+                       "@@autocommit","",   /* field and its org name */
+                       MYSQL_TYPE_LONGLONG, /* field type */
+                       "", "",              /* table and its org name */
+                       "",1);               /* db name, length(its bool flag)*/
+
+  mysql_free_result(result);
+  
+  stmt = mysql_prepare(mysql,"SELECT @@autocommit",20);
+  mystmt_init(stmt);
+  
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  result = mysql_prepare_result(stmt);
+  mytest(result);
+  
+  myassert(1 == my_process_stmt_result(stmt));
+  
+  verify_prepare_field(result,0,
+                       "@@autocommit","",   /* field and its org name */
+                       MYSQL_TYPE_LONGLONG, /* field type */
+                       "", "",              /* table and its org name */
+                       "",1);               /* db name, length(its bool flag)*/
+
+  mysql_free_result(result);
+  mysql_stmt_close(stmt);
+
+  stmt = mysql_prepare(mysql, "SELECT @@table_type", 30);
+  mystmt_init(stmt);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  bind[0].buffer= table_type;
+  bind[0].length= &type_length;
+  bind[0].is_null= 0;
+  bind[0].buffer_length= NAME_LEN;
+
+  rc = mysql_bind_result(stmt, bind);
+  mystmt(stmt,rc);    
+
+  rc = mysql_fetch(stmt);
+  mystmt(stmt,rc);
+  fprintf(stdout,"\n default table type: %s(%ld)", table_type, type_length);
+
+  rc = mysql_fetch(stmt);
+  myassert(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_close(stmt);
+
+  stmt = mysql_prepare(mysql, "SELECT @@table_type", 30);
+  mystmt_init(stmt);
+
+  result = mysql_prepare_result(stmt);
+  mytest(result);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  myassert(1 == my_process_stmt_result(stmt));
+  
+  verify_prepare_field(result,0,
+                       "@@table_type","",   /* field and its org name */
+                       MYSQL_TYPE_STRING,   /* field type */
+                       "", "",              /* table and its org name */
+                       "",type_length);     /* db name, length */
+
+  mysql_free_result(result);
+  mysql_stmt_close(stmt);
+
+  stmt = mysql_prepare(mysql, "SELECT @@max_error_count", 30);
+  mystmt_init(stmt);
+
+  result = mysql_prepare_result(stmt);
+  mytest(result);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  myassert(1 == my_process_stmt_result(stmt));
+  
+  verify_prepare_field(result,0,
+                       "@@max_error_count","",   /* field and its org name */
+                       MYSQL_TYPE_LONGLONG, /* field type */
+                       "", "",              /* table and its org name */
+                       "",10);              /* db name, length */
+
+  mysql_free_result(result);
+  mysql_stmt_close(stmt);
+  
+  stmt = mysql_prepare(mysql, "SELECT @@max_allowed_packet", 30);
+  mystmt_init(stmt);
+
+  result = mysql_prepare_result(stmt);
+  mytest(result);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  myassert(1 == my_process_stmt_result(stmt));
+  
+  verify_prepare_field(result,0,
+                       "@@max_allowed_packet","",   /* field and its org name */
+                       MYSQL_TYPE_LONGLONG, /* field type */
+                       "", "",              /* table and its org name */
+                       "",10);              /* db name, length */
+
+  mysql_free_result(result);
+  mysql_stmt_close(stmt);
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -5860,6 +6022,7 @@ int main(int argc, char **argv)
    
     start_time= time((time_t *)0);
    
+    //test_field_misc();      /* check the field info for misc case, bug: #74 */
     test_fetch_nobuffs();   /* to fecth without prior bound buffers */
     test_open_direct();     /* direct execution in the middle of open stmts */
     test_fetch_null();      /* to fetch null data */
@@ -5937,6 +6100,7 @@ int main(int argc, char **argv)
     test_ushort_bug();      /* test a simple conv bug from php */
     test_sshort_bug();      /* test a simple conv bug from php */
     test_stiny_bug();       /* test a simple conv bug from php */
+    test_field_misc();      /* check the field info for misc case, bug: #74 */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);

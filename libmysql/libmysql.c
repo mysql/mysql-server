@@ -4370,7 +4370,6 @@ int STDCALL mysql_execute(MYSQL_STMT *stmt)
     set_stmt_error(stmt, CR_NO_PREPARE_STMT);
     DBUG_RETURN(1);
   }
-  stmt->mysql->fields= stmt->fields;
   if (stmt->param_count)
   {
     NET        *net= &stmt->mysql->net;
