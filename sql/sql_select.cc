@@ -4142,10 +4142,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     case STRING_RESULT:
       if (item->max_length > 255)
 	new_field=  new Field_blob(item->max_length,maybe_null,
-				   item->name,table,item->str_value.charset());
+				   item->name,table,item->charset());
       else
 	new_field= new Field_string(item->max_length,maybe_null,
-				    item->name,table,item->str_value.charset());
+				    item->name,table,item->charset());
       break;
     case ROW_RESULT: 
     default: 

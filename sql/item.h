@@ -65,6 +65,7 @@ public:
   my_bool unsigned_flag;
   my_bool with_sum_func;
   my_bool fixed;                        /* If item fixed with fix_fields */
+  CHARSET_INFO  *collation;		/* character set && collation    */
   enum coercion coercibility;		/* Precedence order of collation */
 
   // alloc & destruct is done as start of select using sql_alloc
@@ -123,18 +124,17 @@ public:
   virtual Item *real_item() { return this; }
   virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
-  virtual bool binary() const
-  { return str_value.charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
   CHARSET_INFO *default_charset() const;
-  CHARSET_INFO *charset() const { return str_value.charset(); };
-  void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
+  CHARSET_INFO *charset() const { return collation; };
+  void set_charset(CHARSET_INFO *cs) 
+  { collation= cs; }
   void set_charset(CHARSET_INFO *cs, enum coercion coer)
-  {
-    str_value.set_charset(cs);
-    coercibility= coer;
-  }
+  { collation= cs; coercibility= coer; }
   bool set_charset(CHARSET_INFO *cs1, enum coercion co1, 
   		   CHARSET_INFO *cs2, enum coercion co2);
+  bool binary() const
+  { return charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
+  
   virtual void set_outer_resolving() {}
 
   // Row emulation
@@ -383,6 +383,7 @@ public:
   Item_string(const char *str,uint length,
   	      CHARSET_INFO *cs, enum coercion coer= COER_COERCIBLE)
   {
+    set_charset(cs);
     str_value.set(str,length,cs);
     coercibility= coer;
     max_length=length;
@@ -392,6 +393,7 @@ public:
   Item_string(const char *name_par, const char *str, uint length,
 	      CHARSET_INFO *cs, enum coercion coer= COER_COERCIBLE)
   {
+    set_charset(cs);
     str_value.set(str,length,cs);
     coercibility= coer;
     max_length=length;
