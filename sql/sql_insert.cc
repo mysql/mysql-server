@@ -453,6 +453,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   }
   free_underlaid_joins(thd, &thd->lex->select_lex);
   table->insert_values=0;
+  thd->abort_on_warning= 0;
   DBUG_RETURN(0);
 
 abort:
