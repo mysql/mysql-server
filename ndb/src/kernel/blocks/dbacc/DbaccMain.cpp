@@ -12562,7 +12562,7 @@ void Dbacc::releaseLcpConnectRec(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::releaseOpRec(Signal* signal) 
 {
-#ifdef VM_TRACE
+#ifdef NDB_DEBUG_FULL
   // DEBUG CODE
   // Check that the operation to be released isn't 
   // already in the list of free operations

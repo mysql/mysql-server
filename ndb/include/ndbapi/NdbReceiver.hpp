@@ -75,6 +75,7 @@ private:
   class NdbRecAttr * getValue(const class NdbColumnImpl*, char * user_dst_ptr);
   void do_get_value(NdbReceiver*, Uint32 rows, Uint32 key_size);
   void prepareSend();
+  void calculate_batch_size(Uint32, Uint32, Uint32&, Uint32&, Uint32&);
 
   int execKEYINFO20(Uint32 info, const Uint32* ptr, Uint32 len);
   int execTRANSID_AI(const Uint32* ptr, Uint32 len); 

@@ -533,9 +533,11 @@ public:
       COPY = 2
     };
     UintR scanAccOpPtr[MAX_PARALLEL_OP_PER_SCAN];
-    UintR scanApiOpPtr[MAX_PARALLEL_OP_PER_SCAN];
-    UintR scanOpLength[MAX_PARALLEL_OP_PER_SCAN];
+    UintR scanApiOpPtr;
     UintR scanLocalref[2];
+    Uint32 scan_batch_len;
+    Uint32 first_batch_size;
+    Uint32 batch_byte_size;
     UintR copyPtr;
     union {
       Uint32 nextPool;

@@ -132,7 +132,7 @@ struct SignalHeader {
   Uint16 theTrace;
   Uint8  m_noOfSections;
   Uint8  m_fragmentInfo;
-}; /** 7x4 = 32 Bytes */
+}; /** 7x4 = 28 Bytes */
 
 struct LinearSectionPtr {
   Uint32 sz;
