@@ -170,15 +170,15 @@ void scramble_323(char *to, const char *message, const char *password)
 
   if (password && password[0])
   {
-    char *to_start=to;
+    char extra, *to_start=to;
+    const char *message_end= message + SCRAMBLE_LENGTH_323;
     hash_password(hash_pass,password, strlen(password));
     hash_password(hash_message, message, SCRAMBLE_LENGTH_323);
     randominit(&rand_st,hash_pass[0] ^ hash_message[0],
                hash_pass[1] ^ hash_message[1]);
-    const char *message_end= message + SCRAMBLE_LENGTH_323;
     for (; message < message_end; message++)
       *to++= (char) (floor(my_rnd(&rand_st)*31)+64);
-    char extra=(char) (floor(my_rnd(&rand_st)*31));
+    extra=(char) (floor(my_rnd(&rand_st)*31));
     while (to_start != to)
       *(to_start++)^=extra;
   }
