@@ -708,6 +708,8 @@ pthread_handler_decl(handle_bootstrap,arg)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
+
+
 #endif
 
   if ((ulong) thd->variables.max_join_size == (ulong) HA_POS_ERROR)
