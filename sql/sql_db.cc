@@ -671,7 +671,7 @@ int mysqld_show_create_db(THD *thd, char *dbname,
     DBUG_RETURN(1);
   
   protocol->prepare_for_resend();
-  protocol->store(dbname, strlen(dbname));
+  protocol->store(dbname, strlen(dbname), system_charset_info);
   to= strxmov(path, "CREATE DATABASE ", NullS);
   if (create_options & HA_LEX_CREATE_IF_NOT_EXISTS)
     to= strxmov(to,"/*!32312 IF NOT EXISTS*/ ", NullS);
@@ -685,7 +685,7 @@ int mysqld_show_create_db(THD *thd, char *dbname,
 		cl ? " COLLATE " : "", cl ? create.table_charset->name : "",
 		" */",NullS);
   }
-  protocol->store(path, (uint) (to-path));
+  protocol->store(path, (uint) (to-path), system_charset_info);
   
   if (protocol->write())
     DBUG_RETURN(1);

@@ -204,7 +204,7 @@ bool Field::send_binary(Protocol *protocol)
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),charset());
   val_str(&tmp,&tmp);
-  return protocol->store(tmp.ptr(), tmp.length());
+  return protocol->store(tmp.ptr(), tmp.length(), tmp.charset());
 }
 
 

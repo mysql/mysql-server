@@ -180,9 +180,9 @@ my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
     }
     protocol->prepare_for_resend();
     protocol->store(warning_level_names[err->level],
-		    warning_level_length[err->level]);
+		    warning_level_length[err->level], system_charset_info);
     protocol->store((uint32) err->code);
-    protocol->store(err->msg, strlen(err->msg));
+    protocol->store(err->msg, strlen(err->msg), system_charset_info);
     if (protocol->write())
       DBUG_RETURN(1);
     if (!--limit)

@@ -1109,7 +1109,7 @@ int show_binlog_info(THD* thd)
     LOG_INFO li;
     mysql_bin_log.get_current_log(&li);
     int dir_len = dirname_length(li.log_file_name);
-    protocol->store(li.log_file_name + dir_len);
+    protocol->store(li.log_file_name + dir_len, system_charset_info);
     protocol->store((ulonglong) li.pos);
     protocol->store(&binlog_do_db);
     protocol->store(&binlog_ignore_db);
@@ -1166,7 +1166,7 @@ int show_binlogs(THD* thd)
     protocol->prepare_for_resend();
     int dir_len = dirname_length(fname);
     /* The -1 is for removing newline from fname */
-    protocol->store(fname + dir_len, length-1-dir_len);
+    protocol->store(fname + dir_len, length-1-dir_len, system_charset_info);
     if (protocol->write())
       goto err;
   }
