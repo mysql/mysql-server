@@ -17,6 +17,7 @@
 #include <ndb_global.h>
 #include <my_sys.h>
 
+#include <LocalConfig.hpp>
 #include <NdbAutoPtr.hpp>
 
 #include <NdbTCP.h>
@@ -94,6 +95,8 @@ struct ndb_mgm_handle {
 
   NDB_SOCKET_TYPE socket;
 
+  char cfg_ptr[sizeof(LocalConfig)];
+
 #ifdef MGMAPI_LOG
   FILE* logfile;
 #endif
@@ -146,9 +149,11 @@ ndb_mgm_create_handle()
   h->last_error      = 0;
   h->last_error_line = 0;
   h->hostname        = 0;
-  h->socket          = -1;
+  h->socket          = NDB_INVALID_SOCKET;
   h->read_timeout    = 50000;
   h->write_timeout   = 100;
+
+  new (h->cfg_ptr) LocalConfig;
 
   strncpy(h->last_error_desc, "No error", NDB_MGM_MAX_ERR_DESC_SIZE);
 #ifdef MGMAPI_LOG
@@ -177,6 +182,7 @@ ndb_mgm_destroy_handle(NdbMgmHandle * handle)
     (* handle)->logfile = 0;
   }
 #endif
+  ((LocalConfig*)((*handle)->cfg_ptr))->~LocalConfig();
   my_free((char*)* handle,MYF(MY_ALLOW_ZERO_PTR));
   * handle = 0;
 }
@@ -218,42 +224,6 @@ ndb_mgm_get_latest_error_msg(const NdbMgmHandle h)
   }
 
   return "Error"; // Unknown Error message
-}
-
-static
-int
-parse_connect_string(const char * connect_string,
-		     NdbMgmHandle handle)
-{
-  if(connect_string == 0){
-    SET_ERROR(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, "");
-    return -1;
-  }
-  
-  char * line = my_strdup(connect_string,MYF(MY_WME));
-  My_auto_ptr<char> ap1(line);
-  if(line == 0){
-    SET_ERROR(handle, NDB_MGM_OUT_OF_MEMORY, "");
-    return -1;
-  }
-  
-  char * tmp = strchr(line, ':');
-  if(tmp == 0){
-    SET_ERROR(handle, NDB_MGM_OUT_OF_MEMORY, "");
-    return -1;
-  }
-  * tmp = 0; tmp++;
-  
-  int port = 0;
-  if(sscanf(tmp, "%d", &port) != 1){
-    SET_ERROR(handle, NDB_MGM_ILLEGAL_PORT_NUMBER, "");
-    return -1;
-  }
-  
-  my_free(handle->hostname,MYF(MY_ALLOW_ZERO_PTR));
-  handle->hostname = my_strdup(line,MYF(MY_WME));
-  handle->port = port;
-  return 0;
 }
 
 /*
@@ -348,11 +318,6 @@ ndb_mgm_connect(NdbMgmHandle handle, const char * mgmsrv)
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_connect");
   CHECK_HANDLE(handle, -1);
-  
-  if(parse_connect_string(mgmsrv, handle) != 0) {
-    SET_ERROR(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, "");
-    return -1;
-  }
 
 #ifdef MGMAPI_LOG
   /**
@@ -366,14 +331,37 @@ ndb_mgm_connect(NdbMgmHandle handle, const char * mgmsrv)
   /**
    * Do connect
    */
-  SocketClient s(handle->hostname, handle->port);
-  const NDB_SOCKET_TYPE sockfd = s.connect();
-  if (sockfd < 0) {
-    setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
-	     "Unable to connect to %s", mgmsrv);
+  LocalConfig *cfg= (LocalConfig*)(handle->cfg_ptr);
+  new (cfg) LocalConfig;
+  if (!cfg->init(mgmsrv, 0) ||
+       cfg->ids.size() == 0)
+  {
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, "");
     return -1;
   }
-  
+
+  NDB_SOCKET_TYPE sockfd= NDB_INVALID_SOCKET;
+  Uint32 i;
+  for (i = 0; i < cfg->ids.size(); i++)
+  {
+    if (cfg->ids[i].type != MgmId_TCP)
+      continue;
+    SocketClient s(cfg->ids[i].name.c_str(), cfg->ids[i].port);
+    sockfd = s.connect();
+    if (sockfd != NDB_INVALID_SOCKET)
+      break;
+  }  
+  if (sockfd == NDB_INVALID_SOCKET)
+  {
+    setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
+	     "Unable to connect using connectstring %s", mgmsrv);
+    return -1;
+  }
+
+  my_free(handle->hostname,MYF(MY_ALLOW_ZERO_PTR));
+  handle->hostname = my_strdup(cfg->ids[i].name.c_str(),MYF(MY_WME));
+  handle->port = cfg->ids[i].port;
+
   handle->socket    = sockfd;
   handle->connected = 1;
 
@@ -392,7 +380,7 @@ ndb_mgm_disconnect(NdbMgmHandle handle)
   CHECK_CONNECTED(handle, -1);
 
   NDB_CLOSE_SOCKET(handle->socket);
-  handle->socket = -1;
+  handle->socket = NDB_INVALID_SOCKET;
   handle->connected = 0;
 
   return 0;

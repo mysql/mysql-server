@@ -1,6 +1,4 @@
 
-SUBDIRS = restore
-
 noinst_LIBRARIES = libbackup.a
 
 libbackup_a_SOURCES = Backup.cpp BackupInit.cpp
