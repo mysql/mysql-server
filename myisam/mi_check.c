@@ -841,8 +841,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	  if (info->s->base.blobs)
 	  {
 	    if (!(to= mi_alloc_rec_buff(info, block_info.rec_len,
-					&info->rec_buff,
-					&info->alloced_rec_buff_length)))
+					&info->rec_buff)))
 	    {
 	      mi_check_print_error(param,"Not enough memory for blob at %s",
 			  llstr(start_recpos,llbuff));
@@ -1146,7 +1145,6 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
       goto err;
   info->opt_flag|=WRITE_CACHE_USED;
   sort_param.rec_buff=info->rec_buff;
-  sort_param.alloced_rec_buff_length=info->alloced_rec_buff_length;
   if (!(sort_param.record=(byte*) my_malloc((uint) share->base.pack_reclength,
 					   MYF(0))))
   {
@@ -1810,7 +1808,6 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   info->rec_cache.file=info->dfile;		/* for sort_delete_record */
 
   sort_param.rec_buff=info->rec_buff;
-  sort_param.alloced_rec_buff_length=info->alloced_rec_buff_length;
   if (!(sort_param.record=(byte*) my_malloc((uint) share->base.pack_reclength,
 					   MYF(0))))
   {
@@ -2793,8 +2790,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	  if (share->base.blobs)
 	  {
 	    if (!(to=mi_alloc_rec_buff(info,block_info.rec_len,
-				       &(sort_param->rec_buff),
-				       &(sort_param->alloced_rec_buff_length))))
+				       &(sort_param->rec_buff))))
 	    {
 	      mi_check_print_error(param,"Not enough memory for blob at %s",
 			  llstr(sort_param->start_recpos,llbuff));

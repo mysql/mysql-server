@@ -507,10 +507,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   /* Allocate buffer for one record */
 
   /* prerequisites: bzero(info) && info->s=share; are met. */
-  if (!mi_alloc_rec_buff(&info, -1, &info.rec_buff,
-			 &info.alloced_rec_buff_length))
+  if (!mi_alloc_rec_buff(&info, -1, &info.rec_buff))
     goto err;
-  bzero(info.rec_buff, info.alloced_rec_buff_length);
+  bzero(info.rec_buff, mi_get_rec_buff_len(&info, info.rec_buff));
 
   *m_info=info;
 #ifdef THREAD
@@ -560,21 +559,11 @@ err:
   DBUG_RETURN (NULL);
 } /* mi_open */
 
-
-gptr mi_get_rec_buff_ptr(MI_INFO *info, byte *buf)
-{
-  if (info->s->options & HA_OPTION_PACK_RECORD && buf)
-    return buf - MI_REC_BUFF_OFFSET;
-  else
-    return buf;
-}
-
-
-byte *mi_alloc_rec_buff(MI_INFO *info, ulong length, byte **buf, uint *buf_len)
+byte *mi_alloc_rec_buff(MI_INFO *info, ulong length, byte **buf)
 {
   uint extra;
 
-  if (! *buf || length > *buf_len)
+  if (! *buf || length > mi_get_rec_buff_len(info, *buf))
   {
     byte *newptr = *buf;
 
@@ -588,10 +577,10 @@ byte *mi_alloc_rec_buff(MI_INFO *info, ulong length, byte **buf, uint *buf_len)
     if (extra && newptr)
       newptr-=MI_REC_BUFF_OFFSET;
     if (!(newptr=(byte*) my_realloc((gptr)newptr, length+extra+8,
-				    MYF(MY_ALLOW_ZERO_PTR))))
-      return 0;
+                                     MYF(MY_ALLOW_ZERO_PTR))))
+      return newptr;
+    *((uint *)newptr)=length;
     *buf= newptr+(extra ?  MI_REC_BUFF_OFFSET : 0);
-    *buf_len= length;
   }
   return *buf;
 }
