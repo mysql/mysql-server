@@ -515,16 +515,23 @@ static bool make_empty_rec(File file,enum db_type table_type,
   uchar *buff,*null_pos;
   TABLE table;
   create_field *field;
+  handler *handler;
   DBUG_ENTER("make_empty_rec");
 
   /* We need a table to generate columns for default values */
   bzero((char*) &table,sizeof(table));
-  table.db_low_byte_first=test(table_type == DB_TYPE_MYISAM ||
-			       table_type == DB_TYPE_HEAP);
+  handler= get_new_handler((TABLE*) 0, table_type);
+
+  if (!handler ||
+      !(buff=(uchar*) my_malloc((uint) reclength,MYF(MY_WME | MY_ZEROFILL))))
+  {
+    delete handler;
+    DBUG_RETURN(1);
+  }
+
+  table.db_low_byte_first= handler->low_byte_first();
   table.blob_ptr_size=portable_sizeof_char_ptr;
 
-  if (!(buff=(uchar*) my_malloc((uint) reclength,MYF(MY_WME | MY_ZEROFILL))))
-    DBUG_RETURN(1);
   firstpos=reclength;
   null_count=0;
   if (!(table_options & HA_OPTION_PACK_RECORD))
@@ -574,8 +581,11 @@ static bool make_empty_rec(File file,enum db_type table_type,
       regfield->reset();
     delete regfield;
   }
-  bfill((byte*) buff+null_length,firstpos-null_length,255);/* Fill not used startpos */
+
+  /* Fill not used startpos */
+  bfill((byte*) buff+null_length,firstpos-null_length,255);
   error=(int) my_write(file,(byte*) buff,(uint) reclength,MYF_RW);
   my_free((gptr) buff,MYF(MY_FAE));
+  delete handler;
   DBUG_RETURN(error);
 } /* make_empty_rec */
