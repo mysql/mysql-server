@@ -372,7 +372,7 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
           (starting from position 4):
           Format_desc (of slave)
           Rotate (of master)
-          Format_desc (of slave)
+          Format_desc (of master)
           So the Format_desc which really describes the rest of the relay log is
           the 3rd event (it can't be further than that, because we rotate the
           relay log when we queue a Rotate event from the master).
@@ -3873,7 +3873,10 @@ static int process_io_rotate(MASTER_INFO *mi, Rotate_log_event *rev)
     mi->rli.relay_log.description_event_for_queue= new
       Format_description_log_event(3);
   }
-
+  /*
+    Rotate the relay log makes binlog format detection easier (at next slave
+    start or mysqlbinlog)
+  */
   rotate_relay_log(mi); /* will take the right mutexes */
   DBUG_RETURN(0);
 }
