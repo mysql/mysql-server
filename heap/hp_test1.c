@@ -44,11 +44,13 @@ int main(int argc, char **argv)
 
   keyinfo[0].keysegs=1;
   keyinfo[0].seg=keyseg;
+  keyinfo[0].algorithm= HA_KEY_ALG_HASH;
   keyinfo[0].seg[0].type=HA_KEYTYPE_BINARY;
   keyinfo[0].seg[0].start=1;
   keyinfo[0].seg[0].length=6;
+  keyinfo[0].seg[0].charset=default_charset_info;
   keyinfo[0].flag = HA_NOSAME;
-
+  
   deleted=0;
   bzero((gptr) flags,sizeof(flags));
 
