@@ -73,6 +73,99 @@ bool Item::val_bool()
 }
 
 
+String *Item::val_string_from_real(String *str)
+{
+  double nr= val_real();
+  if (null_value)
+    return 0;					/* purecov: inspected */
+  str->set(nr,decimals, &my_charset_bin);
+  return str;
+}
+
+
+String *Item::val_string_from_int(String *str)
+{
+  longlong nr= val_int();
+  if (null_value)
+    return 0;
+  if (unsigned_flag)
+    str->set((ulonglong) nr, &my_charset_bin);
+  else
+    str->set(nr, &my_charset_bin);
+  return str;
+}
+
+
+String *Item::val_string_from_decimal(String *str)
+{
+  my_decimal dec_buf, *dec= val_decimal(&dec_buf);
+  if (null_value)
+    return 0;
+  my_decimal_round(E_DEC_FATAL_ERROR, dec, decimals, FALSE, &dec_buf);
+  my_decimal2string(E_DEC_FATAL_ERROR, &dec_buf, 0, 0, 0, str);
+  return str;
+}
+
+
+my_decimal *Item::val_decimal_from_real(my_decimal *decimal_value)
+{
+  double nr= val_real();
+  if (null_value)
+    return 0;
+  double2my_decimal(E_DEC_FATAL_ERROR, nr, decimal_value);
+  return (decimal_value);
+}
+
+
+my_decimal *Item::val_decimal_from_int(my_decimal *decimal_value)
+{
+  longlong nr= val_int();
+  if (null_value)
+    return 0;
+  int2my_decimal(E_DEC_FATAL_ERROR, nr, unsigned_flag, decimal_value);
+  return decimal_value;
+}
+
+
+my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
+{
+  String *res;
+  char *end_ptr;
+  int error;
+  if (!(res= val_str(&str_value)))
+    return 0;                                   // NULL or EOM
+
+  end_ptr= (char*) res->ptr()+ res->length();
+  str2my_decimal(E_DEC_FATAL_ERROR, res->ptr(), res->length(), res->charset(),
+                 decimal_value);
+  return decimal_value;
+}
+
+
+double Item::val_real_from_decimal()
+{
+  /* Note that fix_fields may not be called for Item_avg_field items */
+  double result;
+  my_decimal value_buff, *dec_val= val_decimal(&value_buff);
+  if (null_value)
+    return 0.0;
+  my_decimal2double(E_DEC_FATAL_ERROR, dec_val, &result);
+  return result;
+}
+
+
+longlong Item::val_int_from_decimal()
+{
+  /* Note that fix_fields may not be called for Item_avg_field items */
+  longlong result;
+  my_decimal value, *dec_val= val_decimal(&value);
+  if (null_value)
+    return 0;
+  my_decimal2int(E_DEC_FATAL_ERROR, dec_val, unsigned_flag, &result);
+  return result;
+}
+
+
 Item::Item():
   name(0), orig_name(0), name_length(0), fixed(0),
   collation(&my_charset_bin, DERIVATION_COERCIBLE)
@@ -1376,11 +1469,14 @@ void Item_param::set_double(double d)
     binary protocol, we use str2my_decimal to convert it to
     internal decimal value.
 */
+
 void Item_param::set_decimal(const char *str, ulong length)
 {
+  char *end;
   DBUG_ENTER("Item_param::set_decimal");
 
-  str2my_decimal(E_DEC_FATAL_ERROR, str, &decimal_value);
+  end= (char*) str+length;
+  str2my_decimal(E_DEC_FATAL_ERROR, str, &decimal_value, &end);
   state= DECIMAL_VALUE;
   decimals= decimal_value.frac;
   max_length= decimal_value.intg + decimals + 2;
@@ -3012,6 +3108,29 @@ Item_num *Item_uint::neg()
 }
 
 
+static uint nr_of_decimals(const char *str, const char *end)
+{
+  const char *decimal_point;
+
+  /* Find position for '.' */
+  for (;;)
+  {
+    if (str == end)
+      return 0;
+    if (*str == 'e' || *str == 'E')
+      return NOT_FIXED_DEC;    
+    if (*str++ == '.')
+      break;
+  }
+  decimal_point= str;
+  for (; my_isdigit(system_charset_info, *str) ; str++)
+    ;
+  if (*str == 'e' || *str == 'E')
+    return NOT_FIXED_DEC;
+  return (uint) (str - decimal_point);
+}
+
+
 /*
   This function is only called during parsing. We will signal an error if
   value is not a true double value (overflow)
@@ -3033,7 +3152,7 @@ Item_float::Item_float(const char *str_arg, uint length)
     my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "double", (char*) str_arg);
   }
   presentation= name=(char*) str_arg;
-  decimals=(uint8) nr_of_decimals(str_arg);
+  decimals=(uint8) nr_of_decimals(str_arg, str_arg+length);
   max_length=length;
   fixed= 1;
 }
