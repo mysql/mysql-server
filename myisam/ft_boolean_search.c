@@ -144,7 +144,7 @@ static void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
 
   param.prev=' ';
   param.quot=up->quot;
-  while ((res=ft_get_word(start,end,&w,&param)))
+  while ((res=ft_get_word(ftb->charset,start,end,&w,&param)))
   {
     int   r=param.plusminus;
     float weight= (float) (param.pmsign ? nwghts : wghts)[(r>5)?5:((r<-5)?-5:r)];
@@ -354,8 +354,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   ftb->info=info;
   ftb->keynr=keynr;
   ftb->charset= ((keynr==NO_SUCH_KEY) ?
-    default_charset_info              :
-    info->s->keyinfo[keynr].seg->charset);
+           default_charset_info : info->s->keyinfo[keynr].seg->charset);
   ftb->with_scan=0;
   ftb->lastpos=HA_POS_ERROR;
   bzero(& ftb->no_dupes, sizeof(TREE));
@@ -609,7 +608,8 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
       continue;
 
     end=ftsi.pos+ftsi.len;
-    while (ft_simple_get_word((byte **) &ftsi.pos,(byte *) end, &word))
+    while (ft_simple_get_word(ftb->charset,
+                              (byte **) &ftsi.pos, (byte *) end, &word))
     {
       int a, b, c;
       for (a=0, b=ftb->queue.elements, c=(a+b)/2; b-a>1; c=(a+b)/2)

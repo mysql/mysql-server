@@ -79,7 +79,8 @@ FT_WORD * ft_linearize(TREE *wtree)
  * 2 - left bracket
  * 3 - right bracket
  */
-byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
+byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
+                 FT_WORD *word, FTB_PARAM *param)
 {
   byte *doc=*start;
   int mwc;
@@ -91,11 +92,7 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
   {
     for (;doc<end;doc++)
     {
-      /*
-        BAR TODO: discuss with Serge how to remove
-        default_charset_info correctly
-      */
-      if (true_word_char(default_charset_info,*doc)) break;
+      if (true_word_char(cs,*doc)) break;
       if (*doc == FTB_RQUOT && param->quot) {
         param->quot=doc;
         *start=doc+1;
@@ -125,7 +122,7 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
 
     mwc=0;
     for (word->pos=doc; doc<end; doc++)
-      if (true_word_char(default_charset_info,*doc))
+      if (true_word_char(cs,*doc))
         mwc=0;
       else if (!misc_word_char(*doc) || mwc++)
         break;
@@ -145,7 +142,8 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
   return 0;
 }
 
-byte ft_simple_get_word(byte **start, byte *end, FT_WORD *word)
+byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, byte *end,
+                        FT_WORD *word)
 {
   byte *doc=*start;
   int mwc;
@@ -155,12 +153,12 @@ byte ft_simple_get_word(byte **start, byte *end, FT_WORD *word)
   {
     for (;doc<end;doc++)
     {
-      if (true_word_char(default_charset_info,*doc)) break;
+      if (true_word_char(cs,*doc)) break;
     }
 
     mwc=0;
     for(word->pos=doc; doc<end; doc++)
-      if (true_word_char(default_charset_info,*doc))
+      if (true_word_char(cs,*doc))
         mwc=0;
       else if (!misc_word_char(*doc) || mwc++)
         break;
@@ -191,7 +189,7 @@ int ft_parse(TREE *wtree, byte *doc, int doclen)
   FT_WORD w;
   DBUG_ENTER("ft_parse");
 
-  while (ft_simple_get_word(&doc,end,&w))
+  while (ft_simple_get_word(wtree->custom_arg, &doc,end,&w))
   {
     if (!tree_insert(wtree, &w, 0, wtree->custom_arg))
       goto err;
