@@ -35,6 +35,7 @@ HASH assign_cache;
 static int open_unireg_entry(THD *thd,TABLE *entry,const char *db,
 			     const char *name, const char *alias);
 static void free_cache_entry(TABLE *entry);
+static void free_assign_entry(KEY_CACHE_ASMT *key_cache_asmt);
 static void mysql_rm_tmp_tables(void);
 
 
@@ -142,7 +143,8 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
     OPEN_TABLE_LIST *table;
     TABLE *entry=(TABLE*) hash_element(&open_cache,idx);
 
-    if ((!entry->real_name))
+    DBUG_ASSERT(entry->real_name);
+    if ((!entry->real_name))			// To be removed
       continue;					// Shouldn't happen
     if (wild)
     {
@@ -772,8 +774,6 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   reg1	TABLE *table;
   char	key[MAX_DBKEY_LENGTH];
   uint	key_length;
-  KEY_CACHE_ASMT *key_cache_asmt;
-  KEY_CACHE_VAR *key_cache;
   DBUG_ENTER("open_table");
 
   /* find a unused table in the open table cache */
@@ -815,76 +815,6 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     my_printf_error(ER_TABLE_NOT_LOCKED,ER(ER_TABLE_NOT_LOCKED),MYF(0),alias);
     DBUG_RETURN(0);
   }
-
-  VOID(pthread_mutex_lock(&LOCK_assign));
-  key_cache_asmt= (KEY_CACHE_ASMT*) hash_search(&assign_cache,
-                                              (byte*) key, key_length) ;
-  if (thd->open_options & HA_OPEN_TO_ASSIGN)
-  { 
-    /* When executing a CACHE INDEX command*/   
-    if (key_cache_asmt)
-    {
-      if (key_cache_asmt->requests++)
-      { 
-        /* Another thread are assigning this table to some key cache*/
-
-        /* Put the assignment request into the queue of such requests */
-        struct st_my_thread_var *last;
-        struct st_my_thread_var *thread= thd->mysys_var;        
-        if (! (last= key_cache_asmt->queue))
-          thread->next= thread;
-        else
-        {
-          thread->next= last->next;
-          last->next= thread;
-        }
-        key_cache_asmt->queue= thread;
-        
-        /* Wait until the request can be processed */
-        do
-        {
-          VOID(pthread_cond_wait(&thread->suspend, &LOCK_assign));
-        }
-        while (thread->next);
-      }
-    }
-    else
-    {
-      /* 
-         The table has not been explicitly assigned to any key cache yet;
-         by default it's assigned to the default key cache;
-      */
-      
-      if (!(key_cache_asmt=
-              (KEY_CACHE_ASMT *) my_malloc(sizeof(*key_cache_asmt),
-					   MYF(MY_WME | MY_ZEROFILL)))      ||
-          !(key_cache_asmt->db_name= my_strdup(db, MYF(MY_WME)))            ||
-	  !(key_cache_asmt->table_name= my_strdup(table_name, MYF(MY_WME))) ||
-          !(key_cache_asmt->table_key= my_memdup((const byte *) key,
-						 key_length, MYF(MY_WME))))
-      {
-        VOID(pthread_mutex_unlock(&LOCK_assign));
-        
-        if (key_cache_asmt)
-        {
-          if (key_cache_asmt->db_name)
-            my_free((gptr) key_cache_asmt->db_name, MYF(0));
-          if (key_cache_asmt->table_name)
-            my_free((gptr) key_cache_asmt->table_name, MYF(0));
-          my_free((gptr) key_cache_asmt, MYF(0));
-        }
-        DBUG_RETURN(NULL);
-      }
-      key_cache_asmt->key_length= key_length;
-      key_cache_asmt->key_cache= &dflt_key_cache_var;  
-      VOID(my_hash_insert(&assign_cache, (byte *) key_cache_asmt));
-      key_cache_asmt->requests++;     
-    }
-    key_cache_asmt->to_reassign= 0;
-  }
-
-  key_cache= key_cache_asmt ? key_cache_asmt->key_cache : &dflt_key_cache_var;  
-  VOID(pthread_mutex_unlock(&LOCK_assign));
 
   VOID(pthread_mutex_lock(&LOCK_open));
 
@@ -929,8 +859,6 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     table->prev->next=table->next;		/* Remove from unused list */
     table->next->prev=table->prev;
 
-    table->key_cache= key_cache;
-    table->key_cache_asmt= key_cache_asmt;
   }
   else
   {
@@ -944,8 +872,6 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
       VOID(pthread_mutex_unlock(&LOCK_open));
       DBUG_RETURN(NULL);
     }
-    table->key_cache= key_cache;
-    table->key_cache_asmt= key_cache_asmt;
     if (open_unireg_entry(thd, table,db,table_name,alias) ||
 	!(table->table_cache_key=memdup_root(&table->mem_root,(char*) key,
 					     key_length)))
@@ -963,8 +889,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   }
 
   table->in_use=thd;
-  check_unused();
-
+  check_unused();				// Debugging call
        
   VOID(pthread_mutex_unlock(&LOCK_open));
   if (refresh)
@@ -1071,8 +996,8 @@ bool reopen_table(TABLE *table,bool locked)
   tmp.grant=		table->grant;
 
   /* Replace table in open list */
-  tmp.next=table->next;
-  tmp.prev=table->prev;
+  tmp.next=		table->next;
+  tmp.prev=		table->prev;
 
   if (table->file)
     VOID(closefrm(table));		// close file, free everything
@@ -1740,54 +1665,6 @@ bool rm_temporary_table(enum db_type base, char *path)
   DBUG_RETURN(error);
 }
 
-static void free_assign_entry(KEY_CACHE_ASMT *key_cache_asmt)
-{
-  DBUG_ENTER("free_assign_entry");
-  my_free((gptr) key_cache_asmt->table_key, MYF(0));
-  my_free((gptr) key_cache_asmt, MYF(0));
-  DBUG_VOID_RETURN;
-}
-
-static byte *assign_cache_key(const byte *record,uint *length,
-				 my_bool not_used __attribute__((unused)))
-{
-  KEY_CACHE_ASMT *entry=(KEY_CACHE_ASMT *) record;
-  *length=entry->key_length;
-  return (byte*) entry->table_key;
-}
-
-void assign_cache_init(void)
-{
-  VOID(hash_init(&assign_cache, &my_charset_bin,
-		 table_cache_size+16, 0, 0, assign_cache_key,
-		 (hash_free_key) free_assign_entry,0));
-}
-
-void assign_cache_free(void)
-{
-  DBUG_ENTER("assign_cache_free");
-  hash_free(&assign_cache);
-  DBUG_VOID_RETURN;
-}
-
-void reassign_key_cache(KEY_CACHE_ASMT *key_cache_asmt,
-                        KEY_CACHE_VAR *new_key_cache)
-{
-  if (key_cache_asmt->prev)
-  { 
-    /* Unlink key_cache_asmt from the assignment list for the old key cache */
-    if ((*key_cache_asmt->prev= key_cache_asmt->next))
-      key_cache_asmt->next->prev= key_cache_asmt->prev;
-  }
-  /* Link key_cache_asmt into the assignment list for the new key cache */
-  key_cache_asmt->prev= &new_key_cache->assign_list;
-  if ((key_cache_asmt->next= new_key_cache->assign_list))
-    key_cache_asmt->next->prev= &key_cache_asmt->next;
-  new_key_cache->assign_list= key_cache_asmt;
-
-  key_cache_asmt->key_cache= new_key_cache;
-}
-
 
 /*****************************************************************************
 ** find field in list or tables. if field is unqualifed and unique,
@@ -2215,7 +2092,21 @@ bool setup_tables(TABLE_LIST *tables)
 }
 
 
-void get_key_map_from_key_list(key_map *map, TABLE *table,
+/*
+   Create a key_map from a list of index names
+
+   SYNOPSIS
+     get_key_map_from_key_list()
+     map		key_map to fill in
+     table		Table
+     index_list		List of index names
+
+   RETURN
+     0	ok;  In this case *map will includes the choosed index
+     1	error
+*/
+
+bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list)
 {
   List_iterator_fast<String> it(*index_list);
@@ -2231,12 +2122,13 @@ void get_key_map_from_key_list(key_map *map, TABLE *table,
       my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), name->c_ptr(),
 	       table->real_name);
       map->set_all();
-      return;
+      return 1;
     }
     map->set_bit(pos-1);
   }
-  return;
+  return 0;
 }
+
 
 /****************************************************************************
   This just drops in all fields instead of current '*' field
@@ -2488,7 +2380,7 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   DBUG_ENTER("mysql_create_index");
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
-  create_info.table_charset= thd->variables.collation_database;
+  create_info.default_table_charset= thd->variables.collation_database;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
 				fields, keys, drop, alter, 0, (ORDER*)0, FALSE,
@@ -2505,7 +2397,7 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
   DBUG_ENTER("mysql_drop_index");
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
-  create_info.table_charset= thd->variables.collation_database;
+  create_info.default_table_charset= thd->variables.collation_database;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
 				fields, keys, drop, alter, 0, (ORDER*)0, FALSE,

@@ -411,6 +411,9 @@ int		STDCALL mysql_dump_debug_info(MYSQL *mysql);
 int		STDCALL mysql_refresh(MYSQL *mysql,
 				     unsigned int refresh_options);
 int		STDCALL mysql_kill(MYSQL *mysql,unsigned long pid);
+int		STDCALL mysql_set_server_option(MYSQL *mysql,
+						enum enum_mysql_set_option
+						option);
 int		STDCALL mysql_ping(MYSQL *mysql);
 const char *	STDCALL mysql_stat(MYSQL *mysql);
 const char *	STDCALL mysql_get_server_info(MYSQL *mysql);

@@ -715,7 +715,14 @@ class Item_func_in :public Item_int_func
   }
   longlong val_int();
   void fix_length_and_dec();
-  ~Item_func_in() { delete array; delete in_item; }
+  ~Item_func_in() {}
+  void cleanup()
+  {
+    delete array;
+    delete in_item;
+    array= 0;
+    in_item= 0;
+  }
   optimize_type select_optimize() const
     { return array ? OPTIMIZE_KEY : OPTIMIZE_NONE; }
   void print(String *str);

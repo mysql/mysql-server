@@ -280,7 +280,7 @@ explain extended (select * from t1 where a=1) union (select * from t2 where a=1)
 (select * from t1 where a=5 and a=6) union (select * from t2 where a=1);
 (select t1.a,t1.b from t1,t2 where t1.a=5) union (select * from t2 where a=1);
 (select * from t1 where a=1) union (select t1.a,t2.a from t1,t2 where t1.a=t2.a);
-explain (select * from t1 where a=1 and b=10) union (select t1.a,t2.a from t1,t2 where t1.a=t2.a);
+explain (select * from t1 where a=1 and b=10) union (select straight_join t1.a,t2.a from t1,t2 where t1.a=t2.a);
 explain (select * from t1 where a=1) union (select * from t1 where b=1);
 drop table t1,t2;
 create table t1 (   id int not null auto_increment, primary key (id)   ,user_name text );

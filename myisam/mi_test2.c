@@ -49,7 +49,7 @@ static	int verbose=0,testflag=0,
 static int pack_seg=HA_SPACE_PACK,pack_type=HA_PACK_KEY,remove_count=-1,
 	   create_flag=0;
 static ulong key_cache_size=IO_SIZE*16;
-static uint key_cache_block_size=IO_SIZE;
+static uint key_cache_block_size= KEY_CACHE_BLOCK_SIZE;
 
 static uint keys=MYISAM_KEYS,recant=1000;
 static uint use_blob=0;
@@ -274,9 +274,9 @@ int main(int argc, char *argv[])
       puts("got error from mi_extra(HA_EXTRA_NO_CACHE)");
       goto end;
     }
-    if (key_cacheing)
-      resize_key_cache(dflt_keycache,key_cache_block_size,key_cache_size*2);
   }
+  if (key_cacheing)
+    resize_key_cache(dflt_keycache,key_cache_block_size,key_cache_size*2);
 
   if (!silent)
     printf("- Delete\n");
@@ -829,7 +829,7 @@ reads:      %10lu\n",
 	   my_cache_r_requests, my_cache_read);
 #endif
   }
-  end_key_cache(dflt_keycache,1);
+  end_key_cache(*dflt_keycache,1);
   if (blob_buffer)
     my_free(blob_buffer,MYF(0));
   my_end(silent ? MY_CHECK_ERROR : MY_CHECK_ERROR | MY_GIVE_INFO);

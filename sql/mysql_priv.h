@@ -427,8 +427,6 @@ bool check_stack_overrun(THD *thd,char *dummy);
 void table_cache_init(void);
 void table_cache_free(void);
 uint cached_tables(void);
-void assign_cache_init(void);
-void assign_cache_free(void);
 void reassign_key_cache(KEY_CACHE_ASMT *key_cache_asmt,
                         KEY_CACHE_VAR *new_key_cache);
 void kill_mysql(void);
@@ -460,10 +458,11 @@ int mysql_analyze_table(THD* thd, TABLE_LIST* table_list,
 			HA_CHECK_OPT* check_opt);
 int mysql_optimize_table(THD* thd, TABLE_LIST* table_list,
 			 HA_CHECK_OPT* check_opt);
-int mysql_assign_to_keycache(THD* thd, TABLE_LIST* table_list);
+int mysql_assign_to_keycache(THD* thd, TABLE_LIST* table_list,
+			     LEX_STRING *key_cache_name);
 int mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
-int reassign_keycache_tables(THD* thd, KEY_CACHE_VAR* src_cache, 
-                             char *dest_name, bool remove_fl);
+int reassign_keycache_tables(THD* thd, KEY_CACHE_VAR *src_cache,
+                             KEY_CACHE_VAR *dst_cache);
 
 bool check_simple_select();
 
@@ -662,7 +661,7 @@ enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 extern const Item **not_found_item;
 Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
 			  find_item_error_report_type report_error);
-void get_key_map_from_key_list(key_map *map, TABLE *table,
+bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
 bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   const char *db_name, const char *table_name,
@@ -849,7 +848,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_error_log, LOCK_delayed_insert,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
-       LOCK_global_system_variables, LOCK_user_conn, LOCK_assign;
+       LOCK_global_system_variables, LOCK_user_conn;
 extern rw_lock_t      LOCK_grant;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
 extern pthread_attr_t connection_attrib;
@@ -866,6 +865,8 @@ extern SHOW_COMP_OPTION have_berkeley_db;
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 extern struct rand_struct sql_rand;
+extern KEY_CACHE_VAR *sql_key_cache;
+extern KEY_CACHE_HANDLE sql_key_cache_handle;
 
 extern const char *opt_date_time_formats[];
 extern KNOWN_DATE_TIME_FORMAT known_date_time_formats[];

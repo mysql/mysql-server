@@ -69,7 +69,7 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
   if (!(buff= (uchar *) my_malloc(length, MYF(MY_WME))))
     DBUG_RETURN(my_errno= HA_ERR_OUT_OF_MEM);
 
-  if (flush_key_blocks(*share->keycache,share->kfile, FLUSH_RELEASE))
+  if (flush_key_blocks(*share->key_cache,share->kfile, FLUSH_RELEASE))
     goto err;
  
   do
@@ -87,7 +87,7 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
       {
         if (mi_test_if_nod(buff))
         {
-          if (key_cache_insert(*share->keycache,
+          if (key_cache_insert(*share->key_cache,
                                share->kfile, pos, DFLT_INIT_HITS, 
                               (byte*) buff, block_length))
 	    goto err;
@@ -99,7 +99,7 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
     }
     else
     {
-      if (key_cache_insert(*share->keycache,
+      if (key_cache_insert(*share->key_cache,
                            share->kfile, pos, DFLT_INIT_HITS,
                            (byte*) buff, length))
 	goto err;

@@ -45,7 +45,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `l` char(10) character set ucs2 NOT NULL default '',
   `r` char(10) character set ucs2 NOT NULL default ''
-) TYPE=MyISAM CHARSET=latin1
+) TYPE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SET NAMES koi8r;
 SET character_set_connection=ucs2;

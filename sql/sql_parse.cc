@@ -44,7 +44,6 @@
 #define MIN_HANDSHAKE_SIZE      6
 #endif /* HAVE_OPENSSL */
 
-extern "C" pthread_mutex_t THR_LOCK_keycache;
 #ifdef SOLARIS
 extern "C" int gethostname(char *name, int namelen);
 #endif
@@ -1069,6 +1068,14 @@ void free_items(Item *item)
     delete item;
 }
 
+    /* This works because items are allocated with sql_alloc() */
+
+void cleanup_items(Item *item)
+{
+  for (; item ; item=item->next)
+    item->cleanup();
+}
+
 int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
 {
   TABLE* table;
@@ -1576,6 +1583,23 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     kill_one_thread(thd,id);
     break;
   }
+  case COM_SET_OPTION:
+  {
+    statistic_increment(com_stat[SQLCOM_SET_OPTION], &LOCK_status);
+    enum_mysql_set_option command= (enum_mysql_set_option) uint2korr(packet);
+    switch (command) {
+    case MYSQL_OPTION_MULTI_STATEMENTS_ON:
+      thd->client_capabilities|= CLIENT_MULTI_STATEMENTS;
+      break;
+    case MYSQL_OPTION_MULTI_STATEMENTS_OFF:
+      thd->client_capabilities&= ~CLIENT_MULTI_STATEMENTS;
+      break;
+    default:
+      send_error(thd, ER_UNKNOWN_COM_ERROR);
+      break;
+    }
+    break;
+  }
   case COM_DEBUG:
     statistic_increment(com_other,&LOCK_status);
     if (check_global_access(thd, SUPER_ACL))
@@ -1968,7 +1992,7 @@ mysql_execute_command(THD *thd)
         check_access(thd, INDEX_ACL, tables->db,
                      &tables->grant.privilege, 0, 0))
       goto error;
-    res = mysql_assign_to_keycache(thd, tables);
+    res= mysql_assign_to_keycache(thd, tables, &lex->name_and_length);
     break;
   }
   case SQLCOM_PRELOAD_KEYS:
@@ -2110,6 +2134,19 @@ mysql_execute_command(THD *thd)
       break;
     }
 #endif
+    /*
+      If we are using SET CHARSET without DEFAULT, add an implicite
+      DEFAULT to not confuse old users. (This may change).
+    */
+    if ((lex->create_info.used_fields & 
+	 (HA_CREATE_USED_DEFAULT_CHARSET | HA_CREATE_USED_CHARSET)) ==
+	HA_CREATE_USED_CHARSET)
+    {
+      lex->create_info.used_fields&= ~HA_CREATE_USED_CHARSET;
+      lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
+      lex->create_info.default_table_charset= lex->create_info.table_charset;
+      lex->create_info.table_charset= 0;
+    }
     if (select_lex->item_list.elements)		// With select
     {
       select_result *result;
@@ -2417,7 +2454,7 @@ mysql_execute_command(THD *thd)
       bzero((char*) &create_info,sizeof(create_info));
       create_info.db_type=DB_TYPE_DEFAULT;
       create_info.row_type=ROW_TYPE_DEFAULT;
-      create_info.table_charset=default_charset_info;
+      create_info.default_table_charset=default_charset_info;
       res= mysql_alter_table(thd, NullS, NullS, &create_info,
 			     tables, lex->create_list,
 			     lex->key_list, lex->drop_list, lex->alter_list,
@@ -4628,15 +4665,24 @@ void kill_one_thread(THD *thd, ulong id)
 
 static void refresh_status(void)
 {
-  pthread_mutex_lock(&THR_LOCK_keycache);
   pthread_mutex_lock(&LOCK_status);
   for (struct show_var_st *ptr=status_vars; ptr->name; ptr++)
   {
     if (ptr->type == SHOW_LONG)
-      *(ulong*) ptr->value=0;
+      *(ulong*) ptr->value= 0;
+    else if (ptr->type == SHOW_KEY_CACHE_LONG)
+    {
+      /*
+	Reset value in 'default' key cache.
+	This needs to be recoded when we have thread specific key values
+      */
+      char *value= (((char*) sql_key_cache) +
+		    (uint) ((char*) (ptr->value) -
+			    (char*) &dflt_key_cache_var));
+      *(ulong*) value= 0;
+    }
   }
   pthread_mutex_unlock(&LOCK_status);
-  pthread_mutex_unlock(&THR_LOCK_keycache);
 }
 
 

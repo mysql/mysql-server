@@ -103,7 +103,7 @@ t1	CREATE TABLE `t1` (
   `c6` char(3) default NULL,
   `c7` double(3,1) default NULL,
   `c8` double(3,1) default NULL
-) TYPE=MyISAM CHARSET=latin1
+) TYPE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
 SELECT CASE 
 WHEN 1 
@@ -150,5 +150,5 @@ t1	CREATE TABLE `t1` (
   `COALESCE(1,'1')` char(1) NOT NULL default '',
   `COALESCE(1.1,'1')` char(3) NOT NULL default '',
   `COALESCE('a' COLLATE latin1_bin,'b')` char(1) character set latin1 collate latin1_bin NOT NULL default ''
-) TYPE=MyISAM CHARSET=latin1
+) TYPE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;

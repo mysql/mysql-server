@@ -120,6 +120,10 @@ void send_error(THD *thd, uint sql_errno, const char *err)
 #endif  /* EMBEDDED_LIBRARY*/
   thd->is_fatal_error=0;			// Error message is given
   thd->net.report_error= 0;
+
+  /* Abort multi-result sets */
+  thd->lex.found_colon= 0;
+  thd->server_status= ~SERVER_MORE_RESULTS_EXISTS;
   DBUG_VOID_RETURN;
 }
 
@@ -338,7 +342,14 @@ send_eof(THD *thd, bool no_flush)
       uint tmp= min(thd->total_warn_count, 65535);
       buff[0]=254;
       int2store(buff+1, tmp);
-      int2store(buff+3, 0);			// No flags yet
+      /*
+	The following test should never be true, but it's better to do it
+	because if 'is_fatal_error' is set the server is not going to execute
+	other queries (see the if test in dispatch_command / COM_QUERY)
+      */
+      if (thd->is_fatal_error)
+	thd->server_status= ~SERVER_MORE_RESULTS_EXISTS;
+      int2store(buff+3, thd->server_status);
       VOID(my_net_write(net,(char*) buff,5));
       VOID(net_flush(net));
     }

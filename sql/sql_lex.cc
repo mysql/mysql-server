@@ -870,7 +870,7 @@ int yylex(void *arg, void *yythd)
     case MY_LEX_COLON:			// optional line terminator
       if (yyPeek())
       {
-        if (((THD *)yythd)->client_capabilities & CLIENT_MULTI_QUERIES)
+        if (((THD *)yythd)->client_capabilities & CLIENT_MULTI_STATEMENTS)
         {
           lex->found_colon=(char*)lex->ptr;
           ((THD *)yythd)->server_status |= SERVER_MORE_RESULTS_EXISTS;

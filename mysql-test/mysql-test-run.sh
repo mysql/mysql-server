@@ -575,7 +575,7 @@ show_failed_diff ()
     $DIFF -c $result_file $reject_file
     echo "-------------------------------------------------------"
     echo "Please follow the instructions outlined at"
-    echo "http://www.mysql.com/doc/R/e/Reporting_mysqltest_bugs.html"
+    echo "http://www.mysql.com/doc/en/Reporting_mysqltest_bugs.html"
     echo "to find the reason to this problem and how to report this."
   fi
 }
@@ -1311,7 +1311,7 @@ run_testcase ()
 	show_failed_diff $tname
 	$ECHO
 	if [ x$FORCE != x1 ] ; then
-	 $ECHO "Aborting. To continue, re-run with '--force'."
+	 $ECHO "Aborting becasue $tname failed. To continue, re-run with '--force'."
 	 $ECHO
          if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
 	 then

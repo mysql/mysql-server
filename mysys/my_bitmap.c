@@ -38,6 +38,7 @@
 #include <assert.h>
 #include <m_string.h>
 
+
 inline void bitmap_lock(MY_BITMAP *map)
 {
 #ifdef THREAD
@@ -45,6 +46,7 @@ inline void bitmap_lock(MY_BITMAP *map)
     pthread_mutex_lock(map->mutex);
 #endif
 }
+
 
 inline void bitmap_unlock(MY_BITMAP *map)
 {
@@ -54,14 +56,19 @@ inline void bitmap_unlock(MY_BITMAP *map)
 #endif
 }
 
-my_bool bitmap_init(MY_BITMAP *map, uchar *buf, uint bitmap_size, my_bool thread_safe)
+
+my_bool bitmap_init(MY_BITMAP *map, uchar *buf, uint bitmap_size,
+		    my_bool thread_safe)
 {
+  DBUG_ENTER("bitmap_init");
+
   DBUG_ASSERT((bitmap_size & 7) == 0);
   bitmap_size/=8;
   if (!(map->bitmap=buf) &&
-       !(map->bitmap=(uchar*)my_malloc(bitmap_size +
-                                       (thread_safe ? sizeof(pthread_mutex_t) : 0),
-                                       MYF(MY_WME | MY_ZEROFILL))))
+      !(map->bitmap= (uchar*) my_malloc(bitmap_size +
+					(thread_safe ?
+					 sizeof(pthread_mutex_t) : 0),
+					MYF(MY_WME | MY_ZEROFILL))))
     return 1;
   map->bitmap_size=bitmap_size;
 #ifdef THREAD
@@ -73,21 +80,25 @@ my_bool bitmap_init(MY_BITMAP *map, uchar *buf, uint bitmap_size, my_bool thread
   else
     map->mutex=0;
 #endif
-  return 0;
+  DBUG_RETURN(0);
 }
+
 
 void bitmap_free(MY_BITMAP *map)
 {
-#ifdef THREAD
-  if (map->mutex)
-    pthread_mutex_destroy(map->mutex);
-#endif
+  DBUG_ENTER("bitmap_free");
   if (map->bitmap)
   {
+#ifdef THREAD
+    if (map->mutex)
+      pthread_mutex_destroy(map->mutex);
+#endif
     my_free((char*) map->bitmap, MYF(0));
     map->bitmap=0;
   }
+  DBUG_VOID_RETURN;
 }
+
 
 void bitmap_set_bit(MY_BITMAP *map, uint bitmap_bit)
 {
@@ -96,6 +107,7 @@ void bitmap_set_bit(MY_BITMAP *map, uint bitmap_bit)
   map->bitmap[bitmap_bit / 8] |= (1 << (bitmap_bit & 7));
   bitmap_unlock(map);
 }
+
 
 uint bitmap_set_next(MY_BITMAP *map)
 {
@@ -127,6 +139,7 @@ uint bitmap_set_next(MY_BITMAP *map)
   return bit_found;
 }
 
+
 void bitmap_clear_bit(MY_BITMAP *map, uint bitmap_bit)
 {
   DBUG_ASSERT(map->bitmap && bitmap_bit < map->bitmap_size*8);
@@ -135,12 +148,13 @@ void bitmap_clear_bit(MY_BITMAP *map, uint bitmap_bit)
   bitmap_unlock(map);
 }
 
+
 void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size)
 {
   uint prefix_bytes, prefix_bits;
 
   DBUG_ASSERT(map->bitmap &&
-      (prefix_size <= map->bitmap_size*8 || prefix_size == ~0));
+	      (prefix_size <= map->bitmap_size*8 || prefix_size == (uint) ~0));
   bitmap_lock(map);
   set_if_smaller(prefix_size, map->bitmap_size*8);
   if ((prefix_bytes= prefix_size / 8))
@@ -152,15 +166,18 @@ void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size)
   bitmap_unlock(map);
 }
 
+
 void bitmap_clear_all(MY_BITMAP *map)
 {
   bitmap_set_prefix(map, 0);
 }
 
+
 void bitmap_set_all(MY_BITMAP *map)
 {
   bitmap_set_prefix(map, ~0);
 }
+
 
 my_bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size)
 {
@@ -188,6 +205,7 @@ ret:
   return res;
 }
 
+
 my_bool bitmap_is_clear_all(const MY_BITMAP *map)
 {
   return bitmap_is_prefix(map, 0);
@@ -198,15 +216,17 @@ my_bool bitmap_is_set_all(const MY_BITMAP *map)
   return bitmap_is_prefix(map, map->bitmap_size*8);
 }
 
+
 my_bool bitmap_is_set(const MY_BITMAP *map, uint bitmap_bit)
 {
   DBUG_ASSERT(map->bitmap && bitmap_bit < map->bitmap_size*8);
   return map->bitmap[bitmap_bit / 8] & (1 << (bitmap_bit & 7));
 }
 
+
 my_bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2)
 {
-  uint length, res=0;
+  uint res=0;
   uchar *m1=map1->bitmap, *m2=map2->bitmap, *end;
 
   DBUG_ASSERT(map1->bitmap && map2->bitmap &&
@@ -217,8 +237,10 @@ my_bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2)
   end= m1+map1->bitmap_size;
 
   while (m1 < end)
+  {
     if ((*m1++) & ~(*m2++))
       goto ret;
+  }
 
   res=1;
 ret:
@@ -226,6 +248,7 @@ ret:
   bitmap_unlock((MY_BITMAP *)map1);
   return res;
 }
+
 
 my_bool bitmap_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2)
 {
@@ -242,6 +265,7 @@ my_bool bitmap_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2)
   bitmap_unlock((MY_BITMAP *)map1);
   return res;
 }
+
 
 void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2)
 {
@@ -268,6 +292,7 @@ void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2)
   bitmap_unlock(map);
 }
 
+
 void bitmap_subtract(MY_BITMAP *map, const MY_BITMAP *map2)
 {
   uchar *to=map->bitmap, *from=map2->bitmap, *end;
@@ -285,6 +310,7 @@ void bitmap_subtract(MY_BITMAP *map, const MY_BITMAP *map2)
   bitmap_unlock((MY_BITMAP *)map2);
   bitmap_unlock(map);
 }
+
 
 void bitmap_union(MY_BITMAP *map, const MY_BITMAP *map2)
 {
