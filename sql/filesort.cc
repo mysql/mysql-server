@@ -301,6 +301,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   volatile bool *killed= &current_thd->killed;
   handler *file;
   DBUG_ENTER("find_all_keys");
+  DBUG_PRINT("info",("using: %s",(select?select->quick?"ranges":"where":"every row")));
 
   idx=indexpos=0;
   error=quick_select=0;
