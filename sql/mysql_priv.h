@@ -426,7 +426,7 @@ int write_record(TABLE *table,COPY_INFO *info);
 /* sql_manager.cc */
 /* bits set in manager_status */
 #define MANAGER_BERKELEY_LOG_CLEANUP    (1L << 0)
-extern ulong manager_status;
+extern ulong volatile manager_status;
 extern bool volatile manager_thread_in_use;
 extern pthread_t manager_thread;
 extern pthread_mutex_t LOCK_manager;
