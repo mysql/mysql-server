@@ -127,12 +127,13 @@ int Guardian_thread::start()
 
   SYNOPSYS
     guard()
-    instance_name      the name of the instance to be guarded
-    name_len           the length of the name
+    instance           the instance to be guarded
 
   DESCRIPTION
 
-    The instance is added to the list of guarded instances.
+    The instance is added to the list of starting instances. Then after one guardian
+    loop it is moved to the guarded instances list. Usually guard() is called after we
+    start an instance, so we need to give some time to the instance to start.
 
   RETURN
     0 - ok
