@@ -2810,6 +2810,7 @@ mysql_execute_command(THD *thd)
       sp_head *sph= sp_find_function(thd, &lex->udf.name);
       if (sph)
       {
+	sph->destroy();		// QQ Free memory. Remove this when caching!!!
 	net_printf(thd, ER_UDF_EXISTS, lex->udf.name.str);
 	goto error;
       }
@@ -3050,6 +3051,8 @@ mysql_execute_command(THD *thd)
 	thd->net.no_send_ok= nsok;
 #endif
 
+	sp->destroy();		// QQ Free memory. Remove this when caching!!!
+
 	if (res == 0)
 	  send_ok(thd);
 	else
@@ -3075,6 +3078,7 @@ mysql_execute_command(THD *thd)
       {
 	/* QQ This is an no-op right now, since we haven't
 	      put the characteristics in yet. */
+	sp->destroy();		// QQ Free memory. Remove this when caching!!!
 	send_ok(thd);
       }
     }

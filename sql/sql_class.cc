@@ -191,6 +191,9 @@ THD::THD():user_time(0), is_fatal_error(0),
     pthread_mutex_unlock(&LOCK_thread_count);
     randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
   }
+
+  /* QQ init the temporary function cache */
+  spfuns.empty();
 }
 
 
@@ -282,6 +285,10 @@ void THD::cleanup(void)
     pthread_mutex_unlock(&LOCK_user_locks);
     ull= 0;
   }
+
+  //  extern void sp_clear_function_cache(THD *);
+  //  sp_clear_function_cache(this);
+
   cleanup_done=1;
   DBUG_VOID_RETURN;
 }

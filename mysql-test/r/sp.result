@@ -20,6 +20,7 @@ delete from t1;
 drop procedure foo42;
 create procedure u()
 use sptmp;
+drop database if exists sptmp;
 create database sptmp;
 use test;
 call u();
