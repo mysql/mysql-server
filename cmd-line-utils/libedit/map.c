@@ -37,13 +37,6 @@
  */
 
 #include "compat.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)map.c	8.1 (Berkeley) 6/4/93";
-#else
-__RCSID("$NetBSD: map.c,v 1.14 2001/01/09 17:22:09 jdolecek Exp $");
-#endif
-#endif /* not lint && not SCCSID */
 
 /*
  * map.c: Editor function definitions

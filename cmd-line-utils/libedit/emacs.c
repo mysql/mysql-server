@@ -37,13 +37,6 @@
  */
 
 #include "compat.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)emacs.c	8.1 (Berkeley) 6/4/93";
-#else
-__RCSID("$NetBSD: emacs.c,v 1.9 2001/01/10 07:45:41 jdolecek Exp $");
-#endif
-#endif /* not lint && not SCCSID */
 
 /*
  * emacs.c: Emacs functions

@@ -37,13 +37,6 @@
  */
 
 #include "compat.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)vi.c	8.1 (Berkeley) 6/4/93";
-#else
-__RCSID("$NetBSD: vi.c,v 1.8 2000/09/04 22:06:33 lukem Exp $");
-#endif
-#endif /* not lint && not SCCSID */
 
 /*
  * vi.c: Vi mode commands.
