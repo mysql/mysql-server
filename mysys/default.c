@@ -112,20 +112,14 @@ static int search_files(const char *conf_file, int *argc, char ***argv,
   DBUG_ENTER("search_files");
 
   /* Check if we want to force the use a specific default file */
-  forced_default_file= 0;
-  if (*argc >= 2)
-  {
-    if (is_prefix(argv[0][1],"--defaults-file="))
-    {
-      forced_default_file= strchr(argv[0][1],'=') + 1;
-      (*args_used)++;
-    }
-    else if (is_prefix(argv[0][1],"--defaults-extra-file="))
-    {
-      defaults_extra_file= strchr(argv[0][1],'=') + 1;
-      (*args_used)++;
-    }
-  }
+  get_defaults_files(*argc, *argv,
+                     (char **)&forced_default_file, &defaults_extra_file);
+  if (forced_default_file)
+    forced_default_file= strchr(forced_default_file,'=')+1;
+  if (defaults_extra_file)
+    defaults_extra_file= strchr(defaults_extra_file,'=')+1;
+
+  args_used+= (forced_default_file ? 1 : 0) + (defaults_extra_file ? 1 : 0);
 
   if (forced_default_file)
   {
@@ -258,6 +252,36 @@ static int handle_default_option(void *in_ctx, const char *group_name,
   }
 
   return 0;
+}
+
+
+/*
+  Gets --defaults-file and --defaults-extra-file options from command line.
+
+  SYNOPSIS
+    get_defaults_files()
+    argc			Pointer to argc of original program
+    argv			Pointer to argv of original program
+    defaults                    --defaults-file option
+    extra_defaults              --defaults-extra-file option
+
+  RETURN
+    defaults and extra_defaults will be set to appropriate items
+    of argv array, or to NULL if there are no such options
+*/
+
+void get_defaults_files(int argc, char **argv,
+                        char **defaults, char **extra_defaults)
+{
+  *defaults=0;
+  *extra_defaults=0;
+  if (argc >= 2)
+  {
+    if (is_prefix(argv[1],"--defaults-file="))
+      *defaults= argv[1];
+    else if (is_prefix(argv[1],"--defaults-extra-file="))
+      *extra_defaults= argv[1];
+  }
 }
 
 
