@@ -990,12 +990,12 @@ sp_cache_functions(THD *thd, LEX *lex)
       if (db_find_routine(thd, TYPE_ENUM_FUNCTION, &name, &sp)
 	  == SP_OK)
       {
+	sp_cache_insert(&thd->sp_func_cache, sp);
 	ret= sp_cache_functions(thd, newlex);
 	delete newlex;
 	thd->lex= oldlex;
 	if (ret)
 	  break;
-	sp_cache_insert(&thd->sp_func_cache, sp);
       }
       else
       {

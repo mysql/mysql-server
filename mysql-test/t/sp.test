@@ -2090,6 +2090,25 @@ select * from t3|
 drop procedure bug4905|
 drop table t3|
 
+#
+# BUG#6022: Stored procedure shutdown problem with self-calling function.
+#
+--disable_warnings
+drop function if exists bug6022|
+--enable_warnings
+
+create function bug6022(x int) returns int
+begin
+  if x < 0 then
+    return 0;
+  else
+    return bug6022(x-1);
+  end if;
+end|
+
+select bug6022(5)|
+drop function bug6022|
+
 
 #
 # Some "real" examples

@@ -1934,6 +1934,19 @@ s1
 1
 drop procedure bug4905|
 drop table t3|
+drop function if exists bug6022|
+create function bug6022(x int) returns int
+begin
+if x < 0 then
+return 0;
+else
+return bug6022(x-1);
+end if;
+end|
+select bug6022(5)|
+bug6022(5)
+0
+drop function bug6022|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)
