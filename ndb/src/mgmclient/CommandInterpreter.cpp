@@ -14,6 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+#include <my_sys.h>
+
 #include "CommandInterpreter.hpp"
 
 #include <mgmapi.h>
@@ -22,6 +25,7 @@
 #include <NdbAutoPtr.hpp>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
+#include <NdbMem.h>
 #include <EventLogger.hpp>
 #include <signaldata/SetLogLevelOrd.hpp>
 #include <signaldata/GrepImpl.hpp>
@@ -178,7 +182,7 @@ CommandInterpreter::CommandInterpreter(const char *_host)
   connected = false;
   try_reconnect = 0;
 
-  host = strdup(_host);
+  host = my_strdup(_host,MYF(MY_WME));
 #ifdef HAVE_GLOBAL_REPLICATION
   rep_host = NULL;
   m_repserver = NULL;
@@ -193,7 +197,7 @@ CommandInterpreter::~CommandInterpreter()
 {
   connected = false;
   ndb_mgm_destroy_handle(&m_mgmsrv);
-  free((char *)host);
+  my_free((char *)host,MYF(0));
   host = NULL;
 }
 
@@ -212,16 +216,6 @@ emptyString(const char* s)
 
   return true;
 }
-
-class AutoPtr 
-{
-public:
-  AutoPtr(void * ptr) : m_ptr(ptr) {}
-  ~AutoPtr() { free(m_ptr);}
-private:
-  void * m_ptr;
-};
-
 
 void
 CommandInterpreter::printError() 
@@ -282,9 +276,8 @@ CommandInterpreter::readAndExecute(int _try_reconnect)
     return false;
   }
 
-  line = strdup(_line);
-  
-  AutoPtr ptr(line);
+  line = my_strdup(_line,MYF(MY_WME));
+  My_auto_ptr<char> ptr(line);
   
   if (emptyString(line)) {
     return true;
@@ -510,20 +503,19 @@ CommandInterpreter::executeForAll(const char * cmd, ExecuteFunction fun,
     ndbout_c("Use ALL STATUS to see the system start-up phases.");
   } else {
     connect();
-    struct ndb_mgm_cluster_state *cl;
-    cl = ndb_mgm_get_status(m_mgmsrv);
+    struct ndb_mgm_cluster_state *cl= ndb_mgm_get_status(m_mgmsrv);
     if(cl == 0){
       ndbout_c("Unable get status from management server");
       printError();
       return;
     }
+    NdbAutoPtr<char> ap1((char*)cl);
     while(get_next_nodeid(cl, &nodeId, NDB_MGM_NODE_TYPE_NDB)) {
       if(strcmp(cmd, "STATUS") != 0)
 	ndbout_c("Executing %s on node %d.", cmd, nodeId);
       (this->*fun)(nodeId, allAfterSecondToken, true);
       ndbout << endl;
     } // while
-    free(cl);
   }
 }
 
@@ -540,7 +532,8 @@ CommandInterpreter::parseBlockSpecification(const char* allAfterLog,
   }
 
   // Copy allAfterLog since strtok will modify it  
-  char* newAllAfterLog = strdup(allAfterLog);
+  char* newAllAfterLog = my_strdup(allAfterLog,MYF(MY_WME));
+  My_auto_ptr<char> ap1(newAllAfterLog);
   char* firstTokenAfterLog = strtok(newAllAfterLog, " ");
   for (unsigned int i = 0; i < strlen(firstTokenAfterLog); ++i) {
     firstTokenAfterLog[i] = toupper(firstTokenAfterLog[i]);
@@ -549,14 +542,12 @@ CommandInterpreter::parseBlockSpecification(const char* allAfterLog,
   if (strcmp(firstTokenAfterLog, "BLOCK") != 0) {
     ndbout << "Unexpected value: " << firstTokenAfterLog 
 	   << ". Expected BLOCK." << endl;
-    free(newAllAfterLog);
     return false;
   }
 
   char* allAfterFirstToken = strtok(NULL, "\0");
   if (emptyString(allAfterFirstToken)) {
     ndbout << "Expected =." << endl;
-    free(newAllAfterLog);
     return false;
   }
 
@@ -564,7 +555,6 @@ CommandInterpreter::parseBlockSpecification(const char* allAfterLog,
   if (strcmp(secondTokenAfterLog, "=") != 0) {
     ndbout << "Unexpected value: " << secondTokenAfterLog 
 	   << ". Expected =." << endl;
-    free(newAllAfterLog);
     return false;
   }
 
@@ -580,17 +570,14 @@ CommandInterpreter::parseBlockSpecification(const char* allAfterLog,
 
   if (blocks.size() == 0) {
     ndbout << "No block specified." << endl;
-    free(newAllAfterLog);
     return false;
   }
   if (blocks.size() > 1 && all) {
     // More than "ALL" specified
     ndbout << "Nothing expected after ALL." << endl;
-    free(newAllAfterLog);
     return false;
   }
   
-  free(newAllAfterLog);
   return true;
 }
 
@@ -655,6 +642,7 @@ CommandInterpreter::executeShutdown(char* parameters)
     printError();
     return;
   }
+  NdbAutoPtr<char> ap1((char*)state);
 
   int result = 0;
   result = ndb_mgm_stop(m_mgmsrv, 0, 0);
@@ -790,6 +778,7 @@ CommandInterpreter::executeShow(char* parameters)
       printError();
       return;
     }
+    NdbAutoPtr<char> ap1((char*)state);
 
     ndb_mgm_configuration * conf = ndb_mgm_get_configuration(m_mgmsrv,0);
     if(conf == 0){
@@ -873,12 +862,13 @@ CommandInterpreter::executeClusterLog(char* parameters)
   int i;
   connect();
   if (parameters != 0 && strlen(parameters) != 0) {
-  enum ndb_mgm_clusterlog_level severity = NDB_MGM_CLUSTERLOG_ALL;
+    enum ndb_mgm_clusterlog_level severity = NDB_MGM_CLUSTERLOG_ALL;
     int isOk = true;
     char name[12]; 
     bool noArgs = false;
     
-    char * tmpString = strdup(parameters);
+    char * tmpString = my_strdup(parameters,MYF(MY_WME));
+    My_auto_ptr<char> ap1(tmpString);
     char * tmpPtr = 0;
     char * item = strtok_r(tmpString, " ", &tmpPtr);
     
@@ -916,7 +906,6 @@ CommandInterpreter::executeClusterLog(char* parameters)
 	
 	item = strtok_r(NULL, " ", &tmpPtr);	
       } //  while(item != NULL){
-      free(tmpString);
 
       if (noArgs) {
 	ndbout << "Missing argument(s)." << endl;
@@ -1112,7 +1101,8 @@ CommandInterpreter::executeRestart(int processId, const char* parameters,
   int abort = 0;
 
   if(parameters != 0 && strlen(parameters) != 0){
-    char * tmpString = strdup(parameters);
+    char * tmpString = my_strdup(parameters,MYF(MY_WME));
+    My_auto_ptr<char> ap1(tmpString);
     char * tmpPtr = 0;
     char * item = strtok_r(tmpString, " ", &tmpPtr);
     while(item != NULL){
@@ -1124,7 +1114,6 @@ CommandInterpreter::executeRestart(int processId, const char* parameters,
 	abort = 1;
       item = strtok_r(NULL, " ", &tmpPtr);
     }
-    free(tmpString);
   }
 
   if(all) {
@@ -1160,7 +1149,8 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
   Uint32 no = 0;
   int pars[25];
   
-  char * tmpString = strdup(parameters);
+  char * tmpString = my_strdup(parameters,MYF(MY_WME));
+  My_auto_ptr<char> ap1(tmpString);
   char * tmpPtr = 0;
   char * item = strtok_r(tmpString, " ", &tmpPtr);
   while(item != NULL){
@@ -1180,7 +1170,6 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
     ndbout.setHexFormat(1) << pars[i] << " ";
     if (!(i+1 & 0x3)) ndbout << endl;
   }
-  free(tmpString);
   
   struct ndb_mgm_reply reply;
   ndb_mgm_dump_state(m_mgmsrv, processId, pars, no, &reply);
@@ -1207,6 +1196,7 @@ CommandInterpreter::executeStatus(int processId,
     printError();
     return;
   }
+  NdbAutoPtr<char> ap1((char*)cl);
 
   int i = 0;
   while((i < cl->no_of_nodes) && cl->node_states[i].node_id != processId)
@@ -1303,26 +1293,23 @@ void CommandInterpreter::executeError(int processId,
 
   connect();
   // Copy parameters since strtok will modify it
-  char* newpar = strdup(parameters); 
+  char* newpar = my_strdup(parameters,MYF(MY_WME)); 
+  My_auto_ptr<char> ap1(newpar);
   char* firstParameter = strtok(newpar, " ");
 
   int errorNo;
   if (! convert(firstParameter, errorNo)) {
     ndbout << "Expected an integer." << endl;
-    free(newpar);
     return;
   }
 
   char* allAfterFirstParameter = strtok(NULL, "\0");
   if (! emptyString(allAfterFirstParameter)) {
     ndbout << "Nothing expected after error number." << endl;
-    free(newpar);
     return;
   }
 
   ndb_mgm_insert_error(m_mgmsrv, processId, errorNo, NULL);
-
-  free(newpar);
 }
 
 //*****************************************************************************
@@ -1337,21 +1324,20 @@ CommandInterpreter::executeTrace(int /*processId*/,
     return;
   }
 
-  char* newpar = strdup(parameters);
+  char* newpar = my_strdup(parameters,MYF(MY_WME));
+  My_auto_ptr<char> ap1(newpar);
   char* firstParameter = strtok(newpar, " ");
 
 
   int traceNo;
   if (! convert(firstParameter, traceNo)) {
     ndbout << "Expected an integer." << endl;
-    free(newpar);
     return;
   }
   char* allAfterFirstParameter = strtok(NULL, "\0");  
 
   if (! emptyString(allAfterFirstParameter)) {
     ndbout << "Nothing expected after trace number." << endl;
-    free(newpar);
     return;
   }
 
@@ -1359,7 +1345,6 @@ CommandInterpreter::executeTrace(int /*processId*/,
   if (result != 0) {
     ndbout << _mgmtSrvr.getErrorText(result) << endl;
   }
-  free(newpar);
 #endif
 }
 
@@ -1383,7 +1368,8 @@ CommandInterpreter::executeLog(int processId,
     len +=  strlen(blocks[i]);
   }
   len += blocks.size()*2;
-  char * blockNames = (char*)malloc(len);
+  char * blockNames = (char*)my_malloc(len,MYF(MY_WME));
+  My_auto_ptr<char> ap1(blockNames);
   
   for(i=0; i<blocks.size(); i++) {
     strcat(blockNames, blocks[i]);
@@ -1519,13 +1505,13 @@ CommandInterpreter::executeSet(int /*processId*/,
   }
 #if 0
   // Copy parameters since strtok will modify it
-  char* newpar = strdup(parameters);
+  char* newpar = my_strdup(parameters,MYF(MY_WME));
+  My_auto_ptr<char> ap1(newpar);
   char* configParameterName = strtok(newpar, " ");
 
   char* allAfterParameterName = strtok(NULL, "\0");
   if (emptyString(allAfterParameterName)) {
     ndbout << "Missing parameter value." << endl;
-    free(newpar);
     return;
   }
 
@@ -1534,7 +1520,6 @@ CommandInterpreter::executeSet(int /*processId*/,
   char* allAfterValue = strtok(NULL, "\0");
   if (! emptyString(allAfterValue)) {
     ndbout << "Nothing expected after parameter value." << endl;
-    free(newpar);
     return;
   }
 
@@ -1580,7 +1565,6 @@ CommandInterpreter::executeSet(int /*processId*/,
       abort();
     }
   }
-  free(newpar);
 #endif
 }
 
@@ -1771,7 +1755,8 @@ CommandInterpreter::executeRep(char* parameters)
   }
 
   connect();
-  char * line = strdup(parameters);
+  char * line = my_strdup(parameters,MYF(MY_WME));
+  My_auto_ptr<char> ap1((char*)line);
   char * firstToken = strtok(line, " ");
   
   struct ndb_rep_reply  reply;
