@@ -172,7 +172,7 @@ static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
 static CHARSET_INFO *charset_info= &my_charset_latin1;
-			   
+
 #include "sslopt-vars.h"
 
 const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
@@ -1520,7 +1520,7 @@ You can turn off this feature to get a quicker startup with -A\n\n");
       j=0;
       while ((sql_field=mysql_fetch_field(fields)))
       {
-	sprintf(buf,"%s.%s",table_row[0],sql_field->name);
+	sprintf(buf,"%.64s.%.64s",table_row[0],sql_field->name);
 	field_names[i][j] = strdup_root(&hash_mem_root,buf);
 	add_word(&ht,field_names[i][j]);
 	field_names[i][num_fields+j] = strdup_root(&hash_mem_root,
@@ -1597,7 +1597,7 @@ int mysql_real_query_for_lazy(const char *buf, int length)
   for (uint retry=0;; retry++)
   {
     if (!mysql_real_query(&mysql,buf,length))
-      return 0;    
+      return 0;
     int error= put_error(&mysql);
     if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR || retry > 1 ||
       !opt_reconnect)
@@ -2526,7 +2526,7 @@ com_connect(String *buffer, char *line)
   {
     sprintf(buff,"Connection id:    %lu",mysql_thread_id(&mysql));
     put_info(buff,INFO_INFO);
-    sprintf(buff,"Current database: %s\n",
+    sprintf(buff,"Current database: %.128s\n",
 	    current_db ? current_db : "*** NONE ***");
     put_info(buff,INFO_INFO);
   }
@@ -3234,13 +3234,20 @@ static const char* construct_prompt()
 	break;
       }
       case 'p':
+      {
 #ifndef EMBEDDED_LIBRARY
 	if (!connected)
 	{
 	  processed_prompt.append("not_connected");
 	  break;
 	}
-	if (strstr(mysql_get_host_info(&mysql),"TCP/IP") ||
+
+	const char *host_info = mysql_get_host_info(&mysql);
+	if (strstr(host_info, "memory")) 
+	{
+		processed_prompt.append( mysql.host );
+	}
+	else if (strstr(host_info,"TCP/IP") ||
 	    !mysql.unix_socket)
 	  add_int_to_prompt(mysql.port);
 	else
@@ -3249,6 +3256,7 @@ static const char* construct_prompt()
  	  processed_prompt.append(pos ? pos+1 : mysql.unix_socket);
 	}
 #endif
+      }
 	break;
       case 'U':
 	if (!full_username)

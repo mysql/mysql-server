@@ -631,7 +631,7 @@ NdbEventImpl::addTableEvent(const NdbDictionary::Event::TableEvent t =  NdbDicti
 }
 
 void
-NdbEventImpl::setDurability(const NdbDictionary::Event::EventDurability d)
+NdbEventImpl::setDurability(NdbDictionary::Event::EventDurability d)
 {
   m_dur = d;
 }
@@ -1370,9 +1370,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     }
 
     Uint32 topBit = (1 << 31);
-    for(int i = 31; i>=0; i--){
-      if((fragCount & topBit) != 0)
-	  break;
+    for(; topBit && !(fragCount & topBit); ){
       topBit >>= 1;
     }
     impl->m_hashValueMask = topBit - 1;
@@ -1593,6 +1591,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     abort();
   }
   
+  int distKeys= impl.m_noOfDistributionKeys;
   for(i = 0; i<sz; i++){
     const NdbColumnImpl * col = impl.m_columns[i];
     if(col == 0)
@@ -1627,7 +1626,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
       DBUG_RETURN(-1);
     }
     // distribution key not supported for Char attribute
-    if (col->m_distributionKey && col->m_cs != NULL) {
+    if (distKeys && col->m_distributionKey && col->m_cs != NULL) {
       m_error.code= 745;
       DBUG_RETURN(-1);
     }

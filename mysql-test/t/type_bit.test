@@ -106,3 +106,12 @@ create table t1 (a bit(7), key(a));
 insert into t1 values (44), (57);
 select a+0 from t1;
 drop table t1;
+
+#
+# Test conversion to and from strings
+#
+create table t1 (a bit(3), b bit(12));
+insert into t1 values (7,(1<<12)-2), (0x01,0x01ff);
+select hex(a),hex(b) from t1;
+select hex(concat(a)),hex(concat(b)) from t1;
+drop table t1;
