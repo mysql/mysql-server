@@ -23,6 +23,7 @@ SELECT pk1 FROM t1;
 SELECT * FROM t1;
 SELECT t1.* FROM t1;
 
+# Update on record by primary key
 UPDATE t1 SET attr1=1 WHERE pk1=9410;
 SELECT * FROM t1;
 
@@ -35,13 +36,23 @@ SELECT * FROM t1;
 DELETE FROM t1;
 SELECT * FROM t1;
 
-# Delete the record by specifying pk
-INSERT INTO t1 VALUES (9410,9412);
-DELETE FROM t1 WHERE pk1 = 9410;
-SELECT * FROM t1;
+# Insert more records and update them all at once
+INSERT INTO t1 VALUES (9410,9412), (9411, 9413), (9408, 8765),
+(7,8), (8,9), (9,10), (10,11), (11,12), (12,13), (13,14);
+UPDATE t1 SET attr1 = 9999;
+SELECT * FROM t1 ORDER BY pk1;
 
-# Insert three records and delete the
-INSERT INTO t1 VALUES (9410,9412), (9411, 9413), (9408, 8765);
+UPDATE t1 SET attr1 = 9998 WHERE pk1 < 1000;
+SELECT * FROM t1 ORDER BY pk1;
+
+UPDATE t1 SET attr1 = 9997 WHERE attr1 = 9999;
+SELECT * FROM t1 ORDER BY pk1;
+
+# Delete one record by specifying pk
+DELETE FROM t1 WHERE pk1 = 9410;
+SELECT * FROM t1 ORDER BY pk1;
+
+# Delete all from table
 DELETE FROM t1;
 SELECT * FROM t1;
 
