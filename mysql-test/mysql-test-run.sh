@@ -127,6 +127,9 @@ while test $# -gt 0; do
       fi
       DO_GCOV=1
       ;;
+    --gprof )
+      DO_GPROF=1
+      ;;  
     --gdb )
       if [ x$BINARY_DIST = x1 ] ; then
 	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with -gdb option"
@@ -238,7 +241,10 @@ MYSQL_TEST="$MYSQL_TEST --no-defaults --socket=$MASTER_MYSOCK --database=$DB --u
 GDB_MASTER_INIT=$MYSQL_TMP_DIR/gdbinit.master
 GDB_SLAVE_INIT=$MYSQL_TMP_DIR/gdbinit.slave
 GCOV_MSG=$MYSQL_TMP_DIR/mysqld-gcov.out
-GCOV_ERR=$MYSQL_TMP_DIR/mysqld-gcov.err  
+GCOV_ERR=$MYSQL_TMP_DIR/mysqld-gcov.err
+GPROF_DIR=$MYSQL_TMP_DIR/gprof
+GPROF_MASTER=$GPROF_DIR/master.gprof
+GPROF_SLAVE=$GPROF_DIR/slave.gprof
 TIMEFILE="$MYSQL_TMP_DIR/mysqltest-time"
 SLAVE_MYSQLD=$MYSQLD #this can be changed later if we are doing gcov
 
@@ -322,6 +328,24 @@ mysql_install_db () {
 	exit 1
     fi
     return 0
+}
+
+gprof_prepare ()
+{
+ rm -rf $GPROF_DIR
+ mkdir -p $GPROF_DIR 
+}
+
+gprof_collect ()
+{
+ if [ -f $MASTER_MYDDIR/gmon.out ]; then
+   gprof $MYSQLD $MASTER_MYDDIR/gmon.out > $GPROF_MASTER
+   echo "Master execution profile has been saved in $GPROF_MASTER"
+ fi
+ if [ -f $SLAVE_MYDDIR/gmon.out ]; then
+   gprof $MYSQLD $SLAVE_MYDDIR/gmon.out > $GPROF_SLAVE
+   echo "Slave execution profile has been saved in $GPROF_SLAVE"
+ fi
 }
 
 gcov_prepare () {
@@ -663,6 +687,7 @@ run_testcase ()
 [ "$DO_GCOV" -a ! -x "$GCOV" ] && error "No gcov found"
 
 [ "$DO_GCOV" ] && gcov_prepare 
+[ "$DO_GPROF" ] && gprof_prepare 
 
 # Ensure that no old mysqld test servers are running
 if [ -z "$USE_RUNNING_SERVER" ]
@@ -722,5 +747,6 @@ report_stats
 $ECHO
 
 [ "$DO_GCOV" ] && gcov_collect # collect coverage information
+[ "$DO_GPROF" ] && gprof_collect # collect coverage information
 
 exit 0
