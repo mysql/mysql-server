@@ -964,6 +964,37 @@ NdbConnection::releaseScanOperations(NdbIndexScanOperation* cursorOp)
 }//NdbConnection::releaseScanOperations()
 
 /*****************************************************************************
+void releaseExecutedScanOperation();
+
+Remark:         Release scan op when hupp'ed trans closed (save memory)
+******************************************************************************/
+void 
+NdbConnection::releaseExecutedScanOperation(NdbIndexScanOperation* cursorOp)
+{
+  DBUG_ENTER("NdbConnection::releaseExecutedScanOperation");
+  DBUG_PRINT("enter", ("this=0x%x op=0x%x", (UintPtr)this, (UintPtr)cursorOp))
+
+  // here is one reason to make op lists doubly linked
+  if (m_firstExecutedScanOp == cursorOp) {
+    m_firstExecutedScanOp = (NdbIndexScanOperation*)cursorOp->theNext;
+    cursorOp->release();
+    theNdb->releaseScanOperation(cursorOp);
+  } else if (m_firstExecutedScanOp != NULL) {
+    NdbIndexScanOperation* tOp = m_firstExecutedScanOp;
+    while (tOp->theNext != NULL) {
+      if (tOp->theNext == cursorOp) {
+        tOp->theNext = cursorOp->theNext;
+        cursorOp->release();
+        theNdb->releaseScanOperation(cursorOp);
+        break;
+      }
+      tOp = (NdbIndexScanOperation*)tOp->theNext;
+    }
+  }
+  DBUG_VOID_RETURN;
+}//NdbConnection::releaseExecutedScanOperation()
+
+/*****************************************************************************
 NdbOperation* getNdbOperation(const char* aTableName);
 
 Return Value    Return a pointer to a NdbOperation object if getNdbOperation 
