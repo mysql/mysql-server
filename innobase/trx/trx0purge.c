@@ -297,8 +297,7 @@ trx_purge_add_update_undo_to_history(
 				undo_header + TRX_UNDO_HISTORY_NODE, mtr);
 
 	/* Write the trx number to the undo log header */
-	mlog_write_dulint(undo_header + TRX_UNDO_TRX_NO, trx->no, MLOG_8BYTES,
-									mtr);
+	mlog_write_dulint(undo_header + TRX_UNDO_TRX_NO, trx->no, mtr);
 	/* Write information about delete markings to the undo log header */
 	
 	if (!undo->del_marks) {

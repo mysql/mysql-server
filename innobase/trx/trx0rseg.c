@@ -179,8 +179,7 @@ trx_rseg_mem_create(
 			       + node_addr.boffset;
 			       
 		rseg->last_trx_no = mtr_read_dulint(
-					undo_log_hdr + TRX_UNDO_TRX_NO,
-					MLOG_8BYTES, mtr);
+					undo_log_hdr + TRX_UNDO_TRX_NO, mtr);
 		rseg->last_del_marks = mtr_read_ulint(
 					undo_log_hdr + TRX_UNDO_DEL_MARKS,
 					MLOG_2BYTES, mtr);

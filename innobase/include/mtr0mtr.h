@@ -189,7 +189,6 @@ mtr_read_dulint(
 /*===========*/
 			/* out: value read */
 	byte*	ptr,	/* in: pointer from where to read */
-	ulint	type,	/* in: MLOG_8BYTES */
 	mtr_t*	mtr);	/* in: mini-transaction handle */
 /*************************************************************************
 This macro locks an rw-lock in s-mode. */

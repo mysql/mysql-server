@@ -536,7 +536,7 @@ trx_sys_flush_max_trx_id(void)
 	sys_header = trx_sysf_get(&mtr);
 
 	mlog_write_dulint(sys_header + TRX_SYS_TRX_ID_STORE,
-				trx_sys->max_trx_id, MLOG_8BYTES, &mtr);
+				trx_sys->max_trx_id, &mtr);
 	mtr_commit(&mtr);
 }
 
@@ -784,7 +784,7 @@ trx_sysf_create(
 
 	/* Start counting transaction ids from number 1 up */
 	mlog_write_dulint(sys_header + TRX_SYS_TRX_ID_STORE,
-				ut_dulint_create(0, 1), MLOG_8BYTES, mtr);
+				ut_dulint_create(0, 1), mtr);
 
 	/* Reset the rollback segment slots */
 	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
@@ -839,8 +839,7 @@ trx_sys_init_at_db_start(void)
 	trx_sys->max_trx_id = ut_dulint_add(
 			      	ut_dulint_align_up(
 					mtr_read_dulint(sys_header
-						+ TRX_SYS_TRX_ID_STORE,
-						MLOG_8BYTES, &mtr),
+						+ TRX_SYS_TRX_ID_STORE, &mtr),
 					TRX_SYS_TRX_ID_WRITE_MARGIN),
 				2 * TRX_SYS_TRX_ID_WRITE_MARGIN);
 
