@@ -207,7 +207,7 @@ static void die(const char* fmt, ...);
 static void init_var_hash();
 static byte* get_var_key(const byte* rec, uint* len,
 			 my_bool __attribute__((unused)) t);
-static VAR* var_init(const char* name, int name_len, const char* val,
+static VAR* var_init(VAR* v, const char* name, int name_len, const char* val,
 		     int val_len);
 
 static void var_free(void* v);
@@ -529,7 +529,7 @@ static VAR* var_obtain(char* name, int len)
   VAR* v;
   if((v = (VAR*)hash_search(&var_hash, name, len)))
     return v;
-  v = var_init(name, len, "", 0);
+  v = var_init(0, name, len, "", 0);
   hash_insert(&var_hash, (byte*)v);
   return v;
 }
@@ -678,6 +678,7 @@ int do_system(struct st_query* q)
 {
   char* p=q->first_argument;
   VAR v;
+  var_init(&v, 0, 0, 0, 0);
   eval_expr(&v, p, 0); /* NULL terminated */
   if (v.str_val_len)
     {
@@ -697,6 +698,7 @@ int do_echo(struct st_query* q)
 {
   char* p=q->first_argument;
   VAR v;
+  var_init(&v,0,0,0,0);
   eval_expr(&v, p, 0); /* NULL terminated */
   if (v.str_val_len)
   {
@@ -1172,6 +1174,7 @@ int do_while(struct st_query* q)
   char* p=q->first_argument;
   const char* expr_start, *expr_end;
   VAR v;
+  var_init(&v,0,0,0,0);
   if (cur_block == block_stack_end)
 	die("Nesting too deeply");
   if (!*block_ok)
@@ -1837,29 +1840,32 @@ static byte* get_var_key(const byte* var, uint* len,
   return (byte*)key;
 }
 
-static VAR* var_init(const char* name, int name_len, const char* val,
+static VAR* var_init(VAR* v, const char* name, int name_len, const char* val,
 		     int val_len)
 {
   int val_alloc_len;
   VAR* tmp_var;
-  if(!name_len)
+  if(!name_len && name)
     name_len = strlen(name);
-  if(!val_len)
+  if(!val_len && val)
     val_len = strlen(val) ;
   val_alloc_len = val_len + 16; /* room to grow */
-  if(!(tmp_var = (VAR*)my_malloc(sizeof(*tmp_var) 
+  if(!(tmp_var=v) && !(tmp_var = (VAR*)my_malloc(sizeof(*tmp_var) 
 				 + name_len, MYF(MY_WME))))
     die("Out of memory");
-  tmp_var->name = (char*)tmp_var + sizeof(*tmp_var);
+  
+  tmp_var->name = (name) ? (char*)tmp_var + sizeof(*tmp_var) : 0;
+
   if(!(tmp_var->str_val = my_malloc(val_alloc_len, MYF(MY_WME))))
     die("Out of memory");
   
   memcpy(tmp_var->name, name, name_len);
-  memcpy(tmp_var->str_val, val, val_len + 1);
+  if(val)
+    memcpy(tmp_var->str_val, val, val_len + 1);
   tmp_var->name_len = name_len;
   tmp_var->str_val_len = val_len;
   tmp_var->alloced_len = val_alloc_len;
-  tmp_var->int_val = atoi(val);
+  tmp_var->int_val = (val) ? atoi(val) : 0;
   tmp_var->int_dirty = 0;
   return tmp_var;
 }
@@ -1878,7 +1884,7 @@ static void var_from_env(const char* name, const char* def_val)
   if(!(tmp = getenv(name)))
     tmp = def_val;
     
-  v = var_init(name, 0, tmp, 0); 
+  v = var_init(0, name, 0, tmp, 0); 
   hash_insert(&var_hash, (byte*)v);
 }
 

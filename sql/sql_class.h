@@ -80,7 +80,7 @@ public:
   void init(enum_log_type log_type_arg);
   void open(const char *log_name,enum_log_type log_type,
 	    const char *new_name=0);
-  void new_file(void);
+  void new_file(bool inside_mutex=0);
   bool open_index(int options);
   void close_index();
   bool write(THD *thd, enum enum_server_command command,const char *format,...);
