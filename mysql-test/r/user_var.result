@@ -193,3 +193,10 @@ set @var= NULL ;
 select FIELD( @var,'1it','Hit') as my_column;
 my_column
 0
+select @v, coercibility(@v);
+@v	coercibility(@v)
+NULL	2
+set @v1=null, @v2=1, @v3=1.1, @v4=now();
+select coercibility(@v1),coercibility(@v2),coercibility(@v3),coercibility(@v4);
+coercibility(@v1)	coercibility(@v2)	coercibility(@v3)	coercibility(@v4)
+2	2	2	2
