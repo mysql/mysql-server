@@ -103,7 +103,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   int error;
   bool log_on= ((thd->options & OPTION_UPDATE_LOG) ||
 		!(thd->master_access & PROCESS_ACL));
-  bool using_transactions;
+  bool using_transactions, bulk_insert=0;
   uint value_count;
   uint save_time_stamp;
   ulong counter = 1;
@@ -193,6 +193,14 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   thd->proc_info="update";
   if (duplic == DUP_IGNORE || duplic == DUP_REPLACE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  if ((bulk_insert= (values_list.elements > 1 &&
+		     lock_type != TL_WRITE_DELAYED &&
+		     !(specialflag & SPECIAL_SAFE_MODE))))
+  {
+    table->file->extra(HA_EXTRA_WRITE_CACHE);
+    table->file->extra(HA_EXTRA_BULK_INSERT_BEGIN);
+  }
+
   while ((values = its++))
   {
     if (fields.elements || !value_count)
@@ -257,6 +265,25 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   }
   else
   {
+    if (bulk_insert)
+    {
+      if (table->file->extra(HA_EXTRA_NO_CACHE))
+      {
+	if (!error)
+	{
+	  table->file->print_error(my_errno,MYF(0));
+	  error=1;
+	}
+      }
+      if (table->file->extra(HA_EXTRA_BULK_INSERT_END))
+      {
+	if (!error)
+	{
+	  table->file->print_error(my_errno,MYF(0));
+	  error=1;
+	}
+      }
+    }
     if (id && values_list.elements != 1)
       thd->insert_id(id);			// For update log
     else if (table->next_number_field)
@@ -289,7 +316,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   thd->next_insert_id=0;			// Reset this if wrongly used
   if (duplic == DUP_IGNORE || duplic == DUP_REPLACE)
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
-
   if (error)
     goto abort;
 

@@ -81,13 +81,18 @@ long innobase_mirrored_log_groups, innobase_log_files_in_group,
      innobase_buffer_pool_size, innobase_additional_mem_pool_size,
      innobase_file_io_threads, innobase_lock_wait_timeout;
 
-char *innobase_data_home_dir, *innobase_data_file_path;
+char *innobase_data_home_dir;
 char *innobase_log_group_home_dir, *innobase_log_arch_dir;
 char *innobase_unix_file_flush_method;
 bool innobase_flush_log_at_trx_commit, innobase_log_archive,
 	innobase_use_native_aio;
 
-/* innobase_data_file_path=ibdata:15,idata2:1,... */
+/*
+  Set default InnoDB size to 64M, to let users use InnoDB without having
+  to specify any startup options.
+*/
+
+char *innobase_data_file_path= (char*) "ibdata:64M";
 
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call

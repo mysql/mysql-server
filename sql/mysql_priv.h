@@ -237,6 +237,8 @@ inline THD *_current_thd(void)
 int mysql_create_db(THD *thd, char *db, uint create_info);
 void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags);
 int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists);
+int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
+			 bool log_query);
 int quick_rm_table(enum db_type base,const char *db,
 		   const char *table_name);
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
@@ -267,10 +269,6 @@ bool check_access(THD *thd,uint access,const char *db=0,uint *save_priv=0,
 		  bool no_grant=0);
 bool check_table_access(THD *thd,uint want_access, TABLE_LIST *tables);
 bool check_process_priv(THD *thd=0);
-
-int generate_table(THD *thd, TABLE_LIST *table_list,
-		   TABLE *locked_table);
-
 
 int mysql_backup_table(THD* thd, TABLE_LIST* table_list);
 int mysql_restore_table(THD* thd, TABLE_LIST* table_list);
@@ -364,6 +362,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 void kill_delayed_threads(void);
 int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, ORDER *order,
                  ha_rows rows, thr_lock_type lock_type, ulong options);
+int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok=0);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);
 TABLE *open_table(THD *thd,const char *db,const char *table,const char *alias,
 		  bool *refresh);
@@ -592,6 +591,7 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh);
 void start_waiting_global_read_lock(THD *thd);
 
 /* Lock based on name */
+int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list);
 int lock_table_name(THD *thd, TABLE_LIST *table_list);
 void unlock_table_name(THD *thd, TABLE_LIST *table_list);
 bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list);

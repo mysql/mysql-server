@@ -1619,9 +1619,19 @@ mysql_execute_command(void)
     break;
   }
   case SQLCOM_TRUNCATE:
-    select_lex->where=0;
-    select_lex->select_limit=HA_POS_ERROR;
-    /* Fall through */
+    if (check_access(thd,DELETE_ACL,tables->db,&tables->grant.privilege))
+      goto error; /* purecov: inspected */
+    /*
+      Don't allow this within a transaction because we want to use
+      re-generate table
+    */
+    if (thd->locked_tables || thd->active_transaction())
+    {
+      my_error(ER_LOCK_OR_ACTIVE_TRANSACTION,MYF(0));
+      goto error;
+    }
+    res=mysql_truncate(thd,tables);
+    break;
   case SQLCOM_DELETE:
   {
     if (check_access(thd,DELETE_ACL,tables->db,&tables->grant.privilege))
@@ -1958,9 +1968,13 @@ mysql_execute_command(void)
       net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
       break;
     }
-    if (check_access(thd,DROP_ACL,lex->name,0,1) ||
-	end_active_trans(thd))
+    if (check_access(thd,DROP_ACL,lex->name,0,1))
       break;
+    if (thd->locked_tables || thd->active_transaction())
+    {
+      my_error(ER_LOCK_OR_ACTIVE_TRANSACTION,MYF(0));
+      goto error;
+    }
     mysql_rm_db(thd,lex->name,lex->drop_if_exists);
     break;
   }
