@@ -37,6 +37,9 @@ create procedure proc1()
 create function func1() returns int
   return 42|
 
+drop procedure proc1|
+drop function func1|
+
 # Does not exist
 --error 1261
 alter procedure foo|
@@ -105,7 +108,22 @@ begin
   return x;
 end|
 
-drop procedure proc1|
-drop function func1|
+# Wrong number of arguments
+create procedure p(x int)
+  insert into test.t1 values (x)|
+create function f(x int) returns int
+  return x+42|
+
+--error 1274
+call p()|
+--error 1274
+call p(1, 2)|
+--error 1274
+select f()|
+--error 1274
+select f(1, 2)|
+
+drop procedure p|
+drop function f|
 
 delimiter ;|

@@ -15,6 +15,8 @@ PROCEDURE proc1 already exists
 create function func1() returns int
 return 42;
 FUNCTION func1 already exists
+drop procedure proc1;
+drop function func1;
 alter procedure foo;
 PROCEDURE foo does not exist
 alter function foo;
@@ -69,5 +71,17 @@ select max(c) into x from test.t;
 return x;
 end;
 Queries, like SELECT, INSERT, UPDATE (and others), are not allowed in a FUNCTION
-drop procedure proc1;
-drop function func1;
+create procedure p(x int)
+insert into test.t1 values (x);
+create function f(x int) returns int
+return x+42;
+call p();
+Wrong number of arguments for PROCEDURE p, expected 1, got 0
+call p(1, 2);
+Wrong number of arguments for PROCEDURE p, expected 1, got 2
+select f();
+Wrong number of arguments for FUNCTION f, expected 1, got 0
+select f(1, 2);
+Wrong number of arguments for FUNCTION f, expected 1, got 2
+drop procedure p;
+drop function f;
