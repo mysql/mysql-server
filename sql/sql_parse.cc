@@ -1095,6 +1095,12 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
   while (fgets(buff, thd->net.max_packet, file))
   {
     uint length=(uint) strlen(buff);
+    if (buff[length-1]!='\n' && !feof(file))
+    {
+      send_error(thd,ER_NET_PACKET_TOO_LARGE, NullS);
+      thd->is_fatal_error= 1;
+      break;
+    }
     while (length && (my_isspace(thd->charset(), buff[length-1]) ||
            buff[length-1] == ';'))
       length--;
