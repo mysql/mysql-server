@@ -1289,7 +1289,7 @@ a	b
 111	100
 drop table t1;
 CREATE TABLE t1 (col1 int(1))TYPE=InnoDB;
-CREATE TABLE t2 (col1 int(1),stamp TIMESTAMP(+0),INDEX stamp_idx
+CREATE TABLE t2 (col1 int(1),stamp TIMESTAMP,INDEX stamp_idx
 (stamp))TYPE=InnoDB;
 insert into t1 values (1),(2),(3);
 insert into t2 values (1, 20020204130000),(2, 20020204130000),(4,20020204310000 );
