@@ -520,3 +520,11 @@ SHOW VARIABLES LIKE 'table_cache';
 Variable_name	Value
 table_cache	1
 SET GLOBAL table_cache=DEFAULT;
+create table t1 (a int);
+select a into @x from t1;
+Warnings:
+Warning	1329	No data to FETCH
+show warnings;
+Level	Code	Message
+Warning	1329	No data to FETCH
+drop table t1;
