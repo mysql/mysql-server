@@ -785,7 +785,7 @@ void clean_up(bool print_message)
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
 #endif
-  if (print_message)
+  if (print_message && errmesg)
     sql_print_error(ER(ER_SHUTDOWN_COMPLETE),my_progname);
   x_free((gptr) my_errmsg[ERRMAPP]);	/* Free messages */
   my_thread_end();
