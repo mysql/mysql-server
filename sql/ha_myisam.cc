@@ -583,14 +583,14 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
       thd->proc_info="Repair by sorting";
       statistics_done=1;
       error = mi_repair_by_sort(&param, file, fixed_name,
-          param.testflag & T_QUICK);
+				param.testflag & T_QUICK);
     }
     else
     {
       thd->proc_info="Repair with keycache";
       param.testflag &= ~T_REP_BY_SORT;
       error=  mi_repair(&param, file, fixed_name,
-          param.testflag & T_QUICK);
+			param.testflag & T_QUICK);
     }
     param.testflag=testflag;
     optimize_done=1;
@@ -725,10 +725,10 @@ bool ha_myisam::check_and_repair(THD *thd)
   {
     sql_print_error("Warning: Recovering table: '%s'",table->path);
     check_opt.flags=
-        (myisam_recover_options & HA_RECOVER_BACKUP ? T_BACKUP_DATA : 0)
-      | (marked_crashed                             ? 0 : T_QUICK)
-      | (myisam_recover_options & HA_RECOVER_FORCE  ? 0 : T_SAFE_REPAIR)
-      | T_AUTO_REPAIR;
+      ((myisam_recover_options & HA_RECOVER_BACKUP ? T_BACKUP_DATA : 0) |
+       (marked_crashed                             ? 0 : T_QUICK) |
+       (myisam_recover_options & HA_RECOVER_FORCE  ? 0 : T_SAFE_REPAIR) |
+       T_AUTO_REPAIR);
     if (repair(thd, &check_opt))
       error=1;
   }

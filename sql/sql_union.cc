@@ -126,8 +126,9 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   }
   union_result->save_time_stamp=!describe;
 
-  for (sl=lex->select=&lex->select_lex;sl;sl=lex->select=sl->next)
+  for (sl= &lex->select_lex; sl; sl=sl->next)
   {
+    lex->select=sl;
     thd->offset_limit=sl->offset_limit;
     thd->select_limit=sl->select_limit+sl->offset_limit;
     if (thd->select_limit < sl->select_limit)
