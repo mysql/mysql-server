@@ -46661,12 +46661,16 @@ than you have alloacated for @code{mysqld}. @xref{Packet too large}.
 
 @cindex table is full
 
-This error occurs in older MySQL versions when an in-memory temporary
-table becomes larger than @code{tmp_table_size} bytes. To avoid this
-problem, you can use the @code{-O tmp_table_size=#} option to
-@code{mysqld} to increase the temporary table size or use the SQL
-option @code{SQL_BIG_TABLES} before you issue the problematic
-query. @xref{SET OPTION, , @code{SET OPTION}}.
+There is a couple of different cases when you can get this error:
+
+@itemize @bullet
+@item
+You are using an older MySQL versions ( < 3.23.0) when an in-memory
+temporary table becomes larger than @code{tmp_table_size} bytes. To
+avoid this problem, you can use the @code{-O tmp_table_size=#} option to
+@code{mysqld} to increase the temporary table size or use the SQL option
+@code{SQL_BIG_TABLES} before you issue the problematic query. @xref{SET
+OPTION, , @code{SET OPTION}}.
 
 You can also start @code{mysqld} with the @code{--big-tables} option.
 This is exactly the same as using @code{SQL_BIG_TABLES} for all queries.
@@ -46674,6 +46678,30 @@ This is exactly the same as using @code{SQL_BIG_TABLES} for all queries.
 In MySQL Version 3.23, in-memory temporary tables will automatically be
 converted to a disk-based @code{MyISAM} table after the table size gets
 bigger than @code{tmp_table_size}.
+@item
+You are using InnoDB tables and run out of room in the InnoDB tablespace.
+In this case the solution is to add extend the InnoDB table space.
+@item
+You are using ISAM/MyISAM tables on a OS that only supports 2G files
+and you have hit this limit for the data or index file.
+@item
+You are using MyISAM tables and the needed data or index size is bigger
+than what MySQL has allocated pointers for.  (If you don't specify
+@code{MAX_ROWS} to @code{CREATE TABLE} MySQL will only allocate pointers
+to hold 4G of data).
+
+One can check the maximum data/index sizes by doing @code{SHOW TABLE
+STATUS FROM database LIKE 'table_name} or using @code{myisamchk -dv
+database/table_name}.
+
+If this is the problem, you can fix it by doing something like:
+
+@code{ALTER TABLE table_name MAX_ROWS=1000000000 AVG_ROW_LENGTH=XXX}.
+
+You only have to specify @code{AVG_ROW_LENGTH} for tables with BLOB/TEXT
+fields as in this case MySQL can't optimise the needed space just based
+on the number of rows.
+@end itemize
 
 
 @node Cannot create, Commands out of sync, Full table, Common errors
@@ -51432,7 +51460,7 @@ now can be specified in octal by beginning the value with a zero.
 Added @code{RIGHT JOIN}. This makes @code{RIGHT} a reserved word.
 @item
 Added @code{@@@@IDENTITY} as a synonym for @code{LAST_INSERT_ID()}.
-(This is for Visual Basic compatibility.)
+(This is for MSSQL compatibility.)
 @item
 Fixed a bug in @code{myisamchk} and @code{REPAIR} when using @code{FULLTEXT}
 index.
