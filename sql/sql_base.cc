@@ -913,14 +913,13 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     */
     {
       char path[FN_REFLEN];
-      TABLE tab;
-      if (!table)
-        table= &tab;
       strxnmov(path, FN_REFLEN, mysql_data_home, "/", table_list->db, "/",
                table_list->real_name, reg_ext, NullS);
       (void) unpack_filename(path, path);
       if (mysql_frm_type(path) == FRMTYPE_VIEW)
       {
+        TABLE tab;// will not be used (because it's VIEW) but have to be passed
+        table= &tab;
         VOID(pthread_mutex_lock(&LOCK_open));
         if (open_unireg_entry(thd, table, table_list->db,
                               table_list->real_name,
@@ -932,7 +931,6 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         else
         {
           DBUG_ASSERT(table_list->view);
-          my_free((gptr)table, MYF(0));
           VOID(pthread_mutex_unlock(&LOCK_open));
           DBUG_RETURN(0); // VIEW
         }
