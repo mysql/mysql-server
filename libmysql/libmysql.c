@@ -1444,11 +1444,6 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
   mysql->options.ssl_ca=     strdup_if_not_null(ca);
   mysql->options.ssl_capath= strdup_if_not_null(capath);
   mysql->options.ssl_cipher= strdup_if_not_null(cipher);
-  mysql->connector_fd = (gptr) new_VioSSLConnectorFd(key, cert, ca, capath,
-						     cipher);
-  DBUG_PRINT("info",("mysql_ssl_set, context: %p",
-		     ((struct st_VioSSLConnectorFd *) (mysql->connector_fd))->
-		     ssl_context_));
 #endif
   return 0;
 }
@@ -1863,6 +1858,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   */
   if (client_flag & CLIENT_SSL)
   {
+    struct st_mysql_options *options= &mysql->options;
     if (my_net_write(net,buff,(uint) (2)) || net_flush(net))
     {
       net->last_errno= CR_SERVER_LOST;
@@ -1870,9 +1866,22 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       goto error;
     }
     /* Do the SSL layering. */
+    if (!(mysql->connector_fd=
+	  (gptr) new_VioSSLConnectorFd(options->ssl_key,
+				       options->ssl_cert,
+				       options->ssl_ca,
+				       options->ssl_capath,
+				       options->ssl_cipher)))
+    {
+      /* TODO: Change to SSL error */
+      net->last_errno= CR_SERVER_LOST;
+      strmov(net->last_error,ER(net->last_errno));    
+      goto error;
+    }
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    DBUG_PRINT("info", ("IO context %p",((struct st_VioSSLConnectorFd*)mysql->connector_fd)->ssl_context_));
-    sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),mysql->net.vio, (long)(mysql->options.connect_timeout));
+    /* TODO:  Add proper error checking here, with return error message */
+    sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),
+	       mysql->net.vio, (long) (mysql->options.connect_timeout));
     DBUG_PRINT("info", ("IO layer change done!"));
   }
 #endif /* HAVE_OPENSSL */
