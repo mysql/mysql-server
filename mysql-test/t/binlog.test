@@ -1,0 +1,23 @@
+#
+# misc binlogging tests that do not require a slave running
+#
+-- source include/have_bdb.inc
+-- source include/have_innodb.inc
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+create table t1 (a int) engine=bdb;
+create table t2 (a int) engine=innodb;
+begin;
+insert t1 values (5);
+commit;
+begin;
+insert t2 values (5);
+commit;
+# first COMMIT must be Query_log_event, second - Xid_log_event
+show binlog events from 96;
+reset master;
+drop table t1,t2;
+

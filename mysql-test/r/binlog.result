@@ -1,0 +1,22 @@
+drop table if exists t1, t2;
+create table t1 (a int) engine=bdb;
+create table t2 (a int) engine=innodb;
+begin;
+insert t1 values (5);
+commit;
+begin;
+insert t2 values (5);
+commit;
+show binlog events from 96;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	96	Query	1	187	use `test`; drop table if exists t1, t2
+master-bin.000001	187	Query	1	285	use `test`; create table t1 (a int) engine=bdb
+master-bin.000001	285	Query	1	386	use `test`; create table t2 (a int) engine=innodb
+master-bin.000001	386	Query	1	455	use `test`; BEGIN
+master-bin.000001	455	Query	1	84	use `test`; insert t1 values (5)
+master-bin.000001	539	Query	1	154	use `test`; COMMIT
+master-bin.000001	609	Query	1	678	use `test`; BEGIN
+master-bin.000001	678	Query	1	84	use `test`; insert t2 values (5)
+master-bin.000001	762	Xid	1	111	COMMIT /* xid=10 */
+reset master;
+drop table t1,t2;
