@@ -818,7 +818,7 @@ size is pushed up to 8 million terabytes (2 ^ 63 bytes).
 Note, however, that operating systems have their own file size
 limits. Here are some examples:
 
-@multitable @columnfractions .3 .45
+@multitable @columnfractions .25 .45
 @item @strong{Operating System} @tab @strong{File Size Limit}
 @item Linux-Intel 32 bit        @tab 2G, 4G or more, depends on Linux version
 @item Linux-Alpha               @tab 8T (?)
@@ -3744,12 +3744,11 @@ definition file. This will require less memory and be much faster.
 @node TODO MySQL 4.1, TODO future, TODO MySQL 4.0, TODO
 @subsection Things That Should be in 4.1
 
-We will start working on MySQL 4.1 as soon as MySQL 4.0 goes into beta.
-
 The following features is the ones we plan that should be in MySQL 4.1.
 Note that because we have many developers that are working on different
 projects, there will also be many additional features. There is also a
 small chance that some of these features will be added to MySQL 4.0.
+Some of the work on MySQL 4.1 is already in progress.
 
 @itemize @bullet
 @item
