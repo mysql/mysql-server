@@ -3,29 +3,29 @@
 use Getopt::Long;
 $opt_distribution=$opt_user=$opt_result=$opt_config_options=$opt_config_env="";
 $opt_dbd_options=$opt_perl_options=$opt_suffix="";
-$opt_tmp=$version_suffix="";
+$opt_tmp=$opt_version_suffix="";
 $opt_help=$opt_Information=$opt_delete=$opt_debug=$opt_stage=$opt_rsh_mail=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_no_mysqltest=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=0;
 $opt_innodb=$opt_bdb=0;
 
-GetOptions("Information","help","distribution=s","user=s","result=s","delete","no-test","no-mysqltest","perl-files=s","debug","config-options=s","config-env=s","stage=i","rsh-mail","with-low-memory","fast-benchmark","tmp=s","static-client","static-server","static-perl","no-perl","local-perl","perl-options=s","sur","with-small-disk","dbd-options=s","tcpip","suffix=s","build-thread=i","innodb","bdb","use-old-distribution","enable-shared","no-crash-me","no-strip") || usage();
+GetOptions("Information","help","distribution=s","user=s","result=s","delete","no-test","no-mysqltest","perl-files=s","debug","config-options=s","config-env=s","stage=i","rsh-mail","with-low-memory","fast-benchmark","tmp=s","static-client","static-server","static-perl","no-perl","local-perl","perl-options=s","sur","with-small-disk","dbd-options=s","tcpip","suffix=s","build-thread=i","innodb","bdb","use-old-distribution","enable-shared","no-crash-me","no-strip","version-suffix") || usage();
 
 usage() if ($opt_help || $opt_Information);
 usage() if (!$opt_distribution);
 
-if ($opt_innodb || $opt_bdb)
+if (($opt_innodb || $opt_bdb) && $opt_version_suffix eq "")
 {
-  $version_suffix="-max";
+  $opt_version_suffix="-max";
 }
 
 chomp($host=`hostname`);
 $full_host_name=$host;
-info("Compiling MySQL$version_suffix at $host$suffix, stage: $opt_stage\n");
+info("Compiling MySQL$opt_version_suffix at $host$suffix, stage: $opt_stage\n");
 $connect_option= ($opt_tcpip ? "--host=$host" : "");
 $host =~ /^([^.-]*)/;
 $host=$1 . $opt_suffix;
 $email="$opt_user\@mysql.com";
 $pwd = `pwd`; chomp($pwd);
-$log="$pwd/Logs/$host$version_suffix.log";
+$log="$pwd/Logs/$host$opt_version_suffix.log";
 $opt_distribution =~ /(mysql-[^\/]*)\.tar/;
 $ver=$1;
 $gcc_version=which("gcc");
@@ -156,7 +156,7 @@ if ($opt_stage <= 1)
   {
     $opt_config_options.= " --with-innodb"
   }
-  check_system("$opt_config_env ./configure --prefix=/usr/local/mysql \"--with-comment=Official MySQL$version_suffix binary\" --with-extra-charsets=complex \"--with-server-suffix=$version_suffix\" --enable-thread-safe-client $opt_config_options","Thank you for choosing MySQL");
+  check_system("$opt_config_env ./configure --prefix=/usr/local/mysql \"--with-comment=Official MySQL$opt_version_suffix binary\" --with-extra-charsets=complex \"--with-server-suffix=$opt_version_suffix\" --enable-thread-safe-client $opt_config_options","Thank you for choosing MySQL");
   if (-d "$pwd/$host/include-mysql")
   {
     safe_system("cp -r $pwd/$host/include-mysql/* $pwd/$host/$ver/include");
@@ -360,6 +360,9 @@ To set up the environment, like 'CC=cc CXX=gcc CXXFLAGS=-O3'
 
 --dbd-options 'options'
 Options for Makefile.PL when configuring msql-mysql-modules.
+
+--version-suffix suffix
+Can be used to set a suffix (normally com or -max) for a distribution
 
 --with-low-memory
 Use less memory when compiling.
