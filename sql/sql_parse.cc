@@ -1026,7 +1026,7 @@ pthread_handler_decl(handle_one_connection,arg)
     }
     if (thd->user_connect)
       decrease_user_connections(thd->user_connect);
-    free_root(&thd->mem_root,MYF(0));
+    free_root(thd->mem_root,MYF(0));
     if (net->error && net->vio != 0 && net->report_error)
     {
       if (!thd->killed && thd->variables.log_warnings > 1)
@@ -1121,14 +1121,14 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
     {
       thd->net.error = 0;
       close_thread_tables(thd);			// Free tables
-      free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
+      free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
       break;
     }
     mysql_parse(thd,thd->query,length);
     close_thread_tables(thd);			// Free tables
     if (thd->is_fatal_error)
       break;
-    free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
+    free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
     free_root(&thd->transaction.mem_root,MYF(MY_KEEP_PREALLOC));
   }
 
@@ -1681,7 +1681,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
     close_connection(thd, 0, 1);
     close_thread_tables(thd);			// Free before kill
-    free_root(&thd->mem_root,MYF(0));
+    free_root(thd->mem_root,MYF(0));
     free_root(&thd->transaction.mem_root,MYF(0));
     kill_mysql();
     error=TRUE;
@@ -1808,7 +1808,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thread_running--;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
-  free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
+  free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
   DBUG_RETURN(error);
 }
 
@@ -2062,7 +2062,7 @@ mysql_execute_command(THD *thd)
 
       query_len= need_conversion? (pstr->length() * to_cs->mbmaxlen) :
                                   pstr->length();
-      if (!(query_str= alloc_root(&thd->mem_root, query_len+1)))
+      if (!(query_str= alloc_root(thd->mem_root, query_len+1)))
       {
         res= -1;
         break;        // EOM (error should be reported by allocator)
@@ -3937,8 +3937,8 @@ mysql_init_select(LEX *lex)
 bool
 mysql_new_select(LEX *lex, bool move_down)
 {
-  SELECT_LEX *select_lex = new(&lex->thd->mem_root) SELECT_LEX();
-  if (!select_lex)
+  SELECT_LEX *select_lex;
+  if (!(select_lex= new(lex->thd->mem_root) SELECT_LEX()))
     return 1;
   select_lex->select_number= ++lex->thd->select_number;
   select_lex->init_query();
@@ -3946,9 +3946,10 @@ mysql_new_select(LEX *lex, bool move_down)
   if (move_down)
   {
     /* first select_lex of subselect or derived table */
-    SELECT_LEX_UNIT *unit= new(&lex->thd->mem_root) SELECT_LEX_UNIT();
-    if (!unit)
+    SELECT_LEX_UNIT *unit;
+    if (!(unit= new(lex->thd->mem_root) SELECT_LEX_UNIT()))
       return 1;
+
     unit->init_query();
     unit->init_select();
     unit->thd= lex->thd;
@@ -3970,7 +3971,8 @@ mysql_new_select(LEX *lex, bool move_down)
 	as far as we included SELECT_LEX for UNION unit should have
 	fake SELECT_LEX for UNION processing
       */
-      fake= unit->fake_select_lex= new(&lex->thd->mem_root) SELECT_LEX();
+      if (!(fake= unit->fake_select_lex= new(lex->thd->mem_root) SELECT_LEX()))
+        return 1;
       fake->include_standalone(unit,
 			       (SELECT_LEX_NODE**)&unit->fake_select_lex);
       fake->select_number= INT_MAX;

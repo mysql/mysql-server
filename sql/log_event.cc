@@ -1090,7 +1090,7 @@ end:
   thd->query_length= thd->db_length =0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);      
-  free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
+  free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
   /*
     If there was an error we stop. Otherwise we increment positions. Note that
     we will not increment group* positions if we are just after a SET
@@ -1888,10 +1888,10 @@ Slave: load data infile on table '%s' at log position %s in log \
     slave_print_error(rli,sql_errno,"\
 Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
 		      err, (char*)table_name, print_slave_db_safe(db));
-    free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
+    free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
     return 1;
   }
-  free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
+  free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 	    
   if (thd->is_fatal_error)
   {
@@ -2505,7 +2505,7 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
   */
   e.fix_fields(thd, 0, 0);
   e.update_hash(val, val_len, type, charset, DERIVATION_NONE);
-  free_root(&thd->mem_root,0);
+  free_root(thd->mem_root,0);
 
   rli->inc_event_relay_log_pos(get_event_len());
   return 0;
