@@ -1,6 +1,6 @@
 drop table if exists t1;
 SET NAMES cp1251;
-create table t1 (a varchar(10) not null);
+create table t1 (a varchar(10) not null) character set cp1251;
 insert into t1 values ("a"),("ab"),("abc");
 select * from t1;
 a
@@ -23,7 +23,7 @@ a
 b
 c
 drop table t1;
-create table t1 (a char(15) binary, b binary(15));
+create table t1 (a char(15) binary, b binary(15)) character set cp1251;
 insert into t1 values ('aaa','bbb'),('AAA','BBB');
 select upper(a),upper(b) from t1;
 upper(a)	upper(b)
