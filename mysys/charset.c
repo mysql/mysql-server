@@ -466,7 +466,8 @@ static my_bool init_available_charsets(myf myflags)
       if (*cs)
       {
         set_max_sort_char(*cs);
-        init_state_maps(*cs);
+        if (cs[0]->ctype)
+          init_state_maps(*cs);
       }
     }
     

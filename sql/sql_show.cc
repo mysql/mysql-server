@@ -1207,7 +1207,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 {
   List<Item> field_list;
   char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end, *alias;
-  String type(tmp, sizeof(tmp),&my_charset_bin);
+  String type(tmp, sizeof(tmp), system_charset_info);
   Field **ptr,*field;
   uint primary_key;
   KEY *key_info;
@@ -1254,7 +1254,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       type.set(tmp, sizeof(tmp),&my_charset_bin);
 
     field->sql_type(type);
-    packet->append(type.ptr(),type.length());
+    packet->append(type.ptr(), type.length(), system_charset_info);
 
     if (field->has_charset() && !limited_mysql_mode && !foreign_db_mode)
     {
@@ -1313,7 +1313,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       else if (field->maybe_null())
         packet->append("NULL", 4);                    // Null as default
       else
-        packet->append(tmp,0);
+        packet->append(tmp);
     }
 
     if (!foreign_db_mode && !limited_mysql_mode &&
