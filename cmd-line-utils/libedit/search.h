@@ -1,4 +1,4 @@
-/*	$NetBSD: search.h,v 1.5 2000/09/04 22:06:32 lukem Exp $	*/
+/*	$NetBSD: search.h,v 1.6 2002/11/15 14:32:34 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -52,6 +52,7 @@ typedef struct el_search_t {
 	int	 patdir;		/* Direction of the last search	*/
 	int	 chadir;		/* Character search direction	*/
 	char	 chacha;		/* Character we are looking for	*/
+	char	 chatflg;		/* 0 if f, 1 if t */
 } el_search_t;
 
 
@@ -64,7 +65,6 @@ protected el_action_t	ce_inc_search(EditLine *, int);
 protected el_action_t	cv_search(EditLine *, int);
 protected el_action_t	ce_search_line(EditLine *, char *, int);
 protected el_action_t	cv_repeat_srch(EditLine *, int);
-protected el_action_t	cv_csearch_back(EditLine *, int, int, int);
-protected el_action_t	cv_csearch_fwd(EditLine *, int, int, int);
+protected el_action_t	cv_csearch(EditLine *, int, int, int, int);
 
 #endif /* _h_el_search */

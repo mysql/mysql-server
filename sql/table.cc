@@ -1111,6 +1111,17 @@ void append_unescaped(String *res, const char *pos, uint length)
 
   for (; pos != end ; pos++)
   {
+#if defined(USE_MB) && MYSQL_VERSION_ID < 40100
+    uint mblen;
+    if (use_mb(default_charset_info) &&
+        (mblen= my_ismbchar(default_charset_info, pos, end)))
+    {
+      res->append(pos, mblen);
+      pos+= mblen;
+      continue;
+    }
+#endif
+
     switch (*pos) {
     case 0:				/* Must be escaped for 'mysql' */
       res->append('\\');

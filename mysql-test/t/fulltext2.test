@@ -44,6 +44,9 @@ while ($1)
 
 # converting to two-level
 repair table t1 quick;
+check table t1;
+optimize table t1; # BUG#5327 - mi_sort_index() of 2-level tree
+check table t1;
 
 select count(*) from t1 where match a against ('aaaxxx');
 select count(*) from t1 where match a against ('aaayyy');
@@ -101,6 +104,11 @@ CREATE TABLE t1 (
   a varchar(255) not null,
   FULLTEXT KEY (a)
 ) ENGINE=MyISAM;
+
+#
+# now same as about but w/o repair table
+# 2-level tree created by mi_write
+#
 
 # two-level entry, second-level tree with depth 2
 --disable_query_log

@@ -18,112 +18,6 @@
 #include "Dbtux.hpp"
 
 /*
- * Search for entry.
- *
- * Search key is index attribute data and tree entry value.  Start from
- * root node and compare the key to min/max of each node.  Use linear
- * search on the final (bounding) node.  Initial attributes which are
- * same in min/max need not be checked.
- */
-void
-Dbtux::treeSearch(Signal* signal, Frag& frag, TableData searchKey, TreeEnt searchEnt, TreePos& treePos)
-{
-  const TreeHead& tree = frag.m_tree;
-  const unsigned numAttrs = frag.m_numAttrs;
-  treePos.m_loc = tree.m_root;
-  if (treePos.m_loc == NullTupLoc) {
-    // empty tree
-    jam();
-    treePos.m_pos = 0;
-    treePos.m_match = false;
-    return;
-  }
-  NodeHandle node(frag);
-loop: {
-    jam();
-    selectNode(signal, node, treePos.m_loc, AccPref);
-    const unsigned occup = node.getOccup();
-    ndbrequire(occup != 0);
-    // number of equal initial attributes in bounding node
-    unsigned start = ZNIL;
-    for (unsigned i = 0; i <= 1; i++) {
-      jam();
-      unsigned start1 = 0;
-      // compare prefix
-      int ret = cmpSearchKey(frag, start1, searchKey, node.getPref(i), tree.m_prefSize);
-      if (ret == NdbSqlUtil::CmpUnknown) {
-        jam();
-        // read and compare remaining attributes
-        readKeyAttrs(frag, node.getMinMax(i), start1, c_entryKey);
-        ret = cmpSearchKey(frag, start1, searchKey, c_entryKey);
-        ndbrequire(ret != NdbSqlUtil::CmpUnknown);
-      }
-      if (start > start1)
-        start = start1;
-      if (ret == 0) {
-        jam();
-        // keys are equal, compare entry values
-        ret = searchEnt.cmp(node.getMinMax(i));
-      }
-      if (i == 0 ? (ret < 0) : (ret > 0)) {
-        jam();
-        const TupLoc loc = node.getLink(i);
-        if (loc != NullTupLoc) {
-          jam();
-          // continue to left/right subtree
-          treePos.m_loc = loc;
-          goto loop;
-        }
-        // position is immediately before/after this node
-        treePos.m_pos = (i == 0 ? 0 : occup);
-        treePos.m_match = false;
-        return;
-      }
-      if (ret == 0) {
-        jam();
-        // position is at first/last entry
-        treePos.m_pos = (i == 0 ? 0 : occup - 1);
-        treePos.m_match = true;
-        return;
-      }
-    }
-    // access rest of the bounding node
-    accessNode(signal, node, AccFull);
-    // position is strictly within the node
-    ndbrequire(occup >= 2);
-    const unsigned numWithin = occup - 2;
-    for (unsigned j = 1; j <= numWithin; j++) {
-      jam();
-      int ret = 0;
-      if (start < numAttrs) {
-        jam();
-        // read and compare remaining attributes
-        unsigned start1 = start;
-        readKeyAttrs(frag, node.getEnt(j), start1, c_entryKey);
-        ret = cmpSearchKey(frag, start1, searchKey, c_entryKey);
-        ndbrequire(ret != NdbSqlUtil::CmpUnknown);
-      }
-      if (ret == 0) {
-        jam();
-        // keys are equal, compare entry values
-        ret = searchEnt.cmp(node.getEnt(j));
-      }
-      if (ret <= 0) {
-        jam();
-        // position is before or at this entry
-        treePos.m_pos = j;
-        treePos.m_match = (ret == 0);
-        return;
-      }
-    }
-    // position is before last entry
-    treePos.m_pos = occup - 1;
-    treePos.m_match = false;
-    return;
-  }
-}
-
-/*
  * Add entry.
  */
 void
@@ -283,7 +177,8 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
   nodePopDown(signal, node, pos, ent);
   ndbrequire(node.getChilds() <= 1);
   // handle half-leaf
-  for (unsigned i = 0; i <= 1; i++) {
+  unsigned i;
+  for (i = 0; i <= 1; i++) {
     jam();
     TupLoc childLoc = node.getLink(i);
     if (childLoc != NullTupLoc) {
@@ -297,7 +192,7 @@ Dbtux::treeRemove(Signal* signal, Frag& frag, TreePos treePos)
   // get parent if any
   TupLoc parentLoc = node.getLink(2);
   NodeHandle parentNode(frag);
-  unsigned i = node.getSide();
+  i = node.getSide();
   // move all that fits into parent
   if (parentLoc != NullTupLoc) {
     jam();

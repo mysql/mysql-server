@@ -6,6 +6,7 @@
 #define CFG_SYS_PRIMARY_MGM_NODE      1
 #define CFG_SYS_CONFIG_GENERATION     2
 #define CFG_SYS_REPLICATION_ROLE      7
+#define CFG_SYS_PORT_BASE             8
 
 #define CFG_NODE_ID                   3
 #define CFG_NODE_BYTE_ORDER           4
@@ -87,11 +88,11 @@
 #define CFG_CONNECTION_CHECKSUM       403
 #define CFG_CONNECTION_NODE_1_SYSTEM  404
 #define CFG_CONNECTION_NODE_2_SYSTEM  405
+#define CFG_CONNECTION_SERVER_PORT    406
 
 #define CFG_TCP_HOSTNAME_1            450
 #define CFG_TCP_HOSTNAME_2            451
 #define CFG_TCP_SERVER                452
-#define CFG_TCP_SERVER_PORT           453
 #define CFG_TCP_SEND_BUFFER_SIZE      454
 #define CFG_TCP_RECEIVE_BUFFER_SIZE   455
 #define CFG_TCP_PROXY                 456

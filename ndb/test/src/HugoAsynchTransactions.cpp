@@ -165,12 +165,13 @@ HugoAsynchTransactions::pkUpdateRecordsAsynch(Ndb* pNdb,
 
   allocRows(trans*operations);
   allocTransactions(trans);
+  int a, t, r;
 
   for (int i = 0; i < batch; i++) { // For each batch
     while (cRecords < records*batch) {
       cTrans = 0;
       cReadIndex = 0;
-      for (int t = 0; t < trans; t++) { // For each transaction
+      for (t = 0; t < trans; t++) { // For each transaction
 	transactions[t] = pNdb->startTransaction();
 	if (transactions[t] == NULL) {
 	  ERR(pNdb->getNdbError());
@@ -187,7 +188,7 @@ HugoAsynchTransactions::pkUpdateRecordsAsynch(Ndb* pNdb,
 	  // Read
 	  // Define primary keys
 	  check = pOp->readTupleExclusive();
-	  for (int a = 0; a < tab.getNoOfColumns(); a++) {
+	  for (a = 0; a < tab.getNoOfColumns(); a++) {
 	    if (tab.getColumn(a)->getPrimaryKey() == true) {
 	      if (equalForAttr(pOp, a, cReadRecords) != 0){
 		ERR(transactions[t]->getNdbError());
@@ -197,7 +198,7 @@ HugoAsynchTransactions::pkUpdateRecordsAsynch(Ndb* pNdb,
 	    }
 	  }	    
 	  // Define attributes to read  
-	  for (int a = 0; a < tab.getNoOfColumns(); a++) {
+	  for (a = 0; a < tab.getNoOfColumns(); a++) {
 	    if ((rows[cReadIndex]->attributeStore(a) = 
 		 pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	      ERR(transactions[t]->getNdbError());
@@ -225,7 +226,7 @@ HugoAsynchTransactions::pkUpdateRecordsAsynch(Ndb* pNdb,
       pNdb->sendPollNdb(3000, 0, 0);
 
       // Verify the data!
-      for (int r = 0; r < trans*operations; r++) {
+      for (r = 0; r < trans*operations; r++) {
 	if (calc.verifyRowValues(rows[r]) != 0) {
 	  g_info << "|- Verify failed..." << endl;
 	  // Close all transactions
@@ -239,7 +240,7 @@ HugoAsynchTransactions::pkUpdateRecordsAsynch(Ndb* pNdb,
       // Update
       cTrans = 0;
       cIndex = 0;
-      for (int t = 0; t < trans; t++) { // For each transaction
+      for (t = 0; t < trans; t++) { // For each transaction
 	for (int k = 0; k < operations; k++) { // For each operation
 	  NdbOperation* pOp = transactions[t]->getNdbOperation(tab.getName());
 	  if (pOp == NULL) { 
@@ -258,7 +259,7 @@ HugoAsynchTransactions::pkUpdateRecordsAsynch(Ndb* pNdb,
 	  }
 
 	  // Set search condition for the record
-	  for (int a = 0; a < tab.getNoOfColumns(); a++) {
+	  for (a = 0; a < tab.getNoOfColumns(); a++) {
 	    if (tab.getColumn(a)->getPrimaryKey() == true) {
 	      if (equalForAttr(pOp, a, cRecords) != 0) {
 		ERR(transactions[t]->getNdbError());
@@ -269,7 +270,7 @@ HugoAsynchTransactions::pkUpdateRecordsAsynch(Ndb* pNdb,
 	  }
 
 	  // Update the record
-	  for (int a = 0; a < tab.getNoOfColumns(); a++) {
+	  for (a = 0; a < tab.getNoOfColumns(); a++) {
 	    if (tab.getColumn(a)->getPrimaryKey() == false) {
 	      if (setValueForAttr(pOp, a, cRecords, updates) != 0) {
 		ERR(transactions[t]->getNdbError());
@@ -298,7 +299,7 @@ HugoAsynchTransactions::pkUpdateRecordsAsynch(Ndb* pNdb,
       pNdb->sendPollNdb(3000, 0, 0);
 
       // Close all transactions
-      for (int t = 0; t < cTrans; t++) {
+      for (t = 0; t < cTrans; t++) {
 	pNdb->closeTransaction(transactions[t]);
       }
 
@@ -346,6 +347,7 @@ HugoAsynchTransactions::executeAsynchOperation(Ndb* pNdb,
   int             cTrans = 0;
   int             cRecords = 0;
   int             cIndex = 0;
+  int a,t,r;
 
   transactionsCompleted = 0;
   allocTransactions(trans);
@@ -354,7 +356,7 @@ HugoAsynchTransactions::executeAsynchOperation(Ndb* pNdb,
     while (cRecords < records*batch) {
       cTrans = 0;
       cIndex = 0;
-      for (int t = 0; t < trans; t++) { // For each transaction
+      for (t = 0; t < trans; t++) { // For each transaction
 	transactions[t] = pNdb->startTransaction();
 	if (transactions[t] == NULL) {
 	  ERR(pNdb->getNdbError());
@@ -379,7 +381,7 @@ HugoAsynchTransactions::executeAsynchOperation(Ndb* pNdb,
 	    }
 	    
 	    // Set a calculated value for each attribute in this table	 
-	    for (int a = 0; a < tab.getNoOfColumns(); a++) {
+	    for (a = 0; a < tab.getNoOfColumns(); a++) {
 	      if (setValueForAttr(pOp, a, cRecords, 0 ) != 0) {	  
 		ERR(transactions[t]->getNdbError());
 		pNdb->closeTransaction(transactions[t]);	  
@@ -394,7 +396,7 @@ HugoAsynchTransactions::executeAsynchOperation(Ndb* pNdb,
 	  case NO_READ:
 	    // Define primary keys
 	    check = pOp->readTuple();
-	    for (int a = 0; a < tab.getNoOfColumns(); a++) {
+	    for (a = 0; a < tab.getNoOfColumns(); a++) {
 	      if (tab.getColumn(a)->getPrimaryKey() == true) {
 		if (equalForAttr(pOp, a, cRecords) != 0){
 		  ERR(transactions[t]->getNdbError());
@@ -404,7 +406,7 @@ HugoAsynchTransactions::executeAsynchOperation(Ndb* pNdb,
 	      }
 	    }	    
 	    // Define attributes to read  
-	    for (int a = 0; a < tab.getNoOfColumns(); a++) {
+	    for (a = 0; a < tab.getNoOfColumns(); a++) {
 	      if ((rows[cIndex]->attributeStore(a) = 
 		   pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 		ERR(transactions[t]->getNdbError());
@@ -423,7 +425,7 @@ HugoAsynchTransactions::executeAsynchOperation(Ndb* pNdb,
 	    }
 
 	    // Define primary keys
-	    for (int a = 0; a < tab.getNoOfColumns(); a++) {
+	    for (a = 0; a < tab.getNoOfColumns(); a++) {
 	      if (tab.getColumn(a)->getPrimaryKey() == true){
 		if (equalForAttr(pOp, a, cRecords) != 0) {
 		  ERR(transactions[t]->getNdbError());
@@ -462,7 +464,7 @@ HugoAsynchTransactions::executeAsynchOperation(Ndb* pNdb,
       switch (theOperation) {
       case NO_READ:
 	// Verify the data!
-	for (int r = 0; r < trans*operations; r++) {
+	for (r = 0; r < trans*operations; r++) {
 	  if (calc.verifyRowValues(rows[r]) != 0) {
 	    g_info << "|- Verify failed..." << endl;
 	    // Close all transactions
@@ -476,11 +478,11 @@ HugoAsynchTransactions::executeAsynchOperation(Ndb* pNdb,
       case NO_INSERT:
       case NO_UPDATE:
       case NO_DELETE:
-	abort();
+	break;
       }
 
       // Close all transactions
-      for (int t = 0; t < cTrans; t++) {
+      for (t = 0; t < cTrans; t++) {
 	pNdb->closeTransaction(transactions[t]);
       }
 

@@ -24,6 +24,16 @@
 #include "sp.h"
 #include "sp_head.h"
 
+
+/*
+  Fake table list object, pointer to which is used as special value for
+  st_lex::time_zone_tables_used indicating that we implicitly use time
+  zone tables in this statement but real table list was not yet created.
+  Pointer to it is also returned by my_tz_get_tables_list() as indication
+  of transient error;
+*/
+TABLE_LIST fake_time_zone_tables_list;
+
 /* Macros to look like lex */
 
 #define yyGet()		*(lex->ptr++)
@@ -1376,7 +1386,7 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
     We have to create array in prepared statement memory if it is
     prepared statement
   */
-  Item_arena *arena= thd->current_arena ? thd->current_arena : thd;
+  Item_arena *arena= thd->current_arena;
   return (ref_pointer_array= 
           (Item **)arena->alloc(sizeof(Item*) *
                                 (item_list.elements +
@@ -1647,6 +1657,11 @@ void st_select_lex_unit::set_limit(SELECT_LEX *values,
   if (select_limit_cnt == HA_POS_ERROR)
     sl->options&= ~OPTION_FOUND_ROWS;
 }
+
+
+st_lex::st_lex()
+  :result(0)
+{}
 
 
 /*

@@ -37,7 +37,6 @@
 #include <signaldata/AlterIndx.hpp>
 #include <signaldata/DropTab.hpp>
 #include <signaldata/TuxMaint.hpp>
-#include <signaldata/TupAccess.hpp>
 #include <signaldata/AccScan.hpp>
 #include <signaldata/TuxBound.hpp>
 #include <signaldata/NextScan.hpp>
@@ -77,9 +76,13 @@
 #define jam()           jamLine(60000 + __LINE__)
 #define jamEntry()      jamEntryLine(60000 + __LINE__)
 #endif
-#ifdef DBTUX_CMP_CPP
+#ifdef DBTUX_SEARCH_CPP
 #define jam()           jamLine(70000 + __LINE__)
 #define jamEntry()      jamEntryLine(70000 + __LINE__)
+#endif
+#ifdef DBTUX_CMP_CPP
+#define jam()           jamLine(80000 + __LINE__)
+#define jamEntry()      jamEntryLine(80000 + __LINE__)
 #endif
 #ifdef DBTUX_DEBUG_CPP
 #define jam()           jamLine(90000 + __LINE__)
@@ -112,6 +115,7 @@ public:
   static const unsigned DescPageSize = 256;
 private:
   static const unsigned MaxTreeNodeSize = MAX_TTREE_NODE_SIZE;
+  static const unsigned MaxPrefSize = MAX_TTREE_PREF_SIZE;
   static const unsigned ScanBoundSegmentSize = 7;
   static const unsigned MaxAccLockOps = MAX_PARALLEL_OP_PER_SCAN;
   BLOCK_DEFINES(Dbtux);
@@ -206,19 +210,19 @@ private:
     unsigned m_fragBit : 1;     // which duplicated table fragment
     TreeEnt();
     // methods
+    bool eq(const TreeEnt ent) const;
     int cmp(const TreeEnt ent) const;
   };
   static const unsigned TreeEntSize = sizeof(TreeEnt) >> 2;
   static const TreeEnt NullTreeEnt;
 
   /*
-   * Tree node has 1) fixed part 2) actual table data for min and max
-   * prefix 3) max and min entries 4) rest of entries 5) one extra entry
+   * Tree node has 1) fixed part 2) a prefix of index key data for min
+   * entry 3) max and min entries 4) rest of entries 5) one extra entry
    * used as work space.
    *
    * struct TreeNode            part 1, size 6 words
    * min prefix                 part 2, size TreeHead::m_prefSize
-   * max prefix                 part 2, size TreeHead::m_prefSize
    * max entry                  part 3
    * min entry                  part 3
    * rest of entries            part 4
@@ -265,14 +269,14 @@ private:
   friend struct TreeHead;
   struct TreeHead {
     Uint8 m_nodeSize;           // words in tree node
-    Uint8 m_prefSize;           // words in min/max prefix each
+    Uint8 m_prefSize;           // words in min prefix
     Uint8 m_minOccup;           // min entries in internal node
     Uint8 m_maxOccup;           // max entries in node
     TupLoc m_root;              // root node
     TreeHead();
     // methods
     unsigned getSize(AccSize acc) const;
-    Data getPref(TreeNode* node, unsigned i) const;
+    Data getPref(TreeNode* node) const;
     TreeEnt* getEntList(TreeNode* node) const;
   };
 
@@ -442,6 +446,7 @@ private:
     Uint32 m_descPage;          // descriptor page
     Uint16 m_descOff;           // offset within the page
     Uint16 m_numAttrs;
+    bool m_storeNullKey;
     union {
     Uint32 nextPool;
     };
@@ -465,6 +470,7 @@ private:
     Uint32 m_descPage;          // copy from index level
     Uint16 m_descOff;
     Uint16 m_numAttrs;
+    bool m_storeNullKey;
     TreeHead m_tree;
     TupLoc m_freeLoc;           // one node pre-allocated for insert
     DLList<ScanOp> m_scanList;  // current scans on this fragment
@@ -514,6 +520,8 @@ private:
     NodeHandle(Frag& frag);
     NodeHandle(const NodeHandle& node);
     NodeHandle& operator=(const NodeHandle& node);
+    // check if unassigned
+    bool isNull();
     // getters
     TupLoc getLink(unsigned i);
     unsigned getChilds();       // cannot spell
@@ -528,54 +536,11 @@ private:
     void setBalance(int b);
     void setNodeScan(Uint32 scanPtrI);
     // access other parts of the node
-    Data getPref(unsigned i);
+    Data getPref();
     TreeEnt getEnt(unsigned pos);
     TreeEnt getMinMax(unsigned i);
     // for ndbrequire and ndbassert
     void progError(int line, int cause, const char* file);
-  };
-
-  // parameters for methods
-  
-  /*
-   * Copy attribute data.
-   */
-  struct CopyPar {
-    unsigned m_items;           // number of attributes
-    bool m_headers;             // copy headers flag (default true)
-    unsigned m_maxwords;        // limit size (default no limit)
-    // output
-    unsigned m_numitems;        // number of attributes fully copied
-    unsigned m_numwords;        // number of words copied
-    CopyPar();
-  };
-
-  /*
-   * Read index key attributes.
-   */
-  struct ReadPar;
-  friend struct ReadPar;
-  struct ReadPar {
-    TreeEnt m_ent;              // tuple to read
-    unsigned m_first;           // first index attribute
-    unsigned m_count;           // number of consecutive index attributes
-    Data m_data;                // set pointer if 0 else copy result to it
-    unsigned m_size;            // number of words (set in read keys only)
-    ReadPar();
-  };
-
-  /*
-   * Scan bound comparison.
-   */
-  struct BoundPar;
-  friend struct BoundPar;
-  struct BoundPar {
-    ConstData m_data1;          // full bound data
-    ConstData m_data2;          // full or prefix data
-    unsigned m_count1;          // number of bounds
-    unsigned m_len2;            // words in data2 buffer
-    unsigned m_dir;             // 0-lower bound 1-upper bound
-    BoundPar();
   };
 
   // methods
@@ -589,7 +554,7 @@ private:
   // utils
   void setKeyAttrs(const Frag& frag);
   void readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, TableData keyData);
-  void copyAttrs(Data dst, ConstData src, CopyPar& copyPar);
+  void readTablePk(const Frag& frag, TreeEnt ent, unsigned& pkSize, Data pkData);
   void copyAttrs(const Frag& frag, TableData data1, Data data2, unsigned maxlen2 = MaxAttrDataSize);
 
   /*
@@ -607,8 +572,6 @@ private:
    * DbtuxMaint.cpp
    */
   void execTUX_MAINT_REQ(Signal* signal);
-  void tupReadAttrs(Signal* signal, const Frag& frag, ReadPar& readPar);
-  void tupReadKeys(Signal* signal, const Frag& frag, ReadPar& readPar);
   
   /*
    * DbtuxNode.cpp
@@ -618,7 +581,7 @@ private:
   void selectNode(Signal* signal, NodeHandle& node, TupLoc loc, AccSize acc);
   void insertNode(Signal* signal, NodeHandle& node, AccSize acc);
   void deleteNode(Signal* signal, NodeHandle& node);
-  void setNodePref(Signal* signal, NodeHandle& node, unsigned i);
+  void setNodePref(Signal* signal, NodeHandle& node);
   // node operations
   void nodePushUp(Signal* signal, NodeHandle& node, unsigned pos, const TreeEnt& ent);
   void nodePopDown(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent);
@@ -633,7 +596,6 @@ private:
   /*
    * DbtuxTree.cpp
    */
-  void treeSearch(Signal* signal, Frag& frag, TableData searchKey, TreeEnt searchEnt, TreePos& treePos);
   void treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent);
   void treeRemove(Signal* signal, Frag& frag, TreePos treePos);
   void treeRotateSingle(Signal* signal, Frag& frag, NodeHandle& node, unsigned i);
@@ -658,11 +620,19 @@ private:
   void releaseScanOp(ScanOpPtr& scanPtr);
 
   /*
+   * DbtuxSearch.cpp
+   */
+  void searchToAdd(Signal* signal, Frag& frag, TableData searchKey, TreeEnt searchEnt, TreePos& treePos);
+  void searchToRemove(Signal* signal, Frag& frag, TableData searchKey, TreeEnt searchEnt, TreePos& treePos);
+  void searchToScan(Signal* signal, Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos);
+
+  /*
    * DbtuxCmp.cpp
    */
-  int cmpSearchKey(const Frag& frag, unsigned& start, TableData data1, ConstData data2, unsigned maxlen2 = MaxAttrDataSize);
-  int cmpSearchKey(const Frag& frag, unsigned& start, TableData data1, TableData data2);
-  int cmpScanBound(const Frag& frag, const BoundPar boundPar);
+  int cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, ConstData entryData, unsigned maxlen = MaxAttrDataSize);
+  int cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, TableData entryKey);
+  int cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigned boundCount, ConstData entryData, unsigned maxlen = MaxAttrDataSize);
+  int cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigned boundCount, TableData entryKey);
 
   /*
    * DbtuxDebug.cpp
@@ -675,6 +645,7 @@ private:
     TupLoc m_parent;            // expected parent address
     int m_depth;                // returned depth
     unsigned m_occup;           // returned occupancy
+    TreeEnt m_minmax[2];        // returned subtree min and max
     bool m_ok;                  // returned status
     PrintPar();
   };
@@ -699,6 +670,8 @@ private:
     DebugTree = 4,              // log and check tree after each op
     DebugScan = 8               // log scans
   };
+  static const int DataFillByte = 0xa2;
+  static const int NodeFillByte = 0xa4;
 #endif
 
   // start up info
@@ -859,13 +832,18 @@ Dbtux::TreeEnt::TreeEnt() :
 {
 }
 
+inline bool
+Dbtux::TreeEnt::eq(const TreeEnt ent) const
+{
+  return
+    m_tupLoc == ent.m_tupLoc &&
+    m_tupVersion == ent.m_tupVersion &&
+    m_fragBit == ent.m_fragBit;
+}
+
 inline int
 Dbtux::TreeEnt::cmp(const TreeEnt ent) const
 {
-  if (m_fragBit < ent.m_fragBit)
-    return -1;
-  if (m_fragBit > ent.m_fragBit)
-    return +1;
   if (m_tupLoc.m_pageId < ent.m_tupLoc.m_pageId)
     return -1;
   if (m_tupLoc.m_pageId > ent.m_tupLoc.m_pageId)
@@ -877,6 +855,10 @@ Dbtux::TreeEnt::cmp(const TreeEnt ent) const
   if (m_tupVersion < ent.m_tupVersion)
     return -1;
   if (m_tupVersion > ent.m_tupVersion)
+    return +1;
+  if (m_fragBit < ent.m_fragBit)
+    return -1;
+  if (m_fragBit > ent.m_fragBit)
     return +1;
   return 0;
 }
@@ -920,25 +902,25 @@ Dbtux::TreeHead::getSize(AccSize acc) const
   case AccHead:
     return NodeHeadSize;
   case AccPref:
-    return NodeHeadSize + 2 * m_prefSize + 2 * TreeEntSize;
+    return NodeHeadSize + m_prefSize + 2 * TreeEntSize;
   case AccFull:
     return m_nodeSize;
   }
-  REQUIRE(false, "invalid Dbtux::AccSize");
+  abort();
   return 0;
 }
 
 inline Dbtux::Data
-Dbtux::TreeHead::getPref(TreeNode* node, unsigned i) const
+Dbtux::TreeHead::getPref(TreeNode* node) const
 {
-  Uint32* ptr = (Uint32*)node + NodeHeadSize + i * m_prefSize;
+  Uint32* ptr = (Uint32*)node + NodeHeadSize;
   return ptr;
 }
 
 inline Dbtux::TreeEnt*
 Dbtux::TreeHead::getEntList(TreeNode* node) const
 {
-  Uint32* ptr = (Uint32*)node + NodeHeadSize + 2 * m_prefSize;
+  Uint32* ptr = (Uint32*)node + NodeHeadSize + m_prefSize;
   return (TreeEnt*)ptr;
 }
 
@@ -1013,7 +995,8 @@ Dbtux::Index::Index() :
   m_numFrags(0),
   m_descPage(RNIL),
   m_descOff(0),
-  m_numAttrs(0)
+  m_numAttrs(0),
+  m_storeNullKey(false)
 {
   for (unsigned i = 0; i < MaxIndexFragments; i++) {
     m_fragId[i] = ZNIL;
@@ -1032,6 +1015,7 @@ Dbtux::Frag::Frag(ArrayPool<ScanOp>& scanOpPool) :
   m_descPage(RNIL),
   m_descOff(0),
   m_numAttrs(ZNIL),
+  m_storeNullKey(false),
   m_tree(),
   m_freeLoc(),
   m_scanList(scanOpPool),
@@ -1085,6 +1069,12 @@ Dbtux::NodeHandle::operator=(const NodeHandle& node)
   m_node = node.m_node;
   m_acc = node.m_acc;
   return *this;
+}
+
+inline bool
+Dbtux::NodeHandle::isNull()
+{
+  return m_node == 0;
 }
 
 inline Dbtux::TupLoc
@@ -1161,11 +1151,11 @@ Dbtux::NodeHandle::setNodeScan(Uint32 scanPtrI)
 }
 
 inline Dbtux::Data
-Dbtux::NodeHandle::getPref(unsigned i)
+Dbtux::NodeHandle::getPref()
 {
   TreeHead& tree = m_frag.m_tree;
-  ndbrequire(m_acc >= AccPref && i <= 1);
-  return tree.getPref(m_node, i);
+  ndbrequire(m_acc >= AccPref);
+  return tree.getPref(m_node);
 }
 
 inline Dbtux::TreeEnt
@@ -1192,36 +1182,6 @@ Dbtux::NodeHandle::getMinMax(unsigned i)
 }
 
 // parameters for methods
-
-inline
-Dbtux::CopyPar::CopyPar() :
-  m_items(0),
-  m_headers(true),
-  m_maxwords(~0),       // max unsigned
-  // output
-  m_numitems(0),
-  m_numwords(0)
-{
-}
-
-inline
-Dbtux::ReadPar::ReadPar() :
-  m_first(0),
-  m_count(0),
-  m_data(0),
-  m_size(0)
-{
-}
-
-inline
-Dbtux::BoundPar::BoundPar() :
-  m_data1(0),
-  m_data2(0),
-  m_count1(0),
-  m_len2(0),
-  m_dir(255)
-{
-}
 
 #ifdef VM_TRACE
 inline

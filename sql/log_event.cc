@@ -1540,10 +1540,6 @@ end:
   thd->query= 0;			// just to be sure
   thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
-  // assume no convert for next query unless set explictly
-#ifdef TO_BE_REMOVED
-  thd->variables.convert_set = 0;
-#endif
   close_thread_tables(thd);      
   free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
   return (thd->query_error ? thd->query_error : Log_event::exec_event(rli)); 

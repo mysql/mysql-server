@@ -114,6 +114,17 @@ static bool make_datetime(date_time_format_types format, TIME *ltime,
 
 
 /*
+  Date formats corresponding to compound %r and %T conversion specifiers
+
+  Note: We should init at least first element of "positions" array
+        (first member) or hpux11 compiler will die horribly.
+*/
+static DATE_TIME_FORMAT time_ampm_format= {{0}, '\0', 0,
+                                           {(char *)"%I:%i:%S %p", 11}};
+static DATE_TIME_FORMAT time_24hrs_format= {{0}, '\0', 0,
+                                            {(char *)"%H:%i:%S", 8}};
+
+/*
   Extract datetime value to TIME struct from string value
   according to format string. 
 
@@ -126,6 +137,17 @@ static bool make_datetime(date_time_format_types format, TIME *ltime,
     cached_timestamp_type 
                        It uses to get an appropriate warning
                        in the case when the value is truncated.
+    sub_pattern_end    if non-zero then we are parsing string which
+                       should correspond compound specifier (like %T or
+                       %r) and this parameter is pointer to place where
+                       pointer to end of string matching this specifier
+                       should be stored.
+    NOTE
+     Possibility to parse strings matching to patterns equivalent to compound
+     specifiers is mainly intended for use from inside of this function in
+     order to understand %T and %r conversion specifiers, so number of
+     conversion specifiers that can be used in such sub-patterns is limited.
+     Also most of checks are skipped in this case.
 
     RETURN
       0	ok
@@ -134,14 +156,18 @@ static bool make_datetime(date_time_format_types format, TIME *ltime,
 
 static bool extract_date_time(DATE_TIME_FORMAT *format,
 			      const char *val, uint length, TIME *l_time,
-			      timestamp_type cached_timestamp_type)
+                              timestamp_type cached_timestamp_type,
+                              const char **sub_pattern_end)
 {
   int weekday= 0, yearday= 0, daypart= 0;
   int week_number= -1;
   CHARSET_INFO *cs= &my_charset_bin;
   int error= 0;
   bool usa_time= 0;
-  bool sunday_first= 0;
+  bool sunday_first_n_first_week_non_iso;
+  bool strict_week_number;
+  int  strict_week_number_year= -1;
+  bool strict_week_number_year_type;
   int frac_part;
   const char *val_begin= val;
   const char *val_end= val + length;
@@ -149,7 +175,12 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   const char *end= ptr + format->format.length;
   DBUG_ENTER("extract_date_time");
 
-  bzero((char*) l_time, sizeof(*l_time));
+  LINT_INIT(sunday_first_n_first_week_non_iso);
+  LINT_INIT(strict_week_number);
+  LINT_INIT(strict_week_number_year_type);
+
+  if (!sub_pattern_end)
+    bzero((char*) l_time, sizeof(*l_time));
 
   for (; ptr != end && val != val_end; ptr++)
   {
@@ -160,7 +191,7 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
       char *tmp;
 
       /* Skip pre-space between each argument */
-      while (my_isspace(cs, *val) && val != val_end)
+      while (val != val_end && my_isspace(cs, *val))
 	val++;
 
       val_len= (uint) (val_end - val);
@@ -268,9 +299,12 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 	break;
       case 'w':
 	tmp= (char*) val + 1;
-	if ((weekday= (int) my_strtoll10(val, &tmp, &error)) <= 0 ||
+	if ((weekday= (int) my_strtoll10(val, &tmp, &error)) < 0 ||
 	    weekday >= 7)
 	  goto err;
+        /* We should use the same 1 - 7 scale for %w as for %W */
+        if (!weekday)
+          weekday= 7;
 	val= tmp;
 	break;
       case 'j':
@@ -279,15 +313,45 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 	val= tmp;
 	break;
 
+        /* Week numbers */
+      case 'V':
       case 'U':
-	sunday_first= 1;
-	/* Fall through */
+      case 'v':
       case 'u':
+        sunday_first_n_first_week_non_iso= (*ptr=='U' || *ptr== 'V');
+        strict_week_number= (*ptr=='V' || *ptr=='v');
 	tmp= (char*) val + min(val_len, 2);
-	week_number= (int) my_strtoll10(val, &tmp, &error);
+	if ((week_number= (int) my_strtoll10(val, &tmp, &error)) < 0 ||
+            strict_week_number && !week_number ||
+            week_number > 53)
+          goto err;
 	val= tmp;
 	break;
 
+        /* Year used with 'strict' %V and %v week numbers */
+      case 'X':
+      case 'x':
+        strict_week_number_year_type= (*ptr=='X');
+        tmp= (char*) val + min(4, val_len);
+        strict_week_number_year= (int) my_strtoll10(val, &tmp, &error);
+        val= tmp;
+        break;
+
+        /* Time in AM/PM notation */
+      case 'r':
+        error= extract_date_time(&time_ampm_format, val,
+                                 (uint)(val_end - val), l_time,
+                                 cached_timestamp_type, &val);
+        break;
+
+        /* Time in 24-hour notation */
+      case 'T':
+        error= extract_date_time(&time_24hrs_format, val,
+                                 (uint)(val_end - val), l_time,
+                                 cached_timestamp_type, &val);
+        break;
+
+        /* Conversion specifiers that match classes of characters */
       case '.':
 	while (my_ispunct(cs, *val) && val != val_end)
 	  val++;
@@ -320,6 +384,16 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
     l_time->hour= l_time->hour%12+daypart;
   }
 
+  /*
+    If we are recursively called for parsing string matching compound
+    specifiers we are already done.
+  */
+  if (sub_pattern_end)
+  {
+    *sub_pattern_end= val;
+    DBUG_RETURN(0);
+  }
+
   if (yearday > 0)
   {
     uint days= calc_daynr(l_time->year,1,1) +  yearday - 1;
@@ -330,34 +404,45 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 
   if (week_number >= 0 && weekday)
   {
-    int days= calc_daynr(l_time->year,1,1);
+    int days;
     uint weekday_b;
-    
-    if (weekday > 7 || weekday < 0)
-	goto err;
-    if (sunday_first)
-      weekday = weekday%7;
 
-    if (week_number == 53)
+    /*
+      %V,%v require %X,%x resprectively,
+      %U,%u should be used with %Y and not %X or %x
+    */
+    if (strict_week_number &&
+        (strict_week_number_year < 0 ||
+         strict_week_number_year_type != sunday_first_n_first_week_non_iso) ||
+        !strict_week_number && strict_week_number_year >= 0)
+      goto err;
+
+    /* Number of days since year 0 till 1st Jan of this year */
+    days= calc_daynr((strict_week_number ? strict_week_number_year :
+                                           l_time->year),
+                     1, 1);
+    /* Which day of week is 1st Jan of this year */
+    weekday_b= calc_weekday(days, sunday_first_n_first_week_non_iso);
+
+    /*
+      Below we are going to sum:
+      1) number of days since year 0 till 1st day of 1st week of this year
+      2) number of days between 1st week and our week
+      3) and position of our day in the week
+    */
+    if (sunday_first_n_first_week_non_iso)
     {
-      days+= (week_number - 1)*7;
-      weekday_b= calc_weekday(days, sunday_first);
-      weekday = weekday - weekday_b - !sunday_first;
-      days+= weekday;
-    }
-    else if (week_number == 0)
-    {
-      weekday_b= calc_weekday(days, sunday_first);
-      weekday = weekday - weekday_b - !sunday_first;
-      days+= weekday;
+      days+= ((weekday_b == 0) ? 0 : 7) - weekday_b +
+             (week_number - 1) * 7 +
+             weekday % 7;
     }
     else
     {
-      days+= (week_number - !sunday_first)*7;
-      weekday_b= calc_weekday(days, sunday_first);
-      weekday =weekday - weekday_b - !sunday_first;
-      days+= weekday;
+      days+= ((weekday_b <= 3) ? 0 : 7) - weekday_b +
+             (week_number - 1) * 7 +
+             (weekday - 1);
     }
+
     if (days <= 0 || days >= MAX_DAY_NUMBER)
       goto err;
     get_date_from_daynr(days,&l_time->year,&l_time->month,&l_time->day);
@@ -1574,19 +1659,29 @@ bool Item_func_from_unixtime::get_date(TIME *ltime,
 
 
 void Item_func_convert_tz::fix_length_and_dec()
-{ 
-  String str;
-  
-  thd= current_thd;
+{
   collation.set(&my_charset_bin);
   decimals= 0;
   max_length= MAX_DATETIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+}
+
+
+bool
+Item_func_convert_tz::fix_fields(THD *thd_arg, TABLE_LIST *tables_arg, Item **ref)
+{
+  String str;
+  if (Item_date_func::fix_fields(thd_arg, tables_arg, ref))
+    return 1;
+
+  tz_tables= thd_arg->lex->time_zone_tables_used;
 
   if (args[1]->const_item())
-    from_tz= my_tz_find(thd, args[1]->val_str(&str));
-  
+    from_tz= my_tz_find(args[1]->val_str(&str), tz_tables);
+
   if (args[2]->const_item())
-    to_tz= my_tz_find(thd, args[2]->val_str(&str));
+    to_tz= my_tz_find(args[2]->val_str(&str), tz_tables);
+
+  return 0;
 }
 
 
@@ -1627,10 +1722,10 @@ bool Item_func_convert_tz::get_date(TIME *ltime,
   String str;
   
   if (!args[1]->const_item())
-    from_tz= my_tz_find(thd, args[1]->val_str(&str));
+    from_tz= my_tz_find(args[1]->val_str(&str), tz_tables);
   
   if (!args[2]->const_item())
-    to_tz= my_tz_find(thd, args[2]->val_str(&str));
+    to_tz= my_tz_find(args[2]->val_str(&str), tz_tables);
   
   if (from_tz==0 || to_tz==0 || get_arg0_date(ltime, 0))
   {
@@ -2825,7 +2920,7 @@ bool Item_func_str_to_date::get_date(TIME *ltime, uint fuzzy_date)
   date_time_format.format.str=    (char*) format->ptr();
   date_time_format.format.length= format->length();
   if (extract_date_time(&date_time_format, val->ptr(), val->length(),
-			ltime, cached_timestamp_type))
+			ltime, cached_timestamp_type, 0))
     goto null_date;
   if (cached_timestamp_type == MYSQL_TIMESTAMP_TIME && ltime->day)
   {

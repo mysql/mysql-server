@@ -285,6 +285,16 @@ SELECT * FROM t1 NATURAL JOIN t2 WHERE (Value1 = 'A' AND Value2 <> 'B') AND 1;
 drop table t1,t2;
 
 #
+# dummy natural join (no common columns) Bug #4807
+#
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (b int);
+CREATE TABLE t3 (c int);
+SELECT * FROM t1 NATURAL JOIN t2 NATURAL JOIN t3;
+DROP TABLE t1, t2, t3;
+
+#
 # Test combination of join methods
 #
 

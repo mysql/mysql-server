@@ -7,6 +7,15 @@ FULLTEXT KEY (a)
 repair table t1 quick;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 select count(*) from t1 where match a against ('aaaxxx');
 count(*)
 260

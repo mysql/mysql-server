@@ -52,7 +52,7 @@ _hash_init(HASH *hash,CHARSET_INFO *charset,
 	   void (*free_element)(void*),uint flags CALLER_INFO_PROTO)
 {
   DBUG_ENTER("hash_init");
-  DBUG_PRINT("enter",("hash: %lx  size: %d",hash,size));
+  DBUG_PRINT("enter",("hash: 0x%lx  size: %d",hash,size));
 
   hash->records=0;
   if (my_init_dynamic_array_ci(&hash->array,sizeof(HASH_LINK),size,0))
@@ -565,7 +565,7 @@ my_bool hash_check(HASH *hash)
 	if ((rec_link=hash_rec_mask(hash,hash_info,blength,records)) != i)
 	{
 	  DBUG_PRINT("error",
-		     ("Record in wrong link at %d: Start %d  Record: %lx  Record-link %d", idx,i,hash_info->data,rec_link));
+		     ("Record in wrong link at %d: Start %d  Record: 0x%lx  Record-link %d", idx,i,hash_info->data,rec_link));
 	  error=1;
 	}
 	else

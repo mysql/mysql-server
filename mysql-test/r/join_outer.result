@@ -628,7 +628,7 @@ insert into t2 values (10,1),(20,2),(30,3);
 explain select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	NULL	PRIMARY	4	NULL	3	Using index
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	2	const	1	Using index
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	2	const	1	Using where; Using index
 select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
 fooID	barID	fooID
 10	1	NULL
@@ -676,3 +676,72 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	
 drop table t1, t2, t3;
+create table t1 (
+match_id tinyint(3) unsigned not null auto_increment,
+home tinyint(3) unsigned default '0',
+unique key match_id (match_id),
+key match_id_2 (match_id)
+);
+insert into t1 values("1", "2");
+create table t2 (
+player_id tinyint(3) unsigned default '0',
+match_1_h tinyint(3) unsigned default '0',
+key player_id (player_id)
+);
+insert into t2 values("1", "5");
+insert into t2 values("2", "9");
+insert into t2 values("3", "3");
+insert into t2 values("4", "7");
+insert into t2 values("5", "6");
+insert into t2 values("6", "8");
+insert into t2 values("7", "4");
+insert into t2 values("8", "12");
+insert into t2 values("9", "11");
+insert into t2 values("10", "10");
+explain select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
+(t2 s left join t1 m on m.match_id = 1) 
+order by m.match_id desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	s	ALL	NULL	NULL	NULL	NULL	10	
+1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	Using where
+explain select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
+(t2 s left join t1 m on m.match_id = 1) 
+order by UUX desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	s	ALL	NULL	NULL	NULL	NULL	10	Using temporary; Using filesort
+1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	Using where
+select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
+(t2 s left join t1 m on m.match_id = 1) 
+order by UUX desc;
+player_id	match_1_h	*	match_id	home	UUX
+8	12	*	1	2	10
+9	11	*	1	2	9
+10	10	*	1	2	8
+2	9	*	1	2	7
+6	8	*	1	2	6
+4	7	*	1	2	5
+5	6	*	1	2	4
+1	5	*	1	2	3
+7	4	*	1	2	2
+3	3	*	1	2	1
+explain select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
+t2 s straight_join t1 m where m.match_id = 1 
+order by UUX desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	s	ALL	NULL	NULL	NULL	NULL	10	Using temporary; Using filesort
+1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	Using where
+select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
+t2 s straight_join t1 m where m.match_id = 1 
+order by UUX desc;
+player_id	match_1_h	*	match_id	home	UUX
+8	12	*	1	2	10
+9	11	*	1	2	9
+10	10	*	1	2	8
+2	9	*	1	2	7
+6	8	*	1	2	6
+4	7	*	1	2	5
+5	6	*	1	2	4
+1	5	*	1	2	3
+7	4	*	1	2	2
+3	3	*	1	2	1
+drop table t1, t2;
