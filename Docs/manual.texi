@@ -19469,8 +19469,7 @@ a table row. The default is to add the column last.
 or removes the old default value.
 If the old default is removed and the column can be @code{NULL}, the new
 default is @code{NULL}. If the column cannot be @code{NULL}, @strong{MySQL}
-assigns a default value.
-Default value assignment is described in
+assigns a default value, as described in
 @ref{CREATE TABLE, , @code{CREATE TABLE}}.
 
 @findex DROP INDEX
@@ -19482,6 +19481,10 @@ ANSI SQL92.
 If columns are dropped from a table, the columns are also removed from any
 index of which they are a part.  If all columns that make up an index are
 dropped, the index is dropped as well.
+
+@item
+If a table contains only one column, the column cannot be dropped.
+If what you intend is to remove the table, use @code{DROP TABLE} instead.
 
 @findex DROP PRIMARY KEY
 @item
@@ -41775,7 +41778,7 @@ of the following flags in very special circumstances:
 @code{mysqld} to be more ODBC-friendly.
 @item @code{CLIENT_COMPRESS}   @tab Use compression protocol.
 @item @code{CLIENT_FOUND_ROWS} @tab Return the number of found (matched) rows, not the number of affected rows.
-@item @code{CLIENT_IGNORE_SPACE} $tab Allow spaces after function names. Makes all functions names reserved words.
+@item @code{CLIENT_IGNORE_SPACE} @tab Allow spaces after function names. Makes all functions names reserved words.
 @item @code{CLIENT_INTERACTIVE} @tab Allow @code{interactive_timeout} seconds (instead of @code{wait_timeout} seconds) of inactivity before closing the connection.
 @item @code{CLIENT_NO_SCHEMA}  @tab Don't allow the @code{db_name.tbl_name.col_name} syntax.  This is for ODBC. It causes the parser to generate an error if you use that syntax, which is useful for trapping bugs in some ODBC programs.
 @item @code{CLIENT_ODBC}       @tab The client is an ODBC client. This changes
