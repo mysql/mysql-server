@@ -212,8 +212,6 @@ int quick_rm_table(enum db_type base,const char *db,
 
 static int sort_keys(KEY *a, KEY *b)
 {
-  if (a == b)					// Safety
-    return 0;
   if (a->flags & HA_NOSAME)
   {
     if (!(b->flags & HA_NOSAME))
@@ -235,7 +233,13 @@ static int sort_keys(KEY *a, KEY *b)
   {
     return (a->flags & HA_FULLTEXT) ? 1 : -1;
   }
-  return a < b ? -1 : 1;			// Prefer original key order
+  /*
+    Prefer original key order.  usable_key_parts contains here
+    the original key position.
+  */
+  return ((a->usable_key_parts < b->usable_key_parts) ? -1 :
+	  (a->usable_key_parts > b->usable_key_parts) ? 1 :
+	  0);
 }
 
 
@@ -396,7 +400,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   List<Key> keys_in_order;			// Add new keys here
   bool primary_key=0,unique_key=0;
   Key *key;
-  uint tmp;
+  uint tmp, key_number;
   tmp=min(file->max_keys(), MAX_KEY);
   if (key_count > tmp)
   {
@@ -428,7 +432,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     DBUG_RETURN(-1);				// Out of memory
 
   key_iterator.rewind();
-  for (; (key=key_iterator++) ; key_info++)
+  key_number=0;
+  for (; (key=key_iterator++) ; key_info++, key_number++)
   {
     uint key_length=0;
     key_part_spec *column;
@@ -437,6 +442,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
                      (key->type == Key::FULLTEXT) ? HA_FULLTEXT : HA_NOSAME;
     key_info->key_parts=(uint8) key->columns.elements;
     key_info->key_part=key_part_info;
+    key_info->usable_key_parts= key_number;
 
     if (key->type == Key::FULLTEXT)
     {
