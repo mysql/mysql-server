@@ -53,15 +53,13 @@ bool
 sp_function_exists(THD *thd, LEX_STRING *name);
 
 
-// QQ More temporary stuff until the real cache is implemented. This is
-// needed since we have to read the functions before we do anything else.
+// This is needed since we have to read the functions before we
+// do anything else.
 void
 sp_add_fun_to_lex(LEX *lex, LEX_STRING fun);
 void
 sp_merge_funs(LEX *dst, LEX *src);
 int
 sp_cache_functions(THD *thd, LEX *lex);
-void
-sp_clear_function_cache(THD *thd);
 
 #endif /* _SP_H_ */

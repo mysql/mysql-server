@@ -551,7 +551,7 @@ public:
   bool       prepare_command;
   bool	     tmp_table_used;
   sp_rcontext *spcont;		// SP runtime context
-  List<sp_head> spfuns;		// SP FUNCTIONs
+  HASH         sp_hash[2];      // hash for SP PROCEDURES and FUNCTIONS
 
   /*
     If we do a purge of binary logs, log index info of the threads

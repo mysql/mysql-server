@@ -22,6 +22,9 @@
 static sp_head *
 sp_find_cached_function(THD *thd, char *name, uint namelen);
 
+static sp_head *
+sp_find_cached_procedure(THD *thd, char *name, uint namelen);
+
 /*
  *
  * DB storage of Stored PROCEDUREs and FUNCTIONs
@@ -254,9 +257,17 @@ sp_find_procedure(THD *thd, LEX_STRING *name)
 
   DBUG_PRINT("enter", ("name: %*s", name->length, name->str));
 
-  if (db_find_routine(thd, TYPE_ENUM_PROCEDURE,
-		      name->str, name->length, &sp) != SP_OK)
-    sp= NULL;
+  sp= sp_find_cached_procedure(thd, name->str, name->length);
+  if (! sp)
+  {
+    if (db_find_routine(thd, TYPE_ENUM_PROCEDURE,
+			name->str, name->length, &sp) == SP_OK)
+    {
+      HASH *phash= thd->sp_hash+TYPE_ENUM_PROCEDURE-1;
+
+      hash_insert(phash, (const byte*)sp);
+    }
+  }
 
   DBUG_RETURN(sp);
 }
@@ -280,8 +291,17 @@ sp_drop_procedure(THD *thd, char *name, uint namelen)
 {
   DBUG_ENTER("sp_drop_procedure");
   DBUG_PRINT("enter", ("name: %*s", namelen, name));
+  sp_head *sp;
   int ret;
 
+  sp= sp_find_cached_procedure(thd, name, namelen);
+  if (sp)
+  {
+    HASH *phash= thd->sp_hash+TYPE_ENUM_PROCEDURE-1;
+
+    hash_delete(phash, (byte*)sp);
+    delete sp;
+  }
   ret= db_drop_routine(thd, TYPE_ENUM_PROCEDURE, name, namelen);
 
   DBUG_RETURN(ret);
@@ -331,8 +351,17 @@ sp_drop_function(THD *thd, char *name, uint namelen)
 {
   DBUG_ENTER("sp_drop_function");
   DBUG_PRINT("enter", ("name: %*s", namelen, name));
+  sp_head *sp;
   int ret;
 
+  sp= sp_find_cached_function(thd, name, namelen);
+  if (sp)
+  {
+    HASH *fhash= thd->sp_hash+TYPE_ENUM_FUNCTION-1;
+
+    hash_delete(fhash, (byte*)sp);
+    delete sp;
+  }
   ret= db_drop_routine(thd, TYPE_ENUM_FUNCTION, name, namelen);
 
   DBUG_RETURN(ret);
@@ -344,9 +373,10 @@ sp_function_exists(THD *thd, LEX_STRING *name)
 {
   TABLE *table;
   bool ret= FALSE;
-  bool opened;
+  bool opened= FALSE;
 
-  if (db_find_routine_aux(thd, TYPE_ENUM_FUNCTION,
+  if (sp_find_cached_function(thd, name->str, name->length) ||
+      db_find_routine_aux(thd, TYPE_ENUM_FUNCTION,
 			  name->str, name->length, TL_READ,
 			  &table, &opened) == SP_OK)
   {
@@ -357,13 +387,6 @@ sp_function_exists(THD *thd, LEX_STRING *name)
   return ret;
 }
 
-
-/*
- *
- *   The temporary FUNCTION cache. (QQ This will be rehacked later, but
- *   it's needed now to make functions work at all.)
- *
- */
 
 void
 sp_add_fun_to_lex(LEX *lex, LEX_STRING fun)
@@ -411,25 +434,22 @@ sp_cache_functions(THD *thd, LEX *lex)
   char *fn;
   enum_sql_command cmd= lex->sql_command;
   int ret= 0;
+  HASH *fhash= thd->sp_hash+TYPE_ENUM_FUNCTION-1;
 
   while ((fn= li++))
   {
-    List_iterator_fast<sp_head> lisp(thd->spfuns);
     sp_head *sp;
+    int len= strlen(fn);
 
-    while ((sp= lisp++))
-    {
-      if (my_strcasecmp(system_charset_info, fn, sp->name()) == 0)
-	break;
-    }
-    if (sp)
+    if (hash_search(fhash,(const byte*)fn,len)) 
       continue;
-    if (db_find_routine(thd, TYPE_ENUM_FUNCTION, fn, strlen(fn), &sp) == SP_OK)
+
+    if (db_find_routine(thd, TYPE_ENUM_FUNCTION, fn, len, &sp) == SP_OK)
     {
       ret= sp_cache_functions(thd, thd->lex);
       if (ret)
 	break;
-      thd->spfuns.push_back(sp);
+      hash_insert(fhash,(const byte*)sp);
     }
     else
     {
@@ -441,32 +461,23 @@ sp_cache_functions(THD *thd, LEX *lex)
   return ret;
 }
 
-void
-sp_clear_function_cache(THD *thd)
+byte *
+hash_get_key_for_sp_head(const byte *ptr, uint *plen,
+			       my_bool first)
 {
-  List_iterator_fast<sp_head> li(thd->spfuns);
-  sp_head *sp;
-
-  while ((sp= li++))
-    delete sp;
-  thd->spfuns.empty();
+  return ((sp_head*)ptr)->name(plen);
 }
 
 static sp_head *
 sp_find_cached_function(THD *thd, char *name, uint namelen)
 {
-  List_iterator_fast<sp_head> li(thd->spfuns);
-  sp_head *sp;
+  return (sp_head*)hash_search(thd->sp_hash+TYPE_ENUM_FUNCTION-1,
+			       (const byte*)name,namelen);
+}
 
-  while ((sp= li++))
-  {
-    uint len;
-    const uchar *n= (const uchar *)sp->name(&len);
-
-    if (my_strnncoll(system_charset_info,
-		     (const uchar *)name, namelen,
-		     n, len) == 0)
-      break;
-  }
-  return sp;
+static sp_head *
+sp_find_cached_procedure(THD *thd, char *name, uint namelen)
+{
+  return (sp_head*)hash_search(thd->sp_hash+TYPE_ENUM_PROCEDURE-1,
+			       (const byte*)name,namelen);
 }
