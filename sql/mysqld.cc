@@ -1626,14 +1626,14 @@ int main(int argc, char **argv)
 #ifdef EXTRA_DEBUG
     case 1:
       sql_print_error("\
-Warning: one should set server_id to a non-0 value if log-bin is enabled.\n\
-Will log updates to binary log, but will not accept connections from slaves");
+Warning: one should set server-id to a non-0 value if log-bin is enabled.\n\
+Will log updates to binary log, but will not accept connections from slaves.");
       break;
 #endif
     case 2:
       sql_print_error("\
-Warning: one should set server_id to a non-0 value if master_host is set.\n\
-The server will not act as a slave");
+Warning: one should set server-id to a non-0 value if master_host is set.\n\
+The server will not act as a slave.");
       break;
     }
   }
