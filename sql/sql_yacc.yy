@@ -3216,7 +3216,7 @@ do:	DO_SYM
 	;
 
 /*
-  Drop : delete tables or index
+  Drop : delete tables or index or user
 */
 
 drop:
@@ -3250,7 +3250,16 @@ drop:
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_FUNCTION;
 	    lex->udf.name = $3;
-	  };
+	  }
+	| DROP USER
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command = SQLCOM_DROP_USER;
+	    lex->users_list.empty();
+	  } 
+	  user_list
+	  {}
+	  ;
 
 
 table_list:
@@ -4178,8 +4187,10 @@ user:
 	  THD *thd= YYTHD;
 	  if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
 	    YYABORT;
-	  $$->user = $1; $$->host.str=NullS;
-	  }
+	  $$->user = $1;
+	  $$->host.str= (char *) "%";
+	  $$->host.length= 1;
+	}
 	| ident_or_text '@' ident_or_text
 	  {
 	    THD *thd= YYTHD;
@@ -4363,6 +4374,7 @@ keyword:
 	| UDF_SYM		{}
 	| UNCOMMITTED_SYM	{}
 	| UNICODE_SYM		{}
+	| USER			{}
 	| USE_FRM		{}
 	| VARIABLES		{}
 	| VALUE_SYM		{}
@@ -4634,8 +4646,18 @@ revoke:
 	  lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
 	  bzero((char*) &lex->mqh, sizeof(lex->mqh));
 	}
+	revoke_command
+	{}
+        ;
+
+revoke_command:
 	grant_privileges ON opt_table FROM user_list
 	{}
+	|
+	ALL PRIVILEGES ',' GRANT FROM user_list
+	{
+	  Lex->sql_command = SQLCOM_REVOKE_ALL;
+	}
 	;
 
 grant:
