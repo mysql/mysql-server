@@ -26,20 +26,6 @@
 
 #include <assert.h>
 
-inline int my_b_safe_write(IO_CACHE* file, const byte *buf,
-			   int len)
-{
-  /*
-    Sasha: We are not writing this with the ? operator to avoid hitting
-    a possible compiler bug. At least gcc 2.95 cannot deal with 
-    several layers of ternary operators that evaluated comma(,) operator
-    expressions inside - I do have a test case if somebody wants it
-  */
-  if (file->type == SEQ_READ_APPEND)
-    return my_b_append(file, buf,len);
-  return my_b_write(file, buf,len);
-}
-
 #ifdef MYSQL_CLIENT
 static void pretty_print_str(FILE* file, char* str, int len)
 {
@@ -2039,7 +2025,7 @@ Slave: load data infile on table '%s' at log position %s in log \
       err=ER(sql_errno);       
     }
     slave_print_error(rli,sql_errno,"\
-Error '%s' running lOAD DATA INFILE on table '%s'. Default database: '%s'",
+Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
 		      err, (char*)table_name, print_slave_db_safe(db));
     free_root(&thd->mem_root,0);
     return 1;
