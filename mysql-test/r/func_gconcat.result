@@ -167,6 +167,11 @@ t2.URL_ID = t1.URL_ID group by REQ_ID;
 REQ_ID	URL
 1	X
 5	X,X,X
+select REQ_ID, Group_Concat(URL) as URL, Min(t1.URL_ID) urll,
+Max(t1.URL_ID) urlg from t1, t2 where t2.URL_ID = t1.URL_ID group by REQ_ID;
+REQ_ID	URL	urll	urlg
+1	X	4	4
+5	X,X,X	4	5
 drop table t1;
 drop table t2;
 create table t1 (id int, name varchar(16));
@@ -177,4 +182,17 @@ without distinct: how it should be
 select distinct ifnull(group_concat(concat(t1.id, ':', t1.name)), 'shortname') as 'with distinct: cutoff at length of shortname' from t1;
 with distinct: cutoff at length of shortname
 1:longername,1:evenlongername
+drop table t1;
+create table t1(id int);
+create table t2(id int);
+insert into t1 values(0),(1);
+select group_concat(t1.id) FROM t1,t2;
+group_concat(t1.id)
+NULL
+drop table t1;
+drop table t2;
+create table t1 (bar varchar(32));
+insert into t1 values('test'),('test2');
+select * from t1 having group_concat(bar)='';
+bar
 drop table t1;
