@@ -2608,11 +2608,7 @@ int main(int argc, char **argv)
 	/* fix up query pointer if this is * first iteration for this line */
 	if (q->query == q->query_buf)
 	  q->query += q->first_word_len + 1;
-	switch(q->type)
-	{
-	case Q_QUERY_VERTICAL: display_result_vertically= TRUE; break;
-	case Q_QUERY_HORIZONTAL: display_result_vertically= FALSE; break;
-	}
+	display_result_vertically= (q->type==Q_QUERY_VERTICAL);
 	error |= run_query(&cur_con->mysql, q, QUERY_REAP|QUERY_SEND);
 	display_result_vertically= old_display_result_vertically;
 	break;
