@@ -7593,10 +7593,10 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
     new_created field
 */
 
-static Field* create_tmp_field_from_field(THD *thd, Field* org_field,
-                                          Item *item, TABLE *table,
-                                          bool modify_item,
-                                          uint convert_blob_length)
+Field* create_tmp_field_from_field(THD *thd, Field* org_field,
+				   Item *item, TABLE *table,
+				   bool modify_item,
+				   uint convert_blob_length)
 {
   Field *new_field;
 
