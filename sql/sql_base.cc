@@ -2067,10 +2067,10 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
                     uint *cached_field_index_ptr,
                     bool register_tree_change)
 {
-  DBUG_ENTER("find_field_in_table");
-  DBUG_PRINT("enter", ("table:%s name: %s item name %s, ref 0x%lx",
-		       table_list->alias, name, item_name, (ulong)ref));
   Field *fld;
+  DBUG_ENTER("find_field_in_table");
+  DBUG_PRINT("enter", ("table: '%s'  name: '%s'  item name: '%s'  ref 0x%lx",
+		       table_list->alias, name, item_name, (ulong) ref));
   if (table_list->field_translation)
   {
     DBUG_ASSERT(ref != 0 && table_list->view != 0);
@@ -2097,10 +2097,7 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
                                            item_name);
           /* as far as Item_ref have defined reference it do not need tables */
           if (register_tree_change && item_ref)
-          {
             thd->change_item_tree(ref, item_ref);
-            (*ref)->fix_fields(thd, 0, ref);
-          }
         }
 	DBUG_RETURN((Field*) view_ref_found);
       }
@@ -2788,6 +2785,7 @@ TABLE_LIST **make_leaves_list(TABLE_LIST **list, TABLE_LIST *tables)
 bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
                   TABLE_LIST **leaves, bool refresh, bool select_insert)
 {
+  uint tablenr= 0;
   DBUG_ENTER("setup_tables");
   /*
     this is used for INSERT ... SELECT.
@@ -2800,13 +2798,9 @@ bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
     DBUG_RETURN(0);
   tables->setup_is_done= 1;
 
-
   if (!(*leaves))
-  {
     make_leaves_list(leaves, tables);
-  }
 
-  uint tablenr= 0;
   for (TABLE_LIST *table_list= *leaves;
        table_list;
        table_list= table_list->next_leaf, tablenr++)

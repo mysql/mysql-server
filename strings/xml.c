@@ -135,7 +135,7 @@ static int my_xml_value(MY_XML_PARSER *st, const char *str, uint len)
 
 static int my_xml_enter(MY_XML_PARSER *st, const char *str, uint len)
 {
-  if ( (st->attrend-st->attr+len+1)>sizeof(st->attr))
+  if ((uint) (st->attrend-st->attr+len+1) > sizeof(st->attr))
   {
     sprintf(st->errstr,"To deep XML");
     return MY_XML_ERROR;

@@ -23,7 +23,6 @@
 #include <m_ctype.h>
 #include "my_dir.h"
 #include "sp_rcontext.h"
-#include "sql_acl.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "sql_select.h"
@@ -1925,6 +1924,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 
           /* Search in the SELECT and GROUP lists of the outer select. */
 	  if (outer_sel->resolve_mode == SELECT_LEX::SELECT_MODE)
+          {
             if (!(ref= resolve_ref_in_select_and_group(thd, this, outer_sel)))
               return TRUE; /* Some error occured (e.g. ambigous names). */
             if (ref != not_found_item)

@@ -5716,7 +5716,7 @@ expr_or_default:
 
 opt_insert_update:
         /* empty */
-        | ON DUPLICATE_SYM
+        | ON DUPLICATE_SYM	{ Lex->duplicates= DUP_UPDATE; }
           KEY_SYM UPDATE_SYM insert_update_list
         ;
 
@@ -5759,6 +5759,8 @@ update_list:
 update_elem:
 	simple_ident_nospvar equal expr_or_default
 	{
+	  if (add_item_to_list(YYTHD, $1) || add_value_to_list(YYTHD, $3))
+	    YYABORT;
 	};
 
 insert_update_list:

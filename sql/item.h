@@ -1120,9 +1120,9 @@ public:
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_ref(THD *thd, Item_direct_ref *item) : Item_ref(thd, item) {}
 
-  double val()
+  double val_real()
   {
-    double tmp=(*ref)->val();
+    double tmp=(*ref)->val_real();
     null_value=(*ref)->null_value;
     return tmp;
   }
