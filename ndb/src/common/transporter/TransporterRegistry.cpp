@@ -1215,17 +1215,17 @@ TransporterRegistry::start_clients_thread()
 	  /**
 	   * First, we try to connect (if we have a port number).
 	   */
-	  if (theTransporterTypes[nodeId] != tt_TCP_TRANSPORTER
-	      || t->get_s_port() > 0)
+	  if (t->get_s_port())
 	    result= t->connect_client();
 
 
 	  if (result<0 && t->get_s_port()!=0)
-	    ndbout_c("Error while trying to make connection (Node %u to"
-		     " %u via port %u) error: %d. Retrying...",
-		     t->getRemoteNodeId(),
-		     t->getLocalNodeId(),
-		     t->get_s_port());
+	    g_eventLogger.warning("Error while trying to make connection "
+				  "(Node %u to %u via port %u) "
+				  "error: %d. Retrying...",
+				  t->getRemoteNodeId(),
+				  t->getLocalNodeId(),
+				  t->get_s_port());
 	  
 	  /**
 	   * If dynamic, get the port for connecting from the management server
