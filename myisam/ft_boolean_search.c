@@ -52,24 +52,28 @@ static double _nwghts[11]={
  -3.796875000000000};
 static double *nwghts=_nwghts+5; /* nwghts[i] = -0.5*1.5**i */
 
+#define FTB_FLAG_TRUNC 1                  /* MUST be 1                  */
+#define FTB_FLAG_YES   2                  /* These two - YES and NO     */
+#define FTB_FLAG_NO    4                  /*  should NEVER be set both  */
+
 typedef struct st_ftb_expr FTB_EXPR;
 struct st_ftb_expr {
   FTB_EXPR *up;
   float     weight;
-  int       yesno;
-  my_off_t  docid;
+  uint      flags;
+  my_off_t  docid[2];             /* for index search and for scan */
   float     cur_weight;
   int       yesses;               /* number of "yes" words matched */
   int       nos;                  /* number of "no"  words matched */
   int       ythresh;              /* number of "yes" words in expr */
+  int       yweaks;               /* number of "yes" words for scan only */
 };
 
-typedef struct {
+typedef struct st_ftb_word {
   FTB_EXPR *up;
   float     weight;
-  int       yesno;
-  int       trunc;
-  my_off_t  docid;
+  uint      flags;
+  my_off_t  docid[2];             /* for index search and for scan */
   uint      ndepth;
   int       len;
   /* ... there can be docid cache added here. SerG */
@@ -78,20 +82,32 @@ typedef struct {
 
 typedef struct st_ft_info {
   struct _ft_vft *please;
-  MI_INFO  *info;
+  MI_INFO   *info;
   uint       keynr;
-  enum { UNINITIALIZED, READY, INDEX_SEARCH, INDEX_DONE, SCAN } state;
+  enum { UNINITIALIZED, READY, INDEX_SEARCH, INDEX_DONE /*, SCAN*/ } state;
+  uint       with_scan;
   FTB_EXPR  *root;
   QUEUE      queue;
+  FTB_WORD **list;
   MEM_ROOT   mem_root;
 } FTB;
 
-int FTB_WORD_cmp(void *v __attribute__((unused)), byte *a, byte *b)
+int FTB_WORD_cmp(void *v __attribute__((unused)), FTB_WORD *a, FTB_WORD *b)
 {
   /* ORDER BY docid, ndepth DESC */
-  int i=CMP_NUM(((FTB_WORD *)a)->docid, ((FTB_WORD *)b)->docid);
+  int i=CMP_NUM(a->docid[0], b->docid[0]);
   if (!i)
-    i=CMP_NUM(((FTB_WORD *)b)->ndepth,((FTB_WORD *)a)->ndepth);
+    i=CMP_NUM(b->ndepth,a->ndepth);
+  return i;
+}
+
+int FTB_WORD_cmp_list(void *v __attribute__((unused)), FTB_WORD **a, FTB_WORD **b)
+{
+  /* ORDER BY word DESC, ndepth DESC */
+  int i=_mi_compare_text(default_charset_info, (*b)->word+1,(*b)->len-1,
+                                               (*a)->word+1,(*a)->len-1,0);
+  if (!i)
+    i=CMP_NUM((*b)->ndepth,(*a)->ndepth);
   return i;
 }
 
@@ -120,25 +136,30 @@ void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
 				    (param.trunc ? MI_MAX_KEY_BUFF :
 				     w.len+extra));
         ftbw->len=w.len+1;
-        ftbw->yesno=param.yesno;
-        ftbw->trunc=param.trunc; /* 0 or 1 */
+        ftbw->flags=0;
+        if (param.yesno>0) ftbw->flags|=FTB_FLAG_YES;
+        if (param.yesno<0) ftbw->flags|=FTB_FLAG_NO;
+        if (param.trunc)   ftbw->flags|=FTB_FLAG_TRUNC;
         ftbw->weight=weight;
         ftbw->up=up;
-        ftbw->docid=HA_POS_ERROR;
+        ftbw->docid[0]=ftbw->docid[1]=HA_POS_ERROR;
         ftbw->ndepth= (param.yesno<0) + depth;
         memcpy(ftbw->word+1, w.pos, w.len);
         ftbw->word[0]=w.len;
-        if (ftbw->yesno > 0) up->ythresh++;
+        if (param.yesno > 0) up->ythresh++;
         queue_insert(& ftb->queue, (byte *)ftbw);
+        ftb->with_scan|=param.trunc;
         break;
       case 2: /* left bracket */
         ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR));
-        ftbe->yesno=param.yesno;
+        ftbe->flags=0;
+        if (param.yesno>0) ftbe->flags|=FTB_FLAG_YES;
+        if (param.yesno<0) ftbe->flags|=FTB_FLAG_NO;
         ftbe->weight=weight;
         ftbe->up=up;
-        ftbe->ythresh=0;
-        ftbe->docid=HA_POS_ERROR;
-        if (ftbe->yesno > 0) up->ythresh++;
+        ftbe->ythresh=ftbe->yweaks=0;
+        ftbe->docid[0]=ftbe->docid[1]=HA_POS_ERROR;
+        if (param.yesno > 0) up->ythresh++;
         _ftb_parse_query(ftb, start, end, ftbe, depth+1);
         break;
       case 3: /* right bracket */
@@ -151,7 +172,7 @@ void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
 void  _ftb_init_index_search(FT_INFO *ftb)
 {
   int i, r;
-  FTB_WORD *ftbw;
+  FTB_WORD   *ftbw;
   MI_INFO    *info=ftb->info;
   MI_KEYDEF  *keyinfo;
   my_off_t    keyroot;
@@ -167,18 +188,31 @@ void  _ftb_init_index_search(FT_INFO *ftb)
   {
     ftbw=(FTB_WORD *)(ftb->queue.root[i]);
 
+    if (ftbw->flags&FTB_FLAG_TRUNC &&
+        (ftbw->up->ythresh > test(ftbw->flags&FTB_FLAG_YES)))
+    {
+      /* no need to search for this prefix in the index -
+       * it cannot ADD new matches, and to REMOVE half-matched
+       * rows we do scan anyway */
+      ftbw->docid[0]=HA_POS_ERROR;
+      ftbw->up->yweaks++;
+      continue;
+    }
+
     r=_mi_search(info, keyinfo, (uchar*) ftbw->word, ftbw->len,
-                 SEARCH_FIND | SEARCH_BIGGER, keyroot);
+                              SEARCH_FIND | SEARCH_BIGGER, keyroot);
     if (!r)
     {
       r=_mi_compare_text(default_charset_info,
-                         info->lastkey+ftbw->trunc,ftbw->len-ftbw->trunc,
-                         (uchar*) ftbw->word+ftbw->trunc,ftbw->len-ftbw->trunc,
+                         info->lastkey + (ftbw->flags&FTB_FLAG_TRUNC),
+                         ftbw->len     - (ftbw->flags&FTB_FLAG_TRUNC),
+                         ftbw->word    + (ftbw->flags&FTB_FLAG_TRUNC),
+                         ftbw->len     - (ftbw->flags&FTB_FLAG_TRUNC),
 			 0);
     }
     if (r) /* not found */
     {
-      if (ftbw->yesno>0 && ftbw->up->up==0)
+      if (ftbw->flags&FTB_FLAG_YES && ftbw->up->up==0)
       { /* this word MUST BE present in every document returned,
            so we can abort the search right now */
         ftb->state=INDEX_DONE;
@@ -188,7 +222,7 @@ void  _ftb_init_index_search(FT_INFO *ftb)
     else
     {
       memcpy(ftbw->word, info->lastkey, info->lastkey_length);
-      ftbw->docid=info->lastpos;
+      ftbw->docid[0]=info->lastpos;
     }
   }
   queue_fix(& ftb->queue);
@@ -207,6 +241,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   ftb->state=UNINITIALIZED;
   ftb->info=info;
   ftb->keynr=keynr;
+  ftb->with_scan=0;
 
   init_alloc_root(&ftb->mem_root, 1024, 1024);
 
@@ -215,65 +250,75 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
    */
   res=ftb->queue.max_elements=query_len/(ft_min_word_len+1);
   ftb->queue.root=(byte **)alloc_root(&ftb->mem_root, (res+1)*sizeof(void*));
-  reinit_queue(& ftb->queue, res, 0, 0, FTB_WORD_cmp, ftb);
+  reinit_queue(& ftb->queue, res, 0, 0,
+                         (int (*)(void*,byte*,byte*))FTB_WORD_cmp, ftb);
   ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR));
   ftbe->weight=1;
-  ftbe->yesno=ftbe->nos=1;
+  ftbe->flags=FTB_FLAG_YES;
+  ftbe->nos=1;
   ftbe->up=0;
-  ftbe->ythresh=0;
-  ftbe->docid=HA_POS_ERROR;
+  ftbe->ythresh=ftbe->yweaks=0;
+  ftbe->docid[0]=ftbe->docid[1]=HA_POS_ERROR;
   ftb->root=ftbe;
   _ftb_parse_query(ftb, &query, query+query_len, ftbe, 0);
+  ftb->list=(FTB_WORD **)alloc_root(&ftb->mem_root,
+                                     sizeof(FTB_WORD *)*ftb->queue.elements);
+  memcpy(ftb->list, ftb->queue.root, sizeof(FTB_WORD *)*ftb->queue.elements);
+  qsort2(ftb->list, ftb->queue.elements, sizeof(FTB_WORD *),
+                                           (qsort2_cmp)FTB_WORD_cmp_list, 0);
+  if (ftb->queue.elements<2) ftb->with_scan=0;
   ftb->state=READY;
   return ftb;
 }
 
-void _ftb_climb_the_tree(FTB_WORD *ftbw)
+void _ftb_climb_the_tree(FTB_WORD *ftbw, uint mode)
 {
   FTB_EXPR *ftbe;
   float weight=ftbw->weight;
-  int  yn=ftbw->yesno;
-  my_off_t curdoc=ftbw->docid;
+  int  yn=ftbw->flags, ythresh;
+  my_off_t curdoc=ftbw->docid[mode];
 
   for (ftbe=ftbw->up; ftbe; ftbe=ftbe->up)
   {
-    if (ftbe->docid != curdoc)
+    ythresh = ftbe->ythresh - (mode ? 0 : ftbe->yweaks);
+    if (ftbe->docid[mode] != curdoc)
     {
       ftbe->cur_weight=0;
       ftbe->yesses=ftbe->nos=0;
-      ftbe->docid=curdoc;
+      ftbe->docid[mode]=curdoc;
     }
     if (ftbe->nos)
       break;
-    if (yn>0)
+    if (yn & FTB_FLAG_YES)
     {
       ftbe->cur_weight+=weight;
-      if (++ftbe->yesses == ftbe->ythresh)
+      if (++ftbe->yesses == ythresh)
       {
-        yn=ftbe->yesno;
+        yn=ftbe->flags;
         weight=ftbe->cur_weight*ftbe->weight;
       }
       else
         break;
     }
     else
-    if (yn<0)
+    if (yn & FTB_FLAG_NO)
     {
-     /* NOTE: special sort function of queue assures that all yn<0
+     /* NOTE: special sort function of queue assures that all
+      * (yn & FTB_FLAG_NO) != 0
       * events for every particular subexpression will
-      * "auto-magically" happen BEFORE all the yn>=0 events. So no
+      * "auto-magically" happen BEFORE all the
+      * (yn & FTB_FLAG_YES) != 0 events. So no
       * already matched expression can become not-matched again.
       */
       ++ftbe->nos;
       break;
     }
     else
- /* if (yn==0) */
     {
       ftbe->cur_weight+=weight;
-      if (ftbe->yesses < ftbe->ythresh)
+      if (ftbe->yesses < ythresh)
         break;
-      yn= (ftbe->yesses++ == ftbe->ythresh) * ftbe->yesno;
+      yn= (ftbe->yesses++ == ythresh) ? ftbe->flags : 0 ;
       weight*=ftbe->weight;
     }
   }
@@ -303,11 +348,11 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
     return my_errno=HA_ERR_END_OF_FILE;
 
   while(ftb->state == INDEX_SEARCH &&
-    (curdoc=((FTB_WORD *)queue_top(& ftb->queue))->docid) != HA_POS_ERROR)
+    (curdoc=((FTB_WORD *)queue_top(& ftb->queue))->docid[0]) != HA_POS_ERROR)
   {
-    while (curdoc==(ftbw=(FTB_WORD *)queue_top(& ftb->queue))->docid)
+    while (curdoc==(ftbw=(FTB_WORD *)queue_top(& ftb->queue))->docid[0])
     {
-      _ftb_climb_the_tree(ftbw);
+      _ftb_climb_the_tree(ftbw,0);
 
       /* update queue */
       r=_mi_search(info, keyinfo, (uchar*) ftbw->word, USE_WHOLE_KEY,
@@ -315,14 +360,16 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
       if (!r)
       {
         r=_mi_compare_text(default_charset_info,
-                           info->lastkey+ftbw->trunc,ftbw->len-ftbw->trunc,
-                           (uchar*) ftbw->word+ftbw->trunc,
-			   ftbw->len-ftbw->trunc,0);
+                           info->lastkey + (ftbw->flags&FTB_FLAG_TRUNC),
+                           ftbw->len     - (ftbw->flags&FTB_FLAG_TRUNC),
+                           ftbw->word    + (ftbw->flags&FTB_FLAG_TRUNC),
+			   ftbw->len     - (ftbw->flags&FTB_FLAG_TRUNC),
+                           0);
       }
       if (r) /* not found */
       {
-        ftbw->docid=HA_POS_ERROR;
-        if (ftbw->yesno>0 && ftbw->up->up==0)
+        ftbw->docid[0]=HA_POS_ERROR;
+        if (ftbw->flags&FTB_FLAG_YES && ftbw->up->up==0)
         { /* this word MUST BE present in every document returned,
              so we can stop the search right now */
           ftb->state=INDEX_DONE;
@@ -331,22 +378,24 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
       else
       {
         memcpy(ftbw->word, info->lastkey, info->lastkey_length);
-        ftbw->docid=info->lastpos;
+        ftbw->docid[0]=info->lastpos;
       }
       queue_replaced(& ftb->queue);
     }
 
     ftbe=ftb->root;
-    if (ftbe->docid==curdoc && ftbe->cur_weight>0 &&
-        ftbe->yesses>=ftbe->ythresh && !ftbe->nos)
+    if (ftbe->docid[0]==curdoc && ftbe->cur_weight>0 &&
+        ftbe->yesses>=(ftbe->ythresh-ftbe->yweaks) && !ftbe->nos)
     {
       /* curdoc matched ! */
+      info->lastpos=curdoc;
       info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED); /* why is this ? */
 
-      info->lastpos=curdoc;
       if (!(*info->read_record)(info,curdoc,record))
       {
         info->update|= HA_STATE_AKTIV;          /* Record is read */
+        if (ftb->with_scan && ft_boolean_find_relevance(ftb,record,0)==0)
+            continue; /* no match */
         return 0;
       }
       return my_errno;
@@ -370,30 +419,13 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
     return -2.0;
   if (!ftb->queue.elements)
     return 0;
-  if (ftb->state == READY || ftb->state == INDEX_DONE)
-  {
-    for (i=1; i<=ftb->queue.elements; i++)
-    {
-      ftbw=(FTB_WORD *)(ftb->queue.root[i]);
-      ftbw->docid=HA_POS_ERROR;
-      for (ftbe=ftbw->up; ftbe; ftbe=ftbe->up)
-      {
-        if (ftbe->docid != HA_POS_ERROR)
-        {
-          ftbe->cur_weight=0;
-	  ftbe->yesses=ftbe->nos=0;
-          ftbe->docid=HA_POS_ERROR;
-        }
-        else
-          break;
-      }
-    }
 
-    queue_fix(& ftb->queue);
+#if 0
+  if (ftb->state == READY || ftb->state == INDEX_DONE)
     ftb->state=SCAN;
-  }
   else if (ftb->state != SCAN)
     return -3.0;
+#endif
 
   if (ftb->keynr==NO_SUCH_KEY)
     _mi_ft_segiterator_dummy_init(record, length, &ftsi);
@@ -408,32 +440,34 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
     end=ftsi.pos+ftsi.len;
     while (ft_simple_get_word((byte **)&ftsi.pos,(byte *)end,&word))
     {
-      uint a, b, c;
-      for (a=1, b=ftb->queue.elements+1, c=(a+b)/2; b-a>1; c=(a+b)/2)
+      int a, b, c;
+      for (a=0, b=ftb->queue.elements, c=(a+b)/2; b-a>1; c=(a+b)/2)
       {
-        ftbw=(FTB_WORD *)(ftb->queue.root[c]);
+        ftbw=(FTB_WORD *)(ftb->list[c]);
         if (_mi_compare_text(default_charset_info, word.pos,word.len,
-                         (uchar*) ftbw->word+1,ftbw->len-1,ftbw->trunc) >0)
+                         (uchar*) ftbw->word+1,ftbw->len-1,
+                         (ftbw->flags&FTB_FLAG_TRUNC) ) >0)
           b=c;
         else
           a=c;
       }
-      for (; c; c--)
+      for (; c>=0; c--)
       {
-        ftbw=(FTB_WORD *)(ftb->queue.root[c]);
+        ftbw=(FTB_WORD *)(ftb->list[c]);
         if (_mi_compare_text(default_charset_info, word.pos,word.len,
-                         (uchar*) ftbw->word+1,ftbw->len-1,ftbw->trunc))
+                         (uchar*) ftbw->word+1,ftbw->len-1,
+                         (ftbw->flags&FTB_FLAG_TRUNC) ))
           break;
-        if (ftbw->docid == docid)
+        if (ftbw->docid[1] == docid)
           continue;
-        ftbw->docid=docid;
-        _ftb_climb_the_tree(ftbw);
+        ftbw->docid[1]=docid;
+        _ftb_climb_the_tree(ftbw,1);
       }
     }
   }
 
   ftbe=ftb->root;
-  if (ftbe->docid==docid && ftbe->cur_weight>0 &&
+  if (ftbe->docid[1]==docid && ftbe->cur_weight>0 &&
       ftbe->yesses>=ftbe->ythresh && !ftbe->nos)
   { /* row matched ! */
     return ftbe->cur_weight;
