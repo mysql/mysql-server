@@ -140,7 +140,7 @@ public:
   virtual double val()=0;
   virtual longlong val_int()=0;
   virtual String *val_str(String*)=0;
-  virtual Field *tmp_table_field() { return 0; }
+  virtual Field *get_tmp_table_field() { return 0; }
   virtual Field *tmp_table_field(TABLE *t_arg) { return 0; }
   virtual const char *full_name() const { return name ? name : "???"; }
   virtual double  val_result() { return val(); }
@@ -267,7 +267,7 @@ public:
   {
     return field->type();
   }
-  Field *tmp_table_field() { return result_field; }
+  Field *get_tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
   bool get_date(TIME *ltime,bool fuzzydate);
   bool get_date_result(TIME *ltime,bool fuzzydate);
@@ -546,7 +546,7 @@ public:
     Item(thd, item), result_field(item.result_field)
   {}
   ~Item_result_field() {}			/* Required with gcc 2.95 */
-  Field *tmp_table_field() { return result_field; }
+  Field *get_tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
   table_map used_tables() const { return 1; }
   virtual void fix_length_and_dec()=0;
