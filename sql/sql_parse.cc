@@ -1485,24 +1485,7 @@ mysql_execute_command(THD *thd)
 	  else
 	    thd->send_explain_fields(explain_result);
 	fix_tables_pointers(select_lex);
-	for ( SELECT_LEX *sl= select_lex;
-	     sl && res == 0;
-	     sl= sl->next_select_in_list())
-	{
-	  SELECT_LEX *first= sl->master_unit()->first_select();
-	  res= mysql_explain_select(thd, sl,
-				    ((select_lex==sl)?
-				     ((sl->next_select_in_list())?"PRIMARY":
-				       "SIMPLE"):
-				     ((sl == first)?
-				      ((sl->depended)?"DEPENDENT SUBSELECT":
-				       "SUBSELECT"):
-				      ((sl->depended)?"DEPENDENT UNION":
-				       "UNION"))),
-				    explain_result);
-	}
-	if (res > 0)
-	  res= -res; // mysql_explain_select do not report error
+	res= mysql_explain_union(thd, &thd->lex.unit, explain_result);
 	MYSQL_LOCK *save_lock= thd->lock;
 	thd->lock= (MYSQL_LOCK *)0;
 	explain_result->send_eof();

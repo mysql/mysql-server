@@ -213,7 +213,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
 	      SELECT_LEX_UNIT *unit, bool fake_select_lex)
 {
   DBUG_ENTER("JOIN::prepare");
-  
+
   conds= conds_init;
   order= order_init;
   group_list= group_init;
@@ -348,7 +348,7 @@ int
 JOIN::optimize()
 {
   DBUG_ENTER("JOIN::optimize");
-  
+
 #ifdef HAVE_REF_TO_FIELDS			// Not done yet
   /* Add HAVING to WHERE if possible */
   if (having && !group_list && ! sum_func_count)
@@ -1018,36 +1018,60 @@ mysql_select(THD *thd, TABLE_LIST *tables, List<Item> &fields, COND *conds,
 	     SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex,
 	     bool fake_select_lex)
 {
-  JOIN *join = new JOIN(thd, fields, select_options, result);
-
   DBUG_ENTER("mysql_select");
-  thd->proc_info="init";
-  thd->used_tables=0;                         // Updated by setup_fields
 
-  if (join->prepare(tables, conds, order, group, having, proc_param,
-                  select_lex, unit, fake_select_lex))
+  bool free_join= 1;
+  JOIN *join;
+  if (!fake_select_lex && select_lex->join != 0)
   {
-    DBUG_RETURN(-1);
+    //here is EXPLAIN of subselect or derived table
+    join= select_lex->join;
+    join->result= result;
+    if (!join->procedure && result->prepare(join->fields_list, unit))
+    {
+      DBUG_RETURN(-1);
+    }
+    join->select_options= select_options;
+    free_join= 0;
   }
-  switch (join->optimize()) {
+  else
+  {
+    join= new JOIN(thd, fields, select_options, result);
+    thd->proc_info="init";
+    thd->used_tables=0;                         // Updated by setup_fields
+
+    if (join->prepare(tables, conds, order, group, having, proc_param,
+		      select_lex, unit, fake_select_lex))
+    {
+      DBUG_RETURN(-1);
+    }
+  }
+
+  switch (join->optimize()) 
+  {
   case 1:
     DBUG_RETURN(join->error);
   case -1:
     goto err;
-  }
+  } 
 
-  if (join->global_optimize())
+  if (free_join && join->global_optimize())
     goto err;
 
   join->exec();
 
 err:
-  thd->limit_found_rows = join->send_records;
-  thd->examined_row_count = join->examined_rows;
-  thd->proc_info="end";
-  int error= (fake_select_lex?0:join->cleanup(thd)) || thd->net.report_error;
-  delete join;
-  DBUG_RETURN(error);
+  if (free_join)
+  {
+    thd->limit_found_rows = join->send_records;
+    thd->examined_row_count = join->examined_rows;
+    thd->proc_info="end";
+    int error= (fake_select_lex?0:join->cleanup(thd)) || thd->net.report_error;
+    delete join;
+    DBUG_RETURN(error);
+  }
+  else
+    DBUG_RETURN(0);
 }
 
 /*****************************************************************************
@@ -7365,7 +7389,41 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	result->send_error(0,NullS);
     }
   }
+  for (SELECT_LEX_UNIT *unit= join->select_lex->first_inner_unit();
+       unit;
+       unit= unit->next_unit())
+  {
+    if (mysql_explain_union(thd, unit, result))
+      DBUG_VOID_RETURN;
+  }
   DBUG_VOID_RETURN;
+}
+
+int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
+{
+  int res= 0;
+  SELECT_LEX *first= unit->first_select();
+  for (SELECT_LEX *sl= first;
+       sl;
+       sl= sl->next_select())
+  {
+    res= mysql_explain_select(thd, sl,
+			      (((&thd->lex.select_lex)==sl)?
+			       ((sl->next_select_in_list())?"PRIMARY":
+				"SIMPLE"):
+			       ((sl == first)?
+				((sl->depended)?"DEPENDENT SUBSELECT":
+				 "SUBSELECT"):
+				((sl->depended)?"DEPENDENT UNION":
+				 "UNION"))),
+			      result);
+    if (res)
+      break;
+
+  }
+  if (res > 0)
+    res= -res; // mysql_explain_select do not report error
+  return res;
 }
 
 int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type, 
