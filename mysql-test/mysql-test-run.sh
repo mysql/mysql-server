@@ -118,6 +118,7 @@ MASTER_RUNNING=0
 MASTER_MYPORT=9306
 SLAVE_RUNNING=0
 SLAVE_MYPORT=9307
+MYSQL_MANAGER_PORT=23546
 NO_SLAVE=0
 
 EXTRA_MASTER_OPT=""
@@ -276,6 +277,9 @@ if [ x$SOURCE_DIST = x1 ] ; then
    MYSQL_TEST="$BASEDIR/client/mysqltest"
  fi
  MYSQLADMIN="$BASEDIR/client/mysqladmin"
+ MYSQL_MANAGER_CLIENT="$BASEDIR/client/mysqlmanagerc"
+ MYSQL_MANAGER="$BASEDIR/tools/mysqlmanager"
+ MYSQL_MANAGER_PWGEN="$BASEDIR/client/mysqlmanager-pwgen"
  MYSQL="$BASEDIR/client/mysql"
  LANGUAGE="$BASEDIR/sql/share/english/"
  CHARSETSDIR="$BASEDIR/sql/share/charsets"
@@ -284,6 +288,9 @@ else
  MYSQLD="$BASEDIR/bin/mysqld"
  MYSQL_TEST="$BASEDIR/bin/mysqltest"
  MYSQLADMIN="$BASEDIR/bin/mysqladmin"
+ MYSQL_MANAGER="$BASEDIR/bin/mysqlmanager"
+ MYSQL_MANAGER_CLIENT="$BASEDIR/bin/mysqlmanagerc"
+ MYSQL_MANAGER_PWGEN="$BASEDIR/bin/mysqlmanager-pwgen"
  MYSQL="$BASEDIR/bin/mysql"
  INSTALL_DB="./install_test_db -bin"
  if test -d "$BASEDIR/share/mysql/english" 
@@ -487,6 +494,30 @@ gcov_collect () {
     $ECHO "gcov info in $GCOV_MSG, errors in $GCOV_ERR"
 }
 
+abort_if_failed()
+{
+ if [ ! $? = 0 ] ; then
+  echo $1
+  exit 1
+ fi 
+}
+
+start_manager()
+{
+ MYSQL_MANAGER_PW=`$MYSQL_MANAGER_PWGEN -o $MYSQL_MANAGER_PW_FILE` 
+ $MYSQL_MANAGER --log=$MYSQL_MANAGER_LOG --port=$MYSQL_MANAGER_PORT \
+  --password-file=$MYSQL_MANAGER_PW_FILE
+  abort_if_failed "Could not start MySQL manager"
+}
+
+manager_cmd()
+{
+  $MYSQL_MANAGER_CLIENT --user=$MYSQL_MANAGER_USER \
+   --password=$MYSQL_MANAGER_PW  --port=$MYSQL_MANAGER_PORT <<EOF
+$@
+EOF
+ abort_if_failed "Could not execute manager command"
+}
 
 start_master()
 {

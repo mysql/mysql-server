@@ -23,7 +23,7 @@ noinst_HEADERS =		client_priv.h
 LIBS =				@CLIENT_LIBS@
 LDADD =				@CLIENT_EXTRA_LDFLAGS@ ../libmysql/libmysqlclient.la
 bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow \
- mysqldump mysqlimport mysqltest mysqlbinlog mysqlmanagerc
+ mysqldump mysqlimport mysqltest mysqlbinlog mysqlmanagerc mysqlmanager-pwgen
 noinst_PROGRAMS =		insert_test select_test thread_test
 noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h
 mysql_SOURCES =			mysql.cc readline.cc sql_string.cc completion_hash.cc

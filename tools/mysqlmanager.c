@@ -117,6 +117,8 @@ uint manager_max_cmd_len = MANAGER_MAX_CMD_LEN;
 const char* manager_pw_file=MANAGER_PW_FILE;
 int one_thread = 0; /* for debugging */
 
+typedef enum {PARAM_STDOUT,PARAM_STDERR} PARAM_TYPE;
+
 /* messages */
 
 #define MAX_CLIENT_MSG_LEN  256
@@ -170,6 +172,7 @@ static byte* get_user_key(const byte* u, uint* len,
 static uint tokenize_args(char* arg_start,char** arg_end);
 static void init_arg_array(char* arg_str,char** args,uint arg_count);
 static int hex_val(char c);
+static int open_and_dup(int fd,char* path);
 
 typedef int (*manager_cmd_handler)(struct manager_thd*,char*,char*);
 
@@ -211,11 +214,17 @@ struct manager_exec
   pthread_t th;
   char con_sock[FN_REFLEN];
   char con_host[MAX_HOST];
+  char stderr_path[FN_REFLEN];
+  char stdout_path[FN_REFLEN];
   MYSQL mysql;
   char* data_buf;
   int req_len;
+  int stderr_path_size,stdout_path_size,data_buf_size;
   int num_args;
 };
+
+static int set_exec_param(struct manager_thd* thd, char* args_start,
+			  char* args_end, PARAM_TYPE param_type);
 
 #define HANDLE_DECL(com) static int handle_ ## com (struct manager_thd* thd,\
  char* args_start,char* args_end)
@@ -233,6 +242,8 @@ HANDLE_DECL(def_exec);
 HANDLE_DECL(start_exec);
 HANDLE_DECL(stop_exec);
 HANDLE_DECL(set_exec_con);
+HANDLE_DECL(set_exec_stdout);
+HANDLE_DECL(set_exec_stderr);
 HANDLE_NOARG_DECL(show_exec);
 
 struct manager_cmd commands[] =
@@ -247,6 +258,10 @@ struct manager_cmd commands[] =
    handle_stop_exec,9},
   {"set_exec_con", "Set connection parameters for executable entry",
    handle_set_exec_con,12},
+  {"set_exec_stdout", "Set stdout path for executable entry",
+   handle_set_exec_stdout,15},
+  {"set_exec_stderr", "Set stderr path for executable entry",
+   handle_set_exec_stderr,15},
   {"show_exec","Show defined executable entries",handle_show_exec,9},
   {"help", "Print this message", handle_help,4},
   {0,0,0,0}
@@ -460,6 +475,68 @@ err:
   return 1;
 }
 
+HANDLE_DECL(set_exec_stdout)
+{
+  return set_exec_param(thd,args_start,args_end,PARAM_STDOUT);
+}
+
+HANDLE_DECL(set_exec_stderr)
+{
+  return set_exec_param(thd,args_start,args_end,PARAM_STDERR);
+}
+
+static int set_exec_param(struct manager_thd* thd, char* args_start,
+			  char* args_end, PARAM_TYPE param_type)
+{
+  int num_args;
+  const char* error=0;
+  struct manager_exec* e;
+  char* arg_p;
+  char* param;
+  int param_size;
+  
+  if ((num_args=tokenize_args(args_start,&args_end))<2)
+  {
+    error="Too few arguments";
+    goto err;
+  }
+  arg_p=args_start;
+  pthread_mutex_lock(&lock_exec_hash);
+  if (!(e=(struct manager_exec*)hash_search(&exec_hash,arg_p,
+					    strlen(arg_p))))
+  {
+    pthread_mutex_unlock(&lock_exec_hash);
+    error="Exec definition entry does not exist";
+    goto err;
+  }
+  arg_p+=strlen(arg_p)+1;
+  param_size=strlen(arg_p)+1;
+  switch (param_type)
+  {
+  case PARAM_STDOUT:
+    param=e->stdout_path;
+    e->req_len+=(param_size-e->stdout_path_size);
+    e->stdout_path_size=param_size;
+    break;
+  case PARAM_STDERR:
+    param=e->stderr_path;
+    e->req_len+=(param_size-e->stderr_path_size);
+    e->stderr_path_size=param_size;
+    break;
+  default:
+    error="Internal error";
+    goto err;
+  }
+  strnmov(param,arg_p,FN_REFLEN);
+  pthread_mutex_unlock(&lock_exec_hash);
+  client_msg(thd->vio,MANAGER_OK,"Entry updated");
+  return 0;
+err:
+  client_msg(thd->vio,MANAGER_CLIENT_ERR,error);
+  return 1;
+}
+
+
 HANDLE_DECL(start_exec)
 {
   int num_args;
@@ -488,7 +565,8 @@ HANDLE_DECL(start_exec)
   pthread_mutex_lock(&e->lock);
   t.tv_sec=time(0)+atoi(args_start+ident_len+1);
   t.tv_nsec=0;
-  pthread_cond_timedwait(&e->cond,&e->lock,&t);
+  if (!e->pid)
+    pthread_cond_timedwait(&e->cond,&e->lock,&t);
   if (!e->pid)
   {
     pthread_mutex_unlock(&e->lock);
@@ -548,7 +626,8 @@ HANDLE_DECL(stop_exec)
     error="Could not send shutdown command";
     goto err;
   }
-  pthread_cond_timedwait(&e->cond,&e->lock,&abstime);
+  if (e->pid)
+    pthread_cond_timedwait(&e->cond,&e->lock,&abstime);
   if (e->pid)
     error="Process failed to terminate within alotted time";
   e->th=0;
@@ -600,7 +679,7 @@ HANDLE_NOARG_DECL(show_exec)
 {
   uint i;
   client_msg_pre(thd->vio,MANAGER_INFO,"Exec_def\tPid\tExit_status\tCon_info\
-\tArguments");
+\tStdout\tStderr\tArguments");
   pthread_mutex_lock(&lock_exec_hash);
   for (i=0;i<exec_hash.records;i++)
   {
@@ -668,9 +747,16 @@ static int manager_exec_launch(struct manager_exec* e)
   }
   else
   {
-    if (write(to_launcher_pipe[1],&e->req_len,sizeof(int))!=sizeof(int) ||
-	write(to_launcher_pipe[1],&e->num_args,sizeof(int))!=sizeof(int) ||
-	write(to_launcher_pipe[1],e->data_buf,e->req_len)!=e->req_len)
+    if (my_write(to_launcher_pipe[1],(byte*)&e->req_len,
+		 sizeof(int),MYF(MY_NABP))||
+	my_write(to_launcher_pipe[1],(byte*)&e->num_args,
+		 sizeof(int),MYF(MY_NABP)) ||
+	my_write(to_launcher_pipe[1],e->stdout_path,e->stdout_path_size,
+		 MYF(MY_NABP)) ||
+	my_write(to_launcher_pipe[1],e->stderr_path,e->stderr_path_size,
+		 MYF(MY_NABP)) ||
+	my_write(to_launcher_pipe[1],e->data_buf,e->data_buf_size,
+		 MYF(MY_NABP)))
     {
       e->error="Failed write request to launcher";
       return 1;
@@ -723,6 +809,14 @@ static void manager_exec_print(Vio* vio,struct manager_exec* e)
   {
     p=int10_to_str(e->con_port,p,10);
   }
+  *p++='\t';
+  p=arg_strmov(p,e->stdout_path,(int)(buf_end-p)-1);
+  if (p==buf_end-1)
+    goto end;
+  *p++='\t';
+  p=arg_strmov(p,e->stderr_path,(int)(buf_end-p)-1);
+  if (p==buf_end-1)
+    goto end;
   *p++='\t';
   
   for(;p<buf_end && *args;args++)
@@ -1341,7 +1435,8 @@ static struct manager_exec* manager_exec_new(char* arg_start,char* arg_end)
   num_args=tokenize_args(arg_start,&arg_end);
   arg_len=(uint)(arg_end-arg_start)+1; /* include \0 terminator*/
   if (!(tmp=(struct manager_exec*)my_malloc(sizeof(*tmp)+arg_len+
-					    sizeof(char*)*num_args,MYF(0))))
+					    sizeof(char*)*num_args,
+					    MYF(MY_ZEROFILL))))
     return 0;
   if (num_args<2)
   {
@@ -1350,7 +1445,7 @@ static struct manager_exec* manager_exec_new(char* arg_start,char* arg_end)
   }
   tmp->data_buf=(char*)tmp+sizeof(*tmp);
   memcpy(tmp->data_buf,arg_start,arg_len);
-  tmp->req_len=arg_len;
+  tmp->data_buf_size=arg_len;
   tmp->args=(char**)(tmp->data_buf+arg_len);
   tmp->num_args=num_args; 
   tmp->ident=tmp->data_buf;
@@ -1358,18 +1453,14 @@ static struct manager_exec* manager_exec_new(char* arg_start,char* arg_end)
   first_arg=tmp->ident+tmp->ident_len+1;
   init_arg_array(first_arg,tmp->args,num_args-1);
   strmov(tmp->con_user,"root");
-  tmp->con_pass[0]=0;
-  tmp->con_sock[0]=0;
   tmp->con_port=MYSQL_PORT;
   memcpy(tmp->con_host,"localhost",10);
   tmp->bin_path=tmp->args[0];
-  tmp->pid=0;
-  tmp->exit_code=0;
-  tmp->th=0;
+  tmp->stdout_path_size=tmp->stderr_path_size=1;
+  tmp->req_len=tmp->data_buf_size+2;
   pthread_mutex_init(&tmp->lock,0);
   pthread_cond_init(&tmp->cond,0);
   mysql_init(&tmp->mysql);
-  tmp->error=0;
   return tmp;
 }
 
@@ -1480,6 +1571,23 @@ static void init_globals()
   signal(SIGPIPE,handle_sigpipe);
 }
 
+static int open_and_dup(int fd,char* path)
+{
+  int old_fd;
+  if ((old_fd=my_open(path,O_WRONLY|O_APPEND|O_CREAT,MYF(0)))<0)
+  {
+    log_err("Could not open '%s' for append, errno=%d",path,errno);
+    return 1;
+  }
+  if (dup2(old_fd,fd)<0)
+  {
+    log_err("Failed in dup2(), errno=%d",errno);
+    return 1;
+  }
+  my_close(old_fd,MYF(0));
+  return 0;
+}
+
 static void run_launcher_loop()
 {
   for (;;)
@@ -1487,14 +1595,17 @@ static void run_launcher_loop()
     int req_len,ident_len,num_args;
     char* request_buf=0;
     pid_t pid;
-    char* exec_path,*ident;
+    char* exec_path,*ident,*stdout_path,*stderr_path;
     char** args=0;
     
-    if (read(to_launcher_pipe[0],&req_len,sizeof(int))!=sizeof(int) ||
-	read(to_launcher_pipe[0],&num_args,sizeof(int))!=sizeof(int) ||
+    if (my_read(to_launcher_pipe[0],(byte*)&req_len,
+		sizeof(int),MYF(MY_NABP|MY_FULL_IO)) ||
+	my_read(to_launcher_pipe[0],(byte*)&num_args,
+		sizeof(int),MYF(MY_NABP|MY_FULL_IO)) ||
 	!(request_buf=(char*)my_malloc(req_len+sizeof(pid)+2,MYF(0))) ||
 	!(args=(char**)my_malloc(num_args*sizeof(char*),MYF(0))) ||
-	read(to_launcher_pipe[0],request_buf+1,req_len)!=req_len)
+	my_read(to_launcher_pipe[0],request_buf,req_len,
+		MYF(MY_NABP|MY_FULL_IO)))
     {
       log_err("launcher: Error reading request");
       my_free((gptr)request_buf,MYF(MY_ALLOW_ZERO_PTR));
@@ -1502,12 +1613,16 @@ static void run_launcher_loop()
       sleep(1);
       continue;
     }
+    stdout_path=request_buf;
+    stderr_path=stdout_path+strlen(stdout_path)+1;
+    request_buf=stderr_path+strlen(stderr_path); /* black magic */
     ident=request_buf+1;
     ident_len=strlen(ident);
     exec_path=ident+ident_len+1;
-    log_debug("num_args=%d,req_len=%d,ident=%s,ident_len=%d,exec_path=%s",
+    log_debug("num_args=%d,req_len=%d,ident=%s,ident_len=%d,exec_path=%s,\
+stdout_path=%s,stderr_path=%s",
 	      num_args,
-	      req_len,ident,ident_len,exec_path);
+	      req_len,ident,ident_len,exec_path,stdout_path,stderr_path);
     init_arg_array(exec_path,args,num_args-1);    
         
     switch ((pid=fork()))
@@ -1517,6 +1632,8 @@ static void run_launcher_loop()
       sleep(1);
       break;
     case 0:
+      if (open_and_dup(1,stdout_path) || open_and_dup(2,stderr_path))
+	exit(1);
       if (execv(exec_path,args))
 	log_err("launcher: cannot exec %s",exec_path);
       exit(1);
@@ -1527,7 +1644,7 @@ static void run_launcher_loop()
 	log_err("launcher: error sending launch status report");
       break;
     }
-    my_free((gptr)request_buf,MYF(0));
+    my_free((gptr)(stdout_path),MYF(0));
     my_free((gptr)args,MYF(0));
   }
 }
