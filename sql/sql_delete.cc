@@ -30,6 +30,7 @@ int generate_table(THD *thd, TABLE_LIST *table_list, TABLE *locked_table)
   char path[FN_REFLEN];
   int error;
   TABLE **table_ptr;
+  my_bool lock_open_locked= 0;
   DBUG_ENTER("generate_table");
 
   thd->proc_info="generate_table";
@@ -102,7 +103,7 @@ int generate_table(THD *thd, TABLE_LIST *table_list, TABLE *locked_table)
     error= ha_create_table(path,&create_info,1) ? -1 : 0;
     if (thd->locked_tables && reopen_tables(thd,1,0))
       error= -1;
-    VOID(pthread_mutex_unlock(&LOCK_open));
+    lock_open_locked= 1;			// Unlock mutex before return
   }
   if (!error)
   {
@@ -114,6 +115,8 @@ int generate_table(THD *thd, TABLE_LIST *table_list, TABLE *locked_table)
     }
     send_ok(&thd->net);		// This should return record count
   }
+  if (lock_open_locked)
+    VOID(pthread_mutex_unlock(&LOCK_open));
   DBUG_RETURN(error ? -1 : 0);
 }
 
