@@ -359,6 +359,7 @@ multi_update::multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> &fs,
   tmp_tables = (TABLE **)NULL;
   int counter=0;
   ulong timestamp_query_id;
+  not_trans_safe=false;
   for (TABLE_LIST *dt=ut ; dt ; dt=dt->next,counter++)
   {
     TABLE *table=ut->table;
@@ -420,6 +421,9 @@ multi_update::prepare(List<Item> &values)
       {
 	num_updated++;
 	table_ref->shared=1;
+	if (!not_trans_safe && !table_ref->table->file->has_transactions())
+	  not_trans_safe=true;
+	table_ref->table->no_keyread=1; // to be moved if initialize_tables has to be used
 	break;
       }
     }
@@ -529,6 +533,7 @@ multi_update::~multi_update()
   {
     TABLE *table=table_being_updated->table;
     (void)table->file->extra(HA_EXTRA_READCHECK);
+    table->no_keyread=0;
     if (error) 
       table->time_stamp=save_time_stamps[counter];
   }
@@ -629,27 +634,13 @@ bool multi_update::send_data(List<Item> &values)
   return 0;
 }
 
-
-/* Return true if some table is not transaction safe */
-
-static bool some_table_is_not_transaction_safe (TABLE_LIST *tl)
-{
-  for (; tl ; tl=tl->next)
-  { 
-    if (!(tl->table->file->has_transactions()))
-      return true;
-  }
-  return false;
-}
-
-
 void multi_update::send_error(uint errcode,const char *err)
 {
   /* First send error what ever it is ... */
   ::send_error(&thd->net,errcode,err);
 
   /* reset used flags */
-  update_tables->table->no_keyread=0;
+//  update_tables->table->no_keyread=0;
 
   /* If nothing updated return */
   if (!updated)
@@ -665,8 +656,7 @@ void multi_update::send_error(uint errcode,const char *err)
     In all other cases do attempt updates ...
   */
   if ((table_being_updated->table->file->has_transactions() &&
-       table_being_updated == update_tables) ||
-      !some_table_is_not_transaction_safe(update_tables->next))
+       table_being_updated == update_tables) || !not_trans_safe)
     ha_rollback_stmt(thd);
   else if (do_update)
     VOID(do_updates(true));
@@ -721,7 +711,6 @@ int multi_update::do_updates (bool from_send_error)
     error = tmp_table->file->rnd_init(1);
     if (error) 
       return error;
-    bool not_trans_safe = some_table_is_not_transaction_safe(update_tables);
     while (!(error=tmp_table->file->rnd_next(tmp_table->record[0])) &&
 	   (!thd->killed ||  from_send_error || not_trans_safe))
     {
@@ -756,7 +745,7 @@ bool multi_update::send_eof()
   int error = do_updates(false);   /* do_updates returns 0 if success */
 
   /* reset used flags */
-  update_tables->table->no_keyread=0;
+//  update_tables->table->no_keyread=0;
   if (error == -1) error = 0;
   thd->proc_info="end";
   if (error)
@@ -767,8 +756,7 @@ bool multi_update::send_eof()
    was a non-transaction-safe table involved, since
    modifications in it cannot be rolled back. */
 
-  if (updated &&
-      (!error || some_table_is_not_transaction_safe(update_tables)))
+  if (updated || not_trans_safe)
   {
     mysql_update_log.write(thd,thd->query,thd->query_length);
     Query_log_event qinfo(thd, thd->query);
@@ -777,7 +765,7 @@ bool multi_update::send_eof()
     is not used */
 
     if (mysql_bin_log.is_open() &&  mysql_bin_log.write(&qinfo) &&
-	!some_table_is_not_transaction_safe(update_tables))
+	!not_trans_safe)
       error=1;  /* Log write failed: roll back
 		   the SQL statement */
 

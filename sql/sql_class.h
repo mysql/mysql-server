@@ -684,7 +684,7 @@ public:
    enum enum_duplicates dupl;
    uint num_of_tables, num_fields, num_updated, *save_time_stamps, *field_sequence;
    int error;
-   bool do_update;
+   bool do_update, not_trans_safe;
  public:
    multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> &fs, 		 
 		enum enum_duplicates handle_duplicates,  
