@@ -437,7 +437,7 @@ CHANGEABLE_VAR changeable_vars[] = {
   { "connect_timeout", (long*) &opt_connect_timeout, 0, 0, 3600*12, 0, 1},
   { "max_allowed_packet", (long*) &max_allowed_packet,16*1024L*1024L,4096,
     24*1024L*1024L, MALLOC_OVERHEAD,1024},
-  { "net_buffer_length",(long*) &net_buffer_length,16384,1024,24*1024*1024L,
+  { "net_buffer_length",(long*) &net_buffer_length,16384,1024,16*1024*1024L,
     MALLOC_OVERHEAD,1024},
   { "select_limit", (long*) &select_limit, 1000L, 1, ~0L, 0, 1},
   { "max_join_size", (long*) &max_join_size, 1000000L, 1, ~0L, 0, 1},
@@ -487,6 +487,7 @@ static void usage(int version)
   -i, --ignore-space	Ignore space after function names.\n\
   -h, --host=...	Connect to host.\n\
   -H, --html		Produce HTML output.\n\
+  --local-infile=[1|0]  Enable/disable LOAD DATA LOCAL INFILE\n\
   -L, --skip-line-numbers\n\
                         Don't write line number for errors.\n");
 #ifndef __WIN__
@@ -762,17 +763,6 @@ static int get_options(int argc, char **argv)
     opt_password=get_tty_password(NullS);
   return(0);
 }
-
-#if  defined(OS2)
-static char* readline( char* prompt)
-{
-#if defined(OS2)
-   static char linebuffer[254];
-#endif
-   puts( prompt);
-   return gets( linebuffer);
-}
-#endif
 
 static int read_lines(bool execute_commands)
 {

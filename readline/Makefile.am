@@ -26,7 +26,7 @@ noinst_HEADERS =	rldefs.h histlib.h rlwinsize.h \
 
 EXTRA_DIST=		emacs_keymap.c vi_keymap.c
 
-DEFS =			-DUNDEF_THREADS_HACK -DHAVE_CONFIG_H
+DEFS =			-DUNDEF_THREADS_HACK -DHAVE_CONFIG_H -DNO_KILL_INTR
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

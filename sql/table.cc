@@ -130,8 +130,8 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   VOID(my_seek(file,(ulong) uint2korr(head+6),MY_SEEK_SET,MYF(0)));
   if (read_string(file,(gptr*) &disk_buff,(uint) uint2korr(head+28)))
     goto err_not_open; /* purecov: inspected */
-  outparam->keys=keys=disk_buff[0];
-  outparam->keys_in_use= (((key_map) 1) << keys)- (key_map) 1;
+  outparam->keys=keys=   disk_buff[0];
+  outparam->keys_in_use= set_bits(key_map, keys);
 
   outparam->key_parts=key_parts=disk_buff[1];
   n_length=keys*sizeof(KEY)+key_parts*sizeof(KEY_PART_INFO);
@@ -573,6 +573,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   delete outparam->file;
   outparam->file=0;				// For easyer errorchecking
   outparam->db_stat=0;
+  hash_free(&outparam->name_hash);
   free_root(&outparam->mem_root,MYF(0));
   my_free(outparam->table_name,MYF(MY_ALLOW_ZERO_PTR));
   DBUG_RETURN (error);
@@ -600,6 +601,7 @@ int closefrm(register TABLE *table)
   }
   delete table->file;
   table->file=0;				/* For easyer errorchecking */
+  hash_free(&table->name_hash);
   free_root(&table->mem_root,MYF(0));
   DBUG_RETURN(error);
 }

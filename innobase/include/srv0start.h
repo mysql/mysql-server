@@ -12,6 +12,56 @@ Created 10/10/1995 Heikki Tuuri
 
 #include "univ.i"
 
+/*************************************************************************
+Normalizes a directory path for Windows: converts slashes to backslashes. */
+
+void
+srv_normalize_path_for_win(
+/*=======================*/
+	char*	str);	/* in/out: null-terminated character string */
+/*************************************************************************
+Adds a slash or a backslash to the end of a string if it is missing
+and the string is not empty. */
+
+char*
+srv_add_path_separator_if_needed(
+/*=============================*/
+			/* out, own: string which has the separator if the
+			string is not empty */
+	char*	str);	/* in: null-terminated character string */
+/*************************************************************************
+Reads the data files and their sizes from a character string given in
+the .cnf file. */
+
+ibool
+srv_parse_data_file_paths_and_sizes(
+/*================================*/
+					/* out: TRUE if ok, FALSE if parsing
+					error */
+	char*	str,			/* in: the data file path string */
+	char***	data_file_names,	/* out, own: array of data file
+					names */
+	ulint**	data_file_sizes,	/* out, own: array of data file sizes
+					in megabytes */
+	ulint**	data_file_is_raw_partition,/* out, own: array of flags
+					showing which data files are raw
+					partitions */
+	ulint*	n_data_files,		/* out: number of data files */
+	ibool*	is_auto_extending,	/* out: TRUE if the last data file is
+					auto-extending */
+	ulint*	max_auto_extend_size);	/* out: max auto extend size for the
+					last file if specified, 0 if not */
+/*************************************************************************
+Reads log group home directories from a character string given in
+the .cnf file. */
+
+ibool
+srv_parse_log_group_home_dirs(
+/*==========================*/
+					/* out: TRUE if ok, FALSE if parsing
+					error */
+	char*	str,			/* in: character string */
+	char***	log_group_home_dirs);	/* out, own: log group home dirs */
 /********************************************************************
 Starts Innobase and creates a new database if database files
 are not found and the user wants. Server parameters are

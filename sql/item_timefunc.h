@@ -297,6 +297,7 @@ class Item_func_date_format :public Item_str_func
 {
   int fixed_length;
   const bool date_or_time;
+  String value;
 public:
   Item_func_date_format(Item *a,Item *b,bool date_or_time_arg)
     :Item_str_func(a,b),date_or_time(date_or_time_arg) {}

@@ -1,7 +1,7 @@
 /******************************************************
 Database log
 
-(c) 1995-1997 InnoDB Oy
+(c) 1995-1997 Innobase Oy
 
 Created 12/9/1995 Heikki Tuuri
 *******************************************************/
@@ -23,6 +23,9 @@ Created 12/9/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
+
+/* Current free limit; protected by the log sys mutex; 0 means uninitialized */
+ulint	log_fsp_current_free_limit		= 0;
 
 /* Global log system variable */
 log_t*	log_sys	= NULL;
@@ -95,6 +98,32 @@ void
 log_archive_margin(void);
 /*====================*/
 
+/********************************************************************
+Sets the global variable log_fsp_current_free_limit. Also makes a checkpoint,
+so that we know that the limit has been written to a log checkpoint field
+on disk. */
+
+void
+log_fsp_current_free_limit_set_and_checkpoint(
+/*==========================================*/
+	ulint	limit)	/* in: limit to set */
+{
+	ibool	success;
+
+	mutex_enter(&(log_sys->mutex));
+
+	log_fsp_current_free_limit = limit;
+
+	mutex_exit(&(log_sys->mutex));
+
+	/* Try to make a synchronous checkpoint */
+	
+	success = FALSE;
+
+	while (!success) {
+		success = log_checkpoint(TRUE, TRUE);
+	}
+}
 
 /********************************************************************
 Returns the oldest modified block lsn in the pool, or log_sys->lsn if none
@@ -436,6 +465,51 @@ log_group_calc_lsn_offset(
 	return(log_group_calc_real_offset(offset, group));
 }
 
+/***********************************************************************
+Calculates where in log files we find a specified lsn. */
+
+ulint
+log_calc_where_lsn_is(
+/*==================*/
+						/* out: log file number */
+	ib_longlong*	log_file_offset,	/* out: offset in that file
+						(including the header) */
+	dulint		first_header_lsn,	/* in: first log file start
+						lsn */
+	dulint		lsn,			/* in: lsn whose position to
+						determine */
+	ulint		n_log_files,		/* in: total number of log
+						files */
+	ib_longlong	log_file_size)		/* in: log file size
+						(including the header) */
+{
+	ib_longlong	ib_lsn;
+	ib_longlong	ib_first_header_lsn;
+	ib_longlong	capacity	= log_file_size - LOG_FILE_HDR_SIZE;
+	ulint		file_no;
+	ib_longlong	add_this_many;
+	
+	ib_lsn = ut_conv_dulint_to_longlong(lsn);
+	ib_first_header_lsn = ut_conv_dulint_to_longlong(first_header_lsn);
+
+	if (ib_lsn < ib_first_header_lsn) {
+		add_this_many = 1 + (ib_first_header_lsn - ib_lsn)
+				/ (capacity * (ib_longlong)n_log_files);
+		ib_lsn += add_this_many
+		          * capacity * (ib_longlong)n_log_files;
+	}
+
+	ut_a(ib_lsn >= ib_first_header_lsn);
+	
+	file_no = ((ulint)((ib_lsn - ib_first_header_lsn) / capacity))
+			  % n_log_files;
+	*log_file_offset = (ib_lsn - ib_first_header_lsn) % capacity;
+
+	*log_file_offset = *log_file_offset + LOG_FILE_HDR_SIZE;
+
+	return(file_no);
+}
+
 /************************************************************
 Sets the field values in group to correspond to a given lsn. For this function
 to work, the values must already be correctly initialized to correspond to
@@ -653,7 +727,7 @@ log_init(void)
 
 #ifdef UNIV_LOG_DEBUG
 	recv_sys_create();
-	recv_sys_init();
+	recv_sys_init(FALSE, buf_pool_get_curr_size());
 
 	recv_sys->parse_start_lsn = log_sys->lsn;
 	recv_sys->scanned_lsn = log_sys->lsn;
@@ -961,7 +1035,7 @@ log_group_write_buf(
 	ibool	sync;
 	ibool	write_header;
 	ulint	next_offset;
-
+	
 	ut_ad(mutex_own(&(log_sys->mutex)));
 	ut_ad(len % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
@@ -1002,9 +1076,28 @@ loop:
 	}
 	
 	if (log_debug_writes) {
+		ulint	i;
+
 		printf(
-		"Writing log file segment to group %lu offset %lu len %lu\n",
-					group->id, next_offset, write_len);
+		"Writing log file segment to group %lu offset %lu len %lu\n"
+		"start lsn %lu %lu\n",
+			group->id, next_offset, write_len,
+			ut_dulint_get_high(start_lsn),
+			ut_dulint_get_low(start_lsn));
+		printf(
+		"First block n:o %lu last block n:o %lu\n",
+			log_block_get_hdr_no(buf),
+			log_block_get_hdr_no(
+				buf + write_len - OS_FILE_LOG_BLOCK_SIZE));
+		ut_a(log_block_get_hdr_no(buf)
+			== log_block_convert_lsn_to_no(start_lsn));
+		
+		for (i = 0; i < write_len / OS_FILE_LOG_BLOCK_SIZE; i++) {
+
+			ut_a(log_block_get_hdr_no(buf) + i
+				== log_block_get_hdr_no(buf
+					+ i * OS_FILE_LOG_BLOCK_SIZE));
+		}
 	}
 
 	if (log_do_write) {
@@ -1346,7 +1439,7 @@ log_group_checkpoint(
 	ulint	i;
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
-	ut_ad(LOG_CHECKPOINT_SIZE <= OS_FILE_LOG_BLOCK_SIZE);
+	ut_a(LOG_CHECKPOINT_SIZE <= OS_FILE_LOG_BLOCK_SIZE);
 	
 	buf = group->checkpoint_buf;
 	
@@ -1394,6 +1487,15 @@ log_group_checkpoint(
 			LOG_CHECKPOINT_CHECKSUM_2 - LOG_CHECKPOINT_LSN);
 	mach_write_to_4(buf + LOG_CHECKPOINT_CHECKSUM_2, fold);
 
+	/* Starting from InnoDB-3.23.50, we also write info on allocated
+	size in the tablespace */
+
+	mach_write_to_4(buf + LOG_CHECKPOINT_FSP_FREE_LIMIT,
+						log_fsp_current_free_limit);
+
+	mach_write_to_4(buf + LOG_CHECKPOINT_FSP_MAGIC_N,
+					LOG_CHECKPOINT_FSP_MAGIC_N_VAL);
+
 	/* We alternate the physical place of the checkpoint info in the first
 	log file */
 	
@@ -1426,6 +1528,48 @@ log_group_checkpoint(
 
 		ut_ad(((ulint)group & 0x1) == 0);
 	}
+}
+
+/**********************************************************
+Writes info to a buffer of a log group when log files are created in
+backup restoration. */
+
+void
+log_reset_first_header_and_checkpoint(
+/*==================================*/
+	byte*	hdr_buf,/* in: buffer which will be written to the start
+			of the first log file */
+	dulint	lsn)	/* in: lsn of the start of the first log file
+			+ LOG_BLOCK_HDR_SIZE */
+{
+	ulint	fold;
+	byte*	buf;
+
+	mach_write_to_4(hdr_buf + LOG_GROUP_ID, 0);
+	mach_write_to_8(hdr_buf + LOG_FILE_START_LSN, lsn);
+
+	buf = hdr_buf + LOG_CHECKPOINT_1;
+	
+	mach_write_to_8(buf + LOG_CHECKPOINT_NO, ut_dulint_zero);
+	mach_write_to_8(buf + LOG_CHECKPOINT_LSN, lsn);
+
+	mach_write_to_4(buf + LOG_CHECKPOINT_OFFSET,
+				LOG_FILE_HDR_SIZE + LOG_BLOCK_HDR_SIZE);
+								
+	mach_write_to_4(buf + LOG_CHECKPOINT_LOG_BUF_SIZE, 2 * 1024 * 1024);
+
+	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, ut_dulint_max);
+
+	fold = ut_fold_binary(buf, LOG_CHECKPOINT_CHECKSUM_1);
+	mach_write_to_4(buf + LOG_CHECKPOINT_CHECKSUM_1, fold);
+
+	fold = ut_fold_binary(buf + LOG_CHECKPOINT_LSN,
+			LOG_CHECKPOINT_CHECKSUM_2 - LOG_CHECKPOINT_LSN);
+	mach_write_to_4(buf + LOG_CHECKPOINT_CHECKSUM_2, fold);
+
+	/* Starting from InnoDB-3.23.50, we should also write info on
+	allocated size in the tablespace, but unfortunately we do not
+	know it here */
 }
 
 /**********************************************************
@@ -2795,7 +2939,10 @@ log_check_log_recs(
 
 	ut_memcpy(scan_buf, start, end - start);
 	
-	recv_scan_log_recs(FALSE, scan_buf, end - start,
+	recv_scan_log_recs(TRUE,
+				buf_pool_get_curr_size() -
+				RECV_POOL_N_FREE_BLOCKS * UNIV_PAGE_SIZE,	
+				FALSE, scan_buf, end - start,
 				ut_dulint_align_down(buf_start_lsn,
 						OS_FILE_LOG_BLOCK_SIZE),
 			&contiguous_lsn, &scanned_lsn);

@@ -69,3 +69,11 @@ create table t2 (key (b)) select * from t1;
 explain select * from t2 where b="world";
 select * from t2 where b="world";
 drop table t1,t2;
+
+#
+# Test of primary key with 32 index
+#
+
+create table t1 (a int not null, b int, primary key(a), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b));
+show create table t1;
+drop table t1;

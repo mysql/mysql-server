@@ -456,7 +456,7 @@ bool CONVERT::store(String *packet,const char *from,uint length)
       packet->realloc(packet_length+5+length))
     return 1;
   char *to=(char*) net_store_length((char*) packet->ptr()+packet_length,
-				    length);
+				    (ulonglong)length);
 
   for (const char *end=from+length ; from != end ; from++)
     *to++= to_map[(uchar) *from];

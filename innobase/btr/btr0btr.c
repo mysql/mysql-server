@@ -570,6 +570,19 @@ btr_page_get_father_for_rec(
 
 	node_ptr = btr_cur_get_rec(&cursor);
 
+	if (btr_node_ptr_get_child_page_no(node_ptr) !=
+                                                buf_frame_get_page_no(page)) {
+      		fprintf(stderr,
+"InnoDB: Corruption of an index tree: table %s, index %s,\n"
+"InnoDB: father ptr page no %lu, child page no %lu\n",
+                    (UT_LIST_GET_FIRST(tree->tree_indexes))->table_name,
+                    (UT_LIST_GET_FIRST(tree->tree_indexes))->name,
+                    btr_node_ptr_get_child_page_no(node_ptr),
+                    buf_frame_get_page_no(page));
+     		page_rec_print(page_rec_get_next(page_get_infimum_rec(page)));
+     		page_rec_print(node_ptr);
+	}
+
 	ut_a(btr_node_ptr_get_child_page_no(node_ptr) ==
 						buf_frame_get_page_no(page));
 	mem_heap_free(heap);

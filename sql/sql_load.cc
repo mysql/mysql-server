@@ -72,7 +72,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     *enclosed=ex->enclosed;
   bool is_fifo=0;
   bool using_transactions;
-
   DBUG_ENTER("mysql_load");
 
   if (escaped->length() > 1 || enclosed->length() > 1)
@@ -260,8 +259,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (!read_file_from_client && mysql_bin_log.is_open())
   {
     ex->skip_lines = save_skip_lines; 
-    Load_log_event qinfo(thd, ex, table->table_name, fields, 
-			 handle_duplicates);
+    Load_log_event qinfo(thd, ex, table->table_cache_key, table->table_name,
+			 fields, handle_duplicates);
     mysql_bin_log.write(&qinfo);
   }
   if (using_transactions)

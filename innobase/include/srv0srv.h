@@ -24,16 +24,22 @@ extern char	srv_fatal_errbuf[];
 thread starts running */
 extern os_event_t	srv_lock_timeout_thread_event;
 
+/* If the last data file is auto-extended, we add this many pages to it
+at a time */
+#define SRV_AUTO_EXTEND_INCREMENT   (8 * ((1024 * 1024) / UNIV_PAGE_SIZE))
+
 /* Server parameters which are read from the initfile */
 
 extern char*	srv_data_home;
-extern char*	srv_logs_home;
 extern char*	srv_arch_dir;
 
 extern ulint	srv_n_data_files;
 extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;
 extern ulint*   srv_data_file_is_raw_partition;
+
+extern ibool	srv_auto_extend_last_data_file;
+extern ulint	srv_last_file_size_max;
 
 extern ibool	srv_created_new_raw;
 
@@ -184,6 +190,19 @@ ulint
 srv_boot(void);
 /*==========*/
 			/* out: DB_SUCCESS or error code */
+/*************************************************************************
+Initializes the server. */
+
+void
+srv_init(void);
+/*==========*/
+/*************************************************************************
+Initializes the synchronization primitives, memory system, and the thread
+local storage. */
+
+void
+srv_general_init(void);
+/*==================*/
 /*************************************************************************
 Gets the number of threads in the system. */
 

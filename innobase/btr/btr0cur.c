@@ -204,7 +204,7 @@ btr_cur_search_to_nth_level(
 				the caller uses his search latch
 				to protect the record! */
 	btr_cur_t*	cursor, /* in/out: tree cursor; the cursor page is
-				   s- or x-latched, but see also above! */
+				s- or x-latched, but see also above! */
 	ulint		has_search_latch,/* in: info on the latch mode the
 				caller currently has on btr_search_latch:
 				RW_S_LATCH, or 0 */

@@ -75,7 +75,7 @@ while ( defined($_ = shift @pending) or defined($_ = <>) ) {
     s/^#? Time: \d{6}\s+\d+:\d+:\d+.*\n//;
     my ($user,$host) = s/^#? User\@Host:\s+(\S+)\s+\@\s+(\S+).*\n// ? ($1,$2) : ('','');
 
-    s/^# Time: (\d+)  Lock_time: (\d+)  Rows_sent: (\d+).*\n//;
+    s/^# Query_time: (\d+)  Lock_time: (\d+)  Rows_sent: (\d+).*\n//;
     my ($t, $l, $r) = ($1, $2, $3);
     $t -= $l unless $opt{l};
 
@@ -96,8 +96,12 @@ while ( defined($_ = shift @pending) or defined($_ = <>) ) {
     unless ($opt{a}) {
 	s/\b\d+\b/N/g;
 	s/\b0x[0-9A-Fa-f]+\b/N/g;
-	s/'([^\\\']|\\.|\'\')+'/'S'/g;
-	s/"([^\\\"]|\\.|\"\")+"/"S"/g;
+        s/''/'S'/g;
+        s/""/"S"/g;
+        s/(\\')//g;
+        s/(\\")//g;
+        s/'[^']+'/'S'/g;
+        s/"[^"]+"/"S"/g;
 	# -n=8: turn log_20001231 into log_NNNNNNNN
 	s/([a-z_]+)(\d{$opt{n},})/$1.('N' x length($2))/ieg if $opt{n};
 	# abbreviate massive "in (...)" statements and similar
