@@ -58,14 +58,18 @@ manual.html:	manual.texi include.texi $(srcdir)/Support/texi2html
 
 # Fix: add --output-comment with some interesting info?
 # Fix: @image worked with a older version of pdftex. 
+# Note: @image will work if we first convert all images to pdf ...
+#       is that worth it?
 # Comment: We need to run pdftex 2 times to get the cross references right.
 manual.pdf: manual.texi
-	cat manual.texi | sed -e 's|@image{[^}]*} *||g' > manual-tmp.texi; \
-	pdftex --interaction=nonstopmode '\input manual-tmp.texi'; \
-	pdftex --interaction=nonstopmode '\pdfcompresslevel=9' \
-					 '\input manual-tmp.texi'; \
-	mv manual-tmp.pdf manual.pdf; \
-	rm -f manual-tmp.* ; \
+	cat manual.texi | sed -e 's|@image{[^}]*} *||g' > manual-tmp.texi
+	pdftex --interaction=nonstopmode manual-tmp.texi
+	texindex manual-tmp.??
+	pdftex --interaction=nonstopmode manual-tmp.texi
+	texindex manual-tmp.??
+	pdftex --interaction=nonstopmode manual-tmp.texi
+	mv manual-tmp.pdf manual.pdf
+	rm -f manual-tmp.*
 	touch $@
 
 # Target to produce NuSphere Manual
@@ -75,12 +79,14 @@ nusphere.pdf: manual.texi
 	      -e 's/@end example/@end smallexample/g' \
 	      -e 's/@c ifnusphere //g' \
 	      -e 's|@image{[^}]*} *||g' \
-	> manual-tmp.texi; \
-	pdftex --interaction=nonstopmode '\input manual-tmp.texi'; \
-	pdftex --interaction=nonstopmode '\pdfcompresslevel=9' \
-					 '\input manual-tmp.texi'; \
-	mv manual-tmp.pdf nusphere.pdf; \
-	rm -f manual-tmp.* ; \
+	> manual-tmp.texi
+	pdftex --interaction=nonstopmode manual-tmp.texi
+	texindex manual-tmp.??
+	pdftex --interaction=nonstopmode manual-tmp.texi
+	texindex manual-tmp.??
+	pdftex --interaction=nonstopmode manual-tmp.texi
+	mv manual-tmp.pdf nusphere.pdf
+	rm -f manual-tmp.*
 	touch $@
 
 # The texi2dvi gives a lot of harmless errors. Just ignore them unless
