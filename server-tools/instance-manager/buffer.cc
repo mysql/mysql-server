@@ -77,7 +77,7 @@ int Buffer::append(uint position, const char *string, uint len_arg)
 int Buffer::reserve(uint position, uint len_arg)
 {
   if (position + len_arg >= MAX_BUFFER_SIZE)
-    return 1;
+    goto err;
 
   if (position + len_arg>= buffer_size)
   {
@@ -85,8 +85,13 @@ int Buffer::reserve(uint position, uint len_arg)
                              min(MAX_BUFFER_SIZE,
                                  max((uint) (buffer_size*1.5),
                                      position + len_arg)));
+    if (buffer= NULL)
+      goto err;
     buffer_size= (uint) (buffer_size*1.5);
   }
   return 0;
+
+err:
+  return 1;
 }
 

@@ -184,14 +184,17 @@ int Show_instance_status::do_command(struct st_net *net,
     }
 
 
-    my_net_write(net, send_buff.buffer, (uint) position);
+    if (my_net_write(net, send_buff.buffer, (uint) position))
+      goto err;
   }
 
   send_eof(net);
   net_flush(net);
 
-err:
   return 0;
+
+err:
+  return 1;
 }
 
 
@@ -258,7 +261,8 @@ int Show_instance_options::do_command(struct st_net *net,
       goto err;
     store_to_string(&send_buff, (char *) "instance_name", &position);
     store_to_string(&send_buff, (char *) instance_name, &position);
-    my_net_write(net, send_buff.buffer, (uint) position);
+    if (my_net_write(net, send_buff.buffer, (uint) position))
+      goto err;
     if (instance->options.mysqld_path != NULL)
     {
       position= 0;
@@ -266,7 +270,17 @@ int Show_instance_options::do_command(struct st_net *net,
       store_to_string(&send_buff,
                      (char *) instance->options.mysqld_path,
                      &position);
-      my_net_write(net, send_buff.buffer, (uint) position);
+      if (my_net_write(net, send_buff.buffer, (uint) position))
+        goto err;
+    }
+
+    if (instance->options.is_guarded != NULL)
+    {
+      position= 0;
+      store_to_string(&send_buff, (char *) "guarded", &position);
+      store_to_string(&send_buff, "", &position);
+      if (my_net_write(net, send_buff.buffer, (uint) position))
+        goto err;
     }
 
     if (instance->options.mysqld_user != NULL)
@@ -276,7 +290,8 @@ int Show_instance_options::do_command(struct st_net *net,
       store_to_string(&send_buff,
                       (char *) instance->options.mysqld_user,
                       &position);
-      my_net_write(net, send_buff.buffer, (uint) position);
+      if (my_net_write(net, send_buff.buffer, (uint) position))
+        goto err;
     }
 
     if (instance->options.mysqld_password != NULL)
@@ -286,7 +301,8 @@ int Show_instance_options::do_command(struct st_net *net,
       store_to_string(&send_buff,
                       (char *) instance->options.mysqld_password,
                       &position);
-      my_net_write(net, send_buff.buffer, (uint) position);
+      if (my_net_write(net, send_buff.buffer, (uint) position))
+        goto err;
     }
 
     /* loop through the options stored in DYNAMIC_ARRAY */
@@ -302,7 +318,8 @@ int Show_instance_options::do_command(struct st_net *net,
       store_to_string(&send_buff, option_value + 1, &position);
       /* join name and the value into the same option again */
       *option_value= '=';
-      my_net_write(net, send_buff.buffer, (uint) position);
+      if (my_net_write(net, send_buff.buffer, (uint) position))
+        goto err;
     }
   }
 

@@ -48,7 +48,7 @@ public:
     Instance_map *instance_map;
   public:
     Iterator(Instance_map *instance_map_arg) :
-      instance_map(instance_map_arg), current_instance(0)
+     current_instance(0), instance_map(instance_map_arg)
     {}
 
     void go_to_first();
@@ -63,8 +63,11 @@ public:
   int cleanup();
   int lock();
   int unlock();
+  int init();
 
-  Instance_map();
+  Instance_map(const char *default_mysqld_path_arg,
+               const char *default_admin_user_arg,
+               const char *default_admin_password_arg);
   ~Instance_map();
 
   /* loads options from config files */

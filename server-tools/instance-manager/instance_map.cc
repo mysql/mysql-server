@@ -110,13 +110,25 @@ err_new_instance:
 C_MODE_END
 
 
-Instance_map::Instance_map()
+Instance_map::Instance_map(const char *default_mysqld_path_arg,
+                           const char *default_admin_user_arg,
+                           const char *default_admin_password_arg)
 {
-  hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
-            get_instance_key, delete_instance, 0);
+  mysqld_path= default_mysqld_path_arg;
+  user= default_admin_user_arg;
+  password= default_admin_password_arg;
+
   pthread_mutex_init(&LOCK_instance_map, 0);
 }
 
+
+int Instance_map::init()
+{
+  if (hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
+                get_instance_key, delete_instance, 0))
+    return 1;
+  return 0;
+}
 
 Instance_map::~Instance_map()
 {

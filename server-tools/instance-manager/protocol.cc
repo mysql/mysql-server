@@ -99,16 +99,22 @@ char *net_store_length(char *pkg, uint length)
 }
 
 
-void store_to_string(Buffer *buf, const char *string, uint *position)
+int store_to_string(Buffer *buf, const char *string, uint *position)
 {
   uint currpos;
   uint string_len;
 
   string_len= strlen(string);
-  buf->reserve(*position, 2);
+  if (buf->reserve(*position, 2))
+    goto err;
   currpos= (net_store_length(buf->buffer + *position, string_len) - buf->buffer);
-  buf->append(currpos, string, string_len);
+  if (buf->append(currpos, string, string_len))
+    goto err;
   *position= *position + string_len + (currpos - *position);
+
+  return 0;
+err:
+  return 1;
 }
 
 
@@ -134,7 +140,8 @@ int send_fields(struct st_net *net, LIST *fields)
 
   /* send the number of fileds */
   net_store_length(small_buff, (uint) list_length(fields));
-  my_net_write(net, small_buff, (uint) 1);
+  if (my_net_write(net, small_buff, (uint) 1))
+    goto err;
 
   while (tmp)
   {
@@ -147,7 +154,8 @@ int send_fields(struct st_net *net, LIST *fields)
     store_to_string(&send_buff, (char *) "", &position); /* table name alias */
     store_to_string(&send_buff, field->name, &position); /* column name */
     store_to_string(&send_buff, field->name, &position); /* column name alias */
-    send_buff.reserve(position, 12);
+    if (send_buff.reserve(position, 12))
+      goto err;
     send_buff.buffer[position++]= 12;
     int2store(send_buff.buffer + position, 1); /* charsetnr */
     int4store(send_buff.buffer + position + 2, field->length); /* field length */
@@ -162,7 +170,7 @@ int send_fields(struct st_net *net, LIST *fields)
     tmp= rest(tmp);
   }
 
-  if ( my_net_write(net, eof_buff, 1))
+  if (my_net_write(net, eof_buff, 1))
     goto err;
   return 0;
 

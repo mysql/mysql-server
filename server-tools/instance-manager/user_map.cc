@@ -93,12 +93,15 @@ static void delete_user(void *u)
 C_MODE_END
 
 
-User_map::User_map()
+int User_map::init()
 {
   enum { START_HASH_SIZE = 16 };
-  hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
-            get_user_key, delete_user, 0);
+  if (hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
+      get_user_key, delete_user, 0))
+    return 1;
+  return 0;
 }
+
 
 User_map::~User_map()
 {
@@ -134,7 +137,8 @@ int User_map::load(const char *password_file_name)
   while (fgets(line, sizeof(line), file))
   {
     /* skip comments and empty lines */
-    if (line[0] == '#' || line[0] == '\n' && line[1] == '\0')
+    if (line[0] == '#' || line[0] == '\n' &&
+        (line[1] == '\0' || line[1] == '\r'))
       continue;
     if ((user= new User) == 0)
       goto done;
