@@ -1114,7 +1114,7 @@ void Item_sum_count_distinct::make_unique()
 bool Item_sum_count_distinct::setup(THD *thd)
 {
   List<Item> list;
-  SELECT_LEX *select_lex= current_lex->current_select->select_lex();
+  SELECT_LEX *select_lex= thd->lex.current_select->select_lex();
   if (select_lex->linkage == GLOBAL_OPTIONS_TYPE)
     return 1;
     
@@ -1599,7 +1599,7 @@ Item_func_group_concat::Item_func_group_concat(bool is_distinct,
    warning_available(0), key_length(0), rec_offset(0),
    tree_mode(0), distinct(is_distinct), warning_for_row(0),
    separator(is_separator), tree(&tree_base), table(0),
-   order(0), tables_list(0), group_concat_max_len(0),
+   order(0), tables_list(0),
    show_elements(0), arg_count_order(0), arg_count_field(0),
    arg_show_fields(0), count_cut_values(0)
    
@@ -1607,8 +1607,11 @@ Item_func_group_concat::Item_func_group_concat(bool is_distinct,
   original= 0;
   quick_group= 0;
   mark_as_sum_func();
-  SELECT_LEX *select_lex= current_lex->current_select->select_lex();
+  item_thd= current_thd;
+  SELECT_LEX *select_lex= item_thd->lex.current_select->select_lex();
   order= 0;
+  group_concat_max_len= item_thd->variables.group_concat_max_len;
+
     
   arg_show_fields= arg_count_field= is_select->elements;
   arg_count_order= is_order ? is_order->elements : 0;
@@ -1773,7 +1776,7 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   }
   result_field= 0;
   null_value= 1;
-  fix_length_and_dec();
+  max_length= group_concat_max_len;
   thd->allow_sum_func= 1;			
   if (!(tmp_table_param= new TMP_TABLE_PARAM))
     return 1;
@@ -1786,7 +1789,7 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 bool Item_func_group_concat::setup(THD *thd)
 {
   List<Item> list;
-  SELECT_LEX *select_lex= current_lex->current_select->select_lex();
+  SELECT_LEX *select_lex= thd->lex.current_select->select_lex();
 
   if (select_lex->linkage == GLOBAL_OPTIONS_TYPE)
     return 1;
@@ -1873,9 +1876,6 @@ bool Item_func_group_concat::setup(THD *thd)
     max_elements_in_tree= ((key_length) ? 
            thd->variables.max_heap_table_size/key_length : 1);
   };
-  item_thd= thd;
-
-  group_concat_max_len= thd->variables.group_concat_max_len;
 
   /*
     Copy table and tree_mode if they belong to this item (if item have not 
