@@ -2284,7 +2284,6 @@ row_drop_table_for_mysql(
 	"COMMIT WORK;\n"
 	"END;\n";
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_a(name != NULL);
 
 	if (srv_created_new_raw) {
