@@ -24,6 +24,7 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <time.h>
+#include "client_settings.h"
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif
@@ -58,28 +59,10 @@
 #define closesocket(A) close(A)
 #endif
 
-void free_old_query(MYSQL *mysql);
-my_bool STDCALL
-emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
-		     const char *header, ulong header_length,
-		     const char *arg, ulong arg_length, my_bool skip_check);
-
-/* From client.c */
-void mysql_read_default_options(struct st_mysql_options *options,
-				const char *filename,const char *group);
-MYSQL * STDCALL 
-cli_mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
-		       const char *passwd, const char *db,
-		       uint port, const char *unix_socket,ulong client_flag);
-
-void STDCALL cli_mysql_close(MYSQL *mysql);
-
 #ifdef HAVE_GETPWUID
 struct passwd *getpwuid(uid_t);
 char* getlogin(void);
 #endif
-
-extern char server_inited;
 
 #ifdef __WIN__
 static my_bool is_NT(void)
@@ -164,73 +147,6 @@ static inline int mysql_init_charset(MYSQL *mysql)
   }
   return 0;
 }
-
-/**************************************************************************
-  Get column lengths of the current row
-  If one uses mysql_use_result, res->lengths contains the length information,
-  else the lengths are calculated from the offset between pointers.
-**************************************************************************/
-
-static void STDCALL emb_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
-{ 
-  MYSQL_ROW end;
-
-  for (end=column + field_count; column != end ; column++,to++)
-    *to= *column ? *(uint *)((*column) - sizeof(uint)) : 0;
-}
-
-/**************************************************************************
-  List all fields in a table
-  If wild is given then only the fields matching wild is returned
-  Instead of this use query:
-  show fields in 'table' like "wild"
-**************************************************************************/
-
-static MYSQL_RES * STDCALL
-emb_list_fields(MYSQL *mysql, const char *table, const char *wild)
-{
-  MYSQL_RES *result;
-  MYSQL_DATA *query;
-  char	     buff[257],*end;
-  DBUG_ENTER("mysql_list_fields");
-  DBUG_PRINT("enter",("table: '%s'  wild: '%s'",table,wild ? wild : ""));
-
-  LINT_INIT(query);
-
-  end=strmake(strmake(buff, table,128)+1,wild ? wild : "",128);
-  if (simple_command(mysql,COM_FIELD_LIST,buff,(ulong) (end-buff),1))
-    DBUG_RETURN(NULL);
-
-  result= mysql->result;
-  if (!result)
-    return 0;
-  
-  result->methods= mysql->methods;
-  result->eof=1;
-
-  DBUG_RETURN(result);
-}
-
-
-
-/*
-** Note that the mysql argument must be initialized with mysql_init()
-** before calling mysql_real_connect !
-*/
-
-static my_bool STDCALL emb_mysql_read_query_result(MYSQL *mysql);
-static MYSQL_RES * STDCALL emb_mysql_store_result(MYSQL *mysql);
-static MYSQL_RES * STDCALL emb_mysql_use_result(MYSQL *mysql);
-
-static MYSQL_METHODS embedded_methods= 
-{
-  emb_mysql_read_query_result,
-  emb_advanced_command,
-  emb_mysql_store_result,
-  emb_mysql_use_result,
-  emb_fetch_lengths,
-  emb_list_fields
-};
 
 MYSQL * STDCALL
 mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
@@ -379,58 +295,3 @@ void STDCALL mysql_close(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
-static my_bool STDCALL emb_mysql_read_query_result(MYSQL *mysql)
-{
-  if (mysql->net.last_errno)
-    return -1;
-
-  if (mysql->field_count)
-  {
-    mysql->status=MYSQL_STATUS_GET_RESULT;
-    mysql->affected_rows= mysql->result->row_count= mysql->result->data->rows;
-    mysql->result->data_cursor= mysql->result->data->data;
-  }
-
-  return 0;
-}
-
-/**************************************************************************
-** Alloc result struct for buffered results. All rows are read to buffer.
-** mysql_data_seek may be used.
-**************************************************************************/
-static MYSQL_RES * STDCALL emb_mysql_store_result(MYSQL *mysql)
-{
-  MYSQL_RES *result= mysql->result;
-  if (!result)
-    return 0;
-  
-  result->methods= mysql->methods;
-  mysql->result= NULL;
-  *result->data->prev_ptr= 0;
-  result->eof= 1;
-  result->lengths= (ulong*)(result + 1);
-  mysql->affected_rows= result->row_count= result->data->rows;
-  result->data_cursor=  result->data->data;
-
-  mysql->status=MYSQL_STATUS_READY;		/* server is ready */
-  return result;
-}
-
-/**************************************************************************
-** Alloc struct for use with unbuffered reads. Data is fetched by domand
-** when calling to mysql_fetch_row.
-** mysql_data_seek is a noop.
-**
-** No other queries may be specified with the same MYSQL handle.
-** There shouldn't be much processing per row because mysql server shouldn't
-** have to wait for the client (and will not wait more than 30 sec/packet).
-**************************************************************************/
-
-static MYSQL_RES * STDCALL emb_mysql_use_result(MYSQL *mysql)
-{
-  DBUG_ENTER("mysql_use_result");
-  if (mysql->options.separate_thread)
-    DBUG_RETURN(0);
-
-  DBUG_RETURN(emb_mysql_store_result(mysql));
-}
