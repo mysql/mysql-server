@@ -18,6 +18,9 @@ extern ibool	os_do_not_call_flush_at_each_write;
 extern ibool	os_has_said_disk_full;
 extern ibool	os_aio_print_debug;
 
+extern ulint	os_file_n_pending_preads;
+extern ulint	os_file_n_pending_pwrites;
+
 #ifdef __WIN__
 
 /* We define always WIN_ASYNC_IO, and check at run-time whether
