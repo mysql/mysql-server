@@ -110,6 +110,7 @@ typedef struct my_collation_handler_st
                          my_bool diff_if_only_endspace_difference);
   int     (*strnxfrm)(struct charset_info_st *,
 		      uchar *, uint, const uchar *, uint);
+  uint    (*strnxfrmlen)(struct charset_info_st *, uint); 
   my_bool (*like_range)(struct charset_info_st *,
 			const char *s, uint s_length,
 			pchar w_prefix, pchar w_one, pchar w_many, 
@@ -259,7 +260,8 @@ extern CHARSET_INFO my_charset_cp1250_czech_ci;
 
 /* declarations for simple charsets */
 extern int  my_strnxfrm_simple(CHARSET_INFO *, uchar *, uint, const uchar *,
-			       uint); 
+                               uint); 
+uint  my_strnxfrmlen_simple(CHARSET_INFO *, uint); 
 extern int  my_strnncoll_simple(CHARSET_INFO *, const uchar *, uint,
 				const uchar *, uint, my_bool);
 
