@@ -172,8 +172,8 @@ unsigned long my_net_read(NET *net);
 
 /* The following function is not meant for normal usage */
 struct sockaddr;
-int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
-	       uint timeout);
+int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
+	       unsigned int timeout);
 
 struct rand_struct {
   unsigned long seed1,seed2,max_value;

@@ -57,6 +57,7 @@ sqlsources = convert.cc derror.cc field.cc field_conv.cc filesort.cc \
 EXTRA_DIST = lib_vio.c
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources)
+libmysqld_a_SOURCES=
 
 # automake misses these
 sql_yacc.cc sql_yacc.h: $(top_srcdir)/sql/sql_yacc.yy
