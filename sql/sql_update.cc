@@ -62,6 +62,7 @@ int mysql_update(THD *thd,
   int		error=0;
   uint		used_index, want_privilege;
   ulong		query_id=thd->query_id, timestamp_query_id;
+  ha_rows	updated, found;
   key_map	old_used_keys;
   TABLE		*table;
   SQL_SELECT	*select;
@@ -192,9 +193,8 @@ int mysql_update(THD *thd,
 					   limit, &examined_rows)) ==
           HA_POS_ERROR)
       {
-	delete select;
 	free_io_cache(table);
-	DBUG_RETURN(-1);
+	goto err;
       }
       /*
 	Filesort has already found and selected the rows we want to update,
@@ -214,10 +214,7 @@ int mysql_update(THD *thd,
       IO_CACHE tempfile;
       if (open_cached_file(&tempfile, mysql_tmpdir,TEMP_PREFIX,
 			   DISK_BUFFER_SIZE, MYF(MY_WME)))
-      {
-	delete select; /* purecov: inspected */
-	DBUG_RETURN(-1);
-      }
+	goto err;
 
       init_read_record(&info,thd,table,select,0,1);
       thd->proc_info="Searching rows for update";
@@ -256,10 +253,7 @@ int mysql_update(THD *thd,
 	error=1; /* purecov: inspected */
       select->file=tempfile;			// Read row ptrs from this file
       if (error >= 0)
-      {
-	delete select;
-	DBUG_RETURN(-1);
-      }
+	goto err;
     }
     if (table->key_read)
     {
@@ -272,7 +266,7 @@ int mysql_update(THD *thd,
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   init_read_record(&info,thd,table,select,0,1);
 
-  ha_rows updated=0L,found=0L;
+  updated= found= 0;
   thd->count_cuted_fields=1;			/* calc cuted fields */
   thd->cuted_fields=0L;
   thd->proc_info="Updating";
@@ -365,6 +359,15 @@ int mysql_update(THD *thd,
   thd->count_cuted_fields=0;			/* calc cuted fields */
   free_io_cache(table);
   DBUG_RETURN(0);
+
+err:
+  delete select;
+  if (table->key_read)
+  {
+    table->key_read=0;
+    table->file->extra(HA_EXTRA_NO_KEYREAD);
+  }
+  DBUG_RETURN(-1);
 }
 
 
