@@ -2432,12 +2432,23 @@ void Field_medium::sql_type(String &res) const
 ** long int
 ****************************************************************************/
 
+/*
+  A helper function to check whether the next character
+  in the string "s" is MINUS SIGN. 
+*/
+#ifdef HAVE_CHARSET_ucs2
 static bool test_if_minus(CHARSET_INFO *cs,
                           const char *s, const char *e)
 {
   my_wc_t wc;
   return cs->cset->mb_wc(cs, &wc, (uchar*) s, (uchar*) e) > 0 && wc == '-';
 }
+#else
+/*
+  If not UCS2 support is compiled then it is easier
+*/
+#define test_if_minus(cs, s, e)  (*s == '-')
+#endif
 
 
 int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)

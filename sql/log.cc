@@ -2457,8 +2457,8 @@ void sql_print_information(const char *format, ...)
 static const char tc_log_magic[]={254, 0x23, 0x05, 0x74};
 
 uint opt_tc_log_size=TC_LOG_MIN_SIZE;
-uint tc_log_max_pages_used=0, tc_log_page_size=0,
-     tc_log_page_waits=0, tc_log_cur_pages_used=0;
+ulong tc_log_max_pages_used=0, tc_log_page_size=0,
+      tc_log_page_waits=0, tc_log_cur_pages_used=0;
 
 int TC_LOG_MMAP::open(const char *opt_name)
 {
@@ -2903,7 +2903,12 @@ int TC_LOG_BINLOG::open(const char *opt_name)
   pthread_cond_init (&COND_prep_xids, 0);
 
   if (using_heuristic_recover())
+  {
+    /* generate a new binlog to mask a corrupted one */
+    open(opt_name, LOG_BIN, 0, WRITE_CACHE, 0, max_binlog_size, 0);
+    cleanup();
     return 1;
+  }
 
   if ((error= find_log_pos(&log_info, NullS, 1)))
   {
@@ -2946,9 +2951,9 @@ int TC_LOG_BINLOG::open(const char *opt_name)
     if ((ev= Log_event::read_log_event(&log, 0, &fdle)) &&
         ev->get_type_code() == FORMAT_DESCRIPTION_EVENT &&
         ev->flags & LOG_EVENT_BINLOG_IN_USE_F)
-        error= recover(&log, (Format_description_log_event *)ev);
-      else
-        error=0;
+      error= recover(&log, (Format_description_log_event *)ev);
+    else
+      error=0;
 
     delete ev;
     end_io_cache(&log);
