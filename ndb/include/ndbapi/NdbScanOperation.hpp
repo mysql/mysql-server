@@ -122,7 +122,6 @@ protected:
   NdbConnection *m_transConnection;
 
   // Scan related variables
-  Uint32 theBatchSize;
   Uint32 theParallelism;
   Uint32 m_keyInfo;
   NdbApiSignal* theSCAN_TABREQ;
