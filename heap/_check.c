@@ -102,9 +102,11 @@ static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
   int error;
   uint i,found,max_links,seek,links;
   uint rec_link;				/* Only used with debugging */
+  uint hash_buckets_found;
   HASH_INFO *hash_info;
 
   error=0;
+  hash_buckets_found= 0;
   for (i=found=max_links=seek=0 ; i < records ; i++)
   {
     hash_info=hp_find_hash(&keydef->block,i);
@@ -128,21 +130,32 @@ static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
 	  found++;
       }
       if (links > max_links) max_links=links;
+      hash_buckets_found++;
     }
   }
   if (found != records)
   {
-    DBUG_PRINT("error",("Found %ld of %ld records"));
+    DBUG_PRINT("error",("Found %ld of %ld records", found, records));
+    error=1;
+  }
+  if (keydef->hash_buckets != hash_buckets_found)
+  {
+    DBUG_PRINT("error",("Found %ld buckets, stats shows %ld buckets",
+                        hash_buckets_found, keydef->hash_buckets));
     error=1;
   }
   DBUG_PRINT("info",
-	     ("records: %ld   seeks: %d   max links: %d   hitrate: %.2f",
+	     ("records: %ld   seeks: %d   max links: %d   hitrate: %.2f   "
+              "buckets: %d",
 	      records,seek,max_links,
-	      (float) seek / (float) (records ? records : 1)));
+	      (float) seek / (float) (records ? records : 1), 
+              hash_buckets_found));
   if (print_status)
-    printf("Key: %d  records: %ld   seeks: %d   max links: %d   hitrate: %.2f\n",
+    printf("Key: %d  records: %ld   seeks: %d   max links: %d   "
+           "hitrate: %.2f   buckets: %d\n",
 	   keynr, records, seek, max_links,
-	   (float) seek / (float) (records ? records : 1));
+	   (float) seek / (float) (records ? records : 1), 
+           hash_buckets_found);
   return error;
 }
 

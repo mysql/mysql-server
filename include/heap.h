@@ -87,6 +87,11 @@ typedef struct st_hp_keydef		/* Key definition with open */
   uint8 algorithm;			/* HASH / BTREE */
   HA_KEYSEG *seg;
   HP_BLOCK block;			/* Where keys are saved */
+  /*
+    Number of buckets used in hash table. Used only to provide
+    #records estimates for heap key scans.
+  */
+  ha_rows hash_buckets; 
   TREE rb_tree;
   int (*write_key)(struct st_heap_info *info, struct st_hp_keydef *keyinfo,
 		   const byte *record, byte *recpos);
@@ -102,7 +107,7 @@ typedef struct st_heap_share
   ulong min_records,max_records;	/* Params to open */
   ulong data_length,index_length;
   uint records;				/* records */
-  uint blength;
+  uint blength;				/* records rounded up to 2^n */
   uint deleted;				/* Deleted records in database */
   uint reclength;			/* Length of one record */
   uint changed;

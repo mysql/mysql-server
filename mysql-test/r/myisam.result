@@ -543,7 +543,7 @@ Warnings:
 Note	1031	Table storage engine for 't1' doesn't have this option
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	1	a	1	a	NULL	NULL	NULL	NULL	YES	HASH	
+t1	1	a	1	a	NULL	1000	NULL	NULL	YES	HASH	
 drop table t1,t2;
 create table t1 ( a tinytext, b char(1), index idx (a(1),b) );
 insert into t1 values (null,''), (null,'');
