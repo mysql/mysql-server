@@ -147,31 +147,43 @@ drop table t1;
 # Test for Bug #2593 "SHOW CREATE TABLE doesn't properly double quotes"
 #
 
-SET sql_mode='';
-SET sql_quote_show_create=OFF;
+SET @old_sql_mode= @@sql_mode, sql_mode= '';
+SET @old_sql_quote_show_create= @@sql_quote_show_create, sql_quote_show_create= OFF;
 
-CREATE TABLE ```ab``cd``` (i INT);
-SHOW CREATE TABLE ```ab``cd```;
-DROP TABLE ```ab``cd```;
+######### hook for WL#1324 #
+--error 1103
+CREATE TABLE `a/b` (i INT);
+# the above test should WORK when WL#1324 is done,
+# it should be removed and
+# the following part should be uncommented then
+#########################################################
+# begin of part that must be uncommented when WL#1324 is done
+#########################################################
+#CREATE TABLE ```ab``cd``` (i INT);
+#SHOW CREATE TABLE ```ab``cd```;
+#DROP TABLE ```ab``cd```;
 
-CREATE TABLE ```ab````cd``` (i INT);
-SHOW CREATE TABLE ```ab````cd```;
-DROP TABLE ```ab````cd```;
+#CREATE TABLE ```ab````cd``` (i INT);
+#SHOW CREATE TABLE ```ab````cd```;
+#DROP TABLE ```ab````cd```;
 
-CREATE TABLE ```a` (i INT);
-SHOW CREATE TABLE ```a`;
-DROP TABLE ```a`;
+#CREATE TABLE ```a` (i INT);
+#SHOW CREATE TABLE ```a`;
+#DROP TABLE ```a`;
 
-SET sql_mode='ANSI_QUOTES';
+SET sql_mode= 'ANSI_QUOTES';
 
-CREATE TABLE """a" (i INT);
-SHOW CREATE TABLE """a";
-DROP TABLE """a";
+#CREATE TABLE """a" (i INT);
+#SHOW CREATE TABLE """a";
+#DROP TABLE """a";
+#########################################################
+# end of part that must be uncommented when WL#1324 is done
+#########################################################
 
 # to test quotes around keywords.. :
 
-SET sql_mode='';
-SET sql_quote_show_create=OFF;
+SET sql_mode= '';
+SET sql_quote_show_create= OFF;
 
 CREATE TABLE t1 (i INT);
 SHOW CREATE TABLE t1;
@@ -181,7 +193,8 @@ CREATE TABLE `table` (i INT);
 SHOW CREATE TABLE `table`;
 DROP TABLE `table`;
 
-SET sql_quote_show_create=ON;
+SET sql_quote_show_create= @old_sql_quote_show_create;
+SET sql_mode= @old_sql_mode;
 
 #
 # Test for bug #2719 "Heap tables status shows wrong or missing data."
