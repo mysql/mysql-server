@@ -4744,6 +4744,15 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 				item->name,table,item_sum->decimals);
     case Item_sum::UNIQUE_USERS_FUNC:
       return new Field_long(9,maybe_null,item->name,table,1);
+    case Item_sum::MIN_FUNC:
+    case Item_sum::MAX_FUNC:
+      if (item_sum->args[0]->type() == Item::FIELD_ITEM)
+      {
+        *from_field= ((Item_field*) item_sum->args[0])->field;
+        return create_tmp_field_from_field(thd, *from_field, item, table,
+                                           modify_item, convert_blob_length);
+      }
+      /* fall through */
     default:
       switch (item_sum->result_type()) {
       case REAL_RESULT:
