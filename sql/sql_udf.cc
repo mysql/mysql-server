@@ -345,7 +345,7 @@ static udf_func *add_udf(LEX_STRING *name, Item_result ret, char *dl,
   tmp->returns = ret;
   tmp->type = type;
   tmp->usage_count=1;
-  if (hash_insert(&udf_hash,(byte*)  tmp))
+  if (my_hash_insert(&udf_hash,(byte*)  tmp))
     return 0;
   using_udf_functions=1;
   return tmp;

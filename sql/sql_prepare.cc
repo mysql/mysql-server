@@ -668,7 +668,9 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
     DBUG_RETURN(1);
     if (send_prep_stmt(stmt, fields.elements) ||
         thd->protocol_simple.send_fields(&fields, 0) ||
+#ifndef EMBEDDED_LIBRARY
         net_flush(&thd->net) ||
+#endif
         send_item_params(stmt))
       DBUG_RETURN(1);
     join->cleanup();

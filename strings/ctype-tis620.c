@@ -710,6 +710,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
     my_like_range_tis620,
     my_wildcmp_8bit,	/* wildcmp   */
     my_strcasecmp_8bit,
+    NULL,
     my_hash_sort_simple,
 };
 
@@ -781,7 +782,7 @@ CHARSET_INFO my_charset_tis620_bin=
     1,			/* mbmaxlen  */
     0,
     &my_charset_handler,
-    &my_collation_bin_handler
+    &my_collation_8bit_bin_handler
 };
 
 

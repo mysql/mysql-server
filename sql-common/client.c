@@ -1008,7 +1008,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
   else the lengths are calculated from the offset between pointers.
 **************************************************************************/
 
-static void STDCALL cli_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
+static void STDCALL cli_fetch_lengths(ulong *to, MYSQL_ROW column, unsigned int field_count)
 { 
   ulong *prev_length;
   byte *start=0;
@@ -1140,7 +1140,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 /* Read all rows (fields or data) from server */
 
 MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
-			  uint fields)
+			  unsigned int fields)
 {
   uint	field;
   ulong pkt_len;
@@ -1405,11 +1405,14 @@ static MYSQL_METHODS client_methods=
   cli_advanced_command,
   cli_read_rows,
   cli_mysql_use_result,
-  cli_fetch_lengths,
-  cli_list_fields,
+  cli_fetch_lengths
+#ifndef MYSQL_SERVER
+  ,cli_list_fields,
   cli_read_prepare_result,
   cli_stmt_execute,
-  cli_read_binary_rows
+  cli_read_binary_rows,
+  cli_unbuffered_fetch
+#endif
 };
 
 MYSQL * STDCALL 
@@ -1998,7 +2001,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 	goto error;
       if (mysql->fields)
       {
-	if (!(res= mysql_use_result(mysql)))
+	if (!(res= cli_mysql_use_result(mysql)))
 	  goto error;
 	mysql_free_result(res);
       }
@@ -2217,7 +2220,7 @@ static my_bool STDCALL cli_mysql_read_query_result(MYSQL *mysql)
   ulong field_count;
   MYSQL_DATA *fields;
   ulong length;
-  DBUG_ENTER("mysql_read_query_result");
+  DBUG_ENTER("cli_mysql_read_query_result");
 
   /*
     Read from the connection which we actually used, which
@@ -2320,7 +2323,7 @@ mysql_real_query(MYSQL *mysql, const char *query, ulong length)
 
   if (mysql_send_query(mysql,query,length))
     DBUG_RETURN(1);
-  DBUG_RETURN((int) mysql_read_query_result(mysql));
+  DBUG_RETURN((int) (*mysql->methods->read_query_result)(mysql));
 }
 
 
@@ -2389,7 +2392,7 @@ MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
 static MYSQL_RES * STDCALL cli_mysql_use_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
-  DBUG_ENTER("mysql_use_result");
+  DBUG_ENTER("cli_mysql_use_result");
 
   mysql = mysql->last_used_con;
 

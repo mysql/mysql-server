@@ -115,12 +115,17 @@ typedef struct my_collation_handler_st
 
   int  (*strcasecmp)(struct charset_info_st *, const char *, const char *);
   
+  int  (*instr)(struct charset_info_st *,
+                const char *big,   uint b_length,
+                const char *small, uint s_length);
+  
   /* Hash calculation */
   void (*hash_sort)(struct charset_info_st *cs, const uchar *key, uint len,
 		    ulong *nr1, ulong *nr2); 
 } MY_COLLATION_HANDLER;
 
-extern MY_COLLATION_HANDLER my_collation_bin_handler;
+extern MY_COLLATION_HANDLER my_collation_mb_bin_handler;
+extern MY_COLLATION_HANDLER my_collation_8bit_bin_handler;
 extern MY_COLLATION_HANDLER my_collation_8bit_simple_ci_handler;
 
 
@@ -243,6 +248,10 @@ extern void my_hash_sort_simple(CHARSET_INFO *cs,
 
 extern uint my_lengthsp_8bit(CHARSET_INFO *cs, const char *ptr, uint length);
 
+extern int  my_instr_simple(struct charset_info_st *,
+                            const char *big,   uint b_length,
+                            const char *small, uint s_length);
+
 
 /* Functions for 8bit */
 extern void my_caseup_str_8bit(CHARSET_INFO *, char *);
@@ -307,6 +316,9 @@ int my_wildcmp_mb(CHARSET_INFO *,
 		  int escape, int w_one, int w_many);
 uint my_numchars_mb(CHARSET_INFO *, const char *b, const char *e);
 uint my_charpos_mb(CHARSET_INFO *, const char *b, const char *e, uint pos);
+int  my_instr_mb(struct charset_info_st *,
+                 const char *big,   uint b_length,
+                 const char *small, uint s_length);
 
 
 extern my_bool my_parse_charset_xml(const char *bug, uint len,

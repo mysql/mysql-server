@@ -1302,7 +1302,7 @@ bool sys_var_collation::check(THD *thd, set_var *var)
   String str(buff,sizeof(buff), system_charset_info), *res;
 
   if (!(res=var->value->val_str(&str)))
-    res= &empty_string;
+    res= &my_empty_string;
 
   if (!(tmp=get_charset_by_name(res->c_ptr(),MYF(0))))
   {
@@ -1925,7 +1925,7 @@ void set_var_init()
   {
     (*var)->name_length= strlen((*var)->name);
     (*var)->option_limits= find_option(my_long_options, (*var)->name);
-    hash_insert(&system_variable_hash, (byte*) *var);
+    my_hash_insert(&system_variable_hash, (byte*) *var);
   }
   /*
     Special cases

@@ -102,7 +102,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
 static MYSQL_DATA * STDCALL 
 emb_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields __attribute__((unused)),
-	      uint fields __attribute__((unused)))
+	      unsigned int fields __attribute__((unused)))
 {
   MYSQL_DATA *result= ((THD*)mysql->thd)->data;
   if (!result)
@@ -154,7 +154,7 @@ static my_bool STDCALL emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   else the lengths are calculated from the offset between pointers.
 **************************************************************************/
 
-static void STDCALL emb_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
+static void STDCALL emb_fetch_lengths(ulong *to, MYSQL_ROW column, unsigned int field_count)
 { 
   MYSQL_ROW end;
 
@@ -195,6 +195,26 @@ MYSQL_DATA *emb_read_binary_rows(MYSQL_STMT *stmt)
   return emb_read_rows(stmt->mysql, 0, 0);
 }
 
+int STDCALL emb_unbuffered_fetch(MYSQL *mysql, char **row)
+{
+  MYSQL_DATA *data= ((THD*)mysql->thd)->data;
+  if (!data || !data->data)
+  {
+    *row= NULL;
+    if (data)
+    {
+      free_rows(data);
+      ((THD*)mysql->thd)->data= NULL;
+    }
+  }
+  else
+  {
+    *row= (char *)data->data->data;
+    data->data= data->data->next;
+  }
+  return 0;
+}
+
 MYSQL_METHODS embedded_methods= 
 {
   emb_mysql_read_query_result,
@@ -205,7 +225,8 @@ MYSQL_METHODS embedded_methods=
   emb_list_fields,
   emb_read_prepare_result,
   emb_stmt_execute,
-  emb_read_binary_rows
+  emb_read_binary_rows,
+  emb_unbuffered_fetch
 };
 
 C_MODE_END
@@ -453,6 +474,16 @@ void *create_embedded_thd(int client_flag, char *db)
   return thd;
 }
 
+void free_embedded_thd(MYSQL *mysql)
+{
+  THD *thd= (THD*)mysql->thd;
+  if (!thd)
+    return;
+  if (thd->data)
+    free_rows(thd->data);
+  delete thd;
+}
+
 C_MODE_END
 
 bool Protocol::send_fields(List<Item> *list, uint flag)
@@ -561,9 +592,8 @@ bool Protocol_prep::write()
 
   *data->prev_ptr= cur;
   data->prev_ptr= &cur->next;
-  next_field=cur->data;
-  next_mysql_field= thd->mysql->fields;
-
+  cur->next= 0;
+  
   return false;
 }
 
