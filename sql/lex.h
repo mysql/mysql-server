@@ -512,6 +512,7 @@ static SYMBOL sql_functions[] = {
   { "ISEMPTY",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_isempty)},
   { "ISNULL",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_isnull)},
   { "IS_FREE_LOCK",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_is_free_lock)},
+  { "IS_USED_LOCK",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_is_used_lock)},
   { "LAST_INSERT_ID",	SYM(LAST_INSERT_ID),0,0},
   { "ISSIMPLE",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_issimple)},
   { "LCASE",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_lcase)},
