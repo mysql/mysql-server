@@ -1,0 +1,13 @@
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connection con1;
+reset master;
+create database `drop-temp+table-test`;
+use `drop-temp+table-test`;
+create temporary table `table:name` (a int);
+disconnect con1;
+connection con2;
+let $VERSION=`select version()`;
+--replace_result $VERSION VERSION
+show binlog events;
+drop database `drop-temp+table-test`;
