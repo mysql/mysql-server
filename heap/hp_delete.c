@@ -97,8 +97,8 @@ int hp_rb_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
     flag		Is set if we want's to correct info->current_ptr
 
   RETURN
-    0	ok
-    #	error number
+    0      Ok
+    other  Error code
 */
 
 int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
@@ -151,6 +151,8 @@ int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
     pos->ptr_to_rec=empty->ptr_to_rec;
     pos->next_key=empty->next_key;
   }
+  else
+    keyinfo->hash_buckets--;
 
   if (empty == lastpos)			/* deleted last hash key */
     DBUG_RETURN (0);
@@ -187,7 +189,11 @@ int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
     }
     pos3= pos;				/* Link pos->next after lastpos */
   }
-  else pos3= 0;				/* Different positions merge */
+  else
+  {
+    pos3= 0;				/* Different positions merge */
+    keyinfo->hash_buckets--;
+  }
 
   empty[0]=lastpos[0];
   hp_movelink(pos3, empty, pos->next_key);
