@@ -1033,3 +1033,81 @@ a
 No
 aaa,bbb
 drop table t1,t2,t3,t4;
+create table t1 as
+(select _latin1'test') union
+(select _latin1'TEST') union
+(select _latin1'TeST');
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `test` char(4) NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select count(*) from t1;
+count(*)
+1
+drop table t1;
+create table t1 as
+(select _latin1'test' collate latin1_bin) union
+(select _latin1'TEST') union
+(select _latin1'TeST');
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `_latin1'test' collate latin1_bin` char(4) character set latin1 collate latin1_bin NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select count(*) from t1;
+count(*)
+3
+drop table t1;
+create table t1 as
+(select _latin1'test') union
+(select _latin1'TEST' collate latin1_bin) union
+(select _latin1'TeST');
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `test` char(4) character set latin1 collate latin1_bin NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select count(*) from t1;
+count(*)
+3
+drop table t1;
+create table t1 as
+(select _latin1'test') union
+(select _latin1'TEST') union
+(select _latin1'TeST' collate latin1_bin);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `test` char(4) character set latin1 collate latin1_bin NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select count(*) from t1;
+count(*)
+3
+drop table t1;
+create table t2 (
+a char character set latin1 collate latin1_swedish_ci,
+b char character set latin1 collate latin1_bin);
+create table t1 as
+(select a from t2) union
+(select b from t2);
+ERROR HY000: Illegal mix of collations for operation 'UNION'
+create table t1 as
+(select a collate latin1_german1_ci from t2) union
+(select b from t2);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a collate latin1_german1_ci` char(1) character set latin1 collate latin1_german1_ci default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 as
+(select a from t2) union
+(select b collate latin1_german1_ci from t2);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(1) character set latin1 collate latin1_german1_ci default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+drop table t2;

@@ -58,8 +58,7 @@ using its non-default counterpart for the given character set.
 
 binary_numner - ID of a charset+collation pair, which consists
 of the same character set and the binary collation of this
-character set. Not really used now. Intended to optimize
-"SELECT BINARY x" in the future.
+character set. Not really used now. 
 
 Names
 -----
@@ -121,7 +120,7 @@ Misc fields
                      e.g. Letter 'A' with two dots above is
                      substituted with 'AE'. 
   mbminlen         - mininum multibyte sequence length.
-                     Now always 1 accept ucs2. For ucs2
+                     Now always 1 except ucs2. For ucs2
                      it is 2.
   mbmaxlen         - maximum multibyte sequence length.
                      1 for 8bit charsets. Can be also 2 or 3.

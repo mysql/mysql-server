@@ -595,3 +595,58 @@ select a as a from t3 union select "1";
 select a as a from t4 union select a from t3;
 select a as a from t1 union select a from t4;
 drop table t1,t2,t3,t4;
+
+#
+# Bug #6139 UNION doesn't understand collate in the column of second select
+#
+create table t1 as
+(select _latin1'test') union
+(select _latin1'TEST') union
+(select _latin1'TeST');
+show create table t1;
+select count(*) from t1;
+drop table t1;
+
+create table t1 as
+(select _latin1'test' collate latin1_bin) union
+(select _latin1'TEST') union
+(select _latin1'TeST');
+show create table t1;
+select count(*) from t1;
+drop table t1;
+
+create table t1 as
+(select _latin1'test') union
+(select _latin1'TEST' collate latin1_bin) union
+(select _latin1'TeST');
+show create table t1;
+select count(*) from t1;
+drop table t1;
+
+create table t1 as
+(select _latin1'test') union
+(select _latin1'TEST') union
+(select _latin1'TeST' collate latin1_bin);
+show create table t1;
+select count(*) from t1;
+drop table t1;
+
+create table t2 (
+a char character set latin1 collate latin1_swedish_ci,
+b char character set latin1 collate latin1_bin);
+--error 1271
+create table t1 as
+(select a from t2) union
+(select b from t2);
+create table t1 as
+(select a collate latin1_german1_ci from t2) union
+(select b from t2);
+show create table t1;
+drop table t1;
+create table t1 as
+(select a from t2) union
+(select b collate latin1_german1_ci from t2);
+show create table t1;
+drop table t1;
+drop table t2;
+
