@@ -1,0 +1,12 @@
+# TODO: Only run this if we have privilege to do flush table
+
+#
+# Test of flush table
+#
+
+#create table t1 (a int not null auto_increment primary key);
+#insert into t1 values(0);
+#lock table t1 read;
+#flush table t1;
+#check table t1;
+#drop table t1;

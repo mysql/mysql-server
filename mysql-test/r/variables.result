@@ -1,0 +1,12 @@
+@test	@`select`	@TEST	@not_used
+1	2	3	NULL
+@test_int	@test_double	@test_string	@test_string2	@select
+10	0.00	abcdeghi	abcdefghij	NULL
+@test_int	@test_double	@test_string	@test_string2
+hello	hello	hello	hello
+@test_int	@test_double	@test_string	@test_string2
+hellohello	hellohello	hellohello	hellohello
+@test_int	@test_double	@test_string	@test_string2
+NULL	NULL	NULL	NULL
+@t1:=(@t2:=1)+@t3:=4	@t1	@t2	@t3
+5	5	1	4

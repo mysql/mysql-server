@@ -7,4 +7,10 @@ extra_flags="$pentium_cflags $fast_cflags"
 extra_configs="$pentium_configs"
 strip=yes
 
+# Use the optimized version if it exists
+if test -d /usr/local/BerkeleyDB-opt/
+then
+ extra_configs="$extra_configs --with-berkeley-db=/usr/local/BerkeleyDB-opt/"
+fi
+
 . "$path/FINISH.sh"

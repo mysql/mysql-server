@@ -1,0 +1,17 @@
+#
+# testing of the TIME column type
+#
+create table t1 (t time);
+insert into t1 values("10:22:33"),("12:34:56.78"),(10),(1234),(123456.78),(1234559.99),("1"),("1:23"),("1:23:45"), ("10.22"), ("-10  1:22:33.45"),("20 10:22:33"),("1999-02-03 20:33:34");
+insert t1 values (30),(1230),("1230"),("12:30"),("12:30:35"),("1 12:30:31.32");
+select * from t1;
+# Test wrong values
+insert into t1 values("10.22.22"),(1234567),(123456789),(123456789.10),("10 22:22"),("12.45a");
+select * from t1;
+drop table t1;
+
+create table t1 (t time);
+insert into t1 values ('09:00:00'),('13:00:00'),('19:38:34'), ('13:00:00'),('09:00:00'),('09:00:00'),('13:00:00'),('13:00:00'),('13:00:00'),('09:00:00');
+select t, time_to_sec(t),sec_to_time(time_to_sec(t)) from t1;
+select sec_to_time(time_to_sec(t)) from t1;
+drop table t1;

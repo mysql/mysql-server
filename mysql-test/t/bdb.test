@@ -1,3 +1,9 @@
+-- source include/have_bdb.inc
+
+#
+# Small basic test with ignore
+#
+
 drop table if exists t1;
 create table t1 (id int unsigned not null auto_increment, code tinyint unsigned not null, name char(20) not null, primary key (id), key (code), unique (name)) type=bdb;
 
@@ -9,4 +15,314 @@ select id, code, name from t1 order by id;
 update ignore t1 set id = id + 10, name = 'Ralph' where id < 4;
 select id, code, name from t1 order by id;
 
+drop table t1;
+
+#
+# A bit bigger test
+#
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL auto_increment,
+  parent_id int(11) DEFAULT '0' NOT NULL,
+  level tinyint(4) DEFAULT '0' NOT NULL,
+  PRIMARY KEY (id),
+  KEY parent_id (parent_id),
+  KEY level (level)
+) type=bdb;
+INSERT INTO t1 VALUES (1,0,0),(3,1,1),(4,1,1),(8,2,2),(9,2,2),(17,3,2),(22,4,2),(24,4,2),(28,5,2),(29,5,2),(30,5,2),(31,6,2),(32,6,2),(33,6,2),(203,7,2),(202,7,2),(20,3,2),(157,0,0),(193,5,2),(40,7,2),(2,1,1),(15,2,2),(6,1,1),(34,6,2),(35,6,2),(16,3,2),(7,1,1),(36,7,2),(18,3,2),(26,5,2),(27,5,2),(183,4,2),(38,7,2),(25,5,2),(37,7,2),(21,4,2),(19,3,2),(5,1,1),(179,5,2);
+update t1 set parent_id=parent_id+100;
+select * from t1 where parent_id=102;
+update t1 set id=id+1000;
+!$1062 update t1 set id=1024 where id=1009; 
+select * from t1;
+update ignore t1 set id=id+1; # This will change all rows
+select * from t1;
+update ignore t1 set id=1023 where id=1010;
+select * from t1 where parent_id=102;
+explain select level from t1 where level=1;
+explain select level,id from t1 where level=1;
+explain select level,id,parent_id from t1 where level=1;
+select level,id from t1 where level=1;
+select level,id,parent_id from t1 where level=1;
+drop table t1;
+
+#
+# Test replace
+#
+
+CREATE TABLE t1 (
+  gesuchnr int(11) DEFAULT '0' NOT NULL,
+  benutzer_id int(11) DEFAULT '0' NOT NULL,
+  PRIMARY KEY (gesuchnr,benutzer_id)
+) type=BDB;
+
+replace into t1 (gesuchnr,benutzer_id) values (2,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+select * from t1;
+drop table t1;
+
+#
+# test delete using hidden_primary_key
+#
+
+create table t1 (a int) type=bdb;
+insert into t1 values (1), (2);
+delete from t1 where a = 1;
+select * from t1;
+drop table t1;
+
+#
+# Test auto_increment on sub key
+#
+
+create table t1 (a char(10) not null, b int not null auto_increment, primary key(a,b)) type=BDB;
+insert into t1 values ("a",1),("b",2),("a",2),("c",1);
+insert into t1 values ("a",NULL),("b",NULL),("c",NULL),("e",NULL);
+insert into t1 (a) values ("a"),("b"),("c"),("d");
+insert into t1 (a) values ('k'),('d');
+insert into t1 (a) values ("a");
+insert into t1 values ("d",last_insert_id());
+select * from t1;
+drop table t1;
+
+#
+# Test rollback
+#
+
+create table t1 (n int not null primary key) type=bdb;
+set autocommit=0;
+insert into t1 values (4);
+rollback;
+select n, "after rollback" from t1;
+insert into t1 values (4);
+commit;
+select n, "after commit" from t1;
+commit;
+insert into t1 values (5);
+!$1062 insert into t1 values (4);
+commit;
+select n, "after commit" from t1;
+set autocommit=1;
+insert into t1 values (6);
+!$1062 insert into t1 values (4);
+select n from t1;
+# nop
+rollback;
+drop table t1;
+
+#
+# Testing transactions
+#
+
+create table t1 ( id int NOT NULL PRIMARY KEY, nom varchar(64)) type=BDB;
+begin;
+insert into t1 values(1,'hamdouni');
+select id as afterbegin_id,nom as afterbegin_nom from t1;
+rollback;
+select id as afterrollback_id,nom as afterrollback_nom from t1;
+set autocommit=0;
+insert into t1 values(2,'mysql');
+select id as afterautocommit0_id,nom as afterautocommit0_nom from t1;
+rollback;
+select id as afterrollback_id,nom as afterrollback_nom from t1;
+set autocommit=1;
+drop table t1;
+
+#
+# Simple not autocommit test
+# 
+
+CREATE TABLE t1 (id char(8) not null primary key, val int not null) type=bdb;
+insert into t1 values ('pippo', 12);
+!$1062 insert into t1 values ('pippo', 12); # Gives error
+delete from t1;
+delete from t1 where id = 'pippo';
+select * from t1;
+
+insert into t1 values ('pippo', 12);
+set autocommit=0;
+delete from t1;
+rollback;
+select * from t1;
+delete from t1;
+commit;
+select * from t1;
+drop table t1;
+set autocommit=1;
+
+#
+# The following simple tests failed at some point
+#
+
+CREATE TABLE t1 (ID INTEGER NOT NULL PRIMARY KEY, NAME VARCHAR(64)) TYPE=BDB;
+INSERT INTO t1 VALUES (1, 'Jochen');
+select * from t1;
+drop table t1;
+
+CREATE TABLE t1 ( _userid VARCHAR(60) NOT NULL PRIMARY KEY) TYPE=BDB;
+set autocommit=0;
+INSERT INTO t1  SET _userid='marc@anyware.co.uk';
+COMMIT;
+SELECT * FROM t1;
+SELECT _userid FROM t1 WHERE _userid='marc@anyware.co.uk';
+drop table t1;
+set autocommit=1;
+
+#
+# Test when reading on part of unique key
+#
+CREATE TABLE t1 (
+  user_id int(10) DEFAULT '0' NOT NULL,
+  name varchar(100),
+  phone varchar(100),
+  ref_email varchar(100) DEFAULT '' NOT NULL,
+  detail varchar(200),
+  PRIMARY KEY (user_id,ref_email)
+)type=bdb;
+
+INSERT INTO t1 VALUES (10292,'sanjeev','29153373','sansh777@hotmail.com','xxx'),(10292,'shirish','2333604','shirish@yahoo.com','ddsds'),(10292,'sonali','323232','sonali@bolly.com','filmstar');
+select * from t1 where user_id=10292;
+INSERT INTO t1 VALUES (10291,'sanjeev','29153373','sansh777@hotmail.com','xxx'),(10293,'shirish','2333604','shirish@yahoo.com','ddsds');
+select * from t1 where user_id=10292;
+select * from t1 where user_id>=10292;
+select * from t1 where user_id>10292;
+select * from t1 where user_id<10292;
+drop table t1;
+
+#
+# Test that keys are created in right order
+#
+
+CREATE TABLE t1 (a int not null, b int not null,c int not null,
+key(a),primary key(a,b), unique(c),key(a),unique(b));
+show index from t1;
+drop table t1;
+
+#
+# Test of ALTER TABLE and BDB tables
+#
+
+create table t1 (col1 int not null, col2 char(4) not null, primary key(col1));
+alter table t1 type=BDB;
+insert into t1 values ('1','1'),('5','2'),('2','3'),('3','4'),('4','4');
+select * from t1;
+update t1 set col2='7' where col1='4';
+select * from t1;
+alter table t1 add co3 int not null;
+select * from t1;
+update t1 set col2='9' where col1='2';
+select * from t1;
+drop table t1;
+
+#
+# INSERT INTO BDB tables
+#
+
+create table t1 (a int not null , b int, primary key (a)) type = BDB;
+create table t2 (a int not null , b int, primary key (a)) type = myisam;
+insert into t1 VALUES (1,3) , (2,3), (3,3);
+select * from t1;
+insert into t2 select * from t1;
+select * from t2;
+delete from t1 where b = 3;
+select * from t1;
+insert into t1 select * from t2;
+select * from t1;
+select * from t2;
+drop table t1,t2;
+
+#
+# Search on unique key
+#
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL auto_increment,
+  ggid varchar(32) binary DEFAULT '' NOT NULL,
+  email varchar(64) DEFAULT '' NOT NULL,
+  passwd varchar(32) binary DEFAULT '' NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE ggid (ggid)
+) TYPE=BDB;
+
+insert into t1 (ggid,passwd) values ('test1','xxx');
+insert into t1 (ggid,passwd) values ('test2','yyy');
+
+select * from t1 where ggid='test1';
+select * from t1 where passwd='xxx';
+select * from t1 where id=2;
+drop table t1;
+
+#
+# ORDER BY on not primary key
+#
+
+CREATE TABLE t1 (
+  user_name varchar(12),
+  password text,
+  subscribed char(1),
+  user_id int(11) DEFAULT '0' NOT NULL,
+  quota bigint(20),
+  weight double,
+  access_date date,
+  access_time time,
+  approved datetime,
+  dummy_primary_key int(11) NOT NULL auto_increment,
+  PRIMARY KEY (dummy_primary_key)
+) TYPE=BDB;
+INSERT INTO t1 VALUES ('user_0','somepassword','N',0,0,0,'2000-09-07','23:06:59','2000-09-07 23:06:59',1);
+INSERT INTO t1 VALUES ('user_1','somepassword','Y',1,1,1,'2000-09-07','23:06:59','2000-09-07 23:06:59',2);
+INSERT INTO t1 VALUES ('user_2','somepassword','N',2,2,1.4142135623731,'2000-09-07','23:06:59','2000-09-07 23:06:59',3);
+INSERT INTO t1 VALUES ('user_3','somepassword','Y',3,3,1.7320508075689,'2000-09-07','23:06:59','2000-09-07 23:06:59',4);
+INSERT INTO t1 VALUES ('user_4','somepassword','N',4,4,2,'2000-09-07','23:06:59','2000-09-07 23:06:59',5);
+select  user_name, password , subscribed, user_id, quota, weight, access_date, access_time, approved, dummy_primary_key from t1 order by user_name;
+drop table t1;
+
+#
+# Testing of tables without primary keys
+#
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL auto_increment,
+  parent_id int(11) DEFAULT '0' NOT NULL,
+  level tinyint(4) DEFAULT '0' NOT NULL,
+  KEY (id),
+  KEY parent_id (parent_id),
+  KEY level (level)
+) type=bdb;
+INSERT INTO t1 VALUES (1,0,0),(3,1,1),(4,1,1),(8,2,2),(9,2,2),(17,3,2),(22,4,2),(24,4,2),(28,5,2),(29,5,2),(30,5,2),(31,6,2),(32,6,2),(33,6,2),(203,7,2),(202,7,2),(20,3,2),(157,0,0),(193,5,2),(40,7,2),(2,1,1),(15,2,2),(6,1,1),(34,6,2),(35,6,2),(16,3,2),(7,1,1),(36,7,2),(18,3,2),(26,5,2),(27,5,2),(183,4,2),(38,7,2),(25,5,2),(37,7,2),(21,4,2),(19,3,2),(5,1,1);
+INSERT INTO t1 values (179,5,2);
+update t1 set parent_id=parent_id+100;
+select * from t1 where parent_id=102;
+update t1 set id=id+1000;
+update t1 set id=1024 where id=1009; 
+select * from t1;
+update ignore t1 set id=id+1; # This will change all rows
+select * from t1;
+update ignore t1 set id=1023 where id=1010;
+select * from t1 where parent_id=102;
+explain select level from t1 where level=1;
+select level,id from t1 where level=1;
+select level,id,parent_id from t1 where level=1;
+select level,id from t1 where level=1 order by id;
+delete from t1 where level=1;
+select * from t1;
+drop table t1;
+
+#
+# Test of index only reads
+#
+CREATE TABLE t1 (
+   sca_code char(6) NOT NULL,
+   cat_code char(6) NOT NULL,
+   sca_desc varchar(50),
+   lan_code char(2) NOT NULL,
+   sca_pic varchar(100),
+   sca_sdesc varchar(50),
+   sca_sch_desc varchar(16),
+   PRIMARY KEY (sca_code, cat_code, lan_code)
+) type = bdb ;
+
+INSERT INTO t1 ( sca_code, cat_code, sca_desc, lan_code, sca_pic, sca_sdesc, sca_sch_desc) VALUES ( 'PD', 'J', 'PENDANT', 'EN', NULL, NULL, 'PENDANT'),( 'RI', 'J', 'RING', 'EN', NULL, NULL, 'RING');
+select count(*) from t1 where sca_code = 'PD';
 drop table t1;

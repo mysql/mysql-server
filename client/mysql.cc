@@ -39,7 +39,7 @@
 #include "my_readline.h"
 #include <signal.h>
 
-const char *VER="11.9";
+const char *VER="11.10";
 
 gptr sql_alloc(unsigned size);	     // Don't use mysqld alloc for these
 void sql_element_free(void *ptr);
@@ -903,7 +903,6 @@ static bool add_line(String &buffer,char *line,char *in_string)
       continue;
 #ifdef USE_MB
     int l;
-/*    if ((l = ismbchar(pos, pos+MBMAXLEN))) {  Wei He: I think it's wrong! */
     if (use_mb(default_charset_info) &&
         (l = my_ismbchar(default_charset_info, pos, strend))) {
 	while (l--)
@@ -2163,7 +2162,9 @@ com_status(String *buffer __attribute__((unused)),
   tee_fprintf(stdout, "Server version:\t\t%s\n", mysql_get_server_info(&mysql));
   tee_fprintf(stdout, "Protocol version:\t%d\n", mysql_get_proto_info(&mysql));
   tee_fprintf(stdout, "Connection:\t\t%s\n", mysql_get_host_info(&mysql));
-  tee_fprintf(stdout, "Language:\t\t%s\n", mysql.charset->name);
+  tee_fprintf(stdout, "Client characterset:\t%s\n",
+	      default_charset_info->name);
+  tee_fprintf(stdout, "Server characterset:\t%s\n", mysql.charset->name);
   if (strstr(mysql_get_host_info(&mysql),"TCP/IP") || ! mysql.unix_socket)
     tee_fprintf(stdout, "TCP port:\t\t%d\n", mysql.port);
   else

@@ -1,8 +1,37 @@
+#
+# Check for problems with delete
+#
+
 drop table if exists t1;
+CREATE TABLE t1 (a tinyint(3), b tinyint(5));
+INSERT INTO t1 VALUES (1,1);
+INSERT LOW_PRIORITY INTO t1 VALUES (1,2);
+INSERT INTO t1 VALUES (1,3);
+DELETE from t1 where a=1 limit 1;
+DELETE LOW_PRIORITY from t1 where a=1;
 
-# test delete using hidden_primary_key
-create table t1 (a int) type=bdb;
-insert into t1 values (1), (2);
-delete from t1 where a = 1;
+INSERT INTO t1 VALUES (1,1);
+DELETE from t1;
+LOCK TABLE t1 write;
+INSERT INTO t1 VALUES (1,2);
+DELETE from t1;
+UNLOCK TABLES;
+INSERT INTO t1 VALUES (1,2);
+SET AUTOCOMMIT=0;
+DELETE from t1;
+SET AUTOCOMMIT=1;
+drop table t1;
 
+#
+# Test of delete when the delete will cause a node to disappear and reappear
+# (This assumes a block size of 1024)
+#
+
+create table t1 (a bigint not null, primary key (a,a,a,a,a,a,a,a,a,a));
+insert into t1 values (2),(4),(6),(8),(10),(12),(14),(16),(18),(20),(22),(24),(26),(23);
+delete from t1 where a=26;
+drop table t1;
+create table t1 (a bigint not null, primary key (a,a,a,a,a,a,a,a,a,a));
+insert into t1 values (2),(4),(6),(8),(10),(12),(14),(16),(18),(20),(22),(24),(26),(23),(27);
+delete from t1 where a=27;
 drop table t1;

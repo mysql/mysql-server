@@ -1,0 +1,186 @@
+from_days(to_days("960101"))	to_days(960201)-to_days("19960101")	to_days(date_add(curdate(), interval 1 day))-to_days(curdate())	weekday("1997-11-29")
+1996-01-01	31	1	5
+period_add("9602",-12)	period_diff(199505,"9404")
+199502	13
+now()-now()	weekday(curdate())-weekday(now())	unix_timestamp()-unix_timestamp(now())
+0	0	0
+from_unixtime(unix_timestamp("1994-03-02 10:11:12"))	from_unixtime(unix_timestamp("1994-03-02 10:11:12"),"%Y-%m-%d %h:%i:%s")	from_unixtime(unix_timestamp("1994-03-02 10:11:12"))+0
+1994-03-02 10:11:12	1994-03-02 10:11:12	19940302101112
+sec_to_time(9001)	sec_to_time(9001)+0	time_to_sec("15:12:22")
+02:30:01	23001	54742
+now()-curdate()*1000000-curtime()
+0
+strcmp(current_timestamp(),concat(current_date()," ",current_time()))
+0
+date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w")
+January Thursday 2nd 1997 97 01 02 03 04 05 4
+date_format("1997-01-02", concat("%M %W %D ","%Y %y %m %d %h %i %s %w"))
+January Thursday 2nd 1997 97 01 02 12 00 00 4
+dayofmonth("1997-01-02")	dayofmonth(19970323)
+2	23
+month("1997-01-02")	year("98-02-03")	dayofyear("1997-12-31")
+1	1998	365
+DAYOFYEAR("1997-03-03")	WEEK("1998-03-03")	QUARTER(980303)
+62	9	1
+HOUR("1997-03-03 23:03:22")	MINUTE("23:03:22")	SECOND(230322)
+23	3	22
+week(19980101)	week(19970101)	week(19980101,1)	week(19970101,1)
+0	1	1	1
+week(19981231)	week(19971231)	week(19981231,1)	week(19971231,1)
+52	53	53	53
+week(19950101)	week(19950101,1)
+1	0
+yearweek('1981-12-31',1)	yearweek('1982-01-01',1)	yearweek('1982-12-31',1)	yearweek('1983-01-01',1)
+198153	198153	198252	198252
+date_format('1998-12-31','%x-%v')	date_format('1999-01-01','%x-%v')
+1998-53	1998-53
+date_format('1999-12-31','%x-%v')	date_format('2000-01-01','%x-%v')
+1999-52	1999-52
+yearweek('1987-01-01',1)	yearweek('1987-01-01')
+198701	198653
+dayname("1962-03-03")	dayname("1962-03-03")+0
+Saturday	5
+monthname("1972-03-04")	monthname("1972-03-04")+0
+March	3
+time_format(19980131000000,'%H|%I|%k|%l|%i|%p|%r|%S|%T')
+00|12|0|12|00|AM|12:00:00 AM|00|00:00:00
+time_format(19980131010203,'%H|%I|%k|%l|%i|%p|%r|%S|%T')
+01|01|1|1|02|AM|01:02:03 AM|03|01:02:03
+time_format(19980131131415,'%H|%I|%k|%l|%i|%p|%r|%S|%T')
+13|01|13|1|14|PM|01:14:15 PM|15|13:14:15
+time_format(19980131010015,'%H|%I|%k|%l|%i|%p|%r|%S|%T')
+01|01|1|1|00|AM|01:00:15 AM|15|01:00:15
+date_format(concat('19980131',131415),'%H|%I|%k|%l|%i|%p|%r|%S|%T| %M|%W|%D|%Y|%y|%a|%b|%j|%m|%d|%h|%s|%w')
+13|01|13|1|14|PM|01:14:15 PM|15|13:14:15| January|Saturday|31st|1998|98|Sat|Jan|031|01|31|01|15|6
+date_format(19980021000000,'%H|%I|%k|%l|%i|%p|%r|%S|%T| %M|%W|%D|%Y|%y|%a|%b|%j|%m|%d|%h|%s|%w')
+NULL
+date_add("1997-12-31 23:59:59",INTERVAL 1 SECOND)
+1998-01-01 00:00:00
+date_add("1997-12-31 23:59:59",INTERVAL 1 MINUTE)
+1998-01-01 00:00:59
+date_add("1997-12-31 23:59:59",INTERVAL 1 HOUR)
+1998-01-01 00:59:59
+date_add("1997-12-31 23:59:59",INTERVAL 1 DAY)
+1998-01-01 23:59:59
+date_add("1997-12-31 23:59:59",INTERVAL 1 MONTH)
+1998-01-31 23:59:59
+date_add("1997-12-31 23:59:59",INTERVAL 1 YEAR)
+1998-12-31 23:59:59
+date_add("1997-12-31 23:59:59",INTERVAL "1:1" MINUTE_SECOND)
+1998-01-01 00:01:00
+date_add("1997-12-31 23:59:59",INTERVAL "1:1" HOUR_MINUTE)
+1998-01-01 01:00:59
+date_add("1997-12-31 23:59:59",INTERVAL "1:1" DAY_HOUR)
+1998-01-02 00:59:59
+date_add("1997-12-31 23:59:59",INTERVAL "1 1" YEAR_MONTH)
+1999-01-31 23:59:59
+date_add("1997-12-31 23:59:59",INTERVAL "1:1:1" HOUR_SECOND)
+1998-01-01 01:01:00
+date_add("1997-12-31 23:59:59",INTERVAL "1 1:1" DAY_MINUTE)
+1998-01-02 01:00:59
+date_add("1997-12-31 23:59:59",INTERVAL "1 1:1:1" DAY_SECOND)
+1998-01-02 01:01:00
+date_sub("1998-01-01 00:00:00",INTERVAL 1 SECOND)
+1997-12-31 23:59:59
+date_sub("1998-01-01 00:00:00",INTERVAL 1 MINUTE)
+1997-12-31 23:59:00
+date_sub("1998-01-01 00:00:00",INTERVAL 1 HOUR)
+1997-12-31 23:00:00
+date_sub("1998-01-01 00:00:00",INTERVAL 1 DAY)
+1997-12-31 00:00:00
+date_sub("1998-01-01 00:00:00",INTERVAL 1 MONTH)
+1997-12-01 00:00:00
+date_sub("1998-01-01 00:00:00",INTERVAL 1 YEAR)
+1997-01-01 00:00:00
+date_sub("1998-01-01 00:00:00",INTERVAL "1:1" MINUTE_SECOND)
+1997-12-31 23:58:59
+date_sub("1998-01-01 00:00:00",INTERVAL "1:1" HOUR_MINUTE)
+1997-12-31 22:59:00
+date_sub("1998-01-01 00:00:00",INTERVAL "1:1" DAY_HOUR)
+1997-12-30 23:00:00
+date_sub("1998-01-01 00:00:00",INTERVAL "1 1" YEAR_MONTH)
+1996-12-01 00:00:00
+date_sub("1998-01-01 00:00:00",INTERVAL "1:1:1" HOUR_SECOND)
+1997-12-31 22:58:59
+date_sub("1998-01-01 00:00:00",INTERVAL "1 1:1" DAY_MINUTE)
+1997-12-30 22:59:00
+date_sub("1998-01-01 00:00:00",INTERVAL "1 1:1:1" DAY_SECOND)
+1997-12-30 22:58:59
+date_add("1997-12-31 23:59:59",INTERVAL 100000 SECOND)
+1998-01-02 03:46:39
+date_add("1997-12-31 23:59:59",INTERVAL -100000 MINUTE)
+1997-10-23 13:19:59
+date_add("1997-12-31 23:59:59",INTERVAL 100000 HOUR)
+2009-05-29 15:59:59
+date_add("1997-12-31 23:59:59",INTERVAL -100000 DAY)
+1724-03-17 23:59:59
+date_add("1997-12-31 23:59:59",INTERVAL 100000 MONTH)
+NULL
+date_add("1997-12-31 23:59:59",INTERVAL -100000 YEAR)
+NULL
+date_add("1997-12-31 23:59:59",INTERVAL "10000:1" MINUTE_SECOND)
+1998-01-07 22:40:00
+date_add("1997-12-31 23:59:59",INTERVAL "-10000:1" HOUR_MINUTE)
+1996-11-10 07:58:59
+date_add("1997-12-31 23:59:59",INTERVAL "10000:1" DAY_HOUR)
+2025-05-19 00:59:59
+date_add("1997-12-31 23:59:59",INTERVAL "-100 1" YEAR_MONTH)
+1897-11-30 23:59:59
+date_add("1997-12-31 23:59:59",INTERVAL "10000:99:99" HOUR_SECOND)
+1999-02-21 17:40:38
+date_add("1997-12-31 23:59:59",INTERVAL " -10000 99:99" DAY_MINUTE)
+1970-08-11 19:20:59
+date_add("1997-12-31 23:59:59",INTERVAL "10000 99:99:99" DAY_SECOND)
+2025-05-23 04:40:38
+"1997-12-31 23:59:59" + INTERVAL 1 SECOND
+1998-01-01 00:00:00
+INTERVAL 1 DAY + "1997-12-31"
+1998-01-01
+"1998-01-01 00:00:00" - INTERVAL 1 SECOND
+1997-12-31 23:59:59
+date_sub("1998-01-02",INTERVAL 31 DAY)
+1997-12-02
+date_add("1997-12-31",INTERVAL 1 SECOND)
+1997-12-31 00:00:01
+date_add("1997-12-31",INTERVAL 1 DAY)
+1998-01-01
+date_add(NULL,INTERVAL 100000 SECOND)
+NULL
+date_add("1997-12-31 23:59:59",INTERVAL NULL SECOND)
+NULL
+date_add("1997-12-31 23:59:59",INTERVAL NULL MINUTE_SECOND)
+NULL
+date_add("9999-12-31 23:59:59",INTERVAL 1 SECOND)
+NULL
+date_sub("0000-00-00 00:00:00",INTERVAL 1 SECOND)
+NULL
+date_add('1998-01-30',Interval 1 month)
+1998-02-28
+date_add('1998-01-30',Interval '2:1' year_month)
+2000-02-29
+date_add('1996-02-29',Interval '1' year)
+1997-02-28
+extract(YEAR FROM "1999-01-02 10:11:12")
+1999
+extract(YEAR_MONTH FROM "1999-01-02")
+199901
+extract(DAY FROM "1999-01-02")
+2
+extract(DAY_HOUR FROM "1999-01-02 10:11:12")
+210
+extract(DAY_MINUTE FROM "02 10:11:12")
+21011
+extract(DAY_SECOND FROM "225 10:11:12")
+225101112
+extract(HOUR FROM "1999-01-02 10:11:12")
+10
+extract(HOUR_MINUTE FROM "10:11:12")
+1011
+extract(HOUR_SECOND FROM "10:11:12")
+101112
+extract(MINUTE FROM "10:11:12")
+11
+extract(MINUTE_SECOND FROM "10:11:12")
+1112
+extract(SECOND FROM "1999-01-02 10:11:12")
+12
