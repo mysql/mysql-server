@@ -26,22 +26,42 @@
 #include <m_ctype.h>
 
 /*
-** Fix that next read will be made at certain position
-** For write cache, make next write happen at a certain position
+  Fix that next read will be made at certain position
+  For write cache, make next write happen at a certain position
 */
 
 void my_b_seek(IO_CACHE *info,my_off_t pos)
 {
+  DBUG_ENTER("my_b_seek");
+  DBUG_PRINT("enter",("pos: %lu", (ulong) pos));
+
   if (info->type == READ_CACHE)
   {
-    info->rc_pos=info->rc_end=info->buffer;
+    byte* try_pos=info->read_pos + (pos - info->pos_in_file);
+    if (try_pos >= info->buffer &&
+	try_pos <= info->read_end)
+    {
+      /* The position is in the current buffer; Reuse it */
+      info->read_pos = try_pos;
+      DBUG_VOID_RETURN;
+    }
+    else
+    {
+      /* Force a new read on next my_b_read */
+      info->read_pos=info->read_end=info->buffer;
+    }
   }
   else if (info->type == WRITE_CACHE)
   {
-    byte* try_write_pos;
-    try_write_pos = info->write_pos + (pos - info->pos_in_file);
-    if (try_write_pos >= info->buffer && try_write_pos <= info->write_end)
-      info->write_pos = try_write_pos;
+    byte* try_pos;
+    /* If write is in current buffer, reuse it */
+    try_pos = info->write_pos + (pos - info->pos_in_file);
+    if (try_pos >= info->write_buffer &&
+	try_pos <= info->write_end)
+    {
+      info->write_pos = try_pos;
+      DBUG_VOID_RETURN;
+    }
     else
       flush_io_cache(info);
   }
@@ -51,14 +71,15 @@ void my_b_seek(IO_CACHE *info,my_off_t pos)
 
 /*
 **  Fill buffer.  Note that this assumes that you have already used
-**  all characters in the CACHE, independent of the rc_pos value!
+**  all characters in the CACHE, independent of the read_pos value!
 **  return:  0 on error or EOF (info->error = -1 on error)
 **           number of characters
 */
 
 uint my_b_fill(IO_CACHE *info)
 {
-  my_off_t pos_in_file=info->pos_in_file+(uint) (info->rc_end - info->buffer);
+  my_off_t pos_in_file=(info->pos_in_file+
+			(uint) (info->read_end - info->buffer));
   my_off_t max_length;
   uint diff_length,length;
   if (info->seek_not_done)
@@ -86,8 +107,8 @@ uint my_b_fill(IO_CACHE *info)
     info->error= -1;
     return 0;
   }
-  info->rc_pos=info->buffer;
-  info->rc_end=info->buffer+length;
+  info->read_pos=info->buffer;
+  info->read_end=info->buffer+length;
   info->pos_in_file=pos_in_file;
   return length;
 }
@@ -113,11 +134,11 @@ uint my_b_gets(IO_CACHE *info, char *to, uint max_length)
     char *pos,*end;
     if (length > max_length)
       length=max_length;
-    for (pos=info->rc_pos,end=pos+length ; pos < end ;)
+    for (pos=info->read_pos,end=pos+length ; pos < end ;)
     {
       if ((*to++ = *pos++) == '\n')
       {
-	info->rc_pos=pos;
+	info->read_pos=pos;
 	*to='\0';
 	return (uint) (to-start);
       }
@@ -125,7 +146,7 @@ uint my_b_gets(IO_CACHE *info, char *to, uint max_length)
     if (!(max_length-=length))
     {
      /* Found enough charcters;  Return found string */
-      info->rc_pos=pos;
+      info->read_pos=pos;
       *to='\0';
       return (uint) (to-start);
     }

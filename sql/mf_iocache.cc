@@ -52,26 +52,32 @@ int _my_b_net_read(register IO_CACHE *info, byte *Buffer,
 {
   int read_length;
   NET *net= &(current_thd)->net;
+  DBUG_ENTER("_my_b_net_read");
 
-  if (info->end_of_file)
-    return 1;		/* because my_b_get (no _) takes 1 byte at a time */
+  if (!info->end_of_file)
+    DBUG_RETURN(1);	/* because my_b_get (no _) takes 1 byte at a time */
   read_length=my_net_read(net);
   if (read_length == (int) packet_error)
   {
     info->error= -1;
-    return 1;
+    DBUG_RETURN(1);
   }
   if (read_length == 0)
   {
-    /* End of file from client */
-    info->end_of_file = 1; return 1;
+    info->end_of_file= 0;			/* End of file from client */
+    DBUG_RETURN(1);
   }
   /* to set up stuff for my_b_get (no _) */
-  info->rc_end = (info->rc_pos = (byte*) net->read_pos) + read_length;
-  Buffer[0] = info->rc_pos[0];			/* length is always 1 */
-  info->rc_pos++;
-  info->buffer = info->rc_pos;
-  return 0;
+  info->read_end = (info->read_pos = (byte*) net->read_pos) + read_length;
+  Buffer[0] = info->read_pos[0];		/* length is always 1 */
+  info->read_pos++;
+
+  /*
+    info->request_pos is used by log_loaded_block() to know the size
+    of the current block
+  */
+  info->request_pos=info->read_pos;
+  DBUG_RETURN(0);
 }
 
 } /* extern "C" */

@@ -221,7 +221,7 @@ int _mi_read_rnd_static_record(MI_INFO *info, byte *buf,
 	(skipp_deleted_blocks || !filepos))
     {
       cache_read=1;				/* Read record using cache */
-      cache_length=(uint) (info->rec_cache.rc_end - info->rec_cache.rc_pos);
+      cache_length=(uint) (info->rec_cache.read_end - info->rec_cache.read_pos);
     }
     else
       info->rec_cache.seek_not_done=1;		/* Filepos is changed */

@@ -26,13 +26,18 @@ my_off_t my_seek(File fd, my_off_t pos, int whence,
   reg1 os_off_t newpos;
   DBUG_ENTER("my_seek");
   DBUG_PRINT("my",("Fd: %d  Hpos: %lu  Pos: %lu  Whence: %d  MyFlags: %d",
-		   fd, ((ulonglong) pos) >> 32, (ulong) pos, whence, MyFlags));
+		   fd, (ulong) (((ulonglong) pos) >> 32), (ulong) pos, 
+		   whence, MyFlags));
   newpos=lseek(fd, pos, whence);
   if (newpos == (os_off_t) -1)
   {
     my_errno=errno;
     DBUG_PRINT("error",("lseek: %lu, errno: %d",newpos,errno));
     DBUG_RETURN(MY_FILEPOS_ERROR);
+  }
+  if (newpos != pos)
+  {
+    DBUG_PRINT("exit",("pos: %lu", (ulong) newpos));
   }
   DBUG_RETURN((my_off_t) newpos);
 } /* my_seek */
@@ -53,6 +58,6 @@ my_off_t my_tell(File fd, myf MyFlags __attribute__((unused)))
 #endif
   if (pos == (os_off_t) -1)
     my_errno=errno;
-  DBUG_PRINT("exit",("pos: %lu",pos));
+  DBUG_PRINT("exit",("pos: %lu", (ulong) pos));
   DBUG_RETURN((my_off_t) pos);
 } /* my_tell */

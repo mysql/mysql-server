@@ -2614,7 +2614,7 @@ int QUICK_SELECT_DESC::get_next()
     }
     else
     {
-      dbug_assert(range->flag & NEAR_MAX || range_reads_after_key(range));
+      DBUG_ASSERT(range->flag & NEAR_MAX || range_reads_after_key(range));
       /* Note: even if max_key is only a prefix, HA_READ_AFTER_KEY will
        * do the right thing - go past all keys which match the prefix */
       result=file->index_read(record, (byte*) range->max_key,
