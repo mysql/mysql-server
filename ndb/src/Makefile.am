@@ -1,4 +1,4 @@
-SUBDIRS = common mgmapi ndbapi kernel mgmsrv mgmclient cw
+SUBDIRS = common mgmapi ndbapi . kernel mgmsrv mgmclient cw
 
 ndblib_LTLIBRARIES = libndbclient.la
 
