@@ -519,6 +519,13 @@ extern "C" {
    */
   int ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
 		      int retry_delay_in_seconds, int verbose);
+  /**
+   * Return true if connected.
+   *
+   * @param   handle        Management handle
+   * @return  0 if not connected, non-zero if connected.
+   */
+  int ndb_mgm_is_connected(NdbMgmHandle handle);
 
   /**
    * Disconnects from a management server

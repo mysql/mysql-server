@@ -1211,10 +1211,33 @@ TransporterRegistry::start_clients_thread()
       switch(performStates[nodeId]){
       case CONNECTING:
 	if(!t->isConnected() && !t->isServer) {
+	  int result= 0;
+	  /**
+	   * First, we try to connect (if we have a port number).
+	   */
+	  if (t->get_s_port())
+	    result= t->connect_client();
+
+
+	  if (result<0 && t->get_s_port()!=0)
+	    g_eventLogger.warning("Error while trying to make connection "
+				  "(Node %u to %u via port %u) "
+				  "error: %d. Retrying...",
+				  t->getRemoteNodeId(),
+				  t->getLocalNodeId(),
+				  t->get_s_port());
+	  
+	  /**
+	   * If dynamic, get the port for connecting from the management server
+	   */
 	  if(t->get_s_port() <= 0) {		// Port is dynamic
 	    int server_port= 0;
 	    struct ndb_mgm_reply mgm_reply;
 	    int res;
+
+	    if(!ndb_mgm_is_connected(m_mgm_handle))
+	      if(ndb_mgm_connect(m_mgm_handle, 0, 0, 0)<0)
+		ndbout_c("Failed to reconnect to management server");
 
 	    res= ndb_mgm_get_connection_int_parameter(m_mgm_handle,
 						     t->getRemoteNodeId(),
@@ -1231,17 +1254,6 @@ TransporterRegistry::start_clients_thread()
 	    else
 	      ndbout_c("Failed to get dynamic port to connect to: %d", res);
 	  }
-	  if (theTransporterTypes[nodeId] != tt_TCP_TRANSPORTER
-             || t->get_s_port() > 0) {
-	    int result = t->connect_client();
-	    if (result<0)
-	      ndbout_c("Error while trying to make connection (Node %u to"
-		       " %u via port %u) error: %d. Retrying...",
-		       t->getRemoteNodeId(),
-		       t->getLocalNodeId(),
-		       t->get_s_port());
-	  } else
-	    NdbSleep_MilliSleep(400); // wait before retrying
 	}
 	break;
       case DISCONNECTING:
