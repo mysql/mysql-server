@@ -124,3 +124,6 @@ sql_lex.o:	lex_hash.h
 
 #distclean:
 #		rm -f lex_hash.h
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%

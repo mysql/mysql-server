@@ -1600,7 +1600,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   char llbuff[22];
   SORT_INFO *sort_info= &param->sort_info;
   ulonglong key_map=share->state.key_map;
-  DBUG_ENTER("rep_by_sort");
+  DBUG_ENTER("mi_repair_by_sort");
 
   start_records=info->state->records;
   got_error=1;
@@ -1629,9 +1629,6 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   sort_info->key_block_end=sort_info->key_block+param->sort_key_blocks;
   info->opt_flag|=WRITE_CACHE_USED;
   info->rec_cache.file=info->dfile;		/* for sort_delete_record */
-
-  /* Flush key cache for this file if we are calling this outside myisamchk */
-  flush_key_blocks(share->kfile, FLUSH_IGNORE_CHANGED);
 
   if (!(sort_info->record=(byte*) my_malloc((uint) share->base.pack_reclength,
 					   MYF(0))))
@@ -1669,15 +1666,24 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   if (!(param->testflag & T_CREATE_MISSING_KEYS))
   {
+    /*
+      Flush key cache for this file if we are calling this outside
+      myisamchk
+    */
+    flush_key_blocks(share->kfile, FLUSH_IGNORE_CHANGED);
+    /* Clear the pointers to the given rows */
     for (i=0 ; i < share->base.keys ; i++)
       share->state.key_root[i]= HA_OFFSET_ERROR;
     for (i=0 ; i < share->state.header.max_block_size ; i++)
       share->state.key_del[i]=  HA_OFFSET_ERROR;
+    info->state->key_file_length=share->base.keystart;
   }
   else
+  {
+    if (flush_key_blocks(share->kfile, FLUSH_FORCE_WRITE))
+      goto err;
     key_map= ~key_map;				/* Create the missing keys */
-
-  info->state->key_file_length=share->base.keystart;
+  }
 
   sort_info->info=info;
   sort_info->param = param;
@@ -1758,6 +1764,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     if (param->testflag & T_STATISTICS)
       update_key_parts(sort_info->keyinfo, rec_per_key_part, sort_info->unique,
 		       (ulonglong) info->state->records);
+    share->state.key_map|=(ulonglong) 1 << sort_info->key;
 
     if (sort_info->fix_datafile)
     {
@@ -2933,7 +2940,8 @@ void mi_dectivate_non_unique_index(MI_INFO *info, ha_rows rows)
     MI_KEYDEF *key=share->keyinfo;
     for (i=0 ; i < share->base.keys ; i++,key++)
     {
-      if (!(key->flag & HA_NOSAME) && ! mi_too_big_key_for_sort(key,rows))
+      if (!(key->flag & HA_NOSAME) && ! mi_too_big_key_for_sort(key,rows) &&
+	  info->s->base.auto_key != i+1)
       {
 	share->state.key_map&= ~ ((ulonglong) 1 << i);
 	info->update|= HA_STATE_CHANGED;
