@@ -7946,15 +7946,14 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
 		   TABLE_LIST *tables,ORDER *order, List<Item> &fields,
 		   List<Item> &all_fields)
 {
-  Item *itemptr=*order->item;
-  if (itemptr->type() == Item::INT_ITEM)
+  Item *it= *order->item;
+  if (it->type() == Item::INT_ITEM)
   {						/* Order by position */
-    uint count= (uint) itemptr->val_int();
+    uint count= (uint) it->val_int();
     if (!count || count > fields.elements)
     {
       my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),
-		      MYF(0),itemptr->full_name(),
-	       thd->where);
+		      MYF(0), it->full_name(), thd->where);
       return 1;
     }
     order->item= ref_pointer_array + count-1;
@@ -7962,20 +7961,28 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
     return 0;
   }
   uint counter;
-  Item **item= find_item_in_list(itemptr, fields, &counter,
-                                 REPORT_EXCEPT_NOT_FOUND);
+  bool unaliased;
+  Item **item= find_item_in_list(it, fields, &counter,
+                                 REPORT_EXCEPT_NOT_FOUND, &unaliased);
   if (!item)
     return 1;
 
   if (item != (Item **)not_found_item)
   {
+    /*
+      If we have found field not by its alias in select list but by its
+      original field name, we should additionaly check if we have conflict
+      for this name (in case if we would perform lookup in all tables).
+    */
+    if (unaliased && !it->fixed && it->fix_fields(thd, tables, order->item))
+      return 1;
+
     order->item= ref_pointer_array + counter;
     order->in_field_list=1;
     return 0;
   }
 
   order->in_field_list=0;
-  Item *it= *order->item;
   /*
     We check it->fixed because Item_func_group_concat can put
     arguments for which fix_fields already was called.
@@ -8104,10 +8111,11 @@ setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 
   thd->set_query_id=1;				// Not really needed, but...
   uint counter;
+  bool not_used;
   for (; new_field ; new_field= new_field->next)
   {
     if ((item= find_item_in_list(*new_field->item, fields, &counter,
-				 IGNORE_ERRORS)))
+				 IGNORE_ERRORS, &not_used)))
       new_field->item=item;			/* Change to shared Item */
     else
     {
