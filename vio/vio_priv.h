@@ -23,6 +23,8 @@
 #include <m_string.h>
 #include <violite.h>
 
+void	vio_ignore_timeout(Vio *vio, uint timeout);
+
 #ifdef HAVE_OPENSSL
 #include "my_net.h"			/* needed because of struct in_addr */
 

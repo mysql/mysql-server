@@ -199,7 +199,7 @@ CREATE TABLE t1 (
   info text NOT NULL,
   ipnr varchar(30) NOT NULL default '',
   PRIMARY KEY  (member_id)
-) TYPE=MyISAM PACK_KEYS=1;
+) ENGINE=MyISAM PACK_KEYS=1;
 
 insert into t1 (member_id) values (1),(2),(3);
 select member_id, nickname, voornaam FROM t1
@@ -261,7 +261,7 @@ CREATE TABLE t1 (
   cid smallint(5) unsigned NOT NULL default '0',
   PRIMARY KEY  (gid),
   KEY component_id (cid)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (103853,108),(103867,108),(103962,108),(104505,108),(104619,108),(104620,108);
 ALTER TABLE t1 add skr int(10) not null;
 
@@ -272,13 +272,13 @@ CREATE TABLE t2 (
   PRIMARY KEY  (gid),
   KEY uid (uid),
   KEY status_id (sid)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 INSERT INTO t2 VALUES (103853,250,5),(103867,27,5),(103962,27,5),(104505,117,5),(104619,75,5),(104620,15,5);
 
 CREATE TABLE t3 (
   uid smallint(6) NOT NULL auto_increment,
   PRIMARY KEY  (uid)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 INSERT INTO t3 VALUES (1),(15),(27),(75),(117),(250);
 ALTER TABLE t3 add skr int(10) not null;
 

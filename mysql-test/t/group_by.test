@@ -352,7 +352,7 @@ CREATE TABLE t1 (
   value int(11) unsigned NOT NULL default '0',
   UNIQUE KEY pid2 (pid,c1id,c2id),
   UNIQUE KEY pid (pid,value)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 
 INSERT INTO t1 VALUES (1, 1, NULL, 1),(1, 2, NULL, 2),(1, NULL, 3, 3),(1, 4, NULL, 4),(1, 5, NULL, 5);
 
@@ -360,7 +360,7 @@ CREATE TABLE t2 (
   id int(11) unsigned NOT NULL default '0',
   active enum('Yes','No') NOT NULL default 'Yes',
   PRIMARY KEY  (id)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 
 INSERT INTO t2 VALUES (1, 'Yes'),(2, 'No'),(4, 'Yes'),(5, 'No');
 

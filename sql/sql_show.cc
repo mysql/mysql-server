@@ -713,7 +713,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
           null_default_value=1;
         if (!null_default_value && !field->is_null())
         {                                               // Not null by default
-          type.set(tmp,sizeof(tmp),system_charset_info);
+          type.set(tmp, sizeof(tmp), field->charset());
           field->val_str(&type,&type);
           protocol->store(type.ptr(),type.length(),type.charset());
         }
@@ -1114,10 +1114,16 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       packet->append(" default ", 9);
       if (!field->is_null())
       {                                             // Not null by default
-        type.set(tmp,sizeof(tmp),&my_charset_bin);
+        type.set(tmp, sizeof(tmp), field->charset());
         field->val_str(&type,&type);
 	if (type.length())
-          append_unescaped(packet, type.ptr(), type.length());
+	{
+   	  String def_val;
+	  /* convert to system_charset_info == utf8 */
+	  def_val.copy(type.ptr(), type.length(), field->charset(),
+		       system_charset_info);
+          append_unescaped(packet, def_val.ptr(), def_val.length());
+	}
         else
 	  packet->append("''",2);
       }
@@ -1217,7 +1223,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   packet->append("\n)", 2);
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
-    packet->append(" TYPE=", 6);
+    packet->append(" ENGINE=", 8);
     packet->append(file->table_type());
     
     if (table->table_charset &&

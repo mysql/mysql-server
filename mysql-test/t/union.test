@@ -97,7 +97,7 @@ CREATE TABLE t1 (
   `same` tinyint(1) unsigned NOT NULL default '1',
   PRIMARY KEY  (`pseudo1`),
   KEY `pseudo` (`pseudo`)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 INSERT INTO t1 (pseudo,pseudo1,same) VALUES ('joce', 'testtt', 1),('joce', 'tsestset', 1),('dekad', 'joce', 1);
 SELECT pseudo FROM t1 WHERE pseudo1='joce' UNION SELECT pseudo FROM t1 WHERE pseudo='joce';
 SELECT pseudo1 FROM t1 WHERE pseudo1='joce' UNION SELECT pseudo1 FROM t1 WHERE pseudo='joce';
@@ -252,9 +252,9 @@ drop table t1,t2;
 #
 # Test for another bug with UNION and LEFT JOIN
 #
-CREATE TABLE t1 (  id int(3) unsigned default '0') TYPE=MyISAM;
+CREATE TABLE t1 (  id int(3) unsigned default '0') ENGINE=MyISAM;
 INSERT INTO t1 (id) VALUES("1");
-CREATE TABLE t2 ( id int(3) unsigned default '0',  id_master int(5) default '0',  text1 varchar(5) default NULL,  text2 varchar(5) default NULL) TYPE=MyISAM;
+CREATE TABLE t2 ( id int(3) unsigned default '0',  id_master int(5) default '0',  text1 varchar(5) default NULL,  text2 varchar(5) default NULL) ENGINE=MyISAM;
 INSERT INTO t2 (id, id_master, text1, text2) VALUES("1", "1",
 "foo1", "bar1");
 INSERT INTO t2 (id, id_master, text1, text2) VALUES("2", "1",

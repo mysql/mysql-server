@@ -6,7 +6,7 @@
 drop table if exists t1;
 --enable_warnings
 
-create table t1(objid BIGINT not null, tablename  varchar(64), oid BIGINT not null, test BIGINT,  PRIMARY KEY (objid), UNIQUE(tablename))  type=BDB;
+create table t1(objid BIGINT not null, tablename  varchar(64), oid BIGINT not null, test BIGINT,  PRIMARY KEY (objid), UNIQUE(tablename))  engine=BDB;
 insert into t1 values(1, 't1',4,9);
 insert into t1 values(2, 'metatable',1,9);
 insert into t1 values(3, 'metaindex',1,9 );

@@ -2840,6 +2840,9 @@ int main(int argc, char **argv)
   int2str((int) GetCurrentProcessId(),strmov(shutdown_event_name,
           "MySQLShutdown"), 10);
   
+  /* Must be initialized early for comparison of service name */
+  system_charset_info= &my_charset_utf8_general_ci;
+
   if (Service.GetOS())	/* true NT family */
   {
     char file_path[FN_REFLEN];

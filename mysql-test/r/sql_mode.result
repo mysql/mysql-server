@@ -5,7 +5,7 @@ a int not null auto_increment,
 `email` varchar(60) character set latin2 NOT NULL default '',
 PRIMARY KEY  (a),
 UNIQUE KEY `email` USING BTREE (`email`) 
-) TYPE=HEAP CHARSET=latin1 ROW_FORMAT DYNAMIC;
+) ENGINE=HEAP CHARSET=latin1 ROW_FORMAT DYNAMIC;
 set @@sql_mode="";
 show variables like 'sql_mode';
 Variable_name	Value
@@ -18,7 +18,7 @@ t1	CREATE TABLE `t1` (
   `email` varchar(60) character set latin2 NOT NULL default '',
   PRIMARY KEY  (`a`),
   UNIQUE KEY `email` TYPE BTREE (`email`)
-) TYPE=HEAP DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=HEAP DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 set @@sql_mode="ansi_quotes";
 show variables like 'sql_mode';
 Variable_name	Value
@@ -31,7 +31,7 @@ t1	CREATE TABLE "t1" (
   "email" varchar(60) character set latin2 NOT NULL default '',
   PRIMARY KEY  ("a"),
   UNIQUE KEY "email" TYPE BTREE ("email")
-) TYPE=HEAP DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=HEAP DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 set @@sql_mode="no_table_options";
 show variables like 'sql_mode';
 Variable_name	Value
@@ -57,7 +57,7 @@ t1	CREATE TABLE `t1` (
   `email` varchar(60) character set latin2 NOT NULL default '',
   PRIMARY KEY  (`a`),
   UNIQUE KEY `email` (`email`)
-) TYPE=HEAP DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=HEAP DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 set @@sql_mode="no_field_options,mysql323,mysql40";
 show variables like 'sql_mode';
 Variable_name	Value
@@ -70,7 +70,7 @@ t1	CREATE TABLE `t1` (
   `email` varchar(60) NOT NULL default '',
   PRIMARY KEY  (`a`),
   UNIQUE KEY `email` (`email`)
-) TYPE=HEAP ROW_FORMAT=DYNAMIC
+) ENGINE=HEAP ROW_FORMAT=DYNAMIC
 set sql_mode="postgresql,oracle,mssql,db2,maxdb";
 select @@sql_mode;
 @@sql_mode

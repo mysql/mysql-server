@@ -5192,16 +5192,21 @@ void Field_enum::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_enum::sql_type(String &res) const
 {
+  char buffer[255];
+  String enum_item(buffer, sizeof(buffer), res.charset());
+
   res.length(0);
   res.append("enum(");
 
   bool flag=0;
-  for (const char **pos=typelib->type_names; *pos ; pos++)
+  for (const char **pos= typelib->type_names; *pos; pos++)
   {
     if (flag)
       res.append(',');
-    append_unescaped(&res, *pos, strlen(*pos));
-    flag=1;
+    /* convert to res.charset() == utf8, then quote */
+    enum_item.copy(*pos, strlen(*pos), charset(), res.charset());
+    append_unescaped(&res, enum_item.ptr(), enum_item.length());
+    flag= 1;
   }
   res.append(')');
 }
@@ -5300,16 +5305,21 @@ String *Field_set::val_str(String *val_buffer,
 
 void Field_set::sql_type(String &res) const
 {
+  char buffer[255];
+  String set_item(buffer, sizeof(buffer), res.charset());
+
   res.length(0);
   res.append("set(");
 
   bool flag=0;
-  for (const char **pos=typelib->type_names; *pos ; pos++)
+  for (const char **pos= typelib->type_names; *pos; pos++)
   {
     if (flag)
       res.append(',');
-    append_unescaped(&res, *pos, strlen(*pos));
-    flag=1;
+    /* convert to res.charset() == utf8, then quote */
+    set_item.copy(*pos, strlen(*pos), charset(), res.charset());
+    append_unescaped(&res, set_item.ptr(), set_item.length());
+    flag= 1;
   }
   res.append(')');
 }

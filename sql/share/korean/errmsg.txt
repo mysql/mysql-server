@@ -289,6 +289,7 @@ character-set=euckr
 "Unknown key cache '%-.100s'",
 "MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
 "Unknown table engine '%s'",
+"'%s' is deprecated. Use '%s' instead.",
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"
