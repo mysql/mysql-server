@@ -667,14 +667,7 @@ drop table t1;
 set storage_engine=MyISAM;
 create table t1 (a bigint unsigned auto_increment primary key, b int,
 key (b, a)) engine=heap;
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-insert t1 (b) values (1);
-insert t1 (b) values (1);
+insert t1 (b) values (1),(1),(1),(1),(1),(1),(1),(1);
 select * from t1;
 a	b
 1	1
@@ -688,14 +681,7 @@ a	b
 drop table t1;
 create table t1 (a int not null, b int not null auto_increment,
 primary key(a, b), key(b)) engine=heap;
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-insert t1 (a) values (1);
-insert t1 (a) values (1);
+insert t1 (a) values (1),(1),(1),(1),(1),(1),(1),(1);
 select * from t1;
 a	b
 1	1
@@ -707,3 +693,6 @@ a	b
 1	7
 1	8
 drop table t1;
+create table t1 (a int not null, b int not null auto_increment,
+primary key(a, b)) engine=heap;
+ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
