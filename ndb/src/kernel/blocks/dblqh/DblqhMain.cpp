@@ -2647,11 +2647,11 @@ void Dblqh::execTUPKEYCONF(Signal* signal)
   jamEntry();
   tcConnectptr.i = tcIndex;
   ptrCheckGuard(tcConnectptr, ttcConnectrecFileSize, regTcConnectionrec);
-  if (tcConnectptr.p->seqNoReplica == 0) // Primary replica
-    tcConnectptr.p->noFiredTriggers = tupKeyConf->noFiredTriggers;
   switch (tcConnectptr.p->transactionState) {
   case TcConnectionrec::WAIT_TUP:
     jam();
+    if (tcConnectptr.p->seqNoReplica == 0) // Primary replica
+      tcConnectptr.p->noFiredTriggers = tupKeyConf->noFiredTriggers;
     tupkeyConfLab(signal);
     break;
   case TcConnectionrec::COPY_TUPKEY:
