@@ -152,10 +152,16 @@ MYSQL_TEST="$MYSQL_TEST --no-defaults --socket=$MASTER_MYSOCK --database=$DB --u
 GDB_MASTER_INIT=$MYSQL_TMP_DIR/gdbinit.master
 GDB_SLAVE_INIT=$MYSQL_TMP_DIR/gdbinit.slave
 
+USE_RUNNING_SERVER=1
+DO_GCOV=""
+DO_GDB=""
+DO_DDD=""
+
 while test $# -gt 0; do
   case "$1" in
-    --force ) FORCE=1 ;;
+    --force )  FORCE=1 ;;
     --record ) RECORD=1 ;;
+    --local)   USE_RUNNING_SERVER="" ;;
     --gcov )
       if [ x$BINARY_DIST = x1 ] ; then
 	$ECHO "Cannot do coverage test without the source - please use source dist"
@@ -185,6 +191,20 @@ while test $# -gt 0; do
   esac
   shift
 done
+
+# If we should run all tests cases, we will use a local server for that
+
+if [ -z "$1" ]
+then
+   USE_RUNNING_SERVER=""
+fi
+
+if [ -w / ]
+then
+    # We are running as root;  We need to add the --root argument
+    EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --user=root"
+    EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --user=root"
+fi
 
 #++
 # Function Definitions
@@ -368,7 +388,8 @@ stop_slave ()
   if [ x$SLAVE_RUNNING = x1 ]
   then
     $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root shutdown
-    if [ $? != 0 ] ; then # try harder!
+    if [ $? != 0 ] && [ -f $SLAVE_MYPID ]
+    then # try harder!
      $ECHO "slave not cooperating with mysqladmin, will try manual kill"
      kill `$CAT $SLAVE_MYPID`
      sleep 2
@@ -390,7 +411,8 @@ stop_master ()
   if [ x$MASTER_RUNNING = x1 ]
   then
     $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root shutdown
-    if [ $? != 0 ] ; then # try harder!
+    if [ $? != 0 ] && [ -f $MASTER_MYPID ]
+    then # try harder!
      $ECHO "master not cooperating with mysqladmin, will try manual kill"
      kill `$CAT $MASTER_MYPID`
      sleep 2
@@ -544,7 +566,7 @@ run_testcase ()
 	$ECHO "$RES_SPACE [ skipped ]"
       fi
     fi
-  fi  
+  fi
 }
 
 
@@ -565,7 +587,7 @@ mysql_install_db
 
 #do not automagically start deamons if we are in gdb or running only one test
 #case
-if [ -z "$DO_GDB" ] && [ -z "$1" ] && [ -z "$DO_DDD" ]
+if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
 then
  mysql_start
 fi
@@ -589,8 +611,8 @@ then
     run_testcase $tf
   done
  fi
-else
- tname=`$BASENAME $1 .test`
+else 
+tname=`$BASENAME $1 .test`
  tf=$TESTDIR/$tname.$TESTSUFFIX
  if [ -f $tf ] ; then
   run_testcase $tf
@@ -604,7 +626,7 @@ $ECHO
 
 $RM -f $TIMEFILE
 
-if [ -z "$DO_GDB" ] && [ -z "$DO_DDD" ]
+if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
 then
     mysql_stop
 fi

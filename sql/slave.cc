@@ -526,7 +526,7 @@ int init_master_info(MASTER_INFO* mi)
 	  return 1;
 	}
 
-      mi->pos = atoll(buf);
+      mi->pos = strtoull(buf,(char**) 0, 10);
       mi->fd = fd;
       if(init_strvar_from_file(mi->host, sizeof(mi->host), &mi->file,
 			    master_host) ||

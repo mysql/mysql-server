@@ -62,12 +62,12 @@ static struct option long_options[] =
 void sql_print_error(const char *format,...);
 
 static bool short_form = 0;
-static longlong offset = 0;
+static ulonglong offset = 0;
 static const char* host = "localhost";
 static int port = MYSQL_PORT;
 static const char* user = "test";
 static const char* pass = "";
-static longlong position = 0;
+static ulonglong position = 0;
 static bool use_remote = 0;
 static short binlog_flags = 0; 
 static MYSQL* mysql = NULL;
@@ -166,11 +166,11 @@ static int parse_args(int *argc, char*** argv)
       break;
 
     case 'o':
-      offset = atoll(optarg);
+      offset = strtoull(optarg,(char**) 0, 10);
       break;
 
     case 'j':
-      position = atoll(optarg);
+      position = strtoull(optarg,(char**) 0, 10);
       break;
 
     case 'h':
@@ -312,7 +312,7 @@ static void dump_local_log_entries(const char* logname)
 {
   File fd = -1;
   IO_CACHE cache,*file= &cache;
-  int rec_count = 0;
+  ulonglong rec_count = 0;
 
   if (logname && logname[0] != '-')
   {
@@ -332,7 +332,7 @@ static void dump_local_log_entries(const char* logname)
       /* skip 'position' characters from stdout */
       byte buff[IO_SIZE];
       my_off_t length,tmp;
-      for (length=position ; length > 0 ; length-=tmp)
+      for (length= (my_off_t) position ; length > 0 ; length-=tmp)
       {
 	tmp=min(length,sizeof(buff));
 	if (my_b_read(file,buff, (uint) tmp))
@@ -354,13 +354,14 @@ static void dump_local_log_entries(const char* logname)
  
   while(1)
   {
+    char llbuff[21];
     Log_event* ev = Log_event::read_log_event(file, 0);
     if (!ev)
     {
       if (file->error)
-	die("Could not read entry at offset %ld : Error in log format or \
-read error",
-	    my_b_tell(file));
+	die("\
+Could not read entry at offset %s : Error in log format or read error",
+	    llstr(my_b_tell(file),llbuff));
       // file->error == 0 means EOF, that's OK, we break in this case
       break;
     }
