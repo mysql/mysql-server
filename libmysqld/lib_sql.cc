@@ -74,7 +74,8 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
     result= thd->net.last_errno ? -1 : 0;
 
   mysql->last_error= thd->net.last_error;
-  mysql->last_errno= thd->net.last_errno;
+  mysql->net.last_errno= thd->net.last_errno;
+  mysql->warning_count= ((THD*)mysql->thd)->total_warn_count;
   return result;
 }
 

@@ -204,8 +204,6 @@ enum mysql_rpl_type
 
 struct st_mysql_methods;
 
-#if !defined(CHECK_EMBEDDED_DIFFERENCES) || !defined(EMBEDDED_LIBRARY)
-
 typedef struct st_mysql
 {
   NET		net;			/* Communication parameters */
@@ -250,39 +248,12 @@ typedef struct st_mysql
 
   LIST  *stmts;                     /* list of all statements */
   const struct st_mysql_methods *methods;
-#if !defined(CHECK_EMBEDDED_DIFFERENCES)
   struct st_mysql_res *result;
   void *thd;
   unsigned int last_errno;
   char *last_error;
   char sqlstate[SQLSTATE_LENGTH+1];	/* Used by embedded server */
-#endif
 } MYSQL;
-
-#else
-
-struct st_mysql_res;
-
-typedef struct st_mysql
-{
-  struct st_mysql_res *result;
-  void *thd;
-  struct charset_info_st *charset;
-  unsigned int  server_language;
-  MYSQL_FIELD	*fields;
-  MEM_ROOT	field_alloc;
-  my_ulonglong affected_rows;
-  unsigned int	field_count;
-  struct st_mysql_options options;
-  enum mysql_status status;
-  my_bool	free_me;		/* If free in mysql_close */
-  my_ulonglong insert_id;		/* id if insert on table with NEXTNR */
-  unsigned int last_errno;
-  char *last_error;			/* Used by embedded server */
-  char sqlstate[SQLSTATE_LENGTH+1];	/* Used by embedded server */
-} MYSQL;
-
-#endif
 
 typedef struct st_mysql_res {
   my_ulonglong row_count;
@@ -638,9 +609,9 @@ int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
   They are not for general usage
 */
 
-my_bool
-simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
-	       unsigned long length, my_bool skip_check);
+#define simple_command(mysql, command, arg, length, skip_check) \
+  (*(mysql)->methods->advanced_command)(mysql, command,         \
+					NullS, 0, arg, length, skip_check)
 unsigned long net_safe_read(MYSQL* mysql);
 void mysql_once_init(void);
 

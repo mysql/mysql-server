@@ -658,15 +658,6 @@ end:
   return result;
 }
 
-my_bool
-simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
-	       ulong length, my_bool skip_check)
-{
-  return 
-    (*mysql->methods->advanced_command)(mysql, command, 
-				       NullS, 0, arg, length, skip_check);
-}
-
 void free_old_query(MYSQL *mysql)
 {
   DBUG_ENTER("free_old_query");
