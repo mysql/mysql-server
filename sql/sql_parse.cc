@@ -1482,7 +1482,9 @@ mysql_execute_command(void)
   }
   case SQLCOM_SHOW_SLAVE_STAT:
   {
-    if (check_global_access(thd, SUPER_ACL))
+    /* Accept two privileges */
+    if (check_global_access(thd, SUPER_ACL) &&
+        check_global_access(thd, REPL_CLIENT_ACL))
       goto error;
     LOCK_ACTIVE_MI;
     res = show_master_info(thd,active_mi);
@@ -1491,7 +1493,9 @@ mysql_execute_command(void)
   }
   case SQLCOM_SHOW_MASTER_STAT:
   {
-    if (check_global_access(thd, SUPER_ACL))
+    /* Accept two privileges */
+    if (check_global_access(thd, SUPER_ACL) &&
+        check_global_access(thd, REPL_CLIENT_ACL))
       goto error;
     res = show_binlog_info(thd);
     break;
