@@ -264,7 +264,7 @@ sp_pcontext::find_cursor(LEX_STRING *name, uint *poff, my_bool scoped)
 		     (const uchar *)name->str, name->length,
 		     (const uchar *)n.str, n.length) == 0)
     {
-      *poff= i;
+      *poff= m_coffset + i;
       return TRUE;
     }
   }
