@@ -105,7 +105,7 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
   MYSQL_ERROR *err= 0;
   DBUG_ENTER("push_warning");
 
-  if (level == MYSQL_ERROR::WARN_LEVEL_NOTE && !(thd->options & OPTION_NOTES))
+  if (level == MYSQL_ERROR::WARN_LEVEL_NOTE && !(thd->options & OPTION_SQL_NOTES))
     return(0);
 
   if (thd->query_id != thd->warn_id)
