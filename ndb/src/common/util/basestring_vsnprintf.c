@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-// define on IRIX to get posix complian vsnprintf
+// define on IRIX to get posix compliant vsnprintf
 #define _XOPEN_SOURCE 500
 #include <stdio.h>
 #include <basestring_vsnprintf.h>
@@ -22,9 +22,10 @@
 int
 basestring_snprintf(char *str, size_t size, const char *format, ...)
 {
+  int ret;
   va_list ap;
   va_start(ap, format);
-  int ret= basestring_vsnprintf(str, size, format, ap);
+  ret= basestring_vsnprintf(str, size, format, ap);
   va_end(ap);
   return(ret);
 }
