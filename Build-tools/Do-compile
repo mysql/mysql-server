@@ -105,8 +105,23 @@ $|=1;
 safe_cd("$host");
 if ($opt_stage == 0 && ! $opt_use_old_distribution)
 {
+  my ($name);
   safe_system("gunzip < $opt_distribution | $tar xf -");
+
+  # Fix file times; This is needed because the time for files may be
+  # in the future
+  system("touch timestamp; find $var -newer timestamp -print | xargs touch; rm -f timestamp");
+  sleep(2);
+  # Ensure that files we don't want to rebuild are newer than other files
+  foreach $name ("configure",
+		 "Docs/include.texi",
+		 "Docs/*.html", "Docs/manual.txt", "Docs/mysql.info",
+		 "sql/sql_yacc.h", "sql/sql_yacc.cc")
+  {
+    system("touch $name");
+  }
 }
+
 safe_cd($ver);
 if ($opt_stage <= 1)
 {

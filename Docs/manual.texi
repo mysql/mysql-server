@@ -7908,8 +7908,11 @@ The initial download of the source tree may take a while, depending on the
 speed of your connection; be patient.
 
 @item
-You will need GNU @code{autoconf}, @code{automake}, @code{libtool}, and
-@code{m4} to run the next set of commands.
+You will need GNU @code{autoconf 2.13}, @code{automake 1.4},
+@code{libtool}, and @code{m4} to run the next set of commands.
+Note that the new versions of @code{autoconf} (2.52) and @code{automake}
+(1.5) do not work.
+
 If you get some strange error during this stage, check that you really
 have @code{libtool} installed!
 
@@ -53420,7 +53423,7 @@ in the @code{mysql} mail archive, you should report the bug to
 online at the @uref{http://www.mysql.com/documentation/, MySQL
 documentation page}.
 
-If you have started @code{mysqld} with @code{--with-myisam-recover},
+If you have started @code{mysqld} with @code{myisam-recover},
 MySQL will automatically check and try to repair @code{MyISAM}
 tables if they are marked as 'not closed properly' or 'crashed'.  If
 this happens, MySQL will write an entry in the
