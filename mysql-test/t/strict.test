@@ -868,12 +868,12 @@ CREATE TABLE t1 (col1 CHAR(5), col2 VARCHAR(6));
 INSERT INTO t1 VALUES ('hello', 'hello'),('he', 'he'),('hello   ', 'hello ');
 --error 1406
 INSERT INTO t1 (col1) VALUES ('hellobob');
---error 1265
+--error 1406
 INSERT INTO t1 (col2) VALUES ('hellobob');
 INSERT INTO t1 (col2) VALUES ('hello  ');
 --error 1406
 UPDATE t1 SET col1 ='hellobob' WHERE col1 ='he';
---error 1265
+--error 1406
 UPDATE t1 SET col2 ='hellobob' WHERE col2 ='he';
 INSERT IGNORE INTO t1 VALUES ('hellobob', 'hellobob');
 UPDATE IGNORE t1 SET col2 ='hellotrudy' WHERE col2 ='he';
@@ -939,3 +939,26 @@ INSERT IGNORE INTO t1 (col1) values (3);
 INSERT IGNORE INTO t1 () values ();
 SELECT * FROM t1;
 DROP TABLE t1;
+
+#
+# Bug #9029 Traditional: Wrong SQLSTATE returned for string truncation
+#
+
+set sql_mode='traditional';
+create table t1 (charcol char(255), varcharcol varchar(255),
+binarycol binary(255), varbinarycol varbinary(255), tinytextcol tinytext,
+tinyblobcol tinyblob);
+--error 1406
+insert into t1 (charcol) values (repeat('x',256));
+--error 1406
+insert into t1 (varcharcol) values (repeat('x',256));
+--error 1406
+insert into t1 (binarycol) values (repeat('x',256));
+--error 1406
+insert into t1 (varbinarycol) values (repeat('x',256));
+--error 1406
+insert into t1 (tinytextcol) values (repeat('x',256));
+--error 1406
+insert into t1 (tinyblobcol) values (repeat('x',256));
+select * from t1;
+drop table t1;

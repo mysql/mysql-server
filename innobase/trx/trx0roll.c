@@ -441,16 +441,8 @@ loop:
 			trx = UT_LIST_GET_NEXT(trx_list, trx);
 		} else if (trx->conc_state == TRX_PREPARED) {
 
-			/* Roll back all prepared transactions if
-			innobase_force_recovery > 0 in my.cnf */
-
-			if (srv_force_recovery > 0) {
-				trx->conc_state = TRX_ACTIVE;
-				break;
-			} else {
-				trx->sess = trx_dummy_sess;
-				trx = UT_LIST_GET_NEXT(trx_list, trx);
-			}
+			trx->sess = trx_dummy_sess;
+			trx = UT_LIST_GET_NEXT(trx_list, trx);
 		} else {
 			break;
 		}
@@ -461,7 +453,7 @@ loop:
 	if (trx == NULL) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-		"  InnoDB: Rollback of uncommitted transactions completed\n");
+		"  InnoDB: Rollback of non-prepared transactions completed\n");
 
  		mem_heap_free(heap);
 

@@ -456,6 +456,7 @@ impossible position";
        {
          binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+1] &
                                        LOG_EVENT_BINLOG_IN_USE_F);
+         (*packet)[FLAGS_OFFSET+1] &= ~LOG_EVENT_BINLOG_IN_USE_F;
          /*
            mark that this event with "log_pos=0", so the slave
            should not increment master's binlog position
@@ -512,8 +513,11 @@ impossible position";
 #endif
 
       if ((*packet)[EVENT_TYPE_OFFSET+1] == FORMAT_DESCRIPTION_EVENT)
+      {
         binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+1] &
                                       LOG_EVENT_BINLOG_IN_USE_F);
+        (*packet)[FLAGS_OFFSET+1] &= ~LOG_EVENT_BINLOG_IN_USE_F;
+      }
       else if ((*packet)[EVENT_TYPE_OFFSET+1] == STOP_EVENT)
         binlog_can_be_corrupted= FALSE;
 

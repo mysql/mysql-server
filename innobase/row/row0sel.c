@@ -79,13 +79,14 @@ row_sel_sec_rec_is_for_clust_rec(
         ulint           i;
 	dtype_t*	cur_type;
 	mem_heap_t*	heap		= NULL;
-	ulint		clust_offsets_[100]
-					= { 100, };
-	ulint		sec_offsets_[10]
-					= { 10, };
+	ulint		clust_offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint		sec_offsets_[REC_OFFS_SMALL_SIZE];
 	ulint*		clust_offs	= clust_offsets_;
 	ulint*		sec_offs	= sec_offsets_;
 	ibool		is_equal	= TRUE;
+
+	*clust_offsets_ = (sizeof clust_offsets_) / sizeof *clust_offsets_;
+	*sec_offsets_ = (sizeof sec_offsets_) / sizeof *sec_offsets_;
 
 	clust_offs = rec_get_offsets(clust_rec, clust_index, clust_offs,
 						ULINT_UNDEFINED, &heap);
@@ -625,8 +626,9 @@ row_sel_get_clust_rec(
 	rec_t*		old_vers;
 	ulint		err;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	offsets = rec_get_offsets(rec,
 				btr_pcur_get_btr_cur(&plan->pcur)->index,
@@ -990,9 +992,10 @@ row_sel_try_search_shortcut(
 	dict_index_t*	index;
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	ulint		ret;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	index = plan->index;
 
@@ -1115,8 +1118,9 @@ row_sel(
 	ulint		found_flag;
 	ulint		err;
 	mem_heap_t*	heap				= NULL;
-	ulint		offsets_[100]			= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_ad(thr->run_node == node);
 
@@ -2348,15 +2352,9 @@ row_sel_store_mysql_rec(
 	byte*			blob_buf;
 	int			pad_char;
 	ulint			i;
-	dict_index_t*		index;
 	
 	ut_ad(prebuilt->mysql_template);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
-
-	index = prebuilt->index;
-	if (prebuilt->need_to_access_clustered) {
-		index = dict_table_get_first_index(index->table);
-	}
 
 	if (prebuilt->blob_heap != NULL) {
 		mem_heap_free(prebuilt->blob_heap);
@@ -3035,9 +3033,10 @@ row_search_for_mysql(
 	ulint		next_offs;
 	mtr_t		mtr;
 	mem_heap_t*	heap				= NULL;
-	ulint		offsets_[100]			= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
-	
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+
 	ut_ad(index && pcur && search_tuple);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
