@@ -311,7 +311,7 @@ public:
     ExtDatetime = NdbSqlUtil::Type::Datetime,
     ExtTimespec = NdbSqlUtil::Type::Timespec,
     ExtBlob = NdbSqlUtil::Type::Blob,
-    ExtClob = NdbSqlUtil::Type::Clob
+    ExtText = NdbSqlUtil::Type::Text
   };
 
   // Attribute data interpretation
@@ -435,7 +435,7 @@ public:
         AttributeArraySize = 12 * AttributeExtLength;
         return true;
       case DictTabInfo::ExtBlob:
-      case DictTabInfo::ExtClob:
+      case DictTabInfo::ExtText:
         AttributeType = DictTabInfo::StringType;
         AttributeSize = DictTabInfo::an8Bit;
         // head + inline part [ attr precision ]

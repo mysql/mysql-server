@@ -431,6 +431,15 @@ public:
 
   /** @} *********************************************************************/
 
+  /**
+   * Execute the transaction in NoCommit mode if there are any not-yet
+   * executed blob part operations of given types.  Otherwise do
+   * nothing.  The flags argument is bitwise OR of (1 << optype) where
+   * optype comes from NdbOperation::OperationType.  Only the basic PK
+   * ops are used (read, insert, update, delete).
+   */
+  int executePendingBlobOps(Uint8 flags = 0xFF);
+
 private:						
   /**
    * Release completed operations
@@ -642,6 +651,7 @@ private:
   Uint32 theBuddyConPtr;
   // optim: any blobs
   bool theBlobFlag;
+  Uint8 thePendingBlobOps;
 
   static void sendTC_COMMIT_ACK(NdbApiSignal *,
 				Uint32 transId1, Uint32 transId2, 
@@ -869,6 +879,21 @@ NdbConnection::OpSent()
   theNoOfOpSent++;
 }
 
+/******************************************************************************
+void executePendingBlobOps();
+******************************************************************************/
+#include <stdlib.h>
+inline
+int
+NdbConnection::executePendingBlobOps(Uint8 flags)
+{
+  if (thePendingBlobOps & flags) {
+    // not executeNoBlobs because there can be new ops with blobs
+    return execute(NoCommit);
+  }
+  return 0;
+}
+
 inline
 Uint32
 NdbConnection::ptr2int(){
@@ -876,5 +901,3 @@ NdbConnection::ptr2int(){
 }
 
 #endif
-
-
