@@ -56,6 +56,7 @@ REALT=0
 MY_TMP_DIR=$MYSQL_TEST_DIR/var/tmp
 TIMEFILE="$MYSQL_TEST_DIR/var/tmp/mysqltest-time"
 DASHBLANK="----	----	-------"
+RES_SPACE="               "
 MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
  myisammrg heap sql"
 GCOV_MSG=/tmp/mysqld-gcov.out #gcov output
@@ -66,7 +67,7 @@ SLAVE_RUNNING=0
 
 [ -d $MY_TMP_DIR ]  || mkdir -p $MY_TMP_DIR
 
-[ -z $COLUMNS ] && COLUMNS=80
+[ -z "$COLUMNS" ] && COLUMNS=80
 E=`expr $COLUMNS - 8`
 C=0
 
@@ -107,8 +108,8 @@ fi
 BASENAME=`which basename | head -1`
 CAT=/bin/cat
 CUT=/usr/bin/cut
-ECHO=/bin/echo
-EXPR=`which expr | head -1`
+ECHO=echo # use internal echo if possible
+EXPR=expr # use internal if possible
 FIND=/usr/bin/find
 GCOV=`which gcov | head -1`
 PRINTF=/usr/bin/printf
@@ -174,47 +175,10 @@ then
 fi  
 
 
-#++
-# Terminal Modifications
-#--
-MOVE_TO_COL="$ECHO -n [300C[20D"
-SETCOLOR_SUCCESS="$ECHO -n [1;32m"
-SETCOLOR_FAILURE="$ECHO -n [1;31m"
-SETCOLOR_WARNING="$ECHO -n [1;33m"
-SETCOLOR_NORMAL="$ECHO -n [0;39m"
 
 #++
 # Function Definitions
 #--
-echo_ok() {
-  $MOVE_TO_COL && $SETCOLOR_NORMAL
-  $ECHO -n "[   "
-  $SETCOLOR_SUCCESS
-  $ECHO -n "ok"
-  $SETCOLOR_NORMAL
-  $ECHO "   ]"
-  return 0
-}
-
-echo_notok() {
-  $MOVE_TO_COL && $SETCOLOR_NORMAL
-  $ECHO -n "[ "
-  $SETCOLOR_FAILURE
-  $ECHO -n "not ok"
-  $SETCOLOR_NORMAL
-  $ECHO " ]"
-  return 0
-}
-
-echo_pass () {
-  $MOVE_TO_COL && $SETCOLOR_NORMAL
-  $ECHO -n "[  "
-  $SETCOLOR_SUCCESS
-  $ECHO -n "pass"
-  $SETCOLOR_NORMAL
-  $ECHO "  ]"
-  return 0
-}
 
 prompt_user ()
 {
@@ -222,21 +186,10 @@ prompt_user ()
  read unused
 }
 
-echo_fail () {
-  $MOVE_TO_COL && $SETCOLOR_NORMAL
-  $ECHO -n "[  "
-  $SETCOLOR_FAILURE
-  $ECHO -n "fail"
-  $SETCOLOR_NORMAL
-  $ECHO "  ]"
-  return 0
-}
 
 error () {
 
-    $SETCOLOR_FAILURE
-    $ECHO -n "Error: " && $SETCOLOR_NORMAL && $ECHO $1
-    $SETCOLOR_NORMAL
+    $ECHO  "Error:  $1"
     exit 1
 }
 
@@ -256,28 +209,28 @@ report_stats () {
     if [ $TOT_FAIL = 0 ]; then
 	$ECHO "All tests successful."
     else
-	$ECHO -n "Failed ${TOT_FAIL}/${TOT_TEST} tests, "
-
 	xten=`$EXPR $TOT_PASS \* 10000`   
 	raw=`$EXPR $xten / $TOT_TEST`     
 	raw=`$PRINTF %.4d $raw`           
 	whole=`$PRINTF %.2s $raw`         
 	xwhole=`$EXPR $whole \* 100`      
 	deci=`$EXPR $raw - $xwhole`       
-
-	$ECHO "${whole}.${deci}% successful."
+	$ECHO  "Failed ${TOT_FAIL}/${TOT_TEST} tests ${whole}.${deci}% successful."
     fi
 }
 
 mysql_install_db () {
+    echo "Removing stale files from previous run"
     $RM -rf $MASTER_MYDDIR $SLAVE_MYDDIR $SLAVE_MYLOG $MASTER_MYLOG \
      $SLAVE_MYERR $MASTER_MYERR
-    [ -d $MYRUN_DIR ] || mkdir -p $MYRUN_DIR 
+    [ -d $MYRUN_DIR ] || mkdir -p $MYRUN_DIR
+    echo "installing master databases"
     $INSTALL_DB
     if [ $? != 0 ]; then
 	error "Could not install master test DBs"
 	exit 1
     fi
+    echo "Installing slave databases"
     $INSTALL_DB -slave
     if [ $? != 0 ]; then
 	error "Could not install slave test DBs"
@@ -336,7 +289,7 @@ start_slave()
 {
     [ x$SKIP_SLAVE = x1 ] && return
     [ x$SLAVE_RUNNING = 1 ] && return
-    if [ -z $SLAVE_MASTER_INFO ] ; then
+    if [ -z "$SLAVE_MASTER_INFO" ] ; then
       master_info="--master-user=root \
 	    --master-connect-retry=1 \
 	    --master-host=127.0.0.1 \
@@ -458,7 +411,7 @@ run_testcase ()
   stop_master
   start_master
  else
-  if [ ! -z $EXTRA_MASTER_OPT ] || [ x$MASTER_RUNNING != x1 ] ;
+  if [ ! -z "$EXTRA_MASTER_OPT" ] || [ x$MASTER_RUNNING != x1 ] ;
   then
     EXTRA_MASTER_OPT=""
     stop_master
@@ -472,7 +425,7 @@ run_testcase ()
   EXTRA_SLAVE_OPT=`cat $slave_opt_file`
   do_slave_restart=1
  else
-  if [ ! -z $EXTRA_SLAVE_OPT ] || [ x$SLAVE_RUNNING != x1 ] ;
+  if [ ! -z "$EXTRA_SLAVE_OPT" ] || [ x$SLAVE_RUNNING != x1 ] ;
   then
     EXTRA_SLAVE_OPT=""
     do_slave_restart=1    
@@ -483,7 +436,7 @@ run_testcase ()
    SLAVE_MASTER_INFO=`cat $slave_master_info_file`
    do_slave_restart=1
  else
-  if [ ! -z $SLAVE_MASTER_INFO ] || [ x$SLAVE_RUNNING != x1 ] ;
+  if [ ! -z "$SLAVE_MASTER_INFO" ] || [ x$SLAVE_RUNNING != x1 ] ;
   then
     SLAVE_MASTER_INFO=""
     do_slave_restart=1    
@@ -515,31 +468,30 @@ run_testcase ()
     fi
 
 	timestr="$USERT	$SYST	$REALT"
-	$SETCOLOR_NORMAL && $ECHO -n "$tname		$timestr"
+	outstr="$tname		$timestr"
 
-	[ $res != 1 ] && pass_inc && echo_pass
-	[ $res = 1 ] && fail_inc && echo_fail
 
 	total_inc
 
     if [ $res != 0 ]; then
+        fail_inc
+	echo "$outstr $RES_SPACE [ fail ]"
         $ECHO "failed output"
 	$CAT $TIMEFILE
 	$ECHO
 	$ECHO
 	if [ x$FORCE != x1 ] ; then
-	 $SETCOLOR_NORMAL
 	 echo "Aborting, if you want to continue, re-run with -force"
 	 mysql_stop
 	 exit 1
 	fi
 	 
-	$SETCOLOR_NORMAL && $ECHO -n "Restarting mysqld	$DASHBLANK"
+	echo "Restarting mysqld"
 	mysql_restart
-	$SETCOLOR_SUCCESS && echo_ok
-	$SETCOLOR_NORMAL && $ECHO -n "Resuming Tests		$DASHBLANK"
-	$SETCOLOR_SUCCESS && echo_ok
-	$ECHO
+	echo "Resuming Tests"
+    else
+      pass_inc
+      echo "$outstr $RES_SPACE [ pass ]"    	
     fi
   fi  
  
@@ -550,35 +502,27 @@ run_testcase ()
 
 [ "$DO_GCOV" ] && gcov_prepare 
 
-
+echo "Installing  test databases"
 mysql_install_db
 
 #do not automagically start deamons if we are in gdb or running only one test
 #case
-if [ -z $DO_GDB ] && [ -z $1 ]
+if [ -z "$DO_GDB" ] && [ -z "$1" ]
 then
- $SETCOLOR_NORMAL && $ECHO -n "Starting mysqld for Testing" 
+ $ECHO  "Starting mysqld for Testing" 
  mysql_start
- res=$?
- res=1
- [ $res != 1 ] && echo_notok && error "Starting mysqld"
- [ $res = 1 ] && echo_ok
 fi
 
-$SETCOLOR_NORMAL && $ECHO -n "Loading Standard Test Database"
+$ECHO  "Loading Standard Test Database"
 mysql_loadstd
-res=$?
-[ x$res != x1 ] && echo_notok && error "Loading STD"
-[ x$res = x1 ] && echo_ok
 
-$SETCOLOR_NORMAL && $ECHO -n "Starting Tests for MySQL $TESTVER Series"
-$SETCOLOR_SUCCESS && echo_ok
+$ECHO  "Starting Tests for MySQL daemon"
 
 $ECHO
 $ECHO " TEST			USER	SYSTEM	ELAPSED		     RESULT"
 $ECHO $DASH72
 
-if [ -z $1 ] ;
+if [ -z "$1" ] ;
 then
  if [ x$RECORD = x1 ]; then
   echo "Will not run in record mode without a specific test case"
@@ -599,21 +543,15 @@ fi
 
 $ECHO $DASH72
 $ECHO
-$SETCOLOR_NORMAL && $ECHO -n "Ending Tests for MySQL $TESTVER Series"
-$SETCOLOR_SUCCESS && echo_ok
+$ECHO  "Ending Tests for MySQL daemon"
 $RM $TIMEFILE
 
-if [ -z $DO_GDB ] ;
+if [ -z "$DO_GDB" ] ;
 then
-    $SETCOLOR_NORMAL && $ECHO -n "Shutdown mysqld"
+    $ECHO  "Shutdown mysqld"
     mysql_stop
-    res=$?
-    res=1
-    [ $res != 1 ] && echo_notok && error "Shutdown mysqld"
-    [ $res = 1 ] && echo_ok
 fi
 
-$SETCOLOR_NORMAL
 
 $ECHO
 report_stats
