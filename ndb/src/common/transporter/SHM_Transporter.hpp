@@ -61,12 +61,12 @@ public:
     writer->updateWritePtr(lenBytes);
   }
   
-  void getReceivePtr(Uint32 ** ptr, Uint32 sz){
-    sz = reader->getReadPtr(* ptr);
+  void getReceivePtr(Uint32 ** ptr, Uint32 ** eod){
+    reader->getReadPtr(* ptr, * eod);
   }
   
-  void updateReceivePtr(Uint32 sz){
-    reader->updateReadPtr(sz);
+  void updateReceivePtr(Uint32 * ptr){
+    reader->updateReadPtr(ptr);
   }
   
 protected:

@@ -82,14 +82,12 @@ SHM_Transporter::setupBuffers(){
 
   Uint32 * sharedReadIndex1 = base1;
   Uint32 * sharedWriteIndex1 = base1 + 1;
-  Uint32 * sharedEndWriteIndex1 = base1 + 2;
   serverStatusFlag = base1 + 4;
   char * startOfBuf1 = shmBuf+sharedSize;
 
   Uint32 * base2 = (Uint32*)(shmBuf + sizeOfBuffer + sharedSize);
   Uint32 * sharedReadIndex2 = base2;
   Uint32 * sharedWriteIndex2 = base2 + 1;
-  Uint32 * sharedEndWriteIndex2 = base2 + 2;
   clientStatusFlag = base2 + 4;
   char * startOfBuf2 = ((char *)base2)+sharedSize;
   
@@ -99,23 +97,19 @@ SHM_Transporter::setupBuffers(){
 			    sizeOfBuffer,
 			    slack,
 			    sharedReadIndex1,
-			    sharedEndWriteIndex1,
 			    sharedWriteIndex1);
 
     writer = new SHM_Writer(startOfBuf2, 
 			    sizeOfBuffer,
 			    slack,
 			    sharedReadIndex2,
-			    sharedEndWriteIndex2,
 			    sharedWriteIndex2);
 
     * sharedReadIndex1 = 0;
     * sharedWriteIndex1 = 0;
-    * sharedEndWriteIndex1 = 0;
 
     * sharedReadIndex2 = 0;
     * sharedWriteIndex2 = 0;
-    * sharedEndWriteIndex2 = 0;
     
     reader->clear();
     writer->clear();
@@ -148,19 +142,16 @@ SHM_Transporter::setupBuffers(){
 			    sizeOfBuffer,
 			    slack,
 			    sharedReadIndex2,
-			    sharedEndWriteIndex2,
 			    sharedWriteIndex2);
     
     writer = new SHM_Writer(startOfBuf1, 
 			    sizeOfBuffer,
 			    slack,
 			    sharedReadIndex1,
-			    sharedEndWriteIndex1,
 			    sharedWriteIndex1);
     
     * sharedReadIndex2 = 0;
     * sharedWriteIndex1 = 0;
-    * sharedEndWriteIndex1 = 0;
     
     reader->clear();
     writer->clear();

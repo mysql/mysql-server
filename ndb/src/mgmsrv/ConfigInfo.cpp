@@ -1944,7 +1944,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    "2K",
+    "8K",
     "128",
     "32K" },
 
@@ -1956,7 +1956,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    "192K",
+    "1M",
     "64K",
     STR_VALUE(MAX_INT_RNIL) },
 
