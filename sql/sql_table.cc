@@ -2830,6 +2830,9 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   db_create_options=table->db_create_options & ~(HA_OPTION_PACK_RECORD);
   my_snprintf(tmp_name, sizeof(tmp_name), "%s-%lx_%lx", tmp_file_prefix,
 	      current_pid, thd->thread_id);
+  /* Safety fix for innodb */
+  if (lower_case_table_names)
+    my_casedn_str(system_charset_info, tmp_name);
   create_info->db_type=new_db_type;
   if (!create_info->comment)
     create_info->comment=table->comment;
