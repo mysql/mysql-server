@@ -28890,8 +28890,8 @@ These limitations apply both when you run @code{mysql} interactively
 and when you put commands in a file and tell @code{mysql} to read its
 input from that file with @code{mysql < some-file}.
 
-MySQL doesn't support the @samp{--} ANSI SQL comment style.
-@xref{ANSI diff comments}.
+MySQL only supports the @samp{--} ANSI SQL comment style if it is
+followed by a space. @xref{ANSI diff comments}.
 
 
 @node Reserved words,  , Comments, Language Structure
