@@ -487,7 +487,7 @@ MySQL Table Types
 * ISAM::                        ISAM tables
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
-* INNOBASE::                    
+* INNOBASE::                    Innobase tables
 
 MyISAM Tables
 
@@ -2062,7 +2062,6 @@ report about lost data because of bugs in @strong{MySQL}.
 @cindex retrieving, data
 @cindex data, ISAM table handler
 
-
 @item The MyISAM table handler --- Gamma
 This is new in @strong{MySQL} Version 3.23. It's largely based on the ISAM
 table code but has a lot of new and very useful features.
@@ -2153,6 +2152,9 @@ using this with good results.
 The Berkeley DB code is very stable, but we are still improving the interface
 between @strong{MySQL} and BDB tables, so it will take some time before this
 is as tested as the other table types.
+
+@item Innobase Tables -- Alpha
+This is a very recent addition to @code{MySQL} and are not very tested yet.
 
 @item Automatic recovery of MyISAM tables - Beta.
 This only affects the new code that checks if the table was closed properly
@@ -12241,7 +12243,7 @@ connections:
 @item @code{'x.y.%'} @tab @code{'fred'} @tab @code{fred}, connecting from @code{x.y.net}, @code{x.y.com},@code{x.y.edu}, etc. (this is probably not useful)
 @item @code{'144.155.166.177'} @tab @code{'fred'} @tab @code{fred}, connecting from the host with IP address @code{144.155.166.177}
 @item @code{'144.155.166.%'} @tab @code{'fred'} @tab @code{fred}, connecting from any host in the @code{144.155.166} class C subnet
-@item @code{'144.155.166.0/24'} @tab @code{'fred'} @tab Same as previous example
+@item @code{'144.155.166.0/255.255.255.0'} @tab @code{'fred'} @tab Same as previous example
 @end multitable
 
 Because you can use IP wild-card values in the @code{Host} field (for example,
@@ -18322,12 +18324,12 @@ If you specify a @code{SELECT} after the @code{CREATE STATEMENT},
 @example
 mysql> CREATE TABLE test (a int not null auto_increment,
            primary key (a), key(b))
-           TYPE=HEAP SELECT b,c from test2;
+           TYPE=MyISAM SELECT b,c from test2;
 @end example
 
-This will create a @code{HEAP} table with 3 columns.  Note that the table will
-automatically be deleted if any errors occur while copying data
-into the table.
+This will create a @code{MyISAM} table with 3 columns.  Note that the
+table will automatically be deleted if any errors occur while copying
+data into the table.
 @item
 The @code{RAID_TYPE} option will help you to break the 2G/4G limit for
 the MyISAM data file (not the index file) on
@@ -23503,6 +23505,60 @@ than Innobase in the same transaction, then a deadlock may arise which
 Innobase cannot notice. In cases like this the timeout is useful to
 resolve the situation.
 @end multitable
+
+You can query the amount of free space in the Innobase tablespace (=
+data files you specified in my.cnf) by issuing the table status command
+of @strong{MySQL} for any table you have created with @code{TYPE =
+INNOBASE}.  Then the amount of free space in the tablespace appears in
+the table comment section in the output of SHOW. An example:
+
+@example
+SHOW TABLE STATUS FROM TEST LIKE 'CUSTOMER'
+@end example
+
+if you have created a table of name CUSTOMER in a database you have named
+TEST. Note that the statistics SHOW gives about Innobase tables
+are only approximate: they are used in SQL optimization. Table and
+index reserved sizes in bytes are accurate, though.
+
+Note that in addition to your tables, the rollback segment uses space
+from the tablespace.
+
+Since Innobase is a multiversioned database, it must keep information
+of old versions of rows in the tablespace. This information is stored
+in a data structure called a rollback segment, like in Oracle. In contrast
+to Oracle, you do not need to configure the rollback segment in any way in
+Innobase. If you issue SELECTs, which by default do a consistent read in
+Innobase, remember to commit your transaction regularly. Otherwise
+the rollback segment will grow because it has to preserve the information
+needed for further consistent reads in your transaction: in Innobase
+all consistent reads within one transaction will see the same timepoint
+snapshot of the database: the reads are also 'consistent' with
+respect to each other. 
+
+Some Innobase errors: If you run out of file space in the tablespace,
+you will get the MySQL 'Table is full' error. If you want to make your
+tablespace bigger, you have to shut down MySQL and add a new datafile
+specification to my.conf, to the innobase_data_file_path parameter.
+
+A transaction deadlock or a timeout in a lock wait will give 'Table handler
+error 1000000'.
+
+Contact information of Innobase Oy, producer of the Innobase engine:
+
+Website: Being registered, probably @uref{http://www.innobase.fi}.
+This should open about March 3rd, 2001.
+
+@email{Heikki.Tuuri@@innobase.inet.fi}
+@example
+phone: 358-9-6969 3250 (office) 358-40-5617367 (mobile)
+Innobase Oy Inc.
+World Trade Center Helsinki
+Aleksanterinkatu 17
+P.O.Box 800
+00101 Helsinki
+Finland
+@end example
 
 @cindex tutorial
 @cindex terminal monitor, defined
@@ -40853,6 +40909,10 @@ This converter can't handle MEMO fields.
 Convert between FoxPro @file{.dbf} files and @strong{MySQL} tables on Windows.
 By Alexander Eltsyn, @email{ae@@nica.ru} or @email{ae@@usa.net}.
 
+@item @uref{http://www.mysql.com/Downloads/Contrib/dbf2sql.zip, dbf2sql.zip}
+Short and simple prg that can help you transport your data from foxpro
+table into @strong{MySQL} table. By Danko Josic.
+
 @item @uref{http://www.mysql.com/Downloads/Contrib/dump2h-1.20.gz, dump2h-1.20.gz}
 Convert from @code{mysqldump} output to a C header file. By Harry Brueckner,
 @email{brueckner@@mail.respublica.de}.
@@ -41593,6 +41653,8 @@ not yet 100 % confident in this code.
 @node News-3.23.34, News-3.23.33, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.34
 @itemize @bullet
+@item
+Fixed bug in @code{ALTER TABLE ... ORDER BY}.
 @item
 Added option @code{max_user_connections} to @code{mysqld}.
 @item

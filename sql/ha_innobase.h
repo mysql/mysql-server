@@ -53,10 +53,10 @@ class ha_innobase: public handler
 					'ref' buffer of the handle, if any */
   	ulong 		int_option_flag;
   	uint 		primary_key;
+	uint		last_dup_key;
 	ulong		start_of_scan;	/* this is set to 1 when we are
 					starting a table scan but have not
 					yet fetched any row, else 0 */
-	uint		last_dup_key;
 
 	uint		last_match_mode;/* match mode of the latest search:
 					ROW_SEL_EXACT, ROW_SEL_EXACT_PREFIX,

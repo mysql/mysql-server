@@ -46,3 +46,24 @@ insert into t1 values(9),(3),(12),(10);
 alter table t1 order by n;
 select * from t1;
 drop table t1;
+
+CREATE TABLE t1 (
+  id int(11) unsigned NOT NULL default '0',
+  category_id tinyint(4) unsigned NOT NULL default '0',
+  type_id tinyint(4) unsigned NOT NULL default '0',
+  body text NOT NULL,
+  user_id int(11) unsigned NOT NULL default '0',
+  status enum('new','old') NOT NULL default 'new',
+  PRIMARY KEY (id)
+) TYPE=MyISAM;
+
+ALTER TABLE
+t1
+ORDER BY
+t1.id,
+t1.status,
+t1.type_id,
+t1.user_id,
+t1.body;
+
+drop table t1;

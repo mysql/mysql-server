@@ -44,13 +44,13 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
     fmt++;
     while (isdigit(*fmt) || *fmt == '.' || *fmt == '-')
       fmt++;
-    if(*fmt == 'l')
+    if (*fmt == 'l')
       fmt++;
     if (*fmt == 's')				/* String parameter */
     {
       reg2 char	*par = va_arg(ap, char *);
       uint plen;
-      if(!par) par = (char*)"(null)";
+      if (!par) par = (char*)"(null)";
       plen = (uint) strlen(par);
       if ((uint) (end-to) > plen)	/* Replace if possible */
       {

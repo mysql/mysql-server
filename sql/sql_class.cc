@@ -75,9 +75,8 @@ static void free_var(user_var_entry *entry)
 ****************************************************************************/
 
 THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
-	   insert_id_used(0),
-	   bootstrap(0),in_lock_tables(0),
-	   global_read_lock(0)
+	   insert_id_used(0),in_lock_tables(0),
+	   global_read_lock(0),bootstrap(0)
 {
   proc_info="login";
   host=user=priv_user=db=query=ip=0;
