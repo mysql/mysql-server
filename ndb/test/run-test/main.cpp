@@ -30,35 +30,6 @@
 #include <mgmapi.h>
 #include "CpcClient.hpp"
 
-/**
-   psuedo code for run-test.bin
-   
-   define autotest_wrapper process at each host
-   start ndb-processes
-   
-   for each testcase
-   do
-     start mysqld processes
-     start replication processes
-     start test programs
-   
-     wait until test program finished or max time passed
-   
-     stop test program
-     stop replication processes
-     stop mysqld processes
-   
-     write report data-file
-     if test failed and ! last test
-     restart ndb processes
-   
-     drop all tables created by test
-   done
-   
-   stop ndb processes
-   undefined wrapper processes
-*/
-
 /** Global variables */
 static const char progname[] = "ndb_atrt";
 static const char * g_gather_progname = "atrt-gather-result.sh";
@@ -75,6 +46,7 @@ static const char * g_report_filename = 0;
 static const char * g_default_user = 0;
 static const char * g_default_base_dir = 0;
 static int          g_default_base_port = 0;
+static int          g_mysqld_use_base = 1;
 
 static int g_report = 0;
 static int g_verbosity = 0;
@@ -385,6 +357,7 @@ setup_config(atrt_config& config){
   int lineno = 0;
   char buf[2048];
   BaseString connect_string;
+  int mysql_port_offset = 0;
   while(fgets(buf, 2048, f)){
     lineno++;
 
@@ -413,6 +386,11 @@ setup_config(atrt_config& config){
 
     if(split1[0].trim() == "user"){
       g_default_user = strdup(split1[1].trim().c_str());
+      continue;
+    }
+
+    if(split1[0].trim() == "mysqld-use-base" && split1[1].trim() == "no"){
+      g_mysqld_use_base = 0;
       continue;
     }
 
@@ -490,6 +468,21 @@ setup_config(atrt_config& config){
 	proc.m_proc.m_path.assign(dir).append("/libexec/ndbd");
 	proc.m_proc.m_args = "-i -n";
 	proc.m_proc.m_cwd.appfmt("%d.ndbd", index);
+      } else if(split1[0] == "mysqld"){
+	proc.m_type = atrt_process::MYSQL_SERVER;
+	proc.m_proc.m_name.assfmt("%d-%s", index, "mysqld");
+	proc.m_proc.m_path.assign(dir).append("/libexec/mysqld");
+	proc.m_proc.m_args = "--core-file --ndbcluster";
+	proc.m_proc.m_cwd.appfmt("%d.mysqld", index);
+	if(mysql_port_offset > 0 || g_mysqld_use_base){
+	  // setup mysql specific stuff
+	  const char * basedir = proc.m_proc.m_cwd.c_str();
+	  proc.m_proc.m_args.appfmt("--datadir=%s", basedir);
+	  proc.m_proc.m_args.appfmt("--pid-file=%s/mysql.pid", basedir);
+	  proc.m_proc.m_args.appfmt("--socket=%s/mysql.sock", basedir);
+	  proc.m_proc.m_args.appfmt("--port=%d", 
+				    g_default_base_port-(++mysql_port_offset));
+	}
       } else if(split1[0] == "api"){
 	proc.m_type = atrt_process::NDB_API;
 	proc.m_proc.m_name.assfmt("%d-%s", index, "ndb_api");
@@ -714,7 +707,7 @@ bool
 start_processes(atrt_config& config, int types){
   for(size_t i = 0; i<config.m_processes.size(); i++){
     atrt_process & proc = config.m_processes[i];
-    if((types & proc.m_type) != 0){
+    if((types & proc.m_type) != 0 && proc.m_proc.m_path != ""){
       if(!start_process(proc)){
 	return false;
       }
@@ -782,18 +775,24 @@ update_status(atrt_config& config, int){
 
   for(size_t i = 0; i<config.m_processes.size(); i++){
     atrt_process & proc = config.m_processes[i];
-    Vector<SimpleCpcClient::Process> & h_procs = m_procs[proc.m_host->m_index];
-    bool found = false;
-    for(size_t j = 0; j<h_procs.size(); j++){
-      if(proc.m_proc.m_id == h_procs[j].m_id){
-	found = true;
-	proc.m_proc.m_status = h_procs[j].m_status;
-	break;
+    if(proc.m_proc.m_id != -1){
+      Vector<SimpleCpcClient::Process> &h_procs= m_procs[proc.m_host->m_index];
+      bool found = false;
+      for(size_t j = 0; j<h_procs.size(); j++){
+	if(proc.m_proc.m_id == h_procs[j].m_id){
+	  found = true;
+	  proc.m_proc.m_status = h_procs[j].m_status;
+	  break;
+	}
       }
-    }
-    if(!found){
-      g_logger.error("update_status: not found");
-      return false;
+      if(!found){
+	g_logger.error("update_status: not found");
+	g_logger.error("id: %d host: %s cmd: %s", 
+		       proc.m_proc.m_id,
+		       proc.m_hostname.c_str(),
+		       proc.m_proc.m_path.c_str());
+	return false;
+      }
     }
   }
   return true;
@@ -900,16 +899,24 @@ setup_test_case(atrt_config& config, const atrt_testcase& tc){
     return false;
   }
   
-  for(size_t i = 0; i<config.m_processes.size(); i++){
+  size_t i = 0;
+  for(; i<config.m_processes.size(); i++){
     atrt_process & proc = config.m_processes[i]; 
     if(proc.m_type == atrt_process::NDB_API){
-      proc.m_proc.m_path.assign(proc.m_host->m_base_dir).append("/bin/").append(tc.m_command);
+      proc.m_proc.m_path.assfmt("%s/bin/%s", proc.m_host->m_base_dir.c_str(),
+				tc.m_command.c_str());
       proc.m_proc.m_args.assign(tc.m_args);
-      return true;
+      break;
     }
   }
-
-  return false;
+  for(i++; i<config.m_processes.size(); i++){
+    atrt_process & proc = config.m_processes[i]; 
+    if(proc.m_type == atrt_process::NDB_API){
+      proc.m_proc.m_path.assign("");
+      proc.m_proc.m_args.assign("");
+    }
+  }
+  return true;
 }
 
 bool
