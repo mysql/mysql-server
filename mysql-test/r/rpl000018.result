@@ -1,3 +1,4 @@
+reset master;
 reset slave;
 slave start;
 show master logs;
