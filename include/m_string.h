@@ -238,6 +238,12 @@ extern ulonglong strtoull(const char *str, char **ptr, int base);
 #endif
 #endif
 
+/* my_vsnprintf.c */
+
+extern int my_vsnprintf( char *str, size_t n,
+                                const char *format, va_list ap );
+extern int my_snprintf(char* to, size_t n, const char* fmt, ...);
+
 #if defined(__cplusplus) && !defined(OS2)
 }
 #endif

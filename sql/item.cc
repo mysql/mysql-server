@@ -116,7 +116,7 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
 bool Item::get_date(TIME *ltime,bool fuzzydate)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff),NULL),*res;
+  String tmp(buff,sizeof(buff), my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
       str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate) == TIMESTAMP_NONE)
   {
@@ -134,7 +134,7 @@ bool Item::get_date(TIME *ltime,bool fuzzydate)
 bool Item::get_time(TIME *ltime)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff),NULL),*res;
+  String tmp(buff,sizeof(buff),my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
       str_to_time(res->ptr(),res->length(),ltime))
   {
@@ -380,7 +380,8 @@ double Item_param::val()
 {
   switch (item_result_type) {
   case STRING_RESULT:
-    return (double)my_strntod(str_value.charset(),str_value.ptr(),str_value.length(),(char**)0); 
+    return (double) my_strntod(str_value.charset(), (char*) str_value.ptr(),
+			       str_value.length(), (char**) 0); 
   case INT_RESULT:
     return (double)int_value;
   default:
@@ -1149,7 +1150,7 @@ Item *resolve_const_item(Item *item,Item *comp_item)
   if (res_type == STRING_RESULT)
   {
     char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff),NULL),*result;
+    String tmp(buff,sizeof(buff),my_charset_bin),*result;
     result=item->val_str(&tmp);
     if (item->null_value)
     {
@@ -1204,8 +1205,8 @@ bool field_is_equal_to_item(Field *field,Item *item)
   {
     char item_buff[MAX_FIELD_WIDTH];
     char field_buff[MAX_FIELD_WIDTH];
-    String item_tmp(item_buff,sizeof(item_buff),NULL),*item_result;
-    String field_tmp(field_buff,sizeof(field_buff),NULL);
+    String item_tmp(item_buff,sizeof(item_buff),my_charset_bin),*item_result;
+    String field_tmp(field_buff,sizeof(field_buff),my_charset_bin);
     item_result=item->val_str(&item_tmp);
     if (item->null_value)
       return 1;					// This must be true
@@ -1263,8 +1264,8 @@ void Item_cache_str::store(Item *item)
 double Item_cache_str::val()
 { 
   if (value)
-    return my_strntod(value->charset(), value->ptr(),
-		      value->length(), (char**)0);
+    return my_strntod(value->charset(), (char*) value->ptr(),
+		      value->length(), (char**) 0);
   else
     return (double)0;
 }

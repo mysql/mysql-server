@@ -110,88 +110,40 @@ int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc,
 }
 
 int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc,
-		  unsigned char *s,
-		  unsigned char *e __attribute__((unused)))
+		  unsigned char *str,
+		  unsigned char *end __attribute__((unused)))
 {
   MY_UNI_IDX *idx;
 
-  for(idx=cs->tab_from_uni; idx->tab ; idx++){
-    if(idx->from<=wc && idx->to>=wc){
-      s[0]=idx->tab[wc-idx->from];
-      return (!s[0] && wc) ? MY_CS_ILUNI : 1;
+  for (idx=cs->tab_from_uni; idx->tab ; idx++)
+  {
+    if (idx->from <= wc && idx->to >= wc)
+    {
+      str[0]= idx->tab[wc - idx->from];
+      return (!str[0] && wc) ? MY_CS_ILUNI : 1;
     }
   }
   return MY_CS_ILUNI;
 }
 
 
-#ifdef NOT_USED
-static int my_vsnprintf_8bit(char *to, size_t n, const char* fmt, va_list ap)
-{
-  char *start=to, *end=to+n-1;
-  for (; *fmt ; fmt++)
-  {
-    if (fmt[0] != '%')
-    {
-      if (to == end)			/* End of buffer */
-	break;
-      *to++= *fmt;			/* Copy ordinary char */
-      continue;
-    }
-    /* Skip if max size is used (to be compatible with printf) */
-    fmt++;
-    while (my_isdigit(system_charset_info,*fmt) || *fmt == '.' || *fmt == '-')
-      fmt++;
-    if (*fmt == 'l')
-      fmt++;
-    if (*fmt == 's')				/* String parameter */
-    {
-      reg2 char	*par = va_arg(ap, char *);
-      uint plen,left_len = (uint)(end-to);
-      if (!par) par = (char*)"(null)";
-      plen = (uint) strlen(par);
-      if (left_len <= plen)
-	plen = left_len - 1;
-      to=strnmov(to,par,plen);
-      continue;
-    }
-    else if (*fmt == 'd' || *fmt == 'u')	/* Integer parameter */
-    {
-      register int iarg;
-      if ((uint) (end-to) < 16)
-	break;
-      iarg = va_arg(ap, int);
-      if (*fmt == 'd')
-	to=int10_to_str((long) iarg,to, -10);
-      else
-	to=int10_to_str((long) (uint) iarg,to,10);
-      continue;
-    }
-    /* We come here on '%%', unknown code or too long parameter */
-    if (to == end)
-      break;
-    *to++='%';				/* % used as % or unknown code */
-  }
-  DBUG_ASSERT(to <= end);
-  *to='\0';				/* End of errmessage */
-  return (uint) (to - start);
-}
-#endif
+/* 
+   We can't use vsprintf here as it's not guaranteed to return
+   the length on all operating systems.
+   This function is also not called in a safe environment, so the
+   end buffer must be checked.
+*/
 
 int my_snprintf_8bit(CHARSET_INFO *cs  __attribute__((unused)),
 		     char* to, uint n  __attribute__((unused)),
 		     const char* fmt, ...)
 {
   va_list args;
+  int result;
   va_start(args,fmt);
-#ifdef NOT_USED
-  return my_vsnprintf_8bit(to, n, fmt, args);
-#endif
-  /* 
-     FIXME: generally not safe, but it is OK for now
-     FIXME: as far as it's not called unsafely in the current code
-  */
-  return vsprintf(to,fmt,args); /* FIXME */
+  result= my_vsnprintf(to, n, fmt, args);
+  va_end(args);
+  return result;
 }
 
 
@@ -690,28 +642,48 @@ noconv:
   return 0L;
 }
 
-double      my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, uint l, char **e)
+/*
+  Read double from string
+
+  SYNOPSIS:
+    my_strntod_8bit()
+    cs		Character set information
+    str		String to convert to double
+    length	Optional length for string.
+    end		pointer to end of converted string
+    
+  NOTES:
+    If length is not INT_MAX32 or str[length] != 0 then the given str must
+    be writeable
+    If length == INT_MAX32 the str must be \0 terminated.
+
+    It's implemented this way to save a buffer allocation and a memory copy.
+
+  RETURN
+    value of number in string
+*/
+
+
+double my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
+		       char *str, uint length, char **end)
 {
-  char   buf[256];
-  double res;
-  if((l+1)>sizeof(buf))
-  {
-    if (e)
-      memcpy(*e,s,sizeof(s));
-    return 0;
-  }
-  strncpy(buf,s,l);
-  buf[l]='\0';
-  res=strtod(buf,e);
-  if (e)
-    memcpy(*e,*e-buf+s,sizeof(s));
-  return res;
+  char end_char;
+  double result;
+
+  if (length == INT_MAX32 || str[length] == 0)
+    return strtod(str, end);
+  end_char= str[length];
+  str[length]= 0;
+  result= strtod(str, end);
+  str[length]= end_char;			/* Restore end char */
+  return result;
 }
 
 
 /*
   This is a fast version optimized for the case of radix 10 / -10
+
+  Assume len >= 1
 */
 
 int my_l10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
@@ -720,18 +692,19 @@ int my_l10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
   char buffer[66];
   register char *p, *e;
   long int new_val;
-  int  sl=0;
-  uint l;
-  
+  uint sign=0;
+
   e = p = &buffer[sizeof(buffer)-1];
-  *e='\0';
+  *p= 0;
   
   if (radix < 0)
   {
     if (val < 0)
     {
-      sl   = 1;
-      val  = -val;
+      val= -val;
+      *dst++= '-';
+      len--;
+      sign= 1;
     }
   }
   
@@ -746,16 +719,11 @@ int my_l10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
     val= new_val;
   }
   
-  if (sl)
-  {
-    *--p='-';
-  }
-
-  l=e-p;
-  l=(l>len)?len:l;
-  memcpy(dst,p,l);
-  return (int)l;
+  len= min(len, (uint) (e-p));
+  memcpy(dst, p, len);
+  return (int) len+sign;
 }
+
 
 int my_ll10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		      char *dst, uint len, int radix, longlong val)
@@ -763,24 +731,26 @@ int my_ll10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
   char buffer[65];
   register char *p, *e;
   long long_val;
-  int  sl=0;
-  uint l;
+  uint sign= 0;
   
   if (radix < 0)
   {
     if (val < 0)
     {
-      sl=1;
       val = -val;
+      *dst++= '-';
+      len--;
+      sign= 1;
     }
   }
   
   e = p = &buffer[sizeof(buffer)-1];
-  *p='\0';
+  *p= 0;
   
   if (val == 0)
   {
-    *--p='0';
+    *--p= '0';
+    len= 1;
     goto cnv;
   }
   
@@ -800,16 +770,10 @@ int my_ll10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
     long_val= quo;
   }
   
+  len= min(len, (uint) (e-p));
 cnv:
-  if (sl)
-  {
-    *--p='-';
-  }
-  
-  l=e-p;
-  l=(l>len)?len:l;
-  memcpy(dst,p,l);
-  return (int)(e-p);
+  memcpy(dst, p, len);
+  return len+sign;
 }
 
 
