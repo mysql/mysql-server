@@ -17687,7 +17687,7 @@ to set the column to some other value than 0.
 @findex REPAIR TABLE
 
 @example
-REPAIR TABLE tbl_name[,tbl_name...] [QUICK] [EXTENDED]
+REPAIR TABLE tbl_name[,tbl_name...] [QUICK] [EXTENDED] [USE_FRM]
 @end example
 
 @code{REPAIR TABLE} only works on @code{MyISAM} tables and is the same
@@ -17724,6 +17724,10 @@ by row instead of creating one index at a time with sorting;  This may be
 better than sorting on fixed-length keys if you have long @code{char()}
 keys that compress very good.
 
+As of MySQL 4.0.2 there is @code{USE_FRM} mode for @code{REPAIR}.
+Use it if @code{.MYI} file is missing or its header is corrupted.
+In this mode MySQL will recreate the table, using information from
+@code{.frm} file. This kind of repair cannot be done with @code{myisamchk}.
 
 @node Table maintenance, Maintenance regimen, REPAIR TABLE, Disaster Prevention
 @subsection Using @code{myisamchk} for Table Maintenance and Crash Recovery
@@ -18019,8 +18023,7 @@ If you have lots of memory, you should increase the size of
 @code{key_buffer_size}!
 @item -n or --sort-recover
 Force @code{myisamchk} to use sorting to resolve the keys even if the
-temporary files should be very big.  This will not have any effect if you have
-full-text keys in the table.
+temporary files should be very big.
 
 @item --character-sets-dir=...
 Directory where character sets are stored.
@@ -18387,6 +18390,9 @@ a copy in case something goes wrong.)
 
 Go back to Stage 2.  @code{myisamchk -r -q} should work now.  (This shouldn't
 be an endless loop.)
+
+As of MySQL 4.0.2 you can also use @code{REPAIR ... USE_FRM}
+that does the whole procedure automatically.
 
 @noindent
 @strong{Stage 4: Very difficult repair}
@@ -48761,6 +48767,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.2
 
 @itemize @bullet
+@item
+@code{REPAIR ... USE_FRM} added.
 @item
 Fixed bug with indexless boolean full-text search.
 @item
