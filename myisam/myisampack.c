@@ -418,14 +418,12 @@ static bool open_isam_files(PACK_MRG_INFO *mrg,char **names,uint count)
   mrg->src_file_has_indexes_disabled= 0;
   for (i=0; i < count ; i++)
   {
-    if ((mrg->file[i]=open_isam_file(names[i],O_RDONLY)))
-    {
-      mrg->src_file_has_indexes_disabled |= 
-        (mrg->file[i]->s->state.key_map != 
-         (1ULL << mrg->file[i]->s->base.keys) - 1);
-    }
-    else
+    if (!(mrg->file[i]=open_isam_file(names[i],O_RDONLY)))
       goto error;
+
+    mrg->src_file_has_indexes_disabled|= ((mrg->file[i]->s->state.key_map != 
+                                           (((ulonglong) 1) <<
+                                            mrg->file[i]->s->base. keys) - 1));
   }
   /* Check that files are identical */
   for (j=0 ; j < count-1 ; j++)
