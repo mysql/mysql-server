@@ -27,7 +27,9 @@ VER_NO_DASH=`echo $VER | sed -e "s|-.*$||"`
 
 echo "Removing old MySQL packages"
 rm -rf $rpmdir/BUILD/mysql-*
+rm -f $rpmdir/SOURCES/mysql-*
 rm -f $rpmdir/SRPMS/MySQL-*
+rm -f $rpmdir/SPEC/mysql-*
 
 echo "Building RPM for MySQL version $VER on $bmachine"
 

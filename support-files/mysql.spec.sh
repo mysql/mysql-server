@@ -335,7 +335,6 @@ fi
 %attr(755, root, root) /usr/bin/mysqlbinlog
 
 %attr(644, root, man) %doc /usr/man/man1/mysql.1*
-%attr(644, root, man) %doc /usr/man/man1/mysql.1*
 %attr(644, root, man) %doc /usr/man/man1/isamchk.1*
 %attr(644, root, man) %doc /usr/man/man1/isamlog.1*
 %attr(644, root, man) %doc /usr/man/man1/mysql_zap.1*
