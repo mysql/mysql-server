@@ -83,14 +83,14 @@ class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
 #ifdef HAVE_MMAP
 class TC_LOG_MMAP: public TC_LOG
 {
-  private:
-
+  public:                // only to keep Sun Forte on sol9x86 happy
   typedef enum {
     POOL,                 // page is in pool
     ERROR,                // last sync failed
     DIRTY                 // new xids added since last sync
   } PAGE_STATE;
 
+  private:
   typedef struct st_page {
     struct st_page *next; // page a linked in a fifo queue
     my_xid *start, *end;  // usable area of a page
