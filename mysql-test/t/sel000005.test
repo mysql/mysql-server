@@ -1,4 +1,4 @@
-# sel000004
+# sel000005
 #
 # Versions
 # --------
@@ -7,15 +7,8 @@
 #
 # Description
 # -----------
-# test for a bug with elt() 
+# Numeric functions.
+# Testing FLOOR(), CEILING(), ROUND().
+#
 
-drop table if exists elt_ck1,elt_ck2;
-create  table elt_ck1 (id int(10) not null unique);
-create  table elt_ck2 (id int(10) not null primary key, 
-val int(10) not null);
-insert into elt_ck1 values (1),(2),(4);
-insert into elt_ck2 values (1,1),(2,1),(3,1),(4,2);
-
-@r/sel000005.result select one.id, elt(two.val,'one','two') from elt_ck1 one, elt_ck2 two 
-where two.id=one.id ;
-
+@r/3.23/sel000005.result SELECT FLOOR(5.5),FLOOR(-5.5),CEILING(5.5),CEILING(-5.5),ROUND(5.5),ROUND(-5.5);

@@ -1,0 +1,13 @@
+# sel000012
+#
+# Versions
+# --------
+#   3.22
+#   3.23
+#
+# Description
+# -----------
+# Numeric floating point.
+#
+
+@r/3.23/sel000012.result SELECT 10,10.0,10.,.1e+2,100.0e-1;
