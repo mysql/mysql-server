@@ -128,6 +128,7 @@ DO_GDB=""
 DO_DDD=""
 DO_CLIENT_GDB=""
 SLEEP_TIME=2
+CHARACTER_SET=latin1_de
 DBUSER=""
 
 while test $# -gt 0; do
@@ -277,6 +278,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
  MYSQLADMIN="$BASEDIR/client/mysqladmin"
  MYSQL="$BASEDIR/client/mysql"
  LANGUAGE="$BASEDIR/sql/share/english/"
+ CHARSETSDIR="$BASEDIR/sql/share/charsets"
  INSTALL_DB="./install_test_db"
 else
  MYSQLD="$BASEDIR/bin/mysqld"
@@ -287,8 +289,10 @@ else
  if test -d "$BASEDIR/share/mysql/english" 
  then
    LANGUAGE="$BASEDIR/share/mysql/english/"
+   CHARSETSDIR="$BASEDIR/share/mysql/charsets"
  else
    LANGUAGE="$BASEDIR/share/english/"
+   CHARSETSDIR="$BASEDIR/share/charsets"
   fi
 fi
 
@@ -506,7 +510,9 @@ start_master()
             --datadir=$MASTER_MYDDIR \
 	    --pid-file=$MASTER_MYPID \
 	    --socket=$MASTER_MYSOCK \
-            --log=$MASTER_MYLOG --default-character-set=latin1 \
+            --log=$MASTER_MYLOG \
+	    --character-sets-dir=$CHARSETSDIR \
+	    --default-character-set=$CHARACTER_SET \
 	    --tmpdir=$MYSQL_TMP_DIR \
 	    --language=$LANGUAGE \
             --innodb_data_file_path=ibdata1:50M \
@@ -519,7 +525,8 @@ start_master()
             --datadir=$MASTER_MYDDIR \
 	    --pid-file=$MASTER_MYPID \
 	    --socket=$MASTER_MYSOCK \
-            --default-character-set=latin1 \
+	    --character-sets-dir=$CHARSETSDIR \
+            --default-character-set=$CHARACTER_SET \
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
 	    --language=$LANGUAGE \
@@ -575,7 +582,9 @@ start_slave()
 	    --pid-file=$SLAVE_MYPID \
 	    --port=$SLAVE_MYPORT \
 	    --socket=$SLAVE_MYSOCK \
-            --log=$SLAVE_MYLOG --default-character-set=latin1 \
+            --log=$SLAVE_MYLOG \
+	    --character-sets-dir=$CHARSETSDIR \
+	    --default-character-set=$CHARACTER_SET \
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
             --language=$LANGUAGE \
