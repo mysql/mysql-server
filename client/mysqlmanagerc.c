@@ -17,27 +17,15 @@
 #define MANAGER_CLIENT_VERSION "1.0"
 
 #include <my_global.h>
-#include <my_sys.h>
-#include <m_string.h>
 #include <mysql.h>
 #include <mysql_version.h>
-#include <m_ctype.h>
-#ifdef OS2
-#include <config-os2.h>
-#else
-#include <my_config.h>
-#endif
-#include <my_dir.h>
-#include <hash.h>
 #include <mysqld_error.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <my_sys.h>
+#include <m_string.h>
 #include <getopt.h>
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <errno.h>
-#include <violite.h>
 
 #ifndef MYSQL_MANAGER_PORT
 #define MYSQL_MANAGER_PORT 23546
