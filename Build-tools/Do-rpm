@@ -25,6 +25,10 @@ VER=`grep "AM_INIT_AUTOMAKE(mysql, " $bpath/configure.in | \
  sed -e 's;AM_INIT_AUTOMAKE(mysql, ;;' -e 's;);;'`
 VER_NO_DASH=`echo $VER | sed -e "s|-.*$||"`
 
+echo "Removing old MySQL packages"
+rm -rf $rpmdir/BUILD/mysql-*
+rm -f $rpmdir/SRPMS/MySQL-*
+
 echo "Building RPM for MySQL version $VER on $bmachine"
 
 log=$bpath/Logs/Log-RPM-`date +%y%m%d-%H%M`
