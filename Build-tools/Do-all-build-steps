@@ -18,7 +18,7 @@ to_host=`hostname`
 cc=gcc
 ccc=gcc
 EXTRA_CONFIG="--without-perl"
-AM_MAKEFLAGS="-j 2"
+#AM_MAKEFLAGS="-j 2"
 echo "Building on $to_host"
 
 rm -rf $BD/*
