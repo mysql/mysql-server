@@ -990,7 +990,6 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Stable)
 
-* News-3.23.39a::               
 * News-3.23.39::                Changes in release 3.23.39
 * News-3.23.38::                Changes in release 3.23.38
 * News-3.23.37::                Changes in release 3.23.37
@@ -46310,7 +46309,6 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
-* News-3.23.39a::               
 * News-3.23.39::                Changes in release 3.23.39
 * News-3.23.38::                Changes in release 3.23.38
 * News-3.23.37::                Changes in release 3.23.37
@@ -46354,14 +46352,7 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.39a, News-3.23.39, News-3.23.x, News-3.23.x
-@appendixsubsec Changes in release 3.23.39a
-@itemize @bullet
-@item
-Fixed a small bug in the mysql-test benchmark suite
-@end itemize
-
-@node News-3.23.39, News-3.23.38, News-3.23.39a, News-3.23.x
+@node News-3.23.39, News-3.23.38, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.39
 @itemize @bullet
 @item
