@@ -44,9 +44,9 @@ create table t1 (a int, b char(10));
 load data infile '../../std_data/loaddata3.dat' into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 3
-Warning	1262	Row 3 was truncated; It contained more data than there where input columns
+Warning	1262	Row 3 was truncated; It contained more data than there were input columns
 Warning	1265	Data truncated for column 'a' at row 5
-Warning	1262	Row 5 was truncated; It contained more data than there where input columns
+Warning	1262	Row 5 was truncated; It contained more data than there were input columns
 select * from t1;
 a	b
 1	row 1

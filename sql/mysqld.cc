@@ -188,7 +188,6 @@ inline void reset_floating_point_exceptions()
 extern "C" int gethostname(char *name, int namelen);
 #endif
 
-
 /* Set prefix for windows binary */
 #ifdef __WIN__
 #undef MYSQL_SERVER_SUFFIX
@@ -370,7 +369,7 @@ pthread_key(MEM_ROOT*,THR_MALLOC);
 pthread_key(THD*, THR_THD);
 pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_mapped_file, LOCK_status,
-		LOCK_error_log,
+		LOCK_error_log, LOCK_uuid_generator,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
@@ -430,7 +429,7 @@ static	 NTService  Service;	      // Service object for WinNT
 #endif /* __WIN__ */
 
 #ifdef __NT__
-static char szPipeName [ 257 ];
+static char pipe_name[512];
 static SECURITY_ATTRIBUTES saPipeSecurity;
 static SECURITY_DESCRIPTOR sdPipeDescriptor;
 static HANDLE hPipe = INVALID_HANDLE_VALUE;
@@ -573,7 +572,7 @@ static void close_connections(void)
     DBUG_PRINT( "quit", ("Closing named pipes") );
 
     /* Create connection to the handle named pipe handler to break the loop */
-    if ((temp = CreateFile(szPipeName,
+    if ((temp = CreateFile(pipe_name,
 			   GENERIC_READ | GENERIC_WRITE,
 			   0,
 			   NULL,
@@ -581,7 +580,7 @@ static void close_connections(void)
 			   0,
 			   NULL )) != INVALID_HANDLE_VALUE)
     {
-      WaitNamedPipe(szPipeName, 1000);
+      WaitNamedPipe(pipe_name, 1000);
       DWORD dwMode = PIPE_READMODE_BYTE | PIPE_WAIT;
       SetNamedPipeHandleState(temp, &dwMode, NULL, NULL);
       CancelIo(temp);
@@ -1185,11 +1184,14 @@ static void server_init(void)
   if (Service.IsNT() && mysqld_unix_port[0] && !opt_bootstrap &&
       opt_enable_named_pipe)
   {
-    sprintf(szPipeName, "\\\\.\\pipe\\%s", mysqld_unix_port );
-    ZeroMemory( &saPipeSecurity, sizeof(saPipeSecurity) );
-    ZeroMemory( &sdPipeDescriptor, sizeof(sdPipeDescriptor) );
-    if ( !InitializeSecurityDescriptor(&sdPipeDescriptor,
-				       SECURITY_DESCRIPTOR_REVISION) )
+    
+    pipe_name[sizeof(pipe_name)-1]= 0;		/* Safety if too long string */
+    strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\.\\pipe\\",
+	     unix_socket, NullS);
+    bzero((char*) &saPipeSecurity, sizeof(saPipeSecurity));
+    bzero((char*) &sdPipeDescriptor, sizeof(sdPipeDescriptor));
+    if (!InitializeSecurityDescriptor(&sdPipeDescriptor,
+				      SECURITY_DESCRIPTOR_REVISION))
     {
       sql_perror("Can't start server : Initialize security descriptor");
       unireg_abort(1);
@@ -1202,16 +1204,16 @@ static void server_init(void)
     saPipeSecurity.nLength = sizeof( SECURITY_ATTRIBUTES );
     saPipeSecurity.lpSecurityDescriptor = &sdPipeDescriptor;
     saPipeSecurity.bInheritHandle = FALSE;
-    if ((hPipe = CreateNamedPipe(szPipeName,
-				 PIPE_ACCESS_DUPLEX,
-				 PIPE_TYPE_BYTE |
-				 PIPE_READMODE_BYTE |
-				 PIPE_WAIT,
-				 PIPE_UNLIMITED_INSTANCES,
-				 (int) global_system_variables.net_buffer_length,
-				 (int) global_system_variables.net_buffer_length,
-				 NMPWAIT_USE_DEFAULT_WAIT,
-				 &saPipeSecurity )) == INVALID_HANDLE_VALUE)
+    if ((hPipe= CreateNamedPipe(pipe_name,
+				PIPE_ACCESS_DUPLEX,
+				PIPE_TYPE_BYTE |
+				PIPE_READMODE_BYTE |
+				PIPE_WAIT,
+				PIPE_UNLIMITED_INSTANCES,
+				(int) global_system_variables.net_buffer_length,
+				(int) global_system_variables.net_buffer_length,
+				NMPWAIT_USE_DEFAULT_WAIT,
+				&saPipeSecurity)) == INVALID_HANDLE_VALUE)
       {
 	LPVOID lpMsgBuf;
 	int error=GetLastError();
@@ -2204,6 +2206,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
   (void) my_rwlock_init(&LOCK_sys_init_connect, NULL);
   (void) my_rwlock_init(&LOCK_sys_init_slave, NULL);
   (void) my_rwlock_init(&LOCK_grant, NULL);
@@ -2948,8 +2951,6 @@ static void create_new_thread(THD *thd)
     DBUG_VOID_RETURN;
   }
   pthread_mutex_lock(&LOCK_thread_count);
-  if (thread_count-delayed_insert_threads > max_used_connections)
-    max_used_connections=thread_count-delayed_insert_threads;
   thd->thread_id=thread_id++;
 
   thd->real_id=pthread_self();			// Keep purify happy
@@ -2978,6 +2979,8 @@ static void create_new_thread(THD *thd)
       thread_count++;
       thread_created++;
       threads.append(thd);
+      if (thread_count-delayed_insert_threads > max_used_connections)
+        max_used_connections=thread_count-delayed_insert_threads;
       DBUG_PRINT("info",(("creating thread %d"), thd->thread_id));
       thd->connect_time = time(NULL);
       if ((error=pthread_create(&thd->real_id,&connection_attrib,
@@ -3270,7 +3273,7 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
     if (!fConnected)
     {
       CloseHandle( hPipe );
-      if ((hPipe = CreateNamedPipe(szPipeName,
+      if ((hPipe = CreateNamedPipe(pipe_name,
 				   PIPE_ACCESS_DUPLEX,
 				   PIPE_TYPE_BYTE |
 				   PIPE_READMODE_BYTE |
@@ -3288,7 +3291,7 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
     }
     hConnectedPipe = hPipe;
     /* create new pipe for new connection */
-    if ((hPipe = CreateNamedPipe(szPipeName,
+    if ((hPipe = CreateNamedPipe(pipe_name,
 				 PIPE_ACCESS_DUPLEX,
 				 PIPE_TYPE_BYTE |
 				 PIPE_READMODE_BYTE |
@@ -4180,7 +4183,7 @@ replicating a LOAD DATA INFILE command.",
    0, 0, 0, 0, 0},
   {"tmpdir", 't',
    "Path for temporary files. Several paths may be specified, separated by a "
-#if defined( __WIN__) || defined(OS2)
+#if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
    "semicolon (;)"
 #else
    "colon (:)"
@@ -5612,9 +5615,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     global_system_variables.sql_mode= fix_sql_mode(global_system_variables.
 						   sql_mode);
+    break;
   }
   case OPT_FT_BOOLEAN_SYNTAX:
-    if (ft_boolean_check_syntax_string(argument))
+    if (ft_boolean_check_syntax_string((byte*) argument))
     {
       fprintf(stderr, "Invalid ft-boolean-syntax string: %s\n", argument);
       exit(1);

@@ -19,10 +19,6 @@
 #include "mysys_err.h"
 #include <m_string.h>
 #include <m_ctype.h>
-#ifdef HAVE_GETRUSAGE
-#include <sys/resource.h>
-/* extern int     getrusage(int, struct rusage *); */
-#endif
 #include <signal.h>
 #ifdef VMS
 #include <my_static.c>

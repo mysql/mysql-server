@@ -310,7 +310,6 @@ delete t1, t2 from t2,t1
 
 drop table t1,t2;
 
-
 #
 # Test for bug #1820.
 #

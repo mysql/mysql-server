@@ -39,7 +39,7 @@ libmysys_a_SOURCES =	my_init.c my_getwd.c mf_getdate.c \
 			mf_format.c mf_same.c mf_dirname.c mf_fn_ext.c \
 			my_symlink.c my_symlink2.c \
 			mf_pack.c mf_unixpath.c mf_strip.c \
-			mf_wcomp.c mf_wfile.c \
+			mf_wcomp.c mf_wfile.c my_gethwaddr.c \
 			mf_qsort.c mf_qsort2.c mf_sort.c \
 			ptr_cmp.c mf_radix.c queues.c \
 			tree.c list.c hash.c array.c string.c typelib.c \
@@ -109,6 +109,11 @@ charset2html$(EXEEXT): charset2html.c $(LIBRARIES)
 
 testhash$(EXEEXT): testhash.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/testhash.c $(LDADD) $(LIBS)
+
+test_gethwaddr$(EXEEXT): my_gethwaddr.c $(LIBRARIES)
+	$(CP) $(srcdir)/my_gethwaddr.c ./test_gethwaddr.c
+	$(LINK) $(FLAGS) -DMAIN  ./test_gethwaddr.c $(LDADD) $(LIBS)
+	$(RM) -f ./test_gethwaddr.c
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

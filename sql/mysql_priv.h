@@ -802,7 +802,7 @@ extern char log_error_file[FN_REFLEN];
 extern double log_10[32];
 extern ulonglong keybuff_size;
 extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables;
-extern ulong created_tmp_tables, created_tmp_disk_tables;
+extern ulong created_tmp_tables, created_tmp_disk_tables, bytes_sent;
 extern ulong aborted_threads,aborted_connects;
 extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
@@ -857,7 +857,7 @@ extern FILE *bootstrap_file;
 extern pthread_key(MEM_ROOT*,THR_MALLOC);
 extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_thread_count,LOCK_mapped_file,LOCK_user_locks, LOCK_status,
-       LOCK_error_log, LOCK_delayed_insert,
+       LOCK_error_log, LOCK_delayed_insert, LOCK_uuid_generator,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn;
@@ -1083,6 +1083,14 @@ inline void table_case_convert(char * name, uint length)
 inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
 {
   return ((lower_case_table_names == 2 && info->alias) ? info->alias : name);
+}
+
+inline ulong sql_rnd_with_mutex()
+{
+  pthread_mutex_lock(&LOCK_thread_count);
+  ulong tmp=(ulong) (my_rnd(&sql_rand) * 0xffffffff); /* make all bits random */
+  pthread_mutex_unlock(&LOCK_thread_count);
+  return tmp;
 }
 
 Comp_creator *comp_eq_creator(bool invert);

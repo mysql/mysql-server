@@ -250,9 +250,9 @@ mutex_enter_func(
 	
 	if (!mutex_test_and_set(mutex)) {
 
-		#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 		mutex_set_debug_info(mutex, file_name, line);
-		#endif
+#endif
 
 		mutex->file_name = file_name;
 		mutex->line = line;

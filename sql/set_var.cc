@@ -860,7 +860,7 @@ static void sys_default_init_slave(THD* thd, enum_var_type type)
 static int sys_check_ftb_syntax(THD *thd,  set_var *var)
 {
   if (thd->master_access & SUPER_ACL)
-    return ft_boolean_check_syntax_string(var->value->str_value.c_ptr()) ?
+    return ft_boolean_check_syntax_string((byte*) var->value->str_value.c_ptr()) ?
       -1 : 0;
   else
   {
