@@ -688,7 +688,7 @@ int main()
     [USE_PSTACK=yes])
   pstack_libs=
   pstack_dirs=
-  if test "$USE_PSTACK" = yes -a "$IS_LINUX" = "true" -a "$MACHINE_TYPE" = "i686"
+  if test "$USE_PSTACK" = yes -a "$IS_LINUX" = "true" -a "$MACHINE_TYPE" = "i686" -a "$with_mit_threads" = "no"
   then
     have_libiberty= have_libbfd=
     my_save_LIBS="$LIBS"
