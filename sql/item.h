@@ -470,6 +470,17 @@ public:
   Item *safe_charset_converter(CHARSET_INFO *tocs);
 };
 
+class Item_null_result :public Item_null
+{
+public:
+  Field *result_field;
+  Item_null_result() : Item_null(), result_field(0) {}
+  bool is_result_field() { return result_field != 0; }
+  void save_in_result_field(bool no_conversions)
+  {
+    save_in_field(result_field, no_conversions);
+  }
+};  
 
 /* Item represents one placeholder ('?') of prepared statement */
 

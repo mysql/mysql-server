@@ -124,7 +124,7 @@ typedef struct st_rollup
 {
   enum State { STATE_NONE, STATE_INITED, STATE_READY };
   State state;
-  Item *item_null;
+  Item_null_result **null_items;
   Item ***ref_pointer_arrays;
   List<Item> *fields;
 } ROLLUP;
@@ -295,6 +295,7 @@ class JOIN :public Sql_alloc
   bool rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
 			  Item_sum ***func);
   int rollup_send_data(uint idx);
+  int rollup_write_data(uint idx, TABLE *table);
   bool test_in_subselect(Item **where);
   void join_free(bool full);
   void clear();
