@@ -136,7 +136,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
     found_rows_for_union= first_select()->options & OPTION_FOUND_ROWS && 
       global_parameters->select_limit;
     if (found_rows_for_union)
-      first_select()->options ^=  OPTION_FOUND_ROWS;
+      first_select()->options&=  ~OPTION_FOUND_ROWS;
   }
   if (t_and_f)
   {
