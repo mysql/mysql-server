@@ -310,11 +310,36 @@ int Log_event::exec_event(struct st_relay_log_info* rli)
   */
   if (rli)  
   {
-    if (rli->inside_transaction)
-      rli->inc_pending(get_event_len());
+    /*
+      If in a transaction, and if the slave supports transactions,
+      just inc_event_relay_log_pos(). We only have to check for OPTION_BEGIN
+      (not OPTION_NOT_AUTOCOMMIT) as transactions are logged
+      with BEGIN/COMMIT, not with SET AUTOCOMMIT= .
+      
+      CAUTION: opt_using_transactions means
+      innodb || bdb ; suppose the master supports InnoDB and BDB, 
+      but the slave supports only BDB, problems
+      will arise: 
+      - suppose an InnoDB table is created on the master,
+      - then it will be MyISAM on the slave
+      - but as opt_using_transactions is true, the slave will believe he is
+      transactional with the MyISAM table. And problems will come when one
+      does START SLAVE; STOP SLAVE; START SLAVE; (the slave will resume at BEGIN
+      whereas there has not been any rollback). This is the problem of
+      using opt_using_transactions instead of a finer
+      "does the slave support _the_transactional_handler_used_on_the_master_".
+      
+      More generally, we'll have problems when a query mixes a transactional
+      handler and MyISAM and STOP SLAVE is issued in the middle of the
+      "transaction". START SLAVE will resume at BEGIN while the MyISAM table has
+      already been updated.
+      
+    */
+    if ((thd->options & OPTION_BEGIN) && opt_using_transactions)
+      rli->inc_event_relay_log_pos(get_event_len());
     else
     {
-      rli->inc_pos(get_event_len(),log_pos);
+      rli->inc_group_relay_log_pos(get_event_len(),log_pos);
       flush_relay_log_info(rli);
     }
   }
@@ -878,9 +903,13 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   thd->db = rewrite_db((char*)db);
 
   /*
-    InnoDB internally stores the master log position it has processed so far;
-    position to store is really pos + pending + event_len
-    since we must store the pos of the END of the current log event
+    InnoDB internally stores the master log position it has executed so far,
+    i.e. the position just after the COMMIT event.
+    When InnoDB will want to store, the positions in rli won't have
+    been updated yet, so group_master_log_* will point to old BEGIN
+    and event_master_log* will point to the beginning of current COMMIT.
+    So the position to store is event_master_log_pos + event_len
+    since we must store the pos of the END of the current log event (COMMIT).
   */
   rli->event_len= get_event_len();
 
@@ -908,18 +937,6 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
       mysql_log.write(thd,COM_QUERY,"%s",thd->query);
       DBUG_PRINT("query",("%s",thd->query));
       mysql_parse(thd, thd->query, q_len);
-
-      /*
-	Set a flag if we are inside an transaction so that we can restart
-	the transaction from the start if we are killed
-
-	This will only be done if we are supporting transactional tables
-	in the slave.
-      */
-      if (!strcmp(thd->query,"BEGIN"))
-	rli->inside_transaction= opt_using_transactions;
-      else if (!strcmp(thd->query,"COMMIT"))
-	rli->inside_transaction=0;
 
       DBUG_PRINT("info",("expected_error: %d  last_errno: %d",
 			 expected_error, thd->net.last_errno));
@@ -1776,14 +1793,15 @@ int Rotate_log_event::write_data(IO_CACHE* file)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  char* log_name = rli->master_log_name;
+  char* log_name = rli->group_master_log_name;
   DBUG_ENTER("Rotate_log_event::exec_event");
 
   pthread_mutex_lock(&rli->data_lock);
   memcpy(log_name, new_log_ident, ident_len+1);
-  rli->master_log_pos = pos;
-  rli->relay_log_pos += get_event_len();
-  DBUG_PRINT("info", ("master_log_pos: %d", (ulong) rli->master_log_pos));
+  rli->group_master_log_pos = pos;
+  rli->event_relay_log_pos += get_event_len();
+  rli->group_relay_log_pos = rli->event_relay_log_pos;
+  DBUG_PRINT("info", ("group_master_log_pos: %d", (ulong) rli->group_master_log_pos));
   pthread_mutex_unlock(&rli->data_lock);
   pthread_cond_broadcast(&rli->data_cond);
   flush_relay_log_info(rli);
@@ -1905,7 +1923,7 @@ int Intvar_log_event::exec_event(struct st_relay_log_info* rli)
     thd->next_insert_id = val;
     break;
   }
-  rli->inc_pending(get_event_len());
+  rli->inc_event_relay_log_pos(get_event_len());
   return 0;
 }
 #endif
@@ -1967,7 +1985,7 @@ int Rand_log_event::exec_event(struct st_relay_log_info* rli)
 {
   thd->rand.seed1= (ulong) seed1;
   thd->rand.seed2= (ulong) seed2;
-  rli->inc_pending(get_event_len());
+  rli->inc_event_relay_log_pos(get_event_len());
   return 0;
 }
 #endif // !MYSQL_CLIENT
@@ -2199,7 +2217,7 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
   e.update_hash(val, val_len, type, charset, Item::COER_NOCOLL);
   free_root(&thd->mem_root,0);
 
-  rli->inc_pending(get_event_len());
+  rli->inc_event_relay_log_pos(get_event_len());
   return 0;
 }
 #endif // !MYSQL_CLIENT
@@ -2241,7 +2259,7 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
   pthread_mutex_lock(&mi->data_lock);
   pthread_mutex_lock(&rli->data_lock);
   master_host_len = strlen(mi->host);
-  master_log_len = strlen(rli->master_log_name);
+  master_log_len = strlen(rli->group_master_log_name);
   // on OOM, just do not initialize the structure and print the error
   if ((mem_pool = (char*)my_malloc(get_data_size() + 1,
 				   MYF(MY_WME))))
@@ -2249,9 +2267,9 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
     master_host = mem_pool + SL_MASTER_HOST_OFFSET ;
     memcpy(master_host, mi->host, master_host_len + 1);
     master_log = master_host + master_host_len + 1;
-    memcpy(master_log, rli->master_log_name, master_log_len + 1);
+    memcpy(master_log, rli->group_master_log_name, master_log_len + 1);
     master_port = mi->port;
-    master_pos = rli->master_log_pos;
+    master_pos = rli->group_master_log_pos;
     DBUG_PRINT("info", ("master_log: %s  pos: %d", master_log,
 			(ulong) master_pos));
   }
@@ -2381,19 +2399,19 @@ void Stop_log_event::print(FILE* file, bool short_form, char* last_db)
 int Stop_log_event::exec_event(struct st_relay_log_info* rli)
 {
   // do not clean up immediately after rotate event
-  if (rli->master_log_pos > BIN_LOG_HEADER_SIZE) 
+  if (rli->group_master_log_pos > BIN_LOG_HEADER_SIZE) 
   {
     close_temporary_tables(thd);
     cleanup_load_tmpdir();
   }
   /*
     We do not want to update master_log pos because we get a rotate event
-    before stop, so by now master_log_name is set to the next log.
+    before stop, so by now group_master_log_name is set to the next log.
     If we updated it, we will have incorrect master coordinates and this
     could give false triggers in MASTER_POS_WAIT() that we have reached
     the target position when in fact we have not.
   */
-  rli->inc_pos(get_event_len(), 0);  
+  rli->inc_group_relay_log_pos(get_event_len(), 0);  
   flush_relay_log_info(rli);
   return 0;
 }

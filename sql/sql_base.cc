@@ -49,7 +49,7 @@ extern "C" byte *table_cache_key(const byte *record,uint *length,
 
 void table_cache_init(void)
 {
-  VOID(hash_init(&open_cache,system_charset_info,
+  VOID(hash_init(&open_cache,&my_charset_bin,
 		 table_cache_size+16,0,0,table_cache_key,
 		 (hash_free_key) free_cache_entry,0));
   mysql_rm_tmp_tables();
@@ -245,16 +245,11 @@ static void free_cache_entry(TABLE *table)
 void free_io_cache(TABLE *table)
 {
   DBUG_ENTER("free_io_cache");
-  if (table->io_cache)
+  if (table->sort.io_cache)
   {
-    close_cached_file(table->io_cache);
-    my_free((gptr) table->io_cache,MYF(0));
-    table->io_cache=0;
-  }
-  if (table->record_pointers)
-  {
-    my_free((gptr) table->record_pointers,MYF(0));
-    table->record_pointers=0;
+    close_cached_file(table->sort.io_cache);
+    my_free((gptr) table->sort.io_cache,MYF(0));
+    table->sort.io_cache=0;
   }
   DBUG_VOID_RETURN;
 }

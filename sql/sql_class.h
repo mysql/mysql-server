@@ -145,10 +145,12 @@ public:
   int generate_new_name(char *new_name,const char *old_name);
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
-  int update_log_index(LOG_INFO* linfo);
-  int purge_logs(THD* thd, const char* to_log);
-  int purge_logs_before_date(THD* thd, time_t purge_time);
-  int purge_first_log(struct st_relay_log_info* rli); 
+  int update_log_index(LOG_INFO* linfo, bool need_update_threads);
+  int purge_logs(const char *to_log, bool included, 
+                 bool need_mutex, bool need_update_threads,
+                 ulonglong *decrease_log_space);
+  int purge_logs_before_date(time_t purge_time);
+  int purge_first_log(struct st_relay_log_info* rli, bool included); 
   bool reset_logs(THD* thd);
   // if we are exiting, we also want to close the index file
   void close(bool exiting = 0);
@@ -352,6 +354,7 @@ struct system_variables
   ulong max_allowed_packet;
   ulong max_error_count;
   ulong max_heap_table_size;
+  ulong max_length_for_sort_data;
   ulong max_prep_stmt_count;
   ulong max_sort_length;
   ulong max_tmp_tables;
@@ -382,9 +385,9 @@ struct system_variables
   my_bool low_priority_updates;
   my_bool new_mode;
   
-  CHARSET_INFO 	*client_collation;
-  CHARSET_INFO  *literal_collation;
-  CHARSET_INFO  *result_collation;
+  CHARSET_INFO 	*collation_client;
+  CHARSET_INFO  *collation_connection;
+  CHARSET_INFO  *collation_results;
 };
 
 void free_tmp_table(THD *thd, TABLE *entry);
@@ -665,7 +668,7 @@ public:
     net.report_error= 1; 
     DBUG_PRINT("error",("Fatal error set"));
   }
-  inline CHARSET_INFO *charset() { return variables.client_collation; }
+  inline CHARSET_INFO *charset() { return variables.collation_client; }
 };
 
 /*

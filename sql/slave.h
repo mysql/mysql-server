@@ -92,12 +92,6 @@ typedef struct st_relay_log_info
     cur_log_fd - file descriptor of the current read  relay log
   */
   File info_fd,cur_log_fd;
-  /* name of current read relay log */
-  char relay_log_name[FN_REFLEN];
-  /* master log name corresponding to current read position */
-  char master_log_name[FN_REFLEN];
-  /* original log position of last processed event */
-  volatile my_off_t master_log_pos;
 
   /*
     Protected with internal locks.
@@ -142,20 +136,36 @@ typedef struct st_relay_log_info
   uint32 cur_log_old_open_count;
   
   /*
-    relay_log_pos - Current offset in the relay log.
-    pending       - In some cases we do not increment offset immediately
-                    after processing an event, because the following event
-                    needs to be processed atomically together with this one
-                    such as:
-
-                    Intvar_event - sets auto_increment value
-                    Rand_event   - sets the random seed
-
-                    However, once both events have been processed, we need to
-                    increment by the cumulative offset.  'pending' stores the
-                    extra offset to be added to the position.
+    Let's call a group (of events) :
+      - a transaction
+      or
+      - an autocommiting query + its associated events (INSERT_ID,
+    TIMESTAMP...)
+    We need these rli coordinates :
+    - relay log name and position of the beginning of the group we currently are
+    executing. Needed to know where we have to restart when replication has
+    stopped in the middle of a group (which has been rolled back by the slave).
+    - relay log name and position just after the event we have just
+    executed. This event is part of the current group.
+    Formerly we only had the immediately above coordinates, plus a 'pending'
+    variable, but this dealt wrong with the case of a transaction starting on a
+    relay log and finishing (commiting) on another relay log. Case which can
+    happen when, for example, the relay log gets rotated because of
+    max_binlog_size.
   */
-  ulonglong relay_log_pos, pending;
+  char group_relay_log_name[FN_REFLEN];
+  ulonglong group_relay_log_pos;
+  char event_relay_log_name[FN_REFLEN];
+  ulonglong event_relay_log_pos;
+  /* 
+     Original log name and position of the group we're currently executing
+     (whose coordinates are group_relay_log_name/pos in the relay log)
+     in the master's binlog. These concern the *group*, because in the master's
+     binlog the log_pos that comes with each event is the position of the
+     beginning of the group.
+  */
+  char group_master_log_name[FN_REFLEN];
+  volatile my_off_t group_master_log_pos;
 
   /*
     Handling of the relay_log_space_limit optional constraint.
@@ -193,37 +203,38 @@ typedef struct st_relay_log_info
   /* if not set, the value of other members of the structure are undefined */
   bool inited;
   volatile bool abort_slave, slave_running;
-  bool skip_log_purge;
-  bool inside_transaction;
 
   st_relay_log_info();
   ~st_relay_log_info();
-  inline void inc_pending(ulonglong val)
+
+  inline void inc_event_relay_log_pos(ulonglong val)
   {
-    pending += val;
+    event_relay_log_pos+= val;
   }
-  /* TODO: this probably needs to be fixed */
-  inline void inc_pos(ulonglong val, ulonglong log_pos, bool skip_lock=0)
+
+  void inc_group_relay_log_pos(ulonglong val, ulonglong log_pos, bool skip_lock=0)
   {
     if (!skip_lock)
       pthread_mutex_lock(&data_lock);
-    relay_log_pos += val+pending;
-    pending = 0;
-    if (log_pos)
-      master_log_pos = log_pos+ val;
+    inc_event_relay_log_pos(val);
+    group_relay_log_pos= event_relay_log_pos;
+    strmake(group_relay_log_name,event_relay_log_name,
+            sizeof(group_relay_log_name)-1);
+    /*
+      If the slave does not support transactions and replicates a transaction,
+      users should not trust group_master_log_pos (which they can display with
+      SHOW SLAVE STATUS or read from relay-log.info), because to compute
+      group_master_log_pos the slave relies on log_pos stored in the master's
+      binlog, but if we are in a master's transaction these positions are always
+      the BEGIN's one (excepted for the COMMIT), so group_master_log_pos does
+      not advance as it should on the non-transactional slave (it advances by
+      big leaps, whereas it should advance by small leaps).
+    */
+    if (log_pos) // 3.23 binlogs don't have log_posx
+      group_master_log_pos= log_pos+ val;
     pthread_cond_broadcast(&data_cond);
     if (!skip_lock)
       pthread_mutex_unlock(&data_lock);
-  }
-  /*
-    thread safe read of position - not needed if we are in the slave thread,
-    but required otherwise as var is a longlong
-  */
-  inline void read_pos(ulonglong& var)
-  {
-    pthread_mutex_lock(&data_lock);
-    var = relay_log_pos;
-    pthread_mutex_unlock(&data_lock);
   }
 
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
@@ -334,7 +345,7 @@ typedef struct st_table_rule_ent
 #define TABLE_RULE_ARR_SIZE   16
 #define MAX_SLAVE_ERRMSG      1024
 
-#define RPL_LOG_NAME (rli->master_log_name[0] ? rli->master_log_name :\
+#define RPL_LOG_NAME (rli->group_master_log_name[0] ? rli->group_master_log_name :\
  "FIRST")
 #define IO_RPL_LOG_NAME (mi->master_log_name[0] ? mi->master_log_name :\
  "FIRST")

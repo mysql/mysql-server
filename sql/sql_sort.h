@@ -19,6 +19,30 @@
 #define MERGEBUFF		7
 #define MERGEBUFF2		15
 
+/*
+   The structure SORT_ADDON_FIELD describes a fixed layout
+   for field values appended to sorted values in records to be sorted
+   in the sort buffer.
+   Only fixed layout is supported now.
+   Null bit maps for the appended values is placed before the values 
+   themselves. Offsets are from the last sorted field, that is from the
+   record referefence, which is still last component of sorted records.
+   It is preserved for backward compatiblility.
+   The structure is used tp store values of the additional fields 
+   in the sort buffer. It is used also when these values are read
+   from a temporary file/buffer. As the reading procedures are beyond the
+   scope of the 'filesort' code the values have to be retrieved via
+   the callback function 'unpack_addon_fields'.
+*/
+
+typedef struct st_sort_addon_field {  /* Sort addon packed field */
+  Field *field;          /* Original field */
+  uint   offset;         /* Offset from the last sorted field */
+  uint   null_offset;    /* Offset to to null bit from the last sorted field */
+  uint   length;         /* Length in the sort buffer */
+  uint8  null_bit;       /* Null bit mask for the field */
+} SORT_ADDON_FIELD;
+
 typedef struct st_buffpek {		/* Struktur om sorteringsbuffrarna */
   my_off_t file_pos;			/* Where we are in the sort file */
   uchar *base,*key;			/* key pointers */
@@ -27,15 +51,18 @@ typedef struct st_buffpek {		/* Struktur om sorteringsbuffrarna */
   ulong max_keys;			/* Max keys in buffert */
 } BUFFPEK;
 
-
 typedef struct st_sort_param {
-  uint sort_length;			/* Length of sort columns */
-  uint keys;				/* Max keys / buffert */
+  uint rec_length;          /* Length of sorted records */
+  uint sort_length;			/* Length of sorted columns */
   uint ref_length;			/* Length of record ref. */
+  uint addon_length;        /* Length of added packed fields */
+  uint res_length;          /* Length of records in final sorted file/buffer */
+  uint keys;				/* Max keys / buffer */
   ha_rows max_rows,examined_rows;
   TABLE *sort_form;			/* For quicker make_sortkey */
   SORT_FIELD *local_sortorder;
   SORT_FIELD *end;
+  SORT_ADDON_FIELD *addon_field; /* Descriptors for companion fields */
   uchar *unique_buff;
   bool not_killable;
   char* tmp_buffer;

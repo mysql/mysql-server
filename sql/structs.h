@@ -104,6 +104,7 @@ typedef struct st_read_record {			/* Parameter to read_record */
   uint index;
   byte *ref_pos;				/* pointer to form->refpos */
   byte *record;
+  byte *rec_buf;                /* to read field values  after filesort */
   byte	*cache,*cache_pos,*cache_end,*read_positions;
   IO_CACHE *io_cache;
   bool print_error, ignore_not_found_rows;

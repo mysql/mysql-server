@@ -2925,6 +2925,8 @@ ret:
 String *Item_func_compress::val_str(String *str)
 {
   String *res= args[0]->val_str(str);
+  if (res->is_empty()) return res;
+
   int err= Z_OK;
   int code;
 
@@ -2940,14 +2942,13 @@ String *Item_func_compress::val_str(String *str)
    compress(compress(compress(...)))
    I.e. zlib give number 'at least'..
   */
-  uLongf new_size= (uLongf)((res->length()*120)/100)+12;
+  ulong new_size= (ulong)((res->length()*120)/100)+12;
 
-  buffer.realloc((uint32)new_size+sizeof(int32)+sizeof(char));
-
-  Byte *body= ((Byte*)buffer.c_ptr())+sizeof(int32);
-  err= compress(body, &new_size,(const Bytef*)res->c_ptr(), res->length());
+  buffer.realloc((uint32)new_size + 4 + 1);
+  Byte *body= ((Byte*)buffer.c_ptr()) + 4;
   
-  if (err != Z_OK)
+  if ((err= compress(body, &new_size,
+		     (const Bytef*)res->c_ptr(), res->length())) != Z_OK)
   {
     code= err==Z_MEM_ERROR ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_BUF_ERROR;
     push_warning(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,code,ER(code));
@@ -2955,18 +2956,17 @@ String *Item_func_compress::val_str(String *str)
     return 0;
   }
   
-  int4store(buffer.c_ptr(),res->length());
-  buffer.length((uint32)new_size+sizeof(int32));
-  
-  /* This is for the stupid char fields which trimm ' ': */
+  int4store(buffer.c_ptr(),res->length() & 0x3FFFFFFF);
+
+  /* This is for the stupid char fields which trim ' ': */
   char *last_char= ((char*)body)+new_size-1;
   if (*last_char == ' ')
   {
     *++last_char= '.';
     new_size++;
   }
-  
-  buffer.length((uint32)new_size+sizeof(int32));
+
+  buffer.length((uint32)new_size + 4);
   
   return &buffer;
 }
@@ -2974,7 +2974,9 @@ String *Item_func_compress::val_str(String *str)
 String *Item_func_uncompress::val_str(String *str)
 {
   String *res= args[0]->val_str(str);
-  uLongf new_size= uint4korr(res->c_ptr());
+  if (res->is_empty()) return res;
+
+  ulong new_size= uint4korr(res->c_ptr()) & 0x3FFFFFFF;
   int err= Z_OK;
   uint code;
   
@@ -2983,16 +2985,14 @@ String *Item_func_uncompress::val_str(String *str)
     push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
 			ER_TOO_BIG_FOR_UNCOMPRESS,
 			ER(ER_TOO_BIG_FOR_UNCOMPRESS),MAX_BLOB_WIDTH);
-    null_value= 1;
+    null_value= 0;
     return 0;
   }
   
   buffer.realloc((uint32)new_size);
   
-  err= uncompress((Byte*)buffer.c_ptr(), &new_size, 
-		  ((const Bytef*)res->c_ptr())+sizeof(int32),res->length());
-  
-  if (err == Z_OK)
+  if ((err= uncompress((Byte*)buffer.c_ptr(), &new_size, 
+		       ((const Bytef*)res->c_ptr())+4,res->length())) == Z_OK)
   {
     buffer.length((uint32)new_size);
     return &buffer;

@@ -168,6 +168,7 @@ class ha_innobase: public handler
 			     		enum thr_lock_type lock_type);
 	void init_table_handle_for_HANDLER(); 
 	longlong get_auto_increment();
+	uint8 table_cache_type() { return HA_CACHE_TBL_ASKTRANSACT; }
 };
 
 extern bool innodb_skip;
@@ -207,6 +208,6 @@ int innobase_close_connection(THD *thd);
 int innobase_drop_database(char *path);
 int innodb_show_status(THD* thd);
 
-my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
-						uint full_name_len);
+bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
+					       uint full_name_len);
 void innobase_release_temporary_latches(void* innobase_tid);
