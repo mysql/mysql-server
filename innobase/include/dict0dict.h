@@ -121,6 +121,15 @@ dict_table_autoinc_decrement(
 /*=========================*/
 	dict_table_t*	table);	/* in: table */
 /************************************************************************
+Reads the next autoinc value (== autoinc counter value), 0 if not yet
+initialized. */
+
+ib_longlong
+dict_table_autoinc_read(
+/*====================*/
+				/* out: value for a new row, or 0 */
+	dict_table_t*	table);	/* in: table */
+/************************************************************************
 Peeks the autoinc counter value, 0 if not yet initialized. Does not
 increment the counter. The read not protected by any mutex! */
 
