@@ -85,6 +85,7 @@ void pthread_exit(unsigned A);	 /* was #define pthread_exit(A) ExitThread(A)*/
 #define HAVE_PTHREAD_ATTR_SETSTACKSIZE
 
 #ifdef USE_TLS					/* For LIBMYSQL.DLL */
+#undef SAFE_MUTEX				/* This will cause conflicts */
 #define pthread_key(T,V)  DWORD V
 #define pthread_key_create(A,B) ((*A=TlsAlloc())==0xFFFFFFFF)
 #define pthread_getspecific(A) (TlsGetValue(A))
