@@ -463,10 +463,10 @@ static int handle_request_for_tables(char *tables, uint length)
 
   if (!(query =(char *) my_malloc((sizeof(char)*(length+110)), MYF(MY_WME))))
     return 1;
-  sprintf(query, "%s TABLE %s %s", op, tables, options);
+  sprintf(query, "%s TABLE `%s` %s", op, tables, options);
   if (mysql_query(sock, query))
   {
-    sprintf(message, "when executing '%s TABLE ... %s", op, options);
+    sprintf(message, "when executing '%s TABLE `%s` %s", op, tables,options);
     DBerror(sock, message);
     return 1;
   }
