@@ -143,6 +143,24 @@ NdbColumnImpl::init(Type t)
     m_length = 4;
     m_cs = default_cs;
     break;
+  case Bit:
+    m_precision = 0;
+    m_scale = 0;
+    m_length = 1;
+    m_cs = NULL;
+    break;
+  case Longvarchar:
+    m_precision = 0;
+    m_scale = 0;
+    m_length = 1; // legal
+    m_cs = default_cs;
+    break;
+  case Longvarbinary:
+    m_precision = 0;
+    m_scale = 0;
+    m_length = 1; // legal
+    m_cs = NULL;
+    break;
   case Undefined:
     assert(false);
     break;
@@ -1151,6 +1169,8 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 				 const Uint32 * data, Uint32 len,
 				 bool fullyQualifiedNames)
 {
+  DBUG_ENTER("NdbDictInterface::parseTableInfo");
+
   SimplePropertiesLinearReader it(data, len);
   DictTabInfo::Table tableDesc; tableDesc.init();
   SimpleProperties::UnpackStatus s;
@@ -1160,7 +1180,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 			       true, true);
   
   if(s != SimpleProperties::Break){
-    return 703;
+    DBUG_RETURN(703);
   }
   const char * internalName = tableDesc.TableName;
   const char * externalName = Ndb::externalizeTableName(internalName, fullyQualifiedNames);
@@ -1211,15 +1231,17 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 				 true, true);
     if(s != SimpleProperties::Break){
       delete impl;
-      return 703;
+      DBUG_RETURN(703);
     }
     
     NdbColumnImpl * col = new NdbColumnImpl();
     col->m_attrId = attrDesc.AttributeId;
     col->setName(attrDesc.AttributeName);
-    if (attrDesc.AttributeExtType >= NDB_TYPE_MAX) {
+
+    // check type and compute attribute size and array size
+    if (! attrDesc.translateExtType()) {
       delete impl;
-      return 703;
+      DBUG_RETURN(703);
     }
     col->m_type = (NdbDictionary::Column::Type)attrDesc.AttributeExtType;
     col->m_precision = (attrDesc.AttributeExtPrecision & 0xFFFF);
@@ -1230,20 +1252,14 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     // charset is defined exactly for char types
     if (col->getCharType() != (cs_number != 0)) {
       delete impl;
-      return 703;
+      DBUG_RETURN(703);
     }
     if (col->getCharType()) {
       col->m_cs = get_charset(cs_number, MYF(0));
       if (col->m_cs == NULL) {
         delete impl;
-        return 743;
+        DBUG_RETURN(743);
       }
-    }
-
-    // translate to old kernel types and sizes
-    if (! attrDesc.translateExtType()) {
-      delete impl;
-      return 703;
     }
     col->m_attrSize = (1 << attrDesc.AttributeSize) / 8;
     col->m_arraySize = attrDesc.AttributeArraySize;
@@ -1277,7 +1293,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     if(impl->m_columns[attrDesc.AttributeId] != 0){
       delete col;
       delete impl;
-      return 703;
+      DBUG_RETURN(703);
     }
     impl->m_columns[attrDesc.AttributeId] = col;
     it.next();
@@ -1288,7 +1304,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_noOfBlobs = blobCount;
   impl->m_noOfDistributionKeys = distKeys;
   * ret = impl;
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /*****************************************************************
@@ -1448,7 +1464,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     if (col->m_autoIncrement) {
       if (haveAutoIncrement) {
         m_error.code = 4335;
-        return -1;
+        DBUG_RETURN(-1);
       }
       haveAutoIncrement = true;
       autoIncrementValue = col->m_autoIncrementInitialValue;
@@ -1498,14 +1514,16 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     tmpAttr.AttributeNullableFlag = col->m_nullable;
     tmpAttr.AttributeDKey = col->m_distributionKey;
 
-    if (col->m_type >= NDB_TYPE_MAX) {
-      m_error.code = 703;
-      return -1;
-    }
     tmpAttr.AttributeExtType = (Uint32)col->m_type;
     tmpAttr.AttributeExtPrecision = ((unsigned)col->m_precision & 0xFFFF);
     tmpAttr.AttributeExtScale = col->m_scale;
     tmpAttr.AttributeExtLength = col->m_length;
+
+    // check type and compute attribute size and array size
+    if (! tmpAttr.translateExtType()) {
+      m_error.code = 703;
+      DBUG_RETURN(-1);
+    }
     // charset is defined exactly for char types
     if (col->getCharType() != (col->m_cs != NULL)) {
       m_error.code = 703;
@@ -1519,15 +1537,12 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     // distribution key not supported for Char attribute
     if (col->m_distributionKey && col->m_cs != NULL) {
       m_error.code = 745;
-      return -1;
+      DBUG_RETURN(-1);
     }
     // charset in upper half of precision
     if (col->getCharType()) {
       tmpAttr.AttributeExtPrecision |= (col->m_cs->number << 16);
     }
-
-    // DICT will ignore and recompute this
-    (void)tmpAttr.translateExtType();
 
     tmpAttr.AttributeAutoIncrement = col->m_autoIncrement;
     BaseString::snprintf(tmpAttr.AttributeDefaultValue, 
@@ -1573,7 +1588,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     ret= createTable(&tSignal, ptr);
 
     if (ret)
-      return ret;
+      DBUG_RETURN(ret);
 
     if (haveAutoIncrement) {
       if (!ndb.setAutoIncrementValue(impl.m_externalName.c_str(),

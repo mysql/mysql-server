@@ -937,6 +937,12 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
   case NdbDictionary::Column::Bit:
     out << "Bit(" << col.getLength() << ")";
     break;
+  case NdbDictionary::Column::Longvarchar:
+    out << "Longvarchar(" << col.getLength() << ";" << csname << ")";
+    break;
+  case NdbDictionary::Column::Longvarbinary:
+    out << "Longvarbinary(" << col.getLength() << ")";
+    break;
   default:
     out << "Type" << (Uint32)col.getType();
     break;

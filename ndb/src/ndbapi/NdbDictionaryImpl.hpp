@@ -448,7 +448,8 @@ bool
 NdbColumnImpl::getCharType() const {
   return (m_type == NdbDictionary::Column::Char ||
           m_type == NdbDictionary::Column::Varchar ||
-          m_type == NdbDictionary::Column::Text);
+          m_type == NdbDictionary::Column::Text ||
+          m_type == NdbDictionary::Column::Longvarchar);
 }
    
 inline

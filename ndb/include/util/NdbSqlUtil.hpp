@@ -20,6 +20,9 @@
 #include <ndb_global.h>
 #include <kernel/ndb_limits.h>
 
+struct charset_info_st;
+typedef struct charset_info_st CHARSET_INFO;
+
 class NdbSqlUtil {
 public:
   /**
@@ -86,9 +89,11 @@ public:
       Timespec = NDB_TYPE_TIMESPEC,
       Blob = NDB_TYPE_BLOB,
       Text = NDB_TYPE_TEXT,
-      Bit = NDB_TYPE_BIT
+      Bit = NDB_TYPE_BIT,
+      Longvarchar = NDB_TYPE_LONG_VARCHAR,
+      Longvarbinary = NDB_TYPE_LONG_VARBINARY
     };
-    Enum m_typeId;
+    Enum m_typeId;      // redundant
     Cmp* m_cmp;         // comparison method
   };
 
@@ -98,16 +103,29 @@ public:
   static const Type& getType(Uint32 typeId);
 
   /**
-   * Get type by id but replace char type by corresponding binary type.
+   * Get the normalized type used in hashing and key comparisons.
+   * Maps all string types to Binary.
    */
   static const Type& getTypeBinary(Uint32 typeId);
 
   /**
    * Check character set.
    */
-  static bool usable_in_pk(Uint32 typeId, const void* cs);
-  static bool usable_in_hash_index(Uint32 typeId, const void* cs);
-  static bool usable_in_ordered_index(Uint32 typeId, const void* cs);
+  static bool usable_in_pk(Uint32 typeId, const void* info);
+  static bool usable_in_hash_index(Uint32 typeId, const void* info);
+  static bool usable_in_ordered_index(Uint32 typeId, const void* info);
+
+  /**
+   * Get number of length bytes and length from variable length string.
+   * Returns false on error (invalid data).  For other types returns
+   * zero length bytes and the fixed attribute length.
+   */
+  static bool get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint32& lb, Uint32& len);
+
+  /**
+   * Temporary workaround for bug#7284.
+   */
+  static int strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstLen, const unsigned char*src, unsigned srcLen);
 
 private:
   /**
@@ -138,6 +156,9 @@ private:
   static Cmp cmpTimespec;
   static Cmp cmpBlob;
   static Cmp cmpText;
+  static Cmp cmpBit;
+  static Cmp cmpLongvarchar;
+  static Cmp cmpLongvarbinary;
 };
 
 #endif

@@ -4827,9 +4827,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
       }
     }
 
-    /**
-     * Ignore incoming old-style type and recompute it.
-     */
+    // compute attribute size and array size
     bool translateOk = attrDesc.translateExtType();
     tabRequire(translateOk, CreateTableRef::Inconsistency);
 
