@@ -2780,9 +2780,6 @@ loop:
 
 	mutex_exit(&kernel_mutex);
 
-	/* We run purge and a batch of ibuf_contract every 10 seconds, even
-	if the server were active: */
-
 	for (i = 0; i < 10; i++) {
 		n_ios_old = log_sys->n_log_ios + buf_pool->n_pages_read
 						+ buf_pool->n_pages_written;
@@ -2803,6 +2800,11 @@ loop:
 		if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND) {
 
 			goto suspend_thread;
+		}
+
+		if (srv_fast_shutdown && srv_shutdown_state > 0) {
+
+			goto background_loop;
 		}
 
 		/* We flush the log once in a second even if no commit
@@ -2831,11 +2833,6 @@ loop:
 						(char*)"flushing log";
 			log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
 			log_flush_to_disk();
-		}
-		
-		if (srv_fast_shutdown && srv_shutdown_state > 0) {
-
-			goto background_loop;
 		}
 
 		if (srv_activity_count == old_activity_count) {
@@ -2867,7 +2864,7 @@ loop:
 	if (n_pend_ios < 3 && (n_ios - n_ios_very_old < 200)) {
 
 		srv_main_thread_op_info = (char*) "flushing buffer pool pages";
-		buf_flush_batch(BUF_FLUSH_LIST, 50, ut_dulint_max);
+		buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
 
 		srv_main_thread_op_info = (char*) "flushing log";
 		log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
@@ -2926,7 +2923,13 @@ background_loop:
 
 	/* Flush a few oldest pages to make the checkpoint younger */
 
-	n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 10, ut_dulint_max);
+	if (srv_fast_shutdown && srv_shutdown_state > 0) {
+	        n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100,
+							ut_dulint_max);
+	} else {
+	        n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 10,
+							ut_dulint_max);
+	}
 
 	srv_main_thread_op_info = (char*)"making checkpoint";
 
@@ -2993,7 +2996,8 @@ background_loop:
 	}
 	mutex_exit(&kernel_mutex);
 	
-	srv_main_thread_op_info = (char*) "waiting for buffer pool flush to end";
+	srv_main_thread_op_info =
+			(char*) "waiting for buffer pool flush to end";
 	buf_flush_wait_batch_end(BUF_FLUSH_LIST);
 
 	srv_main_thread_op_info = (char*)"making checkpoint";

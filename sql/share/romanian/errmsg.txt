@@ -109,7 +109,7 @@
 "Coloana BLOB '%-.64s' nu poate avea o valoare default",
 "Numele bazei de date este incorect '%-.100s'",
 "Numele tabelei este incorect '%-.100s'",
-"SELECT-ul ar examina prea multe cimpuri si probabil ar lua prea mult timp. Verifica clauza WHERE si foloseste SET OPTION SQL_BIG_SELECTS=1 daca SELECT-ul e ok",
+"SELECT-ul ar examina prea multe cimpuri si probabil ar lua prea mult timp. Verifica clauza WHERE si foloseste SET SQL_BIG_SELECTS=1 daca SELECT-ul e ok",
 "Eroare unknown",
 "Procedura unknown '%-.64s'",
 "Procedura '%-.64s' are un numar incorect de parametri",

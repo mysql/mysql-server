@@ -1,5 +1,8 @@
 #! /bin/sh
 
+# stop on errors
+set -e
+
 # mwccnlm is having a hard time understanding "-I./../include"
 # convert it to "-I../include"
 args=" "`echo $* | sed -e 's/-I.\/../-I../g'`

@@ -1829,7 +1829,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 {
   ha_rows rec;
   double tmp;
-  THD *thd= current_thd;
+  THD *thd= join->thd;
 
   if (!rest_tables)
   {
@@ -1960,7 +1960,10 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		if (table->quick_keys & ((key_map) 1 << key))
 		  records= (double) table->quick_rows[key];
 		else
-		  records= (double) s->records/rec; // quick_range couldn't use key!
+		{
+		  /* quick_range couldn't use key! */
+		  records= (double) s->records/rec;
+		}
 	      }
 	      else
 	      {
@@ -4306,12 +4309,11 @@ free_tmp_table(THD *thd, TABLE *entry)
 * If a HEAP table gets full, create a MyISAM table and copy all rows to this
 */
 
-bool create_myisam_from_heap(TABLE *table, TMP_TABLE_PARAM *param, int error,
-			     bool ignore_last_dupp_key_error)
+bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
+			     int error, bool ignore_last_dupp_key_error)
 {
   TABLE new_table;
   const char *save_proc_info;
-  THD *thd=current_thd;
   int write_err;
   DBUG_ENTER("create_myisam_from_heap");
 
@@ -5318,7 +5320,8 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	if (error == HA_ERR_FOUND_DUPP_KEY ||
 	    error == HA_ERR_FOUND_DUPP_UNIQUE)
 	  goto end;
-	if (create_myisam_from_heap(table, &join->tmp_table_param, error,1))
+	if (create_myisam_from_heap(join->thd, table, &join->tmp_table_param,
+				    error,1))
 	  DBUG_RETURN(-1);			// Not a table_is_full error
 	table->uniques=0;			// To ensure rows are the same
       }
@@ -5395,7 +5398,8 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   copy_funcs(join->tmp_table_param.items_to_copy);
   if ((error=table->file->write_row(table->record[0])))
   {
-    if (create_myisam_from_heap(table, &join->tmp_table_param, error, 0))
+    if (create_myisam_from_heap(join->thd, table, &join->tmp_table_param,
+				error, 0))
       DBUG_RETURN(-1);				// Not a table_is_full error
     /* Change method to update rows */
     table->file->index_init(0);
@@ -5489,8 +5493,8 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	{
 	  if ((error=table->file->write_row(table->record[0])))
 	  {
-	    if (create_myisam_from_heap(table, &join->tmp_table_param,
-					error, 0))
+	    if (create_myisam_from_heap(join->thd, table,
+					&join->tmp_table_param, error, 0))
 	      DBUG_RETURN(-1);			// Not a table_is_full error
 	  }
 	  else
@@ -6019,7 +6023,7 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
   int error;
   ulong reclength,offset;
   uint field_count;
-  THD *thd= current_thd;
+  THD *thd= join->thd;
   DBUG_ENTER("remove_duplicates");
 
   entry->reginfo.lock_type=TL_WRITE;

@@ -116,7 +116,7 @@
 "Blob veld '%-.64s' can geen standaardwaarde bevatten",
 "Databasenaam '%-.64s' is niet getoegestaan",
 "Niet toegestane tabelnaam '%-.64s'",
-"Het SELECT-statement zou te veel records analyseren en dus veel tijd in beslagnemen. Kijk het WHERE-gedeelte van de query na en kies SET OPTION SQL_BIG_SELECTS=1 als het stament in orde is.",
+"Het SELECT-statement zou te veel records analyseren en dus veel tijd in beslagnemen. Kijk het WHERE-gedeelte van de query na en kies SET SQL_BIG_SELECTS=1 als het stament in orde is.",
 "Onbekende Fout",
 "Onbekende procedure %s",
 "Foutief aantal parameters doorgegeven aan procedure %s",
