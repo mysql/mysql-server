@@ -884,11 +884,9 @@ AC_DEFUN([MYSQL_CHECK_BIG_TABLES], [
     yes )
       AC_DEFINE([BIG_TABLES], [1], [Support big tables])
       AC_MSG_RESULT([yes])
-      [bigtables=yes]
       ;;
     * )
       AC_MSG_RESULT([no])
-      [bigtables=no]
       ;;
   esac
 
