@@ -198,7 +198,7 @@ GRANT UPDATE (d) ON `mysqltest_2`.`t2` TO 'mysqltest_3'@'localhost'
 update mysqltest_1.t1, mysqltest_1.t2 set q=10 where b=1;
 UPDATE command denied to user: 'mysqltest_3@localhost' for column 'q' in table 't1'
 update mysqltest_1.t1, mysqltest_2.t2 set d=20 where d=1;
-select command denied to user: 'mysqltest_3@localhost' for table 't1'
+SELECT command denied to user: 'mysqltest_3@localhost' for table 't1'
 update mysqltest_2.t1, mysqltest_1.t2 set c=20 where b=1;
 UPDATE command denied to user: 'mysqltest_3@localhost' for column 'c' in table 't1'
 update mysqltest_2.t1, mysqltest_2.t2 set d=10 where s=2;
