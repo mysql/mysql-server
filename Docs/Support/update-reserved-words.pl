@@ -1,10 +1,14 @@
 #!/usr/bin/perl
 
+# Based on a Emacs macro by david@mysql.com
+# Implemented in Perl by jeremy@mysql.com
+# 2001-11-20 Fixups by arjen@mysql.com, 2 keywords and 15 synonyms were missing
+
 print STDERR "Scanning lex.h for symbols..\n";
 open LEX, "<../sql/lex.h";
 while($line = <LEX>) {
-  if($line =~ /\{\s+\"([A-Z_]+)\",\s+SYM\(([A-Z_]+)\)/) {
-    $words{$2} = $1;
+  if($line =~ /\{\s*\"([A-Z_]+)\"/) {
+    $words{$1} = $1;
   } elsif($line =~ /sql_functions/) {
     last;
   };
@@ -15,7 +19,9 @@ print STDERR "Scanning sql_yacc.yy for non-reserved words...\n";
 open YACC, "<../sql/sql_yacc.yy";
 while(<YACC> !~ /^keyword:/) {};
 while(($line = <YACC>) =~ /[\s|]+([A-Z_]+)/) {
-  delete $words{$1};
+  $keyword = $1;
+  $keyword =~ s/_SYM//;
+  delete $words{$keyword};
 };
 close YACC;
 
