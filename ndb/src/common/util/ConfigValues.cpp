@@ -105,19 +105,19 @@ ConfigValues::getByPos(Uint32 pos, Entry * result) const {
 Uint64 *
 ConfigValues::get64(Uint32 index) const {
   assert(index < m_int64Count);
-	const Uint32 * data = m_values + (m_size << 1);
+  const Uint32 * data = m_values + (m_size << 1);
   Uint64 * ptr = (Uint64*)data;
-	ptr += index;
+  ptr += index;
   return ptr;
 }
 
 char **
 ConfigValues::getString(Uint32 index) const {
   assert(index < m_stringCount); 
-	const Uint32 * data = m_values + (m_size << 1);
-	char * ptr = (char*)data;
+  const Uint32 * data = m_values + (m_size << 1);
+  char * ptr = (char*)data;
   ptr += m_dataSize; 
-	ptr -= (index * sizeof(char *));
+  ptr -= (index * sizeof(char *));
   return (char**)ptr;
 }
 
@@ -261,9 +261,9 @@ directory(Uint32 sz){
 ConfigValuesFactory::ConfigValuesFactory(Uint32 keys, Uint32 data){
   m_sectionCounter = (1 << KP_SECTION_SHIFT);
   m_freeKeys = directory(keys);
-  m_freeData = data;
+  m_freeData = ((data + 7) & ~7);
   m_currentSection = 0;
-  m_cfg = create(m_freeKeys, data);
+  m_cfg = create(m_freeKeys, m_freeData);
 }
 
 ConfigValuesFactory::ConfigValuesFactory(ConfigValues * cfg){
@@ -316,7 +316,8 @@ ConfigValuesFactory::expand(Uint32 fk, Uint32 fs){
   m_freeKeys = (m_freeKeys >= fk ? m_cfg->m_size : fk + m_cfg->m_size);
   m_freeData = (m_freeData >= fs ? m_cfg->m_dataSize : fs + m_cfg->m_dataSize);
   m_freeKeys = directory(m_freeKeys);
-  
+  m_freeData = ((m_freeData + 7) & ~7);
+ 
   ConfigValues * m_tmp = m_cfg;
   m_cfg = create(m_freeKeys, m_freeData);
   put(* m_tmp);
@@ -333,6 +334,7 @@ ConfigValuesFactory::shrink(){
   m_freeKeys = m_cfg->m_size - m_freeKeys;
   m_freeData = m_cfg->m_dataSize - m_freeData;
   m_freeKeys = directory(m_freeKeys);
+  m_freeData = ((m_freeData + 7) & ~7);
 
   ConfigValues * m_tmp = m_cfg;
   m_cfg = create(m_freeKeys, m_freeData);
@@ -462,7 +464,7 @@ ConfigValuesFactory::put(const ConfigValues::Entry & entry){
   case ConfigValues::StringType:{
     Uint32 index = m_cfg->m_stringCount++;
     m_cfg->m_values[pos+1] = index;
-		char **  ref = m_cfg->getString(index);
+    char **  ref = m_cfg->getString(index);
     * ref = strdup(entry.m_string ? entry.m_string : "");
     m_freeKeys--;
     m_freeData -= sizeof(char *);
