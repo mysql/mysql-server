@@ -2609,11 +2609,12 @@ String *Item_func_uncompress::val_str(String *str)
   int err= Z_OK;
   uint code;
 
-  if (new_size > MAX_BLOB_WIDTH)
+  if (new_size > current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
 			ER_TOO_BIG_FOR_UNCOMPRESS,
-			ER(ER_TOO_BIG_FOR_UNCOMPRESS),MAX_BLOB_WIDTH);
+			ER(ER_TOO_BIG_FOR_UNCOMPRESS),
+                        current_thd->variables.max_allowed_packet);
     null_value= 0;
     return 0;
   }
