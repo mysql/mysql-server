@@ -521,6 +521,10 @@ row_ins_cascade_calc_update_vec(
 
 				fixed_size = dtype_get_fixed_size(type);
 
+				/* TODO: pad in UCS-2 with 0x0020.
+				TODO: How does the special truncation of
+				UTF-8 CHAR cols affect this? */
+
 				if (fixed_size
 				    && ufield->new_val.len != UNIV_SQL_NULL
 				    && ufield->new_val.len < fixed_size) {
