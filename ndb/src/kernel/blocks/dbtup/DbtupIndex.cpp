@@ -112,10 +112,11 @@ Dbtup::tuxGetNode(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32*& no
   node = &pagePtr.p->pageWord[pageOffset] + attrDataOffset;
 }
 
-void
-Dbtup::tuxReadAttrs(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion, Uint32 numAttrs, const Uint32* attrIds, const Uint32** attrData)
+int
+Dbtup::tuxReadAttrs(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion, const Uint32* attrIds, Uint32 numAttrs, Uint32* dataOut)
 {
   ljamEntry();
+  // use own variables instead of globals
   FragrecordPtr fragPtr;
   fragPtr.i = fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
@@ -134,6 +135,7 @@ Dbtup::tuxReadAttrs(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tu
     while (true) {
       ptrCheckGuard(opPtr, cnoOfOprec, operationrec);
       if (opPtr.p->realPageIdC != RNIL) {
+        // update page and offset
         pagePtr.i = opPtr.p->realPageIdC;
         pageOffset = opPtr.p->pageOffsetC;
         ptrCheckGuard(pagePtr, cnoOfPage, page);
@@ -147,33 +149,34 @@ Dbtup::tuxReadAttrs(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tu
       ndbrequire(++loopGuard < (1 << ZTUP_VERSION_BITS));
     }
   }
-  const Uint32 tabDescriptor = tablePtr.p->tabDescriptor;
-  const Uint32* tupleHeader = &pagePtr.p->pageWord[pageOffset];
-  for (Uint32 i = 0; i < numAttrs; i++) {
-    AttributeHeader ah(attrIds[i]);
-    const Uint32 attrId = ah.getAttributeId();
-    const Uint32 index = tabDescriptor + (attrId << ZAD_LOG_SIZE);
-    const Uint32 desc1 = tableDescriptor[index].tabDescr;
-    const Uint32 desc2 = tableDescriptor[index + 1].tabDescr;
-    if (AttributeDescriptor::getNullable(desc1)) {
-      Uint32 offset = AttributeOffset::getNullFlagOffset(desc2);
-      ndbrequire(offset < tablePtr.p->tupNullWords);
-      offset += tablePtr.p->tupNullIndex;
-      ndbrequire(offset < tablePtr.p->tupheadsize);
-      if (AttributeOffset::isNULL(tupleHeader[offset], desc2)) {
-        ljam();
-        attrData[i] = 0;
-        continue;
-      }
-    }
-    attrData[i] = tupleHeader + AttributeOffset::getOffset(desc2);
+  // read key attributes from found tuple version
+  // save globals
+  TablerecPtr tabptr_old = tabptr;
+  FragrecordPtr fragptr_old = fragptr;
+  OperationrecPtr operPtr_old = operPtr;
+  // new globals
+  tabptr = tablePtr;
+  fragptr = fragPtr;
+  operPtr.i = RNIL;
+  operPtr.p = NULL;
+  // do it
+  int ret = readAttributes(pagePtr.p, pageOffset, attrIds, numAttrs, dataOut, ZNIL);
+  // restore globals
+  tabptr = tabptr_old;
+  fragptr = fragptr_old;
+  operPtr = operPtr_old;
+  // done
+  if (ret == (Uint32)-1) {
+    ret = terrorCode ? (-(int)terrorCode) : -1;
   }
+  return ret;
 }
 
-void
-Dbtup::tuxReadKeys(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* pkSize, Uint32* pkData)
+int
+Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* dataOut)
 {
   ljamEntry();
+  // use own variables instead of globals
   FragrecordPtr fragPtr;
   fragPtr.i = fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
@@ -184,25 +187,45 @@ Dbtup::tuxReadKeys(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* pk
   pagePtr.i = pageId;
   ptrCheckGuard(pagePtr, cnoOfPage, page);
   const Uint32 tabDescriptor = tablePtr.p->tabDescriptor;
-  const Uint32 numAttrs = tablePtr.p->noOfKeyAttr;
   const Uint32* attrIds = &tableDescriptor[tablePtr.p->readKeyArray].tabDescr;
-  const Uint32* tupleHeader = &pagePtr.p->pageWord[pageOffset];
-  Uint32 size = 0;
-  for (Uint32 i = 0; i < numAttrs; i++) {
-    AttributeHeader ah(attrIds[i]);
-    const Uint32 attrId = ah.getAttributeId();
-    const Uint32 index = tabDescriptor + (attrId << ZAD_LOG_SIZE);
-    const Uint32 desc1 = tableDescriptor[index].tabDescr;
-    const Uint32 desc2 = tableDescriptor[index + 1].tabDescr;
-    ndbrequire(! AttributeDescriptor::getNullable(desc1));
-    const Uint32 attrSize = AttributeDescriptor::getSizeInWords(desc1);
-    const Uint32* attrData = tupleHeader + AttributeOffset::getOffset(desc2);
-    for (Uint32 j = 0; j < attrSize; j++) {
-      pkData[size + j] = attrData[j];
+  const Uint32 numAttrs = tablePtr.p->noOfKeyAttr;
+  // read pk attributes from original tuple
+  // save globals
+  TablerecPtr tabptr_old = tabptr;
+  FragrecordPtr fragptr_old = fragptr;
+  OperationrecPtr operPtr_old = operPtr;
+  // new globals
+  tabptr = tablePtr;
+  fragptr = fragPtr;
+  operPtr.i = RNIL;
+  operPtr.p = NULL;
+  // do it
+  int ret = readAttributes(pagePtr.p, pageOffset, attrIds, numAttrs, dataOut, ZNIL);
+  // restore globals
+  tabptr = tabptr_old;
+  fragptr = fragptr_old;
+  operPtr = operPtr_old;
+  // done
+  if (ret != (Uint32)-1) {
+    // remove headers
+    Uint32 n = 0;
+    Uint32 i = 0;
+    while (n < numAttrs) {
+      const AttributeHeader ah(dataOut[i]);
+      Uint32 size = ah.getDataSize();
+      ndbrequire(size != 0);
+      for (Uint32 j = 0; j < size; j++) {
+        dataOut[i + j - n] = dataOut[i + j + 1];
+      }
+      n += 1;
+      i += 1 + size;
     }
-    size += attrSize;
+    ndbrequire(i == ret);
+    ret -= numAttrs;
+  } else {
+    ret = terrorCode ? (-(int)terrorCode) : -1;
   }
-  *pkSize = size;
+  return ret;
 }
 
 bool

@@ -389,7 +389,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       jam();
       const TreeEnt ent = scan.m_scanPos.m_ent;
       // read tuple key
-      readTablePk(frag, ent, pkSize, pkData);
+      readTablePk(frag, ent, pkData, pkSize);
       // get read lock or exclusive lock
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;
@@ -480,7 +480,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       jam();
       if (pkSize == 0) {
         jam();
-        readTablePk(frag, ent, pkSize, pkData);
+        readTablePk(frag, ent, pkData, pkSize);
       }
     }
     // conf signal

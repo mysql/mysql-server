@@ -25,7 +25,7 @@
  * TODO optimize for initial equal attrs in node min/max
  */
 void
-Dbtux::searchToAdd(Signal* signal, Frag& frag, TableData searchKey, TreeEnt searchEnt, TreePos& treePos)
+Dbtux::searchToAdd(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos)
 {
   const TreeHead& tree = frag.m_tree;
   const unsigned numAttrs = frag.m_numAttrs;
@@ -144,7 +144,7 @@ Dbtux::searchToAdd(Signal* signal, Frag& frag, TableData searchKey, TreeEnt sear
  * to it.
  */
 void
-Dbtux::searchToRemove(Signal* signal, Frag& frag, TableData searchKey, TreeEnt searchEnt, TreePos& treePos)
+Dbtux::searchToRemove(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos)
 {
   const TreeHead& tree = frag.m_tree;
   const unsigned numAttrs = frag.m_numAttrs;
