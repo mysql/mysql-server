@@ -616,7 +616,7 @@ double
 Item_func_nullif::val()
 {
   double value;
-  if (!(this->*cmp_func)() || null_value)
+  if (!(this->*cmp_func)())
   {
     null_value=1;
     return 0.0;
@@ -630,7 +630,7 @@ longlong
 Item_func_nullif::val_int()
 {
   longlong value;
-  if (!(this->*cmp_func)() || null_value)
+  if (!(this->*cmp_func)())
   {
     null_value=1;
     return 0;
@@ -644,7 +644,7 @@ String *
 Item_func_nullif::val_str(String *str)
 {
   String *res;
-  if (!(this->*cmp_func)() || null_value)
+  if (!(this->*cmp_func)())
   {
     null_value=1;
     return 0;
