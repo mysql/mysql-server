@@ -430,7 +430,7 @@ int yylex(void *arg)
     switch(state) {
     case STATE_OPERATOR_OR_IDENT:	// Next is operator or keyword
     case STATE_START:			// Start of token
-      // Skipp startspace
+      // Skip startspace
       for (c=yyGet() ; (state_map[c] == STATE_SKIP) ; c= yyGet())
       {
 	if (c == '\n')
@@ -458,6 +458,11 @@ int yylex(void *arg)
       return((int) c);
 
     case STATE_IDENT:			// Incomplete keyword or ident
+      if ((c == 'x' || c == 'X') && yyPeek() == '\'')
+      {					// Found x'hex-number'
+	state=STATE_HEX_NUMBER;
+	break;
+      }
 #if defined(USE_MB) && defined(USE_MB_IDENT)
       if (use_mb(default_charset_info))
       {
@@ -520,7 +525,7 @@ int yylex(void *arg)
       c=yyGet();			// should be '.'
       return((int) c);
 
-    case STATE_NUMBER_IDENT:		// number or ident which starts with num
+    case STATE_NUMBER_IDENT:		// number or ident which num-start
       while (isdigit((c = yyGet()))) ;
       if (state_map[c] != STATE_IDENT)
       {					// Can't be identifier
@@ -546,10 +551,10 @@ int yylex(void *arg)
 	  lex->tok_start[0] == '0' )
       {						// Varbinary
 	while (isxdigit((c = yyGet()))) ;
-	if ((lex->ptr - lex->tok_start) >= 4)
+	if ((lex->ptr - lex->tok_start) >= 4 && state_map[c] != STATE_IDENT)
 	{
 	  yylval->lex_str=get_token(lex,yyLength());
-	  yylval->lex_str.str+=2;		// Skipp 0x
+	  yylval->lex_str.str+=2;		// Skip 0x
 	  yylval->lex_str.length-=2;
 	  lex->yytoklen-=2;
 	  return (HEX_NUM);
@@ -604,20 +609,21 @@ int yylex(void *arg)
       return(IDENT);
 
     case STATE_USER_VARIABLE_DELIMITER:
-      lex->tok_start=lex->ptr;			// Skipp first `
+      lex->tok_start=lex->ptr;		// Skip first `
       while ((c=yyGet()) && state_map[c] != STATE_USER_VARIABLE_DELIMITER &&
 	     c != (uchar) NAMES_SEP_CHAR) ;
       yylval->lex_str=get_token(lex,yyLength());
       if (lex->convert_set)
         lex->convert_set->convert((char*) yylval->lex_str.str,lex->yytoklen);
       if (state_map[c] == STATE_USER_VARIABLE_DELIMITER)
-	yySkip();				// Skipp end `
+	yySkip();			// Skip end `
       return(IDENT);
 
     case STATE_SIGNED_NUMBER:		// Incomplete signed number
       if (prev_state == STATE_OPERATOR_OR_IDENT)
       {
-	if (c == '-' && yyPeek() == '-' && isspace(yyPeek2()))
+	if (c == '-' && yyPeek() == '-' &&
+	    (isspace(yyPeek2()) || iscntrl(yyPeek2())))
 	  state=STATE_COMMENT;
 	else
 	  state= STATE_CHAR;		// Must be operator
@@ -657,7 +663,7 @@ int yylex(void *arg)
       {
 	c = yyGet();
 	if (c == '-' || c == '+')
-	  c = yyGet();			// Skipp sign
+	  c = yyGet();			// Skip sign
 	if (!isdigit(c))
 	{				// No digit after sign
 	  state= STATE_CHAR;
@@ -669,6 +675,21 @@ int yylex(void *arg)
       }
       yylval->lex_str=get_token(lex,yyLength());
       return(REAL_NUM);
+
+    case STATE_HEX_NUMBER:		// Found x'hexstring'
+      yyGet();				// Skip '
+      while (isxdigit((c = yyGet()))) ;
+      length=(lex->ptr - lex->tok_start);	// Length of hexnum+3
+      if (!(length & 1) || c != '\'')
+      {
+	return(ABORT_SYM);		// Illegal hex constant
+      }
+      yyGet();				// get_token makes an unget
+      yylval->lex_str=get_token(lex,length);
+      yylval->lex_str.str+=2;		// Skip x'
+      yylval->lex_str.length-=3;	// Don't count x' and last '
+      lex->yytoklen-=3;
+      return (HEX_NUM);
 
     case STATE_CMP_OP:			// Incomplete comparison operator
       if (state_map[yyPeek()] == STATE_CMP_OP ||
