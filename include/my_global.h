@@ -558,6 +558,9 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define RECORD_CACHE_SIZE	(uint) (64*1024-MALLOC_OVERHEAD)
 	/* Typical key cash */
 #define KEY_CACHE_SIZE		(uint) (8*1024*1024-MALLOC_OVERHEAD)
+	/* Default size of a key cache block  */
+#define KEY_CACHE_BLOCK_SIZE	(uint) 1024
+
 
 	/* Some things that this system doesn't have */
 

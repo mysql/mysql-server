@@ -142,7 +142,7 @@ static double _mi_search_pos(register MI_INFO *info,
   if (pos == HA_OFFSET_ERROR)
     DBUG_RETURN(0.5);
 
-  if (!(buff=_mi_fetch_keypage(info,keyinfo,pos,info->buff,1)))
+  if (!(buff=_mi_fetch_keypage(info,keyinfo,pos,DFLT_INIT_HITS,info->buff,1)))
     goto err;
   flag=(*keyinfo->bin_search)(info,keyinfo,buff,key,key_len,nextflag,
 			      &keypos,info->lastkey, &after_key);
