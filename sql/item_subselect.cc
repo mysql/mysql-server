@@ -36,7 +36,7 @@ inline Item * and_items(Item* cond, Item *item)
 
 Item_subselect::Item_subselect():
   Item_result_field(), engine_owner(1), value_assigned(0), substitution(0),
-  have_to_be_excluded(0), engine_changed(0)
+  engine(0), have_to_be_excluded(0), engine_changed(0)
 {
   reset();
   /*
@@ -45,6 +45,7 @@ Item_subselect::Item_subselect():
   */
   null_value= 1;
 }
+
 
 void Item_subselect::init(THD *thd, st_select_lex *select_lex,
 			  select_subselect *result)
@@ -61,6 +62,7 @@ void Item_subselect::init(THD *thd, st_select_lex *select_lex,
 					       this);
   DBUG_VOID_RETURN;
 }
+
 
 Item_subselect::~Item_subselect()
 {
@@ -767,6 +769,7 @@ Item_in_subselect::row_value_transformer(JOIN *join,
   DBUG_RETURN(RES_OK);
 }
 
+
 Item_subselect::trans_res
 Item_in_subselect::select_transformer(JOIN *join)
 {
@@ -775,6 +778,7 @@ Item_in_subselect::select_transformer(JOIN *join)
 				    &Item_bool_func2::eq_creator);
   return row_value_transformer(join, left_expr);
 }
+
 
 Item_subselect::trans_res
 Item_allany_subselect::select_transformer(JOIN *join)
@@ -786,9 +790,9 @@ subselect_single_select_engine::
   subselect_single_select_engine(THD *thd, 
 				 st_select_lex *select,
 				 select_subselect *result,
-				 Item_subselect *item):
-  subselect_engine(thd, item, result),
-    prepared(0), optimized(0), executed(0)
+				 Item_subselect *item)
+  :subselect_engine(thd, item, result),
+   prepared(0), optimized(0), executed(0)
 {
   select_lex= select;
   SELECT_LEX_UNIT *unit= select_lex->master_unit();
@@ -807,11 +811,12 @@ subselect_single_select_engine::
   this->select_lex= select_lex;
 }
 
+
 subselect_union_engine::subselect_union_engine(THD *thd,
 					       st_select_lex_unit *u,
 					       select_subselect *result,
-					       Item_subselect *item):
-  subselect_engine(thd, item, result)
+					       Item_subselect *item)
+  :subselect_engine(thd, item, result)
 {
   unit= u;
   if (!result)
@@ -994,6 +999,7 @@ int subselect_union_engine::exec()
   return res;
 }
 
+
 int subselect_uniquesubquery_engine::exec()
 {
   DBUG_ENTER("subselect_uniquesubquery_engine::exec");
@@ -1015,33 +1021,21 @@ int subselect_uniquesubquery_engine::exec()
     {
       error= 0;
       table->null_row= 0;
-      if (table->status)
-	((Item_in_subselect *) item)->value= 0;
-      else
-	((Item_in_subselect *) item)->value= (!cond || cond->val_int()?1:0);
+      ((Item_in_subselect *) item)->value= (!table->status &&
+					    (!cond || cond->val_int()) ? 1 :
+					    0);
     }
   }
-  DBUG_RETURN(end_exec(table) || (error != 0));
-}
-
-int subselect_uniquesubquery_engine::end_exec(TABLE *table)
-{
-  DBUG_ENTER("subselect_uniquesubquery_engine::end_exec");
-  int error=0, tmp;
-  if ((tmp= table->file->extra(HA_EXTRA_NO_CACHE)))
-  {
-    DBUG_PRINT("error", ("extra(HA_EXTRA_NO_CACHE) failed"));
-    error= 1;
-  }
-  if ((tmp= table->file->index_end()))
-  {
-    DBUG_PRINT("error", ("index_end() failed"));
-    error= 1;
-  }
-  if (error == 1)
-    table->file->print_error(tmp, MYF(0));
   DBUG_RETURN(error != 0);
 }
+
+
+subselect_uniquesubquery_engine::~subselect_uniquesubquery_engine()
+{
+  /* Tell handler we don't need the index anymore */
+  tab->table->file->index_end();
+}
+
 
 int subselect_indexsubquery_engine::exec()
 {
@@ -1051,9 +1045,11 @@ int subselect_indexsubquery_engine::exec()
   TABLE *table= tab->table;
 
   ((Item_in_subselect *) item)->value= 0;
+
   if (check_null)
   {
-    *tab->null_ref_key= 0;
+    /* We need to check for NULL if there wasn't a matching value */
+    *tab->null_ref_key= 0;			// Search first for not null
     ((Item_in_subselect *) item)->was_null= 0;
   }
 
@@ -1071,7 +1067,7 @@ int subselect_indexsubquery_engine::exec()
       error= report_error(table, error);
     else
     {
-      for(;;)
+      for (;;)
       {
 	error= 0;
 	table->null_row= 0;
@@ -1083,7 +1079,7 @@ int subselect_indexsubquery_engine::exec()
 	      ((Item_in_subselect *) item)->was_null= 1;
 	    else
 	      ((Item_in_subselect *) item)->value= 1;
-	    goto finish;
+	    break;
 	  }
 	  error= table->file->index_next_same(table->record[0],
 					      tab->ref.key_buff,
@@ -1091,24 +1087,25 @@ int subselect_indexsubquery_engine::exec()
 	  if (error && error != HA_ERR_END_OF_FILE)
 	  {
 	    error= report_error(table, error);
-	    goto finish;
+	    break;
 	  }
 	}
 	else
 	{
 	  if (!check_null || null_finding)
-	    goto finish;
+	    break;			/* We don't need to check nulls */
 	  *tab->null_ref_key= 1;
 	  null_finding= 1;
-	  if (safe_index_read(tab))
-	    goto finish;
+	  /* Check if there exists a row with a null value in the index */
+	  if ((error= safe_index_read(tab)))
+	    break;
 	}
       }
     }
   }
-finish:
-  DBUG_RETURN(end_exec(table) || (error != 0));
+  DBUG_RETURN(error != 0);
 }
+
 
 uint subselect_single_select_engine::cols()
 {
