@@ -1688,6 +1688,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       }
       else
 	thd->query_rest.copy(packet, length, thd->query_rest.charset());
+
+      thd->server_status&= ~ (SERVER_QUERY_NO_INDEX_USED |
+                              SERVER_QUERY_NO_GOOD_INDEX_USED);
       break;
 #endif /*EMBEDDED_LIBRARY*/
     }
