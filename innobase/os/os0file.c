@@ -2678,6 +2678,10 @@ consecutive_loop:
 		if (array == os_aio_write_array) {
 			if ((total_len % UNIV_PAGE_SIZE != 0)
 			    || (slot->offset % UNIV_PAGE_SIZE != 0)) {
+				fprintf(stderr,
+"InnoDB: Error: trying a displaced write to %s %lu %lu, len %lu\n",
+					slot->name, slot->offset_high,
+					slot->offset, total_len);
 				ut_a(0);
 			}
 			  
