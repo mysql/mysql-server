@@ -127,11 +127,9 @@ typedef	byte	fseg_inode_t;
 					page number within space, FIL_NULL
 					means that the slot is not in use */
 /*-------------------------------------*/
-#define FSEG_INODE_SIZE	(16 + 3 * FLST_BASE_NODE_SIZE +\
-				FSEG_FRAG_ARR_N_SLOTS * FSEG_FRAG_SLOT_SIZE)
+#define FSEG_INODE_SIZE	(16 + 3 * FLST_BASE_NODE_SIZE + FSEG_FRAG_ARR_N_SLOTS * FSEG_FRAG_SLOT_SIZE)
 
-#define FSP_SEG_INODES_PER_PAGE	((UNIV_PAGE_SIZE - FSEG_ARR_OFFSET - 10)\
-				 / FSEG_INODE_SIZE)
+#define FSP_SEG_INODES_PER_PAGE	((UNIV_PAGE_SIZE - FSEG_ARR_OFFSET - 10) / FSEG_INODE_SIZE)
 				/* Number of segment inodes which fit on a
 				single page */
 
@@ -198,8 +196,7 @@ the extent are free and which contain old tuple version to clean. */
 
 /* File extent data structure size in bytes. The "+ 7 ) / 8" part in the
 definition rounds the number of bytes upward. */
-#define	XDES_SIZE	(XDES_BITMAP +\
-			 (FSP_EXTENT_SIZE * XDES_BITS_PER_PAGE + 7) / 8)
+#define	XDES_SIZE	(XDES_BITMAP + (FSP_EXTENT_SIZE * XDES_BITS_PER_PAGE + 7) / 8)
 
 /* Offset of the descriptor array on a descriptor page */
 #define	XDES_ARR_OFFSET		(FSP_HEADER_OFFSET + FSP_HEADER_SIZE)
@@ -2633,6 +2630,14 @@ fseg_free_step(
 							MTR_MEMO_X_LOCK));
 	mtr_x_lock(fil_space_get_latch(space), mtr);	
 
+	descr = xdes_get_descriptor(space, buf_frame_get_page_no(header), mtr);
+
+	/* Check that the header resides on a page which has not been
+	freed yet */
+
+	ut_a(descr);
+	ut_a(xdes_get_bit(descr, XDES_FREE_BIT, buf_frame_get_page_no(header)
+					% FSP_EXTENT_SIZE, mtr) == FALSE);
 	inode = fseg_inode_get(header, mtr);
 
 	descr = fseg_get_first_extent(inode, mtr);
@@ -2647,7 +2652,6 @@ fseg_free_step(
 	}
 
 	/* Free a frag page */
-
 	n = fseg_find_last_used_frag_page_slot(inode, mtr);
 
 	if (n == ULINT_UNDEFINED) {
@@ -2659,6 +2663,16 @@ fseg_free_step(
 
 	fseg_free_page_low(inode, space,
 			fseg_get_nth_frag_page_no(inode, n, mtr), mtr);
+
+	n = fseg_find_last_used_frag_page_slot(inode, mtr);
+
+	if (n == ULINT_UNDEFINED) {
+		/* Freeing completed: free the segment inode */
+		fsp_free_seg_inode(space, inode, mtr);
+
+		return(TRUE);
+	}
+
 	return(FALSE);
 }
 
