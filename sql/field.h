@@ -888,8 +888,10 @@ public:
 
   enum_field_types type() const
   {
-    return ((table && table->db_create_options & HA_OPTION_PACK_RECORD &&
-	     field_length >= 4) && table->frm_version < FRM_VER_TRUE_VARCHAR ?
+    return ((orig_table &&
+             orig_table->db_create_options & HA_OPTION_PACK_RECORD &&
+	     field_length >= 4) &&
+            orig_table->frm_version < FRM_VER_TRUE_VARCHAR ?
 	    MYSQL_TYPE_VAR_STRING : MYSQL_TYPE_STRING);
   }
   enum ha_base_keytype key_type() const
