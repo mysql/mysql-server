@@ -624,7 +624,7 @@ void Load_log_event::print(FILE* file, bool short_form)
   if (!short_form)
   {
     print_header(file);
-    fprintf(file, "\tQuery\tthread_id=%d\texec_time=%ld\n",
+    fprintf(file, "\tQuery\tthread_id=%ld\texec_time=%ld\n",
 	    thread_id, exec_time);
   }
 
