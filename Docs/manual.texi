@@ -46929,12 +46929,12 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.53
 @itemize @bullet
 @item
-Fixed a bug with BDB @code[ALTER TABLE] with dropping column, and shutdown 
-immediately thereafter.
+Fixed a @code{BDB}-related @code{ALTER TABLE} bug with dropping a column
+and shutting down immediately thereafter.
 @item
 Fixed problem with @code{UNSIGNED BIGINT} on AIX (again).
 @item
-Fixed bug in pthread_mutex_trylock() on HPUX 11.0
+Fixed bug in pthread_mutex_trylock() on HPUX 11.0.
 @item
 Multithreaded stress tests for InnoDB.
 @end itemize
