@@ -19,7 +19,7 @@
 
 #include <my_global.h>
 
-typedef enum {TRUNCATE=0, EVEN} dec_round_mode;
+typedef enum {TRUNCATE=0, HALF_EVEN, HALF_UP} decimal_round_mode;
 typedef int32 decimal_digit;
 
 typedef struct st_decimal {
@@ -50,7 +50,7 @@ int decimal_cmp(decimal *from1, decimal *from2);
 int decimal_mul(decimal *from1, decimal *from2, decimal *to);
 int decimal_div(decimal *from1, decimal *from2, decimal *to, int scale_incr);
 int decimal_mod(decimal *from1, decimal *from2, decimal *to);
-int decimal_round(decimal *from, decimal *to, int new_scale, dec_round_mode mode);
+int decimal_round(decimal *from, decimal *to, int new_scale, decimal_round_mode mode);
 
 /*
   the following works only on special "zero" decimal, not on any
@@ -76,7 +76,7 @@ int decimal_round(decimal *from, decimal *to, int new_scale, dec_round_mode mode
 #define decimal_string_size(dec) ((dec)->intg + (dec)->frac + ((dec)->frac > 0) + 1)
 
 /* negate a decimal */
-#define decimal_neg(dec) do { (dec)->sign=!(dec)->sign; } while(0)
+#define decimal_neg(dec) do { (dec)->sign^=1; } while(0)
 
 /*
   conventions:
