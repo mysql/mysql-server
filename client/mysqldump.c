@@ -149,7 +149,7 @@ CHANGEABLE_VAR md_changeable_vars[] = {
   { "max_allowed_packet", (long*) &max_allowed_packet,24*1024*1024,4096,
     24*1024L*1024L,MALLOC_OVERHEAD,1024},
   { "net_buffer_length", (long*) &net_buffer_length,1024*1024L-1025,4096,
-    24*1024L*1024L,MALLOC_OVERHEAD,1024},
+    24*1024L*1024L,MALLOC_OVERHEAD-1024,1024},
   { 0, 0, 0, 0, 0, 0, 0}
 };
 
