@@ -157,7 +157,7 @@ enum enum_field_types { FIELD_TYPE_DECIMAL, FIELD_TYPE_TINY,
 
 enum enum_shutdown_level {
   /*
-    We want levels to be in growing order of gracefulness. So we leave room
+    We want levels to be in growing order of hardness. So we leave room
     for future intermediate levels. For now, escalating one level is += 10;
     later if we insert new levels in between we will need a function
     next_shutdown_level(level). Note that DEFAULT does not respect the
@@ -169,11 +169,12 @@ enum enum_shutdown_level {
     something). WAIT_ALL_BUFFERS is what we have now. Others are "this MySQL
     server does not support this shutdown level yet".
   */
-  SHUTDOWN_WAIT_CRITICAL_BUFFERS= 10, /* flush MyISAM buffs (no corruption) */
-  SHUTDOWN_WAIT_ALL_BUFFERS= 20, /* flush InnoDB buffers */
+  SHUTDOWN_WAIT_CONNECTIONS= 10, /* wait for existing connections to finish */
+  SHUTDOWN_WAIT_TRANSACTIONS= 20, /* wait for existing trans to finish */
   SHUTDOWN_WAIT_STATEMENTS= 30, /* wait for existing updating stmts to finish */
-  SHUTDOWN_WAIT_TRANSACTIONS= 40, /* wait for existing trans to finish */
-  SHUTDOWN_WAIT_CONNECTIONS= 50 /* wait for existing connections to finish */
+  SHUTDOWN_WAIT_ALL_BUFFERS= 40, /* flush InnoDB buffers */
+  SHUTDOWN_WAIT_CRITICAL_BUFFERS= 50, /* flush MyISAM buffs (no corruption) */
+  SHUTDOWN_ENUM_END= 255 /* must be last */
 };
 
 extern unsigned long max_allowed_packet;
