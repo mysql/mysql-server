@@ -96,7 +96,7 @@ typedef struct el_state_t {
 #include "tty.h"
 #include "prompt.h"
 #include "key.h"
-#include "term.h"
+#include "libedit_term.h"
 #include "refresh.h"
 #include "chared.h"
 #include "common.h"

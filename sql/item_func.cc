@@ -27,7 +27,9 @@
 #include <hash.h>
 #include <time.h>
 #include <ft_global.h>
+#ifdef HAVE_COMPRESS
 #include <zlib.h>
+#endif
 
 /* return TRUE if item is a constant */
 
@@ -962,6 +964,8 @@ longlong Item_func_min_max::val_int()
   return value;
 }
 
+
+#ifdef HAVE_COMPRESS
 longlong Item_func_crc32::val_int()
 {
   String *res=args[0]->val_str(&value);
@@ -973,6 +977,7 @@ longlong Item_func_crc32::val_int()
   null_value=0;
   return (longlong) crc32(0L, (Bytef*)res->ptr(), res->length());
 }
+#endif /* HAVE_COMPRESS */
 
 
 longlong Item_func_length::val_int()

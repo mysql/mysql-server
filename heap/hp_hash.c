@@ -35,7 +35,8 @@ ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
   custom_arg.search_flag= SEARCH_FIND | SEARCH_SAME;
   if (start_key)
   {
-    custom_arg.key_length= hp_rb_pack_key(keyinfo, info->recbuf, start_key, 
+    custom_arg.key_length= hp_rb_pack_key(keyinfo, (uchar*) info->recbuf,
+					  (uchar*) start_key, 
 					  start_key_len);
     start_pos= tree_record_pos(rb_tree, info->recbuf, start_search_flag, 
 			       &custom_arg);
@@ -47,8 +48,8 @@ ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
   
   if (end_key)
   {
-    custom_arg.key_length= hp_rb_pack_key(keyinfo, info->recbuf, end_key,
-					  end_key_len);
+    custom_arg.key_length= hp_rb_pack_key(keyinfo, (uchar*) info->recbuf,
+					  (uchar*) end_key, end_key_len);
     end_pos= tree_record_pos(rb_tree, info->recbuf, end_search_flag, 
 			     &custom_arg);
   }
@@ -370,7 +371,8 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const byte *rec1, const byte *rec2)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      if (my_strnncoll(seg->charset,rec1+seg->start,seg->length,rec2+seg->start,seg->length))
+      if (my_strnncoll(seg->charset,(uchar*) rec1+seg->start,seg->length,
+		       (uchar*) rec2+seg->start,seg->length))
 	return 1;
     }
     else
@@ -402,7 +404,8 @@ int hp_key_cmp(HP_KEYDEF *keydef, const byte *rec, const byte *key)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      if (my_strnncoll(seg->charset,rec+seg->start,seg->length,key,seg->length))
+      if (my_strnncoll(seg->charset,(uchar*) rec+seg->start, seg->length,
+		       (uchar*) key, seg->length))
 	return 1;
     }
     else

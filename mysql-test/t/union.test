@@ -124,3 +124,20 @@ INSERT INTO t2 (id, id_master, text1, text2) VALUES("4", "1",
 SELECT 1 AS id_master, 1 AS id, NULL AS text1, 'ABCDE' AS text2 UNION SELECT id_master, t2.id, text1, text2 FROM t1 LEFT JOIN t2 ON t1.id = t2.id_master;
 SELECT 1 AS id_master, 1 AS id, 'ABCDE' AS text1, 'ABCDE' AS text2 UNION SELECT id_master, t2.id, text1, text2 FROM t1 LEFT JOIN t2 ON t1.id = t2.id_master;
 drop table if exists t1,t2;
+
+#
+# Test of bug when using the same table multiple times
+#
+create table t1 (a int not null primary key auto_increment, b int, key(b));
+create table t2 (a int not null primary key auto_increment, b int);
+insert into t1 (b) values (1),(2),(2),(3);
+insert into t2 (b) values (10),(11),(12),(13);
+
+explain (select * from t1 where a=1) union (select * from t2 where a=1);
+(select * from t1 where a=5) union (select * from t2 where a=1);
+(select * from t1 where a=5 and a=6) union (select * from t2 where a=1);
+(select t1.a,t1.b from t1,t2 where t1.a=5) union (select * from t2 where a=1);
+(select * from t1 where a=1) union (select t1.a,t2.a from t1,t2 where t1.a=t2.a);
+explain (select * from t1 where a=1 and b=10) union (select t1.a,t2.a from t1,t2 where t1.a=t2.a);
+explain (select * from t1 where a=1) union (select * from t1 where b=1);
+drop table t1,t2;
