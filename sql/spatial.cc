@@ -44,7 +44,7 @@ static Geometry::GClassInfo ci_collection[] =
   IMPLEMENT_GEOM(GGeometryCollection, wkbGeometryCollection, "GEOMETRYCOLLECTION")
 };
 
-static Geometry::GClassInfo *ci_collection_end = ci_collection + sizeof(ci_collection);
+static Geometry::GClassInfo *ci_collection_end = ci_collection + sizeof(ci_collection)/sizeof(ci_collection[0]);
 
 /***************************** Geometry *******************************/
 
@@ -66,7 +66,7 @@ Geometry::GClassInfo *Geometry::find_class(const char *name, size_t len)
               cur_rt < ci_collection_end; ++cur_rt)
   {
     if ((cur_rt->m_name[len] == 0) && 
-            (strncmp(cur_rt->m_name, name, len) == 0))
+            (strncasecmp(cur_rt->m_name, name, len) == 0))
     {
       return cur_rt;
     }
