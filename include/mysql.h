@@ -275,7 +275,7 @@ my_ulonglong STDCALL mysql_affected_rows(MYSQL *mysql);
 my_ulonglong STDCALL mysql_insert_id(MYSQL *mysql);
 unsigned int STDCALL mysql_errno(MYSQL *mysql);
 const char * STDCALL mysql_error(MYSQL *mysql);
-uint STDCALL mysql_warning_count(MYSQL *mysql);
+unsigned int STDCALL mysql_warning_count(MYSQL *mysql);
 const char * STDCALL mysql_info(MYSQL *mysql);
 unsigned long STDCALL mysql_thread_id(MYSQL *mysql);
 const char * STDCALL mysql_character_set_name(MYSQL *mysql);
@@ -427,7 +427,7 @@ typedef struct st_mysql_bind
   /* The following are for internal use. Set by mysql_bind_param */
   long		bind_length;		/* Default length of data */
   my_bool	long_ended;		/* All data supplied for long */
-  uint		param_number;		/* For null count and error messages */
+  unsigned int	param_number;		/* For null count and error messages */
   void (*store_param_func)(NET *net, struct st_mysql_bind *param);
   char *(*fetch_result)(struct st_mysql_bind *, const char *row);
 } MYSQL_BIND;
@@ -448,7 +448,7 @@ typedef struct st_mysql_stmt
   unsigned long field_count;		/* fields count */
   unsigned long long_length;		/* long buffer alloced length */
   unsigned long	stmt_id;		/* Id for prepared statement */
-  uint		last_errno;		/* error code */
+  unsigned int	last_errno;		/* error code */
   enum MY_STMT_STATE state;		/* statement state */
   char		last_error[MYSQL_ERRMSG_SIZE]; /* error message */
   my_bool	long_alloced;		/* flag to indicate long alloced */
@@ -463,14 +463,14 @@ unsigned long STDCALL mysql_param_count(MYSQL_STMT * stmt);
 my_bool STDCALL mysql_bind_param(MYSQL_STMT * stmt, MYSQL_BIND * bind);
 my_bool STDCALL mysql_bind_result(MYSQL_STMT * stmt, MYSQL_BIND * bind);
 my_bool STDCALL mysql_stmt_close(MYSQL_STMT * stmt);
-uint STDCALL mysql_stmt_errno(MYSQL_STMT * stmt);
+unsigned int STDCALL mysql_stmt_errno(MYSQL_STMT * stmt);
 const char *STDCALL mysql_stmt_error(MYSQL_STMT * stmt);
 my_bool STDCALL mysql_commit(MYSQL * mysql);
 my_bool STDCALL mysql_rollback(MYSQL * mysql);
 my_bool STDCALL mysql_autocommit(MYSQL * mysql, my_bool auto_mode);
 int	STDCALL mysql_fetch(MYSQL_STMT *stmt);
 my_bool STDCALL mysql_send_long_data(MYSQL_STMT *stmt, 
-				     uint param_number,
+				     unsigned int param_number,
 				     const char *data, 
 				     unsigned long length,
 				     my_bool last_data);

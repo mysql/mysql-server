@@ -973,7 +973,6 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 	last_time=skr;
 	struct tm tm_tmp;
 	struct tm *start;
-	ulong length;
 	localtime_r(&skr,&tm_tmp);
 	start=&tm_tmp;
 	/* Note that my_b_write() assumes it knows the length for this */
