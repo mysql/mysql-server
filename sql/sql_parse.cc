@@ -1843,18 +1843,6 @@ mysql_execute_command(THD *thd)
       break;					// Error message is given
     }
 #endif
-    /* 
-       In case of single SELECT unit->global_parameters points on first SELECT
-       TODO: move counters to SELECT_LEX
-    */
-    unit->offset_limit_cnt= (ha_rows) unit->global_parameters->offset_limit;
-    unit->select_limit_cnt= (ha_rows) (unit->global_parameters->select_limit+
-      unit->global_parameters->offset_limit);
-    if (unit->select_limit_cnt <
-	(ha_rows) unit->global_parameters->select_limit)
-      unit->select_limit_cnt= HA_POS_ERROR;		// no limit
-    if (unit->select_limit_cnt == HA_POS_ERROR && !select_lex->next_select())
-      select_lex->options&= ~OPTION_FOUND_ROWS;
 
     if (!(res=open_and_lock_tables(thd,tables)))
     {
@@ -2188,11 +2176,8 @@ mysql_execute_command(THD *thd)
       }
 #endif
       select_lex->options|= SELECT_NO_UNLOCK;
-      unit->offset_limit_cnt= select_lex->offset_limit;
-      unit->select_limit_cnt= select_lex->select_limit+
-	select_lex->offset_limit;
-      if (unit->select_limit_cnt < select_lex->select_limit)
-	unit->select_limit_cnt= HA_POS_ERROR;		// No limit
+      unit->set_limit(select_lex->select_limit, select_lex->offset_limit,
+		      select_lex);
 
       /* Skip first table, which is the table we are creating */
       lex->select_lex.table_list.first=

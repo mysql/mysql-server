@@ -123,8 +123,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 explain select a,b from t1 union select 1 limit 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
+2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 select a,b from t1 into outfile 'skr' union select a,b from t2;
 ERROR HY000: Wrong usage of UNION and INTO
 select a,b from t1 order by a union select a,b from t2;
