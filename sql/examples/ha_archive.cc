@@ -305,7 +305,6 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
     share->use_count= 0;
     share->table_name_length= length;
     share->table_name= tmp_name;
-    share->delayed= FALSE;
     fn_format(share->data_file_name,table_name,"",ARZ,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
     fn_format(meta_file_name,table_name,"",ARM,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
     strmov(share->table_name,table_name);
@@ -536,11 +535,9 @@ int ha_archive::write_row(byte * buf)
     table->timestamp_field->set_time();
   pthread_mutex_lock(&share->mutex);
   written= gzwrite(share->archive_write, buf, table->reclength);
-  DBUG_PRINT("ha_archive::get_row", ("Wrote %d bytes expected %d", written, table->reclength));
-  if (!delayed_insert)
+  DBUG_PRINT("ha_archive::write_row", ("Wrote %d bytes expected %d", written, table->reclength));
+  if (!delayed_insert || !bulk_insert)
     share->dirty= TRUE;
-  else
-    share->delayed= TRUE;
 
   if (written != table->reclength)
     goto error;
@@ -599,7 +596,6 @@ int ha_archive::rnd_init(bool scan)
       {
         gzflush(share->archive_write, Z_SYNC_FLUSH);
         share->dirty= FALSE;
-        share->delayed= FALSE;
       }
       pthread_mutex_unlock(&share->mutex);
     }
@@ -634,12 +630,12 @@ int ha_archive::get_row(gzFile file_to_read, byte *buf)
   if (read == 0)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
-  /* If the record is the wrong size, the file is probably damaged, unless 
-    we are dealing with a delayed insert. In that case we can assume the file is ok,
-    but our row count doesn't match our data since the file has not been flushed.
+  /* 
+    If the record is the wrong size, the file is probably damaged, unless 
+    we are dealing with a delayed insert or a bulk insert.
   */
   if ((ulong) read != table->reclength)
-    DBUG_RETURN(share->delayed ? HA_ERR_END_OF_FILE : HA_ERR_CRASHED_ON_USAGE);
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
 
   /* Calculate blob length, we use this for our buffer */
   for (field=table->blob_field; *field ; field++)
@@ -657,7 +653,7 @@ int ha_archive::get_row(gzFile file_to_read, byte *buf)
     {
       read= gzread(file_to_read, last, size);
       if ((size_t) read != size)
-        DBUG_RETURN(share->delayed ? HA_ERR_END_OF_FILE : HA_ERR_CRASHED_ON_USAGE);
+        DBUG_RETURN(HA_ERR_END_OF_FILE);
       (*field)->set_ptr(size, last);
       last += size;
     }
@@ -886,14 +882,47 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
   return to;
 }
 
+
+/*
+  Hints for optimizer, see ha_tina for more information
+*/
 void ha_archive::info(uint flag)
 {
   DBUG_ENTER("ha_archive::info");
 
-  /* This is a lie, but you don't want the optimizer to see zero or 1 */
+  /* 
+    This should be an accurate number now, though bulk and delayed inserts can
+    cause the number to be inaccurate.
+  */
   records= share->rows_recorded;
   deleted= 0;
 
   DBUG_VOID_RETURN;
+}
+
+
+/*
+  This method tells us that a bulk insert operation is about to occur. We set
+  a flag which will keep write_row from saying that its data is dirty. This in
+  turn will keep selects from causing a sync to occur.
+  Basically, yet another optimizations to keep compression working well.
+*/
+void ha_archive::start_bulk_insert(ha_rows rows)
+{
+  DBUG_ENTER("ha_archive::info");
+  bulk_insert= TRUE;
+  DBUG_VOID_RETURN;
+}
+
+
+/* 
+  Other side of start_bulk_insert, is end_bulk_insert. Here we turn off the bulk insert
+  flag, and set the share dirty so that the next select will call sync for us.
+*/
+int ha_archive::end_bulk_insert()
+{
+  bulk_insert= FALSE;
+  share->dirty= TRUE;
+  DBUG_RETURN(0);
 }
 #endif /* HAVE_ARCHIVE_DB */
