@@ -2714,7 +2714,7 @@ case $default_charset in
       ;;
     latin1)
       default_charset_default_collation="latin1_swedish_ci"
-      default_charset_collations="latin1_general_ci latin1_general_cs latin1_bin latin1_german1_ci latin1_german2_ci latin1_danish_ci latin1_swedish_ci"
+      default_charset_collations="latin1_general_ci latin1_general_cs latin1_bin latin1_german1_ci latin1_german2_ci latin1_danish_ci latin1_spanish_ci latin1_swedish_ci"
       ;;
     latin2)
       default_charset_default_collation="latin2_general_ci"
