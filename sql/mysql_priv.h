@@ -438,7 +438,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 int mysql_create_table(THD *thd,const char *db, const char *table_name,
 		       HA_CREATE_INFO *create_info,
 		       List<create_field> &fields, List<Key> &keys,
-		       bool tmp_table, bool no_log);
+		       bool tmp_table);
 TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 			       const char *db, const char *name,
 			       List<create_field> *extra_fields,
