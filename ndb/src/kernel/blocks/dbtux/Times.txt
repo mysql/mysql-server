@@ -28,6 +28,8 @@ d
 shows ms / 1000 rows for each and index time overhead
 samples 10% of all PKs (100,000 pk reads, 100,000 scans)
 
+the "pct" values are from more accurate total times (not shown)
+
 040616          mc02/a  40 ms   87 ms   114 pct
                 mc02/b  51 ms  128 ms   148 pct
 
@@ -75,11 +77,19 @@ optim 13        mc02/a  40 ms   57 ms    42 pct
                 mc02/d 170 ms  256 ms    50 pct
 
 after wl-1884 store all-NULL keys (the tests have pctnull=10 per column)
-[ what happened to PK read performance? ]
 
 optim 13        mc02/a  39 ms   59 ms    50 pct
                 mc02/b  47 ms   77 ms    61 pct
                 mc02/c   9 ms   12 ms    44 pct
                 mc02/d 246 ms  289 ms    17 pct
+
+[ case d: what happened to PK read performance? ]
+
+optim 14        mc02/a  41 ms   60 ms    44 pct
+                mc02/b  46 ms   81 ms    73 pct
+                mc02/c   9 ms   13 ms    37 pct
+                mc02/d 242 ms  285 ms    17 pct
+
+[ case b: do long keys suffer from many subroutine calls? ]
 
 vim: set et:
