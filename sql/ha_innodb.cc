@@ -6315,6 +6315,14 @@ innobase_xa_prepare(
                 /* We were instructed to prepare the whole transaction, or
                 this is an SQL statement end and autocommit is on */
 
+		/* If there is no active InnoDB transaction,
+		trx_prepare_for_mysql() will (temporarily) start one */
+	
+        	if (trx->active_trans == 0) {
+
+                	trx->active_trans = 1;
+        	}
+
 		error = trx_prepare_for_mysql(trx);
 	} else {
 	        /* We just mark the SQL statement ended and do not do a
