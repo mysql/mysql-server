@@ -7099,38 +7099,37 @@ static int my_strnncollsp_uca(CHARSET_INFO *cs,
   {
     s_res= scanner_handler->next(&sscanner);
     t_res= scanner_handler->next(&tscanner);
-
-    if (s_res > 0 && t_res < 0)
-    { 
-      /* Calculate weight for SPACE character */
-      t_res= cs->sort_order_big[0][0x20 * cs->sort_order[0]];
-      
-      /* compare the first string to spaces */
-      do
-      {
-        if (s_res != t_res)
-          return (s_res - t_res);
-        s_res= scanner_handler->next(&sscanner);
-      } while (s_res > 0);
-      return 0;
-    }
-    
-    if (s_res < 0 && t_res > 0)
-    {
-      /* Calculate weight for SPACE character */
-      s_res= cs->sort_order_big[0][0x20 * cs->sort_order[0]];
-      
-      /* compare the second string to spaces */
-      do
-      {
-        if (s_res != t_res)
-          return (s_res - t_res);
-        t_res= scanner_handler->next(&tscanner);
-      } while (t_res > 0);
-      return 0;
-    }
-    
   } while ( s_res == t_res && s_res >0);
+
+  if (s_res > 0 && t_res < 0)
+  { 
+    /* Calculate weight for SPACE character */
+    t_res= cs->sort_order_big[0][0x20 * cs->sort_order[0]];
+      
+    /* compare the first string to spaces */
+    do
+    {
+      if (s_res != t_res)
+        return (s_res - t_res);
+      s_res= scanner_handler->next(&sscanner);
+    } while (s_res > 0);
+    return 0;
+  }
+    
+  if (s_res < 0 && t_res > 0)
+  {
+    /* Calculate weight for SPACE character */
+    s_res= cs->sort_order_big[0][0x20 * cs->sort_order[0]];
+      
+    /* compare the second string to spaces */
+    do
+    {
+      if (s_res != t_res)
+        return (s_res - t_res);
+      t_res= scanner_handler->next(&tscanner);
+    } while (t_res > 0);
+    return 0;
+  }
   
   return ( s_res - t_res );
 }
