@@ -5246,10 +5246,11 @@ static void get_options(int argc, char **argv)
 *********************************************************/
 int main(int argc, char **argv)
 {  
-  MY_INIT(argv[0]);
-  get_options(argc,argv);
   time_t start_time, end_time;
   double total_time= 0;
+  
+  MY_INIT(argv[0]);
+  get_options(argc,argv);
     
   client_connect();       /* connect to server */
   
