@@ -17406,10 +17406,13 @@ mysql> FLUSH PRIVILEGES;
 The result is that the plaintext value @code{'biscuit'} is stored as the
 password in the @code{user} table.  When the user @code{jeffrey} attempts to
 connect to the server using this password, the @code{mysql} client encrypts
-it with @code{PASSWORD()} and sends the result to the server.  The server
-compares the value in the @code{user} table (the encrypted value of
-@code{'biscuit'}) to the encrypted password (which is @emph{not}
-@code{'biscuit'}).  The comparison fails and the server rejects the
+it with @code{PASSWORD()}, generates an authentification vector
+based on @strong{encrypted} password and a random number,
+obtained from server, and sends the result to the server.
+The server uses the @code{password} value in the @code{user} table
+(that is @strong{not encrypted} value @code{'biscuit'})
+to perform the same calculations, and compares results.
+The comparison fails and the server rejects the
 connection:
 
 @example
