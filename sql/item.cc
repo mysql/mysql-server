@@ -474,9 +474,19 @@ String *Item_real::val_str(String *str)
 
 void Item_string::print(String *str)
 {
-  str->append('\'');
-  str->append(full_name());
-  str->append('\'');
+  str->append('_');
+  str->append(collation.collation->csname);
+  if (varbin)
+  {
+    str->append(' ');
+    str->append(full_name());
+  }
+  else
+  { 
+    str->append('\'');
+    str->append(full_name());
+    str->append('\'');
+  }
 }
 
 bool Item_null::eq(const Item *item, bool binary_cmp) const

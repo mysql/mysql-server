@@ -2879,17 +2879,19 @@ opt_gconcat_separator:
 
 
 opt_gorder_clause:
-    /* empty */
-      {
-        LEX *lex=Lex;
-        lex->gorder_list = NULL;
-      }
-    | order_clause
-      {
-        LEX *lex=Lex;
-        lex->gorder_list= (SQL_LIST*) sql_memdup((char*) &lex->current_select->order_list,sizeof(st_sql_list));
-        lex->current_select->order_list.empty();
-      };
+	  /* empty */
+	  {
+            LEX *lex=Lex;
+            lex->gorder_list = NULL;
+	  }
+	| order_clause
+          {
+            LEX *lex=Lex;
+            lex->gorder_list= 
+	      (SQL_LIST*) sql_memdup((char*) &lex->current_select->order_list,
+				     sizeof(st_sql_list));
+	    lex->current_select->order_list.empty();
+	  };
 
 
 in_sum_expr:
@@ -4289,8 +4291,11 @@ literal:
 	  {
 	    Item *tmp= new Item_varbinary($2.str,$2.length);
 	    String *str= tmp ? tmp->val_str((String*) 0) : (String*) 0;
-	    $$ = new Item_string(str ? str->ptr() : "", str ? str->length() :
-				 0, Lex->charset);
+	    Item_string *item = new Item_string(str ? str->ptr() : "",
+						str ? str->length() :
+						0, Lex->charset);
+	    item->set_varbin_name(tmp->name);
+	    $$= item;
 	  }
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }

@@ -449,9 +449,11 @@ public:
 
 class Item_string :public Item
 {
+  bool varbin;
 public:
   Item_string(const char *str,uint length,
   	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
+    :varbin(0)
   {
     collation.set(cs, dv);
     str_value.set(str,length,cs);
@@ -461,6 +463,7 @@ public:
   }
   Item_string(const char *name_par, const char *str, uint length,
 	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
+    :varbin(0)
   {
     collation.set(cs, dv);
     str_value.set(str,length,cs);
@@ -494,6 +497,7 @@ public:
   }
   String *const_string() { return &str_value; }
   inline void append(char *str, uint length) { str_value.append(str, length); }
+  inline void set_varbin_name(char *nm) { name= nm; varbin= 1; }
   void print(String *str);
 };
 
@@ -646,7 +650,7 @@ public:
   bool get_date(TIME *ltime, bool fuzzydate);
   void print(String *str)
   {
-    str->append("ref_null_helper(");
+    str->append("<ref_null_helper>(");
     if (ref && *ref)
       (*ref)->print(str);
     else
@@ -664,6 +668,12 @@ public:
     :Item_ref_null_helper(master, &store, table_name_par, field_name_par),
      store(item)
     {}
+  void print(String *str)
+  {
+    str->append("<null_helper>(");
+    store->print(str);
+    str->append(')');
+  }
 };
 
 /*
