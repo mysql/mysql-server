@@ -534,7 +534,6 @@ public:
   Item_cond() : Item_bool_func() { const_item_cache=0; }
   Item_cond(Item *i1,Item *i2) :Item_bool_func()
     { list.push_back(i1); list.push_back(i2); }
-  ~Item_cond() { list.delete_elements(); }
   bool add(Item *item) { return list.push_back(item); }
   bool fix_fields(THD *,struct st_table_list *);
 
