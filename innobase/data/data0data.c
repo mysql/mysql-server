@@ -114,8 +114,8 @@ dtuple_datas_are_ordering_equal(
 	ulint		i;
 
 	ut_ad(tuple1 && tuple2);
-	ut_ad(tuple1->magic_n = DATA_TUPLE_MAGIC_N);
-	ut_ad(tuple2->magic_n = DATA_TUPLE_MAGIC_N);
+	ut_ad(tuple1->magic_n == DATA_TUPLE_MAGIC_N);
+	ut_ad(tuple2->magic_n == DATA_TUPLE_MAGIC_N);
 	ut_ad(dtuple_check_typed(tuple1));
 	ut_ad(dtuple_check_typed(tuple2));
 
@@ -306,7 +306,7 @@ dtuple_validate(
 	ulint	 	i;
 	ulint	 	j;
 
-	ut_a(tuple->magic_n = DATA_TUPLE_MAGIC_N);
+	ut_ad(tuple->magic_n == DATA_TUPLE_MAGIC_N);
 
 	n_fields = dtuple_get_n_fields(tuple);
 
