@@ -3171,7 +3171,7 @@ found and @code{row_flag} wasn't already 1 in the original row.
 You can think of it as MySQL Server changed the above query to:
 
 @example
-UPDATE tbl_name SET row_flag=1 WHERE id=ID and row_flag <> 1;
+UPDATE tbl_name SET row_flag=1 WHERE id=ID AND row_flag <> 1;
 @end example
 @end itemize
 
@@ -3213,7 +3213,7 @@ you want to get results from multiple tables from a @code{SELECT}
 statement, you do this by joining tables:
 
 @example
-SELECT * from table1,table2 where table1.id = table2.id;
+SELECT * FROM table1,table2 WHERE table1.id = table2.id;
 @end example
 
 @xref{JOIN, , @code{JOIN}}. @xref{example-Foreign keys}.
@@ -15023,7 +15023,7 @@ the @code{mysqld} daemon!  To make this a bit safer, all files generated with
 @code{SELECT ... INTO OUTFILE} are readable to everyone, and you cannot
 overwrite existing files.
 
-@tindex /etc/passwd
+@tindex @file{/etc/passwd}
 The @strong{file} privilege may also be used to read any file accessible
 to the Unix user that the server runs as.  This could be abused, for example,
 by using @code{LOAD DATA} to load @file{/etc/passwd} into a table, which
@@ -15065,7 +15065,7 @@ new users with those privileges that the user has right to grant, you should
 give the user the following privilege:
 
 @example
-GRANT INSERT(user) on mysql.user to 'user'@@'hostname';
+mysql> GRANT INSERT(user) ON mysql.user TO 'user'@@'hostname';
 @end example
 
 This will ensure that the user can't change any privilege columns directly,
@@ -15655,7 +15655,8 @@ IP numbers, you can specify a netmask indicating how many address bits to
 use for the network number. For example:
 
 @example
-GRANT ALL PRIVILEGES on db.* to david@@'192.58.197.0/255.255.255.0';
+mysql> GRANT ALL PRIVILEGES ON db.*
+    -> TO david@@'192.58.197.0/255.255.255.0';
 @end example
 
 This will allow everyone to connect from an IP where the following is true:
@@ -16418,7 +16419,7 @@ To revoke the @strong{grant} privilege from a user, use a @code{priv_type}
 value of @code{GRANT OPTION}:
 
 @example
-REVOKE GRANT OPTION ON ... FROM ...;
+mysql> REVOKE GRANT OPTION ON ... FROM ...;
 @end example
 
 The only @code{priv_type} values you can specify for a table are @code{SELECT},
@@ -17278,8 +17279,8 @@ encrypted connections. Note that this option can be omitted
 if there are any ACL records which allow non-SSL connections.
 
 @example
-GRANT ALL PRIVILEGES ON test.* TO root@@localhost
-IDENTIFIED BY "goodsecret" REQUIRE SSL
+mysql> GRANT ALL PRIVILEGES ON test.* TO root@@localhost
+    -> IDENTIFIED BY "goodsecret" REQUIRE SSL;
 @end example
 
 @item
@@ -17289,8 +17290,8 @@ The only restriction is that it should be possible to verify its
 signature with one of the CA certificates.
 
 @example
-GRANT ALL PRIVILEGES ON test.* TO root@@localhost
-IDENTIFIED BY "goodsecret" REQUIRE X509
+mysql> GRANT ALL PRIVILEGES ON test.* TO root@@localhost
+    -> IDENTIFIED BY "goodsecret" REQUIRE X509;
 @end example
 
 @item
@@ -17300,10 +17301,10 @@ Using X509 certificates always implies encryption, so the option "SSL"
 is not neccessary anymore.
 
 @example
-GRANT ALL PRIVILEGES ON test.* TO root@@localhost
-IDENTIFIED BY "goodsecret"
-REQUIRE ISSUER "C=FI, ST=Some-State, L=Helsinki,
-O=MySQL Finland AB, CN=Tonu Samuel/Email=tonu@@mysql.com"
+mysql> GRANT ALL PRIVILEGES ON test.* TO root@@localhost
+    -> IDENTIFIED BY "goodsecret"
+    -> REQUIRE ISSUER "C=FI, ST=Some-State, L=Helsinki,
+    "> O=MySQL Finland AB, CN=Tonu Samuel/Email=tonu@@mysql.com";
 @end example
 
 @item
@@ -17313,10 +17314,11 @@ certificate but having different "subject" then the connection is
 still not allowed.
 
 @example
-GRANT ALL PRIVILEGES ON test.* TO root@@localhost
-IDENTIFIED BY "goodsecret"
-REQUIRE SUBJECT "C=EE, ST=Some-State, L=Tallinn,
-O=MySQL demo client certificate, CN=Tonu Samuel/Email=tonu@@mysql.com"
+mysql> GRANT ALL PRIVILEGES ON test.* TO root@@localhost
+    -> IDENTIFIED BY "goodsecret"
+    -> REQUIRE SUBJECT "C=EE, ST=Some-State, L=Tallinn,
+    "> O=MySQL demo client certificate,
+    "> CN=Tonu Samuel/Email=tonu@@mysql.com";
 @end example
 
 @item
@@ -17326,24 +17328,25 @@ with short encryption keys are used. Using this option, we can ask for
 some exact cipher method to allow a connection.
 
 @example
-GRANT ALL PRIVILEGES ON test.* TO root@@localhost
-IDENTIFIED BY "goodsecret"
-REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA"
+mysql> GRANT ALL PRIVILEGES ON test.* TO root@@localhost
+    -> IDENTIFIED BY "goodsecret"
+    -> REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
 @end example
 
 Also it is allowed to combine these options with each other like this:
 
 @example
-GRANT ALL PRIVILEGES ON test.* TO root@@localhost
-IDENTIFIED BY "goodsecret"
-REQUIRE SUBJECT "C=EE, ST=Some-State, L=Tallinn,
-O=MySQL demo client certificate, CN=Tonu Samuel/Email=tonu@@mysql.com"
-AND ISSUER "C=FI, ST=Some-State, L=Helsinki,
-O=MySQL Finland AB, CN=Tonu Samuel/Email=tonu@@mysql.com"
-AND CIPHER "EDH-RSA-DES-CBC3-SHA"
+mysql> GRANT ALL PRIVILEGES ON test.* TO root@@localhost
+    -> IDENTIFIED BY "goodsecret"
+    -> REQUIRE SUBJECT "C=EE, ST=Some-State, L=Tallinn,
+    "> O=MySQL demo client certificate,
+    "> CN=Tonu Samuel/Email=tonu@@mysql.com"
+    -> AND ISSUER "C=FI, ST=Some-State, L=Helsinki,
+    "> O=MySQL Finland AB, CN=Tonu Samuel/Email=tonu@@mysql.com"
+    -> AND CIPHER "EDH-RSA-DES-CBC3-SHA";
 @end example
 
-But it is not allowed to use any of options twice. Only different
+But it is not allowed to use any option twice. Only different
 options can be mixed.
 @end itemize
 
@@ -23309,7 +23312,7 @@ For example, to create a user named @code{repl} which can access your
 master from any host, you might use this command:
 
 @example
-GRANT FILE ON *.* TO repl@@"%" IDENTIFIED BY '<password>';
+mysql> GRANT FILE ON *.* TO repl@@"%" IDENTIFIED BY '<password>';
 @end example
 
 @item
@@ -28112,7 +28115,7 @@ However, in this case the assignment operator is @code{:=} rather than
 statements:
 
 @example
-select @@t1:=(@@t2:=1)+@@t3:=4,@@t1,@@t2,@@t3;
+mysql> SELECT @@t1:=(@@t2:=1)+@@t3:=4,@@t1,@@t2,@@t3;
 +----------------------+------+------+------+
 | @@t1:=(@@t2:=1)+@@t3:=4 | @@t1  | @@t2  | @@t3  |
 +----------------------+------+------+------+
@@ -28132,7 +28135,7 @@ that involves variables that are set in the @code{SELECT} part. For example,
 the following statement will NOT work as expected:
 
 @example
-SELECT (@@aa:=id) AS a, (@@aa+3) AS b FROM table_name HAVING b=5;
+mysql> SELECT (@@aa:=id) AS a, (@@aa+3) AS b FROM table_name HAVING b=5;
 @end example
 
 The reason is that @code{@@aa} will not contain the value of the current
@@ -38597,7 +38600,7 @@ This is called multi-versioned concurrency control.
 @example
                   User A                 User B
 
-              set autocommit=0;      set autocommit=0;
+              SET AUTOCOMMIT=0;      SET AUTOCOMMIT=0;
 time
 |             SELECT * FROM t;
 |             empty set
@@ -38678,18 +38681,18 @@ to @code{O_DSYNC}, though O_DSYNC seems to be slower on most systems.
 Put before your plain SQL import file line
 
 @example
-set autocommit=0;
+SET AUTOCOMMIT=0;
 @end example
 
 and after it
 
 @example
-commit;
+COMMIT;
 @end example
 
 If you use the @file{mysqldump} option @code{--opt}, you will get dump
 files which are fast to import also to an InnoDB table, even without wrapping
-them to the above @code{set autocommit=0; ... commit;} wrappers.
+them to the above @code{SET AUTOCOMMIT=0; ... COMMIT;} wrappers.
 
 @strong{8.}
 Beware of big rollbacks of mass inserts: InnoDB uses the insert buffer
