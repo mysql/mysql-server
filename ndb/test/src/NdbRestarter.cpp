@@ -32,12 +32,11 @@
 
 NdbRestarter::NdbRestarter(const char* _addr): 
   connected(false),
-  port(-1),
   handle(NULL),
   m_config(0)
 {
   if (_addr == NULL){
-    addr.assign("");
+    addr.assign("localhost");
   } else {
     addr.assign(_addr);
   }
@@ -360,6 +359,7 @@ NdbRestarter::isConnected(){
 
 int 
 NdbRestarter::connect(){
+  disconnect();
   handle = ndb_mgm_create_handle();   
   if (handle == NULL){
     g_err << "handle == NULL" << endl;
