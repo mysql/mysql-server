@@ -14,7 +14,7 @@
 @c you are interested in doing a translation.
 @c
 @c *********************************************************
-@c Note that @node names are used on our website.
+@c Note that @node names are used on our web site.
 @c So do not change node names without checking
 @c Makefile.am and SitePages first.
 @c *********************************************************
@@ -157,7 +157,7 @@ You can also purchase commercial MySQL licenses from @code{MySQL AB}
 if you do not wish to be bound by the terms of the GPL.
 @xref{Licensing and Support}.
 
-The MySQL website (@uref{http://www.mysql.com/}) provides the latest
+The MySQL web site (@uref{http://www.mysql.com/}) provides the latest
 information about MySQL.
 
 The following list describes some useful sections of the manual:
@@ -415,7 +415,7 @@ and provided by @code{MySQL AB}.  MySQL AB is a commercial company
 that builds its business providing services around the MySQL database.
 @xref{What is MySQL AB}.
 
-The MySQL website (@uref{http://www.mysql.com/})
+The MySQL web site (@uref{http://www.mysql.com/})
 provides the latest information about MySQL and MySQL AB.
 
 @table @asis
@@ -1000,7 +1000,7 @@ Are a virtual company, networking with others.
 Work against software patents.
 @end itemize
 
-The MySQL website (@uref{http://www.mysql.com/})
+The MySQL web site (@uref{http://www.mysql.com/})
 provides the latest information about MySQL and MySQL AB.
 
 
@@ -1109,7 +1109,7 @@ MySQL, but extends into programming and scripting languages such as
 PHP, Perl and more.
 
 If you are interested in our consulting services or want to become a
-consulting partner, please visit the consulting section of our website
+consulting partner, please visit the consulting section of our web site
 at @uref{http://www.mysql.com/consulting/}.
 If you have restricted access to the Internet, please contact our
 consulting staff at @email{consulting@@mysql.com}.
@@ -1142,7 +1142,7 @@ crash recovery, multiversioning, foreign key support, and more.
 MySQL AB has a worldwide partner program that covers training courses,
 support, consulting, solutions, publications plus reselling and
 distributing MySQL and related products. Partners get visibility on the
-@uref{http://www.mysql.com/} website and the right to use special
+@uref{http://www.mysql.com/} web site and the right to use special
 versions of the MySQL trademarks to identify their products and promote
 their business.
 
@@ -1157,7 +1157,7 @@ founders have built over the years.
 
 @node Business Services Advertising,  , Business Services Partnering, MySQL AB business model and services
 @subsubsection Advertising
-The MySQL website (@uref{http://www.mysql.com/}) is immensely popular among
+The MySQL web site (@uref{http://www.mysql.com/}) is immensely popular among
 developers and users. In October 2001, we served 10 million page views.
 Our visitors represent a group that makes purchase decisions and
 recommendations for both software and hardware. Twelve per cent of our
@@ -1166,7 +1166,7 @@ involved in purchase decisions at all. More than 65% have made one or
 more online business purchase within the last half-year, and 70% plan
 to make one in the next months.
 
-If you are interested in placing banner ads on our website
+If you are interested in placing banner ads on our web site
 @uref{http://www.mysql.com/}, please send an email to
 @email{advertising@@mysql.com}.
 
@@ -1181,7 +1181,7 @@ If you are interested in placing banner ads on our website
 @cindex employment with MySQL
 @cindex jobs at MySQL
 
-The MySQL website (@uref{http://www.mysql.com/})
+The MySQL web site (@uref{http://www.mysql.com/})
 provides the latest information about MySQL and MySQL AB.
 
 For press service and inquiries not covered in our News releases
@@ -1217,7 +1217,7 @@ Commercial licenses may be purchased online at
 @uref{https://order.mysql.com/}. There you will also find information
 on how to fax your purchase order to MySQL AB. If you have questions
 regarding licensing or you want a quote for a high-volume license
-deal, please fill in the contact form on our website
+deal, please fill in the contact form on our web site
 (@uref{http://www.mysql.com/}) or send an email
 to @email{licensing@@mysql.com} (for licensing questions) or to 
 @email{sales@@mysql.com} (for sales inquiries).
@@ -1228,7 +1228,7 @@ MySQL AB, please send e-mail to @email{partner@@mysql.com}.
 @xref{Business Services Partnering}.
 
 If you are interested in placing a banner advertisement on the MySQL
-website (@uref{http://www.mysql.com/}), please send e-mail to
+web site (@uref{http://www.mysql.com/}), please send e-mail to
 @email{advertising@@mysql.com}.
 @xref{Business Services Advertising}.
 
@@ -1261,7 +1261,7 @@ If you have any suggestions concerning additions or corrections to this
 manual, please send them to the manual team at @email{docs@@mysql.com}.
 
 For questions or comments about the workings or content of the
-MySQL website (@uref{http://www.mysql.com/}),
+MySQL web site (@uref{http://www.mysql.com/}),
 please send e-mail to @email{webmaster@@mysql.com}.
 
 Questions about the MySQL Portals (@uref{http://www.mysql.com/portal/})
@@ -1473,7 +1473,7 @@ no artificial limit on the number of clients that connect to the server
 in any way.
 
 To purchase commercial licenses and support, please visit the order section
-of our website at @uref{https://order.mysql.com/}. If you have restricted
+of our web site at @uref{https://order.mysql.com/}. If you have restricted
 access to the Internet, please contact our sales staff at
 @email{sales@@mysql.com}.
 
@@ -1560,7 +1560,7 @@ us to provide free support, too.)
 @cindex trademarks
 
 Many users of the MySQL database want to display the MySQL AB dolphin logo
-on their websites, on their books or boxed products. We welcome and
+on their web sites, on their books or boxed products. We welcome and
 encourage this although it should be noted that the word @code{MySQL} and the
 MySQL dolphin logo are trademarks of MySQL AB and may only be used as
 stated in our trademark policy at
@@ -1596,12 +1596,12 @@ and by those having a written agreement allowing them to do so.
 @c FIX: pictures: powered by, works with, included - logos
 
 We have designed a set of special @emph{Conditional Use} logos that may be
-downloaded from our website at
+downloaded from our web site at
 @uref{http://www.mysql.com/downloads/logos.html}
-and used on third party websites without written permission from MySQL AB.
+and used on third party web sites without written permission from MySQL AB.
 The use of these logos is not entirely unrestricted but as the name
 implies subject to our trademark policy that is also available on our
-website. You should read through the trademark policy if you plan to use
+web site. You should read through the trademark policy if you plan to use
 them. The requirements are basically:
 
 @itemize @bullet
@@ -1620,7 +1620,7 @@ value of MySQL AB trademarks. We reserve the right to revoke the right to
 use the MySQL AB trademark.
 
 @item
-If you use the trademark on a website, make it clickable, leading directly
+If you use the trademark on a web site, make it clickable, leading directly
 to @uref{http://www.mysql.com/}.
 
 @item
@@ -1648,11 +1648,11 @@ using MySQL logos:
 
 @itemize @bullet
 @item
-When displaying any MySQL AB logo anywhere except on your website.
+When displaying any MySQL AB logo anywhere except on your web site.
 
 @item
 When displaying any MySQL AB logo except the @emph{Conditional Use} logos
-above on websites or elsewhere.
+above on web sites or elsewhere.
 @end itemize
 
 Out of legal and commercial reasons we have to monitor the use of MySQL
@@ -1895,9 +1895,9 @@ checklist of very demanding buyers.
 @cindex web search engines
 @cindex online magazines
 @cindex magazines, online
-@cindex websites
+@cindex web sites
 @cindex services
-@cindex PHP, websites
+@cindex PHP, web sites
 @cindex consultants, list of
 @cindex web pages, miscellaneous
 @cindex @code{Contrib} directory
@@ -1905,7 +1905,7 @@ checklist of very demanding buyers.
 @cindex MySQL related information URLs
 
 The MySQL Portals (@uref{http://www.mysql.com/portal/}) on our
-website feature a diverse range of MySQL related information and
+web site feature a diverse range of MySQL related information and
 links, designed to make it easy to find the things your need.
 
 You may register as a user, which will allow you to comment and
@@ -1997,7 +1997,7 @@ address replaced by a @samp{=}.  For example, to subscribe
 Mail to @email{mysql-subscribe@@lists.mysql.com} or
 @email{mysql-unsubscribe@@lists.mysql.com} is handled automatically by the
 ezmlm mailing list processor.  Information about ezmlm is available at
-the ezmlm website (@uref{http://www.ezmlm.org/}).
+the ezmlm web site (@uref{http://www.ezmlm.org/}).
 
 To post a message to the list itself, send your message to
 @code{mysql@@lists.mysql.com}.  However, please @emph{do not} send mail about
@@ -3669,7 +3669,7 @@ This section lists features not yet implemented in the current
 version of MySQL 4.0, which will however be implemented in 
 later versions of MySQL 4.0. This being very volatile information,
 please consider this list valid only if you are reading it from
-the MySQL website (@uref{http://www.mysql.com/}).
+the MySQL web site (@uref{http://www.mysql.com/}).
 
 @itemize @bullet
 @item
@@ -6336,7 +6336,7 @@ running.  @xref{Multiple servers}.
 @cindex applying, patches
 
 Sometimes patches appear on the mailing list or are placed in the
-patches area of the MySQL website
+patches area of the MySQL web site
 (@uref{http://www.mysql.com/Downloads/Patches/}).
 
 To apply a patch from the mailing list, save the message in which the patch
@@ -6516,7 +6516,7 @@ following for all recent gcc versions:
 CFLAGS="-O3 -mpentiumpro" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static
 @end example
 
-The binaries we provide on the MySQL website at
+The binaries we provide on the MySQL web site at
 @uref{http://www.mysql.com/} are all compiled with full optimisation and
 should be perfect for most users.  @xref{MySQL binaries}.  There are some
 things you can tweak to make an even faster binary, but this is only for
@@ -11364,7 +11364,7 @@ to think of real-world situations in which a similar type of database might
 be used.  For example, a database like this could be used by a farmer to keep
 track of livestock, or by a veterinarian to keep track of patient records.
 A menagerie distribution containing some of the queries and sample data used
-in the following sections can be obtained from the MySQL website.
+in the following sections can be obtained from the MySQL web site.
 It's available in either compressed @code{tar} format
 (@uref{http://www.mysql.com/Downloads/Contrib/Examples/menagerie.tar.gz})
 or Zip format
@@ -16455,7 +16455,7 @@ mysql> FLUSH PRIVILEGES;
 You can also use @code{xmysqladmin}, @code{mysql_webadmin}, and even
 @code{xmysql} to insert, change, and update values in the grant tables.
 You can find these utilities in the Contrib directory of the
-MySQL website (@uref{http://www.mysql.com/Downloads/Contrib/}).
+MySQL web site (@uref{http://www.mysql.com/Downloads/Contrib/}).
 
 
 @node Passwords, Password security, Adding users, User Account Management
@@ -19839,7 +19839,7 @@ This can be fixed by using the @code{--character-sets-dir}
 option to the program in question.
 @item
 The character set is a multi-byte-character set that can't be loaded
-dynamically.  In this case you have to recompiled the program with the
+dynamically.  In this case you have to recompile the program with the
 support for the character set.
 @item
 The character set is a dynamic character set, but you don't have a
@@ -37223,7 +37223,7 @@ the maximum size for a table. The minimum tablespace size is 10 MB.
 @subsection InnoDB Contact Information
 
 Contact information of Innobase Oy, producer of the InnoDB engine.
-Website: @uref{http://www.innodb.com/}.
+Web site: @uref{http://www.innodb.com/}.
 Email: @email{Heikki.Tuuri@@innodb.com}
 
 @example
@@ -37571,7 +37571,7 @@ create dynamic Web pages.  It contains support for accessing several
 databases, including MySQL.  PHP may be run as a separate program
 or compiled as a module for use with the Apache Web server.
 
-The distribution and documentation are available at the PHP website
+The distribution and documentation are available at the PHP web site
 (@uref{http://www.php.net/}).
 
 @menu
@@ -41851,7 +41851,7 @@ have your own alarm that can break a long read to a server.  If you
 install interrupt handlers for the @code{SIGPIPE} interrupt,
 the socket handling should be thread safe.
 
-In the older binaries we distribute on our website
+In the older binaries we distribute on our web site
 (@uref{http://www.mysql.com/}), the client libraries are not normally
 compiled with the thread-safe option (the Windows binaries are by
 default compiled to be thread safe). Newer binary distributions should
@@ -46051,7 +46051,7 @@ Most of crash-me and the foundation for the MySQL benchmarks.
 Coordinator and initial main writer of the @strong{Reference Manual},
 including enhancements to @code{texi2html}.
 @item
-Automatic website updating from the manual.
+Automatic web site updating from the manual.
 @item
 Initial Autoconf, Automake, and Libtool support.
 @item
@@ -46448,7 +46448,7 @@ Funded replication.
 @item NuSphere
 Editing of the MySQL manual.
 @item Stork Design studio
-The MySQL website in use between 1998-2000.
+The MySQL web site in use between 1998-2000.
 @item Intel
 Contributed to development on Windows and Linux platforms.
 @item Compaq
@@ -52236,7 +52236,7 @@ This appendix will help you port MySQL to other operationg systems.
 Do check the list of currently supported operating systems first.
 @xref{Which OS}.
 If you have created a new port of MySQL, please let us know so that
-we can list it here and on our website (@uref{http://www.mysql.com/}),
+we can list it here and on our web site (@uref{http://www.mysql.com/}),
 recommending it to other users.
 
 Note: If you create a new port of MySQL, you are free to copy and
