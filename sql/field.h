@@ -367,7 +367,9 @@ public:
   my_decimal *val_decimal(my_decimal *);
 };
 
-/* base class for Item_string, Item_valstring, Item_blob */
+
+/* base class for Field_string, Field_varstring and Field_blob */
+
 class Field_longstr :public Field_str
 {
 public:
@@ -1181,7 +1183,9 @@ public:
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   field_cast_enum field_cast_type() { return FIELD_CAST_BLOB; }
-  uint32 max_length();};
+  uint32 max_length();
+};
+
 
 #ifdef HAVE_SPATIAL
 class Field_geom :public Field_blob {

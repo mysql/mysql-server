@@ -23,16 +23,18 @@
     decimal_operation_results()
     result  decimal library return code (E_DEC_* see include/decimal.h)
 
-  return
+  TODO
+    Fix error messages
+
+  RETURN
     result
 */
+
 int decimal_operation_results(int result)
 {
-  switch (result)
-  {
+  switch (result) {
   case E_DEC_OK:
     break;
-//TODO: fix error messages
   case E_DEC_TRUNCATED:
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
@@ -78,20 +80,18 @@ int decimal_operation_results(int result)
 */
 
 int my_decimal2string(uint mask, const my_decimal *d,
-                   int fixed_prec, int fixed_dec,
-                   char filler, String *str)
+                      int fixed_prec, int fixed_dec,
+                      char filler, String *str)
 {
   int length= (fixed_prec ? (fixed_prec + 1) : my_decimal_string_length(d));
   int result;
   if (str->alloc(length))
-    return  check_result(mask, E_DEC_OOM);
-  char *sptr= (char *)str->ptr();
-  int res= decimal2string((decimal *)d, sptr,
-                          &length, fixed_prec, fixed_dec,
-                          filler);
-  result= check_result(mask, res);
+    return check_result(mask, E_DEC_OOM);
+  result= decimal2string((decimal*) d, (char*) str->ptr(),
+                         &length, fixed_prec, fixed_dec,
+                         filler);
   str->length(length);
-  return result;
+  return check_result(mask, result);
 }
 
 
@@ -116,7 +116,7 @@ int my_decimal2string(uint mask, const my_decimal *d,
     E_DEC_OVERFLOW
 */
 
-int my_decimal2binary(uint mask, const my_decimal *d, byte *bin, int prec,
+int my_decimal2binary(uint mask, const my_decimal *d, char *bin, int prec,
 		      int scale)
 {
   int err1= E_DEC_OK, err2;
@@ -171,7 +171,7 @@ int str2my_decimal(uint mask, const char *from, uint length,
   }
   my_decimal_set_zero(decimal_value);
   err= string2decimal((char *)from, (decimal *)decimal_value, &end);
-  if ((end-from) != length && !err)
+  if ((uint) (end-from) != length && !err)
     err= E_DEC_TRUNCATED;
   check_result(mask, err);
   return err;

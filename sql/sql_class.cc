@@ -767,6 +767,8 @@ struct Item_change_record: public ilink
   Item *old_value;
   /* Placement new was hidden by `new' in ilink (TODO: check): */
   static void *operator new(size_t size, void *mem) { return mem; }
+  static void operator delete(void *ptr, size_t size) {}
+  static void operator delete(void *ptr, void *mem) { /* never called */ }
 };
 
 

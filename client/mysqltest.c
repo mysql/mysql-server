@@ -253,6 +253,7 @@ VAR var_reg[10];
 /*Perl/shell-like variable registers */
 HASH var_hash;
 my_bool disable_query_log=0, disable_result_log=0, disable_warnings=0;
+my_bool disable_ps_warnings= 0;
 my_bool disable_info= 1;			/* By default off */
 my_bool abort_on_error= 1;
 
@@ -283,6 +284,7 @@ Q_ENABLE_RESULT_LOG, Q_DISABLE_RESULT_LOG,
 Q_SERVER_START, Q_SERVER_STOP,Q_REQUIRE_MANAGER,
 Q_WAIT_FOR_SLAVE_TO_STOP,
 Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
+Q_ENABLE_PS_WARNINGS, Q_DISABLE_PS_WARNINGS,
 Q_ENABLE_INFO, Q_DISABLE_INFO,
 Q_ENABLE_METADATA, Q_DISABLE_METADATA,
 Q_EXEC, Q_DELIMITER,
@@ -360,6 +362,8 @@ const char *command_names[]=
   "wait_for_slave_to_stop",
   "enable_warnings",
   "disable_warnings",
+  "enable_ps_warnings",
+  "disable_ps_warnings",
   "enable_info",
   "disable_info",
   "enable_metadata",
@@ -3021,7 +3025,8 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
 
   /* We may have got warnings already, collect them if any */
   /* FIXME we only want this if the statement succeeds I think */ 
-  run_query_stmt_handle_warnings(mysql, ds);
+  if (!disable_ps_warnings)
+    run_query_stmt_handle_warnings(mysql, ds);
 
   /*
     No need to call mysql_stmt_bind_param() because we have no 
@@ -3711,6 +3716,8 @@ int main(int argc, char **argv)
       case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
       case Q_ENABLE_WARNINGS:    disable_warnings=0; break;
       case Q_DISABLE_WARNINGS:   disable_warnings=1; break;
+      case Q_ENABLE_PS_WARNINGS:    disable_ps_warnings=0; break;
+      case Q_DISABLE_PS_WARNINGS:   disable_ps_warnings=1; break;
       case Q_ENABLE_INFO:        disable_info=0; break;
       case Q_DISABLE_INFO:       disable_info=1; break;
       case Q_ENABLE_METADATA:    display_metadata=1; break;

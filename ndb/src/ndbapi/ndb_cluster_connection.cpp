@@ -284,7 +284,7 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
 
   m_transporter_facade=
     TransporterFacade::theFacadeInstance= 
-    new TransporterFacade(m_config_retriever->get_mgmHandle());
+    new TransporterFacade();
   
   DBUG_VOID_RETURN;
 }
