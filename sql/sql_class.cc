@@ -1765,6 +1765,7 @@ void TMP_TABLE_PARAM::init()
   field_count= sum_func_count= func_count= hidden_field_count= 0;
   group_parts= group_length= group_null_parts= 0;
   quick_group= 1;
+  table_charset= 0;
 }
 
 

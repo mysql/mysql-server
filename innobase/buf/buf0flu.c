@@ -273,6 +273,10 @@ buf_flush_buffered_writes(void)
 		}
 	}
 
+        /* increment the doublewrite flushed pages counter */
+        srv_dblwr_pages_written+= trx_doublewrite->first_free;
+        srv_dblwr_writes++;
+        
 	if (trx_doublewrite->first_free > TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
 		len = TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE;
 	} else {
@@ -901,6 +905,9 @@ buf_flush_batch(
 			(ulong) page_count);
 	}
 	
+        if (page_count != ULINT_UNDEFINED)
+          srv_buf_pool_flushed+= page_count;
+
 	return(page_count);
 }
 

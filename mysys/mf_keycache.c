@@ -1699,11 +1699,12 @@ byte *key_cache_read(KEY_CACHE *keycache,
 	keycache_pthread_mutex_unlock(&keycache->cache_lock);
 	goto no_key_cache;
       }
-      read_length= length > keycache->key_cache_block_size ?
-                   keycache->key_cache_block_size : length;
-      KEYCACHE_DBUG_ASSERT(read_length > 0);
       offset= (uint) (filepos & (keycache->key_cache_block_size-1));
       filepos-= offset;
+      read_length= length;
+      set_if_smaller(read_length, keycache->key_cache_block_size-offset);
+      KEYCACHE_DBUG_ASSERT(read_length > 0);
+
 #ifndef THREAD
       if (block_length > keycache->key_cache_block_size || offset)
 	return_buffer=0;
@@ -1773,7 +1774,7 @@ byte *key_cache_read(KEY_CACHE *keycache,
 	return (block->buffer);
 #endif
       buff+= read_length;
-      filepos+= read_length;
+      filepos+= read_length+offset;
 
     } while ((length-= read_length));
     DBUG_RETURN(start);
@@ -1835,12 +1836,12 @@ int key_cache_insert(KEY_CACHE *keycache,
 	keycache_pthread_mutex_unlock(&keycache->cache_lock);
 	DBUG_RETURN(0);
       }
-      read_length= length > keycache->key_cache_block_size ?
-                   keycache->key_cache_block_size : length;
-      KEYCACHE_DBUG_ASSERT(read_length > 0);
       offset= (uint) (filepos & (keycache->key_cache_block_size-1));
       /* Read data into key cache from buff in key_cache_block_size incr. */
       filepos-= offset;
+      read_length= length;
+      set_if_smaller(read_length, keycache->key_cache_block_size-offset);
+      KEYCACHE_DBUG_ASSERT(read_length > 0);
 
       inc_counter_for_resize_op(keycache);
       keycache->global_cache_r_requests++;
@@ -1882,7 +1883,7 @@ int key_cache_insert(KEY_CACHE *keycache,
         DBUG_RETURN(1);
 
       buff+= read_length;
-      filepos+= read_length;
+      filepos+= read_length+offset;
 
     } while ((length-= read_length));
   }
@@ -1959,12 +1960,12 @@ int key_cache_write(KEY_CACHE *keycache,
 	keycache_pthread_mutex_unlock(&keycache->cache_lock);
 	goto no_key_cache;
       }
-      read_length= length > keycache->key_cache_block_size ?
-	keycache->key_cache_block_size : length;
-      KEYCACHE_DBUG_ASSERT(read_length > 0);
       offset= (uint) (filepos & (keycache->key_cache_block_size-1));
       /* Write data in key_cache_block_size increments */
       filepos-= offset;
+      read_length= length;
+      set_if_smaller(read_length, keycache->key_cache_block_size-offset);
+      KEYCACHE_DBUG_ASSERT(read_length > 0);
 
       inc_counter_for_resize_op(keycache);
       keycache->global_cache_w_requests++;
@@ -2032,7 +2033,7 @@ int key_cache_write(KEY_CACHE *keycache,
 
     next_block:
       buff+= read_length;
-      filepos+= read_length;
+      filepos+= read_length+offset;
       offset= 0;
 
     } while ((length-= read_length));

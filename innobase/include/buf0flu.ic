@@ -61,6 +61,8 @@ buf_flush_note_modification(
 		ut_ad(ut_dulint_cmp(block->oldest_modification,
 							mtr->start_lsn) <= 0);
 	}
+
+        ++srv_buf_pool_write_requests;
 }
 
 /************************************************************************
