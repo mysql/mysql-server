@@ -451,3 +451,53 @@ select * from t1 left join t2  on  b1 = a1 left join t3  on  c1 = a1  and  b1 is
 explain select * from t1 left join t2  on  b1 = a1 left join t3  on  c1 = a1  and  b1 is null;
 
 drop table t1, t2, t3;
+
+# Test for BUG#5088
+
+create table t1 (
+  match_id tinyint(3) unsigned not null auto_increment,
+  home tinyint(3) unsigned default '0',
+  unique key match_id (match_id),
+  key match_id_2 (match_id)
+);
+
+insert into t1 values("1", "2");
+
+create table t2 (
+  player_id tinyint(3) unsigned default '0',
+  match_1_h tinyint(3) unsigned default '0',
+  key player_id (player_id)
+);
+
+insert into t2 values("1", "5");
+insert into t2 values("2", "9");
+insert into t2 values("3", "3");
+insert into t2 values("4", "7");
+insert into t2 values("5", "6");
+insert into t2 values("6", "8");
+insert into t2 values("7", "4");
+insert into t2 values("8", "12");
+insert into t2 values("9", "11");
+insert into t2 values("10", "10");
+
+explain select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
+  (t2 s left join t1 m on m.match_id = 1) 
+  order by m.match_id desc;
+  
+explain select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
+  (t2 s left join t1 m on m.match_id = 1) 
+  order by UUX desc;
+
+select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
+  (t2 s left join t1 m on m.match_id = 1) 
+  order by UUX desc;
+
+explain select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
+  t2 s straight_join t1 m where m.match_id = 1 
+  order by UUX desc;
+
+select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
+  t2 s straight_join t1 m where m.match_id = 1 
+  order by UUX desc;
+
+drop table t1, t2;
