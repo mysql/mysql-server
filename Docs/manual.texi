@@ -230,9 +230,9 @@ security bug in @code{MySQL Server}, you should send an e-mail to
 
 
 @menu
-* Manual-info::                 
-* What-is::                     
-* What is MySQL AB::            
+* Manual-info::                 About This Manual
+* What-is::                     What Is MySQL
+* What is MySQL AB::            What Is MySQL AB
 * Licensing and Support::       MySQL Support and Licensing
 * MySQL 4.0 In A Nutshell::     MySQL 4.0 In A Nutshell
 * MySQL Information Sources::   MySQL Information Sources
@@ -514,11 +514,11 @@ or in some other localised way.
 
 
 @menu
-* History::                     
-* Features::                    
-* Stability::                   
-* Table size::                  
-* Year 2000 compliance::        
+* History::                     History of MySQL
+* Features::                    The Main Features of MySQL
+* Stability::                   How Stable Is MySQL?
+* Table size::                  How Big Can MySQL Tables Be?
+* Year 2000 compliance::        Year 2000 Compliance
 @end menu
 
 @node History, Features, What-is, What-is
@@ -1611,11 +1611,11 @@ our trademark policy at
 
 @menu
 * The Original MySQL logo::     The Original MySQL Logo
-* MySQL Logos that may be Used Without Written Permission::  
-* When need MySQL logo permission::  
-* MySQL AB Partnership Logos::  
-* Using MySQL word in presentations::  
-* Using MySQL word in company and product names::  
+* MySQL Logos that may be Used Without Written Permission::  MySQL Logos that may be Used Without Written Permission
+* When need MySQL logo permission::  When do you need a Written Permission to use MySQL Logos?
+* MySQL AB Partnership Logos::  MySQL AB Partnership Logos
+* Using MySQL word in presentations::  Using the word @code{MySQL} in Printed Text or Presentations
+* Using MySQL word in company and product names::  Using the word @code{MySQL} in Company and Product Names
 @end menu
 
 
@@ -3685,8 +3685,8 @@ For platform-specific bugs, see the sections about compiling and porting.
 @cindex ToDo list for MySQL
 
 @menu
-* TODO MySQL 4.0::              Things That Should be in Version 4.0
-* TODO MySQL 4.1::              
+* TODO MySQL 4.0::              Things That Should be in 4.0
+* TODO MySQL 4.1::              Things That Should be in 4.1
 * TODO future::                 Things That Must be Done in the Near Future
 * TODO sometime::               Things That Have to be Done Sometime
 * TODO unplanned::              Things we don't Have any Plans to do
@@ -5291,7 +5291,7 @@ do and how to add more tests to the suite.
 * Post-installation::           Post-installation setup and testing
 * Upgrade::                     Upgrading/Downgrading MySQL
 * Operating System Specific Notes::  Operating System Specific Notes
-* Perl support::                
+* Perl support::                Perl Installation Comments
 @end menu
 
 This chapter describes how to obtain and install MySQL:
@@ -24651,7 +24651,7 @@ great tool to find out if this is a problem with your query.
 * Where optimisations::         How MySQL optimises @code{WHERE} clauses
 * DISTINCT optimisation::       How MySQL Optimises @code{DISTINCT}
 * LEFT JOIN optimisation::      How MySQL optimises @code{LEFT JOIN}
-* ORDER BY optimisation::       
+* ORDER BY optimisation::       How MySQL Optimises @code{ORDER BY}
 * LIMIT optimisation::          How MySQL optimises @code{LIMIT}
 * Insert speed::                Speed of @code{INSERT} queries
 * Update speed::                Speed of @code{UPDATE} queries
@@ -36868,7 +36868,7 @@ read the new definition file.
 @end itemize
 
 @menu
-* MERGE table problems::        
+* MERGE table problems::        MERGE table problems.
 @end menu
 
 @node MERGE table problems,  , MERGE, MERGE
@@ -38848,7 +38848,7 @@ Finland
 * BDB characteristics::         Characteristics of @code{BDB} tables:
 * BDB TODO::                    Things we need to fix for BDB in the near future:
 * BDB portability::             Operating systems supported by @strong{BDB}
-* BDB restrictions::            
+* BDB restrictions::            Restrictions on BDB Tables
 * BDB errors::                  Errors That May Occur When Using BDB Tables
 @end menu
 
@@ -44388,7 +44388,7 @@ is not the case, you should run the script
 
 @menu
 * UDF calling::                 UDF Calling Sequences
-* UDF aggr. calling ::          
+* UDF aggr. calling ::          UDF Calling Sequences for aggregate functions
 * UDF arguments::               Argument Processing
 * UDF return values::           Return Values and Error Handling
 * UDF compiling::               Compiling and Installing User-definable Functions
