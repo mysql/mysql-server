@@ -3317,7 +3317,7 @@ my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt)
 my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt)
 { 
   MYSQL *mysql;
-  DBUG_ENTER("mysql_stmt_close");
+  DBUG_ENTER("mysql_stmt_free_result");
 
   DBUG_ASSERT(stmt != 0);
   
@@ -3498,10 +3498,18 @@ my_bool STDCALL mysql_more_results(MYSQL *mysql)
   Reads and returns the next query results
 */
 
-my_bool STDCALL mysql_next_result(MYSQL *mysql)
+int STDCALL mysql_next_result(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_next_result");
   
+  if (mysql->status != MYSQL_STATUS_READY)
+  {
+    strmov(mysql->net.sqlstate, unknown_sqlstate);
+    strmov(mysql->net.last_error,
+	   ER(mysql->net.last_errno=CR_COMMANDS_OUT_OF_SYNC));
+    DBUG_RETURN(1);
+  }
+
   mysql->net.last_error[0]= 0;
   mysql->net.last_errno= 0;
   strmov(mysql->net.sqlstate, not_error_sqlstate);
@@ -3510,8 +3518,9 @@ my_bool STDCALL mysql_next_result(MYSQL *mysql)
   if (mysql->last_used_con->server_status & SERVER_MORE_RESULTS_EXISTS)
     DBUG_RETURN((*mysql->methods->read_query_result)(mysql));
   
-  DBUG_RETURN(0);
+  DBUG_RETURN(-1);				/* No more results */
 }
+
 
 MYSQL_RES * STDCALL mysql_use_result(MYSQL *mysql)
 {

@@ -604,7 +604,7 @@ MYSQL_RES *STDCALL mysql_param_result(MYSQL_STMT *stmt);
 my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt);
 int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt);
 my_bool STDCALL mysql_more_results(MYSQL *mysql);
-my_bool STDCALL mysql_next_result(MYSQL *mysql);
+int STDCALL mysql_next_result(MYSQL *mysql);
 MYSQL_ROW_OFFSET STDCALL mysql_stmt_row_seek(MYSQL_STMT *stmt, 
                                              MYSQL_ROW_OFFSET offset);
 MYSQL_ROW_OFFSET STDCALL mysql_stmt_row_tell(MYSQL_STMT *stmt);
