@@ -242,7 +242,7 @@ public:
   virtual Log_event_type get_type_code() = 0;
   virtual bool is_valid() = 0;
   virtual bool get_cache_stmt() { return 0; }
-  Log_event(const char* buf);
+  Log_event(const char* buf, bool old_format);
 #ifndef MYSQL_CLIENT  
   Log_event(THD* thd_arg, uint16 flags_arg = 0);
 #endif  
@@ -268,12 +268,14 @@ public:
   
 #ifndef MYSQL_CLIENT  
   // if mutex is 0, the read will proceed without mutex
-  static Log_event* read_log_event(IO_CACHE* file, pthread_mutex_t* log_lock);
+  static Log_event* read_log_event(IO_CACHE* file,
+				   pthread_mutex_t* log_lock,
+				   bool old_format);
 #else // avoid having to link mysqlbinlog against libpthread
-  static Log_event* read_log_event(IO_CACHE* file);
+  static Log_event* read_log_event(IO_CACHE* file, bool old_format);
 #endif  
   static Log_event* read_log_event(const char* buf, int event_len,
-				   const char **error);
+				   const char **error, bool old_format);
   const char* get_type_str();
 
 #ifndef MYSQL_CLIENT
@@ -317,7 +319,7 @@ public:
   bool get_cache_stmt() { return cache_stmt; }
 #endif
 
-  Query_log_event(const char* buf, int event_len);
+  Query_log_event(const char* buf, int event_len, bool old_format);
   ~Query_log_event()
   {
     if (data_buf)
@@ -411,7 +413,7 @@ public:
   int exec_event(NET* net, struct st_master_info* mi);
 #endif
 
-  Load_log_event(const char* buf, int event_len);
+  Load_log_event(const char* buf, int event_len, bool old_format);
   ~Load_log_event()
   {
   }
@@ -451,7 +453,7 @@ public:
     memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
   }
 #endif  
-  Start_log_event(const char* buf);
+  Start_log_event(const char* buf, bool old_format);
   ~Start_log_event() {}
   Log_event_type get_type_code() { return START_EVENT;}
   int write_data(IO_CACHE* file);
@@ -479,7 +481,7 @@ public:
     :Log_event(thd_arg),val(val_arg),type(type_arg)
   {}
 #endif
-  Intvar_log_event(const char* buf);
+  Intvar_log_event(const char* buf, bool old_format);
   ~Intvar_log_event() {}
   Log_event_type get_type_code() { return INTVAR_EVENT;}
   const char* get_var_type_name();
@@ -503,7 +505,8 @@ public:
   Stop_log_event() :Log_event((THD*)0)
   {}
 #endif  
-  Stop_log_event(const char* buf):Log_event(buf)
+  Stop_log_event(const char* buf, bool old_format):Log_event(buf,
+							     old_format)
   {
   }
   ~Stop_log_event() {}
@@ -534,7 +537,7 @@ public:
     alloced(0)
   {}
 #endif  
-  Rotate_log_event(const char* buf, int event_len);
+  Rotate_log_event(const char* buf, int event_len, bool old_format);
   ~Rotate_log_event()
   {
     if (alloced)
@@ -685,7 +688,6 @@ public:
   int exec_event(struct st_master_info* mi);
 #endif  
 };
-
 
 #endif
 

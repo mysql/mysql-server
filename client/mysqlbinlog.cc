@@ -21,6 +21,8 @@
 #include <time.h>
 #include "log_event.h"
 
+#define PROBE_HEADER_LEN (4+EVENT_LEN_OFFSET)
+
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
 
 char server_version[SERVER_VERSION_LENGTH];
@@ -288,6 +290,52 @@ static void dump_remote_table(NET* net, const char* db, const char* table)
   }
 }
 
+static int check_master_version(MYSQL* mysql)
+{
+  MYSQL_RES* res = 0;
+  MYSQL_ROW row;
+  const char* version;
+  int old_format = 0;
+  
+  if (mysql_query(mysql, "SELECT VERSION()")
+      || !(res = mysql_store_result(mysql)))
+  {
+    mysql_close(mysql);
+    die("Error checking master version: %s",
+		    mysql_error(mysql));
+  }
+  if (!(row = mysql_fetch_row(res)))
+  {
+    mysql_free_result(res);
+    mysql_close(mysql);
+    die("Master returned no rows for SELECT VERSION()");
+    return 1;
+  }
+  if (!(version = row[0]))
+  {
+    mysql_free_result(res);
+    mysql_close(mysql);
+    die("Master reported NULL for the version");
+  }
+  
+  switch (*version)
+  {
+  case '3':
+    old_format = 1;
+    break;
+  case '4':
+    old_format = 0;
+    break;
+  default:
+    sql_print_error("Master reported unrecognized MySQL version '%s'",
+		    version);
+    mysql_free_result(res);
+    mysql_close(mysql);
+    return 1;
+  }
+  mysql_free_result(res);
+  return old_format;
+}
 
 static void dump_remote_log_entries(const char* logname)
 {
@@ -295,6 +343,9 @@ static void dump_remote_log_entries(const char* logname)
   char last_db[FN_REFLEN+1] = "";
   uint len;
   NET* net = &mysql->net;
+  int old_format;
+  old_format = check_master_version(mysql);
+  
   if(!position) position = 4; // protect the innocent from spam
   if (position < 4)
   {
@@ -307,7 +358,7 @@ static void dump_remote_log_entries(const char* logname)
   len = (uint) strlen(logname);
   int4store(buf + 6, 0);
   memcpy(buf + 10, logname,len);
-  if(simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
+  if (simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
     die("Error sending the log dump command");
   
   for(;;)
@@ -322,7 +373,7 @@ static void dump_remote_log_entries(const char* logname)
 			len, net->read_pos[5]));
     Log_event * ev = Log_event::read_log_event(
 					  (const char*) net->read_pos + 1 ,
-					  len - 1, &error);
+					  len - 1, &error, old_format);
     if (ev)
     {
       ev->print(result_file, short_form, last_db);
@@ -335,12 +386,34 @@ static void dump_remote_log_entries(const char* logname)
   }
 }
 
+static int check_header (IO_CACHE* file)
+{
+  char buf[PROBE_HEADER_LEN];
+  int old_format;
+  
+  my_off_t pos = my_b_tell(file);
+  my_b_seek(file, (my_off_t)0);
+  if (my_b_read(file, buf, sizeof(buf)))
+    die("Failed reading header");
+  if (buf[EVENT_TYPE_OFFSET+4] == START_EVENT)
+  {
+    uint event_len;
+    event_len = uint4korr(buf + EVENT_LEN_OFFSET + 4);
+    old_format = (event_len < LOG_EVENT_HEADER_LEN + START_HEADER_LEN);
+  }
+  else
+    old_format = 0;
+  my_b_seek(file, pos);
+  return old_format;
+}
+
 static void dump_local_log_entries(const char* logname)
 {
   File fd = -1;
   IO_CACHE cache,*file= &cache;
   ulonglong rec_count = 0;
   char last_db[FN_REFLEN+1] = "";
+  bool old_format = 0;
 
   if (logname && logname[0] != '-')
   {
@@ -349,12 +422,14 @@ static void dump_local_log_entries(const char* logname)
     if (init_io_cache(file, fd, 0, READ_CACHE, (my_off_t) position, 0,
 		      MYF(MY_WME | MY_NABP)))
       exit(1);
+    old_format = check_header(file);
   }
   else
   {
     if (init_io_cache(file, fileno(result_file), 0, READ_CACHE, (my_off_t) 0,
 		      0, MYF(MY_WME | MY_NABP | MY_DONT_CHECK_FILESIZE)))
       exit(1);
+    old_format = check_header(file);
     if (position)
     {
       /* skip 'position' characters from stdout */
@@ -385,7 +460,7 @@ static void dump_local_log_entries(const char* logname)
     char llbuff[21];
     my_off_t old_off = my_b_tell(file);
 
-    Log_event* ev = Log_event::read_log_event(file);
+    Log_event* ev = Log_event::read_log_event(file, old_format);
     if (!ev)
     {
       if (file->error)

@@ -22,6 +22,7 @@
 #include "mysql_priv.h"
 #include "sql_acl.h"
 #include "sql_repl.h"
+#include "repl_failsafe.h"
 #include <m_ctype.h>
 #include <thr_alarm.h>
 #include <myisam.h>
