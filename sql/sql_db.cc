@@ -164,8 +164,6 @@ void mysql_rm_db(THD *thd,char *db,bool if_exists)
   }
   remove_db_from_cache(db);
 
-  ha_drop_database(path);
-
   if ((deleted=mysql_rm_known_files(thd, dirp, path,0)) >= 0)
   {
     if (!thd->query)
@@ -191,6 +189,14 @@ void mysql_rm_db(THD *thd,char *db,bool if_exists)
 exit:
   VOID(pthread_mutex_unlock(&LOCK_open));
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
+
+  /* It seems MySQL may call this function when there still are queries
+     running on tables of the database. Since InnoDB waits until the
+     queries have ended, we have to call ha_drop_database outside
+     the above two mutexes to avoid deadlocks. */
+
+  ha_drop_database(path);
+
   DBUG_VOID_RETURN;
 }
 

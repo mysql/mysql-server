@@ -1802,6 +1802,7 @@ row_drop_database_for_mysql(
 	char*	name,	/* in: database name which ends to '/' */
 	trx_t*	trx)	/* in: transaction handle */
 {
+        dict_table_t* table;
 	char*	table_name;
 	int	err	= DB_SUCCESS;
 	
@@ -1812,11 +1813,26 @@ row_drop_database_for_mysql(
 	trx->op_info = "dropping database";
 	
 	trx_start_if_not_started(trx);
-
+loop:
 	mutex_enter(&(dict_sys->mutex));
 
 	while (table_name = dict_get_first_table_name_in_db(name)) {
 		ut_a(memcmp(table_name, name, strlen(name)) == 0);
+
+		table = dict_table_get_low(table_name);
+
+		ut_a(table);
+
+		/* Wait until MySQL does not have any queries running on
+		the table */
+
+		if (table->n_mysql_handles_opened > 0) {
+		        mutex_exit(&(dict_sys->mutex));
+
+		        os_thread_sleep(100000);
+
+		        goto loop;
+		}
 
 		err = row_drop_table_for_mysql(table_name, trx, TRUE);
 
