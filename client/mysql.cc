@@ -689,6 +689,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       while (*argument) *argument++= 'x';		// Destroy argument
       if (*start)
 	start[1]=0 ;
+      tty_password= 0;
     }
     else
       tty_password= 1;
