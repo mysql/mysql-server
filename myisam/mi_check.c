@@ -1247,8 +1247,9 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     That is what the next line is for... (serg)
   */
 
-  share->state.key_map= ((((ulonglong) 1L << share->base.keys)-1) &
-			 param->keys_in_use);
+  if (param->testflag & T_CREATE_MISSING_KEYS)
+    share->state.key_map= ((((ulonglong) 1L << share->base.keys)-1) &
+			   param->keys_in_use);
 
   info->state->key_file_length=share->base.keystart;
 
