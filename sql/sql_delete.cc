@@ -35,21 +35,21 @@ int generate_table(THD *thd, TABLE_LIST *table_list,
   thd->proc_info="generate_table";
 
   if(global_read_lock)
+  {
+    if(thd->global_read_lock)
     {
-      if(thd->global_read_lock)
-	{
-	  my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
-		   table_list->real_name);
-	  DBUG_RETURN(-1);
-	}
-      pthread_mutex_lock(&LOCK_open);
-      while (global_read_lock && ! thd->killed ||
-	     thd->version != refresh_version)
-	{
-	  (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
-	}
-      pthread_mutex_unlock(&LOCK_open);
+      my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
+	       table_list->real_name);
+      DBUG_RETURN(-1);
     }
+    pthread_mutex_lock(&LOCK_open);
+    while (global_read_lock && ! thd->killed ||
+	   thd->version != refresh_version)
+    {
+      (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
+    }
+    pthread_mutex_unlock(&LOCK_open);
+  }
 
   
     /* If it is a temporary table, close and regenerate it */
@@ -173,14 +173,16 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   }
 
   /* If running in safe sql mode, don't allow updates without keys */
-  if ((thd->options & OPTION_SAFE_UPDATES) && !table->quick_keys &&
-      limit == HA_POS_ERROR)
+  if (!table->quick_keys)
   {
-    delete select;
-    send_error(&thd->net,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
-    DBUG_RETURN(1);
+    thd->options|=OPTION_NO_INDEX_USED;
+    if ((thd->options & OPTION_SAFE_UPDATES) && limit == HA_POS_ERROR)
+    {
+      delete select;
+      send_error(&thd->net,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
+      DBUG_RETURN(1);
+    }
   }
-
   (void) table->file->extra(HA_EXTRA_NO_READCHECK);
   if (options & OPTION_QUICK)
     (void) table->file->extra(HA_EXTRA_QUICK);    

@@ -170,5 +170,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     }
   }
 #endif
+  if (file >= 0)
+    thread_safe_increment(my_tmp_file_created,&THR_LOCK_open);
   DBUG_RETURN(file);
 }

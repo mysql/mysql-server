@@ -161,3 +161,4 @@ typedef struct	st_lex_user {
 #define STATUS_NO_PARENT	4	/* Parent record wasn't found */
 #define STATUS_NOT_READ		8	/* Record isn't read */
 #define STATUS_UPDATED		16	/* Record is updated by formula */
+#define STATUS_NULL_ROW		32	/* table->null_row is set */
