@@ -41,3 +41,13 @@ create table t1 (a char(10) character set sjis);
 insert into t1 values (0x878A);
 select hex(a) from t1;
 drop table t1;
+
+#
+# Bug #6206 ENUMs are not case sensitive even if declared BINARY
+#
+create table t1(c enum(0x9353,0x9373) character set sjis);
+show create table t1;
+insert into t1 values (0x9353);
+insert into t1 values (0x9373);
+select hex(c) from t1;
+drop table t1;
