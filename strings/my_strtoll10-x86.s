@@ -14,7 +14,8 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307	USA
 
 # Implemention of my_strtoll():  Converting a string to a 64 bit integer.
-
+# For documentation, check my_strtoll.c
+	
 	.file	"my_strtoll10-x86.s"
 	.version "01.01"
 .data
@@ -62,7 +63,6 @@ my_strtoll10:
 	movl 8(%ebp),%esi	# esi= nptr
 	movl 16(%ebp),%ecx	# ecx= error (Will be overwritten later)
 	movl 12(%ebp),%eax	# eax= endptr
-	cld			# Move forward in esi
 	cmpl $0,%eax		# if (endptr)
 	je .L110
 
@@ -72,7 +72,8 @@ my_strtoll10:
 .L100:
 	cmpl %ebx,%esi
 	je .Lno_conv
-	lodsb			# al= next byte
+	movb (%esi), %al	# al= next byte
+	incl %esi
 	cmpb $32,%al		# Skip space
 	je .L100
 	cmpb $9,%al		# Skip tab
@@ -86,7 +87,8 @@ my_strtoll10:
 	movl %edi,12(%ebp)	# endptr= &dummy, for easier end check
 	.p2align 4,,7
 .L120:
-	lodsb			# al= next byte
+	movb (%esi), %al	# al= next byte
+	incl %esi
 	cmpb $32,%al
 	je .L120
 	cmpb $9,%al
@@ -120,21 +122,23 @@ my_strtoll10:
 .L460:
 	cmpl %ebx,%esi		# Check if overflow
 	je .Lno_conv
-	lodsb			# al= next byte after sign
-
+	movb (%esi), %al	# al= next byte after sign
+	incl %esi
+		
 	# Remove pre zero to be able to handle a lot of pre-zero
 .L462:
 	cmpb $48,%al
 	jne .L475		# Number doesn't start with 0
-	movl %esi, %edi
+	decl %esi
 	.p2align 4,,7
-.L481:				# Skip pre zeros
+
+	# Skip pre zeros
+.L481:	
+	incl %esi		# Skip processed byte
 	cmpl %ebx,%esi
 	je .Lms_return_zero
-	scasb
+	cmpb (%esi),%al		# Test if next byte is also zero
 	je .L481
-	movl %edi, %esi
-	decl %esi		# Point to last non '0' digit
 	leal 9(%esi),%ecx	# ecx = end-of-current-part
 	xorl %edi,%edi		# Store first 9 digits in edi
 	jmp .L482
@@ -158,7 +162,8 @@ my_strtoll10:
 
 	.p2align 4,,7
 .L488:
-	lodsb			# al= next byte
+	movb (%esi), %al	# al= next byte
+	incl %esi
 	addb $-48,%al
 	cmpb $9,%al
 	ja .Lend_i_dec_esi
@@ -187,7 +192,8 @@ my_strtoll10:
 
 	.p2align 4,,7
 .L498:
-	lodsb			# al= next byte	
+	movb (%esi), %al	# al= next byte
+	incl %esi
 	addb $-48,%al
 	cmpb $9,%al
 	ja .Lend_i_and_j_decl_esi
@@ -299,7 +305,7 @@ my_strtoll10:
 	cmpl $0,-20(%ebp)
 	je .Lreturn_save_endptr	# Positive number
 	negl %eax
-	cltd			# Negetive result in edx:eax
+	cltd			# Neg result in edx:eax
 	jmp .Lreturn_save_endptr
 
 	# Return value (%ebp-8) * lfactor[(uint) (edx-start)] + edi
