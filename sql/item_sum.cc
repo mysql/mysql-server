@@ -311,8 +311,8 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table,
   {
     Field *field= ((Item_field*) args[0])->field;
     
-    if ((field= create_tmp_field_from_field(current_thd, field, this, table,
-					    0, convert_blob_length)))
+    if ((field= create_tmp_field_from_field(current_thd, field, name, table,
+					    NULL, convert_blob_length)))
       field->flags&= ~NOT_NULL_FLAG;
     return field;
   }
@@ -2128,7 +2128,7 @@ my_decimal *Item_variance_field::val_decimal(my_decimal *dec_buf)
 int simple_str_key_cmp(void* arg, byte* key1, byte* key2)
 {
   Field *f= (Field*) arg;
-  return f->cmp(key1, key2);
+  return f->cmp((const char*)key1, (const char*)key2);
 }
 
 /*
@@ -2160,7 +2160,7 @@ int composite_key_cmp(void* arg, byte* key1, byte* key2)
 
 C_MODE_START
 
-static int count_distinct_walk(void *elem, unsigned int count, void *arg)
+static int count_distinct_walk(void *elem, element_count count, void *arg)
 {
   (*((ulonglong*)arg))++;
   return 0;
@@ -2665,17 +2665,17 @@ int group_concat_key_cmp_with_distinct_and_order(void* arg,byte* key1,
   Append data from current leaf to item->result
 */
 
-int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
+int dump_leaf_key(byte* key, element_count count __attribute__((unused)),
                   Item_func_group_concat *item)
 {
   TABLE *table= item->table;
   char *record= (char*) table->record[0] + table->s->null_bytes;
   String tmp(table->record[1], table->s->reclength, default_charset_info), tmp2;
-  String &result= item->result;
+  String *result= &item->result;
   Item **arg= item->args, **arg_end= item->args + item->arg_count_field;
 
-  if (result.length())
-    result.append(*item->separator);
+  if (result->length())
+    result->append(*item->separator);
 
   tmp.length(0);
 
@@ -2702,14 +2702,14 @@ int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
     else
       res= (*arg)->val_str(&tmp);
     if (res)
-      result.append(*res);
+      result->append(*res);
   }
 
   /* stop if length of result more than max_length */
-  if (result.length() > item->max_length)
+  if (result->length() > item->max_length)
   {
     item->count_cut_values++;
-    result.length(item->max_length);
+    result->length(item->max_length);
     item->warning_for_row= TRUE;
     return 1;
   }
@@ -2910,8 +2910,6 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
                MYF(0));
     return TRUE;
   }
-  if (!args)                      /* allocation in constructor may fail */
-    return TRUE;
 
   thd->allow_sum_func= 0;
   maybe_null= 0;
@@ -2972,12 +2970,10 @@ bool Item_func_group_concat::setup(THD *thd)
       if (item->null_value)
       {
         always_null= 1;
-        break;
+        DBUG_RETURN(FALSE);
       }
     }
   }
-  if (always_null)
-    DBUG_RETURN(FALSE);
 
   List<Item> all_fields(list);
   /*

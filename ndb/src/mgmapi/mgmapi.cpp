@@ -144,6 +144,7 @@ extern "C"
 NdbMgmHandle
 ndb_mgm_create_handle()
 {
+  DBUG_ENTER("ndb_mgm_create_handle");
   NdbMgmHandle h     =
     (NdbMgmHandle)my_malloc(sizeof(ndb_mgm_handle),MYF(MY_WME));
   h->connected       = 0;
@@ -163,7 +164,8 @@ ndb_mgm_create_handle()
   h->logfile = 0;
 #endif
 
-  return h;
+  DBUG_PRINT("info", ("handle=0x%x", (UintPtr)h));
+  DBUG_RETURN(h);
 }
 
 extern "C"
@@ -171,10 +173,13 @@ int
 ndb_mgm_set_connectstring(NdbMgmHandle handle, const char * mgmsrv)
 {
   DBUG_ENTER("ndb_mgm_set_connectstring");
+  DBUG_PRINT("info", ("handle=0x%x", (UintPtr)handle));
+  handle->cfg.~LocalConfig();
   new (&(handle->cfg)) LocalConfig;
   if (!handle->cfg.init(mgmsrv, 0) ||
       handle->cfg.ids.size() == 0)
   {
+    handle->cfg.~LocalConfig();
     new (&(handle->cfg)) LocalConfig;
     handle->cfg.init(0, 0); /* reset the LocalConfig */
     SET_ERROR(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, "");
@@ -191,8 +196,10 @@ extern "C"
 void
 ndb_mgm_destroy_handle(NdbMgmHandle * handle)
 {
+  DBUG_ENTER("ndb_mgm_destroy_handle");
   if(!handle)
-    return;
+    DBUG_VOID_RETURN;
+  DBUG_PRINT("info", ("handle=0x%x", (UintPtr)(* handle)));
   /**
    * important! only disconnect if connected
    * other code relies on this
@@ -209,6 +216,7 @@ ndb_mgm_destroy_handle(NdbMgmHandle * handle)
   (*handle)->cfg.~LocalConfig();
   my_free((char*)* handle,MYF(MY_ALLOW_ZERO_PTR));
   * handle = 0;
+  DBUG_VOID_RETURN;
 }
 
 /*****************************************************************************

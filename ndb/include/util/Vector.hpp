@@ -61,6 +61,10 @@ Vector<T>::Vector(int i){
 template<class T>
 Vector<T>::~Vector(){
   delete[] m_items;
+  // safety for placement new usage
+  m_items = 0;
+  m_size = 0;
+  m_arraySize = 0;
 }
 
 template<class T>
@@ -174,6 +178,10 @@ MutexVector<T>::MutexVector(int i){
 template<class T>
 MutexVector<T>::~MutexVector(){
   delete[] m_items;
+  // safety for placement new usage
+  m_items = 0;
+  m_size = 0;
+  m_arraySize = 0;
 }
 
 template<class T>

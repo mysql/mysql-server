@@ -188,7 +188,7 @@ struct st_table {
   ORDER		*group;
   const char	*alias;            	  /* alias or table name */
   uchar		*null_flags;
-  ulong		query_id;
+  query_id_t	query_id;
 
   ha_rows	quick_rows[MAX_KEY];
   key_part_map  const_key_parts[MAX_KEY];
@@ -322,6 +322,7 @@ typedef struct st_schema_table
 
 struct st_lex;
 class select_union;
+class TMP_TABLE_PARAM;
 
 struct Field_translator
 {
@@ -370,6 +371,7 @@ typedef struct st_table_list
   ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
   st_select_lex	*schema_select_lex;
   bool schema_table_reformed;
+  TMP_TABLE_PARAM *schema_table_param;
   /* link to select_lex where this table was used */
   st_select_lex	*select_lex;
   st_lex	*view;			/* link on VIEW lex for merging */

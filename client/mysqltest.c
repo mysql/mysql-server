@@ -2746,8 +2746,13 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
 	append_result(ds, res);
       }
 
-      /* Add all warnings to the result */
-      if (!disable_warnings && mysql_warning_count(mysql))
+      /*
+        Add all warnings to the result. We can't do this if we are in
+        the middle of processing results from multi-statement, because
+        this will break protocol.
+      */
+      if (!disable_warnings && !mysql_more_results(mysql) &&
+          mysql_warning_count(mysql))
       {
 	MYSQL_RES *warn_res=0;
 	uint count= mysql_warning_count(mysql);
@@ -3306,7 +3311,7 @@ static void run_query_display_metadata(MYSQL_FIELD *field, uint num_fields,
 {
   MYSQL_FIELD *field_end;
   dynstr_append(ds,"Catalog\tDatabase\tTable\tTable_alias\tColumn\t"
-                "Column_alias\tName\tType\tLength\tMax length\tIs_null\t"
+                "Column_alias\tType\tLength\tMax length\tIs_null\t"
                 "Flags\tDecimals\tCharsetnr\n");
 
   for (field_end= field+num_fields ;
@@ -3363,6 +3368,13 @@ static void run_query_stmt_handle_warnings(MYSQL *mysql, DYNAMIC_STRING *ds)
 
   if (!disable_warnings && (count= mysql_warning_count(mysql)))
   {
+    /*
+      If one day we will support execution of multi-statements
+      through PS API we should not issue SHOW WARNINGS until
+      we have not read all results...
+    */
+    DBUG_ASSERT(!mysql_more_results(mysql));
+
     if (mysql_real_query(mysql, "SHOW WARNINGS", 13) == 0)
     {
       MYSQL_RES *warn_res= mysql_store_result(mysql);

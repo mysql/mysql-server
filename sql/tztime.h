@@ -61,6 +61,7 @@ extern Time_zone * my_tz_UTC;
 extern Time_zone * my_tz_SYSTEM;
 extern TABLE_LIST * my_tz_get_table_list(THD *thd, TABLE_LIST ***global_next_ptr);
 extern Time_zone * my_tz_find(const String *name, TABLE_LIST *tz_tables);
+extern Time_zone * my_tz_find_with_opening_tz_tables(THD *thd, const String *name);
 extern my_bool     my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap);
 extern void        my_tz_free();
 
@@ -95,11 +96,5 @@ inline bool my_tz_check_n_skip_implicit_tables(TABLE_LIST **table,
   }
   return FALSE;
 }
-
-/* 
-  Maximum length of time zone name that we support 
-  (Time zone name is char(64) in db)
-*/
-#define MAX_TIME_ZONE_NAME_LENGTH 72
 
 #endif /* !defined(TESTTIME) && !defined(TZINFO2SQL) */

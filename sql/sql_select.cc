@@ -6646,7 +6646,6 @@ static COND *build_equal_items(THD *thd, COND *cond,
     {
       if (table->on_expr)
       {
-        Item *expr;
         List<TABLE_LIST> *join_list= table->nested_join ?
 	                             &table->nested_join->join_list : NULL;
         /*
@@ -7592,14 +7591,13 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
     create_tmp_field_from_field()
     thd			Thread handler
     org_field           field from which new field will be created
-    item		Item to create a field for
+    name                New field name
     table		Temporary table
-    modify_item	        1 if item->result_field should point to new item.
-			This is relevent for how fill_record() is going to
-			work:
-			If modify_item is 1 then fill_record() will update
+    item	        !=NULL if item->result_field should point to new field.
+			This is relevant for how fill_record() is going to work:
+			If item != NULL then fill_record() will update
 			the record in the original table.
-			If modify_item is 0 then fill_record() will update
+			If item == NULL then fill_record() will update
 			the temporary table
     convert_blob_length If >0 create a varstring(convert_blob_length) field 
                         instead of blob.
@@ -7610,9 +7608,8 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
 */
 
 Field* create_tmp_field_from_field(THD *thd, Field* org_field,
-				   Item *item, TABLE *table,
-				   bool modify_item,
-				   uint convert_blob_length)
+                                   const char *name, TABLE *table,
+                                   Item_field *item, uint convert_blob_length)
 {
   Field *new_field;
 
@@ -7625,10 +7622,10 @@ Field* create_tmp_field_from_field(THD *thd, Field* org_field,
     new_field= org_field->new_field(thd->mem_root, table);
   if (new_field)
   {
-    if (modify_item)
-      ((Item_field *)item)->result_field= new_field;
+    if (item)
+      item->result_field= new_field;
     else
-      new_field->field_name= item->name;
+      new_field->field_name= name;
     if (org_field->maybe_null())
       new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
     if (org_field->type() == MYSQL_TYPE_VAR_STRING ||
@@ -7783,8 +7780,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::DEFAULT_VALUE_ITEM:
   {
     Item_field *field= (Item_field*) item;
-    return create_tmp_field_from_field(thd, (*from_field= field->field), item,
-                                       table, modify_item, convert_blob_length);
+    return create_tmp_field_from_field(thd, (*from_field= field->field),
+                                       item->name, table,
+                                       modify_item ? (Item_field*) item : NULL,
+                                       convert_blob_length);
   }
   case Item::FUNC_ITEM:
   case Item::COND_ITEM:
@@ -7803,14 +7802,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     return create_tmp_field_from_item(thd, item, table, copy_func, modify_item,
                                       convert_blob_length);
   case Item::TYPE_HOLDER:
-  {
-    Field *example= ((Item_type_holder *)item)->example();
-    if (example)
-      return create_tmp_field_from_field(thd, example, item, table, 0,
-                                         convert_blob_length);
-    return create_tmp_field_from_item(thd, item, table, copy_func, 0,
-                                      convert_blob_length);
-  }
+    return ((Item_type_holder *)item)->make_field_by_type(table);
   default:					// Dosen't have to be stored
     return 0;
   }
@@ -8545,7 +8537,7 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
 	seg->type=
 	((keyinfo->key_part[i].key_type & FIELDFLAG_BINARY) ?
 	 HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2);
-	seg->bit_start= field->pack_length() - table->s->blob_ptr_size;
+	seg->bit_start= (uint8)(field->pack_length() - table->s->blob_ptr_size);
 	seg->flag= HA_BLOB_PART;
 	seg->length=0;			// Whole blob in unique constraint
       }
@@ -8715,8 +8707,9 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   *table= new_table;
   table->s= &table->share_not_to_be_used;
   table->file->change_table_ptr(table);
-  thd->proc_info= (!strcmp(save_proc_info,"Copying to tmp table") ?
-		   "Copying to tmp table on disk" : save_proc_info);
+  if (save_proc_info)
+    thd->proc_info= (!strcmp(save_proc_info,"Copying to tmp table") ?
+                     "Copying to tmp table on disk" : save_proc_info);
   DBUG_RETURN(0);
 
  err:
@@ -10145,20 +10138,18 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
                        join->sum_funcs_end[send_group_parts]);
 	if (join->having && join->having->val_int() == 0)
           error= -1;
-        else if ((error=table->file->write_row(table->record[0])))
+        else if ((error= table->file->write_row(table->record[0])))
 	{
 	  if (create_myisam_from_heap(join->thd, table,
 				      &join->tmp_table_param,
 				      error, 0))
 	    DBUG_RETURN(-1);		       
         }
-        if (join->rollup.state != ROLLUP::STATE_NONE && error <= 0)
+        if (join->rollup.state != ROLLUP::STATE_NONE)
 	{
 	  if (join->rollup_write_data((uint) (idx+1), table))
-	    error= 1;
+	    DBUG_RETURN(-1);
 	}
-	if (error > 0)
-	  DBUG_RETURN(-1);	  
 	if (end_of_records)
 	  DBUG_RETURN(0);
       }
@@ -10586,7 +10577,20 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	/* Found key that can be used to retrieve data in sorted order */
 	if (tab->ref.key >= 0)
 	{
-	  tab->ref.key= new_ref_key;
+          /*
+            We'll use ref access method on key new_ref_key. In general case 
+            the index search tuple for new_ref_key will be different (e.g.
+            when one index is defined as (part1, part2, ...) and another as
+            (part1, part2(N), ...) and the WHERE clause contains 
+            "part1 = const1 AND part2=const2". 
+            So we build tab->ref from scratch here.
+          */
+          KEYUSE *keyuse= tab->keyuse;
+          while (keyuse->key != new_ref_key && keyuse->table == tab->table)
+            keyuse++;
+          if (create_ref_for_key(tab->join, tab, keyuse, 
+                                 tab->join->const_table_map))
+            DBUG_RETURN(0);
 	}
 	else
 	{
@@ -12685,17 +12689,21 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
       {
 	/* Check if this is something that is part of this group by */
 	ORDER *group_tmp;
-	for (group_tmp= start_group, i-- ;
+	for (group_tmp= start_group, i= pos ;
              group_tmp ; group_tmp= group_tmp->next, i++)
 	{
 	  if (*group_tmp->item == item)
 	  {
+            Item_null_result *null_item;
 	    /*
 	      This is an element that is used by the GROUP BY and should be
 	      set to NULL in this level
 	    */
 	    item->maybe_null= 1;		// Value will be null sometimes
-            Item_null_result *null_item= rollup.null_items[i];
+            null_item= rollup.null_items[i];
+            DBUG_ASSERT(null_item->result_field == 0 ||
+                        null_item->result_field ==
+                        ((Item_field *) item)->result_field);
             null_item->result_field= ((Item_field *) item)->result_field;
             item= null_item;
 	    break;
@@ -13186,7 +13194,8 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->select_number= UINT_MAX; // jost for initialization
     unit->fake_select_lex->type= "UNION RESULT";
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
-    if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
+    if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE,
+                             "")))
       res= unit->exec();
     res|= unit->cleanup();
   }

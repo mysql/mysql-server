@@ -32,6 +32,9 @@
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif
+#ifdef HAVE_BLACKHOLE_DB
+#include "ha_blackhole.h"
+#endif
 #ifdef HAVE_EXAMPLE_DB
 #include "examples/ha_example.h"
 #endif
@@ -103,6 +106,9 @@ struct show_table_type_st sys_table_types[]=
    "CSV storage engine", DB_TYPE_CSV_DB},
   {"FEDERATED",&have_federated_db,
    "Federated MySQL storage engine", DB_TYPE_FEDERATED_DB},
+  {"BLACKHOLE",&have_blackhole_db,
+   "/dev/null storage engine (anything you write to it disappears)",
+   DB_TYPE_BLACKHOLE_DB},
   {NullS, NULL, NullS, DB_TYPE_UNKNOWN}
 };
 
@@ -210,6 +216,10 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 #ifdef HAVE_ARCHIVE_DB
   case DB_TYPE_ARCHIVE_DB:
     return new ha_archive(table);
+#endif
+#ifdef HAVE_BLACKHOLE_DB
+  case DB_TYPE_BLACKHOLE_DB:
+    return new ha_blackhole(table);
 #endif
 #ifdef HAVE_FEDERATED_DB
   case DB_TYPE_FEDERATED_DB:
@@ -416,7 +426,12 @@ int ha_init()
   }
 #endif
   DBUG_ASSERT(total_ha < MAX_HA);
-  opt_using_transactions= total_ha>opt_bin_log;
+  /*
+    Check if there is a transaction-capable storage engine besides the
+    binary log (which is considered a transaction-capable storage engine in
+    counting total_ha)
+  */
+  opt_using_transactions= total_ha>(ulong)opt_bin_log;
   savepoint_alloc_size+= sizeof(SAVEPOINT);
   return error;
 }
@@ -526,7 +541,6 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
 
 /*
   RETURN
-     -1  - cannot prepare
       0  - ok
       1  - error, transaction was rolled back
 */
@@ -539,8 +553,6 @@ int ha_prepare(THD *thd)
 #ifdef USING_TRANSACTIONS
   if (trans->nht)
   {
-    if (trans->no_2pc)
-      DBUG_RETURN(-1);
     for (; *ht; ht++)
     {
       int err;
@@ -762,14 +774,13 @@ static char* xid_to_str(char *buf, XID *xid)
   for (i=0; i < xid->gtrid_length+xid->bqual_length; i++)
   {
     uchar c=(uchar)xid->data[i];
-    bool is_next_dig;
+    /* is_next_dig is set if next character is a number */
+    bool is_next_dig= FALSE;
     if (i < XIDDATASIZE)
     {
-      char ch=xid->data[i+1];
-      is_next_dig=(c >= '0' && c <='9');
+      char ch= xid->data[i+1];
+      is_next_dig= (ch >= '0' && ch <='9');
     }
-    else
-      is_next_dig=FALSE;
     if (i == xid->gtrid_length)
     {
       *s++='\'';
@@ -782,6 +793,11 @@ static char* xid_to_str(char *buf, XID *xid)
     if (c < 32 || c > 126)
     {
       *s++='\\';
+      /*
+        If next character is a number, write current character with
+        3 octal numbers to ensure that the next number is not seen
+        as part of the octal number
+      */
       if (c > 077 || is_next_dig)
         *s++=_dig_vec_lower[c >> 6];
       if (c > 007 || is_next_dig)
@@ -831,9 +847,9 @@ int ha_recover(HASH *commit_list)
   /* commit_list and tc_heuristic_recover cannot be set both */
   DBUG_ASSERT(commit_list==0 || tc_heuristic_recover==0);
   /* if either is set, total_ha_2pc must be set too */
-  DBUG_ASSERT(dry_run || total_ha_2pc>opt_bin_log);
+  DBUG_ASSERT(dry_run || total_ha_2pc>(ulong)opt_bin_log);
 
-  if (total_ha_2pc <= opt_bin_log)
+  if (total_ha_2pc <= (ulong)opt_bin_log)
     DBUG_RETURN(0);
 
   if (commit_list)

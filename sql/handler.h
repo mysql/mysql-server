@@ -160,7 +160,7 @@ enum db_type
   DB_TYPE_GEMINI, DB_TYPE_NDBCLUSTER,
   DB_TYPE_EXAMPLE_DB, DB_TYPE_ARCHIVE_DB, DB_TYPE_CSV_DB,
   DB_TYPE_FEDERATED_DB,
-
+  DB_TYPE_BLACKHOLE_DB,
   DB_TYPE_DEFAULT // Must be last
 };
 
@@ -379,7 +379,7 @@ typedef struct st_savepoint SAVEPOINT;
 extern ulong savepoint_alloc_size;
 
 /* Forward declaration for condition pushdown to storage engine */
-typedef struct Item COND;
+typedef class Item COND;
 
 typedef struct st_ha_check_opt
 {

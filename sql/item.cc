@@ -178,7 +178,7 @@ bool Item::val_bool()
 {
   switch(result_type()) {
   case INT_RESULT:
-    return val_int();
+    return val_int() != 0;
   case DECIMAL_RESULT:
   {
     my_decimal decimal_value;
@@ -586,18 +586,8 @@ Item *Item_string::safe_charset_converter(CHARSET_INFO *tocs)
     return NULL;
   }
   conv->str_value.copy();
-  /* 
-    The above line executes str_value.realloc() internally,
-    which alligns Alloced_length using ALLIGN_SIZE.
-    In the case of Item_string::str_value we don't want
-    Alloced_length to be longer than str_length.
-    Otherwise, some functions like Item_func_concat::val_str()
-    try to reuse str_value as a buffer for concatenation result
-    for optimization purposes, so our string constant become
-    corrupted. See bug#8785 for more details.
-    Let's shrink Alloced_length to str_length to avoid this problem.
-  */
-  conv->str_value.shrink_to_length();
+  /* Ensure that no one is going to change the result string */
+  conv->str_value.mark_as_const();
   return conv;
 }
 
@@ -1217,7 +1207,7 @@ bool Item_field::val_bool_result()
     return FALSE;
   switch (result_field->result_type()) {
   case INT_RESULT:
-    return result_field->val_int();
+    return result_field->val_int() != 0;
   case DECIMAL_RESULT:
   {
     my_decimal decimal_value;
@@ -2050,7 +2040,7 @@ const String *Item_param::query_val_str(String* str) const
       buf= str->c_ptr_quick();
       ptr= buf;
       *ptr++= '\'';
-      ptr+= escape_string_for_mysql(str_value.charset(), ptr,
+      ptr+= escape_string_for_mysql(str_value.charset(), ptr, 0,
                                     str_value.ptr(), str_value.length());
       *ptr++= '\'';
       str->length(ptr - buf);
@@ -2102,6 +2092,34 @@ bool Item_param::convert_str_value(THD *thd)
                       str_value.charset());
   }
   return rc;
+}
+
+bool Item_param::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+{
+  DBUG_ASSERT(fixed == 0);
+  SELECT_LEX *cursel= (SELECT_LEX *) thd->lex->current_select;
+
+  /*
+    Parameters in a subselect should mark the subselect as not constant
+    during prepare
+  */
+  if (state == NO_VALUE)
+  {
+    /*
+      SELECT_LEX_UNIT::item set only for subqueries, so test of it presence
+      can be barrier to stop before derived table SELECT or very outer SELECT
+    */
+    for(;
+        cursel->master_unit()->item;
+        cursel= cursel->outer_select())
+    {
+      Item_subselect *subselect_item= cursel->master_unit()->item;
+      subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
+      subselect_item->const_item_cache= 0;
+    }
+  }
+  fixed= 1;
+  return 0;
 }
 
 
@@ -3051,10 +3069,10 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
   case MYSQL_TYPE_NULL:
     return new Field_null((char*) 0, max_length, Field::NONE,
 			  name, table, &my_charset_bin);
-  case MYSQL_TYPE_NEWDATE:
   case MYSQL_TYPE_INT24:
     return new Field_medium((char*) 0, max_length, null_ptr, 0, Field::NONE,
 			    name, table, 0, unsigned_flag);
+  case MYSQL_TYPE_NEWDATE:
   case MYSQL_TYPE_DATE:
     return new Field_date(maybe_null, name, table, &my_charset_bin);
   case MYSQL_TYPE_TIME:
@@ -3946,7 +3964,7 @@ bool Item_ref::val_bool_result()
       return 0;
     switch (result_field->result_type()) {
     case INT_RESULT:
-      return result_field->val_int();
+      return result_field->val_int() != 0;
     case DECIMAL_RESULT:
     {
       my_decimal decimal_value;
@@ -4691,224 +4709,308 @@ void Item_cache_row::bring_value()
 }
 
 
-/*
-  Returns field for temporary table dependind on item type
-
-  SYNOPSIS
-    get_holder_example_field()
-    thd            - thread handler
-    item           - pointer to item
-    table          - empty table object
-
-  NOTE
-    It is possible to return field for Item_func 
-    items only if field type of this item is 
-    date or time or datetime type.
-    also see function field_types_to_be_kept() from
-    field.cc
-
-  RETURN
-    # - field
-    0 - no field
-*/
-
-Field *get_holder_example_field(THD *thd, Item *item, TABLE *table)
-{
-  DBUG_ASSERT(table != 0);
-
-  Item_func *tmp_item= 0;
-  if (item->type() == Item::FIELD_ITEM)
-    return (((Item_field*) item)->field);
-  if (item->type() == Item::FUNC_ITEM)
-    tmp_item= (Item_func *) item;
-  else if (item->type() == Item::SUM_FUNC_ITEM)
-  {
-    Item_sum *item_sum= (Item_sum *) item;
-    if (item_sum->keep_field_type())
-    {
-      if (item_sum->args[0]->type() == Item::FIELD_ITEM)
-        return (((Item_field*) item_sum->args[0])->field);
-      if (item_sum->args[0]->type() == Item::FUNC_ITEM)
-        tmp_item= (Item_func *) item_sum->args[0];
-    }
-  }
-  return (tmp_item && field_types_to_be_kept(tmp_item->field_type()) ?
-          tmp_item->tmp_table_field(table) : 0);
-}
-
-
-Item_type_holder::Item_type_holder(THD *thd, Item *item, TABLE *table)
-  :Item(thd, item), item_type(item->result_type()),
-   orig_type(item_type)
+Item_type_holder::Item_type_holder(THD *thd, Item *item)
+  :Item(thd, item), enum_set_typelib(0), fld_type(get_real_type(item))
 {
   DBUG_ASSERT(item->fixed);
 
-  /*
-    It is safe assign pointer on field, because it will be used just after
-    all JOIN::prepare calls and before any SELECT execution
-  */
-  field_example= get_holder_example_field(thd, item, table);
-  max_length= real_length(item);
+  max_length= display_length(item);
   maybe_null= item->maybe_null;
   collation.set(item->collation);
+  get_full_info(item);
+  /* fix variable decimals which always is NOT_FIXED_DEC */
+  if (Field::result_merge_type(fld_type) == INT_RESULT)
+    decimals= 0;
 }
 
 
 /*
-  STRING_RESULT, REAL_RESULT, INT_RESULT, ROW_RESULT DECIMAL_RESULT
-
-  ROW_RESULT should never appear in Item_type_holder::join_types,
-  but it is included in following table just to make table full
-  (there DBUG_ASSERT in function to catch ROW_RESULT)
-*/
-static Item_result type_convertor[5][5]=
-{{STRING_RESULT, STRING_RESULT, STRING_RESULT, ROW_RESULT, STRING_RESULT},
- {STRING_RESULT, REAL_RESULT,   REAL_RESULT,   ROW_RESULT, REAL_RESULT},
- {STRING_RESULT, REAL_RESULT,   INT_RESULT,    ROW_RESULT, DECIMAL_RESULT},
- {ROW_RESULT,    ROW_RESULT,    ROW_RESULT,    ROW_RESULT, ROW_RESULT},
- {STRING_RESULT, REAL_RESULT,   DECIMAL_RESULT,    ROW_RESULT, DECIMAL_RESULT}};
-
-/*
-  Values of 'from' field can be stored in 'to' field.
+  Return expression type of Item_type_holder
 
   SYNOPSIS
-    is_attr_compatible()
-    from        Item which values should be saved
-    to          Item where values should be saved
+    Item_type_holder::result_type()
 
   RETURN
-    1   can be saved
-    0   can not be saved
+     Item_result (type of internal MySQL expression result)
 */
 
-inline bool is_attr_compatible(Item *from, Item *to)
+Item_result Item_type_holder::result_type() const
 {
-  return ((to->max_length >= from->max_length) &&
-          ((to->result_type() != DECIMAL_RESULT &&
-            to->result_type() != REAL_RESULT &&
-            to->result_type() != INT_RESULT) ||
-           (to->decimals >= from->decimals) &&
-           ((to->max_length - to->decimals) >=
-            (from->max_length - from->decimals))) &&
-          (to->maybe_null || !from->maybe_null) &&
-          (to->result_type() != STRING_RESULT ||
-           from->result_type() != STRING_RESULT ||
-          (from->collation.collation == to->collation.collation)));
+  return Field::result_merge_type(fld_type);
 }
 
 
-bool Item_type_holder::join_types(THD *thd, Item *item, TABLE *table)
+/*
+  Find real field type of item
+
+  SYNOPSIS
+    Item_type_holder::get_real_type()
+
+  RETURN
+    type of field which should be created to store item value
+*/
+
+enum_field_types Item_type_holder::get_real_type(Item *item)
 {
-  uint32 new_length= real_length(item);
-  bool use_new_field= 0, use_expression_type= 0;
-  Item_result new_result_type= type_convertor[item_type][item->result_type()];
-  Field *field= get_holder_example_field(thd, item, table);
-  bool item_is_a_field= (field != NULL);
-  /*
-    Check if both items point to fields: in this case we
-    can adjust column types of result table in the union smartly.
-  */
-  if (field_example && item_is_a_field)
+  switch(item->type())
   {
-    /* Can 'field_example' field store data of the column? */
-    if ((use_new_field=
-         (!field->field_cast_compatible(field_example->field_cast_type()) ||
-          !is_attr_compatible(item, this))))
-    {
-      /*
-        The old field can't store value of the new field.
-        Check if the new field can store value of the old one.
-      */
-      use_expression_type|=
-        (!field_example->field_cast_compatible(field->field_cast_type()) ||
-         !is_attr_compatible(this, item));
-    }
-  }
-  else if (field_example || item_is_a_field)
+  case FIELD_ITEM:
   {
     /*
-      Expression types can't be mixed with field types, we have to use
-      expression types.
+      Item_fields::field_type ask Field_type() but sometimes field return
+      a different type, like for enum/set, so we need to ask real type.
     */
-    use_new_field= 1;                           // make next if test easier
-    use_expression_type= 1;
+    Field *field= ((Item_field *) item)->field;
+    enum_field_types type= field->real_type();
+    /* work around about varchar type field detection */
+    if (type == MYSQL_TYPE_STRING && field->type() == MYSQL_TYPE_VAR_STRING)
+      return MYSQL_TYPE_VAR_STRING;
+    return type;
   }
-
-  /* Check whether size/type of the result item should be changed */
-  if (use_new_field ||
-      (new_result_type != item_type) || (new_length > max_length) ||
-      (!maybe_null && item->maybe_null) ||
-      ((new_result_type == REAL_RESULT || new_result_type == DECIMAL_RESULT) &&
-       (decimals < item->decimals ||
-        (max_length - decimals) < (new_length - item->decimals))) ||
-      (item_type == STRING_RESULT && 
-       collation.collation != item->collation.collation))
+  case SUM_FUNC_ITEM:
   {
-    const char *old_cs,*old_derivation;
-    if (use_expression_type || !item_is_a_field)
-      field_example= 0;
-    else
+    /*
+      Argument of aggregate function sometimes should be asked about field
+      type
+    */
+    Item_sum *item_sum= (Item_sum *) item;
+    if (item_sum->keep_field_type())
+      return get_real_type(item_sum->args[0]);
+    break;
+  }
+  case FUNC_ITEM:
+    if (((Item_func *) item)->functype() == Item_func::GUSERVAR_FUNC)
     {
       /*
-        It is safe to assign a pointer to field here, because it will be used
-        before any table is closed.
+        There are work around of problem with changing variable type on the
+        fly and variable always report "string" as field type to get
+        acceptable information for client in send_field, so we make field
+        type from expression type.
       */
-      field_example= field;
+      switch (item->result_type())
+      {
+      case STRING_RESULT:
+        return MYSQL_TYPE_VAR_STRING;
+      case INT_RESULT:
+        return MYSQL_TYPE_LONGLONG;
+      case REAL_RESULT:
+        return MYSQL_TYPE_DOUBLE;
+      case DECIMAL_RESULT:
+        return MYSQL_TYPE_NEWDECIMAL;
+      case ROW_RESULT:
+      default:
+        DBUG_ASSERT(0);
+        return MYSQL_TYPE_VAR_STRING;
+      }
     }
-
-    old_cs= collation.collation->name;
-    old_derivation= collation.derivation_name();
-    if (item_type == STRING_RESULT && collation.aggregate(item->collation))
-    {
-      my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0),
-               old_cs, old_derivation,
-               item->collation.collation->name,
-               item->collation.derivation_name(),
-               "UNION");
-      return 1;
-    }
-
-    if (new_result_type == DECIMAL_RESULT)
-    {
-      int intp1= new_length - item->decimals;
-      int intp2= max_length - decimals;
-      max_length= max(intp1, intp2);
-      decimals= max(decimals, item->decimals);
-      /* can't be overflow because it work only for decimals (no strings) */
-      max_length+= decimals;
-    }
-    else
-    {
-      max_length= max(max_length, new_length);
-      decimals= max(decimals, item->decimals);
-    }
-    maybe_null|= item->maybe_null;
-    item_type= new_result_type;
+    break;
+  default:
+    break;
   }
-  DBUG_ASSERT(item_type != ROW_RESULT);
-  return 0;
+  return item->field_type();
 }
 
+/*
+  Find field type which can carry current Item_type_holder type and
+  type of given Item.
 
-uint32 Item_type_holder::real_length(Item *item)
+  SYNOPSIS
+    Item_type_holder::join_types()
+    thd     thread handler
+    item    given item to join its parameters with this item ones
+
+  RETURN
+    TRUE   error - types are incompatible
+    FALSE  OK
+*/
+
+bool Item_type_holder::join_types(THD *thd, Item *item)
+{
+  DBUG_ENTER("Item_type_holder::join_types");
+  DBUG_PRINT("info:", ("was type %d len %d, dec %d name %s",
+                       fld_type, max_length, decimals,
+                       (name ? name : "<NULL>")));
+  DBUG_PRINT("info:", ("in type %d len %d, dec %d",
+                       get_real_type(item),
+                       item->max_length, item->decimals));
+  fld_type= Field::field_type_merge(fld_type, get_real_type(item));
+  {
+    int item_decimals= item->decimals;
+    /* fix variable decimals which always is NOT_FIXED_DEC */
+    if (Field::result_merge_type(fld_type) == INT_RESULT)
+      item_decimals= 0;
+    decimals= max(decimals, item_decimals);
+  }
+  if (Field::result_merge_type(fld_type) == DECIMAL_RESULT)
+  {
+    int item_length= display_length(item);
+    int intp1= item_length - min(item->decimals, NOT_FIXED_DEC - 1);
+    int intp2= max_length - min(decimals, NOT_FIXED_DEC - 1);
+    /* can't be overflow because it work only for decimals (no strings) */
+    int dec_length= max(intp1, intp2) + decimals;
+    max_length= max(max_length, max(item_length, dec_length));
+    /*
+      we can't allow decimals to be NOT_FIXED_DEC, to prevent creation
+      decimal with max precision (see Field_new_decimal constcuctor)
+    */
+    if (decimals >= NOT_FIXED_DEC)
+      decimals= NOT_FIXED_DEC - 1;
+  }
+  else
+    max_length= max(max_length, display_length(item));
+  if (Field::result_merge_type(fld_type) == STRING_RESULT)
+  {
+    const char *old_cs, *old_derivation;
+    old_cs= collation.collation->name;
+    old_derivation= collation.derivation_name();
+    if (collation.aggregate(item->collation))
+    {
+      my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0),
+	       old_cs, old_derivation,
+	       item->collation.collation->name,
+	       item->collation.derivation_name(),
+	       "UNION");
+      DBUG_RETURN(TRUE);
+    }
+  }
+  maybe_null|= item->maybe_null;
+  get_full_info(item);
+  DBUG_PRINT("info:", ("become type %d len %d, dec %d",
+                       fld_type, max_length, decimals));
+  DBUG_RETURN(FALSE);
+}
+
+/*
+  Calculate lenth for merging result for given Item type
+
+  SYNOPSIS
+    Item_type_holder::real_length()
+    item  Item for lrngth detection
+
+  RETURN
+    length
+*/
+
+uint32 Item_type_holder::display_length(Item *item)
 {
   if (item->type() == Item::FIELD_ITEM)
     return ((Item_field *)item)->max_disp_length();
 
-  switch (item->result_type()) {
-  case STRING_RESULT:
-  case DECIMAL_RESULT:
+  switch (item->field_type())
+  {
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_YEAR:
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_BIT:
+  case MYSQL_TYPE_NEWDECIMAL:
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_SET:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_GEOMETRY:
     return item->max_length;
-  case REAL_RESULT:
+  case MYSQL_TYPE_TINY:
+    return 4;
+  case MYSQL_TYPE_SHORT:
+    return 6;
+  case MYSQL_TYPE_LONG:
+    return 11;
+  case MYSQL_TYPE_FLOAT:
+    return 25;
+  case MYSQL_TYPE_DOUBLE:
     return 53;
-  case INT_RESULT:
+  case MYSQL_TYPE_NULL:
+    return 4;
+  case MYSQL_TYPE_LONGLONG:
     return 20;
-  case ROW_RESULT:
+  case MYSQL_TYPE_INT24:
+    return 8;
   default:
     DBUG_ASSERT(0); // we should never go there
     return 0;
   }
 }
+
+
+/*
+  Make temporary table field according collected information about type
+  of UNION result
+
+  SYNOPSIS
+    Item_type_holder::make_field_by_type()
+    table  temporary table for which we create fields
+
+  RETURN
+    created field
+*/
+
+Field *Item_type_holder::make_field_by_type(TABLE *table)
+{
+  /*
+    The field functions defines a field to be not null if null_ptr is not 0
+  */
+  uchar *null_ptr= maybe_null ? (uchar*) "" : 0;
+  switch (fld_type)
+  {
+  case MYSQL_TYPE_ENUM:
+    DBUG_ASSERT(enum_set_typelib);
+    return new Field_enum((char *) 0, max_length, null_ptr, 0,
+                          Field::NONE, name,
+                          table, get_enum_pack_length(enum_set_typelib->count),
+                          enum_set_typelib, collation.collation);
+  case MYSQL_TYPE_SET:
+    DBUG_ASSERT(enum_set_typelib);
+    return new Field_set((char *) 0, max_length, null_ptr, 0,
+                         Field::NONE, name,
+                         table, get_set_pack_length(enum_set_typelib->count),
+                         enum_set_typelib, collation.collation);
+  default:
+    break;
+  }
+  return tmp_table_field_from_field_type(table);
+}
+
+
+/*
+  Get full information from Item about enum/set fields to be able to create
+  them later
+
+  SYNOPSIS
+    Item_type_holder::get_full_info
+    item    Item for information collection
+*/
+void Item_type_holder::get_full_info(Item *item)
+{
+  if (fld_type == MYSQL_TYPE_ENUM ||
+      fld_type == MYSQL_TYPE_SET)
+  {
+    /*
+      We can have enum/set type after merging only if we have one enum/set
+      field and number of NULL fields
+    */
+    DBUG_ASSERT((enum_set_typelib &&
+                 get_real_type(item) == MYSQL_TYPE_NULL) ||
+                (!enum_set_typelib &&
+                 item->type() == Item::FIELD_ITEM &&
+                 (get_real_type(item) == MYSQL_TYPE_ENUM ||
+                  get_real_type(item) == MYSQL_TYPE_SET) &&
+                 ((Field_enum*)((Item_field *) item)->field)->typelib));
+    if (!enum_set_typelib)
+    {
+      enum_set_typelib= ((Field_enum*)((Item_field *) item)->field)->typelib;
+    }
+  }
+}
+
 
 double Item_type_holder::val_real()
 {

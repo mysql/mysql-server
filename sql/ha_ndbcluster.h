@@ -509,7 +509,7 @@ private:
   int create_unique_index(const char *name, KEY *key_info);
   int initialize_autoincrement(const void *table);
   enum ILBP {ILBP_CREATE = 0, ILBP_OPEN = 1}; // Index List Build Phase
-  int build_index_list(TABLE *tab, enum ILBP phase);
+  int build_index_list(Ndb *ndb, TABLE *tab, enum ILBP phase);
   int get_metadata(const char* path);
   void release_metadata();
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
@@ -594,6 +594,7 @@ private:
   NdbTransaction *m_active_trans;
   NdbScanOperation *m_active_cursor;
   void *m_table;
+  int m_tableVersion;
   void *m_table_info;
   char m_dbname[FN_HEADLEN];
   //char m_schemaname[FN_HEADLEN];

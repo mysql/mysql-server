@@ -403,6 +403,7 @@ while ($tab_count)
 --disable_result_log
 SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES;
 --enable_result_log
+SELECT count(*) FROM INFORMATION_SCHEMA.TABLES;
 let $tab_count= 65;
 while ($tab_count)
 {

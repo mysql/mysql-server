@@ -1093,7 +1093,7 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
     number of fields in table, 0 if error
 */
 
-static uint getTableStructure(char *table, char* db)
+static uint getTableStructure(char *table, char *db)
 {
   MYSQL_RES  *tableRes;
   MYSQL_ROW  row;
@@ -1396,10 +1396,9 @@ static uint getTableStructure(char *table, char* db)
       /* Get MySQL specific create options */
       if (create_options)
       {
-	char show_name_buff[FN_REFLEN];
+	char show_name_buff[NAME_LEN*2+2+24];
 
 	/* Check memory for quote_for_like() */
-	DBUG_ASSERT(2*sizeof(table) < sizeof(show_name_buff));
         my_snprintf(buff, sizeof(buff), "show table status like %s",
 		    quote_for_like(table, show_name_buff));
 
@@ -2219,13 +2218,14 @@ static my_bool dump_all_views_in_db(char *database)
   different case (e.g.  T1 vs t1)
   
   RETURN
-    void
+    int - 0 if a tablename was retrieved.  1 if not
 */
 
-static void get_actual_table_name(const char *old_table_name, 
+static int get_actual_table_name(const char *old_table_name, 
                                   char *new_table_name, 
                                   int buf_size)
 {
+  int retval;
   MYSQL_RES  *tableRes;
   MYSQL_ROW  row;
   char query[50 + 2*NAME_LEN];
@@ -2243,9 +2243,19 @@ static void get_actual_table_name(const char *old_table_name,
   }
 
   tableRes= mysql_store_result( sock );
-  row= mysql_fetch_row( tableRes );
-  strmake(new_table_name, row[0], buf_size-1);
-  mysql_free_result(tableRes);
+  retval = 1;
+  if (tableRes != NULL)
+  {
+	my_ulonglong numRows = mysql_num_rows(tableRes);
+	if (numRows > 0)
+	{
+	  	row= mysql_fetch_row( tableRes );
+	  	strmake(new_table_name, row[0], buf_size-1);
+		retval = 0;
+	}
+  	mysql_free_result(tableRes);
+  }
+  return retval;
 }
 
 
@@ -2285,11 +2295,13 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
      char new_table_name[NAME_LEN];
 
      /* the table name passed on commandline may be wrong case */
-     get_actual_table_name( table_names[i], new_table_name, sizeof(new_table_name) );
+     if (!get_actual_table_name( table_names[i], new_table_name, sizeof(new_table_name) ))
+     {
 
-    numrows = getTableStructure(new_table_name, db);
+    	numrows = getTableStructure(new_table_name, db);
 
-    dumpTable(numrows, new_table_name);
+    	dumpTable(numrows, new_table_name);
+     }
     my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
     order_by= 0;
   }

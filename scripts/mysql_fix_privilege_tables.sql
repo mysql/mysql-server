@@ -290,6 +290,18 @@ UPDATE db SET Create_routine_priv=Create_priv, Alter_routine_priv=Alter_priv, Ex
 ALTER TABLE user ADD max_user_connections int(11) unsigned DEFAULT '0' NOT NULL AFTER max_connections;
 
 #
+# user.Create_user_priv
+#
+
+SET @hadCreateUserPriv:=0;
+SELECT @hadCreateUserPriv:=1 FROM user WHERE Create_user_priv LIKE '%';
+
+ALTER TABLE user ADD Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Alter_routine_priv;
+UPDATE user LEFT JOIN db USING (Host,User) SET Create_user_priv='Y'
+  WHERE @hadCreateUserPriv = 0 AND
+        (user.Grant_priv = 'Y' OR db.Grant_priv = 'Y');
+
+#
 # Create some possible missing tables
 #
 CREATE TABLE IF NOT EXISTS procs_priv (
@@ -306,19 +318,19 @@ KEY Grantor (Grantor)
 
 CREATE TABLE IF NOT EXISTS help_topic (
 help_topic_id int unsigned not null,
-name varchar(64) not null,
+name char(64) not null,
 help_category_id smallint unsigned not null,
 description text not null,
 example text not null,
-url varchar(128) not null,
+url char(128) not null,
 primary key (help_topic_id), unique index (name)
 ) CHARACTER SET utf8 comment='help topics';
 
 CREATE TABLE IF NOT EXISTS help_category (
 help_category_id smallint unsigned not null,
-name varchar(64) not null,
+name char(64) not null,
 parent_category_id smallint unsigned null,
-url varchar(128) not null,
+url char(128) not null,
 primary key (help_category_id),
 unique index (name)
 ) CHARACTER SET utf8 comment='help categories';
@@ -331,7 +343,7 @@ primary key (help_keyword_id, help_topic_id)
 
 CREATE TABLE IF NOT EXISTS help_keyword (
 help_keyword_id int unsigned not null,
-name varchar(64) not null,
+name char(64) not null,
 primary key (help_keyword_id),
 unique index (name)
 ) CHARACTER SET utf8 comment='help keywords';
@@ -478,3 +490,35 @@ ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
                             'NO_AUTO_CREATE_USER',
                             'HIGH_NOT_PRECEDENCE'
                             ) DEFAULT 0 NOT NULL;
+
+#
+# Change all varchar fields in privilege tables to CHAR, to ensure that
+# we can use the privilege tables in MySQL 4.1
+# Note that for this hack to work, we must change all CHAR() columns at
+# the same time
+#
+
+ALTER TABLE mysql.user
+modify Host char(60) binary DEFAULT '' NOT NULL,
+modify User char(16) binary DEFAULT '' NOT NULL,
+modify Password char(41) binary DEFAULT '' NOT NULL;
+
+ALTER TABLE mysql.db
+modify Host char(60) binary DEFAULT '' NOT NULL,
+modify Db char(64) binary DEFAULT '' NOT NULL,
+modify User char(16) binary DEFAULT '' NOT NULL;
+
+ALTER TABLE mysql.host
+modify Host char(60) binary DEFAULT '' NOT NULL,
+modify Db char(64) binary DEFAULT '' NOT NULL;
+
+ALTER TABLE help_topic
+modify name char(64) not null,
+modify url  char(128) not null;
+
+ALTER TABLE help_category
+modify name char(64) not null,
+modify url char(128) not null;
+
+ALTER TABLE help_keyword
+modify name char(64) not null;
