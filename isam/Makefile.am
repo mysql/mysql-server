@@ -36,15 +36,6 @@ libnisam_a_SOURCES =	open.c extra.c info.c rkey.c rnext.c \
 			log.c changed.c static.c
 isamchk_SOURCES =	isamchk.c sort.c
 CLEANFILES =		test?.IS? isam.log
-# Omit dependency for ../mit-pthreads/include/ things
-OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
-			__math.h time.h __time.h unistd.h __unistd.h types.h \
-			xtypes.h ac-types.h posix.h string.h __string.h \
-			errno.h socket.h inet.h dirent.h netdb.h \
-			cleanup.h cond.h debug_out.h fd.h kernel.h mutex.h \
-			prio_queue.h pthread_attr.h pthread_once.h queue.h\
-			sleep.h specific.h version.h pwd.h timers.h uio.h \
-			cdefs.h machdep.h signal.h __signal.h util.h wait.h
 
 # Move to automake rules ?
 prolint:;	plparse -b -u -hF1 "-width(0,0)" "-format=%f:%l:\s%t:%n\s%m" \

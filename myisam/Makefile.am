@@ -48,17 +48,6 @@ libmyisam_a_SOURCES =	mi_open.c mi_extra.c mi_info.c mi_rkey.c \
 			ft_update.c sort.c
 CLEANFILES =		test?.MY? FT?.MY? isam.log mi_test_all
 DEFS =			-DMAP_TO_USE_RAID
-# Omit dependency for ../mit-pthreads/include/sys that only exits if
-# mit-pthreads are used
-OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
-			__math.h time.h __time.h unistd.h __unistd.h types.h \
-			xtypes.h ac-types.h posix.h string.h __string.h \
-			errno.h socket.h inet.h dirent.h netdb.h \
-			cleanup.h cond.h debug_out.h fd.h kernel.h mutex.h \
-			prio_queue.h pthread_attr.h pthread_once.h queue.h\
-			sleep.h specific.h version.h pwd.h timers.h uio.h \
-			cdefs.h machdep.h signal.h __signal.h util.h \
-			wait.h
 
 # Move to automake rules ?
 prolint:;	plparse -b -u -hF1 "-width(0,0)" "-format=%f:%l:\s%t:%n\s%m" \
