@@ -2462,10 +2462,10 @@ ha_innobase::records_in_range(
 	index = dict_table_get_index_noninline(prebuilt->table, key->name);
 
 	range_start = dtuple_create_for_mysql(&heap1, key->key_parts);
- 	dict_index_copy_types(range_start, index, index->n_fields);
+ 	dict_index_copy_types(range_start, index, key->key_parts);
 
 	range_end = dtuple_create_for_mysql(&heap2, key->key_parts);
- 	dict_index_copy_types(range_end, index, index->n_fields);
+ 	dict_index_copy_types(range_end, index, key->key_parts);
 
 	row_sel_convert_mysql_key_to_innobase(
 				range_start, (byte*) key_val_buff, index,

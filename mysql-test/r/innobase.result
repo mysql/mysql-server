@@ -445,3 +445,5 @@ i	j
 1	2
 MIN(B)	MAX(b)
 1	1
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	range	PRIMARY	PRIMARY	4	NULL	1	where used

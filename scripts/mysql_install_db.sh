@@ -80,6 +80,7 @@ then
   bindir=@bindir@
   execdir=@libexecdir@ 
 elif test -d "$basedir/libexec"
+then
   bindir="$basedir/bin"
   execdir="$basedir/libexec"
 else

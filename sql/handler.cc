@@ -151,6 +151,8 @@ int ha_init()
       return error;
     if (!berkeley_skip)				// If we couldn't use handler
       opt_using_transactions=1;
+    else
+      have_berkeley_db=SHOW_OPTION_DISABLED;
   }
 #endif
 #ifdef HAVE_INNOBASE_DB
@@ -159,10 +161,9 @@ int ha_init()
     if (innobase_init())
       return -1;
     if (!innobase_skip)				// If we couldn't use handler
-    {
       opt_using_transactions=1;
+    else
       have_innobase=SHOW_OPTION_DISABLED;
-    }
   }
 #endif
 #ifdef HAVE_GEMINI_DB
@@ -171,10 +172,9 @@ int ha_init()
     if (gemini_init())
       return -1;
     if (!gemini_skip)				// If we couldn't use handler
-    {
       opt_using_transactions=1;
+    else
       have_gemini=SHOW_OPTION_DISABLED;
-    }
   }
 #endif
   return 0;
