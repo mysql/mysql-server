@@ -1,3 +1,8 @@
+2000-09-17  Michael Widenius  <monty@mysql.com>
+
+* Added option QUICK to DELETE to tell MySQL not to balance the
+  trees on delete.
+
 2000-09-15  Michael Widenius  <monty@mysql.com>
 
 * Added a thd argument to log::write() to get more speed.

@@ -247,9 +247,9 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     {						/* On leaf page */
       if (_mi_write_keypage(info,keyinfo,page,anc_buff))
 	DBUG_RETURN(-1);
-      if (length <= (uint) keyinfo->underflow_block_length)
-	DBUG_RETURN(1);				/* Page will be update later */
-      DBUG_RETURN(0);
+      /* Page will be update later if we return 1 */
+      DBUG_RETURN(test(length <= (info->quick_mode ? MI_MIN_KEYBLOCK_LENGTH :
+				  (uint) keyinfo->underflow_block_length)));
     }
     save_flag=1;
     ret_value=del(info,keyinfo,key,anc_buff,leaf_page,leaf_buff,keypos,
@@ -385,7 +385,9 @@ static int del(register MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *key,
   _mi_kpointer(info,keypos - share->base.key_reflength,next_block);
   mi_putint(anc_buff,a_length+length,share->base.key_reflength);
 
-  DBUG_RETURN( mi_getint(leaf_buff) <= (uint) keyinfo->underflow_block_length);
+  DBUG_RETURN( mi_getint(leaf_buff) <=
+	       (info->quick_mode ? MI_MIN_KEYBLOCK_LENGTH :
+		(uint) keyinfo->underflow_block_length));
 err:
   DBUG_RETURN(-1);
 } /* del */
@@ -537,7 +539,8 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     }
     if (_mi_write_keypage(info,keyinfo,leaf_page,leaf_buff))
       goto err;
-    DBUG_RETURN(anc_length <= (uint) keyinfo->underflow_block_length);
+    DBUG_RETURN(anc_length <= ((info->quick_mode ? MI_MIN_BLOCK_LENGTH :
+				(uint) keyinfo->underflow_block_length)));
   }
 
   DBUG_PRINT("test",("use left page"));

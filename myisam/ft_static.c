@@ -21,7 +21,7 @@
 const MI_KEYSEG ft_keysegs[FT_SEGS]={
 {
     HA_KEYTYPE_VARTEXT,               /* type */
-    7,                                /* language */
+    7,                                /* language (will be overwritten) */
     0, 0, 0,                          /* null_bit, bit_start, bit_end */
     HA_VAR_LENGTH | HA_PACK_KEY,      /* flag */
     HA_FT_MAXLEN,                     /* length */

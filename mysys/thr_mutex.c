@@ -107,12 +107,17 @@ int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line)
     abort();
   }
   mp->count--;
+#ifdef __WIN__
+  pthread_mutex_unlock(&mp->mutex);
+  error=0;
+#else
   error=pthread_mutex_unlock(&mp->mutex);
   if (error)
   {
     fprintf(stderr,"safe_mutex: Got error: %d when trying to unlock mutex at %s, line %d\n", error, file, line);
     abort();
   }
+#endif /* __WIN__ */
   pthread_mutex_unlock(&mp->global);
   return error;
 }
@@ -201,14 +206,23 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
 
 int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line)
 {
+  int error;
   if (mp->count != 0)
   {
     fprintf(stderr,"safe_mutex: Trying to destroy a mutex that was locked at %s, line %d at %s, line %d\n",
 	    mp->file,mp->line, file, line);
     abort();
   }
+#ifdef __WIN__ 
+  error=0;
   pthread_mutex_destroy(&mp->global);
-  return pthread_mutex_destroy(&mp->mutex);
+  pthread_mutex_destroy(&mp->mutex);
+#else
+  if (pthread_mutex_destroy(&mp->global) || 
+      pthread_mutex_destroy(&mp->mutex))
+    error=1;
+#endif
+  return error;
 }
 
 #endif /* THREAD && SAFE_MUTEX */
