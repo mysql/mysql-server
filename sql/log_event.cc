@@ -2495,7 +2495,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     TABLE_LIST tables;
     bzero((char*) &tables,sizeof(tables));
     tables.db = thd->db;
-    tables.alias = tables.real_name = (char*)table_name;
+    tables.alias = tables.table_name = (char*) table_name;
     tables.lock_type = TL_WRITE;
     tables.updating= 1;
 
@@ -2516,11 +2516,11 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
         user in SHOW PROCESSLIST. Note that db is known in the 'db' column.
       */
       if ((load_data_query= (char *) my_alloca(18 + strlen(fname) + 14 +
-                                               strlen(tables.real_name) + 8)))
+                                               strlen(tables.table_name) + 8)))
       {
         thd->query_length= (uint)(strxmov(load_data_query,
                                           "LOAD DATA INFILE '", fname,
-                                          "' INTO TABLE `", tables.real_name,
+                                          "' INTO TABLE `", tables.table_name,
                                           "` <...>", NullS) - load_data_query);
         thd->query= load_data_query;
       }

@@ -60,7 +60,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
   {
     /* Initialize variables for the opened table */
     set_keys_for_scanning();
-    if (table->tmp_table == NO_TMP_TABLE)
+    if (table->s->tmp_table == NO_TMP_TABLE)
       update_key_stats();
   }
   return (file ? 0 : 1);
@@ -91,7 +91,7 @@ int ha_heap::close(void)
 void ha_heap::set_keys_for_scanning(void)
 {
   btree_keys.clear_all();
-  for (uint i= 0 ; i < table->keys ; i++)
+  for (uint i= 0 ; i < table->s->keys ; i++)
   {
     if (table->key_info[i].algorithm == HA_KEY_ALG_BTREE)
       btree_keys.set_bit(i);
@@ -101,7 +101,7 @@ void ha_heap::set_keys_for_scanning(void)
 
 void ha_heap::update_key_stats()
 {
-  for (uint i= 0; i < table->keys; i++)
+  for (uint i= 0; i < table->s->keys; i++)
   {
     KEY *key=table->key_info+i;
     if (key->algorithm != HA_KEY_ALG_BTREE)
@@ -124,7 +124,7 @@ int ha_heap::write_row(byte * buf)
   if (table->next_number_field && buf == table->record[0])
     update_auto_increment();
   res= heap_write(file,buf);
-  if (!res && table->tmp_table == NO_TMP_TABLE && 
+  if (!res && table->s->tmp_table == NO_TMP_TABLE && 
       ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > file->s->records)
     update_key_stats();
   return res;
@@ -137,7 +137,7 @@ int ha_heap::update_row(const byte * old_data, byte * new_data)
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
   res= heap_update(file,old_data,new_data);
-  if (!res && table->tmp_table == NO_TMP_TABLE && 
+  if (!res && table->s->tmp_table == NO_TMP_TABLE && 
       ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > file->s->records)
     update_key_stats();
   return res;
@@ -148,7 +148,7 @@ int ha_heap::delete_row(const byte * buf)
   int res;
   statistic_increment(table->in_use->status_var.ha_delete_count,&LOCK_status);
   res= heap_delete(file,buf);
-  if (!res && table->tmp_table == NO_TMP_TABLE && 
+  if (!res && table->s->tmp_table == NO_TMP_TABLE && 
       ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > file->s->records)
     update_key_stats();
   return res;
@@ -282,7 +282,7 @@ int ha_heap::extra(enum ha_extra_function operation)
 int ha_heap::delete_all_rows()
 {
   heap_clear(file);
-  if (table->tmp_table == NO_TMP_TABLE)
+  if (table->s->tmp_table == NO_TMP_TABLE)
     update_key_stats();
   return 0;
 }
@@ -448,23 +448,24 @@ ha_rows ha_heap::records_in_range(uint inx, key_range *min_key,
 int ha_heap::create(const char *name, TABLE *table_arg,
 		    HA_CREATE_INFO *create_info)
 {
-  uint key, parts, mem_per_row= 0;
+  uint key, parts, mem_per_row= 0, keys= table_arg->s->keys;
   uint auto_key= 0, auto_key_type= 0;
   ha_rows max_rows;
   HP_KEYDEF *keydef;
   HA_KEYSEG *seg;
   char buff[FN_REFLEN];
   int error;
+  TABLE_SHARE *share= table_arg->s;
 
-  for (key= parts= 0; key < table_arg->keys; key++)
+  for (key= parts= 0; key < keys; key++)
     parts+= table_arg->key_info[key].key_parts;
 
-  if (!(keydef= (HP_KEYDEF*) my_malloc(table_arg->keys * sizeof(HP_KEYDEF) +
+  if (!(keydef= (HP_KEYDEF*) my_malloc(keys * sizeof(HP_KEYDEF) +
 				       parts * sizeof(HA_KEYSEG),
 				       MYF(MY_WME))))
     return my_errno;
-  seg= my_reinterpret_cast(HA_KEYSEG*) (keydef + table_arg->keys);
-  for (key= 0; key < table_arg->keys; key++)
+  seg= my_reinterpret_cast(HA_KEYSEG*) (keydef + keys);
+  for (key= 0; key < keys; key++)
   {
     KEY *pos= table_arg->key_info+key;
     KEY_PART_INFO *key_part=     pos->key_part;
@@ -516,7 +517,7 @@ int ha_heap::create(const char *name, TABLE *table_arg,
       }
     }
   }
-  mem_per_row+= MY_ALIGN(table_arg->reclength + 1, sizeof(char*));
+  mem_per_row+= MY_ALIGN(share->reclength + 1, sizeof(char*));
   max_rows = (ha_rows) (table->in_use->variables.max_heap_table_size /
 			mem_per_row);
   HP_CREATE_INFO hp_create_info;
@@ -525,11 +526,11 @@ int ha_heap::create(const char *name, TABLE *table_arg,
   hp_create_info.auto_increment= (create_info->auto_increment_value ?
 				  create_info->auto_increment_value - 1 : 0);
   error= heap_create(fn_format(buff,name,"","",4+2),
-		     table_arg->keys,keydef, table_arg->reclength,
-		     (ulong) ((table_arg->max_rows < max_rows &&
-			       table_arg->max_rows) ? 
-			      table_arg->max_rows : max_rows),
-		     (ulong) table_arg->min_rows, &hp_create_info);
+		     keys,keydef, share->reclength,
+		     (ulong) ((share->max_rows < max_rows &&
+			       share->max_rows) ? 
+			      share->max_rows : max_rows),
+		     (ulong) share->min_rows, &hp_create_info);
   my_free((gptr) keydef, MYF(0));
   if (file)
     info(HA_STATUS_NO_LOCK | HA_STATUS_CONST | HA_STATUS_VARIABLE);

@@ -935,7 +935,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     {
       my_error(ER_ILLEGAL_HA, MYF(0), (table_list->view ?
                                        table_list->view_name.str :
-                                       table_list->real_name));
+                                       table_list->table_name));
       goto error;
     }
     while ((values= its++))
@@ -1445,7 +1445,7 @@ static bool mysql_insert_select_prepare_tester(THD *thd)
     and item_list belong to SELECT
   */
   first_select->resolve_mode= SELECT_LEX::SELECT_MODE;
-  mysql_insert_select_prepare(thd);
+  return mysql_insert_select_prepare(thd);
 }
 
 

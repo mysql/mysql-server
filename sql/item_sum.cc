@@ -1225,7 +1225,7 @@ int composite_key_cmp(void* arg, byte* key1, byte* key2)
 {
   Item_sum_count_distinct* item = (Item_sum_count_distinct*)arg;
   Field **field    = item->table->field;
-  Field **field_end= field + item->table->fields;
+  Field **field_end= field + item->table->s->fields;
   uint32 *lengths=item->field_lengths;
   for (; field < field_end; ++field)
   {
@@ -1344,15 +1344,15 @@ bool Item_sum_count_distinct::setup(THD *thd)
 
 
   // no blobs, otherwise it would be MyISAM
-  if (table->db_type == DB_TYPE_HEAP)
+  if (table->s->db_type == DB_TYPE_HEAP)
   {
     qsort_cmp2 compare_key;
     void* cmp_arg;
 
     // to make things easier for dump_leaf if we ever have to dump to MyISAM
-    restore_record(table,default_values);
+    restore_record(table,s->default_values);
 
-    if (table->fields == 1)
+    if (table->s->fields == 1)
     {
       /*
 	If we have only one field, which is the most common use of
@@ -1396,10 +1396,10 @@ bool Item_sum_count_distinct::setup(THD *thd)
     {
       bool all_binary = 1;
       Field** field, **field_end;
-      field_end = (field = table->field) + table->fields;
+      field_end = (field = table->field) + table->s->fields;
       uint32 *lengths;
       if (!(field_lengths= 
-	    (uint32*) thd->alloc(sizeof(uint32) * table->fields)))
+	    (uint32*) thd->alloc(sizeof(uint32) * table->s->fields)))
 	return 1;
 
       for (key_length = 0, lengths=field_lengths; field < field_end; ++field)
@@ -1410,7 +1410,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
 	if (!(*field)->binary())
 	  all_binary = 0;			// Can't break loop here
       }
-      rec_offset = table->reclength - key_length;
+      rec_offset= table->s->reclength - key_length;
       if (all_binary)
       {
 	compare_key = (qsort_cmp2)simple_raw_key_cmp;
@@ -1781,7 +1781,7 @@ int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
       String *res;
       char *save_ptr= field->ptr;
       uint offset= (uint) (save_ptr - record);
-      DBUG_ASSERT(offset < item->table->reclength);
+      DBUG_ASSERT(offset < item->table->s->reclength);
       field->ptr= (char *) key + offset;
       res= field->val_str(&tmp,&tmp2);
       item->result.append(*res);
@@ -2124,10 +2124,10 @@ bool Item_func_group_concat::setup(THD *thd)
   table->file->extra(HA_EXTRA_NO_ROWS);
   table->no_rows= 1;
 
-  key_length= table->reclength;
+  key_length= table->s->reclength;
 
   /* Offset to first result field in table */
-  field_list_offset= table->fields - (list.elements - const_fields);
+  field_list_offset= table->s->fields - (list.elements - const_fields);
 
   if (tree_mode)
     delete_tree(tree);
