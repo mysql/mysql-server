@@ -51,7 +51,7 @@
 
 enum Log_event_type { START_EVENT = 1, QUERY_EVENT =2,
 		      STOP_EVENT=3, ROTATE_EVENT = 4, INTVAR_EVENT=5,
-                      LOAD_EVENT=6};
+                      LOAD_EVENT=6, SLAVE_EVENT=7};
 enum Int_event_type { INVALID_INT_EVENT = 0, LAST_INSERT_ID_EVENT = 1, INSERT_ID_EVENT = 2
  };
 
@@ -60,6 +60,8 @@ class String;
 #endif
 
 extern uint32 server_id;
+
+struct st_master_info;
 
 class Log_event
 {
@@ -170,6 +172,33 @@ public:
   }
 
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
+};
+
+class Slave_log_event: public Log_event
+{
+protected:
+  char* mem_pool;
+  void init_from_mem_pool(int data_size);
+public:
+  char* master_host;
+  int master_host_len;
+  uint16 master_port;
+  char* master_log;
+  int master_log_len;
+  ulonglong master_pos;
+
+#ifndef MYSQL_CLIENT  
+  Slave_log_event(THD* thd_arg, struct st_master_info* mi);
+#endif
+  
+  Slave_log_event(const char* buf, int event_len);
+  Slave_log_event(IO_CACHE* file, time_t when, uint32 server_id_arg);
+  ~Slave_log_event();
+  int get_data_size();
+  Log_event_type get_type_code() { return SLAVE_EVENT; }
+  void print(FILE* file, bool short_form = 0, char* last_db = 0);
+  int write_data(IO_CACHE* file );
+
 };
 
 #define DUMPFILE_FLAG 0x1

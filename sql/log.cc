@@ -532,6 +532,15 @@ void MYSQL_LOG::new_file()
       */
       Rotate_log_event r(new_name+dirname_length(new_name));
       r.write(&log_file);
+
+      // if we have a master, record current master info in a slave
+      // event
+      if(glob_mi.inited)
+      {
+	Slave_log_event s(current_thd, &glob_mi);
+	if(s.master_host)
+	  s.write(&log_file);
+      }
       VOID(pthread_cond_broadcast(&COND_binlog_update));
     }
     name=0;
@@ -625,6 +634,18 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 }
 
 /* Write to binary log in a format to be used for replication */
+
+bool MYSQL_LOG::write(Slave_log_event* event_info)
+{
+  bool error;
+  if (!inited)					// Can't use mutex if not init
+    return 0;
+  VOID(pthread_mutex_lock(&LOCK_log));
+  error = event_info->write(&log_file);
+  VOID(pthread_mutex_unlock(&LOCK_log));
+  return error;
+}
+
 
 bool MYSQL_LOG::write(Query_log_event* event_info)
 {
