@@ -32,3 +32,68 @@ create table t1 (v varbinary(20));
 insert into t1 values('a');
 insert into t1 values('a ');
 alter table t1 add primary key (v);
+drop table t1;
+
+#
+# Test with varchar of lengths 254,255,256,258 & 258 to ensure we don't
+# have any problems with varchar with one or two byte length_bytes
+#
+
+create table t1 (v varchar(254), index (v));
+insert into t1 values ("This is a test ");
+insert into t1 values ("Some sample data");
+insert into t1 values (" garbage ");
+insert into t1 values (" This is a test ");
+insert into t1 values ("This is a test");
+insert into t1 values ("Hello world");
+insert into t1 values ("Foo bar");
+insert into t1 values ("This is a test");
+insert into t1 values ("MySQL varchar test");
+insert into t1 values ("test MySQL varchar");
+insert into t1 values ("This is a long string to have some random length data included");
+insert into t1 values ("Short string");
+insert into t1 values ("VSS");
+insert into t1 values ("Some samples");
+insert into t1 values ("Bar foo");
+insert into t1 values ("Bye");
+let $i= 255;
+let $j= 5;
+while ($j)
+{
+  select * from t1 where v like 'This is a test' order by v;
+  select * from t1 where v='This is a test' order by v;
+  select * from t1 where v like 'S%' order by v;
+  explain select * from t1 where v like 'This is a test' order by v;
+  explain select * from t1 where v='This is a test' order by v;
+  explain select * from t1 where v like 'S%' order by v;
+  eval alter table t1 change v v varchar($i);
+  inc $i;
+  dec $j;
+}
+let $i= 258;
+let $j= 6;
+while ($j)
+{
+  select * from t1 where v like 'This is a test' order by v;
+  select * from t1 where v='This is a test' order by v;
+  select * from t1 where v like 'S%' order by v;
+  explain select * from t1 where v like 'This is a test' order by v;
+  explain select * from t1 where v='This is a test' order by v;
+  explain select * from t1 where v like 'S%' order by v;
+  eval alter table t1 change v v varchar($i);
+  dec $i;
+  dec $j;
+}
+alter table t1 change v v varchar(254), drop key v;
+
+# Test with length(varchar) > 256 and key < 256 (to ensure things works with
+# different kind of packing
+
+alter table t1 change v v varchar(300), add key (v(10));
+select * from t1 where v like 'This is a test' order by v;
+select * from t1 where v='This is a test' order by v;
+select * from t1 where v like 'S%' order by v;
+explain select * from t1 where v like 'This is a test' order by v;
+explain select * from t1 where v='This is a test' order by v;
+explain select * from t1 where v like 'S%' order by v;
+drop table t1;

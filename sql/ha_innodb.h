@@ -182,6 +182,7 @@ extern struct show_var_st innodb_status_variables[];
 extern uint innobase_init_flags, innobase_lock_type;
 extern uint innobase_flush_log_at_trx_commit;
 extern ulong innobase_cache_size;
+extern ulong innobase_large_page_size;
 extern char *innobase_home, *innobase_tmpdir, *innobase_logdir;
 extern long innobase_lock_scan_time;
 extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
@@ -196,6 +197,9 @@ extern char *innobase_log_group_home_dir, *innobase_log_arch_dir;
 extern char *innobase_unix_file_flush_method;
 /* The following variables have to be my_bool for SHOW VARIABLES to work */
 extern my_bool innobase_log_archive,
+               innobase_use_doublewrite,
+               innobase_use_checksums,
+               innobase_use_large_pages,
                innobase_use_native_aio, innobase_fast_shutdown,
 	       innobase_file_per_table, innobase_locks_unsafe_for_binlog,
                innobase_create_status_file;

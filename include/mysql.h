@@ -145,7 +145,8 @@ enum mysql_option
   MYSQL_OPT_PROTOCOL, MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_OPT_READ_TIMEOUT,
   MYSQL_OPT_WRITE_TIMEOUT, MYSQL_OPT_USE_RESULT,
   MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
-  MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH
+  MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH,
+  MYSQL_REPORT_DATA_TRUNCATION
 };
 
 struct st_mysql_options {
@@ -186,6 +187,8 @@ struct st_mysql_options {
   char *client_ip;
   /* Refuse client connecting to server if it uses old (pre-4.1.1) protocol */
   my_bool secure_auth;
+  /* 0 - never report, 1 - always report (default) */
+  my_bool report_data_truncation;
 
   /* function pointers for local infile support */
   int (*local_infile_init)(void **, const char *, void *);
@@ -537,26 +540,91 @@ enum enum_mysql_stmt_state
 };
 
 
-/* bind structure */
+/*
+  This structure is used to define bind information, and
+  internally by the client library.
+  Public members with their descriptions are listed below
+  (conventionally `On input' refers to the binds given to
+  mysql_stmt_bind_param, `On output' refers to the binds given
+  to mysql_stmt_bind_result):
+
+  buffer_type    - One of the MYSQL_* types, used to describe
+                   the host language type of buffer.
+                   On output: if column type is different from
+                   buffer_type, column value is automatically converted
+                   to buffer_type before it is stored in the buffer.
+  buffer         - On input: points to the buffer with input data.
+                   On output: points to the buffer capable to store
+                   output data.
+                   The type of memory pointed by buffer must correspond
+                   to buffer_type. See the correspondence table in
+                   the comment to mysql_stmt_bind_param.
+
+  The two above members are mandatory for any kind of bind.
+
+  buffer_length  - the length of the buffer. You don't have to set
+                   it for any fixed length buffer: float, double,
+                   int, etc. It must be set however for variable-length
+                   types, such as BLOBs or STRINGs.
+
+  length         - On input: in case when lengths of input values
+                   are different for each execute, you can set this to
+                   point at a variable containining value length. This
+                   way the value length can be different in each execute.
+                   If length is not NULL, buffer_length is not used.
+                   Note, length can even point at buffer_length if
+                   you keep bind structures around while fetching:
+                   this way you can change buffer_length before
+                   each execution, everything will work ok.
+                   On output: if length is set, mysql_stmt_fetch will
+                   write column length into it.
+
+  is_null        - On input: points to a boolean variable that should
+                   be set to TRUE for NULL values.
+                   This member is useful only if your data may be
+                   NULL in some but not all cases.
+                   If your data is never NULL, is_null should be set to 0.
+                   If your data is always NULL, set buffer_type
+                   to MYSQL_TYPE_NULL, and is_null will not be used.
+
+  is_unsigned    - On input: used to signify that values provided for one
+                   of numeric types are unsigned.
+                   On output describes signedness of the output buffer.
+                   If, taking into account is_unsigned flag, column data
+                   is out of range of the output buffer, data for this column
+                   is regarded truncated. Note that this has no correspondence
+                   to the sign of result set column, if you need to find it out
+                   use mysql_stmt_result_metadata.
+  error          - where to write a truncation error if it is present.
+                   possible error value is:
+                   0  no truncation
+                   1  value is out of range or buffer is too small
+
+  Please note that MYSQL_BIND also has internals members.
+*/
+
 typedef struct st_mysql_bind
 {
   unsigned long	*length;          /* output length pointer */
   my_bool       *is_null;	  /* Pointer to null indicator */
   void		*buffer;	  /* buffer to get/put data */
+  /* set this if you want to track data truncations happened during fetch */
+  my_bool       *error;
   enum enum_field_types buffer_type;	/* buffer type */
-  unsigned long buffer_length;    /* buffer length, must be set for str/binary */  
-
-  /* Following are for internal use. Set by mysql_stmt_bind_param */
-  unsigned char *inter_buffer;    /* for the current data position */
+  /* output buffer length, must be set when fetching str/binary */
+  unsigned long buffer_length;
+  unsigned char *row_ptr;         /* for the current data position */
   unsigned long offset;           /* offset position for char/binary fetch */
-  unsigned long	internal_length;  /* Used if length is 0 */
+  unsigned long	length_value;     /* Used if length is 0 */
   unsigned int	param_number;	  /* For null count and error messages */
   unsigned int  pack_length;	  /* Internal length for packed data */
+  my_bool       error_value;      /* used if error is 0 */
   my_bool       is_unsigned;      /* set if integer type is unsigned */
   my_bool	long_data_used;	  /* If used with mysql_send_long_data */
-  my_bool	internal_is_null; /* Used if is_null is 0 */
+  my_bool	is_null_value;    /* Used if is_null is 0 */
   void (*store_param_func)(NET *net, struct st_mysql_bind *param);
-  void (*fetch_result)(struct st_mysql_bind *, unsigned char **row);
+  void (*fetch_result)(struct st_mysql_bind *, MYSQL_FIELD *,
+                       unsigned char **row);
   void (*skip_result)(struct st_mysql_bind *, MYSQL_FIELD *,
 		      unsigned char **row);
 } MYSQL_BIND;
@@ -598,7 +666,7 @@ typedef struct st_mysql_stmt
   /* Types of input parameters should be sent to server */
   my_bool        send_types_to_server;
   my_bool        bind_param_done;      /* input buffers were supplied */
-  my_bool        bind_result_done;     /* output buffers were supplied */
+  unsigned char  bind_result_done;     /* output buffers were supplied */
   /* mysql_stmt_close() had to cancel this result */
   my_bool       unbuffered_fetch_cancelled;  
   /*
@@ -704,7 +772,8 @@ void STDCALL mysql_close(MYSQL *sock);
 
 
 /* status return codes */
-#define MYSQL_NO_DATA      100
+#define MYSQL_NO_DATA        100
+#define MYSQL_DATA_TRUNCATED 101
 
 #define mysql_reload(mysql) mysql_refresh((mysql),REFRESH_GRANT)
 

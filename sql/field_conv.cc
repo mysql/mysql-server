@@ -305,7 +305,8 @@ static void do_field_string(Copy_field *copy)
   char buff[MAX_FIELD_WIDTH];
   copy->tmp.set_quick(buff,sizeof(buff),copy->tmp.charset());
   copy->from_field->val_str(&copy->tmp);
-  copy->to_field->store(copy->tmp.c_ptr_quick(),copy->tmp.length(),copy->tmp.charset());
+  copy->to_field->store(copy->tmp.c_ptr_quick(),copy->tmp.length(),
+                        copy->tmp.charset());
 }
 
 
@@ -350,7 +351,23 @@ static void do_expand_string(Copy_field *copy)
                      copy->to_length-copy->from_length, ' ');
 }
 
-static void do_varstring(Copy_field *copy)
+
+static void do_varstring1(Copy_field *copy)
+{
+  uint length= (uint) *(uchar*) copy->from_ptr;
+  if (length > copy->to_length- 1)
+  {
+    length=copy->to_length - 1;
+    if (current_thd->count_cuted_fields)
+      copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+                                  ER_WARN_DATA_TRUNCATED, 1);
+  }
+  *(uchar*) copy->to_ptr= (uchar) length;
+  memcpy(copy->to_ptr+1, copy->from_ptr + 1, length);
+}
+
+
+static void do_varstring2(Copy_field *copy)
 {
   uint length=uint2korr(copy->from_ptr);
   if (length > copy->to_length- HA_KEY_BLOB_LENGTH)
@@ -485,6 +502,9 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
   }
   else
   {
+    if (to->real_type() == FIELD_TYPE_BIT ||
+        from->real_type() == FIELD_TYPE_BIT)
+      return do_field_int;
     // Check if identical fields
     if (from->result_type() == STRING_RESULT)
     {
@@ -505,9 +525,15 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
       }
       else if (to->charset() != from->charset())
 	return do_field_string;
-      else if (to->real_type() == MYSQL_TYPE_VARCHAR && to_length !=
-	       from_length)
-	return do_varstring;
+      else if (to->real_type() == MYSQL_TYPE_VARCHAR)
+      {
+        if (((Field_varstring*) to)->length_bytes !=
+            ((Field_varstring*) from)->length_bytes)
+          return do_field_string;
+        if (to_length != from_length)
+          return (((Field_varstring*) to)->length_bytes == 1 ?
+                  do_varstring1 : do_varstring2);
+      }
       else if (to_length < from_length)
 	return do_cut_string;
       else if (to_length > from_length)
@@ -587,6 +613,12 @@ void field_conv(Field *to,Field *from)
     char buff[MAX_FIELD_WIDTH];
     String result(buff,sizeof(buff),from->charset());
     from->val_str(&result);
+    /*
+      We use c_ptr_quick() here to make it easier if to is a float/double
+      as the conversion routines will do a copy of the result doesn't
+      end with \0. Can be replaced with .ptr() when we have our own
+      string->double conversion.
+    */
     to->store(result.c_ptr_quick(),result.length(),from->charset());
   }
   else if (from->result_type() == REAL_RESULT)

@@ -67,6 +67,7 @@ int main(int argc,char **argv)
 
   bzero((char*) keyinfo,sizeof(keyinfo));
   bzero((char*) recinfo,sizeof(recinfo));
+  bzero((char*) keyseg,sizeof(keyseg));
   keyinfo[0].seg= &keyseg[0][0];
   keyinfo[0].seg[0].start=0;
   keyinfo[0].seg[0].length=8;

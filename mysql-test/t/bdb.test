@@ -824,7 +824,7 @@ select a from t1;
 drop table t1;
 
 #
-# bug#2686 - index_merge select on BerkeleyDB table with varchar PK causes mysqld to crash
+# bug#2686 - index_merge select on BerkeleyDB table with varchar PK crashes
 #
 
 create table t1(
@@ -842,7 +842,8 @@ select substring(pk1, 1, 4), substring(pk1, 4001),
 drop table t1;
 
 #
-# bug#2688 - Wrong index_merge query results for BDB table with variable length primary key
+# bug#2688 - Wrong index_merge query results for BDB table with
+# variable length primary key
 #
 
 create table t1 (

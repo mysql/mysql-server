@@ -92,6 +92,66 @@ select sql_big_result c,count(t) from t1 group by c limit 10;
 select t,count(*) from t1 group by t limit 10;
 select t,count(t) from t1 group by t limit 10;
 select sql_big_result t,count(t) from t1 group by t limit 10;
+
+#
+# Test varchar > 255 bytes
+#
+
+alter table t1 modify v varchar(300), drop key v, drop key v_2, add key v (v);
+show create table t1;
+select count(*) from t1 where v='a';
+select count(*) from t1 where v='a  ';
+select count(*) from t1 where v between 'a' and 'a ';
+select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
+select count(*) from t1 where v like 'a%';
+select count(*) from t1 where v like 'a %';
+explain select count(*) from t1 where v='a  ';
+explain select count(*) from t1 where v like 'a%';
+explain select count(*) from t1 where v between 'a' and 'a ';
+explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
+explain select * from t1 where v='a';
+
+# GROUP BY
+
+select v,count(*) from t1 group by v limit 10;
+select v,count(t) from t1 group by v limit 10;
+select sql_big_result v,count(t) from t1 group by v limit 10;
+
+#
+# Test varchar > 255 bytes, key < 255
+#
+
+alter table t1 drop key v, add key v (v(30));
+show create table t1;
+select count(*) from t1 where v='a';
+select count(*) from t1 where v='a  ';
+select count(*) from t1 where v between 'a' and 'a ';
+select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
+select count(*) from t1 where v like 'a%';
+select count(*) from t1 where v like 'a %';
+explain select count(*) from t1 where v='a  ';
+explain select count(*) from t1 where v like 'a%';
+explain select count(*) from t1 where v between 'a' and 'a ';
+explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
+explain select * from t1 where v='a';
+
+# GROUP BY
+
+select v,count(*) from t1 group by v limit 10;
+select v,count(t) from t1 group by v limit 10;
+select sql_big_result v,count(t) from t1 group by v limit 10;
+
+#
+# Test varchar > 512 (special case for GROUP BY becasue of
+# CONVERT_IF_BIGGER_TO_BLOB define)
+#
+
+alter table t1 modify v varchar(600), drop key v, add key v (v);
+show create table t1;
+select v,count(*) from t1 group by v limit 10;
+select v,count(t) from t1 group by v limit 10;
+select sql_big_result v,count(t) from t1 group by v limit 10;
+
 drop table t1;
 
 #
