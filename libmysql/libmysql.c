@@ -3393,7 +3393,7 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
                                        longlong value)
 {
   char *buffer= (char *)param->buffer;
-  uint field_is_unsigned= (field->flags & UNSIGNED_FLAG);
+  uint field_is_unsigned= field->flags & UNSIGNED_FLAG;
 
   switch (param->buffer_type) {
   case MYSQL_TYPE_NULL: /* do nothing */
@@ -3590,14 +3590,14 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
 {
   ulong length;
   enum enum_field_types field_type= field->type;
+  uint field_is_unsigned= field->flags & UNSIGNED_FLAG;
 
   switch (field_type) {
   case MYSQL_TYPE_TINY:
   {
     char value= (char) **row;
-    uint field_is_unsigned= (field->flags & UNSIGNED_FLAG);
-    longlong data= (field_is_unsigned) ? (longlong) (unsigned char) value:
-		                         (longlong) value;
+    longlong data= field_is_unsigned ? (longlong) (unsigned char) value :
+                                       (longlong) value;
     fetch_long_with_conversion(param, field, data);
     length= 1;
     break;
@@ -3606,9 +3606,8 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_YEAR:
   {
     short value= sint2korr(*row);
-    uint field_is_unsigned= (field->flags & UNSIGNED_FLAG);
-    longlong data= ((field_is_unsigned) ? (longlong) (unsigned short) value:
-		    (longlong) value);
+    longlong data= field_is_unsigned ? (longlong) (unsigned short) value :
+                                       (longlong) value;
     fetch_long_with_conversion(param, field, data);
     length= 2;
     break;
@@ -3616,9 +3615,8 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_LONG:
   {
     long value= sint4korr(*row);
-    uint field_is_unsigned= (field->flags & UNSIGNED_FLAG);
-    longlong data= ((field_is_unsigned) ? (longlong) (unsigned long) value:
-		    (longlong) value);
+    longlong data= field_is_unsigned ? (longlong) (unsigned long) value :
+                                       (longlong) value;
     fetch_long_with_conversion(param, field, data);
     length= 4;
     break;
