@@ -52,6 +52,25 @@ const char field_separator=',';
   Static help functions
 *****************************************************************************/
 
+/*
+  Numeric fields base class constructor
+*/
+Field_num::Field_num(char *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
+                     uchar null_bit_arg, utype unireg_check_arg,
+                     const char *field_name_arg,
+                     struct st_table *table_arg,
+                     uint8 dec_arg, bool zero_arg, bool unsigned_arg)
+  :Field(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
+         unireg_check_arg, field_name_arg, table_arg),
+  dec(dec_arg),zerofill(zero_arg),unsigned_flag(unsigned_arg)
+{
+  if (zerofill)
+    flags|=ZEROFILL_FLAG;
+  if (unsigned_flag)
+    flags|=UNSIGNED_FLAG;
+}
+
+
 void Field_num::prepend_zeros(String *value)
 {
   int diff;
@@ -82,7 +101,7 @@ void Field_num::prepend_zeros(String *value)
     Make this multi-byte-character safe
 
   RETURN
-    0	ok
+    0	OK
     1	error.  A warning is pushed if field_name != 0
 */
 
@@ -104,7 +123,7 @@ bool Field::check_int(const char *str, int length, const char *int_end,
   }
   end= str+length;
   if ((str= int_end) == end)
-    return 0;					// ok; All digits was used
+    return 0;					// OK; All digits was used
 
   /* Allow end .0000 */
   if (*str == '.')
@@ -120,6 +139,35 @@ bool Field::check_int(const char *str, int length, const char *int_end,
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
       return 1;
     }
+  }
+  return 0;
+}
+
+
+/*
+  Process decimal library return codes and issue warnings for overflow and
+  truncation.
+
+  SYNOPSIS
+    Field::warn_if_overflow()
+    op_result  decimal library return code (E_DEC_* see include/decimal.h)
+
+  RETURN
+    1  there was overflow
+    0  no error or some other errors except overflow
+*/
+
+int Field::warn_if_overflow(int op_result)
+{
+  if (op_result == E_DEC_OVERFLOW)
+  {
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    return 1;
+  }
+  if (op_result == E_DEC_TRUNCATED)
+  {
+    set_warning(MYSQL_ERROR::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
+    /* We return 0 here as this is not a critical issue */
   }
   return 0;
 }
@@ -189,6 +237,10 @@ static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
 */
 static Field::field_cast_enum field_cast_decimal[]=
 {Field::FIELD_CAST_DECIMAL,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_new_decimal[]=
+{Field::FIELD_CAST_NEWDECIMAL,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_tiny[]=
@@ -283,6 +335,9 @@ static Field::field_cast_enum field_cast_varstring[]=
 static Field::field_cast_enum field_cast_blob[]=
 {Field::FIELD_CAST_BLOB,
  Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_bit[]=
+{Field::FIELD_CAST_BIT,
+ Field::FIELD_CAST_STOP};
 /*
   Geometrical, enum and set fields can be casted only to expressions
 */
@@ -302,7 +357,8 @@ static Field::field_cast_enum *field_cast_array[]=
  field_cast_timestamp, field_cast_year, field_cast_date, field_cast_newdate,
  field_cast_time, field_cast_datetime,
  field_cast_string, field_cast_varstring, field_cast_blob,
- field_cast_geom, field_cast_enum, field_cast_set
+ field_cast_geom, field_cast_enum, field_cast_set, field_cast_bit,
+ field_cast_new_decimal
 };
 
 
@@ -398,6 +454,14 @@ bool Field::send_binary(Protocol *protocol)
 }
 
 
+my_decimal *Field::val_decimal(my_decimal *decimal)
+{
+  /* This never have to be called */
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+
 void Field_num::add_zerofill_and_unsigned(String &res) const
 {
   if (unsigned_flag)
@@ -405,6 +469,7 @@ void Field_num::add_zerofill_and_unsigned(String &res) const
   if (zerofill)
     res.append(" zerofill");
 }
+
 
 void Field::make_field(Send_field *field)
 {
@@ -420,10 +485,153 @@ void Field::make_field(Send_field *field)
 }
 
 
+/*
+  Conversion from decimal to longlong with checking overflow and
+  setting correct value (min/max) in case of overflow
+
+  SYNOPSIS
+    Field::convert_decimal2longlong()
+    val             value which have to be converted
+    unsigned_flag   type of integer in which we convert val
+    err             variable to pass error code
+
+  RETURN
+    value converted from val
+*/
+longlong Field::convert_decimal2longlong(const my_decimal *val,
+                                         bool unsigned_flag, int *err)
+{
+  longlong i;
+  if (unsigned_flag)
+  {
+    if (val->sign())
+    {
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      i= 0;
+      *err= 1;
+    }
+    else if (warn_if_overflow(my_decimal2int(E_DEC_ERROR &
+                                           ~E_DEC_OVERFLOW & ~E_DEC_TRUNCATED,
+                                           val, TRUE, &i)))
+    {
+      i= ~(longlong) 0;
+      *err= 1;
+    }
+  }
+  else if (warn_if_overflow(my_decimal2int(E_DEC_ERROR &
+                                         ~E_DEC_OVERFLOW & ~E_DEC_TRUNCATED,
+                                         val, FALSE, &i)))
+  {
+    i= (val->sign() ? LONGLONG_MIN : LONGLONG_MAX);
+    *err= 1;
+  }
+  return i;
+}
+
+
+/*
+  Storing decimal in integer fields.
+
+  SYNOPSIS
+    Field_num::store_decimal()
+    val       value for storing
+
+  NOTE
+    This method is used by all integer fields, real/decimal redefine it
+
+  RETURN
+    0     OK
+    != 0  error
+*/
+
+int Field_num::store_decimal(const my_decimal *val)
+{
+  int err= 0;
+  longlong i= convert_decimal2longlong(val, unsigned_flag, &err);
+  return test(err | store(i));
+}
+
+
+/*
+  Return decimal value of integer field
+
+  SYNOPSIS
+    Field_num::val_decimal()
+    decimal_value     buffer for storing decimal value
+
+  NOTE
+    This method is used by all integer fields, real/decimal redefine it
+    All longlong values fit in our decimal buffer which cal store 8*9=72
+    digits of integer number
+
+  RETURN
+    pointer to decimal buffer with value of field
+*/
+
+my_decimal* Field_num::val_decimal(my_decimal *decimal_value)
+{
+  DBUG_ASSERT(result_type() == INT_RESULT);
+  longlong nr= val_int();
+  if (!is_null())
+    int2my_decimal(E_DEC_FATAL_ERROR, nr, unsigned_flag, decimal_value);
+  return decimal_value;
+}
+
+
+Field_str::Field_str(char *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
+                     uchar null_bit_arg, utype unireg_check_arg,
+                     const char *field_name_arg,
+                     struct st_table *table_arg,CHARSET_INFO *charset)
+  :Field(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
+         unireg_check_arg, field_name_arg, table_arg)
+{
+  field_charset=charset;
+  if (charset->state & MY_CS_BINSORT)
+    flags|=BINARY_FLAG;
+}
+
+
 void Field_num::make_field(Send_field *field)
 {
   Field::make_field(field);
   field->decimals= dec;
+}
+
+/*
+  Decimal representation of Field_str
+
+  SYNOPSIS
+    Field_str::store_decimal()
+    d         value for storing
+
+  NOTE
+    Field_str is the base class for fields like Field_date, and some
+    similar.  Some dates use fraction and also string value should be
+    converted to floating point value according our rules, so we use double
+    to store value of decimal in string
+
+  RETURN
+    0     OK
+    != 0  error
+*/
+
+int Field_str::store_decimal(const my_decimal *d)
+{
+  double val;
+  /* TODO: use decimal2string? */
+  int err= warn_if_overflow(my_decimal2double(E_DEC_FATAL_ERROR &
+                                            ~E_DEC_OVERFLOW, d, &val));
+  return err | store(val);
+}
+
+
+my_decimal *Field_str::val_decimal(my_decimal *decimal_value)
+{
+  DBUG_ASSERT(result_type() == INT_RESULT);
+  longlong nr= val_int();
+  if (is_null())
+    int2my_decimal(E_DEC_FATAL_ERROR, nr, 0, decimal_value);
+  return decimal_value;
 }
 
 
@@ -697,7 +905,7 @@ void Field_decimal::overflow(bool negative)
 
 int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
 {
-  char buff[80];
+  char buff[STRING_BUFFER_USUAL_SIZE];
   String tmp(buff,sizeof(buff), &my_charset_bin);
 
   /* Convert character set if the old one is multi byte */
@@ -838,7 +1046,7 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
   /*
     We only have to generate warnings if count_cuted_fields is set.
     This is to avoid extra checks of the number when they are not needed.
-    Even if this flag is not set, it's ok to increment warnings, if
+    Even if this flag is not set, it's OK to increment warnings, if
     it makes the code easer to read.
   */
 
@@ -1251,6 +1459,302 @@ void Field_decimal::sql_type(String &res) const
   res.length(cs->cset->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
 			  "decimal(%d,%d)",tmp,dec));
   add_zerofill_and_unsigned(res);
+}
+
+
+/****************************************************************************
+** Field_new_decimal
+****************************************************************************/
+
+/*
+  Constructors of new decimal field. In case of using NOT_FIXED_DEC it try
+  to use maximally allowed length (DECIMAL_MAX_LENGTH) and number of digits
+  after decimal point maximally close to half of this range
+  (min(DECIMAL_MAX_LENGTH/2, NOT_FIXED_DEC-1))
+*/
+Field_new_decimal::Field_new_decimal(char *ptr_arg,
+                                     uint32 len_arg, uchar *null_ptr_arg,
+                                     uchar null_bit_arg,
+                                     enum utype unireg_check_arg,
+                                     const char *field_name_arg,
+                                     struct st_table *table_arg,
+                                     uint8 dec_arg,bool zero_arg,
+                                     bool unsigned_arg)
+  :Field_num(ptr_arg,
+             (dec_arg == NOT_FIXED_DEC || len_arg > DECIMAL_MAX_LENGTH ?
+              DECIMAL_MAX_LENGTH : len_arg),
+             null_ptr_arg, null_bit_arg,
+             unireg_check_arg, field_name_arg, table_arg,
+             (dec_arg == NOT_FIXED_DEC ?
+              min(DECIMAL_MAX_LENGTH / 2, NOT_FIXED_DEC - 1) :
+              dec_arg),
+             zero_arg, unsigned_arg)
+{
+  bin_size= my_decimal_get_binary_size(field_length, dec);
+}
+
+
+Field_new_decimal::Field_new_decimal(uint32 len_arg,
+                                     bool maybe_null,
+                                     const char *name,
+                                     struct st_table *t_arg,
+                                     uint8 dec_arg)
+  :Field_num((char*) 0,
+             (dec_arg == NOT_FIXED_DEC|| len_arg > DECIMAL_MAX_LENGTH ?
+              DECIMAL_MAX_LENGTH : len_arg),
+             maybe_null ? (uchar*) "": 0, 0,
+             NONE, name, t_arg,
+             (dec_arg == NOT_FIXED_DEC ?
+              min(DECIMAL_MAX_LENGTH / 2, NOT_FIXED_DEC - 1) :
+              dec_arg),
+             0, 0)
+{
+  bin_size= my_decimal_get_binary_size(field_length, dec);
+}
+
+
+void Field_new_decimal::reset(void)
+{
+  store_value(&decimal_zero);
+}
+
+
+/*
+  Generate max/min decimal value in case of overflow.
+
+  SYNOPSIS
+    Field_new_decimal::set_value_on_overflow();
+    decimal_value     buffer for value
+    sign              sign of value which caused overflow
+*/
+
+void Field_new_decimal::set_value_on_overflow(my_decimal *decimal_value,
+                                              bool sign)
+{
+  DBUG_ENTER("Field_new_decimal::set_value_on_overflow");
+  max_my_decimal(decimal_value, field_length, decimals());
+  if (sign)
+  {
+    if (unsigned_flag)
+      my_decimal_set_zero(decimal_value);
+    else
+      decimal_value->sign(TRUE);
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Store decimal value in the binary buffer
+
+  SYNOPSIS
+    store_value(const my_decimal *decimal_value)
+    decimal_value   my_decimal
+
+  DESCRIPTION
+    checks if decimal_value fits into field size.
+    if it does, stores the decimal in the buffer using binary format.
+    Otherwise sets maximal number that can be stored in the field.
+
+  RETURN
+   0 ok
+   1 error
+*/
+
+bool Field_new_decimal::store_value(const my_decimal *decimal_value)
+{
+  my_decimal *dec= (my_decimal*)decimal_value;
+  int error= 0;
+  DBUG_ENTER("Field_new_decimal::store_value");
+  DBUG_EXECUTE("enter", print_decimal(dec););
+
+  /* check that we do not try to write negative value in unsigned field */
+  if (unsigned_flag && decimal_value->sign())
+  {
+    DBUG_PRINT("info", ("unsigned overflow"));
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    error= 1;
+    dec= &decimal_zero;
+  }
+  DBUG_PRINT("info", ("saving with precision %d, scale: %d",
+                      (int)field_length, (int)decimals()));
+  DBUG_EXECUTE("info", print_decimal(dec););
+
+  if (warn_if_overflow(my_decimal2binary(E_DEC_FATAL_ERROR &
+                                         ~E_DEC_OVERFLOW,
+                                         dec, ptr,
+                                         field_length,
+                                         decimals())))
+  {
+    my_decimal buff;
+    DBUG_PRINT("info", ("overflow"));
+    set_value_on_overflow(&buff, dec->sign());
+    my_decimal2binary(E_DEC_FATAL_ERROR, &buff, ptr, field_length, decimals());
+    DBUG_EXECUTE("info", print_decimal_buff(&buff, ptr, bin_size););
+    DBUG_RETURN(1);
+  }
+  DBUG_EXECUTE("info", print_decimal_buff(dec, ptr, bin_size););
+  DBUG_RETURN(error);
+}
+
+
+int Field_new_decimal::store(const char *from, uint length,
+                             CHARSET_INFO *charset)
+{
+  int err;
+  my_decimal decimal_value;
+  DBUG_ENTER("Field_new_decimal::store(char*)");
+
+  switch ((err= str2my_decimal(E_DEC_FATAL_ERROR &
+                               ~(E_DEC_OVERFLOW | E_DEC_BAD_NUM),
+                               from, length, charset,  &decimal_value))) {
+  case E_DEC_TRUNCATED:
+    set_warning(MYSQL_ERROR::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
+    break;
+  case E_DEC_OVERFLOW:
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    set_value_on_overflow(&decimal_value, decimal_value.sign());
+    break;
+  case E_DEC_BAD_NUM:
+    push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
+                        ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                        "decimal", from, field_name,
+                        (ulong) table->in_use->row_count);
+    my_decimal_set_zero(&decimal_value);
+    break;
+  }
+
+  DBUG_EXECUTE("info", print_decimal(&decimal_value););
+  store_value(&decimal_value);
+  DBUG_RETURN(err);
+}
+
+
+int Field_new_decimal::store(double nr)
+{
+  my_decimal decimal_value;
+  int err;
+  DBUG_ENTER("Field_new_decimal::store(double)");
+
+  err= double2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW, nr,
+                         &decimal_value);
+  /*
+    TODO: fix following when double2my_decimal when double2decimal
+    will return E_DEC_TRUNCATED always correctly
+  */
+  if (!err)
+  {
+    double nr2;
+    my_decimal2double(E_DEC_FATAL_ERROR, &decimal_value, &nr2);
+    if (nr2 != nr)
+      err= E_DEC_TRUNCATED;
+  }
+  if (err)
+  {
+    if (check_overflow(err))
+      set_value_on_overflow(&decimal_value, decimal_value.sign());
+    /* Only issue a warning if store_value doesn't issue an warning */
+    table->in_use->got_warning= 0;
+  }
+  if (store_value(&decimal_value))
+    err= 1;
+  else if (err && !table->in_use->got_warning)
+    err= warn_if_overflow(err);
+  DBUG_RETURN(err);
+}
+
+
+int Field_new_decimal::store(longlong nr)
+{
+  my_decimal decimal_value;
+  int err;
+
+  if ((err= int2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
+                           nr, unsigned_flag, &decimal_value)))
+  {
+    if (check_overflow(err))
+      set_value_on_overflow(&decimal_value, decimal_value.sign());
+    /* Only issue a warning if store_value doesn't issue an warning */
+    table->in_use->got_warning= 0;
+  }
+  if (store_value(&decimal_value))
+    err= 1;
+  else if (err && !table->in_use->got_warning)
+    err= warn_if_overflow(err);
+  return err;
+}
+
+
+int Field_new_decimal::store_decimal(const my_decimal *decimal_value)
+{
+  return store_value(decimal_value);
+}
+
+
+double Field_new_decimal::val_real(void)
+{
+  double dbl;
+  my_decimal decimal_value;
+  my_decimal2double(E_DEC_FATAL_ERROR, val_decimal(&decimal_value), &dbl);
+  return dbl;
+}
+
+
+longlong Field_new_decimal::val_int(void)
+{
+  longlong i;
+  my_decimal decimal_value;
+  my_decimal2int(E_DEC_FATAL_ERROR, val_decimal(&decimal_value),
+                 unsigned_flag, &i);
+  return i;
+}
+
+
+my_decimal* Field_new_decimal::val_decimal(my_decimal *decimal_value)
+{
+  DBUG_ENTER("Field_new_decimal::val_decimal");
+  binary2my_decimal(E_DEC_FATAL_ERROR, ptr, decimal_value,
+                    field_length,
+                    decimals());
+  DBUG_EXECUTE("info", print_decimal_buff(decimal_value, ptr, bin_size););
+  DBUG_RETURN(decimal_value);
+}
+
+
+String *Field_new_decimal::val_str(String *val_buffer,
+                                   String *val_ptr __attribute__((unused)))
+{
+  my_decimal decimal_value;
+  int fixed_precision= (zerofill ?
+                        (field_length + (decimals() ? 1 : 0)) :
+                        0);
+  my_decimal2string(E_DEC_FATAL_ERROR, val_decimal(&decimal_value),
+                    fixed_precision, decimals(), '0',
+                    val_buffer);
+  return val_buffer;
+}
+
+
+int Field_new_decimal::cmp(const char *a,const char*b)
+{
+  return memcmp(a, b, bin_size);
+}
+
+
+void Field_new_decimal::sort_string(char *buff,
+                                    uint length __attribute__((unused)))
+{
+  memcpy(buff, ptr, bin_size);
+}
+
+
+void Field_new_decimal::sql_type(String &str) const
+{
+  CHARSET_INFO *cs= str.charset();
+  str.length(cs->cset->snprintf(cs, (char*) str.ptr(), str.alloced_length(),
+                                "decimal(%d,%d)", field_length, (int)dec));
+  add_zerofill_and_unsigned(str);
 }
 
 
@@ -2554,7 +3058,6 @@ int Field_float::store(longlong nr)
   return store((double)nr);
 }
 
-
 double Field_float::val_real(void)
 {
   float j;
@@ -2835,6 +3338,12 @@ int Field_double::store(longlong nr)
   return store((double)nr);
 }
 
+int Field_real::store_decimal(const my_decimal *dm)
+{
+  double dbl;
+  my_decimal2double(E_DEC_FATAL_ERROR, dm, &dbl);
+  return store(dbl);
+}
 
 double Field_double::val_real(void)
 {
@@ -2862,6 +3371,13 @@ longlong Field_double::val_int(void)
 #endif
     doubleget(j,ptr);
   return ((longlong) j);
+}
+
+
+my_decimal *Field_real::val_decimal(my_decimal *decimal_value)
+{
+  double2my_decimal(E_DEC_FATAL_ERROR, val_real(), decimal_value);
+  return decimal_value;
 }
 
 
@@ -3032,7 +3548,7 @@ void Field_double::sql_type(String &res) const
   TIMESTAMP_OLD_FIELD - old timestamp, if there was not any fields with
     auto-set-on-update (or now() as default) in this table before, then this 
     field has NOW() as default and is updated when row changes, else it is 
-    field which has 0 as default value and is not automaitcally updated.
+    field which has 0 as default value and is not automatically updated.
   TIMESTAMP_DN_FIELD - field with NOW() as default but not set on update
     automatically (TIMESTAMP DEFAULT NOW())
   TIMESTAMP_UN_FIELD - field which is set on update automatically but has not 
@@ -3094,7 +3610,7 @@ timestamp_auto_set_type Field_timestamp::get_auto_set_type() const
     return TIMESTAMP_AUTO_SET_ON_UPDATE;
   case TIMESTAMP_OLD_FIELD:
     /*
-      Altough we can have several such columns in legacy tables this
+      Although we can have several such columns in legacy tables this
       function should be called only for first of them (i.e. the one
       having auto-set property).
     */
@@ -3598,7 +4114,7 @@ String *Field_time::val_str(String *val_buffer,
 
 
 /*
-  Normally we would not consider 'time' as a vaild date, but we allow
+  Normally we would not consider 'time' as a valid date, but we allow
   get_date() here to be able to do things like
   DATE_FORMAT(time, "%l.%i %p")
 */
@@ -4319,7 +4835,7 @@ String *Field_datetime::val_str(String *val_buffer,
     longlongget(tmp,ptr);
 
   /*
-    Avoid problem with slow longlong aritmetic and sprintf
+    Avoid problem with slow longlong arithmetic and sprintf
   */
 
   part1=(long) (tmp/LL(1000000));
@@ -4437,14 +4953,14 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   int error= 0;
   uint32 not_used;
-  char buff[80];
+  char buff[STRING_BUFFER_USUAL_SIZE];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
   uint copy_length;
   
   /* See the comment for Field_long::store(long long) */
   DBUG_ASSERT(table->in_use == current_thd);
   
-  /* Convert character set if nesessary */
+  /* Convert character set if necessary */
   if (String::needs_conversion(length, cs, field_charset, &not_used))
   { 
     uint conv_errors;
@@ -4542,6 +5058,16 @@ int Field_string::store(longlong nr)
   return Field_string::store(buff,(uint)l,cs);
 }
 
+int Field_longstr::store_decimal(const my_decimal *d)
+{
+  uint buf_size= my_decimal_string_length(d);
+  char *buff= (char *)my_alloca(buf_size);
+  String str(buff, buf_size, &my_charset_bin);
+  my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str);
+  int result= store(str.ptr(), str.length(), str.charset());
+  my_afree(buff);
+  return result;
+}
 
 double Field_string::val_real(void)
 {
@@ -4558,6 +5084,14 @@ longlong Field_string::val_int(void)
   char *end_not_used;
   CHARSET_INFO *cs=charset();
   return my_strntoll(cs,ptr,field_length,10,&end_not_used,&not_used);
+}
+
+
+my_decimal *Field_longstr::val_decimal(my_decimal *decimal_value)
+{
+  str2my_decimal(E_DEC_FATAL_ERROR, ptr, field_length, charset(),
+                 decimal_value);
+  return decimal_value;
 }
 
 
@@ -4792,11 +5326,11 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   int error= 0;
   uint32 not_used, copy_length;
-  char buff[80];
+  char buff[STRING_BUFFER_USUAL_SIZE];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
   enum MYSQL_ERROR::enum_warning_level level= MYSQL_ERROR::WARN_LEVEL_WARN;
 
-  /* Convert character set if nesessary */
+  /* Convert character set if necessary */
   if (String::needs_conversion(length, cs, field_charset, &not_used))
   { 
     uint conv_errors;
@@ -4871,7 +5405,6 @@ longlong Field_varstring::val_int(void)
   return my_strntoll(field_charset, ptr+length_bytes, length, 10,
                      &end_not_used, &not_used);
 }
-
 
 String *Field_varstring::val_str(String *val_buffer __attribute__((unused)),
 				 String *val_ptr)
@@ -5273,7 +5806,7 @@ Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 		       enum utype unireg_check_arg, const char *field_name_arg,
 		       struct st_table *table_arg,uint blob_pack_length,
 		       CHARSET_INFO *cs)
-  :Field_str(ptr_arg, (1L << min(blob_pack_length,3)*8)-1L,
+  :Field_longstr(ptr_arg, (1L << min(blob_pack_length,3)*8)-1L,
 	     null_ptr_arg, null_bit_arg, unireg_check_arg, field_name_arg,
 	     table_arg, cs),
    packlength(blob_pack_length)
@@ -5396,12 +5929,12 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
   else
   {
     bool was_conversion;
-    char buff[80];
+    char buff[STRING_BUFFER_USUAL_SIZE];
     String tmpstr(buff,sizeof(buff), &my_charset_bin);
     uint copy_length;
     uint32 not_used;
 
-    /* Convert character set if nesessary */
+    /* Convert character set if necessary */
     if ((was_conversion= String::needs_conversion(length, cs, field_charset,
 						  &not_used)))
     { 
@@ -5415,7 +5948,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
     
     copy_length= max_data_length();
     /*
-      copy_length is ok as last argument to well_formed_len as this is never
+      copy_length is OK as last argument to well_formed_len as this is never
       used to limit the length of the data. The cut of long data is done with
       the 'min()' call below.
     */
@@ -5457,7 +5990,6 @@ int Field_blob::store(longlong nr)
   return Field_blob::store(value.ptr(), (uint) value.length(), cs);
 }
 
-
 double Field_blob::val_real(void)
 {
   int not_used;
@@ -5484,7 +6016,6 @@ longlong Field_blob::val_int(void)
   uint32 length=get_length(ptr);
   return my_strntoll(charset(),blob,length,10,NULL,&not_used);
 }
-
 
 String *Field_blob::val_str(String *val_buffer __attribute__((unused)),
 			    String *val_ptr)
@@ -5998,10 +6529,10 @@ int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   int err= 0;
   uint32 not_used;
-  char buff[80];
+  char buff[STRING_BUFFER_USUAL_SIZE];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
 
-  /* Convert character set if nesessary */
+  /* Convert character set if necessary */
   if (String::needs_conversion(length, cs, field_charset, &not_used))
   { 
     uint dummy_errors;
@@ -6182,10 +6713,10 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
   char *not_used;
   uint not_used2;
   uint32 not_used_offset;
-  char buff[80];
+  char buff[STRING_BUFFER_USUAL_SIZE];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
 
-  /* Convert character set if nesessary */
+  /* Convert character set if necessary */
   if (String::needs_conversion(length, cs, field_charset, &not_used_offset))
   { 
     uint dummy_errors;
@@ -6444,6 +6975,14 @@ int Field_bit::store(longlong nr)
 }
 
 
+int Field_bit::store_decimal(const my_decimal *val)
+{
+  int err= 0;
+  longlong i= convert_decimal2longlong(val, 1, &err);
+  return test(err | store(i));
+}
+
+
 double Field_bit::val_real(void)
 {
   return (double) Field_bit::val_int();
@@ -6484,6 +7023,13 @@ String *Field_bit::val_str(String *val_buffer,
   val_buffer->length(length);
   val_buffer->set_charset(&my_charset_bin);
   return val_buffer;
+}
+
+
+my_decimal *Field_bit::val_decimal(my_decimal *deciaml_value)
+{
+  int2my_decimal(E_DEC_FATAL_ERROR, val_int(), 1, deciaml_value);
+  return deciaml_value;
 }
 
 
@@ -6593,6 +7139,9 @@ void create_field::create_length_to_internal_length(void)
     /* We need one extra byte to store the bits we save among the null bits */
     key_length= pack_length+ test(length & 7);
     break;
+  case MYSQL_TYPE_NEWDECIMAL:
+    key_length= pack_length= my_decimal_get_binary_size(length, decimals);
+    break;
   default:
     key_length= pack_length= calc_pack_length(sql_type, length);
     break;
@@ -6646,7 +7195,8 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
   case FIELD_TYPE_LONG_BLOB:	return 4+portable_sizeof_char_ptr;
   case FIELD_TYPE_GEOMETRY:	return 4+portable_sizeof_char_ptr;
   case FIELD_TYPE_SET:
-  case FIELD_TYPE_ENUM: abort(); return 0;	// This shouldn't happen
+  case FIELD_TYPE_ENUM:
+  case FIELD_TYPE_NEWDECIMAL:  abort(); return 0;	// This shouldn't happen
   case FIELD_TYPE_BIT: return length / 8;
   default: return 0;
   }
@@ -6767,6 +7317,12 @@ Field *make_field(char *ptr, uint32 field_length,
 			     f_decimals(pack_flag),
 			     f_is_zerofill(pack_flag) != 0,
 			     f_is_dec(pack_flag) == 0);
+  case FIELD_TYPE_NEWDECIMAL:
+    return new Field_new_decimal(ptr,field_length,null_pos,null_bit,
+                                 unireg_check, field_name, table,
+                                 f_decimals(pack_flag),
+                                 f_is_zerofill(pack_flag) != 0,
+                                 f_is_dec(pack_flag) == 0);
   case FIELD_TYPE_FLOAT:
     return new Field_float(ptr,field_length,null_pos,null_bit,
 			   unireg_check, field_name, table,
@@ -6959,7 +7515,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
 /*
   Produce warning or note about data saved into field
 
-  SYNOPSYS
+  SYNOPSIS
     set_warning()
       level            - level of message (Note/Warning/Error)
       code             - error code of message to be produced
@@ -6991,7 +7547,7 @@ Field::set_warning(const uint level, const uint code, int cuted_increment)
 /*
   Produce warning or note about datetime string data saved into field
 
-  SYNOPSYS
+  SYNOPSIS
     set_datime_warning()
       level            - level of message (Note/Warning/Error)
       code             - error code of message to be produced
@@ -7020,7 +7576,7 @@ Field::set_datetime_warning(const uint level, const uint code,
 /*
   Produce warning or note about integer datetime value saved into field
 
-  SYNOPSYS
+  SYNOPSIS
     set_warning()
       level            - level of message (Note/Warning/Error)
       code             - error code of message to be produced
@@ -7052,7 +7608,7 @@ Field::set_datetime_warning(const uint level, const uint code,
 /*
   Produce warning or note about double datetime data saved into field
 
-  SYNOPSYS
+  SYNOPSIS
     set_warning()
       level            - level of message (Note/Warning/Error)
       code             - error code of message to be produced

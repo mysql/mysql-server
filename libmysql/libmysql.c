@@ -1809,6 +1809,18 @@ static my_bool my_realloc_str(NET *net, ulong length)
 }
 
 
+/* Clear possible error statee of struct NET */
+
+static void net_clear_error(NET *net)
+{
+  if (net->last_errno)
+  {
+    net->last_errno= 0;
+    net->last_error[0]= '\0';
+    strmov(net->sqlstate, not_error_sqlstate);
+  }
+}
+
 /*
   Set statement error code, sqlstate, and error message
   from given errcode and sqlstate.
@@ -2499,6 +2511,11 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
       set_stmt_error(stmt, CR_PARAMS_NOT_BOUND, unknown_sqlstate);
       DBUG_RETURN(1);
     }
+    if (stmt->mysql->status != MYSQL_STATUS_READY)
+    {
+      set_stmt_error(stmt, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
+      DBUG_RETURN(1);
+    }
 
     net_clear(net);				/* Sets net->write_pos */
     /* Reserve place for null-marker bytes */
@@ -3186,6 +3203,8 @@ my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     case MYSQL_TYPE_VARCHAR:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_DECIMAL:
+    case MYSQL_TYPE_NEWDECIMAL:
       param->store_param_func= store_param_str;
       /*
         For variable length types user must set either length or
@@ -3512,6 +3531,8 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_NEWDECIMAL:
   default:
   {
     /*
@@ -4249,6 +4270,8 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
     break;
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_NEWDECIMAL:
     DBUG_ASSERT(param->buffer_length != 0);
     param->fetch_result= fetch_result_str;
     break;
@@ -4308,6 +4331,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
     field->max_length= MAX_DATE_STRING_REP_LENGTH;
     break;
   case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_NEWDECIMAL:
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
   case MYSQL_TYPE_GEOMETRY:
@@ -4851,6 +4875,11 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
   if (mysql)
   {
     mysql->stmts= list_delete(mysql->stmts, &stmt->list);
+    /*
+      Clear NET error state: if the following commands come through
+      successfully, connection will still be usable for other commands.
+    */
+    net_clear_error(&mysql->net);
     if ((int) stmt->state > (int) MYSQL_STMT_INIT_DONE)
     {
       char buff[MYSQL_STMT_HEADER];             /* 4 bytes - stmt id */

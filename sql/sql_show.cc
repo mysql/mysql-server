@@ -311,7 +311,9 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
     if (db && !(col_access & TABLE_ACLS))
     {
       table_list.db= (char*) db;
+      table_list.db_length= strlen(db);
       table_list.table_name= file->name;
+      table_list.table_name_length= strlen(file->name);
       table_list.grant.privilege=col_access;
       if (check_grant(thd, TABLE_ACLS, &table_list, 1, UINT_MAX, 1))
         continue;
@@ -2271,15 +2273,21 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
       table->field[6]->store((const char*) pos,
                              strlen((const char*) pos), cs);
       if (field->has_charset())
-        table->field[8]->store((longlong) field->field_length/
+        table->field[8]->store((longlong) field->representation_length()/
                                field->charset()->mbmaxlen);
       else
-        table->field[8]->store((longlong) field->field_length);
-      table->field[9]->store((longlong) field->field_length);
+        table->field[8]->store((longlong) field->representation_length());
+      table->field[9]->store((longlong) field->representation_length());
 
       {
         uint dec =field->decimals();
         switch (field->type()) {
+        case FIELD_TYPE_NEWDECIMAL:
+          table->field[10]->store((longlong) field->field_length);
+          table->field[10]->set_notnull();
+          table->field[11]->store((longlong) field->decimals());
+          table->field[11]->set_notnull();
+          break;
         case FIELD_TYPE_DECIMAL:
         {
           uint int_part=field->field_length - (dec  ? dec + 1 : 0);
@@ -2287,8 +2295,8 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
           table->field[10]->set_notnull();
           table->field[11]->store((longlong) field->decimals());
           table->field[11]->set_notnull();
+          break;
         }
-        break;
         case FIELD_TYPE_TINY:
         case FIELD_TYPE_SHORT:
         case FIELD_TYPE_LONG:
@@ -2304,8 +2312,8 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
             table->field[11]->store((longlong) dec);
             table->field[11]->set_notnull();
           }
+          break;
         }
-        break;
         default:
           break;
         }
@@ -2540,7 +2548,9 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
 
   bzero((char*) &proc_tables,sizeof(proc_tables));
   proc_tables.db= (char*) "mysql";
+  proc_tables.db_length= 5;
   proc_tables.table_name= proc_tables.alias= (char*) "proc";
+  proc_tables.table_name_length= 4;
   proc_tables.lock_type= TL_READ;
   if (!(proc_table= open_ltable(thd, &proc_tables, TL_READ)))
   {
@@ -3218,6 +3228,7 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
                                           table_list->schema_table_name,
                                           table_list->alias);
   table_list->table_name= (char*) table->s->table_name;
+  table_list->table_name_length= strlen(table->s->table_name);
   table_list->table= table;
   table->next= thd->derived_tables;
   thd->derived_tables= table;

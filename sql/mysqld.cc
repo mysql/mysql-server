@@ -261,11 +261,12 @@ bool opt_large_files= sizeof(my_off_t) > 4;
 bool opt_help= 0;
 bool opt_verbose= 0;
 
-arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
+arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 {{&Arg_comparator::compare_string,     &Arg_comparator::compare_e_string},
  {&Arg_comparator::compare_real,       &Arg_comparator::compare_e_real},
  {&Arg_comparator::compare_int_signed, &Arg_comparator::compare_e_int},
- {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row}};
+ {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row},
+ {&Arg_comparator::compare_decimal,    &Arg_comparator::compare_e_decimal}};
 
 
 /* Global variables */
@@ -372,6 +373,7 @@ const char *sql_mode_str="OFF";
 const char *in_left_expr_name= "<left expr>";
 /* name of additional condition */
 const char *in_additional_cond= "<IN COND>";
+my_decimal decimal_zero;
 /* classes for comparation parsing/processing */
 Eq_creator eq_creator;
 Ne_creator ne_creator;
@@ -2384,6 +2386,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
 				 char **argv, const char **groups)
 {
   umask(((~my_umask) & 0666));
+  my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();			// Set tzname
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
@@ -3299,12 +3302,14 @@ default_service_handling(char **argv,
 
   if (Service.got_service_option(argv, "install"))
   {
-    Service.Install(1, servicename, displayname, path_and_service, account_name);
+    Service.Install(1, servicename, displayname, path_and_service,
+                    account_name);
     return 0;
   }
   if (Service.got_service_option(argv, "install-manual"))
   {
-    Service.Install(0, servicename, displayname, path_and_service, account_name);
+    Service.Install(0, servicename, displayname, path_and_service,
+                    account_name);
     return 0;
   }
   if (Service.got_service_option(argv, "remove"))
@@ -3324,7 +3329,7 @@ int main(int argc, char **argv)
      application PID e.g.: MySQLShutdown1890; MySQLShutdown2342
   */ 
   int10_to_str((int) GetCurrentProcessId(),strmov(shutdown_event_name,
-          "MySQLShutdown"), 10);
+                                                  "MySQLShutdown"), 10);
   
   /* Must be initialized early for comparison of service name */
   system_charset_info= &my_charset_utf8_general_ci;
@@ -3358,7 +3363,8 @@ int main(int argc, char **argv)
     }
     else if (argc == 3) /* install or remove any optional service */
     {
-      if (!default_service_handling(argv, argv[2], argv[2], file_path, "", NULL))
+      if (!default_service_handling(argv, argv[2], argv[2], file_path, "",
+                                    NULL))
 	return 0;
       if (Service.IsService(argv[2]))
       {
@@ -3385,24 +3391,20 @@ int main(int argc, char **argv)
         --defaults-file=file, but that was not enforced in 4.1, so we don't
         enforce it here.)
       */
-      char *extra_opt= NULL;
-      char *account_name = NULL;
+      const char *extra_opt= NullS;
+      const char *account_name = NullS;
       int index;
       for (index = 3; index < argc; index++)
       {
-        if (strncmp(argv[index], "--local-service", 15) == 0)
-        {
-          account_name=(char*)malloc(27);
-          strmov(account_name, "NT AUTHORITY\\LocalService\0");
-        }
+        if (!strcmp(argv[index], "--local-service"))
+          account_name= "NT AUTHORITY\\LocalService";
         else
-        {
           extra_opt= argv[index];
-        }
       }
 
-      if (argc != 5 || account_name)
-        if (!default_service_handling(argv, argv[2], argv[2], file_path, extra_opt, account_name))
+      if (argc == 4 || account_name)
+        if (!default_service_handling(argv, argv[2], argv[2], file_path,
+                                      extra_opt, account_name))
           return 0;
     }
     else if (argc == 1 && Service.IsService(MYSQL_SERVICENAME))
