@@ -210,10 +210,8 @@ public:
   }
   trans_res select_transformer(JOIN *join);
   trans_res single_value_transformer(JOIN *join,
-				     Item *left_expr,
 				     compare_func_creator func);
-  trans_res row_value_transformer(JOIN * join,
-				  Item *left_expr);
+  trans_res row_value_transformer(JOIN * join);
   longlong val_int();
   double val();
   String *val_str(String*);

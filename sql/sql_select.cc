@@ -8525,11 +8525,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   if (thd->is_fatal_error)
     DBUG_RETURN(TRUE);
 
-  /*
-    Here we pass 0 as the first argument to fix_fields that don't need
-    to do any stack checking (This is already done in the initial fix_fields).
-  */
-  cond->fix_fields((THD *) 0,(TABLE_LIST *) 0, (Item**)&cond);
+  cond->fix_fields(thd,(TABLE_LIST *) 0, (Item**)&cond);
   if (join_tab->select)
   {
     error=(int) cond->add(join_tab->select->cond);
