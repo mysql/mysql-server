@@ -3669,14 +3669,17 @@ grant_option:
         | MAX_QUERIES_PER_HOUR ULONG_NUM
         {
 	  Lex->mqh.questions=$2;
+	  Lex->mqh.bits |= 1;
 	}
         | MAX_UPDATES_PER_HOUR ULONG_NUM
         {
 	  Lex->mqh.updates=$2;
+	  Lex->mqh.bits |= 2;
 	}
         | MAX_CONNECTIONS_PER_HOUR ULONG_NUM
         {
 	  Lex->mqh.connections=$2;
+	  Lex->mqh.bits |= 4;
 	};
 
 begin:

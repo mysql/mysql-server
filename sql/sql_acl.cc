@@ -652,11 +652,11 @@ static void acl_update_user(const char *user, const char *host,
 	  acl_user->host.hostname && !strcmp(host,acl_user->host.hostname))
       {
 	acl_user->access=privileges;
-	if (mqh->questions)
+	if (mqh->bits & 1)
 	  acl_user->user_resource.questions=mqh->questions;
-	if (mqh->updates)
+	if (mqh->bits & 2)
 	  acl_user->user_resource.updates=mqh->updates;
-	if (mqh->connections)
+	if (mqh->bits & 4)
 	  acl_user->user_resource.connections=mqh->connections;
 #ifdef HAVE_OPENSSL  
 	acl_user->ssl_type=ssl_type;
@@ -1300,11 +1300,11 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 #endif /* HAVE_OPENSSL */
 
     USER_RESOURCES mqh = thd->lex.mqh;
-    if (mqh.questions)
+    if (mqh.bits & 1)
       table->field[28]->store((longlong) mqh.questions);
-    if (mqh.updates)
+    if (mqh.bits & 2)
       table->field[29]->store((longlong) mqh.updates);
-    if (mqh.connections)
+    if (mqh.bits & 4)
       table->field[30]->store((longlong) mqh.connections);
     mqh_used = mqh_used || mqh.questions || mqh.updates || mqh.connections;
   }

@@ -163,7 +163,7 @@ typedef struct	st_lex_user {
 
 
 typedef struct user_resources {
-  uint questions, updates, connections;
+  uint questions, updates, connections, bits;
 } USER_RESOURCES;
 
 typedef struct  user_conn {
