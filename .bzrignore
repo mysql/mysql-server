@@ -177,7 +177,6 @@ gmon.out
 heap/hp_test1
 heap/hp_test2
 include/my_config.h
-include/my_global.h
 include/mysql_version.h
 include/widec.h
 innobase/conftest.s1
