@@ -405,11 +405,8 @@ extern "C"
 void* 
 runSendRequest_C(void * me)
 {
-  my_thread_init();
   ((TransporterFacade*) me)->threadMainSend();
-  my_thread_end();
-  NdbThread_Exit(0);
-  return me;
+  return 0;
 }
 
 void TransporterFacade::threadMainSend(void)
@@ -443,11 +440,8 @@ extern "C"
 void* 
 runReceiveResponse_C(void * me)
 {
-  my_thread_init();
   ((TransporterFacade*) me)->threadMainReceive();
-  my_thread_end();
-  NdbThread_Exit(0);
-  return me;
+  return 0;
 }
 
 void TransporterFacade::threadMainReceive(void)
