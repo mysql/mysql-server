@@ -62,6 +62,15 @@ select one.id, two.val, elt(two.val,'one','two') from t1 one, t2 two where two.i
 drop table t1,t2;
 
 #
+# Test of failed ALTER TABLE on temporary table
+#
+create temporary table t1 (a int not null);
+insert into t1 values (1),(1);
+-- error 1062
+alter table t1 add primary key (a);
+drop table t1;
+
+#
 # In MySQL 4.0.4 doing a GROUP BY on a NULL column created a disk based
 # temporary table when a memory based one would be good enough.
 
