@@ -220,20 +220,20 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
     pOp = pTrans->getNdbIndexScanOperation(pIdx->getName(), tab.getName());
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
 
     if( pOp ->readTuples(lm, 0, parallelism, sorted) ) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
     
     check = pOp->interpret_exit_ok();
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
+      closeTransaction(pNdb);
       return NDBT_FAILED;
     }
   
