@@ -1683,10 +1683,6 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
       }
     }
   }
-  /* Mark that we can optimize LEFT JOIN */
-  if (key_field->val->type() == Item::NULL_ITEM &&
-      !key_field->field->real_maybe_null())
-    key_field->field->table->reginfo.not_exists_optimize=1;
 }
 
 
@@ -1777,13 +1773,26 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 
   {
     KEY_FIELD *key_fields,*end;
+    KEY_FIELD *field;
 
     if (!(key_fields=(KEY_FIELD*)
 	  thd->alloc(sizeof(key_fields[0])*(thd->cond_count+1)*2)))
       return TRUE; /* purecov: inspected */
-    and_level=0; end=key_fields;
+    and_level=0; field=end=key_fields;
+    if (my_init_dynamic_array(keyuse,sizeof(KEYUSE),20,64))
+      return TRUE;
     if (cond)
+    {
       add_key_fields(join_tab,&end,&and_level,cond,normal_tables);
+      for (; field != end ; field++)
+      {
+	add_key_part(keyuse,field);
+	/* Mark that we can optimize LEFT JOIN */
+	if (field->val->type() == Item::NULL_ITEM &&
+	    !field->field->real_maybe_null())
+	  field->field->table->reginfo.not_exists_optimize=1;
+      }
+    }
     for (i=0 ; i < tables ; i++)
     {
       if (join_tab[i].on_expr)
@@ -1792,11 +1801,16 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 		       join_tab[i].table->map);
       }
     }
-    if (my_init_dynamic_array(keyuse,sizeof(KEYUSE),20,64))
-      return TRUE;
     /* fill keyuse with found key parts */
-    for (KEY_FIELD *field=key_fields ; field != end ; field++)
+    for (; field != end ; field++)
+    {
       add_key_part(keyuse,field);
+      /* Mark that we can optimize LEFT JOIN */
+      if (field->field->table == join_tab->table &&
+	  field->val->type() == Item::NULL_ITEM &&
+	  !field->field->real_maybe_null())
+	join_tab->table->reginfo.not_exists_optimize=1;
+    }
   }
 
   if (thd->lex.select->ftfunc_list.elements)
