@@ -2236,10 +2236,9 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
   NdbTableImpl* tab = getTable(evnt.getTable());
 
   if(tab == 0){
-    //    m_error.code = 3249;
-    ndbout_c(":createEvent: table %s not found", evnt.getTable());
 #ifdef EVENT_DEBUG
-    ndbout_c("NdbDictionaryImpl::createEvent: table not found: %s", evnt.getTable());
+    ndbout_c("NdbDictionaryImpl::createEvent: table not found: %s",
+	     evnt.getTable());
 #endif
     return -1;
   }

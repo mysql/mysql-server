@@ -931,13 +931,50 @@ public:
     
     Event(const char *name);
     virtual ~Event();
-    void setName(const char *);
-    void setTable(const char *);
-    void addTableEvent(const TableEvent);
-    void setDurability(const EventDurability);
+    /**
+     * Set unique identifier for the event
+     */
+    void setName(const char *name);
+    /**
+     * Set table for which events should be detected
+     */
+    void setTable(const char *tableName);
+    /**
+     * Add type of event that should be detected
+     */
+    void addTableEvent(const TableEvent te);
+    /**
+     * Set durability of the event
+     */
+    void setDurability(const EventDurability ed);
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void addColumn(const Column &c);
+#endif
+    /**
+     * Add a column on which events should be detected
+     *
+     * @param attrId Column id
+     *
+     * @note errors will mot be detected until createEvent() is called
+     */
     void addEventColumn(unsigned attrId);
+    /**
+     * Add a column on which events should be detected
+     *
+     * @param columnName Column name
+     *
+     * @note errors will mot be detected until createEvent() is called
+     */
     void addEventColumn(const char * columnName);
+    /**
+     * Add several columns on which events should be detected
+     *
+     * @param n Number of columns
+     * @param columnNames Column names
+     *
+     * @note errors will mot be detected until 
+     *       NdbDictionary::Dictionary::createEvent() is called
+     */
     void addEventColumns(int n, const char ** columnNames);
 
     /**
@@ -950,7 +987,9 @@ public:
      */
     virtual int getObjectVersion() const;
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void print();
+#endif
 
   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
