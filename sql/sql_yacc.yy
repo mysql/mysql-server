@@ -382,8 +382,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	DAY_SECOND_SYM
 %token	DAY_SYM
 %token	DECODE_SYM
-%token	DES_ENCRYPT
-%token	DES_DECRYPT
+%token	DES_ENCRYPT_SYM
+%token	DES_DECRYPT_SYM
 %token	ELSE
 %token	ELT_FUNC
 %token	ENCODE_SYM
@@ -1647,13 +1647,13 @@ simple_expr:
 	  { $$= new Item_func_decode($3,$5.str); }
 	| ENCODE_SYM '(' expr ',' TEXT_STRING ')'
 	 { $$= new Item_func_encode($3,$5.str); }
-	| DES_DECRYPT '(' expr ')'
+	| DES_DECRYPT_SYM '(' expr ')'
         { $$= new Item_func_des_decrypt($3); }
-	| DES_DECRYPT '(' expr ',' expr ')'
+	| DES_DECRYPT_SYM '(' expr ',' expr ')'
         { $$= new Item_func_des_decrypt($3,$5); }
-	| DES_ENCRYPT '(' expr ')'
+	| DES_ENCRYPT_SYM '(' expr ')'
         { $$= new Item_func_des_encrypt($3); }
-	| DES_ENCRYPT '(' expr ',' expr ')'
+	| DES_ENCRYPT_SYM '(' expr ',' expr ')'
         { $$= new Item_func_des_encrypt($3,$5); }
 	| EXPORT_SET '(' expr ',' expr ',' expr ')'
 		{ $$= new Item_func_export_set($3, $5, $7); }

@@ -221,8 +221,9 @@ String *Item_func_des_encrypt::val_str(String *str)
   des_cblock ivec={0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
   struct st_des_keyblock keyblock;
   struct st_des_keyschedule keyschedule;
-  struct st_des_keyschedule *keyschedule_ptr=&keyschedule;
-  uint key_number=15;
+  struct st_des_keyschedule *keyschedule_ptr;
+  const char *append_str="********";
+  uint key_number, res_length, tail;
   String *res= args[0]->val_str(str);
 
   if ((null_value=args[0]->null_value))
@@ -231,23 +232,24 @@ String *Item_func_des_encrypt::val_str(String *str)
     return &empty_string;
 
   if (arg_count == 1)
-    keyschedule_ptr=des_keyschedule[key_number=default_des_key];
-  else if (args[1]->result_type == INT_RESULT)
+    keyschedule_ptr= &des_keyschedule[key_number=des_default_key];
+  else if (args[1]->result_type() == INT_RESULT)
   {
     key_number= (uint) args[1]->val_int();
     if (key_number > 9)
       goto error;
-    keyschedule_ptr= des_keyschedule[key_number];
+    keyschedule_ptr= &des_keyschedule[key_number];
   }
   else
   {
-    const char *append_str="********";
     uint tail,res_length;
     String *keystr=args[1]->val_str(&tmp_value);
     if (!keystr)
       goto error;
+    key_number=15;				// User key string
 
     /* We make good 24-byte (168 bit) key from given plaintext key with MD5 */
+    keyschedule_ptr= &keyschedule;
     EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
 		   (uchar*) keystr->ptr(), (int) keystr->length(),
 		   1, (uchar*) &keyblock,ivec);
@@ -268,13 +270,13 @@ String *Item_func_des_encrypt::val_str(String *str)
   tail=  (7-(res->length()+7) % 8); 	// 0..7 marking extra length
   res_length=res->length()+tail+1;
   if (tail && res->append(append_str, tail) || tmp_value.alloc(res_length))
-    goto err;
+    goto error;
 
   tmp_value.length(res_length);
-  tmp_value.[0]=(char) (128 | tail << 4 | key_number);
+  tmp_value[0]=(char) (128 | tail << 4 | key_number);
   // Real encryption
   des_ede3_cbc_encrypt((const uchar*) (res->ptr()),
-		       (uchar*) (tmp_value->ptr()+1),
+		       (uchar*) (tmp_value.ptr()+1),
 		       res->length(),
 		       keyschedule_ptr->ks1,
 		       keyschedule_ptr->ks2,
@@ -296,28 +298,30 @@ String *Item_func_des_decrypt::val_str(String *str)
   des_cblock ivec={0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
   struct st_des_keyblock keyblock;
   struct st_des_keyschedule keyschedule;
-  struct st_des_keyschedule *keyschedule_ptr=&keyschedule;
+  struct st_des_keyschedule *keyschedule_ptr;
   String *res= args[0]->val_str(str);
 
   if ((null_value=args[0]->null_value))
     return 0;
-  if (res->length(0) < 9 || (res->length()) % 8 != 1 || !(res->[0] & 128))
+  if (res->length() < 9 || (res->length() % 8) != 1 || !((*res)[0] & 128))
     return res;				// Skip decryption if not encrypted
 
   if (arg_count == 1)			// If automatic uncompression
   {
-    uint key_number=res->[0] & 15;
+    uint key_number=(uint) (*res)[0] & 15;
     // Check if automatic key and that we have privilege to uncompress using it
     if (!(current_thd->master_access & PROCESS_ACL) || key_number > 9)
       goto error;
-    keyschedule_ptr=des_keyschedule[key_number-1];
+    keyschedule_ptr= &des_keyschedule[key_number];
   }
   else
   {
     // We make good 24-byte (168 bit) key from given plaintext key with MD5
     String *keystr=args[1]->val_str(&tmp_value);
-    if (!key_str)
+    if (!keystr)
       goto error;
+
+    keyschedule_ptr= &keyschedule;
     EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
 		   (uchar*) keystr->ptr(),(int) keystr->length(),
 		   1,(uchar*) &keyblock,ivec);
@@ -327,11 +331,11 @@ String *Item_func_des_decrypt::val_str(String *str)
     des_set_key_unchecked(&keyblock.key3,keyschedule_ptr->ks3); 
   }
   if (tmp_value.alloc(res->length()-1))
-    goto err;
+    goto error;
   /* Restore old length of key */
-  tmp_value.length(res->length()-1-(((uchar) res->[0] >> 4) & 7));
+  tmp_value.length(res->length()-1-(((uchar) (*res)[0] >> 4) & 7));
   des_ede3_cbc_encrypt((const uchar*) res->ptr()+1,
-		       (uchar*) (tmp_value->ptr()),
+		       (uchar*) (tmp_value.ptr()),
 		       res->length()-1,
 		       keyschedule_ptr->ks1,
 		       keyschedule_ptr->ks2,
