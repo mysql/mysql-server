@@ -94,13 +94,15 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   }
   else
     info->buffer=0;
+  DBUG_PRINT("info",("init_io_cache: cachesize = %u",cachesize));
   info->pos_in_file= seek_offset;
   info->read_length=info->buffer_length=cachesize;
-  info->seek_not_done=test(file >= 0);		/* Seek not done */
+  info->seek_not_done= test(file >= 0 && type != READ_FIFO &&
+			    type != READ_NET);
   info->myflags=cache_myflags & ~(MY_NABP | MY_FNABP);
   info->rc_request_pos=info->rc_pos=info->buffer;
 
-  if (type == READ_CACHE || type == READ_NET)	/* the same logic */
+  if (type == READ_CACHE || type == READ_NET || type == READ_FIFO)
   {
     info->rc_end=info->buffer;			/* Nothing in cache */
   }
@@ -108,7 +110,9 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   {
     info->rc_end=info->buffer+info->buffer_length- (seek_offset & (IO_SIZE-1));
   }
-  info->end_of_file=(type == READ_NET) ? 0 : MY_FILEPOS_ERROR;	/* May be changed by user */
+  /* end_of_file may be changed by user later */
+  info->end_of_file= ((type == READ_NET || type == READ_FIFO ) ? 0
+		      : MY_FILEPOS_ERROR);
   info->type=type;
   info->error=0;
   info->read_function=(type == READ_NET) ? _my_b_net_read : _my_b_read; /* net | file */
@@ -187,7 +191,7 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
       DBUG_RETURN(1);
     info->pos_in_file=seek_offset;
     info->rc_request_pos=info->rc_pos=info->buffer;
-    if (type == READ_CACHE || type == READ_NET)
+    if (type == READ_CACHE || type == READ_NET || type == READ_FIFO)
     {
       info->rc_end=info->buffer;		/* Nothing in cache */
     }
@@ -195,7 +199,8 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
     {
       info->rc_end=info->buffer+info->buffer_length-
 	(seek_offset & (IO_SIZE-1));
-      info->end_of_file=(type == READ_NET) ? 0 : MY_FILEPOS_ERROR;
+      info->end_of_file= ((type == READ_NET || type == READ_FIFO) ? 0 :
+			  MY_FILEPOS_ERROR);
     }
   }
   info->type=type;
@@ -259,9 +264,10 @@ int _my_b_read(register IO_CACHE *info, byte *Buffer, uint Count)
     left_length+=length;
     diff_length=0;
   }
-  max_length=info->end_of_file - pos_in_file;
-  if (max_length > info->read_length-diff_length)
-    max_length=info->read_length-diff_length;
+  max_length=info->read_length-diff_length;
+  if (info->type != READ_FIFO &&
+      (info->end_of_file - pos_in_file) < max_length)
+    max_length = info->end_of_file - pos_in_file;
   if (!max_length)
   {
     if (Count)

@@ -43,8 +43,9 @@
 #define HA_OPEN_ABORT_IF_LOCKED		0	/* default */
 #define HA_OPEN_WAIT_IF_LOCKED		1
 #define HA_OPEN_IGNORE_IF_LOCKED	2
-#define HA_OPEN_TMP_TABLE		4
-#define HA_OPEN_DELAY_KEY_WRITE		8
+#define HA_OPEN_TMP_TABLE		4	/* Table is a temp table */
+#define HA_OPEN_DELAY_KEY_WRITE		8	/* Don't update index  */
+#define HA_OPEN_ABORT_IF_CRASHED	16
 
 	/* The following is parameter to ha_rkey() how to use key */
 
@@ -163,7 +164,7 @@ enum ha_base_keytype {
 #define HA_OPTION_TEMP_COMPRESS_RECORD	((uint) 16384)	/* set by isamchk */
 #define HA_OPTION_READ_ONLY_DATA	((uint) 32768)	/* Set by isamchk */
 
-	/* Bits in flag to ni_create() */
+	/* Bits in flag to create() */
 
 #define HA_DONT_TOUCH_DATA	1	/* Don't empty datafile (isamchk) */
 #define HA_PACK_RECORD		2	/* Request packed record format */
@@ -203,6 +204,7 @@ enum ha_base_keytype {
 #define HA_ERR_FOUND_DUPP_UNIQUE 141	/* Dupplicate unique on write */
 #define HA_ERR_UNKNOWN_CHARSET	 142	/* Can't open charset */
 #define HA_ERR_WRONG_TABLE_DEF	 143
+#define HA_ERR_CRASHED_ON_REPAIR 144	/* Last (automatic?) repair failed */
 
 	/* Other constants */
 

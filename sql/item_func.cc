@@ -2018,3 +2018,16 @@ bool Item_func_match::eq(const Item *item) const
 }
 
 
+/***************************************************************************
+  System variables
+  This has to be recoded after we get more than 3 system variables
+****************************************************************************/
+
+Item *get_system_var(LEX_STRING name)
+{
+  if (!strcmp(name.str,"IDENTITY"))
+    return new Item_int((char*) "@@IDENTITY",
+			current_thd->insert_id(),21);
+  my_error(ER_UNKNOWN_SYSTEM_VARIABLE,MYF(0),name);
+  return 0;
+}

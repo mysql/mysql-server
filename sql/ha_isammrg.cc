@@ -35,7 +35,7 @@
 const char **ha_isammrg::bas_ext() const
 { static const char *ext[]= { ".MRG", NullS }; return ext; }
 
-int ha_isammrg::open(const char *name, int mode, int test_if_locked)
+int ha_isammrg::open(const char *name, int mode, uint test_if_locked)
 {
   char name_buff[FN_REFLEN];
   if (!(file=mrg_open(fn_format(name_buff,name,"","",2 | 4), mode,

@@ -1246,7 +1246,6 @@ err:
 			  MYF(MY_WME)));
     }
     mi_mark_crashed_on_repair(info);
-    info->update|= HA_STATE_CHANGED;
   }
   if (sort_info->record)
     my_free(sort_info->record,MYF(0));
@@ -1544,7 +1543,8 @@ err:
 
 int change_to_newfile(const char * filename, const char * old_ext,
 		      const char * new_ext,
-		      uint raid_chunks __attribute__((unused)))
+		      uint raid_chunks __attribute__((unused)),
+		      myf MyFlags)
 {
   char old_filename[FN_REFLEN],new_filename[FN_REFLEN];
 #ifdef USE_RAID
@@ -1552,11 +1552,11 @@ int change_to_newfile(const char * filename, const char * old_ext,
     return my_raid_redel(fn_format(old_filename,filename,"",old_ext,2+4),
 			 fn_format(new_filename,filename,"",new_ext,2+4),
 			 raid_chunks,
-			 MYF(MY_WME+MY_LINK_WARNING));
+			 MYF(MY_WME | MY_LINK_WARNING | MyFlags));
 #endif
   return my_redel(fn_format(old_filename,filename,"",old_ext,2+4),
 		  fn_format(new_filename,filename,"",new_ext,2+4),
-		  MYF(MY_WME+MY_LINK_WARNING));
+		  MYF(MY_WME | MY_LINK_WARNING | MyFlags));
 } /* change_to_newfile */
 
 
@@ -1901,9 +1901,10 @@ err:
       VOID(my_close(new_file,MYF(0)));
       VOID(my_raid_delete(param->temp_filename,info->s->base.raid_chunks,
 			  MYF(MY_WME)));
+      if (info->dfile == new_file)
+	info->dfile=0;
     }
     mi_mark_crashed_on_repair(info);
-    info->update|= HA_STATE_CHANGED;
   }
   else if (key_map == share->state.key_map)
     share->state.changed&= ~STATE_NOT_OPTIMIZED_KEYS;
@@ -1986,7 +1987,11 @@ static int sort_get_next_record(SORT_INFO *sort_info)
     {
       if (my_b_read(&param->read_cache,sort_info->record,
 		    share->base.pack_reclength))
+      {
+	if (param->read_cache.error)
+	  param->out_flag |= O_DATA_LOST;
 	DBUG_RETURN(-1);
+      }
       sort_info->start_recpos=sort_info->pos;
       if (!sort_info->fix_datafile)
 	sort_info->filepos=sort_info->pos;
@@ -2179,14 +2184,14 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 	    param->read_cache.end_of_file)
 	{
 	  mi_check_print_info(param,"Found block that points outside data file at %s",
-		     llstr(sort_info->start_recpos,llbuff));
+			      llstr(sort_info->start_recpos,llbuff));
 	  goto try_next;
 	}
 	if (_mi_read_cache(&param->read_cache,to,block_info.filepos,
 			   block_info.data_len, test(found_record == 1)))
 	{
 	  mi_check_print_info(param,"Read error for block at: %s (error: %d); Skipped",
-		     llstr(block_info.filepos,llbuff),my_errno);
+			      llstr(block_info.filepos,llbuff),my_errno);
 	  goto try_next;
 	}
 	left_length-=block_info.data_len;
@@ -2195,13 +2200,14 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 	if (pos == HA_OFFSET_ERROR && left_length)
 	{
 	  mi_check_print_info(param,"Wrong block with wrong total length starting at %s",
-		     llstr(sort_info->start_recpos,llbuff));
+			      llstr(sort_info->start_recpos,llbuff));
 	  goto try_next;
 	}
 	if (pos + MI_BLOCK_INFO_HEADER_LENGTH > param->read_cache.end_of_file)
 	{
 	  mi_check_print_info(param,"Found link that points at %s (outside data file) at %s",
-		     llstr(pos,llbuff2), llstr(sort_info->start_recpos,llbuff));
+			      llstr(pos,llbuff2),
+			      llstr(sort_info->start_recpos,llbuff));
 	  goto try_next;
 	}
       } while (left_length);
@@ -2218,7 +2224,7 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 	  if (_mi_rec_check(info, sort_info->record))
 	  {
 	    mi_check_print_info(param,"Found wrong packed record at %s",
-		       llstr(sort_info->start_recpos,llbuff));
+				llstr(sort_info->start_recpos,llbuff));
 	    goto try_next;
 	  }
 	}
@@ -2251,7 +2257,8 @@ static int sort_get_next_record(SORT_INFO *sort_info)
       {
 	if (! searching)
 	  mi_check_print_info(param,"Found block with wrong recordlength: %d at %s\n",
-		     block_info.rec_len, llstr(sort_info->pos,llbuff));
+			      block_info.rec_len,
+			      llstr(sort_info->pos,llbuff));
 	continue;
       }
       if (_mi_read_cache(&param->read_cache,(byte*) info->rec_buff,
@@ -2259,14 +2266,15 @@ static int sort_get_next_record(SORT_INFO *sort_info)
       {
 	if (! searching)
 	  mi_check_print_info(param,"Couldn't read hole record from %s",
-		     llstr(sort_info->pos,llbuff));
+			      llstr(sort_info->pos,llbuff));
 	continue;
       }
       if (_mi_pack_rec_unpack(info,sort_info->record,info->rec_buff,
 			      block_info.rec_len))
       {
 	if (! searching)
-	  mi_check_print_info(param,"Found wrong record at %s", llstr(sort_info->pos,llbuff));
+	  mi_check_print_info(param,"Found wrong record at %s",
+			      llstr(sort_info->pos,llbuff));
 	continue;
       }
       if (!sort_info->fix_datafile)
@@ -3011,9 +3019,13 @@ void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows)
 }
 
 
-/* Return TRUE if we can use repair by sorting */
+/*
+  Return TRUE if we can use repair by sorting
+  One can set the force argument to force to use sorting
+  even if the temporary file would be quite big!
+*/
 
-my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows)
+my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows, my_bool force)
 {
   MYISAM_SHARE *share=info->s;
   uint i;

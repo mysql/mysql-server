@@ -451,8 +451,9 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	  if (ha_option & HA_HAVE_KEY_READ_ONLY &&
 	      field->key_length() == key_part->length)
 	  {
-	    if (field->key_type() != HA_KEYTYPE_TEXT ||
-		!(ha_option & HA_KEY_READ_WRONG_STR))
+	    if (field->key_type() != HA_KEYTYPE_TEXT &&
+		!(ha_option & HA_KEY_READ_WRONG_STR) &&
+		!(keyinfo->flags & HA_FULLTEXT))
 	      field->part_of_key|= ((key_map) 1 << key);
 	  }
 	  if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&
