@@ -379,7 +379,7 @@ SQL_SELECT::~SQL_SELECT()
   close_cached_file(&file);
 }
 
-#undef index					// Fix or Unixware 7
+#undef index					// Fix for Unixware 7
 
 QUICK_SELECT::QUICK_SELECT(TABLE *table,uint key_nr,bool no_alloc)
   :error(0),index(key_nr),max_used_key_length(0),head(table),

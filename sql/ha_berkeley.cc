@@ -1004,10 +1004,10 @@ int ha_berkeley::remove_key(DB_TXN *sub_trans, uint keynr, const byte *record,
       We will never come here with keynr = primary_key
     */
     dbug_assert(keynr != primary_key && prim_key->data != key_buff2);
-    DBC *cursor;
-    if (!(error=file->cursor(key_file[keynr], sub_trans, &cursor, 0)))
+    DBC *tmp_cursor;
+    if (!(error=file->cursor(key_file[keynr], sub_trans, &tmp_cursor, 0)))
     {
-      if (!(error=cursor->c_get(cursor,
+      if (!(error=cursor->c_get(tmp_cursor,
 			       (keynr == primary_key ?
 				prim_key :
 				create_key(&key, keynr, key_buff2, record)),
@@ -1015,9 +1015,9 @@ int ha_berkeley::remove_key(DB_TXN *sub_trans, uint keynr, const byte *record,
 				packed_record :  prim_key),
 				DB_GET_BOTH)))
       {					// This shouldn't happen
-	error=cursor->c_del(cursor,0);
+	error=tmp_cursor->c_del(tmp_cursor,0);
       }
-      int result=cursor->c_close(cursor);
+      int result=tmp_cursor->c_close(tmp_cursor);
       if (!error)
 	error=result;
     }
@@ -1661,7 +1661,6 @@ longlong ha_berkeley::get_auto_increment()
   else
   {
     DBT row,old_key;
-    DBC *auto_cursor;
     bzero((char*) &row,sizeof(row));
     uint key_len;
     KEY *key_info= &table->key_info[active_index];
@@ -1673,13 +1672,11 @@ longlong ha_berkeley::get_auto_increment()
     /* Store for compare */
     memcpy(old_key.data=key_buff2, key_buff, (old_key.size=last_key.size));
     error=1;
-    if (!(file->cursor(key_file[active_index], transaction, &auto_cursor, 0)))
     {
       /* Modify the compare so that we will find the next key */
       key_info->handler.bdb_return_if_eq= 1;
       /* We lock the next key as the new key will probl. be on the same page */
-      error=auto_cursor->c_get(auto_cursor, &last_key, &row,
-			       DB_SET_RANGE | DB_RMW);
+      error=cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE | DB_RMW);
       key_info->handler.bdb_return_if_eq= 0;
       if (!error || error == DB_NOTFOUND)
       {
@@ -1688,15 +1685,14 @@ longlong ha_berkeley::get_auto_increment()
 	  biggest key with the given prefix
 	  */
 	error=1;
-	if (!auto_cursor->c_get(auto_cursor, &last_key, &row, DB_PREV | DB_RMW)
-	    && !berkeley_cmp_packed_key(key_file[active_index], &old_key,
-					&last_key))
+	if (!cursor->c_get(cursor, &last_key, &row, DB_PREV | DB_RMW) &&
+	    !berkeley_cmp_packed_key(key_file[active_index], &old_key,
+				     &last_key))
 	{
 	  error=0;				// Found value
 	  unpack_key(table->record[1], &last_key, active_index);
 	}
       }
-      auto_cursor->c_close(auto_cursor);
     }
   }
   if (!error)
@@ -1711,7 +1707,6 @@ longlong ha_berkeley::get_auto_increment()
 /****************************************************************************
 	 Analyzing, checking, and optimizing tables
 ****************************************************************************/
-
 
 static void print_msg(THD *thd, const char *table_name, const char *op_name,
 		      const char *msg_type, const char *fmt, ...)

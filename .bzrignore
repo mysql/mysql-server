@@ -174,3 +174,4 @@ support-files/mysql-log-rotate
 support-files/mysql.server
 support-files/mysql.spec
 tags
+libmysql_r/conf_to_src
