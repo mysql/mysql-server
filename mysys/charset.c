@@ -459,7 +459,9 @@ static my_bool init_available_charsets(myf myflags)
     init_compiled_charsets(myflags);
     
     /* Copy compiled charsets */
-    for (cs=all_charsets; cs < all_charsets+255 ; cs++)
+    for (cs=all_charsets;
+	 cs < all_charsets+array_elements(all_charsets)-1 ;
+	 cs++)
     {
       if (*cs)
       {
@@ -486,10 +488,11 @@ void free_charsets(void)
 uint get_collation_number(const char *name)
 {
   CHARSET_INFO **cs;
-  if (init_available_charsets(MYF(0)))	/* If it isn't initialized */
-    return 0;
+  init_available_charsets(MYF(0));
   
-  for (cs= all_charsets; cs < all_charsets+255; ++cs)
+  for (cs= all_charsets;
+       cs < all_charsets+array_elements(all_charsets)-1 ;
+       cs++)
   {
     if ( cs[0] && cs[0]->name && 
          !my_strcasecmp(&my_charset_latin1, cs[0]->name, name))
@@ -498,13 +501,15 @@ uint get_collation_number(const char *name)
   return 0;   /* this mimics find_type() */
 }
 
+
 uint get_charset_number(const char *charset_name, uint cs_flags)
 {
   CHARSET_INFO **cs;
-  if (init_available_charsets(MYF(0)))	/* If it isn't initialized */
-    return 0;
+  init_available_charsets(MYF(0));
   
-  for (cs= all_charsets; cs < all_charsets+255; ++cs)
+  for (cs= all_charsets;
+       cs < all_charsets+array_elements(all_charsets)-1 ;
+       cs++)
   {
     if ( cs[0] && cs[0]->csname && (cs[0]->state & cs_flags) &&
          !my_strcasecmp(&my_charset_latin1, cs[0]->csname, charset_name))
@@ -517,8 +522,7 @@ uint get_charset_number(const char *charset_name, uint cs_flags)
 const char *get_charset_name(uint charset_number)
 {
   CHARSET_INFO *cs;
-  if (init_available_charsets(MYF(0)))	/* If it isn't initialized */
-    return "?";
+  init_available_charsets(MYF(0));
 
   cs=all_charsets[charset_number];
   if (cs && (cs->number == charset_number) && cs->name )
@@ -554,9 +558,12 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
 CHARSET_INFO *get_charset(uint cs_number, myf flags)
 {
   CHARSET_INFO *cs;
+  if (cs_number == default_charset_info->number)
+    return default_charset_info;
+
   (void) init_available_charsets(MYF(0));	/* If it isn't initialized */
   
-  if (!cs_number)
+  if (!cs_number || cs_number >= array_elements(all_charsets)-1)
     return NULL;
   
   cs=get_internal_charset(cs_number, flags);
