@@ -832,7 +832,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
       it will be slow because it will iterate through the list
       again. We just to do kill the thread ourselves.
     */
-    tmp->awake(1/*prepare to die*/);
+    tmp->awake(THD::KILL_QUERY);
     pthread_mutex_unlock(&tmp->LOCK_delete);
   }
 }

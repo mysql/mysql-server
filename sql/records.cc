@@ -154,7 +154,7 @@ static int rr_sequential(READ_RECORD *info)
   {
     if (info->thd->killed)
     {
-      my_error(ER_SERVER_SHUTDOWN,MYF(0));
+      my_error(info->thd->killed,MYF(0));
       return 1;
     }
     if (tmp != HA_ERR_RECORD_DELETED)

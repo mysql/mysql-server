@@ -2923,7 +2923,7 @@ void Query_cache::wreck(uint line, const char *message)
   DBUG_PRINT("warning", ("%5d QUERY CACHE WRECK => DISABLED",line));
   DBUG_PRINT("warning", ("=================================="));
   if (thd)
-    thd->killed = 1;
+    thd->killed= THD::KILL_CONNECTION;
   cache_dump();
   /* check_integrity(0); */ /* Can't call it here because of locks */
   bins_dump();
