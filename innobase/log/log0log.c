@@ -3096,8 +3096,8 @@ log_print(
 
 	current_time = time(NULL);
 			
-	time_elapsed = difftime(current_time, log_sys->last_printout_time);
-
+	time_elapsed = 0.001 + difftime(current_time,
+					log_sys->last_printout_time);
 	buf += sprintf(buf,
 	"%lu pending log writes, %lu pending chkp writes\n"
 	"%lu log i/o's done, %.2f log i/o's/second\n",
@@ -3110,4 +3110,15 @@ log_print(
 	log_sys->last_printout_time = current_time;
 
 	mutex_exit(&(log_sys->mutex));
+}
+
+/**************************************************************************
+Refreshes the statistics used to print per-second averages. */
+
+void
+log_refresh_stats(void)
+/*===================*/
+{
+	log_sys->n_log_ios_old = log_sys->n_log_ios;
+	log_sys->last_printout_time = time(NULL);
 }

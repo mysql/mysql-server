@@ -1487,7 +1487,7 @@ trx_print(
   	}
 
         buf += sprintf(buf, ", OS thread id %lu",
-		       (ulint)trx->mysql_thread_id);
+		       os_thread_pf(trx->mysql_thread_id));
 
 	if (ut_strlen(trx->op_info) > 0) {
 		buf += sprintf(buf, " %s", trx->op_info);

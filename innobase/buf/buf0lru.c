@@ -27,6 +27,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0rea.h"
 #include "btr0sea.h"
 #include "os0file.h"
+#include "log0recv.h"
 
 /* The number of blocks from the LRU_old pointer onward, including the block
 pointed to, must be 3/8 of the whole LRU list length, except that the
@@ -204,7 +205,7 @@ buf_LRU_get_free_block(void)
 loop:
 	mutex_enter(&(buf_pool->mutex));
 
-	if (UT_LIST_GET_LEN(buf_pool->free)
+	if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
 	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 10) {
 	   	ut_print_timestamp(stderr);
 
@@ -216,7 +217,7 @@ loop:
 
 		ut_a(0);
 	   
-	} else if (UT_LIST_GET_LEN(buf_pool->free)
+	} else if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
 	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 5) {
 
 	   	/* Over 80 % of the buffer pool is occupied by lock heaps
@@ -232,7 +233,7 @@ loop:
 
 		srv_print_innodb_monitor = TRUE;
 
-	} else if (UT_LIST_GET_LEN(buf_pool->free)
+	} else if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
 	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 4) {
 
 		/* Switch off the InnoDB Monitor; this is a simple way

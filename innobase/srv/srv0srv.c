@@ -2018,7 +2018,7 @@ srv_table_reserve_slot_for_mysql(void)
 
 			        fprintf(stderr,
 "Slot %lu: thread id %lu, type %lu, in use %lu, susp %lu, time %lu\n",
-				  i, (ulint)(slot->id),
+				  i, os_thread_pf(slot->id),
 				  slot->type, slot->in_use,
 				  slot->suspended,
 			  (ulint)difftime(ut_time(), slot->suspend_time));
@@ -2163,6 +2163,34 @@ srv_release_mysql_thread_if_suspended(
 }
 
 /**********************************************************************
+Refreshes the values used to calculate per-second averages. */
+static
+void
+srv_refresh_innodb_monitor_stats(void)
+/*==================================*/
+{
+	mutex_enter(&srv_innodb_monitor_mutex);
+
+	srv_last_monitor_time = time(NULL);
+
+	os_aio_refresh_stats();
+
+	btr_cur_n_sea_old = btr_cur_n_sea;
+	btr_cur_n_non_sea_old = btr_cur_n_non_sea;
+
+	log_refresh_stats();
+	
+	buf_refresh_io_stats();
+
+	srv_n_rows_inserted_old = srv_n_rows_inserted;
+	srv_n_rows_updated_old = srv_n_rows_updated;
+	srv_n_rows_deleted_old = srv_n_rows_deleted;
+	srv_n_rows_read_old = srv_n_rows_read;
+
+	mutex_exit(&srv_innodb_monitor_mutex);
+}
+
+/**********************************************************************
 Sprintfs to a buffer the output of the InnoDB Monitor. */
 
 void
@@ -2199,7 +2227,7 @@ srv_sprintf_innodb_monitor(
 	       	       "=====================================\n");
 
 	buf += sprintf(buf,
-"Per second values calculated from the last %lu seconds\n",
+"Per second averages calculated from the last %lu seconds\n",
 					(ulint)time_elapsed);
 	       	       
 	buf += sprintf(buf, "----------\n"
@@ -2236,8 +2264,8 @@ srv_sprintf_innodb_monitor(
 						/ time_elapsed,
 			(btr_cur_n_non_sea - btr_cur_n_non_sea_old)
 						/ time_elapsed);
-			btr_cur_n_sea_old = btr_cur_n_sea;
-			btr_cur_n_non_sea_old = btr_cur_n_non_sea;
+	btr_cur_n_sea_old = btr_cur_n_sea;
+	btr_cur_n_non_sea_old = btr_cur_n_non_sea;
 
 	buf += sprintf(buf,"---\n"
 		       "LOG\n"
@@ -2279,10 +2307,10 @@ srv_sprintf_innodb_monitor(
 			(srv_n_rows_read - srv_n_rows_read_old)
 						/ time_elapsed);
 
-		srv_n_rows_inserted_old = srv_n_rows_inserted;
-		srv_n_rows_updated_old = srv_n_rows_updated;
-		srv_n_rows_deleted_old = srv_n_rows_deleted;
-		srv_n_rows_read_old = srv_n_rows_read;
+	srv_n_rows_inserted_old = srv_n_rows_inserted;
+	srv_n_rows_updated_old = srv_n_rows_updated;
+	srv_n_rows_deleted_old = srv_n_rows_deleted;
+	srv_n_rows_read_old = srv_n_rows_read;
 
 	buf += sprintf(buf, "----------------------------\n"
 		       "END OF INNODB MONITOR OUTPUT\n"
@@ -2325,7 +2353,7 @@ loop:
 	/* When someone is waiting for a lock, we wake up every second
 	and check if a timeout has passed for a lock wait */
 
-	os_thread_sleep(1000000);		
+	os_thread_sleep(1000000);
 
 	/* In case mutex_exit is not a memory barrier, it is
 	theoretically possible some threads are left waiting though
@@ -2342,9 +2370,9 @@ loop:
 
 	    if (srv_print_innodb_monitor) {
 
-	    	buf = mem_alloc(100000);
+	        buf = mem_alloc(100000);
 
-	    	srv_sprintf_innodb_monitor(buf, 100000);
+	        srv_sprintf_innodb_monitor(buf, 100000);
 
 	    	printf("%s", buf);
 
@@ -2484,6 +2512,13 @@ loop:
 	cnt++;
 
 	os_thread_sleep(2000000);
+
+	if (difftime(time(NULL), srv_last_monitor_time) > 60) {
+		/* We referesh InnoDB Monitor values so that averages are
+		printed from at most 60 last seconds */
+
+		srv_refresh_innodb_monitor_stats();
+	}
 
 /*	mem_print_new_info();
 

@@ -55,6 +55,7 @@ typedef byte	mysql_byte;
 extern "C" {
 #include "../innobase/include/univ.i"
 #include "../innobase/include/os0file.h"
+#include "../innobase/include/os0thread.h"
 #include "../innobase/include/srv0start.h"
 #include "../innobase/include/srv0srv.h"
 #include "../innobase/include/trx0roll.h"
