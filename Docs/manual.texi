@@ -47375,7 +47375,7 @@ A C++ database independent library that supports MySQL.
 @item @uref{http://www.mysql.com/Downloads/Contrib/DelphiMySQL2.zip}
 Delphi interface to @code{libmysql.dll}, by @email{bsilva@@umesd.k12.or.us}.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/Udmysel.pas}
+@item @uref{http://www.mysql.com/Downloads/Contrib/Udmysql.pas}
 A wrapper for libmysql.dll for usage in Delphi. By Reiner Sombrowsky.
 
 @item @uref{http://www.fichtner.net/delphi/mysql.delphi.phtml}
@@ -47427,9 +47427,6 @@ Updated by Tobias Ritzau, @email{tobri@@ida.liu.se}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/MyC-0.1.tar.gz}
 A Visual Basic-like API, by Ed Carp.
-
-@item @uref{http://www.mysql.com/Downloads/Contrib/sqlscreens-1.0.1.tar.gz}
-Tcl/Tk code to generate database screens. By Jean-Francois Dockes.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/Vdb-dflts-2.1.tar.gz}
 This is a new version of a set of library utilities intended
