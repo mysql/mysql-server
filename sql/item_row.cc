@@ -120,13 +120,3 @@ void Item_row::set_outer_resolving()
   for (uint i= 0; i < arg_count; i++)
     items[i]->set_outer_resolving();
 }
-
-bool Item_row::check_loop(uint id)
-{
-  if (Item::check_loop(id))
-    return 1;
-  for (uint i= 0; i < arg_count; i++)
-    if (items[i]->check_loop(id))
-      return 1;
-  return 0;
-}

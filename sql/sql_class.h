@@ -506,7 +506,6 @@ public:
   table_map  used_tables;
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;   
-  List<Item> *possible_loops; // Items that may cause loops in subselects
   List<TABLE> temporary_tables_should_be_free; // list of temporary tables
   List	     <MYSQL_ERROR> warn_list;  
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
@@ -521,7 +520,6 @@ public:
   uint32     query_length;
   uint32     db_length;
   uint       select_number;             //number of select (used for EXPLAIN)
-  uint       check_loops_counter;       //last id used to check loops
   /* variables.transaction_isolation is reset to this after each commit */
   enum_tx_isolation session_tx_isolation;
              // extend scramble to handle new auth
@@ -661,8 +659,6 @@ public:
 #else
   void clear_error();
 #endif
-
-  void add_possible_loop(Item *);
 };
 
 /*

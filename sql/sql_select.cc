@@ -1274,24 +1274,6 @@ JOIN::cleanup(THD *thd)
   DBUG_RETURN(error);
 }
 
-bool JOIN::check_loop(uint id)
-{
-  DBUG_ENTER("JOIN::check_loop");
-  Item *item;
-  List_iterator<Item> it(all_fields);
-  DBUG_PRINT("info", ("all_fields:"));
-  while ((item= it++))
-    if (item->check_loop(id))
-      DBUG_RETURN(1);
-  DBUG_PRINT("info", ("where:"));
-  if (select_lex->where && select_lex->where->check_loop(id))
-    DBUG_RETURN(1);
-  DBUG_PRINT("info", ("having:"));
-  if (select_lex->having && select_lex->having->check_loop(id))
-    DBUG_RETURN(1);
-  DBUG_RETURN(0);
-}
-
 int
 mysql_select(THD *thd, Item ***rref_pointer_array,
 	     TABLE_LIST *tables, uint wild_num, List<Item> &fields, 
@@ -1328,23 +1310,6 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 		      select_lex, unit, fake_select_lex, tables_OK))
     {
       DBUG_RETURN(-1);
-    }
-    if (thd->possible_loops)
-    {
-      Item *item;
-      while (thd->possible_loops->elements)
-      {
-	item= thd->possible_loops->pop();
-    	if (item->check_loop(thd->check_loops_counter++))
-	{
-	  delete thd->possible_loops;
-	  thd->possible_loops= 0;
-	  my_message(ER_CYCLIC_REFERENCE, ER(ER_CYCLIC_REFERENCE), MYF(0));
-	  return 1;
-	}
-      }
-      delete thd->possible_loops;
-      thd->possible_loops= 0;
     }
   }
 

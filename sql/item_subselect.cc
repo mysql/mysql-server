@@ -108,15 +108,6 @@ bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   return res;
 }
 
-bool Item_subselect::check_loop(uint id)
-{
-  DBUG_ENTER("Item_subselect::check_loop");
-  if (Item_result_field::check_loop(id))
-    DBUG_RETURN(1);
-  
-  DBUG_RETURN(engine->check_loop(id));
-}
-
 Item::Type Item_subselect::type() const 
 {
   return SUBSELECT_ITEM;
@@ -856,21 +847,6 @@ bool subselect_single_select_engine::uncacheable()
 bool subselect_union_engine::uncacheable()
 {
   return unit->uncacheable;
-}
-
-bool subselect_single_select_engine::check_loop(uint id)
-{
-  DBUG_ENTER("subselect_single_select_engine::check_loop");
-  DBUG_RETURN(join->check_loop(id));
-}
-
-bool subselect_union_engine::check_loop(uint id)
-{
-  DBUG_ENTER("subselect_union_engine::check_loop");
-  for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
-    if (sl->join && sl->join->check_loop(id))
-      DBUG_RETURN(1);
-  DBUG_RETURN(0);
 }
 
 void subselect_single_select_engine::exclude()

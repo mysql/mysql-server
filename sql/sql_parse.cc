@@ -3146,18 +3146,16 @@ mysql_init_query(THD *thd)
   lex->select_lex.prev= &lex->unit.slave;
   lex->select_lex.link_next= lex->select_lex.slave= lex->select_lex.next= 0;
   lex->select_lex.link_prev= (st_select_lex_node**)&(lex->all_selects_list);
-  lex->olap=lex->describe=0;
+  lex->olap=lex->describe= 0;
   lex->derived_tables= false;
-  lex->lock_option=TL_READ;
-  lex->found_colon=0;
-  thd->check_loops_counter= thd->select_number=
-    lex->select_lex.select_number= 1;
+  lex->lock_option= TL_READ;
+  lex->found_colon= 0;
+  thd->select_number= lex->select_lex.select_number= 1;
   thd->free_list= 0;
   thd->total_warn_count=0;			// Warnings for this query
   thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
   thd->sent_row_count= thd->examined_row_count= 0;
   thd->fatal_error= thd->rand_used= 0;
-  thd->possible_loops= 0;
   thd->server_status &= ~SERVER_MORE_RESULTS_EXISTS;
   DBUG_VOID_RETURN;
 }

@@ -354,7 +354,6 @@ public:
   void print(String *str);
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   Item *find_item(String *str);
-  bool check_loop(uint id);
   void set_outer_resolving();
 };
 
@@ -637,13 +636,6 @@ class Item_func_in :public Item_int_func
   const char *func_name() const { return " IN "; }
   void update_used_tables();
   void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
-  bool check_loop(uint id)
-  {
-    DBUG_ENTER("Item_func_in::check_loop");
-    if (Item_func::check_loop(id))
-      DBUG_RETURN(1);
-    DBUG_RETURN(item->check_loop(id));
-  }
   bool nulls_in_row();
   void set_outer_resolving()
   {
@@ -789,7 +781,6 @@ public:
   void print(String *str);
   void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   friend int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
-  bool check_loop(uint id);
   void top_level_item() { abort_on_null=1; }
   void set_outer_resolving();
 };

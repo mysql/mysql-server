@@ -83,7 +83,6 @@ public:
   bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
   virtual void fix_length_and_dec();
   table_map used_tables() const;
-  bool check_loop(uint id);
 
   friend class select_subselect;
   friend class Item_in_optimizer;
@@ -226,7 +225,6 @@ public:
   virtual bool dependent()= 0; /* depended from outer select */
   virtual bool uncacheable()= 0; /* query is uncacheable */
   enum Item_result type() { return res_type; }
-  virtual bool check_loop(uint id)= 0;
   virtual void exclude()= 0;
   bool may_be_null() { return maybe_null; };
 };
@@ -248,7 +246,6 @@ public:
   uint cols();
   bool dependent();
   bool uncacheable();
-  bool check_loop(uint id);
   void exclude();
 };
 
@@ -266,6 +263,5 @@ public:
   uint cols();
   bool dependent();
   bool uncacheable();
-  bool check_loop(uint id);
   void exclude();
 };
