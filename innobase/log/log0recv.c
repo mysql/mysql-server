@@ -1,7 +1,7 @@
 /******************************************************
 Recovery
 
-(c) 1997 Innobase Oy
+(c) 1997 InnoDB Oy
 
 Created 9/20/1997 Heikki Tuuri
 *******************************************************/
@@ -412,7 +412,7 @@ recv_find_max_checkpoint(
 						+ LOG_CHECKPOINT_CHECKSUM_1)) {
 				if (log_debug_writes) {
 					fprintf(stderr, 
-	    "Innobase: Checkpoint in group %lu at %lu invalid, %lu, %lu\n",
+	    "InnoDB: Checkpoint in group %lu at %lu invalid, %lu, %lu\n",
 						group->id, field,
                                                 fold & 0xFFFFFFFF,
                                  mach_read_from_4(buf
@@ -431,7 +431,7 @@ recv_find_max_checkpoint(
 						+ LOG_CHECKPOINT_CHECKSUM_2)) {
 				if (log_debug_writes) {
 					fprintf(stderr, 
-		"Innobase: Checkpoint in group %lu at %lu invalid, %lu, %lu\n",
+		"InnoDB: Checkpoint in group %lu at %lu invalid, %lu, %lu\n",
 						group->id, field,
                                                 fold & 0xFFFFFFFF,
                                  mach_read_from_4(buf
@@ -451,7 +451,7 @@ recv_find_max_checkpoint(
 
 			if (log_debug_writes) {
 				fprintf(stderr, 
-			"Innobase: Checkpoint number %lu found in group %lu\n",
+			"InnoDB: Checkpoint number %lu found in group %lu\n",
 				ut_dulint_get_low(checkpoint_no), group->id);
 			}
 				
@@ -470,7 +470,7 @@ recv_find_max_checkpoint(
 
 	if (*max_group == NULL) {
 
-		fprintf(stderr, "Innobase: No valid checkpoint found\n");
+		fprintf(stderr, "InnoDB: No valid checkpoint found\n");
 
 		return(DB_ERROR);
 	}
@@ -866,7 +866,7 @@ recv_recover_page(
 
 			if (log_debug_writes) {
 				fprintf(stderr, 
-     "Innobase: Applying log rec type %lu len %lu to space %lu page no %lu\n",
+     "InnoDB: Applying log rec type %lu len %lu to space %lu page no %lu\n",
 			(ulint)recv->type, recv->len, recv_addr->space,
 				recv_addr->page_no);
 			}
@@ -1015,7 +1015,7 @@ loop:
 			if (recv_addr->state == RECV_NOT_PROCESSED) {
 				if (!has_printed) {
 					fprintf(stderr, 
-"Innobase: Starting an apply batch of log records to the database...\n");
+"InnoDB: Starting an apply batch of log records to the database...\n");
 					has_printed = TRUE;
 				}
 				
@@ -1082,7 +1082,7 @@ loop:
 	recv_sys_empty_hash();
 
 	if (has_printed) {
-		fprintf(stderr, "Innobase: Apply batch completed\n");
+		fprintf(stderr, "InnoDB: Apply batch completed\n");
 	}
 
 	mutex_exit(&(recv_sys->mutex));
@@ -1454,7 +1454,7 @@ loop:
 
 		if (log_debug_writes) {
 			fprintf(stderr, 
-"Innobase: Parsed a single log rec type %lu len %lu space %lu page no %lu\n",
+"InnoDB: Parsed a single log rec type %lu len %lu space %lu page no %lu\n",
 			(ulint)type, len, space, page_no);
 		}
 
@@ -1503,7 +1503,7 @@ loop:
 			
 			if (log_debug_writes) {
 				fprintf(stderr, 
-"Innobase: Parsed a multi log rec type %lu len %lu space %lu page no %lu\n",
+"InnoDB: Parsed a multi log rec type %lu len %lu space %lu page no %lu\n",
 				(ulint)type, len, space, page_no);
 			}
 		
@@ -1824,7 +1824,7 @@ recv_scan_log_recs(
 
 	if (more_data) {
 		fprintf(stderr, 
-"Innobase: Doing recovery: scanned up to log sequence number %lu %lu\n",
+"InnoDB: Doing recovery: scanned up to log sequence number %lu %lu\n",
 				ut_dulint_get_high(*group_scanned_lsn),
 				ut_dulint_get_low(*group_scanned_lsn));
 
@@ -1877,7 +1877,7 @@ recv_group_scan_log_recs(
 
 	if (log_debug_writes) {
 		fprintf(stderr,
-	"Innobase: Scanned group %lu up to log sequence number %lu %lu\n",
+	"InnoDB: Scanned group %lu up to log sequence number %lu %lu\n",
 				group->id,
 				ut_dulint_get_high(*group_scanned_lsn),
 				ut_dulint_get_low(*group_scanned_lsn));
@@ -1977,11 +1977,11 @@ recv_recovery_from_checkpoint_start(
 	    	   || ut_dulint_cmp(checkpoint_lsn, min_flushed_lsn) != 0) {
 
 	    		fprintf(stderr,
-			"Innobase: Database was not shut down normally.\n"
-	    		"Innobase: Starting recovery from log files...\n");
+			"InnoDB: Database was not shut down normally.\n"
+	    		"InnoDB: Starting recovery from log files...\n");
 			fprintf(stderr, 
-	"Innobase: Starting log scan based on checkpoint at\n"
-	"Innobase: log sequence number %lu %lu\n",
+	"InnoDB: Starting log scan based on checkpoint at\n"
+	"InnoDB: log sequence number %lu %lu\n",
 		 			ut_dulint_get_high(checkpoint_lsn),
 					ut_dulint_get_low(checkpoint_lsn));
 		}
@@ -2134,7 +2134,7 @@ recv_recovery_from_checkpoint_finish(void)
 
 	if (log_debug_writes) {
 		fprintf(stderr,
-		"Innobase: Log records applied to the database\n");
+		"InnoDB: Log records applied to the database\n");
 	}
 
 	/* Free the resources of the recovery system */
@@ -2246,12 +2246,12 @@ try_open_again:
 		fil_release_right_to_open();
 ask_again:
 		fprintf(stderr, 
-	"Innobase: Do you want to copy additional archived log files\n"
-	"Innobase: to the directory\n");
+	"InnoDB: Do you want to copy additional archived log files\n"
+	"InnoDB: to the directory\n");
 		fprintf(stderr, 
-	"Innobase: or were these all the files needed in recovery?\n");
+	"InnoDB: or were these all the files needed in recovery?\n");
 		fprintf(stderr, 
-	"Innobase: (Y == copy more files; N == this is all)?");
+	"InnoDB: (Y == copy more files; N == this is all)?");
 
 		input_char = getchar();
 
@@ -2271,13 +2271,13 @@ ask_again:
 
 	ut_a(file_size_high == 0);
 	
-	fprintf(stderr, "Innobase: Opened archived log file %s\n", name);
+	fprintf(stderr, "InnoDB: Opened archived log file %s\n", name);
 			
 	ret = os_file_close(file_handle);
 	
 	if (file_size < LOG_FILE_HDR_SIZE) {
 		fprintf(stderr,
-			"Innobase: Archive file header incomplete %s\n", name);
+			"InnoDB: Archive file header incomplete %s\n", name);
 	    
 		return(TRUE);
 	}
@@ -2302,14 +2302,14 @@ ask_again:
 	    || mach_read_from_4(buf + LOG_FILE_NO)
 						!= group->archived_file_no) {
 		fprintf(stderr,
-	"Innobase: Archive file header inconsistent %s\n", name);
+	"InnoDB: Archive file header inconsistent %s\n", name);
 	    
 		return(TRUE);
 	}
 
 	if (!mach_read_from_4(buf + LOG_FILE_ARCH_COMPLETED)) {
 		fprintf(stderr,
-	"Innobase: Archive file not completely written %s\n", name);
+	"InnoDB: Archive file not completely written %s\n", name);
 
 		return(TRUE);
 	}
@@ -2321,7 +2321,7 @@ ask_again:
 
 		if (ut_dulint_cmp(recv_sys->parse_start_lsn, start_lsn) < 0) {
 			fprintf(stderr, 
-	"Innobase: Archive log file %s starts from too big a lsn\n",
+	"InnoDB: Archive log file %s starts from too big a lsn\n",
 									name);	    
 			return(TRUE);
 		}
@@ -2332,7 +2332,7 @@ ask_again:
 	if (ut_dulint_cmp(recv_sys->scanned_lsn, start_lsn) != 0) {
 
 		fprintf(stderr,
-	"Innobase: Archive log file %s starts from a wrong lsn\n",
+	"InnoDB: Archive log file %s starts from a wrong lsn\n",
 									name);
 		return(TRUE);
 	}
@@ -2354,7 +2354,7 @@ ask_again:
 	
 		if (log_debug_writes) {
 			fprintf(stderr, 
-"Innobase: Archive read starting at lsn %lu %lu, len %lu from file %s\n",
+"InnoDB: Archive read starting at lsn %lu %lu, len %lu from file %s\n",
 					ut_dulint_get_high(start_lsn),
 					ut_dulint_get_low(start_lsn),
 					len, name);
@@ -2375,7 +2375,7 @@ ask_again:
 
 		if (ret) {
 			fprintf(stderr,
-		"Innobase: Archive log file %s does not scan right\n",
+		"InnoDB: Archive log file %s does not scan right\n",
 								name);	    
 			return(TRUE);
 		}
@@ -2435,7 +2435,7 @@ recv_recovery_from_archive_start(
 
 	if (!group) {
 		fprintf(stderr,
-		"Innobase: There is no log group defined with id %lu!\n",
+		"InnoDB: There is no log group defined with id %lu!\n",
 								group_id);
 		return(DB_ERROR);
 	}
