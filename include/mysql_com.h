@@ -172,8 +172,8 @@ unsigned long my_net_read(NET *net);
 
 /* The following function is not meant for normal usage */
 struct sockaddr;
-int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
-	       uint timeout);
+int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
+	       unsigned int timeout);
 
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
@@ -203,7 +203,7 @@ typedef struct st_udf_init
 {
   my_bool maybe_null;			/* 1 if function can return NULL */
   unsigned int decimals;		/* for real functions */
-  unsigned int max_length;		/* For string functions */
+  unsigned long max_length;		/* For string functions */
   char	  *ptr;				/* free pointer for function data */
   my_bool const_item;			/* 0 if result is independent of arguments */
 } UDF_INIT;

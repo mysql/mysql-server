@@ -83,7 +83,7 @@ char *convert_dirname(char *to, const char *from, const char *from_end)
 
 #if FN_LIBCHAR != '/' || defined(FN_C_BEFORE_DIR_2)
   {
-    while (*from && *from != end)
+    for (; *from && from != from_end; from++)
     {
       if (*from == '/')
 	*to++= FN_LIBCHAR;
@@ -94,8 +94,9 @@ char *convert_dirname(char *to, const char *from, const char *from_end)
 	*to++= FN_C_AFTER_DIR;
 #endif
       else
-	*to++= *from++;
+	*to++= *from;
     }
+    *to=0;
   }
 #else
   /* This is ok even if to == from, becasue we need to cut the string */
