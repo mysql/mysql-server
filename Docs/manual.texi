@@ -5649,7 +5649,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 
 @c START_OF_MIRROR_LISTING
 
-@c Mirrors list is created by PHP script from database (tfr@mysql.com)
+@c Mirrors list is created by PHP script (that really needs to be documented!) from database (tfr@mysql.com)
 @include mirrors.texi
 
 @c END_OF_MIRROR_LISTING
