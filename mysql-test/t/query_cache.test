@@ -697,3 +697,16 @@ where table_schema="test";
 drop table t1;
 select table_name from information_schema.tables
 where table_schema="test";
+# Bug #8480: REPAIR TABLE needs to flush the table from the query cache
+set global query_cache_size=1024*1024;
+flush query cache;
+create table t1 ( a int );
+insert into t1 values (1);
+select a from t1;
+select a from t1;
+show status like 'qcache_queries_in_cache';
+repair table t1;
+show status like 'qcache_queries_in_cache';
+drop table t1;
+
+set GLOBAL query_cache_size=0;
