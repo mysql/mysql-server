@@ -1110,4 +1110,14 @@ t1	CREATE TABLE `t1` (
   `a` char(1) character set latin1 collate latin1_german1_ci default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+create table t1 as
+(select a from t2) union
+(select b from t2) union
+(select 'c' collate latin1_german1_ci from t2);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(1) character set latin1 collate latin1_german1_ci default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
 drop table t2;
