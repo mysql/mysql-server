@@ -41,26 +41,19 @@
 #define HA_ADMIN_INTERNAL_ERROR  -4
 #define HA_ADMIN_INVALID         -5
 
-/* Bits in bas_flag to show what database can do */
-#define HA_READ_NEXT		1	/* Read next record with same key */
-#define HA_READ_PREV		2	/* Read prev. record with same key */
-#define HA_READ_ORDER		4	/* Read through record-keys in order */
-#define HA_READ_RND_SAME	8	/* Read RND-record to KEY-record
+/* Bits in table_flags() to show what database can do */
+#define HA_READ_RND_SAME	1	/* Read RND-record to KEY-record
 					   (To update with RND-read)	   */
-#define HA_KEYPOS_TO_RNDPOS	16	/* ha_info gives pos to record */
-#define HA_TABLE_SCAN_ON_INDEX  32	/* No separate data/index file */
-#define HA_REC_NOT_IN_SEQ	64	/* ha_info don't return recnumber;
+#define HA_KEYPOS_TO_RNDPOS	2	/* ha_info gives pos to record */
+#define HA_TABLE_SCAN_ON_INDEX  4	/* No separate data/index file */
+#define HA_REC_NOT_IN_SEQ	8	/* ha_info don't return recnumber;
 					   It returns a position to ha_r_rnd */
-#define HA_ONLY_WHOLE_INDEX	128	/* Can't use part key searches */
-#define HA_NOT_READ_PREFIX_LAST	256	/* RSAME can't restore index */
-#define HA_WRONG_ASCII_ORDER	512	/* Can't use sorting through key */
-#define HA_HAVE_KEY_READ_ONLY	1024	/* Can read only keys (no record) */
-#define HA_READ_NOT_EXACT_KEY	2048	/* Can read record after/before key */
-#define HA_NO_INDEX		4096	/* No index needed for next/prev */
-#define HA_KEY_READ_WRONG_STR	16384	/* keyread returns converted strings */
-#define HA_NULL_KEY		32768	/* One can have keys with NULL */
-#define HA_DUPP_POS		65536	/* ha_position() gives dupp row */
-#define HA_NO_BLOBS		131072	/* Doesn't support blobs */
+#define HA_HAVE_KEY_READ_ONLY	16	/* Can read only keys (no record) */
+#define HA_NO_INDEX		32	/* No index needed for next/prev */
+#define HA_KEY_READ_WRONG_STR	64	/* keyread returns converted strings */
+#define HA_NULL_KEY		128	/* One can have keys with NULL */
+#define HA_DUPP_POS		256	/* ha_position() gives dupp row */
+#define HA_NO_BLOBS		512	/* Doesn't support blobs */
 #define HA_BLOB_KEY		(HA_NO_BLOBS*2) /* key on blob */
 #define HA_AUTO_PART_KEY	(HA_BLOB_KEY*2)
 #define HA_REQUIRE_PRIMARY_KEY	(HA_AUTO_PART_KEY*2)
@@ -74,31 +67,41 @@
 #define HA_NO_PREFIX_CHAR_KEYS	(HA_NO_TEMP_TABLES*2) 
 #define HA_CAN_FULLTEXT         (HA_NO_PREFIX_CHAR_KEYS*2)
 #define HA_CAN_SQL_HANDLER      (HA_CAN_FULLTEXT*2)
+#define HA_NO_AUTO_INCREMENT	(HA_CAN_SQL_HANDLER*2)
 
-/* Old not used flags */
 /*
   Next record gives next record according last record read (even
-  if database is updated after read)
+  if database is updated after read).  Not used at this point.
 */
-#define HA_LASTKEY_ORDER	0
+#define HA_LASTKEY_ORDER	(HA_NO_AUTO_INCREMENT*2)
 
-	/* Parameters for open() (in register form->filestat) */
-	/* HA_GET_INFO does an implicit HA_ABORT_IF_LOCKED */
+
+/* bits in index_flags(index_number) for what you can do with index */
+#define HA_WRONG_ASCII_ORDER	1	/* Can't use sorting through key */
+#define HA_READ_NEXT		2	/* Read next record with same key */
+#define HA_READ_PREV		4	/* Read prev. record with same key */
+#define HA_READ_ORDER		8	/* Read through record-keys in order */
+#define HA_ONLY_WHOLE_INDEX	16	/* Can't use part key searches */
+#define HA_NOT_READ_PREFIX_LAST	32
+
+/*
+  Parameters for open() (in register form->filestat)
+  HA_GET_INFO does an implicit HA_ABORT_IF_LOCKED
+*/
 
 #define HA_OPEN_KEYFILE		1
 #define HA_OPEN_RNDFILE		2
 #define HA_GET_INDEX		4
 #define HA_GET_INFO		8	/* do a ha_info() after open */
 #define HA_READ_ONLY		16	/* File opened as readonly */
-#define HA_TRY_READ_ONLY	32	/* Try readonly if can't */
-					/* open with read and write */
+/* Try readonly if can't open with read and write */
+#define HA_TRY_READ_ONLY	32
 #define HA_WAIT_IF_LOCKED	64	/* Wait if locked on open */
 #define HA_ABORT_IF_LOCKED	128	/* skip if locked on open.*/
 #define HA_BLOCK_LOCK		256	/* unlock when reading some records */
 #define HA_OPEN_TEMPORARY	512
 
-	/* Error on write which is recoverable  (Key exist) */
-
+	/* Errors on write which is recoverable  (Key exist) */
 #define HA_WRITE_SKIP 121		/* Duplicate key on write */
 #define HA_READ_CHECK 123		/* Update with is recoverable */
 #define HA_CANT_DO_THAT 131		/* Databasehandler can't do it */
@@ -295,10 +298,11 @@ public:
   virtual int optimize(THD* thd,HA_CHECK_OPT* check_opt);
   virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt);
   virtual int backup(THD* thd, HA_CHECK_OPT* check_opt);
+  /*
+    restore assumes .frm file must exist, and that generate_table() has been
+    called; It will just copy the data file and run repair.
+  */
   virtual int restore(THD* thd, HA_CHECK_OPT* check_opt);
-  // assumes .frm file must exist, and you must have already called
-  // generate_table() - it will just copy the data file and run repair
-
   virtual int dump(THD* thd, int fd = -1) { return ER_DUMP_NOT_IMPLEMENTED; }
   virtual void deactivate_non_unique_index(ha_rows rows) {}
   virtual bool activate_all_index(THD *thd) {return 0;}
@@ -314,7 +318,11 @@ public:
   /* The following can be called without an open handler */
   virtual const char *table_type() const =0;
   virtual const char **bas_ext() const =0;
-  virtual ulong option_flag() const =0;
+  virtual ulong table_flags(void) const =0;
+  virtual ulong index_flags(uint idx) const
+  {
+    return (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER);
+  }
   virtual uint max_record_length() const =0;
   virtual uint max_keys() const =0;
   virtual uint max_key_parts() const =0;
@@ -360,10 +368,8 @@ int ha_delete_table(enum db_type db_type, const char *path);
 void ha_drop_database(char* path);
 void ha_key_cache(void);
 int ha_start_stmt(THD *thd); 
-int ha_report_binlog_offset_and_commit(
-       THD      *thd,
-       char     *log_file_name,
-       my_off_t  end_offset);
+int ha_report_binlog_offset_and_commit(THD *thd, char *log_file_name,
+				       my_off_t end_offset);
 int ha_commit_trans(THD *thd, THD_TRANS *trans);
 int ha_rollback_trans(THD *thd, THD_TRANS *trans);
 int ha_autocommit_or_rollback(THD *thd, int error);

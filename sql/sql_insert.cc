@@ -386,7 +386,7 @@ int write_record(TABLE *table,COPY_INFO *info)
       if (table->next_number_field && key_nr == table->next_number_index &&
 	  table->file->auto_increment_column_changed)
 	goto err;
-      if (table->file->option_flag() & HA_DUPP_POS)
+      if (table->file->table_flags() & HA_DUPP_POS)
       {
 	if (table->file->rnd_pos(table->record[1],table->file->dupp_ref))
 	  goto err;

@@ -26,13 +26,13 @@
 class ha_isam: public handler
 {
   N_INFO *file;
-  uint    int_option_flag;
+  uint    int_table_flags;
 
  public:
   ha_isam(TABLE *table): handler(table), file(0),
-    int_option_flag(HA_READ_NEXT | HA_READ_PREV | HA_READ_RND_SAME |
-		    HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER | HA_LASTKEY_ORDER |
-		    HA_HAVE_KEY_READ_ONLY | HA_READ_NOT_EXACT_KEY |
+    int_table_flags(HA_READ_RND_SAME |
+		    HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
+		    HA_HAVE_KEY_READ_ONLY |
 		    HA_KEY_READ_WRONG_STR | HA_DUPP_POS |
 		    HA_NOT_DELETE_WITH_CACHE)
     {}
@@ -40,7 +40,7 @@ class ha_isam: public handler
   const char *table_type() const { return "ISAM"; }
   const char *index_type(uint key_number) { return "BTREE"; }
   const char **bas_ext() const;
-  ulong option_flag() const { return int_option_flag; }
+  ulong table_flags() const { return int_table_flags; }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_keys()          const { return N_MAXKEY; }
   uint max_key_parts()     const { return N_MAXKEY_SEG; }

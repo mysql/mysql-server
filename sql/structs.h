@@ -67,6 +67,7 @@ typedef struct st_key {
   uint	key_parts;			/* How many key_parts */
   uint  extra_length;
   uint	usable_key_parts;		/* Should normally be = key_parts */
+  enum  ha_key_alg algorithm;
   KEY_PART_INFO *key_part;
   char	*name;				/* Name of key */
   ulong *rec_per_key;			/* Key part distribution */
