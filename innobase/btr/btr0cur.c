@@ -1642,7 +1642,7 @@ btr_cur_optimistic_update(
 
 	btr_search_update_hash_on_delete(cursor);
 
-	page_cur_delete_rec(page_cursor, index, mtr);
+	page_cur_delete_rec(page_cursor, index, offsets, mtr);
 
 	page_cur_move_to_prev(page_cursor);
         
@@ -1885,7 +1885,7 @@ btr_cur_pessimistic_update(
 
 	btr_search_update_hash_on_delete(cursor);
 
-	page_cur_delete_rec(page_cursor, index, mtr);
+	page_cur_delete_rec(page_cursor, index, offsets, mtr);
 
 	page_cur_move_to_prev(page_cursor);
 
@@ -2401,6 +2401,7 @@ btr_cur_optimistic_delete(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[100]	= { 100, };
 	ulint*		offsets		= offsets_;
+	ibool		no_compress_needed;
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(btr_cur_get_page(cursor)),
 							MTR_MEMO_PAGE_X_FIX));
@@ -2414,9 +2415,11 @@ btr_cur_optimistic_delete(
 	offsets = rec_get_offsets(rec, cursor->index, offsets,
 					ULINT_UNDEFINED, &heap);
 
-	if (!rec_offs_any_extern(offsets)
+	no_compress_needed = !rec_offs_any_extern(offsets)
 			&& btr_cur_can_delete_without_compress(
-			cursor, rec_offs_size(offsets), mtr)) {
+			cursor, rec_offs_size(offsets), mtr);
+
+	if (no_compress_needed) {
 
 		lock_update_delete(rec);
 
@@ -2425,20 +2428,17 @@ btr_cur_optimistic_delete(
 		max_ins_size = page_get_max_insert_size_after_reorganize(page,
 									1);
 		page_cur_delete_rec(btr_cur_get_page_cur(cursor),
-							cursor->index, mtr);
+						cursor->index, offsets, mtr);
 
 		ibuf_update_free_bits_low(cursor->index, page, max_ins_size,
 									mtr);
-		if (heap) {
-			mem_heap_free(heap);
-		}
-		return(TRUE);
 	}
 
 	if (heap) {
 		mem_heap_free(heap);
 	}
-	return(FALSE);
+
+	return(no_compress_needed);
 }
 
 /*****************************************************************
@@ -2478,6 +2478,7 @@ btr_cur_pessimistic_delete(
 	ibool		success;
 	ibool		ret		= FALSE;
 	mem_heap_t*	heap;
+	ulint*		offsets;
 	
 	page = btr_cur_get_page(cursor);
 	tree = btr_cur_get_tree(cursor);
@@ -2503,20 +2504,20 @@ btr_cur_pessimistic_delete(
 		}
 	}
 
-	heap = mem_heap_create(256);
+	heap = mem_heap_create(1024);
 	rec = btr_cur_get_rec(cursor);
+
+	offsets = rec_get_offsets(rec, cursor->index,
+					NULL, ULINT_UNDEFINED, &heap);
 
 	/* Free externally stored fields if the record is neither
 	a node pointer nor in two-byte format.
-	This avoids unnecessary calls to rec_get_offsets(). */
+	This avoids an unnecessary loop. */
 	if (cursor->index->table->comp
 			? !rec_get_node_ptr_flag(rec)
 			: !rec_get_1byte_offs_flag(rec)) {
 		btr_rec_free_externally_stored_fields(cursor->index,
-			rec, rec_get_offsets(rec, cursor->index,
-					NULL, ULINT_UNDEFINED, &heap),
-			in_rollback, mtr);
-		mem_heap_empty(heap);
+					rec, offsets, in_rollback, mtr);
 	}
 
 	if ((page_get_n_recs(page) < 2)
@@ -2568,7 +2569,8 @@ btr_cur_pessimistic_delete(
 
 	btr_search_update_hash_on_delete(cursor);
 
-	page_cur_delete_rec(btr_cur_get_page_cur(cursor), cursor->index, mtr);
+	page_cur_delete_rec(btr_cur_get_page_cur(cursor), cursor->index,
+							offsets, mtr);
 
 	ut_ad(btr_check_node_ptr(tree, page, mtr));
 
