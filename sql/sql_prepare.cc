@@ -733,7 +733,7 @@ static bool mysql_test_select_fields(Prepared_statement *stmt,
     DBUG_RETURN(1);
 #endif
   if ((&lex->select_lex != lex->all_selects_list &&
-       lex->unit.create_total_list(thd, lex, &tables, 0)))
+       lex->unit.create_total_list(thd, lex, &tables)))
    DBUG_RETURN(1);
     
   if (open_and_lock_tables(thd, tables))
@@ -746,7 +746,6 @@ static bool mysql_test_select_fields(Prepared_statement *stmt,
   }
   else 
   {
-    fix_tables_pointers(lex->all_selects_list);
     if (!result && !(result= new select_send()))
     {
       send_error(thd, ER_OUT_OF_RESOURCES);

@@ -232,6 +232,7 @@ public:
       UNCACHEABLE_DEPENDENT
       UNCACHEABLE_RAND
       UNCACHEABLE_SIDEEFFECT
+      UNCACHEABLE_EXPLAIN
   */
   uint8 uncacheable;
   enum sub_select_type linkage;
@@ -336,8 +337,7 @@ public:
   uint union_option;
 
   void init_query();
-  bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result,
-			 bool check_current_derived);
+  bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);
   st_select_lex_unit* master_unit();
   st_select_lex* outer_select();
   st_select_lex* first_select() { return (st_select_lex*) slave; }
@@ -355,14 +355,15 @@ public:
   int exec();
   int cleanup();
 
+  bool check_updateable(char *db, char *table);
   void print(String *str);
+  
 
   friend void mysql_init_query(THD *thd);
   friend int subselect_union_engine::exec();
 private:
   bool create_total_list_n_last_return(THD *thd, st_lex *lex,
-				       TABLE_LIST ***result,
-				       bool check_current_derived);
+				       TABLE_LIST ***result);
 };
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
@@ -497,6 +498,7 @@ public:
     init_select();
   }
   bool setup_ref_array(THD *thd, uint order_group_num);
+  bool check_updateable(char *db, char *table);
   void print(THD *thd, String *str);
   static void print_order(String *str, ORDER *order);
   void print_limit(THD *thd, String *str);
