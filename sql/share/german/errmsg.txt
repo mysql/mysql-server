@@ -308,3 +308,5 @@ character-set=latin1
 "Query execution was interrupted"
 "Wrong number of arguments for %s %s, expected %u, got %u"
 "Undefined CONDITION: %s"
+"No RETURN found in FUNCTION %s"
+"FUNCTION %s ended without RETURN"

@@ -120,7 +120,8 @@ sp_head::operator delete(void *ptr, size_t size)
 }
 
 sp_head::sp_head()
-  : Sql_alloc(), m_simple_case(FALSE), m_multi_results(FALSE), m_free_list(NULL)
+  : Sql_alloc(), m_has_return(FALSE), m_simple_case(FALSE),
+    m_multi_results(FALSE), m_free_list(NULL)
 {
   DBUG_ENTER("sp_head::sp_head");
 
@@ -321,7 +322,18 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
 
   ret= execute(thd);
   if (ret == 0)
-    *resp= nctx->get_result();
+  {
+    Item *it= nctx->get_result();
+
+    if (it)
+      *resp= it;
+    else
+    {
+      my_printf_error(ER_SP_NORETURNEND, ER(ER_SP_NORETURNEND), MYF(0),
+		      m_name.str);
+      ret= -1;
+    }
+  }
 
   thd->spcont= octx;
   DBUG_RETURN(ret);
