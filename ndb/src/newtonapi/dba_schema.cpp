@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "dba_internal.hpp"
+#include "NdbSchemaCon.hpp"
 
 static bool getNdbAttr(DBA_DataTypes_t,
 		       Size_t,
@@ -31,7 +32,7 @@ DBA_CreateTable(const char* TableName,
   if(DBA_TableExists(TableName))
     return DBA_NO_ERROR;
   
-  NdbSchemaCon * schemaCon = DBA__TheNdb->startSchemaTransaction();
+  NdbSchemaCon * schemaCon = NdbSchemaCon::startSchemaTrans(DBA__TheNdb);
   if(schemaCon == 0){
     DBA__SetLatestError(DBA_NDB_ERROR, 0,
 			"Internal NDB error: No schema transaction");
@@ -39,8 +40,8 @@ DBA_CreateTable(const char* TableName,
   }
   
   NdbSchemaOp * schemaOp   = schemaCon->getNdbSchemaOp();	
-  if(schemaOp == 0){
-    DBA__TheNdb->closeSchemaTransaction(schemaCon);    
+  if(schemaOp == 0){    
+    NdbSchemaCon::closeSchemaTrans(schemaCon);    
     DBA__SetLatestError(DBA_NDB_ERROR, 0,
 			"Internal NDB error: No schema op");
     return DBA_NDB_ERROR;
@@ -56,7 +57,7 @@ DBA_CreateTable(const char* TableName,
 			    80,
 			    1,
 			    false) == -1){
-    DBA__TheNdb->closeSchemaTransaction(schemaCon);    
+    NdbSchemaCon::closeSchemaTrans(schemaCon);    
     DBA__SetLatestError(DBA_NDB_ERROR, 0,
 			"Internal NDB error: Create table failed");
     return DBA_NDB_ERROR;
@@ -71,7 +72,7 @@ DBA_CreateTable(const char* TableName,
 		   &attrSize,
 		   &arraySize,
 		   &attrType)){
-      DBA__TheNdb->closeSchemaTransaction(schemaCon);    
+      NdbSchemaCon::closeSchemaTrans(schemaCon);    
       DBA__SetLatestError(DBA_APPLICATION_ERROR, 0,
 			  "Invalid datatype/size combination");
       return DBA_APPLICATION_ERROR;
@@ -82,7 +83,7 @@ DBA_CreateTable(const char* TableName,
 				  attrSize,
 				  arraySize,
 				  attrType) == -1){
-      DBA__TheNdb->closeSchemaTransaction(schemaCon);    
+      NdbSchemaCon::closeSchemaTrans(schemaCon);    
       DBA__SetLatestError(DBA_NDB_ERROR, 0,
 			  "Internal NDB error: Create attribute failed");
       return DBA_NDB_ERROR;
@@ -90,14 +91,14 @@ DBA_CreateTable(const char* TableName,
   }
   
   if(schemaCon->execute() == -1){
-    DBA__TheNdb->closeSchemaTransaction(schemaCon);    
+    NdbSchemaCon::closeSchemaTrans(schemaCon);    
     DBA__SetLatestError(DBA_NDB_ERROR, 0,
 			"Internal NDB error: Execute schema failed");
     return DBA_NDB_ERROR;
   }
   
-  DBA__TheNdb->closeSchemaTransaction(schemaCon);
-
+  NdbSchemaCon::closeSchemaTrans(schemaCon);    
+    
   return DBA_NO_ERROR;
 }
 
