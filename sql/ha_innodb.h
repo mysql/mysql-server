@@ -202,7 +202,6 @@ extern "C" {
 extern ulong srv_max_buf_pool_modified_pct;
 extern ulong srv_max_purge_lag;
 extern ulong srv_auto_extend_increment;
-extern ulong srv_max_purge_lag;
 }
 
 extern TYPELIB innobase_lock_typelib;
