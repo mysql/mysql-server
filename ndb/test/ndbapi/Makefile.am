@@ -25,6 +25,7 @@ testOperations \
 testRestartGci \
 testScan \
 testScanInterpreter \
+testScanPerf \
 testSystemRestart \
 testTimeout \
 testTransactions \
@@ -59,6 +60,7 @@ testOperations_SOURCES = testOperations.cpp
 testRestartGci_SOURCES = testRestartGci.cpp
 testScan_SOURCES = testScan.cpp
 testScanInterpreter_SOURCES = testScanInterpreter.cpp
+testScanPerf_SOURCES = testScanPerf.cpp
 testSystemRestart_SOURCES = testSystemRestart.cpp
 testTimeout_SOURCES = testTimeout.cpp
 testTransactions_SOURCES = testTransactions.cpp
