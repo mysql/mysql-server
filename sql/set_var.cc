@@ -777,6 +777,8 @@ struct show_var_st init_vars[]= {
    SHOW_SYS},
   {sys_query_cache_size.name, (char*) &sys_query_cache_size,	    SHOW_SYS},
   {sys_query_cache_type.name, (char*) &sys_query_cache_type,        SHOW_SYS},
+  {sys_query_cache_wlock_invalidate.name,
+   (char *) &sys_query_cache_wlock_invalidate, SHOW_SYS},
 #endif /* HAVE_QUERY_CACHE */
   {sys_query_prealloc_size.name, (char*) &sys_query_prealloc_size,  SHOW_SYS},
   {sys_range_alloc_block_size.name, (char*) &sys_range_alloc_block_size,
@@ -1138,8 +1140,10 @@ static int check_max_delayed_threads(THD *thd, set_var *var)
 
 static void fix_max_connections(THD *thd, enum_var_type type)
 {
+#ifndef EMBEDDED_LIBRARY
   resize_thr_alarm(max_connections + 
 		   global_system_variables.max_insert_delayed_threads + 10);
+#endif
 }
 
 

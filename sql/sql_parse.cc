@@ -1543,6 +1543,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     mysqld_list_fields(thd,&table_list,fields);
     free_items(thd->free_list);
+    thd->free_list= 0;
     break;
   }
 #endif
@@ -4047,6 +4048,7 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
     }
     thd->proc_info="freeing items";
     free_items(thd->free_list);  /* Free strings used by items */
+    thd->free_list= 0;
     lex_end(lex);
   }
   DBUG_VOID_RETURN;
@@ -4073,6 +4075,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
     error= 1;                /* Ignore question */
   free_items(thd->free_list);  /* Free strings used by items */
+  thd->free_list= 0;
   lex_end(lex);
 
   return error;
@@ -4815,9 +4818,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       tmp_write_to_binlog= 0;
       if (lock_global_read_lock(thd))
 	return 1;
+      result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1,
+                                 tables);
+      make_global_read_lock_block_commit(thd);
     }
+    else
+      result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1, tables);
     my_dbopt_cleanup();
-    result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1, tables);
   }
   if (options & REFRESH_HOSTS)
     hostname_cache_refresh();

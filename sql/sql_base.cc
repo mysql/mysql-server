@@ -2101,10 +2101,12 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
 		  find_item_error_report_type report_error)
 {
   List_iterator<Item> li(items);
-  Item **found=0,*item;
+  Item **found=0, **found_unaliased= 0, *item;
   const char *db_name=0;
   const char *field_name=0;
   const char *table_name=0;
+  bool found_unaliased_non_uniq= 0;
+  uint unaliased_counter;
   if (find->type() == Item::FIELD_ITEM	|| find->type() == Item::REF_ITEM)
   {
     field_name= ((Item_ident*) find)->field_name;
@@ -2117,42 +2119,88 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     if (field_name && item->type() == Item::FIELD_ITEM)
     {
       Item_field *item_field= (Item_field*) item;
+
       /*
 	In case of group_concat() with ORDER BY condition in the QUERY
 	item_field can be field of temporary table without item name 
 	(if this field created from expression argument of group_concat()),
 	=> we have to check presence of name before compare
       */ 
-      if (item_field->name &&
-	  (!my_strcasecmp(system_charset_info, item_field->name, field_name) ||
-           !my_strcasecmp(system_charset_info,
-                          item_field->field_name, field_name)))
+      if (!item_field->name)
+        continue;
+
+      if (table_name)
       {
-	if (!table_name)
-	{
-	  if (found)
-	  {
-	    if ((*found)->eq(item,0))
-	      continue;				// Same field twice (Access?)
-	    if (report_error != IGNORE_ERRORS)
-	      my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
-			      find->full_name(), current_thd->where);
-	    return (Item**) 0;
-	  }
-	  found= li.ref();
-	  *counter= i;
-	}
-	else
-	{
-	  if (!strcmp(item_field->table_name,table_name) &&
-	      (!db_name || (db_name && item_field->db_name &&
-			    !strcmp(item_field->db_name, db_name))))
-	  {
-	    found= li.ref();
-	    *counter= i;
-	    break;
-	  }
-	}
+        /*
+          If table name is specified we should find field 'field_name' in
+          table 'table_name'. According to SQL-standard we should ignore
+          aliases in this case. Note that we should prefer fields from the
+          select list over other fields from the tables participating in
+          this select in case of ambiguity.
+
+          QQ: Why do we use simple strcmp for table name comparison here ?
+        */
+        if (!my_strcasecmp(system_charset_info, item_field->field_name,
+                           field_name) &&
+            !strcmp(item_field->table_name, table_name) &&
+            (!db_name || (item_field->db_name &&
+                          !strcmp(item_field->db_name, db_name))))
+        {
+          if (found)
+          {
+            if ((*found)->eq(item, 0))
+              continue;                         // Same field twice
+            if (report_error != IGNORE_ERRORS)
+              my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR),
+                              MYF(0), find->full_name(), current_thd->where);
+            return (Item**) 0;
+          }
+          found= li.ref();
+          *counter= i;
+        }
+      }
+      else if (!my_strcasecmp(system_charset_info, item_field->name,
+                             field_name))
+      {
+        /*
+          If table name was not given we should scan through aliases
+          (or non-aliased fields) first. We are also checking unaliased
+          name of the field in then next else-if, to be able to find
+          instantly field (hidden by alias) if no suitable alias (or
+          non-aliased field) was found.
+        */
+        if (found)
+        {
+          if ((*found)->eq(item, 0))
+            continue;                           // Same field twice
+          if (report_error != IGNORE_ERRORS)
+            my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR),
+                            MYF(0), find->full_name(), current_thd->where);
+          return (Item**) 0;
+        }
+        found= li.ref();
+        *counter= i;
+      }
+      else if (!my_strcasecmp(system_charset_info, item_field->field_name,
+                              field_name))
+      {
+        /*
+          We will use un-aliased field or react on such ambiguities only if
+          we won't be able to find aliased field.
+          Again if we have ambiguity with field outside of select list
+          we should prefer fields from select list.
+        */
+        if (found_unaliased)
+        {
+          if ((*found_unaliased)->eq(item, 0))
+            continue;                           // Same field twice
+          found_unaliased_non_uniq= 1;
+        }
+        else
+        {
+          found_unaliased= li.ref();
+          unaliased_counter= i;
+        }
       }
     }
     else if (!table_name && (item->eq(find,0) ||
@@ -2163,6 +2211,21 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
       found= li.ref();
       *counter= i;
       break;
+    }
+  }
+  if (!found)
+  {
+    if (found_unaliased_non_uniq)
+    {
+      if (report_error != IGNORE_ERRORS)
+        my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR), MYF(0),
+                        find->full_name(), current_thd->where);
+      return (Item **) 0;
+    }
+    if (found_unaliased)
+    {
+      found= found_unaliased;
+      *counter= unaliased_counter;
     }
   }
   if (found)
@@ -2188,14 +2251,15 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 {
   if (!wild_num)
     return 0;
-  Statement *stmt= thd->current_statement, backup;
+  Item_arena *arena= thd->current_arena, backup;
 
   /*
     If we are in preparing prepared statement phase then we have change
     temporary mem_root to statement mem root to save changes of SELECT list
   */
-  if (stmt)
-    thd->set_n_backup_item_arena(stmt, &backup);
+  if (arena->is_stmt_prepare())
+    thd->set_n_backup_item_arena(arena, &backup);
+
   reg2 Item *item;
   List_iterator<Item> it(fields);
   while ( wild_num && (item= it++))
@@ -2219,8 +2283,8 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       else if (insert_fields(thd,tables,((Item_field*) item)->db_name,
                              ((Item_field*) item)->table_name, &it))
       {
-	if (stmt)
-	  thd->restore_backup_item_arena(stmt, &backup);
+        if (arena->is_stmt_prepare())
+	  thd->restore_backup_item_arena(arena, &backup);
 	return (-1);
       }
       if (sum_func_list)
@@ -2235,8 +2299,8 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       wild_num--;
     }
   }
-  if (stmt)
-      thd->restore_backup_item_arena(stmt, &backup);
+  if (arena->is_stmt_prepare())
+      thd->restore_backup_item_arena(arena, &backup);
   return 0;
 }
 
@@ -2449,7 +2513,7 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 {
   table_map not_null_tables= 0;
-  Statement *stmt= thd->current_statement, backup;
+  Item_arena *arena= thd->current_arena, backup;
 
   DBUG_ENTER("setup_conds");
   thd->set_query_id=1;
@@ -2488,12 +2552,12 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	   !(specialflag & SPECIAL_NO_NEW_FUNC)))
       {
 	table->outer_join= 0;
-	if (stmt)
-	  thd->set_n_backup_item_arena(stmt, &backup);
+	if (arena->is_stmt_prepare())
+	  thd->set_n_backup_item_arena(arena, &backup);
 	*conds= and_conds(*conds, table->on_expr);
 	table->on_expr=0;
-	if (stmt)
-	  thd->restore_backup_item_arena(stmt, &backup);
+	if (arena->is_stmt_prepare())
+	  thd->restore_backup_item_arena(arena, &backup);
 	if ((*conds) && !(*conds)->fixed &&
 	    (*conds)->fix_fields(thd, tables, conds))
 	  DBUG_RETURN(1);
@@ -2501,8 +2565,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     }
     if (table->natural_join)
     {
-      if (stmt)
-	thd->set_n_backup_item_arena(stmt, &backup);
+      if (arena->is_stmt_prepare())
+	thd->set_n_backup_item_arena(arena, &backup);
       /* Make a join of all fields with have the same name */
       TABLE *t1= table->table;
       TABLE *t2= table->natural_join->table;
@@ -2543,8 +2607,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
         {
           *conds= and_conds(*conds, cond_and);
           // fix_fields() should be made with temporary memory pool
-          if (stmt)
-            thd->restore_backup_item_arena(stmt, &backup);
+          if (arena->is_stmt_prepare())
+            thd->restore_backup_item_arena(arena, &backup);
           if (*conds && !(*conds)->fixed)
           {
             if ((*conds)->fix_fields(thd, tables, conds))
@@ -2555,8 +2619,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
         {
           table->on_expr= and_conds(table->on_expr, cond_and);
           // fix_fields() should be made with temporary memory pool
-          if (stmt)
-            thd->restore_backup_item_arena(stmt, &backup);
+          if (arena->is_stmt_prepare())
+            thd->restore_backup_item_arena(arena, &backup);
           if (table->on_expr && !table->on_expr->fixed)
           {
             if (table->on_expr->fix_fields(thd, tables, &table->on_expr))
@@ -2567,7 +2631,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     }
   }
 
-  if (stmt)
+  if (arena->is_stmt_prepare())
   {
     /*
       We are in prepared statement preparation code => we should store
@@ -2580,8 +2644,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   DBUG_RETURN(test(thd->net.report_error));
 
 err:
-  if (stmt)
-      thd->restore_backup_item_arena(stmt, &backup);
+  if (arena->is_stmt_prepare())
+      thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(1);
 }
 
