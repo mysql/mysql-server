@@ -1114,7 +1114,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	  } while (keyuse->table == table && keyuse->key == key);
 
 	  if (eq_part == PREV_BITS(uint,table->key_info[key].key_parts) &&
-	      (table->key_info[key].flags & HA_NOSAME))
+	      (table->key_info[key].flags & HA_NOSAME) &&
+              !table->fulltext_searched)
 	  {
 	    if (const_ref == eq_part)
 	    {					// Found everything for ref.
