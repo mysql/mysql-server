@@ -4177,6 +4177,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{ftp://ftp.netc.pt/pub/mysql/, FTP}
 
 @item
+@c EMAIL: keeper@roedu.net (Mihai RUSU)
+@image{Flags/romania} Romania [roedu.net/Bucharest] @
+@uref{ftp://ftp.roedu.net/pub/mirrors/ftp.mysql.com/, FTP}
+
+@item
 @c EMAIL: kuzmin@dn.ru (Roma Kuzmin)
 @image{Flags/russia} Russia [DirectNet] @
 @uref{http://mysql.directnet.ru/, WWW}
