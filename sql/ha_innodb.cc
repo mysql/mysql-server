@@ -2579,9 +2579,6 @@ ha_innobase::general_fetch(
 	ut_a(prebuilt->trx ==
 	     (trx_t*) current_thd->transaction.all.innobase_tid);
 
-	if (table->status == STATUS_NOT_FOUND)
-	  DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
-
 	srv_conc_enter_innodb(prebuilt->trx);
 
 	ret = row_search_for_mysql((byte*)buf, 0, prebuilt, match_mode,
