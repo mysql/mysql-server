@@ -564,6 +564,10 @@ SOURCE=..\sql\time.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=..\sql\tztime.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\sql\uniques.cpp
 # End Source File
 # Begin Source File
