@@ -174,7 +174,11 @@ enum enum_shutdown_level {
   SHUTDOWN_WAIT_STATEMENTS= 30, /* wait for existing updating stmts to finish */
   SHUTDOWN_WAIT_ALL_BUFFERS= 40, /* flush InnoDB buffers */
   SHUTDOWN_WAIT_CRITICAL_BUFFERS= 50, /* flush MyISAM buffs (no corruption) */
-  SHUTDOWN_ENUM_END= 255 /* must be last */
+  /* Now the 2 levels of the KILL command */
+#if MYSQL_VERSION_ID >= 50000
+  KILL_QUERY= 254,
+#endif
+  KILL_CONNECTION= 255
 };
 
 extern unsigned long max_allowed_packet;
