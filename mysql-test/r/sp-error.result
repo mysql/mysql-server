@@ -35,7 +35,7 @@ call foo()|
 ERROR 42000: PROCEDURE foo does not exist
 drop procedure if exists foo|
 Warnings:
-Warning	1292	PROCEDURE foo does not exist
+Warning	1297	PROCEDURE foo does not exist
 show create procedure foo|
 ERROR 42000: PROCEDURE foo does not exist
 create procedure foo()
@@ -71,7 +71,7 @@ declare y int;
 set x = y;
 end|
 Warnings:
-Warning	1298	Referring to uninitialized variable y
+Warning	1303	Referring to uninitialized variable y
 drop procedure foo|
 create procedure foo()
 return 42|
@@ -194,8 +194,8 @@ create table t1 (val int, x float)|
 insert into t1 values (42, 3.1), (19, 1.2)|
 create procedure p()
 begin
-declare c cursor for select * from t1;
 declare x int;
+declare c cursor for select * from t1;
 open c;
 fetch c into x, y;
 close c;
@@ -203,8 +203,8 @@ end|
 ERROR 42000: Undeclared variable: y
 create procedure p()
 begin
-declare c cursor for select * from t1;
 declare x int;
+declare c cursor for select * from t1;
 open c;
 fetch c into x;
 close c;
@@ -214,10 +214,10 @@ ERROR HY000: Wrong number of FETCH variables
 drop procedure p|
 create procedure p()
 begin
-declare c cursor for select * from t1;
 declare x int;
 declare y float;
 declare z int;
+declare c cursor for select * from t1;
 open c;
 fetch c into x, y, z;
 close c;
@@ -252,9 +252,28 @@ declare c cursor for select field from t1;
 end|
 ERROR 42000: Duplicate cursor: c
 create procedure u()
-use sptmp;
-#|
+use sptmp|
 ERROR 42000: USE is not allowed in a stored procedure
+create procedure p()
+begin
+declare c cursor for select * from t1;
+declare x int;
+end|
+ERROR 42000: Variable or condition declaration after cursor or handler declaration
+create procedure p()
+begin
+declare x int;
+declare continue handler for sqlstate '42S99' set x = 1;
+declare foo condition for sqlstate '42S99';
+end|
+ERROR 42000: Variable or condition declaration after cursor or handler declaration
+create procedure p()
+begin
+declare x int;
+declare continue handler for sqlstate '42S99' set x = 1;
+declare c cursor for select * from t1;
+end|
+ERROR 42000: Cursor declaration after handler declaration
 create procedure bug1965()
 begin
 declare c cursor for select val from t1 order by valname;
@@ -276,7 +295,7 @@ create function bug1654()
 returns int
 return (select sum(t.data) from test.t2 t)|
 ERROR 0A000: Statements like SELECT, INSERT, UPDATE (and others) are not allowed in a FUNCTION
-drop table if exists table_1|
+drop table if exists t3|
 create table t3 (column_1_0 int)|
 create procedure bug1653()
 update t3 set column_1 = 0|
@@ -322,4 +341,49 @@ call bug2329_2()|
 ERROR 42S22: Unknown column 'v' in 'field list'
 drop procedure bug2329_1|
 drop procedure bug2329_2|
+create function bug3287() returns int
+begin
+declare v int default null;
+case
+when v is not null then return 1;
+end case;
+return 2;
+end|
+select bug3287()|
+ERROR 20000: Case not found for CASE statement
+drop function bug3287|
+create procedure bug3287(x int)
+case x
+when 0 then
+insert into test.t1 values (x, 0.1);
+when 1 then
+insert into test.t1 values (x, 1.1);
+end case|
+call bug3287(2)|
+ERROR 20000: Case not found for CASE statement
+drop procedure bug3287|
+drop table if exists t3|
+create table t3 (s1 int, primary key (s1))|
+insert into t3 values (5),(6)|
+create procedure bug3279(out y int) 
+begin
+declare x int default 0;
+begin
+declare exit handler for sqlexception set x = x+1;
+insert into t3 values (5);
+end;
+if x < 2 then
+set x = x+1;
+insert into t3 values (6);
+end if;
+set y = x;
+end|
+set @x = 0|
+call bug3279(@x)|
+ERROR 23000: Duplicate entry '6' for key 1
+select @x|
+@x
+0
+drop procedure bug3279|
+drop table t3|
 drop table t1|

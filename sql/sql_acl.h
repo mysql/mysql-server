@@ -36,6 +36,12 @@
 #define REPL_SLAVE_ACL	(1L << 19)
 #define REPL_CLIENT_ACL	(1L << 20)
 
+/*
+  don't forget to update
+    static struct show_privileges_st sys_privileges[]
+  in sql_show.cc when adding new privileges!
+*/
+
 
 #define DB_ACLS \
 (UPDATE_ACL | SELECT_ACL | INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \

@@ -140,7 +140,7 @@ row_purge_remove_clust_if_poss_low(
 		} else if (err == DB_OUT_OF_FILE_SPACE) {
 			success = FALSE;
 		} else {
-			ut_a(0);
+			ut_error;
 		}
 	}
 
@@ -266,7 +266,7 @@ row_purge_remove_sec_if_poss_low(
 			} else if (err == DB_OUT_OF_FILE_SPACE) {
 				success = FALSE;
 			} else {
-				ut_a(0);
+				ut_error;
 			}
 		}
 	}
@@ -447,8 +447,10 @@ skip_secondaries:
 			data_field = buf_page_get(0, page_no, RW_X_LATCH, &mtr)
 				     + offset + internal_offset;
 
+#ifdef UNIV_SYNC_DEBUG
 			buf_page_dbg_add_level(buf_frame_align(data_field),
 						SYNC_TRX_UNDO_PAGE);
+#endif /* UNIV_SYNC_DEBUG */
 				     
 			data_field_len = ufield->new_val.len;
 

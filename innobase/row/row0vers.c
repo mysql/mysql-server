@@ -60,8 +60,10 @@ row_vers_impl_x_locked_off_kernel(
 	ulint		err;
 	mtr_t		mtr;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	mutex_exit(&kernel_mutex);
 
@@ -254,7 +256,9 @@ row_vers_must_preserve_del_marked(
 	mtr_t*	mtr)	/* in: mtr holding the latch on the clustered index
 			record; it will also hold the latch on purge_view */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	mtr_s_lock(&(purge_sys->latch), mtr);
 
@@ -302,7 +306,9 @@ row_vers_old_has_index_entry(
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec), MTR_MEMO_PAGE_X_FIX)
 	   	|| mtr_memo_contains(mtr, buf_block_align(rec),
 						MTR_MEMO_PAGE_S_FIX));
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 	mtr_s_lock(&(purge_sys->latch), mtr);
 
 	clust_index = dict_table_get_first_index(index->table);
@@ -411,7 +417,9 @@ row_vers_build_for_consistent_read(
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec), MTR_MEMO_PAGE_X_FIX)
 	   	|| mtr_memo_contains(mtr, buf_block_align(rec),
 						MTR_MEMO_PAGE_S_FIX));
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!read_view_sees_trx_id(view, row_get_rec_trx_id(rec, index)));
 
 	rw_lock_s_lock(&(purge_sys->latch));

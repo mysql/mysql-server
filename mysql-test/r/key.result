@@ -34,10 +34,10 @@ INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','N','N','N','N');
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','N','N','N','N');
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','','','','');
 Warnings:
-Warning	1264	Data truncated for column 'transityes' at row 1
-Warning	1264	Data truncated for column 'shopsyes' at row 1
-Warning	1264	Data truncated for column 'schoolsyes' at row 1
-Warning	1264	Data truncated for column 'petsyes' at row 1
+Warning	1265	Data truncated for column 'transityes' at row 1
+Warning	1265	Data truncated for column 'shopsyes' at row 1
+Warning	1265	Data truncated for column 'schoolsyes' at row 1
+Warning	1265	Data truncated for column 'petsyes' at row 1
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','Y','Y','Y','Y');
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','Y','Y','Y','Y');
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','Y','Y','Y','Y');
@@ -156,8 +156,8 @@ CREATE TABLE t1 (c CHAR(10) NOT NULL,i INT NOT NULL AUTO_INCREMENT,
 UNIQUE (c,i));
 INSERT INTO t1 (c) VALUES (NULL),(NULL);
 Warnings:
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'c' at row 1
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'c' at row 2
+Warning	1263	Data truncated, NULL supplied to NOT NULL column 'c' at row 1
+Warning	1263	Data truncated, NULL supplied to NOT NULL column 'c' at row 2
 SELECT * FROM t1;
 c	i
 	1
@@ -184,4 +184,25 @@ NULL	1
 NULL	2
 a	1
 a	2
+drop table t1;
+create table t1 (i int, a char(200), b text, unique (a), unique (b(300))) charset utf8;
+insert t1 values (1, repeat('a',210), repeat('b', 310));
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+insert t1 values (2, repeat(0xD0B1,215), repeat(0xD0B1, 310));
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+select i, length(a), length(b), char_length(a), char_length(b) from t1;
+i	length(a)	length(b)	char_length(a)	char_length(b)
+1	200	310	200	310
+2	400	620	200	310
+select i from t1 where a=repeat(_utf8 'a',200);
+i
+1
+select i from t1 where a=repeat(_utf8 0xD0B1,200);
+i
+2
+select i from t1 where b=repeat(_utf8 'b',310);
+i
+1
 drop table t1;

@@ -54,7 +54,7 @@ safe_query("delete from columns_priv");
 safe_query("lock tables mysql.user write"); # Test lock tables
 safe_query("flush privileges");
 safe_query("unlock tables");	     # should already be unlocked
-safe_query("drop database $opt_database",2);
+safe_query("drop database $opt_database",3);	# Don't print possible error
 safe_query("create database $opt_database");
 
 # check that the user can't login yet
@@ -186,6 +186,7 @@ user_query("delete from $opt_database.test where a=3");
 user_query("create table $opt_database.test2 (a int not null)");
 user_query("alter table $opt_database.test2 add b int");
 user_query("create index dummy on $opt_database.test2 (a)");
+user_query("update test,test2 SET test.a=test2.a where test.a=test2.a");
 user_query("drop table $opt_database.test2");
 user_query("show tables from grant_test");
 # These should fail
@@ -195,6 +196,20 @@ user_query("insert into mysql.user (host,user) values ('error','$opt_user',0)",1
 safe_query("revoke ALL PRIVILEGES on $opt_database.* from $user");
 safe_query("select * from mysql.user where user = '$opt_user'");
 safe_query("select * from mysql.db where user = '$opt_user'");
+
+# Test multi-updates
+safe_query("grant CREATE,UPDATE,DROP on $opt_database.* to $user");
+user_connect(0);
+user_query("create table $opt_database.test2 (a int not null)");
+user_query("update test,test2 SET test.a=1 where 1");
+user_query("update test,test2 SET test.a=test2.a where 1",1);
+safe_query("grant SELECT on $opt_database.* to $user");
+user_connect(0);
+user_query("update test,test2 SET test.a=test2.a where test2.a=test.a");
+user_query("drop table $opt_database.test2");
+
+# Revoke database privileges
+safe_query("revoke ALL PRIVILEGES on $opt_database.* from $user");
 user_connect(1);
 
 #
@@ -216,11 +231,18 @@ user_query("insert into $opt_database.test values (8,0)");
 user_query("update $opt_database.test set b=1",1);
 safe_query("grant update on $opt_database.test to $user");
 user_query("update $opt_database.test set b=2");
+
+user_query("update $opt_database.test,test2 SET test.b=3",1);
+safe_query("grant select on $opt_database.test2 to $user");
+user_query("update $opt_database.test,test2 SET test.b=3");
+safe_query("revoke select on $opt_database.test2 from $user");
+
 user_query("delete from $opt_database.test",1);
 safe_query("grant delete on $opt_database.test to $user");
 user_query("delete from $opt_database.test where a=1",1);
 user_query("update $opt_database.test set b=3 where b=1",1);
 user_query("update $opt_database.test set b=b+1",1);
+user_query("update $opt_database.test,test2 SET test.a=test2.a",1);
 
 #
 # Test global SELECT privilege combined with table level privileges
@@ -230,6 +252,8 @@ safe_query("grant SELECT on *.* to $user");
 user_connect(0);
 user_query("update $opt_database.test set b=b+1");
 user_query("update $opt_database.test set b=b+1 where a > 0");
+user_query("update $opt_database.test,test2 SET test.a=test2.a");
+user_query("update $opt_database.test,test2 SET test2.a=test.a",1);
 safe_query("revoke SELECT on *.* from $user");
 safe_query("grant SELECT on $opt_database.* to $user");
 user_connect(0);
@@ -252,6 +276,9 @@ user_query("delete from $opt_database.test where a=1");
 user_query("update $opt_database.test set b=2 where b=1");
 user_query("update $opt_database.test set b=b+1");
 user_query("select count(*) from test");
+user_query("update test,test2 SET test.b=4",1);
+user_query("update test,test2 SET test2.a=test.a",1);
+user_query("update test,test2 SET test.a=test2.a",1);
 
 user_query("create table $opt_database.test3 (a int)",1);
 user_query("alter table $opt_database.test2 add c int",1);
@@ -270,10 +297,27 @@ user_query("select count(*) from test2,test",1);
 user_query("select count(*) from test,test2",1);
 user_query("replace into test2 SELECT a from test",1);
 safe_query("grant update on $opt_database.test2 to $user");
+user_query("update test,test2 SET test2.a=test.a");
+user_query("update test,test2 SET test.b=test2.a where 0",1);
+user_query("update test,test2 SET test.a=2 where test2.a>100",1);
+user_query("update test,test2 SET test.a=test2.a",1);
 user_query("replace into test2 SELECT a,a from test",1);
 safe_query("grant DELETE on $opt_database.test2 to $user");
 user_query("replace into test2 SELECT a,a from test");
 user_query("insert into test (a) SELECT a from test2",1);
+safe_query("grant SELECT on $opt_database.test2 to $user");
+user_query("update test,test2 SET test.b=test2.a where 0");
+user_query("update test,test2 SET test.a=test2.a where test2.a>100");
+
+safe_query("revoke UPDATE on $opt_database.test2 from $user");
+safe_query("grant UPDATE (c) on $opt_database.test2 to $user");
+user_query("update test,test2 SET test.b=test2.a where 0");
+user_query("update test,test2 SET test.a=test2.a where test2.a>100");
+user_query("update test,test2 SET test2.a=test2.a where test2.a>100",1);
+user_query("update test,test2 SET test2.c=test2.a where test2.a>100");
+
+safe_query("revoke SELECT,UPDATE on $opt_database.test2 from $user");
+safe_query("grant UPDATE on $opt_database.test2 to $user");
 
 user_query("drop table $opt_database.test2",1);
 user_query("grant select on $opt_database.test2 to $user with grant option",1);
@@ -315,9 +359,13 @@ user_query("select count(a) from test",1);
 # Test some grants on column level
 #
 
+safe_query("grant create,update on $opt_database.test2 to $user");
+user_query("create table $opt_database.test2 (a int not null)");
 user_query("delete from $opt_database.test where a=2",1);
 user_query("delete from $opt_database.test where A=2",1);
 user_query("update test set b=5 where b>0",1);
+user_query("update test,test2 SET test.b=5 where b>0",1);
+
 safe_query("grant update(b),delete on $opt_database.test to $user");
 safe_query("revoke update(a) on $opt_database.test from $user",1);
 user_query("delete from $opt_database.test where a=2",1);
@@ -327,12 +375,18 @@ user_query("delete from $opt_database.test where a=2");
 user_query("delete from $opt_database.test where A=2");
 user_query("update test set b=5 where b>0");
 user_query("update test set a=11 where b>5",1);
+user_query("update test,test2 SET test.b=5 where b>0");
+user_query("update test,test2 SET test.a=11 where b>0",1);
+user_query("update test,test2 SET test.b=test2.a where b>0",1);
+user_query("update test,test2 SET test.b=11 where test2.a>0",1);
 user_query("select a,A from test");
 
 safe_query("select $tables_cols from mysql.tables_priv");
 safe_query("revoke ALL PRIVILEGES on $opt_database.test from $user");
 safe_query("select $tables_cols from mysql.tables_priv");
 safe_query("revoke GRANT OPTION on $opt_database.test from $user",1);
+safe_query("drop table $opt_database.test2");
+safe_query("revoke create,update on $opt_database.test2 from $user");
 
 #
 # Test grants on database level
@@ -412,7 +466,7 @@ safe_query("select $columns_cols from mysql.columns_priv where user = '$opt_user
 
 safe_query("revoke ALL PRIVILEGES on $opt_database.test from $user");
 user_query("select count(a) from test",1);
-user_query("select * from mysql.user",1);
+user_query("select * from mysql.user order by hostname",1);
 safe_query("select * from mysql.db where user = '$opt_user'");
 safe_query("select $tables_cols from mysql.tables_priv where user = '$opt_user'");
 safe_query("select $columns_cols from mysql.columns_priv where user = '$opt_user'");
@@ -625,7 +679,7 @@ sub user_query
   {
     if (!defined($ignore_error))
     {
-      die "The above should not have failed!";
+      die "Query '$query' should not have failed!";
     }
   }
   elsif (defined($ignore_error) && $ignore_error == 1)
@@ -649,7 +703,7 @@ sub do_query
   if (!$sth->execute)
   {
     $fatal_error= ($DBI::errstr =~ /parse error/);
-    if (!$ignore_error || $opt_verbose || $fatal_error)
+    if (!$ignore_error || ($opt_verbose && $ignore_error != 3) || $fatal_error)
     {
       print "Error in execute: $DBI::errstr\n";
     }

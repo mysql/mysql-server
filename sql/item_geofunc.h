@@ -23,8 +23,6 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-#define SRID_SIZE sizeof(uint32)
-
 class Item_func_geometry_from_text: public Item_str_func
 {
 public:

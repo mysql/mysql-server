@@ -62,6 +62,9 @@ long my_gmt_sec(TIME *t, long *my_timezone)
   struct tm *l_time,tm_tmp;
   long diff, current_timezone;
 
+  if (t->year > TIMESTAMP_MAX_YEAR || t->year < TIMESTAMP_MIN_YEAR)
+    return 0;
+    
   if (t->hour >= 24)
   {					/* Fix for time-loop */
     t->day+=t->hour/24;
@@ -124,8 +127,10 @@ long my_gmt_sec(TIME *t, long *my_timezone)
       tmp-=t->minute*60 + t->second;		// Move to previous hour
   }
   *my_timezone= current_timezone;
-  if (tmp < 0 && t->year <= 1900+YY_PART_YEAR)
+  
+  if (tmp < TIMESTAMP_MIN_VALUE || tmp > TIMESTAMP_MAX_VALUE)
     tmp= 0;
+  
   return (long) tmp;
 } /* my_gmt_sec */
 
@@ -386,9 +391,11 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
   ulong not_zero_date, allow_space;
   bool is_internal_format;
   const char *pos, *last_field_pos;
+  const char *str_begin= str;
   const char *end=str+length;
   const uchar *format_position;
   bool found_delimitier= 0, found_space= 0;
+  uint frac_pos, frac_len;
   DBUG_ENTER("str_to_TIME");
   DBUG_PRINT("ENTER",("str: %.*s",length,str));
 
@@ -477,7 +484,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
       tmp_value=tmp_value*10 + (ulong) (uchar) (*str - '0');
       str++;
     }
-    date_len[i]+= (uint) (str - start);
+    date_len[i]= (uint) (str - start);
     if (tmp_value > 999999)			// Impossible date part
       DBUG_RETURN(TIMESTAMP_NONE);
     date[i]=tmp_value;
@@ -530,9 +537,9 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
       {
 	if (str+2 <= end && (str[1] == 'M' || str[1] == 'm'))
 	{
-	  if (str[1] == 'p' || str[1] == 'P')
+	  if (str[0] == 'p' || str[0] == 'P')
 	    add_hours= 12;
-	  else if (str[1] != 'a' || str[1] != 'A')
+	  else if (str[0] != 'a' || str[0] != 'A')
 	    continue;				// Not AM/PM
 	  str+= 2;				// Skip AM/PM
 	  /* Skip space after AM/PM */
@@ -550,7 +557,10 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
 
   number_of_fields= i - start_loop;
   while (i < MAX_DATE_PARTS)
-    date[i++]=0;
+  {
+    date_len[i]= 0;
+    date[i++]= 0;
+  }
 
   if (!is_internal_format)
   {
@@ -564,7 +574,13 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
     l_time->hour=		date[(uint) format_position[3]];
     l_time->minute=		date[(uint) format_position[4]];
     l_time->second=		date[(uint) format_position[5]];
-    l_time->second_part=	date[(uint) format_position[6]];
+
+    frac_pos= (uint) format_position[6];
+    frac_len= date_len[frac_pos];
+    if (frac_len < 6)
+      date[frac_pos]*= (uint) log_10_int[6 - frac_len];
+    l_time->second_part= date[frac_pos];
+
     if (format_position[7] != (uchar) 255)
     {
       if (l_time->hour > 12)
@@ -580,6 +596,8 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
     l_time->hour=	date[3];
     l_time->minute=	date[4];
     l_time->second=	date[5];
+    if (date_len[6] < 6)
+      date[6]*= (uint) log_10_int[6 - date_len[6]];
     l_time->second_part=date[6];
   }
   l_time->neg= 0;
@@ -609,15 +627,17 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
       current_thd->cuted_fields++;
     goto err;
   }
-  if (str != end && current_thd->count_cuted_fields)
+
+  l_time->time_type= (number_of_fields <= 3 ? 
+		      TIMESTAMP_DATE : TIMESTAMP_DATETIME);
+
+  for (; str != end ; str++)
   {
-    for (; str != end ; str++)
+    if (!my_isspace(&my_charset_latin1,*str))
     {
-      if (!my_isspace(&my_charset_latin1,*str))
-      {
-	current_thd->cuted_fields++;
-	break;
-      }
+      make_truncated_value_warning(current_thd, str_begin, length,
+				   l_time->time_type);
+      break;
     }
   }
 
@@ -634,15 +654,12 @@ time_t str_to_timestamp(const char *str,uint length)
 {
   TIME l_time;
   long not_used;
+  time_t timestamp= 0;
 
-  if (str_to_TIME(str,length,&l_time,0) <= TIMESTAMP_DATETIME_ERROR)
-    return(0);
-  if (l_time.year >= TIMESTAMP_MAX_YEAR || l_time.year < 1900+YY_PART_YEAR-1)
-  {
+  if (str_to_TIME(str,length,&l_time,0) > TIMESTAMP_DATETIME_ERROR &&
+      !(timestamp= my_gmt_sec(&l_time, &not_used)))
     current_thd->cuted_fields++;
-    return(0);
-  }
-  return(my_gmt_sec(&l_time, &not_used));
+  return timestamp;
 }
 
 
@@ -684,6 +701,7 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
 {
   long date[5],value;
   const char *end=str+length, *end_of_days;
+  const char *str_begin= str;
   bool found_days,found_hours;
   uint state;
 
@@ -704,7 +722,7 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
   {						// Probably full timestamp
     enum timestamp_type res= str_to_TIME(str,length,l_time,
 					 (TIME_FUZZY_DATE |
-					 TIME_DATETIME_ONLY));
+					  TIME_DATETIME_ONLY));
     if ((int) res >= (int) TIMESTAMP_DATETIME_ERROR)
       return res == TIMESTAMP_DATETIME_ERROR;
   }
@@ -782,6 +800,8 @@ fractional:
            my_isdigit(&my_charset_latin1,str[0]) && 
            field_length--)
       value=value*10 + (uint) (uchar) (*str - '0');
+    if (field_length)
+      value*= (long) log_10_int[field_length];
     date[4]=value;
   }
   else
@@ -794,12 +814,12 @@ fractional:
       str++;
     if (str+2 <= end && (str[1] == 'M' || str[1] == 'm'))
     {
-      if (str[1] == 'p' || str[1] == 'P')
+      if (str[0] == 'p' || str[0] == 'P')
       {
 	str+= 2;
 	date[1]= date[1]%12 + 12;
       }
-      else if (str[1] == 'a' || str[1] == 'A')
+      else if (str[0] == 'a' || str[0] == 'A')
 	str+=2;
     }
   }
@@ -820,13 +840,14 @@ fractional:
   l_time->time_type= TIMESTAMP_TIME;
 
   /* Check if there is garbage at end of the TIME specification */
-  if (str != end && current_thd->count_cuted_fields)
+  if (str != end)
   {
     do
     {
       if (!my_isspace(&my_charset_latin1,*str))
       {
-	current_thd->cuted_fields++;
+	make_truncated_value_warning(current_thd, str_begin, length,
+				     TIMESTAMP_TIME);
 	break;
       }
     } while (++str != end);
@@ -1262,4 +1283,36 @@ void make_datetime(DATE_TIME_FORMAT *format, TIME *l_time, String *str)
 			   l_time->second));
   str->length(length);
   str->set_charset(&my_charset_bin);
+}
+
+void make_truncated_value_warning(THD *thd, const char *str_val,
+				  uint str_length, timestamp_type time_type)
+{
+  char warn_buff[MYSQL_ERRMSG_SIZE];
+  const char *type_str;
+
+  char buff[128];
+  String str(buff,(uint32) sizeof(buff), system_charset_info);
+  str.length(0);
+  str.append(str_val, str_length);
+  str.append('\0');
+
+  switch (time_type) {
+    case TIMESTAMP_DATE: 
+      type_str= "date";
+      break;
+    case TIMESTAMP_DATETIME:
+      type_str= "datetime";
+      break;
+    case TIMESTAMP_TIME:
+      type_str= "time";
+      break;
+    default:
+      type_str= "string";
+      break;
+  }
+  sprintf(warn_buff, ER(ER_TRUNCATED_WRONG_VALUE),
+	  type_str, str.ptr());
+  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+		      ER_TRUNCATED_WRONG_VALUE, warn_buff);
 }

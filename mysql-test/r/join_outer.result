@@ -124,8 +124,8 @@ grp	a	c	id	a	c	d
 3	5	C	3	5	B	5
 3	6	D	3	6	C	6
 select t1.*,t2.* from t1 natural join t2;
-grp	a	c	id	a	c	d
-1	1	a	1	1	a	1
+grp	a	c	id	d
+1	1	a	1	1
 drop table t1,t2;
 CREATE TABLE t1 (
 usr_id INT unsigned NOT NULL,
@@ -467,10 +467,10 @@ count	color
 15	white
 7	green
 select * from t2 natural join t1;
-count	color	color	name
-10	green	green	lime
-7	green	green	lime
-5	black	black	grape
+count	color	name
+10	green	lime
+7	green	lime
+5	black	grape
 select t2.count, t1.name from t2 natural join t1;
 count	name
 10	lime

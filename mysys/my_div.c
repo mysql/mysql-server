@@ -27,7 +27,7 @@
 my_string my_filename(File fd)
 {
   DBUG_ENTER("my_filename");
-  if (fd >= MY_NFILE)
+  if ((uint) fd >= (uint) my_file_limit)
     DBUG_RETURN((char*) "UNKNOWN");
   if (fd >= 0 && my_file_info[fd].type != UNOPEN)
   {

@@ -456,10 +456,10 @@ void check_data_vol()
   
   // retrieve information
   netware_vol_info_from_name(&vol, buff);
-  
+
   if ((vol.flags & VOL_NSS_PRESENT) == 0)
   {
-    log("Error: The data directory is not on an NSS volume!\n\n");
+    log("Error: Either the data directory does not exist or is not on an NSS volume!\n\n");
     exit(-1);
   }
 }

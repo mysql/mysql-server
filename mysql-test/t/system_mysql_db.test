@@ -1,0 +1,8 @@
+#
+# This test must examine integrity of system database "mysql"
+#
+
+-- disable_query_log
+use mysql;
+-- enable_query_log
+-- source include/system_db_struct.inc

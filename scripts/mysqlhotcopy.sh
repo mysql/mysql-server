@@ -37,7 +37,7 @@ WARNING: THIS PROGRAM IS STILL IN BETA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = "1.20";
+my $VERSION = "1.21";
 
 my $opt_tmpdir = $ENV{TMPDIR} || "/tmp";
 
@@ -73,6 +73,7 @@ Usage: $0 db_name[./table_regex/] [new_db_name | directory]
   --resetslave         reset the master.info once all tables are locked
   --tmpdir=#	       temporary directory (instead of $opt_tmpdir)
   --record_log_pos=#   record slave and master status in specified db.table
+  --chroot=#           base directory of chroot jail in which mysqld operates
 
   Try \'perldoc $0 for more complete documentation\'
 _OPTIONS
@@ -117,6 +118,7 @@ GetOptions( \%opt,
     "resetslave",
     "tmpdir|t=s",
     "dryrun|n",
+    "chroot=s",
 ) or usage("Invalid option");
 
 # @db_desc
@@ -210,6 +212,7 @@ while ( my ($var,$value) = $sth_vars->fetchrow_array ) {
 }
 my $datadir = $mysqld_vars{'datadir'}
     || die "datadir not in mysqld variables";
+    $datadir= $opt{chroot}.$datadir if ($opt{chroot});
 $datadir =~ s:/$::;
 
 

@@ -86,7 +86,7 @@ extern "C" void free_user_var(user_var_entry *entry)
 ** Thread specific functions
 ****************************************************************************/
 
-THD::THD():user_time(0), is_fatal_error(0),
+THD::THD():user_time(0), current_statement(0), is_fatal_error(0),
 	   last_insert_id_used(0),
 	   insert_id_used(0), rand_used(0), in_lock_tables(0),
 	   global_read_lock(0), bootstrap(0), spcont(NULL)
@@ -150,6 +150,7 @@ THD::THD():user_time(0), is_fatal_error(0),
 
   init();
   /* Initialize sub structures */
+  clear_alloc_root(&transaction.mem_root);
   init_alloc_root(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
@@ -176,7 +177,11 @@ THD::THD():user_time(0), is_fatal_error(0),
   tablespace_op=FALSE;
 #ifdef USING_TRANSACTIONS
   bzero((char*) &transaction,sizeof(transaction));
-  if (opt_using_transactions)
+  /*
+    Binlog is always open (if needed) before a THD is created (including
+    bootstrap).
+  */
+  if (opt_using_transactions && mysql_bin_log.is_open())
   {
     if (open_cached_file(&transaction.trans_log,
 			 mysql_tmpdir, LOG_PREFIX, binlog_cache_size,
@@ -185,14 +190,8 @@ THD::THD():user_time(0), is_fatal_error(0),
     transaction.trans_log.end_of_file= max_binlog_cache_size;
   }
 #endif
-  /*
-    We need good random number initialization for new thread
-    Just coping global one will not work
-  */
   {
-    pthread_mutex_lock(&LOCK_thread_count);
-    ulong tmp=(ulong) (my_rnd(&sql_rand) * 0xffffffff); /* make all bits random */
-    pthread_mutex_unlock(&LOCK_thread_count);
+    ulong tmp=sql_rnd_with_mutex();
     randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
   }
 }
@@ -351,7 +350,7 @@ THD::~THD()
   dbug_sentry= THD_SENTRY_GONE;
 #endif  
   /* Reset stmt_backup.mem_root to not double-free memory from thd.mem_root */
-  init_alloc_root(&stmt_backup.mem_root, 0, 0);
+  clear_alloc_root(&stmt_backup.mem_root);
   DBUG_VOID_RETURN;
 }
 
@@ -661,6 +660,8 @@ bool select_send::send_data(List<Item> &items)
     }
   }
   thd->sent_row_count++;
+  if (!thd->net.vio)
+    DBUG_RETURN(0);
   if (!thd->net.report_error)
     DBUG_RETURN(protocol->write());
   DBUG_RETURN(1);
@@ -1195,8 +1196,12 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     else
     {
       Item_func_set_user_var *xx = new Item_func_set_user_var(mv->s, item);
+      /*
+        Item_func_set_user_var can't substitute something else on its place =>
+        0 can be passed as last argument (reference on item)
+      */
       xx->fix_fields(thd, (TABLE_LIST*) thd->lex->select_lex.table_list.first,
-		     &item);
+		     0);
       xx->fix_length_and_dec();
       vars.push_back(xx);
     }
@@ -1211,10 +1216,8 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 
 Statement::Statement(THD *thd)
   :id(++thd->statement_id_counter),
-  query_id(thd->query_id),
   set_query_id(1),
   allow_sum_func(0),
-  command(thd->command),
   lex(&main_lex),
   query(0),
   query_length(0),
@@ -1233,10 +1236,8 @@ Statement::Statement(THD *thd)
 
 Statement::Statement()
   :id(0),
-  query_id(0),                                  /* initialized later */
   set_query_id(1),
   allow_sum_func(0),                            /* initialized later */
-  command(COM_SLEEP),                           /* initialized later */ 
   lex(&main_lex),
   query(0),                                     /* these two are set */ 
   query_length(0),                              /* in alloc_query() */
@@ -1255,17 +1256,34 @@ Statement::Type Statement::type() const
 void Statement::set_statement(Statement *stmt)
 {
   id=             stmt->id;
-  query_id=       stmt->query_id;
   set_query_id=   stmt->set_query_id;
   allow_sum_func= stmt->allow_sum_func;
-  command=        stmt->command;
   lex=            stmt->lex;
   query=          stmt->query;
   query_length=   stmt->query_length;
-  free_list=      stmt->free_list;
-  mem_root=       stmt->mem_root;
 }
 
+
+void Statement::set_n_backup_item_arena(Statement *set, Statement *backup)
+{
+  backup->set_item_arena(this);
+  set_item_arena(set);
+}
+
+
+void Statement::restore_backup_item_arena(Statement *set, Statement *backup)
+{
+  set->set_item_arena(this);
+  set_item_arena(backup);
+  // reset backup mem_root to avoid its freeing
+  init_alloc_root(&backup->mem_root, 0, 0);
+}
+
+void Statement::set_item_arena(Statement *set)
+{
+  mem_root= set->mem_root;
+  free_list= set->free_list;
+}
 
 Statement::~Statement()
 {

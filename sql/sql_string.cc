@@ -126,8 +126,8 @@ bool String::set(double num,uint decimals, CHARSET_INFO *cs)
   str_charset=cs;
   if (decimals >= NOT_FIXED_DEC)
   {
-    sprintf(buff,"%.14g",num);			// Enough for a DATETIME
-    return copy(buff, (uint32) strlen(buff), &my_charset_latin1, cs);
+    uint32 len= my_sprintf(buff,(buff, "%.14g",num));// Enough for a DATETIME
+    return copy(buff, len, &my_charset_latin1, cs);
   }
 #ifdef HAVE_FCONVERT
   int decpt,sign;
@@ -453,7 +453,7 @@ bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
   if (!arg_length)				// Default argument
     if (!(arg_length= (uint32) strlen(s)))
       return FALSE;
-  if (str_charset->mbmaxlen > 1)
+  if (cs != str_charset && str_charset->mbmaxlen > 1)
   {
     uint32 add_length=arg_length * str_charset->mbmaxlen;
     if (realloc(str_length+ add_length))
@@ -671,9 +671,8 @@ int String::reserve(uint32 space_needed, uint32 grow_by)
   return FALSE;
 }
 
-void String::qs_append(const char *str)
+void String::qs_append(const char *str, uint32 len)
 {
-  int len = strlen(str);
   memcpy(Ptr + str_length, str, len + 1);
   str_length += len;
 }
@@ -681,8 +680,7 @@ void String::qs_append(const char *str)
 void String::qs_append(double d)
 {
   char *buff = Ptr + str_length;
-  sprintf(buff,"%.14g", d);
-  str_length += strlen(buff);
+  str_length+= my_sprintf(buff, (buff, "%.14g", d));
 }
 
 void String::qs_append(double *d)
@@ -692,18 +690,70 @@ void String::qs_append(double *d)
   qs_append(ld);
 }
 
-void String::qs_append(const char &c)
+void String::qs_append(int i)
 {
-  Ptr[str_length] = c;
-  str_length += sizeof(c);
+  char *buff = Ptr + str_length;
+  sprintf(buff,"%d", i);
+  str_length += strlen(buff);
+}
+
+void String::qs_append(uint i)
+{
+  char *buff = Ptr + str_length;
+  sprintf(buff,"%u", i);
+  str_length += strlen(buff);
+}
+
+/*
+  Compare strings according to collation, without end space.
+
+  SYNOPSIS
+    sortcmp()
+    s		First string
+    t		Second string
+    cs		Collation
+
+  NOTE:
+    Normally this is case sensitive comparison
+
+  RETURN
+  < 0	s < t
+  0	s == t
+  > 0	s > t
+*/
+
+
+int sortcmp(const String *s,const String *t, CHARSET_INFO *cs)
+{
+ return cs->coll->strnncollsp(cs,
+                             (unsigned char *) s->ptr(),s->length(),
+			     (unsigned char *) t->ptr(),t->length());
 }
 
 
-int sortcmp(const String *x,const String *y, CHARSET_INFO *cs)
+/*
+  Compare strings byte by byte. End spaces are also compared.
+
+  SYNOPSIS
+    stringcmp()
+    s		First string
+    t		Second string
+
+  NOTE:
+    Strings are compared as a stream of unsigned chars
+
+  RETURN
+  < 0	s < t
+  0	s == t
+  > 0	s > t
+*/
+
+
+int stringcmp(const String *s,const String *t)
 {
-  return cs->coll->strnncollsp(cs,
-                        (unsigned char *) x->ptr(),x->length(),
-			(unsigned char *) y->ptr(),y->length());
+  uint32 s_len=s->length(),t_len=t->length(),len=min(s_len,t_len);
+  int cmp= memcmp(s->ptr(), t->ptr(), len);
+  return (cmp) ? cmp : (int) (s_len - t_len);
 }
 
 
@@ -757,10 +807,14 @@ copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
   const uchar *from_end= (const uchar*) from+from_length;
   char *to_start= to;
   uchar *to_end= (uchar*) to+to_length;
+  int (*mb_wc)(struct charset_info_st *, my_wc_t *, const uchar *,
+	       const uchar *) = from_cs->cset->mb_wc;
+  int (*wc_mb)(struct charset_info_st *, my_wc_t, uchar *s, uchar *e)=
+    to_cs->cset->wc_mb;
 
   while (1)
   {
-    if ((cnvres= from_cs->cset->mb_wc(from_cs, &wc, (uchar*) from,
+    if ((cnvres= (*mb_wc)(from_cs, &wc, (uchar*) from,
 				      from_end)) > 0)
       from+= cnvres;
     else if (cnvres == MY_CS_ILSEQ)
@@ -772,7 +826,7 @@ copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
       break;					// Impossible char.
 
 outp:
-    if ((cnvres= to_cs->cset->wc_mb(to_cs, wc, (uchar*) to, to_end)) > 0)
+    if ((cnvres= (*wc_mb)(to_cs, wc, (uchar*) to, to_end)) > 0)
       to+= cnvres;
     else if (cnvres == MY_CS_ILUNI && wc != '?')
     {
@@ -784,6 +838,7 @@ outp:
   }
   return (uint32) (to - to_start);
 }
+
 
 void String::print(String *str)
 {

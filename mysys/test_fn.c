@@ -59,7 +59,8 @@ int main(int argc __attribute__((unused)), char **argv)
     printf("org :   '%s'\n",*pos);
     printf("pack:   '%s'\n",fn_format(buff,*pos,"","",8));
     printf("unpack: '%s'\n",fn_format(buff2,*pos,"","",4));
-    if (strcmp(unpack_filename(buff,buff),buff2) != 0)
+    unpack_filename(buff,buff);
+    if (strcmp(buff,buff2) != 0)
     {
       printf("error on cmp: '%s' != '%s'\n",buff,buff2);
     }

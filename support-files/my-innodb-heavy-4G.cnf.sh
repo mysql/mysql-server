@@ -71,7 +71,7 @@ max_connections = 100
 # the host will be blocked from connecting to the MySQL server until
 # "FLUSH HOSTS" has been run or the server was restarted. Invalid
 # passwords and other errors during the connect phase result in
-# increasing this value. See the "Aborted_Connects" status variable for
+# increasing this value. See the "Aborted_connects" status variable for
 # global counter.
 max_connect_errors = 10
 
@@ -111,14 +111,14 @@ max_heap_table_size = 64M
 
 # Sort buffer is used to perform sorts for some ORDER BY and GROUP BY
 # queries. If sorted data does not fit into the sort buffer, a disk
-# based merge sort is used instead - See "sort_merge_passes". Allocated
-# per thread if sort is needed.
+# based merge sort is used instead - See the "Sort_merge_passes"
+# status variable. Allocated per thread if sort is needed.
 sort_buffer_size = 8M
 
 # This buffer is used for the optimization of full JOINs (JOINs without
 # indexes). Such JOINs are very bad for performance in most cases
 # anyway, but setting this variable to a large value reduces the
-# performance impact. See the "select_full_join" status variable for a
+# performance impact. See the "Select_full_join" status variable for a
 # count of full JOINs. Allocated per thread if full join is found
 join_buffer_size = 8M
 

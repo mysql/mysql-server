@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t1,t2,t3,t4,T1;
+drop table if exists t1,t2,t3,t4;
 --enable_warnings
 
 create table T1 (id int primary key, Word varchar(40) not null, Index(Word));
@@ -30,3 +30,27 @@ select count(*) from t1;
 select count(T1.a) from t1;
 select count(bags.a) from t1 as Bags;
 drop table t1;
+
+#
+# multiupdate/delete & --lower-case-table-names
+#
+create table t1 (a int);
+create table t2 (a int);
+delete p1.*,P2.* from t1 as p1, t2 as p2 where p1.a=P2.a;
+delete P1.*,p2.* from t1 as P1, t2 as P2 where P1.a=p2.a;
+update t1 as p1, t2 as p2 SET p1.a=1,P2.a=1 where p1.a=P2.a;
+update t1 as P1, t2 as P2 SET P1.a=1,p2.a=1 where P1.a=p2.a;
+drop table t1,t2;
+
+#
+# aliases case insensitive
+#
+create table t1 (a int);
+create table t2 (a int);
+-- error 1066
+select * from t1 c, t2 C;
+-- error 1066
+select C.a, c.a from t1 c, t2 C;
+drop table t1, t2;
+
+show tables;

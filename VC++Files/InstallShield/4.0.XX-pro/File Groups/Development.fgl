@@ -219,6 +219,7 @@ file32=C:\mysql\scripts\mysqlbug.sh
 file21=C:\mysql\scripts\mysql_setpermission
 file10=C:\mysql\scripts\mysql_find_rows
 fulldirectory=
+file44=C:\mysql\scripts\mysql_fix_privilege_tables.sql
 file33=C:\mysql\scripts\mysqld_multi
 file22=C:\mysql\scripts\mysql_setpermission.pl
 file11=C:\mysql\scripts\mysql_find_rows.pl

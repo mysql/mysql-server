@@ -103,6 +103,7 @@ Item_bool_func2* Le_creator::create(Item *a, Item *b) const
 
 longlong Item_func_not::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   null_value=args[0]->null_value;
   return !null_value && value == 0 ? 1 : 0;
@@ -113,7 +114,8 @@ longlong Item_func_not::val_int()
 */
 
 longlong Item_func_not_all::val_int()
-{  
+{
+  DBUG_ASSERT(fixed == 1);
   double value= args[0]->val();
   if (abort_on_null)
   {
@@ -225,6 +227,13 @@ void Item_bool_func2::fix_length_and_dec()
   }
   
   // Make a special case of compare with fields to get nicer DATE comparisons
+
+  if (functype() == LIKE_FUNC)  // Disable conversion in case of LIKE function.
+  {
+    set_cmp_func();
+    return;
+  }
+    
   if (args[0]->type() == FIELD_ITEM)
   {
     Field *field=((Item_field*) args[0])->field;
@@ -293,6 +302,17 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
       my_coll_agg_error((*a)->collation, (*b)->collation, owner->func_name());
       return 1;
     }
+    if (my_binary_compare(cmp_collation.collation))
+    {
+      /*
+	We are using binary collation, change to compare byte by byte,
+	without removing end space
+      */
+      if (func == &Arg_comparator::compare_string)
+	func= &Arg_comparator::compare_binary_string;
+      else if (func == &Arg_comparator::compare_e_string)
+	func= &Arg_comparator::compare_e_binary_string;
+    }
   }
   return 0;
 }
@@ -313,6 +333,39 @@ int Arg_comparator::compare_string()
   return -1;
 }
 
+
+/*
+  Compare strings byte by byte. End spaces are also compared.
+
+  RETURN
+   < 0	*a < *b
+   0	*b == *b
+   > 0	*a > *b
+*/
+
+int Arg_comparator::compare_binary_string()
+{
+  String *res1,*res2;
+  if ((res1= (*a)->val_str(&owner->tmp_value1)))
+  {
+    if ((res2= (*b)->val_str(&owner->tmp_value2)))
+    {
+      owner->null_value= 0;
+      uint res1_length= res1->length();
+      uint res2_length= res2->length();
+      int cmp= memcmp(res1->ptr(), res2->ptr(), min(res1_length,res2_length));
+      return cmp ? cmp : (int) (res1_length - res2_length);
+    }
+  }
+  owner->null_value= 1;
+  return -1;
+}
+
+
+/*
+  Compare strings, but take into account that NULL == NULL
+*/
+
 int Arg_comparator::compare_e_string()
 {
   String *res1,*res2;
@@ -321,6 +374,17 @@ int Arg_comparator::compare_e_string()
   if (!res1 || !res2)
     return test(res1 == res2);
   return test(sortcmp(res1, res2, cmp_collation.collation) == 0);
+}
+
+
+int Arg_comparator::compare_e_binary_string()
+{
+  String *res1,*res2;
+  res1= (*a)->val_str(&owner->tmp_value1);
+  res2= (*b)->val_str(&owner->tmp_value2);
+  if (!res1 || !res2)
+    return test(res1 == res2);
+  return test(stringcmp(res1, res2) == 0);
 }
 
 
@@ -440,16 +504,15 @@ bool Item_in_optimizer::fix_left(THD *thd,
   not_null_tables_cache= args[0]->not_null_tables();
   with_sum_func= args[0]->with_sum_func;
   const_item_cache= args[0]->const_item();
-  fixed= 1;
   return 0;
 }
-
 
 
 bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
 				   Item ** ref)
 {
-  if (fix_left(thd, tables, ref))
+  DBUG_ASSERT(fixed == 0);
+  if (!args[0]->fixed && fix_left(thd, tables, ref))
     return 1;
   if (args[0]->maybe_null)
     maybe_null=1;
@@ -468,11 +531,14 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
   used_tables_cache|= args[1]->used_tables();
   not_null_tables_cache|= args[1]->not_null_tables();
   const_item_cache&= args[1]->const_item();
+  fixed= 1;
   return 0;
 }
 
+
 longlong Item_in_optimizer::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   cache->store(args[0]);
   if (cache->null_value)
   {
@@ -484,17 +550,38 @@ longlong Item_in_optimizer::val_int()
   return tmp;
 }
 
+
+void Item_in_optimizer::keep_top_level_cache()
+{
+  cache->keep_array();
+  save_cache= 1;
+}
+
+
+void Item_in_optimizer::cleanup()
+{
+  DBUG_ENTER("Item_in_optimizer::cleanup");
+  Item_bool_func::cleanup();
+  if (!save_cache)
+    cache= 0;
+  DBUG_VOID_RETURN;
+}
+
+
 bool Item_in_optimizer::is_null()
 {
   cache->store(args[0]);
   return (null_value= (cache->null_value || args[1]->is_null()));
 }
 
+
 longlong Item_func_eq::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   int value= cmp.compare();
   return value == 0 ? 1 : 0;
 }
+
 
 /* Same as Item_func_eq, but NULL = NULL */
 
@@ -506,11 +593,13 @@ void Item_func_equal::fix_length_and_dec()
 
 longlong Item_func_equal::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   return cmp.compare();
 }
 
 longlong Item_func_ne::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   int value= cmp.compare();
   return value != 0 && !null_value ? 1 : 0;
 }
@@ -518,6 +607,7 @@ longlong Item_func_ne::val_int()
 
 longlong Item_func_ge::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   int value= cmp.compare();
   return value >= 0 ? 1 : 0;
 }
@@ -525,12 +615,14 @@ longlong Item_func_ge::val_int()
 
 longlong Item_func_gt::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   int value= cmp.compare();
   return value > 0 ? 1 : 0;
 }
 
 longlong Item_func_le::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   int value= cmp.compare();
   return value <= 0 && !null_value ? 1 : 0;
 }
@@ -538,6 +630,7 @@ longlong Item_func_le::val_int()
 
 longlong Item_func_lt::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   int value= cmp.compare();
   return value < 0 && !null_value ? 1 : 0;
 }
@@ -545,6 +638,7 @@ longlong Item_func_lt::val_int()
 
 longlong Item_func_strcmp::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   String *a=args[0]->val_str(&tmp_value1);
   String *b=args[1]->val_str(&tmp_value2);
   if (!a || !b)
@@ -594,6 +688,7 @@ void Item_func_interval::fix_length_and_dec()
 
 longlong Item_func_interval::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   double value= row->el(0)->val();
   uint i;
 
@@ -659,6 +754,7 @@ void Item_func_between::fix_length_and_dec()
 
 longlong Item_func_between::val_int()
 {						// ANSI BETWEEN
+  DBUG_ASSERT(fixed == 1);
   if (cmp_type == STRING_RESULT)
   {
     String *value,*a,*b;
@@ -674,11 +770,13 @@ longlong Item_func_between::val_int()
       null_value=1;
     else if (args[1]->null_value)
     {
-      null_value= sortcmp(value,b,cmp_collation.collation) <= 0; // not null if false range.
+      // Set to not null if false range.
+      null_value= sortcmp(value,b,cmp_collation.collation) <= 0;
     }
     else
     {
-      null_value= sortcmp(value,a,cmp_collation.collation) >= 0; // not null if false range.
+      // Set to not null if false range.
+      null_value= sortcmp(value,a,cmp_collation.collation) >= 0;
     }
   }
   else if (cmp_type == INT_RESULT)
@@ -766,6 +864,7 @@ Field *Item_func_ifnull::tmp_table_field(TABLE *table)
 double
 Item_func_ifnull::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   if (!args[0]->null_value)
   {
@@ -781,6 +880,7 @@ Item_func_ifnull::val()
 longlong
 Item_func_ifnull::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   longlong value=args[0]->val_int();
   if (!args[0]->null_value)
   {
@@ -796,6 +896,7 @@ Item_func_ifnull::val_int()
 String *
 Item_func_ifnull::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res  =args[0]->val_str(str);
   if (!args[0]->null_value)
   {
@@ -851,6 +952,7 @@ Item_func_if::fix_length_and_dec()
 double
 Item_func_if::val()
 {
+  DBUG_ASSERT(fixed == 1);
   Item *arg= args[0]->val_int() ? args[1] : args[2];
   double value=arg->val();
   null_value=arg->null_value;
@@ -860,6 +962,7 @@ Item_func_if::val()
 longlong
 Item_func_if::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   Item *arg= args[0]->val_int() ? args[1] : args[2];
   longlong value=arg->val_int();
   null_value=arg->null_value;
@@ -869,6 +972,7 @@ Item_func_if::val_int()
 String *
 Item_func_if::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   Item *arg= args[0]->val_int() ? args[1] : args[2];
   String *res=arg->val_str(str);
   if (res)
@@ -901,8 +1005,9 @@ Item_func_nullif::fix_length_and_dec()
 double
 Item_func_nullif::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value;
-  if (!cmp.compare() || null_value)
+  if (!cmp.compare())
   {
     null_value=1;
     return 0.0;
@@ -915,8 +1020,9 @@ Item_func_nullif::val()
 longlong
 Item_func_nullif::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   longlong value;
-  if (!cmp.compare() || null_value)
+  if (!cmp.compare())
   {
     null_value=1;
     return 0;
@@ -929,8 +1035,9 @@ Item_func_nullif::val_int()
 String *
 Item_func_nullif::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res;
-  if (!cmp.compare() || null_value)
+  if (!cmp.compare())
   {
     null_value=1;
     return 0;
@@ -1022,6 +1129,7 @@ Item *Item_func_case::find_item(String *str)
 
 String *Item_func_case::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res;
   Item *item=find_item(str);
 
@@ -1039,6 +1147,7 @@ String *Item_func_case::val_str(String *str)
 
 longlong Item_func_case::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   char buff[MAX_FIELD_WIDTH];
   String dummy_str(buff,sizeof(buff),default_charset());
   Item *item=find_item(&dummy_str);
@@ -1056,6 +1165,7 @@ longlong Item_func_case::val_int()
 
 double Item_func_case::val()
 {
+  DBUG_ASSERT(fixed == 1);
   char buff[MAX_FIELD_WIDTH];
   String dummy_str(buff,sizeof(buff),default_charset());
   Item *item=find_item(&dummy_str);
@@ -1161,6 +1271,7 @@ void Item_func_case::print(String *str)
 
 String *Item_func_coalesce::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   null_value=0;
   for (uint i=0 ; i < arg_count ; i++)
   {
@@ -1174,6 +1285,7 @@ String *Item_func_coalesce::val_str(String *str)
 
 longlong Item_func_coalesce::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   null_value=0;
   for (uint i=0 ; i < arg_count ; i++)
   {
@@ -1187,6 +1299,7 @@ longlong Item_func_coalesce::val_int()
 
 double Item_func_coalesce::val()
 {
+  DBUG_ASSERT(fixed == 1);
   null_value=0;
   for (uint i=0 ; i < arg_count ; i++)
   {
@@ -1359,16 +1472,12 @@ cmp_item* cmp_item::get_comparator(Item *item)
   switch (item->result_type()) {
   case STRING_RESULT:
     return new cmp_item_sort_string(item->collation.collation);
-    break;
   case INT_RESULT:
     return new cmp_item_int;
-    break;
   case REAL_RESULT:
     return new cmp_item_real;
-    break;
   case ROW_RESULT:
     return new cmp_item_row;
-    break;
   default:
     DBUG_ASSERT(0);
     break;
@@ -1593,6 +1702,7 @@ void Item_func_in::print(String *str)
 
 longlong Item_func_in::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   if (array)
   {
     int tmp=array->find(args[0]);
@@ -1616,6 +1726,7 @@ longlong Item_func_in::val_int()
 
 longlong Item_func_bit_or::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   ulonglong arg1= (ulonglong) args[0]->val_int();
   if (args[0]->null_value)
   {
@@ -1635,6 +1746,7 @@ longlong Item_func_bit_or::val_int()
 
 longlong Item_func_bit_and::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   ulonglong arg1= (ulonglong) args[0]->val_int();
   if (args[0]->null_value)
   {
@@ -1673,6 +1785,7 @@ void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item)
 bool
 Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
 #ifndef EMBEDDED_LIBRARY
@@ -1700,8 +1813,11 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     }
     if (abort_on_null)
       item->top_level_item();
+
+    // item can be substituted in fix_fields
     if ((!item->fixed &&
-	 item->fix_fields(thd, tables, li.ref())) || item->check_cols(1))
+	 item->fix_fields(thd, tables, li.ref())) ||
+	(item= *li.ref())->check_cols(1))
       return 1; /* purecov: inspected */
     used_tables_cache|=     item->used_tables();
     tmp_table_map=	    item->not_null_tables();
@@ -1793,14 +1909,28 @@ void Item_cond::print(String *str)
 }
 
 
-void Item_cond::neg_arguments()
+void Item_cond::neg_arguments(THD *thd)
 {
   List_iterator<Item> li(list);
   Item *item;
   while ((item= li++))		/* Apply not transformation to the arguments */
   {
-    Item *new_item= item->neg_transformer();
-    VOID(li.replace(new_item ? new_item : new Item_func_not(item)));
+    Item *new_item= item->neg_transformer(thd);
+    if (!new_item)
+    {
+      if (!(new_item= new Item_func_not(item)))
+	return;					// Fatal OEM error
+      /*
+	We can use 0 as tables list because Item_func_not do not use it
+	on fix_fields and its arguments are already fixed.
+
+	We do not check results of fix_fields, because there are not way
+	to return error in this functions interface, thd->net.report_error
+	will be checked on upper level call.
+      */
+      new_item->fix_fields(thd, 0, &new_item);
+    }
+    VOID(li.replace(new_item));
   }
 }
 
@@ -1825,6 +1955,7 @@ void Item_cond::neg_arguments()
 
 longlong Item_cond_and::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   List_iterator_fast<Item> li(list);
   Item *item;
   null_value= 0;
@@ -1842,6 +1973,7 @@ longlong Item_cond_and::val_int()
 
 longlong Item_cond_or::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   List_iterator_fast<Item> li(list);
   Item *item;
   null_value=0;
@@ -1903,6 +2035,7 @@ Item *and_expressions(Item *a, Item *b, Item **org_item)
 
 longlong Item_func_isnull::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   /*
     Handle optimization if the argument can't be null
     This has to be here because of the test in update_used_tables().
@@ -1914,6 +2047,7 @@ longlong Item_func_isnull::val_int()
 
 longlong Item_is_not_null_test::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_is_not_null_test::val_int");
   if (!used_tables_cache)
   {
@@ -1953,6 +2087,7 @@ void Item_is_not_null_test::update_used_tables()
 
 longlong Item_func_isnotnull::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   return args[0]->is_null() ? 0 : 1;
 }
 
@@ -1967,6 +2102,7 @@ void Item_func_isnotnull::print(String *str)
 
 longlong Item_func_like::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   String* res = args[0]->val_str(&tmp_value1);
   if (args[0]->null_value)
   {
@@ -2012,6 +2148,7 @@ Item_func::optimize_type Item_func_like::select_optimize() const
 
 bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
 {
+  DBUG_ASSERT(fixed == 0);
   if (Item_bool_func2::fix_fields(thd, tlist, ref))
     return 1;
 
@@ -2065,6 +2202,7 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
 bool
 Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  DBUG_ASSERT(fixed == 0);
   if (args[0]->fix_fields(thd, tables, args) || args[0]->check_cols(1) ||
       args[1]->fix_fields(thd,tables, args + 1) || args[1]->check_cols(1))
     return 1;					/* purecov: inspected */
@@ -2112,6 +2250,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
 longlong Item_func_regex::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   char buff[MAX_FIELD_WIDTH];
   String *res, tmp(buff,sizeof(buff),&my_charset_bin);
 
@@ -2132,7 +2271,7 @@ longlong Item_func_regex::val_int()
       null_value=1;
       return 0;
     }
-    if (!regex_compiled || sortcmp(res2,&prev_regexp,&my_charset_bin))
+    if (!regex_compiled || stringcmp(res2,&prev_regexp))
     {
       prev_regexp.copy(*res2);
       if (regex_compiled)
@@ -2412,6 +2551,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
 
 longlong Item_cond_xor::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   List_iterator<Item> li(list);
   Item *item;
   int result=0;	
@@ -2433,6 +2573,7 @@ longlong Item_cond_xor::val_int()
 
   SYNPOSIS
     neg_transformer()
+    thd		thread handler
 
   DESCRIPTION
     Transform the item using next rules:
@@ -2456,62 +2597,116 @@ longlong Item_cond_xor::val_int()
     NULL if we cannot apply NOT transformation (see Item::neg_transformer()).
 */
 
-Item *Item_func_not::neg_transformer()		/* NOT(x)  ->  x */
+Item *Item_func_not::neg_transformer(THD *thd)	/* NOT(x)  ->  x */
 {
-  /* We should apply negation elimination to the argument of the NOT function */
-  return eliminate_not_funcs(args[0]);
+  // We should apply negation elimination to the argument of the NOT function
+  return eliminate_not_funcs(thd, args[0]);
 }
 
-Item *Item_func_eq::neg_transformer()		/* a = b  ->  a != b */
+
+Item *Item_bool_rowready_func2::neg_transformer(THD *thd)
 {
-  return new Item_func_ne(args[0], args[1]);	
+  Item *item= negated_item();
+  if (item)
+  {
+    /*
+      We can use 0 as tables list because Item_func* family do not use it
+      on fix_fields and its arguments are already fixed.
+      
+      We do not check results of fix_fields, because there are not way
+      to return error in this functions interface, thd->net.report_error
+      will be checked on upper level call.
+    */
+    item->fix_fields(thd, 0, &item);
+  }
+  return item;
 }
 
-Item *Item_func_ne::neg_transformer()		/* a != b  ->  a = b */
+
+/* a IS NULL  ->  a IS NOT NULL */
+Item *Item_func_isnull::neg_transformer(THD *thd)
+{
+  Item *item= new Item_func_isnotnull(args[0]);
+  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
+  if (item)
+    item->fix_fields(thd, 0, &item);
+  return item;
+}
+
+
+/* a IS NOT NULL  ->  a IS NULL */
+Item *Item_func_isnotnull::neg_transformer(THD *thd)
+{
+  Item *item= new Item_func_isnull(args[0]);
+  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
+  if (item)
+    item->fix_fields(thd, 0, &item);
+  return item;
+}
+
+
+Item *Item_cond_and::neg_transformer(THD *thd)	/* NOT(a AND b AND ...)  -> */
+					/* NOT a OR NOT b OR ... */
+{
+  neg_arguments(thd);
+  Item *item= new Item_cond_or(list);
+  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
+  if (item)
+    item->fix_fields(thd, 0, &item);
+  return item;
+}
+
+
+Item *Item_cond_or::neg_transformer(THD *thd)	/* NOT(a OR b OR ...)  -> */
+					/* NOT a AND NOT b AND ... */
+{
+  neg_arguments(thd);
+  Item *item= new Item_cond_and(list);
+  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
+  if (item)
+    item->fix_fields(thd, 0, &item);
+  return item;
+}
+
+
+Item *Item_func_eq::negated_item()		/* a = b  ->  a != b */
+{
+  return new Item_func_ne(args[0], args[1]);
+}
+
+
+Item *Item_func_ne::negated_item()		/* a != b  ->  a = b */
 {
   return new Item_func_eq(args[0], args[1]);
 }
 
-Item *Item_func_lt::neg_transformer()		/* a < b  ->  a >= b */
+
+Item *Item_func_lt::negated_item()		/* a < b  ->  a >= b */
 {
   return new Item_func_ge(args[0], args[1]);
 }
 
-Item *Item_func_ge::neg_transformer()		/* a >= b  ->  a < b */
+
+Item *Item_func_ge::negated_item()		/* a >= b  ->  a < b */
 {
   return new Item_func_lt(args[0], args[1]);
 }
 
-Item *Item_func_gt::neg_transformer()		/* a > b  ->  a <= b */
+
+Item *Item_func_gt::negated_item()		/* a > b  ->  a <= b */
 {
   return new Item_func_le(args[0], args[1]);
 }
 
-Item *Item_func_le::neg_transformer()		/* a <= b  ->  a > b */
+
+Item *Item_func_le::negated_item()		/* a <= b  ->  a > b */
 {
   return new Item_func_gt(args[0], args[1]);
 }
 
-Item *Item_func_isnull::neg_transformer()	/* a IS NULL  ->  a IS NOT NULL */
+// just fake method, should never be called
+Item *Item_bool_rowready_func2::negated_item()
 {
-  return new Item_func_isnotnull(args[0]);
-}
-
-Item *Item_func_isnotnull::neg_transformer()	/* a IS NOT NULL  ->  a IS NULL */
-{
-  return new Item_func_isnull(args[0]);
-}
-
-Item *Item_cond_and::neg_transformer()		/* NOT(a AND b AND ...)  -> */
-					/* NOT a OR NOT b OR ... */
-{
-  neg_arguments();
-  return new Item_cond_or(list);
-}
-
-Item *Item_cond_or::neg_transformer()		/* NOT(a OR b OR ...)  -> */
-					/* NOT a AND NOT b AND ... */
-{
-  neg_arguments();
-  return new Item_cond_and(list);
+  DBUG_ASSERT(0);
+  return 0;
 }

@@ -12,6 +12,18 @@ alter table t1 ENGINE=HEAP;
 repair table t1 use_frm;
 drop table t1;
 
+#
+# disabled keys during repair
+#
+create table t1(id int PRIMARY KEY, st varchar(10), KEY st_key(st));
+insert into t1 values(1, "One");
+alter table t1 disable keys;
+show keys from t1;
+repair table t1 extended;
+show keys from t1;
+drop table t1;
+
+
 # non-existent table
 repair table t1 use_frm;
 

@@ -450,23 +450,25 @@ static int search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
 
 static char *remove_end_comment(char *ptr)
 {
-  char quote= 0;
+  char quote= 0;	/* we are inside quote marks */
+  char escape= 0;	/* symbol is protected by escape chagacter */
 
   for (; *ptr; ptr++)
   {
-    if (*ptr == '\'' || *ptr == '\"')
+    if ((*ptr == '\'' || *ptr == '\"') && !escape)
     {
       if (!quote)
 	quote= *ptr;
       else if (quote == *ptr)
 	quote= 0;
     }
-    /* We are not inside a comment */
+    /* We are not inside a string */
     if (!quote && *ptr == '#')
     {
       *ptr= 0;
       return ptr;
     }
+    escape= (quote && *ptr == '\\' && !escape);
   }
   return ptr;
 }

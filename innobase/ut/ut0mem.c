@@ -258,3 +258,51 @@ ut_str_catenate(
 
 	return(str);
 }
+
+/**************************************************************************
+Checks if a null-terminated string contains a certain character. */
+
+ibool
+ut_str_contains(
+/*============*/
+	char*	str,	/* in: null-terminated string */
+	char	c)	/* in: character */
+{
+	ulint	len;
+	ulint	i;
+
+	len = ut_strlen(str);
+
+	for (i = 0; i < len; i++) {
+		if (str[i] == c) {
+
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
+}
+
+/**************************************************************************
+Return a copy of the given string. The returned string must be freed
+using mem_free. */
+
+char*
+ut_strdup(
+/*======*/
+			/* out, own: cnull-terminated string */
+	char*	str)	/* in: null-terminated string */
+{
+	ulint	len;
+	char*	copy;
+
+	len = ut_strlen(str);
+
+	copy = mem_alloc(len + 1);
+
+	ut_memcpy(copy, str, len);
+
+	copy[len] = 0;
+
+	return(copy);
+}

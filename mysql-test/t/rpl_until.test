@@ -67,15 +67,15 @@ real_sleep 4
 show slave status;
 
 #testing various error conditions
---error 1276
+--error 1277
 start slave until master_log_file='master-bin', master_log_pos=561;
---error 1276
+--error 1277
 start slave until master_log_file='master-bin.000001', master_log_pos=561, relay_log_pos=12;
---error 1276
+--error 1277
 start slave until master_log_file='master-bin.000001';
---error 1276
+--error 1277
 start slave until relay_log_file='slave-relay-bin.000002';
---error 1276
+--error 1277
 start slave until relay_log_file='slave-relay-bin.000002', master_log_pos=561;
 
 start slave sql_thread;

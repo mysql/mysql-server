@@ -115,10 +115,12 @@ if (defined $opt_log)
 if (-x "/usr/bin/rpmbuild")
 {
 	$RPM= "/usr/bin/rpmbuild";
+	$RMSOURCE= "--rmsource --rmspec";
 }
 else
 {
 	$RPM= "/bin/rpm";
+	$RMSOURCE= "--rmspec";
 }
 
 if ($RPM)
@@ -177,7 +179,7 @@ $ENV{MYSQL_BUILD_CXX}=$opt_cxx if ($opt_cxx);
 $command= "$RPM";
 $command.= " -v" if ($opt_verbose);
 $command.= " -ba";
-$command.= " --clean" if $opt_clean;
+$command.= " --clean $RMSOURCE" if $opt_clean;
 $command.= " $SPECDIR/";
 $command.= basename($SPECFILE);
 &logger("Building RPM.");
@@ -188,7 +190,7 @@ $command.= basename($SPECFILE);
 #
 $command= "mv";
 $command.= " -v " if ($opt_verbose);
-$command.= "$SRCRPMDIR/MySQL*$VERSION*.src.rpm $PWD";
+$command.= " $SRCRPMDIR/MySQL*$VERSION*.src.rpm $PWD";
 &logger("Moving source RPM to current dir.");
 &run_command($command, "Error moving source RPM!");
 
@@ -197,19 +199,6 @@ $command.= " -v " if ($opt_verbose);
 $command.= " $RPMDIR/$RPMARCH/MySQL*$VERSION*.$RPMARCH.rpm $PWD";
 &logger("Moving binary RPMs to current dir.");
 &run_command($command, "Error moving binary RPMs!");
-
-#
-# Clean up
-#
-if ($opt_clean)
-{
-	&logger("Removing spec file and source package");
-	unless ($opt_dry_run)
-	{
-		unlink("$SPECDIR/" . basename($SPECFILE));
-		unlink("$SOURCEDIR/$SOURCEFILE");
-	}
-}
 
 &logger("SUCCESS: RPM files successfully created.") unless ($opt_dry_run);
 exit 0;

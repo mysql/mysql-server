@@ -25,13 +25,16 @@ smaller than 30 and the order of the numerical values like below! */
 #define	RW_NO_LATCH	3
 
 typedef struct rw_lock_struct		rw_lock_t;
+#ifdef UNIV_SYNC_DEBUG
 typedef struct rw_lock_debug_struct	rw_lock_debug_t;
+#endif /* UNIV_SYNC_DEBUG */
 
 typedef UT_LIST_BASE_NODE_T(rw_lock_t)	rw_lock_list_t;
 
 extern rw_lock_list_t 	rw_lock_list;
 extern mutex_t		rw_lock_list_mutex;
 
+#ifdef UNIV_SYNC_DEBUG
 /* The global mutex which protects debug info lists of all rw-locks.
 To modify the debug info list of an rw-lock, this mutex has to be
 
@@ -42,6 +45,7 @@ extern os_event_t	rw_lock_debug_event;	/* If deadlock detection does
 					may wait for this event */
 extern ibool		rw_lock_debug_waiters;	/* This is set to TRUE, if
 					there may be waiters for the event */
+#endif /* UNIV_SYNC_DEBUG */
 
 extern	ulint	rw_s_system_call_count;
 extern	ulint	rw_s_spin_wait_count;
@@ -327,6 +331,7 @@ ulint
 rw_lock_get_reader_count(
 /*=====================*/
 	rw_lock_t*	lock);
+#ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 Checks if the thread has locked the rw-lock in the specified mode, with
 the pass value == 0. */
@@ -337,6 +342,7 @@ rw_lock_own(
 	rw_lock_t*	lock,		/* in: rw-lock */
 	ulint		lock_type);	/* in: lock type: RW_LOCK_SHARED,
 					RW_LOCK_EX */
+#endif /* UNIV_SYNC_DEBUG */
 /**********************************************************************
 Checks if somebody has locked the rw-lock in the specified mode. */
 
@@ -346,6 +352,7 @@ rw_lock_is_locked(
 	rw_lock_t*	lock,		/* in: rw-lock */
 	ulint		lock_type);	/* in: lock type: RW_LOCK_SHARED,
 					RW_LOCK_EX */
+#ifdef UNIV_SYNC_DEBUG
 /*******************************************************************
 Prints debug info of an rw-lock. */
 
@@ -392,6 +399,7 @@ void
 rw_lock_debug_print(
 /*================*/
 	rw_lock_debug_t*	info);	/* in: debug struct */
+#endif /* UNIV_SYNC_DEBUG */
 
 /* NOTE! The structure appears here only for the compiler to know its size.
 Do not use its fields directly! The structure used in the spin lock
@@ -434,10 +442,12 @@ struct rw_lock_struct {
 	UT_LIST_NODE_T(rw_lock_t) list;
 				/* All allocated rw locks are put into a
 				list */
+#ifdef UNIV_SYNC_DEBUG
 	UT_LIST_BASE_NODE_T(rw_lock_debug_t) debug_list;
 				/* In the debug version: pointer to the debug
 				info list of the lock */
-	ulint	level;		/* Debug version: level in the global latching
+#endif /* UNIV_SYNC_DEBUG */
+	ulint	level;		/* Level in the global latching
 				order; default SYNC_LEVEL_NONE */
 	char*	cfile_name;	/* File name where lock created */
 	ulint	cline;		/* Line where created */
@@ -450,6 +460,7 @@ struct rw_lock_struct {
 
 #define	RW_LOCK_MAGIC_N	22643
 
+#ifdef UNIV_SYNC_DEBUG
 /* The structure for storing debug info of an rw-lock */
 struct	rw_lock_debug_struct {
 
@@ -464,6 +475,7 @@ struct	rw_lock_debug_struct {
 				/* Debug structs are linked in a two-way
 				list */
 };
+#endif /* UNIV_SYNC_DEBUG */
 
 #ifndef UNIV_NONINL
 #include "sync0rw.ic"

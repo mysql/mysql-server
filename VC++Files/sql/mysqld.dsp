@@ -7,28 +7,28 @@
 CFG=mysqld - Win32 Release
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
-!MESSAGE
+!MESSAGE 
 !MESSAGE NMAKE /f "mysqld.mak".
-!MESSAGE
+!MESSAGE 
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
-!MESSAGE
+!MESSAGE 
 !MESSAGE NMAKE /f "mysqld.mak" CFG="mysqld - Win32 Release"
-!MESSAGE
+!MESSAGE 
 !MESSAGE Possible choices for configuration are:
-!MESSAGE
+!MESSAGE 
 !MESSAGE "mysqld - Win32 Release" (based on "Win32 (x86) Console Application")
 !MESSAGE "mysqld - Win32 Debug" (based on "Win32 (x86) Console Application")
 !MESSAGE "mysqld - Win32 nt" (based on "Win32 (x86) Console Application")
 !MESSAGE "mysqld - Win32 Max nt" (based on "Win32 (x86) Console Application")
 !MESSAGE "mysqld - Win32 Max" (based on "Win32 (x86) Console Application")
-!MESSAGE
+!MESSAGE 
 
 # Begin Project
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=xicl6.exe
+CPP=cl.exe
 RSC=rc.exe
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
@@ -52,7 +52,7 @@ RSC=rc.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=xilink6.exe
+LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /machine:I386
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\vio.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib /nologo /subsystem:console /pdb:none /machine:I386 /out:"../client_release/mysqld-opt.exe"
 # SUBTRACT LINK32 /debug
@@ -78,7 +78,7 @@ LINK32=xilink6.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=xilink6.exe
+LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug /machine:I386 /pdbtype:sept
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_debug\dbug.lib ..\lib_debug\vio.lib ..\lib_debug\isam.lib ..\lib_debug\merge.lib ..\lib_debug\mysys.lib ..\lib_debug\strings.lib ..\lib_debug\regex.lib ..\lib_debug\heap.lib ..\lib_debug\bdb.lib ..\lib_debug\innodb.lib /nologo /subsystem:console /incremental:no /debug /machine:I386 /out:"../client_debug/mysqld.exe" /pdbtype:sept
 
@@ -105,7 +105,7 @@ LINK32=xilink6.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=xilink6.exe
+LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\dbug.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib /nologo /subsystem:console /debug /machine:I386
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\vio.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib ..\lib_release\innodb.lib ..\lib_release\zlib.lib /nologo /subsystem:console /map /machine:I386 /out:"../client_release/mysqld-nt.exe"
 # SUBTRACT LINK32 /pdb:none /debug
@@ -133,7 +133,7 @@ LINK32=xilink6.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=xilink6.exe
+LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib ..\lib_release\zlib.lib /nologo /subsystem:console /map /machine:I386 /out:"../client_release/mysqld-nt.exe"
 # SUBTRACT BASE LINK32 /pdb:none /debug
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\vio.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys-max.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib ..\lib_release\zlib.lib ..\lib_release\innodb.lib ..\lib_release\bdb.lib /nologo /subsystem:console /map /machine:I386 /out:"../client_release/mysqld-max-nt.exe"
@@ -162,12 +162,12 @@ LINK32=xilink6.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=xilink6.exe
+LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib /nologo /subsystem:console /pdb:none /debug /machine:I386 /out:"../client_release/mysqld-opt.exe"
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\vio.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys-max.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib ..\lib_release\innodb.lib ..\lib_release\bdb.lib ..\lib_release\zlib.lib /nologo /subsystem:console /pdb:none /machine:I386 /out:"../client_release/mysqld-max.exe"
 # SUBTRACT LINK32 /debug
 
-!ENDIF
+!ENDIF 
 
 # Begin Target
 
@@ -193,7 +193,7 @@ SOURCE=.\client.c
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -213,7 +213,7 @@ SOURCE=.\derror.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -237,7 +237,7 @@ SOURCE=.\field.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -257,7 +257,7 @@ SOURCE=.\field_conv.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -277,7 +277,7 @@ SOURCE=.\filesort.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -329,7 +329,7 @@ SOURCE=.\handler.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -348,7 +348,7 @@ SOURCE=.\hash_filo.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -371,7 +371,7 @@ SOURCE=.\hostname.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -391,7 +391,7 @@ SOURCE=.\init.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -411,7 +411,7 @@ SOURCE=.\item.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -431,7 +431,7 @@ SOURCE=.\item_buff.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -451,7 +451,7 @@ SOURCE=.\item_cmpfunc.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -503,7 +503,7 @@ SOURCE=.\item_strfunc.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -527,7 +527,7 @@ SOURCE=.\item_sum.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -546,7 +546,7 @@ SOURCE=.\item_timefunc.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -566,7 +566,7 @@ SOURCE=.\item_uniq.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -586,7 +586,7 @@ SOURCE=.\key.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -606,7 +606,7 @@ SOURCE=.\lock.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -626,7 +626,7 @@ SOURCE=.\log.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -649,7 +649,7 @@ SOURCE=.\mf_iocache.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -673,7 +673,7 @@ SOURCE=.\mysqld.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -696,16 +696,12 @@ SOURCE=.\nt_servc.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
 
 SOURCE=.\nt_servc.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\opt_ft.cpp
 # End Source File
 # Begin Source File
 
@@ -723,7 +719,7 @@ SOURCE=.\opt_range.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -754,7 +750,7 @@ SOURCE=.\password.c
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -774,7 +770,7 @@ SOURCE=.\procedure.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -802,7 +798,7 @@ SOURCE=.\records.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -858,7 +854,7 @@ SOURCE=.\sql_acl.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -882,7 +878,7 @@ SOURCE=.\sql_base.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -938,7 +934,7 @@ SOURCE=.\sql_db.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -958,7 +954,7 @@ SOURCE=.\sql_delete.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -998,7 +994,7 @@ SOURCE=.\sql_insert.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -1018,7 +1014,7 @@ SOURCE=.\sql_lex.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -1038,7 +1034,7 @@ SOURCE=.\sql_list.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -1058,7 +1054,7 @@ SOURCE=.\sql_load.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -1082,7 +1078,7 @@ SOURCE=.\sql_map.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -1102,7 +1098,7 @@ SOURCE=.\sql_parse.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -1134,7 +1130,7 @@ SOURCE=.\sql_select.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -1154,7 +1150,7 @@ SOURCE=.\sql_show.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -1178,7 +1174,7 @@ SOURCE=.\sql_string.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -1198,7 +1194,7 @@ SOURCE=.\sql_table.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -1218,7 +1214,7 @@ SOURCE=.\sql_test.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -1246,7 +1242,7 @@ SOURCE=.\sql_update.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -1266,7 +1262,7 @@ SOURCE=.\sql_yacc.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -1310,7 +1306,7 @@ SOURCE=.\thr_malloc.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -1330,7 +1326,7 @@ SOURCE=.\time.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -1354,7 +1350,7 @@ SOURCE=.\unireg.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # End Target

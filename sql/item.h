@@ -102,7 +102,11 @@ public:
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
   
-  String str_value;			/* used to store value */
+  /*
+    str_values's main purpose is to be used to cache the value in
+    save_in_field
+  */
+  String str_value;
   my_string name;			/* Name from select */
   Item *next;
   uint32 max_length;
@@ -129,9 +133,20 @@ public:
   virtual ~Item() { name=0; }		/*lint -e1509 */
   void set_name(const char *str,uint length, CHARSET_INFO *cs);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
-  virtual void cleanup() { fixed=0; }
+  virtual void cleanup()
+  {
+    DBUG_ENTER("Item::cleanup");
+    DBUG_PRINT("info", ("Type: %d", (int)type()));
+    fixed=0;
+    DBUG_VOID_RETURN;
+  }
   virtual void make_field(Send_field *field);
   virtual bool fix_fields(THD *, struct st_table_list *, Item **);
+  /*
+    should be used in case where we are sure that we do not need
+    complete fix_fields() procedure.
+  */
+  inline void quick_fix_field() { fixed= 1; }
   virtual int save_in_field(Field *field, bool no_conversions);
   virtual void save_org_in_field(Field *field)
   { (void) save_in_field(field, 1); }
@@ -231,7 +246,7 @@ public:
   Field *tmp_table_field_from_field_type(TABLE *table);
   
   /* Used in sql_select.cc:eliminate_not_funcs() */
-  virtual Item *neg_transformer() { return NULL; }
+  virtual Item *neg_transformer(THD *thd) { return NULL; }
   void delete_self()
   {
     cleanup();
@@ -335,19 +350,51 @@ public:
 };
 
 
+class Item_num: public Item
+{
+public:
+  virtual Item_num *neg()= 0;
+};
+
+#define NO_CACHED_FIELD_INDEX ((uint)(-1))
+
 class st_select_lex;
 class Item_ident :public Item
 {
+  /* 
+    We have to store initial values of db_name, table_name and field_name
+    to be able to restore them during cleanup() because they can be 
+    updated during fix_fields() to values from Field object and life-time 
+    of those is shorter than life-time of Item_field.
+  */
+  const char *orig_db_name;
+  const char *orig_table_name;
+  const char *orig_field_name;
+  Item **changed_during_fix_field;
 public:
   const char *db_name;
   const char *table_name;
   const char *field_name;
+  /* 
+    Cached value of index for this field in table->field array, used by prep. 
+    stmts for speeding up their re-execution. Holds NO_CACHED_FIELD_INDEX 
+    if index value is not known.
+  */
+  uint cached_field_index;
+  /*
+    Cached pointer to table which contains this field, used for the same reason
+    by prep. stmt. too in case then we have not-fully qualified field.
+    0 - means no cached value.
+  */
+  TABLE_LIST *cached_table;
   st_select_lex *depended_from;
   Item_ident(const char *db_name_par,const char *table_name_par,
 	     const char *field_name_par);
   Item_ident(THD *thd, Item_ident *item);
   const char *full_name() const;
-
+  void cleanup();
+  void register_item_tree_changing(Item **ref)
+    { changed_during_fix_field= ref; }
   bool remove_dependence_processor(byte * arg);
 };
 
@@ -357,14 +404,25 @@ class Item_field :public Item_ident
   void set_field(Field *field);
 public:
   Field *field,*result_field;
-  // Item_field() {}
+#ifndef DBUG_OFF
+  bool double_fix;
+#endif
 
   Item_field(const char *db_par,const char *table_name_par,
 	     const char *field_name_par)
-    :Item_ident(db_par,table_name_par,field_name_par),field(0),result_field(0)
+    :Item_ident(db_par,table_name_par,field_name_par),
+     field(0), result_field(0)
+#ifndef DBUG_OFF
+    ,double_fix(0)
+#endif
   { collation.set(DERIVATION_IMPLICIT); }
   // Constructor need to process subselect with temporary tables (see Item)
   Item_field(THD *thd, Item_field *item);
+  /*
+    Constructor used inside setup_wild(), ensures that field and table
+    names will live as long as Item_field (important in prep. stmt.)
+  */
+  Item_field(THD *thd, Field *field);
   Item_field(Field *field);
   enum Type type() const { return FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
@@ -398,13 +456,19 @@ public:
   void cleanup();
   friend class Item_default_value;
   friend class Item_insert_value;
+  friend class st_select_lex_unit;
 };
 
 class Item_null :public Item
 {
 public:
   Item_null(char *name_par=0)
-    { maybe_null=null_value=TRUE; name= name_par ? name_par : (char*) "NULL";}
+  {
+    maybe_null= null_value= TRUE;
+    max_length= 0;
+    name= name_par ? name_par : (char*) "NULL";
+    fixed= 1;
+  }
   enum Type type() const { return NULL_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   double val();
@@ -415,12 +479,8 @@ public:
   bool send(Protocol *protocol, String *str);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const   { return MYSQL_TYPE_NULL; }
-  bool fix_fields(THD *thd, struct st_table_list *list, Item **item)
-  {
-    bool res= Item::fix_fields(thd, list, item);
-    max_length=0;
-    return res;
-  }
+  // to prevent drop fixed flag (no need parent cleanup call)
+  void cleanup() {}
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_null(name); }
   bool is_null() { return 1; }
@@ -441,16 +501,7 @@ public:
   bool long_data_supplied;
   uint pos_in_query;
 
-  Item_param(uint position)
-  { 
-    name= (char*) "?";
-    pos_in_query= position;
-    item_type= STRING_ITEM;
-    item_result_type = STRING_RESULT;
-    item_is_time= false;
-    long_data_supplied= false;
-    value_is_set= 0;
-  }
+  Item_param(uint position);
   enum Type type() const { return item_type; }
   double val();
   longlong val_int();
@@ -467,11 +518,14 @@ public:
   void set_time(TIME *tm, timestamp_type type);
   bool get_time(TIME *tm);
   void reset() {}
-#ifndef EMBEDDED_LIBRARY
-  void (*setup_param_func)(Item_param *param, uchar **pos);
-#else
-  void (*setup_param_func)(Item_param *param, uchar **pos, ulong data_len);
-#endif
+  /*
+    Assign placeholder value from bind data.
+    Note, that 'len' has different semantics in embedded library (as we
+    don't need to check that packet is not broken there). See
+    sql_prepare.cc for details.
+  */
+  void (*set_param_func)(Item_param *param, uchar **pos, ulong len);
+
   enum Item_result result_type () const
   { return item_result_type; }
   String *query_val_str(String *str);
@@ -487,10 +541,10 @@ public:
   void print(String *str) { str->append('?'); }
 };
 
-class Item_int :public Item
+class Item_int :public Item_num
 {
 public:
-  const longlong value;
+  longlong value;
   Item_int(int32 i,uint length=11) :value((longlong) i)
     { max_length=length; fixed= 1; }
 #ifdef HAVE_LONG_LONG
@@ -506,13 +560,16 @@ public:
   enum Type type() const { return INT_ITEM; }
   enum Item_result result_type () const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_LONGLONG; }
-  longlong val_int() { return value; }
-  double val() { return (double) value; }
+  longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
+  double val() { DBUG_ASSERT(fixed == 1); return (double) value; }
   String *val_str(String*);
   int save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_int(name,value,max_length); }
+  // to prevent drop fixed flag (no need parent cleanup call)
+  void cleanup() {}
   void print(String *str);
+  Item_num *neg() { value= -value; return this; }
 };
 
 
@@ -520,32 +577,31 @@ class Item_uint :public Item_int
 {
 public:
   Item_uint(const char *str_arg, uint length) :
-    Item_int(str_arg, (longlong) strtoull(str_arg,(char**) 0,10), length) {}
-  Item_uint(uint32 i) :Item_int((longlong) i, 10) {}
-  double val() { return ulonglong2double((ulonglong)value); }
+    Item_int(str_arg, (longlong) strtoull(str_arg, (char**) 0,10), length) 
+    { unsigned_flag= 1; }
+  Item_uint(uint32 i) :Item_int((longlong) i, 10) 
+    { unsigned_flag= 1; }
+  double val()
+    { DBUG_ASSERT(fixed == 1); return ulonglong2double((ulonglong)value); }
   String *val_str(String*);
   Item *new_item() { return new Item_uint(name,max_length); }
   int save_in_field(Field *field, bool no_conversions);
-  bool fix_fields(THD *thd, struct st_table_list *list, Item **item)
-  {
-    bool res= Item::fix_fields(thd, list, item);
-    unsigned_flag= 1;
-    return res;
-  }
   void print(String *str);
+  Item_num *neg ();
 };
 
 
-class Item_real :public Item
+class Item_real :public Item_num
 {
 public:
-  const double value;
+  double value;
   // Item_real() :value(0) {}
-  Item_real(const char *str_arg,uint length) :value(atof(str_arg))
+  Item_real(const char *str_arg, uint length) :value(my_atof(str_arg))
   {
     name=(char*) str_arg;
     decimals=(uint8) nr_of_decimals(str_arg);
     max_length=length;
+    fixed= 1;
   }
   Item_real(const char *str,double val_arg,uint decimal_par,uint length)
     :value(val_arg)
@@ -553,16 +609,24 @@ public:
     name=(char*) str;
     decimals=(uint8) decimal_par;
     max_length=length;
+    fixed= 1;
   }
-  Item_real(double value_par) :value(value_par) {}
+  Item_real(double value_par) :value(value_par) { fixed= 1; }
   int save_in_field(Field *field, bool no_conversions);
   enum Type type() const { return REAL_ITEM; }
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
-  double val() { return value; }
-  longlong val_int() { return (longlong) (value+(value > 0 ? 0.5 : -0.5));}
+  double val() { DBUG_ASSERT(fixed == 1); return value; }
+  longlong val_int()
+  {
+    DBUG_ASSERT(fixed == 1);
+    return (longlong) (value+(value > 0 ? 0.5 : -0.5));
+  }
   String *val_str(String*);
   bool basic_const_item() const { return 1; }
+  // to prevent drop fixed flag (no need parent cleanup call)
+  void cleanup() {}
   Item *new_item() { return new Item_real(name,value,decimals,max_length); }
+  Item_num *neg() { value= -value; return this; }
 };
 
 
@@ -594,6 +658,8 @@ public:
     max_length= str_value.numchars()*cs->mbmaxlen;
     set_name(str, length, cs);
     decimals=NOT_FIXED_DEC;
+    // it is constant => can be used without fix_fields (and frequently used)
+    fixed= 1;
   }
   Item_string(const char *name_par, const char *str, uint length,
 	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
@@ -603,21 +669,29 @@ public:
     max_length= str_value.numchars()*cs->mbmaxlen;
     set_name(name_par,0,cs);
     decimals=NOT_FIXED_DEC;
+    // it is constant => can be used without fix_fields (and frequently used)
+    fixed= 1;
   }
   enum Type type() const { return STRING_ITEM; }
   double val()
-  { 
+  {
+    DBUG_ASSERT(fixed == 1);
     int err;
     return my_strntod(str_value.charset(), (char*) str_value.ptr(),
 		      str_value.length(), (char**) 0, &err);
   }
   longlong val_int()
   {
+    DBUG_ASSERT(fixed == 1);
     int err;
     return my_strntoll(str_value.charset(), str_value.ptr(),
 		       str_value.length(), 10, (char**) 0, &err);
   }
-  String *val_str(String*) { return (String*) &str_value; }
+  String *val_str(String*)
+  {
+    DBUG_ASSERT(fixed == 1);
+    return (String*) &str_value;
+  }
   int save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
@@ -625,11 +699,14 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   Item *new_item() 
   {
-    return new Item_string(name, str_value.ptr(), max_length, &my_charset_bin);
+    return new Item_string(name, str_value.ptr(), 
+    			   str_value.length(), &my_charset_bin);
   }
   String *const_string() { return &str_value; }
   inline void append(char *str, uint length) { str_value.append(str, length); }
   void print(String *str);
+  // to prevent drop fixed flag (no need parent cleanup call)
+  void cleanup() {}
 };
 
 /* for show tables */
@@ -671,12 +748,16 @@ class Item_varbinary :public Item
 public:
   Item_varbinary(const char *str,uint str_length);
   enum Type type() const { return VARBIN_ITEM; }
-  double val() { return (double) Item_varbinary::val_int(); }
+  double val()
+    { DBUG_ASSERT(fixed == 1); return (double) Item_varbinary::val_int(); }
   longlong val_int();
-  String *val_str(String*) { return &str_value; }
+  bool basic_const_item() const { return 1; }
+  String *val_str(String*) { DBUG_ASSERT(fixed == 1); return &str_value; }
   int save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
+  // to prevent drop fixed flag (no need parent cleanup call)
+  void cleanup() {}
 };
 
 
@@ -862,6 +943,7 @@ public:
   String *val_str(String*);
   void make_field(Send_field *field) { item->make_field(field); }
   void copy();
+  int save_in_field(Field *field, bool no_conversions);
   table_map used_tables() const { return (table_map) 1L; }
   bool const_item() const { return 0; }
   bool is_null() { return null_value; }
@@ -934,7 +1016,6 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, struct st_table_list *, Item **);
   void print(String *str);
-  virtual bool basic_const_item() const { return true; }
   int save_in_field(Field *field_arg, bool no_conversions)
   {
     if (!arg)
@@ -962,7 +1043,6 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, struct st_table_list *, Item **);
   void print(String *str);
-  virtual bool basic_const_item() const { return true; }
   int save_in_field(Field *field_arg, bool no_conversions)
   {
     return Item_field::save_in_field(field_arg, no_conversions);
@@ -986,7 +1066,7 @@ public:
 
   void set_used_tables(table_map map) { used_table_map= map; }
 
-  virtual bool allocate(uint i) { return 0; };
+  virtual bool allocate(uint i) { return 0; }
   virtual bool setup(Item *item)
   {
     example= item;
@@ -999,6 +1079,9 @@ public:
   enum Type type() const { return CACHE_ITEM; }
   static Item_cache* get_cache(Item_result type);
   table_map used_tables() const { return used_table_map; }
+  virtual void keep_array() {}
+  // to prevent drop fixed flag (no need parent cleanup call)
+  void cleanup() {}
   void print(String *str);
 };
 
@@ -1009,9 +1092,14 @@ public:
   Item_cache_int(): Item_cache() {}
   
   void store(Item *item);
-  double val() { return (double) value; }
-  longlong val_int() { return value; }
-  String* val_str(String *str) { str->set(value, default_charset()); return str; }
+  double val() { DBUG_ASSERT(fixed == 1); return (double) value; }
+  longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
+  String* val_str(String *str)
+  {
+    DBUG_ASSERT(fixed == 1);
+    str->set(value, default_charset());
+    return str;
+  }
   enum Item_result result_type() const { return INT_RESULT; }
 };
 
@@ -1022,8 +1110,12 @@ public:
   Item_cache_real(): Item_cache() {}
 
   void store(Item *item);
-  double val() { return value; }
-  longlong val_int() { return (longlong) (value+(value > 0 ? 0.5 : -0.5)); }
+  double val() { DBUG_ASSERT(fixed == 1); return value; }
+  longlong val_int()
+  {
+    DBUG_ASSERT(fixed == 1);
+    return (longlong) (value+(value > 0 ? 0.5 : -0.5));
+  }
   String* val_str(String *str)
   {
     str->set(value, decimals, default_charset());
@@ -1042,7 +1134,7 @@ public:
   void store(Item *item);
   double val();
   longlong val_int();
-  String* val_str(String *) { return value; }
+  String* val_str(String *) { DBUG_ASSERT(fixed == 1); return value; }
   enum Item_result result_type() const { return STRING_RESULT; }
   CHARSET_INFO *charset() const { return value->charset(); };
 };
@@ -1051,8 +1143,10 @@ class Item_cache_row: public Item_cache
 {
   Item_cache  **values;
   uint item_count;
+  bool save_array;
 public:
-  Item_cache_row(): Item_cache(), values(0), item_count(2) {}
+  Item_cache_row()
+    :Item_cache(), values(0), item_count(2), save_array(0) {}
   
   /*
     'allocate' used only in row transformer, to preallocate space for row 
@@ -1093,10 +1187,16 @@ public:
   bool check_cols(uint c);
   bool null_inside();
   void bring_value();
+  void keep_array() { save_array= 1; }
   void cleanup()
   {
+    DBUG_ENTER("Item_cache_row::cleanup");
     Item_cache::cleanup();
-    values= 0;
+    if (save_array)
+      bzero(values, item_count*sizeof(Item**));
+    else
+      values= 0;
+    DBUG_VOID_RETURN;
   }
 };
 
@@ -1122,8 +1222,10 @@ public:
   Field *example() { return field_example; }
   void cleanup()
   {
+    DBUG_ENTER("Item_type_holder::cleanup");
     Item::cleanup();
     item_type= orig_type;
+    DBUG_VOID_RETURN;
   }
 };
 

@@ -162,7 +162,7 @@ mem_heap_alloc(
 
 	mem_block_set_free(block, free + MEM_SPACE_NEEDED(n));
 
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 
 	/* In the debug version write debugging info to the field */
 	mem_field_init((byte*)buf, n);
@@ -171,7 +171,7 @@ mem_heap_alloc(
 	caller */
 	buf = (byte*)buf + MEM_FIELD_HEADER_SIZE;
 
-	#endif
+#endif
 #ifdef UNIV_SET_MEM_TO_ZERO
 	memset(buf, '\0', n);
 #endif
@@ -212,15 +212,15 @@ mem_heap_free_heap_top(
 {
 	mem_block_t*	block;
 	mem_block_t*	prev_block;
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 	ibool		error;
 	ulint		total_size;	
 	ulint		size;
-	#endif			
+#endif			
 
 	ut_ad(mem_heap_check(heap));
 	
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 
 	/* Validate the heap and get its total allocated size */
 	mem_heap_validate_or_print(heap, NULL, FALSE, &error, &total_size,
@@ -232,7 +232,7 @@ mem_heap_free_heap_top(
 									NULL);
 	ut_a(!error);
 
-	#endif
+#endif
 
 	block = UT_LIST_GET_LAST(heap->base);
 
@@ -259,7 +259,7 @@ mem_heap_free_heap_top(
 	/* Set the free field of block */
 	mem_block_set_free(block, old_top - (byte*)block); 
 
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 	ut_ad(mem_block_get_start(block) <= mem_block_get_free(block));
 
 	/* In the debug version erase block from top up */
@@ -271,7 +271,7 @@ mem_heap_free_heap_top(
 	mem_current_allocated_memory -= (total_size - size);
 	mutex_exit(&mem_hash_mutex);
 
-	#endif
+#endif
 
 	/* If free == start, we may free the block if it is not the first
 	one */
@@ -317,7 +317,7 @@ mem_heap_get_top(
 
 	buf = (byte*)block + mem_block_get_free(block) - MEM_SPACE_NEEDED(n);
 
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 	ut_ad(mem_block_get_start(block) <=(ulint)((byte*)buf - (byte*)block));
 
 	/* In the debug version, advance buf to point at the storage which
@@ -327,7 +327,7 @@ mem_heap_get_top(
 
 	/* Check that the field lengths agree */
 	ut_ad(n == (ulint)mem_field_header_get_len(buf));
-	#endif
+#endif
 
 	return(buf);
 } 
@@ -351,13 +351,13 @@ mem_heap_free_top(
 	/* Subtract the free field of block */
 	mem_block_set_free(block, mem_block_get_free(block)
 						- MEM_SPACE_NEEDED(n));
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 
 	ut_ad(mem_block_get_start(block) <= mem_block_get_free(block));
 
 	/* In the debug version check the consistency, and erase field */
 	mem_field_erase((byte*)block + mem_block_get_free(block), n);
-	#endif
+#endif
 
 	/* If free == start, we may free the block if it is not the first
 	one */
@@ -417,7 +417,7 @@ mem_heap_create_func(
 	/* Add the created block itself as the first block in the list */
 	UT_LIST_ADD_FIRST(list, block->base, block);
 
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 
 	if (block == NULL) {
 
@@ -426,7 +426,7 @@ mem_heap_create_func(
 
 	mem_hash_insert(block, file_name, line);
 
-	#endif
+#endif
 	
 	return(block);
 }
@@ -452,14 +452,14 @@ mem_heap_free_func(
 	
 	block = UT_LIST_GET_LAST(heap->base);
 
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 
 	/* In the debug version remove the heap from the hash table of heaps
 	and check its consistency */
 
 	mem_hash_remove(heap, file_name, line); 
 
-	#endif
+#endif
 	
 	if (heap->free_block) {
 		mem_heap_free_block_free(heap);
@@ -493,18 +493,6 @@ mem_alloc_func(
 	ulint   line		/* in: line where created */
 	)
 {
-#ifdef notdefined
-	void* buf;
-
-	buf = mem_area_alloc(n, mem_comm_pool);
-
-#ifdef UNIV_SET_MEM_TO_ZERO
-	memset(buf, '\0', n);
-#endif
-	return(buf);
-	
-#else
-	
 	mem_heap_t*   	heap; 
 	void*           buf;
 
@@ -525,8 +513,6 @@ mem_alloc_func(
 	ut_a((byte*)heap == (byte*)buf - MEM_BLOCK_HEADER_SIZE
 					- MEM_FIELD_HEADER_SIZE);
 	return(buf);
-
-#endif
 }
 
 /*******************************************************************
@@ -542,17 +528,11 @@ mem_free_func(
 	ulint   line            /* in: line where created */
 	)
 {
-#ifdef notdefined
-
-	mem_area_free(ptr, mem_comm_pool);
-       
-#else
 	mem_heap_t*   heap; 
 
 	heap = (mem_heap_t*)((byte*)ptr - MEM_BLOCK_HEADER_SIZE
 				 		- MEM_FIELD_HEADER_SIZE);
 	mem_heap_free_func(heap, file_name, line);
-#endif
 }
 
 /*********************************************************************

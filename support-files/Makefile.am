@@ -35,6 +35,7 @@ pkgdata_DATA =		my-small.cnf \
 			my-large.cnf \
 			my-huge.cnf \
 			mysql-log-rotate \
+			mysql-@VERSION@.spec \
 			MySQL-shared-compat.spec
 
 pkgdata_SCRIPTS =	mysql.server

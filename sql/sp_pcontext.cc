@@ -118,6 +118,7 @@ sp_pcontext::push_pvar(LEX_STRING *name, enum enum_field_types type,
     p->mode= mode;
     p->offset= m_pvar.elements;
     p->isset= (mode == sp_param_out ? FALSE : TRUE);
+    p->dflt= NULL;
     insert_dynamic(&m_pvar, (gptr)&p);
   }
 }

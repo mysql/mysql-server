@@ -203,13 +203,9 @@ trx_sig_send(
 	ulint		type,		/* in: signal type */
 	ulint		sender,		/* in: TRX_SIG_SELF or
 					TRX_SIG_OTHER_SESS */
-	ibool		reply,		/* in: TRUE if the sender of the signal
-					wants reply after the operation induced
-					by the signal is completed; if type
-					is TRX_SIG_END_WAIT, this must be
-					FALSE */
 	que_thr_t*	receiver_thr,	/* in: query thread which wants the
-					reply, or NULL */
+					reply, or NULL; if type is
+					TRX_SIG_END_WAIT, this must be NULL */
 	trx_savept_t* 	savept,		/* in: possible rollback savepoint, or
 					NULL */
 	que_thr_t**	next_thr);	/* in/out: next query thread to run;
@@ -225,7 +221,6 @@ been handled. */
 void
 trx_sig_reply(
 /*==========*/
-	trx_t*		trx,		/* in: trx handle */
 	trx_sig_t*	sig,		/* in: signal */
 	que_thr_t**	next_thr);	/* in/out: next query thread to run;
 					if the value which is passed in is
@@ -297,15 +292,9 @@ struct trx_sig_struct{
 					TRX_SIG_BEING_HANDLED */
 	ulint		sender;		/* TRX_SIG_SELF or
 					TRX_SIG_OTHER_SESS */
-	ibool		reply;		/* TRUE if the sender of the signal
+	que_thr_t*	receiver;	/* non-NULL if the sender of the signal
 					wants reply after the operation induced
-					by the signal is completed; if this
-					field is TRUE and the receiver field
-					below is NULL, then a SUCCESS message
-					is sent to the client of the session
-					to which this trx belongs */
-	que_thr_t*	receiver;	/* query thread which wants the reply,
-					or NULL */
+					by the signal is completed */
 	trx_savept_t	savept;		/* possible rollback savepoint */
 	UT_LIST_NODE_T(trx_sig_t)
 			signals;	/* queue of pending signals to the

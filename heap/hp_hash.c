@@ -20,6 +20,38 @@
 #include <m_ctype.h>
 #include <assert.h>
 
+
+
+/*
+  Find out how many rows there is in the given range
+
+  SYNOPSIS
+    hp_rb_records_in_range()
+    info		HEAP handler
+    inx			Index to use
+    start_key		Start of range.  Null pointer if from first key
+    start_key_len	Length of start key
+    start_search_flag	Flag if start key should be included or not
+    end_key		End of range. Null pointer if to last key
+    end_key_len		Length of end key
+    end_search_flag	Flag if start key should be included or not
+
+  NOTES
+    start_search_flag can have one of the following values:
+      HA_READ_KEY_EXACT		Include the key in the range
+      HA_READ_AFTER_KEY		Don't include key in range
+
+    end_search_flag can have one of the following values:  
+      HA_READ_BEFORE_KEY	Don't include key in range
+      HA_READ_AFTER_KEY		Include all 'end_key' values in the range
+
+  RETURN
+   HA_POS_ERROR		Something is wrong with the index tree.
+   0			There is no matching keys in the given range
+   number > 0		There is approximately 'number' matching rows in
+			the range.
+*/
+
 ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
 			       uint start_key_len,
 			       enum ha_rkey_function start_search_flag,
@@ -30,6 +62,7 @@ ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
   HP_KEYDEF *keyinfo= info->s->keydef + inx;
   TREE *rb_tree = &keyinfo->rb_tree;
   heap_rb_param custom_arg;
+  DBUG_ENTER("hp_rb_records_in_range");
 
   info->lastinx= inx;
   custom_arg.keyseg= keyinfo->seg;
@@ -59,10 +92,12 @@ ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
     end_pos= rb_tree->elements_in_tree + (ha_rows)1;
   }
 
+  DBUG_PRINT("info",("start_pos: %lu  end_pos: %lu", (ulong) start_pos,
+		     (ulong) end_pos));
   if (start_pos == HA_POS_ERROR || end_pos == HA_POS_ERROR)
-    return HA_POS_ERROR;
-  return end_pos < start_pos ? (ha_rows) 0 :
-	      (end_pos == start_pos ? (ha_rows) 1 : end_pos - start_pos);
+    DBUG_RETURN(HA_POS_ERROR);
+  DBUG_RETURN(end_pos < start_pos ? (ha_rows) 0 :
+	      (end_pos == start_pos ? (ha_rows) 1 : end_pos - start_pos));
 }
 
 	/* Search after a record based on a key */

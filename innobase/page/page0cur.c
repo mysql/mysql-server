@@ -16,11 +16,12 @@ Created 10/4/1994 Heikki Tuuri
 #include "log0recv.h"
 #include "rem0cmp.h"
 
-ulint	page_cur_short_succ	= 0;
-
-ulint	page_rnd	= 976722341;
+static ulint	page_rnd	= 976722341;
 
 #ifdef PAGE_CUR_ADAPT
+# ifdef UNIV_SEARCH_PERF_STAT
+ulint	page_cur_short_succ	= 0;
+# endif /* UNIV_SEARCH_PERF_STAT */
 
 /********************************************************************
 Tries a search shortcut based on the last insert. */
@@ -716,7 +717,7 @@ page_cur_parse_insert_rec(
 
 	       buf_page_print(page);
 
-	       ut_a(0);
+	       ut_error;
 	}
 
 	ut_memcpy(buf, rec_get_start(cursor_rec), mismatch_index);

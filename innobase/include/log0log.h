@@ -18,7 +18,9 @@ typedef struct log_struct	log_t;
 typedef struct log_group_struct	log_group_t;
 
 extern	ibool	log_do_write;
+#ifdef UNIV_LOG_DEBUG
 extern 	ibool	log_debug_writes;
+#endif /* UNIV_LOG_DEBUG */
 
 /* Wait modes for log_write_up_to */
 #define LOG_NO_WAIT		91
@@ -719,11 +721,13 @@ struct log_struct{
 	ulint		max_buf_free;	/* recommended maximum value of
 					buf_free, after which the buffer is
 					flushed */
+#ifdef UNIV_LOG_DEBUG
 	ulint		old_buf_free;	/* value of buf free when log was
 					last time opened; only in the debug
 					version */
 	dulint		old_lsn;	/* value of lsn when log was last time
 					opened; only in the debug version */
+#endif /* UNIV_LOG_DEBUG */
 	ibool		check_flush_or_checkpoint;
 					/* this is set to TRUE when there may
 					be need to flush the log buffer, or

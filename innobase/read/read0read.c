@@ -54,9 +54,10 @@ read_view_oldest_copy_or_open_new(
 	ulint		insert_done	= 0;
 	ulint		n;
 	ulint		i;
-	
-	ut_ad(mutex_own(&kernel_mutex));
 
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	old_view = UT_LIST_GET_LAST(trx_sys->view_list);
 
 	if (old_view == NULL) {
@@ -132,9 +133,9 @@ read_view_open_now(
 	read_view_t*	view;
 	trx_t*		trx;
 	ulint		n;
-
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-
+#endif /* UNIV_SYNC_DEBUG */
 	view = read_view_create_low(UT_LIST_GET_LEN(trx_sys->trx_list), heap);
 
 	view->creator = cr_trx;
@@ -195,8 +196,9 @@ read_view_close(
 /*============*/
 	read_view_t*	view)	/* in: read view */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
-
+#endif /* UNIV_SYNC_DEBUG */
 	UT_LIST_REMOVE(view_list, trx_sys->view_list, view);
 } 
 

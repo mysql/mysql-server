@@ -168,14 +168,6 @@ SOURCE=.\buf\buf0rea.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\com\com0com.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\com\com0shm.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\data\data0data.c
 # End Source File
 # Begin Source File
@@ -277,10 +269,6 @@ SOURCE=.\mtr\mtr0log.c
 # Begin Source File
 
 SOURCE=.\mtr\mtr0mtr.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\odbc\odbc0odbc.c
 # End Source File
 # Begin Source File
 

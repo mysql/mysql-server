@@ -136,7 +136,7 @@ grant ALL PRIVILEGES on *.* to drop_user2@localhost with GRANT OPTION;
 show grants for drop_user2@localhost;
 Grants for drop_user2@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'drop_user2'@'localhost' WITH GRANT OPTION
-revoke all privileges, grant from drop_user2@localhost;
+revoke all privileges, grant option from drop_user2@localhost;
 drop user drop_user2@localhost;
 grant ALL PRIVILEGES on *.* to drop_user@localhost with GRANT OPTION;
 grant ALL PRIVILEGES on test.* to drop_user@localhost with GRANT OPTION;
@@ -146,12 +146,43 @@ Grants for drop_user@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
 GRANT ALL PRIVILEGES ON `test`.* TO 'drop_user'@'localhost' WITH GRANT OPTION
 GRANT SELECT (a) ON `test`.`t1` TO 'drop_user'@'localhost'
-revoke all privileges, grant from drop_user@localhost;
+set sql_mode=ansi_quotes;
+show grants for drop_user@localhost;
+Grants for drop_user@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON "test".* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT SELECT (a) ON "test"."t1" TO 'drop_user'@'localhost'
+set sql_mode=default;
+set sql_quote_show_create=0;
+show grants for drop_user@localhost;
+Grants for drop_user@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON test.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT SELECT (a) ON test.t1 TO 'drop_user'@'localhost'
+set sql_mode="ansi_quotes";
+show grants for drop_user@localhost;
+Grants for drop_user@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON test.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT SELECT (a) ON test.t1 TO 'drop_user'@'localhost'
+set sql_quote_show_create=1;
+show grants for drop_user@localhost;
+Grants for drop_user@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON "test".* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT SELECT (a) ON "test"."t1" TO 'drop_user'@'localhost'
+set sql_mode="";
+show grants for drop_user@localhost;
+Grants for drop_user@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON `test`.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT SELECT (a) ON `test`.`t1` TO 'drop_user'@'localhost'
+revoke all privileges, grant option from drop_user@localhost;
 show grants for drop_user@localhost;
 Grants for drop_user@localhost
 GRANT USAGE ON *.* TO 'drop_user'@'localhost'
 drop user drop_user@localhost;
-revoke all privileges, grant from drop_user@localhost;
+revoke all privileges, grant option from drop_user@localhost;
 ERROR HY000: Can't revoke all privileges, grant for one or more of the requested users
 grant select(a) on test.t1 to drop_user1@localhost;
 grant select on test.t1 to drop_user2@localhost;
@@ -160,8 +191,14 @@ grant select on *.* to drop_user4@localhost;
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
 ERROR HY000: Can't drop one or more of the requested users
-revoke all privileges, grant from drop_user1@localhost, drop_user2@localhost,
+revoke all privileges, grant option from drop_user1@localhost, drop_user2@localhost,
 drop_user3@localhost, drop_user4@localhost;
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
 drop table t1;
+grant usage on *.* to mysqltest_1@localhost identified by "password";
+grant select, update, insert on test.* to mysqltest@localhost;
+show grants for mysqltest_1@localhost;
+Grants for mysqltest_1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' IDENTIFIED BY PASSWORD '*2470C0C06DEE42FD1618BB99005ADCA2EC9D1E19'
+drop user mysqltest_1@localhost;

@@ -109,7 +109,7 @@ static void do_outer_field_to_null_str(Copy_field *copy)
 }
 
 
-bool
+int
 set_field_to_null(Field *field)
 {
   if (field->real_maybe_null())
@@ -127,7 +127,7 @@ set_field_to_null(Field *field)
   if (!current_thd->no_errors)
     my_printf_error(ER_BAD_NULL_ERROR,ER(ER_BAD_NULL_ERROR),MYF(0),
 		    field->field_name);
-  return 1;
+  return -1;
 }
 
 
@@ -145,11 +145,11 @@ set_field_to_null(Field *field)
 
   RETURN VALUES
     0		Field could take 0 or an automatic conversion was used
-    1		Field could not take NULL and no conversion was used.
+    -1		Field could not take NULL and no conversion was used.
 		If no_conversion was not set, an error message is printed
 */
 
-bool
+int
 set_field_to_null_with_conversions(Field *field, bool no_conversions)
 {
   if (field->real_maybe_null())
@@ -159,7 +159,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     return 0;
   }
   if (no_conversions)
-    return 1;
+    return -1;
 
   /*
     Check if this is a special type, which will get a special walue
@@ -173,7 +173,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
   field->reset();
   if (field == field->table->next_number_field)
   {
-    field->table->auto_increment_field_not_null= false;
+    field->table->auto_increment_field_not_null= FALSE;
     return 0;					// field is set in handler.cc
   }
   if (current_thd->count_cuted_fields == CHECK_FIELD_WARN)
@@ -184,7 +184,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
   if (!current_thd->no_errors)
     my_printf_error(ER_BAD_NULL_ERROR,ER(ER_BAD_NULL_ERROR),MYF(0),
 		    field->field_name);
-  return 1;
+  return -1;
 }
 
 

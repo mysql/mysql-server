@@ -7,6 +7,7 @@ but is included in mem0mem.* !
 Created 6/9/1994 Heikki Tuuri
 *************************************************************************/
 
+#ifdef UNIV_MEM_DEBUG
 mutex_t	mem_hash_mutex;	 /* The mutex which protects in the
 			debug version the hash table containing
 			the list of live memory heaps, and
@@ -16,12 +17,11 @@ mutex_t	mem_hash_mutex;	 /* The mutex which protects in the
 extent of memory allocations. Only used in the debug version.
 Protected by mem_hash_mutex above. */
 
-ulint	mem_n_created_heaps 		= 0;
-ulint	mem_n_allocations	  	= 0;
-ulint	mem_total_allocated_memory	= 0;
-ulint	mem_current_allocated_memory	= 0;
-ulint	mem_max_allocated_memory	= 0;
-ulint	mem_last_print_info		= 0;
+static ulint	mem_n_created_heaps 		= 0;
+static ulint	mem_n_allocations	  	= 0;
+static ulint	mem_total_allocated_memory	= 0;
+ulint		mem_current_allocated_memory	= 0;
+static ulint	mem_max_allocated_memory	= 0;
 
 /* Size of the hash table for memory management tracking */
 #define	MEM_HASH_SIZE	997
@@ -43,12 +43,12 @@ struct mem_hash_node_struct {
 typedef UT_LIST_BASE_NODE_T(mem_hash_node_t) mem_hash_cell_t;
 
 /* The hash table of allocated heaps */
-mem_hash_cell_t		mem_hash_table[MEM_HASH_SIZE];
+static mem_hash_cell_t		mem_hash_table[MEM_HASH_SIZE];
 
 /* The base node of the list of all allocated heaps */
-mem_hash_cell_t		mem_all_list_base;
+static mem_hash_cell_t		mem_all_list_base;
 
-ibool	mem_hash_initialized	= FALSE;
+static ibool	mem_hash_initialized	= FALSE;
 
 
 UNIV_INLINE
@@ -65,45 +65,44 @@ mem_hash_get_nth_cell(ulint i)
 
 	return(&(mem_hash_table[i]));
 }
+#endif /* UNIV_MEM_DEBUG */
 
 /* Accessor functions for a memory field in the debug version */
 
 void
 mem_field_header_set_len(byte* field, ulint len)
 {
-	ut_ad(len >= 0);
-
-	mach_write(field - 2 * sizeof(ulint), len);
+	mach_write_to_4(field - 2 * sizeof(ulint), len);
 }
 
 ulint
 mem_field_header_get_len(byte* field)
 {
-	return(mach_read(field - 2 * sizeof(ulint)));
+	return(mach_read_from_4(field - 2 * sizeof(ulint)));
 }
 
 void
 mem_field_header_set_check(byte* field, ulint check)
 {
-	mach_write(field - sizeof(ulint), check);
+	mach_write_to_4(field - sizeof(ulint), check);
 }
 
 ulint
 mem_field_header_get_check(byte* field)
 {
-	return(mach_read(field - sizeof(ulint)));
+	return(mach_read_from_4(field - sizeof(ulint)));
 }
 
 void
 mem_field_trailer_set_check(byte* field, ulint check)
 {
-	mach_write(field + mem_field_header_get_len(field), check);
+	mach_write_to_4(field + mem_field_header_get_len(field), check);
 }
 
 ulint
 mem_field_trailer_get_check(byte* field)
 {
-	return(mach_read(field +
+	return(mach_read_from_4(field +
 			mem_field_header_get_len(field)));
 }
 
@@ -164,6 +163,7 @@ mem_field_init(
 	mem_field_header_set_check(usr_buf, rnd);
 	mem_field_trailer_set_check(usr_buf, rnd);
 
+#ifdef UNIV_MEM_DEBUG
 	/* Update the memory allocation information */
 
 	mutex_enter(&mem_hash_mutex);
@@ -182,6 +182,7 @@ mem_field_init(
 	combination of 0xBA and 0xBE */
 
 	mem_init_buf(usr_buf, n);
+#endif /* UNIV_MEM_DEBUG */
 }
 
 /**********************************************************************
@@ -191,12 +192,14 @@ void
 mem_field_erase(
 /*============*/
 	byte*	buf,	/* in: memory field */
-	ulint	n)	/* in: how many bytes the user requested */
+	ulint	n __attribute__((unused)))
+			/* in: how many bytes the user requested */
 {
 	byte*	usr_buf;
 
 	usr_buf = buf + MEM_FIELD_HEADER_SIZE;
-	
+
+#ifdef UNIV_MEM_DEBUG
 	mutex_enter(&mem_hash_mutex);
 	mem_current_allocated_memory    -= n;
 	mutex_exit(&mem_hash_mutex);
@@ -208,8 +211,10 @@ mem_field_erase(
 	combination of 0xDE and 0xAD */
 
 	mem_erase_buf(buf, MEM_SPACE_NEEDED(n));
+#endif /* UNIV_MEM_DEBUG */
 }
 
+#ifdef UNIV_MEM_DEBUG
 /*******************************************************************
 Initializes a buffer to a random combination of hex BA and BE.
 Used to initialize allocated memory. */
@@ -372,6 +377,7 @@ mem_hash_remove(
 
 	mutex_exit(&mem_hash_mutex);
 }
+#endif /* UNIV_MEM_DEBUG */
 
 /*******************************************************************
 Checks a memory heap for consistency and prints the contents if requested.
@@ -408,12 +414,12 @@ mem_heap_validate_or_print(
 	ulint		total_len 	= 0;
 	ulint		block_count	= 0;
 	ulint		phys_len	= 0;
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 	ulint		len;
 	byte*		field;
 	byte*		user_field;
 	ulint		check_field;
-	#endif
+#endif
 
 	/* Pessimistically, we set the parameters to error values */
  	if (us_size != NULL) {
@@ -451,7 +457,7 @@ mem_heap_validate_or_print(
 		    	return;
 		}
 
-		#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 		/* We can trace the fields of the block only in the debug
 		version */
 		if (print) {
@@ -518,7 +524,7 @@ mem_heap_validate_or_print(
 			return;
 		}
 
-		#endif
+#endif
 
 		block = UT_LIST_GET_NEXT(list, block);
 		block_count++;
@@ -603,130 +609,7 @@ mem_heap_validate(
 	return(TRUE);
 }
 
-/*********************************************************************
-Prints information of dynamic memory usage and currently allocated
-memory heaps or buffers. Can only be used in the debug version. */
-static
-void
-mem_print_info_low(
-/*===============*/
-	ibool	print_all __attribute__((unused)))
-                                /* in: if TRUE, all heaps are printed,
-				else only the heaps allocated after the
-				previous call of this function */	
-{
 #ifdef UNIV_MEM_DEBUG
-	mem_hash_node_t*	node;
-	ulint			n_heaps 		= 0;
-	ulint			allocated_mem;
-	ulint			ph_size;
-	ulint			total_allocated_mem 	= 0;
-	ibool			error;
-	ulint			n_blocks;
-#endif
-	FILE*			outfile;
-	
-	/* outfile = fopen("ibdebug", "a"); */
-
-	outfile = stdout;
-	
-	fprintf(outfile, "\n");	
-	fprintf(outfile,
-		"________________________________________________________\n");
-	fprintf(outfile, "MEMORY ALLOCATION INFORMATION\n\n");
-
-#ifndef UNIV_MEM_DEBUG
-
-	mem_pool_print_info(outfile, mem_comm_pool);
-	
-	fprintf(outfile,
-		"Sorry, non-debug version cannot give more memory info\n");
-
-	/* fclose(outfile); */
-	
-	return;
-#else
-	mutex_enter(&mem_hash_mutex);
-	
-	fprintf(outfile, "LIST OF CREATED HEAPS AND ALLOCATED BUFFERS: \n\n");
-
-	if (!print_all) {
-		fprintf(outfile, "AFTER THE LAST PRINT INFO\n");
-	}
-
-	node = UT_LIST_GET_FIRST(mem_all_list_base);
-
-	while (node != NULL) {
-		n_heaps++;
-		
-		if (!print_all && node->nth_heap < mem_last_print_info) {
-
-			goto next_heap;
-		}	
-
-		mem_heap_validate_or_print(node->heap, NULL, 
-				FALSE, &error, &allocated_mem, 
-				&ph_size, &n_blocks);
-		total_allocated_mem += allocated_mem;
-
-		fprintf(outfile,
- "%lu: file %s line %lu of size %lu phys.size %lu with %lu blocks, type %lu\n",
-				node->nth_heap, node->file_name, node->line, 
-				allocated_mem, ph_size, n_blocks,
-				(node->heap)->type);
-	next_heap:
-		node = UT_LIST_GET_NEXT(all_list, node);
-	}
-	
-	fprintf(outfile, "\n");
-
-	fprintf(outfile, "Current allocated memory	  	: %lu\n", 
-			mem_current_allocated_memory);
-	fprintf(outfile, "Current allocated heaps and buffers	: %lu\n", 
-			n_heaps);
-	fprintf(outfile, "Cumulative allocated memory	  	: %lu\n", 
-			mem_total_allocated_memory);
-	fprintf(outfile, "Maximum allocated memory	  	: %lu\n",
-			mem_max_allocated_memory);
-	fprintf(outfile, "Cumulative created heaps and buffers	: %lu\n", 
-			mem_n_created_heaps);
-	fprintf(outfile, "Cumulative number of allocations	: %lu\n", 
-			mem_n_allocations);
-
-	mem_last_print_info = mem_n_created_heaps;
-
-	mutex_exit(&mem_hash_mutex);
-
-	mem_pool_print_info(outfile, mem_comm_pool);
-	
-/*	mem_validate(); */
-
-/* 	fclose(outfile); */
-#endif
-}
-
-/*********************************************************************
-Prints information of dynamic memory usage and currently allocated memory
-heaps or buffers. Can only be used in the debug version. */
-
-void
-mem_print_info(void)
-/*================*/
-{
-	mem_print_info_low(TRUE);
-}
-
-/*********************************************************************
-Prints information of dynamic memory usage and currently allocated memory
-heaps or buffers since the last ..._print_info or..._print_new_info. */
-
-void
-mem_print_new_info(void)
-/*====================*/
-{
-	mem_print_info_low(FALSE);
-}
-
 /*********************************************************************
 TRUE if no memory is currently allocated. */
 
@@ -735,8 +618,6 @@ mem_all_freed(void)
 /*===============*/
 			/* out: TRUE if no heaps exist */
 {
-	#ifdef UNIV_MEM_DEBUG
-
 	mem_hash_node_t*	node;
 	ulint			heap_count	= 0;
 	ulint			i;
@@ -764,15 +645,6 @@ mem_all_freed(void)
 	} else {
 		return(FALSE);
 	}
-	
-	#else
-	
-	printf(
-	"Sorry, non-debug version cannot check if all memory is freed.\n");
-
-	return(FALSE);
-
-	#endif
 }
 
 /*********************************************************************
@@ -783,8 +655,6 @@ mem_validate_no_assert(void)
 /*========================*/
 			/* out: TRUE if error */
 {
-	#ifdef UNIV_MEM_DEBUG
-
 	mem_hash_node_t*	node;
 	ulint			n_heaps 		= 0;
 	ulint			allocated_mem;
@@ -843,14 +713,6 @@ mem_validate_no_assert(void)
 	mutex_exit(&mem_hash_mutex);
  
 	return(error);
-
-	#else
-
-	printf("Sorry, non-debug version cannot validate dynamic memory\n");
-
-	return(FALSE);
-
-	#endif
 }
 
 /****************************************************************
@@ -865,6 +727,7 @@ mem_validate(void)
 
 	return(TRUE);
 }
+#endif /* UNIV_MEM_DEBUG */
 
 /****************************************************************
 Tries to find neigboring memory allocation blocks and dumps to stderr

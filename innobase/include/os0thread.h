@@ -99,13 +99,6 @@ os_thread_t
 os_thread_get_curr(void);
 /*====================*/
 /*********************************************************************
-Waits for a thread to terminate. */
-
-void
-os_thread_wait(
-/*===========*/
-	os_thread_t	thread);	/* in: thread to wait */
-/*********************************************************************
 Advises the os to give up remainder of the thread's time slice. */
 
 void

@@ -115,7 +115,6 @@ static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
   TABLE *table;
   int res;
   select_union *derived_result;
-  TABLE_LIST *tables= (TABLE_LIST *)first_select->table_list.first;
   bool is_union= first_select->next_select() && 
     first_select->next_select()->linkage == UNION_TYPE;
   bool is_subsel= first_select->first_inner_unit() ? 1: 0;
@@ -138,7 +137,7 @@ static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
   */
   if (!(table= create_tmp_table(thd, &derived_result->tmp_table_param,
 				unit->types, (ORDER*) 0, 
-				is_union && !unit->union_option, 1,
+				is_union && unit->union_distinct, 1,
 				(first_select->options | thd->options |
 				 TMP_TABLE_ALL_COLUMNS),
 				HA_POS_ERROR,
@@ -151,16 +150,14 @@ static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 
 
   if (is_union)
-    res= mysql_union(thd, lex, derived_result, unit);
+  {
+    // execute union without clean up
+    if (!(res= unit->prepare(thd, derived_result, SELECT_NO_UNLOCK)))
+      res= unit->exec();
+  }
   else
   {
-    unit->offset_limit_cnt= first_select->offset_limit;
-    unit->select_limit_cnt= first_select->select_limit+
-      first_select->offset_limit;
-    if (unit->select_limit_cnt < first_select->select_limit)
-      unit->select_limit_cnt= HA_POS_ERROR;
-    if (unit->select_limit_cnt == HA_POS_ERROR)
-      first_select->options&= ~OPTION_FOUND_ROWS;
+    unit->set_limit(first_select, first_select);
 
     lex->current_select= first_select;
     res= mysql_select(thd, &first_select->ref_pointer_array, 

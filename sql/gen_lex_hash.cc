@@ -81,7 +81,6 @@ TODO:
 #endif
 #include <my_getopt.h>
 #include "mysql_version.h"
-#include "mysql_priv.h"
 #include "lex.h"
 
 struct my_option my_long_options[] =

@@ -182,9 +182,9 @@ int key_cmp(TABLE *table,const byte *key,uint idx,uint key_length)
     }
     if (key_part->key_part_flag & (HA_BLOB_PART | HA_VAR_LENGTH))
     {
-      if (key_part->field->key_cmp(key, key_part->length+2))
+      if (key_part->field->key_cmp(key, key_part->length+ HA_KEY_BLOB_LENGTH))
 	return 1;
-      length=key_part->length+2;
+      length=key_part->length+HA_KEY_BLOB_LENGTH;
     }
     else
     {

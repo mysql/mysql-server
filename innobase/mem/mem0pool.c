@@ -259,7 +259,9 @@ mem_pool_fill_free_list(
 	mem_area_t*	area2;
 	ibool		ret;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (i >= 63) {
 		/* We come here when we have run out of space in the
@@ -296,7 +298,7 @@ mem_pool_fill_free_list(
 	if (UT_LIST_GET_LEN(pool->free_list[i + 1]) == 0) {
 	        mem_analyze_corruption((byte*)area);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	UT_LIST_REMOVE(free_list, pool->free_list[i + 1], area);
@@ -374,7 +376,7 @@ mem_area_alloc(
 "InnoDB: Probably a race condition because now the area is marked free!\n");
 		}
 
-		ut_a(0);
+		ut_error;
 	}
 
 	if (UT_LIST_GET_LEN(pool->free_list[n]) == 0) {
@@ -384,7 +386,7 @@ mem_area_alloc(
 			(ulong) n);
 		mem_analyze_corruption((byte*)area);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	ut_ad(mem_area_get_size(area) == ut_2_exp(n));	
@@ -480,7 +482,7 @@ mem_area_free(
 "InnoDB: element is marked free!\n");
 
 		mem_analyze_corruption((byte*)area);
-		ut_a(0);
+		ut_error;
 	}
 
 	size = mem_area_get_size(area);
@@ -491,7 +493,7 @@ mem_area_free(
 "InnoDB: previous allocated area!\n");
 
 		mem_analyze_corruption((byte*)area);
-		ut_a(0);
+		ut_error;
 	}
 
 #ifdef UNIV_LIGHT_MEM_DEBUG	
@@ -508,7 +510,7 @@ mem_area_free(
 			  (ulong) size, (ulong) next_size);
 			mem_analyze_corruption((byte*)area);
 
-			ut_a(0);
+			ut_error;
 		}
 	}
 #endif

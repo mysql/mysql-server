@@ -69,12 +69,10 @@ public:
     Alloced_length=str.Alloced_length; alloced=0; 
     str_charset=str.str_charset;
   }
-  static void *operator new(size_t size)
-  { return (void*) sql_alloc((uint) size); }
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr_arg,size_t size) /*lint -e715 */
-    { sql_element_free(ptr_arg); }
+    {}
   ~String() { free(); }
 
   inline void set_charset(CHARSET_INFO *charset) { str_charset= charset; }
@@ -221,6 +219,7 @@ public:
   inline void caseup() { my_caseup(str_charset,Ptr,str_length); }
   inline void casedn() { my_casedn(str_charset,Ptr,str_length); }
   friend int sortcmp(const String *a,const String *b, CHARSET_INFO *cs);
+  friend int stringcmp(const String *a,const String *b);
   friend String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
   uint32 numchars();
   int charpos(int i,uint32 offset=0);
@@ -236,7 +235,7 @@ public:
     q_*** methods writes values of parameters itself
     qs_*** methods writes string representation of value
   */
-  void q_append(const char &c)
+  void q_append(const char c)
   {
     Ptr[str_length++] = c;
   }
@@ -261,15 +260,21 @@ public:
     str_length += data_len;
   }
 
-  void WriteAtPosition(int position, uint32 value)
+  void write_at_position(int position, uint32 value)
   {
     int4store(Ptr + position,value);
   }
 
-  void qs_append(const char *str);
+  void qs_append(const char *str, uint32 len);
   void qs_append(double d);
   void qs_append(double *d);
-  void qs_append(const char &c);
+  inline void qs_append(const char c)
+  {
+     Ptr[str_length]= c;
+     str_length++;
+  }
+  void qs_append(int i);
+  void qs_append(uint i);
 
   /* Inline (general) functions used by the protocol functions */
 

@@ -192,6 +192,11 @@ AC_PROG_RANLIB
 #AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
 
+# Ensure that we have --preserve-dup-deps defines, otherwise we get link
+# problems of 'mysql' with CXX=g++
+LIBTOOL="$LIBTOOL --preserve-dup-deps"
+AC_SUBST(LIBTOOL)dnl
+
 #AC_LIBTOOL_DLOPEN AC_LIBTOOL_WIN32_DLL AC_DISABLE_FAST_INSTALL AC_DISABLE_SHARED AC_DISABLE_STATIC
 
 # AC_PROG_INSTALL
@@ -346,7 +351,7 @@ AC_SUBST(CXXFLAGS)
 AC_SUBST(LD)
 AC_SUBST(INSTALL_SCRIPT)
 
-export CC CFLAGS LD LDFLAGS
+export CC CXX CFLAGS LD LDFLAGS AR
 
 if test "$GXX" = "yes"
 then
@@ -1008,7 +1013,7 @@ case $SYSTEM_TYPE in
   *darwin5*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      FLAGS="-traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH -DFN_NO_CASE_SENCE"
+      FLAGS="-traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
       CFLAGS="$CFLAGS $FLAGS"
       CXXFLAGS="$CXXFLAGS $FLAGS"
       MAX_C_OPTIMIZE="-O"
@@ -1018,7 +1023,16 @@ case $SYSTEM_TYPE in
   *darwin6*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      FLAGS="-DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH -DFN_NO_CASE_SENCE"
+      FLAGS="-DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
+      CFLAGS="$CFLAGS $FLAGS"
+      CXXFLAGS="$CXXFLAGS $FLAGS"
+      MAX_C_OPTIMIZE="-O"
+    fi
+    ;;
+  *darwin7*)
+    if test "$ac_cv_prog_gcc" = "yes"
+    then
+      FLAGS="-DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ"
       CFLAGS="$CFLAGS $FLAGS"
       CXXFLAGS="$CXXFLAGS $FLAGS"
       MAX_C_OPTIMIZE="-O"
@@ -1054,7 +1068,7 @@ case $SYSTEM_TYPE in
       echo "Using --with-named-thread=-lpthread"
       with_named_thread="-lpthread"
     fi
-    CXXFLAGS="-D_BOOL"
+    CXXFLAGS="$CXXFLAGS -D_BOOL"
     ;;
     *aix4.3*)
       echo "Adding defines for AIX"
@@ -1821,29 +1835,32 @@ AC_TYPE_SIGNAL
 MYSQL_TYPE_QSORT
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS(alarm bmove \
- chsize ftruncate rint finite isnan fpsetmask fpresetsticky\
- cuserid fcntl fconvert poll \
- getrusage getpwuid getcwd getrlimit getwd index stpcpy locking longjmp \
- perror pread realpath readlink rename \
- socket strnlen madvise mallinfo mkstemp \
- strtol strtoul strtoll strtoull snprintf tempnam thr_setconcurrency \
- gethostbyaddr_r gethostbyname_r getpwnam \
- bfill bzero bcmp strstr strpbrk strerror \
- tell atod memcpy memmove \
- setupterm strcasecmp sighold vidattr lrand48 localtime_r gmtime_r \
- sigset sigthreadmask pthread_sigmask pthread_setprio pthread_setprio_np \
- pthread_setschedparam pthread_attr_setprio pthread_attr_setschedparam \
- pthread_attr_create pthread_getsequence_np pthread_attr_setstacksize \
- pthread_attr_getstacksize \
- pthread_condattr_create rwlock_init pthread_rwlock_rdlock \
- fsync fdatasync fchmod getpass getpassphrase initgroups mlockall)
 
+AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
+  fconvert fdatasync finite fpresetsticky fpsetmask fsync ftruncate \
+  getcwd gethostbyaddr_r gethostbyname_r getpass getpassphrase getpwnam \
+  getpwuid getrlimit getrusage getwd gmtime_r index initgroups isnan \
+  localtime_r locking longjmp lrand48 madvise mallinfo memcpy memmove \
+  mkstemp mlockall perror poll pread pthread_attr_create clock_gettime \
+  pthread_attr_getstacksize pthread_attr_setprio pthread_attr_setschedparam \
+  pthread_attr_setstacksize pthread_condattr_create pthread_getsequence_np \
+  pthread_key_delete pthread_rwlock_rdlock pthread_setprio \
+  pthread_setprio_np pthread_setschedparam pthread_sigmask readlink \
+  realpath rename rint rwlock_init setupterm sighold sigset sigthreadmask \
+  snprintf socket stpcpy strcasecmp strerror strnlen strpbrk strstr strtol \
+  strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr)
+
+# isinf() could be a function or a macro (HPUX)
+AC_MSG_CHECKING(for isinf with <math.h>)
+AC_TRY_LINK([#include <math.h>], [float f = 0.0; isinf(f)],
+ AC_MSG_RESULT(yes) AC_DEFINE(HAVE_ISINF,,[isinf() macro or function]),
+ AC_MSG_RESULT(no))
+ 
 CFLAGS="$ORG_CFLAGS"
 
 # Sanity check: We chould not have any fseeko symbol unless
 # large_file_support=yes
-AC_CHECK_FUNCS(fseeko,
+AC_CHECK_FUNC(fseeko,
 [if test "$large_file_support" = no -a "$IS_LINUX" = "true";
 then
   AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!");
@@ -2691,7 +2708,7 @@ then
       esac
       (cd $bdb/build_unix && \
        sh $rel_srcdir/$bdb/dist/configure $bdb_conf_flags) || \
-	AC_MSG_ERROR([could not configure Berkeley DB])
+        AC_MSG_ERROR([could not configure Berkeley DB])
 
 dnl       echo "bdb = '$bdb'; inc = '$bdb_includes', lib = '$bdb_libs'"
       echo "END OF BERKELEY DB CONFIGURATION"
@@ -2730,25 +2747,7 @@ EOF
   then
     innodb_conf_flags=""
     sql_server_dirs="$sql_server_dirs innobase"
-    echo "CONFIGURING FOR INNODB" 
-    if test ! -d "innobase"; then
-        # This should only happen when doing a VPATH build
-        echo "NOTICE: I have to make the Innobase directory: `pwd`/innobase"
-	mkdir "innobase" || exit 1
-    fi
-    rel_srcdir=
-    case "$srcdir" in
-	/* ) rel_srcdir="$srcdir" ;;
-	* )  rel_srcdir="../$srcdir" ;;
-    esac
-    if test "x$enable_dependency_tracking" == xno
-    then
-      innodb_conf_flags=--disable-dependency-tracking
-    fi
-    (cd innobase && sh $rel_srcdir/innobase/configure --host=$host $innodb_conf_flags) \
-    || AC_MSG_ERROR([could not configure INNODB])
-
-    echo "END OF INNODB CONFIGURATION"
+    AC_CONFIG_SUBDIRS(innobase)
   fi
   #
   # END of configuration for optional table handlers

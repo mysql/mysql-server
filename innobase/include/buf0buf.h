@@ -562,11 +562,11 @@ buf_awe_map_page_to_frame(
 					we need to map the page should also
 					add the block to the
 					awe_LRU_free_mapped list */
+#ifdef UNIV_SYNC_DEBUG
 /*************************************************************************
 Adds latch level info for the rw-lock protecting the buffer frame. This
 should be called in the debug version after a successful latching of a
-page if we know the latching order level of the acquired latch. If
-UNIV_SYNC_DEBUG is not defined, compiles to an empty function. */
+page if we know the latching order level of the acquired latch. */
 UNIV_INLINE
 void
 buf_page_dbg_add_level(
@@ -574,6 +574,7 @@ buf_page_dbg_add_level(
 	buf_frame_t*	frame,	/* in: buffer page where we have acquired
 				a latch */
 	ulint		level);	/* in: latching order level */
+#endif /* UNIV_SYNC_DEBUG */
 /*************************************************************************
 Gets a pointer to the memory frame of a block. */
 UNIV_INLINE

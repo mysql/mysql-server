@@ -117,6 +117,7 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   extra/resolve_stack_dump$BS extra/mysql_waitpid$BS \
   isam/isamchk$BS isam/pack_isam$BS \
   myisam/myisamchk$BS myisam/myisampack$BS myisam/myisamlog$BS \
+  myisam/myisam_ftdump$BS \
   sql/mysqld$BS \
   client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
   client/mysqldump$BS client/mysqlimport$BS \
@@ -208,7 +209,7 @@ if [ $BASE_SYSTEM != "netware" ] ; then
 fi
 
 $CP support-files/* $BASE/support-files
-$CP scripts/fill_help_tables.sql $BASE/support-files
+$CP scripts/*.sql $BASE/share
 
 if [ $BASE_SYSTEM = "netware" ] ; then
   rm -f $BASE/support-files/magic \
@@ -246,6 +247,7 @@ if [ $BASE_SYSTEM != "netware" ] ; then
   chmod a+x $BASE/bin/* $BASE/scripts/* $BASE/support-files/mysql-* $BASE/support-files/mysql.server $BASE/configure
   $CP -r sql-bench/* $BASE/sql-bench
   rm -f $BASE/sql-bench/*.sh $BASE/sql-bench/Makefile* $BASE/lib/*.la
+  rm -f $BASE/bin/*.sql
 fi
 
 rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh $BASE/bin/mysql_install_db $BASE/bin/make_binary_distribution $BASE/bin/setsomevars $BASE/support-files/Makefile* $BASE/support-files/*.sh

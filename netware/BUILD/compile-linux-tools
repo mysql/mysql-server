@@ -1,4 +1,4 @@
-#! /bin/sh                   
+#! /bin/sh
 
 # debug
 #set -x
@@ -45,6 +45,9 @@ make clean config.h
 (cd libmysql_r; make conf_to_src)
 (cd sql; make gen_lex_hash)
 (cd strings; make conf_to_src)
+
+# so the file will be linked
+(cd sql; make sql_yacc.cc)
 
 # copying required linux tools
 cp extra/comp_err extra/comp_err.linux

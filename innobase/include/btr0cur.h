@@ -365,17 +365,6 @@ btr_cur_parse_update_in_place(
 	byte*	ptr,	/* in: buffer */
 	byte*	end_ptr,/* in: buffer end */
 	page_t*	page);	/* in: page or NULL */
-/***************************************************************
-Parses a redo log record of updating a record, but not in-place. */
-
-byte*
-btr_cur_parse_opt_update(
-/*=====================*/
-			/* out: end of log record or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
-	page_t*	page,	/* in: page or NULL */
-	mtr_t*	mtr);	/* in: mtr or NULL */
 /********************************************************************
 Parses the redo log record for delete marking or unmarking of a clustered
 index record. */
@@ -445,16 +434,6 @@ btr_cur_mark_dtuple_inherited_extern(
 					original record */
 	ulint		n_ext_vec,	/* in: number of elements in ext_vec */
 	upd_t*		update);	/* in: update vector */
-/***********************************************************************
-Marks all extern fields in a record as owned by the record. This function
-should be called if the delete mark of a record is removed: a not delete
-marked record always owns all its extern fields. */
-
-void
-btr_cur_unmark_extern_fields(
-/*=========================*/
-	rec_t*	rec,	/* in: record in a clustered index */
-	mtr_t*	mtr);	/* in: mtr */
 /***********************************************************************
 Marks all extern fields in a dtuple as owned by the record. */
 

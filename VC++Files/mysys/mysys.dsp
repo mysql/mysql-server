@@ -7,26 +7,26 @@
 CFG=mysys - Win32 Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
-!MESSAGE
+!MESSAGE 
 !MESSAGE NMAKE /f "mysys.mak".
-!MESSAGE
+!MESSAGE 
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
-!MESSAGE
+!MESSAGE 
 !MESSAGE NMAKE /f "mysys.mak" CFG="mysys - Win32 Debug"
-!MESSAGE
+!MESSAGE 
 !MESSAGE Possible choices for configuration are:
-!MESSAGE
+!MESSAGE 
 !MESSAGE "mysys - Win32 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE "mysys - Win32 Debug" (based on "Win32 (x86) Static Library")
 !MESSAGE "mysys - Win32 Max" (based on "Win32 (x86) Static Library")
-!MESSAGE
+!MESSAGE 
 
 # Begin Project
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=xicl6.exe
+CPP=cl.exe
 RSC=rc.exe
 
 !IF  "$(CFG)" == "mysys - Win32 Release"
@@ -42,14 +42,14 @@ RSC=rc.exe
 # PROP Intermediate_Dir "release"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../zlib" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../zlib" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /D "USE_SYMLINK" /FD /c
 # SUBTRACT CPP /WX /Fr /YX
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=xilink6.exe -lib
+LIB32=link.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_release\mysys.lib"
 
@@ -66,14 +66,14 @@ LIB32=xilink6.exe -lib
 # PROP Intermediate_Dir "debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /I "../include" /I "../zlib" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_SYMDIR" /FD /c
+# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /I "../include" /I "../zlib" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_SYMDIR" /D "USE_SYMLINK" /FD /c
 # SUBTRACT CPP /Fr
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=xilink6.exe -lib
+LIB32=link.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_debug\mysys.lib"
 
@@ -91,18 +91,18 @@ LIB32=xilink6.exe -lib
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /FD /c
 # SUBTRACT BASE CPP /YX
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../zlib" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /D "USE_SYMDIR" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../zlib" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /D "USE_SYMDIR" /D "USE_SYMLINK" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=xilink6.exe -lib
+LIB32=link.exe -lib
 # ADD BASE LIB32 /nologo /out:"..\lib_release\mysys.lib"
 # ADD LIB32 /nologo /out:"..\lib_release\mysys-max.lib"
 
-!ENDIF
+!ENDIF 
 
 # Begin Target
 
@@ -121,7 +121,7 @@ SOURCE=.\array.c
 
 !ELSEIF  "$(CFG)" == "mysys - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File
@@ -330,7 +330,15 @@ SOURCE=.\my_gethostbyname.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_gethwaddr.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\my_getopt.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\my_getsystime.c
 # End Source File
 # Begin Source File
 
@@ -387,6 +395,10 @@ SOURCE=.\my_once.c
 # Begin Source File
 
 SOURCE=.\my_open.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\my_file.c
 # End Source File
 # Begin Source File
 
@@ -516,7 +528,7 @@ SOURCE=.\thr_lock.c
 
 !ELSEIF  "$(CFG)" == "mysys - Win32 Max"
 
-!ENDIF
+!ENDIF 
 
 # End Source File
 # Begin Source File

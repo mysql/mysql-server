@@ -510,13 +510,15 @@ struct row_prebuilt_struct {
 	byte*		ins_upd_rec_buff;/* buffer for storing data converted
 					to the Innobase format from the MySQL
 					format */
-	ibool		hint_no_need_to_fetch_extra_cols;
-					/* normally this is TRUE, but
-					MySQL will set this to FALSE
-					if we might be required to fetch also
-					other columns than mentioned in the
-					query: the clustered index column(s),
-					or an auto-increment column*/
+	ulint		hint_need_to_fetch_extra_cols;
+					/* normally this is set to 0; if this
+					is set to ROW_RETRIEVE_PRIMARY_KEY,
+					then we should at least retrieve all
+					columns in the primary key; if this
+					is set to ROW_RETRIEVE_ALL_COLS, then
+					we must retrieve all columns in the
+					key (if read_just_key == 1), or all
+					columns in the table */
 	upd_node_t*	upd_node;	/* Innobase SQL update node used
 					to perform updates and deletes */
 	que_fork_t*	ins_graph;	/* Innobase SQL query graph used
@@ -571,6 +573,11 @@ struct row_prebuilt_struct {
 #define ROW_MYSQL_NO_TEMPLATE	2
 #define ROW_MYSQL_DUMMY_TEMPLATE 3	/* dummy template used in
 					row_scan_and_check_index */
+
+/* Values for hint_need_to_fetch_extra_cols */
+#define ROW_RETRIEVE_PRIMARY_KEY	1
+#define ROW_RETRIEVE_ALL_COLS		2
+
 
 #ifndef UNIV_NONINL
 #include "row0mysql.ic"

@@ -40,7 +40,6 @@ Created 2/16/1996 Heikki Tuuri
 #include "rem0rec.h"
 #include "srv0srv.h"
 #include "que0que.h"
-#include "com0com.h"
 #include "usr0sess.h"
 #include "lock0lock.h"
 #include "trx0roll.h"
@@ -447,9 +446,9 @@ io_handler_thread(
 }
 
 #ifdef __WIN__
-#define SRV_PATH_SEPARATOR	"\\"
+#define SRV_PATH_SEPARATOR	'\\'
 #else
-#define SRV_PATH_SEPARATOR	"/"
+#define SRV_PATH_SEPARATOR	'/'
 #endif
 
 /*************************************************************************
@@ -477,31 +476,26 @@ srv_normalize_path_for_win(
 Adds a slash or a backslash to the end of a string if it is missing
 and the string is not empty. */
 
+static
 char*
 srv_add_path_separator_if_needed(
 /*=============================*/
-			/* out, own: string which has the separator if the
+			/* out: string which has the separator if the
 			string is not empty */
 	char*	str)	/* in: null-terminated character string */
 {
 	char*	out_str;
+	ulint	len	= ut_strlen(str);
 
-	if (ut_strlen(str) == 0) {
+	if (len == 0 || str[len - 1] == SRV_PATH_SEPARATOR) {
 
 		return(str);
 	}
 
-	if (str[ut_strlen(str) - 1] == SRV_PATH_SEPARATOR[0]) {
-		out_str = ut_malloc(ut_strlen(str) + 1);
-		
-		sprintf(out_str, "%s", str);
-
-		return(out_str);
-	}
-		
-	out_str = ut_malloc(ut_strlen(str) + 2);
-		
-	sprintf(out_str, "%s%s", str, SRV_PATH_SEPARATOR);
+	out_str = ut_malloc(len + 2);
+	memcpy(out_str, str, len);
+	out_str[len] = SRV_PATH_SEPARATOR;
+	out_str[len + 1] = 0;
 
 	return(out_str);
 }
@@ -908,80 +902,6 @@ skip_size_check:
 	return(DB_SUCCESS);
 }
 
-#ifdef notdefined
-/*********************************************************************
-This thread is used to measure contention of latches. */
-static
-ulint
-test_measure_cont(
-/*==============*/
-	void*	arg)
-{
-	ulint	i, j;
-	ulint	pcount, kcount, s_scount, s_xcount, s_mcount, lcount;
-
-	UT_NOT_USED(arg);
-
-	fprintf(stderr, "Starting contention measurement\n");
-	
-	for (i = 0; i < 1000; i++) {
-
-		pcount = 0;
-		kcount = 0;
-		s_scount = 0;
-		s_xcount = 0;
-		s_mcount = 0;
-		lcount = 0;
-
-		for (j = 0; j < 100; j++) {
-
-		    if (srv_measure_by_spin) {
-		    	ut_delay(ut_rnd_interval(0, 20000));
-		    } else {
-		    	os_thread_sleep(20000);
-		    }
-
-		    if (kernel_mutex.lock_word) {
-			kcount++;
-		    }
-
-		    if (buf_pool->mutex.lock_word) {
-		    	pcount++;
-		    }
-
-		    if (log_sys->mutex.lock_word) {
-		    	lcount++;
-		    }
-
-		    if (btr_search_latch.reader_count) {
-		    	s_scount++;
-		    }
-
-		    if (btr_search_latch.writer != RW_LOCK_NOT_LOCKED) {
-		    	s_xcount++;
-		    }
-
-		    if (btr_search_latch.mutex.lock_word) {
-		    	s_mcount++;
-		    }
-		}
-
-		fprintf(stderr, 
-	"Mutex res. l %lu, p %lu, k %lu s x %lu s s %lu s mut %lu of %lu\n",
-		lcount, pcount, kcount, s_xcount, s_scount, s_mcount, j);
-
-/*		sync_print_wait_info(); */
-
-		fprintf(stderr, 
-    "log i/o %lu n non sea %lu n succ %lu n h fail %lu\n",
-			log_sys->n_log_ios, btr_cur_n_non_sea,
-			btr_search_n_succ, btr_search_n_hash_fail);
-	}
-
-	return(0);
-}
-#endif
-
 /********************************************************************
 Starts InnoDB and creates a new database if database files
 are not found and the user wants. Server parameters are
@@ -1378,8 +1298,6 @@ NetWare. */
 		
 		mutex_exit(&(log_sys->mutex));
 	}
-
-	sess_sys_init_at_db_start();
 
 	if (create_new_db) {
 		mtr_start(&mtr);

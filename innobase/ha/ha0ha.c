@@ -66,33 +66,6 @@ ha_create(
 }
 
 /*****************************************************************
-Checks that a hash table node is in the chain. */
-
-ibool
-ha_node_in_chain(
-/*=============*/
-				/* out: TRUE if in chain */
-	hash_cell_t*	cell,	/* in: hash table cell */
-	ha_node_t*	node)	/* in: external chain node */
-{
-	ha_node_t*	node2;
-	
-	node2 = cell->node;
-
-	while (node2 != NULL) {
-
-		if (node2 == node) {
-
-			return(TRUE);
-		}
-
-		node2 = node2->next;
-	}
-
-	return(FALSE);
-}
-
-/*****************************************************************
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted. */
@@ -116,8 +89,9 @@ ha_insert_for_fold(
 	ulint		hash;
 
 	ut_ad(table && data);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
-	
+#endif /* UNIV_SYNC_DEBUG */
 	hash = hash_calc_hash(fold, table);
 
 	cell = hash_get_nth_cell(table, hash);
@@ -213,8 +187,9 @@ ha_delete(
 {
 	ha_node_t*	node;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
-
+#endif /* UNIV_SYNC_DEBUG */
 	node = ha_search_with_data(table, fold, data);
 
 	ut_a(node);
@@ -264,8 +239,9 @@ ha_remove_all_nodes_to_page(
 {
 	ha_node_t*	node;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
-
+#endif /* UNIV_SYNC_DEBUG */
 	node = ha_chain_get_first(table, fold);
 
 	while (node) {
