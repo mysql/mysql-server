@@ -32,11 +32,6 @@
 #include <netdb.h>
 #include <getopt.h>
 
-#ifdef SCO
-#undef h_errno
-#define h_errno errno
-#endif
-
 #if !defined(_AIX) && !defined(HAVE_UNIXWARE7_THREADS) && !defined(HAVE_UNIXWARE7_POSIX) && !defined(h_errno)
 extern int h_errno;
 #endif
