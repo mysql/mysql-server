@@ -1188,13 +1188,11 @@ NdbIndexScanOperation::fix_get_values(){
   for(Uint32 i = 0; i<cnt; i++){
     Uint32 val = theTupleKeyDefined[i][0];
     switch(val){
-    case FAKE_PTR:{
-      NdbColumnImpl * key = idx->m_columns[i];
-      NdbColumnImpl * col = tab->getColumn(key->m_keyInfoPos);
-      curr->setup(col, 0);
-    }
-      break;
+    case FAKE_PTR:
+      curr->setup(curr->m_column, 0);
     case API_PTR:
+      curr = curr->next();
+      break;
     case SETBOUND_EQ:
       break;
 #ifdef VM_TRACE
@@ -1202,7 +1200,6 @@ NdbIndexScanOperation::fix_get_values(){
       abort();
 #endif
     }
-    curr = curr->next();
   }
 }
 
