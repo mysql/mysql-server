@@ -1614,8 +1614,8 @@ bool alloc_query(THD *thd, char *packet, ulong packet_length)
   /* We must allocate some extra memory for query cache */
   if (!(thd->query= (char*) thd->memdup_w_gap((gptr) (packet),
 					      packet_length,
-					      thd->db_length+2+
-					      sizeof(ha_rows))))
+					      thd->db_length+ 1 +
+					      QUERY_CACHE_FLAGS_SIZE)))
     return 1;
   thd->query[packet_length]=0;
   thd->query_length= packet_length;
