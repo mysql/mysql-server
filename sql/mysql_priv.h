@@ -205,19 +205,6 @@ inline THD *_current_thd(void)
 #include "sql_class.h"
 #include "opt_range.h"
 
-int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd = -1);
-// if fd is -1, dump to NET
-int fetch_nx_table(THD* thd, MASTER_INFO* mi);
-// retrieve non-exitent table from master
-// the caller must set thd->last_nx_table and thd->last_nx_db first
-int show_master_info(THD* thd);
-int show_binlog_info(THD* thd);
-
-int db_ok(const char* db, I_List<i_string> &do_list,
-	  I_List<i_string> &ignore_list );
-// check to see if the database is ok to operate on with respect to the
-// do and ignore lists - used in replication
-
 
 void mysql_create_db(THD *thd, char *db, uint create_info);
 void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags);
@@ -522,7 +509,6 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list);
 void unlock_table_name(THD *thd, TABLE_LIST *table_list);
 bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list);
 
-extern int flush_master_info(MASTER_INFO* mi);
 
 /* old unireg functions */
 
