@@ -20,10 +20,6 @@
 #include <m_string.h>
 #include <my_dir.h>
 
-typedef struct cs_id_st {
-  char *name;
-  uint number;
-} CS_ID;
 
 const char *charsets_dir = NULL;
 static int charset_initialized=0;
@@ -324,7 +320,7 @@ static my_bool read_charset_file(const char *cs_name, CHARSET_INFO *set,
 }
 
 
-static CHARSET_INFO *add_charset(uint cs_number, const char *cs_name, myf flags)
+static CHARSET_INFO *add_charset(uint cs_number, myf flags)
 {
   CHARSET_INFO *cs;
   uchar  tmp_ctype[CTYPE_TABLE_SIZE];
@@ -333,25 +329,24 @@ static CHARSET_INFO *add_charset(uint cs_number, const char *cs_name, myf flags)
   uchar  tmp_sort_order[SORT_ORDER_TABLE_SIZE];
   uint16 tmp_to_uni[TO_UNI_TABLE_SIZE];
 
+  /* Note: cs->name is already initialized */
+  
   cs=&all_charsets[cs_number];
-  bzero((char*) cs, sizeof(*cs));
+
   cs->ctype=tmp_ctype;
   cs->to_lower=tmp_to_lower;
   cs->to_upper=tmp_to_upper;
   cs->sort_order=tmp_sort_order;
   cs->tab_to_uni=tmp_to_uni;
-  if (read_charset_file(cs_name, cs, flags))
+  if (read_charset_file(cs->name, cs, flags))
     return NULL;
 
-  /* FIXME: double allocation */
-  cs->name     = (char *) my_once_alloc((uint) strlen(cs_name)+1, MYF(MY_WME));
   cs->ctype    = (uchar*) my_once_alloc(CTYPE_TABLE_SIZE,      MYF(MY_WME));
   cs->to_lower = (uchar*) my_once_alloc(TO_LOWER_TABLE_SIZE,   MYF(MY_WME));
   cs->to_upper = (uchar*) my_once_alloc(TO_UPPER_TABLE_SIZE,   MYF(MY_WME));
   cs->sort_order=(uchar*) my_once_alloc(SORT_ORDER_TABLE_SIZE, MYF(MY_WME));
   cs->tab_to_uni=(uint16*)my_once_alloc(TO_UNI_TABLE_SIZE*sizeof(uint16), MYF(MY_WME));
   cs->number   = cs_number;
-  memcpy((char*) cs->name,	 (char*) cs_name,	strlen(cs_name) + 1);
   memcpy((char*) cs->ctype,	 (char*) tmp_ctype,	sizeof(tmp_ctype));
   memcpy((char*) cs->to_lower, (char*) tmp_to_lower,	sizeof(tmp_to_lower));
   memcpy((char*) cs->to_upper, (char*) tmp_to_upper,	sizeof(tmp_to_upper));
@@ -392,10 +387,10 @@ const char *get_charset_name(uint charset_number)
   if (init_available_charsets(MYF(0)))	/* If it isn't initialized */
     return "?";
 
-  for (cs = all_charsets; cs < all_charsets+255; ++cs)
-    if (cs->number == charset_number)
-      return (char*) cs->name;
-
+  cs=&all_charsets[charset_number];
+  if ( (cs->number==charset_number) && cs->name )
+    return (char*) cs->name;
+  
   return (char*) "?";   /* this mimics find_type() */
 }
 
@@ -409,8 +404,18 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
   */
   pthread_mutex_lock(&THR_LOCK_charset);
 
-  if (!(cs = find_compiled_charset(cs_number)))
-    cs=add_charset(cs_number, get_charset_name(cs_number), flags);
+  
+/*
+  FIXME: it's faster to use this code, but max_sort_char is
+  not initialized here, so LIKE doesn't work later
+  
+  cs = &all_charsets[cs_number];
+  if (!(cs->state & (MY_CS_COMPILED | MY_CS_LOADED)))
+    cs=add_charset(cs_number, flags);
+*/
+  
+  if (!(cs=find_compiled_charset(cs_number)))
+    cs=add_charset(cs_number, flags);
   
   pthread_mutex_unlock(&THR_LOCK_charset);
   return cs;
@@ -419,25 +424,20 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
 
 static CHARSET_INFO *get_internal_charset_by_name(const char *name, myf flags)
 {
-  CHARSET_INFO *cs;
-  /*
-    To make things thread safe we are not allowing other threads to interfere
-    while we may changing the cs_info_table
-  */
-  pthread_mutex_lock(&THR_LOCK_charset);
-
-  if (!(cs = find_compiled_charset_by_name(name)))
-    cs=add_charset(get_charset_number(name), name, flags);
-
-  pthread_mutex_unlock(&THR_LOCK_charset);
-  return cs;
+  uint cs_number=get_charset_number(name);
+  return cs_number ? get_internal_charset(cs_number,flags) : NULL;
 }
+
 
 
 CHARSET_INFO *get_charset(uint cs_number, myf flags)
 {
   CHARSET_INFO *cs;
   (void) init_available_charsets(MYF(0));	/* If it isn't initialized */
+  
+  if (!cs_number)
+    return NULL;
+  
   cs=get_internal_charset(cs_number, flags);
 
   if (!cs && (flags & MY_WME))
@@ -563,28 +563,24 @@ char * list_charsets(myf want_flags)
     }
   }
 
-  if (want_flags & MY_CS_INDEX)
+  if (want_flags & (MY_CS_INDEX|MY_CS_LOADED))
   {
     CHARSET_INFO *cs;
     for (cs = all_charsets; cs < all_charsets + 255; cs++)
-      if (cs->name)
+      if (cs->name && (cs->state & want_flags) )
         charset_append(&s, cs->name);
   }
-
-#if 0
-  if (want_flags & MY_LOADED_SETS)
+  
+  if (s.length)
   {
-    CHARSET_INFO *cs;
-    /* FIXME */
-    for (cs = all_charsets; cs < all_charsets + 255; cs++)
-      if (cs->name)
-        charset_append(&s, cs->name);
+    s.str[s.length - 1] = '\0';   /* chop trailing space */
+    p = my_strdup(s.str, MYF(MY_WME));
   }
-#endif
-
-  s.str[s.length - 1] = '\0';   /* chop trailing space */
-  p = my_strdup(s.str, MYF(MY_WME));
+  else
+  {
+    p = my_strdup("", MYF(MY_WME));
+  }
   dynstr_free(&s);
-
+  
   return p;
 }
