@@ -58,6 +58,8 @@ extern buf_pool_t* 	buf_pool; 	/* The buffer pool of the database */
 extern ibool		buf_debug_prints;/* If this is set TRUE, the program
 					prints info whenever read or flush
 					occurs */
+extern ulint srv_buf_pool_write_requests; /* variable to count write request
+                                          issued */
 
 /************************************************************************
 Creates the buffer pool. */
@@ -496,6 +498,12 @@ Prints info of the buffer pool data structure. */
 void
 buf_print(void);
 /*============*/
+/*************************************************************************
+Returns the number of latched pages in the buffer pool. */
+
+ulint
+buf_get_latched_pages_number(void);
+/*==============================*/
 /*************************************************************************
 Returns the number of pending buf pool ios. */
 

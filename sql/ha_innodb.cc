@@ -149,6 +149,85 @@ static mysql_byte* innobase_get_key(INNOBASE_SHARE *share,uint *length,
 static INNOBASE_SHARE *get_share(const char *table_name);
 static void free_share(INNOBASE_SHARE *share);
 
+struct show_var_st innodb_status_variables[]= {
+  {"buffer_pool_pages_data",
+  (char*) &export_vars.innodb_buffer_pool_pages_data,     SHOW_LONG},
+  {"buffer_pool_pages_dirty",
+  (char*) &export_vars.innodb_buffer_pool_pages_dirty,    SHOW_LONG},
+  {"buffer_pool_pages_flushed",
+  (char*) &export_vars.innodb_buffer_pool_pages_flushed,  SHOW_LONG},
+  {"buffer_pool_pages_free",
+  (char*) &export_vars.innodb_buffer_pool_pages_free,     SHOW_LONG},
+  {"buffer_pool_pages_latched",
+  (char*) &export_vars.innodb_buffer_pool_pages_latched,  SHOW_LONG},
+  {"buffer_pool_pages_misc",
+  (char*) &export_vars.innodb_buffer_pool_pages_misc,     SHOW_LONG},
+  {"buffer_pool_pages_total",
+  (char*) &export_vars.innodb_buffer_pool_pages_total,    SHOW_LONG},
+  {"buffer_pool_read_ahead_rnd",
+  (char*) &export_vars.innodb_buffer_pool_read_ahead_rnd, SHOW_LONG},
+  {"buffer_pool_read_ahead_seq",
+  (char*) &export_vars.innodb_buffer_pool_read_ahead_seq, SHOW_LONG},
+  {"buffer_pool_read_requests",
+  (char*) &export_vars.innodb_buffer_pool_read_requests,  SHOW_LONG},
+  {"buffer_pool_reads",
+  (char*) &export_vars.innodb_buffer_pool_reads,          SHOW_LONG},
+  {"buffer_pool_wait_free",
+  (char*) &export_vars.innodb_buffer_pool_wait_free,      SHOW_LONG},
+  {"buffer_pool_write_requests",
+  (char*) &export_vars.innodb_buffer_pool_write_requests, SHOW_LONG},
+  {"data_fsyncs",
+  (char*) &export_vars.innodb_data_fsyncs,                SHOW_LONG},
+  {"data_pending_fsyncs",
+  (char*) &export_vars.innodb_data_pending_fsyncs,        SHOW_LONG},
+  {"data_pending_reads",
+  (char*) &export_vars.innodb_data_pending_reads,         SHOW_LONG},
+  {"data_pending_writes",
+  (char*) &export_vars.innodb_data_pending_writes,        SHOW_LONG},
+  {"data_read",
+  (char*) &export_vars.innodb_data_read,                  SHOW_LONG},
+  {"data_reads",
+  (char*) &export_vars.innodb_data_reads,                 SHOW_LONG},
+  {"data_writes",
+  (char*) &export_vars.innodb_data_writes,                SHOW_LONG},
+  {"data_written",
+  (char*) &export_vars.innodb_data_written,               SHOW_LONG},
+  {"dblwr_pages_written",
+  (char*) &export_vars.innodb_dblwr_pages_written,        SHOW_LONG},
+  {"dblwr_writes",
+  (char*) &export_vars.innodb_dblwr_writes,               SHOW_LONG},
+  {"log_waits",
+  (char*) &export_vars.innodb_log_waits,                  SHOW_LONG},
+  {"log_write_requests",
+  (char*) &export_vars.innodb_log_write_requests,         SHOW_LONG},
+  {"log_writes",
+  (char*) &export_vars.innodb_log_writes,                 SHOW_LONG},
+  {"os_log_fsyncs",
+  (char*) &export_vars.innodb_os_log_fsyncs,              SHOW_LONG},
+  {"os_log_pending_fsyncs",
+  (char*) &export_vars.innodb_os_log_pending_fsyncs,      SHOW_LONG},
+  {"os_log_pending_writes",
+  (char*) &export_vars.innodb_os_log_pending_writes,      SHOW_LONG},
+  {"os_log_written",
+  (char*) &export_vars.innodb_os_log_written,             SHOW_LONG},
+  {"page_size",
+  (char*) &export_vars.innodb_page_size,                  SHOW_LONG},
+  {"pages_created",
+  (char*) &export_vars.innodb_pages_created,              SHOW_LONG},
+  {"pages_read",
+  (char*) &export_vars.innodb_pages_read,                 SHOW_LONG},
+  {"pages_written",
+  (char*) &export_vars.innodb_pages_written,              SHOW_LONG},
+  {"rows_deleted",
+  (char*) &export_vars.innodb_rows_deleted,               SHOW_LONG},
+  {"rows_inserted",
+  (char*) &export_vars.innodb_rows_inserted,              SHOW_LONG},
+  {"rows_read",
+  (char*) &export_vars.innodb_rows_read,                  SHOW_LONG},
+  {"rows_updated",
+  (char*) &export_vars.innodb_rows_updated,               SHOW_LONG},
+  {NullS, NullS, SHOW_LONG}};
+
 /* General functions */
 
 /**********************************************************************
@@ -1508,17 +1587,14 @@ innobase_close_connection(
 *****************************************************************************/
 
 /********************************************************************
-This function is not relevant since we store the tables and indexes
-into our own tablespace, not as files, whose extension this function would
-give. */
+Gives the file extension of an InnoDB single-table tablespace. */
 
 const char**
 ha_innobase::bas_ext() const
 /*========================*/
-				/* out: file extension strings, currently not
-				used */
+				/* out: file extension string */
 {
-	static const char* ext[] = {".InnoDB", NullS};
+	static const char* ext[] = {".ibd", NullS};
 
 	return(ext);
 }
@@ -5122,6 +5198,17 @@ ha_innobase::external_lock(
 
 	DBUG_RETURN(0);
 }
+
+/****************************************************************************
+Here we export InnoDB status variables to MySQL.  */
+
+void
+innodb_export_status(void)
+/*======================*/
+{
+  srv_export_innodb_status();
+}
+
 
 /****************************************************************************
 Implements the SHOW INNODB STATUS command. Sends the output of the InnoDB

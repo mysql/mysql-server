@@ -176,6 +176,7 @@ class ha_innobase: public handler
         int cmp_ref(const byte *ref1, const byte *ref2);
 };
 
+extern struct show_var_st innodb_status_variables[];
 extern uint innobase_init_flags, innobase_lock_type;
 extern uint innobase_flush_log_at_trx_commit;
 extern ulong innobase_cache_size;
@@ -235,6 +236,7 @@ int innobase_savepoint(
 int innobase_close_connection(THD *thd);
 int innobase_drop_database(char *path);
 bool innodb_show_status(THD* thd);
+void innodb_export_status(void);
 
 my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
 						uint full_name_len);

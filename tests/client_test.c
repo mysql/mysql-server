@@ -7261,22 +7261,22 @@ static void test_explain_bug()
   DIE_UNLESS(6 == mysql_num_fields(result));
 
   verify_prepare_field(result, 0, "Field", "COLUMN_NAME",
-                       MYSQL_TYPE_STRING, 0, 0, "", NAME_LEN, 0);
+                       MYSQL_TYPE_STRING, 0, 0, "", 192, 0);
 
   verify_prepare_field(result, 1, "Type", "TYPE",
-                       MYSQL_TYPE_STRING, 0, 0, "", 40, 0);
+                       MYSQL_TYPE_STRING, 0, 0, "", 120, 0);
 
   verify_prepare_field(result, 2, "Null", "IS_NULLABLE",
-                       MYSQL_TYPE_STRING, 0, 0, "", 3, 0);
+                       MYSQL_TYPE_STRING, 0, 0, "", 9, 0);
 
   verify_prepare_field(result, 3, "Key", "KEY",
-                       MYSQL_TYPE_STRING, 0, 0, "", 3, 0);
+                       MYSQL_TYPE_STRING, 0, 0, "", 9, 0);
 
   verify_prepare_field(result, 4, "Default", "COLUMN_DEFAULT",
-                       MYSQL_TYPE_STRING, 0, 0, "", NAME_LEN, 0);
+                       MYSQL_TYPE_STRING, 0, 0, "", 192, 0);
 
   verify_prepare_field(result, 5, "Extra", "EXTRA",
-                       MYSQL_TYPE_STRING, 0, 0, "", 20, 0);
+                       MYSQL_TYPE_STRING, 0, 0, "", 60, 0);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);

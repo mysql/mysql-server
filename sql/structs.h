@@ -89,7 +89,12 @@ typedef struct st_key {
   enum  ha_key_alg algorithm;
   KEY_PART_INFO *key_part;
   char	*name;				/* Name of key */
-  ulong *rec_per_key;			/* Key part distribution */
+  /*
+    Array of AVG(#records with the same field value) for 1st ... Nth key part.
+    0 means 'not known'.
+    For temporary heap tables this member is NULL.
+  */
+  ulong *rec_per_key;
   union {
     int  bdb_return_if_eq;
   } handler;
@@ -161,6 +166,7 @@ enum SHOW_TYPE
   SHOW_LONG, SHOW_LONGLONG, SHOW_INT, SHOW_CHAR, SHOW_CHAR_PTR, SHOW_DOUBLE,
   SHOW_BOOL, SHOW_MY_BOOL, SHOW_OPENTABLES, SHOW_STARTTIME, SHOW_QUESTION,
   SHOW_LONG_CONST, SHOW_INT_CONST, SHOW_HAVE, SHOW_SYS, SHOW_HA_ROWS,
+  SHOW_VARS,
 #ifdef HAVE_OPENSSL
   SHOW_SSL_CTX_SESS_ACCEPT, 	SHOW_SSL_CTX_SESS_ACCEPT_GOOD,
   SHOW_SSL_GET_VERSION, 	SHOW_SSL_CTX_GET_SESSION_CACHE_MODE,
