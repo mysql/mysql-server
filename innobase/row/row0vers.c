@@ -76,22 +76,8 @@ row_vers_impl_x_locked_off_kernel(
 	clust_rec = row_get_clust_rec(BTR_SEARCH_LEAF, rec, index,
 							&clust_index, &mtr);
 	if (!clust_rec) {
-	        rec_sprintf(err_buf, 900, rec);
-
-	        ut_print_timestamp(stderr);
-	        fprintf(stderr,
-"  InnoDB: Error: cannot find the clustered index record\n"
-"InnoDB: for a secondary index record in table %s index %s.\n"
-"InnoDB: Secondary index record %s.\n"
-"InnoDB: The table is probably corrupt. Please run CHECK TABLE on it.\n"
-"InnoDB: You can try to repair the table by dump + drop + reimport.\n"
-"InnoDB: Send a detailed bug report to mysql@lists.mysql.com.\n",
-		  index->table_name, index->name, err_buf);
 	        mutex_enter(&kernel_mutex);
 	        mtr_commit(&mtr);
-
-	        /* We assume there is no lock on the record, though this
-	        is not certain because the table is apparently corrupt */
 
 	        return(NULL);
 	}
