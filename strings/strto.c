@@ -35,8 +35,12 @@
   it can be compiled with the UNSIGNED and/or LONGLONG flag set
 */
 
-#include <my_global.h>
-#include "m_string.h"
+
+#if !defined(_global_h) || !defined(_m_string_h)
+#  error  Calling file must include 'my_global.h' and 'm_string.h'
+   /* see 'strtoll.c' and 'strtoull.c' for the reasons */
+#endif
+
 #include "m_ctype.h"
 #include "my_sys.h"			/* defines errno */
 #include <errno.h>

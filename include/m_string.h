@@ -238,6 +238,9 @@ extern char *str2int(const char *src,int radix,long lower,long upper,
 #ifndef HAVE_STRTOULL
 #define HAVE_STRTOULL
 #endif
+#ifndef HAVE_STRTOLL
+#define HAVE_STRTOLL
+#endif
 #else
 #ifdef HAVE_LONG_LONG
 extern char *longlong2str(longlong val,char *dst,int radix);
