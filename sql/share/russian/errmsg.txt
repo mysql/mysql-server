@@ -316,3 +316,4 @@ character-set=koi8r
 "Duplicate variable: %s"
 "Duplicate condition: %s"
 "Duplicate cursor: %s"
+"Failed to ALTER %s %s"

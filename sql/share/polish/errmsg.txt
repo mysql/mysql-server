@@ -318,3 +318,4 @@ character-set=latin2
 "Duplicate variable: %s"
 "Duplicate condition: %s"
 "Duplicate cursor: %s"
+"Failed to ALTER %s %s"

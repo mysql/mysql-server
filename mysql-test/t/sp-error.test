@@ -256,6 +256,12 @@ end|
 call p()|
 drop procedure p|
 
+--error 1282
+alter procedure bar3 SECURITY INVOKER|
+--error 1059
+alter procedure bar3 name
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|
+
 drop table t1|
 
 --disable_warnings
