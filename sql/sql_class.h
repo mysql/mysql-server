@@ -1386,6 +1386,7 @@ public:
   select_max_min_finder_subselect(Item_subselect *item, bool mx)
     :select_subselect(item), cache(0), fmax(mx)
   {}
+  void cleanup();
   bool send_data(List<Item> &items);
   bool cmp_real();
   bool cmp_int();
