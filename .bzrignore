@@ -364,3 +364,7 @@ support-files/mysql.server
 support-files/mysql.spec
 tags
 tmp/*
+libmysqld/hash_filo.cc
+libmysqld/sql_unions.cc
+libmysqld/stacktrace.c
+sql/share/mysql
