@@ -3669,18 +3669,24 @@ static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
   uint no_fragments;
   {
 #if MYSQL_VERSION_ID >= 50000
-    uint acc_row_size= 25+2;
+    uint acc_row_size= 25 + /*safety margin*/ 2;
 #else
     uint acc_row_size= pk_length*4;
     /* add acc overhead */
-    if (pk_length <= 8)
-      acc_row_size+= 25+2;  /* main page will set the limit */
-    else
-      acc_row_size+= 4+4;   /* overflow page will set the limit */
+    if (pk_length <= 8)  /* main page will set the limit */
+      acc_row_size+= 25 + /*safety margin*/ 2;
+    else                /* overflow page will set the limit */
+      acc_row_size+= 4 + /*safety margin*/ 4;
 #endif
     ulonglong acc_fragment_size= 512*1024*1024;
     ulonglong max_rows= form->s->max_rows;
+#if MYSQL_VERSION_ID >= 50100
+    no_fragments= ((max_rows*acc_row_size)/acc_fragment_size+1
+		   +1/*correct rounding*/)/2;
+#else
+>>>>>>>
     no_fragments= (max_rows*acc_row_size)/acc_fragment_size+1;
+#endif
   }
   {
     uint no_nodes= g_ndb_cluster_connection->no_db_nodes();
