@@ -108,6 +108,7 @@ static void fix_max_connections(THD *thd, enum_var_type type);
 static int check_max_delayed_threads(THD *thd, set_var *var);
 static void fix_thd_mem_root(THD *thd, enum_var_type type);
 static void fix_trans_mem_root(THD *thd, enum_var_type type);
+static void fix_server_id(THD *thd, enum_var_type type);
 static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
@@ -160,7 +161,6 @@ sys_var_str             sys_ft_boolean_syntax("ft_boolean_syntax",
                                          sys_update_ftb_syntax,
                                          sys_default_ftb_syntax,
                                          ft_boolean_syntax);
-sys_var_thd_ulong       sys_heuristic("heuristic", &SV::heuristic);
 sys_var_str             sys_init_connect("init_connect", 0,
                                          sys_update_init_connect,
                                          sys_default_init_connect,0);
@@ -263,8 +263,10 @@ sys_var_thd_ulong	sys_net_retry_count("net_retry_count",
 					    0, fix_net_retry_count);
 sys_var_thd_bool	sys_new_mode("new", &SV::new_mode);
 sys_var_thd_bool	sys_old_passwords("old_passwords", &SV::old_passwords);
-sys_var_thd_ulong       sys_plan_search_depth("plan_search_depth",
-                                              &SV::plan_search_depth);
+sys_var_thd_ulong       sys_optimizer_prune_level("optimizer_prune_level",
+                                                  &SV::optimizer_prune_level);
+sys_var_thd_ulong       sys_optimizer_search_depth("optimizer_search_depth",
+                                                   &SV::optimizer_search_depth);
 sys_var_thd_ulong       sys_preload_buff_size("preload_buffer_size",
                                               &SV::preload_buff_size);
 sys_var_thd_ulong	sys_read_buff_size("read_buffer_size",
@@ -311,7 +313,7 @@ sys_query_cache_wlock_invalidate("query_cache_wlock_invalidate",
 				 &SV::query_cache_wlock_invalidate);
 #endif /* HAVE_QUERY_CACHE */
 sys_var_bool_ptr	sys_secure_auth("secure_auth", &opt_secure_auth);
-sys_var_long_ptr	sys_server_id("server_id",&server_id);
+sys_var_long_ptr	sys_server_id("server_id", &server_id, fix_server_id);
 sys_var_bool_ptr	sys_slave_compressed_protocol("slave_compressed_protocol",
 						      &opt_slave_compressed_protocol);
 #ifdef HAVE_REPLICATION
@@ -445,9 +447,7 @@ sys_var_thd_ulong               sys_group_concat_max_len("group_concat_max_len",
 
 sys_var_const_str		sys_os("version_compile_os", SYSTEM_TYPE);
 /* Global read-only variable describing server license */
-sys_var_const_str		sys_license("license", LICENSE);
-
-
+sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 
 
 /*
@@ -491,7 +491,6 @@ sys_var *sys_variables[]=
   &sys_ft_boolean_syntax,
   &sys_foreign_key_checks,
   &sys_group_concat_max_len,
-  &sys_heuristic,
   &sys_identity,
   &sys_init_connect,
   &sys_init_slave,
@@ -540,7 +539,8 @@ sys_var *sys_variables[]=
   &sys_net_write_timeout,
   &sys_new_mode,
   &sys_old_passwords,
-  &sys_plan_search_depth,
+  &sys_optimizer_prune_level,
+  &sys_optimizer_search_depth,
   &sys_preload_buff_size,
   &sys_pseudo_thread_id,
   &sys_query_alloc_block_size,
@@ -709,7 +709,7 @@ struct show_var_st init_vars[]= {
   {sys_log_warnings.name,     (char*) &sys_log_warnings,	    SHOW_SYS},
   {sys_long_query_time.name,  (char*) &sys_long_query_time, 	    SHOW_SYS},
   {sys_low_priority_updates.name, (char*) &sys_low_priority_updates, SHOW_SYS},
-  {"lower_case_file_system",  (char*) &lower_case_file_system,      SHOW_BOOL},
+  {"lower_case_file_system",  (char*) &lower_case_file_system,      SHOW_MY_BOOL},
   {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_INT},
   {sys_max_allowed_packet.name,(char*) &sys_max_allowed_packet,	    SHOW_SYS},
   {sys_max_binlog_cache_size.name,(char*) &sys_max_binlog_cache_size, SHOW_SYS},
@@ -750,6 +750,10 @@ struct show_var_st init_vars[]= {
   {sys_new_mode.name,         (char*) &sys_new_mode,                SHOW_SYS},
   {sys_old_passwords.name,    (char*) &sys_old_passwords,           SHOW_SYS},
   {"open_files_limit",	      (char*) &open_files_limit,	    SHOW_LONG},
+  {sys_optimizer_prune_level.name, (char*) &sys_optimizer_prune_level,
+   SHOW_SYS},
+  {sys_optimizer_search_depth.name,(char*) &sys_optimizer_search_depth,
+   SHOW_SYS},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"port",                    (char*) &mysqld_port,                  SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
@@ -817,8 +821,6 @@ struct show_var_st init_vars[]= {
   {"version_compile_machine", (char*) MACHINE_TYPE,		    SHOW_CHAR},
   {sys_os.name,		      (char*) &sys_os,			    SHOW_SYS},
   {sys_net_wait_timeout.name, (char*) &sys_net_wait_timeout,	    SHOW_SYS},
-  {sys_heuristic.name,        (char*) &sys_heuristic,               SHOW_SYS},
-  {sys_plan_search_depth.name,(char*) &sys_plan_search_depth,       SHOW_SYS},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -1142,6 +1144,13 @@ static void fix_trans_mem_root(THD *thd, enum_var_type type)
                         thd->variables.trans_prealloc_size);
 }
 
+
+static void fix_server_id(THD *thd, enum_var_type type)
+{
+  server_id_supplied = 1;
+}
+
+
 bool sys_var_long_ptr::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
@@ -1301,11 +1310,11 @@ bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
 
-  if ((ulonglong) tmp > max_system_variables.*offset)
+  if (tmp > max_system_variables.*offset)
     tmp= max_system_variables.*offset;
 
   if (option_limits)
-    tmp= (ulong) getopt_ull_limit_value(tmp, option_limits);
+    tmp= getopt_ull_limit_value(tmp, option_limits);
   if (var->type == OPT_GLOBAL)
   {
     /* Lock is needed to make things safe on 32 bit systems */

@@ -15,11 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* -*- c-basic-offset: 4; -*- */
-#include <string.h>
-#include <NdbStdio.h>
-#include <stdarg.h>
-#include "BaseString.hpp"
-#include <stdlib.h>
+#include <ndb_global.h>
+#include <BaseString.hpp>
 
 BaseString::BaseString()
 {
@@ -340,7 +337,6 @@ BaseString::trim(char * str, const char * delim){
 
 
 #ifdef TEST_BASE_STRING
-#include <assert.h>
 
 /*
 g++ -g -Wall -o tbs -DTEST_BASE_STRING -I$NDB_TOP/include/util \

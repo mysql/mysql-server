@@ -32,18 +32,8 @@
  * SUCH DAMAGE. 
  */
 
-#include <ndb_types.h>
+#include <ndb_global.h>
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-RCSID("$KTH: getarg.c,v 1.23 2000/09/01 21:25:54 lha Exp $");
-#endif
-
-#include <NdbStdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <ctype.h>
 #include "getarg.h"
 
 #define ISFLAG(X) ((X).type == arg_flag || (X).type == arg_negative_flag)
@@ -407,12 +397,12 @@ arg_match_long(struct getargs *args, size_t num_args,
     }
     case arg_string:
     {
-	*(char**)current->value = optarg + 1;
+	*(char**)current->value = (char*)optarg + 1;
 	return 0;
     }
     case arg_strings:
     {
-	add_string((getarg_strings*)current->value, optarg + 1);
+	add_string((getarg_strings*)current->value, (char*)optarg + 1);
 	return 0;
     }
     case arg_flag:

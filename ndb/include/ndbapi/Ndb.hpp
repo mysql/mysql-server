@@ -860,9 +860,9 @@
 
 #include <ndb_types.h>
 #include <ndbapi_limits.h>
-#include "AttrType.hpp"
+#include <AttrType.hpp>
 #include <NdbError.hpp>
-#include "NdbDictionary.hpp"
+#include <NdbDictionary.hpp>
 
 class NdbObjectIdMap;
 class NdbOperation;
@@ -1673,7 +1673,7 @@ private:
    */
   struct StartTransactionNodeSelectionData {
     StartTransactionNodeSelectionData():
-      fragment2PrimaryNodeMap(NULL) {};
+      fragment2PrimaryNodeMap(0) {};
     Uint32 kValue;
     Uint32 hashValueMask;
     Uint32 hashpointerValue;

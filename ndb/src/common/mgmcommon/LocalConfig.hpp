@@ -17,10 +17,8 @@
 #ifndef LocalConfig_H
 #define LocalConfig_H
 
-#include <stdlib.h>
-#include <string.h>
+#include <ndb_global.h>
 #include <NdbOut.hpp>
-#include <NdbStdio.h>
 
 //****************************************************************************
 // Description: The class LocalConfig corresponds to the information possible

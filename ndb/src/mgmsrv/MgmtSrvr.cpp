@@ -14,10 +14,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+#include <pthread.h>
+
 #include "MgmtSrvr.hpp"
 #include "MgmtErrorReporter.hpp"
 
-#include <ctype.h>
 #include <NdbOut.hpp>
 #include <AttrType.hpp>
 #include <NdbApiSignal.hpp>
@@ -42,14 +44,10 @@
 #include <EventLogger.hpp>
 #include <DebuggerNames.hpp>
 #include <ndb_version.h>
-#include <string.h>
 
 #include "SocketServer.hpp"
 #include "NodeLogLevel.hpp"
 #include <NdbConfig.h>
-
-#include <time.h>
-#include <pthread.h>
 
 //#define MGM_SRV_DEBUG
 #ifdef MGM_SRV_DEBUG

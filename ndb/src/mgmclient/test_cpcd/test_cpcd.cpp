@@ -15,10 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
 #include "../CpcClient.hpp"
 #include <Vector.hpp>
-#include <assert.h>
-#include <stdlib.h>
 
 SimpleCpcClient g_client("localhost", 1234);
 Vector<SimpleCpcClient::Process> g_procs;
@@ -89,10 +88,16 @@ void define(){
   //proc.m_proc.m_stdout = "log.out";
   //proc.m_proc.m_stderr = "2>&1";
   //proc.m_proc.m_runas = proc.m_host->m_user;
-  //proc.m_proc.m_ulimit = "c:unlimited";
-  m_proc.m_name.assfmt("%d-%d-%s", getpid(), name++, "test");
-  m_proc.m_path.assign("/bin/sleep");
-  m_proc.m_args = "600";
+  m_proc.m_ulimit = "c:unlimited";
+  if((rand() & 15) >= 0){
+    m_proc.m_name.assfmt("%d-%d-%s", getpid(), name++, "sleep");
+    m_proc.m_path.assign("/bin/sleep");
+    m_proc.m_args = "600";
+  } else {
+    m_proc.m_name.assfmt("%d-%d-%s", getpid(), name++, "test.sh");
+    m_proc.m_path.assign("/home/jonas/run/cpcd/test.sh");
+    m_proc.m_args = "600";
+  }
   g_procs.push_back(m_proc);
   
   Properties reply;
@@ -136,7 +141,7 @@ void list(){
     ABORT();
   }
 
-  for(int i = 0; i<procs.size(); i++){
+  for(Uint32 i = 0; i<procs.size(); i++){
     SimpleCpcClient::Process * p = find(procs[i].m_id);
     if(p != 0){
       p->m_status = procs[i].m_status;
@@ -144,7 +149,7 @@ void list(){
   }
 }
 SimpleCpcClient::Process* find(int id){
-  for(int i = 0; i<g_procs.size(); i++){
+  for(Uint32 i = 0; i<g_procs.size(); i++){
     if(g_procs[i].m_id == id)
       return &g_procs[i];
   }

@@ -20,11 +20,7 @@
 **  A "micro-shell" to test editline library.
 **  If given any arguments, commands aren't executed.
 */
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-
-#include <NdbString.h>
+#include <ndb_global.h>
 #include <editline/editline.h>
 
 int

@@ -319,8 +319,10 @@ print_plan(JOIN* join, double read_time, double record_count,
   {
     join_table= (*plan_nodes);
     fputs(join_table->table->real_name, DBUG_FILE);
-    fprintf(DBUG_FILE, "(%u,%u,%u)",
-            join_table->found_records, join_table->records, join_table->read_time);
+    fprintf(DBUG_FILE, "(%lu,%lu,%lu)",
+            (ulong) join_table->found_records,
+            (ulong) join_table->records,
+            (ulong) join_table->read_time);
     fputc(' ', DBUG_FILE);
   }
   fputc('\n', DBUG_FILE);

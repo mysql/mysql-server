@@ -1253,9 +1253,11 @@ HugoTransactions::eventOperation(Ndb* pNdb, void* pstats,
 	  g_info << " UPDATE: ";
 	  recEvent = recUpdateEvent;
 	  break;
+	case NdbDictionary::Event::TE_ALL:
+	  abort();
 	}
 
-	if (pk < records) {
+	if ((int)pk < records) {
 	  recEvent[pk].pk = pk;
 	  recEvent[pk].count++;
 	}
@@ -1304,7 +1306,7 @@ HugoTransactions::eventOperation(Ndb* pNdb, void* pstats,
   if (stats.n_updates > 0) {
     stats.n_consecutive++;
   }
-  for (Uint32 i = 0; i < records/3; i++) {
+  for (Uint32 i = 0; i < (Uint32)records/3; i++) {
     if (recInsertEvent[i].pk != i) {
       stats.n_consecutive ++;
       ndbout << "missing insert pk " << i << endl;

@@ -15,40 +15,46 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include <NdbError.hpp>
-#include <NdbStdio.h> 
-#include <stdarg.h>
+#include <ndb_global.h>
 
-#include <assert.h>
+#include <ndberror.h>
 
-struct ErrorBundle {
+typedef struct ErrorBundle {
   int code;
-  NdbError::Classification classification;
+  ndberror_classification classification;
   const char * message;
-};
+} ErrorBundle;
 
 /**
  * Shorter names in table below
  */
-static const NdbError::Classification NE = NdbError::NoError;
-static const NdbError::Classification AE = NdbError::ApplicationError;
-static const NdbError::Classification ND = NdbError::NoDataFound;
-static const NdbError::Classification CV = NdbError::ConstraintViolation;
-static const NdbError::Classification SE = NdbError::SchemaError;
-static const NdbError::Classification UD = NdbError::UserDefinedError;
 
-static const NdbError::Classification IS = NdbError::InsufficientSpace;
-static const NdbError::Classification TR = NdbError::TemporaryResourceError;
-static const NdbError::Classification NR = NdbError::NodeRecoveryError;
-static const NdbError::Classification OL = NdbError::OverloadError;
-static const NdbError::Classification TO = NdbError::TimeoutExpired;
-static const NdbError::Classification NS = NdbError::NodeShutdown;
+#define ST_S ndberror_st_success
+#define ST_P ndberror_st_permanent
+#define ST_T ndberror_st_temporary
+#define ST_U ndberror_st_unknown
 
-static const NdbError::Classification UR = NdbError::UnknownResultError;
+#define NE ndberror_cl_none
+#define AE ndberror_cl_application
+#define ND ndberror_cl_no_data_found
+#define CV ndberror_cl_constraint_violation
+#define SE ndberror_cl_schema_error
+#define UD ndberror_cl_user_defined
 
-static const NdbError::Classification IE = NdbError::InternalError;
-static const NdbError::Classification NI = NdbError::FunctionNotImplemented;
-static const NdbError::Classification UE = NdbError::UnknownErrorCode;
+#define IS ndberror_cl_insufficient_space
+#define TR ndberror_cl_temporary_resource
+#define NR ndberror_cl_node_recovery
+#define OL ndberror_cl_overload
+#define TO ndberror_cl_timeout_expired
+#define NS ndberror_cl_node_shutdown
+
+#define UR ndberror_cl_unknown_result
+
+#define IE ndberror_cl_internal_error
+#define NI ndberror_cl_function_not_implemented
+#define UE ndberror_cl_unknown_error_code
+
+static const char* empty_string = "";
 
 static
 const 
@@ -90,7 +96,7 @@ ErrorBundle ErrorCodes[] = {
    * Node shutdown
    */
   {  280, NS, "Transaction aborted due to node shutdown" },
-  // This scan trans had an active fragment scan in a LQH which have crashed
+  /* This scan trans had an active fragment scan in a LQH which have crashed */
   {  270, NS, "Transaction aborted due to node shutdown" }, 
   { 1223, NS, "Read operation aborted due to node shutdown" },
   { 4023, NS, "Transaction aborted due to node shutdown" },
@@ -152,9 +158,9 @@ ErrorBundle ErrorCodes[] = {
    * TimeoutExpired 
    */
   { 266,  TO, "Time-out in NDB, probably caused by deadlock" },
-  { 274,  TO, "Time-out in NDB, probably caused by deadlock" }, // Scan trans timeout
-  { 296,  TO, "Time-out in NDB, probably caused by deadlock" }, // Scan trans timeout
-  { 297,  TO, "Time-out in NDB, probably caused by deadlock" }, // Scan trans timeout, temporary!!
+  { 274,  TO, "Time-out in NDB, probably caused by deadlock" }, /* Scan trans timeout */
+  { 296,  TO, "Time-out in NDB, probably caused by deadlock" }, /* Scan trans timeout */
+  { 297,  TO, "Time-out in NDB, probably caused by deadlock" }, /* Scan trans timeout, temporary!! */
   { 237,  TO, "Transaction had timed out when trying to commit it" },
   
 
@@ -420,41 +426,60 @@ static
 const
 int NbErrorCodes = sizeof(ErrorCodes)/sizeof(ErrorBundle);
 
-struct ErrorStatusClassification {
-  NdbError::Status status;
-  NdbError::Classification classification;
-};
+typedef struct ErrorStatusMessage {
+  ndberror_status status;
+  const char * message;
+} ErrorStatusMessage;
+
+typedef struct ErrorStatusClassification {
+  ndberror_status status;
+  ndberror_classification classification;
+  const char * message;
+} ErrorStatusClassification;
 
 /**
  * Mapping between classification and status
  */
 static
 const
-ErrorStatusClassification StatusClassificationMapping[] = {
-  { NdbError::Success,        NdbError::NoError },
-  { NdbError::PermanentError, NdbError::ApplicationError },
-  { NdbError::PermanentError, NdbError::NoDataFound },
-  { NdbError::PermanentError, NdbError::ConstraintViolation },
-  { NdbError::PermanentError, NdbError::SchemaError },
-  { NdbError::PermanentError, NdbError::UserDefinedError },
-  { NdbError::PermanentError, NdbError::InsufficientSpace },
-  
-  { NdbError::TemporaryError, NdbError::TemporaryResourceError },
-  { NdbError::TemporaryError, NdbError::NodeRecoveryError },
-  { NdbError::TemporaryError, NdbError::OverloadError },
-  { NdbError::TemporaryError, NdbError::TimeoutExpired },
-  { NdbError::TemporaryError, NdbError::NodeShutdown },
-  
-  { NdbError::UnknownResult , NdbError::UnknownResultError },
-  { NdbError::UnknownResult , NdbError::UnknownErrorCode },
-  
-  { NdbError::PermanentError, NdbError::InternalError },
-  { NdbError::PermanentError, NdbError::FunctionNotImplemented }
+ErrorStatusMessage StatusMessageMapping[] = {
+  { ST_S, "Success"},
+  { ST_P, "Permanent error"},
+  { ST_T, "Temporary error"},
+  { ST_U ,"Unknown result"}
 };
 
 static
 const
-int Nb = sizeof(StatusClassificationMapping)/sizeof(ErrorStatusClassification);
+int NbStatus = sizeof(StatusMessageMapping)/sizeof(ErrorStatusMessage);
+
+static
+const
+ErrorStatusClassification StatusClassificationMapping[] = {
+  { ST_S, NE, "No error"},
+  { ST_P, AE, "Application error"},
+  { ST_P, ND, "No data found"},
+  { ST_P, CV, "Constraint violation"},
+  { ST_P, SE, "Schema error"},
+  { ST_P, UD, "User defined error"},
+  { ST_P, IS, "Insufficient space"},
+  
+  { ST_T, TR, "Temporary Resource error"},
+  { ST_T, NR, "Node Recovery error"},
+  { ST_T, OL, "Overload error"},
+  { ST_T, TO, "Timeout expired"},
+  { ST_T, NS, "Node shutdown"},
+  
+  { ST_U , UR, "Unknown result error"},
+  { ST_U , UE, "Unknown error code"},
+  
+  { ST_P, IE, "Internal error"},
+  { ST_P, NI, "Function not implemented"}
+};
+
+static
+const
+int NbClassification = sizeof(StatusClassificationMapping)/sizeof(ErrorStatusClassification);
 
 /**
  * Complete all fields of an NdbError given the error code
@@ -462,64 +487,67 @@ int Nb = sizeof(StatusClassificationMapping)/sizeof(ErrorStatusClassification);
  */
 static
 void
-set(NdbError & error, int code, const char * details, ...){
-  error.code = code;
-  
-  va_list ap;
-  va_start(ap, details);
-  vsnprintf(error.details, sizeof(error.details), details, ap);
-  va_end(ap);
+set(ndberror_struct * error, int code, const char * details, ...){
+  error->code = code;
+  {
+    va_list ap;
+    va_start(ap, details);
+    vsnprintf(error->details, sizeof(error->details), details, ap);
+    va_end(ap);
+  }
 }
 
-static
+
 void
-update(const NdbError & _err){
-  NdbError & error = (NdbError &) _err;
+ndberror_update(ndberror_struct * error){
 
-  bool found = false;
-  for(int i = 0; i<NbErrorCodes; i++){
-    if(ErrorCodes[i].code == error.code){
-      error.classification = ErrorCodes[i].classification;
-      error.message        = ErrorCodes[i].message;
-      found = true;
+  int found = 0;
+  int i;
+
+  for(i = 0; i<NbErrorCodes; i++){
+    if(ErrorCodes[i].code == error->code){
+      error->classification = ErrorCodes[i].classification;
+      error->message        = ErrorCodes[i].message;
+      found = 1;
       break;
     }
   }
 
   if(!found){
-    error.classification = NdbError::UnknownErrorCode;
-    error.message        = "Unknown error code";
+    error->classification = UE;
+    error->message        = "Unknown error code";
   }
 
-  found = false;
-  for(int i = 0; i<Nb; i++){
-    if(StatusClassificationMapping[i].classification == error.classification){
-      error.status = StatusClassificationMapping[i].status;
-      found = true;
+  found = 0;
+  for(i = 0; i<NbClassification; i++){
+    if(StatusClassificationMapping[i].classification == error->classification){
+      error->status = StatusClassificationMapping[i].status;
+      found = 1;
       break;
     }
   }
   if(!found){
-    error.status = NdbError::UnknownResult;
+    error->status = ST_U;
   }
 
-  error.details = 0;
+  error->details = 0;
 }
 
-bool
+int
 checkErrorCodes(){
-  for(int i = 0; i<NbErrorCodes; i++)
-    for(int j = i+1; j<NbErrorCodes; j++)
+  int i, j;
+  for(i = 0; i<NbErrorCodes; i++)
+    for(j = i+1; j<NbErrorCodes; j++)
       if(ErrorCodes[i].code == ErrorCodes[j].code){
 	printf("ErrorCode %d is defined multiple times!!\n", 
 		 ErrorCodes[i].code);
 	assert(0);
       }
   
-  return true;
+  return 1;
 }
 
-static const bool a = checkErrorCodes();
+/*static const int a = checkErrorCodes();*/
 
 #if CHECK_ERRORCODES
 int main(void){
@@ -528,108 +556,35 @@ int main(void){
 }
 #endif
 
-#include <NdbOut.hpp>
-
-/**
- * operators
- */
-NdbOut &
-operator<<(NdbOut & out, const NdbError & error){
-  if(error.message != 0)
-    out << error.code << ": " << error.message;
-  else
-    out << error.code << ": ";
-  return out;
+const char *ndberror_status_message(ndberror_status status)
+{
+  int i;
+  for (i= 0; i < NbStatus; i++)
+    if (StatusMessageMapping[i].status == status)
+      return StatusMessageMapping[i].message;
+  return empty_string;
 }
 
-NdbOut &
-operator<<(NdbOut & out, const NdbError::Status & status){
-  switch(status) {
-  case NdbError::Success: out << "Success"; break;
-  case NdbError::TemporaryError: out << "Temporary error"; break;
-  case NdbError::PermanentError: out << "Permanent error"; break;
-  case NdbError::UnknownResult: out << "Unknown result"; break;
-  }
-  return out;
+const char *ndberror_classification_message(ndberror_classification classification)
+{
+  int i;
+  for (i= 0; i < NbClassification; i++)
+    if (StatusClassificationMapping[i].classification == classification)
+      return StatusClassificationMapping[i].message;
+  return empty_string;
 }
 
-NdbOut &
-operator<<(NdbOut & out, const NdbError::Classification & classification){
-  switch(classification) {
-  case NdbError::NoError: out << "No error"; break;
-  case NdbError::ApplicationError: out << "Application error"; break;
-  case NdbError::NoDataFound: out << "No data found"; break;
-  case NdbError::ConstraintViolation: out << "Constraint violation"; break;
-  case NdbError::SchemaError: out << "Schema error"; break;
-  case NdbError::UserDefinedError: out << "User defined error"; break;
-  case NdbError::InsufficientSpace: out << "Insufficient space"; break;
-  case NdbError::TemporaryResourceError: out << "Temporary Resource error"; 
-    break;
-  case NdbError::NodeRecoveryError: out << "Node Recovery error"; break;
-  case NdbError::OverloadError: out << "Overload error"; break;
-  case NdbError::TimeoutExpired: out << "Timeout expired"; break;
-  case NdbError::UnknownResultError: out << "Unknown result error"; break;
-  case NdbError::InternalError: out << "Internal error"; break;
-  case NdbError::FunctionNotImplemented: out << "Function not implemented"; 
-    break;
-  case NdbError::UnknownErrorCode: out << "Unknown error code"; break;
-  case NdbError::NodeShutdown: out << "Node shutdown"; break;
-  }
-  return out;
+int ndb_error_string(int err_no, char *str, unsigned int size)
+{
+  ndberror_struct error;
+  unsigned int len;
+
+  error.code = err_no;
+  ndberror_update(&error);
+
+  len = snprintf(str, size-1, "%s: %s: %s", error.message,
+		 ndberror_status_message(error.status), ndberror_classification_message(error.classification));
+  str[size-1]= '\0';
+
+  return len;
 }
-
-/******************************************************
- *
- */
-#include "NdbImpl.hpp"
-#include "NdbDictionaryImpl.hpp"
-#include <NdbSchemaCon.hpp>
-#include <NdbOperation.hpp>
-#include <NdbConnection.hpp>
-
-
-const 
-NdbError & 
-Ndb::getNdbError(int code){
-  theError.code = code;
-  update(theError);
-  return theError;
-}
-
-const 
-NdbError & 
-Ndb::getNdbError() const {
-  update(theError);
-  return theError;
-}
-
-const 
-NdbError & 
-NdbDictionaryImpl::getNdbError() const {
-  update(m_error);
-  return m_error;
-}
-
-const 
-NdbError & 
-NdbConnection::getNdbError() const {
-  update(theError);
-  return theError;
-}
-
-const 
-NdbError & 
-NdbOperation::getNdbError() const {
-  update(theError);
-  return theError;
-}
-
-const 
-NdbError & 
-NdbSchemaCon::getNdbError() const {
-  update(theError);
-  return theError;
-}
-
-
-

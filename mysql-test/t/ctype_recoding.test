@@ -56,6 +56,13 @@ SET CHARACTER SET koi8r;
 DROP TABLE таблица;
 SET CHARACTER SET default;
 
+# Test for Item_func_conv_charset::fix_fields (bug #3704)
+SET NAMES UTF8;
+CREATE TABLE t1 (t text) DEFAULT CHARSET UTF8;
+INSERT INTO t1 (t) VALUES ('x');
+SELECT 1 FROM t1 WHERE CONCAT(_latin1'x') = t;
+DROP TABLE t1;
+
 SET CHARACTER SET koi8r;
 CREATE DATABASE тест;
 USE тест;
@@ -71,4 +78,3 @@ SET NAMES koi8r;
 SELECT hex('тест');
 SET character_set_connection=cp1251;
 SELECT hex('тест');
-

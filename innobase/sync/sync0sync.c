@@ -201,7 +201,7 @@ void
 mutex_create_func(
 /*==============*/
 	mutex_t*	mutex,		/* in: pointer to memory */
-	char*		cfile_name,	/* in: file name where created */
+	const char*	cfile_name,	/* in: file name where created */
 	ulint		cline)		/* in: file line where created */
 {
 #if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER)
@@ -294,10 +294,10 @@ mutex_enter_nowait(
 /*===============*/
 					/* out: 0 if succeed, 1 if not */
 	mutex_t*	mutex,		/* in: pointer to mutex */
-	char*	   	file_name __attribute__((unused)),
+	const char*	file_name __attribute__((unused)),
 					/* in: file name where mutex
 					requested */
-	ulint	   	line __attribute__((unused)))
+	ulint		line __attribute__((unused)))
 					/* in: line where requested */
 {
 	ut_ad(mutex_validate(mutex));
@@ -357,9 +357,10 @@ for the mutex before suspending the thread. */
 void
 mutex_spin_wait(
 /*============*/
-        mutex_t*   mutex,     	/* in: pointer to mutex */
-	char*	   file_name, 	/* in: file name where mutex requested */
-	ulint	   line)	/* in: line where requested */
+        mutex_t*	   mutex,     	/* in: pointer to mutex */
+	const char*	   file_name, 	/* in: file name where
+					mutex requested */
+	ulint		   line)	/* in: line where requested */
 {
         ulint    index; /* index of the reserved wait cell */
         ulint    i;   	/* spin round count */

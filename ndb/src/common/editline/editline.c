@@ -19,10 +19,10 @@
 **
 **  Main editing routines for editline library.
 */
+#include <ndb_global.h>
+
 #include "editline_internal.h"
 #include <signal.h>
-#include <ctype.h>
-#include <unistd.h>
 
 /*
 **  Manifest constants.

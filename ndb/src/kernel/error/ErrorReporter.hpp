@@ -17,9 +17,10 @@
 #ifndef ERRORREPORTER_H
 #define ERRORREPORTER_H
 
+#include <ndb_global.h>
+
 #include "TimeModule.hpp"
 #include "Error.hpp"
-#include <stdio.h>
 #include <Emulator.hpp>
 
 

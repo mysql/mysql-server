@@ -17,10 +17,9 @@
 #ifndef SHM_BUFFER_HPP
 #define SHM_BUFFER_HPP
 
-#include <stdio.h>
-#include <ndb_types.h>
+#include <ndb_global.h>
+
 #include <NdbSleep.h>
-#include <assert.h>
 
 /**
  * These classes implement a circular buffer

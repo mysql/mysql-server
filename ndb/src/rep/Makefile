@@ -12,8 +12,6 @@ BIN_TARGET := ndb_rep
 BIN_TARGET_LIBS := 
 BIN_TARGET_ARCHIVES += 	editline repstorage repadapters reprequestor reptransfer mgmapi NDB_API mgmsrvcommon
 
-LDFLAGS_LOC = -lpthread
-
 SOURCES = \
           RepMain.cpp \
           Requestor.cpp \

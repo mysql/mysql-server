@@ -17,8 +17,7 @@
 #ifndef FILE_H
 #define FILE_H
 
-#include <NdbStdio.h>
-#include <NdbConstant.hpp>
+#include <ndb_global.h>
 
 /**
  * This class provides a file abstraction . It has operations
@@ -26,7 +25,7 @@
  *
  * @version #@ $Id: File.hpp,v 1.5 2002/04/26 13:15:38 ejonore Exp $
  */
-class File
+class File_class
 {
 public:
   /**
@@ -65,7 +64,7 @@ public:
   /**
    * Default constructor.
    */
-  File();
+  File_class();
 
   /**
    * Creates a new File  with the specified filename and file mode. 
@@ -76,12 +75,12 @@ public:
    * @param aFileName a filename.
    * @param mode the mode which the file should be opened/created with, default "r".
    */
-  File(const char* aFileName, const char* mode = "r");
+  File_class(const char* aFileName, const char* mode = "r");
 
   /**
    * Destructor.
    */
-  ~File();
+  ~File_class();
 
   /**
    * Opens/creates the file. If open() fails then 'errno' and perror() 
@@ -198,9 +197,9 @@ private:
   char m_fileName[MAX_FILE_NAME_SIZE];
   const char* m_fileMode;
   /* Prohibit */
-  File(const File& aCopy);
-  File operator = (const File&); 
-  bool operator == (const File&);
+  File_class (const File_class& aCopy);
+  File_class operator = (const File_class&); 
+  bool operator == (const File_class&);
 };
 #endif
 
