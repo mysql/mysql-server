@@ -3458,7 +3458,7 @@ static void set_options(void)
   (void) strmake(default_charset, MYSQL_CHARSET, sizeof(default_charset)-1);
   (void) strmake(language, LANGUAGE, sizeof(language)-1);
   (void) strmake(mysql_real_data_home, get_relative_path(DATADIR),
-		 sizeof(mysql_real_data_home-1));
+		 sizeof(mysql_real_data_home)-1);
 #ifdef __WIN__
   /* Allow Win32 users to move MySQL anywhere */
   {
