@@ -2459,7 +2459,9 @@ long        my_strntol_ucs2(CHARSET_INFO *cs,
   register const char *e=nptr+l;
   const char *save;
   
-  do {
+  *err= 0;
+  do
+  {
     if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
     {
       switch (wc)
@@ -2570,7 +2572,9 @@ ulong      my_strntoul_ucs2(CHARSET_INFO *cs,
   register const char *e=nptr+l;
   const char *save;
   
-  do {
+  *err= 0;
+  do
+  {
     if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
     {
       switch (wc)
@@ -2675,7 +2679,9 @@ longlong  my_strntoll_ucs2(CHARSET_INFO *cs,
   register const char *e=nptr+l;
   const char *save;
   
-  do {
+  *err= 0;
+  do
+  {
     if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
     {
       switch (wc)
@@ -2788,7 +2794,9 @@ ulonglong  my_strntoull_ucs2(CHARSET_INFO *cs,
   register const char *e=nptr+l;
   const char *save;
   
-  do {
+  *err= 0;
+  do
+  {
     if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
     {
       switch (wc)
@@ -2821,7 +2829,8 @@ bs:
   cutoff = (~(ulonglong) 0) / (unsigned long int) base;
   cutlim = (uint) ((~(ulonglong) 0) % (unsigned long int) base);
 
-  do {
+  do
+  {
     if ((cnv=cs->mb_wc(cs,&wc,s,e))>0)
     {
       s+=cnv;
@@ -2878,7 +2887,7 @@ bs:
 
 double      my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 			   char *nptr, uint length, 
-			   char **endptr, int *err __attribute__ ((unused)))
+			   char **endptr, int *err)
 {
   char     buf[256];
   double   res;
@@ -2887,7 +2896,8 @@ double      my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
   register const char *end;
   my_wc_t  wc;
   int      cnv;
-  
+
+  *err= 0;
   /* Cut too long strings */
   if (length >= sizeof(buf))
     length= sizeof(buf)-1;
@@ -2902,7 +2912,9 @@ double      my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
   }
   *b= 0;
   
+  errno= 0;
   res=strtod(buf, endptr);
+  *err= errno;
   if (endptr)
     *endptr=(char*) (*endptr-buf+nptr);
   return res;
