@@ -16,6 +16,7 @@ select cast("1:2:3" as TIME);
 #
 # Character set convertion
 #
+set names binary;
 select cast(_latin1'test' as char character set latin2);
 select cast(_koi8r'тест' as char character set cp1251);
 create table t1 select cast(_koi8r'тест' as char character set cp1251) as t;

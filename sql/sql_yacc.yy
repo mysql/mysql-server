@@ -4452,7 +4452,7 @@ option_value:
 	    net_printf(thd,ER_COLLATION_CHARSET_MISMATCH,$3->name,$2->csname);
 	    YYABORT;
 	  }
-	  lex->var_list.push_back(new set_var_collation_client($3,$3,NULL));
+	  lex->var_list.push_back(new set_var_collation_client($3,$3,$3));
 	}
 	| PASSWORD equal text_or_password
 	  {
