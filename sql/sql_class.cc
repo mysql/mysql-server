@@ -935,7 +935,7 @@ bool select_singleval_subselect::send_data(List<Item> &items)
   it->real_value= val_item->val_result();
   if ((it->null_value= val_item->is_null_result()))
   {
-    it->assign_null();
+    it->reset();
   } 
   else 
   {

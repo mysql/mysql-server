@@ -263,6 +263,61 @@ int Arg_comparator::compare_e_row()
   return 1;
 }
 
+longlong Item_in_optimizer::val_int()
+{
+  int_cache_ok= 1;
+  flt_cache_ok= 0;
+  str_cache_ok= 0;
+  int_cache= args[0]->val_int_result();
+  if (args[0]->is_null_result())
+  {
+    null_value= 1;
+    return 0;
+  }
+  longlong tmp= args[1]->val_int_result();
+  null_value= args[1]->is_null_result();
+  return tmp;
+}
+
+longlong Item_in_optimizer::get_cache_int()
+{
+  if (!int_cache_ok)
+  {
+    int_cache_ok= 1;
+    flt_cache_ok= 0;
+    str_cache_ok= 0;
+    int_cache= args[0]->val_int_result();
+    null_value= args[0]->is_null_result();
+  }
+  return int_cache;
+}
+
+double Item_in_optimizer::get_cache()
+{
+  if (!flt_cache_ok)
+  {
+    int_cache_ok= 0;
+    flt_cache_ok= 1;
+    str_cache_ok= 0;
+    flt_cache= args[0]->val_result();
+    null_value= args[0]->is_null_result();
+  }
+  return flt_cache;
+}
+
+String *Item_in_optimizer::get_cache_str(String *s)
+{
+  if (!str_cache_ok)
+  {
+    int_cache_ok= 0;
+    flt_cache_ok= 0;
+    str_cache_ok= 1;
+    str_cache_buff.set(buffer, sizeof(buffer), s->charset());
+    str_cache= args[0]->str_result(&str_cache_buff);
+    null_value= args[0]->is_null_result();
+  }
+  return str_cache;
+}
 
 longlong Item_func_eq::val_int()
 {
@@ -1106,6 +1161,8 @@ void Item_func_in::fix_length_and_dec()
       array->set(j,args[i]);
       if (!args[i]->null_value)			// Skip NULL values
 	j++;
+      else
+	have_null= 1;
     }
     if ((array->used_count=j))
       array->sort();
@@ -1152,17 +1209,20 @@ longlong Item_func_in::val_int()
   if (array)
   {
     int tmp=array->find(item);
-    null_value=item->null_value;
+    null_value=item->null_value || (!tmp && have_null);
     return tmp;
   }
   in_item->store_value(item);
   if ((null_value=item->null_value))
     return 0;
+  have_null= 0;
   for (uint i=0 ; i < arg_count ; i++)
   {
     if (!in_item->cmp(args[i]) && !args[i]->null_value)
       return 1;					// Would maybe be nice with i ?
+    have_null|= args[i]->null_value;
   }
+  null_value= have_null;
   return 0;
 }
 

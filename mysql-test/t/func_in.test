@@ -2,7 +2,39 @@
 # test of IN (NULL)
 #
 
+select 1 in (1,2,3);
+select 10 in (1,2,3);
+select NULL in (1,2,3);
+select 1 in (1,NULL,3);
+select 3 in (1,NULL,3);
+select 10 in (1,NULL,3);
+select 1.5 in (1.5,2.5,3.5);
+select 10.5 in (1.5,2.5,3.5);
+select NULL in (1.5,2.5,3.5);
+select 1.5 in (1.5,NULL,3.5);
+select 3.5 in (1.5,NULL,3.5);
+select 10.5 in (1.5,NULL,3.5);
 drop table if exists t1;
+CREATE TABLE t1 (a int, b int, c int);
+insert into t1 values (1,2,3), (1,NULL,3);
+select 1 in (a,b,c) from t1;
+select 3 in (a,b,c) from t1;
+select 10 in (a,b,c) from t1;
+select NULL in (a,b,c) from t1;
+drop table t1;
+CREATE TABLE t1 (a float, b float, c float);
+insert into t1 values (1.5,2.5,3.5), (1.5,NULL,3.5);
+select 1.5 in (a,b,c) from t1;
+select 3.5 in (a,b,c) from t1;
+select 10.5 in (a,b,c) from t1;
+drop table t1;
+CREATE TABLE t1 (a varchar(10), b varchar(10), c varchar(10));
+insert into t1 values ('A','BC','EFD'), ('A',NULL,'EFD');
+select 'A' in (a,b,c) from t1;
+select 'EFD' in (a,b,c) from t1;
+select 'XSFGGHF' in (a,b,c) from t1;
+drop table t1;
+
 CREATE TABLE t1 (field char(1));
 INSERT INTO t1 VALUES ('A'),(NULL);
 SELECT * from t1 WHERE field IN (NULL);

@@ -122,6 +122,18 @@ public:
   String* val_str(String* s)     { return item->val_str(s); }
   void make_field(Send_field* f) { item->make_field(f); }
   bool check_cols(uint col)      { return item->check_cols(col); }
+  bool eq(const Item *item, bool binary_cmp) const
+  { return item->eq(item, binary_cmp); }
+  bool is_null() { return item->is_null_result(); }
+  bool get_date(TIME *ltime, bool fuzzydate)
+  {  
+    return (null_value=item->get_date(ltime, fuzzydate));
+  }
+  bool send(THD *thd, String *tmp)	{ return item->send(thd, tmp); }
+  int  save_in_field(Field *field)	{ return item->save_in_field(field); }
+  void save_org_in_field(Field *field)	{ item->save_org_in_field(field); }
+  enum Item_result result_type () const { return item->result_type(); }
+  table_map used_tables() const		{ return item->used_tables(); }  
 };
 
 
@@ -132,19 +144,6 @@ class Item_outer_select_context_saver :public Item_wrapper
 {
 public:
   Item_outer_select_context_saver(Item *it)
-  {
-    item= it;
-  }
-  bool fix_fields(THD *, struct st_table_list *, Item ** ref);
-};
-
-/*
-  To resolve '*' field moved to condition
-*/
-class Item_asterisk_remover :public Item_wrapper
-{
-public:
-  Item_asterisk_remover(Item *it)
   {
     item= it;
   }
@@ -384,9 +383,13 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   bool basic_const_item() const { return 1; }
   bool eq(const Item *item, bool binary_cmp) const;
-  Item *new_item() { return new Item_string(name,str_value.ptr(),max_length,default_charset_info); }
+  Item *new_item() 
+  {
+    return new Item_string(name, str_value.ptr(), max_length,
+			   default_charset_info);
+  }
   String *const_string() { return &str_value; }
-  inline void append(char *str,uint length) { str_value.append(str,length); }
+  inline void append(char *str, uint length) { str_value.append(str, length); }
   void print(String *str);
 };
 
@@ -505,6 +508,54 @@ public:
   bool check_loop(uint id);
 };
 
+class Item_in_subselect;
+class Item_ref_null_helper: public Item_ref
+{
+protected:
+  Item_in_subselect* owner;
+public:
+  Item_ref_null_helper(Item_in_subselect* master, Item **item,
+		       char *table_name_par,char *field_name_par):
+    Item_ref(item, table_name_par, field_name_par), owner(master) {}
+  double val();
+  longlong val_int();
+  String* val_str(String* s);
+  bool get_date(TIME *ltime, bool fuzzydate);
+};
+
+/*
+  To resolve '*' field moved to condition
+  and register NULL values
+*/
+class Item_asterisk_remover :public Item_ref_null_helper
+{
+  Item *item;
+public:
+  Item_asterisk_remover(Item_in_subselect *master, Item *it,
+			char *table, char *field):
+    Item_ref_null_helper(master, &item, table, field),
+    item(it) 
+  {}
+  bool fix_fields(THD *, struct st_table_list *, Item ** ref);
+};
+
+class Item_in_optimizer;
+class Item_ref_in_optimizer: public Item_ref
+{
+protected:
+  Item_in_optimizer* owner;
+public:
+  Item_ref_in_optimizer(Item_in_optimizer* master,
+			char *table_name_par,char *field_name_par);
+  double val();
+  longlong val_int();
+  String* val_str(String* s);
+  bool fix_fields(THD *, struct st_table_list *, Item ** ref)
+  {
+    fixed= 1;
+    return 0;
+  }
+};
 
 /*
   The following class is used to optimize comparing of date columns
