@@ -21,7 +21,7 @@
 #endif
 #include  "mysql_priv.h"
 #include "slave.h"
-#include "table_filter.h"
+#include "rpl_filter.h"
 #include <my_dir.h>
 #endif /* MYSQL_CLIENT */
 

@@ -14,8 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef __TABLE_FILTER_H__
-#define __TABLE_FILTER_H__
+#ifndef __RPL_FILTER_H__
+#define __RPL_FILTER_H__
 
 #include "mysql.h"
 #include "my_list.h"
@@ -28,19 +28,19 @@ typedef struct st_table_rule_ent
 } TABLE_RULE_ENT;
 
 /*
-  Table_filter
+  Rpl_filter
 
   Inclusion and exclusion rules of tables and databases.
   Also handles rewrites of db.
   Used for replication and binlogging.
  */
-class Table_filter 
+class Rpl_filter 
 {
 public:
-  Table_filter();
-  ~Table_filter();
-  Table_filter(Table_filter const&);
-  Table_filter& operator=(Table_filter const&);
+  Rpl_filter();
+  ~Rpl_filter();
+  Rpl_filter(Rpl_filter const&);
+  Rpl_filter& operator=(Rpl_filter const&);
  
   /* Checks - returns true if ok to replicate/log */
 

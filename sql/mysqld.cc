@@ -19,7 +19,7 @@
 #include <my_dir.h>
 #include "slave.h"
 #include "sql_repl.h"
-#include "table_filter.h"
+#include "rpl_filter.h"
 #include "repl_failsafe.h"
 #include "stacktrace.h"
 #include "mysqld_suffix.h"
@@ -385,8 +385,8 @@ FILE *bootstrap_file;
 
 I_List<THD> threads,thread_cache;
 I_List<NAMED_LIST> key_caches;
-Table_filter* rpl_filter;
-Table_filter* binlog_filter;
+Rpl_filter* rpl_filter;
+Rpl_filter* binlog_filter;
 
 struct system_variables global_system_variables;
 struct system_variables max_system_variables;
@@ -994,6 +994,8 @@ void clean_up(bool print_message)
 #ifdef HAVE_REPLICATION
   end_slave_list();
 #endif
+  delete binlog_filter;
+  delete rpl_filter;
 #ifdef HAVE_OPENSSL
   if (ssl_acceptor_fd)
     my_free((gptr) ssl_acceptor_fd, MYF(MY_ALLOW_ZERO_PTR));
@@ -2963,8 +2965,8 @@ int main(int argc, char **argv)
 {
   DEBUGGER_OFF;
 
-  rpl_filter= new Table_filter;
-  binlog_filter= new Table_filter;
+  rpl_filter= new Rpl_filter;
+  binlog_filter= new Rpl_filter;
   if (!rpl_filter || !binlog_filter) 
   {
     sql_perror("Could not allocate replication and binlog filters");
@@ -3215,9 +3217,6 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
  
-  delete rpl_filter;
-  delete binlog_filter;
-
   exit(0);
   return(0);					/* purecov: deadcode */
 }
