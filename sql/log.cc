@@ -1132,7 +1132,8 @@ bool MYSQL_LOG::write(Log_event* event_info)
       was a MyISAM event!
     */
 
-    if (file == &log_file && !my_b_tell(&thd->transaction.trans_log))
+    if (file == &log_file && opt_using_transactions
+			  && !my_b_tell(&thd->transaction.trans_log))
     {
       /*
 	LOAD DATA INFILE in AUTOCOMMIT=1 mode writes to the binlog
