@@ -3681,11 +3681,10 @@ static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
     ulonglong acc_fragment_size= 512*1024*1024;
     ulonglong max_rows= form->s->max_rows;
 #if MYSQL_VERSION_ID >= 50100
+    no_fragments= (max_rows*acc_row_size)/acc_fragment_size+1;
+#else
     no_fragments= ((max_rows*acc_row_size)/acc_fragment_size+1
 		   +1/*correct rounding*/)/2;
-#else
->>>>>>>
-    no_fragments= (max_rows*acc_row_size)/acc_fragment_size+1;
 #endif
   }
   {
