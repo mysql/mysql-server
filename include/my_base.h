@@ -123,7 +123,8 @@ enum ha_extra_function {
   HA_EXTRA_NO_IGNORE_DUP_KEY,
   HA_EXTRA_DONT_USE_CURSOR_TO_UPDATE,	/* Cursor will not be used for update */
   HA_EXTRA_PREPARE_FOR_DELETE,
-  HA_EXTRA_PREPARE_FOR_UPDATE		/* Remove read cache if problems */
+  HA_EXTRA_PREPARE_FOR_UPDATE,		/* Remove read cache if problems */
+  HA_EXTRA_PRELOAD_BUFFER_SIZE          /* Set buffer size for preloading */
 };
 
 	/* The following is parameter to ha_panic() */
@@ -256,6 +257,7 @@ enum ha_base_keytype {
 #define HA_ERR_CANNOT_ADD_FOREIGN 150    /* Cannot add a foreign key constr. */
 #define HA_ERR_NO_REFERENCED_ROW 151     /* Cannot add a child row */
 #define HA_ERR_ROW_IS_REFERENCED 152     /* Cannot delete a parent row */
+#define HA_ERR_NON_UNIQUE_BLOCK_SIZE 153 /* Non unique key block size */
 
 	/* Other constants */
 

@@ -1,0 +1,214 @@
+drop table if exists t1, t2;
+create table t1 (
+a int not null auto_increment,
+b char(16) not null,
+primary key (a),
+key (b)
+);
+create table t2(
+a int not null auto_increment,
+b char(16) not null,
+primary key (a),
+key (b)
+);
+insert into t1(b) values 
+('test0'),
+('test1'),
+('test2'),
+('test3'),
+('test4'),
+('test5'),
+('test6'),
+('test7');
+insert into t2(b) select b from t1;
+insert into t1(b) select b from t2;
+insert into t2(b) select b from t1;
+insert into t1(b) select b from t2;
+insert into t2(b) select b from t1;
+insert into t1(b) select b from t2;
+insert into t2(b) select b from t1;
+insert into t1(b) select b from t2;
+insert into t2(b) select b from t1;
+insert into t1(b) select b from t2;
+insert into t2(b) select b from t1;
+insert into t1(b) select b from t2;
+insert into t2(b) select b from t1;
+insert into t1(b) select b from t2;
+insert into t2(b) select b from t1;
+insert into t1(b) select b from t2;
+insert into t2(b) select b from t1;
+insert into t1(b) select b from t2;
+select count(*) from t1;
+count(*)
+33448
+select count(*) from t2;
+count(*)
+20672
+flush tables;
+flush status;
+show status like "key_%";
+Variable_name	Value
+Key_blocks_used	918
+Key_read_requests	0
+Key_reads	0
+Key_write_requests	0
+Key_writes	0
+select count(*) from t1 where b = 'test1';
+count(*)
+4181
+show status like "key_%";
+Variable_name	Value
+Key_blocks_used	918
+Key_read_requests	217
+Key_reads	45
+Key_write_requests	0
+Key_writes	0
+select count(*) from t1 where b = 'test1';
+count(*)
+4181
+show status like "key_%";
+Variable_name	Value
+Key_blocks_used	918
+Key_read_requests	434
+Key_reads	45
+Key_write_requests	0
+Key_writes	0
+flush tables;
+flush status;
+select @@preload_buffer_size;
+@@preload_buffer_size
+32768
+preload t1 keys;
+Table	Op	Msg_type	Msg_text
+test.t1	preload_keys	status	OK
+show status like "preload_%";
+Variable_name	Value
+show status like "key_%";
+Variable_name	Value
+Key_blocks_used	918
+Key_read_requests	0
+Key_reads	0
+Key_write_requests	0
+Key_writes	0
+select count(*) from t1 where b = 'test1';
+count(*)
+4181
+show status like "key_%";
+Variable_name	Value
+Key_blocks_used	918
+Key_read_requests	217
+Key_reads	45
+Key_write_requests	0
+Key_writes	0
+flush tables;
+flush status;
+show status like "key_%";
+Variable_name	Value
+Key_blocks_used	918
+Key_read_requests	0
+Key_reads	0
+Key_write_requests	0
+Key_writes	0
+set session preload_buffer_size=256*1024;
+select @@preload_buffer_size;
+@@preload_buffer_size
+262144
+preload t1 keys ignore leaves;
+Table	Op	Msg_type	Msg_text
+test.t1	preload_keys	status	OK
+show status like "key_%";
+Variable_name	Value
+Key_blocks_used	918
+Key_read_requests	0
+Key_reads	0
+Key_write_requests	0
+Key_writes	0
+select count(*) from t1 where b = 'test1';
+count(*)
+4181
+show status like "key_%";
+Variable_name	Value
+Key_blocks_used	918
+Key_read_requests	217
+Key_reads	45
+Key_write_requests	0
+Key_writes	0
+flush tables;
+flush status;
+show status like "key_%";
+Variable_name	Value
+Key_blocks_used	918
+Key_read_requests	0
+Key_reads	0
+Key_write_requests	0
+Key_writes	0
+set session preload_buffer_size=1*1024;
+select @@preload_buffer_size;
+@@preload_buffer_size
+1024
+preload t1 keys, t2 keys (primary,b) ignore leaves;
+Table	Op	Msg_type	Msg_text
+test.t1	preload_keys	status	OK
+test.t2	preload_keys	status	OK
+show status like "key_%";
+Variable_name	Value
+Key_blocks_used	918
+Key_read_requests	0
+Key_reads	0
+Key_write_requests	0
+Key_writes	0
+select count(*) from t1 where b = 'test1';
+count(*)
+4181
+select count(*) from t2 where b = 'test1';
+count(*)
+2584
+show status like "key_%";
+Variable_name	Value
+Key_blocks_used	918
+Key_read_requests	351
+Key_reads	73
+Key_write_requests	0
+Key_writes	0
+flush tables;
+flush status;
+show status like "key_%";
+Variable_name	Value
+Key_blocks_used	918
+Key_read_requests	0
+Key_reads	0
+Key_write_requests	0
+Key_writes	0
+preload t3 keys, t2 keys (primary,b) ;
+Table	Op	Msg_type	Msg_text
+test.t3	preload_keys	error	Table 'test.t3' doesn't exist
+test.t2	preload_keys	status	OK
+show status like "key_%";
+Variable_name	Value
+Key_blocks_used	918
+Key_read_requests	0
+Key_reads	0
+Key_write_requests	0
+Key_writes	0
+flush tables;
+flush status;
+show status like "key_%";
+Variable_name	Value
+Key_blocks_used	918
+Key_read_requests	0
+Key_reads	0
+Key_write_requests	0
+Key_writes	0
+preload t3 keys (b), t2 keys (c) ;
+Table	Op	Msg_type	Msg_text
+test.t3	preload_keys	error	Table 'test.t3' doesn't exist
+test.t2	preload_keys	error	Key column 'c' doesn't exist in table
+test.t2	preload_keys	status	Operation failed
+show status like "key_%";
+Variable_name	Value
+Key_blocks_used	918
+Key_read_requests	0
+Key_reads	0
+Key_write_requests	0
+Key_writes	0
+drop table t1, t2;
