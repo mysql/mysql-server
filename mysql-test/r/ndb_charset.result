@@ -189,3 +189,13 @@ p	a
 5	aaa
 6	AAA
 drop table t1;
+create table t1 (
+a varchar(10) primary key
+) engine=ndb;
+insert into t1 values ('jonas % ');
+replace into t1 values ('jonas % ');
+replace into t1 values ('jonas % ');
+select * from t1;
+a
+jonas %
+drop table t1;
