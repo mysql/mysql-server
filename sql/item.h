@@ -835,6 +835,26 @@ public:
     :Item_ident(db_par, table_name_par, field_name_par), ref(0) {}
   Item_ref(Item **item, const char *table_name_par, const char *field_name_par)
     :Item_ident(NullS, table_name_par, field_name_par), ref(item) {}
+  
+  /*
+    This constructor is used when processing GROUP BY and referred Item is 
+    available. We set all properties here because fix_fields() will not be 
+    called for the created Item_ref. (see BUG#6976) 
+    TODO check if we could get rid of *_name_par parameters and if we need to 
+         perform similar initialization for other ctors.
+    TODO we probably fix a superset of problems like in BUG#6658. Check this 
+         with Bar, and if we have a more broader set of problems like this.
+  */
+  Item_ref(Item **item, const char *table_name_par, 
+           const char *field_name_par, Item *src)
+    : Item_ident(NullS, table_name_par, field_name_par), ref(item)
+  {
+    collation.set(src->collation);
+    max_length= src->max_length;
+    decimals=	src->decimals;
+    with_sum_func= src->with_sum_func;
+    maybe_null= src->maybe_null;
+  }
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_ref(THD *thd, Item_ref *item) :Item_ident(thd, item), ref(item->ref) {}
   enum Type type() const		{ return REF_ITEM; }
@@ -933,6 +953,7 @@ public:
 
 
 class Item_in_subselect;
+
 class Item_ref_null_helper: public Item_ref
 {
 protected:
