@@ -330,7 +330,6 @@ err:
 */
 int ha_archive::write_row(byte * buf)
 {
-  char *pos;
   z_off_t written;
   DBUG_ENTER("ha_archive::write_row");
 
@@ -415,6 +414,7 @@ int ha_archive::get_row(byte *buf)
   int read; // Bytes read, gzread() returns int
   char *last;
   size_t total_blob_length= 0;
+  Field_blob **field;
   DBUG_ENTER("ha_archive::get_row");
 
   read= gzread(archive, buf, table->reclength);
@@ -428,7 +428,7 @@ int ha_archive::get_row(byte *buf)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   /* Calculate blob length, we use this for our buffer */
-  for (Field_blob **field=table->blob_field; *field ; field++)
+  for (field=table->blob_field; *field ; field++)
     total_blob_length += (*field)->get_length();
 
   /* Adjust our row buffer if we need be */
@@ -436,7 +436,7 @@ int ha_archive::get_row(byte *buf)
   last= (char *)buffer.ptr();
 
   /* Loop through our blobs and read them */
-  for (Field_blob **field=table->blob_field; *field ; field++)
+  for (field=table->blob_field; *field ; field++)
   {
     size_t size= (*field)->get_length();
     read= gzread(archive, last, size);
