@@ -679,7 +679,8 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("Field",NAME_LEN));
   field_list.push_back(new Item_empty_string("Type",40));
-  field_list.push_back(new Item_empty_string("Collation",40));
+  if (verbose)
+    field_list.push_back(new Item_empty_string("Collation",40));
   field_list.push_back(new Item_empty_string("Null",1));
   field_list.push_back(new Item_empty_string("Key",3));
   field_list.push_back(item=new Item_empty_string("Default",NAME_LEN));
@@ -719,7 +720,8 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
         protocol->store(field->field_name, system_charset_info);
         field->sql_type(type);
         protocol->store(type.ptr(), type.length(), system_charset_info);
-	protocol->store(field->has_charset() ? field->charset()->name : "NULL",
+	if (verbose)
+	  protocol->store(field->has_charset() ? field->charset()->name : "NULL",
 			system_charset_info);
         pos=(byte*) ((flags & NOT_NULL_FLAG) &&
                      field->type() != FIELD_TYPE_TIMESTAMP ?
@@ -1436,8 +1438,8 @@ static bool write_collation(Protocol *protocol, CHARSET_INFO *cs)
   protocol->store(cs->name, system_charset_info);
   protocol->store(cs->csname, system_charset_info);
   protocol->store_short((longlong) cs->number);
-  protocol->store((cs->state & MY_CS_PRIMARY) ? "Y" : "",system_charset_info);
-  protocol->store((cs->state & MY_CS_COMPILED)? "Y" : "",system_charset_info);
+  protocol->store((cs->state & MY_CS_PRIMARY) ? "Yes" : "",system_charset_info);
+  protocol->store((cs->state & MY_CS_COMPILED)? "Yes" : "",system_charset_info);
   protocol->store_short((longlong) cs->strxfrm_multiply);
   return protocol->write();
 }
@@ -1456,8 +1458,8 @@ int mysqld_show_collations(THD *thd, const char *wild)
   field_list.push_back(new Item_empty_string("Collation",30));
   field_list.push_back(new Item_empty_string("Charset",30));
   field_list.push_back(new Item_return_int("Id",11, FIELD_TYPE_SHORT));
-  field_list.push_back(new Item_empty_string("D",30));
-  field_list.push_back(new Item_empty_string("C",30));
+  field_list.push_back(new Item_empty_string("Default",30));
+  field_list.push_back(new Item_empty_string("Compiled",30));
   field_list.push_back(new Item_return_int("Sortlen",3, FIELD_TYPE_SHORT));
 
   if (protocol->send_fields(&field_list, 1))

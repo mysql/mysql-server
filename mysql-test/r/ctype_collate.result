@@ -489,8 +489,8 @@ t1	CREATE TABLE `t1` (
   `latin1_f` char(32) NOT NULL default ''
 ) TYPE=MyISAM CHARSET=latin1
 SHOW FIELDS FROM  t1;
-Field	Type	Collation	Null	Key	Default	Extra
-latin1_f	char(32)	latin1_swedish_ci				
+Field	Type	Null	Key	Default	Extra
+latin1_f	char(32)				
 ALTER TABLE t1 CHANGE latin1_f 
 latin1_f CHAR(32) CHARACTER SET latin1 COLLATE latin1_bin;
 SHOW CREATE TABLE t1;
@@ -499,8 +499,8 @@ t1	CREATE TABLE `t1` (
   `latin1_f` char(32) character set latin1 collate latin1_bin default NULL
 ) TYPE=MyISAM CHARSET=latin1
 SHOW FIELDS FROM  t1;
-Field	Type	Collation	Null	Key	Default	Extra
-latin1_f	char(32)	latin1_bin	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+latin1_f	char(32)	YES		NULL	
 ALTER TABLE t1 CHARACTER SET latin1 COLLATE latin1_bin;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -508,8 +508,8 @@ t1	CREATE TABLE `t1` (
   `latin1_f` char(32) collate latin1_bin default NULL
 ) TYPE=MyISAM CHARSET=latin1 COLLATE=latin1_bin
 SHOW FIELDS FROM  t1;
-Field	Type	Collation	Null	Key	Default	Extra
-latin1_f	char(32)	latin1_bin	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+latin1_f	char(32)	YES		NULL	
 SET CHARACTER SET 'latin1';
 SHOW VARIABLES LIKE 'character_set_client';
 Variable_name	Value
