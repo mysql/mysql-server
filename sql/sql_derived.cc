@@ -154,8 +154,7 @@ static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
     res= mysql_union(thd, lex, derived_result, unit);
   else
   {
-    unit->set_limit(first_select->select_limit, first_select->offset_limit,
-		    first_select);
+    unit->set_limit(first_select, first_select);
 
     lex->current_select= first_select;
     res= mysql_select(thd, &first_select->ref_pointer_array, 

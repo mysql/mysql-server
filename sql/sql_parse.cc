@@ -2179,8 +2179,7 @@ mysql_execute_command(THD *thd)
       if (tables && check_table_access(thd, SELECT_ACL, tables,0))
 	goto error;				// Error message is given
       select_lex->options|= SELECT_NO_UNLOCK;
-      unit->set_limit(select_lex->select_limit, select_lex->offset_limit,
-		      select_lex);
+      unit->set_limit(select_lex, select_lex);
 
       if (!(res=open_and_lock_tables(thd,tables)))
       {
@@ -2580,8 +2579,7 @@ mysql_execute_command(THD *thd)
     select_lex->options|= SELECT_NO_UNLOCK;
 
     select_result *result;
-    unit->set_limit(select_lex->select_limit, select_lex->offset_limit,
-		    select_lex);
+    unit->set_limit(select_lex, select_lex);
 
     if (find_real_table_in_list(tables->next, tables->db, tables->real_name))
     {

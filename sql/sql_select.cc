@@ -179,9 +179,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
   else
   {
     SELECT_LEX_UNIT *unit= &lex->unit;
-    unit->set_limit(unit->global_parameters->select_limit,
-		    unit->global_parameters->offset_limit,
-		    select_lex);
+    unit->set_limit(unit->global_parameters, select_lex);
     res= mysql_select(thd, &select_lex->ref_pointer_array,
 		      (TABLE_LIST*) select_lex->table_list.first,
 		      select_lex->with_wild, select_lex->item_list,
@@ -1015,8 +1013,7 @@ JOIN::reinit()
 {
   DBUG_ENTER("JOIN::reinit");
   /* TODO move to unit reinit */
-  unit->set_limit(select_lex->select_limit, select_lex->offset_limit,
-		  select_lex);
+  unit->set_limit(select_lex, select_lex);
   
   if (setup_tables(tables_list, 1))
     DBUG_RETURN(1);
@@ -9267,8 +9264,7 @@ int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type,
     unit->select_limit_cnt= HA_POS_ERROR;
   }
   else
-    unit->set_limit(select_lex->select_limit, select_lex->offset_limit,
-		    select_lex);
+    unit->set_limit(select_lex, select_lex);
   int res= mysql_select(thd, &select_lex->ref_pointer_array,
 			(TABLE_LIST*) select_lex->table_list.first,
 			select_lex->with_wild, select_lex->item_list,
