@@ -33,9 +33,10 @@ SUBSELECT TODO:
 #include "sql_select.h"
 
 Item_subselect::Item_subselect():
-  Item_result_field(), engine_owner(1), value_assigned(0), substitution(0)
+  Item_result_field(), engine_owner(1), value_assigned(0), substitution(0),
+  have_to_be_excluded(0)
 {
-  assign_null();
+  reset();
   /*
     item value is NULL if select_subselect not changed this value 
     (i.e. some rows will be found returned)
@@ -93,8 +94,10 @@ bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   {
     (*ref)= substitution;
     substitution->name= name;
-    engine->exclude();
-    return substitution->fix_fields(thd, tables, ref);
+    if (have_to_be_excluded)
+      engine->exclude();
+    substitution= 0;
+    return (*ref)->fix_fields(thd, tables, ref);
   }
 
   char const *save_where= thd->where;
@@ -159,7 +162,7 @@ double Item_singleval_subselect::val ()
 {
   if (engine->exec())
   {
-    assign_null();
+    reset();
     return 0;
   }
   return real_value;
@@ -169,7 +172,7 @@ longlong Item_singleval_subselect::val_int ()
 {
   if (engine->exec())
   {
-    assign_null();
+    reset();
     return 0;
   }
   return int_value;
@@ -179,7 +182,7 @@ String *Item_singleval_subselect::val_str (String *str)
 {
   if (engine->exec() || null_value)
   {
-    assign_null();
+    reset();
     return 0;
   }
   return &string_value;
@@ -208,9 +211,8 @@ Item_in_subselect::Item_in_subselect(THD *thd, Item * left_exp,
   left_expr= left_exp;
   init(thd, select_lex, new select_exists_subselect(this));
   max_columns= UINT_MAX;
-  null_value= 0; //can't be NULL
-  maybe_null= 0; //can't be NULL
-  value= 0;
+  maybe_null= 1;
+  reset();
   // We need only 1 row to determinate existence
   select_lex->master_unit()->global_parameters->select_limit= 1;
   DBUG_VOID_RETURN;
@@ -226,9 +228,7 @@ Item_allany_subselect::Item_allany_subselect(THD *thd, Item * left_exp,
   func= f;
   init(thd, select_lex, new select_exists_subselect(this));
   max_columns= UINT_MAX;
-  null_value= 0; //can't be NULL
-  maybe_null= 0; //can't be NULL
-  value= 0;
+  reset();
   // We need only 1 row to determinate existence
   select_lex->master_unit()->global_parameters->select_limit= 1;
   DBUG_VOID_RETURN;
@@ -237,14 +237,15 @@ Item_allany_subselect::Item_allany_subselect(THD *thd, Item * left_exp,
 
 void Item_exists_subselect::fix_length_and_dec()
 {
-  max_length= 1;
+   decimals=0;
+   max_length= 1;
 }
 
 double Item_exists_subselect::val () 
 {
   if (engine->exec())
   {
-    assign_null();
+    reset();
     return 0;
   }
   return (double) value;
@@ -254,7 +255,7 @@ longlong Item_exists_subselect::val_int ()
 {
   if (engine->exec())
   {
-    assign_null();
+    reset();
     return 0;
   }
   return value;
@@ -264,7 +265,50 @@ String *Item_exists_subselect::val_str(String *str)
 {
   if (engine->exec())
   {
-    assign_null();
+    reset();
+    return 0;
+  }
+  str->set(value,thd_charset());
+  return str;
+}
+
+double Item_in_subselect::val () 
+{
+  if (engine->exec())
+  {
+    reset();
+    null_value= 1;
+    return 0;
+  }
+  if (was_null && !value)
+    null_value= 1;
+  return (double) value;
+}
+
+longlong Item_in_subselect::val_int () 
+{
+  if (engine->exec())
+  {
+    reset();
+    null_value= 1;
+    return 0;
+  }
+  if (was_null && !value)
+    null_value= 1;
+  return value;
+}
+
+String *Item_in_subselect::val_str(String *str)
+{
+  if (engine->exec())
+  {
+    reset();
+    null_value= 1;
+    return 0;
+  }
+  if (was_null && !value)
+  {
+    null_value= 1;
     return 0;
   }
   str->set(value,thd_charset());
@@ -288,8 +332,23 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
 						 compare_func_creator func)
 {
   DBUG_ENTER("Item_in_subselect::single_value_transformer");
+  Item_in_optimizer *optimizer;
+  substitution= optimizer= new Item_in_optimizer(left_expr, this);
+  if (!optimizer)
+  {
+    current_thd->fatal_error= 1;
+    DBUG_VOID_RETURN;
+  }
+  /*
+    As far as  Item_ref_in_optimizer do not substitude itself on fix_fields
+    we can use same item for all selects.
+  */
+  Item *expr= new Item_ref_in_optimizer(optimizer, (char *)"<no matter>",
+					(char*)"<left expr>");
+  select_lex->master_unit()->dependent= 1;
   for (SELECT_LEX * sl= select_lex; sl; sl= sl->next_select())
   {
+    select_lex->dependent= 1;
     Item *item;
     if (sl->item_list.elements > 1)
     {
@@ -299,14 +358,14 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
     else
       item= (Item*) sl->item_list.pop();
 
-    Item *expr= new Item_outer_select_context_saver(left_expr);
-
     if (sl->having || sl->with_sum_func || sl->group_list.first ||
 	sl->order_list.first)
     {
       sl->item_list.push_back(item);
-      item= (*func)(expr, new Item_ref(sl->item_list.head_ref(),
-					    0, (char*)"<result>"));
+      item= (*func)(expr, new Item_ref_null_helper(this,
+						   sl->item_list.head_ref(),
+						   (char *)"<no matter>",
+						   (char*)"<result>"));
       if (sl->having || sl->with_sum_func || sl->group_list.first)
 	if (sl->having)
 	  sl->having= new Item_cond_and(sl->having, item);
@@ -324,7 +383,9 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
       sl->item_list.push_back(new Item_int(1));
       if (sl->table_list.elements)
       {
-	item= (*func)(expr, new Item_asterisk_remover(item));
+	item= (*func)(expr, new Item_asterisk_remover(this, item,
+						      (char *)"<no matter>",
+						      (char*)"<result>"));
 	if (sl->where)
 	  sl->where= new Item_cond_and(sl->where, item);
 	else
@@ -340,14 +401,21 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
 	}
 	if (select_lex->next_select())
 	{
-	  // it is in union => we should perform it
-	  sl->having= (*func)(expr, item);
+	  /* 
+	     It is in union => we should perform it.
+	     Item_asterisk_remover used only as wrapper to receine NULL value
+	  */
+	  sl->having= (*func)(expr, 
+			      new Item_asterisk_remover(this, item,
+							(char *)"<no matter>",
+							(char*)"<result>"));
 	}
 	else
 	{
 	  // it is single select without tables => possible optimization
 	  item= (*func)(left_expr, item);
 	  substitution= item;
+	  have_to_be_excluded= 1;
 	  THD *thd= current_thd;
 	  if (thd->lex.describe)
 	  {
@@ -489,7 +557,7 @@ int subselect_single_select_engine::exec()
       join->thd->where= save_where;
       DBUG_RETURN(1);
     }
-    item->assign_null();
+    item->reset();
     item->assigned((executed= 0));
   }
   if (!executed)

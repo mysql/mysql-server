@@ -42,6 +42,8 @@ protected:
   subselect_engine *engine; 
   /* allowed number of columns (1 for single value subqueries) */
   uint max_columns;
+  /* work with 'substitution' */
+  bool have_to_be_excluded;
 
 public:
   Item_subselect();
@@ -65,7 +67,7 @@ public:
 		     select_subselect *result);
 
   ~Item_subselect();
-  virtual void assign_null() 
+  virtual void reset() 
   {
     null_value= 1;
   }
@@ -110,7 +112,7 @@ public:
     decimals= item->decimals;
     res_type= item->res_type;
   }
-  virtual void assign_null() 
+  virtual void reset() 
   {
     null_value= 1;
     int_value= 0;
@@ -144,7 +146,7 @@ public:
   }
   Item_exists_subselect(): Item_subselect() {}
 
-  virtual void assign_null() 
+  virtual void reset() 
   {
     value= 0;
   }
@@ -155,6 +157,7 @@ public:
   double val();
   String *val_str(String*);
   void fix_length_and_dec();
+
   friend class select_exists_subselect;
 };
 
@@ -164,14 +167,26 @@ class Item_in_subselect :public Item_exists_subselect
 {
 protected:
   Item * left_expr;
-
+  bool was_null;
 public:
   Item_in_subselect(THD *thd, Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect(Item_in_subselect *item);
   Item_in_subselect(): Item_exists_subselect() {}
+  void reset() 
+  {
+    value= 0;
+    null_value= 0;
+    was_null= 0;
+  }
   virtual void select_transformer(st_select_lex *select_lex);
   void single_value_transformer(st_select_lex *select_lex,
 				Item *left_expr, compare_func_creator func);
+  longlong val_int();
+  double val();
+  String *val_str(String*);
+
+  friend class Item_asterisk_remover;
+  friend class Item_ref_null_helper;
 };
 
 /* ALL/ANY/SOME subselect */

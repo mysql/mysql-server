@@ -87,6 +87,27 @@ public:
   void fix_length_and_dec() { decimals=0; max_length=1; }
 };
 
+class Item_in_optimizer: public Item_bool_func
+{
+protected:
+  char buffer[80];
+  longlong int_cache;
+  double flt_cache;
+  String str_cache_buff, *str_cache;
+  bool int_cache_ok, flt_cache_ok, str_cache_ok;
+public:
+  Item_in_optimizer(Item *a,Item *b):
+    Item_bool_func(a,b), int_cache_ok(0), flt_cache_ok(0), str_cache_ok(0) {}
+  bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
+  longlong val_int();
+
+  double get_cache();
+  longlong get_cache_int();
+  String *get_cache_str(String *s);
+
+  friend class Item_ref_in_optimizer;
+};
+
 class Item_bool_func2 :public Item_int_func
 {						/* Bool with 2 string args */
 protected:
@@ -488,9 +509,10 @@ class Item_func_in :public Item_int_func
   Item *item;
   in_vector *array;
   cmp_item *in_item;
+  bool have_null;
  public:
   Item_func_in(Item *a,List<Item> &list)
-    :Item_int_func(list),item(a),array(0),in_item(0) {}
+    :Item_int_func(list), item(a), array(0), in_item(0), have_null(0) {}
   longlong val_int();
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref)
   {
