@@ -25,10 +25,6 @@
 #include "ha_heap.h"
 #include "ha_myisam.h"
 #include "ha_myisammrg.h"
-#ifdef HAVE_ISAM
-#include "ha_isam.h"
-#include "ha_isammrg.h"
-#endif
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif
@@ -750,17 +746,15 @@ int ha_autocommit_or_rollback(THD *thd, int error)
   DBUG_RETURN(error);
 }
 
-int ha_commit_or_rollback_by_xid(LEX_STRING *ident, bool commit)
+int ha_commit_or_rollback_by_xid(XID *xid, bool commit)
 {
-  XID xid;
   handlerton **ht= handlertons, **end_ht=ht+total_ha;
   int res= 1;
 
-  xid.set(ident);
   for ( ; ht < end_ht ; ht++)
     if ((*ht)->recover)
       res= res &&
-        (*(commit ? (*ht)->commit_by_xid : (*ht)->rollback_by_xid))(&xid);
+        (*(commit ? (*ht)->commit_by_xid : (*ht)->rollback_by_xid))(xid);
   return res;
 }
 
@@ -2366,10 +2360,9 @@ TYPELIB *ha_known_exts(void)
     const char **ext, *old_ext;
 
     known_extensions_id= mysys_usage_id;
-    found_exts.push_back((char*) ".db");
     found_exts.push_back((char*) triggers_file_ext);
     for (types= sys_table_types; types->type; types++)
-    {      
+    {
       if (*types->value == SHOW_OPTION_YES)
       {
 	handler *file= get_new_handler(0,(enum db_type) types->db_type);
