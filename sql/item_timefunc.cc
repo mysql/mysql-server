@@ -149,6 +149,9 @@ static DATE_TIME_FORMAT time_24hrs_format= {{0}, '\0', 0,
      conversion specifiers that can be used in such sub-patterns is limited.
      Also most of checks are skipped in this case.
 
+     If one adds new format specifiers to this function he should also
+     consider adding them to get_date_time_result_type() function.
+
     RETURN
       0	ok
       1	error
@@ -2595,25 +2598,31 @@ void Item_func_get_format::print(String *str)
 
 
 /*
-  check_result_type(s, l) returns DATE/TIME type
-  according to format string
+  Get type of datetime value (DATE/TIME/...) which will be produced
+  according to format string.
 
-  s: DATE/TIME format string
-  l: length of s
-  Result: date_time_format_types value:
-          DATE_TIME_MICROSECOND, DATE_TIME,
-          TIME_MICROSECOND, TIME_ONLY
+  SYNOPSIS
+    get_date_time_result_type()
+      format - format string
+      length - length of format string
 
-  We don't process day format's characters('D', 'd', 'e')
-  because day may be a member of all date/time types.
-  If only day format's character and no time part present
-  the result type is MYSQL_TYPE_DATE
+  NOTE
+    We don't process day format's characters('D', 'd', 'e') because day
+    may be a member of all date/time types.
+
+    Format specifiers supported by this function should be in sync with
+    specifiers supported by extract_date_time() function.
+
+  RETURN VALUE
+    One of date_time_format_types values:
+    DATE_TIME_MICROSECOND, DATE_TIME, DATE_ONLY, TIME_MICROSECOND, TIME_ONLY
 */
 
-date_time_format_types  check_result_type(const char *format, uint length)
+static date_time_format_types
+get_date_time_result_type(const char *format, uint length)
 {
   const char *time_part_frms= "HISThiklrs";
-  const char *date_part_frms= "MUYWabcjmuyw";
+  const char *date_part_frms= "MVUXYWabcjmvuxyw";
   bool date_part_used= 0, time_part_used= 0, frac_second_used= 0;
   
   const char *val= format;
@@ -2624,22 +2633,30 @@ date_time_format_types  check_result_type(const char *format, uint length)
     if (*val == '%' && val+1 != end)
     {
       val++;
-      if ((frac_second_used= (*val == 'f')) ||
-	  (!time_part_used && strchr(time_part_frms, *val)))
+      if (*val == 'f')
+        frac_second_used= time_part_used= 1;
+      else if (!time_part_used && strchr(time_part_frms, *val))
 	time_part_used= 1;
       else if (!date_part_used && strchr(date_part_frms, *val))
 	date_part_used= 1;
-      if (time_part_used && date_part_used && frac_second_used)
+      if (date_part_used && frac_second_used)
+      {
+        /*
+          frac_second_used implies time_part_used, and thus we already
+          have all types of date-time components and can end our search.
+        */
 	return DATE_TIME_MICROSECOND;
+      }
     }
   }
 
+  /* We don't have all three types of date-time components */
+  if (frac_second_used)
+    return TIME_MICROSECOND;
   if (time_part_used)
   {
     if (date_part_used)
       return DATE_TIME;
-    if (frac_second_used)
-      return TIME_MICROSECOND;
     return TIME_ONLY;
   }
   return DATE_ONLY;
@@ -2670,7 +2687,8 @@ void Item_func_str_to_date::fix_length_and_dec()
   if ((const_item= args[1]->const_item()))
   {
     format= args[1]->val_str(&format_str);
-    cached_format_type= check_result_type(format->ptr(), format->length());
+    cached_format_type= get_date_time_result_type(format->ptr(),
+                                                  format->length());
     switch (cached_format_type) {
     case DATE_ONLY:
       cached_timestamp_type= MYSQL_TIMESTAMP_DATE;

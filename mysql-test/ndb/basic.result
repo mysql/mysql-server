@@ -31,12 +31,12 @@ QUIT                                   Quit management client
 <id>       = ALL | Any database node id
 
 Connected to Management Server at: localhost:1186
-Node 1: started (Version 4.1.8)
-Node 2: started (Version 4.1.8)
+Node 1: started (Version 4.1.9)
+Node 2: started (Version 4.1.9)
 
-Node 1: started (Version 4.1.8)
+Node 1: started (Version 4.1.9)
 
-Node 2: started (Version 4.1.8)
+Node 2: started (Version 4.1.9)
 
 Executing CLUSTERLOG on node 1 OK!
 Executing CLUSTERLOG on node 2 OK!

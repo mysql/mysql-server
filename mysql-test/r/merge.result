@@ -651,3 +651,28 @@ ERROR HY000: You can't specify target table 't1' for update in FROM clause
 create table t3 engine=merge union=(t1, t2) select * from t2;
 ERROR HY000: You can't specify target table 't2' for update in FROM clause
 drop table t1, t2;
+create table t1 (a int,b int,c int, index (a,b,c));
+create table t2 (a int,b int,c int, index (a,b,c));
+create table t3 (a int,b int,c int, index (a,b,c))
+engine=merge union=(t1 ,t2);
+insert into t1 (a,b,c) values (1,1,0),(1,2,0);
+insert into t2 (a,b,c) values (1,1,1),(1,2,1);
+explain select a,b,c from t3 force index (a) where a=1 order by a,b,c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	ref	a	a	5	const	2	Using where; Using index
+select a,b,c from t3 force index (a) where a=1 order by a,b,c;
+a	b	c
+1	1	0
+1	1	1
+1	2	0
+1	2	1
+explain select a,b,c from t3 force index (a) where a=1 order by a desc, b desc, c desc;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	ref	a	a	5	const	2	Using where; Using index
+select a,b,c from t3 force index (a) where a=1 order by a desc, b desc, c desc;
+a	b	c
+1	2	1
+1	2	0
+1	1	1
+1	1	0
+drop table t1, t2, t3;

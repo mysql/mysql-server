@@ -775,9 +775,25 @@ longlong Item_func_neg::val_int()
 
 void Item_func_neg::fix_length_and_dec()
 {
+  enum Item_result arg_result= args[0]->result_type();
+  enum Item::Type  arg_type= args[0]->type();
   decimals=args[0]->decimals;
   max_length=args[0]->max_length;
   hybrid_type= REAL_RESULT;
+  
+  /*
+    We need to account for added '-' in the following cases:
+    A) argument is a real or integer positive constant - in this case 
+    argument's max_length is set to actual number of bytes occupied, and not 
+    maximum number of bytes real or integer may require. Note that all 
+    constants are non negative so we don't need to account for removed '-'.
+    B) argument returns a string.
+  */
+  if (arg_result == STRING_RESULT || 
+      (arg_type == REAL_ITEM && ((Item_real*)args[0])->value >= 0) ||
+      (arg_type == INT_ITEM && ((Item_int*)args[0])->value > 0))
+    max_length++;
+
   if (args[0]->result_type() == INT_RESULT)
   {
     /*
@@ -1091,7 +1107,8 @@ double Item_func_round::val()
 bool Item_func_rand::fix_fields(THD *thd, struct st_table_list *tables,
                                 Item **ref)
 {
-  Item_real_func::fix_fields(thd, tables, ref);
+  if (Item_real_func::fix_fields(thd, tables, ref))
+    return TRUE;
   used_tables_cache|= RAND_TABLE_BIT;
   if (arg_count)
   {					// Only use argument once in query
