@@ -1285,9 +1285,9 @@ run_again:
 				into gaps */
 				
 				err = row_ins_set_shared_rec_lock(
-						LOCK_REC_NOT_GAP,
-						rec, check_index, thr);
-				
+						LOCK_REC_NOT_GAP, rec,
+						check_index, offsets, thr);
+
 				if (err != DB_SUCCESS) {
 
 					break;
