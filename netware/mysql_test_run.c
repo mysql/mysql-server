@@ -192,7 +192,7 @@ void install_db(char *datadir)
   char error[PATH_MAX];
 
   // input file
-  snprintf(input, PATH_MAX, "%s/bin/init_db.sql", base_dir);
+  snprintf(input, PATH_MAX, "%s/bin/test_db.sql", base_dir);
   snprintf(output, PATH_MAX, "%s/install.out", datadir);
   snprintf(error, PATH_MAX, "%s/install.err", datadir);
   
@@ -1160,7 +1160,8 @@ void setup(char *file)
   setenv("MASTER_MYPORT", "9306", 1);
   setenv("SLAVE_MYPORT", "9307", 1);
   setenv("MYSQL_TCP_PORT", "3306", 1);
-  
+  snprintf(file_path, PATH_MAX*2, "%s/mysql_client_test --no-defaults --testcase--user=root --port=%u ", bin_dir, master_port); 
+  setenv("MYSQL_CLIENT_TEST",file_path,1);
 }
 
 /******************************************************************************

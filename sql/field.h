@@ -290,7 +290,11 @@ public:
                             int cuted_increment);
   void set_datetime_warning(const uint level, const uint code, 
                             double nr, timestamp_type ts_type);
-  int check_overflow(int op_result);
+  inline bool check_overflow(int op_result)
+  {
+    return (op_result == E_DEC_OVERFLOW);
+  }
+  int warn_if_overflow(int op_result);
   virtual field_cast_enum field_cast_type()= 0;
   bool field_cast_compatible(field_cast_enum type);
   /* maximum possible display length */

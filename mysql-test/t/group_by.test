@@ -480,7 +480,8 @@ drop table t1;
 create table t1 (a integer, b integer, c integer);
 insert into t1 (a,b) values (1,2),(1,3),(2,5);
 select a, 0.1*0+1 r2, sum(1) r1 from t1 where a = 1 group  by a having r1>1 and r2=1;
-select a, rand()*0+1 r2, sum(1) r1 from t1 where a = 1 group  by a having r1>1 and r2=1;
+# rand(100)*10 will be < 2 only for the first row (of 6)
+select a, round(rand(100)*10) r2, sum(1) r1 from t1 where a = 1 group  by a having r1>1 and r2<=2;
 select a,sum(b) from t1 where a=1 group by c;
 select a*sum(b) from t1 where a=1 group by c;
 select sum(a)*sum(b) from t1 where a=1 group by c;
