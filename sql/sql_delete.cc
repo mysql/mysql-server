@@ -205,7 +205,7 @@ cleanup:
 
 #define MEM_STRIP_BUF_SIZE current_thd->variables.sortbuff_size
 
-extern "C" static int refposcmp2(void* arg, const void *a,const void *b)
+extern "C" int refposcmp2(void* arg, const void *a,const void *b)
 {
   return memcmp(a,b, *(int*) arg);
 }
