@@ -137,7 +137,7 @@ static const bool g_compare_null = true;
 
 // log and error macros
 
-static NdbMutex ndbout_mutex = NDB_MUTEX_INITIALIZER;
+static NdbMutex *ndbout_mutex= NULL;
 
 static unsigned getthrno();
 
@@ -160,9 +160,9 @@ getthrstr()
 #define LLN(n, s) \
   do { \
     if ((n) > g_opt.m_v) break; \
-    if (g_opt.m_msglock) NdbMutex_Lock(&ndbout_mutex); \
+    if (g_opt.m_msglock) NdbMutex_Lock(ndbout_mutex); \
     ndbout << getthrstr() << s << endl; \
-    if (g_opt.m_msglock) NdbMutex_Unlock(&ndbout_mutex); \
+    if (g_opt.m_msglock) NdbMutex_Unlock(ndbout_mutex); \
   } while(0)
 
 #define LL0(s) LLN(0, s)
@@ -3349,6 +3349,8 @@ runtest(Par par)
 NDB_COMMAND(testOIBasic, "testOIBasic", "testOIBasic", "testOIBasic", 65535)
 {
   ndb_init();
+  if (ndbout_mutex == NULL)
+    ndbout_mutex= NdbMutex_Create();
   while (++argv, --argc > 0) {
     const char* arg = argv[0];
     if (*arg != '-') {
