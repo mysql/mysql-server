@@ -1747,9 +1747,14 @@ innobase_mysql_cmp(
 			}
 		}
 
-                ret = my_strnncoll(charset,
-                                  a, a_length,
-                                  b, b_length);
+		/* Starting from 4.1.3 we use strnncollsp() in comparisons of
+		non-latin1_swedish_ci strings. NOTE that the collation order
+		changes then: 'b\0\0...' is ordered BEFORE 'b  ...'. Users
+		having indexes on such data need to rebuild their tables! */
+
+                ret = charset->coll->strnncollsp(charset,
+                                  		a, a_length,
+                                  		b, b_length);
 		if (ret < 0) {
 		        return(-1);
 		} else if (ret > 0) {
@@ -4658,25 +4663,6 @@ ha_innobase::start_stmt(
 	  
 	        prebuilt->select_lock_type = LOCK_X;
 	} else {
-		/* When we first come here after LOCK TABLES,
-		select_lock_type is set to LOCK_S or LOCK_X. Store the value
-		in case we run also consistent reads and need to restore the
-		value later. */
-
-		if (prebuilt->select_lock_type != LOCK_NONE) {
-			prebuilt->stored_select_lock_type =
-					prebuilt->select_lock_type;
-		}
-
-		if (prebuilt->stored_select_lock_type != LOCK_S
-		    && prebuilt->stored_select_lock_type != LOCK_X) {
-			fprintf(stderr,
-"InnoDB: Error: select_lock_type is %lu inside ::start_stmt()!\n",
-			prebuilt->stored_select_lock_type);
-
-			ut_error;
-		}
-
 		if (thd->lex->sql_command == SQLCOM_SELECT
 					&& thd->lex->lock_option == TL_READ) {
 	
@@ -4685,10 +4671,11 @@ ha_innobase::start_stmt(
 
 			prebuilt->select_lock_type = LOCK_NONE;
 		} else {
-			/* Not a consistent read: restore the
-			select_lock_type value */
-			prebuilt->select_lock_type =
-				prebuilt->stored_select_lock_type;
+			/* Not a consistent read: use LOCK_X as the
+			select_lock_type value (TODO: how could we know
+			whether it should be LOCK_S, LOCK_X, or LOCK_NONE?) */
+
+			prebuilt->select_lock_type = LOCK_X;
 		}
 	}
 	
