@@ -2660,6 +2660,32 @@ CHARSET_INFO compiled_charsets[] = {
   },
 #endif
 
+#ifdef HAVE_CHARSET_utf8
+  {
+    33,                /* number    */
+    "utf8",            /* name      */
+    ctype_utf8,        /* ctype     */
+    to_lower_utf8,     /* to_lower  */
+    to_upper_utf8,     /* to_upper  */
+    to_upper_utf8,     /* sort_order */
+    1,                 /* strxfrm_multiply */
+    my_strnncoll_utf8, /* strnncoll  */
+    my_strnxfrm_utf8,  /* strnxfrm   */
+    NULL,              /* like_range */
+    6,                 /* mbmaxlen  */
+    my_ismbchar_utf8,  /* ismbchar  */
+    my_ismbhead_utf8,  /* ismbhead  */
+    my_mbcharlen_utf8, /* mbcharlen */
+    my_caseup_str_utf8,
+    my_casedn_str_utf8,
+    my_caseup_utf8,
+    my_casedn_utf8,
+    my_strcasecmp_utf8,
+    my_strncasecmp_utf8,
+    0
+  },
+#endif
+
 #ifdef HAVE_CHARSET_usa7
   {
     11,    /* number */
@@ -2789,6 +2815,7 @@ CHARSET_INFO compiled_charsets[] = {
     0
   },
 #endif
+
 
   {
     0,          /* end-of-list marker */

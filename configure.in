@@ -1872,7 +1872,7 @@ CHARSETS_AVAILABLE="armscii8 big5 cp1251 cp1257
                           latin1 latin1_de latin2 latin5 sjis swe7 tis620 ujis
                           usa7 utf8 win1250 win1251ukr"
 CHARSETS_DEPRECATED="win1251"
-CHARSETS_COMPLEX="big5 czech euc_kr gb2312 gbk latin1_de sjis tis620 ujis"
+CHARSETS_COMPLEX="big5 czech euc_kr gb2312 gbk latin1_de sjis tis620 ujis utf8"
 DEFAULT_CHARSET=latin1
 AC_DIVERT_POP
 
