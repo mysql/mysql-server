@@ -146,7 +146,7 @@ NdbWaiter::wait(int waitTime)
       NdbCondition_Wait(m_condition, (NdbMutex*)m_mutex);
     } else {
       if (waitTime <= 0) {
-        m_state = WAIT_TIMEOUT;
+        m_state = WST_WAIT_TIMEOUT;
         break;
       }
       NdbCondition_WaitTimeout(m_condition, (NdbMutex*)m_mutex, waitTime);

@@ -53,27 +53,27 @@ Config::printAllNameValuePairs(NdbOut &out,
 
     if(!section->contains(n))
       continue;
-    if (m_info.getStatus(section, n) == ConfigInfo::INTERNAL) 
+    if (m_info.getStatus(section, n) == ConfigInfo::CI_INTERNAL) 
       continue;
-    if (m_info.getStatus(section, n) == ConfigInfo::DEPRICATED)
+    if (m_info.getStatus(section, n) == ConfigInfo::CI_DEPRICATED)
       continue;
-    if (m_info.getStatus(section, n) == ConfigInfo::NOTIMPLEMENTED)
+    if (m_info.getStatus(section, n) == ConfigInfo::CI_NOTIMPLEMENTED)
       continue;
 
     out << n << ": ";
 
     switch (m_info.getType(section, n)) {
-    case ConfigInfo::INT:
+    case ConfigInfo::CI_INT:
       MGM_REQUIRE(prop->get(n, &int_value)); 
       out << int_value;
       break;
 
-    case ConfigInfo::INT64:
+    case ConfigInfo::CI_INT64:
       MGM_REQUIRE(prop->get(n, &int_64)); 
       out << int_64;
       break;
       
-    case ConfigInfo::BOOL:
+    case ConfigInfo::CI_BOOL:
       MGM_REQUIRE(prop->get(n, &int_value)); 
       if (int_value) {
 	out << "Y";
@@ -81,11 +81,11 @@ Config::printAllNameValuePairs(NdbOut &out,
 	out << "N";
       }
       break;
-    case ConfigInfo::STRING:
+    case ConfigInfo::CI_STRING:
       MGM_REQUIRE(prop->get(n, &str_value)); 
       out << str_value;
       break;
-    case ConfigInfo::SECTION:
+    case ConfigInfo::CI_SECTION:
       out << "SECTION";
       break;
     }      
