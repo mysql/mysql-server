@@ -7,7 +7,7 @@
 # and BSD makes
 
 # If you know how to fix any of this more elegantly please mail
-# david@mysql.com
+# docs@mysql.com
 
 TEXI2HTML_FLAGS =	-iso -number
 DVIPS =			dvips
@@ -92,6 +92,10 @@ nusphere.pdf: manual.texi
 	mv manual-tmp.pdf nusphere.pdf
 	rm -f manual-tmp.*
 	touch $@
+
+# Target to produce DocBook XML
+mysql.xml: manual.texi include.texi
+	$(MAKEINFO) --force --no-ifinfo --docbook manual.texi
 
 # The texi2dvi gives a lot of harmless errors. Just ignore them unless
 # you want to help with the typesetting part.
