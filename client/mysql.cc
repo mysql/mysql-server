@@ -1677,7 +1677,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
       if (num_fields == 2)
       {
 	put_info("Many help items for your request exist.", INFO_INFO);
-	put_info("To make a more specific request, please type 'help <item>',\nwhere item is one of the following", INFO_INFO);
+	put_info("To make a more specific request, please type 'help <item>',\nwhere <item> is one of the following", INFO_INFO);
 	num_name= 0;
 	num_cat= 1;
 	last_char= '_';
@@ -1685,7 +1685,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
       else if ((cur= mysql_fetch_row(result)))
       {
 	tee_fprintf(PAGER, "You asked for help about help category: \"%s\"\n", cur[0]);
-	put_info("For more information, type 'help <item>', where item is one of the following", INFO_INFO);
+	put_info("For more information, type 'help <item>', where <item> is one of the following", INFO_INFO);
 	num_name= 1;
 	num_cat= 2;
 	print_help_item(&cur,1,2,&last_char);
