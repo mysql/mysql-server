@@ -370,12 +370,15 @@ AC_SUBST(INSTALL_SCRIPT)
 
 export CC CXX CFLAGS LD LDFLAGS AR
 
+ndb_cxxflags_fix=
 if test "$GXX" = "yes"
 then
   # mysqld requires -fno-implicit-templates.
   # Disable exceptions as they seams to create problems with gcc and threads.
   # mysqld doesn't use run-time-type-checking, so we disable it.
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
+  # ndb cannot be compiled with -fno-implicit-templaces
+  ndb_cxxflags_fix=-fimplicit-templates
 
   # If you are using 'gcc' 3.0 (not g++) to compile C++ programs on Linux,
   # we will gets some problems when linking static programs.
@@ -2892,22 +2895,21 @@ if test X"$have_ndbcluster" = Xyes
 then
   MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
 
+  CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS)"
   if test "$with_debug" = "yes"
   then
     # Medium debug.
     NDB_DEFS="-DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
-    CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS) \$(NDB_CXXFLAGS_LOC) \$(NDB_CXXFLAGS_DEBUG_LOC)"
   elif test "$with_debug" = "full"
   then
     NDB_DEFS="-DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
-    CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS) \$(NDB_CXXFLAGS_LOC) \$(NDB_CXXFLAGS_DEBUG_LOC)"
   else
     NDB_DEFS="-DNDEBUG"
-    CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS) \$(NDB_CXXFLAGS_LOC) \$(NDB_CXXFLAGS_RELEASE_LOC)"
   fi
 fi
 
 AC_SUBST([NDB_DEFS])
+AC_SUBST([ndb_cxxflags_fix])
 
 ndb_transporter_opt_objs=""
 if test X"$have_ndb_shm" = Xyes
