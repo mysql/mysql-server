@@ -5939,12 +5939,15 @@ A reasonable @code{tar} to unpack the distribution.  GNU @code{tar} is
 known to work.  Sun @code{tar} is known to have problems.
 
 @item
-A working ANSI C++ compiler.  @code{gcc} >= 2.8.1, @code{egcs} >=
-1.0.2, SGI C++, and SunPro C++ are some of the compilers that are known to
-work.  @code{libg++} is not needed when using @code{gcc}.  @code{gcc}
-2.7.x has a bug that makes it impossible to compile some perfectly legal
-C++ files, such as @file{sql/sql_base.cc}.  If you only have @code{gcc} 2.7.x,
-you must upgrade your @code{gcc} to be able to compile @strong{MySQL}.
+A working ANSI C++ compiler.  @code{gcc} >= 2.95.2, @code{egcs} >= 1.0.2
+or @code{egcs 2.91.66}, SGI C++, and SunPro C++ are some of the
+compilers that are known to work.  @code{libg++} is not needed when
+using @code{gcc}.  @code{gcc} 2.7.x has a bug that makes it impossible
+to compile some perfectly legal C++ files, such as
+@file{sql/sql_base.cc}.  If you only have @code{gcc} 2.7.x, you must
+upgrade your @code{gcc} to be able to compile @strong{MySQL}. @code{gcc}
+2.8.1 is also known to have problems on some platforms so it should be
+avoided if there exists a new compiler for the platform..
 
 @code{gcc} >= 2.95.2 is recommended when compiling @strong{MySQL}
 Version 3.23.x.
@@ -8536,8 +8539,8 @@ We recommend the following @code{configure} line with @code{egcs} and
 @code{gcc 2.95} on AIX:
 
 @example
-CC="gcc -pipe -mcpu=power2 -Wa,-many" \
-CXX="gcc -pipe -mcpu=power2 -Wa,-many" \
+CC="gcc -pipe -mcpu=power -Wa,-many" \
+CXX="gcc -pipe -mcpu=power -Wa,-many" \
 CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti" \
 ./configure --prefix=/usr/local/mysql --with-low-memory
 @end example
@@ -8548,6 +8551,21 @@ available.  We don't know if the @code{-fno-exceptions} is required with
 @code{gcc 2.95}, but as @strong{MySQL} doesn't use exceptions and the above 
 option generates faster code, we recommend that you should always use this 
 option with @code{egcs / gcc}.
+
+If you get a problem with assembler code try changing the -mcpu=xxx to
+match your cpu. Typically power2, power, or powerpc may need to be used,
+alternatively you might need to use 604 or 604e. I'm not positive but I
+would think using "power" would likely be safe most of the time, even on
+a power2 machine.
+
+If you don't know what your cpu is then do a "uname -m", this will give
+you back a string that looks like "000514676700", with a format of
+xxyyyyyymmss where xx and ss are always 0's, yyyyyy is a unique system
+id and mm is the id of the CPU Planar. A chart of these values can be
+found at
+@uref{http://www.rs6000.ibm.com/doc_link/en_US/a_doc_lib/cmds/aixcmds5/uname.htm}.
+This will give you a machine type and a machine model you can use to
+determine what type of cpu you have.
 
 If you have problems with signals (@strong{MySQL} dies unexpectedly
 under high load) you may have found an OS bug with threads and
@@ -8568,6 +8586,29 @@ will die when it issues its next command.
 On some versions of AIX, linking with @code{libbind.a} makes
 @code{getservbyname} core dump.  This is an AIX bug and should be reported
 to IBM.
+
+For AIX 4.2.1 and gcc you have to do the following changes.
+
+After configuring, edit @file{config.h} and @file{include/my_config.h}
+and change the line that says
+
+@example
+#define HAVE_SNPRINTF 1
+@end example
+
+to
+
+@example
+#undef HAVE_SNPRINTF
+@end example
+
+And finally, in @file{mysqld.cc} you need to add a prototype for initgoups.
+
+@example
+#ifdef _AIX41
+extern "C" int initgroups(const char *,int);
+#endif
+@end example
 
 @node HP-UX 10.20, HP-UX 11.x, IBM-AIX, Source install system issues
 @subsection HP-UX Version 10.20 Notes
@@ -23777,7 +23818,7 @@ is not signaled to the other servers.
 @section MERGE Tables
 
 @code{MERGE} tables are new in @strong{MySQL} Version 3.23.25. The code
-is still in beta, but should stabilize soon!
+is still in gamma, but should be resonable stable.
 
 A @code{MERGE} table is a collection of identical @code{MyISAM} tables
 that can be used as one.  You can only @code{SELECT}, @code{DELETE}, and
@@ -23790,8 +23831,8 @@ will only clear the mapping for the table, not delete everything in the
 mapped tables. (We plan to fix this in 4.0).
 
 With identical tables we mean that all tables are created with identical
-column information.  You can't put a MERGE over tables where the columns
-are packed differently or doesn't have exactly the same columns.
+column and key information.  You can't put a MERGE over tables where the
+columns are packed differently or doesn't have exactly the same columns.
 Some of the tables can however be compressed with @code{myisampack}.
 @xref{myisampack}.
 
@@ -23826,8 +23867,10 @@ More efficient repairs. It's easier to repair the individual files that
 are mapped to a @code{MERGE} file than trying to repair a real big file.
 @item
 Instant mapping of many files as one. A @code{MERGE} table uses the
-index of the individual tables. It doesn't need an index of its one.
-This makes @code{MERGE} table collections VERY fast to make or remap.
+index of the individual tables. It doesn't need to maintain an index of
+its one.  This makes @code{MERGE} table collections VERY fast to make or
+remap.  Note that you must specify the key definitions when you create
+a @code{MERGE} table!.
 @item
 If you have a set of tables that you join to a big table on demand or
 batch, you should instead create a @code{MERGE} table on them on demand.
@@ -43032,8 +43075,8 @@ An open source client for exploring databases and executing SQL. Supports
 A query tool for @strong{MySQL} and PostgreSQL.
 @item @uref{http://dbman.linux.cz/,dbMan}
 A query tool written in Perl. Uses DBI and Tk.
-@item @uref{http://www.mysql.com/Downloads/Win32/Msc201.EXE, Mascon 2.1.15}
-@item @uref{http://www.mysql.com/Downloads/Win32/FrMsc201.EXE, Free Mascon 2.1.14}
+@item @uref{http://www.mysql.com/Downloads/Win32/Msc201.EXE, Mascon 202}
+@item @uref{http://www.mysql.com/Downloads/Win32/FrMsc202.EXE, Free Mascon 202}
 Mascon is a powerful Win32 GUI for the administering @strong{MySQL} server
 databases. Mascon's features include visual table design, connections to
 multiple servers, data and blob editing of tables, security setting, SQL
@@ -44049,6 +44092,9 @@ not yet 100% confident in this code.
 @node News-3.23.38, News-3.23.37, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.38
 @itemize @bullet
+@item
+Fixed bug when too many rows where removed when using
+@code{SELECT DISTINCT ... HAVING}.
 @item
 @code{SHOW CREATE TABLE} now returns @code{TEMPORARY} for temporary tables.
 @item
