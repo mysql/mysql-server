@@ -73,7 +73,7 @@ void print_error(const char *format, ...)
 void log_init();
 
 
-/* initialize logs for daemon application */
+/* print information to the error log and eixt(1) */  
 
 void die(const char *format, ...)
 #ifdef __GNUC__

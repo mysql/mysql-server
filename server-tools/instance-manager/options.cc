@@ -14,15 +14,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifdef __GNUC__
+#pragma implementation 
+#endif
+
 #include "options.h"
 
 #include <my_global.h>
 #include <my_sys.h>
 #include <my_getopt.h>
-
-#ifdef __GNUC__
-#pragma implementation 
-#endif
 
 
 #define QUOTE2(x) #x
@@ -121,7 +121,3 @@ void Options::load(int argc, char **argv)
     exit(rc);
 }
 
-void init_mysys_library(const char *progname)
-{
-  MY_INIT((char *) progname);
-}
