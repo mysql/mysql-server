@@ -3992,7 +3992,8 @@ my_bool STDCALL mysql_stmt_reset(MYSQL_STMT *stmt)
   
   mysql= stmt->mysql->last_used_con;
   int4store(buff, stmt->stmt_id);		/* Send stmt id to server */
-  if ((*mysql->methods->advanced_command)(mysql, COM_RESET_STMT,buff,MYSQL_STMT_HEADER,0,0,1))
+  if ((*mysql->methods->advanced_command)(mysql, COM_RESET_STMT, buff,
+                                          MYSQL_STMT_HEADER,0,0,0))
   {
     set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno, 
                     mysql->net.sqlstate);

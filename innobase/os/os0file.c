@@ -1583,6 +1583,23 @@ error_handling:
 }
 
 /***************************************************************************
+Truncates a file at its current position. */
+
+ibool
+os_file_set_eof(
+/*============*/
+				/* out: TRUE if success */
+	FILE*		file)	/* in: file to be truncated */
+{
+#ifdef __WIN__
+	HANDLE h = (HANDLE) _get_osfhandle(fileno(file));
+	return(SetEndOfFile(h));
+#else /* __WIN__ */
+	return(!ftruncate(fileno(file), ftell(file)));
+#endif /* __WIN__ */
+}
+
+/***************************************************************************
 Flushes the write buffers of a given file to the disk. */
 
 ibool

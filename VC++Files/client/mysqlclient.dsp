@@ -160,6 +160,10 @@ SOURCE="..\strings\ctype-tis620.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\strings\ctype-uca.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\strings\ctype-ucs2.c"
 # End Source File
 # Begin Source File
@@ -503,10 +507,6 @@ SOURCE=..\strings\strtoull.c
 # Begin Source File
 
 SOURCE=..\strings\strxmov.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\strings\strxnmov.c
 # End Source File
 # Begin Source File
 
