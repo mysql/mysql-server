@@ -3642,7 +3642,7 @@ static void get_options(int argc,char **argv)
       if (!mysqld_user)
 	mysqld_user=optarg;
       else
-	fprintf(stderr, "Warning: Ignoring user change to '%s' becasue the user is set to '%s' earlier on the command line\n", optarg, mysqld_user);
+	fprintf(stderr, "Warning: Ignoring user change to '%s' because the user was set to '%s' earlier on the command line\n", optarg, mysqld_user);
       break;
     case 'v':
     case 'V':
