@@ -4741,7 +4741,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c Added 20000925
 @image{Flags/usa} USA [ValueClick, Los Angeles CA] @
 @uref{http://mysql.valueclick.com/, WWW}
-@uref{ftp://mysql.valueclick.com/mysql/, FTP}
+@uref{ftp://mysql.valueclick.com/pub/mysql/Downloads/, FTP}
 
 @c @item
 @c Not ok 20000919; Non-existent (Matt)
