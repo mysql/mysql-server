@@ -252,7 +252,7 @@ sub test_update
 
   for ($id=0 ; $id < $opt_loop_count ; $id++)
   {
-    do_query($dbh,"update bench1 set updated=1 where idn=$id");
+    do_query($dbh,"update $table set updated=1 where idn=$id");
   }
 
   $dbh->commit if (!$auto_commit);
