@@ -2,7 +2,7 @@
 # Test of alter table
 #
 
-drop table if exists t1;
+drop table if exists t1,t2;
 create table t1 (
 col1 int not null auto_increment primary key,
 col2 varchar(30) not null,

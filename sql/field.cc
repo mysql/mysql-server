@@ -1491,12 +1491,14 @@ void Field_medium::sql_type(String &res) const
 
 void Field_long::store(const char *from,uint len)
 {
+  char *end;
   while (len && isspace(*from))
   {
     len--; from++;
   }
   long tmp;
   String tmp_str(from,len);
+  from= tmp_str.c_ptr();			// Add end null if needed
   errno=0;
   if (unsigned_flag)
   {
@@ -1506,11 +1508,13 @@ void Field_long::store(const char *from,uint len)
       errno=ERANGE;
     }
     else
-      tmp=(long) strtoul(tmp_str.c_ptr(),NULL,10);
+      tmp=(long) strtoul(from, &end, 10);
   }
   else
-    tmp=strtol(tmp_str.c_ptr(),NULL,10);
-  if (errno || current_thd->count_cuted_fields && !test_if_int(from,len))
+    tmp=strtol(from, &end, 10);
+  if (errno || 
+      (from+len != end && current_thd->count_cuted_fields &&
+       !test_if_int(from,len)))
     current_thd->cuted_fields++;
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -1719,12 +1723,14 @@ void Field_long::sql_type(String &res) const
 
 void Field_longlong::store(const char *from,uint len)
 {
+  char *end;
   while (len && isspace(*from))
   {						// For easy error check
     len--; from++;
   }
   longlong tmp;
   String tmp_str(from,len);
+  from= tmp_str.c_ptr();			// Add end null if needed
   errno=0;
   if (unsigned_flag)
   {
@@ -1734,12 +1740,14 @@ void Field_longlong::store(const char *from,uint len)
       errno=ERANGE;
     }
     else
-      tmp=(longlong) strtoull(tmp_str.c_ptr(),NULL,10);
+      tmp=(longlong) strtoull(from, &end, 10);
   }
   else
-    tmp=strtoll(tmp_str.c_ptr(),NULL,10);
-  if (errno || current_thd->count_cuted_fields && !test_if_int(from,len))
-    current_thd->cuted_fields++;
+    tmp=strtoll(from, &end, 10);
+  if (errno ||
+      (from+len != end && current_thd->count_cuted_fields &&
+       !test_if_int(from,len)))
+      current_thd->cuted_fields++;
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {

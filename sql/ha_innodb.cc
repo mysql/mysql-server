@@ -674,36 +674,6 @@ innobase_init(void)
 	/* Set InnoDB initialization parameters according to the values
 	read from MySQL .cnf file */
 
-	/* --------------------------------------------------*/
-	/* Make copies of all string-valued parameters, because after
-	C# calls server_init(), it may move the parameter strings around */
-
-	if (innobase_data_home_dir) {
-		innobase_data_home_dir = my_strdup(
-						innobase_data_home_dir,
-						MYF(MY_WME));
-	}
-	if (innobase_data_file_path) {
-		innobase_data_file_path = my_strdup(
-						innobase_data_file_path,
-						MYF(MY_WME));
-	}
-	if (innobase_log_group_home_dir) {
-		innobase_log_group_home_dir = my_strdup(
-						innobase_log_group_home_dir,
-						MYF(MY_WME));
-	}
-	if (innobase_log_arch_dir) {
-		innobase_log_arch_dir = my_strdup(
-						innobase_log_arch_dir,
-						MYF(MY_WME));
-	}
-	if (innobase_unix_file_flush_method) {
-		innobase_unix_file_flush_method = my_strdup(
-					innobase_unix_file_flush_method,
-						MYF(MY_WME));
-	}
-
 	/*--------------- Data files -------------------------*/
 
 	/* The default dir for data files is the datadir of MySQL */

@@ -689,6 +689,7 @@ extern String empty_string;
 extern SHOW_VAR init_vars[],status_vars[], internal_vars[];
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
+extern struct rand_struct sql_rand;
 
 /* optional things, have_* variables */
 
