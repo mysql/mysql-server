@@ -414,8 +414,12 @@ time_t start_time;
 
 ulong opt_sql_mode = 0L;
 const char *sql_mode_names[] =
-{ "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
-  "SERIALIZE","ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",NullS };
+{
+  "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
+  "SERIALIZE", "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",
+  "POSTGRESQL", "ORACLE", "MSSQL", "SAPDB",
+  NullS
+};
 TYPELIB sql_mode_typelib= {array_elements(sql_mode_names)-1,"",
 			   sql_mode_names};
 
@@ -4185,8 +4189,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'a':
     opt_sql_mode = (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT |
-		    MODE_ANSI_QUOTES | MODE_IGNORE_SPACE | MODE_SERIALIZABLE
-		    | MODE_ONLY_FULL_GROUP_BY);
+		    MODE_ANSI_QUOTES | MODE_IGNORE_SPACE | MODE_SERIALIZABLE |
+		    MODE_ONLY_FULL_GROUP_BY);
     global_system_variables.tx_isolation= ISO_SERIALIZABLE;
     break;
   case 'b':

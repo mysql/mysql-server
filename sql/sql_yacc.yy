@@ -167,6 +167,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	BOTH
 %token	BTREE_SYM
 %token	BY
+%token	BYTE_SYM
 %token	CACHE_SYM
 %token	CASCADE
 %token	CAST_SYM
@@ -314,6 +315,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	ROW_SYM
 %token	RTREE_SYM
 %token	SET
+%token	SERIAL_SYM
 %token	SERIALIZABLE_SYM
 %token	SESSION_SYM
 %token	SIMPLE_SYM
@@ -349,6 +351,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	USE_FRM
 %token	USE_SYM
 %token	USING
+%token	VALUE_SYM
 %token	VALUES
 %token	VARIABLES
 %token	WHERE
@@ -1058,7 +1061,13 @@ type:
 	| YEAR_SYM opt_len field_options { $$=FIELD_TYPE_YEAR; Lex->length=$2; }
 	| DATE_SYM			{ $$=FIELD_TYPE_DATE; }
 	| TIME_SYM			{ $$=FIELD_TYPE_TIME; }
-	| TIMESTAMP			{ $$=FIELD_TYPE_TIMESTAMP; }
+	| TIMESTAMP
+	  {
+	    if (current_thd->sql_mode & MODE_SAPDB)
+	      $$=FIELD_TYPE_DATETIME;
+	    else
+	      $$=FIELD_TYPE_TIMESTAMP;	
+	   }
 	| TIMESTAMP '(' NUM ')'		{ Lex->length=$3.str;
 					  $$=FIELD_TYPE_TIMESTAMP; }
 	| DATETIME			{ $$=FIELD_TYPE_DATETIME; }
@@ -1094,7 +1103,11 @@ type:
 	    LEX *lex=Lex;
 	    lex->interval=typelib(lex->interval_list);
 	    $$=FIELD_TYPE_SET;
-	  };
+	  }
+	| LONG_SYM			{ $$=FIELD_TYPE_MEDIUM_BLOB; }
+	| LONG_SYM BINARY		{ Lex->charset=my_charset_bin;
+					  $$=FIELD_TYPE_MEDIUM_BLOB; }
+	;
 
 char:
 	CHAR_SYM {}
@@ -1167,6 +1180,8 @@ attribute:
 	| NOT NULL_SYM	  { Lex->type|= NOT_NULL_FLAG; }
 	| DEFAULT literal { Lex->default_value=$2; }
 	| AUTO_INC	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG; }
+	| SERIAL_SYM DEFAULT VALUE_SYM
+	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG; }
 	| PRIMARY_SYM KEY_SYM { Lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG; }
 	| UNIQUE_SYM	  { Lex->type|= UNIQUE_FLAG; }
 	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
@@ -1205,6 +1220,7 @@ opt_db_default_character_set:
 
 opt_binary:
 	/* empty */			{ Lex->charset=NULL; }
+	| BYTE_SYM			{ Lex->charset=my_charset_bin; }
 	| BINARY			{ Lex->charset=my_charset_bin; }
 	| CHAR_SYM SET charset_name	{ Lex->charset=$3; } ;
 
@@ -3493,6 +3509,7 @@ keyword:
 	| BIT_SYM		{}
 	| BOOL_SYM		{}
 	| BOOLEAN_SYM		{}
+	| BYTE_SYM		{}
 	| CACHE_SYM		{}
 	| CHANGED		{}
 	| CHARSET		{}
@@ -3605,6 +3622,7 @@ keyword:
 	| ROW_FORMAT_SYM	{}
 	| ROW_SYM		{}
 	| SECOND_SYM		{}
+	| SERIAL_SYM		{}
 	| SERIALIZABLE_SYM	{}
 	| SESSION_SYM		{}
 	| SIGNED_SYM		{}
@@ -3633,6 +3651,7 @@ keyword:
 	| UNCOMMITTED_SYM	{}
 	| USE_FRM		{}
 	| VARIABLES		{}
+	| VALUE_SYM		{}
 	| WORK_SYM		{}
 	| YEAR_SYM		{}
 	;

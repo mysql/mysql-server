@@ -927,7 +927,7 @@ static const char *default_options[]=
   "character-sets-dir", "default-character-set", "interactive-timeout",
   "connect-timeout", "local-infile", "disable-local-infile",
   "replication-probe", "enable-reads-from-master", "repl-parse-query",
-  "ssl-cipher","protocol","shared_memory_base_name",
+  "ssl-cipher","protocol", "shared_memory_base_name",
  NullS
 };
 
