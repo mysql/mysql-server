@@ -342,7 +342,7 @@ ulong opt_sql_mode = 0L;
 const char *sql_mode_names[] =
 { "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
   "SERIALIZE","ONLY_FULL_GROUP_BY", NullS };
-TYPELIB sql_mode_typelib= {array_elements(sql_mode_names),"",
+TYPELIB sql_mode_typelib= {array_elements(sql_mode_names)-1,"",
 			   sql_mode_names};
 
 MY_BITMAP temp_pool;
@@ -1738,7 +1738,7 @@ int main(int argc, char **argv)
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
 
 #if defined( SET_RLIMIT_NOFILE) || defined( OS2)
-  /* connections and databases neads lots of files */
+  /* connections and databases needs lots of files */
   {
     uint wanted_files=10+(uint) max(max_connections*5,
 				    max_connections+table_cache_size*2);
@@ -1906,7 +1906,7 @@ The server will not act as a slave.");
     (void) pthread_kill(signal_thread,MYSQL_KILL_SIGNAL);
 #ifndef __WIN__
     if (!opt_bootstrap)
-      (void) my_delete(pidfile_name,MYF(MY_WME));	// Not neaded anymore
+      (void) my_delete(pidfile_name,MYF(MY_WME));	// Not needed anymore
 #endif
     exit(1);
   }

@@ -131,7 +131,7 @@ auto	auto
 auto	auto
 16	16
 Field	Type	Null	Key	Default	Extra	Privileges
-auto	bigint(17)		PRI	0		select,insert,update,references
+auto	bigint(17) unsigned		PRI	0		select,insert,update,references
 t1	bigint(1)			0		select,insert,update,references
 t2	char(1)					select,insert,update,references
 t3	mediumtext					select,insert,update,references

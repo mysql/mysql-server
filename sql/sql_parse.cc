@@ -855,7 +855,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     DBUG_PRINT("info",("query ready"));
     break;
   }
-  case COM_FIELD_LIST:				// This isn't actually neaded
+  case COM_FIELD_LIST:				// This isn't actually needed
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
     break;
@@ -2390,7 +2390,7 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, int *yystacksize)
 
 
 /****************************************************************************
-	Initialize global thd variables neaded for query
+	Initialize global thd variables needed for query
 ****************************************************************************/
 
 static void

@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* Basic functions neaded by many modules */
+/* Basic functions needed by many modules */
 
 #include "mysql_priv.h"
 #include "sql_acl.h"
@@ -165,14 +165,15 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
       open_list=0;				// Out of memory
       break;
     }
-    (*start_list)->table=(strmov((*start_list)->db=(char*) ((*start_list)+1),
-				 entry->table_cache_key)+1,
-			  entry->real_name);
+    strmov((*start_list)->table=
+	   strmov(((*start_list)->db= (char*) ((*start_list)+1)),
+		  entry->table_cache_key)+1,
+	   entry->real_name);
     (*start_list)->in_use= entry->in_use ? 1 : 0;
     (*start_list)->locked= entry->locked_by_name ? 1 : 0;
     start_list= &(*start_list)->next;
+    *start_list=0;
   }
-  *start_list=0;
   VOID(pthread_mutex_unlock(&LOCK_open));
   DBUG_RETURN(open_list);
 }

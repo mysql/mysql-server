@@ -184,8 +184,10 @@ String *Item_num_func::val_str(String *str)
     longlong nr=val_int();
     if (null_value)
       return 0; /* purecov: inspected */
-    else
+    else if (!unsigned_flag)
       str->set(nr);
+    else
+      str->set((ulonglong) nr);
   }
   else
   {
@@ -213,18 +215,26 @@ String *Item_int_func::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  else
+  else if (!unsigned_flag)
     str->set(nr);
+  else
+    str->set((ulonglong) nr);
   return str;
 }
 
-/* Change from REAL_RESULT (default) to INT_RESULT if both arguments are integers */
+/*
+  Change from REAL_RESULT (default) to INT_RESULT if both arguments are
+  integers
+*/
 
 void Item_num_op::find_num_type(void)
 {
   if (args[0]->result_type() == INT_RESULT &&
       args[1]->result_type() == INT_RESULT)
+  {
     hybrid_type=INT_RESULT;
+    unsigned_flag=args[0]->unsigned_flag | args[1]->unsigned_flag;
+  }
 }
 
 String *Item_num_op::val_str(String *str)
@@ -234,8 +244,10 @@ String *Item_num_op::val_str(String *str)
     longlong nr=val_int();
     if (null_value)
       return 0; /* purecov: inspected */
-    else
+    else if (!unsigned_flag)
       str->set(nr);
+    else
+      str->set((ulonglong) nr);
   }
   else
   {
@@ -667,8 +679,10 @@ String *Item_func_min_max::val_str(String *str)
     longlong nr=val_int();
     if (null_value)
       return 0;
-    else
+    else if (!unsigned_flag)
       str->set(nr);
+    else
+      str->set((ulonglong) nr);
     return str;
   }
   case REAL_RESULT:
@@ -1306,8 +1320,10 @@ String *Item_func_udf_int::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  else
+  else if (!unsigned_flag)
     str->set(nr);
+  else
+    str->set((ulonglong) nr);
   return str;
 }
 
