@@ -356,7 +356,7 @@ my_bool my_like_range_big5(const char *ptr,uint ptr_length,pchar escape,
       *min_length= (uint) (min_str-min_org);
       *max_length= res_length;
       do {
-	*min_str++ = '\0';		/* Because if key compression */
+	*min_str++ = ' ';		/* Because if key compression */
 	*max_str++ = max_sort_char;
       } while (min_str != min_end);
       return 0;
