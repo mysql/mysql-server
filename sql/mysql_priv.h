@@ -520,7 +520,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_thread_count,LOCK_mapped_file,LOCK_user_locks, LOCK_status,
        LOCK_grant, LOCK_error_log, LOCK_delayed_insert,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
-       LOCK_binlog_update, LOCK_slave, LOCK_server_id;
+       LOCK_binlog_update, LOCK_slave, LOCK_server_id, LOCK_slave_list;
 extern pthread_cond_t COND_refresh,COND_thread_count, COND_binlog_update,
                       COND_slave_stopped, COND_slave_start;
 extern pthread_attr_t connection_attrib;

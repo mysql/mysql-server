@@ -25,9 +25,39 @@
 #include <thr_alarm.h>
 #include <my_dir.h>
 
+#define SLAVE_LIST_CHUNK 128
+
 extern const char* any_db;
 extern pthread_handler_decl(handle_slave,arg);
 
+HASH slave_list;
+
+static uint32* slave_list_key(SLAVE_INFO* si, uint* len,
+			   my_bool not_used __attribute__((unused)))
+{
+  *len = 4;
+  return &si->server_id;
+}
+
+static void slave_info_free(void *s)
+{
+  my_free((byte*)s, MYF(MY_WME));
+}
+
+void init_slave_list()
+{
+  hash_init(&slave_list, SLAVE_LIST_CHUNK, 0, 0,
+	    (hash_get_key) slave_list_key, slave_info_free, 0);
+  pthread_mutex_init(&LOCK_slave_list, MY_MUTEX_INIT_FAST);
+}
+
+void end_slave_list()
+{
+  pthread_mutex_lock(&LOCK_slave_list);
+  hash_free(&slave_list);
+  pthread_mutex_unlock(&LOCK_slave_list);
+  pthread_mutex_destroy(&LOCK_slave_list);
+}
 
 static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
 			     const char**errmsg)
@@ -54,6 +84,55 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
       return -1;
     }
   return 0;
+}
+
+int register_slave(THD* thd, uchar* packet, uint packet_length)
+{
+  uint len;
+  SLAVE_INFO* si, *old_si;
+  int res = 1;
+  uchar* p = packet, *p_end = packet + packet_length;
+
+  if(check_access(thd, FILE_ACL, any_db))
+    return 1;
+  
+  if(!(si = (SLAVE_INFO*)my_malloc(sizeof(SLAVE_INFO), MYF(MY_WME))))
+    goto err;
+
+  si->server_id = uint4korr(p);
+  p += 4;
+  len = (uint)*p++;
+  if(p + len > p_end || len > sizeof(si->host) - 1)
+    goto err;
+  memcpy(si->host, p, len);
+  si->host[len] = 0;
+  p += len;
+  len = *p++;
+  if(p + len > p_end || len > sizeof(si->user) - 1)
+    goto err;
+  memcpy(si->user, p, len);
+  si->user[len] = 0;
+  p += len;
+  len = *p++;
+  if(p + len > p_end || len > sizeof(si->password) - 1)
+    goto err;
+  memcpy(si->password, p, len);
+  si->password[len] = 0;
+  p += len;
+  si->port = uint2korr(p);
+  pthread_mutex_lock(&LOCK_slave_list);
+
+  if((old_si = (SLAVE_INFO*)hash_search(&slave_list,
+					(byte*)&si->server_id, 4)))
+     hash_delete(&slave_list, (byte*)old_si);
+    
+  res = hash_insert(&slave_list, (byte*)si);
+  pthread_mutex_unlock(&LOCK_slave_list);
+  return res;
+err:
+  if(si)
+    my_free((byte*)si, MYF(MY_WME));
+  return res;
 }
 
 
@@ -740,6 +819,44 @@ void reset_master()
   my_delete(mysql_bin_log.get_index_fname(), MYF(MY_WME));
   mysql_bin_log.open(opt_bin_logname,LOG_BIN);
 
+}
+
+int show_slave_hosts(THD* thd)
+{
+  DBUG_ENTER("show_slave_hosts");
+  List<Item> field_list;
+  field_list.push_back(new Item_empty_string("Server_id", 20));
+  field_list.push_back(new Item_empty_string("Host", 20));
+  field_list.push_back(new Item_empty_string("User",20));
+  field_list.push_back(new Item_empty_string("Password",20));
+  field_list.push_back(new Item_empty_string("Port",20));
+
+  if(send_fields(thd, field_list, 1))
+    DBUG_RETURN(-1);
+  String* packet = &thd->packet;
+  uint i;
+  NET* net = &thd->net;
+
+  pthread_mutex_lock(&LOCK_slave_list);
+  
+  for(i = 0; i < slave_list.records; ++i)
+  {
+    SLAVE_INFO* si = (SLAVE_INFO*)hash_element(&slave_list, i);
+    packet->length(0);
+    net_store_data(packet, si->server_id);
+    net_store_data(packet, si->host);
+    net_store_data(packet, si->user);
+    net_store_data(packet, si->password);
+    net_store_data(packet, (uint)si->port);
+    if(my_net_write(net, (char*)packet->ptr(), packet->length()))
+    {
+      pthread_mutex_unlock(&LOCK_slave_list);
+      DBUG_RETURN(-1);
+    }
+  }
+  pthread_mutex_unlock(&LOCK_slave_list);
+  send_eof(net);
+  DBUG_RETURN(0);
 }
 
 int show_binlog_info(THD* thd)

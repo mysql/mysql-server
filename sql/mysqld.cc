@@ -20,6 +20,7 @@
 #include <my_dir.h>
 #include "sql_acl.h"
 #include "slave.h"
+#include "sql_repl.h"
 #include "stacktrace.h"
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
@@ -277,9 +278,12 @@ volatile ulong cached_thread_count=0;
 // replication parameters, if master_host is not NULL, we are a slave
 my_string master_user = (char*) "test", master_password = 0, master_host=0,
   master_info_file = (char*) "master.info";
+my_string report_user = (char*) "test", report_password = 0, report_host=0;
+ 
 const char *localhost=LOCAL_HOST;
 const char *delayed_user="DELAYED";
 uint master_port = MYSQL_PORT, master_connect_retry = 60;
+uint report_port = MYSQL_PORT;
 
 ulong max_tmp_tables,max_heap_table_size;
 ulong bytes_sent = 0L, bytes_received = 0L;
@@ -341,7 +345,7 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
                 LOCK_binlog_update, LOCK_slave, LOCK_server_id,
-		LOCK_user_conn;
+		LOCK_user_conn, LOCK_slave_list;
 
 pthread_cond_t COND_refresh,COND_thread_count,COND_binlog_update,
   COND_slave_stopped, COND_slave_start;
@@ -695,6 +699,7 @@ void clean_up(bool print_message)
   bitmap_free(&temp_pool);
   free_max_user_conn();
   end_slave();
+  end_slave_list();
 #ifndef __WIN__
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
@@ -1685,7 +1690,8 @@ int main(int argc, char **argv)
   randominit(&sql_rand,(ulong) start_time,(ulong) start_time/2);
   reset_floating_point_exceptions();
   init_thr_lock();
-
+  init_slave_list();
+  
   /* Fix varibles that are base 1024*1024 */
   myisam_max_temp_length= (my_off_t) min(((ulonglong) myisam_max_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
   myisam_max_extra_temp_length= (my_off_t) min(((ulonglong) myisam_max_extra_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
@@ -2479,7 +2485,8 @@ enum options {
                OPT_TEMP_POOL, OPT_DO_PSTACK, OPT_TX_ISOLATION,
 	       OPT_GEMINI_FLUSH_LOG, OPT_GEMINI_RECOVER,
                OPT_GEMINI_UNBUFFERED_IO, OPT_SKIP_SAFEMALLOC,
-	       OPT_SKIP_STACK_TRACE
+	       OPT_SKIP_STACK_TRACE, OPT_REPORT_HOST,
+	       OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT
 };
 
 static struct option long_options[] = {
@@ -2587,6 +2594,12 @@ static struct option long_options[] = {
    (int) OPT_REPLICATE_WILD_IGNORE_TABLE},
   {"replicate-rewrite-db",   required_argument, 0,
      (int) OPT_REPLICATE_REWRITE_DB},
+    // In replication, we may need to tell the other servers how to connect
+    // to us
+  {"report-host",           required_argument, 0, (int) OPT_REPORT_HOST},
+  {"report-user",           required_argument, 0, (int) OPT_REPORT_USER},
+  {"report-password",       required_argument, 0, (int) OPT_REPORT_PASSWORD},
+  {"report-port",           required_argument, 0, (int) OPT_REPORT_PORT},
   {"safe-mode",             no_argument,       0, (int) OPT_SAFE},
   {"safe-show-database",    no_argument,       0, (int) OPT_SAFE_SHOW_DB},
   {"socket",                required_argument, 0, (int) OPT_SOCKET},
@@ -3711,6 +3724,18 @@ static void get_options(int argc,char **argv)
       break;
     case OPT_MASTER_PORT:
       master_port= atoi(optarg);
+      break;
+    case OPT_REPORT_HOST:
+      report_host=optarg;
+      break;
+    case OPT_REPORT_USER:
+      report_user=optarg;
+      break;
+    case OPT_REPORT_PASSWORD:
+      report_password=optarg;
+      break;
+    case OPT_REPORT_PORT:
+      report_port= atoi(optarg);
       break;
     case OPT_MASTER_CONNECT_RETRY:
       master_connect_retry= atoi(optarg);
