@@ -286,7 +286,7 @@ Release Notes:
     * --old_server: mysqlaccess will now use a full where clause when
                     retrieving information from the MySQL-server.  If
                     you are connecting to an old server (before v3.21)
-                    use the option --old_server.
+                    then use the option --old_server.
   2.03         : (1998-02-27)
   - bugfix:
     * in Host::MatchTemplate: incorrect match if host-field was left empty.
