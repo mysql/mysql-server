@@ -4,11 +4,11 @@ DROP DATABASE IF EXISTS `test_$1`;
 CREATE TABLE T1 (a int);
 INSERT INTO T1 VALUES (1);
 SHOW TABLES LIKE "T1";
-Tables_in_test (T1)	table_type
-T1	BASE TABLE
+Tables_in_test (T1)
+T1
 SHOW TABLES LIKE "t1";
-Tables_in_test (t1)	table_type
-T1	BASE TABLE
+Tables_in_test (t1)
+T1
 SHOW CREATE TABLE T1;
 Table	Create Table
 T1	CREATE TABLE `T1` (
@@ -16,37 +16,37 @@ T1	CREATE TABLE `T1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 RENAME TABLE T1 TO T2;
 SHOW TABLES LIKE "T2";
-Tables_in_test (T2)	table_type
-T2	BASE TABLE
+Tables_in_test (T2)
+T2
 SELECT * FROM t2;
 a
 1
 RENAME TABLE T2 TO t3;
 SHOW TABLES LIKE "T3";
-Tables_in_test (T3)	table_type
-t3	BASE TABLE
+Tables_in_test (T3)
+t3
 RENAME TABLE T3 TO T1;
 SHOW TABLES LIKE "T1";
-Tables_in_test (T1)	table_type
-T1	BASE TABLE
+Tables_in_test (T1)
+T1
 ALTER TABLE T1 add b int;
 SHOW TABLES LIKE "T1";
-Tables_in_test (T1)	table_type
-T1	BASE TABLE
+Tables_in_test (T1)
+T1
 ALTER TABLE T1 RENAME T2;
 SHOW TABLES LIKE "T2";
-Tables_in_test (T2)	table_type
-T2	BASE TABLE
+Tables_in_test (T2)
+T2
 LOCK TABLE T2 WRITE;
 ALTER TABLE T2 drop b;
 SHOW TABLES LIKE "T2";
-Tables_in_test (T2)	table_type
-T2	BASE TABLE
+Tables_in_test (T2)
+T2
 UNLOCK TABLES;
 RENAME TABLE T2 TO T1;
 SHOW TABLES LIKE "T1";
-Tables_in_test (T1)	table_type
-T1	BASE TABLE
+Tables_in_test (T1)
+T1
 SELECT * from T1;
 a
 1
@@ -59,11 +59,11 @@ DROP DATABASE `test_$1`;
 CREATE TABLE T1 (a int) engine=innodb;
 INSERT INTO T1 VALUES (1);
 SHOW TABLES LIKE "T1";
-Tables_in_test (T1)	table_type
-T1	BASE TABLE
+Tables_in_test (T1)
+T1
 SHOW TABLES LIKE "t1";
-Tables_in_test (t1)	table_type
-T1	BASE TABLE
+Tables_in_test (t1)
+T1
 SHOW CREATE TABLE T1;
 Table	Create Table
 T1	CREATE TABLE `T1` (
@@ -71,37 +71,37 @@ T1	CREATE TABLE `T1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 RENAME TABLE T1 TO T2;
 SHOW TABLES LIKE "T2";
-Tables_in_test (T2)	table_type
-t2	BASE TABLE
+Tables_in_test (T2)
+t2
 SELECT * FROM t2;
 a
 1
 RENAME TABLE T2 TO t3;
 SHOW TABLES LIKE "T3";
-Tables_in_test (T3)	table_type
-t3	BASE TABLE
+Tables_in_test (T3)
+t3
 RENAME TABLE T3 TO T1;
 SHOW TABLES LIKE "T1";
-Tables_in_test (T1)	table_type
-t1	BASE TABLE
+Tables_in_test (T1)
+t1
 ALTER TABLE T1 add b int;
 SHOW TABLES LIKE "T1";
-Tables_in_test (T1)	table_type
-t1	BASE TABLE
+Tables_in_test (T1)
+t1
 ALTER TABLE T1 RENAME T2;
 SHOW TABLES LIKE "T2";
-Tables_in_test (T2)	table_type
-t2	BASE TABLE
+Tables_in_test (T2)
+t2
 LOCK TABLE T2 WRITE;
 ALTER TABLE T2 drop b;
 SHOW TABLES LIKE "T2";
-Tables_in_test (T2)	table_type
-t2	BASE TABLE
+Tables_in_test (T2)
+t2
 UNLOCK TABLES;
 RENAME TABLE T2 TO T1;
 SHOW TABLES LIKE "T1";
-Tables_in_test (T1)	table_type
-t1	BASE TABLE
+Tables_in_test (T1)
+t1
 SELECT * from T1;
 a
 1
@@ -124,10 +124,10 @@ drop table T1;
 create table T1 (A int);
 alter table T1 add index (A);
 show tables like 'T1%';
-Tables_in_test (T1%)	table_type
-T1	BASE TABLE
+Tables_in_test (T1%)
+T1
 alter table t1 add index (A);
 show tables like 't1%';
-Tables_in_test (t1%)	table_type
-t1	BASE TABLE
+Tables_in_test (t1%)
+t1
 drop table t1;
