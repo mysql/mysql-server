@@ -61,7 +61,14 @@ NdbConnection::receiveSCAN_TABREF(NdbApiSignal* aSignal){
   const ScanTabRef * ref = CAST_CONSTPTR(ScanTabRef, aSignal->getDataPtr());
   
   if(checkState_TransId(&ref->transId1)){
-    theScanningOp->execCLOSE_SCAN_REP(ref->errorCode);
+    theScanningOp->theError.code = ref->errorCode;
+    if(!ref->closeNeeded){
+      theScanningOp->execCLOSE_SCAN_REP();
+      return 0;
+    }
+    assert(theScanningOp->m_sent_receivers_count);
+    theScanningOp->m_sent_receivers_count--;
+    theScanningOp->m_conf_receivers_count++;
     return 0;
   }
   return -1;
@@ -88,11 +95,10 @@ NdbConnection::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
   if(checkState_TransId(&conf->transId1)){
     
     if (conf->requestInfo == ScanTabConf::EndOfData) {
-      theScanningOp->execCLOSE_SCAN_REP(0);
+      theScanningOp->execCLOSE_SCAN_REP();
       return 0;
     }
     
-    int noComp = -1;
     for(Uint32 i = 0; i<len; i += 3){
       Uint32 ptrI = * ops++;
       Uint32 tcPtrI = * ops++;
@@ -108,15 +114,13 @@ NdbConnection::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
 	  /**
 	   *
 	   */
-	  noComp++;
 	  theScanningOp->receiver_delivered(tOp);
 	} else if(info == ScanTabConf::EndOfData){
-	  noComp++;
 	  theScanningOp->receiver_completed(tOp);
 	}
       }
     }
-    return noComp;
+    return 0;
   }
 
   return -1;

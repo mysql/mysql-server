@@ -119,8 +119,8 @@ printSCANTABREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiv
 	  sig->transId1, sig->transId2);
   
   fprintf(output, " Errorcode: %u\n", sig->errorCode);
-
-  // fprintf(output, " sendScanNextReqWithClose: %u\n", sig->sendScanNextReqWithClose);
+  
+  fprintf(output, " closeNeeded: %u\n", sig->closeNeeded);
   return false;
 }
 

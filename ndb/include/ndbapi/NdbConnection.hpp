@@ -633,17 +633,7 @@ private:
 #ifdef VM_TRACE
   void printState();
 #endif
-
-  bool checkState_TransId(const Uint32 * transId) const {
-    const Uint32 tTmp1 = transId[0];
-    const Uint32 tTmp2 = transId[1];
-    Uint64 tRecTransId = (Uint64)tTmp1 + ((Uint64)tTmp2 << 32);
-    bool b = theStatus == Connected && theTransactionId == tRecTransId;
-#ifdef NDB_NO_DROPPED_SIGNAL
-    if(!b) abort();
-#endif
-    return b;
-  }
+  bool checkState_TransId(const Uint32 * transId) const;
 };
 
 inline
@@ -676,6 +666,19 @@ NdbConnection::checkMagicNumber()
 #endif
     return -1;
   }
+}
+
+inline
+bool
+NdbConnection::checkState_TransId(const Uint32 * transId) const {
+  const Uint32 tTmp1 = transId[0];
+  const Uint32 tTmp2 = transId[1];
+  Uint64 tRecTransId = (Uint64)tTmp1 + ((Uint64)tTmp2 << 32);
+  bool b = theStatus == Connected && theTransactionId == tRecTransId;
+#ifdef NDB_NO_DROPPED_SIGNAL
+  if(!b) abort();
+#endif
+  return b;
 }
 
 /************************************************************************************************

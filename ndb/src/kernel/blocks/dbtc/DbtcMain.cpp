@@ -76,6 +76,39 @@
   
 #define INTERNAL_TRIGGER_TCKEYREQ_JBA 0
 
+#ifdef VM_TRACE
+NdbOut &
+operator<<(NdbOut& out, Dbtc::ConnectionState state){
+  out << (int)state;
+  return out;
+}
+NdbOut &
+operator<<(NdbOut& out, Dbtc::OperationState state){
+  out << (int)state;
+  return out;
+}
+NdbOut &
+operator<<(NdbOut& out, Dbtc::AbortState state){
+  out << (int)state;
+  return out;
+}
+NdbOut &
+operator<<(NdbOut& out, Dbtc::ReturnSignal state){
+  out << (int)state;
+  return out;
+}
+NdbOut &
+operator<<(NdbOut& out, Dbtc::ScanRecord::ScanState state){
+  out << (int)state;
+  return out;
+}
+NdbOut &
+operator<<(NdbOut& out, Dbtc::ScanFragRec::ScanFragState state){
+  out << (int)state;
+  return out;
+}
+#endif
+
 void
 Dbtc::updateBuddyTimer(ApiConnectRecordPtr apiPtr)
 {
@@ -915,7 +948,7 @@ Dbtc::handleFailedApiNode(Signal* signal,
 	ScanRecordPtr scanPtr;
 	scanPtr.i = apiConnectptr.p->apiScanRec;
 	ptrCheckGuard(scanPtr, cscanrecFileSize, scanRecord);
-	close_scan_req(signal, scanPtr);
+	close_scan_req(signal, scanPtr, true);
 
         TloopCount += 64;
         break;
@@ -1094,138 +1127,6 @@ void Dbtc::handleApiFailState(Signal* signal, UintR TapiConnectptr)
     sendSignal(capiFailRef, GSN_API_FAILCONF, signal, 2, JBB);
   }//if
 }//Dbtc::handleApiFailState()
-
-/**
- * Dbtc::handleScanStop
- *  This function is called when an entire scan should be stopped
- *  Check state of the scan and take appropriate action.
- *  The parameter TapiFailedNode indicates if the scan is stopped
- *  because an API node has failed or if it has been stopped because 
- *  the scan has timed out.
- *
- */
-void Dbtc::handleScanStop(Signal* signal, UintR TapiFailedNode)
-{
-#if JONAS_NOT_DONE
-  arrGuard(TapiFailedNode, MAX_NODES);
-
-  scanptr.i = apiConnectptr.p->apiScanRec;
-  ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
-
-  // If api has failed we must release all resources
-  bool apiNodeHasFailed = (TapiFailedNode != 0);
-
-  DEBUG("handleScanStop: scanState = "<< scanptr.p->scanState);
-
-  switch (scanptr.p->scanState) {
-  case ScanRecord::WAIT_SCAN_TAB_INFO:
-  case ScanRecord::WAIT_AI:
-    jam();
-    /**
-     * The scan process is still in the definition phase. 
-     * We will release the resources and then release the connection 
-     * to the failed API.
-     */
-    releaseScanResources(scanptr);
-    if (apiNodeHasFailed) {
-      jam();
-      releaseApiCon(signal, apiConnectptr.i);
-    }//if
-    break;
-
-  case ScanRecord::WAIT_FRAGMENT_COUNT:
-    jam();
-    if (!apiNodeHasFailed) {
-      jam();
-      /**
-       * Time-out waiting for a local signal can only happen 
-       * if we have a serious problem.
-       */
-      systemErrorLab(signal);
-    }//if
-    capiConnectClosing[TapiFailedNode]++;
-    apiConnectptr.p->apiFailState = ZTRUE;
-    scanptr.p->apiIsClosed = true;
-    break;
-
-  case ScanRecord::CLOSING_SCAN:
-    jam();
-    /**
-     * With CLOSING_SCAN it is enough to set the 
-     * fail state such that the connection is released at the end of the 
-     * closing process. The close process is already ongoing.
-     * Set apiIsClosed to true to indicate that resources should be released
-     * at the end of the close process.
-     **/
-
-    if (apiNodeHasFailed) {
-      jam();
-      capiConnectClosing[TapiFailedNode]++;
-      apiConnectptr.p->apiFailState = ZTRUE;
-      scanptr.p->apiIsClosed = true;
-    }//if
-    if (apiConnectptr.p->apiFailState == ZTRUE) {
-      jam();
-      handleApiFailState(signal, apiConnectptr.i);
-      return;
-    }//if
-    break;
-
-  case ScanRecord::SCAN_NEXT_ORDERED:
-    /**
-     * In the SCAN_NEXT_ORDERED state we will wait for the next natural place 
-     * to receive some action from the API and instead of waiting for the 
-     * API here we will start the abort process. 
-
-     * After the abort process is completed we will release the connection.
-     */
-    if (apiNodeHasFailed) {
-      jam();
-      capiConnectClosing[TapiFailedNode]++;
-      apiConnectptr.p->apiFailState = ZTRUE;
-    }//if
-    // Release resources and send a response to API
-    scanptr.p->apiIsClosed = true;
-    scanCompletedLab(signal);
-    break;
-
-  case ScanRecord::DELIVERED:
-  case ScanRecord::QUEUED_DELIVERED:
-    /**
-     * A response has been sent to the api but it has not responded
-     */
-    
-    if (apiNodeHasFailed) {
-      jam();
-      capiConnectClosing[TapiFailedNode]++;
-      apiConnectptr.p->apiFailState = ZTRUE;
-      scanptr.p->apiIsClosed = true;
-    } else {
-      jam();
-      /*
-      In this case we have received a time-out caused by the application
-      waiting too long to continue the scan. We will check the application
-      time-out instead of the deadlock detetection time-out. If the
-      application time-out hasn't fired we will simply ignore the condition.
-      */
-      if ((ctcTimer - getApiConTimer(apiConnectptr.i)) <= c_appl_timeout_value) {
-        jam();
-        return;
-      }//if
-      // Dont' release, wait until api responds or fails
-      scanptr.p->apiIsClosed = false;
-    }
-    scanCompletedLab(signal);
-    break;
-
-  default:
-    jam();
-    systemErrorLab(signal);
-    break;
-
-  }//switch
-#endif
-}//Dbtc::handleScanStop()
 
 /****************************************************************************
  *                                T C S E I Z E R E Q
@@ -1409,7 +1310,7 @@ void Dbtc::printState(Signal* signal, int place)
 	 << " counter = " << apiConnectptr.p->counter
 	 << " lqhkeyconfrec = " << apiConnectptr.p->lqhkeyconfrec
 	 << " lqhkeyreqrec = " << apiConnectptr.p->lqhkeyreqrec << endl;
-  ndbout << "abortState = " << (int)apiConnectptr.p->abortState 
+  ndbout << "abortState = " << apiConnectptr.p->abortState 
 	 << " apiScanRec = " << apiConnectptr.p->apiScanRec
 	 << " returncode = " << apiConnectptr.p->returncode << endl;
   ndbout << "tckeyrec = " << apiConnectptr.p->tckeyrec
@@ -6155,11 +6056,14 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr)
     tcConnectptr.i = apiConnectptr.p->firstTcConnect;
     sendAbortedAfterTimeout(signal, 0);
     break;
-  case CS_START_SCAN:
+  case CS_START_SCAN:{
     jam();
-    apiConnectptr.p->returncode = ZSCANTIME_OUT_ERROR;
-    handleScanStop(signal, 0);
+    ScanRecordPtr scanPtr;
+    scanPtr.i = apiConnectptr.p->apiScanRec;
+    ptrCheckGuard(scanPtr, cscanrecFileSize, scanRecord);
+    scanError(signal, scanPtr, ZSCANTIME_OUT_ERROR);
     break;
+  }
   case CS_WAIT_ABORT_CONF:
     jam();
     tcConnectptr.i = apiConnectptr.p->currentTcConnect;
@@ -6529,14 +6433,15 @@ void Dbtc::execSCAN_HBREP(Signal* signal)
   c_scan_frag_pool.getPtr(scanFragptr);
   switch (scanFragptr.p->scanFragState){
   case ScanFragRec::LQH_ACTIVE:
+    //case ScanFragRec::LQH_ACTIVE_CLOSE:
     break;
-    
   default:
     DEBUG("execSCAN_HBREP: scanFragState="<<scanFragptr.p->scanFragState);
     systemErrorLab(signal);
     break;
   }
 
+  ScanRecordPtr scanptr;
   scanptr.i = scanFragptr.p->scanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
 
@@ -6567,6 +6472,7 @@ void Dbtc::execSCAN_HBREP(Signal* signal)
     updateBuddyTimer(apiConnectptr);
     scanFragptr.p->startFragTimer(ctcTimer);
   } else {
+    ndbassert(false);
     DEBUG("SCAN_HBREP when scanFragTimer was turned off");
   }
 }//execSCAN_HBREP()
@@ -6575,34 +6481,56 @@ void Dbtc::execSCAN_HBREP(Signal* signal)
 /*      Timeout has occured on a fragment which means a scan has timed out. */
 /*      If this is true we have an error in LQH/ACC.                        */
 /*--------------------------------------------------------------------------*/
+static int kalle = 0;
 void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
 {
-  scanFragptr.i = TscanConPtr;
-  c_scan_frag_pool.getPtr(scanFragptr);
-  DEBUG("timeOutFoundFragLab: scanFragState = "<<scanFragptr.p->scanFragState);
+  ScanFragRecPtr ptr;
+  c_scan_frag_pool.getPtr(ptr, TscanConPtr);
+  DEBUG(TscanConPtr << " timeOutFoundFragLab: scanFragState = "<< ptr.p->scanFragState);
 
   /*-------------------------------------------------------------------------*/
   // The scan fragment has expired its timeout. Check its state to decide
   // what to do.
   /*-------------------------------------------------------------------------*/
-  switch (scanFragptr.p->scanFragState) {
-
+  switch (ptr.p->scanFragState) {
   case ScanFragRec::WAIT_GET_PRIMCONF:
     jam();
-    // Crash the system if we do not return from DIGETPRIMREQ in time.
-    systemErrorLab(signal);
+    ndbrequire(false);
     break;
-
-  case ScanFragRec::LQH_ACTIVE:
+  case ScanFragRec::LQH_ACTIVE:{
     jam();
+
     /**  
      * The LQH expired it's timeout, try to close it
      */    
-    scanFragError(signal, ZSCAN_FRAG_LQH_ERROR);
-    DEBUG(" LQH_ACTIVE - closing the fragment scan in node "
-	  << refToNode(scanFragptr.p->lqhBlockref));
-    break;
+    Uint32 nodeId = refToNode(ptr.p->lqhBlockref);
+    Uint32 connectCount = getNodeInfo(nodeId).m_connectCount;
+    ScanRecordPtr scanptr;
+    scanptr.i = ptr.p->scanRec;
+    ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+
+    if(connectCount != ptr.p->m_connectCount){
+      jam();
+      /**
+       * The node has died
+       */
+      ndbout_c("Node %d has died", nodeId);
+      ptr.p->scanFragState = ScanFragRec::COMPLETED;
+      ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+      ScanFragList comp(c_scan_frag_pool, scanptr.p->m_completed_scan_frags);
+      
+      run.remove(ptr);
+      comp.add(ptr);
+      ptr.p->stopFragTimer();
+    } else {
+      kalle++;
+      if(kalle > 5)
+	ndbassert(scanptr.p->scanState != ScanRecord::CLOSING_SCAN);
+    }
     
+    scanError(signal, scanptr, ZSCAN_FRAG_LQH_ERROR);
+    break;
+  }
   case ScanFragRec::DELIVERED:
     jam();
   case ScanFragRec::IDLE:
@@ -6863,14 +6791,38 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
 				      Uint32 scanPtrI, 
 				      Uint32 failedNodeId){
 
+  ScanRecordPtr scanptr;
   for (scanptr.i = scanPtrI; scanptr.i < cscanrecFileSize; scanptr.i++) {
     jam();
     ptrAss(scanptr, scanRecord);
     if (scanptr.p->scanState != ScanRecord::IDLE){
-      checkScanFragList(signal, failedNodeId, 
-			scanptr.p, scanptr.p->m_running_scan_frags);
-    }
+      jam();
+      ScanFragRecPtr ptr;
+      ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+      ScanFragList comp(c_scan_frag_pool, scanptr.p->m_completed_scan_frags);
 
+      bool found = false;
+      for(run.first(ptr); !ptr.isNull(); ){
+	jam();
+	ScanFragRecPtr curr = ptr;
+	run.next(ptr);
+	if (curr.p->scanFragState == ScanFragRec::LQH_ACTIVE && 
+	    refToNode(curr.p->lqhBlockref) == failedNodeId){
+	  jam();
+	  
+	  run.remove(curr);
+	  comp.add(curr);
+	  curr.p->scanFragState = ScanFragRec::COMPLETED;
+	  curr.p->stopFragTimer();
+	  found = true;
+	}
+      }
+      if(found){
+	jam();
+	scanError(signal, scanptr, ZSCAN_LQH_ERROR);	  
+      }
+    }
+    
     // Send CONTINUEB to continue later
     signal->theData[0] = TcContinueB::ZCHECK_SCAN_ACTIVE_FAILED_LQH;
     signal->theData[1] = scanptr.i + 1; // Check next scanptr
@@ -6886,29 +6838,7 @@ Dbtc::checkScanFragList(Signal* signal,
 			ScanRecord * scanP, 
 			ScanFragList::Head & head){
   
-  ScanFragRecPtr ptr;
-  ScanFragList list(c_scan_frag_pool, head);
-  
-  for(list.first(ptr); !ptr.isNull(); list.next(ptr)){
-    if (refToNode(ptr.p->lqhBlockref) == failedNodeId){
-      switch (ptr.p->scanFragState){
-      case ScanFragRec::LQH_ACTIVE:
-	jam();
-	apiConnectptr.i = scanptr.p->scanApiRec;
-	ptrCheckGuard(apiConnectptr, capiConnectFilesize, 
-		      apiConnectRecord);
-	
-	DEBUG("checkScanActiveInFailedLqh: scanFragError");
-	scanFragError(signal, ZSCAN_LQH_ERROR);
-	
-	break;
-      default:
-	/* empty */
-	jam();
-	break;
-      }
-    }
-  } 
+  DEBUG("checkScanActiveInFailedLqh: scanFragError");
 }
 
 void Dbtc::execTAKE_OVERTCCONF(Signal* signal) 
@@ -8421,6 +8351,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   Uint32 noOprecPerFrag = ScanTabReq::getScanBatch(reqinfo);
   Uint32 scanParallel = scanConcurrency;
   Uint32 errCode;
+  ScanRecordPtr scanptr;
 
   if(noOprecPerFrag == 0){
     jam();
@@ -8445,12 +8376,13 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     return;
   }//if
   ptrAss(apiConnectptr, apiConnectRecord);
+  ApiConnectRecord * transP = apiConnectptr.p;
 
-  if (apiConnectptr.p->apiConnectstate != CS_CONNECTED) {
+  if (transP->apiConnectstate != CS_CONNECTED) {
     jam();
     // could be left over from TCKEYREQ rollback
-    if (apiConnectptr.p->apiConnectstate == CS_ABORTING &&
-	apiConnectptr.p->abortState == AS_IDLE) {
+    if (transP->apiConnectstate == CS_ABORTING &&
+	transP->abortState == AS_IDLE) {
       jam();
     } else {
       jam();
@@ -8515,15 +8447,26 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   }
   
   seizeTcConnect(signal);
-  seizeCacheRecord(signal);
-  seizeScanrec(signal);
-  initScanrec(signal, scanParallel, noOprecPerFrag);
   tcConnectptr.p->apiConnect = apiConnectptr.i;
-  initScanApirec(signal, buddyPtr, transid1, transid2);
+
+  seizeCacheRecord(signal);
+  scanptr = seizeScanrec(signal);
+
+  ndbrequire(transP->apiScanRec == RNIL);
+  ndbrequire(scanptr.p->scanApiRec == RNIL);
+
+  initScanrec(scanptr, scanTabReq, scanParallel, noOprecPerFrag);
+
+  //initScanApirec(signal, buddyPtr, transid1, transid2);
+  transP->apiScanRec = scanptr.i;
+  transP->returncode = 0;
+  transP->transid[0] = transid1;
+  transP->transid[1] = transid2;
+  transP->buddyPtr   = buddyPtr;
 
   // The scan is started
-  apiConnectptr.p->apiConnectstate = CS_START_SCAN;
-  apiConnectptr.p->currSavePointId = currSavePointId;
+  transP->apiConnectstate = CS_START_SCAN;
+  transP->currSavePointId = currSavePointId;
 
   /**********************************************************
   * We start the timer on scanRec to be able to discover a 
@@ -8546,12 +8489,14 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   
  SCAN_TAB_error:
   jam();
+  ndbrequire(false);
   ScanTabRef * ref = (ScanTabRef*)&signal->theData[0];
-  ref->apiConnectPtr = apiConnectptr.p->ndbapiConnect;
+  ref->apiConnectPtr = transP->ndbapiConnect;
   ref->transId1 = transid1;
   ref->transId2 = transid2;
   ref->errorCode  = errCode;
-  sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_SCAN_TABREF, 
+  ref->closeNeeded = 0;
+  sendSignal(transP->ndbapiBlockref, GSN_SCAN_TABREF, 
 	     signal, ScanTabRef::SignalLength, JBB);
 
   return;
@@ -8561,20 +8506,13 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
 void Dbtc::initScanApirec(Signal* signal, 
 			  Uint32 buddyPtr, UintR transid1, UintR transid2) 
 {
-  ApiConnectRecord * apiPtr = apiConnectptr.p;
-  apiPtr->apiScanRec = scanptr.i;
-  apiPtr->returncode = 0;
-  apiPtr->transid[0] = transid1;
-  apiPtr->transid[1] = transid2;
-  apiPtr->buddyPtr   = buddyPtr;
-  
 }//Dbtc::initScanApirec()
 
-void Dbtc::initScanrec(Signal* signal,
+void Dbtc::initScanrec(ScanRecordPtr scanptr,
+		       const ScanTabReq * scanTabReq,
 		       UintR scanParallel,
 		       UintR noOprecPerFrag) 
 {
-  const ScanTabReq * const scanTabReq = (ScanTabReq *)&signal->theData[0];
   const UintR reqinfo = scanTabReq->requestInfo;
   ndbrequire(scanParallel < 16);
 
@@ -8613,6 +8551,7 @@ void Dbtc::scanTabRefLab(Signal* signal, Uint32 errCode)
   ref->transId1 = apiConnectptr.p->transid[0];
   ref->transId2 = apiConnectptr.p->transid[1];
   ref->errorCode  = errCode;
+  ref->closeNeeded = 0;
   sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_SCAN_TABREF, 
 	     signal, ScanTabRef::SignalLength, JBB);
 }//Dbtc::scanTabRefLab()
@@ -8623,6 +8562,7 @@ void Dbtc::scanTabRefLab(Signal* signal, Uint32 errCode)
 /*---------------------------------------------------------------------------*/
 void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen) 
 {
+  ScanRecordPtr scanptr;
   scanptr.i = apiConnectptr.p->apiScanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
   tcConnectptr.i = scanptr.p->scanTcrec;
@@ -8652,7 +8592,7 @@ void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen)
        * THIS SCAN. WE ARE READY TO START THE ACTUAL 
        * EXECUTION OF THE SCAN QUERY
        **************************************************/
-      diFcountReqLab(signal);
+      diFcountReqLab(signal, scanptr);
       return;
     }//if
   }//if
@@ -8660,21 +8600,21 @@ void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen)
 
 scanAttrinfo_attrbuf_error:
   jam();
-  abortScanLab(signal, ZGET_ATTRBUF_ERROR);
+  abortScanLab(signal, scanptr, ZGET_ATTRBUF_ERROR);
   return;
 
 scanAttrinfo_attrbuf2_error:
   jam();
-  abortScanLab(signal, ZGET_ATTRBUF_ERROR);
+  abortScanLab(signal, scanptr, ZGET_ATTRBUF_ERROR);
   return;
 
 scanAttrinfo_len_error:
   jam();
-  abortScanLab(signal, ZLENGTH_ERROR);
+  abortScanLab(signal, scanptr, ZLENGTH_ERROR);
   return;
 }//Dbtc::scanAttrinfoLab()
 
-void Dbtc::diFcountReqLab(Signal* signal) 
+void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
 {
   /**
    * Check so that the table is not being dropped
@@ -8685,7 +8625,8 @@ void Dbtc::diFcountReqLab(Signal* signal)
   if (tabPtr.p->checkTable(scanptr.p->scanSchemaVersion)){
     ;
   } else {
-    abortScanLab(signal, tabPtr.p->getErrorCode(scanptr.p->scanSchemaVersion));
+    abortScanLab(signal, scanptr, 
+		 tabPtr.p->getErrorCode(scanptr.p->scanSchemaVersion));
     return;
   }
 
@@ -8717,6 +8658,7 @@ void Dbtc::execDI_FCOUNTCONF(Signal* signal)
   ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
   apiConnectptr.i = tcConnectptr.p->apiConnect;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+  ScanRecordPtr scanptr;
   scanptr.i = apiConnectptr.p->apiScanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
   ndbrequire(scanptr.p->scanState == ScanRecord::WAIT_FRAGMENT_COUNT);
@@ -8728,7 +8670,7 @@ void Dbtc::execDI_FCOUNTCONF(Signal* signal)
   }//if
   if (tfragCount == 0) {
     jam();
-    abortScanLab(signal, ZNO_FRAGMENT_ERROR);
+    abortScanLab(signal, scanptr, ZNO_FRAGMENT_ERROR);
     return;
   }//if
   
@@ -8741,19 +8683,22 @@ void Dbtc::execDI_FCOUNTCONF(Signal* signal)
   if (tabPtr.p->checkTable(scanptr.p->scanSchemaVersion)){
     ;
   } else {
-    abortScanLab(signal, tabPtr.p->getErrorCode(scanptr.p->scanSchemaVersion));
+    abortScanLab(signal, scanptr,
+		 tabPtr.p->getErrorCode(scanptr.p->scanSchemaVersion));
     return;
   }
 
   if(scanptr.p->scanParallel > tfragCount){
     jam();
-    abortScanLab(signal, ZTOO_HIGH_CONCURRENCY_ERROR);
+    abortScanLab(signal, scanptr, ZTOO_HIGH_CONCURRENCY_ERROR);
     return;
   }
   
   scanptr.p->scanParallel = tfragCount;
   scanptr.p->scanNoFrag = tfragCount;
   scanptr.p->scanNextFragId = 0;
+  scanptr.p->scanState = ScanRecord::RUNNING;
+
   setApiConTimer(apiConnectptr.i, 0, __LINE__);
   updateBuddyTimer(apiConnectptr);
   
@@ -8768,6 +8713,7 @@ void Dbtc::execDI_FCOUNTCONF(Signal* signal)
 	     scanptr.p->scanTableref, scanptr.p->scanNextFragId);
 #endif    
 
+    ptr.p->lqhBlockref = 0;
     ptr.p->startFragTimer(ctcTimer);
     ptr.p->scanFragId = scanptr.p->scanNextFragId++;
     ptr.p->scanFragState = ScanFragRec::WAIT_GET_PRIMCONF;
@@ -8792,6 +8738,7 @@ void Dbtc::execDI_FCOUNTREF(Signal* signal)
   const Uint32 errCode = signal->theData[1];
   apiConnectptr.i = tcConnectptr.p->apiConnect;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+  ScanRecordPtr scanptr;
   scanptr.i = apiConnectptr.p->apiScanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
   ndbrequire(scanptr.p->scanState == ScanRecord::WAIT_FRAGMENT_COUNT);
@@ -8801,10 +8748,10 @@ void Dbtc::execDI_FCOUNTREF(Signal* signal)
     handleApiFailState(signal, apiConnectptr.i);
     return;
   }//if
-  abortScanLab(signal, errCode);
+  abortScanLab(signal, scanptr, errCode);
 }//Dbtc::execDI_FCOUNTREF()
 
-void Dbtc::abortScanLab(Signal* signal, Uint32 errCode) 
+void Dbtc::abortScanLab(Signal* signal, ScanRecordPtr scanptr, Uint32 errCode) 
 {
   scanTabRefLab(signal, errCode);
   releaseScanResources(scanptr);
@@ -8835,6 +8782,7 @@ void Dbtc::releaseScanResources(ScanRecordPtr scanPtr)
   scanPtr.p->nextScan = cfirstfreeScanrec;
   scanPtr.p->scanState = ScanRecord::IDLE;
   scanPtr.p->scanTcrec = RNIL;
+  scanPtr.p->scanApiRec = RNIL;
   cfirstfreeScanrec = scanPtr.i;
   
   apiConnectptr.p->apiScanRec = RNIL;
@@ -8862,7 +8810,8 @@ void Dbtc::execDIGETPRIMCONF(Signal* signal)
 
   ndbrequire(scanFragptr.p->scanFragState == ScanFragRec::WAIT_GET_PRIMCONF);
   scanFragptr.p->stopFragTimer();
-  
+
+  ScanRecordPtr scanptr;
   scanptr.i = scanFragptr.p->scanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
 
@@ -8876,7 +8825,12 @@ void Dbtc::execDIGETPRIMCONF(Signal* signal)
     Uint32 schemaVersion = scanptr.p->scanSchemaVersion;
     if(tabPtr.p->checkTable(schemaVersion) == false){
       jam();
-      scanFragError(signal, tabPtr.p->getErrorCode(schemaVersion));
+      ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+      ScanFragList comp(c_scan_frag_pool, scanptr.p->m_completed_scan_frags);
+      
+      run.remove(scanFragptr);
+      comp.add(scanFragptr);
+      scanError(signal, scanptr, tabPtr.p->getErrorCode(schemaVersion));
       return;
     }
   }
@@ -8908,7 +8862,7 @@ void Dbtc::execDIGETPRIMCONF(Signal* signal)
   Uint32 ref = calcLqhBlockRef(tnodeid);
   scanFragptr.p->lqhBlockref = ref;
   scanFragptr.p->m_connectCount = getNodeInfo(tnodeid).m_connectCount;
-  sendScanFragReq(signal);
+  sendScanFragReq(signal, scanptr.p, scanFragptr.p);
   attrbufptr.i = cachePtr.p->firstAttrbuf;
   while (attrbufptr.i != RNIL) {
     jam();
@@ -8943,7 +8897,18 @@ void Dbtc::execDIGETPRIMREF(Signal* signal)
   const Uint32 errCode = signal->theData[2];
   c_scan_frag_pool.getPtr(scanFragptr);
   ndbrequire(scanFragptr.p->scanFragState == ScanFragRec::WAIT_GET_PRIMCONF);
-  scanFragError(signal, errCode);
+
+  ScanRecordPtr scanptr;
+  scanptr.i = scanFragptr.p->scanRec;
+  ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+
+  ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+  ScanFragList comp(c_scan_frag_pool, scanptr.p->m_completed_scan_frags);
+  
+  run.remove(scanFragptr);
+  comp.add(scanFragptr);
+
+  scanError(signal, scanptr, errCode);
 }//Dbtc::execDIGETPRIMREF()
 
 /**
@@ -8962,6 +8927,7 @@ void Dbtc::execSCAN_FRAGREF(Signal* signal)
   scanFragptr.i = ref->senderData;
   c_scan_frag_pool.getPtr(scanFragptr);
 
+  ScanRecordPtr scanptr;
   scanptr.i = scanFragptr.p->scanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
 
@@ -8981,42 +8947,64 @@ void Dbtc::execSCAN_FRAGREF(Signal* signal)
    * stop fragment timer and call scanFragError to start 
    * close of the other fragment scans
    */
-  scanFragError(signal, errCode);
+  ndbrequire(scanFragptr.p->scanFragState == ScanFragRec::LQH_ACTIVE);
+  {
+    scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
+    ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+    ScanFragList comp(c_scan_frag_pool, scanptr.p->m_completed_scan_frags);
+    
+    run.remove(scanFragptr);
+    comp.add(scanFragptr);
+    scanFragptr.p->stopFragTimer();
+  }    
+  scanError(signal, scanptr, errCode);
 }//Dbtc::execSCAN_FRAGREF()
 
 /**
- * Dbtc::scanFragError
+ * Dbtc::scanError
  *
  * Called when an error occurs during
- * a scan of a fragment.
- * NOTE that one scan may consist of several fragment scans.
- *
  */ 
-void Dbtc::scanFragError(Signal* signal, Uint32 errorCode) 
+void Dbtc::scanError(Signal* signal, ScanRecordPtr scanptr, Uint32 errorCode) 
 {
   jam();
-  scanptr.i = scanFragptr.p->scanRec;
-  ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
-  DEBUG("scanFragError, errorCode = "<< errorCode
-	<< ", scanState = " << scanptr.p->scanState);
+  ScanRecord* scanP = scanptr.p;
+  
+  DEBUG("scanError, errorCode = "<< errorCode << 
+	", scanState = " << scanptr.p->scanState);
 
-  scanFragptr.p->stopFragTimer();
-#if JONAS_NOT_DONE
-
-  apiConnectptr.i = scanptr.p->scanApiRec;
-  ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
-
-  // If close of the scan is not already started
-  if (scanptr.p->scanState != ScanRecord::CLOSING_SCAN) {
+  if(scanP->scanState == ScanRecord::CLOSING_SCAN){
     jam();
-    apiConnectptr.p->returncode = errorCode;
-
-    scanCompletedLab(signal);
+    close_scan_req_send_conf(signal, scanptr);
     return;
-  }//if
-#endif
-}//Dbtc::scanFragError()
+  }
 
+  ndbrequire(scanP->scanState == ScanRecord::RUNNING);
+
+  apiConnectptr.i = scanP->scanApiRec;
+  ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+  ndbrequire(apiConnectptr.p->apiScanRec == scanptr.i);
+  
+  /**
+   * Close scan wo/ having received an order to do so
+   */
+  close_scan_req(signal, scanptr, false);
+  
+  const bool apiFail = (apiConnectptr.p->apiFailState == ZTRUE);
+  if(apiFail){
+    jam();
+    return;
+  }
+  
+  ScanTabRef * ref = (ScanTabRef*)&signal->theData[0];
+  ref->apiConnectPtr = apiConnectptr.p->ndbapiConnect;
+  ref->transId1 = apiConnectptr.p->transid[0];
+  ref->transId2 = apiConnectptr.p->transid[1];
+  ref->errorCode  = errorCode;
+  ref->closeNeeded = 1;
+  sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_SCAN_TABREF, 
+	     signal, ScanTabRef::SignalLength, JBB);
+}//Dbtc::scanError()
 
 /************************************************************
  * execSCAN_FRAGCONF
@@ -9034,6 +9022,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   scanFragptr.i = conf->senderData;
   c_scan_frag_pool.getPtr(scanFragptr);
   
+  ScanRecordPtr scanptr;
   scanptr.i = scanFragptr.p->scanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
   
@@ -9051,32 +9040,34 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   ndbrequire(scanFragptr.p->scanFragState == ScanFragRec::LQH_ACTIVE);
   
   const Uint32 status = conf->fragmentCompleted;
-  scanFragptr.p->stopFragTimer();
-
+  
+  DEBUG(apiConnectptr.i << " " << scanFragptr.i << 
+	" execSCAN_FRAGCONF() status: " << status 
+	<< " ops: " << noCompletedOps << " from: " << refToNode(signal->getSendersBlockRef()));
+  
   if(scanptr.p->scanState == ScanRecord::CLOSING_SCAN){
+    jam();
     if(status == ZFALSE){
       /**
-       * Dont deliver to api, but instead close in LQH
-       * Dont need to mess with queues
+       * We have started closing = we sent a close -> ignore this
        */
-      ndbout_c("running -> running(close)");
-
-      jam();
-      ScanFragNextReq * nextReq = (ScanFragNextReq*)&signal->theData[0];
-      nextReq->senderData = scanFragptr.i;
-      nextReq->closeFlag = ZTRUE;
-      nextReq->transId1 = apiConnectptr.p->transid[0];
-      nextReq->transId2 = apiConnectptr.p->transid[1];
-      sendSignal(scanFragptr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
-		 ScanFragNextReq::SignalLength, JBB);
+      DEBUG(apiConnectptr.i << " " << scanFragptr.i << 
+	    " Received SCANFRAG_CONF wo/ close when in "
+	    " CLOSING_SCAN:" << status << " " << noCompletedOps);
       return;
     } else {
       jam();
+      DEBUG(apiConnectptr.i << " " << scanFragptr.i 
+	    << " Received SCANFRAG_CONF w/ close when in "
+	    " CLOSING_SCAN:" << status << " " << noCompletedOps);
+      
       ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
       ScanFragList comp(c_scan_frag_pool, scanptr.p->m_completed_scan_frags);
       
       run.remove(scanFragptr);
       comp.add(scanFragptr);
+      scanFragptr.p->stopFragTimer();
+      scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
     }
     close_scan_req_send_conf(signal, scanptr);
     return;
@@ -9126,7 +9117,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
     
   if(scanptr.p->m_queued_count > /** Min */ 0){
     jam();
-    sendScanTabConf(signal);
+    sendScanTabConf(signal, scanptr.p);
   }
 }//Dbtc::execSCAN_FRAGCONF()
 
@@ -9164,6 +9155,7 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
     ref->transId1 = transid1;
     ref->transId2 = transid2;
     ref->errorCode  = ZSTATE_ERROR;
+    ref->closeNeeded = 0;
     sendSignal(signal->senderBlockRef(), GSN_SCAN_TABREF, 
 	       signal, ScanTabRef::SignalLength, JBB);
     DEBUG("Wrong transid");
@@ -9188,6 +9180,7 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
     }
     DEBUG("scanTabRefLab: ZSTATE_ERROR");
     DEBUG("  apiConnectstate="<<apiConnectptr.p->apiConnectstate);
+    ndbrequire(false); //B2 indication of strange things going on
     scanTabRefLab(signal, ZSTATE_ERROR);
     return;
   }//if
@@ -9197,6 +9190,7 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
    ********************************************************/
   // Stop the timer that is used to check for timeout in the API 
   setApiConTimer(apiConnectptr.i, 0, __LINE__);
+  ScanRecordPtr scanptr;
   scanptr.i = apiConnectptr.p->apiScanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
   ScanRecord* scanP = scanptr.p;
@@ -9209,9 +9203,20 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
      * APPLICATION IS CLOSING THE SCAN.
      **********************************************************************/
     ndbrequire(len == 0);
-    close_scan_req(signal, scanptr);
+    close_scan_req(signal, scanptr, true);
     return;
   }//if
+
+  if (scanptr.p->scanState == ScanRecord::CLOSING_SCAN){
+    jam();
+    /**
+     * The scan is closing (typically due to error)
+     *   but the API hasn't understood it yet
+     *
+     * Wait for API close request
+     */
+    return;
+  }
 
   // Copy op ptrs so I dont overwrite them when sending...
   memcpy(signal->getDataPtrSend()+25, signal->getDataPtr()+4, 4 * len);
@@ -9243,26 +9248,25 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
 }//Dbtc::execSCAN_NEXTREQ()
 
 void
-Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr){
+Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
 #ifdef VM_TRACE
   ndbout_c("%d close_scan_req", apiConnectptr.i);
 #endif
   ScanRecord* scanP = scanPtr.p;
   scanPtr.p->scanState = ScanRecord::CLOSING_SCAN;
+  scanPtr.p->m_close_scan_req = req_received;
 
   /**
-   * Queue      : Action
-   * ========== : =================
-   * completed  : -
-   * running    : -
-   * delivered  : close -> LQH
-   * queued w/  : close -> LQH
-   * queued wo/ : move to completed
+   * Queue         : Action
+   * ============= : =================
+   * completed     : -
+   * running       : close -> LQH
+   * delivered w/  : close -> LQH
+   * delivered wo/ : move to completed
+   * queued w/     : close -> LQH
+   * queued wo/    : move to completed
    */
   
-  /**
-   * All delivered should to be closed
-   */
   ScanFragNextReq * nextReq = (ScanFragNextReq*)&signal->theData[0];
   nextReq->closeFlag = ZTRUE;
   nextReq->transId1 = apiConnectptr.p->transid[0];
@@ -9273,6 +9277,28 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr){
     ScanFragList running(c_scan_frag_pool, scanP->m_running_scan_frags);
     ScanFragList completed(c_scan_frag_pool, scanP->m_completed_scan_frags);
     ScanFragList delivered(c_scan_frag_pool, scanP->m_delivered_scan_frags);
+    ScanFragList queued(c_scan_frag_pool, scanP->m_queued_scan_frags);
+    
+    // Close running
+    for(running.first(ptr); !ptr.isNull(); ){
+      ScanFragRecPtr curr = ptr; // Remove while iterating...
+      running.next(ptr);
+
+      if(curr.p->scanFragState == ScanFragRec::WAIT_GET_PRIMCONF){
+	jam();
+	continue;
+      }
+      ndbrequire(curr.p->scanFragState == ScanFragRec::LQH_ACTIVE);
+      
+      curr.p->startFragTimer(ctcTimer);
+      curr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
+      nextReq->senderData = curr.i;
+      sendSignal(curr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
+		 ScanFragNextReq::SignalLength, JBB);
+      ndbout_c("%d running -> closing", curr.i);
+    }
+
+    // Close delivered
     for(delivered.first(ptr); !ptr.isNull(); ){
       jam();
       ScanFragRecPtr curr = ptr; // Remove while iterating...
@@ -9290,20 +9316,19 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr){
 	sendSignal(curr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
 		   ScanFragNextReq::SignalLength, JBB);
 	
-	ndbout_c("delivered -> running");
+	ndbout_c("%d delivered -> closing (%d)", curr.i, curr.p->m_ops);
       } else {
 	jam();
 	completed.add(curr);
 	curr.p->scanFragState = ScanFragRec::COMPLETED;
 	curr.p->stopFragTimer();
-	ndbout_c("delivered -> completed");
+	ndbout_c("%d delivered -> completed", curr.i);
       }
     }//for
 
     /**
      * All queued with data should be closed
      */
-    ScanFragList queued(c_scan_frag_pool, scanP->m_queued_scan_frags);
     for(queued.first(ptr); !ptr.isNull(); ){
       jam();
       ndbrequire(ptr.p->scanFragState == ScanFragRec::QUEUED_FOR_DELIVERY);
@@ -9322,31 +9347,58 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr){
 	sendSignal(curr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
 		   ScanFragNextReq::SignalLength, JBB);
 
-	ndbout_c("queued -> running");
+	ndbout_c("%d queued -> closing", curr.i);
       } else {
 	jam();
 	completed.add(curr);
 	curr.p->scanFragState = ScanFragRec::COMPLETED;
 	curr.p->stopFragTimer();
-	ndbout_c("queued -> completed");
+	ndbout_c("%d queued -> completed", curr.i);
       }
     }
   }
-  close_scan_req_send_conf(signal, scanptr);
+  close_scan_req_send_conf(signal, scanPtr);
 }
 
 void
 Dbtc::close_scan_req_send_conf(Signal* signal, ScanRecordPtr scanPtr){
 
   jam();
+
   ndbrequire(scanPtr.p->m_queued_scan_frags.isEmpty());
   ndbrequire(scanPtr.p->m_delivered_scan_frags.isEmpty());
+  //ndbrequire(scanPtr.p->m_running_scan_frags.isEmpty());
+
+#if 1
+  {
+    ScanFragList comp(c_scan_frag_pool, scanPtr.p->m_completed_scan_frags);
+    ScanFragRecPtr ptr;
+    for(comp.first(ptr); !ptr.isNull(); comp.next(ptr)){
+      ndbrequire(ptr.p->scanFragTimer == 0);
+      ndbrequire(ptr.p->scanFragState == ScanFragRec::COMPLETED);
+    } 
+  }
+#endif
+  
   if(!scanPtr.p->m_running_scan_frags.isEmpty()){
     jam();
+
+    ndbout_c("%d close_scan_req_send_conf: not ready", apiConnectptr.i);
     return;
   }
-  
+
   const bool apiFail = (apiConnectptr.p->apiFailState == ZTRUE);
+  
+  if(!scanPtr.p->m_close_scan_req){
+    jam();
+    /**
+     * The API hasn't order closing yet
+     */
+    ndbout_c("%d close_scan_req_send_conf: api not ready", apiConnectptr.i);
+    return;
+  }
+
+  ndbout_c("%d close_scan_req_send_conf: ready", apiConnectptr.i);
   
   if(!apiFail){
     jam();
@@ -9370,53 +9422,58 @@ Dbtc::close_scan_req_send_conf(Signal* signal, ScanRecordPtr scanPtr){
   }
 }
 
-void Dbtc::seizeScanrec(Signal* signal) {
+Dbtc::ScanRecordPtr
+Dbtc::seizeScanrec(Signal* signal) {
+  ScanRecordPtr scanptr;
   scanptr.i = cfirstfreeScanrec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
   cfirstfreeScanrec = scanptr.p->nextScan;
   scanptr.p->nextScan = RNIL;
   ndbrequire(scanptr.p->scanState == ScanRecord::IDLE);
+  return scanptr;
 }//Dbtc::seizeScanrec()
 
-void Dbtc::sendScanFragReq(Signal* signal) {
+void Dbtc::sendScanFragReq(Signal* signal, 
+			   ScanRecord* scanP, 
+			   ScanFragRec* scanFragP){
   Uint32 requestInfo = 0;
-  ScanFragReq::setConcurrency(requestInfo, scanFragptr.p->scanFragConcurrency);
-  ScanFragReq::setLockMode(requestInfo, scanptr.p->scanLockMode);
-  ScanFragReq::setHoldLockFlag(requestInfo, scanptr.p->scanLockHold);
-  if(scanptr.p->scanLockMode == 1){ // Not read -> keyinfo
+  ScanFragReq::setConcurrency(requestInfo, scanFragP->scanFragConcurrency);
+  ScanFragReq::setLockMode(requestInfo, scanP->scanLockMode);
+  ScanFragReq::setHoldLockFlag(requestInfo, scanP->scanLockHold);
+  if(scanP->scanLockMode == 1){ // Not read -> keyinfo
     jam();
     ScanFragReq::setKeyinfoFlag(requestInfo, 1);
   }
-  ScanFragReq::setReadCommittedFlag(requestInfo, scanptr.p->readCommitted);
-  ScanFragReq::setRangeScanFlag(requestInfo, scanptr.p->rangeScan);
-  ScanFragReq::setAttrLen(requestInfo, scanptr.p->scanAiLength);
+  ScanFragReq::setReadCommittedFlag(requestInfo, scanP->readCommitted);
+  ScanFragReq::setRangeScanFlag(requestInfo, scanP->rangeScan);
+  ScanFragReq::setAttrLen(requestInfo, scanP->scanAiLength);
   ScanFragReq::setScanPrio(requestInfo, 1);
-  apiConnectptr.i = scanptr.p->scanApiRec;
+  apiConnectptr.i = scanP->scanApiRec;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
   ScanFragReq * const req = (ScanFragReq *)&signal->theData[0];
   req->senderData = scanFragptr.i;
   req->resultRef = apiConnectptr.p->ndbapiBlockref;
   req->requestInfo = requestInfo;
   req->savePointId = apiConnectptr.p->currSavePointId;
-  req->tableId = scanptr.p->scanTableref;
-  req->fragmentNo = scanFragptr.p->scanFragId;
-  req->schemaVersion = scanptr.p->scanSchemaVersion;
+  req->tableId = scanP->scanTableref;
+  req->fragmentNo = scanFragP->scanFragId;
+  req->schemaVersion = scanP->scanSchemaVersion;
   req->transId1 = apiConnectptr.p->transid[0];
   req->transId2 = apiConnectptr.p->transid[1];
   for(int i = 0; i<16; i++){
-    req->clientOpPtr[i] = scanFragptr.p->m_apiPtr;
+    req->clientOpPtr[i] = scanFragP->m_apiPtr;
   }
-  sendSignal(scanFragptr.p->lqhBlockref, GSN_SCAN_FRAGREQ, signal, 25, JBB);
+  sendSignal(scanFragP->lqhBlockref, GSN_SCAN_FRAGREQ, signal, 25, JBB);
   updateBuddyTimer(apiConnectptr);
-  scanFragptr.p->startFragTimer(ctcTimer);
+  scanFragP->startFragTimer(ctcTimer);
 
 }//Dbtc::sendScanFragReq()
 
 
-void Dbtc::sendScanTabConf(Signal* signal) {
+void Dbtc::sendScanTabConf(Signal* signal, ScanRecord * scanP) {
   jam();
   Uint32* ops = signal->getDataPtrSend()+4;
-  Uint32 op_count = scanptr.p->m_queued_count;
+  Uint32 op_count = scanP->m_queued_count;
   if(4 + 3 * op_count > 25){
     jam();
     ops += 21;
@@ -9428,7 +9485,6 @@ void Dbtc::sendScanTabConf(Signal* signal) {
   conf->transId1 = apiConnectptr.p->transid[0];
   conf->transId2 = apiConnectptr.p->transid[1];
   ScanFragRecPtr ptr;
-  ScanRecord* scanP = scanptr.p;
   ScanFragList queued(c_scan_frag_pool, scanP->m_queued_scan_frags);
   ScanFragList completed(c_scan_frag_pool, scanP->m_completed_scan_frags);
   ScanFragList delivered(c_scan_frag_pool, scanP->m_delivered_scan_frags);
@@ -9466,7 +9522,7 @@ void Dbtc::sendScanTabConf(Signal* signal) {
     sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_SCAN_TABCONF, signal, 
 	       ScanTabConf::SignalLength + 3 * op_count, JBB);
   }
-  scanptr.p->m_queued_count = 0;
+  scanP->m_queued_count = 0;
 }//Dbtc::sendScanTabConf()
 
 
@@ -9715,12 +9771,14 @@ void Dbtc::initialiseRecordsLab(Signal* signal, UintR Tdata0,
 /* ========================================================================= */
 void Dbtc::initialiseScanrec(Signal* signal) 
 {
+  ScanRecordPtr scanptr;
   ndbrequire(cscanrecFileSize > 0);
   for (scanptr.i = 0; scanptr.i < cscanrecFileSize; scanptr.i++) {
     jam();
     ptrAss(scanptr, scanRecord);
     new (scanptr.p) ScanRecord();
     scanptr.p->scanState = ScanRecord::IDLE;
+    scanptr.p->scanApiRec = RNIL;
     scanptr.p->nextScan = scanptr.i + 1;
   }//for
   scanptr.i = cscanrecFileSize - 1;
@@ -11496,7 +11554,8 @@ void Dbtc::readIndexTable(Signal* signal,
   Uint32 transId1 = indexOp->tcIndxReq->transId1;
   Uint32 transId2 = indexOp->tcIndxReq->transId2;
 
-  const Uint8 opType = TcKeyReq::getOperationType(tcKeyRequestInfo);
+  const Operation_t opType = 
+    (Operation_t)TcKeyReq::getOperationType(tcKeyRequestInfo);
 
   // Find index table
   if ((indexData = c_theIndexes.getPtr(indexOp->tcIndxReq->indexId)) == NULL) {
