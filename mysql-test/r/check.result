@@ -1,2 +1,7 @@
+drop table if exists t1;
+create table t1(n int not null, key(n), key(n), key(n), key(n));
+ check table t1 type=extended;
+insert into t1 values (200000);
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+drop table t1;

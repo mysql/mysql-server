@@ -119,6 +119,7 @@ public:
   {
     return (null_value=args[0]->get_time(ltime));
   }
+  bool is_null() { (void) val_int(); return null_value; }
   friend class udf_handler;
 };
 
@@ -147,6 +148,7 @@ public:
   longlong val_int() { return (longlong) val(); }
   enum Item_result result_type () const { return hybrid_type; }
   void fix_length_and_dec() { fix_num_length_and_dec(); }
+  bool is_null() { (void) val(); return null_value; }
 };
 
 
@@ -161,6 +163,7 @@ class Item_num_op :public Item_func
   enum Item_result result_type () const { return hybrid_type; }
   void fix_length_and_dec() { fix_num_length_and_dec(); find_num_type(); }
   void find_num_type(void);
+  bool is_null() { (void) val(); return null_value; }
 };
 
 

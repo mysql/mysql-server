@@ -23,39 +23,19 @@
 */
 
 #include <my_global.h>
+#include "mysql_embed.h"
+#include "mysql.h"
 
-#ifndef HAVE_VIO			/* is Vio suppored by the Vio lib ? */
+#ifndef HAVE_VIO			/* is Vio enabled */
 
 #include <errno.h>
 #include <my_sys.h>
-#include "mysql.h"
 #include <violite.h>
 #include <my_sys.h>
 #include <my_net.h>
 #include <m_string.h>
 #include <dbug.h>
 #include <assert.h>
-
-#if defined(__EMX__)
-#include <sys/ioctl.h>
-#define ioctlsocket(A,B,C) ioctl((A),(B),(void *)(C),sizeof(*(C)))
-#undef HAVE_FCNTL
-#endif				/* defined(__EMX__) */
-
-#if defined(MSDOS) || defined(__WIN__)
-#ifdef __WIN__
-#undef errno
-#undef EINTR
-#undef EAGAIN
-#define errno WSAGetLastError()
-#define EINTR  WSAEINTR
-#define EAGAIN WSAEINPROGRESS
-#endif /* __WIN__ */
-#define O_NONBLOCK 1    /* For emulation of fcntl() */
-#endif
-#ifndef EWOULDBLOCK
-#define EWOULDBLOCK EAGAIN
-#endif
 
 #ifndef __WIN__
 #define HANDLE void *
@@ -71,14 +51,11 @@ struct st_vio
   struct sockaddr_in	remote;		/* Remote internet address */
   enum enum_vio_type	type;		/* Type of connection */
   char			desc[30];	/* String description */
-  /* #ifdef EMBEDDED_LIBRARY */
-  /* void *dest_net; */
   void *dest_thd;
   char *packets, **last_packet;
   char *where_in_packet, *end_of_packet;
   my_bool reading;
   MEM_ROOT root;
-  /* #endif */
 };
 
 /* Initialize the communication buffer */
@@ -89,7 +66,7 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
   vio = (Vio *) my_malloc (sizeof(*vio),MYF(MY_WME|MY_ZEROFILL));
   if (vio)
   {
-    init_alloc_root(&vio->root, 8192, 1024);
+    init_alloc_root(&vio->root, 8192, 8192);
     vio->root.min_malloc = sizeof(char *) + 4;
     vio->last_packet = &vio->packets;
   }
@@ -125,7 +102,7 @@ void vio_reset(Vio *vio)
 
 int vio_errno(Vio *vio __attribute__((unused)))
 {
-  return errno;			/* On Win32 this mapped to WSAGetLastError() */
+  return socket_errno;	/* On Win32 this mapped to WSAGetLastError() */
 }
 
 int vio_read(Vio * vio, gptr buf, int size)
@@ -197,8 +174,9 @@ int vio_keepalive(Vio* vio, my_bool set_keep_alive)
 my_bool
 vio_should_retry(Vio * vio __attribute__((unused)))
 {
-  int en = errno;
-  return en == EAGAIN || en == EINTR || en == EWOULDBLOCK;
+  int en = socket_errno;
+  return (en == SOCKET_EAGAIN || en == SOCKET_EINTR ||
+	  en == SOCKET_EWOULDBLOCK);
 }
 
 

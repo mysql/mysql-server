@@ -36,7 +36,7 @@ int mi_rprev(MI_INFO *info, byte *buf, int inx)
   if (info->lastpos == HA_OFFSET_ERROR && info->update & HA_STATE_NEXT_FOUND)
     flag=0;					/* Read last */
 
-  if (_mi_readinfo(info,F_RDLCK,1))
+  if (fast_mi_readinfo(info))
     DBUG_RETURN(my_errno);
   changed=_mi_test_if_changed(info);
   if (share->concurrent_insert)
@@ -50,7 +50,7 @@ int mi_rprev(MI_INFO *info, byte *buf, int inx)
 			  share->state.key_root[inx]);
   else
     error=_mi_search(info,share->keyinfo+inx,info->lastkey,
-		     info->lastkey_length, flag, share->state.key_root[inx]);
+		     USE_WHOLE_KEY, flag, share->state.key_root[inx]);
 
   if (!error)
   {

@@ -1,5 +1,6 @@
-connect (master,localhost,root,,test,0,mysql-master.sock);
-connect (slave,localhost,root,,test,0,mysql-slave.sock);
+connect (master,localhost,root,,test,0,master.sock);
+connect (slave,localhost,root,,test,0,slave.sock);
+eval_result;
 system cat /dev/null > var/slave-data/master.info;
 system chmod 000 var/slave-data/master.info;
 connection slave;
@@ -75,12 +76,14 @@ connection master;
 let $1=100;
 drop table if exists t3;
 create table t3 (n int);
+disable_query_log;
 while ($1)
 {
 #eval means expand $ expressions
  eval insert into t3 values($1 + 4);
  dec $1;
 }
+enable_query_log;
 show master logs;
 show master status;
 save_master_pos;

@@ -62,6 +62,7 @@ int heap_write(HP_INFO *info, const byte *record)
   info->update|=HA_STATE_AKTIV;
   DBUG_RETURN(0);
 err:
+  DBUG_PRINT("info",("Duplicate key: %d",key));
   info->errkey= key;
   do
   {

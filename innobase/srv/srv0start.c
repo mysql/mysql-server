@@ -888,9 +888,11 @@ innobase_start_or_create_for_mysql(void)
 
 	/* buf_debug_prints = TRUE; */
 	
-	ut_print_timestamp(stderr);
-	fprintf(stderr, "  InnoDB: Started\n");
-
+	if (srv_print_verbose_log)
+	{
+	  ut_print_timestamp(stderr);
+	  fprintf(stderr, "  InnoDB: Started\n");
+	}
 	return((int) DB_SUCCESS);
 }
 
@@ -915,6 +917,8 @@ innobase_shutdown_for_mysql(void)
 	the tablespace header(s), and copy all log data to archive */
 
 	logs_empty_and_mark_files_at_shutdown();
+
+	ut_free_all_mem();
 
 	return((int) DB_SUCCESS);
 }

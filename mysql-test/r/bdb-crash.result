@@ -1,3 +1,32 @@
+drop table if exists tblChange;
+CREATE TABLE tblCharge (
+ChargeID int(10) unsigned DEFAULT '0' NOT NULL auto_increment,
+ServiceID int(10) unsigned DEFAULT '0' NOT NULL,
+ChargeDate date DEFAULT '0000-00-00' NOT NULL,
+ChargeAmount decimal(20,2) DEFAULT '0.00' NOT NULL,
+FedTaxes decimal(20,2) DEFAULT '0.00' NOT NULL,
+ProvTaxes decimal(20,2) DEFAULT '0.00' NOT NULL,
+ChargeStatus enum('New','Auth','Unauth','Sale','Denied','Refund')
+DEFAULT 'New' NOT NULL,
+ChargeAuthorizationMessage text,
+ChargeComment text,
+ChargeTimeStamp varchar(20),
+PRIMARY KEY (ChargeID),
+KEY ServiceID (ServiceID),
+KEY ChargeDate (ChargeDate)
+) type=BDB;
+BEGIN;
+INSERT INTO tblCharge
+VALUES(NULL,1,'2001-03-01',1,1,1,'New',NULL,NULL,'now');
+COMMIT;
+BEGIN;
+UPDATE tblCharge SET ChargeAuthorizationMessage = 'blablabla' WHERE
+ChargeID = 1;
+COMMIT;
+INSERT INTO tblCharge
+VALUES(NULL,1,'2001-03-01',1,1,1,'New',NULL,NULL,'now');
+select * from tblCharge;
 ChargeID	ServiceID	ChargeDate	ChargeAmount	FedTaxes	ProvTaxes	ChargeStatus	ChargeAuthorizationMessage	ChargeComment	ChargeTimeStamp
 1	1	2001-03-01	1.00	1.00	1.00	New	blablabla	NULL	now
 2	1	2001-03-01	1.00	1.00	1.00	New	NULL	NULL	now
+drop table tblCharge;

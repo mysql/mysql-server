@@ -231,11 +231,10 @@ static my_bool search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
     return 0;					/* Ignore wrong paths */
   if (dir)
   {
-    strmov(name,dir);
-    convert_dirname(name);
+    end=convert_dirname(name, dir, NullS);
     if (dir[0] == FN_HOMELIB)		/* Add . to filenames in home */
-      strcat(name,".");
-    strxmov(strend(name),config_file,ext,NullS);
+      *end++='.';
+    strxmov(end,config_file,ext,NullS);
   }
   else
   {
@@ -369,16 +368,18 @@ void print_defaults(const char *conf_file, const char **groups)
 #endif
     for (dirs=default_directories ; *dirs; dirs++)
     {
+      const char *pos;
+      char *end;
       if (**dirs)
-	strmov(name,*dirs);
+	pos= *dirs;
       else if (defaults_extra_file)
-	strmov(name,defaults_extra_file);
+	pos= defaults_extra_file;
       else
 	continue;
-      convert_dirname(name);
+      end=convert_dirname(name, pos, NullS);
       if (name[0] == FN_HOMELIB)	/* Add . to filenames in home */
-	strcat(name,".");
-      strxmov(strend(name),conf_file,default_ext," ",NullS);
+	*end++='.';
+      strxmov(end,conf_file,default_ext," ",NullS);
       fputs(name,stdout);
     }
     puts("");

@@ -1,14 +1,30 @@
+reset master;
+show master status;
 File	Position	Binlog_do_db	Binlog_ignore_db
 master-bin.001	79		
+reset slave;
+show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Last_log_seq
 		0	0		0	No			0		0	0
+change master to master_host='127.0.0.1';
+show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Last_log_seq
 127.0.0.1	test	9998	60		4	No			0		0	0
+ change master to master_host='127.0.0.1',master_user='root',
+master_password='',master_port=$MASTER_MYPORT;
+show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Last_log_seq
 127.0.0.1	root	9999	60		4	No			0		0	0
+slave start;
+show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Last_log_seq
 127.0.0.1	root	9999	60	master-bin.001	79	Yes			0		0	1
+drop table if exists t1;
+create table t1 (n int);
+insert into t1 values (10),(45),(90);
+select * from t1;
 n
 10
 45
 90
+drop table t1;

@@ -1,3 +1,20 @@
+drop table if exists t1;
+create table t1 (s1 char(64),s2 char(64));
+insert into t1 values('aaa','aaa');
+insert into t1 values('aaa|qqq','qqq');
+insert into t1 values('gheis','^[^a-dXYZ]+$');
+insert into t1 values('aab','^aa?b');
+insert into t1 values('Baaan','^Ba*n');
+insert into t1 values('aaa','qqq|aaa');
+insert into t1 values('qqq','qqq|aaa');
+insert into t1 values('bbb','qqq|aaa');
+insert into t1 values('bbb','qqq');
+insert into t1 values('aaa','aba');
+insert into t1 values(null,'abc');
+insert into t1 values('def',null);
+insert into t1 values(null,null);
+insert into t1 values('ghi','ghi[');
+select HIGH_PRIORITY s1 regexp s2 from t1;
 s1 regexp s2
 1
 1
@@ -13,13 +30,25 @@ NULL
 NULL
 NULL
 NULL
+drop table t1;
+create table t1 (xxx char(128));
+insert into t1 (xxx) values('this is a test of some long text to see what happens');
+select * from t1 where xxx regexp('is a test of some long text to');
 xxx
 this is a test of some long text to see what happens
+select * from t1 where xxx regexp('is a test of some long text to ');
 xxx
 this is a test of some long text to see what happens
+select * from t1 where xxx regexp('is a test of some long text to s');
 xxx
 this is a test of some long text to see what happens
+select * from t1 where xxx regexp('is a test of some long text to se');
 xxx
 this is a test of some long text to see what happens
+drop table t1;
+create table t1 (xxx char(128));
+insert into t1 (xxx) values('this is some text: to test - out.reg exp (22/45)');
+select * from t1 where xxx REGEXP '^this is some text: to test - out\\.reg exp [[(][0-9]+[/\\][0-9]+[])][ ]*$';
 xxx
 this is some text: to test - out.reg exp (22/45)
+drop table t1;

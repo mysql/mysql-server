@@ -107,7 +107,6 @@ static uint find_shortest_key(TABLE *table, key_map usable_keys);
 static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
 				    ha_rows select_limit, bool no_changes);
 static int create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit);
-static bool fix_having(JOIN *join, Item **having);
 static int remove_duplicates(JOIN *join,TABLE *entry,List<Item> &fields,
 			     Item *having);
 static int remove_dup_with_compare(THD *thd, TABLE *entry, Field **field,
@@ -2332,7 +2331,20 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
     {
       JOIN_TAB *tab=join->join_tab+i;
       table_map current_map= tab->table->map;
+      bool use_quick_range=0;
       used_tables|=current_map;
+
+      if (tab->type == JT_REF && tab->quick &&
+	  tab->ref.key_length < tab->quick->max_used_key_length)
+      {
+	/* Range uses longer key;  Use this instead of ref on key */
+	tab->type=JT_ALL;
+	use_quick_range=1;
+	tab->use_quick=1;
+	tab->ref.key_parts=0;		// Don't use ref key.
+	join->best_positions[i].records_read=tab->quick->records;
+      }
+
       COND *tmp=make_cond_for_table(cond,used_tables,current_map);
       if (!tmp && tab->quick)
       {						// Outer join
@@ -2375,7 +2387,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  if (tab->const_keys && tab->table->reginfo.impossible_range)
 	    DBUG_RETURN(1);
 	}
-	else if (tab->type == JT_ALL)
+	else if (tab->type == JT_ALL && ! use_quick_range)
 	{
 	  if (tab->const_keys &&
 	      tab->table->reginfo.impossible_range)
@@ -2434,15 +2446,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	    }
 	  }
 	}
-	if (tab->type == JT_REF && sel->quick &&
-	    tab->ref.key_length < sel->quick->max_used_key_length)
-	{
-	  /* Range uses longer key;  Use this instead of ref on key */
-	  tab->type=JT_ALL;
-	  tab->use_quick=1;
-	  tab->ref.key_parts=0;		// Don't use ref key.
-	  join->best_positions[i].records_read=sel->quick->records;
-	}
       }
     }
   }
@@ -2486,7 +2489,8 @@ make_join_readinfo(JOIN *join,uint options)
       table->file->index_init(tab->ref.key);
       tab->read_first_record= join_read_key;
       tab->read_record.read_record= join_no_more_records;
-      if (table->used_keys & ((key_map) 1 << tab->ref.key))
+      if (table->used_keys & ((key_map) 1 << tab->ref.key) &&
+	  !table->no_keyread)
       {
 	table->key_read=1;
 	table->file->extra(HA_EXTRA_KEYREAD);
@@ -2504,7 +2508,8 @@ make_join_readinfo(JOIN *join,uint options)
       table->file->index_init(tab->ref.key);
       tab->read_first_record= join_read_always_key;
       tab->read_record.read_record= join_read_next;
-      if (table->used_keys & ((key_map) 1 << tab->ref.key))
+      if (table->used_keys & ((key_map) 1 << tab->ref.key) &&
+	  !table->no_keyread)
       {
 	table->key_read=1;
 	table->file->extra(HA_EXTRA_KEYREAD);
@@ -2565,18 +2570,21 @@ make_join_readinfo(JOIN *join,uint options)
 	    statistic_increment(select_full_join_count, &LOCK_status);
 	  }
 	}
-	if (tab->select && tab->select->quick &&
-	    table->used_keys & ((key_map) 1 << tab->select->quick->index))
+	if (!table->no_keyread)
 	{
-	  table->key_read=1;
-	  table->file->extra(HA_EXTRA_KEYREAD);
-	}
-	else if (table->used_keys && ! (tab->select && tab->select->quick))
-	{					// Only read index tree
-	  tab->index=find_shortest_key(table, table->used_keys);
-	  tab->table->file->index_init(tab->index);
-	  tab->read_first_record= join_init_read_first_with_key;
-	  tab->type=JT_NEXT;		// Read with index_first / index_next
+	  if (tab->select && tab->select->quick &&
+	      table->used_keys & ((key_map) 1 << tab->select->quick->index))
+	  {
+	    table->key_read=1;
+	    table->file->extra(HA_EXTRA_KEYREAD);
+	  }
+	  else if (table->used_keys && ! (tab->select && tab->select->quick))
+	  {					// Only read index tree
+	    tab->index=find_shortest_key(table, table->used_keys);
+	    tab->table->file->index_init(tab->index);
+	    tab->read_first_record= join_init_read_first_with_key;
+	    tab->type=JT_NEXT;		// Read with index_first / index_next
+	  }
 	}
       }
       break;
@@ -2637,7 +2645,8 @@ join_free(JOIN *join)
   }
   join->group_fields.delete_elements();
   join->tmp_table_param.copy_funcs.delete_elements();
-  delete [] join->tmp_table_param.copy_field;
+  if (join->tmp_table_param.copy_field)		// Because of bug in ecc
+    delete [] join->tmp_table_param.copy_field;
   join->tmp_table_param.copy_field=0;
   DBUG_VOID_RETURN;
 }
@@ -3306,7 +3315,7 @@ Field *create_tmp_field(TABLE *table,Item *item, Item::Type type,
 				item->name,table,item_sum->decimals);
       case INT_RESULT:
 	return new Field_longlong(item_sum->max_length,maybe_null,
-				  item->name,table);
+				  item->name,table,item->unsigned_flag);
       case STRING_RESULT:
 	if (item_sum->max_length > 255)
 	  return  new Field_blob(item_sum->max_length,maybe_null,
@@ -3357,7 +3366,7 @@ Field *create_tmp_field(TABLE *table,Item *item, Item::Type type,
       break;
     case INT_RESULT:
       new_field=new Field_longlong(item->max_length,maybe_null,
-				   item->name,table);
+				   item->name,table, item->unsigned_flag);
       break;
     case STRING_RESULT:
       if (item->max_length > 255)
@@ -4553,7 +4562,8 @@ join_init_read_first_with_key(JOIN_TAB *tab)
 {
   int error;
   TABLE *table=tab->table;
-  if (!table->key_read && (table->used_keys & ((key_map) 1 << tab->index)))
+  if (!table->key_read && (table->used_keys & ((key_map) 1 << tab->index)) &&
+      !table->no_keyread)
   {
     table->key_read=1;
     table->file->extra(HA_EXTRA_KEYREAD);
@@ -5438,39 +5448,6 @@ create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
 err:
   DBUG_RETURN(-1);
 }
-
-
-/*
-** Add the HAVING criteria to table->select
-*/
-
-static bool fix_having(JOIN *join, Item **having)
-{
-  (*having)->update_used_tables();	// Some tables may have been const
-  JOIN_TAB *table=&join->join_tab[join->const_tables];
-  table_map used_tables= join->const_table_map | table->table->map;
-
-  Item* sort_table_cond=make_cond_for_table(*having,used_tables,used_tables);
-  if (sort_table_cond)
-  {
-    if (!table->select)
-      if (!(table->select=new SQL_SELECT))
-	return 1;
-    if (!table->select->cond)
-      table->select->cond=sort_table_cond;
-    else					// This should never happen
-      if (!(table->select->cond=new Item_cond_and(table->select->cond,
-						  sort_table_cond)))
-	return 1;
-    table->select_cond=table->select->cond;
-    DBUG_EXECUTE("where",print_where(table->select_cond,
-				     "select and having"););
-    *having=make_cond_for_table(*having,~ (table_map) 0,~used_tables);
-    DBUG_EXECUTE("where",print_where(*having,"having after make_cond"););
-  }
-  return 0;
-}
-
 
 /*****************************************************************************
 ** Remove duplicates from tmp table
@@ -6419,7 +6396,7 @@ setup_copy_fields(TMP_TABLE_PARAM *param,List<Item> &fields)
   DBUG_ENTER("setup_copy_fields");
 
   if (!(copy=param->copy_field= new Copy_field[param->field_count]))
-    goto err;
+    goto err2;
 
   param->copy_funcs.empty();
   while ((pos=li++))
@@ -6468,8 +6445,9 @@ setup_copy_fields(TMP_TABLE_PARAM *param,List<Item> &fields)
   DBUG_RETURN(0);
 
  err:
-  delete [] param->copy_field;
+  delete [] param->copy_field;			// This is never 0
   param->copy_field=0;
+err2:
   DBUG_RETURN(TRUE);
 }
 

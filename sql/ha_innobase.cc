@@ -85,7 +85,7 @@ char *innobase_data_home_dir;
 char *innobase_log_group_home_dir, *innobase_log_arch_dir;
 char *innobase_unix_file_flush_method;
 bool innobase_flush_log_at_trx_commit, innobase_log_archive,
-	innobase_use_native_aio;
+     innobase_use_native_aio;
 
 /*
   Set default InnoDB size to 64M, to let users use InnoDB without having
@@ -524,7 +524,6 @@ innobase_init(void)
 /*===============*/
 			/* out: TRUE if error */
 {
-	static char 	current_dir[3];
 	int		err;
 	bool		ret;
 
@@ -537,11 +536,6 @@ innobase_init(void)
 	        srv_query_thread_priority = QUERY_PRIOR;
 	}
 
-	/* Use current_dir if no paths are set */
-	current_dir[0]=FN_CURLIB;
-	current_dir[1]=FN_LIBCHAR;
-	current_dir[2]=0;
-
 	/* Set InnoDB initialization parameters according to the values
 	read from MySQL .cnf file */
 
@@ -550,10 +544,10 @@ innobase_init(void)
 						   MYF(MY_WME));
 
 	srv_data_home = (innobase_data_home_dir ? innobase_data_home_dir :
-			 current_dir);
+			 mysql_real_data_home);
 	srv_logs_home = (char*) "";
 	srv_arch_dir =  (innobase_log_arch_dir ? innobase_log_arch_dir :
-			 current_dir);
+			 mysql_real_data_home);
 
 	ret = innobase_parse_data_file_paths_and_sizes();
 
@@ -563,7 +557,7 @@ innobase_init(void)
 	}
 
 	if (!innobase_log_group_home_dir)
-	  innobase_log_group_home_dir= current_dir;
+	  innobase_log_group_home_dir= mysql_real_data_home;
 	ret = innobase_parse_log_group_home_dirs();
 
 	if (ret == FALSE) {
@@ -590,6 +584,8 @@ innobase_init(void)
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
 
 	srv_lock_wait_timeout = (ulint) innobase_lock_wait_timeout;
+
+	srv_print_verbose_log = mysql_embedded ? 0 : 1;
 
 	err = innobase_start_or_create_for_mysql();
 

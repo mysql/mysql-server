@@ -1,12 +1,13 @@
 drop table if exists t1;
 create table t1(n int not null, key(n)) delay_key_write = 1;
 let $1=100;
+disable_query_log;
 while ($1)
 {
  eval insert into t1 values($1);
  eval insert into t1 values($1);
  dec $1;
 }
-
+enable_query_log;
 select count(distinct n) from t1;
 drop table t1;

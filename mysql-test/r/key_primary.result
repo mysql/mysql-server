@@ -1,9 +1,19 @@
+create table t1 (t1 char(3) primary key);
+insert into t1 values("ABC");
+insert into t1 values("ABA");
+insert into t1 values("AB%");
+select * from t1 where t1="ABC";
 t1
 ABC
+select * from t1 where t1="ABCD";
 t1
+select * from t1 where t1 like "a_\%";
 t1
 AB%
+describe select * from t1 where t1="ABC";
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	const	PRIMARY	PRIMARY	3	const	1	
+describe select * from t1 where t1="ABCD";
 Comment
 Impossible WHERE noticed after reading const tables
+drop table t1;

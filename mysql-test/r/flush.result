@@ -1,6 +1,30 @@
+drop table if exists t1;
+create temporary table t1(n int not null primary key);
+drop table if exists t2;
+create table t2(n int);
+insert into t2 values(3);
+select * from t1;
 n
 3
+flush tables with read lock;
+drop table t2;
+Table 't2' was locked with a READ lock and can't be updated
+ drop table t2;
+unlock tables;
+drop database if exists foo;
+create database foo;
+create table foo.t1(n int);
+insert into foo.t1 values (23);
+flush tables with read lock;
+ drop database foo;
+select * from foo.t1;
 n
 23
+unlock tables;
+create table t1 (n int);
+flush tables with read lock;
+insert into t1 values (345);
+select * from t1;
 n
 345
+drop table t1;

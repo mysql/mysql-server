@@ -14,20 +14,27 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
-  Lock databases against read or write.
-*/
+/* close a isam-database */
 
-#include "mrgdef.h"
+#include "mrg_def.h"
 
-int mrg_lock_database(MRG_INFO *info,int lock_type)
+int mrg_close(register MRG_INFO *info)
 {
-  int error,new_error;
+  int error=0,new_error;
   MRG_TABLE *file;
+  DBUG_ENTER("mrg_close");
 
-  error=0;
   for (file=info->open_tables ; file != info->end_table ; file++)
-    if ((new_error=nisam_lock_database(file->table,lock_type)))
+    if ((new_error=nisam_close(file->table)))
       error=new_error;
-  return(error);
+  pthread_mutex_lock(&THR_LOCK_open);
+  mrg_open_list=list_delete(mrg_open_list,&info->open_list);
+  pthread_mutex_unlock(&THR_LOCK_open);
+  my_free((gptr) info,MYF(0));
+  if (error)
+  {
+    my_errno=error;
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
 }

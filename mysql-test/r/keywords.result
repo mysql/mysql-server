@@ -1,4 +1,10 @@
+drop table if exists t1;
+create table t1 (time time, date date, timestamp timestamp);
+insert into t1 values ("12:22:22","97:02:03","1997-01-02");
+select * from t1;
 time	date	timestamp
 12:22:22	1997-02-03	19970102000000
+select t1.time+0,t1.date+0,t1.timestamp+0,concat(date," ",time) from t1;
 t1.time+0	t1.date+0	t1.timestamp+0	concat(date," ",time)
 122222	19970203	19970102000000	1997-02-03 12:22:22
+drop table t1;

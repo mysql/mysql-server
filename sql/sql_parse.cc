@@ -115,7 +115,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
     send_error(net,ER_OUT_OF_RESOURCES);
     return 1;
   }
-  thd->master_access=acl_getroot(thd->host, thd->ip, thd->user,
+  thd->master_access=acl_getroot(thd, thd->host, thd->ip, thd->user,
 				 passwd, thd->scramble, &thd->priv_user,
 				 protocol_version == 9 ||
 				 !(thd->client_capabilities &
@@ -433,7 +433,7 @@ check_connections(THD *thd)
     DBUG_PRINT("info", ("Agreed to change IO layer to SSL") );
     /* Do the SSL layering. */
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    sslaccept(ssl_acceptor_fd, net->vio);
+    sslaccept(ssl_acceptor_fd, net->vio, (long)60L);
     DBUG_PRINT("info", ("Reading user information over SSL layer"));
     if ((pkt_len=my_net_read(net)) == packet_error ||
 	pkt_len < NORMAL_HANDSHAKE_SIZE)
@@ -633,6 +633,7 @@ pthread_handler_decl(handle_bootstrap,arg)
       length--;
     buff[length]=0;
     thd->current_tablenr=0;
+    thd->query_length=length;
     thd->query= thd->memdup(buff,length+1);
     thd->query_id=query_id++;
     mysql_parse(thd,thd->query,length);
@@ -692,19 +693,18 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
 
   thd->free_list = 0;
   thd->query = tbl_name;
-  if((error = mysqld_dump_create_info(thd, table, -1)))
-    {
-      my_error(ER_GET_ERRNO, MYF(0));
-      goto err;
-    }
+  thd->query_length=strlen(tbl_name);
+  if ((error = mysqld_dump_create_info(thd, table, -1)))
+  {
+    my_error(ER_GET_ERRNO, MYF(0));
+    goto err;
+  }
   net_flush(&thd->net);
   if ((error = table->file->dump(thd,fd)))
     my_error(ER_GET_ERRNO, MYF(0));
 
 err:
-
   close_thread_tables(thd);
-
   DBUG_RETURN(error);
 }
 
@@ -855,7 +855,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     DBUG_PRINT("info",("query ready"));
     break;
   }
-  case COM_FIELD_LIST:				// This isn't actually neaded
+  case COM_FIELD_LIST:				// This isn't actually needed
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
     break;
@@ -872,6 +872,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->free_list=0;
     table_list.name=table_list.real_name=thd->strdup(packet);
     thd->query=fields=thd->strdup(strend(packet)+1);
+    thd->query_length=strlen(thd->query);
     mysql_log.write(thd,command,"%s %s",table_list.real_name,fields);
     remove_escape(table_list.real_name);	// This can't have wildcards
 
@@ -2052,9 +2053,9 @@ mysql_execute_command(void)
 	goto error;
       res = mysql_table_grant(thd,tables,lex->users_list, lex->columns,
 			      lex->grant, lex->sql_command == SQLCOM_REVOKE);
-      if(!res)
+      if (!res)
       {
-	mysql_update_log.write(thd, thd->query,thd->query_length);
+	mysql_update_log.write(thd, thd->query, thd->query_length);
 	if (mysql_bin_log.is_open())
 	{
 	  Query_log_event qinfo(thd, thd->query);
@@ -2074,7 +2075,7 @@ mysql_execute_command(void)
 			  lex->sql_command == SQLCOM_REVOKE);
       if (!res)
       {
-	mysql_update_log.write(thd, thd->query,thd->query_length);
+	mysql_update_log.write(thd, thd->query, thd->query_length);
 	if (mysql_bin_log.is_open())
 	{
 	  Query_log_event qinfo(thd, thd->query);
@@ -2390,7 +2391,7 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, int *yystacksize)
 
 
 /****************************************************************************
-	Initialize global thd variables neaded for query
+	Initialize global thd variables needed for query
 ****************************************************************************/
 
 static void
@@ -3051,7 +3052,7 @@ static void refresh_status(void)
 
 static bool append_file_to_dir(char **filename_ptr, char *table_name)
 {
-  char buff[FN_REFLEN],*ptr;
+  char buff[FN_REFLEN],*ptr, *end;
   if (!*filename_ptr)
     return 0;					// nothing to do
 
@@ -3064,8 +3065,8 @@ static bool append_file_to_dir(char **filename_ptr, char *table_name)
   }
   /* Fix is using unix filename format on dos */
   strmov(buff,*filename_ptr);
-  convert_dirname(buff);
-  if (!(ptr=sql_alloc(strlen(buff)+strlen(table_name)+1)))
+  end=convert_dirname(buff, *filename_ptr, NullS);
+  if (!(ptr=sql_alloc((uint) (end-buff)+strlen(table_name)+1)))
     return 1;					// End of memory
   *filename_ptr=ptr;
   strxmov(ptr,buff,table_name,NullS);

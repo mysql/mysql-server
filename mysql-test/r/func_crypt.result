@@ -1,2 +1,3 @@
+select length(encrypt('foo', 'ff')) <> 0;
 length(encrypt('foo', 'ff')) <> 0
 1

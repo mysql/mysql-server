@@ -8,6 +8,6 @@ extra_configs="$pentium_configs"
 strip=yes
 
 extra_configs="$extra_configs --with-innodb --with-berkeley-db \
- --enable-thread-safe-client"
+ --enable-thread-safe-client --with-openssl --with-vio"
 
 . "$path/FINISH.sh"

@@ -134,7 +134,11 @@ enum SHOW_TYPE { SHOW_LONG,SHOW_CHAR,SHOW_INT,SHOW_CHAR_PTR,SHOW_BOOL,
 		 ,SHOW_SSL_CTX_SESS_GET_CACHE_SIZE, SHOW_SSL_GET_CIPHER
 		 ,SHOW_SSL_GET_DEFAULT_TIMEOUT,	SHOW_SSL_GET_VERIFY_MODE
 		 ,SHOW_SSL_CTX_GET_VERIFY_MODE, SHOW_SSL_GET_VERIFY_DEPTH
-		 ,SHOW_SSL_CTX_GET_VERIFY_DEPTH
+		 ,SHOW_SSL_CTX_GET_VERIFY_DEPTH, SHOW_SSL_CTX_SESS_CONNECT
+		 ,SHOW_SSL_CTX_SESS_CONNECT_RENEGOTIATE, SHOW_SSL_CTX_SESS_CONNECT_GOOD
+		 ,SHOW_SSL_CTX_SESS_HITS, SHOW_SSL_CTX_SESS_MISSES
+		 ,SHOW_SSL_CTX_SESS_TIMEOUTS, SHOW_SSL_CTX_SESS_CACHE_FULL
+		 ,SHOW_SSL_GET_CIPHER_LIST
 #endif /* HAVE_OPENSSL */
 };
 
@@ -170,7 +174,7 @@ typedef struct	st_lex_user {
 	/* Bits in form->status */
 #define STATUS_NO_RECORD	(1+2)	/* Record isn't usably */
 #define STATUS_GARBAGE		1
-#define STATUS_NOT_FOUND	2	/* No record in database when neaded */
+#define STATUS_NOT_FOUND	2	/* No record in database when needed */
 #define STATUS_NO_PARENT	4	/* Parent record wasn't found */
 #define STATUS_NOT_READ		8	/* Record isn't read */
 #define STATUS_UPDATED		16	/* Record is updated by formula */

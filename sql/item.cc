@@ -37,7 +37,7 @@ void item_init(void)
 Item::Item()
 {
   marker=0;
-  binary=maybe_null=null_value=with_sum_func=0;
+  binary=maybe_null=null_value=with_sum_func=unsigned_flag=0;
   name=0;
   decimals=0; max_length=0;
   next=current_thd->free_list;			// Put in free list
@@ -116,6 +116,7 @@ void Item_field::set_field(Field *field_par)
   table_name=field_par->table_name;
   field_name=field_par->field_name;
   binary=field_par->binary();
+  unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
 }
 
 const char *Item_ident::full_name() const
@@ -298,12 +299,20 @@ bool Item::fix_fields(THD *thd,
 
 bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
 {
-  if (!field)
+  if (!field)					// If field is not checked
   {
     Field *tmp;
     if (!(tmp=find_field_in_tables(thd,this,tables)))
       return 1;
     set_field(tmp);
+  }
+  else if (thd && thd->set_query_id && field->query_id != thd->query_id)
+  {
+    /* We only come here in unions */
+    TABLE *table=field->table;
+    field->query_id=thd->query_id;
+    table->used_fields++;
+    table->used_keys&=field->part_of_key;
   }
   return 0;
 }
@@ -318,6 +327,8 @@ void Item::init_make_field(Send_field *tmp_field,
   tmp_field->type=field_type;
   tmp_field->length=max_length;
   tmp_field->decimals=decimals;
+  if (unsigned_flag)
+    tmp_field->flags |= UNSIGNED_FLAG;
 }
 
 /* ARGSUSED */
@@ -337,6 +348,7 @@ void Item_uint::make_field(Send_field *tmp_field)
 {
   init_make_field(tmp_field,FIELD_TYPE_LONGLONG);
   tmp_field->flags|= UNSIGNED_FLAG;
+  unsigned_flag=1;
 }
 
 void Item_real::make_field(Send_field *tmp_field)

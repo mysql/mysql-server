@@ -1,3 +1,5 @@
+drop table if exists t1;
+
 create table t1(n1 int, n2 int, s char(20), vs varchar(20), t text);
 insert into t1 values (1,11, 'one','eleven', 'eleven'),
  (1,11, 'one','eleven', 'eleven'),
@@ -44,14 +46,16 @@ select count(distinct n1), count(distinct n2) from t1;
 select count(distinct n2), n1 from t1 group by n1;
 drop table t1;
 
-# test the converstion from tree to MyISAM
+# test the conversion from tree to MyISAM
 create table t1 (n int default NULL);
 let $1=5000;
+disable_query_log;
 while ($1)
 {
  eval insert into t1 values($1);
  dec $1;
 }
+enable_query_log;
 
 flush status;
 select count(distinct n) from t1;
@@ -61,12 +65,13 @@ drop table t1;
 #test conversion from heap to MyISAM
 create table t1 (s text);
 let $1=5000;
+disable_query_log;
 while ($1)
 {
  eval insert into t1 values('$1');
  dec $1;
 }
-
+enable_query_log;
 flush status;
 select count(distinct s) from t1;
 show status like 'Created_tmp_disk_tables';

@@ -22,7 +22,6 @@
  in case we decide to make them external at some point
  */
 
-#define DONT_USE_RAID
 #if defined(__WIN__)
 #include <winsock.h>
 #include <odbcinst.h>
@@ -41,6 +40,7 @@ inline int local_thr_alarm(my_bool *A,int B __attribute__((unused)),ALARM *C __a
 #endif
 
 #include <my_global.h>
+#include <mysql_embed.h>
 #include <mysql_com.h>
 #include <violite.h>
 #include <my_sys.h>
@@ -803,7 +803,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
     /* Do the SSL layering. */
     DBUG_PRINT("info", ("IO layer change in progress..."));
     DBUG_PRINT("info", ("IO context %p",((struct st_VioSSLConnectorFd*)mysql->connector_fd)->ssl_context_));
-    sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),mysql->net.vio);
+    sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),mysql->net.vio,60L);
     DBUG_PRINT("info", ("IO layer change done!"));
   }
 #endif /* HAVE_OPENSSL */

@@ -1,4 +1,6 @@
-database()	user()
-test	root@localhost
+select database(),user() like "%@%";
+database()	user() like "%@%"
+test	1
+select version()>="3.23.29";
 version()>="3.23.29"
 1

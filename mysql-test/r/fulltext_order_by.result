@@ -1,19 +1,34 @@
+use test;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (
+a INT AUTO_INCREMENT PRIMARY KEY,
+message CHAR(20),
+FULLTEXT(message)
+) comment = 'original testcase by sroussey@network54.com';
+INSERT INTO t1 (message) VALUES ("Testing"),("table"),("testbug"),
+("steve"),("is"),("cool"),("steve is cool");
+SELECT a, MATCH (message) AGAINST ('steve') FROM t1 WHERE MATCH (message) AGAINST ('steve');
 a	MATCH (message) AGAINST ('steve')
-4	0.90587323904037
-7	0.89568990468979
+4	0.90587321329654
+7	0.89568988462614
+SELECT a, MATCH (message) AGAINST ('steve') FROM t1 WHERE MATCH (message) AGAINST ('steve') ORDER BY a;
 a	MATCH (message) AGAINST ('steve')
-4	0.90587323904037
-7	0.89568990468979
+4	0.90587321329654
+7	0.89568988462614
+SELECT a, MATCH (message) AGAINST ('steve') FROM t1 WHERE a in (2,7,4) and MATCH (message) AGAINST ('steve') ORDER BY a DESC;
 a	MATCH (message) AGAINST ('steve')
-7	0.89568990468979
-4	0.90587323904037
+7	0.89568988462614
+4	0.90587321329654
+SELECT a, MATCH (message) AGAINST ('steve') FROM t1 WHERE a=7 and MATCH (message) AGAINST ('steve') ORDER BY 1;
 a	MATCH (message) AGAINST ('steve')
-7	0.89568990468979
+7	0.89568988462614
+SELECT a, MATCH (message) AGAINST ('steve') as rel FROM t1 ORDER BY rel;
 a	rel
 1	0
 2	0
 3	0
 5	0
 6	0
-7	0.89568990468979
-4	0.90587323904037
+7	0.89568988462614
+4	0.90587321329654
+drop table t1;

@@ -1197,14 +1197,12 @@ longlong Item_cond_or::val_int()
 
 longlong Item_func_isnull::val_int()
 {
-  (void) args[0]->val();
-  return (args[0]->null_value) ? 1 : 0;
+  return args[0]->is_null() ? 1: 0;
 }
 
 longlong Item_func_isnotnull::val_int()
 {
-  (void) args[0]->val();
-  return !(args[0]->null_value) ? 1 : 0;
+  return args[0]->is_null() ? 0 : 1;
 }
 
 
