@@ -2117,8 +2117,8 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	  if (!((*reference)= fld= new Item_field(tmp)))
 	    return 1;
 	  mark_as_dependent(thd, last, thd->lex->current_select, fld);
-	  return 0;
 	  register_item_tree_changing(reference);
+	  return 0;
 	}
         /*
 	  We can leave expression substituted from view for next PS/SP
