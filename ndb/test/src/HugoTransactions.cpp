@@ -1031,23 +1031,22 @@ HugoTransactions::eventOperation(Ndb* pNdb, void* pstats,
 int 
 HugoTransactions::pkReadRecords(Ndb* pNdb, 
 				int records,
-				int batchsize,
+				int batch,
 				NdbOperation::LockMode lm){
   int                  reads = 0;
   int                  r = 0;
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int                  check, a;
-  NdbOperation	       *pOp;
 
-  if (batchsize == 0) {
-    g_info << "ERROR: Argument batchsize == 0 in pkReadRecords(). Not allowed." << endl;
+  if (batch == 0) {
+    g_info << "ERROR: Argument batch == 0 in pkReadRecords(). Not allowed." << endl;
     return NDBT_FAILED;
   }
 
   while (r < records){
-    if(r + batchsize > records)
-      batchsize = records - r;
+    if(r + batch > records)
+      batch = records - r;
 
     if (retryAttempt >= retryMax){
       g_info << "ERROR: has retried this operation " << retryAttempt 
@@ -1068,8 +1067,8 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
       ERR(err);
       return NDBT_FAILED;
     }
-    
-    if(pkReadRecord(pNdb, r, batchsize, lm) != NDBT_OK)
+
+    if(pkReadRecord(pNdb, r, batch, lm) != NDBT_OK)
     {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
@@ -1099,18 +1098,47 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
 	return NDBT_FAILED;
       }
     } else{
-      for (int b=0; (b<batchsize) && (r+b<records); b++){ 
-	if (calc.verifyRowValues(rows[b]) != 0){
+      if(pIndexScanOp)
+      {
+	int rows_found = 0;
+	while((check = pIndexScanOp->nextResult()) == 0)
+	{
+	  rows_found++;
+	  if (calc.verifyRowValues(rows[0]) != 0){
+	    pNdb->closeTransaction(pTrans);
+	    return NDBT_FAILED;
+	  }
+	}
+	if(check != 1 || rows_found > batch)
+	{
 	  pNdb->closeTransaction(pTrans);
 	  return NDBT_FAILED;
 	}
-	reads++;
-	r++;
+	else if(rows_found < batch)
+	{
+	  if(batch == 1){
+	    g_info << r << ": not found" << endl; abort(); }
+	  else
+	    g_info << "Found " << rows_found << " of " 
+		   << batch << " rows" << endl;
+	}
+	r += batch;
+	reads += rows_found;
+      }
+      else 
+      {
+	for (int b=0; (b<batch) && (r+b<records); b++){ 
+	  if (calc.verifyRowValues(rows[b]) != 0){
+	    pNdb->closeTransaction(pTrans);
+	    return NDBT_FAILED;
+	  }
+	  reads++;
+	  r++;
+	}
       }
     }
     
     pNdb->closeTransaction(pTrans);
-    
   }
   deallocRows();
   g_info << reads << " records read" << endl;
@@ -1183,26 +1211,62 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
-    
-    for(b = 0; b<batch && (b+r)<records; b++)
+
+    if(pIndexScanOp)
     {
-      if (calc.verifyRowValues(rows[b]) != 0)
+      int rows_found = 0;
+      while((check = pIndexScanOp->nextResult(true)) == 0)
       {
-	pNdb->closeTransaction(pTrans);
-	return NDBT_FAILED;
+	do {
+	  
+	  if (calc.verifyRowValues(rows[0]) != 0){
+	    pNdb->closeTransaction(pTrans);
+	    return NDBT_FAILED;
+	  }
+	  
+	  int updates = calc.getUpdatesValue(rows[0]) + 1;
+	  
+	  if(pkUpdateRecord(pNdb, r+rows_found, 1, updates) != NDBT_OK)
+	  {
+	    ERR(pTrans->getNdbError());
+	    pNdb->closeTransaction(pTrans);
+	    return NDBT_FAILED;
+	  }
+	  rows_found++;
+	} while((check = pIndexScanOp->nextResult(false)) == 0);
+	
+	if(check != 2)
+	  break;
+	if((check = pTrans->execute(NoCommit)) != 0)
+	  break;
       }
-      
-      int updates = calc.getUpdatesValue(rows[b]) + 1;
-      
-      if(pkUpdateRecord(pNdb, r+b, 1, updates) != NDBT_OK)
+      if(check != 1 || rows_found != batch)
       {
-	ERR(pTrans->getNdbError());
 	pNdb->closeTransaction(pTrans);
 	return NDBT_FAILED;
       }
     }
-    
-    check = pTrans->execute(Commit);   
+    else
+    {
+      for(b = 0; b<batch && (b+r)<records; b++)
+      {
+	if (calc.verifyRowValues(rows[b]) != 0)
+	{
+	  pNdb->closeTransaction(pTrans);
+	  return NDBT_FAILED;
+	}
+	
+	int updates = calc.getUpdatesValue(rows[b]) + 1;
+	
+	if(pkUpdateRecord(pNdb, r+b, 1, updates) != NDBT_OK)
+	{
+	  ERR(pTrans->getNdbError());
+	  pNdb->closeTransaction(pTrans);
+	  return NDBT_FAILED;
+	}
+      }
+      check = pTrans->execute(Commit);   
+    }
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
 
@@ -1221,7 +1285,6 @@ HugoTransactions::pkUpdateRecords(Ndb* pNdb,
     else{
       updated += batch;
     }
-    
     
     pNdb->closeTransaction(pTrans);
     
@@ -1633,7 +1696,7 @@ int
 HugoTransactions::indexReadRecords(Ndb* pNdb, 
 				   const char * idxName,
 				   int records,
-				   int batchsize){
+				   int batch){
   int                  reads = 0;
   int                  r = 0;
   int                  retryAttempt = 0;
@@ -1647,17 +1710,17 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
   
   const bool ordered = (pIndex->getType()==NdbDictionary::Index::OrderedIndex);
 
-  if (batchsize == 0) {
-    g_info << "ERROR: Argument batchsize == 0 in indexReadRecords(). "
+  if (batch == 0) {
+    g_info << "ERROR: Argument batch == 0 in indexReadRecords(). "
 	   << "Not allowed." << endl;
     return NDBT_FAILED;
   }
   
   if (ordered) {
-    batchsize = 1;
+    batch = 1;
   }
 
-  allocRows(batchsize);
+  allocRows(batch);
   
   while (r < records){
     if (retryAttempt >= retryMax){
@@ -1680,7 +1743,7 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
     
-    for(int b=0; (b<batchsize) && (r+b < records); b++){
+    for(int b=0; (b<batch) && (r+b < records); b++){
       if(!ordered){
 	pOp = pTrans->getNdbIndexOperation(idxName, tab.getName());	
 	if (pOp == NULL) {
@@ -1751,7 +1814,7 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
 	return NDBT_FAILED;
       }
     } else{
-      for (int b=0; (b<batchsize) && (r+b<records); b++){ 
+      for (int b=0; (b<batch) && (r+b<records); b++){ 
 	if (calc.verifyRowValues(rows[b]) != 0){
 	  pNdb->closeTransaction(pTrans);
 	  return NDBT_FAILED;
@@ -1779,7 +1842,7 @@ int
 HugoTransactions::indexUpdateRecords(Ndb* pNdb, 
 				     const char * idxName,
 				     int records,
-				     int batchsize){
+				     int batch){
 
   int updated = 0;
   int                  r = 0;
@@ -1794,10 +1857,10 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
   
   const bool ordered = (pIndex->getType()==NdbDictionary::Index::OrderedIndex);
   if (ordered){
-    batchsize = 1;
+    batch = 1;
   }
 
-  allocRows(batchsize);
+  allocRows(batch);
   
   while (r < records){
     if (retryAttempt >= retryMax){
@@ -1820,7 +1883,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    for(b = 0; b<batchsize && (b+r)<records; b++){
+    for(b = 0; b<batch && (b+r)<records; b++){
       if(!ordered){
 	pOp = pTrans->getNdbIndexOperation(idxName, tab.getName());	
 	if (pOp == NULL) {
@@ -1890,7 +1953,7 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
       return NDBT_FAILED;    
     }
     
-    for(b = 0; b<batchsize && (b+r)<records; b++){
+    for(b = 0; b<batch && (b+r)<records; b++){
       if (calc.verifyRowValues(rows[b]) != 0){
 	pNdb->closeTransaction(pTrans);
 	return NDBT_FAILED;
@@ -1955,12 +2018,12 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
       ndbout << "r = " << r << endl;
       return NDBT_FAILED;
     } else {
-      updated += batchsize;
+      updated += batch;
     }
     
     pNdb->closeTransaction(pTrans);
     
-    r+= batchsize; // Read next record
+    r+= batch; // Read next record
   }
   
   g_info << "|- " << updated << " records updated" << endl;

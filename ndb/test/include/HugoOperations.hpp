@@ -88,6 +88,7 @@ public:
 		      NdbScanOperation::LM_CommittedRead, 
 		      int numRecords = 1);
 
+  NdbIndexScanOperation* pIndexScanOp;
 protected:
   void allocRows(int rows);
   void deallocRows();

@@ -58,9 +58,15 @@ int HugoOperations::pkReadRecord(Ndb* pNdb,
   allocRows(numRecords);
   int check;
 
-  for(int r=0; r < numRecords; r++){
+  NdbOperation* pOp = 0;
+  pIndexScanOp = 0;
 
-    NdbOperation* pOp = getOperation(pTrans, NdbOperation::ReadRequest);
+  for(int r=0; r < numRecords; r++){
+    
+    if(pOp == 0)
+    {
+      pOp = getOperation(pTrans, NdbOperation::ReadRequest);
+    }
     if (pOp == NULL) {
       ERR(pTrans->getNdbError());
       return NDBT_FAILED;
@@ -69,13 +75,16 @@ int HugoOperations::pkReadRecord(Ndb* pNdb,
 rand_lock_mode:
     switch(lm){
     case NdbOperation::LM_Read:
-      check = pOp->readTuple();
-      break;
     case NdbOperation::LM_Exclusive:
-      check = pOp->readTupleExclusive();
-      break;
     case NdbOperation::LM_CommittedRead:
-      check = pOp->dirtyRead();
+      if(idx && idx->getType() == NdbDictionary::Index::OrderedIndex && 
+	 pIndexScanOp == 0)
+      {
+	pIndexScanOp = ((NdbIndexScanOperation*)pOp);
+	check = pIndexScanOp->readTuples(lm);
+      }
+      else
+	check = pOp->readTuple(lm);
       break;
     default:
       lm = (NdbOperation::LockMode)((rand() >> 16) & 3);
@@ -96,15 +105,22 @@ rand_lock_mode:
 	}
       }
     }
+
+    if(pIndexScanOp)
+      pIndexScanOp->end_of_bound(r);
     
-    // Define attributes to read  
-    for(a = 0; a<tab.getNoOfColumns(); a++){
-      if((rows[r]->attributeStore(a) = 
-	  pOp->getValue(tab.getColumn(a)->getName())) == 0) {
-	ERR(pTrans->getNdbError());
-	return NDBT_FAILED;
-      }
-    } 
+    if(r == 0 || pIndexScanOp == 0)
+    {
+      // Define attributes to read  
+      for(a = 0; a<tab.getNoOfColumns(); a++){
+	if((rows[r]->attributeStore(a) = 
+	    pOp->getValue(tab.getColumn(a)->getName())) == 0) {
+	  ERR(pTrans->getNdbError());
+	  return NDBT_FAILED;
+	}
+      } 
+    }
+    pOp = pIndexScanOp;
   }
   return NDBT_OK;
 }
