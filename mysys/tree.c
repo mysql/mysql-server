@@ -159,7 +159,7 @@ static void delete_tree_element(TREE *tree, TREE_ELEMENT *element)
       (*tree->free)(ELEMENT_KEY(tree,element), free_free, tree->custom_arg);
     delete_tree_element(tree,element->right);
     if (tree->with_delete)
-      my_free((void*) element,MYF(0));
+      my_free((char*) element,MYF(0));
   }
 }
 

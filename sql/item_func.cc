@@ -259,10 +259,14 @@ double Item_func_plus::val()
 
 longlong Item_func_plus::val_int()
 {
-  longlong value=args[0]->val_int()+args[1]->val_int();
-  if ((null_value=args[0]->null_value || args[1]->null_value))
-    return 0;
-  return value;
+  if (hybrid_type == INT_RESULT)
+  {
+    longlong value=args[0]->val_int()+args[1]->val_int();
+    if ((null_value=args[0]->null_value || args[1]->null_value))
+      return 0;
+    return value;
+  }
+  return (longlong) Item_func_plus::val();
 }
 
 double Item_func_minus::val()
@@ -275,11 +279,16 @@ double Item_func_minus::val()
 
 longlong Item_func_minus::val_int()
 {
-  longlong value=args[0]->val_int() - args[1]->val_int();
-  if ((null_value=args[0]->null_value || args[1]->null_value))
-    return 0;
-  return value;
+  if (hybrid_type == INT_RESULT)
+  {
+    longlong value=args[0]->val_int() - args[1]->val_int();
+    if ((null_value=args[0]->null_value || args[1]->null_value))
+      return 0;
+    return value;
+  }
+  return (longlong) Item_func_minus::val();
 }
+
 
 double Item_func_mul::val()
 {
@@ -291,10 +300,14 @@ double Item_func_mul::val()
 
 longlong Item_func_mul::val_int()
 {
-  longlong value=args[0]->val_int()*args[1]->val_int();
-  if ((null_value=args[0]->null_value || args[1]->null_value))
-    return 0; /* purecov: inspected */
-  return value;
+  if (hybrid_type == INT_RESULT)
+  {
+    longlong value=args[0]->val_int()*args[1]->val_int();
+    if ((null_value=args[0]->null_value || args[1]->null_value))
+      return 0; /* purecov: inspected */
+    return value;
+  }
+  return (longlong) Item_func_mul::val();
 }
 
 
@@ -309,11 +322,15 @@ double Item_func_div::val()
 
 longlong Item_func_div::val_int()
 {
-  longlong value=args[0]->val_int();
-  longlong val2=args[1]->val_int();
-  if ((null_value= val2 == 0 || args[0]->null_value || args[1]->null_value))
-    return 0;
-  return value/val2;
+  if (hybrid_type == INT_RESULT)
+  {
+    longlong value=args[0]->val_int();
+    longlong val2=args[1]->val_int();
+    if ((null_value= val2 == 0 || args[0]->null_value || args[1]->null_value))
+      return 0;
+    return value/val2;
+  }
+  return (longlong) Item_func_div::val();
 }
 
 void Item_func_div::fix_length_and_dec()
@@ -1382,6 +1399,23 @@ void item_user_lock_free(void)
 void item_user_lock_release(ULL *ull)
 {
   ull->locked=0;
+  if (mysql_bin_log.is_open())
+  {
+    THD *thd = current_thd;
+    int save_errno;
+    char buf[256];
+    String tmp(buf,sizeof(buf));
+    tmp.length(0);
+    tmp.append("SELECT release_lock(\"");
+    tmp.append(ull->key,ull->key_length);
+    tmp.append("\")");
+    save_errno=thd->net.last_errno;
+    thd->net.last_errno=0;
+    thd->query_length=tmp.length();
+    Query_log_event qev(thd,tmp.ptr());
+    mysql_bin_log.write(&qev);
+    thd->net.last_errno=save_errno;
+  }
   if (--ull->count)
     pthread_cond_signal(&ull->cond);
   else
@@ -1428,7 +1462,7 @@ longlong Item_func_get_lock::val_int()
   struct timespec abstime;
   THD *thd=current_thd;
   ULL *ull;
-  int error;
+  int error=0;
 
   pthread_mutex_lock(&LOCK_user_locks);
 
@@ -1466,23 +1500,23 @@ longlong Item_func_get_lock::val_int()
 
   /* structure is now initialized.  Try to get the lock */
   /* Set up control struct to allow others to abort locks */
-  pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->proc_info="User lock";
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &ull->cond;
-  pthread_mutex_unlock(&thd->mysys_var->mutex);
 
+#ifdef HAVE_TIMESPEC_TS_SEC
+  abstime.ts_sec=time((time_t*) 0)+(time_t) timeout;
+  abstime.ts_nsec=0;
+#else
   abstime.tv_sec=time((time_t*) 0)+(time_t) timeout;
   abstime.tv_nsec=0;
-  while ((error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
-	 != ETIME && error != ETIMEDOUT && ull->locked)
-  {
-    if (thd->killed || abort_loop)
-    {
-      error=EINTR;				// Return NULL
-      break;
-    }
-  }
+#endif
+
+  while (!thd->killed &&
+	 (error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
+	 != ETIME && error != ETIMEDOUT && ull->locked) ;
+  if (thd->killed)
+    error=EINTR;				// Return NULL
   if (ull->locked)
   {
     if (!--ull->count)

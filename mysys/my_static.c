@@ -20,7 +20,7 @@
   a shared library
 */
 
-#ifndef stdin
+#if !defined(stdin) || defined(OS2)
 #include "mysys_priv.h"
 #include "my_static.h"
 #include "my_alarm.h"

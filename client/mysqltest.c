@@ -51,7 +51,11 @@
 #include <mysql.h>
 #include <mysql_version.h>
 #include <m_ctype.h>
-#include <my_config.h>
+#ifdef OS2
+#include <config-os2.h>
+#else
+ #include <my_config.h>
+#endif
 #include <my_dir.h>
 #include <hash.h>
 #include <mysqld_error.h>
@@ -247,12 +251,11 @@ static int eval_result = 0;
 
 /* Disable functions that only exist in MySQL 4.0 */
 #if MYSQL_VERSION_ID < 40000
-static void mysql_enable_rpl_parse(MYSQL* mysql) {}
-static void mysql_disable_rpl_parse(MYSQL* mysql) {}
-static int mysql_rpl_parse_enabled(MYSQL* mysql) { return 1; }
-static int mysql_rpl_probe(MYSQL *mysql) { return 1; }
+static void mysql_enable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
+static void mysql_disable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
+static int mysql_rpl_parse_enabled(MYSQL* mysql __attribute__((unused))) { return 1; }
+static int mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
 #endif
-
 
 static void do_eval(DYNAMIC_STRING* query_eval, const char* query)
 {
@@ -829,6 +832,17 @@ int do_sleep(struct st_query* q)
   if (!*p)
     die("Missing argument in sleep\n");
   t.tv_usec = 0;
+
+#ifdef OS2
+
+  if (opt_sleep)
+    DosSleep( opt_sleep * 1000);
+  else
+    DosSleep( atof( p) * 1000);
+
+  return 0;
+
+#else
   if (opt_sleep)
     t.tv_sec = opt_sleep;
   else
@@ -858,6 +872,7 @@ int do_sleep(struct st_query* q)
   }
   t.tv_usec *= dec_mul;
   return select(0,0,0,0, &t);
+#endif
 }
 
 static void get_file_name(char *filename, struct st_query* q)
@@ -1889,8 +1904,8 @@ static VAR* var_init(VAR* v, const char* name, int name_len, const char* val,
 
 static void var_free(void* v)
 {
-  my_free(((VAR*)v)->str_val, MYF(MY_WME));
-  my_free(v, MYF(MY_WME));
+  my_free(((VAR*) v)->str_val, MYF(MY_WME));
+  my_free((char*) v, MYF(MY_WME));
 }
 
 
@@ -2751,7 +2766,7 @@ uint replace_strings(REPLACE *rep, my_string *start,uint *max_length,
 {
   reg1 REPLACE *rep_pos;
   reg2 REPLACE_STRING *rep_str;
-  my_string to,end,pos,new;
+  my_string to,end,pos,new_str;
 
   end=(to= *start) + *max_length-1;
   rep_pos=rep+1;
@@ -2763,10 +2778,10 @@ uint replace_strings(REPLACE *rep, my_string *start,uint *max_length,
       if (to == end)
       {
 	(*max_length)+=8192;
-	if (!(new=my_realloc(*start,*max_length,MYF(MY_WME))))
+	if (!(new_str=my_realloc(*start,*max_length,MYF(MY_WME))))
 	  return (uint) -1;
-	to=new+(to - *start);
-	end=(*start=new)+ *max_length-1;
+	to=new_str+(to - *start);
+	end=(*start=new_str)+ *max_length-1;
       }
       *to++= *from++;
     }
@@ -2778,10 +2793,10 @@ uint replace_strings(REPLACE *rep, my_string *start,uint *max_length,
       if (to == end)
       {
 	(*max_length)*=2;
-	if (!(new=my_realloc(*start,*max_length,MYF(MY_WME))))
+	if (!(new_str=my_realloc(*start,*max_length,MYF(MY_WME))))
 	  return (uint) -1;
-	to=new+(to - *start);
-	end=(*start=new)+ *max_length-1;
+	to=new_str+(to - *start);
+	end=(*start=new_str)+ *max_length-1;
       }
       *to++= *pos;
     }

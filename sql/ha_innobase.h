@@ -83,7 +83,7 @@ class ha_innobase: public handler
 			  HA_NO_WRITE_DELAYED |
 			  HA_PRIMARY_KEY_IN_READ_INDEX |
 			  HA_DROP_BEFORE_CREATE |
-			  HA_NOT_READ_AFTER_KEY | HA_NO_PREFIX_CHAR_KEYS),
+			  HA_NO_PREFIX_CHAR_KEYS),
 	  last_dup_key((uint) -1),
 	  start_of_scan(0)
   	{

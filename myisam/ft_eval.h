@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000 MySQL AB & Sergei A. Golubchik
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,9 +34,6 @@ FILE *df,*qf;
 MI_COLUMNDEF recinfo[3];
 MI_KEYDEF keyinfo[2];
 MI_KEYSEG keyseg[10];
-
-void get_options(int argc,char *argv[]);
-int create_record(char *, FILE *);
 
 #define SWL_INIT 500
 #define SWL_PLUS 50

@@ -27,7 +27,7 @@ Cambridge, MA 02139, USA.  */
 #include <global.h>
 #include "getopt.h"
 
-#if (!defined (__STDC__) || !__STDC__) && !defined(MSDOS)
+#if (!defined (__STDC__) || !__STDC__) && !defined(MSDOS) && !defined(OS2)
 /* This is a separate conditional since some stdc systems
    reject `defined (const)'.  */
 #ifndef const

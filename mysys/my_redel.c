@@ -91,7 +91,7 @@ int my_copystat(const char *from, const char *to, int MyFlags)
     return 1;
   VOID(chmod(to, statbuf.st_mode & 07777));		/* Copy modes */
 
-#if !defined(MSDOS) && !defined(__WIN__) && !defined(__EMX__)
+#if !defined(MSDOS) && !defined(__WIN__) && !defined(__EMX__) && !defined(OS2)
   if (statbuf.st_nlink > 1 && MyFlags & MY_LINK_WARNING)
   {
     if (MyFlags & MY_LINK_WARNING)

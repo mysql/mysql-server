@@ -59,11 +59,11 @@ static MI_KEYSEG glob_keyseg[MYISAM_KEYS][MAX_PARTS];
 
 		/* Test program */
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
   uint i;
   int j,n1,n2,n3,error,k;
-  uint write_count,update,dupp_keys,delete,start,length,blob_pos,
+  uint write_count,update,dupp_keys,opt_delete,start,length,blob_pos,
        reclength,ant,found_parts;
   my_off_t lastpos;
   ha_rows range_records,records;
@@ -180,7 +180,7 @@ int main(int argc, char **argv)
     recinfo[6].null_pos=0;
   }
 
-  write_count=update=dupp_keys=delete=0;
+  write_count=update=dupp_keys=opt_delete=0;
   blob_buffer=0;
 
   for (i=1000 ; i>0 ; i--) key1[i]=0;
@@ -280,14 +280,14 @@ int main(int argc, char **argv)
 	printf("can't find key1: \"%s\"\n",key);
 	goto err;
       }
-      if (delete == (uint) remove_count)		/* While testing */
+      if (opt_delete == (uint) remove_count)		/* While testing */
 	goto end;
       if (mi_delete(file,read_record))
       {
 	printf("error: %d; can't delete record: \"%s\"\n", my_errno,read_record);
 	goto err;
       }
-      delete++;
+      opt_delete++;
       key1[atoi(read_record+keyinfo[0].seg[0].start)]--;
       key3[atoi(read_record+keyinfo[2].seg[0].start)]=0;
     }
@@ -418,10 +418,10 @@ int main(int argc, char **argv)
   }
   while ((error=mi_rnext(file,read_record3,0)) == 0 && ant < write_count+10)
     ant++;
-  if (ant != write_count - delete || error != HA_ERR_END_OF_FILE)
+  if (ant != write_count - opt_delete || error != HA_ERR_END_OF_FILE)
   {
     printf("next: I found: %d records of %d (error: %d)\n",
-	   ant, write_count - delete, error);
+	   ant, write_count - opt_delete, error);
     goto end;
   }
   if (mi_rlast(file,read_record2,0) ||
@@ -435,7 +435,7 @@ int main(int argc, char **argv)
   ant=1;
   while (mi_rprev(file,read_record3,0) == 0 && ant < write_count+10)
     ant++;
-  if (ant != write_count - delete)
+  if (ant != write_count - opt_delete)
   {
     printf("prev: I found: %d records of %d\n",ant,write_count);
     goto end;
@@ -495,7 +495,7 @@ int main(int argc, char **argv)
     if (mi_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT)) goto err;
     if (mi_rnext(file,read_record3,0)) goto err;
     if (mi_delete(file,read_record3)) goto err;
-    delete++;
+    opt_delete++;
     ant=1;
     while (mi_rnext(file,read_record3,0) == 0 &&
 	   bcmp(read_record3+start,key,length) == 0) ant++;
@@ -513,7 +513,7 @@ int main(int argc, char **argv)
     if (mi_rprev(file,read_record3,0)) goto err;
     if (mi_rprev(file,read_record3,0)) goto err;
     if (mi_delete(file,read_record3)) goto err;
-    delete++;
+    opt_delete++;
     ant=1;
     while (mi_rprev(file,read_record3,0) == 0 &&
 	   bcmp(read_record3+start,key,length) == 0) ant++;
@@ -530,7 +530,7 @@ int main(int argc, char **argv)
     DBUG_PRINT("progpos",("first - delete - next -> last"));
     if (mi_rkey(file,read_record3,0,key,0,HA_READ_KEY_EXACT)) goto err;
     if (mi_delete(file,read_record3)) goto err;
-    delete++;
+    opt_delete++;
     ant=1;
     if (mi_rnext(file,read_record,0))
       goto err;					/* Skall finnas poster */
@@ -547,7 +547,7 @@ int main(int argc, char **argv)
     DBUG_PRINT("progpos",("last - delete - prev -> first"));
     if (mi_rprev(file,read_record3,0)) goto err;
     if (mi_delete(file,read_record3)) goto err;
-    delete++;
+    opt_delete++;
     ant=0;
     while (mi_rprev(file,read_record3,0) == 0 &&
 	   bcmp(read_record3+start,key,length) == 0) ant++;
@@ -641,7 +641,7 @@ int main(int argc, char **argv)
   if (!silent)
     printf("- mi_info\n");
   mi_status(file,&info,HA_STATUS_VARIABLE | HA_STATUS_CONST);
-  if (info.records != write_count-delete || info.deleted > delete + update
+  if (info.records != write_count-opt_delete || info.deleted > opt_delete + update
       || info.keys != keys)
   {
     puts("Wrong info from mi_info");
@@ -678,10 +678,10 @@ int main(int argc, char **argv)
   while ((error=mi_rrnd(file,record,HA_OFFSET_ERROR)) != HA_ERR_END_OF_FILE &&
 	 ant < write_count + 10)
 	ant+= error ? 0 : 1;
-  if (ant != write_count-delete)
+  if (ant != write_count-opt_delete)
   {
     printf("rrnd with cache: I can only find: %d records of %d\n",
-	   ant,write_count-delete);
+	   ant,write_count-opt_delete);
     goto end;
   }
   if (mi_extra(file,HA_EXTRA_NO_CACHE))
@@ -695,10 +695,10 @@ int main(int argc, char **argv)
   while ((error=mi_scan(file,record)) != HA_ERR_END_OF_FILE &&
 	 ant < write_count + 10)
 	ant+= error ? 0 : 1;
-  if (ant != write_count-delete)
+  if (ant != write_count-opt_delete)
   {
     printf("scan with cache: I can only find: %d records of %d\n",
-	   ant,write_count-delete);
+	   ant,write_count-opt_delete);
     goto end;
   }
 
@@ -724,7 +724,7 @@ int main(int argc, char **argv)
     lastpos=info.recpos;
     if (error == 0)
     {
-      if (delete == (uint) remove_count)		/* While testing */
+      if (opt_delete == (uint) remove_count)		/* While testing */
 	goto end;
       if (mi_rsame(file,read_record,-1))
       {
@@ -751,19 +751,19 @@ int main(int argc, char **argv)
       if (mi_delete(file,read_record))
       {
 	printf("can't delete record: %6.6s,  delete_count: %d\n",
-	       read_record, delete);
+	       read_record, opt_delete);
 	goto err;
       }
-      delete++;
+      opt_delete++;
     }
     else
       found_parts++;
   }
   if (my_errno != HA_ERR_END_OF_FILE && my_errno != HA_ERR_RECORD_DELETED)
     printf("error: %d from mi_rrnd\n",my_errno);
-  if (write_count != delete)
+  if (write_count != opt_delete)
   {
-    printf("Deleted only %d of %d records (%d parts)\n",delete,write_count,
+    printf("Deleted only %d of %d records (%d parts)\n",opt_delete,write_count,
 	   found_parts);
     goto err;
   }
@@ -774,7 +774,7 @@ end:
   if (!silent)
   {
     printf("\nFollowing test have been made:\n");
-    printf("Write records: %d\nUpdate records: %d\nSame-key-read: %d\nDelete records: %d\n", write_count,update,dupp_keys,delete);
+    printf("Write records: %d\nUpdate records: %d\nSame-key-read: %d\nDelete records: %d\n", write_count,update,dupp_keys,opt_delete);
     if (rec_pointer_size)
       printf("Record pointer size: %d\n",rec_pointer_size);
     if (key_cacheing)

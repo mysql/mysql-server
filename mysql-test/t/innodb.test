@@ -161,6 +161,20 @@ delete from t1;
 commit;
 select * from t1;
 drop table t1;
+
+#
+# Test of active transactions
+#
+
+create table t1 (a integer) type=innodb;
+begin;
+rename table t1 to t2;
+create table t1 (b integer) type=innodb;
+insert into t1 values (1);
+rollback;
+drop table t1;
+rename table t2 to t1;
+drop table t1;
 set autocommit=1;
 
 #
@@ -414,8 +428,8 @@ drop table t1;
 #
 
 CREATE TABLE t1 (a int unsigned NOT NULL) type=innodb;
---error 1031
-INSERT DELAYED INTO t1 VALUES (1);
+# Can't test this in 3.23
+# INSERT DELAYED INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (1);
 SELECT * FROM t1;
 DROP TABLE t1;
@@ -476,3 +490,25 @@ delete from t1 where a=3;
 insert into t1 values (NULL);
 select * from t1;
 drop table t1;
+
+#Slashdot bug
+create table t1
+ (
+  id int auto_increment primary key,
+  name varchar(32) not null,
+  value text not null,
+  uid int not null,
+  unique key(name,uid)
+ ) type=innodb;
+insert into t1 values (1,'one','one value',101),
+ (2,'two','two value',102),(3,'three','three value',103);
+set insert_id=5;
+replace into t1 (value,name,uid) values ('other value','two',102);
+delete from t1 where uid=102;
+set insert_id=5;
+replace into t1 (value,name,uid) values ('other value','two',102);
+set insert_id=6;
+replace into t1 (value,name,uid) values ('other value','two',102);
+select * from t1;
+drop table t1;
+

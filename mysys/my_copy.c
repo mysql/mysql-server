@@ -81,7 +81,7 @@ int my_copy(const char *from, const char *to, myf MyFlags)
     if (MyFlags & MY_HOLD_ORIGINAL_MODES && new_file_stat)
 	DBUG_RETURN(0);			/* File copyed but not stat */
     VOID(chmod(to, stat_buff.st_mode & 07777)); /* Copy modes */
-#if !defined(MSDOS) && !defined(__WIN__) && !defined(__EMX__)
+#if !defined(MSDOS) && !defined(__WIN__) && !defined(__EMX__) && !defined(OS2)
     VOID(chown(to, stat_buff.st_uid,stat_buff.st_gid)); /* Copy ownership */
 #endif
 #if !defined(VMS) && !defined(__ZTC__)

@@ -82,7 +82,7 @@
 # define bmove_allign(A,B,C)    memcpy((A),(B),(C))
 #endif
 
-#ifdef	__cplusplus
+#if defined(__cplusplus) && !defined(OS2)
 extern "C" {
 #endif
 
@@ -238,7 +238,7 @@ extern ulonglong strtoull(const char *str, char **ptr, int base);
 #endif
 #endif
 
-#ifdef	__cplusplus
+#if defined(__cplusplus) && !defined(OS2)
 }
 #endif
 #endif

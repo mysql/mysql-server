@@ -1738,8 +1738,8 @@ btr_node_ptr_delete(
 
 	btr_cur_position(UT_LIST_GET_FIRST(tree->tree_indexes), node_ptr,
 								&cursor);
-	compressed = btr_cur_pessimistic_delete(&err, TRUE, &cursor, mtr);
-
+	compressed = btr_cur_pessimistic_delete(&err, TRUE, &cursor, FALSE,
+									mtr);
 	ut_a(err == DB_SUCCESS);
 
 	if (!compressed) {

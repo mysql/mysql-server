@@ -38,12 +38,6 @@
 int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
 	    myf MyFlags)
 {
-#ifdef __EMX__
-  FILELOCK LockArea = {0,0}, UnlockArea = {0,0};
-  APIRET rc = 0;
-  fpos_t oldpos;
-  int lockflags = 0;
-#endif
 #ifdef HAVE_FCNTL
   int value;
   ALARM_VARIABLES;
@@ -56,54 +50,12 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
 #else
   if (my_disable_locking)
     DBUG_RETURN(0);
-#if defined(__EMX__)
-  if (locktype == F_UNLCK) {
-    UnlockArea.lOffset = start;
-    if (length)
-      UnlockArea.lRange = length;
-    else
-      UnlockArea.lRange = 0x7FFFFFFFL;
-  } else
-  if (locktype == F_RDLCK || locktype == F_WRLCK) {
-    if (locktype == F_RDLCK) lockflags |= 1;
-    LockArea.lOffset = start;
-    if (length)
-      LockArea.lRange = length;
-    else
-      LockArea.lRange = 0x7FFFFFFFL;
-  } else {
-    my_errno = EINVAL;
-    DBUG_RETURN(-1);
-  }
-  if (!LockArea.lRange && !UnlockArea.lRange)
+
+#if defined(__EMX__) || defined(OS2)
+
+   if (!_lock64( fd, locktype, start, length, MyFlags))
     DBUG_RETURN(0);
-  if (MyFlags & MY_DONT_WAIT) {
-    if (!(rc = DosSetFileLocks(fd,&UnlockArea,&LockArea,0,lockflags)))
-      DBUG_RETURN(0);		/* Lock was OK */
-    if (rc == 175 && locktype == F_RDLCK) {
-      lockflags &= ~1;
-      rc = DosSetFileLocks(fd,&UnlockArea,&LockArea,0,lockflags);
-    }
-    if (rc == 33) {  /* Lock Violation */
-      DBUG_PRINT("info",("Was locked, trying with timeout"));
-      rc = DosSetFileLocks(fd,&UnlockArea,&LockArea,MY_HOW_OFTEN_TO_ALARM * 1000,lockflags);
-    }
-    if (!rc) DBUG_RETURN(0);
-    if (rc == 33) errno = EAGAIN;
-    else {
-      errno = EINVAL;
-      printf("Error: DosSetFileLocks() == %d\n",rc);
-    }
-  } else {
-    while (rc = DosSetFileLocks(fd,&UnlockArea,&LockArea,
-	MY_HOW_OFTEN_TO_ALARM * 1000,lockflags) && (rc == 33 || rc == 175)) {
-      printf(".");
-      if (rc == 175) lockflags &= ~1;
-    }
-    if (!rc) DBUG_RETURN(0);
-    errno = EINVAL;
-    printf("Error: DosSetFileLocks() == %d\n",rc);
-  }
+
 #elif defined(HAVE_LOCKING)
   /* Windows */
   {

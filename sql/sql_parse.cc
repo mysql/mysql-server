@@ -67,8 +67,12 @@ extern struct st_VioSSLAcceptorFd * ssl_acceptor_fd;
 #ifdef __WIN__
 static void  test_signal(int sig_ptr)
 {
-#ifndef DBUG_OFF
+#if !defined( DBUG_OFF)
   MessageBox(NULL,"Test signal","DBUG",MB_OK);
+#endif
+#if defined(OS2)
+  fprintf( stderr, "Test signal %d\n", sig_ptr);
+  fflush( stderr);
 #endif
 }
 static void init_signals(void)
@@ -175,7 +179,6 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 */
 
 static HASH hash_user_connections;
-static DYNAMIC_ARRAY  user_conn_array;
 extern  pthread_mutex_t LOCK_user_conn;
 
 struct  user_conn {
@@ -482,7 +485,7 @@ pthread_handler_decl(handle_one_connection,arg)
 
   pthread_detach_this_thread();
 
-#ifndef __WIN__	/* Win32 calls this in pthread_create */
+#if !defined( __WIN__) && !defined(OS2)	/* Win32 calls this in pthread_create */
   if (my_thread_init()) // needed to be called first before we call
     // DBUG_ macros
   {
@@ -504,9 +507,9 @@ pthread_handler_decl(handle_one_connection,arg)
 		      thd->thread_id));
   // now that we've called my_thread_init(), it is safe to call DBUG_*
 
-#ifdef __WIN__
+#if defined(__WIN__)
   init_signals();				// IRENA; testing ?
-#else
+#elif !defined(OS2)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
@@ -607,7 +610,7 @@ pthread_handler_decl(handle_bootstrap,arg)
   thd->thread_stack= (char*) &thd;
   thd->mysys_var=my_thread_var;
   thd->dbug_thread_id=my_thread_id();
-#ifndef __WIN__
+#if !defined(__WIN__) && !defined(OS2)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
@@ -960,7 +963,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifdef __WIN__
     sleep(1);					// must wait after eof()
 #endif
+#ifndef OS2
     send_eof(net);				// This is for 'quit request'
+#endif
     close_connection(net);
     close_thread_tables(thd);			// Free before kill
     free_root(&thd->mem_root,MYF(0));
@@ -2280,10 +2285,18 @@ static bool check_merge_table_access(THD *thd, char *db,
   int error=0;
   if (table_list)
   {
-    /* Force all tables to use the current database */
+    /* Check that all tables use the current database */
     TABLE_LIST *tmp;
     for (tmp=table_list; tmp ; tmp=tmp->next)
-      tmp->db=db;
+    {
+      if (!tmp->db || !tmp->db[0])
+	tmp->db=db;
+      else if (!strcmp(tmp->db,db))
+      {
+	send_error(&thd->net,ER_UNION_TABLES_IN_DIFFERENT_DIR);
+	return 1;
+      }
+    }
     error=check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
 			     table_list);
   }
@@ -2790,13 +2803,11 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
     DBUG_RETURN(0);
   }
 
-#ifdef FN_LOWER_CASE
   if (!alias)					/* Alias is case sensitive */
     if (!(alias_str=thd->memdup(alias_str,table->table.length+1)))
       DBUG_RETURN(0);
   if (lower_case_table_names)
     casedn_str(table->table.str);
-#endif
   if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(0);				/* purecov: inspected */
   ptr->db= table->db.str ? table->db.str : (thd->db ? thd->db : (char*) "");

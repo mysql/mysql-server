@@ -355,7 +355,7 @@ int Log_event::write_header(IO_CACHE* file)
 {
   char buf[LOG_EVENT_HEADER_LEN];
   char* pos = buf;
-  int4store(pos, when); // timestamp
+  int4store(pos, (ulong) when); // timestamp
   pos += 4;
   *pos++ = get_type_code(); // event type code
   int4store(pos, server_id);
@@ -553,7 +553,11 @@ void Log_event::print_timestamp(FILE* file, time_t* ts)
   {
     ts = &when;
   }
+#ifdef MYSQL_SERVER
   localtime_r(ts,&tm_tmp);
+#else
+  localtime(ts);
+#endif
 
   fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
 	  tm_tmp.tm_year % 100,

@@ -1,0 +1,39 @@
+Item 237 of 47475 (0%) ... source file ..\mysys\list.c
+Item 4357 of 29226 (15%) ... source region "extern int          _Optlink  _spawnve(int, const char *, const char ..."
+Item 10021 of 16290 (62%) ... initializer [0x7319920] for uchar to_upper_latin1[]
+Item 11487 of 15248 (75%) ... kernel-provided extension source file \rd\mysql\zlib-1.1.3\crc32.c
+Item 12920 of 15380 (84%) ... body of function [0x6dca980] int my_strcoll_czech(const uchar *, const uchar *)
+Item 13952 of 16411 (85%) ... output object file E:\rd\mysql\vacpp-3.23.33\os2\ft_search.obj
+Item 14083 of 16542 (85%) ... publish library or executable marker
+Item 1278 of 16668 (8%) ... source region "typedef STARTDATA *PSTARTDATA;"
+Item 6013 of 8617 (70%) ... kernel-provided extension source file \rd\mysql\zlib-1.1.3\trees.c
+Item 6962 of 8581 (81%) ... initializer [0x229bf00] for const char @485 (static target)[23] "Failed in mysql_init()"
+Item 7519 of 9019 (83%) ... initializer [0x2337bc0] for const char @630 (static target)[20] "No query specified
+"
+Item 8502 of 10001 (85%) ... publish library or executable marker
+Item 182 of 49201 (0%) ... source file ..\myisam\mi_statrec.c
+Item 2136 of 46089 (5%) ... source region "class Item_sum_udf_float :public Item_udf_sum {  public:   Item_sum_udf_float ..."
+Item 11112 of 25912 (43%) ... source region "extern uint _nisam_get_key(N_KEYDEF *keyinfo ..."
+Item 13919 of 24304 (57%) ... initializer [0x1ec6f10] for const short yypgoto[]
+Item 15179 of 23800 (64%) ... kernel-provided extension source file \rd\mysql\zlib-1.1.3\trees.c
+Item 17342 of 24056 (72%) ... initializer [0x29d1180] for __vftType __vft10Field_date5Field[46]
+Item 17912 of 24406 (73%) ... body of function [0x1d1df40] void Item_func_case::print(String *)
+Item 18247 of 24721 (74%) ... template instantiation  (0x2b9dd20) of declaration of class I_List<thread_info> (2b9dc20)
+Item 18775 of 25165 (75%) ... initializer [0x2c45600] for __vftType __vft18Item_func_get_lock4Item[34]
+Item 19066 of 25369 (75%) ... initializer [0x2c800d0] for const char @2105 (static target)[22] "parser stack overflow"
+Item 19395 of 25535 (76%) ... body of function [0x171eef0] db_type ha_checktype(db_type)
+Item 19682 of 25654 (77%) ... body of function [0x17f1860] void kill_mysql()
+Item 20070 of 25717 (78%) ... body of function [0x183e570] Item *create_func_date_format(Item *, Item *)
+Item 20541 of 25764 (80%) ... body of function [0x1802b40] uint acl_get(const char *, const char *, const char *, const char *, const char *)
+Item 21017 of 25874 (81%) ... body of function [0x2c55180] String *field_str::get_max_arg(String *)
+Item 21406 of 25988 (82%) ... initializer [0x372d950] for const char @2567 (static target)[7] "%s(%d)"
+Item 22411 of 25867 (87%) ... body of function [0x161b160] Item_func_udf_int::Item_func_udf_int(udf_func *)
+Item 23345 of 25805 (90%) ... initializer [0x3447840] for const char @2709 (static target)[27] "waiting for handler insert"
+Item 23783 of 26226 (91%) ... initializer [0x39a95b0] for const char @2766 (static target)[25] "Creating delayed handler"
+Item 24887 of 27330 (91%) ... body of function [0x2b075a0] Item_load_file::~Item_load_file()
+Item 25018 of 27461 (91%) ... body of function [0x2cf5e50] Item_sum::Item_sum()
+Item 25267 of 27710 (91%) ... body of function [0x1c93d80] bool select_export::send_data(List<Item> &)
+Item 25484 of 27927 (91%) ... body of function [0x116e840] Item *create_func_ascii(Item *)
+Item 3212 of 9073 (35%) ... source region "extern int _mi_cmp_static_record(MI_INFO *info,const byte ..."
+Item 7171 of 8564 (84%) ... code csect _test_handle from library E:\bin\IBMCPP40\LIB\CPPRMS40.LIB
+Item 8345 of 9738 (86%) ... target E:\rd\mysql\vacpp-3.23.33\os2\..\bin\test\testhash.exe

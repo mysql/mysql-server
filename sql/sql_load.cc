@@ -86,6 +86,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   bool is_fifo=0;
   LOAD_FILE_INFO lf_info;
   char * db = table_list->db ? table_list->db : thd->db;
+  bool using_transactions;
   DBUG_ENTER("mysql_load");
 
   if (escaped->length() > 1 || enclosed->length() > 1)
@@ -170,7 +171,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     else
     {
       unpack_filename(name,ex->file_name);
-#ifndef __WIN__
+#if !defined(__WIN__) && !defined(OS2)
       MY_STAT stat_info;
       if (!my_stat(name,&stat_info,MYF(MY_WME)))
 	DBUG_RETURN(-1);
@@ -268,8 +269,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   free_blobs(table);				/* if pack_blob was used */
   table->copy_blobs=0;
   thd->count_cuted_fields=0;			/* Don`t calc cuted fields */
+  using_transactions = table->file->has_transactions();
   if (error)
   {
+    if (using_transactions)
+      ha_autocommit_or_rollback(thd,error);
     if (!opt_old_rpl_compat && mysql_bin_log.is_open())
     {
       Delete_file_log_event d(thd);
@@ -284,7 +288,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if(!thd->slave_thread)
     mysql_update_log.write(thd,thd->query,thd->query_length);
   
-  if (!table->file->has_transactions())
+  if (!using_transactions)
     thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   if (mysql_bin_log.is_open())
   {
@@ -301,7 +305,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       mysql_bin_log.write(&e);
     }
   }
-  DBUG_RETURN(0);
+  if (using_transactions)
+    error=ha_autocommit_or_rollback(thd,error); 
+  DBUG_RETURN(error);
 }
 
 

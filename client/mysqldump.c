@@ -85,11 +85,11 @@ static int   first_error=0;
 extern ulong net_buffer_length;
 static DYNAMIC_STRING extended_row;
 #include "sslopt-vars.h"
-FILE  *result_file;
+FILE  *md_result_file;
 
-enum options {OPT_FTB=256, OPT_LTB, OPT_ENC, OPT_O_ENC, OPT_ESC, OPT_KEYWORDS,
-	      OPT_LOCKS, OPT_DROP, OPT_OPTIMIZE, OPT_DELAYED, OPT_TABLES,
-              OPT_CHARSETS_DIR, OPT_DEFAULT_CHARSET};
+enum md_options {OPT_FTB=256, OPT_LTB, OPT_ENC, OPT_O_ENC, OPT_ESC,
+		 OPT_KEYWORDS, OPT_LOCKS, OPT_DROP, OPT_OPTIMIZE, OPT_DELAYED,
+		 OPT_TABLES, MD_OPT_CHARSETS_DIR, MD_OPT_DEFAULT_CHARSET};
 
 static struct option long_options[] =
 {
@@ -98,12 +98,12 @@ static struct option long_options[] =
   {"add-drop-table",	no_argument,    0, 	OPT_DROP},
   {"add-locks",    	no_argument,    0,	OPT_LOCKS},
   {"allow-keywords",	no_argument,    0, 	OPT_KEYWORDS},
-  {"character-sets-dir",required_argument,0,    OPT_CHARSETS_DIR},
+  {"character-sets-dir",required_argument,0,    MD_OPT_CHARSETS_DIR},
   {"complete-insert",	no_argument,    0, 	'c'},
   {"compress",          no_argument,    0, 	'C'},
   {"databases",         no_argument,    0,      'B'},
   {"debug",		optional_argument, 	0, '#'},
-  {"default-character-set", required_argument,  0, OPT_DEFAULT_CHARSET},
+  {"default-character-set", required_argument,  0, MD_OPT_DEFAULT_CHARSET},
   {"delayed-insert",	no_argument,    0, 	OPT_DELAYED},
   {"extended-insert",   no_argument,    0, 	'e'},
   {"fields-terminated-by", required_argument,   0, (int) OPT_FTB},
@@ -145,7 +145,7 @@ static struct option long_options[] =
 
 static const char *load_default_groups[]= { "mysqldump","client",0 };
 
-CHANGEABLE_VAR changeable_vars[] = {
+CHANGEABLE_VAR md_changeable_vars[] = {
   { "max_allowed_packet", (long*) &max_allowed_packet,24*1024*1024,4096,
     24*1024L*1024L,MALLOC_OVERHEAD,1024},
   { "net_buffer_length", (long*) &net_buffer_length,1024*1024L-1025,4096,
@@ -265,10 +265,10 @@ puts("\
   print_defaults("my",load_default_groups);
 
   printf("\nPossible variables for option --set-variable (-O) are:\n");
-  for (i=0 ; changeable_vars[i].name ; i++)
+  for (i=0 ; md_changeable_vars[i].name ; i++)
     printf("%-20s  current value: %lu\n",
-     changeable_vars[i].name,
-     (ulong) *changeable_vars[i].varptr);
+     md_changeable_vars[i].name,
+     (ulong) *md_changeable_vars[i].varptr);
 } /* usage */
 
 
@@ -290,9 +290,9 @@ static int get_options(int *argc,char ***argv)
   int c,option_index;
   my_bool tty_password=0;
 
-  result_file=stdout;
+  md_result_file=stdout;
   load_defaults("my",load_default_groups,argc,argv);
-  set_all_changeable_vars(changeable_vars);
+  set_all_changeable_vars(md_changeable_vars);
   while ((c=getopt_long(*argc,*argv,
 			"#::p::h:u:O:P:r:S:T:EBaAcCdefFlnqtvVw:?Ix",
 			long_options, &option_index)) != EOF)
@@ -307,10 +307,10 @@ static int get_options(int *argc,char ***argv)
     case 'A':
       opt_alldbs=1;
       break;
-    case OPT_DEFAULT_CHARSET:
+    case MD_OPT_DEFAULT_CHARSET:
       default_charset= optarg;
       break;
-    case OPT_CHARSETS_DIR:
+    case MD_OPT_CHARSETS_DIR:
       charsets_dir= optarg;
       break;
     case 'f':
@@ -332,7 +332,7 @@ static int get_options(int *argc,char ***argv)
       break;
 #endif
     case 'O':
-      if (set_changeable_var(optarg, changeable_vars))
+      if (set_changeable_var(optarg, md_changeable_vars))
       {
 	usage();
 	return(1);
@@ -355,7 +355,7 @@ static int get_options(int *argc,char ***argv)
       opt_mysql_port= (unsigned int) atoi(optarg);
       break;
     case 'r':
-      if (!(result_file = my_fopen(optarg, O_WRONLY | O_BINARY,
+      if (!(md_result_file = my_fopen(optarg, O_WRONLY | O_BINARY,
 				   MYF(MY_WME))))
 	exit(1);
       break;
@@ -602,7 +602,7 @@ static uint getTableStructure(char *table, char* db)
   char 	     *strpos, *table_name;
   const char *delayed;
   char 	     name_buff[NAME_LEN+3],table_buff[NAME_LEN+3];
-  FILE       *sql_file = result_file;
+  FILE       *sql_file = md_result_file;
   DBUG_ENTER("getTableStructure");
 
   delayed= opt_delayed ? " DELAYED " : "";
@@ -973,15 +973,14 @@ static void dumpTable(uint numFields, char *table)
   }
   else
   {
-    fprintf(result_file,"\n#\n# Dumping data for table '%s'\n", table);
+    fprintf(md_result_file,"\n#\n# Dumping data for table '%s'\n", table);
     sprintf(query, "SELECT * FROM %s", quote_name(table,table_buff));
     if (where)
     {
-      fprintf(result_file,"-- WHERE:  %s\n",where);
+      fprintf(md_result_file,"-- WHERE:  %s\n",where);
       strxmov(strend(query), " WHERE ",where,NullS);
     }
-    fputs("\n\n", result_file);
-
+    fputs("\n\n", md_result_file);
     if (mysql_query(sock, query))
     {
       DBerror(sock, "when retrieving data from server");
@@ -1007,7 +1006,7 @@ static void dumpTable(uint numFields, char *table)
     }
 
     if (opt_lock)
-      fprintf(result_file,"LOCK TABLES %s WRITE;\n",
+      fprintf(md_result_file,"LOCK TABLES %s WRITE;\n",
 	      quote_name(table,table_buff));
 
     total_length=net_buffer_length;		/* Force row break */
@@ -1021,7 +1020,7 @@ static void dumpTable(uint numFields, char *table)
       ulong *lengths=mysql_fetch_lengths(res);
       rownr++;
       if (!extended_insert)
-	fputs(insert_pat,result_file);
+	fputs(insert_pat,md_result_file);
       mysql_field_seek(res,0);
 
       for (i = 0; i < mysql_num_fields(res); i++)
@@ -1075,17 +1074,17 @@ static void dumpTable(uint numFields, char *table)
 	else
 	{
 	  if (i)
-	    fputc(',',result_file);
+	    fputc(',',md_result_file);
 	  if (row[i])
 	  {
 	    if (!IS_NUM_FIELD(field))
-	      unescape(result_file, row[i], lengths[i]);
+	      unescape(md_result_file, row[i], lengths[i]);
 	    else
-	      fputs(row[i],result_file);
+	      fputs(row[i],md_result_file);
 	  }
 	  else
 	  {
-	    fputs("NULL",result_file);
+	    fputs("NULL",md_result_file);
 	  }
 	}
       }
@@ -1098,25 +1097,25 @@ static void dumpTable(uint numFields, char *table)
         if (total_length + row_length < net_buffer_length)
         {
 	  total_length += row_length;
-	  fputc(',',result_file);		/* Always row break */
-	  fputs(extended_row.str,result_file);
+	  fputc(',',md_result_file);		/* Always row break */
+	  fputs(extended_row.str,md_result_file);
 	}
         else
         {
 	  if (row_break)
-	    fputs(";\n", result_file);
+	    fputs(";\n", md_result_file);
 	  row_break=1;				/* This is first row */
-	  fputs(insert_pat,result_file);
-	  fputs(extended_row.str,result_file);
+	  fputs(insert_pat,md_result_file);
+	  fputs(extended_row.str,md_result_file);
 	  total_length = row_length+init_length;
         }
       }
       else
-	fputs(");\n", result_file);
+	fputs(");\n", md_result_file);
     }
     if (extended_insert && row_break)
-      fputs(";\n", result_file);		/* If not empty table */
-    fflush(result_file);
+      fputs(";\n", md_result_file);		/* If not empty table */
+    fflush(md_result_file);
     if (mysql_errno(sock))
     {
       sprintf(query,"%s: Error %d: %s when dumping table '%s' at row: %ld\n",
@@ -1130,7 +1129,7 @@ static void dumpTable(uint numFields, char *table)
       return;
     }
     if (opt_lock)
-      fputs("UNLOCK TABLES;\n", result_file);
+      fputs("UNLOCK TABLES;\n", md_result_file);
     mysql_free_result(res);
   }
 } /* dumpTable */
@@ -1206,11 +1205,11 @@ static int init_dumping(char *database)
   {
     if (opt_databases || opt_alldbs)
     {
-      fprintf(result_file,"\n#\n# Current Database: %s\n#\n", database);
+      fprintf(md_result_file,"\n#\n# Current Database: %s\n#\n", database);
       if (!opt_create_db)
-	fprintf(result_file,"\nCREATE DATABASE /*!32312 IF NOT EXISTS*/ %s;\n",
+	fprintf(md_result_file,"\nCREATE DATABASE /*!32312 IF NOT EXISTS*/ %s;\n",
 		database);
-      fprintf(result_file,"\nUSE %s;\n", database);
+      fprintf(md_result_file,"\nUSE %s;\n", database);
     }
   }
   if (extended_insert)
@@ -1224,6 +1223,7 @@ static int dump_all_tables_in_db(char *database)
 {
   char *table;
   uint numrows;
+  char table_buff[NAME_LEN+3];
 
   if (init_dumping(database))
     return 1;
@@ -1233,7 +1233,7 @@ static int dump_all_tables_in_db(char *database)
     init_dynamic_string(&query, "LOCK TABLES ", 256, 1024);
     for (numrows=0 ; (table = getTableName(1)) ; numrows++)
     {
-      dynstr_append(&query, table);
+      dynstr_append(&query, quote_name(table,table_buff));
       dynstr_append(&query, " READ /*!32311 LOCAL */,");
     }
     if (numrows && mysql_real_query(sock, query.str, query.length-1))
@@ -1263,6 +1263,7 @@ static int dump_all_tables_in_db(char *database)
 static int dump_selected_tables(char *db, char **table_names, int tables)
 {
   uint numrows;
+  char table_buff[NAME_LEN+3];
 
   if (init_dumping(db))
     return 1;
@@ -1274,7 +1275,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     init_dynamic_string(&query, "LOCK TABLES ", 256, 1024);
     for (i=0 ; i < tables ; i++)
     {
-      dynstr_append(&query, table_names[i]);
+      dynstr_append(&query, quote_name(table_names[i],table_buff));
       dynstr_append(&query, " READ /*!32311 LOCAL */,");
     }
     if (mysql_real_query(sock, query.str, query.length-1))
@@ -1342,7 +1343,7 @@ int main(int argc, char **argv)
   if (dbConnect(current_host, current_user, opt_password))
     exit(EX_MYSQLERR);
   if (!path)
-    write_heder(result_file, *argv);
+    write_heder(md_result_file, *argv);
 
    if (opt_first_slave)
    {
@@ -1378,9 +1379,9 @@ int main(int argc, char **argv)
    }
   }
   dbDisconnect(current_host);
-  fputs("\n", result_file);
-  if (result_file != stdout)
-    my_fclose(result_file, MYF(0));
+  fputs("\n", md_result_file);
+  if (md_result_file != stdout)
+    my_fclose(md_result_file, MYF(0));
   my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
   if (extended_insert)
     dynstr_free(&extended_row);

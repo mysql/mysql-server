@@ -25,7 +25,7 @@
 #endif
 
 #ifdef HAVE_TEMPNAM
-#ifndef MSDOS
+#if !defined( MSDOS) && !defined(OS2)
 extern char **environ;
 #endif
 #endif
@@ -122,12 +122,19 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
       to[1]= 0;
       dir=to;
     }
-    old_env=environ;
+#ifdef OS2
+    // changing environ variable doesn't work with VACPP
+    char  buffer[256];
+    sprintf( buffer, "TMP=%s", dir);
+    putenv( buffer);
+#else
+    old_env= (char**) environ;
     if (dir)
     {				/* Don't use TMPDIR if dir is given */
-      environ=temp_env;
+      environ=(const char**) temp_env;
       temp_env[0]=0;
     }
+#endif
     if ((res=tempnam((char*) dir, (char*) prefix)))
     {    
       strmake(to,res,FN_REFLEN-1);
@@ -142,7 +149,9 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     {
       DBUG_PRINT("error",("Got error: %d from tempnam",errno));
     }
-    environ=old_env;
+#ifndef OS2
+    environ=(const char**) old_env;
+#endif
   }
 #else
   {

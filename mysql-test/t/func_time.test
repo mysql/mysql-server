@@ -7,7 +7,8 @@ select from_days(to_days("960101")),to_days(960201)-to_days("19960101"),to_days(
 select period_add("9602",-12),period_diff(199505,"9404") ;
 select now()-now(),weekday(curdate())-weekday(now()),unix_timestamp()-unix_timestamp(now());
 select from_unixtime(unix_timestamp("1994-03-02 10:11:12")),from_unixtime(unix_timestamp("1994-03-02 10:11:12"),"%Y-%m-%d %h:%i:%s"),from_unixtime(unix_timestamp("1994-03-02 10:11:12"))+0;
-select sec_to_time(9001),sec_to_time(9001)+0,time_to_sec("15:12:22");
+select sec_to_time(9001),sec_to_time(9001)+0,time_to_sec("15:12:22"),
+  sec_to_time(time_to_sec("0:30:47")/6.21);
 select now()-curdate()*1000000-curtime();
 select strcmp(current_timestamp(),concat(current_date()," ",current_time()));
 select date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w");

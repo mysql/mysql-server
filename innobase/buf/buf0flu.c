@@ -28,7 +28,7 @@ Created 11/11/1995 Heikki Tuuri
 flushed along with the original page. */
 
 #define BUF_FLUSH_AREA		ut_min(BUF_READ_AHEAD_AREA,\
-						buf_pool->curr_size / 16)
+					       buf_pool->curr_size / 16)
 
 /**********************************************************************
 Validates the flush list. */

@@ -18,8 +18,7 @@
 
 #include "myisam.h"
 #include <getopt.h>
-#include <m_ctype.h>
-
+#include <m_string.h>
 
 #define MAX_REC_LENGTH 1024
 

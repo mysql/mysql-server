@@ -115,7 +115,7 @@ my_bool init_thr_lock()
 static uint found_errors=0;
 
 static int check_lock(struct st_lock_list *list, const char* lock_type,
-		      const char *where, my_bool same_thread)
+		      const char *where, my_bool same_thread, bool no_cond)
 {
   THR_LOCK_DATA *data,**prev;
   uint count=0;
@@ -148,6 +148,13 @@ static int check_lock(struct st_lock_list *list, const char* lock_type,
 		lock_type,where);
 	return 1;
       }
+      if (no_cond && data->cond)
+      {
+	fprintf(stderr,
+		"Warning: Found active lock with not reset cond %s: %s\n",
+		lock_type,where);
+	return 1;
+      }
       prev= &data->next;
     }
     if (data)
@@ -172,10 +179,10 @@ static void check_locks(THR_LOCK *lock, const char *where,
   uint old_found_errors=found_errors;
   if (found_errors < MAX_FOUND_ERRORS)
   {
-    if (check_lock(&lock->write,"write",where,1) |
-	check_lock(&lock->write_wait,"write_wait",where,0) |
-	check_lock(&lock->read,"read",where,0) |
-	check_lock(&lock->read_wait,"read_wait",where,0))
+    if (check_lock(&lock->write,"write",where,1,1) |
+	check_lock(&lock->write_wait,"write_wait",where,0,0) |
+	check_lock(&lock->read,"read",where,0,1) |
+	check_lock(&lock->read_wait,"read_wait",where,0,0))
       found_errors++;
 
     if (found_errors < MAX_FOUND_ERRORS)
@@ -326,6 +333,7 @@ void thr_lock_data_init(THR_LOCK *lock,THR_LOCK_DATA *data, void *param)
   data->thread=pthread_self();
   data->thread_id=my_thread_id();		/* for debugging */
   data->status_param=param;
+  data->cond=0;
 }
 
 
@@ -366,16 +374,16 @@ static my_bool wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   }
 
   /* Set up control struct to allow others to abort locks */
-  pthread_mutex_lock(&thread_var->mutex);
   thread_var->current_mutex= &data->lock->mutex;
   thread_var->current_cond=  cond;
-  pthread_mutex_unlock(&thread_var->mutex);
 
   data->cond=cond;
-  do
+  while (!thread_var->abort || in_wait_list)
   {
     pthread_cond_wait(cond,&data->lock->mutex);
-  } while (data->cond == cond && (!thread_var->abort || in_wait_list));
+    if (data->cond != cond)
+      break;
+  }
 
   if (data->cond || data->type == TL_UNLOCK)
   {
@@ -416,6 +424,7 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
   DBUG_ENTER("thr_lock");
 
   data->next=0;
+  data->cond=0;					/* safety */
   data->type=lock_type;
   data->thread=pthread_self();			/* Must be reset ! */
   data->thread_id=my_thread_id();		/* Must be reset ! */
@@ -976,6 +985,10 @@ my_bool thr_upgrade_write_delay_lock(THR_LOCK_DATA *data)
     data->prev= &lock->write_wait.data;
     lock->write_wait.data=data;
     check_locks(lock,"upgrading lock",0);
+  }
+  else
+  {
+    check_locks(lock,"waiting for lock",0);
   }
   DBUG_RETURN(wait_for_lock(&lock->write_wait,data,1));
 }

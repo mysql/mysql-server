@@ -237,6 +237,8 @@ int mysql_delete(THD *thd,
 	break;
       }
     }
+    else
+      table->file->unlock_row();  // Row failed selection, release lock on it
   }
   thd->proc_info="end";
   end_read_record(&info);
