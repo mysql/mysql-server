@@ -89,9 +89,9 @@ libmysqld.a:	libmysqld_int.a $(INC_LIB)
 		  cd tmp ; \
 		  for file in *.a ; do \
 		    bfile=`basename $$file .a` ; \
-		    ar x $$file; \
+		    $(AR) x $$file; \
 		    for obj in *.o ; do mv $$obj $${bfile}_$$obj ; done ; \
-		    ar q ../libmysqld_int2.a *.o ; \
+		    $(AR) q ../libmysqld_int2.a *.o ; \
 		    rm -f *.o ; \
 		  done ; \
 		  cd .. ; \
