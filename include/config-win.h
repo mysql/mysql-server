@@ -182,6 +182,8 @@ inline double ulonglong2double(ulonglong value)
 #define tell(A) _telli64(A)
 #endif
 
+#define set_timespec(ABSTIME,SEC) { (ABSTIME).tv_sec=time((time_t*)0) + (time_t) (SEC); (ABSTIME).tv_nsec=0; }
+
 #define STACK_DIRECTION -1
 
 /* Optimized store functions for Intel x86 */
@@ -275,6 +277,7 @@ inline double ulonglong2double(ulonglong value)
 #endif
 #define my_reinterpret_cast(A) reinterpret_cast <A>
 #define my_const_cast(A) const_cast<A>
+
 
 /* MYSQL OPTIONS */
 

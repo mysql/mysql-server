@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,14 +73,13 @@ ulong		net_write_timeout= NET_WRITE_TIMEOUT;
 #endif
 
 #if defined(MSDOS) || defined(__WIN__)
-// socket_errno is defined in my_global.h for all platforms
+/* socket_errno is defined in my_global.h for all platforms */
 #define perror(A)
 #else
 #include <errno.h>
 #define SOCKET_ERROR -1
 #endif /* __WIN__ */
 
-static void mysql_once_init(void);
 static MYSQL_DATA *read_rows (MYSQL *mysql,MYSQL_FIELD *fields,
 			      uint field_count);
 static int read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row,
@@ -100,6 +99,7 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
 			      char **argv __attribute__((unused)),
 			      char **groups __attribute__((unused)))
 {
+  mysql_once_init();
   return 0;
 }
 
@@ -108,6 +108,8 @@ void STDCALL mysql_server_end()
   /* If library called my_init(), free memory allocated by it */
   if (!org_my_init_done)
     my_end(0);
+  else
+    mysql_thread_end();
 }
 
 my_bool STDCALL mysql_thread_init()
@@ -159,7 +161,7 @@ static MYSQL* spawn_init(MYSQL* parent, const char* host,
 int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
 	       uint timeout)
 {
-#if defined(__WIN__) || defined(OS2)
+#if defined(__WIN__) || defined(OS2) || defined(__NETWARE__)
   return connect(s, (struct sockaddr*) name, namelen);
 #else
   int flags, res, s_err;
@@ -484,7 +486,14 @@ simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
   if (net_write_command(net,(uchar) command,arg,
 			length ? length : (ulong) strlen(arg)))
   {
-    DBUG_PRINT("error",("Can't send command to server. Error: %d",socket_errno));
+    DBUG_PRINT("error",("Can't send command to server. Error: %d",
+			socket_errno));
+    if (net->last_errno == ER_NET_PACKET_TOO_LARGE)
+    {
+      net->last_errno=CR_NET_PACKET_TOO_LARGE;
+      strmov(net->last_error,ER(net->last_errno));
+      goto end;
+    }
     end_server(mysql);
     if (mysql_reconnect(mysql))
       goto end;
@@ -522,7 +531,16 @@ struct passwd *getpwuid(uid_t);
 char* getlogin(void);
 #endif
 
-#if !defined(MSDOS) && ! defined(VMS) && !defined(__WIN__) && !defined(OS2)
+
+#if defined(__NETWARE__)
+/* default to "root" on NetWare */
+static void read_user_name(char *name)
+{
+  (void)strmake(name,"root", USERNAME_LENGTH);
+}
+
+#elif !defined(MSDOS) && ! defined(VMS) && !defined(__WIN__) && !defined(OS2)
+
 static void read_user_name(char *name)
 {
   DBUG_ENTER("read_user_name");
@@ -1396,7 +1414,20 @@ mysql_init(MYSQL *mysql)
 }
 
 
-static void mysql_once_init()
+/*
+  Initialize the MySQL library
+
+  SYNOPSIS
+    mysql_once_init()
+
+  NOTES
+    Can't be static on NetWare
+    This function is called by mysql_init() and indirectly called
+    by mysql_query(), so one should never have to call this from an
+    outside program.
+*/
+
+void STDCALL mysql_once_init(void)
 {
   if (!mysql_client_init)
   {

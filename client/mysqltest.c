@@ -677,24 +677,12 @@ int open_file(const char* name)
 
   if (*cur_file && cur_file == file_stack_end)
     die("Source directives are nesting too deep");
-  if (!(*(cur_file+1) = my_fopen(buff, O_RDONLY | O_BINARY, MYF(MY_WME))))
+  if (!(*(cur_file+1) = my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(MY_WME))))
     die(NullS);
   cur_file++;
   *++lineno=1;
 
   return 0;
-}
-
-static void my_sleep(ulong m_seconds)
-{
-#ifndef OS2
-   struct timeval t;
-   t.tv_sec=  m_seconds / 1000000L;
-   t.tv_usec= m_seconds % 1000000L;
-   select(0,0,0,0,&t); /* sleep */
-#else
-   DosSleep(m_seconds/1000+1);
-#endif
 }
 
 
@@ -1912,7 +1900,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	argument= buff;
       }
       fn_format(buff, argument, "", "", 4);
-      if (!(*++cur_file = my_fopen(buff, O_RDONLY | O_BINARY, MYF(MY_WME))))
+      if (!(*++cur_file = my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(MY_WME))))
 	die("Could not open %s: errno = %d", argument, errno);
       break;
     }
@@ -2561,7 +2549,7 @@ static int read_server_arguments(const char* name)
     embedded_server_arg_count=1;
     embedded_server_args[0]= (char*) "";		/* Progname */
   }
-  if (!(file=my_fopen(buff, O_RDONLY | O_BINARY, MYF(MY_WME))))
+  if (!(file=my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(MY_WME))))
     return 1;
   while (embedded_server_arg_count < MAX_SERVER_ARGS &&
 	 (str=fgets(argument,sizeof(argument), file)))

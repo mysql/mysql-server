@@ -397,7 +397,7 @@ int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
 		 ulong select_type,select_result *result);
 int mysql_union(THD *thd,LEX *lex,select_result *result);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
-			Item_result_field ***copy_func, Field **from_field,
+			Item ***copy_func, Field **from_field,
 			bool group,bool modify_item);
 int mysql_create_table(THD *thd,const char *db, const char *table_name,
 		       HA_CREATE_INFO *create_info,
@@ -474,6 +474,7 @@ extern struct st_des_keyschedule des_keyschedule[10];
 extern uint des_default_key;
 extern pthread_mutex_t LOCK_des_key_file;
 bool load_des_key_file(const char *file_name);
+void free_des_key_file();
 #endif /* HAVE_OPENSSL */
 
 /* sql_do.cc */
@@ -701,6 +702,7 @@ extern struct rand_struct sql_rand;
 extern SHOW_COMP_OPTION have_isam, have_innodb, have_berkeley_db;
 extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;
 extern SHOW_COMP_OPTION have_query_cache, have_berkeley_db, have_innodb;
+extern SHOW_COMP_OPTION have_crypt;
 
 #ifndef __WIN__
 extern pthread_t signal_thread;

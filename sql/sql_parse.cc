@@ -652,7 +652,7 @@ pthread_handler_decl(handle_one_connection,arg)
 
 #if defined(__WIN__)
   init_signals();				// IRENA; testing ?
-#elif !defined(OS2)
+#elif !defined(OS2) && !defined(__NETWARE__)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
@@ -682,7 +682,9 @@ pthread_handler_decl(handle_one_connection,arg)
       statistic_increment(aborted_connects,&LOCK_status);
       goto end_thread;
     }
-
+#ifdef __NETWARE__
+    netware_reg_user(thd->ip, thd->user, "MySQL");
+#endif
     if (thd->variables.max_join_size == HA_POS_ERROR)
       thd->options |= OPTION_BIG_SELECTS;
     if (thd->client_capabilities & CLIENT_COMPRESS)
@@ -751,12 +753,10 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
 
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd;
-#if !defined(__WIN__) && !defined(OS2)
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
-
-
 #endif
 
   if (thd->variables.max_join_size == HA_POS_ERROR)
@@ -977,6 +977,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char *save_user=	    thd->user;
     char *save_priv_user=   thd->priv_user;
     char *save_db=	    thd->db;
+    thd->user=0;
     USER_CONN *save_uc=            thd->user_connect;
 
     if ((uint) ((uchar*) db - net->read_pos) > packet_length)
@@ -987,7 +988,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (check_user(thd, COM_CHANGE_USER, user, passwd, db, 0))
     {						// Restore old user
       x_free(thd->user);
-      x_free(thd->db);
       thd->master_access=save_master_access;
       thd->db_access=save_db_access;
       thd->db=save_db;
@@ -2253,6 +2253,18 @@ mysql_execute_command(void)
     }
     if (lower_case_table_names)
       casedn_str(lex->name);
+    /*
+      If in a slave thread :
+      CREATE DATABASE DB was certainly not preceded by USE DB.
+      For that reason, db_ok() in sql/slave.cc did not check the 
+      do_db/ignore_db. And as this query involves no tables, tables_ok()
+      above was not called. So we have to check rules again here.
+    */
+    if (thd->slave_thread && 
+	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
+	 !db_ok_with_wild_table(lex->name)))
+      break;
+
     if (check_access(thd,CREATE_ACL,lex->name,0,1))
       break;
     res=mysql_create_db(thd,lex->name,lex->create_info.options,0);
@@ -2267,6 +2279,17 @@ mysql_execute_command(void)
     }
     if (lower_case_table_names)
       casedn_str(lex->name);
+    /*
+      If in a slave thread :
+      DROP DATABASE DB may not be preceded by USE DB.
+      For that reason, maybe db_ok() in sql/slave.cc did not check the 
+      do_db/ignore_db. And as this query involves no tables, tables_ok()
+      above was not called. So we have to check rules again here.
+    */
+    if (thd->slave_thread && 
+	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
+	 !db_ok_with_wild_table(lex->name)))
+      break;
     if (check_access(thd,DROP_ACL,lex->name,0,1))
       break;
     if (thd->locked_tables || thd->active_transaction())

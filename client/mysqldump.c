@@ -341,7 +341,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       tty_password=1;
     break;
   case 'r':
-    if (!(md_result_file = my_fopen(argument, O_WRONLY | O_BINARY,
+    if (!(md_result_file = my_fopen(argument, O_WRONLY | FILE_BINARY,
 				    MYF(MY_WME))))
       exit(1);
     break;

@@ -608,7 +608,7 @@ btr_cur_open_at_index_side(
 		        if (estimate) {
 			        btr_cur_add_path_info(cursor, height,
 						      root_height);
-			}
+		        }
 
 			break;
 		}
@@ -622,8 +622,8 @@ btr_cur_open_at_index_side(
 		}
 
 		if (estimate) {
-		        btr_cur_add_path_info(cursor, height, root_height);
-	        }
+			btr_cur_add_path_info(cursor, height, root_height);
+		}
 
 		height--;
 
