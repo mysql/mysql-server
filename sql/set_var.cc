@@ -121,7 +121,8 @@ sys_var_character_set_server	sys_character_set_server("character_set_server");
 sys_var_str			sys_charset_system("character_set_system",
 				    sys_check_charset,
 				    sys_update_charset,
-				    sys_set_default_charset);
+				    sys_set_default_charset,
+                                    (char *)my_charset_utf8_general_ci.name);
 sys_var_character_set_database	sys_character_set_database("character_set_database");
 sys_var_character_set_client  sys_character_set_client("character_set_client");
 sys_var_character_set_connection  sys_character_set_connection("character_set_connection");
@@ -150,13 +151,14 @@ sys_var_long_ptr	sys_flush_time("flush_time", &flush_time);
 sys_var_str             sys_ft_boolean_syntax("ft_boolean_syntax",
                                          sys_check_ftb_syntax,
                                          sys_update_ftb_syntax,
-                                         sys_default_ftb_syntax);
+                                         sys_default_ftb_syntax,
+                                         ft_boolean_syntax);
 sys_var_str             sys_init_connect("init_connect", 0,
                                          sys_update_init_connect,
-                                         sys_default_init_connect);
+                                         sys_default_init_connect,0);
 sys_var_str             sys_init_slave("init_slave", 0,
                                        sys_update_init_slave,
-                                       sys_default_init_slave);
+                                       sys_default_init_slave,0);
 sys_var_thd_ulong	sys_interactive_timeout("interactive_timeout",
 						&SV::net_interactive_timeout);
 sys_var_thd_ulong	sys_join_buffer_size("join_buffer_size",
@@ -665,11 +667,11 @@ struct show_var_st init_vars[]= {
   {sys_join_buffer_size.name,   (char*) &sys_join_buffer_size,	    SHOW_SYS},
   {sys_key_buffer_size.name,	(char*) &sys_key_buffer_size,	    SHOW_SYS},
   {sys_key_cache_age_threshold.name,   (char*) &sys_key_cache_age_threshold,
-                                                         	    SHOW_SYS},
+                                                                    SHOW_SYS},
   {sys_key_cache_block_size.name,   (char*) &sys_key_cache_block_size,
-                                                         	    SHOW_SYS},
+                                                                    SHOW_SYS},
   {sys_key_cache_division_limit.name,   (char*) &sys_key_cache_division_limit,
-                                                         	    SHOW_SYS},
+                                                                    SHOW_SYS},
   {"language",                language,                             SHOW_CHAR},
   {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},
   {sys_license.name,	      (char*) &sys_license,                 SHOW_SYS},

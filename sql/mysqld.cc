@@ -2189,10 +2189,14 @@ static int init_common_variables(const char *conf_file_name, int argc,
   sys_init_connect.value_length= 0;
   if ((sys_init_connect.value= opt_init_connect))
     sys_init_connect.value_length= strlen(opt_init_connect);
+  else
+    sys_init_connect.value=my_strdup("",MYF(0));
 
   sys_init_slave.value_length= 0;
   if ((sys_init_slave.value= opt_init_slave))
     sys_init_slave.value_length= strlen(opt_init_slave);
+  else
+    sys_init_slave.value=my_strdup("",MYF(0));
 
   if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
     return 1;
