@@ -2754,11 +2754,12 @@ mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
     DBUG_RETURN(1);
   }
   /* Mark for execute that the result is already sent */
-  param->long_data_used= 1;
-  if (length)
+  if (length || param->long_data_used == 0)
   {
     MYSQL *mysql= stmt->mysql;
     char   *packet, extra_data[MYSQL_LONG_DATA_HEADER];
+
+    param->long_data_used= 1;
 
     packet= extra_data;
     int4store(packet, stmt->stmt_id);	   packet+=4;
@@ -3805,6 +3806,7 @@ my_bool STDCALL mysql_stmt_reset(MYSQL_STMT *stmt)
 {
   char buff[MYSQL_STMT_HEADER];
   MYSQL *mysql;
+  MYSQL_BIND *param, *param_end;
   DBUG_ENTER("mysql_stmt_reset");
   DBUG_ASSERT(stmt != 0);
 
@@ -3820,6 +3822,13 @@ my_bool STDCALL mysql_stmt_reset(MYSQL_STMT *stmt)
                     mysql->net.sqlstate);
     DBUG_RETURN(1);
   }
+
+  /* Clear long_data_used for next call (as we do in mysql_stmt_execute() */
+  for (param= stmt->params, param_end= param + stmt->param_count;
+       param < param_end;
+       param++)
+    param->long_data_used= 0;
+
   DBUG_RETURN(0);
 }
 
