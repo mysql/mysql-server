@@ -81,7 +81,7 @@ trx_create(
 
 	trx->magic_n = TRX_MAGIC_N;
 
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 	
 	trx->type = TRX_USER;
 	trx->conc_state = TRX_NOT_STARTED;
@@ -107,7 +107,7 @@ trx_create(
 
 	trx->mysql_log_file_name = NULL;
 	trx->mysql_log_offset = 0;
-	trx->mysql_master_log_file_name = (char*)"";
+	trx->mysql_master_log_file_name = "";
 	trx->mysql_master_log_pos = 0;
 	
 	mutex_create(&(trx->undo_mutex));
@@ -1394,7 +1394,7 @@ trx_commit_for_mysql(
 
 	ut_a(trx);
 
-	trx->op_info = (char *) "committing";
+	trx->op_info = "committing";
 	
 	trx_start_if_not_started(trx);
 
@@ -1404,7 +1404,7 @@ trx_commit_for_mysql(
 
 	mutex_exit(&kernel_mutex);
 
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 	
 	return(0);
 }
@@ -1423,7 +1423,7 @@ trx_commit_complete_for_mysql(
 
         ut_a(trx);
 	
-	trx->op_info = (char*)"flushing log";
+	trx->op_info = "flushing log";
 
         if (srv_flush_log_at_trx_commit == 0) {
                 /* Do nothing */
@@ -1447,7 +1447,7 @@ trx_commit_complete_for_mysql(
                 ut_error;
         }
 
-	trx->op_info = (char*)"";
+	trx->op_info = "";
 
         return(0);
 }

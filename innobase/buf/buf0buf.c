@@ -719,7 +719,9 @@ buf_awe_map_page_to_frame(
 {
 	buf_block_t*	bck;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(block);
 
 	if (block->frame) {
