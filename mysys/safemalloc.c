@@ -194,9 +194,7 @@ gptr _mymalloc (uint uSize, const char *sFile, uint uLine, myf MyFlags)
     pthread_mutex_unlock(&THR_LOCK_malloc);
 
     /* Set the memory to the aribtrary wierd value */
-#ifdef HAVE_purify
-    if (MyFlags & MY_ZEROFILL)
-#endif
+    if ((MyFlags & MY_ZEROFILL) || !sf_malloc_quick)
       bfill(&pTmp -> aData[sf_malloc_prehunc],uSize,
 	    (char) (MyFlags & MY_ZEROFILL ? 0 : ALLOC_VAL));
     /* Return a pointer to the real data */
@@ -315,7 +313,8 @@ void _myfree (gptr pPtr, const char *sFile, uint uLine, myf myflags)
 
 #ifndef HAVE_purify
   /* Mark this data as free'ed */
-  bfill(&pRec->aData[sf_malloc_prehunc],pRec->uDataSize,(pchar) FREE_VAL);
+  if (!sf_malloc_quick)
+    bfill(&pRec->aData[sf_malloc_prehunc],pRec->uDataSize,(pchar) FREE_VAL);
 #endif
   *((long*) ((char*) &pRec -> lSpecialValue+sf_malloc_prehunc)) = ~MAGICKEY;
 
