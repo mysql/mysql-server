@@ -90,8 +90,9 @@ THD::THD():user_time(0), is_fatal_error(0),
 {
   host=user=priv_user=db=query=ip=0;
   host_or_ip= "connecting host";
-  locked=killed=count_cuted_fields=some_tables_deleted=no_errors=password=
+  locked=killed=some_tables_deleted=no_errors=password=
     query_start_used=prepare_command=0;
+  count_cuted_fields= CHECK_FIELD_IGNORE;
   db_length=query_length=col_access=0;
   query_error= tmp_table_used= 0;
   next_insert_id=last_insert_id=0;

@@ -2236,7 +2236,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (use_timestamp)
     new_table->time_stamp=0;
   new_table->next_number_field=new_table->found_next_number_field;
-  thd->count_cuted_fields=1;			// calc cuted fields
+  thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;
   thd->proc_info="copy to tmp table";
   next_insert_id=thd->next_insert_id;		// Remember for loggin
@@ -2246,7 +2246,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 				   handle_duplicates,
 				   order_num, order, &copied, &deleted);
   thd->last_insert_id=next_insert_id;		// Needed for correct log
-  thd->count_cuted_fields=0;			// Don`t calc cuted fields
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   new_table->time_stamp=save_time_stamp;
 
   if (table->tmp_table)

@@ -295,7 +295,7 @@ int mysql_update(THD *thd,
   init_read_record(&info,thd,table,select,0,1);
 
   updated= found= 0;
-  thd->count_cuted_fields=1;			/* calc cuted fields */
+  thd->count_cuted_fields= CHECK_FIELD_WARN;		/* calc cuted fields */
   thd->cuted_fields=0L;
   thd->proc_info="Updating";
   query_id=thd->query_id;
@@ -386,7 +386,7 @@ int mysql_update(THD *thd,
 	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
     DBUG_PRINT("info",("%d records updated",updated));
   }
-  thd->count_cuted_fields=0;			/* calc cuted fields */
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
   free_io_cache(table);
   DBUG_RETURN(0);
 
@@ -492,7 +492,7 @@ int multi_update::prepare(List<Item> &not_used_values, SELECT_LEX_UNIT *unit)
   uint i, max_fields;
   DBUG_ENTER("multi_update::prepare");
 
-  thd->count_cuted_fields=1;
+  thd->count_cuted_fields= CHECK_FIELD_WARN;
   thd->cuted_fields=0L;
   thd->proc_info="updating main table";
 
@@ -733,7 +733,7 @@ multi_update::~multi_update()
   }
   if (copy_field)
     delete [] copy_field;
-  thd->count_cuted_fields=0;			// Restore this setting
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;		// Restore this setting
   if (!trans_safe)
     thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
 }

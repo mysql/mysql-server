@@ -136,7 +136,7 @@ email104
 email105
 email106
 email107
-INSERT INTO `t1` (`id`, `kid`) VALUES ('', '150');
+INSERT INTO `t1` (`id`, `kid`) VALUES ('0', '150');
 SELECT SQL_CALC_FOUND_ROWS DISTINCT email FROM t2 LEFT JOIN t1  ON kid = t2.id WHERE t1.id IS NULL LIMIT 10;
 email
 email1

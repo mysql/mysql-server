@@ -3218,9 +3218,9 @@ store_val_in_field(Field *field,Item *item)
   bool error;
   THD *thd=current_thd;
   ha_rows cuted_fields=thd->cuted_fields;
-  thd->count_cuted_fields=1;
+  thd->count_cuted_fields= CHECK_FIELD_WARN;
   error= item->save_in_field(field, 1);
-  thd->count_cuted_fields=0;
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   return error || cuted_fields != thd->cuted_fields;
 }
 
