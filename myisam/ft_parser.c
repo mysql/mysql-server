@@ -93,13 +93,14 @@ my_bool ft_boolean_check_syntax_string(const byte *str)
   return 0;
 }
 
-/* returns:
- * 0 - eof
- * 1 - word found
- * 2 - left bracket
- * 3 - right bracket
- * 4 - stopword found
- */
+/*
+  RETURN VALUE
+  0 - eof
+  1 - word found
+  2 - left bracket
+  3 - right bracket
+  4 - stopword found
+*/
 byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
                  FT_WORD *word, FTB_PARAM *param)
 {
@@ -162,7 +163,7 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
       *start=doc;
       return 1;
     }
-    else if (length)
+    else if (length) /* make sure length > 0 (if start contains spaces only) */
     {
       *start= doc;
       return 4;
@@ -207,8 +208,7 @@ byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, const byte *end,
       *start= doc;
       DBUG_RETURN(1);
     }
-  }
-  while (doc < end);
+  } while (doc < end);
   DBUG_RETURN(0);
 }
 
