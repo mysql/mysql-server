@@ -80,7 +80,7 @@ character-set=latin1
 "Coluna BLOB '%-.64s' não pode ser utilizada na especificação de chave para o tipo de tabela usado",
 "Comprimento da coluna '%-.64s' grande demais (max = %d); use BLOB em seu lugar",
 "Definição incorreta de tabela. Somente é permitido um único campo auto-incrementado e ele tem que ser definido como chave",
-"%s: Pronto para conexões\n",
+"%s: Pronto para conexões",
 "%s: 'Shutdown' normal\n",
 "%s: Obteve sinal %d. Abortando!\n",
 "%s: 'Shutdown' completo\n",

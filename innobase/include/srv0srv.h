@@ -99,6 +99,8 @@ extern lint	srv_conc_n_threads;
 
 extern ibool	srv_fast_shutdown;
 
+extern ibool	srv_innodb_status;
+
 extern ibool	srv_use_doublewrite_buf;
 
 extern ibool    srv_set_thread_priorities;
