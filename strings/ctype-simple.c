@@ -717,20 +717,100 @@ double      my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
 int my_l10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		     char *dst, uint len, int radix, long int val)
 {
-  val=radix=len;
-  dst[0]='\0';
-  return 0;
-}
+  char buffer[66];
+  register char *p, *e;
+  long int new_val;
+  int  sl=0;
+  uint l;
+  
+  e = p = &buffer[sizeof(buffer)-1];
+  *e='\0';
+  
+  if (radix < 0)
+  {
+    if (val < 0)
+    {
+      sl   = 1;
+      val  = -val;
+    }
+  }
+  
+  new_val = (long) ((unsigned long int) val / 10);
+  *--p    = '0'+ (char) ((unsigned long int) val - (unsigned long) new_val * 10);
+  val     = new_val;
+  
+  while (val != 0)
+  {
+    new_val=val/10;
+    *--p = '0' + (char) (val-new_val*10);
+    val= new_val;
+  }
+  
+  if (sl)
+  {
+    *--p='-';
+  }
 
+  l=e-p;
+  l=(l>len)?len:l;
+  memcpy(dst,p,l);
+  return (int)l;
+}
 
 int my_ll10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		      char *dst, uint len, int radix, longlong val)
 {
-  val=radix=len;
-  dst[0]='\0';
-  return 0;
+  char buffer[65];
+  register char *p, *e;
+  long long_val;
+  int  sl=0;
+  uint l;
+  
+  if (radix < 0)
+  {
+    if (val < 0)
+    {
+      sl=1;
+      val = -val;
+    }
+  }
+  
+  e = p = &buffer[sizeof(buffer)-1];
+  *p='\0';
+  
+  if (val == 0)
+  {
+    *--p='0';
+    goto cnv;
+  }
+  
+  while ((ulonglong) val > (ulonglong) LONG_MAX)
+  {
+    ulonglong quo=(ulonglong) val/(uint) 10;
+    uint rem= (uint) (val- quo* (uint) 10);
+    *--p = '0' + rem;
+    val= quo;
+  }
+  
+  long_val= (long) val;
+  while (long_val != 0)
+  {
+    long quo= long_val/10;
+    *--p = '0' + (long_val - quo*10);
+    long_val= quo;
+  }
+  
+cnv:
+  if (sl)
+  {
+    *--p='-';
+  }
+  
+  l=e-p;
+  l=(l>len)?len:l;
+  memcpy(dst,p,l);
+  return (int)(e-p);
 }
-
 
 
 /*
