@@ -1245,7 +1245,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DEPENDENT SUBQUERY	t1	eq_ref	PRIMARY	PRIMARY	4	func	1	Using where
 2	DEPENDENT SUBQUERY	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	Using where; Using index
 drop table t1, t2, t3;
-create table t1 (a int, b int, index a (a));
+create table t1 (a int, b int, index a (a,b));
 create table t2 (a int, index a (a));
 create table t3 (a int, b int, index a (a));
 insert into t1 values (1,10), (2,20), (3,30), (4,40);
@@ -1259,7 +1259,15 @@ a
 explain select * from t2 where t2.a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	ref	a	a	5	func	10	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	index_in	a	a	5	func	100	Using index
+select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+a
+2
+4
+explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	index_in	a	a	5	func	100	Using index; Using where
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 a
 2
@@ -1267,8 +1275,22 @@ a
 explain select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	ref	a	a	5	func	10	Using where
-2	DEPENDENT SUBQUERY	t3	index	a	a	5	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t3	index	a	a	5	NULL	3	Using index
+2	DEPENDENT SUBQUERY	t1	ref	a	a	10	func,test.t3.a	100	Using where; Using index
+insert into t1 values (3,31);
+select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+a
+2
+3
+4
+select * from t2 where t2.a in (select a from t1 where t1.b <> 30 and t1.b <> 31);
+a
+2
+4
+explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	index_in	a	a	5	func	100	Using index; Using where
 drop table t1, t2, t3;
 create table t1 (a int, b int);
 create table t2 (a int, b int);

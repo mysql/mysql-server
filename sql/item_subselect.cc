@@ -972,22 +972,75 @@ int subselect_simplein_engine::exec()
 	((Item_in_subselect *) item)->value= (!cond || cond->val_int()?1:0);
     }
   }
+  DBUG_RETURN(end_exec(table) || (error != 0));
+}
+
+int subselect_simplein_engine::end_exec(TABLE *table)
+{
+  DBUG_ENTER("subselect_simplein_engine::end_exec");
+  int error=0, tmp;
+  if ((tmp= table->file->extra(HA_EXTRA_NO_CACHE)))
   {
-    int tmp= 0;
-    if ((tmp= table->file->extra(HA_EXTRA_NO_CACHE)))
-    {
-      DBUG_PRINT("error", ("extra(HA_EXTRA_NO_CACHE) failed"));
-      error= 1;
-    }
-    if ((tmp= table->file->index_end()))
-    {
-      DBUG_PRINT("error", ("index_end() failed"));
-      error= 1;
-    }
-    if (error == 1)
-      table->file->print_error(tmp, MYF(0));
+    DBUG_PRINT("error", ("extra(HA_EXTRA_NO_CACHE) failed"));
+    error= 1;
   }
-  DBUG_RETURN(error != 0)
+  if ((tmp= table->file->index_end()))
+  {
+    DBUG_PRINT("error", ("index_end() failed"));
+    error= 1;
+  }
+  if (error == 1)
+    table->file->print_error(tmp, MYF(0));
+  DBUG_RETURN(error != 0);
+}
+
+int subselect_indexin_engine::exec()
+{
+  DBUG_ENTER("subselect_indexin_engine::exec");
+  int error;
+  TABLE *table= tab->table;
+  ((Item_in_subselect *) item)->value= 0;
+  if ((tab->ref.key_err= (*tab->ref.key_copy)->copy()))
+  {
+    table->status= STATUS_NOT_FOUND;
+    error= -1;
+  }
+  else
+  {
+    error= table->file->index_read(table->record[0],
+				   tab->ref.key_buff,
+				   tab->ref.key_length,HA_READ_KEY_EXACT);
+    if (error && error != HA_ERR_KEY_NOT_FOUND)
+      error= report_error(table, error);
+    else
+    {
+      for(;;)
+      {
+	error= 0;
+	table->null_row= 0;
+	if (!table->status)
+	{
+	  if (!cond || cond->val_int())
+	  {
+	    ((Item_in_subselect *) item)->value= 1;
+	    goto finish;
+	  }
+	}
+	else
+	  goto finish;
+	error= table->file->index_next_same(table->record[0],
+					    tab->ref.key_buff,
+					    tab->ref.key_length);
+	if (error && error != HA_ERR_KEY_NOT_FOUND)
+	{
+	  error= report_error(table, error);
+	  goto finish;
+	}
+      }
+    }
+  }
+finish:
+  DBUG_RETURN(end_exec(table) || (error != 0));
 }
 
 uint subselect_single_select_engine::cols()

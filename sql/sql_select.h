@@ -76,7 +76,7 @@ typedef struct st_join_cache {
 
 enum join_type { JT_UNKNOWN,JT_SYSTEM,JT_CONST,JT_EQ_REF,JT_REF,JT_MAYBE_REF,
 		 JT_ALL, JT_RANGE, JT_NEXT, JT_FT, JT_REF_OR_NULL,
-		 JT_SIMPLE_IN};
+		 JT_SIMPLE_IN, JT_INDEX_IN};
 
 class JOIN;
 
@@ -277,7 +277,8 @@ class JOIN :public Sql_alloc
   bool rollup_init();
   bool rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
 			  Item_sum ***func);
-  int JOIN::rollup_send_data(uint idx);
+  int rollup_send_data(uint idx);
+  bool test_in_subselect(Item **where);
 };
 
 
