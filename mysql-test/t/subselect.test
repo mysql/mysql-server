@@ -1105,3 +1105,12 @@ create table t1 (a int);
 insert into t1 values (1);
 explain select benchmark(1000, (select a from t1 where a=sha(rand())));
 drop table t1;
+
+#
+# bug 3188
+#
+create table t1(id int);
+create table t2(id int);
+create table t3(flag int);
+-- error 1064
+select (select * from t3 where id not null) from t1, t2;
