@@ -276,12 +276,14 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	BIGINT
 %token	BLOB_SYM
 %token	CHAR_SYM
+%token  CHANGED
 %token	COALESCE
 %token	DATETIME
 %token	DATE_SYM
 %token	DECIMAL_SYM
 %token	DOUBLE_SYM
 %token	ENUM
+%token	FAST_SYM
 %token	FLOAT_SYM
 %token	INT_SYM
 %token	LIMIT
@@ -1104,8 +1106,10 @@ opt_mi_check_type:
 	| TYPE_SYM EQ mi_check_types {}
 
 mi_check_types:
-	QUICK { Lex->check_opt.quick = 1; }
-	| EXTENDED_SYM { Lex->check_opt.flags = T_EXTEND; }
+	QUICK      { Lex->check_opt.quick = 1; }
+	| FAST_SYM { Lex->check_opt.flags|= T_FAST; }
+	| EXTENDED_SYM { Lex->check_opt.flags|= T_EXTEND; }
+	| CHANGED  { Lex->check_opt.flags|= T_CHECK_ONLY_CHANGED; }
 
 analyze:
 	ANALYZE_SYM table_or_tables table_list
@@ -2332,6 +2336,7 @@ keyword:
 	| BEGIN_SYM		{}
 	| BIT_SYM		{}
 	| BOOL_SYM		{}
+	| CHANGED		{}
 	| CHECKSUM_SYM		{}
 	| CHECK_SYM		{}
 	| COMMENT_SYM		{}
@@ -2348,6 +2353,7 @@ keyword:
 	| ENUM			{}
 	| ESCAPE_SYM		{}
 	| EXTENDED_SYM		{}
+	| FAST_SYM		{}
 	| FILE_SYM		{}
 	| FIRST_SYM		{}
 	| FIXED_SYM		{}
@@ -2383,6 +2389,7 @@ keyword:
 	| PASSWORD		{}
 	| PROCESS		{}
 	| PROCESSLIST_SYM	{}
+	| QUICK			{}
 	| RAID_0_SYM            {}
 	| RAID_CHUNKS		{} 
 	| RAID_CHUNKSIZE	{} 

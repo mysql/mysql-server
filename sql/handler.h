@@ -27,6 +27,7 @@
 
 // the following is for checking tables
 
+#define HA_CHECK_ALREADY_CHECKED  1
 #define HA_CHECK_OK               0
 #define HA_CHECK_NOT_IMPLEMENTED -1
 #define HA_CHECK_CORRUPT         -2
