@@ -1040,7 +1040,7 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
   NdbDictionary::Index::Type indexType= pIndex->getType();
   int                  retryAttempt = 0;
   const int            retryMax = 100;
-  int                  check;
+  int                  check, a;
   NdbConnection	       *pTrans1=NULL;
   NdbResultSet         *cursor= NULL;
   NdbOperation	       *pOp;
@@ -1100,7 +1100,7 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
 #if VERBOSE
     printf("PK: ");
 #endif
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       const NdbDictionary::Column* attr = tab.getColumn(a);
       if (attr->getPrimaryKey() == true){
 	if (pOp->equal(attr->getName(), row.attributeStore(a)->aRef()) != 0){
@@ -1119,7 +1119,7 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
 #if VERBOSE
     printf("Reading %u attributes: ", tab.getNoOfColumns());
 #endif
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       if((tabRow.attributeStore(a) = 
 	  pOp->getValue(tab.getColumn(a)->getName())) == 0) {
 	ERR(pTrans1->getNdbError());
@@ -1170,7 +1170,7 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
 #if VERBOSE
     printf("SI: ");
 #endif
-    for(int a = 0; a<(int)pIndex->getNoOfColumns(); a++){
+    for(a = 0; a<(int)pIndex->getNoOfColumns(); a++){
       const NdbDictionary::Column *  col = pIndex->getColumn(a);
 
       int r;
@@ -1200,7 +1200,7 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
 #if VERBOSE
     printf("Reading %u attributes: ", tab.getNoOfColumns());
 #endif
-    for(int a = 0; a<tab.getNoOfColumns(); a++){
+    for(a = 0; a<tab.getNoOfColumns(); a++){
       void* pCheck;
 
       if (pIndexOp)
