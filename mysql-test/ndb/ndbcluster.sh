@@ -194,6 +194,7 @@ stop_default_ndbcluster() {
 exec_mgmtclient="$exec_mgmtclient --try-reconnect=1"
 
 echo "all stop" | $exec_mgmtclient 2>&1 | cat > /dev/null
+echo "3 stop" | $exec_mgmtclient 2>&1 | cat > /dev/null
 
 if [ -f "$fs_ndb/$pidfile" ] ; then
   kill -9 `cat "$fs_ndb/$pidfile"` 2> /dev/null
