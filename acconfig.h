@@ -163,8 +163,14 @@
 /* new UNIXWARE7 threads that are not yet posix */
 #undef HAVE_UNIXWARE7_POSIX
 
+/* OpenSSL */
+#undef HAVE_OPENSSL
+
 /* READLINE: */
 #undef HAVE_USG_SIGHOLD
+
+/* Virtual IO */
+#undef HAVE_VIO
 
 /* Handling of large files on Solaris 2.6 */
 #undef _LARGEFILE_SOURCE

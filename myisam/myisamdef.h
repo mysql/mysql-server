@@ -531,6 +531,8 @@ extern int _mi_read_rnd_pack_record(MI_INFO*, byte *,my_off_t, my_bool);
 extern int _mi_pack_rec_unpack(MI_INFO *info,byte *to,byte *from,
 			       ulong reclength);
 extern ulonglong mi_safe_mul(ulonglong a,ulonglong b);
+extern int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
+			 const byte *oldrec, const byte *newrec, my_off_t pos);
 
 struct st_sort_info;
 

@@ -642,6 +642,57 @@ fi
 AC_MSG_RESULT($ac_cv_conv_longlong_to_float)
 ])
 
+AC_DEFUN(MYSQL_CHECK_VIO, [
+  AC_ARG_WITH([vio],
+              [\
+  --with-vio          Include the Virtual IO support],
+              [vio="$withval"],
+              [vio=no])
+
+  if test "$vio" = "yes"
+  then
+    vio_dir="vio"
+    vio_libs="../vio/libvio.la"
+    AC_DEFINE(HAVE_VIO)
+  else
+    vio_dir=""
+    vio_libs=""
+  fi
+  AC_SUBST([vio_dir])
+  AC_SUBST([vio_libs])
+])
+
+
+AC_DEFUN(MYSQL_CHECK_OPENSSL, [
+AC_MSG_CHECKING(for OpenSSL)
+  AC_ARG_WITH([openssl],
+              [\
+  --with-openssl          Include the OpenSSL support],
+              [openssl="$withval"],
+              [openssl=no])
+
+  if test "$openssl" = "yes"
+  then
+    if test -n "$vio_dir"
+    then
+      AC_MSG_RESULT(yes)
+      openssl_libs="-lssl -lcrypto -L/usr/local/ssl/lib"
+      openssl_includes="-I/usr/local/ssl/include"
+    else
+      AC_MSG_ERROR([OpenSSL requires Virtual IO support (--with-vio)])
+    fi
+    AC_DEFINE(HAVE_OPENSSL)
+  else
+    AC_MSG_RESULT(no)
+    openssl_libs=""
+    openssl_includes=""
+  fi
+  NON_THREADED_CLIENT_LIBS="$NON_THREADED_CLIENT_LIBS $openssl_libs"
+  AC_SUBST(openssl_libs)
+  AC_SUBST(openssl_includes)
+])
+
+
 AC_DEFUN(MYSQL_CHECK_MYSQLFS, [
   AC_ARG_WITH([mysqlfs],
               [\

@@ -55,8 +55,20 @@ rpcgen -c $xdr_file > $rpcxdr_file
 # Run server files through sed
 sed -f $svrsed_file $rpcsvc_file > ${rpcsvc_file}.new
 mv ${rpcsvc_file}.new $rpcsvc_file
-sed -f $sed_file $proc_file > ${proc_file}.new
-mv ${proc_file}.new $proc_file
+#
+# This is a hack to handle the $proc_file special case.  Since it
+# is both a source file and a generated file, we have to dance a
+# bit to get it to work with 'bk get', not just with 'bk edit'.
+# This still isn't perfect (I don't know what perfect would be in
+# this case), but it seems to work for now.
+#
+#sed -f $sed_file $proc_file > ${proc_file}.new
+#mv ${proc_file}.new $proc_file
+#
+mv $proc_file ${proc_file}.old
+sed -f $sed_file ${proc_file}.old > $proc_file
+test -w ${proc_file}.old || chmod a-w $proc_file
+rm -f ${proc_file}.old
 
 # Run rpcgen files through sed to add HAVE_RPC ifdef
 sed -f $rpcsed_file $rpcsvc_file > ${rpcsvc_file}.new

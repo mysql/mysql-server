@@ -1760,7 +1760,8 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     if (item->type() == Item::FIELD_ITEM &&
 	((Item_field*) item)->field_name[0] == '*')
     {
-      if (insert_fields(thd,tables,((Item_field*) item)->table_name,&it))
+      if (insert_fields(thd,tables,((Item_field*) item)->db_name,
+			((Item_field*) item)->table_name,&it))
 	DBUG_RETURN(-1); /* purecov: inspected */
     }
     else
@@ -1844,8 +1845,8 @@ static key_map get_key_map_from_key_list(TABLE *table,
 ****************************************************************************/
 
 bool
-insert_fields(THD *thd,TABLE_LIST *tables, const char *table_name,
-	      List_iterator<Item> *it)
+insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
+	      const char *table_name, List_iterator<Item> *it)
 {
   uint found;
   DBUG_ENTER("insert_fields");
@@ -1857,7 +1858,9 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *table_name,
     if (grant_option && !thd->master_access &&
 	check_grant_all_columns(thd,SELECT_ACL,table) )
       DBUG_RETURN(-1);
-    if (!table_name || !strcmp(table_name,tables->name))
+    if (!table_name || (!strcmp(table_name,tables->name) &&
+			(!db_name || !tables->db ||
+			 !strcmp(tables->db,db_name))))
     {
       Field **ptr=table->field,*field;
       thd->used_tables|=table->map;

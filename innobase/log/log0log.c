@@ -327,7 +327,8 @@ log_pad_current_log_block(void)
 	ulint	i;
 	dulint	lsn;
 	
-	log_reserve_and_open(OS_FILE_LOG_BLOCK_SIZE);
+	/* We retrieve lsn only because otherwise gcc crashed on HP-UX */
+	lsn = log_reserve_and_open(OS_FILE_LOG_BLOCK_SIZE);
 
 	pad_length = OS_FILE_LOG_BLOCK_SIZE
 			- (log_sys->buf_free % OS_FILE_LOG_BLOCK_SIZE)

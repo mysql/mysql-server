@@ -351,7 +351,7 @@ int main(int argc,char *argv[])
   }
 #endif
   sprintf(buff, 
-	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the buffer\n");
+	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the buffer.\n");
   put_info(buff,INFO_INFO);
   status.exit_status=read_lines(1);		// read lines and execute them
   if (opt_outfile)

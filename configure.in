@@ -784,8 +784,8 @@ case $SYSTEM_TYPE in
     ;;
   *hpux10.20*)
     echo "Enabling snprintf workaround for hpux 10.20"
-    CFLAGS="$CFLAGS -DHAVE_BROKEN_SNPRINTF"
-    CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_SNPRINTF -D_INCLUDE_LONGLONG"
+    CFLAGS="$CFLAGS -DHAVE_BROKEN_SNPRINTF -DSIGNALS_DONT_BREAK_READ"
+    CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_SNPRINTF -D_INCLUDE_LONGLONG -DSIGNALS_DONT_BREAK_READ"
     ;;
   *hpux11.*)
     echo "Enabling pread/pwrite workaround for hpux 11"
@@ -839,8 +839,8 @@ case $SYSTEM_TYPE in
     ;;
     *aix4.3*)
       echo "Adding defines for AIX"
-      CFLAGS="$CFLAGS -Wa,-many -DUNDEF_HAVE_INITGROUPS"
-      CXXFLAGS="$CXXFLAGS -Wa,-many -DUNDEF_HAVE_INITGROUPS"
+      CFLAGS="$CFLAGS -Wa,-many -DUNDEF_HAVE_INITGROUPS -DSIGNALS_DONT_BREAK_READ"
+      CXXFLAGS="$CXXFLAGS -Wa,-many -DUNDEF_HAVE_INITGROUPS -DSIGNALS_DONT_BREAK_READ"
     ;;
 dnl Is this the right match for DEC OSF on alpha?
     *dec-osf*)
@@ -1658,6 +1658,8 @@ AC_ARG_WITH(embedded-server,
 )
 
 MYSQL_CHECK_MYSQLFS
+MYSQL_CHECK_VIO
+MYSQL_CHECK_OPENSSL
 
 libmysqld_dirs=
 if test "$with_embedded_server" = "yes"
@@ -2109,7 +2111,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  strings/Makefile regex/Makefile heap/Makefile \
  bdb/Makefile \
  myisam/Makefile myisammrg/Makefile \
- man/Makefile readline/Makefile \
+ man/Makefile readline/Makefile vio/Makefile \
  libmysql_r/Makefile libmysqld/Makefile libmysql/Makefile client/Makefile \
  pstack/Makefile sql/Makefile sql/share/Makefile \
  merge/Makefile dbug/Makefile scripts/Makefile \
