@@ -2050,8 +2050,18 @@ static int do_show_master_status(MYSQL *mysql_con)
 
 static int do_flush_tables_read_lock(MYSQL *mysql_con)
 {
+  /*
+    We do first a FLUSH TABLES. If a long update is running, the FLUSH TABLES
+    will wait but will not stall the whole mysqld, and when the long update is
+    done the FLUSH TABLES WITH READ LOCK will start and succeed quickly. So,
+    FLUSH TABLES is to lower the probability of a stage where both mysqldump
+    and most client connections are stalled. Of course, if a second long
+    update starts between the two FLUSHes, we have that bad stall.
+  */
   return 
-    mysql_query_with_error_report(mysql_con, 0, "FLUSH TABLES WITH READ LOCK");
+    ( mysql_query_with_error_report(mysql_con, 0, "FLUSH TABLES") ||
+      mysql_query_with_error_report(mysql_con, 0,
+                                    "FLUSH TABLES WITH READ LOCK") );
 }
 
 
