@@ -1509,6 +1509,7 @@ void item_user_lock_init(void)
 void item_user_lock_free(void)
 {
   hash_free(&hash_user_locks);
+  pthread_mutex_destroy(&LOCK_user_locks);
 }
 
 void item_user_lock_release(ULL *ull)

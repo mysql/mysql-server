@@ -121,7 +121,7 @@ __os_openhandle(dbenv, name, flags, mode, fhp)
 		} else {
 #if defined(HAVE_FCNTL_F_SETFD)
 			/* Deny file descriptor access to any child process. */
-			if (fcntl(fhp->fd, F_SETFD, 1) == -1) {
+			if (fcntl(fhp->fd, F_SETFD, FD_CLOEXEC) == -1) {
 				ret = __os_get_errno();
 				__db_err(dbenv, "fcntl(F_SETFD): %s",
 				    strerror(ret));

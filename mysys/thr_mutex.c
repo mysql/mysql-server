@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,13 +20,15 @@
 #if defined(HAVE_LINUXTHREADS) && !defined (__USE_UNIX98)
 #define __USE_UNIX98			/* To get rw locks under Linux */
 #endif
-#include <m_string.h>
 #if defined(THREAD) && defined(SAFE_MUTEX)
 #undef SAFE_MUTEX			/* Avoid safe_mutex redefinitions */
-#include <my_pthread.h>
+#include "mysys_priv.h"
+#include "my_static.h"
+#include <m_string.h>
 
 #ifndef DO_NOT_REMOVE_THREAD_WRAPPERS
 /* Remove wrappers */
+#undef pthread_mutex_t
 #undef pthread_mutex_init
 #undef pthread_mutex_lock
 #undef pthread_mutex_unlock
@@ -38,14 +40,54 @@
 #endif
 #endif /* DO_NOT_REMOVE_THREAD_WRAPPERS */
 
+static pthread_mutex_t THR_LOCK_mutex;
+static ulong safe_mutex_count= 0;		/* Number of mutexes created */
+#ifdef SAFE_MUTEX_DETECT_DESTROY
+static struct st_safe_mutex_info_t *safe_mutex_root= NULL;
+#endif
+
+void safe_mutex_global_init(void)
+{
+  pthread_mutex_init(&THR_LOCK_mutex,MY_MUTEX_INIT_FAST);
+}
+
+
 int safe_mutex_init(safe_mutex_t *mp,
-		    const pthread_mutexattr_t *attr __attribute__((unused)))
+		    const pthread_mutexattr_t *attr __attribute__((unused)),
+		    const char *file __attribute__((unused)),
+		    uint line __attribute__((unused)))
 {
   bzero((char*) mp,sizeof(*mp));
   pthread_mutex_init(&mp->global,MY_MUTEX_INIT_ERRCHK);
   pthread_mutex_init(&mp->mutex,attr);
+
+#ifdef SAFE_MUTEX_DETECT_DESTROY
+  /*
+    Monitor the freeing of mutexes.  This code depends on single thread init
+    and destroy
+  */
+  if ((mp->info= (safe_mutex_info_t *) malloc(sizeof(safe_mutex_info_t))))
+  {
+    struct st_safe_mutex_info_t *info =mp->info;
+
+    info->init_file= (char *) file;
+    info->init_line= line;
+    info->prev= NULL;
+    info->next= NULL;
+
+    pthread_mutex_lock(&THR_LOCK_mutex);
+    if ((info->next= safe_mutex_root))
+      safe_mutex_root->prev= info;
+    safe_mutex_root= info;
+    safe_mutex_count++;
+    pthread_mutex_unlock(&THR_LOCK_mutex);
+  }
+#else
+  thread_safe_increment(safe_mutex_count, &THR_LOCK_mutex);
+#endif /* SAFE_MUTEX_DETECT_DESTROY */
   return 0;
 }
+
 
 int safe_mutex_lock(safe_mutex_t *mp,const char *file, uint line)
 {
@@ -199,12 +241,18 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
     fflush(stderr);
     abort();
   }
+#ifdef __NETWARE__
+  /* NetWare doesn't re-acquire the mutex on an error */
+  if (error && pthread_mutex_lock(&mp->mutex))
+    mp->count--;
+#endif /* __NETWARE__ */
   mp->thread=pthread_self();
   mp->file= (char*) file;
   mp->line=line;
   pthread_mutex_unlock(&mp->global);
   return error;
 }
+
 
 int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line)
 {
@@ -225,7 +273,70 @@ int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line)
   if (pthread_mutex_destroy(&mp->mutex))
     error=1;
 #endif
+
+#ifdef SAFE_MUTEX_DETECT_DESTROY
+  if (mp->info)
+  {
+    struct st_safe_mutex_info_t *info= mp->info;
+    pthread_mutex_lock(&THR_LOCK_mutex);
+
+    if (info->prev)
+      info->prev->next = info->next;
+    else
+      safe_mutex_root = info->next;
+    if (info->next)
+      info->next->prev = info->prev;
+    safe_mutex_count--;
+
+    pthread_mutex_unlock(&THR_LOCK_mutex);
+    free(info);
+    mp->info= NULL;				/* Get crash if double free */
+  }
+#else
+  thread_safe_sub(safe_mutex_count, 1, &THR_LOCK_mutex);
+#endif /* SAFE_MUTEX_DETECT_DESTROY */
   return error;
+}
+
+
+/*
+  Free global resources and check that all mutex has been destroyed
+
+  SYNOPSIS
+    safe_mutex_end()
+    file		Print errors on this file
+
+  NOTES
+    We can't use DBUG_PRINT() here as we have in my_end() disabled
+    DBUG handling before calling this function.
+
+   In MySQL one may get one warning for a mutex created in my_thr_init.c
+   This is ok, as this thread may not yet have been exited.
+*/
+
+void safe_mutex_end(FILE *file __attribute__((unused)))
+{
+  if (!safe_mutex_count)			/* safetly */
+    pthread_mutex_destroy(&THR_LOCK_mutex);
+#ifdef SAFE_MUTEX_DETECT_DESTROY
+  if (!file)
+    return;
+
+  if (safe_mutex_count)
+  {
+    fprintf(file, "Warning: Not destroyed mutex: %lu\n", safe_mutex_count);
+    (void) fflush(file);
+  }
+  {
+    struct st_safe_mutex_info_t *ptr;
+    for (ptr= safe_mutex_root ; ptr ; ptr= ptr->next)
+    {
+      fprintf(file, "\tMutex initiated at line %4u in '%s'\n",
+	      ptr->init_line, ptr->init_file);
+      (void) fflush(file);
+    }
+  }
+#endif /* SAFE_MUTEX_DETECT_DESTROY */
 }
 
 #endif /* THREAD && SAFE_MUTEX */

@@ -30,115 +30,122 @@ PULONG		 tls_storage;	/* TLS local storage */
 DWORD		 tls_bits[2];	/* TLS in-use bits   */
 pthread_mutex_t  tls_mutex;	/* TLS mutex for in-use bits */
 
+
 DWORD	 TlsAlloc( void)
 {
-   DWORD index = -1;
-   DWORD mask, tibidx;
-   int	 i;
+  DWORD index = -1;
+  DWORD mask, tibidx;
+  int	 i;
 
-   if (tls_storage == NULL) {
+  if (tls_storage == NULL)
+  {
 
-      APIRET rc;
+    APIRET rc;
 
-      // allocate memory for TLS storage
-      rc = DosAllocThreadLocalMemory( 1, &tls_storage);
-      if (rc) {
-	 fprintf( stderr, "DosAllocThreadLocalMemory error: return code = %u\n", rc);
-      }
+    /* allocate memory for TLS storage */
+    rc = DosAllocThreadLocalMemory( 1, &tls_storage);
+    if (rc)
+      fprintf( stderr, "DosAllocThreadLocalMemory error: return code = %u\n",
+	       rc);
+    /* create a mutex */
+    if (pthread_mutex_init( &tls_mutex, NULL))
+      fprintf( stderr, "Failed to init TLS mutex\n");
+  }
 
-      // create a mutex
-      if (pthread_mutex_init( &tls_mutex, NULL))
-	 fprintf( stderr, "Failed to init TLS mutex\n");
-   }
+  pthread_mutex_lock( &tls_mutex);
 
-   pthread_mutex_lock( &tls_mutex);
-
-   tibidx = 0;
-   if (tls_bits[0] == 0xFFFFFFFF) {
-      if (tls_bits[1] == 0xFFFFFFFF) {
-	    fprintf( stderr, "tid#%d, no more TLS bits available\n", _threadid);
-	    pthread_mutex_unlock( &tls_mutex);
-	    return -1;
-      }
-      tibidx = 1;
-   }
-   for( i=0; i<32; i++) {
-      mask = (1 << i);
-      if ((tls_bits[ tibidx] & mask) == 0) {
-	 tls_bits[ tibidx] |= mask;
-	 index = (tibidx*32) + i;
-	 break;
-      }
-   }
-   tls_storage[index] = 0;
-
-   pthread_mutex_unlock( &tls_mutex);
-
-   //fprintf( stderr, "tid#%d, TlsAlloc index %d\n", _threadid, index);
-
-   return index;
-}
-
-BOOL	 TlsFree( DWORD index)
-{
-   int	  tlsidx;
-   DWORD  mask;
-
-   if (index >= TLS_MINIMUM_AVAILABLE)
-      return NULL;
-
-   pthread_mutex_lock( &tls_mutex);
-
-   tlsidx = 0;
-   if (index > 32) {
-      tlsidx++;
-   }
-   mask = (1 << index);
-   if (tls_bits[ tlsidx] & mask) {
-      tls_bits[tlsidx] &= ~mask;
-      tls_storage[index] = 0;
+  tibidx = 0;
+  if (tls_bits[0] == 0xFFFFFFFF)
+  {
+    if (tls_bits[1] == 0xFFFFFFFF)
+    {
+      fprintf( stderr, "tid#%d, no more TLS bits available\n", _threadid);
       pthread_mutex_unlock( &tls_mutex);
-      return TRUE;
-   }
+      return -1;
+    }
+    tibidx = 1;
+  }
 
-   pthread_mutex_unlock( &tls_mutex);
-   return FALSE;
+  for (i=0; i<32; i++)
+  {
+    mask = (1 << i);
+    if ((tls_bits[ tibidx] & mask) == 0)
+    {
+      tls_bits[ tibidx] |= mask;
+      index = (tibidx*32) + i;
+      break;
+    }
+  }
+  tls_storage[index] = 0;
+
+  pthread_mutex_unlock( &tls_mutex);
+  /* fprintf( stderr, "tid#%d, TlsAlloc index %d\n", _threadid, index); */
+  return index;
+}
+
+BOOL TlsFree( DWORD index)
+{
+  int	  tlsidx;
+  DWORD  mask;
+
+  if (index >= TLS_MINIMUM_AVAILABLE)
+    return NULL;
+
+  pthread_mutex_lock( &tls_mutex);
+
+  tlsidx = 0;
+  if (index > 32)
+    tlsidx++;
+
+  mask = (1 << index);
+  if (tls_bits[ tlsidx] & mask)
+  {
+    tls_bits[tlsidx] &= ~mask;
+    tls_storage[index] = 0;
+    pthread_mutex_unlock( &tls_mutex);
+    return TRUE;
+  }
+
+  pthread_mutex_unlock( &tls_mutex);
+  return FALSE;
 }
 
 
-PVOID	 TlsGetValue( DWORD index)
+PVOID TlsGetValue( DWORD index)
 {
-   if (index >= TLS_MINIMUM_AVAILABLE)
-      return NULL;
+  if (index >= TLS_MINIMUM_AVAILABLE)
+    return NULL;
 
-   // verify if memory has been allocated for this thread
-   if (*tls_storage == NULL) {
-      // allocate memory for indexes
-      *tls_storage = (ULONG)calloc( TLS_MINIMUM_AVAILABLE, sizeof(int));
-      //fprintf( stderr, "tid#%d, tls_storage %x\n", _threadid, *tls_storage);
-   }
+  /* verify if memory has been allocated for this thread */
+  if (*tls_storage == NULL)
+  {
+    /* allocate memory for indexes */
+    *tls_storage = (ULONG)calloc( TLS_MINIMUM_AVAILABLE, sizeof(int));
+    /* fprintf(stderr, "tid#%d, tls_storage %x\n", _threadid, *tls_storage); */
+  }
 
-   ULONG* tls_array = (ULONG*) *tls_storage;
-   return (PVOID) tls_array[ index];
+  ULONG* tls_array = (ULONG*) *tls_storage;
+  return (PVOID) tls_array[index];
 }
 
-BOOL	 TlsSetValue( DWORD index, PVOID val)
+
+BOOL TlsSetValue( DWORD index, PVOID val)
 {
 
-   // verify if memory has been allocated for this thread
-   if (*tls_storage == NULL) {
-      // allocate memory for indexes
-      *tls_storage = (ULONG)calloc( TLS_MINIMUM_AVAILABLE, sizeof(int));
-      //fprintf( stderr, "tid#%d, tls_storage %x\n", _threadid, *tls_storage);
-   }
+  /* verify if memory has been allocated for this thread */
+  if (*tls_storage == NULL)
+  {
+    /* allocate memory for indexes */
+    *tls_storage = (ULONG)calloc( TLS_MINIMUM_AVAILABLE, sizeof(int));
+    /* fprintf(stderr, "tid#%d, tls_storage %x\n", _threadid, *tls_storage); */
+  }
 
-   if (index >= TLS_MINIMUM_AVAILABLE)
-      return FALSE;
+  if (index >= TLS_MINIMUM_AVAILABLE)
+    return FALSE;
 
-   ULONG* tls_array = (ULONG*) *tls_storage;
-   //fprintf( stderr, "tid#%d, TlsSetValue array %08x index %d -> %08x (old)\n", _threadid, tls_array, index, tls_array[ index]);
-   tls_array[ index] = (ULONG) val;
-   //fprintf( stderr, "tid#%d, TlsSetValue array %08x index %d -> %08x\n", _threadid, tls_array, index, val);
-
-   return TRUE;
+  ULONG* tls_array = (ULONG*) *tls_storage;
+  /* fprintf( stderr, "tid#%d, TlsSetValue array %08x index %d -> %08x (old)\n", _threadid, tls_array, index, tls_array[ index]); */
+  tls_array[ index] = (ULONG) val;
+  /* fprintf( stderr, "tid#%d, TlsSetValue array %08x index %d -> %08x\n", _threadid, tls_array, index, val); */
+  return TRUE;
 }

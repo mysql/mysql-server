@@ -94,6 +94,18 @@ void my_thread_global_end(void)
 #ifdef PPTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
   pthread_mutexattr_destroy(&my_errchk_mutexattr);
 #endif
+  pthread_mutex_destroy(&THR_LOCK_malloc);
+  pthread_mutex_destroy(&THR_LOCK_open);
+  pthread_mutex_destroy(&THR_LOCK_keycache);
+  pthread_mutex_destroy(&THR_LOCK_lock);
+  pthread_mutex_destroy(&THR_LOCK_isam);
+  pthread_mutex_destroy(&THR_LOCK_myisam);
+  pthread_mutex_destroy(&THR_LOCK_heap);
+  pthread_mutex_destroy(&THR_LOCK_net);
+  pthread_mutex_destroy(&THR_LOCK_charset);
+#ifndef HAVE_LOCALTIME_R
+  pthread_mutex_destroy(&LOCK_localtime_r);
+#endif
 #ifndef HAVE_GETHOSTBYNAME_R
   pthread_mutex_destroy(&LOCK_gethostbyname_r);
 #endif

@@ -106,6 +106,7 @@ TAIL=tail
 ECHO=echo # use internal echo if possible
 EXPR=expr # use internal if possible
 FIND=find
+GREP=grep
 if test $? != 0; then exit 1; fi
 PRINTF=printf
 RM=rm
@@ -604,6 +605,30 @@ report_stats () {
 	$ECHO "of what when wrong."
 	$ECHO "If you want to report this error, please read first the documentation at"
         $ECHO "http://www.mysql.com/doc/M/y/MySQL_test_suite.html"
+    fi
+
+    #
+    # Report if there was any fatal warnings/errors in the log files
+    #
+    $RM -f $MY_LOG_DIR/warnings $MY_LOG_DIR/warnings.tmp
+    # Remove some non fatal warnings from the log files
+    $SED -e 's!Warning:  Table:.* on delete!!g' \
+         $MY_LOG_DIR/*.err > $MY_LOG_DIR/warnings.tmp
+
+    found_error=0
+    # Find errors
+    for i in "^Warning:" "^Error:" "^==.* at 0x"
+    do
+      if `$GREP "$i" $MY_LOG_DIR/warnings.tmp >> $MY_LOG_DIR/warnings`
+      then
+        found_error=1
+      fi
+    done
+    $RM -f $MY_LOG_DIR/warnings.tmp
+    if [ $found_error = "1" ]
+    then
+      echo "WARNING: Got errors/warnings while running tests. Please examine"
+      echo "$MY_LOG_DIR/warnings for details."
     fi
 }
 

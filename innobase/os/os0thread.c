@@ -214,6 +214,8 @@ os_thread_sleep(
 {
 #ifdef __WIN__
 	Sleep(tm / 1000);
+#elif defined(__NETWARE__)
+	delay(tm / 1000);
 #else
 	struct timeval	t;
 

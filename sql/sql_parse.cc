@@ -652,7 +652,7 @@ pthread_handler_decl(handle_one_connection,arg)
 
 #if defined(__WIN__)
   init_signals();				// IRENA; testing ?
-#elif !defined(OS2)
+#elif !defined(OS2) && !defined(__NETWARE__)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
@@ -682,7 +682,9 @@ pthread_handler_decl(handle_one_connection,arg)
       statistic_increment(aborted_connects,&LOCK_status);
       goto end_thread;
     }
-
+#ifdef __NETWARE__
+    netware_reg_user(thd->ip, thd->user, "MySQL");
+#endif
     if (thd->variables.max_join_size == HA_POS_ERROR)
       thd->options |= OPTION_BIG_SELECTS;
     if (thd->client_capabilities & CLIENT_COMPRESS)
@@ -751,12 +753,10 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
 
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd;
-#if !defined(__WIN__) && !defined(OS2)
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
-
-
 #endif
 
   if (thd->variables.max_join_size == HA_POS_ERROR)

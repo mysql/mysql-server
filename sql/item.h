@@ -86,6 +86,9 @@ public:
   virtual bool is_null() { return 0; }
   virtual unsigned int size_of()= 0;
   virtual void top_level_item() {}
+  virtual void set_result_field(Field *field) {}
+  virtual bool is_result_field() { return 0; }
+  virtual void save_in_result_field(bool no_conversions) {}
 };
 
 
@@ -356,12 +359,19 @@ public:
   table_map used_tables() const { return 1; }
   virtual void fix_length_and_dec()=0;
   unsigned int size_of() { return sizeof(*this);}  
+  void set_result_field(Field *field) { result_field= field; }
+  bool is_result_field() { return 1; }
+  void save_in_result_field(bool no_conversions)
+  {
+    save_in_field(result_field, no_conversions);
+  }
 };
 
 
 class Item_ref :public Item_ident
 {
 public:
+  Field *result_field;				/* Save result here */
   Item **ref;
   Item_ref(char *db_par,char *table_name_par,char *field_name_par)
     :Item_ident(db_par,table_name_par,field_name_par),ref(0) {}
@@ -407,6 +417,12 @@ public:
   enum Item_result result_type () const { return (*ref)->result_type(); }
   table_map used_tables() const		{ return (*ref)->used_tables(); }
   unsigned int size_of() { return sizeof(*this);}  
+  void set_result_field(Field *field) { result_field= field; }
+  bool is_result_field() { return 1; }
+  void save_in_result_field(bool no_conversions)
+  {
+    (*ref)->save_in_field(result_field, no_conversions);
+  }
 };
 
 
