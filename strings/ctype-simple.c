@@ -29,10 +29,11 @@ int my_strnxfrm_simple(CHARSET_INFO * cs,
                        const uchar *src, uint srclen)
 {
   uchar *map= cs->sort_order;
+  const uchar *end;
   DBUG_ASSERT(len >= srclen);
   
   len= min(len,srclen);
-  for ( ; len > 0 ; len-- )
+  for ( end=src+len; src < end ;  )
     *dest++= map[*src++];
   return len;
 }

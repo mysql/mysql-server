@@ -3964,23 +3964,11 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
 
 void Field_string::sort_string(char *to,uint length)
 {
-  if (binary())
-    memcpy((byte*) to,(byte*) ptr,(size_t) length);
-  else
-  {
-#ifdef USE_STRCOLL
-    if (use_strnxfrm(field_charset)) {
-      uint tmp=my_strnxfrm(field_charset,
+  uint tmp=my_strnxfrm(field_charset,
                           (unsigned char *)to, length,
                           (unsigned char *) ptr, field_length);
-      if (tmp < length)
-        bzero(to + tmp, length - tmp);
-    }
-    else
-#endif
-      for (char *from=ptr,*end=ptr+length ; from != end ;)
-        *to++=(char) field_charset->sort_order[(uint) (uchar) *from++];
-  }
+  if (tmp < length)
+    bzero(to + tmp, length - tmp);
 }
 
 
@@ -4145,27 +4133,9 @@ int Field_varstring::cmp(const char *a_ptr, const char *b_ptr)
 void Field_varstring::sort_string(char *to,uint length)
 {
   uint tot_length=uint2korr(ptr);
-  if (binary())
-    memcpy((byte*) to,(byte*) ptr+2,(size_t) tot_length);
-  else
-  {
-#ifdef USE_STRCOLL
-    if (use_strnxfrm(field_charset))
-      tot_length=my_strnxfrm(field_charset,
+  tot_length=my_strnxfrm(field_charset,
                              (unsigned char *) to, length,
                              (unsigned char *)ptr+2, tot_length);
-    else
-    {
-#endif
-      char *tmp=to;
-      if (tot_length > length)
-        tot_length=length;
-      for (char *from=ptr+2,*end=from+tot_length ; from != end ;)
-        *tmp++=(char) field_charset->sort_order[(uint) (uchar) *from++];
-#ifdef USE_STRCOLL
-    }
-#endif
-  }
   if (tot_length < length)
     bzero(to+tot_length,length-tot_length);
 }
