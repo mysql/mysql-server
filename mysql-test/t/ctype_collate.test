@@ -127,35 +127,35 @@ ALTER TABLE t1 CHARACTER SET latin1 COLLATE latin1_bin;
 SHOW CREATE TABLE t1;
 SHOW FIELDS FROM  t1;
 
-SET NAMES 'latin1';
+SET CHARACTER SET 'latin1';
 SHOW VARIABLES LIKE 'client_collation';
-SET NAMES latin1;
+SET CHARACTER SET latin1;
 SHOW VARIABLES LIKE 'client_collation';
-SHOW VARIABLES LIKE 'client_collation';
-SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
-SET NAMES latin1 COLLATE latin1_bin;
-SHOW VARIABLES LIKE 'client_collation';
-SET NAMES LATIN1 COLLATE Latin1_Bin;
-SHOW VARIABLES LIKE 'client_collation';
-SET NAMES 'latin1' COLLATE 'latin1_bin';
 SHOW VARIABLES LIKE 'client_collation';
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
-SET NAMES koi8r;
+SET CHARACTER SET latin1 COLLATE latin1_bin;
+SHOW VARIABLES LIKE 'client_collation';
+SET CHARACTER SET LATIN1 COLLATE Latin1_Bin;
+SHOW VARIABLES LIKE 'client_collation';
+SET CHARACTER SET 'latin1' COLLATE 'latin1_bin';
 SHOW VARIABLES LIKE 'client_collation';
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
-SET COLLATION koi8r_bin;
+SET CHARACTER SET koi8r;
 SHOW VARIABLES LIKE 'client_collation';
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
-SET COLLATION DEFAULT;
+SET CHARACTER SET koi8r COLLATE koi8r_bin;
 SHOW VARIABLES LIKE 'client_collation';
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
-SET NAMES DEFAULT;
+SET CHARACTER SET koi8r COLLATE DEFAULT;
+SHOW VARIABLES LIKE 'client_collation';
+SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+SET CHARACTER SET DEFAULT;
 SHOW VARIABLES LIKE 'client_collation';
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 --error 1251
-SET NAMES latin1 COLLATE koi8r;
+SET CHARACTER SET latin1 COLLATE koi8r;
 --error 1115
-SET NAMES 'DEFAULT';
+SET CHARACTER SET 'DEFAULT';
 
 
 DROP TABLE t1;
