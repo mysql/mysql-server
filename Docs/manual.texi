@@ -30531,7 +30531,7 @@ mysql> select PERIOD_DIFF(9802,199703);
 @findex DATE_SUB()
 @findex ADDDATE()
 @findex SUBDATE()
-@findex EXTRACT(type FROM date)
+@findex EXTRACT()
 @item DATE_ADD(date,INTERVAL expr type)
 @itemx DATE_SUB(date,INTERVAL expr type)
 @itemx ADDDATE(date,INTERVAL expr type)
@@ -30551,7 +30551,7 @@ or subtracted from the starting date.  @code{expr} is a string; it may start
 with a @samp{-} for negative intervals.  @code{type} is a keyword indicating
 how the expression should be interpreted.
 
-The @code{EXTRACT(type FROM date)} function returns the 'type'
+The related function @code{EXTRACT(type FROM date)} returns the 'type'
 interval from the date.
 
 The following table shows how the @code{type} and @code{expr} arguments
@@ -30605,12 +30605,6 @@ mysql> SELECT DATE_ADD("1998-01-01 00:00:00",
         -> 1997-12-30 14:00:00
 mysql> SELECT DATE_SUB("1998-01-02", INTERVAL 31 DAY);
         -> 1997-12-02
-mysql> SELECT EXTRACT(YEAR FROM "1999-07-02");
-       -> 1999
-mysql> SELECT EXTRACT(YEAR_MONTH FROM "1999-07-02 01:02:03");
-       -> 199907
-mysql> SELECT EXTRACT(DAY_MINUTE FROM "1999-07-02 01:02:03");
-       -> 20102
 @end example
 
 If you specify an interval value that is too short (does not include all the
@@ -30648,6 +30642,22 @@ mysql> select DATE_ADD('1998-01-30', Interval 1 month);
 
 Note from the preceding example that the word @code{INTERVAL} and the
 @code{type} keyword are not case sensitive.
+
+@findex EXTRACT()
+@item EXTRACT(type FROM date)
+
+The @code{EXTRACT()} function uses the same kinds of interval type
+specifiers as @code{DATE_ADD()} or @code{DATE_SUB()}, but extracts parts
+from the date rather than performing date arithmetic.
+
+@example
+mysql> SELECT EXTRACT(YEAR FROM "1999-07-02");
+       -> 1999
+mysql> SELECT EXTRACT(YEAR_MONTH FROM "1999-07-02 01:02:03");
+       -> 199907
+mysql> SELECT EXTRACT(DAY_MINUTE FROM "1999-07-02 01:02:03");
+       -> 20102
+@end example
 
 @findex TO_DAYS()
 @item TO_DAYS(date)
