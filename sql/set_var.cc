@@ -2372,8 +2372,9 @@ bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
     return 1;
   }
 #endif
-  
-  if (!(var->save_result.time_zone= my_tz_find(thd, res)))
+
+  if (!(var->save_result.time_zone=
+          my_tz_find(res, thd->lex->time_zone_tables_used)))
   {
     my_error(ER_UNKNOWN_TIME_ZONE, MYF(0), res ? res->c_ptr() : "NULL");
     return 1;
@@ -2418,7 +2419,8 @@ void sys_var_thd_time_zone::set_default(THD *thd, enum_var_type type)
    if (default_tz_name)
    {
      String str(default_tz_name, &my_charset_latin1);
-     global_system_variables.time_zone= my_tz_find(thd, &str);
+     global_system_variables.time_zone=
+       my_tz_find(&str, thd->lex->time_zone_tables_used);
    }
    else
      global_system_variables.time_zone= my_tz_SYSTEM;
