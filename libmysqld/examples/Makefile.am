@@ -8,7 +8,7 @@ link_sources:
 	done;
 
 DEFS = 		-DEMBEDDED_LIBRARY
-INCLUDES =	-I$(top_srcdir)/include $(openssl_includes) \
+INCLUDES =	@MT_INCLUDES@ -I$(top_srcdir)/include $(openssl_includes) \
 		-I$(srcdir) -I$(top_srcdir) -I$(top_srcdir)/client
 LIBS =		@LIBS@
 LDADD =		@CLIENT_EXTRA_LDFLAGS@ ../libmysqld.a @innodb_system_libs@ @LIBDL@ $(CXXLDFLAGS)
