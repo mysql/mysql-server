@@ -308,6 +308,10 @@ TODO list:
 #include "../myisammrg/myrg_def.h"
 #endif
 
+#ifdef EMBEDDED_LIBRARY
+#include "emb_qcache.h"
+#endif
+
 #if defined(EXTRA_DEBUG) && !defined(DBUG_OFF)
 #define MUTEX_LOCK(M) { DBUG_PRINT("lock", ("mutex lock 0x%lx", (ulong)(M))); \
   pthread_mutex_lock(M);}
@@ -646,20 +650,24 @@ void query_cache_abort(NET *net)
 }
 
 
-void query_cache_end_of_result(NET *net)
+void query_cache_end_of_result(THD *thd)
 {
   DBUG_ENTER("query_cache_end_of_result");
+#ifdef EMBEDDED_LIBRARY
+    query_cache_insert(&thd->net, (byte*)thd, 
+		       emb_count_querycache_size(thd));
+#endif
 
 #ifndef DBUG_OFF
   // Check if we have called query_cache.wreck() (which disables the cache)
   if (query_cache.query_cache_size == 0) DBUG_VOID_RETURN;
 #endif
 
-  if (net->query_cache_query != 0)	// Quick check on unlocked structure
+  if (thd->net.query_cache_query != 0)	// Quick check on unlocked structure
   {
     STRUCT_LOCK(&query_cache.structure_guard_mutex);
     Query_cache_block *query_block = ((Query_cache_block*)
-				      net->query_cache_query);
+				      thd->net.query_cache_query);
     if (query_block)
     {
       DUMP(&query_cache);
@@ -691,7 +699,7 @@ void query_cache_end_of_result(NET *net)
       // Cache was flushed or resized and query was deleted => do nothing
       STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
     }
-    net->query_cache_query=0;
+    thd->net.query_cache_query=0;
     DBUG_EXECUTE("check_querycache",query_cache.check_integrity(0););
   }
   DBUG_VOID_RETURN;
@@ -1052,23 +1060,29 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   /*
     Send cached result to client
   */
+#ifndef EMBEDDED_LIBRARY
   do
   {
     DBUG_PRINT("qcache", ("Results  (len %lu, used %lu, headers %lu)",
-			result_block->length, result_block->used,
-			result_block->headers_len()+
-			ALIGN_SIZE(sizeof(Query_cache_result))));
-
+			  result_block->length, result_block->used,
+			  result_block->headers_len()+
+			  ALIGN_SIZE(sizeof(Query_cache_result))));
+    
     Query_cache_result *result = result_block->result();
-#ifndef EMBEDDED_LIBRARY   /* TODO query cache in embedded library*/
     if (net_real_write(&thd->net, result->data(),
 		       result_block->used -
 		       result_block->headers_len() -
 		       ALIGN_SIZE(sizeof(Query_cache_result))))
       break;					// Client aborted
-#endif
     result_block = result_block->next;
   } while (result_block != first_result_block);
+#else
+  {
+    Querycache_stream qs(result_block, result_block->headers_len() +
+			 ALIGN_SIZE(sizeof(Query_cache_result)));
+    emb_load_querycache_result(thd, &qs);
+  }
+#endif /*!EMBEDDED_LIBRARY*/
 
   thd->limit_found_rows = query->found_rows();
 
@@ -1804,18 +1818,23 @@ my_bool Query_cache::write_result_data(Query_cache_block **result_block,
     Query_cache_block *block = *result_block;
     uint headers_len = (ALIGN_SIZE(sizeof(Query_cache_block)) +
 			ALIGN_SIZE(sizeof(Query_cache_result)));
+#ifndef EMBEDDED_LIBRARY
     // Now fill list of blocks that created by allocate_data_chain
     do
     {
       block->type = type;
       ulong length = block->used - headers_len;
       DBUG_PRINT("qcache", ("write %lu byte in block 0x%lx",length,
-			  (ulong)block));
+			    (ulong)block));
       memcpy((void*)(((byte*) block)+headers_len), (void*) rest, length);
       rest += length;
       block = block->next;
       type = Query_cache_block::RES_CONT;
     } while (block != *result_block);
+#else
+    Querycache_stream qs(*result_block, headers_len);
+    emb_store_querycache_result(&qs, (THD*)data);
+#endif /*!EMBEDDED_LIBRARY*/
   }
   else
   {
