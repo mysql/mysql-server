@@ -95,8 +95,6 @@ public:
       SystemTable = 1,        ///< System table
       UserTable = 2,          ///< User table (may be temporary)
       UniqueHashIndex = 3,    ///< Unique un-ordered hash index
-      HashIndex = 4,          ///< Non-unique un-ordered hash index
-      UniqueOrderedIndex = 5, ///< Unique ordered index
       OrderedIndex = 6,       ///< Non-unique ordered index
       HashIndexTrigger = 7,   ///< Index maintenance, internal
       IndexTrigger = 8,       ///< Index maintenance, internal
@@ -164,29 +162,29 @@ public:
      * The builtin column types
      */
     enum Type {
-      Undefined=0,   ///< Undefined 
-      Tinyint,       ///< 8 bit. 1 byte signed integer, can be used in array
-      Tinyunsigned,  ///< 8 bit. 1 byte unsigned integer, can be used in array
-      Smallint,      ///< 16 bit. 2 byte signed integer, can be used in array
-      Smallunsigned, ///< 16 bit. 2 byte unsigned integer, can be used in array
-      Mediumint,     ///< 24 bit. 3 byte signed integer, can be used in array
-      Mediumunsigned,///< 24 bit. 3 byte unsigned integer, can be used in array
-      Int,           ///< 32 bit. 4 byte signed integer, can be used in array
-      Unsigned,      ///< 32 bit. 4 byte unsigned integer, can be used in array
-      Bigint,        ///< 64 bit. 8 byte signed integer, can be used in array
-      Bigunsigned,   ///< 64 Bit. 8 byte signed integer, can be used in array
-      Float,         ///< 32-bit float. 4 bytes float, can be used in array
-      Double,        ///< 64-bit float. 8 byte float, can be used in array
-      Decimal,       ///< Precision, Scale are applicable
-      Char,          ///< Len. A fixed array of 1-byte chars
-      Varchar,       ///< Max len
-      Binary,        ///< Len
-      Varbinary,     ///< Max len
-      Datetime,    ///< Precision down to 1 sec (sizeof(Datetime) == 8 bytes )
-      Timespec,    ///< Precision down to 1 nsec(sizeof(Datetime) == 12 bytes )
-      Blob,        ///< Binary large object (see NdbBlob)
-      Text,         ///< Text blob,
-      Bit           ///< Bit, length specifies no of bits
+      Undefined = NDB_TYPE_UNDEFINED,   ///< Undefined 
+      Tinyint = NDB_TYPE_TINYINT,       ///< 8 bit. 1 byte signed integer, can be used in array
+      Tinyunsigned = NDB_TYPE_TINYUNSIGNED,  ///< 8 bit. 1 byte unsigned integer, can be used in array
+      Smallint = NDB_TYPE_SMALLINT,      ///< 16 bit. 2 byte signed integer, can be used in array
+      Smallunsigned = NDB_TYPE_SMALLUNSIGNED, ///< 16 bit. 2 byte unsigned integer, can be used in array
+      Mediumint = NDB_TYPE_MEDIUMINT,     ///< 24 bit. 3 byte signed integer, can be used in array
+      Mediumunsigned = NDB_TYPE_MEDIUMUNSIGNED,///< 24 bit. 3 byte unsigned integer, can be used in array
+      Int = NDB_TYPE_INT,           ///< 32 bit. 4 byte signed integer, can be used in array
+      Unsigned = NDB_TYPE_UNSIGNED,      ///< 32 bit. 4 byte unsigned integer, can be used in array
+      Bigint = NDB_TYPE_BIGINT,        ///< 64 bit. 8 byte signed integer, can be used in array
+      Bigunsigned = NDB_TYPE_BIGUNSIGNED,   ///< 64 Bit. 8 byte signed integer, can be used in array
+      Float = NDB_TYPE_FLOAT,         ///< 32-bit float. 4 bytes float, can be used in array
+      Double = NDB_TYPE_DOUBLE,        ///< 64-bit float. 8 byte float, can be used in array
+      Decimal = NDB_TYPE_DECIMAL,       ///< Precision, Scale are applicable
+      Char = NDB_TYPE_CHAR,          ///< Len. A fixed array of 1-byte chars
+      Varchar = NDB_TYPE_VARCHAR,       ///< Max len
+      Binary = NDB_TYPE_BINARY,        ///< Len
+      Varbinary = NDB_TYPE_VARBINARY,     ///< Max len
+      Datetime = NDB_TYPE_DATETIME,    ///< Precision down to 1 sec (sizeof(Datetime) == 8 bytes )
+      Timespec = NDB_TYPE_TIMESPEC,    ///< Precision down to 1 nsec(sizeof(Datetime) == 12 bytes )
+      Blob = NDB_TYPE_BLOB,        ///< Binary large object (see NdbBlob)
+      Text = NDB_TYPE_TEXT,         ///< Text blob,
+      Bit = NDB_TYPE_BIT           ///< Bit, length specifies no of bits
     };
 
     /** 

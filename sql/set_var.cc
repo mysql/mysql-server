@@ -133,6 +133,9 @@ sys_var_thd_ulong	sys_auto_increment_increment("auto_increment_increment",
 sys_var_thd_ulong	sys_auto_increment_offset("auto_increment_offset",
                                                   &SV::auto_increment_offset);
 
+sys_var_bool_ptr	sys_automatic_sp_privileges("automatic_sp_privileges",
+					      &sp_automatic_privileges);
+
 sys_var_long_ptr	sys_binlog_cache_size("binlog_cache_size",
 					      &binlog_cache_size);
 sys_var_thd_ulong	sys_bulk_insert_buff_size("bulk_insert_buffer_size",
@@ -256,6 +259,8 @@ sys_var_thd_ulong	sys_max_tmp_tables("max_tmp_tables",
 					   &SV::max_tmp_tables);
 sys_var_long_ptr	sys_max_write_lock_count("max_write_lock_count",
 						 &max_write_lock_count);
+sys_var_thd_ulong       sys_multi_range_count("multi_range_count",
+                                              &SV::multi_range_count);
 sys_var_long_ptr	sys_myisam_data_pointer_size("myisam_data_pointer_size",
                                                     &myisam_data_pointer_size);
 sys_var_thd_ulonglong	sys_myisam_max_extra_sort_file_size("myisam_max_extra_sort_file_size", &SV::myisam_max_extra_sort_file_size, fix_myisam_max_extra_sort_file_size, 1);
@@ -512,6 +517,7 @@ sys_var *sys_variables[]=
   &sys_auto_increment_increment,
   &sys_auto_increment_offset,
   &sys_autocommit,
+  &sys_automatic_sp_privileges,
   &sys_big_tables,
   &sys_big_selects,
   &sys_binlog_cache_size,
@@ -672,6 +678,7 @@ sys_var *sys_variables[]=
 struct show_var_st init_vars[]= {
   {"auto_increment_increment", (char*) &sys_auto_increment_increment, SHOW_SYS},
   {"auto_increment_offset",   (char*) &sys_auto_increment_offset, SHOW_SYS},
+  {sys_automatic_sp_privileges.name,(char*) &sys_automatic_sp_privileges,       SHOW_SYS},
   {"back_log",                (char*) &back_log,                    SHOW_LONG},
   {"basedir",                 mysql_home,                           SHOW_CHAR},
 #ifdef HAVE_BERKELEY_DB

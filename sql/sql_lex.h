@@ -63,7 +63,7 @@ enum enum_sql_command {
   SQLCOM_CHANGE_DB, SQLCOM_CREATE_DB, SQLCOM_DROP_DB, SQLCOM_ALTER_DB,
   SQLCOM_REPAIR, SQLCOM_REPLACE, SQLCOM_REPLACE_SELECT,
   SQLCOM_CREATE_FUNCTION, SQLCOM_DROP_FUNCTION,
-  SQLCOM_REVOKE,SQLCOM_OPTIMIZE, SQLCOM_CHECK, 
+  SQLCOM_REVOKE,SQLCOM_OPTIMIZE, SQLCOM_CHECK,
   SQLCOM_ASSIGN_TO_KEYCACHE, SQLCOM_PRELOAD_KEYS,
   SQLCOM_FLUSH, SQLCOM_KILL, SQLCOM_ANALYZE,
   SQLCOM_ROLLBACK, SQLCOM_ROLLBACK_TO_SAVEPOINT,
@@ -87,8 +87,8 @@ enum enum_sql_command {
   SQLCOM_PREPARE, SQLCOM_EXECUTE, SQLCOM_DEALLOCATE_PREPARE,
   SQLCOM_CREATE_VIEW, SQLCOM_DROP_VIEW,
   SQLCOM_CREATE_TRIGGER, SQLCOM_DROP_TRIGGER,
-  SQLCOM_LOCK_TABLES_TRANSACTIONAL,
   /* This should be the last !!! */
+
   SQLCOM_END
 };
 
@@ -743,6 +743,7 @@ typedef struct st_lex
   sp_head *sphead;
   sp_name *spname;
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
+  bool all_privileges;
   sp_pcontext *spcont;
   HASH spfuns;		/* Called functions */
   st_sp_chistics sp_chistics;

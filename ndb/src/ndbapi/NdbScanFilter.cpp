@@ -48,11 +48,8 @@ public:
 
   int cond_col(Interpreter::UnaryCondition, Uint32 attrId);
   
-  template<typename T>
-  int cond_col_const(Interpreter::BinaryCondition, Uint32 attrId, T value);
-
   int cond_col_const(Interpreter::BinaryCondition, Uint32 attrId, 
-		     const char * value, Uint32 len, bool nopad);
+		     const void * value, Uint32 len);
 };
 
 const Uint32 LabelExit = ~0;
@@ -247,68 +244,7 @@ NdbScanFilter::isfalse(){
 
 
 typedef int (NdbOperation:: * Branch1)(Uint32, Uint32 label);
-typedef int (NdbOperation:: * Branch2)(Uint32, Uint32, Uint32 label);
-typedef int (NdbOperation:: * StrBranch2)(Uint32, const char*,Uint32,bool,Uint32);
-
-struct tab {
-  Branch2 m_branches[5];
-};
-
-static const tab table[] = {
-  /**
-   * EQ (AND, OR, NAND, NOR)
-   */
-  { { 0, 
-      &NdbOperation::branch_ne, 
-      &NdbOperation::branch_eq, 
-      &NdbOperation::branch_eq,  
-      &NdbOperation::branch_ne } }
-  
-  /**
-   * NEQ
-   */
-  ,{ { 0, 
-       &NdbOperation::branch_eq, 
-       &NdbOperation::branch_ne, 
-       &NdbOperation::branch_ne, 
-       &NdbOperation::branch_eq } }
-  
-  /**
-   * LT
-   */
-  ,{ { 0, 
-       &NdbOperation::branch_le, 
-       &NdbOperation::branch_gt, 
-       &NdbOperation::branch_gt,
-       &NdbOperation::branch_le } }
-  
-  /**
-   * LE
-   */
-  ,{ { 0, 
-       &NdbOperation::branch_lt, 
-       &NdbOperation::branch_ge, 
-       &NdbOperation::branch_ge, 
-       &NdbOperation::branch_lt } }
-  
-  /**
-   * GT
-   */
-  ,{ { 0, 
-       &NdbOperation::branch_ge, 
-       &NdbOperation::branch_lt, 
-       &NdbOperation::branch_lt, 
-       &NdbOperation::branch_ge } }
-
-  /**
-   * GE
-   */
-  ,{ { 0, 
-       &NdbOperation::branch_gt, 
-       &NdbOperation::branch_le, 
-       &NdbOperation::branch_le, 
-       &NdbOperation::branch_gt } }
-};
+typedef int (NdbOperation:: * StrBranch2)(Uint32, const void*, Uint32, bool, Uint32);
 
 struct tab2 {
   Branch1 m_branches[5];
@@ -334,132 +270,7 @@ static const tab2 table2[] = {
        &NdbOperation::branch_col_eq_null } }
 };
 
-const int tab_sz = sizeof(table)/sizeof(table[0]);
 const int tab2_sz = sizeof(table2)/sizeof(table2[0]);
-
-int
-matchType(const NdbDictionary::Column * col){
-  return 1;
-}
-
-template<typename T> int load_const(NdbOperation* op, T value, Uint32 reg);
-
-template<>
-int
-load_const(NdbOperation* op, Uint32 value, Uint32 reg){
-  return op->load_const_u32(reg, value);
-}
-
-template<>
-int
-load_const(NdbOperation* op, Uint64 value, Uint32 reg){
-  return op->load_const_u64(reg, value);
-}
-
-template<typename T>
-int
-NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition op, 
-				  Uint32 AttrId, T value){
-  
-  if(op < 0 || op >= tab_sz){
-    m_operation->setErrorCodeAbort(4262);
-    return -1;
-  }
-
-  if(m_current.m_group < NdbScanFilter::AND || 
-     m_current.m_group > NdbScanFilter::NOR){
-    m_operation->setErrorCodeAbort(4260);
-    return -1;
-  }
-
-  Branch2 branch = table[op].m_branches[m_current.m_group];
-  const NdbDictionary::Column * col = 
-    m_operation->m_currentTable->getColumn(AttrId);
-  
-  if(col == 0){
-    m_operation->setErrorCodeAbort(4261);
-    return -1;
-  }
-  
-  if(!matchType(col)){
-    /**
-     * Code not reached
-     */
-    return -1;
-  }
-
-  if(m_latestAttrib != AttrId){
-    m_operation->read_attr(&NdbColumnImpl::getImpl(* col), 4);
-    m_latestAttrib = AttrId;
-  }
-  
-  load_const<T>(m_operation, value, 5);
-  (m_operation->* branch)(4, 5, m_current.m_ownLabel);
-
-  return 0;
-};
-
-int
-NdbScanFilter::eq(int AttrId, Uint32 value){
-  return m_impl.cond_col_const(Interpreter::EQ, AttrId, value);
-}
-
-int
-NdbScanFilter::ne(int AttrId, Uint32 value){
-  return m_impl.cond_col_const(Interpreter::NE, AttrId, value);
-}
-
-int
-NdbScanFilter::lt(int AttrId, Uint32 value){
-  return m_impl.cond_col_const(Interpreter::LT, AttrId, value);
-}
-
-int
-NdbScanFilter::le(int AttrId, Uint32 value){
-  return m_impl.cond_col_const(Interpreter::LE, AttrId, value);
-}
-
-int
-NdbScanFilter::gt(int AttrId, Uint32 value){
-  return m_impl.cond_col_const(Interpreter::GT, AttrId, value);
-}
-
-int
-NdbScanFilter::ge(int AttrId, Uint32 value){
-  return m_impl.cond_col_const(Interpreter::GE, AttrId, value);
-}
-
-
-int
-NdbScanFilter::eq(int AttrId, Uint64 value){
-  return m_impl.cond_col_const(Interpreter::EQ, AttrId, value);
-}
-
-int
-NdbScanFilter::ne(int AttrId, Uint64 value){
-  return m_impl.cond_col_const(Interpreter::NE, AttrId, value);
-}
-
-int
-NdbScanFilter::lt(int AttrId, Uint64 value){
-  return m_impl.cond_col_const(Interpreter::LT, AttrId, value);
-}
-
-int
-NdbScanFilter::le(int AttrId, Uint64 value){
-  return m_impl.cond_col_const(Interpreter::LE, AttrId, value);
-}
-
-int
-NdbScanFilter::gt(int AttrId, Uint64 value){
-  return m_impl.cond_col_const(Interpreter::GT, AttrId, value);
-}
-
-int
-NdbScanFilter::ge(int AttrId, Uint64 value){
-  return m_impl.cond_col_const(Interpreter::GE, AttrId, value);
-}
-
 
 int
 NdbScanFilterImpl::cond_col(Interpreter::UnaryCondition op, Uint32 AttrId){
@@ -570,11 +381,10 @@ static const tab3 table3[] = {
 
 const int tab3_sz = sizeof(table3)/sizeof(table3[0]);
 
-
 int
 NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition op, 
 				  Uint32 AttrId, 
-				  const char * value, Uint32 len, bool nopad){
+				  const void * value, Uint32 len){
   if(op < 0 || op >= tab3_sz){
     m_operation->setErrorCodeAbort(4260);
     return -1;
@@ -595,49 +405,31 @@ NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition op,
     return -1;
   }
   
-  (m_operation->* branch)(AttrId, value, len, nopad, m_current.m_ownLabel);
+  (m_operation->* branch)(AttrId, value, len, false, m_current.m_ownLabel);
   return 0;
 }
 
 int
-NdbScanFilter::eq(int ColId, const char * val, Uint32 len, bool nopad){
-  return m_impl.cond_col_const(Interpreter::EQ, ColId, val, len, nopad);
-}
+NdbScanFilter::cmp(BinaryCondition cond, int ColId, 
+		   const void *val, Uint32 len)
+{
+  switch(cond){
+  case COND_LE:
+    return m_impl.cond_col_const(Interpreter::LE, ColId, val, len);
+  case COND_LT:
+    return m_impl.cond_col_const(Interpreter::LT, ColId, val, len);
+  case COND_GE:
+    return m_impl.cond_col_const(Interpreter::GE, ColId, val, len);
+  case COND_GT:
+    return m_impl.cond_col_const(Interpreter::GT, ColId, val, len);
+  case COND_EQ:
+    return m_impl.cond_col_const(Interpreter::EQ, ColId, val, len);
+  case COND_NE:
+    return m_impl.cond_col_const(Interpreter::NE, ColId, val, len);
+  }
+  return -1;
+} 
 
-int
-NdbScanFilter::ne(int ColId, const char * val, Uint32 len, bool nopad){
-  return m_impl.cond_col_const(Interpreter::NE, ColId, val, len, nopad);
-}
-
-int
-NdbScanFilter::lt(int ColId, const char * val, Uint32 len, bool nopad){
-  return m_impl.cond_col_const(Interpreter::LT, ColId, val, len, nopad);
-}
-
-int
-NdbScanFilter::le(int ColId, const char * val, Uint32 len, bool nopad){
-  return m_impl.cond_col_const(Interpreter::LE, ColId, val, len, nopad);
-}
-
-int
-NdbScanFilter::gt(int ColId, const char * val, Uint32 len, bool nopad){
-  return m_impl.cond_col_const(Interpreter::GT, ColId, val, len, nopad);
-}
-
-int
-NdbScanFilter::ge(int ColId, const char * val, Uint32 len, bool nopad){
-  return m_impl.cond_col_const(Interpreter::GE, ColId, val, len, nopad);
-}
-
-int
-NdbScanFilter::like(int ColId, const char * val, Uint32 len, bool nopad){
-  return m_impl.cond_col_const(Interpreter::LIKE, ColId, val, len, nopad);
-}
-
-int
-NdbScanFilter::notlike(int ColId, const char * val, Uint32 len, bool nopad){
-  return m_impl.cond_col_const(Interpreter::NOT_LIKE, ColId, val, len, nopad);
-}
 
 #if 0
 int
@@ -778,10 +570,4 @@ main(void){
 #endif
 
 template class Vector<NdbScanFilterImpl::State>;
-#if __SUNPRO_CC != 0x560
-#ifndef _FORTEC_
-template int NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition, Uint32 attrId, Uint32);
-template int NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition, Uint32 attrId, Uint64);
-#endif
-#endif
 

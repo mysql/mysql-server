@@ -1749,8 +1749,7 @@ page_validate(
 		/* Check that the records are in the ascending order */
 		if ((count >= 2) && (!page_cur_is_after_last(&cur))) {
 			if (!(1 == cmp_rec_rec(rec, old_rec,
-						offsets, old_offsets,
-						ULINT_UNDEFINED, index))) {
+					offsets, old_offsets, index))) {
 				fprintf(stderr,
 				"InnoDB: Records in wrong order on page %lu",
 					(ulong) buf_frame_get_page_no(page));

@@ -137,10 +137,6 @@ cmp_rec_rec_with_match(
 	const ulint*	offsets1,/* in: rec_get_offsets(rec1, index) */
 	const ulint*	offsets2,/* in: rec_get_offsets(rec2, index) */
 	dict_index_t*	index,	/* in: data dictionary index */
-	ulint		n,	/* in: number of fields to compare,
-				or ULINT_UNDEFINED if both records
-				contain all fields, and all fields
-				should be compared */
 	ulint*	 	matched_fields, /* in/out: number of already completely 
 				matched fields; when the function returns,
 				contains the value the for current
@@ -163,10 +159,6 @@ cmp_rec_rec(
 	rec_t*		rec2,	/* in: physical record */
 	const ulint*	offsets1,/* in: rec_get_offsets(rec1, index) */
 	const ulint*	offsets2,/* in: rec_get_offsets(rec2, index) */
-	ulint		n,	/* in: number of fields to compare,
-				or ULINT_UNDEFINED if both records
-				contain all fields, and all fields
-				should be compared */
 	dict_index_t*	index);	/* in: data dictionary index */
 
 

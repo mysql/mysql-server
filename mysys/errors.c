@@ -53,15 +53,13 @@ const char * NEAR globerrs[GLOBERRS]=
 
 void init_glob_errs(void)
 {
-  my_errmsg[GLOB] = & globerrs[0];
-} /* init_glob_errs */
+  /* This is now done statically. */
+}
 
 #else
 
 void init_glob_errs()
 {
-  my_errmsg[GLOB] = & globerrs[0];
-
   EE(EE_FILENOTFOUND)	= "File '%s' not found (Errcode: %d)";
   EE(EE_CANTCREATEFILE) = "Can't create/write to file '%s' (Errcode: %d)";
   EE(EE_READ)		= "Error reading file '%s' (Errcode: %d)";
