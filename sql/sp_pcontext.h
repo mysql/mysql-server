@@ -50,7 +50,7 @@ typedef struct sp_label
   char *name;
   uint ip;			// Instruction index
   int type;			// begin/iter or ref/free 
-  uint scopes;			// No. of scopes at label
+  struct sp_pcontext *ctx;	// The label's context
 } sp_label_t;
 
 typedef struct sp_cond_type
@@ -66,11 +66,6 @@ typedef struct sp_cond
   sp_cond_type_t *val;
 } sp_cond_t;
 
-typedef struct sp_scope
-{
-  uint vars, conds, hndlrs, curs, glab;
-} sp_scope_t;
-
 class sp_pcontext : public Sql_alloc
 {
   sp_pcontext(const sp_pcontext &); /* Prevent use of these */
@@ -78,28 +73,30 @@ class sp_pcontext : public Sql_alloc
 
  public:
 
-  sp_pcontext();
+  sp_pcontext(sp_pcontext *prev);
 
   // Free memory
   void
   destroy();
 
-  // For error checking of duplicate things
-  void
-  push_scope();
+  sp_pcontext *
+  push_context();
 
-  void
-  pop_scope(sp_scope_t *sp = 0);
+  // Returns the previous context, not the one we pop
+  sp_pcontext *
+  pop_context();
 
-  uint
-  scopes()
+  sp_pcontext *
+  parent_context()
   {
-    return m_scopes.elements;
+    return m_parent;
   }
 
-  // Sets '*diffs' to the differences between current scope index snew and sold
-  void
-  diff_scopes(uint sold, sp_scope_t *diffs);
+  uint
+  diff_handlers(sp_pcontext *ctx);
+
+  uint
+  diff_cursors(sp_pcontext *ctx);
 
 
   //
@@ -107,28 +104,27 @@ class sp_pcontext : public Sql_alloc
   //
 
   inline uint
-  max_framesize()
+  max_pvars()
   {
-    return m_framesize;
+    return m_psubsize + m_pvar.elements;
   }
 
   inline uint
-  current_framesize()
+  current_pvars()
+  {
+    return m_poffset + m_pvar.elements;
+  }
+
+  inline uint
+  context_pvars()
   {
     return m_pvar.elements;
   }
 
   inline uint
-  params()
+  pvar_context2index(uint i)
   {
-    return m_params;
-  }
-
-  // Set the number of parameters to the current esize
-  inline void
-  set_params()
-  {
-    m_params= m_pvar.elements;
+    return m_poffset + i;
   }
 
   inline void
@@ -199,7 +195,11 @@ class sp_pcontext : public Sql_alloc
   inline sp_label_t *
   last_label()
   {
-    return m_label.head();
+    sp_label_t *lab= m_label.head();
+
+    if (!lab && m_parent)
+      lab= m_parent->last_label();
+    return lab;
   }
 
   inline sp_label_t *
@@ -236,23 +236,17 @@ class sp_pcontext : public Sql_alloc
   }
 
   inline uint
-  handlers()
+  max_handlers()
   {
-    return m_handlers;
+    return m_hsubsize + m_handlers;
   }
 
   inline void
-  push_handlers(uint count)
+  push_handlers(uint n)
   {
-    m_hndlrlev+= count;
+    m_handlers+= n;
   }
 
-  inline void
-  pop_handlers(uint count)
-  {
-    m_hndlrlev-= count;
-  }
-  
   //
   // Cursors
   //
@@ -263,47 +257,40 @@ class sp_pcontext : public Sql_alloc
   my_bool
   find_cursor(LEX_STRING *name, uint *poff, my_bool scoped=0);
 
-  inline void
-  pop_cursor(uint num)
+  inline uint
+  max_cursors()
   {
-    while (num--)
-      pop_dynamic(&m_cursor);
+    return m_csubsize + m_cursor.elements;
   }
 
   inline uint
-  cursors()
+  current_cursors()
   {
-    return m_cursmax;
+    return m_coffset + m_cursor.elements;
   }
 
-  //
-  // GOTO labels
-  //
+protected:
 
-  sp_label_t *
-  push_glabel(char *name, uint ip);
-
-  sp_label_t *
-  find_glabel(char *name);
-
-  void
-  pop_glabel(uint count);
+  // The maximum sub context's framesizes
+  uint m_psubsize;		
+  uint m_csubsize;
+  uint m_hsubsize;
 
 private:
 
-  uint m_params;		// The number of parameters
-  uint m_framesize;		// The maximum framesize
-  uint m_handlers;		// The total number of handlers
-  uint m_cursmax;		// The maximum number of cursors
-  uint m_hndlrlev;		// Current number of active handlers
+  sp_pcontext *m_parent;	// Parent context
+
+  uint m_poffset;		// Variable offset for this context
+  uint m_coffset;		// Cursor offset for this context
+  uint m_handlers;		// No. of handlers in this context
 
   DYNAMIC_ARRAY m_pvar;		// Parameters/variables
   DYNAMIC_ARRAY m_cond;		// Conditions
   DYNAMIC_ARRAY m_cursor;	// Cursors
-  DYNAMIC_ARRAY m_scopes;	// For error checking
-  DYNAMIC_ARRAY m_glabel;	// Goto labels
 
   List<sp_label_t> m_label;	// The label list
+
+  List<sp_pcontext> m_children;	// Children contexts, used for destruction
 
 }; // class sp_pcontext : public Sql_alloc
 

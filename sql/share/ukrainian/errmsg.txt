@@ -365,3 +365,4 @@ character-set=koi8u
 "View, що оновлюеться, не м╕стить повного ключа таблиц╕(ь), що викор╕стана в ньюому"
 "View '%-.64s.%-.64s' посила╓тся на не╕снуюч╕ таблиц╕ або стовбц╕"
 "Can't drop a %s from within another stored routine"
+"GOTO is not allowed in a stored procedure handler"
