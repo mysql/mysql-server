@@ -596,7 +596,7 @@ static void close_connections(void)
     unix_sock= INVALID_SOCKET;
   }
 #endif
-  end_thr_alarm();			 // Don't allow alarms
+  end_thr_alarm(0);			 // Abort old alarms.
   end_slave();
 
   /* First signal all threads that it's time to die */
@@ -905,6 +905,7 @@ void clean_up(bool print_message)
 #endif
   (void) ha_panic(HA_PANIC_CLOSE);	/* close all tables and logs */
   end_key_cache();
+  end_thr_alarm(1);			/* Free allocated memory */
 #ifdef USE_RAID
   end_raid();
 #endif
@@ -2313,14 +2314,14 @@ The server will not act as a slave.");
   if (opt_bootstrap)
   {
     int error=bootstrap(stdin);
-    end_thr_alarm();				// Don't allow alarms
+    end_thr_alarm(1);				// Don't allow alarms
     unireg_abort(error ? 1 : 0);
   }
   if (opt_init_file)
   {
     if (read_init_file(opt_init_file))
     {
-      end_thr_alarm();				// Don't allow alarms
+      end_thr_alarm(1);				// Don't allow alarms
       unireg_abort(1);
     }
   }
