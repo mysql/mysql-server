@@ -168,7 +168,7 @@ drop_user4@localhost;
 --error 1269
 revoke all privileges, grant option from drop_user1@localhost, drop_user2@localhost,
 drop_user3@localhost, drop_user4@localhost;
---error 1268
+--error 1396
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
 drop table t1;

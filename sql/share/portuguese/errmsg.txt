@@ -286,7 +286,7 @@ character-set=latin1
 "Dado truncado para coluna '%s' na linha %ld",
 "Usando engine de armazenamento %s para tabela '%s'",
 "Combinação ilegal de collations (%s,%s) e (%s,%s) para operação '%s'",
-"Operation %s failed for %d of the requested users",
+"Cannot drop one or more of the requested users",
 "Não pode revocar todos os privilégios, grant para um ou mais dos usuários pedidos",
 "Ilegal combinação de collations (%s,%s), (%s,%s), (%s,%s) para operação '%s'",
 "Ilegal combinação de collations para operação '%s'",
@@ -414,3 +414,4 @@ character-set=latin1
 "Can not modify more than one base table through a join view '%-.64s.%-.64s'"
 "Can not insert into join view '%-.64s.%-.64s' without fields list"
 "Can not delete from join view '%-.64s.%-.64s'"
+"Operation %s failed for '%.256s'",

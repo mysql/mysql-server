@@ -297,7 +297,7 @@ character-set=latin1
 "Daten abgeschnitten für Spalte '%s' in Zeile %ld",
 "Für Tabelle '%s' wird Speicher-Engine %s benutzt",
 "Unerlaubte Vermischung der Kollationen (%s,%s) und (%s,%s) für die Operation '%s'",
-"Das Kommando %s scheiterte für %d von den betroffenen Benutzern",
+"Kann einen oder mehrere der angegebenen Benutzer nicht löschen",
 "Kann nicht alle Berechtigungen widerrufen, grant for one or more of the requested users",
 "Unerlaubte Vermischung der Kollationen (%s,%s), (%s,%s), (%s,%s) für die Operation '%s'",
 "Unerlaubte Vermischung der Kollationen für die Operation '%s'",
@@ -425,3 +425,4 @@ character-set=latin1
 "Can not modify more than one base table through a join view '%-.64s.%-.64s'"
 "Can not insert into join view '%-.64s.%-.64s' without fields list"
 "Can not delete from join view '%-.64s.%-.64s'"
+"Das Kommando %s scheiterte für %.256s",
