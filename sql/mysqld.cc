@@ -5136,7 +5136,7 @@ static void mysql_init_variables(void)
   have_example_db= SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
-  have_ndbcluster=SHOW_OPTION_YES;
+  have_ndbcluster=SHOW_OPTION_DISABLED;
 #else
   have_ndbcluster=SHOW_OPTION_NO;
 #endif
