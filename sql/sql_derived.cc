@@ -194,7 +194,10 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	  {
 	    // to fix a problem in EXPLAIN
 	    if (tables)
-	      tables->table_list->table=tables->table;
+	    {
+	      for (TABLE_LIST *cursor= tables;  cursor;  cursor= cursor->next)
+		cursor->table_list->table=cursor->table;
+	    }
 	  }
 	  else
 	    unit->exclude_level();
