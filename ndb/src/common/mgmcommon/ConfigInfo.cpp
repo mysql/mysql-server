@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+
 #include <NdbTCP.h>
 #include "ConfigInfo.hpp"
 #include <mgmapi_config_parameters.h>
@@ -2369,12 +2371,40 @@ transformNode(InitConfigFileParser::Context & ctx, const char * data){
   return true;
 }
 
+static bool checkLocalhostHostnameMix(InitConfigFileParser::Context & ctx)
+{
+  DBUG_ENTER("checkLocalhostHostnameMix");
+  const char * hostname= 0;
+  ctx.m_currentSection->get("HostName", &hostname);
+  if (hostname == 0 || hostname[0] == 0)
+    DBUG_RETURN(true);
+
+  Uint32 localhost_used= 0;
+  if(!strcmp(hostname, "localhost") || !strcmp(hostname, "127.0.0.1")){
+    localhost_used= 1;
+    ctx.m_userProperties.put("$computer-localhost-used", localhost_used);
+    if(!ctx.m_userProperties.get("$computer-localhost", &hostname))
+      DBUG_RETURN(true);
+  } else {
+    ctx.m_userProperties.get("$computer-localhost-used", &localhost_used);
+    ctx.m_userProperties.put("$computer-localhost", hostname);
+  }
+
+  if (localhost_used) {
+    ctx.reportError("Mixing of localhost with other hostname(%s) is illegal",
+		    hostname);
+    DBUG_RETURN(false);
+  }
+
+  DBUG_RETURN(true);
+}
+
 bool
 fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data){
   
   const char * hostname;
   if (ctx.m_currentSection->get("HostName", &hostname))
-    return true;
+    return checkLocalhostHostnameMix(ctx);
 
   const char * compId;
   if(!ctx.m_currentSection->get("ExecuteOnComputer", &compId)){
@@ -2383,7 +2413,7 @@ fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data){
       require(ctx.m_currentSection->put("HostName", "localhost"));
     else
       require(ctx.m_currentSection->put("HostName", ""));
-    return true;
+    return checkLocalhostHostnameMix(ctx);
   }
   
   const Properties * computer;
@@ -2404,7 +2434,7 @@ fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data){
   }
   
   require(ctx.m_currentSection->put("HostName", hostname));
-  return true;
+  return checkLocalhostHostnameMix(ctx);
 }
 
 bool
@@ -2516,17 +2546,7 @@ transformComputer(InitConfigFileParser::Context & ctx, const char * data){
     return true;
   }
   
-  if(!strcmp(hostname, "localhost") || !strcmp(hostname, "127.0.0.1")){
-    if(ctx.m_userProperties.get("$computer-localhost", &hostname)){
-      ctx.reportError("Mixing of localhost with other hostname(%s) is illegal",
-		      hostname);
-      return false;
-    }
-  } else {
-    ctx.m_userProperties.put("$computer-localhost", hostname);
-  }
-  
-  return true;
+  return checkLocalhostHostnameMix(ctx);
 }
 
 /**
