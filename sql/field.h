@@ -546,6 +546,13 @@ public:
 
 
 class Field_timestamp :public Field_num {
+#if MYSQL_VERSION_ID < 40100
+  /*
+    We save the original field length here because field_length is
+    changed to a mock value in case when the 'new_mode' is in effect.
+  */
+  uint32 orig_field_length;
+#endif
 public:
   Field_timestamp(char *ptr_arg, uint32 len_arg,
 		  enum utype unireg_check_arg, const char *field_name_arg,
@@ -587,7 +594,11 @@ public:
   void fill_and_store(char *from,uint len);
   bool get_date(TIME *ltime,bool fuzzydate);
   bool get_time(TIME *ltime);
-  void make_field(Send_field *field);
+
+#if MYSQL_VERSION_ID < 40100
+  friend TABLE *open_table(THD *thd,const char *db,const char *table_name,
+                           const char *alias,bool *refresh);
+#endif
 };
 
 
