@@ -2217,7 +2217,7 @@ enum options {
 	       OPT_SKIP_INNOBASE,OPT_SAFEMALLOC_MEM_LIMIT,
 	       OPT_REPLICATE_DO_TABLE, OPT_REPLICATE_IGNORE_TABLE,
 	       OPT_REPLICATE_WILD_DO_TABLE, OPT_REPLICATE_WILD_IGNORE_TABLE,
-	       OPT_DISCONNECT_SLAVE_EVENT_COUNT
+	       OPT_DISCONNECT_SLAVE_EVENT_COUNT, OPT_ABORT_SLAVE_EVENT_COUNT
 };
 
 static struct option long_options[] = {
@@ -2277,6 +2277,8 @@ static struct option long_options[] = {
     // is a no-op
   {"disconnect-slave-event-count",      required_argument, 0,
      (int) OPT_DISCONNECT_SLAVE_EVENT_COUNT},
+  {"abort-slave-event-count",      required_argument, 0,
+     (int) OPT_ABORT_SLAVE_EVENT_COUNT},
 #if !defined(DBUG_OFF) && defined(SAFEMALLOC)
   {"safemalloc-mem-limit",  required_argument, 0, (int)
      OPT_SAFEMALLOC_MEM_LIMIT},
@@ -2883,6 +2885,11 @@ static void get_options(int argc,char **argv)
     case (int)OPT_DISCONNECT_SLAVE_EVENT_COUNT:
 #ifndef DBUG_OFF      
       disconnect_slave_event_count = atoi(optarg);
+#endif      
+      break;
+    case (int)OPT_ABORT_SLAVE_EVENT_COUNT:
+#ifndef DBUG_OFF      
+      abort_slave_event_count = atoi(optarg);
 #endif      
       break;
     case (int) OPT_LOG_SLAVE_UPDATES:

@@ -33,9 +33,13 @@ DYNAMIC_ARRAY replicate_wild_do_table, replicate_wild_ignore_table;
 bool do_table_inited = 0, ignore_table_inited = 0;
 bool wild_do_table_inited = 0, wild_ignore_table_inited = 0;
 bool table_rules_on = 0;
+
+// when slave thread exits, we need to remember the temporary tables so we
+// can re-use them on slave start
+static TABLE* save_temporary_tables = 0;
 #ifndef DBUG_OFF
-int disconnect_slave_event_count = 0;
-static int events_till_disconnect = -1;
+int disconnect_slave_event_count = 0, abort_slave_event_count = 0;
+static int events_till_disconnect = -1, events_till_abort = -1;
 static int stuck_count = 0;
 #endif
 
@@ -43,8 +47,8 @@ static int stuck_count = 0;
 static inline void skip_load_data_infile(NET* net);
 static inline bool slave_killed(THD* thd);
 static int init_slave_thread(THD* thd);
-static void safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
-static void safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
+static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
+static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
 static int safe_sleep(THD* thd, int sec);
 static int request_table_dump(MYSQL* mysql, char* db, char* table);
 static int create_table_from_dump(THD* thd, NET* net, const char* db,
@@ -131,7 +135,7 @@ int tables_ok(THD* thd, TABLE_LIST* tables)
 
 int add_table_rule(HASH* h, const char* table_spec)
 {
-  char* dot = strchr(table_spec, '.');
+  const char* dot = strchr(table_spec, '.');
   if(!dot) return 1;
   uint len = (uint)strlen(table_spec);
   if(!len) return 1;
@@ -148,7 +152,7 @@ int add_table_rule(HASH* h, const char* table_spec)
 
 int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec)
 {
-  char* dot = strchr(table_spec, '.');
+  const char* dot = strchr(table_spec, '.');
   if(!dot) return 1;
   uint len = (uint)strlen(table_spec);
   if(!len) return 1;
@@ -968,7 +972,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 
 pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 {
-  THD *thd;; // needs to be first for thread_stack
+  THD *thd; // needs to be first for thread_stack
   MYSQL *mysql = NULL ;
 
   if(!server_id)
@@ -985,6 +989,9 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
     }
   slave_running = 1;
   abort_slave = 0;
+#ifndef DBUG_OFF  
+  events_till_abort = abort_slave_event_count;
+#endif  
   pthread_mutex_unlock(&LOCK_slave);
   
   int error = 1;
@@ -1001,7 +1008,7 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   if(init_slave_thread(thd) || init_master_info(&glob_mi))
     goto err;
   thd->thread_stack = (char*)&thd; // remember where our stack is
-
+  thd->temporary_tables = save_temporary_tables; // restore temp tables
   threads.append(thd);
   
   DBUG_PRINT("info",("master info: log_file_name=%s, position=%d",
@@ -1017,14 +1024,16 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   thd->proc_info = "connecting to master";
 #ifndef DBUG_OFF  
   sql_print_error("Slave thread initialized");
-#endif  
-  safe_connect(thd, mysql, &glob_mi);
-  // always report status on startup, even if we are not in debug
-  sql_print_error("Slave: connected to master '%s@%s:%d',\
- replication started in log '%s' at position %ld", glob_mi.user,
+#endif
+  // we can get killed during safe_connect
+  if(!safe_connect(thd, mysql, &glob_mi))
+   sql_print_error("Slave: connected to master '%s@%s:%d',\
+  replication started in log '%s' at position %ld", glob_mi.user,
 		  glob_mi.host, glob_mi.port,
 		  RPL_LOG_NAME,
 		  glob_mi.pos);
+  else
+    goto err;
   
   while(!slave_killed(thd))
     {
@@ -1053,8 +1062,7 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
           sql_print_error("Slave: failed dump request, reconnecting to \
 try again, log '%s' at postion %ld", RPL_LOG_NAME,
 			  last_failed_pos = glob_mi.pos );
-	  safe_reconnect(thd, mysql, &glob_mi);
-	  if(slave_killed(thd))
+	  if(safe_reconnect(thd, mysql, &glob_mi) || slave_killed(thd))
 	      goto err;
 
 	  continue;
@@ -1084,8 +1092,7 @@ try again, log '%s' at postion %ld", RPL_LOG_NAME,
 	    sql_print_error("Slave: Failed reading log event, \
 reconnecting to retry, log '%s' position %ld", RPL_LOG_NAME,
 			    last_failed_pos = glob_mi.pos);
-	    safe_reconnect(thd, mysql, &glob_mi);
-	    if(slave_killed(thd))
+	    if(safe_reconnect(thd, mysql, &glob_mi) || slave_killed(thd))
 	      goto err;
 	    break;
 	  }
@@ -1101,6 +1108,13 @@ reconnecting to retry, log '%s' position %ld", RPL_LOG_NAME,
 	      // abort the slave thread, when the problem is fixed, the user
 	      // should restart the slave with mysqladmin start-slave
 	    }
+#ifndef DBUG_OFF
+	  if(abort_slave_event_count && !--events_till_abort)
+	    {
+	      sql_print_error("Slave: debugging abort");
+	      goto err;
+	    }
+#endif	  
 	  
 	  // successful exec with offset advance,
 	  // the slave repents and his sins are forgiven!
@@ -1143,6 +1157,8 @@ position %ld",
   pthread_mutex_lock(&LOCK_slave);
   slave_running = 0;
   abort_slave = 0;
+  save_temporary_tables = thd->temporary_tables;
+  thd->temporary_tables = 0; // remove tempation from destructor to close them
   pthread_cond_broadcast(&COND_slave_stopped); // tell the world we are done
   pthread_mutex_unlock(&LOCK_slave);
   delete thd;
@@ -1151,13 +1167,14 @@ position %ld",
   DBUG_RETURN(0);				// Can't return anything here
 }
 
-static void safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
-  // will try to connect until successful
+static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
+  // will try to connect until successful or slave killed
 {
+  int slave_was_killed;
 #ifndef DBUG_OFF
   events_till_disconnect = disconnect_slave_event_count;
 #endif  
-  while(!slave_killed(thd) &&
+  while(!(slave_was_killed = slave_killed(thd)) &&
 	!mc_mysql_connect(mysql, mi->host, mi->user, mi->password, 0,
 			  mi->port, 0, 0))
   {
@@ -1166,28 +1183,39 @@ static void safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
     safe_sleep(thd, mi->connect_retry);
   }
   
-  mysql_log.write(thd, COM_CONNECT_OUT, "%s@%s:%d",
+  if(!slave_was_killed)
+   mysql_log.write(thd, COM_CONNECT_OUT, "%s@%s:%d",
 		  mi->user, mi->host, mi->port);
   
+  return slave_was_killed;
 }
 
-// will try to connect until successful
+// will try to connect until successful or slave killed
 
-static void safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
+static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 {
+  int slave_was_killed;
   mi->pending = 0; // if we lost connection after reading a state set event
   // we will be re-reading it, so pending needs to be cleared
 #ifndef DBUG_OFF
   events_till_disconnect = disconnect_slave_event_count;
 #endif
-  while(!slave_killed(thd) && mc_mysql_reconnect(mysql))
+  while(!(slave_was_killed = slave_killed(thd)) && mc_mysql_reconnect(mysql))
   {
-    sql_print_error("Slave thread: error connecting to master:\
-%s, retry in %d sec",
-		    mc_mysql_error(mysql), mi->connect_retry);
+    sql_print_error("Slave thread: error re-connecting to master:\
+%s, last_errno=%d, retry in %d sec",
+		    mc_mysql_error(mysql), errno, mi->connect_retry);
      safe_sleep(thd, mi->connect_retry);
   }
+
+  if(!slave_was_killed)
+    sql_print_error("Slave: reconnected to master '%s@%s:%d',\
+replication resumed in log '%s' at position %ld", glob_mi.user,
+		  glob_mi.host, glob_mi.port,
+		  RPL_LOG_NAME,
+		  glob_mi.pos);
   
+  return slave_was_killed;
 }
 
 #ifdef __GNUC__

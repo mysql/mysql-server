@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "my_global.h"
 
 static void spawn_stern_thread(pthread_t *t);
 static int act_goofy(void);
@@ -12,6 +13,7 @@ static struct {
   pthread_cond_t  cond;
   int msg;
 } comm = { PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, 0 };
+
 
 int
 main(void)
@@ -65,7 +67,7 @@ static int act_goofy(void)
   return ret;
 }
 
-static void *be_stern(void *v __attribute((unused)))
+static void *be_stern(void *v __attribute__((unused)))
 {
   int msg;
   for (;;) {
@@ -87,3 +89,5 @@ static void *be_stern(void *v __attribute((unused)))
   fputs("You are NOTHING!\n", stderr);
   return NULL;
 }
+
+

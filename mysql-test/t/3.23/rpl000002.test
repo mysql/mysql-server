@@ -7,5 +7,5 @@ set insert_id = 2000;
 insert into x values (NULL),(NULL),(NULL);
 connection slave;
 use test;
-sleep 1;
+sleep 0.5;
 @r/3.23/rpl000002.result select * from x;
