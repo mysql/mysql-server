@@ -41,5 +41,16 @@ my_bool send_file_to_server(MYSQL *mysql, const char *filename);
 #define reset_sigpipe(mysql)
 #endif
 
-MYSQL_RES * STDCALL cli_list_fields(MYSQL *mysql, const char *table, const char *wild);
+void mysql_read_default_options(struct st_mysql_options *options,
+				const char *filename,const char *group);
+MYSQL * STDCALL 
+cli_mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
+		       const char *passwd, const char *db,
+		       uint port, const char *unix_socket,ulong client_flag);
 
+void STDCALL cli_mysql_close(MYSQL *mysql);
+
+MYSQL_FIELD * STDCALL cli_list_fields(MYSQL *mysql);
+my_bool STDCALL cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt);
+MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
+			  uint fields);
