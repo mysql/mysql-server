@@ -19,45 +19,73 @@
 
 #include <SocketClient.hpp>
 #include <SocketAuthenticator.hpp>
+#include <InputStream.hpp>
+#include <OutputStream.hpp>
 #include <NdbOut.hpp>
 
-SocketAuthSimple::SocketAuthSimple(const char *passwd) {
-  m_passwd= strdup(passwd);
-  m_buf= (char*)malloc(strlen(passwd)+1);
+SocketAuthSimple::SocketAuthSimple(const char *username, const char *passwd) {
+  if (username)
+    m_username= strdup(username);
+  else
+    m_username= 0;
+  if (passwd)
+    m_passwd= strdup(passwd);
+  else
+    m_passwd= 0;
 }
 
 SocketAuthSimple::~SocketAuthSimple()
 {
   if (m_passwd)
     free((void*)m_passwd);
-  if (m_buf)
-    free(m_buf);
+  if (m_username)
+    free((void*)m_username);
 }
 
 bool SocketAuthSimple::client_authenticate(int sockfd)
 {
-  if (!m_passwd)
-    return false;
+  SocketOutputStream s_output(sockfd);
+  SocketInputStream  s_input(sockfd);
 
-  int len = strlen(m_passwd);
-  int r;
-  r= send(sockfd, m_passwd, len, 0);
+  if (m_username)
+    s_output.println("%s", m_username);
+  else
+    s_output.println("");
 
-  r= recv(sockfd, m_buf, len, 0);
-  m_buf[r]= '\0';
+  if (m_passwd)
+    s_output.println("%s", m_passwd);
+  else
+    s_output.println("");
 
-  return true;
+  char buf[16];
+  if (s_input.gets(buf, 16) == 0) return false;
+  if (strncmp("ok", buf, 2) == 0)
+    return true;
+
+  return false;
 }
 
 bool SocketAuthSimple::server_authenticate(int sockfd)
 {
-  if (!m_passwd)
-    return false;
 
-  int len = strlen(m_passwd), r;
-  r= recv(sockfd, m_buf, len, 0);
-  m_buf[r]= '\0';
-  r= send(sockfd, m_passwd, len, 0);
+  SocketOutputStream s_output(sockfd);
+  SocketInputStream  s_input(sockfd);
+
+  char buf[256];
+
+  if (s_input.gets(buf, 256) == 0) return false;
+  buf[255]= 0;
+  if (m_username)
+    free((void*)m_username);
+  m_username= strdup(buf);
+
+  if (s_input.gets(buf, 256) == 0) return false;
+  buf[255]= 0;
+  if (m_passwd)
+    free((void*)m_passwd);
+  m_passwd= strdup(buf);
+
+  s_output.println("ok");
 
   return true;
 }

@@ -301,8 +301,6 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   const ApiRegConf * const apiRegConf = (ApiRegConf *)&theData[0];
   const NodeId nodeId = refToNode(apiRegConf->qmgrRef);
   
-  m_connected_nodes.assign(apiRegConf->connected_nodes);
-
 #if 0 
   ndbout_c("ClusterMgr: Recd API_REGCONF from node %d", nodeId);
 #endif
@@ -425,8 +423,6 @@ ClusterMgr::reportDisconnected(NodeId nodeId){
 
 void
 ClusterMgr::reportNodeFailed(NodeId nodeId){
-
-  m_connected_nodes.clear(nodeId);
 
   Node & theNode = theNodes[nodeId];
  

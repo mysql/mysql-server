@@ -232,6 +232,19 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock)
   m_input = new SocketInputStream(sock);
   m_output = new SocketOutputStream(sock);
   m_parser = new Parser_t(commands, *m_input, true, true, true);
+  m_allocated_resources= new MgmtSrvr::Allocated_resources(m_mgmsrv);
+}
+
+MgmApiSession::~MgmApiSession()
+{
+  if (m_input)
+    delete m_input;
+  if (m_output)
+    delete m_output;
+  if (m_parser)
+    delete m_parser;
+  if (m_allocated_resources)
+    delete m_allocated_resources;
 }
 
 void
@@ -357,24 +370,14 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   args.get("password", &password);
   args.get("public key", &public_key);
   
-  NodeId free_id= 0;
-  NodeId tmp= nodeid > 0 ? nodeid-1 : 0;
   bool compatible;
   switch (nodetype) {
   case NODE_TYPE_MGM:
-    compatible = ndbCompatible_mgmt_api(NDB_VERSION, version);
-    if (m_mgmsrv.getNextFreeNodeId(&tmp, NDB_MGM_NODE_TYPE_MGM))
-      free_id= tmp;
-    break;
   case NODE_TYPE_API:
     compatible = ndbCompatible_mgmt_api(NDB_VERSION, version);
-    if (m_mgmsrv.getNextFreeNodeId(&tmp, NDB_MGM_NODE_TYPE_API))
-      free_id= tmp;
     break;
   case NODE_TYPE_DB:
     compatible = ndbCompatible_mgmt_ndb(NDB_VERSION, version);
-    if (m_mgmsrv.getNextFreeNodeId(&tmp, NDB_MGM_NODE_TYPE_NDB))
-      free_id= tmp;
     break;
   default:
     m_output->println(cmd);
@@ -382,6 +385,20 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     m_output->println("");
     return;
   }
+
+  struct sockaddr addr;
+  socklen_t addrlen;
+  if (getsockname(m_socket, &addr, &addrlen)) {
+    m_output->println(cmd);
+    m_output->println("result: getsockname(%d)", m_socket);
+    m_output->println("");
+    return;
+  }
+
+  NodeId free_id= 0;
+  NodeId tmp= nodeid;
+  if (m_mgmsrv.getFreeNodeId(&tmp, (enum ndb_mgm_node_type)nodetype, &addr, &addrlen))
+    free_id= tmp;
   
   if (nodeid != 0 && free_id != nodeid){
     m_output->println(cmd);
@@ -412,6 +429,8 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   m_output->println("nodeid: %u", free_id);
   m_output->println("result: Ok");
   m_output->println("");
+
+  m_allocated_resources->reserve_node(free_id);
 
   return;
 }

@@ -1979,8 +1979,7 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
       apiRegConf->nodeState.dynamicId = -dynamicId;
     }
   }
-  c_connectedNodes.copyto(NdbNodeBitmask::Size,
-			  apiRegConf->connected_nodes.data);
+  apiRegConf->nodeState.m_connected_nodes.assign(c_connectedNodes);
 
   sendSignal(ref, GSN_API_REGCONF, signal, ApiRegConf::SignalLength, JBB);
 
