@@ -6632,7 +6632,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     }
     if (copy_blobs(first_field))
     {
-      my_error(ER_OUT_OF_SORTMEMORY,MYF(0));
+      my_error(ER_OUTOFMEMORY,MYF(0));
       error=0;
       goto err;
     }
