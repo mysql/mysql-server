@@ -276,8 +276,9 @@ static void setup_param_functions(Item_param *param, uchar read_pos)
   from client ..                                             
 */
 
-static bool setup_params_data(THD *thd, PREP_STMT *stmt)
+static bool setup_params_data(PREP_STMT *stmt)
 {                                       
+  THD *thd= stmt->thd;
   List<Item> &params= thd->lex.param_list;
   List_iterator<Item> param_iterator(params);
   Item_param *param;
@@ -375,8 +376,7 @@ static int check_prepare_fields(THD *thd,TABLE *table, List<Item> &fields,
 static bool mysql_test_insert_fields(PREP_STMT *stmt,
 				     TABLE_LIST *table_list,
 				     List<Item> &fields, 
-				     List<List_item> &values_list,
-				     thr_lock_type lock_type)                                       
+				     List<List_item> &values_list)
 {
   THD *thd= stmt->thd;
   TABLE *table;
@@ -384,7 +384,7 @@ static bool mysql_test_insert_fields(PREP_STMT *stmt,
   List_item *values;
   DBUG_ENTER("mysql_test_insert_fields");
 
-  if (!(table = open_ltable(thd,table_list,lock_type)))
+  if (!(table = open_ltable(thd,table_list,table_list->lock_type)))
     DBUG_RETURN(1);
 
   if ((values= its++))
@@ -427,13 +427,13 @@ static bool mysql_test_insert_fields(PREP_STMT *stmt,
 
 static bool mysql_test_upd_fields(PREP_STMT *stmt, TABLE_LIST *table_list,
 				  List<Item> &fields, List<Item> &values,
-				  COND *conds, thr_lock_type lock_type)
+				  COND *conds)
 {
   THD *thd= stmt->thd;
   TABLE *table;
   DBUG_ENTER("mysql_test_upd_fields");
 
-  if (!(table = open_ltable(thd,table_list,lock_type)))
+  if (!(table = open_ltable(thd,table_list,table_list->lock_type)))
     DBUG_RETURN(1);
 
   if (setup_tables(table_list) || setup_fields(thd,table_list,fields,1,0,0) || 
@@ -465,7 +465,7 @@ static bool mysql_test_upd_fields(PREP_STMT *stmt, TABLE_LIST *table_list,
 static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
 				     List<Item> &fields, List<Item> &values,
 				     COND *conds, ORDER *order, ORDER *group,
-				     Item *having, thr_lock_type lock_type)
+				     Item *having)
 {
   TABLE *table;
   bool hidden_group_fields;
@@ -473,7 +473,7 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
   List<Item>  all_fields(fields);
   DBUG_ENTER("mysql_test_select_fields");
 
-  if (!(table = open_ltable(thd,tables,lock_type)))
+  if (!(table = open_ltable(thd,tables,tables->lock_type)))
     DBUG_RETURN(1);
   
   thd->used_tables=0;	// Updated by setup_fields
@@ -546,21 +546,19 @@ static bool send_prepare_results(PREP_STMT *stmt)
 
   case SQLCOM_INSERT:
     if (mysql_test_insert_fields(stmt, tables, lex->field_list,
-				 lex->many_values, lex->lock_option))
+				 lex->many_values))
       goto abort;    
     break;
 
   case SQLCOM_UPDATE:
     if (mysql_test_upd_fields(stmt, tables, select_lex->item_list,
-			      lex->value_list, select_lex->where,
-			      lex->lock_option))
+			      lex->value_list, select_lex->where))
       goto abort;
     break;
 
   case SQLCOM_DELETE:
     if (mysql_test_upd_fields(stmt, tables, select_lex->item_list,
-			      lex->value_list, select_lex->where,
-			      lex->lock_option))
+			      lex->value_list, select_lex->where))
       goto abort;
     break;
 
@@ -568,8 +566,7 @@ static bool send_prepare_results(PREP_STMT *stmt)
     if (mysql_test_select_fields(stmt, tables, select_lex->item_list,
 				 lex->value_list, select_lex->where,
 				 (ORDER*) select_lex->order_list.first,
-				 (ORDER*) select_lex->group_list.first,
-				 select_lex->having, lex->lock_option))
+				 (ORDER*) select_lex->group_list.first, select_lex->having))
       goto abort;
     break;
 
@@ -712,11 +709,9 @@ void mysql_stmt_execute(THD *thd, char *packet)
     DBUG_VOID_RETURN;
   }
 
-  if (stmt->param_count && setup_params_data(thd, stmt))
+  if (stmt->param_count && setup_params_data(stmt))
     DBUG_VOID_RETURN;
 
-  MEM_ROOT thd_root= thd->mem_root;
-  thd->mem_root = thd->con_root;
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);  
  
@@ -726,14 +721,12 @@ void mysql_stmt_execute(THD *thd, char *packet)
     mysql_delete(), mysql_update() and mysql_select() to not to 
     have re-check on setup_* and other things ..
   */  
-  mysql_execute_command(thd);
-
+  mysql_execute_command(stmt->thd);
   thd->last_prepared_stmt= stmt;
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
   
-  thd->mem_root= thd_root;
   DBUG_VOID_RETURN;
 }
 
