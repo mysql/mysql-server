@@ -618,6 +618,7 @@ bool mysqld_help(THD *thd, const char *mask)
   st_find_field used_fields[array_elements(init_used_fields)];
   DBUG_ENTER("mysqld_help");
 
+  TABLE_LIST *leaves= 0;
   TABLE_LIST tables[4];
   bzero((gptr)tables,sizeof(tables));
   tables[0].alias= tables[0].real_name= (char*) "help_topic";
@@ -646,7 +647,7 @@ bool mysqld_help(THD *thd, const char *mask)
 
     tables do not contain VIEWs => we can pass 0 as conds
   */
-  setup_tables(thd, tables, 0);
+  setup_tables(thd, tables, 0, &leaves, 0);
   memcpy((char*) used_fields, (char*) init_used_fields, sizeof(used_fields));
   if (init_fields(thd, tables, used_fields, array_elements(used_fields)))
     goto error;
