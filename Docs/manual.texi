@@ -9207,9 +9207,10 @@ You should now have an ODBC connection to @strong{MySQL}, encrypted using SSH.
 @node Windows symbolic links, Windows compiling, Windows and SSH, Windows
 @subsection Splitting Data Across Different Disks on Windows
 
-Beginning with @strong{MySQL} Version 3.23.16, the @strong{MySQL}
-distribution is compiled with the @code{-DUSE_SYMDIR} option.  This allows
-you to put a database on different disk by adding a symbolic link to it
+Beginning with @strong{MySQL} Version 3.23.16, the @code{mysqld-max}
+and @code{mysql-max-nt} servers in the @strong{MySQL} distribution are
+compiled with the @code{-DUSE_SYMDIR} option.  This allows you to put a
+database on different disk by adding a symbolic link to it
 (in a manner similar to the way that symbolic links work on Unix).
 
 On Windows, you make a symbolic link to a database by creating a file
@@ -26147,6 +26148,12 @@ The menagerie database will be simple (deliberately), but it is not difficult
 to think of real-world situations in which a similar type of database might
 be used.  For example, a database like this could be used by a farmer to keep
 track of livestock, or by a veterinarian to keep track of patient records.
+A menagerie distribution containing some of the queries and sample data used
+in the following sections can be obtained from the @strong{MySQL} Web site.
+It's available in either
+@uref{http://www.mysql.com/Downloads/Contrib/Examples/menagerie.tar.gz,compressed @code{tar} format}
+or
+@uref{http://www.mysql.com/Downloads/Contrib/Examples/menagerie.zip,Zip format}.
 
 Use the @code{SHOW} statement to find out what databases currently exist
 on the server:
