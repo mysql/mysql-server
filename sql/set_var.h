@@ -49,10 +49,20 @@ public:
   const char *name;
   
   sys_after_update_func after_update;
-  sys_var(const char *name_arg) :name(name_arg),after_update(0)
-  {}
+#if MYSQL_VERSION_ID < 50000
+  bool no_support_one_shot;
+#endif
+  sys_var(const char *name_arg)
+    :name(name_arg), after_update(0)
+#if MYSQL_VERSION_ID < 50000
+    , no_support_one_shot(1)
+#endif
+    {}
   sys_var(const char *name_arg,sys_after_update_func func)
-    :name(name_arg),after_update(func)
+    :name(name_arg), after_update(func)
+#if MYSQL_VERSION_ID < 50000
+    , no_support_one_shot(1)
+#endif
   {}
   virtual ~sys_var() {}
   virtual bool check(THD *thd, set_var *var);
@@ -487,12 +497,17 @@ public:
 class sys_var_collation :public sys_var_thd
 {
 public:
-  sys_var_collation(const char *name_arg) :sys_var_thd(name_arg) {}
+  sys_var_collation(const char *name_arg) :sys_var_thd(name_arg)
+    {
+#if MYSQL_VERSION_ID < 50000
+    no_support_one_shot= 0;
+#endif
+    }
   bool check(THD *thd, set_var *var);
 SHOW_TYPE type() { return SHOW_CHAR; }
   bool check_update_type(Item_result type)
   {
-    return type != STRING_RESULT;		/* Only accept strings */
+    return ((type != STRING_RESULT) && (type != INT_RESULT));
   }
   bool check_default(enum_var_type type) { return 0; }
   virtual void set_default(THD *thd, enum_var_type type)= 0;
@@ -502,13 +517,23 @@ class sys_var_character_set :public sys_var_thd
 {
 public:
   bool nullable;
-  sys_var_character_set(const char *name_arg) :sys_var_thd(name_arg) 
-  { nullable= 0; }
+  sys_var_character_set(const char *name_arg) :
+    sys_var_thd(name_arg)
+  {
+    nullable= 0;
+#if MYSQL_VERSION_ID < 50000
+    /*
+      In fact only almost all variables derived from sys_var_character_set
+      support ONE_SHOT; character_set_results doesn't. But that's good enough.
+    */
+    no_support_one_shot= 0;
+#endif
+  }
   bool check(THD *thd, set_var *var);
   SHOW_TYPE type() { return SHOW_CHAR; }
   bool check_update_type(Item_result type)
   {
-    return type != STRING_RESULT;		/* Only accept strings */
+    return ((type != STRING_RESULT) && (type != INT_RESULT));
   }
   bool check_default(enum_var_type type) { return 0; }
   bool update(THD *thd, set_var *var);
@@ -541,6 +566,9 @@ class sys_var_character_set_server :public sys_var_character_set
 public:
   sys_var_character_set_server(const char *name_arg) :
     sys_var_character_set(name_arg) {}
+#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50000)
+  bool check(THD *thd, set_var *var);
+#endif
   void set_default(THD *thd, enum_var_type type);
   CHARSET_INFO **ci_ptr(THD *thd, enum_var_type type);
 };
@@ -576,6 +604,9 @@ class sys_var_collation_server :public sys_var_collation
 {
 public:
   sys_var_collation_server(const char *name_arg) :sys_var_collation(name_arg) {}
+#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50000)
+  bool check(THD *thd, set_var *var);
+#endif
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
@@ -689,7 +720,10 @@ public:
   virtual int check(THD *thd)=0;	/* To check privileges etc. */
   virtual int update(THD *thd)=0;	/* To set the value */
   /* light check for PS */
-  virtual   int light_check(THD *thd) { return check(thd); }
+  virtual int light_check(THD *thd) { return check(thd); }
+#if MYSQL_VERSION_ID < 50000
+  virtual bool no_support_one_shot() { return 1; }
+#endif
 };
 
 
@@ -731,6 +765,9 @@ public:
   int check(THD *thd);
   int update(THD *thd);
   int light_check(THD *thd);
+#if MYSQL_VERSION_ID < 50000
+  bool no_support_one_shot() { return var->no_support_one_shot; }
+#endif
 };
 
 
@@ -833,6 +870,7 @@ void set_var_init();
 void set_var_free();
 sys_var *find_sys_var(const char *str, uint length=0);
 int sql_set_variables(THD *thd, List<set_var_base> *var_list);
+bool not_all_support_one_shot(List<set_var_base> *var_list);
 void fix_delay_key_write(THD *thd, enum_var_type type);
 ulong fix_sql_mode(ulong sql_mode);
 extern sys_var_str sys_charset_system;
