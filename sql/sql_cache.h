@@ -360,6 +360,7 @@ protected:
   void invalidate(THD* thd, TABLE_LIST *tables_used,
 		  my_bool using_transactions);
   void invalidate(CHANGED_TABLE_LIST *tables_used);
+  void invalidate_locked_for_write(TABLE_LIST *tables_used);
   void invalidate(THD* thd, TABLE *table, my_bool using_transactions);
   void invalidate(THD *thd, const char *key, uint32  key_length,
 		  my_bool using_transactions);

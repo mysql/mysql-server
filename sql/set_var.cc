@@ -229,6 +229,9 @@ sys_var_long_ptr	sys_query_cache_limit("query_cache_limit",
 sys_var_thd_enum	sys_query_cache_type("query_cache_type",
 					     &SV::query_cache_type,
 					     &query_cache_type_typelib);
+sys_var_thd_bool
+sys_query_cache_wlock_invalidate("query_cache_wlock_invalidate",
+				 &SV::query_cache_wlock_invalidate);
 #endif /* HAVE_QUERY_CACHE */
 sys_var_long_ptr	sys_server_id("server_id",&server_id);
 sys_var_bool_ptr	sys_slave_compressed_protocol("slave_compressed_protocol",
@@ -405,6 +408,7 @@ sys_var *sys_variables[]=
 #ifdef HAVE_QUERY_CACHE
   &sys_query_cache_limit,
   &sys_query_cache_type,
+  &sys_query_cache_wlock_invalidate,
 #endif /* HAVE_QUERY_CACHE */
   &sys_quote_show_create,
   &sys_rand_seed1,
