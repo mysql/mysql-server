@@ -952,14 +952,20 @@ public:
     :Field_str(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, table_arg, cs),
     length_bytes(length_bytes_arg)
-  {}
+  {
+    if (table)
+      table->s->varchar_fields++;
+  }
   Field_varstring(uint32 len_arg,bool maybe_null_arg,
 		  const char *field_name_arg,
 		  struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, table_arg, cs),
     length_bytes(len_arg < 256 ? 1 :2)
-  {}
+  {
+    if (table)
+      table->s->varchar_fields++;
+  }
 
   enum_field_types type() const { return MYSQL_TYPE_VARCHAR; }
   enum ha_base_keytype key_type() const;
