@@ -116,12 +116,12 @@ avgcost(a,b)
 select a, myfunc_argument_name(a) from t1;
 --------------
 
-a       myfunc_argument_name(a)
-1       a
-1       a
-2       a
-3       a
-4       a
+a       myfunc_argument_name(a) myfunc_argument_name(a as b)
+1       a       b
+1       a       b
+2       a       b
+3       a       b
+4       a       b
 5 rows in set
 
 --------------
