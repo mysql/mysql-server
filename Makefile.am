@@ -30,7 +30,11 @@ SUBDIRS =		include @docs_dirs@ @readline_dir@ \
 CLEANFILES =		linked_client_sources linked_server_sources linked_libmysql_sources linked_libmysql_r_sources
 
 # This is just so that the linking is done early.
-config.h:	linked_client_sources linked_server_sources
+config.h:	linked_client_sources linked_server_sources linked_include_sources
+
+linked_include_sources:
+	cd include; $(MAKE) link_sources
+	echo timestamp > linked_include_sources
 
 linked_client_sources:  @linked_client_targets@
 	echo timestamp > linked_client_sources

@@ -75,7 +75,7 @@ clean-local:
 	rm -f `echo $(mystringsobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(dbugobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(mysysobjects) | sed "s;\.lo;.c;g"` \
-	       $(mystringsextra) ctype_extra_sources.c \
+	       $(mystringsextra) $(mysysheaders) ctype_extra_sources.c \
 	       ../linked_client_sources
 
 ctype_extra_sources.c: conf_to_src

@@ -41,7 +41,10 @@ CLEANFILES =		my-small.cnf \
 			my-huge.cnf \
 			mysql.spec \
 			mysql-@VERSION@.spec \
-			mysql.server
+			mysql-log-rotate \
+			mysql.server \
+			binary-configure
+			 
 
 mysql-@VERSION@.spec:	mysql.spec
 			rm -f $@
