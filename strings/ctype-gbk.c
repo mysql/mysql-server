@@ -9829,6 +9829,9 @@ my_wc_mb_gbk(CHARSET_INFO *cs  __attribute__((unused)),
 {
   int code;
   
+  if (s >= e)
+    return MY_CS_TOOSMALL;
+  
   if (wc<0x80)
   {
     s[0]=wc;
@@ -9851,6 +9854,9 @@ my_mb_wc_gbk(CHARSET_INFO *cs __attribute__((unused)),
 	      my_wc_t *pwc, const uchar *s, const uchar *e)
 {
   int hi;
+  
+  if (s >= e)
+    return MY_CS_TOOFEW(0);
   
   hi=s[0];
   

@@ -96,6 +96,9 @@ static int my_mb_wc_bin(CHARSET_INFO *cs __attribute__((unused)),
 		  const unsigned char *str,
 		  const unsigned char *end __attribute__((unused)))
 {
+  if (str >= end)
+    return MY_CS_TOOFEW(0);
+  
   *wc=str[0];
   return 1;
 }
@@ -105,6 +108,9 @@ static int my_wc_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
 		  unsigned char *s,
 		  unsigned char *e __attribute__((unused)))
 {
+  if (s >= e)
+    return MY_CS_TOOSMALL;
+
   if (wc < 256)
   {
     s[0]= (char) wc;

@@ -4420,6 +4420,9 @@ my_wc_mb_sjis(CHARSET_INFO *cs  __attribute__((unused)),
 {
   int code;
   
+  if (s >= e)
+    return MY_CS_TOOSMALL;
+  
   if(wc<0x80)
   {
     s[0]=wc;
@@ -4441,6 +4444,9 @@ static int
 my_mb_wc_sjis(CHARSET_INFO *cs  __attribute__((unused)),
 	      my_wc_t *pwc, const uchar *s, const uchar *e){
   int hi=s[0];
+  
+  if (s >= e)
+    return MY_CS_TOOFEW(0);
   
   if(hi<0x80)
   {
