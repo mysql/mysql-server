@@ -46,3 +46,9 @@ select sum(if(num is null,0.00,num)) from t1;
 sum(if(num is null,0.00,num))
 144.54
 drop table t1;
+create table t1 (x int, y int);
+insert into t1 values (0,6),(10,16),(20,26),(30,10),(40,46),(50,56);
+select min(if(y -x > 5,y,NULL)), max(if(y - x > 5,y,NULL)) from t1;
+min(if(y -x > 5,y,NULL))	max(if(y - x > 5,y,NULL))
+6	56
+drop table t1;

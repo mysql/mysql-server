@@ -72,8 +72,8 @@ pthread_mutex_destroy(pthread_mutex_t * mutex)
 int
 pthread_mutex_lock(pthread_mutex_t * mutex)
 {
-	int             ret = 0;
-	int             status = 0;
+	int		ret = 0;
+	int		status = 0;
 	APIRET		rc = 0;
 
    rc = DosRequestMutexSem(*mutex,SEM_INDEFINITE_WAIT);
@@ -86,9 +86,9 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 int
 pthread_mutex_unlock(pthread_mutex_t * mutex)
 {
-	int             ret = 0;
+	int		ret = 0;
 	APIRET		rc = 0;
-	int             status;
+	int		status;
 
    rc = DosReleaseMutexSem(*mutex);
 

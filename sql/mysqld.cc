@@ -181,7 +181,6 @@ static SECURITY_DESCRIPTOR sdPipeDescriptor;
 static HANDLE hPipe = INVALID_HANDLE_VALUE;
 static pthread_cond_t COND_handler_count;
 static uint handler_count;
-static bool opt_enable_named_pipe = 0;
 #endif
 #ifdef __WIN__
 static bool opt_console=0, start_mode=0, use_opt_args;
@@ -258,6 +257,7 @@ ulong back_log, connect_timeout, concurrency;
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], time_zone[30];
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_disable_networking=0, opt_skip_show_db=0;
+bool opt_enable_named_pipe= 0;
 my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
 
 static bool opt_do_pstack = 0;
@@ -646,29 +646,45 @@ static void close_server_sock()
   if (tmp_sock != INVALID_SOCKET)
   {
     ip_sock=INVALID_SOCKET;
-    DBUG_PRINT("info",("closing TCP/IP socket"));
+    DBUG_PRINT("info",("calling shutdown on TCP/IP socket"));
     VOID(shutdown(tmp_sock,2));
+#ifdef NOT_USED
+    /*
+      The following code is disabled as it causes MySQL to hang on
+      AIX 4.3 during shutdown
+    */
+    DBUG_PRINT("info",("calling closesocket on TCP/IP socket"));    
     VOID(closesocket(tmp_sock));
+#endif
   }
   tmp_sock=unix_sock;
   if (tmp_sock != INVALID_SOCKET)
   {
     unix_sock=INVALID_SOCKET;
-    DBUG_PRINT("info",("closing Unix socket"));
+    DBUG_PRINT("info",("calling shutdown on unix socket"));
     VOID(shutdown(tmp_sock,2));
+#ifdef NOT_USED
+    /*
+      The following code is disabled as it may cause MySQL to hang on
+      AIX 4.3 during shutdown (not tested, but likely)
+    */
+    DBUG_PRINT("info",("calling closesocket on unix/IP socket"));
     VOID(closesocket(tmp_sock));
+#endif
     VOID(unlink(mysql_unix_port));
   }
   DBUG_VOID_RETURN;
 #endif
 }
 
+
 void kill_mysql(void)
 {
   DBUG_ENTER("kill_mysql");
 
 #ifdef SIGNALS_DONT_BREAK_READ
-  close_server_sock(); /* force accept to wake up */
+  abort_loop=1;					// Break connection loops
+  close_server_sock();				// Force accept to wake up
 #endif  
 
 #if defined(__WIN__)
@@ -699,7 +715,7 @@ void kill_mysql(void)
   DBUG_PRINT("quit",("After pthread_kill"));
   shutdown_in_progress=1;			// Safety if kill didn't work
 #ifdef SIGNALS_DONT_BREAK_READ
-  if (!abort_loop)
+  if (!kill_in_progress)
   {
     pthread_t tmp;
     abort_loop=1;
@@ -1045,8 +1061,8 @@ static void server_init(void)
 				 PIPE_READMODE_BYTE |
 				 PIPE_WAIT,
 				 PIPE_UNLIMITED_INSTANCES,
-				 (int) global_variables.net_buffer_length,
-				 (int) global_variables.net_buffer_length,
+				 (int) global_system_variables.net_buffer_length,
+				 (int) global_system_variables.net_buffer_length,
 				 NMPWAIT_USE_DEFAULT_WAIT,
 				 &saPipeSecurity )) == INVALID_HANDLE_VALUE)
       {
@@ -1273,7 +1289,7 @@ static void sig_reload(int signo)
 
 static void sig_kill(int signo)
 {
-  if (!abort_loop)
+  if (!kill_in_progress)
   {
     abort_loop=1;				// mark abort for threads
     kill_server((void*) signo);
@@ -2275,7 +2291,8 @@ int main(int argc, char **argv)
       if (Service.IsService(argv[1]))
       {
         /* start an optional service */
-        event_name = load_default_groups[0]= argv[1];
+        event_name=		argv[1];
+	load_default_groups[0]= argv[1];
         start_mode= 1;
         Service.Init(event_name, mysql_service);
         return 0;
@@ -2285,8 +2302,8 @@ int main(int argc, char **argv)
     {
       /* Add service name after filename */
       uint length=strlen(file_path);
-      strxnmov(file_path + length, sizeof(file_path)-length-2, " ",
-	       argv[2], NullS)= '\0';
+      *strxnmov(file_path + length, sizeof(file_path)-length-2, " ",
+		argv[2], NullS)= '\0';
 
       if (!default_service_handling(argv, argv[2], argv[2], file_path))
 	return 0;
@@ -2309,8 +2326,8 @@ int main(int argc, char **argv)
 	mysqld --install-manual mysqldopt --defaults-file=c:\miguel\my.ini
       */
       uint length=strlen(file_path);
-      strxnmov(file_path + length, sizeof(file_path)-length-2, " ",
-	       argv[3], " ", argv[2], NullS)= '\0';
+      *strxnmov(file_path + length, sizeof(file_path)-length-2, " ",
+		argv[3], " ", argv[2], NullS)= '\0';
       if (!default_service_handling(argv, argv[2], argv[2], file_path))
 	return 0;
     }
@@ -2724,8 +2741,8 @@ pthread_handler_decl(handle_connections_namedpipes,arg)
 				   PIPE_READMODE_BYTE |
 				   PIPE_WAIT,
 				   PIPE_UNLIMITED_INSTANCES,
-				   (int) global_variables.net_buffer_length,
-				   (int) global_variables.net_buffer_length,
+				   (int) global_system_variables.net_buffer_length,
+				   (int) global_systenm_ariables.net_buffer_length,
 				   NMPWAIT_USE_DEFAULT_WAIT,
 				   &saPipeSecurity )) ==
 	  INVALID_HANDLE_VALUE )
@@ -2742,8 +2759,8 @@ pthread_handler_decl(handle_connections_namedpipes,arg)
 				 PIPE_READMODE_BYTE |
 				 PIPE_WAIT,
 				 PIPE_UNLIMITED_INSTANCES,
-				 (int) global_variables.net_buffer_length,
-				 (int) global_variables.net_buffer_length,
+				 (int) global_system_variables.net_buffer_length,
+				 (int) global_system_variables.net_buffer_length,
 				 NMPWAIT_USE_DEFAULT_WAIT,
 				 &saPipeSecurity)) ==
 	INVALID_HANDLE_VALUE)
@@ -4446,7 +4463,8 @@ static void fix_paths(void)
   }
 
   char *end=convert_dirname(buff, opt_mysql_tmpdir, NullS);
-  if (!(mysql_tmpdir= my_memdup(buff,(uint) (end-buff)+1, MYF(MY_FAE))))
+  if (!(mysql_tmpdir= my_memdup((byte*) buff,(uint) (end-buff)+1,
+				MYF(MY_FAE))))
     exit(1);
   if (!slave_load_tmpdir)
   {
