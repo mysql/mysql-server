@@ -172,6 +172,7 @@ FTP (@uref{ftp://ftp.chg.ru/pub/databases/mysql/})
 
 @item
 @image{Flags/slovenia} Slovenia [ARNES] @@
+WWW (@uref{http://ftp.arnes.si/mysql/})
 FTP (@uref{ftp://ftp.arnes.si/packages/mysql/})
 
 @item
