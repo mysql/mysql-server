@@ -1569,8 +1569,6 @@ bool select_create::send_data(List<Item> &values)
   return 0;
 }
 
-extern HASH open_cache;
-
 
 bool select_create::send_eof()
 {

@@ -75,8 +75,6 @@ TODO:
 #include "../myisammrg/myrg_def.h"
 #endif
 
-extern HASH open_cache;
-
 static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table,uint count,
 				 bool unlock, TABLE **write_locked);
 static int lock_external(THD *thd, TABLE **table,uint count);

@@ -76,7 +76,6 @@ Long data handling:
 
 #define STMT_QUERY_LOG_LENGTH 8192
 
-extern int yyparse(void *thd);
 static String null_string("NULL", 4, default_charset_info);
 
 /*

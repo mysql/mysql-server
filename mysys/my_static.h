@@ -19,7 +19,6 @@
   a shared library
 */
 
-#include "mysys_priv.h"
 #include <signal.h>
 
 #define MAX_SIGNALS	10		/* Max signals under a dont-allow */
