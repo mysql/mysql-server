@@ -59,11 +59,27 @@ void Item::set_name(char *str,uint length)
   }
 }
 
-bool Item::eq(const Item *item) const		// Only doing this on conds
+/*
+  This function is only called when comparing items in the WHERE clause
+*/
+
+bool Item::eq(const Item *item, bool binary_cmp) const
 {
   return type() == item->type() && name && item->name &&
     !my_strcasecmp(name,item->name);
 }
+
+bool Item_string::eq(const Item *item, bool binary_cmp) const
+{
+  if (type() == item->type())
+  {
+    if (binary_cmp)
+      return !stringcmp(&str_value, &item->str_value);
+    return !sortcmp(&str_value, &item->str_value);
+  }
+  return 0;
+}
+
 
 /*
   Get the value of the function as a TIME structure.
@@ -202,7 +218,7 @@ longlong Item_field::val_int_result()
   return result_field->val_int();
 }
 
-bool Item_field::eq(const Item *item) const
+bool Item_field::eq(const Item *item, bool binary_cmp) const
 {
   return item->type() == FIELD_ITEM && ((Item_field*) item)->field == field;
 }
@@ -245,7 +261,8 @@ void Item_string::print(String *str)
   str->append('\'');
 }
 
-bool Item_null::eq(const Item *item) const { return item->type() == type(); }
+bool Item_null::eq(const Item *item, bool binary_cmp) const
+{ return item->type() == type(); }
 double Item_null::val() { null_value=1; return 0.0; }
 longlong Item_null::val_int() { null_value=1; return 0; }
 /* ARGSUSED */

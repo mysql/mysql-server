@@ -1100,14 +1100,14 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
       {
 	if (new_fields->val->used_tables())
 	{
-	  if (old->val->eq(new_fields->val))
+	  if (old->val->eq(new_fields->val, old->field->binary()))
 	  {
 	    old->level=old->const_level=and_level;
 	    old->exists_optimize&=new_fields->exists_optimize;
 	  }
 	}
-	else if (old->val->eq(new_fields->val) && old->eq_func &&
-		 new_fields->eq_func)
+	else if (old->val->eq(new_fields->val, old->field->binary()) &&
+		 old->eq_func && new_fields->eq_func)
 	{
 	  old->level=old->const_level=and_level;
 	  old->exists_optimize&=new_fields->exists_optimize;
@@ -2602,7 +2602,7 @@ eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
       ORDER *order;
       for (order=start_order ; order ; order=order->next)
       {
-	if ((*ref_item)->eq(order->item[0]))
+	if ((*ref_item)->eq(order->item[0],0))
 	  break;
       }
       if (order)
@@ -2859,7 +2859,7 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
   Item *right_item= func->arguments()[1];
   Item_func::Functype functype=  func->functype();
 
-  if (right_item->eq(field) && left_item != value)
+  if (right_item->eq(field,0) && left_item != value)
   {
     Item *tmp=value->new_item();
     if (tmp)
@@ -2878,7 +2878,7 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
 				       func->arguments()[1]->result_type()));
     }
   }
-  else if (left_item->eq(field) && right_item != value)
+  else if (left_item->eq(field,0) && right_item != value)
   {
     Item *tmp=value->new_item();
     if (tmp)
@@ -3118,7 +3118,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
   {						// boolan compare function
     Item *left_item=	((Item_func*) cond)->arguments()[0];
     Item *right_item= ((Item_func*) cond)->arguments()[1];
-    if (left_item->eq(right_item))
+    if (left_item->eq(right_item,1))
     {
       if (!left_item->maybe_null ||
 	  ((Item_func*) cond)->functype() == Item_func::EQUAL_FUNC)
@@ -3163,22 +3163,22 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
       return 0;
     Item *left_item=	((Item_func*) cond)->arguments()[0];
     Item *right_item= ((Item_func*) cond)->arguments()[1];
-    if (left_item->eq(comp_item))
+    if (left_item->eq(comp_item,1))
     {
       if (right_item->const_item())
       {
 	if (*const_item)
-	  return right_item->eq(*const_item);
+	  return right_item->eq(*const_item, 1);
 	*const_item=right_item;
 	return 1;
       }
     }
-    else if (right_item->eq(comp_item))
+    else if (right_item->eq(comp_item,1))
     {
       if (left_item->const_item())
       {
 	if (*const_item)
-	  return left_item->eq(*const_item);
+	  return left_item->eq(*const_item, 1);
 	*const_item=left_item;
 	return 1;
       }
@@ -4970,7 +4970,7 @@ static bool test_if_ref(Item_field *left_item,Item *right_item)
   if (!field->table->const_table && !field->table->maybe_null)
   {
     Item *ref_item=part_of_refkey(field->table,field);
-    if (ref_item && ref_item->eq(right_item))
+    if (ref_item && ref_item->eq(right_item,1))
     {
       if (right_item->type() == Item::FIELD_ITEM)
 	return (field->eq_def(((Item_field *) right_item)->field));
@@ -6151,7 +6151,7 @@ test_if_subpart(ORDER *a,ORDER *b)
 {
   for (; a && b; a=a->next,b=b->next)
   {
-    if ((*a->item)->eq(*b->item))
+    if ((*a->item)->eq(*b->item,1))
       a->asc=b->asc;
     else
       return 0;
@@ -6178,7 +6178,7 @@ get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables)
 
   for (; a && b; a=a->next,b=b->next)
   {
-    if (!(*a->item)->eq(*b->item))
+    if (!(*a->item)->eq(*b->item,1))
       DBUG_RETURN(0);
     map|=a->item[0]->used_tables();
   }
