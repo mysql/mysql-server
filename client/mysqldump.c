@@ -35,7 +35,7 @@
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 */
 
-#define DUMP_VERSION "8.23"
+#define DUMP_VERSION "8.24"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -1238,7 +1238,7 @@ static void print_quoted_xml(FILE *output, char *fname, char *str, uint len)
     else
       fputc(*str, output);
   }
-  fprintf(output, "<%s>\n", fname);
+  fprintf(output, "</%s>\n", fname);
 }
 
 static char *getTableName(int reset)
