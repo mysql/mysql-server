@@ -768,11 +768,21 @@ uint _mi_rec_pack(MI_INFO *info, register byte *to, register const byte *from)
       }
       else if (type == FIELD_VARCHAR)
       {
-	uint tmp_length=uint2korr(from);
-	store_key_length_inc(to,tmp_length);
-	memcpy(to,from+2,tmp_length);
-	to+=tmp_length;
-	continue;
+        uint pack_length= HA_VARCHAR_PACKLENGTH(rec->length -1);
+	uint tmp_length;
+        if (pack_length == 1)
+        {
+          tmp_length= (uint) *(uchar*) from;
+          *to++= *from;
+        }
+        else
+        {
+          tmp_length= uint2korr(from);
+          store_key_length_inc(to,tmp_length);
+        }
+        memcpy(to, from+pack_length,tmp_length);
+        to+= tmp_length;
+        continue;
       }
       else
       {
@@ -878,9 +888,20 @@ my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *rec_buff,
       }
       else if (type == FIELD_VARCHAR)
       {
-	uint tmp_length=uint2korr(record);
-	to+=get_pack_length(tmp_length)+tmp_length;
-	continue;
+        uint pack_length= HA_VARCHAR_PACKLENGTH(rec->length -1);
+	uint tmp_length;
+        if (pack_length == 1)
+        {
+          tmp_length= (uint) *(uchar*) record;
+          to+= 1+ tmp_length;
+          continue;
+        }
+        else
+        {
+          tmp_length= uint2korr(record);
+          to+= get_pack_length(tmp_length)+tmp_length;
+        }
+        continue;
       }
       else
       {
@@ -894,9 +915,7 @@ my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *rec_buff,
       }
     }
     else
-    {
-      to+=length;
-    }
+      to+= length;
   }
   if (packed_length != (uint) (to - rec_buff) + test(info->s->calc_checksum) ||
       (bit != 1 && (flag & ~(bit - 1))))
@@ -947,13 +966,27 @@ ulong _mi_rec_unpack(register MI_INFO *info, register byte *to, byte *from,
     {
       if (type == FIELD_VARCHAR)
       {
-	get_key_length(length,from);
-	if (length > rec_length-2)
-	  goto err;
-	int2store(to,length);
-	memcpy(to+2,from,length);
-	from+=length;
-	continue;
+        uint pack_length= HA_VARCHAR_PACKLENGTH(rec_length-1);
+        if (pack_length == 1)
+        {
+          length= (uint) *(uchar*) from;
+          if (length > rec_length-1)
+            goto err;
+          *to= *from++;
+        }
+        else
+        {
+          get_key_length(length, from);
+          if (length > rec_length-2)
+            goto err;
+          int2store(to,length);
+        }
+        if (from+length > from_end)
+          goto err;
+        memcpy(to+pack_length, from, length);
+        from+= length;
+        min_pack_length--;
+        continue;
       }
       if (flag & bit)
       {
@@ -1021,15 +1054,17 @@ ulong _mi_rec_unpack(register MI_INFO *info, register byte *to, byte *from,
       if (min_pack_length > (uint) (from_end - from))
 	goto err;
       min_pack_length-=rec_length;
-      memcpy(to,(byte*) from,(size_t) rec_length); from+=rec_length;
+      memcpy(to, (byte*) from, (size_t) rec_length);
+      from+=rec_length;
     }
   }
   if (info->s->calc_checksum)
     from++;
   if (to == to_end && from == from_end && (bit == 1 || !(flag & ~(bit-1))))
     DBUG_RETURN(found_length);
+
 err:
-  my_errno=HA_ERR_RECORD_DELETED;
+  my_errno= HA_ERR_WRONG_IN_RECORD;
   DBUG_PRINT("error",("to_end: %lx -> %lx  from_end: %lx -> %lx",
 		      to,to_end,from,from_end));
   DBUG_DUMP("from",(byte*) info->rec_buff,info->s->base.min_pack_length);
