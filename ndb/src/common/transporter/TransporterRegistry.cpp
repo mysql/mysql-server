@@ -132,7 +132,7 @@ void TransporterRegistry::set_mgm_handle(NdbMgmHandle h)
   }
 #endif
   DBUG_VOID_RETURN;
-};
+}
 
 TransporterRegistry::~TransporterRegistry() {
   
