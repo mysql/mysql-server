@@ -154,6 +154,14 @@ enum mysql_option { MYSQL_OPT_CONNECT_TIMEOUT, MYSQL_OPT_COMPRESS,
 enum mysql_status { MYSQL_STATUS_READY,MYSQL_STATUS_GET_RESULT,
 		    MYSQL_STATUS_USE_RESULT};
 
+/* there are three types of queries - the ones that have to go to
+     the master, the ones that go to a slave, and the adminstrative
+     type which must happen on the pivot connectioin
+*/
+enum mysql_rpl_type { MYSQL_RPL_MASTER, MYSQL_RPL_SLAVE,
+			      MYSQL_RPL_ADMIN };
+  
+
 typedef struct st_mysql {
   NET		net;			/* Communication parameters */
   gptr		connector_fd;		/* ConnectorFd for SSL */
@@ -183,7 +191,15 @@ typedef struct st_mysql {
   struct st_mysql* master, *next_slave;
   
   struct st_mysql* last_used_slave; /* needed for round-robin slave pick */
-  my_bool is_slave; /* will be false for a lone connection */
+  struct st_mysql* last_used_con; /* needed for send/read/store/use
+				      result to work
+				      correctly with replication
+				   */
+  my_bool rpl_pivot; /* set if this is the original connection,
+			not a master or a slave we have added though
+			mysql_rpl_probe() or mysql_set_master()/
+			mysql_add_slave()
+		     */
 } MYSQL;
 
 
@@ -261,8 +277,12 @@ int		STDCALL mysql_real_query(MYSQL *mysql, const char *q,
 /* perform query on master */
 int		STDCALL mysql_master_query(MYSQL *mysql, const char *q,
 					unsigned int length);
+int		STDCALL mysql_master_send_query(MYSQL *mysql, const char *q,
+					unsigned int length);
 /* perform query on slave */  
 int		STDCALL mysql_slave_query(MYSQL *mysql, const char *q,
+					unsigned int length);
+int		STDCALL mysql_slave_send_query(MYSQL *mysql, const char *q,
 					unsigned int length);
 
 /* enable/disable parsing of all queries to decide
@@ -278,11 +298,22 @@ void            STDCALL mysql_disable_reads_from_master(MYSQL* mysql);
 /* get the value of the master read flag */  
 int             STDCALL mysql_reads_from_master_enabled(MYSQL* mysql);
 
-int             STDCALL mysql_query_goes_to_master(const char* q, int len);  
+enum mysql_rpl_type     STDCALL mysql_rpl_query_type(const char* q, int len);  
 
 /* discover the master and its slaves */  
-int             STDCALL mysql_rpl_probe(MYSQL* mysql);  
-
+int             STDCALL mysql_rpl_probe(MYSQL* mysql);
+  
+/* set the master, close/free the old one, if it is not a pivot */
+int             STDCALL mysql_set_master(MYSQL* mysql, const char* host,
+					   unsigned int port,
+					   const char* user,
+					   const char* passwd);
+int             STDCALL mysql_add_slave(MYSQL* mysql, const char* host,
+					   unsigned int port,
+					   const char* user,
+					   const char* passwd);
+  
+  
 int		STDCALL mysql_create_db(MYSQL *mysql, const char *DB);
 int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
 int		STDCALL mysql_shutdown(MYSQL *mysql);
