@@ -297,12 +297,16 @@ bool ha_flush_logs()
   return result;
 }
 
+/*
+  This should return ENOENT if the file doesn't exists.
+  The .frm file will be deleted only if we return 0 or ENOENT
+*/
 
 int ha_delete_table(enum db_type table_type, const char *path)
 {
   handler *file=get_new_handler((TABLE*) 0, table_type);
   if (!file)
-    return -1;
+    return ENOENT;
   int error=file->delete_table(path);
   delete file;
   return error;
@@ -620,12 +624,16 @@ uint handler::get_dup_key(int error)
 
 int handler::delete_table(const char *name)
 {
+  int error=0;
   for (const char **ext=bas_ext(); *ext ; ext++)
   {
     if (delete_file(name,*ext,2))
-      return my_errno;
+    {
+      if ((error=errno) != ENOENT)
+	break;
+    }
   }
-  return 0;
+  return error;
 }
 
 

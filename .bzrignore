@@ -425,3 +425,4 @@ mysql-test/var/slave-data/mysql-bin.012
 mysql-test/var/slave-data/mysql-bin.013
 mysql-test/var/slave-data/mysql-bin.014
 mysql-test/var/slave-data/mysql-bin.index
+scripts/mysqld_multi

@@ -198,5 +198,4 @@
 "Tabell '%-.64s' är crashad och bör repareras med REPAIR TABLE",
 "Tabell '%-.64s' är crashad och senast (automatiska?) reparation misslyckades",
 "Warning:  Några icke transaktionella tabeller kunde inte återställas vid ROLLBACK",
-#ER_TRANS_CACHE_FULL
 "Transaktionen krävde mera än 'max_binlog_cache_size' minne. Utöka denna mysqld variabel och försök på nytt",

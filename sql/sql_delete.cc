@@ -215,7 +215,7 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   if (options & OPTION_QUICK)
     (void) table->file->extra(HA_EXTRA_NORMAL);    
   using_transactions=table->file->has_transactions();
-  if (deleted && (error == 0 || !using_transactions))
+  if (deleted && (error <= 0 || !using_transactions))
   {
     mysql_update_log.write(thd,thd->query, thd->query_length);
     if (mysql_bin_log.is_open())

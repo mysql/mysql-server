@@ -863,7 +863,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
     else
       s->dependent=(table_map) 0;
     s->key_dependent=(table_map) 0;
-    if ((table->system || table->file->records <= 1L) && ! s->dependent)
+    if ((table->system || table->file->records <= 1) && ! s->dependent &&
+	!(table->file->option_flag() & HA_NOT_EXACT_COUNT))
     {
       s->type=JT_SYSTEM;
       const_table_map|=table->map;
@@ -924,7 +925,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       {
 	if (s->dependent & ~(const_table_map)) // All dep. must be constants
 	  continue;
-	if (s->table->file->records <= 1L)
+	if (s->table->file->records <= 1L &&
+	    !(s->table->file->option_flag() & HA_NOT_EXACT_COUNT))
 	{					// system table
 	  s->type=JT_SYSTEM;
 	  const_table_map|=s->table->map;
