@@ -319,6 +319,15 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	break;
       }
     }
+
+    /*
+      FIXME: Actually we should do this before
+      check_that_all_fields_are_given_values Or even go into write_record ?
+    */
+    if (table->triggers)
+      table->triggers->process_triggers(thd, TRG_EVENT_INSERT,
+                                        TRG_ACTION_BEFORE);
+
     if ((res= table_list->view_check_option(thd,
 					    (values_list.elements == 1 ?
 					     0 :
@@ -330,15 +339,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
       error= 1;
       break;
     }
-
-    /*
-      FIXME: Actually we should do this before
-      check_that_all_fields_are_given_values Or even go into write_record ?
-    */
-    if (table->triggers)
-      table->triggers->process_triggers(thd, TRG_EVENT_INSERT,
-                                        TRG_ACTION_BEFORE);
-
 #ifndef EMBEDDED_LIBRARY
     if (lock_type == TL_WRITE_DELAYED)
     {
