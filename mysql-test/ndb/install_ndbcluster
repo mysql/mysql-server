@@ -64,12 +64,12 @@ start_default_ndbcluster() {
 NDB_CONNECTSTRING=
 
 if [ $initial_ndb ] ; then
-  mkdir $fs_ndb
-  mkdir $fs_mgm_1
-  mkdir $fs_ndb_2
-  mkdir $fs_ndb_3
-  mkdir $fs_name_2
-  mkdir $fs_name_3
+  [ -d $fs_ndb ] || mkdir $fs_ndb
+  [ -d $fs_mgm_1 ] || mkdir $fs_mgm_1
+  [ -d $fs_ndb_2 ] || mkdir $fs_ndb_2
+  [ -d $fs_ndb_3 ] || mkdir $fs_ndb_3
+  [ -d $fs_name_2 ] || mkdir $fs_name_2
+  [ -d $fs_name_3 ] || mkdir $fs_name_3
 fi
 if [ -d "$fs_ndb" -a -d "$fs_mgm_1" -a -d "$fs_ndb_2" -a -d "$fs_ndb_3" -a -d "$fs_name_2" -a -d "$fs_name_3" ]; then :; else
   echo "$fs_ndb filesystem directory does not exist"
