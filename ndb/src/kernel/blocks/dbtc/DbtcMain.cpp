@@ -330,7 +330,7 @@ void Dbtc::execTC_SCHVERREQ(Signal* signal)
   Uint32 noOfKeyAttr = signal->theData[6];
   ndbrequire(noOfKeyAttr <= MAX_ATTRIBUTES_IN_INDEX);
   Uint32 hasCharAttr = 0;
-
+  Uint32 noOfDistrKeys = 0;
   SegmentedSectionPtr s0Ptr;
   signal->getSection(s0Ptr, 0);
   SectionReader r0(s0Ptr, getSectionSegmentPool());
@@ -350,6 +350,8 @@ void Dbtc::execTC_SCHVERREQ(Signal* signal)
       ndbrequire(cs != 0);
       hasCharAttr = 1;
     }
+    
+    noOfDistrKeys += AttributeDescriptor::getDKey(attributeDescriptor);
     tabptr.p->keyAttr[i].attributeDescriptor = attributeDescriptor;
     tabptr.p->keyAttr[i].charsetInfo = cs;
     i++;
@@ -362,6 +364,7 @@ void Dbtc::execTC_SCHVERREQ(Signal* signal)
   tabptr.p->dropping = false;
   tabptr.p->noOfKeyAttr = noOfKeyAttr;
   tabptr.p->hasCharAttr = hasCharAttr;
+  tabptr.p->noOfDistrKeys = noOfDistrKeys;
   
   signal->theData[0] = tabptr.i;
   signal->theData[1] = retPtr;
@@ -2258,12 +2261,10 @@ void Dbtc::hash(Signal* signal)
   UintR  Tdata2;
   UintR  Tdata3;
   UintR*  Tdata32;
-  Uint64 Tdata[512];
-  Uint64 Txfrmdata[512 * MAX_XFRM_MULTIPLY];
-
+  
   CacheRecord * const regCachePtr = cachePtr.p;
-  Tdata32 = (UintR*)&Tdata[0];
-
+  Tdata32 = signal->theData;
+  
   Tdata0 = regCachePtr->keydata[0];
   Tdata1 = regCachePtr->keydata[1];
   Tdata2 = regCachePtr->keydata[2];
@@ -2291,22 +2292,20 @@ void Dbtc::hash(Signal* signal)
   }//if
 
   UintR keylen = (UintR)regCachePtr->keylen;
-
-  TableRecordPtr tabptrSave = tabptr;
-  tabptr.i = regCachePtr->tableref; // table or hash index id
-  ptrCheckGuard(tabptr, ctabrecFilesize, tableRecord);
-  if (tabptr.p->hasCharAttr) {
-    jam();
-    keylen = xfrmKeyData(signal, (Uint32*)Txfrmdata, sizeof(Txfrmdata) >> 2, Tdata32);
-    Tdata32 = (UintR*)&Txfrmdata[0];
-  }
-  tabptr = tabptrSave;
-
+  Uint32 distKey = regCachePtr->distributionKeyIndicator;
+  
   Uint32 tmp[4];
-  md5_hash(tmp, (Uint64*)&Tdata32[0], keylen);
-
+  if(!regCachePtr->m_special_hash)
+  {
+    md5_hash(tmp, (Uint64*)&Tdata32[0], keylen);
+  }
+  else
+  {
+    handle_special_hash(tmp, Tdata32, keylen, regCachePtr->tableref, !distKey);
+  }
+  
   thashValue = tmp[0];
-  if (regCachePtr->distributionKeyIndicator == 1) {
+  if (distKey){
     jam();
     tdistrHashValue = regCachePtr->distributionKey;
   } else {
@@ -2316,44 +2315,109 @@ void Dbtc::hash(Signal* signal)
 }//Dbtc::hash()
 
 Uint32
-Dbtc::xfrmKeyData(Signal* signal, Uint32* dst, Uint32 dstSize, const Uint32* src)
+Dbtc::handle_special_hash(Uint32 dstHash[4], Uint32* src, Uint32 srcLen, 
+			  Uint32 tabPtrI,
+			  bool distr)
 {
-  const Uint32 noOfKeyAttr = tabptr.p->noOfKeyAttr;
+  Uint64 Tmp[MAX_KEY_SIZE_IN_WORDS * 4 * MAX_XFRM_MULTIPLY];
+  const Uint32 dstSize = sizeof(Tmp) / 4;
+  const TableRecord* tabPtrP = &tableRecord[tabPtrI];
+  const Uint32 noOfKeyAttr = tabPtrP->noOfKeyAttr;
+  Uint32 noOfDistrKeys = tabPtrP->noOfDistrKeys;
+  const bool hasCharAttr = tabPtrP->hasCharAttr;
+  
+  Uint32 *dst = (Uint32*)Tmp;
   Uint32 dstPos = 0;
   Uint32 srcPos = 0;
-  Uint32 i = 0;
-  while (i < noOfKeyAttr) {
-    const TableRecord::KeyAttr& keyAttr = tabptr.p->keyAttr[i];
-
-    Uint32 srcBytes = AttributeDescriptor::getSizeInBytes(keyAttr.attributeDescriptor);
-    Uint32 srcWords = (srcBytes + 3) / 4;
-    Uint32 dstWords = ~0;
-    uchar* dstPtr = (uchar*)&dst[dstPos];
-    const uchar* srcPtr = (const uchar*)&src[srcPos];
-    CHARSET_INFO* cs = keyAttr.charsetInfo;
-
-    if (cs == NULL) {
-      jam();
-      memcpy(dstPtr, srcPtr, srcWords << 2);
-      dstWords = srcWords;
-    } else {
-      jam();
-      Uint32 xmul = cs->strxfrm_multiply;
-      if (xmul == 0)
-        xmul = 1;
-      Uint32 dstLen = xmul * srcBytes;
-      ndbrequire(dstLen <= ((dstSize - dstPos) << 2));
-      uint n = (*cs->coll->strnxfrm)(cs, dstPtr, dstLen, srcPtr, srcBytes);
-      while ((n & 3) != 0) {
-        dstPtr[n++] = 0;
+  Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
+  if(hasCharAttr){
+    Uint32 i = 0;
+    while (i < noOfKeyAttr) {
+      const TableRecord::KeyAttr& keyAttr = tabPtrP->keyAttr[i];
+      
+      Uint32 srcBytes = 
+	AttributeDescriptor::getSizeInBytes(keyAttr.attributeDescriptor);
+      Uint32 srcWords = (srcBytes + 3) / 4;
+      Uint32 dstWords = ~0;
+      uchar* dstPtr = (uchar*)&dst[dstPos];
+      const uchar* srcPtr = (const uchar*)&src[srcPos];
+      CHARSET_INFO* cs = keyAttr.charsetInfo;
+      
+      if (cs == NULL) {
+	jam();
+	memcpy(dstPtr, srcPtr, srcWords << 2);
+	dstWords = srcWords;
+      } else {
+	jam();
+	Uint32 xmul = cs->strxfrm_multiply;
+	if (xmul == 0)
+	  xmul = 1;
+	Uint32 dstLen = xmul * srcBytes;
+	ndbrequire(dstLen <= ((dstSize - dstPos) << 2));
+	uint n = (*cs->coll->strnxfrm)(cs, dstPtr, dstLen, srcPtr, srcBytes);
+	while ((n & 3) != 0) {
+	  dstPtr[n++] = 0;
+	}
+	dstWords = (n >> 2);
+	
       }
-      dstWords = (n >> 2);
+      dstPos += dstWords;
+      srcPos += srcWords;
+      keyPartLen[i++] = dstWords;
     }
-    dstPos += dstWords;
-    srcPos += srcWords;
-    i++;
+  } 
+  else 
+  {
+    dst = src;
+    dstPos = srcLen;
   }
-  return dstPos;
+  
+  md5_hash(dstHash, (Uint64*)dst, dstPos);
+  
+  if(distr && noOfDistrKeys)
+  {
+    jam();
+    src = dst;
+    dstPos = 0;
+    Uint32 i = 0;
+    if(hasCharAttr)
+    {
+      while (i < noOfKeyAttr && noOfDistrKeys) 
+      {
+	const TableRecord::KeyAttr& keyAttr = tabPtrP->keyAttr[i];
+	Uint32 len = keyPartLen[i];
+	if(AttributeDescriptor::getDKey(keyAttr.attributeDescriptor))
+	{
+	  noOfDistrKeys--;
+	  memmove(dst+dstPos, src, len << 2);
+	  dstPos += len;
+	}
+	src += len;
+	i++;
+      }
+    }
+    else
+    {
+      while (i < noOfKeyAttr && noOfDistrKeys) 
+      {
+	const TableRecord::KeyAttr& keyAttr = tabPtrP->keyAttr[i];
+	Uint32 len = 
+	  AttributeDescriptor::getSizeInBytes(keyAttr.attributeDescriptor);
+	len = (len + 3) / 4;
+	if(AttributeDescriptor::getDKey(keyAttr.attributeDescriptor))
+	{
+	  noOfDistrKeys--;
+	  memmove(dst+dstPos, src, len << 2);
+	  dstPos += len;
+	}
+	src += len;
+	i++;
+      }
+    }
+    Uint32 tmp[4];
+    md5_hash(tmp, (Uint64*)dst, dstPos);
+    dstHash[1] = tmp[1];
+  }
 }
 
 /*
@@ -2803,7 +2867,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   regCachePtr->keylen = TkeyLength;
   regCachePtr->lenAiInTckeyreq = titcLenAiInTckeyreq;
   regCachePtr->currReclenAi = titcLenAiInTckeyreq;
-
+  regCachePtr->m_special_hash = 
+    localTabptr.p->hasCharAttr | (localTabptr.p->noOfDistrKeys > 0);
   Tdata1 = TAIDataPtr[0];
   Tdata2 = TAIDataPtr[1];
   Tdata3 = TAIDataPtr[2];
@@ -10070,6 +10135,7 @@ void Dbtc::initTable(Signal* signal)
     tabptr.p->dropping = false;
     tabptr.p->noOfKeyAttr = 0;
     tabptr.p->hasCharAttr = 0;
+    tabptr.p->noOfDistrKeys = 0;
     for (unsigned k = 0; k < MAX_ATTRIBUTES_IN_INDEX; k++) {
       tabptr.p->keyAttr[k].attributeDescriptor = 0;
       tabptr.p->keyAttr[k].charsetInfo = 0;

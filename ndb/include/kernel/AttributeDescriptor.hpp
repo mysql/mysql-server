@@ -30,7 +30,6 @@ private:
   static void setArray(Uint32 &, Uint32 arraySize);
   static void setOriginal(Uint32 &, Uint32 original);
   static void setNullable(Uint32 &, Uint32 nullable);
-  static void setDGroup(Uint32 &, Uint32 dgroup);
   static void setDKey(Uint32 &, Uint32 dkey);
   static void setPrimaryKey(Uint32 &, Uint32 dkey);
   static void setDynamic(Uint32 &, Uint32 dynamicInd);

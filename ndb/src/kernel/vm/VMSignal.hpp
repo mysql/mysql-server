@@ -78,10 +78,16 @@ public:
 #define VMS_DATA_SIZE \
   (MAX_ATTRIBUTES_IN_TABLE + MAX_TUPLE_SIZE_IN_WORDS + MAX_KEY_SIZE_IN_WORDS)
 
+#if VMS_DATA_SIZE > 8192
+#error "VMSignal buffer is too small"
+#endif
+  
   SignalHeader header; // 28 bytes
   SegmentedSectionPtr m_sectionPtr[3]; 
-  Uint32 theData[25+VMS_DATA_SIZE];  // 2048 32-bit words -> 8K Bytes
-  
+  union {
+    Uint32 theData[8192];  // 8192 32-bit words -> 32K Bytes
+    Uint64 dummyAlign;
+  };
   void garbage_register();
 };
 
