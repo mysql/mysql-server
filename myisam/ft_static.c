@@ -21,7 +21,7 @@
 ulong ft_min_word_len=4;
 ulong ft_max_word_len=HA_FT_MAXLEN;
 ulong ft_max_word_len_for_sort=20;
-const char *ft_boolean_syntax="+ -><()~*";
+const char *ft_boolean_syntax="+ -><()~*:\"\"&|";
 
 const MI_KEYSEG ft_keysegs[FT_SEGS]={
 {

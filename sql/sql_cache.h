@@ -41,6 +41,10 @@
 #define QUERY_CACHE_MEM_BIN_PARTS_MUL		1.2
 #define QUERY_CACHE_MEM_BIN_SPC_LIM_PWR2	3
 
+/* how many free blocks check when finding most suitable before other 'end'
+   of list of free blocks */
+#define QUERY_CACHE_MEM_BIN_TRY                 5
+
 /* query flags masks */
 #define QUERY_CACHE_CLIENT_LONG_FLAG_MASK	0x80
 #define QUERY_CACHE_CHARSET_CONVERT_MASK	0x7F
@@ -268,8 +272,6 @@ protected:
 			      Query_cache_block *query_block);
   void invalidate_table(TABLE_LIST *table);
   void invalidate_table(TABLE *table);
-  void invalidate_table_in_db(Query_cache_block *table_block,
-			      char *db);
   void invalidate_table(Query_cache_block *table_block);
   my_bool register_all_tables(Query_cache_block *block,
 			      TABLE_LIST *tables_used,

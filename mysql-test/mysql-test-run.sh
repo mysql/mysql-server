@@ -170,6 +170,7 @@ EXTRA_MYSQL_TEST_OPT=""
 USE_RUNNING_SERVER=1
 DO_GCOV=""
 DO_GDB=""
+MANUAL_GDB=""
 DO_DDD=""
 DO_CLIENT_GDB=""
 SLEEP_TIME_FOR_DELETE=10
@@ -271,6 +272,11 @@ while test $# -gt 0; do
 	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --client-gdb option"
       fi
       DO_CLIENT_GDB=1
+      ;;
+    --manual-gdb )
+      DO_GDB=1
+      MANUAL_GDB=1
+      USE_RUNNING_SERVER=""
       ;;
     --ddd )
       if [ x$BINARY_DIST = x1 ] ; then
@@ -743,8 +749,15 @@ start_master()
     "gdb -x $GDB_MASTER_INIT" $MYSQLD
   elif [ x$DO_GDB = x1 ]
   then
-    ( echo set args $master_args;
-    if [ $USE_MANAGER = 0 ] ; then
+    if [ x$MANUAL_GDB = x1 ]
+    then
+      $ECHO "set args $master_args" > $GDB_MASTER_INIT
+      $ECHO "To start gdb for the master , type in another window:"
+      $ECHO "cd $CWD ; gdb -x $GDB_MASTER_INIT $MYSQLD"
+      wait_for_master=1500
+    else
+      ( $ECHO set args $master_args;
+      if [ $USE_MANAGER = 0 ] ; then
     cat <<EOF
 b mysql_parse
 commands 1
@@ -752,9 +765,10 @@ disa 1
 end
 r
 EOF
-    fi )  > $GDB_MASTER_INIT
-    manager_launch master $XTERM -display $DISPLAY \
-    -title "Master" -e gdb -x $GDB_MASTER_INIT $MYSQLD
+      fi )  > $GDB_MASTER_INIT
+      manager_launch master $XTERM -display $DISPLAY \
+      -title "Master" -e gdb -x $GDB_MASTER_INIT $MYSQLD
+    fi
   else
     manager_launch master $MYSQLD $master_args
   fi
@@ -845,8 +859,15 @@ start_slave()
   elif [ x$DO_GDB = x1 ]
   then
     $ECHO "set args $slave_args" > $GDB_SLAVE_INIT
-    manager_launch $slave_ident $XTERM -display $DISPLAY -title "Slave" -e \
-    gdb -x $GDB_SLAVE_INIT $SLAVE_MYSQLD
+    if [ x$MANUAL_GDB = x1 ]
+    then
+      echo "To start gdb for the slave, type in another window:"
+      echo "cd $CWD ; gdb -x $GDB_SLAVE_INIT $MYSQLD"
+      wait_for_slave=1500
+    else
+      manager_launch $slave_ident $XTERM -display $DISPLAY -title "Slave" -e \
+      gdb -x $GDB_SLAVE_INIT $SLAVE_MYSQLD
+    fi
   else
     manager_launch $slave_ident $SLAVE_MYSQLD $slave_args
   fi

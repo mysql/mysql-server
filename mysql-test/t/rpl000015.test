@@ -1,20 +1,25 @@
 connect (master,localhost,root,,test,0,master.sock);
 connect (slave,localhost,root,,test,0, slave.sock);
-eval_result;
 connection master;
 reset master;
 show master status;
 save_master_pos;
 connection slave;
 reset slave;
+--replace_result $MASTER_MYPORT MASTER_PORT
 show slave status;
 change master to master_host='127.0.0.1';
+# The following needs to be cleaned up when change master is fixed
+--replace_result $MASTER_MYPORT MASTER_PORT 3306 MASTER_PORT 3334 MASTER_PORT
 show slave status;
+--replace_result $MASTER_MYPORT MASTER_PORT
 eval change master to master_host='127.0.0.1',master_user='root',
  master_password='',master_port=$MASTER_MYPORT;
+--replace_result $MASTER_MYPORT MASTER_PORT
 show slave status;
 slave start;
 sync_with_master;
+--replace_result $MASTER_MYPORT MASTER_PORT
 show slave status;
 connection master;
 drop table if exists t1;

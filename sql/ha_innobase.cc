@@ -536,7 +536,7 @@ innobase_init(void)
 {
 	int		err;
 	bool		ret;
-	char 	        current_lib[2], *default_path;
+	char 	        current_lib[3], *default_path;
 
   	DBUG_ENTER("innobase_init");
 
@@ -2044,7 +2044,7 @@ ha_innobase::change_active_index(
   else
     prebuilt->index = dict_table_get_first_index_noninline(prebuilt->table);
 
-  assert(prebuilt->search_tuple);
+  assert(prebuilt->search_tuple != 0);
 
   dtuple_set_n_fields(prebuilt->search_tuple, prebuilt->index->n_fields);
 
@@ -2762,7 +2762,7 @@ ha_innobase::create(
 
 	innobase_table = dict_table_get(norm_name, NULL);
 
-	assert(innobase_table);
+	assert(innobase_table != 0);
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */

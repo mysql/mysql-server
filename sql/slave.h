@@ -3,8 +3,11 @@
 
 #include "mysql.h"
 #define SLAVE_NET_TIMEOUT  3600
+#define MAX_SLAVE_ERROR    2000
 
 extern ulong slave_net_timeout, master_retry_count;
+extern MY_BITMAP slave_error_mask;
+extern bool use_slave_mask;
 extern char* slave_load_tmpdir;
 
 typedef struct st_master_info
@@ -104,11 +107,11 @@ int add_table_rule(HASH* h, const char* table_spec);
 int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec);
 void init_table_rule_hash(HASH* h, bool* h_inited);
 void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited);
+void init_slave_skip_errors(char* arg);
 char* rewrite_db(char* db);
 int check_expected_error(THD* thd, int error_code);
 void skip_load_data_infile(NET* net);
 void slave_print_error(int err_code, const char* msg, ...);
-
 void end_slave(); // clean up
 int init_master_info(MASTER_INFO* mi);
 void end_master_info(MASTER_INFO* mi);

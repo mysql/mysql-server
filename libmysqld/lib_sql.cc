@@ -448,7 +448,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 #ifdef USE_REGEX
   regex_init();
 #endif
-  if (use_temp_pool && bitmap_init(&temp_pool,1024))
+  if (use_temp_pool && bitmap_init(&temp_pool,1024,1))
   {
     mysql_server_end();
     return 1;

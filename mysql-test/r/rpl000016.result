@@ -2,11 +2,11 @@ slave start;
 Could not initialize master info structure, check permisions on master.info
 slave start;
 Could not initialize master info structure, check permisions on master.info
-change master to master_host='127.0.0.1',master_port=9306,
+change master to master_host='127.0.0.1',master_port=MASTER_PORT,
 master_user='root';
 Could not initialize master info
 reset slave;
-change master to master_host='127.0.0.1',master_port=9306,
+change master to master_host='127.0.0.1',master_port=MASTER_PORT,
 master_user='root';
 reset master;
 slave start;
@@ -15,7 +15,7 @@ create table t1 (s text);
 insert into t1 values('Could not break slave'),('Tried hard');
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Last_log_seq
-127.0.0.1	root	9306	60	master-bin.001	234	Yes			0		0	3
+127.0.0.1	root	MASTER_PORT	60	master-bin.001	234	Yes			0		0	3
 select * from t1;
 s
 Could not break slave
@@ -43,7 +43,7 @@ master-bin.003
 insert into t2 values (65);
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Last_log_seq
-127.0.0.1	root	9306	60	master-bin.003	155	Yes			0		0	3
+127.0.0.1	root	MASTER_PORT	60	master-bin.003	155	Yes			0		0	3
 select * from t2;
 m
 34
@@ -66,7 +66,7 @@ slave stop;
 slave start;
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Last_log_seq
-127.0.0.1	root	9306	60	master-bin.006	445	Yes			0		0	7
+127.0.0.1	root	MASTER_PORT	60	master-bin.006	445	Yes			0		0	7
 lock tables t3 read;
 select count(*) from t3 where n >= 4;
 count(*)

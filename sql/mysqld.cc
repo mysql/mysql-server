@@ -114,8 +114,13 @@ typedef fp_except fp_except_t;
 inline void reset_floating_point_exceptions()
 {
   /* Don't fall for overflow, underflow,divide-by-zero or loss of precision */
-  fpsetmask(~(FP_X_INV | FP_X_DNML | FP_X_OFL | FP_X_UFL |
-	      FP_X_DZ | FP_X_IMP));
+#if defined(__i386__)
+  fpsetmask(~(FP_X_INV | FP_X_DNML | FP_X_OFL | FP_X_UFL | FP_X_DZ |
+	      FP_X_IMP));
+else
+ fpsetmask(~(FP_X_INV |             FP_X_OFL | FP_X_UFL | FP_X_DZ |
+	     FP_X_IMP));
+#endif
 }
 #else
 #define reset_floating_point_exceptions()
@@ -390,6 +395,7 @@ static void get_options(int argc,char **argv);
 static char *get_relative_path(const char *path);
 static void fix_paths(void);
 static pthread_handler_decl(handle_connections_sockets,arg);
+static pthread_handler_decl(kill_server_thread,arg);
 static int bootstrap(FILE *file);
 static void close_server_sock();
 static bool read_init_file(char *file_name);
@@ -625,19 +631,26 @@ void kill_mysql(void)
 #elif defined(OS2)
   pthread_cond_signal( &eventShutdown);		// post semaphore
 #elif defined(HAVE_PTHREAD_KILL)
-    if (pthread_kill(signal_thread,SIGTERM))	/* End everything nicely */
-    {
-      DBUG_PRINT("error",("Got error %d from pthread_kill",errno)); /* purecov: inspected */
-    }
-#else
-    kill(current_pid,SIGTERM);
+  if (pthread_kill(signal_thread,SIGTERM))	/* End everything nicely */
+  {
+    DBUG_PRINT("error",("Got error %d from pthread_kill",errno)); /* purecov: inspected */
+  }
+#elif !defined(SIGNALS_DONT_BREAK_READ)
+  kill(current_pid,SIGTERM);
 #endif
-    DBUG_PRINT("quit",("After pthread_kill"));
-    shutdown_in_progress=1;			// Safety if kill didn't work
-#ifdef SIGNALS_DONT_BREAK_READ    
+  DBUG_PRINT("quit",("After pthread_kill"));
+  shutdown_in_progress=1;			// Safety if kill didn't work
+#ifdef SIGNALS_DONT_BREAK_READ
+  if (!abort_loop)
+  {
+    pthread_t tmp;
     abort_loop=1;
+    if (pthread_create(&tmp,&connection_attrib, kill_server_thread,
+			   (void*) 0))
+      sql_print_error("Error: Can't create thread to kill server");
+  }
 #endif    
-    DBUG_VOID_RETURN;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -682,7 +695,7 @@ static void __cdecl kill_server(int sig_ptr)
 
 
 #ifdef USE_ONE_SIGNAL_HAND
-pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
+static pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
 {
   my_thread_init();				// Initialize new thread
   kill_server(0);
@@ -735,6 +748,8 @@ void clean_up(bool print_message)
   DBUG_PRINT("exit",("clean_up"));
   if (cleanup_done++)
     return; /* purecov: inspected */
+  if (use_slave_mask)
+    bitmap_free(&slave_error_mask);
   acl_free(1);
   grant_free();
   query_cache.resize(0);
@@ -1472,7 +1487,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
 			   (void*) sig))
 	  sql_print_error("Error: Can't create thread to kill server");
 #else
-	  kill_server((void*) sig);		// MIT THREAD has a alarm thread
+	kill_server((void*) sig);	// MIT THREAD has a alarm thread
 #endif
       }
       break;
@@ -1801,7 +1816,7 @@ int main(int argc, char **argv)
 #endif
   select_thread=pthread_self();
   select_thread_in_use=1;
-  if (use_temp_pool && bitmap_init(&temp_pool,1024))
+  if (use_temp_pool && bitmap_init(&temp_pool,1024,1))
     unireg_abort(1);
 
   /*
@@ -2450,18 +2465,21 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
 	fromhost(&req);
 	if (!hosts_access(&req))
 	{
-	  // This may be stupid but refuse() includes an exit(0)
-	  // which we surely don't want...
-	  // clean_exit() - same stupid thing ...
+	  /*
+	    This may be stupid but refuse() includes an exit(0)
+	    which we surely don't want...
+	    clean_exit() - same stupid thing ...
+	  */
 	  syslog(deny_severity, "refused connect from %s", eval_client(&req));
 	  if (req.sink)
 	    ((void (*)(int))req.sink)(req.fd);
 
-	  // C++ sucks (the gibberish in front just translates the supplied
-	  // sink function pointer in the req structure from a void (*sink)();
-	  // to a void(*sink)(int) if you omit the cast, the C++ compiler
-	  // will cry...
-
+	  /*
+	    C++ sucks (the gibberish in front just translates the supplied
+	    sink function pointer in the req structure from a void (*sink)();
+	    to a void(*sink)(int) if you omit the cast, the C++ compiler
+	    will cry...
+	  */
 	  (void) shutdown(new_sock,2);  // This looks fine to me...
 	  (void) closesocket(new_sock);
 	  continue;
@@ -2489,7 +2507,8 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
 
     if (!(thd= new THD))
     {
-      (void) shutdown(new_sock,2); VOID(closesocket(new_sock));
+      (void) shutdown(new_sock,2);
+      VOID(closesocket(new_sock));
       continue;
     }
     if (!(vio_tmp=vio_new(new_sock,
@@ -2674,7 +2693,7 @@ enum options {
                OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
                OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
 	       OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE,
-	       OPT_DES_KEY_FILE
+	       OPT_DES_KEY_FILE, OPT_SLAVE_SKIP_ERRORS
 };
 
 static struct option long_options[] = {
@@ -2824,6 +2843,8 @@ static struct option long_options[] = {
   {"skip-symlink",	    no_argument,       0, (int) OPT_SKIP_SYMLINKS},
   {"skip-thread-priority",  no_argument,       0, (int) OPT_SKIP_PRIOR},
   {"slave-load-tmpdir", required_argument, 0, (int) OPT_SLAVE_LOAD_TMPDIR},  
+  {"slave-skip-errors", required_argument, 0,
+   (int) OPT_SLAVE_SKIP_ERRORS},
   {"socket",                required_argument, 0, (int) OPT_SOCKET},
   {"sql-bin-update-same",   no_argument,       0, (int) OPT_SQL_BIN_UPDATE_SAME},
   {"sql-mode",              required_argument, 0, (int) OPT_SQL_MODE},
@@ -3154,7 +3175,7 @@ struct show_var_st status_vars[]= {
   {"Com_drop_table",	       (char*) (com_stat+(uint) SQLCOM_DROP_TABLE),SHOW_LONG},
   {"Com_flush",		       (char*) (com_stat+(uint) SQLCOM_FLUSH),SHOW_LONG},
   {"Com_grant",		       (char*) (com_stat+(uint) SQLCOM_GRANT),SHOW_LONG},
-  {"Com_ha_close",	       (char*) (com_stat+(uint) SQLCOM_HA_OPEN),SHOW_LONG},
+  {"Com_ha_close",	       (char*) (com_stat+(uint) SQLCOM_HA_CLOSE),SHOW_LONG},
   {"Com_ha_open",	       (char*) (com_stat+(uint) SQLCOM_HA_OPEN),SHOW_LONG},
   {"Com_ha_read",	       (char*) (com_stat+(uint) SQLCOM_HA_READ),SHOW_LONG},
   {"Com_insert",	       (char*) (com_stat+(uint) SQLCOM_INSERT),SHOW_LONG},
@@ -3585,6 +3606,9 @@ static void get_options(int argc,char **argv)
       break;
     case 'P':
       mysql_port= (unsigned int) atoi(optarg);
+      break;
+    case OPT_SLAVE_SKIP_ERRORS:
+      init_slave_skip_errors(optarg);
       break;
     case OPT_SAFEMALLOC_MEM_LIMIT:
 #if !defined(DBUG_OFF) && defined(SAFEMALLOC)      
@@ -4276,16 +4300,17 @@ static uint set_maximum_open_files(uint max_file_limit)
     rlimit.rlim_cur=rlimit.rlim_max=max_file_limit;
     if (setrlimit(RLIMIT_NOFILE,&rlimit))
     {
-      sql_print_error("Warning: setrlimit couldn't increase number of open files to more than %ld",
-	      old_cur);		/* purecov: inspected */
+      sql_print_error("Warning: setrlimit couldn't increase number of open files to more than %lu (request: %u)",
+		      old_cur, max_file_limit);	/* purecov: inspected */
       max_file_limit=old_cur;
     }
     else
     {
       (void) getrlimit(RLIMIT_NOFILE,&rlimit);
       if ((uint) rlimit.rlim_cur != max_file_limit)
-	sql_print_error("Warning: setrlimit returned ok, but didn't change limits. Max open files is %ld",
-			  (ulong) rlimit.rlim_cur); /* purecov: inspected */
+	sql_print_error("Warning: setrlimit returned ok, but didn't change limits. Max open files is %ld (request: %u)",
+			(ulong) rlimit.rlim_cur,
+			max_file_limit); /* purecov: inspected */
       max_file_limit=rlimit.rlim_cur;
     }
   }

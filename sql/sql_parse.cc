@@ -875,8 +875,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     thd->free_list=0;
     table_list.name=table_list.real_name=thd->strdup(packet);
-    thd->query_length=strlen(thd->query);
-    thd->query=fields=thd->strdup(strend(packet)+1);
+    packet=strend(packet)+1;
+    if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
+      break;
     mysql_log.write(thd,command,"%s %s",table_list.real_name,fields);
     remove_escape(table_list.real_name);	// This can't have wildcards
 

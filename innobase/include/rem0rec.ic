@@ -947,7 +947,8 @@ rec_get_converted_size(
 }
 
 /****************************************************************
-Folds a prefix of a physical record to a ulint. */
+Folds a prefix of a physical record to a ulint. Folds only existing fields,
+that is, checks that we do not run out of the record. */
 UNIV_INLINE
 ulint
 rec_fold(
@@ -963,6 +964,7 @@ rec_fold(
 	byte*	data;
 	ulint	len;
 	ulint	fold;
+	ulint	n_fields_rec;
 
 	ut_ad(rec_validate(rec));
 	ut_ad(n_fields <= rec_get_n_fields(rec));
@@ -971,6 +973,16 @@ rec_fold(
 	/* Only the page supremum and infimum records have 1 field: */
 	ut_ad(rec_get_n_fields(rec) > 1);
 	
+	n_fields_rec = rec_get_n_fields(rec);
+
+	if (n_fields > n_fields_rec) {
+	        n_fields = n_fields_rec;
+	}
+
+	if (n_fields == n_fields_rec) {
+	        n_bytes = 0;
+	}
+
 	fold = ut_fold_dulint(tree_id);
 	
 	for (i = 0; i < n_fields; i++) {

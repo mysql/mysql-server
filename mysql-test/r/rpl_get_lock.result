@@ -5,6 +5,12 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 slave start;
 create table t1(n int);
 insert into t1 values(get_lock("lock",2));
+select get_lock("lock",2);
+get_lock("lock",2)
+1
+select release_lock("lock");
+release_lock("lock")
+1
 select get_lock("lock",3);
 get_lock("lock",3)
 1
