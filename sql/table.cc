@@ -156,7 +156,16 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   VOID(my_seek(file,(ulong) uint2korr(head+6),MY_SEEK_SET,MYF(0)));
   if (read_string(file,(gptr*) &disk_buff,key_info_length))
     goto err_not_open; /* purecov: inspected */
-  outparam->keys=keys=   disk_buff[0];
+  if (disk_buff[1] & 0x80)
+  {
+    outparam->keys=      keys=      uint2korr(disk_buff) & 0x7fff;
+    outparam->key_parts= key_parts= uint2korr(disk_buff+2);
+  }
+  else
+  {
+    outparam->keys=      keys=      disk_buff[0];
+    outparam->key_parts= key_parts= disk_buff[1];
+  }
   outparam->keys_for_keyread.init().set_prefix(keys);
   outparam->keys_in_use.init().set_prefix(keys);
   outparam->read_only_keys.init().clear_all();
@@ -164,7 +173,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   outparam->used_keys.init();
   outparam->keys_in_use_for_query.init();
 
-  outparam->key_parts=key_parts=disk_buff[1];
   n_length=keys*sizeof(KEY)+key_parts*sizeof(KEY_PART_INFO);
   if (!(keyinfo = (KEY*) alloc_root(&outparam->mem_root,
 				    n_length+uint2korr(disk_buff+4))))
@@ -269,7 +277,9 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   record[outparam->reclength]=0;		// For purify and ->c_ptr()
   outparam->rec_buff_length=rec_buff_length;
   if (my_pread(file,(byte*) record,(uint) outparam->reclength,
-	       (ulong) (uint2korr(head+6)+uint2korr(head+14)),
+	       (ulong) (uint2korr(head+6)+
+                        ((uint2korr(head+14) == 0xffff ?
+                            uint4korr(head+10) : uint2korr(head+14)))),
 	       MYF(MY_NABP)))
     goto err_not_open; /* purecov: inspected */
   /* HACK: table->record[2] is used instead of table->default_values here */
@@ -1114,6 +1124,7 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
     key_length=keys*(7+NAME_LEN+MAX_REF_PARTS*9)+16;
     length=(ulong) next_io_size((ulong) (IO_SIZE+key_length+reclength));
     int4store(fileinfo+10,length);
+    if (key_length > 0xffff) key_length=0xffff;
     int2store(fileinfo+14,key_length);
     int2store(fileinfo+16,reclength);
     int4store(fileinfo+18,create_info->max_rows);
