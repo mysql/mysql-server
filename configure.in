@@ -2010,7 +2010,7 @@ then
   AC_SUBST(THREAD_LPROGRAMS)
   THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o"
   AC_SUBST(THREAD_LOBJECTS)
-  sql_server_dirs="strings dbug mysys extra regex isam merge myisam myisammrg heap sql"
+  sql_server_dirs="strings dbug mysys extra regex isam merge myisam myisammrg heap vio sql"
   server_scripts="mysqld_safe mysql_install_db"
   if test X"$have_berkeley_db" != Xno; then
     if test X"$have_berkeley_db" != Xyes; then

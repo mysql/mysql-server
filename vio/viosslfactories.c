@@ -1,11 +1,29 @@
+/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+   
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Library General Public
+   License as published by the Free Software Foundation; either
+   version 2 of the License, or (at your option) any later version.
+   
+   This library is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Library General Public License for more details.
+   
+   You should have received a copy of the GNU Library General Public
+   License along with this library; if not, write to the Free
+   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
+   MA 02111-1307, USA */
 
 
 #include <global.h>
+
+#ifdef HAVE_OPENSSL
+
 #include <my_sys.h>
 #include <mysql_com.h>
 #include <violite.h>
 
-#ifdef HAVE_OPENSSL
 
 static bool     ssl_algorithms_added    = FALSE;
 static bool     ssl_error_strings_loaded= FALSE;
@@ -142,9 +160,9 @@ struct st_VioSSLConnectorFd* new_VioSSLConnectorFd(const char* key_file,
 
   if (!ssl_algorithms_added)
   {
-    DBUG_PRINT("info", ("todo: SSLeay_add_ssl_algorithms()"));
+    DBUG_PRINT("info", ("todo: OpenSSL_add_all_algorithms()"));
     ssl_algorithms_added = TRUE;
-    SSLeay_add_ssl_algorithms();
+    OpenSSL_add_all_algorithms();
   }
   if (!ssl_error_strings_loaded)
   {
@@ -152,7 +170,7 @@ struct st_VioSSLConnectorFd* new_VioSSLConnectorFd(const char* key_file,
     ssl_error_strings_loaded = TRUE;
     SSL_load_error_strings();
   }
-  ptr->ssl_method_ = SSLv3_client_method();
+  ptr->ssl_method_ = SSLv23_client_method();
   ptr->ssl_context_ = SSL_CTX_new(ptr->ssl_method_);
   DBUG_PRINT("info", ("ssl_context_: %p",ptr->ssl_context_));
   if (ptr->ssl_context_ == 0)
@@ -186,6 +204,7 @@ struct st_VioSSLConnectorFd* new_VioSSLConnectorFd(const char* key_file,
   DBUG_RETURN(ptr);
 ctor_failure:
   DBUG_PRINT("exit", ("there was an error"));
+  my_free((gptr)ptr,MYF(0));
   DBUG_RETURN(0);
 }
 
@@ -216,9 +235,10 @@ new_VioSSLAcceptorFd(const char*	key_file,
 
   if (!ssl_algorithms_added)
   {
-    DBUG_PRINT("info", ("todo: SSLeay_add_ssl_algorithms()"));
+    DBUG_PRINT("info", ("todo: OpenSSL_add_all_algorithms()"));
     ssl_algorithms_added = TRUE;
-    SSLeay_add_ssl_algorithms();
+    OpenSSL_add_all_algorithms();
+
   }
   if (!ssl_error_strings_loaded)
   {
@@ -226,7 +246,7 @@ new_VioSSLAcceptorFd(const char*	key_file,
     ssl_error_strings_loaded = TRUE;
     SSL_load_error_strings();
   }
-  ptr->ssl_method_ = SSLv3_server_method();
+  ptr->ssl_method_ = SSLv23_server_method();
   ptr->ssl_context_ = SSL_CTX_new(ptr->ssl_method_);
   if (ptr->ssl_context_==0)
   {
@@ -267,6 +287,7 @@ new_VioSSLAcceptorFd(const char*	key_file,
   DBUG_RETURN(ptr);
 ctor_failure:
   DBUG_PRINT("exit", ("there was an error"));
+  my_free((gptr)ptr,MYF(0));
   DBUG_RETURN(0);
 }
 

@@ -794,10 +794,10 @@ int _mi_init_bulk_insert(MI_INFO *info)
   params=(bulk_insert_param *)(info->bulk_insert+share->base.keys);
   for (i=0 ; i < share->base.keys ; i++,key++)
   {
-    params->info=info;
-    params->keynr=i;
     if (test(key_map & ((ulonglong) 1 << i)))
     {
+      params->info=info;
+      params->keynr=i;
       init_tree(& info->bulk_insert[i], 0, 
 		myisam_bulk_insert_tree_size / num_keys, 0,
 		(qsort_cmp2)keys_compare, 0,

@@ -68,6 +68,7 @@ FT_WORD * ft_linearize(MI_INFO *info, uint keynr, byte *keybuf, TREE *wtree)
 {
   FT_WORD *wlist,*p;
   FT_DOCSTAT docstat;
+  DBUG_ENTER("ft_linearize");
 
   if ((wlist=(FT_WORD *) my_malloc(sizeof(FT_WORD)*
 				   (1+wtree->elements_in_tree),MYF(0))))
@@ -85,7 +86,7 @@ FT_WORD * ft_linearize(MI_INFO *info, uint keynr, byte *keybuf, TREE *wtree)
   }
   delete_tree(wtree);
   if (!wlist)
-    return NULL;
+    DBUG_RETURN(NULL);
 
   docstat.list->pos=NULL;
 
@@ -109,14 +110,14 @@ FT_WORD * ft_linearize(MI_INFO *info, uint keynr, byte *keybuf, TREE *wtree)
     p->weight/=NORM_IN_USE;
   }
 
-  return wlist;
+  DBUG_RETURN(wlist);
 }
 
 #define true_word_char(X)	(isalnum(X) || (X)=='_')
 #ifdef HYPHEN_IS_DELIM
-#define misc_word_char(X)    	((X)=='\'')
+#define misc_word_char(X)	((X)=='\'')
 #else
-#define misc_word_char(X)  	((X)=='\'' || (X)=='-')
+#define misc_word_char(X)	((X)=='\'' || (X)=='-')
 #endif
 #define word_char(X)		(true_word_char(X) || misc_word_char(X))
 
