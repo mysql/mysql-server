@@ -491,6 +491,7 @@ wl1822_main(char scantx)
 
 NDB_COMMAND(testOdbcDriver, "testDeadlock", "testDeadlock", "testDeadlock", 65535)
 {
+  ndb_init();
   while (++argv, --argc > 0) {
     const char* arg = argv[0];
     if (strcmp(arg, "-scan") == 0) {

@@ -76,6 +76,10 @@ extern "C" {
 	
 #include <assert.h>
 
+/* call in main() - does not return on error */
+extern int ndb_init(void);
+extern void ndb_end(int);
+
 #ifndef HAVE_STRDUP
 extern char * strdup(const char *s);
 #endif

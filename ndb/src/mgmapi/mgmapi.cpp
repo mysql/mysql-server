@@ -954,13 +954,52 @@ struct ndb_mgm_event_categories
 {
   const char* name;
   enum ndb_mgm_event_category category;
+} categories[] = {
+  { "STARTUP", NDB_MGM_EVENT_CATEGORY_STARTUP },
+  { "SHUTDOWN", NDB_MGM_EVENT_CATEGORY_SHUTDOWN },
+  { "STATISTICS", NDB_MGM_EVENT_CATEGORY_STATISTIC },
+  { "NODERESTART", NDB_MGM_EVENT_CATEGORY_NODE_RESTART },
+  { "CONNECTION", NDB_MGM_EVENT_CATEGORY_CONNECTION },
+  { "CHECKPOINT", NDB_MGM_EVENT_CATEGORY_CHECKPOINT },
+  { "DEBUG", NDB_MGM_EVENT_CATEGORY_DEBUG },
+  { "INFO", NDB_MGM_EVENT_CATEGORY_INFO },
+  { "ERROR", NDB_MGM_EVENT_CATEGORY_ERROR },
+  { "GREP", NDB_MGM_EVENT_CATEGORY_GREP },
+  { "BACKUP", NDB_MGM_EVENT_CATEGORY_BACKUP },
+  { 0, NDB_MGM_ILLEGAL_EVENT_CATEGORY }
 };
+
+extern "C"
+ndb_mgm_event_category
+ndb_mgm_match_event_category(const char * status)
+{
+  if(status == 0)
+    return NDB_MGM_ILLEGAL_EVENT_CATEGORY;
+  
+  for(int i = 0; categories[i].name !=0 ; i++)
+    if(strcmp(status, categories[i].name) == 0)
+      return categories[i].category;
+
+  return NDB_MGM_ILLEGAL_EVENT_CATEGORY;
+}
+
+extern "C"
+const char * 
+ndb_mgm_get_event_category_string(enum ndb_mgm_event_category status)
+{
+  int i;
+  for(i = 0; categories[i].name != 0; i++)
+    if(categories[i].category == status)
+      return categories[i].name;
+  
+  return 0;
+}
 
 extern "C"
 int 
 ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle handle, int nodeId,
-				/*enum ndb_mgm_event_category*/ 
-				char * category, int level,
+				enum ndb_mgm_event_category cat,
+				int level,
 				struct ndb_mgm_reply* /*reply*/) 
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, 
@@ -975,14 +1014,14 @@ ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle handle, int nodeId,
 
   Properties args;
   args.put("node", nodeId);
-  args.put("category", category);
+  args.put("category", cat);
   args.put("level", level);
-
+  
   const Properties *reply;
   reply = ndb_mgm_call(handle, clusterlog_reply, 
 		       "set cluster loglevel", &args);
   CHECK_REPLY(reply, -1);
-
+  
   BaseString result;
   reply->get("result", result);
   if(strcmp(result.c_str(), "Ok") != 0) {
@@ -997,8 +1036,8 @@ ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle handle, int nodeId,
 extern "C"
 int 
 ndb_mgm_set_loglevel_node(NdbMgmHandle handle, int nodeId,
-			  /*enum ndb_mgm_event_category category*/
-			  char * category, int level,
+			  enum ndb_mgm_event_category category,
+			  int level,
 			  struct ndb_mgm_reply* /*reply*/) 
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_set_loglevel_node");
@@ -1028,6 +1067,48 @@ ndb_mgm_set_loglevel_node(NdbMgmHandle handle, int nodeId,
 
   delete reply;
   return 0;
+}
+
+extern "C"
+int
+ndb_mgm_listen_event(NdbMgmHandle handle, int filter[])
+{
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_listen_event");
+  const ParserRow<ParserDummy> stat_reply[] = {
+    MGM_CMD("listen event", NULL, ""),
+    MGM_ARG("result", Int, Mandatory, "Error message"),
+    MGM_ARG("msg", String, Optional, "Error message"),
+    MGM_END()
+  };
+  CHECK_HANDLE(handle, -1);
+  
+  SocketClient s(handle->hostname, handle->port);
+  const NDB_SOCKET_TYPE sockfd = s.connect();
+  if (sockfd < 0) {
+    setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
+	     "Unable to connect to");
+    return -1;
+  }
+
+  Properties args;
+  {
+    BaseString tmp;
+    for(int i = 0; filter[i] != 0; i += 2){
+      tmp.appfmt("%d=%d ", filter[i+1], filter[i]);
+    }
+    args.put("filter", tmp.c_str());
+  }
+  
+  int tmp = handle->socket;
+  handle->socket = sockfd;
+  
+  const Properties *reply;
+  reply = ndb_mgm_call(handle, stat_reply, "listen event", &args);
+  
+  handle->socket = tmp;
+  
+  CHECK_REPLY(reply, -1);
+  return sockfd;
 }
 
 extern "C"
