@@ -45,7 +45,7 @@ select '------ simple select tests ------' as test_sequence ;
 
 ##### many column types, but no parameter
 # heavy modified case derived from client_test.c: test_func_fields()
-prepare stmt1 from ' select * from t9 ' ;
+prepare stmt1 from ' select * from t9 order by c1 ' ;
 --enable_metadata
 execute stmt1;
 --disable_metadata
