@@ -92,6 +92,12 @@ if ($opt_fast && defined($server->{vacuum}))
 print "Inserting $opt_loop_count rows\n";
 
 $loop_time=new Benchmark;
+
+if ($opt_fast && $server->{transactions})
+{
+  $dbh->{AutoCommit} = 0;
+}
+
 $query="insert into bench1 values (";
 $half_done=$opt_loop_count/2;
 for ($id=0,$rev_id=$opt_loop_count-1 ; $id < $opt_loop_count ; $id++,$rev_id--)
@@ -103,6 +109,12 @@ for ($id=0,$rev_id=$opt_loop_count-1 ; $id < $opt_loop_count ; $id++,$rev_id--)
   {				# Test with different insert
     $query="insert into bench1 (region,idn,rev_idn,grp) values (";
   }
+}
+
+if ($opt_fast && $server->{transactions})
+{
+  $dbh->commit;
+  $dbh->{AutoCommit} = 1;
 }
 
 $end_time=new Benchmark;
