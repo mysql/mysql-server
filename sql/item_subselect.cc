@@ -57,8 +57,7 @@ void Item_subselect::init(st_select_lex *select_lex,
   unit= select_lex->master_unit();
 
   if (select_lex->next_select())
-    engine= new subselect_union_engine(unit, result,
-				       this);
+    engine= new subselect_union_engine(unit, result, this);
   else
     engine= new subselect_single_select_engine(select_lex, result, this);
   DBUG_VOID_RETURN;

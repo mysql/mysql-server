@@ -1631,14 +1631,6 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
   if (open_tables(thd, tables, &counter) || lock_tables(thd, tables, counter))
     DBUG_RETURN(-1);				/* purecov: inspected */
   fix_tables_pointers(thd->lex->all_selects_list);
-
-  /*
-    open temporary memory pool, which will be closed in
-    mysql_test_select_fields,  mysql_test_upd_fields or
-    mysql_test_insert_fields
-  */
-  if (thd->current_statement)
-    thd->ps_setup_prepare_memory();
   DBUG_RETURN(mysql_handle_derived(thd->lex));
 }
 
@@ -2089,6 +2081,11 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
   if (!wild_num)
     return 0;
   Statement *stmt= thd->current_statement, backup;
+
+  /*
+    If we are in preparing prepared statement phase then we have change
+    temporary mem_root to statement mem root to save changes of SELECT list
+  */
   if (stmt)
     thd->set_n_backup_item_arena(stmt, &backup);
   reg2 Item *item;

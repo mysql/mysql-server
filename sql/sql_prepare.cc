@@ -621,9 +621,14 @@ static bool mysql_test_insert_fields(Prepared_statement *stmt,
       (grant_option && check_grant(thd,privilege,table_list,0,0)))
     DBUG_RETURN(1); 
 #endif
+
+  /* 
+     open temporary memory pool for temporary data allocated by derived
+     tables & preparation procedure
+  */
+  thd->ps_setup_prepare_memory();
   if (open_and_lock_tables(thd, table_list))
   {
-    // this memory pool was opened in open_and_lock_tables
     thd->ps_setup_free_memory();
     DBUG_RETURN(1);
   }
@@ -692,6 +697,12 @@ static bool mysql_test_upd_fields(Prepared_statement *stmt,
       (grant_option && check_grant(thd,UPDATE_ACL,table_list,0,0)))
     DBUG_RETURN(1);
 #endif
+
+  /* 
+     open temporary memory pool for temporary data allocated by derived
+     tables & preparation procedure
+  */
+  thd->ps_setup_prepare_memory();
   if (open_and_lock_tables(thd, table_list))
   {
     // this memory pool was opened in open_and_lock_tables
@@ -761,13 +772,14 @@ static bool mysql_test_select_fields(Prepared_statement *stmt,
   if ((&lex->select_lex != lex->all_selects_list &&
        lex->unit.create_total_list(thd, lex, &tables)))
    DBUG_RETURN(1);
-    
+
+  /* 
+     open temporary memory pool for temporary data allocated by derived
+     tables & preparation procedure
+  */
+  thd->ps_setup_prepare_memory();
   if (open_and_lock_tables(thd, tables))
-  {
-    // this memory pool was opened in open_and_lock_tables
-    thd->ps_setup_free_memory();
-    DBUG_RETURN(1);
-  }
+    goto err;
 
   if (lex->describe)
   {
@@ -985,6 +997,10 @@ alloc_query_err:
   thd->current_statement= 0;
   DBUG_RETURN(1);
 insert_stmt_err:
+  stmt->set_statement(thd);
+  thd->set_statement(&thd->stmt_backup);
+  /* Statement map deletes statement on erase */
+  thd->stmt_map.erase(stmt);
   thd->current_statement= 0;
   delete stmt;
   DBUG_RETURN(1);
@@ -1068,7 +1084,7 @@ void mysql_stmt_execute(THD *thd, char *packet)
       SELECT_LEX_UNIT *unit= sl->master_unit();
       unit->unclean();
       unit->types.empty();
-      // for derived tables & PS (which can't be reset bu Item_subquery)
+      // for derived tables & PS (which can't be reset by Item_subquery)
       unit->reinit_exec_mechanism();
     }
   }

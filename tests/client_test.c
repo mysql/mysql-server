@@ -8538,7 +8538,7 @@ int main(int argc, char **argv)
     test_stmt_close();      /* mysql_stmt_close() test -- hangs */
     test_prepare_field_result(); /* prepare meta info */
     test_multi_stmt();      /* multi stmt test */
-/*    test_multi_statements(); *//* test multi statement execution */
+    test_multi_statements();/* test multi statement execution */
     test_store_result();    /* test the store_result */
     test_store_result1();   /* test store result without buffers */
     test_store_result2();   /* test store result for misc case */
