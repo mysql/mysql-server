@@ -156,7 +156,7 @@ struct st_query
          Q_SYNC_WITH_MASTER, Q_ERROR, 
          Q_SEND,             Q_REAP, 
          Q_DIRTY_CLOSE,      Q_REPLACE,
-	 Q_PING,
+	 Q_PING,             Q_EVAL,
          Q_UNKNOWN,                             /* Unknown command.   */
          Q_COMMENT,                             /* Comments, ignored. */
          Q_COMMENT_WITH_COMMAND
@@ -175,7 +175,7 @@ const char *command_names[] = {
   "sync_with_master", "error",
   "send",             "reap", 
   "dirty_close",      "replace_result",
-  "ping",
+  "ping",             "eval",
   0
 };
 
@@ -183,12 +183,14 @@ TYPELIB command_typelib= {array_elements(command_names),"",
 			  command_names};
 
 DYNAMIC_STRING ds_res;
+static void die(const char* fmt, ...);
 
 int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname);
 void reject_dump(const char* record_file, char* buf, int size);
 
 int close_connection(struct st_query* q);
-VAR* var_get(char* var_name, char* var_name_end, int raw);
+VAR* var_get(const char* var_name, const char** var_name_end, int raw);
+int eval_expr(VAR* v, const char* p, const char** p_end);
 
 /* Definitions for replace */
 
@@ -208,11 +210,51 @@ static int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name);
 void free_pointer_array(POINTER_ARRAY *pa);
 static int initialize_replace_buffer(void);
 static void free_replace_buffer(void);
+static void do_eval(DYNAMIC_STRING* query_eval, const char* query);
 
 struct st_replace *glob_replace;
 static char *out_buff;
 static uint out_length;
 
+static void do_eval(DYNAMIC_STRING* query_eval, const char* query)
+{
+  const char* p;
+  register char c;
+  register int escaped = 0;
+  VAR* v;
+  
+  for(p = query; (c = *p); ++p)
+    {
+      switch(c)
+	{
+	case '$':
+	  if(escaped)
+	    {
+	      escaped = 0;
+   	      dynstr_append_mem(query_eval, p, 1);
+	    }
+	  else
+	    {
+	      if(!(v = var_get(p, &p, 0)))
+		die("Bad variabled in eval");
+	      dynstr_append(query_eval, v->str_val);
+	    }
+	  break;
+	case '\\':
+	  if(escaped)
+	    {
+	      escaped = 0;
+   	      dynstr_append_mem(query_eval, p, 1);
+	    }
+	  else
+	    escaped = 1;
+	  break;
+	default:
+	  dynstr_append_mem(query_eval, p, 1);
+	  break;
+	}
+    }
+}
 
 static void close_cons()
 {
@@ -369,7 +411,7 @@ static int check_result(DYNAMIC_STRING* ds, const char* fname,
   return error;
 }
 
-VAR* var_get(char* var_name, char* var_name_end, int raw)
+VAR* var_get(const char* var_name, const char** var_name_end, int raw)
 {
   int digit;
   VAR* v;
@@ -390,6 +432,8 @@ VAR* var_get(char* var_name, char* var_name_end, int raw)
     sprintf(v->str_val, "%d", v->int_val);
     v->int_dirty = 0;
   }
+  if(var_name_end)
+    *var_name_end = var_name  ;
   return v;
 err:
   if (var_name_end)
@@ -458,7 +502,7 @@ int do_source(struct st_query* q)
 }
 
 
-int eval_expr(VAR* v, char* p, char* p_end)
+int eval_expr(VAR* v, const char* p, const char** p_end)
 {
   VAR* vp;
   if (*p == '$')
@@ -471,8 +515,8 @@ int eval_expr(VAR* v, char* p, char* p_end)
     }
   else
     {
-      v->str_val = p;
-      v->str_val_len = p_end ? p_end - p : strlen(p);
+      v->str_val = (char*)p;
+      v->str_val_len = (p_end && *p_end) ? *p_end - p : strlen(p);
       return 0;
     }
 
@@ -514,6 +558,7 @@ int do_system(struct st_query* q)
 	v.str_val_len = sizeof(expr_buf) - 1;
       memcpy(expr_buf, v.str_val, v.str_val_len);
       expr_buf[v.str_val_len] = 0;
+      DBUG_PRINT("info", ("running system command '%s'", expr_buf));
       if (system(expr_buf) && q->abort_on_error)
 	die("system command '%s' failed", expr_buf);
     }
@@ -947,7 +992,7 @@ int do_done(struct st_query* q)
 int do_while(struct st_query* q)
 {
   char* p=q->first_argument;
-  char* expr_start, *expr_end;
+  const char* expr_start, *expr_end;
   VAR v;
   if (cur_block == block_stack_end)
 	die("Nesting too deeply");
@@ -962,7 +1007,8 @@ int do_while(struct st_query* q)
   expr_end = strrchr(expr_start, ')');
   if (!expr_end)
     die("missing ')' in while");
-  eval_expr(&v, ++expr_start, --expr_end);
+  --expr_end;
+  eval_expr(&v, ++expr_start, &expr_end);
   *cur_block++ = parser.current_line++;
   if (!v.int_val)
     {
@@ -1424,8 +1470,24 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   int q_error = 0 ;
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING ds_tmp;
+  DYNAMIC_STRING eval_query;
+  char* query;
+  int query_len;
   DBUG_ENTER("run_query");
 
+  if(q->type != Q_EVAL)
+    {
+      query = q->query;
+      query_len = strlen(query);
+    }
+  else
+    {
+      init_dynamic_string(&eval_query, "", 16384, 65536);
+      do_eval(&eval_query, q->query);
+      query = eval_query.str;
+      query_len = eval_query.length;
+    }
+  
   if ( q->record_file[0])
   {
     init_dynamic_string(&ds_tmp, "", 16384, 65536);
@@ -1435,8 +1497,8 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     ds= &ds_res;
   
   if ((flags & QUERY_SEND) &&
-      (q_error = mysql_send_query(mysql, q->query, strlen(q->query))))
-    die("At line %u: unable to send query '%s'", start_lineno, q->query);
+      (q_error = mysql_send_query(mysql, query, query_len)))
+    die("At line %u: unable to send query '%s'", start_lineno, query);
   if(!(flags & QUERY_REAP))
     return 0;
   
@@ -1445,7 +1507,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     if (q->require_file)
       abort_not_supported_test();
     if (q->abort_on_error)
-      die("At line %u: query '%s' failed: %d: %s", start_lineno, q->query,
+      die("At line %u: query '%s' failed: %d: %s", start_lineno, query,
 	  mysql_errno(mysql), mysql_error(mysql));
     else
     {
@@ -1484,10 +1546,10 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
       abort_not_supported_test();
     if (q->abort_on_error)
       die("At line %u: Failed in mysql_store_result for query '%s' (%d)",
-	  start_lineno, q->query, mysql_errno(mysql));
+	  start_lineno, query, mysql_errno(mysql));
     else
     {
-      verbose_msg("failed in mysql_store_result for query '%s' (%d)", q->query,
+      verbose_msg("failed in mysql_store_result for query '%s' (%d)", query,
 		  mysql_errno(mysql));
       error = 1;
       goto end;
@@ -1555,6 +1617,8 @@ end:
   if (res) mysql_free_result(res);
   if (ds == &ds_tmp)
     dynstr_free(&ds_tmp);
+  if(q->type == Q_EVAL)
+    dynstr_free(&eval_query);
   DBUG_RETURN(error);
 }
 
@@ -1643,13 +1707,17 @@ int main(int argc, char** argv)
       case Q_ECHO: do_echo(q); break;
       case Q_SYSTEM: do_system(q); break;
       case Q_LET: do_let(q); break;
+      case Q_EVAL:
+        if (q->query == q->query_buf)
+	  q->query += q->first_word_len;
+        /* fall through */
       case Q_QUERY:
       case Q_REAP:	
       {
 	int flags = QUERY_REAP; /* we read the result always regardless
 				* of the mode for both full query and
 				* read-result only ( reap) */
-	if (q->type == Q_QUERY) /* for a full query, enable the send stage */
+	if (q->type != Q_REAP) /* for a full query, enable the send stage */
 	  flags |= QUERY_SEND;
 	if (q_send_flag)
 	{
