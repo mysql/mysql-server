@@ -1,2 +1,2 @@
 -- disable_result_log
---exec ../tests/client_test --testcase --user=root --socket=var/tmp/master.sock --port=$MYSQL_TCP_PORT
+--exec $TESTS_BINDIR/client_test --testcase --user=root --socket=var/tmp/master.sock --port=$MYSQL_TCP_PORT
