@@ -307,6 +307,7 @@ character-set=latin7
 "Got error %d '%-.100s' from %s",
 "Got temporary error %d '%-.100s' from %s",
 "Unknown or incorrect time zone: '%-.64s'",
+"Invalid TIMESTAMP value in column '%s' at row %ld",
 "Invalid %s character string: '%.64s'",
 "Result of %s() was larger than max_allowed_packet (%d) - truncated"
 "Can't create a %s from within another stored routine"
