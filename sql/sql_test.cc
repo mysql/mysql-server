@@ -131,7 +131,7 @@ void TEST_filesort(SORT_FIELD *sortorder,uint s_length, ha_rows special)
   DBUG_LOCK_FILE;
   VOID(fputs("\nInfo about FILESORT\n",DBUG_FILE));
   if (special)
-    fprintf(DBUG_FILE,"Records to sort: %ld\n",special);
+    fprintf(DBUG_FILE,"Records to sort: %lu\n",(ulong) special);
   fprintf(DBUG_FILE,"Sortorder: %s\n",out.ptr());
   DBUG_UNLOCK_FILE;
   DBUG_VOID_RETURN;
