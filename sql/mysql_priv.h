@@ -486,6 +486,7 @@ int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      bool drop_primary,
 		      enum enum_duplicates handle_duplicates,
 		      enum enum_enable_or_disable keys_onoff=LEAVE_AS_IS,
+		      enum tablespace_op_type tablespace_op=NO_TABLESPACE_OP,
 		      bool simple_alter=0);
 int mysql_create_like_table(THD *thd, TABLE_LIST *table,
                             HA_CREATE_INFO *create_info,

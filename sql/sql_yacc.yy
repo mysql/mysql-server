@@ -211,6 +211,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	DESCRIBE
 %token	DES_KEY_FILE
 %token	DISABLE_SYM
+%token	DISCARD
 %token	DISTINCT
 %token  DUPLICATE_SYM
 %token	DYNAMIC_SYM
@@ -244,6 +245,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	HOSTS_SYM
 %token	IDENT
 %token	IGNORE_SYM
+%token	IMPORT
 %token	INDEX
 %token	INDEXES
 %token	INFILE
@@ -360,6 +362,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SUBJECT_SYM
 %token	TABLES
 %token	TABLE_SYM
+%token	TABLESPACE
 %token	TEMPORARY
 %token	TERMINATED
 %token	TEXT_STRING
@@ -1635,6 +1638,7 @@ alter:
 	  lex->create_info.table_charset= thd->variables.collation_database;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
           lex->alter_keys_onoff=LEAVE_AS_IS;
+	  lex->tablespace_op=NO_TABLESPACE_OP;
           lex->simple_alter=1;
 	}
 	alter_list
@@ -1648,6 +1652,8 @@ alter:
 
 
 alter_list:
+	| DISCARD TABLESPACE { Lex->tablespace_op=DISCARD_TABLESPACE; }
+	| IMPORT TABLESPACE { Lex->tablespace_op=IMPORT_TABLESPACE; }
         | alter_list_item
 	| alter_list ',' alter_list_item;
 

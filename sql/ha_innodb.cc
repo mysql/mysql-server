@@ -1451,7 +1451,7 @@ ha_innobase::open(
     		DBUG_RETURN(1);
   	}
 
- 	if (ib_table->ibd_file_missing) {
+ 	if (ib_table->ibd_file_missing && !current_thd->tablespace_op) {
 	        ut_print_timestamp(stderr);
 	        fprintf(stderr, "  InnoDB error:\n"
 "MySQL is trying to open a table handle but the .ibd file for\n"
@@ -3629,6 +3629,42 @@ ha_innobase::create(
 }
 
 /*********************************************************************
+Discards or imports an InnoDB tablespace. */
+
+int
+ha_innobase::discard_or_import_tablespace(
+/*======================================*/
+				/* out: 0 == success, -1 == error */
+	my_bool discard)	/* in: TRUE if discard, else import */
+{
+	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
+	dict_table_t*	table;
+	trx_t*		trx;
+	int		err;
+
+ 	DBUG_ENTER("ha_innobase::discard_or_import_tablespace");
+
+	ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->transaction.all.innobase_tid);
+
+	table = prebuilt->table;
+	trx = prebuilt->trx;
+
+	if (discard) {
+		err = row_discard_tablespace_for_mysql(table->name, trx);
+	} else {
+		err = row_import_tablespace_for_mysql(table->name, trx);
+	}
+
+	if (err == DB_SUCCESS) {
+		DBUG_RETURN(0);
+	}
+
+	DBUG_RETURN(-1);
+}
+
+/*********************************************************************
 Drops a table from an InnoDB database. Before calling this function,
 MySQL calls innobase_commit to commit the transaction of the current user.
 Then the current user cannot have locks set on the table. Drop table
@@ -3647,7 +3683,7 @@ ha_innobase::delete_table(
 	trx_t*	trx;
 	char	norm_name[1000];
 
-  	DBUG_ENTER("ha_innobase::delete_table");
+ 	DBUG_ENTER("ha_innobase::delete_table");
 
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
@@ -4536,7 +4572,8 @@ ha_innobase::external_lock(
 
 	update_thd(thd);
 
- 	if (lock_type != F_UNLCK && prebuilt->table->ibd_file_missing) {
+ 	if (lock_type != F_UNLCK && prebuilt->table->ibd_file_missing
+	    && !current_thd->tablespace_op) {
 	        ut_print_timestamp(stderr);
 	        fprintf(stderr, "  InnoDB error:\n"
 "MySQL is trying to use a table handle but the .ibd file for\n"
@@ -4546,6 +4583,7 @@ ha_innobase::external_lock(
 "Look from section 15.1 of http://www.innodb.com/ibman.html\n"
 "how you can resolve the problem.\n",
 				prebuilt->table->name);
+		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
 	trx = prebuilt->trx;
@@ -4793,11 +4831,12 @@ ha_innobase::store_lock(
 
 	if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
 
-    		/* If we are not doing a LOCK TABLE, then allow multiple
-		writers */
+    		/* If we are not doing a LOCK TABLE or DISCARD/IMPORT
+		TABLESPACE, then allow multiple writers */
 
     		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
-	 	    lock_type <= TL_WRITE) && !thd->in_lock_tables) {
+	 	    lock_type <= TL_WRITE) && !thd->in_lock_tables
+		    && !thd->tablespace_op) {
 
       			lock_type = TL_WRITE_ALLOW_WRITE;
       		}

@@ -529,6 +529,14 @@ row_purge_parse_undo_rec(
 		return(FALSE);
 	}
 
+	if (node->table->ibd_file_missing) {
+		/* We skip purge of missing .ibd files */
+
+		node->table = NULL;
+
+		return;
+	}
+
 	clust_index = dict_table_get_first_index(node->table);
 
 	if (clust_index == NULL) {

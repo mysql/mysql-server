@@ -2207,7 +2207,9 @@ mysql_execute_command(THD *thd)
 			       select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
 			       lex->drop_primary, lex->duplicates,
-			       lex->alter_keys_onoff, lex->simple_alter);
+			       lex->alter_keys_onoff,
+                               lex->tablespace_op,
+			       lex->simple_alter);
       }
       break;
     }
