@@ -204,6 +204,7 @@ Q_WAIT_FOR_SLAVE_TO_STOP,
 Q_REQUIRE_VERSION,
 Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
 Q_ENABLE_INFO, Q_DISABLE_INFO,
+Q_EXEC,
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
 Q_COMMENT_WITH_COMMAND
@@ -267,6 +268,7 @@ const char *command_names[]=
   "disable_warnings",
   "enable_info",
   "disable_info",
+  "exec",
   0
 };
 
@@ -838,6 +840,66 @@ int do_source(struct st_query* q)
   *p = 0;
 
   return open_file(name);
+}
+
+/*
+  Execute given command.
+
+  SYNOPSIS
+    do_exec()
+    q	called command
+
+  DESCRIPTION
+    If one uses --exec command [args] command in .test file
+    we will execute the command and record its output.
+
+  RETURN VALUES
+    0	ok
+    1	error
+*/
+
+int do_exec(struct st_query* q)
+{
+  int error= 0;
+  DYNAMIC_STRING *ds;
+  DYNAMIC_STRING ds_tmp;
+  char buf[1024];
+  FILE *res_file;
+  char *cmd= q->first_argument;
+
+  while (*cmd && my_isspace(charset_info, *cmd))
+    cmd++;
+  if (!*cmd)
+    die("Missing argument in exec\n");
+
+  if (q->record_file[0])
+  {
+    init_dynamic_string(&ds_tmp, "", 16384, 65536);
+    ds= &ds_tmp;
+  }
+  else
+    ds= &ds_res;
+
+  if (!(res_file= popen(cmd, "r")) && q->abort_on_error)
+    die("popen() failed\n");
+  while (fgets(buf, sizeof(buf), res_file))
+    dynstr_append(ds, buf);
+  pclose(res_file);
+  if (record)
+  {
+    if (!q->record_file[0] && !result_file)
+      die("At line %u: Missing result file", start_lineno);
+    if (!result_file)
+      str_to_file(q->record_file, ds->str, ds->length);
+  }
+  else if (q->record_file[0])
+  {
+    error= check_result(ds, q->record_file, q->require_file);
+  }
+  if (ds == &ds_tmp)
+    dynstr_free(&ds_tmp);
+  
+  return error;
 }
 
 int var_query_set(VAR* v, const char* p, const char** p_end)
@@ -2583,6 +2645,9 @@ int main(int argc, char **argv)
 	break;
       case Q_PING:
 	(void) mysql_ping(&cur_con->mysql);
+	break;
+      case Q_EXEC: 
+	(void) do_exec(q);
 	break;
       default: processed = 0; break;
       }
