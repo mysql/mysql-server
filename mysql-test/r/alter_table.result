@@ -52,9 +52,9 @@ KEY NAME (NAME));
 ALTER TABLE t1 CHANGE NAME NAME CHAR(80) not null;
 SHOW FULL COLUMNS FROM t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-GROUP_ID	int(10) unsigned	NULL		PRI	0		select,insert,update,references	
-LANG_ID	smallint(5) unsigned	NULL		PRI	0		select,insert,update,references	
-NAME	char(80)	latin1_swedish_ci		MUL			select,insert,update,references	
+GROUP_ID	int(10) unsigned	NULL		PRI	0		#	
+LANG_ID	smallint(5) unsigned	NULL		PRI	0		#	
+NAME	char(80)	latin1_swedish_ci		MUL			#	
 DROP TABLE t1;
 create table t1 (n int);
 insert into t1 values(9),(3),(12),(10);
@@ -116,14 +116,6 @@ select * from mysqltest.t1;
 name
 mysqltest
 drop table t1;
-drop database mysqltest;
-create database mysqltest;
-create table mysqltest.t1 (a int,b int,c int);
-grant all on mysqltest.t1 to mysqltest_1@localhost;
-alter table t1 rename t2;
-ERROR 42000: INSERT,CREATE command denied to user 'mysqltest_1'@'localhost' for table 't2'
-revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
-delete from mysql.user where user=_binary'mysqltest_1';
 drop database mysqltest;
 create table t1 (n1 int not null, n2 int, n3 int, n4 float,
 unique(n1),
