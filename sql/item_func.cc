@@ -1170,32 +1170,32 @@ longlong Item_func_field::val_int()
   if (cmp_type == STRING_RESULT)
   {
     String *field;
-    if (!(field=item->val_str(&value)))
+    if (!(field=args[0]->val_str(&value)))
       return 0;					// -1 if null ?
-    for (uint i=0 ; i < arg_count ; i++)
+    for (uint i=1 ; i < arg_count ; i++)
     {
       String *tmp_value=args[i]->val_str(&tmp);
       if (tmp_value && field->length() == tmp_value->length() &&
 	  !sortcmp(field,tmp_value,cmp_collation.collation))
-        return (longlong) (i+1);
+        return (longlong) (i);
     }
   }
   else if (cmp_type == INT_RESULT)
   {
-    longlong val= item->val_int();
-    for (uint i=0; i < arg_count ; i++)
+    longlong val= args[0]->val_int();
+    for (uint i=1; i < arg_count ; i++)
     {
       if (val == args[i]->val_int())
- 	return (longlong) (i+1);
+ 	return (longlong) (i);
     }
   }
   else
   {
-    double val= item->val();
-    for (uint i=0; i < arg_count ; i++)
+    double val= args[0]->val();
+    for (uint i=1; i < arg_count ; i++)
     {
       if (val == args[i]->val())
- 	return (longlong) (i+1);
+ 	return (longlong) (i);
     }
   }
   return 0;
@@ -1204,42 +1204,11 @@ longlong Item_func_field::val_int()
 void Item_func_field::fix_length_and_dec()
 {
   maybe_null=0; max_length=3;
-  used_tables_cache|= item->used_tables();
-  const_item_cache&=  item->const_item();
-  with_sum_func= with_sum_func || item->with_sum_func;
-  
-  cmp_type= item->result_type();
-  for (uint i=0; i < arg_count ; i++)
+  cmp_type= args[0]->result_type();
+  for (uint i=1; i < arg_count ; i++)
     cmp_type= item_cmp_type(cmp_type, args[i]->result_type());
-  
   if (cmp_type == STRING_RESULT)
-  {
-    cmp_collation.set(item->collation);
-    for (uint i=0 ; i < arg_count ; i++)
-    {
-      if (cmp_collation.aggregate(args[i]->collation))
-      {
-	my_error(ER_CANT_AGGREGATE_NCOLLATIONS,MYF(0),func_name());
-	return;
-      }
-    }
-  }
-}
-
-
-void Item_func_field::split_sum_func(Item **ref_pointer_array,
-				     List<Item> &fields)
-{
-  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
-    item->split_sum_func(ref_pointer_array, fields);
-  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
-  {
-    uint el= fields.elements;
-    fields.push_front(item);
-    ref_pointer_array[el]= item;
-    item= new Item_ref(ref_pointer_array + el, 0, item->name);
-  }
-  Item_func::split_sum_func(ref_pointer_array, fields);
+    agg_arg_collations_for_comparison(cmp_collation, args, arg_count);
 }
 
 
