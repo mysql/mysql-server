@@ -26,7 +26,7 @@ show create database test2;
 show create database test3;
 
 connection master;
-set @@collation_server=armscii_bin;
+set @@collation_server=armscii8_bin;
 drop database test3;
 create database test3;
 --disable_query_log
