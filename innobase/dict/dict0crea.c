@@ -17,9 +17,13 @@ Created 1/8/1996 Heikki Tuuri
 #include "page0page.h"
 #include "mach0data.h"
 #include "dict0boot.h"
+#include "dict0dict.h"
 #include "que0que.h"
 #include "row0ins.h"
+#include "row0mysql.h"
 #include "pars0pars.h"
+#include "trx0roll.h"
+#include "usr0sess.h"
 
 /*********************************************************************
 Based on a table object, this function builds the entry to be inserted
@@ -1019,3 +1023,228 @@ function_exit:
 
 	return(thr);
 } 
+
+/********************************************************************
+Creates the foreign key constraints system tables inside InnoDB
+at database creation or database start if they are not found or are
+not of the right form. */
+
+ulint
+dict_create_or_check_foreign_constraint_tables(void)
+/*================================================*/
+				/* out: DB_SUCCESS or error code */
+{
+	dict_table_t*	table1;
+	dict_table_t*	table2;
+	que_thr_t*	thr;
+	que_t*		graph;
+	ulint		error;
+	trx_t*		trx;
+	char*		str;
+
+	mutex_enter(&(dict_sys->mutex));
+
+	table1 = dict_table_get_low("SYS_FOREIGN");
+	table2 = dict_table_get_low("SYS_FOREIGN_COLS");
+	
+	if (table1 && table2
+            && UT_LIST_GET_LEN(table1->indexes) == 3
+            && UT_LIST_GET_LEN(table2->indexes) == 1) {
+
+            	/* Foreign constraint system tables have already been
+            	created, and they are ok */
+
+		mutex_exit(&(dict_sys->mutex));
+
+            	return(DB_SUCCESS);
+        }
+
+	trx = trx_allocate_for_mysql();
+	
+	trx->op_info = "creating foreign key sys tables";
+
+	if (table1) {
+		fprintf(stderr,
+		"InnoDB: dropping incompletely created SYS_FOREIGN table\n");
+		row_drop_table_for_mysql("SYS_FOREIGN", trx, TRUE);
+	}
+
+	if (table2) {
+		fprintf(stderr,
+	"InnoDB: dropping incompletely created SYS_FOREIGN_COLS table\n");
+		row_drop_table_for_mysql("SYS_FOREIGN_COLS", trx, TRUE);
+	}
+
+	fprintf(stderr,
+		"InnoDB: creating foreign key constraint system tables\n");
+
+	/* NOTE: in dict_load_foreigns we use the fact that
+	there are 2 secondary indexes on SYS_FOREIGN, and they
+	are defined just like below */
+	
+	str =
+	"PROCEDURE CREATE_FOREIGN_SYS_TABLES_PROC () IS\n"
+	"BEGIN\n"
+	"CREATE TABLE\n"
+	"SYS_FOREIGN(ID CHAR, FOR_NAME CHAR, REF_NAME CHAR, N_COLS INT);\n"
+	"CREATE UNIQUE CLUSTERED INDEX ID_IND ON SYS_FOREIGN (ID);\n"
+	"CREATE INDEX FOR_IND ON SYS_FOREIGN (FOR_NAME);\n"
+	"CREATE INDEX REF_IND ON SYS_FOREIGN (REF_NAME);\n"
+	"CREATE TABLE\n"
+  "SYS_FOREIGN_COLS(ID CHAR, POS INT, FOR_COL_NAME CHAR, REF_COL_NAME CHAR);\n"
+	"CREATE UNIQUE CLUSTERED INDEX ID_IND ON SYS_FOREIGN_COLS (ID, POS);\n"
+	"COMMIT WORK;\n"
+	"END;\n";
+
+	graph = pars_sql(str);
+
+	ut_a(graph);
+
+	graph->trx = trx;
+	trx->graph = NULL;
+
+	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
+
+	ut_a(thr = que_fork_start_command(graph, SESS_COMM_EXECUTE, 0));
+
+	que_run_threads(thr);
+
+	error = trx->error_state;
+
+	if (error != DB_SUCCESS) {
+		ut_a(error == DB_OUT_OF_FILE_SPACE);
+
+		fprintf(stderr, "InnoDB: creation failed\n");
+		fprintf(stderr, "InnoDB: tablespace is full\n");
+		fprintf(stderr,
+		"InnoDB: dropping incompletely created SYS_FOREIGN tables\n");
+
+		row_drop_table_for_mysql("SYS_FOREIGN", trx, TRUE);
+		row_drop_table_for_mysql("SYS_FOREIGN_COLS", trx, TRUE);
+
+		error = DB_MUST_GET_MORE_FILE_SPACE;
+	}
+
+	que_graph_free(graph);
+	
+	trx->op_info = "";
+
+  	trx_free_for_mysql(trx);
+
+  	if (error == DB_SUCCESS) {
+		fprintf(stderr,
+		"InnoDB: foreign key constraint system tables created\n");
+	}
+
+	mutex_exit(&(dict_sys->mutex));
+
+	return(error);
+}
+
+/************************************************************************
+Adds foreign key definitions to data dictionary tables in the database. */
+
+ulint
+dict_create_add_foreigns_to_dictionary(
+/*===================================*/
+				/* out: error code or DB_SUCCESS */
+	dict_table_t*	table,	/* in: table */
+	trx_t*		trx)	/* in: transaction */
+{
+	dict_foreign_t*	foreign;
+	que_thr_t*	thr;
+	que_t*		graph;
+	dulint		id;	
+	ulint		len;
+	ulint		error;
+	ulint		i;
+	char		buf2[50];
+	char		buf[10000];
+
+	ut_ad(mutex_own(&(dict_sys->mutex)));	
+
+	if (NULL == dict_table_get_low("SYS_FOREIGN")) {
+		fprintf(stderr,
+     "InnoDB: table SYS_FOREIGN not found from internal data dictionary\n");
+		return(DB_ERROR);
+	}
+
+	foreign = UT_LIST_GET_FIRST(table->foreign_list);
+loop:
+	if (foreign == NULL) {
+
+		return(DB_SUCCESS);
+	}
+
+	/* Build an InnoDB stored procedure which will insert the necessary
+	rows to SYS_FOREIGN and SYS_FOREIGN_COLS */
+
+	len = 0;
+	
+	len += sprintf(buf,
+	"PROCEDURE ADD_FOREIGN_DEFS_PROC () IS\n"
+	"BEGIN\n");
+
+	/* We allocate the new id from the sequence of table id's */
+	id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
+
+	sprintf(buf2, "%lu_%lu", ut_dulint_get_high(id),
+						ut_dulint_get_low(id));
+	foreign->id = mem_heap_alloc(foreign->heap, ut_strlen(buf2) + 1);
+	ut_memcpy(foreign->id, buf2, ut_strlen(buf2) + 1);
+	
+	len += sprintf(buf + len,
+	"INSERT INTO SYS_FOREIGN VALUES('%lu_%lu', '%s', '%s', %lu);\n",
+					ut_dulint_get_high(id),
+					ut_dulint_get_low(id),
+					table->name,
+					foreign->referenced_table_name,
+					foreign->n_fields);
+
+	for (i = 0; i < foreign->n_fields; i++) {
+
+		len += sprintf(buf + len,
+	"INSERT INTO SYS_FOREIGN_COLS VALUES('%lu_%lu', %lu, '%s', '%s');\n",
+					ut_dulint_get_high(id),
+					ut_dulint_get_low(id),
+					i,
+					foreign->foreign_col_names[i],
+					foreign->referenced_col_names[i]);
+	}
+
+	len += sprintf(buf + len,"COMMIT WORK;\nEND;\n");
+
+	graph = pars_sql(buf);
+
+	ut_a(graph);
+
+	graph->trx = trx;
+	trx->graph = NULL;
+
+	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
+
+	ut_a(thr = que_fork_start_command(graph, SESS_COMM_EXECUTE, 0));
+
+	que_run_threads(thr);
+
+	error = trx->error_state;
+
+	que_graph_free(graph);
+
+	if (error != DB_SUCCESS) {
+		ut_a(error == DB_OUT_OF_FILE_SPACE);
+
+		fprintf(stderr, "InnoDB: foreign constraint creation failed\n");
+		fprintf(stderr, "InnoDB: tablespace is full\n");
+
+		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+
+		error = DB_MUST_GET_MORE_FILE_SPACE;
+
+		return(error);
+	}
+	
+	foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
+
+	goto loop;
+}

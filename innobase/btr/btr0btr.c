@@ -2347,6 +2347,8 @@ btr_validate_level(
 	
 	mtr_start(&mtr);
 
+	mtr_x_lock(dict_tree_get_lock(tree), &mtr);
+	
 	page = btr_root_get(tree, &mtr);
 
 	space = buf_frame_get_space_id(page);

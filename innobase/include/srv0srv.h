@@ -16,6 +16,11 @@ Created 10/10/1995 Heikki Tuuri
 #include "com0com.h"
 #include "que0types.h"
 
+
+/* When this event is set the lock timeout and InnoDB monitor
+thread starts running */
+extern os_event_t	srv_lock_timeout_thread_event;
+
 /* Server parameters which are read from the initfile */
 
 extern char*	srv_data_home;
@@ -26,6 +31,8 @@ extern ulint	srv_n_data_files;
 extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;
 extern ulint*   srv_data_file_is_raw_partition;
+
+extern ibool	srv_created_new_raw;
 
 #define SRV_NEW_RAW    1
 #define SRV_OLD_RAW    2
@@ -39,6 +46,8 @@ extern ibool	srv_log_archive_on;
 extern ulint	srv_log_buffer_size;
 extern ibool	srv_flush_log_at_trx_commit;
 
+extern byte	srv_latin1_ordering[256];/* The sort order table of the latin1
+					character set */
 extern ibool	srv_use_native_aio;		
 
 extern ulint	srv_pool_size;
@@ -54,6 +63,7 @@ extern ulint	srv_lock_wait_timeout;
 
 extern char*    srv_unix_file_flush_method_str;
 extern ulint    srv_unix_file_flush_method;
+extern ulint	srv_force_recovery;
 
 extern ibool	srv_use_doublewrite_buf;
 
@@ -71,6 +81,7 @@ extern ibool	srv_print_innodb_monitor;
 extern ibool    srv_print_innodb_lock_monitor;
 extern ibool    srv_print_innodb_tablespace_monitor;
 extern ibool    srv_print_verbose_log;
+extern ibool    srv_print_innodb_table_monitor;
 
 extern ulint	srv_n_spin_wait_rounds;
 extern ulint	srv_spin_wait_delay;
@@ -133,6 +144,25 @@ what these mean */
 #define SRV_UNIX_LITTLESYNC  3
 #define SRV_UNIX_NOSYNC      4
 
+/* Alternatives for srv_force_recovery. Non-zero values are intended
+to help the user get a damaged database up so that he can dump intact
+tables and rows with SELECT INTO OUTFILE. The database must not otherwise
+be used with these options! A bigger number below means that all precautions
+of lower numbers are included. */
+
+#define SRV_FORCE_IGNORE_CORRUPT 1	/* let the server run even if it
+					detects a corrupt page */
+#define SRV_FORCE_NO_BACKGROUND	2 	/* prevent the main thread from
+					running: if a crash would occur
+					in purge, this prevents it */
+#define SRV_FORCE_NO_TRX_UNDO	3	/* do not run trx rollback after
+					recovery */
+#define SRV_FORCE_NO_IBUF_MERGE	4	/* prevent also ibuf operations:
+					if they would cause a crash, better
+					not do them */
+#define SRV_FORCE_NO_LOG_REDO	5	/* do not do the log roll-forward
+					in connection with recovery */
+					
 /*************************************************************************
 Boots Innobase server. */
 
@@ -225,15 +255,30 @@ srv_release_mysql_thread_if_suspended(
 	que_thr_t*	thr);	/* in: query thread associated with the
 				MySQL OS thread  */
 /*************************************************************************
-A thread which wakes up threads whose lock wait may have lasted too long. */
+A thread which wakes up threads whose lock wait may have lasted too long.
+This also prints the info output by various InnoDB monitors. */
 
 #ifndef __WIN__
 void*
 #else
 ulint
 #endif
-srv_lock_timeout_monitor_thread(
-/*============================*/
+srv_lock_timeout_and_monitor_thread(
+/*================================*/
+			/* out: a dummy parameter */
+	void*	arg);	/* in: a dummy parameter required by
+			os_thread_create */
+/*************************************************************************
+A thread which prints warnings about semaphore waits which have lasted
+too long. These can be used to track bugs which cause hangs. */
+
+#ifndef __WIN__
+void*
+#else
+ulint
+#endif
+srv_error_monitor_thread(
+/*=====================*/
 			/* out: a dummy parameter */
 	void*	arg);	/* in: a dummy parameter required by
 			os_thread_create */

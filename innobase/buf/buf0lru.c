@@ -551,6 +551,10 @@ buf_LRU_block_free_non_file_page(
 
 	block->state = BUF_BLOCK_NOT_USED;
 
+#ifdef UNIV_DEBUG	
+	/* Wipe contents of page to reveal possible stale pointers to it */
+	memset(block->frame, '\0', UNIV_PAGE_SIZE);
+#endif	
 	UT_LIST_ADD_FIRST(free, buf_pool->free, block);
 }
 

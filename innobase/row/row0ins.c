@@ -207,16 +207,33 @@ row_ins_sec_index_entry_by_modify(
 /*==============================*/
 				/* out: DB_SUCCESS or error code */
 	btr_cur_t*	cursor,	/* in: B-tree cursor */
+	dtuple_t*	entry,	/* in: index entry to insert */
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	ulint	err;
-
-	ut_ad(((cursor->index)->type & DICT_CLUSTERED) == 0);
-	ut_ad(rec_get_deleted_flag(btr_cur_get_rec(cursor)));
+	mem_heap_t*	heap;
+	upd_t*		update;
+	rec_t*		rec;
+	ulint		err;
 	
-	/* We just remove the delete mark from the secondary index record */
-	err = btr_cur_del_mark_set_sec_rec(0, cursor, FALSE, thr, mtr);
+	rec = btr_cur_get_rec(cursor);
+	
+	ut_ad((cursor->index->type & DICT_CLUSTERED) == 0);
+	ut_ad(rec_get_deleted_flag(rec));
+	
+	/* We know that in the ordering entry and rec are identified.
+	But in their binary form there may be differences if there
+	are char fields in them. Therefore we have to calculate the
+	difference and do an update-in-place if necessary. */
+	
+	heap = mem_heap_create(1024);
+	
+	update = row_upd_build_sec_rec_difference_binary(cursor->index,
+							entry, rec, heap); 
+
+	err = btr_cur_update_sec_rec_in_place(cursor, update, thr, mtr);
+
+	mem_heap_free(heap);
 
 	return(err);
 }
@@ -262,7 +279,7 @@ row_ins_clust_index_entry_by_modify(
 	/* Build an update vector containing all the fields to be modified;
 	NOTE that this vector may contain also system columns! */
 	
-	update = row_upd_build_difference(cursor->index, entry, ext_vec,
+	update = row_upd_build_difference_binary(cursor->index, entry, ext_vec,
 						n_ext_vec, rec, heap); 
 	if (mode == BTR_MODIFY_LEAF) {
 		/* Try optimistic updating of the record, keeping changes
@@ -348,6 +365,203 @@ row_ins_set_shared_rec_lock(
 }
 	
 /*******************************************************************
+Checks if foreign key constraint fails for an index entry. Sets shared locks
+which lock either the success or the failure of the constraint. NOTE that
+the caller must have a shared latch on dict_foreign_key_check_lock. */
+
+ulint
+row_ins_check_foreign_constraint(
+/*=============================*/
+				/* out: DB_SUCCESS, DB_LOCK_WAIT,
+				DB_NO_REFERENCED_ROW,
+				or DB_ROW_IS_REFERENCED */
+	ibool		check_ref,/* in: TRUE If we want to check that
+				the referenced table is ok, FALSE if we
+				want to to check the foreign key table */
+	dict_foreign_t*	foreign,/* in: foreign constraint; NOTE that the
+				tables mentioned in it must be in the
+				dictionary cache if they exist at all */
+	dict_table_t*	table,	/* in: if check_ref is TRUE, then the foreign
+				table, else the referenced table */
+	dict_index_t*	index,	/* in: index in table */
+	dtuple_t*	entry,	/* in: index entry for index */
+	que_thr_t*	thr)	/* in: query thread */
+{
+	dict_table_t*	check_table;
+	dict_index_t*	check_index;
+	ulint		n_fields_cmp;
+	rec_t*		rec;
+	btr_pcur_t	pcur;
+	ibool		moved;
+	int		cmp;
+	ulint		err;
+	mtr_t		mtr;
+
+	ut_ad(rw_lock_own(&dict_foreign_key_check_lock, RW_LOCK_SHARED));
+
+	if (check_ref) {
+		check_table = foreign->referenced_table;
+		check_index = foreign->referenced_index;
+	} else {
+		check_table = foreign->foreign_table;
+		check_index = foreign->foreign_index;
+	}
+
+	if (check_table == NULL) {
+		if (check_ref) {
+			return(DB_NO_REFERENCED_ROW);
+		}
+
+		return(DB_SUCCESS);
+	}
+
+	ut_a(check_table && check_index);
+
+	if (check_table != table) {
+		/* We already have a LOCK_IX on table, but not necessarily
+		on check_table */
+		
+		err = lock_table(0, check_table, LOCK_IS, thr);
+
+		if (err != DB_SUCCESS) {
+
+			return(err);
+		}
+	}
+
+	mtr_start(&mtr);
+
+	/* Store old value on n_fields_cmp */
+
+	n_fields_cmp = dtuple_get_n_fields_cmp(entry);
+
+	dtuple_set_n_fields_cmp(entry, foreign->n_fields);
+
+	btr_pcur_open(check_index, entry, PAGE_CUR_GE,
+					BTR_SEARCH_LEAF, &pcur, &mtr);
+
+	/* Scan index records and check if there is a matching record */
+
+	for (;;) {
+		rec = btr_pcur_get_rec(&pcur);
+
+		if (rec == page_get_infimum_rec(buf_frame_align(rec))) {
+
+			goto next_rec;
+		}
+				
+		/* Try to place a lock on the index record */	
+
+		err = row_ins_set_shared_rec_lock(rec, check_index, thr);
+
+		if (err != DB_SUCCESS) {
+
+			break;
+		}
+
+		if (rec == page_get_supremum_rec(buf_frame_align(rec))) {
+		
+			goto next_rec;
+		}
+
+		cmp = cmp_dtuple_rec(entry, rec);
+
+		if (cmp == 0) {
+			if (!rec_get_deleted_flag(rec)) {
+				/* Found a matching record */
+
+				if (check_ref) {			
+					err = DB_SUCCESS;
+				} else {
+					err = DB_ROW_IS_REFERENCED;
+				}
+			
+				break;
+			}
+		}
+
+		if (cmp < 0) {
+			if (check_ref) {			
+				err = DB_NO_REFERENCED_ROW;
+			} else {
+				err = DB_SUCCESS;
+			}
+
+			break;
+		}
+
+		ut_a(cmp == 0);
+next_rec:
+		moved = btr_pcur_move_to_next(&pcur, &mtr);
+
+		if (!moved) {
+			if (check_ref) {			
+				err = DB_NO_REFERENCED_ROW;
+			} else {
+				err = DB_SUCCESS;
+			}
+
+			break;
+		}
+	}
+
+	mtr_commit(&mtr);
+
+	/* Restore old value */
+	dtuple_set_n_fields_cmp(entry, n_fields_cmp);
+
+	return(err);
+}
+
+/*******************************************************************
+Checks if foreign key constraints fail for an index entry. If index
+is not mentioned in any constraint, this function does nothing,
+Otherwise does searches to the indexes of referenced tables and
+sets shared locks which lock either the success or the failure of
+a constraint. */
+static
+ulint
+row_ins_check_foreign_constraints(
+/*==============================*/
+				/* out: DB_SUCCESS, DB_LOCK_WAIT, or error
+				code */
+	dict_table_t*	table,	/* in: table */
+	dict_index_t*	index,	/* in: index */
+	dtuple_t*	entry,	/* in: index entry for index */
+	que_thr_t*	thr)	/* in: query thread */
+{
+	dict_foreign_t*	foreign;
+	ulint		err;
+
+	foreign = UT_LIST_GET_FIRST(table->foreign_list);
+
+	while (foreign) {
+		if (foreign->foreign_index == index) {
+
+			if (foreign->referenced_table == NULL) {
+				dict_table_get(foreign->referenced_table_name,
+						thr_get_trx(thr));
+			}
+
+			rw_lock_s_lock(&dict_foreign_key_check_lock);	
+
+			err = row_ins_check_foreign_constraint(TRUE, foreign,
+						table, index, entry, thr);
+
+			rw_lock_s_unlock(&dict_foreign_key_check_lock);	
+
+			if (err != DB_SUCCESS) {
+				return(err);
+			}
+		}
+
+		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
+	}
+
+	return(DB_SUCCESS);
+}
+
+/*******************************************************************
 Scans a unique non-clustered index at a given index entry to determine
 whether a uniqueness violation has occurred for the key value of the entry.
 Set shared locks on possible duplicate records. */
@@ -365,7 +579,6 @@ row_ins_scan_sec_index_for_duplicate(
 	ulint		n_fields_cmp;
 	rec_t*		rec;
 	btr_pcur_t	pcur;
-	trx_t*		trx		= thr_get_trx(thr);
 	ulint		err		= DB_SUCCESS;
 	ibool		moved;
 	mtr_t		mtr;
@@ -414,7 +627,7 @@ row_ins_scan_sec_index_for_duplicate(
 
 				err = DB_DUPLICATE_KEY;
 
-				trx->error_info = index;
+				thr_get_trx(thr)->error_info = index;
 
 				break;
 			}
@@ -699,7 +912,7 @@ row_ins_index_entry_low(
 							ext_vec, n_ext_vec,
 							thr, &mtr);
 		} else {
-			err = row_ins_sec_index_entry_by_modify(&cursor,
+			err = row_ins_sec_index_entry_by_modify(&cursor, entry,
 								thr, &mtr);
 		}
 		
@@ -765,6 +978,15 @@ row_ins_index_entry(
 {
 	ulint	err;
 
+	if (UT_LIST_GET_FIRST(index->table->foreign_list)) {
+		err = row_ins_check_foreign_constraints(index->table, index,
+								entry, thr);
+		if (err != DB_SUCCESS) {
+
+			return(err);
+		}
+	}
+
 	/* Try first optimistic descent to the B-tree */
 
 	err = row_ins_index_entry_low(BTR_MODIFY_LEAF, index, entry,
@@ -812,7 +1034,7 @@ row_ins_index_entry_set_vals(
 
 /***************************************************************
 Inserts a single index entry to the table. */
-UNIV_INLINE
+static
 ulint
 row_ins_index_entry_step(
 /*=====================*/

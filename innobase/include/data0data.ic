@@ -133,8 +133,8 @@ dfield_copy(
 Tests if data length and content is equal for two dfields. */
 UNIV_INLINE
 ibool
-dfield_datas_are_equal(
-/*===================*/
+dfield_datas_are_binary_equal(
+/*==========================*/
 				/* out: TRUE if equal */
 	dfield_t*	field1,	/* in: field */
 	dfield_t*	field2)	/* in: field */
@@ -157,8 +157,8 @@ dfield_datas_are_equal(
 Tests if dfield data length and content is equal to the given. */
 UNIV_INLINE
 ibool
-dfield_data_is_equal(
-/*=================*/
+dfield_data_is_binary_equal(
+/*========================*/
 				/* out: TRUE if equal */
 	dfield_t*	field,	/* in: field */
 	ulint		len,	/* in: data length or UNIV_SQL_NULL */
@@ -169,8 +169,7 @@ dfield_data_is_equal(
 		return(FALSE);
 	}
 
-	if ((len != UNIV_SQL_NULL)
-	    && (0 != ut_memcmp(field->data, data, len))) {
+	if (len != UNIV_SQL_NULL && 0 != ut_memcmp(field->data, data, len)) {
 	    	
 		return(FALSE);
 	}
@@ -340,65 +339,6 @@ dtuple_get_data_size(
 	}
 	
 	return(sum);
-}
-
-/****************************************************************
-Returns TRUE if lengths of two dtuples are equal and respective data fields
-in them are equal. */
-UNIV_INLINE
-ibool
-dtuple_datas_are_equal(
-/*===================*/
-				/* out: TRUE if length and datas are equal */
-	dtuple_t*	tuple1,	/* in: tuple 1 */
-	dtuple_t*	tuple2)	/* in: tuple 2 */
-{
-	dfield_t*	field1;
-	dfield_t*	field2;
-	ulint		n_fields;
-	byte*		data1;
-	byte*		data2;
-	ulint		len1;
-	ulint		len2;
-	ulint		i;
-
-	ut_ad(tuple1 && tuple2);
-	ut_ad(tuple1->magic_n = DATA_TUPLE_MAGIC_N);
-	ut_ad(tuple2->magic_n = DATA_TUPLE_MAGIC_N);
-	ut_ad(dtuple_check_typed(tuple1));
-	ut_ad(dtuple_check_typed(tuple2));
-
-	n_fields = dtuple_get_n_fields(tuple1);
-
-	if (n_fields != dtuple_get_n_fields(tuple2)) {
-
-		return(FALSE);
-	}
-	
-	for (i = 0; i < n_fields; i++) {
-
-		field1 = dtuple_get_nth_field(tuple1, i);
-		data1 = (byte*) dfield_get_data(field1);
-		len1 = dfield_get_len(field1);	
-
-		field2 = dtuple_get_nth_field(tuple2, i);
-		data2 = (byte*) dfield_get_data(field2);
-		len2 = dfield_get_len(field2);
-
-		if (len1 != len2) {
-
-			return(FALSE);
-		}
-
-		if (len1 != UNIV_SQL_NULL) {
-			if (ut_memcmp(data1, data2, len1) != 0) {
-
-				return(FALSE);
-			}
-		}
-	}
-	
-	return(TRUE);
 }
 
 /***********************************************************************
