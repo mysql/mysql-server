@@ -20,7 +20,7 @@
 #undef USE_RAID
 #define USE_RAID
 #include "mysql_priv.h"
-#include "sql_select.h"				// For select_describe
+#include "sql_select.h"                         // For select_describe
 #include "sql_acl.h"
 #include <my_dir.h>
 extern "C" pthread_mutex_t THR_LOCK_keycache;
@@ -30,11 +30,11 @@ static const char *grant_names[]={
   "process","file","grant","references","index","alter"};
 
 static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
-			       "grant_types",
-			       grant_names};
+                               "grant_types",
+                               grant_names};
 
 static int mysql_find_files(THD *thd,List<char> *files, const char *db,
-			    const char *path, const char *wild, bool dir);
+                            const char *path, const char *wild, bool dir);
 
 static int
 store_create_info(THD *thd, TABLE *table, String* packet);
@@ -119,7 +119,7 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
 
 static int
 mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
-		 const char *wild, bool dir)
+                 const char *wild, bool dir)
 {
   uint i;
   char *ext;
@@ -134,32 +134,32 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
   if (!(dirp = my_dir(path,MYF(MY_WME | (dir ? MY_WANT_STAT : 0)))))
     DBUG_RETURN(-1);
 
-  for (i=0 ; i < (uint) dirp->number_off_files	; i++)
+  for (i=0 ; i < (uint) dirp->number_off_files  ; i++)
   {
     file=dirp->dir_entry+i;
     if (dir)
-    {						/* Return databases */
+    {                                           /* Return databases */
 #ifdef USE_SYMDIR
       char *ext;
       if (my_use_symdir && !strcmp(ext=fn_ext(file->name), ".sym"))
-	*ext=0;					/* Remove extension */
+        *ext=0;                                 /* Remove extension */
       else
 #endif
       {
-	if (file->name[0] == '.' || !MY_S_ISDIR(file->mystat.st_mode) ||
-	    (wild && wild[0] && wild_compare(file->name,wild)))
-	  continue;
+        if (file->name[0] == '.' || !MY_S_ISDIR(file->mystat.st_mode) ||
+            (wild && wild[0] && wild_compare(file->name,wild)))
+          continue;
       }
     }
     else
     {
-	// Return only .frm files which isn't temp files.
+        // Return only .frm files which isn't temp files.
       if (my_strcasecmp(ext=fn_ext(file->name),reg_ext) ||
-	  is_prefix(file->name,tmp_file_prefix))	// Mysql temp table
-	continue;
+          is_prefix(file->name,tmp_file_prefix))        // Mysql temp table
+        continue;
       *ext=0;
       if (wild && wild[0] && wild_compare(file->name,wild))
-	continue;
+        continue;
     }
     /* Don't show tables where we don't have any privileges */
     if (db && !(col_access & TABLE_ACLS))
@@ -168,7 +168,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       table_list.real_name=file->name;
       table_list.grant.privilege=col_access;
       if (check_grant(thd,TABLE_ACLS,&table_list,1))
-	continue;
+        continue;
     }
     if (files->push_back(thd->strdup(file->name)))
     {
@@ -245,7 +245,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
     if (!(table = open_ltable(thd, &table_list, TL_READ)))
     {
       for (uint i=0 ; i < field_list.elements ; i++)
-	net_store_null(packet);
+        net_store_null(packet);
       net_store_data(packet,thd->net.last_error);
       thd->net.last_error[0]=0;
     }
@@ -256,95 +256,95 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
       file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_NO_LOCK);
       net_store_data(packet, file->table_type());
       net_store_data(packet,
-		     (table->db_options_in_use & HA_OPTION_PACK_RECORD) ?
-		     "Dynamic" :
-		     (table->db_options_in_use & HA_OPTION_COMPRESS_RECORD)
-		     ? "Compressed" : "Fixed");
+                     (table->db_options_in_use & HA_OPTION_PACK_RECORD) ?
+                     "Dynamic" :
+                     (table->db_options_in_use & HA_OPTION_COMPRESS_RECORD)
+                     ? "Compressed" : "Fixed");
       net_store_data(packet, (longlong) file->records);
       net_store_data(packet, (uint32) file->mean_rec_length);
       net_store_data(packet, (longlong) file->data_file_length);
       if (file->max_data_file_length)
-	net_store_data(packet, (longlong) file->max_data_file_length);
+        net_store_data(packet, (longlong) file->max_data_file_length);
       else
-	net_store_null(packet);
+        net_store_null(packet);
       net_store_data(packet, (longlong) file->index_file_length);
       net_store_data(packet, (longlong) file->delete_length);
       if (table->found_next_number_field)
       {
-	table->next_number_field=table->found_next_number_field;
-	table->next_number_field->reset();
-	file->update_auto_increment();
-	net_store_data(packet, table->next_number_field->val_int());
-	table->next_number_field=0;
+        table->next_number_field=table->found_next_number_field;
+        table->next_number_field->reset();
+        file->update_auto_increment();
+        net_store_data(packet, table->next_number_field->val_int());
+        table->next_number_field=0;
       }
       else
-	net_store_null(packet);
+        net_store_null(packet);
       if (!file->create_time)
-	net_store_null(packet);
+        net_store_null(packet);
       else
       {
-	localtime_r(&file->create_time,&tm_tmp);
-	net_store_data(packet, &tm_tmp);
+        localtime_r(&file->create_time,&tm_tmp);
+        net_store_data(packet, &tm_tmp);
       }
       if (!file->update_time)
-	net_store_null(packet);
+        net_store_null(packet);
       else
       {
-	localtime_r(&file->update_time,&tm_tmp);
-	net_store_data(packet, &tm_tmp);
+        localtime_r(&file->update_time,&tm_tmp);
+        net_store_data(packet, &tm_tmp);
       }
       if (!file->check_time)
-	net_store_null(packet);
+        net_store_null(packet);
       else
       {
-	localtime_r(&file->check_time,&tm_tmp);
-	net_store_data(packet, &tm_tmp);
+        localtime_r(&file->check_time,&tm_tmp);
+        net_store_data(packet, &tm_tmp);
       }
       {
-	char option_buff[350],*ptr;
-	ptr=option_buff;
-	if (table->min_rows)
-	{
-	  ptr=strmov(ptr," min_rows=");
-	  ptr=longlong10_to_str(table->min_rows,ptr,10);
-	}
-	if (table->max_rows)
-	{
-	  ptr=strmov(ptr," max_rows=");
-	  ptr=longlong10_to_str(table->max_rows,ptr,10);
-	}
-	if (table->avg_row_length)
-	{
-	  ptr=strmov(ptr," avg_row_length=");
-	  ptr=longlong10_to_str(table->avg_row_length,ptr,10);
-	}
-	if (table->db_create_options & HA_OPTION_PACK_KEYS)
-	  ptr=strmov(ptr," pack_keys=1");
-	if (table->db_create_options & HA_OPTION_NO_PACK_KEYS)
-	  ptr=strmov(ptr," pack_keys=0");
-	if (table->db_create_options & HA_OPTION_CHECKSUM)
-	  ptr=strmov(ptr," checksum=1");
-	if (table->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
-	  ptr=strmov(ptr," delay_key_write=1");
-	if (table->row_type != ROW_TYPE_DEFAULT)
-	  ptr=strxmov(ptr, " format=", ha_row_type[(uint) table->row_type],
-		      NullS);
-	if (file->raid_type)
-	{
-	  char buff[100];
-	  sprintf(buff," raid_type=%s raid_chunks=%d raid_chunksize=%ld",
-		  my_raid_type(file->raid_type), file->raid_chunks, file->raid_chunksize/RAID_BLOCK_SIZE);
-	  ptr=strmov(ptr,buff);
-	}
-	net_store_data(packet, option_buff+1,
-		       (ptr == option_buff ? 0 : (uint) (ptr-option_buff)-1));
+        char option_buff[350],*ptr;
+        ptr=option_buff;
+        if (table->min_rows)
+        {
+          ptr=strmov(ptr," min_rows=");
+          ptr=longlong10_to_str(table->min_rows,ptr,10);
+        }
+        if (table->max_rows)
+        {
+          ptr=strmov(ptr," max_rows=");
+          ptr=longlong10_to_str(table->max_rows,ptr,10);
+        }
+        if (table->avg_row_length)
+        {
+          ptr=strmov(ptr," avg_row_length=");
+          ptr=longlong10_to_str(table->avg_row_length,ptr,10);
+        }
+        if (table->db_create_options & HA_OPTION_PACK_KEYS)
+          ptr=strmov(ptr," pack_keys=1");
+        if (table->db_create_options & HA_OPTION_NO_PACK_KEYS)
+          ptr=strmov(ptr," pack_keys=0");
+        if (table->db_create_options & HA_OPTION_CHECKSUM)
+          ptr=strmov(ptr," checksum=1");
+        if (table->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
+          ptr=strmov(ptr," delay_key_write=1");
+        if (table->row_type != ROW_TYPE_DEFAULT)
+          ptr=strxmov(ptr, " format=", ha_row_type[(uint) table->row_type],
+                      NullS);
+        if (file->raid_type)
+        {
+          char buff[100];
+          sprintf(buff," raid_type=%s raid_chunks=%d raid_chunksize=%ld",
+                  my_raid_type(file->raid_type), file->raid_chunks, file->raid_chunksize/RAID_BLOCK_SIZE);
+          ptr=strmov(ptr,buff);
+        }
+        net_store_data(packet, option_buff+1,
+                       (ptr == option_buff ? 0 : (uint) (ptr-option_buff)-1));
       }
       net_store_data(packet, table->comment);
 
       close_thread_tables(thd,0);
     }
     if (my_net_write(&thd->net,(char*) packet->ptr(),
-		     packet->length()))
+                     packet->length()))
       DBUG_RETURN(-1);
   }
   send_eof(&thd->net);
@@ -365,7 +365,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild)
   char tmp[MAX_FIELD_WIDTH];
   DBUG_ENTER("mysqld_show_fields");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
-		      table_list->real_name));
+                      table_list->real_name));
 
   if (!(table = open_ltable(thd, table_list, TL_UNLOCK)))
   {
@@ -385,7 +385,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild)
   field_list.push_back(new Item_empty_string("Extra",20));
   field_list.push_back(new Item_empty_string("Privileges",80));
 
-	// Send first number of fields and records
+        // Send first number of fields and records
   {
     char *pos;
     pos=net_store_length(tmp, (uint) field_list.elements);
@@ -395,7 +395,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild)
 
   if (send_fields(thd,field_list,0))
     DBUG_RETURN(1);
-  restore_record(table,2);	// Get empty record
+  restore_record(table,2);      // Get empty record
 
   Field **ptr,*field;
   for (ptr=table->field; (field= *ptr) ; ptr++)
@@ -404,63 +404,63 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild)
     {
 #ifdef NOT_USED
       if (thd->col_access & TABLE_ACLS ||
-	  ! check_grant_column(thd,table,field->field_name,
-			       (uint) strlen(field->field_name),1))
+          ! check_grant_column(thd,table,field->field_name,
+                               (uint) strlen(field->field_name),1))
 #endif
       {
-	byte *pos;
-	uint flags=field->flags;
-	String *packet= &thd->packet,type(tmp,sizeof(tmp));
-	uint col_access;
-	bool null_default_value=0;
+        byte *pos;
+        uint flags=field->flags;
+        String *packet= &thd->packet,type(tmp,sizeof(tmp));
+        uint col_access;
+        bool null_default_value=0;
 
-	packet->length(0);
-	net_store_data(packet,field->field_name);
-	field->sql_type(type);
-	net_store_data(packet,type.ptr(),type.length());
+        packet->length(0);
+        net_store_data(packet,field->field_name);
+        field->sql_type(type);
+        net_store_data(packet,type.ptr(),type.length());
 
-	pos=(byte*) ((flags & NOT_NULL_FLAG) &&
-		     field->type() != FIELD_TYPE_TIMESTAMP ?
-		     "" : "YES");
-	net_store_data(packet,(const char*) pos);
-	pos=(byte*) ((field->flags & PRI_KEY_FLAG) ? "PRI" :
-		     (field->flags & UNIQUE_KEY_FLAG) ? "UNI" :
-		     (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
-	net_store_data(packet,(char*) pos);
+        pos=(byte*) ((flags & NOT_NULL_FLAG) &&
+                     field->type() != FIELD_TYPE_TIMESTAMP ?
+                     "" : "YES");
+        net_store_data(packet,(const char*) pos);
+        pos=(byte*) ((field->flags & PRI_KEY_FLAG) ? "PRI" :
+                     (field->flags & UNIQUE_KEY_FLAG) ? "UNI" :
+                     (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
+        net_store_data(packet,(char*) pos);
 
-	if (field->type() == FIELD_TYPE_TIMESTAMP ||
-	    field->unireg_check == Field::NEXT_NUMBER)
-	  null_default_value=1;
-	if (!null_default_value && !field->is_null())
-	{						// Not null by default
-	  type.set(tmp,sizeof(tmp));
-	  field->val_str(&type,&type);
-	  net_store_data(packet,type.ptr(),type.length());
-	}
-	else if (field->maybe_null() || null_default_value)
-	  net_store_null(packet);			// Null as default
-	else
-	  net_store_data(packet,tmp,0);
+        if (field->type() == FIELD_TYPE_TIMESTAMP ||
+            field->unireg_check == Field::NEXT_NUMBER)
+          null_default_value=1;
+        if (!null_default_value && !field->is_null())
+        {                                               // Not null by default
+          type.set(tmp,sizeof(tmp));
+          field->val_str(&type,&type);
+          net_store_data(packet,type.ptr(),type.length());
+        }
+        else if (field->maybe_null() || null_default_value)
+          net_store_null(packet);                       // Null as default
+        else
+          net_store_data(packet,tmp,0);
 
-	char *end=tmp;
-	if (field->unireg_check == Field::NEXT_NUMBER)
-	  end=strmov(tmp,"auto_increment");
-	net_store_data(packet,tmp,(uint) (end-tmp));
+        char *end=tmp;
+        if (field->unireg_check == Field::NEXT_NUMBER)
+          end=strmov(tmp,"auto_increment");
+        net_store_data(packet,tmp,(uint) (end-tmp));
 
-	/* Add grant options */
-	col_access= get_column_grant(thd,table_list,field) & COL_ACLS;
-	end=tmp;
-	for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
-	{
-	  if (col_access & 1)
-	  {
-	    *end++=',';
-	    end=strmov(end,grant_types.type_names[bitnr]);
-	  }
-	}
-	net_store_data(packet,tmp+1,end == tmp ? 0 : (uint) (end-tmp-1));
-	if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
-	  DBUG_RETURN(1);
+        /* Add grant options */
+        col_access= get_column_grant(thd,table_list,field) & COL_ACLS;
+        end=tmp;
+        for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
+        {
+          if (col_access & 1)
+          {
+            *end++=',';
+            end=strmov(end,grant_types.type_names[bitnr]);
+          }
+        }
+        net_store_data(packet,tmp+1,end == tmp ? 0 : (uint) (end-tmp-1));
+        if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+          DBUG_RETURN(1);
       }
     }
   }
@@ -474,7 +474,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   TABLE *table;
   DBUG_ENTER("mysqld_show_create");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
-		      table_list->real_name));
+                      table_list->real_name));
 
   if (!(table = open_ltable(thd, table_list, TL_UNLOCK)))
   {
@@ -500,10 +500,10 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
       ulong store_len_offset = packet->length();
       packet->length(store_len_offset + 4);
       if(store_create_info(thd, table, packet))
-	DBUG_RETURN(-1);
+        DBUG_RETURN(-1);
       ulong create_len = packet->length() - store_len_offset - 4;
       if(create_len > 0x00ffffff) // better readable in HEX ...
-	DBUG_RETURN(1);  // just in case somebody manages to create a table
+        DBUG_RETURN(1);  // just in case somebody manages to create a table
       // with *that* much stuff in the definition
 
       // now we have to store the length in three bytes, even if it would fit
@@ -515,7 +515,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
       // now we are in business :-)
       if(my_net_write(&thd->net, (char*)packet->ptr(), packet->length()))
-	DBUG_RETURN(1);
+        DBUG_RETURN(1);
     }
 
   send_eof(&thd->net);
@@ -530,7 +530,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
   char buff[256];
   DBUG_ENTER("mysqld_show_keys");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
-		      table_list->real_name));
+                      table_list->real_name));
 
   if (!(table = open_ltable(thd, table_list, TL_UNLOCK)))
   {
@@ -575,34 +575,34 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       end=int10_to_str((long) (j+1),(char*) buff,10);
       net_store_data(packet,buff,(uint) (end-buff));
       net_store_data(packet,key_part->field ? key_part->field->field_name :
-		     "?unknown field?");
+                     "?unknown field?");
       if (table->file->option_flag() & HA_READ_ORDER)
-	net_store_data(packet,((key_part->key_part_flag & HA_REVERSE_SORT)
-			       ? "D" : "A"), 1);
+        net_store_data(packet,((key_part->key_part_flag & HA_REVERSE_SORT)
+                               ? "D" : "A"), 1);
       else
-	net_store_null(packet); /* purecov: inspected */
+        net_store_null(packet); /* purecov: inspected */
       KEY *key=table->key_info+i;
       if (key->rec_per_key[j])
       {
-	ulong records=(table->file->records / key->rec_per_key[j]);
-	end=int10_to_str((long) records, buff, 10);
-	net_store_data(packet,buff,(uint) (end-buff));
+        ulong records=(table->file->records / key->rec_per_key[j]);
+        end=int10_to_str((long) records, buff, 10);
+        net_store_data(packet,buff,(uint) (end-buff));
       }
       else
-	net_store_null(packet);
+        net_store_null(packet);
       if (!key_part->field ||
-	  key_part->length !=
-	  table->field[key_part->fieldnr-1]->key_length())
+          key_part->length !=
+          table->field[key_part->fieldnr-1]->key_length())
       {
-	end=int10_to_str((long) key_part->length, buff,10); /* purecov: inspected */
-	net_store_data(packet,buff,(uint) (end-buff)); /* purecov: inspected */
+        end=int10_to_str((long) key_part->length, buff,10); /* purecov: inspected */
+        net_store_data(packet,buff,(uint) (end-buff)); /* purecov: inspected */
       }
       else
-	net_store_null(packet);
-      net_store_null(packet);			// No pack_information yet
-      net_store_null(packet);			// No comments yet
+        net_store_null(packet);
+      net_store_null(packet);                   // No pack_information yet
+      net_store_null(packet);                   // No comments yet
       if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
-	DBUG_RETURN(1); /* purecov: inspected */
+        DBUG_RETURN(1); /* purecov: inspected */
     }
   }
   send_eof(&thd->net);
@@ -635,7 +635,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
     if (!wild || !wild[0] || !wild_case_compare(field->field_name,wild))
       field_list.push_back(new Item_field(field));
   }
-  restore_record(table,2);		// Get empty record
+  restore_record(table,2);              // Get empty record
   if (send_fields(thd,field_list,2))
     DBUG_VOID_RETURN;
   VOID(net_flush(&thd->net));
@@ -654,17 +654,17 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
     DBUG_RETURN(-1);
 
   if(fd < 0)
-    {
-      if(my_net_write(&thd->net, (char*)packet->ptr(), packet->length()))
-	DBUG_RETURN(-1);
-      VOID(net_flush(&thd->net));
-    }
+  {
+    if(my_net_write(&thd->net, (char*)packet->ptr(), packet->length()))
+      DBUG_RETURN(-1);
+    VOID(net_flush(&thd->net));
+  }
   else
-    {
-      if(my_write(fd, (const byte*) packet->ptr(), packet->length(),
-		  MYF(MY_WME)))
-	DBUG_RETURN(-1);
-    }
+  {
+    if(my_write(fd, (const byte*) packet->ptr(), packet->length(),
+                MYF(MY_WME)))
+      DBUG_RETURN(-1);
+  }
 
   DBUG_RETURN(0);
 }
@@ -680,17 +680,18 @@ store_create_info(THD *thd, TABLE *table, String* packet)
   List<Item> field_list;
   char tmp[MAX_FIELD_WIDTH];
   String type(tmp, sizeof(tmp));
-  packet->append("create table ", 13);
+  packet->append("CREATE TABLE ", 13);
   packet->append(table->real_name);
-  packet->append('(');
+  packet->append(" (\n", 3);
 
   Field **ptr,*field;
   for (ptr=table->field ; (field= *ptr); ptr++)
   {
     if(ptr != table->field)
-      packet->append(',');
+      packet->append(",\n", 2);
 
     uint flags = field->flags;
+    packet->append("  ", 2);
     packet->append(field->field_name);
     packet->append(' ');
     // check for surprises from the previous call to Field::sql_type()
@@ -701,34 +702,31 @@ store_create_info(THD *thd, TABLE *table, String* packet)
     packet->append(type.ptr(),type.length());
 
     bool null_default_value =  (field->type() == FIELD_TYPE_TIMESTAMP ||
-				field->unireg_check == Field::NEXT_NUMBER);
+                                field->unireg_check == Field::NEXT_NUMBER);
     bool has_default = (field->type() != FIELD_TYPE_BLOB);
 
     if((flags & NOT_NULL_FLAG) && !null_default_value)
-	packet->append(" not null", 9);
-
+        packet->append(" NOT NULL", 9);
 
     if(has_default)
-      {
-        packet->append(" default ", 9);
-	if (!null_default_value && !field->is_null())
-	  {						// Not null by default
-	    type.set(tmp,sizeof(tmp));
-	    field->val_str(&type,&type);
-	    packet->append('\'');
-	    packet->append(type.ptr(),type.length());
-	    packet->append('\'');
-	  }
-	else if (field->maybe_null() || null_default_value)
-	  packet->append("NULL", 4);			// Null as default
-	else
-	  packet->append(tmp,0);
+    {
+      packet->append(" default ", 9);
+      if (!null_default_value && !field->is_null())
+      {                                             // Not null by default
+        type.set(tmp,sizeof(tmp));
+        field->val_str(&type,&type);
+        packet->append('\'');
+        packet->append(type.ptr(),type.length());
+        packet->append('\'');
       }
+      else if (field->maybe_null() || null_default_value)
+        packet->append("NULL", 4);                    // Null as default
+      else
+        packet->append(tmp,0);
+    }
 
     if (field->unireg_check == Field::NEXT_NUMBER)
-	  packet->append(" auto_increment", 15 );
-
-
+          packet->append(" auto_increment", 15 );
   }
 
   KEY *key_info=table->key_info;
@@ -737,16 +735,16 @@ store_create_info(THD *thd, TABLE *table, String* packet)
 
   for (uint i=0 ; i < table->keys ; i++,key_info++)
   {
-    packet->append(',');
+    packet->append(",\n  ", 4);
 
     KEY_PART_INFO *key_part= key_info->key_part;
     if(i == primary_key)
-      packet->append("primary", 7);
+      packet->append("PRIMARY ", 8);
     else if(key_info->flags & HA_NOSAME)
-      packet->append("unique", 6);
+      packet->append("UNIQUE ", 7);
     else if(key_info->flags & HA_FULLTEXT)
-      packet->append("fulltext", 8);
-    packet->append(" key ", 5);
+      packet->append("FULLTEXT ", 9);
+    packet->append("KEY ", 4);
 
     if(i != primary_key)
      packet->append(key_info->name);
@@ -756,58 +754,56 @@ store_create_info(THD *thd, TABLE *table, String* packet)
     for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
     {
       if(j)
-	packet->append(',');
+        packet->append(',');
 
       if(key_part->field)
-	packet->append(key_part->field->field_name);
+        packet->append(key_part->field->field_name);
       KEY *key=table->key_info+i;
 
       if (!key_part->field ||
-	  (key_part->length !=
-	   table->field[key_part->fieldnr-1]->key_length() &&
-	   !(key_info->flags & HA_FULLTEXT)))
+          (key_part->length !=
+           table->field[key_part->fieldnr-1]->key_length() &&
+           !(key_info->flags & HA_FULLTEXT)))
       {
-	char buff[64];
-	buff[0] = '(';
-	char* end=int10_to_str((long) key_part->length, buff + 1,10);
-	*end++ = ')';
-	packet->append(buff,(uint) (end-buff));
+        char buff[64];
+        buff[0] = '(';
+        char* end=int10_to_str((long) key_part->length, buff + 1,10);
+        *end++ = ')';
+        packet->append(buff,(uint) (end-buff));
       }
     }
-
     packet->append(')');
   }
-
-  packet->append(')');
+  packet->append("\n)", 2);
 
   handler *file = table->file;
-  packet->append(" type=", 6);
+  packet->append(" TYPE=", 6);
   packet->append(file->table_type());
   char buff[128];
   char* p;
 
   if(table->min_rows)
-    {
-      packet->append(" min_rows=");
-      p = longlong10_to_str(table->min_rows, buff, 10);
-      packet->append(buff, (uint) (p - buff));
-    }
+  {
+    packet->append(" MIN_ROWS=");
+    p = longlong10_to_str(table->min_rows, buff, 10);
+    packet->append(buff, (uint) (p - buff));
+  }
 
   if(table->max_rows)
-    {
-      packet->append(" max_rows=");
-      p = longlong10_to_str(table->max_rows, buff, 10);
-      packet->append(buff, (uint) (p - buff));
-    }
+  {
+    packet->append(" MAX_ROWS=");
+    p = longlong10_to_str(table->max_rows, buff, 10);
+    packet->append(buff, (uint) (p - buff));
+  }
 
   if (table->db_create_options & HA_OPTION_PACK_KEYS)
-    packet->append(" pack_keys=1", 12);
+    packet->append(" PACK_KEYS=1", 12);
   if (table->db_create_options & HA_OPTION_NO_PACK_KEYS)
-    packet->append(" pack_keys=0", 12);
+    packet->append(" PACK_KEYS=0", 12);
   if (table->db_create_options & HA_OPTION_CHECKSUM)
-    packet->append(" checksum=1", 11);
+    packet->append(" CHECKSUM=1", 11);
   if (table->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
-    packet->append(" delay_key_write=1",18);
+    packet->append(" DELAY_KEY_WRITE=1",18);
 
 
   DBUG_RETURN(0);
@@ -823,11 +819,11 @@ class thread_info :public ilink {
 public:
   static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
   static void operator delete(void *ptr __attribute__((unused)),
-			      size_t size __attribute__((unused))) {} /*lint -e715 */
+                              size_t size __attribute__((unused))) {} /*lint -e715 */
 
   ulong thread_id;
   time_t start_time;
-  uint	 command;
+  uint   command;
   const char *user,*host,*db,*proc_info,*state_info;
   char *query;
 };
@@ -867,49 +863,49 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     while ((tmp=it++))
     {
       if ((tmp->net.vio || tmp->system_thread) &&
-	  (!user || (tmp->user && !strcmp(tmp->user,user))))
+          (!user || (tmp->user && !strcmp(tmp->user,user))))
       {
-	thread_info *thd_info=new thread_info;
+        thread_info *thd_info=new thread_info;
 
-	thd_info->thread_id=tmp->thread_id;
-	thd_info->user=thd->strdup(tmp->user ? tmp->user : (tmp->system_thread ?
-				  "system user" : "unauthenticated user"));
-	thd_info->host=thd->strdup(tmp->host ? tmp->host : (tmp->ip ? tmp->ip :
-				   (tmp->system_thread ? "none" : "connecting host")));
-	if ((thd_info->db=tmp->db))		// Safe test
-	  thd_info->db=thd->strdup(thd_info->db);
-	thd_info->command=(int) tmp->command;
-	if (tmp->mysys_var)
-	  pthread_mutex_lock(&tmp->mysys_var->mutex);
-	thd_info->proc_info= (char*) (tmp->killed ? "Killed" : 0);
-	thd_info->state_info= (char*) (tmp->locked ? "Locked" :
-				       tmp->net.reading_or_writing ?
-				       (tmp->net.reading_or_writing == 2 ?
-					"Writing to net" :
-					thd_info->command == COM_SLEEP ? "" :
-					"Reading from net") :
-				       tmp->proc_info ? tmp->proc_info :
-				       tmp->mysys_var &&
-				       tmp->mysys_var->current_cond ?
-				       "Waiting on cond" : NullS);
-	if (tmp->mysys_var)
-	  pthread_mutex_unlock(&tmp->mysys_var->mutex);
+        thd_info->thread_id=tmp->thread_id;
+        thd_info->user=thd->strdup(tmp->user ? tmp->user : (tmp->system_thread ?
+                                  "system user" : "unauthenticated user"));
+        thd_info->host=thd->strdup(tmp->host ? tmp->host : (tmp->ip ? tmp->ip :
+                                   (tmp->system_thread ? "none" : "connecting host")));
+        if ((thd_info->db=tmp->db))             // Safe test
+          thd_info->db=thd->strdup(thd_info->db);
+        thd_info->command=(int) tmp->command;
+        if (tmp->mysys_var)
+          pthread_mutex_lock(&tmp->mysys_var->mutex);
+        thd_info->proc_info= (char*) (tmp->killed ? "Killed" : 0);
+        thd_info->state_info= (char*) (tmp->locked ? "Locked" :
+                                       tmp->net.reading_or_writing ?
+                                       (tmp->net.reading_or_writing == 2 ?
+                                        "Writing to net" :
+                                        thd_info->command == COM_SLEEP ? "" :
+                                        "Reading from net") :
+                                       tmp->proc_info ? tmp->proc_info :
+                                       tmp->mysys_var &&
+                                       tmp->mysys_var->current_cond ?
+                                       "Waiting on cond" : NullS);
+        if (tmp->mysys_var)
+          pthread_mutex_unlock(&tmp->mysys_var->mutex);
 
 #if !defined(DONT_USE_THR_ALARM) && ! defined(SCO)
-	if (pthread_kill(tmp->real_id,0))
-	  tmp->proc_info="*** DEAD ***";	// This shouldn't happen
+        if (pthread_kill(tmp->real_id,0))
+          tmp->proc_info="*** DEAD ***";        // This shouldn't happen
 #endif
-	thd_info->start_time= tmp->start_time;
-	thd_info->query=0;
-	if (tmp->query)
-	{
-	  uint length=(uint) strlen(tmp->query);
-	  if (length > max_query_length)
-	    length=max_query_length;
-	  thd_info->query=(char*) thd->memdup(tmp->query,length+1);
-	  thd_info->query[length]=0;
-	}
-	thread_infos.append(thd_info);
+        thd_info->start_time= tmp->start_time;
+        thd_info->query=0;
+        if (tmp->query)
+        {
+          uint length=(uint) strlen(tmp->query);
+          if (length > max_query_length)
+            length=max_query_length;
+          thd_info->query=(char*) thd->memdup(tmp->query,length+1);
+          thd_info->query[length]=0;
+        }
+        thread_infos.append(thd_info);
       }
     }
   }
@@ -935,7 +931,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
       net_store_data(packet,command_name[thd_info->command]);
     if (thd_info->start_time)
       net_store_data(packet,(uint32)
-		     (time((time_t*) 0) - thd_info->start_time));
+                     (time((time_t*) 0) - thd_info->start_time));
     else
       net_store_null(packet);
     if (thd_info->state_info)
@@ -982,41 +978,41 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
       switch (variables[i].type){
       case SHOW_LONG:
       case SHOW_LONG_CONST:
-	net_store_data(&packet2,(uint32) *(ulong*) variables[i].value);
-	break;
+        net_store_data(&packet2,(uint32) *(ulong*) variables[i].value);
+        break;
       case SHOW_BOOL:
-	net_store_data(&packet2,(ulong) *(bool*) variables[i].value ?
-		       "ON" : "OFF");
-	break;
+        net_store_data(&packet2,(ulong) *(bool*) variables[i].value ?
+                       "ON" : "OFF");
+        break;
       case SHOW_MY_BOOL:
-	net_store_data(&packet2,(ulong) *(my_bool*) variables[i].value ?
-		       "ON" : "OFF");
-	break;
+        net_store_data(&packet2,(ulong) *(my_bool*) variables[i].value ?
+                       "ON" : "OFF");
+        break;
       case SHOW_INT_CONST:
       case SHOW_INT:
-	net_store_data(&packet2,(uint32) *(int*) variables[i].value);
-	break;
+        net_store_data(&packet2,(uint32) *(int*) variables[i].value);
+        break;
       case SHOW_CHAR:
-	net_store_data(&packet2,variables[i].value);
-	break;
+        net_store_data(&packet2,variables[i].value);
+        break;
       case SHOW_STARTTIME:
-	net_store_data(&packet2,(uint32) (thd->query_start() - start_time));
-	break;
+        net_store_data(&packet2,(uint32) (thd->query_start() - start_time));
+        break;
       case SHOW_QUESTION:
-	net_store_data(&packet2,(uint32) thd->query_id);
-	break;
+        net_store_data(&packet2,(uint32) thd->query_id);
+        break;
       case SHOW_OPENTABLES:
-	net_store_data(&packet2,(uint32) cached_tables());
-	break;
+        net_store_data(&packet2,(uint32) cached_tables());
+        break;
       case SHOW_CHAR_PTR:
-	{
-	  char *value= *(char**) variables[i].value;
-	  net_store_data(&packet2,value ? value : "");
-	  break;
-	}
+        {
+          char *value= *(char**) variables[i].value;
+          net_store_data(&packet2,value ? value : "");
+          break;
+        }
       }
       if (my_net_write(&thd->net, (char*) packet2.ptr(),packet2.length()))
-	goto err;				/* purecov: inspected */
+        goto err;                               /* purecov: inspected */
     }
   }
   pthread_mutex_unlock(&LOCK_status);
