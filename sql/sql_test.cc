@@ -51,22 +51,39 @@ print_where(COND *cond,const char *info)
 extern HASH open_cache;
 extern TABLE *unused_tables;
 
+static const char *lock_descriptions[] =
+{
+  "No lock",
+  "Low priority read lock",
+  "Shared Read lock",
+  "High priority read lock",
+  "Read lock  without concurrent inserts",
+  "Write lock that allows other writers",
+  "Write lock, but allow reading",
+  "Concurrent insert lock",
+  "Lock Used by delayed insert",
+  "Low priority write lock",
+  "High priority write lock",
+  "Highest priority write lock"
+};
+
+
 void print_cached_tables(void)
 {
   uint idx,count,unused;
   TABLE *start_link,*lnk;
 
   VOID(pthread_mutex_lock(&LOCK_open));
-  puts("DB             Table                            Version  Thread  L.thread  Open");
+  puts("DB             Table                            Version  Thread  L.thread  Open  Lock");
 
   for (idx=unused=0 ; idx < open_cache.records ; idx++)
   {
     TABLE *entry=(TABLE*) hash_element(&open_cache,idx);
-    printf("%-14.14s %-32s%6ld%8ld%10ld%6d\n",
+    printf("%-14.14s %-32s%6ld%8ld%10ld%6d  %s\n",
 	   entry->table_cache_key,entry->real_name,entry->version,
 	   entry->in_use ? entry->in_use->thread_id : 0L,
 	   entry->in_use ? entry->in_use->dbug_thread_id : 0L,
-	   entry->db_stat ? 1 : 0);
+	   entry->db_stat ? 1 : 0, entry->in_use ? lock_descriptions[(int)entry->reginfo.lock_type] : "Not in use");
     if (!entry->in_use)
       unused++;
   }
