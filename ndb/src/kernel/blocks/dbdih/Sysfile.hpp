@@ -63,7 +63,7 @@ public:
   /**
    * No of 32 bits words in the sysfile
    */
-  static const Uint32 SYSFILE_SIZE32 = _SYSFILE_SIZE32;
+  STATIC_CONST( SYSFILE_SIZE32 = _SYSFILE_SIZE32 );
   
   Uint32 systemRestartBits;
 
@@ -106,7 +106,7 @@ public:
     ,NS_NotDefined             = 8
     ,NS_Standby                = 9
   };
-  static const Uint32 NODE_STATUS_SIZE = NODE_ARRAY_SIZE(MAX_NDB_NODES, 4);
+  STATIC_CONST( NODE_STATUS_SIZE = NODE_ARRAY_SIZE(MAX_NDB_NODES, 4) );
   Uint32 nodeStatus[NODE_STATUS_SIZE];
 
   static Uint32 getNodeStatus(NodeId, const Uint32 nodeStatus[]);
@@ -116,8 +116,8 @@ public:
    * The node group of each node
    *   Sizeof(NodeGroup) = 8 Bit
    */
-  static const Uint32 NODE_GROUPS_SIZE = NODE_ARRAY_SIZE(MAX_NDB_NODES, 
-							 NODEID_BITS);
+  STATIC_CONST( NODE_GROUPS_SIZE = NODE_ARRAY_SIZE(MAX_NDB_NODES, 
+							 NODEID_BITS) );
   Uint32 nodeGroups[NODE_GROUPS_SIZE];
   
   static Uint16 getNodeGroup(NodeId, const Uint32 nodeGroups[]);
@@ -126,8 +126,8 @@ public:
   /**
    * Any node can take over for any node
    */
-  static const Uint32 TAKE_OVER_SIZE = NODE_ARRAY_SIZE(MAX_NDB_NODES, 
-						       NODEID_BITS);
+  STATIC_CONST( TAKE_OVER_SIZE = NODE_ARRAY_SIZE(MAX_NDB_NODES, 
+						 NODEID_BITS) );
   Uint32 takeOver[TAKE_OVER_SIZE];
 
   static NodeId getTakeOverNode(NodeId, const Uint32 takeOver[]);

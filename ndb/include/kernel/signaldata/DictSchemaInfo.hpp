@@ -26,8 +26,8 @@ class DictSchemaInfo {
   friend class Dbdict;
   
 public:
-  static const unsigned HeaderLength = 3;
-  static const unsigned DataLength = 22;
+  STATIC_CONST( HeaderLength = 3 );
+  STATIC_CONST( DataLength = 22 );
   
 private:  
   Uint32 senderRef;
