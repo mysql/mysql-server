@@ -100,7 +100,7 @@ for remove in DDBUG_OFF DSAFEMALLOC USAFEMALLOC DSAFE_MUTEX \
               DPEDANTIC_SAFEMALLOC DUNIV_MUST_NOT_INLINE DFORCE_INIT_OF_VARS \
               DEXTRA_DEBUG DHAVE_purify 'O[0-9]' 'W[-A-Za-z]*'
 do
-  cflags=`echo "$cflags"|sed -e "s/-$remove  *//g"` 
+  cflags=`echo "$cflags"|sed -e "s/ -$remove  */ /g"` 
 done
 cflags=`echo "$cflags"|sed -e 's/ *\$//'` 
 
