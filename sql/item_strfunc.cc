@@ -1782,7 +1782,7 @@ String *Item_func_conv_charset::val_str(String *str)
   int cnvres;
   const uchar *s, *se;
   uchar *d, *d0, *de;
-  uint dmaxlen;
+  uint32 dmaxlen;
   String *arg= args[0]->val_str(str);
   CHARSET_INFO *from,*to;
   
@@ -1833,7 +1833,7 @@ outp:
       break;
   };
   
-  str->length((uint) (d-d0));
+  str->length((uint32) (d-d0));
   str->set_charset(to);
   return str;
 }
@@ -1850,7 +1850,7 @@ String *Item_func_conv_charset3::val_str(String *str)
   int cnvres;
   const uchar *s, *se;
   uchar *d, *d0, *de;
-  uint dmaxlen;
+  uint32 dmaxlen;
   String *arg= args[0]->val_str(str);
   String *to_cs= args[1]->val_str(str);
   String *from_cs= args[2]->val_str(str);
@@ -1905,7 +1905,7 @@ outp:
       break;
   };
   
-  str->length((uint) (d-d0));
+  str->length((uint32) (d-d0));
   str->set_charset(to_charset);
   return str;
 }

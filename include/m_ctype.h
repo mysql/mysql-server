@@ -120,10 +120,8 @@ extern void my_casedn_8bit(CHARSET_INFO *, char *, uint);
 extern int my_strcasecmp_8bit(CHARSET_INFO * cs, const char *, const char *);
 extern int my_strncasecmp_8bit(CHARSET_INFO * cs, const char *, const char *, uint);
 
-int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc,
-		  const unsigned char *s,const unsigned char *e);
-int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc,
-		  unsigned char *s, unsigned char *e);
+int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
+int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
 
 
 #ifdef USE_MB
@@ -146,6 +144,8 @@ extern my_bool my_like_range_big5(CHARSET_INFO *,const char *, uint, pchar, uint
 extern int     ismbchar_big5(CHARSET_INFO *, const char *, const char *);
 extern my_bool ismbhead_big5(CHARSET_INFO *, uint);
 extern int     mbcharlen_big5(CHARSET_INFO *, uint);
+int my_mb_wc_big5(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
+int my_wc_mb_big5(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
 #endif
 
 #ifdef HAVE_CHARSET_czech
@@ -164,6 +164,8 @@ extern uchar ctype_euc_kr[], to_lower_euc_kr[], to_upper_euc_kr[], sort_order_eu
 extern int     ismbchar_euc_kr(CHARSET_INFO *, const char *, const char *);
 extern my_bool ismbhead_euc_kr(CHARSET_INFO *, uint);
 extern int     mbcharlen_euc_kr(CHARSET_INFO *, uint);
+int my_mb_wc_euc_kr(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
+int my_wc_mb_euc_kr(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
 #endif
 
 #ifdef HAVE_CHARSET_gb2312
@@ -172,6 +174,8 @@ extern uchar ctype_gb2312[], to_lower_gb2312[], to_upper_gb2312[], sort_order_gb
 extern int     ismbchar_gb2312(CHARSET_INFO *, const char *, const char *);
 extern my_bool ismbhead_gb2312(CHARSET_INFO *, uint);
 extern int     mbcharlen_gb2312(CHARSET_INFO *, uint);
+int my_mb_wc_gb2312(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
+int my_wc_mb_gb2312(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
 #endif
 
 #ifdef HAVE_CHARSET_gbk
@@ -184,6 +188,8 @@ extern my_bool my_like_range_gbk(CHARSET_INFO *, const char *, uint, pchar, uint
 extern int     ismbchar_gbk(CHARSET_INFO *, const char *, const char *);
 extern my_bool ismbhead_gbk(CHARSET_INFO *, uint);
 extern int     mbcharlen_gbk(CHARSET_INFO *, uint);
+int my_mb_wc_gbk(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
+int my_wc_mb_gbk(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
 #endif
 
 #ifdef HAVE_CHARSET_latin1_de
@@ -205,6 +211,8 @@ extern my_bool my_like_range_sjis(CHARSET_INFO *, const char *, uint, pchar, uin
 extern int     ismbchar_sjis(CHARSET_INFO *, const char *, const char *);
 extern my_bool ismbhead_sjis(CHARSET_INFO *, uint);
 extern int     mbcharlen_sjis(CHARSET_INFO *, uint);
+int my_mb_wc_sjis(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
+int my_wc_mb_sjis(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
 #endif
 
 #ifdef HAVE_CHARSET_tis620
@@ -222,6 +230,8 @@ extern uchar ctype_ujis[], to_lower_ujis[], to_upper_ujis[], sort_order_ujis[];
 extern int     ismbchar_ujis(CHARSET_INFO *, const char *, const char *);
 extern my_bool ismbhead_ujis(CHARSET_INFO *, uint);
 extern int     mbcharlen_ujis(CHARSET_INFO *, uint);
+int my_mb_wc_euc_jp(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
+int my_wc_mb_euc_jp(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
 #endif
 
 #ifdef HAVE_CHARSET_utf8
