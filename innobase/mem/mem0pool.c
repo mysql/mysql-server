@@ -234,7 +234,7 @@ mem_pool_fill_free_list(
 		/* We come here when we have run out of space in the
 		memory pool: */
 
-		if (mem_out_of_mem_err_msg_count % 1000 == 0) {
+		if (mem_out_of_mem_err_msg_count % 1000000000 == 0) {
 			/* We do not print the message every time: */
 			
 			fprintf(stderr,
