@@ -535,7 +535,10 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_LIBCHAR	'/'
 #define FN_ROOTDIR	"/"
 #endif
-#define MY_NFILE	1024	/* This is only used to save filenames */
+#endif
+#define MY_NFILE	64	/* This is only used to save filenames */
+#ifndef OS_FILE_LIMIT
+#define OS_FILE_LIMIT	65535
 #endif
 
 /* #define EXT_IN_LIBNAME     */
