@@ -256,7 +256,6 @@ public:
   time_t create_time;			/* When table was created */
   time_t check_time;
   time_t update_time;
-  enum {NONE=0, INDEX, RND} inited;
 
   /* The following are for read_range() */
   key_range save_end_range, *end_range;
@@ -273,6 +272,7 @@ public:
   uint raid_type,raid_chunks;
   FT_INFO *ft_handler;
   bool  auto_increment_column_changed;
+  enum {NONE=0, INDEX, RND} inited;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
 
 
@@ -465,14 +465,14 @@ public:
   { return min(MAX_REF_PARTS, max_supported_key_parts()); }
   uint max_key_length() const
   { return min(MAX_KEY_LENGTH, max_supported_key_length()); }
-  uint max_key_part_length()
+  uint max_key_part_length() const
   { return min(MAX_KEY_LENGTH, max_supported_key_part_length()); }
 
   virtual uint max_supported_record_length() const { return HA_MAX_REC_LENGTH; }
   virtual uint max_supported_keys() const { return 0; }
   virtual uint max_supported_key_parts() const { return MAX_REF_PARTS; }
   virtual uint max_supported_key_length() const { return MAX_KEY_LENGTH; }
-  virtual uint max_supported_key_part_length() { return 255; }
+  virtual uint max_supported_key_part_length() const { return 255; }
   virtual uint min_record_length(uint options) const { return 1; }
 
   virtual bool low_byte_first() const { return 1; }
