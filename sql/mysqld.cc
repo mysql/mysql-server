@@ -3733,7 +3733,7 @@ static void get_options(int argc,char **argv)
 #endif /* HAVE_INNOBASE_DB */
     case OPT_MYISAM_RECOVER:
     {
-      if (!optarg || !optarg[0])
+      if (!optarg)
       {
 	myisam_recover_options=    HA_RECOVER_DEFAULT;
 	myisam_recover_options_str= myisam_recover_typelib.type_names[0];
@@ -3760,8 +3760,9 @@ static void get_options(int argc,char **argv)
 	fprintf(stderr, "Unknown option to sql-mode: %s\n", optarg);
 	exit(1);
       }
-      if (opt_sql_mode & MODE_SERIALIZABLE)
-	default_tx_isolation= ISO_SERIALIZABLE;
+      default_tx_isolation= ((opt_sql_mode & MODE_SERIALIZABLE) ?
+			     ISO_SERIALIZABLE :
+			     ISO_READ_COMMITTED);
       break;
     }
     case OPT_MASTER_HOST:
@@ -4393,9 +4394,10 @@ static ulong find_bit_type(const char *x, TYPELIB *bit_lib)
   DBUG_PRINT("enter",("x: '%s'",x));
 
   found=0;
-  found_end= 0;
   pos=(my_string) x;
-  do
+  while (*pos == ' ') pos++;
+  found_end= *pos == 0;
+  while (!found_end)
   {
     if (!*(end=strcend(pos,',')))		/* Let end point at fieldend */
     {
@@ -4428,7 +4430,7 @@ skipp: ;
       DBUG_RETURN(~(ulong) 0);				// No unique value
     found|=found_int;
     pos=end+1;
-  } while (! found_end);
+  }
 
   DBUG_PRINT("exit",("bit-field: %ld",(ulong) found));
   DBUG_RETURN(found);
