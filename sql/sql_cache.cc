@@ -2614,12 +2614,14 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
       */
       if (tables_used->table->db_type == DB_TYPE_MRG_ISAM ||
 	  tables_used->table->tmp_table != NO_TMP_TABLE ||
+	  (*tables_type & HA_CACHE_TBL_NOCACHE) ||
 	  (tables_used->db_length == 5 &&
 	   my_strnncoll(table_alias_charset, (uchar*)tables_used->db, 6,
 			(uchar*)"mysql",6) == 0))
       {
 	DBUG_PRINT("qcache", 
-		   ("select not cacheable: used MRG_ISAM, temporary or system table(s)"));
+		   ("select not cacheable: used MRG_ISAM, temporary, \
+system or other non-cacheable table(s)"));
 	DBUG_RETURN(0);
       }
       if (tables_used->table->db_type == DB_TYPE_MRG_MYISAM)
