@@ -1716,13 +1716,13 @@ static bool test_if_number(register const char *str,
 } /* test_if_number */
 
 
-void print_buffer_to_file( enum LOGLEVEL level, const char *buffer )
+void print_buffer_to_file( enum loglevel level, const char *buffer )
 {
   time_t skr;
   struct tm tm_tmp;
   struct tm *start;
 
-  DBUG_ENTER("startup_print_buffer_to_log");
+  DBUG_ENTER("print_buffer_to_log");
 
   VOID(pthread_mutex_lock(&LOCK_error_log));
 
@@ -1802,34 +1802,15 @@ bool flush_error_log()
    return result;
 }
 
-/**
-  * prints a printf style message to the error log and, under NT, to the Windows event log.
-  * @param event_type type of even to log.
-  * @param timestamp true to add a timestamp to the entry, false otherwise.
-  * @param format The printf style format of the message
-  * @param ... values for the message
-  * @return void
-*/
-void print_msg_to_log( LOGLEVEL level, const char *format, ... )
-{
-  va_list args;
-
-  DBUG_ENTER("startup_print_msg_to_log");
-
-  va_start( args, format );
-  vprint_msg_to_log( level, format, args );
-  va_end( args );
-
-  DBUG_VOID_RETURN;
-}
-
 
 #ifdef __NT__
-void print_buffer_to_nt_eventlog( enum LOGLEVEL level, char *buff, int buffLen )
+void print_buffer_to_nt_eventlog( enum loglevel level, char *buff, int buffLen )
 {
   HANDLE event;
   char   *buffptr;
   LPCSTR *buffmsgptr;
+
+  DBUG_ENTER( "print_buffer_to_nt_eventlog" );
 
   buffptr = buff;
   if (strlen(buff) > (uint)(buffLen-4))
@@ -1885,11 +1866,11 @@ void print_buffer_to_nt_eventlog( enum LOGLEVEL level, char *buff, int buffLen )
   RETURN VALUES
     void
 */
-void vprint_msg_to_log(enum LOGLEVEL level, const char *format, va_list args)
+void vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 {
   char   buff[1024];
 
-  DBUG_ENTER("startup_vprint_msg_to_log");
+  DBUG_ENTER("vprint_msg_to_log");
 
   my_vsnprintf( buff, sizeof(buff)-5, format, args );
 
@@ -1909,11 +1890,11 @@ void vprint_msg_to_log(enum LOGLEVEL level, const char *format, va_list args)
 
 void sql_print_error( const char *format, ... ) 
 {
-  DBUG_ENTER( "startup_sql_print_error" );
+  DBUG_ENTER( "sql_print_error" );
 
   va_list args;
   va_start( args, format );
-  print_msg_to_log( ERROR_LEVEL, format, args );
+  vprint_msg_to_log( ERROR_LEVEL, format, args );
   va_end( args );
 
   DBUG_VOID_RETURN;
@@ -1921,11 +1902,11 @@ void sql_print_error( const char *format, ... )
 
 void sql_print_warning( const char *format, ... ) 
 {
-  DBUG_ENTER( "startup_sql_print_warning" );
+  DBUG_ENTER( "sql_print_warning" );
 
   va_list args;
   va_start( args, format );
-  print_msg_to_log( WARNING_LEVEL, format, args );
+  vprint_msg_to_log( WARNING_LEVEL, format, args );
   va_end( args );
 
   DBUG_VOID_RETURN;
@@ -1933,11 +1914,11 @@ void sql_print_warning( const char *format, ... )
 
 void sql_print_information( const char *format, ... ) 
 {
-  DBUG_ENTER( "startup_sql_print_information" );
+  DBUG_ENTER( "sql_print_information" );
 
   va_list args;
   va_start( args, format );
-  print_msg_to_log( INFORMATION_LEVEL, format, args );
+  vprint_msg_to_log( INFORMATION_LEVEL, format, args );
   va_end( args );
 
   DBUG_VOID_RETURN;

@@ -53,14 +53,14 @@ struct my_option
 extern char *disabled_my_option;
 extern my_bool my_getopt_print_errors;
 
-enum LOGLEVEL {
+enum loglevel {
    ERROR_LEVEL,
    WARNING_LEVEL,
    INFORMATION_LEVEL
 };
 
 typedef my_bool (* my_get_one_option) (int, const struct my_option *, char * );
-typedef void (* my_error_reporter) (enum LOGLEVEL level, const char *format, ... );
+typedef void (* my_error_reporter) (enum loglevel level, const char *format, ... );
 
 extern int handle_options (int *argc, char ***argv, 
 			   const struct my_option *longopts, my_get_one_option, 
