@@ -41,4 +41,4 @@ drop table t1;
 #
 
 set @@max_allowed_packet=1048576*100;
-select length(compress(repeat('aaaaaaaaaa', 10000000)));
+select compress(repeat('aaaaaaaaaa', 10000000)) is null;

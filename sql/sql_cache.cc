@@ -1532,11 +1532,11 @@ ulong Query_cache::init_cache()
 		 query_cache_table_get_key, 0, 0));
 #else
   /*
-    On windows, OS/2, MacOS X with HFS+ or any other case insensitive 
-    file system if lower_case_table_names!=0 we have same situation as 
-    in previous case, but if lower_case_table_names==0 then we should 
-    not distinguish cases (to be compatible in behavior with underlaying 
-    file system) and so should use case insensitive collation for 
+    On windows, OS/2, MacOS X with HFS+ or any other case insensitive
+    file system if lower_case_table_names!=0 we have same situation as
+    in previous case, but if lower_case_table_names==0 then we should
+    not distinguish cases (to be compatible in behavior with underlying
+    file system) and so should use case insensitive collation for
     comparison.
   */
   VOID(hash_init(&tables,

@@ -517,6 +517,7 @@ public:
   }
   bool setup_ref_array(THD *thd, uint order_group_num);
   bool check_updateable(char *db, char *table);
+  bool check_updateable_in_subqueries(char *db, char *table);
   void print(THD *thd, String *str);
   static void print_order(String *str, ORDER *order);
   void print_limit(THD *thd, String *str);
