@@ -1208,7 +1208,8 @@ void set_var_free()
 
 sys_var *find_sys_var(const char *str, uint length)
 {
-  sys_var *var= (sys_var*) hash_search(&system_variable_hash, str,
+  sys_var *var= (sys_var*) hash_search(&system_variable_hash,
+				       (byte*) str,
 				       length ? length :
 				       strlen(str));
   if (!var)
