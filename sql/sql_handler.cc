@@ -103,7 +103,7 @@ int mysql_ha_closeall(THD *thd, TABLE_LIST *tables)
 }
 
 static enum enum_ha_read_modes rkey_to_rnext[]=
-    { RKEY, RNEXT, RPREV, RNEXT, RPREV, RNEXT, RPREV };
+    { RNEXT_SAME, RNEXT, RPREV, RNEXT, RPREV, RNEXT, RPREV };
 
 
 int mysql_ha_read(THD *thd, TABLE_LIST *tables,
@@ -152,9 +152,10 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   MYSQL_LOCK *lock=mysql_lock_tables(thd,&tables->table,1);
   HANDLER_TABLES_HACK(thd);
   
-  byte *key= NULL;
+  byte *key;
   uint key_len;
-  LINT_INIT(key_len); /* protected by key key variable */
+  LINT_INIT(key); 
+  LINT_INIT(key_len); 
   if (!lock)
      goto err0; // mysql_lock_tables() printed error message already
 
@@ -187,48 +188,45 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       DBUG_ASSERT(keyname != 0);
       err=table->file->index_prev(table->record[0]);
       break;
+    case RNEXT_SAME:
+      /* Continue scan on "(keypart1,keypart2,...)=(c1, c2, ...)  */
+      DBUG_ASSERT(keyname != 0);
+      err= table->file->index_next_same(table->record[0], key, key_len);
+      break;
     case RKEY:
     {
-      if (key)
+      DBUG_ASSERT(keyname != 0);
+      KEY *keyinfo=table->key_info+keyno;
+      KEY_PART_INFO *key_part=keyinfo->key_part;
+      if (key_expr->elements > keyinfo->key_parts)
       {
-        /* Continue scan on "(keypart1,keypart2,...)=(c1, c2, ...)  */
-        err= table->file->index_next_same(table->record[0], key, key_len);
+        my_printf_error(ER_TOO_MANY_KEY_PARTS,ER(ER_TOO_MANY_KEY_PARTS),
+                        MYF(0),keyinfo->key_parts);
+        goto err;
       }
-      else
+      List_iterator_fast<Item> it_ke(*key_expr);
+      Item *item;
+      for (key_len=0 ; (item=it_ke++) ; key_part++)
       {
-        DBUG_ASSERT(keyname != 0);
-        KEY *keyinfo=table->key_info+keyno;
-        KEY_PART_INFO *key_part=keyinfo->key_part;
-        if (key_expr->elements > keyinfo->key_parts)
+        if (item->fix_fields(thd, tables))
+          goto err;
+        if (item->used_tables() & ~RAND_TABLE_BIT)
         {
-          my_printf_error(ER_TOO_MANY_KEY_PARTS,ER(ER_TOO_MANY_KEY_PARTS),
-                          MYF(0),keyinfo->key_parts);
+          my_error(ER_WRONG_ARGUMENTS,MYF(0),"HANDLER ... READ");
           goto err;
         }
-        List_iterator_fast<Item> it_ke(*key_expr);
-        Item *item;
-        for (key_len=0 ; (item=it_ke++) ; key_part++)
-        {
-          if (item->fix_fields(thd, tables))
-            goto err;
-          if (item->used_tables() & ~RAND_TABLE_BIT)
-          {
-            my_error(ER_WRONG_ARGUMENTS,MYF(0),"HANDLER ... READ");
-            goto err;
-          }
-          item->save_in_field(key_part->field, 1);
-          key_len+=key_part->store_length;
-        }
-        if (!(key= (byte*) thd->calloc(ALIGN_SIZE(key_len))))
-        {
-          send_error(&thd->net,ER_OUTOFMEMORY);
-          goto err;
-        }
-        key_copy(key, table, keyno, key_len);
-        err=table->file->index_read(table->record[0],
-                                    key,key_len,ha_rkey_mode);
-        mode=rkey_to_rnext[(int)ha_rkey_mode];
+        item->save_in_field(key_part->field, 1);
+        key_len+=key_part->store_length;
       }
+      if (!(key= (byte*) thd->calloc(ALIGN_SIZE(key_len))))
+      {
+        send_error(&thd->net,ER_OUTOFMEMORY);
+        goto err;
+      }
+      key_copy(key, table, keyno, key_len);
+      err=table->file->index_read(table->record[0],
+                                  key,key_len,ha_rkey_mode);
+      mode=rkey_to_rnext[(int)ha_rkey_mode];
       break;
     }
     default:
