@@ -1197,7 +1197,7 @@ more online business purchase within the last half-year, and 70% plan
 to make one in the next months.
 
 If you are interested in placing banner ads on our web site
-@uref{http://www.mysql.com/}, please send an email to
+@uref{http://www.mysql.com/}, please send an e-mail message to
 @email{advertising@@mysql.com}.
 
 
@@ -1215,14 +1215,14 @@ The @code{MySQL} web site (@uref{http://www.mysql.com/})
 provides the latest information about @code{MySQL} and @code{MySQL AB}.
 
 For press service and inquiries not covered in our News releases
-(@uref{http://www.mysql.com/news/}), please e-mail to
+(@uref{http://www.mysql.com/news/}), please send e-mail to
 @email{press@@mysql.com}.
 
 If you have a valid support contract with @code{MySQL AB}; you will
 get timely, precise answers to your technical questions about the
 @code{MySQL} software. For more information, see @ref{Support}.
 You can order your support contract at
-@uref{https://order.mysql.com/}, or send an email to
+@uref{https://order.mysql.com/}, or send an e-mail message to
 @email{sales@@mysql.com}.
 
 For information about @code{MySQL} training, please visit the training
@@ -1249,7 +1249,7 @@ Commercial licenses may be purchased online at
 on how to fax your purchase order to @code{MySQL AB}. If you have
 questions regarding licensing or you want a quote for a high-volume
 license deal, please fill in the contact form on our web site
-(@uref{http://www.mysql.com/}) or send an email
+(@uref{http://www.mysql.com/}) or send an e-mail message
 to @email{licensing@@mysql.com} (for licensing questions) or to
 @email{sales@@mysql.com} (for sales inquiries).
 @xref{MySQL server licenses}.
@@ -1264,15 +1264,15 @@ e-mail to @email{advertising@@mysql.com}.
 @xref{Business Services Advertising}.
 
 For more information on the @code{MySQL} trademark policy, refer to
-@uref{http://www.mysql.com/company/trademark.html} or email
+@uref{http://www.mysql.com/company/trademark.html} or send e-mail to
 @email{trademark@@mysql.com}.
 @xref{MySQL AB Logos and Trademarks}.
 
 If you are interested in any of the @code{MySQL AB} jobs listed in our
 jobs section (@uref{http://www.mysql.com/development/jobs/}),
-please send an e-mail to @email{jobs@@mysql.com}.
+please send an e-mail message to @email{jobs@@mysql.com}.
 Please do not send your CV as an attachment, but rather as plain text
-at the end of your email.
+at the end of your e-mail message.
 
 For general discussion amongst our many users, please direct your
 attention to the appropriate mailing list.
@@ -2002,7 +2002,7 @@ Companies providing @code{MySQL}-related services.
 
 This section introduces you to the MySQL mailing lists, and gives
 some guidelines as to how to use them. By subscribing to a mailing
-list, you will receive as emails all other postings on the list,
+list, you will receive as e-mail messages all other postings on the list,
 and you will be able to send in your own questions and answers.
 
 
@@ -2146,15 +2146,15 @@ guarantee the quality on these.
 @table @code
 @item @email{mysql-france-subscribe@@yahoogroups.com} A French mailing list
 @item @email{list@@tinc.net} A Korean mailing list
-Email @code{subscribe mysql your@@e-mail.address} to this list.
+E-mail @code{subscribe mysql your@@e-mail.address} to this list.
 @item @email{mysql-de-request@@lists.4t2.com} A German mailing list
-Email @code{subscribe mysql-de your@@e-mail.address} to this list.
+E-mail @code{subscribe mysql-de your@@e-mail.address} to this list.
 You can find information about this mailing list at
 @uref{http://www.4t2.com/mysql/}.
 @item @email{mysql-br-request@@listas.linkway.com.br} A Portugese mailing list
-Email @code{subscribe mysql-br your@@e-mail.address} to this list.
+E-mail @code{subscribe mysql-br your@@e-mail.address} to this list.
 @item @email{mysql-alta@@elistas.net} A Spanish mailing list
-Email @code{subscribe mysql your@@e-mail.address} to this list.
+E-mail @code{subscribe mysql your@@e-mail.address} to this list.
 @end table
 
 
@@ -39327,7 +39327,7 @@ the maximum size for a table. The minimum tablespace size is 10 MB.
 
 Contact information of Innobase Oy, producer of the InnoDB engine.
 Web site: @uref{http://www.innodb.com/}.
-Email: @email{Heikki.Tuuri@@innodb.com}
+E-mail: @email{Heikki.Tuuri@@innodb.com}
 
 @example
 phone: 358-9-6969 3250 (office) 358-40-5617367 (mobile)
