@@ -273,7 +273,7 @@ Channel::addTable(const char * tableName)
   if(strlen(tableName)>MAX_TAB_NAME_SIZE)
     return GrepError::REP_NOT_PROPER_TABLE;
   /**
-   * No of separators are the number of '/' found in tableName
+   * No of separators are the number of table_name_separator found in tableName
    * since a table is defined as <db>/<schema>/tablename.
    * if noOfSeparators is not equal to 2, then it is not a valid
    * table name.
@@ -282,7 +282,7 @@ Channel::addTable(const char * tableName)
   if(strlen(tableName) < 5)
     return GrepError::REP_NOT_PROPER_TABLE;
   for(Uint32 i =0; i < strlen(tableName); i++)
-    if(tableName[i]=='/')
+    if(tableName[i]==table_name_separator)
       noOfSeps++;
   if(noOfSeps!=2)
     return GrepError::REP_NOT_PROPER_TABLE;
@@ -301,7 +301,7 @@ Channel::removeTable(const char * tableName)
   if(strlen(tableName)>MAX_TAB_NAME_SIZE)
     return GrepError::REP_NOT_PROPER_TABLE;
   /**
-   * No of separators are the number of '/' found in tableName
+   * No of separators are the number of table_name_separator found in tableName
    * since a table is defined as <db>/<schema>/tablename.
    * If noOfSeparators is not equal to 2, 
    * then it is not a valid table name.
@@ -310,7 +310,7 @@ Channel::removeTable(const char * tableName)
   if(strlen(tableName) < 5)
     return GrepError::REP_NOT_PROPER_TABLE;
   for(Uint32 i =0; i < strlen(tableName); i++)
-    if(tableName[i]=='/')
+    if(tableName[i]==table_name_separator)
       noOfSeps++;
   if(noOfSeps!=2)
     return GrepError::REP_NOT_PROPER_TABLE;
