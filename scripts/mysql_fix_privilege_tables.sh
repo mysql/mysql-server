@@ -151,7 +151,7 @@ add Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Super_priv,
 add Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_tmp_table_priv,
 add Execute_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Lock_tables_priv,
 add Repl_slave_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Execute_priv,
-add Repl_client_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Repl_slave_priv
+add Repl_client_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Repl_slave_priv;
 END_OF_DATA
 
 if test $? -eq "0"
@@ -160,7 +160,7 @@ then
   echo ""
   echo "Updating new privileges in MySQL 4.0.2 from old ones"
   @bindir@/mysql --user=root --password="$root_password" --host="$host" mysql <<END_OF_DATA
-  update user set show_db_priv= select_priv, super_priv=process_priv, execute_priv=process_priv, create_tmp_table_priv='Y', Lock_tables_priv='Y', Repl_slave_priv=file_priv, Repl_client_priv=file_priv
+  update user set show_db_priv= select_priv, super_priv=process_priv, execute_priv=process_priv, create_tmp_table_priv='Y', Lock_tables_priv='Y', Repl_slave_priv=file_priv, Repl_client_priv=file_priv;
 END_OF_DATA
   echo ""
 fi

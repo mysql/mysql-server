@@ -21,7 +21,6 @@
 #include <m_ctype.h>
 #include <stdarg.h>
 #include <my_getopt.h>
-#include <assert.h>
 #ifdef HAVE_SYS_VADVICE_H
 #include <sys/vadvise.h>
 #endif
