@@ -10047,8 +10047,8 @@ reload the grant tables.
 @cindex server, starting problems
 @cindex problems, starting the server
 
-If you are going to use tables that support transactions (BDB, InnoDB or
-Gemini), you should first create a my.cnf file and set startup options
+If you are going to use tables that support transactions (BDB, InnoDB), 
+you should first create a my.cnf file and set startup options
 for the table types you plan to use. @xref{Table types}.
 
 Generally, you start the @code{mysqld} server in one of three ways:
@@ -21863,7 +21863,6 @@ differ somewhat:
 | flush                   | OFF                       |
 | flush_time              | 0                         |
 | have_bdb                | YES                       |
-| have_gemini             | NO                        |
 | have_innodb             | YES                       |
 | have_raid               | YES                       |
 | have_ssl                | NO                        |
@@ -22048,9 +22047,6 @@ very little resources.
 @item @code{have_bdb}
 @code{YES} if @code{mysqld} supports Berkeley DB tables. @code{DISABLED}
 if @code{--skip-bdb} is used.
-@item @code{have_gemini}
-@code{YES} if @code{mysqld} supports Gemini tables. @code{DISABLED}
-if @code{--skip-gemini} is used.
 @item @code{have_innodb}
 @code{YES} if @code{mysqld} supports InnoDB tables. @code{DISABLED}
 if @code{--skip-innodb} is used.
@@ -32475,7 +32471,6 @@ mysql> show variables like "have_%";
 | Variable_name | Value |
 +---------------+-------+
 | have_bdb      | YES   |
-| have_gemini   | NO    |
 | have_innodb   | NO    |
 | have_isam     | YES   |
 | have_raid     | YES   |
@@ -43054,7 +43049,7 @@ applications that need all speed they can get. The tables may be memory
 based,@code{HEAP} tables or disk based @code{MyISAM}. @xref{Table types}.
 @item
 @strong{MySQL} has support for 3 different table handles that support
-transactions (@code{BDB}, @code{InnoDB} and @code{Gemini}.  Because
+transactions (@code{BDB} and @code{InnoDB}).  Because
 every transaction engine performs differently under different
 conditions, this gives the application writer more options to find an
 optimal solution for his/her setup. @xref{Table types}.
@@ -45594,10 +45589,6 @@ transaction-safe tables.
 @item @strong{InnoDB}
 A transaction-safe table handler that supports row level locking, and many
 Oracle-like features.
-@c change "three" to "four" above when uncommenting this
-@c @item Gemini
-@c A transaction-safe, row-level locking table handler that supports many
-@c features required in a mission-critical environment.
 @end table
 
 Note that only MyISAM is available in the standard binary distribution.
