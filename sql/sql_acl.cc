@@ -1202,11 +1202,11 @@ static const char *calc_ip(const char *ip, long *val, char end)
 static void update_hostname(acl_host_and_ip *host, const char *hostname)
 {
   host->hostname=(char*) hostname;		// This will not be modified!
-  if (hostname &&
+  if (!hostname ||
       (!(hostname=calc_ip(hostname,&host->ip,'/')) ||
        !(hostname=calc_ip(hostname+1,&host->ip_mask,'\0'))))
   {
-    host->ip=host->ip_mask=0;			// Not a masked ip
+    host->ip= host->ip_mask=0;			// Not a masked ip
   }
 }
 

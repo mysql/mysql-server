@@ -164,6 +164,9 @@ NULL	'\0\Z'
 select length(quote(concat(char(0),"test")));
 length(quote(concat(char(0),"test")))
 8
+select hex(quote(concat(char(224),char(227),char(230),char(231),char(232),char(234),char(235))));
+hex(quote(concat(char(224),char(227),char(230),char(231),char(232),char(234),char(235))))
+27E0E3E6E7E8EAEB27
 select reverse("");
 reverse("")
 

@@ -1,7 +1,7 @@
 #
-# Test of timezone handling.  This script must be run with TZ=MEST
+# Test of timezone handling.  This script must be run with TZ=MET
 
--- require r/have_mest_timezone.require
+-- require r/have_met_timezone.require
 disable_query_log;
 show variables like "timezone";
 enable_query_log;
@@ -26,3 +26,9 @@ INSERT INTO t1 (ts) VALUES (Unix_timestamp('2003-03-30 04:00:01'));
 
 SELECT ts,from_unixtime(ts) FROM t1;
 DROP TABLE t1;
+
+#
+# Test unix timestamp
+#
+select @a:=FROM_UNIXTIME(1);
+select unix_timestamp(@a);
