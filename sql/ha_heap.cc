@@ -428,12 +428,8 @@ int ha_heap::create(const char *name, TABLE *table_arg,
 	seg->type= field->key_type();
       else
       {
-	if (!f_is_packed(flag) &&
-	    f_packtype(flag) == (int) FIELD_TYPE_DECIMAL &&
-	    !(field->charset() == &my_charset_bin))
-	  seg->type= (int) HA_KEYTYPE_TEXT;
-	else
-	  seg->type= (int) HA_KEYTYPE_BINARY;
+        if ((seg->type = field->key_type()) != (int) HA_KEYTYPE_TEXT)
+          seg->type= HA_KEYTYPE_BINARY;
       }
       seg->start=   (uint) key_part->offset;
       seg->length=  (uint) key_part->length;
