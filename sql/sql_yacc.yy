@@ -1411,7 +1411,7 @@ opt_binary:
 	| BINARY			{ Lex->charset=&my_charset_bin; }
 	| UNICODE_SYM
 	{
-	  if (!(Lex->charset=get_charset_by_name("ucs2",MYF(0))))
+	  if (!(Lex->charset=get_charset_by_csname("ucs2",MY_CS_PRIMARY,MYF(0))))
 	  {
 	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,"ucs2");
 	    YYABORT;
@@ -4420,31 +4420,25 @@ option_value:
 						find_sys_var("tx_isolation"),
 						new Item_int((int32) $4)));
 	  }
-	| charset old_or_new_charset_name_or_default opt_collate
+	| charset old_or_new_charset_name_or_default
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= Lex;
-	  $2= $2 ? $2: global_system_variables.collation_client;
-	  $3= $3 ? $3 : $2;
-	  if (!my_charset_same($2,$3))
-	  {
-	    net_printf(thd,ER_COLLATION_CHARSET_MISMATCH,$3->name,$2->csname);
-	    YYABORT;
-	  }
-	  lex->var_list.push_back(new set_var_collation_client($3,thd->db_charset,$3));
+	  $2= $2 ? $2: global_system_variables.character_set_client;
+	  lex->var_list.push_back(new set_var_collation_client($2,thd->db_charset,$2));
 	}
 	| NAMES_SYM charset_name_or_default opt_collate
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= Lex;
-	  $2= $2 ? $2 : global_system_variables.collation_client;
+	  $2= $2 ? $2 : global_system_variables.character_set_client;
 	  $3= $3 ? $3 : $2;
 	  if (!my_charset_same($2,$3))
 	  {
 	    net_printf(thd,ER_COLLATION_CHARSET_MISMATCH,$3->name,$2->csname);
 	    YYABORT;
 	  }
-	  lex->var_list.push_back(new set_var_collation_client($3,$3,$3));
+	  lex->var_list.push_back(new set_var_collation_client($3,$3,NULL));
 	}
 	| PASSWORD equal text_or_password
 	  {

@@ -9,7 +9,7 @@ CREATE TABLE t1 (
 
 --error 1251
 CREATE TABLE t2 (
-  latin1_f CHAR(32) CHARACTER SET latin1 COLLATE koi8r NOT NULL
+  latin1_f CHAR(32) CHARACTER SET latin1 COLLATE koi8r_general_ci NOT NULL
 );
 
 
@@ -57,39 +57,39 @@ INSERT INTO t1 (latin1_f) VALUES (_latin1'z');
 -- ORDER BY
 
 SELECT latin1_f FROM t1 ORDER BY latin1_f;
-SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1;
+SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_swedish_ci;
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_german2_ci;
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_general_ci;
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_bin;
 --error 1251
-SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE koi8r;
+SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE koi8r_general_ci;
 
 --SELECT latin1_f COLLATE koi8r FROM t1 ;
 
 -- AS + ORDER BY
-SELECT latin1_f COLLATE latin1            AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+SELECT latin1_f COLLATE latin1_swedish_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 SELECT latin1_f COLLATE latin1_german2_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 SELECT latin1_f COLLATE latin1_general_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 SELECT latin1_f COLLATE latin1_bin        AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 --error 1251
-SELECT latin1_f COLLATE koi8r             AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+SELECT latin1_f COLLATE koi8r_general_ci  AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 
 
 -- GROUP BY
 
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f;
-SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1;
+SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_swedish_ci;
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_german2_ci;
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_general_ci;
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_bin;
 --error 1251
-SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE koi8r;
+SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE koi8r_general_ci;
 
 
 --  DISTINCT
 
 SELECT DISTINCT latin1_f                           FROM t1;
-SELECT DISTINCT latin1_f COLLATE latin1            FROM t1;
+SELECT DISTINCT latin1_f COLLATE latin1_swedish_ci FROM t1;
 SELECT DISTINCT latin1_f COLLATE latin1_german2_ci FROM t1;
 SELECT DISTINCT latin1_f COLLATE latin1_general_ci FROM t1;
 SELECT DISTINCT latin1_f COLLATE latin1_bin        FROM t1;
@@ -127,35 +127,19 @@ ALTER TABLE t1 CHARACTER SET latin1 COLLATE latin1_bin;
 SHOW CREATE TABLE t1;
 SHOW FIELDS FROM  t1;
 
+#
+# Check SET CHARACTER SET
+#
+
 SET CHARACTER SET 'latin1';
-SHOW VARIABLES LIKE 'collation_client';
-SET CHARACTER SET latin1;
-SHOW VARIABLES LIKE 'collation_client';
-SHOW VARIABLES LIKE 'collation_client';
+SHOW VARIABLES LIKE 'character_set_client';
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
-SET CHARACTER SET latin1 COLLATE latin1_bin;
-SHOW VARIABLES LIKE 'collation_client';
-SET CHARACTER SET LATIN1 COLLATE Latin1_Bin;
-SHOW VARIABLES LIKE 'collation_client';
-SET CHARACTER SET 'latin1' COLLATE 'latin1_bin';
-SHOW VARIABLES LIKE 'collation_client';
-SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+
 SET CHARACTER SET koi8r;
 SHOW VARIABLES LIKE 'collation_client';
 SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
-SET CHARACTER SET koi8r COLLATE koi8r_bin;
-SHOW VARIABLES LIKE 'collation_client';
-SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
-SET CHARACTER SET koi8r COLLATE DEFAULT;
-SHOW VARIABLES LIKE 'collation_client';
-SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
-SET CHARACTER SET DEFAULT;
-SHOW VARIABLES LIKE 'collation_client';
-SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
---error 1251
-SET CHARACTER SET latin1 COLLATE koi8r;
+
 --error 1115
 SET CHARACTER SET 'DEFAULT';
-
 
 DROP TABLE t1;

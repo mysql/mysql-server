@@ -709,7 +709,7 @@ bool Protocol_simple::store(const char *from, uint length,
 	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   field_pos++;
 #endif
-  if (!my_charset_same(fromcs, tocs) &&
+  if (tocs && !my_charset_same(fromcs, tocs) &&
       (fromcs != &my_charset_bin) &&
       (tocs   != &my_charset_bin))
   {
@@ -724,7 +724,7 @@ bool Protocol_simple::store(const char *from, uint length,
 bool Protocol_simple::store(const char *from, uint length,
 			    CHARSET_INFO *fromcs)
 {
-  CHARSET_INFO *tocs= this->thd->variables.collation_results;
+  CHARSET_INFO *tocs= this->thd->variables.character_set_results;
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
@@ -732,7 +732,7 @@ bool Protocol_simple::store(const char *from, uint length,
 	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   field_pos++;
 #endif
-  if (!my_charset_same(fromcs, tocs) &&
+  if (tocs && !my_charset_same(fromcs, tocs) &&
       (fromcs != &my_charset_bin) &&
       (tocs   != &my_charset_bin))
   {
@@ -831,12 +831,14 @@ bool Protocol_simple::store(Field *field)
 #endif
   char buff[MAX_FIELD_WIDTH];
   String str(buff,sizeof(buff), &my_charset_bin);
+  CHARSET_INFO *tocs= this->thd->variables.character_set_results;
+
   field->val_str(&str,&str);
-  if (!my_charset_same(field->charset(), this->thd->charset()) &&
+  if (tocs && !my_charset_same(field->charset(), tocs) &&
       (field->charset() != &my_charset_bin) &&
-      (this->thd->charset() != &my_charset_bin))
+      (tocs != &my_charset_bin))
   {
-    convert.copy(str.ptr(), str.length(), str.charset(), this->thd->charset());
+    convert.copy(str.ptr(), str.length(), str.charset(), tocs);
     return net_store_data(convert.ptr(), convert.length());
   }
   else

@@ -385,9 +385,9 @@ struct system_variables
   my_bool low_priority_updates;
   my_bool new_mode;
   
-  CHARSET_INFO 	*collation_client;
+  CHARSET_INFO 	*character_set_client;
+  CHARSET_INFO  *character_set_results;
   CHARSET_INFO  *collation_connection;
-  CHARSET_INFO  *collation_results;
 };
 
 void free_tmp_table(THD *thd, TABLE *entry);
@@ -670,7 +670,7 @@ public:
     net.report_error= 1; 
     DBUG_PRINT("error",("Fatal error set"));
   }
-  inline CHARSET_INFO *charset() { return variables.collation_client; }
+  inline CHARSET_INFO *charset() { return variables.character_set_client; }
 };
 
 /*

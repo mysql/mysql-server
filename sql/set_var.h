@@ -420,10 +420,35 @@ SHOW_TYPE type() { return SHOW_CHAR; }
   virtual void set_default(THD *thd, enum_var_type type)= 0;
 };
 
-class sys_var_collation_client :public sys_var_collation
+class sys_var_character_set :public sys_var_thd
 {
 public:
-  sys_var_collation_client(const char *name_arg) :sys_var_collation(name_arg) {}
+  sys_var_character_set(const char *name_arg) :sys_var_thd(name_arg) {}
+  bool check(THD *thd, set_var *var);
+SHOW_TYPE type() { return SHOW_CHAR; }
+  bool check_update_type(Item_result type)
+  {
+    return type != STRING_RESULT;		/* Only accept strings */
+  }
+  bool check_default(enum_var_type type) { return 0; }
+  virtual void set_default(THD *thd, enum_var_type type)= 0;
+};
+
+class sys_var_character_set_client :public sys_var_character_set
+{
+public:
+  sys_var_character_set_client(const char *name_arg) :
+    sys_var_character_set(name_arg) {}
+  bool update(THD *thd, set_var *var);
+  void set_default(THD *thd, enum_var_type type);
+  byte *value_ptr(THD *thd, enum_var_type type);
+};
+
+class sys_var_character_set_results :public sys_var_character_set
+{
+public:
+  sys_var_character_set_results(const char *name_arg) :
+    sys_var_character_set(name_arg) {}
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
   byte *value_ptr(THD *thd, enum_var_type type);
@@ -437,16 +462,6 @@ public:
   void set_default(THD *thd, enum_var_type type);
   byte *value_ptr(THD *thd, enum_var_type type);
 };
-
-class sys_var_collation_results :public sys_var_collation
-{
-public:
-  sys_var_collation_results(const char *name_arg) :sys_var_collation(name_arg) {}
-  bool update(THD *thd, set_var *var);
-  void set_default(THD *thd, enum_var_type type);
-  byte *value_ptr(THD *thd, enum_var_type type);
-};
-
 
 /* Variable that you can only read from */
 
@@ -555,16 +570,16 @@ public:
 
 class set_var_collation_client: public set_var_base
 {
-  CHARSET_INFO *collation_client;
+  CHARSET_INFO *character_set_client;
+  CHARSET_INFO *character_set_results;
   CHARSET_INFO *collation_connection;
-  CHARSET_INFO *collation_results;
 public:
   set_var_collation_client(CHARSET_INFO *client_coll_arg,
   			   CHARSET_INFO *connection_coll_arg,
   			   CHARSET_INFO *result_coll_arg)
-    :collation_client(client_coll_arg),
-     collation_connection(connection_coll_arg),
-     collation_results(result_coll_arg)
+    :character_set_client(client_coll_arg),
+     character_set_results(result_coll_arg),
+     collation_connection(connection_coll_arg)
   {}
   int check(THD *thd);
   int update(THD *thd);
