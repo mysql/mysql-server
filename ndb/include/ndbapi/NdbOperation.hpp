@@ -755,7 +755,7 @@ protected:
   int    receiveREAD_CONF(const Uint32* aDataPtr, Uint32 aDataLength); 
 
 
-  int	 checkMagicNumber();		// Verify correct object
+  int	 checkMagicNumber(bool b = true); // Verify correct object
 
   int    checkState_TransId(NdbApiSignal* aSignal);
 
@@ -900,11 +900,11 @@ protected:
 
 inline
 int
-NdbOperation::checkMagicNumber()
+NdbOperation::checkMagicNumber(bool b)
 {
   if (theMagicNumber != 0xABCDEF01){
 #ifdef NDB_NO_DROPPED_SIGNAL
-    abort();
+    if(b) abort();
 #endif
     return -1;
   }

@@ -63,6 +63,8 @@ public:
   bool getPropertyWait(const char*, Uint32);
   const char* getPropertyWait(const char*, const char* );
 
+  void decProperty(const char *);
+  
   // Communicate with other tests
   void stopTest();
   bool isTestStopped();

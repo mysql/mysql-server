@@ -69,7 +69,12 @@ NdbConnection::receiveSCAN_TABREF(NdbApiSignal* aSignal){
     assert(theScanningOp->m_sent_receivers_count);
     theScanningOp->m_conf_receivers_count++;
     return 0;
+  } else {
+#ifdef NDB_NO_DROPPED_SIGNAL
+    abort();
+#endif
   }
+
   return -1;
 }
 
@@ -120,6 +125,10 @@ NdbConnection::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
       }
     }
     return 0;
+  } else {
+#ifdef NDB_NO_DROPPED_SIGNAL
+    abort();
+#endif
   }
 
   return -1;
