@@ -56,6 +56,15 @@ insert buffer to speed up inserts */
 #define BTR_IGNORE_SEC_UNIQUE	2048	
 
 /******************************************************************
+Gets the root node of a tree and x-latches it. */
+
+page_t*
+btr_root_get(
+/*=========*/
+				/* out: root page, x-latched */
+	dict_tree_t*	tree,	/* in: index tree */
+	mtr_t*		mtr);	/* in: mtr */
+/******************************************************************
 Gets a buffer page and declares its latching order level. */
 UNIV_INLINE
 page_t*
