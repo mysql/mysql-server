@@ -25,8 +25,7 @@ EXTRA_DIST =		$(noinst_SCRIPTS) $(BUILT_SOURCES) mysqld_error.txt INSTALL-BINARY
 
 all:			$(targets) txt_files
 
-txt_files:		../INSTALL-SOURCE ../COPYING ../COPYING.LIB \
-			INSTALL-BINARY
+txt_files:		../INSTALL-SOURCE ../COPYING  INSTALL-BINARY
 
 CLEAN_FILES:		$(BUILD_SOURCES)
 	touch $(BUILD_SOURCES)
@@ -141,9 +140,6 @@ INSTALL-BINARY:	mysql.info $(GT)
 
 ../COPYING:		mysql.info $(GT)
 	perl -w $(GT) mysql.info "GPL license" "LGPL license" > $@
-
-../COPYING.LIB:		mysql.info $(GT)
-	perl -w $(GT) mysql.info "LGPL license" "Function Index" > $@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
