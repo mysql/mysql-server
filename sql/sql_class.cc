@@ -389,9 +389,9 @@ bool select_send::send_data(List<Item> &items)
   String *packet= &thd->packet;
   DBUG_ENTER("send_data");
 
-  if (thd->offset_limit)
+  if (unit->offset_limit_cnt)
   {						// using limit offset,count
-    thd->offset_limit--;
+    unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
   packet->length(0);				// Reset packet
@@ -439,11 +439,12 @@ select_export::~select_export()
 }
 
 int
-select_export::prepare(List<Item> &list)
+select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   char path[FN_REFLEN];
   uint option=4;
   bool blob_flag=0;
+  unit= u;
 #ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
   option|=1;					// Force use of db directory
 #endif
@@ -510,9 +511,9 @@ bool select_export::send_data(List<Item> &items)
   String tmp(buff,sizeof(buff)),*res;
   tmp.length(0);
 
-  if (thd->offset_limit)
+  if (unit->offset_limit_cnt)
   {						// using limit offset,count
-    thd->offset_limit--;
+    unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
   row_count++;
@@ -678,9 +679,11 @@ select_dump::~select_dump()
 }
 
 int
-select_dump::prepare(List<Item> &list __attribute__((unused)))
+select_dump::prepare(List<Item> &list __attribute__((unused)),
+		     SELECT_LEX_UNIT *u)
 {
   uint option=4;
+  unit= u;
 #ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
   option|=1;					// Force use of db directory
 #endif
@@ -719,9 +722,9 @@ bool select_dump::send_data(List<Item> &items)
   Item *item;
   DBUG_ENTER("send_data");
 
-  if (thd->offset_limit)
+  if (unit->offset_limit_cnt)
   {						// using limit offset,count
-    thd->offset_limit--;
+    unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
   if (row_count++ > 1) 

@@ -28,21 +28,25 @@
 static const char *any_db="*any*";	// Special symbol for check_access
 
 
-int mysql_derived(THD *thd, LEX *lex,SELECT_LEX *s, TABLE_LIST *t)
+int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 {
-  SELECT_LEX *sl=s;
+  /*
+    TODO: make derived tables with union inside (now only 1 SELECT may be
+    procesed)
+  */
+  SELECT_LEX *sl= (SELECT_LEX*)unit->slave;
   List<Item> item_list;
   TABLE *table;
   int res;
   select_union *derived_result;
-  TABLE_LIST *tables=(TABLE_LIST *)sl->table_list.first;
+  TABLE_LIST *tables= (TABLE_LIST *)sl->table_list.first;
   TMP_TABLE_PARAM tmp_table_param;
   DBUG_ENTER("mysql_derived");
   
   if (tables)
-    res=check_table_access(thd,SELECT_ACL, tables);
+    res= check_table_access(thd,SELECT_ACL, tables);
   else
-    res=check_access(thd, SELECT_ACL, any_db);
+    res= check_access(thd, SELECT_ACL, any_db);
   if (res)
     DBUG_RETURN(-1);
 
@@ -52,7 +56,7 @@ int mysql_derived(THD *thd, LEX *lex,SELECT_LEX *s, TABLE_LIST *t)
   {
     if (cursor->derived)
     {
-      res=mysql_derived(thd,lex,(SELECT_LEX *)cursor->derived,cursor);
+      res=mysql_derived(thd, lex, (SELECT_LEX_UNIT *)cursor->derived, cursor);
       if (res) DBUG_RETURN(res);
     }
   }
@@ -71,9 +75,11 @@ int mysql_derived(THD *thd, LEX *lex,SELECT_LEX *s, TABLE_LIST *t)
     }
     bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
     tmp_table_param.field_count=item_list.elements;
-    if (!(table=create_tmp_table(thd, &tmp_table_param, sl->item_list,
-			       (ORDER*) 0, 0, 1, 0,
-			       (sl->options | thd->options | TMP_TABLE_ALL_COLUMNS))))
+    if (!(table= create_tmp_table(thd, &tmp_table_param, sl->item_list,
+				  (ORDER*) 0, 0, 1, 0,
+				  (sl->options | thd->options | 
+				   TMP_TABLE_ALL_COLUMNS),
+				  unit)))
     {
       res=-1;
       goto exit;
@@ -81,11 +87,11 @@ int mysql_derived(THD *thd, LEX *lex,SELECT_LEX *s, TABLE_LIST *t)
   
     if ((derived_result=new select_union(table)))
     {
-      thd->offset_limit=sl->offset_limit;
-      thd->select_limit=sl->select_limit+sl->offset_limit;
-      if (thd->select_limit < sl->select_limit)
-	thd->select_limit= HA_POS_ERROR;
-      if (thd->select_limit == HA_POS_ERROR)
+      unit->offset_limit_cnt= sl->offset_limit;
+      unit->select_limit_cnt= sl->select_limit+sl->offset_limit;
+      if (unit->select_limit_cnt < sl->select_limit)
+	unit->select_limit_cnt= HA_POS_ERROR;
+      if (unit->select_limit_cnt == HA_POS_ERROR)
 	sl->options&= ~OPTION_FOUND_ROWS;
     
       res=mysql_select(thd, tables,  sl->item_list,
@@ -93,7 +99,7 @@ int mysql_derived(THD *thd, LEX *lex,SELECT_LEX *s, TABLE_LIST *t)
 		       (ORDER*) sl->group_list.first,
 		       sl->having, (ORDER*) NULL,
 		       sl->options | thd->options | SELECT_NO_UNLOCK,
-		       derived_result);
+		       derived_result, unit);
       if (!res)
       {
 // Here we entirely fix both TABLE_LIST and list of SELECT's as there were no derived tables
@@ -103,9 +109,8 @@ int mysql_derived(THD *thd, LEX *lex,SELECT_LEX *s, TABLE_LIST *t)
 	{
 	  t->real_name=table->real_name;
 	  t->table=table;
-	  sl->prev->next=sl->next;
+	  sl->exclude();
 	  t->derived=(SELECT_LEX *)0; // just in case ...
-	  if (!sl->next) lex->last_select = sl;
 	}
       }
       delete derived_result;

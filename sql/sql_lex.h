@@ -103,28 +103,143 @@ typedef struct st_lex_master_info
 } LEX_MASTER_INFO;
 
 
-enum sub_select_type {UNSPECIFIED_TYPE,UNION_TYPE, INTERSECT_TYPE, EXCEPT_TYPE, NOT_A_SELECT, DERIVED_TABLE_TYPE};
+enum sub_select_type {UNSPECIFIED_TYPE,UNION_TYPE, INTERSECT_TYPE,
+		      EXCEPT_TYPE, GLOBAL_OPTIONS_TYPE, DERIVED_TABLE_TYPE};
 
-/* The state of the lex parsing for selects */
+/* 
+  The state of the lex parsing for selects 
+   
+   All select describing structures linked with following pointers:
+   - list of neighbors (next/prev) (prev of first element point to slave 
+     pointer of upper structure)
+     - one level units for unit (union) structure
+     - member of one union(unit) for ordinary select_lex
+   - pointer to master
+     - outer select_lex for unit (union)
+     - unit structure for ordinary select_lex
+   - pointer to slave
+     - first list element of select_lex belonged to this unit for unit
+     - first unit in list of units that belong to this select_lex (as
+       subselects or derived tables) for ordinary select_lex
+   - list of all select_lex (for group operation like correcting list of opened
+     tables)
+   for example for following query:
 
-typedef struct st_select_lex {
+   select *
+     from table1
+     where table1.field IN (select * from table1_1_1 union
+                            select * from table1_1_2)
+     union
+   select *
+     from table2
+     where table2.field=(select (select f1 from table2_1_1_1_1
+                                   where table2_1_1_1_1.f2=table2_1_1.f3)
+                           from table2_1_1
+                           where table2_1_1.f1=table2.f2)
+     union
+   select * from table3;
+
+   we will have following structure:
+
+
+     main unit
+     select1 select2 select3
+     |^^     |^
+    s|||     ||master
+    l|||     |+---------------------------------+
+    a|||     +---------------------------------+|
+    v|||master                         slave   ||
+    e||+-------------------------+             ||
+     V|            neighbor      |             V|
+     unit 1.1<==================>unit1.2       unit2.1
+     select1.1.1 select 1.1.2    select1.2.1   select2.1.1 select2.1.2
+                                               |^
+                                               ||
+                                               V|
+                                               unit2.1.1.1
+                                               select2.1.1.1.1
+
+
+   relation in main unit will be following:
+                          
+         main unit
+         |^^^
+         ||||
+         |||+------------------------------+
+         ||+--------------+                |
+    slave||master         |                |
+         V|      neighbor |       neighbor |
+         select1<========>select2<========>select3
+
+    list of all select_lex will be following (as it will be constructed by
+    parser):
+
+    select1->select2->select3->select2.1.1->select 2.1.2->select2.1.1.1.1-+
+                                                                          |
+    +---------------------------------------------------------------------+
+    |
+    +->select1.1.1->select1.1.2
+
+*/
+
+/* 
+    Base class for st_select_lex (SELECT_LEX) & 
+    st_select_lex_unit (SELECT_LEX_UNIT)
+*/
+struct st_select_lex_node {
   enum sub_select_type linkage;
-  char *db,*db1,*table1,*db2,*table2;		/* For outer join using .. */
-  Item *where,*having;
-  ha_rows select_limit,offset_limit;
+  st_select_lex_node *next, **prev,   /* neighbor list */
+    *master, *slave,                  /* vertical links */
+    *link_next, **link_prev;          /* list of whole SELECT_LEX */
+  SQL_LIST order_list;                /* ORDER clause */
+  ha_rows select_limit, offset_limit; /* LIMIT clause parameters */
+  void init_query();
+  void init_select();
+  void include_down(st_select_lex_node *upper);
+  void include_neighbour(st_select_lex_node *before);
+  void include_global(st_select_lex_node **plink);
+  void exclude();
+private:
+  void fast_exclude();
+};
+
+/* 
+   SELECT_LEX_UNIT - unit of selects (UNION, INTERSECT, ...) group 
+   SELECT_LEXs
+*/
+struct st_select_lex_unit: public st_select_lex_node {
+  /*
+    Pointer to 'last' select or pointer to unit where stored
+    global parameters for union
+  */
+  st_select_lex_node *global_parameters;
+  /* LIMIT clause runtime counters */
+  ha_rows select_limit_cnt, offset_limit_cnt;
+  void init_query();
+};
+typedef struct st_select_lex_unit SELECT_LEX_UNIT;
+
+/*
+  SELECT_LEX - store information of parsed SELECT_LEX statment
+*/
+struct st_select_lex: public st_select_lex_node {
+  char *db, *db1, *table1, *db2, *table2;      	/* For outer join using .. */
+  Item *where, *having;                         /* WHERE & HAVING clauses */
   ulong options;
   List<List_item>     expr_list;
-  List<List_item>     when_list;
-  SQL_LIST	      order_list,table_list,group_list;
-  List<Item>          item_list;
-  List<String>        interval_list,use_index, *use_index_ptr,
+  List<List_item>     when_list;                /* WHEN clause */
+  SQL_LIST	      table_list, group_list;   /* FROM & GROUP BY clauses */
+  List<Item>          item_list; /* list of fields & expressions */
+  List<String>        interval_list, use_index, *use_index_ptr,
 		      ignore_index, *ignore_index_ptr;
   List<Item_func_match> ftfunc_list;
   uint in_sum_expr, sort_default;
-  bool	create_refs, braces;
-  st_select_lex *next, *prev;
-} SELECT_LEX;
-
+  bool	create_refs, 
+    braces; /* SELECT ... UNION (SELECT ... ) <- this braces */
+  void init_query();
+  void init_select();
+};
+typedef struct st_select_lex SELECT_LEX;
 
 class Set_option :public Sql_alloc {
 public:
@@ -137,13 +252,15 @@ public:
     :name(par_name), item(par_item), name_length(length), type(par_type) {}
 };
 
-
 /* The state of the lex parsing. This is saved in the THD struct */
 
 typedef struct st_lex {
   uint	 yylineno,yytoklen;			/* Simulate lex */
   LEX_YYSTYPE yylval;
-  SELECT_LEX select_lex, *select, *last_select;
+  SELECT_LEX_UNIT unit;                         /* most upper unit */
+  SELECT_LEX select_lex,                        /* first SELECT_LEX */
+    /* current SELECT_LEX in parsing */
+    *select;
   uchar *ptr,*tok_start,*tok_end,*end_of_query;
   char *length,*dec,*change,*name;
   char *backup_dir;				/* For RESTORE/BACKUP */

@@ -173,6 +173,8 @@ class JOIN {
   select_result *result;
   TMP_TABLE_PARAM tmp_table_param;
   MYSQL_LOCK *lock;
+  // unit structure (with global parameters) for this select
+  SELECT_LEX_UNIT *unit;
 };
 
 
@@ -187,7 +189,8 @@ void TEST_join(JOIN *join);
 bool store_val_in_field(Field *field,Item *val);
 TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			ORDER *group, bool distinct, bool save_sum_fields,
-			bool allow_distinct_limit, ulong select_options);
+			bool allow_distinct_limit, ulong select_options,
+			SELECT_LEX_UNIT *unit);
 void free_tmp_table(THD *thd, TABLE *entry);
 void count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
 		       bool reset_with_sum_func);
