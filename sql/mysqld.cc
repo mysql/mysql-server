@@ -2327,7 +2327,9 @@ static void handle_connections_methods()
 #endif /* __NT__ */
   if (have_tcpip && !opt_disable_networking)
   {
+#ifdef __NT__
     handler_count++;
+#endif    
     if (pthread_create(&hThread,&connection_attrib,
 		       handle_connections_sockets, 0))
     {
@@ -2338,7 +2340,9 @@ static void handle_connections_methods()
 #ifdef HAVE_SMEM
   if (opt_enable_shared_memory)
   {
+#ifdef __NT__
     handler_count++;
+#endif    
     if (pthread_create(&hThread,&connection_attrib,
 		       handle_connections_shared_memory, 0))
     {
@@ -3364,10 +3368,12 @@ error:
   if (!handle_connect_file_map) CloseHandle(handle_connect_file_map);
   if (!event_connect_answer) CloseHandle(event_connect_answer);
   if (!event_connect_request) CloseHandle(event_connect_request);
+#ifdef __NT__  
   pthread_mutex_lock(&LOCK_thread_count);
   handler_count--;
   pthread_mutex_unlock(&LOCK_thread_count);
   pthread_cond_signal(&COND_handler_count);
+#endif  
   DBUG_RETURN(0);
 }
 #endif /* HAVE_SMEM */
