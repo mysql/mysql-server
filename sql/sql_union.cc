@@ -351,7 +351,8 @@ int st_select_lex_unit::exec()
 			global_parameters->order_list.elements,
 			(ORDER*)global_parameters->order_list.first,
 			(ORDER*) NULL, NULL, (ORDER*) NULL,
-			thd->options, result, this, fake_select, 0);
+			thd->options | SELECT_NO_UNLOCK,
+			result, this, fake_select, 0);
       if (found_rows_for_union && !res)
 	thd->limit_found_rows = (ulonglong)table->file->records;
       fake_select->exclude();

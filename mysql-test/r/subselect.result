@@ -1225,3 +1225,15 @@ a	(select count(distinct t1.b) as sum from t1,t2 where t1.a=t2.a and t2.b > 0 an
 2	2
 1	2
 drop table t1,t2,t3;
+create table t1 (a int) type=innodb;
+create table t2 (a int) type=innodb;
+create table t3 (a int) type=innodb;
+insert into t1 values (1),(2),(3),(4);
+insert into t2 values (10),(20),(30),(40);
+insert into t3 values (1),(2),(10),(50);
+select a from t3 where t3.a in (select a from t1 where a <= 3 union select * from t2 where a <= 30);
+a
+1
+2
+10
+drop table t1,t2;
