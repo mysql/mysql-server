@@ -125,7 +125,7 @@ static int remove_duplicates(JOIN *join,TABLE *entry,List<Item> &fields,
 			     Item *having);
 static int remove_dup_with_compare(THD *thd, TABLE *entry, Field **field,
 				   ulong offset,Item *having);
-static int remove_dup_with_hash_index(THD *thd, TABLE *table,
+static int remove_dup_with_hash_index(THD *thd,TABLE *table,
 				      uint field_count, Field **first_field,
 				      ulong key_length,Item *having);
 static int join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count);
@@ -616,22 +616,8 @@ JOIN::optimize()
   }
   if (const_tables && !thd->locked_tables &&
       !(select_options & SELECT_NO_UNLOCK))
-  {
-    TABLE **curr_table, **end;
-    for (curr_table= table, end=curr_table + const_tables ;
-	 curr_table != end;
-	 curr_table++)
-    {
-      /* BDB tables require that we call index_end() before doing an unlock */
-      if ((*curr_table)->key_read)
-      {
-	(*curr_table)->key_read=0;
-	(*curr_table)->file->extra(HA_EXTRA_NO_KEYREAD);
-      }
-      (*curr_table)->file->index_end();
-    }
     mysql_unlock_some_tables(thd, table, const_tables);
-  }
+
   if (!conds && outer_join)
   {
     /* Handle the case where we have an OUTER JOIN without a WHERE */
@@ -1543,6 +1529,7 @@ JOIN::cleanup()
       }
     }
     tmp_join->tmp_join= 0;
+    tmp_table_param.copy_field=0;
     DBUG_RETURN(tmp_join->cleanup());
   }
 
@@ -3656,7 +3643,6 @@ make_join_readinfo(JOIN *join, uint options)
       }
       delete tab->quick;
       tab->quick=0;
-      table->file->index_init(tab->ref.key);
       tab->read_first_record= join_read_key;
       tab->read_record.read_record= join_no_more_records;
       if (table->used_keys.is_set(tab->ref.key) &&
@@ -3676,7 +3662,6 @@ make_join_readinfo(JOIN *join, uint options)
       }
       delete tab->quick;
       tab->quick=0;
-      table->file->index_init(tab->ref.key);
       if (table->used_keys.is_set(tab->ref.key) &&
 	  !table->no_keyread)
       {
@@ -3696,7 +3681,6 @@ make_join_readinfo(JOIN *join, uint options)
       break;
     case JT_FT:
       table->status=STATUS_NO_RECORD;
-      table->file->index_init(tab->ref.key);
       tab->read_first_record= join_ft_read_first;
       tab->read_record.read_record= join_ft_read_next;
       break;
@@ -3766,7 +3750,6 @@ make_join_readinfo(JOIN *join, uint options)
 		   !(tab->select && tab->select->quick))
 	  {					// Only read index tree
 	    tab->index=find_shortest_key(table, & table->used_keys);
-	    tab->table->file->index_init(tab->index);
 	    tab->read_first_record= join_read_first;
 	    tab->type=JT_NEXT;		// Read with index_first / index_next
 	  }
@@ -3840,9 +3823,7 @@ void JOIN_TAB::cleanup()
       table->key_read= 0;
       table->file->extra(HA_EXTRA_NO_KEYREAD);
     }
-    /* Don't free index if we are using read_record */
-    if (!read_record.table)
-      table->file->index_end();
+    table->file->ha_index_or_rnd_end();
     /*
       We need to reset this for next select
       (Tested in part_of_refkey)
@@ -3868,7 +3849,7 @@ void
 JOIN::join_free(bool full)
 {
   JOIN_TAB *tab,*end;
-  DBUG_ENTER("join_free");
+  DBUG_ENTER("JOIN::join_free");
 
   if (table)
   {
@@ -3881,23 +3862,23 @@ JOIN::join_free(bool full)
       free_io_cache(table[const_tables]);
       filesort_free_buffers(table[const_tables]);
     }
-    if (!full && select_lex->uncacheable)
+    if (full || !select_lex->uncacheable)
+    {
+      for (tab= join_tab, end= tab+tables; tab != end; tab++)
+	tab->cleanup();
+      table= 0;
+    }
+    else
     {
       for (tab= join_tab, end= tab+tables; tab != end; tab++)
       {
 	if (tab->table)
 	{
 	  /* Don't free index if we are using read_record */
-	  if (!tab->read_record.table)
-	    tab->table->file->index_end();
+	  if (tab->table->file->inited==handler::RND)
+	    tab->table->file->ha_rnd_end();
 	}
       }
-    }
-    else
-    {
-      for (tab= join_tab, end= tab+tables; tab != end; tab++)
-	tab->cleanup();
-      table= 0;
     }
   }
   /*
@@ -4148,12 +4129,6 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
       while ((item= it++))
 	item->no_rows_in_result();
       result->send_data(fields);
-    }
-    if (tables)				// Not from do_select()
-    {
-      /* Close open cursors */
-      for (TABLE_LIST *table=tables; table ; table=table->next)
-	table->table->file->index_end();
     }
     result->send_eof();				// Should be safe
   }
@@ -5561,8 +5536,8 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
     goto err1;
   if (table->file->indexes_are_disabled())
     new_table.file->disable_indexes(HA_KEY_SWITCH_ALL);
-  table->file->index_end();
-  table->file->rnd_init();
+  table->file->ha_index_or_rnd_end();
+  table->file->ha_rnd_init();
   if (table->no_rows)
   {
     new_table.file->extra(HA_EXTRA_NO_ROWS);
@@ -5584,7 +5559,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   }
 
   /* remove heap table and change to use myisam table */
-  (void) table->file->rnd_end();
+  (void) table->file->ha_rnd_end();
   (void) table->file->close();
   (void) table->file->delete_table(table->real_name);
   delete table->file;
@@ -5598,7 +5573,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
  err:
   DBUG_PRINT("error",("Got error: %d",write_err));
   table->file->print_error(error,MYF(0));	// Give table is full error
-  (void) table->file->rnd_end();
+  (void) table->file->ha_rnd_end();
   (void) new_table.file->close();
  err1:
   new_table.file->delete_table(new_table.real_name);
@@ -5647,7 +5622,8 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       {
 	DBUG_PRINT("info",("Using end_update"));
 	end_select=end_update;
-	table->file->index_init(0);
+        if (!table->file->inited)
+          table->file->ha_index_init(0);
       }
       else
       {
@@ -5725,9 +5701,9 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       my_errno= tmp;
       error= -1;
     }
-    if ((tmp=table->file->index_end()))
+    if ((tmp=table->file->ha_index_or_rnd_end()))
     {
-      DBUG_PRINT("error",("index_end() failed"));
+      DBUG_PRINT("error",("ha_index_or_rnd_end() failed"));
       my_errno= tmp;
       error= -1;
     }
@@ -5994,6 +5970,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       if (!table->outer_join || error > 0)
 	DBUG_RETURN(error);
     }
+    if (table->key_read)
+    {
+      table->key_read=0;
+      table->file->extra(HA_EXTRA_NO_KEYREAD);
+    }
   }
   if (tab->on_expr && !table->null_row)
   {
@@ -6072,6 +6053,8 @@ join_read_key(JOIN_TAB *tab)
   int error;
   TABLE *table= tab->table;
 
+  if (!table->file->inited)
+    table->file->ha_index_init(tab->ref.key);
   if (cmp_buffer_with_ref(tab) ||
       (table->status & (STATUS_GARBAGE | STATUS_NO_PARENT | STATUS_NULL_ROW)))
   {
@@ -6097,6 +6080,8 @@ join_read_always_key(JOIN_TAB *tab)
   int error;
   TABLE *table= tab->table;
 
+  if (!table->file->inited)
+    table->file->ha_index_init(tab->ref.key);
   if (cp_buffer_from_ref(&tab->ref))
     return -1;
   if ((error=table->file->index_read(table->record[0],
@@ -6122,6 +6107,8 @@ join_read_last_key(JOIN_TAB *tab)
   int error;
   TABLE *table= tab->table;
 
+  if (!table->file->inited)
+    table->file->ha_index_init(tab->ref.key);
   if (cp_buffer_from_ref(&tab->ref))
     return -1;
   if ((error=table->file->index_read_last(table->record[0],
@@ -6230,6 +6217,8 @@ join_read_first(JOIN_TAB *tab)
   tab->read_record.file=table->file;
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
+  if (!table->file->inited)
+    table->file->ha_index_init(tab->index);
   if ((error=tab->table->file->index_first(tab->table->record[0])))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -6267,6 +6256,8 @@ join_read_last(JOIN_TAB *tab)
   tab->read_record.file=table->file;
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
+  if (!table->file->inited)
+    table->file->ha_index_init(tab->index);
   if ((error= tab->table->file->index_last(tab->table->record[0])))
     return report_error(table, error);
   return 0;
@@ -6289,6 +6280,8 @@ join_ft_read_first(JOIN_TAB *tab)
   int error;
   TABLE *table= tab->table;
 
+  if (!table->file->inited)
+    table->file->ha_index_init(tab->ref.key);
 #if NOT_USED_YET
   if (cp_buffer_from_ref(&tab->ref))       // as ft-key doesn't use store_key's
     return -1;                             // see also FT_SELECT::init()
@@ -6606,7 +6599,6 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     if (item->maybe_null)
       group->buff[-1]=item->null_value ? 1 : 0;
   }
-  // table->file->index_init(0);
   if (!table->file->index_read(table->record[1],
 			       join->tmp_table_param.group_buff,0,
 			       HA_READ_KEY_EXACT))
@@ -6637,7 +6629,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 				error, 0))
       DBUG_RETURN(-1);				// Not a table_is_full error
     /* Change method to update rows */
-    table->file->index_init(0);
+    table->file->ha_index_init(0);
     join->join_tab[join->tables-1].next_select=end_unique_update;
   }
   join->send_records++;
@@ -7135,10 +7127,10 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	if (tab->ref.key >= 0)
 	{
 	  tab->ref.key= new_ref_key;
-	  table->file->index_init(new_ref_key);
 	}
 	else
 	{
+          select->quick->file->ha_index_end();
 	  select->quick->index= new_ref_key;
 	  select->quick->init();
 	}
@@ -7160,7 +7152,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  */
 	  if (!select->quick->reverse_sorted())
 	  {
-            if (table->file->index_flags(ref_key) & HA_NOT_READ_PREFIX_LAST)
+            if (!(table->file->index_flags(ref_key) & HA_READ_PREV))
               DBUG_RETURN(0);			// Use filesort
 	    // ORDER BY range_key DESC
 	    QUICK_SELECT_DESC *tmp=new QUICK_SELECT_DESC(select->quick,
@@ -7182,7 +7174,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	    Use a traversal function that starts by reading the last row
 	    with key part (A) and then traverse the index backwards.
 	  */
-	  if (table->file->index_flags(ref_key) & HA_NOT_READ_PREFIX_LAST)
+	  if (!(table->file->index_flags(ref_key) & HA_READ_PREV))
 	    DBUG_RETURN(0);			// Use filesort
 	  tab->read_first_record=       join_read_last_key;
 	  tab->read_record.read_record= join_read_prev_same;
@@ -7236,7 +7228,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	    tab->index=nr;
 	    tab->read_first_record=  (flag > 0 ? join_read_first:
 				      join_read_last);
-	    table->file->index_init(nr);
 	    tab->type=JT_NEXT;	// Read with index_first(), index_next()
 	    if (table->used_keys.is_set(nr))
 	    {
@@ -7497,7 +7488,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
   org_record=(char*) (record=table->record[0])+offset;
   new_record=(char*) table->record[1]+offset;
 
-  file->rnd_init();
+  file->ha_rnd_init();
   error=file->rnd_next(record);
   for (;;)
   {
@@ -7609,7 +7600,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
       (*field_length++)= (*ptr)->pack_length();
   }
 
-  file->rnd_init();
+  file->ha_rnd_init();
   key_pos=key_buffer;
   for (;;)
   {
@@ -7655,14 +7646,14 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
   my_free((char*) key_buffer,MYF(0));
   hash_free(&hash);
   file->extra(HA_EXTRA_NO_CACHE);
-  (void) file->rnd_end();
+  (void) file->ha_rnd_end();
   DBUG_RETURN(0);
 
 err:
   my_free((char*) key_buffer,MYF(0));
   hash_free(&hash);
   file->extra(HA_EXTRA_NO_CACHE);
-  (void) file->rnd_end();
+  (void) file->ha_rnd_end();
   if (error)
     file->print_error(error,MYF(0));
   DBUG_RETURN(1);

@@ -1188,7 +1188,7 @@ int subselect_single_select_engine::exec()
       join->thd->where= save_where;
       executed= 1;
       join->thd->lex->current_select= save_select;
-      DBUG_RETURN(join->error?join->error:1);
+      DBUG_RETURN(join->error ? join->error : 1);
     }
     if (item->engine_changed)
     {
@@ -1240,6 +1240,8 @@ int subselect_uniquesubquery_engine::exec()
   }
   else
   {
+    if (!table->file->inited)
+      table->file->ha_index_init(tab->ref.key);
     error= table->file->index_read(table->record[0],
 				   tab->ref.key_buff,
 				   tab->ref.key_length,HA_READ_KEY_EXACT);
@@ -1261,7 +1263,7 @@ int subselect_uniquesubquery_engine::exec()
 subselect_uniquesubquery_engine::~subselect_uniquesubquery_engine()
 {
   /* Tell handler we don't need the index anymore */
-  tab->table->file->index_end();
+  tab->table->file->ha_index_end();
 }
 
 
@@ -1288,6 +1290,8 @@ int subselect_indexsubquery_engine::exec()
   }
   else
   {
+    if (!table->file->inited)
+      table->file->ha_index_init(tab->ref.key);
     error= table->file->index_read(table->record[0],
 				   tab->ref.key_buff,
 				   tab->ref.key_length,HA_READ_KEY_EXACT);
