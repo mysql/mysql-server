@@ -1088,6 +1088,7 @@ bool delayed_insert::handle_inserts(void)
   int error;
   uint max_rows;
   bool using_ignore=0;
+  delayed_row *row;
   DBUG_ENTER("handle_inserts");
 
   /* Allow client to insert new rows */
@@ -1113,7 +1114,6 @@ bool delayed_insert::handle_inserts(void)
 
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   pthread_mutex_lock(&mutex);
-  delayed_row *row;
   while ((row=rows.get()))
   {
     stacked_inserts--;
@@ -1138,9 +1138,7 @@ bool delayed_insert::handle_inserts(void)
     if (write_record(table,&info))
     {
       info.error++;				// Ignore errors
-      pthread_mutex_lock(&LOCK_delayed_status);
-      delayed_insert_errors++;
-      pthread_mutex_unlock(&LOCK_delayed_status);
+      thread_safe_increment(delayed_insert_errors,&LOCK_delayed_status);
       row->log_query = 0;
     }
     if (using_ignore)
@@ -1209,6 +1207,13 @@ bool delayed_insert::handle_inserts(void)
   DBUG_RETURN(0);
 
  err:
+  /* Remove all not used rows */
+  while ((row=rows.get()))
+  {
+    delete row;
+    thread_safe_increment(delayed_insert_errors,&LOCK_delayed_status);
+    stacked_inserts--;
+  }
   thread_safe_increment(delayed_insert_errors, &LOCK_delayed_status);
   pthread_mutex_lock(&mutex);
   DBUG_RETURN(1);

@@ -56,7 +56,7 @@ my_bool set_changeable_var(my_string str,CHANGEABLE_VAR *vars)
       CHANGEABLE_VAR *var,*found;
       my_string var_end;
       const char *name;
-      long num;
+      longlong num;
 
       /* Skip end space from variable */
       for (var_end=end ; end > str && isspace(var_end[-1]) ; var_end--) ;
@@ -87,7 +87,7 @@ my_bool set_changeable_var(my_string str,CHANGEABLE_VAR *vars)
 	DBUG_RETURN(1);
       }
 
-      num=(long) atol(end); endchar=strend(end)[-1];
+      num=atoll(end); endchar=strend(end)[-1];
       if (endchar == 'k' || endchar == 'K')
 	num*=1024;
       else if (endchar == 'm' || endchar == 'M')
@@ -99,14 +99,12 @@ my_bool set_changeable_var(my_string str,CHANGEABLE_VAR *vars)
 	fprintf(stderr,"Unknown prefix used for variable value '%s'\n",str);
 	DBUG_RETURN(1);
       }
-      if (num < (long) found->min_value)
-	num=(long) found->min_value;
-      else if ((unsigned long) num >
-	       (unsigned long) found->max_value)
-	num=(long) found->max_value;
-      *found->varptr=(long) ((ulong) (num-found->sub_size) /
-			     (ulong) found->block_size);
-      (*found->varptr)*= (ulong) found->block_size;
+      if (num < (longlong) found->min_value)
+	num=(longlong) found->min_value;
+      else if (num > (longlong) (ulong) found->max_value)
+	num=(longlong) (ulong) found->max_value;
+      num=((num- (longlong) found->sub_size) / (ulonglong) found->block_size);
+      (*found->varptr)= (long) (num*(ulonglong) found->block_size);
       DBUG_RETURN(0);
     }
   }
