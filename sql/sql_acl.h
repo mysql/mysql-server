@@ -163,3 +163,5 @@ ulong get_column_grant(THD *thd, TABLE_LIST *table, Field *field);
 int mysql_show_grants(THD *thd, LEX_USER *user);
 void get_privilege_desc(char *to, uint max_length, ulong access);
 void get_mqh(const char *user, const char *host, USER_CONN *uc);
+int mysql_drop_user(THD *thd, List <LEX_USER> &list);
+int mysql_revoke_all(THD *thd, List <LEX_USER> &list);
