@@ -235,7 +235,7 @@ bool String::copy(const char *str, uint32 arg_length,
 {
   if ((from_cs == &my_charset_bin) || (to_cs == &my_charset_bin))
   {
-    return copy(str, arg_length, &my_charset_bin);
+    return copy(str, arg_length, to_cs);
   }
   uint32 new_length= to_cs->mbmaxlen*arg_length;
   if (alloc(new_length))
