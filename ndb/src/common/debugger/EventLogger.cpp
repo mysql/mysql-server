@@ -1343,7 +1343,7 @@ EventLogger::log(int eventType, const Uint32* theData, NodeId nodeId,
 {
   Uint32 threshold = 0;
   Logger::LoggerLevel severity = Logger::LL_WARNING;
-  LogLevel::EventCategory cat;
+  LogLevel::EventCategory cat= LogLevel::llInvalid;
 
   for(unsigned i = 0; i<EventLoggerBase::matrixSize; i++){
     if(EventLoggerBase::matrix[i].eventType == eventType){
@@ -1353,6 +1353,9 @@ EventLogger::log(int eventType, const Uint32* theData, NodeId nodeId,
       break;
     }
   }
+
+  if (cat == LogLevel::llInvalid)
+    return;
   
   Uint32 set = ll?ll->getLogLevel(cat) : m_logLevel.getLogLevel(cat);
   if (threshold <= set){
