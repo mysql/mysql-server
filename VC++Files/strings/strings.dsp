@@ -177,6 +177,10 @@ SOURCE=.\ctype.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\decimal.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\int2str.c
 # End Source File
 # Begin Source File

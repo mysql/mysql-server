@@ -1963,7 +1963,7 @@ sp_merge_table_hash(HASH *hdst, HASH *hsrc)
     SP_TABLE *tabsrc= (SP_TABLE *)hash_element(hsrc, i);
 
     if (! (tabdst= (SP_TABLE *)hash_search(hdst,
-					   tabsrc->qname.str,
+					   (byte *) tabsrc->qname.str,
 					   tabsrc->qname.length)))
     {
       my_hash_insert(hdst, (byte *)tabsrc);

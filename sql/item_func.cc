@@ -1743,7 +1743,7 @@ longlong Item_func_round::int_op()
   if (truncate)
   {
     if (unsigned_flag)
-      tmp2= floor(((double)((ulonglong)value))/tmp)*tmp;
+      tmp2= floor(ulonglong2double(value)/tmp)*tmp;
     else if (value >= 0)
       tmp2= floor(((double)value)/tmp)*tmp;
     else
