@@ -482,3 +482,8 @@ SET GLOBAL MYISAM_DATA_POINTER_SIZE= 8;
 SHOW VARIABLES LIKE 'MYISAM_DATA_POINTER_SIZE';
 Variable_name	Value
 myisam_data_pointer_size	8
+SET GLOBAL table_cache=-1;
+SHOW VARIABLES LIKE 'table_cache';
+Variable_name	Value
+table_cache	1
+SET GLOBAL table_cache=DEFAULT;
