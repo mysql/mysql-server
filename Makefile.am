@@ -83,4 +83,3 @@ tags:
 
 test:
 	cd mysql-test ; ./mysql-test-run
-
