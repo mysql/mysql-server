@@ -37,7 +37,7 @@
 **   Tõnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
 **/
 
-#define DUMP_VERSION "8.8"
+#define DUMP_VERSION "8.9"
 
 #include <global.h>
 #include <my_sys.h>
@@ -943,7 +943,7 @@ static void dumpTable(uint numFields, char *table)
 	  {
 	    if (length)
 	    {
-	      if (!IS_NUM(field->type))
+	      if (!IS_NUM_FIELD(field))
 	      {
 		if (dynstr_realloc(&extended_row,length * 2+2))
 		{
@@ -975,7 +975,7 @@ static void dumpTable(uint numFields, char *table)
 	    putchar(',');
 	  if (row[i])
 	  {
-	    if (!IS_NUM(field->type))
+	    if (!IS_NUM_FIELD(field))
 	      unescape(stdout, row[i], lengths[i]);
 	    else
 	      fputs(row[i],stdout);

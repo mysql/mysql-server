@@ -238,7 +238,7 @@ Linux notes (all Linux versions)
 * Linux-Alpha::                 Linux-Alpha notes
 * MKLinux::                     MkLinux notes
 * Qube2::                       Qube2 Linux notes
-* Linux-Ia64::                  IA64 Linux notes
+* Linux-Ia64::                  
 
 BSD/OS notes
 
@@ -650,7 +650,7 @@ Some common errors when using MySQL
 
 Solving some common problems with MySQL
 
-* Log Replication::             Database replication with update log
+* Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
 * Slow query log::              Log of slow queries
@@ -766,6 +766,7 @@ MySQL change history
 
 Changes in release 3.23.x  (Recommended; beta)
 
+* News-3.23.24::                
 * News-3.23.23::                Changes in release 3.23.23
 * News-3.23.22::                Changes in release 3.23.22
 * News-3.23.21::                Changes in release 3.23.21
@@ -9895,8 +9896,9 @@ unchecked values to @strong{MySQL} is very dangerous!
 Check data sizes before passing them to @strong{MySQL}.
 @item
 Consider having your application connect to the database using a
-different user name than the one you use for administrative purposes. Do not give
-your applications any more access privileges than what they need.
+different user name than the one you use for administrative purposes. Do
+not give your applications any more access privileges than what they
+need.
 @end itemize
 @item
 Users of PHP:
@@ -12301,6 +12303,11 @@ operation because it is automatically set to the date and time of the most
 recent operation if you don't give it a value yourself.  You can also set it
 to the current date and time by assigning it a @code{NULL} value.  @xref{Date
 and time types}.
+
+Note that @code{TIMESTAMP(X)} columns where X is 8 or 14 are reported to
+be numbers while other @code{TIMESTAMP(X)} columns are reported to be
+strings.  This is just to ensure that one can reliable dump and restore
+the table with these types!
 
 @tindex TIME
 @item TIME
@@ -28281,17 +28288,32 @@ If you are using Access 2000, you should get and install the newest
 Microsoft MDAC (@code{Microsoft Data Access Components}) from
 @uref{http://www.microsoft.com/data}.  This will fix the bug in Access
 that when you export data to @strong{MySQL}, the table and column names
-aren't specified.
+aren't specified.  Another way to around this bug is to upgrade to
+MyODBC 2.50.33 and @strong{MySQL} 3.23.x, which together provides a
+workaround for this bug!
 @item
-You should have a primary key in the table.
+Set the `Return matching rows' MyODBC option field when connecting to
+@strong{MySQL}.
+@item
+You should have a primary key in the table;  If not, new or updated rows
+may chow up as @code{#Deleted#}.
 @item
 You should have a timestamp in all tables you want to be able to update.
 For maximum portability @code{TIMESTAMP(14)} or simple @code{TIMESTAMP}
 is recommended instead of other @code{TIMESTAMP(X)} variations.
 @item
 Only use double float fields. Access fails when comparing with single floats.
+The symptom usually is that new or updated rows may chow up as @code{#Deleted#}
+or that you can't find or update rows.
 @item
-Set the `Return matching rows' option field when connecting to @strong{MySQL}.
+If you still get the error @code{Another user has changed your data} after
+adding a @code{TIMESTAMP} column the following trick may help you:
+
+Don't use @code{table} data sheet view. Create instead a form with the
+fields you want, and use that @code{form} data sheet view.  You should
+set the @code{DefaultValue} property for the @code{TIMESTAMP} column to
+@code{NOW()}.  It may be a good idea to hide the @code{TIMESTAMP} column
+from the view to not confuse your users.
 @item
 Access on NT will report @code{BLOB} columns as @code{OLE OBJECTS}. If
 you want to have @code{MEMO} columns instead, you should change the
@@ -28303,8 +28325,8 @@ with these, change the columns to @code{DATETIME}.
 In some cases, Access may generate illegal SQL queries that
 @strong{MySQL} can't understand. You can fix this by selecting
 @code{"Query|SQLSpecific|Pass-Through"} from the Access menu.
-
 @end itemize
+
 @item Borland Builder 4
 When you start a query you can use the property @code{Active} or use the
 method @code{Open}.  Note that @code{Active} will start by automatically issue
@@ -35673,6 +35695,7 @@ version.  The replication and BerkeleyDB code is still under development,
 though, so 3.23 is not released as a stable version yet.
 
 @menu
+* News-3.23.24::                Changes in release 3.23.24
 * News-3.23.23::                Changes in release 3.23.23
 * News-3.23.22::                Changes in release 3.23.22
 * News-3.23.21::                Changes in release 3.23.21
@@ -35699,7 +35722,16 @@ though, so 3.23 is not released as a stable version yet.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.23, News-3.23.22, News-3.23.x, News-3.23.x
+@node News-3.23.24, News-3.23.23, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.24
+@itemize @bullet
+@item
+To make it possibly to reliable dump and restore tables with
+@code{TIMESTAMP(X)} columns, @code{MySQL} now reports columns with X
+other than 14 or 8 to be strings.
+@end itemize
+
+@node News-3.23.23, News-3.23.22, News-3.23.24, News-3.23.x
 @appendixsubsec Changes in release 3.23.23
 @itemize @bullet
 @item

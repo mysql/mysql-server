@@ -514,7 +514,7 @@ public:
   Field_timestamp(char *ptr_arg, uint32 len_arg,
 		  enum utype unireg_check_arg, const char *field_name_arg,
 		  struct st_table *table_arg);
-  enum Item_result result_type () const { return INT_RESULT; }
+  enum Item_result result_type () const { return field_length == 8 || field_length == 14 ? INT_RESULT : STRING_RESULT; }
   enum_field_types type() const { return FIELD_TYPE_TIMESTAMP;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
   void store(const char *to,uint length);
