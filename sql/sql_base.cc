@@ -1777,9 +1777,12 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     if (item->type() == Item::FIELD_ITEM &&
 	((Item_field*) item)->field_name[0] == '*')
     {
+      uint elem=fields.elements;
       if (insert_fields(thd,tables,((Item_field*) item)->db_name,
 			((Item_field*) item)->table_name,&it))
 	DBUG_RETURN(-1); /* purecov: inspected */
+      if (sum_func_list)
+	sum_func_list->elements += fields.elements - elem;
     }
     else
     {
