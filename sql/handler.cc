@@ -1434,9 +1434,9 @@ int handler::read_range_first(const key_range *start_key,
 		       start_key->length,
 		       start_key->flag);
   if (result)
-    DBUG_RETURN((result == HA_ERR_KEY_NOT_FOUND ||
-		 result == HA_ERR_END_OF_FILE) ? HA_ERR_END_OF_FILE :
-		result);
+    DBUG_RETURN((result == HA_ERR_KEY_NOT_FOUND) 
+		? HA_ERR_END_OF_FILE
+		: result);
 
   DBUG_RETURN (compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
 }
