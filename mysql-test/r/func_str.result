@@ -249,3 +249,45 @@ INSERT INTO t1 VALUES (1, 'a545f661efdd1fb66fdee3aab79945bf');
 SELECT 1 FROM t1 WHERE tmp=AES_DECRYPT(tmp,"password");
 1
 DROP TABLE t1;
+select collation(lcase(_latin2'a')), coercibility(lcase(_latin2'a'));
+collation(lcase(_latin2'a'))	coercibility(lcase(_latin2'a'))
+latin2_general_ci	3
+select collation(ucase(_latin2'a')), coercibility(ucase(_latin2'a'));
+collation(ucase(_latin2'a'))	coercibility(ucase(_latin2'a'))
+latin2_general_ci	3
+select collation(left(_latin2'a',1)), coercibility(left(_latin2'a',1));
+collation(left(_latin2'a',1))	coercibility(left(_latin2'a',1))
+latin2_general_ci	3
+select collation(right(_latin2'a',1)), coercibility(right(_latin2'a',1));
+collation(right(_latin2'a',1))	coercibility(right(_latin2'a',1))
+latin2_general_ci	3
+select collation(substring(_latin2'a',1,1)), coercibility(substring(_latin2'a',1,1));
+collation(substring(_latin2'a',1,1))	coercibility(substring(_latin2'a',1,1))
+latin2_general_ci	3
+select collation(concat(_latin2'a',_latin2'b')), coercibility(concat(_latin2'a',_latin2'b'));
+collation(concat(_latin2'a',_latin2'b'))	coercibility(concat(_latin2'a',_latin2'b'))
+latin2_general_ci	3
+select collation(concat_ws(_latin2'a',_latin2'b')), coercibility(concat_ws(_latin2'a',_latin2'b'));
+collation(concat_ws(_latin2'a',_latin2'b'))	coercibility(concat_ws(_latin2'a',_latin2'b'))
+latin2_general_ci	3
+create table t1 
+select
+left(_latin2'a',1),
+right(_latin2'a',1), 
+lcase(_latin2'a'), 
+ucase(_latin2'a'),
+substring(_latin2'a',1,1),
+concat(_latin2'a',_latin2'b'),
+concat_ws(_latin2'a',_latin2'b');
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `left(_latin2'a',1)` char(1) character set latin2 NOT NULL default '',
+  `right(_latin2'a',1)` char(1) character set latin2 NOT NULL default '',
+  `lcase(_latin2'a')` char(1) character set latin2 NOT NULL default '',
+  `ucase(_latin2'a')` char(1) character set latin2 NOT NULL default '',
+  `substring(_latin2'a',1,1)` char(1) character set latin2 NOT NULL default '',
+  `concat(_latin2'a',_latin2'b')` char(2) character set latin2 NOT NULL default '',
+  `concat_ws(_latin2'a',_latin2'b')` char(1) character set latin2 NOT NULL default ''
+) TYPE=MyISAM CHARSET=latin1
+drop table t1;
