@@ -2310,6 +2310,14 @@ btr_index_rec_validate(
 	ulint	i;
 	char	err_buf[1000];
 	
+	if (index->type & DICT_UNIVERSAL) {
+	        /* The insert buffer index tree can contain records from any
+	        other index: we cannot check the number of fields or
+	        their length */
+
+	        return(TRUE);
+	}
+
 	n = dict_index_get_n_fields(index);
 
 	if (rec_get_n_fields(rec) != n) {

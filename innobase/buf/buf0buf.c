@@ -1357,11 +1357,6 @@ buf_page_create(
 	ut_ad(mtr);
 
 	free_block = buf_LRU_get_free_block();
-
-	/* Delete possible entries for the page from the insert buffer:
-	such can exist if the page belonged to an index which was dropped */
-
-	ibuf_merge_or_delete_for_page(NULL, space, offset);	
 	
 	mutex_enter(&(buf_pool->mutex));
 
@@ -1409,6 +1404,11 @@ buf_page_create(
 	buf_pool->n_pages_created++;
 
 	mutex_exit(&(buf_pool->mutex));
+
+	/* Delete possible entries for the page from the insert buffer:
+	such can exist if the page belonged to an index which was dropped */
+
+	ibuf_merge_or_delete_for_page(NULL, space, offset);	
 
 	/* Flush pages from the end of the LRU list if necessary */
 	buf_flush_free_margin();
