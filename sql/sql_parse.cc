@@ -1163,7 +1163,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	break;
       }
       mysql_log.write(thd,command,db);
-      mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : db), 0, 0);
+      mysql_rm_db(thd,alias,0,0);
       break;
     }
   case COM_BINLOG_DUMP:
@@ -2387,8 +2387,8 @@ mysql_execute_command(void)
       send_error(&thd->net,ER_LOCK_OR_ACTIVE_TRANSACTION);
       goto error;
     }
-    res=mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : lex->name),
-                    lex->drop_if_exists, 0);
+    res=mysql_rm_db(thd,(lower_case_table_names == 2 ? alias : lex->name),
+                    lex->drop_if_exists,0);
     break;
   }
   case SQLCOM_CREATE_FUNCTION:
