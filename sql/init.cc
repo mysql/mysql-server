@@ -53,23 +53,6 @@ void unireg_init(ulong options)
   }
   specialflag|=options;			/* Set options from argv */
 
-  // The following is needed because of like optimization in select.cc
-
-  for (cs=compiled_charsets; cs->number; cs++)
-  {
-    uchar max_char;
-    if (!cs->sort_order)
-      continue;
-    max_char=cs->sort_order[(uchar) cs->max_sort_char];
-    for (i = 0; i < 256; i++)
-    {
-      if ((uchar) cs->sort_order[i] > max_char)
-      {
-        max_char=(uchar) cs->sort_order[i];
-	cs->max_sort_char= (char) i;
-      }
-    }
-  }
   thread_stack_min=thread_stack - STACK_MIN_SIZE;
   DBUG_VOID_RETURN;
 }

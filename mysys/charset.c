@@ -128,6 +128,24 @@ static my_bool read_charset_index(myf myflags)
   return FALSE;
 }
 
+static void set_max_sort_char(CHARSET_INFO *cs)
+{
+  uchar max_char;
+  uint  i;
+  
+  if (!cs->sort_order)
+    return;
+  
+  max_char=cs->sort_order[(uchar) cs->max_sort_char];
+  for (i = 0; i < 256; i++)
+  {
+    if ((uchar) cs->sort_order[i] > max_char)
+    {
+      max_char=(uchar) cs->sort_order[i];
+      cs->max_sort_char= (char) i;
+    }
+  }
+}
 
 static my_bool init_available_charsets(myf myflags)
 {
@@ -150,8 +168,10 @@ static my_bool init_available_charsets(myf myflags)
     /* Copy compiled charsets */
     
     for (cs=compiled_charsets; cs->name; cs++)
+    {
       all_charsets[cs->number]=cs[0];
-    
+      set_max_sort_char(&all_charsets[cs->number]);
+    }
     error = read_charset_index(myflags);
     charset_initialized=1;
     pthread_mutex_unlock(&THR_LOCK_charset);
@@ -363,6 +383,8 @@ static CHARSET_INFO *add_charset(uint cs_number, myf flags)
   cs->mb_wc       = my_mb_wc_8bit;
   cs->wc_mb       = my_wc_mb_8bit;
   
+  set_max_sort_char(cs);
+  
   return cs;
 }
 
@@ -404,19 +426,10 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
   */
   pthread_mutex_lock(&THR_LOCK_charset);
 
-  
-/*
-  FIXME: it's faster to use this code, but max_sort_char is
-  not initialized here, so LIKE doesn't work later
-  
   cs = &all_charsets[cs_number];
   if (!(cs->state & (MY_CS_COMPILED | MY_CS_LOADED)))
     cs=add_charset(cs_number, flags);
-*/
-  
-  if (!(cs=find_compiled_charset(cs_number)))
-    cs=add_charset(cs_number, flags);
-  
+
   pthread_mutex_unlock(&THR_LOCK_charset);
   return cs;
 }
