@@ -506,6 +506,7 @@ int mysqld_show_charsets(THD *thd,const char *wild);
 int mysqld_show_table_types(THD *thd);
 int mysqld_show_privileges(THD *thd);
 int mysqld_show_column_types(THD *thd);
+int mysqld_help (THD *thd, const char *text);
 
 /* sql_prepare.cc */
 int compare_prep_stmt(PREP_STMT *a, PREP_STMT *b, void *not_used);
