@@ -765,6 +765,17 @@ skip_test() {
    $ECHO "$RES$RES_SPACE [ skipped ]"
 }
 
+
+disable_test() {
+   USERT="    ...."
+   SYST="    ...."
+   REALT="    ...."
+   pname=`$ECHO "$1                        "|$CUT -c 1-24`
+   RES="$pname"
+   skip_inc
+   $ECHO "$RES$RES_SPACE [ disabled ]  $2"
+}
+
 report_stats () {
     if [ $TOT_FAIL = 0 ]; then
 	$ECHO "All $TOT_TEST tests were successful."
@@ -1410,6 +1421,12 @@ run_testcase ()
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0 \& \( $tname : federated \) = 0`
  if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ] ; then
    result_file="$result_file$RESULT_EXT"
+ fi
+ if [ -e "$TESTDIR/$tname.disabled" ]
+ then
+   comment=`$CAT $TESTDIR/$tname.disabled`;
+   disable_test $tname "$comment"
+   return
  fi
  if [ "$USE_MANAGER" = 1 ] ; then
   many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
