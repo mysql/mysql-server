@@ -129,6 +129,7 @@ public:
    */
   int deleteTuple();
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * Define the NdbIndexOperation to be a standard operation of type 
    * dirtyUpdate.
@@ -139,7 +140,9 @@ public:
    * @return 0 if successful otherwise -1.
    */
   int dirtyUpdate();
+#endif
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** @} *********************************************************************/
   /**
    * @name Define Interpreted Program Operation 
@@ -159,6 +162,7 @@ public:
    * @return 0 if successful otherwise -1.
    */
   int interpretedDeleteTuple();
+#endif
   
   /** @} *********************************************************************/
 
