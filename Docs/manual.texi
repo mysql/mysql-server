@@ -35334,6 +35334,13 @@ When deleting rows with a non-unique key in a HEAP table, all rows weren't
 always deleted.
 @item
 Fixed that BDB tables work on part keys.
+@item
+Added @code{CHANGE MASTER TO} command
+@item
+Fixed fatal bug in @code{LOAD TABLE FROM MASTER} that did not lock the table during index re-build
+@item @code{LOAD DATA INFILE} broke replication if the database was excluded from replication 
+@item More variables in @code{SHOW SLAVE STATUS} and @code{SHOW MASTER STATUS}
+@item @code{SLAVE STOP} now will not return until the slave thread actually exits
 @end itemize
 
 @node News-3.23.22, News-3.23.21, News-3.23.23, News-3.23.x
@@ -35374,6 +35381,7 @@ Added @code{auto-rehash} on reconnect for the @code{mysql} client.
 @item
 Fixed a newly introduced bug in @code{MyISAM}, where the index file couldn't
 get bigger than 64M.
+@item Added @code{SHOW MASTER STATUS} and @code{SHOW SLAVE STATUS}
 @end itemize
 
 @node News-3.23.21, News-3.23.20, News-3.23.22, News-3.23.x
