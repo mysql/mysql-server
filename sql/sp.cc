@@ -24,7 +24,7 @@
 // the in-memory cache for SPs. (And store newly prepared SPs there of
 // course.)
 sp_head *
-sp_find(THD *thd, Item_string *iname)
+sp_find_procedure(THD *thd, Item_string *iname)
 {
   extern int yyparse(void *thd);
   LEX *tmplex;
@@ -92,7 +92,7 @@ sp_create_procedure(THD *thd, char *name, uint namelen, char *def, uint deflen)
 }
 
 int
-sp_drop(THD *thd, char *name, uint namelen)
+sp_drop_procedure(THD *thd, char *name, uint namelen)
 {
   TABLE *table;
   TABLE_LIST tables;

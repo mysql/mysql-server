@@ -2833,7 +2833,7 @@ mysql_execute_command(THD *thd)
       sp_head *sp;
 
       s= (Item_string*)lex->value_list.head();
-      sp= sp_find(thd, s);
+      sp= sp_find_procedure(thd, s);
       if (! sp)
       {
 	send_error(thd, ER_SP_DOES_NOT_EXIST);
@@ -2862,7 +2862,7 @@ mysql_execute_command(THD *thd)
       sp_head *sp;
 
       s= (Item_string*)lex->value_list.head();
-      sp= sp_find(thd, s);
+      sp= sp_find_procedure(thd, s);
       if (! sp)
       {
 	send_error(thd, ER_SP_DOES_NOT_EXIST);
@@ -2882,7 +2882,7 @@ mysql_execute_command(THD *thd)
       sp_head *sp;
 
       s = (Item_string*)lex->value_list.head();
-      sp = sp_find(thd, s);
+      sp = sp_find_procedure(thd, s);
       if (! sp)
       {
 	send_error(thd, ER_SP_DOES_NOT_EXIST);
@@ -2892,7 +2892,7 @@ mysql_execute_command(THD *thd)
       {
 	String *name = s->const_string();
 
-	res= sp_drop(thd, name->c_ptr(), name->length());
+	res= sp_drop_procedure(thd, name->c_ptr(), name->length());
 	if (res != 0)
 	{
 	  send_error(thd, ER_SP_DROP_FAILED);
