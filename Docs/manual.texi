@@ -25779,7 +25779,7 @@ are using @code{--skip-locking}
 @end menu
 
 @node Compile and link options, Disk issues, System, System
-@subsection How Compiling and Linking Affects the Spexed of MySQL
+@subsection How Compiling and Linking Affects the Speed of MySQL
 
 Most of the following tests are done on Linux with the
 @strong{MySQL} benchmarks, but they should give some indication for
