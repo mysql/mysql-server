@@ -569,7 +569,7 @@ log_init(void)
 	ut_a(LOG_BUFFER_SIZE >= 4 * UNIV_PAGE_SIZE);
 
 	buf = ut_malloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE);
-	log_sys->buf = ut_align(buf, OS_FILE_LOG_BLOCK_SIZE);
+	log_sys->buf = ut_align(buf, OS_FILE_LOG_BLOCK_SIZE);	
 
 	log_sys->buf_size = LOG_BUFFER_SIZE;
 	log_sys->max_buf_free = log_sys->buf_size / LOG_BUF_FLUSH_RATIO
@@ -613,6 +613,7 @@ log_init(void)
 
 	log_sys->archiving_state = LOG_ARCH_ON;
 	log_sys->archived_lsn = log_sys->lsn;
+	log_sys->next_archived_lsn = ut_dulint_zero;
 
 	log_sys->n_pending_archive_ios = 0;
 
