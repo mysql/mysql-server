@@ -72,6 +72,7 @@ select * from t1;
 # counters are not thrown away if there are no connections for this user.
 disconnect mcph1;
 disconnect mcph2;
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 --error 1226
 connect (mcph3, localhost, mysqltest_1,,);
 # Cleanup

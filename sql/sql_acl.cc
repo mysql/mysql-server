@@ -2605,7 +2605,7 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
         uint unused_field_idx= NO_CACHED_FIELD_INDEX;
         Field *f=find_field_in_table(thd, table_list, column->column.ptr(),
                                      column->column.ptr(),
-                                     column->column.length(), 0, 0, 0, 0,
+                                     column->column.length(), 0, 1, 1, 0,
                                      &unused_field_idx, FALSE);
         if (f == (Field*)0)
         {
@@ -3359,10 +3359,6 @@ err:
   {
     char command[128];
     get_privilege_desc(command, sizeof(command), want_access);
-    else if (want_access & CREATE_VIEW_ACL)
-      command= "create view";
-    else if (want_access & SHOW_VIEW_ACL)
-      command= "show create view";
     my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
              command,
              thd->priv_user,
