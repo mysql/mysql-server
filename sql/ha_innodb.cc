@@ -3525,10 +3525,6 @@ create_index(
 		        prefix_len = 0;
 		}
 
-		if (prefix_len >= DICT_MAX_COL_PREFIX_LEN) {
-			DBUG_RETURN(-1);
-		}
-
 		/* We assume all fields should be sorted in ascending
 		order, hence the '0': */
 
@@ -5333,39 +5329,32 @@ innobase_get_at_most_n_mbchars(
 	/* If the charset is multi-byte, then we must find the length of the
 	first at most n chars in the string. If the string contains less
 	characters than n, then we return the length to the end of the last
-	full character. */
+	character. */
 
 	if (charset->mbmaxlen > 1) {
-/*		ulint	right_value; */
-
 		/* my_charpos() returns the byte length of the first n_chars
-		characters, or the end of the last full character */
+		characters, or a value bigger than the length of str, if
+		there were not enough full characters in str.
+
+		Why does the code below work:
+		Suppose that we are looking for n UTF-8 characters.
+
+		1) If the string is long enough, then the prefix contains at
+		least n complete UTF-8 characters + maybe some extra
+		characters + an incomplete UTF-8 character. No problem in
+		this case. The function returns the pointer to the
+		end of the nth character.
+
+		2) If the string is not long enough, then the string contains
+		the complete value of a column, that is, only complete UTF-8
+		characters, and we can store in the column prefix index the
+		whole string. */
 
 		char_length = my_charpos(charset, str,
 						str + data_len, n_chars);
-	
-		/*################################################*/
-		/* TODO: my_charpos sometimes returns a non-sensical value
-		that is BIGGER than data_len: try to fix this bug partly with
-		these heuristics. This is NOT a complete bug fix! */
-
 		if (char_length > data_len) {
 			char_length = data_len;
 		}		
-		/*################################################*/
-
-/*		printf("data_len %lu, n_chars %lu, char_len %lu\n",
-				data_len, n_chars, char_length);
-		if (data_len < n_chars) {
-			right_value = data_len;
-		} else {
-			right_value = n_chars;
-		}
-
-		if (right_value != char_length) {
-			printf("ERRRRRROOORRRRRRRRRRRR!!!!!!!!!\n");
-		}
-*/
 	} else {
 		if (data_len < prefix_len) {
 			char_length = data_len;
