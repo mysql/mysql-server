@@ -37506,7 +37506,7 @@ Can't initialize InnoDB as 'innodb_data_file_path' is not set
 InnoDB provides MySQL with a transaction-safe table handler with
 commit, rollback, and crash recovery capabilities. InnoDB does
 locking on row level, and also provides an Oracle-style consistent
-non-locking read in @code{SELECTS}, which increases transaction
+non-locking read in @code{SELECT}s, which increases transaction
 concurrency. There is not need for lock escalation in InnoDB,
 because row level locks in InnoDB fit in very small space.
 
