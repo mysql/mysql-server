@@ -6436,7 +6436,7 @@ uint16 page0FFdata[]= { /* FF00 (3 weights per char) */
 0x0DC5,0x0000,0x0000, 0x0DC6,0x0000,0x0000, 0xFBC1,0xFFFE,0x0000,
 0xFBC1,0xFFFF,0x0000 };
 
-uchar ucal[256]={
+uchar uca_length[256]={
 4,3,3,4,3,3,3,3,0,3,3,3,3,3,3,3,
 3,3,3,3,3,2,3,3,3,3,0,0,0,3,3,3,
 5,5,4,3,5,2,3,3,2,2,5,3,0,0,3,3,
@@ -6454,7 +6454,7 @@ uchar ucal[256]={
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,3,3,4,3,9,3,3
 };
-uint16 *ucaw[256]={
+uint16 *uca_weight[256]={
 page000data,page001data,page002data,page003data,
 page004data,page005data,page006data,page007data,
 NULL       ,page009data,page00Adata,page00Bdata,
@@ -6533,6 +6533,8 @@ typedef struct my_uca_scanner_st
   const uint16 *wbeg;	/* Beginning of the current weight string */
   const uchar  *sbeg;	/* Beginning of the input string          */
   const uchar  *send;	/* End of the input string                */
+  uchar *uca_length;
+  uint16 **uca_weight;
   uint16 implicit[2];
   int page;
   int code;
@@ -6564,6 +6566,8 @@ static void my_uca_scanner_init(my_uca_scanner *scanner,
   scanner->sbeg= str;
   scanner->send= str + length - 2;
   scanner->wbeg= nochar; 
+  scanner->uca_length= cs->sort_order;
+  scanner->uca_weight= cs->sort_order_big;
 }
 
 
@@ -6620,6 +6624,9 @@ static int my_uca_scanner_next(my_uca_scanner *scanner)
   
   do 
   {
+    uint16 **ucaw= scanner->uca_weight;
+    uchar *ucal= scanner->uca_length;
+    
     if (scanner->sbeg > scanner->send)
       return -1;
     
@@ -6866,10 +6873,12 @@ static int my_strnxfrm_uca(CHARSET_INFO *cs,
   This fact allows us to use memcmp() safely, on both
   little-endian and big-endian machines.
 */
-static int my_uca_charcmp(my_wc_t wc1, my_wc_t wc2)
+static int my_uca_charcmp(CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
 {
   size_t page1= wc1 >> MY_UCA_PSHIFT;
   size_t page2= wc2 >> MY_UCA_PSHIFT;
+  uchar *ucal= cs->sort_order;
+  uint16 **ucaw= cs->sort_order_big;
   size_t length1= ucal[page1];
   size_t length2= ucal[page2];
   uint16 *weight1= ucaw[page1] + (wc1 & MY_UCA_CMASK) * ucal[page1];
@@ -6943,7 +6952,7 @@ int my_wildcmp_uca(CHARSET_INFO *cs,
       }
       else
       {
-        if (my_uca_charcmp(s_wc,w_wc))
+        if (my_uca_charcmp(cs,s_wc,w_wc))
           return 1;
       }
       if (wildstr == wildend)
@@ -7006,7 +7015,7 @@ int my_wildcmp_uca(CHARSET_INFO *cs,
 			   (const uchar*)str_end)) <= 0)
             return 1;
           
-          if (!my_uca_charcmp(s_wc,w_wc))
+          if (!my_uca_charcmp(cs,s_wc,w_wc))
             break;
           str+= scan;
         }
@@ -7038,5 +7047,31 @@ MY_COLLATION_HANDLER my_collation_ucs2_uca_handler =
     my_instr_mb,
     my_hash_sort_uca
 };
+
+CHARSET_INFO my_charset_ucs2_general_uca=
+{
+    45,0,0,		/* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONTEXT,
+    "ucs2",		/* cs name    */
+    "ucs2_general_uca",	/* name         */
+    "",			/* comment      */
+    NULL,		/* ctype        */
+    NULL,		/* to_lower     */
+    NULL,		/* to_upper     */
+    uca_length,		/* sort_order   */
+    uca_weight,		/* sort_order_big*/
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    "",
+    "",
+    8,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
+    2,			/* mbmaxlen     */
+    9,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
+
 
 #endif

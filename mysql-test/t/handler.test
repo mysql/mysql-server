@@ -126,3 +126,15 @@ handler t close;
 use test;
 drop table t1;
 
+#
+# BUG#3649
+#
+create table t1 ( a int, b int, INDEX a (a) );
+insert into t1 values (1,2), (2,1);
+handler t1 open;
+handler t1 read a=(1) where b=2;
+handler t1 read a=(1) where b=3;
+handler t1 read a=(1) where b=1;
+handler t1 close;
+drop table t1;
+

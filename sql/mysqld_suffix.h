@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,30 +14,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <my_global.h>
-#include <m_ctype.h>
+/*
+  Set MYSQL_SERVER_SUFFIX_STR
+  The following code is quite ugly as there is no portable way to easily set a
+  string to the value of a macro
+*/
 
-CHARSET_INFO compiled_charsets[] = {
-  {
-    0,0,0,		/* end-of-list marker */
-    0,			/* state      */
-    NullS,		/* cs name    */
-    NullS,		/* name       */
-    NullS,		/* comment    */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,		/* sort_order_big*/
-    NULL,		/* tab_to_uni   */
-    NULL,		/* tab_from_uni */
-    "","",
-    0,
-    0,
-    0,
-    0,
-    0,
-    NULL,
-    NULL
-  }
-};
+#ifdef MYSQL_SERVER_SUFFIX
+#define MYSQL_SERVER_SUFFIX_STR STRINGIFY_ARG(MYSQL_SERVER_SUFFIX)
+#else
+#define MYSQL_SERVER_SUFFIX_STR MYSQL_SERVER_SUFFIX_DEF
+#endif

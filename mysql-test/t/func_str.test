@@ -173,6 +173,15 @@ SELECT DISTINCT i, ELT(j, '345', '34') FROM t1;
 DROP TABLE t1;
 
 #
+# bug #3756: quote and NULL
+#
+
+create table t1(a char(4));
+insert into t1 values ('one'),(NULL),('two'),('four');
+select a, quote(a), isnull(quote(a)), quote(a) is null, ifnull(quote(a), 'n') from t1;
+drop table t1;
+
+#
 # Test collation and coercibility
 #
 
