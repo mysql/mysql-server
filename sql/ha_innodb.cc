@@ -2285,7 +2285,9 @@ ha_innobase::write_row(
 	        if (error == DB_DUPLICATE_KEY
 		    && (user_thd->lex.sql_command == SQLCOM_REPLACE
 			|| user_thd->lex.sql_command
-			                 == SQLCOM_REPLACE_SELECT)) {
+			                 == SQLCOM_REPLACE_SELECT
+		    	|| (user_thd->lex.sql_command == SQLCOM_LOAD
+			    && user_thd->lex.duplicates == DUP_REPLACE))) {
 
 		        skip_auto_inc_decr= TRUE;
 		}
