@@ -219,6 +219,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	CASCADE
 %token  CASCADED
 %token	CAST_SYM
+%token	CHAIN_SYM
 %token	CHARSET
 %token	CHECKSUM_SYM
 %token	CHECK_SYM
@@ -385,6 +386,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	REDUNDANT_SYM
 %token	REFERENCES
 %token	REGEXP
+%token	RELEASE_SYM
 %token	RELOAD
 %token	RENAME
 %token	REPEATABLE_SYM
@@ -690,7 +692,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         table_option opt_if_not_exists opt_no_write_to_binlog opt_var_type
         opt_var_ident_type delete_option opt_temporary all_or_any opt_distinct
         opt_ignore_leaves fulltext_options spatial_type union_option
-        start_transaction_opts
+        start_transaction_opts opt_chain opt_work_and_chain opt_release
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
@@ -777,7 +779,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	query verb_clause create change select do drop insert replace insert2
 	insert_values update delete truncate rename
 	show describe load alter optimize keycache preload flush
-	reset purge begin commit rollback savepoint
+	reset purge begin commit rollback savepoint release
 	slave master_def master_defs master_file_def slave_until_opts
 	repair restore backup analyze check start checksum
 	field_list field_list_item field_spec kill column_def key_def
@@ -876,6 +878,7 @@ statement:
 	| preload
         | prepare
 	| purge
+	| release
 	| rename
 	| repair
 	| replace
@@ -6901,6 +6904,7 @@ keyword:
 	| BTREE_SYM		{}
 	| CACHE_SYM		{}
 	| CASCADED              {}
+	| CHAIN_SYM		{}
 	| CHANGED		{}
 	| CHARSET		{}
 	| CHECKSUM_SYM		{}
@@ -7854,25 +7858,66 @@ opt_work:
 	| WORK_SYM {;}
         ;
 
+opt_chain:
+	/* empty */ { $$= (Lex->thd->variables.completion_type == 1); }
+	| AND_SYM NO_SYM CHAIN_SYM	{ $$=0; }
+	| AND_SYM CHAIN_SYM		{ $$=1; }
+	;
+
+opt_release:
+	/* empty */ { $$= (Lex->thd->variables.completion_type == 2); }
+	| RELEASE_SYM 			{ $$=1; }
+	| NO_SYM RELEASE_SYM 		{ $$=0; }
+	;
+	
+opt_work_and_chain:
+	opt_work opt_chain 		{ $$=$2; }
+	;
+
+opt_savepoint:
+	/* empty */	{}
+	| SAVEPOINT_SYM {}
+	;
+
 commit:
-	COMMIT_SYM   { Lex->sql_command = SQLCOM_COMMIT;};
+	COMMIT_SYM opt_work_and_chain opt_release
+	{
+	  Lex->sql_command= SQLCOM_COMMIT;
+	  Lex->tx_chain= $2; 
+	  Lex->tx_release= $3;
+	}
+	;
 
 rollback:
-	ROLLBACK_SYM
-	{
-	  Lex->sql_command = SQLCOM_ROLLBACK;
+	ROLLBACK_SYM opt_work_and_chain opt_release
+	{ 
+	  Lex->sql_command= SQLCOM_ROLLBACK;
+	  Lex->tx_chain= $2; 
+	  Lex->tx_release= $3;
 	}
-	| ROLLBACK_SYM TO_SYM SAVEPOINT_SYM ident
+	| ROLLBACK_SYM opt_work
+	  TO_SYM opt_savepoint ident
 	{
 	  Lex->sql_command = SQLCOM_ROLLBACK_TO_SAVEPOINT;
-	  Lex->savepoint_name = $4.str;
-	};
+	  Lex->savepoint_name = $5.str;
+	}
+	;
+
 savepoint:
 	SAVEPOINT_SYM ident
 	{
 	  Lex->sql_command = SQLCOM_SAVEPOINT;
 	  Lex->savepoint_name = $2.str;
-	};
+	}
+	;
+
+release:
+	RELEASE_SYM SAVEPOINT_SYM ident
+	{
+	  Lex->sql_command = SQLCOM_RELEASE_SAVEPOINT;
+	  Lex->savepoint_name = $3.str;
+	}
+	;
 
 /*
    UNIONS : glue selects together
