@@ -1107,6 +1107,10 @@ btr_cur_pessimistic_insert(
 
 		if (big_rec_vec == NULL) {
 		
+			if (n_extents > 0) {
+			        fil_space_release_free_extents(index->space,
+								n_extents);
+			}
 			return(DB_TOO_BIG_RECORD);
 		}
 	}
