@@ -711,6 +711,29 @@ double      my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
 
 
 /*
+  This is a fast version optimized for the case of radix 10 / -10
+*/
+
+int my_l10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
+		     char *dst, uint len, int radix, long int val)
+{
+  val=radix=len;
+  dst[0]='\0';
+  return 0;
+}
+
+
+int my_ll10tostr_8bit(CHARSET_INFO *cs __attribute__((unused)),
+		      char *dst, uint len, int radix, longlong val)
+{
+  val=radix=len;
+  dst[0]='\0';
+  return 0;
+}
+
+
+
+/*
 ** Compare string against string with wildcard
 **	0 if matched
 **	-1 if not matched with wildcard

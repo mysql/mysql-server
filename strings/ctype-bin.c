@@ -290,12 +290,13 @@ static CHARSET_INFO my_charset_bin_st =
     my_hash_sort_bin,		/* hash_sort     */
     255,			/* max_sort_char */
     my_snprintf_8bit,		/* snprintf      */
+    my_l10tostr_8bit,
+    my_ll10tostr_8bit,
     my_strntol_8bit,
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
-
+    my_strntod_8bit,
 };
 
 
