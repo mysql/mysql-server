@@ -81,6 +81,21 @@ handler t2 read first;
 drop table t1;
 
 #
+# test case for the bug #787
+#
+
+create table t1 (a int);
+insert into t1 values (1),(2),(3),(4),(5),(6);
+delete from t1 limit 2;
+handler t1 open;
+handler t1 read first;
+handler t1 read first limit 1,1;
+handler t1 read first limit 2,2;
+delete from t1 limit 3;
+handler t1 read first;
+drop table t1;
+
+#
 #test for #751
 #
 create table t1(a int, index(a));
