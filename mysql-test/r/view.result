@@ -192,15 +192,6 @@ c	d
 1	3
 2	5
 3	10
-grant create view on test.* to test@localhost;
-show grants for test@localhost;
-Grants for test@localhost
-GRANT USAGE ON *.* TO 'test'@'localhost'
-GRANT CREATE VIEW ON `test`.* TO 'test'@'localhost'
-revoke create view on test.* from test@localhost;
-show grants for test@localhost;
-Grants for test@localhost
-GRANT USAGE ON *.* TO 'test'@'localhost'
 drop view v100;
 ERROR 42S02: Unknown table 'test.v100'
 drop view t1;
@@ -230,143 +221,6 @@ a	a
 2	2
 drop view v1, v2;
 drop table t1;
-create database mysqltest;
-create table mysqltest.t1 (a int, b int);
-create table mysqltest.t2 (a int, b int);
-grant select on mysqltest.t1 to mysqltest_1@localhost;
-grant create view,select on test.* to mysqltest_1@localhost;
-create view v1 as select * from mysqltest.t1;
-alter view v1 as select * from mysqltest.t1;
-ERROR 42000: DROP command denied to user 'mysqltest_1'@'localhost' for table 'v1'
-create or replace view v1 as select * from mysqltest.t1;
-ERROR 42000: DROP command denied to user 'mysqltest_1'@'localhost' for table 'v1'
-create view mysqltest.v2  as select * from mysqltest.t1;
-ERROR 42000: CREATE VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v2'
-create view v2 as select * from mysqltest.t2;
-ERROR 42000: ANY command denied to user 'mysqltest_1'@'localhost' for table 't2'
-grant create view,drop,select on test.* to mysqltest_1@localhost;
-use test;
-alter view v1 as select * from mysqltest.t1;
-create or replace view v1 as select * from mysqltest.t1;
-revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
-revoke all privileges on test.* from mysqltest_1@localhost;
-drop database mysqltest;
-drop view test.v1;
-create database mysqltest;
-create table mysqltest.t1 (a int, b int);
-create view mysqltest.v1 (c,d) as select a+1,b+1 from mysqltest.t1;
-grant select (c) on mysqltest.v1 to mysqltest_1@localhost;
-select c from mysqltest.v1;
-c
-select d from mysqltest.v1;
-ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for column 'd' in table 'v1'
-revoke all privileges on mysqltest.v1 from mysqltest_1@localhost;
-delete from mysql.user where user='mysqltest_1';
-drop database mysqltest;
-create database mysqltest;
-create table mysqltest.t1 (a int, b int);
-create algorithm=temptable view mysqltest.v1 (c,d) as select a+1,b+1 from mysqltest.t1;
-grant select (c) on mysqltest.v1 to mysqltest_1@localhost;
-select c from mysqltest.v1;
-c
-select d from mysqltest.v1;
-ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for column 'd' in table 'v1'
-revoke all privileges on mysqltest.v1 from mysqltest_1@localhost;
-delete from mysql.user where user='mysqltest_1';
-drop database mysqltest;
-create database mysqltest;
-create table mysqltest.t1 (a int, b int);
-create table mysqltest.t2 (a int, b int);
-create view mysqltest.v1 (c,d) as select a+1,b+1 from mysqltest.t1;
-create algorithm=temptable view mysqltest.v2 (c,d) as select a+1,b+1 from mysqltest.t1;
-create view mysqltest.v3 (c,d) as select a+1,b+1 from mysqltest.t2;
-create algorithm=temptable view mysqltest.v4 (c,d) as select a+1,b+1 from mysqltest.t2;
-grant select on mysqltest.v1 to mysqltest_1@localhost;
-grant select on mysqltest.v2 to mysqltest_1@localhost;
-grant select on mysqltest.v3 to mysqltest_1@localhost;
-grant select on mysqltest.v4 to mysqltest_1@localhost;
-select c from mysqltest.v1;
-c
-select c from mysqltest.v2;
-c
-select c from mysqltest.v3;
-c
-select c from mysqltest.v4;
-c
-show columns from mysqltest.v1;
-Field	Type	Null	Key	Default	Extra
-c	bigint(20)	YES		NULL	
-d	bigint(20)	YES		NULL	
-show columns from mysqltest.v2;
-Field	Type	Null	Key	Default	Extra
-c	bigint(20)	YES		NULL	
-d	bigint(20)	YES		NULL	
-explain select c from mysqltest.v1;
-ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
-show create view mysqltest.v1;
-ERROR 42000: SHOW VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v1'
-explain select c from mysqltest.v2;
-ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
-show create view mysqltest.v2;
-ERROR 42000: SHOW VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v2'
-explain select c from mysqltest.v3;
-ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
-show create view mysqltest.v3;
-ERROR 42000: SHOW VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v3'
-explain select c from mysqltest.v4;
-ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
-show create view mysqltest.v4;
-ERROR 42000: SHOW VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v4'
-grant select on mysqltest.t1 to mysqltest_1@localhost;
-explain select c from mysqltest.v1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
-show create view mysqltest.v1;
-ERROR 42000: SHOW VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v1'
-explain select c from mysqltest.v2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-show create view mysqltest.v2;
-ERROR 42000: SHOW VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v2'
-explain select c from mysqltest.v3;
-ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
-show create view mysqltest.v3;
-ERROR 42000: SHOW VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v3'
-explain select c from mysqltest.v4;
-ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
-show create view mysqltest.v4;
-ERROR 42000: SHOW VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v4'
-grant show view on mysqltest.* to mysqltest_1@localhost;
-explain select c from mysqltest.v1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
-show create view mysqltest.v1;
-View	Create View
-v1	CREATE ALGORITHM=UNDEFINED VIEW `mysqltest`.`v1` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
-explain select c from mysqltest.v2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-show create view mysqltest.v2;
-View	Create View
-v2	CREATE ALGORITHM=TEMPTABLE VIEW `mysqltest`.`v2` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
-explain select c from mysqltest.v3;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-show create view mysqltest.v3;
-View	Create View
-v3	CREATE ALGORITHM=UNDEFINED VIEW `mysqltest`.`v3` AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`
-explain select c from mysqltest.v4;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-show create view mysqltest.v4;
-View	Create View
-v4	CREATE ALGORITHM=TEMPTABLE VIEW `mysqltest`.`v4` AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`
-revoke all privileges on mysqltest.* from mysqltest_1@localhost;
-delete from mysql.user where user='mysqltest_1';
-drop database mysqltest;
 create table t1 (a int);
 insert into t1 values (1), (2), (3), (1), (2), (3);
 create view v1 as select distinct a from t1;
@@ -513,61 +367,6 @@ a	b
 50	10
 drop table t1,t2;
 drop view v1,v2;
-create database mysqltest;
-create table mysqltest.t1 (a int, b int, primary key(a));
-insert into mysqltest.t1 values (10,2), (20,3), (30,4), (40,5), (50,10);
-create table mysqltest.t2 (x int);
-insert into mysqltest.t2 values (3), (4), (5), (6);
-create view mysqltest.v1 (a,c) as select a, b+1 from mysqltest.t1;
-create view mysqltest.v2 (a,c) as select a, b from mysqltest.t1;
-create view mysqltest.v3 (a,c) as select a, b+1 from mysqltest.t1;
-grant update (a) on mysqltest.v2 to mysqltest_1@localhost;
-grant update on mysqltest.v1 to mysqltest_1@localhost;
-grant select on mysqltest.* to mysqltest_1@localhost;
-use mysqltest;
-update t2,v1 set v1.a=v1.a+v1.c where t2.x=v1.c;
-select * from t1;
-a	b
-13	2
-24	3
-35	4
-46	5
-50	10
-update v1 set a=a+c;
-select * from t1;
-a	b
-16	2
-28	3
-40	4
-52	5
-61	10
-update t2,v2 set v2.a=v2.a+v2.c where t2.x=v2.c;
-select * from t1;
-a	b
-16	2
-31	3
-44	4
-57	5
-61	10
-update v2 set a=a+c;
-select * from t1;
-a	b
-18	2
-34	3
-48	4
-62	5
-71	10
-update t2,v2 set v2.c=v2.a+v2.c where t2.x=v2.c;
-ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for column 'c' in table 'v2'
-update v2 set c=a+c;
-ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for column 'c' in table 'v2'
-update t2,v3 set v3.a=v3.a+v3.c where t2.x=v3.c;
-ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for table 'v3'
-update v3 set a=a+c;
-ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for table 'v3'
-use test;
-REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
-drop database mysqltest;
 create table t1 (a int, b int, primary key(b));
 insert into t1 values (1,20), (2,30), (3,40), (4,50), (5,100);
 create view v1 (c) as select b from t1 where a<3;
@@ -637,34 +436,6 @@ a	b
 5	10
 drop table t1,t2;
 drop view v1,v2;
-create database mysqltest;
-create table mysqltest.t1 (a int, b int, primary key(a));
-insert into mysqltest.t1 values (1,2), (2,3), (3,4), (4,5), (5,10);
-create table mysqltest.t2 (x int);
-insert into mysqltest.t2 values (3), (4), (5), (6);
-create view mysqltest.v1 (a,c) as select a, b+1 from mysqltest.t1;
-create view mysqltest.v2 (a,c) as select a, b+1 from mysqltest.t1;
-grant delete on mysqltest.v1 to mysqltest_1@localhost;
-grant select on mysqltest.* to mysqltest_1@localhost;
-use mysqltest;
-delete from v1 where c < 4;
-select * from t1;
-a	b
-2	3
-3	4
-4	5
-5	10
-delete v1 from t2,v1 where t2.x=v1.c;
-select * from t1;
-a	b
-5	10
-delete v2 from t2,v2 where t2.x=v2.c;
-ERROR 42000: DELETE command denied to user 'mysqltest_1'@'localhost' for table 'v2'
-delete from v2 where c < 4;
-ERROR 42000: DELETE command denied to user 'mysqltest_1'@'localhost' for table 'v2'
-use test;
-REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
-drop database mysqltest;
 create table t1 (a int, b int, c int, primary key(a,b));
 insert into t1 values (10,2,-1), (20,3,-2), (30,4,-3), (40,5,-4), (50,10,-5);
 create view v1 (x,y) as select a, b from t1;
@@ -745,36 +516,6 @@ a	b	c
 40	5	NULL
 drop table t1, t2;
 drop view v1,v2,v3,v4,v5;
-create database mysqltest;
-create table mysqltest.t1 (a int, b int, primary key(a));
-insert into mysqltest.t1 values (1,2), (2,3);
-create table mysqltest.t2 (x int, y int);
-insert into mysqltest.t2 values (3,4);
-create view mysqltest.v1 (a,c) as select a, b from mysqltest.t1;
-create view mysqltest.v2 (a,c) as select a, b from mysqltest.t1;
-grant insert on mysqltest.v1 to mysqltest_1@localhost;
-grant select on mysqltest.* to mysqltest_1@localhost;
-use mysqltest;
-insert into v1 values (5,6);
-select * from t1;
-a	b
-1	2
-2	3
-5	6
-insert into v1 select x,y from t2;
-select * from t1;
-a	b
-1	2
-2	3
-5	6
-3	4
-insert into v2 values (5,6);
-ERROR 42000: INSERT command denied to user 'mysqltest_1'@'localhost' for table 'v2'
-insert into v2 select x,y from t2;
-ERROR 42000: INSERT command denied to user 'mysqltest_1'@'localhost' for table 'v2'
-use test;
-REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
-drop database mysqltest;
 create table t1 (a int, primary key(a));
 insert into t1 values (1), (2), (3);
 create view v1 (x) as select a from t1 where a > 1;
@@ -819,44 +560,6 @@ a	b
 2	2
 drop view v1;
 drop table t1;
-create database mysqltest;
-create table mysqltest.t1 (a int, b int);
-create table mysqltest.t2 (a int, b int);
-grant update on mysqltest.t1 to mysqltest_1@localhost;
-grant update(b) on mysqltest.t2 to mysqltest_1@localhost;
-grant create view,update on test.* to mysqltest_1@localhost;
-create view v1 as select * from mysqltest.t1;
-create view v2 as select b from mysqltest.t2;
-create view mysqltest.v1 as select * from mysqltest.t1;
-ERROR 42000: CREATE VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v1'
-create view v3 as select a from mysqltest.t2;
-ERROR 42000: ANY command denied to user 'mysqltest_1'@'localhost' for column 'a' in table 't2'
-create table mysqltest.v3 (b int);
-grant create view on mysqltest.v3 to mysqltest_1@localhost;
-drop table mysqltest.v3;
-create view mysqltest.v3 as select b from mysqltest.t2;
-grant create view, update on mysqltest.v3 to mysqltest_1@localhost;
-drop view mysqltest.v3;
-create view mysqltest.v3 as select b from mysqltest.t2;
-grant create view, update, insert on mysqltest.v3 to mysqltest_1@localhost;
-drop view mysqltest.v3;
-create view mysqltest.v3 as select b from mysqltest.t2;
-ERROR 42000: create view command denied to user 'mysqltest_1'@'localhost' for column 'b' in table 'v3'
-create table mysqltest.v3 (b int);
-grant select(b) on mysqltest.v3 to mysqltest_1@localhost;
-drop table mysqltest.v3;
-create view mysqltest.v3 as select b from mysqltest.t2;
-ERROR 42000: CREATE VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v3'
-create view v4 as select b+1 from mysqltest.t2;
-ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for column 'b' in table 't2'
-grant create view,update,select on test.* to mysqltest_1@localhost;
-create view v4 as select b+1 from mysqltest.t2;
-ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for column 'b' in table 't2'
-grant update,select(b) on mysqltest.t2 to mysqltest_1@localhost;
-create view v4 as select b+1 from mysqltest.t2;
-REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
-drop database mysqltest;
-drop view v1,v2,v4;
 set sql_mode='ansi';
 create table t1 ("a*b" int);
 create view v1 as select "a*b" from t1;
@@ -1629,13 +1332,6 @@ Field 3,'Field 4|
 |Field 6|	| 'Field 7'|
 drop view v1;
 drop table t1;
-create database mysqltest;
-create table mysqltest.t1 (a int);
-grant all privileges on mysqltest.* to mysqltest_1@localhost;
-use mysqltest;
-create view v1 as select * from t1;
-revoke all privileges on mysqltest.* from mysqltest_1@localhost;
-drop database mysqltest;
 create table t1 (s1 smallint);
 create view v1 as select * from t1 where 20 < (select (s1) from t1);
 insert into v1 values (30);
