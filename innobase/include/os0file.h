@@ -25,12 +25,6 @@ extern ibool	os_has_said_disk_full;
 
 #define UNIV_NON_BUFFERED_IO
 
-#else
-
-#if defined(HAVE_AIO_H) && defined(HAVE_LIBRT)
-#define POSIX_ASYNC_IO
-#endif
-
 #endif
 
 #ifdef __WIN__
