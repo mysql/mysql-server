@@ -24,6 +24,11 @@ typedef struct st_date_format {		/* How to print date */
   uint pos[6];				/* Positions to YY.MM.DD HH:MM:SS */
 } DATE_FORMAT;
 
+typedef struct st_datetime_format {
+  byte dt_pos[8];
+  char *format;
+  uint format_length;
+} DATETIME_FORMAT;
 
 typedef struct st_keyfile_info {	/* used with ha_info() */
   byte ref[MAX_REFLENGTH];		/* Pointer to current row */
@@ -110,8 +115,8 @@ typedef struct st_read_record {			/* Parameter to read_record */
   bool print_error, ignore_not_found_rows;
 } READ_RECORD;
 
-enum timestamp_type { TIMESTAMP_NONE, TIMESTAMP_DATE, TIMESTAMP_FULL,
-		      TIMESTAMP_TIME };
+enum timestamp_type { TIMESTAMP_NONE, WRONG_TIMESTAMP_FULL, TIMESTAMP_DATE, TIMESTAMP_FULL,
+		      TIMESTAMP_TIME};
 
 typedef struct st_time {
   uint year,month,day,hour,minute,second;

@@ -319,6 +319,12 @@ char* log_error_file_ptr= log_error_file;
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file;
+
+const char *opt_datetime_formats[3];
+const char *opt_datetime_format_names[3]= {"date_format",
+					   "time_format",
+					   "datetime_format"};
+
 char *language_ptr, *default_collation_name, *default_character_set_name;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
@@ -906,6 +912,9 @@ void clean_up(bool print_message)
 #ifdef USE_RAID
   end_raid();
 #endif
+  g_datetime_frm(DATE_FORMAT_TYPE).clean();
+  g_datetime_frm(TIME_FORMAT_TYPE).clean();
+  g_datetime_frm(DATETIME_FORMAT_TYPE).clean();
   if (defaults_argv)
     free_defaults(defaults_argv);
   free_tmpdir(&mysql_tmpdir_list);
@@ -1998,6 +2007,36 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
 }
 
 
+int init_global_datetime_format(datetime_format_types format_type, bool is_alloc)
+{
+  const char *format_str= opt_datetime_formats[format_type];
+  uint format_length= 0;
+  DATETIME_FORMAT *tmp_format= &g_datetime_frm(format_type).datetime_format;
+
+  if (format_str)
+  {
+    format_str= opt_datetime_formats[format_type];
+    format_length= strlen(format_str);
+  }
+  else
+  {
+    format_str= datetime_formats[format_type][ISO_FORMAT];
+    format_length= strlen(datetime_formats[format_type][ISO_FORMAT]);
+    opt_datetime_formats[format_type]= format_str;
+  }
+  if (make_format(tmp_format, format_type, format_str,
+		  format_length, is_alloc))
+  {
+    g_datetime_frm(format_type).name= opt_datetime_format_names[format_type];
+    g_datetime_frm(format_type).name_length=
+      strlen(opt_datetime_format_names[format_type]);
+    g_datetime_frm(format_type).format_type= format_type;
+    return 0;
+  }
+  return 1;
+}
+
+
 static int init_common_variables(const char *conf_file_name, int argc,
 				 char **argv, const char **groups)
 {
@@ -2113,6 +2152,12 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.collation_connection= default_charset_info;
   global_system_variables.character_set_results= default_charset_info;
   global_system_variables.character_set_client= default_charset_info;
+  global_system_variables.collation_connection= default_charset_info;
+
+  if (init_global_datetime_format(DATE_FORMAT_TYPE, 1) ||
+      init_global_datetime_format(TIME_FORMAT_TYPE, 1) ||
+      init_global_datetime_format(DATETIME_FORMAT_TYPE, 1))
+    return 1;
 
   if (use_temp_pool && bitmap_init(&temp_pool,1024,1))
     return 1;
@@ -3578,6 +3623,9 @@ enum options_mysqld
   OPT_GROUP_CONCAT_MAX_LEN,
   OPT_DEFAULT_COLLATION,
   OPT_SECURE_AUTH,
+  OPT_DATE_FORMAT,
+  OPT_TIME_FORMAT,
+  OPT_DATETIME_FORMAT,
   OPT_LOG_QUERIES_NOT_USING_INDEXES
 };
 
@@ -4530,6 +4578,21 @@ The minimum value for this variable is 4096.",
     (gptr*) &global_system_variables.default_week_format,
     (gptr*) &max_system_variables.default_week_format,
     0, GET_ULONG, REQUIRED_ARG, 0, 0, 3L, 0, 1, 0},
+  { "date-format", OPT_DATE_FORMAT,
+    "The DATE format.",
+    (gptr*) &opt_datetime_formats[DATE_FORMAT_TYPE],
+    (gptr*) &opt_datetime_formats[DATE_FORMAT_TYPE],
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  { "datetime-format", OPT_DATETIME_FORMAT,
+    "The DATETIME/TIMESTAMP format.",
+    (gptr*) &opt_datetime_formats[DATETIME_FORMAT_TYPE],
+    (gptr*) &opt_datetime_formats[DATETIME_FORMAT_TYPE],
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  { "time-format", OPT_TIME_FORMAT,
+    "The TIME format.",
+    (gptr*) &opt_datetime_formats[TIME_FORMAT_TYPE],
+    (gptr*) &opt_datetime_formats[TIME_FORMAT_TYPE],
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -4906,6 +4969,10 @@ static void mysql_init_variables(void)
   global_system_variables.max_join_size= (ulonglong) HA_POS_ERROR;
   max_system_variables.max_join_size=   (ulonglong) HA_POS_ERROR;
   global_system_variables.old_passwords= 0;
+
+  init_global_datetime_format(DATE_FORMAT_TYPE, 0);
+  init_global_datetime_format(TIME_FORMAT_TYPE, 0);
+  init_global_datetime_format(DATETIME_FORMAT_TYPE, 0);
 
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF
