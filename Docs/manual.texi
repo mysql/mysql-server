@@ -6156,6 +6156,9 @@ and are configured with the following compilers and options:
 
 @item BSDI BSD/OS 2.1 i386 with @code{gcc} 2.7.2
 @code{CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql --with-extra-charsets=complex}
+
+@item FreeBSD 4.4-stable i386 with @code{gcc} 2.95.3
+@code{CC=gcc CFLAGS="-O3 -fno-omit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fno-omit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql "--with-comment=Official MySQL binary" --with-extra-charsets=complex "--with-server-suffix=" --enable-thread-safe-client --enable-local-infile --enable-assembler --with-named-z-libs=not-used --disable-shared}
 @end table
 
 Anyone who has more optimal options for any of the configurations listed
@@ -15143,7 +15146,7 @@ before.
 One can disable all @code{LOAD DATA LOCAL} commands in the MySQL server
 by starting @code{mysqld} with @code{--local-infile=0}.
 
-In the case that @code{LOAD DATA INFILE} is disabled in the server or
+In the case that @code{LOAD DATA LOCAL INFILE} is disabled in the server or
 the client, you will get the error message (1148):
 
 @example
@@ -22411,7 +22414,8 @@ tables.
 @item -K, --disable-keys
 @code{/*!40000 ALTER TABLE tb_name DISABLE KEYS */;} and
 @code{/*!40000 ALTER TABLE tb_name ENABLE KEYS */;}
-will be put in the output.
+will be put in the output.  This will make loading the data into a MySQL
+4.0 server faster as the index are created after all data are inserted.
 @item -n, --no-create-db
 @code{CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;} will not be put in the
 output. The above line will be added otherwise, if --databases or
@@ -44087,9 +44091,9 @@ shell> ./configure --enable-thread-safe-client
 @end example
 
 This will create a thread-safe client library @code{libmysqlclient_r}.
-@code{--enable-thread-safe-client}.  This library is thread-safe per
-connection.  You can let two threads share the same connection with
-the following caveats:
+(Assuming your OS has a thread safe @code{gethostbyname_r()} function)
+This library is thread-safe per connection.  You can let two threads
+share the same connection with the following caveats:
 
 @itemize @bullet
 @item
