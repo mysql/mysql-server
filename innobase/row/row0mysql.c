@@ -380,6 +380,7 @@ row_create_prebuilt(
   	prebuilt->clust_pcur = btr_pcur_create_for_mysql();
 
 	prebuilt->select_lock_type = LOCK_NONE;
+	prebuilt->stored_select_lock_type = 99999999;
 
 	prebuilt->sel_graph = NULL;
 
