@@ -137,6 +137,7 @@ int
 NdbOperation::openScan(Uint32 aParallelism, 
 		       bool lockMode, bool lockHoldMode, bool readCommitted)
 {
+  Uint32 i;
   aParallelism = checkParallelism(aParallelism);
   if(aParallelism == 0){
     return 0;
@@ -178,7 +179,7 @@ NdbOperation::openScan(Uint32 aParallelism,
     return -1;
   }
   
-  for (Uint32 i = 0; i < aParallelism; i ++) {
+  for (i = 0; i < aParallelism; i ++) {
     tScanRec = theNdb->getNdbScanRec();
     if (tScanRec == NULL) {
       setErrorCodeAbort(4000);
@@ -213,7 +214,7 @@ NdbOperation::openScan(Uint32 aParallelism,
   scanTabReq->transId1 = (Uint32) transId;
   scanTabReq->transId2 = (Uint32) (transId >> 32);
 
-  for (Uint32 i = 0; i < 16 && i < aParallelism ; i++) {
+  for (i = 0; i < 16 && i < aParallelism ; i++) {
     scanTabReq->apiOperationPtr[i] = theScanReceiversArray[i]->ptr2int();
   }//for
 
@@ -241,7 +242,7 @@ NdbOperation::openScan(Uint32 aParallelism,
   tSignal = theFirstSCAN_TABINFO_Send;
   while (tSignal != NULL) {
     tSignal->setData(theNdbCon->theTCConPtr, 1);
-    for (int i = 0; i < 16 ; i++) {
+    for (i = 0; i < 16 ; i++) {
       tSignal->setData(theScanReceiversArray[i + tParallelism]->ptr2int(), i + 2);
     }//for
     tSignal = tSignal->next();
