@@ -128,8 +128,7 @@ void udf_init()
   init_sql_alloc(&mem, 1024,0);
   THD *new_thd = new THD;
   if (!new_thd ||
-      hash_init(&udf_hash,system_charset_info,
-		32,0,0,get_hash_key, NULL, HASH_CASE_INSENSITIVE))
+      hash_init(&udf_hash,system_charset_info,32,0,0,get_hash_key, NULL, 0))
   {
     sql_print_error("Can't allocate memory for udf structures");
     hash_free(&udf_hash);

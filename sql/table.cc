@@ -363,8 +363,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     use_hash= !hash_init(&outparam->name_hash,
 			 system_charset_info,
 			 outparam->fields,0,0,
-			 (hash_get_key) get_field_name,0,
-			 HASH_CASE_INSENSITIVE);
+			 (hash_get_key) get_field_name,0,0);
 
   for (i=0 ; i < outparam->fields; i++, strpos+=field_pack_length, field_ptr++)
   {

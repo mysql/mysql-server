@@ -112,12 +112,6 @@ static void my_casedn_bin(CHARSET_INFO * cs __attribute__((unused)),
 {
 }
 
-static void my_tosort_bin(CHARSET_INFO * cs __attribute__((unused)),
-		   char *str __attribute__((unused)),
-		   uint length  __attribute__((unused)))
-{
-}
-
 static int my_strcasecmp_bin(CHARSET_INFO * cs __attribute__((unused)),
 		      const char *s, const char *t)
 {
@@ -159,41 +153,6 @@ static int my_wc_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-#ifndef NEW_HASH_FUNCTION
-
-	/* Calc hashvalue for a key, case indepenently */
-
-static uint my_hash_caseup_bin(CHARSET_INFO *cs __attribute__((unused)),
-				const byte *key, uint length)
-{
-  register uint nr=1, nr2=4;
-  
-  while (length--)
-  {
-    nr^= (((nr & 63)+nr2)*
-         ((uint) (uchar) *key++)) + (nr << 8);
-    nr2+=3;
-  }
-  return((uint) nr);
-}
-
-#else
-
-static uint my_hash_caseup_bin(CHARSET_INFO *cs __attribute__((unused)),
-			       const byte *key, uint len)
-{
-  const byte *end=key+len;
-  uint hash;
-  for (hash = 0; key < end; key++)
-  {
-    hash *= 16777619;
-    hash ^= (uint) (uchar) *key;
-  }
-  return (hash);
-}
-
-#endif
-				  
 void my_hash_sort_bin(CHARSET_INFO *cs __attribute__((unused)),
 		      const uchar *key, uint len,ulong *nr1, ulong *nr2)
 {
@@ -304,7 +263,8 @@ static int my_strnxfrm_bin(CHARSET_INFO *cs __attribute__((unused)),
 			    const uchar *src, 
 			    uint srclen __attribute__((unused)))
 {
-  memcpy(dest,src,len= min(len,srclen));
+  if (dest != src)
+    memcpy(dest,src,len= min(len,srclen));
   return len;
 }
 
@@ -340,10 +300,8 @@ CHARSET_INFO my_charset_bin =
     my_casedn_str_bin,		/* casedn_str    */
     my_caseup_bin,		/* caseup        */
     my_casedn_bin,		/* casedn        */
-    my_tosort_bin,		/* tosort        */
     my_strcasecmp_bin,		/* strcasecmp    */
     my_strncasecmp_bin,		/* strncasecmp   */
-    my_hash_caseup_bin,		/* hash_caseup   */
     my_hash_sort_bin,		/* hash_sort     */
     (char) 255,			/* max_sort_char */
     my_snprintf_8bit,		/* snprintf      */

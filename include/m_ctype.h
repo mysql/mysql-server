@@ -147,7 +147,6 @@ typedef struct charset_info_st
   void    (*casedn_str)(struct charset_info_st *, char *);
   void    (*caseup)(struct charset_info_st *, char *, uint);
   void    (*casedn)(struct charset_info_st *, char *, uint);
-  void    (*tosort)(struct charset_info_st *, char *, uint);
   
   /* Functions for case comparison */
   int  (*strcasecmp)(struct charset_info_st *, const char *, const char *);
@@ -155,7 +154,6 @@ typedef struct charset_info_st
 		      uint);
   
   /* Hash calculation */
-  uint (*hash_caseup)(struct charset_info_st *cs, const byte *key, uint len);
   void (*hash_sort)(struct charset_info_st *cs, const uchar *key, uint len,
 		    ulong *nr1, ulong *nr2); 
   
@@ -218,9 +216,6 @@ extern int  my_strnncoll_simple(CHARSET_INFO *, const uchar *, uint,
 extern int  my_strnncollsp_simple(CHARSET_INFO *, const uchar *, uint,
 				const uchar *, uint);
 
-extern uint my_hash_caseup_simple(CHARSET_INFO *cs,
-				  const byte *key, uint len);
-				  
 extern void my_hash_sort_simple(CHARSET_INFO *cs,
 				const uchar *key, uint len,
 				ulong *nr1, ulong *nr2); 
@@ -231,7 +226,6 @@ extern void my_caseup_str_8bit(CHARSET_INFO *, char *);
 extern void my_casedn_str_8bit(CHARSET_INFO *, char *);
 extern void my_caseup_8bit(CHARSET_INFO *, char *, uint);
 extern void my_casedn_8bit(CHARSET_INFO *, char *, uint);
-extern void my_tosort_8bit(CHARSET_INFO *, char *, uint);
 
 extern int my_strcasecmp_8bit(CHARSET_INFO * cs, const char *, const char *);
 extern int my_strncasecmp_8bit(CHARSET_INFO * cs, const char *, const char *,
@@ -344,7 +338,6 @@ uint my_charpos_mb(CHARSET_INFO *, const char *b, const char *e, uint pos);
 
 #define my_caseup(s, a, l)            ((s)->caseup((s), (a), (l)))
 #define my_casedn(s, a, l)            ((s)->casedn((s), (a), (l)))
-#define my_tosort(s, a, l)            ((s)->tosort((s), (a), (l)))
 #define my_caseup_str(s, a)           ((s)->caseup_str((s), (a)))
 #define my_casedn_str(s, a)           ((s)->casedn_str((s), (a)))
 #define my_strcasecmp(s, a, b)        ((s)->strcasecmp((s), (a), (b)))

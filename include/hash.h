@@ -25,9 +25,6 @@ extern "C" {
 typedef byte *(*hash_get_key)(const byte *,uint*,my_bool);
 typedef void (*hash_free_key)(void *);
 
-  /* flags for hash_init */
-#define HASH_CASE_INSENSITIVE	1
-
 typedef struct st_hash_info {
   uint next;					/* index to next key */
   byte *data;					/* data for current entry */
@@ -40,7 +37,6 @@ typedef struct st_hash {
   DYNAMIC_ARRAY array;				/* Place for hash_keys */
   hash_get_key get_key;
   void (*free)(void *);
-  uint (*calc_hashnr)(CHARSET_INFO *cs, const byte *key,uint length);
   CHARSET_INFO *charset;
 } HASH;
 

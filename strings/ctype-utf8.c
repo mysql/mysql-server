@@ -1751,29 +1751,6 @@ static void my_caseup_utf8(CHARSET_INFO *cs, char *s, uint slen)
   }
 }
 
-static uint my_hash_caseup_utf8(CHARSET_INFO *cs, const byte *s, uint slen)
-{
-  my_wc_t wc;
-  register uint nr=1, nr2=4;
-  int res;
-  const char *e=s+slen;
-
-  while ((s < e) && (res=my_utf8_uni(cs,&wc, (uchar *)s, (uchar*)e))>0 )
-  {
-    int plane = (wc>>8) & 0xFF;
-    wc = uni_plane[plane] ? uni_plane[plane][wc & 0xFF].toupper : wc;
-    nr^= (((nr & 63)+nr2)*(wc & 0xFF))+ (nr << 8);
-    nr2+=3;
-    nr^= (((nr & 63)+nr2)*(wc >> 8))+ (nr << 8);
-    nr2+=3;
-    
-    s+=res;
-  }
-
-  return nr;
-}
-
-
 static void my_hash_sort_utf8(CHARSET_INFO *cs, const uchar *s, uint slen, ulong *n1, ulong *n2)
 {
   my_wc_t wc;
@@ -2010,10 +1987,8 @@ CHARSET_INFO my_charset_utf8 =
     my_casedn_str_utf8,
     my_caseup_utf8,
     my_casedn_utf8,
-    NULL,		/* tosort       */
     my_strcasecmp_utf8,
     my_strncasecmp_utf8,
-    my_hash_caseup_utf8,/* hash_caseup  */
     my_hash_sort_utf8,	/* hash_sort    */
     0,
     my_snprintf_8bit,
@@ -2183,29 +2158,6 @@ static void my_caseup_ucs2(CHARSET_INFO *cs, char *s, uint slen)
     s+=res;
   }
 }
-
-static uint my_hash_caseup_ucs2(CHARSET_INFO *cs, const byte *s, uint slen)
-{
-  my_wc_t wc;
-  register uint nr=1, nr2=4;
-  int res;
-  const char *e=s+slen;
-
-  while ((s < e) && (res=my_ucs2_uni(cs,&wc, (uchar *)s, (uchar*)e))>0 )
-  {
-    int plane = (wc>>8) & 0xFF;
-    wc = uni_plane[plane] ? uni_plane[plane][wc & 0xFF].toupper : wc;
-    nr^= (((nr & 63)+nr2)*(wc & 0xFF))+ (nr << 8);
-    nr2+=3;
-    nr^= (((nr & 63)+nr2)*(wc >> 8))+ (nr << 8);
-    nr2+=3;
-    
-    s+=res;
-  }
-
-  return nr;
-}
-
 
 static void my_hash_sort_ucs2(CHARSET_INFO *cs, const uchar *s, uint slen, ulong *n1, ulong *n2)
 {
@@ -3118,10 +3070,8 @@ CHARSET_INFO my_charset_ucs2 =
     my_casedn_str_ucs2,
     my_caseup_ucs2,
     my_casedn_ucs2,
-    NULL,		/* tosort       */
     my_strcasecmp_ucs2,
     my_strncasecmp_ucs2,
-    my_hash_caseup_ucs2,/* hash_caseup  */
     my_hash_sort_ucs2,	/* hash_sort    */
     0,
     my_snprintf_ucs2,
