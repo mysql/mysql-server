@@ -110,6 +110,7 @@ TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 			       tx_isolation_names, NULL};
 
 static TYPELIB known_extensions= {0,"known_exts", NULL, NULL};
+uint known_extensions_id= 0;
 
 enum db_type ha_resolve_by_name(const char *name, uint namelen)
 {
@@ -1660,6 +1661,7 @@ int handler::index_read_idx(byte * buf, uint index, const byte * key,
   return error;
 }
 
+
 /*
   Returns a list of all known extensions.
 
@@ -1668,20 +1670,24 @@ int handler::index_read_idx(byte * buf, uint index, const byte * key,
  
   NOTES
     No mutexes, worst case race is a minor surplus memory allocation
+    We have to recreate the extension map if mysqld is restarted (for example
+    within libmysqld)
 
   RETURN VALUE
     pointer		pointer to TYPELIB structure
 */
+
 TYPELIB *ha_known_exts(void)
 {
-  if (!known_extensions.type_names)
+  if (!known_extensions.type_names || mysys_usage_id != known_extensions_id)
   {
     show_table_type_st *types;
     List<char> found_exts;
     List_iterator_fast<char> it(found_exts);
-    const char *e, **ext;
-    
-    found_exts.push_back(".db");
+    const char **ext, *old_ext;
+
+    known_extensions_id= mysys_usage_id;
+    found_exts.push_back((char*) ".db");
     for (types= sys_table_types; types->type; types++)
     {      
       if (*types->value == SHOW_OPTION_YES)
@@ -1689,28 +1695,30 @@ TYPELIB *ha_known_exts(void)
 	handler *file= get_new_handler(0,(enum db_type) types->db_type);
 	for (ext= file->bas_ext(); *ext; ext++)
 	{
-	  while (e=it++) 
-	    if (e == *ext)
+	  while ((old_ext= it++))
+          {
+	    if (!strcmp(old_ext, *ext))
 	      break;
-
-	  if (!e)
-	    found_exts.push_back((char *)*ext);
+          }
+	  if (!old_ext)
+	    found_exts.push_back((char *) *ext);
 
 	  it.rewind();
 	}
 	delete file;
       }
     }
-    ext= (const char **)my_once_alloc(sizeof(char *)*
-		  (found_exts.elements+1), MYF(MY_WME));
+    ext= (const char **) my_once_alloc(sizeof(char *)*
+                                       (found_exts.elements+1),
+                                       MYF(MY_WME | MY_FAE));
     
     DBUG_ASSERT(ext);
-    for (uint i=0; e=it++; i++)
-      ext[i]= e;
-    ext[found_exts.elements]= 0;
-    
     known_extensions.count= found_exts.elements;
     known_extensions.type_names= ext;
+
+    while ((old_ext= it++))
+      *ext++= old_ext;
+    *ext= 0;
   }
   return &known_extensions;
 }

@@ -2635,7 +2635,7 @@ static int request_dump(MYSQL* mysql, MASTER_INFO* mi,
   DBUG_ENTER("request_dump");
 
   // TODO if big log files: Change next to int8store()
-  int4store(buf, (longlong) mi->master_log_pos);
+  int4store(buf, (ulong) mi->master_log_pos);
   int2store(buf + 4, binlog_flags);
   int4store(buf + 6, server_id);
   len = (uint) strlen(logname);
