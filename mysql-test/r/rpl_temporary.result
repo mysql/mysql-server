@@ -5,6 +5,8 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 reset master;
+SET @@session.pseudo_thread_id=100;
+ERROR HY000: Access denied. You need the SUPER privilege for this operation
 drop table if exists t1,t2;
 create table t1(f int);
 create table t2(f int);
