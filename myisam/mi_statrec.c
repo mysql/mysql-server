@@ -73,7 +73,7 @@ int _mi_write_static_record(MI_INFO *info, const byte *record)
 	bzero((char*) temp,length);
 	if (my_pwrite(info->dfile, (byte*) temp,length,
 		      info->state->data_file_length+
-		      info->s->base.pack_reclength,
+		      info->s->base.reclength,
 		      info->s->write_flag))
 	  goto err;
       }

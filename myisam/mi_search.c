@@ -417,7 +417,7 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
         }
         else if (len > cmplen)
         {
-          if ((my_flag= (!(nextflag & SEARCH_PREFIX) && key_len_left>0)))
+          if ((my_flag= (!(nextflag & SEARCH_PREFIX) || key_len_left>0)))
             break;
           goto fix_flag;
         }
