@@ -96,7 +96,7 @@ class ha_innobase: public handler
 	ulong index_flags(uint idx) const
 	{
 	  return (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER |
-		  HA_NOT_READ_PREFIX_LAST | HA_KEY_READ_ONLY);
+		  HA_KEY_READ_ONLY);
 	}
   	uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   	uint max_keys()          const { return MAX_KEY; }
