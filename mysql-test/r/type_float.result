@@ -105,6 +105,18 @@ select min(a) from t1;
 min(a)
 -0.010
 drop table t1;
+create table t1 (a float(200,100), b double(200,100));
+insert t1 values (1.0, 2.0);
+select * from t1;
+a	b
+1.000000000000000000000000000000	2.000000000000000000000000000000
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` float(200,30) default NULL,
+  `b` double(200,30) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
 create table t1 (f float(54));
 ERROR 42000: Incorrect column specifier for column 'f'
 drop table if exists t1;
