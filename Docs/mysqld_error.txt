@@ -1,355 +1,455 @@
 /* Copyright Abandoned 1997 TCX DataKonsult AB & Monty Program KB & Detron HB
    This file is public domain and comes with NO WARRANTY of any kind */
 
-#define ER_HASHCHK 1000
+#define ER_HASHCHK 0
 "hashchk",
-#define ER_NISAMCHK 1001
+#define ER_NISAMCHK 1
 "isamchk",
-#define ER_NO 1002
+#define ER_NO 2
 "NO",
-#define ER_YES 1003
+#define ER_YES 3
 "YES",
-#define ER_CANT_CREATE_FILE 1004
+#define ER_CANT_CREATE_FILE 4
 "Can't create file '%-.64s' (errno: %d)",
-#define ER_CANT_CREATE_TABLE 1005
+#define ER_CANT_CREATE_TABLE 5
 "Can't create table '%-.64s' (errno: %d)",
-#define ER_CANT_CREATE_DB 1006
+#define ER_CANT_CREATE_DB 6
 "Can't create database '%-.64s'. (errno: %d)",
-#define ER_DB_CREATE_EXISTS 1007
+#define ER_DB_CREATE_EXISTS 7
 "Can't create database '%-.64s'. Database exists",
-#define ER_DB_DROP_EXISTS 1008
+#define ER_DB_DROP_EXISTS 8
 "Can't drop database '%-.64s'. Database doesn't exist",
-#define ER_DB_DROP_DELETE 1009
+#define ER_DB_DROP_DELETE 9
 "Error dropping database (can't delete '%-.64s', errno: %d)",
-#define ER_DB_DROP_RMDIR 1010
+#define ER_DB_DROP_RMDIR 10
 "Error dropping database (can't rmdir '%-.64s', errno: %d)",
-#define ER_CANT_DELETE_FILE 1011
+#define ER_CANT_DELETE_FILE 11
 "Error on delete of '%-.64s' (errno: %d)",
-#define ER_CANT_FIND_SYSTEM_REC 1012
+#define ER_CANT_FIND_SYSTEM_REC 12
 "Can't read record in system table",
-#define ER_CANT_GET_STAT 1013
+#define ER_CANT_GET_STAT 13
 "Can't get status of '%-.64s' (errno: %d)",
-#define ER_CANT_GET_WD 1014
+#define ER_CANT_GET_WD 14
 "Can't get working directory (errno: %d)",
-#define ER_CANT_LOCK 1015
+#define ER_CANT_LOCK 15
 "Can't lock file (errno: %d)",
-#define ER_CANT_OPEN_FILE 1016
+#define ER_CANT_OPEN_FILE 16
 "Can't open file: '%-.64s'. (errno: %d)",
-#define ER_FILE_NOT_FOUND 1017
+#define ER_FILE_NOT_FOUND 17
 "Can't find file: '%-.64s' (errno: %d)",
-#define ER_CANT_READ_DIR 1018
+#define ER_CANT_READ_DIR 18
 "Can't read dir of '%-.64s' (errno: %d)",
-#define ER_CANT_SET_WD 1019
+#define ER_CANT_SET_WD 19
 "Can't change dir to '%-.64s' (errno: %d)",
-#define ER_CHECKREAD 1020
+#define ER_CHECKREAD 20
 "Record has changed since last read in table '%-.64s'",
-#define ER_DISK_FULL 1021
+#define ER_DISK_FULL 21
 "Disk full (%s). Waiting for someone to free some space....",
-#define ER_DUP_KEY 1022
+#define ER_DUP_KEY 22
 "Can't write, duplicate key in table '%-.64s'",
-#define ER_ERROR_ON_CLOSE 1023
+#define ER_ERROR_ON_CLOSE 23
 "Error on close of '%-.64s' (errno: %d)",
-#define ER_ERROR_ON_READ 1024
+#define ER_ERROR_ON_READ 24
 "Error reading file '%-.64s' (errno: %d)",
-#define ER_ERROR_ON_RENAME 1025
+#define ER_ERROR_ON_RENAME 25
 "Error on rename of '%-.64s' to '%-.64s' (errno: %d)",
-#define ER_ERROR_ON_WRITE 1026
+#define ER_ERROR_ON_WRITE 26
 "Error writing file '%-.64s' (errno: %d)",
-#define ER_FILE_USED 1027
+#define ER_FILE_USED 27
 "'%-.64s' is locked against change",
-#define ER_FILSORT_ABORT 1028
+#define ER_FILSORT_ABORT 28
 "Sort aborted",
-#define ER_FORM_NOT_FOUND 1029
+#define ER_FORM_NOT_FOUND 29
 "View '%-.64s' doesn't exist for '%-.64s'",
-#define ER_GET_ERRNO 1030
+#define ER_GET_ERRNO 30
 "Got error %d from table handler",
-#define ER_ILLEGAL_HA 1031
+#define ER_ILLEGAL_HA 31
 "Table handler for '%-.64s' doesn't have this option",
-#define ER_KEY_NOT_FOUND 1032
+#define ER_KEY_NOT_FOUND 32
 "Can't find record in '%-.64s'",
-#define ER_NOT_FORM_FILE 1033
+#define ER_NOT_FORM_FILE 33
 "Incorrect information in file: '%-.64s'",
-#define ER_NOT_KEYFILE 1034
+#define ER_NOT_KEYFILE 34
 "Incorrect key file for table: '%-.64s'. Try to repair it",
-#define ER_OLD_KEYFILE 1035
+#define ER_OLD_KEYFILE 35
 "Old key file for table '%-.64s'; Repair it!",
-#define ER_OPEN_AS_READONLY 1036
+#define ER_OPEN_AS_READONLY 36
 "Table '%-.64s' is read only",
-#define ER_OUTOFMEMORY 1037
+#define ER_OUTOFMEMORY 37
 "Out of memory. Restart daemon and try again (needed %d bytes)",
-#define ER_OUT_OF_SORTMEMORY 1038
+#define ER_OUT_OF_SORTMEMORY 38
 "Out of sort memory. Increase daemon sort buffer size",
-#define ER_UNEXPECTED_EOF 1039
+#define ER_UNEXPECTED_EOF 39
 "Unexpected eof found when reading file '%-.64s' (errno: %d)",
-#define ER_CON_COUNT_ERROR 1040
+#define ER_CON_COUNT_ERROR 40
 "Too many connections",
-#define ER_OUT_OF_RESOURCES 1041
+#define ER_OUT_OF_RESOURCES 41
 "Out of memory;  Check if mysqld or some other process uses all available memory. If not you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space",
-#define ER_BAD_HOST_ERROR 1042
+#define ER_BAD_HOST_ERROR 42
 "Can't get hostname for your address",
-#define ER_HANDSHAKE_ERROR 1043
+#define ER_HANDSHAKE_ERROR 43
 "Bad handshake",
-#define ER_DBACCESS_DENIED_ERROR 1044
+#define ER_DBACCESS_DENIED_ERROR 44
 "Access denied for user: '%-.32s@%-.64s' to database '%-.64s'",
-#define ER_ACCESS_DENIED_ERROR 1045
+#define ER_ACCESS_DENIED_ERROR 45
 "Access denied for user: '%-.32s@%-.64s' (Using password: %s)",
-#define ER_NO_DB_ERROR 1046
+#define ER_NO_DB_ERROR 46
 "No Database Selected",
-#define ER_UNKNOWN_COM_ERROR 1047
+#define ER_UNKNOWN_COM_ERROR 47
 "Unknown command",
-#define ER_BAD_NULL_ERROR 1048
+#define ER_BAD_NULL_ERROR 48
 "Column '%-.64s' cannot be null",
-#define ER_BAD_DB_ERROR 1049
+#define ER_BAD_DB_ERROR 49
 "Unknown database '%-.64s'",
-#define ER_TABLE_EXISTS_ERROR 1050
+#define ER_TABLE_EXISTS_ERROR 50
 "Table '%-.64s' already exists",
-#define ER_BAD_TABLE_ERROR 1051
+#define ER_BAD_TABLE_ERROR 51
 "Unknown table '%-.64s'",
-#define ER_NON_UNIQ_ERROR 1052
+#define ER_NON_UNIQ_ERROR 52
 "Column: '%-.64s' in %-.64s is ambiguous",
-#define ER_SERVER_SHUTDOWN 1053
+#define ER_SERVER_SHUTDOWN 53
 "Server shutdown in progress",
-#define ER_BAD_FIELD_ERROR 1054
+#define ER_BAD_FIELD_ERROR 54
 "Unknown column '%-.64s' in '%-.64s'",
-#define ER_WRONG_FIELD_WITH_GROUP 1055
+#define ER_WRONG_FIELD_WITH_GROUP 55
 "'%-.64s' isn't in GROUP BY",
-#define ER_WRONG_GROUP_FIELD 1056
+#define ER_WRONG_GROUP_FIELD 56
 "Can't group on '%-.64s'",
-#define ER_WRONG_SUM_SELECT 1057
+#define ER_WRONG_SUM_SELECT 57
 "Statement has sum functions and columns in same statement",
-#define ER_WRONG_VALUE_COUNT 1058
+#define ER_WRONG_VALUE_COUNT 58
 "Column count doesn't match value count",
-#define ER_TOO_LONG_IDENT 1059
+#define ER_TOO_LONG_IDENT 59
 "Identifier name '%-.100s' is too long",
-#define ER_DUP_FIELDNAME 1060
+#define ER_DUP_FIELDNAME 60
 "Duplicate column name '%-.64s'",
-#define ER_DUP_KEYNAME 1061
+#define ER_DUP_KEYNAME 61
 "Duplicate key name '%-.64s'",
-#define ER_DUP_ENTRY 1062
+#define ER_DUP_ENTRY 62
 "Duplicate entry '%-.64s' for key %d",
-#define ER_WRONG_FIELD_SPEC 1063
+#define ER_WRONG_FIELD_SPEC 63
 "Incorrect column specifier for column '%-.64s'",
-#define ER_PARSE_ERROR 1064
+#define ER_PARSE_ERROR 64
 "%s near '%-.80s' at line %d",
-#define ER_EMPTY_QUERY 1065
+#define ER_EMPTY_QUERY 65
 "Query was empty",
-#define ER_NONUNIQ_TABLE 1066
+#define ER_NONUNIQ_TABLE 66
 "Not unique table/alias: '%-.64s'",
-#define ER_INVALID_DEFAULT 1067
+#define ER_INVALID_DEFAULT 67
 "Invalid default value for '%-.64s'",
-#define ER_MULTIPLE_PRI_KEY 1068
+#define ER_MULTIPLE_PRI_KEY 68
 "Multiple primary key defined",
-#define ER_TOO_MANY_KEYS 1069
+#define ER_TOO_MANY_KEYS 69
 "Too many keys specified. Max %d keys allowed",
-#define ER_TOO_MANY_KEY_PARTS 1070
+#define ER_TOO_MANY_KEY_PARTS 70
 "Too many key parts specified. Max %d parts allowed",
-#define ER_TOO_LONG_KEY 1071
+#define ER_TOO_LONG_KEY 71
 "Specified key was too long. Max key length is %d",
-#define ER_KEY_COLUMN_DOES_NOT_EXITS 1072
+#define ER_KEY_COLUMN_DOES_NOT_EXITS 72
 "Key column '%-.64s' doesn't exist in table",
-#define ER_BLOB_USED_AS_KEY 1073
+#define ER_BLOB_USED_AS_KEY 73
 "BLOB column '%-.64s' can't be used in key specification with the used table type",
-#define ER_TOO_BIG_FIELDLENGTH 1074
+#define ER_TOO_BIG_FIELDLENGTH 74
 "Too big column length for column '%-.64s' (max = %d). Use BLOB instead",
-#define ER_WRONG_AUTO_KEY 1075
+#define ER_WRONG_AUTO_KEY 75
 "Incorrect table definition; There can only be one auto column and it must be defined as a key",
-#define ER_READY 1076
+#define ER_READY 76
 "%s: ready for connections\n",
-#define ER_NORMAL_SHUTDOWN 1077
+#define ER_NORMAL_SHUTDOWN 77
 "%s: Normal shutdown\n",
-#define ER_GOT_SIGNAL 1078
+#define ER_GOT_SIGNAL 78
 "%s: Got signal %d. Aborting!\n",
-#define ER_SHUTDOWN_COMPLETE 1079
+#define ER_SHUTDOWN_COMPLETE 79
 "%s: Shutdown Complete\n",
-#define ER_FORCING_CLOSE 1080
+#define ER_FORCING_CLOSE 80
 "%s: Forcing close of thread %ld  user: '%-.32s'\n",
-#define ER_IPSOCK_ERROR 1081
+#define ER_IPSOCK_ERROR 81
 "Can't create IP socket",
-#define ER_NO_SUCH_INDEX 1082
+#define ER_NO_SUCH_INDEX 82
 "Table '%-.64s' has no index like the one used in CREATE INDEX. Recreate the table",
-#define ER_WRONG_FIELD_TERMINATORS 1083
-"Field separator argument is not what is expected. Check the manual","
-#define ER_BLOBS_AND_NO_TERMINATED 1084
+#define ER_WRONG_FIELD_TERMINATORS 83
+"Field separator argument is not what is expected. Check the manual",
+#define ER_BLOBS_AND_NO_TERMINATED 84
 "You can't use fixed rowlength with BLOBs. Please use 'fields terminated by'.",
-#define ER_TEXTFILE_NOT_READABLE 1085
+#define ER_TEXTFILE_NOT_READABLE 85
 "The file '%-.64s' must be in the database directory or be readable by all",
-#define ER_FILE_EXISTS_ERROR 1086
+#define ER_FILE_EXISTS_ERROR 86
 "File '%-.80s' already exists",
-#define ER_LOAD_INFO 1087
+#define ER_LOAD_INFO 87
 "Records: %ld  Deleted: %ld  Skipped: %ld  Warnings: %ld",
-#define ER_ALTER_INFO 1088
+#define ER_ALTER_INFO 88
 "Records: %ld  Duplicates: %ld",
-#define ER_WRONG_SUB_KEY 1089
-"Incorrect sub part key. The used key part isn't a string or the used length is longer than the key part",
-#define ER_CANT_REMOVE_ALL_FIELDS 1090
+#define ER_WRONG_SUB_KEY 89
+"Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the table handler doesn't support unique sub keys",
+#define ER_CANT_REMOVE_ALL_FIELDS 90
 "You can't delete all columns with ALTER TABLE. Use DROP TABLE instead",
-#define ER_CANT_DROP_FIELD_OR_KEY 1091
+#define ER_CANT_DROP_FIELD_OR_KEY 91
 "Can't DROP '%-.64s'. Check that column/key exists",
-#define ER_INSERT_INFO 1092
+#define ER_INSERT_INFO 92
 "Records: %ld  Duplicates: %ld  Warnings: %ld",
-#define ER_INSERT_TABLE_USED 1093
+#define ER_INSERT_TABLE_USED 93
 "INSERT TABLE '%-.64s' isn't allowed in FROM table list",
-#define ER_NO_SUCH_THREAD 1094
+#define ER_NO_SUCH_THREAD 94
 "Unknown thread id: %lu",
-#define ER_KILL_DENIED_ERROR 1095
+#define ER_KILL_DENIED_ERROR 95
 "You are not owner of thread %lu",
-#define ER_NO_TABLES_USED 1096
+#define ER_NO_TABLES_USED 96
 "No tables used",
-#define ER_TOO_BIG_SET 1097
+#define ER_TOO_BIG_SET 97
 "Too many strings for column %-.64s and SET",
-#define ER_NO_UNIQUE_LOGFILE 1098
+#define ER_NO_UNIQUE_LOGFILE 98
 "Can't generate a unique log-filename %-.64s.(1-999)\n",
-#define ER_TABLE_NOT_LOCKED_FOR_WRITE 1099
+#define ER_TABLE_NOT_LOCKED_FOR_WRITE 99
 "Table '%-.64s' was locked with a READ lock and can't be updated",
-#define ER_TABLE_NOT_LOCKED 1100
+#define ER_TABLE_NOT_LOCKED 100
 "Table '%-.64s' was not locked with LOCK TABLES",
-#define ER_BLOB_CANT_HAVE_DEFAULT 1101
+#define ER_BLOB_CANT_HAVE_DEFAULT 101
 "BLOB column '%-.64s' can't have a default value",
-#define ER_WRONG_DB_NAME 1102
+#define ER_WRONG_DB_NAME 102
 "Incorrect database name '%-.100s'",
-#define ER_WRONG_TABLE_NAME 1103
+#define ER_WRONG_TABLE_NAME 103
 "Incorrect table name '%-.100s'",
-#define ER_TOO_BIG_SELECT 1104
+#define ER_TOO_BIG_SELECT 104
 "The SELECT would examine too many records and probably take a very long time. Check your WHERE and use SET OPTION SQL_BIG_SELECTS=1 if the SELECT is ok",
-#define ER_UNKNOWN_ERROR 1105
+#define ER_UNKNOWN_ERROR 105
 "Unknown error",
-#define ER_UNKNOWN_PROCEDURE 1106
+#define ER_UNKNOWN_PROCEDURE 106
 "Unknown procedure '%-.64s'",
-#define ER_WRONG_PARAMCOUNT_TO_PROCEDURE 1107
+#define ER_WRONG_PARAMCOUNT_TO_PROCEDURE 107
 "Incorrect parameter count to procedure '%-.64s'",
-#define ER_WRONG_PARAMETERS_TO_PROCEDURE 1108
+#define ER_WRONG_PARAMETERS_TO_PROCEDURE 108
 "Incorrect parameters to procedure '%-.64s'",
-#define ER_UNKNOWN_TABLE 1109
+#define ER_UNKNOWN_TABLE 109
 "Unknown table '%-.64s' in %-.32s",
-#define ER_FIELD_SPECIFIED_TWICE 1110
+#define ER_FIELD_SPECIFIED_TWICE 110
 "Column '%-.64s' specified twice",
-#define ER_INVALID_GROUP_FUNC_USE 1111
+#define ER_INVALID_GROUP_FUNC_USE 111
 "Invalid use of group function",
-#define ER_UNSUPPORTED_EXTENSION 1112
+#define ER_UNSUPPORTED_EXTENSION 112
 "Table '%-.64s' uses an extension that doesn't exist in this MySQL version",
-#define ER_TABLE_MUST_HAVE_COLUMNS 1113
+#define ER_TABLE_MUST_HAVE_COLUMNS 113
 "A table must have at least 1 column",
-#define ER_RECORD_FILE_FULL 1114
+#define ER_RECORD_FILE_FULL 114
 "The table '%-.64s' is full",
-#define ER_UNKNOWN_CHARACTER_SET 1115
+#define ER_UNKNOWN_CHARACTER_SET 115
 "Unknown character set: '%-.64s'",
-#define ER_TOO_MANY_TABLES 1116
+#define ER_TOO_MANY_TABLES 116
 "Too many tables. MySQL can only use %d tables in a join",
-#define ER_TOO_MANY_FIELDS 1117
+#define ER_TOO_MANY_FIELDS 117
 "Too many columns",
-#define ER_TOO_BIG_ROWSIZE 1118
+#define ER_TOO_BIG_ROWSIZE 118
 "Too big row size. The maximum row size, not counting BLOBs, is %d. You have to change some fields to BLOBs",
-#define ER_STACK_OVERRUN 1119
+#define ER_STACK_OVERRUN 119
 "Thread stack overrun:  Used: %ld of a %ld stack.  Use 'mysqld -O thread_stack=#' to specify a bigger stack if needed",
-#define ER_WRONG_OUTER_JOIN 1120
+#define ER_WRONG_OUTER_JOIN 120
 "Cross dependency found in OUTER JOIN.  Examine your ON conditions",
-#define ER_NULL_COLUMN_IN_INDEX 1121
+#define ER_NULL_COLUMN_IN_INDEX 121
 "Column '%-.64s' is used with UNIQUE or INDEX but is not defined as NOT NULL",
-#define ER_CANT_FIND_UDF 1122
+#define ER_CANT_FIND_UDF 122
 "Can't load function '%-.64s'",
-#define ER_CANT_INITIALIZE_UDF 1123
+#define ER_CANT_INITIALIZE_UDF 123
 "Can't initialize function '%-.64s'; %-.80s",
-#define ER_UDF_NO_PATHS 1124
+#define ER_UDF_NO_PATHS 124
 "No paths allowed for shared library",
-#define ER_UDF_EXISTS 1125
+#define ER_UDF_EXISTS 125
 "Function '%-.64s' already exist",
-#define ER_CANT_OPEN_LIBRARY 1126
+#define ER_CANT_OPEN_LIBRARY 126
 "Can't open shared library '%-.64s' (errno: %d %-.64s)",
-#define ER_CANT_FIND_DL_ENTRY 1127
+#define ER_CANT_FIND_DL_ENTRY 127
 "Can't find function '%-.64s' in library'",
-#define ER_FUNCTION_NOT_DEFINED 1128
+#define ER_FUNCTION_NOT_DEFINED 128
 "Function '%-.64s' is not defined",
-#define ER_HOST_IS_BLOCKED 1129
+#define ER_HOST_IS_BLOCKED 129
 "Host '%-.64s' is blocked because of many connection errors.  Unblock with 'mysqladmin flush-hosts'",
-#define ER_HOST_NOT_PRIVILEGED 1130
+#define ER_HOST_NOT_PRIVILEGED 130
 "Host '%-.64s' is not allowed to connect to this MySQL server",
-#define ER_PASSWORD_ANONYMOUS_USER 1131
+#define ER_PASSWORD_ANONYMOUS_USER 131
 "You are using MySQL as an anonymous users and anonymous users are not allowed to change passwords",
-#define ER_PASSWORD_NOT_ALLOWED 1132
+#define ER_PASSWORD_NOT_ALLOWED 132
 "You must have privileges to update tables in the mysql database to be able to change passwords for others",
-#define ER_PASSWORD_NO_MATCH 1133
+#define ER_PASSWORD_NO_MATCH 133
 "Can't find any matching row in the user table",
-#define ER_UPDATE_INFO 1134
+#define ER_UPDATE_INFO 134
 "Rows matched: %ld  Changed: %ld  Warnings: %ld",
-#define ER_CANT_CREATE_THREAD 1135
+#define ER_CANT_CREATE_THREAD 135
 "Can't create a new thread (errno %d). If you are not out of available memory, you can consult the manual for a possible OS-dependent bug",
-#define ER_WRONG_VALUE_COUNT_ON_ROW 1136
+#define ER_WRONG_VALUE_COUNT_ON_ROW 136
 "Column count doesn't match value count at row %ld",
-#define ER_CANT_REOPEN_TABLE 1137
+#define ER_CANT_REOPEN_TABLE 137
 "Can't reopen table: '%-.64s'",
-#define ER_INVALID_USE_OF_NULL 1138
+#define ER_INVALID_USE_OF_NULL 138
 "Invalid use of NULL value",
-#define ER_REGEXP_ERROR 1139
+#define ER_REGEXP_ERROR 139
 "Got error '%-.64s' from regexp",
-#define ER_MIX_OF_GROUP_FUNC_AND_FIELDS 1140
+#define ER_MIX_OF_GROUP_FUNC_AND_FIELDS 140
 "Mixing of GROUP columns (MIN(),MAX(),COUNT()...) with no GROUP columns is illegal if there is no GROUP BY clause",
-#define ER_NONEXISTING_GRANT 1141
+#define ER_NONEXISTING_GRANT 141
 "There is no such grant defined for user '%-.32s' on host '%-.64s'",
-#define ER_TABLEACCESS_DENIED_ERROR 1142
+#define ER_TABLEACCESS_DENIED_ERROR 142
 "%-.16s command denied to user: '%-.32s@%-.64s' for table '%-.64s'",
-#define ER_COLUMNACCESS_DENIED_ERROR 1143
+#define ER_COLUMNACCESS_DENIED_ERROR 143
 "%-.16s command denied to user: '%-.32s@%-.64s' for column '%-.64s' in table '%-.64s'",
-#define ER_ILLEGAL_GRANT_FOR_TABLE 1144
+#define ER_ILLEGAL_GRANT_FOR_TABLE 144
 "Illegal GRANT/REVOKE command. Please consult the manual which privileges can be used.",
-#define ER_GRANT_WRONG_HOST_OR_USER 1145
+#define ER_GRANT_WRONG_HOST_OR_USER 145
 "The host or user argument to GRANT is too long",
-#define ER_NO_SUCH_TABLE 1146
+#define ER_NO_SUCH_TABLE 146
 "Table '%-.64s.%-.64s' doesn't exist",
-#define ER_NONEXISTING_TABLE_GRANT 1147
+#define ER_NONEXISTING_TABLE_GRANT 147
 "There is no such grant defined for user '%-.32s' on host '%-.64s' on table '%-.64s'",
-#define ER_NOT_ALLOWED_COMMAND 1148
+#define ER_NOT_ALLOWED_COMMAND 148
 "The used command is not allowed with this MySQL version",
-#define ER_SYNTAX_ERROR 1149
+#define ER_SYNTAX_ERROR 149
 "You have an error in your SQL syntax",
-#define ER_DELAYED_CANT_CHANGE_LOCK 1150
+#define ER_DELAYED_CANT_CHANGE_LOCK 150
 "Delayed insert thread couldn't get requested lock for table %-.64s",
-#define ER_TOO_MANY_DELAYED_THREADS 1151
+#define ER_TOO_MANY_DELAYED_THREADS 151
 "Too many delayed threads in use",
-#define ER_ABORTING_CONNECTION 1152
+#define ER_ABORTING_CONNECTION 152
 "Aborted connection %ld to db: '%-.64s' user: '%-.32s' (%-.64s)",
-#define ER_NET_PACKET_TOO_LARGE 1153
+#define ER_NET_PACKET_TOO_LARGE 153
 "Got a packet bigger than 'max_allowed_packet'",
-#define ER_NET_READ_ERROR_FROM_PIPE 1154
+#define ER_NET_READ_ERROR_FROM_PIPE 154
 "Got a read error from the connection pipe",
-#define ER_NET_FCNTL_ERROR 1155
+#define ER_NET_FCNTL_ERROR 155
 "Got an error from fcntl()",
-#define ER_NET_PACKETS_OUT_OF_ORDER 1156
+#define ER_NET_PACKETS_OUT_OF_ORDER 156
 "Got packets out of order",
-#define ER_NET_UNCOMPRESS_ERROR 1157
+#define ER_NET_UNCOMPRESS_ERROR 157
 "Couldn't uncompress communication packet",
-#define ER_NET_READ_ERROR 1158
+#define ER_NET_READ_ERROR 158
 "Got an error reading communication packets",
-#define ER_NET_READ_INTERRUPTED 1159
+#define ER_NET_READ_INTERRUPTED 159
 "Got timeout reading communication packets",
-#define ER_NET_ERROR_ON_WRITE 1160
+#define ER_NET_ERROR_ON_WRITE 160
 "Got an error writing communication packets",
-#define ER_NET_WRITE_INTERRUPTED 1161
+#define ER_NET_WRITE_INTERRUPTED 161
 "Got timeout writing communication packets",
-#define ER_TOO_LONG_STRING 1162
+#define ER_TOO_LONG_STRING 162
 "Result string is longer than max_allowed_packet",
-#define ER_TABLE_CANT_HANDLE_BLOB 1163
+#define ER_TABLE_CANT_HANDLE_BLOB 163
 "The used table type doesn't support BLOB/TEXT columns",
-#define ER_TABLE_CANT_HANDLE_AUTO_INCREMENT 1164
+#define ER_TABLE_CANT_HANDLE_AUTO_INCREMENT 164
 "The used table type doesn't support AUTO_INCREMENT columns",
-#define ER_DELAYED_INSERT_TABLE_LOCKED 1165
+#define ER_DELAYED_INSERT_TABLE_LOCKED 165
 "INSERT DELAYED can't be used with table '%-.64s', because it is locked with LOCK TABLES",
-#define ER_WRONG_COLUMN_NAME 1166
+#define ER_WRONG_COLUMN_NAME 166
 "Incorrect column name '%-.100s'",
-#define ER_WRONG_KEY_COLUMN 1167
+#define ER_WRONG_KEY_COLUMN 167
 "The used table handler can't index column '%-.64s'",
-#define ER_WRONG_MRG_TABLE 1168
+#define ER_WRONG_MRG_TABLE 168
 "All tables in the MERGE table are not identically defined",
-#define ER_DUP_UNIQUE 1169
+#define ER_DUP_UNIQUE 169
 "Can't write, because of unique constraint, to table '%-.64s'",
-#define ER_BLOB_KEY_WITHOUT_LENGTH 1170
+#define ER_BLOB_KEY_WITHOUT_LENGTH 170
 "BLOB column '%-.64s' used in key specification without a key length",
-#define ER_PRIMARY_CANT_HAVE_NULL 1171
+#define ER_PRIMARY_CANT_HAVE_NULL 171
 "All parts of a PRIMARY KEY must be NOT NULL;  If you need NULL in a key, use UNIQUE instead",
-#define ER_TOO_MANY_ROWS 1172
+#define ER_TOO_MANY_ROWS 172
 "Result consisted of more than one row",
-#define ER_REQUIRES_PRIMARY_KEY 1173
+#define ER_REQUIRES_PRIMARY_KEY 173
 "This table type requires a primary key",
-#define ER_NO_RAID_COMPILED 1174
+#define ER_NO_RAID_COMPILED 174
 "This version of MySQL is not compiled with RAID support",
-#define ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE 1175
+#define ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE 175
 "You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column",
+#define ER_KEY_DOES_NOT_EXITS 176
+"Key '%-.64s' doesn't exist in table '%-.64s'",
+#define ER_CHECK_NO_SUCH_TABLE 177
+"Can't open table",
+#define ER_CHECK_NOT_IMPLEMENTED 178
+"The handler for the table doesn't support check/repair",
+#define ER_CANT_DO_THIS_DURING_AN_TRANSACTION 179
+"You are not allowed to execute this command in a transaction",
+#define ER_ERROR_DURING_COMMIT 180
+"Got error %d during COMMIT",
+#define ER_ERROR_DURING_ROLLBACK 181
+"Got error %d during ROLLBACK",
+#define ER_ERROR_DURING_FLUSH_LOGS 182
+"Got error %d during FLUSH_LOGS",
+#define ER_ERROR_DURING_CHECKPOINT 183
+"Got error %d during CHECKPOINT",
+#define ER_NEW_ABORTING_CONNECTION 184
+"Aborted connection %ld to db: '%-.64s' user: '%-.32s' host: `%-.64s' (%-.64s)",
+#define ER_DUMP_NOT_IMPLEMENTED    185
+"The handler for the table does not support binary table dump",
+#define ER_FLUSH_MASTER_BINLOG_CLOSED 186
+"Binlog closed, cannot RESET MASTER",
+#define ER_INDEX_REBUILD  187
+"Failed rebuilding the index of  dumped table '%-.64s'",
+#define ER_MASTER 188
+"Error from master: '%-.64s'",
+#define ER_MASTER_NET_READ 189
+"Net error reading from master",
+#define ER_MASTER_NET_WRITE 190
+"Net error writing to master",
+#define ER_FT_MATCHING_KEY_NOT_FOUND 191
+"Can't find FULLTEXT index matching the column list",
+#define ER_LOCK_OR_ACTIVE_TRANSACTION 192
+"Can't execute the given command because you have active locked tables or an active transaction",
+#define ER_UNKNOWN_SYSTEM_VARIABLE 193
+"Unknown system variable '%-.64'",
+#define ER_CRASHED_ON_USAGE 194
+"Table '%-.64s' is marked as crashed and should be repaired",
+#define ER_CRASHED_ON_REPAIR 195
+"Table '%-.64s' is marked as crashed and last (automatic?) repair failed",
+#define ER_WARNING_NOT_COMPLETE_ROLLBACK 196
+"Warning:  Some non-transactional changed tables couldn't be rolled back",
+#define ER_TRANS_CACHE_FULL 197
+"Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage. Increase this mysqld variable and try again',
+#define ER_SLAVE_MUST_STOP 198
+"This operation cannot be performed with a running slave, run SLAVE STOP first",
+#define ER_SLAVE_NOT_RUNNING 199
+"This operation requires a running slave, configure slave and do SLAVE START",
+#define ER_BAD_SLAVE 200
+"The server is not configured as slave, fix in config file or with CHANGE MASTER TO",
+#define ER_MASTER_INFO 201
+"Could not initialize master info structure, check permisions on master.info",
+#define ER_SLAVE_THREAD 202
+"Could not create slave thread, check system resources",
+#define ER_TOO_MANY_USER_CONNECTIONS 203
+"User %-.64s has already more than 'max_user_connections' active connections",
+#define ER_SET_CONSTANTS_ONLY 204
+"You may only use constant expressions with SET",
+#define ER_LOCK_WAIT_TIMEOUT 205
+"Lock wait timeout exceeded; Try restarting transaction",
+#define ER_LOCK_TABLE_FULL 206
+"The total number of locks exceeds the lock table size",
+#define ER_READ_ONLY_TRANSACTION 207
+"Update locks cannot be acquired during a READ UNCOMMITTED transaction",
+#define ER_DROP_DB_WITH_READ_LOCK 208
+"DROP DATABASE not allowed while thread is holding global read lock",
+#define ER_CREATE_DB_WITH_READ_LOCK 209
+"CREATE DATABASE not allowed while thread is holding global read lock",
+#define ER_WRONG_ARGUMENTS 210
+"Wrong arguments to %s",
+#define ER_NO_PERMISSION_TO_CREATE_USER 211
+"%-.32s@%-.64s is not allowed to create new users",
+#define ER_UNION_TABLES_IN_DIFFERENT_DIR 212
+"Incorrect table definition; All MERGE tables must be in the same database",
+#define ER_LOCK_DEADLOCK 213
+"Deadlock found when trying to get lock; Try restarting transaction",
+#define ER_TABLE_CANT_HANDLE_FULLTEXT 214
+"The used table type doesn't support FULLTEXT indexes",
+#define ER_CANNOT_ADD_FOREIGN 215
+"Cannot add foreign key constraint",
+#define ER_NO_REFERENCED_ROW 216
+"Cannot add a child row: a foreign key constraint fails",
+#define ER_ROW_IS_REFERENCED 217
+"Cannot delete a parent row: a foreign key constraint fails",
+#define ER_CONNECT_TO_MASTER 218
+"Error connecting to master: %-.128s",
+#define ER_QUERY_ON_MASTER 219
+"Error running query on master: %-.128s",
+#define ER_ERROR_WHEN_EXECUTING_COMMAND 220
+"Error when executing command %s: %-.128s",
+#define ER_WRONG_USAGE 221
+"Wrong usage of %s and %s",
+#define ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT 222
+"The used SELECT statements have a different number of columns",
+#define ER_CANT_UPDATE_WITH_READLOCK 223
+"Can't execute the query because you have a conflicting read lock",
+#define ER_MIXING_NOT_ALLOWED 224
+"Mixing of transactional and non-transactional tables is disabled",
+#define ER_DUP_ARGUMENT 225
+"Option '%s' used twice in statement",

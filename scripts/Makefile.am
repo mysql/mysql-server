@@ -76,7 +76,7 @@ CLEANFILES =		@server_scripts@ \
 SUPERCLEANFILES =	mysqlbug
 
 # We want the right version and configure comand line in mysqlbug
-mysqlbug: ${top_builddir}/config.status ${top_builddir}/config.cache mysqlbug.sh
+mysqlbug: ${top_builddir}/config.status mysqlbug.sh
 
 SUFFIXES = .sh
 

@@ -17,8 +17,9 @@ echo ""
 echo "If your tables are already up to date or partially up to date you will"
 echo "get some warnings about 'Duplicated column name'. You can safely ignore these!"
 
+# Add fields that can be used to limit number of questions and connections
+# for some users.
+
 @bindir@/mysql -f --user=root --password="$root_password" --host="$host" mysql <<END_OF_DATA
-alter table user add max_questions int(11) unsigned DEFAULT 0  NOT NULL;
-alter table user add max_updates int(11) unsigned DEFAULT 0  NOT NULL;
-alter table user add max_connections int(11) unsigned DEFAULT 0  NOT NULL;
+alter table user add max_questions int(11) NOT NULL, add max_updates int(11) unsigned NOT NULL, add max_connections int(11) unsigned NOT NULL;
 END_OF_DATA
