@@ -784,7 +784,7 @@ row_lock_table_for_mysql(
 					table handle */
 	dict_table_t*	table,		/* in: table to lock, or NULL
 					if prebuilt->table should be
-					locked as LOCK_TABLE_EXP |
+					locked or a
 					prebuilt->select_lock_type */
 	ulint		mode)		/* in: lock mode of table */
 {
@@ -822,8 +822,14 @@ run_again:
 	if (table) {
 		err = lock_table(0, table, mode, thr);
 	} else {
-		err = lock_table(LOCK_TABLE_EXP, prebuilt->table,
-			prebuilt->select_lock_type, thr);
+		if (mode == LOCK_TABLE_TRANSACTIONAL) {
+			err = lock_table(LOCK_TABLE_TRANSACTIONAL, 
+					prebuilt->table,
+					prebuilt->select_lock_type, thr);
+		} else {
+			err = lock_table(LOCK_TABLE_EXP, prebuilt->table,
+					prebuilt->select_lock_type, thr);
+		}
 	}
 
 	trx->error_state = err;
