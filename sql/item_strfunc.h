@@ -476,6 +476,29 @@ public:
   void fix_length_and_dec() { decimals = 0; max_length=3*8+7; }
 };
 
+class Item_func_conv_charset :public Item_str_func
+{
+  CHARSET_INFO *conv_charset;
+public:
+  Item_func_conv_charset(Item *a, CHARSET_INFO *cs) :Item_str_func(a) 
+  {
+    conv_charset=cs;
+  }
+  String *val_str(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "conv_charset"; }
+};
+
+class Item_func_conv_charset3 :public Item_str_func
+{
+public:
+  Item_func_conv_charset3(Item *arg1,Item *arg2,Item *arg3)
+    :Item_str_func(arg1,arg2,arg3) {}
+  String *val_str(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "conv_charset3"; }
+};
+
 
 /*******************************************************
 Spatial functions
