@@ -224,8 +224,9 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
 
   /* Skip rows inserted by concurrent insert */
   while (!r && info->lastpos >= info->state->data_file_length)
-    r= _mi_search_next(info, keyinfo, info->lastkey, info->lastkey_length,
-		       SEARCH_BIGGER, keyroot);
+    r= _mi_search_next(info, ftbw->keyinfo, info->lastkey,
+                       info->lastkey_length,
+		       SEARCH_BIGGER, ftbw->key_root);
 
   if (!r && !ftbw->off)
   {

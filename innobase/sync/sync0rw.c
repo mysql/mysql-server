@@ -146,7 +146,9 @@ rw_lock_free(
 /*=========*/
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
+#ifdef UNIV_DEBUG
 	ut_a(rw_lock_validate(lock));
+#endif /* UNIV_DEBUG */
 	ut_a(rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED);
 	ut_a(rw_lock_get_waiters(lock) == 0);
 	ut_a(rw_lock_get_reader_count(lock) == 0);

@@ -37,7 +37,7 @@
 ** 10 Jun 2003: SET NAMES and --no-set-names by Alexander Barkov
 */
 
-#define DUMP_VERSION "10.6"
+#define DUMP_VERSION "10.7"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -132,9 +132,6 @@ static struct my_option my_long_options[] =
    "Dump all the databases. This will be same as --databases with all databases selected.",
    (gptr*) &opt_alldbs, (gptr*) &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"all", 'a', "Include all MySQL specific create options.",
-   (gptr*) &create_options, (gptr*) &create_options, 0, GET_BOOL, NO_ARG, 1,
-   0, 0, 0, 0, 0},
   {"add-drop-table", OPT_DROP, "Add a 'drop table' before each create.",
    (gptr*) &opt_drop, (gptr*) &opt_drop, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
@@ -148,7 +145,7 @@ static struct my_option my_long_options[] =
    "Directory where character sets are.", (gptr*) &charsets_dir,
    (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compatible", OPT_COMPATIBLE,
-   "Change the dump to be compatible with a given mode. By default tables are dumped without any restrictions. Legal modes are: ansi, mysql323, mysql40, postgresql, oracle, mssql, db2, maxdb, no_key_options, no_table_options, no_field_options. One can use several modes separated by commas. Note: Requires MySQL server version 4.1.0 or higher. This option does a no operation on earlier server versions.",
+   "Change the dump to be compatible with a given mode. By default tables are dumped in a format optimized for MySQL. Legal modes are: ansi, mysql323, mysql40, postgresql, oracle, mssql, db2, maxdb, no_key_options, no_table_options, no_field_options. One can use several modes separated by commas. Note: Requires MySQL server version 4.1.0 or higher. This option is ignored with earlier server versions.",
    (gptr*) &opt_compatible_mode_str, (gptr*) &opt_compatible_mode_str, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compact", OPT_COMPACT,
@@ -160,6 +157,10 @@ static struct my_option my_long_options[] =
   {"compress", 'C', "Use compression in server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
+  {"create-options", OPT_CREATE_OPTIONS,
+   "Include all MySQL specific create options.",
+   (gptr*) &create_options, (gptr*) &create_options, 0, GET_BOOL, NO_ARG, 1,
+   0, 0, 0, 0, 0},
   {"databases", 'B',
    "To dump several databases. Note the difference in usage; In this case no tables are given. All name arguments are regarded as databasenames. 'USE db_name;' will be included in the output.",
    (gptr*) &opt_databases, (gptr*) &opt_databases, 0, GET_BOOL, NO_ARG, 0, 0,
@@ -483,7 +484,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case (int) OPT_SKIP_OPTIMIZATION:
     extended_insert= opt_drop= opt_lock= quick= create_options=
-      opt_disable_keys= lock_tables= 0;
+      opt_disable_keys= lock_tables= opt_set_charset= 0;
     break;
   case (int) OPT_COMPACT:
   if (opt_compact)
@@ -863,7 +864,7 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
       print_quoted_xml(xml_file, field->name, field->name_length);
       fputs("=\"", xml_file);
       print_quoted_xml(xml_file, (*row)[i], lengths[i]);
-      fputc('"', file);
+      fputc('"', xml_file);
     }
   }
   fputs(" />\n", xml_file);
@@ -897,6 +898,9 @@ static uint getTableStructure(char *table, char* db)
 
   sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
 	  (opt_quoted || opt_keywords));
+  if (!create_options)
+    strmov(strend(insert_pat), "/*!40102 ,SQL_MODE=concat(@@sql_mode, _utf8 'NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS') */");
+
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
   if (!opt_xml && !mysql_query(sock,insert_pat))
@@ -978,8 +982,10 @@ static uint getTableStructure(char *table, char* db)
   }
   else
   {
-  /*  fprintf(stderr, "%s: Can't set SQL_QUOTE_SHOW_CREATE option (%s)\n",
-      my_progname, mysql_error(sock)); */
+    if (verbose)
+      fprintf(stderr,
+              "%s: Warning: Can't set SQL_QUOTE_SHOW_CREATE option (%s)\n",
+              my_progname, mysql_error(sock));
 
     sprintf(insert_pat,"show fields from %s", result_table);
     if (mysql_query(sock,insert_pat) || !(tableRes=mysql_store_result(sock)))
@@ -1172,7 +1178,7 @@ static uint getTableStructure(char *table, char* db)
 	  else
 	  {
 	    fputs("/*!",sql_file);
-	    print_value(sql_file,tableRes,row,"type=","Type",0);
+	    print_value(sql_file,tableRes,row,"engine=","Engine",0);
 	    print_value(sql_file,tableRes,row,"","Create_options",0);
 	    print_value(sql_file,tableRes,row,"comment=","Comment",1);
 	    fputs(" */",sql_file);

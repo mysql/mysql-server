@@ -520,6 +520,8 @@ ulint
 open_or_create_log_file(
 /*====================*/
 					/* out: DB_SUCCESS or error code */
+        ibool   create_new_db,          /* in: TRUE if we should create a
+                                        new database */
 	ibool*	log_file_created,	/* out: TRUE if new log file
 					created */
 	ibool	log_file_has_been_opened,/* in: TRUE if a log file has been
@@ -532,6 +534,8 @@ open_or_create_log_file(
 	ulint	size;
 	ulint	size_high;
 	char	name[10000];
+
+	UT_NOT_USED(create_new_db);
 
 	*log_file_created = FALSE;
 

@@ -251,7 +251,9 @@ mutex_free(
 /*=======*/
 	mutex_t*	mutex)	/* in: mutex */
 {
+#ifdef UNIV_DEBUG
 	ut_a(mutex_validate(mutex));
+#endif /* UNIV_DEBUG */
 	ut_a(mutex_get_lock_word(mutex) == 0);
 	ut_a(mutex_get_waiters(mutex) == 0);
 	

@@ -121,7 +121,6 @@ dict_print(void)
 	byte*		field;
 	ulint		len;
 	mtr_t		mtr;
-	char		table_name[10000];
 	
 	mutex_enter(&(dict_sys->mutex));
 

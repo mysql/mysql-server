@@ -128,6 +128,8 @@ ut_str_catenate(
 			/* out, own: catenated null-terminated string */
 	char*	str1,	/* in: null-terminated string */
 	char*	str2);	/* in: null-terminated string */
+
+/**************************************************************************
 Return a copy of the given string. The returned string must be freed
 using mem_free. */
 
@@ -136,7 +138,6 @@ ut_strdup(
 /*======*/
 			/* out, own: cnull-terminated string */
 	char*	str);	/* in: null-terminated string */
-/**************************************************************************
 
 #ifndef UNIV_NONINL
 #include "ut0mem.ic"

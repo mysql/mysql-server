@@ -1318,6 +1318,7 @@ Does a table creation operation for MySQL.  If the name of the table
 to be created is equal with one of the predefined magic table names,
 then this also starts printing the corresponding monitor output by
 the master thread. */
+
 int
 row_create_table_for_mysql(
 /*=======================*/
@@ -2116,79 +2117,6 @@ row_drop_table_for_mysql(
 	"PROCEDURE DROP_TABLE_PROC () IS\n"
 	"table_name CHAR;\n"
 	"sys_foreign_id CHAR;\n"
-
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
-	ut_a(name != NULL);
-
-	if (srv_created_new_raw) {
-		fprintf(stderr,
-		"InnoDB: A new raw disk partition was initialized or\n"
-		"InnoDB: innodb_force_recovery is on: we do not allow\n"
-		"InnoDB: database modifications by the user. Shut down\n"
-		"InnoDB: mysqld and edit my.cnf so that newraw is replaced\n"
-		"InnoDB: with raw, and innodb_force_... is removed.\n");
-
-		return(DB_ERROR);
-	}
-
-	trx->op_info = (char *) "dropping table";
-
-	trx_start_if_not_started(trx);
-
-	namelen = ut_strlen(name);
-	keywordlen = ut_strlen((char *) "innodb_monitor");
-
-	if (namelen >= keywordlen
-	    && 0 == ut_memcmp(name + namelen - keywordlen,
-			      (char *) "innodb_monitor", keywordlen)) {
-
-		/* Table name ends to characters innodb_monitor:
-		stop monitor prints */
- 				
-		srv_print_innodb_monitor = FALSE;
-		srv_print_innodb_lock_monitor = FALSE;
-	}
-
-	keywordlen = ut_strlen((char *) "innodb_lock_monitor");
-
-	if (namelen >= keywordlen
-		    && 0 == ut_memcmp(name + namelen - keywordlen,
-				      (char *) "innodb_lock_monitor",
-				      keywordlen)) {
-
-		srv_print_innodb_monitor = FALSE;
-		srv_print_innodb_lock_monitor = FALSE;
-	}
-
-	keywordlen = ut_strlen((char *) "innodb_tablespace_monitor");
-
-	if (namelen >= keywordlen
-		    && 0 == ut_memcmp(name + namelen - keywordlen,
-				      (char *) "innodb_tablespace_monitor",
-				      keywordlen)) {
-
-		srv_print_innodb_tablespace_monitor = FALSE;
-	}
-
-	keywordlen = ut_strlen((char *) "innodb_table_monitor");
-
-	if (namelen >= keywordlen
-		    && 0 == ut_memcmp(name + namelen - keywordlen,
-				      (char *) "innodb_table_monitor",
-				      keywordlen)) {
-
-		srv_print_innodb_table_monitor = FALSE;
-	}
-
-	/* We use the private SQL parser of Innobase to generate the
-	query graphs needed in deleting the dictionary data from system
-	tables in Innobase. Deleting a row from SYS_INDEXES table also
-	frees the file segments of the B-tree associated with the index. */
-
-	str1 = (char *) 
-	"PROCEDURE DROP_TABLE_PROC () IS\n"
-	"table_name CHAR;\n"
-	"sys_foreign_id CHAR;\n"
 	"table_id CHAR;\n"
 	"index_id CHAR;\n"
 	"foreign_id CHAR;\n"
@@ -2256,7 +2184,7 @@ row_drop_table_for_mysql(
 		"InnoDB: database modifications by the user. Shut down\n"
 		"InnoDB: mysqld and edit my.cnf so that newraw is replaced\n"
 		"InnoDB: with raw, and innodb_force_... is removed.\n",
-		stderr);
+                stderr);
 
 		return(DB_ERROR);
 	}
@@ -2279,7 +2207,6 @@ row_drop_table_for_mysql(
 	} else if (namelen == sizeof S_innodb_lock_monitor
 			&& !memcmp(name, S_innodb_lock_monitor,
 				sizeof S_innodb_lock_monitor)) {
-
 		srv_print_innodb_monitor = FALSE;
 		srv_print_innodb_lock_monitor = FALSE;
 	} else if (namelen == sizeof S_innodb_tablespace_monitor
@@ -2292,6 +2219,21 @@ row_drop_table_for_mysql(
 				sizeof S_innodb_table_monitor)) {
 
 		srv_print_innodb_table_monitor = FALSE;
+	}
+
+	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+	ut_a(name != NULL);
+
+	if (srv_created_new_raw) {
+		fputs(
+		"InnoDB: A new raw disk partition was initialized or\n"
+		"InnoDB: innodb_force_recovery is on: we do not allow\n"
+		"InnoDB: database modifications by the user. Shut down\n"
+		"InnoDB: mysqld and edit my.cnf so that newraw is replaced\n"
+		"InnoDB: with raw, and innodb_force_... is removed.\n",
+		stderr);
+
+		return(DB_ERROR);
 	}
 
 	quoted_name = mem_strdupq(name, '\'');
@@ -2676,7 +2618,7 @@ row_rename_table_for_mysql(
         ibool           recovering_temp_table   = FALSE;
 	ulint		len;
 	ulint		i;
-      ibool		success;
+        ibool		success;
 	/* length of database name; 0 if not renaming to a temporary table */
 	ulint		db_name_len;
 	char*		sql;
