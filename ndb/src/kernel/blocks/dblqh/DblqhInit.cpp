@@ -193,7 +193,6 @@ Dblqh::Dblqh(const class Configuration & conf):
     jam();
     clogPageFileSize+= (16 - mega_byte_part);
   }
-  ndbout << "LQH: No of REDO pages = " << clogPageFileSize << endl;
 
   addRecSignal(GSN_PACKED_SIGNAL, &Dblqh::execPACKED_SIGNAL);
   addRecSignal(GSN_DEBUG_SIG, &Dblqh::execDEBUG_SIG);

@@ -153,7 +153,6 @@ Dbacc::Dbacc(const class Configuration & conf):
     jam();
     cundopagesize+= (16 - mega_byte_part);
   }
-  ndbout << "ACC: No of Undo Pages = " << cundopagesize << endl;
 
   // Transit signals
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbacc::execDUMP_STATE_ORD);
