@@ -210,7 +210,6 @@ CHARACTER_SET=latin1
 DBUSER=""
 START_WAIT_TIMEOUT=10
 STOP_WAIT_TIMEOUT=10
-TEST_REPLICATION=0
 MYSQL_TEST_SSL_OPTS=""
 
 while test $# -gt 0; do
@@ -287,9 +286,6 @@ while test $# -gt 0; do
       ;;
     --user-test=*)
       USER_TEST=`$ECHO "$1" | $SED -e "s;--user-test=;;"`
-      ;;
-    --rpl)
-      TEST_REPLICATION=1
       ;;
     --mysqld=*)
        TMP=`$ECHO "$1" | $SED -e "s;--mysqld=;;"`
@@ -1407,17 +1403,10 @@ then
   if [ x$RECORD = x1 ]; then
     $ECHO "Will not run in record mode without a specific test case."
   else
-    if [ x$TEST_REPLICATION = x1 ]; then
-      for tf in `ls -1 $TESTDIR/*.$TESTSUFFIX | $SORT`
-      do
-        run_testcase $tf
-      done
-    else
-      for tf in $TESTDIR/*.$TESTSUFFIX
-      do
-        run_testcase $tf
-      done
-    fi
+    for tf in $TESTDIR/*.$TESTSUFFIX
+    do
+      run_testcase $tf
+    done
     $RM -f $TIMEFILE	# Remove for full test
   fi
 else
