@@ -5910,8 +5910,8 @@ in function.
 @item
 Use of full calculation names in the order part. (For ACCESS97)
 @item
-@code{UNION}, @code{MINUS}, @code{INTERSECT} and @code{FULL OUTER JOIN}.
-(Currently only @code{LEFT OUTER JOIN} is supported)
+@code{MINUS}, @code{INTERSECT} and @code{FULL OUTER JOIN}.
+(Currently @code{UNION} (in 4.0) and @code{LEFT OUTER JOIN} are supported)
 @item
 Allow @code{UNIQUE} on fields that can be @code{NULL}.
 @item
@@ -33776,6 +33776,12 @@ The @code{NATURAL [LEFT] JOIN} of two tables is defined to be
 semantically equivalent to an @code{INNER JOIN} or a @code{LEFT JOIN}
 with a @code{USING} clause that names all columns that exist in both
 tables.
+
+@item
+@cindex hints
+@code{INNER JOIN} and @code{,} (comma) are semantically equivalent.
+Both do a full join between the tables used. Normally, you specify
+how the tables should be linked in the WHERE condition.
 
 @item
 @code{RIGHT JOIN} works analogously as @code{LEFT JOIN}.  To keep code
