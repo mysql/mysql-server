@@ -386,6 +386,7 @@ libmysqld/opt_ft.cc
 libmysqld/opt_range.cc
 libmysqld/opt_sum.cc
 libmysqld/pack.c
+libmysqld/parse_file.cc
 libmysqld/password.c
 libmysqld/procedure.cc
 libmysqld/protocol.cc

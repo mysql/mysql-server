@@ -392,6 +392,8 @@ struct system_variables
   ulong table_type;
   ulong tmp_table_size;
   ulong tx_isolation;
+  ulong heuristic;
+  ulong plan_search_depth;
   /* Determines which non-standard SQL behaviour should be enabled */
   ulong sql_mode;
   ulong default_week_format;

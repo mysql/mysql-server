@@ -59,7 +59,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			stacktrace.h sql_sort.h sql_cache.h set_var.h \
 			spatial.h gstream.h client_settings.h \
 			examples/ha_example.h \
-			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h
+			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
+			parse_file.h			
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
@@ -91,7 +92,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			gstream.cc spatial.cc sql_help.cc protocol_cursor.cc \
 			examples/ha_example.cc \
 			sp_head.cc sp_pcontext.cc  sp_rcontext.cc sp.cc \
-			sp_cache.cc
+			sp_cache.cc parse_file.cc
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 

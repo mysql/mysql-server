@@ -375,6 +375,7 @@ inline THD *_current_thd(void)
 #include "sql_list.h"
 #include "sql_map.h"
 #include "handler.h"
+#include "parse_file.h"
 #include "table.h"
 #include "field.h"				/* Field definitions */
 #include "protocol.h"
@@ -787,6 +788,8 @@ extern "C" pthread_handler_decl(handle_manager, arg);
 void print_where(COND *cond,const char *info);
 void print_cached_tables(void);
 void TEST_filesort(SORT_FIELD *sortorder,uint s_length);
+void print_plan(JOIN* join, double read_time, double record_count,
+                uint idx, const char *info);
 #endif
 void mysql_print_status(THD *thd);
 /* key.cc */
@@ -854,6 +857,7 @@ extern char language[LIBLEN],reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], time_zone[30], *opt_init_file;
 extern char log_error_file[FN_REFLEN];
+extern double last_query_cost;
 extern double log_10[32];
 extern ulonglong log_10_int[20];
 extern ulonglong keybuff_size;

@@ -19,11 +19,20 @@
 #include "mysys_priv.h"
 #include <m_string.h>
 
-	/*
-	  If flag & 1 Return date and time
-	  If flag & 2 Return short date format YYMMDD
-	  if flag & 4 Return time in HHMMDD format.
-	  */
+/*
+  get date as string
+
+  SYNOPSIS
+    get_date()
+    to   - string where date will be written
+    flag - format of date:
+	  If flag & GETDATE_TIME	Return date and time
+	  If flag & GETDATE_SHORT_DATE	Return short date format YYMMDD
+	  If flag & GETDATE_HHMMSSTIME	Return time in HHMMDD format.
+	  If flag & GETDATE_GMT		Date/time in GMT
+	  If flag & GETDATE_FIXEDLENGTH	Return fixed length date/time
+    date - for conversion
+*/
 
 
 void get_date(register my_string to, int flag, time_t date)
@@ -36,27 +45,36 @@ void get_date(register my_string to, int flag, time_t date)
 
    skr=date ? (time_t) date : time((time_t*) 0);
 #if defined(HAVE_LOCALTIME_R) && defined(_REENTRANT)
-   localtime_r(&skr,&tm_tmp);
+   if (flag & GETDATE_GMT)
+     localtime_r(&skr,&tm_tmp);
+   else
+     gmtime_r(&skr,&tm_tmp);
    start_time= &tm_tmp;
 #else
-   start_time=localtime(&skr);
+   if (flag & GETDATE_GMT)
+     start_time= localtime(&skr);
+   else
+     gmtime(&skr,&tm_tmp);
 #endif
-   if (flag & 2)
+   if (flag & GETDATE_SHORT_DATE)
      sprintf(to,"%02d%02d%02d",
 	     start_time->tm_year % 100,
 	     start_time->tm_mon+1,
 	     start_time->tm_mday);
    else
-     sprintf(to,"%d-%02d-%02d",
+     sprintf(to, ((flag & GETDATE_FIXEDLENGTH) ?
+		  "%4d-%02d-%02d" : "%d-%02d-%02d"),
 	     start_time->tm_year+1900,
 	     start_time->tm_mon+1,
 	     start_time->tm_mday);
-   if (flag & 1)
-     sprintf(strend(to)," %2d:%02d:%02d",
+   if (flag & GETDATE_DATE_TIME)
+     sprintf(strend(to),
+	     ((flag & GETDATE_FIXEDLENGTH) ?
+	      " %02d:%02d:%02d" : " %2d:%02d:%02d"),
 	     start_time->tm_hour,
 	     start_time->tm_min,
 	     start_time->tm_sec);
-   else if (flag & 4)
+   else if (flag & GETDATE_HHMMSSTIME)
      sprintf(strend(to),"%02d%02d%02d",
 	     start_time->tm_hour,
 	     start_time->tm_min,
