@@ -513,12 +513,12 @@ bool MYSQL_LOG::is_active(const char* log_file_name)
 
 void MYSQL_LOG::new_file(bool inside_mutex)
 {
+  if (!inside_mutex)
+    VOID(pthread_mutex_lock(&LOCK_log));
   if (is_open())
   {
     char new_name[FN_REFLEN], *old_name=name;
-    if (!inside_mutex)
-      VOID(pthread_mutex_lock(&LOCK_log));
-
+ 
     if (!no_rotate)
     {
       /*
@@ -550,9 +550,9 @@ void MYSQL_LOG::new_file(bool inside_mutex)
     my_free(old_name,MYF(0));
     last_time=query_start=0;
     write_error=0;
-    if (!inside_mutex)
-      VOID(pthread_mutex_unlock(&LOCK_log));
   }
+  if (!inside_mutex)
+    VOID(pthread_mutex_unlock(&LOCK_log));
 }
 
 
