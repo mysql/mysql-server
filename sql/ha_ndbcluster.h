@@ -211,7 +211,7 @@ class ha_ndbcluster: public handler
   int set_ndb_key(NdbOperation*, Field *field,
 		  uint fieldnr, const byte* field_ptr);
   int set_ndb_value(NdbOperation*, Field *field, uint fieldnr);
-  int get_ndb_value(NdbOperation*, Field *field, uint fieldnr);
+  int get_ndb_value(NdbOperation*, Field *field, uint fieldnr, byte*);
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
   int get_ndb_blobs_value(NdbBlob *last_ndb_blob);
   int set_primary_key(NdbOperation *op, const byte *key);
@@ -245,6 +245,7 @@ class ha_ndbcluster: public handler
   typedef union { NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   bool m_use_write;
+  bool m_ignore_dup_key_not_supported;
   bool retrieve_all_fields;
   ha_rows rows_to_insert;
   ha_rows rows_inserted;

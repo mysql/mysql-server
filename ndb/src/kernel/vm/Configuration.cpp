@@ -159,6 +159,7 @@ Configuration::Configuration()
   _initialStart = false;
   _daemonMode = false;
   m_config_retriever= 0;
+  m_clusterConfig= 0;
 }
 
 Configuration::~Configuration(){
