@@ -24,7 +24,7 @@ noinst_HEADERS =	bucomm.h debug.h ieee.h budbg.h demangle.h \
 			linuxthreads.h pstack.h pstacktrace.h
 SRC=			bucomm.c filemode.c linuxthreads.c rddbg.c \
 			debug.c ieee.c pstack.c stabs.c
-EXTRA_DIST=		$SRC
+EXTRA_DIST=		$(SRC)
 
 if COMPILE_PSTACK
 pkglib_LIBRARIES =	libpstack.a
