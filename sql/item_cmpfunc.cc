@@ -90,6 +90,13 @@ static bool convert_constant_item(Field *field, Item **item)
 bool Item_bool_func2::set_cmp_charset(CHARSET_INFO *cs1, enum coercion co1,
 				      CHARSET_INFO *cs2, enum coercion co2)
 {
+  if (cs1 == &my_charset_bin || cs2 == &my_charset_bin)
+  {
+    cmp_charset= &my_charset_bin;
+    coercibility= co1 > co2 ? co1 : co2;
+    return 0;
+  }
+
   if (!my_charset_same(cs1, cs2))
   {
     /* 
