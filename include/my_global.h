@@ -188,8 +188,8 @@
 # endif
 #endif /* TIME_WITH_SYS_TIME */
 #ifdef HAVE_UNISTD_H
-#ifdef HAVE_OPENSSL
-#define crypt dummy
+#if defined(HAVE_OPENSSL) && !defined(__FreeBSD__) && !defined(NeXT)
+#define crypt unistd_crypt
 #endif
 #include <unistd.h>
 #ifdef HAVE_OPENSSL
