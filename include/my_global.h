@@ -313,7 +313,7 @@ typedef unsigned short ushort;
 #define rint(A) floor((A)+0.5)
 #endif
 
-/* Define som general constants */
+/* Define some general constants */
 #ifndef TRUE
 #define TRUE		(1)	/* Logical true */
 #define FALSE		(0)	/* Logical false */

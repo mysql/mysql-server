@@ -596,3 +596,13 @@ inline Item *and_conds(Item *a,Item *b)
     cond->update_used_tables();
   return cond;
 }
+
+class Item_cond_xor :public Item_cond
+{
+public:
+  Item_cond_xor() :Item_cond() {}
+  Item_cond_xor(Item *i1,Item *i2) :Item_cond(i1,i2) {}
+  enum Functype functype() const { return COND_XOR_FUNC; }
+  longlong val_int();
+  const char *func_name() const { return "xor"; }
+};
