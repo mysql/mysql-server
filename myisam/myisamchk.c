@@ -1403,20 +1403,20 @@ static int mi_sort_records(MI_CHECK *param,
     mi_check_print_error(param,"Can't sort table '%s' on key %d;  No such key",
 		name,sort_key+1);
     param->error_printed=0;
-    DBUG_RETURN(-1);
+    DBUG_RETURN(0);				/* Nothing to do */
   }
   if (keyinfo->flag & HA_FULLTEXT)
   {
     mi_check_print_error(param,"Can't sort table '%s' on FULLTEXT key %d",
 		name,sort_key+1);
     param->error_printed=0;
-    DBUG_RETURN(-1);
+    DBUG_RETURN(0);				/* Nothing to do */
   }
   if (share->data_file_type == COMPRESSED_RECORD)
   {
     mi_check_print_error(param,"Can't sort read-only table '%s'", name);
     param->error_printed=0;
-    DBUG_RETURN(-1);
+    DBUG_RETURN(0);				/* Nothing to do */
   }
   if (!(param->testflag & T_SILENT))
   {
