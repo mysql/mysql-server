@@ -175,11 +175,15 @@ NDB_MAIN(ndb_kernel){
 
   globalTransporterRegistry.startSending();
   globalTransporterRegistry.startReceiving();
-  if (!globalTransporterRegistry.start_service(socket_server))
-    NDB_ASSERT(0, "globalTransporterRegistry.start_service() failed");
+  if (!globalTransporterRegistry.start_service(socket_server)){
+    ndbout_c("globalTransporterRegistry.start_service() failed");
+    exit(-1);
+  }
 
-  if (!globalTransporterRegistry.start_clients())
-    NDB_ASSERT(0, "globalTransporterRegistry.start_clients() failed");
+  if (!globalTransporterRegistry.start_clients()){
+    ndbout_c("globalTransporterRegistry.start_clients() failed");
+    exit(-1);
+  }
 
   globalEmulatorData.theWatchDog->doStart();
   
