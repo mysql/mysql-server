@@ -3313,10 +3313,29 @@ select_var_list:
 	   | select_var_ident {}
            ;
 
-select_var_ident:  '@' ident_or_text
+select_var_ident:  
+	   '@' ident_or_text
            {
              LEX *lex=Lex;
-	     if (lex->result && ((select_dumpvar *)lex->result)->var_list.push_back((LEX_STRING*) sql_memdup(&$2,sizeof(LEX_STRING))))
+	     if (lex->result) 
+	       ((select_dumpvar *)lex->result)->var_list.push_back( new my_var($2,0,0));
+	     else
+	       YYABORT;
+	   }
+           | ident_or_text
+           {
+             LEX *lex=Lex;
+	     if (!lex->spcont)
+	       YYABORT;
+	     sp_pvar_t *t;
+	     if (!(t=lex->spcont->find_pvar(&$1)))
+	     {
+	       send_error(lex->thd, ER_SYNTAX_ERROR);
+	       YYABORT;
+	     }
+	     if (lex->result)
+	       ((select_dumpvar *)lex->result)->var_list.push_back( new my_var($1,1,t->offset));
+	     else
 	       YYABORT;
 	   }
            ;

@@ -987,13 +987,22 @@ public:
   bool send_eof();
 };
 
+class my_var : public Sql_alloc  {
+public:
+  LEX_STRING s;
+  bool local;
+  uint offset;
+  my_var (LEX_STRING& j, bool i, uint o) : s(j), local(i), offset(o) {}
+  ~my_var() {}
+};
 
 class select_dumpvar :public select_result {
   ha_rows row_count;
 public:
-  List<LEX_STRING> var_list;
+  List<my_var> var_list;
   List<Item_func_set_user_var> vars;
-  select_dumpvar(void)  { var_list.empty(); vars.empty(); row_count=0;}
+  List<Item_splocal> local_vars;
+  select_dumpvar(void)  { var_list.empty(); local_vars.empty(); vars.empty(); row_count=0;}
   ~select_dumpvar() {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_fields(List<Item> &list, uint flag) {return 0;}
