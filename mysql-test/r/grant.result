@@ -228,7 +228,7 @@ GRANT USAGE ON *.* TO 'юзер'@'localhost'
 GRANT SELECT (кол) ON `бд`.`таб` TO 'юзер'@'localhost'
 REVOKE SELECT (кол) ON бд.таб FROM юзер@localhost;
 DROP DATABASE бд;
-SET NAMES latin1;
+SET NAMES binary;
 insert into mysql.user (host, user) values ('localhost', 'test11');
 insert into mysql.db (host, db, user, select_priv) values 
 ('localhost', 'a%', 'test11', 'Y'), ('localhost', 'ab%', 'test11', 'Y');
