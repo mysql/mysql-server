@@ -173,18 +173,12 @@ SET @`a b`='hello';
 INSERT INTO t1 VALUES(@`a b`);
 set @var1= "';aaa";
 insert into t1 values (@var1);
-create table t2 (c char(30)) charset=ucs2;
-set @v=convert('abc' using ucs2);
-insert into t2 values (@v);
 show binlog events from 95;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	95	User var	1	136	@`a b`=_latin1 0x68656C6C6F COLLATE latin1_swedish_ci
 master-bin.000001	136	Query	1	222	use `test`; INSERT INTO t1 VALUES(@`a b`)
 master-bin.000001	222	User var	1	264	@`var1`=_latin1 0x273B616161 COLLATE latin1_swedish_ci
 master-bin.000001	264	Query	1	350	use `test`; insert into t1 values (@var1)
-master-bin.000001	350	Query	1	448	use `test`; create table t2 (c char(30)) charset=ucs2
-master-bin.000001	448	User var	1	488	@`v`=_ucs2 0x006100620063 COLLATE ucs2_general_ci
-master-bin.000001	488	Query	1	571	use `test`; insert into t2 values (@v)
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 SET @`a b`:=_latin1 0x68656C6C6F COLLATE latin1_swedish_ci;
 use test;
