@@ -3556,11 +3556,10 @@ string) in it instead. (This behaviour can, however, be changed with the
 @item
 MySQL allows you to store some wrong date values into @code{DATE} and
 @code{DATETIME} columns (like 2000-02-31 or 2000-02-00).  The idea is
-that it's not the SQL server job to vaildate date.  If MySQL can store a
+that it's not the SQL server job to validate date.  If MySQL can store a
 date and retrieve exactly the same date, then MySQL will store the
-date. If the date is totally wrong (outside of MySQL abilty to store
-it), MySQL Server will store the special 0000-00-00 date value in the
-column.
+date. If the date is totally wrong (outside the server's ability to store
+it), then the special date value 0000-00-00 will be stored in the column.
 
 @item
 If you set an @code{ENUM} column to an unsupported value, it will be set to
@@ -19998,7 +19997,7 @@ loaded system may be above the threshold on a heavily loaded one.
 
 @item @code{lower_case_table_names}
 If set to 1 table names are stored in lowercase on disk and table
-names will be case-insensitive.
+name comparisons will be case-insensitive.
 From version 4.0.2, this option also applies to database names.
 @xref{Name case sensitivity}.
 
@@ -23259,8 +23258,8 @@ we recommend you to switch to this log format as soon as possible!
 
 The binary log contains all information that is available in the update
 log in a more efficient format. It also contains information about how long
-every query that updated the database took.  It doesn't contain queries that
-doesn't modify any data.  If you want to log all queries (for example to
+each query took that updated the database.  It doesn't contain queries that
+don't modify any data.  If you want to log all queries (for example to
 find a problem query) you should use the general query log. @xref{Query log}.
 
 The binary log is also used when you are replicating a slave from a master.
@@ -24138,7 +24137,7 @@ can start it later with @code{SLAVE START}.
 
 @item @code{slave_compressed_protocol=#} @tab
 If 1, then use compression on the slave/client protocol if both
-slave and master supports this.
+slave and master support this.
 
 @item @code{slave_net_timeout=#} @tab
 Number of seconds to wait for more data from the master before aborting
@@ -28476,7 +28475,7 @@ lower_case_table_names=1}. By default this option is 1 on Windows and 0 on
 Unix.
 
 If @code{lower_case_table_names} is 1 MySQL will convert all
-table names to lower case on storage and lookup.
+table names to lowercase on storage and lookup.
 (From version 4.0.2, this option also applies to database names.)
 Note that if you change this option, you need to first convert your old
 table names to lower case before starting @code{mysqld}.
@@ -32611,7 +32610,7 @@ mysql> SELECT YEARWEEK('1987-01-01');
 @end example
 
 Note that the week number is different from what the @code{WEEK()} function
-would return (@code{0}) as the week function returns the week in the
+would return (@code{0}) as @code{WEEK()} returns the week in the
 context of the given year.
 
 @findex HOUR()
@@ -39060,9 +39059,11 @@ constraints on those foreign key or referenced key values
 which contain a NULL column.
 
 Starting from version 3.23.50 the InnoDB parser allows you to
-use backquotes (`) around table and column names in the above
-definition but the InnoDB parser is not yet aware of possible
-variable @code{lower_case_table_names} you give in @file{my.cnf}.
+use backquotes (`) around table and column names in the
+@code{FOREIGN KEY ... REFERENCES ...} clause
+but the InnoDB parser is not yet aware of the option
+@code{lower_case_table_names} you can specify in @file{my.cnf}.
+
 
 An example:
 @example
@@ -48227,7 +48228,7 @@ it would not fit onto the result buffer. The rules for accepting a date
 are:
 @itemize @bullet
 @item
-If MySQL can store it and retrieve a date, the wrong date is accepted
+If MySQL can store and retrieve a given date, the wrong date is accepted
 for @code{DATE} and @code{DATETIME} columns.
 @item
 All days values between 0-31 are accepted for any date.  This makes it
@@ -48241,10 +48242,10 @@ of the date.
 
 If the date cannot be converted to any reasonable value, a @code{0} is
 stored in the @code{DATE} field, which will be retrieved as
-@code{0000-00-00}.  This is both a speed and convinient issue as we
-belive that the databases responsiblity etrive the same date you stored
-(even if the data was not logicall correct in all cases). We think it is
-up to the application to check the dates, and not the server.
+@code{0000-00-00}.  This is both a speed and convenience issue as we
+believe that the database's responsiblity is to retrieve the same date
+you stored (even if the data was not logically correct in all cases).
+We think it is up to the application to check the dates, and not the server.
 
 @node Problems with NULL, Problems with alias, Using DATE, Query Issues
 @appendixsubsec Problems with @code{NULL} Values
@@ -50236,8 +50237,9 @@ gives better performance with some OS.
 @item
 Big code cleanup in replication code.
 @item
-If one specifies @code{--code-file}, call @code{setrlmit()} to change allowed
-core file size to unlimited, to be able to generate core files.
+If the @code{--code-file} option is specified, the server calls
+@code{setrlimit()} to set the maximum allowed core file size to unlimited,
+so core files can be generated.
 @item
 Fixed bug in query cache after temporary table creation.
 @item
@@ -50603,7 +50605,7 @@ Added @code{--des-key-file} option to @code{mysqld}.
 @code{HEX(string)} now returns the characters in @code{string} converted to
 hexadecimal.
 @item
-Fixed problem with @code{GRANT} when using @code{lower_case_table_names == 1}.
+Fixed problem with @code{GRANT} when using @code{lower_case_table_names=1}.
 @item
 Changed @code{SELECT ... IN SHARE MODE} to
 @code{SELECT ... LOCK IN SHARE MODE} (as in MySQL 3.23).
