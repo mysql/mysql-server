@@ -1482,9 +1482,8 @@ mysql_execute_command(void)
   }
   case SQLCOM_SHOW_SLAVE_STAT:
   {
-    /* Accept two privileges */
-    if (check_global_access(thd, SUPER_ACL) &&
-        check_global_access(thd, REPL_CLIENT_ACL))
+    /* Accept one of two privileges */
+    if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
     LOCK_ACTIVE_MI;
     res = show_master_info(thd,active_mi);
@@ -1493,9 +1492,8 @@ mysql_execute_command(void)
   }
   case SQLCOM_SHOW_MASTER_STAT:
   {
-    /* Accept two privileges */
-    if (check_global_access(thd, SUPER_ACL) &&
-        check_global_access(thd, REPL_CLIENT_ACL))
+    /* Accept one of two privileges */
+    if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
     res = show_binlog_info(thd);
     break;
@@ -2620,12 +2618,29 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 }
 
 
-/* check for global access and give descriptive error message if it fails */
+/*
+  check for global access and give descriptive error message if it fails
+
+  SYNOPSIS
+    check_global_access()
+    thd			Thread handler
+    want_access		Use should have any of these global rights
+
+  WARNING
+    One gets access rigth if one has ANY of the rights in want_access
+    This is useful as one in most cases only need one global right,
+    but in some case we want to check if the user has SUPER or
+    REPL_CLIENT_ACL rights.
+
+  RETURN
+    0	ok
+    1	Access denied.  In this case an error is sent to the client
+*/
 
 bool check_global_access(THD *thd, ulong want_access)
 {
   char command[128];
-  if ((thd->master_access & want_access) == want_access)
+  if ((thd->master_access & want_access))
     return 0;
   get_privilege_desc(command, sizeof(command), want_access);
   net_printf(&thd->net,ER_SPECIFIC_ACCESS_DENIED_ERROR,
