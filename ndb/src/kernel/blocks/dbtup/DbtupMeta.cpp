@@ -96,9 +96,10 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   fragOperPtr.p->fragidFrag = fragId;
   fragOperPtr.p->tableidFrag = regTabPtr.i;
   fragOperPtr.p->attributeCount = noOfAttributes;
-  fragOperPtr.p->freeNullBit = noOfNullAttr;
+  fragOperPtr.p->noOfNullBits = noOfNullAttr;
   fragOperPtr.p->noOfNewAttrCount = noOfNewAttr;
   fragOperPtr.p->charsetIndex = 0;
+  fragOperPtr.p->currNullBit = 0;
 
   ndbrequire(reqinfo == ZADDFRAG);
 
@@ -309,13 +310,12 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
     Uint32 firstTabDesIndex = regTabPtr.p->tabDescriptor + (attrId * ZAD_SIZE);
     setTabDescrWord(firstTabDesIndex, attrDescriptor);
     Uint32 attrLen = AttributeDescriptor::getSize(attrDescriptor);
-    Uint32 nullBitPos = 0;                  /* Default pos for NOT NULL attributes */
+    Uint32 nullBitPos = fragOperPtr.p->currNullBit;
+
     if (AttributeDescriptor::getNullable(attrDescriptor)) {
       if (!AttributeDescriptor::getDynamic(attrDescriptor)) {
-        ljam();                                                      /* NULL ATTR */
-        fragOperPtr.p->freeNullBit--;	                           /* STORE NULL BIT POSTITION */
-        nullBitPos = fragOperPtr.p->freeNullBit;
-        ndbrequire(fragOperPtr.p->freeNullBit < ZNIL);               /* Check not below zero */
+        ljam();                                      /* NULL ATTR */
+        fragOperPtr.p->currNullBit++;
       }//if
     } else {
       ljam();
@@ -331,9 +331,20 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       case 2:
       {
         ljam();
-        Uint32 bitsUsed = AttributeDescriptor::getArraySize(attrDescriptor) * (1 << attrLen);
-        regTabPtr.p->tupheadsize += ((bitsUsed + 31) >> 5);
-        break;
+	if(attrLen != 0)
+	{
+	  ljam();
+	  Uint32 bitsUsed = 
+	    AttributeDescriptor::getArraySize(attrDescriptor) * (1 << attrLen);
+	  regTabPtr.p->tupheadsize += ((bitsUsed + 31) >> 5);
+	  break;
+	}
+	else
+	{
+	  ljam();
+	  Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
+	  fragOperPtr.p->currNullBit += bitCount;
+	}
       }
       default:
         ndbrequire(false);
@@ -375,7 +386,9 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
       return;
     }//if
-    if (lastAttr && (fragOperPtr.p->freeNullBit != 0)) {
+    if (lastAttr && 
+	(fragOperPtr.p->currNullBit != fragOperPtr.p->noOfNullBits))
+    {
       ljam();
       terrorCode = ZINCONSISTENT_NULL_ATTRIBUTE_COUNT;
       addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
