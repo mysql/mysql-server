@@ -360,6 +360,7 @@ fi
 %attr(755, root, root) /usr/bin/mysql
 %attr(755, root, root) /usr/bin/mysqlaccess
 %attr(755, root, root) /usr/bin/mysqladmin
+%attr(755, root, root) /usr/bin/mysqlcheck
 %attr(755, root, root) /usr/bin/mysql_find_rows
 %attr(755, root, root) /usr/bin/mysqldump
 %attr(755, root, root) /usr/bin/mysqlimport
