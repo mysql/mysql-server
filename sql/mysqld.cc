@@ -917,21 +917,22 @@ static void server_init(void)
     IPaddr.sin_addr.s_addr = my_bind_addr;
     IPaddr.sin_port = (unsigned short) htons((unsigned short) mysql_port);
     (void) setsockopt(ip_sock,SOL_SOCKET,SO_REUSEADDR,(char*)&arg,sizeof(arg));
-    for(;;)
+    if (bind(ip_sock, my_reinterpret_cast(struct sockaddr *) (&IPaddr),
+	     sizeof(IPaddr)) < 0)
     {
-      if (bind(ip_sock, my_reinterpret_cast(struct sockaddr *) (&IPaddr),
-	       sizeof(IPaddr)) >= 0)
-	break;
       DBUG_PRINT("error",("Got error: %d from bind",socket_errno));
-      sql_perror("Can't start server: Bind on TCP/IP port");/* Had a loop here */
+      sql_perror("Can't start server: Bind on TCP/IP port");
       sql_print_error("Do you already have another mysqld server running on port: %d ?",mysql_port);
       unireg_abort(1);
     }
     if (listen(ip_sock,(int) back_log) < 0)
+    {
+      sql_perror("Can't start server: listen() on TCP/IP port");
       sql_print_error("Warning:  listen() on TCP/IP failed with error %d",
 		      socket_errno);
+      unireg_abort(1);
+    }
   }
-
   if (mysqld_chroot)
     set_root(mysqld_chroot);
 
