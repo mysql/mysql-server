@@ -25,11 +25,10 @@
 **			   *			   *
 **			   *************************
 */
-#define IMPORT_VERSION "3.2"
+#define IMPORT_VERSION "3.3"
 
 #include "client_priv.h"
 #include "mysql_version.h"
-#include <my_getopt.h>
 
 static void db_error_with_table(MYSQL *mysql, char *table);
 static void db_error(MYSQL *mysql);

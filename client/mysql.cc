@@ -32,7 +32,6 @@
 #include "client_priv.h"
 #include <m_ctype.h>
 #include <stdarg.h>
-#include <my_getopt.h>
 #include <my_dir.h>
 #ifndef __GNU_LIBRARY__
 #define __GNU_LIBRARY__		      // Skip warnings in getopt.h
@@ -41,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.5";
+const char *VER= "12.6";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
