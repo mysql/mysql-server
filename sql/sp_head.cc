@@ -279,12 +279,16 @@ sp_head::sp_head()
 {
   extern byte *
     sp_table_key(const byte *ptr, uint *plen, my_bool first);
+  extern byte 
+    *sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first);
   DBUG_ENTER("sp_head::sp_head");
 
   state= INITIALIZED;
   m_backpatch.empty();
   m_lex.empty();
   hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
+  hash_init(&m_spfuns, system_charset_info, 0, 0, 0, sp_lex_sp_key, 0, 0);
+  hash_init(&m_spprocs, system_charset_info, 0, 0, 0, sp_lex_sp_key, 0, 0);
   DBUG_VOID_RETURN;
 }
 
@@ -460,8 +464,9 @@ sp_head::destroy()
     if (lex != &m_thd->main_lex) // We got interrupted and have lex'es left
       delete lex;
   }
-  if (m_sptabs.array.buffer)
-    hash_free(&m_sptabs);
+  hash_free(&m_sptabs);
+  hash_free(&m_spfuns);
+  hash_free(&m_spprocs);
   DBUG_VOID_RETURN;
 }
 
@@ -475,6 +480,11 @@ sp_head::execute(THD *thd)
   int ret= 0;
   uint ip= 0;
   Item_arena *old_arena;
+  query_id_t old_query_id;
+  TABLE *old_derived_tables;
+  LEX *old_lex;
+  Item_change_list old_change_list;
+  String old_packet;
 
 
 #ifndef EMBEDDED_LIBRARY
@@ -495,6 +505,34 @@ sp_head::execute(THD *thd)
   old_arena= thd->current_arena;
   thd->current_arena= this;
 
+  /*
+    We have to save/restore this info when we are changing call level to
+    be able properly do close_thread_tables() in instructions.
+  */
+  old_query_id= thd->query_id;
+  old_derived_tables= thd->derived_tables;
+  thd->derived_tables= 0;
+  /*
+    It is also more efficient to save/restore current thd->lex once when
+    do it in each instruction
+  */
+  old_lex= thd->lex;
+  /*
+    We should also save Item tree change list to avoid rollback something
+    too early in the calling query.
+  */
+  old_change_list= thd->change_list;
+  thd->change_list.empty();
+  /*
+    Cursors will use thd->packet, so they may corrupt data which was prepared
+    for sending by upper level. OTOH cursors in the same routine can share this
+    buffer safely so let use use routine-local packet instead of having own
+    packet buffer for each cursor.
+
+    It is probably safe to use same thd->convert_buff everywhere.
+  */
+  old_packet.swap(thd->packet);
+
   do
   {
     sp_instr *i;
@@ -506,7 +544,6 @@ sp_head::execute(THD *thd)
     DBUG_PRINT("execute", ("Instruction %u", ip));
     thd->set_time();		// Make current_time() et al work
     ret= i->execute(thd, &ip);
-    thd->rollback_item_tree_changes();
     if (i->free_list)
       cleanup_items(i->free_list);
     // Check if an exception has occurred and a handler has been found
@@ -534,6 +571,17 @@ sp_head::execute(THD *thd)
       }
     }
   } while (ret == 0 && !thd->killed);
+
+  /* Restore all saved */
+  old_packet.swap(thd->packet);
+  DBUG_ASSERT(thd->change_list.is_empty());
+  thd->change_list= old_change_list;
+  /* To avoid wiping out thd->change_list on old_change_list destruction */
+  old_change_list.empty();
+  thd->lex= old_lex;
+  thd->query_id= old_query_id;
+  DBUG_ASSERT(!thd->derived_tables);
+  thd->derived_tables= old_derived_tables;
 
   cleanup_items(thd->current_arena->free_list);
   thd->current_arena= old_arena;
@@ -592,14 +640,6 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
       DBUG_RETURN(-1);
     }
   }
-#ifdef NOT_WORKING
-  /*
-    Close tables opened for subselect in argument list
-    This can't be done as this will close all other tables used
-    by the query.
-  */
-  close_thread_tables(thd);
-#endif
   // The rest of the frame are local variables which are all IN.
   // Default all variables to null (those with default clauses will
   // be set by an set instruction).
@@ -705,10 +745,6 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	  nctx->set_oindex(i, static_cast<Item_splocal *>(it)->get_offset());
       }
     }
-    // Clean up the joins before closing the tables.
-    thd->lex->unit.cleanup();
-    // Close tables opened for subselect in argument list
-    close_thread_tables(thd);
 
     // The rest of the frame are local variables which are all IN.
     // Default all variables to null (those with default clauses will
@@ -828,11 +864,17 @@ sp_head::restore_lex(THD *thd)
   oldlex->next_state= sublex->next_state;
   oldlex->trg_table_fields.push_back(&sublex->trg_table_fields);
 
-  // Collect some data from the sub statement lex.
-  sp_merge_hash(&oldlex->spfuns, &sublex->spfuns);
-  sp_merge_hash(&oldlex->spprocs, &sublex->spprocs);
-  // Merge used tables
-  sp_merge_table_list(thd, &m_sptabs, sublex->query_tables, sublex);
+  /*
+    Add routines which are used by statement to respective sets for
+    this routine
+  */
+  sp_merge_hash(&m_spfuns, &sublex->spfuns);
+  sp_merge_hash(&m_spprocs, &sublex->spprocs);
+  /*
+    Merge tables used by this statement (but not by its functions or
+    procedures) to multiset of tables used by this routine.
+  */
+  merge_table_list(thd, sublex->query_tables, sublex);
   if (! sublex->sp_lex_in_use)
     delete sublex;
   thd->lex= oldlex;
@@ -1134,22 +1176,121 @@ sp_head::opt_mark(uint ip)
 
 // ------------------------------------------------------------------
 
+
+/*
+  Prepare LEX and thread for execution of instruction, if requested open
+  and lock LEX's tables, execute instruction's core function, perform
+  cleanup afterwards.
+
+  SYNOPSIS
+    reset_lex_and_exec_core()
+      thd         - thread context
+      nextp       - out - next instruction
+      open_tables - if TRUE then check read access to tables in LEX's table
+                    list and open and lock them (used in instructions which
+                    need to calculate some expression and don't execute
+                    complete statement).
+      sp_instr    - instruction for which we prepare context, and which core
+                    function execute by calling its exec_core() method.
+
+  NOTE
+    We are not saving/restoring some parts of THD which may need this because
+    we do this once for whole routine execution in sp_head::execute().
+
+  RETURN VALUE
+    0/non-0 - Success/Failure
+*/
+
+int
+sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
+                                       bool open_tables, sp_instr* instr)
+{
+  int res= 0;
+
+  DBUG_ASSERT(!thd->derived_tables);
+  DBUG_ASSERT(thd->change_list.is_empty());
+  /*
+    Use our own lex.
+    We should not save old value since it is saved/restored in
+    sp_head::execute() when we are entering/leaving routine.
+  */
+  thd->lex= m_lex;
+
+  VOID(pthread_mutex_lock(&LOCK_thread_count));
+  thd->query_id= next_query_id();
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+
+  /*
+    FIXME. Resetting statement (and using it) is not reentrant, thus recursive
+           functions which try to use the same LEX twice will crash server.
+           We should prevent such situations by tracking if LEX is already
+           in use and throwing error about unallowed recursion if needed.
+           OTOH it is nice to allow recursion in cases when LEX is not really
+           used (e.g. in mathematical functions), so such tracking should be
+           implemented at the same time as ability not to store LEX for
+           instruction if it is not really used.
+  */
+  reset_stmt_for_execute(thd, m_lex);
+
+  /*
+    If requested check whenever we have access to tables in LEX's table list
+    and open and lock them before executing instructtions core function.
+  */
+  if (open_tables &&
+      (check_table_access(thd, SELECT_ACL, m_lex->query_tables, 0) ||
+       open_and_lock_tables(thd, m_lex->query_tables)))
+      res= -1;
+
+  if (!res)
+    res= instr->exec_core(thd, nextp);
+
+  m_lex->unit.cleanup();
+
+  thd->proc_info="closing tables";
+  close_thread_tables(thd);
+
+  thd->rollback_item_tree_changes();
+
+  /*
+    Unlike for PS we should not call Item's destructors for newly created
+    items after execution of each instruction in stored routine. This is
+    because SP often create Item (like Item_int, Item_string etc...) when
+    they want to store some value in local variable, pass return value and
+    etc... So their life time should be longer than one instruction.
+
+    Probably we can call destructors for most of them then we are leaving
+    routine. But this won't help much as they are allocated in main query
+    MEM_ROOT anyway. So they all go to global thd->free_list.
+
+    May be we can use some other MEM_ROOT for this purprose ???
+
+    What else should we do for cleanup ?
+    cleanup_items() is called in sp_head::execute()
+  */
+  return res;
+}
+
+
+//
+// sp_instr
+//
+int sp_instr::exec_core(THD *thd, uint *nextp)
+{
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+
 //
 // sp_instr_stmt
 //
-sp_instr_stmt::~sp_instr_stmt()
-{
-  if (m_lex)
-    delete m_lex;
-}
-
 int
 sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
   char *query;
   uint32 query_length;
   DBUG_ENTER("sp_instr_stmt::execute");
-  DBUG_PRINT("info", ("command: %d", m_lex->sql_command));
+  DBUG_PRINT("info", ("command: %d", m_lex_keeper.sql_command()));
   int res;
 
   query= thd->query;
@@ -1159,13 +1300,14 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
     if (query_cache_send_result_to_client(thd,
 					  thd->query, thd->query_length) <= 0)
     {
-      res= exec_stmt(thd, m_lex);
+      res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
       query_cache_end_of_result(thd);
     }
+    else
+      *nextp= m_ip+1;
     thd->query= query;
     thd->query_length= query_length;
   }
-  *nextp = m_ip+1;
   DBUG_RETURN(res);
 }
 
@@ -1174,39 +1316,15 @@ sp_instr_stmt::print(String *str)
 {
   str->reserve(12);
   str->append("stmt ");
-  str->qs_append((uint)m_lex->sql_command);
+  str->qs_append((uint)m_lex_keeper.sql_command());
 }
 
 
 int
-sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
+sp_instr_stmt::exec_core(THD *thd, uint *nextp)
 {
-  LEX *olex;			// The other lex
-  int res;
-
-  olex= thd->lex;		// Save the other lex
-  thd->lex= lex;		// Use my own lex
-  thd->lex->thd = thd;		// QQ Not reentrant!
-  thd->lex->unit.thd= thd;	// QQ Not reentrant
-  thd->free_list= NULL;
-
-  VOID(pthread_mutex_lock(&LOCK_thread_count));
-  thd->query_id= next_query_id();
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
-
-  reset_stmt_for_execute(thd, lex);
-
-  res= mysql_execute_command(thd);
-
-  lex->unit.cleanup();
-  if (thd->lock || thd->open_tables || thd->derived_tables)
-  {
-    thd->proc_info="closing tables";
-    close_thread_tables(thd);			/* Free tables */
-  }
-
-  thd->lex= olex;		// Restore the other lex
-
+  int res= mysql_execute_command(thd);
+  *nextp= m_ip+1;
   return res;
 }
 
@@ -1218,13 +1336,15 @@ sp_instr_set::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_set::execute");
   DBUG_PRINT("info", ("offset: %u", m_offset));
+
+  DBUG_RETURN(m_lex_keeper.reset_lex_and_exec_core(thd, nextp, TRUE, this));
+}
+
+int
+sp_instr_set::exec_core(THD *thd, uint *nextp)
+{
   Item *it;
   int res;
-
-  if (tables &&
-      ((res= check_table_access(thd, SELECT_ACL, tables, 0)) ||
-       (res= open_and_lock_tables(thd, tables))))
-    DBUG_RETURN(res);
 
   it= sp_eval_func_item(thd, m_value, m_type);
   if (! it)
@@ -1235,9 +1355,8 @@ sp_instr_set::execute(THD *thd, uint *nextp)
     thd->spcont->set_item(m_offset, it);
   }
   *nextp = m_ip+1;
-  if (tables && (thd->lock || thd->open_tables || thd->derived_tables))
-    close_thread_tables(thd);
-  DBUG_RETURN(res);
+
+  return res;
 }
 
 void
@@ -1250,32 +1369,6 @@ sp_instr_set::print(String *str)
   m_value->print(str);
 }
 
-//
-// sp_instr_set_user_var
-//
-int
-sp_instr_set_user_var::execute(THD *thd, uint *nextp)
-{
-  int res= 0;
-
-  DBUG_ENTER("sp_instr_set_user_var::execute");
-  /*
-    It is ok to pass 0 as 3rd argument to fix_fields() since
-    Item_func_set_user_var::fix_fields() won't use it.
-    QQ: Still unsure what should we return in case of error 1 or -1 ?
-  */
-  if (!m_set_var_item.fixed && m_set_var_item.fix_fields(thd, 0, 0) ||
-      m_set_var_item.check() || m_set_var_item.update())
-    res= -1;
-  *nextp= m_ip + 1;
-  DBUG_RETURN(res);
-}
-
-void
-sp_instr_set_user_var::print(String *str)
-{
-  m_set_var_item.print_as_stmt(str);
-}
 
 //
 // sp_instr_set_trigger_field
@@ -1368,18 +1461,20 @@ sp_instr_jump::opt_move(uint dst, List<sp_instr> *bp)
 //
 // sp_instr_jump_if
 //
+
 int
 sp_instr_jump_if::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_jump_if::execute");
   DBUG_PRINT("info", ("destination: %u", m_dest));
+  DBUG_RETURN(m_lex_keeper.reset_lex_and_exec_core(thd, nextp, TRUE, this));
+}
+
+int
+sp_instr_jump_if::exec_core(THD *thd, uint *nextp)
+{
   Item *it;
   int res;
-
-  if (tables &&
-      ((res= check_table_access(thd, SELECT_ACL, tables, 0)) ||
-       (res= open_and_lock_tables(thd, tables))))
-    DBUG_RETURN(res);
 
   it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
   if (!it)
@@ -1392,9 +1487,8 @@ sp_instr_jump_if::execute(THD *thd, uint *nextp)
     else
       *nextp = m_ip+1;
   }
-  if (tables && (thd->lock || thd->open_tables || thd->derived_tables))
-    close_thread_tables(thd);
-  DBUG_RETURN(res);
+
+  return res;
 }
 
 void
@@ -1430,13 +1524,15 @@ sp_instr_jump_if_not::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_jump_if_not::execute");
   DBUG_PRINT("info", ("destination: %u", m_dest));
+  DBUG_RETURN(m_lex_keeper.reset_lex_and_exec_core(thd, nextp, TRUE, this));
+}
+
+
+int
+sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp)
+{
   Item *it;
   int res;
-
-  if (tables &&
-      ((res= check_table_access(thd, SELECT_ACL, tables, 0)) ||
-       (res= open_and_lock_tables(thd, tables))))
-    DBUG_RETURN(res);
 
   it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
   if (! it)
@@ -1449,9 +1545,8 @@ sp_instr_jump_if_not::execute(THD *thd, uint *nextp)
     else
       *nextp = m_ip+1;
   }
-  if (tables && (thd->lock || thd->open_tables || thd->derived_tables))
-    close_thread_tables(thd);
-  DBUG_RETURN(res);
+
+  return res;
 }
 
 void
@@ -1482,17 +1577,20 @@ sp_instr_jump_if_not::opt_mark(sp_head *sp)
 //
 // sp_instr_freturn
 //
+
 int
 sp_instr_freturn::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_freturn::execute");
+  DBUG_RETURN(m_lex_keeper.reset_lex_and_exec_core(thd, nextp, TRUE, this));
+}
+
+
+int
+sp_instr_freturn::exec_core(THD *thd, uint *nextp)
+{
   Item *it;
   int res;
-
-  if (tables &&
-      ((res= check_table_access(thd, SELECT_ACL, tables, 0)) ||
-       (res= open_and_lock_tables(thd, tables))))
-    DBUG_RETURN(res);
 
   it= sp_eval_func_item(thd, m_value, m_type);
   if (! it)
@@ -1503,7 +1601,8 @@ sp_instr_freturn::execute(THD *thd, uint *nextp)
     thd->spcont->set_result(it);
   }
   *nextp= UINT_MAX;
-  DBUG_RETURN(res);
+
+  return res;
 }
 
 void
@@ -1637,15 +1736,9 @@ int
 sp_instr_cpush::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_cpush::execute");
-  thd->spcont->push_cursor(m_lex);
+  thd->spcont->push_cursor(&m_lex_keeper);
   *nextp= m_ip+1;
   DBUG_RETURN(0);
-}
-
-sp_instr_cpush::~sp_instr_cpush()
-{
-  if (m_lex)
-    delete m_lex;
 }
 
 void
@@ -1694,17 +1787,28 @@ sp_instr_copen::execute(THD *thd, uint *nextp)
     res= -1;
   else
   {
-    LEX *lex= c->pre_open(thd);
+    sp_lex_keeper *lex_keeper= c->pre_open(thd);
 
-    if (! lex)
+    if (!lex_keeper)
+    {
       res= -1;
+      *nextp= m_ip+1;
+    }
     else
-      res= exec_stmt(thd, lex);
-    c->post_open(thd, (lex ? TRUE : FALSE));
+      res= lex_keeper->reset_lex_and_exec_core(thd, nextp, FALSE, this);
+
+    c->post_open(thd, (lex_keeper ? TRUE : FALSE));
   }
 
-  *nextp= m_ip+1;
   DBUG_RETURN(res);
+}
+
+int
+sp_instr_copen::exec_core(THD *thd, uint *nextp)
+{
+  int res= mysql_execute_command(thd);
+  *nextp= m_ip+1;
+  return res;
 }
 
 void
@@ -1858,14 +1962,17 @@ sp_restore_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 /*
- *  Table merge hash table
- *
- */
+  Structure that represent all instances of one table
+  in optimized multi-set of tables used by routine.
+*/
+
 typedef struct st_sp_table
 {
   LEX_STRING qname;
   bool temp;
   TABLE_LIST *table;
+  uint lock_count;
+  uint query_lock_count;
 } SP_TABLE;
 
 byte *
@@ -1876,23 +1983,47 @@ sp_table_key(const byte *ptr, uint *plen, my_bool first)
   return (byte *)tab->qname.str;
 }
 
+
 /*
- *  Merge the table list into the hash table.
- *  If the optional lex is provided, it's used to check and set
- *  the flag for creation of a temporary table.
- */
+  Merge the list of tables used by some query into the multi-set of
+  tables used by routine.
+
+  SYNOPSIS
+    merge_table_list()
+      thd               - thread context
+      table             - table list
+      lex_for_tmp_check - LEX of the query for which we are merging
+                          table list.
+
+  NOTE
+    This method will use LEX provided to check whenever we are creating
+    temporary table and mark it as such in target multi-set.
+
+  RETURN VALUE
+    TRUE  - Success
+    FALSE - Error
+*/
+
 bool
-sp_merge_table_list(THD *thd, HASH *h, TABLE_LIST *table,
-		    LEX *lex_for_tmp_check)
+sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
 {
+  SP_TABLE *tab;
+
+  if (lex_for_tmp_check->sql_command == SQLCOM_DROP_TABLE &&
+      lex_for_tmp_check->drop_temporary)
+    return TRUE;
+
+  for (uint i= 0 ; i < m_sptabs.records ; i++)
+  {
+    tab= (SP_TABLE *)hash_element(&m_sptabs, i);
+    tab->query_lock_count= 0;
+  }
+
   for (; table ; table= table->next_global)
-    if (!table->derived &&
-	(!table->select_lex ||
-	 !(table->select_lex->options & OPTION_SCHEMA_TABLE)))
+    if (!table->derived && !table->schema_table)
     {
       char tname[64+1+64+1+64+1];	// db.table.alias\0
       uint tlen, alen;
-      SP_TABLE *tab;
 
       tlen= table->db_length;
       memcpy(tname, table->db, tlen);
@@ -1905,10 +2036,17 @@ sp_merge_table_list(THD *thd, HASH *h, TABLE_LIST *table,
       tlen+= alen;
       tname[tlen]= '\0';
 
-      if ((tab= (SP_TABLE *)hash_search(h, (byte *)tname, tlen)))
+      /*
+        It is safe to store pointer to table list elements in hash,
+        since they are supposed to have the same lifetime.
+      */
+      if ((tab= (SP_TABLE *)hash_search(&m_sptabs, (byte *)tname, tlen)))
       {
 	if (tab->table->lock_type < table->lock_type)
 	  tab->table= table;	// Use the table with the highest lock type
+        tab->query_lock_count++;
+        if (tab->query_lock_count > tab->lock_count)
+          tab->lock_count++;
       }
       else
       {
@@ -1918,152 +2056,102 @@ sp_merge_table_list(THD *thd, HASH *h, TABLE_LIST *table,
 	tab->qname.str= (char *)thd->strmake(tname, tab->qname.length);
 	if (!tab->qname.str)
 	  return FALSE;
-	if (lex_for_tmp_check &&
-	    lex_for_tmp_check->sql_command == SQLCOM_CREATE_TABLE &&
+	if (lex_for_tmp_check->sql_command == SQLCOM_CREATE_TABLE &&
 	    lex_for_tmp_check->query_tables == table &&
 	    lex_for_tmp_check->create_info.options & HA_LEX_CREATE_TMP_TABLE)
 	  tab->temp= TRUE;
 	tab->table= table;
-	my_hash_insert(h, (byte *)tab);
+        tab->lock_count= tab->query_lock_count= 1;
+	my_hash_insert(&m_sptabs, (byte *)tab);
       }
     }
   return TRUE;
 }
 
-void
-sp_merge_routine_tables(THD *thd, LEX *lex)
-{
-  uint i;
 
-  for (i= 0 ; i < lex->spfuns.records ; i++)
-  {
-    sp_head *sp;
-    LEX_STRING *ls= (LEX_STRING *)hash_element(&lex->spfuns, i);
-    sp_name name(*ls);
+/*
+  Add tables used by routine to the table list.
 
-    name.m_qname= *ls;
-    if ((sp= sp_cache_lookup(&thd->sp_func_cache, &name)))
-      sp_merge_table_hash(&lex->sptabs, &sp->m_sptabs);
-  }
-  for (i= 0 ; i < lex->spprocs.records ; i++)
-  {
-    sp_head *sp;
-    LEX_STRING *ls= (LEX_STRING *)hash_element(&lex->spprocs, i);
-    sp_name name(*ls);
+  SYNOPSIS
+    add_used_tables_to_table_list()
+      thd                   - thread context
+      query_tables_last_ptr - (in/out) pointer the next_global member of last
+                              element of the list where tables will be added
+                              (or to its root).
 
-    name.m_qname= *ls;
-    if ((sp= sp_cache_lookup(&thd->sp_proc_cache, &name)))
-      sp_merge_table_hash(&lex->sptabs, &sp->m_sptabs);
-  }
-}
+  DESCRIPTION
+    Converts multi-set of tables used by this routine to table list and adds
+    this list to the end of table list specified by 'query_tables_last_ptr'.
 
-void
-sp_merge_table_hash(HASH *hdst, HASH *hsrc)
-{
-  for (uint i=0 ; i < hsrc->records ; i++)
-  {
-    SP_TABLE *tabdst;
-    SP_TABLE *tabsrc= (SP_TABLE *)hash_element(hsrc, i);
+    Elements of list will be allocated in PS memroot, so this list will be
+    persistent between PS executions.
 
-    if (! (tabdst= (SP_TABLE *)hash_search(hdst,
-					   (byte *) tabsrc->qname.str,
-					   tabsrc->qname.length)))
-    {
-      my_hash_insert(hdst, (byte *)tabsrc);
-    }
-    else
-    {
-      if (tabdst->table->lock_type < tabsrc->table->lock_type)
-	tabdst->table= tabsrc->table; // Use the highest lock type
-    }
-  }
-}
-
-TABLE_LIST *
-sp_hash_to_table_list(THD *thd, HASH *h)
-{
-  uint i;
-  TABLE_LIST *tables= NULL;
-  DBUG_ENTER("sp_hash_to_table_list");
-
-  for (i=0 ; i < h->records ; i++)
-  {
-    SP_TABLE *stab= (SP_TABLE *)hash_element(h, i);
-    if (stab->temp)
-      continue;
-    TABLE_LIST *table, *otable= stab->table;
-
-    if (! (table= (TABLE_LIST *)thd->calloc(sizeof(TABLE_LIST))))
-      return NULL;
-    table->db= otable->db;
-    table->db_length= otable->db_length;
-    table->alias= otable->alias;
-    table->table_name= otable->table_name;
-    table->table_name_length= otable->table_name_length;
-    table->lock_type= otable->lock_type;
-    table->updating= otable->updating;
-    table->force_index= otable->force_index;
-    table->ignore_leaves= otable->ignore_leaves;
-    table->derived= otable->derived;
-    table->schema_table= otable->schema_table;
-    table->select_lex= otable->select_lex;
-    table->cacheable_table= otable->cacheable_table;
-    table->use_index= otable->use_index;
-    table->ignore_index= otable->ignore_index;
-    table->option= otable->option;
-
-    table->next_global= tables;
-    tables= table;
-  }
-  DBUG_RETURN(tables);
-}
+  RETURN VALUE
+    TRUE - if some elements were added, FALSE - otherwise.
+*/
 
 bool
-sp_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+sp_head::add_used_tables_to_table_list(THD *thd,
+                                       TABLE_LIST ***query_tables_last_ptr)
 {
-  DBUG_ENTER("sp_open_and_lock_tables");
-  bool ret;
+  uint i;
+  Item_arena *arena, backup;
+  bool result= FALSE;
+  DBUG_ENTER("sp_head::add_used_tables_to_table_list");
 
-  thd->in_lock_tables= 1;
-  thd->options|= OPTION_TABLE_LOCK;
-  if (simple_open_n_lock_tables(thd, tables))
-  {
-    thd->options&= ~(ulong)(OPTION_TABLE_LOCK);
-    ret= FALSE;
-  }
-  else
-  {
-#if 0
-    // QQ What about this?
-#ifdef HAVE_QUERY_CACHE
-    if (thd->variables.query_cache_wlock_invalidate)
-      query_cache.invalidate_locked_for_write(first_table); // QQ first_table?
-#endif /* HAVE_QUERY_CACHE */
-#endif
-    thd->locked_tables= thd->lock;
-    thd->lock= 0;
-    ret= TRUE;
-  }
-  thd->in_lock_tables= 0;
-  DBUG_RETURN(ret);
-}
+  /*
+    Use persistent arena for table list allocation to be PS friendly.
+  */
+  arena= thd->change_arena_if_needed(&backup);
 
-void
-sp_unlock_tables(THD *thd)
-{
-  thd->lock= thd->locked_tables;
-  thd->locked_tables= 0;
-  close_thread_tables(thd);			// Free tables
-  if (thd->options & OPTION_TABLE_LOCK)
+  for (i=0 ; i < m_sptabs.records ; i++)
   {
-#if 0
-    // QQ What about this?
-    end_active_trans(thd);
-#endif
-    thd->options&= ~(ulong)(OPTION_TABLE_LOCK);
+    char *tab_buff;
+    TABLE_LIST *table, *otable;
+    SP_TABLE *stab= (SP_TABLE *)hash_element(&m_sptabs, i);
+    if (stab->temp)
+      continue;
+
+    otable= stab->table;
+
+    if (!(tab_buff= (char *)thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST)) *
+                                        stab->lock_count)))
+      DBUG_RETURN(FALSE);
+
+    for (uint j= 0; j < stab->lock_count; j++)
+    {
+      table= (TABLE_LIST *)tab_buff;
+
+      /*
+        It's enough to just copy the pointers as the data will not change
+        during the lifetime of the SP. If the SP is used by PS, we assume
+        that the PS will be invalidated if the functions is deleted or
+        changed.
+      */
+      table->db= otable->db;
+      table->db_length= otable->db_length;
+      table->alias= otable->alias;
+      table->table_name= otable->table_name;
+      table->table_name_length= otable->table_name_length;
+      table->lock_type= otable->lock_type;
+      table->cacheable_table= 1;
+      table->prelocking_placeholder= 1;
+
+      /* Everyting else should be zeroed */
+
+      **query_tables_last_ptr= table;
+      table->prev_global= *query_tables_last_ptr;
+      *query_tables_last_ptr= &table->next_global;
+
+      tab_buff+= ALIGN_SIZE(sizeof(TABLE_LIST));
+      result= TRUE;
+    }
   }
-  if (thd->global_read_lock)
-    unlock_global_read_lock(thd);
+
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
+
+  DBUG_RETURN(result);
 }
 
 /*
@@ -2094,4 +2182,74 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
   
   lex->add_to_query_tables(table);
   return table;
+}
+
+
+/*
+  Auxilary function for adding tables used by routines used in query
+  to table lists.
+
+  SYNOPSIS
+    sp_add_sp_tables_to_table_list_aux()
+      thd       - thread context
+      lex       - LEX to which table list tables will be added
+      func_hash - routines for which tables should be added
+      func_cache- SP cache in which this routines should be looked up
+
+  NOTE
+    See sp_add_sp_tables_to_table_list() for more info.
+
+  RETURN VALUE
+    TRUE  - some tables were added
+    FALSE - no tables were added.
+*/
+
+static bool
+sp_add_sp_tables_to_table_list_aux(THD *thd, LEX *lex, HASH *func_hash,
+                                   sp_cache **func_cache)
+{
+  uint i;
+  bool result= FALSE;
+
+  for (i= 0 ; i < func_hash->records ; i++)
+  {
+    sp_head *sp;
+    LEX_STRING *ls= (LEX_STRING *)hash_element(func_hash, i);
+    sp_name name(*ls);
+
+    name.m_qname= *ls;
+    if ((sp= sp_cache_lookup(func_cache, &name)))
+      result|= sp->add_used_tables_to_table_list(thd, &lex->query_tables_last);
+  }
+
+  return result;
+}
+
+
+/*
+  Add tables used by routines used in query to table list.
+
+  SYNOPSIS
+    sp_add_sp_tables_to_table_list()
+      thd      - thread context
+      lex      - LEX to which table list tables will be added
+      func_lex - LEX for which functions we get tables
+                 (useful for adding tables used by view routines)
+
+  NOTE
+    Elements of list will be allocated in PS memroot, so this
+    list will be persistent between PS execetutions.
+
+  RETURN VALUE
+    TRUE  - some tables were added
+    FALSE - no tables were added.
+*/
+
+bool
+sp_add_sp_tables_to_table_list(THD *thd, LEX *lex, LEX *func_lex)
+{
+  return (sp_add_sp_tables_to_table_list_aux(thd, lex, &func_lex->spfuns,
+                                             &thd->sp_func_cache) |
+          sp_add_sp_tables_to_table_list_aux(thd, lex, &func_lex->spprocs,
+                                             &thd->sp_proc_cache));
 }

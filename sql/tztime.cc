@@ -1524,7 +1524,6 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   TZ_NAMES_ENTRY *tmp_tzname;
   my_bool return_val= 1;
   int res;
-  uint counter;
   DBUG_ENTER("my_tz_init");
 
   /*
@@ -1593,8 +1592,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   last_global_next_ptr= &(tables_buff[0].next_global);
   tz_init_table_list(tables_buff + 1, &last_global_next_ptr);
 
-  if (open_tables(thd, tables_buff, &counter) ||
-      lock_tables(thd, tables_buff, counter))
+  if (simple_open_n_lock_tables(thd, tables_buff))
   {
     sql_print_warning("Can't open and lock time zone table: %s "
                       "trying to live without them", thd->net.last_error);

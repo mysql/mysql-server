@@ -70,7 +70,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     {
       strmake(to,res,FN_REFLEN-1);
       (*free)(res);
-      file=my_create(to,0, mode, MyFlags);
+      file=my_create(to,0, mode | O_EXCL | O_NOFOLLOW, MyFlags);
     }
     environ=old_env;
   }
@@ -81,7 +81,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
   {
     strmake(to,res,FN_REFLEN-1);
     (*free)(res);
-    file=my_create(to, 0, mode, MyFlags);
+    file=my_create(to, 0, mode | O_EXCL | O_NOFOLLOW, MyFlags);
   }
 #elif defined(HAVE_MKSTEMP) && !defined(__NETWARE__)
   {
@@ -143,7 +143,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
       strmake(to,res,FN_REFLEN-1);
       (*free)(res);
       file=my_create(to,0,
-		     (int) (O_RDWR | O_BINARY | O_TRUNC |
+		     (int) (O_RDWR | O_BINARY | O_TRUNC | O_EXCL | O_NOFOLLOW |
 			    O_TEMPORARY | O_SHORT_LIVED),
 		     MYF(MY_WME));
 
@@ -186,7 +186,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
       }
       (void) strmov(end_pos,TMP_EXT);
       file=my_create(to,0,
-		     (int) (O_RDWR | O_BINARY | O_TRUNC |
+		     (int) (O_RDWR | O_BINARY | O_TRUNC | O_EXCL | O_NOFOLLOW |
 			    O_TEMPORARY | O_SHORT_LIVED),
 		     MYF(MY_WME));
     }
