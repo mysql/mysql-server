@@ -33,7 +33,7 @@ class TcKeyFailConf {
    *  Reciver(s)
    */
   friend class Ndb;
-  friend class NdbConnection;
+  friend class NdbTransaction;
 
 public:
   STATIC_CONST( SignalLength = 3 );
