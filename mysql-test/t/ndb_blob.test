@@ -203,6 +203,14 @@ where c >= 100;
 commit;
 select * from t1 where c >= 100 order by a;
 
+# alter table
+
+select * from t1 order by a;
+alter table t1 add x int;
+select * from t1 order by a;
+alter table t1 drop x;
+select * from t1 order by a;
+
 # range scan delete
 delete from t1 where c >= 100;
 commit;
