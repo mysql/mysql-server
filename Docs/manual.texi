@@ -50318,6 +50318,10 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed problem with @code{configure ... --localstatedir=...}.
+@item
+Cleaned up @code{mysql.server} script.
+@item
 Fixed a bug in @code{mysqladmin shutdown} when pid file was modified
 while @code{mysqladmin} was still waiting for the previous one to
 disappear. This could happen during a very quick restart and caused

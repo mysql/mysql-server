@@ -22,6 +22,7 @@
 #ifdef THREAD
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
+#include <sys/stat.h>
 
 #define ADMIN_VERSION "8.37"
 #define MAX_MYSQL_VAR 128
