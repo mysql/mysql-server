@@ -7,7 +7,6 @@ insert into t1 values (3);
 save_master_pos;
 connection slave;
 sync_with_master;
-sleep 1;
 @r/rpl000003.result select * from t1;                                     
 connection master;
 drop table t1;

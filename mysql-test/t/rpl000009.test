@@ -22,7 +22,6 @@ insert into bar.bar values(15);
 save_master_pos;
 connection slave;
 sync_with_master;
-sleep 1;
 @r/rpl000009.result select foo.foo.n,bar.bar.m from foo.foo,bar.bar;
 connection master;
 drop database if exists bar;

@@ -6,7 +6,6 @@ create table t1 (n int);
 insert into t1 values(1);
 save_master_pos;
 connection slave;
-#give slave some breathing room to get started
 sync_with_master; 
 slave stop;
 slave start;
@@ -16,7 +15,6 @@ save_master_pos;
 connection slave;
 #let slave catch up
 sync_with_master;
-sleep 1;
 @r/rpl000011.result select * from t1;
 connection master;
 drop table t1;

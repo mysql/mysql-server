@@ -1,3 +1,5 @@
+Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db
+127.0.0.1	root	9306	60	master-bin.001	216	Yes		
 s
 Could not break slave
 Tried hard
@@ -7,6 +9,8 @@ master-bin.002
 master-bin.003
 Log_name
 master-bin.003
+Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db
+127.0.0.1	root	9306	60	master-bin.003	128	Yes		
 m
 34
 67
