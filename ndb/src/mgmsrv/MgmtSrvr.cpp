@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
-#include <pthread.h>
+#include <my_pthread.h>
 
 #include "MgmtSrvr.hpp"
 #include "MgmtErrorReporter.hpp"
@@ -124,9 +124,10 @@ void *
 MgmtSrvr::logLevelThread_C(void* m)
 {
   MgmtSrvr *mgm = (MgmtSrvr*)m;
-  
+  my_thread_init();
   mgm->logLevelThreadRun();
   
+  my_thread_end();
   NdbThread_Exit(0);
   /* NOTREACHED */
   return 0;
@@ -136,9 +137,10 @@ void *
 MgmtSrvr::signalRecvThread_C(void *m) 
 {
   MgmtSrvr *mgm = (MgmtSrvr*)m;
-
+  my_thread_init();
   mgm->signalRecvThreadRun();
 
+  my_thread_end();
   NdbThread_Exit(0);
   /* NOTREACHED */
   return 0;
@@ -573,6 +575,9 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
 
   _props = NULL;
   _ownNodeId= 0;
+  NodeId tmp= nodeId;
+  BaseString error_string;
+#if 0
   char my_hostname[256];
   struct sockaddr_in tmp_addr;
   SOCKET_SIZE_TYPE addrlen= sizeof(tmp_addr);
@@ -587,8 +592,6 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
       exit(-1);
     }
   }
-  NodeId tmp= nodeId;
-  BaseString error_string;
   if (!alloc_node_id(&tmp, NDB_MGM_NODE_TYPE_MGM,
 		     (struct sockaddr *)&tmp_addr,
 		     &addrlen, error_string)){
@@ -596,6 +599,14 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
 	   << error_string.c_str() << endl;
     exit(-1);
   }
+#else
+  if (!alloc_node_id(&tmp, NDB_MGM_NODE_TYPE_MGM,
+		     0, 0, error_string)){
+    ndbout << "Unable to obtain requested nodeid: "
+	   << error_string.c_str() << endl;
+    exit(-1);
+  }
+#endif
   _ownNodeId = tmp;
 
 
@@ -2248,7 +2259,12 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 	  continue;
 	}
 	// connecting through localhost
-	// check if config_hostname match hostname
+	// check if config_hostname is local
+#if 1
+	if (!SocketServer::tryBind(0,config_hostname)) {
+	  continue;
+	}
+#else
 	char my_hostname[256];
 	if (gethostname(my_hostname, sizeof(my_hostname)) != 0)
 	  continue;
@@ -2257,6 +2273,11 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 	  // no match
 	  continue;
 	}
+#endif
+      }
+    } else { // client_addr == 0
+      if (!SocketServer::tryBind(0,config_hostname)) {
+	continue;
       }
     }
     if (*nodeId != 0 ||
