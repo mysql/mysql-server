@@ -9929,11 +9929,16 @@ appropriate class for this user in the password file if you are not
 using the default (use: chpass mysqld-user-name).  @xref{safe_mysqld, ,
 @code{safe_mysqld}}.
 
+If you have a lot of memory you should consider rebuilding
+the kernel to allow MySQL to take more than 512M of RAM.
+Take a look at @code{option MAXDSIZ} in the LINT config
+file for more info.
+
 If you get problems with the current date in MySQL, setting the
 @code{TZ} variable will probably help.  @xref{Environment variables}.
 
 To get a secure and stable system you should only use FreeBSD kernels
-that are marked @code{-STABLE}.
+that are marked @code{-RELEASE}.
 
 
 @node NetBSD, OpenBSD, FreeBSD, BSD Notes
@@ -47848,6 +47853,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.1
 
 @itemize @bullet
+@item
+Fixed bug when @code{HANDLER} was used with some unsupported table type.
 @item
 @code{mysqldump} now puts @code{ALTER TABLE table_name DISABLE KEYS} and
 @code{ALTER TABLE table_name DISABLE KEYS} in the sql dump.
