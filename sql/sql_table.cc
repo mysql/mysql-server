@@ -1490,6 +1490,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (new_name)
   {
     strmov(new_name_buff,new_name);
+    strmov(new_alias= new_alias_buff, new_name);
     if (lower_case_table_names)
     {
       if (lower_case_table_names != 2)

@@ -41,15 +41,21 @@ pi()	sin(pi()/2)	cos(pi()/2)	abs(tan(pi()))	cot(1)	asin(1)	acos(0)	atan(1)
 select degrees(pi()),radians(360);
 degrees(pi())	radians(360)
 180	6.2831853071796
+SELECT ACOS(1.0);
 ACOS(1.0)
 0.000000
+SELECT ASIN(1.0);
 ASIN(1.0)
 1.570796
+SELECT ACOS(0.2*5.0);
 ACOS(0.2*5.0)
 0.000000
+SELECT ACOS(0.5*2.0);
 ACOS(0.5*2.0)
 0.000000
+SELECT ASIN(0.8+0.2);
 ASIN(0.8+0.2)
 1.570796
+SELECT ASIN(1.2-0.2);
 ASIN(1.2-0.2)
 1.570796
