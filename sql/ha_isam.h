@@ -69,7 +69,6 @@ class ha_isam: public handler
   my_off_t row_position() { return nisam_position(file); }
   void info(uint);
   int extra(enum ha_extra_function operation);
-  int reset(void);
   int external_lock(THD *thd, int lock_type);
   ha_rows records_in_range(int inx,
 			   const byte *start_key,uint start_key_len,

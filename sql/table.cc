@@ -1228,7 +1228,7 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
   String str(buff,sizeof(buff),&my_charset_bin);
   uint length;
 
-  field->val_str(&str,&str);
+  field->val_str(&str);
   if (!(length= str.length()))
     return 1;
   to= strmake_root(mem, str.ptr(), length);
@@ -1256,7 +1256,7 @@ char *get_field(MEM_ROOT *mem, Field *field)
   String str(buff,sizeof(buff),&my_charset_bin);
   uint length;
 
-  field->val_str(&str,&str);
+  field->val_str(&str);
   length= str.length();
   if (!length || !(to= (char*) alloc_root(mem,length+1)))
     return NullS;
