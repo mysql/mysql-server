@@ -1375,15 +1375,14 @@ int NdbDictionaryImpl::alterTable(NdbTableImpl &impl)
   const char * originalInternalName = internalName.c_str();
   BaseString externalName = impl.m_externalName;
   const char * originalExternalName = externalName.c_str();
-  NdbTableImpl * oldTab = getTable(originalExternalName);
-  
-  if(!oldTab){
+
+  DBUG_ENTER("NdbDictionaryImpl::alterTable");
+  if(!get_local_table_info(originalInternalName, false)){
     m_error.code = 709;
-    return -1;
+    DBUG_RETURN(-1);
   }
   // Alter the table
   int ret = m_receiver.alterTable(m_ndb, impl);
-
   if(ret == 0){
     // Remove cached information and let it be refreshed at next access
     if (m_localHash.get(originalInternalName) != NULL) {
@@ -1397,7 +1396,7 @@ int NdbDictionaryImpl::alterTable(NdbTableImpl &impl)
       m_globalHash->unlock();
     }
   }
-  return ret;
+  DBUG_RETURN(ret);
 }
 
 int 
@@ -1412,15 +1411,16 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
 				     NdbTableImpl & impl,
 				     bool alter)
 {
+  DBUG_ENTER("NdbDictInterface::createOrAlterTable");
   unsigned i;
   if((unsigned)impl.getNoOfPrimaryKeys() > NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY){
     m_error.code = 4317;
-    return -1;
+    DBUG_RETURN(-1);
   }
   unsigned sz = impl.m_columns.size();
   if (sz > NDB_MAX_ATTRIBUTES_IN_TABLE){
     m_error.code = 4318;
-    return -1;
+    DBUG_RETURN(-1);
   }
 
   impl.copyNewProperties();
@@ -1455,7 +1455,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
   // Check max length of frm data
   if (impl.m_frm.length() > MAX_FRM_DATA_SIZE){
     m_error.code = 1229;
-    return -1;
+    DBUG_RETURN(-1);
   }
   tmpTab.FrmLen = impl.m_frm.length();
   memcpy(tmpTab.FrmData, impl.m_frm.get_data(), impl.m_frm.length());
@@ -1506,12 +1506,12 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     // charset is defined exactly for char types
     if (col->getCharType() != (col->m_cs != NULL)) {
       m_error.code = 703;
-      return -1;
+      DBUG_RETURN(-1);
     }
     // primary key type check
     if (col->m_pk && ! NdbSqlUtil::usable_in_pk(col->m_type, col->m_cs)) {
       m_error.code = 743;
-      return -1;
+      DBUG_RETURN(-1);
     }
     // distribution key not supported for Char attribute
     if (col->m_distributionKey && col->m_cs != NULL) {
@@ -1584,7 +1584,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
       }
     }
   }
-  return ret;
+  DBUG_RETURN(ret);
 }
 
 int
@@ -1643,17 +1643,17 @@ NdbDictInterface::alterTable(NdbApiSignal* signal, LinearSectionPtr ptr[3])
   int errCodes[noErrCodes] =
     {AlterTableRef::NotMaster,
      AlterTableRef::Busy};
-   int r = dictSignal(signal,ptr,1,
-		      1/*use masternode id*/,
-		      100,WAIT_ALTER_TAB_REQ,
-		      WAITFOR_RESPONSE_TIMEOUT,
-		      errCodes, noErrCodes);
-   if(m_error.code == AlterTableRef::InvalidTableVersion) {
-     // Clear caches and try again
-     return INCOMPATIBLE_VERSION;
-   }
+  int r = dictSignal(signal,ptr,1,
+		     1/*use masternode id*/,
+		     100,WAIT_ALTER_TAB_REQ,
+		     WAITFOR_RESPONSE_TIMEOUT,
+		     errCodes, noErrCodes);
+  if(m_error.code == AlterTableRef::InvalidTableVersion) {
+    // Clear caches and try again
+    return INCOMPATIBLE_VERSION;
+  }
 
-   return r;
+  return r;
 }
 
 void

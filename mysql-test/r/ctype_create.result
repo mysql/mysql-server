@@ -63,3 +63,12 @@ ERROR HY000: Conflicting declarations: 'CHARACTER SET latin1' and 'CHARACTER SET
 create database d1 default character set latin1 collate latin2_bin;
 ERROR 42000: COLLATION 'latin2_bin' is not valid for CHARACTER SET 'latin1'
 DROP DATABASE mysqltest1;
+CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET latin7;
+use mysqltest2;
+ALTER DATABASE DEFAULT CHARACTER SET latin2;
+show create database mysqltest2;
+Database	Create Database
+mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET latin2 */
+drop database mysqltest2;
+ALTER DATABASE DEFAULT CHARACTER SET latin2;
+ERROR 3D000: No database selected

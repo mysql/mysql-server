@@ -1280,10 +1280,10 @@ EventLogger::getText(char * m_text, size_t m_text_len,
   case EventReport::BackupCompleted:
     BaseString::snprintf(m_text,
 	       m_text_len,
-	       "%sBackup %d started from node %d completed\n" 
-	       " StartGCP: %d StopGCP: %d\n"
-	       " #Records: %d #LogRecords: %d\n"
-	       " Data: %d bytes Log: %d bytes",
+	       "%sBackup %u started from node %u completed\n" 
+	       " StartGCP: %u StopGCP: %u\n"
+	       " #Records: %u #LogRecords: %u\n"
+	       " Data: %u bytes Log: %u bytes",
 	       theNodeId, theData[2], refToNode(theData[1]),
 	       theData[3], theData[4], theData[6], theData[8],
 	       theData[5], theData[7]);
@@ -1342,6 +1342,23 @@ operator<<(NdbOut& out, const LogLevel & ll)
   return out;
 }
 
+int
+EventLoggerBase::event_lookup(int eventType,
+			      LogLevel::EventCategory &cat,
+			      Uint32 &threshold, 
+			      Logger::LoggerLevel &severity)
+{
+  for(unsigned i = 0; i<EventLoggerBase::matrixSize; i++){
+    if(EventLoggerBase::matrix[i].eventType == eventType){
+      cat = EventLoggerBase::matrix[i].eventCategory;
+      threshold = EventLoggerBase::matrix[i].threshold;
+      severity = EventLoggerBase::matrix[i].severity;
+      return 0;
+    }
+  }
+  return 1;
+}
+
 void 
 EventLogger::log(int eventType, const Uint32* theData, NodeId nodeId,
 		 const LogLevel* ll)
@@ -1350,19 +1367,16 @@ EventLogger::log(int eventType, const Uint32* theData, NodeId nodeId,
   Logger::LoggerLevel severity = Logger::LL_WARNING;
   LogLevel::EventCategory cat= LogLevel::llInvalid;
 
-  for(unsigned i = 0; i<EventLoggerBase::matrixSize; i++){
-    if(EventLoggerBase::matrix[i].eventType == eventType){
-      cat = EventLoggerBase::matrix[i].eventCategory;
-      threshold = EventLoggerBase::matrix[i].threshold;
-      severity = EventLoggerBase::matrix[i].severity;
-      break;
-    }
-  }
+  DBUG_ENTER("EventLogger::log");
+  DBUG_PRINT("enter",("eventType=%d, nodeid=%d", eventType, nodeId));
 
-  if (cat == LogLevel::llInvalid)
-    return;
+  if (EventLoggerBase::event_lookup(eventType,cat,threshold,severity))
+    DBUG_VOID_RETURN;
   
   Uint32 set = ll?ll->getLogLevel(cat) : m_logLevel.getLogLevel(cat);
+  DBUG_PRINT("info",("threshold=%d, set=%d", threshold, set));
+  if (ll)
+    DBUG_PRINT("info",("m_logLevel.getLogLevel=%d", m_logLevel.getLogLevel(cat)));
   if (threshold <= set){
     switch (severity){
     case Logger::LL_ALERT:
@@ -1401,6 +1415,7 @@ EventLogger::log(int eventType, const Uint32* theData, NodeId nodeId,
       break;
     }
   } // if (..
+  DBUG_VOID_RETURN;
 }
 
 int

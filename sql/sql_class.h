@@ -1372,9 +1372,11 @@ class select_insert :public select_result_interceptor {
   COPY_INFO info;
   bool insert_into_view;
 
-  select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
-                List<Item> *fields_par, enum_duplicates duplic,
-                bool ignore_check_option_errors);
+  select_insert(TABLE_LIST *table_list_par,
+		TABLE *table_par, List<Item> *fields_par,
+		List<Item> *update_fields, List<Item> *update_values,
+		enum_duplicates duplic,
+		bool ignore_check_option_errors);
   ~select_insert();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
@@ -1400,7 +1402,7 @@ public:
 		 List<create_field> &fields_par,
 		 List<Key> &keys_par,
 		 List<Item> &select_fields,enum_duplicates duplic)
-    :select_insert (NULL, NULL, &select_fields, duplic, 0), create_table(table),
+    :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, 0), create_table(table),
     extra_fields(&fields_par),keys(&keys_par), create_info(create_info_par),
     lock(0)
     {}

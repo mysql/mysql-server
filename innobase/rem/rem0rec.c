@@ -137,16 +137,18 @@ rec_validate_old(
 	rec_t*	rec);	/* in: physical record */
 
 /**********************************************************
-The following function determines the offsets to each field
-in the record.  The offsets are written to an array of
-ulint[n+2], with [0] being the number of fields (n), [1] being the
-extra size (if REC_OFFS_COMPACT is set, the record is in the new
-format), and [2]..[n+1] being the offsets past the end of
-fields 0..n, or to the beginning of fields 1..n+1.  When the
-high-order bit of the offset at [n+1] is set (REC_OFFS_SQL_NULL),
-the field n is NULL.  When the second high-order bit of the offset
-at [n+1] is set (REC_OFFS_EXTERNAL), the field n is being stored
-externally. */
+The following function determines the offsets to each field in the
+record.  The offsets are written to a previously allocated array of
+ulint, where rec_offs_n_fields(offsets) has been initialized to the
+number of fields in the record.  The rest of the array will be
+initialized by this function.  rec_offs_base(offsets)[0] will be set
+to the extra size (if REC_OFFS_COMPACT is set, the record is in the
+new format), and rec_offs_base(offsets)[1..n_fields] will be set to
+offsets past the end of fields 0..n_fields, or to the beginning of
+fields 1..n_fields+1.  When the high-order bit of the offset at [i+1]
+is set (REC_OFFS_SQL_NULL), the field i is NULL.  When the second
+high-order bit of the offset at [i+1] is set (REC_OFFS_EXTERNAL), the
+field i is being stored externally. */
 static
 void
 rec_init_offsets(
@@ -154,8 +156,8 @@ rec_init_offsets(
 				/* out: the offsets */
 	rec_t*		rec,	/* in: physical record */
 	dict_index_t*	index,	/* in: record descriptor */
-	ulint*		offsets)/* in:/out: ulint[n+2];
-				n=rec_offs_n_fields(offsets) */
+	ulint*		offsets)/* in/out: array of offsets;
+				in: n=rec_offs_n_fields(offsets) */
 {
 	ulint	n_fields = rec_offs_n_fields(offsets);
 	ulint	i	= 0;

@@ -195,21 +195,11 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   /**
    * If entry is not found
    */
-  Uint32 threshold = 16;
-  LogLevel::EventCategory eventCategory = (LogLevel::EventCategory)0;
-  
-  for(unsigned int i = 0; i< EventLoggerBase::matrixSize; i++){
-    if(EventLoggerBase::matrix[i].eventType == eventType){
-      eventCategory = EventLoggerBase::matrix[i].eventCategory;
-      threshold     = EventLoggerBase::matrix[i].threshold;
-      break;
-    }
-  }
-  
-  if(threshold > 15){
-    // No entry found in matrix (or event that should never be printed)
+  Uint32 threshold;
+  LogLevel::EventCategory eventCategory;
+  Logger::LoggerLevel severity;  
+  if (EventLoggerBase::event_lookup(eventType,eventCategory,threshold,severity))
     return;
-  }
   
   SubscriberPtr ptr;
   for(subscribers.first(ptr); ptr.i != RNIL; subscribers.next(ptr)){
@@ -227,14 +217,15 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   // Print the event info
   g_eventLogger.log(eventReport->getEventType(), signal->theData);
 
+  return;
 }//execEVENT_REP()
 
 void
 Cmvmi::execEVENT_SUBSCRIBE_REQ(Signal * signal){
   EventSubscribeReq * subReq = (EventSubscribeReq *)&signal->theData[0];
   SubscriberPtr ptr;
-
   jamEntry();
+  DBUG_ENTER("Cmvmi::execEVENT_SUBSCRIBE_REQ");
 
   /**
    * Search for subcription
@@ -271,11 +262,13 @@ Cmvmi::execEVENT_SUBSCRIBE_REQ(Signal * signal){
       category = (LogLevel::EventCategory)(subReq->theData[i] >> 16);
       level = subReq->theData[i] & 0xFFFF;
       ptr.p->logLevel.setLogLevel(category, level);
+      DBUG_PRINT("info",("entry %d: level=%d, category= %d", i, level, category));
     }
   }
   
   signal->theData[0] = ptr.i;
   sendSignal(ptr.p->blockRef, GSN_EVENT_SUBSCRIBE_CONF, signal, 1, JBB);
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -1119,7 +1112,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 }//Cmvmi::execDUMP_STATE_ORD()
 
 
-BLOCK_FUNCTIONS(Cmvmi);
+BLOCK_FUNCTIONS(Cmvmi)
 
 static Uint32 g_print;
 static LinearSectionPtr g_test[3];

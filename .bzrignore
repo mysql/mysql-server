@@ -104,6 +104,7 @@ PENDING/*
 TAGS
 ac_available_languages_fragment
 aclocal.m4
+analyse.test
 autom4te-2.53.cache/*
 autom4te-2.53.cache/output.0
 autom4te-2.53.cache/requests
@@ -260,6 +261,7 @@ client/mf_iocache.c
 client/mf_iocache.cc
 client/mysql
 client/mysqladmin
+client/mysqladmin.c
 client/mysqlbinlog
 client/mysqlcheck
 client/mysqldump
@@ -300,14 +302,17 @@ depcomp
 emacs.h
 extra/charset2html
 extra/comp_err
+extra/created_include_files
 extra/my_print_defaults
 extra/mysql_install
 extra/mysql_tzinfo_to_sql
 extra/mysql_waitpid
+extra/mysqld_error.h
 extra/perror
 extra/replace
 extra/resolve_stack_dump
 extra/resolveip
+extra/sql_state.h
 extra/tztime.cc
 fcns.c
 fcns.h
@@ -538,6 +543,7 @@ myisam/test2.MYD
 myisam/test2.MYI
 mysql-4.0.2-alpha-pc-linux-gnu-i686.tar.gz
 mysql-4.0.2-alpha.tar.gz
+mysql-4.1.8-win-src.zip
 mysql-5.0.2-alpha.tar.gz
 mysql-max-4.0.2-alpha-pc-linux-gnu-i686.tar.gz
 mysql-test/gmon.out
@@ -983,6 +989,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-extra/mysqld_error.h
-extra/sql_state.h
-extra/created_include_files
