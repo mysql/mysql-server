@@ -461,6 +461,15 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
     else
       finfo.mystat= NULL;
 
+    /*
+      Do not show hidden or system files which Windows sometimes creates. We
+      would need to see how this can be achieved with a Borland compiler.
+    */
+#ifndef __BORLANDC__
+    if (attrib & (_A_HIDDEN | _A_SYSTEM))
+      continue;
+#endif
+
     if (push_dynamic(dir_entries_storage, (gptr)&finfo))
       goto error;
     
