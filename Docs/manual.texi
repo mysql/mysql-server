@@ -40739,9 +40739,11 @@ $rv = $sth->rows;
 @findex DBI->@{NULLABLE@}
 @findex NULLABLE DBI method
 @item NULLABLE
-Returns a reference to an array of boolean values; for each element of
-the array, a value of TRUE indicates that this
-column may contain @code{NULL} values.
+Returns a reference to an array of values that indicate whether columns may
+contain @code{NULL} values.
+The possible values for each array element are 0 or the empty string if the
+column cannot be @code{NULL}, 1 if it can, and 2 if the column's @code{NULL}
+status is unknown.
 Example:
 @example
 $null_possible = $sth->@{NULLABLE@};
