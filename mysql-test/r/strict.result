@@ -818,7 +818,6 @@ ERROR 01000: Data truncated for column 'col1' at row 1
 INSERT INTO t1 (col2) VALUES ('hellobob');
 ERROR 01000: Data truncated for column 'col2' at row 1
 INSERT INTO t1 (col2) VALUES ('hello  ');
-ERROR 01000: Data truncated for column 'col2' at row 1
 UPDATE t1 SET col1 ='hellobob' WHERE col1 ='he';
 ERROR 01000: Data truncated for column 'col1' at row 2
 UPDATE t1 SET col2 ='hellobob' WHERE col2 ='he';
@@ -835,6 +834,7 @@ col1	col2
 hello	hello
 he	hellot
 hello	hello 
+NULL	hello 
 hello	hellob
 DROP TABLE t1;
 CREATE TABLE t1 (col1 enum('red','blue','green'));
