@@ -650,6 +650,9 @@ select * from t1 natural left join t2 natural left join t3;
 i	i	i
 1	NULL	NULL
 2	2	2
+select * from t1 natural left join t2 where (t2.i is not null)=0;
+i	i
+1	NULL
 drop table t1,t2,t3;
 create table t1 (f1 integer,f2 integer,f3 integer);
 create table t2 (f2 integer,f4 integer);
