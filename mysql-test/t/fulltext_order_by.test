@@ -30,3 +30,17 @@ SELECT a, MATCH (message) AGAINST ('steve') as rel FROM t1 ORDER BY rel;
 SELECT a, MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) as rel FROM t1 ORDER BY rel;
 
 drop table t1;
+
+#
+# reused boolean scan bug
+#
+CREATE TABLE t1 (
+  a INT AUTO_INCREMENT PRIMARY KEY,
+  message CHAR(20),
+  FULLTEXT(message)
+);
+INSERT INTO t1 (message) VALUES ("testbug"),("testbug foobar");
+SELECT a, MATCH (message) AGAINST ('t* f*' IN BOOLEAN MODE) as rel FROM t1;
+SELECT a, MATCH (message) AGAINST ('t* f*' IN BOOLEAN MODE) as rel FROM t1 ORDER BY rel,a;
+drop table t1;
+
