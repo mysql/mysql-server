@@ -120,7 +120,6 @@ static
 void
 btr_cur_latch_leaves(
 /*=================*/
-	dict_tree_t*	tree __attribute__((unused)),	/* in: index tree */
 	page_t*		page,		/* in: leaf page where the search
 					converged */
 	ulint		space,		/* in: space id */
@@ -133,7 +132,7 @@ btr_cur_latch_leaves(
 	ulint	right_page_no;
 	page_t*	get_page;
 	
-	ut_ad(tree && page && mtr);
+	ut_ad(page && mtr);
 
 	if (latch_mode == BTR_SEARCH_LEAF) {
 	
@@ -366,17 +365,19 @@ btr_cur_search_to_nth_level(
 	B-tree. These let us end up in the right B-tree leaf. In that leaf
 	we use the original search mode. */
 
-	if (mode == PAGE_CUR_GE) {
+	switch (mode) {
+	case PAGE_CUR_GE:
 		page_mode = PAGE_CUR_L;
-	} else if (mode == PAGE_CUR_G) {
+		break;
+	case PAGE_CUR_G:
 		page_mode = PAGE_CUR_LE;
-	} else if (mode == PAGE_CUR_LE) {
-		page_mode = PAGE_CUR_LE;
-	} else if (mode == PAGE_CUR_LE_OR_EXTENDS) {
-		page_mode = PAGE_CUR_LE_OR_EXTENDS;
-	} else {
-		ut_ad(mode == PAGE_CUR_L);
-		page_mode = PAGE_CUR_L;
+		break;
+	default:
+		ut_ad(mode == PAGE_CUR_L
+			|| mode == PAGE_CUR_LE
+			|| mode == PAGE_CUR_LE_OR_EXTENDS);
+		page_mode = mode;
+		break;
 	}
 			
 	/* Loop and search until we arrive at the desired level */
@@ -451,7 +452,7 @@ retry_page_get:
 		if (height == 0) {
 			if (rw_latch == RW_NO_LATCH) {
 
-				btr_cur_latch_leaves(tree, page, space,
+				btr_cur_latch_leaves(page, space,
 						page_no, latch_mode, cursor,
 						mtr);
 			}
@@ -477,6 +478,9 @@ retry_page_get:
 		}	
 
 		/* If this is the desired level, leave the loop */
+
+		ut_ad(height
+		== btr_page_get_level(page_cur_get_page(page_cursor), mtr));
 
 		if (level == height) {
 
@@ -591,7 +595,7 @@ btr_cur_open_at_index_side(
 		}
 
 		if (height == 0) {
-			btr_cur_latch_leaves(tree, page, space, page_no,
+			btr_cur_latch_leaves(page, space, page_no,
 						latch_mode, cursor, mtr);
 
 			/* In versions <= 3.23.52 we had forgotten to
@@ -697,7 +701,7 @@ btr_cur_open_at_rnd_pos(
 		}
 
 		if (height == 0) {
-			btr_cur_latch_leaves(tree, page, space, page_no,
+			btr_cur_latch_leaves(page, space, page_no,
 						latch_mode, cursor, mtr);
 		}
 
@@ -830,6 +834,24 @@ btr_cur_ins_lock_and_undo(
 }
 
 /*****************************************************************
+Report information about a transaction. */
+static
+void
+btr_cur_trx_report(
+/*===============*/
+	const trx_t*		trx,	/* in: transaction */
+	const dict_index_t*	index,	/* in: index */
+	const char*		op)	/* in: operation */
+{
+	fprintf(stderr, "Trx with id %lu %lu going to ",
+		ut_dulint_get_high(trx->id),
+		ut_dulint_get_low(trx->id));
+	fputs(op, stderr);
+	dict_index_name_print(stderr, index);
+	putc('\n', stderr);
+}
+
+/*****************************************************************
 Tries to perform an insert to a page in an index tree, next to cursor.
 It is assumed that mtr holds an x-latch on the page. The operation does
 not succeed if there is too little space on the page. If there is just
@@ -876,18 +898,13 @@ btr_cur_optimistic_insert(
 	index = cursor->index;
 
 	if (!dtuple_check_typed_no_assert(entry)) {
-		fprintf(stderr,
-"InnoDB: Error in a tuple to insert into table %s index %s\n",
-					index->table_name, index->name);
+		fputs("InnoDB: Error in a tuple to insert into ", stderr);
+		dict_index_name_print(stderr, index);
 	}
 	
 	if (btr_cur_print_record_ops && thr) {
-		printf(
-	"Trx with id %lu %lu going to insert to table %s index %s\n",
-		(unsigned long) ut_dulint_get_high(thr_get_trx(thr)->id),
-		(unsigned long) ut_dulint_get_low(thr_get_trx(thr)->id),
-		index->table_name, index->name);
-		dtuple_print(entry);
+		btr_cur_trx_report(thr_get_trx(thr), index, "insert into ");
+		dtuple_print(stderr, entry);
 	}
 	
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
@@ -980,21 +997,15 @@ calculate_sizes_again:
 
 		*rec = page_cur_tuple_insert(page_cursor, entry, mtr);
 
-		if (!(*rec)) {
-			char* err_buf = mem_alloc(1000);
-
-			dtuple_sprintf(err_buf, 900, entry);
-			
-			fprintf(stderr,
-	"InnoDB: Error: cannot insert tuple %s to index %s of table %s\n"
-	"InnoDB: max insert size %lu\n",
-			err_buf, index->name, index->table->name,
-			(unsigned long) max_size);
-
-			mem_free(err_buf);
+		if (!*rec) {
+			fputs("InnoDB: Error: cannot insert tuple ", stderr);
+			dtuple_print(stderr, entry);
+			fputs(" into ", stderr);
+			dict_index_name_print(stderr, index);
+			fprintf(stderr, "\nInnoDB: max insert size %lu\n",
+				(ulong) max_size);
+			ut_error;
 		}
-		
-		ut_a(*rec); /* <- We calculated above the record would fit */
 	}
 
 #ifdef BTR_CUR_HASH_ADAPT
@@ -1010,7 +1021,8 @@ calculate_sizes_again:
 		lock_update_insert(*rec);
 	}
 
-/*	printf("Insert to page %lu, max ins size %lu, rec %lu ind type %lu\n",
+/*	fprintf(stderr, "Insert into page %lu, max ins size %lu,"
+		" rec %lu ind type %lu\n",
 			buf_frame_get_page_no(page), max_size,
 					rec_size + PAGE_DIR_SLOT_SIZE, type);
 */	
@@ -1363,12 +1375,8 @@ btr_cur_update_in_place(
 	trx = thr_get_trx(thr);
 	
 	if (btr_cur_print_record_ops && thr) {
-		printf(
-	"Trx with id %lu %lu going to update table %s index %s\n",
-		(unsigned long) ut_dulint_get_high(thr_get_trx(thr)->id),
-		(unsigned long) ut_dulint_get_low(thr_get_trx(thr)->id),
-		index->table_name, index->name);
-		rec_print(rec);
+		btr_cur_trx_report(trx, index, "update ");
+		rec_print(stderr, rec);
 	}
 
 	/* Do lock checking and undo logging */
@@ -1467,12 +1475,8 @@ btr_cur_optimistic_update(
 	index = cursor->index;
 	
 	if (btr_cur_print_record_ops && thr) {
-		printf(
-	"Trx with id %lu %lu going to update table %s index %s\n",
-		(unsigned long) ut_dulint_get_high(thr_get_trx(thr)->id),
-		(unsigned long) ut_dulint_get_low(thr_get_trx(thr)->id),
-		index->table_name, index->name);
-		rec_print(rec);
+		btr_cur_trx_report(thr_get_trx(thr), index, "update ");
+		rec_print(stderr, rec);
 	}
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
@@ -2016,12 +2020,8 @@ btr_cur_del_mark_set_clust_rec(
 	index = cursor->index;
 	
 	if (btr_cur_print_record_ops && thr) {
-		printf(
-	"Trx with id %lu %lu going to del mark table %s index %s\n",
-		(unsigned long) ut_dulint_get_high(thr_get_trx(thr)->id),
-		(unsigned long) ut_dulint_get_low(thr_get_trx(thr)->id),
-		index->table_name, index->name);
-		rec_print(rec);
+		btr_cur_trx_report(thr_get_trx(thr), index, "del mark ");
+		rec_print(stderr, rec);
 	}
 
 	ut_ad(index->type & DICT_CLUSTERED);
@@ -2156,12 +2156,9 @@ btr_cur_del_mark_set_sec_rec(
 	rec = btr_cur_get_rec(cursor);
 
 	if (btr_cur_print_record_ops && thr) {
-		printf(
-	"Trx with id %lu %lu going to del mark table %s index %s\n",
-		(unsigned long) ut_dulint_get_high(thr_get_trx(thr)->id),
-		(unsigned long) ut_dulint_get_low(thr_get_trx(thr)->id),
-		cursor->index->table_name, cursor->index->name);
-		rec_print(rec);
+		btr_cur_trx_report(thr_get_trx(thr), cursor->index,
+				"del mark ");
+		rec_print(stderr, rec);
 	}
 
 	err = lock_sec_rec_modify_check_and_lock(flags, rec, cursor->index,

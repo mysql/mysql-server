@@ -291,34 +291,7 @@ typedef struct st_relay_log_info
     event_relay_log_pos+= val;
   }
 
-  void inc_group_relay_log_pos(ulonglong val, ulonglong log_pos, bool skip_lock=0)
-  {
-    if (!skip_lock)
-      pthread_mutex_lock(&data_lock);
-    inc_event_relay_log_pos(val);
-    group_relay_log_pos= event_relay_log_pos;
-    strmake(group_relay_log_name,event_relay_log_name,
-            sizeof(group_relay_log_name)-1);
-
-    notify_group_relay_log_name_update();
-        
-    /*
-      If the slave does not support transactions and replicates a transaction,
-      users should not trust group_master_log_pos (which they can display with
-      SHOW SLAVE STATUS or read from relay-log.info), because to compute
-      group_master_log_pos the slave relies on log_pos stored in the master's
-      binlog, but if we are in a master's transaction these positions are always
-      the BEGIN's one (excepted for the COMMIT), so group_master_log_pos does
-      not advance as it should on the non-transactional slave (it advances by
-      big leaps, whereas it should advance by small leaps).
-    */
-    if (log_pos) // 3.23 binlogs don't have log_posx
-      group_master_log_pos= log_pos+ val;
-    pthread_cond_broadcast(&data_cond);
-    if (!skip_lock)
-      pthread_mutex_unlock(&data_lock);
-  }
-
+  void inc_group_relay_log_pos(ulonglong val, ulonglong log_pos, bool skip_lock=0);
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
 		   longlong timeout);
   void close_temporary_tables();

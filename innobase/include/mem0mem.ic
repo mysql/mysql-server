@@ -579,3 +579,99 @@ mem_realloc(
 
 	return(mem_alloc_func(n, file_name, line));
 }
+
+/**************************************************************************
+Duplicates a NUL-terminated string. */
+UNIV_INLINE
+char*
+mem_strdup(
+/*=======*/
+				/* out, own: a copy of the string,
+				must be deallocated with mem_free */
+	const char*	str)	/* in: string to be copied */
+{
+	ulint	len = strlen(str) + 1;
+	return(memcpy(mem_alloc(len), str, len));
+}
+
+/**************************************************************************
+Makes a NUL-terminated copy of a nonterminated string. */
+UNIV_INLINE
+char*
+mem_strdupl(
+/*========*/
+				/* out, own: a copy of the string,
+				must be deallocated with mem_free */
+	const char*	str,	/* in: string to be copied */
+	ulint		len)	/* in: length of str, in bytes */
+{
+	char*	s = mem_alloc(len + 1);
+	s[len] = 0;
+	return(memcpy(s, str, len));
+}
+
+/**************************************************************************
+Makes a NUL-terminated quoted copy of a NUL-terminated string. */
+UNIV_INLINE
+char*
+mem_strdupq(
+/*========*/
+				/* out, own: a quoted copy of the string,
+				must be deallocated with mem_free */
+	const char*	str,	/* in: string to be copied */
+	char		q)	/* in: quote character */
+{
+	char*		dst;
+	char*		d;
+	const char*	s	= str;
+	int		len	= strlen(str) + 3;
+	/* calculate the number of quote characters in the string */
+	while((s = strchr(s, q)) != NULL) {
+		s++;
+		len++;
+	}
+	/* allocate the quoted string, and copy it */
+	d = dst = mem_alloc(len);
+	*d++ = q;
+	s = str;
+	while(*s) {
+		if ((*d++ = *s++) == q) {
+			*d++ = q;
+		}
+	}
+	*d++ = q;
+	*d++ = '\0';
+	ut_ad(len == d - dst);
+	return(dst);
+}
+
+/**************************************************************************
+Duplicates a NUL-terminated string, allocated from a memory heap. */
+UNIV_INLINE
+char*
+mem_heap_strdup(
+/*============*/
+				/* out, own: a copy of the string */
+	mem_heap_t* heap,	/* in: memory heap where string is allocated */
+	const char* str)	/* in: string to be copied */
+{
+	ulint	len = strlen(str) + 1;
+	return(memcpy(mem_heap_alloc(heap, len), str, len));
+}
+
+/**************************************************************************
+Makes a NUL-terminated copy of a nonterminated string,
+allocated from a memory heap. */
+UNIV_INLINE
+char*
+mem_heap_strdupl(
+/*=============*/
+				/* out, own: a copy of the string */
+	mem_heap_t*	heap,	/* in: memory heap where string is allocated */
+	const char*	str,	/* in: string to be copied */
+	ulint		len)	/* in: length of str, in bytes */
+{
+	char*	s = mem_heap_alloc(heap, len + 1);
+	s[len] = 0;
+	return(memcpy(s, str, len));
+}
