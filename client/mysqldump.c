@@ -350,7 +350,8 @@ static struct my_option my_long_options[] =
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
     (gptr*) &opt_net_buffer_length, (gptr*) &opt_net_buffer_length, 0,
     GET_ULONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 16*1024L*1024L,
-    MALLOC_OVERHEAD-1024, 1024, 0}
+    MALLOC_OVERHEAD-1024, 1024, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 static const char *load_default_groups[]= { "mysqldump","client",0 };
