@@ -1246,6 +1246,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       TABLE_LIST *table_list;
       Item **refer= (Item **)not_found_item;
       uint counter;
+      bool not_used;
       // Prevent using outer fields in subselects, that is not supported now
       SELECT_LEX *cursel= (SELECT_LEX *) thd->lex->current_select;
       if (cursel->master_unit()->first_select()->linkage != DERIVED_TABLE_TYPE)
@@ -1288,7 +1289,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
           }
 	  if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
 	      (refer= find_item_in_list(this, sl->item_list, &counter,
-					 REPORT_EXCEPT_NOT_FOUND)) !=
+                                        REPORT_EXCEPT_NOT_FOUND,
+                                        &not_used)) !=
 	       (Item **) not_found_item)
 	  {
 	    if (*refer && (*refer)->fixed) // Avoid crash in case of error
@@ -1889,6 +1891,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
   DBUG_ASSERT(fixed == 0);
   uint counter;
+  bool not_used;
   if (!ref)
   {
     TABLE_LIST *where= 0, *table_list;
@@ -1908,13 +1911,13 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 				  first_select()->linkage !=
 				  DERIVED_TABLE_TYPE) ? 
 				  REPORT_EXCEPT_NOT_FOUND :
-				  REPORT_ALL_ERRORS))) ==
+				  REPORT_ALL_ERRORS ), &not_used)) ==
 	(Item **)not_found_item)
     {
       upward_lookup= 1;
       Field *tmp= (Field*) not_found_field;
       /*
-	We can't find table field in table list of current select,
+	We can't find table field in select list of current select,
 	consequently we have to find it in outer subselect(s).
 	We can't join lists of outer & current select, because of scope
 	of view rules. For example if both tables (outer & current) have
@@ -1929,8 +1932,8 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	Item_subselect *prev_subselect_item= prev_unit->item;
 	if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
 	    (ref= find_item_in_list(this, sl->item_list,
-				    &counter,
-				    REPORT_EXCEPT_NOT_FOUND)) !=
+                                    &counter, REPORT_EXCEPT_NOT_FOUND,
+                                    &not_used)) !=
 	   (Item **)not_found_item)
 	{
 	  if (*ref && (*ref)->fixed) // Avoid crash in case of error
@@ -1989,8 +1992,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	  // Call to report error
 	  find_item_in_list(this,
 			    *(thd->lex->current_select->get_item_list()),
-			    &counter,
-			    REPORT_ALL_ERRORS);
+			    &counter, REPORT_ALL_ERRORS, &not_used);
 	}
         ref= 0;
 	return 1;
