@@ -16,6 +16,7 @@ save_master_pos;
 connection slave;
 #let slave catch up
 sync_with_master;
+sleep 1;
 @r/rpl000011.result select * from t1;
 connection master;
 drop table t1;

@@ -37,9 +37,9 @@ insert into t1 values (NULL,NULL,NULL,NULL);
 update t1 set c="",b=null where c="1";
 
 lock tables t1 READ;
-show fields from t1;
+show full fields from t1;
 lock tables t1 WRITE;
-show fields from t1;
+show full fields from t1;
 unlock tables;
 
 select t from t1 where t like "hello";

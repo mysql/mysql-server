@@ -397,7 +397,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
 	    mysql_error(mysql));
     return 1;
   }
-  end=strmov(strmov(query,"show columns from "),table);
+  end=strmov(strmov(query,"show /*!32332 FULL */ columns from "),table);
   if (wild && wild[0])
     strxmov(end," like '",wild,"'",NullS);
   if (mysql_query(mysql,query) || !(result=mysql_store_result(mysql)))

@@ -21,6 +21,7 @@ insert into foo values (10),(45),(90);
 save_master_pos;
 connection slave;
 sync_with_master;
+sleep 1;
 select * from foo;
 connection master;
 drop table foo;

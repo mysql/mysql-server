@@ -18,6 +18,7 @@ insert into bar values(15);
 save_master_pos;
 connection slave;
 sync_with_master;
+sleep 1;
 @r/rpl000007.result select foo.n,bar.m from foo,bar;
 connection master;
 drop table if exists bar,foo;

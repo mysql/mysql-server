@@ -11,6 +11,8 @@ repair table t1,t2;
 check table t2,t1;
 lock tables t1 read;
 check table t2,t1;
+show columns from t1;
+show full columns from t1;
 show keys from t1;
 drop table t1,t2;
 

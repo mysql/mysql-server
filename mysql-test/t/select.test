@@ -1705,9 +1705,9 @@ select period as "Nuvarande period" from t1 group by "Nuvarande period" limit 1;
 show tables;
 show tables from test like "s%";
 show tables from test like "t?";
-show columns from t2;
-show columns from t2 from test like 'f%';
-show columns from t2 from test like 's%';
+show full columns from t2;
+show full columns from t2 from test like 'f%';
+show full columns from t2 from test like 's%';
 show keys from t2;
 
 #
