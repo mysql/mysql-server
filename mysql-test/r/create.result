@@ -11,7 +11,7 @@ create table t1 (b char(0) not null);
 create table if not exists t1 (b char(0) not null);
 insert into t1 values (""),(null);
 Warnings:
-Warning	1263	Data truncated, NULL supplied to NOT NULL column 'b' at row 2
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'b' at row 2
 select * from t1;
 b
 
@@ -47,7 +47,7 @@ ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 create table test (a datetime default now());
 ERROR 42000: Invalid default value for 'a'
 create table test (a datetime on update now());
-ERROR HY000: Invalid ON UPDATE clause for 'a' field
+ERROR HY000: Invalid ON UPDATE clause for 'a' column
 create table test (a int default 100 auto_increment);
 ERROR 42000: Invalid default value for 'a'
 create table 1ea10 (1a20 int,1e int);
@@ -275,11 +275,11 @@ ERROR 42000: Incorrect database name 'db1 '
 create table t1(`a ` int);
 ERROR 42000: Incorrect column name 'a '
 create table t1 (a int,);
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 create table t1 (a int,,b int);
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1
 create table t1 (,b int);
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1
 create table t1 (a int, key(a));
 create table t2 (b int, foreign key(b) references t1(a), key(b));
 drop table if exists t1,t2;
